@@ -226,6 +226,7 @@
 #define IDS_ROM_UNAVAILABLE             321
 #define IDS_HARDDRIVESAFETYWARNING      322
 #define IDS_NUMSG_KS68EC020             323
+#define IDS_ROMSCANNOROMS               324
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -754,6 +755,8 @@
 #define IDC_DF1QQ                       1680
 #define IDC_CONFIGAUTO                  1682
 #define IDC_DF0TEXTQ                    1683
+#define IDC_CONFIGAUTO2                 1683
+#define IDC_CONFIGNOLINK                1683
 #define IDC_DF0WPQ                      1684
 #define IDC_EJECT0Q                     1685
 #define IDC_DF1WPQ                      1686
@@ -763,6 +766,7 @@
 #define IDC_FILTERSLV                   1692
 #define IDC_FILTERVOV                   1693
 #define IDC_FILTERHOV                   1694
+#define IDC_CONFIGLINK                  1694
 #define IDC_FILTERVZV                   1695
 #define IDC_FILTERHZV                   1696
 #define ID__FLOPPYDRIVES                40004
@@ -785,7 +789,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        242
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1694
+#define _APS_NEXT_CONTROL_VALUE         1695
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

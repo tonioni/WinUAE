@@ -27,13 +27,15 @@ extern struct device_functions devicefunc_win32_ioctl;
 
 static void install_driver (int flags)
 {
+    int installed = 0;
     device_func[DF_SCSI] = &devicefunc_win32_aspi;
 #ifdef WINDDK
     if (os_winnt && os_winnt_admin) {
 	device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
         device_func[DF_SCSI] = &devicefunc_win32_spti;
+        installed = 1;
     }
-    if (currprefs.win32_aspi) {
+    if (currprefs.win32_aspi || !installed) {
         device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	device_func[DF_IOCTL] = 0;
     }

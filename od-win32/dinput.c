@@ -679,14 +679,16 @@ static int di_do_init (void)
     HRESULT hr; 
 
     num_mouse = num_joystick = num_keyboard = 0;
-    hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL); 
-    if (FAILED(hr)) {
-	write_log ("DirectInput8Create failed, %s\n", DXError (hr));
-	return 0;
-    }
     memset (&di_mouse, 0, sizeof (di_mouse));
     memset (&di_joystick, 0, sizeof (di_joystick));
     memset (&di_keyboard, 0, sizeof (di_keyboard));
+
+    hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL); 
+    if (FAILED(hr)) {
+	gui_message ("Failed to initialize DirectInput!");
+	write_log ("DirectInput8Create failed, %s\n", DXError (hr));
+	return 0;
+    }
 
     IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
     initialize_rawinput ();
@@ -722,7 +724,8 @@ static void di_free (void)
     dd_inited--;
     if (dd_inited > 0)
 	return;
-    IDirectInput8_Release (g_lpdi);
+    if (g_lpdi)
+	IDirectInput8_Release (g_lpdi);
     g_lpdi = 0;
     di_dev_free (di_mouse);
     di_dev_free (di_joystick);

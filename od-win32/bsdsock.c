@@ -102,6 +102,12 @@ typedef struct ip_option_information {
     u_char FAR *OptionsData;   /* Options data buffer */
 } IPINFO, *PIPINFO, FAR *LPIPINFO;
 
+static void bsdsetpriority (HANDLE thread)
+{
+    int pri = os_winnt ? THREAD_PRIORITY_NORMAL : priorities[currprefs.win32_active_priority].value;
+    SetThreadPriority(thread, pri);
+}
+
 static int mySockStartup( void )
 {
     int result = 0;
@@ -179,7 +185,7 @@ int init_socket_layer(void)
 		wc.cbClsExtra = 0;
 		wc.cbWndExtra = 0;
 		wc.hInstance = 0;
-		wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
+		wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
 		wc.hCursor = LoadCursor (NULL, IDC_ARROW);
 		wc.hbrBackground = GetStockObject (BLACK_BRUSH);
 		wc.lpszMenuName = 0;
@@ -895,13 +901,15 @@ static unsigned int __stdcall sock_thread(void *blah)
 
 	if( hSockWnd )
 	{
-    // Make sure we're outrunning the wolves
-		int pri;
+	    // Make sure we're outrunning the wolves
+	    int pri = THREAD_PRIORITY_ABOVE_NORMAL;
+	    if (!os_winnt) {
 		pri = priorities[currprefs.win32_active_priority].value;
 		if (pri == THREAD_PRIORITY_HIGHEST)
-			pri = THREAD_PRIORITY_TIME_CRITICAL;
+	    	    pri = THREAD_PRIORITY_TIME_CRITICAL;
 		else
-			pri++;
+		    pri++;
+	    }
 	    SetThreadPriority( GetCurrentThread(), pri );
 	    
 	    while( TRUE )
@@ -2243,11 +2251,7 @@ void host_gethostbynameaddr(SB, uae_u32 name, uae_u32 namelen, long addrtype)
 	if (i >= MAX_GET_THREADS) write_log("BSDSOCK: ERROR - Too many gethostbyname()s\n");
 	else
 	{
-		int pri;
-		pri = priorities[currprefs.win32_active_priority].value;
-	
-	    SetThreadPriority(hGetThreads[i],pri);
-
+		bsdsetpriority (hGetThreads[i]);
 		threadGetargs[i] = (uae_u32 *)&args[0];
 
 		SetEvent(hGetEvents[i]);
@@ -2367,11 +2371,7 @@ void host_getprotobyname(SB, uae_u32 name)
 	if (i >= MAX_GET_THREADS) write_log("BSDSOCK: ERROR - Too many getprotobyname()s\n");
 	else
 	{
-		int pri;
-		pri = priorities[currprefs.win32_active_priority].value;
-
-	    SetThreadPriority(hGetThreads[i],pri);
-
+		bsdsetpriority (hGetThreads[i]);
 
 		threadGetargs[i] = (uae_u32 *)&args[0];
 
@@ -2492,11 +2492,7 @@ void host_getservbynameport(SB, uae_u32 nameport, uae_u32 proto, uae_u32 type)
 	if (i >= MAX_GET_THREADS) write_log("BSDSOCK: ERROR - Too many getprotobyname()s\n");
 	else
 	{
-		int pri;
-		pri = priorities[currprefs.win32_active_priority].value;
-
-	    SetThreadPriority(hGetThreads[i],pri);
-
+		bsdsetpriority (hGetThreads[i]);
 
 		threadGetargs[i] = (uae_u32 *)&args[0];
 

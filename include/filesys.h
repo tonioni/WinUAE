@@ -24,6 +24,10 @@ struct hardfiledata {
     char product_id[16 + 1];
     char product_rev[4 + 1];
     char device_name[256];
+    /* geometry from possible RDSK block */
+    unsigned int cylinders;
+    unsigned int sectors;
+    unsigned int heads;
     uae_u64 size2;
     uae_u64 offset2;
 };
@@ -33,7 +37,7 @@ struct hardfiledata {
 #define FILESYS_HARDFILE_RDB 2
 #define FILESYS_HARDDRIVE 3
 
-#define MAX_FILESYSTEM_UNITS 20
+#define MAX_FILESYSTEM_UNITS 30
 
 struct uaedev_mount_info;
 

@@ -286,7 +286,7 @@ static void show_rom_list (void)
     p2 = strchr (p1, '\n');
     if (!p2) goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 9; roms[1] = 10; roms[2] = -1;
+    roms[0] = 8; roms[1] = 9; roms[2] = 10; roms[3] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
     p1 = p2;
 
@@ -399,6 +399,8 @@ struct ConfigStruct {
     char Name[MAX_DPATH];
     char Path[MAX_DPATH];
     char Fullpath[MAX_DPATH];
+    char HostLink[MAX_DPATH];
+    char HardwareLink[MAX_DPATH];
     char Description[CFG_DESCRIPTION_LENGTH];
     int Type, Directory;
     struct ConfigStruct *Parent, *Child;
@@ -432,7 +434,7 @@ static struct ConfigStruct *getconfigstorefrompath (char *path, char *out, int t
 int target_cfgfile_load (struct uae_prefs *p, char *filename, int type)
 {
     int v, i, type2;
-    DWORD ct, size;
+    DWORD ct, ct2, size;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
     if (type == 0 || type == 1) {
@@ -447,7 +449,8 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type)
     type2 = type;
     if (type == 0)
 	default_prefs (p, type);
-    v = cfgfile_load (p, filename, &type2);
+    RegQueryValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, NULL, (LPBYTE)&ct2, &size);
+    v = cfgfile_load (p, filename, &type2, ct2);
     if (!v)
 	return v;
     if (type > 0)
@@ -457,13 +460,13 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type)
 	    size = sizeof (ct);
 	    ct = 0;
 	    RegQueryValueEx (hWinUAEKey, configreg2[i], 0, NULL, (LPBYTE)&ct, &size);
-	    if (ct) {
+	    if (ct && ((i == 1 && p->config_hardware_path[0] == 0) || (i == 2 && p->config_host_path[0] == 0) || ct2)) {
 		size = sizeof (tmp1);
 		RegQueryValueEx (hWinUAEKey, configreg[i], 0, NULL, (LPBYTE)tmp1, &size);
 		fetch_path ("ConfigurationPath", tmp2, sizeof (tmp2));
 		strcat (tmp2, tmp1);
 		v = i;
-	        cfgfile_load (p, tmp2, &v);
+	        cfgfile_load (p, tmp2, &v, 1);
 	    }
 	}
     }
@@ -876,10 +879,9 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	    }
 	    else
 	    {
-		int type;
-		cfgfile_get_description (full_path, description, &type);
-		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, description);
+		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
 		SetDlgItemText (hDlg, IDC_EDITNAME, full_path);
+	        SetDlgItemText (hDlg, IDC_CONFIGLINK, workprefs.config_host_path);
 	    }
             break;
 	case IDC_SAVE:
@@ -1117,7 +1119,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 		if (strlen (find_data.cFileName) > 4 && !strcasecmp (find_data.cFileName + strlen (find_data.cFileName) - 4, ".uae")) {
     		    strcpy (path3, path);
 		    strncat (path3, find_data.cFileName, MAX_DPATH);
-		    if (cfgfile_get_description (path3, config->Description, &config->Type)) {
+		    if (cfgfile_get_description (path3, config->Description, config->HostLink, config->HardwareLink, &config->Type)) {
 			strcpy (config->Name, find_data.cFileName);
 			ok = 1;
 		    }
@@ -1194,7 +1196,8 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 	    strcat (name, ".uae");
 	    SetDlgItemText (hDlg, IDC_EDITNAME, name);
 	}
-	strcpy (config->Name, name);
+	if (config)
+	    strcpy (config->Name, name);
     }
     GetDlgItemText (hDlg, IDC_EDITDESCRIPTION, desc, MAX_DPATH);
     if (config) {
@@ -1315,7 +1318,7 @@ static int disk_swap (int entry, int col)
     return 1;
 }
 
-static int input_selected_device, input_selected_widget;
+static int input_selected_device, input_selected_widget, input_total_devices;
 static int input_selected_event, input_selected_sub_num;
 
 static void set_lventry_input (HWND list, int index)
@@ -1344,6 +1347,8 @@ static void set_lventry_input (HWND list, int index)
 static void update_listview_input (HWND hDlg)
 {
     int i;
+    if (!input_total_devices)
+	return;
     for (i = 0; i < inputdevice_get_widget_num (input_selected_device); i++)
 	set_lventry_input (GetDlgItem (hDlg, IDC_INPUTLIST), i);
 }
@@ -1431,7 +1436,7 @@ void InitializeListView( HWND hDlg )
     }
     if (lv_type == LV_INPUT)
     {
-	for (i = 0; i < inputdevice_get_widget_num (input_selected_device); i++) {
+	for (i = 0; input_total_devices && i < inputdevice_get_widget_num (input_selected_device); i++) {
 	    char name[100];
 	    inputdevice_get_widget_type (input_selected_device, i, name);
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
@@ -1782,6 +1787,38 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
     return cnt;
 }
 
+static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
+{
+    int i, j, idx1, idx2;
+
+    if (config == NULL) {
+	SetDlgItemText (hDlg, IDC_EDITNAME, "");
+	SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, "");
+    } else {
+        SetDlgItemText (hDlg, IDC_EDITNAME, config->Name);
+        SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
+    }
+    SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)"");
+    idx1 = 1;
+    idx2 = 0;
+    for (j = 0; j < 2; j++) {
+	for (i = 0; i < configstoresize; i++) {
+	    struct ConfigStruct *cs = configstore[i];
+	    if ((j == 0 && cs->Type == CONFIG_TYPE_HOST) || (j == 1 && cs->Type == CONFIG_TYPE_HARDWARE)) {
+		char tmp2[MAX_DPATH];
+ 		strcpy (tmp2, configstore[i]->Path);
+		strncat (tmp2, configstore[i]->Name, MAX_DPATH);
+		SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)tmp2);
+		if (config && (!strcmpi (tmp2, config->HardwareLink) || !strcmpi (tmp2, config->HostLink)))
+		    idx2 = idx1;
+		idx1++;
+	    }
+	}
+    }
+    SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_SETCURSEL, idx2, 0);
+}
+
 static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 {
     HIMAGELIST himl = ImageList_Create (16, 16, ILC_COLOR8 | ILC_MASK, 3, 0);
@@ -1818,11 +1855,14 @@ static void ConfigToRegistry (struct ConfigStruct *config, int type)
 	RegSetValueEx (hWinUAEKey, configreg[type], 0, REG_SZ, (CONST BYTE *)path, strlen(path) + 1);
     }
 }
-static void ConfigToRegistry2 (DWORD ct, int type)
+static void ConfigToRegistry2 (DWORD ct, int type, DWORD noauto)
 {
-    if (hWinUAEKey && type > 0) {
+    if (!hWinUAEKey)
+	return;
+    if (type > 0)
 	RegSetValueEx (hWinUAEKey, configreg2[type], 0, REG_DWORD, (CONST BYTE *)&ct, sizeof (ct));
-    }
+    if (noauto >= 0)
+	RegSetValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, REG_DWORD, (CONST BYTE *)&noauto, sizeof (noauto));
 }
 
 static void checkautoload (HWND hDlg, struct ConfigStruct *config)
@@ -1835,10 +1875,12 @@ static void checkautoload (HWND hDlg, struct ConfigStruct *config)
 	RegQueryValueEx (hWinUAEKey, configreg2[configtypepanel], 0, &dwType, (LPBYTE)&ct, &dwRFPsize);
     if (!config || config->Directory) {
 	ct = 0;
-	ConfigToRegistry2 (ct, configtypepanel);
+	ConfigToRegistry2 (ct, configtypepanel, -1);
     }
     CheckDlgButton(hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
     EnableWindow (GetDlgItem (hDlg, IDC_CONFIGAUTO), configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
+    RegQueryValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, &dwType, (LPBYTE)&ct, &dwRFPsize);
+    CheckDlgButton(hDlg, IDC_CONFIGNOLINK, ct ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *config)
@@ -1858,14 +1900,45 @@ static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *confi
     return config;
 }
 
+static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config)
+{
+    HTREEITEM root;
+    char name_buf[MAX_DPATH];
+
+    EnableWindow (GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0]);
+    SetDlgItemText (hDlg, IDC_EDITNAME, config_filename);
+    SetDlgItemText (hDlg, IDC_EDITPATH, "");
+    SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
+    root = InitializeConfigTreeView (hDlg);
+    if (hWinUAEKey) {
+        DWORD dwType = REG_SZ;
+        DWORD dwRFPsize = sizeof (name_buf);
+        char path[MAX_DPATH];
+        if (RegQueryValueEx (hWinUAEKey, configreg[configtypepanel], 0, &dwType, (LPBYTE)name_buf, &dwRFPsize) == ERROR_SUCCESS) {
+	    struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
+	    if (config2)
+	        config = config2;
+	}
+	checkautoload (hDlg, config);
+    }
+    config = fixloadconfig (hDlg, config);
+    if (config && config->item)
+        TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), config->item);
+    else
+        TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), root);
+    EnableWindow (GetDlgItem(hDlg, IDC_CONFIGAUTO), configtypepanel > 0);
+    EnableWindow (GetDlgItem(hDlg, IDC_CONFIGLINK), configtypepanel == 0);
+    EnableWindow (GetDlgItem(hDlg, IDC_CONFIGNOLINK), configtypepanel == 0);
+    return config;
+}
+
 static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    char name_buf[MAX_DPATH];
     char *cfgfile;
+    int val;
     static int recursive;
-    HTREEITEM root;
     static struct ConfigStruct *config;
-    
+
     switch (msg)
     {
     case WM_INITDIALOG:
@@ -1876,28 +1949,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	}
 	pages[LOADSAVE_ID] = hDlg;
 	currentpage = LOADSAVE_ID;
-	EnableWindow (GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0]);
-	SetDlgItemText (hDlg, IDC_EDITNAME, config_filename);
-	SetDlgItemText (hDlg, IDC_EDITPATH, "");
-	SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
-	root = InitializeConfigTreeView (hDlg);
-	if (hWinUAEKey) {
-	    DWORD dwType = REG_SZ;
-	    DWORD dwRFPsize = sizeof (name_buf);
-	    char path[MAX_DPATH];
-	    if (RegQueryValueEx (hWinUAEKey, configreg[configtypepanel], 0, &dwType, (LPBYTE)name_buf, &dwRFPsize) == ERROR_SUCCESS) {
-		struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
-		if (config2)
-		    config = config2;
-	    }
-	    checkautoload (hDlg, config);
-	}
-	config = fixloadconfig (hDlg, config);
-	if (config && config->item)
-	    TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), config->item);
-	else
-	    TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), root);
-	ShowWindow (GetDlgItem(hDlg, IDC_CONFIGAUTO), configtypepanel > 0 ? SW_SHOW : SW_HIDE);
+	config = initloadsave (hDlg, config);
 	recursive--;
 	return TRUE;
 
@@ -1905,29 +1957,30 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	break;
 	
     case WM_COMMAND:
+    {
+	recursive++;
         switch (LOWORD (wParam))
         {
 	    case IDC_SAVE:
 		HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config);
-	    	recursive++;
 		config = CreateConfigStore (config);
 		config = fixloadconfig (hDlg, config);
 	        ConfigToRegistry (config, configtypepanel);
 		InitializeConfigTreeView (hDlg);
-		recursive--;
+		InitializeConfig (hDlg, config);
 	    break;
 	    case IDC_QUICKSAVE:
 		HandleConfiguration (hDlg, CONFIG_SAVE, config);
-	    	recursive++;
 		config = CreateConfigStore (config);
 		config = fixloadconfig (hDlg, config);
 	        ConfigToRegistry (config, configtypepanel);
 		InitializeConfigTreeView (hDlg);
-		recursive--;
+		InitializeConfig (hDlg, config);
 	    break;
 	    case IDC_QUICKLOAD:
 	        cfgfile = HandleConfiguration (hDlg, CONFIG_LOAD, config);
 		ConfigToRegistry (config, configtypepanel);
+		InitializeConfig (hDlg, config);
 		if (full_property_sheet) {
 		    inputdevice_updateconfig (&workprefs);
 		} else {
@@ -1938,6 +1991,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_LOAD:
 		cfgfile = HandleConfiguration (hDlg, CONFIG_LOAD_FULL, config);
 		ConfigToRegistry (config, configtypepanel);
+		InitializeConfig (hDlg, config);
 		if (full_property_sheet) {
 		    inputdevice_updateconfig (&workprefs);
 		} else {
@@ -1947,20 +2001,18 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    break;
 	    case IDC_DELETE:
 		HandleConfiguration (hDlg, CONFIG_DELETE, config);
-	    	recursive++;
 		config = CreateConfigStore (config);
 		config = fixloadconfig (hDlg, config);
 		InitializeConfigTreeView (hDlg);
-		recursive--;
 	    break;
 	    case IDC_VIEWINFO:
-		if (workprefs.info[0])
-		{
-		    if (strstr( workprefs.info, "Configurations\\"))
-			sprintf( name_buf, "%s\\%s", start_path, workprefs.info );
+		if (workprefs.info[0]) {
+		    char name_buf[MAX_DPATH];
+		    if (strstr (workprefs.info, "Configurations\\"))
+			sprintf (name_buf, "%s\\%s", start_path, workprefs.info);
 		    else
-			strcpy( name_buf, workprefs.info );
-		    ShellExecute( NULL, NULL, name_buf, NULL, NULL, SW_SHOWNORMAL );
+			strcpy (name_buf, workprefs.info);
+		    ShellExecute (NULL, NULL, name_buf, NULL, NULL, SW_SHOWNORMAL);
 		}
 	    break;
 	    case IDC_SETINFO:
@@ -1970,66 +2022,89 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_CONFIGAUTO:
 	    if (configtypepanel > 0) {
 		int ct = IsDlgButtonChecked (hDlg, IDC_CONFIGAUTO) == BST_CHECKED ? 1 : 0;
-		ConfigToRegistry2 (ct, configtypepanel);
+		ConfigToRegistry2 (ct, configtypepanel, -1);
 	    }
 	    break;
+	    case IDC_CONFIGNOLINK:
+	    if (configtypepanel == 0) {
+		int ct = IsDlgButtonChecked (hDlg, IDC_CONFIGNOLINK) == BST_CHECKED ? 1 : 0;
+		ConfigToRegistry2 (-1, -1, ct);
+	    }
+	    break;
+	    case IDC_CONFIGLINK:
+	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+	        char tmp[MAX_DPATH];
+		tmp[0] = 0;
+		val = SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_GETCURSEL, 0, 0L);
+		if (val == CB_ERR)
+		    SendDlgItemMessage (hDlg, IDC_CONFIGLINK, WM_GETTEXT, (WPARAM)sizeof(tmp), (LPARAM)tmp);
+		else
+		    SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
+	        strcpy (workprefs.config_host_path, tmp);
+	    }
+	    break;
+	}
+	recursive++;
+	break;
+    }
+
+    case WM_NOTIFY:
+    {
+        LPNMHDR nm = (LPNMHDR)lParam;
+        if (nm->hwndFrom == GetDlgItem (hDlg, IDC_CONFIGTREE)) {
+	    switch (nm->code)
+	    {
+	        case NM_DBLCLK:
+	        {
+		    HTREEITEM ht = TreeView_GetSelection (GetDlgItem(hDlg, IDC_CONFIGTREE));
+		    if (ht != NULL) {
+		        TVITEMEX pitem;
+		        memset (&pitem, 0, sizeof (pitem));
+		        pitem.mask = TVIF_HANDLE | TVIF_PARAM;
+		        pitem.hItem = ht;
+		        if (TreeView_GetItem (GetDlgItem(hDlg, IDC_CONFIGTREE), &pitem)) {
+			    struct ConfigStruct *config = (struct ConfigStruct*)pitem.lParam;
+			    if (config && !config->Directory) {
+			        cfgfile = HandleConfiguration (hDlg, CONFIG_LOAD, config);
+			        ConfigToRegistry (config, configtypepanel);
+	    		        if (!full_property_sheet)
+				    uae_restart (0, cfgfile);
+				exit_gui (1);
+			    }
+			}
+		    }
+		    return TRUE;
+		}
+		break;
+		case TVN_SELCHANGING:
+		return FALSE;
+		case TVN_SELCHANGED:
+		{
+		    LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
+		    struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
+		    if (c) {
+		        config = c;
+		        if (!config->Directory) {
+			    InitializeConfig (hDlg, config);
+			} else {
+			    InitializeConfig (hDlg, NULL);
+			}		
+			SetDlgItemText (hDlg, IDC_EDITPATH, config->Path);
+		    }
+		    if (configtypepanel > 0) {
+		        if (c && !c->Directory) {
+			    ConfigToRegistry (config, configtypepanel);
+			    InitializeConfig (hDlg, config);
+			}
+		        checkautoload (hDlg, c);
+		    }
+		    return TRUE;
+		}
+		break;
+	    }
 	}
 	break;
-	
-	case WM_NOTIFY:
-	{
-	    LPNMHDR nm = (LPNMHDR)lParam;
-	    if (nm->hwndFrom == GetDlgItem( hDlg, IDC_CONFIGTREE)) {
-		switch (nm->code)
-		{
-		    case NM_DBLCLK:
-		    {
-			HTREEITEM ht = TreeView_GetSelection (GetDlgItem(hDlg, IDC_CONFIGTREE));
-			if (ht != NULL) {
-			    TVITEMEX pitem;
-			    memset (&pitem, 0, sizeof (pitem));
-			    pitem.mask = TVIF_HANDLE | TVIF_PARAM;
-			    pitem.hItem = ht;
-			    if (TreeView_GetItem (GetDlgItem(hDlg, IDC_CONFIGTREE), &pitem)) {
-				struct ConfigStruct *config = (struct ConfigStruct*)pitem.lParam;
-				if (config && !config->Directory) {
-				    cfgfile = HandleConfiguration (hDlg, CONFIG_LOAD, config);
-				    ConfigToRegistry (config, configtypepanel);
-	    			    if (!full_property_sheet)
-					uae_restart (0, cfgfile);
-				    exit_gui (1);
-				}
-			    }
-			}
-			return TRUE;
-		    }
-		    break;
-		    case TVN_SELCHANGING:
-		    return FALSE;
-		    case TVN_SELCHANGED:
-		    {
-			LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
-			struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
-			if (c) {
-			    config = c;
-			    if (!config->Directory) {
-				SetDlgItemText (hDlg, IDC_EDITNAME, config->Name);
-				SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
-			    }
-			    SetDlgItemText (hDlg, IDC_EDITPATH, config->Path);
-			}
-			if (configtypepanel > 0) {
-			    if (c && !c->Directory)
-				ConfigToRegistry (config, configtypepanel);
-		            checkautoload (hDlg, c);
-		        }
-			return TRUE;
-		    }
-		    break;
-		}
-	    }
-	    break;
-	}
+    }
     }
     
     return FALSE;
@@ -2246,10 +2321,14 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		if (tmp[strlen (tmp) - 1] != '\\')
 		    strcat (tmp, "\\");
 		if (!scan_roms (tmp)) 
-		    pre_gui_message ("No ROMs found");
+		    gui_message_id (IDS_ROMSCANNOROMS);
 	        set_path ("KickstartPath", tmp);
 		values_to_pathsdialog (hDlg);
 	    }
+	    break;
+	    case IDC_PATHS_ROM:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_ROM), tmp, sizeof (tmp));
+	    set_path ("KickstartPath", tmp);
 	    break;
 	    case IDC_PATHS_CONFIGS:
 	    fetch_path ("ConfigurationPath", tmp, sizeof (tmp));
@@ -2259,12 +2338,21 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		FreeConfigStore ();
 	    }
 	    break;
+	    case IDC_PATHS_CONFIG:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_CONFIG), tmp, sizeof (tmp));
+	    set_path ("ConfigurationPath", tmp);
+	    FreeConfigStore ();
+	    break;
 	    case IDC_PATHS_SCREENSHOTS:
 	    fetch_path ("ScreenshotPath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
 		set_path ("ScreenshotPath", tmp);
 		values_to_pathsdialog (hDlg);
 	    }
+	    break;
+	    case IDC_PATHS_SCREENSHOT:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SCREENSHOT), tmp, sizeof (tmp));
+	    set_path ("ScreenshotPath", tmp);
 	    break;
 	    case IDC_PATHS_SAVESTATES:
 	    fetch_path ("StatefilePath", tmp, sizeof (tmp));
@@ -2273,6 +2361,10 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
+	    case IDC_PATHS_SAVESTATE:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVESTATE), tmp, sizeof (tmp));
+	    set_path ("StatefilePath", tmp);
+	    break;
 	    case IDC_PATHS_SAVEIMAGES:
 	    fetch_path ("SaveimagePath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
@@ -2280,12 +2372,20 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
+	    case IDC_PATHS_SAVEIMAGE:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVEIMAGE), tmp, sizeof (tmp));
+	    set_path ("SaveimagePath", tmp);
+	    break;
 	    case IDC_PATHS_AVIOUTPUTS:
 	    fetch_path ("VideoPath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
 		set_path ("VideoPath", tmp);
 		values_to_pathsdialog (hDlg);
 	    }
+	    break;
+	    case IDC_PATHS_AVIOUTPUT:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_AVIOUTPUT), tmp, sizeof (tmp));
+	    set_path ("VideoPath", tmp);
 	    break;
 	    case IDC_PATHS_DEFAULT:
 	    set_path ("KickstartPath", NULL);
@@ -2352,7 +2452,7 @@ static void quickstarthost (HWND hDlg, char *name)
     char tmp[MAX_DPATH];
 
     if (getconfigstorefrompath (name, tmp, CONFIG_TYPE_HOST))
-	cfgfile_load (&workprefs, tmp, &type);
+	cfgfile_load (&workprefs, tmp, &type, 1);
 }
 
 static void init_quickstartdlg_tooltip (HWND hDlg, char *tt)
@@ -2376,11 +2476,11 @@ static void init_quickstartdlg (HWND hDlg)
     static int firsttime;
     int i, j, idx, idx2;
     DWORD dwType, qssize;
-    char tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH];
+    char tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH], hostconf[MAX_DPATH];
     char *p1, *p2;
 
     qssize = sizeof (tmp1);
-    RegQueryValueEx (hWinUAEKey, "QuickStartHostConfig", 0, &dwType, (LPBYTE)tmp1, &qssize);
+    RegQueryValueEx (hWinUAEKey, "QuickStartHostConfig", 0, &dwType, (LPBYTE)hostconf, &qssize);
     if (firsttime == 0) {
         if (hWinUAEKey) {
 	    qssize = sizeof (quickstart_model);
@@ -2391,7 +2491,7 @@ static void init_quickstartdlg (HWND hDlg)
  	    RegQueryValueEx (hWinUAEKey, "QuickStartCompatibility", 0, &dwType, (LPBYTE)&quickstart_compa, &qssize);
 	}
  	if (quickstart) {
-	    quickstarthost (hDlg, tmp1);
+	    quickstarthost (hDlg, hostconf);
 	    workprefs.df[0][0] = 0;
 	    workprefs.df[1][0] = 0;
 	    workprefs.df[2][0] = 0;
@@ -2470,7 +2570,7 @@ static void init_quickstartdlg (HWND hDlg)
 	if (configstore[i]->Type == CONFIG_TYPE_HOST) {
 	    strcpy (tmp2, configstore[i]->Path);
 	    strncat (tmp2, configstore[i]->Name, MAX_DPATH);
-	    if (!strcmp (tmp2, tmp1))
+	    if (!strcmp (tmp2, hostconf))
 		idx = j;
 	    SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp2);
 	    j++;
@@ -3695,6 +3795,7 @@ static void init_kickstart (HWND hDlg)
 static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
+    char tmp[MAX_DPATH];
 
     switch( msg ) 
     {
@@ -3735,6 +3836,10 @@ static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    DiskSelection( hDlg, IDC_FLASHFILE, 11, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
 	    break;
+	case IDC_FLASHFILE:
+	    GetWindowText (GetDlgItem (hDlg, IDC_FLASHFILE), tmp, sizeof (tmp));
+	    strcpy (workprefs.flashfile, tmp);
+	    break;
 
 	case IDC_CARTCHOOSER:
 	    DiskSelection( hDlg, IDC_CARTFILE, 6, &workprefs, 0);
@@ -3773,13 +3878,13 @@ static void enable_for_miscdlg (HWND hDlg)
         EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), TRUE);
         EnableWindow (GetDlgItem (hDlg, IDC_ASPI), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
-        EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
+        //EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_CAPTURE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), FALSE);
     } else {
 #if !defined (FILESYS)
-        EnableWindow (GetDlgItem(hDlg, IDC_CLOCKSYNC), FALSE);
+        //EnableWindow (GetDlgItem(hDlg, IDC_CLOCKSYNC), FALSE);
 #endif
 #if !defined (BSDSOCKET)
         EnableWindow (GetDlgItem(hDlg, IDC_SOCKETS), FALSE);
@@ -3863,7 +3968,7 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.tod_hack);
 
-    if (!os_winnt) {
+    if (!os_winnt || !os_winnt_admin) {
 	EnableWindow( GetDlgItem( hDlg, IDC_ASPI), FALSE );
 	CheckDlgButton( hDlg, IDC_ASPI, BST_CHECKED );
     }
@@ -4538,7 +4643,7 @@ static void values_from_sounddlg (HWND hDlg)
     if (workprefs.sound_stereo > 0) {
         idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_GETCURSEL, 0, 0);
 	if (idx >= 0) {
-	    if (idx < 10)
+	    if (idx > 0)
 		workprefs.sound_mixed_stereo = -1;
 	    workprefs.sound_stereo_separation = (10 - idx) * 3;
 	}
@@ -6128,7 +6233,7 @@ static void values_to_inputdlg (HWND hDlg)
     SetDlgItemInt( hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE );
     SetDlgItemInt( hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE );
     SetDlgItemInt( hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE );
-    CheckDlgButton ( hDlg, IDC_INPUTDEVICEDISABLE, inputdevice_get_device_status (input_selected_device) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton ( hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void init_inputdlg_2( HWND hDlg )
@@ -6205,6 +6310,9 @@ static void init_inputdlg( HWND hDlg )
     for (i = 0; i < inputdevice_get_device_total (IDTYPE_KEYBOARD); i++) {
 	SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_KEYBOARD, i));
     }
+    input_total_devices = inputdevice_get_device_total (IDTYPE_JOYSTICK) +
+	inputdevice_get_device_total (IDTYPE_MOUSE) +
+	inputdevice_get_device_total (IDTYPE_KEYBOARD);
     InitializeListView(hDlg);
     init_inputdlg_2 (hDlg);
     values_to_inputdlg (hDlg);

@@ -3739,7 +3739,7 @@ static int rl (uae_u8 *p)
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
 
-static int rdb_checksum (char *id, uae_u8 *p, int block)
+int rdb_checksum (char *id, uae_u8 *p, int block)
 {
     uae_u32 sum = 0;
     int i, blocksize;
@@ -3856,6 +3856,9 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	write_log ("RDB: driveinit is not yet supported. Contact the author.\n");
 	return -2;
     }
+    hfd->cylinders = rl (bufrdb + 64);
+    hfd->sectors = rl (bufrdb + 68);
+    hfd->heads = rl (bufrdb + 72);
     fileblock = rl (bufrdb + 32);
     partblock = rl (bufrdb + 28);
     buf = xmalloc (readblocksize);

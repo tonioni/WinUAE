@@ -512,8 +512,8 @@ int start_penguin (void *(*f)(void *), void *arg, DWORD * foo)
     int result = 1;
 
     hThread = (HANDLE)_beginthreadex( NULL, 0, (BEGINTHREADEX_FUNCPTR)f, arg, 0, foo );
-    if( hThread )
-        SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
+    if (hThread)
+        SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
     else
         result = 0;
     return result;

@@ -115,29 +115,26 @@ STATIC_INLINE void put_sound_word_right (uae_u32 w)
     PUT_SOUND_WORD_RIGHT (w);
 }
 
+static int mixed_stereo_size, mixed_mul1, mixed_mul2;
+
 STATIC_INLINE void put_sound_word_left (uae_u32 w)
 {
     if (currprefs.sound_mixed_stereo) {
 	uae_u32 rold, lold, rnew, lnew, tmp;
-	int mul1 = 32 - currprefs.sound_stereo_separation;
-	int mul2 = 32 + currprefs.sound_stereo_separation;
 
 	left_word_saved[saved_ptr] = w;
 	lnew = w - SOUND16_BASE_VAL;
 	rnew = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
 
-	if (currprefs.sound_mixed_stereo > 0)
-	    saved_ptr = (saved_ptr + 1) & ((1 << (currprefs.sound_mixed_stereo - 1)) - 1);
-	else
-	    saved_ptr = 0;
+        saved_ptr = (saved_ptr + 1) & mixed_stereo_size;
 
 	lold = left_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	tmp = (rnew * mul1 + lold * mul2) >> 6;
+	tmp = (rnew * mixed_mul1 + lold * mixed_mul2) >> 6;
 	tmp += SOUND16_BASE_VAL;
 	PUT_SOUND_WORD_RIGHT (tmp);
 
 	rold = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	w = (lnew * mul1 + rold * mul2) >> 6;
+	w = (lnew * mixed_mul1 + rold * mixed_mul2) >> 6;
     }
     PUT_SOUND_WORD_LEFT (w);
 }
@@ -788,6 +785,10 @@ void check_prefs_changed_audio (void)
 	next_sample_evtime = scaled_sample_evtime;
 	compute_vsynctime ();
     }
+    mixed_mul1 = 32 - currprefs.sound_stereo_separation;
+    mixed_mul2 = 32 + currprefs.sound_stereo_separation;
+    mixed_stereo_size = currprefs.sound_mixed_stereo > 0 ? (1 << (currprefs.sound_mixed_stereo - 1)) - 1 : 0;
+
     /* Select the right interpolation method.  */
     if (sample_handler == sample16_handler
 	|| sample_handler == sample16i_crux_handler

@@ -368,8 +368,10 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 	
     if (!writing) /* reading */
     {
-	if (addr == 1) /* This is necessary because we don't update rom location 0 every time we change armode */
-	    return armode;
+	if (addr == 1 || addr == 3) /* This is necessary because we don't update rom location 0 every time we change armode */
+	    return armode | (regs.irc & ~3);
+	else if (addr < 4)
+	    return (addr & 1) ? regs.irc : regs.irc >> 8;
 	else
 	    return armemory_rom[addr];
     }

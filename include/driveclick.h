@@ -8,9 +8,10 @@
 
 
 struct drvsample {
-    int len;
-    int pos;
+    unsigned int len;
+    unsigned pos;
     uae_s16 *p;
+    unsigned int multisize, multilen;
 };
 
 #define DS_CLICK 0

@@ -1534,7 +1534,10 @@ void disk_creatediskfile (char *name, int type, drive_type adftype)
     uae_u8 tmp[3*4];
     char *disk_name = "empty";
 
-    if (type == 1) tracks = 2 * 83; else tracks = 2 * 80;
+    if (type == 1)
+	tracks = 2 * 83;
+    else
+	tracks = 2 * 80;
     file_size = 880 * 1024;
     track_len = FLOPPY_WRITE_LEN * 2;
     if (adftype == 1) {
@@ -1549,9 +1552,7 @@ void disk_creatediskfile (char *name, int type, drive_type adftype)
     chunk = xmalloc (16384);
     if (f && chunk) {
 	memset(chunk,0,16384);
-	switch(type)
-	    {
-	    case 0:
+	if (type == 0 && adftype < 2) {
 	    for (i = 0; i < file_size; i += 11264) {
 		memset(chunk, 0, 11264);
 		if (i == 0) {
@@ -1572,15 +1573,17 @@ void disk_creatediskfile (char *name, int type, drive_type adftype)
 		    memcpy (chunk + 484, chunk + 420, 3 * 4);
 		    disk_checksum(chunk, chunk + 20);
 		    /* bitmap block */
-		    memset (chunk + 512 + 4, 0xff, 220);
-		    chunk[512 + 112 + 2] = 0x3f;
+		    memset (chunk + 512 + 4, 0xff, 2 * file_size / (1024 * 8));
+		    if (adftype == 0)
+			chunk[512 + 0x72] = 0x3f;
+		    else
+			chunk[512 + 0xdc] = 0x3f;
 		    disk_checksum(chunk + 512, chunk + 512);
 
 		}
 		zfile_fwrite (chunk, 11264, 1, f);
 	    }
-	    break;
-	    case 1:
+	} else {
 	    l = track_len;
 	    zfile_fwrite ("UAE-1ADF", 8, 1, f);
 	    tmp[0] = 0; tmp[1] = 0; /* flags (reserved) */
@@ -1592,7 +1595,6 @@ void disk_creatediskfile (char *name, int type, drive_type adftype)
 	    tmp[8] = 0; tmp[9] = 0; tmp[10] = 0; tmp[11] = 0;
 	    for (i = 0; i < tracks; i++) zfile_fwrite (tmp, sizeof (tmp), 1, f);
 	    for (i = 0; i < tracks; i++) zfile_fwrite (chunk, l, 1, f);
-	    break;
 	}
     }
     free (chunk);

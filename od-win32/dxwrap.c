@@ -1834,10 +1834,12 @@ int DirectDraw_Flip( int wait )
     } else {
 	return 1;
     }
-    if( ddrval == DD_OK )
+    if( ddrval == DD_OK ) {
         result = 1;
-    else
-	write_log("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
+    } else {
+	if (ddrval != 0x887601cc)
+	    write_log("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
+    }
     return result;
 }
 

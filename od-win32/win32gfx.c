@@ -327,12 +327,10 @@ static int set_ddraw (void)
     if (ddrval != DD_OK)
 	goto oops;
 
-    if (dxfullscreen) 
-    {
+    if (dxfullscreen)  {
         write_log( "set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq );
         ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
-        if (ddrval != DD_OK)
-        {
+        if (ddrval != DD_OK) {
 	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
             ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
 	    if (ddrval != DD_OK) {
@@ -342,8 +340,7 @@ static int set_ddraw (void)
         }
 
 	ddrval = DirectDraw_GetDisplayMode();
-	if (ddrval != DD_OK)
-        {
+	if (ddrval != DD_OK) {
             write_log( "set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
         }
@@ -356,63 +353,57 @@ static int set_ddraw (void)
 
     if (dd) {
         ddrval = DirectDraw_CreateClipper();
-        if (ddrval != DD_OK)
-	{
+        if (ddrval != DD_OK) {
 	    write_log( "set_ddraw: No clipping support\n" );
 	    goto oops;
 	}
 	ddrval = DirectDraw_CreateSurface (width, height);
-	if (ddrval != DD_OK)
-	{
+	if (ddrval != DD_OK) {
 	    write_log( "set_ddraw: Couldn't CreateSurface() for primary because %s.\n", DXError( ddrval ) );
 	    goto oops;
 	}
-	if (DirectDraw_GetPrimaryBitCount() != (unsigned)bits && overlay)
-	{
+	if (DirectDraw_GetPrimaryBitCount() != (unsigned)bits && overlay) {
 	    ddrval = DirectDraw_CreateOverlaySurface (width, height, bits);
 	    if( ddrval != DD_OK )
 	    {
 		write_log( "set_ddraw: Couldn't CreateOverlaySurface(%d,%d,%d) because %s.\n", width, height, bits, DXError( ddrval ) );
 		goto oops2;
 	    }
-	}
-	else
-	{
+	} else {
 	    overlay = 0;
 	}
 
         DirectDraw_ClearSurfaces();
 
-	if( !DirectDraw_DetermineLocking( dxfullscreen ) )
+	if (!DirectDraw_DetermineLocking (dxfullscreen))
 	{
 	    write_log( "set_ddraw: Couldn't determine locking.\n" );
 	    goto oops;
 	}
 
-	ddrval = DirectDraw_SetClipper( hAmigaWnd );
+	ddrval = DirectDraw_SetClipper (hAmigaWnd);
 
-	if (ddrval != DD_OK)
-	{
+	if (ddrval != DD_OK) {
 	    write_log( "set_ddraw: Couldn't SetHWnd()\n" );
 	    goto oops;
 	}
 
         if (bits == 8) {
-	    ddrval = DirectDraw_CreatePalette( currentmode->pal );
+	    ddrval = DirectDraw_CreatePalette (currentmode->pal);
 	    if (ddrval != DD_OK)
 	    {
 		write_log( "set_ddraw: Couldn't CreatePalette()\n" );
 		goto oops;
 	    }
 	}
-	currentmode->pitch = DirectDraw_GetSurfacePitch();
+	currentmode->pitch = DirectDraw_GetSurfacePitch ();
     }
 
-    write_log( "set_ddraw() called, and is %dx%d@%d-bytes\n", width, height, bits );
+    write_log ("set_ddraw() called, and is %dx%d@%d-bytes\n", width, height, bits);
     return 1;
 
 oops:
-    write_log("set_ddraw(): DirectDraw initialization failed with\n%s\n", DXError( ddrval ));
+    write_log ("set_ddraw(): DirectDraw initialization failed with\n%s\n", DXError (ddrval));
 oops2:
     return 0;
 }
@@ -1065,7 +1056,7 @@ int check_prefs_changed_gfx (void)
 	resume_sound ();
 	inputdevice_acquire (mouseactive);
 #ifndef _DEBUG
-	setpriority (priorities[currprefs.win32_active_priority].value);
+	setpriority (&priorities[currprefs.win32_active_priority]);
 #endif
 	return 1;
     }
@@ -1661,6 +1652,7 @@ static int create_windows (void)
 {
     int fs = currentmode->flags & (DM_W_FULLSCREEN | DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
+    HWND hhWnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
 
     if (!fs)  {
         RECT rc;
@@ -1713,7 +1705,7 @@ static int create_windows (void)
 				       NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 				       rc.left, rc.top,
 				       rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-				       hHiddenWnd, NULL, 0, NULL);
+				       hhWnd, NULL, 0, NULL);
 
 	if (! hMainWnd) {
 	    write_log ("main window creation failed\n");
@@ -1731,7 +1723,7 @@ static int create_windows (void)
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
 				hMainWnd ? 2 : CW_USEDEFAULT, hMainWnd ? 2 : CW_USEDEFAULT,
 				currentmode->current_width, currentmode->current_height,
-				hMainWnd ? hMainWnd : hHiddenWnd, NULL, 0, NULL);
+				hMainWnd ? hMainWnd : hhWnd, NULL, 0, NULL);
     
     if (! hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
@@ -2074,13 +2066,14 @@ oops:
 void WIN32GFX_PaletteChange( void )
 {
     HRESULT hr;
+
     if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return;
     if (currentmode->current_depth > 8)
 	return;
-    hr = DirectDraw_SetPalette( 1 ); /* Remove current palette */
+    hr = DirectDraw_SetPalette (1); /* Remove current palette */
     if (hr != DD_OK)
 	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
-    hr = DirectDraw_SetPalette( 0 ); /* Set our real palette */
+    hr = DirectDraw_SetPalette (0); /* Set our real palette */
     if (hr != DD_OK)
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
 }
@@ -2091,7 +2084,7 @@ int WIN32GFX_ClearPalette( void )
     if (currentmode->current_depth > 8)
 	return 1;
     if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
-    hr = DirectDraw_SetPalette( 1 ); /* Remove palette */
+    hr = DirectDraw_SetPalette (1); /* Remove palette */
     if (hr != DD_OK)
 	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
     return hr == DD_OK;
@@ -2103,7 +2096,7 @@ int WIN32GFX_SetPalette( void )
     if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
     if (currentmode->current_depth > 8)
 	return 1;
-    hr = DirectDraw_SetPalette( 0 ); /* Set palette */
+    hr = DirectDraw_SetPalette (0); /* Set palette */
     if (hr != DD_OK)
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
     return hr == DD_OK;
@@ -2112,10 +2105,6 @@ void WIN32GFX_WindowMove ( void )
 {
     if (currentmode->flags & DM_OVERLAY)
 	setoverlay();
-}
-
-void WIN32GFX_WindowSize ( void )
-{
 }
 
 void updatedisplayarea (void)

@@ -33,7 +33,8 @@
 #include "akiko.h"
 
 static int debugger_active;
-static uaecptr skipaddr_start, skipaddr_end, skipaddr_doskip;
+static uaecptr skipaddr_start, skipaddr_end;
+static int skipaddr_doskip;
 static uae_u32 skipins;
 static int do_skip;
 static int debug_rewind;
@@ -1028,7 +1029,7 @@ static int instruction_breakpoint (char **c)
 	memcpy (&trace_prev_regs, &regs, sizeof regs);
     }
     do_skip = 1;
-    skipaddr_doskip = 1;
+    skipaddr_doskip = -1;
     return 1;
 }
 
@@ -1443,8 +1444,10 @@ void debug (void)
 			    bp = 1;
 		    } else if (opcode == skipins)
 			bp = 1;
-		} else if (skipaddr_start == 0xffffffff && skipaddr_doskip) {
+		} else if (skipaddr_start == 0xffffffff && skipaddr_doskip < 0) {
 		    if ((pc < 0xe00000 || pc >= 0x1000000) && opcode != 0x4ef9)
+			bp = 1;
+		} else if (skipaddr_start == 0xffffffff && skipaddr_doskip > 0) {
 			bp = 1;
 		} else if (skipaddr_end != 0xffffffff) {
 		    if (pc >= skipaddr_start && pc < skipaddr_end)

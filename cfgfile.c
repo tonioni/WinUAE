@@ -199,7 +199,9 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
     if (p->info[0])
 	cfgfile_write (f, "config_info=%s\n", p->info);
     cfgfile_write (f, "config_version=%d.%d.%d\n", UAEMAJOR, UAEMINOR, UAESUBREV);
-
+    cfgfile_write (f, "config_hardware_path=%s\n", p->config_hardware_path);
+    cfgfile_write (f, "config_host_path=%s\n", p->config_host_path);
+   
     for (sl = p->all_lines; sl; sl = sl->next) {
 	if (sl->unknown)
 	    cfgfile_write (f, "%s=%s\n", sl->option, sl->value);
@@ -257,7 +259,7 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
     cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
     cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
-    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo);
+    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo >= 0 ? p->sound_mixed_stereo : 0);
     
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
@@ -578,7 +580,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "sound_adjust", &p->sound_adjust, 1)
 	|| cfgfile_intval (option, value, "sound_volume", &p->sound_volume, 1)
 	|| cfgfile_intval (option, value, "sound_stereo_separation", &p->sound_stereo_separation, 1)
-	|| cfgfile_intval (option, value, "sound_stereo_mixing", &p->sound_mixed_stereo, 1)
+	|| cfgfile_intval (option, value, "sound_stereo_mixing_delay", &p->sound_mixed_stereo, 1)
 
 	|| cfgfile_intval (option, value, "gfx_display", &p->gfx_display, 1)
 	|| cfgfile_intval (option, value, "gfx_framerate", &p->gfx_framerate, 1)
@@ -1237,6 +1239,8 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 		cfgfile_parse_separated_line (p, line1b, line2b, askedtype);
 	    } else {
 		cfgfile_string (line1b, line2b, "config_description", p->description, 128);
+		cfgfile_string (line1b, line2b, "config_hardware_path", p->config_hardware_path, 128);
+		cfgfile_string (line1b, line2b, "config_host_path", p->config_host_path, 128);
 	    }
 	}
     }
@@ -1262,7 +1266,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
     return 1;
 }
 
-int cfgfile_load (struct uae_prefs *p, const char *filename, int *type)
+int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink)
 {
     int v;
     char tmp[MAX_DPATH];
@@ -1278,17 +1282,19 @@ int cfgfile_load (struct uae_prefs *p, const char *filename, int *type)
 	write_log ("load failed\n");
 	goto end;
     }
-    if (p->config_hardware_path[0]) {
-        fetch_configurationpath (tmp, sizeof (tmp));
-        strncat (tmp, p->config_hardware_path, sizeof (tmp));
-        type2 = CONFIG_TYPE_HARDWARE;
-        cfgfile_load (p, tmp, &type2);
-    }
-    if (p->config_host_path[0]) {
-        fetch_configurationpath (tmp, sizeof (tmp));
-        strncat (tmp, p->config_host_path, sizeof (tmp));
-        type2 = CONFIG_TYPE_HOST;
-        cfgfile_load (p, tmp, &type2);
+    if (!ignorelink) {
+	if (p->config_hardware_path[0]) {
+	    fetch_configurationpath (tmp, sizeof (tmp));
+	    strncat (tmp, p->config_hardware_path, sizeof (tmp));
+	    type2 = CONFIG_TYPE_HARDWARE;
+	    cfgfile_load (p, tmp, &type2, 1);
+	}
+	if (p->config_host_path[0]) {
+	    fetch_configurationpath (tmp, sizeof (tmp));
+	    strncat (tmp, p->config_host_path, sizeof (tmp));
+	    type2 = CONFIG_TYPE_HOST;
+	    cfgfile_load (p, tmp, &type2, 1);
+	}
     }
 end:
     recursive--;
@@ -1309,14 +1315,20 @@ int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
     return 1;
 }
 
-int cfgfile_get_description (const char *filename, char *description, int *type)
+int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type)
 {
     int result = 0;
     struct uae_prefs *p = xmalloc (sizeof (struct uae_prefs));
-    strcpy (p->description, "");
+    p->description[0] = 0;
+    p->config_host_path[0] = 0;
+    p->config_hardware_path[0] = 0;
     if (cfgfile_load_2 (p, filename, 0, type)) {
 	result = 1;
 	strcpy (description, p->description);
+	if (hostlink)
+	    strcpy (hostlink, p->config_host_path);
+	if (hardwarelink)
+	    strcpy (hardwarelink, p->config_hardware_path);
     }
     free (p);
     return result;

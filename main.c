@@ -510,7 +510,8 @@ void do_start_program (void)
 	return;
     /* Do a reset on startup. Whether this is elegant is debatable. */
     inputdevice_updateconfig (&currprefs);
-    quit_program = 2;
+    if (quit_program >= 0)
+	quit_program = 2;
     m68k_go (1);
 }
 

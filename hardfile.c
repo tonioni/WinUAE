@@ -456,6 +456,37 @@ static uae_u32 hardfile_expunge (void)
     return 0; /* Simply ignore this one... */
 }
 
+static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+{
+    unsigned int total = (unsigned int)(hfd->size / 1024);
+    int heads;
+    int sectors = 63;
+
+    /* do we have RDB values? */
+    if (hfd->cylinders) {
+	*cyl = hfd->cylinders;
+	*tracksec = hfd->sectors;
+	*head = hfd->heads;
+        *cylsec = hfd->sectors * hfd->heads;
+        return;
+    }
+    /* no, lets guess something.. */
+    if (total <= 504 * 1024)
+	heads = 16;
+    else if (total <= 1008 * 1024)
+	heads = 32;
+    else if (total <= 2016 * 1024)
+	heads = 64;
+    else if (total <= 4032 * 1024)
+	heads = 128;
+    else
+	heads = 255;
+    *cyl = (unsigned int)(hfd->size / hfd->blocksize) / (sectors * heads);
+    *cylsec = sectors * heads;
+    *tracksec = sectors;
+    *head = heads;
+}
+
 static void outofbounds (int cmd, uae_u64 offset, uae_u64 len, uae_u64 max)
 {
     write_log ("cmd %d: out of bounds, %08.8X-%08.8X + %08.8X-%08.8X >= %08.8X-%08.8X\n", cmd,
@@ -583,9 +614,28 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	    break;
 
 	case CMD_GETNUMTRACKS:
-	    hf_log ("CMD_GETNUMTRACKS - shouldn't happen\n");
-	    actual = 0;
+	{
+	    int cyl, cylsec, head, tracksec;
+	    getchs (hfd, &cyl, &cylsec, &head, &tracksec);
+	    actual = cyl * head;
 	    break;
+	}
+
+	case CMD_GETGEOMETRY:
+	{
+	    int cyl, cylsec, head, tracksec;
+	    getchs (hfd, &cyl, &cylsec, &head, &tracksec);
+	    put_long (dataptr + 0, hfd->blocksize);
+	    put_long (dataptr + 4, (uae_u32)(hfd->size / hfd->blocksize));
+	    put_long (dataptr + 8, cyl);
+	    put_long (dataptr + 12, cylsec);
+	    put_long (dataptr + 16, head);
+	    put_long (dataptr + 20, tracksec);
+	    put_long (dataptr + 24, 0); /* bufmemtype */
+	    put_byte (dataptr + 28, 0); /* type = DG_DIRECT_ACCESS */
+	    put_long (dataptr + 29, 0); /* flags */
+	}
+	break;
 
 	case CMD_PROTSTATUS:
 	    if (hfd->readonly)
@@ -672,6 +722,7 @@ static int hardfile_can_quick (uae_u32 command)
 	case CMD_MOTOR:
 	case CMD_GETDRIVETYPE:
 	case CMD_GETNUMTRACKS:
+	case CMD_GETGEOMETRY:
 	case NSCMD_DEVICEQUERY:
 	return 1;
     }
@@ -786,6 +837,7 @@ void hardfile_install (void)
     dw (CMD_CHANGESTATE);
     dw (CMD_PROTSTATUS);
     dw (CMD_GETDRIVETYPE);
+    dw (CMD_GETGEOMETRY);
     dw (CMD_ADDCHANGEINT);
     dw (CMD_REMCHANGEINT);
     dw (HD_SCSICMD);

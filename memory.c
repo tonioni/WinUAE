@@ -108,12 +108,12 @@ static struct romdata roms[] = {
 
     { "Kickstart v3.0 (A1200)", 39, 106, 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
     { "Kickstart v3.0 (A4000)", 39, 106, 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
-//    { "Kickstart v3.1 (A4000)", 40, 70, 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)", 40, 70, 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
     { "Kickstart v3.1 (A500,A600,A2000)", 40, 63, 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
     { "Kickstart v3.1 (A1200)", 40, 68, 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
     { "Kickstart v3.1 (A4000)(Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
     { "Kickstart v3.1 (A4000)", 40, 68, 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
-//    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 1, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 2, 0, ROMTYPE_KICK },
 
     { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
     { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
@@ -1316,10 +1316,66 @@ static void kickstart_fix_checksum (uae_u8 *mem, int size)
     mem[ch++] = cksum >> 0;
 }
 
+static int patch_shapeshifter (uae_u8 *kickmemory)
+{
+    /* Patch Kickstart ROM for ShapeShifter - from Christian Bauer.
+     * Changes 'lea $400,a0' and 'lea $1000,a0' to 'lea $3000,a0' for
+     * ShapeShifter compatability.
+    */
+    int i, patched = 0;
+    uae_u8 kickshift1[] = { 0x41, 0xf8, 0x04, 0x00 };
+    uae_u8 kickshift2[] = { 0x41, 0xf8, 0x10, 0x00 };
+    uae_u8 kickshift3[] = { 0x43, 0xf8, 0x04, 0x00 };
+	
+    for (i = 0x200; i < 0x300; i++) {
+        if (!memcmp (kickmemory + i, kickshift1, sizeof (kickshift1)) ||
+        !memcmp (kickmemory + i, kickshift2, sizeof (kickshift2)) ||
+        !memcmp (kickmemory + i, kickshift3, sizeof (kickshift3))) {
+	    kickmemory[i + 2] = 0x30;
+	    write_log ("Kickstart KickShifted @%04.4X\n", i);
+	    patched++;
+	}
+    }
+    return patched;
+}
+
+/* disable incompatible drivers */
+static int patch_residents (uae_u8 *kickmemory)
+{
+    int i, j, patched = 0;
+    char *residents[] = { "NCR scsi.device", 0 };
+    // "scsi.device", "carddisk.device", "card.resource" };
+    uaecptr base = 0xf80000;
+
+    for (i = 0; i < kickmem_size - 100; i++) {
+	if (kickmemory[i] == 0x4a && kickmemory[i + 1] == 0xfc) {
+	    uaecptr addr;
+	    addr = (kickmemory[i + 2] << 24) | (kickmemory[i + 3] << 16) | (kickmemory[i + 4] << 8) | (kickmemory[i + 5] << 0);
+	    if (addr != i + base)
+		continue;
+	    addr = (kickmemory[i + 14] << 24) | (kickmemory[i + 15] << 16) | (kickmemory[i + 16] << 8) | (kickmemory[i + 17] << 0);
+	    if (addr >= base && addr < base + 524288) {
+		j = 0;
+		while (residents[j]) {
+		    if (!memcmp (residents[j], kickmemory + addr - base, strlen (residents[j]) + 1)) {
+			write_log ("KSPatcher: '%s' at %08.8X disabled\n", residents[j], i + base);
+			kickmemory[i] = 0x4b; /* destroy RTC_MATCHWORD */
+			patched++;
+			break;
+		    }
+		    j++;
+		}
+	    }	
+	}
+    }
+    return patched;
+}
+
 static int load_kickstart (void)
 {
     struct zfile *f = zfile_fopen (currprefs.romfile, "rb");
     char tmprom[MAX_DPATH];
+    int patched = 0;
 
     strcpy (tmprom, currprefs.romfile);
     if (f == NULL) {
@@ -1361,26 +1417,6 @@ static int load_kickstart (void)
     chk_sum:
 #endif
 
-    if (currprefs.kickshifter && kickmem_size >= 524288) {
-	/* Patch Kickstart ROM for ShapeShifter - from Christian Bauer.
-	 * Changes 'lea $400,a0' and 'lea $1000,a0' to 'lea $3000,a0' for
-	 * ShapeShifter compatability.
-	*/
-	int i;
-	uae_u8 kickshift1[] = { 0x41, 0xf8, 0x04, 0x00 };
-	uae_u8 kickshift2[] = { 0x41, 0xf8, 0x10, 0x00 };
-	uae_u8 kickshift3[] = { 0x43, 0xf8, 0x04, 0x00 };
-	
-	for (i = 0x200; i < 0x300; i++) {
-	    if (!memcmp (kickmemory + i, kickshift1, sizeof (kickshift1)) ||
-	    !memcmp (kickmemory + i, kickshift2, sizeof (kickshift2)) ||
-	    !memcmp (kickmemory + i, kickshift3, sizeof (kickshift3))) {
-		kickmemory[i + 2] = 0x30;
-	        write_log ("Kickstart KickShifted @%04.4X\n", i);
-	    }
-	}
-	kickstart_fix_checksum (kickmemory, kickmem_size);
-    }
     kickstart_version = (kickmemory[12] << 8) | kickmemory[13];
     return 1;
 err:
@@ -1664,6 +1700,9 @@ void memory_reset (void)
 	memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
         if (savestate_state != STATE_RESTORE)
 	    clearexec ();
+	xfree (extendedkickmemory);
+	extendedkickmemory = 0;
+        extendedkickmem_size = 0;
         load_extendedkickstart ();
 	kickmem_mask = 524288 - 1;
 	if (!load_kickstart ()) {
@@ -1676,16 +1715,24 @@ void memory_reset (void)
 	} else {
 	    struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
 	    if (rd) {
-		if (rd->cpu == 1 && currprefs.cpu_level < 2) {
+		if (rd->cpu == 1 && changed_prefs.cpu_level < 2) {
 		    notify_user (NUMSG_KS68EC020);
 		    uae_restart (-1, NULL);
-		} else if (rd->cpu == 2 && (currprefs.cpu_level < 2 || currprefs.address_space_24)) {
+		} else if (rd->cpu == 2 && (changed_prefs.cpu_level < 2 || changed_prefs.address_space_24)) {
 		    notify_user (NUMSG_KS68020);
 		    uae_restart (-1, NULL);
 		}
 		if (rd->cloanto)
 		    cloanto_rom = 1;
 	    }
+	}
+	if (kickmem_size >= 524288) {
+	    int patched = 0;
+	    if (currprefs.kickshifter)
+		patched += patch_shapeshifter (kickmemory);
+	    patched += patch_residents (kickmemory);
+	    if (patched)
+		kickstart_fix_checksum (kickmemory, kickmem_size);
 	}
     }
 

@@ -184,7 +184,8 @@ void S2X_render (void)
         dptr = (uae_u8*)desc.lpSurface;
 	pitch = desc.lPitch;
     } else {
-	DirectDraw_SurfaceLock (lockable_surface);
+	if (!DirectDraw_SurfaceLock (lockable_surface))
+	    return;
 	dptr = DirectDraw_GetSurfacePointer ();
 	pitch = DirectDraw_GetSurfacePitch ();
     }

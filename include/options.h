@@ -254,11 +254,11 @@ extern void target_save_options (FILE *, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type);
 
-extern int cfgfile_load (struct uae_prefs *, const char *filename, int *);
+extern int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink);
 extern int cfgfile_save (struct uae_prefs *, const char *filename, int);
 extern void cfgfile_parse_line (struct uae_prefs *p, char *, int);
 extern int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int);
-extern int cfgfile_get_description (const char *filename, char *description, int*);
+extern int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
 extern uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern void cfgfile_addcfgparam (char *);

@@ -1849,8 +1849,10 @@ int inputdevice_get_device_index (int devnum)
 	return devnum;
     else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num())
 	return devnum - idev[IDTYPE_JOYSTICK].get_num();
-    else
+    else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num() + idev[IDTYPE_KEYBOARD].get_num())
 	return devnum - idev[IDTYPE_JOYSTICK].get_num() - idev[IDTYPE_MOUSE].get_num();
+    else
+	return -1;
 }
 
 static int gettype (int devnum)

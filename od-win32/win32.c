@@ -410,17 +410,22 @@ void setmouseactive (int active)
 static int avioutput_video = 0;
 #endif
 
-void setpriority (int pri)
+void setpriority (struct threadpriorities *pri)
 {
-    if (pri >= 2)
-	pri = 1;
-    SetThreadPriority ( GetCurrentThread(), pri);
-    write_log ("priority set to %d\n", pri);
+    int err;
+    write_log ("changing priority to %s\n", pri->name);
+    if (os_winnt)
+	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
+    else
+	err = SetThreadPriority (GetCurrentThread(), pri->value);
+    if (!err)
+	write_log ("priority set failed, %08.8X\n", GetLastError ());
 }
 
 static void winuae_active (HWND hWnd, int minimized)
 {
-    int ot, pri;
+    int ot;
+    struct threadpriorities *pri;
 
     /* without this returning from hibernate-mode causes wrong timing
      */
@@ -434,10 +439,10 @@ static void winuae_active (HWND hWnd, int minimized)
 
     focus = 1;
     write_log ("WinUAE now active via WM_ACTIVATE\n");
-    pri = priorities[currprefs.win32_inactive_priority].value;
+    pri = &priorities[currprefs.win32_inactive_priority];
 #ifndef _DEBUG
     if (!minimized)
-	pri = priorities[currprefs.win32_active_priority].value;
+	pri = &priorities[currprefs.win32_active_priority];
 #endif
     setpriority (pri);
 
@@ -466,11 +471,12 @@ static void winuae_active (HWND hWnd, int minimized)
     if (isfullscreen())
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
+
 }
 
 static void winuae_inactive (HWND hWnd, int minimized)
 {
-    int pri;
+    struct threadpriorities *pri;
 
     focus = 0;
     write_log( "WinUAE now inactive via WM_ACTIVATE\n" );
@@ -484,11 +490,11 @@ static void winuae_inactive (HWND hWnd, int minimized)
 #ifdef AHI
     ahi_open_sound ();
 #endif
-    pri = priorities[currprefs.win32_inactive_priority].value;
+    pri = &priorities[currprefs.win32_inactive_priority];
     if (!quit_program) {
 	if (minimized) {
 	    inputdevice_unacquire ();
-	    pri = priorities[currprefs.win32_iconified_priority].value;
+	    pri = &priorities[currprefs.win32_iconified_priority];
 	    if (currprefs.win32_iconified_nosound) {
 		close_sound ();
     #ifdef AHI
@@ -546,11 +552,11 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     static int ignorenextactivateapp;
     PAINTSTRUCT ps;
     HDC hDC;
-    BOOL minimized;
     LPMINMAXINFO lpmmi;
     RECT rect;
-    int mx, my;
+    int mx, my, v;
     static int mm;
+    static int minimized;
 
     if (ignore_messages_all)
 	return DefWindowProc (hWnd, message, wParam, lParam);
@@ -560,15 +566,43 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
     switch( message ) 
     {
+    case WM_SIZE:
+    {
+	if (isfullscreen ()) {
+	    v = minimized;
+	    switch (wParam)
+	    {
+		case SIZE_MAXIMIZED:
+		case SIZE_RESTORED:
+		v = FALSE;
+		break;
+		default:
+		v = TRUE;
+		break;
+	    }
+	    if (v != minimized) {
+		if (v)
+		    winuae_inactive (hWnd, wParam == SIZE_MINIMIZED);
+		else
+		    winuae_active (hWnd, minimized);
+	    }
+	    minimized = v;
+	    return 0;
+	}
+    }
+	    
     case WM_ACTIVATE:
-    	minimized = HIWORD( wParam );
-	if (LOWORD (wParam) != WA_INACTIVE) {
-      	    winuae_active (hWnd, minimized);
-	    if (ignorenextactivateapp > 0)
-		ignorenextactivateapp--;
-	} else
-	    winuae_inactive (hWnd, minimized);
-    break;
+	if (!isfullscreen ()) {
+    	    minimized = HIWORD (wParam);
+	    if (LOWORD (wParam) != WA_INACTIVE) {
+      		winuae_active (hWnd, minimized);
+		if (ignorenextactivateapp > 0)
+		    ignorenextactivateapp--;
+	    } else {
+		winuae_inactive (hWnd, minimized);
+	    }
+	    return 0;
+	}
 
     case WM_ACTIVATEAPP:
 	if (!wParam) {
@@ -582,11 +616,11 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	        exit_gui (0);
 	}
         manual_palette_refresh_needed = 1;
-    break;
+    return 0;
 
     case WM_PALETTECHANGED:
-        if( (HWND)wParam != hWnd )
-	    WIN32GFX_PaletteChange();
+        if ((HWND)wParam != hWnd)
+	    manual_palette_refresh_needed = 1;
     break;
 
     case WM_KEYDOWN:
@@ -699,14 +733,6 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_MOVE:
 	WIN32GFX_WindowMove();
     return TRUE;
-
-    case WM_SIZING:
-	WIN32GFX_WindowSize();
-    return TRUE;
-
-    case WM_SIZE:
-	WIN32GFX_WindowSize();
-    return 0;
 
     case WM_GETMINMAXINFO:
 	rect.left=0;
@@ -1006,7 +1032,7 @@ int WIN32_RegisterClasses( void )
     HDC hDC = GetDC( NULL );
 
     if (GetDeviceCaps (hDC, NUMCOLORS) != -1) 
-        g_dwBackgroundColor = RGB( 255, 0, 255 );    
+        g_dwBackgroundColor = RGB (255, 0, 255);
     ReleaseDC (NULL, hDC);
 
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_OWNDC;
@@ -1014,7 +1040,7 @@ int WIN32_RegisterClasses( void )
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = 0;
-    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
+    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "AmigaPowah";
@@ -1027,7 +1053,7 @@ int WIN32_RegisterClasses( void )
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = 0;
-    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
+    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
     wc.lpszMenuName = 0;
@@ -1035,12 +1061,12 @@ int WIN32_RegisterClasses( void )
     if (!RegisterClass (&wc))
 	return 0;
     
-    wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
+    wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = HiddenWindowProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = 0;
-    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
+    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
     wc.lpszMenuName = 0;
@@ -1715,6 +1741,7 @@ static void WIN32_HandleRegistryStuff( void )
     HKEY hWinUAEKeyLocal = NULL;
     HKEY fkey;
     int forceroms = 0;
+    int updateversion = 1;
 
     /* Create/Open the hWinUAEKey which points to our config-info */
     if( RegCreateKeyEx( HKEY_CLASSES_ROOT, ".uae", 0, "", REG_OPTION_NON_VOLATILE,
@@ -1773,12 +1800,16 @@ static void WIN32_HandleRegistryStuff( void )
 	if (RegQueryValueEx( hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
 	    if (checkversion (version))
 		forceroms = 1;
+	    else
+		updateversion = 0;
 	} else {
 	    forceroms = 1;
 	}
-	// Set this even when we're opening an existing key, so that the version info is always up to date.
-        if (RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 ) != ERROR_SUCCESS)
-	    forceroms = 0;
+	if (updateversion) {
+	    // Set this even when we're opening an existing key, so that the version info is always up to date.
+	    if (RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 ) != ERROR_SUCCESS)
+		forceroms = 0;
+	}
         
 	RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
 	if( colortype == 0 ) /* No color information stored in the registry yet */
@@ -2003,7 +2034,7 @@ __asm{
     argv[0] = 0;
 #endif
     /* Get our executable's root-path */
-    if( ( start_path = xmalloc( MAX_DPATH ) ) )
+    if ((start_path = xmalloc (MAX_DPATH)))
     {
 	GetModuleFileName( NULL, start_path, MAX_DPATH );
 	if((posn = strrchr (start_path, '\\')))
@@ -2052,7 +2083,7 @@ __asm{
 #endif
 	    real_main (argc, argv);
 	}
-	free( start_path );
+	free (start_path);
     }
 	
     if (mm_timerres && timermode == 0)
@@ -2097,11 +2128,11 @@ int execute_command (char *cmd)
 }
 
 struct threadpriorities priorities[] = {
-    { "Above Normal", THREAD_PRIORITY_ABOVE_NORMAL },
-    { "Normal", THREAD_PRIORITY_NORMAL },
-    { "Below Normal", THREAD_PRIORITY_BELOW_NORMAL },
-    { "Low", THREAD_PRIORITY_LOWEST },
-    { 0, -1 }
+    { "Above Normal", THREAD_PRIORITY_ABOVE_NORMAL, ABOVE_NORMAL_PRIORITY_CLASS },
+    { "Normal", THREAD_PRIORITY_NORMAL, NORMAL_PRIORITY_CLASS },
+    { "Below Normal", THREAD_PRIORITY_BELOW_NORMAL, BELOW_NORMAL_PRIORITY_CLASS },
+    { "Low", THREAD_PRIORITY_LOWEST, IDLE_PRIORITY_CLASS },
+    { 0 }
 };
 
 static int drvsampleres[] = {

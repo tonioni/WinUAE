@@ -66,8 +66,6 @@ void uae_ReplyMsg(uaecptr msg)
 
 void uae_PutMsg(uaecptr port, uaecptr msg)
 {
-    uae_pt data;
-    data.i = 1;
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 1, 0);
     write_comm_pipe_u32 (&native2amiga_pending, port, 0);

@@ -21,7 +21,7 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 9"
+#define WINUAEBETASTR " Beta 10b"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);
@@ -67,7 +67,6 @@ extern void sleep_millis_busy (int ms);
 extern void screenshot(int mode);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);
-extern void setpriority (int pri);
 
 extern void handle_rawinput (DWORD lParam);
 
@@ -75,8 +74,11 @@ extern void handle_rawinput (DWORD lParam);
 struct threadpriorities {
     char *name;
     int value;
+    int classvalue;
 };
 extern struct threadpriorities priorities[];
+extern void setpriority (struct threadpriorities *pri);
+
 extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
 
