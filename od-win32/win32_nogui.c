@@ -393,7 +393,7 @@ void logging_init( void )
 {
     static int started;
     static int first;
-    char debugfilename[MAX_PATH];
+    char debugfilename[MAX_DPATH];
 
     if (first > 1) {
 	write_log ("** RESTART **\n");
@@ -469,8 +469,8 @@ int _stdcall WinMain (HINSTANCE hInstance, HINSTANCE prev, LPSTR cmd, int show)
  
     hInst = hInstance;
     argc = __argc; argv = __argv;
-    start_path = xmalloc( MAX_PATH );
-    GetModuleFileName( NULL, start_path, MAX_PATH );
+    start_path = xmalloc( MAX_DPATH );
+    GetModuleFileName( NULL, start_path, MAX_DPATH );
     if( ( posn = strrchr( start_path, '\\' ) ) )
         *posn = 0;
     real_main (argc, argv);

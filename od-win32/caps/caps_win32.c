@@ -13,7 +13,7 @@
 
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
-static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE;
+static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD;
 
 int caps_init (void)
 {
@@ -58,8 +58,10 @@ void caps_unloadimage (int drv)
 int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 {
     struct CapsImageInfo ci;
-    int len,ret ;
+    int len, ret;
     uae_u8 *buf;
+    char s1[100];
+    struct CapsDateTimeExt *cdt;
 
     if (!caps_init ())
 	return 0;
@@ -82,27 +84,49 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
     CAPSGetImageInfo(&ci, caps_cont[drv]);
     *num_tracks = (ci.maxcylinder - ci.mincylinder + 1) * (ci.maxhead - ci.minhead + 1);
     CAPSLoadImage(caps_cont[drv], caps_flags);
+    cdt = &ci.crdt;
+    sprintf (s1, "%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
+    write_log ("caps: type:%d date:%s rel:%d rev:%d\n",
+	ci.type, s1, ci.release, ci.revision);
     return 1;
 }
 
-int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 **trackpointers, uae_u16 **tracktiming, int drv, int track, int *tracklengths, int *revolutions)
+int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 {
+    static int revcnt;
+    int rev, len, i;
+    uae_u16 *mfm;
     struct CapsTrackInfo ci;
-    int i, j, len;
-    uae_u16 *tt, *mfm;
+
+    revcnt++;
+    CAPSLockTrack(&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
+    rev = revcnt % ci.trackcnt;
+    len = ci.tracksize[rev];
+    *tracklength = len * 8;
+    mfm = mfmbuf;
+    for (i = 0; i < (len + 1) / 2; i++) {
+        uae_u8 *data = ci.trackdata[rev]+ i * 2;
+        *mfm++ = 256 * *data + *(data + 1);
+    }
+    return 1;
+}
+
+int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev)
+{
+    int i, len, type;
+    uae_u16 *mfm;
+    struct CapsTrackInfo ci;
 
     *tracktiming = 0;
     CAPSLockTrack(&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
     mfm = mfmbuf;
-    *revolutions = ci.trackcnt;
-    for (j = 0; j < ci.trackcnt; j++) {
-	len = ci.tracksize[j];
-	trackpointers[j] = mfm;
-	tracklengths[j] = len * 8;
-	for (i = 0; i < (len + 1) / 2; i++) {
-	    uae_u8 *data = ci.trackdata[j]+ i * 2;
-	    *mfm++ = 256 * *data + *(data + 1);
-	}
+    *multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
+    type = ci.type & CTIT_MASK_TYPE;
+    len = ci.tracksize[0];
+    *tracklength = len * 8;
+    for (i = 0; i < (len + 1) / 2; i++) {
+        uae_u8 *data = ci.trackdata[0]+ i * 2;
+        *mfm++ = 256 * *data + *(data + 1);
     }
 #if 0
     {
@@ -112,16 +136,12 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 **trackpointers, uae_u16 **tracktim
     }
 #endif
     if (ci.timelen > 0) {
-	tt = xmalloc (ci.timelen * sizeof (uae_u16));
 	for (i = 0; i < ci.timelen; i++)
-	    tt[i] = (uae_u16)ci.timebuf[i];
-	*tracktiming = tt;
+	    tracktiming[i] = (uae_u16)ci.timebuf[i];
     }
 #if 0
-    write_log ("caps: drive: %d, track: %d, revolutions: %d, timing: %d\n",
-	drv, track, *revolutions, ci.timelen);
-    for (i = 0; i < *revolutions; i++)
-	write_log ("- %d: length: %d bits, %d bytes\n", i, tracklengths[i], tracklengths[i] / 8);
+    write_log ("caps: drive:%d track:%d flakey:%d multi:%d timing:%d type:%d\n",
+	drv, track, *multirev, ci.trackcnt, ci.timelen, type);
 #endif
     return 1;
 }

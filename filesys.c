@@ -315,14 +315,13 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
         ui->hf.readonly = readonly;
 	if (ui->hf.handle == 0)
 	    return "Hardfile not found";
-
-	if ((blocksize & (blocksize - 1)) != 0)
+	if ((blocksize & (blocksize - 1)) != 0 || blocksize <= 0)
 	    return "Bad blocksize";
 	if ((secspertrack || surfaces || reserved) &&
 	    (secspertrack < 1 || surfaces < 1 || surfaces > 1023 || reserved < 0 || reserved > 1023) != 0)
-	{
 	    return "Bad hardfile geometry";
-	}
+	if (blocksize > ui->hf.size || ui->hf.size == 0)
+	    return "Hardfile too small";
 	ui->hf.nrcyls = (int)(secspertrack * surfaces ? (ui->hf.size / blocksize) / (secspertrack * surfaces) : 0);
     }
     ui->self = 0;
@@ -3367,7 +3366,7 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_READ_LINK:
      case ACTION_FORMAT:
      default:
-	TRACE(("*** UNSUPPORTED PACKET %ld\n", type));
+	write_log ("FILESYS: UNSUPPORTED PACKET %x\n", type);
 	return 0;
     }
     return 1;
@@ -3504,6 +3503,11 @@ void filesys_start_threads (void)
     }
 }
 
+void filesys_cleanup (void)
+{
+    current_mountinfo = 0;
+}
+
 void filesys_reset (void)
 {
     Unit *u, *u1;
@@ -3519,7 +3523,6 @@ void filesys_reset (void)
     }
     unit_num = 0;
     units = 0;
-    current_mountinfo = 0;
 }
 
 static void free_all_ainos (Unit *u, a_inode *parent)
@@ -3537,10 +3540,13 @@ void filesys_flush_cache (void)
 
 void filesys_prepare_reset (void)
 {
-    UnitInfo *uip = current_mountinfo->ui;
+    UnitInfo *uip;
     Unit *u;
     int i;
 
+    if (!current_mountinfo)
+	return;
+    uip = current_mountinfo->ui;
 #ifdef UAE_FILESYS_THREADS
     for (i = 0; i < current_mountinfo->num_units; i++) {
 	if (uip[i].unit_pipe != 0) {

@@ -115,9 +115,9 @@ void screenshot(int mode)
 	if (mode == 0) {
 	    toclipboard (&bi, lpvBits);
 	} else {
-		char filename[MAX_PATH];
+		char filename[MAX_DPATH];
 		char extension[] = "bmp";
-		char tmpstr[MAX_PATH];
+		char tmpstr[MAX_DPATH];
 		int number = 0;
 		
 		tmpstr[0] = 0;

@@ -506,18 +506,18 @@ BEGIN
                     HIDC_CREATELOGFILE
     CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,189,109,80,10
-    GROUPBOX        "State files:",IDC_STATIC,98,126,195,76
-    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,143,49,14
-    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,169,49,14
+    GROUPBOX        "State files:",IDC_STATIC,98,126,195,83
+    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,145,49,14
+    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,171,49,14
     CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,188,142,88,10
-    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,160,
+                    BS_AUTOCHECKBOX | WS_TABSTOP,188,144,88,10
+    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,162,
                     86,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_RATE,248,158,38,65,CBS_DROPDOWN | WS_VSCROLL | 
+    COMBOBOX        IDC_STATE_RATE,248,160,38,65,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
     RTEXT           "Recording buffer (MB)",IDC_STATE_BUFFERSIZE_TEXT,157,
-                    180,83,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_BUFFERSIZE,248,178,38,65,CBS_DROPDOWN | 
+                    182,83,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_BUFFERSIZE,248,180,38,65,CBS_DROPDOWN | 
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,29,76,115,10
@@ -635,7 +635,7 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_TABSTOP,39,197,95,10
 END
 
-IDD_AVIOUTPUT DIALOGEX 0, 0, 198, 188
+IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 210
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -655,17 +655,19 @@ BEGIN
                     IDC_AVIOUTPUT_FRAMELIMITER,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,28,68,142,10
     CONTROL         "AVIOutput enabled",IDC_AVIOUTPUT_ACTIVATED,"Button",
-                    BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,26,83,142,12
+                    BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,26,83,142,14
     GROUPBOX        "Playback Rate:",IDC_STATIC,5,107,184,50
     CONTROL         "PAL",IDC_AVIOUTPUT_PAL,"Button",BS_AUTORADIOBUTTON | 
-                    BS_PUSHLIKE | BS_FLAT,24,124,66,8
+                    BS_PUSHLIKE | BS_FLAT,24,121,66,12
     CONTROL         "NTSC",IDC_AVIOUTPUT_NTSC,"Button",BS_AUTORADIOBUTTON | 
-                    BS_PUSHLIKE | BS_FLAT,95,124,66,8
+                    BS_PUSHLIKE | BS_FLAT,102,121,66,12
     CONTROL         "Slider1",IDC_AVIOUTPUT_FPS,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP,21,137,120,
                     11
-    LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,141,136,23,8
-    PUSHBUTTON      "Save Screenshot",IDC_SCREENSHOT,46,167,95,12
+    LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,148,138,23,8
+    PUSHBUTTON      "Save Screenshot",IDC_SCREENSHOT,15,176,95,14
+    GROUPBOX        "Ripper",IDC_STATIC,5,160,184,41
+    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,127,176,49,14,WS_DISABLED
 END
 
 IDD_INPUT DIALOGEX 0, 0, 300, 242
@@ -806,11 +808,11 @@ BEGIN
 END
 
 IDD_PANEL DIALOGEX 0, 0, 420, 278
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 EXSTYLE WS_EX_ACCEPTFILES | WS_EX_CONTROLPARENT
 CAPTION "WinUAE Properties"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | 
                     TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | 
@@ -973,12 +975,6 @@ BEGIN
         BOTTOMMARGIN, 215
     END
 
-    IDD_AVIOUTPUT, DIALOG
-    BEGIN
-        RIGHTMARGIN, 164
-        BOTTOMMARGIN, 187
-    END
-
     IDD_INPUT, DIALOG
     BEGIN
         BOTTOMMARGIN, 187
@@ -1117,7 +1113,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select your file-system root directory..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Special thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\n"
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\n"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a UAE Snap-Shot File"
     IDS_USS                 "UAE Snap-Shot Files"

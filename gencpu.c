@@ -106,11 +106,7 @@ static void fpulimit (void)
 }
 static void cpulimit (void)
 {
-    if (limit_braces)
-	return;
-    printf ("\n#ifndef CPUEMU_68000_ONLY\n");
-    limit_braces = n_braces;
-    n_braces = 0;
+    printf ("#ifndef CPUEMU_68000_ONLY\n");
 }
 
 static void returncycles (char *s, int cycles)
@@ -1125,9 +1121,6 @@ static void gen_opcode (unsigned long int opcode)
     insn_n_cycles = using_prefetch ? 0 : 4;
 
     start_brace ();
-#if 0
-    printf ("uae_u8 *m68k_pc = regs.pc_p;\n");
-#endif
     m68k_pc_offset = 2;
     switch (curi->plev) {
     case 0: /* not privileged */
@@ -1940,7 +1933,7 @@ static void gen_opcode (unsigned long int opcode)
 	start_brace ();
 	printf ("\tuae_u32 newv = (uae_u32)(uae_u16)dst * (uae_u32)(uae_u16)src;\n");
 	if (using_ce)
-	    printf ("\tint cycles = 38 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
+	    printf ("\tint cycles = 36 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
 	genflags (flag_logical, sz_long, "newv", "", "");
 	if (using_ce) {
 	    printf ("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n");
@@ -1958,7 +1951,7 @@ static void gen_opcode (unsigned long int opcode)
 	start_brace ();
 	printf ("\tuae_u32 newv = (uae_s32)(uae_s16)dst * (uae_s32)(uae_s16)src;\n");
 	if (using_ce)
-	    printf ("\tint cycles = 38 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
+	    printf ("\tint cycles = 36 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
 	genflags (flag_logical, sz_long, "newv", "", "");
 	if (using_ce) {
 	    printf ("\tsrc <<= 1;\n");
@@ -1987,7 +1980,6 @@ static void gen_opcode (unsigned long int opcode)
 	need_endlabel = 1;
 	break;
     case i_CHK2:
-	cpulimit ();
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
@@ -2427,7 +2419,6 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
     case i_MOVEC2:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
         fill_prefetch_next ();
 	start_brace ();
@@ -2436,7 +2427,6 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tif (! m68k_movec2(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
 	break;
     case i_MOVE2C:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
         fill_prefetch_next ();
 	start_brace ();
@@ -2466,7 +2456,6 @@ static void gen_opcode (unsigned long int opcode)
     }
     break;
     case i_CAS2:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	printf ("\tuae_u32 rn1 = regs.regs[(extra >> 28) & 15];\n");
 	printf ("\tuae_u32 rn2 = regs.regs[(extra >> 12) & 15];\n");
@@ -2505,7 +2494,6 @@ static void gen_opcode (unsigned long int opcode)
     case i_MOVES:		/* ignore DFC and SFC because we have no MMU */
     {
 	int old_brace_level;
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	printf ("\tif (extra & 0x800)\n");
 	old_brace_level = n_braces;
@@ -2531,22 +2519,18 @@ static void gen_opcode (unsigned long int opcode)
     }
     break;
     case i_BKPT:		/* only needed for hardware emulators */
-	cpulimit ();
 	sync_m68k_pc ();
 	printf ("\top_illg(opcode);\n");
 	break;
     case i_CALLM:		/* not present in 68030 */
-	cpulimit ();
 	sync_m68k_pc ();
 	printf ("\top_illg(opcode);\n");
 	break;
     case i_RTM:		/* not present in 68030 */
-	cpulimit ();
 	sync_m68k_pc ();
 	printf ("\top_illg(opcode);\n");
 	break;
     case i_TRAPcc:
-	cpulimit ();
 	if (curi->smode != am_unknown && curi->smode != am_illg)
 	    genamode (curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
         fill_prefetch_0 ();
@@ -2554,7 +2538,6 @@ static void gen_opcode (unsigned long int opcode)
 	need_endlabel = 1;
 	break;
     case i_DIVL:
-	cpulimit ();
 	sync_m68k_pc ();
 	start_brace ();
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
@@ -2564,7 +2547,6 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tm68k_divl(opcode, dst, extra, oldpc);\n");
 	break;
     case i_MULL:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 	sync_m68k_pc ();
@@ -2578,7 +2560,6 @@ static void gen_opcode (unsigned long int opcode)
     case i_BFFFO:
     case i_BFSET:
     case i_BFINS:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 2, 0, 0);
 	start_brace ();
@@ -2741,37 +2722,30 @@ static void gen_opcode (unsigned long int opcode)
 	break;
 
      case i_CINVL:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(31);\n"); 
 	break;
      case i_CINVP:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(32);\n"); 
 	break;
      case i_CINVA:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(33);\n"); 
 	break;
      case i_CPUSHL:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(41);\n"); 
 	break;
      case i_CPUSHP:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(42);\n"); 
 	break;
      case i_CPUSHA:
-	cpulimit ();
 	printf ("\tif (opcode&0x80)\n"
 		"\t\tflush_icache(43);\n"); 
 	break;
      case i_MOVE16:
-	cpulimit ();
 	if ((opcode & 0xfff8) == 0xf620) {
 	     /* MOVE16 (Ax)+,(Ay)+ */
 	     printf ("\tuaecptr mems = m68k_areg(regs, srcreg) & ~15, memd;\n");
@@ -2802,7 +2776,6 @@ static void gen_opcode (unsigned long int opcode)
 	break;
 
     case i_MMUOP:
-	cpulimit ();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
 	printf ("\tmmu_op(opcode,extra);\n");
@@ -2954,6 +2927,7 @@ static void generate_one_opcode (int rp)
     int i;
     uae_u16 smsk, dmsk;
     long int opcode = opcode_map[rp];
+    int i68000 = table68k[opcode].clev > 0;
 
     if (table68k[opcode].mnemo == i_ILLG
 	|| table68k[opcode].clev > cpu_level)
@@ -2968,14 +2942,20 @@ static void generate_one_opcode (int rp)
 	return;
 
     if (opcode_next_clev[rp] != cpu_level) {
-	fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), 0, %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
+	fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
 		 opcode, lookuptab[i].name);
 	return;
     }
-    fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), 0, %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
+    if (i68000)
+	fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
+    fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
+    if (i68000)
+	fprintf (stblfile, "#endif\n");
     fprintf (headerfile, "extern cpuop_func op_%04lx_%d_nf;\n", opcode, postfix);
     fprintf (headerfile, "extern cpuop_func op_%04lx_%d_ff;\n", opcode, postfix);
     printf ("/* %s */\n", outopcode (opcode));
+    if (i68000)
+	printf("#ifndef CPUEMU_68000_ONLY\n");
     printf ("unsigned long REGPARAM2 CPUFUNC(op_%04lx_%d)(uae_u32 opcode)\n{\n", opcode, postfix);
 
     switch (table68k[opcode].stype) {
@@ -3032,11 +3012,6 @@ static void generate_one_opcode (int rp)
 		printf ("\tuae_u32 dstreg = %d;\n", (int) table68k[opcode].dreg);
 	} else {
 	    int pos = table68k[opcode].dpos;
-#if 0
-	    /* Check that we can do the little endian optimization safely.  */
-	    if (pos < 8 && (dmsk >> (8 - pos)) != 0)
-		abort ();
-#endif	    
 	    if (pos)
 		printf ("\tuae_u32 dstreg = (opcode >> %d) & %d;\n",
 			pos, dmsk);
@@ -3054,6 +3029,8 @@ static void generate_one_opcode (int rp)
     if (using_ce)
 	printf ("return 0;\n");
     printf ("}\n");
+    if (i68000)
+	printf("#endif\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;
 }
@@ -3080,20 +3057,20 @@ static void generate_func (void)
 	        "#endif\n\n");
 	
 	rp = 0;
-	for(j=1;j<=8;++j) {
-		int k = (j*nr_cpuop_funcs)/8;
+	for(j = 1; j <= 8; ++j) {
+		int k = (j * nr_cpuop_funcs) / 8;
 		printf ("#ifdef PART_%d\n",j);
 		for (; rp < k; rp++)
 		   generate_one_opcode (rp);
 		printf ("#endif\n\n");
 	}
 
-	fprintf (stblfile, "{ 0, 0, 0 }};\n");
+	fprintf (stblfile, "{ 0, 0 }};\n");
 }
 
 int main (int argc, char **argv)
 {
-    int i, rp;
+    int i, rp, postfix2;
     char fname[100];
 
     read_table68k ();
@@ -3118,12 +3095,12 @@ int main (int argc, char **argv)
     using_exception_3 = 1;
     using_ce = 0;
 
+    postfix2 = -1;
     for (i = 0; i < 7; i++) {
 	postfix = i;
 	if (i == 0 || i == 5 || i == 6) {
-	    if (i > 0)
-		fprintf (stblfile,"#endif\n");
 	    fprintf (stblfile, "#ifdef CPUEMU_%d\n", postfix);
+	    postfix2 = postfix;
 	    sprintf (fname, "cpuemu_%d.c", postfix);
             freopen (fname, "wb", stdout);
 	    generate_includes (stdout);
@@ -3137,10 +3114,16 @@ int main (int argc, char **argv)
 	    for (rp = 0; rp < nr_cpuop_funcs; rp++)
 		opcode_next_clev[rp] = 0;
 	}
+	if (i > 0 && i < 4)
+	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
         fprintf (stblfile, "struct cputbl CPUFUNC(op_smalltbl_%d)[] = {\n", postfix);
 	generate_func ();
+	if (i > 0 && i < 4)
+	    fprintf (stblfile, "#endif /* CPUEMU_68000_ONLY */\n");
+	if (postfix2 >= 0)
+	    fprintf (stblfile, "#endif /* CPUEMU_%d */\n", postfix2);
+	postfix2 = -1;
     }
-    fprintf (stblfile,"#endif\n");
 
     free (table68k);
     return 0;

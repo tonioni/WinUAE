@@ -1,0 +1,389 @@
+###############################################################################
+#                                                                             #
+# _types_ : should be part of Pro-Wizard 1 (for PC/Unix/Amiga).               #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+# 1997-2003 (c) Sylvain "asle" Chipaux                                        #
+#                                                                             #
+###############################################################################
+#
+# Edit the extensions of the known formats
+#
+# BEWARE: Leave the order the way it is !!. It's fastly coded and I didn't
+#        want to spend all night on this small thing !.
+#         Beside the lines with the extensions, there should NOT be any empty
+#        lines !. Add as many lines as you want, as long as you begin them
+#        with '#'.
+#         And last, an extension can be from 2 to 32 chars long.
+#
+# NOTE: at now, there should be 116 extensions.
+#
+###############################################################################
+#
+# list starts now ...
+#
+###############################################################################
+##01 : AC1D packer (AC1D_packer)
+ac1d
+#
+##02 : Sound monitor v2 / v3 (SoundMonitor)
+bp
+#
+##03 : FC-M packer (FC_M_packer)
+fc-m
+#
+##04 : Hornet packer (Hornet_packer)
+hrt
+#
+##05 : KRIS tracker (KRIS_tracker)
+kris
+#
+##06 : OPTIMOD's power music (Power_Music)
+PowerMusic
+#
+##07 : Promizer 1.0c (Promizer_10c)
+Promizer10c
+#
+##08 : Promizer 1.8a (Promizer_18a)
+Promizer18a
+#
+##09 : Promizer 2.0 (Promizer_20)
+Promizer20
+#
+##10 : ProRunner v1 (ProRunner_v1)
+ProRunner1
+#
+##11 : ProRunner v2 (ProRunner_v2)
+ProRunner2
+#
+##12 : SKYT packer (SKYT_packer)
+skyt
+#
+##13 : Wanton packer (Wanton_packer)
+WantonPacker
+#
+##14 : XANN packer (XANN_packer)
+xann
+#
+##15 : Module Protector (Module_protector)
+ModuleProtector
+#
+##16 : Digital Illusion (Digital_illusion)
+DigitalIllusion
+#
+##17 : Pha Packer (Pha_packer)
+PhaPacker
+#
+##18 : Promizer 0.1 (Promizer_01)
+Promizer01
+#
+##19 : ProPacker 2.1 (Propacker_21)
+ProPacker21
+#
+##20 : ProPacker 3.0 (Propacker_30)
+ProPacker30
+#
+##21 : Eureka packer (Eureka_packer)
+Eureka
+#
+##22 : StarTrekker pack (Star_pack)
+StarTrekkerPack
+#
+##23 : Protracker (Protracker)
+mod
+#
+##24 : UNIC tracker v1 (UNIC_v1)
+unic1
+#
+##25 : UNIC tracker v2 (UNIC_v2)
+unic2
+#
+##26 : Fuzzac packer (Fuzzac)
+Fuzzac
+#
+##27 : Game music creator (GMC)
+gmc
+#
+##28 : Heatseeker (Heatseeker)
+crb
+#
+##29 : Kefrens sound machine (KSM)
+ksm
+#
+##30 : Noiserunner (Noiserunner)
+Noiserunner
+#
+##31 : NoisePacker v1 (Noisepacker1)
+NoisePacker1
+#
+##32 : NoisePacker v2 (Noisepacker2)
+NoisePacker2
+#
+##33 : NoisePacker v3 (Noisepacker3)
+NoisePacker3
+#
+##34 : The player 4.0A (P40A)
+P40A
+#
+##35 : The player 4.0B (P40B)
+P40B
+#
+##36 : The player 4.1A (P41A)
+P41A
+#
+##37 : Promizer 4.0 (PM40)
+Promizer4
+#
+##38 : Propacker 1.0 (PP10)
+ProPacker1
+#
+##39 : Tracker packer 1.0 (TP1)
+TrackerPacker1
+#
+##40 : Tracker packer 2.0 (TP2)
+TrackerPacker2
+#
+##41 : Tracker packer 3.0 (TP3)
+TrackerPacker3
+#
+##42 : Zen packer (ZEN)
+ZenPacker
+#
+##43 : The player 5.0A (P50A)
+P50A
+#
+##44 : The player 6.0A (P60A)
+P60A
+#
+##45 : StarTrekker (StarTrekker)
+mod
+#
+##46 : StoneCracker 4.04 Data (S404) (also S401,S403,S310 and S300)
+StoneCrackerData
+#
+##47 : StoneCracker 2.70 (exe)
+StoneCracker270
+#
+##48 : The Player 6.1A (P61A)
+P61A
+#
+##49 : STIM_Slamtilt (STIM)
+stim
+#
+##50 : SoundTracker
+mod
+#
+##51 : Tetrapack 2.2 (TPACK22)
+TetraPack22
+#
+##52 : Crunchmania / Normal (CRM2/CRM!) / Address
+CrunchmaniaData
+#
+##53 : Defjam Cruncher 3.2 / 3.2 pro (Defjam_32)
+DefjamCruncher
+#
+##54 : Tetrapack 2.1 (TPACK21)
+Tetrapack21
+#
+##55 : IAM Packer 1.0 data
+ice
+#
+##56 : Byte Killer 1.3 / 2.0 / 3.0 and Pro 1.0
+ByteKiller
+#
+##57 : XPK file
+xpk
+#
+##58 : Imploder (data)
+Imploder
+#
+##59 : Propack (RNC) data
+rnc
+#
+##60 : Double Action 1.0 (exe) (Double_Action)
+DoubleAction
+#
+##61 : Powerpacker 3.0 (exe) (Powerpacker3)
+PowerPacker3
+#
+##62 : Powerpacker 4.0 (exe) (Powerpacker4 & PP4 library)
+PowerPacker4
+#
+##63 : Powerpacker 2.3 (exe) (Powerpacker23)
+PowerPacker23
+#
+##64 : Spike Cruncher (exe) (SpikeCruncher)
+SpikeCruncher
+#
+##65 : Tetrapack 1.02 (exe) (TPACK102)
+Tetrapack102
+#
+##66 : Time Cruncher 1.7 (exe) (TimeCruncher)
+TimeCruncher17
+#
+##67 : MasterCruncher
+MasterCruncher
+#
+##68 : Master Cruncher 3.0 address (MasterCruncher)
+##     Mega Cruncher 1.0 / 1.2
+MegaCruncher
+#
+##69 : JamCracker / Pro (JamCracker)
+jam
+#
+##70 : BSI Future Composer (BSIFC)
+BSI-FC
+#
+##71 : DigiBooster 1.7 (DigiBooster)
+digi
+#
+##72 : Quadra Composer (QuadraComposer)
+qc
+#
+##73 : The Dark Demon (TDD)
+TheDarkDemon
+#
+##74 : Fuchs Tracker (FuchsTracker)
+FuchsTracker
+#
+##75 : Syncro Packer 4.6
+SynchroPacker46
+#
+##76 : TNM Cruncher 1.1 (TNMCruncher)
+TNMCruncher11
+#
+##77 : Super Cuncher 2.7 (SuperCruncher)
+SuperCruncher27
+#
+##78 : PPbk (AMOS PowerPacker Bank) (PP20 inside)
+PPbk
+#
+##79 : Relok It 1.0 (RelokIt)
+RelokIt1
+#
+##80 : StoneCracker 2.92 data
+StoneCracker292data
+#
+##81 : FIRE (RNC clone) Cruncher (data) (FIRE)
+fire
+#
+##82 : Max Packer 1.2 (MaxPacker)
+MaxPacker12
+#
+##83 : SoundFX 1.3 (SoundFX)
+SoundFX13
+#
+##84 : arcD Data Cruncher (arcD)
+arcD
+#
+##85 : PARA Data Cruncher (PARA)
+para
+#
+##86 : CRND Data Cruncher (CRND)
+crnd
+#
+##87 : =SB= Data Cruncher (SB_DataCruncher)
+-sb-
+#
+##88 : SF Data Cruncher (SF)
+sf
+#
+##89 : RLE Data Cruncher (RLE)
+RLE
+#
+##90 : Virtual Dreams (VDCO) Data Cruncher (VDCO)
+VDC0
+#
+##91 : SQ Data Cruncher (SQ)
+sq
+#
+##92 : SP Data Cruncher (SP)
+sp
+#
+##93 : SoundTracker 2.6 (ST2)
+ST2
+#
+##94 : IceTracker 1.0 (IT1)
+IT1
+#
+##95 : HQC Cruncher 2.0 (HQC)
+HQC
+#
+##96 : Try-It Cruncher 1.01 (TIC)
+TIC
+#
+##97 : Future Composer 1.0 - 1.3 (FC3)
+FC3
+#
+##98 : Future Composer 1.4 (FC4)
+FC4
+#
+##99 : Amnesty Design (1AM) Data Cruncher
+1AM
+#
+##100 : Amnesty Design (2AM) Data Cruncher
+2AM
+#
+##101 : MED / OctaMED (MMD0/MMD1/MMD2/MMD3)
+med
+#
+##102 : Ace? (Cruncher Data)
+AceCruncherData
+#
+##103 : Newtron packer (real name ?)
+Newtron
+#
+##104 : GPMO (Crunch player ?)
+GPMO
+#
+##105 : Polka Packer
+PolkaPacker
+#
+##106 : GnuPlayer
+GnuPlayer
+#
+##107 : -CJ- Data Cruncher
+CJ_DataCruncher
+#
+##108 : AmBk
+AmBk
+#
+##109 : Master Cruncher 3.0 data
+MasterCruncher3data
+#
+##110 : fasttracker 2
+xm
+#
+##111 : Megacruncher obj
+MegaCruncherObj
+#
+##112 : Turbo Squeezer 6.1
+TurboSqueezer61
+#
+##113 : Stonecracker 2.99d
+StoneCracker299d
+#
+##114 : StoneCracker 3.10
+StoneCracker310
+#
+##115 : StoneCracker 2.99b
+StoneCracker299b
+#
+##116 : StoneCracker 2.99
+StoneCracker299
+#
+##117 : StoneCracker 3.00
+StoneCracker300
+#
+##118 : The Player 3.0a
+ThePlayer30a
+#
+##119 : The Player 2.2a
+ThePlayer22a
+#
+##120 : Noise from Heaven
+NoiseFromHeaven
+#
+###############################################################################
+###############################################################################

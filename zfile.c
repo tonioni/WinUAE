@@ -231,7 +231,7 @@ static struct zfile *gunzip (struct zfile *z)
     int i, size, ret, first;
     uae_u8 flags;
     long offset;
-    char name[MAX_PATH];
+    char name[MAX_DPATH];
     uae_u8 buffer[8192];
     struct zfile *z2;
     uae_u8 b;
@@ -354,19 +354,17 @@ static char *ignoreextensions[] =
 static char *diskimageextensions[] =
     { ".adf", ".adz", ".ipf", ".fdi", 0 };
 
-static void maybe_add_disk_history (char *zname, char *name)
+static int isdiskimage (char *name)
 {
-    char tmp[2048];
     int i;
 
     i = 0;
     while (diskimageextensions[i]) {
-	if (strlen (name) > 3 && !strcasecmp (name + strlen (name) - 4, diskimageextensions[i])) {
-	    sprintf (tmp, "%s/%s", zname, name);
-	    DISK_history_add (tmp, -1);
-	}
+	if (strlen (name) > 3 && !strcasecmp (name + strlen (name) - 4, diskimageextensions[i]))
+	    return 1;
 	i++;
     }
+    return 0;
 }
 
 static struct zfile *unzip (struct zfile *z)
@@ -376,6 +374,8 @@ static struct zfile *unzip (struct zfile *z)
     char filename_inzip[2048];
     struct zfile *zf;
     int err, zipcnt, select, i, we_have_file = 0;
+    char tmphist[MAX_DPATH];
+    int first = 1;
 
     if (!zlib_test ())
 	return z;
@@ -387,6 +387,7 @@ static struct zfile *unzip (struct zfile *z)
 	return z;
     write_log("checking zip file '%s':\n", z->name);
     zipcnt = 1;
+    tmphist[0] = 0;
     for (;;) {
 	err = unzGetCurrentFileInfo(uz,&file_info,filename_inzip,sizeof(filename_inzip),NULL,0,NULL,0);
 	if (err != UNZ_OK)
@@ -403,7 +404,19 @@ static struct zfile *unzip (struct zfile *z)
 	    if (ignoreextensions[i]) {
 		write_log ("[ignored]");
 	    } else {
-		maybe_add_disk_history (z->name, filename_inzip);
+		if (tmphist[0]) {
+		    DISK_history_add (tmphist, -1);
+		    tmphist[0] = 0;
+		    first = 0;
+		}
+		if (first) {
+		    if (isdiskimage (filename_inzip))
+			sprintf (tmphist," %s/%s", z->name, filename_inzip);
+		} else {
+		    sprintf (tmphist," %s/%s", z->name, filename_inzip);
+		    DISK_history_add (tmphist, -1);
+		    tmphist[0] = 0;
+		}
 		write_log ("[check]");
 		select = 0;
 		if (!z->zipname)

@@ -761,6 +761,8 @@ static void memwatch (char **c)
 		mwn->rw = 1;
 	    else if (nc == 'R' && toupper(**c) != 'W')
 		mwn->rw = 0;
+	    else if (nc == 'R' && toupper(**c) == 'W')
+		next_char (c);
 	    ignore_ws (c);
 	    if (more_params (c)) {
 		if (toupper(**c) == 'M') {
@@ -1160,6 +1162,7 @@ static void debug_1 (void)
 	    }
 	    debugger_active = 0;
 	    debugging = 0;
+	    exception_debugging = 0;
 	    return;
 
 	case 'H':

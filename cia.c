@@ -33,7 +33,8 @@
 #endif
 #include "debug.h"
 
-//#define CIA_DEBUG
+//#define CIA_DEBUG_R
+//#define CIA_DEBUG_W
 //#define DONGLE_DEBUG
 
 #define TOD_HACK
@@ -441,7 +442,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 
     compute_passed_time ();
 
-#ifdef CIA_DEBUG
+#ifdef CIA_DEBUG_R
     write_log("R_CIAA: %02.2X %08.8X\n", addr, m68k_getpc());
 #endif
     
@@ -535,7 +536,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 {
     unsigned int tmp;
 
-#ifdef CIA_DEBUG
+#ifdef CIA_DEBUG_R
     write_log("R_CIAB: %02.2X %08.8X\n", addr, m68k_getpc());
 #endif
 
@@ -612,7 +613,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 
 static void WriteCIAA (uae_u16 addr,uae_u8 val)
 {
-#ifdef CIA_DEBUG
+#ifdef CIA_DEBUG_W
     write_log("W_CIAA: %02.2X %02.2X %08.8X\n", addr, val, m68k_getpc());
 #endif
     switch (addr & 0xf) {
@@ -757,7 +758,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 
 static void WriteCIAB (uae_u16 addr,uae_u8 val)
 {
-#ifdef CIA_DEBUG
+#ifdef CIA_DEBUG_W
     write_log("W_CIAB: %02.2X %02.2X %08.8X\n", addr, val, m68k_getpc());
 #endif
     switch (addr & 0xf) {
@@ -911,7 +912,7 @@ void CIA_reset (void)
 	ciaaicr = ciabicr = ciaaimask = ciabimask = 0;
 	ciaacra = ciaacrb = ciabcra = ciabcrb = 0x4; /* outmode = toggle; */
 	ciaala = ciaalb = ciabla = ciablb = ciaata = ciaatb = ciabta = ciabtb = 0xFFFF;
-	ciaaalarm = ciabalarm = 0;
+	ciaaalarm = ciabalarm = 0xffffff;
 	ciabpra = 0x8C; ciabdra = 0;
 	div10 = 0;
 	ciaasdr_cnt = 0; ciaasdr = 0;
@@ -940,12 +941,14 @@ void CIA_reset (void)
 
 void dumpcia (void)
 {
-    write_log("A: CRA %02x CRB %02x ICR %02x IM %02x TOD %06x %c%c TA %04x (%04x) TB %04x (%04x)\n",
-	   ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaatod,
-	   ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S', ciaata, ciaala, ciaatb, ciaalb);
-    write_log("B: CRA %02x CRB %02x ICR %02x IM %02x TOD %06x %c%c TA %04x (%04x) TB %04x (%04x)\n",
-	   ciabcra, ciabcrb, ciaaicr, ciabimask, ciabtod,
-	   ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S', ciabta, ciabla, ciabtb, ciablb);
+    write_log("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+	   ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaata, ciaala, ciaatb, ciaalb);
+    write_log("TOD %06x ALARM %06x %c%c\n",
+	ciaatod, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S');
+    write_log("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+	   ciabcra, ciabcrb, ciaaicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
+    write_log("TOD %06x ALARM %06x %c%c\n",
+	ciabtod, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S');
 }
 
 /* CIA memory access */

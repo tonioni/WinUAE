@@ -3,7 +3,7 @@
 /* Determines if this drive-letter currently has a disk inserted */
 static int CheckRM( char *DriveName )
 {
-    char filename[ MAX_PATH ];
+    char filename[ MAX_DPATH ];
     DWORD dwHold;
     BOOL result = FALSE;
 
@@ -97,7 +97,7 @@ void filesys_init( void )
 {
     int drive, drivetype;
     UINT errormode = SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX );
-    char volumename[MAX_PATH]="";
+    char volumename[MAX_DPATH]="";
     char volumepath[6];
     DWORD dwDriveMask;
     char *result = NULL;
@@ -117,7 +117,7 @@ void filesys_init( void )
                 drivetype = GetDriveType( volumepath );
 		if (drivetype != DRIVE_CDROM) {
 
-		    get_volume_name( currprefs.mountinfo, volumepath, volumename, MAX_PATH, inserted, drivetype, 1 );
+		    get_volume_name( currprefs.mountinfo, volumepath, volumename, MAX_DPATH, inserted, drivetype, 1 );
 		    if( drivetype == DRIVE_REMOTE )
 			strcat( volumepath, "." );
 		    else

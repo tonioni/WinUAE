@@ -206,6 +206,7 @@ static int clickcnt;
 static void mix (void)
 {
     int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (currprefs.stereo ? 4 : 2);
+    
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {
 	    clickbuffer[clickcnt++] = getsample() * (100 - currprefs.dfxclickvolume) / 100;
@@ -215,8 +216,6 @@ static void mix (void)
 	    clickbuffer[clickcnt++] = getsample();
 	}
     }
-    if (clickcnt > 0)
-	clickbuffer[clickcnt] = clickbuffer[clickcnt - 1];
 }
 
 STATIC_INLINE uae_s16 limit (uae_s32 v)

@@ -76,7 +76,7 @@ static uae_u8 *replaybuffer, *replaybufferend;
 static int savestate_docompress, savestate_ramdump;
 static int replaybuffersize;
 
-char savestate_fname[MAX_PATH];
+char savestate_fname[MAX_DPATH];
 static struct staterecord staterecords[MAX_STATERECORDS];
 
 static unsigned long crc_table[256];

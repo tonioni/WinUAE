@@ -35,8 +35,7 @@ static int blitline, blitfc, blitfill, blitife, blitsing, blitdesc;
 static int blitonedot,blitsign;
 static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
-static int blit_ch, blit_starting;
-static unsigned int blit_starts;
+static int blit_ch;
 int blit_singlechannel;
 
 #ifdef BLITTER_DEBUG
@@ -178,8 +177,8 @@ static void blitter_done (void)
     eventtab[ev_blitter].active = 0;
     unset_special (SPCFLAG_BLTNASTY);
 #ifdef BLITTER_DEBUG
-    write_log ("cycles %d, missed %d, total %d\n",
-	blit_cyclecounter, blit_misscyclecounter, blit_cyclecounter + blit_misscyclecounter);
+    write_log ("vpos=%d, cycles %d, missed %d, total %d\n",
+	vpos, blit_cyclecounter, blit_misscyclecounter, blit_cyclecounter + blit_misscyclecounter);
 #endif
 }
 
@@ -703,10 +702,6 @@ void decide_blitter (int hpos)
 	decide_blitter_line (hpos);
 	return;
     }
-    if (blit_starting && get_cycles () - blit_starts < 4 * CYCLE_UNIT) {
-	blit_last_hpos = hpos + 1;
-	return;
-    }
     hpos++;
     if (dmaen (DMA_BLITTER)) {
 	while (blit_last_hpos < hpos) {
@@ -936,8 +931,6 @@ void do_blitter (int hpos)
 	blitter_dma_cycles_line = blt_info.hblitsize * blit_dmacount2;
 	if (blit_ch == 0)
 	    blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize;
-	blit_starts = get_cycles ();
-	blit_starting = 1;
 	return;
     }
 

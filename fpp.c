@@ -301,6 +301,8 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
 	case 4:
 	    ad = m68k_getpc ();
 	    m68k_setpc (ad + sz2[size]);
+	    if (size == 6)
+		ad++;
 	    break;
 	default:
 	    return 0;
@@ -345,7 +347,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
 	}
 	break;
     case 6:
-	*src = (fptype) (uae_s8) get_byte (ad + 1);
+	*src = (fptype) (uae_s8) get_byte (ad);
 	break;
     default:
 	return 0;

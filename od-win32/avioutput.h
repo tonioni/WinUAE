@@ -11,7 +11,7 @@ extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_reques
 extern int avioutput_width, avioutput_height, avioutput_bits;
 extern int avioutput_fps, avioutput_framelimiter;
 
-extern char avioutput_filename[MAX_PATH];
+extern char avioutput_filename[MAX_DPATH];
 
 extern void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize);
 extern void AVIOutput_WriteVideo(void);
@@ -42,7 +42,7 @@ extern int avioutput_init;
 
 extern int frame_count;
 
-extern char avioutput_filename[MAX_PATH];
+extern char avioutput_filename[MAX_DPATH];
 
 extern void AviOutputClearAudioCodec(HWND hwnd);
 extern void AviOutputClearVideoCodec(HWND hwnd);

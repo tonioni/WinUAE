@@ -458,6 +458,7 @@ extern void console_flush (void);
 extern int console_get (char *, int);
 extern void f_out (void *, const char *, ...);
 extern void gui_message (const char *,...);
+extern int gui_message_multibutton (int flags, const char *format,...);
 #define write_log_err write_log
 
 #ifndef O_BINARY

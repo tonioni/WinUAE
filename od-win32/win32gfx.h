@@ -3,8 +3,8 @@
 
 #include <ddraw.h>
 
-BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, HMONITOR hm);
 extern void sortdisplays (void);
+extern void enumeratedisplays (int);
 
 int WIN32GFX_IsPicassoScreen( void );
 int WIN32GFX_GetWidth( void );

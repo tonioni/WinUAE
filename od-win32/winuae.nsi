@@ -15,20 +15,20 @@ InstallDir "$PROGRAMFILES\WinUAE"
 InstallDirRegKey HKEY_CURRENT_USER "SOFTWARE\Arabuusimiehet\WinUAE" "InstallDir"
 DirShow show ; (make this hide to not let the user change it)
 DirText "Select the directory to install WinUAE in:"
-Icon "d:\projects\winuae\src\od-win32\resources\winuae.ico"
+Icon "c:\projects\winuae\src\od-win32\resources\winuae.ico"
 WindowIcon on
 AllowRootDirInstall true
 AutoCloseWindow true
 
 Section "" ; (default section)
 SetOutPath "$INSTDIR"
-File "d:\projects\winuae\distribution\*"
+File "c:\projects\winuae\distribution\*"
 SetOutPath "$INSTDIR\Amiga Programs"
-File "d:\projects\winuae\distribution\Amiga Programs\*"
+File "c:\projects\winuae\distribution\Amiga Programs\*"
 SetOutPath "$INSTDIR\Docs"
-File "d:\projects\winuae\distribution\Docs\*"
+File "c:\projects\winuae\distribution\Docs\*"
 SetOutPath "$INSTDIR\Docs\Windows"
-File "d:\projects\winuae\distribution\Docs\Windows\*"
+File "c:\projects\winuae\distribution\Docs\Windows\*"
 CreateDirectory "$INSTDIR\Configurations"
 WriteRegStr HKEY_CURRENT_USER "SOFTWARE\Arabuusimiehet\WinUAE" "InstallDir" "$INSTDIR"
 

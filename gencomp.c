@@ -3005,17 +3005,15 @@ generate_one_opcode (int rp, int noflags)
 	comprintf ("}\n");
     
 	if (aborted) {
-	    fprintf (stblfile, "{ NULL, 0x%08x, %ld }, /* %s */\n", flags, opcode, lookuptab[i].name);
+	    fprintf (stblfile, "{ NULL, %ld, 0x%08x }, /* %s */\n", opcode, flags, lookuptab[i].name);
 	    com_discard();
-	}
-	else {
+	} else {
 	    if (noflags) {
-		fprintf (stblfile, "{ op_%lx_%d_comp_nf, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, lookuptab[i].name);
+		fprintf (stblfile, "{ op_%lx_%d_comp_nf, %ld, 0x%08x }, /* %s */\n", opcode, postfix, opcode, flags, lookuptab[i].name);
 		fprintf (headerfile, "extern cpuop_func op_%lx_%d_comp_nf;\n", opcode, postfix);
 		printf ("unsigned long REGPARAM2 op_%lx_%d_comp_nf(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
-	    }
-	    else {
-		fprintf (stblfile, "{ op_%lx_%d_comp_ff, 0x%08x, %ld }, /* %s */\n", opcode, postfix, flags, opcode, lookuptab[i].name);
+	    } else {
+		fprintf (stblfile, "{ op_%lx_%d_comp_ff, %ld, 0x%08x }, /* %s */\n", opcode, postfix, opcode, flags, lookuptab[i].name);
 		fprintf (headerfile, "extern cpuop_func op_%lx_%d_comp_ff;\n", opcode, postfix);
 		printf ("unsigned long REGPARAM2 op_%lx_%d_comp_ff(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 	    }
@@ -3045,7 +3043,7 @@ generate_func (int noflags)
 
 
 	/* sam: this is for people with low memory (eg. me :)) */
-	!printf ("\n"
+	printf ("\n"
 		 "#if !defined(PART_1) && !defined(PART_2) && "
 		 "!defined(PART_3) && !defined(PART_4) && "
 		 "!defined(PART_5) && !defined(PART_6) && "
@@ -3071,7 +3069,7 @@ generate_func (int noflags)
 	    printf ("#endif\n\n");
 	}
 
-	fprintf (stblfile, "{ 0, 0,65536 }};\n");
+	fprintf (stblfile, "{ 0, 65536, 0 }};\n");
     }
 
 }

@@ -109,7 +109,7 @@ extern void custom_prepare_savestate (void);
 #define STATE_DOREWIND 32
 
 extern int savestate_state;
-extern char savestate_fname[MAX_PATH];
+extern char savestate_fname[MAX_DPATH];
 extern struct zfile *savestate_file;
 
 extern uae_u32 CRC32(uae_u32 crc, const uae_u8 *buf, int len);

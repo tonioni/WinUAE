@@ -90,6 +90,7 @@ void discard_prefs (struct uae_prefs *p, int type)
 	free (s);
     }
 #ifdef FILESYS
+    filesys_cleanup ();
     free_mountinfo (p->mountinfo);
     p->mountinfo = alloc_mountinfo ();
 #endif
@@ -327,10 +328,11 @@ void uae_quit (void)
 	quit_program = -1;
 }
 
+/* 0 = normal, 1 = nogui, -1 = disable nogui */
 void uae_restart (int opengui, char *cfgfile)
 {
     uae_quit ();
-    restart_program = opengui ? 1 : 2;
+    restart_program = opengui > 0 ? 1 : (opengui == 0 ? 2 : 3);
     restart_config[0] = 0;
     if (cfgfile)
 	strcpy (restart_config, cfgfile);
@@ -515,6 +517,9 @@ void do_leave_program (void)
 #ifdef AUTOCONFIG
     expansion_cleanup ();
 #endif
+#ifdef FILESYS
+    filesys_cleanup ();
+#endif
     savestate_free ();
     memory_cleanup ();
     cfgfile_addcfgparam (0);
@@ -581,6 +586,8 @@ static void real_main2 (int argc, char **argv)
     no_gui = ! currprefs.start_gui;
     if (restart_program == 2)
 	no_gui = 1;
+    else if (restart_program == 3)
+	no_gui = 0;
     restart_program = 0;
     if (! no_gui) {
 	int err = gui_init ();

@@ -71,6 +71,7 @@ struct didata {
 };
 
 #define DI_BUFFER 30
+#define DI_KBBUFFER 50
 
 static struct didata di_mouse[MAX_INPUT_DEVICES];
 static struct didata di_keyboard[MAX_INPUT_DEVICES];
@@ -1081,11 +1082,12 @@ static int init_kb (void)
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIKeyboard); 
 		if (hr != DI_OK)
 		    write_log ("keyboard setdataformat failed, %s\n", DXError (hr));
+		memset (&dipdw, 0, sizeof (dipdw));
 		dipdw.diph.dwSize = sizeof(DIPROPDWORD);
 		dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
 		dipdw.diph.dwObj = 0;
 		dipdw.diph.dwHow = DIPH_DEVICE;
-		dipdw.dwData = DI_BUFFER;
+		dipdw.dwData = DI_KBBUFFER;
 		hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
 		if (hr != DI_OK)
 		    write_log ("keyboard setpropertry failed, %s\n", DXError (hr));
@@ -1262,7 +1264,7 @@ static int keyhack (int scancode,int pressed, int num)
 
 static void read_kb (void)
 {
-    DIDEVICEOBJECTDATA didod[DI_BUFFER];
+    DIDEVICEOBJECTDATA didod[DI_KBBUFFER];
     DWORD elements;
     HRESULT hr;
     LPDIRECTINPUTDEVICE8 lpdi;
@@ -1279,7 +1281,7 @@ static void read_kb (void)
 		continue;
 	    kb_do_refresh &= ~(1 << i);
 	}
-	elements = DI_BUFFER;
+	elements = DI_KBBUFFER;
 	hr = IDirectInputDevice8_GetDeviceData(lpdi, sizeof(DIDEVICEOBJECTDATA), didod, &elements, 0);
 	if (hr == DI_OK) {
 	    if (did->superdevice && (normalkb || rawkb))

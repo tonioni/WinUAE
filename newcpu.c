@@ -61,9 +61,11 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 
+#ifdef FPUEMU
 int fpp_movem_index1[256];
 int fpp_movem_index2[256];
 int fpp_movem_next[256];
+#endif
 
 cpuop_func *cpufunctbl[65536];
 
@@ -134,13 +136,14 @@ static unsigned long REGPARAM2 op_illg_1 (uae_u32 opcode)
 
 static void build_cpufunctbl (void)
 {
-    int i;
+    int i, opcnt;
     unsigned long opcode;
     struct cputbl *tbl = 0;
 
    switch (currprefs.cpu_level)
     {
 #ifdef CPUEMU_0
+#ifndef CPUEMU_68000_ONLY
 	case 4:
 	case 6:
 	tbl = op_smalltbl_0_ff;
@@ -154,6 +157,7 @@ static void build_cpufunctbl (void)
 	case 1:
 	tbl = op_smalltbl_3_ff;
 	break;
+#endif
 #endif
 	case 0:
 	tbl = op_smalltbl_4_ff;
@@ -172,17 +176,16 @@ static void build_cpufunctbl (void)
 	write_log ("no CPU emulation cores available!");
 	abort ();
     }
-    write_log ("Building CPU function table (%d %d %d).\n",
-	currprefs.cpu_level,
-	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0,
-	currprefs.address_space_24);
 
     for (opcode = 0; opcode < 65536; opcode++)
 	cpufunctbl[opcode] = op_illg_1;
     for (i = 0; tbl[i].handler != NULL; i++) {
-	if (! tbl[i].specific)
-	    cpufunctbl[tbl[i].opcode] = tbl[i].handler;
+#ifdef JIT
+	tbl[i].specific = 0;
+#endif
+        cpufunctbl[tbl[i].opcode] = tbl[i].handler;
     }
+    opcnt = 0;
     for (opcode = 0; opcode < 65536; opcode++) {
 	cpuop_func *f;
 
@@ -194,12 +197,13 @@ static void build_cpufunctbl (void)
 	    if (f == op_illg_1)
 		abort();
 	    cpufunctbl[opcode] = f;
+	    opcnt++;
 	}
     }
-    for (i = 0; tbl[i].handler != NULL; i++) {
-	if (tbl[i].specific)
-	    cpufunctbl[tbl[i].opcode] = tbl[i].handler;
-    }
+    write_log ("Building CPU function table, %d opcodes (%d %d %d).\n",
+	opcnt, currprefs.cpu_level,
+	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0,
+	currprefs.address_space_24);
 #ifdef JIT
     build_comp();
 #endif
@@ -272,6 +276,7 @@ void init_m68k (void)
 	movem_index2[i] = 7-j;
 	movem_next[i] = i & (~(1 << j));
     }
+#ifdef FPUEMU
     for (i = 0 ; i < 256 ; i++) {
 	int j;
 	for (j = 7 ; j >= 0 ; j--) {
@@ -281,6 +286,7 @@ void init_m68k (void)
 	fpp_movem_index2[i] = j;
 	fpp_movem_next[i] = i & (~(1 << j));
     }
+#endif
 #if COUNT_INSTRS
     {
 	FILE *f = fopen (icountfilename (), "r");
@@ -351,8 +357,6 @@ void init_m68k (void)
 void init_m68k_full (void)
 {
     init_m68k ();
-    build_cpufunctbl ();
-    update_68k_cycles ();
 }
 
 struct regstruct regs, lastint_regs;
@@ -920,7 +924,10 @@ kludge_me_do:
     newpc = get_word_ce (4 * nr) << 16;
     newpc |= get_word_ce (4 * nr + 2);
     if (newpc & 1) {
-	exception3 (regs.ir, m68k_getpc(), newpc);
+	if (nr == 2 || nr == 3)
+	    uae_reset (1); /* there is nothing else we can do.. */
+	else
+	    exception3 (regs.ir, m68k_getpc(), newpc);
 	return;
     }
     m68k_setpc (newpc);
@@ -1039,9 +1046,10 @@ static void Exception_normal (int nr, uaecptr oldpc)
 kludge_me_do:
     newpc = get_long (regs.vbr + 4*nr);
     if (newpc & 1) {
-	if ((nr == 2 || nr == 3) && currprefs.cpu_level >= 2)
+	if (nr == 2 || nr == 3)
 	    uae_reset (1); /* there is nothing else we can do.. */
-	exception3 (regs.ir, m68k_getpc(), newpc);
+	else
+	    exception3 (regs.ir, m68k_getpc(), newpc);
 	return;
     }
     m68k_setpc (newpc);
@@ -1052,6 +1060,11 @@ kludge_me_do:
 
 void Exception (int nr, uaecptr oldpc)
 {
+#if 0
+    if (1 || nr < 24)
+	write_log ("exception %d %08.8X %08.8X (%04.4X %04.4X)\n",
+	    nr, oldpc, m68k_getpc(), intena, intreq);
+#endif
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0)
 	Exception_ce (nr, oldpc);
@@ -1079,7 +1092,7 @@ void Interrupt (int nr)
 
 static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tc, mmusr, urp, srp, buscr, pcr;
 
-#ifdef CPUEMU_0
+#ifndef CPUEMU_68000_ONLY
 
 static int movec_illg (int regno)
 {

@@ -501,12 +501,12 @@ int Midi_Parse( midi_direction_e direction, BYTE *dataptr )
  */
   
 static unsigned char midibuf[BUFFLEN];
-static long midi_inptr = 0,midi_inlast = 0;
+static long midi_inptr = 0, midi_inlast = 0;
 
 static void  add1byte(char w) //put 1 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add1byte buffer full (%02.2X)\n", w));
+	    TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
 	    return;
 	}
 	midibuf[midi_inlast++] = w;
@@ -514,7 +514,7 @@ static void  add1byte(char w) //put 1 Byte to Midibuffer
 static void  add2byte(long w) //put 2 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add2byte buffer full (%04.4X)\n", w));
+	    TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
 	    return;
 	}
 	midibuf[midi_inlast++] = (uae_u8)w;
@@ -524,7 +524,7 @@ static void  add2byte(long w) //put 2 Byte to Midibuffer
 static void  add3byte(long w) //put 3 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add3byte buffer full (%08.8X)\n", w));
+	    TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
 	    return;
 	}
 	midibuf[midi_inlast++] = (uae_u8)w;
@@ -549,8 +549,8 @@ LONG getmidibyte(void) //return midibyte or -1 if none
     EnterCriticalSection (&cs_proc);
     if (overflow == 1)
     {
-	char szMessage[ MAX_PATH ];
-	WIN32GUI_LoadUIString(IDS_MIDIOVERFLOW, szMessage, MAX_PATH );
+	char szMessage[ MAX_DPATH ];
+	WIN32GUI_LoadUIString(IDS_MIDIOVERFLOW, szMessage, MAX_DPATH );
 	gui_message( szMessage );
 	overflow = 0;
     }
@@ -573,15 +573,11 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 	    }	
 	}
     }
+    rv = -1;
     if (midi_inptr < midi_inlast) 
-    {
 	rv = midibuf[midi_inptr++];
-    }	
-    else
-    {
+    if (midi_inptr >= midi_inlast)
 	midi_inptr = midi_inlast = 0;
-	rv = -1;
-    }
     LeaveCriticalSection(&cs_proc);
     return rv;
 }
@@ -597,9 +593,9 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD dwInstance,DWORD
 	{
 		LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
 		static long synum;
-		TRACE(("MIM_LONGDATA %d\n", midiin->dwBytesRecorded));
+		TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
 		if (exitin == 1) goto end;    //for safeness midi want close
-		if ((midi_inlast+midiin->dwBytesRecorded) >= (BUFFLEN-6))
+		if ((midi_inlast + midiin->dwBytesRecorded) >= (BUFFLEN-6))
 		{
 			overflow = 1;
 			TRACE(("MIDI overflow1\n"));
@@ -621,10 +617,10 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD dwInstance,DWORD
 
 	}
 
-	if(wMsg == MM_MIM_DATA)
+	if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA)
 	{
 		BYTE state = (BYTE)dwParam1;
-		TRACE(("MM_MIM_DATA %08.8X\n", dwParam1));
+		TRACE(("%s %08.8X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
 		if(state == 254) goto end;
 		if(state < 0xf0) state = state & 0xf0;
  		//else {add1byte(state); goto end;}

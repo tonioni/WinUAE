@@ -4,9 +4,11 @@
 #define DIRECTINPUT_VERSION  0x0800
 #define DIRECT3D_VERSION 0x0900
 #define SUPPORT_THREADS
+#define MAX_DPATH 1000
 
 #define DRIVESOUND
 #define GFXFILTER
+#define DEBUGGER
 
 #ifndef UAE_MINI
 
@@ -39,7 +41,9 @@
 #define PICASSO96 /* Picasso96 display card emulation */
 #define BSDSOCKET /* bsdsocket.library emulation */
 #define CAPS /* CAPS-image support */
+#define FDI2RAW /* FDI 1.0 and 2.0 image support */
 #define AVIOUTPUT /* Avioutput support */
+#define PROWIZARD /* Pro-Wizard module ripper */
 
 #else
 
@@ -48,6 +52,7 @@
 #define CUSTOM_SIMPLE /* simplified custom chipset emulation */
 #define CPUEMU_0
 #define CPUEMU_68000_ONLY /* drop 68010+ commands from CPUEMU_0 */
+#define ADDRESS_SPACE_24BIT
 #ifndef UAE_NOGUI
 #define D3D
 #define OPENGL

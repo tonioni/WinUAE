@@ -167,6 +167,8 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
 		 m68k_pc_offset;
 	     ad=S1;
+	     if (size == 6)
+		 address++;
 	     mov_l_ri(ad,address);
 	     m68k_pc_offset+=sz2[size];
 	     break;
@@ -220,7 +222,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 	fmov_rm(FS1,(uae_u32)(temp_fp));
 	break;
      case 6:
-	readword(ad,S2,S3); /* fetch word but use only low 8-bits */
+	readbyte(ad,S2,S3);
 	sign_extend_8_rr(S2,S2);
 	mov_l_mr((uae_u32)temp_fp,S2);
 	delay2;

@@ -114,8 +114,8 @@ static int mySockStartup( void )
 	    
 	    if( lasterror == WSAVERNOTSUPPORTED )
 	    {
-		char szMessage[ MAX_PATH ];
-		WIN32GUI_LoadUIString( IDS_WSOCK2NEEDED, szMessage, MAX_PATH );
+		char szMessage[ MAX_DPATH ];
+		WIN32GUI_LoadUIString( IDS_WSOCK2NEEDED, szMessage, MAX_DPATH );
                 gui_message( szMessage );
 	    }
 	    else
@@ -125,8 +125,8 @@ static int mySockStartup( void )
 
     if (LOBYTE (wsbData.wVersion) != SOCKVER_MAJOR || HIBYTE (wsbData.wVersion) != SOCKVER_MINOR )
     {
-	char szMessage[ MAX_PATH ];
-	WIN32GUI_LoadUIString( IDS_WSOCK2NEEDED, szMessage, MAX_PATH );
+	char szMessage[ MAX_DPATH ];
+	WIN32GUI_LoadUIString( IDS_WSOCK2NEEDED, szMessage, MAX_DPATH );
         gui_message( szMessage );
 
         return 0;

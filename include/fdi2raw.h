@@ -9,7 +9,8 @@ typedef struct fdi FDI;
 extern "C" {
 #endif
 
-extern int fdi2raw_loadtrack (FDI*, uae_u16 *mfmbuf, uae_u16 **trackpointers, uae_u16 **tracktiming, int track, int *tracklengths, int *revolutions, int *indexoffset);
+extern int fdi2raw_loadtrack (FDI*, uae_u16 *mfmbuf, uae_u16 *tracktiming, int track, int *tracklength, int *indexoffset, int *multirev, int mfm);
+extern int fdi2raw_loadrevolution (FDI*, uae_u16 *mfmbuf, uae_u16 *tracktiming, int track, int *tracklength, int mfm);
 extern FDI *fdi2raw_header(struct zfile *f);
 extern void fdi2raw_header_free (FDI *);
 extern int fdi2raw_get_last_track(FDI *);

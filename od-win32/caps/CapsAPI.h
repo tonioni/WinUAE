@@ -12,6 +12,8 @@
 // 4: generate density for unformatted cells
 // 5: generate unformatted data
 // 6: generate unformatted data, that changes each revolution
+// 7: directly use source memory buffer supplied with LockImageMemory
+// 8: flakey data is created on one revolution, updated with each lock
 #define DI_LOCK_INDEX    DF_0
 #define DI_LOCK_ALIGN    DF_1
 #define DI_LOCK_DENVAR   DF_2
@@ -20,9 +22,13 @@
 #define DI_LOCK_NOISE    DF_5
 #define DI_LOCK_NOISEREV DF_6
 #define DI_LOCK_MEMREF   DF_7
+#define DI_LOCK_UPDATEFD DF_8
 
 #define CAPS_MAXPLATFORM 4
 #define CAPS_MTRS 5
+
+#define CTIT_FLAG_FLAKEY DF_31
+#define CTIT_MASK_TYPE 0xff
 
 #pragma pack(push, 1)
 

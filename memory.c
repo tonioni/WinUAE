@@ -53,7 +53,7 @@ static long chip_filepos;
 static long bogo_filepos;
 static long rom_filepos;
 
-addrbank *mem_banks[65536];
+addrbank *mem_banks[MEMORY_BANKS];
 
 /* This has two functions. It either holds a host address that, when added
    to the 68k address, gives the host address corresponding to that 68k
@@ -61,7 +61,7 @@ addrbank *mem_banks[65536];
    same value as mem_banks, for those banks that have baseaddr==0. In that
    case, bit 0 is set (the memory access routines will take care of it).  */
 
-uae_u8 *baseaddr[65536];
+uae_u8 *baseaddr[MEMORY_BANKS];
 
 #ifdef NO_INLINE_MEMORY_ACCESS
 __inline__ uae_u32 longget (uaecptr addr)
@@ -592,6 +592,7 @@ uae_u8 REGPARAM2 *a3000mem_xlate (uaecptr addr)
 
 uae_u8 *kickmemory;
 uae_u16 kickstart_version;
+int kickmem_size = 0x80000;
 
 /*
  * A1000 kickstart RAM handling
@@ -1031,14 +1032,11 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     }
 
     i = zfile_fread (mem, 1, size, f);
-    if (i == size/2) {
-	memcpy (mem + size/2, mem, i);
-    } else if ((i != 8192 && i != 65536) && i != size) {
+    zfile_fclose (f);
+    if ((i != 8192 && i != 65536) && i != 131072 && i != 262144 && i != 524288) {
 	gui_message ("Error while reading Kickstart.\n");
-        zfile_fclose (f);
 	return 0;
     }
-    zfile_fclose (f);
 
     if (cr)
 	decode_cloanto_rom (mem, size, i);
@@ -1051,7 +1049,7 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 	kickstart_checksum (mem, size);
     if (cloanto_rom)
 	*cloanto_rom = cr;
-    return 1;
+    return i;
 }
 
 static int load_extendedkickstart (void)
@@ -1148,8 +1146,10 @@ static int load_kickstart (void)
     }
 
     if (f != NULL) {
-	if (!read_kickstart (f, kickmemory, kickmem_size, 1, &cloanto_rom))
+	int size = read_kickstart (f, kickmemory, 0x80000, 1, &cloanto_rom);
+	if (size == 0)
 	    goto err;
+	kickmem_mask = size - 1;
     }
 
 #if defined(AMIGA)
@@ -1308,7 +1308,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     shmpiece *x;
 
     if (!canbang)
-	return malloc (s);
+	return xmalloc (s);
 
     id = shmget (IPC_PRIVATE, s, 0x1ff, file);
     if (id == -1) {
@@ -1339,7 +1339,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 static void init_mem_banks (void)
 {
     int i;
-    for (i = 0; i < 65536; i++)
+    for (i = 0; i < MEMORY_BANKS; i++)
 	put_mem_bank (i << 16, &dummy_bank, 0);
 #ifdef NATMEM_OFFSET
     delete_shmmaps (0, 0xFFFF0000);
@@ -1563,7 +1563,6 @@ void memory_init (void)
     kickmemory = mapped_malloc (kickmem_size, "kick");
     memset (kickmemory, 0, kickmem_size);
     kickmem_bank.baseaddr = kickmemory;
-    kickmem_mask = kickmem_size - 1;
     currprefs.romfile[0] = 0;
     currprefs.keyfile[0] = 0;
 #ifdef AUTOCONFIG
@@ -1632,6 +1631,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	abort ();
     }
 
+#ifndef ADDRESS_SPACE_24BIT
     if (start >= 0x100) {
 	int real_left = 0;
 	for (bnr = start; bnr < start + size; bnr++) {
@@ -1647,8 +1647,12 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	}
 	return;
     }
+#endif
     if (currprefs.address_space_24)
 	endhioffs = 0x10000;
+#ifdef ADDRESS_SPACE_24BIT
+    endhioffs = 0x100;
+#endif
     for (hioffs = 0; hioffs < endhioffs; hioffs += 0x100) {
 	int real_left = 0;
 	for (bnr = start; bnr < start + size; bnr++) {

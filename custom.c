@@ -177,7 +177,10 @@ static int sprite_width, sprres, sprite_buffer_res;
 uae_u8 cycle_line[256];
 #endif
 
-static uae_u32 bpl1dat, bpl2dat, bpl3dat, bpl4dat, bpl5dat, bpl6dat, bpl7dat, bpl8dat;
+static uae_u32 bpl1dat;
+#if 0 /* useless */
+static uae_u32 bpl2dat, bpl3dat, bpl4dat, bpl5dat, bpl6dat, bpl7dat, bpl8dat;
+#endif
 static uae_s16 bpl1mod, bpl2mod;
 
 static uaecptr bplpt[8];
@@ -2437,11 +2440,13 @@ static void DMACON (int hpos, uae_u16 v)
 }
 
 
+#define INTDELAY
+
 static int intlev_2 (void)
 {
     uae_u16 imask = intreq & intena;
     unsigned long cycles = get_cycles ();
-    int c = currprefs.cpu_level >= 2 ? 20 : 4;
+    int c = currprefs.cpu_level >= 2 ? (compiled_code ? 4 : 20) : 4;
     int i;
 
     if (!(imask && (intena & 0x4000))) {
@@ -2450,7 +2455,9 @@ static int intlev_2 (void)
     }
     for (i = 14; i >= 0; i--) {
 	if (imask & (1 << i)) {
+#ifdef INTDELAY
 	    if (!(irqdelay[i] && (cycles - irqcycles[i]) < c * CYCLE_UNIT)) {
+#endif
 		irqdelay[i] = 0;
 		if (i == 13 || i == 14)
 		    return 6;
@@ -2465,7 +2472,9 @@ static int intlev_2 (void)
 		else
 		    return 1;
 	    }
+#ifdef INTDELAY
 	}
+#endif
     }
     return -1;
 }
@@ -2498,7 +2507,7 @@ STATIC_INLINE void INTENA (uae_u16 v)
 {
     setclr (&intena,v);
 #if 0
-    if (v & 0x100)
+    if (v & 0x40)
 	write_log("INTENA %04.4X (%04.4X) %p\n", intena, v, m68k_getpc());
 #endif
     if (v & 0x8000)
@@ -2517,7 +2526,7 @@ void INTREQ (uae_u16 v)
     serial_check_irq ();
     rethink_cias ();
 #if 0
-    if (v & 0x100)
+    if (1 || (v & 0x100))
 	write_log("INTREQ %04.4X (%04.4X) %p\n", intreq, v, m68k_getpc());
 #endif
 }
@@ -2534,16 +2543,6 @@ static void ADKCON (int hpos, uae_u16 v)
 	serial_uartbreak ((adkcon >> 11) & 1);
 }
 
-static void dumpsync (void)
-{
-#if 0
-    write_log ("BEAMCON0 = %04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
-    write_log ("HSSTOP=%04.4X HBSTRT=%04.4X HBSTOP=%04.4X\n", hsstop, hbstrt, hbstop);
-    write_log ("VSSTOP=%04.4X VBSTRT=%04.4X VBSTOP=%04.4X\n", vsstop, vbstrt, vbstop);
-    write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
-#endif
-}
-
 static void BEAMCON0 (uae_u16 v)
 {
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
@@ -2555,6 +2554,18 @@ static void BEAMCON0 (uae_u16 v)
 	        write_log ("warning: %04.4X written to BEAMCON0\n", v);
 	}
     }
+}
+
+#ifndef CUSTOM_SIMPLE
+
+static void dumpsync (void)
+{
+#if 0
+    write_log ("BEAMCON0 = %04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
+    write_log ("HSSTOP=%04.4X HBSTRT=%04.4X HBSTOP=%04.4X\n", hsstop, hbstrt, hbstop);
+    write_log ("VSSTOP=%04.4X VBSTRT=%04.4X VBSTOP=%04.4X\n", vsstop, vbstrt, vbstop);
+    write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
+#endif
 }
 
 static void varsync (void)
@@ -2578,7 +2589,7 @@ static void varsync (void)
     hack_vpos = -1;
     dumpsync ();
 }
-
+#endif
 
 static void BPLxPTH (int hpos, uae_u16 v, int num)
 {
@@ -2700,6 +2711,8 @@ STATIC_INLINE void BPL1DAT (int hpos, uae_u16 v)
 
     maybe_first_bpl1dat (hpos);
 }
+
+#if 0
 /* We could do as well without those... */
 STATIC_INLINE void BPL2DAT (uae_u16 v) { bpl2dat = v; }
 STATIC_INLINE void BPL3DAT (uae_u16 v) { bpl3dat = v; }
@@ -2708,6 +2721,7 @@ STATIC_INLINE void BPL5DAT (uae_u16 v) { bpl5dat = v; }
 STATIC_INLINE void BPL6DAT (uae_u16 v) { bpl6dat = v; }
 STATIC_INLINE void BPL7DAT (uae_u16 v) { bpl7dat = v; }
 STATIC_INLINE void BPL8DAT (uae_u16 v) { bpl8dat = v; }
+#endif
 
 static void DIWSTRT (int hpos, uae_u16 v)
 {
@@ -4180,6 +4194,8 @@ static void frh_handler(void)
 	while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
 	    vsyncmintime += vsynctime * N_LINES / maxvpos;
 	    gonebad++;
+	    if (turbo_emulation)
+		break;
 	}
     }
 }
@@ -4909,6 +4925,7 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 #endif
 
      case 0x110: BPL1DAT (hpos, value); break;
+#if 0 /* no point */
      case 0x112: BPL2DAT (value); break;
      case 0x114: BPL3DAT (value); break;
      case 0x116: BPL4DAT (value); break;
@@ -4916,6 +4933,7 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
      case 0x11A: BPL6DAT (value); break;
      case 0x11C: BPL7DAT (value); break;
      case 0x11E: BPL8DAT (value); break;
+#endif
 
      case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
      case 0x18C: case 0x18E: case 0x190: case 0x192: case 0x194: case 0x196:
@@ -4959,6 +4977,7 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
      case 0x10C: BPLCON4 (hpos, value); break;
 #endif
 
+#ifndef CUSTOM_SIMPLE
      case 0x1DC: BEAMCON0 (value); break;
      case 0x1C0: if (htotal != value) { htotal = value; varsync (); } break;
      case 0x1C2: if (hsstop != value) { hsstop = value; varsync (); } break;
@@ -4971,6 +4990,7 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
      case 0x1DE: if (hsstrt != value) { hsstrt = value; varsync (); } break;
      case 0x1E0: if (vsstrt != value) { vsstrt = value; varsync (); } break;
      case 0x1E2: if (hcenter != value) { hcenter = value; varsync (); } break;
+#endif
 
 #ifdef AGA
      case 0x1FC: FMODE (value); break;

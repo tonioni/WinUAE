@@ -17,6 +17,12 @@ extern void *cache_alloc (int);
 extern void cache_free (void*);
 #endif
 
+#ifdef ADDRESS_SPACE_24BIT
+#define MEMORY_BANKS 256
+#else
+#define MEMORY_BANKS 65536
+#endif
+
 typedef uae_u32 (*mem_get_func)(uaecptr) REGPARAM;
 typedef void (*mem_put_func)(uaecptr, uae_u32) REGPARAM;
 typedef uae_u8 *(*xlate_func)(uaecptr) REGPARAM;
@@ -48,8 +54,6 @@ extern void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v);
 #define USE_MAPPED_MEMORY
 #endif
 #endif
-
-#define kickmem_size 0x080000
 
 #define chipmem_start 0x00000000
 #define bogomem_start 0x00C00000
@@ -114,8 +118,8 @@ extern uae_u8 *default_xlate(uaecptr addr) REGPARAM;
 
 #define bankindex(addr) (((uaecptr)(addr)) >> 16)
 
-extern addrbank *mem_banks[65536];
-extern uae_u8 *baseaddr[65536];
+extern addrbank *mem_banks[MEMORY_BANKS];
+extern uae_u8 *baseaddr[MEMORY_BANKS];
 #define get_mem_bank(addr) (*mem_banks[bankindex(addr)])
 #define put_mem_bank(addr, b, realstart) do { \
     (mem_banks[bankindex(addr)] = (b)); \
@@ -208,6 +212,7 @@ extern void chipmem_bput (uaecptr, uae_u32) REGPARAM;
 
 extern uae_u32 chipmem_mask, kickmem_mask;
 extern uae_u8 *kickmemory;
+extern int kickmem_size;
 extern addrbank dummy_bank;
 
 /* 68020+ Chip RAM DMA contention emulation */

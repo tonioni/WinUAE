@@ -44,5 +44,6 @@ extern int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *
 void InitializeListView( HWND hDlg );
 extern void pre_gui_message (const char*,...);
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
+HKEY read_disk_history (void);
 
 #endif

@@ -189,7 +189,6 @@
 #define IDS_TREEVIEW_MISC               234
 #define IDS_TREEVIEW_SETTINGS           235
 #define IDS_WINUAETITLE_MMB             236
-#define IDS_IDS_WINUAETITLE_NORMAL      237
 #define IDS_WINUAETITLE_NORMAL          237
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
@@ -317,6 +316,7 @@
 #define IDC_SNAPSHOT                    1285
 #define IDC_DOSAVESTATE                 1286
 #define IDC_DOLOADSTATE                 1287
+#define IDC_PROWIZARD                   1288
 #define IDC_PORT0_JOY0                  1300
 #define IDC_PORT0_JOY1                  1301
 #define IDC_PORT0_MOUSE                 1302

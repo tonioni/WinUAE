@@ -93,10 +93,10 @@ extern int console_logging;
 #define SM_WINDOW_OVERLAY 1
 #define SM_FULLSCREEN_DX 2
 #define SM_OPENGL_WINDOW 3
-#define SM_OPENGL_FULLSCREEN_W 4
-#define SM_OPENGL_FULLSCREEN_DX 5
-#define SM_D3D_WINDOW 6
-#define SM_D3D_FULLSCREEN_DX 7
+//#define SM_OPENGL_FULLSCREEN_W 4
+#define SM_OPENGL_FULLSCREEN_DX 4
+#define SM_D3D_WINDOW 5
+#define SM_D3D_FULLSCREEN_DX 6
 #define SM_NONE 7
 
 static struct winuae_modes wmodes[] =
@@ -122,15 +122,17 @@ static struct winuae_modes wmodes[] =
 	0
     },
     {
-	3, "Fullscreen OpenGL",
-	DM_OPENGL | DM_W_FULLSCREEN | DM_DC,
+	3, "DirectDraw Fullscreen OpenGL",
+	DM_OPENGL | DM_DX_FULLSCREEN | DM_DC,
 	0
     },
+#if 0
     {
 	3, "DirectDraw Fullscreen OpenGL",
 	DM_OPENGL | DM_DX_FULLSCREEN | DM_DC,
 	0
     },
+#endif
     {
 	0, "Windowed Direct3D",
 	DM_D3D,
@@ -266,6 +268,7 @@ static int rgbformat_bits (RGBFTYPE t)
 	    : 0);
 }
 
+#if 0
 static DEVMODE dmScreenSettings;
 static volatile cdsthread_ret;
 
@@ -299,7 +302,7 @@ static int do_changedisplaysettings (int width, int height, int bits, int freq)
 	Sleep (10);
     return cdsthread_ret;
 }
-
+#endif
 
 static int set_ddraw (void)
 {
@@ -339,9 +342,11 @@ static int set_ddraw (void)
             write_log( "set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
         }
+#if 0
     } else if (wfullscreen) {
 	if (!do_changedisplaysettings (width, height, bits, currentmode->frequency))
 	    goto oops2;
+#endif
     }
 
     if (dd) {
@@ -518,6 +523,18 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     return 1;
 }
+
+void enumeratedisplays (int multi)
+{
+    if (multi) {
+	DirectDraw_EnumDisplays (displaysCallback);
+    } else {
+	Displays[0].primary = 1;
+	Displays[0].name = "Display";
+	Displays[0].disabled = 0;
+    }
+}
+
 void sortdisplays (void)
 {
     struct MultiDisplay *md1, *md2, tmp;
@@ -867,14 +884,6 @@ void gfx_unlock_picasso (void)
     }
 }
 
-void restore_desktop (void)
-{
-    if (currentmode->flags & DM_W_FULLSCREEN) {
-        ChangeDisplaySettings (NULL, 0);
-        ShowWindow (hAmigaWnd, SW_HIDE);
-    }
-}
-
 static void close_hwnds( void )
 {
 #ifdef AVIOUTPUT
@@ -894,9 +903,11 @@ static void close_hwnds( void )
 #ifdef D3D
 	D3D_free ();
 #endif
+#if 0
 	if (currentmode->flags & DM_W_FULLSCREEN)
 	    ChangeDisplaySettings (NULL, 0);
-        ShowWindow (hAmigaWnd, SW_HIDE);
+#endif
+	ShowWindow (hAmigaWnd, SW_HIDE);
 	DestroyWindow (hAmigaWnd);
 	if (hAmigaWnd == hMainWnd)
 	    hMainWnd = 0;
@@ -912,7 +923,6 @@ static void close_hwnds( void )
 
 static int open_windows (void)
 {
-    int need_fs = 0;
     int ret, i;
 
     in_sizemove = 0;
@@ -922,29 +932,31 @@ static int open_windows (void)
 	return 0;
     write_log ("DirectDraw GUID=%s\n", outGUID (displayGUID));
 
-#ifdef PICASSO96
-    if (screen_is_picasso) {
-	currentmode->current_width = picasso_vidinfo.width;
-	currentmode->current_height = picasso_vidinfo.height;
-	currentmode->current_depth = rgbformat_bits (picasso_vidinfo.selected_rgbformat);
-	currentmode->frequency = currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq;
-    } else {
-#endif
-	currentmode->current_width = currprefs.gfx_width;
-	currentmode->current_height = currprefs.gfx_height;
-	currentmode->current_depth = (currprefs.color_mode == 0 ? 8
-			 : currprefs.color_mode == 1 ? 15
-			 : currprefs.color_mode == 2 ? 16
-			 : currprefs.color_mode == 3 ? 8
-			 : currprefs.color_mode == 4 ? 8 : 32);
-	currentmode->frequency = currprefs.gfx_refreshrate;
-#ifdef PICASSO96
-    }
-#endif
-    currentmode->amiga_width = currentmode->current_width;
-    currentmode->amiga_height = currentmode->current_height;
-
+    ret = -2;
     do {
+	if (ret < -1) {
+#ifdef PICASSO96
+	    if (screen_is_picasso) {
+		currentmode->current_width = picasso_vidinfo.width;
+		currentmode->current_height = picasso_vidinfo.height;
+		currentmode->current_depth = rgbformat_bits (picasso_vidinfo.selected_rgbformat);
+		currentmode->frequency = currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq;
+	    } else {
+#endif
+		currentmode->current_width = currprefs.gfx_width;
+		currentmode->current_height = currprefs.gfx_height;
+		currentmode->current_depth = (currprefs.color_mode == 0 ? 8
+				: currprefs.color_mode == 1 ? 15
+				: currprefs.color_mode == 2 ? 16
+				: currprefs.color_mode == 3 ? 8
+				: currprefs.color_mode == 4 ? 8 : 32);
+		currentmode->frequency = currprefs.gfx_refreshrate;
+#ifdef PICASSO96
+	    }
+#endif
+    	    currentmode->amiga_width = currentmode->current_width;
+	    currentmode->amiga_height = currentmode->current_height;
+	}
 	ret = doInit ();
     } while (ret < 0);
 
@@ -1526,7 +1538,7 @@ static void gfxmode_reset (void)
 #ifdef OPENGL
     if (usedfilter && usedfilter->type == UAE_FILTER_OPENGL) {
 	currentmode->amode[0] = &wmodes[SM_OPENGL_WINDOW];
-	currentmode->amode[1] = &wmodes[SM_OPENGL_FULLSCREEN_W];
+	currentmode->amode[1] = &wmodes[SM_OPENGL_FULLSCREEN_DX];
     }
 #endif
 #ifdef D3D
@@ -1637,8 +1649,10 @@ static int create_windows (void)
 				       rc.right - rc.left + 1, rc.bottom - rc.top + 1,
 				       NULL, NULL, 0, NULL);
 
-	if (! hMainWnd)
+	if (! hMainWnd) {
+	    write_log ("main window creation failed\n");
 	    return 0;
+	}
 	hStatusWnd = CreateStatusWindow (WS_CHILD | WS_VISIBLE, "", hMainWnd, 1);
 	if (hStatusWnd) 
         {
@@ -1680,8 +1694,8 @@ static int create_windows (void)
 				currentmode->current_width, currentmode->current_height,
 				hMainWnd, NULL, 0, NULL);
     
-    if (! hAmigaWnd) 
-    {
+    if (! hAmigaWnd) {
+	write_log ("creation of amiga window failed\n");
         close_hwnds();
 	return 0;
     }
@@ -1796,7 +1810,6 @@ static BOOL doInit (void)
     int fs_warning = -1;
     char tmpstr[300];
     RGBFTYPE colortype;
-    int need_fs = 0;
     int tmp_depth;
     int ret = 0;
     int mult = 0;
@@ -1815,9 +1828,9 @@ static BOOL doInit (void)
 	if (currentmode->current_depth < 15 && (currprefs.chipset_mask & CSMASK_AGA) && isfullscreen () && !WIN32GFX_IsPicassoScreen()) {
 	    static int warned;
 	    if (!warned) {
-		char szMessage[ MAX_PATH ];
+		char szMessage[ MAX_DPATH ];
 		currentmode->current_depth = 16;
-	        WIN32GUI_LoadUIString( IDS_AGA8BIT, szMessage, MAX_PATH );
+	        WIN32GUI_LoadUIString( IDS_AGA8BIT, szMessage, MAX_DPATH );
 		gui_message(szMessage);
 	    }
 	    warned = 1;
@@ -1854,12 +1867,12 @@ static BOOL doInit (void)
 #endif
 	}
 	if (fs_warning >= 0 && !isfullscreen ()) {
-	    char szMessage[MAX_PATH], szMessage2[MAX_PATH];
-	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_PATH );
-	    WIN32GUI_LoadUIString( fs_warning, szMessage2, MAX_PATH );
+	    char szMessage[MAX_DPATH], szMessage2[MAX_DPATH];
+	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH );
+	    WIN32GUI_LoadUIString( fs_warning, szMessage2, MAX_DPATH );
 	    // Temporarily drop the DirectDraw stuff
 	    DirectDraw_Release();
-	    sprintf (tmpstr, szMessage, fs_warning);
+	    sprintf (tmpstr, szMessage, szMessage2);
 	    gui_message (tmpstr);
 	    DirectDraw_Start(displayGUID);
   	    if (screen_is_picasso)
@@ -1870,13 +1883,13 @@ static BOOL doInit (void)
 	    updatewinfsmode (&changed_prefs);
 	    currentmode->current_depth = tmp_depth;
 	    updatemodes ();
+	    ret = -2;
+	    goto oops;
 	}
 	if (! create_windows ())
     	    goto oops;
 #ifdef PICASSO96
 	if (screen_is_picasso) {
-	    if (need_fs)
-		currprefs.gfx_pfullscreen = 1;
 	    currentmode->pal = (LPPALETTEENTRY) & picasso96_state.CLUT;
 	    if (! set_ddraw ()) {
 		if (!modefallback (0))
@@ -1891,10 +1904,6 @@ static BOOL doInit (void)
 	    break;
 	} else {
 #endif
-	    if (need_fs) {
-		currprefs.gfx_afullscreen = 1;
-	        updatewinfsmode (&currprefs);
-	    }
 	    currentmode->pal = colors256;
 	    if (! set_ddraw ()) {
 		if (!modefallback (0))
@@ -1954,8 +1963,8 @@ static BOOL doInit (void)
 	    write_log( "%s mode (bits: %d, pixbytes: %d)\n", currentmode->flags & DM_DX_FULLSCREEN ? "Full screen" : "Window",
 		   DirectDraw_GetSurfaceBitCount(), currentmode->current_depth >> 3 );
 	} else {
-	    char szMessage[ MAX_PATH ];
-	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDPIXELFORMAT, szMessage, MAX_PATH );
+	    char szMessage[ MAX_DPATH ];
+	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDPIXELFORMAT, szMessage, MAX_DPATH );
 	    gui_message( szMessage);
 	    goto oops;
 	}

@@ -376,7 +376,7 @@ static __inline__ blockinfo* get_blockinfo_addr_new(void* addr, int setstate)
 	}
     }
     if (!bi) {
-	fprintf(stderr,"Looking for blockinfo, can't find free one\n");
+	write_log ("Looking for blockinfo, can't find free one\n");
 	abort();
     }
 
@@ -763,7 +763,7 @@ static __inline__ void writeback_const(int r)
     if (!isconst(r))
 	return;
     Dif (live.state[r].needflush==NF_HANDLER) {
-	fprintf(stderr,"Trying to write back constant NF_HANDLER!\n");
+	write_log ("Trying to write back constant NF_HANDLER!\n");
 	abort();
     }
 
@@ -792,7 +792,7 @@ static  void evict(int r)
 
     Dif (live.nat[rr].locked &&
 	live.nat[rr].nholds==1) {
-	fprintf(stderr,"register %d in nreg %d is locked!\n",r,live.state[r].realreg);
+	write_log ("register %d in nreg %d is locked!\n",r,live.state[r].realreg);
 	abort();
     }
 
@@ -1427,7 +1427,7 @@ static void f_evict(int r)
 
     Dif (live.fat[rr].locked &&
 	live.fat[rr].nholds==1) {
-	fprintf(stderr,"FPU register %d in nreg %d is locked!\n",r,live.fate[r].realreg);
+	write_log ("FPU register %d in nreg %d is locked!\n",r,live.fate[r].realreg);
 	abort();
     }
 
@@ -1937,7 +1937,7 @@ MIDFUNC(2,rol_l_rr,(RW4 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,4,4);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_rol_l_rr(d,r) ;
@@ -1957,7 +1957,7 @@ MIDFUNC(2,rol_w_rr,(RW2 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,2,2);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_rol_w_rr(d,r) ;
@@ -1978,7 +1978,7 @@ MIDFUNC(2,rol_b_rr,(RW1 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,1,1);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_rol_b_rr(d,r) ;
@@ -1998,7 +1998,7 @@ MIDFUNC(2,shll_l_rr,(RW4 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,4,4);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_shll_l_rr(d,r) ;
@@ -2018,7 +2018,7 @@ MIDFUNC(2,shll_w_rr,(RW2 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,2,2);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shll_b\n",r);
+	write_log ("Illegal register %d in raw_shll_b\n",r);
 	abort();
     }
     raw_shll_w_rr(d,r) ;
@@ -2039,7 +2039,7 @@ MIDFUNC(2,shll_b_rr,(RW1 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,1,1);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shll_b\n",r);
+	write_log ("Illegal register %d in raw_shll_b\n",r);
 	abort();
     }
     raw_shll_b_rr(d,r) ;
@@ -2138,7 +2138,7 @@ MIDFUNC(2,shrl_l_rr,(RW4 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,4,4);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_shrl_l_rr(d,r) ;
@@ -2158,7 +2158,7 @@ MIDFUNC(2,shrl_w_rr,(RW2 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,2,2);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shrl_b\n",r);
+	write_log ("Illegal register %d in raw_shrl_b\n",r);
 	abort();
     }
     raw_shrl_w_rr(d,r) ;
@@ -2179,7 +2179,7 @@ MIDFUNC(2,shrl_b_rr,(RW1 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,1,1);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shrl_b\n",r);
+	write_log ("Illegal register %d in raw_shrl_b\n",r);
 	abort();
     }
     raw_shrl_b_rr(d,r) ;
@@ -2307,7 +2307,7 @@ MIDFUNC(2,shra_l_rr,(RW4 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,4,4);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_rol_b\n",r);
+	write_log ("Illegal register %d in raw_rol_b\n",r);
 	abort();
     }
     raw_shra_l_rr(d,r) ;
@@ -2327,7 +2327,7 @@ MIDFUNC(2,shra_w_rr,(RW2 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,2,2);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shra_b\n",r);
+	write_log ("Illegal register %d in raw_shra_b\n",r);
 	abort();
     }
     raw_shra_w_rr(d,r) ;
@@ -2348,7 +2348,7 @@ MIDFUNC(2,shra_b_rr,(RW1 d, R1 r))
     r=readreg_specific(r,1,SHIFTCOUNT_NREG);
     d=rmw(d,1,1);
     Dif (r!=1) {
-	fprintf(stderr,"Illegal register %d in raw_shra_b\n",r);
+	write_log ("Illegal register %d in raw_shra_b\n",r);
 	abort();
     }
     raw_shra_b_rr(d,r) ;
@@ -5274,13 +5274,13 @@ void alloc_cache(void)
     if (compiled_code) {
 	flush_icache_hard(6);
 	cache_free(compiled_code);
-	cache_free(popallspace);
-	cache_free(veccode);
     }
-    popallspace = NULL;
-    compiled_code=NULL;
-    veccode=NULL;
-    if (currprefs.cachesize==0)
+    if (veccode == NULL)
+	veccode = cache_alloc (256);
+    if (popallspace == NULL)
+	popallspace = cache_alloc (1024);
+    compiled_code = NULL;
+    if (currprefs.cachesize == 0)
 	return;
 
     while (!compiled_code && currprefs.cachesize) {
@@ -5292,7 +5292,6 @@ void alloc_cache(void)
 	max_compile_start=compiled_code+currprefs.cachesize*1024-BYTES_PER_INST;
 	current_compile_p=compiled_code;
     }
-    veccode = cache_alloc (256);
 }
 
 extern unsigned long op_illg_1 (uae_u32 opcode) REGPARAM;
@@ -5391,7 +5390,7 @@ static void cache_miss(void)
 	return;
     }
     Dif (!bi2 || bi==bi2) {
-	fprintf(stderr,"Unexplained cache miss %p %p\n",bi,bi2);
+	write_log ("Unexplained cache miss %p %p\n",bi,bi2);
 	abort();
     }
     raise_in_cl_list(bi);
@@ -5454,7 +5453,6 @@ static __inline__ void create_popalls(void)
 {
   int i,r;
 
-  popallspace = cache_alloc (1024);
   current_compile_p=popallspace;
   set_target(current_compile_p);
 #if USE_PUSH_POP
@@ -5691,11 +5689,11 @@ void build_comp(void)
 	if (compfunctbl[opcode])
 	    count++;
     }
-    fprintf(stderr,"Supposedly %d compileable opcodes!\n",count);
+    write_log ("Supposedly %d compileable opcodes!\n",count);
 
     /* Initialise state */
-    create_popalls();
     alloc_cache();
+    create_popalls();
     reset_lists();
 
     for (i=0;i<TAGSIZE;i+=2) {

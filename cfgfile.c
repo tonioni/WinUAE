@@ -24,6 +24,8 @@
 #include "savestate.h"
 #include "memory.h"
 
+#define CONFIG_BLEN 2560
+
 static int config_newfilesystem;
 static struct strlist *temp_lines;
 
@@ -178,7 +180,7 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
 void cfgfile_write (FILE *f, char *format,...)
 {
     va_list parms;
-    char tmp[1000];
+    char tmp[CONFIG_BLEN];
 
     va_start (parms, format);
     vsprintf (tmp, format, parms);
@@ -533,7 +535,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     int i;
     char *section = 0;
     char *tmpp;
-    char tmpbuf[256];
+    char tmpbuf[CONFIG_BLEN];
 
     if (memcmp (option, "input.", 6) == 0) {
 	read_inputdevice_config (p, option, value);
@@ -560,8 +562,11 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
     for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	sprintf (tmpbuf, "diskimage%d", i);
-	if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], 256))
+	if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], 256)) {
+	    if (i < 4 && !p->df[i][0])
+		strcpy (p->df[i], p->dfxlist[i]);
 	    return 1;
+	}
     }
 
     if (cfgfile_intval (option, value, "sound_max_buff", &p->sound_maxbsiz, 1)
@@ -781,9 +786,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 
 static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *value)
 {
-    int tmpval;
-    int dummy;
+    int tmpval, dummy, i;
     char *section = 0;
+    char tmpbuf[CONFIG_BLEN];
 
     if (cfgfile_yesno (option, value, "immediate_blits", &p->immediate_blits)
 	|| cfgfile_yesno (option, value, "fast_copper", &p->fast_copper)
@@ -828,17 +833,21 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_strval (option, value, "collision_level", &p->collision_level, collmode, 0)
 	|| cfgfile_strval (option, value, "comp_flushmode", &p->comp_hardflush, flushmode, 0))
 	return 1;
-    if (cfgfile_string (option, value, "floppy0", p->df[0], 256)
-	|| cfgfile_string (option, value, "floppy1", p->df[1], 256)
-	|| cfgfile_string (option, value, "floppy2", p->df[2], 256)
-	|| cfgfile_string (option, value, "floppy3", p->df[3], 256)
-	|| cfgfile_string (option, value, "kickstart_rom_file", p->romfile, 256)
+    if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, 256)
 	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, 256)
 	|| cfgfile_string (option, value, "kickstart_key_file", p->keyfile, 256)
 	|| cfgfile_string (option, value, "flash_file", p->flashfile, 256)
 	|| cfgfile_string (option, value, "cart_file", p->cartfile, 256)
 	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, 256))
 	return 1;
+
+    for (i = 0; i < 4; i++) {
+	sprintf (tmpbuf, "floppy%d", i);
+	if (cfgfile_string (option, value, tmpbuf, p->df[i], 256)) {
+	    strcpy (p->dfxlist[i], p->df[i]);
+	    return 1;
+	}
+    }
 
     if (cfgfile_intval (option, value, "chipmem_size", &dummy, 1)) {
 	if (!dummy)
@@ -878,7 +887,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	    int factor = OFFICIAL_CYCLE_UNIT / CYCLE_UNIT;
 	    p->m68k_speed = (p->m68k_speed + factor - 1) / factor;
 	}
-        if (strcasecmp (value, "max") == 0) p->m68k_speed = -1;
+        if (strcasecmp (value, "max") == 0)
+	    p->m68k_speed = -1;
 	return 1;
     }
 
@@ -1096,7 +1106,7 @@ static int isobsolete (char *s)
 
 static void cfgfile_parse_separated_line (struct uae_prefs *p, char *line1b, char *line2b, int type)
 {
-    char line3b[2560], line4b[2560];
+    char line3b[CONFIG_BLEN], line4b[CONFIG_BLEN];
     struct strlist *sl;
     int ret;
 
@@ -1123,7 +1133,7 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, char *line1b, cha
 
 void cfgfile_parse_line (struct uae_prefs *p, char *line, int type)
 {
-    char line1b[2560], line2b[2560];
+    char line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
 
     if (!separate_line (line, line1b, line2b))
 	return;
@@ -1179,7 +1189,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 {
     int i;
     FILE *fh;
-    char line[2560], line1b[2560], line2b[2560];
+    char line[CONFIG_BLEN], line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
     struct strlist *sl;
     int type1 = 0, type2 = 0, askedtype = 0;
 
@@ -1202,9 +1212,8 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
     while (cfg_fgets (line, sizeof (line), fh) != 0) {
 	int len = strlen (line);
 	/* Delete trailing whitespace.  */
-	while (len > 0 && strcspn (line + len - 1, "\t \r\n") == 0) {
+	while (len > 0 && strcspn (line + len - 1, "\t \r\n") == 0)
 	    line[--len] = '\0';
-	}
 	if (strlen (line) > 0) {
 	    if (line[0] == '#')
 		continue;
@@ -1642,7 +1651,7 @@ int parse_cmdline_option (struct uae_prefs *p, char c, char *arg)
 void cfgfile_addcfgparam (char *line)
 {
     struct strlist *u;
-    char line1b[2560], line2b[2560];
+    char line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
 
     if (!line) {
 	struct strlist **ps = &temp_lines;
@@ -1668,7 +1677,7 @@ void cfgfile_addcfgparam (char *line)
 
 uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
 {
-    char tmp[2000];
+    char tmp[CONFIG_BLEN];
     int i;
     struct strlist *sl;
 
@@ -1871,7 +1880,7 @@ void default_prefs (struct uae_prefs *p, int type)
 #endif
 
 #ifdef UAE_MINI
-    default_prefs_mini (p);
+    default_prefs_mini (p, 0);
 #endif
 
     inputdevice_default_prefs (p);

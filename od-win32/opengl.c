@@ -23,9 +23,11 @@
 
 #include <gl\gl.h>
 #include <gl\glu.h>
+#include <gl\wglext.h>
 
 typedef BOOL (WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
 typedef int (WINAPI * PFNWGLGETSWAPINTERVALEXTPROC) (void);
+typedef BOOL (WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC, const int *, const FLOAT *, UINT, int *, UINT *);
 
 /* not defined in MSVC's opengl.h */
 #ifndef GL_UNSIGNED_SHORT_5_5_5_1_EXT
@@ -74,6 +76,103 @@ static int exact_log2 (int v)
     return l;
 }
 
+static int arbMultisampleSupported;
+static int arbMultisampleFormat;
+#if 0
+
+// WGLisExtensionSupported: This Is A Form Of The Extension For WGL
+static int WGLisExtensionSupported(const char *extension)
+{
+	const size_t extlen = strlen(extension);
+	const char *supported = NULL;
+	const char *p;
+
+	// Try To Use wglGetExtensionStringARB On Current DC, If Possible
+	PROC wglGetExtString = wglGetProcAddress("wglGetExtensionsStringARB");
+
+	if (wglGetExtString)
+		supported = ((char*(__stdcall*)(HDC))wglGetExtString)(wglGetCurrentDC());
+
+	// If That Failed, Try Standard Opengl Extensions String
+	if (supported == NULL)
+		supported = (char*)glGetString(GL_EXTENSIONS);
+
+	// If That Failed Too, Must Be No Extensions Supported
+	if (supported == NULL)
+		return 0;
+
+	// Begin Examination At Start Of String, Increment By 1 On False Match
+	for (p = supported; ; p++)
+	{
+		// Advance p Up To The Next Possible Match
+		p = strstr(p, extension);
+
+		if (p == NULL)
+			return 0;															// No Match
+
+		// Make Sure That Match Is At The Start Of The String Or That
+		// The Previous Char Is A Space, Or Else We Could Accidentally
+		// Match "wglFunkywglExtension" With "wglExtension"
+
+		// Also, Make Sure That The Following Character Is Space Or NULL
+		// Or Else "wglExtensionTwo" Might Match "wglExtension"
+		if ((p==supported || p[-1]==' ') && (p[extlen]=='\0' || p[extlen]==' '))
+			return 1;															// Match
+	}
+	return 0;
+}
+
+// InitMultisample: Used To Query The Multisample Frequencies
+static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd, int depth)
+{  
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+	int pixelFormat;
+	int valid, i;
+	UINT numFormats;
+	float fAttributes[] = {0,0};
+	// These Attributes Are The Bits We Want To Test For In Our Sample
+	// Everything Is Pretty Standard, The Only One We Want To 
+	// Really Focus On Is The SAMPLE BUFFERS ARB And WGL SAMPLES
+	// These Two Are Going To Do The Main Testing For Whether Or Not
+	// We Support Multisampling On This Hardware.
+	int iAttributes[] = {
+		WGL_DRAW_TO_WINDOW_ARB,GL_TRUE,
+		WGL_SUPPORT_OPENGL_ARB,GL_TRUE,
+		WGL_ACCELERATION_ARB,WGL_FULL_ACCELERATION_ARB,
+		WGL_COLOR_BITS_ARB,pfd.cDepthBits,
+		WGL_ALPHA_BITS_ARB,0,
+		WGL_DEPTH_BITS_ARB,0,
+		WGL_STENCIL_BITS_ARB,0,
+		WGL_DOUBLE_BUFFER_ARB,GL_TRUE,
+		WGL_SAMPLE_BUFFERS_ARB,GL_TRUE,
+		WGL_SAMPLES_ARB,0,
+		0,0
+	};
+
+	 // See If The String Exists In WGL!
+	if (!WGLisExtensionSupported("WGL_ARB_multisample"))
+		return 0;
+
+	// Get Our Pixel Format
+	wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");	
+	if (!wglChoosePixelFormatARB) 
+		return 0;
+
+	for (i = 8; i >= 2; i -= 2) {
+	    iAttributes[19] = i;
+	    valid = wglChoosePixelFormatARB(hDC,iAttributes,fAttributes,1,&pixelFormat,&numFormats);
+	    // If We Returned True, And Our Format Count Is Greater Than 1
+	    if (valid && numFormats >= 1) {
+		arbMultisampleSupported = i;
+		arbMultisampleFormat = pixelFormat;	
+		return arbMultisampleSupported;
+	    }
+	}
+	// Return The Valid Format
+	return  arbMultisampleSupported;
+}
+#endif
+
 const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 {
     int PixelFormat;
@@ -92,16 +191,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     t_width = t_w;
     t_height = t_h;
 
-    memset (&pfd, 0, sizeof (pfd));
-    pfd.nSize = sizeof (PIXELFORMATDESCRIPTOR);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.cColorBits = depth;
-    pfd.cDepthBits = 0;
-    pfd.iLayerType = PFD_MAIN_PLANE;
-
     hwnd = ahwnd;
-    openglhdc = GetDC (hwnd);
     total_textures = 2;
 
     if (currprefs.gfx_afullscreen && WIN32GFX_GetDepth (TRUE) < 15) {
@@ -109,27 +199,53 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    if (!(PixelFormat = ChoosePixelFormat (openglhdc, &pfd))) {
-        strcpy (errmsg, "OPENGL: can't find suitable pixelformat");
-	return errmsg;
+    memset (&pfd, 0, sizeof (pfd));
+    pfd.nSize = sizeof (PIXELFORMATDESCRIPTOR);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_TYPE_RGBA;
+    pfd.cColorBits = depth;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+
+    for (;;) {
+
+	openglhdc = GetDC (hwnd);
+
+	if(!arbMultisampleSupported) {
+	    PixelFormat = ChoosePixelFormat (openglhdc, &pfd);	// Find A Compatible Pixel Format
+	    if (PixelFormat == 0) {					// Did We Find A Compatible Format?
+		strcpy (errmsg, "OPENGL: can't find suitable pixelformat");
+		return errmsg;
+	    }
+	} else {
+	    PixelFormat = arbMultisampleFormat;
+	}
+
+	if (!SetPixelFormat (openglhdc, PixelFormat, &pfd)) {
+	    sprintf (errmsg, "OPENGL: can't set pixelformat %x", PixelFormat);
+	    return errmsg;
+	}
+        
+	if (!(hrc = wglCreateContext (openglhdc))) {
+	    strcpy (errmsg, "OPENGL: can't create gl rendering context");
+	    return errmsg;
+	}
+        
+	if (!wglMakeCurrent (openglhdc, hrc)) {
+	    strcpy (errmsg, "OPENGL: can't activate gl rendering context");
+	    return errmsg;
+	}
+#if 0
+	if(!arbMultisampleSupported) {
+	    if(InitMultisample(openglhdc, &pfd)) {
+		OGL_free ();
+		continue;
+	    }
+	}
+#endif
+	break;
     }
-    
-    if (!SetPixelFormat (openglhdc, PixelFormat, &pfd)) {
-        strcpy (errmsg, "OPENGL: can't set pixelformat");
-        return errmsg;
-    }
-    
-    if (!(hrc = wglCreateContext (openglhdc))) {
-        strcpy (errmsg, "OPENGL: can't create gl rendering context");
-        return errmsg;
-    }
-    
-    if (!wglMakeCurrent (openglhdc, hrc)) {
-        strcpy (errmsg, "OPENGL: can't activate gl rendering context");
-        return errmsg;
-    }
-    
-    glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
+
+	glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
     required_texture_size = 2 << exact_log2 (t_width > t_height ? t_width : t_height);
     if (max_texture_size < t_width || max_texture_size < t_height) {
 	sprintf (errmsg, "OPENGL: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",

@@ -7,6 +7,9 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#ifdef DEBUGGER
+
 #include "memory.h"
 #include "identify.h"
 
@@ -398,3 +401,4 @@ struct customData custd[] =
 #endif
 };
 
+#endif
