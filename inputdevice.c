@@ -197,7 +197,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *
 	    *p = 0;
 	}
 	if (custom)
-	    sprintf (p, "\"%s\".%d", custom, id->flags[i + offset][j]);
+	    sprintf (p, "'%s'.%d", custom, id->flags[i + offset][j]);
 	else if (event <= 0)
 	    sprintf (p, "NULL");
 	else
@@ -280,7 +280,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 		*p = 0;
 	    }
 	    if (custom)
-	        sprintf (p, "\"%s\".%d", custom, kbr->flags[i][j]);
+	        sprintf (p, "'%s'.%d", custom, kbr->flags[i][j]);
 	    else if (event > 0)
 		sprintf (p, "%s.%d", events[event].confname, kbr->flags[i][j]);
 	    else
@@ -329,7 +329,7 @@ static int getnum (char **pp)
 static char *getstring (char **pp)
 {
     int i;
-    static char str[100];
+    static char str[1000];
     char *p = *pp;
 
     if (*p == 0)
@@ -467,7 +467,7 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	ie = &events[i];
 	if (!ie->name) {
 	    ie = &events[0];
-	    if (strlen (p2) > 2 && p2[0] == '"' && p2[strlen (p2) - 1] == '"') {
+	    if (strlen (p2) > 2 && p2[0] == '\'' && p2[strlen (p2) - 1] == '\'') {
 	        custom = my_strdup (p2 + 1);
 	        custom[strlen (custom) - 1] = 0;
 	    }
@@ -1118,6 +1118,8 @@ static void queue_input_event (int event, int state, int max, int framecnt, int 
     struct input_queue_struct *iq;
     int i = check_input_queue (event);
 
+    if (event <= 0)
+	return;
     if (state < 0 && i >= 0) {
         iq = &input_queue[i];
 	iq->nextframecnt = -1;
@@ -1305,13 +1307,14 @@ void handle_input_event (int nr, int state, int max, int autofire)
     struct inputevent *ie;
     int joy;
     
-    if (nr <= 0) return;
+    if (nr <= 0)
+	return;
     ie = &events[nr];
     //write_log("'%s' %d %d\n", ie->name, state, max);
     if (autofire) {
 	if (state)
 	    queue_input_event (nr, state, max, currprefs.input_autofire_framecnt, 1);
-	    else
+	else
 	    queue_input_event (nr, -1, 0, 0, 1);
     }
     switch (ie->unit)
@@ -1455,12 +1458,14 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
     uae_u32 mask = 1 << button;
     uae_u32 omask = id2->buttonmask & mask;
     uae_u32 nmask = (state ? 1 : 0) << button;
+    char *custom;
     
     if (button >= ID_BUTTON_TOTAL)
 	return;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 	event = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
-	if (event <= 0)
+	custom = id->custom[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
+	if (event <= 0 && custom == NULL)
 	    continue;
 	autofire = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 	if (state < 0) {
@@ -1838,6 +1843,7 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 	    for (k = 0; k < MAX_INPUT_SUB_EVENT; k++) {/* send key release events in reverse order */
 		int autofire = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 		int event = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
+		char *custom = na->custom[j][sublevdir[state == 0 ? 1 : 0][k]];
 		handle_input_event (event, state, 1, autofire);
 		//write_log ("'%s' %d ('%s') %d\n", na->name, event, events[event].name,  state);
 	    }
@@ -2345,7 +2351,8 @@ void setjoystickstate (int joy, int axis, int state, int max)
     if (v1 == v2)
 	return;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
-	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state, max, id->flags[ID_AXIS_OFFSET + axis][i]);
+	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state, max,
+	id->flags[ID_AXIS_OFFSET + axis][i]);
     id2->states[axis] = state;
 }
 

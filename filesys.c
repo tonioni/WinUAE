@@ -2470,7 +2470,7 @@ action_write (Unit *unit, dpacket packet)
 	return;
     }
 
-    gui_hd_led (1);
+    gui_hd_led (2);
     TRACE(("ACTION_WRITE(%s,0x%lx,%ld)\n",k->aino->nname,addr,size));
 
     if (unit->ui.readonly) {
@@ -2583,7 +2583,7 @@ action_set_protect (Unit *unit, dpacket packet)
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     }
     notify_check (unit, a);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void action_set_comment (Unit * unit, dpacket packet)
@@ -2626,7 +2626,7 @@ static void action_set_comment (Unit * unit, dpacket packet)
     a->comment = commented;
     fsdb_set_file_attrs (a);
     notify_check (unit, a);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void
@@ -2812,7 +2812,7 @@ action_create_dir (Unit *unit, dpacket packet)
     notify_check (unit, aino);
     updatedirtime (aino, 0);
     PUT_PCK_RES1 (packet, make_lock (unit, aino->uniq, -2) >> 2);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void
@@ -2950,7 +2950,7 @@ action_delete_object (Unit *unit, dpacket packet)
 	delete_aino (unit, a);
     }
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void
@@ -2982,7 +2982,7 @@ action_set_date (Unit *unit, dpacket packet)
     } else
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     notify_check (unit, a);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void
@@ -3115,7 +3115,7 @@ action_rename_object (Unit *unit, dpacket packet)
     if (a2->elock > 0 || a2->shlock > 0 || wehavekeys > 0)
 	de_recycle_aino (unit, a2);
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    gui_hd_led (1);
+    gui_hd_led (2);
 }
 
 static void

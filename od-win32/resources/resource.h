@@ -213,6 +213,8 @@
 #define IDS_SOUND_4CHANNEL              242
 #define IDS_HF_FS_CUSTOM                243
 #define IDS_SELECTFS                    244
+#define IDB_BITMAP1                     246
+#define IDB_XARCADE                     246
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -398,8 +400,6 @@
 #define IDC_PORT1_KBDC                  1311
 #define IDC_PORT1_KBDD                  1312
 #define IDC_PORT1_KBDE                  1313
-#define IDC_PORT0                       1342
-#define IDC_PORT1                       1343
 #define IDC_MIDIFRAME                   1314
 #define IDC_SERPARFRAME                 1315
 #define IDC_SERIALFRAME                 1316
@@ -411,6 +411,8 @@
 #define IDC_NEW_FS                      1339
 #define IDC_NEW_HF                      1340
 #define IDC_NEW_HD                      1341
+#define IDC_PORT0                       1342
+#define IDC_PORT1                       1343
 #define IDC_PATH_NAME                   1362
 #define IDC_SELECTOR                    1363
 #define IDC_VOLUME_NAME                 1364
@@ -815,7 +817,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        245
+#define _APS_NEXT_RESOURCE_VALUE        247
 #define _APS_NEXT_COMMAND_VALUE         40021
 #define _APS_NEXT_CONTROL_VALUE         1699
 #define _APS_NEXT_SYMED_VALUE           101

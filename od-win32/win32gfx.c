@@ -1076,10 +1076,12 @@ int check_prefs_changed_gfx (void)
     }
 
     if (strcmp (currprefs.prtname, changed_prefs.prtname) ||
+	currprefs.parallel_autoflush_time != changed_prefs.parallel_autoflush_time ||
 	currprefs.parallel_postscript_emulation != changed_prefs.parallel_postscript_emulation ||
 	currprefs.parallel_postscript_detection != changed_prefs.parallel_postscript_detection ||
 	strcmp (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters)) {
 	strcpy (currprefs.prtname, changed_prefs.prtname);
+	currprefs.parallel_autoflush_time = changed_prefs.parallel_autoflush_time;
 	currprefs.parallel_postscript_emulation = changed_prefs.parallel_postscript_emulation;
 	currprefs.parallel_postscript_detection = changed_prefs.parallel_postscript_detection;
 	strcpy (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters);

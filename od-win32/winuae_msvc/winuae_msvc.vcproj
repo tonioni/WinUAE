@@ -335,6 +335,9 @@
 						AdditionalIncludeDirectories="\projects\winuae\src\od-win32\resources;$(NoInherit)"/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath="..\resources\xarcade-winuae.bmp">
+			</File>
 		</Filter>
 		<Filter
 			Name="win32"

@@ -244,7 +244,7 @@ static int handlecd32 (int scancode, int state)
     }
     if (!e)
 	return 0;
-    handle_input_event (e, state, 1, 0);
+    handle_input_event (e, state, 1, 0, NULL);
     return 1;
 }
 #endif

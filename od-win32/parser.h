@@ -7,7 +7,7 @@
  * Copyright 1998-1999 Brian King
  */
 
-#define PRTBUFSIZE 4096
+#define PRTBUFSIZE 65536
 
 int setbaud (long baud );
 void getserstat(int *status);

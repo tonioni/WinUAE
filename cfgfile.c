@@ -1774,6 +1774,82 @@ void cfgfile_addcfgparam (char *line)
     temp_lines = u;
 }
 
+static int getconfigstoreline (struct zfile *z, char *option, char *value)
+{
+    char tmp[CONFIG_BLEN * 2];
+    int idx = 0;
+
+    for (;;) {
+	uae_u8 b = 0;
+	if (zfile_fread (&b, 1, 1, z) != 1)
+	    return 0;
+	tmp[idx++] = b;
+	tmp[idx] = 0;
+	if (b == '\n')
+	    break;
+    }
+    return separate_line (tmp, option, value);
+}
+	
+
+int cfgfile_handle_custom_event (char *custom, int mode)
+{
+    char option[CONFIG_BLEN], value[CONFIG_BLEN];
+    char option2[CONFIG_BLEN], value2[CONFIG_BLEN];
+    char *tmp, *p, *nextp;
+    struct zfile *configstore = NULL;
+    int cnt = 0, cnt_ok = 0;
+
+    if (!mode) {
+	uae_u8 zero = 0;
+    	configstore = zfile_fopen_empty ("configstore", 50000);
+	save_options (configstore, &currprefs, 0);
+	zfile_fwrite (&zero, 1, 1, configstore);
+    }
+
+    nextp = NULL;
+    tmp = p = xcalloc (strlen (custom) + 2, 1);
+    strcpy (tmp, custom);
+    while (p && *p) {
+	if (*p == '\"') {
+	    char *p2;
+	    p++;
+	    p2 = p;
+	    while (*p2 != '\"' && *p2 != 0)
+		p2++;
+	    if (*p2 == '\"') {
+		*p2++ = 0;
+		nextp = p2 + 1;
+		if (*nextp == ' ')
+		    nextp++;
+	    }
+	}
+	if (separate_line (p, option, value)) {
+	    cnt++;
+	    if (mode) {
+		cfgfile_parse_option (&changed_prefs, option, value, 0);
+	    } else {
+		zfile_fseek (configstore, 0, SEEK_SET);
+		for (;;) {
+		    if (!getconfigstoreline (configstore, option2, value2))
+			break;
+		    if (!strcmpi (option, option2) && !strcmpi (value, value2)) {
+			cnt_ok++;
+			break;
+		    }
+		}   
+	    }
+	}	
+	p = nextp;
+    }
+    xfree (tmp);
+    zfile_fclose (configstore);
+    if (cnt > 0 && cnt == cnt_ok)
+	return 1;
+    return 0;
+}
+
+
 int cmdlineparser (char *s, char *outp[], int max)
 {
     int j, cnt = 0;
@@ -2094,6 +2170,10 @@ void default_prefs (struct uae_prefs *p, int type)
     p->serial_demand = 0;
     p->serial_hwctsrts = 1;
     p->parallel_demand = 0;
+    p->parallel_postscript_emulation = 0;
+    p->parallel_postscript_detection = 0;
+    p->parallel_autoflush_time = 5;
+    p->ghostscript_parameters[0] = 0;
 
     p->jport0 = JSEM_MICE;
     p->jport1 = JSEM_KBDLAYOUT;

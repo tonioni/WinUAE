@@ -114,8 +114,8 @@ void record_key (int kc)
 	case AK_NP4: fs = 1; fs_xa1[1] = b; break;
 	case AK_NP6: fs = 1; fs_xa1[2] = b; break;
 	case AK_NP2: fs = 1; fs_xa1[3] = b; break;
-	case AK_RCTRL: fs = 1; fs_xa1[4] = b; break;
-	case AK_RALT: fs = 1; fs_xa1[5] = b; break;
+	case AK_CTRL: fs = 1; fs_xa1[4] = b; break;
+	case AK_LALT: fs = 1; fs_xa1[5] = b; break;
 	case AK_SPC: fs = 1; fs_xa1[6] = b; break;
 	}
     }
@@ -144,18 +144,28 @@ void record_key (int kc)
 	}
 	if (fs_xa1 || fs_xa2) {
 	    int k2 = k;
+	    if (k == AK_1)
+		k2 = AK_F1;
+	    if (k == AK_2)
+		k2 = AK_F2;
 	    if (k == AK_3)
 		k2 = AK_LALT;
 	    if (k == AK_4)
 		k2 = AK_RALT;
 	    if (k == AK_6)
 		k2 = AK_DN;
-	    if (k == AK_1)
-		k2 = AK_F1;
-	    if (k == AK_2)
-		k2 = AK_F2;
-	    if (k == AK_X || k == AK_LBRACKET)
+	    if (k == AK_LBRACKET || k == AK_LSH)
 		k2 = AK_SPC;
+	    if (k == AK_RBRACKET)
+		k2 = AK_RET;
+	    if (k == AK_C)
+		k2 = AK_1;
+	    if (k == AK_5)
+		k2 = AK_2;
+	    if (k == AK_Z)
+		k2 = AK_3;
+	    if (k == AK_X)
+		k2 = AK_4;
 	    if (k != k2)
 		kc = (k2 << 1) | (b ? 0 : 1);
 	}

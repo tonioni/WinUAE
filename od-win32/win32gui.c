@@ -114,8 +114,15 @@ static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     HARDDISK_ID = -1, PORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
     PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1;
 static HWND pages[MAX_C_PAGES];
+#define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
 static HACCEL hAccelTable;
+struct ToolTipHWNDS {
+    WNDPROC proc;
+    HWND hwnd;
+    int imageid;
+};
+static struct ToolTipHWNDS ToolTipHWNDS2[MAX_IMAGETOOLTIPS + 1];
 
 void exit_gui (int ok)
 {
@@ -989,6 +996,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	}
     }
     nextp = full_path2 + openFileName.nFileOffset;
+    if (nextp[strlen(nextp) + 1] == 0)
+	multi = 0;
     while (result && next >= 0)
     {
 	next = -1;
@@ -1088,6 +1097,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
                     RegSetValueEx(hWinUAEKey, "hdfPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen(openFileName.lpstrFile) + 1);
             }
         }
+        if (!multi)
+	    next = -1;
         if (next >= 0)
 	    wParam = next;
     }
@@ -1110,8 +1121,16 @@ static int loopmulti (char *s, char *out)
 	index = strlen (s) + 1;
 	return 1;
     }
-    if (!s[index])
+    if (index < 0)
 	return 0;
+    if (!s[index]) {
+	if (s[strlen (s) + 1] == 0) {
+	    strcpy (out, s);
+	    index = -1;
+	    return 1;
+	}
+	return 0;
+    }
     sprintf (out, "%s\\%s", s, s + index);
     index += strlen (s + index) + 1;
     return 1;
@@ -6074,7 +6093,7 @@ static void addswapperfile (HWND hDlg, int entry)
     if (MultiDiskSelection (hDlg, -1, 0, &changed_prefs, path)) {
         char dpath[MAX_DPATH];
         loopmulti (path, NULL);
-        while (loopmulti(path, dpath) && entry < MAX_SPARE_DRIVES - 1) {
+        while (loopmulti(path, dpath) && entry < MAX_SPARE_DRIVES) {
             strcpy (workprefs.dfxlist[entry], dpath);
             entry++;
         }
@@ -7779,6 +7798,57 @@ static int GetPanelRect (HWND hDlg, RECT *r)
     return 1;
 }
 
+static int ToolTipImageIDs[] = { 1, IDB_XARCADE, -1 };
+
+static WNDPROC ToolTipWndProcOld;
+static long FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    RECT r1;
+    POINT p1;
+    PAINTSTRUCT ps;
+    HBITMAP bm;
+    BITMAP binfo;
+    HDC hdc, memdc;
+    int w, h, i;
+
+    for (i = 0; ToolTipHWNDS2[i].hwnd; i++) {
+	if (hwnd == ToolTipHWNDS2[i].hwnd)
+	    break;
+    }
+    if (!ToolTipHWNDS2[i].hwnd)
+        return CallWindowProc (ToolTipHWNDS2[i].proc, hwnd, message, wParam, lParam);
+
+    switch (message)
+    {
+	case WM_PAINT:
+	bm = LoadBitmap (hInst, MAKEINTRESOURCE (ToolTipHWNDS2[i].imageid));
+	GetObject (bm, sizeof (binfo), &binfo);
+	w = binfo.bmWidth;
+	h = binfo.bmHeight;
+	GetWindowRect (hwnd, &r1);
+	GetCursorPos (&p1);
+	r1.right = r1.left + w;
+	r1.bottom = r1.top + h;
+	ShowWindow (hwnd, SW_SHOWNA);
+	MoveWindow (hwnd, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, TRUE);
+	hdc = GetDC (hwnd);
+	memdc = CreateCompatibleDC (hdc);
+	SelectObject (memdc, bm);
+	BeginPaint (hwnd, &ps);
+	SetBkMode (ps.hdc, TRANSPARENT);
+	BitBlt (hdc, 0, 0, w, h, memdc, 0, 0, SRCCOPY);
+	DeleteObject (bm);
+	EndPaint (hwnd, &ps);
+	DeleteDC (memdc);
+	ReleaseDC (hwnd, hdc);
+	return FALSE;
+	case WM_PRINT:
+	PostMessage (hwnd, WM_PAINT, 0, 0);
+	return TRUE;
+    }
+    return CallWindowProc (ToolTipHWNDS2[i].proc, hwnd, message, wParam, lParam);
+}
+
 static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 {
     TOOLINFO ti;
@@ -7789,19 +7859,52 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
     SendMessage (hwnd, WM_GETTEXT, (WPARAM)sizeof (tmp), (LPARAM)tmp);
     p = strchr (tmp, '[');
     if (strlen (tmp) > 0 && p && strlen(p) > 2 && p[1] == ']') {
+	int imageid = 0;
         *p++ = 0;
         *p++ = 0;
         if (p[0] == ' ')
 	    *p++;
+	if (p[0] == '#')
+	    imageid = atol (p + 1);
         tmp[strlen(tmp) - 1] = 0;
-        SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
         ti.cbSize = sizeof (TOOLINFO);
         ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
         ti.hwnd = GetParent (hwnd);
         ti.hinst = hInst;
         ti.uId = (UINT)hwnd;
         ti.lpszText = p;
-        SendMessage(ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+	if (imageid > 0) {
+	    int idx, i;
+
+	    idx = 0;
+	    while (ToolTipHWNDS2[idx].hwnd)
+	        idx++;
+	    for (i = 0; ToolTipImageIDs[i] >= 0; i += 2) {
+		if (ToolTipImageIDs[i] == imageid)
+		    break;
+	    }
+	    if (ToolTipImageIDs[i] >= 0 && idx < MAX_IMAGETOOLTIPS) {
+		HWND ToolTipHWND2 = CreateWindowEx (WS_EX_TOPMOST,
+		    TOOLTIPS_CLASS, NULL,
+		    WS_POPUP | TTS_NOPREFIX,
+		    CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		    panelDlg, NULL, hInst, NULL);
+		ToolTipHWNDS2[idx].hwnd = ToolTipHWND2;
+		ToolTipHWNDS2[idx+1].hwnd = NULL;
+		ToolTipHWNDS2[idx].proc = (WNDPROC)GetWindowLongPtr (ToolTipHWND2, GWL_WNDPROC);
+		ToolTipHWNDS2[idx].imageid = ToolTipImageIDs[i + 1];
+		SetWindowLongPtr (ToolTipHWND2, GWL_WNDPROC, (LONG_PTR)ToolTipWndProc);
+		SetWindowPos (ToolTipHWND2, HWND_TOPMOST, 0, 0, 0, 0,
+		    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		SendMessage(ToolTipHWND2, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
+		SendMessage(ToolTipHWND2, TTM_SETMAXTIPWIDTH, 0, 400);
+	        SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
+		SendMessage(ToolTipHWND2, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+	    }
+	} else {
+	    SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
+	    SendMessage(ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+	}
         return 1;
     }
     p = strchr (tmp, ']');
@@ -7840,7 +7943,7 @@ static HWND updatePanel (HWND hDlg, int id)
 {
     static HWND hwndTT;
     RECT r1c, r1w, r2c, r2w, r3c, r3w;
-    int w, h, pw, ph, x , y;
+    int w, h, pw, ph, x , y, i;
 
     EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), full_property_sheet ? FALSE : TRUE);
     EnableWindow (GetDlgItem (guiDlg, IDOK), TRUE);
@@ -7852,6 +7955,10 @@ static HWND updatePanel (HWND hDlg, int id)
     if (ToolTipHWND != NULL) {
 	DestroyWindow (ToolTipHWND);
 	ToolTipHWND = NULL;
+    }
+    for (i = 0; ToolTipHWNDS2[i].hwnd; i++) {
+	DestroyWindow (ToolTipHWNDS2[i].hwnd);
+	ToolTipHWNDS2[i].hwnd = NULL;
     }
     hAccelTable = NULL;
     if (id < 0) {
@@ -7903,12 +8010,14 @@ static HWND updatePanel (HWND hDlg, int id)
         panelDlg, NULL, hInst, NULL);
     SetWindowPos (ToolTipHWND, HWND_TOPMOST, 0, 0, 0, 0,
 	SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
 #if 0
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_INITIAL, (LPARAM)MAKELONG(100, 0));
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_RESHOW, (LPARAM)MAKELONG(0, 0));
 #endif
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
     SendMessage(ToolTipHWND, TTM_SETMAXTIPWIDTH, 0, 400);
+
     EnumChildWindows (panelDlg, &childenumproc, (LPARAM)NULL);
     SendMessage (panelDlg, WM_NULL, 0, 0);
 

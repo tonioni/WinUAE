@@ -445,9 +445,9 @@ BEGIN
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT0_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
                     10,198,90,10
-    CONTROL         "X-Arcade (left)",IDC_PORT0_KBDD,"Button",
+    CONTROL         "X-Arcade (left) []#1",IDC_PORT0_KBDD,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,10,210,90,10
-    CONTROL         "X-Arcade (right)",IDC_PORT0_KBDE,"Button",
+    CONTROL         "X-Arcade (right) []#1",IDC_PORT0_KBDE,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,10,222,90,10
     COMBOBOX        IDC_PORT0_JOYS,23,153,117,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
@@ -463,9 +463,9 @@ BEGIN
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT1_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
                     155,198,90,10
-    CONTROL         "X-Arcade (left)",IDC_PORT1_KBDD,"Button",
+    CONTROL         "X-Arcade (left) []#1",IDC_PORT1_KBDD,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,155,210,90,10
-    CONTROL         "X-Arcade (right)",IDC_PORT1_KBDE,"Button",
+    CONTROL         "X-Arcade (right) []#1",IDC_PORT1_KBDE,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,155,222,90,10
     COMBOBOX        IDC_PORT1_JOYS,168,153,123,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
@@ -1442,6 +1442,25 @@ BEGIN
 END
 
 #endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Finnish resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_FIN)
+#ifdef _WIN32
+LANGUAGE LANG_FINNISH, SUBLANG_DEFAULT
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_XARCADE             BITMAP                  "xarcade-winuae.bmp"
+#endif    // Finnish resources
 /////////////////////////////////////////////////////////////////////////////
 
 

@@ -535,7 +535,7 @@ static void sortobjects (struct didata *did, int *mappings, int *sort, char **na
     if (num > 0) {
 	write_log ("%s (GUID=%s):\n", did->name, outGUID (&did->guid));
 	for (i = 0; i < num; i++)
-	    write_log ("%d '%s' (%d,%d)\n", mappings[i], names[i], sort[i], types ? types[i] : -1);
+	    write_log ("%02.2X %0.03d '%s' (%d,%d)\n", mappings[i], mappings[i], names[i], sort[i], types ? types[i] : -1);
     }
 #endif
 }

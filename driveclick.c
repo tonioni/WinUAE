@@ -149,10 +149,8 @@ void driveclick_init(void)
 		v = 0;
 		if (driveclick_loadresource (drvs[i], currprefs.dfxclick[i]))
 		    v = 3;
-		for (j = 0; j < CLICK_TRACKS; j++)  {
-		    drvs[i][DS_CLICK].indexes[j] = 0;
-		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len >> DS_SHIFT;
-		}
+		for (j = 0; j < CLICK_TRACKS; j++)
+		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 	    } else if (currprefs.dfxclick[i] == -1) {
 		sprintf (tmp, "%suae_data%cdrive_click_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v = loadsample (tmp, &drvs[i][DS_CLICK]);

@@ -678,11 +678,10 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #ifdef PARALLEL_PORT
 	if (isprinter() > 0) {
 	    doprinter (val);
-	    ciaaicr |= 0x10;
 	} else if (isprinter() < 0) {
 	    parallel_direct_write_data (val, ciaadrb);
-	    ciaaicr |= 0x10;
 	}
+	cia_parallelack ();
 #endif
 	break;
     case 2:

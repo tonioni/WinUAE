@@ -1749,17 +1749,20 @@ static void draw_status_line (int line)
     for (led = 0; led < NUM_LEDS; led++) {
 	int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1, x, off_rgb, on_rgb, c, on = 0;
 	if (led >= 1 && led <= 4) {
-	    int track = gui_data.drive_track[led-1];
-	    pos = 5 + (led - 1);
-	    if (!gui_data.drive_disabled[led - 1]) {
+	    int pled = led - 1;
+	    int track = gui_data.drive_track[pled];
+	    pos = 5 + pled;
+	    on_rgb = 0x0c0;
+	    off_rgb = 0x030;
+	    if (!gui_data.drive_disabled[pled]) {
 		num1 = -1;
 		num2 = track / 10;
 		num3 = track % 10;
-	        on = gui_data.drive_motor[led-1];
+	        on = gui_data.drive_motor[pled];
+	        if (gui_data.drive_writing[pled])
+		    on_rgb = 0xc00;
 	    }
 	    side = gui_data.drive_side;
-	    on_rgb = 0x0c0;
-	    off_rgb = 0x030;
 	} else if (led == 0) {
 	    pos = 2;
 	    on = gui_data.powerled;
@@ -1776,7 +1779,7 @@ static void draw_status_line (int line)
 	} else if (led == 6) {
 	    pos = 3;
 	    on = gui_data.hd;
-	    on_rgb = 0x00c;
+	    on_rgb = on == 2 ? 0xc00 : 0x00c;
 	    off_rgb = 0x003;
 	    num1 = -1;
 	    num2 = 11;

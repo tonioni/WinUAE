@@ -218,14 +218,14 @@ static void flushprtbuf (void)
 	prtbufbytes = 0;
 	return;
     } else if (hPrt != INVALID_HANDLE_VALUE) {
-	if( WritePrinter( hPrt, prtbuf, prtbufbytes, &written ) ) {
-	    if( written != prtbufbytes )
-		write_log( "PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes );
+	if (WritePrinter(hPrt, prtbuf, prtbufbytes, &written)) {
+	    if (written != prtbufbytes)
+		write_log("PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes);
 	} else {
-	    write_log( "PRINTER: Couldn't write data!\n" );
+	    write_log("PRINTER: Couldn't write data!\n");
 	}
     } else {
-	write_log( "PRINTER: Not open!\n" );
+	write_log("PRINTER: Not open!\n");
     }
     prtbufbytes = 0;
 }
@@ -401,7 +401,8 @@ void openprinter( void )
 	prtopen = 1;
 	return;
     } else if (hPrt == INVALID_HANDLE_VALUE) {
-	if( OpenPrinter(currprefs.prtname, &hPrt, NULL ) ) {
+	flushprtbuf ();
+	if (OpenPrinter(currprefs.prtname, &hPrt, NULL)) {
 	    // Fill in the structure with info about this "document."
 	    DocInfo.pDocName = "My Document";
 	    DocInfo.pOutputFile = NULL;

@@ -272,6 +272,7 @@ extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size,
 extern void cfgfile_addcfgparam (char *);
 extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 extern int cmdlineparser (char *s, char *outp[], int max);
+extern int cfgfile_handle_custom_event (char *custom, int mode);
 
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);

@@ -781,8 +781,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     break;
 
     case WM_CLOSE:
-	if (!currprefs.win32_ctrl_F11_is_quit)
-	    uae_quit ();
+        uae_quit ();
     return 0;
 
     case WM_WINDOWPOSCHANGED:
@@ -875,6 +874,11 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		return 0; // Prevent From Happening
 	    }
 	}
+    break;
+
+    case WM_SYSKEYDOWN:
+        if(currprefs.win32_ctrl_F11_is_quit && wParam == VK_F4)
+	    return 0;
     break;
 
     case 0xff: // WM_INPUT:
@@ -1987,22 +1991,21 @@ static void WIN32_HandleRegistryStuff( void )
 	}
         
 	RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
-	if( colortype == 0 ) /* No color information stored in the registry yet */
+	if (colortype == 0) /* No color information stored in the registry yet */
 	{
-	    char szMessage[ 4096 ];
-	    char szTitle[ MAX_DPATH ];
-	    WIN32GUI_LoadUIString( IDS_GFXCARDCHECK, szMessage, 4096 );
-	    WIN32GUI_LoadUIString( IDS_GFXCARDTITLE, szTitle, MAX_DPATH );
+	    char szMessage[4096];
+	    char szTitle[MAX_DPATH];
+	    WIN32GUI_LoadUIString(IDS_GFXCARDCHECK, szMessage, 4096);
+	    WIN32GUI_LoadUIString(IDS_GFXCARDTITLE, szTitle, MAX_DPATH);
 		    
-	    if( MessageBox( NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES )
-	    {
+	    if(MessageBox(NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES) {
 	        colortype = WIN32GFX_FigurePixelFormats(0);
 	        RegSetValueEx( hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
 	    }
 	}
-	if( colortype ) {
+	if (colortype) {
 	    /* Set the 16-bit pixel format for the appropriate modes */
-	    WIN32GFX_FigurePixelFormats( colortype );
+	    WIN32GFX_FigurePixelFormats(colortype);
 	}
 	size = sizeof (quickstart);
  	RegQueryValueEx( hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &size );
@@ -2282,18 +2285,23 @@ int execute_command (char *cmd)
     return 0;
 }
 
-static int drvsampleres[] = {
-    IDR_DRIVE_CLICK_A500_1, IDR_DRIVE_SPIN_A500_1, IDR_DRIVE_SPINND_A500_1,
-    IDR_DRIVE_STARTUP_A500_1, IDR_DRIVE_SNATCH_A500_1
-};
 #include "driveclick.h"
-int driveclick_loadresource (struct drvsample *s, int drivetype)
+static int drvsampleres[] = {
+    IDR_DRIVE_CLICK_A500_1, DS_CLICK,
+    IDR_DRIVE_SPIN_A500_1, DS_SPIN,
+    IDR_DRIVE_SPINND_A500_1, DS_SPINND,
+    IDR_DRIVE_STARTUP_A500_1, DS_START,
+    IDR_DRIVE_SNATCH_A500_1, DS_SNATCH,
+    -1
+};
+int driveclick_loadresource (struct drvsample *sp, int drivetype)
 {
     int i, ok;
 
     ok = 1;
-    for (i = 0; i < DS_END; i++) {
-        HRSRC res = FindResource(NULL, MAKEINTRESOURCE(drvsampleres[i]), "WAVE");
+    for (i = 0; drvsampleres[i] >= 0; i += 2) {
+	struct drvsample *s = sp + drvsampleres[i + 1];
+        HRSRC res = FindResource(NULL, MAKEINTRESOURCE(drvsampleres[i + 0]), "WAVE");
 	if (res != 0) {
 	    HANDLE h = LoadResource(NULL, res);
 	    int len = SizeofResource(NULL, res);
@@ -2303,7 +2311,6 @@ int driveclick_loadresource (struct drvsample *s, int drivetype)
 	} else {
 	    ok = 0;
 	}
-	s++;
     }
     return ok;
 }
