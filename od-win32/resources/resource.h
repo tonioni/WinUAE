@@ -215,6 +215,11 @@
 #define IDS_NUMSG_STATEHD               311
 #define IDS_NUMSG_NOCAPS                312
 #define IDS_NUMSG_OLDCAPS               313
+#define IDS_IMGCHK_BOOTBLOCKCRCERROR    314
+#define IDS_IMGCHK_BOOTBLOCKNO          315
+#define IDS_IMGCHK_DAMAGED              316
+#define IDS_IMGCHK_KS2                  317
+#define IDS_IMGCHK_KS3                  318
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022

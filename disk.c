@@ -1692,6 +1692,11 @@ void DISK_history_add (const char *name, int idx)
     if (idx >= 0) {
 	if (idx >= MAX_PREVIOUS_FLOPPIES)
 	    return;
+	dfxhistory[idx][0] = 0;
+	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+	    if (!strcmp (dfxhistory[i], name))
+		return;
+	}
 	strcpy (dfxhistory[idx], name);
 	return;
     }
@@ -2593,7 +2598,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
     side = 0;
     *crc32 = 0;
     if (!drive_insert (drv, p, num, p->df[num]))
-	return 2;
+	return 1;
     if (!drv->diskfile)
 	return 1;
     *crc32 = zfile_crc32 (drv->diskfile);

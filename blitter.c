@@ -1019,7 +1019,7 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
     if (blit_slowdown < 0 || blitline || totalcycles == 0)
 	return;
     slow = cycles_used * blit_dmacount / blit_diag[1];
-    slow = slow * 7 / 10;
+    slow = slow * 6 / 10;
     if (slow <= 0)
 	return;
     blit_slowdown += slow;

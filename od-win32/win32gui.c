@@ -279,7 +279,7 @@ static void show_rom_list (void)
 	    ok = 1;
     }
     if (ok) strcat (p, "available"); else strcat (p, "unavailable");
-/*
+
     ok = 0;
     strcat (p, "\nCDTV: ");
     roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
@@ -289,7 +289,7 @@ static void show_rom_list (void)
 	    ok = 1;
     }
     if (ok) strcat (p, "available"); else strcat (p, "unavailable");
-*/
+
     pre_gui_message (p);
     free (p);
 }
@@ -2264,43 +2264,46 @@ struct amigamodels {
 };
 static struct amigamodels amodels[] = {
     { "Amiga 500", 4 },
-    { "Amiga 500+", 0 },
-    { "Amiga 600", 0 },
+    { "Amiga 500+", 4 },
+    { "Amiga 600", 4 },
     { "Amiga 1000", 4 },
     { "Amiga 1200", 3 },
     { "CD32", 3 },
-    { "CDTV", 0 },
+    { "CDTV (CDROM emulation not yet working)", 4 },
+    { "", 0 },
+    { "", 0 },
+    { "", 0 },
+    { "Expanded UAE example configuration", 1 },
     { 0 }
 };
 
 struct amigaconfig {
     int model;
-    char *config;
     char *name;
     char *info;
 };
 static struct amigaconfig aconf[] = {
-    { 0, "", "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)",
+    { 0, "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)",
     	"This configuration is capable of running most games and demos ever produced "
 	"for the first Amiga line. Only few exceptions need different configuration. "
 	"Oldest Amiga games tend to be incompatible with this configuration. "
     },
-    { 0, "", "KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow",
+    { 0, "KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow",
     	"Later hardware revision of Amiga 500. Nearly 100% compatible with "
 	"previous configuration."
     },
-    { 0, "", "KS 1.3, ECS Agnus, 1.0M Chip",
+    { 0, "KS 1.3, ECS Agnus, 1.0M Chip",
 	"Few newer games and demos require this configuration."
     },
-    { 0, "", "KS 1.3, OCS Agnus, 0.5M Chip",
+    { 0, "KS 1.3, OCS Agnus, 0.5M Chip",
 	"Very old (~1987 and older) games and demos may require this configuration."
     },
-    { 0, "", "KS 1.2, OCS Agnus, 0.5M Chip",
+    { 0, "KS 1.2, OCS Agnus, 0.5M Chip",
 	"The first Amiga 500 produced had this configuration. Some very "
 	"old programs only work correctly with this configuration. NOTE: This configuration "
 	"cannot boot the Amiga OS installed on an emulated HD."
     },
-    { 0, "", "KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow",
+    { 0, "KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow",
 	"This configuration adds expansion memory to the first Amiga 500 ever "
 	"produced. Try this if your game do not work with newer configurations "
 	"but works with the previous one. It could add some features to the game and "
@@ -2308,29 +2311,50 @@ static struct amigaconfig aconf[] = {
 	"installed on an emulated HD."
     },
 
-    { 3, "", "0.5M Chip",
+    { 1, "Basic non-expanded configuration",
+	"A500+ is basically an Amiga 500 with ECS Agnus, "
+	"1MB of Chip RAM and Kickstart 2.0 ROM. "
+	"Many Amiga 500 games and demos won't work properly on an Amiga 500+." },
+    { 1, "2M Chip RAM expanded configuration",
+	NULL },
+    { 1, "4M Fast RAM expanded configuration",
+	NULL },
+
+    { 2, "Basic non-expanded configuration",
+	"A600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM." },
+    { 2, "2M Chip RAM expanded configuration",
+	NULL },
+    { 2, "4M Fast RAM expanded configuration",
+	NULL },
+
+    { 3, "0.5M Chip",
 	"The Amiga 1000 was the first Amiga ever produced, configuration is basically "
 	"an OCS A500. You should never use this configuration unless "
 	"you are nostalgic and you want to hear short special A1000 boot tune :)"
     },
-    { 3, "", "256K Chip",
+    { 3, "256K Chip",
 	"Unexpanded Amiga 1000. All later A1000 models were sold with 256K RAM "
 	"expansion build-in."
     },
-    { 4, "", "2.0M Chip",
+    { 4, "Basic non-expanded configuration",
 	"Use this configuration to run most AGA demos and games."
     },
-    { 4, "", "2.0M Chip + 4.0M Fast",
+    { 4, "4M Fast RAM expanded configuration",
 	"Some newer AGA games and demos need an expanded A1200 to run."
     },
-    { 5, "", "CD32",
+    { 5, "CD32",
 	"CD32 was the first 32bit console. It is basically an A1200 with "
-	"build-in CDROM. Insert your CD32 CDROM into a free CDROM drive to run CD32 "
-	"games."
+	"build-in CDROM. Insert your CD32 or CDTV CDROM into a free CDROM drive before "
+	"starting emulation."
     },
-/*
-    { 6, "", "CDTV" },
-*/
+    { 6, "CDTV",
+	"CDTV was Commodore`s first attempt at making a CD-ROM equipped computer. "
+	"It is an 1MB ECS Amiga 500 in a black box that looks like a CD player."
+     },
+    { 10, "High-end expanded configuration", 
+	"This configuration can be used as a basis for your own A3000/A4000-style "
+	"high-performance, expanded custom configuration for Workbench, applications, WHDLoad etc.."
+    },
     { -1 }
 };
 
@@ -2443,7 +2467,9 @@ static void init_quickstartdlg (HWND hDlg)
     
     if (quickstart_compa >= amodels[quickstart_model].compalevels)
 	quickstart_compa = 0;
-    SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETRANGE, TRUE, MAKELONG (0, amodels[quickstart_model].compalevels - 1));
+    i = amodels[quickstart_model].compalevels;
+    EnableWindow (GetDlgItem (hDlg, IDC_QUICKSTART_COMPATIBILITY), i > 1);
+    SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETRANGE, TRUE, MAKELONG (0, i > 1 ? i - 1 : 1));
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage( hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPOS, TRUE, quickstart_compa);
 
@@ -2476,6 +2502,8 @@ static void testimage (HWND hDlg, int num)
     int ret;
     int reload = 0;
     uae_u32 crc32;
+    int messageid = -1;
+    char tmp[MAX_DPATH];
 
     floppytooltip (hDlg, num, 0);
     quickstart_ok_floppy = 0;
@@ -2491,6 +2519,8 @@ static void testimage (HWND hDlg, int num)
     floppytooltip (hDlg, num, crc32);
     if (num > 0)
 	return;
+    if (!full_property_sheet)
+	return;
     switch (ret)
     {
 	case 10:
@@ -2498,29 +2528,33 @@ static void testimage (HWND hDlg, int num)
 	break;
 	case 11:
 	quickstart_ok_floppy = 1;
-	if (quickstart_model != 2) {
-	    quickstart_model = 2;
-	    pre_gui_message ("Selected disk image requires Kickstart 2.04 or 3.0\nConfiguration updated");
+	if (quickstart_model != 1 && quickstart_model != 2 && quickstart_model != 4) {
+	    quickstart_model = 4;
+	    messageid = IDS_IMGCHK_KS2;
 	    reload = 1;
 	}
 	break;
 	case 12:
 	quickstart_ok_floppy = 1;
-	if (quickstart_model != 2) {
-	    quickstart_model = 2;
-	    pre_gui_message ("Selected disk image requires Kickstart 3.0 or later\nConfiguration updated");
+	if (quickstart_model != 4) {
+	    quickstart_model = 4;
+	    messageid = IDS_IMGCHK_KS3;
 	    reload = 1;
 	}
 	break;
 	case 4:
-	pre_gui_message ("Selected disk image is not bootable");
+	messageid = IDS_IMGCHK_BOOTBLOCKNO;
 	break;
 	case 3:
-	pre_gui_message ("Selected disk image has incorrect bootblock checksum");
+	messageid = IDS_IMGCHK_BOOTBLOCKCRCERROR;
 	break;
 	case 2:
-	pre_gui_message ("Selected disk image is damaged or unformatted");
+	messageid = IDS_IMGCHK_DAMAGED;
 	break;
+    }
+    if (messageid > 0) {
+	WIN32GUI_LoadUIString (messageid, tmp, sizeof (tmp));
+	gui_message (tmp);
     }
     if (reload) {
 	load_quickstart (hDlg, 1);
@@ -2548,14 +2582,17 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    doinit = 1;
 	    break;
 	case WM_NULL:
+	    if (recursive > 0)
+		break;
+	    recursive++;
 	    if (doinit) {
-		init_quickstartdlg (hDlg);
-		enable_for_quickstart (hDlg);
 		addfloppytype (hDlg, 0);
 		addfloppytype (hDlg, 1);
 		init_quickstartdlg (hDlg);
+		enable_for_quickstart (hDlg);
 	    }
 	    doinit = 0;
+	    recursive--;
 	break;
 
 	case WM_COMMAND:
@@ -2634,26 +2671,28 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	}   
 	recursive--;
 	case WM_HSCROLL:
+	if (recursive > 0)
+	    break;
+	recursive++;
 	val = SendMessage (GetDlgItem (hDlg, IDC_QUICKSTART_COMPATIBILITY), TBM_GETPOS, 0, 0);
 	if (val >= 0 && val != quickstart_compa) {
 	    quickstart_compa = val;
 	    init_quickstartdlg (hDlg);
 	    load_quickstart (hDlg, 0);
 	}
+	recursive--;
 	break;
     }
     if (strcmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0]) {
     	strcpy (df0, workprefs.df[0]);
 	dfxtype[0] = workprefs.dfxtype[0];
-	if (full_property_sheet)
-	    testimage (hDlg, 0);
+        testimage (hDlg, 0);
         enable_for_quickstart (hDlg);
     }
     if (strcmp (workprefs.df[1], df1) || workprefs.dfxtype[1] != dfxtype[1]) {
     	strcpy (df1, workprefs.df[1]);
 	dfxtype[1] = workprefs.dfxtype[1];
-	if (full_property_sheet)
-	    testimage (hDlg, 1);
+        testimage (hDlg, 1);
     }
     return ret;
 }
@@ -3728,41 +3767,41 @@ static void enable_for_miscdlg (HWND hDlg)
 {
     if( !full_property_sheet )
     {
-        EnableWindow( GetDlgItem( hDlg, IDC_JULIAN), TRUE);
-        EnableWindow( GetDlgItem( hDlg, IDC_CTRLF11), TRUE);
-        EnableWindow( GetDlgItem( hDlg, IDC_SOCKETS), FALSE);
-        EnableWindow( GetDlgItem( hDlg, IDC_SHOWGUI ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_CREATELOGFILE ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_ILLEGAL ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_NOSPEED ), TRUE );
-        EnableWindow( GetDlgItem( hDlg, IDC_NOSPEEDPAUSE ), TRUE );
-        EnableWindow( GetDlgItem( hDlg, IDC_NOSOUND ), TRUE );
-	EnableWindow( GetDlgItem( hDlg, IDC_NOOVERLAY ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_DOSAVESTATE ), TRUE );
-        EnableWindow( GetDlgItem( hDlg, IDC_ASPI ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_SCSIDEVICE ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_CLOCKSYNC ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_STATE_CAPTURE ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_STATE_RATE ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_STATE_BUFFERSIZE ), FALSE );
+        EnableWindow (GetDlgItem (hDlg, IDC_JULIAN), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_CTRLF11), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_SOCKETS), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_SHOWGUI), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_CREATELOGFILE), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_NOSPEED), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_NOSPEEDPAUSE), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_NOSOUND), TRUE);
+	EnableWindow (GetDlgItem (hDlg, IDC_NOOVERLAY), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_ASPI), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_STATE_CAPTURE), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), FALSE);
     } else {
 #if !defined (FILESYS)
-        EnableWindow( GetDlgItem( hDlg, IDC_CLOCKSYNC ), FALSE );
+        EnableWindow (GetDlgItem(hDlg, IDC_CLOCKSYNC), FALSE);
 #endif
 #if !defined (BSDSOCKET)
-        EnableWindow( GetDlgItem( hDlg, IDC_SOCKETS), FALSE);
+        EnableWindow (GetDlgItem(hDlg, IDC_SOCKETS), FALSE);
 #endif
 #if !defined (SCSIEMU)
-        EnableWindow( GetDlgItem( hDlg, IDC_SCSIDEVICE), FALSE);
-        EnableWindow( GetDlgItem( hDlg, IDC_ASPI ), FALSE );
+        EnableWindow (GetDlgItem(hDlg, IDC_SCSIDEVICE), FALSE);
+        EnableWindow (GetDlgItem(hDlg, IDC_ASPI), FALSE);
 #endif
-        if( workprefs.win32_logfile )
-	    EnableWindow( GetDlgItem( hDlg, IDC_ILLEGAL ), TRUE );
+        if (workprefs.win32_logfile)
+	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), TRUE);
         else
-	    EnableWindow( GetDlgItem( hDlg, IDC_ILLEGAL ), FALSE );
-        EnableWindow( GetDlgItem( hDlg, IDC_DOSAVESTATE ), FALSE );
-	EnableWindow( GetDlgItem( hDlg, IDC_STATE_RATE ), workprefs.statecapture ? TRUE : FALSE );
-	EnableWindow( GetDlgItem( hDlg, IDC_STATE_BUFFERSIZE ), workprefs.statecapture ? TRUE : FALSE );
+	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), workprefs.statecapture ? TRUE : FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), workprefs.statecapture ? TRUE : FALSE);
     }
 }
 
@@ -3814,21 +3853,21 @@ static void values_to_miscdlg (HWND hDlg)
 {
     char txt[100];
 
-    CheckDlgButton( hDlg, IDC_SOCKETS, workprefs.socket_emu );
-    CheckDlgButton( hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
-    CheckDlgButton( hDlg, IDC_SHOWGUI, workprefs.start_gui);
-    CheckDlgButton( hDlg, IDC_JULIAN, workprefs.win32_middle_mouse );
-    CheckDlgButton( hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile );
-    CheckDlgButton( hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause );
-    CheckDlgButton( hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound );
-    CheckDlgButton( hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause );
-    CheckDlgButton( hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound );
-    CheckDlgButton( hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit );
-    CheckDlgButton( hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay );
-    CheckDlgButton( hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen );
-    CheckDlgButton( hDlg, IDC_SCSIDEVICE, workprefs.scsi );
-    CheckDlgButton( hDlg, IDC_ASPI, workprefs.win32_aspi );
-    CheckDlgButton( hDlg, IDC_STATE_CAPTURE, workprefs.tod_hack );
+    CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
+    CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
+    CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
+    CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
+    CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
+    CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
+    CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound);
+    CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
+    CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound);
+    CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
+    CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
+    CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
+    CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
+    CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
+    CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.tod_hack);
 
     if (!os_winnt) {
 	EnableWindow( GetDlgItem( hDlg, IDC_ASPI), FALSE );
@@ -4019,27 +4058,27 @@ static void enable_for_cpudlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_CPU6), FALSE);
 #endif
 
-    cpu_based_enable = ( workprefs.cpu_level >= 2 ) &&
-		       ( workprefs.address_space_24 == 0 );
+    cpu_based_enable = workprefs.cpu_level >= 2 &&
+		       workprefs.address_space_24 == 0;
 
-    enable = cpu_based_enable && ( workprefs.cachesize );
+    enable = cpu_based_enable && workprefs.cachesize;
 #ifndef JIT
     enable = FALSE;
 #endif
     enable2 = enable && workprefs.compforcesettings;
 
-    EnableWindow( GetDlgItem( hDlg, IDC_TRUST0 ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_TRUST1 ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_TRUST2 ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_HARDFLUSH ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_CONSTJUMP ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_JITFPU ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_NOFLAGS ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_CS_CACHE_TEXT ), cpu_based_enable && workprefs.cachesize );
-    EnableWindow( GetDlgItem( hDlg, IDC_CACHE ), cpu_based_enable && workprefs.cachesize );
-    EnableWindow( GetDlgItem( hDlg, IDC_CACHETEXT ), cpu_based_enable && workprefs.cachesize );
-    EnableWindow( GetDlgItem( hDlg, IDC_FORCE ), enable );
-    EnableWindow( GetDlgItem( hDlg, IDC_JITENABLE ), cpu_based_enable );
+    EnableWindow (GetDlgItem (hDlg, IDC_TRUST0), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_TRUST1), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_TRUST2), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_HARDFLUSH), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_CONSTJUMP), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_JITFPU), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_NOFLAGS), enable2);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CACHE_TEXT), cpu_based_enable && workprefs.cachesize);
+    EnableWindow (GetDlgItem (hDlg, IDC_CACHE), cpu_based_enable && workprefs.cachesize);
+    EnableWindow (GetDlgItem (hDlg, IDC_CACHETEXT), cpu_based_enable && workprefs.cachesize);
+    EnableWindow (GetDlgItem (hDlg, IDC_FORCE), enable);
+    EnableWindow (GetDlgItem (hDlg, IDC_JITENABLE), cpu_based_enable);
     EnableWindow (GetDlgItem (hDlg, IDC_COMPATIBLE), !workprefs.cpu_cycle_exact && !workprefs.cachesize);
 
 #ifdef JIT
@@ -7036,7 +7075,7 @@ struct GUIPAGE {
     HTREEITEM tv;
     int himg;
     int idx;
-    char *help;
+    const char *help;
 };
 
 static HWND panelhwnd;
@@ -7206,7 +7245,7 @@ static void CreateNode (HWND TVhDlg, int page, HTREEITEM parent)
     is.hInsertAfter = TVI_LAST;
     is.hParent = parent;
     is.itemex.mask = TVIF_TEXT | TVIF_PARAM | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-    is.itemex.pszText = p->pp.pszTitle;
+    is.itemex.pszText = (char*)p->pp.pszTitle;
     is.itemex.lParam = (LPARAM)p->idx;
     is.itemex.iImage = p->himg;
     is.itemex.iSelectedImage = is.itemex.iImage;
@@ -7782,8 +7821,7 @@ void pre_gui_message (const char *format,...)
 	write_log("\n");
 
     WIN32GUI_LoadUIString( IDS_ERRORTITLE, szTitle, MAX_DPATH );
-
-    MessageBox( NULL, msg, szTitle, MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
+    MessageBox (guiDlg, msg, szTitle, MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
 
 }
 
@@ -7826,7 +7864,7 @@ void notify_user (int msg)
     c = gettranslation (msg);
     if (c < 0)
 	return;
-    WIN32GUI_LoadUIString (c, tmp, sizeof(tmp));
+    WIN32GUI_LoadUIString (c, tmp, MAX_DPATH);
     gui_message (tmp);
 }
 
@@ -7836,7 +7874,7 @@ int translate_message (int msg, char *out)
     out[0] = 0;
     if (msg < 0)
 	return 0;
-    WIN32GUI_LoadUIString (msg, out, sizeof(out));
+    WIN32GUI_LoadUIString (msg, out, MAX_DPATH);
     return 1;
 }
 

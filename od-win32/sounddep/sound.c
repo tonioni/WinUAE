@@ -670,11 +670,13 @@ int sound_calibrate (HWND hwnd, struct uae_prefs *p)
     currprefs.sound_freq = p->sound_freq;
     currprefs.stereo = p->stereo;
     if (open_sound ()) {
-        SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+        SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	pct = calibrate ();
-        SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+        SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_NORMAL);
 	close_sound ();
     }
+    if (pct > 995 && pct < 1005)
+	pct = 1000;
     hMainWnd = old;
     return pct;
 }

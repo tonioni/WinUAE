@@ -300,7 +300,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,5,229,115,10
 END
 
-IDD_SOUND DIALOGEX 0, 0, 300, 243
+IDD_SOUND DIALOGEX 0, 0, 300, 244
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -339,19 +339,19 @@ BEGIN
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_SOUNDDRIVEVOLUME,"msctls_trackbar32",
                     TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,108,107,19
-    GROUPBOX        "Sound buffer size",IDC_STATIC,8,176,164,31
+    GROUPBOX        "Sound buffer size",IDC_STATIC,8,180,164,31
     CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",
-                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,184,106,19
-    GROUPBOX        "Sound driver lag compensation",IDC_STATIC,7,208,286,30
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,188,106,19
+    GROUPBOX        "Sound driver lag compensation",IDC_STATIC,7,212,286,31
     CONTROL         "Slider1",IDC_SOUNDADJUST,"msctls_trackbar32",
-                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,216,107,19
-    PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,218,40,14
-    GROUPBOX        "Volume",IDC_STATIC,8,147,164,29
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,221,107,19
+    PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,223,40,14
+    GROUPBOX        "Volume",IDC_STATIC,8,147,164,31
     CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | 
-                    TBS_TOP | WS_TABSTOP,14,154,105,19
-    EDITTEXT        IDC_SOUNDBUFFERMEM,124,187,40,12,ES_CENTER | ES_READONLY
-    EDITTEXT        IDC_SOUNDADJUSTNUM,124,219,40,12,ES_CENTER | ES_READONLY
-    EDITTEXT        IDC_SOUNDVOLUME2,124,157,40,12,ES_CENTER | ES_READONLY
+                    TBS_TOP | WS_TABSTOP,14,155,105,20
+    EDITTEXT        IDC_SOUNDBUFFERMEM,124,191,40,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_SOUNDADJUSTNUM,124,224,40,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_SOUNDVOLUME2,124,158,40,12,ES_CENTER | ES_READONLY
     EDITTEXT        IDC_SOUNDDRIVEVOLUME2,124,111,40,12,ES_CENTER | 
                     ES_READONLY
 END
@@ -1050,6 +1050,11 @@ BEGIN
         BOTTOMMARGIN, 241
     END
 
+    IDD_SOUND, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 243
+    END
+
     IDD_LOADSAVE, DIALOG
     BEGIN
         BOTTOMMARGIN, 240
@@ -1344,6 +1349,12 @@ BEGIN
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
     IDS_NUMSG_NOCAPS        "This disk image needs the C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
     IDS_NUMSG_OLDCAPS       "You need updated C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
+    IDS_IMGCHK_BOOTBLOCKCRCERROR 
+                            "Selected disk image is not bootable (bootblock CRC error)"
+    IDS_IMGCHK_BOOTBLOCKNO  "Selected disk image is not bootable (no bootblock)"
+    IDS_IMGCHK_DAMAGED      "Selected disk image is damaged or unformatted"
+    IDS_IMGCHK_KS2          "Selected disk image requires Kickstart 2.04 or 3.0\nConfiguration updated"
+    IDS_IMGCHK_KS3          "Selected disk image requires Kickstart 3.0 or later\nConfiguration updated"
 END
 
 #endif    // English (U.S.) resources
