@@ -437,7 +437,8 @@ static int recycle (const char *name)
     memset (&fos, 0, sizeof (fos));
     fos.wFunc = FO_DELETE;
     fos.pFrom = p;
-    fos.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
+    fos.fFlags = (currprefs.win32_norecyclebin ? 0 : FOF_ALLOWUNDO) |
+	FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
     v = SHFileOperation (&fos);
     xfree (p);
     return v ? -1 : 0;
@@ -469,14 +470,12 @@ int my_rmdir (const char *name)
     }
 
     return recycle (name);
-    //return RemoveDirectory (name) == 0 ? -1 : 0;
 }
 
 /* "move to Recycle Bin" (if enabled) -version of DeleteFile() */
 int my_unlink (const char *name)
 {
     return recycle (name);
-    //return DeleteFile (name) == 0 ? -1 : 0;
 }
 
 int my_rename (const char *oldname, const char *newname)

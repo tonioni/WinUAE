@@ -81,6 +81,7 @@ extern uae_u8 *filesysory;
 extern uae_u8 *rtarea;
 
 extern addrbank chipmem_bank;
+extern addrbank chipmem_agnus_bank;
 extern addrbank chipmem_bank_ce2;
 extern addrbank kickmem_bank;
 extern addrbank custom_bank;
@@ -199,6 +200,13 @@ extern uae_u32 chipmem_bget (uaecptr) REGPARAM;
 extern void chipmem_lput (uaecptr, uae_u32) REGPARAM;
 extern void chipmem_wput (uaecptr, uae_u32) REGPARAM;
 extern void chipmem_bput (uaecptr, uae_u32) REGPARAM;
+
+extern uae_u32 chipmem_agnus_lget (uaecptr) REGPARAM;
+extern uae_u32 chipmem_agnus_wget (uaecptr) REGPARAM;
+extern uae_u32 chipmem_agnus_bget (uaecptr) REGPARAM;
+extern void chipmem_agnus_lput (uaecptr, uae_u32) REGPARAM;
+extern void chipmem_agnus_wput (uaecptr, uae_u32) REGPARAM;
+extern void chipmem_agnus_bput (uaecptr, uae_u32) REGPARAM;
 
 extern uae_u32 chipmem_mask, kickmem_mask;
 extern uae_u8 *kickmemory;

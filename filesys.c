@@ -200,7 +200,8 @@ char *get_filesys_unit (struct uaedev_mount_info *mountinfo, int nr,
     *blocksize = uip->hf.blocksize;
     *size = uip->hf.size;
     *bootpri = uip->bootpri;
-    *flags = uip->automounted ? FILESYS_FLAG_DONOTSAVE : 0;
+    if (flags)
+	*flags = uip->automounted ? FILESYS_FLAG_DONOTSAVE : 0;
     if (filesysdir)
 	*filesysdir = uip->filesysdir ? my_strdup (uip->filesysdir) : 0;
     return 0;
@@ -1744,7 +1745,7 @@ action_lock (Unit *unit, dpacket packet)
     uae_u32 err;
 
     if (mode != SHARED_LOCK && mode != EXCLUSIVE_LOCK) {
-	TRACE(("Bad mode.\n"));
+	TRACE(("Bad mode %d (should be %d or %d).\n", mode, SHARED_LOCK, EXCLUSIVE_LOCK));
 	mode = SHARED_LOCK;
     }
 
@@ -2763,9 +2764,10 @@ action_parent (Unit *unit, dpacket packet)
     if (!lock) {
 	PUT_PCK_RES1 (packet, 0);
 	PUT_PCK_RES2 (packet, 0);
-	return;
+    } else {
+	action_parent_common (unit, packet, get_long (lock + 4));
     }
-    action_parent_common (unit, packet, get_long (lock + 4));
+    TRACE(("=%x %d\n", GET_PCK_RES1 (packet), GET_PCK_RES2 (packet)));
 }
 
 static void
@@ -3210,10 +3212,18 @@ static uae_u32 exter_int_helper (void)
 	    unit->cmds_complete = unit->cmds_acked;
 	    while (comm_pipe_has_data (unit->ui.back_pipe)) {
 		uaecptr locks, lockend;
+		int cnt = 0;
 		locks = read_comm_pipe_int_blocking (unit->ui.back_pipe);
 		lockend = locks;
-		while (get_long (lockend) != 0)
+		while (get_long (lockend) != 0) {
+		    if (get_long (lockend) == lockend) {
+			write_log ("filesystem lock queue corrupted!\n");
+			break;
+		    }
 		    lockend = get_long (lockend);
+		    cnt++;
+		}
+		TRACE(("%d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
 		put_long (lockend, get_long (m68k_areg (regs, 3)));
 		put_long (m68k_areg (regs, 3), locks);
 	    }

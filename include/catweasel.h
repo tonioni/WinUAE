@@ -44,6 +44,7 @@ typedef struct catweasel_contr {
 #define CATWEASEL_TYPE_NONE  -1
 #define CATWEASEL_TYPE_MK1    1
 #define CATWEASEL_TYPE_MK3    3
+#define CATWEASEL_TYPE_MK4    4
 
 /* Initialize a Catweasel controller; c->iobase and c->msdelay must have
    been initialized -- msdelay might be used */

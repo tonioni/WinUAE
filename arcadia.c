@@ -47,11 +47,11 @@ static struct arcadiarom roms[] = {
     { "ar_dart.zip", "scpa211", "dart_", 1, 4, 0, 7, 6, 3, 1, 2, 5, 0x98f564 },
     { "ar_fast.zip", "scpav3_0.1", "fastv28.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
     { "ar_ldrb.zip", "scpa211", "lbg240", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x98f564 },
-    { "ar_ldrba.zip", "ar_ldrb.zip/scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6, 0x98f564 },
+    { "ar_ldrba.zip", "scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6, 0x98f564 },
     { "ar_ninj.zip", "scpa211", "ninj_", 1, 1, 6, 5, 7, 4, 2, 0, 3, 0x98f564 },
     { "ar_rdwr.zip", "scpa211", "rdwr_", 1, 3, 1, 6, 4, 0, 5, 2, 7, 0x98f564 },
     { "ar_sdwr.zip", "scpa211", "sdwr_", 1, 6, 3, 4, 5, 2, 1, 0, 7, 0x98f564 },
-    { "ar_spot.zip", "spotv3.0", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
+    { "ar_spot.zip", "scpav3_0.1", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
     { "ar_sprg.zip", "scpa211", "sprg_", 1, 4, 7, 3, 0, 6, 5, 2, 1, 0x98f564 },
     { "ar_xeon.zip", "scpa211", "xeon_", 1, 3, 1, 2, 4, 0, 5, 6, 7, 0x98f564 },
     { NULL, NULL, NULL }
@@ -130,34 +130,40 @@ static struct arcadiarom *is_arcadia (char *xpath)
 
 static int load_roms (char *xpath, struct arcadiarom *rom)
 {
-    char path[MAX_DPATH], path2[MAX_DPATH];
+    char path[MAX_DPATH], path2[MAX_DPATH], path3[MAX_DPATH], *p;
     int i;
     
-    i = 0;
-    strcpy (path2, xpath);
-    if (strchr (rom->bios, '/')) {
-	char *p = path2 + strlen (path2) - 1;
-	while (p > path2) {
-	    if (p[0] == '\\' || p[0] == '/') {
-		*p = 0;
-		break;
-	    }
-	    p--;
-	}
-	if (p == path2)
+    strcpy (path3, xpath);
+    p = path3 + strlen (path3) - 1;
+    while (p > path3) {
+	if (p[0] == '\\' || p[0] == '/') {
 	    *p = 0;
+	    break;
+        }
+        p--;
     }
-    sprintf (path, "%s/%s", path2, rom->bios);
+    if (p == path3)
+	*p = 0;
+    strcpy (path2, xpath);
+    if (strchr (rom->bios, '/'))
+	strcpy (path2, path3);
+
+    sprintf (path, "%s/ar_bios.zip/%s", path3, rom->bios);
     if (!load_rom8 (path, arbmemory + bios_offset, 0)) {
-	write_log ("Arcadia: bios load failed ('%s')\n", path);
-	return 0;
+        write_log ("Arcadia: bios load failed ('%s')\n", path);
+	sprintf (path, "%s/%s", path2, rom->bios);
+        if (!load_rom8 (path, arbmemory + bios_offset, 0)) {
+	    write_log ("Arcadia: bios load failed ('%s')\n", path);
+	    return 0;
+	}
     }
     write_log ("Arcadia: bios '%s' loaded\n", path);
+    i = 0;
     for (;;) {
-	sprintf (path, "%s/%s%d", xpath, rom->rom, i + 1);
+        sprintf (path, "%s/%s%d", xpath, rom->rom, i + 1);
 	if (!load_rom8 (path, arbmemory + 2 * 65536 * i, rom->bin)) {
 	    if (i == 0)
-		write_log ("Arcadia: game rom load failed ('%s')\n", path);
+	        write_log ("Arcadia: game rom load failed ('%s')\n", path);
 	    break;
 	}
 	i++;

@@ -312,7 +312,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	break;
 
      case 0x4c:
-	write_log ("   Card %d (Zorro %s) had no success.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
+	write_log ("   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
 	++ecard;
 	if (ecard < MAX_EXPANSION_BOARDS)
 	    (*card_init[ecard]) ();
@@ -1162,6 +1162,8 @@ void expamem_reset (void)
 
 #ifdef ARCADIA
     if (arcadia_rom) {
+	arcadiaboot = mapped_malloc (0x10000, "arcadia");
+	arcadia_bank.baseaddr = arcadiaboot;    
 	card_init[cardno] = expamem_init_arcadia;
 	card_map[cardno++] = expamem_map_arcadia;
     }
@@ -1170,12 +1172,12 @@ void expamem_reset (void)
 	card_init[cardno] = expamem_init_fastcard;
 	card_map[cardno++] = expamem_map_fastcard;
     }
-    if (z3fastmem != NULL) {
+    if (z3fastmem != NULL && kickstart_version >= 36) {
 	card_init[cardno] = expamem_init_z3fastmem;
 	card_map[cardno++] = expamem_map_z3fastmem;
     }
 #ifdef PICASSO96
-    if (gfxmemory != NULL) {
+    if (gfxmemory != NULL && kickstart_version >= 36) {
 	card_init[cardno] = expamem_init_gfxcard;
 	card_map[cardno++] = expamem_map_gfxcard;
     }
@@ -1224,10 +1226,6 @@ void expansion_init (void)
 	exit (0);
     }
     filesys_bank.baseaddr = (uae_u8*)filesysory;
-#ifdef ARCADIA
-    arcadiaboot = mapped_malloc (0x10000, "arcadia");
-    arcadia_bank.baseaddr = arcadiaboot;    
-#endif
 }
 
 void expansion_cleanup (void)

@@ -82,7 +82,7 @@ struct inputevent {
 #define AM_AF 32 /* supports autofire */
 #define AM_INFO 64 /* information data for gui */
 #define AM_DUMMY 128 /* placeholder */
-#define AM_K (AM_KEY|AM_JOY_BUT|AM_MOUSE_BUT|AM_AF) /* keyboard */
+#define AM_K (AM_KEY|AM_JOY_BUT|AM_MOUSE_BUT|AM_AF) /* generic button/switch */
 
 /* event flags */
 #define ID_FLAG_AUTOFIRE 1

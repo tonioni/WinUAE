@@ -837,7 +837,7 @@ STATIC_INLINE void fetch (int nr, int fm)
     p = bplpt[nr] + bpl_off[nr];
     switch (fm) {
     case 0:
-	fetched[nr] = last_custom_value = chipmem_wget (p);
+	fetched[nr] = last_custom_value = chipmem_agnus_wget (p);
 	bplpt[nr] += 2;
 	break;
 #ifdef AGA
@@ -2381,6 +2381,10 @@ STATIC_INLINE uae_u16 DMACONR (void)
     decide_blitter (current_hpos ());
     v = dmacon | (bltstate == BLT_done ? 0 : 0x4000)
 	    | (blt_info.blitzero ? 0x2000 : 0);
+#if 0
+    if (!dmaen (DMA_BLITTER))
+	v &= ~0x4000;
+#endif
     return v;
 }
 STATIC_INLINE uae_u16 INTENAR (void)
@@ -3389,7 +3393,7 @@ static void predict_copper (void)
     if (state == COP_read2) {
 	w1 = cop_state.i1;
 	if (w1 & 1) {
-	    w2 = chipmem_wget (ip);
+	    w2 = chipmem_agnus_wget (ip);
 	    if (w2 & 1)
 		goto done;
 	    state = COP_wait;
@@ -3407,9 +3411,9 @@ static void predict_copper (void)
 
     while (c_hpos + 1 < maxhpos) {
 	if (state == COP_read1) {
-	    w1 = chipmem_wget (ip);
+	    w1 = chipmem_agnus_wget (ip);
 	    if (w1 & 1) {
-		w2 = chipmem_wget (ip + 2);
+		w2 = chipmem_agnus_wget (ip + 2);
 		if (w2 & 1)
 		    break;
 		state = COP_wait;
@@ -3635,7 +3639,7 @@ static void update_copper (int until_hpos)
 	case COP_read1:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i1 = chipmem_wget (cop_state.ip);
+	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
 #ifdef CPUEMU_6
 	    cycle_line[old_hpos] |= CYCLE_COPPER;
 #endif
@@ -3649,7 +3653,7 @@ static void update_copper (int until_hpos)
 	case COP_read2:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i2 = chipmem_wget (cop_state.ip);
+	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
 #ifdef CPUEMU_6
 	    cycle_line[old_hpos] |= CYCLE_COPPER;
 #endif
@@ -3771,18 +3775,18 @@ static void update_copper (int until_hpos)
 	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp))
 		&& ((cop_state.saved_i2 & 0x8000) != 0 || ! (DMACONR() & 0x4000)))
 		cop_state.ignore_next = 1;
-	    if (chipmem_wget (cop_state.ip) & 1) { /* FIXME: HACK!!! */
+	    if (chipmem_agnus_wget (cop_state.ip) & 1) { /* FIXME: HACK!!! */
 		/* copper never skips if following instruction is WAIT or another SKIP... */
 		cop_state.ignore_next = 0;
 	    }
 
 	    cop_state.state = COP_read1;
 
-	    if (cop_state.ignore_next && (chipmem_wget (cop_state.ip) & 1) == 0) {
+	    if (cop_state.ignore_next && (chipmem_agnus_wget (cop_state.ip) & 1) == 0) {
 		/* another undocumented copper feature:
 		   copper stops if skipped instruction is MOVE to dangerous register...
 		*/
-		test_copper_dangerous (chipmem_wget(cop_state.ip));
+		test_copper_dangerous (chipmem_agnus_wget(cop_state.ip));
 	    }
 
 	    record_copper (cop_state.ip - 4, old_hpos, vpos);
@@ -3885,7 +3889,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 {
     uae_u16 data = last_custom_value;
     if (dma) {
-        data = last_custom_value = chipmem_wget (s->pt);
+        data = last_custom_value = chipmem_agnus_wget (s->pt);
 #ifdef CPUEMU_6
 	cycle_line[hpos] |= CYCLE_SPRITE;
 #endif

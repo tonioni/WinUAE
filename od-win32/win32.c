@@ -1958,7 +1958,7 @@ static void WIN32_HandleRegistryStuff( void )
                               KEY_ALL_ACCESS, NULL, &hWinUAEKeyLocal, &disposition ) == ERROR_SUCCESS ) )
         {
             /* Set our (default) sub-key to BE the "WinUAE" command for launching a configuration */
-            sprintf( path, "%sWinUAE.exe -f \"%%1\"", start_path );
+            sprintf( path, "%sWinUAE.exe -log -f \"%%1\"", start_path );
             RegSetValueEx( hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen( path ) + 1 );
         }
 	RegCloseKey( hWinUAEKeyLocal );
@@ -2222,6 +2222,7 @@ __asm{
 	    posn[1] = 0;
 	sprintf (help_file, "%sWinUAE.chm", start_path );
 	sprintf( VersionStr, "WinUAE %d.%d.%d%s", UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "" );
+	SetCurrentDirectory (start_path);
 
 	logging_init ();
 

@@ -18,7 +18,7 @@ struct catweasel_contr cwc;
 static int cwhsync;
 static int handshake;
 
-static HANDLE handle = INVALID_HANDLE_VALUE;
+static HANDLE h = INVALID_HANDLE_VALUE;
 
 void catweasel_hsync (void)
 {
@@ -98,22 +98,18 @@ int catweasel_init (void)
     uae_u8 buffer[1000];
     uae_u32 model, base;
 
-    return 0;
-
     for (i = 0; i < 4; i++) {
-        sprintf (name, "\\\\.\\CAT%d_F0", i);
-	handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
+        sprintf (name, "\\\\.\\CAT%d", i);
+	handle = CreateFile (devname, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (handle != INVALID_HANDLE_VALUE)
 	    break;
-	write_log("%s: %d\n", name, GetLastError());
     }
     if (handle == INVALID_HANDLE_VALUE)
 	goto fail;
-    if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+    if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0L, 0, buffer, sizeof (buffer), &len, 0) {
 	write_log ("CW_LOCK_EXCLUSIVE failed %d\n", GetLastError());
 	goto fail;
-    }
     model = *((uae_u32*)(buffer + 4));
     base = *((uae_u32*)(buffer + 0));
     write_log ("Catweasel MK%d @%p detected and enabled\n", model, base);

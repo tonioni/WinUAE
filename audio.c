@@ -906,7 +906,7 @@ void audio_hsync (int dmaaction)
 		    write_log ("%d:>5: LEN=%d PT=%08.8X\n", nr, cdp->wlen, cdp->pt);
 #endif
 	    }
-	    cdp->dat2 = chipmem_wget (cdp->pt);
+	    cdp->dat2 = chipmem_agnus_wget (cdp->pt);
 	    if (cdp->request_word >= 2)
 		handle2 = 1;
 	    if (chan_ena) {

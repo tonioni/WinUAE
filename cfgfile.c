@@ -2643,6 +2643,7 @@ int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 	case 7:
 	v = bip_a500 (p, 3, compa, romcheck);
 	p->nr_floppies = 0;
+	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->dfxtype[0] = -1;
 	p->dfxtype[1] = -1;
 	break;

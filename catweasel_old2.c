@@ -11,14 +11,10 @@
 #include "catweasel.h"
 #include "uae.h"
 
-#include <catweasl_usr.h>
-
 struct catweasel_contr cwc;
 
 static int cwhsync;
 static int handshake;
-
-static HANDLE handle = INVALID_HANDLE_VALUE;
 
 void catweasel_hsync (void)
 {
@@ -93,45 +89,21 @@ void catweasel_do_bput (uaecptr addr, uae_u32 b)
 
 int catweasel_init (void)
 {
-    char name[32];
-    int i, len;
-    uae_u8 buffer[1000];
-    uae_u32 model, base;
-
-    return 0;
-
-    for (i = 0; i < 4; i++) {
-        sprintf (name, "\\\\.\\CAT%d_F0", i);
-	handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
-	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (handle != INVALID_HANDLE_VALUE)
-	    break;
-	write_log("%s: %d\n", name, GetLastError());
-    }
-    if (handle == INVALID_HANDLE_VALUE)
-	goto fail;
-    if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	write_log ("CW_LOCK_EXCLUSIVE failed %d\n", GetLastError());
-	goto fail;
-    }
-    model = *((uae_u32*)(buffer + 4));
-    base = *((uae_u32*)(buffer + 0));
-    write_log ("Catweasel MK%d @%p detected and enabled\n", model, base);
-    cwc.type = model == 0 ? 1 : model == 3 ? 4 : 2;
-    cwc.iobase = base;
+    if (!currprefs.catweasel_io)
+	return 0;
+    if (!ioport_init ())
+	return 0;
+    cwc.type = currprefs.catweasel_io >= 0x400 ? CATWEASEL_TYPE_MK3 : CATWEASEL_TYPE_MK1;
+    cwc.iobase = currprefs.catweasel_io;
     catweasel_init_controller (&cwc);
     return 1;
-fail:
-    catweasel_free ();
-    return 0;
-
 }
 
 void catweasel_free (void)
 {
-    if (handle != INVALID_HANDLE_VALUE)
-	CloseHandle (handle);
-    handle = INVALID_HANDLE_VALUE;
+    if (!currprefs.catweasel_io)
+	return;
+    ioport_free ();
     cwc.type = 0;
 }
 
@@ -804,5 +776,3 @@ int catweasel_read(catweasel_drive *d, int side, int clock, int rawmode)
 }
 
 #endif
-
-

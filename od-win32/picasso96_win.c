@@ -1583,7 +1583,7 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     put_byte (amigamemptr + PSSO_ModeInfo_first_union, 98);
     put_byte (amigamemptr + PSSO_ModeInfo_second_union, 14);
     
-    put_long (amigamemptr + PSSO_ModeInfo_PixelClock, dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? currprefs.gfx_refreshrate : default_freq));
+    put_long (amigamemptr + PSSO_ModeInfo_PixelClock, dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
 }
 
 static int AssignModeID( int i, int count )
@@ -2235,8 +2235,8 @@ STATIC_INLINE int BlitRectHelper( void )
     * If we have a destination RenderInfo, then we've been called from picasso_BlitRectNoMaskComplete()
     * and we need to put the results on the screen from the frame-buffer.
     */
-    //if (dstri == NULL) 
-    if (dstri->Memory == ri->Memory)
+    //if (dstri->Memory == ri->Memory)
+    if (dstri == NULL || dstri->Memory == ri->Memory)
     {
         if( mask != 0xFF && Bpp > 1 ) 
         {
@@ -2862,7 +2862,7 @@ void init_hz_p96 (void)
     if (isfullscreen ())
 	rate = DirectDraw_CurrentRefreshRate ();
     else
-	rate = currprefs.gfx_refreshrate;
+	rate = abs (currprefs.gfx_refreshrate);
     if (rate <= 0)
         rate = 60;
     p96syncrate /= rate;

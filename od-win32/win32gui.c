@@ -497,7 +497,7 @@ end:
     free (p);
 }
 
-int scan_roms (char *pathp)
+static int scan_roms_2 (char *pathp)
 {
     HKEY fkey = NULL;
     char buf[MAX_PATH], path[MAX_PATH];
@@ -530,7 +530,7 @@ int scan_roms (char *pathp)
 	    char tmppath[MAX_PATH];
 	    strcpy (tmppath, path);
 	    strcat (tmppath, find_data.cFileName);
-	    if (scan_rom (tmppath, fkey, keybuf, keysize))
+	    if (find_data.nFileSizeLow < 10000000 && scan_rom (tmppath, fkey, keybuf, keysize))
 		ret = 1;
 	    if (FindNextFile (handle, &find_data) == 0) {
 		FindClose (handle);
@@ -548,6 +548,20 @@ end:
     if (fkey)
 	RegCloseKey (fkey);
     free_keyfile (keybuf);
+    return ret;
+}
+
+int scan_roms (char *pathp)
+{
+    char path[MAX_DPATH];
+
+    int ret = scan_roms_2 (pathp);
+    sprintf (path, "%s..\\shared\\rom\\", start_path);
+    if (!ret && pathp == NULL) {
+	ret = scan_roms_2 (path);
+	if (ret)
+	    set_path ("KickstartPath", path);
+    }
     read_rom_list (0);
     show_rom_list ();
     return ret;
@@ -4313,7 +4327,7 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    break;
 		}
 	    }
-	} else {
+	} else if (currentpage == MISC2_ID) {
 	    misc_getpri (hDlg, IDC_ACTIVE_PRIORITY, &workprefs.win32_active_priority);
 	    misc_getpri (hDlg, IDC_INACTIVE_PRIORITY, &workprefs.win32_inactive_priority);
 	    misc_getpri (hDlg, IDC_MINIMIZED_PRIORITY, &workprefs.win32_iconified_priority);
@@ -6128,15 +6142,18 @@ static void swapperhili (HWND hDlg, int entry)
 static void addswapperfile (HWND hDlg, int entry)
 {
     char path[MAX_DPATH];
+    int lastentry = entry;
+
     if (MultiDiskSelection (hDlg, -1, 0, &changed_prefs, path)) {
         char dpath[MAX_DPATH];
         loopmulti (path, NULL);
         while (loopmulti(path, dpath) && entry < MAX_SPARE_DRIVES) {
             strcpy (workprefs.dfxlist[entry], dpath);
+	    lastentry = entry;
             entry++;
         }
         InitializeListView (hDlg);
-        swapperhili (hDlg, entry);
+        swapperhili (hDlg, lastentry);
     }
 }
 
@@ -6270,10 +6287,14 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    break;
 	
 	    case IDC_DISKLISTINSERT:
-		if (entry >= 0 && getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp))) {
-		    strcpy (workprefs.dfxlist[entry], tmp);
-		    InitializeListView (hDlg);
-		    swapperhili (hDlg, entry);
+		if (entry >= 0) {
+		    if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp))) {
+			strcpy (workprefs.dfxlist[entry], tmp);
+			InitializeListView (hDlg);
+			swapperhili (hDlg, entry);
+		    } else {
+			addswapperfile (hDlg, entry);
+		    }
 		}
 		break;		    
 

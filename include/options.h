@@ -219,6 +219,7 @@ struct uae_prefs {
     int win32_midiindev;
     int win32_aspi;
     int win32_soundcard;
+    int win32_norecyclebin;
 
     int curses_reverse_video;
 

@@ -1698,9 +1698,13 @@ static int do_specialties (int cycles)
 	    do_copper ();
     }
 
-    if (regs.spcflags & SPCFLAG_DOTRACE) {
+    if (regs.spcflags & SPCFLAG_DOTRACE)
 	Exception (9,last_trace_ad);
+    if (regs.spcflags & SPCFLAG_TRAP) {
+	unset_special (SPCFLAG_TRAP);
+	Exception (32 + 15, 0);
     }
+
     while (regs.spcflags & SPCFLAG_STOP) {
  	do_cycles (4 * CYCLE_UNIT);
 	if (regs.spcflags & SPCFLAG_COPPER)

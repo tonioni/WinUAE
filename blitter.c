@@ -227,7 +227,7 @@ static void blitter_dofast(void)
 		uae_u32 bltadat, blitahold;
 		uae_u16 bltbdat;
 		if (bltadatptr) {
-		    blt_info.bltadat = bltadat = chipmem_wget (bltadatptr);
+		    blt_info.bltadat = bltadat = chipmem_agnus_wget (bltadatptr);
 		    bltadatptr += 2;
 		} else
 		    bltadat = blt_info.bltadat;
@@ -236,17 +236,17 @@ static void blitter_dofast(void)
 		preva = bltadat;
 
 		if (bltbdatptr) {
-		    blt_info.bltbdat = bltbdat = chipmem_wget (bltbdatptr);
+		    blt_info.bltbdat = bltbdat = chipmem_agnus_wget (bltbdatptr);
 		    bltbdatptr += 2;
 		    blitbhold = (((uae_u32)prevb << 16) | bltbdat) >> blt_info.blitbshift;
 		    prevb = bltbdat;
 		}
 
 		if (bltcdatptr) {
-		    blt_info.bltcdat = chipmem_wget (bltcdatptr);
+		    blt_info.bltcdat = chipmem_agnus_wget (bltcdatptr);
 		    bltcdatptr += 2;
 		}
-		if (dodst) chipmem_wput (dstp, blt_info.bltddat);
+		if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
 		blt_info.bltddat = blit_func (blitahold, blitbhold, blt_info.bltcdat, mt) & 0xFFFF;
 		if (blitfill) {
 		    uae_u16 d = blt_info.bltddat;
@@ -269,7 +269,7 @@ static void blitter_dofast(void)
 	    if (bltcdatptr) bltcdatptr += blt_info.bltcmod;
 	    if (bltddatptr) bltddatptr += blt_info.bltdmod;
 	}
-	if (dodst) chipmem_wput (dstp, blt_info.bltddat);
+	if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
 	blt_info.bltbhold = blitbhold;
     }
     blit_masktable[0] = 0xFFFF;
@@ -320,7 +320,7 @@ static void blitter_dofast_desc(void)
 		uae_u32 bltadat, blitahold;
 		uae_u16 bltbdat;
 		if (bltadatptr) {
-		    bltadat = blt_info.bltadat = chipmem_wget (bltadatptr);
+		    bltadat = blt_info.bltadat = chipmem_agnus_wget (bltadatptr);
 		    bltadatptr -= 2;
 		} else
 		    bltadat = blt_info.bltadat;
@@ -329,17 +329,17 @@ static void blitter_dofast_desc(void)
 		preva = bltadat;
 
 		if (bltbdatptr) {
-		    blt_info.bltbdat = bltbdat = chipmem_wget (bltbdatptr);
+		    blt_info.bltbdat = bltbdat = chipmem_agnus_wget (bltbdatptr);
 		    bltbdatptr -= 2;
 		    blitbhold = (((uae_u32)bltbdat << 16) | prevb) >> blt_info.blitdownbshift;
 		    prevb = bltbdat;
 		}
 
 		if (bltcdatptr) {
-		    blt_info.bltcdat = blt_info.bltbdat = chipmem_wget (bltcdatptr);
+		    blt_info.bltcdat = blt_info.bltbdat = chipmem_agnus_wget (bltcdatptr);
 		    bltcdatptr -= 2;
 		}
-		if (dodst) chipmem_wput (dstp, blt_info.bltddat);
+		if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
 		blt_info.bltddat = blit_func (blitahold, blitbhold, blt_info.bltcdat, mt) & 0xFFFF;
 		if (blitfill) {
 		    uae_u16 d = blt_info.bltddat;
@@ -362,7 +362,7 @@ static void blitter_dofast_desc(void)
 	    if (bltcdatptr) bltcdatptr -= blt_info.bltcmod;
 	    if (bltddatptr) bltddatptr -= blt_info.bltdmod;
 	}
-	if (dodst) chipmem_wput (dstp, blt_info.bltddat);
+	if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
 	blt_info.bltbhold = blitbhold;
     }
     blit_masktable[0] = 0xFFFF;
@@ -604,7 +604,7 @@ STATIC_INLINE int blitter_doddma (void)
 	wd = 1;
     }
     if (wd) {
-	chipmem_wput (bltdpt, d);
+	chipmem_agnus_wput (bltdpt, d);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
 	if (blitter_hcounter2 == blt_info.hblitsize) {
@@ -626,11 +626,11 @@ STATIC_INLINE void blitter_dodma (int ch)
     switch (ch)
     {
 	case 1:
-        blt_info.bltadat = chipmem_wget (bltapt);
+        blt_info.bltadat = chipmem_agnus_wget (bltapt);
 	bltapt += blit_add;
 	break;
 	case 2:
-	blt_info.bltbdat = chipmem_wget (bltbpt);
+	blt_info.bltbdat = chipmem_agnus_wget (bltbpt);
 	bltbpt += blit_add;
 	if (blitdesc)
 	    blt_info.bltbhold = (((uae_u32)blt_info.bltbdat << 16) | prevb) >> blt_info.blitdownbshift;
@@ -639,7 +639,7 @@ STATIC_INLINE void blitter_dodma (int ch)
 	prevb = blt_info.bltbdat;
 	break;
 	case 3:
-	blt_info.bltcdat = chipmem_wget (bltcpt);
+	blt_info.bltcdat = chipmem_agnus_wget (bltcpt);
 	bltcpt += blit_add;
 	break;
     }
@@ -924,7 +924,6 @@ void do_blitter (int hpos)
 	blitter_dump ();
     }
 #endif
-
     blit_slowdown = 0;
 
     unset_special (SPCFLAG_BLTNASTY);

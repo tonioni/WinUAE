@@ -25,6 +25,8 @@ void init_shm( void )
 #else
     LPBYTE address = (LPBYTE)0x10000000; // Letting the system decide doesn't seem to work on some systems
 #endif
+    int size = 0x19000000;
+    int add = 0x1000000;
 
     canbang = 0;
     gfxoffs = 0;
@@ -37,27 +39,34 @@ void init_shm( void )
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
-    while( address < (LPBYTE)0xa0000000 )
+    while (address < (LPBYTE)0xa0000000)
     {
-        blah = VirtualAlloc( address, 0x19000000, MEM_RESERVE, PAGE_EXECUTE_READWRITE );
-        if( blah == NULL )
+        blah = VirtualAlloc( address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE );
+        if (blah == NULL)
         {
-	    address += 0x01000000;
+	    address += add;
 	}
         else
         {
-	    natmem_offset = (uae_u32)blah + 0x1000000;
+	    natmem_offset = (uae_u32)blah;
+    	    write_log ("NATMEM: Our special area: 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
+	    VirtualFree (blah, 0, MEM_RELEASE);
+	    while (address < (LPBYTE)0xa0000000) {
+		address += add * 8;
+		blah = VirtualAlloc (address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+		if (blah == NULL) {
+		    address -= add * 8;
+		    break;
+		}
+	        VirtualFree (blah, 0, MEM_RELEASE);
+	    }
+	    natmem_offset = (uae_u8*)natmem_offset + ((uae_u8*)address - (uae_u8*)natmem_offset) / 2;
+    	    write_log ("NATMEM: after adjustment; 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
+	    canbang = 1;
 	    break;
 	}
     }
-    if( natmem_offset )
-    {
-    	write_log( "NATMEM: Our special area is 0x%x\n", natmem_offset );
-	VirtualFree( blah, 0, MEM_RELEASE );
-	canbang = 1;
-    }
-    else
-    {
+    if (!natmem_offset) {
 	write_log( "NATMEM: No special area could be allocated!\n" );
     }
 }
@@ -199,6 +208,12 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 	    shmids[shmid].attached=result;
 	    return result;
 	}
+	if(!strcmp(shmids[shmid].name,"arcadia"))
+	{
+	    result=natmem_offset+0x10000;
+	    shmids[shmid].attached=result;
+	    return result;
+	}
 }
 #endif
     
@@ -210,10 +225,11 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 	    {
 		result=(void*)VirtualFree(shmaddr,0,MEM_RELEASE);
 	    }
-	    result =VirtualAlloc(shmaddr,size,MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+	    result = VirtualAlloc(shmaddr,size,MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE );
 	    if( result == NULL )
 	    {
 		result = (void *)-1;
+		write_log ("VirtualAlloc %x %x failed %d\n", shmaddr, size, GetLastError ());
 	    }
 	    else
 	    {
