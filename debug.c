@@ -961,7 +961,7 @@ static int instruction_breakpoint (char **c)
 	    do_skip = 1;
 	    skipaddr_doskip = 1;
 	    return 1;
-	} else if (nc == 'D') {
+	} else if (nc == 'D' && (*c)[1] == 0) {
 	    for (i = 0; i < BREAKPOINT_TOTAL; i++)
 		bpnodes[i].enabled = 0;
 	    console_out ("All breakpoints removed\n");

@@ -247,6 +247,7 @@ extern char *cfgfile_subst_path (const char *path, const char *subst, const char
 extern int target_parse_option (struct uae_prefs *, char *option, char *value);
 extern void target_save_options (FILE *, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *);
+extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type);
 
 extern int cfgfile_load (struct uae_prefs *, const char *filename, int *);
 extern int cfgfile_save (struct uae_prefs *, const char *filename, int);

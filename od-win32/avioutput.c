@@ -55,7 +55,7 @@ int avioutput_width = 320, avioutput_height = 256, avioutput_bits = 24;
 int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0;
 
-char avioutput_filename[MAX_DPATH] = "output.avi";
+char avioutput_filename[MAX_DPATH];
 static char avioutput_filename_tmp[MAX_DPATH];
 
 extern struct uae_prefs workprefs;

@@ -1358,10 +1358,6 @@ int needmousehack (void)
     return 1;
 }
 
-void LED (int a)
-{
-}
-
 void logging_init( void )
 {
     static int started;
@@ -1673,6 +1669,7 @@ static void WIN32_HandleRegistryStuff( void )
         initpath ("ScreenshotPath", start_path);
         initpath ("StatefilePath", start_path);
         initpath ("SaveimagePath", start_path);
+        initpath ("VideoPath", start_path);
         if( disposition == REG_CREATED_NEW_KEY )
         {
             /* Create and initialize all our sub-keys to the default values */

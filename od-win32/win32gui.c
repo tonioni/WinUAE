@@ -258,7 +258,7 @@ static void show_rom_list (void)
 
 int scan_roms (char *pathp)
 {
-    HKEY fkey;
+    HKEY fkey = NULL;
     char buf[MAX_PATH], path[MAX_PATH], tmp[100];
     WIN32_FIND_DATA find_data;
     HANDLE handle;
@@ -277,7 +277,7 @@ int scan_roms (char *pathp)
 	goto end;
     SHDeleteKey (hWinUAEKey, "DetectedROMs");
     RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_ALL_ACCESS, NULL, &fkey, NULL);
+	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     if (fkey == NULL)
 	goto end;
     ret = 0;
@@ -301,6 +301,8 @@ int scan_roms (char *pathp)
 	}
     }
 end:
+    if (fkey)
+	RegCloseKey (fkey);
     free_keyfile (keybuf);
     read_rom_list ();
     show_rom_list ();
@@ -341,13 +343,13 @@ static struct ConfigStruct *getconfigstorefrompath (char *path, char *out, int t
     return 0;
 }
 
-static int cfgfile_doload (struct uae_prefs *p, const char *filename, int type)
+int target_cfgfile_load (struct uae_prefs *p, char *filename, int type)
 {
-    int v, i;
+    int v, i, type2;
     DWORD ct, size;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
-    if (type == 0) {
+    if (type == 0 || type == 1) {
 	if (p->mountinfo == currprefs.mountinfo)
 	    currprefs.mountinfo = 0;
 	discard_prefs (p, 0);
@@ -356,9 +358,13 @@ static int cfgfile_doload (struct uae_prefs *p, const char *filename, int type)
 	currprefs.mountinfo = alloc_mountinfo ();
 #endif
     }
-    default_prefs (p, type);
-    v = cfgfile_load (p, filename, 0);
+    type2 = type;
+    if (type == 0)
+	default_prefs (p, type);
+    v = cfgfile_load (p, filename, &type2);
     if (!v)
+	return v;
+    if (type > 0)
 	return v;
     for (i = 1; i <= 2; i++) {
 	if (type != i) {
@@ -368,10 +374,10 @@ static int cfgfile_doload (struct uae_prefs *p, const char *filename, int type)
 	    if (ct) {
 		size = sizeof (tmp1);
 		RegQueryValueEx (hWinUAEKey, configreg[i], 0, NULL, (LPBYTE)tmp1, &size);
-		if (getconfigstorefrompath (tmp1, tmp2, i)) {
-		    v = i;
-		    cfgfile_load (p, tmp2, &v);
-		} 
+		fetch_path ("ConfigurationPath", tmp2, sizeof (tmp2));
+		strcat (tmp2, tmp1);
+		v = i;
+	        cfgfile_load (p, tmp2, &v);
 	    }
 	}
     }
@@ -776,7 +782,7 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	    disk_creatediskfile( full_path, 1, SendDlgItemMessage( hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L ));
 	    break;
 	case IDC_LOAD:
-	    if (cfgfile_doload(&workprefs, full_path, 0) == 0)
+	    if (target_cfgfile_load(&workprefs, full_path, 0) == 0)
 	    {
 		char szMessage[MAX_DPATH];
 		WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
@@ -1138,7 +1144,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		WIN32GUI_LoadUIString( IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH );
 		pre_gui_message (szMessage);
 	    } else {
-		if (cfgfile_doload (&workprefs, path, configtypepanel) == 0) {
+		if (target_cfgfile_load (&workprefs, path, configtypepanel) == 0) {
 		    char szMessage[ MAX_DPATH ];
 		    WIN32GUI_LoadUIString( IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH );
 		    pre_gui_message (szMessage);
@@ -2094,6 +2100,7 @@ static void values_to_pathsdialog (HWND hDlg)
     setpath (hDlg, "ScreenshotPath", IDC_PATHS_SCREENSHOT, "ScreenShots");
     setpath (hDlg, "StatefilePath", IDC_PATHS_SAVESTATE, "Savestates");
     setpath (hDlg, "SaveimagePath", IDC_PATHS_SAVEIMAGE, "SaveImages");
+    setpath (hDlg, "VideoPath", IDC_PATHS_AVIOUTPUT, "Videos");
 }
 
 static void resetregistry (void)
@@ -2102,14 +2109,15 @@ static void resetregistry (void)
 	return;
     SHDeleteKey (hWinUAEKey, "DetectedROMs");
     SHDeleteKey (hWinUAEKey, "QuickStartMode");
-    SHDeleteKey (hWinUAEKey, "ConfigFile");
-    SHDeleteKey (hWinUAEKey, "ConfigurationPath");
-    SHDeleteKey (hWinUAEKey, "SaveimagePath");
-    SHDeleteKey (hWinUAEKey, "ScreenshotPath");
-    SHDeleteKey (hWinUAEKey, "StatefilePath");
-    SHDeleteKey (hWinUAEKey, "QuickStartModel");
-    SHDeleteKey (hWinUAEKey, "QuickStartConfiguration");
-    SHDeleteKey (hWinUAEKey, "QuickStartCompatibility");
+    RegDeleteValue (hWinUAEKey, "ConfigFile");
+    RegDeleteValue (hWinUAEKey, "ConfigurationPath");
+    RegDeleteValue (hWinUAEKey, "SaveimagePath");
+    RegDeleteValue (hWinUAEKey, "ScreenshotPath");
+    RegDeleteValue (hWinUAEKey, "StatefilePath");
+    RegDeleteValue (hWinUAEKey, "VideoPath");
+    RegDeleteValue (hWinUAEKey, "QuickStartModel");
+    RegDeleteValue (hWinUAEKey, "QuickStartConfiguration");
+    RegDeleteValue (hWinUAEKey, "QuickStartCompatibility");
 }
 
 static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -2173,12 +2181,20 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
+	    case IDC_PATHS_AVIOUTPUTS:
+	    fetch_path ("VideoPath", tmp, sizeof (tmp));
+	    if (DirectorySelection (hDlg, 0, tmp)) {
+		set_path ("VideoPath", tmp);
+		values_to_pathsdialog (hDlg);
+	    }
+	    break;
 	    case IDC_PATHS_DEFAULT:
 	    set_path ("KickstartPath", NULL);
 	    set_path ("ConfigurationPath", NULL);
 	    set_path ("ScreenshotPath", NULL);
 	    set_path ("StatefilePath", NULL);
 	    set_path ("SaveimagePath", NULL);
+	    set_path ("VideoPath", NULL);
 	    values_to_pathsdialog (hDlg);
 	    break;
 	    case IDC_ROM_RESCAN:
@@ -2609,18 +2625,9 @@ static void enable_for_displaydlg (HWND hDlg)
     else
     {
         CheckDlgButton( hDlg, IDC_VSYNC, workprefs.gfx_vsync);
-        if (workprefs.gfx_filter) {
-	    EnableWindow (GetDlgItem (hDlg, IDC_XCENTER), FALSE);
-	    EnableWindow (GetDlgItem (hDlg, IDC_YCENTER), FALSE);
-	    EnableWindow (GetDlgItem (hDlg, IDC_LM_SCANLINES), FALSE);
-	    if (workprefs.gfx_linedbl == 2)
-		workprefs.gfx_linedbl = 1;
-	    workprefs.gfx_xcenter = workprefs.gfx_ycenter = 0;
-	} else {
-	    EnableWindow (GetDlgItem (hDlg, IDC_XCENTER), TRUE);
-	    EnableWindow (GetDlgItem (hDlg, IDC_YCENTER), TRUE);
-	    EnableWindow (GetDlgItem (hDlg, IDC_LM_SCANLINES), TRUE);
-	}
+        EnableWindow (GetDlgItem (hDlg, IDC_XCENTER), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_YCENTER), TRUE);
+        EnableWindow (GetDlgItem (hDlg, IDC_LM_SCANLINES), TRUE);
     }
 }
 
@@ -3469,7 +3476,7 @@ static void getromfile (HWND hDlg, DWORD d, char *path, int size)
 	if (rd && hWinUAEKey) {
 	    HKEY fkey;
 	    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-		KEY_ALL_ACCESS, NULL, &fkey, NULL);
+		KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
 	    if (fkey) {
 		DWORD outsize = size;
 		sprintf (tmp1, "ROM%02d", rd->id);
@@ -3498,7 +3505,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 
     if (hWinUAEKey) {
 	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_ALL_ACCESS, NULL, &fkey, NULL);
+	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
         keybuf = load_keyfile (&workprefs, NULL, &keysize);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, keybuf, keysize, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, keybuf, keysize, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
@@ -4994,7 +5001,7 @@ HKEY read_disk_history (void)
     if (!hWinUAEKey)
 	return NULL;
     RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_ALL_ACCESS, NULL, &fkey, NULL);
+	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     if (fkey == NULL || regread)
 	return fkey;
 
@@ -5003,7 +5010,7 @@ HKEY read_disk_history (void)
         int err;
         size = sizeof (tmp);
         size2 = sizeof (tmp2);
-        err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
+        err = RegEnumValue (fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
         if (err != ERROR_SUCCESS)
 	    break;
         if (strlen (tmp) == 7) {
@@ -6154,6 +6161,7 @@ static BOOL CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPa
 
 static int scanlineratios[] = { 1,1,1,2,1,3, 2,1,2,2,2,3, 3,1,3,2,3,3, 0,0 };
 static int scanlineindexes[100];
+static int filterpreset = 0;
 
 static void enable_for_hw3ddlg (HWND hDlg)
 {
@@ -6175,18 +6183,21 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	vv = TRUE;
     if (v && uf->x[0])
 	vv2 = TRUE;
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLENABLE), TRUE);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLBITS), v);
-    CheckDlgButton( hDlg, IDC_OPENGLENABLE, v );
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLHZ), vv2);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLVZ), vv2);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLHO), v);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLVO), v);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLSLR), vv2);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLSL), vv2);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLSL2), vv2);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLDEFAULT), v);
-    EnableWindow (GetDlgItem (hDlg, IDC_OPENGLFILTER), vv);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERENABLE), TRUE);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERMODE), v);
+    CheckDlgButton( hDlg, IDC_FILTERENABLE, v );
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZ), vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZ), vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERHO), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERVO), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERSLR), vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERSL), vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERSL2), vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERDEFAULT), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERFILTER), vv);
+
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERPRESETLOAD), filterpreset > 0);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERPRESETDELETE), filterpreset > 0);
 }
 
 static void makefilter(char *s, int x, int flags)
@@ -6207,22 +6218,22 @@ static void values_to_hw3ddlg (HWND hDlg)
     char txt[100], tmp[100];
     int i, j, nofilter, fltnum, modenum;
     struct uae_filter *uf;
+    HKEY fkey;
 
-    SendDlgItemMessage( hDlg, IDC_OPENGLHZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLHZ, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_OPENGLVZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLVZ, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_OPENGLHO, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLHO, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_OPENGLVO, TBM_SETRANGE, TRUE, MAKELONG (-50, +50) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLVO, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_OPENGLSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLSL, TBM_SETPAGESIZE, 0, 10 );
-    SendDlgItemMessage( hDlg, IDC_OPENGLSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
-    SendDlgItemMessage( hDlg, IDC_OPENGLSL2, TBM_SETPAGESIZE, 0, 10 );
+    SendDlgItemMessage( hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
+    SendDlgItemMessage( hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1 );
+    SendDlgItemMessage( hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
+    SendDlgItemMessage( hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 1 );
+    SendDlgItemMessage( hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
+    SendDlgItemMessage( hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 1 );
+    SendDlgItemMessage( hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-50, +50) );
+    SendDlgItemMessage( hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1 );
+    SendDlgItemMessage( hDlg, IDC_FILTERSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
+    SendDlgItemMessage( hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 10 );
+    SendDlgItemMessage( hDlg, IDC_FILTERSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
+    SendDlgItemMessage( hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 10 );
 
-    SendDlgItemMessage (hDlg, IDC_OPENGLBITS, CB_RESETCONTENT, 0, 0L);
-
+    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
     uf = &uaefilters[0];
     nofilter = 0; fltnum = 0;
     i = 0; j = 0;
@@ -6244,7 +6255,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	    break;
 	}
 	if (nofilter == 0) {
-    	    SendDlgItemMessage (hDlg, IDC_OPENGLBITS, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
+    	    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
 	    if (uaefilters[i].type == workprefs.gfx_filter) {
 		uf = &uaefilters[i];
 		fltnum = j;
@@ -6253,22 +6264,22 @@ static void values_to_hw3ddlg (HWND hDlg)
 	}
 	i++;
     }
-    SendDlgItemMessage( hDlg, IDC_OPENGLBITS, CB_SETCURSEL, fltnum, 0 );
+    SendDlgItemMessage( hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0 );
 
-    SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
     if (uf->x[0]) {
 	WIN32GUI_LoadUIString (IDS_3D_NO_FILTER, txt, sizeof (txt));
 	sprintf (tmp, txt, 16);
-        SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+        SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 	WIN32GUI_LoadUIString (IDS_3D_BILINEAR, txt, sizeof (txt));
 	sprintf (tmp, txt, 16);
-	SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 	WIN32GUI_LoadUIString (IDS_3D_NO_FILTER, txt, sizeof (txt));
 	sprintf (tmp, txt, 32);
-        SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+        SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 	WIN32GUI_LoadUIString (IDS_3D_BILINEAR, txt, sizeof (txt));
 	sprintf (tmp, txt, 32);
-	SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 	modenum = 4;
     } else {
 	workprefs.gfx_filter_horiz_zoom = 0;
@@ -6277,44 +6288,187 @@ static void values_to_hw3ddlg (HWND hDlg)
 	for (i = 1; i <= 4; i++) {
 	    if (uf->x[i]) {
 		makefilter (tmp, i, uf->x[i]);
-		SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+		SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 		modenum++;
 	    }
 	}
     }
     if (workprefs.gfx_filter_filtermode >= modenum)
 	workprefs.gfx_filter_filtermode = 0;
-    SendDlgItemMessage (hDlg, IDC_OPENGLFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
+    SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
 
-    SendDlgItemMessage (hDlg, IDC_OPENGLSLR, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_RESETCONTENT, 0, 0L);
     i = j = 0;
     while (scanlineratios[i * 2]) {
 	int sl = scanlineratios[i * 2] * 16 + scanlineratios[i * 2 + 1];
 	sprintf (txt, "%d:%d", scanlineratios[i * 2], scanlineratios[i * 2 + 1]);
 	if (workprefs.gfx_filter_scanlineratio == sl)
 	    j = i;
-        SendDlgItemMessage (hDlg, IDC_OPENGLSLR, CB_ADDSTRING, 0, (LPARAM)txt);
+        SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_ADDSTRING, 0, (LPARAM)txt);
 	scanlineindexes[i] = sl;
 	i++;
     }
-    SendDlgItemMessage (hDlg, IDC_OPENGLSLR, CB_SETCURSEL, j, 0);
+    SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_SETCURSEL, j, 0);
+    
+    j = 0;
+    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)"");
+    if (hWinUAEKey) {
+	RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_READ, NULL, &fkey, NULL);
+	if (fkey) {
+	    int idx = 0;
+	    char tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	    DWORD size, size2;
 
-    SendDlgItemMessage (hDlg, IDC_OPENGLHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
-    SendDlgItemMessage (hDlg, IDC_OPENGLVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
-    SendDlgItemMessage (hDlg, IDC_OPENGLHO, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_offset);
-    SendDlgItemMessage (hDlg, IDC_OPENGLVO, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_offset);
-    SendDlgItemMessage (hDlg, IDC_OPENGLSL, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlines);
-    SendDlgItemMessage (hDlg, IDC_OPENGLSL2, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlinelevel);
-    SetDlgItemInt (hDlg, IDC_OPENGLHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
-    SetDlgItemInt (hDlg, IDC_OPENGLVZV, workprefs.gfx_filter_vert_zoom, TRUE);
-    SetDlgItemInt (hDlg, IDC_OPENGLHOV, workprefs.gfx_filter_horiz_offset, TRUE);
-    SetDlgItemInt (hDlg, IDC_OPENGLVOV, workprefs.gfx_filter_vert_offset, TRUE);
-    SetDlgItemInt (hDlg, IDC_OPENGLSLV, workprefs.gfx_filter_scanlines, TRUE);
-    SetDlgItemInt (hDlg, IDC_OPENGLSL2V, workprefs.gfx_filter_scanlinelevel, TRUE);
+	    for (;;) {
+		int err;
+		size = sizeof (tmp);
+		size2 = sizeof (tmp2);
+		err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
+		if (err != ERROR_SUCCESS)
+		    break;
+		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
+		idx++;
+	    }
+	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset, 0);
+	    RegCloseKey (fkey);
+	}
+    }
+    
+    SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
+    SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
+    SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_offset);
+    SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_offset);
+    SendDlgItemMessage (hDlg, IDC_FILTERSL, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlines);
+    SendDlgItemMessage (hDlg, IDC_FILTERSL2, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlinelevel);
+    SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
+    SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
+    SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
+    SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
+    SetDlgItemInt (hDlg, IDC_FILTERSLV, workprefs.gfx_filter_scanlines, TRUE);
+    SetDlgItemInt (hDlg, IDC_FILTERSL2V, workprefs.gfx_filter_scanlinelevel, TRUE);
 }
 
 static void values_from_hw3ddlg (HWND hDlg)
 {
+}
+
+static void filter_preset (HWND hDlg, WPARAM wParam)
+{
+    int item, ok, err, load;
+    char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    DWORD outsize;
+    HKEY fkey;
+    struct uae_prefs *p = &workprefs;
+
+    load = 0;
+    ok = 0;
+    if (!hWinUAEKey)
+	return;
+    RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
+        KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    if (!fkey)
+	return;
+    item = SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETCURSEL, 0, 0);
+    tmp1[0] = 0;
+    if (item != CB_ERR) {
+	filterpreset = item;
+        SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp1);
+    } else {
+        SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)item, (LPARAM)tmp1);
+    }
+    outsize = sizeof (tmp2);
+    if (tmp1[0] && RegQueryValueEx (fkey, tmp1, NULL, NULL, tmp2, &outsize) == ERROR_SUCCESS)
+	ok = 1;
+    
+    if (wParam == IDC_FILTERPRESETSAVE) {
+        sprintf (tmp2, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+	    p->gfx_filter, p->gfx_filter_filtermode,
+	    p->gfx_filter_vert_zoom, p->gfx_filter_horiz_zoom,
+	    p->gfx_filter_vert_offset, p->gfx_filter_horiz_offset,
+	    p->gfx_filter_scanlines, p->gfx_filter_scanlinelevel, p->gfx_filter_scanlineratio,
+	    p->gfx_lores, p->gfx_linedbl, p->gfx_correct_aspect,
+	    p->gfx_xcenter, p->gfx_ycenter);
+	if (ok == 0) {
+	    tmp1[0] = 0;
+	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)sizeof (tmp1), (LPARAM)tmp1);
+	    if (tmp1[0] == 0) {
+	        gui_message ("No name");
+	        goto end;
+	    }
+	}
+	RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)&tmp2, strlen (tmp2) + 1);
+        values_to_hw3ddlg (hDlg);
+    }
+    if (ok) {
+	if (wParam == IDC_FILTERPRESETDELETE) {
+	    err = RegDeleteValue (fkey, tmp1);
+	    values_to_hw3ddlg (hDlg);
+	} else if (wParam == IDC_FILTERPRESETLOAD) {
+	    char *s = tmp2;
+	    char *t;
+	    
+	    load = 1;
+	    strcat (s, ",");
+	    t = strchr (s, ',');
+	    *t++ = 0;
+	    p->gfx_filter = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_filtermode = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_vert_zoom = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_horiz_zoom = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_vert_offset = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_horiz_offset = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_scanlines = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_scanlinelevel = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_scanlineratio = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_lores = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_linedbl = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_correct_aspect = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_xcenter = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_ycenter = atol (s);
+	}
+    }
+end:
+    RegCloseKey (fkey);
+    if (load)
+        values_to_hw3ddlg (hDlg);
+    enable_for_hw3ddlg (hDlg);
+}
+
+static void filter_handle (HWND hDlg)
+{
+    int item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
+    if (item != CB_ERR) {
+	int of = workprefs.gfx_filter;
+	int off = workprefs.gfx_filter_filtermode;
+	workprefs.gfx_filter = 0;
+	if (IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {
+	    workprefs.gfx_filter = uaefilters[item].type;
+	    item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
+	    if (item != CB_ERR)
+		workprefs.gfx_filter_filtermode = item;
+	    if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
+		values_to_hw3ddlg (hDlg);
+		hw3d_changed = 1;
+	    }
+	}
+    }
+    enable_for_hw3ddlg (hDlg);
+    updatedisplayarea ();
 }
 
 static BOOL CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6330,56 +6484,71 @@ static BOOL CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
 	enable_for_hw3ddlg (hDlg);
 	    
     case WM_USER:
+	if(recursive > 0)
+	    break;
 	recursive++;
 	enable_for_hw3ddlg( hDlg );
 	values_to_hw3ddlg (hDlg);
 	recursive--;
 	return TRUE;
     case WM_COMMAND:
-	if (wParam == IDC_OPENGLDEFAULT) {
+	if(recursive > 0)
+	    break;
+	recursive++;
+	switch (wParam)
+	{
+	    case IDC_FILTERDEFAULT:
 	    currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = 0;
 	    currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = 0;
 	    currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
 	    currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
 	    values_to_hw3ddlg (hDlg);
-	}
-	item = SendDlgItemMessage( hDlg, IDC_OPENGLSLR, CB_GETCURSEL, 0, 0L );
-	if (item != CB_ERR)
-	    currprefs.gfx_filter_scanlineratio = workprefs.gfx_filter_scanlineratio = scanlineindexes[item];
-	item = SendDlgItemMessage( hDlg, IDC_OPENGLMODE, CB_GETCURSEL, 0, 0L );
-	if (item != CB_ERR) {
-	    int of = workprefs.gfx_filter;
-	    int off = workprefs.gfx_filter_filtermode;
-	    workprefs.gfx_filter = 0;
-	    if (IsDlgButtonChecked( hDlg, IDC_OPENGLENABLE)) {
-		workprefs.gfx_filter = uaefilters[item].type;
-	        item = SendDlgItemMessage( hDlg, IDC_OPENGLFILTER, CB_GETCURSEL, 0, 0L );
-	        if (item != CB_ERR)
-		    workprefs.gfx_filter_filtermode = item;
-		if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
-		    values_to_hw3ddlg (hDlg);
-		    enable_for_hw3ddlg (hDlg);
-		    hw3d_changed = 1;
+	    break;
+	    case IDC_FILTERPRESETLOAD:
+	    case IDC_FILTERPRESETSAVE:
+	    case IDC_FILTERPRESETDELETE:
+	    filter_preset (hDlg, wParam);
+	    break;
+	    case IDC_FILTERENABLE:
+	    filter_handle (hDlg);
+	    break;
+	    default:
+	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_FILTERPRESETS:
+		    filter_preset (hDlg, LOWORD (wParam));
+		    break;
+		    case IDC_FILTERSLR:
+		    item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
+		    if (item != CB_ERR) {
+			currprefs.gfx_filter_scanlineratio = workprefs.gfx_filter_scanlineratio = scanlineindexes[item];
+		        updatedisplayarea ();
+		    }
+		    break;
+		    case IDC_FILTERMODE:
+		    case IDC_FILTERFILTER:
+		    filter_handle (hDlg);
+		    break;
 		}
-	    } else {
-		enable_for_hw3ddlg (hDlg);
 	    }
+	    break;
 	}
-	updatedisplayarea ();
+	recursive--;
 	break;
     case WM_HSCROLL:
-	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = SendMessage( GetDlgItem( hDlg, IDC_OPENGLHZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = SendMessage( GetDlgItem( hDlg, IDC_OPENGLVZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = SendMessage( GetDlgItem( hDlg, IDC_OPENGLHO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = SendMessage( GetDlgItem( hDlg, IDC_OPENGLVO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = SendMessage( GetDlgItem( hDlg, IDC_OPENGLSL ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = SendMessage( GetDlgItem( hDlg, IDC_OPENGLSL2 ), TBM_GETPOS, 0, 0 );
-	SetDlgItemInt( hDlg, IDC_OPENGLHZV, workprefs.gfx_filter_horiz_zoom, TRUE );
-	SetDlgItemInt( hDlg, IDC_OPENGLVZV, workprefs.gfx_filter_vert_zoom, TRUE );
-	SetDlgItemInt( hDlg, IDC_OPENGLHOV, workprefs.gfx_filter_horiz_offset, TRUE );
-        SetDlgItemInt( hDlg, IDC_OPENGLVOV, workprefs.gfx_filter_vert_offset, TRUE );
-        SetDlgItemInt( hDlg, IDC_OPENGLSLV, workprefs.gfx_filter_scanlines, TRUE );
-	SetDlgItemInt( hDlg, IDC_OPENGLSL2V, workprefs.gfx_filter_scanlinelevel, TRUE );
+	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = SendMessage( GetDlgItem( hDlg, IDC_FILTERHZ ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = SendMessage( GetDlgItem( hDlg, IDC_FILTERVZ ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = SendMessage( GetDlgItem( hDlg, IDC_FILTERHO ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = SendMessage( GetDlgItem( hDlg, IDC_FILTERVO ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = SendMessage( GetDlgItem( hDlg, IDC_FILTERSL ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = SendMessage( GetDlgItem( hDlg, IDC_FILTERSL2 ), TBM_GETPOS, 0, 0 );
+	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
+        SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
+        SetDlgItemInt (hDlg, IDC_FILTERSLV, workprefs.gfx_filter_scanlines, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERSL2V, workprefs.gfx_filter_scanlinelevel, TRUE);
 	updatedisplayarea ();
 	WIN32GFX_WindowMove ();
 	break;
@@ -6496,6 +6665,10 @@ static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETRANGE, TRUE, MAKELONG(1, VBLANK_HZ_NTSC));
 		SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
 		SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+		if (!avioutput_filename[0]) {
+		    fetch_path ("VideoPath", avioutput_filename, sizeof (avioutput_filename));
+		    strcat (avioutput_filename, "output.avi");
+		}
 		
 	case WM_USER:
 		recursive++;
@@ -6894,7 +7067,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 		    strcpy (prefs->flashfile, file);
 		break;
 		case ZFILE_CONFIGURATION:
-		    if (cfgfile_doload (&workprefs, file, 0)) {
+		    if (target_cfgfile_load (&workprefs, file, 0)) {
 			if (full_property_sheet) {
 			    inputdevice_updateconfig (&workprefs);
 			    if (!workprefs.start_gui)
@@ -7033,7 +7206,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, "gui/cpu.htm");
 	DISPLAY_ID = init_page (IDD_DISPLAY, IDI_DISPLAY, IDS_DISPLAY, DisplayDlgProc, "gui/display.htm");
 #if defined(OPENGL) || defined (D3D)
-	HW3D_ID = init_page (IDD_OPENGL, IDI_DISPLAY, IDS_OPENGL, hw3dDlgProc, "gui/opengl.htm");
+	HW3D_ID = init_page (IDD_FILTER, IDI_DISPLAY, IDS_FILTER, hw3dDlgProc, "gui/filter.htm");
 #endif
 	CHIPSET_ID = init_page (IDD_CHIPSET, IDI_CPU, IDS_CHIPSET, ChipsetDlgProc, "gui/chipset.htm");
 	SOUND_ID = init_page (IDD_SOUND, IDI_SOUND, IDS_SOUND, SoundDlgProc, "gui/sound.htm");

@@ -1259,8 +1259,13 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 
 int cfgfile_load (struct uae_prefs *p, const char *filename, int *type)
 {
-    write_log ("load config '%s'\n", filename);
-    return cfgfile_load_2 (p, filename, 1, type);
+    int v;
+
+    write_log ("load config '%s':%d\n", filename, type ? *type : -1);
+    v = cfgfile_load_2 (p, filename, 1, type);
+    if (!v)
+	write_log ("load failed\n");
+    return v;
 }
 
 int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
@@ -1789,16 +1794,16 @@ void default_prefs (struct uae_prefs *p, int type)
     p->parallel_demand = 0;
 
     p->jport0 = 2;
-    p->jport1 = 0;
+    p->jport1 = 4;
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;
-    p->stereo = 0;
+    p->stereo = 1;
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
     p->sound_interpol = 0;
-    p->sound_filter = 0;
+    p->sound_filter = 1;
 
     p->comptrustbyte = 0;
     p->comptrustword = 0;
@@ -1956,6 +1961,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->catweasel_io = 0;
     p->tod_hack = 0;
     p->maprom = 0;
+    p->sound_filter = 1;
+    p->stereo = 1;
 
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -2008,6 +2015,7 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     rom[2] = -1;
     p->chipset_mask = 0;
     p->bogomem_size = 0;
+    p->sound_filter = 2;
     if (config == 1)
 	p->chipmem_size = 0x40000;
     set_68000_compa (p, compa);
