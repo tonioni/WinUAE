@@ -156,6 +156,7 @@ typedef struct {
     int dskready_time;
     int dskready_down_time;
     int steplimit;
+    frame_time_t steplimitcycle;
     int indexhack, indexhackmode;
     int ddhd; /* 1=DD 2=HD */
     int drive_id_scnt; /* drive id shift counter */
@@ -174,6 +175,8 @@ typedef struct {
     int catweasel;
 #endif
 } drive;
+
+#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 150)
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
@@ -987,9 +990,9 @@ static void drive_step (drive * drv)
 	return;
     }
 #endif
-    if (drv->steplimit) {
+    if (drv->steplimit && get_cycles() - drv->steplimitcycle < MIN_STEPLIMIT_CYCLE) {
 #ifdef DISK_DEBUG2
-        write_dlog (" step ignored");
+        write_dlog (" step ignored %d", (get_cycles() - drv->steplimitcycle) / CYCLE_UNIT);
 #endif
 	return;
     }
@@ -997,7 +1000,8 @@ static void drive_step (drive * drv)
      * but we'll use very small value for better compatibility with faster CPU emulation
      * (stupid trackloaders with CPU delay loops)
      */
-    drv->steplimit = 2;
+    drv->steplimit = 10;
+    drv->steplimitcycle = get_cycles ();
     if (!drive_empty (drv))
 	drv->dskchange = 0;
     if (direction) {
@@ -2353,6 +2357,24 @@ static void DISK_start (void)
 
 static int linecounter;
 
+void DISK_hsync (int tohpos)
+{
+    int dr;
+
+    for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+	drive *drv = &floppy[dr];
+	if (drv->steplimit)
+	    drv->steplimit--;
+    }
+    if (linecounter) {
+	linecounter--;
+	if (! linecounter)
+	    disk_dmafinished ();
+	return;
+    }
+    DISK_update (tohpos);
+}
+
 void DISK_update (int tohpos)
 {
     int dr;
@@ -2367,18 +2389,6 @@ void DISK_update (int tohpos)
     disk_hpos += cycles;
     if (disk_hpos >= (maxhpos << 8))
 	disk_hpos -= maxhpos << 8;
-
-    for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
-	drive *drv = &floppy[dr];
-	if (drv->steplimit)
-	    drv->steplimit--;
-    }
-    if (linecounter) {
-	linecounter--;
-	if (! linecounter)
-	    disk_dmafinished ();
-	return;
-    }
 
 #if 0
     dodmafetch ();

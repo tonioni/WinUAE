@@ -53,12 +53,12 @@ void init_shm( void )
     	    write_log ("NATMEM: Our special area: 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
 	    VirtualFree (blah, 0, MEM_RELEASE);
 	    while (address < (LPBYTE)0xa0000000) {
-		address += add * 8;
+		address += add * 32;
 		if (!os_winnt) /* Windows 9x/ME sucks */
 		    break;
 		blah = VirtualAlloc (address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (blah == NULL) {
-		    address -= add * 8;
+		    address -= add * 32;
 		    break;
 		}
 	        VirtualFree (blah, 0, MEM_RELEASE);

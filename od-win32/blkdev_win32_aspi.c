@@ -65,20 +65,41 @@ static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 
 static int open_driver (SCSI *scgp)
 {
+    char path[MAX_DPATH];
     DWORD	astatus;
     BYTE	HACount;
     BYTE	ASPIStatus;
     int	i;
+    int nero;
+    HKEY key;
+    DWORD type = REG_SZ;
+    DWORD size = sizeof (path);
 
     /*
      * Check if ASPI library is already loaded yet
      */
     if (AspiLoaded == TRUE)
 	return TRUE;
+
+    nero = 0;
+    strcpy (path, "WNASPI32");
+    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+	if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {
+	    strcat (path, "\\wnaspi32.dll");
+	    RegCloseKey (key);
+	    nero = 1;
+	}
+    }
     /*
      * Load the ASPI library
      */
-    hAspiLib = LoadLibrary("WNASPI32");
+    write_log ("ASPI: driver location '%s'\n", path);
+    hAspiLib = LoadLibrary(path);
+    if (hAspiLib == NULL && nero) {
+	write_log ("ASPI: NERO ASPI failed to load, falling back to default\n");
+	hAspiLib = LoadLibrary("WNASPI32");
+    }
+
     /*
      * Check if ASPI library is loaded correctly
      */

@@ -252,7 +252,7 @@ static int figure_processor_speed (void)
     }
 
     init_mmtimer();
-    SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
     sleep_millis (100);
     dummythread_die = -1;
 
@@ -581,7 +581,7 @@ static void handleXbutton (WPARAM wParam, int updown)
 	setmousebuttonstate (dinput_winmouse(), num, updown);
 }
 
-static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
     HDC hDC;
@@ -851,10 +851,10 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				inserted = 1;
 			    else if (wParam == DBT_DEVICEREMOVECOMPLETE)
 				inserted = 0;
-	#ifdef WINDDK
+#ifdef WINDDK
 			    win32_spti_media_change (drive, inserted);
 			    win32_ioctl_media_change (drive, inserted);
-	#endif
+#endif
 			    win32_aspi_media_change (drive, inserted);
 			}
 		    }
@@ -935,6 +935,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	    break;
 	 }
 	break;
+
      case WM_COMMAND:
 	switch (wParam & 0xffff)
 	{
@@ -985,14 +986,14 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
-static long FAR PASCAL MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
     RECT rc;
     HDC hDC;
 
-    switch (message) {
-
+    switch (message)
+    {
      case WM_MOUSEMOVE:
      case WM_MOUSEWHEEL:
      case WM_ACTIVATEAPP:
@@ -1044,28 +1045,24 @@ static long FAR PASCAL MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, L
 
      case WM_WINDOWPOSCHANGED:
 	WIN32GFX_WindowMove();
-	if( hAmigaWnd && GetWindowRect (hAmigaWnd, &amigawin_rect) )
-	{
+	if( hAmigaWnd && GetWindowRect(hAmigaWnd, &amigawin_rect)) {
 	    if (in_sizemove > 0)
 		break;
 
-	    if( !isfullscreen() && hAmigaWnd )
-	    {
+	    if (!isfullscreen() && hAmigaWnd) {
 	        static int store_xy;
 	        RECT rc2;
-		if( GetWindowRect( hMainWnd, &rc2 )) {
-		    if (amigawin_rect.left & 3)
-		    {
+		if (GetWindowRect(hMainWnd, &rc2)) {
+		    if (amigawin_rect.left & 3) {
 			MoveWindow (hMainWnd, rc2.left+ 4 - amigawin_rect.left % 4, rc2.top,
 				    rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
 
 		    }
-		    if( hWinUAEKey && store_xy++)
-		    {
+		    if (hWinUAEKey && store_xy++) {
 			DWORD left = rc2.left - win_x_diff;
 			DWORD top = rc2.top - win_y_diff;
-			RegSetValueEx( hWinUAEKey, "xPos", 0, REG_DWORD, (LPBYTE)&left, sizeof( LONG ) );
-			RegSetValueEx( hWinUAEKey, "yPos", 0, REG_DWORD, (LPBYTE)&top, sizeof( LONG ) );
+			RegSetValueEx(hWinUAEKey, "xPos", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
+			RegSetValueEx(hWinUAEKey, "yPos", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
 		    }
 		}
 		return 0;
@@ -1098,7 +1095,7 @@ static long FAR PASCAL MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, L
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
-static long FAR PASCAL HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
@@ -1222,13 +1219,13 @@ static HINSTANCE hRichEdit = NULL, hHtmlHelp = NULL;
 int WIN32_CleanupLibraries( void )
 {
     if (hRichEdit)
-	FreeLibrary (hRichEdit);
+	FreeLibrary(hRichEdit);
     
-    if( hHtmlHelp )
-        FreeLibrary( hHtmlHelp );
+    if (hHtmlHelp)
+        FreeLibrary(hHtmlHelp);
 
-    if( hUIDLL )
-	FreeLibrary( hUIDLL );
+    if (hUIDLL)
+	FreeLibrary(hUIDLL);
 
     return 1;
 }
@@ -1238,9 +1235,8 @@ int WIN32_InitHtmlHelp( void )
 {
     int result = 0;
     if (zfile_exists (help_file)) {
-        if( hHtmlHelp = LoadLibrary( "HHCTRL.OCX" ) )
-	{
-	    pHtmlHelp = ( HWND(WINAPI *)(HWND, LPCSTR, UINT, LPDWORD ) )GetProcAddress( hHtmlHelp, "HtmlHelpA" );
+        if (hHtmlHelp = LoadLibrary("HHCTRL.OCX")) {
+	    pHtmlHelp = (HWND(WINAPI *)(HWND, LPCSTR, UINT, LPDWORD))GetProcAddress(hHtmlHelp, "HtmlHelpA");
 	    result = 1;
 	}
     }
@@ -1487,17 +1483,17 @@ static HMODULE LoadGUI( void )
 	result = WIN32_LoadLibrary (dllbuf);
 	if( result) 
 	{
-	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle );
-	    if( dwFileVersionInfoSize )
+	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle);
+	    if (dwFileVersionInfoSize)
 	    {
-		if( lpFileVersionData = calloc( 1, dwFileVersionInfoSize ) )
+		if (lpFileVersionData = calloc(1, dwFileVersionInfoSize))
 		{
-		    if( GetFileVersionInfo (dllbuf, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData ) )
+		    if (GetFileVersionInfo(dllbuf, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData))
 		    {
 			VS_FIXEDFILEINFO *vsFileInfo = NULL;
 			UINT uLen;
 			fail = 0;
-			if( VerQueryValue( lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen ) )
+			if (VerQueryValue(lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen))
 			{
 			    if( vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
@@ -1514,7 +1510,7 @@ static HMODULE LoadGUI( void )
 			    }
 			}
 		    }
-		    free( lpFileVersionData );
+		    free(lpFileVersionData);
 		}
 	    }
 	}
@@ -1600,11 +1596,11 @@ void logging_init( void )
 #ifndef SINGLEFILE
     if (currprefs.win32_logfile) {
 	sprintf (debugfilename, "%swinuaelog.txt", start_path);
-	if( !debugfile )
+	if (!debugfile)
 	    debugfile = fopen (debugfilename, "wt");
     } else if (!first) {
 	sprintf (debugfilename, "%swinuaebootlog.txt", start_path);
-	if( !debugfile )
+	if (!debugfile)
 	    debugfile = fopen (debugfilename, "wt");
     }
 #endif
@@ -1614,7 +1610,7 @@ void logging_init( void )
 	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 	os_winnt_admin ? " Admin" : "");
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-	       "\n(c) 1998-2004 Toni Wilen      - Win32 port, core code updates."
+	       "\n(c) 1998-2005 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 	       "\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 	       "\n(c) 2000-2001 Bernd Meyer     - JIT engine."
@@ -1680,6 +1676,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_write (f, "win32.cpu_idle=%d\n", p->cpu_idle);
     cfgfile_write (f, "win32.notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
     cfgfile_write (f, "win32.always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
+    cfgfile_write (f, "win32.no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
 }
 
 static int fetchpri (int pri, int defpri)
@@ -1715,6 +1712,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "iconified_pause", &p->win32_iconified_pause)
 	    || cfgfile_yesno (option, value, "iconified_nosound", &p->win32_iconified_nosound)
 	    || cfgfile_yesno  (option, value, "ctrl_f11_is_quit", &p->win32_ctrl_F11_is_quit)
+	    || cfgfile_yesno  (option, value, "no_recyclebin", &p->win32_norecyclebin)
 	    || cfgfile_intval (option, value, "midi_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, "midiout_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, "midiin_device", &p->win32_midiindev, 1)
@@ -2147,7 +2145,8 @@ static int osdetect (void)
     return 1;
 }
 
-    extern void test (void);
+extern void test (void);
+
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {

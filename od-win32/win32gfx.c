@@ -409,6 +409,26 @@ oops2:
     return 0;
 }
 
+/*
+static void dhack(void)
+{
+    int i = 0;
+    while (DisplayModes[i].depth >= 0)
+	i++;
+    if (i >= MAX_PICASSO_MODES - 1)
+	return;
+    DisplayModes[i].res.width = 480;
+    DisplayModes[i].res.height = 640;
+    DisplayModes[i].depth = DisplayModes[i - 1].depth;
+    DisplayModes[i].refresh[0] = 0;
+    DisplayModes[i].refresh[1] = 0;
+    DisplayModes[i].colormodes = DisplayModes[i - 1].colormodes;
+    DisplayModes[i + 1].depth = -1;
+    sprintf(DisplayModes[i].name, "%dx%d, %d-bit",
+        DisplayModes[i].res.width, DisplayModes[i].res.height, DisplayModes[i].depth * 8);
+}
+*/
+
 static HRESULT CALLBACK modesCallback( LPDDSURFACEDESC2 modeDesc, LPVOID context )
 {
     RGBFTYPE colortype;
@@ -562,6 +582,7 @@ void sortdisplays (void)
 		int b = DirectDraw_GetSurfaceBitCount ();
 		write_log ("W=%d H=%d B=%d\n", w, h, b);
 		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES , modesCallback);
+		//dhack();
 		sortmodes ();
 		modesList ();
 		DirectDraw_Release ();
@@ -664,7 +685,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
 /* DirectX will fail with "Mode not supported" if we try to switch to a full
  * screen mode that doesn't match one of the dimensions we got during enumeration.
  * So try to find a best match for the given resolution in our list.  */
-int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbits )
+int WIN32GFX_AdjustScreenmode(uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbits)
 {
     struct PicassoResolution *best;
     uae_u32 selected_mask = (*ppixbits == 8 ? RGBMASK_8BIT
@@ -674,8 +695,7 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
 			     : RGBMASK_32BIT);
     int pass, i = 0, index = 0;
     
-    for (pass = 0; pass < 2; pass++) 
-    {
+    for (pass = 0; pass < 2; pass++) {
 	struct PicassoResolution *dm;
 	uae_u32 mask = (pass == 0
 			? selected_mask
@@ -686,10 +706,13 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
 	best = &DisplayModes[0];
 	dm = &DisplayModes[1];
 
-	while (dm->depth >= 0) 
-        {
-	    if ((dm->colormodes & mask) != 0) 
-            {
+	while (dm->depth >= 0)  {
+
+	    /* do we already have supported resolution? */
+	    if (dm->res.width == *pwidth && dm->res.height == *pheight && dm->depth == (*ppixbits / 8))
+		return i;
+
+	    if ((dm->colormodes & mask) != 0)  {
 		if (dm->res.width <= best->res.width && dm->res.height <= best->res.height
 		    && dm->res.width >= *pwidth && dm->res.height >= *pheight)
                 {
@@ -706,8 +729,7 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
 	    dm++;
             i++;
 	}
-	if (best->res.width == *pwidth && best->res.height == *pheight)
-        {
+	if (best->res.width == *pwidth && best->res.height == *pheight) {
             selected_mask = mask; /* %%% - BERND, I added this - does it make sense?  Otherwise, I'd specify a 16-bit display-mode for my
 				     Workbench (using -H 2, but SHOULD have been -H 1), and end up with an 8-bit mode instead*/
 	    break;
@@ -715,7 +737,7 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
     }
     *pwidth = best->res.width;
     *pheight = best->res.height;
-    if( best->colormodes & selected_mask )
+    if (best->colormodes & selected_mask)
 	return index;
 
     /* Ordering here is done such that 16-bit is preferred, followed by 15-bit, 8-bit, 32-bit and 24-bit */
@@ -2186,13 +2208,13 @@ void updatedisplayarea (void)
 	    else
 #endif
 	{
-	    if( !isfullscreen() ) {
+	    if (!isfullscreen()) {
 		surface_type_e s;
 		s = DirectDraw_GetLockableType();
 		if (s != overlay_surface && s != invalid_surface)
-		    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
+		    DX_Blit(0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC);
 	    } else {
-		DirectDraw_Blt( primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL );
+		DirectDraw_Blt(primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL);
 	    }
 	}
     }

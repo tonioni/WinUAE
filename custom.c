@@ -58,14 +58,19 @@
 
 void uae_abort (const char *format,...)
 {
+    static int nomore;
     va_list parms;
     char buffer[1000];
 
     va_start (parms, format);
     _vsnprintf( buffer, sizeof (buffer) -1, format, parms );
     va_end (parms);
+    if (nomore) {
+	write_log(buffer);
+	return;
+    }
     gui_message (buffer);
-    activate_debugger ();
+    nomore = 1;
 }
 
 #if 0
@@ -1949,7 +1954,9 @@ static void decide_sprites (int hpos)
 {
     int nrs[MAX_SPRITES], posns[MAX_SPRITES];
     int count, i;
-    int point = hpos * 2;
+     /* apparantly writes to custom registers happen in the 3/4th of cycle 
+      * and sprite xpos comparator sees it immediately */
+    int point = hpos * 2 - 4;
     int width = sprite_width;
     int window_width = (width << lores_shift) >> sprres;
 
@@ -4466,7 +4473,7 @@ static void hsync_handler (void)
 	vsync_handler ();
     }
 
-    DISK_update (maxhpos);
+    DISK_hsync (maxhpos);
 
 #ifdef JIT
     if (compiled_code) {

@@ -393,12 +393,19 @@ void write_filesys_config (struct uae_prefs *p, struct uaedev_mount_info *mounti
 	    sprintf (tmp, "filesystem2=%s,%s:%s:%s,%d\n", uip[i].readonly ? "ro" : "rw",
 		uip[i].devname ? uip[i].devname : "", uip[i].volname, str, uip[i].bootpri);
 	    zfile_fputs (f, tmp);
+	    sprintf (tmp, "filesystem=%s,%s:%s\n", uip[i].readonly ? "ro" : "rw",
+		uip[i].volname, str);
+	    zfile_fputs (f, tmp);
 	} else {
 	    sprintf (tmp, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s\n",
 		     uip[i].readonly ? "ro" : "rw",
 		     uip[i].devname ? uip[i].devname : "", str,
 		     uip[i].hf.secspertrack, uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize,
 		     uip[i].bootpri,uip[i].filesysdir ? uip[i].filesysdir : "");
+	    zfile_fputs (f, tmp);
+	    sprintf (tmp, "hardfile=%s,%d,%d,%d,%d,%s\n",
+		     uip[i].readonly ? "ro" : "rw", uip[i].hf.secspertrack,
+		     uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize, str);
 	    zfile_fputs (f, tmp);
 	}
 	xfree (str);

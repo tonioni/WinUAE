@@ -5,6 +5,7 @@ extern struct catweasel_contr cwc;
 extern int catweasel_read_keyboard (uae_u8 *keycode);
 extern int catweasel_init (void);
 extern void catweasel_free (void);
+extern int catweasel_detect (void);
 extern uae_u32 catweasel_do_bget (uaecptr addr);
 extern void catweasel_do_bput (uaecptr addr, uae_u32 b);
 extern int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons);

@@ -65,6 +65,7 @@
 #ifdef PROWIZARD
 #include "moduleripper.h"
 #endif
+#include "catweasel.h"
 
 #define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe\0"
 #define ROM_FORMAT_STRING "(*.rom;*.zip;*.rar;*.7z;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
@@ -658,6 +659,16 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
 
 static int gui_width = 640, gui_height = 480;
 
+static int mm = 0;
+static void m(void)
+{
+    write_log ("%d:0: %dx%d %dx%d %dx%d\n", mm, currprefs.gfx_width, currprefs.gfx_height,
+	workprefs.gfx_width, workprefs.gfx_height, changed_prefs.gfx_width, changed_prefs.gfx_height);
+    write_log ("%d:1: %dx%d %dx%d %dx%d\n", mm, currprefs.gfx_width_fs, currprefs.gfx_height_fs,
+	workprefs.gfx_width_fs, workprefs.gfx_height_fs, changed_prefs.gfx_width_fs, changed_prefs.gfx_height_fs);
+    mm++;
+}
+
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
 void gui_display( int shortcut )
 {
@@ -678,9 +689,9 @@ void gui_display( int shortcut )
     pause_sound ();
     setmouseactive (0);
 
-    if( ( !WIN32GFX_IsPicassoScreen() && currprefs.gfx_afullscreen && ( currprefs.gfx_width < gui_width || currprefs.gfx_height < gui_height ) )
+    if ((!WIN32GFX_IsPicassoScreen() && currprefs.gfx_afullscreen && (currprefs.gfx_width < gui_width || currprefs.gfx_height < gui_height))
 #ifdef PICASSO96
-        || ( WIN32GFX_IsPicassoScreen() && currprefs.gfx_pfullscreen && ( picasso96_state.Width < gui_width || picasso96_state.Height < gui_height ) )
+        || (WIN32GFX_IsPicassoScreen() && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height))
 #endif
     ) {
         flipflop = 1;
@@ -695,7 +706,7 @@ void gui_display( int shortcut )
 	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     }
 
-    if( shortcut == -1 ) {
+    if (shortcut == -1) {
 	int ret;
 	if (flipflop)
 	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
@@ -740,7 +751,6 @@ void gui_display( int shortcut )
 #ifdef PICASSO96
     DX_SetPalette (0, 256);
 #endif
-
 }
 
 static void prefs_to_gui (struct uae_prefs *p)
@@ -3273,9 +3283,10 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 #define MAX_FRAMERATE_LENGTH 40
 #define MAX_NTH_LENGTH 20
 
-static int display_mode_index( uae_u32 x, uae_u32 y, uae_u32 d )
+static int display_mode_index(uae_u32 x, uae_u32 y, uae_u32 d)
 {
     int i;
+
     i = 0;
     while (DisplayModes[i].depth >= 0) {
         if( DisplayModes[i].res.width == x &&
@@ -3363,7 +3374,7 @@ static void init_display_mode (HWND hDlg)
 {
    int d, d2, index;
 
-   switch( workprefs.color_mode )
+   switch (workprefs.color_mode)
     {
     case 2:
         d = 16;
@@ -3376,12 +3387,12 @@ static void init_display_mode (HWND hDlg)
         break;
     }
 
-    if( workprefs.gfx_afullscreen )
+    if (workprefs.gfx_afullscreen)
     {
         d2 = d;
-        if( ( index = WIN32GFX_AdjustScreenmode( &workprefs.gfx_width_fs, &workprefs.gfx_height_fs, &d2 ) ) >= 0 )
+        if ((index = WIN32GFX_AdjustScreenmode(&workprefs.gfx_width_fs, &workprefs.gfx_height_fs, &d2)) >= 0)
         {
-            switch( d2 )
+            switch (d2)
             {
             case 15:
                 workprefs.color_mode = 1;
@@ -4240,6 +4251,7 @@ static void misc_addpri (HWND hDlg, int v, int pri)
 static void values_to_miscdlg (HWND hDlg)
 {
     char txt[100];
+    int cw;
 
     CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
     CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
@@ -4258,6 +4270,10 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+    cw = catweasel_detect();
+    EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
+    if (!cw)
+	workprefs.catweasel = 0;
     CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
@@ -5573,12 +5589,17 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	break;
      
     case IDC_MAPDRIVES:
-        workprefs.win32_automount_drives = IsDlgButtonChecked( hDlg, button );
+        workprefs.win32_automount_drives = IsDlgButtonChecked(hDlg, button);
         break;
 
     case IDC_NOUAEFSDB:
-        workprefs.filesys_no_uaefsdb = IsDlgButtonChecked( hDlg, IDC_NOUAEFSDB );
+        workprefs.filesys_no_uaefsdb = IsDlgButtonChecked(hDlg, IDC_NOUAEFSDB);
         break;
+
+    case IDC_NORECYCLEBIN:
+        workprefs.win32_norecyclebin = IsDlgButtonChecked(hDlg, IDC_NORECYCLEBIN);
+        break;
+
     }
 }
 
@@ -5635,6 +5656,7 @@ static BOOL CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     case WM_USER:
         CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
         CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
+        CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
         InitializeListView (hDlg);
         hilitehd ();
 	break;
@@ -6377,8 +6399,7 @@ static DWORD dwEnumeratedPrinters = 0;
 static char comports[MAX_SERIALS][8];
 static int ghostscript_available;
 
-#define NUM_JOYKBD 5
-
+/*
 static int joy0idc[] = {
     IDC_PORT0_JOYSC, IDC_PORT0_KBDA, IDC_PORT0_KBDB, IDC_PORT0_KBDC, IDC_PORT0_KBDD, IDC_PORT0_KBDE,
     IDC_PORT0_JOYS, -1
@@ -6388,19 +6409,23 @@ static int joy1idc[] = {
     IDC_PORT1_JOYSC, IDC_PORT1_KBDA, IDC_PORT1_KBDB, IDC_PORT1_KBDC, IDC_PORT1_KBDD, IDC_PORT1_KBDE,
     IDC_PORT1_JOYS, -1
 };
+*/
 static int joy0previous, joy1previous;
+
 
 static BOOL bNoMidiIn = FALSE;
 
 static void enable_for_portsdlg( HWND hDlg )
 {
-    int i, v;
+    int v;
 
     v = workprefs.input_selected_setting > 0 ? FALSE : TRUE;
+/*
     for (i = 0; joy0idc[i] >= 0; i++) {
         EnableWindow (GetDlgItem (hDlg, joy0idc[i]), v);
         EnableWindow (GetDlgItem (hDlg, joy1idc[i]), v);
     }
+*/
     EnableWindow (GetDlgItem (hDlg, IDC_SWAP), v);
 #if !defined (SERIAL_PORT)
     EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST), FALSE );
@@ -6431,9 +6456,11 @@ static void enable_for_portsdlg( HWND hDlg )
 
 static void updatejoyport (HWND hDlg)
 {
-    int i, j, v;
-
+    int i, j;
+    char tmp[MAX_DPATH];
+ 
     enable_for_portsdlg (hDlg);
+/*
     for (i = 0; i < 2; i++) {
         int *idcs1 = i == 0 ? joy0idc : joy1idc;
         int *idcs2 = i == 0 ? joy1idc : joy0idc;
@@ -6446,37 +6473,55 @@ static void updatejoyport (HWND hDlg)
 	for (j = 1; j < NUM_JOYKBD + 2; j++)
 	    EnableWindow (GetDlgItem (hDlg, idcs2[j]), workprefs.input_selected_setting == 0 && j != v);
     }
-
+*/
     if (joy0previous < 0)
 	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
     if (joy1previous < 0)
-	joy1previous = 1;
+	joy1previous = JSEM_LASTKBD + 1;
     for (i = 0; i < 2; i++) {
 	int total = 1;
 	int idx = i == 0 ? joy0previous : joy1previous;
-	int id1 = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
-	int id2 = i == 0 ? IDC_PORT0_JOYSC : IDC_PORT1_JOYSC;
+	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
 	int v = i == 0 ? workprefs.jport0 : workprefs.jport1;
-	SendDlgItemMessage (hDlg, id1, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)"");
+	char *p1, *p2;
+
+	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)"");
+	WIN32GUI_LoadUIString (IDS_KEYJOY, tmp, sizeof (tmp));
+	strcat (tmp, "\n");
+	p1 = tmp;
+	for (;;) {
+	    p2 = strchr (p1, '\n');
+	    if (p2 && strlen (p2) > 0) {
+		*p2++ = 0;
+		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)p1);
+		total++;
+		p1 = p2;
+	    } else break;
+	}
         for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++, total++)
-	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
         for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
-	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
 	if (v >= JSEM_MICE) {
-	    idx = (v - JSEM_MICE) + 1;
-	    if (idx > inputdevice_get_device_total (IDTYPE_MOUSE))
+	    idx = v - JSEM_MICE;
+	    if (idx >= inputdevice_get_device_total (IDTYPE_MOUSE))
 		idx = 0;
 	    else
 		idx += inputdevice_get_device_total (IDTYPE_JOYSTICK);
+	    idx += JSEM_LASTKBD;
 	} else if (v >= JSEM_JOYS) {
-	    idx = v - JSEM_JOYS + 1;
-	    if (idx > inputdevice_get_device_total (IDTYPE_JOYSTICK))
+	    idx = v - JSEM_JOYS;
+	    if (idx >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
 		idx = 0;
+	    idx += JSEM_LASTKBD;
+	} else {
+	    idx = v - JSEM_KBDLAYOUT;
 	}
+	idx++;
 	if (idx >= total)
 	    idx = 0;
-	SendDlgItemMessage (hDlg, id1, CB_SETCURSEL, idx, 0);
+	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
     }
 }
 
@@ -6499,15 +6544,50 @@ static void fixjport (int *port, int v)
 	    vv = 0;
 	vv += JSEM_MICE;
     }
+    if (vv >= JSEM_KBDLAYOUT && vv < JSEM_LASTKBD) {
+	vv -= JSEM_KBDLAYOUT;
+	vv++;
+	if (vv >= JSEM_LASTKBD)
+	    vv = 0;
+	vv += JSEM_KBDLAYOUT;
+    }
     *port = vv;
 }	
 
 static void values_from_portsdlg (HWND hDlg)
 {
-    int item, i, j, lastside = 0, changed = 0, v;
+    int item, i, lastside = 0, changed = 0, v;
     char tmp[256];
     BOOL success;
-    
+
+    for (i = 0; i < 2; i++) {
+	int idx = 0;
+	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
+	int prevport = *port;
+	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
+        int v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
+	if (v != CB_ERR && v > 0) {
+	    v--;
+	    if (v < JSEM_LASTKBD)
+		*port = JSEM_KBDLAYOUT + v;
+	    else if (v >= JSEM_LASTKBD + inputdevice_get_device_total (IDTYPE_JOYSTICK))
+	        *port = JSEM_MICE + v - inputdevice_get_device_total (IDTYPE_JOYSTICK) - JSEM_LASTKBD;
+	    else
+		*port = JSEM_JOYS + v - JSEM_LASTKBD;
+	}
+	if (*port != prevport) {
+	    lastside = i;
+	    changed = 1;
+	}
+    }
+    if (changed) {
+	if (lastside)
+	    fixjport (&workprefs.jport0, workprefs.jport1);
+	else
+	    fixjport (&workprefs.jport1, workprefs.jport0);
+    }
+
+/*    
     for (i = 0; i < 2; i++) {
 	int *idcs = i == 0 ? joy0idc : joy1idc;
 	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
@@ -6543,6 +6623,7 @@ static void values_from_portsdlg (HWND hDlg)
 	else
 	    fixjport (&workprefs.jport1, workprefs.jport0);
     }
+*/
 
     item = SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L );
     if( item != CB_ERR )
@@ -7471,8 +7552,10 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
     }
 end:
     RegCloseKey (fkey);
-    if (load)
+    if (load) {
         values_to_hw3ddlg (hDlg);
+        SendMessage (hDlg, WM_HSCROLL, 0, 0);
+    }
     enable_for_hw3ddlg (hDlg);
 }
 

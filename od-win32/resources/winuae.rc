@@ -300,6 +300,8 @@ BEGIN
                     HIDC_MAPDRIVES
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,5,229,115,10
+    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,114,216,115,10
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 244
@@ -398,7 +400,7 @@ BEGIN
     PUSHBUTTON      "Delete",IDC_DELETE,255,225,40,15
 END
 
-IDD_PORTS DIALOGEX 0, 0, 300, 242
+IDD_PORTS DIALOGEX 0, 0, 300, 222
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -433,43 +435,14 @@ BEGIN
     RTEXT           "In:",IDC_MIDI2,150,115,29,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIINLIST,185,115,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,139,142,97
-    CONTROL         "",IDC_PORT0_JOYSC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,10,156,9,11
-    CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
-                    IDC_PORT0_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,173,90,10
-    CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
-                    IDC_PORT0_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,186,90,10
-    CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
-                    IDC_PORT0_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,198,90,10
-    CONTROL         "X-Arcade (left) []#1",IDC_PORT0_KBDD,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,10,210,90,10
-    CONTROL         "X-Arcade (right) []#1",IDC_PORT0_KBDE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,10,222,90,10
-    COMBOBOX        IDC_PORT0_JOYS,23,153,117,130,CBS_DROPDOWNLIST | 
+    GROUPBOX        "Amiga Mouse/Joystick Ports",IDC_PORT0,4,139,292,77
+    COMBOBOX        IDC_PORT0_JOYS,45,155,241,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,139,146,98
-    CONTROL         "",IDC_PORT1_JOYSC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,155,156,9,11
-    CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
-                    IDC_PORT1_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,173,90,10
-    CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
-                    IDC_PORT1_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,186,90,10
-    CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
-                    IDC_PORT1_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,198,90,10
-    CONTROL         "X-Arcade (left) []#1",IDC_PORT1_KBDD,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,155,210,90,10
-    CONTROL         "X-Arcade (right) []#1",IDC_PORT1_KBDE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,155,222,90,10
-    COMBOBOX        IDC_PORT1_JOYS,168,153,123,130,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_PORT1_JOYS,45,176,241,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Swap",IDC_SWAP,256,213,33,14
+    PUSHBUTTON      "Swap Ports",IDC_SWAP,114,195,75,14
+    RTEXT           "Port 0:",IDC_STATIC,11,154,25,15,SS_CENTERIMAGE
+    RTEXT           "Port 1:",IDC_STATIC,11,175,25,15,SS_CENTERIMAGE
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
@@ -1394,6 +1367,7 @@ BEGIN
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select filesystem handler (FastFileSystem, SmartFilesystem,...)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = fire)\nKeyboard Layout B (Cursor keys, right CTRL and ALT = fire)\nKeyboard Layout C (T=up B=down F=left H=right, left ALT = fire)\nX-Arcade (Left)\nX-Arcade (Right)"
 END
 
 STRINGTABLE 

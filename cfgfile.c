@@ -2166,7 +2166,7 @@ static void default_prefs_mini (struct uae_prefs *p, int type)
 
 void default_prefs (struct uae_prefs *p, int type)
 {
-    int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1 };
+    int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
 
     memset (p, 0, sizeof (*p));
     strcpy (p->description, "UAE default configuration");

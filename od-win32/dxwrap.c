@@ -738,8 +738,8 @@ void DirectDraw_Release( void )
 
     if (DirectDrawState.directdraw.dd && DirectDrawState.modeset)
     {
-	IDirectDraw7_RestoreDisplayMode( DirectDrawState.directdraw.dd );
 	IDirectDraw7_SetCooperativeLevel( DirectDrawState.directdraw.dd, hAmigaWnd, DDSCL_NORMAL);
+	IDirectDraw7_RestoreDisplayMode( DirectDrawState.directdraw.dd );
     }
     DirectDrawState.modeset = 0;
 

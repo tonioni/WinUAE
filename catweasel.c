@@ -22,7 +22,8 @@ static HANDLE handle = INVALID_HANDLE_VALUE;
 
 void catweasel_hsync (void)
 {
-    int x, y, i;
+    int i;
+    uae_u8 x, y;
 
     if (cwc.type < CATWEASEL_TYPE_MK3)
 	return;
@@ -31,9 +32,13 @@ void catweasel_hsync (void)
 	return;
     cwhsync = 10;
     if (handshake) {
+	/* keyboard handshake */
         catweasel_do_bput (0xd0, 0);
 	handshake = 0;
     }
+    if (cwc.type < CATWEASEL_TYPE_MK4)
+	return;
+    /* read MK4 mouse counters */
     catweasel_do_bput (3, 0x81);
     for (i = 0; i < 2; i++) {
 	x = catweasel_do_bget (0xc4 + i * 8);
@@ -140,9 +145,10 @@ int catweasel_init (void)
     }
     model = *((uae_u32*)(buffer + 4));
     base = *((uae_u32*)(buffer + 0));
-    cwc.type = model == 0 ? 1 : model == 2 ? 4 : 2;
+    cwc.type = model == 0 ? 1 : model == 2 ? 4 : 3;
     cwc.iobase = base;
-    write_log ("Catweasel MK%d @%p (%s) detected and enabled\n", cwc.type, cwc.iobase, name);
+    write_log ("Catweasel MK%d @%p (%s) detected and enabled\n",
+	cwc.type, cwc.iobase, name);
     catweasel_do_bput (3, 0x41); /* enable MK3-mode */
     catweasel_init_controller (&cwc);
     return 1;
@@ -158,6 +164,27 @@ void catweasel_free (void)
 	CloseHandle (handle);
     handle = INVALID_HANDLE_VALUE;
     cwc.type = 0;
+}
+
+int catweasel_detect (void)
+{
+    char name[32];
+    int i;
+
+    if (handle != INVALID_HANDLE_VALUE)
+	return TRUE;
+    for (i = 0; i < 4; i++) {
+        sprintf (name, "\\\\.\\CAT%d_F0", i);
+	handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
+	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	if (handle != INVALID_HANDLE_VALUE)
+	    break;
+    }
+    if (handle == INVALID_HANDLE_VALUE)
+	return FALSE;
+    CloseHandle (handle);
+    handle = INVALID_HANDLE_VALUE;
+    return TRUE;
 }
 
 #define outb(v,port) catweasel_do_bput(port,v)
