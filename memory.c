@@ -22,10 +22,7 @@
 #include "savestate.h"
 #include "ar.h"
 #include "crc32.h"
-
-#ifdef USE_MAPPED_MEMORY
-#include <sys/mman.h>
-#endif
+#include "gui.h"
 
 #ifdef JIT
 int canbang;
@@ -77,6 +74,8 @@ char *romlist_get (struct romdata *rd)
 {
     int i;
     
+    if (!rd)
+	return 0;
     for (i = 0; i < romlist_cnt; i++) {
 	if (rl[i].rd == rd)
 	    return rl[i].path;
@@ -95,26 +94,26 @@ static struct romdata roms[] = {
     { "Cloanto Amiga Forever ROM key", 0, 0, 0x869ae1b1, 2069, 0, 68000, ROMTYPE_KEY },
 
     { "Kickstart v1.0", 0, 0, 0x299790ff, 262144, 1, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.1", 31, 34, 0xd060572a, 262144, 2, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.2", 32, 34, 0xec86dae2, 262144, 3, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.1 (NTSC)", 31, 34, 0xd060572a, 262144, 2, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.1 (PAL)", 31, 34, 0xec86dae2, 262144, 3, 68000, ROMTYPE_KICK },
     { "Kickstart v1.2", 33, 166, 0x0ed783d0, 262144, 4, 68000, ROMTYPE_KICK },
     { "Kickstart v1.2", 33, 180, 0xa6ce1636, 262144, 5, 68000, ROMTYPE_KICK },
     { "Kickstart v1.3", 34, 5, 0xc4f0f55f, 262144, 6, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.3 (Cloanto)", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.3", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
 
     { "Kickstart v2.04", 37, 175, 0xc3bdb240, 524288, 7, 68000, ROMTYPE_KICK },
     { "Kickstart v2.05", 37, 299, 0x83028fb5, 524288, 8, 68000, ROMTYPE_KICK },
     { "Kickstart v2.05", 37, 300, 0x64466c2a, 524288, 9, 68000, ROMTYPE_KICK },
     { "Kickstart v2.05", 37, 350, 0x43b0df7b, 524288, 10, 68000, ROMTYPE_KICK },
 
-    { "Kickstart v3.0", 39, 106, 0x6c9b07d2, 524288, 11, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.0", 39, 106, 0x6c9b07d2, 524288, 11, 68000, ROMTYPE_KICK },
     { "Kickstart v3.0", 39, 106, 0x9e6ac152, 524288, 12, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 55, 0x14e93bcc, 524288, 13, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 63, 0xfc24ae0d, 524288, 14, 68000, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 68, 0x1483a091, 524288, 15, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1 (Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 68, 0xd6bae334, 524288, 16, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1", 40, 70, 0x917100a0, 524288, 17, 68020, ROMTYPE_KICK },
+//    { "Kickstart v3.1", 40, 70, 0x917100a0, 524288, 17, 68020, ROMTYPE_KICK },
 
     { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 68020, ROMTYPE_KICKCD32 },
     { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 68020, ROMTYPE_EXTCD32 },
@@ -1135,19 +1134,25 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     strcat (tmp, "rom.key");
     f = zfile_fopen (tmp, "rb");
     if (!f) {
-	strcpy (tmp, p->path_rom);
-	strcat (tmp, "rom.key");
-	f = zfile_fopen (tmp, "rb");
+	struct romdata *rd = getromdatabyid (0);
+        char *s = romlist_get (rd);
+        if (s)
+	    f = zfile_fopen (s, "rb");
 	if (!f) {
-	    f = zfile_fopen ("roms\\rom.key", "rb");
+	    strcpy (tmp, p->path_rom);
+	    strcat (tmp, "rom.key");
+	    f = zfile_fopen (tmp, "rb");
 	    if (!f) {
-		strcpy (tmp, start_path);
-		strcat (tmp, "rom.key");
-		f = zfile_fopen(tmp, "rb");
+		f = zfile_fopen ("roms\\rom.key", "rb");
 		if (!f) {
 		    strcpy (tmp, start_path);
-		    strcat (tmp, "..\\shared\\rom\\rom.key");
+		    strcat (tmp, "rom.key");
 		    f = zfile_fopen(tmp, "rb");
+		    if (!f) {
+			strcpy (tmp, start_path);
+			strcat (tmp, "..\\shared\\rom\\rom.key");
+			f = zfile_fopen(tmp, "rb");
+		    }
 		}
 	    }
 	}
@@ -1177,8 +1182,8 @@ static int decode_cloanto_rom (uae_u8 *mem, int size, int real_size)
 
     p = load_keyfile (&currprefs, NULL, &keysize);
     if (!p) {
- #ifndef SINGLEFILE
-	gui_message ("Could not find ROM key file.\n");
+#ifndef SINGLEFILE
+	notify_user (NUMSG_NOROMKEY);
 #endif
 	return 0;
     }
@@ -1200,7 +1205,7 @@ static int kickstart_checksum (uae_u8 *mem, int size)
     }
 #ifndef SINGLEFILE
     if (cksum != 0xFFFFFFFFul)
-	gui_message("Kickstart checksum incorrect. You probably have a corrupted ROM image.\n");
+	notify_user (NUMSG_KSROMCRCERROR);
 #endif
     return 0;
 }
@@ -1224,17 +1229,22 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	cr = 1;
     }
     
+    if (cloanto_rom)
+	*cloanto_rom = cr;
+
     i = zfile_fread (mem, 1, size, f);
     zfile_fclose (f);
     if ((i != 8192 && i != 65536) && i != 131072 && i != 262144 && i != 524288) {
-	gui_message ("Error while reading Kickstart.\n");
+	notify_user (NUMSG_KSROMREADERROR);
 	return 0;
     }
     if (i == size / 2)
 	memcpy (mem + size / 2, mem, size / 2);
 
-    if (cr)
-	decode_cloanto_rom (mem, size, i);
+    if (cr) {
+	if (!decode_cloanto_rom (mem, size, i))
+	    return 0;
+    }
     if (i == 8192 || i == 65536) {
         a1000_bootrom = malloc (65536);
         memcpy (a1000_bootrom, kickmemory, 65536);
@@ -1245,8 +1255,6 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
     }
     if (dochecksum && i >= 262144)
 	kickstart_checksum (mem, size);
-    if (cloanto_rom)
-	*cloanto_rom = cr;
     return i;
 }
 
@@ -1259,7 +1267,7 @@ static int load_extendedkickstart (void)
 	return 0;
     f = zfile_fopen (currprefs.romextfile, "rb");
     if (!f) {
-	gui_message("No extended Kickstart ROM found");
+	notify_user (NUMSG_NOEXTROM);
 	return 0;
     }
     zfile_fseek (f, 0, SEEK_END);
@@ -1311,7 +1319,7 @@ static void kickstart_fix_checksum (uae_u8 *mem, int size)
 static int load_kickstart (void)
 {
     struct zfile *f = zfile_fopen (currprefs.romfile, "rb");
-    char tmprom[512];
+    char tmprom[MAX_DPATH];
 
     strcpy (tmprom, currprefs.romfile);
     if (f == NULL) {
@@ -1634,7 +1642,7 @@ void map_overlay (int chip)
 
 void memory_reset (void)
 {
-    int custom_start;
+    int custom_start, bnk;
 
     be_cnt = 0;
     currprefs.chipmem_size = changed_prefs.chipmem_size;
@@ -1657,10 +1665,13 @@ void memory_reset (void)
         if (savestate_state != STATE_RESTORE)
 	    clearexec ();
         load_extendedkickstart ();
+	kickmem_mask = 524288 - 1;
 	if (!load_kickstart ()) {
 #ifdef AUTOCONFIG
             init_ersatz_rom (kickmemory);
 	    ersatzkickfile = 1;
+#else
+	    uae_restart (-1, NULL);
 #endif
 	}
     }
@@ -1671,12 +1682,11 @@ void memory_reset (void)
     map_banks (&cia_bank, 0xA0, 32, 0);
     map_banks (&clock_bank, 0xDC, 1, 0);
 
-    /* @@@ Does anyone have a clue what should be in the 0x200000 - 0xA00000
-     * range on an Amiga without expansion memory?  */
-    custom_start = allocated_chipmem >> 16;
-    if (custom_start < 0x20 + (currprefs.fastmem_size >> 16))
-	custom_start = 0x20 + (currprefs.fastmem_size >> 16);
-    map_banks (&dummy_bank, custom_start, 0xA0 - custom_start, 0);
+    /* map "nothing" to 0x200000 - 0xa00000 */
+    bnk = allocated_chipmem >> 16;
+    if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
+	bnk = 0x20 + (currprefs.fastmem_size >> 16);
+    map_banks (&dummy_bank, bnk, 0xA0 - bnk, 0);
     /*map_banks (&mbres_bank, 0xDE, 1); */
 
     if (bogomemory != 0) {
@@ -1955,7 +1965,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-        dstbak = dst = malloc (4 + 4 + 4 + 4 + 4 + mem_size);
+        dstbak = dst = malloc (4 + 4 + 4 + 4 + 4 + 256 + 256 + mem_size);
     save_u32 (mem_start);
     save_u32 (mem_size);
     save_u32 (mem_type);

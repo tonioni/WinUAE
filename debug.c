@@ -541,6 +541,7 @@ static struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
 
 static uae_u8 *illgdebug;
+static int illgdebug_break;
 extern int cdtv_enabled, cd32_enabled;
 
 static void illg_init (void)
@@ -619,10 +620,16 @@ static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
 		write_log ("RW: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
 	    else
 		write_log ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	    if (illgdebug_break)
+    		activate_debugger ();
 	} else if ((mask & 1) && rw) {
 	    write_log ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+	    if (illgdebug_break)
+    		activate_debugger ();
 	} else if ((mask & 2) && !rw) {
 	    write_log ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	    if (illgdebug_break)
+    		activate_debugger ();
 	}
     }
 }
@@ -847,6 +854,10 @@ static void memwatch (char **c)
 	} else {
 	    illg_init ();
 	    console_out ("Illegal memory access logging enabled\n");
+	    ignore_ws (c);
+	    illgdebug_break = 0;
+	    if (more_params (c))
+		illgdebug_break = 1;
 	}
 	return;
     }

@@ -20,6 +20,7 @@
 #include "gfxfilter.h"
 
 #ifdef OPENGL
+//#define FSAA
 
 #include <gl\gl.h>
 #include <gl\glu.h>
@@ -36,6 +37,7 @@ typedef BOOL (WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC, const int *, const 
 #ifndef GL_UNSIGNED_SHORT_4_4_4_4_EXT
 #define GL_UNSIGNED_SHORT_4_4_4_4_EXT       0x8033
 #endif
+#define GL_MULTISAMPLE_ARB 0x809D
 
 static GLint max_texture_size;
 static GLint tex[4];
@@ -78,7 +80,8 @@ static int exact_log2 (int v)
 
 static int arbMultisampleSupported;
 static int arbMultisampleFormat;
-#if 0
+
+#ifdef FSAA
 
 // WGLisExtensionSupported: This Is A Form Of The Extension For WGL
 static int WGLisExtensionSupported(const char *extension)
@@ -123,7 +126,7 @@ static int WGLisExtensionSupported(const char *extension)
 }
 
 // InitMultisample: Used To Query The Multisample Frequencies
-static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd, int depth)
+static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd)
 {  
 	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
 	int pixelFormat;
@@ -139,7 +142,7 @@ static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd, int depth)
 		WGL_DRAW_TO_WINDOW_ARB,GL_TRUE,
 		WGL_SUPPORT_OPENGL_ARB,GL_TRUE,
 		WGL_ACCELERATION_ARB,WGL_FULL_ACCELERATION_ARB,
-		WGL_COLOR_BITS_ARB,pfd.cDepthBits,
+		WGL_COLOR_BITS_ARB, pfd->cDepthBits,
 		WGL_ALPHA_BITS_ARB,0,
 		WGL_DEPTH_BITS_ARB,0,
 		WGL_STENCIL_BITS_ARB,0,
@@ -165,10 +168,12 @@ static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd, int depth)
 	    if (valid && numFormats >= 1) {
 		arbMultisampleSupported = i;
 		arbMultisampleFormat = pixelFormat;	
+		write_log ("OPENGL: max FSAA = %d\n", i);
 		return arbMultisampleSupported;
 	    }
 	}
 	// Return The Valid Format
+	write_log ("OPENGL: no FSAA support detected\n");
 	return  arbMultisampleSupported;
 }
 #endif
@@ -199,14 +204,14 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    memset (&pfd, 0, sizeof (pfd));
-    pfd.nSize = sizeof (PIXELFORMATDESCRIPTOR);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_TYPE_RGBA;
-    pfd.cColorBits = depth;
-    pfd.iLayerType = PFD_MAIN_PLANE;
-
     for (;;) {
+
+        memset (&pfd, 0, sizeof (pfd));
+	pfd.nSize = sizeof (PIXELFORMATDESCRIPTOR);
+	pfd.nVersion = 1;
+	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_TYPE_RGBA;
+	pfd.cColorBits = depth;
+	pfd.iLayerType = PFD_MAIN_PLANE;
 
 	openglhdc = GetDC (hwnd);
 
@@ -234,18 +239,19 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	    strcpy (errmsg, "OPENGL: can't activate gl rendering context");
 	    return errmsg;
 	}
-#if 0
+#ifdef FSAA
 	if(!arbMultisampleSupported) {
 	    if(InitMultisample(openglhdc, &pfd)) {
 		OGL_free ();
-		continue;
+		strcpy (errmsg, "*");
+		return errmsg;
 	    }
 	}
 #endif
 	break;
     }
 
-	glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
+    glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
     required_texture_size = 2 << exact_log2 (t_width > t_height ? t_width : t_height);
     if (max_texture_size < t_width || max_texture_size < t_height) {
 	sprintf (errmsg, "OPENGL: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
@@ -468,6 +474,9 @@ static void OGL_dorender (int newtex)
     fx = (t_width * xm - w_width) / 2;
     fy = (t_height * ym - w_height) / 2;
 
+#ifdef FSAA
+    glEnable (GL_MULTISAMPLE_ARB);
+#endif
     glClear (GL_COLOR_BUFFER_BIT);
     glMatrixMode (GL_MODELVIEW);
     glLoadIdentity ();
@@ -500,6 +509,10 @@ static void OGL_dorender (int newtex)
 	glTexCoord2f (1.0f, -1.0f); glVertex2f (v, 0);
 	glEnd();
     }
+    glFlush ();
+#ifdef FSAA
+    glDisable (GL_MULTISAMPLE_ARB);
+#endif
 }
 
 void OGL_render (void)

@@ -116,7 +116,7 @@ static uae_u8 blit_cycle_diagram_fill[][10] =
 
 static uae_u8 blit_cycle_diagram_line[] =
 {
-    0, 4, 0,0,0,4 /* total guess.. */
+    0, 4, 0,0,3,4 /* total guess.. */
 };
 
 void build_blitfilltable(void)
@@ -807,6 +807,7 @@ static void blit_bltset (int con)
 	if (blt_info.hblitsize != 2)
 	    write_log ("weird hblitsize in linemode: %d vsize=%d PC%=%x\n", blt_info.hblitsize, blt_info.vblitsize, m68k_getpc());
         blit_diag = blit_cycle_diagram_line;
+	blit_singlechannel = 1;
     } else {
 	if (con & 2) {
 	    blitfc = !!(bltcon1 & 0x4);

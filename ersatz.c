@@ -76,7 +76,7 @@ static void ersatz_doio (void)
 
      default:
 	write_log ("Only CMD_READ supported in DoIO()\n");
-	abort();
+	uae_restart (-1, NULL);
     }
     {
 	uaecptr dest = get_long (request + 0x28);
@@ -101,8 +101,7 @@ static void ersatz_init (void)
 
     if (disk_empty (0)) {
 	gui_message ("You need to have a diskfile in DF0 to use the Kickstart replacement!\n");
-	uae_quit ();
-	m68k_setpc (0xF80010);
+	uae_restart (-1, NULL);
 	return;
     }
 
@@ -225,7 +224,7 @@ void ersatz_perform (uae_u16 what)
 
      case EOP_NIMP:
 	write_log ("Unimplemented Kickstart function called\n");
-	uae_quit ();
+	uae_restart (-1, NULL);
 	
 	/* fall through */
      case EOP_LOOP:
@@ -235,6 +234,6 @@ void ersatz_perform (uae_u16 what)
      case EOP_OPENLIB:
      default:
 	write_log ("Internal error. Giving up.\n");
-	abort ();
+	uae_restart (-1, NULL);
     }
 }

@@ -20,5 +20,6 @@ ExtSub SDWORD __cdecl CAPSLockTrack(PCAPSTRACKINFO pi, SDWORD id, UDWORD cylinde
 ExtSub SDWORD __cdecl CAPSUnlockTrack(SDWORD id, UDWORD cylinder, UDWORD head);
 ExtSub SDWORD __cdecl CAPSUnlockAllTracks(SDWORD id);
 ExtSub PCHAR  __cdecl CAPSGetPlatformName(UDWORD pid);
+ExtSub SDWORD __cdecl CAPSGetVersionInfo(PCAPSVERSIONINFO pi, UDWORD flag);
 
 #endif

@@ -56,8 +56,17 @@ static int restoresurface (LPDIRECTDRAWSURFACE7 surface)
 	memset (&bltfx, 0, sizeof (bltfx));
 	bltfx.dwSize = sizeof (bltfx);
 	hr2 = IDirectDrawSurface7_Blt (surface, NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &bltfx);
-	if (hr2 != DD_OK)
+	if (hr2 != DD_OK) {
+	    static int crap = 0;
+	    if (hr2 == 0x887601C2) {
+		if (crap)
+		    return hr;
+		crap = 1;
+		write_log ("Restore succeeded but following Blt failed with lost surface. Display driver bug?\n");
+		return hr;
+	    }
 	    write_log("Surface clear failed: %s\n", DXError (hr2));
+	}
     }
     return hr;
 }
@@ -160,7 +169,7 @@ const char *DXError (HRESULT ddrval)
     return dderr;
 }
 
-static struct DirectDrawSurfaceMapper DirectDrawState;
+struct DirectDrawSurfaceMapper DirectDrawState;
 
 static int lockcnt = 0;
 
@@ -199,6 +208,10 @@ static int LockStub( surface_type_e type )
     case tertiary_surface:
 	surface = DirectDrawState.tertiary.surface;
         surfacedesc = &DirectDrawState.tertiary.desc;
+	break;
+    case temporary_surface:
+	surface = DirectDrawState.temporary.surface;
+        surfacedesc = &DirectDrawState.temporary.desc;
 	break;
     case overlay_surface:
 	surface = DirectDrawState.overlay.surface;
@@ -281,6 +294,10 @@ int DirectDraw_SurfaceLock( surface_type_e surface_type )
         break;
         case tertiary_surface:
             DirectDrawState.tertiary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+            result = LockStub( surface_type );
+        break;
+        case temporary_surface:
+            DirectDrawState.temporary.desc.dwSize = sizeof( DDSURFACEDESC2 );
             result = LockStub( surface_type );
         break;
 	case overlay_surface:
@@ -1439,7 +1456,6 @@ HRESULT DirectDraw_CreatePalette( LPPALETTEENTRY pal )
 HRESULT DirectDraw_SetPaletteEntries( int start, int count, PALETTEENTRY *palette )
 {
     HRESULT ddrval = DDERR_NOPALETTEATTACHED;
-    int i;
     if( DirectDrawState.lpDDP )
         ddrval = IDirectDrawPalette_SetEntries( DirectDrawState.lpDDP, 0, start, count, palette );
     return ddrval;
@@ -1676,6 +1692,10 @@ int DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_t
     {
         lpDDS4_dst = DirectDrawState.primary.surface;
     }
+    else if (dsttype == temporary_surface)
+    {
+        lpDDS4_dst = DirectDrawState.temporary.surface;
+    }
     else
     {
         lpDDS4_dst = DirectDrawState.secondary.surface;
@@ -1683,6 +1703,10 @@ int DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_t
     if( srctype == primary_surface )
     {
         lpDDS4_src = DirectDrawState.primary.surface;
+    }
+    else if (srctype == temporary_surface)
+    {
+        lpDDS4_src = DirectDrawState.temporary.surface;
     }
     else
     {
@@ -1855,6 +1879,10 @@ int DirectDraw_Blt( surface_type_e dsttype, LPRECT dstrect,
     {
         lpDDS4_dst = DirectDrawState.tertiary.surface;
     }
+    else if( dsttype == temporary_surface )
+    {
+        lpDDS4_dst = DirectDrawState.temporary.surface;
+    }
     else
     {
 	lpDDS4_dst = DirectDrawState.overlay.surface;
@@ -1871,6 +1899,10 @@ int DirectDraw_Blt( surface_type_e dsttype, LPRECT dstrect,
     else if( srctype == tertiary_surface )
     {
         lpDDS4_src = DirectDrawState.tertiary.surface;
+    }
+    else if( srctype == temporary_surface )
+    {
+	lpDDS4_src = DirectDrawState.temporary.surface;
     }
     else if( srctype == overlay_surface )
     {
@@ -2053,4 +2085,20 @@ char *outGUID (GUID *guid)
     return gb;
 }
 
-
+int DirectDraw_GetPrimaryPixelFormat (LPDDPIXELFORMAT ddpf)
+{
+    surface_type_e surface_type;
+    HRESULT ddrval;
+    
+    surface_type = DirectDraw_GetLockableType ();
+    ddpf->dwSize = sizeof (DDPIXELFORMAT);
+    if (surface_type == overlay_surface)
+	ddrval = IDirectDrawSurface7_GetPixelFormat (DirectDrawState.overlay.surface, ddpf);
+    else
+	ddrval = IDirectDrawSurface7_GetPixelFormat (DirectDrawState.primary.surface, ddpf);
+    if (ddrval != DD_OK) {
+	write_log ("GetPixelFormat failed\n%s\n", DXError (ddrval));
+	return 0;
+    }
+    return 1;
+}

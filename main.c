@@ -32,7 +32,6 @@
 #include "autoconf.h"
 #include "osemu.h"
 #include "osdep/exectasks.h"
-#include "compiler.h"
 #include "picasso96.h"
 #include "bsdsocket.h"
 #include "uaeexe.h"
@@ -376,12 +375,35 @@ static void parse_cmdline_2 (int argc, char **argv)
     }
 }
 
+static void parse_diskswapper (char *s)
+{
+    char *tmp = my_strdup (s);
+    char *delim = ",";
+    char *p1, *p2;
+    int num = 0;
+
+    p1 = tmp;
+    for(;;) {
+        p2 = strtok (p1, delim);
+        if (!p2)
+	    break;
+	p1 = NULL;
+	if (num >= MAX_SPARE_DRIVES)
+	    break;
+	strncpy (currprefs.dfxlist[num], p2, 255);
+	num++;
+    }
+    free (tmp);
+}
+
 static void parse_cmdline (int argc, char **argv)
 {
     int i;
 
     for (i = 1; i < argc; i++) {
-	if (strcmp (argv[i], "-cfgparam") == 0) {
+	if (!strncmp (argv[i], "-diskswapper=", 13)) {
+	    parse_diskswapper (argv[i] + 13);
+	} else if (strcmp (argv[i], "-cfgparam") == 0) {
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
@@ -642,7 +664,6 @@ static void real_main2 (int argc, char **argv)
     reset_frame_rate_hack ();
     init_m68k(); /* must come after reset_frame_rate_hack (); */
 
-    compiler_init ();
     gui_update ();
 
     if (graphics_init ()) {

@@ -354,7 +354,7 @@ static void fill_prefetch_next_delay (int extracycles)
 	if (extracycles > 0) {
 	    printf("\t{\n");
 	    fill_prefetch_next_cycles ();
-	    printf("\tif (%d * %d > lostcycles) do_cycles_ce (%d * %d - lostcycles);\n",
+	    printf("\tif ((%d + 4) * %d > lostcycles) do_cycles_ce ((%d + 4) * %d - lostcycles);\n",
 		extracycles, CYCLE_UNIT / 2, extracycles, CYCLE_UNIT / 2);
 	    printf("\t}\n");
 	} else {
@@ -562,7 +562,10 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 
     if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {	    
 	printf ("\tif (%sa & 1) {\n", name);
-	printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n", m68k_pc_offset_last, name); 
+	if (using_prefetch || using_ce)
+	    printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n", m68k_pc_offset + 2, name); 
+	else
+	    printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n", m68k_pc_offset_last, name); 
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t}\n");
 	need_endlabel = 1;
@@ -1177,7 +1180,7 @@ static void gen_opcode (unsigned long int opcode)
 	if (curi->size == sz_byte) {
 	    printf ("\tsrc &= 0xFF;\n");
 	}
-        fill_prefetch_next_delay (8);
+        fill_prefetch_next_delay (4);
 	printf ("\tregs.sr %c= src;\n", curi->mnemo == i_EORSR ? '^' : '|');
 	printf ("\tMakeFromSR();\n");
 	break;
@@ -1187,7 +1190,7 @@ static void gen_opcode (unsigned long int opcode)
 	if (curi->size == sz_byte) {
 	    printf ("\tsrc |= 0xFF00;\n");
 	}
-        fill_prefetch_next_delay (8);
+        fill_prefetch_next_delay (4);
 	printf ("\tregs.sr &= src;\n");
 	printf ("\tMakeFromSR();\n");
 	break;
@@ -1638,7 +1641,6 @@ static void gen_opcode (unsigned long int opcode)
 	fill_prefetch_full ();
 	break;
     case i_RTD:
-	printf ("\tcompiler_flush_jsr_stack();\n");
 	genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
 	printf ("\tm68k_areg(regs, 7) += offs;\n");
@@ -1684,7 +1686,6 @@ static void gen_opcode (unsigned long int opcode)
 	need_endlabel = 1;
 	break;
     case i_RTR:
-	printf ("\tcompiler_flush_jsr_stack();\n");
 	printf ("\tMakeSR();\n");
 	genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
 	genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
@@ -1787,15 +1788,11 @@ static void gen_opcode (unsigned long int opcode)
 	    }
 	    fill_prefetch_full ();
 	    if (using_ce)
-		printf ("\treturn 0;\n");
+		printf ("\treturn;\n");
 	    else
 		printf ("\treturn 10 * %d;\n", CYCLE_UNIT / 2);
 	} else {
-#ifdef USE_COMPILER
-	    printf ("\tm68k_setpc_bcc(m68k_getpc() + 2+ (uae_s32)src);\n");
-#else
 	    printf ("\tm68k_incpc ((uae_s32)src + 2);\n");
-#endif
 	    returncycles ("\t", 10);
 	}
 	printf ("didnt_jump:;\n");
@@ -1832,11 +1829,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	addcycles (2);
 	printf ("\tif (!cctrue(%d)) {\n", curi->cc);
-#ifdef USE_COMPILER
-	printf ("\t\tm68k_setpc_bcc(m68k_getpc() + (uae_s32)offs + 2);\n");
-#else
 	printf ("\t\tm68k_incpc((uae_s32)offs + 2);\n");
-#endif
 	printf ("\t"); fill_prefetch_1 (0, 0);
 	printf ("\t"); genastore ("(src-1)", curi->smode, "srcreg", curi->size, "src");
 
@@ -1852,7 +1845,7 @@ static void gen_opcode (unsigned long int opcode)
 	fill_prefetch_1 (2, 0);
 	returncycles ("\t\t\t", 12);
 	if (using_ce)
-	    printf ("\t\t\treturn 0;\n");
+	    printf ("\t\t\treturn;\n");
 	printf ("\t\t}\n");
 	printf ("\t} else {\n");
 	addcycles2 ("\t\t", 2);
@@ -1883,10 +1876,15 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
         fill_prefetch_next_cycles ();
 	sync_m68k_pc ();
-	/* Clear V flag when dividing by zero - Alcatraz Odyssey demo depends
-	 * on this (actually, it's doing a DIVS).  */
+	printf ("\tCLEAR_CZNV;\n");
 	printf ("\tif (src == 0) {\n");
-	printf ("\t\tSET_VFLG (0);\n");
+	if (cpu_level > 0) {
+	    /* 68020 sets V when dividing by zero and N if dst is negative
+	     * 68000 clears both
+	     */
+	    printf("\t\tSET_VFLG (1);\n");
+	    printf("\t\tif (dst < 0) SET_NFLG (1);\n");
+	}	
 	printf ("\t\tException (5, oldpc);\n");
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t} else {\n");
@@ -1897,9 +1895,15 @@ static void gen_opcode (unsigned long int opcode)
 	    addcycles3 ("\t\t");
 	}
 	/* The N flag appears to be set each time there is an overflow.
-	 * Weird. */
+	 * Weird. but 68020 only sets N when dst is negative.. */
 	printf ("\t\tif (newv > 0xffff) {\n");
-	printf ("\t\t\tSET_VFLG (1); SET_NFLG (1); SET_CFLG (0);\n");
+	printf ("\t\t\tSET_VFLG (1);\n");
+#ifdef UNDEF68020
+	if (cpu_level >= 2)
+	    printf ("\t\t\tif (currprefs.cpu_level == 0 || dst < 0) SET_NFLG (1);\n");
+	else /* ??? some 68000 revisions may not set NFLG when overflow happens.. */
+#endif
+	    printf ("\t\t\tSET_NFLG (1);\n");
 	printf ("\t\t} else {\n");
 	printf ("\t\t"); genflags (flag_logical, sz_word, "newv", "", "");
 	printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
@@ -1915,8 +1919,15 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
         fill_prefetch_next_cycles ();
 	sync_m68k_pc ();
+	printf ("\tCLEAR_CZNV;\n");
 	printf ("\tif (src == 0) {\n");
-	printf ("\t\tSET_VFLG (0);\n");
+	if (cpu_level > 0) {
+	    /* 68020 sets V when dividing by zero. Z is also set.
+	     * 68000 clears both
+	     */
+	    printf("\t\tSET_VFLG (1);\n");
+	    printf("\t\tSET_ZFLG (1);\n");
+	}
 	printf ("\t\tException (5, oldpc);\n");
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t} else {\n");
@@ -1927,7 +1938,13 @@ static void gen_opcode (unsigned long int opcode)
 	    addcycles3 ("\t\t");
 	}
 	printf ("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
-	printf ("\t\t\tSET_VFLG (1); SET_NFLG (1); SET_CFLG (0);\n");
+	printf ("\t\t\tSET_VFLG (1);\n");
+#ifdef UNDEF68020
+	if (cpu_level > 0)
+	    printf ("\t\t\tif (currprefs.cpu_level == 0) SET_NFLG (1);\n");
+	else
+#endif
+	    printf ("\t\t\tSET_NFLG (1);\n");
 	printf ("\t\t} else {\n");
 	printf ("\t\t\tif (((uae_s16)rem < 0) != ((uae_s32)dst < 0)) rem = -rem;\n");
 	genflags (flag_logical, sz_word, "newv", "", "");
@@ -2819,7 +2836,6 @@ static void generate_includes (FILE * f)
     fprintf (f, "#include \"events.h\"\n");
     fprintf (f, "#include \"newcpu.h\"\n");
     fprintf (f, "#include \"cpu_prefetch.h\"\n");
-    fprintf (f, "#include \"compiler.h\"\n");
     fprintf (f, "#include \"cputbl.h\"\n");
     
     fprintf (f, "#define CPUFUNC(x) x##_ff\n"
@@ -2960,15 +2976,18 @@ static void generate_one_opcode (int rp)
     }
     if (i68000)
 	fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-    fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), %ld }, /* %s */\n", opcode, postfix, opcode, lookuptab[i].name);
+    fprintf (stblfile, "{ %sCPUFUNC(op_%04lx_%d), %ld }, /* %s */\n",
+	using_ce ? "(cpuop_func*)" : "", opcode, postfix, opcode, lookuptab[i].name);
     if (i68000)
 	fprintf (stblfile, "#endif\n");
-    fprintf (headerfile, "extern cpuop_func op_%04lx_%d_nf;\n", opcode, postfix);
-    fprintf (headerfile, "extern cpuop_func op_%04lx_%d_ff;\n", opcode, postfix);
+    fprintf (headerfile, "extern %s op_%04lx_%d_nf;\n",
+	using_ce ? "cpuop_func_ce" : "cpuop_func", opcode, postfix);
+    fprintf (headerfile, "extern %s op_%04lx_%d_ff;\n",
+	using_ce ? "cpuop_func_ce" : "cpuop_func", opcode, postfix);
     printf ("/* %s */\n", outopcode (opcode));
     if (i68000)
 	printf("#ifndef CPUEMU_68000_ONLY\n");
-    printf ("unsigned long REGPARAM2 CPUFUNC(op_%04lx_%d)(uae_u32 opcode)\n{\n", opcode, postfix);
+    printf ("%s REGPARAM2 CPUFUNC(op_%04lx_%d)(uae_u32 opcode)\n{\n", using_ce ? "void" : "unsigned long", opcode, postfix);
 
     switch (table68k[opcode].stype) {
     case 0: smsk = 7; break;
@@ -3038,8 +3057,6 @@ static void generate_one_opcode (int rp)
     if (need_endlabel)
 	printf ("%s: ;\n", endlabelstr);
     returncycles ("", insn_n_cycles);
-    if (using_ce)
-	printf ("return 0;\n");
     printf ("}\n");
     if (i68000)
 	printf("#endif\n");

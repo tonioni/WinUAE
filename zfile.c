@@ -16,6 +16,8 @@
 #include "unzip.h"
 #include "disk.h"
 #include "dms/pfile.h"
+#include "gui.h"
+#include "crc32.h"
 
 #include <zlib.h>
 
@@ -35,20 +37,14 @@ int is_zlib;
 
 static int zlib_test (void)
 {
-#ifdef _WIN32
     static int zlibmsg;
     if (is_zlib)
 	return 1;
     if (zlibmsg)
 	return 0;
     zlibmsg = 1;
-    gui_message("zip and gzip support disabled because zlib1.dll is missing");
+    notify_user (NUMSG_NOZLIB);
     return 0;
-#else
-    /* On non-Windows platforms, we can safely assume (I think) that if we got this
-     * far zlib is present - Rich */
-    return 1;
-#endif
 }
 
 static struct zfile *zfile_create (void)
@@ -72,9 +68,9 @@ static void zfile_free (struct zfile *f)
 	unlink (f->name);
 	write_log ("deleted temporary file '%s'\n", f->name);
     }
-    free (f->name);
-    free (f->data);
-    free (f);
+    xfree (f->name);
+    xfree (f->data);
+    xfree (f);
 }
 
 void zfile_exit (void)
@@ -385,7 +381,6 @@ static struct zfile *unzip (struct zfile *z)
 	return z;
     if (unzGoToFirstFile (uz) != UNZ_OK)
 	return z;
-    write_log("checking zip file '%s':\n", z->name);
     zipcnt = 1;
     tmphist[0] = 0;
     for (;;) {
@@ -393,7 +388,6 @@ static struct zfile *unzip (struct zfile *z)
 	if (err != UNZ_OK)
 	    return z;
 	if (file_info.uncompressed_size > 0) {
-	    write_log("'%s':%d ", filename_inzip, file_info.uncompressed_size);
 	    i = 0;
 	    while (ignoreextensions[i]) {
 		if (strlen(filename_inzip) > strlen (ignoreextensions[i]) &&
@@ -401,9 +395,7 @@ static struct zfile *unzip (struct zfile *z)
 		    break;
 		i++;
 	    }
-	    if (ignoreextensions[i]) {
-		write_log ("[ignored]");
-	    } else {
+	    if (!ignoreextensions[i]) {
 		if (tmphist[0]) {
 		    DISK_history_add (tmphist, -1);
 		    tmphist[0] = 0;
@@ -417,7 +409,6 @@ static struct zfile *unzip (struct zfile *z)
 		    DISK_history_add (tmphist, -1);
 		    tmphist[0] = 0;
 		}
-		write_log ("[check]");
 		select = 0;
 		if (!z->zipname)
 		    select = 1;
@@ -427,7 +418,6 @@ static struct zfile *unzip (struct zfile *z)
 		    select = -1;
 		if (select && !we_have_file) {
 		    int err = unzOpenCurrentFile (uz);
-		    write_log ("[selected]");
 		    if (err == UNZ_OK) {
 			zf = zfile_fopen_empty (filename_inzip, file_info.uncompressed_size);
 			if (zf) {
@@ -437,7 +427,6 @@ static struct zfile *unzip (struct zfile *z)
 				zf = zuncompress (zf);
 				if (select < 0 || zfile_gettype (zf)) {
 		    		    we_have_file = 1;
-				    write_log("[ok]");
 				}
 			    }
 			}
@@ -445,12 +434,9 @@ static struct zfile *unzip (struct zfile *z)
 			    zfile_fclose (zf);
 			    zf = 0;
 			}
-		    } else {
-			write_log ("\nunzipping failed %d", err);
 		    }
 		}
 	    }
-	    write_log("\n");
 	}
 	zipcnt++;
 	err = unzGoToNextFile (uz);
@@ -462,6 +448,23 @@ static struct zfile *unzip (struct zfile *z)
 	z = zf;
     }
     return z;
+}
+
+static int iszip (struct zfile *z)
+{
+    char *name = z->name;
+    char *ext = strrchr (name, '.');
+    uae_u8 header[4];
+
+    if (!ext || strcasecmp (ext, ".zip"))
+	return 0;
+    memset (header, 0, sizeof (header));
+    zfile_fseek (z, 0, SEEK_SET);
+    zfile_fread (header, sizeof (header), 1, z);
+    zfile_fseek (z, 0, SEEK_SET);
+    if (header[0] == 'P' && header[1] == 'K')
+	return 1;
+    return 0;
 }
 
 static struct zfile *zuncompress (struct zfile *z)
@@ -563,10 +566,7 @@ static struct zfile *zfile_opensinglefile(struct zfile *l)
 }
 #endif
 
-/*
- * fopen() for a compressed file
- */
-struct zfile *zfile_fopen (const char *name, const char *mode)
+static struct zfile *zfile_fopen_2 (const char *name, const char *mode)
 {
     struct zfile *l;
     FILE *f;
@@ -597,6 +597,83 @@ struct zfile *zfile_fopen (const char *name, const char *mode)
 	}
     }
     l->f = f;
+    return l;
+}
+
+static int zunzip (struct zfile *z, zfile_callback zc, void *user)
+{
+    unzFile uz;
+    unz_file_info file_info;
+    char filename_inzip[MAX_DPATH];
+    char tmp[MAX_DPATH], tmp2[2];
+    struct zfile *zf;
+    int err;
+
+    if (!zlib_test ())
+        return 0;
+    zf = 0;
+    uz = unzOpen (z);
+    if (!uz)
+        return 0;
+    if (unzGoToFirstFile (uz) != UNZ_OK)
+        return 0;
+    for (;;) {
+        err = unzGetCurrentFileInfo(uz, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+        if (err != UNZ_OK)
+	    return 0;
+	if (file_info.uncompressed_size > 0) {
+	    int err = unzOpenCurrentFile (uz);
+    	    if (err == UNZ_OK) {
+		tmp2[0] = FSDB_DIR_SEPARATOR;
+		tmp2[1] = 0;
+		strcpy (tmp, z->name);
+		strcat (tmp, tmp2);
+		strcat (tmp, filename_inzip);
+		zf = zfile_fopen_empty (tmp, file_info.uncompressed_size);
+		if (zf) {
+		    err = unzReadCurrentFile  (uz, zf->data, file_info.uncompressed_size);
+		    unzCloseCurrentFile (uz);
+		    if (err == 0 || err == file_info.uncompressed_size) {
+			zf = zuncompress (zf);
+			if (!zc (zf, user))
+			    return 0;
+		    }
+		}
+	    }
+	}
+	err = unzGoToNextFile (uz);
+	if (err != UNZ_OK)
+	    break;
+    }
+    return 1;
+}
+
+
+int zfile_zopen (const char *name, zfile_callback zc, void *user)
+{
+    struct zfile *l;
+    
+    l = zfile_fopen_2 (name, "rb");
+    if (!l)
+	return 0;
+    if (!iszip (l)) {
+	zc (l, user);
+    } else {
+	zunzip (l, zc, user);
+    }
+    zfile_fclose (l);
+    return 1;
+}    
+
+/*
+ * fopen() for a compressed file
+ */
+struct zfile *zfile_fopen (const char *name, const char *mode)
+{
+    struct zfile *l;
+    l = zfile_fopen_2 (name, mode);
+    if (!l)
+	return 0;
     l = zuncompress (l);
     return l;
 }
@@ -606,6 +683,8 @@ int zfile_exists (const char *name)
     char fname[2000];
     FILE *f;
 
+    if (strlen (name) == 0)
+	return 0;
     strcpy (fname, name);
     f = openzip (fname, 0);
     if (!f)
@@ -745,4 +824,29 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
     return zs.total_out;
 }
 
+char *zfile_getname (struct zfile *f)
+{
+    return f->name;
+}
+
+uae_u32 zfile_crc32 (struct zfile *f)
+{
+    uae_u8 *p;
+    int pos = f->seek;
+    uae_u32 crc;
+
+    if (!f)
+	return 0;
+    if (f->data)
+	return get_crc32 (f->data, f->size);
+    p = xmalloc (f->size);
+    if (!p)
+	return 0;
+    zfile_fseek (f, 0, SEEK_SET);
+    zfile_fread (p, 1, f->size, f);
+    zfile_fseek (f, pos, SEEK_SET);        
+    crc = get_crc32 (f->data, f->size);
+    xfree (p);
+    return crc;
+}
 

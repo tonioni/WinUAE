@@ -9,6 +9,8 @@
 struct zfile;
 extern int is_zlib;
 
+typedef int (*zfile_callback)(struct zfile*, void*);
+
 extern struct zfile *zfile_fopen (const char *, const char *);
 extern struct zfile *zfile_fopen_empty (const char *name, int size);
 extern int zfile_exists (const char *name);
@@ -23,6 +25,9 @@ extern int zfile_iscompressed (struct zfile *z);
 extern int zfile_zcompress (struct zfile *dst, void *src, int size);
 extern int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize);
 extern int zfile_gettype (struct zfile *z);
+extern int zfile_zopen (const char *name, zfile_callback zc, void *user);
+extern char *zfile_getname (struct zfile *f);
+extern uae_u32 zfile_crc32 (struct zfile *f);
 
 #define ZFILE_UNKNOWN 0
 #define ZFILE_CONFIGURATION 1

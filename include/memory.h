@@ -45,16 +45,6 @@ extern void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v);
 #undef DIRECT_MEMFUNCS_SUCCESSFUL
 #include "machdep/maccess.h"
 
-#ifndef CAN_MAP_MEMORY
-#undef USE_COMPILER
-#endif
-
-#ifdef JIT
-#if defined(USE_COMPILER) && !defined(USE_MAPPED_MEMORY)
-#define USE_MAPPED_MEMORY
-#endif
-#endif
-
 #define chipmem_start 0x00000000
 #define bogomem_start 0x00C00000
 #define a3000mem_start 0x07000000

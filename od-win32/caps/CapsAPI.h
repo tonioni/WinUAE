@@ -14,6 +14,7 @@
 // 6: generate unformatted data, that changes each revolution
 // 7: directly use source memory buffer supplied with LockImageMemory
 // 8: flakey data is created on one revolution, updated with each lock
+// 9: ...Info.type holds the expected structure type
 #define DI_LOCK_INDEX    DF_0
 #define DI_LOCK_ALIGN    DF_1
 #define DI_LOCK_DENVAR   DF_2
@@ -23,6 +24,7 @@
 #define DI_LOCK_NOISEREV DF_6
 #define DI_LOCK_MEMREF   DF_7
 #define DI_LOCK_UPDATEFD DF_8
+#define DI_LOCK_TYPE     DF_9
 
 #define CAPS_MAXPLATFORM 4
 #define CAPS_MTRS 5
@@ -44,6 +46,16 @@ struct CapsDateTimeExt {
 };
 
 typedef struct CapsDateTimeExt *PCAPSDATETIMEEXT;
+
+// library version information block
+struct CapsVersionInfo {
+	UDWORD type;     // library type
+	UDWORD release;  // release ID
+	UDWORD revision; // revision ID
+	UDWORD flag;     // supported flags
+};
+
+typedef struct CapsVersionInfo *PCAPSVERSIONINFO;
 
 // disk image information block
 struct CapsImageInfo {
@@ -77,6 +89,22 @@ struct CapsTrackInfo {
 };
 
 typedef struct CapsTrackInfo *PCAPSTRACKINFO;
+
+// disk track information block
+struct CapsTrackInfoT1 {
+	UDWORD type;       // track type
+	UDWORD cylinder;   // cylinder#
+	UDWORD head;       // head#
+	UDWORD sectorcnt;  // available sectors
+	UDWORD sectorsize; // sector size
+	PUBYTE trackbuf;   // track buffer memory 
+	UDWORD tracklen;   // track buffer memory length
+	UDWORD timelen;    // timing buffer length
+	PUDWORD timebuf;   // timing buffer
+	UDWORD overlap;    // overlap position
+};
+
+typedef struct CapsTrackInfoT1 *PCAPSTRACKINFOT1;
 
 #pragma pack(pop)
 
@@ -118,7 +146,8 @@ enum {
 	imgeDensityHeader,
 	imgeDensityStream,
 	imgeDensityData,
-	imgeIncompatible
+	imgeIncompatible,
+	imgeUnsupportedType
 };
 
 #endif

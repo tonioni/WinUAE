@@ -135,7 +135,8 @@ typedef enum
     secondary_surface,
     tertiary_surface,
     overlay_surface,
-    lockable_surface
+    lockable_surface,
+    temporary_surface
 } surface_type_e;
 
 typedef enum
@@ -179,6 +180,11 @@ struct DirectDrawSurfaceMapper
         LPDIRECTDRAWSURFACE7 surface;
         DDSURFACEDESC2 desc;
     } overlay;
+    struct
+    {
+        LPDIRECTDRAWSURFACE7 surface;
+        DDSURFACEDESC2 desc;
+    } temporary;
     struct
     {
         DDSURFACEDESC2 desc;
@@ -238,6 +244,8 @@ DWORD DirectDraw_CurrentWidth( void );
 DWORD DirectDraw_CurrentHeight( void );
 DWORD DirectDraw_CurrentRefreshRate (void);
 int DirectDraw_GetVerticalBlankStatus (void);
+extern struct DirectDrawSurfaceMapper DirectDrawState;
+extern int DirectDraw_GetPrimaryPixelFormat (LPDDPIXELFORMAT ddpf);
 
 extern void ddraw_unlockscr (void);
 #define DirectDraw_SurfaceUnlock() ddraw_unlockscr()

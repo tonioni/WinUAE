@@ -739,13 +739,15 @@ static int delayoffset;
 
 STATIC_INLINE void compute_delay_offset (void)
 {
-    delayoffset = ((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1;
-    if (delayoffset & 8)
+    delayoffset = (((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1) & ~7;
+    if (delayoffset == 8)
 	delayoffset = 8;
-    else if (delayoffset & 16)
-	delayoffset = 16;
-    else if (delayoffset & 32)
+    else if (delayoffset == 16) /* Overkill AGA */
+	delayoffset = 48;
+    else if (delayoffset == 32)
 	delayoffset = 32;
+    else if (delayoffset == 48) /* Pinball Illusions AGA, ingame */
+	delayoffset = 16;
     else
 	delayoffset = 0;
 }
@@ -2835,11 +2837,9 @@ static void DDFSTRT (int hpos, uae_u16 v)
 	static int last_warned;
 	last_warned = (last_warned + 1) & 4095;
 	if (last_warned == 0)
-	    write_log ("WARNING! Very strange DDF values.\n");
+	    write_log ("WARNING! Very strange DDF values (%x %x).\n", ddfstrt, ddfstop);
     }
 }
-
-int test_cnt = 0x80;
 
 static void DDFSTOP (int hpos, uae_u16 v)
 {
@@ -4116,7 +4116,7 @@ static void fpscounter (void)
 	double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctime * 32.0));
 	int fps = frametime2 == 0 ? 0 : syncbase * 32 / (frametime2 / 10);
 	if (fps > 9999)
-		fps = 9999;
+	    fps = 9999;
 	if (idle < 0)
 	    idle = 0;
 	if (idle > 100 * 10)

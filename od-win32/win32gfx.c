@@ -1592,6 +1592,7 @@ uae_u32 OSDEP_minimize_uae( void )
 
 void close_windows (void)
 {
+    S2X_free ();
     free (gfxvidinfo.realbufmem);
     gfxvidinfo.realbufmem = 0;
     DirectDraw_Release();
@@ -1751,8 +1752,8 @@ static void setoverlay(void)
     dr.right -= mi.rcMonitor.left;
     dr.bottom -= mi.rcMonitor.top;
 
-    w = currentmode->current_width * (currprefs.gfx_filter_horiz_zoom + 100) / 100;
-    h = currentmode->current_height * (currprefs.gfx_filter_vert_zoom + 100) / 100;
+    w = currentmode->current_width; // * (currprefs.gfx_filter_horiz_zoom + 100) / 100;
+    h = currentmode->current_height; // * (currprefs.gfx_filter_vert_zoom + 100) / 100;
 
     sr.left = 0;
     sr.top = 0;
@@ -2003,8 +2004,10 @@ static BOOL doInit (void)
 	    currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth);
 	if (err) {
 	    OGL_free ();
-	    gui_message (err);
-	    changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
+	    if (err[0] != '*') {
+		gui_message (err);
+		changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
+	    }
 	    currentmode->current_depth = currentmode->real_depth;
 	    gfxmode_reset ();
 	    ret = -1;

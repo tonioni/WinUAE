@@ -181,9 +181,6 @@
 				RelativePath="..\resources\avioutput.ico">
 			</File>
 			<File
-				RelativePath="..\resources\bitmap1.bmp">
-			</File>
-			<File
 				RelativePath="..\resources\chip.ico">
 			</File>
 			<File
@@ -212,6 +209,15 @@
 			</File>
 			<File
 				RelativePath="..\resources\move_up.ico">
+			</File>
+			<File
+				RelativePath="..\resources\path.ico">
+			</File>
+			<File
+				RelativePath="..\resources\paths.ico">
+			</File>
+			<File
+				RelativePath="..\resources\quickstart.ico">
 			</File>
 			<File
 				RelativePath="..\resources\root.ico">
@@ -378,9 +384,6 @@
 				RelativePath="..\..\cia.c">
 			</File>
 			<File
-				RelativePath="..\..\compiler.c">
-			</File>
-			<File
 				RelativePath="..\..\cpudefs.c">
 			</File>
 			<File
@@ -487,9 +490,6 @@
 			</File>
 			<File
 				RelativePath="..\..\uaelib.c">
-			</File>
-			<File
-				RelativePath="..\..\uaeserial.c">
 			</File>
 			<File
 				RelativePath="..\..\unzip.c">

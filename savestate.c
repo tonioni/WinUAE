@@ -57,8 +57,9 @@
 #include "newcpu.h"
 #include "savestate.h"
 #include "uae.h"
+#include "gui.h"
 
-int savestate_state;
+int savestate_state = 0;
 
 #define MAX_STATERECORDS 1024 /* must be power of 2 */
 struct staterecord {
@@ -506,7 +507,7 @@ void save_state (char *filename, char *description)
 #ifdef FILESYS
     if (nr_units (currprefs.mountinfo) && !warned) {
 	warned = 1;
-	gui_message("WARNING: State saves do not support harddrive emulation");
+	notify_user (NUMSG_STATEHD);
     }
 #endif
 

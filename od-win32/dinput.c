@@ -1222,7 +1222,10 @@ static int keyhack (int scancode,int pressed, int num)
             else
             {
                 //best is add a real keystatecheck here but it still work so
-                apostrophstate=0;
+                apostrophstate = 0;
+                inputdevice_translatekeycode (num, DIK_LALT,0);
+                inputdevice_translatekeycode (num, DIK_LSHIFT,0);
+                inputdevice_translatekeycode (num, 4, 0);  // release also the # key
                 return 13;
             }
 
@@ -1235,8 +1238,8 @@ static int keyhack (int scancode,int pressed, int num)
         }
             else
         {
-            inputdevice_translatekeycode (num, DIK_LALT,0);
-            inputdevice_translatekeycode (num, DIK_LSHIFT,0);
+            inputdevice_translatekeycode (num, DIK_LALT, 0);
+            inputdevice_translatekeycode (num, DIK_LSHIFT, 0);
             // Here is the same not nice but do the job
             return 4;           // the german # key        
             

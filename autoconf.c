@@ -17,7 +17,6 @@
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
-#include "compiler.h"
 #include "autoconf.h"
 #include "osdep/exectasks.h"
 

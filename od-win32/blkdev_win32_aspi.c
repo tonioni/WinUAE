@@ -679,7 +679,7 @@ static int open_scsi_device (int unitnum)
     if (unitnum >= unitcnt)
 	return 0;
     if (log_scsi)
-	write_log ("ASPI: opening %d:%d:%d\n", si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun);
+	write_log ("ASPI: opening %d:%d:%d (%d)\n", si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun, unitnum);
     si[unitnum].handle = openscsi (si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun);
     if (si[unitnum].handle)
 	si[unitnum].mediainserted = mediacheck (unitnum);

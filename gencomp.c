@@ -2870,7 +2870,6 @@ generate_includes (FILE * f)
     fprintf (f, "#include \"custom.h\"\n");
     fprintf (f, "#include \"events.h\"\n");
     fprintf (f, "#include \"newcpu.h\"\n");
-    fprintf (f, "#include \"compiler.h\"\n");
     fprintf (f, "#include \"comptbl.h\"\n");
 }
 

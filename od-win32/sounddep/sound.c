@@ -147,6 +147,7 @@ static int restore (DWORD hr)
 	//write_log ("restore failed %s\n", DXError (hr));
 	return 1;
     }
+    pause_audio_ds ();
     resume_audio_ds ();
     return 1;
 }
@@ -487,13 +488,26 @@ void sound_setadjust (double v)
 
 static void finish_sound_buffer_ds (void)
 {
-    DWORD playpos, safepos;
+    DWORD playpos, safepos, status;
     HRESULT hr;
     void *b1, *b2;
     DWORD s1, s2;
     int diff;
+    int counter = 1000;
     double vdiff, m, skipmode;
 
+    hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
+    if (hr != DS_OK)
+	return;
+    if (status & DSBSTATUS_BUFFERLOST) {
+	restore (DSERR_BUFFERLOST);
+	return;
+    }
+    if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
+	write_log ("sound status = %08.8X\n", status);
+	restore (DSERR_BUFFERLOST);
+	return;
+    }
     for (;;) {
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
 	if (hr != DS_OK) {
@@ -520,6 +534,12 @@ static void finish_sound_buffer_ds (void)
 
 	if (diff > max_sndbufsize * 6 / 8) {
 	    sleep_millis_busy (1);
+	    counter--;
+	    if (counter < 0) {
+		write_log ("sound system got stuck!?\n");
+		restore (DSERR_BUFFERLOST);
+		return;
+	    }
 	    continue;
 	}
 	break;

@@ -1386,7 +1386,9 @@ void logging_init( void )
 #endif
     first++;
     write_log ( "%s", VersionStr );
-    write_log (" (OS: %s %d.%d%s)", os_winnt ? "NT" : "W9X/ME", osVersion.dwMajorVersion, osVersion.dwMinorVersion, os_winnt_admin ? " Administrator privileges" : "");
+    write_log (" (%s %d.%d %s%s)", os_winnt ? "NT" : "W9X/ME",
+	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
+	os_winnt_admin ? " Admin" : "");
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
 	       "\n(c) 1998-2004 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
@@ -1405,22 +1407,26 @@ void logging_cleanup( void )
     debugfile = 0;
 }
 
-void target_default_options (struct uae_prefs *p)
+void target_default_options (struct uae_prefs *p, int type)
 {
-    p->win32_middle_mouse = 1;
-    p->win32_logfile = 0;
-    p->win32_iconified_nosound = 1;
-    p->win32_iconified_pause = 1;
-    p->win32_inactive_nosound = 0;
-    p->win32_inactive_pause = 0;
-    p->win32_no_overlay = 0;
-    p->win32_ctrl_F11_is_quit = 0;
-    p->win32_soundcard = 0;
-    p->win32_active_priority = 0;
-    p->win32_inactive_priority = 2;
-    p->win32_iconified_priority = 3;
-    p->win32_midioutdev = -2;
-    p->win32_midiindev = 0;
+    if (type == 2 || type == 0) {
+        p->win32_middle_mouse = 1;
+	p->win32_logfile = 0;
+	p->win32_iconified_nosound = 1;
+	p->win32_iconified_pause = 1;
+	p->win32_inactive_nosound = 0;
+	p->win32_inactive_pause = 0;
+	p->win32_no_overlay = 0;
+	p->win32_ctrl_F11_is_quit = 0;
+	p->win32_soundcard = 0;
+	p->win32_active_priority = 0;
+	p->win32_inactive_priority = 2;
+	p->win32_iconified_priority = 3;
+    }
+    if (type == 1 || type == 0) {
+        p->win32_midioutdev = -2;
+	p->win32_midiindev = 0;
+    }
 }
 
 void target_save_options (FILE *f, struct uae_prefs *p)
@@ -1532,8 +1538,10 @@ void fetch_saveimagepath (char *out, int size, int dir)
         fetch_path ("SaveimagePath", out, size);
     }
 }
+
 void fetch_path (char *name, char *out, int size)
 {
+    int size2 = size;
     strcpy (out, start_path);
     if (!strcmp (name, "FloppyPath"))
 	strcat (out, "..\\shared\\adf\\");
@@ -1542,7 +1550,14 @@ void fetch_path (char *name, char *out, int size)
     if (!strcmp (name, "KickstartPath"))
 	strcat (out, "..\\shared\\rom\\");
     if (hWinUAEKey)
-	RegQueryValueEx(hWinUAEKey, name, 0, NULL, out, &size);
+	RegQueryValueEx (hWinUAEKey, name, 0, NULL, out, &size);
+    if (out[0] == '\\') { /* relative? */
+	strcpy (out, start_path);
+        if (hWinUAEKey) {
+	    size2 -= strlen (out);
+	    RegQueryValueEx (hWinUAEKey, name, 0, NULL, out + strlen (out) - 1, &size2);
+	}
+    }
 }
 void set_path (char *name, char *path)
 {
@@ -1578,7 +1593,7 @@ static void initpath (char *name, char *path)
 }
 
 extern int scan_roms (char*);
-void read_rom_list (void)
+void read_rom_list (int force)
 {
     char tmp2[1000];
     DWORD size2;
@@ -1594,7 +1609,7 @@ void read_rom_list (void)
 	KEY_ALL_ACCESS, NULL, &fkey, &disp);
     if (fkey == NULL)
 	return;
-    if (disp == REG_CREATED_NEW_KEY)
+    if (disp == REG_CREATED_NEW_KEY || force)
 	scan_roms (NULL);
     idx = 0;
     for (;;) {
@@ -1616,16 +1631,52 @@ void read_rom_list (void)
     }
 }
 
+static int parseversion (char **vs)
+{
+    char tmp[10];
+    int i;
+    
+    i = 0;
+    while (**vs >= '0' && **vs <= '9') {
+	if (i >= sizeof (tmp))
+	    return 0;
+	tmp[i++] = **vs;
+	(*vs)++;
+    }
+    if (**vs == '.')
+	(*vs)++;
+    tmp[i] = 0;
+    return atol (tmp);
+}
+
+static int checkversion (char *vs)
+{
+    if (strlen (vs) < 10)
+	return 0;
+    if (memcmp (vs, "WinUAE ", 7))
+	return 0;
+    vs += 7;
+    if (parseversion (&vs) < UAEMAJOR)
+	return 1;
+    if (parseversion (&vs) < UAEMINOR)
+	return 1;
+    if (parseversion (&vs) < UAESUBREV)
+	return 1;
+    return 0;
+}
+
 static void WIN32_HandleRegistryStuff( void )
 {
     RGBFTYPE colortype = RGBFB_NONE;
     DWORD dwType = REG_DWORD;
     DWORD dwDisplayInfoSize = sizeof( colortype );
-    DWORD qssize;
+    DWORD size;
     DWORD disposition;
     char path[MAX_DPATH] = "";
+    char version[100];
     HKEY hWinUAEKeyLocal = NULL;
     HKEY fkey;
+    int forceroms = 0;
 
     /* Create/Open the hWinUAEKey which points to our config-info */
     if( RegCreateKeyEx( HKEY_CLASSES_ROOT, ".uae", 0, "", REG_OPTION_NON_VOLATILE,
@@ -1680,8 +1731,16 @@ static void WIN32_HandleRegistryStuff( void )
             RegSetValueEx( hWinUAEKey, "xPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
             RegSetValueEx( hWinUAEKey, "yPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
         }
+	size = sizeof (version);
+	if (RegQueryValueEx( hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
+	    if (checkversion (version))
+		forceroms = 1;
+	} else {
+	    forceroms = 1;
+	}
 	// Set this even when we're opening an existing key, so that the version info is always up to date.
-        RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 );
+        if (RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 ) != ERROR_SUCCESS)
+	    forceroms = 0;
         
 	RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
 	if( colortype == 0 ) /* No color information stored in the registry yet */
@@ -1703,8 +1762,8 @@ static void WIN32_HandleRegistryStuff( void )
 	    /* Set the 16-bit pixel format for the appropriate modes */
 	    WIN32GFX_FigurePixelFormats( colortype );
 	}
-	qssize = sizeof (quickstart);
- 	RegQueryValueEx( hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &qssize );
+	size = sizeof (quickstart);
+ 	RegQueryValueEx( hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &size );
     }
     fetch_path ("ConfigurationPath", path, sizeof (path));
     path[strlen (path) - 1] = 0;
@@ -1714,10 +1773,13 @@ static void WIN32_HandleRegistryStuff( void )
     fetch_path ("ConfigurationPath", path, sizeof (path));
     strcat (path, "Hardware");
     CreateDirectory (path, NULL);
+    fetch_path ("StatefilePath", path, sizeof (path));
+    strcat (path, "default.uss");
+    strcpy (savestate_fname, path);
     fkey = read_disk_history ();
     if (fkey)
 	RegCloseKey (fkey);
-    read_rom_list ();
+    read_rom_list (forceroms);
 }
 
 static void betamessage (void)
@@ -1751,17 +1813,65 @@ static int dxdetect (void)
 
 int os_winnt, os_winnt_admin;
 
+static int isadminpriv (void) 
+{
+    DWORD i, dwSize = 0, dwResult = 0;
+    HANDLE hToken;
+    PTOKEN_GROUPS pGroupInfo;
+    BYTE sidBuffer[100];
+    PSID pSID = (PSID)&sidBuffer;
+    SID_IDENTIFIER_AUTHORITY SIDAuth = SECURITY_NT_AUTHORITY;
+    int isadmin = 0;
+   
+    // Open a handle to the access token for the calling process.
+    if (!OpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &hToken )) {
+	write_log ( "OpenProcessToken Error %u\n", GetLastError() );
+	return FALSE;
+    }
+
+    // Call GetTokenInformation to get the buffer size.
+    if(!GetTokenInformation(hToken, TokenGroups, NULL, dwSize, &dwSize)) {
+	dwResult = GetLastError();
+	if( dwResult != ERROR_INSUFFICIENT_BUFFER ) {
+	    write_log( "GetTokenInformation Error %u\n", dwResult );
+	    return FALSE;
+	}
+    }
+
+    // Allocate the buffer.
+    pGroupInfo = (PTOKEN_GROUPS) GlobalAlloc( GPTR, dwSize );
+
+    // Call GetTokenInformation again to get the group information.
+    if(! GetTokenInformation(hToken, TokenGroups, pGroupInfo, dwSize, &dwSize ) ) {
+	write_log ( "GetTokenInformation Error %u\n", GetLastError() );
+	return FALSE;
+    }
+
+    // Create a SID for the BUILTIN\Administrators group.
+    if(! AllocateAndInitializeSid( &SIDAuth, 2,
+                 SECURITY_BUILTIN_DOMAIN_RID,
+                 DOMAIN_ALIAS_RID_ADMINS,
+                 0, 0, 0, 0, 0, 0,
+                 &pSID) ) {
+	write_log( "AllocateAndInitializeSid Error %u\n", GetLastError() );
+	return FALSE;
+   }
+
+    // Loop through the group SIDs looking for the administrator SID.
+    for(i=0; i<pGroupInfo->GroupCount; i++) {
+	if ( EqualSid(pSID, pGroupInfo->Groups[i].Sid) )
+	    isadmin = 1;
+    }
+    
+    if (pSID)
+	FreeSid(pSID);
+    if ( pGroupInfo )
+	GlobalFree( pGroupInfo );
+    return isadmin;
+}
+
 static int osdetect (void)
 {
-    HANDLE hAccessToken;
-    UCHAR InfoBuffer[1024];
-    PTOKEN_GROUPS ptgGroups = (PTOKEN_GROUPS)InfoBuffer;
-    DWORD dwInfoBufferSize;
-    PSID psidAdministrators;
-    SID_IDENTIFIER_AUTHORITY siaNtAuthority = SECURITY_NT_AUTHORITY;
-    UINT x;
-    BOOL bSuccess;
-
     os_winnt = 0;
     os_winnt_admin = 0;
 
@@ -1784,51 +1894,9 @@ static int osdetect (void)
     if (!os_winnt) {
 	return 1;
     }
-
-    if(!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,
-         &hAccessToken )) {
-         if(GetLastError() != ERROR_NO_TOKEN)
-            return 1;
-         // 
-         // retry against process token if no thread token exists
-         // 
-         if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY,
-            &hAccessToken))
-            return 1;
-      }
-
-      bSuccess = GetTokenInformation(hAccessToken,TokenGroups,InfoBuffer,
-         1024, &dwInfoBufferSize);
-
-      CloseHandle(hAccessToken);
-
-      if(!bSuccess )
-         return 1;
-
-      if(!AllocateAndInitializeSid(&siaNtAuthority, 2,
-         SECURITY_BUILTIN_DOMAIN_RID,
-         DOMAIN_ALIAS_RID_ADMINS,
-         0, 0, 0, 0, 0, 0,
-         &psidAdministrators))
-         return 1;
-
-   // assume that we don't find the admin SID.
-      bSuccess = FALSE;
-
-      for(x=0;x<ptgGroups->GroupCount;x++)
-      {
-         if( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
-         {
-            bSuccess = TRUE;
-            break;
-         }
-
-      }
-      FreeSid(psidAdministrators);
-      os_winnt_admin = bSuccess ? 1 : 0;
-      return 1;
-   }
-
+    os_winnt_admin = isadminpriv ();
+    return 1;
+}
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -1839,7 +1907,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     int argc;
     int i;
     int multi_display = 1;
-    char tmp[MAX_DPATH];
 
 #ifdef __GNUC__
     __asm__ ("leal -2300*1024(%%esp),%0" : "=r" (win32_stackbase) :);
@@ -1871,6 +1938,7 @@ __asm{
 #ifdef AVIOUTPUT
     AVIOutput_Initialize();
 #endif
+    init_zlib ();
 
 #ifdef __MINGW32__
     argc = _argc; argv = _argv;
@@ -1903,8 +1971,6 @@ __asm{
 	if((posn = strrchr (start_path, '\\')))
 	    posn[1] = 0;
 	sprintf (help_file, "%sWinUAE.chm", start_path );
-	strcat (tmp, "\\default.uss");
-	strcpy (savestate_fname, tmp);
 	sprintf( VersionStr, "WinUAE %d.%d.%d%s", UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "" );
 
 	logging_init ();
@@ -1943,7 +2009,6 @@ __asm{
 	    DirectDraw_Release();
 	    betamessage ();
 	    keyboard_settrans ();
-	    init_zlib ();
 #ifdef PARALLEL_PORT
 	    paraport_mask = paraport_init ();
 #endif
@@ -2077,7 +2142,7 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 		    write_log ("failed to find and fix the problem (%p). crashing..\n", p);
 		} else {
 		    m68k_setpc (0);
-		    exception2 (opc, p);
+		    exception2 (opc, (uaecptr)p);
 		    lRet = EXCEPTION_CONTINUE_EXECUTION;
 		}
 	    }

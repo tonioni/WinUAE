@@ -227,6 +227,7 @@ extern char *my_strdup (const char*s);
 
 extern void *xmalloc(size_t);
 extern void *xcalloc(size_t, size_t);
+extern void xfree(void*);
 
 /* We can only rely on GNU C getting enums right. Mickeysoft VSC++ is known
  * to have problems, and it's likely that other compilers choke too. */
@@ -430,13 +431,6 @@ extern void mallocemu_free (void *ptr);
 #define ASM_SYM_FOR_FUNC(a) __asm__(a)
 #else
 #define ASM_SYM_FOR_FUNC(a)
-#endif
-
-#if defined USE_COMPILER
-#undef NO_PREFETCH_BUFFER
-#undef NO_EXCEPTION_3
-#define NO_EXCEPTION_3
-#define NO_PREFETCH_BUFFER
 #endif
 
 #include "target.h"

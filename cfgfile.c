@@ -23,6 +23,7 @@
 #include "gfxfilter.h"
 #include "savestate.h"
 #include "memory.h"
+#include "gui.h"
 
 #define CONFIG_BLEN 2560
 
@@ -1039,6 +1040,10 @@ int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int ty
 	return 1;
     if (!strcmp (option, "config_host"))
 	return 1;
+    if (cfgfile_string (option, value, "config_hardware_path", p->config_hardware_path, 256))
+	return 1;
+    if (cfgfile_string (option, value, "config_host_path", p->config_host_path, 256))
+	return 1;
     if (type == 0 || (type & CONFIG_TYPE_HARDWARE)) {
 	if (cfgfile_parse_hardware (p, option, value))
 	    return 1;
@@ -1739,8 +1744,11 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
 	break;
     }
     if (!path) {
-	if (msg)
-	    gui_message ("You need any of following ROM(s)\n\n%s", tmp2);
+	if (msg) {
+	    char tmp3[MAX_DPATH];
+	    translate_message (NUMSG_ROMNEED, tmp3);
+	    gui_message (tmp3, tmp2);
+	}
 	return 0;
     }
     switch (rd->type)
@@ -1854,7 +1862,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->curses_reverse_video = 0;
 
-    target_default_options (p);
+    target_default_options (p, type);
 
     p->immediate_blits = 0;
     p->collision_level = 2;
@@ -1977,6 +1985,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     strcpy (p->cartfile, "");
     strcpy (p->prtname, DEFPRTNAME);
     strcpy (p->sername, DEFSERNAME);
+    target_default_options (p, 1);
 }
 
 static void set_68020_compa (struct uae_prefs *p, int compa)
@@ -1994,15 +2003,30 @@ static void set_68020_compa (struct uae_prefs *p, int compa)
     }	
 }
 
+/* 0: cycle-exact
+ * 1: more compatible
+ * 2: no more compatible, no 100% sound
+ * 3: no more compatible, immediate blits, no 100% sound
+ */
+
 static void set_68000_compa (struct uae_prefs *p, int compa)
 {
-    if (compa == 0) {
+    switch (compa)
+    {
+	case 0:
 	p->cpu_cycle_exact = p->blitter_cycle_exact = 1;
 	p->fast_copper = 0;
-    } else if (compa == 2) {
+	break;
+	case 1:
+	break;
+	case 2:
+	p->cpu_compatible = 0;
+	break;
+	case 3:
 	p->immediate_blits = 1;
 	p->produce_sound = 2;
 	p->cpu_compatible = 0;
+	break;
     }
 }
 
@@ -2104,16 +2128,14 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
     rom[0] = rom[1] = rom[2] = rom[3] = -1;
     switch (config)
     {
-	case 0: // KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow
+	case 0: // KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow
 	rom[0] = 6;
 	rom[1] = 32;
-	break;
-	case 1: // KS 1.3, OCS Agnus, 0.5M Chip
-	rom[0] = 6;
-	rom[1] = 32;
-	p->bogomem_size = 0;
 	p->chipset_mask = 0;
-        p->dfxtype[1] = -1;
+	break;
+	case 1: // KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow
+	rom[0] = 6;
+	rom[1] = 32;
 	break;
 	case 2: // KS 1.3, ECS Agnus, 1.0M Chip
 	rom[0] = 6;
@@ -2121,7 +2143,14 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x100000;
 	break;
-	case 3: // KS 1.2, OCS Agnus, 0.5M Chip
+	case 3: // KS 1.3, OCS Agnus, 0.5M Chip
+	rom[0] = 6;
+	rom[1] = 32;
+	p->bogomem_size = 0;
+	p->chipset_mask = 0;
+        p->dfxtype[1] = -1;
+	break;
+	case 4: // KS 1.2, OCS Agnus, 0.5M Chip
 	rom[0] = 5;
 	rom[1] = 4;
 	rom[2] = 3;
@@ -2129,7 +2158,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->chipset_mask = 0;
         p->dfxtype[1] = -1;
 	break;
-	case 4: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
+	case 5: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
 	rom[0] = 5;
 	rom[1] = 4;
 	rom[2] = 3;
@@ -2142,7 +2171,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 
 int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {
-    if (model > 4)
+    if (model > 6)
 	return 1;
     buildin_default_prefs (p);
     switch (model)
@@ -2150,14 +2179,16 @@ int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 	case 0:
 	return bip_a500 (p, config, compa, romcheck);
 	//case 1:
+	//return bip_a500p (p, config, compa, romcheck);
+	//case 2:
 	//return bip_a600 (p, config, compa, romcheck);
-	case 1:
-	return bip_a1000 (p, config, compa, romcheck);
-	case 2:
-	return bip_a1200 (p, config, compa, romcheck);
 	case 3:
-	return bip_cd32 (p, config, compa, romcheck);
+	return bip_a1000 (p, config, compa, romcheck);
 	case 4:
+	return bip_a1200 (p, config, compa, romcheck);
+	case 5:
+	return bip_cd32 (p, config, compa, romcheck);
+	case 6:
 	return bip_cdtv (p, config, compa, romcheck);
     }
     return 0;

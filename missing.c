@@ -42,3 +42,8 @@ void *xcalloc (size_t n, size_t size)
     }
     return a;
 }
+
+void xfree (void *p)
+{
+    free (p);
+}

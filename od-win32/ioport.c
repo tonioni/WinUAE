@@ -6,7 +6,7 @@
 
 //#define IOPORT_EMU
 #define io_log
-//#define io_log write_log
+#define para_log write_log
 
 typedef int bool;
 
@@ -170,13 +170,13 @@ int parallel_direct_write_status (uae_u8 v, uae_u8 dir)
 	write_log ("PARAPORT: POUT can't be output\n");
 	ok = 0;
     }
-    if ((dir & 4) && (v & 4))
+    if ((dir & 4) && !(v & 4))
 	c[0].Control |= PARAPORT_MASK_CONTROL_SELECTIN;
     if (!pp_executecycle (pport, c, 2)) {
 	write_log ("PARAPORT: write executeCycle failed, CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
 	return 0;
     }
-    write_log ("PARAPORT: write CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
+    para_log ("PARAPORT: write CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
     return ok;
 }
 
@@ -185,6 +185,7 @@ int parallel_direct_read_status (uae_u8 *vp)
     PARAPORT_CYCLE c[1];
     int ok = 1;
     uae_u8 v = 0;
+    static int oldack;
 
     if (!pport)
 	return 0;
@@ -198,11 +199,17 @@ int parallel_direct_read_status (uae_u8 *vp)
 	v |= 4;
     if (c[0].Status & PARAPORT_MASK_STATUS_PAPEREND)
 	v |= 2;
-    if (c[0].Status & PARAPORT_MASK_STATUS_BUSY)
+    if (!(c[0].Status & PARAPORT_MASK_STATUS_BUSY))
 	v |= 1;
-    if (c[0].Status & PARAPORT_MASK_STATUS_ACKNOWLEDGE)
+    if (c[0].Status & PARAPORT_MASK_STATUS_ACKNOWLEDGE) {
 	v |= 8;
-    write_log ("PARAPORT: read CTL=%02.2X\n", v);
+	if (!oldack)
+	    cia_parallelack ();
+	oldack = 1;
+    } else {
+	oldack = 0;
+    }
+    para_log ("PARAPORT: read CTL=%02.2X\n", v);
     v &= 7;
     *vp &= ~7;
     *vp |= v;
@@ -232,7 +239,7 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 	write_log ("PARAPORT: write executeCycle failed, data=%02.2X\n", v);
 	return 0;
     }
-    write_log ("PARAPORT: write DATA=%02.2X\n", v);
+    para_log ("PARAPORT: write DATA=%02.2X\n", v);
     return 1;
 }
 
@@ -257,7 +264,7 @@ int parallel_direct_read_data (uae_u8 *v)
 	return 0;
     }
     *v = c[0].Data;
-    write_log("PARAPORT: read DATA=%02.2X\n", v);
+    para_log ("PARAPORT: read DATA=%02.2X\n", v);
     return ok;
 }
 

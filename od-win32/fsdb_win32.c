@@ -96,6 +96,8 @@ int fsdb_fill_file_attrs (a_inode *aino)
 	aino->amigaos_mode |= A_FIBF_WRITE | A_FIBF_DELETE;
     if (FILE_ATTRIBUTE_SYSTEM & mode)
 	aino->amigaos_mode |= A_FIBF_PURE;
+    if (FILE_ATTRIBUTE_HIDDEN & mode)
+	aino->amigaos_mode |= A_FIBF_HIDDEN;
     aino->amigaos_mode = filesys_parse_mask(aino->amigaos_mode);
     return 1;
 }
@@ -123,6 +125,10 @@ int fsdb_set_file_attrs (a_inode *aino, int mask)
 	    mode |= FILE_ATTRIBUTE_SYSTEM;
 	else
 	    mode &= ~FILE_ATTRIBUTE_SYSTEM;
+	if (tmpmask & A_FIBF_HIDDEN)
+	    mode |= FILE_ATTRIBUTE_HIDDEN;
+	else
+	    mode &= ~FILE_ATTRIBUTE_HIDDEN;
 	SetFileAttributes(aino->nname, mode);
     }
 

@@ -8,6 +8,7 @@
 #include "win32.h"
 #include "win32gfx.h"
 #include "gfxfilter.h"
+#include "dxwrap.h"
 
 struct uae_filter uaefilters[] =
 {
@@ -36,6 +37,7 @@ struct uae_filter uaefilters[] =
 static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
 uae_u8 *bufmem_ptr;
 int bufmem_width, bufmem_height;
+static int tempsurf;
 
 void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
 {
@@ -44,9 +46,17 @@ void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
     bufmem_ptr = 0;
 }
 
+void S2X_free (void)
+{
+    if (tempsurf)
+	IDirectDrawSurface7_Release (DirectDrawState.temporary.surface);
+    tempsurf = 0;
+}
+
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 {
     int flags;
+    HRESULT ddrval;
 
     flags = usedfilter->x[mult];
     if (mult) {
@@ -63,13 +73,35 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     amiga_height = ah;
     amiga_depth = ad;
     scale = mult;
+
+    tempsurf = 1;
+    ZeroMemory (&DirectDrawState.temporary.desc, sizeof (DDSURFACEDESC2));
+    DirectDrawState.temporary.desc.dwSize = sizeof (DDSURFACEDESC2);
+    DirectDrawState.temporary.desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
+    DirectDrawState.temporary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY;
+    DirectDrawState.temporary.desc.dwWidth = dst_width;
+    DirectDrawState.temporary.desc.dwHeight = dst_height;
+    if (DirectDraw_GetPrimaryPixelFormat (&DirectDrawState.temporary.desc.ddpfPixelFormat))
+        DirectDrawState.temporary.desc.dwFlags |= DDSD_PIXELFORMAT;
+    ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, 
+                                            &DirectDrawState.temporary.desc,
+                                            &DirectDrawState.temporary.surface,
+                                            NULL);
+    if (ddrval != DD_OK) {
+	write_log ("DDRAW: failed to create temp surface\n%s\n", DXError (ddrval));
+	tempsurf = 0;
+    }
 }
 
 void S2X_render (void)
 {
     int aw = amiga_width, ah = amiga_height, v, pitch;
     uae_u8 *dptr, *sptr, *endsptr;
-    int ok = 0;
+    int ok = 0, temp_needed = 0;
+    RECT sr, dr;
+    HRESULT ddrval;
+    LPDIRECTDRAWSURFACE7 dds;
+    DDSURFACEDESC2 desc;
 
     sptr = gfxvidinfo.bufmem;
     endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
@@ -94,15 +126,68 @@ void S2X_render (void)
     if (aw < 16)
 	return;
 
+    if (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom) {
+	sr.left = currprefs.gfx_filter_horiz_zoom * 2;
+	sr.top = currprefs.gfx_filter_vert_zoom * 2;
+	sr.right = dst_width - currprefs.gfx_filter_horiz_zoom * 2;
+	sr.bottom = dst_height - currprefs.gfx_filter_vert_zoom * 2;
+	dr.left = dr.top = 0;
+	dr.right = dst_width;
+	dr.bottom = dst_height;
+	if (sr.left >= sr.right) {
+	    sr.left = dst_width / 2 - 1;
+	    sr.right = dst_width / 2 + 1;
+	}
+	if (sr.left < 0) {
+	    dr.left = -sr.left;
+	    sr.left = 0;
+	}
+	if (sr.right > dst_width) {
+	    dr.right = dst_width - (sr.right - dst_width);
+	    sr.right = dst_width;
+	}
+	if (sr.top >= sr.bottom) {
+	    sr.top = dst_height / 2 - 1;
+	    sr.bottom = dst_height / 2 + 1;
+	}
+	if (sr.top < 0) {
+	    dr.top = -sr.top;
+	    sr.top = 0;
+	}
+	if (sr.bottom > dst_height) {
+	    dr.bottom = dst_height - (sr.bottom - dst_height);
+	    sr.bottom = dst_height;
+	}
+
+	if (tempsurf && sr.left != 0 || sr.top != 0 || sr.right != dst_width || sr.bottom != dst_height ||
+	    dr.top != 0 || dr.right != dst_width || dr.left != 0 || dr.bottom != dst_height) {
+		dds = DirectDrawState.temporary.surface;
+		temp_needed = 1;
+	}
+    }
+
     bufmem_ptr = sptr;
     bufmem_width = aw;
     bufmem_height = ah;
 
-    if (!DirectDraw_SurfaceLock (lockable_surface))
-    	return;
-
-    dptr = DirectDraw_GetSurfacePointer ();
-    pitch = DirectDraw_GetSurfacePitch();
+    if (temp_needed) {
+	desc.dwSize = sizeof (desc);
+	while ((ddrval = IDirectDrawSurface7_Lock (dds, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)) != DD_OK) {
+	    if (ddrval == DDERR_SURFACELOST) {
+		ddrval = IDirectDrawSurface7_Restore (dds);
+		if (ddrval != DD_OK)
+		    return;
+	    } else if (ddrval != DDERR_SURFACEBUSY) {
+		return;
+	    }
+	}
+        dptr = (uae_u8*)desc.lpSurface;
+	pitch = desc.lPitch;
+    } else {
+	DirectDraw_SurfaceLock (lockable_surface);
+	dptr = DirectDraw_GetSurfacePointer ();
+	pitch = DirectDraw_GetSurfacePitch ();
+    }
 
     if (usedfilter->type == UAE_FILTER_SCALE2X ) { /* 16+32/2X */
 
@@ -182,8 +267,12 @@ void S2X_render (void)
         changed_prefs.gfx_filter = usedfilter->type;
     }
 
-    DirectDraw_SurfaceUnlock ();
-
+    if (temp_needed) {
+        IDirectDrawSurface7_Unlock (dds, NULL);
+	DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0, NULL);
+    } else {
+	DirectDraw_SurfaceUnlock ();
+    }
 }
 
 void S2X_refresh (void)

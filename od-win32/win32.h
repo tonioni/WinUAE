@@ -21,7 +21,7 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 3"
+#define WINUAEBETASTR " Beta 6"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);
@@ -94,6 +94,6 @@ void systraymenu (HWND hwnd);
 void exit_gui (int);
 void fetch_path (char *name, char *out, int size);
 void set_path (char *name, char *path);
-void read_rom_list (void);
+void read_rom_list (int);
 
 #endif

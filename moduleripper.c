@@ -17,6 +17,7 @@
 #include "memory.h"
 #include "autoconf.h"
 #include "moduleripper.h"
+#include "gui.h"
 
 static int got, canceled;
 
@@ -62,9 +63,9 @@ void moduleripper (void)
     }
 #endif
     if (!got)
-	gui_message("No modules or compressed data found");
+	notify_user (NUMSG_MODRIP_NOTFOUND);
     else if (!canceled)
-	gui_message("Search finished");
+	notify_user (NUMSG_MODRIP_FINISHED);
     free (buf);
 }
 
@@ -75,14 +76,15 @@ FILE *moduleripper_fopen (const char *name, const char *mode)
 
 FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id)
 {
-    char msg[1000];
+    char msg[MAX_DPATH], msg2[MAX_DPATH];
     int ret;
 
     if (canceled)
 	return NULL;
     got++;
-    sprintf (msg, "Module/packer found\n%s\nDo you want to save it?", id);
-    ret = gui_message_multibutton (2, msg);
+    translate_message (NUMSG_MODRIP_SAVE, msg);
+    sprintf (msg2, msg, id);
+    ret = gui_message_multibutton (2, msg2);
     if (ret < 0)
 	canceled = 1;
     if (ret < 0 || ret != 1)

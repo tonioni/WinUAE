@@ -11,7 +11,6 @@
 #include "include/memory.h"
 #include "custom.h"
 #include "newcpu.h"
-#include "compiler.h"
 #include "comptbl.h"
 #include "compemu.h"
 

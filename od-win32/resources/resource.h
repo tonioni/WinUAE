@@ -160,9 +160,11 @@
 #define IDI_MEMORY                      194
 #define IDS_SOUND_MONO                  200
 #define IDS_SOUND_MIXED                 201
+#define IDI_QUICKSTART                  201
 #define IDS_SOUND_STEREO                202
 #define IDS_SOUND_INTERPOL_DISABLED     203
 #define IDS_SOUND_INTERPOL_RH           204
+#define IDI_PATHS                       204
 #define IDS_SOUND_INTERPOL_CRUX         205
 #define IDS_SOUND_FILTER_OFF            206
 #define IDS_SOUND_FILTER_EMULATED       207
@@ -198,6 +200,21 @@
 #define IDS_WINUAETITLE_NORMAL          237
 #define IDS_STARTEMULATION              238
 #define IDS_TREEVIEW_ABOUT              239
+#define IDS_NOHARDDRIVES                240
+#define IDS_NUMSG_NEEDEXT2              300
+#define IDS_NUMSG_NOROMKEY              301
+#define IDS_NUMSG_KSROMCRCERROR         302
+#define IDS_NUMSG_KSROMREADERROR        303
+#define IDS_NUMSG_NOEXTROM              304
+#define IDS_NUMSG_MODRIP_NOTFOUND       305
+#define IDS_NUMSG_MODRIP_FINISHED       306
+#define IDS_NUMSG_MODRIP_SAVE           307
+#define IDS_NUMSG_KS68020               308
+#define IDS_NUMSG_ROMNEED               309
+#define IDS_NUMSG_NOZLIB                310
+#define IDS_NUMSG_STATEHD               311
+#define IDS_NUMSG_NOCAPS                312
+#define IDS_NUMSG_OLDCAPS               313
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
@@ -322,9 +339,13 @@
 #define IDC_CREATE_RAW                  1283
 #define IDC_SNAPSHOTNAME                1284
 #define IDC_SNAPSHOT                    1285
+#define IDC_SAVEIMAGE0                  1285
 #define IDC_DOSAVESTATE                 1286
+#define IDC_SAVEIMAGE1                  1286
 #define IDC_DOLOADSTATE                 1287
+#define IDC_SAVEIMAGE2                  1287
 #define IDC_PROWIZARD                   1288
+#define IDC_SAVEIMAGE3                  1288
 #define IDC_PORT0_JOY0                  1300
 #define IDC_PORT0_JOY1                  1301
 #define IDC_PORT0_MOUSE                 1302
@@ -395,9 +416,10 @@
 #define IDC_QUICKLOAD                   1409
 #define IDC_EXIT                        1410
 #define IDC_EDITPATH                    1410
-#define IDC_CREATEHF                    1500
+#define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
 #define IDC_LINEMODE                    1502
+#define IDC_CREATEHF                    1502
 #define IDC_SOCKETS                     1503
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
@@ -503,7 +525,9 @@
 #define IDC_CONSTJUMP                   1579
 #define IDC_SOUNDDRIVEVOLUME            1579
 #define IDC_JITFPU                      1580
+#define IDC_SOUNDVOLUME2                1580
 #define IDC_NOFLAGS                     1581
+#define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
 #define IDC_FORCE                       1583
 #define IDC_COLLISIONS                  1584
@@ -696,7 +720,6 @@
 #define IDC_QUICKSTART_CONFIGURATION    1675
 #define IDC_PATHS_AVIOUTPUT             1675
 #define IDC_QUICKSTART_COMPATIBILITY    1676
-#define IDC_PATHS_SAVESTATES2           1676
 #define IDC_PATHS_AVIOUTPUTS            1676
 #define IDC_QUICKSTART_CONFIG           1677
 #define IDC_DF0Q                        1678
@@ -735,9 +758,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        198
-#define _APS_NEXT_COMMAND_VALUE         40020
-#define _APS_NEXT_CONTROL_VALUE         1693
+#define _APS_NEXT_RESOURCE_VALUE        205
+#define _APS_NEXT_COMMAND_VALUE         40021
+#define _APS_NEXT_CONTROL_VALUE         1694
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

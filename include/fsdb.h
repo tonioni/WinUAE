@@ -35,6 +35,7 @@
 #define ERROR_NO_MORE_ENTRIES		232
 #define ERROR_NOT_IMPLEMENTED		236
 
+#define A_FIBF_HIDDEN  (1<<7)
 #define A_FIBF_SCRIPT  (1<<6)
 #define A_FIBF_PURE    (1<<5)
 #define A_FIBF_ARCHIVE (1<<4)

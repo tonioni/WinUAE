@@ -20,7 +20,6 @@
 #include "autoconf.h"
 #include "ersatz.h"
 #include "debug.h"
-#include "compiler.h"
 #include "gui.h"
 #include "savestate.h"
 #include "blitter.h"
@@ -837,7 +836,6 @@ static void Exception_ce (int nr, uaecptr oldpc)
     int sv = regs.s;
 
     exception_debug (nr);
-    compiler_flush_jsr_stack();
     MakeSR();
 
     c = 0;
@@ -944,7 +942,6 @@ static void Exception_normal (int nr, uaecptr oldpc)
     int sv = regs.s;
 
     exception_debug (nr);
-    compiler_flush_jsr_stack();
     MakeSR();
 
     if (!regs.s) {
@@ -1527,9 +1524,8 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	return 4;
     }
 
-    compiler_flush_jsr_stack ();
     if (opcode == 0x4E7B && get_long (0x10) == 0 && in_rom (pc) && !cpu68020) {
-	gui_message ("Your Kickstart requires a 68020 CPU");
+	notify_user (NUMSG_KS68020);
 	cpu68020 = 1;
     }
 
@@ -1702,9 +1698,6 @@ static int do_specialties (int cycles)
 	    do_copper ();
     }
 
-#ifdef JIT
-    run_compiled_code();
-#endif
     if (regs.spcflags & SPCFLAG_DOTRACE) {
 	Exception (9,last_trace_ad);
     }

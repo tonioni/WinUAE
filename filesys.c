@@ -37,7 +37,6 @@
 #include "newcpu.h"
 #include "filesys.h"
 #include "autoconf.h"
-#include "compiler.h"
 #include "fsusage.h"
 #include "native2amiga.h"
 #include "scsidev.h"
@@ -53,11 +52,6 @@
 #define TRACE(x)
 #define DUMPLOCK(u,x)
 #endif
-
-void xfree (void *p)
-{
-    free (p);
-}
 
 static void aino_test (a_inode *aino)
 {
@@ -3774,6 +3768,18 @@ static char *device_dupfix (uaecptr expbase, char *devname)
     return strdup (newname);
 }
 
+static void dump_partinfo (char *name, int num, uaecptr pp)
+{
+    uae_u32 dostype = get_long (pp + 80);
+    write_log ("RDB: '%s' uaehf.device:%d, dostype=%08.8X\n", name, num, dostype);
+    write_log ("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n",
+	get_long (pp + 20) * 4, get_long (pp + 28), get_long (pp + 32));
+    write_log ("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d\n",
+	get_long (pp + 36), get_long (pp + 40), get_long (pp + 52), get_long (pp + 56));
+    write_log ("Buffers: %d, BufMemType: %08.8x, MaxTransfer: %08.8x, BootPri: %d\n",
+	get_long (pp + 60), get_long (pp + 64), get_long (pp + 68), get_long (pp + 76));
+}
+
 static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacket)
 {
     int lastblock = 63, blocksize, readblocksize, badblock, driveinitblock;
@@ -3856,8 +3862,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     put_long (parmpacket + 12, 0); /* Device flags */
     for (i = 0; i < PP_MAXSIZE; i++)
 	put_byte (parmpacket + 16 + i, buf[128 + i]);
+    dump_partinfo (buf + 37, uip->devno, parmpacket);
     dostype = get_long (parmpacket + 80);
-    write_log ("RDB: '%s' uaehf.device:%d, dostype=%08.8X\n", buf + 37, uip->devno, dostype);
 
     if (dostype == 0) {
 	err = -1;
