@@ -306,8 +306,10 @@ void fixup_prefs (struct uae_prefs *p)
     p->scsi = 0;
     p->win32_aspi = 0;
 #endif
-
-
+#if defined(CPUEMU_6)
+    if (p->cpu_cycle_exact)
+	p->gfx_framerate = 1;
+#endif
     if (err)
 	write_log ("Please use \"uae -h\" to get usage information.\n");
 }

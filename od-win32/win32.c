@@ -1264,7 +1264,7 @@ static HMODULE LoadGUI( void )
     if (pGetUserDefaultUILanguage)
 	language = pGetUserDefaultUILanguage();
     language &= 0x3ff; // low 9-bits form the primary-language ID
-
+language = LANG_GERMAN;
     switch( language )
     {
     case LANG_AFRIKAANS:

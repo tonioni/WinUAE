@@ -3111,6 +3111,7 @@ static void enable_for_displaydlg (HWND hDlg)
         EnableWindow (GetDlgItem (hDlg, IDC_LM_SCANLINES), TRUE);
     }
     EnableWindow (GetDlgItem (hDlg, IDC_FRAMERATE2), !workprefs.gfx_vsync);
+    EnableWindow (GetDlgItem (hDlg, IDC_FRAMERATE), !workprefs.cpu_cycle_exact);
 }
 
 static void enable_for_chipsetdlg (HWND hDlg)
@@ -3394,20 +3395,22 @@ static void values_to_displaydlg (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_width_win, FALSE);
     SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_height_win, FALSE);
 
-    SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, workprefs.gfx_framerate);
     v = workprefs.chipset_refreshrate;
     if (v == 0)
 	v = currprefs.ntscmode ? 60 : 50;
-
     SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, v);
+    sprintf (buffer, "%d", v);
+    SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 
+    v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
+    SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, v);
     WIN32GUI_LoadUIString( IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH );
-    LoadNthString( workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH );
+    LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
     if( FormatMessage( FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
 	               buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0 )
     {
 	DWORD dwLastError = GetLastError();
-        sprintf (buffer, "Every %s Frame", nth[workprefs.gfx_framerate - 1]);
+        sprintf (buffer, "Every %s Frame", nth[v - 1]);
 	SetDlgItemText( hDlg, IDC_RATETEXT, buffer );
     }
     else
@@ -3415,8 +3418,6 @@ static void values_to_displaydlg (HWND hDlg)
 	SetDlgItemText( hDlg, IDC_RATETEXT, string );
 	LocalFree( string );
     }
-    sprintf (buffer, "%d", v);
-    SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 
     CheckRadioButton( hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_linedbl );
     CheckDlgButton (hDlg, IDC_AFULLSCREEN, workprefs.gfx_afullscreen);
@@ -3708,6 +3709,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    }
 	    workprefs.immediate_blits = 0;
 	    workprefs.fast_copper = 0;
+	    workprefs.gfx_framerate = 1;
 	}
     }
     workprefs.collision_level = IsDlgButtonChecked (hDlg, IDC_COLLISION0) ? 0

@@ -543,6 +543,32 @@ static void decide_diw (int hpos)
     last_diw_pix_hpos = pix_hpos;
 }
 
+static int fetchmode;
+static int maxplanes_ocs[]={ 6,4,0,0 };
+static int maxplanes_ecs[]={ 6,4,2,0 };
+static int maxplanes_aga[]={ 8,4,2,0, 8,8,4,0, 8,8,8,0 };
+
+static int get_maxplanes (int res)
+{
+    int *planes;
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	planes = maxplanes_aga;
+    else if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
+	planes = maxplanes_ocs;
+    else
+	planes = maxplanes_ecs;
+    return planes[fetchmode * 4 + res];
+}
+
+/* Disable bitplane DMA if planes > maxplanes.  This is needed e.g. by the
+   Sanity WOC demo (at the "Party Effect").  */
+STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 v)
+{
+    if (GET_PLANES(v) > get_maxplanes (GET_RES(v)))
+	v &= ~0x7010;
+    return GET_PLANES (v);
+}
+
 /* The HRM says 0xD8, but that can't work... */
 #define HARD_DDF_STOP 0xd4
 #define HARD_DDF_START 0x18
@@ -561,7 +587,7 @@ static void add_modulos (void)
 	m2 = bpl2mod;
     }
 
-    switch (GET_PLANES (bplcon0)) {
+    switch (GET_PLANES_LIMIT (bplcon0)) {
 #ifdef AGA
 	case 8: bplpt[7] += m2;
 	case 7: bplpt[6] += m1;
@@ -603,8 +629,6 @@ static void finish_playfield_line (void)
 #endif /* SMART_UPDATE */
 	thisline_changed = 1;
 }
-
-static int fetchmode;
 
 /* The fetch unit mainly controls ddf stop.  It's the number of cycles that
    are contained in an indivisible block during which ddf is active.  E.g.
@@ -771,12 +795,8 @@ static void expand_fmodes (void)
     fetchstart_mask = fetchstart - 1;
     fm_maxplane_shift = fm_maxplanes[fm * 4 + res];
     fm_maxplane = 1 << fm_maxplane_shift;
-    curr_diagram = cycle_diagram_table[fm][res][GET_PLANES (bplcon0)];
+    curr_diagram = cycle_diagram_table[fm][res][GET_PLANES_LIMIT (bplcon0)];
 }
-
-static int maxplanes_ocs[]={ 6,4,0,0 };
-static int maxplanes_ecs[]={ 6,4,2,0 };
-static int maxplanes_aga[]={ 8,4,2,0, 8,8,4,0, 8,8,8,0 };
 
 /* Expand bplcon0/bplcon1 into the toscr_xxx variables.  */
 static void compute_toscr_delay_1 (void)
@@ -793,27 +813,10 @@ static void compute_toscr_delay_1 (void)
     toscr_delay2x = (delay2 & delaymask) << toscr_res;
 }
 
-static int get_maxplanes (int res)
-{
-    int *planes;
-    if (currprefs.chipset_mask & CSMASK_AGA)
-	planes = maxplanes_aga;
-    else if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
-	planes = maxplanes_ocs;
-    else
-	planes = maxplanes_ecs;
-    return planes[fetchmode * 4 + res];
-}
-
 static void compute_toscr_delay (int hpos)
 {
-    int v = bplcon0;
-    /* Disable bitplane DMA if planes > maxplanes.  This is needed e.g. by the
-       Sanity WOC demo (at the "Party Effect").  */
-    if (GET_PLANES(v) > get_maxplanes (GET_RES(v)))
-	v &= ~0x7010;
-    toscr_res = GET_RES (v);
-    toscr_nr_planes = GET_PLANES (v);
+    toscr_res = GET_RES (bplcon0);
+    toscr_nr_planes = GET_PLANES_LIMIT (bplcon0);
     compute_toscr_delay_1 ();
 }
 
@@ -4440,8 +4443,8 @@ static void hsync_handler (void)
 
     if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop)
 	blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
-	    cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES (bplcon0)],
-	    cycle_diagram_free_cycles[fmode][GET_RES (bplcon0)][GET_PLANES (bplcon0)]);
+	    cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
+	    cycle_diagram_free_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)]);
 
     if (currprefs.produce_sound)
 	audio_hsync (1);
