@@ -129,9 +129,7 @@ static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 }
 static const char *soundmode2[] = { "none", "interrupts", "good", "best", 0 };
 static const char *centermode1[] = { "none", "simple", "smart", 0 };
 static const char *centermode2[] = { "false", "true", "smart", 0 };
-static const char *stereomode1[] = { "mono", "stereo", "mixed", 0 };
-static const char *stereomode2[] = { "m", "s", "x", 0 };
-static const char *stereomode3[] = { "1", "2", "3", 0 };
+static const char *stereomode[] = { "mono", "stereo", "mixed", 0 };
 static const char *interpolmode[] = { "none", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
@@ -257,7 +255,10 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
 
     cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
-    cfgfile_write (f, "sound_channels=%s\n", stereomode1[p->stereo + p->mixed_stereo]);
+    cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
+    cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
+    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo);
+    
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
     cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
@@ -576,6 +577,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "sound_frequency", &p->sound_freq, 1)
 	|| cfgfile_intval (option, value, "sound_adjust", &p->sound_adjust, 1)
 	|| cfgfile_intval (option, value, "sound_volume", &p->sound_volume, 1)
+	|| cfgfile_intval (option, value, "sound_stereo_separation", &p->sound_stereo_separation, 1)
+	|| cfgfile_intval (option, value, "sound_stereo_mixing", &p->sound_mixed_stereo, 1)
 
 	|| cfgfile_intval (option, value, "gfx_display", &p->gfx_display, 1)
 	|| cfgfile_intval (option, value, "gfx_framerate", &p->gfx_framerate, 1)
@@ -708,14 +711,11 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	return 1;
     }
 
-    if (cfgfile_strval (option, value, "sound_channels", &p->stereo, stereomode1, 1)
-	|| cfgfile_strval (option, value, "sound_channels", &p->stereo, stereomode2, 1)
-	|| cfgfile_strval (option, value, "sound_channels", &p->stereo, stereomode3, 0))
-    {
-	p->mixed_stereo = 0;
-	if (p->stereo == 2) {
-	    p->stereo = 1;
-	    p->mixed_stereo = 1;
+    if (cfgfile_strval (option, value, "sound_channels", &p->sound_stereo, stereomode, 1)) {
+	if (p->sound_stereo > 1) { /* "mixed stereo" compatibility hack */
+	    p->sound_stereo = 1;
+	    p->sound_mixed_stereo = 5;
+	    p->sound_stereo_separation = 21;
 	}
 	return 1;
     }
@@ -1397,13 +1397,14 @@ static void parse_sound_spec (struct uae_prefs *p, char *spec)
     }
     p->produce_sound = atoi (x0);
     if (x1) {
-	p->mixed_stereo = 0;
-	if (*x1 == 'S')
-	    p->stereo = p->mixed_stereo = 1;
-	else if (*x1 == 's')
-	    p->stereo = 1;
+	p->sound_stereo_separation = 32;
+	if (*x1 == 'S') {
+	    p->sound_stereo = 1;
+	    p->sound_stereo_separation = 20;
+	} else if (*x1 == 's')
+	    p->sound_stereo = 1;
 	else
-	    p->stereo = 0;
+	    p->sound_stereo = 0;
     }
     if (x2)
 	p->sound_bits = atoi (x2);
@@ -1830,7 +1831,9 @@ void default_prefs (struct uae_prefs *p, int type)
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;
-    p->stereo = 1;
+    p->sound_stereo = 1;
+    p->sound_stereo_separation = 21;
+    p->sound_mixed_stereo = -1;
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
@@ -1994,7 +1997,9 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->tod_hack = 0;
     p->maprom = 0;
     p->sound_filter = 1;
-    p->stereo = 1;
+    p->sound_stereo = 1;
+    p->sound_stereo_separation = 21;
+    p->sound_mixed_stereo = -1;
 
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -2082,7 +2087,8 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	return 0;
     roms[0] = 20;
     roms[1] = 21;
-    roms[2] = -1;
+    roms[2] = 22;
+    roms[3] = -1;
     if (!configure_rom (p, roms, romcheck))
 	return 0;
     p->bogomem_size = 0;
@@ -2214,14 +2220,13 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[8];
 
-    roms[0] = 17;
-    roms[1] = 16;
-    roms[2] = 31;
-    roms[3] = 15;
-    roms[4] = 14;
-    roms[5] = 12;
-    roms[6] = 11;
-    roms[7] = -1;
+    roms[0] = 16;
+    roms[1] = 31;
+    roms[2] = 15;
+    roms[3] = 14;
+    roms[4] = 12;
+    roms[5] = 11;
+    roms[6] = -1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x400000;
     p->z3fastmem_size = 8 * 1024 * 1024;

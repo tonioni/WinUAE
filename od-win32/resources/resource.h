@@ -224,6 +224,8 @@
 #define IDS_ROMSCANEND                  319
 #define IDS_ROM_AVAILABLE               320
 #define IDS_ROM_UNAVAILABLE             321
+#define IDS_HARDDRIVESAFETYWARNING      322
+#define IDS_NUMSG_KS68EC020             323
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -589,6 +591,7 @@
 #define IDC_SCSIDEVICE2                 1608
 #define IDC_CLOCKSYNC                   1608
 #define IDC_NOUAEFSDB                   1608
+#define IDC_NOTASKBARBUTTON             1608
 #define IDC_AVIOUTPUT_FPS               1609
 #define IDC_INPUTDEVICE                 1609
 #define IDC_MAPROM                      1609
@@ -711,6 +714,7 @@
 #define IDC_CONFIGTYPE                  1655
 #define IDC_SOUNDDRIVETXT               1656
 #define IDC_PATHS_ROM                   1656
+#define IDC_SOUNDSTEREOSEP              1656
 #define IDC_SOUNDSTEREOTXT              1657
 #define IDC_PATHS_CONFIG                1657
 #define IDC_SOUNDINTERPOLATIONTXT       1658
@@ -718,8 +722,11 @@
 #define IDC_DISK                        1659
 #define IDC_DISKLIST                    1659
 #define IDC_PATHS_SAVEIMAGE             1659
+#define IDC_SOUNDSTEREOSEPTXT           1659
 #define IDC_PATHS_SAVESTATE             1660
+#define IDC_SOUNDSTEREOMIXTXT           1660
 #define IDC_PATHS_ROMS                  1661
+#define IDC_SOUNDSTEREOMIX              1661
 #define IDC_PATHS_CONFIGS               1662
 #define IDC_PATHS_SCREENSHOTS           1663
 #define IDC_PATHS_SAVESTATES            1664
@@ -776,7 +783,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        205
+#define _APS_NEXT_RESOURCE_VALUE        242
 #define _APS_NEXT_COMMAND_VALUE         40021
 #define _APS_NEXT_CONTROL_VALUE         1694
 #define _APS_NEXT_SYMED_VALUE           101

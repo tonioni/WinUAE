@@ -173,13 +173,13 @@ LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
 	
 	// set the source format
 	wfxSrc.wFormatTag = WAVE_FORMAT_PCM;
-	wfxSrc.nChannels = workprefs.stereo ? 2 : 1;
+	wfxSrc.nChannels = workprefs.sound_stereo ? 2 : 1;
 	wfxSrc.nSamplesPerSec = workprefs.sound_freq;
 	wfxSrc.nBlockAlign = wfxSrc.nChannels * (workprefs.sound_bits / 8);
 	wfxSrc.nAvgBytesPerSec = wfxSrc.nBlockAlign * wfxSrc.nSamplesPerSec;
 	wfxSrc.wBitsPerSample = workprefs.sound_bits;
 	wfxSrc.cbSize = 0;
-	
+
 	if(!(pwfxDst = (LPWAVEFORMATEX) malloc(wfxMaxFmtSize)))
 		return NULL;
 	
@@ -613,7 +613,7 @@ static void writewavheader (uae_u32 size)
 {
     uae_u16 tw;
     uae_u32 tl;
-    int bits = 16, channels = currprefs.stereo ? 2 : 1;
+    int bits = 16, channels = currprefs.sound_stereo ? 2 : 1;
 
     fseek (wavfile, 0, SEEK_SET);
     fwrite ("RIFF", 1, 4, wavfile);

@@ -307,53 +307,61 @@ BEGIN
     RTEXT           "Sound device:",IDC_SOUNDCARD,8,9,51,13,SS_CENTERIMAGE
     COMBOBOX        IDC_SOUNDCARDLIST,64,9,229,50,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Sound Emulation",IDC_SOUNDSETTINGS,7,30,120,68
+    GROUPBOX        "Sound Emulation",IDC_SOUNDSETTINGS,5,30,120,68
     CONTROL         "Disabled",IDC_SOUND0,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,15,45,43,10
+                    WS_GROUP | WS_TABSTOP,13,45,43,10
     CONTROL         "Disabled, but emulated",IDC_SOUND1,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,15,57,88,10
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,13,57,88,10
     CONTROL         "Enabled",IDC_SOUND2,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,15,69,42,10
+                    WS_TABSTOP,13,69,42,10
     CONTROL         "Enabled, 100% accurate",IDC_SOUND3,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,15,81,93,10
-    GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,133,30,160,68
-    RTEXT           "Frequency:",IDC_SOUNDFREQTXT,138,40,37,8,SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDFREQ,140,49,67,75,CBS_DROPDOWN | WS_VSCROLL | 
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,13,81,93,10
+    GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,6,101,290,60
+    RTEXT           "Frequency:",IDC_SOUNDFREQTXT,34,110,37,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDFREQ,36,119,67,75,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
-    RTEXT           "Audio filter:",IDC_SOUNDFILTERTXT,140,65,36,8,
+    RTEXT           "Audio filter:",IDC_SOUNDFILTERTXT,36,135,36,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDFILTER,140,74,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDFILTER,36,144,67,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Stereo mode:",IDC_SOUNDSTEREOTXT,223,40,41,8,
+    RTEXT           "Stereo mode:",IDC_SOUNDSTEREOTXT,116,110,43,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDSTEREO,220,49,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDSTEREO,116,119,67,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Interpolation:",IDC_SOUNDINTERPOLATIONTXT,222,65,41,8,
+    RTEXT           "Interpolation:",IDC_SOUNDINTERPOLATIONTXT,115,135,41,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDINTERPOLATION,220,74,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDINTERPOLATION,116,144,67,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Disk Drive Sound Emulation",IDC_STATIC,8,100,285,46
-    COMBOBOX        IDC_SOUNDDRIVE,237,111,46,75,CBS_DROPDOWNLIST | 
+    GROUPBOX        "Disk Drive Sound Emulation",IDC_STATIC,6,164,290,46
+    COMBOBOX        IDC_SOUNDDRIVE,237,174,46,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_SOUNDDRIVESELECT,18,129,265,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDDRIVESELECT,18,192,265,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_SOUNDDRIVEVOLUME,"msctls_trackbar32",
-                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,108,107,19
-    GROUPBOX        "Sound buffer size",IDC_STATIC,8,180,164,31
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,172,107,19
+    GROUPBOX        "Sound buffer size",IDC_STATIC,132,67,164,31
     CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",
-                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,188,106,19
-    GROUPBOX        "Sound driver lag compensation",IDC_STATIC,7,212,286,31
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,138,75,106,19
+    GROUPBOX        "Sound driver lag compensation",IDC_STATIC,6,211,290,31
     CONTROL         "Slider1",IDC_SOUNDADJUST,"msctls_trackbar32",
                     TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,221,107,19
     PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,223,40,14
-    GROUPBOX        "Volume",IDC_STATIC,8,147,164,31
+    GROUPBOX        "Volume",IDC_STATIC,131,30,164,31
     CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | 
-                    TBS_TOP | WS_TABSTOP,14,155,105,20
-    EDITTEXT        IDC_SOUNDBUFFERMEM,124,191,40,12,ES_CENTER | ES_READONLY
+                    TBS_TOP | WS_TABSTOP,137,38,105,20
+    EDITTEXT        IDC_SOUNDBUFFERMEM,248,78,40,12,ES_CENTER | ES_READONLY
     EDITTEXT        IDC_SOUNDADJUSTNUM,124,224,40,12,ES_CENTER | ES_READONLY
-    EDITTEXT        IDC_SOUNDVOLUME2,124,158,40,12,ES_CENTER | ES_READONLY
-    EDITTEXT        IDC_SOUNDDRIVEVOLUME2,124,111,40,12,ES_CENTER | 
+    EDITTEXT        IDC_SOUNDVOLUME2,247,41,40,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_SOUNDDRIVEVOLUME2,124,178,40,12,ES_CENTER | 
                     ES_READONLY
+    RTEXT           "Stereo separation:",IDC_SOUNDSTEREOSEPTXT,196,110,58,8,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDSTEREOSEP,197,119,67,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Stereo mixing delay:",IDC_SOUNDSTEREOMIXTXT,196,135,63,
+                    8,SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDSTEREOMIX,197,144,67,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_LOADSAVE DIALOGEX 0, 0, 302, 241
@@ -541,6 +549,8 @@ BEGIN
                     182,83,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATE_BUFFERSIZE,248,180,38,65,CBS_DROPDOWN | 
                     WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Don't show Taskbar button",IDC_NOTASKBARBUTTON,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,80,117,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 180
@@ -1344,7 +1354,7 @@ BEGIN
     IDS_NUMSG_MODRIP_NOTFOUND "No modules or compressed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
     IDS_NUMSG_MODRIP_SAVE   "Module/packer found\n%s\nDo you want to save it?"
-    IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU. This message does not appear again."
+    IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU or later CPU."
     IDS_NUMSG_ROMNEED       "You need any of following ROM(s)\n\n%s"
     IDS_NUMSG_NOZLIB        "Zip and gzip support disabled because zlib1.dll is missing."
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
@@ -1363,6 +1373,9 @@ STRINGTABLE
 BEGIN
     IDS_ROM_AVAILABLE       "available"
     IDS_ROM_UNAVAILABLE     "unavailable"
+    IDS_HARDDRIVESAFETYWARNING 
+                            "WARNING: Non-empty or Amiga formatted\nharddrive detected and safety test was disabled\n\nHarddrives marked with 'HD_*_' are not empty"
+    IDS_NUMSG_KS68EC020     "Your Kickstart requires a 68EC020 or later CPU."
 END
 
 STRINGTABLE 

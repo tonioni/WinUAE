@@ -26,6 +26,7 @@
 #include <dbt.h>
 #include <math.h>
 #include <mmsystem.h>
+#include <shobjidl.h>
 
 #include "sysdeps.h"
 #include "options.h"
@@ -73,7 +74,7 @@ static int no_rdtsc;
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD ) = NULL;
-HWND hAmigaWnd, hMainWnd;
+HWND hAmigaWnd, hMainWnd, hHiddenWnd;
 RECT amigawin_rect;
 static UINT TaskbarRestart;
 static int TaskbarRestartOk;
@@ -947,6 +948,11 @@ static long FAR PASCAL MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, L
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
+static long FAR PASCAL HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    return DefWindowProc (hWnd, message, wParam, lParam);
+}
+
 void handle_events (void)
 {
     MSG msg;
@@ -997,11 +1003,11 @@ void remove_brkhandler (void)
 int WIN32_RegisterClasses( void )
 {
     WNDCLASS wc;
-    HDC hDC = GetDC( NULL ); 
+    HDC hDC = GetDC( NULL );
 
-    if( GetDeviceCaps( hDC, NUMCOLORS ) != -1 ) 
+    if (GetDeviceCaps (hDC, NUMCOLORS) != -1) 
         g_dwBackgroundColor = RGB( 255, 0, 255 );    
-    ReleaseDC( NULL, hDC );
+    ReleaseDC (NULL, hDC);
 
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_OWNDC;
     wc.lpfnWndProc = AmigaWindowProc;
@@ -1012,7 +1018,7 @@ int WIN32_RegisterClasses( void )
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "AmigaPowah";
-    wc.hbrBackground = CreateSolidBrush( g_dwBackgroundColor ); 
+    wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
     if (!RegisterClass (&wc))
 	return 0;
 
@@ -1023,11 +1029,34 @@ int WIN32_RegisterClasses( void )
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush( g_dwBackgroundColor ); 
+    wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "PCsuxRox";
     if (!RegisterClass (&wc))
 	return 0;
+    
+    wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = HiddenWindowProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = 0;
+    wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE( IDI_APPICON ) );
+    wc.hCursor = LoadCursor (NULL, IDC_ARROW);
+    wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
+    wc.lpszMenuName = 0;
+    wc.lpszClassName = "Useless";
+    if (!RegisterClass (&wc))
+	return 0;
+    
+    hHiddenWnd = CreateWindowEx (0,
+        "Useless", "You don't see me",
+        WS_POPUP,
+        0, 0,
+        1, 1, 
+        NULL, NULL, 0, NULL);
+    if (!hHiddenWnd)
+	return 0;
+
     return 1;
 }
 
@@ -1422,6 +1451,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_active_priority = 0;
 	p->win32_inactive_priority = 2;
 	p->win32_iconified_priority = 3;
+	p->win32_notaskbarbutton = 0;
     }
     if (type == 1 || type == 0) {
         p->win32_midioutdev = -2;
@@ -1452,6 +1482,7 @@ void target_save_options (FILE *f, struct uae_prefs *p)
     cfgfile_write (f, "win32.aspi=%s\n", p->win32_aspi ? "true" : "false" );
     cfgfile_write (f, "win32.soundcard=%d\n", p->win32_soundcard );
     cfgfile_write (f, "win32.cpu_idle=%d\n", p->cpu_idle);
+    cfgfile_write (f, "win32.notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
 }
 
 static int fetchpri (int pri, int defpri)
@@ -1493,6 +1524,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_intval (option, value, "soundcard", &p->win32_soundcard, 1)
 	    || cfgfile_string (option, value, "serial_port", &p->sername[0], 256)
 	    || cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)
+	    || cfgfile_yesno  (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_intval  (option, value, "cpu_idle", &p->cpu_idle, 1));
 
     if (cfgfile_intval (option, value, "active_priority", &v, 1)) {

@@ -606,7 +606,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
 			       CW_USEDEFAULT, CW_USEDEFAULT,
 			       1,//GetSystemMetrics (SM_CXSCREEN),
 			       1,//GetSystemMetrics (SM_CYSCREEN),
-			       0, NULL, 0, NULL);
+			       hHiddenWnd, NULL, 0, NULL);
         if( hAmigaWnd )
         {
             window_created = 1;
@@ -1608,97 +1608,130 @@ void WIN32GFX_ToggleFullScreen( void )
 	currprefs.gfx_afullscreen ^= 1;
 }
 
+static void createstatuswindow (void)
+{
+    HDC hdc;
+    RECT rc;
+    HLOCAL hloc;
+    LPINT lpParts;
+    int drive_width, hd_width, cd_width, power_width, fps_width, idle_width;
+    int num_parts = 10;
+    double scaleX, scaleY;
+
+    hStatusWnd = CreateStatusWindow (WS_CHILD | WS_VISIBLE, "", hMainWnd, 1);
+    if (!hStatusWnd)
+	return;
+
+    hdc = GetDC (hStatusWnd);
+    scaleX = GetDeviceCaps (hdc, LOGPIXELSX) / 96.0;
+    scaleY = GetDeviceCaps (hdc, LOGPIXELSY) / 96.0;
+    ReleaseDC (hStatusWnd, hdc);
+    drive_width = 24 * scaleX;
+    hd_width = 24 * scaleX;
+    cd_width = 24 * scaleX;
+    power_width = 42 * scaleX;
+    fps_width = 64 * scaleX;
+    idle_width = 64 * scaleX;
+    GetClientRect (hMainWnd, &rc);
+    /* Allocate an array for holding the right edge coordinates. */
+    hloc = LocalAlloc (LHND, sizeof (int) * num_parts);
+    if (hloc) {
+	lpParts = LocalLock (hloc);
+	/* Calculate the right edge coordinate for each part, and copy the coords
+	 * to the array.  */
+	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - 2;
+	lpParts[1] = lpParts[0] + idle_width;
+	lpParts[2] = lpParts[1] + fps_width;
+	lpParts[3] = lpParts[2] + power_width;
+	lpParts[4] = lpParts[3] + cd_width;
+	lpParts[5] = lpParts[4] + hd_width;
+	lpParts[6] = lpParts[5] + drive_width;
+	lpParts[7] = lpParts[6] + drive_width;
+	lpParts[8] = lpParts[7] + drive_width;
+	lpParts[9] = lpParts[8] + drive_width;
+
+	/* Create the parts */
+	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM) num_parts, (LPARAM) lpParts);
+	LocalUnlock (hloc);
+	LocalFree (hloc);
+    }
+}
+
 static int create_windows (void)
 {
     int fs = currentmode->flags & (DM_W_FULLSCREEN | DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
-    if (!fs) 
-    {
+    DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
+
+    if (!fs)  {
         RECT rc;
-        LONG stored_x = 1, stored_y = GetSystemMetrics( SM_CYMENU ) + GetSystemMetrics( SM_CYBORDER );
+        LONG stored_x = 1, stored_y = GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
         DWORD regkeytype;
-        DWORD regkeysize = sizeof(LONG);
-        HLOCAL hloc;
-	LPINT lpParts;
+        DWORD regkeysize = sizeof (LONG);
 	int cx = GetSystemMetrics(SM_CXBORDER), cy = GetSystemMetrics(SM_CYBORDER);
 	int oldx, oldy;
+	int first = 2;
 
         RegQueryValueEx( hWinUAEKey, "xPos", 0, &regkeytype, (LPBYTE)&stored_x, &regkeysize );
         RegQueryValueEx( hWinUAEKey, "yPos", 0, &regkeytype, (LPBYTE)&stored_y, &regkeysize );
 
-	if( stored_x < GetSystemMetrics (SM_XVIRTUALSCREEN) )
-            stored_x = GetSystemMetrics (SM_XVIRTUALSCREEN);
-        if( stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics( SM_CYMENU ) + cy)
-            stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics( SM_CYMENU ) + cy;
+	while (first) {
+	    first--;
+	    if (stored_x < GetSystemMetrics (SM_XVIRTUALSCREEN))
+		stored_x = GetSystemMetrics (SM_XVIRTUALSCREEN);
+	    if (stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics (SM_CYMENU) + cy)
+		stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics (SM_CYMENU) + cy;
 
-        if( stored_x > GetSystemMetrics( SM_CXVIRTUALSCREEN ) )
-            rc.left = 1;
-        else
-            rc.left = stored_x;
-        
-        if( stored_y > GetSystemMetrics( SM_CYVIRTUALSCREEN ) )
-            rc.top = 1;
-        else
-            rc.top = stored_y;
+	    if (stored_x > GetSystemMetrics (SM_CXVIRTUALSCREEN))
+		rc.left = 1;
+	    else
+		rc.left = stored_x;
+            
+	    if (stored_y > GetSystemMetrics (SM_CYVIRTUALSCREEN))
+		rc.top = 1;
+	    else
+		rc.top = stored_y;
 
-        rc.right = rc.left + 2 + currentmode->current_width + 2;
-        rc.bottom = rc.top + 2 + currentmode->current_height + 2 + GetSystemMetrics (SM_CYMENU);
+	    rc.right = rc.left + 2 + currentmode->current_width + 2;
+	    rc.bottom = rc.top + 2 + currentmode->current_height + 2 + GetSystemMetrics (SM_CYMENU);
 
-	oldx = rc.left;
-	oldy = rc.top;
-	AdjustWindowRect (&rc, NORMAL_WINDOW_STYLE, FALSE);
-	win_x_diff = rc.left - oldx;
-	win_y_diff = rc.top - oldy;
-        hMainWnd = CreateWindowEx( picasso_on ? WS_EX_ACCEPTFILES : WS_EX_ACCEPTFILES | WS_EX_APPWINDOW,
+	    oldx = rc.left;
+	    oldy = rc.top;
+	    AdjustWindowRect (&rc, NORMAL_WINDOW_STYLE, FALSE);
+	    win_x_diff = rc.left - oldx;
+	    win_y_diff = rc.top - oldy;
+
+	    if (MonitorFromRect (&rc, MONITOR_DEFAULTTONULL) == NULL) {
+		write_log ("window coordinates are not visible on any monitor, reseting..\n");
+		stored_x = stored_y = 0;
+    		continue;
+	    }
+	    break;
+	}
+
+        hMainWnd = CreateWindowEx ((picasso_on ? WS_EX_ACCEPTFILES : WS_EX_ACCEPTFILES) | exstyle,
 					"PCsuxRox", "WinUAE",
 				       NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 				       rc.left, rc.top,
 				       rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-				       NULL, NULL, 0, NULL);
+				       hHiddenWnd, NULL, 0, NULL);
 
 	if (! hMainWnd) {
 	    write_log ("main window creation failed\n");
 	    return 0;
 	}
-	hStatusWnd = CreateStatusWindow (WS_CHILD | WS_VISIBLE, "", hMainWnd, 1);
-	if (hStatusWnd) 
-        {
-	    GetClientRect (hMainWnd, &rc);
-	    /* Allocate an array for holding the right edge coordinates. */
-	    hloc = LocalAlloc (LHND, sizeof (int) * LED_NUM_PARTS);
-	    if (hloc) 
-            {
-		lpParts = LocalLock (hloc);
+	
+	createstatuswindow ();
 
-		/* Calculate the right edge coordinate for each part, and copy the coords
-		 * to the array.  */
-		lpParts[0] = rc.right - (LED_DRIVE_WIDTH * 4) - LED_POWER_WIDTH - LED_IDLE_WIDTH - LED_FPS_WIDTH - LED_CD_WIDTH - LED_HD_WIDTH - 2;
-                lpParts[1] = lpParts[0] + LED_IDLE_WIDTH;
-                lpParts[2] = lpParts[1] + LED_FPS_WIDTH;
-		lpParts[3] = lpParts[2] + LED_POWER_WIDTH;
-		lpParts[4] = lpParts[3] + LED_CD_WIDTH;
-		lpParts[5] = lpParts[4] + LED_HD_WIDTH;
-		lpParts[6] = lpParts[5] + LED_DRIVE_WIDTH;
-		lpParts[7] = lpParts[6] + LED_DRIVE_WIDTH;
-		lpParts[8] = lpParts[7] + LED_DRIVE_WIDTH;
-		lpParts[9] = lpParts[8] + LED_DRIVE_WIDTH;
-
-		/* Create the parts */
-		SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM) LED_NUM_PARTS, (LPARAM) lpParts);
-
-		LocalUnlock (hloc);
-		LocalFree (hloc);
-	    }
-	}
     }
     else
 	hMainWnd = NULL;
 
-    hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_APPWINDOW,
+    hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle,
 				"AmigaPowah", "WinUAE",
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
 				hMainWnd ? 2 : CW_USEDEFAULT, hMainWnd ? 2 : CW_USEDEFAULT,
 				currentmode->current_width, currentmode->current_height,
-				hMainWnd, NULL, 0, NULL);
+				hMainWnd ? hMainWnd : hHiddenWnd, NULL, 0, NULL);
     
     if (! hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
@@ -1710,7 +1743,7 @@ static int create_windows (void)
     systray (hMainWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);
-        UpdateWindow( hMainWnd );
+        UpdateWindow (hMainWnd);
     }
     if (hAmigaWnd) {
     	UpdateWindow (hAmigaWnd);
@@ -1733,11 +1766,11 @@ static void setoverlay(void)
     if (!GetMonitorInfo (hm, &mi))
 	return;
 
-    GetClientRect(hMainWnd, &dr);
+    GetClientRect (hMainWnd, &dr);
     // adjust the dest-rect to avoid the status-bar
     if( hStatusWnd )
     {
-	if( GetWindowRect( hStatusWnd, &statusr ) )
+	if (GetWindowRect (hStatusWnd, &statusr))
 	    dr.bottom = dr.bottom - ( statusr.bottom - statusr.top );
     }
 
@@ -1961,7 +1994,7 @@ static BOOL doInit (void)
 
     if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
 	int flags;
-	if( !DirectDraw_SurfaceLock( lockable_surface ) )
+	if(!DirectDraw_SurfaceLock (lockable_surface))
 	    goto oops;
 	flags = DirectDraw_GetPixelFormatFlags();
 	DirectDraw_SurfaceUnlock();
@@ -1969,8 +2002,8 @@ static BOOL doInit (void)
 	    write_log( "%s mode (bits: %d, pixbytes: %d)\n", currentmode->flags & DM_DX_FULLSCREEN ? "Full screen" : "Window",
 		   DirectDraw_GetSurfaceBitCount(), currentmode->current_depth >> 3 );
 	} else {
-	    char szMessage[ MAX_DPATH ];
-	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDPIXELFORMAT, szMessage, MAX_DPATH );
+	    char szMessage[MAX_DPATH];
+	    WIN32GUI_LoadUIString (IDS_UNSUPPORTEDPIXELFORMAT, szMessage, MAX_DPATH);
 	    gui_message( szMessage);
 	    goto oops;
 	}

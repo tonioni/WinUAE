@@ -14,6 +14,7 @@ extern int GetSettings (int all_options, HWND);
 extern int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *);
 void InitializeListView( HWND hDlg );
 extern void pre_gui_message (const char*,...);
+extern void gui_message_id (int id);
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
 HKEY read_disk_history (void);
 

@@ -72,8 +72,9 @@ struct uae_prefs {
     int test_drawing_speed;
 
     int produce_sound;
-    int stereo;
-    int mixed_stereo;
+    int sound_stereo;
+    int sound_stereo_separation;
+    int sound_mixed_stereo;
     int sound_bits;
     int sound_freq;
     int sound_maxbsiz;
@@ -190,8 +191,10 @@ struct uae_prefs {
     int x11_use_dgamode;
     int x11_hide_cursor;
     int svga_no_linear;
+
     int win32_middle_mouse;
     int win32_logfile;
+    int win32_notaskbarbutton;
 
     int win32_active_priority;
     int win32_inactive_priority;

@@ -111,11 +111,12 @@ static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offs
 {
     uae_u64 got = 0;
     uae_u8 buffer[FILESYS_MAX_BLOCKSIZE];
+    int i;
 
     gui_hd_led (1);
     hf_log2 ("cmd_read: %p %04.4x-%08.8x %08.8x\n", dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)len);
     while (len > 0) {
-        int i, got2;
+        int got2;
 	got2 = hdf_read (hfd, buffer, offset, hfd->blocksize);
         if (got2 != hfd->blocksize)
 	    break;
@@ -133,11 +134,19 @@ static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 off
 {
     uae_u64 got = 0;
     uae_u8 buffer[FILESYS_MAX_BLOCKSIZE];
+    int i;
 
     gui_hd_led (1);
     hf_log2 ("cmd_write: %p %04.4x-%08.8x %08.8x\n", dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)len);
+    if (offset + len >= hfd->size) {
+	write_log ("read access out of bounds %08.8X-%08.8X + %08.8X-%08.8X >= %08.8X-%08.8X\n",
+	    (uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
+	    (uae_u32)((offset + len) >> 32),(uae_u32)(offset+len));
+	for (i = 0; i < len; i++)
+	    put_byte (dataptr + i, 0);
+    }
     while (len > 0) {
-        int i, got2;
+        int got2;
         for (i = 0; i < hfd->blocksize; i++)
 	    buffer[i] = get_byte (dataptr + i);
 	got2 = hdf_write (hfd, buffer, offset, hfd->blocksize);
@@ -447,6 +456,19 @@ static uae_u32 hardfile_expunge (void)
     return 0; /* Simply ignore this one... */
 }
 
+static void outofbounds (int cmd, uae_u64 offset, uae_u64 len, uae_u64 max)
+{
+    write_log ("cmd %d: out of bounds, %08.8X-%08.8X + %08.8X-%08.8X >= %08.8X-%08.8X\n", cmd,
+	(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
+	(uae_u32)(max >> 32),(uae_u32)max);
+}
+static void unaligned (int cmd, uae_u64 offset, uae_u64 len, int blocksize)
+{
+    write_log ("cmd %d: unaligned access, %08.8X-%08.8X, %08.8X-%08.8X, %08.8X\n", cmd,
+	(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
+	blocksize);
+}
+
 static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata *hfpd, uaecptr request)
 {
     uae_u32 dataptr, offset, actual = 0, cmd;
@@ -461,31 +483,39 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
     switch (cmd)
     {
 	case CMD_READ:
+#if 0
 	if (dataptr & 1)
 	    goto bad_command;
+#endif
 	offset = get_long (request + 44);
-	if (offset & bmask)
-	    goto bad_command;
 	len = get_long (request + 36); /* io_Length */
-	if (len & bmask)
+	if ((offset & bmask) || (len & bmask)) {
+	    unaligned (cmd, offset, len, hfd->blocksize);
 	    goto bad_command;
-	if (len + offset > hfd->size)
+	}
+	if (len + offset > hfd->size) {
+	    outofbounds (cmd, offset, len, hfd->size);
 	    goto bad_command;
+	}
 	actual = (uae_u32)cmd_read (hfd, dataptr, offset, len);
 	break;
 
 	case TD_READ64:
 	case NSCMD_TD_READ64:
+#if 0
 	if (dataptr & 1)
 	    goto bad_command;
+#endif
 	offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
-	if (offset64 & bmask)
-	    goto bad_command;
 	len = get_long (request + 36); /* io_Length */
-	if (len & bmask)
+	if ((offset64 & bmask) || (len & bmask)) {
+	    unaligned (cmd, offset64, len, hfd->blocksize);
 	    goto bad_command;
-	if (len + offset64 > hfd->size)
+	}
+	if (len + offset64 > hfd->size) {
+	    outofbounds (cmd, offset64, len, hfd->size);
 	    goto bad_command;
+	}
 	actual = (uae_u32)cmd_read (hfd, dataptr, offset64, len);
 	break;
 
@@ -494,16 +524,20 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	if (hfd->readonly) {
 	    error = 28; /* write protect */
 	} else {
+#if 0
 	    if (dataptr & 1)
 		goto bad_command;
+#endif
 	    offset = get_long (request + 44);
-	    if (offset & bmask)
-		goto bad_command;
 	    len = get_long (request + 36); /* io_Length */
-	    if (len & bmask)
+	    if ((offset & bmask) || (len & bmask)) {
+	        unaligned (cmd, offset, len, hfd->blocksize);
 		goto bad_command;
-	    if (len + offset > hfd->size)
+	    }
+	    if (len + offset > hfd->size) {
+	        outofbounds (cmd, offset, len, hfd->size);
 		goto bad_command;
+	    }
 	    actual = (uae_u32)cmd_write (hfd, dataptr, offset, len);
 	}
 	break;
@@ -515,16 +549,20 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	if (hfd->readonly) {
 	    error = 28; /* write protect */
 	} else {
+#if 0
 	    if (dataptr & 1)
 		goto bad_command;
+#endif
 	    offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
-	    if (offset64 & bmask)
-		goto bad_command;
 	    len = get_long (request + 36); /* io_Length */
-	    if (len & bmask)
+	    if ((offset64 & bmask) || (len & bmask)) {
+	        unaligned (cmd, offset64, len, hfd->blocksize);
 		goto bad_command;
-	    if (len + offset64 > hfd->size)
+	    }
+	    if (len + offset64 > hfd->size) {
+	        outofbounds (cmd, offset64, len, hfd->size);
 		goto bad_command;
+	    }
 	    put_long (request + 32, (uae_u32)cmd_write (hfd, dataptr, offset64, len));
 	}
 	break;

@@ -23,6 +23,7 @@
 #include <Shlobj.h>
 #include <shlwapi.h>
 #include <ddraw.h>
+#include <shobjidl.h>
 
 #include "config.h"
 #include "resource.h"
@@ -81,6 +82,7 @@ static int qs_request_reset;
 int gui_active;
 
 extern HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD );
+
 #undef HtmlHelp
 #ifndef HH_DISPLAY_TOPIC
 #define HH_DISPLAY_TOPIC 0
@@ -141,7 +143,7 @@ static HWND cachedlist = NULL;
 #define MIN_FAST_MEM 0
 #define MAX_FAST_MEM 4
 #define MIN_SLOW_MEM 0
-#define MAX_SLOW_MEM 3
+#define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
 #define MAX_Z3_MEM 10
 #define MIN_P96_MEM 0
@@ -323,7 +325,7 @@ static void show_rom_list (void)
     p2 = strchr (p1, '\n');
     if (!p2) goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 20; roms[1] = 21; roms[2] = -1;
+    roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
     if (listrom (roms)) {
 	roms[0] = 6; roms[1] = 32; roms[2] = -1;
 	if (listrom (roms))
@@ -511,7 +513,7 @@ void gui_display( int shortcut )
 	int ret;
 	if (flipflop)
 	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
-	ret = GetSettings (0, flipflop ? GetDesktopWindow () : hAmigaWnd);
+	ret = GetSettings (0, flipflop ? (currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow()) : hAmigaWnd);
 	if (flipflop > 0)
 	    ShowWindow (hAmigaWnd, SW_RESTORE);
 	if (!ret) {
@@ -974,6 +976,7 @@ static const char *memsize_names[] = {
 /* 12*/ "512 MB",
 /* 13*/ "1 GB",
 /* 14*/ "1.5MB",
+/* 15*/ "1.8MB",
 };
 
 static unsigned long memsizes[] = {
@@ -992,10 +995,11 @@ static unsigned long memsizes[] = {
 /* 12*/ 0x20000000, //512 Meg The correct size is set in mman.c
 /* 13*/ 0x40000000, //1GB
 /* 14*/ 0x00180000, //1.5MB
+/* 15*/ 0x001C0000, //1.8MB
 };
 
 static int msi_chip[] = { 1, 2, 3, 4, 5, 6 };
-static int msi_bogo[] = { 0, 2, 3, 14, 4 };
+static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
 static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13 };
 static int msi_gfx[] = { 0, 3, 4, 5, 6,7,8};
@@ -2330,7 +2334,7 @@ static void addfloppytype (HWND hDlg, int n);
 static void enable_for_quickstart (HWND hDlg)
 {
     int v = quickstart_ok && quickstart_ok_floppy ? TRUE : FALSE;
-    EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), v && !full_property_sheet ? TRUE : FALSE);
+    EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), !full_property_sheet ? TRUE : FALSE);
 }
 
 static void load_quickstart (HWND hDlg, int romcheck)
@@ -3464,7 +3468,7 @@ static void values_to_memorydlg (HWND hDlg)
      case 0x00080000: mem_size = 1; break;
      case 0x00100000: mem_size = 2; break;
      case 0x00180000: mem_size = 3; break;
-     case 0x00200000: mem_size = 4; break;
+     case 0x001C0000: mem_size = 4; break;
     }
     SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_SLOWRAM, memsize_names[msi_bogo[mem_size]]);
@@ -3855,6 +3859,7 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
     CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
     CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
+    CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.tod_hack);
 
@@ -3967,29 +3972,32 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.start_gui = IsDlgButtonChecked (hDlg, IDC_SHOWGUI);
 	    break;
 	case IDC_CREATELOGFILE:
-	    workprefs.win32_logfile = IsDlgButtonChecked( hDlg, IDC_CREATELOGFILE );
+	    workprefs.win32_logfile = IsDlgButtonChecked (hDlg, IDC_CREATELOGFILE);
 	    enable_for_miscdlg( hDlg );
 	    break;
 	case IDC_INACTIVE_PAUSE:
-	    workprefs.win32_inactive_pause = IsDlgButtonChecked( hDlg, IDC_INACTIVE_PAUSE );
+	    workprefs.win32_inactive_pause = IsDlgButtonChecked (hDlg, IDC_INACTIVE_PAUSE);
 	    break;
 	case IDC_INACTIVE_NOSOUND:
-	    workprefs.win32_inactive_nosound = IsDlgButtonChecked( hDlg, IDC_INACTIVE_NOSOUND );
+	    workprefs.win32_inactive_nosound = IsDlgButtonChecked (hDlg, IDC_INACTIVE_NOSOUND);
 	    break;
 	case IDC_MINIMIZED_PAUSE:
-	    workprefs.win32_iconified_pause = IsDlgButtonChecked( hDlg, IDC_MINIMIZED_PAUSE );
+	    workprefs.win32_iconified_pause = IsDlgButtonChecked (hDlg, IDC_MINIMIZED_PAUSE);
 	    break;
 	case IDC_MINIMIZED_NOSOUND:
-	    workprefs.win32_iconified_nosound = IsDlgButtonChecked( hDlg, IDC_MINIMIZED_NOSOUND );
+	    workprefs.win32_iconified_nosound = IsDlgButtonChecked (hDlg, IDC_MINIMIZED_NOSOUND);
 	    break;
 	case IDC_CTRLF11:
-	    workprefs.win32_ctrl_F11_is_quit = IsDlgButtonChecked( hDlg, IDC_CTRLF11 );
+	    workprefs.win32_ctrl_F11_is_quit = IsDlgButtonChecked (hDlg, IDC_CTRLF11);
 	    break;
 	case IDC_SCSIDEVICE:
-	    workprefs.scsi = IsDlgButtonChecked( hDlg, IDC_SCSIDEVICE );
+	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE);
 	    break;
 	case IDC_ASPI:
-	    workprefs.win32_aspi = IsDlgButtonChecked( hDlg, IDC_ASPI );
+	    workprefs.win32_aspi = IsDlgButtonChecked (hDlg, IDC_ASPI);
+	    break;
+	case IDC_NOTASKBARBUTTON:
+	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
 	    break;
 	}
 	return TRUE;
@@ -4273,33 +4281,35 @@ static void enable_for_sounddlg (HWND hDlg)
 
     enumerate_sound_devices (&numdevs);
     if( numdevs == 0 )
-	EnableWindow( GetDlgItem( hDlg, IDC_SOUNDCARDLIST ), FALSE );
+	EnableWindow (GetDlgItem (hDlg, IDC_SOUNDCARDLIST), FALSE);
     else
-	EnableWindow( GetDlgItem( hDlg, IDC_SOUNDCARDLIST ), workprefs.produce_sound );
+	EnableWindow (GetDlgItem (hDlg, IDC_SOUNDCARDLIST), workprefs.produce_sound);
 
-    EnableWindow( GetDlgItem( hDlg, IDC_FREQUENCY ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDFREQ ), workprefs.produce_sound ? TRUE : FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDSTEREO ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDINTERPOLATION ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDVOLUME ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDVOLUME2 ), workprefs.produce_sound );
+    EnableWindow (GetDlgItem (hDlg, IDC_FREQUENCY), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDFREQ), workprefs.produce_sound ? TRUE : FALSE);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREO), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDINTERPOLATION), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME2), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), workprefs.sound_stereo && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo && workprefs.produce_sound);
 
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDBUFFERMEM ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDBUFFERRAM ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDADJUST ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDADJUSTNUM ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDBUFFERTEXT ), workprefs.produce_sound );
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERMEM), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDADJUST), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDADJUSTNUM), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERTEXT), workprefs.produce_sound);
 
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDDRIVE ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDDRIVESELECT ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDDRIVEVOLUME ), workprefs.produce_sound );
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDDRIVEVOLUME2 ), workprefs.produce_sound );
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVE), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVESELECT), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME2), workprefs.produce_sound);
 
-    EnableWindow( GetDlgItem( hDlg, IDC_AUDIOSYNC ), workprefs.produce_sound );
+    EnableWindow (GetDlgItem (hDlg, IDC_AUDIOSYNC), workprefs.produce_sound);
  
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDFILTER ), workprefs.produce_sound );
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDFILTER), workprefs.produce_sound);
 
-    EnableWindow( GetDlgItem( hDlg, IDC_SOUNDCALIBRATE ), workprefs.produce_sound && full_property_sheet);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDCALIBRATE), workprefs.produce_sound && full_property_sheet);
 }
 
 static int exact_log2 (int v)
@@ -4386,7 +4396,7 @@ static void values_to_sounddlg (HWND hDlg)
     int which_button;
     int sound_freq = workprefs.sound_freq;
     int produce_sound = workprefs.produce_sound;
-    int stereo = workprefs.stereo;
+    int stereo = workprefs.sound_stereo;
     char txt[100], *p;
     int i, idx, selected;
 
@@ -4405,19 +4415,25 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_SOUND_MONO, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
-    WIN32GUI_LoadUIString (IDS_SOUND_MIXED, txt, sizeof (txt));
-    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_STEREO, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
-    which_button = 0;
-    if (workprefs.stereo) {
-	if (workprefs.mixed_stereo)
-	    which_button = 1;
-	else
-	    which_button = 2;
-    }
-    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, which_button, 0);
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo ? 1 : 0, 0);
 
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_RESETCONTENT, 0, 0);
+    for (i = 10; i >= 0; i--) {
+	sprintf (txt, "%d%%", i * 10);
+        SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_ADDSTRING, 0, (LPARAM)txt);
+    }
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_SETCURSEL, 10 - (workprefs.sound_stereo_separation / 3), 0);
+
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_ADDSTRING, 0, (LPARAM)"-");
+    for (i = 0; i < 10; i++) {
+	sprintf (txt, "%d", i + 1);
+        SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_ADDSTRING, 0, (LPARAM)txt);
+    }
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_SETCURSEL, workprefs.sound_mixed_stereo > 0 ? workprefs.sound_mixed_stereo : 0, 0);
+    
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_SOUND_INTERPOL_DISABLED, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)txt);
@@ -4516,13 +4532,21 @@ static void values_from_sounddlg (HWND hDlg)
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND1) ? 1
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND2) ? 2 : 3);
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);
-    workprefs.mixed_stereo = 0;
-    workprefs.stereo = 0;
-    if (idx > 0) {
-	workprefs.stereo = 1;
-	if (idx == 1)
-	    workprefs.mixed_stereo = 1;
+    workprefs.sound_stereo = idx == 1 ? 1 : 0;
+    workprefs.sound_stereo_separation = 0;
+    workprefs.sound_mixed_stereo = 0;
+    if (workprefs.sound_stereo > 0) {
+        idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_GETCURSEL, 0, 0);
+	if (idx >= 0) {
+	    if (idx < 10)
+		workprefs.sound_mixed_stereo = -1;
+	    workprefs.sound_stereo_separation = (10 - idx) * 3;
+	}
+	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_GETCURSEL, 0, 0);
+	if (idx > 0)
+	    workprefs.sound_mixed_stereo = idx;
     }
+
     workprefs.sound_interpol = SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_GETCURSEL, 0, 0);
     workprefs.win32_soundcard = SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_GETCURSEL, 0, 0L);
     workprefs.sound_filter = SendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_GETCURSEL, 0, 0);
@@ -7402,7 +7426,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 static BOOL CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-	
+
     switch(msg)
     {
 	case WM_INITDIALOG:
@@ -7561,7 +7585,7 @@ int gui_init (void)
 {
     int ret;
     
-    ret = GetSettings(1, GetDesktopWindow ());
+    ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow());
     if (ret > 0) {
 #ifdef AVIOUTPUT
 	AVIOutput_Begin ();
@@ -7796,6 +7820,13 @@ void gui_message (const char *format,...)
     setmouseactive (focuso);
 }
 
+void gui_message_id (int id)
+{
+    char msg[MAX_DPATH];
+    WIN32GUI_LoadUIString (id, msg, sizeof (msg));
+    gui_message (msg);
+}
+
 void pre_gui_message (const char *format,...)
 {
     char msg[2048];
@@ -7823,6 +7854,7 @@ static int transla[] = {
     NUMSG_MODRIP_NOTFOUND,IDS_NUMSG_MODRIP_NOTFOUND,
     NUMSG_MODRIP_FINISHED,IDS_NUMSG_MODRIP_FINISHED,
     NUMSG_MODRIP_SAVE,IDS_NUMSG_MODRIP_SAVE,
+    NUMSG_KS68EC020,IDS_NUMSG_KS68EC020,
     NUMSG_KS68020,IDS_NUMSG_KS68020,
     NUMSG_ROMNEED,IDS_NUMSG_ROMNEED,
     NUMSG_NOZLIB,IDS_NUMSG_NOZLIB,

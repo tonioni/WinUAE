@@ -3,10 +3,14 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include <shellapi.h>
+#include "resource.h"
+
 #include "config.h"
 #include "threaddep/thread.h"
 #include "filesys.h"
 #include "blkdev.h"
+#include "win32gui.h"
 
 #define hfd_log write_log
 
@@ -112,9 +116,7 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	write_log ("hd accepted (empty)\n");
 	return 1;
     }
-    gui_message ("WARNING: Non-empty or Amiga formatted\n"
-	"harddrive detected and safety test was disabled\n\n"
-	"Harddrives marked with 'HD_*_' are not empty\n");
+    gui_message_id (IDS_HARDDRIVESAFETYWARNING);
     return 2;
 }
 

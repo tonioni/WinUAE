@@ -181,7 +181,7 @@ static int calibrate (void)
 {
     int len = 1000;
     int pos, lastpos, tpos, expected, diff;
-    int mult = currprefs.stereo ? 4 : 2;
+    int mult = currprefs.sound_stereo ? 4 : 2;
     double qv, pct;
 
     if (!QueryPerformanceFrequency(&qpf)) {
@@ -259,7 +259,7 @@ static int open_audio_ds (int size)
 	size <<= 3;
     } else {
 	size <<= 1;
-	if (currprefs.stereo)
+	if (currprefs.sound_stereo)
 	    size <<= 1;
     }
     snd_configsize = size;
@@ -319,7 +319,7 @@ static int open_audio_ds (int size)
     }
 
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
-    wavfmt.nChannels = dsound_hardware_mixing ? 4 : (currprefs.stereo ? 2 : 1);
+    wavfmt.nChannels = dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1);
     wavfmt.nSamplesPerSec = freq;
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
@@ -367,10 +367,12 @@ static int open_audio_ds (int size)
     if (dsound_hardware_mixing)
 	sample_handler = sample16ss_handler;
     else
-	sample_handler = currprefs.stereo ? sample16s_handler : sample16_handler;
+	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
 
     write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
-	sound_devices[currprefs.win32_soundcard], dsound_hardware_mixing ? 4 : (currprefs.stereo ? 2 : 1), 16, freq, max_sndbufsize, snd_configsize);
+	sound_devices[currprefs.win32_soundcard],
+	dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1),
+	16, freq, max_sndbufsize, snd_configsize);
     obtainedfreq = currprefs.sound_freq;
 
     return 1;
@@ -581,7 +583,7 @@ static void finish_sound_buffer_ds (void)
 
 static void filtercheck (uae_s16 *sndbuffer, int len)
 {
-    int ch = dsound_hardware_mixing ? 4 : (currprefs.stereo ? 2 : 1);
+    int ch = dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1);
     int i;
     static double cold[4];
     double old0, old1, v;
@@ -668,7 +670,7 @@ int sound_calibrate (HWND hwnd, struct uae_prefs *p)
 
     hMainWnd = hwnd;
     currprefs.sound_freq = p->sound_freq;
-    currprefs.stereo = p->stereo;
+    currprefs.sound_stereo = p->sound_stereo;
     if (open_sound ()) {
         SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	pct = calibrate ();

@@ -440,7 +440,7 @@ static int acquire (LPDIRECTINPUTDEVICE8 lpdi, char *txt)
     HRESULT hr = DI_OK;
     if (lpdi) {
 	hr = IDirectInputDevice8_Acquire (lpdi);
-	if (hr != DI_OK) {
+	if (hr != DI_OK && hr != 0x80070005) {
 	    write_log ("acquire %s failed, %s\n", txt, DXError (hr));
 	}
     }

@@ -174,7 +174,6 @@ typedef struct {
     int rdb_filesyssize;
     char *filesysdir;
 
-
 } UnitInfo;
 
 struct uaedev_mount_info {
@@ -1295,6 +1294,8 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const char *rel, uae_u32 *e
 
 static void startup_update_unit (Unit *unit, UnitInfo *uinfo)
 {
+    if (!unit)
+	return;
     unit->ui.devname = uinfo->devname;
     xfree (unit->ui.volname);
     unit->ui.volname = my_strdup (uinfo->volname); /* might free later for rename */
@@ -3489,11 +3490,22 @@ static uae_u32 filesys_handler (void)
     return 0;
 }
 
+static void init_filesys_diagentry (void)
+{
+    do_put_mem_long ((uae_u32 *)(filesysory + 0x2100), EXPANSION_explibname);
+    do_put_mem_long ((uae_u32 *)(filesysory + 0x2104), filesys_configdev);
+    do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
+    do_put_mem_long ((uae_u32 *)(filesysory + 0x210c), current_mountinfo->num_units);
+    native2amiga_startup();
+}
+
 void filesys_start_threads (void)
 {
     UnitInfo *uip;
     int i;
 
+    if (savestate_state == STATE_RESTORE)
+	init_filesys_diagentry ();
     current_mountinfo = currprefs.mountinfo;
     uip = current_mountinfo->ui;
     for (i = 0; i < current_mountinfo->num_units; i++) {
@@ -3594,11 +3606,7 @@ static uae_u32 filesys_diagentry (void)
     TRACE (("filesystem: diagentry called\n"));
 
     filesys_configdev = m68k_areg (regs, 3);
-
-    do_put_mem_long ((uae_u32 *)(filesysory + 0x2100), EXPANSION_explibname);
-    do_put_mem_long ((uae_u32 *)(filesysory + 0x2104), filesys_configdev);
-    do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
-    do_put_mem_long ((uae_u32 *)(filesysory + 0x210c), current_mountinfo->num_units);
+    init_filesys_diagentry ();
 
     uae_sem_init (&singlethread_int_sem, 0, 1);
     if (ROM_hardfile_resid != 0) {
@@ -3625,7 +3633,6 @@ static uae_u32 filesys_diagentry (void)
      * diag entry. */
 
     resaddr = scsidev_startup(resaddr);
-    native2amiga_startup();
 
     /* scan for Residents and return pointer to array of them */
     residents = resaddr;
@@ -4462,6 +4469,7 @@ uae_u8 *save_filesys (int num, int *len)
     save_u8 (ui->bootpri);
     save_u8 (ui->readonly);
     save_u32 (ui->startup);
+    save_u32 (filesys_configdev);
     if (type == FILESYS_VIRTUAL)
 	dst = save_filesys_virtual (ui, dst);
     *len = dst - dstbak;
@@ -4494,6 +4502,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
     }
     ui = &current_mountinfo->ui[devno];
     ui->startup = restore_u32 ();
+    filesys_configdev = restore_u32 ();
     if (type == FILESYS_VIRTUAL)
 	src = restore_filesys_virtual (ui, src);
 end:

@@ -91,46 +91,46 @@ void romlist_clear (void)
 }
 
 static struct romdata roms[] = {
-    { "Cloanto Amiga Forever ROM key", 0, 0, 0x869ae1b1, 2069, 0, 68000, ROMTYPE_KEY },
+    { "Cloanto Amiga Forever ROM key", 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
 
-    { "Kickstart v1.0 (A1000)(NTSC)", 0, 0, 0x299790ff, 262144, 1, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(NTSC)", 31, 34, 0xd060572a, 262144, 2, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(PAL)", 31, 34, 0xec86dae2, 262144, 3, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A1000)", 33, 166, 0x0ed783d0, 262144, 4, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A500,A1000,A2000)", 33, 180, 0xa6ce1636, 262144, 5, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A500,A1000,A2000)", 34, 5, 0xc4f0f55f, 262144, 6, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A3000)", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.0 (A1000)(NTSC)", 0, 0, 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(NTSC)", 31, 34, 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(PAL)", 31, 34, 0xec86dae2, 262144, 3, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A1000)", 33, 166, 0x0ed783d0, 262144, 4, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A500,A1000,A2000)", 33, 180, 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A500,A1000,A2000)", 34, 5, 0xc4f0f55f, 262144, 6, 60, 0, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A3000)", 34, 5, 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v2.04 (A500+)", 37, 175, 0xc3bdb240, 524288, 7, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600)", 37, 299, 0x83028fb5, 524288, 8, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 37, 300, 0x64466c2a, 524288, 9, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 37, 350, 0x43b0df7b, 524288, 10, 68000, ROMTYPE_KICK },
+    { "Kickstart v2.04 (A500+)", 37, 175, 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600)", 37, 299, 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 37, 300, 0x64466c2a, 524288, 9, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 37, 350, 0x43b0df7b, 524288, 10, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v3.0 (A1200)", 39, 106, 0x6c9b07d2, 524288, 11, 68000, ROMTYPE_KICK },
-    { "Kickstart v3.0 (A4000)", 39, 106, 0x9e6ac152, 524288, 12, 68020, ROMTYPE_KICK },
-//    { "Kickstart v3.1", 40, 55, 0x14e93bcc, 524288, 13, 68020, ROMTYPE_KICK }, !! HACK
-    { "Kickstart v3.1 (A500,A600,A2000)", 40, 63, 0xfc24ae0d, 524288, 14, 68000, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A1200)", 40, 68, 0x1483a091, 524288, 15, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)(Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)", 40, 68, 0xd6bae334, 524288, 16, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A1200)", 39, 106, 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A4000)", 39, 106, 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
+//    { "Kickstart v3.1 (A4000)", 40, 70, 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A500,A600,A2000)", 40, 63, 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A1200)", 40, 68, 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)(Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)", 40, 68, 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
+//    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 1, 0, ROMTYPE_KICK },
 
-    { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 68020, ROMTYPE_KICKCD32 },
-    { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 68020, ROMTYPE_EXTCD32 },
+    { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
+    { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
 
-    { "CDTV Extended v1.0", 0, 0, 0x42baa124, 262144, 20, 68000, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.3", 0, 0, 0x30b54232, 262144, 21, 68000, ROMTYPE_EXTCDTV },
-//    { "CDTV Extended v2.7", 0, 0, 0xceae68d2, 262144, 22, 68000, ROMTYPE_EXTCDTV }, !! Non Confirmed
+    { "CDTV Extended v1.00", 0, 0, 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV Extended v2.30", 0, 0, 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV Extended v2.07", 0, 0, 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
 
-    { "A1000 Bootstrap", 0, 0, 0x62f11c04, 8192, 23, 68000, ROMTYPE_KICK },
-    { "A1000 Bootstrap", 0, 0, 0x0b1ad2d0, 65536, 24, 68000, ROMTYPE_KICK },
+    { "A1000 Bootstrap", 0, 0, 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
+    { "A1000 Bootstrap", 0, 0, 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
 
-    { "Action Replay Mk I v1.50", 0, 0, 0xd4ce0675, 65536, 25, 68000, ROMTYPE_AR },
-    { "Action Replay Mk II v2.05", 0, 0, 0x1287301f , 131072, 26, 68000, ROMTYPE_AR },
-    { "Action Replay Mk II v2.12", 0, 0, 0x804d0361 , 131072, 27, 68000, ROMTYPE_AR },
-    { "Action Replay Mk II v2.14", 0, 0, 0x49650e4f, 131072, 28, 68000, ROMTYPE_AR },
-    { "Action Replay Mk III v3.09", 0, 0, 0x0ed9b5aa, 262144, 29, 68000, ROMTYPE_AR },
-    { "Action Replay Mk III v3.17", 0, 0, 0xc8a16406, 262144, 30, 68000, ROMTYPE_AR },
+    { "Action Replay Mk I v1.50", 0, 0, 0xd4ce0675, 65536, 25, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.05", 0, 0, 0x1287301f , 131072, 26, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.12", 0, 0, 0x804d0361 , 131072, 27, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.14", 0, 0, 0x49650e4f, 131072, 28, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk III v3.09", 0, 0, 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk III v3.17", 0, 0, 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
     { 0 }
 };
 
@@ -1673,11 +1673,26 @@ void memory_reset (void)
 #else
 	    uae_restart (-1, NULL);
 #endif
+	} else {
+	    struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
+	    if (rd) {
+		if (rd->cpu == 1 && currprefs.cpu_level < 2) {
+		    notify_user (NUMSG_KS68EC020);
+		    uae_restart (-1, NULL);
+		} else if (rd->cpu == 2 && (currprefs.cpu_level < 2 || currprefs.address_space_24)) {
+		    notify_user (NUMSG_KS68020);
+		    uae_restart (-1, NULL);
+		}
+		if (rd->cloanto)
+		    cloanto_rom = 1;
+	    }
 	}
     }
 
-    custom_start = 0xC0;
+    if (cloanto_rom)
+	currprefs.maprom = changed_prefs.maprom = 0;
 
+    custom_start = 0xC0;
     map_banks (&custom_bank, custom_start, 0xE0 - custom_start, 0);
     map_banks (&cia_bank, 0xA0, 32, 0);
     map_banks (&clock_bank, 0xDC, 1, 0);

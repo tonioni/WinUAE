@@ -196,7 +196,7 @@
 				RelativePath="..\resources\folder.ico">
 			</File>
 			<File
-				RelativePath="..\resources\H_arrow.cur">
+				RelativePath="..\resources\h_arrow.cur">
 			</File>
 			<File
 				RelativePath="..\resources\joystick.ico">
@@ -209,9 +209,6 @@
 			</File>
 			<File
 				RelativePath="..\resources\move_up.ico">
-			</File>
-			<File
-				RelativePath="..\resources\path.ico">
 			</File>
 			<File
 				RelativePath="..\resources\paths.ico">

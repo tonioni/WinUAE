@@ -250,6 +250,7 @@ struct romdata {
     uae_u32 size;
     int id;
     int cpu;
+    int cloanto;
     int type;
 };
 

@@ -156,7 +156,7 @@ static void fix_options (void)
 	write_log ("Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"
 		 "address space - sorry.\n");
     }
-    if (currprefs.bogomem_size != 0 && currprefs.bogomem_size != 0x80000 && currprefs.bogomem_size != 0x100000 && currprefs.bogomem_size != 0x180000)
+    if (currprefs.bogomem_size != 0 && currprefs.bogomem_size != 0x80000 && currprefs.bogomem_size != 0x100000 && currprefs.bogomem_size != 0x180000 && currprefs.bogomem_size != 0x1c0000)
     {
 	currprefs.bogomem_size = 0;
 	write_log ("Unsupported bogomem size!\n");
@@ -506,6 +506,8 @@ void reset_all_systems (void)
 
 void do_start_program (void)
 {
+    if (quit_program == -1)
+	return;
     /* Do a reset on startup. Whether this is elegant is debatable. */
     inputdevice_updateconfig (&currprefs);
     quit_program = 2;

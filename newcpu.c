@@ -1515,7 +1515,6 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 {
     uaecptr pc = m68k_getpc ();
     static int warned;
-    static int cpu68020;
 
     if (cloanto_rom && (opcode & 0xF100) == 0x7100) {
 	m68k_dreg (regs, (opcode >> 9) & 7) = (uae_s8)(opcode & 0xFF);
@@ -1524,9 +1523,9 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	return 4;
     }
 
-    if (opcode == 0x4E7B && get_long (0x10) == 0 && in_rom (pc) && !cpu68020) {
-	notify_user (NUMSG_KS68020);
-	cpu68020 = 1;
+    if (opcode == 0x4E7B && in_rom (pc) && get_long (0x10) == 0) {
+        notify_user (NUMSG_KS68020);
+	uae_restart (-1, NULL);
     }
 
 #ifdef AUTOCONFIG
@@ -1794,6 +1793,8 @@ static void m68k_run_1 (void)
 	uae_u32 opcode = regs.ir;
 #if 0
 	int pc = m68k_getpc();
+	if (pc == 0xdff002)
+	    write_log("hip\n");
 	if (pc != pcs[0] && (pc < 0xd00000 || pc > 0x1000000)) {
 	    memmove (pcs + 1, pcs, 998 * 4);
 	    pcs[0] = pc;

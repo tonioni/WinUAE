@@ -14,14 +14,14 @@
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU )
 
 extern HMODULE hUIDLL;
-extern HWND hAmigaWnd, hMainWnd;
+extern HWND hAmigaWnd, hMainWnd, hHiddenWnd;
 extern RECT amigawin_rect;
 extern int in_sizemove;
 extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 8"
+#define WINUAEBETASTR " Beta 9"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);
@@ -56,15 +56,6 @@ extern int os_winnt, os_winnt_admin;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart;
-
-/* For StatusBar when running in a Window */
-#define LED_NUM_PARTS 10
-#define LED_POWER_WIDTH 42
-#define LED_HD_WIDTH 24
-#define LED_CD_WIDTH 24
-#define LED_DRIVE_WIDTH 24
-#define LED_FPS_WIDTH 64
-#define LED_IDLE_WIDTH 64
 
 extern HKEY hWinUAEKey;
 extern int screen_is_picasso;
