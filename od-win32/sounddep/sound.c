@@ -322,6 +322,7 @@ static int open_audio_ds (int size)
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * freq;
+    wavfmt.cbSize = 0;
 
     max_sndbufsize = size * 3;
     if (max_sndbufsize > SND_MAX_BUFFER2)

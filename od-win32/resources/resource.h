@@ -277,6 +277,7 @@
 #define IDC_CLOANTOHOME                 1075
 #define IDC_THEROOTS                    1076
 #define IDC_CAPS                        1077
+#define IDC_ABIME                       1078
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092
 #define IDC_CONTRIBUTORS                1124
@@ -753,7 +754,6 @@
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
 #define IDC_DF1QQ                       1680
-#define IDC_DF1QQ2                      1681
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682
 #define IDC_DF0TEXTQ                    1683

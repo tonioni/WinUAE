@@ -999,6 +999,8 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
     static int oddfstrt, oddfstop, ototal, ofree;
     static int slow;
     
+    if (!totalcycles)
+	return;
     if (ddfstrt != oddfstrt || ddfstop != oddfstop || totalcycles != ototal || ofree != freecycles) {
 	int linecycles = ((ddfstop - ddfstrt + totalcycles - 1) / totalcycles) * totalcycles;
 	int freelinecycles = ((ddfstop - ddfstrt + totalcycles - 1) / totalcycles) * freecycles;

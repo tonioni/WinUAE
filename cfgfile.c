@@ -290,12 +290,15 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
     for (i = 0; i < 2; i++) {
 	int v = i == 0 ? p->jport0 : p->jport1;
         char tmp1[100], tmp2[50];
-        if (v < JSEM_JOYS)
+        if (v < JSEM_JOYS) {
 	    sprintf (tmp2, "kbd%d", v + 1);
-	else if (v < JSEM_MICE)
-	    sprintf (tmp2, "joy%d", v - JSEM_JOYS + 1);
-	else
-	    sprintf (tmp2, "mouse%d", v - JSEM_MICE + 1);
+	} else if (v < JSEM_MICE) {
+	    sprintf (tmp2, "joy%d", v - JSEM_JOYS);
+	} else {
+	    strcpy (tmp2, "mouse");
+	    if (v - JSEM_MICE > 0)
+		sprintf (tmp2, "mouse%d", v - JSEM_MICE);
+	}
 	sprintf (tmp1, "joyport%d=%s\n", i, tmp2);
 	cfgfile_write (f, tmp1);
     }
@@ -730,13 +733,16 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	}
 	if (pp) {
 	    int v = atol (pp);
-	    if (start >= 0 && v > 0) {
-		v--;
-		start += v;
-		if (port)
-		    p->jport1 = start;
-		else
-		    p->jport0 = start;
+	    if (start >= 0) {
+		if (start == JSEM_KBDLAYOUT)
+		    v--;
+		if (v >= 0) {
+		    start += v;
+		    if (port)
+			p->jport1 = start;
+		    else
+			p->jport0 = start;
+		}
 	    }
 	}
 	return 1;

@@ -2152,7 +2152,6 @@ static void DisplayContributors (HWND hDlg)
     DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_CONTRIBUTORS), hDlg, ContributorsProc);
 }
 
-#define NUM_URLS 8
 typedef struct url_info
 {
     int   id;
@@ -2161,7 +2160,7 @@ typedef struct url_info
     char *url;
 } urlinfo;
 
-static urlinfo urls[NUM_URLS] = 
+static urlinfo urls[] = 
 {
     {IDC_CLOANTOHOME, FALSE, "Cloanto's Amiga Forever", "http://www.amigaforever.com/"},
     {IDC_AMIGAHOME, FALSE, "Amiga Inc.", "http://www.amiga.com"},
@@ -2169,8 +2168,10 @@ static urlinfo urls[NUM_URLS] =
     {IDC_UAEHOME, FALSE, "UAE Home Page", "http://www.freiburg.linux.de/~uae/"},
     {IDC_WINUAEHOME, FALSE, "WinUAE Home Page", "http://www.winuae.net/"},
     {IDC_AIABHOME, FALSE, "AIAB", "http://aiab.emuunlim.com/"},
-    {IDC_THEROOTS, FALSE, "Back To The Roots", "http://back2roots.emuunlim.com/"},
-    {IDC_CAPS, FALSE, "CAPS", "http://caps-project.org/"}
+    {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
+    {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
+    {IDC_CAPS, FALSE, "CAPS", "http://caps-project.org/"},
+    { -1, FALSE, NULL, NULL }
 };
 
 static void SetupRichText( HWND hDlg, urlinfo *url )
@@ -2200,7 +2201,7 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
     point.x = LOWORD (lParam);
     point.y = HIWORD (lParam);
     
-    for (i = 0; i < NUM_URLS; i++) 
+    for (i = 0; urls[i].id >= 0; i++) 
     {
 	RECT rect;
 	GetWindowRect( GetDlgItem( hDlg, urls[i].id), &rect );
@@ -2417,7 +2418,7 @@ static struct amigamodels amodels[] = {
     { 4, IDS_QS_MODEL_A500P }, // "Amiga 500+"
     { 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
     { 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
-    { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200", 
+    { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
     { 3, IDS_QS_MODEL_CD32 }, // "CD32"
     { 4, IDS_QS_MODEL_CDTV }, // "CDTV"
     { 0, 0 },
@@ -2825,7 +2826,7 @@ static void init_aboutdlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
     SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
-    for( i = 0; i < NUM_URLS; i++ )
+    for( i = 0; urls[i].id >= 0; i++ )
     {
         SetupRichText( hDlg, &urls[i] );
     }
@@ -5900,10 +5901,17 @@ static void updatejoyport (HWND hDlg)
 	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
         for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
-	if (v >= JSEM_MICE)
-	    idx = inputdevice_get_device_total (IDTYPE_JOYSTICK) + (v - JSEM_MICE) + 1;
-	else if (v >= JSEM_JOYS)
+	if (v >= JSEM_MICE) {
+	    idx = (v - JSEM_MICE) + 1;
+	    if (idx > inputdevice_get_device_total (IDTYPE_MOUSE))
+		idx = 0;
+	    else
+		idx += inputdevice_get_device_total (IDTYPE_JOYSTICK);
+	}else if (v >= JSEM_JOYS) {
 	    idx = v - JSEM_JOYS + 1;
+	    if (idx > inputdevice_get_device_total (IDTYPE_JOYSTICK))
+		idx = 0;
+	}
 	if (idx >= total)
 	    idx = 0;
 	SendDlgItemMessage (hDlg, id1, CB_SETCURSEL, idx, 0);

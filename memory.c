@@ -373,7 +373,7 @@ uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal lget at %08lx\n", addr);
+	    write_log ("Illegal lget at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
     if (currprefs.cpu_level >= 2)
@@ -389,7 +389,7 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal wget at %08lx\n", addr);
+	    write_log ("Illegal wget at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
     if (currprefs.cpu_level >= 2)
@@ -405,7 +405,7 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal bget at %08lx\n", addr);
+	    write_log ("Illegal bget at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
     if (currprefs.cpu_level >= 2)
@@ -421,7 +421,7 @@ void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
    if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal lput at %08lx\n", addr);
+	    write_log ("Illegal lput at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
 }
@@ -433,7 +433,7 @@ void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal wput at %08lx\n", addr);
+	    write_log ("Illegal wput at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
 }
@@ -445,7 +445,7 @@ void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal bput at %08lx\n", addr);
+	    write_log ("Illegal bput at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
 }
@@ -458,7 +458,7 @@ int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
     if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
-	    write_log ("Illegal check at %08lx\n", addr);
+	    write_log ("Illegal check at %08lx PC=%x\n", addr, m68k_getpc());
 	}
     }
 

@@ -1258,7 +1258,7 @@ static int keyhack (int scancode,int pressed, int num)
 	return -1;
     }
 
-    if (!keyboard_german)
+    if (!keyboard_german || currprefs.input_selected_setting > 0)
 	return scancode;
  
  //This code look so ugly because there is no Directinput
@@ -1477,10 +1477,12 @@ static void unacquire_kb (int num)
     }
     release_keys ();
 
-    if (currprefs.keyboard_leds_in_use && oldusedleds >= 0) {
-	if (!usbledmode)
-	    set_leds (oldleds);
-	oldusedleds = oldleds;
+    if (currprefs.keyboard_leds_in_use) {
+	if (oldusedleds >= 0) {
+	    if (!usbledmode)
+		set_leds (oldleds);
+	    oldusedleds = oldleds;
+	}
 #ifdef WINDDK
 	if (kbhandle != INVALID_HANDLE_VALUE) {
 	    CloseHandle(kbhandle);
@@ -1557,18 +1559,6 @@ static void read_joystick (void)
 	if (currprefs.input_selected_setting == 0) {
 	    if (jsem_isjoy (0, &currprefs) != i && jsem_isjoy (1, &currprefs) != i)
 		continue;
-#if 0
-	    if (i >= 2)
-		break;
-	    if (isjoy (i, 0)) {
-		if (JSEM_ISNUMPAD (0, &currprefs) || JSEM_ISCURSOR (0, &currprefs) || JSEM_ISSOMEWHEREELSE (0, &currprefs))
-		    continue;
-	    } else if (isjoy (i, 1)) {
-		if (JSEM_ISNUMPAD (1, &currprefs) || JSEM_ISCURSOR (1, &currprefs) || JSEM_ISSOMEWHEREELSE (1, &currprefs))
-		    continue;
-	    } else
-		continue;
-#endif
 	}
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
