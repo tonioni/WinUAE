@@ -198,14 +198,39 @@ int my_mkdir (const char *name)
     return CreateDirectory (name, NULL) == 0 ? -1 : 0;
 }
 
-int my_rmdir (const char *name)
+static int recycle (const char *name)
 {
-    return RemoveDirectory (name) == 0 ? -1 : 0;
+    SHFILEOPSTRUCT fos;
+    /* name must be terminated by \0\0 */
+    char *p = xcalloc (strlen (name) + 2, 1);
+    int v;
+    
+    strcpy (p, name);
+    memset (&fos, 0, sizeof (fos));
+    fos.wFunc = FO_DELETE;
+    fos.pFrom = p;
+    fos.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
+    v = SHFileOperation (&fos);
+    xfree (p);
+    return v ? -1 : 0;
 }
 
+int my_rmdir (const char *name)
+{
+    return recycle (name);
+    //return RemoveDirectory (name) == 0 ? -1 : 0;
+}
+
+/* "move to Recycle Bin" (if enabled) -version of DeleteFile() */
 int my_unlink (const char *name)
 {
-    return DeleteFile (name) == 0 ? -1 : 0;
+    return recycle (name);
+    //return DeleteFile (name) == 0 ? -1 : 0;
+}
+
+int my_rename (const char *oldname, const char *newname)
+{
+    return MoveFile (oldname, newname) == 0 ? -1 : 0;
 }
 
 struct my_opendirs {
@@ -332,12 +357,11 @@ int my_truncate (const char *name, long int len)
             if (SetEndOfFile (hFile) == TRUE)
                 result = 0;
         } else {
-            write_log ("SetFilePointer() failure for %s to posn %d\n", name, len);
+            write_log ("truncate: SetFilePointer() failure for %s to posn %d\n", name, len);
         }
         CloseHandle( hFile );
     } else {
-        write_log ("CreateFile() failed to open %s\n", name);
+        write_log ("truncate: CreateFile() failed to open %s\n", name);
     }
     return result;
 }
-    

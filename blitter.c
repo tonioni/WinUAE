@@ -53,7 +53,7 @@ uae_u32 blit_masktable[BLITTER_MAX_WORDS];
 static uae_u16 blit_trashtable[BLITTER_MAX_WORDS];
 enum blitter_states bltstate;
 
-static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown, blit_cycles_total;
+static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown;
 static int blit_linecyclecounter, blit_misscyclecounter;
 
 #ifdef CPUEMU_6
@@ -897,7 +897,6 @@ void do_blitter (int hpos)
         blit_firstline_cycles = blit_first_cycle + blit_diag[1] * blt_info.hblitsize * CYCLE_UNIT;
         cycles = blt_info.vblitsize * blt_info.hblitsize;
     }
-    blit_cycles_total = cycles;
 
 #ifdef BLITTER_DEBUG
     blitter_dontdo = 0;
@@ -998,33 +997,24 @@ int blitnasty (void)
 void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles)
 {
     static int oddfstrt, oddfstop, ototal, ofree;
-    static int cycles_used;
-    int slow;
+    static int slow;
     
     if (ddfstrt != oddfstrt || ddfstop != oddfstop || totalcycles != ototal || ofree != freecycles) {
-	int linecycles = ddfstop - ddfstrt;
-        cycles_used = 0;
-        if (linecycles > blit_cycles_total)
-	    linecycles = blit_cycles_total;
-	if (linecycles < 0)
-	    linecycles = 0;
-	if (totalcycles == 0)
-	    return;
-	cycles_used = linecycles * (totalcycles - freecycles) / totalcycles;
+	int linecycles = ((ddfstop - ddfstrt + totalcycles - 1) / totalcycles) * totalcycles;
+	int freelinecycles = ((ddfstop - ddfstrt + totalcycles - 1) / totalcycles) * freecycles;
+	int dmacycles = (linecycles * blit_dmacount) / blit_diag[1];
 	oddfstrt = ddfstrt;
 	oddfstop = ddfstop;
 	ototal = totalcycles;
 	ofree = freecycles;
+	slow = 0;
+	if (dmacycles > freelinecycles)
+	    slow = dmacycles - freelinecycles;
     }
-    if (blit_slowdown < 0 || blitline || totalcycles == 0)
-	return;
-    slow = cycles_used * blit_dmacount / blit_diag[1];
-    slow = slow * 6 / 10;
-    if (slow <= 0)
+    if (blit_slowdown <= 0 || blitline)
 	return;
     blit_slowdown += slow;
     blit_misscyclecounter += slow;
-    blit_cycles_total -= maxhpos;
 }
 
 uae_u8 *restore_blitter (uae_u8 *src)

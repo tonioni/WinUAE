@@ -2670,6 +2670,8 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    pages[QUICKSTART_ID] = hDlg;
 	    currentpage = QUICKSTART_ID;
 	    enable_for_quickstart (hDlg);
+	    strcpy (df0, workprefs.df[0]);
+	    strcpy (df1, workprefs.df[1]);
 	    doinit = 1;
 	    break;
 	case WM_NULL:
@@ -2780,7 +2782,7 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	recursive--;
 	break;
     }
-    if (recursive == 0) {
+    if (recursive == 0 && quickstart) {
 	recursive++;
 	if (strcmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0]) {
     	    strcpy (df0, workprefs.df[0]);
@@ -5439,7 +5441,7 @@ static void addfloppytype (HWND hDlg, int n)
     chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
     if (f_wp >= 0)
 	CheckDlgButton(hDlg, f_wp, chk);
-    chk = state && DISK_validate_filename (workprefs.df[n], 0, 0) ? TRUE : FALSE;
+    chk = state && DISK_validate_filename (workprefs.df[n], 0, NULL, NULL) ? TRUE : FALSE;
     if (f_wp >= 0)
 	EnableWindow(GetDlgItem(hDlg, f_wp), chk);
  
@@ -5887,7 +5889,7 @@ static void updatejoyport (HWND hDlg)
     if (joy1previous < 0)
 	joy1previous = 1;
     for (i = 0; i < 2; i++) {
-	int total = 0;
+	int total = 1;
 	int idx = i == 0 ? joy0previous : joy1previous;
 	int id1 = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
 	int id2 = i == 0 ? IDC_PORT0_JOYSC : IDC_PORT1_JOYSC;
@@ -7868,43 +7870,60 @@ void gui_led (int led, int on)
 {
     WORD type;
     static char drive_text[NUM_LEDS * 16];
-    char *ptr;
-    int pos = -1;
+    static char dfx[4][300];
+    char *ptr, *tt, *p;
+    int pos = -1, j;
 
     indicator_leds (led, on);
-    if( hStatusWnd )
-    {
-        if (on)
-	    type = SBT_POPOUT;
+    if (!hStatusWnd)
+	return;
+    if (on)
+        type = SBT_POPOUT;
+    else
+        type = 0;
+    tt = NULL;
+    if (led >= 1 && led <= 4) {
+        pos = 5 + (led - 1);
+        ptr = drive_text + pos * 16;
+        if (gui_data.drive_disabled[led - 1])
+	    strcpy (ptr, "");
 	else
-	    type = 0;
-	if (led >= 1 && led <= 4) {
-	    pos = 5 + (led - 1);
-	    ptr = drive_text + pos * 16;
-	    if (gui_data.drive_disabled[led - 1])
-		strcpy (ptr, "");
-	    else
-		sprintf (ptr , "%02d", gui_data.drive_track[led - 1]);
-	} else if (led == 0) {
-	    pos = 2;
-	    ptr = strcpy (drive_text + pos * 16, "Power");
-	} else if (led == 5) {
-	    pos = 3;
-	    ptr = strcpy (drive_text + pos * 16, "HD");
-	} else if (led == 6) {
-	    pos = 4;
-	    ptr = strcpy (drive_text + pos * 16, "CD");
-	} else if (led == 7) {
-	    pos = 1;
-	    ptr = drive_text + pos * 16;
-	    sprintf(ptr, "FPS: %.1f", (double)((gui_data.fps + 5) / 10.0));
-	} else if (led == 8) {
-	    pos = 0;
-	    ptr = drive_text + pos * 16;
-	    sprintf(ptr, "CPU: %.0f%%", (double)((gui_data.idle) / 10.0));
+	    sprintf (ptr , "%02d  .", gui_data.drive_track[led - 1]);
+        p = gui_data.df[led - 1];
+        j = strlen (p) - 1;
+	if (j < 0)
+	    j = 0;
+	while (j > 0) {
+	    if (p[j - 1] == '\\' || p[j - 1] == '/')
+	        break;
+	    j--;
 	}
-	if (pos >= 0)
-	    PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM) ((pos + 1) | type), (LPARAM) ptr);
+        tt = dfx[led - 1]; 
+        tt[0] = 0;
+	if (strlen (p + j) > 0)
+	    sprintf (tt, "%s (CRC=%08.8X)", p + j, gui_data.crc32[led - 1]);
+    } else if (led == 0) {
+        pos = 2;
+        ptr = strcpy (drive_text + pos * 16, "Power");
+    } else if (led == 5) {
+        pos = 3;
+        ptr = strcpy (drive_text + pos * 16, "HD");
+    } else if (led == 6) {
+        pos = 4;
+        ptr = strcpy (drive_text + pos * 16, "CD");
+    } else if (led == 7) {
+	pos = 1;
+	ptr = drive_text + pos * 16;
+	sprintf(ptr, "FPS: %.1f", (double)((gui_data.fps + 5) / 10.0));
+    } else if (led == 8) {
+        pos = 0;
+        ptr = drive_text + pos * 16;
+        sprintf(ptr, "CPU: %.0f%%", (double)((gui_data.idle) / 10.0));
+    }
+    if (pos >= 0) {
+        PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM) ((pos + 1) | type), (LPARAM) ptr);
+        if (tt != NULL)
+	    PostMessage (hStatusWnd, SB_SETTIPTEXT, (WPARAM) (pos + 1), (LPARAM) tt);
     }
 }
 

@@ -1011,10 +1011,6 @@ HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
 	ddrval = IDirectDraw7_CreateSurface ( DirectDrawState.directdraw.dd, &ddsd, &DirectDrawState.overlay.surface, NULL);
 	if( ddrval == DD_OK )
 	{
-#if 0
-	    ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.overlay.surface,
-			&IID_IDirectDrawSurface7,(LPVOID *)&DirectDrawState.overlay.surface );
-#endif
 	    DirectDrawState.isoverlay = 1;
 	}
 	else

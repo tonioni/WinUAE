@@ -162,6 +162,7 @@ typedef struct {
     int idbit;
     unsigned long drive_id; /* drive id to be reported */
     char newname[256]; /* storage space for new filename during eject delay */
+    uae_u32 crc32;
 #ifdef FDI2RAW
     FDI *fdi;
 #endif
@@ -543,6 +544,8 @@ static void reset_drive(int i)
     drv->motoroff = 1;
     disabled &= ~(1 << i);
     gui_data.drive_disabled[i] = 0;
+    gui_data.df[i][0] = 0;
+    gui_data.crc32[i] = 0;
     if (currprefs.dfxtype[i] < 0) {
         disabled |= 1 << i;
         gui_data.drive_disabled[i] = 1;
@@ -573,10 +576,13 @@ static void update_drive_gui (int num)
     if (drv->state == gui_data.drive_motor[num]
 	&& drv->cyl == gui_data.drive_track[num]
 	&& side == gui_data.drive_side
+	&& drv->crc32 == gui_data.crc32[num]
 	&& ((writing && gui_data.drive_writing[num])
 	    || (!writing && !gui_data.drive_writing[num]))) {
 	return;
     }
+    strcpy (gui_data.df[num], currprefs.df[num]);
+    gui_data.crc32[num] = drv->crc32;
     gui_data.drive_motor[num] = drv->state;
     gui_data.drive_track[num] = drv->cyl;
     gui_data.drive_side = side;
@@ -590,8 +596,10 @@ static void update_drive_gui (int num)
 
 static void drive_fill_bigbuf (drive * drv,int);
 
-struct zfile *DISK_validate_filename (const char *fname, int leave_open, int *wrprot)
+struct zfile *DISK_validate_filename (const char *fname, int leave_open, int *wrprot, uae_u32 *crc32)
 {
+    if (crc32)
+	*crc32 = 0;
     if (leave_open) {
 	struct zfile *f = zfile_fopen (fname, "r+b");
 	if (f) {
@@ -602,11 +610,19 @@ struct zfile *DISK_validate_filename (const char *fname, int leave_open, int *wr
 		*wrprot = 1;
 	    f = zfile_fopen (fname, "rb");
 	}
+	if (f && crc32)
+	    *crc32 = zfile_crc32 (f);
 	return f;
     } else {
 	if (zfile_exists (fname)) {
 	    if (wrprot)
 		*wrprot = 0;
+	    if (crc32) {
+		struct zfile *f = zfile_fopen (fname, "rb");
+		if (f)
+		    *crc32 = zfile_crc32 (f);
+		zfile_fclose (f);
+	    }
 	    return (void*)1;
 	} else {
 	    if (wrprot)
@@ -695,7 +711,7 @@ char *DISK_get_saveimagepath (const char *name)
 
 static struct zfile *getwritefile (const char *name, int *wrprot)
 {
-    return DISK_validate_filename (DISK_get_saveimagepath (name), 1, wrprot);
+    return DISK_validate_filename (DISK_get_saveimagepath (name), 1, wrprot, NULL);
 }
 
 static int iswritefileempty (const char *name)
@@ -750,7 +766,7 @@ static int diskfile_iswriteprotect (const char *fname, int *needwritefile, drive
     
     *needwritefile = 0;
     *drvtype = DRV_35_DD;
-    zf1 = DISK_validate_filename (fname, 1, &wrprot1);
+    zf1 = DISK_validate_filename (fname, 1, &wrprot1, NULL);
     if (!zf1) return 1;
     if (zfile_iscompressed (zf1)) {
 	wrprot1 = 1;
@@ -791,14 +807,14 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     int num_tracks;
 
     drive_image_free (drv);
-    drv->diskfile = DISK_validate_filename (fname, 1, &drv->wrprot);
+    drv->diskfile = DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32);
     drv->ddhd = 1;
     drv->num_secs = 0;
     drv->hard_num_cyls = p->dfxtype[dnum] == DRV_525_SD ? 40 : 80;
     drv->tracktiming[0] = 0;
     drv->useturbo = 0;
     drv->indexoffset = 0;
-    
+
     if (!drv->motoroff) {
 	drv->dskready_time = DSKREADY_TIME;
 	drv->dskready_down_time = 0;
@@ -1509,6 +1525,7 @@ static void drive_eject (drive * drv)
     drv->dskready = 0;
     drv->dskready_time = 0;
     drv->dskready_down_time = 0;
+    drv->crc32 = 0;
     drive_settype_id(drv); /* Back to 35 DD */
 #ifdef DISK_DEBUG
     write_dlog ("eject drive %d\n", drv - &floppy[0]);
@@ -1651,7 +1668,7 @@ int disk_setwriteprotect (int num, const char *name, int protect)
     drive_type drvtype;
  
     oldprotect = diskfile_iswriteprotect (name, &needwritefile, &drvtype);
-    zf1 = DISK_validate_filename (name, 1, &wrprot1);
+    zf1 = DISK_validate_filename (name, 1, &wrprot1, NULL);
     if (!zf1) return 0;
     if (zfile_iscompressed (zf1)) wrprot1 = 1;
     zf2 = getwritefile (name, &wrprot2);
@@ -1681,6 +1698,7 @@ void disk_eject (int num)
     drive_eject (floppy + num);
     *currprefs.df[num] = *changed_prefs.df[num] = 0;
     floppy[num].newname[0] = 0;
+    update_drive_gui (num);
 }
 
 void DISK_history_add (const char *name, int idx)
@@ -1780,6 +1798,8 @@ void DISK_check_change (void)
 #ifdef DISK_DEBUG
 		write_dlog ("delayed insert, drive %d, image '%s'\n", i, drv->newname);
 #endif
+		update_drive_gui (i);
+
 	    }
 	}
     }
@@ -2700,7 +2720,8 @@ uae_u8 *restore_disk(int num,uae_u8 *src)
     strncpy(changed_prefs.df[num],src,255);
     src+=strlen(src)+1;
     drive_insert (floppy + num, &currprefs, num, changed_prefs.df[num]);
-    if (drive_empty (floppy + num)) drv->dskchange = 1;
+    if (drive_empty (floppy + num))
+	drv->dskchange = 1;
 
     return src;
 }

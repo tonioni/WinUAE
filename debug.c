@@ -31,6 +31,7 @@
 #include "savestate.h"
 #include "autoconf.h"
 #include "akiko.h"
+#include "inputdevice.h"
 
 static int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -1482,6 +1483,7 @@ void debug (void)
     if (lasthist == firsthist) {
 	if (++firsthist == MAX_HIST) firsthist = 0;
     }
+    inputdevice_unacquire ();
     pause_sound ();
     do_skip = 0;
     skipaddr_start = 0xffffffff;
@@ -1513,6 +1515,7 @@ void debug (void)
 	debugging = 1;
     }
     resume_sound ();
+    inputdevice_acquire ();
 }
 
 int notinrom (void)

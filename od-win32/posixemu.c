@@ -32,11 +32,24 @@
 /* Our Win32 implementation of this function */
 void gettimeofday( struct timeval *tv, void *blah )
 {
+#if 1
     struct timeb time;
-    ftime( &time );
+    ftime (&time);
 
     tv->tv_sec = time.time;
     tv->tv_usec = time.millitm * 1000;
+#else
+    SYSTEMTIME st;
+    FILETIME ft;
+    uae_u64 v, sec;
+    GetSystemTime (&st);
+    SystemTimeToFileTime (&st, &ft);
+    v = (ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    v /= 10;
+    sec = v / 1000000;
+    tv->tv_usec = (unsigned long)(v - (sec * 1000000));
+    tv->tv_sec = (unsigned long)(sec - 11644463600);
+#endif
 }
 
 /* convert time_t to/from AmigaDOS time */

@@ -2289,6 +2289,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->cachesize = 8192;
     p->dfxtype[0] = 1;
     p->dfxtype[1] = 1;
+    p->floppy_speed = 0;
     p->cpu_idle = 150;
     p->scsi = 1;
     p->socket_emu = 1;

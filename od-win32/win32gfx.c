@@ -889,9 +889,9 @@ static void close_hwnds( void )
 #endif
     setmouseactive (0);
     if (hMainWnd)
-	systray(hMainWnd, TRUE);
+	systray (hMainWnd, TRUE);
     if (hStatusWnd) {
-        ShowWindow( hStatusWnd, SW_HIDE );
+        ShowWindow (hStatusWnd, SW_HIDE);
     	DestroyWindow (hStatusWnd);
     }
     if (hAmigaWnd) {
@@ -1617,7 +1617,10 @@ static void createstatuswindow (void)
     int num_parts = 10;
     double scaleX, scaleY;
 
-    hStatusWnd = CreateStatusWindow (WS_CHILD | WS_VISIBLE, "", hMainWnd, 1);
+    
+    hStatusWnd = CreateWindowEx(
+	0, STATUSCLASSNAME, (LPCTSTR) NULL, SBT_TOOLTIPS | WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
     if (!hStatusWnd)
 	return;
 

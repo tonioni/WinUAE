@@ -138,13 +138,6 @@ static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 off
 
     gui_hd_led (1);
     hf_log2 ("cmd_write: %p %04.4x-%08.8x %08.8x\n", dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)len);
-    if (offset + len >= hfd->size) {
-	write_log ("read access out of bounds %08.8X-%08.8X + %08.8X-%08.8X >= %08.8X-%08.8X\n",
-	    (uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
-	    (uae_u32)((offset + len) >> 32),(uae_u32)(offset+len));
-	for (i = 0; i < len; i++)
-	    put_byte (dataptr + i, 0);
-    }
     while (len > 0) {
         int got2;
         for (i = 0; i < hfd->blocksize; i++)
@@ -489,7 +482,7 @@ static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, 
 
 static void outofbounds (int cmd, uae_u64 offset, uae_u64 len, uae_u64 max)
 {
-    write_log ("cmd %d: out of bounds, %08.8X-%08.8X + %08.8X-%08.8X >= %08.8X-%08.8X\n", cmd,
+    write_log ("cmd %d: out of bounds, %08.8X-%08.8X + %08.8X-%08.8X > %08.8X-%08.8X\n", cmd,
 	(uae_u32)(offset >> 32),(uae_u32)offset,(uae_u32)(len >> 32),(uae_u32)len,
 	(uae_u32)(max >> 32),(uae_u32)max);
 }

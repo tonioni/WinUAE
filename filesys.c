@@ -3067,7 +3067,7 @@ action_rename_object (Unit *unit, dpacket packet)
 	return;
     }
 
-    if (-1 == rename (a1->nname, a2->nname)) {
+    if (-1 == my_rename (a1->nname, a2->nname)) {
 	int ret = -1;
 	/* maybe we have open file handles that caused failure? */
 	write_log ("rename '%s' -> '%s' failed, trying relocking..\n", a1->nname, a2->nname);
@@ -3080,7 +3080,7 @@ action_rename_object (Unit *unit, dpacket packet)
 	    }
         }
 	/* try again... */
-	ret = rename (a1->nname, a2->nname);
+	ret = my_rename (a1->nname, a2->nname);
 	for (k1 = unit->keys; k1; k1 = knext) {
 	    knext = k1->next;
 	    if (k1->aino == a1 && k1->fd >= 0) {

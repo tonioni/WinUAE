@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "options.h"
+#include "uae.h"
 #include "memory.h"
 #include "events.h"
 #include "savestate.h"
@@ -941,6 +942,7 @@ void AKIKO_hsync_handler (void)
 	    gui_cd_led (1);
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
+	framecounter = 1000000 / (74 * 75 * cdrom_speed);
         cdrom_status1 |= CDSTATUS_FRAME;
     }
     akiko_internal ();
@@ -995,7 +997,7 @@ static void *akiko_thread (void *null)
 	    sector_buffer_sector_2 = tmp3;
 	}
         uae_sem_post (&akiko_sem);
-	Sleep (10);
+	sleep_millis (10);
     }
     akiko_thread_running = -1;
     return 0;

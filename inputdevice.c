@@ -909,7 +909,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	if (mouse_port[i]) {
 	    /* mouse has pull-up resistors in button lines */
 	    if (!(potgo_value & p5dir))
-		potgor |= p5dir;
+		potgor |= p5dat;
 	    if (!(potgo_value & p9dir))
 		potgor |= p9dat;
 	}
@@ -918,7 +918,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	     * forces input-lines to zero
 	     */
 	    if (!(potgo_value & p5dir))
-		potgor &= ~p5dir;
+		potgor &= ~p5dat;
 	    if (!(potgo_value & p9dir))
 		potgor &= ~p9dat;
 	}
@@ -932,15 +932,15 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	    /* P5 output and 1 -> shift register is kept reset (Blue button) */
 	    if ((potgo_value & p5dir) && (potgo_value & p5dat))
 		cd32_shifter[i] = 8;
-	    /* shift at zero == return one, >1 = return button states */
+	    /* shift at 1 == return one, >1 = return button states */
 	    if (cd32_shifter[i] == 0)
-	        potgor &= ~p9dat; /* shift at one == return zero */
+	        potgor &= ~p9dat; /* shift at zero == return zero */
 	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 	        potgor &= ~p9dat;
 	    //write_log ("%d:%04.4X %08.8X\n", cd32_shifter[i], potgor, m68k_getpc());
 	} else {
 	    if (getbuttonstate (i, JOYBUTTON_3))
-		potgor &= ~p5dir;
+		potgor &= ~p5dat;
 	    if (getbuttonstate (i, JOYBUTTON_2))
 		potgor &= ~p9dat;
 	}
@@ -1245,7 +1245,7 @@ void handle_input_event (int nr, int state, int max, int autofire)
     
     if (nr <= 0) return;
     ie = &events[nr];
-//    write_log("'%s' %d %d\n", ie->name, state, max);
+    //write_log("'%s' %d %d\n", ie->name, state, max);
     if (autofire) {
 	if (state)
 	    queue_input_event (nr, state, max, currprefs.input_autofire_framecnt, 1);

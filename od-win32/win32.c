@@ -581,6 +581,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     {
     case WM_SIZE:
     {
+	write_log ("WM_SIZE %d %d\n", wParam, minimized);
 	if (isfullscreen ()) {
 	    v = minimized;
 	    switch (wParam)
@@ -605,6 +606,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     }
 	    
     case WM_ACTIVATE:
+	write_log ("WM_ACTIVE %d %d %d\n", HIWORD (wParam), LOWORD (wParam), minimized);
 	if (!isfullscreen ()) {
     	    minimized = HIWORD (wParam);
 	    if (LOWORD (wParam) != WA_INACTIVE) {
@@ -615,14 +617,14 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		winuae_inactive (hWnd, minimized);
 	    }
 	    return 0;
-	} else if (LOWORD (wParam) == WA_INACTIVE) {
-	    minimized = 1;
-	    if (isfullscreen ())
+	} else {
+	    if (LOWORD (wParam) == WA_INACTIVE) {
+		minimized = HIWORD (wParam);
 		winuae_inactive (hWnd, minimized);
-	    if (ignorenextactivateapp > 0)
-	        ignorenextactivateapp--;
-	} else if (!minimized && LOWORD (wParam) != WA_INACTIVE) {
-	    winuae_active (hWnd, minimized);
+	    } else {
+		if (!minimized)
+		    winuae_active (hWnd, minimized);
+	    }
 	    if (ignorenextactivateapp > 0)
 	        ignorenextactivateapp--;
 	    return 0;
@@ -630,15 +632,15 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	break;
 
     case WM_ACTIVATEAPP:
+	write_log ("WM_ACTIVATEAPP %d %d\n", wParam, minimized);
 	if (!wParam) {
 	    if (gui_active && isfullscreen())
 	        exit_gui (0);
 	    setmouseactive (0);
 	} else {
-	    if (minimized) {
+	    if (minimized)
 		minimized = 0;
-	        winuae_active (hWnd, minimized);
-	    }	
+	    winuae_active (hWnd, minimized);
 	    if (!ignorenextactivateapp && isfullscreen () && is3dmode ()) {
 	        WIN32GFX_DisplayChangeRequested ();
 	        ignorenextactivateapp = 3;
@@ -681,13 +683,22 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	    setmousebuttonstate (dinput_winmouse(), 1, 1);
     return 0;
     case WM_MBUTTONUP:
-	if (dinput_winmouse () >= 0)
-	    setmousebuttonstate (dinput_winmouse(), 2, 0);
+	if (!currprefs.win32_middle_mouse) {
+	    if (dinput_winmouse () >= 0)
+		setmousebuttonstate (dinput_winmouse(), 2, 0);
+	}
     return 0;
     case WM_MBUTTONDOWN:
     case WM_MBUTTONDBLCLK:
-	if (dinput_winmouse () >= 0)
-	    setmousebuttonstate (dinput_winmouse(), 2, 1);
+	if (currprefs.win32_middle_mouse) {
+    	    if (isfullscreen ())
+	        minimizewindow ();
+	    if (mouseactive)
+	        setmouseactive(0);
+	} else {
+	    if (dinput_winmouse () >= 0)
+		setmousebuttonstate (dinput_winmouse(), 2, 1);
+	}
     return 0;
     case WM_XBUTTONUP:
 	if (dinput_winmouse () >= 0) {
@@ -743,7 +754,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     return 0;
 
     case WM_WINDOWPOSCHANGED:
-	GetWindowRect( hWnd, &amigawin_rect);
+	GetWindowRect (hWnd, &amigawin_rect);
     break;
 
     case WM_MOUSEMOVE:
@@ -838,7 +849,40 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     handle_rawinput (lParam);
     break;
     
-     case WM_USER + 1: /* Systray icon */
+    case WM_NOTIFY:
+    {
+        LPNMHDR nm = (LPNMHDR)lParam;
+        if (nm->hwndFrom == hStatusWnd) {
+	    switch (nm->code)
+	    {
+		/* status bar clicks */
+		case NM_CLICK:
+		case NM_RCLICK:
+		{
+		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam; 
+		    int num = lpnm->dwItemSpec;
+		    if (num >= 6 && num <= 9) {
+			num -= 6;
+			if (nm->code == NM_RCLICK) {
+			    disk_eject (num);
+			} else {
+			    DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
+			    disk_insert (num, changed_prefs.df[num]);
+			}
+		    } else if (num == 3) {
+			if (nm->code == NM_CLICK)
+			    gui_display (-1);
+			else
+			    uae_reset (0);
+		    }
+		    return TRUE;
+		}
+	    }
+	}
+    }
+    break;
+    
+    case WM_USER + 1: /* Systray icon */
 	 switch (lParam)
 	 {
 	    case WM_LBUTTONDOWN:
@@ -946,6 +990,7 @@ static long FAR PASCAL MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, L
      case 0xff: // WM_INPUT
      case WM_USER + 1:
      case WM_COMMAND:
+     case WM_NOTIFY:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
      case WM_DISPLAYCHANGE:

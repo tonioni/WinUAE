@@ -316,11 +316,13 @@ static void initialize_windowsmouse (void)
 	did->name = my_strdup (i ? "Mousehack mouse" : "Windows mouse");
 	did->sortname = my_strdup (i ? "Windowsmouse2" : "Windowsmouse1");
 	did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
+	if (did->buttons < 3)
+	    did->buttons = 3;
 	if (did->buttons > 5)
 	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
 	if (did->buttons > 3 && !os_winnt)
 	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
-	did->axles = GetSystemMetrics (SM_MOUSEWHEELPRESENT) ? 3 : 2;
+	did->axles = 3;
 	did->axistype[0] = 1;
 	did->axissort[0] = 0;
 	did->axisname[0] = my_strdup ("X-Axis");
@@ -1156,8 +1158,11 @@ static int init_kb (void)
     keyboardlayoutid = GetKeyboardLayout(0);      
     keyboardlangid = LOWORD(keyboardlayoutid);
     keyboard_german = 0;
-    if (keyboardlangid == MAKELANGID (LANG_GERMAN, SUBLANG_GERMAN))
-	keyboard_german = 1;
+    if (keyboardlangid == 0x0407) keyboard_german = 1; //German Standard
+    if (keyboardlangid == 0x0807) keyboard_german = 1; //German Switzerland
+    if (keyboardlangid == 0x0c07) keyboard_german = 1; //German Austria
+    if (keyboardlangid == 0x1007) keyboard_german = 1; //German Louxembourg
+    if (keyboardlangid == 0x1407) keyboard_german = 1; //German Lichtenstein
     return 1;
 }
 
@@ -1261,8 +1266,6 @@ static int keyhack (int scancode,int pressed, int num)
  //available
  //so here need to change qulifier state and restore it when key
  //is release
-    if (!keyboard_german)
-	return scancode;
     if (scancode == DIK_BACKSLASH) // The # key
     {
 	if (di_keycodes[num][DIK_LSHIFT] || di_keycodes[num][DIK_RSHIFT] || apostrophstate)

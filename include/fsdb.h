@@ -121,6 +121,7 @@ extern int my_readdir (void*, char*);
 extern int my_rmdir (const char*);
 extern int my_mkdir (const char*);
 extern int my_unlink (const char*);
+extern int my_rename (const char*, const char*);
 
 extern void *my_open (const char*, int);
 extern void my_close (void*);

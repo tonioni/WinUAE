@@ -1102,7 +1102,8 @@ static int movec_illg (int regno)
     }
     if (currprefs.cpu_level == 2 || currprefs.cpu_level == 3) { /* 68020 */
 	if (regno == 3) return 1; /* 68040 only */
-	if (regno2 < 4)
+	 /* 4 is >=68040, but 0x804 is in 68020 */
+	 if (regno2 < 4 || regno == 0x804)
 	    return 0;
 	return 1;
     }
