@@ -74,9 +74,14 @@ extern void INTREQ_0 (uae_u16);
 extern uae_u16 INTREQR (void);
 
 /* maximums for statically allocated tables */
-
+#ifdef UAE_MINI
+/* absolute minimums for basic A500/A1200-emulation */
+#define MAXHPOS 227
+#define MAXVPOS 312
+#else
 #define MAXHPOS 256
 #define MAXVPOS 576
+#endif
 
 /* PAL/NTSC values */
 

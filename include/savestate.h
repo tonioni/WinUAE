@@ -112,8 +112,6 @@ extern int savestate_state;
 extern char savestate_fname[MAX_DPATH];
 extern struct zfile *savestate_file;
 
-extern uae_u32 CRC32(uae_u32 crc, const uae_u8 *buf, int len);
-
 extern void savestate_quick (int slot, int save);
 
 extern void savestate_capture (int);

@@ -48,7 +48,6 @@ static uae_u8 *scsibuf;
 static int doscsi (HANDLE *h, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
 {
     DWORD status, returned;
-    int i;
 
     *err = 0;
     if (log_scsi) {

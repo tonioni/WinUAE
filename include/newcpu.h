@@ -79,7 +79,7 @@ typedef double fptype;
 extern struct regstruct
 {
     uae_u32 regs[16];
-    uaecptr  usp,isp,msp;
+    uaecptr usp,isp,msp;
     uae_u16 sr;
     flagtype t1;
     flagtype t0;

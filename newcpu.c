@@ -819,9 +819,11 @@ static void exception_trace (int nr)
 
 static void exception_debug (int nr)
 {
+#ifdef DEBUGGER
     if (!exception_debugging)
 	return;
     console_out ("Exception %d, PC=%08.8X\n", nr, m68k_getpc()); 
+#endif
 }
 
 #ifdef CPUEMU_6
@@ -2188,8 +2190,10 @@ void m68k_go (int may_quit)
             m68k_setpc (regs.pc);
 	}
 
+#ifdef DEBUGGER
 	if (debugging)
 	    debug ();
+#endif
 	if (regs.panic) {
 	    regs.panic = 0;
 	    /* program jumped to non-existing memory and cpu was >= 68020 */

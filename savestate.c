@@ -79,28 +79,6 @@ static int replaybuffersize;
 char savestate_fname[MAX_DPATH];
 static struct staterecord staterecords[MAX_STATERECORDS];
 
-static unsigned long crc_table[256];
-static void make_crc_table()
-{
-    unsigned long c;
-    int n, k;
-    for (n = 0; n < 256; n++)	
-    {
-	c = (unsigned long)n;
-	for (k = 0; k < 8; k++) c = (c >> 1) ^ (c & 1 ? 0xedb88320L : 0);
-	    crc_table[n] = c;
-    }
-}
-uae_u32 CRC32(uae_u32 crc, const uae_u8 *buf, int len)
-{
-    if (!crc_table[1]) make_crc_table();
-    crc = crc ^ 0xffffffffL;
-    while (len-- > 0) {
-	crc = crc_table[(crc ^ (*buf++)) & 0xff] ^ (crc >> 8);    
-    }
-    return crc ^ 0xffffffffL;
-}
-
 /* functions for reading/writing bytes, shorts and longs in big-endian
  * format independent of host machine's endianess */
 
@@ -523,14 +501,17 @@ void save_state (char *filename, char *description)
     int len,i;
     char name[5];
     int comp = savestate_docompress;
+    static int warned;
 
 #ifdef FILESYS
-    if (nr_units (currprefs.mountinfo)) {
+    if (nr_units (currprefs.mountinfo) && !warned) {
+	warned = 1;
 	gui_message("WARNING: State saves do not support harddrive emulation");
     }
 #endif
 
     custom_prepare_savestate ();
+
     f = zfile_fopen (filename, "wb");
     if (!f)
 	return;

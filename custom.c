@@ -2162,7 +2162,7 @@ void compute_vsynctime (void)
 {
     fake_vblank_hz = 0;
     if (currprefs.gfx_vsync && currprefs.gfx_afullscreen && currprefs.gfx_refreshrate) {
-	vblank_hz = currprefs.gfx_refreshrate;
+	vblank_hz = abs (currprefs.gfx_refreshrate);
 	vblank_skip = 1;
 #if 0
 	if (vblank_hz == 75) {
@@ -2362,9 +2362,8 @@ STATIC_INLINE uae_u16 VPOSR (void)
     int vp = (vpos >> 8) & 7;
 #ifdef AGA
     csbit |= (currprefs.chipset_mask & CSMASK_AGA) ? 0x2300 : 0;
-#else
-    csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
 #endif
+    csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	vp &= 1;
     vp = vp | lof | csbit;

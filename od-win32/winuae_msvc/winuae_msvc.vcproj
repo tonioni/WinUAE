@@ -43,7 +43,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zdll.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zdll.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib  shlwapi.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
@@ -123,7 +123,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zdll.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zdll.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -179,6 +179,9 @@
 			</File>
 			<File
 				RelativePath="..\resources\avioutput.ico">
+			</File>
+			<File
+				RelativePath="..\resources\bitmap1.bmp">
 			</File>
 			<File
 				RelativePath="..\resources\chip.ico">
@@ -393,6 +396,9 @@
 				RelativePath="..\..\cpustbl.c">
 			</File>
 			<File
+				RelativePath="..\..\crc32.c">
+			</File>
+			<File
 				RelativePath="..\..\custom.c">
 			</File>
 			<File
@@ -481,6 +487,9 @@
 			</File>
 			<File
 				RelativePath="..\..\uaelib.c">
+			</File>
+			<File
+				RelativePath="..\..\uaeserial.c">
 			</File>
 			<File
 				RelativePath="..\..\unzip.c">

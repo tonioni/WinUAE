@@ -243,3 +243,34 @@ extern uae_u8 *mapped_malloc (size_t, char *);
 extern void mapped_free (uae_u8 *);
 extern void clearexec (void);
 extern void mapkick (void);
+extern int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom);
+extern void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 *key, int keysize);
+
+#define ROMTYPE_KICK 1
+#define ROMTYPE_KICKCD32 2
+#define ROMTYPE_EXTCD32 4
+#define ROMTYPE_EXTCDTV 8
+#define ROMTYPE_AR 16
+#define ROMTYPE_KEY 32
+
+struct romdata {
+    char *name;
+    int version, revision;
+    uae_u32 crc32;
+    uae_u32 size;
+    int id;
+    int cpu;
+    int type;
+};
+
+extern struct romdata *getromdatabycrc (uae_u32 crc32);
+extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
+extern struct romdata *getromdatabyid (int id);
+extern void getromname (struct romdata*, char*);
+extern struct romdata *getromdatabyname (char*);
+extern void romlist_add (char *path, struct romdata *rd);
+extern char *romlist_get (struct romdata *rd);
+extern void romlist_clear (void);
+
+extern uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size);
+extern void free_keyfile (uae_u8 *key);

@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 0
 #define UAEMINOR 8
-#define UAESUBREV 27
+#define UAESUBREV 28
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -136,6 +136,7 @@ struct uae_prefs {
     int keyboard_leds_in_use;
     int fast_copper;
     int scsi;
+    int uaeserial;
     int catweasel_io;
     int cpu_idle;
     int cpu_cycle_exact;
@@ -256,6 +257,7 @@ extern int cfgfile_get_description (const char *filename, char *description, int
 extern void cfgfile_show_usage (void);
 extern uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern void cfgfile_addcfgparam (char *);
+extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa);
 
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 

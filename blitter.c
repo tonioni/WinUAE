@@ -10,6 +10,8 @@
 //#define BLITTER_DEBUG
 //#define BLITTER_SLOWDOWNDEBUG 4
 
+#define SPEEDUP
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -207,9 +209,12 @@ static void blitter_dofast(void)
 	bltdpt += (blt_info.hblitsize*2 + blt_info.bltdmod)*blt_info.vblitsize;
     }
 
-    if (blitfunc_dofast[mt] && !blitfill)
+#ifdef SPEEDUP
+    if (blitfunc_dofast[mt] && !blitfill) {
 	(*blitfunc_dofast[mt])(bltadatptr, bltbdatptr, bltcdatptr, bltddatptr, &blt_info);
-    else {
+    } else
+#endif
+    {
 	uae_u32 blitbhold = blt_info.bltbhold;
 	uae_u32 preva = 0, prevb = 0;
 	uaecptr dstp = 0;
@@ -298,15 +303,17 @@ static void blitter_dofast_desc(void)
 	bltddatptr = bltdpt;
 	bltdpt -= (blt_info.hblitsize*2 + blt_info.bltdmod)*blt_info.vblitsize;
     }
-    if (blitfunc_dofast_desc[mt] && !blitfill)
+#ifdef SPEEDUP
+    if (blitfunc_dofast_desc[mt] && !blitfill) {
 	(*blitfunc_dofast_desc[mt])(bltadatptr, bltbdatptr, bltcdatptr, bltddatptr, &blt_info);
-    else {
+    } else
+#endif
+    {
 	uae_u32 blitbhold = blt_info.bltbhold;
 	uae_u32 preva = 0, prevb = 0;
 	uaecptr dstp = 0;
 	int dodst = 0;
 
-/*	if (!blitfill) write_log ("minterm %x not present\n",mt);*/
 	for (j = 0; j < blt_info.vblitsize; j++) {
 	    blitfc = !!(bltcon1 & 0x4);
 	    for (i = 0; i < blt_info.hblitsize; i++) {

@@ -41,3 +41,4 @@ struct bstring {
 };
 
 extern char *colormodes[];
+extern void fetch_saveimagepath (char*, int, int);

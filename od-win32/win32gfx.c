@@ -945,7 +945,7 @@ static int open_windows (void)
 		currentmode->current_width = picasso_vidinfo.width;
 		currentmode->current_height = picasso_vidinfo.height;
 		currentmode->current_depth = rgbformat_bits (picasso_vidinfo.selected_rgbformat);
-		currentmode->frequency = currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq;
+		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
 	    } else {
 #endif
 		currentmode->current_width = currprefs.gfx_width;
@@ -955,7 +955,7 @@ static int open_windows (void)
 				: currprefs.color_mode == 2 ? 16
 				: currprefs.color_mode == 3 ? 8
 				: currprefs.color_mode == 4 ? 8 : 32);
-		currentmode->frequency = currprefs.gfx_refreshrate;
+		currentmode->frequency = abs (currprefs.gfx_refreshrate);
 #ifdef PICASSO96
 	    }
 #endif

@@ -1608,11 +1608,14 @@ uae_u8 *save_action_replay (int *len, uae_u8 *dstptr)
     strcpy (dst, currprefs.cartfile);
     dst += strlen(dst) + 1;
     memcpy (dst, armemory_ram, arram_size);
+    save_u32 (0);
     return dstbak;
 }
 
 uae_u8 *restore_action_replay (uae_u8 *src)
 {
+    uae_u32 crc32;
+
     action_replay_unload (1);
     armodel = restore_u8 ();
     if (!armodel)
@@ -1620,6 +1623,7 @@ uae_u8 *restore_action_replay (uae_u8 *src)
     strncpy (changed_prefs.cartfile, src, 255);
     strcpy (currprefs.cartfile, changed_prefs.cartfile);
     src += strlen(src) + 1;
+    crc32 = restore_u32 ();
     action_replay_load ();
     if (armemory_ram) {
 	memcpy (armemory_ram, src, arram_size);

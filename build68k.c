@@ -213,6 +213,7 @@ int main(int argc, char **argv)
 	    int j;
 	    /* Remove superfluous spaces from the string */
 	    char *opstrp = opcstr, *osendp;
+	    char tmp[100], *p;
 	    int slen = 0;
 
 	    while (isspace(*opstrp))
@@ -229,17 +230,23 @@ int main(int argc, char **argv)
 	    if (no_insns > 0)
 		printf(",\n");
 	    no_insns++;
-	    printf("{ %d, %d, {", bitpattern, n_variable);
+	    strcpy (tmp, opstrp);
+	    strcat (tmp, " ");
+	    p = tmp;
+	    while (!isspace(*p++));
+	    *p = 0;
+	    printf("/* %s */\n", tmp);
+	    printf("{0x%04.4X,%2d,{", bitpattern, n_variable);
 	    for (j = 0; j < 16; j++) {
-		printf("%d", bitpos[j]);
+		printf("%2d", bitpos[j]);
 		if (j < 15)
 		    printf(",");
 	    }
-	    printf ("}, %d, %d, %d, { ", bitmask, cpulevel, plevel);
+	    printf ("},0x%04.4X,%d,%d,{", bitmask, cpulevel, plevel);
 	    for(i = 0; i < 5; i++) {
-		printf("{ %d, %d }%c ", flaguse[i], flagset[i], i == 4 ? ' ' : ',');
+		printf("{%d,%d}%s", flaguse[i], flagset[i], i == 4 ? "" : ",");
 	    }
-	    printf("}, %d, \"%s\"}", sduse, opstrp);
+	    printf("},%2d,\"%s\"}", sduse, opstrp);
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);

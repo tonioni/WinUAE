@@ -432,11 +432,6 @@ static void bfe001_change (void)
     }
 }
 
-#ifdef PARALLEL_PORT
-extern int isprinter (void);
-extern int doprinter (uae_u8);
-#endif
-
 static uae_u8 ReadCIAA (unsigned int addr)
 {
     unsigned int tmp;

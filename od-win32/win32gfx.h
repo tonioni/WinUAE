@@ -18,6 +18,7 @@ void WIN32GFX_PaletteChange( void );
 int WIN32GFX_ClearPalette( void );
 int WIN32GFX_SetPalette( void );
 void WIN32GFX_WindowMove ( void );
+void WIN32GFX_WindowSize ( void );;
 
 int DX_Blit( int srcx, int srcy, int dstx, int dsty, int width, int height, BLIT_OPCODE opcode );
 

@@ -26,6 +26,7 @@ extern void disk_creatediskfile (char *name, int type, drive_type adftype);
 extern void dumpdisk (void);
 extern void DISK_history_add (const char *name, int idx);
 extern char *DISK_history_get (int idx);
+extern int DISK_examine_image (struct uae_prefs *p, int drive);
 
 extern void DSKLEN (uae_u16 v, int hpos);
 extern uae_u16 DSKBYTR (int hpos);

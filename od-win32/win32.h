@@ -20,8 +20,8 @@ extern int in_sizemove;
 extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
-#define WINUAEBETA 0
-#define WINUAEBETASTR " "
+#define WINUAEBETA 1
+#define WINUAEBETASTR " Beta 1"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);
@@ -55,6 +55,7 @@ extern char VersionStr[256];
 extern int os_winnt, os_winnt_admin;
 extern int paraport_mask;
 extern int gui_active;
+extern DWORD quickstart;
 
 /* For StatusBar when running in a Window */
 #define LED_NUM_PARTS 10
@@ -91,5 +92,8 @@ extern int dinput_winmouse (void);
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);
 void exit_gui (int);
+void fetch_path (char *name, char *out, int size);
+void set_path (char *name, char *path);
+void read_rom_list (void);
 
 #endif

@@ -143,9 +143,9 @@ static const char *filtermode2[] = { "0x", "1x", "2x", "3x", "4x", 0 };
 #endif
 
 static const char *obsolete[] = {
-    "accuracy","gfx_opengl","gfx_32bit_blits","32bit_blits",
-    "gfx_immediate_blits","gfx_ntsc","win32",
-    "sound_pri_cutoff", "sound_pri_time", 0 };
+    "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
+    "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
+    "sound_pri_cutoff", "sound_pri_time", "sound_min_buff", 0 };
 
 #define UNEXPANDED "$(FILE_PATH)"
 
@@ -1712,6 +1712,51 @@ uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
     return 0;
 }
 
+static int configure_rom (struct uae_prefs *p, int *rom, int msg)
+{
+    struct romdata *rd;
+    char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    char *path = 0;
+    int i;
+    
+    tmp2[0] = 0;
+    i = 0;
+    while (rom[i] >= 0) {
+        rd = getromdatabyid (rom[i]);
+	if (!rd) {
+	    i++;
+	    continue;
+	}
+	path = romlist_get (rd);
+	if (!path) {
+	    getromname (rd, tmp1);
+	    strcat (tmp2, "- ");
+	    strcat (tmp2, tmp1);
+	    strcat (tmp2, "\n");
+	    i++;
+	    continue;
+	}
+	break;
+    }
+    if (!path) {
+	if (msg)
+	    gui_message ("You need any of following ROM(s)\n\n%s", tmp2);
+	return 0;
+    }
+    switch (rd->type)
+    {
+        case ROMTYPE_KICK:
+        case ROMTYPE_KICKCD32:
+	strcpy (p->romfile, path);
+	break;
+        case ROMTYPE_EXTCD32:
+        case ROMTYPE_EXTCDTV:
+	strcpy (p->romextfile, path);
+	break;
+    }
+    return 1;
+}
+
 static void default_prefs_mini (struct uae_prefs *p, int type)
 {
     strcpy (p->description, "UAE default A500 configuration");
@@ -1729,6 +1774,8 @@ static void default_prefs_mini (struct uae_prefs *p, int type)
 
 void default_prefs (struct uae_prefs *p, int type)
 {
+    int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1 };
+
     memset (p, 0, sizeof (*p));
     strcpy (p->description, "UAE default configuration");
 
@@ -1737,7 +1784,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->all_lines = 0;
     /* Note to porters: please don't change any of these options! UAE is supposed
-     * to behave identically on all platforms if possible. */
+     * to behave identically on all platforms if possible.
+     * (TW says: maybe it is time to update default config..) */
     p->illegal_mem = 0;
     p->no_xhair = 0;
     p->use_serial = 0;
@@ -1790,13 +1838,13 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_width_win = p->gfx_width_fs = 800;
     p->gfx_height_win = p->gfx_height_fs = 600;
     p->gfx_lores = 0;
-    p->gfx_linedbl = 2;
+    p->gfx_linedbl = 1;
     p->gfx_afullscreen = 0;
     p->gfx_pfullscreen = 0;
     p->gfx_correct_aspect = 0;
     p->gfx_xcenter = 0;
     p->gfx_ycenter = 0;
-    p->color_mode = 0;
+    p->color_mode = 2;
 
     p->x11_use_low_bandwidth = 0;
     p->x11_use_mitshm = 0;
@@ -1829,7 +1877,7 @@ void default_prefs (struct uae_prefs *p, int type)
     strcpy (p->df[2], "df2.adf");
     strcpy (p->df[3], "df3.adf");
 
-    strcpy (p->romfile, "kick.rom");
+    configure_rom (p, roms, 0);
     strcpy (p->keyfile, "");
     strcpy (p->romextfile, "");
     strcpy (p->flashfile, "");
@@ -1842,20 +1890,10 @@ void default_prefs (struct uae_prefs *p, int type)
     strcpy (p->prtname, DEFPRTNAME);
     strcpy (p->sername, DEFSERNAME);
 
-#ifdef CPUEMU_68000_ONLY
     p->cpu_level = 0;
     p->m68k_speed = 0;
-#else
-    p->m68k_speed = -1;
-    p->cpu_level = 2;
-#endif
-#ifdef CPUEMU_0
-    p->cpu_compatible = 0;
-    p->address_space_24 = 0;
-#else
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
-#endif
     p->cpu_cycle_exact = 0;
     p->blitter_cycle_exact = 0;
     p->chipset_mask = CSMASK_ECS_AGNUS;
@@ -1863,8 +1901,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->fastmem_size = 0x00000000;
     p->a3000mem_size = 0x00000000;
     p->z3fastmem_size = 0x00000000;
-    p->chipmem_size = 0x00200000;
-    p->bogomem_size = 0x00000000;
+    p->chipmem_size = 0x00080000;
+    p->bogomem_size = 0x00080000;
     p->gfxmem_size = 0x00000000;
 
     p->nr_floppies = 2;
@@ -1888,4 +1926,228 @@ void default_prefs (struct uae_prefs *p, int type)
 #endif
 
     inputdevice_default_prefs (p);
+}
+
+static void buildin_default_prefs_68020 (struct uae_prefs *p)
+{
+    p->cpu_level = 2;
+    p->cpu_compatible = 1;
+    p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA;
+    p->chipmem_size = 0x200000;
+    p->bogomem_size = 0;
+    p->m68k_speed = -1;
+}
+
+static void buildin_default_prefs (struct uae_prefs *p)
+{
+    p->nr_floppies = 1;
+    p->dfxtype[0] = 0;
+    p->dfxtype[1] = -1;
+    p->dfxtype[2] = -1;
+    p->dfxtype[3] = -1;
+
+    p->cpu_level = 0;
+    p->m68k_speed = 0;
+    p->cpu_compatible = 1;
+    p->address_space_24 = 1;
+    p->cpu_cycle_exact = 0;
+    p->blitter_cycle_exact = 0;
+    p->chipset_mask = CSMASK_ECS_AGNUS;
+    p->immediate_blits = 0;
+    p->collision_level = 2;
+    p->fast_copper = 1;
+    p->produce_sound = 3;
+    p->scsi = 0;
+    p->cpu_idle = 0;
+    p->catweasel_io = 0;
+    p->tod_hack = 0;
+    p->maprom = 0;
+
+    p->chipmem_size = 0x00080000;
+    p->bogomem_size = 0x00080000;
+    p->fastmem_size = 0x00000000;
+    p->a3000mem_size = 0x00000000;
+    p->z3fastmem_size = 0x00000000;
+    p->gfxmem_size = 0x00000000;
+
+    strcpy (p->romfile, "");
+    strcpy (p->keyfile, "");
+    strcpy (p->romextfile, "");
+    strcpy (p->flashfile, "");
+    strcpy (p->cartfile, "");
+    strcpy (p->prtname, DEFPRTNAME);
+    strcpy (p->sername, DEFSERNAME);
+}
+
+static void set_68020_compa (struct uae_prefs *p, int compa)
+{
+    if (compa == 0)
+	p->blitter_cycle_exact = 1;
+    if (compa > 0) {
+	p->cpu_compatible = 0;
+	p->address_space_24 = 0;
+	p->cachesize = 8192;
+    }
+    if (compa > 1) {
+	p->immediate_blits = 1;
+	p->produce_sound = 2;
+    }	
+}
+
+static void set_68000_compa (struct uae_prefs *p, int compa)
+{
+    if (compa == 0) {
+	p->cpu_cycle_exact = p->blitter_cycle_exact = 1;
+	p->fast_copper = 0;
+    } else if (compa == 2) {
+	p->immediate_blits = 1;
+	p->produce_sound = 2;
+	p->cpu_compatible = 0;
+    }
+}
+
+static int bip_a1000 (struct uae_prefs *p, int config, int compa)
+{
+    int rom[4];
+
+    rom[0] = 23;
+    rom[1] = 24;
+    rom[2] = -1;
+    p->chipset_mask = 0;
+    p->bogomem_size = 0;
+    if (config == 1)
+	p->chipmem_size = 0x40000;
+    set_68000_compa (p, compa);
+    return configure_rom (p, rom, 1);
+}    
+
+static int bip_cdtv (struct uae_prefs *p, int config, int compa)
+{
+    int rom[4];
+    
+    rom[0] = 6;
+    rom[1] = -1;
+    if (!configure_rom (p, rom, 1))
+	return 0;
+    rom[0] = 22;
+    rom[1] = 21;
+    rom[2] = 20;
+    rom[3] = -1;
+    if (!configure_rom (p, rom, 1))
+	return 0;
+    p->bogomem_size = 0;
+    p->chipmem_size = 0x100000;
+    p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+    set_68000_compa (p, compa);
+    return 1;
+}
+
+
+static int bip_cd32 (struct uae_prefs *p, int config, int compa)
+{
+    int rom[2];
+    
+    buildin_default_prefs_68020 (p);
+    rom[0] = 18;
+    rom[1] = -1;
+    if (!configure_rom (p, rom, 1))
+	return 0;
+    rom[0] = 19;
+    if (!configure_rom (p, rom, 1))
+	return 0;
+    p->nr_floppies = 0;
+    p->dfxtype[0] = -1;
+    set_68020_compa (p, compa);
+    return 1;
+}
+
+static int bip_a1200 (struct uae_prefs *p, int config, int compa)
+{
+    int rom[3];
+
+    buildin_default_prefs_68020 (p);
+    rom[0] = 11;
+    rom[1] = 15;
+    rom[2] = -1;
+    if (config == 1)
+	p->fastmem_size = 0x400000;
+    set_68020_compa (p, compa);
+    return configure_rom (p, rom, 1);
+}
+
+static int bip_a600 (struct uae_prefs *p, int config, int compa)
+{
+    int rom[5];
+
+    rom[0] = 10;
+    rom[1] = 9;
+    rom[2] = 8;
+    rom[3] = 7;
+    rom[4] = -1;
+    p->bogomem_size = 0;
+    p->chipmem_size = 0x100000;
+    p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+    set_68000_compa (p, compa);
+    return configure_rom (p, rom, 1);
+}
+
+static int bip_a500 (struct uae_prefs *p, int config, int compa)
+{
+    int rom[4];
+
+    rom[0] = rom[1] = rom[2] = rom[3] = -1;
+    switch (config)
+    {
+	case 0: // KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow
+	rom[0] = 6;
+	break;
+	case 1: // KS 1.3, OCS Agnus, 0.5M Chip
+	rom[0] = 6;
+	p->bogomem_size = 0;
+	p->chipset_mask = 0;
+	break;
+	case 2: // KS 1.3, ECS Agnus, 1.0M Chip
+	rom[0] = 6;
+	p->bogomem_size = 0;
+	p->chipmem_size = 0x100000;
+	break;
+	case 3: // KS 1.2, OCS Agnus, 0.5M Chip
+	rom[0] = 5;
+	rom[1] = 4;
+	rom[2] = 3;
+	p->bogomem_size = 0;
+	p->chipset_mask = 0;
+	break;
+	case 4: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
+	rom[0] = 5;
+	rom[1] = 4;
+	rom[2] = 3;
+	p->chipset_mask = 0;
+	break;
+    }
+    set_68000_compa (p, compa);
+    return configure_rom (p, rom, 1);
+}
+
+int build_in_prefs (struct uae_prefs *p, int model, int config, int compa)
+{
+    if (model > 5)
+	return 1;
+    buildin_default_prefs (p);
+    switch (model)
+    {
+	case 0:
+	return bip_a500 (p, config, compa);
+	case 1:
+	return bip_a600 (p, config, compa);
+	case 2:
+	return bip_a1000 (p, config, compa);
+	case 3:
+	return bip_a1200 (p, config, compa);
+	case 4:
+	return bip_cd32 (p, config, compa);
+	case 5:
+	return bip_cdtv (p, config, compa);
+    }
+    return 0;
 }

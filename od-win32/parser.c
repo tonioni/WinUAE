@@ -40,6 +40,7 @@
 #include "od-win32/ahidsound.h"
 #include "win32.h"
 #include "ioport.h"
+#include "parallel.h"
 
 static UINT prttimer;
 static char prtbuf[PRTBUFSIZE];
@@ -106,7 +107,14 @@ int isprinter (void)
     return 1;
 }
 
-static void openprinter( void )
+int isprinteropen (void)
+{
+    if (prtopen)
+	return 1;
+    return 0;
+}
+
+void openprinter( void )
 {
     DOC_INFO_1 DocInfo;
 

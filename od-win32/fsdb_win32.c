@@ -90,10 +90,12 @@ int fsdb_fill_file_attrs (a_inode *aino)
 
     aino->dir = (mode & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
     aino->amigaos_mode = A_FIBF_EXECUTE | A_FIBF_READ;
-    if (FILE_ATTRIBUTE_ARCHIVE & mode)
+    if (!(FILE_ATTRIBUTE_ARCHIVE & mode))
 	aino->amigaos_mode |= A_FIBF_ARCHIVE;
     if (! (FILE_ATTRIBUTE_READONLY & mode))
 	aino->amigaos_mode |= A_FIBF_WRITE | A_FIBF_DELETE;
+    if (FILE_ATTRIBUTE_SYSTEM & mode)
+	aino->amigaos_mode |= A_FIBF_PURE;
     aino->amigaos_mode = filesys_parse_mask(aino->amigaos_mode);
     return 1;
 }
@@ -113,11 +115,14 @@ int fsdb_set_file_attrs (a_inode *aino, int mask)
     if (! aino->dir) {
 	if ((tmpmask & (A_FIBF_READ | A_FIBF_DELETE)) == 0)
 	    mode |= FILE_ATTRIBUTE_READONLY;
-	if (tmpmask & A_FIBF_ARCHIVE)
+	if (!(tmpmask & A_FIBF_ARCHIVE))
 	    mode |= FILE_ATTRIBUTE_ARCHIVE;
 	else
 	    mode &= ~FILE_ATTRIBUTE_ARCHIVE;
-
+	if (tmpmask & A_FIBF_PURE)
+	    mode |= FILE_ATTRIBUTE_SYSTEM;
+	else
+	    mode &= ~FILE_ATTRIBUTE_SYSTEM;
 	SetFileAttributes(aino->nname, mode);
     }
 
@@ -136,8 +141,8 @@ int fsdb_mode_representable_p (const a_inode *aino)
     if (aino->dir)
 	return aino->amigaos_mode == 0;
 
-    /* P or S set, or E or R clear, means we can't handle it.  */
-    if (mask & (A_FIBF_SCRIPT | A_FIBF_PURE | A_FIBF_EXECUTE | A_FIBF_READ))
+    /* S set, or E or R clear, means we can't handle it.  */
+    if (mask & (A_FIBF_SCRIPT | A_FIBF_EXECUTE | A_FIBF_READ))
 	return 0;
     m1 = A_FIBF_DELETE | A_FIBF_WRITE;
     /* If it's rwed, we are OK... */

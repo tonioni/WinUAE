@@ -18,6 +18,8 @@
 #define IDS_INPUT                       14
 #define IDS_OPENGL                      15
 #define IDS_MISC2                       16
+#define IDS_PATHS                       17
+#define IDS_QUICKSTART                  18
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -145,7 +147,9 @@
 #define IDI_DISK                        182
 #define IDR_DRIVE_SPINND_A500_1         182
 #define IDD_PANEL                       183
+#define IDD_PATHS                       184
 #define IDI_CONFIGFILE                  185
+#define IDD_QUICKSTART                  185
 #define IDM_SYSTRAY                     186
 #define IDI_FOLDER                      188
 #define IDI_DISPLAY                     190
@@ -190,6 +194,7 @@
 #define IDS_TREEVIEW_SETTINGS           235
 #define IDS_WINUAETITLE_MMB             236
 #define IDS_WINUAETITLE_NORMAL          237
+#define IDS_STARTEMULATION              238
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
@@ -399,6 +404,7 @@
 #define IDC_SWAP                        1509
 #define IDC_CACHETEXT                   1509
 #define IDC_SELECTRESTEXT               1510
+#define IDC_FLUSHPRINTER                1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_WIDTHTEXT                   1512
 #define IDC_WINDOWEDTEXT                1512
@@ -408,11 +414,15 @@
 #define IDC_SETTINGSTEXT2               1515
 #define IDC_DISABLE1                    1516
 #define IDC_DF1WP                       1516
+#define IDC_QUICKSTART_COMPA            1516
 #define IDC_DISABLE2                    1517
 #define IDC_DF2WP                       1517
+#define IDC_QUICKSTART_DF               1517
 #define IDC_DISABLE3                    1518
 #define IDC_XCENTER                     1518
 #define IDC_DF3WP                       1518
+#define IDC_DF1WP2                      1518
+#define IDC_QUICKSTART_HOST             1518
 #define IDC_YCENTER                     1519
 #define IDC_DISABLE0                    1519
 #define IDC_DF0WP                       1519
@@ -626,6 +636,7 @@
 #define IDC_DISKLISTREMOVE              1649
 #define IDC_SOUNDCARD                   1650
 #define IDC_CS_SOUND0                   1650
+#define IDC_UPBM                        1650
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_CS_SOUND1                   1651
 #define IDC_SOUNDFREQ                   1652
@@ -638,10 +649,37 @@
 #define IDC_SOUNDSTEREO                 1655
 #define IDC_CONFIGTYPE                  1655
 #define IDC_SOUNDDRIVETXT               1656
+#define IDC_PATHS_ROM                   1656
 #define IDC_SOUNDSTEREOTXT              1657
+#define IDC_PATHS_CONFIG                1657
 #define IDC_SOUNDINTERPOLATIONTXT       1658
+#define IDC_PATHS_SCREENSHOT            1658
 #define IDC_DISK                        1659
 #define IDC_DISKLIST                    1659
+#define IDC_PATHS_SAVEIMAGE             1659
+#define IDC_PATHS_SAVESTATE             1660
+#define IDC_PATHS_ROMS                  1661
+#define IDC_PATHS_CONFIGS               1662
+#define IDC_PATHS_SCREENSHOTS           1663
+#define IDC_PATHS_SAVESTATES            1664
+#define IDC_PATHS_SAVEIMAGES            1665
+#define IDC_PATHS_ROML                  1666
+#define IDC_PATHS_CONFIGL               1667
+#define IDC_PATHS_SCREENSHOTL           1668
+#define IDC_PATHS_STATEFILEL            1669
+#define IDC_PATHS_SAVEIMAGEL            1670
+#define IDC_PATHS_DEFAULT               1671
+#define IDC_ROM_RESCAN                  1672
+#define IDC_QUICKSTARTMODE              1673
+#define IDC_RESETREGISTRY               1673
+#define IDC_QUICKSTART_MODEL            1674
+#define IDC_QUICKSTART_CONFIGURATION    1675
+#define IDC_QUICKSTART_COMPATIBILITY    1676
+#define IDC_QUICKSTART_CONFIG           1677
+#define IDC_DF0Q                        1678
+#define IDC_DF1Q                        1679
+#define IDC_QUICKSTART_HOSTCONFIG       1679
+#define IDC_CONFIGAUTO                  1682
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -660,9 +698,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        196
+#define _APS_NEXT_RESOURCE_VALUE        198
 #define _APS_NEXT_COMMAND_VALUE         40020
-#define _APS_NEXT_CONTROL_VALUE         1656
+#define _APS_NEXT_CONTROL_VALUE         1683
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

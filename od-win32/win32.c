@@ -59,8 +59,6 @@
 #include "scsidev.h"
 #include "disk.h"
 
-extern void WIN32GFX_WindowMove ( void );
-extern void WIN32GFX_WindowSize ( void );
 unsigned long *win32_stackbase; 
 unsigned long *win32_freestack[42]; //EXTRA_STACK_SIZE
 
@@ -90,7 +88,7 @@ int win_x_diff, win_y_diff;
 int toggle_sound;
 int paraport_mask;
 
-HKEY hWinUAEKey    = NULL;
+HKEY hWinUAEKey = NULL;
 COLORREF g_dwBackgroundColor  = RGB(10, 0, 10);
 
 static int emulation_paused;
@@ -107,8 +105,10 @@ static HANDLE timehandle;
 
 char *start_path;
 char help_file[ MAX_DPATH ];
+
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, dsound_hardware_mixing, no_rawinput;
 int log_scsi;
+DWORD quickstart = 1;
 
 static int timeend (void)
 {
@@ -1411,20 +1411,20 @@ void logging_cleanup( void )
 
 void target_default_options (struct uae_prefs *p)
 {
-    p->win32_middle_mouse = 0;
+    p->win32_middle_mouse = 1;
     p->win32_logfile = 0;
-    p->win32_iconified_nosound = 0;
-    p->win32_iconified_pause = 0;
+    p->win32_iconified_nosound = 1;
+    p->win32_iconified_pause = 1;
     p->win32_inactive_nosound = 0;
     p->win32_inactive_pause = 0;
     p->win32_no_overlay = 0;
     p->win32_ctrl_F11_is_quit = 0;
     p->win32_soundcard = 0;
-    p->win32_active_priority = 1;
+    p->win32_active_priority = 0;
     p->win32_inactive_priority = 2;
     p->win32_iconified_priority = 3;
-    p->win32_midioutdev = 0;
-    p->win32_midiindev = -2;
+    p->win32_midioutdev = -2;
+    p->win32_midiindev = 0;
 }
 
 void target_save_options (FILE *f, struct uae_prefs *p)
@@ -1527,11 +1527,105 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     return result;
 }
 
+void fetch_saveimagepath (char *out, int size, int dir)
+{
+    fetch_path ("SaveimagePath", out, size);
+    if (dir) {
+	out[strlen (out) - 1] = 0;
+	CreateDirectory (out, NULL);
+        fetch_path ("SaveimagePath", out, size);
+    }
+}
+void fetch_path (char *name, char *out, int size)
+{
+    strcpy (out, start_path);
+    if (!strcmp (name, "FloppyPath"))
+	strcat (out, "..\\shared\\adf\\");
+    if (!strcmp (name, "hdfPath"))
+	strcat (out, "..\\shared\\hdf\\");
+    if (!strcmp (name, "KickstartPath"))
+	strcat (out, "..\\shared\\rom\\");
+    if (hWinUAEKey)
+	RegQueryValueEx(hWinUAEKey, name, 0, NULL, out, &size);
+}
+void set_path (char *name, char *path)
+{
+    char tmp[MAX_DPATH];
+    if (!path) {
+	strcpy (tmp, start_path);
+	if (!strcmp (name, "KickstartPath"))
+	    strcat (tmp, "Roms");
+	if (!strcmp (name, "ConfigurationPath"))
+	    strcat (tmp, "Configurations");
+	if (!strcmp (name, "ScreenshotPath"))
+	    strcat (tmp, "Screenshots");
+	if (!strcmp (name, "StatefilePath"))
+	    strcat (tmp, "Savestates");
+	if (!strcmp (name, "SaveimagePath"))
+	    strcat (tmp, "SaveImages");
+    } else {
+	strcpy (tmp, path);
+    }
+    if (tmp[strlen (tmp) - 1] != '\\' && tmp[strlen (tmp) - 1] != '/')
+	strcat (tmp, "\\");
+    if (hWinUAEKey)
+	RegSetValueEx (hWinUAEKey, name, 0, REG_SZ, (CONST BYTE *)tmp, strlen (tmp) + 1);
+}
+
+static void initpath (char *name, char *path)
+{
+    if (!hWinUAEKey)
+	return;
+    if (RegQueryValueEx(hWinUAEKey, name, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
+	return;
+    set_path (name, NULL);
+}
+
+extern int scan_roms (char*);
+void read_rom_list (void)
+{
+    char tmp2[1000];
+    DWORD size2;
+    int idx, idx2;
+    HKEY fkey;
+    char tmp[1000];
+    DWORD size, disp;
+
+    romlist_clear ();
+    if (!hWinUAEKey)
+	return;
+    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
+	KEY_ALL_ACCESS, NULL, &fkey, &disp);
+    if (fkey == NULL)
+	return;
+    if (disp == REG_CREATED_NEW_KEY)
+	scan_roms (NULL);
+    idx = 0;
+    for (;;) {
+        int err;
+        size = sizeof (tmp);
+        size2 = sizeof (tmp2);
+        err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
+        if (err != ERROR_SUCCESS)
+	    break;
+        if (strlen (tmp) == 5) {
+	    idx2 = atol (tmp + 3);
+	    if (idx2 >= 0 && strlen (tmp2) > 0) {
+		struct romdata *rd = getromdatabyid (idx2);
+		if (rd)
+		    romlist_add (tmp2, rd);
+	    }
+	}
+	idx++;
+    }
+}
+
 static void WIN32_HandleRegistryStuff( void )
 {
-    RGBFTYPE colortype      = RGBFB_NONE;
-    DWORD dwType            = REG_DWORD;
+    RGBFTYPE colortype = RGBFB_NONE;
+    DWORD dwType = REG_DWORD;
     DWORD dwDisplayInfoSize = sizeof( colortype );
+    DWORD qssize;
     DWORD disposition;
     char path[MAX_DPATH] = "";
     HKEY hWinUAEKeyLocal = NULL;
@@ -1554,7 +1648,7 @@ static void WIN32_HandleRegistryStuff( void )
             sprintf( path, "%sWinUAE.exe -f \"%%1\" -s use_gui=yes", start_path );
             RegSetValueEx( hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen( path ) + 1 );
         }
-		RegCloseKey( hWinUAEKeyLocal );
+	RegCloseKey( hWinUAEKeyLocal );
 
         if( ( RegCreateKeyEx( HKEY_CLASSES_ROOT, "WinUAE\\shell\\Open\\command", 0, "", REG_OPTION_NON_VOLATILE,
                               KEY_ALL_ACCESS, NULL, &hWinUAEKeyLocal, &disposition ) == ERROR_SUCCESS ) )
@@ -1566,11 +1660,19 @@ static void WIN32_HandleRegistryStuff( void )
 	RegCloseKey( hWinUAEKeyLocal );
     }
     RegCloseKey( hWinUAEKey );
+    hWinUAEKey = NULL;
 
     /* Create/Open the hWinUAEKey which points our config-info */
     if( RegCreateKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
                           KEY_ALL_ACCESS, NULL, &hWinUAEKey, &disposition ) == ERROR_SUCCESS )
     {
+        initpath ("FloppyPath", start_path);
+        initpath ("KickstartPath", start_path);
+        initpath ("hdfPath", start_path);
+        initpath ("ConfigurationPath", start_path);
+        initpath ("ScreenshotPath", start_path);
+        initpath ("StatefilePath", start_path);
+        initpath ("SaveimagePath", start_path);
         if( disposition == REG_CREATED_NEW_KEY )
         {
             /* Create and initialize all our sub-keys to the default values */
@@ -1580,38 +1682,45 @@ static void WIN32_HandleRegistryStuff( void )
             RegSetValueEx( hWinUAEKey, "yPos", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
             RegSetValueEx( hWinUAEKey, "xPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
             RegSetValueEx( hWinUAEKey, "yPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
-            RegSetValueEx( hWinUAEKey, "FloppyPath", 0, REG_SZ, (CONST BYTE *)start_path, strlen( start_path ) + 1 );
-            RegSetValueEx( hWinUAEKey, "KickstartPath", 0, REG_SZ, (CONST BYTE *)start_path, strlen( start_path ) + 1 );
-            RegSetValueEx( hWinUAEKey, "hdfPath", 0, REG_SZ, (CONST BYTE *)start_path, strlen( start_path ) + 1 );
         }
 	// Set this even when we're opening an existing key, so that the version info is always up to date.
         RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 );
         
-		RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
-		if( colortype == 0 ) /* No color information stored in the registry yet */
-		{
-			char szMessage[ 4096 ];
-			char szTitle[ MAX_DPATH ];
-			WIN32GUI_LoadUIString( IDS_GFXCARDCHECK, szMessage, 4096 );
-			WIN32GUI_LoadUIString( IDS_GFXCARDTITLE, szTitle, MAX_DPATH );
+	RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
+	if( colortype == 0 ) /* No color information stored in the registry yet */
+	{
+	    char szMessage[ 4096 ];
+	    char szTitle[ MAX_DPATH ];
+	    WIN32GUI_LoadUIString( IDS_GFXCARDCHECK, szMessage, 4096 );
+	    WIN32GUI_LoadUIString( IDS_GFXCARDTITLE, szTitle, MAX_DPATH );
 		    
-			if( MessageBox( NULL, szMessage, szTitle, 
-			MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES )
-			{
-			ignore_messages_all++;
-			colortype = WIN32GFX_FigurePixelFormats(0);
-			ignore_messages_all--;
-			RegSetValueEx( hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
-			}
-		}
-		if( colortype ) {
-			/* Set the 16-bit pixel format for the appropriate modes */
-			WIN32GFX_FigurePixelFormats( colortype );
-		}
+	    if( MessageBox( NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES )
+	    {
+	        ignore_messages_all++;
+	        colortype = WIN32GFX_FigurePixelFormats(0);
+	        ignore_messages_all--;
+	        RegSetValueEx( hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
+	    }
 	}
+	if( colortype ) {
+	    /* Set the 16-bit pixel format for the appropriate modes */
+	    WIN32GFX_FigurePixelFormats( colortype );
+	}
+	qssize = sizeof (quickstart);
+ 	RegQueryValueEx( hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &qssize );
+    }
+    fetch_path ("ConfigurationPath", path, sizeof (path));
+    path[strlen (path) - 1] = 0;
+    CreateDirectory (path, NULL);
+    strcat (path, "\\Host");
+    CreateDirectory (path, NULL);
+    fetch_path ("ConfigurationPath", path, sizeof (path));
+    strcat (path, "Hardware");
+    CreateDirectory (path, NULL);
     fkey = read_disk_history ();
     if (fkey)
 	RegCloseKey (fkey);
+    read_rom_list ();
 }
 
 static void betamessage (void)
@@ -1797,16 +1906,8 @@ __asm{
 	if((posn = strrchr (start_path, '\\')))
 	    posn[1] = 0;
 	sprintf (help_file, "%sWinUAE.chm", start_path );
-#ifndef SINGLEFILE
-	sprintf (tmp, "%sSaveStates", start_path);
-	CreateDirectory (tmp, NULL);
 	strcat (tmp, "\\default.uss");
 	strcpy (savestate_fname, tmp);
-	sprintf (tmp, "%sSaveImages", start_path);
-	CreateDirectory (tmp, NULL);
-	sprintf (tmp, "%sScreenShots", start_path);
-	CreateDirectory (tmp, NULL);
-#endif
 	sprintf( VersionStr, "WinUAE %d.%d.%d%s", UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "" );
 
 	logging_init ();

@@ -118,15 +118,18 @@ void screenshot(int mode)
 		char filename[MAX_DPATH];
 		char extension[] = "bmp";
 		char tmpstr[MAX_DPATH];
+		char path[MAX_DPATH];
 		int number = 0;
 		
+		fetch_path ("ScreenshotPath", path, sizeof (path));
+		CreateDirectory (path, NULL);
 		tmpstr[0] = 0;
 		if(config_filename[0])
 			sprintf (tmpstr, "%s_", config_filename);
 		
 		while(++number < 1000) // limit 999 iterations / screenshots
 		{
-			sprintf(filename, "%s%cScreenShots%c%s%03.3d.%s", start_path, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, tmpstr, number, extension);
+			sprintf(filename, "%s%s%03.3d.%s", path, tmpstr, number, extension);
 			
 			if((fp = fopen(filename, "r")) == NULL) // does file not exist?
 			{
