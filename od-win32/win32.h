@@ -21,7 +21,7 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 11"
+#define WINUAEBETASTR " Beta 12"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);

@@ -82,7 +82,7 @@ static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
 static int kbstate, kback, ciaasdr_unread;
 #ifdef TOD_HACK
-static int tod_hack;
+static int tod_hack, tod_hack_delay;
 #endif
 
 static uae_u8 serbits;
@@ -385,7 +385,8 @@ static void tod_hack_reset (void)
     uae_u32 rate = currprefs.ntscmode ? 60 : 50;
     gettimeofday (&tv, NULL);
     tod_hack = (uae_u32)(((uae_u64)tv.tv_sec) * rate  + tv.tv_usec / (1000000 / rate));
-    tod_hack += ciaatod;
+    tod_hack -= ciaatod;
+    tod_hack_delay = 10 * 50;
 }
 #endif
 
@@ -395,15 +396,26 @@ void CIA_vsync_handler ()
     if (currprefs.tod_hack && ciaatodon) {
         struct timeval tv;
 	uae_u32 t, nt, rate = currprefs.ntscmode ? 60 : 50;
-	gettimeofday (&tv, NULL);
-	t = (uae_u32)(((uae_u64)tv.tv_sec) * rate + tv.tv_usec / (1000000 / rate));
-	nt = t - tod_hack;
-	if ((nt < ciaatod && ciaatod - nt < 10) || nt == ciaatod)
-	    return; /* try not to count backwards */
-	ciaatod = nt;
-	ciaatod &= 0xffffff;
-	ciaa_checkalarm ();
-	return;
+
+	if (tod_hack_delay > 0) {
+	    tod_hack_delay--;
+	    if (tod_hack_delay == 0) {
+		tod_hack_reset ();
+		tod_hack_delay = 0;
+		write_log ("TOD_HACK re-initialized CIATOD=%06.6X\n", ciaatod);
+	    }
+	}
+	if (tod_hack_delay == 0) {
+	    gettimeofday (&tv, NULL);
+	    t = (uae_u32)(((uae_u64)tv.tv_sec) * rate + tv.tv_usec / (1000000 / rate));
+	    nt = t - tod_hack;
+	    if ((nt < ciaatod && ciaatod - nt < 10) || nt == ciaatod)
+		return; /* try not to count backwards */
+	    ciaatod = nt;
+	    ciaatod &= 0xffffff;
+	    ciaa_checkalarm ();
+	    return;
+	}
     }
 #endif
     if (ciaatodon) {
@@ -446,7 +458,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 #ifdef CIA_DEBUG_R
     write_log("R_CIAA: bfe%x01 %08.8X\n", addr, m68k_getpc());
 #endif
-    
+
     switch (addr & 0xf) {
     case 0:
 #ifdef ACTION_REPLAY
@@ -694,11 +706,9 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    ciaatod = (ciaatod & ~0xff) | val;
 	    ciaatodon = 1;
 	    ciaa_checkalarm ();
-#if 0
 #ifdef TOD_HACK
 	    if (currprefs.tod_hack)
 		tod_hack_reset ();
-#endif
 #endif
 	}
 	break;
@@ -918,6 +928,7 @@ void CIA_reset (void)
 	div10 = 0;
 	ciaasdr_cnt = 0; ciaasdr = 0;
 	ciabsdr_cnt = 0; ciabsdr = 0;
+        ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
     }
     CIA_calctimers ();
     if (! ersatzkickfile)
@@ -942,13 +953,13 @@ void CIA_reset (void)
 
 void dumpcia (void)
 {
-    write_log("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    write_log ("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 	   ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaata, ciaala, ciaatb, ciaalb);
-    write_log("TOD %06x ALARM %06x %c%c\n",
+    write_log ("TOD %06x ALARM %06x %c%c\n",
 	ciaatod, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S');
-    write_log("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    write_log ("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 	   ciabcra, ciabcrb, ciaaicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
-    write_log("TOD %06x ALARM %06x %c%c\n",
+    write_log ("TOD %06x ALARM %06x %c%c\n",
 	ciabtod, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S');
 }
 

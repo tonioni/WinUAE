@@ -535,6 +535,11 @@ void mousehack_set (int state)
     }
 }
 
+int mousehack_get (void)
+{
+    return mousestate;
+}
+
 uae_u32 mousehack_helper (void)
 {
     int mousexpos, mouseypos;

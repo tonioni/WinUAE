@@ -3878,14 +3878,11 @@ static void enable_for_miscdlg (HWND hDlg)
         EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), TRUE);
         EnableWindow (GetDlgItem (hDlg, IDC_ASPI), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
-        //EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_CAPTURE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), FALSE);
     } else {
-#if !defined (FILESYS)
-        //EnableWindow (GetDlgItem(hDlg, IDC_CLOCKSYNC), FALSE);
-#endif
 #if !defined (BSDSOCKET)
         EnableWindow (GetDlgItem(hDlg, IDC_SOCKETS), FALSE);
 #endif
@@ -3966,7 +3963,8 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
     CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
-    CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.tod_hack);
+    CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+    CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
     if (!os_winnt || !os_winnt_admin) {
 	EnableWindow( GetDlgItem( hDlg, IDC_ASPI), FALSE );
@@ -3981,7 +3979,6 @@ static void values_to_miscdlg (HWND hDlg)
     misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
     misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
 
-    CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
     SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"1");
@@ -4100,6 +4097,9 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_ASPI:
 	    workprefs.win32_aspi = IsDlgButtonChecked (hDlg, IDC_ASPI);
+	    break;
+	case IDC_CLOCKSYNC:
+	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);
 	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
@@ -4393,11 +4393,11 @@ static void enable_for_sounddlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_FREQUENCY), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDFREQ), workprefs.produce_sound ? TRUE : FALSE);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREO), workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDINTERPOLATION), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDINTERPOLATION), workprefs.sound_stereo < 2 && workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME2), workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), workprefs.sound_stereo && workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), workprefs.sound_stereo == 1 && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo == 1&& workprefs.produce_sound);
 
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERMEM), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), workprefs.produce_sound);
@@ -4522,14 +4522,16 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_STEREO, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
-    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo ? 1 : 0, 0);
+    WIN32GUI_LoadUIString (IDS_SOUND_4CHANNEL, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_RESETCONTENT, 0, 0);
     for (i = 10; i >= 0; i--) {
 	sprintf (txt, "%d%%", i * 10);
         SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_ADDSTRING, 0, (LPARAM)txt);
     }
-    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_SETCURSEL, 10 - (workprefs.sound_stereo_separation / 3), 0);
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_SETCURSEL, 10 - workprefs.sound_stereo_separation, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_ADDSTRING, 0, (LPARAM)"-");
@@ -4637,7 +4639,8 @@ static void values_from_sounddlg (HWND hDlg)
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND1) ? 1
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND2) ? 2 : 3);
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);
-    workprefs.sound_stereo = idx == 1 ? 1 : 0;
+    if (idx != CB_ERR)
+	workprefs.sound_stereo = idx;
     workprefs.sound_stereo_separation = 0;
     workprefs.sound_mixed_stereo = 0;
     if (workprefs.sound_stereo > 0) {
@@ -4645,7 +4648,7 @@ static void values_from_sounddlg (HWND hDlg)
 	if (idx >= 0) {
 	    if (idx > 0)
 		workprefs.sound_mixed_stereo = -1;
-	    workprefs.sound_stereo_separation = (10 - idx) * 3;
+	    workprefs.sound_stereo_separation = 10 - idx;
 	}
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_GETCURSEL, 0, 0);
 	if (idx > 0)
@@ -6568,6 +6571,8 @@ static BOOL CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPa
     return FALSE;
 }
 
+#ifdef GFXFILTER
+
 static int scanlineratios[] = { 1,1,1,2,1,3, 2,1,2,2,2,3, 3,1,3,2,3,3, 0,0 };
 static int scanlineindexes[100];
 static int filterpreset = 0;
@@ -6960,6 +6965,7 @@ static BOOL CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
     }
     return FALSE;
 }
+#endif
 
 #ifdef AVIOUTPUT
 static void values_to_avioutputdlg(HWND hDlg)
@@ -7720,7 +7726,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, "gui/rom.htm");
 	CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, "gui/cpu.htm");
 	DISPLAY_ID = init_page (IDD_DISPLAY, IDI_DISPLAY, IDS_DISPLAY, DisplayDlgProc, "gui/display.htm");
-#if defined(OPENGL) || defined (D3D)
+#if defined (GFXFILTER)
 	HW3D_ID = init_page (IDD_FILTER, IDI_DISPLAY, IDS_FILTER, hw3dDlgProc, "gui/filter.htm");
 #endif
 	CHIPSET_ID = init_page (IDD_CHIPSET, IDI_CPU, IDS_CHIPSET, ChipsetDlgProc, "gui/chipset.htm");
@@ -8031,6 +8037,7 @@ void pre_gui_message (const char *format,...)
 static int transla[] = {
     NUMSG_NEEDEXT2, IDS_NUMSG_NEEDEXT2,
     NUMSG_NOROMKEY,IDS_NUMSG_NOROMKEY,
+    NUMSG_NOROM,IDS_NUMSG_NOROM,
     NUMSG_KSROMCRCERROR,IDS_NUMSG_KSROMCRCERROR,
     NUMSG_KSROMREADERROR,IDS_NUMSG_KSROMREADERROR,
     NUMSG_NOEXTROM,IDS_NUMSG_NOEXTROM,
@@ -8044,6 +8051,8 @@ static int transla[] = {
     NUMSG_STATEHD,IDS_NUMSG_STATEHD,
     NUMSG_OLDCAPS, IDS_NUMSG_OLDCAPS,
     NUMSG_NOCAPS, IDS_NUMSG_NOCAPS,
+    NUMSG_KICKREP, IDS_NUMSG_KICKREP,
+    NUMSG_KICKREPNO, IDS_NUMSG_KICKREPNO,
     -1
 };
 

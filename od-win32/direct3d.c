@@ -2,6 +2,9 @@
 #include <windows.h>
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#if defined (OPENGL) && defined (GFXFILTER)
+
 #include "config.h"
 #include "options.h"
 #include "xwin.h"
@@ -552,8 +555,4 @@ int D3D_isenabled (void)
     return d3d_enabled;
 }
 
-
-
-
-
-
+#endif

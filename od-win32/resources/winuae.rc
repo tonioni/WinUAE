@@ -551,6 +551,8 @@ BEGIN
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "Don't show Taskbar button",IDC_NOTASKBARBUTTON,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,29,80,117,10
+    CONTROL         "Syncronize clock",IDC_CLOCKSYNC,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,80,115,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 180
@@ -1339,6 +1341,7 @@ STRINGTABLE
 BEGIN
     IDS_NOHARDDRIVES        "No Amiga formatted or completely empty harddrives detected."
     IDS_DEFAULT_HOST        "Default Configuration"
+    IDS_SOUND_4CHANNEL      "4 Channels"
 END
 
 STRINGTABLE 
@@ -1356,7 +1359,7 @@ BEGIN
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
     IDS_NUMSG_MODRIP_SAVE   "Module/packer found\n%s\nDo you want to save it?"
     IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU or later CPU."
-    IDS_NUMSG_ROMNEED       "You need any of following ROM(s)\n\n%s"
+    IDS_NUMSG_ROMNEED       "You need any following ROM(s)\n\n%s"
     IDS_NUMSG_NOZLIB        "Zip and gzip support disabled because zlib1.dll is missing."
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
     IDS_NUMSG_NOCAPS        "This disk image needs the C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
@@ -1378,11 +1381,14 @@ BEGIN
                             "WARNING: Non-empty or Amiga formatted\nharddrive detected and safety test was disabled\n\nHarddrives marked with 'HD_*_' are not empty"
     IDS_NUMSG_KS68EC020     "Your Kickstart requires a 68EC020 or later CPU."
     IDS_ROMSCANNOROMS       "No supported Kickstart ROMs detected."
+    IDS_NUMSG_KICKREP       "You need to have a diskfile in DF0 to use the Kickstart replacement."
+    IDS_NUMSG_KICKREPNO     "Diskfiles in DF0: is not compatible with Kickstart replacement."
+    IDS_NUMSG_NOROM         "Could not load Kickstart ROM, trying Kickstart replacement."
 END
 
 STRINGTABLE 
 BEGIN
-    IDS_QS_MODELS           "Amiga 500\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nExpanded UAE example configuration"
+    IDS_QS_MODELS           "Amiga 500 (Amiga 2000)\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nExpanded UAE example configuration"
     IDS_QS_MODEL_A500       "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)\nThis configuration is capable of running most games and demos ever produced for the first Amiga line. Only few exceptions need different configuration. Oldest Amiga games tend to be incompatible with this configuration.\nKS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow\nLater hardware revision of Amiga 500. Nearly 100% compatible with previous configuration.\nKS 1.3, ECS Agnus, 1.0M Chip\nFew newer games and demos require this configuration.\nKS 1.3, OCS Agnus, 0.5M Chip\nVery old (~1987 and older) games and demos may require this configuration.\nKS 1.2, OCS Agnus, 0.5M Chip\nThe first Amiga 500 produced had this configuration. Some very old programs only work correctly with this configuration. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD.\nKS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow\nThis configuration adds expansion memory to the first Amiga 500 ever produced. Try this if your game do not work with newer configurations but works with the previous one. It could add some features to the game and faster game loading. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD."
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nA500+ is basically an Amiga 500 with ECS Agnus,  1MB of Chip RAM and Kickstart 2.0 ROM. Many Amiga 500 games and demos won't work properly on an Amiga 500+.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nA600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
@@ -1394,7 +1400,7 @@ END
 
 STRINGTABLE 
 BEGIN
-    IDS_QS_MODEL_UAE        "High-end expanded configuration\nThis configuration can be used as a basis for your own A3000/A4000-style high-performance, expanded custom configuration for Workbench, applications, WHDLoad etc.."
+    IDS_QS_MODEL_UAE        "High-end expanded configuration"
 END
 
 #endif    // English (U.S.) resources

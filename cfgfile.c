@@ -128,7 +128,7 @@ static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 }
 static const char *soundmode2[] = { "none", "interrupts", "good", "best", 0 };
 static const char *centermode1[] = { "none", "simple", "smart", 0 };
 static const char *centermode2[] = { "false", "true", "smart", 0 };
-static const char *stereomode[] = { "mono", "stereo", "mixed", 0 };
+static const char *stereomode[] = { "mono", "stereo", "4ch", "mixed", 0 };
 static const char *interpolmode[] = { "none", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
@@ -749,10 +749,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_strval (option, value, "sound_channels", &p->sound_stereo, stereomode, 1)) {
-	if (p->sound_stereo > 1) { /* "mixed stereo" compatibility hack */
+	if (p->sound_stereo == 3) { /* "mixed stereo" compatibility hack */
 	    p->sound_stereo = 1;
 	    p->sound_mixed_stereo = 5;
-	    p->sound_stereo_separation = 21;
+	    p->sound_stereo_separation = 7;
 	}
 	return 1;
     }
@@ -1444,10 +1444,10 @@ static void parse_sound_spec (struct uae_prefs *p, char *spec)
     }
     p->produce_sound = atoi (x0);
     if (x1) {
-	p->sound_stereo_separation = 32;
+	p->sound_stereo_separation = 16;
 	if (*x1 == 'S') {
 	    p->sound_stereo = 1;
-	    p->sound_stereo_separation = 20;
+	    p->sound_stereo_separation = 10;
 	} else if (*x1 == 's')
 	    p->sound_stereo = 1;
 	else
@@ -1471,22 +1471,22 @@ static void parse_joy_spec (struct uae_prefs *p, char *spec)
 	goto bad;
 
     switch (spec[0]) {
-     case '0': v0 = 0; break;
-     case '1': v0 = 1; break;
-     case 'M': case 'm': v0 = 2; break;
-     case 'A': case 'a': v0 = 3; break;
-     case 'B': case 'b': v0 = 4; break;
-     case 'C': case 'c': v0 = 5; break;
+     case '0': v0 = JSEM_JOYS; break;
+     case '1': v0 = JSEM_JOYS + 1; break;
+     case 'M': case 'm': v0 = JSEM_MICE; break;
+     case 'A': case 'a': v0 = JSEM_KBDLAYOUT; break;
+     case 'B': case 'b': v0 = JSEM_KBDLAYOUT + 1; break;
+     case 'C': case 'c': v0 = JSEM_KBDLAYOUT + 2; break;
      default: goto bad;
     }
 
     switch (spec[1]) {
-     case '0': v1 = 0; break;
-     case '1': v1 = 1; break;
-     case 'M': case 'm': v1 = 2; break;
-     case 'A': case 'a': v1 = 3; break;
-     case 'B': case 'b': v1 = 4; break;
-     case 'C': case 'c': v1 = 5; break;
+     case '0': v1 = JSEM_JOYS; break;
+     case '1': v1 = JSEM_JOYS + 1; break;
+     case 'M': case 'm': v1 = JSEM_MICE; break;
+     case 'A': case 'a': v1 = JSEM_KBDLAYOUT; break;
+     case 'B': case 'b': v1 = JSEM_KBDLAYOUT + 1; break;
+     case 'C': case 'c': v1 = JSEM_KBDLAYOUT + 2; break;
      default: goto bad;
     }
     if (v0 == v1)
@@ -1873,13 +1873,13 @@ void default_prefs (struct uae_prefs *p, int type)
     p->serial_hwctsrts = 1;
     p->parallel_demand = 0;
 
-    p->jport0 = 2;
-    p->jport1 = 4;
+    p->jport0 = JSEM_MICE;
+    p->jport1 = JSEM_KBDLAYOUT;
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;
     p->sound_stereo = 1;
-    p->sound_stereo_separation = 21;
+    p->sound_stereo_separation = 7;
     p->sound_mixed_stereo = -1;
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
@@ -2045,7 +2045,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->maprom = 0;
     p->sound_filter = 1;
     p->sound_stereo = 1;
-    p->sound_stereo_separation = 21;
+    p->sound_stereo_separation = 7;
     p->sound_mixed_stereo = -1;
 
     p->chipmem_size = 0x00080000;

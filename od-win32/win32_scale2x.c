@@ -1,6 +1,9 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#ifdef GFXFILTER
+
 #include "config.h"
 #include "options.h"
 #include "xwin.h"
@@ -200,6 +203,7 @@ void S2X_render (void)
 	    ok = 1;
 	}
 
+#if 0
     } else if (usedfilter->type == UAE_FILTER_HQ) { /* 32/2X+3X+4X */
 
         int hqsrcpitch = gfxvidinfo.rowbytes - aw * amiga_depth / 8;
@@ -224,7 +228,7 @@ void S2X_render (void)
 		ok = 1;
 	    }
 	}
-
+#endif
     } else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/2X */
 
 	if (scale == 2 && amiga_depth == 16 && dst_depth == 16) {
@@ -290,3 +294,5 @@ void S2X_refresh (void)
     DirectDraw_SurfaceUnlock ();
     S2X_render ();
 }
+
+#endif

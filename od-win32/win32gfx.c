@@ -771,12 +771,14 @@ void flush_screen (int a, int b)
 #endif
     } else if (currentmode->flags & DM_D3D) {
 	return;
+#ifdef GFXFILTER
     } else if (currentmode->flags & DM_SWSCALE) {
 	S2X_render ();
 	if( currentmode->flags & DM_DX_FULLSCREEN )
 	    DX_Flip ();
 	else if (DirectDraw_GetLockableType() != overlay_surface)
 	    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
+#endif
     } else if ((currentmode->flags & DM_DDRAW) && DirectDraw_GetLockableType() == secondary_surface ) {
 	if (currentmode->flags & DM_DX_FULLSCREEN) {
 	    if( turbo_emulation || DX_Flip() == 0 )
@@ -1178,7 +1180,9 @@ void init_colors (void)
 	    }		
 	}
 	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha);
+#ifdef GFXFILTER
 	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
+#endif
 #ifdef AVIOUTPUT
 	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
@@ -1516,6 +1520,7 @@ void gfx_set_picasso_modeinfo( uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgb
 
 static void gfxmode_reset (void)
 {
+#ifdef GFXFILTER
     usedfilter = 0;
     if (currprefs.gfx_filter > 0) {
 	int i = 0;
@@ -1527,17 +1532,18 @@ static void gfxmode_reset (void)
 	    i++;
 	}
     }
+#endif
     currentmode->amode[0] = &wmodes[currprefs.win32_no_overlay ? SM_WINDOW : SM_WINDOW_OVERLAY];
     currentmode->amode[1] = &wmodes[SM_FULLSCREEN_DX];
     currentmode->pmode[0] = &wmodes[currprefs.win32_no_overlay ? SM_WINDOW : SM_WINDOW_OVERLAY];
     currentmode->pmode[1] = &wmodes[SM_FULLSCREEN_DX];
-#ifdef OPENGL
+#if defined (OPENGL) && defined (GFXFILTER)
     if (usedfilter && usedfilter->type == UAE_FILTER_OPENGL) {
 	currentmode->amode[0] = &wmodes[SM_OPENGL_WINDOW];
 	currentmode->amode[1] = &wmodes[SM_OPENGL_FULLSCREEN_DX];
     }
 #endif
-#ifdef D3D
+#if defined (D3D) && defined (GFXFILTER)
     if (usedfilter && usedfilter->type == UAE_FILTER_DIRECT3D) {
 	currentmode->amode[0] = &wmodes[SM_D3D_WINDOW];
 	currentmode->amode[1] = &wmodes[SM_D3D_FULLSCREEN_DX];
@@ -1583,7 +1589,9 @@ uae_u32 OSDEP_minimize_uae( void )
 
 void close_windows (void)
 {
+#if defined (GFXFILTER)
     S2X_free ();
+#endif
     free (gfxvidinfo.realbufmem);
     gfxvidinfo.realbufmem = 0;
     DirectDraw_Release();
@@ -1828,11 +1836,13 @@ static void updatemodes (void)
     currentmode->modeindex = currentmode->mode - &wmodes[0];
 
     currentmode->flags &= ~DM_SWSCALE;
+#if defined (GFXFILTER)
     if (usedfilter && !usedfilter->x[0]) {
         currentmode->flags |= DM_SWSCALE;
         if (currentmode->current_depth < 15)
 	    currentmode->current_depth = 16;
     }
+#endif
 }
 
 static BOOL doInit (void)
@@ -1943,6 +1953,7 @@ static BOOL doInit (void)
 		continue;
 	    }
 	    currentmode->real_depth = currentmode->current_depth;
+#if defined (GFXFILTER)
 	    if (currentmode->flags & (DM_OPENGL | DM_D3D | DM_SWSCALE)) {
 		currentmode->amiga_width = AMIGA_WIDTH_MAX >> (currprefs.gfx_lores ? 1 : 0);
 		currentmode->amiga_height = AMIGA_HEIGHT_MAX >> (currprefs.gfx_linedbl ? 0 : 1);
@@ -1965,7 +1976,10 @@ static BOOL doInit (void)
 		    }
 		}
 	        currentmode->pitch = currentmode->amiga_width * currentmode->current_depth >> 3;
-	    } else {
+	    }
+		else
+#endif
+	    {
 	        currentmode->amiga_width = currentmode->current_width;
 	        currentmode->amiga_height = currentmode->current_height;
 	    }
@@ -2017,12 +2031,13 @@ static BOOL doInit (void)
     if (currentmode->flags & DM_OVERLAY)
 	setoverlay ();
 
+#if defined (GFXFILTER)
     if (currentmode->flags & DM_SWSCALE) {
 	S2X_init (currentmode->current_width, currentmode->current_height,
 	    currentmode->amiga_width, currentmode->amiga_height,
 	    mult, currentmode->current_depth, currentmode->real_depth);
     }
-#ifdef OPENGL
+#if defined OPENGL
     if (currentmode->flags & DM_OPENGL) {
 	const char *err = OGL_init (hAmigaWnd, currentmode->current_width, currentmode->current_height,
 	    currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth);
@@ -2053,6 +2068,7 @@ static BOOL doInit (void)
 	    goto oops;
 	}
     }
+#endif
 #endif
     return 1;
 
@@ -2111,15 +2127,19 @@ void updatedisplayarea (void)
     if (picasso_on)
 	return;
     /* Update the display area */
+#if defined (GFXFILTER)
     if (currentmode->flags & DM_OPENGL) {
-#ifdef OPENGL
+#if defined (OPENGL)
 	OGL_refresh ();
 #endif
     } else if (currentmode->flags & DM_D3D) {
-#ifdef D3D
+#if defined (D3D)
 	D3D_refresh ();
 #endif
-    } else if (currentmode->flags & DM_DDRAW) {
+    } else
+#endif
+    if (currentmode->flags & DM_DDRAW) {
+#if defined (GFXFILTER)
 	if (currentmode->flags & DM_SWSCALE) {
 	    S2X_refresh ();
 	    if( !isfullscreen() ) {
@@ -2128,7 +2148,10 @@ void updatedisplayarea (void)
 	    } else {
 		DirectDraw_Blt( primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL );
 	    }
-	} else {
+	}
+	    else
+#endif
+	{
 	    if( !isfullscreen() ) {
 		if(DirectDraw_GetLockableType() != overlay_surface)
 		    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );

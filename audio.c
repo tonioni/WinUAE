@@ -115,6 +115,7 @@ STATIC_INLINE void put_sound_word_right (uae_u32 w)
     PUT_SOUND_WORD_RIGHT (w);
 }
 
+#define MIXED_STEREO_MAX 32
 static int mixed_stereo_size, mixed_mul1, mixed_mul2;
 
 STATIC_INLINE void put_sound_word_left (uae_u32 w)
@@ -129,12 +130,12 @@ STATIC_INLINE void put_sound_word_left (uae_u32 w)
         saved_ptr = (saved_ptr + 1) & mixed_stereo_size;
 
 	lold = left_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	tmp = (rnew * mixed_mul1 + lold * mixed_mul2) >> 6;
+	tmp = (rnew * mixed_mul1 + lold * mixed_mul2) / MIXED_STEREO_MAX;
 	tmp += SOUND16_BASE_VAL;
 	PUT_SOUND_WORD_RIGHT (tmp);
 
 	rold = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	w = (lnew * mixed_mul1 + rold * mixed_mul2) >> 6;
+	w = (lnew * mixed_mul1 + rold * mixed_mul2) / MIXED_STEREO_MAX;
     }
     PUT_SOUND_WORD_LEFT (w);
 }
@@ -305,10 +306,10 @@ void sample16ss_handler (void)
     data2 &= audio_channel[2].adk_mask;
     data3 &= audio_channel[3].adk_mask;
     
-    PUT_SOUND_WORD_LEFT (data0 << 2);
-    PUT_SOUND_WORD_RIGHT (data1 << 2);
-    PUT_SOUND_WORD_LEFT (data2 << 2);
-    PUT_SOUND_WORD_RIGHT (data3 << 2);
+    PUT_SOUND_WORD (data1 << 2);
+    PUT_SOUND_WORD (data0 << 2);
+    PUT_SOUND_WORD (data2 << 2);
+    PUT_SOUND_WORD (data3 << 2);
     
     check_sound_buffers ();
 }
@@ -749,6 +750,7 @@ STATIC_INLINE int sound_prefs_changed (void)
 
 void check_prefs_changed_audio (void)
 {
+    int v;
 #ifdef DRIVESOUND
     driveclick_check_prefs ();
 #endif
@@ -785,8 +787,8 @@ void check_prefs_changed_audio (void)
 	next_sample_evtime = scaled_sample_evtime;
 	compute_vsynctime ();
     }
-    mixed_mul1 = 32 - currprefs.sound_stereo_separation;
-    mixed_mul2 = 32 + currprefs.sound_stereo_separation;
+    mixed_mul1 = MIXED_STEREO_MAX / 2 - ((currprefs.sound_stereo_separation * 3) / 2);
+    mixed_mul2 = MIXED_STEREO_MAX / 2 + ((currprefs.sound_stereo_separation * 3) / 2);
     mixed_stereo_size = currprefs.sound_mixed_stereo > 0 ? (1 << (currprefs.sound_mixed_stereo - 1)) - 1 : 0;
 
     /* Select the right interpolation method.  */

@@ -34,8 +34,6 @@
 
 #include <math.h>
 
-int dsound_hardware_mixing = 0;
-
 #define ADJUST_SIZE 10
 #define EXP 1.3
 
@@ -255,7 +253,7 @@ static int open_audio_ds (int size)
     int freq = currprefs.sound_freq;
     
     enumerate_sound_devices (0);
-    if (dsound_hardware_mixing) {
+    if (currprefs.sound_stereo == 2) {
 	size <<= 3;
     } else {
 	size <<= 1;
@@ -319,7 +317,7 @@ static int open_audio_ds (int size)
     }
 
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
-    wavfmt.nChannels = dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    wavfmt.nChannels = (currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
     wavfmt.nSamplesPerSec = freq;
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
@@ -364,14 +362,14 @@ static int open_audio_ds (int size)
     clearbuffer ();
 
     init_sound_table16 ();
-    if (dsound_hardware_mixing)
+    if (currprefs.sound_stereo == 2)
 	sample_handler = sample16ss_handler;
     else
 	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
 
     write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
 	sound_devices[currprefs.win32_soundcard],
-	dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1),
+	currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1),
 	16, freq, max_sndbufsize, snd_configsize);
     obtainedfreq = currprefs.sound_freq;
 
@@ -583,7 +581,7 @@ static void finish_sound_buffer_ds (void)
 
 static void filtercheck (uae_s16 *sndbuffer, int len)
 {
-    int ch = dsound_hardware_mixing ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    int ch = currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1);
     int i;
     static double cold[4];
     double old0, old1, v;

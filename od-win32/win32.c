@@ -109,7 +109,7 @@ static HANDLE timehandle;
 char *start_path;
 char help_file[ MAX_DPATH ];
 
-extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, dsound_hardware_mixing, no_rawinput;
+extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 int log_scsi;
 DWORD quickstart = 1;
 
@@ -359,6 +359,12 @@ static void setcursor(int oldx, int oldy)
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
+static void movehackmouse (int x, int y)
+{
+    setmousestate (0, 0, x, 1);
+    setmousestate (0, 1, y, 1);
+}
+
 void setmouseactive (int active)
 {
     int oldactive = mouseactive;
@@ -367,10 +373,15 @@ void setmouseactive (int active)
 
     if (active > 0 && ievent_alive > 0) {
 	mousehack_set (mousehack_follow);
-	return;
+	if (!isfullscreen ())
+	    return;
+    } else {
+	mousehack_set (mousehack_dontcare);
     }
-    mousehack_set (mousehack_dontcare);
     inputdevice_unacquire ();
+    //mousehack_width = GetSystemMetrics (SM_CXVIRTUALSCREEN);
+    //mousehack_height = GetSystemMetrics (SM_CYVIRTUALSCREEN);
+
     mouseactive = active;
     strcpy (txt, "WinUAE");
     if (mouseactive > 0) {
@@ -651,7 +662,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     return 0;
 
     case WM_LBUTTONUP:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 0, 0);
     return 0;
     case WM_LBUTTONDOWN:
@@ -659,42 +670,42 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	if (!mouseactive && !isfullscreen()) {
 	    setmouseactive (1);
 	}
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 0, 1);
     return 0;
     case WM_RBUTTONUP:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 1, 0);
     return 0;
     case WM_RBUTTONDOWN:
     case WM_RBUTTONDBLCLK:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 1, 1);
     return 0;
     case WM_MBUTTONUP:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 2, 0);
     return 0;
     case WM_MBUTTONDOWN:
     case WM_MBUTTONDBLCLK:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousebuttonstate (dinput_winmouse(), 2, 1);
     return 0;
     case WM_XBUTTONUP:
-	if (dinput_winmouse () > 0) {
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow) {
 	    handleXbutton (wParam, 0);
 	    return TRUE;
 	}
     return 0;
     case WM_XBUTTONDOWN:
     case WM_XBUTTONDBLCLK:
-	if (dinput_winmouse () > 0) {
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow) {
 	    handleXbutton (wParam, 1);
 	    return TRUE;
 	}
     return 0;
     case WM_MOUSEWHEEL:
-	if (dinput_winmouse () > 0)
+	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
 	    setmousestate (dinput_winmouse(), 2, ((short)HIWORD(wParam)), 0);
     return 0;
 
@@ -740,7 +751,10 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_MOUSEMOVE:
         mx = (signed short) LOWORD (lParam);
         my = (signed short) HIWORD (lParam);
-	if (dinput_winmouse () > 0) {
+	if (mousehack_get () == mousehack_follow) {
+	    movehackmouse (mx, my);
+	    return 0;
+	} else if (dinput_winmouse () > 0) {
 	    int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
 	    int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
 	    mx = mx - mxx;
@@ -750,15 +764,6 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
         } else if ((!mouseactive && !isfullscreen())) {
 	    setmousestate (0, 0, mx, 1);
 	    setmousestate (0, 1, my, 1);
-	} else {
-#if 0
-	    int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
-	    int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
-	    mx = mx - mxx;
-	    my = my - myy;
-	    setmousestate (0, 0, mx, 0);
-	    setmousestate (0, 1, my, 0);
-#endif
 	}
 	if (mouseactive)
 	    setcursor (LOWORD (lParam), HIWORD (lParam));
@@ -2057,7 +2062,6 @@ __asm{
 	if (!strcmp (arg, "-disableharddrivesafetycheck")) harddrive_dangerous = 0x1234dead;
 	if (!strcmp (arg, "-noaspifiltering")) aspi_allow_all = 1;
 #endif
-	if (!strcmp (arg, "-dsaudiomix")) dsound_hardware_mixing = 1;
 	if (!strcmp (arg, "-nordtsc")) no_rdtsc = 1;
 	if (!strcmp (arg, "-forcerdtsc")) no_rdtsc = -1;
 	if (!strcmp (arg, "-norawinput")) no_rawinput = 1;

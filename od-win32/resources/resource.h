@@ -202,6 +202,7 @@
 #define IDS_TREEVIEW_ABOUT              239
 #define IDS_NOHARDDRIVES                240
 #define IDS_DEFAULT_HOST                241
+#define IDS_SOUND_4CHANNEL              242
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -227,6 +228,10 @@
 #define IDS_HARDDRIVESAFETYWARNING      322
 #define IDS_NUMSG_KS68EC020             323
 #define IDS_ROMSCANNOROMS               324
+#define IDS_NUMSG_KICKREP               325
+#define IDS_NUMSG_KICKREPNO             326
+#define IDS_STRING19                    327
+#define IDS_NUMSG_NOROM                 327
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -586,11 +591,9 @@
 #define IDC_INPUTTYPE                   1607
 #define IDC_AVIOUTPUT_NTSC              1608
 #define IDC_INPUTSELECTTEXT             1608
-#define IDC_KILLWINKEYS                 1608
-#define IDC_SCSIDEVICE2                 1608
-#define IDC_CLOCKSYNC                   1608
 #define IDC_NOUAEFSDB                   1608
 #define IDC_NOTASKBARBUTTON             1608
+#define IDC_CLOCKSYNC                   1609
 #define IDC_AVIOUTPUT_FPS               1609
 #define IDC_INPUTDEVICE                 1609
 #define IDC_MAPROM                      1609
@@ -784,7 +787,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        242
+#define _APS_NEXT_RESOURCE_VALUE        244
 #define _APS_NEXT_COMMAND_VALUE         40021
 #define _APS_NEXT_CONTROL_VALUE         1695
 #define _APS_NEXT_SYMED_VALUE           101

@@ -469,6 +469,18 @@ static void sortdd (struct didata *dd, int num, int type)
     int i, j;
     struct didata ddtmp;
 
+    for (i = 0; i < num; i++) {
+	dd[i].type = type;
+	for (j = i + 1; j < num; j++) {
+	    dd[j].type = type;
+	    if (dd[i].priority < dd[j].priority || (dd[i].priority == dd[j].priority && strcmp (dd[i].sortname, dd[j].sortname) > 0)) {
+		memcpy (&ddtmp, &dd[i], sizeof(ddtmp));
+		memcpy (&dd[i], &dd[j], sizeof(ddtmp));
+		memcpy (&dd[j], &ddtmp, sizeof(ddtmp));
+	    }
+	}
+    }
+
     /* rename duplicate names */
     for (i = 0; i < num; i++) {
 	for (j = i + 1; j < num; j++) {
@@ -488,17 +500,6 @@ static void sortdd (struct didata *dd, int num, int type)
 	}
     }
 
-    for (i = 0; i < num; i++) {
-	dd[i].type = type;
-	for (j = i + 1; j < num; j++) {
-	    dd[j].type = type;
-	    if (dd[i].priority < dd[j].priority || (dd[i].priority == dd[j].priority && strcmp (dd[i].sortname, dd[j].sortname) > 0)) {
-		memcpy (&ddtmp, &dd[i], sizeof(ddtmp));
-		memcpy (&dd[i], &dd[j], sizeof(ddtmp));
-		memcpy (&dd[j], &ddtmp, sizeof(ddtmp));
-	    }
-	}
-    }
 }
 
 static void sortobjects (struct didata *did, int *mappings, int *sort, char **names, int *types, int num)
@@ -844,6 +845,8 @@ static int acquire_mouse (int num, int flags)
     HRESULT hr;
 
     unacquire (lpdi, "mouse");
+    if (mousehack_get () == mousehack_follow)
+	return 0;
     if (lpdi) {
 	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "mouse");
 	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
@@ -1415,7 +1418,7 @@ static int acquire_kb (int num, int flags)
 
     if (currprefs.keyboard_leds_in_use) {
 #ifdef WINDDK
-	if (os_winnt) {
+	if (os_winnt && !usbledmode) {
 	    if (DefineDosDevice (DDD_RAW_TARGET_PATH, "Kbd","\\Device\\KeyboardClass0")) {
 		kbhandle = CreateFile("\\\\.\\Kbd", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 		if (kbhandle == INVALID_HANDLE_VALUE) {
@@ -1474,7 +1477,6 @@ static void unacquire_kb (int num)
 	    kbhandle = INVALID_HANDLE_VALUE;
 	}
 #endif
-	usbledmode = 0;
     }
 }
 

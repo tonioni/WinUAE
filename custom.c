@@ -2206,7 +2206,8 @@ void init_hz (void)
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
     if (hack_vpos > 0) {
-	if (maxvpos == hack_vpos) return;
+	if (maxvpos == hack_vpos)
+	    return;
 	maxvpos = hack_vpos;
 	vblank_hz = 15600 / hack_vpos;
 	hack_vpos = -1;
@@ -4222,7 +4223,6 @@ static void vsync_handler (void)
     if (timehack_alive > 0)
 	timehack_alive--;
     inputdevice_vsync ();
-
 }
 
 #ifdef JIT
@@ -4304,15 +4304,9 @@ static void hsync_handler (void)
 #ifdef PICASSO96
     picasso_handle_hsync ();
 #endif
+
     ciahsync++;
     if (ciahsync >= (currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) { /* not so perfect.. */
-	if (ciahsync != 312) {
-	    static int warned = 0;
-	    if (!warned)
-		gui_message("ciahsync may be messed up! check logs!");
-	    warned = 1;
-	    write_log ("ciahsync=%d! %d %d", ciahsync, currprefs.ntscmode, maxhpos);
-	}
         CIA_vsync_handler ();
 	ciahsync = 0;
     }

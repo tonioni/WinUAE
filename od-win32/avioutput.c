@@ -490,6 +490,7 @@ void AVIOutput_RGBinfo(int rb, int gb, int bb, int rs, int gs, int bs)
 	rgb_type = 0;
 }
 
+#if defined (GFXFILTER)
 extern int bufmem_width, bufmem_height;
 extern uae_u8 *bufmem_ptr;
 
@@ -528,7 +529,7 @@ static int getFromBuffer(LPBITMAPINFO lpbi)
     }
     return 1;
 }
-
+#endif
 
 void AVIOutput_WriteVideo(void)
 {
@@ -553,11 +554,14 @@ void AVIOutput_WriteVideo(void)
 	    actual_width = WIN32GFX_GetWidth();
 	    actual_height = WIN32GFX_GetHeight();
 	}
-
+#if defined (GFXFILTER)
 	if (!usedfilter || (usedfilter && usedfilter->x[0]) || WIN32GFX_IsPicassoScreen ())
 	    v = getFromDC((LPBITMAPINFO)lpbi);
 	else
 	    v = getFromBuffer((LPBITMAPINFO)lpbi);
+#else
+        v = getFromDC((LPBITMAPINFO)lpbi);
+#endif
 	if (!v)
 	    goto error;
 

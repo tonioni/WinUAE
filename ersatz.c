@@ -20,6 +20,7 @@
 #include "cia.h"
 #include "disk.h"
 #include "ersatz.h"
+#include "gui.h"
 
 #define EOP_INIT     0
 #define EOP_NIMP     1
@@ -30,6 +31,8 @@
 #define EOP_ALLOCMEM 6
 #define EOP_ALLOCABS 7
 #define EOP_LOOP 8
+
+static int already_failed = 0;
 
 void init_ersatz_rom (uae_u8 *data)
 {
@@ -66,6 +69,15 @@ void init_ersatz_rom (uae_u8 *data)
     *data++ = 0x4E; *data++ = 0x75;
 }
 
+static void ersatz_failed (void)
+{
+    if (already_failed)
+	return;
+    already_failed = 1;
+    notify_user (NUMSG_KICKREPNO);
+    uae_restart (-1, NULL);
+}
+
 static void ersatz_doio (void)
 {
     uaecptr request = m68k_areg(regs, 1);
@@ -76,7 +88,7 @@ static void ersatz_doio (void)
 
      default:
 	write_log ("Only CMD_READ supported in DoIO()\n");
-	uae_restart (-1, NULL);
+	ersatz_failed ();
     }
     {
 	uaecptr dest = get_long (request + 0x28);
@@ -99,8 +111,11 @@ static void ersatz_init (void)
     uaecptr request;
     uaecptr a;
 
+    already_failed = 0;
+    write_log ("initializing kickstart replacement\n");
     if (disk_empty (0)) {
-	gui_message ("You need to have a diskfile in DF0 to use the Kickstart replacement!\n");
+	already_failed = 1;
+	notify_user (NUMSG_KICKREP);
 	uae_restart (-1, NULL);
 	return;
     }
@@ -224,7 +239,7 @@ void ersatz_perform (uae_u16 what)
 
      case EOP_NIMP:
 	write_log ("Unimplemented Kickstart function called\n");
-	uae_restart (-1, NULL);
+	ersatz_failed ();
 	
 	/* fall through */
      case EOP_LOOP:
@@ -234,6 +249,6 @@ void ersatz_perform (uae_u16 what)
      case EOP_OPENLIB:
      default:
 	write_log ("Internal error. Giving up.\n");
-	uae_restart (-1, NULL);
+	ersatz_failed ();
     }
 }

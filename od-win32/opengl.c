@@ -9,6 +9,9 @@
 #include <windows.h>
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#if defined (OPENGL) && defined (GFXFILTER)
+
 #include "config.h"
 #include "options.h"
 #include "xwin.h"
@@ -19,7 +22,6 @@
 #include "win32gfx.h"
 #include "gfxfilter.h"
 
-#ifdef OPENGL
 //#define FSAA
 
 #include <gl\gl.h>

@@ -84,6 +84,7 @@ extern int getbuttonstate (int joy, int button);
 extern int getjoystate (int joy);
 
 extern void mousehack_set (enum mousestate);
+extern int mousehack_get (void);
 extern uae_u32 mousehack_helper (void);
 extern void mousehack_handle (int sprctl, int sprpos);
 

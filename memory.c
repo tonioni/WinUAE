@@ -1706,6 +1706,8 @@ void memory_reset (void)
         load_extendedkickstart ();
 	kickmem_mask = 524288 - 1;
 	if (!load_kickstart ()) {
+	    if (strlen (currprefs.romfile) > 0)
+		notify_user (NUMSG_NOROM);
 #ifdef AUTOCONFIG
             init_ersatz_rom (kickmemory);
 	    ersatzkickfile = 1;
@@ -1835,7 +1837,7 @@ void memory_init (void)
     kickmemory = mapped_malloc (kickmem_size, "kick");
     memset (kickmemory, 0, kickmem_size);
     kickmem_bank.baseaddr = kickmemory;
-    currprefs.romfile[0] = 0;
+    strcpy (currprefs.romfile, "<none>");
     currprefs.romextfile[0] = 0;
 #ifdef AUTOCONFIG
     init_ersatz_rom (kickmemory);
