@@ -1029,11 +1029,6 @@ static void GetConfigPath (char *path, struct ConfigStruct *parent, int noroot)
 	path[0] = 0;
 	if (!noroot) {
 	    fetch_path ("ConfigurationPath", path, MAX_DPATH);
-#if 0
-	    if (start_path)
-		strcpy (path, start_path);
-	    strcat (path, "Configurations\\");
-#endif
 	}
 	return;
     }
@@ -1203,8 +1198,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
     if (config) {
         strcpy (path, config->Fullpath);
     } else {
-        strncpy (path, start_path, MAX_DPATH);
-        strncat (path, "Configurations\\", MAX_DPATH);
+	fetch_configurationpath (path, sizeof (path));
     }
     strncat (path, name, MAX_DPATH);
     strcpy (full_path, path);
@@ -1861,7 +1855,7 @@ static void ConfigToRegistry2 (DWORD ct, int type, DWORD noauto)
 	return;
     if (type > 0)
 	RegSetValueEx (hWinUAEKey, configreg2[type], 0, REG_DWORD, (CONST BYTE *)&ct, sizeof (ct));
-    if (noauto >= 0)
+    if (noauto == 0 || noauto == 1)
 	RegSetValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, REG_DWORD, (CONST BYTE *)&noauto, sizeof (noauto));
 }
 
@@ -1887,6 +1881,8 @@ static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *confi
 {
     int i;
 
+    if (config && configtypepanel == 0 && (config->host || config->hardware))
+	return NULL;
     if ((!config && configtypepanel) || (config && (configtypepanel == 2 && !config->host) || (configtypepanel == 1 && !config->hardware))) {
         for (i = 0; i < configstoresize; i++) {
 	    struct ConfigStruct *cs = configstore[i];
@@ -2303,7 +2299,7 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	recursive++;
 	pages[PATHS_ID] = hDlg;
 	currentpage = PATHS_ID;
-#ifndef WINUAEBETA
+#if !WINUAEBETA
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 #endif
 	values_to_pathsdialog (hDlg);

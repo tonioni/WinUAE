@@ -1121,7 +1121,7 @@ BEGIN
         POPUP "Floppy Drives"
         BEGIN
             MENUITEM "Eject all drives",            ID_ST_EJECTALL
-            MENUITEM "DF0:",                        40014
+            MENUITEM "DF0:",                        ID_ST_DF0
             MENUITEM "DF1:",                        ID_ST_DF1
             MENUITEM "DF2:",                        ID_ST_DF2
             MENUITEM "DF3:",                        ID_ST_DF3

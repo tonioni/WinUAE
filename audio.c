@@ -750,7 +750,6 @@ STATIC_INLINE int sound_prefs_changed (void)
 
 void check_prefs_changed_audio (void)
 {
-    int v;
 #ifdef DRIVESOUND
     driveclick_check_prefs ();
 #endif

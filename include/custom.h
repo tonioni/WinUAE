@@ -26,6 +26,7 @@ extern void notice_new_xcolors (void);
 extern void notice_screen_contents_lost (void);
 extern void init_row_map (void);
 extern void init_hz (void);
+extern void init_custom (void);
 
 extern int picasso_requested_on;
 extern int picasso_on;

@@ -20,8 +20,8 @@ extern int in_sizemove;
 extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
-#define WINUAEBETA 1
-#define WINUAEBETASTR " RC1"
+#define WINUAEBETA 0
+#define WINUAEBETASTR ""
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);

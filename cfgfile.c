@@ -2034,6 +2034,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->dfxtype[1] = 0;
     p->dfxtype[2] = -1;
     p->dfxtype[3] = -1;
+    p->floppy_speed = 100;
 
     p->cpu_level = 0;
     p->m68k_speed = 0;

@@ -2305,6 +2305,14 @@ static void calcdiw (void)
 	plfstrt = HARD_DDF_START;
 }
 
+/* display mode changed (lores, doubling etc..), recalculate everything */
+void init_custom (void)
+{
+    reset_drawing ();
+    init_hz ();
+    calcdiw ();
+}
+
 static int timehack_alive = 0;
 
 static uae_u32 timehack_helper (void)
@@ -5492,8 +5500,7 @@ void check_prefs_changed_custom (void)
 	    currprefs.ntscmode = changed_prefs.ntscmode;
 	    new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 	}
-	init_hz ();
-	calcdiw ();
+	init_custom ();
     }
     currprefs.gfx_filter_horiz_zoom = changed_prefs.gfx_filter_horiz_zoom;
     currprefs.gfx_filter_vert_zoom = changed_prefs.gfx_filter_vert_zoom;

@@ -681,9 +681,7 @@ static void real_main2 (int argc, char **argv)
 void real_main (int argc, char **argv)
 {
     restart_program = 1;
-#ifdef _WIN32
-    sprintf (restart_config, "%sConfigurations\\", start_path);
-#endif
+    fetch_configurationpath (restart_config, sizeof (restart_config));
     strcat (restart_config, OPTIONSFILENAME);
     while (restart_program) {
 	changed_prefs = currprefs;

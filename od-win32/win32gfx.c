@@ -1009,7 +1009,7 @@ int check_prefs_changed_gfx (void)
 #ifdef PICASSO96
 	DX_SetPalette (0, 256);
 #endif
-	init_hz ();
+	init_custom ();
 	pause_sound ();
 	resume_sound ();
 	inputdevice_acquire ();

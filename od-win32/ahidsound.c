@@ -397,6 +397,7 @@ static int ahi_init_sound_win32 (void)
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * 2;
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * sound_freq_ahi;
+    wavfmt.cbSize = 0;
 
     soundneutral = 0;
     ahisndbufsize = (amigablksize*4)*NATIVBUFFNUM;  // use 4 native buffer

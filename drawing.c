@@ -1533,12 +1533,14 @@ static void center_image (void)
     int prev_y_adjust = thisframe_y_adjust;
 
     if (currprefs.gfx_xcenter) {
+        int w = gfxvidinfo.width;
 
-	if (max_diwstop - min_diwstart < gfxvidinfo.width && currprefs.gfx_xcenter == 2)
+	if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
 	    /* Try to center. */
-	    visible_left_border = ((max_diwstop - min_diwstart - gfxvidinfo.width) / 2 + min_diwstart) & ~1;
+	    visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
 	else
-	    visible_left_border = max_diwstop - gfxvidinfo.width -  ((max_diwstop - min_diwstart) - gfxvidinfo.width) / 2;
+	    visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
+	visible_left_border &= ~1;
 
 	/* Would the old value be good enough? If so, leave it as it is if we want to
 	 * be clever. */
