@@ -5634,7 +5634,7 @@ STATIC_INLINE void sync_copper (int hpos)
 
 STATIC_INLINE decide_fetch_ce (int hpos)
 {
-    if (ddf_change == vpos)
+    if (ddf_change == vpos && vpos < maxvpos)
 	decide_fetch (hpos);
 }
 

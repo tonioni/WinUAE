@@ -782,19 +782,19 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     char init_path[MAX_DPATH] = "";
     BOOL result = FALSE;
     char *amiga_path = NULL;
-    char description[ CFG_DESCRIPTION_LENGTH ] = "";
+    char description[CFG_DESCRIPTION_LENGTH] = "";
     char *p, *nextp;
     int all = 1;
     int next;
 
-    char szTitle[ MAX_DPATH ];
-    char szFormat[ MAX_DPATH ];
-    char szFilter[ MAX_DPATH ] = { 0 };
+    char szTitle[MAX_DPATH];
+    char szFormat[MAX_DPATH];
+    char szFilter[MAX_DPATH] = { 0 };
     
     memset (&openFileName, 0, sizeof (OPENFILENAME));
     
-    strncpy( init_path, start_path, MAX_DPATH );
-    switch( flag )
+    strncpy (init_path, start_path, MAX_DPATH);
+    switch (flag)
     {
 	case 0:
 	case 1:
@@ -8423,7 +8423,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	PORTS_ID = init_page (IDD_PORTS, IDI_PORTS, IDS_PORTS, PortsDlgProc, NULL, "gui/ports.htm");
 	INPUT_ID = init_page (IDD_INPUT, IDI_INPUT, IDS_INPUT, InputDlgProc, NULL, "gui/input.htm");
 	MISC1_ID = init_page (IDD_MISC1, IDI_MISC1, IDS_MISC1, MiscDlgProc1, NULL, "gui/misc.htm");
-	MISC2_ID = init_page (IDD_MISC2, IDI_MISC2, IDS_MISC2, MiscDlgProc2, NULL, "gui/misc.htm");
+	MISC2_ID = init_page (IDD_MISC2, IDI_MISC2, IDS_MISC2, MiscDlgProc2, NULL, "gui/misc2.htm");
 #ifdef AVIOUTPUT
 	AVIOUTPUT_ID = init_page (IDD_AVIOUTPUT, IDI_AVIOUTPUT, IDS_AVIOUTPUT, AVIOutputDlgProc, NULL, "gui/output.htm");
 #endif

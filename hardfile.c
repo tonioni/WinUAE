@@ -449,7 +449,7 @@ static uae_u32 hardfile_expunge (void)
     return 0; /* Simply ignore this one... */
 }
 
-static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
 {
     unsigned int total = (unsigned int)(hfd->size / 1024);
     int heads;
@@ -486,6 +486,14 @@ static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, 
     *cylsec = sectors * heads;
     *tracksec = sectors;
     *head = heads;
+}
+
+static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+{
+    getchs2 (hfd, cyl, cylsec, head, tracksec);
+    hf_log ("CHS: %08.8X-%08.8X %d %d %d %d %d\n",
+	(uae_u32)(hfd->size >> 32),(uae_u32)hfd->size,
+	*cyl, *cylsec, *head, *tracksec);
 }
 
 static void outofbounds (int cmd, uae_u64 offset, uae_u64 len, uae_u64 max)
@@ -600,6 +608,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	break;
 
 	bad_command:
+	error = -5; /* IOERR_BADADDRESS */
 	break;
 
 	case NSCMD_DEVICEQUERY:
@@ -680,7 +689,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 
 	default:
 	    /* Command not understood. */
-	    error = -3; /* io_Error */
+	    error = -3; /* IOERR_NOCMD */
 	break;
     }
     put_long (request + 32, actual);

@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 6"
+#define WINUAEBETASTR " Beta 7"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);

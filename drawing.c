@@ -1951,14 +1951,8 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	last_redraw_point = 0;
 	interlace_seen = 0;
 
-	if (framecnt == 0) {
+	if (framecnt == 0)
 	    finish_drawing_frame ();
-#ifdef AVIOUTPUT
-	    frame_drawn ();
-	} else if (picasso_on) {
-	    frame_drawn ();
-#endif
-	}
 
 	/* At this point, we have finished both the hardware and the
 	 * drawing frame. Essentially, we are outside of all loops and
@@ -2014,6 +2008,9 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
     }
     gui_hd_led (0);
     gui_cd_led (0);
+#ifdef AVIOUTPUT
+    frame_drawn ();
+#endif
 }
 
 void hsync_record_line_state (int lineno, enum nln_how how, int changed)

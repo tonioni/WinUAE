@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#define _WIN32_WINNT 0x500
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -437,6 +438,8 @@ Return Value:
                                         i, j;
     DRIVE_LAYOUT_INFORMATION		*dli;
     DISK_GEOMETRY			dg;
+    GET_LENGTH_INFORMATION		gli;
+    int gli_ok;
     int ret = -1;
     struct uae_driveinfo *udi;
     char orgname[1024];
@@ -634,6 +637,12 @@ Return Value:
         ret = 1;
         goto end;
     }
+    gli_ok = 1;
+    if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
+        write_log ("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n", GetLastError());
+	gli_ok = 0;
+	write_log ("IOCTL_DISK_GET_LENGTH_INFO not supported, detected disk size may not be correct.\n");
+    }
     udi->bytespersector = dg.BytesPerSector;
     if (dg.BytesPerSector < 512) {
 	write_log ("unsupported blocksize < 512 (%d)\n", dg.BytesPerSector);
@@ -646,8 +655,13 @@ Return Value:
 	goto end;
     }
     udi->offset = udi->offset2 = 0;
-    udi->size = udi->size2 = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart * (uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
-    write_log ("device size %I64d bytes\n", udi->size);
+    write_log ("BytesPerSector=%d Cyls=%I64d TracksPerCyl=%d SecsPerTrack=%d\n",
+	dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack);
+    udi->size = udi->size2 = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
+	(uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
+    if (gli_ok)
+	udi->size = udi->size2 = gli.Length.QuadPart;
+    write_log ("device size %I64d (0x%I64x) bytes\n", udi->size, udi->size);
 
     memset (outBuf, 0, sizeof (outBuf));
     status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0,

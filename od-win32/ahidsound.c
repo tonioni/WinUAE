@@ -67,7 +67,7 @@ static char *ahisndbuffer,*sndrecbuffer;
 static int ahisndbufsize,oldpos,*ahisndbufpt,ahitweak;;
 static unsigned int dwBytes,dwBytes1,dwBytes2,espstore;
 static LPVOID dwData1,dwData2;
-int ahi_pollrate;
+int ahi_pollrate = 40;
 
 int sound_freq_ahi;
 
