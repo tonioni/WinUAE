@@ -570,17 +570,24 @@ static void illg_init (void)
     }
     memset (illgdebug + 0xf80000, 1, 512 * 1024); /* KS ROM */
     memset (illgdebug + 0xdc0000, 0, 0x3f); /* clock */
+#ifdef CDTV
     if (cdtv_enabled) {
 	memset (illgdebug + 0xf00000, 1, 256 * 1024); /* CDTV ext ROM */
 	memset (illgdebug + 0xdc8000, 0, 4096); /* CDTV batt RAM */
     }
-    if (cd32_enabled || cloanto_rom) {
+#endif
+#ifdef CD32
+    if (cd32_enabled) {
+	memset (illgdebug + AKIKO_BASE, 0, AKIKO_BASE_END - AKIKO_BASE);
 	memset (illgdebug + 0xe00000, 1, 512 * 1024); /* CD32 ext ROM */
-	if (cd32_enabled)
-	    memset (illgdebug + AKIKO_BASE, 0, AKIKO_BASE_END - AKIKO_BASE);
     }
+#endif
+    if (cloanto_rom)
+	memset (illgdebug + 0xe00000, 1, 512 * 1024);
+#ifdef FILESYS
     if (nr_units (currprefs.mountinfo) > 0) /* filesys "rom" */
 	memset (illgdebug + RTAREA_BASE, 1, 0x10000);
+#endif
 }
 
 /* add special custom register check here */

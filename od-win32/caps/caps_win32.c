@@ -121,6 +121,8 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
     CAPSLockTrack(&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
     mfm = mfmbuf;
     *multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
+    if (ci.trackcnt > 1)
+	*multirev = 1;
     type = ci.type & CTIT_MASK_TYPE;
     len = ci.tracksize[0];
     *tracklength = len * 8;
