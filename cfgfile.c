@@ -1940,9 +1940,9 @@ static void buildin_default_prefs_68020 (struct uae_prefs *p)
 
 static void buildin_default_prefs (struct uae_prefs *p)
 {
-    p->nr_floppies = 1;
+    p->nr_floppies = 2;
     p->dfxtype[0] = 0;
-    p->dfxtype[1] = -1;
+    p->dfxtype[1] = 0;
     p->dfxtype[2] = -1;
     p->dfxtype[3] = -1;
 
@@ -2006,7 +2006,7 @@ static void set_68000_compa (struct uae_prefs *p, int compa)
     }
 }
 
-static int bip_a1000 (struct uae_prefs *p, int config, int compa)
+static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int rom[4];
 
@@ -2018,64 +2018,69 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa)
     if (config == 1)
 	p->chipmem_size = 0x40000;
     set_68000_compa (p, compa);
-    return configure_rom (p, rom, 1);
+    p->dfxtype[1] = -1;
+    return configure_rom (p, rom, romcheck);
 }    
 
-static int bip_cdtv (struct uae_prefs *p, int config, int compa)
+static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int rom[4];
     
     rom[0] = 6;
-    rom[1] = -1;
-    if (!configure_rom (p, rom, 1))
+    rom[1] = 32;
+    rom[2] = -1;
+    if (!configure_rom (p, rom, romcheck))
 	return 0;
     rom[0] = 22;
     rom[1] = 21;
     rom[2] = 20;
     rom[3] = -1;
-    if (!configure_rom (p, rom, 1))
+    if (!configure_rom (p, rom, romcheck))
 	return 0;
     p->bogomem_size = 0;
     p->chipmem_size = 0x100000;
     p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+    p->dfxtype[1] = -1;
     set_68000_compa (p, compa);
     return 1;
 }
 
 
-static int bip_cd32 (struct uae_prefs *p, int config, int compa)
+static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int rom[2];
     
     buildin_default_prefs_68020 (p);
     rom[0] = 18;
     rom[1] = -1;
-    if (!configure_rom (p, rom, 1))
+    if (!configure_rom (p, rom, romcheck))
 	return 0;
     rom[0] = 19;
-    if (!configure_rom (p, rom, 1))
+    if (!configure_rom (p, rom, romcheck))
 	return 0;
     p->nr_floppies = 0;
     p->dfxtype[0] = -1;
+    p->dfxtype[1] = -1;
     set_68020_compa (p, compa);
     return 1;
 }
 
-static int bip_a1200 (struct uae_prefs *p, int config, int compa)
+static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
-    int rom[3];
+    int rom[4];
 
     buildin_default_prefs_68020 (p);
     rom[0] = 11;
-    rom[1] = 15;
-    rom[2] = -1;
+    rom[1] = 31;
+    rom[2] = 15;
+    rom[3] = -1;
     if (config == 1)
 	p->fastmem_size = 0x400000;
     set_68020_compa (p, compa);
-    return configure_rom (p, rom, 1);
+    return configure_rom (p, rom, romcheck);
 }
 
-static int bip_a600 (struct uae_prefs *p, int config, int compa)
+static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int rom[5];
 
@@ -2088,10 +2093,10 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa)
     p->chipmem_size = 0x100000;
     p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     set_68000_compa (p, compa);
-    return configure_rom (p, rom, 1);
+    return configure_rom (p, rom, romcheck);
 }
 
-static int bip_a500 (struct uae_prefs *p, int config, int compa)
+static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int rom[4];
 
@@ -2100,14 +2105,18 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa)
     {
 	case 0: // KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow
 	rom[0] = 6;
+	rom[1] = 32;
 	break;
 	case 1: // KS 1.3, OCS Agnus, 0.5M Chip
 	rom[0] = 6;
+	rom[1] = 32;
 	p->bogomem_size = 0;
 	p->chipset_mask = 0;
+        p->dfxtype[1] = -1;
 	break;
 	case 2: // KS 1.3, ECS Agnus, 1.0M Chip
 	rom[0] = 6;
+	rom[1] = 32;
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x100000;
 	break;
@@ -2117,6 +2126,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa)
 	rom[2] = 3;
 	p->bogomem_size = 0;
 	p->chipset_mask = 0;
+        p->dfxtype[1] = -1;
 	break;
 	case 4: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
 	rom[0] = 5;
@@ -2126,28 +2136,28 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa)
 	break;
     }
     set_68000_compa (p, compa);
-    return configure_rom (p, rom, 1);
+    return configure_rom (p, rom, romcheck);
 }
 
-int build_in_prefs (struct uae_prefs *p, int model, int config, int compa)
+int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {
-    if (model > 5)
+    if (model > 4)
 	return 1;
     buildin_default_prefs (p);
     switch (model)
     {
 	case 0:
-	return bip_a500 (p, config, compa);
+	return bip_a500 (p, config, compa, romcheck);
+	//case 1:
+	//return bip_a600 (p, config, compa, romcheck);
 	case 1:
-	return bip_a600 (p, config, compa);
+	return bip_a1000 (p, config, compa, romcheck);
 	case 2:
-	return bip_a1000 (p, config, compa);
+	return bip_a1200 (p, config, compa, romcheck);
 	case 3:
-	return bip_a1200 (p, config, compa);
+	return bip_cd32 (p, config, compa, romcheck);
 	case 4:
-	return bip_cd32 (p, config, compa);
-	case 5:
-	return bip_cdtv (p, config, compa);
+	return bip_cdtv (p, config, compa, romcheck);
     }
     return 0;
 }

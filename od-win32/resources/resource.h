@@ -677,9 +677,19 @@
 #define IDC_QUICKSTART_COMPATIBILITY    1676
 #define IDC_QUICKSTART_CONFIG           1677
 #define IDC_DF0Q                        1678
+#define IDC_DF0QQ                       1678
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
+#define IDC_DF1QQ                       1680
 #define IDC_CONFIGAUTO                  1682
+#define IDC_DF0TEXTQ                    1683
+#define IDC_DF0WPQ                      1684
+#define IDC_EJECT0Q                     1685
+#define IDC_DF1WPQ                      1686
+#define IDC_EJECT1Q                     1687
+#define IDC_DF1TEXTQ                    1688
+#define IDC_DF0Q2                       1689
+#define IDC_DF1Q2                       1690
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -700,7 +710,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        198
 #define _APS_NEXT_COMMAND_VALUE         40020
-#define _APS_NEXT_CONTROL_VALUE         1683
+#define _APS_NEXT_CONTROL_VALUE         1691
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

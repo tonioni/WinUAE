@@ -100,6 +100,7 @@ static struct romdata roms[] = {
     { "Kickstart v1.2", 33, 166, 0x0ed783d0, 262144, 4, 68000, ROMTYPE_KICK },
     { "Kickstart v1.2", 33, 180, 0xa6ce1636, 262144, 5, 68000, ROMTYPE_KICK },
     { "Kickstart v1.3", 34, 5, 0xc4f0f55f, 262144, 6, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.3 (Cloanto)", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
 
     { "Kickstart v2.04", 37, 175, 0xc3bdb240, 524288, 7, 68000, ROMTYPE_KICK },
     { "Kickstart v2.05", 37, 299, 0x83028fb5, 524288, 8, 68000, ROMTYPE_KICK },
@@ -111,6 +112,7 @@ static struct romdata roms[] = {
     { "Kickstart v3.1", 40, 55, 0x14e93bcc, 524288, 13, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 63, 0xfc24ae0d, 524288, 14, 68000, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 68, 0x1483a091, 524288, 15, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.1 (Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 68, 0xd6bae334, 524288, 16, 68020, ROMTYPE_KICK },
     { "Kickstart v3.1", 40, 70, 0x917100a0, 524288, 17, 68020, ROMTYPE_KICK },
 
@@ -1123,7 +1125,7 @@ void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 *key, i
 uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 {
     struct zfile *f;
-    uae_u8 *keybuf;
+    uae_u8 *keybuf = 0;
     int keysize = 0;
     char tmp[MAX_PATH];
  
@@ -1153,9 +1155,11 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     if (f) {
 	zfile_fseek (f, 0, SEEK_END);
 	keysize = zfile_ftell (f);
-	zfile_fseek (f, 0, SEEK_SET);
-	keybuf = malloc (keysize);
-	zfile_fread (keybuf, 1, keysize, f);
+	if (keysize > 0) {
+	    zfile_fseek (f, 0, SEEK_SET);
+	    keybuf = malloc (keysize);
+	    zfile_fread (keybuf, 1, keysize, f);
+	}
 	zfile_fclose (f);
     }
     *size = keysize;

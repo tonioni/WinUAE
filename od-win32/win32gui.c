@@ -77,6 +77,7 @@ static int full_property_sheet = 1;
 static struct uae_prefs *pguiprefs;
 struct uae_prefs workprefs;
 static int currentpage;
+static int qs_request_reset;
 int gui_active;
 
 extern HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD );
@@ -220,11 +221,7 @@ static void show_rom_list (void)
     if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
 
     strcat (p, "\nAmiga 500 Kickstart 1.3: ");
-    roms[0] = 6; roms[1] = -1;
-    if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
-
-    strcat (p, "\nAmiga 500+/600: ");
-    roms[0] = 7; roms[1] = 8; roms[2] = 9; roms[3] = 10; roms[4] = -1;
+    roms[0] = 6; roms[1] = 32; roms[2] = -1;
     if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
 
     strcat (p, "\nAmiga 1000: ");
@@ -232,7 +229,7 @@ static void show_rom_list (void)
     if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
 
     strcat (p, "\nAmiga 1200: ");
-    roms[0] = 11; roms[1] = 15; roms[2] = -1;
+    roms[0] = 11; roms[1] = 31; roms[2] = 15; roms[3] = -1;
     if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
 
     ok = 0;
@@ -249,7 +246,7 @@ static void show_rom_list (void)
     strcat (p, "\nCDTV: ");
     roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
     if (listrom (roms)) {
-	roms[0] = 6; roms[1] = -1;
+	roms[0] = 6; roms[1] = 32; roms[2] = -1;
 	if (listrom (roms))
 	    ok = 1;
     }
@@ -747,12 +744,15 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	    SetDlgItemText (hDlg, wParam, full_path);
             break;
 	case IDC_DF0:
-	case IDC_DF0Q:
+	case IDC_DF0QQ:
+	case IDC_DF0Q2:
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, full_path);
 	    strcpy( prefs->df[0], full_path );
 	    DISK_history_add (full_path, -1);
             break;
 	case IDC_DF1:
+	case IDC_DF1QQ:
+	case IDC_DF1Q2:
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, full_path);
 	    strcpy( prefs->df[1], full_path );
 	    DISK_history_add (full_path, -1);
@@ -802,9 +802,6 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	case IDC_ROMFILE2:
 	    strcpy( workprefs.romextfile, full_path );
 	    break;
-	case IDC_KEYFILE:
-	    strcpy( workprefs.keyfile, full_path );
-	    break;
 	case IDC_FLASHFILE:
 	    strcpy( workprefs.flashfile, full_path );
 	    break;
@@ -832,16 +829,6 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
                 *amiga_path = 0;
                 if( hWinUAEKey )
                     RegSetValueEx( hWinUAEKey, "hdfPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen( openFileName.lpstrFile ) + 1 );
-            }
-        }
-        else if( flag == 6 || flag == 7 )
-        {
-            amiga_path = strstr( openFileName.lpstrFile, openFileName.lpstrFileTitle );
-            if( amiga_path && amiga_path != openFileName.lpstrFile )
-            {
-                *amiga_path = 0;
-                if( hWinUAEKey )
-                    RegSetValueEx( hWinUAEKey, "KickstartPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen( openFileName.lpstrFile ) + 1 );
             }
         }
     }
@@ -1008,10 +995,18 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	if (strcmp (find_data.cFileName, ".") && strcmp (find_data.cFileName, "..")) {
 	    int ok = 0;
 	    config = AllocConfigStruct ();
+	    strcpy (config->Path, shortpath);
+	    strcpy (config->Fullpath, path);
 	    if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && usedirs) {
 		if ((*level) < 2) {
 		    struct ConfigStruct *child;
 		    strcpy (config->Name, find_data.cFileName);
+		    strcpy (config->Path, shortpath);
+		    strcat (config->Path, config->Name);
+		    strcat (config->Path, "\\");
+		    strcpy (config->Fullpath, path);
+		    strcat (config->Fullpath, config->Name);
+		    strcat (config->Fullpath, "\\");
 		    config->Directory = 1;
 		    (*level)++;
 		    config->Parent = configparent;
@@ -1046,8 +1041,6 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 		config->host = configparent->host;
 		config->hardware = configparent->hardware;
 	    }
-	    strcpy (config->Path, shortpath);
-	    strcpy (config->Fullpath, path);
 	    config->Parent = configparent;
 	    if (configstore == NULL || configstoreallocated == configstoresize) {
 		configstoreallocated += 100;
@@ -1755,6 +1748,23 @@ static void checkautoload (HWND hDlg, struct ConfigStruct *config)
     EnableWindow (GetDlgItem (hDlg, IDC_CONFIGAUTO), configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
 }
 
+static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *config)
+{
+    int i;
+
+    if ((!config && configtypepanel) || (config && (configtypepanel == 2 && !config->host) || (configtypepanel == 1 && !config->hardware))) {
+        for (i = 0; i < configstoresize; i++) {
+	    struct ConfigStruct *cs = configstore[i];
+	    if (cs->Directory && ((configtypepanel == 1 && cs->hardware) || (configtypepanel == 2 && cs->host))) {
+	        config = cs;
+	        SetDlgItemText (hDlg, IDC_EDITPATH, config->Path);
+		break;
+	    }
+	}
+    }
+    return config;
+}
+
 static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char name_buf[MAX_DPATH];
@@ -1789,6 +1799,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    }
 	    checkautoload (hDlg, config);
 	}
+	config = fixloadconfig (hDlg, config);
 	if (config && config->item)
 	    TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), config->item);
 	else
@@ -1807,6 +1818,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config);
 	    	recursive++;
 		config = CreateConfigStore (config);
+		config = fixloadconfig (hDlg, config);
 		InitializeConfigTreeView (hDlg);
 		recursive--;
 	    break;
@@ -1814,6 +1826,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		HandleConfiguration (hDlg, CONFIG_SAVE, config);
 	    	recursive++;
 		config = CreateConfigStore (config);
+		config = fixloadconfig (hDlg, config);
 		InitializeConfigTreeView (hDlg);
 		recursive--;
 	    break;
@@ -1841,6 +1854,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		HandleConfiguration (hDlg, CONFIG_DELETE, config);
 	    	recursive++;
 		config = CreateConfigStore (config);
+		config = fixloadconfig (hDlg, config);
 		InitializeConfigTreeView (hDlg);
 		recursive--;
 	    break;
@@ -1900,8 +1914,9 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		    case TVN_SELCHANGED:
 		    {
 			LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
-			config = (struct ConfigStruct*)tv->itemNew.lParam;
-			if (config) {
+			struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
+			if (c) {
+			    config = c;
 			    if (!config->Directory) {
 				SetDlgItemText (hDlg, IDC_EDITNAME, config->Name);
 				SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
@@ -1909,9 +1924,9 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			    SetDlgItemText (hDlg, IDC_EDITPATH, config->Path);
 			}
 			if (configtypepanel > 0) {
-			    if (config && !config->Directory)
+			    if (c && !c->Directory)
 				ConfigToRegistry (config, configtypepanel);
-		            checkautoload (hDlg, config);
+		            checkautoload (hDlg, c);
 		        }
 			return TRUE;
 		    }
@@ -2125,10 +2140,9 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    if (DirectorySelection (hDlg, 0, tmp)) {
 		if (tmp[strlen (tmp) - 1] != '\\')
 		    strcat (tmp, "\\");
-		if (scan_roms (tmp))
-		    set_path ("KickstartPath", tmp);
-		else
+		if (!scan_roms (tmp)) 
 		    pre_gui_message ("No ROMs found");
+	        set_path ("KickstartPath", tmp);
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
@@ -2191,11 +2205,13 @@ static struct amigamodels amodels[] = {
 	"Medium compatibility (recommended for most users)",
 	"Low compatiblity (for PCs with low CPU power)"
     },
+/*
     { "A500+/A600",
 	"High compatibility (>1.5GHz recommended)",
 	"Medium compatibility (recommended for most users)",
 	"Low compatiblity (for PCs with low CPU power)"
     },
+*/
     { "A1000",
 	"High compatibility (>1.5GHz recommended)",
 	"Medium compatibility (recommended for most users)",
@@ -2231,17 +2247,18 @@ static struct amigaconfig aconf[] = {
     { 0, "", "KS 1.2, OCS Agnus, 0.5M Chip" },
     { 0, "", "KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow" },
 
+/*
     { 1, "", "1.0M Chip" },
+*/
+    { 1, "", "0.5M Chip" },
+    { 1, "", "256K Chip" },
 
-    { 2, "", "0.5M Chip" },
-    { 2, "", "256K Chip" },
+    { 2, "", "2.0M Chip" },
+    { 2, "", "2.0M Chip + 4.0M Fast" },
 
-    { 3, "", "2.0M Chip" },
-    { 3, "", "2.0M Chip + 4.0M Fast" },
+    { 3, "", "CD32" },
 
-    { 4, "", "CD32" },
-
-    { 5, "", "CDTV" },
+    { 4, "", "CDTV" },
 
     { -1 }
 };
@@ -2253,15 +2270,13 @@ static void addfloppytype (HWND hDlg, int n);
 static void enable_for_quickstart (HWND hDlg)
 {
     int v = quickstart_ok && quickstart_ok_floppy ? TRUE : FALSE;
-    EnableWindow (GetDlgItem (guiDlg, IDOK), v);
-    EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), v);
+    EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), v && !full_property_sheet ? TRUE : FALSE);
 }
 
-static void load_quickstart (HWND hDlg)
+static void load_quickstart (HWND hDlg, int romcheck)
 {
-    EnableWindow (GetDlgItem (guiDlg, IDOK), FALSE);
     EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), FALSE);
-    quickstart_ok = build_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa);
+    quickstart_ok = build_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
     enable_for_quickstart (hDlg);
     addfloppytype (hDlg, 0);
     addfloppytype (hDlg, 1);
@@ -2288,8 +2303,6 @@ static void init_quickstartdlg (HWND hDlg)
     qssize = sizeof (tmp1);
     RegQueryValueEx (hWinUAEKey, "QuickStartHostConfig", 0, &dwType, (LPBYTE)tmp1, &qssize);
     if (firsttime == 0) {
-	quickstarthost (hDlg, tmp1);
-        load_quickstart (hDlg);
         if (hWinUAEKey) {
 	    qssize = sizeof (quickstart_model);
  	    RegQueryValueEx (hWinUAEKey, "QuickStartModel", 0, &dwType, (LPBYTE)&quickstart_model, &qssize);
@@ -2298,7 +2311,15 @@ static void init_quickstartdlg (HWND hDlg)
 	    qssize = sizeof (quickstart_compa);
  	    RegQueryValueEx (hWinUAEKey, "QuickStartCompatibility", 0, &dwType, (LPBYTE)&quickstart_compa, &qssize);
 	}
-        firsttime = 1;
+ 	if (quickstart) {
+	    quickstarthost (hDlg, tmp1);
+	    workprefs.df[0][0] = 0;
+	    workprefs.df[1][0] = 0;
+	    workprefs.df[2][0] = 0;
+	    workprefs.df[3][0] = 0;
+	    load_quickstart (hDlg, 1);
+	}
+       firsttime = 1;
     }
 
     CheckDlgButton (hDlg, IDC_QUICKSTARTMODE, quickstart);
@@ -2364,6 +2385,10 @@ static void testimage (HWND hDlg)
     int reload = 0;
 
     quickstart_ok_floppy = 0;
+    if (workprefs.dfxtype[0] < 0) {
+	quickstart_ok_floppy = 1;
+	return;
+    }
     if (!workprefs.df[0][0])
 	return;
     ret = DISK_examine_image (&workprefs, 0);
@@ -2376,15 +2401,15 @@ static void testimage (HWND hDlg)
 	break;
 	case 11:
 	quickstart_ok_floppy = 1;
-	if (quickstart_model < 1) {
-	    quickstart_model = 1;
+	if (quickstart_model != 2) {
+	    quickstart_model = 2;
 	    pre_gui_message ("Selected disk image requires Kickstart 2.04 or 3.0\nConfiguration updated");
 	    reload = 1;
 	}
 	break;
 	case 12:
 	quickstart_ok_floppy = 1;
-	if (quickstart_model < 2) {
+	if (quickstart_model != 2) {
 	    quickstart_model = 2;
 	    pre_gui_message ("Selected disk image requires Kickstart 3.0 or later\nConfiguration updated");
 	    reload = 1;
@@ -2401,7 +2426,7 @@ static void testimage (HWND hDlg)
 	break;
     }
     if (reload) {
-	load_quickstart (hDlg);
+	load_quickstart (hDlg, 1);
 	init_quickstartdlg (hDlg);
     }
 }
@@ -2414,6 +2439,7 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
     int val, ret = FALSE;
     char tmp[MAX_DPATH];
     static char df0[MAX_DPATH];
+    static int dfxtype[2] = { -1, -1 };
 
     switch( msg )
     {
@@ -2437,9 +2463,9 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (val != CB_ERR && val != quickstart_model) {
 		    quickstart_model = val;
 		    init_quickstartdlg (hDlg);
-		    load_quickstart (hDlg);
+		    load_quickstart (hDlg, 1);
 		    if (quickstart && !full_property_sheet)
-		        uae_reset (1);
+			qs_request_reset = 2;
 		}
 		break;
 		case IDC_QUICKSTART_CONFIGURATION:
@@ -2447,16 +2473,17 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (val != CB_ERR && val != quickstart_conf) {
 		    quickstart_conf = val;
 		    init_quickstartdlg (hDlg);
-		    load_quickstart (hDlg);
+		    load_quickstart (hDlg, 1);
 		    if (quickstart && !full_property_sheet)
-			uae_reset (1);
+			qs_request_reset = 2;
 		}
 		break;		
 		case IDC_QUICKSTART_COMPATIBILITY:
 		val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, CB_GETCURSEL, 0, 0L);
 		if (val != CB_ERR) {
 		    quickstart_compa = val;
-		    load_quickstart (hDlg);
+		    init_quickstartdlg (hDlg);
+		    load_quickstart (hDlg, 0);
 		}
 		break;
 		case IDC_QUICKSTART_HOSTCONFIG:
@@ -2476,28 +2503,34 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		quickstart = IsDlgButtonChecked (hDlg, IDC_QUICKSTARTMODE);
 		if (hWinUAEKey)
 		    RegSetValueEx( hWinUAEKey, "QuickStartMode", 0, REG_DWORD, (CONST BYTE *)&quickstart, sizeof(quickstart));
+		if (quickstart) {
+    		    init_quickstartdlg (hDlg);
+		    load_quickstart (hDlg, 0);
+		}
 		break;
 	    }
 	}
 	switch (LOWORD (wParam))
 	{
-	    case IDC_DF0TEXT:
-	    case IDC_DF0WP:
-	    case IDC_EJECT0:
-	    case IDC_DF0:
-	    case IDC_DF0Q:
-	    case IDC_DF1TEXT:
-	    case IDC_DF1WP:
-	    case IDC_EJECT1:
-	    case IDC_DF1:
-	    case IDC_DF1Q:
+	    case IDC_DF0TEXTQ:
+	    case IDC_DF0WPQ:
+	    case IDC_EJECT0Q:
+	    case IDC_DF0QQ:
+	    case IDC_DF0Q2:
+	    case IDC_DF1TEXTQ:
+	    case IDC_DF1WPQ:
+	    case IDC_EJECT1Q:
+	    case IDC_DF1QQ:
+	    case IDC_DF1Q2:
 	    ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 	    break;
 	}   
 	recursive--;
     }
-    if (strcmp (workprefs.df[0], df0)) {
+    if (strcmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0] || workprefs.dfxtype[1] != dfxtype[1]) {
 	strcpy (df0, workprefs.df[0]);
+	dfxtype[0] = workprefs.dfxtype[0];
+	dfxtype[1] = workprefs.dfxtype[1];
 	testimage (hDlg);
         enable_for_quickstart (hDlg);
     }
@@ -2515,7 +2548,7 @@ static void init_aboutdlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
     CharFormat.dwMask |= CFM_BOLD | CFM_SIZE | CFM_FACE;
     CharFormat.dwEffects = CFE_BOLD;
-    CharFormat.yHeight = 18 * 20;	/* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+    CharFormat.yHeight = 18 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
     strcpy (CharFormat.szFaceName, "Times New Roman");
     SendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
@@ -3456,7 +3489,6 @@ static void values_from_kickstartdlg (HWND hDlg)
 {
     getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile));
     getromfile (hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile));
-    getromfile (hDlg, IDC_KEYFILE, workprefs.keyfile, sizeof (workprefs.keyfile));
     getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile));
 }
 
@@ -3472,7 +3504,6 @@ static void values_to_kickstartdlg (HWND hDlg)
         keybuf = load_keyfile (&workprefs, NULL, &keysize);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, keybuf, keysize, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, keybuf, keysize, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
-	addromfiles (fkey, hDlg, IDC_KEYFILE, workprefs.keyfile, keybuf, keysize, ROMTYPE_KEY);
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, keybuf, keysize, ROMTYPE_AR);
 	free_keyfile (keybuf);
         if (fkey)
@@ -3533,7 +3564,6 @@ static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    {
 		case IDC_ROMFILE:
 		case IDC_ROMFILE2:
-		case IDC_KEYFILE:
 		case IDC_CARTFILE:
 		values_from_kickstartdlg (hDlg);
 		break;
@@ -3551,11 +3581,6 @@ static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    values_to_kickstartdlg (hDlg);
 	    break;
 	            
-	case IDC_KEYCHOOSER:
-	    DiskSelection( hDlg, IDC_KEYFILE, 7, &workprefs, 0);
-	    values_to_kickstartdlg (hDlg);
-	    break;
-                
 	case IDC_FLASHCHOOSER:
 	    DiskSelection( hDlg, IDC_FLASHFILE, 11, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
@@ -4999,10 +5024,16 @@ static void out_floppyspeed (HWND hDlg)
 
 #define BUTTONSPERFLOPPY 6
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_DF0Q },
+    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1 },
     { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1 },
     { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1 },
     { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1 }
+};
+static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
+    { IDC_DF0TEXTQ,IDC_DF0Q2,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0QQ },
+    { IDC_DF1TEXTQ,IDC_DF1Q2,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1QQ },
+    { -1,-1,-1,-1,-1,-1 },
+    { -1,-1,-1,-1,-1,-1 }
 };
     
 static void addfloppytype (HWND hDlg, int n)
@@ -5012,9 +5043,15 @@ static void addfloppytype (HWND hDlg, int n)
     int f_eject = floppybuttons[n][2];
     int f_type = floppybuttons[n][3];
     int f_wp = floppybuttons[n][4];
-    int f_driveq = floppybuttons[n][5];
+
+    int f_textq = floppybuttonsq[n][0];
+    int f_driveq = floppybuttonsq[n][1];
+    int f_ejectq = floppybuttonsq[n][2];
+    int f_wpq = floppybuttonsq[n][4];
+    int f_driveqq = floppybuttonsq[n][5];
+
     int nn = workprefs.dfxtype[n] + 1;
-    int state, i;
+    int state, i, chk;
     char *s;
     HKEY fkey;
     char tmp[1000];
@@ -5026,27 +5063,48 @@ static void addfloppytype (HWND hDlg, int n)
     SendDlgItemMessage (hDlg, f_type, CB_SETCURSEL, nn, 0);
 
     EnableWindow(GetDlgItem(hDlg, f_text), state);
+    if (f_textq >= 0)
+	EnableWindow(GetDlgItem(hDlg, f_textq), state);
     EnableWindow(GetDlgItem(hDlg, f_eject), TRUE);
+    if (f_ejectq >= 0)
+	EnableWindow(GetDlgItem(hDlg, f_ejectq), TRUE);
     EnableWindow(GetDlgItem(hDlg, f_drive), state);
     if (f_driveq >= 0)
 	EnableWindow(GetDlgItem(hDlg, f_driveq), state);
-    CheckDlgButton(hDlg, f_wp, disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0);
-    EnableWindow(GetDlgItem(hDlg, f_wp), state && DISK_validate_filename (workprefs.df[n], 0, 0) ? TRUE : FALSE);
+    if (f_driveqq >= 0)
+	EnableWindow(GetDlgItem(hDlg, f_driveqq), state);
+    chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
+    CheckDlgButton(hDlg, f_wp, chk);
+    if (f_wpq >= 0)
+	CheckDlgButton(hDlg, f_wpq, chk);
+    chk = state && DISK_validate_filename (workprefs.df[n], 0, 0) ? TRUE : FALSE;
+    EnableWindow(GetDlgItem(hDlg, f_wp), chk);
+    if (f_wpq >= 0)
+	EnableWindow(GetDlgItem(hDlg, f_wpq), chk);
  
     fkey = read_disk_history ();
 
     SendDlgItemMessage(hDlg, f_text, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
+    if (f_textq >= 0) {
+	SendDlgItemMessage(hDlg, f_textq, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, f_textq, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
+    }
     i = 0;
     while (s = DISK_history_get (i)) {
 	i++;
 	SendDlgItemMessage(hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)s);
+	if (f_textq >= 0)
+	    SendDlgItemMessage(hDlg, f_textq, CB_ADDSTRING, 0, (LPARAM)s);
 	if (fkey) {
 	    sprintf (tmp, "Image%02d", i);
 	    RegSetValueEx(fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
 	}
-	if (!strcmp (workprefs.df[n], s))
+	if (!strcmp (workprefs.df[n], s)) {
 	    SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
+	    if (f_textq >= 0)
+		SendDlgItemMessage (hDlg, f_textq, CB_SETCURSEL, i - 1, 0);
+	}
 	if (nn <= 0)
 	    break;
     }
@@ -5068,7 +5126,7 @@ static void getfloppytype (HWND hDlg, int n)
 static void getfloppyname (HWND hDlg, int n)
 {
     int val;
-    int f_text = floppybuttons[n][0];
+    int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
     char tmp[1000];
 
     tmp[0] = 0;
@@ -5143,6 +5201,8 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
 	SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
 	SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
+	SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
+	SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
 	SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPOS, TRUE,
 	    workprefs.floppy_speed ? exact_log2 ((workprefs.floppy_speed) / 100) + 1 : 0);
 	out_floppyspeed (hDlg);
@@ -5158,10 +5218,12 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    switch (LOWORD (wParam))
 	    {
 		case IDC_DF0TEXT:
+		case IDC_DF0TEXTQ:
 		getfloppyname (hDlg, 0);
 		addfloppytype (hDlg, 0);
 		break;
 		case IDC_DF1TEXT:
+		case IDC_DF1TEXTQ:
 		getfloppyname (hDlg, 1);
 		addfloppytype (hDlg, 1);
 		break;
@@ -5190,10 +5252,12 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	switch (LOWORD (wParam))
 	{
 	case IDC_DF0WP:
-	    floppysetwriteprotect (hDlg, 0, IsDlgButtonChecked (hDlg, IDC_DF0WP));
+	case IDC_DF0WPQ:
+	    floppysetwriteprotect (hDlg, 0, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF0WPQ) : IsDlgButtonChecked (hDlg, IDC_DF0WP));
 	    break;
 	case IDC_DF1WP:
-	    floppysetwriteprotect (hDlg, 1, IsDlgButtonChecked (hDlg, IDC_DF1WP));
+	case IDC_DF1WPQ:
+	    floppysetwriteprotect (hDlg, 1, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF1WPQ) : IsDlgButtonChecked (hDlg, IDC_DF1WP));
 	    break;
 	case IDC_DF2WP:
 	    floppysetwriteprotect (hDlg, 2, IsDlgButtonChecked (hDlg, IDC_DF2WP));
@@ -5202,12 +5266,15 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    floppysetwriteprotect (hDlg, 3, IsDlgButtonChecked (hDlg, IDC_DF3WP));
 	    break;
 	case IDC_DF0:
-	case IDC_DF0Q:
+	case IDC_DF0QQ:
+	case IDC_DF0Q2:
 	    DiskSelection (hDlg, wParam, 0, &workprefs, 0);
 	    disk_insert (0, workprefs.df[0]);
 	    addfloppytype (hDlg, 0);
 	    break;
 	case IDC_DF1:
+	case IDC_DF1QQ:
+	case IDC_DF1Q2:
 	    DiskSelection (hDlg, wParam, 0, &workprefs, 0);
 	    disk_insert (1, workprefs.df[1]);
 	    addfloppytype (hDlg, 1);
@@ -5223,14 +5290,18 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    addfloppytype (hDlg, 3);
 	    break;
 	case IDC_EJECT0:
+	case IDC_EJECT0Q:
 	    disk_eject(0);
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, "");
+	    SetDlgItemText (hDlg, IDC_DF0TEXTQ, "");
 	    workprefs.df[0][0] = 0;
 	    addfloppytype (hDlg, 0);
 	    break;
 	case IDC_EJECT1:
+	case IDC_EJECT1Q:
 	    disk_eject(1);
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, "");
+	    SetDlgItemText (hDlg, IDC_DF1TEXTQ, "");
 	    workprefs.df[1][0] = 0;
 	    addfloppytype (hDlg, 1);
 	    break;
@@ -5393,6 +5464,11 @@ static void enable_for_portsdlg( HWND hDlg )
     EnableWindow( GetDlgItem( hDlg, IDC_SER_CTSRTS), FALSE );
     EnableWindow( GetDlgItem( hDlg, IDC_SERIAL_DIRECT), FALSE );
     EnableWindow( GetDlgItem( hDlg, IDC_SERIAL), FALSE );
+#else
+    v = workprefs.use_serial ? TRUE : FALSE;
+    EnableWindow( GetDlgItem( hDlg, IDC_SHARED), v);
+    EnableWindow( GetDlgItem( hDlg, IDC_SER_CTSRTS), v);
+    EnableWindow( GetDlgItem( hDlg, IDC_SERIAL_DIRECT), v);
 #endif
 #if !defined (PARALLEL_PORT)
     EnableWindow( GetDlgItem( hDlg, IDC_PRINTERLIST), FALSE );
@@ -6995,7 +7071,10 @@ static int GetSettings (int all_options, HWND hwnd)
 
     if (quit_program)
         psresult = -2;
+    else if (qs_request_reset && quickstart)
+	uae_reset (qs_request_reset == 2 ? 1 : 0);
 
+    qs_request_reset = 0;
     full_property_sheet = 0;
     return psresult;
 }
