@@ -12,7 +12,7 @@ cdd d:\amiga
 zip -9 WinUAE%1_translation WinUAE_default.dll translation.txt
 del WinUAE_default.dll
 del translation.txt
-zip -9 WinUAEMini%1 winuae_mini.exe
+rem zip -9 WinUAEMini%1 winuae_mini.exe
 cdd c:\projects\winuae\src\od-win32
 zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb
 copy winuaedebug%1.zip d:\amiga\winuaepackets
