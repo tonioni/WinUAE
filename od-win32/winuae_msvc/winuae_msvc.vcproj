@@ -47,7 +47,7 @@
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
-				DelayLoadDLLs="zlib1.dll;winio.dll;setupapi.dll;capsimg.dll"
+				DelayLoadDLLs="setupapi.dll"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\Debug/winuae.pdb"
 				SubSystem="2"
@@ -92,12 +92,13 @@
 			WholeProgramOptimization="FALSE">
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
+				Optimization="3"
 				GlobalOptimizations="TRUE"
 				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="TRUE"
 				ImproveFloatingPointConsistency="TRUE"
 				FavorSizeOrSpeed="1"
+				OmitFramePointers="TRUE"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
 				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,ZLIB_DLL,_WIN32_IE 0x0500,UNIX"
@@ -127,7 +128,92 @@
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				DelayLoadDLLs="zlib1.dll;winio.dll;setupapi.dll;capsimg.dll"
+				DelayLoadDLLs="setupapi.dll"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile=".\Release/winuae.pdb"
+				SubSystem="2"
+				StackReserveSize="2621440"
+				StackCommitSize="2621440"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
+				OptimizeForWindows98="0"/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="TRUE"
+				SuppressStartupBanner="TRUE"
+				TargetEnvironment="1"
+				TypeLibraryName=".\Release/winuae_msvc.tlb"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+		<Configuration
+			Name="TestRelease|Win32"
+			OutputDirectory="d:\amiga"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="1"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE"
+			CharacterSet="2"
+			WholeProgramOptimization="FALSE">
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="/Oy-"
+				Optimization="0"
+				GlobalOptimizations="FALSE"
+				InlineFunctionExpansion="1"
+				EnableIntrinsicFunctions="TRUE"
+				ImproveFloatingPointConsistency="TRUE"
+				FavorSizeOrSpeed="0"
+				OmitFramePointers="FALSE"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
+				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,ZLIB_DLL,_WIN32_IE 0x0500,UNIX"
+				StringPooling="TRUE"
+				ExceptionHandling="FALSE"
+				RuntimeLibrary="0"
+				BufferSecurityCheck="FALSE"
+				EnableFunctionLevelLinking="TRUE"
+				EnableEnhancedInstructionSet="0"
+				TreatWChar_tAsBuiltInType="FALSE"
+				RuntimeTypeInfo="FALSE"
+				UsePrecompiledHeader="0"
+				PrecompiledHeaderFile=".\Release/winuae_msvc.pch"
+				AssemblerListingLocation=".\TestRelease/"
+				ObjectFile=".\TestRelease/"
+				ProgramDataBaseFileName=".\TestRelease/"
+				WarningLevel="3"
+				SuppressStartupBanner="TRUE"
+				CompileAs="1"
+				ForcedIncludeFiles=""/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/MACHINE:I386"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zdll.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
+				OutputFile="d:\amiga\winuae.exe"
+				LinkIncremental="1"
+				SuppressStartupBanner="TRUE"
+				DelayLoadDLLs="setupapi.dll"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
@@ -238,6 +324,12 @@
 				</FileConfiguration>
 				<FileConfiguration
 					Name="Release|Win32">
+					<Tool
+						Name="VCResourceCompilerTool"
+						AdditionalIncludeDirectories="\projects\winuae\src\od-win32\resources;$(NoInherit)"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="TestRelease|Win32">
 					<Tool
 						Name="VCResourceCompilerTool"
 						AdditionalIncludeDirectories="\projects\winuae\src\od-win32\resources;$(NoInherit)"/>
@@ -373,6 +465,9 @@
 			</File>
 			<File
 				RelativePath="..\..\cdrom.c">
+			</File>
+			<File
+				RelativePath="..\..\cdtv.c">
 			</File>
 			<File
 				RelativePath="..\..\cfgfile.c">
@@ -887,6 +982,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\ambk.c">
@@ -898,6 +999,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -920,6 +1027,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\bsifc.c">
@@ -931,6 +1044,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -956,6 +1075,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\bytekp10.c">
@@ -971,6 +1096,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\crmaddr.c">
@@ -982,6 +1113,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1004,6 +1141,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\defja32p.c">
@@ -1018,6 +1161,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1037,6 +1186,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\digibst.c">
@@ -1048,6 +1203,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1067,6 +1228,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\fc13.c">
@@ -1078,6 +1245,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1097,6 +1270,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\fc_m.c">
@@ -1108,6 +1287,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1127,6 +1312,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\fuzzac.c">
@@ -1138,6 +1329,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1157,6 +1354,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\gnpl.c">
@@ -1168,6 +1371,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1187,6 +1396,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\heatseek.c">
@@ -1198,6 +1413,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1217,6 +1438,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\hrt.c">
@@ -1228,6 +1455,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1247,6 +1480,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\kris.c">
@@ -1258,6 +1497,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1277,6 +1522,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\maxpac12.c">
@@ -1288,6 +1539,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1307,6 +1564,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\mcobj.c">
@@ -1318,6 +1581,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1346,6 +1615,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\newtron.c">
@@ -1357,6 +1632,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1376,6 +1657,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\noiserun.c">
@@ -1387,6 +1674,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1406,6 +1699,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\npd2.c">
@@ -1417,6 +1716,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1436,6 +1741,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\p40a.c">
@@ -1447,6 +1758,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1466,6 +1783,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\p50a.c">
@@ -1477,6 +1800,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1496,6 +1825,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\p61a.c">
@@ -1507,6 +1842,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1526,6 +1867,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\pm.c">
@@ -1537,6 +1884,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1556,6 +1909,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\pm10c.c">
@@ -1567,6 +1926,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1586,6 +1951,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\pm40.c">
@@ -1597,6 +1968,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1619,6 +1996,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\powerp23.c">
@@ -1630,6 +2013,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1649,6 +2038,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\powerp40.c">
@@ -1660,6 +2055,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1679,6 +2080,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\pp10.c">
@@ -1690,6 +2097,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1709,6 +2122,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\pp30.c">
@@ -1720,6 +2139,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1739,6 +2164,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\prun1.c">
@@ -1750,6 +2181,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1769,6 +2206,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\ptk.c">
@@ -1780,6 +2223,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1799,6 +2248,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\relokit.c">
@@ -1810,6 +2265,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1829,6 +2290,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\soundfx.c">
@@ -1840,6 +2307,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1859,6 +2332,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\spike.c">
@@ -1870,6 +2349,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1889,6 +2374,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\stc270.c">
@@ -1900,6 +2391,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1919,6 +2416,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\stc299b.c">
@@ -1930,6 +2433,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1949,6 +2458,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\stc300.c">
@@ -1960,6 +2475,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -1979,6 +2500,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\stim.c">
@@ -1990,6 +2517,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2009,6 +2542,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\superc27.c">
@@ -2020,6 +2559,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2039,6 +2584,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\tdd.c">
@@ -2050,6 +2601,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2069,6 +2626,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\tnmc11.c">
@@ -2080,6 +2643,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2099,6 +2668,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\tp2.c">
@@ -2110,6 +2685,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2129,6 +2710,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\tpack102.c">
@@ -2140,6 +2727,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2159,6 +2752,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\tpack22.c">
@@ -2170,6 +2769,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2189,6 +2794,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\turbosqueezer61.c">
@@ -2200,6 +2811,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2219,6 +2836,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\unic2.c">
@@ -2230,6 +2853,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2249,6 +2878,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\xann.c">
@@ -2260,6 +2895,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2279,6 +2920,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\tests\zen.c">
@@ -2290,6 +2937,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2313,6 +2966,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\ambk.c">
@@ -2324,6 +2983,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2343,6 +3008,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\eureka.c">
@@ -2354,6 +3025,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2376,6 +3053,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\fuzzac.c">
@@ -2387,6 +3070,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2406,6 +3095,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\gnpl.c">
@@ -2417,6 +3112,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2436,6 +3137,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\heatseek.c">
@@ -2447,6 +3154,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2466,6 +3179,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\kris.c">
@@ -2477,6 +3196,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2496,6 +3221,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\mp.c">
@@ -2507,6 +3238,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2526,6 +3263,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\nfh.c">
@@ -2541,6 +3284,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\noiserun.c">
@@ -2552,6 +3301,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2580,6 +3335,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\p30a.c">
@@ -2591,6 +3352,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
@@ -2613,6 +3380,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\p50a.c">
@@ -2624,6 +3397,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2643,6 +3422,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\p61a.c">
@@ -2654,6 +3439,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2673,6 +3464,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\pm.c">
@@ -2684,6 +3481,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2703,6 +3506,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\pm10c.c">
@@ -2714,6 +3523,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2733,6 +3548,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\pm20.c">
@@ -2744,6 +3565,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2763,6 +3590,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\polka.c">
@@ -2774,6 +3607,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2793,6 +3632,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\pp21.c">
@@ -2804,6 +3649,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2823,6 +3674,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\prun1.c">
@@ -2834,6 +3691,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2853,6 +3716,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\qc.c">
@@ -2864,6 +3733,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2883,6 +3758,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\soundfx.c">
@@ -2894,6 +3775,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2913,6 +3800,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\stim.c">
@@ -2924,6 +3817,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2943,6 +3842,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\tdd.c">
@@ -2954,6 +3859,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -2973,6 +3884,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\tp2.c">
@@ -2984,6 +3901,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -3003,6 +3926,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\unic.c">
@@ -3014,6 +3943,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)3.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)3.obj"/>
@@ -3033,6 +3968,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\wn.c">
@@ -3044,6 +3985,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
@@ -3063,6 +4010,12 @@
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
 					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\depack\zen.c">
@@ -3074,6 +4027,12 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release|Win32">
+						<Tool
+							Name="VCCLCompilerTool"
+							ObjectFile="$(IntDir)/$(InputName)2.obj"/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="TestRelease|Win32">
 						<Tool
 							Name="VCCLCompilerTool"
 							ObjectFile="$(IntDir)/$(InputName)2.obj"/>

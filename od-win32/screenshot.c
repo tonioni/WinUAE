@@ -14,7 +14,23 @@
 #include "direct3d.h"
 #include "opengl.h"
 
-static char config_filename[] = { 0 };
+static void namesplit (char *s)
+{
+    int l;
+    
+    l = strlen (s) - 1;
+    while (l >= 0) {
+	if (s[l] == '.')
+	    s[l] = 0;
+	if (s[l] == '\\' || s[l] == '/' || s[l] == ':' || s[l] == '?') {
+	    l++;
+	    break;
+	}
+	l--;
+    }
+    if (l > 0)
+	memmove (s, s + l, strlen (s + l) + 1);
+}
 
 static int toclipboard (BITMAPINFO *bi, void *bmp)
 {
@@ -117,19 +133,23 @@ void screenshot(int mode)
 	} else {
 		char filename[MAX_DPATH];
 		char extension[] = "bmp";
-		char tmpstr[MAX_DPATH];
 		char path[MAX_DPATH];
+		char name[MAX_DPATH];
+		char underline[] = "_";
 		int number = 0;
 		
 		fetch_path ("ScreenshotPath", path, sizeof (path));
 		CreateDirectory (path, NULL);
-		tmpstr[0] = 0;
-		if(config_filename[0])
-			sprintf (tmpstr, "%s_", config_filename);
+		name[0] = 0;
+		if (currprefs.dfxtype[0] >= 0)
+		    strcpy (name, currprefs.df[0]);
+		if (!name[0])
+		    underline[0] = 0;
+		namesplit (name);
 		
 		while(++number < 1000) // limit 999 iterations / screenshots
 		{
-			sprintf(filename, "%s%s%03.3d.%s", path, tmpstr, number, extension);
+			sprintf(filename, "%s%s%s%03d.%s", path, name, underline, number, extension);
 			
 			if((fp = fopen(filename, "r")) == NULL) // does file not exist?
 			{

@@ -563,23 +563,23 @@ BEGIN
                     WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_HARDFILE DIALOGEX 0, 0, 299, 180
+IDD_HARDFILE DIALOGEX 0, 0, 299, 212
 STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | 
     DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Hardfile Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "Hard File Settings",IDC_STATIC,10,5,280,113
-    RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,19,21,22,10
-    EDITTEXT        IDC_PATH_NAME,44,15,222,15,ES_AUTOHSCROLL
+    RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,26,18,22,10
+    EDITTEXT        IDC_PATH_NAME,52,15,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_SELECTOR,271,15,11,15
-    RTEXT           "FileSys:",IDC_HARDFILE_FILESYS_TEXT,16,36,26,10
-    EDITTEXT        IDC_PATH_FILESYS,44,34,221,15,ES_AUTOHSCROLL
+    RTEXT           "Filesystem:",IDC_HARDFILE_FILESYS_TEXT,14,37,34,10
+    EDITTEXT        IDC_PATH_FILESYS,52,34,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,271,34,11,15
-    RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,16,58,25,10
-    EDITTEXT        IDC_HARDFILE_DEVICE,44,54,40,15,ES_AUTOHSCROLL
-    RTEXT           "BootPri:",IDC_HARDFILE_BOOTPRI_TEXT,11,80,30,8
-    EDITTEXT        IDC_HARDFILE_BOOTPRI,44,75,40,15
+    RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,17,58,31,10
+    EDITTEXT        IDC_HARDFILE_DEVICE,52,54,40,15,ES_AUTOHSCROLL
+    RTEXT           "BootPri:",IDC_HARDFILE_BOOTPRI_TEXT,18,79,30,8
+    EDITTEXT        IDC_HARDFILE_BOOTPRI,52,75,40,15
     CONTROL         "Read/Write",IDC_RW,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,110,57,50,10
     PUSHBUTTON      "Enable RDB-mode",IDC_HDF_RDB,192,55,92,14
@@ -591,12 +591,17 @@ BEGIN
     EDITTEXT        IDC_SECTORS,147,96,35,15,ES_NUMBER
     RTEXT           "Block-Size:",IDC_BLOCKSIZE_TEXT,197,101,35,10
     EDITTEXT        IDC_BLOCKSIZE,237,96,35,15,ES_NUMBER
-    GROUPBOX        "New Hard File",IDC_STATIC,10,120,280,35
-    PUSHBUTTON      "Create",IDC_CREATEHF,40,135,85,14
-    EDITTEXT        IDC_HFSIZE,141,135,61,15,ES_NUMBER
-    LTEXT           "MB",IDC_RESERVED_TEXT2,214,138,39,9,NOT WS_GROUP
-    PUSHBUTTON      "OK",IDOK,102,161,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,158,161,50,14
+    GROUPBOX        "New Hard File",IDC_STATIC,10,120,280,62
+    PUSHBUTTON      "Create",IDC_HF_CREATE,50,135,80,14
+    EDITTEXT        IDC_HF_SIZE,146,135,61,15,ES_NUMBER
+    PUSHBUTTON      "OK",IDOK,102,191,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,158,191,50,14
+    EDITTEXT        IDC_HF_DOSTYPE,146,158,61,15
+    COMBOBOX        IDC_HF_TYPE,50,158,80,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "DosType",IDC_STATIC,212,160,30,10,SS_CENTERIMAGE
+    RTEXT           "Megabytes",IDC_STATIC,212,138,35,10,SS_CENTERIMAGE
+    RTEXT           "Type:",IDC_STATIC,18,160,25,10,SS_CENTERIMAGE
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 299, 111
@@ -1226,7 +1231,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select your file-system root directory..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\n"
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing."
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a UAE Snap-Shot File"
     IDS_USS                 "UAE Snap-Shot Files"
@@ -1358,6 +1363,8 @@ BEGIN
     IDS_NOHARDDRIVES        "No Amiga formatted or completely empty harddrives detected."
     IDS_DEFAULT_HOST        "Default Configuration"
     IDS_SOUND_4CHANNEL      "4 Channels"
+    IDS_HF_FS_CUSTOM        "Custom"
+    IDS_SELECTFS            "Select filesystem handler (FastFileSystem, SmartFilesystem,...)"
 END
 
 STRINGTABLE 

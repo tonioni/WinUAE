@@ -93,7 +93,7 @@ static void freesample (struct drvsample *s)
 void driveclick_init(void)
 {
     int v, vv, i, j;
-    char tmp[1000];
+    char tmp[MAX_DPATH];
 
     driveclick_free ();
     vv = 0;
@@ -120,6 +120,8 @@ void driveclick_init(void)
 		for (j = 0; j < DS_END; j++)
 		    freesample (&drvs[i][j]);
 		currprefs.dfxclick[i] = changed_prefs.dfxclick[i] = 0;
+	    } else {
+		vv++;
 	    }
 	    for (j = 0; j < DS_END; j++)
 		drvs[i][j].len <<= DS_SHIFT;
@@ -129,7 +131,6 @@ void driveclick_init(void)
 		drvs[i][DS_CLICK].multisize = drvs[i][DS_CLICK].len / CLICK_TRACKS;
 		drvs[i][DS_CLICK].multilen = (drvs[i][DS_CLICK].multisize * 9) / 10;
 	    }
-	    vv += currprefs.dfxclick[i];
 	}
     }
     if (vv > 0) {

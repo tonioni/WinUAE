@@ -1075,8 +1075,14 @@ int check_prefs_changed_gfx (void)
 	return 1;
     }
 
-    if (strcmp (currprefs.prtname, changed_prefs.prtname)) {
+    if (strcmp (currprefs.prtname, changed_prefs.prtname) ||
+	currprefs.parallel_postscript_emulation != changed_prefs.parallel_postscript_emulation ||
+	currprefs.parallel_postscript_detection != changed_prefs.parallel_postscript_detection ||
+	strcmp (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters)) {
 	strcpy (currprefs.prtname, changed_prefs.prtname);
+	currprefs.parallel_postscript_emulation = changed_prefs.parallel_postscript_emulation;
+	currprefs.parallel_postscript_detection = changed_prefs.parallel_postscript_detection;
+	strcpy (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters);
 #ifdef PARALLEL_PORT
 	closeprinter ();
 #endif

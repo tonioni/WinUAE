@@ -211,6 +211,8 @@
 #define IDS_NOHARDDRIVES                240
 #define IDS_DEFAULT_HOST                241
 #define IDS_SOUND_4CHANNEL              242
+#define IDS_HF_FS_CUSTOM                243
+#define IDS_SELECTFS                    244
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -267,7 +269,6 @@
 #define IDC_FASTMEM                     1027
 #define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
-#define IDC_PRINTERLIST2                1028
 #define IDC_SLOWMEM                     1030
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
@@ -452,9 +453,12 @@
 #define IDC_EDITPATH                    1410
 #define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
+#define IDC_HF_SIZE                     1501
 #define IDC_LINEMODE                    1502
 #define IDC_CREATEHF                    1502
+#define IDC_HF_CREATE                   1502
 #define IDC_SOCKETS                     1503
+#define IDC_HF_DOSTYPE                  1503
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
 #define IDC_TEST16BIT                   1506
@@ -783,6 +787,7 @@
 #define IDC_FILTERVZV                   1695
 #define IDC_PS_PARAMS                   1695
 #define IDC_FILTERHZV                   1696
+#define IDC_HF_TYPE                     1696
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -803,7 +808,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        245
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1696
+#define _APS_NEXT_CONTROL_VALUE         1697
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

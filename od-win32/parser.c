@@ -7,6 +7,8 @@
  * Copyright 1998-1999 Brian King - added MIDI output support
  */
 
+//#define PS_PRINT_DUMP
+
 #include "config.h"
 #include "sysconfig.h"
 #include <windows.h>
@@ -62,7 +64,7 @@ static volatile int prt_running;
 static volatile int prt_started;
 static smp_comm_pipe prt_requests;
 
-#ifdef PRINT_DUMP
+#ifdef PS_PRINT_DUMP
 static struct zfile *prtdump;
 #endif
 
@@ -139,7 +141,7 @@ static int openprinter_ps (void)
 	write_log("GS crashed\n");
 	return 0;
     }
-    psmode = 1;    
+    psmode = 1;
     return 1;
 }
 
@@ -197,11 +199,10 @@ static void flushprtbuf (void)
     if (!prtbufbytes)
 	return;
 
-#ifdef PRINT_DUMP
+#ifdef PS_PRINT_DUMP
     if (prtdump)
 	zfile_fwrite (prtbuf, prtbufbytes, 1, prtdump);
 #endif
-
     if (currprefs.parallel_postscript_emulation) {
 	if (psmode) {
 	    uae_u8 *p;
@@ -248,6 +249,10 @@ static void DoSomeWeirdPrintingStuff (char val)
 	    prtbufbytes = 1;
 	    flushprtbuf ();
 	    write_log ("PostScript end detected..\n");
+#ifdef PS_PRINT_DUMP
+	    zfile_fclose (prtdump);
+	    prtdump = NULL;
+#endif
 	    if (currprefs.parallel_postscript_emulation) {
 		prt_started = 0;
 		if (uae_start_thread (prt_thread, psbuffer, &prt_tid)) {
@@ -262,11 +267,14 @@ static void DoSomeWeirdPrintingStuff (char val)
 	    freepsbuffers ();
 	    return;
 	} else if (!psmode && !stricmp (prev, "%!PS")) {
+#ifdef PS_PRINT_DUMP
+	    prtdump = zfile_fopen ("psdump.dat", "wb");
+#endif
 	    psmode = 1;
 	    psbuffer = malloc (sizeof (uae_u8*));
 	    psbuffer[0] = 0;
 	    psbuffers = 0;
-	    strcpy (prtbuf, "%!PS\n");
+	    strcpy (prtbuf, "%!PS");
 	    prtbufbytes = strlen (prtbuf);
 	    flushprtbuf ();
 	    write_log ("PostScript start detected..\n");
@@ -307,7 +315,7 @@ int load_ghostscript (void)
 
     if (gsdll)
 	return 1;
-    gsdll = LoadLibrary ("gsdll32.dll");
+    gsdll = WIN32_LoadLibrary ("gsdll32.dll");
     if (!gsdll) {
 	if (GetEnvironmentVariable ("GS_DLL", path, sizeof (path)))
 	    gsdll = LoadLibrary (path);
@@ -387,9 +395,6 @@ void openprinter( void )
     closeprinter ();
     if (!strcasecmp(currprefs.prtname,"none"))
 	return;
-#ifdef PRINT_DUMP
-    prtdump = zfile_fopen ("c:\\prtdump.dat", "wb");
-#endif
 
     if (currprefs.parallel_postscript_emulation) {
 	prtopen = 1;

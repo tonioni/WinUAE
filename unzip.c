@@ -946,7 +946,7 @@ extern int ZEXPORT unzOpenCurrentFile (file)
 	  pfile_in_zip_read_info->stream.zfree = (free_func)0;
 	  pfile_in_zip_read_info->stream.opaque = (voidpf)0; 
       
-	  err=inflateInit2(&pfile_in_zip_read_info->stream, -MAX_WBITS);
+	  err=pinflateInit2(&pfile_in_zip_read_info->stream, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream));
 	  if (err == Z_OK)
 	    pfile_in_zip_read_info->stream_initialised=1;
         /* windowBits is passed < 0 to tell that there is no zlib header.
@@ -1055,7 +1055,7 @@ extern int ZEXPORT unzReadCurrentFile  (file, buf, len)
 				*(pfile_in_zip_read_info->stream.next_out+i) =
                         *(pfile_in_zip_read_info->stream.next_in+i);
 					
-			pfile_in_zip_read_info->crc32 = crc32(pfile_in_zip_read_info->crc32,
+			pfile_in_zip_read_info->crc32 = pcrc32(pfile_in_zip_read_info->crc32,
 								pfile_in_zip_read_info->stream.next_out,
 								uDoCopy);
 			pfile_in_zip_read_info->rest_read_uncompressed-=uDoCopy;
@@ -1082,13 +1082,13 @@ extern int ZEXPORT unzReadCurrentFile  (file, buf, len)
 				(pfile_in_zip_read_info->rest_read_compressed == 0))
 				flush = Z_FINISH;
 			*/
-			err=inflate(&pfile_in_zip_read_info->stream,flush);
+			err=pinflate(&pfile_in_zip_read_info->stream,flush);
 
 			uTotalOutAfter = pfile_in_zip_read_info->stream.total_out;
 			uOutThis = uTotalOutAfter-uTotalOutBefore;
 			
 			pfile_in_zip_read_info->crc32 = 
-                crc32(pfile_in_zip_read_info->crc32,bufBefore,
+                pcrc32(pfile_in_zip_read_info->crc32,bufBefore,
                         (uInt)(uOutThis));
 
 			pfile_in_zip_read_info->rest_read_uncompressed -=
@@ -1238,7 +1238,7 @@ extern int ZEXPORT unzCloseCurrentFile (file)
 	TRYFREE(pfile_in_zip_read_info->read_buffer);
 	pfile_in_zip_read_info->read_buffer = NULL;
 	if (pfile_in_zip_read_info->stream_initialised)
-		inflateEnd(&pfile_in_zip_read_info->stream);
+		pinflateEnd(&pfile_in_zip_read_info->stream);
 
 	pfile_in_zip_read_info->stream_initialised = 0;
 	TRYFREE(pfile_in_zip_read_info);

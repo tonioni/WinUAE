@@ -1330,7 +1330,7 @@ static uae_u32 getmfmlong (uae_u16 *mbuf, int shift)
     return ((getmfmword (mbuf, shift) << 16) | getmfmword (mbuf + 1, shift)) & MFMMASK;
 }
 
-static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int filetype, int *drvsecp)
+static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int filetype, int *drvsecp, int checkmode)
 {
     int i, secwritten = 0;
     int fwlen = FLOPPY_WRITE_LEN * ddhd;
@@ -1382,13 +1382,13 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	    mbuf += 2;
 
 	    dlong = (odd << 1) | even;
-	    if (dlong) {
+	    if (dlong && !checkmode) {
 		if (filetype == ADF_EXT2)
 		    return 6;
 		secwritten = -200;
 	    }
 	    chksum ^= odd ^ even;
-	}			/* could check here if the label is nonstandard */
+	}   /* could check here if the label is nonstandard */
 	mbuf += 8;
 	odd = getmfmlong (mbuf, shift);
 	even = getmfmlong (mbuf + 2, shift);
@@ -1440,7 +1440,7 @@ static int drive_write_adf_amigados (drive * drv)
 {
     int drvsec, i;
 
-    if (decode_buffer (drv->bigmfmbuf, drv->cyl, drv->num_secs, drv->ddhd, drv->filetype, &drvsec))
+    if (decode_buffer (drv->bigmfmbuf, drv->cyl, drv->num_secs, drv->ddhd, drv->filetype, &drvsec, 0))
 	return 2;
     if (!drvsec)
 	return 2;
@@ -2625,7 +2625,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
     if (!drv->diskfile)
 	return 1;
     *crc32 = zfile_crc32 (drv->diskfile);
-    if (decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec)) {
+    if (decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, 1)) {
 	ret = 2;
 	goto end;
     }

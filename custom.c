@@ -12,8 +12,8 @@
 #define DEBUG_COPPER 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 50
-#define SPRITE_DEBUG_MAXY 200
-//#define DISABLE_SPRITES
+#define SPRITE_DEBUG_MAXY 101
+#define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
@@ -1944,9 +1944,6 @@ static void decide_sprites (int hpos)
 
     if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
 	return;
-#ifdef DISABLE_SPRITES
-    return;
-#endif
 
     decide_diw (hpos);
     decide_line (hpos);
@@ -1963,6 +1960,10 @@ static void decide_sprites (int hpos)
 	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 	int j, bestp;
 
+#if (SPRITE_MASK) != 255
+	if (!((SPRITE_MASK) & (1 << i)))
+	    continue;
+#endif
 	if (! spr[i].armed || sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
 	    continue;
 	if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
@@ -1986,7 +1987,7 @@ static void decide_sprites (int hpos)
 	count++;
     }
     for (i = 0; i < count; i++) {
-	int nr = nrs[i];    
+	int nr = nrs[i];
 	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr]);
     }
     last_sprite_point = point;
@@ -2982,9 +2983,26 @@ static void BLTSIZH (uae_u16 v)
 	return;
     maybe_blit (current_hpos(), 0);
     blt_info.hblitsize = v & 0x7FF;
-    if (!blt_info.vblitsize) blt_info.vblitsize = 32768;
-    if (!blt_info.hblitsize) blt_info.hblitsize = 0x800;
+    if (!blt_info.vblitsize)
+	blt_info.vblitsize = 32768;
+    if (!blt_info.hblitsize)
+	blt_info.hblitsize = 0x800;
     do_blitter (current_hpos());
+}
+
+STATIC_INLINE spr_arm (int num, int state)
+{
+    switch (state)
+    {
+	case 0:
+        nr_armed -= spr[num].armed;
+	spr[num].armed = 0;
+	break;
+	default:
+        nr_armed += 1 - spr[num].armed;
+	spr[num].armed = 1;
+	break;
+    }
 }
 
 STATIC_INLINE void SPRxCTLPOS (int num)
@@ -3020,13 +3038,12 @@ STATIC_INLINE void SPRxCTL_1 (uae_u16 v, int num, int hpos)
 {
     struct sprite *s = &spr[num];
     sprctl[num] = v;
-    nr_armed -= s->armed;
-    s->armed = 0;
+    spr_arm (num, 0);
     SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dCTL %04.4X VSTRT=%d VSTOP=%d HSTRT=%d DMA=%d ARM=%d COP=%x PC=%x\n",
-	    vpos, hpos, num, v, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc());
+	write_log ("%d:%d:SPR%dCTL %04.4X P=%06.6X VSTRT=%d VSTOP=%d HSTRT=%d DMA=%d ARM=%d COP=%x PC=%x\n",
+	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc());
     }
 #endif
 
@@ -3038,8 +3055,8 @@ STATIC_INLINE void SPRxPOS_1 (uae_u16 v, int num, int hpos)
     SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-        write_log ("%d:%d:SPR%dPOS %04.4X VSTRT=%d VSTOP=%d HSTRT=%d DMA=%d ARM=%d COP=%x PC=%x\n",
-	    vpos, hpos, num, v, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc());
+        write_log ("%d:%d:SPR%dPOS %04.4X P=%06.6X VSTRT=%d VSTOP=%d HSTRT=%d DMA=%d ARM=%d COP=%x PC=%x\n",
+	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc());
     }
 #endif
 }
@@ -3051,12 +3068,11 @@ STATIC_INLINE void SPRxDATA_1 (uae_u16 v, int num, int hpos)
     sprdata[num][2] = v;
     sprdata[num][3] = v;
 #endif
-    nr_armed += 1 - spr[num].armed;
-    spr[num].armed = 1;
+    spr_arm (num, 1);
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-        write_log ("%d:%d:SPR%dDATA %04.4X DMA=%d ARM=%d PC=%x\n",
-	    vpos, hpos, num, v, spr[num].dmastate, spr[num].armed, m68k_getpc());
+        write_log ("%d:%d:SPR%dDATA %04.4X P=%06.6X DMA=%d ARM=%d PC=%x\n",
+	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, m68k_getpc());
     }
 #endif
 }
@@ -3070,8 +3086,8 @@ STATIC_INLINE void SPRxDATB_1 (uae_u16 v, int num, int hpos)
 #endif
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-        write_log ("%d:%d:SPR%dDATB %04.4X DMA=%d ARM=%d PC=%x\n",
-	    vpos, hpos, num, v, spr[num].dmastate, spr[num].armed, m68k_getpc());
+        write_log ("%d:%d:SPR%dDATB %04.4X P=%06.6X DMA=%d ARM=%d PC=%x\n",
+	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, m68k_getpc());
     }
 #endif
 }
@@ -3086,7 +3102,7 @@ static void SPRxPTH (int hpos, uae_u16 v, int num)
     spr[num].pt |= (uae_u32)v << 16;
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-        write_log ("%d:%d:SPR%dPTH %08.8X\n", vpos, hpos, num, spr[num].pt);
+        write_log ("%d:%d:SPR%dPTH %06.6X\n", vpos, hpos, num, spr[num].pt);
     }
 #endif
 }
@@ -3097,7 +3113,7 @@ static void SPRxPTL (int hpos, uae_u16 v, int num)
     spr[num].pt |= v;
 #if SPRITE_DEBUG > 0
      if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dPTL %08.8X\n", vpos, hpos, num, spr[num].pt);
+	write_log ("%d:%d:SPR%dPTL %06.6X\n", vpos, hpos, num, spr[num].pt);
      }
 #endif
 }
@@ -3830,7 +3846,7 @@ STATIC_INLINE void sync_copper_with_cpu (int hpos, int do_schedule, unsigned int
 	update_copper (hpos);
 }
 
-STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos)
+STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cycle, int mode)
 {
     uae_u16 data = last_custom_value;
     if (dma) {
@@ -3849,17 +3865,23 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     int dma, posctl = 0;
     uae_u16 data;
 
-    if (vpos == s->vstart) {
-        s->dmastate = 1;
-#if SPRITE_DEBUG > 0
-	write_log ("%d:SPR%d START\n", vpos, num);
+#if SPRITE_DEBUG > 2
+    if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
+	write_log("%d:%d:slot%d:%d\n", vpos, hpos, num, cycle);
 #endif
+    if (vpos == s->vstart) {
+#if SPRITE_DEBUG > 0
+        if (!s->dmastate && vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
+	    write_log ("%d:%d:SPR%d START\n", vpos, hpos, num);
+#endif
+        s->dmastate = 1;
     }
     if (vpos == s->vstop || vpos == sprite_vblank_endline) {
-        s->dmastate = 0;
 #if SPRITE_DEBUG > 0
-	write_log ("%d:SPR%d STOP\n", vpos, num);
+        if (s->dmastate && vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
+	    write_log ("%d:%d:SPR%d STOP\n", vpos, hpos, num);
 #endif
+        s->dmastate = 0;
     }
     if (!dmaen (DMA_SPRITE))
 	return;
@@ -3868,14 +3890,22 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	s->dmastate = 0;
 	posctl = 1;
         if (dma) {
-	    data = sprite_fetch (s, dma, hpos);
-	    s->pt += (sprite_width >> 3) - 2;
+	    data = sprite_fetch (s, dma, hpos, cycle, 0);
+	    switch (sprite_width)
+	    {
+		case 64:
+		sprite_fetch (s, dma, hpos, cycle, 0);
+		sprite_fetch (s, dma, hpos, cycle, 0);
+		case 32:
+		sprite_fetch (s, dma, hpos, cycle, 0);
+		break;
+	    }
 	} else {
             data = cycle == 0 ? sprpos[num] : sprctl[num];
 	}
 #if SPRITE_DEBUG > 1
         if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	    write_log ("dma:");
+	    write_log ("%d:%d:dma:P=%06.6X ", vpos, hpos, s->pt);
 	}
 #endif
         if (cycle == 0)
@@ -3884,13 +3914,13 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    SPRxCTL_1 (data, num, hpos);
     }
     if (s->dmastate && !posctl) {
-    	uae_u16 data = sprite_fetch (s, dma, hpos);
+    	uae_u16 data = sprite_fetch (s, dma, hpos, cycle, 1);
         /* Hack for X mouse auto-calibration */
         if (num == 0 && cycle == 0)
             mousehack_handle (sprctl[0], sprpos[0]);
 #if SPRITE_DEBUG > 1
         if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	    write_log ("dma:");
+	    write_log ("%d:%d:dma:P=%06.6X ", vpos, hpos, s->pt);
 	}
 #endif
         if (cycle == 0)
@@ -3902,9 +3932,9 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
             {
             case 64:
     	    {
-		uae_u16 data32 = sprite_fetch (s, dma, hpos);
-    		uae_u16 data641 = sprite_fetch (s, dma, hpos);
-    		uae_u16 data642 = sprite_fetch (s, dma, hpos);
+		uae_u16 data32 = sprite_fetch (s, dma, hpos, cycle, 1);
+    		uae_u16 data641 = sprite_fetch (s, dma, hpos, cycle, 1);
+    		uae_u16 data642 = sprite_fetch (s, dma, hpos, cycle, 1);
 		if (dma) {
     		    if (cycle == 0) {
 			sprdata[num][3] = data642;
@@ -3920,7 +3950,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
             break;
             case 32:
 	    {	
-		uae_u16 data32 = sprite_fetch (s, dma, hpos);
+		uae_u16 data32 = sprite_fetch (s, dma, hpos, cycle, 1);
 		if (dma) {
 		    if (cycle == 0)
 			sprdata[num][1] = data32;

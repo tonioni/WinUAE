@@ -31,8 +31,6 @@
 #include "resource.h"
 #include "avioutput.h"
 
-static int newmode = 1;
-
 #define MAX_AVI_SIZE (0x80000000 - 0x1000000)
 
 static int avioutput_init = 0;
@@ -260,11 +258,9 @@ LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd)
 	
 	AVIOutput_ReleaseVideo();
 
-	if (newmode) {
-	    avioutput_width = workprefs.gfx_width;
-	    avioutput_height = workprefs.gfx_height;
-	    avioutput_bits = workprefs.color_mode == 2 ? 16 : workprefs.color_mode > 2 ? 32 : 8;
-	}
+        avioutput_width = workprefs.gfx_width;
+        avioutput_height = workprefs.gfx_height;
+        avioutput_bits = workprefs.color_mode == 2 ? 16 : workprefs.color_mode > 2 ? 32 : 8;
 	
 	if(!(lpbi = (LPBITMAPINFOHEADER) malloc(sizeof(BITMAPINFOHEADER) + (((avioutput_bits <= 8) ? 1 << avioutput_bits : 0) * sizeof(RGBQUAD)))))
 		return NULL;
@@ -547,13 +543,9 @@ void AVIOutput_WriteVideo(void)
     	if(!avioutput_init)
 	    goto error;
 
-	if (newmode) {
-	    actual_width = gfxvidinfo.width;
-	    actual_height = gfxvidinfo.height;
-	} else {
-	    actual_width = WIN32GFX_GetWidth();
-	    actual_height = WIN32GFX_GetHeight();
-	}
+        actual_width = gfxvidinfo.width;
+        actual_height = gfxvidinfo.height;
+
 #if defined (GFXFILTER)
 	if (!usedfilter || (usedfilter && usedfilter->x[0]) || WIN32GFX_IsPicassoScreen ())
 	    v = getFromDC((LPBITMAPINFO)lpbi);

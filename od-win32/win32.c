@@ -282,6 +282,9 @@ static int figure_processor_speed (void)
 	    if (rpt_available)
 		write_log ("CLOCKFREQ: CPU throttling detected, using QPF instead of RDTSC\n");
 	    qpfinit = 1;
+	} else if (qpc_avail && freq.QuadPart >= 999000000) {
+	    write_log ("CLOCKFREQ: Using QPF (QPF >= 1GHz)\n");
+	    qpfinit = 1;
 	}
 	if (qpfinit) {
 	    useqpc = qpc_avail;
@@ -1454,7 +1457,7 @@ static HMODULE LoadGUI( void )
 	    sprintf (dllbuf, "%sguidll.dll", start_path);
 	else
 	    sprintf (dllbuf, "%sWinUAE_%s.dll", start_path, dllname);
-	result = LoadLibrary (dllbuf);
+	result = WIN32_LoadLibrary (dllbuf);
 	if( result) 
 	{
 	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle );
@@ -2001,6 +2004,7 @@ static void WIN32_HandleRegistryStuff( void )
     strcat (path, "Hardware");
     CreateDirectory (path, NULL);
     fetch_path ("StatefilePath", path, sizeof (path));
+    CreateDirectory (path, NULL);
     strcat (path, "default.uss");
     strcpy (savestate_fname, path);
     fkey = read_disk_history ();
@@ -2011,17 +2015,6 @@ static void WIN32_HandleRegistryStuff( void )
 
 static void betamessage (void)
 {
-}
-
-static void init_zlib (void)
-{
-    HMODULE h = LoadLibrary ("zlib1.dll");
-    if (h) {
-	is_zlib = 1;
-	FreeLibrary(h);
-    } else {
-	write_log ("zlib1.dll not found, gzip/zip support disabled\n");
-    }
 }
 
 static int dxdetect (void)
@@ -2124,6 +2117,8 @@ static int osdetect (void)
     os_winnt_admin = isadminpriv ();
     return 1;
 }
+
+    extern void test (void);
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
@@ -2164,7 +2159,6 @@ __asm{
 #ifdef AVIOUTPUT
     AVIOutput_Initialize();
 #endif
-    init_zlib ();
 
 #ifdef __MINGW32__
     argc = _argc; argv = _argv;
@@ -2202,11 +2196,7 @@ __asm{
 
 	if( WIN32_RegisterClasses() && WIN32_InitLibraries() && DirectDraw_Start(NULL) )
 	{
-	    struct foo {
-		DEVMODE actual_devmode;
-		char overrun[8];
-	    } devmode;
-
+	    DEVMODE devmode;
 	    DWORD i = 0;
 
 	    DirectDraw_Release ();
@@ -2216,13 +2206,11 @@ __asm{
 	    sortdisplays ();
 	    write_log ("done\n");
 	    
-	    memset( &devmode, 0, sizeof(DEVMODE) + 8 );
-	    devmode.actual_devmode.dmSize = sizeof(DEVMODE);
-	    devmode.actual_devmode.dmDriverExtra = 8;
-#define ENUM_CURRENT_SETTINGS ((DWORD)-1)
-	    if( EnumDisplaySettings( NULL, ENUM_CURRENT_SETTINGS, (LPDEVMODE)&devmode ) )
+	    memset (&devmode, 0, sizeof(devmode));
+	    devmode.dmSize = sizeof(DEVMODE);
+	    if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode))
 	    {
-		default_freq = devmode.actual_devmode.dmDisplayFrequency;
+		default_freq = devmode.dmDisplayFrequency;
 		if( default_freq >= 70 )
 		    default_freq = 70;
 		else
@@ -2387,7 +2375,7 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 	    strcpy (path2, path);
 	    if (slash) {
 		strcpy (slash + 1, "DBGHELP.DLL");
-		dll = LoadLibrary (path);
+		dll = WIN32_LoadLibrary (path);
 	    }
 	    slash = strrchr (path2, '\\');
 	    if (slash)
@@ -2397,7 +2385,7 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 	    sprintf (p, "winuae_%d%02d%02d_%02d%02d%02d.dmp",
 		when.tm_year + 1900, when.tm_mon + 1, when.tm_mday, when.tm_hour, when.tm_min, when.tm_sec);
 	    if (dll == NULL)
-		dll = LoadLibrary("DBGHELP.DLL");
+		dll = WIN32_LoadLibrary ("DBGHELP.DLL");
 	    if (dll) {
 		MINIDUMPWRITEDUMP dump = (MINIDUMPWRITEDUMP)GetProcAddress(dll, "MiniDumpWriteDump");
 		if (dump) {
@@ -2489,6 +2477,21 @@ void systraymenu (HWND hwnd)
     PostMessage (hwnd, WM_NULL, 0, 0);
     DestroyMenu (menu);
     winuae_active (hwnd, FALSE);
+}
+
+
+HMODULE WIN32_LoadLibrary (const char *name)
+{
+    HMODULE m;
+    char *s = xmalloc (strlen (start_path) + strlen (WIN32_PLUGINDIR) + strlen (name) + 1);
+    if (s) {
+	sprintf (s, "%s%s%s", start_path, WIN32_PLUGINDIR, name);
+	m = LoadLibrary (s);
+        xfree (s);
+	if (m)
+	    return m;
+    }
+    return LoadLibrary (name);
 }
 
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,

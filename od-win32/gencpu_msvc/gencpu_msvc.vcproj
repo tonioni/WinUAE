@@ -146,6 +146,73 @@ del ..\..\cpuemu.c
 			<Tool
 				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
 		</Configuration>
+		<Configuration
+			Name="TestRelease|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="1"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE"
+			CharacterSet="2">
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions=""
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="..\..\include,..\..,..\"
+				PreprocessorDefinitions="WIN32,NDEBUG,_CONSOLE"
+				StringPooling="TRUE"
+				RuntimeLibrary="4"
+				EnableFunctionLevelLinking="TRUE"
+				PrecompiledHeaderFile=".\Release/gencpu_msvc.pch"
+				AssemblerListingLocation=".\Release/"
+				ObjectFile=".\Release/"
+				ProgramDataBaseFileName=".\Release/"
+				WarningLevel="3"
+				SuppressStartupBanner="TRUE"
+				CompileAs="0"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/MACHINE:I386"
+				OutputFile="gencpu.exe"
+				LinkIncremental="1"
+				SuppressStartupBanner="TRUE"
+				ProgramDatabaseFile=".\Release/gencpu.pdb"
+				SubSystem="1"/>
+			<Tool
+				Name="VCMIDLTool"
+				TypeLibraryName=".\Release/gencpu_msvc.tlb"/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="generating gencpu files"
+				CommandLine="cd ..\..
+od-win32\gencpu_msvc\gencpu.exe
+"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"
+				Description="deleting gencpu files"
+				CommandLine="del ..\..\cputbl.h
+del ..\..\cpustbl.c
+del ..\..\cpuemu.c
+"/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>

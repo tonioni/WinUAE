@@ -11,6 +11,17 @@
 typedef int bool;
 
 #include <windows.h>
+#include "win32.h"
+
+typedef bool (_stdcall* INITIALIZEWINIO)(void);
+static INITIALIZEWINIO pInitializeWinIo;
+typedef void (_stdcall* SHUTDOWNWINIO)(void);
+static SHUTDOWNWINIO pShutdownWinIo;
+typedef bool (_stdcall* GETPORTVAL)(WORD,PDWORD,BYTE);
+static GETPORTVAL pGetPortVal;
+typedef bool (_stdcall* SETPORTVAL)(WORD,DWORD,BYTE);
+static SETPORTVAL pSetPortVal;
+static HMODULE ioh;
 
 #ifndef IOPORT_EMU
 #include <WinIo.h>
@@ -23,8 +34,20 @@ int ioport_init (void)
     if (initialized)
 	return 1;
 #ifndef IOPORT_EMU
+    ioh = WIN32_LoadLibrary ("winio.dll");
+    if (!ioh)
+	return 0;
+    pInitializeWinIo = (INITIALIZEWINIO)GetProcAddress (ioh, "InitializeWinIo");
+    pShutdownWinIo = (SHUTDOWNWINIO)GetProcAddress (ioh, "ShutdownWinIo");
+    pGetPortVal = (GETPORTVAL)GetProcAddress (ioh, "GetPortVal");
+    pSetPortVal = (SETPORTVAL)GetProcAddress (ioh, "SetPortVal");
+    if (!pInitializeWinIo || !pShutdownWinIo || !pGetPortVal || !pSetPortVal) {
+	io_log ("incompatible winio.dll\n");
+	FreeLibrary (ioh);
+	return 0;
+    }
     __try {
-        initialized = InitializeWinIo();
+        initialized = pInitializeWinIo();
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         initialized = 0;
     }
@@ -38,8 +61,10 @@ int ioport_init (void)
 void ioport_free (void)
 {
 #ifndef IOPORT_EMU
-    if (initialized)
-	ShutdownWinIo();
+    if (initialized) {
+	pShutdownWinIo();
+	FreeLibrary (ioh);
+    }
 #endif
     io_log ("io freed\n");
     initialized = 0;
@@ -49,7 +74,7 @@ uae_u8 ioport_read (int port)
 {
     DWORD v = 0;
 #ifndef IOPORT_EMU
-    GetPortVal (port, &v, 1);
+    pGetPortVal (port, &v, 1);
 #endif
     io_log ("ioport_read %04.4X returned %02.2X\n", port, v);
     return (uae_u8)v;
@@ -58,7 +83,7 @@ uae_u8 ioport_read (int port)
 void ioport_write (int port, uae_u8 v)
 {
 #ifndef IOPORT_EMU
-    SetPortVal (port, v, 1);
+    pSetPortVal (port, v, 1);
 #endif
     io_log ("ioport_write %04.4X %02.2X\n", port, v);
 }
@@ -107,7 +132,7 @@ int paraport_init (void)
     HANDLE pp;
 
     paraport_free ();
-    para = LoadLibrary("ParaPort.dll");
+    para = WIN32_LoadLibrary("ParaPort.dll");
     if (!para) {
 	write_log ("PARAPORT: no ParaPort.dll, direct parallel port emulation disabled\n");
 	return 0;

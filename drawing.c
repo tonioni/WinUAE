@@ -119,7 +119,7 @@ static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
 char *xlinebuffer;
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
-static char *row_map[MAX_VIDHEIGHT];
+static char *row_map[MAX_VIDHEIGHT + 1];
 static int max_drawn_amiga_line;
 
 /* line_draw_funcs: pfield_do_linetoscr, pfield_do_fill_line, decode_ham */
@@ -135,7 +135,6 @@ typedef void (*line_draw_func)(int, int);
 #define LINE_DONE_AS_PREVIOUS 8
 #define LINE_REMEMBERED_AS_PREVIOUS 9
 
-static char *line_drawn;
 static char linestate[(MAXVPOS + 1)*2 + 1];
 
 uae_u8 line_data[(MAXVPOS + 1) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
@@ -1465,7 +1464,7 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 			draw_sprites_ecs (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
 		}
 	    }
- 	    if (plf2pri > 5 && bplplanecnt > 4 && !(currprefs.chipset_mask & CSMASK_AGA))
+ 	    if (plf2pri > 5 && bplplanecnt > 4 && bplplanecnt < 6 && !(currprefs.chipset_mask & CSMASK_AGA))
  		weird_bitplane_fix ();
 	}
 
@@ -2044,9 +2043,6 @@ void reset_drawing (void)
 	linestate[i] = LINE_UNDECIDED;
 
     init_aspect_maps ();
-
-    if (line_drawn == 0)
-	line_drawn = (char *)malloc (gfxvidinfo.height);
 
     init_row_map();
 

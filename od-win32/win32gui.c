@@ -66,8 +66,8 @@
 #include "moduleripper.h"
 #endif
 
-#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.exe\0"
-#define ROM_FORMAT_STRING "(*.rom;*.zip;*.roz)\0*.rom;*.zip;*.roz\0"
+#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe\0"
+#define ROM_FORMAT_STRING "(*.rom;*.zip;*.rar;*.7z;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
 #define USS_FORMAT_STRING_RESTORE "(*.uss;*.gz;*.zip)\0*.uss;*.gz;*.zip\0"
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
 #define CONFIG_HOST "Host"
@@ -754,6 +754,7 @@ int DirectorySelection(HWND hDlg, int flag, char *path)
 // flag = 11 for selecting flash files
 // flag = 12 for loading anything
 // flag = 13 for selecting path
+// flag = 14 for loading filesystem
 int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
 {
     OPENFILENAME openFileName;
@@ -913,6 +914,14 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	break;
+    case 12:
+ 	WIN32GUI_LoadUIString( IDS_SELECTFS, szTitle, MAX_DPATH );
+
+	openFileName.lpstrTitle = szTitle;
+	openFileName.lpstrFilter = NULL;
+	openFileName.lpstrDefExt = NULL;
+	openFileName.lpstrInitialDir = path_out;
+	break;
     case 13:
  	WIN32GUI_LoadUIString( IDS_SELECTINFO, szTitle, MAX_DPATH );
 
@@ -1059,15 +1068,17 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
     return result;
 }
 
-static BOOL CreateHardFile (HWND hDlg, UINT hfsizem)
+static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, char *dostype)
 {
     HANDLE hf;
     int i = 0;
     BOOL result = FALSE;
     LONG highword = 0;
-    DWORD ret;
+    DWORD ret, written;
     char init_path[MAX_DPATH] = "";
     uae_u64 hfsize;
+    uae_u32 dt;
+    uae_u8 b;
 
     hfsize = (uae_u64)hfsizem * 1024 * 1024;
     DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, 0);
@@ -1085,6 +1096,23 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem)
                 write_log ("SetFilePointer() failure for %s to posn %ud\n", init_path, hfsize);
 	    else
                 result = SetEndOfFile (hf);
+	    SetFilePointer (hf, 0, NULL, FILE_BEGIN);
+	    b = 0;
+	    WriteFile (hf, &b, 1, &written, NULL);
+	    WriteFile (hf, &b, 1, &written, NULL);
+	    WriteFile (hf, &b, 1, &written, NULL);
+	    WriteFile (hf, &b, 1, &written, NULL);
+            if (sscanf (dostype, "%x", &dt) > 0) {
+		SetFilePointer (hf, 0, NULL, FILE_BEGIN);
+		b = dt >> 24;
+		WriteFile (hf, &b, 1, &written, NULL);
+		b = dt >> 16;
+		WriteFile (hf, &b, 1, &written, NULL);
+		b = dt >> 8;
+		WriteFile (hf, &b, 1, &written, NULL);
+		b = dt >> 0;
+		WriteFile (hf, &b, 1, &written, NULL);
+	    }
             CloseHandle (hf);
         } else {
             write_log ("CreateFile() failed to create %s\n", init_path);
@@ -1143,7 +1171,7 @@ static int CalculateHardfileSize (HWND hDlg)
     BOOL Translated = FALSE;
     UINT mbytes = 0;
 
-    mbytes = GetDlgItemInt( hDlg, IDC_HFSIZE, &Translated, FALSE );
+    mbytes = GetDlgItemInt( hDlg, IDC_HF_SIZE, &Translated, FALSE );
     if (mbytes <= 0)
 	mbytes = 0;
     if( !Translated )
@@ -4740,6 +4768,7 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDDRIVESELECT, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_DRIVESOUND_DEFAULT_A500, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDDRIVESELECT, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, 0, 0);
     p = drivesounds;
     if (p) {
 	while (p[0]) {
@@ -4747,7 +4776,7 @@ static void values_to_sounddlg (HWND hDlg)
 	    p += strlen (p) + 1;
 	}
     }
-    if (workprefs.dfxclick[idx] && workprefs.dfxclickexternal[idx][0]) {
+    if (workprefs.dfxclick[idx] < 0) {
 	p = drivesounds;
 	i = DS_BUILD_IN_SOUNDS + 1;
 	while (p && p[0]) {
@@ -4758,6 +4787,7 @@ static void values_to_sounddlg (HWND hDlg)
 	    i++;
 	    p += strlen (p) + 1;
 	}
+	
     } else {
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, workprefs.dfxclick[idx], 0);
     }
@@ -4870,14 +4900,12 @@ static BOOL CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if ((wParam & 0xffff) == IDC_SOUNDCALIBRATE) {
+	if (LOWORD (wParam) == IDC_SOUNDCALIBRATE) {
 	    int pct = sound_calibrate (hDlg, &workprefs);
 	    workprefs.sound_adjust = (pct - 1000);
 	    update_soundgui (hDlg);
-	} else if((wParam & 0xffff) == IDC_SOUNDDRIVE) {
-	    int idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);;
-	    if (idx >= 0)
-		SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, workprefs.dfxclick[idx], 0);
+	} else if(LOWORD (wParam) == IDC_SOUNDDRIVE) {
+	    values_to_sounddlg (hDlg);
 	}
 	values_from_sounddlg (hDlg);
 	enable_for_sounddlg (hDlg);
@@ -5027,6 +5055,28 @@ static void sethardfile (HWND hDlg)
 	!(current_hfdlg.sectors == 0 && current_hfdlg.surfaces == 0 && current_hfdlg.reserved == 0));
 }
 
+static void inithardfile (HWND hDlg)
+{
+    char tmp[MAX_DPATH];
+
+    EnableWindow (GetDlgItem (hDlg, IDC_HF_DOSTYPE), FALSE);
+    EnableWindow (GetDlgItem (hDlg, IDC_HF_CREATE), FALSE);
+    SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
+    WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp));
+    SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)"OFS/FFS/RDB");
+    SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)"SFS");
+    SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+    SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
+}
+
+static void sethfdostype (HWND hDlg, int idx)
+{
+    if (idx == 1)
+        SetDlgItemText (hDlg, IDC_HF_DOSTYPE, "0x53465300");
+    else
+        SetDlgItemText (hDlg, IDC_HF_DOSTYPE, "");
+}
+
 static void hardfile_testrdb (HWND hDlg)
 {
     void *f = zfile_fopen (current_hfdlg.filename, "rb");
@@ -5049,12 +5099,14 @@ static void hardfile_testrdb (HWND hDlg)
 static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    UINT setting;
+    int i;
 
     switch (msg) {
     case WM_INITDIALOG:
 	recursive++;
+	inithardfile (hDlg);
 	sethardfile (hDlg);
+	sethfdostype (hDlg, 0);
 	recursive--;
 	return TRUE;
 
@@ -5063,21 +5115,33 @@ static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	    break;
 	recursive++;
 
-	if (HIWORD (wParam) == BN_CLICKED) {
-	    switch (LOWORD (wParam)) {
-	    case IDC_CREATEHF:
-		setting = CalculateHardfileSize (hDlg);
-		if( !CreateHardFile(hDlg, setting) )
-		{
-		    char szMessage[ MAX_DPATH ];
-		    char szTitle[ MAX_DPATH ];
-		    WIN32GUI_LoadUIString( IDS_FAILEDHARDFILECREATION, szMessage, MAX_DPATH );
-		    WIN32GUI_LoadUIString( IDS_CREATIONERROR, szTitle, MAX_DPATH );
-
+        switch (LOWORD (wParam)) {
+	    case IDC_HF_SIZE:
+	        EnableWindow (GetDlgItem (hDlg, IDC_HF_CREATE), CalculateHardfileSize (hDlg) > 0);
+	    break;
+	    case IDC_HF_TYPE:
+		i = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
+	        sethfdostype (hDlg, i);
+	        EnableWindow (GetDlgItem (hDlg, IDC_HF_DOSTYPE), i >= 2);
+	    break;
+	    case IDC_HF_CREATE:
+	    {
+		UINT setting = CalculateHardfileSize (hDlg);
+		char dostype[16];
+		GetDlgItemText (hDlg, IDC_HF_DOSTYPE, dostype, sizeof (dostype));
+		i = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
+		if (i == 0)
+		    dostype[0] = 0;
+		if (!CreateHardFile(hDlg, setting, dostype)) {
+		    char szMessage[MAX_DPATH];
+		    char szTitle[MAX_DPATH];
+		    WIN32GUI_LoadUIString (IDS_FAILEDHARDFILECREATION, szMessage, MAX_DPATH);
+		    WIN32GUI_LoadUIString (IDS_CREATIONERROR, szTitle, MAX_DPATH);
 		    MessageBox( hDlg, szMessage, szTitle,
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 		}
-		break;
+	    }
+	    break;
 	    case IDC_SELECTOR:
 		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, 0);
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
@@ -5115,7 +5179,6 @@ static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		current_hfdlg.sectors = current_hfdlg.reserved = current_hfdlg.surfaces = 0;
 		sethardfile (hDlg);
 		break;
-	    }
 	}
 
 	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
@@ -6577,12 +6640,14 @@ static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
     switch (msg) 
     {
     case WM_INITDIALOG:
+	recursive++;
 	pages[PORTS_ID] = hDlg;
 	currentpage = PORTS_ID;
 	init_portsdlg( hDlg );
 	enable_for_portsdlg (hDlg);
 	values_to_portsdlg (hDlg);
 	updatejoyport (hDlg);
+	recursive--;
 	break;	    
     case WM_USER:
 	recursive++;
@@ -7852,6 +7917,7 @@ static void centerWindow (HWND hDlg)
     RECT rc, rcDlg, rcOwner;
     HWND owner = GetParent(hDlg);
     LONG x = 0, y = 0;
+    POINT pt1, pt2;
 
     if (owner == NULL)
 	owner = GetDesktopWindow();
@@ -7877,6 +7943,14 @@ static void centerWindow (HWND hDlg)
 	y = rcOwner.top + (rc.bottom / 2);
     }
     SetForegroundWindow (hDlg);
+    pt1.x = x;
+    pt1.y = y;
+    pt2.x = x + 16;
+    pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
+    if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
+	x = 16;
+	y = 16;
+    }
     SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 

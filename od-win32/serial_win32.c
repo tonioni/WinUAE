@@ -430,7 +430,7 @@ void serial_open(void)
 #ifdef SERIAL_PORT
     if (serdev)
 	return;
-
+    serper = 0;
     if( !openser( currprefs.sername ) )
     {
         write_log( "SERIAL: Could not open device %s\n", currprefs.sername );

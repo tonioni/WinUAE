@@ -23,6 +23,7 @@
 #include "ar.h"
 #include "crc32.h"
 #include "gui.h"
+#include "cdtv.h"
 
 #ifdef JIT
 int canbang;
@@ -35,9 +36,6 @@ int ersatzkickfile;
 
 #ifdef CD32
 extern int cd32_enabled;
-#endif
-#ifdef CDTV
-extern int cdtv_enabled;
 #endif
 
 uae_u32 allocated_chipmem;
@@ -1829,6 +1827,10 @@ void memory_reset (void)
 #ifdef CDTV
     case EXTENDED_ROM_CDTV:
 	map_banks (&extendedkickmem_bank, 0xF0, 4, 0);
+	//extendedkickmemory[0x61a2] = 0x60;
+	//extendedkickmemory[0x61a3] = 0x00;
+	//extendedkickmemory[0x61a4] = 0x01;
+	//extendedkickmemory[0x61a5] = 0x1a;
 	cdtv_enabled = 1;
 	break;
 #endif

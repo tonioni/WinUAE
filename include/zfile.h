@@ -38,3 +38,4 @@ extern uae_u32 zfile_crc32 (struct zfile *f);
 #define ZFILE_HDF 5
 #define ZFILE_STATEFILE 6
 #define ZFILE_NVR 7
+

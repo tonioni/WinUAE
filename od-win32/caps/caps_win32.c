@@ -7,15 +7,36 @@
 #include "caps_win32.h"
 #include "zfile.h"
 #include "gui.h"
+#include "win32.h"
 
 #include "ComType.h"
 #include "CapsAPI.h"
-#include "CapsLib.h"
 
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
 static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE;
 #define LIB_TYPE 1
+
+typedef SDWORD (__cdecl* CAPSINIT)(void);
+static CAPSINIT pCAPSInit;
+typedef SDWORD (__cdecl* CAPSADDIMAGE)(void);
+static CAPSADDIMAGE pCAPSAddImage;
+typedef SDWORD (__cdecl* CAPSLOCKIMAGEMEMORY)(SDWORD,PUBYTE,UDWORD,UDWORD);
+static CAPSLOCKIMAGEMEMORY pCAPSLockImageMemory;
+typedef SDWORD (__cdecl* CAPSUNLOCKIMAGE)(SDWORD);
+static CAPSUNLOCKIMAGE pCAPSUnlockImage;
+typedef SDWORD (__cdecl* CAPSLOADIMAGE)(SDWORD,UDWORD);
+static CAPSLOADIMAGE pCAPSLoadImage;
+typedef SDWORD (__cdecl* CAPSGETIMAGEINFO)(PCAPSIMAGEINFO,SDWORD);
+static CAPSGETIMAGEINFO pCAPSGetImageInfo;
+typedef SDWORD (__cdecl* CAPSLOCKTRACK)(PCAPSTRACKINFO,SDWORD,UDWORD,UDWORD,UDWORD);
+static CAPSLOCKTRACK pCAPSLockTrack;
+typedef SDWORD (__cdecl* CAPSUNLOCKTRACK)(SDWORD,UDWORD);
+static CAPSUNLOCKTRACK pCAPSUnlockTrack;
+typedef SDWORD (__cdecl* CAPSUNLOCKALLTRACKS)(SDWORD);
+static CAPSUNLOCKALLTRACKS pCAPSUnlockAllTracks;
+typedef SDWORD (__cdecl* CAPSGETVERSIONINFO)(PCAPSVERSIONINFO,UDWORD);
+static CAPSGETVERSIONINFO pCAPSGetVersionInfo;
 
 int caps_init (void)
 {
@@ -24,8 +45,9 @@ int caps_init (void)
     HMODULE h;
     struct CapsVersionInfo cvi;
 
-    if (init) return 1;
-    h = LoadLibrary ("CAPSImg.dll");
+    if (init)
+	return 1;
+    h = WIN32_LoadLibrary ("CAPSImg.dll");
     if (!h) {
 	if (noticed)
 	    return 0;
@@ -40,13 +62,22 @@ int caps_init (void)
 	noticed = 1;
 	return 0;
     }	
-    FreeLibrary (h);
+    pCAPSInit = (CAPSINIT)GetProcAddress (h, "CAPSInit");
+    pCAPSAddImage = (CAPSADDIMAGE)GetProcAddress (h, "CAPSAddImage");
+    pCAPSLockImageMemory = (CAPSLOCKIMAGEMEMORY)GetProcAddress (h, "CAPSLockImageMemory");
+    pCAPSUnlockImage = (CAPSUNLOCKIMAGE)GetProcAddress (h, "CAPSUnlockImage");
+    pCAPSLoadImage = (CAPSLOADIMAGE)GetProcAddress (h, "CAPSLoadImage");
+    pCAPSGetImageInfo = (CAPSGETIMAGEINFO)GetProcAddress (h, "CAPSGetImageInfo");
+    pCAPSLockTrack = (CAPSLOCKTRACK)GetProcAddress (h, "CAPSLockTrack");
+    pCAPSUnlockTrack = (CAPSUNLOCKTRACK)GetProcAddress (h, "CAPSUnlockTrack");
+    pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS)GetProcAddress (h, "CAPSUnlockAllTracks");
+    pCAPSGetVersionInfo = (CAPSGETVERSIONINFO)GetProcAddress (h, "CAPSGetVersionInfo");
     init = 1;
     cvi.type = LIB_TYPE;
-    CAPSGetVersionInfo (&cvi, 0);
+    pCAPSGetVersionInfo (&cvi, 0);
     write_log ("CAPS: library version %d.%d\n", cvi.release, cvi.revision);
     for (i = 0; i < 4; i++)
-	caps_cont[i] = CAPSAddImage();
+	caps_cont[i] = pCAPSAddImage();
     return 1;
 }
 
@@ -54,8 +85,8 @@ void caps_unloadimage (int drv)
 {
     if (!caps_locked[drv])
 	return;
-    CAPSUnlockAllTracks (caps_cont[drv]);
-    CAPSUnlockImage (caps_cont[drv]);
+    pCAPSUnlockAllTracks (caps_cont[drv]);
+    pCAPSUnlockImage (caps_cont[drv]);
     caps_locked[drv] = 0;
 }
 
@@ -78,16 +109,16 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	return 0;
     if (zfile_fread (buf, len, 1, zf) == 0)
 	return 0;
-    ret = CAPSLockImageMemory(caps_cont[drv], buf, len, 0);
+    ret = pCAPSLockImageMemory(caps_cont[drv], buf, len, 0);
     free (buf);
     if (ret != imgeOk) {
 	free (buf);
 	return 0;
     }
     caps_locked[drv] = 1;
-    CAPSGetImageInfo(&ci, caps_cont[drv]);
+    pCAPSGetImageInfo(&ci, caps_cont[drv]);
     *num_tracks = (ci.maxcylinder - ci.mincylinder + 1) * (ci.maxhead - ci.minhead + 1);
-    CAPSLoadImage(caps_cont[drv], caps_flags);
+    pCAPSLoadImage(caps_cont[drv], caps_flags);
     cdt = &ci.crdt;
     sprintf (s1, "%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
     write_log ("caps: type:%d date:%s rel:%d rev:%d\n",
@@ -110,7 +141,7 @@ static void outdisk (void)
     if (!f)
 	return;
     for (tr = 0; tr < 160; tr++) {
-	CAPSLockTrack(&ci, caps_cont[0], tr / 2, tr & 1, caps_flags);
+	pCAPSLockTrack(&ci, caps_cont[0], tr / 2, tr & 1, caps_flags);
 	fwrite (ci.trackdata[0], ci.tracksize[0], 1, f);
 	fwrite ("XXXX", 4, 1, f);
     }
@@ -125,7 +156,7 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
     struct CapsTrackInfoT1 ci;
 
     ci.type = LIB_TYPE;
-    CAPSLockTrack((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
+    pCAPSLockTrack((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
     len = ci.tracklen;
     *tracklength = len * 8;
     mfm = mfmbuf;
@@ -144,7 +175,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 
     ci.type = LIB_TYPE;
     *tracktiming = 0;
-    CAPSLockTrack((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
+    pCAPSLockTrack((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
     mfm = mfmbuf;
     *multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
     type = ci.type & CTIT_MASK_TYPE;

@@ -23,6 +23,7 @@
 #include "savestate.h"
 #include "zfile.h"
 #include "catweasel.h"
+#include "cdtv.h"
 
 #define MAX_EXPANSION_BOARDS	8
 
@@ -540,136 +541,6 @@ static void expamem_init_catweasel (void)
 #endif
 
 /*
- * CDTV DMAC
- */
-
-//#define CDTV_DEBUG
-
-static uae_u32 dmac_lget (uaecptr) REGPARAM;
-static uae_u32 dmac_wget (uaecptr) REGPARAM;
-static uae_u32 dmac_bget (uaecptr) REGPARAM;
-static void dmac_lput (uaecptr, uae_u32) REGPARAM;
-static void dmac_wput (uaecptr, uae_u32) REGPARAM;
-static void dmac_bput (uaecptr, uae_u32) REGPARAM;
-
-static uae_u32 dmac_start = 0xe90000;
-static uae_u8 dmacmemory[0x100];
-
-static int cdtv_command_len;
-static uae_u8 cdtv_command_buf[6];
-
-static void cdtv_interrupt (int v)
-{
-    write_log ("cdtv int %d\n", v);
-    dmacmemory[0x41] = (1 << 4) | (1 << 6);
-    Interrupt (6);
-}
-
-uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
-{
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_lget %08.8X\n", addr);
-#endif
-    return (dmac_wget (addr) << 16) | dmac_wget (addr + 2);
-}
-
-uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
-{
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_wget %08.8X PC=%X\n", addr, m68k_getpc());
-#endif
-    return (dmac_bget (addr) << 8) | dmac_bget (addr + 1);
-}
-
-uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
-{
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_bget %08.8X PC=%X\n", addr, m68k_getpc());
-#endif
-    addr -= dmac_start;
-    addr &= 65535;
-    switch (addr)
-    {
-	case 0xa3:
-	return 1;
-    }
-    return dmacmemory[addr];
-}
-
-static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
-{
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_lput %08.8X = %08.8X\n", addr, l);
-#endif
-    dmac_wput (addr, l >> 16);
-    dmac_wput (addr + 2, l);
-}
-
-static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
-{
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_wput %04.4X = %04.4X\n", addr, w & 65535);
-#endif
-    dmac_bput (addr, w >> 8);
-    dmac_bput (addr, w);
-}
-
-static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
-{
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
-#ifdef CDTV_DEBUG
-    write_log ("dmac_bput %08.8X = %02.2X PC=%X\n", addr, b & 255, m68k_getpc());
-#endif
-    addr -= dmac_start;
-    addr &= 65535;
-#ifdef CDTV_DEBUG
-    dmacmemory[addr] = b;
-    switch (addr)
-    {
-	case 0xa1:
-	if (cdtv_command_len >= sizeof (cdtv_command_buf))
-	    cdtv_command_len = sizeof (cdtv_command_buf) - 1;
-	cdtv_command_buf[cdtv_command_len++] = b;
-	if (cdtv_command_len == 6) {
-	    cdtv_interrupt (1);
-	}
-	break;
-	case 0xa5:
-	cdtv_command_len = 0;
-	break;
-	case 0xe4:
-	dmacmemory[0x41] = 0;
-	write_log ("cdtv interrupt cleared\n");
-	activate_debugger();
-	break;
-    }
-#endif
-}
-
-addrbank dmac_bank = {
-    dmac_lget, dmac_wget, dmac_bget,
-    dmac_lput, dmac_wput, dmac_bput,
-    default_xlate, default_check, NULL
-};
-
-/*
  * Filesystem device ROM
  * This is very simple, the Amiga shouldn't be doing things with it.
  */
@@ -1152,8 +1023,14 @@ void expamem_reset (void)
 
     allocate_expamem ();
 
-    if (cdtv_enabled)
-        map_banks (&dmac_bank, dmac_start >> 16, 0x10000 >> 16, 0x10000);
+#ifdef CDTV
+#if 0
+    if (cdtv_enabled) {
+        map_banks (&dmac_bank, DMAC_START >> 16, 0x10000 >> 16, 0x10000);
+        dmac_init ();
+    }
+#endif
+#endif
 
     /* check if Kickstart version is below 1.3 */
     if (! ersatzkickfile && kickstart_version

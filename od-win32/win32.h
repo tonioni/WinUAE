@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 1"
+#define WINUAEBETASTR " Beta 2"
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys(void);
@@ -91,5 +91,8 @@ void exit_gui (int);
 void fetch_path (char *name, char *out, int size);
 void set_path (char *name, char *path);
 void read_rom_list (int);
+
+#define WIN32_PLUGINDIR "plugins\\"
+HMODULE WIN32_LoadLibrary (const char *);
 
 #endif
