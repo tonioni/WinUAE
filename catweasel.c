@@ -22,103 +22,128 @@ static HANDLE handle = INVALID_HANDLE_VALUE;
 
 void catweasel_hsync (void)
 {
-    if (cwhsync <= 0)
+    int x, y, i;
+
+    if (cwc.type < CATWEASEL_TYPE_MK3)
 	return;
     cwhsync--;
-    if (cwhsync == 0) {
-        if (handshake)
-	    ioport_write (currprefs.catweasel_io + 0xd0, 0);
+    if (cwhsync > 0)
+	return;
+    cwhsync = 10;
+    if (handshake) {
+        catweasel_do_bput (0xd0, 0);
 	handshake = 0;
     }
+    catweasel_do_bput (3, 0x81);
+    for (i = 0; i < 2; i++) {
+	x = catweasel_do_bget (0xc4 + i * 8);
+	y = catweasel_do_bget (0xc0 + i * 8);
+    }
+    catweasel_do_bput (3, 0x41);
 }
 
 int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons)
 {
-    if (cwc.type != CATWEASEL_TYPE_MK3)
+    if (cwc.type < CATWEASEL_TYPE_MK3)
 	return 0;
-    *dir = ioport_read (currprefs.catweasel_io + 0xc0);
-    *buttons = ioport_read (currprefs.catweasel_io + 0xc8);
+    *dir = catweasel_do_bget (0xc0);
+    *buttons = catweasel_do_bget (0xc8);
+    if (cwc.type == CATWEASEL_TYPE_MK4) {
+	*buttons &= ~0x80;
+	*buttons |= (catweasel_do_bget (0x07) << 4) & 0x80;
+    }
     return 1;
 }
 
 int catweasel_read_keyboard (uae_u8 *keycode)
 {
     uae_u8 v;
-    if (cwc.type != CATWEASEL_TYPE_MK3)
+    if (cwc.type < CATWEASEL_TYPE_MK3)
 	return 0;
-    v = ioport_read (currprefs.catweasel_io + 0xd4);
+    v = catweasel_do_bget (0xd4);
     if (!(v & 0x80))
 	return 0;
     if (handshake)
 	return 0;
-    *keycode = ioport_read (currprefs.catweasel_io + 0xd0);
-    ioport_write (currprefs.catweasel_io + 0xd0, 0);
+    *keycode = catweasel_do_bget (0xd0);
+    catweasel_do_bput (0xd0, 0);
     handshake = 1;
-    cwhsync = 10;
     return 1;
 }
 
 uae_u32 catweasel_do_bget (uaecptr addr)
 {
-    if (cwc.type == CATWEASEL_TYPE_MK3) {
-	if ((currprefs.catweasel_io & 3) == 0 && addr >= 0xc0 && addr <= 0xfc)
-	    return ioport_read (currprefs.catweasel_io + addr);
-    } else {
-	if (addr >= currprefs.catweasel_io && addr <= currprefs.catweasel_io + 8) {
-	    return ioport_read (addr & 0x3ff);
-	} else if(addr >= 0x10000 + currprefs.catweasel_io && addr <= 0x10000 + currprefs.catweasel_io) {
-	    return ioport_read (addr & 0x3ff);
-	} else if ((addr & 0x3ff) < 0x200 || (addr & 0x3ff) >= 0x400) {
-	    write_log("catweasel_bget @%08.8X!\n",addr);
-	}
-    }
-    return 0;
+    DWORD did_read = 0;
+    uae_u8 buf1[1], buf2[1];
+
+    if (addr >= 0x100)
+	return 0;
+    buf1[0] = (uae_u8)addr;
+    DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0);
+    //write_log ("G %02.2X %02.2X %d\n", buf1[0], buf2[0], did_read);
+    return buf2[0];
 }
 
 void catweasel_do_bput (uaecptr addr, uae_u32 b)
 {
-    if (cwc.type == CATWEASEL_TYPE_MK3) {
-	if ((currprefs.catweasel_io & 3) == 0 && addr >= 0xc0 && addr <= 0xfc)
-	    ioport_write (currprefs.catweasel_io + addr, b);
-    } else {
-	if (addr >= currprefs.catweasel_io && addr <= currprefs.catweasel_io + 8) {
-	    ioport_write (addr & 0x3ff, b);
-	} else if(addr >= 0x10000 + currprefs.catweasel_io && addr <= 0x10000 + currprefs.catweasel_io) {
-	    ioport_write (addr & 0x3ff, b);
-	} else if ((addr & 0x3ff) < 0x200 || (addr & 0x3ff) >= 0x400) {
-	    write_log("catweasel_bput @%08.8X=%02.2X!\n",addr,b);
-	}
-    }
+    uae_u8 buf[2];
+    DWORD did_read = 0;
+
+    if (addr >= 0x100)
+	return;
+    buf[0] = (uae_u8)addr;
+    buf[1] = b;
+    DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
+    //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
 }
 
 int catweasel_init (void)
 {
     char name[32];
     int i, len;
-    uae_u8 buffer[1000];
+    uae_u8 buffer[10000];
     uae_u32 model, base;
 
-    return 0;
+    if (cwc.type)
+	return 1;
 
+    if (!currprefs.catweasel)
+	return 0;
     for (i = 0; i < 4; i++) {
+	if (currprefs.catweasel > 0)
+	    i = currprefs.catweasel;
         sprintf (name, "\\\\.\\CAT%d_F0", i);
 	handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (handle != INVALID_HANDLE_VALUE)
+	if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
 	    break;
-	write_log("%s: %d\n", name, GetLastError());
     }
-    if (handle == INVALID_HANDLE_VALUE)
+    if (handle == INVALID_HANDLE_VALUE) {
+	write_log ("No Catweasel detected\n");
 	goto fail;
+    }
+    if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+	write_log ("CW_GET_VERSION failed %d\n", GetLastError());
+	goto fail;
+    }
+    write_log ("CW driver version string '%s'\n", buffer);
+    if (!DeviceIoControl (handle, CW_GET_HWVERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+	write_log ("CW_GET_HWVERSION failed %d\n", GetLastError());
+	goto fail;
+    }
+    write_log ("CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n",
+	buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5],
+	buffer[6], buffer[7], ((uae_u32*)(buffer + 8))[0]);
     if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
 	write_log ("CW_LOCK_EXCLUSIVE failed %d\n", GetLastError());
 	goto fail;
     }
     model = *((uae_u32*)(buffer + 4));
     base = *((uae_u32*)(buffer + 0));
-    write_log ("Catweasel MK%d @%p detected and enabled\n", model, base);
-    cwc.type = model == 0 ? 1 : model == 3 ? 4 : 2;
+    cwc.type = model == 0 ? 1 : model == 2 ? 4 : 2;
     cwc.iobase = base;
+    write_log ("Catweasel MK%d @%p (%s) detected and enabled\n", cwc.type, cwc.iobase, name);
+    catweasel_do_bput (3, 0x41); /* enable MK3-mode */
     catweasel_init_controller (&cwc);
     return 1;
 fail:
@@ -135,8 +160,8 @@ void catweasel_free (void)
     cwc.type = 0;
 }
 
-#define outb(v,port) ioport_write(port,v)
-#define inb(port) ioport_read(port)
+#define outb(v,port) catweasel_do_bput(port,v)
+#define inb(port) catweasel_do_bget(port)
 
 #define LONGEST_TRACK 16000
 
@@ -287,6 +312,7 @@ void catweasel_init_controller(catweasel_contr *c)
 	c->io_mem   = c->iobase;
 	break;
     case CATWEASEL_TYPE_MK3:
+    case CATWEASEL_TYPE_MK4:
 	c->crm_sel0 = 1 << 2;
 	c->crm_sel1 = 1 << 3;
 	c->crm_mot0 = 1 << 1;

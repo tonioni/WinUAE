@@ -113,7 +113,7 @@ void record_key (int kc)
 	case AK_NP8: fs = 1; fs_xa1[0] = b; break;
 	case AK_NP4: fs = 1; fs_xa1[1] = b; break;
 	case AK_NP6: fs = 1; fs_xa1[2] = b; break;
-	case AK_NP2: fs = 1; fs_xa1[3] = b; break;
+	case AK_NP2: case AK_NP5: fs = 1; fs_xa1[3] = b; break;
 	case AK_CTRL: fs = 1; fs_xa1[4] = b; break;
 	case AK_LALT: fs = 1; fs_xa1[5] = b; break;
 	case AK_SPC: fs = 1; fs_xa1[6] = b; break;

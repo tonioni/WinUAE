@@ -2086,15 +2086,14 @@ static unsigned int __stdcall thread_get(void *index2)
 			if (args[1] == 0)
 				{ // gethostbyname or gethostbyaddr
 				struct hostent *host;
-				if (CheckOnline(sb) == TRUE)
-					{
-			
-					name = args[2];
-					namelen = args[3];
-					addrtype = args[4];
-					buf = (char*) args[5];
-					name_rp = get_real_address(name);
-					
+				name = args[2];
+				namelen = args[3];
+				addrtype = args[4];
+				buf = (char*) args[5];
+				name_rp = get_real_address(name);
+
+				if (strchr(name_rp,'.') == 0 || CheckOnline(sb) == TRUE)
+					{ // Local Address or Internet Online ?
 					if (addrtype == -1)
 						{
 						host = gethostbyname(name_rp);

@@ -1702,7 +1702,7 @@ static int do_specialties (int cycles)
 	Exception (9,last_trace_ad);
     if (regs.spcflags & SPCFLAG_TRAP) {
 	unset_special (SPCFLAG_TRAP);
-	Exception (32 + 15, 0);
+	Exception (3, 0);
     }
 
     while (regs.spcflags & SPCFLAG_STOP) {

@@ -4170,6 +4170,7 @@ static void enable_for_miscdlg (HWND hDlg)
         EnableWindow (GetDlgItem (hDlg, IDC_ASPI), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
+        EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_CAPTURE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), FALSE);
         EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), FALSE);
@@ -4256,6 +4257,7 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+    CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
     if (!os_winnt || !os_winnt_admin) {
@@ -4398,6 +4400,9 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_CLOCKSYNC:
 	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);
+	    break;
+	case IDC_CATWEASEL:
+	    workprefs.catweasel = IsDlgButtonChecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
 	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);

@@ -727,7 +727,7 @@ switch (opcode) {
       return 0;
 
 	case 20:
-		return enforcer_enable();
+		return enforcer_enable(m68k_dreg (regs, 1));
 
 	case 21:
 		return enforcer_disable();

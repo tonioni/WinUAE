@@ -146,7 +146,7 @@ struct uae_prefs {
     int fast_copper;
     int scsi;
     int uaeserial;
-    int catweasel_io;
+    int catweasel;
     int cpu_idle;
     int cpu_cycle_exact;
     int blitter_cycle_exact;

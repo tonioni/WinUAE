@@ -627,6 +627,8 @@
 #define IDC_ALWAYSONTOP                 1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
+#define IDC_CLOCKSYNC2                  1611
+#define IDC_CATWEASEL                   1611
 #define IDC_AVIOUTPUT_FPS_STATIC        1612
 #define IDC_INPUTAMIGA                  1612
 #define IDC_AVIOUTPUT_VIDEO             1613

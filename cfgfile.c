@@ -147,7 +147,8 @@ static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
-    "gfx_test_speed", "gfxlib_replacement", "enforcer", 0 };
+    "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
+    0 };
 
 #define UNEXPANDED "$(FILE_PATH)"
 
@@ -408,7 +409,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
 
     cfgfile_write (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
-    cfgfile_write (f, "catweasel_io=0x%x\n", p->catweasel_io);
+    cfgfile_write (f, "catweasel=%d\n", p->catweasel);
 
     cfgfile_write (f, "kbd_lang=%s\n", (p->keyboard_lang == KBD_LANG_DE ? "de"
 				  : p->keyboard_lang == KBD_LANG_DK ? "dk"
@@ -880,7 +881,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_intval (option, value, "floppy3type", &p->dfxtype[3], 1)
 	|| cfgfile_intval (option, value, "maprom", &p->maprom, 1)
 	|| cfgfile_intval (option, value, "parallel_autoflush", &p->parallel_autoflush_time, 1)
-	|| cfgfile_intval (option, value, "catweasel_io", &p->catweasel_io, 1))
+	|| cfgfile_intval (option, value, "catweasel", &p->catweasel, 1))
 	return 1;
     if (cfgfile_strval (option, value, "comp_trustbyte", &p->comptrustbyte, compmode, 0)
 	|| cfgfile_strval (option, value, "comp_trustword", &p->comptrustword, compmode, 0)
@@ -2252,7 +2253,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->fast_copper = 1;
     p->scsi = 0;
     p->cpu_idle = 0;
-    p->catweasel_io = 0;
+    p->catweasel = 0;
     p->tod_hack = 0;
     p->maprom = 0;
     p->filesys_no_uaefsdb = 0;
@@ -2360,7 +2361,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->produce_sound = 3;
     p->scsi = 0;
     p->cpu_idle = 0;
-    p->catweasel_io = 0;
+    p->catweasel = 0;
     p->tod_hack = 0;
     p->maprom = 0;
     p->cachesize = 0;

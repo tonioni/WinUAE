@@ -512,14 +512,14 @@ static void expamem_map_catweasel (void)
 
 static void expamem_init_catweasel (void)
 {
-    uae_u8 productid = cwc.type == CATWEASEL_TYPE_MK3 ? 66 : 200;
-    uae_u16 vendorid = cwc.type == CATWEASEL_TYPE_MK3 ? 4626 : 5001;
+    uae_u8 productid = cwc.type >= CATWEASEL_TYPE_MK3 ? 66 : 200;
+    uae_u16 vendorid = cwc.type >= CATWEASEL_TYPE_MK3 ? 4626 : 5001;
 
-    catweasel_mask = (cwc.type == CATWEASEL_TYPE_MK3) ? 0xffff : 0x1ffff;
+    catweasel_mask = (cwc.type >= CATWEASEL_TYPE_MK3) ? 0xffff : 0x1ffff;
 
     expamem_init_clear();
 
-    expamem_write (0x00, (cwc.type == CATWEASEL_TYPE_MK3 ? Z2_MEM_64KB : Z2_MEM_128KB) | zorroII);
+    expamem_write (0x00, (cwc.type >= CATWEASEL_TYPE_MK3 ? Z2_MEM_64KB : Z2_MEM_128KB) | zorroII);
 
     expamem_write (0x04, productid);
 
