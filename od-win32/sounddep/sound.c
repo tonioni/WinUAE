@@ -599,7 +599,7 @@ static void filtercheck (uae_s16 *sndbuffer, int len)
 
 void finish_sound_buffer (void)
 {
-    if (!have_sound || turbo_emulation)
+    if (turbo_emulation)
 	return;
     filtercheck ((uae_s16*)sndbuffer, sndbufsize / 2);
 #ifdef DRIVESOUND
@@ -608,9 +608,11 @@ void finish_sound_buffer (void)
 #ifdef AVIOUTPUT
     if (avioutput_audio)
         AVIOutput_WriteAudio ((uae_u8*)sndbuffer, sndbufsize);
-    if (!avioutput_framelimiter && (avioutput_video || avioutput_audio))
+    if (avioutput_enabled && !avioutput_framelimiter)
 	return;
 #endif
+    if (!have_sound)
+	return;
     finish_sound_buffer_ds ();
 }
 

@@ -5541,9 +5541,9 @@ static void enable_for_avioutputdlg(HWND hDlg)
 {
 #if defined (PROWIZARD)
 	EnableWindow( GetDlgItem( hDlg, IDC_PROWIZARD ), TRUE );
-#endif
 	if (full_property_sheet)
 	    EnableWindow( GetDlgItem( hDlg, IDC_PROWIZARD ), FALSE );
+#endif
 
 	EnableWindow(GetDlgItem(hDlg, IDC_SCREENSHOT), full_property_sheet ? FALSE : TRUE);
 
@@ -5579,6 +5579,7 @@ static void enable_for_avioutputdlg(HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, aviout_videoc, sizeof (aviout_videoc));
 	}
 	SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), aviout_videoc);
+	EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_ACTIVATED), (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 }
 
 static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -5689,6 +5690,10 @@ static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 						avioutput_video = 1;
 						strcpy (aviout_videoc, string);
 						SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), string);
+						if (avioutput_audio == AVIAUDIO_WAV) {
+						    avioutput_audio = 0;
+						    aviout_audioc[0] = 0;
+						}
 					}
 					else
 						avioutput_video = 0;
@@ -5725,7 +5730,9 @@ static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					break;
 				if (ofn.nFilterIndex == 2) {
 				    avioutput_audio = AVIAUDIO_WAV;
-				    SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), "Wave (internal)");
+				    avioutput_video = 0;
+				    aviout_videoc[0] = 0;
+				    strcpy (aviout_audioc, "Wave (internal)");
 				    if (strlen (avioutput_filename) > 4 && !stricmp (avioutput_filename + strlen (avioutput_filename) - 4, ".avi"))
 					strcpy (avioutput_filename + strlen (avioutput_filename) - 4, ".wav");
 				}

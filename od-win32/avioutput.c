@@ -651,10 +651,8 @@ void AVIOutput_Restart(void)
 void AVIOutput_End(void)
 {
 	EnterCriticalSection(&AVIOutput_CriticalSection);
-	
-	avioutput_audio = avioutput_video = 0;
+
 	avioutput_enabled = 0;
-	
 	if(has)
 	{
 		acmStreamUnprepareHeader(has, &ash, 0);
@@ -720,7 +718,7 @@ void AVIOutput_Begin(void)
 	} else {
 	    ext1 = ".avi"; ext2 = ".wav";
 	}
-	if (strlen (avioutput_filename) >= 4 && strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext2))
+	if (strlen (avioutput_filename) >= 4 && !strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext2))
 	    avioutput_filename[strlen (avioutput_filename) - 4] = 0;
 	if (strlen (avioutput_filename) >= 4 && strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext1))
 	    strcat (avioutput_filename, ext1);

@@ -30,6 +30,7 @@
 #include "disk.h"
 #include "savestate.h"
 #include "autoconf.h"
+#include "akiko.h"
 
 static int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end, skipaddr_doskip;
@@ -94,9 +95,10 @@ static char help[] = {
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/RW> [<value>]\n"
     "                        Add/remove memory watchpoints\n"
+    "  wd                    Enable illegal access logger\n"
     "  S <file> <addr> <n>   Save a block of Amiga memory\n"
     "  s <string>/<values> [<addr>] [<length>]\n"
-    "                        search for string/bytes\n"
+    "                        Search for string/bytes\n"
     "  T                     Show exec tasks and their PCs\n"
     "  h,?                   Show this help page\n"
     "  b                     Step to previous state capture position\n"
@@ -538,6 +540,86 @@ struct memwatch_node {
 static struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
 
+static uae_u8 *illgdebug;
+extern int cdtv_enabled, cd32_enabled;
+
+static void illg_init (void)
+{
+    int i;
+
+    free (illgdebug);
+    illgdebug = xmalloc (0x1000000);
+    if (!illgdebug)
+	return;
+    memset (illgdebug, 3, 0x1000000);
+    memset (illgdebug, 0, currprefs.chipmem_size);
+    memset (illgdebug + 0xc00000, 0, currprefs.bogomem_size);
+    memset (illgdebug + 0x200000, 0, currprefs.fastmem_size);
+    i = 0;
+    while (custd[i].name) {
+	int rw = custd[i].rw;
+	illgdebug[custd[i].adr] = rw;
+	illgdebug[custd[i].adr + 1] = rw;
+	i++;
+    }
+    for (i = 0; i < 16; i++) { /* CIAs */
+	if (i == 11)
+	    continue;
+	illgdebug[0xbfe001 + i * 0x100] = 0;
+	illgdebug[0xbfd000 + i * 0x100] = 0;
+    }
+    memset (illgdebug + 0xf80000, 1, 512 * 1024); /* KS ROM */
+    memset (illgdebug + 0xdc0000, 0, 0x3f); /* clock */
+    if (cdtv_enabled) {
+	memset (illgdebug + 0xf00000, 1, 256 * 1024); /* CDTV ext ROM */
+	memset (illgdebug + 0xdc8000, 0, 4096); /* CDTV batt RAM */
+    }
+    if (cd32_enabled || cloanto_rom) {
+	memset (illgdebug + 0xe00000, 1, 512 * 1024); /* CD32 ext ROM */
+	if (cd32_enabled)
+	    memset (illgdebug + AKIKO_BASE, 0, AKIKO_BASE_END - AKIKO_BASE);
+    }
+    if (nr_units (currprefs.mountinfo) > 0) /* filesys "rom" */
+	memset (illgdebug + RTAREA_BASE, 1, 0x10000);
+}
+
+/* add special custom register check here */
+static void illg_debug_check (uaecptr addr, int rw, int size, uae_u32 val)
+{
+    return;
+}
+
+static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
+{
+    uae_u8 mask;
+    uae_u32 pc = m68k_getpc ();
+    char rws = rw ? 'W' : 'R';
+    int i;
+
+    for (i = size - 1; i >= 0; i--) {
+	uae_u8 v = val >> (i * 8);
+	uae_u32 ad = addr + i;
+	if (ad >= 0x1000000)
+	    mask = 3;
+	else
+	    mask = illgdebug[ad];
+	if (!mask)
+	    continue;
+	if (mask & 0x80) {
+	    illg_debug_check (ad, rw, size, val);
+	} else if ((mask & 3) == 3) {
+	    if (rw)
+		write_log ("RW: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+	    else
+		write_log ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	} else if ((mask & 1) && rw) {
+	    write_log ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+	} else if ((mask & 2) && !rw) {
+	    write_log ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	}
+    }
+}
+
 static int debug_mem_off (uaecptr addr)
 {
     return (munge24 (addr) >> 16) & 0xff;
@@ -547,6 +629,8 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 {
     int i, brk;
 
+    if (illgdebug)
+	illg_debug_do (addr, rw, size, val);
     addr = munge24 (addr);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	uaecptr addr2 = mwnodes[i].addr;
@@ -659,6 +743,8 @@ static void deinitialize_memwatch (void)
     free (debug_mem_banks);
     debug_mem_banks = 0;
     memwatch_enabled = 0;
+    free (illgdebug);
+    illgdebug = 0;
 }
 
 static int initialize_memwatch (void)
@@ -733,6 +819,28 @@ static void memwatch (char **c)
     if (nc == '-') {
 	deinitialize_memwatch ();
 	console_out ("Memwatch breakpoints disabled\n");
+	return;
+    }
+    if (nc == 'd') {
+	if (illgdebug) {
+	    ignore_ws (c);
+	    if (more_params (c)) {
+		uae_u32 addr = readhex (c);
+		uae_u32 len = 1;
+		if (more_params (c))
+		    len = readhex (c);
+		write_log ("cleared logging addresses %08.8X - %08.8X\n", addr, addr + len);
+		while (len > 0) {
+		    addr &= 0xffffff;
+		    illgdebug[addr] = 0;
+		    addr++;
+		    len--;
+		}
+	    }
+	} else {
+	    illg_init ();
+	    console_out ("Illegal memory access logging enabled\n");
+	}
 	return;
     }
     num = nc - '0';

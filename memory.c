@@ -608,6 +608,7 @@ static void a1000_handle_kickstart (int mode)
     if (mode == 0) {
 	a1000_kickstart_mode = 0;
 	memcpy (kickmemory, kickmemory + 262144, 262144);
+        kickstart_version = (kickmemory[262144 + 12] << 8) | kickmemory[262144 + 13];
     } else {
 	a1000_kickstart_mode = 1;
 	memset (kickmemory, 0, 262144);
@@ -615,7 +616,6 @@ static void a1000_handle_kickstart (int mode)
 	memcpy (kickmemory + 131072, a1000_bootrom, 65536);
         kickstart_version = 0;
     }
-    kickstart_version = (kickmemory[262144 + 12] << 8) | kickmemory[262144 + 13];
 }
 
 void a1000_reset (void)
@@ -1046,6 +1046,8 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
         a1000_bootrom = malloc (65536);
         memcpy (a1000_bootrom, kickmemory, 65536);
         a1000_handle_kickstart (1);
+	i = 524288;
+	dochecksum = 0;
     }
     if (dochecksum && i >= 262144)
 	kickstart_checksum (mem, size);

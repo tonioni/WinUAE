@@ -30,7 +30,6 @@ uae_u32 bltapt,bltbpt,bltcpt,bltdpt;
 
 int blinea_shift;
 static uae_u16 blinea, blineb;
-static uaecptr bltcnxlpt,bltdnxlpt;
 static int blitline, blitfc, blitfill, blitife, blitsing, blitdesc;
 static int blitonedot,blitsign;
 static int blit_add;
@@ -394,7 +393,7 @@ STATIC_INLINE void blitter_line_incx(void)
 {
     if (++blinea_shift == 16) {
 	blinea_shift = 0;
-	bltcnxlpt += 2;
+	bltcpt += 2;
     }
 }
 
@@ -402,19 +401,19 @@ STATIC_INLINE void blitter_line_decx(void)
 {
     if (blinea_shift-- == 0) {
 	blinea_shift = 15;
-	bltcnxlpt -= 2;
+	bltcpt -= 2;
     }
 }
 
 STATIC_INLINE void blitter_line_decy(void)
 {
-    bltcnxlpt -= blt_info.bltcmod;
+    bltcpt -= blt_info.bltcmod;
     blitonedot = 0;
 }
 
 STATIC_INLINE void blitter_line_incy(void)
 {
-    bltcnxlpt += blt_info.bltcmod;
+    bltcpt += blt_info.bltcmod;
     blitonedot = 0;
 }
 
@@ -464,7 +463,6 @@ static void blitter_line(void)
 
 STATIC_INLINE void blitter_nxline(void)
 {
-    bltdpt = bltcpt = bltcnxlpt;
     blineb = (blineb << 1) | (blineb >> 15);
     if (--blt_info.vblitsize == 0) {
 	bltstate = BLT_done;
@@ -881,8 +879,6 @@ void do_blitter (int hpos)
     reset_blit (1|2); 
 
     if (blitline) {
-	bltcnxlpt = bltcpt;
-	bltdnxlpt = bltdpt;
 	blitsing = bltcon1 & 0x2;
 	blinea = blt_info.bltadat;
 	blineb = (blt_info.bltbdat >> blt_info.blitbshift) | (blt_info.bltbdat << (16 - blt_info.blitbshift));

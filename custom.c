@@ -194,7 +194,7 @@ static struct color_entry current_colors;
 static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
-static unsigned int ddfstrt, ddfstop, ddfstrt_old, ddfstrt_old_hpos, ddfstrt_old_vpos;
+static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
 static int ddf_change;
 static unsigned int bplcon0_at_start;
 
@@ -1569,7 +1569,7 @@ STATIC_INLINE void decide_line (int hpos)
 	    ok = 1;
 	    /* hack warning.. Writing to DDFSTRT when DMA should start must be ignored
 	     * (correct fix would be emulate this delay for every custom register, but why bother..) */
-	    if (ddfstrt_old != ddfstrt && hpos - 2 == ddfstrt_old_hpos && ddfstrt_old_vpos == vpos)
+	    if (hpos - 2 == ddfstrt_old_hpos && ddfstrt_old_vpos == vpos)
 		ok = 0;
 	    if (ok) {
 	        start_bpl_dma (hpos, plfstrt);
@@ -1624,6 +1624,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 
 typedef int sprbuf_res_t, cclockres_t, hwres_t, bplres_t;
 
+/* handle very rarely needed playfield collision (CLXDAT bit 0) */
 static void do_playfield_collisions (void)
 {
     int bplres = GET_RES (bplcon0);
@@ -2823,11 +2824,10 @@ static void DDFSTRT (int hpos, uae_u16 v)
     v &= 0xfe;
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	v &= 0xfc;
-    if (ddfstrt == v)
+    if (ddfstrt == v && hpos != plfstrt - 2)
 	return;
     ddf_change = vpos;
     decide_line (hpos);
-    ddfstrt_old = ddfstrt;
     ddfstrt_old_hpos = hpos;
     ddfstrt_old_vpos = vpos;
     ddfstrt = v;
@@ -3540,7 +3540,7 @@ static void update_copper (int until_hpos)
 	    cop_state.state = COP_skip_in2;
 	    break;
         case COP_strobe_delay:
-	    cop_state.state = COP_read1;
+	    cop_state.state = COP_read1_in2;
 	    break;
 
 	default:
