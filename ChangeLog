@@ -1,0 +1,2347 @@
+9C0702 Correct an overflow problem in the CIA code.
+9C0407 Sprite code updates; correct CIA memory access handlers (Toni).
+9C0306 Make w/d representable for fsdb_win32.
+       Don't reorder children of directories; this causes duplicates in
+       exnext.
+       Reorder the code for the 9/10 vsynctime hack a bit.
+       Add code from Toni to remember the last value written to a custom
+       register and to return it when reading from a write-only reg - this
+       seems to match actual hardware behaviour.
+       Add some more blitter tweaks (Toni).
+9C0227 When waking up the copper from a blitter wait, recheck that vpos is
+       larger than vcmp - especially with masking going on, this may not be
+       the case.
+       X11: When changing picasso resolution, reinitialize everything - our
+       bitmap might be too small otherwise.
+       When configuring hardfiles, use specified blocksize, not 512 (Toni).
+       In SPRxCTL_1, don't examine vstart position before computing it (Toni).
+9C0225 Some cfgfile fixes, more blitter timing changes and one big sprite
+       statemachine update from Toni.
+       Some copper timing fixes.
+       Fix flag bit confusion in action_fh_from_lock (taken from earlier
+       WinUAE).
+9C0220 Blitter timing update from Toni.
+       Copper timing "theory" changed (me/Toni).
+       If we have a rdtsc insn, always synchronize with realtime in
+       vsync_handler.
+       Don't reset the lof bit when restoring state.
+       When restoring disk image names, put them in changed_prefs (Toni)
+       Return error in action_seek if trying to seek past end of file (Bernd
+       Roesch).
+       SDL fixes by Maik Qualmann.
+       Fix for gtk warnings when updating floppy LEDs (Maik Qualmann).
+9C0216 Fix the clockspeed detection - we were getting lots of alarm signals
+       even after it had finished.
+       Some tweaks for the GUI - and also fix the problem with waiting on the
+       GUI semaphore even if no GUI is present...
+       More accurate blitter timing (Toni).
+       Support for A1000 bootrom and CDTV/CD32 extended ROMs (Toni).
+       Fix filesystem lockup with "copy dh0: ram: all".
+       Fix for JIT and more than 2MB chipmem from Toni
+       Make fsdb_win32 accept more valid Windows filenames (Toni).
+9C0215 Fix filesystem reset code that used to access freed memory.
+9C0213 gtk UI fixes from Maik Qualmann.
+9C0113 Configury & bsd compilation fixes from Krister Walfridsson.
+       Match up lock/unlock calls in wgfx_do_flushline (found by Axel
+       Doerfler).
+       Fix potential crash taking strlen of NULL in filesys.c (Axel Doerfler).
+       Set diskdmaen to 0 in dsk_dmafinished (Toni).
+9B1230 lockscr/unlockscr fixes in drawing.c.
+       Add sdlgfx from Bernd [4] Lachner.
+       Filesystem asm code improvements from Toni (make it pic, call
+       setup_exter earlier in the boot sequence, etc.)
+       Also add Toni's patch to make rtarea position configurable (keep it
+       at 0xF00000 for now, though).
+       Avoid installing filesystem stuff if user didn't request to mount
+       directories.
+       BEAMCON0 is only available with ECS Agnus.
+       Revert some bogus parts of the write_log patch.
+9B1219 Add some missing clipping to the Picasso code.
+       Limit number of illegal-mem warnings.
+9B1217 Fix the GUI crash when changing floppies.
+       Changes to support programs that change between HAM/no HAM in the
+       middle of a line.
+       Some bug fixes, and a big fprintf->write_log patch from Alex Kazik.
+9B1125 Panning support for Picasso96 (in part from WinUAE).
+       More state save fixes from Toni, and a small disk.c update as well
+       which corrects track/gap lengths.
+       More evolution of the AHI code.
+9B1124 Merged a few more small pieces from WinUAE (larger pieces in case of
+       the Picasso code).
+       CLXCON2 was never called or statesaved.  Fixed by Toni.
+       Sound sample frequency now always based on PAL timings.
+9B1123 Goodness!  Massive memory corruption bug in picasso96.c - passing
+       last color changed to DX_SetPalette instead of count.
+       Fixes for the AHI code.
+       Changed prefetch emulation to be more similar to the one MAME uses.
+       Trace mode fixes (Bernd Roesch & myself).
+9B1122 Redo the ExNext code in the filesystem to make sure we always match
+       opendir with closedir and to fix some renaming problems.
+       Fix hd changing code in gtkui.
+9B1121 Mini-merge of noncontroversial WinUAE filesys.c code.
+       Add harddisk page to gtkui.  Also change gui behaviour to wait for
+       the user to unpause before starting the emulator.
+       Add Toni's drive-led display.
+       Fixed a rather amazing source of crashes (we could fail to notice
+       the end of the frame in some cases).
+       Default to scanline mode.
+       Some tweaks to the SDL driver and the Win32 gui, mostly buffer-size
+       related.
+       Moved C source files back from tools directory (but still build them
+       there) to preserve my CVS history.
+9B1119 Move all the build tools (gencpu, cpuopti etc.) into their own
+       directory which is configured separately.  This was necessary to
+       avoid picking up SDL CFLAGS (which can #define main to _SDL_main, and
+       that breaks if you don't link with SDL), and to make cross-compiling
+       at least a little more likely.
+       Remove sanity check for SDL header file - rely on sdl-config getting
+       things right (not that we have much choice).
+       Move thread support code past sound code in configure, and make sure
+       that SDL sound enables threads.
+       Move sername into options structure.
+       Check for existance of isinf/isnan before using them.
+       Rather large WinUAE merge - this tree compiles again under Windows.
+       Most of the additional features are missing though.
+9B1118 Restore code to mirror banks for 24 bit address space which got lost
+       when all the JIT memory changes were put in.
+       Speed up the CPU time calibration code.
+       Fix the broken file selector handling in the gtk ui.  Add kickstart
+       selector.
+       Don't call XCloseDisplay, it apparently leads to crashes.
+       Try to solve the "missing write_log" problem in a sane way.
+       SDL joystick support.
+       When configure detects win32, use fsdb_win32 rather than fsdb_unix.
+9B1117 Proper masking for DDFSTOP; proper handling of AUDLEN == 0, changed
+       delayoffset code, gencpu BFINS fix, and lots of disk updates (all
+       Toni).
+       Some additional regs for move2c/movec2 (also by Toni IIRC)
+9B1115 COLOR_READ typo fix (Toni).
+9B1024 Filesystem reset leak fixes (Brian)
+       Allocate enough memory for custom state saving.
+       bploff renamed to bpl_off.
+       AGA copper cycle diagram (Toni)
+       Disable disk_data_used optimization.
+9B0926 Delayed palette setting for Picasso modes.  Also fixed problem with
+       palette setting in CLUT emulation - we need to redraw the entire
+       screen if that happens.
+9B0921 Miscellaneous small bugfixes.  Delete some obsolete code.
+9B0907 Beginnings of SDL support.  Exterminated some penguins.
+9B0825 Some xwin.c fixes from Maik Qualmann.
+9B0730 Some sprite state machine tweaks.  Fix sprite vs. DIW comparison.
+       HAM linebuffer was too small by half - oops.
+       Make absolutely, positively sure that when hsync_handler calls
+       sync_copper_with_cpu, we don't take any invalid shortcuts.
+       Memory management changes for JIT (Bernie [2], mostly).
+9B0729 Silly mistake - need to call flush_plane_data unless plfleft is
+       -1, even if no planes were enabled.
+9B0728 Small hack to reduce the time we lose with unnecessary
+       disk_doupdate_read calls.
+       Avoid calling flush_plane_data if we have no bitplanes enabled.
+       Tweak the SPCFLAG_INT handling to make "Delirium" demo work.
+       Limit rate of DDF warning messages.
+       Adjust display parameters so that things are shifted to the left
+       even more.
+       Fix (hopefully) CIA & blitter saving code.
+9B0727 Copper code reorganized; speedup code rewritten.  Can now be
+       enabled with a GUI setting.
+       Fixed the delayoffset stuff.
+9B0725 AGA sprites, and some patches to sprite/playfield collision code,
+       mostly by Toni.
+       Fixed a small sprite restore problem; added missing code to map
+       fastmem banks when restoring them.
+       Some more state saving updates from Toni.
+9B0724 Fix a nasty bug in the copper SKIP instruction introduced by recent
+       changes.
+       Update the FAST_COPPER code.  Not quite enabled yet.
+       More work on the memory configuration stuff.
+       Fix CPU type writeout in cfgfile.c (taken from WinUAE source).
+       Move the WOC demo BPLCON0 fix to compute_toscr_delay (Toni).
+       Added Toni's new disk patches, which include HD disk support by
+       Adil Temel.
+       Rewrote the memory and audio save/restore code.
+       Mask DDFSTOP with 0xFE, not 0xFC.
+9B0723 Yet another new and correct copper state machine (this time for sure)
+       Fix some AGA problems in DDF speedup code.
+       In gencpu.c, branch insns return a hardcoded cycle count; this had
+       not been updated for the CYCLE_UNIT stuff.  Fixed.
+       xwin.c: If mouse is grabbed, we don't need mousehack.
+       Don't clear audio state if produce_sound == 0; this causes problems
+       if we want to turn the sound back on.
+       If an audio channel had a period of PERIOD_MAX, allow AUDxPER to
+       set its evtime back to a reasonable value.
+       Massive cleanup of memory initialization code; it will now use changed
+       prefs on reset.  Added some memory options to gtkui.c.
+       Added Toni's state saving code, then added gtkui options and code to
+       initiate saving/restoring.
+9B0722 filesys.c: Fix writeout of hardfile params (Bernie [2])
+       Add an A1000 Kickstart disk loader (Gerald Schnabel).  Got rid of
+       the automount_uaedev code; we can detect the Kickstart version and
+       do the right thing.
+       Deleted a few unused variables (Toni)
+       Avoid aborting in decode_ham if Amiga code turns on the HAM bit but
+       has too few bitplanes (found by Toni).
+       Make the dummy mem bank return other values than 0; helps some
+       stupid memory detection code.
+       Implemented a little exec task lister for the debugger.
+       Added new debugger commands from Mark Cox.  Improved his copper list
+       debugger by adding recorded timing information to it.
+       MOVE16 fixes from Gwenole Beauchesne.
+       xBCD fixes by Maik Qualmann, with some additional flag fixes by myself
+       (ABCD & SBCD behave exactly like on a 68000 now; dunno about NBCD).
+9B0520 AGA bscan2 fixes and disk.c kickstart speedup fixes from Toni.
+       Remove bogus changes I made to one of Toni's earlier disk.c updates.
+       Call RethinkICRA/B from INTREQ (suggested by Toni).
+       Properly save mixed_stereo setting.
+       NEGX uses X and Z (Bernd Roesch).
+       Danish keyboard support (Jesper Bojesen).
+9B0311 Repair "emulated but no output" sound setting.
+9B0310 Fix massive bug introduced in do_cycles_slow with the rescaling
+       changes.
+       CLXCON logic updated for AGA (Toni).  Change meaning of collision_level
+       and add support for it in cfgfile.c.
+9B0309 Fix problem where a fsdb file could prevent deletion of otherwise
+       empty directory discovered by Torsten Enderling.
+       Rescale return values of CPU emulator functions.
+9B0225 Undo parts of the audio changes that made the "accurate" setting the
+       default.
+9B0221 Make fsdb_unix compile again.
+9B0219 Fix ddf for cases where start isn't aligned to fetchunit.
+       Fix some problems with the sound code going into infinite loops or
+       crashing.
+       Try to re-add Toni's ddf delay fixes properly.
+       Added a fix from Krister Walfridsson for X11 SHM code.
+       Rename OBJECT_NOT_FOUND to OBJECT_NOT_AROUND (not sure why, but the
+       win32 port does this; Fellow picked it up as well...)
+       Give in and allocate ainos with xcalloc.
+       Import fsdb_win32 code from Fellow.
+       Some tidyup and fixes in fsdb code.
+       Lose the lastdiv10 variable, and update CIA timers when reading them
+       (mostly by Bernie [2] Meyer)
+       Move reset_uaedevices and get_new_device to filesys.c.  Add extra
+       parameter to get_new_device.
+9B0213 Fix mouse pointer jumping bug in X11 code (Ralf Hoffmann)
+       Scaled event handling by a factor of 512.  This allows more accurate
+       sound output frequencies, as well as more fine grained CPU speed
+       settings.
+       Implemented totally untested emulator side AHI support.
+9B0211 Partially reverted changes made to the audio event code in 0.8.0.
+       Implemented "mixed" stereo.
+9B0210 Fixed invisible sprite bug - sprite_width got a new meaning, and not
+       everything had been updated.
+9B0121 cycles => get_cycles () (from Bernie [2] Meyer's JIT patchkit)
+9B0120 Final bugfix in speedup code (plfleft got set too early).
+9B0118 Fixed SPEEDUP code for AGA.  Speedup now starts when fetch_state is
+       fetched_plane0.
+9B0115 First batch of AGA playfield changes (Toni & myself).
+9B0110 Small fix for the m68k_run macro (Bernie [2] Meyer)
+9B0109 Use ntscmode from prefs structure (Dwayne C. Litzenberger)
+       Some 040 FPU fixes (Bernie [2] Meyer)
+       Delay DSKREADY a while; fix other small disk bugs (Toni Wilen)
+9A0902 F0FF10 is now a puts () calltrap.
+9A0830 Add some missing initializations in filesys.c, thanks to debugging by
+       Harald Frank.
+9A0827 Fix a crash with framerate != 1.
+       Don't allow programs to see left & right or top & bottom simultaneously
+       with the keyboard joystick replacements.  (Gee, games on the CPC and on
+       the Amiga actually have something in common - some of them crash when
+       the joystick is pushed in too many directions at the same time...)
+9A0825 Put in the new sprite code.  This has existed for many months but
+       I've only now found the final bugs.
+       New version of Bernd Meyer's special_mem code.  Also add his
+       set_special/unset_special code, the noflags changes for gencpu,
+       and a fix for cpuopti's string matching.
+       Tiny clarification in table68k.
+       Add 68040 support from Basilisk.
+       readcpu.h is now included from newcpu.h.
+9A0824 Rather massive overhaul of the DDF code.  Many other timing fixes
+       (copper state machine mostly) (Sam Jordan and myself)
+       Get rid of stupid optimizations in color recording.
+       Synchronize CPU and copper in custom_wget.
+9A0816 Introduce variable "special_mem", set it in each memory handler
+       that doesn't work on real memory (Bernd Meyer).
+9A0815 Fix a really stupid bug in cfgfile_strval.
+       Nonfunctional support for switching between windowed/fullscreen modes
+       in gtkui.
+       Add (semi-broken) support in the debugger to create a trace logfile.
+       Take out most port-specific flags handling; x86 version kept with
+       slight name changes to indicate that this is code is suitable for
+       other ports as well.  Took out HAVE_GAS while I was in configure.
+9A0811 Fix the line doubling slowdown.
+9A0809 Software autofire.
+       Remove one line from Makefile.in in the hope it will fix the build
+       errors people are seeing.
+9A0807 Tighten up some minor aspects of spcflags handling.
+       Fix an AGA bug in customreset.
+       Set default CPU speed to approximate a A500.  Tweak gencpu so that the
+       timings for this are more accurate.
+       Ignore T0 bit if not emulating a 68020.
+       Add an option to set the number of emulated floppy drives.
+       Improve the mfmcode function a bit.  Faster and more accurate.
+       More SCSI patches from Patrick.
+       Add gui_data structure from WinUAE.  Turn on gui leds again.	    
+9A0725 Fix incorrect define of m68k_run for non-x86 systems (could have
+       sworn I already fixed that).
+9A0723 Some SCSI patches by Patrick Ohly (which I got two months ago... oops)
+       Filesystem fixes from Brian.
+       AGA updates from Toni.
+9A0627 Apydia loader fixes from Toni.
+9A0611 Fix bug in filesys.c causing in-use ainos to get discarded.  Thanks
+       to Brian for the analysis.
+9A0608 Added some disk.c changes from Toni and a crude hack of my own to
+       speed up disk accesses done by the Kickstart.
+9A0330 Change blitter not to translate memory addresses to native.  Had to
+       disable 32 bit blits.
+       Floppy code changes (Toni Wilen)
+       Delete GGI port.
+       Fix toggle_inhibit_frame (Brian).
+9A0228 Some WARPUP fixes, and changes to accomodate broken Amiga gzip (Sam
+       Jordan).
+9A0221 Tweak POTGO a bit.  Seems to work with BC Kid now.
+9A0220 Fix off-by-one errors in expansion.c (Toni Wilen).
+       Remove AGA checks in DDFSTRT/DDFSTOP (Toni Wilen).
+       Turn off/restrict some warning messages.
+9A0209 Fix some problems where the blitter nasty flag wouldn't ever get reset.
+       cia.c: Set all parallel port related bits to 1 when reading.
+9A0208 gencpu.c: Fix saved PC for division by zero exception (found by Sam
+       Jordan).
+9A0131 update_copper: Mask until_hpos properly.
+       Delay values are masked to 3 bit in hires mode (Sam Jordan).
+9A0102 Only delay horizontal copper wait if vertical position matches exactly.
+       Tweak vblank end position for sprites.
+       Calculate playfield borders more accurately for case where we have
+       sprites.
+9A0101 Reintroduce ev_copper; use it sparingly for longer waits within a
+       single line (but _not_ to time reads).
+       Fix a dumb bug in yesterday's changes that screwed up scrolling.
+991231 drawing.c: Cruftectomy.  genp2c.c: Gone.  X86.S: mostly gone.
+991229 Always use NTSC vblank_lastline for sprite purposes.
+       Make sprite logic recognize vertical stop even if vertical start has
+       not been reached (found by Sam Jordan).
+       Prevent move2c/movec2 instructions from incrementing the PC if they
+       raise an illegal instruction exception (found by Toni Wilen).
+991212 ncurses port compiles again.
+       Disable serial interrupts in custom.c; they break things.
+991208 Add a missing decide_line call in update_copper_1.
+991206 Fix copper emulation to use state machine figured out by Sam Jordan.
+991205 Fix event table corruption in disksync_handler.
+991113 gencpu.c: Fix a problem with BTST.
+991110 fpp.c: Initial set of changes merging code from Lauri Pesonen.
+991024 Add missing type in m68k_run1.
+       Divisions by zero clear overflow bit.
+991023 Fix compilation problem for ! HAVE_STEREO_SUPPORT.
+991022 Rewrite disk read code to transfer some DMA words every raster line.
+       fpp_movem_index1 and fpp_movem_index2 were reversed (Brian King, Sam
+       Jordan).
+       Fix accuracy of fpp fix insns (Sam Jordan).
+       Allow ports to define their own FP 68881/host conversion functions (Sam
+       Jordan).
+       Get rid of all the HAVE_GET_WORD_UNSWAPPED code.
+       Fix prefetch for insn opcodes (Sam Jordan).
+       Fix call insn syntax in X86.S.
+       Tidy up sound interpolation support.
+       Readd old command line arg parsing.
+       Change "long unsigned int" to "unsigned long" in a couple of places.
+       Use Sam's version of the filesys.c fixes (action_parent_fh,
+       action_change_mode).
+       Fix a place in disk.c where a mfm buffer was zeroed instead of 0xaa'ed
+       (Sam Jordan).
+991006 CPU emulator fixes by Christian Bauer
+       tui.c compilation fixes by Christof Petig.
+       Fix operand in one insn in X86.S (Brian).
+       zfile.c fix for filenames with embedded spaces (Ingo Ruhnke).
+       linux-ppc configury patch (Holger Jakob).
+       s,static __inline__,STATIC_INLINE, (Sam Jordan).
+       cfgfile.c: Don't use "t" modifier in fopen (Sam Jordan).
+       serial.c: Don't close file if fd < 0 (Sam Jordan).
+       filesys.c: Open files on readonly devices with O_RDONLY (Sam Jordan).
+       Fix bugs in parent_fh and change_mode actions (Sam Jordan).
+       WARPUP patch (Sam Jordan).
+990621 Initial version of Richard Hoffmann's sound interpolation patches.
+       Fix a crash in action_set_comment.
+       De-inline 68k trace code.
+990508 Fix rdtsc asm statement to show that edx is clobbered.
+       gtkui.c: Add pause button (Patrick Ohly)
+       configure.in: Check for -mpreferred-stack-boundary compiler option
+       and use it if found to set a sane value.
+990429 X11 patches by Patrick Ohly.
+       Filesystem code extended to keep a simple database with information
+       about each file that is not representable on the host FS, such as
+       script/pure bits or filenotes.
+990417 Bits and pieces merged from the Win32 port; mostly options stuff. Got
+       rid of getopt; added chipset options to prefs structure.
+990411 Patches by Patrick Ohly: SCSI support and timehack tool.
+990410 Applied easy parts of Toni's latest AGA patches.
+990315 Attempts to fix Picasso crashes in SVGAlib version.
+990216 picasso96.c: Some optimizations.
+       cfgfile.c: Save target specific options. Allow simple/smart choice
+       for centering options. Delete mount_data junk, substitute immediately.
+       Whitespace handling fixes.  Fix config_description typo.
+       m68k flag handling redone.
+990212 Implement rotate instructions without loops.  Some other m68k
+       optimizations.
+       Some configure.in fixes.
+990122 gtkui.c: Fixes for gtk 1.1.13.
+990113 genp2c.c: Don't include custom.h.
+990109 Some fixes in cfgfile.c.  Make svga.c compile again.
+981229 Miscellaneous fixes in the new config file stuff.
+       In config files, allow 68ec020 as CPU type, and get rid of 24 bit
+       addressing option.
+       Make the get_disp_ea non-inline.
+       SGI sound support (Ari Heikkinen).
+       More updates by Brian:
+       audio.c: Handle frequency, too, when changing sound prefs. Do some
+       work in update_audio even if not generating sound output.
+       filesys.c: Request 50 buffers in our parampacket.
+       Assorted right control key fixes.
+       Some updates in od-win32 (not nearly done...)
+981228 Config file and option handling redone; based on work by Brian.
+       Rename UAEn: devices to DHn: (Brian).
+       filesys.c: Implement ACTION_CHANGE_MODE, ACTION_PARENT_FH; add support
+       for variable hardfile blocksizes (Brian).
+       Some Picasso96 updates (Brian).
+981226 Win32 fsusage.c fixes; zfile bug fix; gui_fps addition (Brian).
+981221 Fix gtkui to work with newer versions of gtk.
+       Fix gencpu so that FPU emulation doesn't crash when unswapped word reads
+       are available.
+981129 gencpu.c: Delete all the queue_amode stuff again.
+       xwin.c: Allow switching between DGA and window mode (Marcus Sundberg).
+       DGA seems broken in X 3.3.3, however :(
+981011 Teach cpuopti.c about epilogues that increment esp by popping.
+980930 Add BSD socket code (Mathias Ortmann).
+980923 filesys.c: Implement FH_FROM_LOCK (Brian King)
+980823 xwin.c: French keyboard patch (Raphaël Poss).
+980810 Fix RDTSC detection (Raphaël Poss).
+       newcpu.c: Patch by Brian King to display what kind of CPU table is
+       built.
+980716 More AGA patches: use new macro GET_PLANES to calculate number of
+       bitplanes from BPLCON0; adapt the copper code; add BPLPT[HL][78] and
+       BPLDAT[78] (Toni Wilen)
+980715 Change sd-uss/sound.c not to keep a file open in setup_sound, to
+       support reconfiguration.
+980713 Fix m68k detection in configure.in. Clear execbase after allocating
+       chipmem (Holger Jakob)
+       od-dos update, tui.c patches (Gustavo Goedert)
+       Get rid of --enable-sound, always enable sound.
+       Make svga.c compilable.
+980712 md-ppc-gcc patches (Holger Jakob)
+980707 gtk ui: Better CPU speed selection.
+       Move initializations from add_filesys_unit to set_filesys_unit.
+980706 AGA patches by Toni Wilen: Call calcdiw when changing fmode; fix
+       references to bplcon variables to go through dp_for_drawing; ifdef out
+       some code that's too hard to fix for now.
+       "Fix" the AGA color code. In pfield_linetoscr_aga, add lframe_end and
+       diw_end parameters and use them. Add some fill_line code for AGA. Make
+       sure no code touches acolors if [AGA_CHIPSET != 0]
+       New function finish_line_aga.
+980705 drawing.c/custom.c: Get rid of line_changed, replace with a single
+       variable thisline_changed. Pass it to hsync_record_line_state and
+       evaluate it there. Get rid of BORDER_PREV and BORDER_NEXT states;
+       add LINE_BLACK/LINE_REMEMBERED_AS_BLACK to implement scanlines option.
+       Remove code in pfield_draw_line that checks line_changed.
+980702 filesys.c: New function move_filesys_unit.
+       Win32 GUI fixes.
+980701 gtk UI beautification and code cleanup (Michael Krause)
+       Beginning to make audio code run-time configurable (mostly by Michael
+       Krause)
+       Fix off-by-one errors in memory check handlers (Jake Hamby)
+       configure: Add AM_CYGWIN32, AM_EXEEXT and AM_MINGW32 and fix some Win32
+       configuration problems.
+       genp2c: Fix symbol name braindamage.
+       md-i386-{gcc,watcom}.c: Don't do machdep_init when [_WIN32].
+       Many Win32 compilation fixes.
+       filesys.c: Attempt to fix the mount code chaos.
+980629 MOVEP bug fixes (Philippe Gerin)
+       Comment out code using readdir_r again.
+980628 gencpu.c: Generate an end label only when it's needed.
+       configure.in: Check for windows.h, ddraw.h, sys/utime.h; check sizeof
+       __int64; check whether a small DirectX program compiles; check for
+       Watcom C; don't do GNOME_FILEUTILS_CHECKS when compiling on Win32
+       without GNU C; use AC_EGREP_CPP in some places instead of compiling a
+       file by hand; check for GAS .p2align feature; check for USE_UNDERSCORE
+       with a small test program; add code to set up od-win32/md-i386-watcom
+       directories when appropriate.
+       genp2c.c: Use GAS .p2align feature; don't generate .type directive.
+       Rename md-*/memory.h to md-*/maccess.h.
+       More fixes in Win32 code.
+       Add wcc.sh and wrc.sh, two scripts to make it possible to use the
+       Watcom C compiler and the resource compiler in a Cygwin32 build
+       environment.
+980626 Change zfile.c not to use fopen_del.
+980614 Delete ihf_sem stuff.
+       picasso_refresh now nonstatic and called by check_picasso after a
+       notice_screen_contents_lost call.
+       More functions to access filesystem mount information.
+       More Win32 code.
+980613 Use an AC_TRY_LINK block to check for libpthread.
+980611 Rename lockscr/unlockscr to gfx_{lock,unlock}_picasso and add new
+       functions lockscr/unlockscr which are now called by drawing.c.
+       xwin.c: Clear picasso_invalid_lines in graphics_subinit and when
+       doing an XPutImage for a refresh.
+       New function reset_all_systems, which is a bit misnamed at the moment
+       because it only resets the filesystem. Called from m68k_go when a
+       reset is needed.
+       In filesys_prepare_reset, examine unit_pipe instead of self to
+       determine whether a unit has a thread that needs to be killed. Move
+       the reset_state and reset_sync_sem variable to UnitInfo so they are
+       available at all times.
+       Don't need to call finish_drawing_frame if we do a reset, it was
+       done a couple of lines earlier.
+       In uae_reset, do nothing if any reset or quit operations are in
+       progress.
+       Make DMACONR static.
+980609 Add memory size fields in struct uae_prefs. New variables
+       allocated_xxxmem for every block of memory that holds the actual
+       amount currently allocated, copied from the preferences at allocation
+       time.
+       Create a new structure "uaedev_mount_info" to hold filesystem mount
+       information. Add a pointer to one of those in struct uae_options,
+       and copy it from currprefs to a filesystem private place when
+       starting the filesystem threads to a work area. 
+       Terminate filesystem threads during a reset, and restart the whole
+       filesystem code afterwards so that prefs changes are noticed.
+980608 If check_prefs_changed_gfx returns nonzero, or if we switch from/to
+       picasso mode, call notice_new_xcolors and notice_screen_contents_lost.
+       Delete the frame_do_semup crap.
+980606 Create config.h link in configure, not in Makefile.
+980604 xwin.c: No longer need picasso_max[wh]. Improve picasso invalid lines
+       code a bit more. Fix some dithering bugs.
+       gtkui.c (add_checkbox_widget, add_radio_widget): New helper functions.
+       Patches by Marcus Sundberg:
+       Make X11 picasso clut emulation mode work in DGA
+       gfxutil.c (setup_dither): Free redvals.
+980602 Split out init_aspect_maps from reset_drawing.
+       Call check_prefs_changed_gfx from vsync_handle_redraw, and initialize
+       row and aspect maps if it returns nonzero.
+       Use an enum instead of integer values to communicate between
+       hsync_handler and hsync_record_line_state.
+       gtkui.c: Use gtk_window_set_title (Marcus Sundberg)
+       xwin.h: Add lockscr/unlockscr prototypes.
+980601 Move check_prefs_changed_xxx into vsync_handle_redraw.
+       Make ersatz.c a little more crash-proof.
+980531 New graphics specs 'a' and 'p'. Support them in the X11 version.
+980530 sysdeps.h, posixemu.c: Change (char *) to (const char *) in the
+       arguments of some of the posixemu functions.
+       sysdeps.h: Delete getopt declaration. Include "getopt.h" in main.c.
+       aclocal.m4: add fsusage.c support from Gnome.
+       fsusage.[ch]: New files from fileutils, slightly modified to fit
+       into UAE and to add Win32 support. Adapt do_info filesys.c to use
+       it, and delete all the old cruft.
+       Some updates for the Win32 port.
+980529 Patches for X11 version by Marcus Sundberg (Picasso invalid lines
+       optimization, XShm availability check, cleanup, etc.)
+980528 Add field emergmem to struct vidbuf_description, and change
+       pfield_draw_line to use it.
+980516 Patches by Samuel Devulder and Holger Jakob: update Amiga port,
+       add support for compiling cpuemu.c in seveal steps again, add
+       cheatsearch in the debugger.
+980515 GGI patches (Christian Schmitt).
+       sd-mme: New directory (Marcus Sundberg).
+       Changes in the X11 version to support mixed DGA/normal binaries,
+       hotkeys, and mouse grabbing (Marcus Sundberg)
+       xwin.c: Copy a bit of code from Win32 port that constrains
+       lastmx/lastmy to real coordinates when ievent_alive.
+980510 gencpu.c: Slightly better flag generation code.
+       picasso96.c (wgfx_flushline): Don't do anything if Picasso screen
+       is invisible.
+980508 Don't disable GGI if we can't find svgalib.
+       newcpu.[ch], gencpu.c, md-i386-gcc/memory.h: Implement unswapped
+       word reads for opcodes.
+980505 drawing.c: add missing #ifdef X86_ASSEMBLY.
+980504 More BSD fixes from Krister.
+       xwin.c: Call XAllocColorCells for dithered modes. Don't set image_mem
+       in get_image, instead arrange for it to store the address in a pointer
+       chosen by the caller.
+       picasso96.h: Add a clut array to picasso_vidinfo.
+       picasso96.c (do_fillrect, do_blit): Use picasso_vidinfo.pixbytes
+       instead of picasso96_state.BytesPerPixel where appropriate.
+       (do_fillrect, do_blit, wgfx_do_flushline): Handle the case when the
+       Amiga-side buffer is a 256 color palette mode and the native buffer
+       is truecolor by looking up colors in the new picasso_vidinfo.clut.
+       xwin.c: Adapt to support emulating a palette display in truecolor.
+       Make tui.c compile.
+980501 picasso96.c: Make sure there's an unlockscr for every lockscr call.
+       In SetColorArray, detect when no colors changed.
+       configure.in, aclocal.m4, Makefile.in: Use AM_PATH_GTK from gtk
+       distribution.
+       New field rgbformat in picasso_vidinfo. Set it in xwin.c and svga.c.
+       custom.c (mousehack_helper): Use Picasso screen offsets correctly.
+980427 Call decide_line in DIWSTOP. Implement DIWHIGH register.
+980426 filesys.c (get_nname): Don't allow Unix "." and ".." directories.
+       gencpu.c: Approximate the number of cycles per instruction. Make
+       generated functions return that number, and use it in newcpu.c in
+       the do_cycles call.
+       custom.c, drawing.c: init_hardware_for_drawing_frame must be
+       called from init_drawing_frame.
+       Move read_processor_time specific stuff to new file md-xxx/rpt.h.
+       md-i386-gcc/support.c: Try to detect whether the CPU has RDTSC.
+       newcpu.c: m68k_speed == 0 means approximate A500 speed;
+       m68k-speed == -1 means use frame rate hack when available. Some
+       changes to support this.
+980425 custom.c: New copper code. Unfortunately not much faster than the
+       old one.
+       Get rid of some unused variables throughout.
+       filesys.c: Use readdir_r when available.
+       picasso96.c: In BlitPattern, correctly handle the pattern offsets.
+       missing.c: Get rid of getopt. Add GNU getopt instead.
+       In SPRxPTH, SPRxPTL, call decide_sprites instead of decide_line.
+980421 custom.c: Add an extra argument, hpos, to plenty of functions, and
+       use it instead of calling current_hpos.
+980420 BeOS update (Christian Bauer).
+       When enabling additional planes in post_decide_line, update
+       thisline_decision.bplcon0.
+       Tweak copper timings.
+980419 Extend post_decide_line to handle cases where some planes are
+       enabled much later in the line than the others.
+       In pfield_doline_unaligned_h, don't increment dataptr.
+       Split custom.c, move drawing code to new file drawing.c. New header
+       file drawing.h for declarations of shared stuff.
+       osemu.h: Delete junk.
+980418 gtkui.c: Don't crash if -G option is given.
+       audio.c, custom.c: Don't use the generic event handling mechanism
+       for audio emulation, the overhead is too high. update_audio: New
+       function, handles audio updates "on demand" or every hsync (Idea by
+       Petter Schau).
+980417 Some cleanups in custom.c to make splitting it up easier.
+980416 custom.c: Don't use bplhires in do_modulos.
+980415 readdisk.c: Support FFS (Jim Cooper).
+       BSD patches by Krister Walfridsson.
+       configure.in, Makefile.in: More fixes for build != source directory.
+       Arrange to build p2c_x86.o when using md-i386-gcc.
+       sysdeps.h: Include limits.h.
+       Remove silly code that restricted possible version numbers.
+980320 configure.in: Check for vprintf.
+       Make write_log a varargs function. Provide a write_log_standard
+       function that is used by most systems.
+       Refuse to compile with non-ANSI compilers.
+       gencpu.c: Rearrange some of the generated code to reduce register
+       pressure.
+
+Release 0.7.0
+980401 gengenblitter.c: Complete rewrite. Much smaller, much faster, much
+       better results.
+       Check for -lXi to support newer versions of gtk+.
+980316 gencpu.c (read_counts): Two silly bugs fixed.
+       main.c (save_options): Don't write out 'a' if cpu_level < 2
+       configure.in: Changes to try to be compatible with Solaris /bin/sh.
+980315 New UAE-Control version from Tauno & Cloanto.
+       Make configure set UNALIGNED_PROFITABLE for x86.
+       Get rid of "-o", add save command to tui.c and gtkui.c.
+       Fix some bugs in save_options.
+980314 Many improvements in the gtk UI. Made CPU type changeable at run-time.
+       Make DGA && ! VIDMODE configuration compile. Kludge around the fact
+       that DGA misses colormap changes. Call XWarpPointer to try to avoid
+       the click-moves-framebuffer bug.
+       Make sure p2c.[ch] don't get deleted.
+980313 Move all CPU_LEVEL handling from build68k.c to gencpu.c. In gencpu.c,
+       ignore all parameters and don't write to standard output, instead
+       hardcode all filenames and generate them all at once. Arrange to
+       generate code for all CPU emulator variants and to select them at
+       run-time.
+       Get rid of copper cheat mode, re-use "-C" option for CPU selection.
+980312 In COPxLCL, mask out LSB (Axel Wefers).
+       newcpu.h: Always compile in both get_disp_ea versions with a different
+       name. Delete USE_POINTER option; always use pointer. Don't fill
+       prefetch in m68k_setpc, do it in callers where necessary. Compile in
+       two versions of get_ixxxx, with different names for prefetch and
+       non-prefetch. Change gencpu.c to use these appropriately.
+       Don't generate 16 small CPU emulation source files. With a decent
+       machine it's no problem to compile all the code in one file. Also turn
+       off -O3 for gcc, -O2 does fine since all the necessary __inline__s are
+       there, and the compiler takes less memory that way.
+       Don't include <linux/joystick.h>, duplicate some definitions from
+       there instead. Makes configure.in simpler, too.
+       Fix Makefile.in/configure.in and a couple of other places to support
+       building in a separate directory (sort of; not complete yet).
+       Remove p2c.[ch] and genp2c when doing make clean.
+       Delete code to support Tcl/Tk and XForms GUIs.
+971215 More Amiga and BeOS patches from Sam and Christian.
+971205 Move some more code from custom.c to audio.c. Optimize sample handlers
+       a bit.
+       Make RDTSC asm statement volatile.
+971203 Latest GGI patch from Christian Schmitt.
+       Fix configure to enable zfile decompression for GGI target.
+       Fix mouse button mapping in ggi.c.
+971128 Fix double definition of gfxvidinfo in custom.c.
+       Fix impossible register constraints in asm statement in newcpu.c
+       Sprinkle casts and rename some variables to make C++ compilers happy.
+       Add BeOS patches by Christian Bauer.
+971125 More Amiga patches from Sam.
+971120 Get rid of DONT_WANT_SOUND.
+971119 Support USS sound not only on Linux (Douglas Carmichael)
+       Update Win32 and DOS ports.
+       Add Polish documentation by Tomasz Sienicki.
+971116 Add a missing return statement in filesys.c (Brian King)
+971112 Fix silly error in xwin.c.
+971108 Add some more decompressors to zfile.c. Set FLOPPY_SPEED to 4.
+971107 Make ggi.c compile again, fix a few bugs and add Picasso support.
+971106 Fill prefetch queue after executing an encrypted ROM illegal insn.
+971105 Initialize the sprites during customreset now that init_hardware_frame
+       no longer does it.
+971104 Implement action_set_file_size as required by the specs.
+       SetPanning/picasso96_state: XOffset and YOffset are signed.
+971103 xwin.c: Offer 640x512 and 320x256 resolutions in windowed Picasso mode.
+       Add a few more memory banks in memory.c (A3000 stuff - nonfunctional)
+       Don't map kickmem at address 0 if using replacement Kickstart.
+       Must fill prefetch buffer when calling calltraps or ersatz functions.
+       Write out hardfile parameters in write_filesys_config().
+       xwin.c: Support 15 bit displays.
+971101 Add latest patches by Samuel Devulder. Improve hardfile support in
+       tui.c.
+971031 Offer "-U" only ifdef PICASSO96.
+       Add support for mounting multiple hardfiles in any order.
+       Don't reset sprite state in init_hardware_frame. Instead, allow SPRxPT
+       functions to set the state to SPR_restart in the vertical blanking
+       area.
+971030 Fix 8MB Chip RAM.
+       filesys_dev_storeinfo: New function and calltrap. Use it to store
+       per-unit data (which now includes geometry information) in the
+       parampacket. Modify filesys.asm to use it instead of trying to find
+       the values by itself.
+971028 "AMIROMTYPE1" has 11 characters, not 0.
+971027 Implement encrypted ROM features. Comment out non-working InvertRect
+       optimization.
+971026 Fix some problems in PlanarToDirect and CopyColorIndexMappingA2U.
+971022 Remove fixed paths in genp2c.c (oops...)
+       Some more XF86VidMode hacks.
+       Include target.h in sysdeps.h. Define PICASSO96_SUPPORTED for X11,
+       SVGAlib and Win32. Don't compile in Picasso support if this macro isn't
+       defined.
+971021 xwin.c: Picasso code wants to use bit_unit, not bitdepth. Also correct
+       byteorder (it's B8G8R8A8 from the Amiga's point of view).
+       Fix Picasso InvertRect function.
+       Half-hearted attempt at 24 bit support in the X11 version, with some
+       awful code in custom.c.
+       Make the X11/VidMode version try to resize the screen for Picasso mode
+       switches.
+971020 Delete option -5, make -4 take an argument. Disable z3fastmem and
+       Picasso emulation when using a 24 bit address space.
+971019 record_color_change: No need to remember a color table if the current
+       line hasn't been decided yet.
+       Add XF86VidMode extension support.
+       Integrate Stefan's Zorro III support, add support for up to 64MB fast.
+       xwin.c: Refresh the whole Picasso screen if there are Expose events.
+       Fix module length calculation for *Tracker modules.
+       Use a 32 bit address space by default if CPU_LEVEL > 1. New option -5.
+971018 Apparently it's not possible to turn on bitplane DMA in the middle of
+       the line, so call post_decide_line only when the number of planes is
+       modified, not in DMACON.
+       genp2c.c: New file, generates planar to chunky conversion routines.
+       Remove those which are now generated from custom.c.
+971017 Make row_map an array, not a pointer to one.
+       Audio periods may not be 0, so initialize them to 65535 in customreset.
+       Implement "S" command in the debugger. Add a bunch of module detection
+       routines.
+971015 od-linux/sound.c: If FRAME_RATE_HACK, reduce vsynctime a bit to give
+       the sound emulation more room to breathe.
+971013 Merge with Brian's latest Picasso code.
+971012 Fix a few more portability problems that showed up when compiling with
+       Watcom C. Also remove superfluous includes from some files.
+       Add md-i386-watcom directory. Update od-win32 with latest code.
+       Remove fast_memcmp routine.
+       Include penguin.h before xwin.h everywhere. Declare a few semaphores
+       for multithreaded setups in xwin.h. Move inhibit_frame stuff to xwin.h.
+971011 gencpu.c: Don't generate labels without following statement. Don't
+       directly generate assembly statements if X86_ASSEMBLY, instead generate
+       code that uses macros defined in machdep/m68k.h.
+971008 xwin.c, svga.c, custom.c, uaelib.c: Add picasso96 code. Add Picasso
+       selection to configure.
+       Move common variables (mouse stuff, gfxvidinfo, xcolors) from graphics
+       files to custom.c.
+       memory.c: custom chip area isn't supposed to be mapped at 0x200000. Use
+       dummy bank for now.
+       od-linux/joystick.c: Open different devices for different joysticks.
+       From Win32 sources: set vsyncmintime in m68k_go.
+971005 genblitter.c: blitzero is initialized to 1, not to 0, so we need to
+       clear, not set it.
+970928 Add another user interface for X11 using libgtk+.
+970925 audio.c: For stereo sound, double all lookup table values.
+       Added (preliminary) win32.c.
+970923 DISK_check_change: Should call gui_filename when ejecting.
+970922 Fix od-linux/joystick.c compilation problem with recent kernels.
+       Merge results of the UAE meeting:
+       New serial code (Stefan Reinauer)
+       Expansion "test card" support (Stefan Reinauer)
+       New GGI code (Christian Schmitt), also configure/Makefile changes
+       to make it compile.
+       Fix 68020/FPU code.
+       Call do_mousehack before every read of the mouse position to get more
+       accurate values.
+       Add sd-file directory; add support for it in configure.
+       Add stereo support in audio.c, od-linux/sound.[ch], and main.c.
+       Fix copper problem: call decide_line in calc_copcomp_true; and if the
+       copper wouldn't wait normally (position reached), but the hardware is
+       fetching data in Hires 4 plane mode, delay until ddf stop.
+       t-ascii.h: Asciiart target understands "-x" parameter.
+970823 gencpu.c [X86_ASSEMBLY]: Turn input constraints for scratch into output
+       constraints.
+970626 Fix 24 bit address space logic (Mathias Ortmann).
+       Raise exception 3 for Bcc.L insns if CPU_LEVEL < 1. Reported by Stefan
+       Ropke.
+       Remove USER_PROGRAMS_BEHAVE for normal emulator. Remove hacks to
+       generate expanded CPU functions for specific opcodes. Replace with code
+       that reads an instruction count file and sorts gencpu output by
+       frequency of the called opcodes.
+970625 Calltraps (at least those with call_m68k calls in them) were broken by
+       the CPU emulator changes. Now use Axxx opcodes as calltraps.
+       Include pOS port by Samuel Devulder.
+970624 Solaris sound patches by Manfred Thole.
+       gencpu.c: The generated code shouldn't just check for odd addresses,
+       it should also call Exception...
+970622 gencpu.c: don't emit return statements; make code jump to a function
+       end label instead. Make genamode() check for odd addresses, also reduce
+       code duplication. Interpret getv parameter so that data is fetched if
+       getv == 1, and the address is checked if getv != 0. Remove exception 3
+       checks from get_long() etc. Get rid of buserr.
+       cpuopti.c: Make a few more checks whether optimization is possible. Add
+       code to undo GCC's epilogue scheduling.
+       newcpu.c: Split all the specialflag handling into new function.
+       Implement -w option as in Win32 port. tui.c: add it to misc menu.
+907621 Fix yesterday's CPU emulator changes. Make cpuopti aware of functions
+       with two RET insns. Make sure that NO_EXCEPTION_3 and
+       NO_PREFETCH_BUFFER are on when emulating a 68020.
+       Add usage information for src/dst operands to table68k.
+       Implement CIA A OVL bit properly.
+970620 New NeXTwin.m from Ian. Fix a number of prefetch bugs in gencpu.c.
+       newcpu.h: m68k_incpc(), get_i{byte,word,long}: New function/macros.
+       Also add oldpc parameter to m68k_do_[bj]sr(). gencpu.c: use all this.
+       CPU functions now don't use nextiword; they keep the PC constant and
+       increment it with the right value at the end.
+       If chipmem_size > 2MB, disable fastmem.
+       In configure.in and od-linux/joystick.c, use ljoystick.h as name for
+       the replacement file for a broken <linux/joystick.h>
+       configure.in: Check for post-gcc-2.7.2 option "-mno-schedule-prologue"
+       and use it for compiling the optimized CPU files if it exists.
+970618 Rename hardfile.device to uaehf.device to avoid name clashes. Suggested
+       by George Nicolaidis.
+       Reimplement CPU prefetch by making gencpu aware of it so it generates
+       code that fetches data from the right places automatically. Also reduce
+       prefetch length to 4 bytes.
+970612 memory.h: Include osdep/memory.h. missing.c: implement xmalloc().
+       Throughout: use xmalloc instead of malloc.
+       Apply changes by Sam Devulder.
+970608 Fix ncurses.c so that it links. Fix configure so that it can be enabled
+       Get rid of spixstate by implementing a new sprite drawing method.
+970607 do_copper_cheat(): New function, Implement inaccurate, line-based
+       copper as an option (-C). calc_copcomp_true(): Fix possible hr 4 plane
+       bug (split the wait into several pieces in this mode).
+       Allow 0 bytes for fast and bogomem (to override .uaerc)
+970606 Fix some bugs in transdisk, and make it compile with SAS C (Joanne Dow)
+       Stupid compilation fixes: Get rid of "==" in shell scripts, check that
+       B300 and friends are defined in serial.c before using them.
+       Implement blitter prefetch. Fix silly typo in main.c that prevented
+       immediate blits.
+       init_ham_decoding(): new function, handles case where the first few
+       pixels of a HAM display are outside the window.
+970605 disk.c: Get rid of need_read. Save cylinder/track number for the data
+       in the MFM buffer for each drive. Force rereads on disk insert and
+       write operations. In drive_fill_bigbuf(), do nothing if saved data
+       matches current. Fix disk change logic: give the program time to read
+       the change bit a couple of times before inserting a new disk.
+       custom.c: Fix really subtle bug: when deciding a line as border,
+       plfstrt/plflinelen were not set up properly, which could confuse
+       post_decide_line(), and eventually there would be lines decided as
+       playfield with plfstrt == 0, plflinelen == -32 ==> Bang. A related
+       bug was that setting DDFSTRT to 0 would result in both plfstrt and
+       plfstop having value 0.
+       gfxutil.c: Fix bug that could cause color values to go out of bounds.
+       xwin.c, svga.c: When dithering, color values were not doubled properly.
+970604 filesys.c: when deleting an a_ino, remove it from hash table (Mathias
+       Ortmann). In do_find(), if creating a file failed and we didn't have
+       an a_ino before, call delete_aino on the one we created.
+       More configure changes: Add $X_PRE_LIBS and $X_EXTRA_LIBS in some
+       places. See if MIT-SHM support for X will compile and link. Always
+       compile it in if it will. Turn DONT_WANT_SHM and LOW_BANDWIDTH into
+       run-time options (-T, -L). Use single line buffer when dithering and
+       in low-bandwidth mode (but in all cases there's a full buffer for the
+       X image).
+       memory.c: Don't map in custom regs at 0x200000 if chipmem_size > 2MB.
+       Split up init_sound(): new function setup_sound(). Make "-B" accept
+       minimum and maximum values as in Gustavo's latest patch. Add code to
+       tui.c to support changing buffer size, number of bits and frequency.
+970603 If using compiler, define NO_EXCEPTION_3 and NO_PREFETCH_BUFFER.
+       (bugreport by Raphael Poss).
+       GGI support from Christian Schmitt/Stefan Reinauer. More serial patches
+       from Stefan. 3 button joystick patch from Mathias.
+       Add linemem field to gfxvidinfo, for systems that don't want to keep
+       a buffer of the full screen. Adjust custom.c to use it instead of
+       bufmem if it's not NULL (mostly by Mathias). svga.c, xwin.c: Use single
+       line buffer in some cases. xwin.c: If USE_DGA_EXTENSION, undef
+       LOW_BANDWIDTH. Move test of DONT_WANT_SHM after inclusion of config.h
+       Make configure.in a bit more structured.
+       Move colormodes array to main.c.
+970602 gfxlib.c: Start implementing layers workalike.
+       md-i386-gcc/support.c: Don't mix sleep and alarm. (Petter Schau)
+970601 Remove may_run_compiled. Print error and abort if m68k_go is called
+       twice.
+       Fix yesterdays bugfix in svga.c.
+       Change FRAME_RATE_HACK so it tries to average the times a bit.
+       Re-implement a call_m68k function in autoconf.c. The new version
+       works by doing some heavy setjmp/longjmp magic and switching stacks.
+       With this, it's even possible to call things that Wait(), so use
+       the new functionality in gfxlib.c to call LockLayer() in WritePixel().
+970531 Turn some inline functions in memory.h into macros. Get rid of
+       get_along and get_aword. Implement CIA A OVL bit.
+       main.c: Add missing close_sound() call.
+       Remove INTEL_FLAG_OPT, use X86_ASSEMBLY for everything.
+       tui.c/svgancui.c: Implement scrollable menus. Add code to select
+       video mode from a given list. Add "graphics_setup" call to graphics
+       specific files. Use it in svga.c to build a video mode menu.
+       Fix bug in svga.c that would crash non-linear modes.
+       disk.c needs to include gensound.h and sounddep/sound.h.
+       Fix bug in fuzzy_memset. In pfield_init_linetoscr, always adjust ddf
+       values if lores hack is being used.
+970530 Apply some patches by Samuel Devulder.
+970529 filesys.c: In "Houston, we have a problem" case, do not only delete
+       the oldest ExKey, but also use it instead of random memory for the
+       new one. Attempt to reduce the number of lost exkeys by allocating
+       them in action_examine_next instead of action_examine_object.
+       Initialize the "uniq" field of unit->rootnode.
+       Attempt to speed up sprite drawing loop.
+       Implement sprite<->sprite collisions.
+       Get rid of -Wtraditional.
+970524 New config option NO_PREFETCH_BUFFER. Emulate 16 byte prefetch if
+       unset.
+       For exception 3, the stack frame seems to be:
+       (saved SR).w, (faulting address).l, (faulting instruction).w, 0.w,
+       (pc at fault time).l. Make everything that could generate this fault
+       handle it properly. That got Cybernoid II working!
+970523 Makefile.in: Make sure $(DEBUGFLAGS) is used for CPU emulation files.
+       memory.c: Don't map chipmem at 0x200000, use custom chip bank for now.
+970507 configure.in: Mutate ac_cv_c_inline=no to ac_cv_c_inline=
+       Check for tcgetattr, <sys/termios.h>, cfmakeraw, <sys/ioctl.h>
+       Check for sem_init in -lposix4 (Marc Zimmermann)
+       serial.c, cia.c, cia.h, serial.c: changes (Stefan Reinauer)
+       Make disk gap 360 (Michael Krause)
+970404 In configure, check for features.h before including it in test program.
+970401 New option -4. Bugreport by Mirko Viviani.
+970324 Petter Schau says the exception frame for Bus Error and Address Error
+       is 14 bytes, not 6, on the 68000. Change Exception() accordingly.
+       It's *** OUCH *** day! Make hardfile beginio return the correct value. 
+       Also load execbase before calling ReplyMsg().
+       It's *** OUCH *** day again! The filesystem asm code was an odd number
+       of bytes, leaving the hardfile code unaligned.
+970318 custom.c: Rename spron to sprst, and use new variable spron to indicate
+       for which sprites the sprite pointer registers have been written. Don't
+       do sprite DMA if spron==0. (The problem was that some programs write
+       SPRxCTL and then SPRxPT, which used to set the sprite state to
+       SPR_restart, but it must be SPR_waiting_start.)
+       Turn a few m68k_reset()s into uae_reset()s.
+       New variable nr_joysticks. Delete joystickpresent. New arg "nr" for
+       getjoystate() and read_joystick().
+       New extra keycode AK_RCTRL. Handle multiple joysticks & different key
+       replacements in keybuf.c/custom.c. Make tui.c handle all the settings.
+970310 od-linux/joystick.c now compiles again without the joystick header.
+       Fix some problems in configure; also check whether [n]curses.h defines
+       attr_t. Keep count of warnings and errors during configuration and
+       print a hopefully helpful message at the end.
+       disk.c sanitized by Mathias Ortmann.
+       Change the replacement getopt around a bit.
+       execlib.c, timerdev.c: Files removed. This will never be compatible
+       enough. Also remove related code (several SPCFLAGs, etc.)
+       Make main.c a bit nicer by introducing additional defines for the t-*
+       files. Also canonicalize the .uaerc file on all systems, eliminating
+       lines starting with '#' in the process.
+       Remove code in autoconf.c to set up 8MB chip; move it to filesys.asm.
+       Try doing the copper end-of-line hack in copper_memory_cycles().
+       Disable the copper speedup hack.
+970309 Add a small, dumb hash table to struct _unit to speed up repeated
+       aino lookups. Delete aino in action_delete_object(). Move children in
+       action_rename_object(). In action_examine_next(), call new function
+       lookup_child_aino_for_exnext() which behaves more or less like
+       lookup_child_aino(), except it uses new function get_aname() to
+       translate filenames.
+       More portability fixes. New links set up in configure: sounddep,
+       target.h. All machine-dependent and joystick code removed
+       from os.c, renamed to audio.c. os.h renamed to audio.h, joystick stuff
+       moved to joystick.h. New directory targets/.
+       missing.c: New file.
+970308 Rewrite filesystem. Now it keeps one unique "a_inode" structure for
+       every object in the filesystem. This contains Amiga name, native
+       name, Amiga permissions, lock counts and several links for building
+       a tree structure. Keys are now made only for files which need a fd
+       and a file position.
+       Treat invalid locking modes als shared.
+       Comment out the code using readdir_r because that function appears
+       to be broken in glibc-2.0.1.
+       Clear RES2 in all packets before handling them.
+       Give mousehack the same task priority as the input.device.
+       Fix (?) some silly bugs in disk.c.
+970307 Include some Acorn port code from Peter Teichmann.
+       Yet Another Serial Diff from Stefan.
+970306 filesys.c: Don't just crash if lookup_key() has no success.
+       action_find_write() is supposed to create the file if it does not
+       exist.
+970305 More DOS patches. Make the Makefile parallel-make safe.
+       svgancui.c: Do cyclic search if character is typed in file selector.
+       my_alphasort(): New function (work around glibc bug)
+       custom.c: Fix error in yesterdays change.
+       filesys.h: New file.
+970304 New serial patch from Stefan and Christian.
+       Remove the assembler code to generate inputevents. Instead, add a new
+       Amiga C program ("mousehack") which does the trick. New function
+       mousehack_helper() in custom.c, activated by calltrap 0xF0FF70.
+       Mouse default is now always normal_mouse, not follow_mouse.
+       Do disk change checks only every 1/2 second. disk.c: Reverse
+       nodskchange to dskchange, and make sure there has been a step with the
+       drive empty before calling drive_insert() from DISK_check_change() (but
+       this _still_ doesn't work. Arrrghh).
+970303 filesys.c: Initialize _all_ of struct _unit in startup_handler().
+       Remove message_lock and friends and use new variables cmds_sent,
+       cmds_acked and cmds_completed to determine when to send dummy messages.
+       Changed examinekey handling so that "dir all" on a large tree doesn't
+       crash anymore (it used to reuse the top-level exkeys which were still
+       in use after a wraparound). Don't allocate examinekeys if we're
+       examining files.
+       Check for readdir_r in configure. Use a wrapper my_readdir() around
+       either readdir or readdir_r.
+       Call filesys_reset() also from filesys_diagentry().
+       Get rid of most of uaelib.c. Now there isn't a library, just a calltrap
+       at 0xF0FF60. Changed uae_pragmas.h accordingly and recompiled uaectrl.
+       Added a bunch of "volatile"s in various places in filesys.c and
+       penguin.h.
+       Make the filesystem reset-safe in the threaded case (paranoia changes).
+       Check disk changes only every 1/10 second in vsync_handler().
+       Add assembler code to generate InputEvents once every vblank to
+       filesys.asm. (Doesn't work yet.)
+970302 filesys.c: Get rid of DosPacket type, pass pointers into Amiga memory
+       instead. Use GET_PCK_* and PUT_PCK_* macros to access fields.
+       Start making filesystem code thread safe & multithreaded. Move static
+       variables from some functions into struct _unit, likewise the key
+       and exkey variables. Add code to filesys.asm to queue commands which
+       did not complete and to reply to them later. Do multithreading if
+       compiled with SUPPORT_THREADS. See source for details.
+       Change hardfile and uaelib code not to call 68k routines. Make emulator
+       traps more efficient (no need to save regs, don't need SPCFLAG_EMULTRAP
+       anymore).
+970301 Fixed ncurses.c so it works with currprefs.
+       filesys_reset(): New function, called from customreset().
+       Changed source layout. Break up machdep into machdep, osdep and
+       threaddep.
+       penguin.h: Now supports arbitrary types in pipes.
+       Changed filesys.c so that no 68k code is called from native C code.
+         filesys.asm, filesys.sh: New files. filesys.asm contains some
+	 startup code and the main loop for the filesystem. Several locks
+	 are allocated by the assembler code for use by the C code.
+	 DOS_AllocMem(), DOS_FreeMem(), make_dev(), build_parmpacket(),
+	 filesys_init(): Functions removed.
+970228 ncurses.c: Fix problem in b/w modes.
+       finish_drawing_frame(): Don't need to draw lines in multipenguin mode.
+       Move all options into new struct uae_prefs. New variables currprefs,
+       changed_prefs.
+       svgancui.c, tui_filereq(): If user presses a key, start search at
+       current position, not at the beginning.
+       DISK_check_change(): new function, compares currprefs with
+       changed_prefs and handles diskchanges if they differ. Called from
+       vsync_handler().
+       DISK_validate_filename(): new function, checks whether a file exists.
+       Modify svga.c and tui.c so that F11 now brings up a limited UI.
+970227 Reimplement Mathias Ortmann's frame rate hack: New option HAVE_RDTSC
+       in config.h. New typedef frame_time_t. New variables vsynctime and
+       vsyncmintime. New function machdep_init() in md-*/support.c which
+       sets up vsynctime in the md-i386-gcc and md-i386-linux cases. Use
+       all of those in events.h, do_cycles() to determine whether to spend
+       more time on the CPU emulation.
+       Add missing "int i;" to xwin.c, init_colors().
+       Unroll some loops in sample_*handler().
+       Improve quitting/resetting behaviour: Move quit_program from GUI
+       specific files to main.c. New functions uae_reset() and uae_quit(),
+       quit_program is now handled in vsync_handler() and m68k_go().
+       New variable sample_evtime, used in customreset() and set up in
+       init_sound().
+970226 Solaris sound update from Manfred Thole.
+       keybuf.c: Decided that it doesn't need locking after all.
+       Add a bunch of Gustavo's latest diffs. (I hate CR characters!)
+       Move gfxvidinfo from all the target-specific files to custom.c
+       More Win32 stuff: New function notice_new_xcolors().
+970225 configure.in: In shell string comparisons, always put spaces around =
+       Add warning about standard SVGAlib being incompatible with
+       LinuxThreads.
+       os.c, SOLARIS_SOUND: Remove reference to obsolete variable smplcnt.
+       Two new variables sound8_base and sound16_base.
+       sysdeps.h: Split off some stuff into md-amiga/amiga-kludges.h. Also
+       make the main types now uae_u32 and variants instead of ULONG, etc.
+       Convert some files to use the new types.
+       cia.c: use int/long instead of ULONG/UWORD/etc for most static vars.
+       xdebug.c: Some cleanup.
+       md-i386-linux/penguin.h: Fix bug. Add "chunks" parameter to
+       init_comm_pipe. Use it to decide in write routine whether to signal
+       the other thread if it's waiting. Add no_buffer parameter to
+       write_comm_pipe_int.
+       Start adding Mathias Ortmann's Win32 patches.
+         md-i386-win32: New directory
+	 include/sysconfig.h.win32: New file
+	 custom.c: is_lastline: new variable, set in hsync_handler().
+	 sysdeps.h: Make it possible for system specific code to say that
+	   POSIX/ANSI stdio/malloc functions aren't present and are defined
+	   by a system-specific file instead. In filesys.c, don't reference
+	   errno if DONT_HAVE_POSIX is defined.
+	 readcpu.h: Kludge around the fact that Messysoft C apparently doesn't
+	   handle enums properly.
+	 newcpu.c/sysdeps.h: Preprocessor magic for 64 bit constants to get
+	   around a problem with MS C.
+	 md-*/penguin.h: Add dummy definitions for semaphores.
+	 keybuf.c: Use semaphores to synchronize access.
+	 os.c, win32 sound stuff: add memcpy avoidance code.
+970221 X86.S: Don't use .type ifdef USE_UNDERSCORE.
+       Move thread support configuration to configure from config.h. Change
+       pipe implementation to use POSIX semaphore functions.
+970217 From Samuel Devulder: Fix off-by-one error in LINE_TO_SCR, EHB case.
+970215 customreset(): Initialize current_colors.color_regs to invalid values
+       [reported by Samuel Devulder]. config.h: Uncomment ECS_DENISE [reported
+       by Mathias Ortmann]. Add ami-win.c and custom.c patch from Samuel
+       Devulder.
+970213 disk.c: Set FLOPPY_SPEED to 3
+       custom.c: SPRxCTL_1(): if spron was SPR_restart set it to
+       SPR_waiting_start. do_sprites(): don't do that.
+       SPRxPT{H,L}: Call decide_line().
+970210 custom.c, X86.S: Do LORES_HACK for dual playfield screens. Plug memory
+       leak in custom_reset(). Fix pfield_draw_line() not to do so many
+       multiplications. Make line_changed a char array. In remember_ctable(),
+       remember comparison results also if negative.
+       In 8 and 16 bit graphics modes, use the high parts of the color values
+       to duplicate the actual values. This saves a lot of code in the
+       hdoubling routines. Add a special fill_line in the X86_ASSEMBLY case.
+       Check for glibc-2 and libpthread in configure.
+       options.h: In fuzzy_memset(), do rounding slightly more conservative.
+       Add tons of new keycodes to svga.c
+       In record_color_change(), also check if vertically outside DIW.
+       New variable hdiwstate, to represent the horizontal DIW state machine
+       (thanks Petter!) Handled in reset_decisions(), finish_decisions() and
+       decide_diw().
+970209 Change ncurses.c not to do so many multiplications/divisions. Add bold
+       character support. Add color support. Make configure recognize
+       --without-svgalib and enable ncurses.c in that case.
+970208 X86.S, custom.c: Do LORES_HACK for EHB screens also.
+       New function write_log(); convert some fprintf(stderr, ...) calls.
+970207 Argh, Linux/i386/ELF check in configure got broken by latest sh-utils.
+       In disk.c, drive_reset(), clear nodskchange flag.
+970206 Sprite fix from Mathias Ortmann: _really_ get rid of SPR_vtop, and
+       replace all uses by SPR_stop.
+970204 Disk change fix from Mathias Ortmann.
+970203 New file ncurses.c, from Samuel Devulder.
+       Disabled Exec stuff completely. Now it isn't even compiled in anymore.
+970129 Changes from Samuel Devulder for Amiga and Christian Bauer for BeBox.
+970122 Reorder the set_planes_unaligned functions so that better code is
+       generated. Remove the or_planes_unaligned functions, add a parameter
+       do_or to the set_planes functions and rely on the compiler to optimize
+       the additional if away.
+       post_decide_line() can now turn DMA off early.
+       Make struct flag_struct 64 bits large for i386 systems, so we can use
+       long move insns without clobbering the X flag.
+       "make clean" should delete machdep/support.o.
+       Maybe we do need SPR_vtop after all - undo 970120 change. Instead,
+       comment out the code that clears the pos and ctl words at vsync time.
+       In xwin.c, restrict window height to 300 or 600 depending on linedbl
+       mode.
+970121 Get rid of SPCFLAG_BLIT, call do_blitter() directly.
+       In finish_decisions(), don't check for sprite draws in the border.
+       Reimplement the SMART_UPDATE define so that the memcmpy() overhead can
+       be avoided by not setting it (but this usually loses).
+       Detect 7 lores planes in BPLCON0() and change to 6 to avoid memory
+       clobbers.
+       In pfield_draw_line(), do memcpy linedoubling after handling the line
+       to be doubled, not when we see a LINE_AS_PREVIOUS. Get rid of prev_ypos
+       parameter.
+       Add special code for bpldelay1 == bpldelay2 to the UNALIGNED_PROFITABLE
+       code.
+       In pfield_init_linetoscr(), when delays 1 and 2 differ, clear the areas
+       which are covered only by half of the planes at the start and end of
+       the DDF area.
+       Replace FASTER_CPU and LINUX_SOUND_SLOW_MACHINE with M68K_SPEED.
+       Replace fast_unaligned_memset macros with fuzzy_memset; use this also
+       in pfield_init_linetoscr().
+       Use real (PAL) vblank end in do_sprites().
+970120 Mask out high byte in DDF{STRT,STOP}
+       Oops, forgot about long frames while calculating the bounds of all the 
+       maxvpos*2-sized arrays. Increment them all by two.
+       Try to detect empty sprites before recording them for the drawing code,
+       but be careful not to hurt attached sprites.
+       From Paul Kienitz: hack for keyboard code in cia.c to work better with
+       newer Kickstarts; small cleanup in cpuopti.c.
+       Undo yesterday's change in copper_memory_cycles(), instead call
+       decide_line() each iteration and test whether copper_cycle_time == -1
+       to determine whether we're vertically in the DIW.
+       calculate_copper_cycle_time() could get astronomical plane counts due
+       to missing masking operation.
+       No need to put the copper to sleep for one memory cycle after a WAIT,
+       merge that with the two cycles for the next instruction.
+       Get rid of SPR_vtop, no longer needed (it was unnatural anyway)
+970119 Implemented alternate pfield_doline functions that access the apixels
+       array at unaligned addresses; conditional on UNALIGNED_PROFITABLE.
+       Move LORES_HACK from config.h to custom.c.
+       Fix loop exit test for pfield_linetoscr_hdouble_asm8(). Clear the
+       right parts of apixels in pfield_init_linetoscr() when LORES_HACK is
+       enabled.
+       Get rid of bordercol array: the decision-making code should handle
+       lines in the border correctly by setting line_changed.
+       Disable bitplane DMA if more than 4 hires bitplanes are set in BPLCON0.
+       Fix some more copper timing inaccuracies: used to test
+       thisline_decision.which without calling decide_line() before.
+970118 Now remember BPLCON1 changes during data fetch. New functions
+       decide_delay(), pfield_adjust_delay(); new fields in struct drawinfo
+       and new variables next_delay_change, delay_changes.
+       Forgot to set copstate to COP_morewait in one case in do_copper().
+       Add a kludge that checks for copper position 0xDC and changes it to 
+       0xDE.
+       Restore equality test for vertical sprite positions. Disable sprite
+       DMA before the end of the vertical blank area.
+       Mask not only the positions, but also comparison values in 
+       calc_copcomp_true().
+970117 Change custom_bput to put the byte value in each half of the word that
+       is put.
+970116 disk.c: Set the gap between sector 11 and 0 to 380 words. Andromeda's
+       "Seven Seas" demo expects at least 320. Make the KILLEHB bit
+       conditional on AGA_CHIPSET. Decide BPLCON1 (scrolling delays) in
+       decide_diw(). Fix off-by-one errors in the very_broken_program case
+       of decide_plane(). Fix aspect calculation when horizontal resolutions
+       differ. Simplify copper horizontal comparison logic slightly.
+       Fix divide by zero errors when reading from empty floppies.
+970115 pfield_draw_line(): Check for frame_redraw_necessary also for border
+       lines. New global variable pfield_last_drawn_line, used to implement
+       clever Y centering. Make the KILLEHB test conditional on ECS_AGNUS.
+       Move joystick and sound initialization before gui startup. Adapt tui.c
+       so it understands the gfx_requested_* options.
+       We can't always avoid clearing pixdata.apixels if DIW is larger than
+       DDF. There may be sprites in the area outside DDF, but inside the DIW,
+       so we can't just adjust linetoscr_diw_{start,end} blindly in
+       pfield_init_linetoscr() [Sanity Arte demo].
+970114 Bebox diffs from Christian Bauer.
+       Support for Symmetric Multi Penguins under Linux (start second thread
+       with clone and use some pipes for communication - rather simpleminded
+       for now). Rework do_flush_line() and do_flush_screen() so that X
+       libraries are only called from the first thread.
+       Eliminate valid field from struct decision (set which to -2 instead of
+       valid = 0)
+       Fix definition for gui_filename() in xdebug.c to use const char * for
+       the second parameter. Remove CRs from disk.c (now how did they get in
+       there??). Likewise for cpuopti.c.
+970113 When post_decide_line() detects mid-line DDF change, must adjust
+       bitplane pointers in decide_plane() also. Make plfstrt the earlier a
+       position in this case, and adjust bitplane pointers/modulos
+       accordingly.
+       current_hpos() isn't what GCC calls a constant function.
+       Replace line_drawinfo[current_change_set] with new variable
+       curr_drawinfo throughout. Likewise for new variables prev_drawinfo,
+       {curr,prev}_{color_{change,table}s,sprite_positions}; all initialized 
+       in init_drawing_frame (). Turn line_data into a 2dim. array, do some
+       CSE/SR on line_data[lineno] in pfield_doline_{l,h}() and
+       decide_plane(). Make some custom registers unsigned int instead of
+       UWORD.
+       calc_copcomp_true(): Masking with 0xF000 isn't likely to give 0xC0000.
+       Comment out bplcon{3,4} from struct decision.
+970112 filesys.c, action_set_protect(): if __unix is defined, check whether
+       user wants to change directory protection, and if so, force rwx to be
+       the new protection.
+       Force sane window sizes in xwin.c, and set width/height from mode specs
+       in svga.c.
+       Implement LORES_HACK compile-time option.
+       Whee, there _are_ broken programs that enable bitplane DMA in the
+       middle of the data fetch area, draw half a picture on the first line
+       and the full picture on all subsequent lines. New function
+       post_decide_line(), called from BPLCON0() and DMACON() which tries to
+       detect this case and turns the decision from border to playfield if
+       necessary.
+       New arrays, sprvstart and sprvstop, calculated in SPRxPOS and SPRxCTL,
+       and used by do_sprites. Handle sprites with vstart == vstop correctly.
+       Sprite vpos comparisons are now done with <= , not ==.
+       _Now_ the X86-specific linetoscr routines do their masking correctly.
+       configure: If we have GCC, #define GCCCONSTFUNC as __attribute__ 
+       ((const))
+970111 Eliminate can_draw from struct decision.
+       Change vertical DIW code; use enum of two states (waiting for start and
+       for stop) which is updated in decide_line(). Lines during the wait for
+       stop phase are decided as border. No data is fetched outside the
+       vertical DIW.
+       Optimize copper memory cycle calculation a little: the new variable
+       copper_cycle_time is set to a time >= 0 if this time is constant
+       (i.e. 2). Calculated whenever DMA, BPLCON0, or DIW state changes.
+       blitter.c, genblitter.c, custom.c: For BLTBDAT, follow the HRM which
+       says that immediate data is shifted as soon as it is written. This 
+       seems to be wrong for the A channel, though. Also, don't change prevb
+       during blitter loops if DMA B is off (Sanity Arte). Turn FAST_BLITTER
+       stuff into run-time option "-n", and eliminate the ancient blitting
+       code (former FAST_BLITTER == 0).
+       Big OOPS: Copper move checked copcon, but there was no COPCON function
+       so it was always zero -> copper-controlled blitter never worked. As a
+       speed optimization, recognize 00010000 copper commands and put the
+       copper to sleep until the blit is finished.
+       Slow down the blitter in decide_line() if bitplane DMA steals blitter/
+       copper/CPU cycles (but this code is commented out for now).
+970110 New function pfield_init_linetoscr(). Move calculation of diw_end and
+       diw_start values there from x86-specific code. Also use DDF values to
+       determine where data in pixdata.apixels is valid. The x86-specific
+       linetoscr routines now only do the alignment masking (and they now do
+       it correctly, too).
+       Got rid of the display-related contents of struct draw_info, make 
+       static variables and them initialize from pfield_draw_line() only when 
+       necessary in function pfield_expand_dp_bplcon (). Get rid of the four
+       saved_* arrays, remember line_drawinfo instead now that it's smaller.       
+       Color compare avoidance didn't work because color_src_match didn't get
+       set when a compare was successful. Fixed.
+       Reorder parts of the decision-making code so that less redundant checks
+       are performed.
+       Add clever x centering. Change "-O" option parameter format.
+       In md-i386-linux/support.c, memcmpy(), do memcmp() first, then switch
+       to a plain memcpy routine once we find the first difference.
+       Patches from Stefan Reinauer/Christian Schmitt for 
+       xdebug.c/configure.in
+       New uae-ui.tk from Volker Zota.
+       Add --enable-profiling to configure.in.
+       Check for period==0 in AUDxPER() was accidentally commented out -
+       revert.
+970109 Some tweaks in X86.S, plus a new option X86_PPRO_OPT to use movzbl
+       instead of xorl/movb when possible.
+       Fix maxline calculation in finish_drawing_frame().
+       Make next_lineno always a valid array index. Decrease minfirstline to
+       21 (NTSC vblank end). New option -O to specify display parameters,
+       supersedes -d and -C which will be removed eventually. Differentiate
+       between line doubling and aspect correction. Put aspect correction code
+       in custom.c.
+       Remove some more unused stuff from custom.c.
+       Fix Makefile problems when cpuopti isn't used.
+970108 use_lores isn't initialized before custom_init(), setup lores_frame and
+       friends in customreset(). Optimize spixstate clearing. Optimize border
+       drawing with copper color changes (use fill_line instead of linetoscr)
+       Fix the sprite DMA logic, it now works with the Interference demo.
+       Silly bug: Sprite 7 never got displayed (introduced sometime last week)
+       Implement USER_PROGRAMS_BEHAVE for normal (non-compiler) CPU emulation.
+       Add most of Gustavo's last patch (new dir md-i386-dos)
+970107 Finish rewriting most of the drawing code in custom.c/X86.S. See
+       README.PROGRAMMERS and source for details. Improvements include better
+       copper precision, better interlace support, hopefully much less bugs
+       and not too many new ones.
+       Remove calc_adjustment() and gfxvidinfo.x_adjust; replace with code in
+       custom.c that looks at gfxvidinfo.follow_diwstop (new field)
+       Some operations (like EHB playfields) now have a higher penalty than
+       before, the assumption being that these are rare and the normal case
+       runs faster if it doesn't have to care too much about exceptions.
+       Fix sign mismatch bug in BPL1MOD() and BPL2MOD().
+970104 Move x_ShowEA() from xdebug.c in newcpu.c, rename as ShowEA().
+970102 Add check for XK_W to decode_es() in xwin.c.
+       New uae-ui.tk from Volker Zota.
+961218 Add a patch by Bernie Solomon to overcome a problem with K&R compilers. 
+       Change X86.S in a way that may make it either faster or slower.
+       Fix ADF_EXT1.
+961217 #ifdef XK_dead_*, since Solaris doesn't have it.
+961202 Fixed joystick.h problem in configure. X11/DGA support from Kai
+       Kollmorgen.
+961117 Some fixes in svgancui.c.
+961112 Gustavo's latest patch, with GUS support for DOS by Michael Sontheimer.
+       Add menu browsing to tui.c/svgancui.c
+961107 Fix m68k_areg and m68k_dreg macros (put args in parentheses)
+       Initialize gfxvidinfo.maxlinetoscr in xwin.c (found by Sam Devulder)
+961104 svgancui.c tui_refresh() routine tweaked to work with the non-standard
+       ncurses that came with my new SuSE-Linux CD.
+961031 Added Christian Schmitt's xdebug.c (disabled for this release)
+961024 Module search function from Michael Krause.
+961019 Add Samuel Devulder's Amiga patches.
+961018 Don't use -lm on NeXTStep.
+961017 configure checks for -lforms.
+961016 Ian Stephenson's new NeXTwin.m. Make CLXDAT return 0 (no collisions)
+       transdisk and transrom patches from Rodney Hester. Don't warn about
+       256K Kickstarts. Check diskfile sizes and try to determine whether it's
+       a normal or a HD diskfile. No HD drive identification yet (is it
+       different?)
+961013 Corrected lots of bugs in the return address stack. Fix some errors in
+       the compiler memory management. Use the "locked" flag for hash entries
+       differently, and don't enforce it on a cache flush. Compile JMP to a
+       constant address.
+961012 Remove regs from cache before sign extending them for ADDA, MOVEA and
+       similar things. Compile NOPs to nothing. Implement variable shifts/
+       rotates. Most shifts clear the V flag: Handle this in the compiler by
+       some extra magic sequences after shifts or in the CC_AFTER_RO case in
+       flush_cc_cache().
+       Implement a stack containing return addresses and their hash entries,
+       and compile JSR (to constant addresses)/BSR/RTS instructions inline.
+961011 compiler.c: Several bugs introduced in the last two days fixed.
+       New function compile_note_modify() which is used when an ea is
+       modified. This replaces calls to storeea with eaino_s == eaino_d.
+       Bah, the 386 doesn't set flags on a NOT. Use CC_TEST_REG again.
+       Do flag life analysis until no more changes are found.
+       Make sure all "data" parts of EAs are locked exclusively (esp. for 
+       LEA, PEA)
+961010 compiler.c: Finish yesterdays changes. Get rid of reg/offset
+       bookkeeping in m68k_compile_block(), keep the information in struct
+       ea_info instead. Rewrite all instructions to use the new fetch and
+       store routines.
+       Don't force a byteorder conversion in sync_reg() if the reg doesn't need
+       to be written back. Don't do a SAHF or equivalent in compile_condbranch
+       if we are doing a BRA or BF.
+       Don't use CC_TEST_REG for NEG and NOT (this was inefficient for NOT and
+       wrong for NEG).
+961009 compiler.c: Two types of locks for registers; shared and exclusive.
+       Implement better EA fetching and storing routines. For pdi addressing
+       modes, lock the necessary registers shared before calling prepareea.
+       Unlock those registers again in generate_possible_exit().
+961008 MOVEM instructions in the compiler to an absolute address could have
+       caused random memory corruption.
+961007 Spanish keyboard support for X by Ruben Martinez. Some configure fixes
+       (don't assume current dir is in path, don't assume ncurses.h exists if
+       libncurses does).
+       If we're calling 68k code from an emulator function, don't use compiled
+       code.
+       Add a compilation option USER_PROGRAMS_BEHAVE (for compiler). Make
+       compiler hash table larger.
+961004 Fix typo in configure.in.
+       Modify the compiler so it doesn't ever throw away code, unless it's
+       necessary for a cache flush.
+       Didn't quite squash the compiler flag bug yesterday. Try again.
+       In filesys.c, do_find(), add a parameter fallback that indicates that
+       the open should be retried with O_RDONLY if it failed with O_RDWR.
+       Use this in find_input(). This fixes problems with r/o files on r/w
+       volumes.
+961003 Play around with the x86 specific memory access functions. Problem:
+       __attribute__((regparam)) isn't reliable, and it seems that that's a
+       rather hard to fix bug in GCC. Add some alternatives to
+       md-i386-linux/memory.h; these aren't used yet though.
+       Huh, the compiler was completely wrong about the flag needs of
+       conditional instructions. I wonder how it could work at all...
+       Remove a and d arrays from struct regstruct; replace with array regs
+       with 16 elements. This allows better code for get_disp_ea()
+961002 BeBox diffs from Christian Bauer. Move all code from main() to new
+       function real_main().
+961001 Use do_get_mem_*() functions for nextiword(), nextilong() and new
+       function nextibyte().
+960930 genblitter optimizations: Don't generate expressions in genblitter, use
+       a second program called gengenblitter to generate a table of
+       expressions for genblitter to use. gengenblitter knows about a lot of
+       rules to simplify expressions. Some other tweaks to make GCC output
+       better assembly for blitfunc.c.
+960927 Turn off LED() in xwin.c (may fix SunOS joystick emulation problems)
+       Call XFlush() and XSync() when exiting.
+       Add some DOS patches.
+       Add hooks in filesys.c to support filesystem units in a GUI. Use them
+       in tui.c. Bugfixes in svgancui.c. Change the way tui_refresh() works.
+       New option "-A".
+960925 For read-only filesystems (CD...), use O_RDONLY in action_find_input.
+960923 Save options file even if rename fails.
+       Mirror address space every 16MB like we used to (got turned off by
+       accident).
+       Move some checks out of options.h into configure. Set up md-*
+       directories with machine-dependent stuff in them; configure creates
+       a link called machdep to the appropriate one.
+960918 Solaris sound update from Manfred Thole.
+960917 Add a timer.device replacement (buggy).
+960916 Tristan Cavelier's french keyboard patch.
+       Apply ReadTheSpecsBeforeYouWrite(tm) technology to AddPort().
+       Implement RemPort(), GetCC().
+960915 Tighten up some of the return values in Exec.
+960914 EXEC: Implement RemTask(), ObtainSemaphoreList() and
+       ReleaseSemaphoreList(). Set up more fields of the ExecBase properly
+       and Enqueue it in the library list. Make InitResident call AddLibrary
+       when appropriate (otherwise, intuition is never put into the library
+       list). Fix major braino in Obtain/ReleaseSemaphore() (tried to Enqueue
+       tasks into two lists). Make OpenLibrary() honor the version parameter.
+960913 EXEC: Idle task now runs in user mode (abuse 0xFF0D as second STOP
+       instruction). Make EXEC_IntTrap perform the RTE before trying to
+       schedule.
+960912 Solaris sound didn't compile. So much for making blind changes without
+       being able to test them.
+960911 As soon as you compile it under Solaris, it bombs... Now check that the
+       hardfile exists before determining the size in main.c.
+       execlib fixes: Set master DMA enable bit at startup, fix interrupt
+       code to survive an interrupt that occurs before the proper SetIntVector
+       call. Implement RawDoFmt(), CloseDevice(), CloseLibrary(),
+       FindResident().
+960905 Lower 8 bits of POTGOR should be 0.
+960904 Implement MULU, MULS, ADDX and SUBX in compiler.
+960903 ncurses interface works. DOS people: please use the new portable tui.c
+       and turn dos-ui.c into a frontend for conio.h, similar to svgancui.c
+       In xui.c, unlink the temporary files ASAP.
+       Two new command-line options, "-o" and "-G".
+       Get rid of sz_unknown.
+       compiler.h, compiler.c: New files.
+       filesys.c, action_read(): Added a hack to test whether the first four
+       bytes read from a file a file contain 0x000003F3 (HUNK_HEADER), in
+       which case there's probably a LoadSeg() call going on and we ought to
+       flush the cache. Also, use the fact that memory is now linear.
+960902 Struggle a bit with dos-ui.c, rename it to tui.c (text-based ui), add
+       new file svgancui.c (ncurses ui) and try to make these two understand
+       each other.
+960829 New transdisk from Stefan Ropke (can write images)
+       Apply Patrick Hanevolds BeBox patches.
+96082x many changes to Exec. Still not booting (DMACON seems not to be set up
+       properly, and sometimes Signal is called with task==0).
+960821 Solaris sound from Manfred Thole.
+960820 In filesys.c, get_fileinfo(), return volume name for top-level 
+       directory.
+960819 Reimplement WritePixel(). Layer locking is still missing.
+960818 Reverse meaning of -x flag for X11. More Exec code.
+       Several changes to the main CPU loop and the way call traps work.
+960817 Implement some simple Exec functions (Lists, AllocMem & friends)
+960816 filesys.c fixes from David Varley.
+960815 Implement graphics library region functions.
+960814 Modify memory layout: All memory is linear now; get_real_address()
+       returns a (UBYTE *).
+960810 Add Gustavo's latest DOS code.
+       In configure, include <sys/param.h> earlier for the sake of some *BSD.
+       Add three options for sound code (bits, frequency, buffer size).
+       Make -S option take a parameter; remove SPEED_UP_SIDMON_MODULES.
+       New version of transrom (return 0, duh).
+960805 Fixed the blitter line mode emulation (this time, really! I hope.)
+       Thanks to Fabio Ciucci for a detailed description of the correct
+       behaviour.
+960730 Spent the last three days trying to make the filesystem emulation
+       bootable by adding an expansion device for it. A fair bit of trial and
+       error, but now it works! Even the hardfile now works with Kick 1.3, but
+       you have to mount it manually after booting.
+       hardfile.c, filesys.c, expansion.c and autoconf.c now are an
+       entangled mess which badly needs to be cleaned up.
+       We can now mount more than one filesystem even with Kick 1.3: we
+       recognize them by param 2 of the startup packet, which has the same
+       value as the dn_Startup field of the devicenode.
+       Make Kickstart replacement work again (didn't like the CPU emulator
+       changes)
+       Include preliminary serial support from Stefan Reinauer.
+960728 Fixed the scancodes for <> and #' keys in svga.c
+       Apparently, CIA timer latches ought to be 0xFFFF after a reset
+       (prevents Eagleplayer from crashing occasionally). #ifdeffed out a
+       slightly weird call to INTREQ from RethinkICRB()
+960727 Sound code rewritten again. Now uses events (five new ones). All 
+       modules seem to play correctly now. It's a bit slower, though.
+       AF sound should work again, patches from Marcus Sundberg.
+960723 ... and more CPU emulation bugs fixed by Herman.
+       Added uae.library from Tauno Taipaleenmaki, plus support files in the
+       "amiga" directory.
+       Added some files for the XFree86/OS2 port from Krister Bergman.
+       Reorganized all the directories.
+960717 Add latest patch from Herman.
+       More FAST_BLITTER options: 4 and 5. These finish the blit immediately.
+960713 Call XAutoRepeatXXX() only if we know we want to change the state.
+960709 Work around a few AIX bugs (ughhh... what a broken OS). New test for
+       sys/select.h.
+       In xui.c, don't try to communicate with a dead process.
+960704 More bugfixes from Herman.
+       Get rid of dummy_xlate(), use default_xlate() to abort with error.
+       In svga.c, set correct_aspect to 0 if using lores.
+       Change the Bcc exception 3 handling code a bit.
+       Add new program "cpuopti" that takes gcc-generated assembly files and
+       optimizes away unnecessary pushl/popl instructions on the x86.
+960701 68020 exception handling & various bugfixes from Herman ten Brugge.
+       In ersatz.c, use 0xFF0D instead of 0xF00D as trap opcode.
+       Do MMU "emulation" (no-op MMU instructions, probably many cases decoded
+       incorrectly).
+960627 New file LIESMICH, with minimal German instructions. Somebody want to
+       translate the docs to French, Spanish, Italian, all the Scandinavian
+       languages, Hebrew, Polish, Dutch, Russian, Welsh, Gaelic and something
+       Joe_Luser@aol.com understands? (No offense meant - I'm sure there are
+       brillant minds using AOL. There must be.)
+960626 In zfile.c, make sure we delete the temporary file even if file
+       decompression fails.
+       Reimplemented sound support, this time following the HRM closely. Seems
+       to work fine most of the time, but occasionally loses drum beats in
+       TFMX modules. do_sound() is now unconditional, it calls
+       flush_sound_buffer(), which is system-dependent. This breaks everything
+       except Linux sound for now :(
+       Add Herman ten Brugge's 68020/68881 emulation code.
+       FreeBSD chokes if sys/mount.h is included without sys/types.h. Fix the
+       configure script.
+960622 More work on AGA code.
+       Removed 2-bit display routines from custom.c. Ian: please use dithering
+       code.
+       Make slowmem and chipmem sizes run-time configurable.
+       Mask out the high bits in BLT?PTH().
+       Add exception 3 checks to Bcc/BSR instructions. Seems to be not quite
+       correct yet.
+       Completely rewrote the disk emulation. We now create a big track buffer
+       full of MFM data, used in a cyclic fashion by DSKBYTR() and friends. 
+       The current position in the buffer is determined by the cycle counter.
+       DMA reads are now done in one piece. Two new event types: ev_diskblk 
+       and ev_diskindex.
+       ARRGGHH! The RSI demo has _completely_ broken disk loading routines.
+       They start disk DMA on a block while the blitter is still working on 
+       the same memory region.
+       In zfile.c, unlink() the temporary file directly after opening it so
+       it will be freed by the OS as soon as we close it (or crash... :)
+960621 Merge pfield_sprite_h() and pfield_sprite_l() into one function.
+       Split off new files blitter.c and blitter.h from custom.c.
+       Fixed null-pointer dereference in zfile.c when filename has no
+       extension.
+       Add new field maxline to gfxvidinfo that prevents writing past the
+       screen buffer if it has less lines than expected.
+       Modify the 256 color allocation routine to set nb_cols to the same
+       value first for r,g and b; allocate everything as usual and fill the
+       lost colors afterwards with those that have the greatest difference.
+960620 For some extremely weird reason, it is faster to simply call the
+       assembly-optimized pfield_linetoscr_full routines _twice_ to double the
+       line than calling the new (also assembly-optimized)
+       pfield_linetoscr_full_double routines, at least when writing directly 
+       into the framebuffer. If someone has a good theory why, let me know 
+       about it.
+       Drawing into memory is faster with the _double routines, but not
+       noticeably (about 1%).
+       Consequence: Removed the new pfield_linetoscr_full_double assembly
+       routines again.
+       Add a "--disable-gui" option to configure.
+       Add Samuel Devulder's dithering code. Provide support for mono and
+       16 color X servers.
+       Put an assembly version of DitherLine() in X86.S.
+       New color mode (3) available, tells UAE to use 256 colors and dither
+       the image. This is meant for people who have only a 256 color X server
+       available, but it works with the SVGA version, too. It's much slower
+       than normal 256 color mode, though.
+       Use the color allocation algorithm from the dither code in
+       alloc_colors256(), too.
+960619 New files: zfile.c and zfile.h, from Samuel Devulder. These provide
+       transparent decompression of various compressed file formats. Enabled
+       by configure only for Unix systems.
+       Eliminate dont_want_aspect. New option "-C", sets correct_aspect. Make
+       video mode 3 640x480, video mode 4 800x600. Honor correct_aspect in
+       320x400, 640x480 and 800x600 mode with SVGAlib.
+       Add fields maxlinetoscr and x_adjust to gfxvidinfo.
+       Rename pfield_slow_linetoscr() to pfield_do_linetoscr(). Use new fields
+       in gfxvidinfo to enable writing directly to the framebuffer in
+       resolutions with <800 horizontal pixels.
+       New function pfield_do_linetoscr_full(), called when sure that full
+       line update is being done.
+       Move some of the usage() information into some target_specific_usage() 
+       functions, defined in the various system-specific files.
+       Support lower resolutions with LOW_BANDWIDTH, too.
+       memcpy() within screen memory is dog slow. Prevent some common cases:
+       1. Use fill_line() to double a line in the border.
+       2. Add a parameter to pfield_do_linetoscr_full() to indicate whether 
+          the line has to be doubled. New functions
+          pfield_linetoscr_*_double_slow() that simply do a memcpy(), plus 
+	  optimized ones in X86.S that are much faster by avoiding the copy.
+       Smart update code could get confused by lores modes when
+       prev_max_diwstop changed from one frame to the next. New variable
+       frame_redraw_necessary, which acts as a counter. It's initialized to
+       2 in interlace mode to handle that case properly, too.
+       Move sprite priority checks into pfield_sprite_?(), move HAM
+       calculations into new function decode_ham6() to simplify the various
+       linetoscr functions.
+       Fixed a bug that would cause sprites to get deformed in some cases
+       when they overlapped (never seen it).
+960618 New file: dos-snd.c, from Gustavo.
+
+960617 Release 0.6.0
+960617 Fix memory clobber in X86.S when diwfirstword==0. Eliminate double test
+       for HAVE_SYS_MOUNT_H in sysdeps.h.
+960616 Handle programs that don't wait for the blitter by finishing a pending
+       blit as soon as a blitter register is written to (regardless of DMACON,
+       to be safe).
+       Call gui_led only if the LED changed.
+960615 Fixed dual playfield sprite priorities. Optimized dual playfield code
+       in X86.S. More work on AGA code. Get joystick status only in
+       vsync_handler to speed things up.
+       Make blitter fill more intelligent with table lookups instead of loop.
+960614 DOS update from Gustavo. Pass real bitplane pointer to
+       bpl_data_differs(), don't calculate it again.
+960610 Fixed silly INTEL_FLAG_OPT bug: The new __asm__ expressions use
+       regflags, which is of course _regflags on a.out...
+       More BeBox fixes from Christian.
+       Make the CIA bank bigger (A0..BF) and relax the CIA A/B selection
+       checks to make broken software (Kingsoft's Emerald Mine, reportedly)
+       happy.
+       Default framerate is now 1.
+960603 New BeBox code from Christian. Fix test for ELF in configure.in.
+960529 genblitter.c: generate blitfunc as a function taking ULONGs and
+       returning an ULONG. This makes custom.o about 4500 bytes smaller on the
+       x86 by removing worthless size prefixes, and should increase
+       performance (better for the cache, and the P6 reportedly doesn't like 
+       16 bit instructions anyway).
+       memory.c: Load Kickstart in one block and swap bytes after that if
+       necessary (eliminates the need for the special bebox load routine)
+       custom.c: Some preliminary work for AGA support.
+960528 Saw a real awful piece of code that detects the right mouse button by
+       reading a value from POT0DAT, counting up to 25, reading from POT0DAT
+       again, and deciding the button is pressed if the value changed. Urgl!
+       Added POT0DAT() in custom.c ...
+       Gustavo's latest patches.
+960525 Do index pulse handling in CIA_hsync_handler(). Make sure bit 12 in 
+       INTREQ gets set on an index pulse. Don't call DISK_Index() for now,
+       since this breaks the Workbench.
+       The CIA code should _probably_ not be resetting the bits in INTREQ.
+       Disable this as an experiment, let's see what breaks.
+960524 Z flag handling for ABCD/SBCD/ADDX/SUBX was wrong (must be clear if not
+       zero, was set if zero). Some other flag bugs in these functions fixed.
+960523 gfxlib.c update from Christian Schmitt. Some new Mac code from Ernesto,
+       still not all of it, though. Italian keyboard from Alessandro Bissacco.
+960522 Fix the CHK instruction. Implement middle mouse button.
+960515 Fix some Nextstep problems in configure.in.
+960513 New Makefile target "streifenfrei" to remove all output from configure.
+       Use autoconf 2.7; 2.9 is buggy.
+960512 Remove BIG_ALIGNMENT hack. Remove superfluous pfield_fetchdata() call
+       in pfield_doline_slow_l() that resulted in garbage on the screen.
+       Move blttbl array from custom.h to genblitter.c
+       Use new lookup tables imm8_table and areg_byteinc in CPU emulation
+       instead of ?: expressions.
+       GCC appears to generate better code if the opcode is passed as ULONG to
+       the CPU emulation functions instead of as UWORD.
+       Modify some of the flag emulation __asm__ statements so that GCC uses
+       less registers for them.
+960510 Cast malloc() results to char *, for C++ compilers.
+960509 Use test for GCC and __i386__ in options.h to decide whether to use
+       intel flag optimization.
+       Use test for wish4.0 to decide whether to use the GUI.
+960507 New bebox.cpp from Christian. AF sound patches from Marcus Sundberg.
+960505 Fix the configuration stuff so it works. Fix some bugs in gfxlib.c
+960504 Use GNU autoconf scripts to generate Makefile and sysconfig.h. Add new
+       files sysdeps.h that includes the right system header files. Remove
+       amiga.h and Makefile.
+960502 More Next code from Ian (new Uae.app directory, 2 bit drawing for
+       custom.c).
+960501 Allow the sound driver to set the frequency to a value that is slightly
+       different from the requested one.
+960430 Added AmigaOS port from Olaf Barthel.
+960427 Fixed single playfield sprite priorities in X86.S.
+960426 Added new NeXTwin.m from Ian.
+       Turn off the blitter delay in line mode.
+       Added a CPU optimization from Olivier Raoul: gencpu now reads a file
+       "insncount" that can be generated by UAE during execution and generates
+       specific functions for the most common opcodes. Not documented yet.
+960414 Reimplemented the fast disk emulation in a more sane way. Also it's
+       only done for reads now. (Plus, it no longer works :-/ Need to work
+       some more on this).
+       In blitter emulation, defer not only the setting of the bltfinish bit,
+       but actually defer the whole blit for the number of cycles it will
+       take. This makes programs the clear the screen while it is still being
+       displayed look much better.
+       Changed supervisor mode handling around a bit (was messy).
+       New DOS code from Gustavo.
+960412 Removed smart update method 2. Added Alessandro Bissacco's blitter
+       optimization patch.
+       Fixed some sprite problems: during hysnc, clear sprpos and sprctl, and
+       don't do_sprites() in line 0.
+960409 Be a little more intelligent about when to call pfield_linetoscr() from
+       pfield_doline_slow(). It's only necessary if a color register changed.
+       If it can be deferred to the end of the line, use the the _full
+       variants.
+       Some CIA TOD fixes.
+       Better transdisk, accepts first/last track parameters.
+960405 New function memcmpy(), inline assembler for the i386. Compares two
+       memory blocks and copies them at the same time. Used in
+       bpl_data_differs.
+960404 French keyboard from Tristan Cavelier. Parallel port emulation from
+       Stefan Reinauer.
+       Turn bpl?pt and r_bpl?pt into arrays, simplify some code using them.
+960401 Some parts of Ernesto's new Mac sources.
+960331 filesys.c: Close filedescriptors in free_key(). get_path() sometimes
+       read uninitialized bytes.
+       Minor cleanups all over the place.
+       unchain_mnn() leaves sibling intact, but clobbers next. customreset()
+       didn't care about that and crashed.
+       Use the __asm__("intel_flag_lookup") magic not only for DOS.
+       Support 320x300 for X (without LOW_BANDWIDTH).
+       Add new function fast_memcmp(), defined as memcmp if __i386__ is
+       undefined, otherwise a slightly optimized inline assembly function.
+960329 Some bug fixes in gencpu.c
+960328 Stupid programs write odd playfield modulos into the hw registers...
+       Eek! Sometimes, linedescr[] was indexed with a negative value... Add a
+       vpos >= minfirstline check to pfield_may_need_update(). I really need
+       to rewrite this in Oberon...
+       Don't turn off SHM when LOW_BANDWIDTH is selected.
+       Keep the nextpos and linepos variables from pfield_doline_slow_?() as
+       globals and initialize them in pfield_may_need_udpate().
+       Modified alloc_colors256() some more.
+       Try to make sprite DMA follow the Amiga DMA slots more closely by
+       adding a currhp parameter to do_sprites() and calling it at the end
+       of a scanline or in pfield_may_need_update().
+960327 Added Gustavo's latest DOS code, as far as possible. Modified X86.S to
+       use a macro SYM() to create symbol names either with underscore or
+       without.
+       Fixed some very silly SVGAlib lores bugs. Move screen 8 pixels up in
+       low resolution.
+       Use diwstop instead of diwstart to caclulate the DIW for 320x200 modes.
+       Reset it not only in calcdiw(), but also in init_frame().
+       Speed up 256 color allocation a little bit.
+960326 New function flush_block() in xwin.c and svga.c. Called from
+       do_flush_line() and (new function) do_flush_screen(). Modify struct
+       vidbuf_description, new member maxblocklines that records the maximum
+       number of scanlines that do_flush_line() should collect before calling
+       flush_block(). If it is zero, then flush_line() is used as before.
+       This makes the special case stuff for SHM unnecessary, so it's removed.
+       Fixed a stupid bug in events code: Put ev_hsync in front of ev_copper,
+       so that do_copper gets called with hpos == 0 instead of hpos == 227 at
+       the beginning of the line.
+       New function init_frame() that sets up some variables, called from 
+       customreset() and vsync_handler().
+       Move smart update code to pfield_doline() from pfield_doline_h() and 
+       ..._l(). Clean up these two with a macro DO_ONE_PLANE, removing
+       duplicate code.
+       Implement big blits and ECS chip ids. New configuration options
+       ECS_AGNUS and ECS_DENISE.
+       Implement MOVEP.
+960325 Before calling pfield_may_need_update(), make sure the value that was
+       written to a register actually differs from the previous one.
+       New expansion code from Stefan Reinauer.
+       Modify struct mem_notify_node to contain a pointer to a valid bit 
+       instead of the valid bit itself, so that the playfield code has to
+       check only one flag to decide whether to draw the line (SU method 2)
+960324 The chip_flags approach has several problems. A flag may cover an area
+       in memory that spans two scanlines, or several scanlines may use the
+       same area in memory.
+       Provide two other, different methods for the smart update:
+       1. Save all the bitplane data for each line and compare the chipmem
+          with the saved data to decide whether an update is necessary.
+       2. Use a chain of memory_notify_node structs instead of a single bit
+          for flags. Each scanline owns a set of these structs and chains them
+	  into the right place, and the chipmem_?put routines walk the chains
+	  and set the modified bit for each element.
+       Unfortunately, both methods are slower than the old one. Especially the
+       first one has some advantages though: it speeds up programs that clear
+       the screen each update and write the same contents back, and it
+       can speed up double-buffering programs at full framerate, since it does
+       not have to check whether the bitplane pointers have changed.
+       Remember the first and last drawn line for each frame, and pass them to
+       flush_screen. Use this in xwin.c for SHM. Modify SHM logic: if smart
+       update is selected, call XShmPutImage() from flush_line() instead of 
+       from flush_screen(). But gather blocks of consecutive lines to avoid
+       calling XShmPutImage() too often.
+960323 "Smart update" method, based very loosely on Alessandro Bissacco's
+       work, implemented:
+       Add an array chip_flags that records any change made to specific words
+       in chip memory.
+       Move all the hardware registers relevant to playfield display into a
+       new structure bplinfo. Remember the contents of this structure in
+       struct line_description for every line on the screen. Avoid redrawing
+       in pfield_doline if the screen memory has not been modified for the
+       line to be drawn and if the information from the last frame matches
+       that in the current frame.
+960322 Duplicate all functions responsible for drawing (pfield_doline,
+       pfield_doline_slow, pfield_sprite, pfield_*word_*res) and append _h
+       or _l (ah, the golden C++ days, when we had templates... which never
+       worked). Modify the *_l functions to support drawing in low resolution
+       (i.e. 320x200). Change the options -d and -H to support selecting color
+       mode and resolution, thereby getting rid of some SVGALIB_* options.
+       Get rid of the old pfield_*word_*res functions.
+       Collect information about the minimum diwstart value during the
+       previous frame and use that in case 320x200 was selected to fit the
+       image on the screen.
+       Get rid of HAVE_JOYSTICK (breaks the "-J" option)
+960321 Give up in op_illg() if opcode is 0x4e7b and the exception handler for
+       it is NULL. In that case, it's a 68020 Kickstart.
+960319 New Next code from Ian. SunOS target was still screwed (two CFLAGS).
+       Turn -x option into a "hair cursor" option. Support multiple mounts,
+       but warn if more than one is seen (still does not work with Kick 1.3).
+       Integrated Samuel Devulder's new LOW_BANDWIDTH patch.
+960318 Integrated the start of Markus Gietzen's gfx library replacement.
+       Changed the interface between custom.c and the graphics code. There has
+       to be a buffer holding the data of all the lines on the screen. For
+       linear SVGAlib modes, this is the video memory. Eliminated -x option,
+       prepare_line(), DrawPixel() and the X_?BIT_SCREEN options, replace with
+       3 versions of pfield_linetoscr for different datatypes. Implement
+       proper handling of the borders above and below the DIW in custom.c
+       instead of in flush_screen().
+       Move common code (color allocation) from all the graphics files to new 
+       file gfxutil.c.
+       Swedish keyboard from Per Olofsson.
+
+960315 Release 0.5.0
+960315 Newest DOS port from Gustavo. New sgi-gcc target.
+960314 Add -lXext to osf target. Use "rb" for fopen() in main.c
+960310 Play a bit with the __asm__ constraints. Implement CHK.
+960307 Fix some stupid Makefile errors. Call parse_cmdline() if no init file
+       is found.
+       First round of NextStep patches; new file NeXTwin.m
+       Stupid bug in custom.c: The #define is called NO_FAST_DISK, not
+       NO_FAST_FLOPPY.
+       Fix one of the problems the Deform demo had with the blitter: The
+       line texture wasn't rotated to the right position in blitter_init().
+960306 Use some black GCC __asm__ magic to calculate flags more quickly
+       (config INTEL_FLAG_OPT)
+       HAM was broken by pfield_linetoscr changes. Fixed.
+       LOW_BANDWIDTH sometimes got confused when the display window changed.
+960305 BCD instructions work well enough for Locomotive Basic on CPE.
+       New function parse_cmdline_and_init_file() that reads ~/.uaerc or
+       ./.uaerc and adds the options found in those files to those in argv[].
+       Patch from Denis Sablic to make disk image filenames runtime 
+       configurable. Extend it for the ROM filename.
+       Remove some of the run-time configurable stuff from config.h.
+       More X keysym fixes (I finally got a proper .Xmodmap ...)
+       for SVGAlib: Delete key, and PgUp/PgDn as Amiga keys.
+       The sound driver can now handle 22050 Hz and/or 8 bit samples. Both of
+       these are the default with LINUX_SOUND_SLOW_MACHINE.
+       Also use the SNDCTL_DSP_GETBLKSIZE ioctl and write the buffer when 
+       there is enough data.
+       Abuse keybuf.c to provide a fake joystick emulation with the numeric
+       pad (enable with -J)
+960304 bebox.cpp from Christian.
+       Rename pfield_linetoscr_full to pfield_linetoscr_full8.
+       More x86 assembly: pfield_linetoscr_full16.
+960303 SunOS target from Dirk Vangestel. Put some not-so-superfluous includes
+       back in. Added the DOS specific patches to filesys.c.
+       Started x86 assembly optimizations. New file X86.S, includes an
+       optimized version of pfield_linetoscr (for 8 bit screens only).
+       Don't use SA_RESTART if it isn't defined.
+       prepare_line() wasn't called often enough (again...), leading to memory
+       corruption and "hit the reset button" bugs when using SVGAlib.
+960226 Get rid of bool, true and false in amiga.h and everywhere else.
+       Copy yesterdays code to AF_SOUND code, too.
+       Include first round of Christian Bauer's BeBox patches. Add AIX fix
+       from Samuel Mackrill.
+       Add #include <string.h> and #include <stdlib.h> in some more places.
+       Modify gencpu.c and readcpu.c so that immediate types j and J (0..15
+       and 1..8) can be merged. Replace HAVE_ONE_GIG... option with a new
+       CPU_EMU_SIZE option that can be set to a value in the range 0..5,
+       where 0 is minimum size and 5 is equivalent to HAVE_ONE_GIG...
+960225 Remove multiplications in sound code, use a big lookup table.
+960222 Go back to having only one memory bank table of type addrbank instead
+       of several function pointer arrays. Eliminate the HAVE_BROKEN_SOFTWARE 
+       define by extending the memory bank table to 65536 entries.
+       Remove remaining DUALCPU code. Allow BTST src,imm instructions in
+       table68k.
+960220 Back out filesys.c change from Stefan Reinauer: don't call V36 specific
+       functions in expansion.library.
+       Better fix for the filesys.c assign problems by Oliver Moehrke.
+       Make new playfield code conditional on EXPERIMENTAL_SCREEN_UPDATE.
+       Improve the 64bit variant of said code. Try to get alignment for
+       apixels by putting it into a union with a long.
+       Kill the child in gui_exit(). Make graphics_init() return a value and
+       check it in main.c to see whether graphics were initialized. If not,
+       call gui_exit() anyway.
+       Use new 256 color allocation routine from svga.c in xwin.c, too.
+       Make LOW_BANDWIDTH compile _and_ work (wow...).
+960219 Fix bug in memory.c: When loading 256K Kickstart, copy 256K, not 128K.
+960218 Finished the rest of the UI: reset, debug and quit buttons as well as
+       drive LEDs. New target linux-gui; all others use dummy file nogui.c
+       for now.
+960217 The GUI now supports inserting and ejecting diskfiles and displays
+       their names. Two pipes are used now, one for reading and one for
+       writing. Properly wait for the process to start up.
+       Use sigaction() instead of signal() in debug.c.
+       More fixes for the new display routines: Need to do a final call to
+       pfield_*word_*res with the data shifted right from the last fetched
+       word.
+960216 Copper & sprite bugfixes from Marco Nelissen. Better X keyboard support
+       from Bruno Coste.
+       Move my_strdup() from filesys.c to options.h
+       New files xui.c, uae-ui (shell script) and uae-ui.tk (wish script).
+       These create a GUI for the X version of the emulator. So far, the
+       power LED works.
+960215 Don't rely on SVGAlib headers defining any keycodes at all.
+       Include Thorsten Frueauf's NetBSD patch. Apparently, the devname
+       variable in hardfile.c caused a namespace collision, so rename it to
+       uaedevname. Fastmem fixes, debugger help, and ConfigDev allocation in
+       hardfile and filesys from Stefan Reinauer.
+       xwin.c: Give the window a title.
+       Half-implemented the DIVU.L, DIVS.L, MULU.L and MULS.L instructions.
+960213 AF sound system support from Marcus Sundberg. Win95 keyboard support
+       for SVGAlib from Thierry Lescot. Added most of Gustavo Goedert's MS-DOS
+       port.
+       When using the old pfield_*word_*res functions, the gen_pfield_tables()
+       function was undefined.
+       Hmmm, /dev/brain must have been unmounted when I wrote the new pfield_*
+       functions. Now they make sure they access the apixels array only with
+       addresses that are multiples of 16 bytes.
+960212 Fix copy&paste bug in cia.c found by Marco Nelissen: Need to call
+       RethinkICRB() instead of RethinkICRA() for CIA B timers.
+       Added Stefan Reinauers autoconfig area/fastmem support. Added run-time
+       options for use_slow_mem and use_fast_mem.
+       Oops, the pfield_*word_*res() optimizations break completely on HPs and
+       Sparcs. Now use this optimization only if we are using GCC 2.7.
+       HPUX fixes in the Makefile. New target hpux-gcc.
+       The code for clearing the areas above and below the DIW was trying to
+       be a little too clever selecting the color. Just use the current 
+       background color.
+       Added channel attachment to the sound code. Untested.
+960211 Found some flag setting bugs in the rotate/shift instructions and in
+       addx/subx (which I thought I had already fixed) by reimplementing 
+       DUALCPU mode to work with Ed's e68k.
+       Argh! The copper is completely disabled during DDF in Hires 4 bitplane
+       mode - so copper positions 0x30 and 0x34 are about 640 pixels apart.
+       The Kickstart uses FF39FFFE to wait for the end of line 256 instead of
+       FFDFFFFE as in all the other modes. This is implemented now, but
+       probably not 100% correct.
+       Added check whether SVGAlib doesn't support our mode.
+       If using GCC >= 2.7, define __attribute__((aligned(16))) as
+       BIG_ALIGNMENT in config.h. Use it for the apixels array to prevent
+       potential problems on the Alpha.
+       Tried to make the color selection routine produce better results in 256
+       color mode.
+960210 readdisk didn't work at all for large files - fixed.
+       In pfield_doline(), clear the apixels array if playfield DMA is off.
+       In SPRxCTL(), reset sprite mode when sprpos==sprctl==0
+       Rewrite pfield_orword_hires() and friends to use lookup tables. No
+       noticeable improvement on my machine, but might be different on other
+       machines. Two versions of this code: one using 64bit longs on the Alpha.
+       New targets linux-debug and linux-prof.
+       Use 1MB slow mem.
+       -funroll-loops is a little excessive. Remove it.
+       Add support for linear addressing modes for SVGAlib version. Speedup
+       is 20-30% on my old 486 VLB. Now, would someone please fix SVGAlib to
+       support that for the S3-864 as well?
+       Set SVGAlib keyboard mode to DONT_CATCH_CTRLC.
+       Change custom.c, xwin.c and svga.c to keep track of the display window 
+       and background color and to clear the areas above and below the display
+       window if necessary to remove garbage images from previous frames.
+       Set the LOF bit in the Kickstart replacement init routine. Also
+       initialize CIAs to Kick 1.3-like values.
+960209 Some more -DHAVE_xxx_H options in the Makefile and filesys.c. DEC Alpha
+       fixes for filesys.c from Ed and Marcus. HPUX fixes.
+       New field in table68k for CPU type, parsed by readcpu and compared to
+       CPU_LEVEL which is defined in config.h. New instructions MOVE2C, MOVEC2
+       and CAS. Also a new field for priviledge level that is used by gencpu to
+       generate tests for regs.s and Exception(8) calls if necessary.
+       Move parsing of table68k into a new file build68k.c. Generate a file
+       called cpudefs.c containing the information from table68k in 
+       machine-readable form. Change readcpu.c to use the array found in 
+       cpudefs.c.
+       Don't generate the d8(An,Dn) addressing mode in-line. Generate a call to
+       get_disp_ea(), which is an inline function in newcpu.h if UAE is
+       configured for 68000 emulation; for 68020 emulation, it is defined in
+       newcpu.c.
+       Debugger could crash on illegals because there was no mnemonic defined
+       in lookuptab[].
+       Return zero for SERDATR.
+960207 It seems that the copper stops completely if an attempt to write to a
+       specific register fails because of COPDANG. Apparently, the Kickstarts
+       use this to stop the copper with a 0x00000000 longword. This leaves the
+       question why they don't do 0xFFFFFFFE like everybody else.
+       Enable 512K slow memory by default.
+       Integrate Stefan Reinauers battclock patch that makes it work with
+       newer Kickstarts.
+       In cia.c, do the little index pulse hack even if dskdmaen==1, because
+       DMA is only enabled when dskdmaen==2 (Helps the "Mad Decision" demo).
+       Add solaris entry to Makefile (GCC, Openwin, -DHAVE_STATFS_H)
+       Define HAVE_STRINGS_H for SGIs, change filesys.c accordingly.
+960206 Build a smaller table instead of cputbl.c. Use readcpu and the smaller
+       table to build the cpufunctbl array at run-time.
+       Nuked the other half of the old CPU emulator. Reimplemented debugger to
+       use the information generated by readcpu.
+       Define HAVE_STATFS_H for SGIs in the Makefile, and use that as a test
+       in filesys.c instead of #ifndef __linux.
+       Hack filesys.c, get_path() to support the assign command.
+       Add -fstrength-reduce and -funroll-loops in Makefile to make people
+       nervous.
+       Rewrite Sam Devulder's LOW_BANDWIDTH patch and add it to xwin.c.
+960205 Forgot some PC-relative bit instructions in table68k.
+       Nuked half of the old CPU emulator.
+       Split gencpu.c into two parts, new one is called readcpu.c and just
+       parses the table68k file. Link it to the main program.
+
+960205 Release 0.4
+960203 filesys.c, action_read(): Slightly more efficient code (translate Amiga
+       address to real pointer).
+       Moved some common code in the generate_* functions in gencpu.c to a
+       separate function.
+960202 Added an experimental fast disk option. Currently turned off by
+       default (it's not such a big win).
+       Attached sprite fixes (overlapping att. sprites looked bad, Katakis).
+       Add sleep(1) before resetting the console to text mode when using
+       SVGAlib: this might fix some screen corruption problems.
+       Add sprite/playfield priority checking to the most important case
+       (single playfield, no HAM).
+       In filesys.c, do_find(): open() returns -1 on error, not zero.
+       Return ERROR_OBJECT_WRONG_TYPE if do_find() is called for a directory
+       (fixes Champions of Krynn harddisk installation).
+960201 Don't abort if sound driver not present, just set produce_sound to 0.
+       New files keybuf.c and keybuf.h to record keypresses in the right
+       order and without losing any. In cia.c, force 15 scanlines between
+       keypresses, just to be sure.
+       unixfs.device _does_ work with Kick 1.3: just don't trust what Kick 1.3 
+       sends in the startup packet. For now, disable more than one mount per 
+       command line.
+       Started integrating Ernesto's new Mac sources.
+       Remove superfluous includes from some files.
+960131 Added Ed's unixfs.device (great stuff).
+       Adding ULONGs to pointers is a bad idea on the Alpha if the ULONG value
+       really is signed. Add some casts to LONG in (pc_p + src) expressions
+       in genpu.c.
+       If DMACON is written and copper DMA is enabled, do a COPJMP1 at once.
+       Helps the "Interference" demo.
+960129 More SGI fixes from Ed. Bugfixes and transdisk improvements from Marcus 
+       Sundberg.
+       Remove EXTRA_DEFINES from Makefile. Breaks some systems.
+       Move common sprite code from pfield_doline() and pfield_doline_slow()
+       to new function pfield_sprite(). The same sprite may appear more than
+       once on the same line, so don't shift out the bits of sprdata[] and
+       sprdatb[] while displaying it (Turrican I).
+       In xwin.c and svga.c, barf if LINUX_SVGALIB doesn't match the file 
+       being compiled.
+       Make all .o files depend on config.h in the Makefile.
+       No need to exit if sound driver unavailable, but -S given.
+       Small debugger fix: Missing space in output.
+       Fix for the sprite logic: Specifically, use a state variable indicating
+       whether the sprite has been restarted after a VSYNC. Fixes most
+       Turrican problems.
+960124 Added Denis Sablic's patch for sound run-time option.
+       Added Ed Hanway's patch for better Makefile, X mouse cursor blanking 
+       and more SGI compilation fixes.
+960123 Include options.h everywhere.
+       Handle 8 bit GrayScale visuals like PseudoColor.
+       Remove C++ leftovers from joystick code.
+960122 When using the joystick driver, the button test must come after
+       handle_events() in vsync_handler().
+960118 Removed all the remaining C++ comments. Changed all inline keywords to
+       __inline__. Define __inline__ if not using gcc.
+       Make proper prototypes for everything. Compile with maximum warnings +
+       -ansi + -pedantic.
+       Remove CIA_cycle(), obsolete.
+       Reimplemented the STOP optimization in newcpu.c. Removed DualCPU
+       support in CPU emulator.
+       Real nasty bug in pfield_doline() fixed: sprxpos could be evaluated as
+       negative, with not-so-amusing results. (Need to rewrite this in 
+       Oberon to get array bounds checking :-)       
+960117 Heroic effort: Rewrote the thing in C. This might help fix some
+       problems with users being unable to compile it.
+       Fixed a problem in hsync_handler(): Only call flush_line() for lines
+       in the display window, i.e. when we did a prepare_line() before.
+       Better code for relative branches: Don't use setpc(getpc()+x) calls,
+       increment regs.pc_p instead.
+960116 Reimplemented the function to load the Kickstart ROM. Use stdio instead
+       of fstreams since this apparently does not work on the Mac. Detect 256K
+       Kickstarts. Detect corrupt ROM images (calculate checksum).
+       Added Ernesto Corvi's Mac port. Changed it around a bit, so it
+       probably won't compile.
+960115 Reinstate config.h options for X screen depth, so that DrawPixel() can
+       be inlined in custom.cc for speed. xlinebuffer is now incremented in
+       each call to DrawPixel() (for both X and SVGAlib) to get rid of some
+       address calculations.
+960114 Fixed X generic pixel drawing routine for SHM.
+       Still trying to fix the harddisk emulation.
+       uae.device no longer breaks the debugger (can step through uae.device
+       functions now)
+       Bugs affecting performance: SPCFLAG_STOP never got reset, and DSKLEN() 
+       would set SPCFLAG_DISK even if DMA was being turned off.
+       Made slow memory a run-time option.
+       Defer interrupts by one CPU instruction to give programs a chance to
+       read INTREQR ("Seeing is Believing" and "Substance" demos)
+       Added ScrollLock hack for X, too.
+960113 SVGAlib version compiles again. Fixed SVGAlib mouse bug.
+       Fixed SHM bug: Maximum scanline is 313, not 312.
+       Sometimes, disk.cc missed a side change and would read the wrong data.
+       Fixed. Apparently, this was the worst compatibility problem.
+       Implemented trace mode.
+960112 Changed layout of class amigamemory a little so that gcc can generate
+       better addressing modes.
+       Finally wrote functions in gencpu to generate MOVEMs.
+960109 Integrated Ed Hanway's patches for better X support and run-time
+       configuration of some options. 
+       Got rid of the direct VGA memory access. (Need to do this differently).
+       Changed the method of drawing lines: custom.cc now tells the graphics
+       code the line number and whether it needs to be doubleed before drawing
+       it.
+       Added Andre Beck's MIT-SHM patch.
+       Remove warnings for newcpu.cc.
+960108 Fixed exceptions in op_illg(): Need to decrement PC.
+960107 Added an "uae.device" resident module at 0xF00000. This emulates a hard
+       disk (fixed size 8MB for now).
+960106 Moved some common code from pfield_doline() and pfield_doline_slow() to
+       a separate function. This fixes a potential HAM bug (two static vars
+       for the same value).
+       Sound support for Linux. Works only with graphics off and the CPU
+       slowed down.
+       Better SVGAlib keyboard support.
+960105 Added AvailMem(), AllocMem(), AllocAbs() and FreeMem() dummies.
+       The Hardwired demo times the multiplication instructions and prints
+       "This demo don't like Axel" if they are too fast. Apparently, Axel has
+       a 68040. Added a WANT_SLOW_MULTIPLY option to config.h.
+       Fixed the fast blitter emulation (seems to work now).
+960104 Fixed all the ChangeLog entries from 95 that said 96 (oops??!)
+       pfield_may_need_update() should check whether bitplane DMA is on.
+       Added ersatz.cc and ersatz.h. The purpose of these files is to
+       implement one or two Kickstart functions that are commonly called from
+       bootblocks. This should help support some games and demos that only use
+       the Kickstart as an initial track loader. So far, it's only good enough
+       for one program.
+951223 More intelligent event handling in the CPU emulator. Slightly faster.
+951222 Optimize CPU emulation by inlining cctrue(). Also, the real PC no
+       longer needs to be incremented each instruction. The real PC value
+       now has to be fetched by m68k_getpc().
+       Added direct screen access for SVGAlib, but it didn't help much. I'll
+       probably remove it again.
+       The gencpu executable is 2M smaller if it allocates memory
+       dynamically.
+951216 custom_bput() enhanced a little. Now remembers the value that was 
+       written in the other half of the register.
+       Apparently, the USEx bits of BLTCON0 are ignored in line draw mode.
+       (Silents-Demo)
+
+951212 Release 0.3
+951212 Included Alessandro's battclock patch.
+       Fixed mouse autocalibration for wrong-aspect screens.
+951210 Joystick support for Linux.
+       Better color matching for 256 color modes.
+       Rewrote most of the memory management in plain C, mainly to avoid the
+       various template bugs in some compilers, but also because gcc can't
+       handle the regparm attribute for virtual functions yet.
+951209 Added Alessandro's patches for automatic mouse calibration.
+       Tried to optimize the blitter loop a bit. Doesn't work.
+951205 Added Hannu's patches for diskfile write support.
+951201 More portability fixes, especially for weird compilers that workstation
+       vendors ship.
+951125 More keys for X, some keyboard support for SVGAlib (slightly 
+       dangerous); beginnings of US keyboard support.
+951124 256 color mode support for SVGAlib. FAST!
+951123 Tiny tweak to central loops in playfield code results in much better
+       assembly. Apparently, GCC does not feel too good about optimizing 
+       reference variables.
+951113 Bug fix in the events code (nextevent must not be changed while events
+       are being processed).
+951112 The playfield can now be drawn with the right aspect (i.e., every line
+       twice). Slower, but looks nicer and supports interlaced mode
+       (flickerfree!). The first 29 lines (blanking interval) are omitted
+       now to fit everything in 800x600.
+       Oops, disk drive identification did not work. Fixed, all four drives
+       appear now.
+       Oops, CIA_reset() was there all the time but never got called.
+       Optimized the planar->chunky conversion in pfield_doline() a little.
+       This really is time critical.
+951111 If colors change on a line, we might still be able to use the full 
+       line update, if the change occurred outside the DIW. Have to be a 
+       little careful, though.
+       Playfield code now uses real pointers again, but makes sure it can
+       read enough bytes to complete the current line without segfaulting.
+       Oops, my "better estimate" (see below) was a mistake. Restored the
+       original 4 hw cycles per instruction relation. This slows down the
+       emulator while booting (more screen refreshs), but speeds up many
+       demos that otherwise spend most of their time waiting for a specific
+       raster position.
+       Playfield modulos must be added immediately when DDF stops. (WOC demo)
+       Portability fixes in disk.cc (null pointers).
+       Implemented average frame rate calculation ('c' in the debugger).
+       Debugger fixes.
+       Sprite fixes (height was wrong, wrong priorities in fast update)
+       Added an AutoConfig expansion RAM device. The OS seems to recognize
+       it, but breaks sometime later (seems to be the same bug that kills
+       the emulator when there's RAM at 0xC00000).
+       SVGAlib now has mouse support, too.
+       HAM mode implemented.
+951110 Implemented fast complete line playfield update. Switches back if
+       necessary. Fixed attached sprites bug.
+       Copper wait no longer slows down the CPU emulation. (there were
+       lots of new copper bugs because of this, but I hope I fixed all
+       of them).
+       Changed cia?t? from UWORD to ULONG, since there were overflows in
+       the assertion (because of 65535+1 == 0).
+951108 The DIVS remainder could have the wrong sign.
+       New HAVE_BROKEN_SOFTWARE define in config.h that makes the emulator
+       mask out the high byte of all addresses.
+       Wrote genblitter.cc and replaced the awful code in blitter_blit()
+       and blitter_line() with calls to the generated function.
+951107 Implemented ?BCD. These don't really work yet.
+
+951106 Release 0.2
+951105 Fixed a bug in the new CIA timer code.
+       Fixed flag settings for some cases of ADDX/SUBX
+951104 Changed the main loop a bit - call all the *cycle() functions only if
+       it is really necessary. I hope everything still works - at least it is
+       twice as fast now :-D
+       Improved mouse emulation - avoid overflows, permit "wraparound".
+       Added debugger 'g' command.
+       Removed some useless casts from the CPU emulator.
+       Added a configuration option to prevent checks for odd addresses. Only
+       very bad programs need this check.
+951103 The sprite emulation sometimes did not work too well, especially with
+       dual playfield mode. Hopefully fixed.
+951102 The 10 cycle counter is more like a 5 cycle counter in this
+       implementation. (Fine, that makes floppy loading even faster :-)
+       Implemented mouse movement. Totally out of sync with the X pointer,
+       but at least something.
+       Found out about the XAutoRepeatOff() function. Real useful.
+       DualCPU mode works again.
+       Corrected flag settings for CMPA.W.
+       Fixed DIV instructions: Don't change dest in case of overflow.
+951031 The PC is now converted to a real pointer. This is safe (much safer
+       than converting bitplane pointers, since the PC always has to be valid)
+       and should speed things up a little.
+951029 Some primitive event handling: 2 mouse buttons and 1 joystick button
+       are emulated, as well as parts of the keyboard (only german mapping).
+       Fixes: Delay values and sprite widths are always LoRes. Playfield 2
+       uses colors 9..15.
+       Implemented a frame rate configuration option that can speed up the
+       emulation quite a bit.
+951028 A-ha. The 68000 has one strange feature after all. MOVEM.W to Dn sign 
+       extends the value to a longword.
+       Katakis expects that accessing odd addresses causes exception 3, so 
+       we have to emulate this. *Sigh*
+       Do at least something with the index pulse bit. It's more or less a 
+       toggle now.
+       Implemented sprites & dual playfields, both with small glitches.
+951027 When LOF is set, the frame is one line longer.
+951026 Implemented a preliminary diskfile type for special formats. Turrican
+       boots up correctly (crashes if I want to play a game, though).
+       Implemented EHB and added a few missing masking operations in the color
+       handling.
+       Fixed the absw addressing mode - need to sign extend here as well.
+951025 Fixed another extremely stupid bug, this time in the playfield code.
+       Each pixel was calculated four times...
+       Increased the size of the apixels array - this was being overrun.
+951024 Fixed an extremely stupid bug in flag settings for byte and word
+       operations.
+       The "sectors until gap" field must be in the range 1..11 instead of
+       0..10, or very bad things will happen if it is used to calculate a
+       blit size.
+951021 Don't use real pointers to fetch bitplane data - too many segfaults.
+       Delay the copper after executing an instruction, or wait sequences like
+       FFDF FFFE 0200 FFFE won't work.
+       Some programs expect that the CPU is completely turned off if the
+       blitter nasty bit is set. So be it.
+       The RSI Megademo chokes when disk DMA fetches two syncs. Leave one out.
+       The LOF bit wasn't set correctly.
+951020 Blitter fixes: Load fill carry from FCI each line; keep the masked
+       value of bltadat in bltolda
+       Give the CPU twice as many "cycles" - this still is not even remotely
+       correct, but a better estimate.
+951017 Added SVGAlib support. Unfortunately, my graphics card isn't fully
+       supported by the current SVGAlib version.
+951015 More small optimizations to memory.h and custom.cc.
+       Added code for 256 color screens. The type of screen has to be
+       selected at compile time.
+951014 Modified the memory management to be (hopefully) a little more
+       efficient.
+       Changed gencpu.cc to generate functions and a big function pointer
+       array instead of the old case labels. The generated C++ files now
+       compile a lot faster, and the code should be better as well.
+951013 Implemented pseudo POTGOR to keep the RMB from being detected as
+       pressed all the time.
+       GenerateDecTab() generated TRAP incorrectly.
+       Made some more instructions (MOVE.B A0,D0 etc) illegal in gencpu.cc.
+       Fixed X colors. Fixed data fetching for HiRes screens.
+951011 EXT.WL instructions set the flags.
+       Implemented second CPU emulator, plus "DualCPU" option. The new CPU
+       emulator is generated automatically from a file called table68k by
+       a program called gencpu.
+951002 Removed version information from the file headers.
+       Removed some sillinesses in custom.cc. 
+       DSKLEN bug fixed (mask out 0xC000).
+       Playfield code rewritten. Now supports horizontal scrolling. Implemented
+       some primitive color support.
+950927 Fixed predecrement/postincrement addressing with byte size for the
+       stack pointer.
+950926 Fixes to the disk code: Terminate disk DMA, flip disk side, read more
+       than just two sectors during disk DMA, fix checksum calculation.
+       Fixed copper comparison bugs.
+       
+950901 Release 0.1
+950826 bugfix in GenerateDecTab(): LEA.W instructions were generated.
+950312 New file disk.cc, for (guess what) disk support. Doesn't work yet.
+950311 Multiplication instructions were generating 16 bit results.
+       Sign extension was wrong in some places.
+       Removed bugs in the blitter (one word width: ALWM & AFWM and line mode)
+       The Kickstart logo looks perfect now.
+       Playfield routine should check BPLCON0 instead of BLTCON0
+950309 ASR D8,D0 is not a valid instruction.
+       Bitplane pointers were not incremented.
+       Copper comparison didn't work. COP2LC and bitplane pointers were written
+       incorrectly. Fixed.
+       Something that bears a striking resemblance to the familiar Kickstart
+       logo now appears in my X window!
+950306 ROR used to set the X flag. Bug fixes in GenerateDecTab.
+       More bug fixes in several 68000 instructions.
+       Improved blitter. ?????? KS1.3 doesn't seem to set BLTDMOD on a 
+       line draw. What is this??
+       Fixed stupid bugs in playfield code.
+950305 fixed bugs in opcode generation and interrupt handling. Implemented 
+       STOP. Fixed flag settings: Result wasn't masked. Ooops!!
+       ADDQ #imm,An doesn't set flags.
+       One-shot timer mode didn't work.
+       Implemented blitter, doesn't work.
+       Some primitive and slow playfield support, only to make the things that
+       hopefully will soon appear visible.
+950304 CIA timers ought to work OK. Copper is emulated.
+       Emulator loops infinitely when trying to initialize the console.device
+950303 experiments with X, figured out how to open a window and draw pixels.
+       No graphics emulation yet, though.
+950301 Nearly all instructions work.
+       Fixed supervisor mode stack.
+       The memory manager now handles CIA chips.
+950228 Bug fixes in 68000 code, exceptions and more instructions implemented
+       Memory management extended to handle custom chips as well.
+       Debugger improved.
+       Kickstart passes memory & CPU type test, builds up some system
+       structures.
+950227 MC68000 & little debugger for tracing. It can execute the first couple
+       of KS1.3 instructions, but doesn't get past the memory test.
+950225 Work begun

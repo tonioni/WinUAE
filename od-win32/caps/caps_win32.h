@@ -1,0 +1,5 @@
+int caps_init (void);
+void caps_unloadimage (int drv);
+int caps_loadimage (struct zfile *zf, int drv, int *num_tracks);
+int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 **trackpointers, uae_u16 **tracktiming, int drv, int track, int *tracklengths, int *revolutions);
+

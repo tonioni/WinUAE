@@ -1,0 +1,1253 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+// Generated Help ID header file
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "resource.hm"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+#include "dlgs.h"
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_KICKSTART DIALOGEX 0, 0, 300, 175
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTEXTHELP
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Boot-ROM Settings:",-1,5,12,290,90
+    RTEXT           "ROM File:",IDC_ROMTEXT,10,27,75,10
+    EDITTEXT        IDC_ROMFILE,90,22,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_KICKCHOOSER,280,22,10,15
+    RTEXT           "Key File:",IDC_KEYTEXT,10,48,75,10
+    EDITTEXT        IDC_KEYFILE,90,43,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_KEYCHOOSER,280,43,10,15
+    RTEXT           "Extended ROM File:",IDC_ROMFILE2TEXT,10,68,75,10
+    EDITTEXT        IDC_ROMFILE2,90,63,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_ROMCHOOSER2,280,63,10,15
+    CONTROL         "MAPROM emulation",IDC_MAPROM,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,104,86,80,10
+    CONTROL         "ShapeShifter support",IDC_KICKSHIFTER,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,196,86,80,10
+    GROUPBOX        "Misc settings:",-1,5,105,290,59
+    RTEXT           "Flash RAM File:",IDC_FLASHTEXT,8,119,75,10
+    EDITTEXT        IDC_FLASHFILE,89,117,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FLASHCHOOSER,279,117,10,15
+    RTEXT           "Cartridge ROM File:",IDC_FLASHTEXT2,8,140,75,10
+    EDITTEXT        IDC_CARTFILE,89,137,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_CARTCHOOSER,279,137,10,15
+END
+
+IDD_DISPLAY DIALOGEX 0, 0, 300, 194
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Screen",IDC_SCREENRESTEXT,12,0,199,67,BS_LEFT
+    RTEXT           "Fullscreen",IDC_SELECTRESTEXT,22,17,34,15,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_DISPLAYSELECT,61,10,143,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RESOLUTION,61,27,77,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_REFRESHRATE,143,27,61,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Windowed",IDC_WINDOWEDTEXT,22,51,35,8
+    EDITTEXT        IDC_XSIZE,61,48,35,12,ES_NUMBER
+    EDITTEXT        IDC_YSIZE,103,48,35,12,ES_NUMBER
+    CONTROL         "VSync",IDC_VSYNC,"Button",BS_AUTOCHECKBOX | BS_LEFT | 
+                    WS_TABSTOP,145,49,54,10
+    GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,77,199,73
+    CONTROL         "Full Screen",IDC_AFULLSCREEN,"Button",BS_AUTOCHECKBOX | 
+                    BS_LEFT | WS_TABSTOP,35,89,90,10
+    CONTROL         "Correct aspect ratio",IDC_ASPECT,"Button",
+                    BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,35,106,90,10
+    CONTROL         "Full Screen RTG",IDC_PFULLSCREEN,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,131,89,70,10,0,
+                    HIDC_PFULLSCREEN
+    CONTROL         "Lo-res",IDC_LORES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    131,106,70,10,0,HIDC_LORES
+    LTEXT           "Refresh:",IDC_REFRESHTEXT,34,129,28,8
+    CONTROL         "Slider1",IDC_FRAMERATE,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,64,124,75,20
+    CTEXT           "",IDC_RATETEXT,144,124,50,20,SS_SUNKEN | WS_BORDER
+    GROUPBOX        "Centering",IDC_STATIC,221,0,61,67
+    CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,229,16,45,10
+    CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,229,32,39,10
+    GROUPBOX        "Line mode",IDC_LINEMODE,222,77,61,74
+    CONTROL         "Normal",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | 
+                    BS_LEFT | WS_GROUP | WS_TABSTOP,233,89,38,10
+    CONTROL         "Doubled",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | 
+                    BS_LEFT | WS_TABSTOP,233,105,41,10
+    CONTROL         "Scanline",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | 
+                    BS_LEFT | WS_TABSTOP,233,121,40,10
+    COMBOBOX        IDC_DA_MODE,35,163,58,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | NOT WS_VISIBLE | WS_VSCROLL | 
+                    WS_TABSTOP
+    CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,97,159,101,20
+    PUSHBUTTON      "Detect pixel format",IDC_TEST16BIT,221,163,67,14,0,0,
+                    HIDC_TEST16BIT
+END
+
+IDD_MEMORY DIALOGEX 0, 0, 300, 175
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTEXTHELP
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Memory Settings:",-1,14,40,274,93
+    RTEXT           "Chip:",-1,24,60,20,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,54,55,50,20
+    CTEXT           "",IDC_CHIPRAM,104,55,35,20,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER
+    RTEXT           "Fast:",IDC_FASTTEXT,24,85,20,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,54,80,50,20
+    CTEXT           "",IDC_FASTRAM,104,80,35,20,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER
+    RTEXT           "Slow:",-1,149,60,20,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_SLOWMEM,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,179,55,50,20
+    CTEXT           "",IDC_SLOWRAM,239,55,35,20,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER
+    RTEXT           "Z3-Fast:",IDC_Z3TEXT,139,85,30,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,80,60,20
+    CTEXT           "",IDC_Z3FASTRAM,239,80,35,20,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER
+    RTEXT           "RTG (graphics card):",IDC_GFXCARDTEXT,96,110,76,10,
+                    SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,179,105,60,20
+    CTEXT           "",IDC_P96RAM,239,105,35,20,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER
+END
+
+IDD_CPU DIALOGEX 0, 0, 300, 175
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    GROUPBOX        "CPU Type:",IDC_STATIC,5,5,80,134,BS_LEFT
+    CONTROL         "68000",IDC_CPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | 
+                    WS_TABSTOP,10,18,34,10
+    CONTROL         "68010",IDC_CPU1,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,33,34,10
+    CONTROL         "68EC020",IDC_CPU2,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,48,45,10
+    CONTROL         "68EC020+FPU",IDC_CPU3,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,63,63,10
+    CONTROL         "68020",IDC_CPU4,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,78,34,10
+    CONTROL         "68020+FPU",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,93,54,10
+    CONTROL         "68040",IDC_CPU6,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,10,108,36,10
+    CONTROL         "More compatible",IDC_COMPATIBLE,"Button",
+                    BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,123,
+                    70,10
+    GROUPBOX        "CPU Emulation Speed:",IDC_STATIC,90,5,205,86
+    CONTROL         "Fastest possible, but maintain chipset timing",
+                    IDC_CS_HOST,"Button",BS_AUTORADIOBUTTON | BS_LEFT | 
+                    WS_GROUP | WS_TABSTOP,95,18,195,10
+    CONTROL         "Match A500 speed",IDC_CS_68000,"Button",
+                    BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,95,32,195,10
+    CONTROL         "Adjustable between CPU and chipset",IDC_CS_ADJUSTABLE,
+                    "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,95,47,
+                    195,10
+    RTEXT           "CPU",IDC_CS_CPU_TEXT,96,71,15,10,SS_CENTERIMAGE | 
+                    WS_TABSTOP
+    CONTROL         "Slider1",IDC_SPEED,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,114,66,67,20
+    LTEXT           "Chipset",IDC_CS_CHIPSET_TEXT,182,71,25,10,
+                    SS_CENTERIMAGE | NOT WS_GROUP | WS_TABSTOP
+    RTEXT           "CPU Idle",IDC_CS_CPU_TEXT2,236,56,32,10,SS_CENTERIMAGE | 
+                    WS_TABSTOP
+    CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,219,66,69,20
+    GROUPBOX        "JIT Settings:",IDC_STATIC,90,94,205,76
+    RTEXT           "Cache Size:",IDC_CS_CACHE_TEXT,95,109,45,10,
+                    SS_CENTERIMAGE | WS_TABSTOP
+    CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,140,104,115,20
+    EDITTEXT        IDC_CACHETEXT,255,109,30,12,ES_CENTER | ES_READONLY
+    CONTROL         "Hard Flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,100,127,60,10
+    CONTROL         "Const Jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,100,141,60,10
+    CONTROL         "FPU Support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,100,154,60,10
+    CONTROL         "Force Settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,165,127,61,10
+    CONTROL         "No Flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,165,141,60,10
+    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,230,127,34,10
+    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,230,141,45,10
+    CONTROL         "After Picasso96",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,230,154,64,10
+END
+
+IDD_FLOPPY DIALOGEX 0, 0, 300, 230
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    RTEXT           "DF0:",IDC_STATIC,16,6,20,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_DF0TEXT,2,22,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DF0TYPE,54,5,41,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Write Protected",IDC_STATIC,174,8,59,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF0WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
+                    WS_TABSTOP,238,4,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT0,253,4,30,15
+    PUSHBUTTON      "...",IDC_DF0,287,4,10,15
+    RTEXT           "DF1:",IDC_STATIC,16,41,20,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_DF1TEXT,2,58,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DF1TYPE,54,40,41,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Write Protected",IDC_STATIC,174,42,59,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF1WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
+                    WS_TABSTOP,238,39,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT1,253,39,30,15
+    PUSHBUTTON      "...",IDC_DF1,287,39,10,15
+    RTEXT           "DF2:",IDC_STATIC,16,77,20,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_DF2TEXT,2,93,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DF2TYPE,54,76,41,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Write Protected",IDC_STATIC,174,77,59,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF2WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
+                    WS_TABSTOP,238,75,9,15
+    PUSHBUTTON      "Eject",IDC_EJECT2,253,75,30,15
+    PUSHBUTTON      "...",IDC_DF2,287,75,10,15
+    RTEXT           "DF3:",IDC_STATIC,16,113,20,9,SS_CENTERIMAGE
+    COMBOBOX        IDC_DF3TEXT,2,130,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DF3TYPE,54,112,41,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Write Protected",IDC_STATIC,174,113,59,10,
+                    SS_CENTERIMAGE
+    CONTROL         "",IDC_DF3WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
+                    WS_TABSTOP,238,111,9,15
+    PUSHBUTTON      "Eject",IDC_EJECT3,253,111,30,15
+    PUSHBUTTON      "...",IDC_DF3,287,111,10,15
+    GROUPBOX        "New disk image",IDC_SETTINGSTEXT,5,152,289,35
+    COMBOBOX        IDC_FLOPPYTYPE,16,165,51,50,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Create Standard ""Floppy""",IDC_CREATE,76,165,97,15
+    PUSHBUTTON      "Create Custom ""Floppy""",IDC_CREATE_RAW,183,165,101,15
+    GROUPBOX        "Floppy drive emulation speed",IDC_SETTINGSTEXT2,5,188,
+                    289,35
+    CONTROL         "",IDC_FLOPPYSPD,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,32,198,116,20
+    EDITTEXT        IDC_FLOPPYSPDTEXT,169,201,107,12,ES_CENTER | ES_READONLY
+END
+
+IDD_HARDDISK DIALOGEX 0, 0, 300, 242
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTEXTHELP
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,5,260,191
+    PUSHBUTTON      "",IDC_UP,270,52,25,15,BS_ICON
+    PUSHBUTTON      "",IDC_DOWN,270,132,25,15,BS_ICON
+    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,202,60,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,70,202,60,15
+    PUSHBUTTON      "Add Ha&rddrive",IDC_NEW_HD,135,202,60,15
+    CONTROL         "Add PC Drives at Startup",IDC_MAPDRIVES,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,5,222,105,10,0,
+                    HIDC_MAPDRIVES
+    PUSHBUTTON      "Remove",IDC_REMOVE,135,220,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,200,220,60,15
+END
+
+IDD_SOUND DIALOGEX 0, 0, 300, 208
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    RTEXT           "Sound device:",IDC_SOUNDCARD,8,9,51,13,SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDCARDLIST,64,9,229,50,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Sound Emulation",IDC_SOUNDSETTINGS,7,30,120,68
+    CONTROL         "Disabled",IDC_SOUND0,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,15,45,43,10
+    CONTROL         "Disabled, but emulated",IDC_SOUND1,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,15,57,88,10
+    CONTROL         "Enabled",IDC_SOUND2,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,15,69,42,10
+    CONTROL         "Enabled, 100% accurate",IDC_SOUND3,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,15,81,93,10
+    GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,133,30,160,68
+    RTEXT           "Frequency:",IDC_SOUNDFREQTXT,138,40,37,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDFREQ,140,49,67,75,CBS_DROPDOWN | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Audio filter:",IDC_SOUNDFILTERTXT,140,65,36,8,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDFILTER,140,74,67,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Stereo mode:",IDC_SOUNDSTEREOTXT,223,40,41,8,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDSTEREO,220,49,67,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Interpolation:",IDC_SOUNDINTERPOLATIONTXT,222,65,41,8,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDINTERPOLATION,220,74,67,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Disk Drive Sound Emulation",IDC_STATIC,8,102,285,29
+    COMBOBOX        IDC_SOUNDDRIVE,15,113,32,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SOUNDDRIVESELECT,55,113,120,75,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_SOUNDDRIVEVOLUME,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,183,109,107,19
+    GROUPBOX        "Sound buffer size",IDC_STATIC,7,136,120,29
+    CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,144,106,19
+    CTEXT           "",IDC_SOUNDBUFFERMEM,134,144,40,16,SS_CENTERIMAGE | 
+                    SS_SUNKEN | WS_BORDER | WS_TABSTOP
+    GROUPBOX        "Sound driver lag compensation",IDC_STATIC,7,170,120,28
+    CONTROL         "Slider1",IDC_SOUNDADJUST,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,178,107,19
+    PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,178,40,14
+    CTEXT           "",IDC_SOUNDADJUSTNUM,134,178,40,16,SS_CENTERIMAGE | 
+                    SS_SUNKEN | WS_BORDER | WS_TABSTOP
+    GROUPBOX        "Volume",IDC_STATIC,181,136,112,29
+    CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,183,144,107,19
+END
+
+IDD_LOADSAVE DIALOGEX 0, 0, 302, 240
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_CONFIGTREE,"SysTreeView32",TVS_HASLINES | 
+                    TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | WS_BORDER | 
+                    WS_TABSTOP,6,4,289,155,WS_EX_CLIENTEDGE
+    RTEXT           "Name:",IDC_STATIC,5,202,40,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDITNAME,50,202,155,15,ES_AUTOHSCROLL,0,
+                    HIDC_EDITNAME
+    RTEXT           "Path:",IDC_STATIC,5,184,39,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDITPATH,50,184,155,15,ES_AUTOHSCROLL | WS_DISABLED,
+                    0,HIDC_EDITPATH
+    RTEXT           "Description:",IDC_STATIC,5,163,40,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDITDESCRIPTION,50,163,245,15,ES_AUTOHSCROLL,0,
+                    HIDC_EDITDESCRIPTION
+    GROUPBOX        "Extra Info",IDC_STATIC,210,179,85,38
+    PUSHBUTTON      "View",IDC_VIEWINFO,215,195,35,15
+    PUSHBUTTON      "Set",IDC_SETINFO,255,194,35,15
+    PUSHBUTTON      "Load",IDC_QUICKLOAD,5,222,40,15
+    PUSHBUTTON      "Save",IDC_QUICKSAVE,50,222,40,15
+    PUSHBUTTON      "Load From...",IDC_LOAD,125,222,45,15
+    PUSHBUTTON      "Save As...",IDC_SAVE,175,222,40,15
+    PUSHBUTTON      "Delete",IDC_DELETE,255,222,40,15
+END
+
+IDD_PORTS DIALOGEX 0, 0, 300, 202
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    RTEXT           "Serial:",IDC_STATIC,20,15,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_SERIAL,50,15,95,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    CONTROL         "Shared",IDC_SHARED,"Button",BS_AUTOCHECKBOX | 
+                    BS_VCENTER | WS_TABSTOP,33,32,37,12
+    CONTROL         "RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | 
+                    BS_VCENTER | WS_TABSTOP,77,32,44,12
+    CONTROL         "Direct",IDC_SERIAL_DIRECT,"Button",BS_AUTOCHECKBOX | 
+                    BS_VCENTER | WS_TABSTOP,128,32,40,12
+    RTEXT           "Printer:",IDC_STATIC,155,15,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_PRINTERLIST,185,15,95,134,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Out:",IDC_MIDI,10,64,34,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIOUTLIST,50,64,95,130,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "In:",IDC_MIDI2,150,64,29,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIINLIST,185,64,95,134,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Amiga Mouse Port 0",IDC_PORT0,7,92,116,100
+    CONTROL         "PC Joystick 0",IDC_PORT0_JOY0,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,20,102,90,10
+    CONTROL         "PC Joystick 1",IDC_PORT0_JOY1,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,20,116,90,10
+    CONTROL         "PC Mouse",IDC_PORT0_MOUSE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,20,131,90,11
+    CONTROL         "Keyboard Layout ""A""",IDC_PORT0_KBDA,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,20,147,90,10
+    CONTROL         "Keyboard Layout ""B""",IDC_PORT0_KBDB,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,20,162,90,10
+    CONTROL         "Keyboard Layout ""C""",IDC_PORT0_KBDC,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,20,177,90,10
+    GROUPBOX        "Amiga Mouse Port 1",IDC_PORT1,175,92,115,100
+    CONTROL         "PC Joystick 0",IDC_PORT1_JOY0,"Button",
+                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,190,102,90,10
+    CONTROL         "PC Joystick 1",IDC_PORT1_JOY1,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,190,116,90,10
+    CONTROL         "PC Mouse",IDC_PORT1_MOUSE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,190,131,90,11
+    CONTROL         "Keyboard Layout ""A""",IDC_PORT1_KBDA,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,190,147,90,10
+    CONTROL         "Keyboard Layout ""B""",IDC_PORT1_KBDB,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,190,162,90,10
+    CONTROL         "Keyboard Layout ""C""",IDC_PORT1_KBDC,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,190,177,90,10
+    PUSHBUTTON      "<-swap->",IDC_SWAP,130,132,40,14
+    GROUPBOX        "MIDI",IDC_MIDIFRAME,7,51,284,36
+    GROUPBOX        "Serial and Parallel",IDC_SERPARFRAME,7,3,284,45
+END
+
+IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | WS_POPUP | 
+    WS_VISIBLE | WS_CAPTION
+CAPTION "UAE Authors and Contributors..."
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "Ok",ID_OK,177,219,53,14
+    CONTROL         "",IDC_CONTRIBUTORS,"RICHEDIT",TCS_HOTTRACK | 
+                    TCS_VERTICAL | TCS_RAGGEDRIGHT | TCS_OWNERDRAWFIXED | 
+                    TCS_MULTISELECT | WS_BORDER | WS_VSCROLL | WS_HSCROLL | 
+                    WS_TABSTOP,4,5,404,206
+END
+
+IDD_ABOUT DIALOGEX 0, 0, 300, 175
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_RICHEDIT1,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,45,10,
+                    210,15
+    CONTROL         "",IDC_RICHEDIT2,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,30,
+                    260,13
+    PUSHBUTTON      "Contributors",IDC_CONTRIBUTORS,110,55,80,15
+    CONTROL         "",IDC_CLOANTOHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,90,80,
+                    20
+    CONTROL         "",IDC_UAEHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,120,
+                    80,15
+    CONTROL         "",IDC_PICASSOHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,90,
+                    80,20
+    CONTROL         "",IDC_AMIGAHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,90,
+                    80,15
+    CONTROL         "",IDC_WINUAEHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,120,
+                    80,15
+    CONTROL         "",IDC_AIABHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,120,
+                    80,15
+    CONTROL         "",IDC_THEROOTS,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,33,143,
+                    110,15
+    CONTROL         "",IDC_CAPS,"RICHEDIT",TCS_SCROLLOPPOSITE | 
+                    TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,150,143,
+                    110,15
+END
+
+IDD_MISC1 DIALOGEX 0, 0, 300, 223
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,90
+    CONTROL         "Middle-Mouse-Button --> ALT-TAB",IDC_JULIAN,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,15,120,10
+    CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,30,120,10
+    CONTROL         "On-Screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,29,45,115,10
+    CONTROL         "UAEscsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,29,60,117,10
+    CONTROL         "BSDsocket.library emulation",IDC_SOCKETS,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,15,120,10
+    CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,30,120,10
+    CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,45,120,10
+    CONTROL         "Use ASPI SCSI layer",IDC_ASPI,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,159,60,115,10
+    GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,99,85,73
+    COMBOBOX        IDC_KBLED1,22,112,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    COMBOBOX        IDC_KBLED2,22,131,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    COMBOBOX        IDC_KBLED3,22,151,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    GROUPBOX        "Logging:",IDC_STATIC,97,99,195,25
+    CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,107,109,72,10,0,
+                    HIDC_CREATELOGFILE
+    CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,189,109,80,10
+    GROUPBOX        "State files:",IDC_STATIC,98,126,195,76
+    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,143,49,14
+    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,169,49,14
+    CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,188,142,88,10
+    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,160,
+                    86,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_RATE,248,158,38,65,CBS_DROPDOWN | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Recording buffer (MB)",IDC_STATE_BUFFERSIZE_TEXT,157,
+                    180,83,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_BUFFERSIZE,248,178,38,65,CBS_DROPDOWN | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,76,115,10
+END
+
+IDD_HARDFILE DIALOGEX 0, 0, 229, 164
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | 
+    DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Volume Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    GROUPBOX        "Hard File Settings",IDC_STATIC,10,5,210,90
+    RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,19,21,22,10
+    EDITTEXT        IDC_PATH_NAME,44,15,151,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_SELECTOR,200,15,11,15
+    RTEXT           "FileSys:",IDC_HARDFILE_FILESYS_TEXT,16,36,26,10
+    EDITTEXT        IDC_PATH_FILESYS,44,34,89,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,139,34,11,15
+    CONTROL         "Read/Write",IDC_RW,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,160,37,50,10
+    RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,16,58,25,10
+    EDITTEXT        IDC_HARDFILE_DEVICE,44,54,32,15,ES_AUTOHSCROLL
+    RTEXT           "Surfaces:",IDC_SURFACES_TEXT,75,58,35,10
+    EDITTEXT        IDC_HEADS,115,54,27,15,ES_NUMBER
+    RTEXT           "Reserved:",IDC_RESERVED_TEXT,145,58,35,10
+    EDITTEXT        IDC_RESERVED,185,54,27,15,ES_NUMBER
+    RTEXT           "BootPri:",IDC_HARDFILE_BOOTPRI_TEXT,11,80,30,8
+    EDITTEXT        IDC_HARDFILE_BOOTPRI,44,75,32,15
+    RTEXT           "Sectors:",IDC_SECTORS_TEXT,80,80,30,10
+    EDITTEXT        IDC_SECTORS,115,75,27,15,ES_NUMBER
+    RTEXT           "Block-Size:",IDC_BLOCKSIZE_TEXT,145,80,35,10
+    EDITTEXT        IDC_BLOCKSIZE,185,75,27,15,ES_NUMBER
+    GROUPBOX        "New Hard File",IDC_STATIC,10,100,210,35
+    PUSHBUTTON      "Create",IDC_CREATEHF,20,115,85,14
+    EDITTEXT        IDC_HFSIZE,110,115,60,15,ES_NUMBER
+    LTEXT           "MB",IDC_RESERVED_TEXT2,174,118,39,9,NOT WS_GROUP
+    PUSHBUTTON      "OK",IDOK,115,143,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,171,143,50,14
+END
+
+IDD_FILESYS DIALOGEX 15, 25, 229, 111
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | 
+    DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Volume Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    LTEXT           "Device Name:",-1,5,9,54,10
+    EDITTEXT        IDC_VOLUME_DEVICE,65,5,85,15,ES_AUTOHSCROLL
+    LTEXT           "Volume Label:",-1,5,31,54,10
+    EDITTEXT        IDC_VOLUME_NAME,65,25,85,15,ES_AUTOHSCROLL
+    LTEXT           "Path:",-1,5,51,44,10
+    EDITTEXT        IDC_PATH_NAME,65,46,139,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_SELECTOR,210,46,10,15
+    CONTROL         "Read/Write",IDC_RW,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,5,70,50,10
+    RTEXT           "BootPri:",IDC_VOLUME_BOOTPRI_TEXT,68,70,30,8
+    EDITTEXT        IDC_VOLUME_BOOTPRI,106,68,27,15
+    PUSHBUTTON      "OK",IDOK,120,91,48,15
+    PUSHBUTTON      "Cancel",IDCANCEL,175,91,48,15
+END
+
+IDD_SETINFO DIALOGEX 0, 0, 229, 85
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | 
+    DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Info Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    RTEXT           "Path:",-1,5,20,24,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_PATH_NAME,35,20,169,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_SELECTOR,210,20,10,15
+    PUSHBUTTON      "OK",IDOK,120,65,48,15
+    PUSHBUTTON      "Cancel",IDCANCEL,175,65,48,15
+END
+
+IDD_CHIPSET DIALOGEX 0, 65490, 300, 229
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    GROUPBOX        "Chipset type",IDC_STATIC,14,11,145,82
+    CONTROL         "OCS",IDC_OCS,"Button",BS_AUTORADIOBUTTON | WS_GROUP | 
+                    WS_TABSTOP,38,31,30,10
+    CONTROL         "ECS Agnus",IDC_ECS_AGNUS,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,38,47,50,10
+    CONTROL         "ECS Denise",IDC_ECS_DENISE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,38,63,50,10
+    CONTROL         "Full ECS",IDC_ECS,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,102,31,42,10
+    CONTROL         "AGA",IDC_AGA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
+                    102,47,30,10
+    CONTROL         "NTSC",IDC_NTSC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    102,64,35,10
+    GROUPBOX        "Misc chipset options",IDC_STATIC,168,11,114,82
+    CONTROL         "Fast Copper",IDC_FASTCOPPER,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,174,31,53,10
+    CONTROL         "Immediate Blitter",IDC_BLITIMM,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,174,47,75,10
+    CONTROL         "Cycle exact CPU and Blitter",IDC_CYCLEEXACT,"Button",
+                    BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,64,
+                    100,10
+    GROUPBOX        "Collision level",IDC_STATIC,14,97,267,48
+    CONTROL         "None",IDC_COLLISION0,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,40,113,50,10
+    CONTROL         "Sprites only",IDC_COLLISION1,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,39,129,50,10
+    CONTROL         "Sprites and Sprites vs. Playfield",IDC_COLLISION2,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,104,113,114,10
+    CONTROL         "Full",IDC_COLLISION3,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,104,129,27,10
+    GROUPBOX        "Sound emulation",IDC_STATIC,13,150,268,65
+    CONTROL         "Disabled",IDC_CS_SOUND0,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,39,167,102,10
+    CONTROL         "Emulated",IDC_CS_SOUND1,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,39,182,91,10
+    CONTROL         "Emulated, 100% accurate",IDC_CS_SOUND2,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,39,197,95,10
+END
+
+IDD_AVIOUTPUT DIALOGEX 0, 0, 198, 188
+STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Output Properties:",IDC_STATIC,5,8,184,96
+    EDITTEXT        IDC_AVIOUTPUT_FILETEXT,26,21,120,12,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_BORDER,WS_EX_CLIENTEDGE
+    PUSHBUTTON      "...",IDC_AVIOUTPUT_FILE,148,21,19,12
+    CONTROL         "Audio",IDC_AVIOUTPUT_AUDIO,"Button",BS_AUTOCHECKBOX | 
+                    BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,26,36,32,11
+    CONTROL         "",IDC_AVIOUTPUT_AUDIO_STATIC,"Static",SS_LEFTNOWORDWRAP | 
+                    SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,60,36,107,11
+    CONTROL         "Video",IDC_AVIOUTPUT_VIDEO,"Button",BS_AUTOCHECKBOX | 
+                    BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,26,50,32,11
+    CONTROL         "",IDC_AVIOUTPUT_VIDEO_STATIC,"Static",SS_LEFTNOWORDWRAP | 
+                    SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,60,50,107,11
+    CONTROL         "Disable frame rate limit while recording",
+                    IDC_AVIOUTPUT_FRAMELIMITER,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,28,68,142,10
+    CONTROL         "AVIOutput enabled",IDC_AVIOUTPUT_ACTIVATED,"Button",
+                    BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,26,83,142,12
+    GROUPBOX        "Playback Rate:",IDC_STATIC,5,107,184,50
+    CONTROL         "PAL",IDC_AVIOUTPUT_PAL,"Button",BS_AUTORADIOBUTTON | 
+                    BS_PUSHLIKE | BS_FLAT,24,124,66,8
+    CONTROL         "NTSC",IDC_AVIOUTPUT_NTSC,"Button",BS_AUTORADIOBUTTON | 
+                    BS_PUSHLIKE | BS_FLAT,95,124,66,8
+    CONTROL         "Slider1",IDC_AVIOUTPUT_FPS,"msctls_trackbar32",TBS_BOTH | 
+                    TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP,21,137,120,
+                    11
+    LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,141,136,23,8
+    PUSHBUTTON      "Save Screenshot",IDC_SCREENSHOT,46,167,95,12
+END
+
+IDD_INPUT DIALOGEX 0, 0, 300, 242
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_INPUTTYPE,5,5,98,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_INPUTDEVICE,109,4,167,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_INPUTDEVICEDISABLE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,282,7,9,8
+    CONTROL         "List1",IDC_INPUTLIST,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,22,290,146
+    COMBOBOX        IDC_INPUTAMIGACNT,5,174,24,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_INPUTAMIGA,33,174,262,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Joystick dead zone (%):",-1,8,196,76,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTDEADZONE,89,195,25,12,ES_NUMBER
+    RTEXT           "Autofire rate (frames):",-1,9,212,68,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTAUTOFIRERATE,89,210,25,12,ES_NUMBER
+    RTEXT           "Digital joy-mouse speed:",-1,121,196,76,10,
+                    SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTSPEEDD,207,195,25,12,ES_NUMBER
+    RTEXT           "Analog joy-mouse speed:",-1,120,212,80,10,
+                    SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTSPEEDA,207,211,25,12,ES_NUMBER
+    RTEXT           "Mouse speed:",-1,132,228,68,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTSPEEDM,207,227,25,12,ES_NUMBER
+    PUSHBUTTON      "Copy from:",IDC_INPUTCOPY,249,195,45,14
+    COMBOBOX        IDC_INPUTCOPYFROM,249,211,45,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Swap 1<>2",IDC_INPUTSWAP,249,226,45,14
+END
+
+IDD_OPENGL DIALOGEX 0, 0, 300, 193
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "Filter settings:",-1,8,5,285,180
+    CONTROL         "Enable",IDC_OPENGLENABLE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,26,23,38,10
+    COMBOBOX        IDC_OPENGLMODE,67,21,56,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_OPENGLFILTER,128,21,65,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Reset to defaults",IDC_OPENGLDEFAULT,197,21,73,14
+    RTEXT           "Horizontal Size",-1,25,52,57,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_OPENGLHZ,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,89,45,158,19
+    CTEXT           "",IDC_OPENGLHZV,249,47,21,16,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER | WS_TABSTOP
+    RTEXT           "Vertical Size",-1,26,72,57,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_OPENGLVZ,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,89,65,157,19
+    CTEXT           "",IDC_OPENGLVZV,249,67,21,16,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER | WS_TABSTOP
+    RTEXT           "Horizontal Position",-1,26,92,57,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_OPENGLHO,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,89,85,157,19
+    CTEXT           "",IDC_OPENGLHOV,249,87,21,16,SS_CENTERIMAGE | SS_SUNKEN | 
+                    WS_BORDER | WS_TABSTOP
+    RTEXT           "Vertical Position",-1,26,111,57,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_OPENGLVO,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,89,105,157,19
+    CTEXT           "",IDC_OPENGLVOV,249,107,21,16,SS_CENTERIMAGE | 
+                    SS_SUNKEN | WS_BORDER | WS_TABSTOP
+    RTEXT           "Scanlines",-1,27,141,57,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_OPENGLSL,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,89,134,157,19
+    CTEXT           "",IDC_OPENGLSLV,249,135,21,16,SS_CENTERIMAGE | 
+                    SS_SUNKEN | WS_BORDER | WS_TABSTOP
+    COMBOBOX        IDC_OPENGLSLR,56,154,27,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Slider1",IDC_OPENGLSL2,"msctls_trackbar32",
+                    TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,89,154,157,19
+    CTEXT           "",IDC_OPENGLSL2V,249,154,21,16,SS_CENTERIMAGE | 
+                    SS_SUNKEN | WS_BORDER | WS_TABSTOP
+END
+
+IDD_HARDDRIVE DIALOGEX 0, 0, 229, 66
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | 
+    DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Harddrive Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    LTEXT           "Harddrive:",-1,7,11,35,10
+    COMBOBOX        IDC_HARDDRIVE,49,9,173,150,CBS_DROPDOWNLIST | 
+                    CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Read/Write",IDC_RW,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,15,30,50,10
+    DEFPUSHBUTTON   "OK",IDOK,116,47,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,172,47,50,14
+END
+
+IDD_MISC2 DIALOGEX 0, 0, 300, 92
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    GROUPBOX        "When Active:",IDC_STATIC,8,7,88,73
+    RTEXT           "Run at priority:",IDC_ACTIVE_PRI,14,17,45,10,
+                    SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_ACTIVE_PRIORITY,14,29,76,65,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "When Inactive:",IDC_STATIC,102,7,92,73
+    RTEXT           "Run at priority:",IDC_INACTIVE_PRI,109,17,45,10,
+                    SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_INACTIVE_PRIORITY,109,29,76,65,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Pause emulation",IDC_INACTIVE_PAUSE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,109,50,69,10
+    CONTROL         "Disable sound output",IDC_INACTIVE_NOSOUND,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,109,63,79,10
+    GROUPBOX        "When Minimized:",IDC_STATIC,199,7,92,73
+    RTEXT           "Run at priority:",IDC_MINIMIZED_PRI,207,18,45,10,
+                    SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_MINIMIZED_PRIORITY,207,30,76,65,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Pause emulation",IDC_MINIMIZED_PAUSE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,207,50,69,10
+    CONTROL         "Disable sound output",IDC_MINIMIZED_NOSOUND,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,207,63,79,10
+END
+
+IDD_DISK DIALOGEX 0, 0, 300, 242
+STYLE DS_SETFONT | DS_SETFOREGROUND | DS_3DLOOK | DS_CONTROL | DS_CENTER | 
+    DS_CENTERMOUSE | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_DISKLIST,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,262,211
+    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,94,222,93,15
+    PUSHBUTTON      "",IDC_UP,270,66,25,15,BS_ICON
+    PUSHBUTTON      "",IDC_DOWN,270,146,25,15,BS_ICON
+END
+
+IDD_PANEL DIALOGEX 0, 0, 420, 278
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
+EXSTYLE WS_EX_ACCEPTFILES | WS_EX_CONTROLPARENT
+CAPTION "WinUAE Properties"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | 
+                    TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | 
+                    WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
+    GROUPBOX        "",IDC_PANEL_FRAME_OUTER,110,2,307,251
+    DEFPUSHBUTTON   "OK",IDOK,260,259,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,313,259,50,14
+    PUSHBUTTON      "Help",IDHELP,366,259,50,14,WS_DISABLED
+    PUSHBUTTON      "Reset",IDC_RESETAMIGA,6,259,47,14
+    PUSHBUTTON      "Quit",IDC_QUITEMU,57,259,47,14
+    GROUPBOX        "",IDC_PANEL_FRAME,112,4,303,247,NOT WS_VISIBLE
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "#include ""dlgs.h""\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_APPICON             ICON                    "winuae.ico"
+IDI_FLOPPY              ICON                    "35floppy.ico"
+IDI_ABOUT               ICON                    "amigainfo.ico"
+IDI_HARDDISK            ICON                    "Drive.ico"
+IDI_CPU                 ICON                    "cpu.ico"
+IDI_PORTS               ICON                    "joystick.ico"
+IDI_INPUT               ICON                    "joystick.ico"
+IDI_MISC1               ICON                    "misc.ico"
+IDI_MISC2               ICON                    "misc.ico"
+IDI_MOVE_UP             ICON                    "move_up.ico"
+IDI_MOVE_DOWN           ICON                    "move_dow.ico"
+IDI_AVIOUTPUT           ICON                    "avioutput.ico"
+IDI_DISK                ICON                    "Drive.ico"
+IDI_CONFIGFILE          ICON                    "file.ico"
+IDI_FOLDER              ICON                    "folder.ico"
+IDI_SOUND               ICON                    "sound.ico"
+IDI_DISPLAY             ICON                    "screen.ico"
+IDI_ROOT                ICON                    "root.ico"
+IDI_MEMORY              ICON                    "chip.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,8,26,0
+ PRODUCTVERSION 0,8,26,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "WinUAE"
+            VALUE "FileVersion", "0.8.26"
+            VALUE "InternalName", "WinUAE"
+            VALUE "LegalCopyright", "© 1996-2004 under the GNU Public License (GPL)"
+            VALUE "OriginalFilename", "WinUAE.exe"
+            VALUE "ProductName", "WinUAE"
+            VALUE "ProductVersion", "0.8.26"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_MYHAND              CURSOR                  "H_arrow.cur"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_DISPLAY, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
+    IDD_FLOPPY, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
+    IDD_HARDDISK, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
+    IDD_SOUND, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 206
+    END
+
+    IDD_PORTS, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
+    IDD_CONTRIBUTORS, DIALOG
+    BEGIN
+        RIGHTMARGIN, 370
+        BOTTOMMARGIN, 212
+    END
+
+    IDD_MISC1, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 215
+    END
+
+    IDD_CHIPSET, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 215
+    END
+
+    IDD_AVIOUTPUT, DIALOG
+    BEGIN
+        RIGHTMARGIN, 164
+        BOTTOMMARGIN, 187
+    END
+
+    IDD_INPUT, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 187
+    END
+
+    IDD_OPENGL, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
+    IDD_DISK, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 193
+    END
+
+    IDD_PANEL, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        TOPMARGIN, 7
+        HORZGUIDE, 241
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDM_SYSTRAY MENU 
+BEGIN
+    POPUP "Menu"
+    BEGIN
+        MENUITEM "Configuration",               ID_ST_CONFIGURATION
+        POPUP "Floppy Drives"
+        BEGIN
+            MENUITEM "Eject all drives",            ID_ST_EJECTALL
+            MENUITEM "DF0:",                        40014
+            MENUITEM "DF1:",                        ID_ST_DF1
+            MENUITEM "DF2:",                        ID_ST_DF2
+            MENUITEM "DF3:",                        ID_ST_DF3
+        END
+        MENUITEM "Reset",                       ID_ST_RESET
+        MENUITEM "Help",                        ID_ST_HELP
+        MENUITEM "Quit WinUAE",                 ID_ST_QUIT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// WAVE
+//
+
+IDR_DRIVE_STARTUP_A500_1 WAVE                    "drive_startup.wav"
+IDR_DRIVE_CLICK_A500_1  WAVE                    "drive_click.wav"
+IDR_DRIVE_SPIN_A500_1   WAVE                    "drive_spin.wav"
+IDR_DRIVE_SNATCH_A500_1 WAVE                    "drive_snatch.wav"
+IDR_DRIVE_SPINND_A500_1 WAVE                    "drive_spinnd.wav"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "winuae.exe.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    IDS_KICKSTART           "ROM"
+    IDS_DISK                "Disk Swapper"
+    IDS_DISPLAY             "Display"
+    IDS_HARDDISK            "Hard Drives"
+    IDS_FLOPPY              "Disk Drives"
+    IDS_ABOUT               "About"
+    IDS_LOADSAVE            "Configurations"
+    IDS_AVIOUTPUT           "Output"
+    IDS_PORTS               "Game & I/O Ports"
+    IDS_MISC1               "Misc"
+    IDS_MEMORY              "RAM"
+    IDS_CPU                 "CPU"
+    IDS_CHIPSET             "Chipset"
+    IDS_INPUT               "Input"
+    IDS_OPENGL              "Filter"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_MISC2               "Priority"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_EXTTEXT             "Amiga Disk Files"
+    IDS_EXTACTUAL           "ADF"
+    IDS_SOUND               "Sound"
+    IDS_CDROM               "CD-ROM"
+    IDS_FRAMERATE           "Every %1Frame"
+    IDS_SECOND              "second "
+    IDS_THIRD               "third "
+    IDS_FOURTH              "fourth "
+    IDS_FIFTH               "fifth "
+    IDS_SIXTH               "sixth "
+    IDS_SEVENTH             "seventh "
+    IDS_EIGHTH              "eighth "
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_NINTH               "ninth "
+    IDS_TENTH               "tenth "
+    IDS_SELECTADF           "Select an Amiga Disk File image..."
+    IDS_ADF                 "Amiga Disk Files"
+    IDS_CHOOSEBLANK         "Choose your blank Amiga Disk File..."
+    IDS_SELECTHDF           "Select a Hard Disk File..."
+    IDS_HDF                 "Hard Disk Files"
+    IDS_SELECTUAE           "Select a UAE Config-File..."
+    IDS_UAE                 "UAE Config Files"
+    IDS_SELECTROM           "Select an Amiga ROM file..."
+    IDS_ROM                 "Amiga Kickstart Files"
+    IDS_SELECTKEY           "Select an Amiga Key-File..."
+    IDS_KEY                 "Amiga Kickstart Key-Files"
+    IDS_SELECTINFO          "Select information for your config..."
+    IDS_NONE                "none"
+    IDS_VOLUME              "Volume"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_SELECTFILESYSROOT   "Please select your file-system root directory..."
+    IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
+    IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
+    IDS_CONTRIBUTORS2       "Special thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\n"
+    IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
+    IDS_RESTOREUSS          "Restore a UAE Snap-Shot File"
+    IDS_USS                 "UAE Snap-Shot Files"
+    IDS_WRONGOSVERSION      "WinUAE is no longer supported on Windows NT.  Please upgrade to either Windows 2000 or Windows XP."
+    IDS_SELECTFLASH         "Select a flash/battery backed RAM file..."
+    IDS_FLASH               "UAE flash/battery backed RAM file"
+    IDS_INPUTHOSTWIDGET     "Input Source"
+    IDS_INPUTAMIGAEVENT     "Input Target"
+    IDS_INPUTAUTOFIRE       "Autofire"
+    IDS_SAVEUSS             "Save a UAE Snap-Shot File"
+    IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen. Please report this to\nberndroesch1@compuserve.de"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_PATH                "Path"
+    IDS_RW                  "R/W"
+    IDS_SECTORS             "Sectors"
+    IDS_SURFACES            "Surfaces"
+    IDS_RESERVED            "Reserved"
+    IDS_BLOCKSIZE           "Block Size"
+    IDS_NAME                "Name"
+    IDS_DESCRIPTION         "Description"
+    IDS_ONEINSTANCE         "Only one instance of WinUAE can run at a time.\n"
+    IDS_INSTALLDIRECTX      "You have to install DirectX on your system before you can use UAE.\nRefer to the documentation for further details.\n"
+    IDS_REGKEYCREATEFAILED  "WinUAE could not create Registry keys!  You need administrator privileges.\n"
+    IDS_COULDNOTLOADCONFIG  "Could not load selected configuration!\n"
+    IDS_NOHELP              "Online help is disabled, because you have not installed the HtmlHelp system.  Go to http://msdn.microsoft.com/library/tools/htmlhelp/wkshp/download.htm to get HtmlHelp.\n"
+    IDS_MUSTSELECTCONFIG    "You must select a configuration or enter a name before selecting Load...\n"
+    IDS_INVALIDCOMPORT      "The COM-port you have in this configuration is not valid on this machine.\n"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_HFDSIZE             "Size"
+    IDS_DEVICE              "Device"
+    IDS_BOOTPRI             "BootPri"
+    IDS_WRONGDXVERSION      "WinUAE requires DirectX 8 or newer."
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_WSOCK2NEEDED        "Please upgrade to Winsock2.\n"
+    IDS_UNSUPPORTEDPIXELFORMAT 
+                            "Error: Unsupported pixel format - use a different screen mode\n"
+    IDS_MUSTENTERNAME       "You must select a configuration or enter a name before selecting Save...\n"
+    IDS_MUSTSELECTCONFIGFORDELETE 
+                            "You must select a configuration or enter a name before selecting Delete...\n"
+    IDS_DELETECONFIGCONFIRMATION 
+                            "Are you sure you want to Delete this configuration?\n"
+    IDS_DELETECONFIGTITLE   "Confirm Delete"
+    IDS_GFXCARDCHECK        "WinUAE will now determine your graphic-card's 16-bit pixel format.\nYour screen will go black for two seconds, with a resolution of 640x480 @ 60Hz.\nThis procedure is necessary to properly display your Amiga software on 16-bit\ndisplay-modes, and should be done whenever you run WinUAE for the first time, or\ninstall a new graphics-card in your PC.  Proceed with this test?\n"
+    IDS_GFXCARDTITLE        "Pixel Format Detection"
+    IDS_MUSTSELECTPATH      "You must select a path!"
+    IDS_SETTINGSERROR       "Settings Error"
+    IDS_MUSTSELECTNAME      "You must select a name for the volume!"
+    IDS_MUSTSELECTFILE      "You must select a file!"
+    IDS_FAILEDHARDFILECREATION "Failed to create hard-file..."
+    IDS_CREATIONERROR       "Creation Error"
+    IDS_ERRORTITLE          "WinUAE Message"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_SOUND_MONO          "Mono"
+    IDS_SOUND_MIXED         "Mixed"
+    IDS_SOUND_STEREO        "Stereo"
+    IDS_SOUND_INTERPOL_DISABLED "Disabled"
+    IDS_SOUND_INTERPOL_RH   "RH"
+    IDS_SOUND_INTERPOL_CRUX "Crux"
+    IDS_SOUND_FILTER_OFF    "Always off"
+    IDS_SOUND_FILTER_EMULATED "Emulated"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_SOUND_FILTER_ON     "Always on"
+    IDS_INPUT_COMPATIBILITY "Compatibility mode"
+    IDS_INPUT_CUSTOM        "Configuration #%d"
+    IDS_INPUT_COPY_DEFAULT  "Default"
+    IDS_INPUT_COPY_CUSTOM   "Config #%d"
+    IDS_3D_NO_FILTER        "Point (%d-bit)"
+    IDS_3D_BILINEAR         "Bilinear (%d-bit)"
+    IDS_VSYNC_DEFAULT       "Default"
+    IDS_DRIVESOUND_NONE     "No sound"
+    IDS_DRIVESOUND_DEFAULT_A500 "A500 (WinUAE built-in)"
+    IDS_AVIOUTPUT_NOCODEC   "no codec selected"
+    IDS_DISK_IMAGENAME      "Disk image"
+    IDS_DISK_DRIVENAME      "Drive"
+    IDS_AGA8BIT             "AGA emulation requires 16 bit or higher display depth\nSwitching from 8-bit to 16-bit"
+    IDS_UNSUPPORTEDSCREENMODE 
+                            "The selected screen mode can't be displayed in a window, because %s\nSwitching to full-screen display."
+    IDS_UNSUPPORTEDSCREENMODE_1 
+                            "the desktop is running in an unknown color mode."
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_UNSUPPORTEDSCREENMODE_2 
+                            "the desktop is running in 8 bit color depth, which UAE can't use in windowed mode."
+    IDS_UNSUPPORTEDSCREENMODE_3 
+                            "the desktop is too small for the specified window size"
+    IDS_UNSUPPORTEDSCREENMODE_4 
+                            "you selected a Picasso96 display with a color depth different from that of the desktop and an overlay was unavailable."
+    IDS_FLOPPYTYPE35DD      "3.5"" DD"
+    IDS_FLOPPYTYPE35HD      "3.5"" HD"
+    IDS_FLOPPYTYPE525SD     "5.25"" SD"
+    IDS_FLOPPYTYPEDISABLED  "Disabled"
+    IDS_STMENUNOFLOPPY      "No disk inserted"
+    IDS_TREEVIEW_HARDWARE   "Hardware"
+    IDS_TREEVIEW_HOST       "Host"
+    IDS_TREEVIEW_MISC       "Misc"
+    IDS_TREEVIEW_SETTINGS   "Settings"
+    IDS_WINUAETITLE_MMB     "[Mouse active - press Alt-Tab or middle-button to cancel]"
+    IDS_WINUAETITLE_NORMAL  "[Mouse active - press Alt-Tab to cancel]"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
