@@ -260,26 +260,26 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
 
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
+    int code = 0;
+
 //    write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
     if (newstate) {
 	switch (scancode)
 	{
 	    case DIK_F12:
 	    if (ctrlpressed ()) {
-		fullscreentoggle();
+		code = AKS_TOGGLEFULLSCREEN;
 	    } else if (shiftpressed () || endpressed ()) {
 	        disablecapture ();
-		activate_debugger ();
+		code = AKS_ENTERDEBUGGER;
 	    } else {
-		gui_display (-1);
+		code = AKS_ENTERGUI;
 	    }
-	    return;
+	    break;
 	    case DIK_F11:
 	    if (currprefs.win32_ctrl_F11_is_quit) {
-		if (ctrlpressed()) {
-		    uae_quit();
-		    return;
-		}
+		if (ctrlpressed())
+		    code = AKS_QUIT;
 	    }
 	    break;
 	    case DIK_F1:
@@ -288,31 +288,18 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_F4:
 	    if (endpressed ()) {
 		if (shiftpressed ())
-		    disk_eject (scancode - DIK_F1);
+		    code = AKS_EFLOPPY0 + (scancode - DIK_F1);
 		else
-		    gui_display (scancode - DIK_F1);
-		return;
+		    code = AKS_FLOPPY0 + (scancode - DIK_F1);
 	    }
 	    break;
 	    case DIK_F5:
 	    if (endpressed ()) {
-		gui_display (shiftpressed () ? 5 : 4);
-		return;
+		if (shiftpressed ())
+		    code = AKS_STATESAVEDIALOG;
+		else
+		    code = AKS_STATERESTOREDIALOG;
 	    }
-	    break;
-#if 0
-	    case DIK_F6:
-	    if (endpressed ()) {
-		if (shiftpressed ()) {
-		    if(savestate_filename && strlen (savestate_filename))
-			savestate_state = STATE_DOSAVE;
-		} else {		
-		    if(savestate_filename && strlen (savestate_filename))
-			savestate_state = STATE_DORESTORE;
-		}
-		return;
-	    }
-#endif
 	    break;
 	    case DIK_NUMPAD0:
 	    case DIK_NUMPAD1:
@@ -331,11 +318,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		    v = np[i + 1];
 		    if (np[i] == scancode)
 			break;
-		    i+=2;
+		    i += 2;
 		}
 		if (v >= 0)
-		    savestate_quick (v, shiftpressed() || ctrlpressed ());
-		return;
+		    code = AKS_STATESAVEQUICK + v * 2 + ((shiftpressed () || ctrlpressed()) ? 0 : 1);
 	    }
 	    break;
 	    case DIK_SYSRQ:
@@ -343,38 +329,41 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    break;
 	    case DIK_PAUSE:
 	    if (endpressed ())
-		warpmode (-1);
+		code = AKS_WARP;
 	    else
-		pausemode (-1);
+		code = AKS_PAUSE;
 	    break;
 	    case DIK_SCROLL:
-	    toggle_inhibit_frame (IHF_SCROLLLOCK);
-	    return;
+	    code = AKS_INHIBITSCREEN;
+	    break;
 	    case DIK_PRIOR:
 #ifdef ACTION_REPLAY
-	    if (action_replay_freeze ())
-		return;
+	    code = AKS_FREEZEBUTTON;
 #endif
 	    break;
 	    case DIK_NEXT:
 	    break;
 	    case DIK_NUMPADMINUS:
 	    if (endpressed ())
-		sound_volume (-1);
+		code = AKS_VOLDOWN;
 	    break;
 	    case DIK_NUMPADPLUS:
 	    if (endpressed ())
-		sound_volume (1);
+		code = AKS_VOLUP;
 	    break;
 	    case DIK_NUMPADSTAR:
 	    if (endpressed ())
-		sound_volume (0);
+		code = AKS_VOLMUTE;
 	    break;
 	    case DIK_NUMPADSLASH:
 	    if (endpressed ())
-		savestate_dorewind (1);
+		code = AKS_STATEREWIND;
 	    break;
 	}
+    }
+    if (code) {
+	inputdevice_add_inputcode (code);
+	return;
     }
     if (endpressed ())
 	return;

@@ -86,6 +86,7 @@ static int tod_hack;
 #endif
 
 static uae_u8 serbits;
+static int warned = 10;
 
 static void setclr (unsigned int *p, unsigned int val)
 {
@@ -1029,7 +1030,15 @@ uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	case 2:
 	v = (addr & 1) ? ReadCIAA (r) : 0xff;
 	break;
-    }
+ 	case 3:
+	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	    v = (addr & 1) ? regs.irc : regs.irc >> 8;
+	if (warned > 0) {
+	    write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, m68k_getpc());
+	    warned--;
+	}
+	break;
+   }
     cia_wait_post ();
     return v;
 }
@@ -1059,6 +1068,15 @@ uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 	case 2:
 	v = (0xff << 8) | ReadCIAA (r);
 	break;
+	case 3:
+	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	    v = regs.irc;
+	if (warned > 0) {
+	    write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, m68k_getpc());
+	    warned--;
+	}
+	break;
+
     }
     cia_wait_post ();
     return v;
@@ -1082,6 +1100,7 @@ uae_u32 REGPARAM2 cia_lget (uaecptr addr)
 void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 {
     int r = (addr & 0xf00) >> 8;
+
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
@@ -1096,6 +1115,10 @@ void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 	WriteCIAB (r, value);
     if ((addr & 0x1000) == 0)
 	WriteCIAA (r, value);
+    if (((addr & 0x3000) == 0x3000) && warned > 0) {
+	write_log ("cia_bput: unknown CIA address %x %x\n", addr, value);
+	warned--;
+    }
     cia_wait_post ();
 }
 
@@ -1116,6 +1139,10 @@ void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 	WriteCIAB (r, value >> 8);
     if ((addr & 0x1000) == 0)
 	WriteCIAA (r, value & 0xff);
+    if (((addr & 0x3000) == 0x3000) && warned > 0) {
+        write_log ("cia_wput: unknown CIA address %x %x\n", addr, value);
+        warned--;
+    }
     cia_wait_post ();
 }
 

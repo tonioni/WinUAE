@@ -307,6 +307,8 @@ void writeser (int c)
     }
     else
     {
+	if (!currprefs.use_serial)
+	    return;
 	if (datainoutput + 1 < sizeof(outputbuffer)) {
 	    outputbuffer[datainoutput++] = c;
 	} else {
@@ -319,9 +321,9 @@ void writeser (int c)
 
 int checkserwrite (void)
 {
-    if (hCom == INVALID_HANDLE_VALUE)
-	return 1;
     if (midi_ready) {
+	return 1;
+    if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 	return 1;
     } else {
         outser ();
@@ -339,6 +341,8 @@ int readseravail (void)
 	if (ismidibyte ())
 	    return 1;
     } else {
+	if (!currprefs.use_serial)
+	    return 0;
 	if (dataininput > dataininputcnt)
 	    return 1;
 	if (hCom != INVALID_HANDLE_VALUE)  {
@@ -366,6 +370,8 @@ int readser (int *buffer)
     }
     else
     {
+	if (!currprefs.use_serial)
+	    return 0;
 	if (dataininput > dataininputcnt) {
 	    *buffer = inputbuffer[dataininputcnt++];
 	    return 1;
@@ -398,7 +404,7 @@ int readser (int *buffer)
 
 void serialuartbreak (int v)
 {
-    if (hCom == INVALID_HANDLE_VALUE)
+    if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 	return;
 
     if (v)
@@ -413,7 +419,7 @@ void getserstat (int *pstatus)
     int status = 0;
 
     *pstatus = 0;
-    if (hCom == INVALID_HANDLE_VALUE)
+    if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 	return;
     
     GetCommModemStatus (hCom, &stat);
@@ -431,7 +437,7 @@ void getserstat (int *pstatus)
 
 void setserstat (int mask, int onoff)
 {
-    if (hCom == INVALID_HANDLE_VALUE)
+    if (!currprefs.use_serial || hCom == INVALID_HANDLE_VALUE)
 	return;
 
     if (mask & TIOCM_DTR)
@@ -444,7 +450,7 @@ void setserstat (int mask, int onoff)
 
 int setbaud (long baud)
 {
-    if( baud == 31400 ) /* MIDI baud-rate */
+    if( baud == 31400 && currprefs.win32_midioutdev >= -1) /* MIDI baud-rate */
     {
         if (!midi_ready)
         {
@@ -459,7 +465,9 @@ int setbaud (long baud)
         {
             Midi_Close();
         }
-        if (hCom != INVALID_HANDLE_VALUE) 
+        if (!currprefs.use_serial)
+	    return 1;
+	if (hCom != INVALID_HANDLE_VALUE) 
         {
 	    if (GetCommState (hCom, &dcb)) 
             {

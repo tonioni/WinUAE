@@ -84,9 +84,6 @@ void SERPER (uae_u16 w)
 
     write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d PC=%x\n", w, baud, serial_period_hsyncs, m68k_getpc());
 
-    if (!currprefs.use_serial)
-	return;
-
     if (ninebit)
 	baud *= 2;
     if (currprefs.serial_direct) {
@@ -113,9 +110,6 @@ static void checkreceive (int mode)
     static int ninebitdata;
     struct timeval tv;
     int recdata;
-
-    if (!currprefs.use_serial)
-	return;
 
     if (!readseravail())
 	return;
@@ -178,9 +172,6 @@ static void checksend (int mode)
     if (!data_in_serdat && !data_in_sershift)
 	return;
 
-    if (!currprefs.use_serial)
-	bufstate = 1;
-
     if (data_in_sershift && mode == 0 && bufstate)
 	data_in_sershift = 0;
 
@@ -188,11 +179,9 @@ static void checksend (int mode)
 	data_in_sershift = 1;
 	serdatshift = serdat;
 #ifdef SERIAL_PORT
-	if (currprefs.use_serial) {
-	    if (ninebit)
-		writeser (((serdatshift >> 8) & 1) | 0xa8);
-	    writeser (serdatshift);
-	}
+	if (ninebit)
+	    writeser (((serdatshift >> 8) & 1) | 0xa8);
+	writeser (serdatshift);
 #endif
 	data_in_serdat = 0;
         INTREQ (0x8000 | 0x0001);
@@ -468,7 +457,6 @@ void serial_init (void)
     if (!currprefs.serial_demand)
 	serial_open ();
 
-    serdat = 0x2000;
 #endif
 }
 

@@ -225,6 +225,11 @@ int isfullscreen (void)
 	return currprefs.gfx_afullscreen;
 }
 
+int is3dmode (void)
+{
+    return currentmode->flags & (DM_D3D | DM_OPENGL);
+}
+
 int WIN32GFX_GetDepth (int real)
 {
     if (!currentmode->real_depth)
@@ -779,10 +784,10 @@ void flush_screen (int a, int b)
 	S2X_render ();
 	if( currentmode->flags & DM_DX_FULLSCREEN )
 	    DX_Flip ();
-	else if(DirectDraw_GetLockableType() != overlay_surface)
+	else if (DirectDraw_GetLockableType() != overlay_surface)
 	    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
-    } else if((currentmode->flags & DM_DDRAW) && DirectDraw_GetLockableType() == secondary_surface ) {
-	if( currentmode->flags & DM_DX_FULLSCREEN ) {
+    } else if ((currentmode->flags & DM_DDRAW) && DirectDraw_GetLockableType() == secondary_surface ) {
+	if (currentmode->flags & DM_DX_FULLSCREEN) {
 	    if( turbo_emulation || DX_Flip() == 0 )
 	    	DX_Blit (0, a, 0, a, currentmode->current_width, b - a + 1, BLIT_SRC);
 	} else if(DirectDraw_GetLockableType() != overlay_surface)

@@ -315,14 +315,15 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
         ui->hf.readonly = readonly;
 	if (ui->hf.handle == 0)
 	    return "Hardfile not found";
-	if ((blocksize & (blocksize - 1)) != 0 || blocksize <= 0)
+	if ((ui->hf.blocksize & (ui->hf.blocksize - 1)) != 0 || ui->hf.blocksize == 0)
 	    return "Bad blocksize";
-	if ((secspertrack || surfaces || reserved) &&
-	    (secspertrack < 1 || surfaces < 1 || surfaces > 1023 || reserved < 0 || reserved > 1023) != 0)
+	if ((ui->hf.secspertrack || ui->hf.surfaces || ui->hf.reservedblocks) &&
+	    (ui->hf.secspertrack < 1 || ui->hf.surfaces < 1 || ui->hf.surfaces > 1023 ||
+	    ui->hf.reservedblocks < 0 || ui->hf.reservedblocks > 1023) != 0)
 	    return "Bad hardfile geometry";
-	if (blocksize > ui->hf.size || ui->hf.size == 0)
+	if (ui->hf.blocksize > ui->hf.size || ui->hf.size == 0)
 	    return "Hardfile too small";
-	ui->hf.nrcyls = (int)(secspertrack * surfaces ? (ui->hf.size / blocksize) / (secspertrack * surfaces) : 0);
+	ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.size / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
     }
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
@@ -3787,6 +3788,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     int newversion, newrevision;
 
     if (lastblock * hfd->blocksize > hfd->size)
+	return -2;
+    if (hfd->blocksize == 0)
 	return -2;
     for (rdblock = 0; rdblock < lastblock; rdblock++) {
 	hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);

@@ -187,28 +187,26 @@ void gui_display( int shortcut )
     ) {
         flipflop = 1;
     }
+
     WIN32GFX_ClearPalette();
     manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
     hr = DirectDraw_FlipToGDISurface();
-    if (hr != DD_OK) {
+    if (hr != DD_OK)
 	write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
-    }
 
     if( shortcut == -1 ) {
 	int ret;
-        if( flipflop )
-            ShowWindow( hAmigaWnd, SW_MINIMIZE );
+	if (flipflop)
+	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
 	ret = GetSettings (0, flipflop ? GetDesktopWindow () : hAmigaWnd);
-        if( flipflop )
-            ShowWindow( hAmigaWnd, SW_RESTORE );
+	if (flipflop > 0)
+	    ShowWindow (hAmigaWnd, SW_RESTORE);
 	if (!ret) {
 	    savestate_state = 0;
 	}
     } else if (shortcut >= 0 && shortcut < 4) {
-	write_log("1\n");
         DiskSelection( hAmigaWnd, IDC_DF0+shortcut, 0, &changed_prefs, 0 );
-	write_log("2\n");
     } else if (shortcut == 5) {
         if (DiskSelection( hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0 ))
 	    save_state (savestate_fname, "Description!");
@@ -229,7 +227,8 @@ void gui_display( int shortcut )
 #ifdef CD32
     akiko_exitgui ();
 #endif
-    setmouseactive (1);
+    if (flipflop >= 0)
+        setmouseactive (1);
 #ifdef D3D
     D3D_guimode (FALSE);
 #endif
@@ -494,7 +493,6 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	if( !(result = GetOpenFileName (&openFileName)) )
 	    write_log ("GetOpenFileName() failed.\n");
     }
-    write_log("result=%d\n", result); // xxx
     if (result)
     {
 	switch (wParam) 
@@ -512,13 +510,9 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	    SetDlgItemText (hDlg, wParam, full_path);
             break;
 	case IDC_DF0:
-	    write_log("x1\n");
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, full_path);
-	    write_log("x2\n");
 	    strcpy( prefs->df[0], full_path );
-	    write_log("x3\n");
 	    DISK_history_add (full_path, -1);
-	    write_log("x4\n");
             break;
 	case IDC_DF1:
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, full_path);
@@ -618,7 +612,6 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
             }
         }
     }
-    write_log("return=%d\n", result);
     return result;
 }
 
@@ -4235,6 +4228,8 @@ static void addfloppytype (HWND hDlg, int n)
 	}
 	if (!strcmp (workprefs.df[n], s))
 	    SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
+	if (nn <= 0)
+	    break;
     }
     if (fkey)
 	RegCloseKey (fkey);
@@ -4340,7 +4335,7 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if (HIWORD (wParam) == CBN_SELCHANGE)  {
+	if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 	    switch (LOWORD (wParam))
 	    {
 		case IDC_DF0TEXT:
@@ -4685,7 +4680,7 @@ static void values_from_portsdlg (HWND hDlg)
     }
 
     workprefs.win32_midioutdev = SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0 );
-    workprefs.win32_midioutdev--; /* selection zero is always 'default midi device', so we make it -1 */
+    workprefs.win32_midioutdev -= 2;
 
     if( bNoMidiIn )
     {
@@ -4695,6 +4690,7 @@ static void values_from_portsdlg (HWND hDlg)
     {
 	workprefs.win32_midiindev = SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0 );
     }
+    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
     item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
     switch( item ) 
@@ -4709,15 +4705,11 @@ static void values_from_portsdlg (HWND hDlg)
 	case 8:
 	    workprefs.use_serial = 1;
 	    strcpy (workprefs.sername, comports[item - 1]);
-	    EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), TRUE );
-	    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), TRUE );
 	break;
 
 	default:
 	    workprefs.use_serial = 0;
 	    strcpy( workprefs.sername, "none" );
-	    EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), FALSE );
-	    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), FALSE );
 	break;
     }
     workprefs.serial_demand = 0;
@@ -4733,8 +4725,7 @@ static void values_from_portsdlg (HWND hDlg)
 
 static void values_to_portsdlg (HWND hDlg)
 {
-    LONG item_height, result = 0;
-    RECT rect;
+    LONG result = 0;
 
     if( strcmp (workprefs.prtname, "none"))
     {
@@ -4764,11 +4755,12 @@ static void values_to_portsdlg (HWND hDlg)
 	}
     }
     SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0 );
-    SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 1, 0 ); /* we +1 here because 1st entry is 'default' */
-    if( !bNoMidiIn && ( workprefs.win32_midiindev >= 0 ) )
+    SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0 );
+    if (!bNoMidiIn && workprefs.win32_midiindev >= 0)
 	SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev, 0 );
     else
 	SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0 );
+    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
     
     CheckDlgButton( hDlg, IDC_SHARED, workprefs.serial_demand );
     CheckDlgButton( hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts );
@@ -4808,29 +4800,6 @@ static void values_to_portsdlg (HWND hDlg)
 	{
 	    workprefs.use_serial = 1;
 	}
-    }
-
-    if( workprefs.use_serial )
-    {
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), TRUE );
-	if( !bNoMidiIn )
-	    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), TRUE );
-    }
-    else
-    {
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), FALSE );
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), FALSE );
-    }
-    /* Retrieve the height, in pixels, of a list item. */
-    item_height = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETITEMHEIGHT, 0, 0L);
-    if (item_height != CB_ERR) {
-	/* Get actual box position and size. */
-	GetWindowRect (GetDlgItem (hDlg, IDC_SERIAL), &rect);
-	rect.bottom = (rect.top + item_height * 5
-	    + SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETITEMHEIGHT, (WPARAM) - 1, 0L)
-	    + item_height);
-	SetWindowPos (GetDlgItem (hDlg, IDC_SERIAL), 0, 0, 0, rect.right - rect.left,
-	    rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER);
     }
 }
 
@@ -4892,6 +4861,8 @@ static void init_portsdlg( HWND hDlg )
 	}
     }
 
+    SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L );
+    SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone );
     if( ( numdevs = midiOutGetNumDevs() ) == 0 )
     {
 	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), FALSE );
@@ -4900,7 +4871,6 @@ static void init_portsdlg( HWND hDlg )
     {
 	char szMidiOut[ MAX_DPATH ];
 	WIN32GUI_LoadUIString( IDS_DEFAULTMIDIOUT, szMidiOut, MAX_DPATH );
-        SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L );
         SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szMidiOut );
 
         for( port = 0; port < numdevs; port++ )
@@ -4910,8 +4880,10 @@ static void init_portsdlg( HWND hDlg )
                 SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midiOutCaps.szPname );
             }
         }
+	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), TRUE );
     }
 
+    SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L );
     if( ( numdevs = midiInGetNumDevs() ) == 0 )
     {
 	EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), FALSE );
@@ -4919,8 +4891,6 @@ static void init_portsdlg( HWND hDlg )
     }
     else
     {
-        SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L );
-
         for( port = 0; port < numdevs; port++ )
         {
             if( midiInGetDevCaps( port, &midiInCaps, sizeof( midiInCaps ) ) == MMSYSERR_NOERROR )

@@ -1037,6 +1037,8 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 	gui_message ("Error while reading Kickstart.\n");
 	return 0;
     }
+    if (i == size / 2)
+	memcpy (mem + size / 2, mem, size / 2);
 
     if (cr)
 	decode_cloanto_rom (mem, size, i);

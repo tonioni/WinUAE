@@ -27,6 +27,7 @@
 #include "ar.h"
 
 #ifdef JIT
+extern uae_u8* compiled_code;
 #include "compemu.h"
 #include <signal.h>
 extern void vec(int x, struct siginfo* si, struct sigcontext* sc);
@@ -1712,7 +1713,7 @@ static int do_specialties (int cycles)
  	do_cycles (4 * CYCLE_UNIT);
 	if (regs.spcflags & SPCFLAG_COPPER)
 	    do_copper ();
-	if (regs.spcflags & SPCFLAG_INT) {
+	if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
 	    int intr = intlev ();
 	    if (intr != -1 && intr > regs.intmask)
 	        Interrupt (intr);
@@ -1725,7 +1726,6 @@ static int do_specialties (int cycles)
 	if (currprefs.cpu_idle && currprefs.m68k_speed != 0 && ((regs.spcflags & SPCFLAG_STOP)) == SPCFLAG_STOP) {
 	    /* sleep 1ms if STOP-instruction is executed */
 	    if (1) {
-		extern uae_u8* compiled_code;
 		static int sleepcnt, lvpos, zerocnt;
 		if (vpos != lvpos) {
 		    sleepcnt--;
@@ -1749,11 +1749,23 @@ static int do_specialties (int cycles)
     /* interrupt takes at least 2 cycles (maybe 4) to reach the CPU and
      * there are programs that require this delay (which is not too surprising..)
      */
-    if (regs.spcflags & SPCFLAG_INT) {
+    if ((regs.spcflags & SPCFLAG_DOINT) 
+#ifdef JIT	
+	|| (!compiled_code && (regs.spcflags & SPCFLAG_INT))
+#endif
+	) {
         int intr = intlev ();
+	unset_special (SPCFLAG_DOINT);
  	if (intr != -1 && intr > regs.intmask)
 	    Interrupt (intr);
     }
+
+#ifdef JIT
+    if ((regs.spcflags & SPCFLAG_INT) && compiled_code) {
+	unset_special (SPCFLAG_INT);
+	set_special (SPCFLAG_DOINT);
+    }
+#endif
 
     if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 	unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);

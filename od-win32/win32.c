@@ -432,7 +432,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	timeend();  
 
     focus = 1;
-    write_log( "WinUAE now active via WM_ACTIVATE\n" );
+    write_log ("WinUAE now active via WM_ACTIVATE\n");
     pri = priorities[currprefs.win32_inactive_priority].value;
 #ifndef _DEBUG
     if (!minimized)
@@ -442,7 +442,7 @@ static void winuae_active (HWND hWnd, int minimized)
 
     if (!minimized) {
         if (!avioutput_video) {
-	    clear_inhibit_frame( IHF_WINDOWHIDDEN );
+	    clear_inhibit_frame (IHF_WINDOWHIDDEN);
 	}
     }
     if (emulation_paused > 0)
@@ -495,7 +495,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     #endif
 	    }
 	    if (!avioutput_video) {
-		set_inhibit_frame( IHF_WINDOWHIDDEN );
+		set_inhibit_frame (IHF_WINDOWHIDDEN);
 	    }
 	    if (currprefs.win32_iconified_pause) {
 		close_sound ();
@@ -542,6 +542,7 @@ void disablecapture (void)
 
 static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static int ignorenextactivateapp;
     PAINTSTRUCT ps;
     HDC hDC;
     BOOL minimized;
@@ -560,17 +561,25 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     {
     case WM_ACTIVATE:
     	minimized = HIWORD( wParam );
-	if (LOWORD (wParam) != WA_INACTIVE)
+	if (LOWORD (wParam) != WA_INACTIVE) {
       	    winuae_active (hWnd, minimized);
-        else
+	    if (ignorenextactivateapp > 0)
+		ignorenextactivateapp--;
+	} else
 	    winuae_inactive (hWnd, minimized);
     break;
 
     case WM_ACTIVATEAPP:
-	if (!wParam)
+	if (!wParam) {
 	    setmouseactive (0);
-	else if (gui_active && isfullscreen())
-	    exit_gui (0);
+	} else {
+	    if (!ignorenextactivateapp && isfullscreen () && is3dmode ()) {
+	        WIN32GFX_DisplayChangeRequested ();
+	        ignorenextactivateapp = 2;
+	    }
+	    if (gui_active && isfullscreen())
+	        exit_gui (0);
+	}
         manual_palette_refresh_needed = 1;
     break;
 
@@ -799,19 +808,19 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		disk_eject (3);
 	    break;
 	    case ID_ST_DF0:
-		DiskSelection (hWnd, IDC_DF0, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
 		disk_insert (0, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF1:
-		DiskSelection (hWnd, IDC_DF1, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
 		disk_insert (1, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF2:
-		DiskSelection (hWnd, IDC_DF2, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
 		disk_insert (2, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF3:
-		DiskSelection (hWnd, IDC_DF3, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
 		disk_insert (3, changed_prefs.df[0]);
 	    break;
 	}
@@ -960,6 +969,7 @@ void handle_events (void)
 	inputdevicefunc_keyboard.read();
 	inputdevicefunc_mouse.read();
 	inputdevicefunc_joystick.read();
+        inputdevice_handle_inputcode ();
     }
     while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
         TranslateMessage (&msg);
@@ -1413,6 +1423,8 @@ void target_default_options (struct uae_prefs *p)
     p->win32_active_priority = 1;
     p->win32_inactive_priority = 2;
     p->win32_iconified_priority = 3;
+    p->win32_midioutdev = 0;
+    p->win32_midiindev = -2;
 }
 
 void target_save_options (FILE *f, struct uae_prefs *p)

@@ -127,3 +127,6 @@ extern void indicator_leds (int num, int state);
 
 extern void warpmode (int mode);
 extern void pausemode (int mode);
+
+extern void inputdevice_add_inputcode (int code);
+extern void inputdevice_handle_inputcode (void);

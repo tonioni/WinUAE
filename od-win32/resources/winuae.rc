@@ -107,7 +107,7 @@ BEGIN
                     CBS_HASSTRINGS | NOT WS_VISIBLE | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | 
-                    TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,97,159,101,20
+                    TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,97,161,101,20
     PUSHBUTTON      "Detect pixel format",IDC_TEST16BIT,221,163,67,14,0,0,
                     HIDC_TEST16BIT
 END
@@ -626,7 +626,7 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,104,113,114,10
     CONTROL         "Full",IDC_COLLISION3,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,104,129,27,10
-    GROUPBOX        "Sound emulation",IDC_STATIC,13,150,268,65
+    GROUPBOX        "Sound emulation",IDC_STATIC,13,151,268,65
     CONTROL         "Disabled",IDC_CS_SOUND0,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP | WS_TABSTOP,39,167,102,10
     CONTROL         "Emulated",IDC_CS_SOUND1,"Button",BS_AUTORADIOBUTTON | 
@@ -802,7 +802,7 @@ BEGIN
     CONTROL         "",IDC_DISKLIST,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
                     LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,262,211
-    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,94,222,93,15
+    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,94,223,93,15
     PUSHBUTTON      "",IDC_UP,270,66,25,15,BS_ICON
     PUSHBUTTON      "",IDC_DOWN,270,146,25,15,BS_ICON
 END
@@ -934,11 +934,6 @@ IDC_MYHAND              CURSOR                  "H_arrow.cur"
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO 
 BEGIN
-    IDD_DISPLAY, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 175
-    END
-
     IDD_FLOPPY, DIALOG
     BEGIN
         BOTTOMMARGIN, 175
@@ -954,11 +949,6 @@ BEGIN
         BOTTOMMARGIN, 206
     END
 
-    IDD_PORTS, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 175
-    END
-
     IDD_CONTRIBUTORS, DIALOG
     BEGIN
         RIGHTMARGIN, 370
@@ -966,11 +956,6 @@ BEGIN
     END
 
     IDD_MISC1, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 215
-    END
-
-    IDD_CHIPSET, DIALOG
     BEGIN
         BOTTOMMARGIN, 215
     END
@@ -983,11 +968,6 @@ BEGIN
     IDD_OPENGL, DIALOG
     BEGIN
         BOTTOMMARGIN, 175
-    END
-
-    IDD_DISK, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 193
     END
 
     IDD_PANEL, DIALOG

@@ -2037,7 +2037,7 @@ static void finish_decisions (void)
     changed = thisline_changed;
 
     if (thisline_decision.plfleft != -1) {
-	record_diw_line (thisline_decision.diwfirstword, thisline_decision.diwlastword);
+	record_diw_line (diwfirstword, diwlastword);
 
 	decide_sprites (hpos);
     }
@@ -2446,7 +2446,7 @@ static int intlev_2 (void)
 {
     uae_u16 imask = intreq & intena;
     unsigned long cycles = get_cycles ();
-    int c = currprefs.cpu_level >= 2 ? (compiled_code ? 4 : 20) : 4;
+    int c = currprefs.cpu_level >= 2 ? 20 : 4;
     int i;
 
     if (!(imask && (intena & 0x4000))) {
@@ -2481,9 +2481,32 @@ static int intlev_2 (void)
 
 int intlev (void)
 {
-    int il = intlev_2 ();
-    if (il >= 0 && il <= regs.intmask)
-	unset_special (SPCFLAG_INT);
+    int il = -1;
+#ifdef JIT
+    if (compiled_code) {
+	uae_u16 imask = intreq & intena;
+	if (imask && (intena & 0x4000)) {
+	    if (imask & 0x2000)
+		il = 6;
+	    if (imask & 0x1800)
+		il = 5;
+	    if (imask & 0x0780)
+		il = 4;
+	    if (imask & 0x0070)
+		il = 3;
+	    if (imask & 0x0008)
+		il = 2;
+	    if (imask & 0x0007)
+		il = 1;
+	}
+    } else {
+#endif
+	il = intlev_2 ();
+	if (il >= 0 && il <= regs.intmask)
+	    unset_special (SPCFLAG_INT);
+#ifdef JIT
+    }
+#endif
     return il;
 }
 
@@ -2493,6 +2516,10 @@ static void doint (void)
     uae_u16 imask = intreq & intena;
 
     set_special (SPCFLAG_INT);
+#ifdef JIT
+    if (compiled_code)
+	return;
+#endif
     if (imask && (intena & 0x4000)) {
 	for (i = 0; i < 14; i++) {
 	    if ((imask & (1 << i)) && irqdelay[i] == 0) {
@@ -2526,8 +2553,8 @@ void INTREQ (uae_u16 v)
     serial_check_irq ();
     rethink_cias ();
 #if 0
-    if (1 || (v & 0x100))
-	write_log("INTREQ %04.4X (%04.4X) %p\n", intreq, v, m68k_getpc());
+    if (1 || (v & (0x10)))
+	write_log("%d INTREQ %04.4X (%04.4X) %x %x %x\n", vpos, intreq, v, m68k_getpc(), cop1lc, cop2lc);
 #endif
 }
 

@@ -1530,15 +1530,12 @@ static void center_image (void)
     prev_y_adjust = thisframe_y_adjust;
 
     if (currprefs.gfx_xcenter) {
-#if 0
-	if (min_diwstart && (max_diwstop - min_diwstart < gfxvidinfo.width) && (currprefs.gfx_xcenter == 2))
-	    visible_left_border = ((max_diwstop - min_diwstart - gfxvidinfo.width) / 2 + min_diwstart) & ~1;
-#endif
+
 	if (max_diwstop - min_diwstart < gfxvidinfo.width && currprefs.gfx_xcenter == 2)
 	    /* Try to center. */
 	    visible_left_border = ((max_diwstop - min_diwstart - gfxvidinfo.width) / 2 + min_diwstart) & ~1;
 	else
-	    visible_left_border = max_diwstop - gfxvidinfo.width;
+	    visible_left_border = max_diwstop - gfxvidinfo.width -  ((max_diwstop - min_diwstart) - gfxvidinfo.width) / 2;
 
 	/* Would the old value be good enough? If so, leave it as it is if we want to
 	 * be clever. */
@@ -1561,15 +1558,11 @@ static void center_image (void)
 
     thisframe_y_adjust = minfirstline;
     if (currprefs.gfx_ycenter && thisframe_first_drawn_line != -1) {
-#if 0
-	if (thisframe_first_drawn_line && (thisframe_last_drawn_line - thisframe_first_drawn_line < max_drawn_amiga_line) && currprefs.gfx_ycenter == 2)
-	    thisframe_y_adjust = (thisframe_last_drawn_line - thisframe_first_drawn_line - max_drawn_amiga_line) / 2 + thisframe_first_drawn_line;
-#endif
 
 	if (thisframe_last_drawn_line - thisframe_first_drawn_line < max_drawn_amiga_line && currprefs.gfx_ycenter == 2)
 	    thisframe_y_adjust = (thisframe_last_drawn_line - thisframe_first_drawn_line - max_drawn_amiga_line) / 2 + thisframe_first_drawn_line;
 	else
-	    thisframe_y_adjust = thisframe_first_drawn_line;
+	    thisframe_y_adjust = thisframe_first_drawn_line + ((thisframe_last_drawn_line - thisframe_first_drawn_line) - max_drawn_amiga_line) / 2;
 
 	/* Would the old value be good enough? If so, leave it as it is if we want to
 	 * be clever. */

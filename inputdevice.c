@@ -1083,6 +1083,12 @@ static void queue_input_event (int event, int state, int max, int framecnt, int 
 }
 
 static uae_u8 keybuf[256];
+static int inputcode_pending;
+
+void inputdevice_add_inputcode (int code)
+{
+    inputcode_pending = code;
+}
 
 void inputdevice_do_keyboard (int code, int state)
 {
@@ -1100,6 +1106,18 @@ void inputdevice_do_keyboard (int code, int state)
     }
     if (state == 0)
 	return;
+    inputdevice_add_inputcode (code);
+}
+
+void inputdevice_handle_inputcode (void)
+{
+    int code = inputcode_pending;
+    inputcode_pending = 0;
+    if (code == 0)
+	return;
+    if (vpos != 0)
+	write_log ("inputcode=%d but vpos = %d", code, vpos);
+
     switch (code)
     {
 	case AKS_ENTERGUI:
@@ -1164,12 +1182,43 @@ void inputdevice_do_keyboard (int code, int state)
 	case AKS_QUIT:
 	uae_quit ();
 	break;
-	case AKS_STATESAVE:
-	savestate_quick (0, 1);
+	case AKS_STATESAVEQUICK:
+	case AKS_STATESAVEQUICK1:
+	case AKS_STATESAVEQUICK2:
+	case AKS_STATESAVEQUICK3:
+	case AKS_STATESAVEQUICK4:
+	case AKS_STATESAVEQUICK5:
+	case AKS_STATESAVEQUICK6:
+	case AKS_STATESAVEQUICK7:
+	case AKS_STATESAVEQUICK8:
+	case AKS_STATESAVEQUICK9:
+	savestate_quick ((code - AKS_STATESAVEQUICK) / 2, 1);
 	break;
-	case AKS_STATERESTORE:
-	savestate_quick (0, 0);
+	case AKS_STATERESTOREQUICK:
+	case AKS_STATERESTOREQUICK1:
+	case AKS_STATERESTOREQUICK2:
+	case AKS_STATERESTOREQUICK3:
+	case AKS_STATERESTOREQUICK4:
+	case AKS_STATERESTOREQUICK5:
+	case AKS_STATERESTOREQUICK6:
+	case AKS_STATERESTOREQUICK7:
+	case AKS_STATERESTOREQUICK8:
+	case AKS_STATERESTOREQUICK9:
+	savestate_quick ((code - AKS_STATESAVEQUICK) / 2, 0);
 	break;
+	case AKS_TOGGLEFULLSCREEN:
+	fullscreentoggle ();
+	break;
+	case AKS_ENTERDEBUGGER:
+	activate_debugger ();
+	break;
+	case AKS_STATESAVEDIALOG:
+	gui_display (5);
+	break;
+	case AKS_STATERESTOREDIALOG:
+	gui_display (4);
+	break;
+
     }
 }
 
@@ -1308,6 +1357,7 @@ void inputdevice_vsync (void)
     idev[IDTYPE_MOUSE].read ();
     input_read = 1;
     input_vpos = 0;
+    inputdevice_handle_inputcode ();
 }
 
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)

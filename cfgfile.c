@@ -563,8 +563,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	sprintf (tmpbuf, "diskimage%d", i);
 	if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], 256)) {
+#if 0
 	    if (i < 4 && !p->df[i][0])
 		strcpy (p->df[i], p->dfxlist[i]);
+#endif
 	    return 1;
 	}
     }
@@ -844,7 +846,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     for (i = 0; i < 4; i++) {
 	sprintf (tmpbuf, "floppy%d", i);
 	if (cfgfile_string (option, value, tmpbuf, p->df[i], 256)) {
+#if 0
 	    strcpy (p->dfxlist[i], p->df[i]);
+#endif
 	    return 1;
 	}
     }

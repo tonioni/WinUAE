@@ -2849,6 +2849,8 @@ void picasso_handle_hsync (void)
 {
     static int p96hsync;
 
+    if (currprefs.gfxmem_size == 0)
+	return;
     if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_vsync) {
 	if (DirectDraw_GetVerticalBlankStatus ())
 	    p96hsync = 0;
@@ -2856,7 +2858,7 @@ void picasso_handle_hsync (void)
 	p96hsync--;
     }
     if (p96hsync <= 0) {
-	rtarea[get_long(RTAREA_BASE + 36) + 12 - 1]++;
+	rtarea[get_long (RTAREA_BASE + 36) + 12 - 1]++;
         p96hsync = p96syncrate;
     }
 }
@@ -2865,15 +2867,12 @@ void init_hz_p96 (void)
 {
     int rate;
     p96syncrate = maxvpos * vblank_hz;
-    if (isfullscreen ()) {
+    if (isfullscreen ())
 	rate = DirectDraw_CurrentRefreshRate ();
-	if (rate == 0)
-	    rate = 60;
-    } else {
+    else
 	rate = currprefs.gfx_refreshrate;
-	if (rate <= 0)
-	    rate = 60;
-    }
+    if (rate <= 0)
+        rate = 60;
     p96syncrate /= rate;
 }
 

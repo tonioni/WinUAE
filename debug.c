@@ -1253,7 +1253,7 @@ static void debug_1 (void)
 	    break;
 	case 'a':
 	    if (more_params (&inptr)) {
-		char nc = toupper((inptr)[0]);
+		char nc = next_char (&inptr);
 		if (nc == 'm')
 		    audio_channel_mask = readint (&inptr);
 	    }

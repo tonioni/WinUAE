@@ -57,7 +57,7 @@ STATIC_INLINE int dmaen (unsigned int dmamask)
 #define SPCFLAG_EXTRA_CYCLES 32
 #define SPCFLAG_TRACE 64
 #define SPCFLAG_DOTRACE 128
-/* #define SPCFLAG_DOINT 256 obsolete hack */
+#define SPCFLAG_DOINT 256 /* arg, JIT fails without this.. */
 #define SPCFLAG_BLTNASTY 512
 #define SPCFLAG_EXEC 1024
 #define SPCFLAG_ACTION_REPLAY 2048

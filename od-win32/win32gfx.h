@@ -35,5 +35,6 @@ extern HDC gethdc (void);
 extern void releasehdc (HDC hdc);
 extern void close_windows (void);
 extern void updatewinfsmode (struct uae_prefs *p);
+extern int is3dmode (void);
 
 #endif
