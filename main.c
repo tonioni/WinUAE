@@ -337,24 +337,6 @@ void uae_restart (int opengui, char *cfgfile)
 	strcpy (restart_config, cfgfile);
 }
 
-const char *gameport_state (int nr)
-{
-    if (JSEM_ISJOY0 (nr, &currprefs) && inputdevice_get_device_total (IDTYPE_JOYSTICK) > 0)
-	return "using joystick #0";
-    else if (JSEM_ISJOY1 (nr, &currprefs) && inputdevice_get_device_total (IDTYPE_JOYSTICK) > 1)
-	return "using joystick #1";
-    else if (JSEM_ISMOUSE (nr, &currprefs))
-	return "using mouse";
-    else if (JSEM_ISNUMPAD (nr, &currprefs))
-	return "using numeric pad as joystick";
-    else if (JSEM_ISCURSOR (nr, &currprefs))
-	return "using cursor keys as joystick";
-    else if (JSEM_ISSOMEWHEREELSE (nr, &currprefs))
-	return "using T/F/H/B/Alt as joystick";
-
-    return "not connected";
-}
-
 #ifndef DONT_PARSE_CMDLINE
 
 void usage (void)

@@ -113,7 +113,7 @@ static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     HARDDISK_ID = -1, PORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
     PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1;
 static HWND pages[MAX_C_PAGES];
-static HWND guiDlg, ToolTipHWND;
+static HWND guiDlg, panelDlg, ToolTipHWND;
 
 void exit_gui (int ok)
 {
@@ -5810,12 +5810,15 @@ static DWORD dwEnumeratedPrinters = 0;
 static char comports[MAX_SERIALS][8];
 
 static int joy0idc[] = {
-    IDC_PORT0_JOY0, IDC_PORT0_JOY1, IDC_PORT0_MOUSE, IDC_PORT0_KBDA, IDC_PORT0_KBDB, IDC_PORT0_KBDC
+    IDC_PORT0_JOYSC, IDC_PORT0_KBDA, IDC_PORT0_KBDB, IDC_PORT0_KBDC,
+    IDC_PORT0_JOYS, -1
 };
 
 static int joy1idc[] = {
-    IDC_PORT1_JOY0, IDC_PORT1_JOY1, IDC_PORT1_MOUSE, IDC_PORT1_KBDA, IDC_PORT1_KBDB, IDC_PORT1_KBDC
+    IDC_PORT1_JOYSC, IDC_PORT1_KBDA, IDC_PORT1_KBDB, IDC_PORT1_KBDC,
+    IDC_PORT1_JOYS, -1
 };
+static int joy0previous = -1, joy1previous = -1;
 
 static BOOL bNoMidiIn = FALSE;
 
@@ -5824,10 +5827,9 @@ static void enable_for_portsdlg( HWND hDlg )
     int i, v;
 
     v = workprefs.input_selected_setting > 0 ? FALSE : TRUE;
-    for( i = 0; i < 6; i++ )
-    {
-        EnableWindow( GetDlgItem( hDlg, joy0idc[i] ), v );
-        EnableWindow( GetDlgItem( hDlg, joy1idc[i] ), v );
+    for (i = 0; joy0idc[i] >= 0; i++) {
+        EnableWindow (GetDlgItem (hDlg, joy0idc[i]), v);
+        EnableWindow (GetDlgItem (hDlg, joy1idc[i]), v);
     }
     EnableWindow (GetDlgItem (hDlg, IDC_SWAP), v);
 #if !defined (SERIAL_PORT)
@@ -5851,74 +5853,109 @@ static void enable_for_portsdlg( HWND hDlg )
 #endif
 }
 
-static void UpdatePortRadioButtons( HWND hDlg )
+static void updatejoyport (HWND hDlg)
 {
-    int which_button1, which_button2;
+    int i, j, v;
 
-    enable_for_portsdlg( hDlg );
-	which_button1 = joy0idc[workprefs.jport0];
-	if (CheckRadioButton (hDlg, IDC_PORT0_JOY0, IDC_PORT0_KBDC, which_button1) == 0)
-	    which_button1 = 0;
-    else
-    {
-        EnableWindow( GetDlgItem( hDlg, joy1idc[workprefs.jport0] ), FALSE );
+    enable_for_portsdlg (hDlg);
+    for (i = 0; i < 2; i++) {
+        int *idcs1 = i == 0 ? joy0idc : joy1idc;
+        int *idcs2 = i == 0 ? joy1idc : joy0idc;
+	v = jsem_iskbdjoy (i, &workprefs);
+	if (v < 0)
+	    v = 0;
+	else
+	    v++;
+	CheckRadioButton (hDlg, idcs1[0], idcs1[3], idcs1[v]);
+	for (j = 1; j < 4; j++)
+	    EnableWindow (GetDlgItem (hDlg, idcs2[j]), workprefs.input_selected_setting == 0 && j != v);
     }
-	which_button2 = joy1idc[workprefs.jport1];
-    if( workprefs.jport1 == workprefs.jport0 )
-    {
-        if( which_button2 == IDC_PORT1_KBDC )
-            which_button2 = IDC_PORT1_KBDB;
-        else
-            which_button2++;
-    }
-	if (CheckRadioButton (hDlg, IDC_PORT1_JOY0, IDC_PORT1_KBDC, which_button2) == 0)
-	    which_button2 = 0;
-    else
-    {
-        EnableWindow( GetDlgItem( hDlg, joy0idc[ workprefs.jport1 ] ), FALSE );
+    
+    if (joy0previous < 0)
+	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK);
+    if (joy1previous < 0)
+	joy1previous = 0;
+    for (i = 0; i < 2; i++) {
+	int idx = i == 0 ? joy0previous : joy1previous;
+	int id1 = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
+	int id2 = i == 0 ? IDC_PORT0_JOYSC : IDC_PORT1_JOYSC;
+	int v = i == 0 ? workprefs.jport0 : workprefs.jport1;
+	SendDlgItemMessage (hDlg, id1, CB_RESETCONTENT, 0, 0L);
+	SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)"");
+        for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++)
+	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
+        for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++)
+	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
+	if (v >= JSEM_MICE)
+	    idx = inputdevice_get_device_total (IDTYPE_JOYSTICK) + (v - JSEM_MICE) + 1;
+	else if (v >= JSEM_JOYS)
+	    idx = v - JSEM_JOYS + 1;
+	SendDlgItemMessage (hDlg, id1, CB_SETCURSEL, idx, 0);
     }
 }
 
+static void fixjport (int *port, int v)
+{
+    int vv = *port;
+    if (vv != v)
+	return;
+    if (vv >= JSEM_JOYS && vv < JSEM_MICE) {
+	vv -= JSEM_JOYS;
+	vv++;
+	if (vv >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
+	    vv = 0;
+	vv += JSEM_JOYS;
+    }
+    if (vv >= JSEM_MICE && vv < JSEM_END) {
+	vv -= JSEM_MICE;
+	vv++;
+	if (vv >= inputdevice_get_device_total (IDTYPE_MOUSE))
+	    vv = 0;
+	vv += JSEM_MICE;
+    }
+    *port = vv;
+}	
+
 static void values_from_portsdlg (HWND hDlg)
 {
-    int item;
+    int item, i, j, lastside = 0, changed = 0;
     char tmp[256];
-    /* 0 - joystick 0
-     * 1 - joystick 1
-     * 2 - mouse
-     * 3 - numpad
-     * 4 - cursor keys
-     * 5 - elsewhere
-     */
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_JOY0)) {
-	    workprefs.jport0 = 0;
+    
+    for (i = 0; i < 2; i++) {
+	int *idcs = i == 0 ? joy0idc : joy1idc;
+	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
+	int prevport = *port;
+	int *joyprev = i == 0 ? &joy0previous : &joy1previous;
+        int v = SendDlgItemMessage (hDlg, idcs[4], CB_GETCURSEL, 0, 0L);
+	if (v != CB_ERR)
+	    *joyprev = v;
+	for (j = 0; j < 4; j++) {
+	    if (IsDlgButtonChecked (hDlg, idcs[j])) {
+		if (j > 0) {
+		    *port = JSEM_KBDLAYOUT + j - 1;
+		} else {
+		    if (v != CB_ERR && v > 0) {
+			*joyprev = v;
+			v--;
+			if (v >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
+			    *port = JSEM_MICE + v - inputdevice_get_device_total (IDTYPE_JOYSTICK);
+			else
+			    *port = JSEM_JOYS + v;
+		    }
+		}
+	    }
+	}
+	if (*port != prevport) {
+	    lastside = i;
+	    changed = 1;
+	}
     }
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_JOY1)) {
-	    workprefs.jport0 = 1;
+    if (changed) {
+	if (lastside)
+	    fixjport (&workprefs.jport0, workprefs.jport1);
+	else
+	    fixjport (&workprefs.jport1, workprefs.jport0);
     }
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_MOUSE))
-	    workprefs.jport0 = 2;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_KBDA))
-	    workprefs.jport0 = 3;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_KBDB))
-	    workprefs.jport0 = 4;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT0_KBDC))
-	    workprefs.jport0 = 5;
-
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_JOY0)) {
-	    workprefs.jport1 = 0;
-    }
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_JOY1)) {
-	    workprefs.jport1 = 1;
-    }
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_MOUSE))
-	    workprefs.jport1 = 2;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_KBDA))
-	    workprefs.jport1 = 3;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_KBDB))
-	    workprefs.jport1 = 4;
-    if (IsDlgButtonChecked (hDlg, IDC_PORT1_KBDC))
-	    workprefs.jport1 = 5;
 
     item = SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L );
     if( item != CB_ERR )
@@ -6185,14 +6222,14 @@ static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	pages[PORTS_ID] = hDlg;
 	currentpage = PORTS_ID;
 	init_portsdlg( hDlg );
-	enable_for_portsdlg( hDlg );
-	values_to_portsdlg ( hDlg);
-	UpdatePortRadioButtons( hDlg );
+	enable_for_portsdlg (hDlg);
+	values_to_portsdlg (hDlg);
+	updatejoyport (hDlg);
 	break;	    
     case WM_USER:
 	recursive++;
-	enable_for_portsdlg( hDlg );
-	UpdatePortRadioButtons( hDlg );
+	enable_for_portsdlg (hDlg);
+	updatejoyport (hDlg);
 	recursive--;
 	return TRUE;
 
@@ -6200,11 +6237,14 @@ static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
         if (recursive > 0)
 	    break;
 	recursive++;
-	if( wParam == IDC_SWAP ) {
+	if (wParam == IDC_SWAP) {
 	    temp = workprefs.jport0;
 	    workprefs.jport0 = workprefs.jport1;
 	    workprefs.jport1 = temp;
-	    UpdatePortRadioButtons( hDlg );
+	    temp = joy0previous;
+	    joy0previous = joy1previous;
+	    joy1previous = temp;
+	    updatejoyport (hDlg);
 	} else if (wParam == IDC_FLUSHPRINTER) {
 	    if (isprinter ()) {
 		flushprinter ();
@@ -6212,7 +6252,7 @@ static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    }
 	} else {
 	    values_from_portsdlg (hDlg);
-	    UpdatePortRadioButtons( hDlg );
+	    updatejoyport (hDlg);
 	}
         inputdevice_updateconfig (&workprefs);
 	inputdevice_config_change ();
@@ -7199,7 +7239,20 @@ struct GUIPAGE {
     const char *help;
 };
 
-static HWND panelhwnd;
+static int GetPanelRect (HWND hDlg, RECT *r)
+{
+    RECT rect;
+    if (!GetWindowRect (guiDlg, &rect))
+	return 0;
+    if (!GetWindowRect (hDlg, r))
+	return 0;
+    r->top -= rect.top;
+    r->left -= rect.left;
+    r->right -= rect.left;
+    r->bottom -= rect.top;
+    return 1;
+}
+
 static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 {
     TOOLINFO ti;
@@ -7259,16 +7312,16 @@ static struct GUIPAGE ppage[MAX_C_PAGES];
 
 static HWND updatePanel (HWND hDlg, int id)
 {
-    static HWND chwnd, hwndTT;
+    static HWND hwndTT;
     RECT r1c, r1w, r2c, r2w, r3c, r3w;
     int w, h, pw, ph, x , y;
 
     EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), full_property_sheet ? FALSE : TRUE);
     EnableWindow (GetDlgItem (guiDlg, IDOK), TRUE);
-    if (chwnd != NULL) {
-	ShowWindow (chwnd, FALSE);
-	DestroyWindow (chwnd);
-	chwnd = NULL;
+    if (panelDlg != NULL) {
+	ShowWindow (panelDlg, FALSE);
+	DestroyWindow (panelDlg);
+	panelDlg = NULL;
     }
     if (ToolTipHWND != NULL) {
 	DestroyWindow (ToolTipHWND);
@@ -7296,31 +7349,31 @@ static HWND updatePanel (HWND hDlg, int id)
     GetClientRect (hDlg, &r2c);
     gui_width = r2c.right;
     gui_height = r2c.bottom;
-    chwnd = CreateDialogParam (hUIDLL ? hUIDLL : hInst, ppage[id].pp.pszTemplate, hDlg, ppage[id].pp.pfnDlgProc, id);
+    panelDlg = CreateDialogParam (hUIDLL ? hUIDLL : hInst, ppage[id].pp.pszTemplate, hDlg, ppage[id].pp.pfnDlgProc, id);
     GetWindowRect (hDlg, &r3w);
-    GetClientRect (chwnd, &r3c);
+    GetClientRect (panelDlg, &r3c);
     x = r1w.left - r2w.left;
     y = r1w.top - r2w.top;
     w = r3c.right - r3c.left + 1;
     h = r3c.bottom - r3c.top + 1;
     pw = r1w.right - r1w.left + 1;
     ph = r1w.bottom - r1w.top + 1;
-    SetWindowPos (chwnd, HWND_TOP, 0, 0, 0, 0,
+    SetWindowPos (panelDlg, HWND_TOP, 0, 0, 0, 0,
 	SWP_NOSIZE | SWP_NOOWNERZORDER);
-    GetWindowRect (chwnd, &r3w);
-    GetClientRect (chwnd, &r3c);
+    GetWindowRect (panelDlg, &r3w);
+    GetClientRect (panelDlg, &r3c);
     x -= r3w.left - r2w.left - 1;
     y -= r3w.top - r2w.top - 1;
-    SetWindowPos (chwnd, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
+    SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
 	SWP_NOSIZE | SWP_NOOWNERZORDER);
-    ShowWindow (chwnd, TRUE);
+    ShowWindow (panelDlg, TRUE);
     EnableWindow (GetDlgItem (hDlg, IDHELP), pHtmlHelp && ppage[currentpage].help ? TRUE : FALSE);
 
     ToolTipHWND = CreateWindowEx (WS_EX_TOPMOST,
 	TOOLTIPS_CLASS, NULL,
         WS_POPUP | TTS_NOPREFIX | TTS_BALLOON,
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        chwnd, NULL, hInst, NULL);
+        panelDlg, NULL, hInst, NULL);
     SetWindowPos (ToolTipHWND, HWND_TOPMOST, 0, 0, 0, 0,
 	SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 #if 0
@@ -7329,10 +7382,10 @@ static HWND updatePanel (HWND hDlg, int id)
 #endif
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
     SendMessage(ToolTipHWND, TTM_SETMAXTIPWIDTH, 0, 400);
-    EnumChildWindows (chwnd, &childenumproc, (LPARAM)NULL);
-    SendMessage (chwnd, WM_NULL, 0, 0);
+    EnumChildWindows (panelDlg, &childenumproc, (LPARAM)NULL);
+    SendMessage (panelDlg, WM_NULL, 0, 0);
 
-    return chwnd;
+    return panelDlg;
 }
 
 static HTREEITEM CreateFolderNode (HWND TVhDlg, int nameid, HTREEITEM parent, int nodeid, int sub)
@@ -7457,16 +7510,33 @@ static void centerWindow (HWND hDlg)
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 {
-    int cnt, i, drv, list;
+    int cnt, i, drv, firstdrv, list;
     char file[MAX_DPATH];
+    int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
     POINT pt;
+    RECT r;
     int ret = 0;
 
     DragQueryPoint (hd, &pt);
+    pt.y += GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
     cnt = DragQueryFile (hd, 0xffffffff, NULL, 0);
     if (!cnt)
 	return 0;
     drv = 0;
+    if (currentpage == FLOPPY_ID || currentpage == QUICKSTART_ID) {
+	for (i = 0; i < 4; i++) {
+	    int id = dfxtext[i * 2 + (currentpage == QUICKSTART_ID ? 1 : 0)];
+	    if (workprefs.dfxtype[i] >= 0 && id >= 0) {
+		if (GetPanelRect (GetDlgItem (panelDlg, id), &r)) {
+		    if (PtInRect (&r, pt)) {
+			drv = i;
+			break;
+		    }
+		}
+	    }
+	}
+    }
+    firstdrv = drv;
     for (i = 0; i < cnt; i++) {
 	struct zfile *z;
 	DragQueryFile (hd, i, file, sizeof (file));
@@ -7497,8 +7567,13 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 		    } else {
 			strcpy (workprefs.df[drv], file);
 			disk_insert (drv, file);
-			if (drv < 3 && workprefs.dfxtype[drv + 1] >= 0)
-			    drv++;
+			drv++;
+			if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
+			    drv = 0;
+			if (workprefs.dfxtype[drv] < 0)
+			    drv = 0;
+			if (drv == firstdrv)
+			    i = cnt;
 		    }
 		break;
 		case ZFILE_ROM:

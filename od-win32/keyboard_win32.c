@@ -328,6 +328,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    screenshot (endpressed() ? 1 : 0);
 	    break;
 	    case DIK_PAUSE:
+	    write_log("DIK_PAUSE\n");
 	    if (endpressed ())
 		code = AKS_WARP;
 	    else
@@ -338,7 +339,8 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    break;
 	    case DIK_PRIOR:
 #ifdef ACTION_REPLAY
-	    code = AKS_FREEZEBUTTON;
+	    if (armodel)
+		code = AKS_FREEZEBUTTON;
 #endif
 	    break;
 	    case DIK_NEXT:

@@ -251,8 +251,10 @@
 #define IDC_PRINTERLIST                 1025
 #define IDC_CHIPMEM                     1026
 #define IDC_CREATELOGFILE               1026
+#define IDC_PORT0_JOYS                  1026
 #define IDC_FASTMEM                     1027
 #define IDC_SHOWLEDS                    1027
+#define IDC_PORT1_JOYS                  1027
 #define IDC_SLOWMEM                     1030
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
@@ -367,15 +369,11 @@
 #define IDC_SAVEIMAGE2                  1287
 #define IDC_PROWIZARD                   1288
 #define IDC_SAVEIMAGE3                  1288
-#define IDC_PORT0_JOY0                  1300
-#define IDC_PORT0_JOY1                  1301
-#define IDC_PORT0_MOUSE                 1302
+#define IDC_PORT0_JOYSC                 1302
 #define IDC_PORT0_KBDA                  1303
 #define IDC_PORT0_KBDB                  1304
 #define IDC_PORT0_KBDC                  1305
-#define IDC_PORT1_JOY0                  1306
-#define IDC_PORT1_JOY1                  1307
-#define IDC_PORT1_MOUSE                 1308
+#define IDC_PORT1_JOYSC                 1308
 #define IDC_PORT1_KBDA                  1309
 #define IDC_PORT1_KBDB                  1310
 #define IDC_PORT1_KBDC                  1311
@@ -755,7 +753,6 @@
 #define IDC_DF1QQ                       1680
 #define IDC_CONFIGAUTO                  1682
 #define IDC_DF0TEXTQ                    1683
-#define IDC_CONFIGAUTO2                 1683
 #define IDC_CONFIGNOLINK                1683
 #define IDC_DF0WPQ                      1684
 #define IDC_EJECT0Q                     1685

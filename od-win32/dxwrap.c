@@ -1837,7 +1837,15 @@ int DirectDraw_Flip( int wait )
     if( ddrval == DD_OK ) {
         result = 1;
     } else {
-	if (ddrval != 0x887601cc)
+	if (ddrval == DDERR_SURFACELOST) {
+	    static int recurse;
+	    IDirectDrawSurface7_Restore (DirectDrawState.primary.surface);
+	    if (!recurse) {
+		recurse++;
+		DirectDraw_Flip (wait);
+		recurse--;
+	    }
+	} else
 	    write_log("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
     }
     return result;

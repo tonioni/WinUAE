@@ -271,16 +271,6 @@ extern void check_prefs_changed_cpu (void);
 extern void check_prefs_changed_audio (void);
 extern int check_prefs_changed_gfx (void);
 
-#define JSEM_DECODEVAL(n,v) ((n) == 0 ? (v)->jport0 : (v)->jport1)
-/* Determine how port n is configured */
-#define JSEM_ISJOY0(n,v) (JSEM_DECODEVAL(n,v) == 0)
-#define JSEM_ISJOY1(n,v) (JSEM_DECODEVAL(n,v) == 1)
-#define JSEM_ISMOUSE(n,v) (JSEM_DECODEVAL(n,v) == 2)
-#define JSEM_ISNUMPAD(n,v) (JSEM_DECODEVAL(n,v) == 3)
-#define JSEM_ISCURSOR(n,v) (JSEM_DECODEVAL(n,v) == 4)
-#define JSEM_ISSOMEWHEREELSE(n,v) (JSEM_DECODEVAL(n,v) == 5)
-extern const char *gameport_state (int n);
-
 extern struct uae_prefs currprefs, changed_prefs;
 
 extern void machdep_init (void);

@@ -180,12 +180,11 @@ char *fsdb_create_unique_nname (a_inode *base, const char *suggestion)
 
     for (;;) {
 	char *p = build_nname (base->nname, tmp);
-	if (access (p, R_OK) < 0 && errno == ENOENT) {
+	if (!fsdb_exists (p)) {
 	    write_log ("unique name: %s\n", p);
 	    return p;
 	}
-	free (p);
-
+	xfree (p);
 	/* tmpnam isn't reentrant and I don't really want to hack configure
 	 * right now to see whether tmpnam_r is available...  */
 	for (i = 0; i < 8; i++) {
@@ -193,3 +192,152 @@ char *fsdb_create_unique_nname (a_inode *base, const char *suggestion)
 	}
     }
 }
+
+int my_mkdir (const char *name)
+{
+    return CreateDirectory (name, NULL) == 0 ? -1 : 0;
+}
+
+int my_rmdir (const char *name)
+{
+    return RemoveDirectory (name) == 0 ? -1 : 0;
+}
+
+int my_unlink (const char *name)
+{
+    return DeleteFile (name) == 0 ? -1 : 0;
+}
+
+struct my_opendirs {
+    HANDLE *h;
+    WIN32_FIND_DATA fd;
+    int first;
+};
+
+void *my_opendir (const char *name)
+{
+    struct my_opendirs *mod;
+    char tmp[MAX_DPATH];
+    
+    strcpy (tmp, name);
+    strcat (tmp, "\\*.*");
+    mod = xmalloc (sizeof (struct my_opendirs));
+    if (!mod)
+	return NULL;
+    mod->h = FindFirstFile(tmp, &mod->fd);
+    if (mod->h == INVALID_HANDLE_VALUE) {
+	xfree (mod);
+	return NULL;
+    }
+    mod->first = 1;
+    return mod;
+}
+
+void my_closedir (void *d)
+{
+    struct my_opendirs *mod = d;
+    FindClose (mod->h);
+    xfree (mod);
+}
+
+int my_readdir (void *d, char *name)
+{
+    struct my_opendirs *mod = d;
+    if (mod->first) {
+	strcpy (name, mod->fd.cFileName);
+	mod->first = 0;
+	return 1;
+    }
+    if (!FindNextFile (mod->h, &mod->fd))
+	return 0;
+    strcpy (name, mod->fd.cFileName);
+    return 1;
+}
+
+struct my_opens {
+    HANDLE *h;
+};
+
+void my_close (void *d)
+{
+    struct my_opens *mos = d;
+    CloseHandle (mos->h);
+    xfree (mos);
+}
+
+unsigned int my_lseek (void *d, unsigned int offset, int whence)
+{
+    struct my_opens *mos = d;
+    return SetFilePointer (mos->h, offset, NULL,
+	whence == SEEK_SET ? FILE_BEGIN : (whence == SEEK_END ? FILE_END : FILE_CURRENT));
+}
+
+unsigned int my_read (void *d, void *b, unsigned int size)
+{
+    struct my_opens *mos = d;
+    DWORD read = 0;
+    ReadFile (mos->h, b, size, &read, NULL);
+    return read;
+}
+
+unsigned int my_write (void *d, void *b, unsigned int size)
+{
+    struct my_opens *mos = d;
+    DWORD written = 0;
+    WriteFile (mos->h, b, size, &written, NULL);
+    return written;
+}
+
+void *my_open (const char *name, int flags)
+{
+    struct my_opens *mos;
+    HANDLE h;
+    DWORD DesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    DWORD ShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
+    DWORD CreationDisposition = OPEN_EXISTING;
+    DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+    
+    mos = xmalloc (sizeof (struct my_opens));
+    if (!mos)
+	return NULL;
+    if (flags & O_TRUNC)
+	CreationDisposition = TRUNCATE_EXISTING;
+    if (flags & O_CREAT)
+	CreationDisposition = CREATE_ALWAYS;
+    if (flags & O_WRONLY)
+	DesiredAccess = GENERIC_WRITE;
+    if (flags & O_RDONLY)
+	DesiredAccess = GENERIC_READ;
+    if (flags & O_RDWR)
+	DesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+	xfree (mos);
+	return 0;
+    }
+    mos->h = h;
+    return mos;
+}
+
+int my_truncate (const char *name, long int len)
+{
+    HANDLE hFile;
+    BOOL bResult = FALSE;
+    int result = -1;
+
+    if ((hFile = CreateFile (name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+	OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ) != INVALID_HANDLE_VALUE )
+    {
+        if (SetFilePointer (hFile, len, NULL, FILE_BEGIN) == (DWORD)len) {
+            if (SetEndOfFile (hFile) == TRUE)
+                result = 0;
+        } else {
+            write_log ("SetFilePointer() failure for %s to posn %d\n", name, len);
+        }
+        CloseHandle( hFile );
+    } else {
+        write_log ("CreateFile() failed to open %s\n", name);
+    }
+    return result;
+}
+    

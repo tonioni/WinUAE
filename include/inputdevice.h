@@ -130,3 +130,17 @@ extern void pausemode (int mode);
 
 extern void inputdevice_add_inputcode (int code);
 extern void inputdevice_handle_inputcode (void);
+
+#define JSEM_KBDLAYOUT 0
+#define JSEM_JOYS 100
+#define JSEM_MICE 200
+#define JSEM_END 300
+#define JSEM_DECODEVAL(port,p) ((port) == 0 ? (p)->jport0 : (p)->jport1)
+#define JSEM_ISNUMPAD(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT)
+#define JSEM_ISCURSOR(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 1)
+#define JSEM_ISSOMEWHEREELSE(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 2)
+extern int compatibility_device[2];
+
+extern int jsem_isjoy (int port, struct uae_prefs *p);
+extern int jsem_ismouse (int port, struct uae_prefs *p);
+extern int jsem_iskbdjoy (int port, struct uae_prefs *p);

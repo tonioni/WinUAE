@@ -1731,7 +1731,6 @@ static int create_windows (void)
 	return 0;
     }
 
-
     systray (hMainWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);

@@ -114,29 +114,6 @@ static long dos_errno(void)
     }
 }
 
-/*
- * This _should_ be no issue for us, but let's rather use a guaranteed
- * thread safe function if we have one.
- * This used to be broken in glibc versions <= 2.0.1 (I think). I hope
- * no one is using this these days.
- * Michael Krause says it's also broken in libc5. ARRRGHHHHHH!!!!
- */
-#if 0 && defined HAVE_READDIR_R
-
-static struct dirent *my_readdir (DIR *dirstream, struct dirent *space)
-{
-    struct dirent *loc;
-    if (readdir_r (dirstream, space, &loc) == 0) {
-	/* Success */
-	return loc;
-    }
-    return 0;
-}
-
-#else
-#define my_readdir(dirstream, space) readdir(dirstream)
-#endif
-
 uaecptr filesys_initcode;
 static uae_u32 fsdevname, filesys_configdev;
 
@@ -437,17 +414,21 @@ void write_filesys_config (struct uaedev_mount_info *mountinfo,
 	if (uip[i].volname != 0) {
 	    fprintf (f, "filesystem2=%s,%s:%s:%s,%d\n", uip[i].readonly ? "ro" : "rw",
 		uip[i].devname ? uip[i].devname : "", uip[i].volname, str, uip[i].bootpri);
+#if 0
 	    fprintf (f, "filesystem=%s,%s:%s\n", uip[i].readonly ? "ro" : "rw",
 		uip[i].volname, str);
+#endif
 	} else {
 	    fprintf (f, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s\n",
 		     uip[i].readonly ? "ro" : "rw",
 		     uip[i].devname ? uip[i].devname : "", str,
 		     uip[i].hf.secspertrack, uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize,
 		     uip[i].bootpri,uip[i].filesysdir ? uip[i].filesysdir : "");
+#if 0
 	    fprintf (f, "hardfile=%s,%d,%d,%d,%d,%s\n",
 		     uip[i].readonly ? "ro" : "rw", uip[i].hf.secspertrack,
 		     uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize, str);
+#endif
 	}
 	xfree (str);
     }
@@ -582,7 +563,7 @@ typedef struct key {
     struct key *next;
     a_inode *aino;
     uae_u32 uniq;
-    int fd;
+    void *fd;
     off_t file_pos;
     int dosmode;
     int createmode;
@@ -1128,7 +1109,10 @@ static a_inode *new_child_aino (Unit *unit, a_inode *base, char *rel)
 	aino->comment = 0;
 	aino->has_dbentry = 0;
 
-	fsdb_fill_file_attrs (aino);
+	if (!fsdb_fill_file_attrs (aino)) {
+	    xfree (aino);
+	    return 0;
+	}
 	if (aino->dir)
 	    fsdb_clean_dir (aino);
     }
@@ -1225,7 +1209,11 @@ static a_inode *lookup_child_aino_for_exnext (Unit *unit, a_inode *base, char *r
 	c->aname = get_aname (unit, base, rel);
 	c->comment = 0;
 	c->has_dbentry = 0;
-	fsdb_fill_file_attrs (c);
+	if (!fsdb_fill_file_attrs (c)) {
+	    xfree (c);
+	    *err = ERROR_NO_FREE_STORE;
+	    return 0;
+	}
 	if (c->dir)
 	    fsdb_clean_dir (c);
     }
@@ -1494,7 +1482,7 @@ static void free_key (Unit *unit, Key *k)
     }
 
     if (k->fd >= 0)
-	close (k->fd);
+	my_close (k->fd);
 
     xfree(k);
 }
@@ -1523,7 +1511,7 @@ static Key *new_key (Unit *unit)
 {
     Key *k = (Key *) xmalloc(sizeof(Key));
     k->uniq = ++unit->key_uniq;
-    k->fd = -1;
+    k->fd = NULL;
     k->file_pos = 0;
     k->next = unit->keys;
     unit->keys = k;
@@ -2078,7 +2066,7 @@ static void action_examine_object (Unit *unit, dpacket packet)
 
 static void populate_directory (Unit *unit, a_inode *base)
 {
-    DIR *d = opendir (base->nname);
+    void *d = my_opendir (base->nname);
     a_inode *aino;
 
     if (!d)
@@ -2090,21 +2078,22 @@ static void populate_directory (Unit *unit, a_inode *base)
     TRACE(("Populating directory, child %p, locked_children %d\n",
 	   base->child, base->locked_children));
     for (;;) {
-	struct dirent *de;
+	char fn[MAX_DPATH];
+	int ok;
 	uae_u32 err;
 
 	/* Find next file that belongs to the Amiga fs (skipping things
 	   like "..", "." etc.  */
 	do {
-	    de = my_readdir (d, &de_space);
-	} while (de && fsdb_name_invalid (de->d_name));
-	if (! de)
+	    ok = my_readdir (d, fn);
+	} while (ok && fsdb_name_invalid (fn));
+	if (!ok)
 	    break;
 	/* This calls init_child_aino, which will notice that the parent is
 	   being ExNext()ed, and it will increment the locked counts.  */
-	aino = lookup_child_aino_for_exnext (unit, base, de->d_name, &err);
+	aino = lookup_child_aino_for_exnext (unit, base, fn, &err);
     }
-    closedir (d);
+    my_closedir (d);
 }
 
 static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info)
@@ -2181,7 +2170,7 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
     uaecptr name = GET_PCK_ARG3 (packet) << 2;
     a_inode *aino;
     Key *k;
-    int fd;
+    void *fd;
     uae_u32 err;
     mode_t openmode;
     int aino_created = 0;
@@ -2263,9 +2252,9 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 		| (create ? O_CREAT : 0)
 		| (create == 2 ? O_TRUNC : 0));
 
-    fd = open (aino->nname, openmode | O_BINARY, 0777);
+    fd = my_open (aino->nname, openmode | O_BINARY);
 
-    if (fd < 0) {
+    if (fd == NULL) {
 	if (aino_created)
 	    delete_aino (unit, aino);
 	PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -2295,7 +2284,7 @@ action_fh_from_lock (Unit *unit, dpacket packet)
     uaecptr lock = GET_PCK_ARG2 (packet) << 2;
     a_inode *aino;
     Key *k;
-    int fd;
+    void *fd;
     mode_t openmode;
     int mode;
 
@@ -2324,7 +2313,7 @@ action_fh_from_lock (Unit *unit, dpacket packet)
     if (unit->ui.readonly)
 	openmode = O_RDONLY;
 
-    fd = open (aino->nname, openmode | O_BINARY, 0777);
+    fd = my_open (aino->nname, openmode | O_BINARY);
 
     if (fd < 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -2437,9 +2426,9 @@ action_read (Unit *unit, dpacket packet)
      * Try to detect a LoadSeg() */
     if (k->file_pos == 0 && size >= 4) {
 	unsigned char buf[4];
-	off_t currpos = lseek(k->fd, 0, SEEK_CUR);
-	read(k->fd, buf, 4);
-	lseek(k->fd, currpos, SEEK_SET);
+	off_t currpos = my_lseek (k->fd, 0, SEEK_CUR);
+	my_read (k->fd, buf, 4);
+	my_lseek (k->fd, currpos, SEEK_SET);
 	if (buf[0] == 0 && buf[1] == 0 && buf[2] == 3 && buf[3] == 0xF3)
 	    possible_loadseg();
     }
@@ -2447,7 +2436,7 @@ action_read (Unit *unit, dpacket packet)
     if (valid_address (addr, size)) {
 	uae_u8 *realpt;
 	realpt = get_real_address (addr);
-	actual = read(k->fd, realpt, size);
+	actual = my_read (k->fd, realpt, size);
 
 	if (actual == 0) {
 	    PUT_PCK_RES1 (packet, 0);
@@ -2466,9 +2455,9 @@ action_read (Unit *unit, dpacket packet)
 	write_log ("unixfs warning: Bad pointer passed for read: %08x, size %d\n", addr, size);
 	/* ugh this is inefficient but easy */
 
-	old = lseek (k->fd, 0, SEEK_CUR);
-	filesize = lseek (k->fd, 0, SEEK_END);
-	lseek (k->fd, old, SEEK_SET);
+	old = my_lseek (k->fd, 0, SEEK_CUR);
+	filesize = my_lseek (k->fd, 0, SEEK_END);
+	my_lseek (k->fd, old, SEEK_SET);
 	if (size > filesize)
 	    size = filesize;
 
@@ -2478,7 +2467,7 @@ action_read (Unit *unit, dpacket packet)
 	    PUT_PCK_RES2 (packet, ERROR_NO_FREE_STORE);
 	    return;
 	}
-	actual = read(k->fd, buf, size);
+	actual = my_read (k->fd, buf, size);
 
 	if (actual < 0) {
 	    PUT_PCK_RES1 (packet, 0);
@@ -2529,7 +2518,7 @@ action_write (Unit *unit, dpacket packet)
     for (i = 0; i < size; i++)
 	buf[i] = get_byte(addr + i);
 
-    PUT_PCK_RES1 (packet, write(k->fd, buf, size));
+    PUT_PCK_RES1 (packet, my_write (k->fd, buf, size));
     if (GET_PCK_RES1 (packet) != size)
 	PUT_PCK_RES2 (packet, dos_errno ());
     if (GET_PCK_RES1 (packet) >= 0)
@@ -2560,11 +2549,11 @@ action_seek (Unit *unit, dpacket packet)
 
     TRACE(("ACTION_SEEK(%s,%d,%d)\n", k->aino->nname, pos, mode));
 
-    old = lseek (k->fd, 0, SEEK_CUR);
+    old = my_lseek (k->fd, 0, SEEK_CUR);
     {
 	uae_s32 temppos;
-	long filesize = lseek (k->fd, 0, SEEK_END);
-	lseek (k->fd, old, SEEK_SET);
+	long filesize = my_lseek (k->fd, 0, SEEK_END);
+	my_lseek (k->fd, old, SEEK_SET);
 
 	if (whence == SEEK_CUR) temppos = old + pos;
 	if (whence == SEEK_SET) temppos = pos;
@@ -2576,7 +2565,7 @@ action_seek (Unit *unit, dpacket packet)
 	    return;
 	}
     }
-    res = lseek (k->fd, pos, whence);
+    res = my_lseek (k->fd, pos, whence);
 
     if (-1 == res) {
 	PUT_PCK_RES1 (packet, res);
@@ -2835,7 +2824,7 @@ action_create_dir (Unit *unit, dpacket packet)
 	return;
     }
 
-    if (mkdir (aino->nname, 0777) == -1) {
+    if (my_mkdir (aino->nname) == -1) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, dos_errno());
 	return;
@@ -2905,17 +2894,17 @@ action_set_file_size (Unit *unit, dpacket packet)
     }
 
     /* Write one then truncate: that should give the right size in all cases.  */
-    offset = lseek (k->fd, offset, whence);
-    write (k->fd, /* whatever */(char *)&k1, 1);
+    offset = my_lseek (k->fd, offset, whence);
+    my_write (k->fd, /* whatever */(char *)&k1, 1);
     if (k->file_pos > offset)
 	k->file_pos = offset;
-    lseek (k->fd, k->file_pos, SEEK_SET);
+    my_lseek (k->fd, k->file_pos, SEEK_SET);
 
     /* Brian: no bug here; the file _must_ be one byte too large after writing
        The write is supposed to guarantee that the file can't be smaller than
        the requested size, the truncate guarantees that it can't be larger.
        If we were to write one byte earlier we'd clobber file data.  */
-    if (truncate (k->aino->nname, offset) == -1) {
+    if (my_truncate (k->aino->nname, offset) == -1) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, dos_errno ());
 	return;
@@ -2961,13 +2950,13 @@ action_delete_object (Unit *unit, dpacket packet)
     if (a->dir) {
 	/* This should take care of removing the fsdb if no files remain.  */
 	fsdb_dir_writeback (a);
-	if (rmdir (a->nname) == -1) {
+	if (my_rmdir (a->nname) == -1) {
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, dos_errno());
 	    return;
 	}
     } else {
-	if (unlink (a->nname) == -1) {
+	if (my_unlink (a->nname) == -1) {
             PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, dos_errno());
     	    return;
@@ -3086,7 +3075,7 @@ action_rename_object (Unit *unit, dpacket packet)
 	    knext = k1->next;
 	    if (k1->aino == a1 && k1->fd >= 0) {
 		wehavekeys++;
-	        close (k1->fd);
+	        my_close (k1->fd);
 		write_log ("handle %d freed\n", k1->fd);
 	    }
         }
@@ -3099,19 +3088,19 @@ action_rename_object (Unit *unit, dpacket packet)
 		mode |= O_BINARY;
 		if (ret == -1) {
 		    /* rename still failed, restore fd */
-		    k1->fd = open (a1->nname, mode, 0777);
+		    k1->fd = my_open (a1->nname, mode);
 		    write_log ("restoring old handle '%s' %d\n", a1->nname, k1->dosmode);
 		} else {
 		    /* transfer fd to new name */
 		    k1->aino = a2;
-		    k1->fd = open (a2->nname, mode, 0777);
+		    k1->fd = my_open (a2->nname, mode);
 		    write_log ("restoring new handle '%s' %d\n", a2->nname, k1->dosmode);
 		}
 	        if (k1->fd < 0) {
 		    write_log ("relocking failed '%s' -> '%s'\n", a1->nname, a2->nname);
 		    free_key (unit, k1);
 		} else {
-		    lseek (k1->fd, k1->file_pos, SEEK_SET);
+		    my_lseek (k1->fd, k1->file_pos, SEEK_SET);
 		}
 	    }
         }

@@ -30,10 +30,7 @@
    BLOCKS FROMSIZE-byte blocks, rounding away from zero.
    TOSIZE must be positive.  Return -1 if FROMSIZE is not positive.  */
 
-static long
-adjust_blocks (blocks, fromsize, tosize)
-     long blocks;
-     int fromsize, tosize;
+static long adjust_blocks (long blocks, int fromsize, int tosize)
 {
   if (tosize <= 0)
     abort ();
@@ -52,22 +49,15 @@ adjust_blocks (blocks, fromsize, tosize)
 #include "sysdeps.h"
 #include "od-win32/posixemu.h"
 #include <windows.h>
-int
-get_fs_usage (path, disk, fsp)
-     const char *path;
-     const char *disk;
-     struct fs_usage *fsp;
+int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
 {
-    char buf1[1024];
     char buf2[1024];
     DWORD SectorsPerCluster;
     DWORD BytesPerSector;
     DWORD NumberOfFreeClusters;
     DWORD TotalNumberOfClusters;
 
-    fname_atow (path, buf1, sizeof buf1);
-
-    GetFullPathName (buf1, sizeof buf2, buf2, NULL);
+    GetFullPathName (path, sizeof buf2, buf2, NULL);
 
     buf2[3] = 0;
 

@@ -396,11 +396,11 @@ BEGIN
                     WS_TABSTOP,146,206,48,10
 END
 
-IDD_PORTS DIALOGEX 0, 0, 300, 202
+IDD_PORTS DIALOGEX 0, 0, 300, 194
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Serial and Parallel",IDC_SERPARFRAME,7,3,284,45
+    GROUPBOX        "Serial and Parallel",IDC_SERPARFRAME,4,2,291,46
     RTEXT           "Serial:",IDC_STATIC,20,15,25,15,SS_CENTERIMAGE
     COMBOBOX        IDC_SERIAL,50,15,95,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
@@ -413,47 +413,43 @@ BEGIN
     RTEXT           "Printer:",IDC_STATIC,155,15,25,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PRINTERLIST,185,15,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "MIDI",IDC_MIDIFRAME,7,51,284,36
+    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,199,31,58,12
+    GROUPBOX        "MIDI",IDC_MIDIFRAME,4,50,292,36
     RTEXT           "Out:",IDC_MIDI,10,64,34,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIOUTLIST,50,64,95,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     RTEXT           "In:",IDC_MIDI2,150,64,29,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIINLIST,185,64,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Mouse Port 0",IDC_PORT0,7,92,116,106
-    CONTROL         "PC Joystick 0",IDC_PORT0_JOY0,"Button",
-                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,20,104,90,10
-    CONTROL         "PC Joystick 1",IDC_PORT0_JOY1,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,20,118,90,10
-    CONTROL         "PC Mouse",IDC_PORT0_MOUSE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,20,133,90,11
+    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,92,141,78
+    CONTROL         "",IDC_PORT0_JOYSC,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,10,107,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT0_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    20,149,90,10
+                    10,127,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL = fire",
                     IDC_PORT0_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    20,164,90,10
+                    10,142,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT0_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    20,179,90,10
-    GROUPBOX        "Amiga Mouse Port 1",IDC_PORT1,175,92,115,105
-    CONTROL         "PC Joystick 0",IDC_PORT1_JOY0,"Button",
-                    BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,190,104,90,10
-    CONTROL         "PC Joystick 1",IDC_PORT1_JOY1,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,190,118,90,10
-    CONTROL         "PC Mouse",IDC_PORT1_MOUSE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,190,133,90,11
+                    10,156,90,10
+    COMBOBOX        IDC_PORT0_JOYS,23,106,117,130,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,92,146,78
+    CONTROL         "",IDC_PORT1_JOYSC,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,155,107,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT1_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    190,149,90,10
+                    155,127,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL = fire",
                     IDC_PORT1_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    190,164,90,10
+                    155,142,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT1_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    190,179,90,10
-    PUSHBUTTON      "<-swap->",IDC_SWAP,130,132,40,14
-    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,199,31,58,12
+                    155,156,90,10
+    COMBOBOX        IDC_PORT1_JOYS,168,106,123,130,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Swap ports",IDC_SWAP,119,176,54,14
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
@@ -947,6 +943,7 @@ BEGIN
                     SS_CENTERIMAGE
     GROUPBOX        "Compatibility vs required CPU power ",
                     IDC_QUICKSTART_COMPA,3,56,294,33
+    GROUPBOX        "Mode",IDC_STATIC,190,211,107,27,BS_LEFT
 END
 
 

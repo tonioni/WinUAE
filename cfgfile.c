@@ -122,7 +122,6 @@ static const char *cpumode[] = {
     "68000", "68000", "68010", "68010", "68ec020", "68020", "68ec020/68881", "68020/68881",
     "68040", "68040", "xxxxx", "xxxxx", "68060", "68060", 0
 };
-static const char *portmode[] = { "joy0", "joy1", "mouse", "kbd1", "kbd2", "kbd3", 0 };
 static const char *colormode1[] = { "8bit", "15bit", "16bit", "8bit_dither", "4bit_dither", "32bit", 0 };
 static const char *colormode2[] = { "8", "15", "16", "8d", "4d", "32", 0 };
 static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 };
@@ -288,8 +287,18 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
     if (p->override_dga_address)
 	cfgfile_write (f, "override_dga_address=0x%08x\n", p->override_dga_address);
 
-    cfgfile_write (f, "joyport0=%s\n", portmode[p->jport0]);
-    cfgfile_write (f, "joyport1=%s\n", portmode[p->jport1]);
+    for (i = 0; i < 2; i++) {
+	int v = i == 0 ? p->jport0 : p->jport1;
+        char tmp1[100], tmp2[50];
+        if (v < JSEM_JOYS)
+	    sprintf (tmp2, "kbd%d", v);
+	else if (v < JSEM_MICE)
+	    sprintf (tmp2, "joy%d", v - JSEM_JOYS);
+	else
+	    sprintf (tmp2, "mouse%d", v - JSEM_MICE);
+	sprintf (tmp1, "joyport%d=%s\n", i, tmp2);
+	cfgfile_write (f, tmp1);
+    }
 
     cfgfile_write (f, "bsdsocket_emu=%s\n", p->socket_emu ? "true" : "false");
 
@@ -636,8 +645,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "sound_output", &p->produce_sound, soundmode2, 0)
 	|| cfgfile_strval (option, value, "sound_interpol", &p->sound_interpol, interpolmode, 0)
 	|| cfgfile_strval (option, value, "sound_filter", &p->sound_filter, soundfiltermode, 0)
-	|| cfgfile_strval (option, value, "joyport0", &p->jport0, portmode, 0)
-	|| cfgfile_strval (option, value, "joyport1", &p->jport1, portmode, 0)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
@@ -704,6 +711,34 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	cfgfile_intval (option, value, "gfx_height", &p->gfx_height_win, 1);
 	p->gfx_width_fs = p->gfx_width_win;
 	p->gfx_height_fs = p->gfx_height_win;
+	return 1;
+    }
+
+    if (strcmp (option, "joyport0") == 0 || strcmp (option, "joyport1") == 0) {
+	int port = strcmp (option, "joyport0") == 0 ? 0 : 1;
+	int start = -1;
+	int kbdl = 0;
+	char *pp = 0;
+	if (strncmp (value, "kbd", 3) == 0) {
+	    start = JSEM_KBDLAYOUT;
+	    pp = value + 3;
+	    kbdl = 1;
+	} else if (strncmp (value, "joy", 3) == 0) {
+	    start = JSEM_JOYS;
+	    pp = value + 3;
+	} else if (strncmp (value, "mouse", 5) == 0) {
+	    start = JSEM_MICE;
+	    pp = value + 5;
+	}
+	if (pp) {
+	    start += atol (pp);
+	    if (kbdl && start > 0)
+		start--;
+	    if (port)
+		p->jport1 = start;
+	    else
+		p->jport0 = start;
+	}
 	return 1;
     }
 

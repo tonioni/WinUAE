@@ -57,7 +57,7 @@ static void do_fake (int nr)
 {
     int *fake = fakestate[nr];
 
-    nr += 2;
+    nr = compatibility_device[nr];
     setjoystickstate (nr, 0, fake[1] ? -100 : (fake[2] ? 100 : 0), 100);
     setjoystickstate (nr, 1, fake[0] ? -100 : (fake[3] ? 100 : 0), 100);
     setjoybuttonstate (nr, 0, fake[4]);

@@ -47,20 +47,21 @@ char *nname_begin (char *nname)
 char *fsdb_search_dir (const char *dirname, char *rel)
 {
     char *p = 0;
-    struct dirent *de;
-    DIR *dir = opendir (dirname);
+    int de;
+    void *dir = my_opendir (dirname);
+    char fn[MAX_DPATH];
 
     /* This really shouldn't happen...  */
     if (! dir)
 	return 0;
     
-    while (p == 0 && (de = readdir (dir)) != 0) {
-	if (strcmp (de->d_name, rel) == 0)
+    while (p == 0 && (de = my_readdir (dir, fn)) != 0) {
+	if (strcmp (fn, rel) == 0)
 	    p = rel;
-	else if (strcasecmp (de->d_name, rel) == 0)
-	    p = my_strdup (de->d_name);
+	else if (strcasecmp (fn, rel) == 0)
+	    p = my_strdup (fn);
     }
-    closedir (dir);
+    my_closedir (dir);
     return p;
 }
 
@@ -128,7 +129,7 @@ void fsdb_clean_dir (a_inode *dir)
 	pos1 += sizeof buf;
     }
     fclose (f);
-    truncate (n, pos1);
+    my_truncate (n, pos1);
     free (n);
 }
 

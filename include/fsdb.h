@@ -113,3 +113,20 @@ extern int fsdb_fill_file_attrs (a_inode *);
 extern int fsdb_set_file_attrs (a_inode *, int);
 extern int fsdb_mode_representable_p (const a_inode *);
 extern char *fsdb_create_unique_nname (a_inode *base, const char *);
+
+extern void *my_opendir (const char*);
+extern void my_closedir (void*);
+extern int my_readdir (void*, char*);
+
+extern int my_rmdir (const char*);
+extern int my_mkdir (const char*);
+extern int my_unlink (const char*);
+
+extern void *my_open (const char*, int);
+extern void my_close (void*);
+extern unsigned int my_lseek (void*, unsigned int, int);
+extern unsigned int my_read (void*, void*, unsigned int);
+extern unsigned int my_write (void*, void*, unsigned int);
+extern int my_truncate (const char *name, long int len);
+
+

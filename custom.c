@@ -4306,6 +4306,13 @@ static void hsync_handler (void)
 #endif
     ciahsync++;
     if (ciahsync >= (currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) { /* not so perfect.. */
+	if (ciahsync != 312) {
+	    static int warned = 0;
+	    if (!warned)
+		gui_message("ciahsync may be messed up! check logs!");
+	    warned = 1;
+	    write_log ("ciahsync=%d! %d %d", ciahsync, currprefs.ntscmode, maxhpos);
+	}
         CIA_vsync_handler ();
 	ciahsync = 0;
     }

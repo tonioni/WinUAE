@@ -17,6 +17,8 @@
 #include <stdarg.h>
 #include <signal.h>
 
+#define _WIN32_WINNT 0x501 /* XButtons */
+
 #include <windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -547,6 +549,14 @@ void disablecapture (void)
 #endif
 }
 
+static void handleXbutton (WPARAM wParam, int updown)
+{
+    int b = GET_XBUTTON_WPARAM (wParam);
+    int num = (b & XBUTTON1) ? 3 : (b & XBUTTON2) ? 4 : -1;
+    if (num >= 0)
+	setmousebuttonstate (dinput_winmouse(), num, updown);
+}
+
 static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     static int ignorenextactivateapp;
@@ -564,7 +574,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     if (hMainWnd == 0)
 	hMainWnd = hWnd;
 
-    switch( message ) 
+    switch (message)
     {
     case WM_SIZE:
     {
@@ -602,15 +612,27 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		winuae_inactive (hWnd, minimized);
 	    }
 	    return 0;
+	} else if (LOWORD (wParam) == WA_INACTIVE) {
+	    minimized = 1;
+	    if (ignorenextactivateapp > 0)
+	        ignorenextactivateapp--;
+	} else if (!minimized && LOWORD (wParam) != WA_INACTIVE) {
+	    winuae_active (hWnd, minimized);
+	    if (ignorenextactivateapp > 0)
+	        ignorenextactivateapp--;
+	    return 0;
 	}
+	break;
 
     case WM_ACTIVATEAPP:
 	if (!wParam) {
+	    if (gui_active && isfullscreen())
+	        exit_gui (0);
 	    setmouseactive (0);
 	} else {
 	    if (!ignorenextactivateapp && isfullscreen () && is3dmode ()) {
 	        WIN32GFX_DisplayChangeRequested ();
-	        ignorenextactivateapp = 2;
+	        ignorenextactivateapp = 3;
 	    }
 	    if (gui_active && isfullscreen())
 	        exit_gui (0);
@@ -657,6 +679,19 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_MBUTTONDBLCLK:
 	if (dinput_winmouse () > 0)
 	    setmousebuttonstate (dinput_winmouse(), 2, 1);
+    return 0;
+    case WM_XBUTTONUP:
+	if (dinput_winmouse () > 0) {
+	    handleXbutton (wParam, 0);
+	    return TRUE;
+	}
+    return 0;
+    case WM_XBUTTONDOWN:
+    case WM_XBUTTONDBLCLK:
+	if (dinput_winmouse () > 0) {
+	    handleXbutton (wParam, 1);
+	    return TRUE;
+	}
     return 0;
     case WM_MOUSEWHEEL:
 	if (dinput_winmouse () > 0)
