@@ -589,6 +589,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
     struct PicassoResolution *dm;
     int i;
 
+    ignore_messages_all++;
     DirectDraw_Start (NULL);
     if( colortype == 0 ) /* Need to query a 16-bit display mode for its pixel-format.  Do this by opening such a screen */
     {
@@ -625,7 +626,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
         if (!got_16bit_mode) {
     	    write_log ("figure_pixel_formats: Attempting %dx%d..\n", dm->res.width, dm->res.height);
 
-            ddrval = DirectDraw_SetDisplayMode( dm->res.width, dm->res.height, 16, 0 ); /* 0 for default freq */
+	    ddrval = DirectDraw_SetDisplayMode (dm->res.width, dm->res.height, 16, 0); /* 0 for default freq */
 	    if (ddrval != DD_OK)
 		continue;
 
@@ -656,6 +657,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
 	hAmigaWnd = NULL;
     }
     DirectDraw_Release ();
+    ignore_messages_all--;
     return colortype;
 }
 
@@ -1018,6 +1020,13 @@ int check_prefs_changed_gfx (void)
 	inputdevice_acquire ();
 	return 1;
     }
+
+    if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
+        currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
+        init_hz ();
+        return 1;
+    }
+
     if (currprefs.gfx_correct_aspect != changed_prefs.gfx_correct_aspect ||
 	currprefs.gfx_xcenter != changed_prefs.gfx_xcenter ||
 	currprefs.gfx_ycenter != changed_prefs.gfx_ycenter)

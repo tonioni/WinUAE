@@ -911,7 +911,7 @@ void audio_hsync (int dmaaction)
 		handle2 = 1;
 	    if (chan_ena) {
 #ifdef CPUEMU_6
-		cycle_line[13 + nr * 2] |= CYCLE_AUDIO;
+		cycle_line[13 + nr * 2] |= CYCLE_MISC;
 #endif
 		if (cdp->request_word == 1 || cdp->request_word == 2)
 		    cdp->pt += 2;

@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 0
 #define UAEMINOR 9
-#define UAESUBREV 91
+#define UAESUBREV 92
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -62,6 +62,9 @@ struct uae_prefs {
     int serial_hwctsrts;
     int serial_direct;
     int parallel_demand;
+    int parallel_postscript_emulation;
+    int parallel_postscript_detection;
+    char ghostscript_parameters[256];
     int use_gfxlib;
     int socket_emu;
 
@@ -133,6 +136,7 @@ struct uae_prefs {
     int immediate_blits;
     unsigned int chipset_mask;
     int ntscmode;
+    int chipset_refreshrate;
     int collision_level;
     int leds_on_screen;
     int keyboard_leds[3];
@@ -176,6 +180,7 @@ struct uae_prefs {
 
     int kickshifter;
     int filesys_no_uaefsdb;
+    int filesys_custom_uaefsdb;
 
     struct uaedev_mount_info *mountinfo;
 
@@ -264,8 +269,10 @@ extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxl
 extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (char *);
 extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
+extern int cmdlineparser (char *s, char *outp[], int max);
 
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
+extern void fixup_prefs (struct uae_prefs *prefs);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

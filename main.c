@@ -115,193 +115,198 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
     prefs->gfx_width_win &= ~7;
 }
 
-static void fix_options (void)
+void fixup_prefs (struct uae_prefs *p)
 {
     int err = 0;
 
-    if ((currprefs.chipmem_size & (currprefs.chipmem_size - 1)) != 0
-	|| currprefs.chipmem_size < 0x40000
-	|| currprefs.chipmem_size > 0x800000)
+    if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
+	|| p->chipmem_size < 0x40000
+	|| p->chipmem_size > 0x800000)
     {
-	currprefs.chipmem_size = 0x200000;
+	p->chipmem_size = 0x200000;
 	write_log ("Unsupported chipmem size!\n");
 	err = 1;
     }
-    if (currprefs.chipmem_size > 0x80000)
-	currprefs.chipset_mask |= CSMASK_ECS_AGNUS;
+    if (p->chipmem_size > 0x80000)
+	p->chipset_mask |= CSMASK_ECS_AGNUS;
 
-    if ((currprefs.fastmem_size & (currprefs.fastmem_size - 1)) != 0
-	|| (currprefs.fastmem_size != 0 && (currprefs.fastmem_size < 0x100000 || currprefs.fastmem_size > 0x800000)))
+    if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
+	|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
     {
-	currprefs.fastmem_size = 0;
+	p->fastmem_size = 0;
 	write_log ("Unsupported fastmem size!\n");
 	err = 1;
     }
-    if ((currprefs.gfxmem_size & (currprefs.gfxmem_size - 1)) != 0
-	|| (currprefs.gfxmem_size != 0 && (currprefs.gfxmem_size < 0x100000 || currprefs.gfxmem_size > 0x2000000)))
+    if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
+	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > 0x2000000)))
     {
-	write_log ("Unsupported graphics card memory size %lx!\n", currprefs.gfxmem_size);
-	currprefs.gfxmem_size = 0;
+	write_log ("Unsupported graphics card memory size %lx!\n", p->gfxmem_size);
+	p->gfxmem_size = 0;
 	err = 1;
     }
-    if ((currprefs.z3fastmem_size & (currprefs.z3fastmem_size - 1)) != 0
-	|| (currprefs.z3fastmem_size != 0 && (currprefs.z3fastmem_size < 0x100000 || currprefs.z3fastmem_size > 0x20000000)))
+    if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
+	|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > 0x20000000)))
     {
-	currprefs.z3fastmem_size = 0;
+	p->z3fastmem_size = 0;
 	write_log ("Unsupported Zorro III fastmem size!\n");
 	err = 1;
     }
-    if (currprefs.address_space_24 && (currprefs.gfxmem_size != 0 || currprefs.z3fastmem_size != 0)) {
-	currprefs.z3fastmem_size = currprefs.gfxmem_size = 0;
+    if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0)) {
+	p->z3fastmem_size = p->gfxmem_size = 0;
 	write_log ("Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"
 		 "address space - sorry.\n");
     }
-    if (currprefs.bogomem_size != 0 && currprefs.bogomem_size != 0x80000 && currprefs.bogomem_size != 0x100000 && currprefs.bogomem_size != 0x180000 && currprefs.bogomem_size != 0x1c0000)
+    if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000)
     {
-	currprefs.bogomem_size = 0;
+	p->bogomem_size = 0;
 	write_log ("Unsupported bogomem size!\n");
 	err = 1;
     }
 
-    if (currprefs.chipmem_size > 0x200000 && currprefs.fastmem_size != 0) {
+    if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {
 	write_log ("You can't use fastmem and more than 2MB chip at the same time!\n");
-	currprefs.fastmem_size = 0;
+	p->fastmem_size = 0;
 	err = 1;
     }
 #if 0
-    if (currprefs.m68k_speed < -1 || currprefs.m68k_speed > 20) {
+    if (p->m68k_speed < -1 || p->m68k_speed > 20) {
 	write_log ("Bad value for -w parameter: must be -1, 0, or within 1..20.\n");
-	currprefs.m68k_speed = 4;
+	p->m68k_speed = 4;
 	err = 1;
     }
 #endif
   
-    if (currprefs.produce_sound < 0 || currprefs.produce_sound > 3) {
+    if (p->produce_sound < 0 || p->produce_sound > 3) {
 	write_log ("Bad value for -S parameter: enable value must be within 0..3\n");
-	currprefs.produce_sound = 0;
+	p->produce_sound = 0;
 	err = 1;
     }
-    if (currprefs.comptrustbyte < 0 || currprefs.comptrustbyte > 3) {
+    if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
 	write_log ("Bad value for comptrustbyte parameter: value must be within 0..2\n");
-	currprefs.comptrustbyte = 1;
+	p->comptrustbyte = 1;
 	err = 1;
     }
-    if (currprefs.comptrustword < 0 || currprefs.comptrustword > 3) {
+    if (p->comptrustword < 0 || p->comptrustword > 3) {
 	write_log ("Bad value for comptrustword parameter: value must be within 0..2\n");
-	currprefs.comptrustword = 1;
+	p->comptrustword = 1;
 	err = 1;
     }
-    if (currprefs.comptrustlong < 0 || currprefs.comptrustlong > 3) {
+    if (p->comptrustlong < 0 || p->comptrustlong > 3) {
 	write_log ("Bad value for comptrustlong parameter: value must be within 0..2\n");
-	currprefs.comptrustlong = 1;
+	p->comptrustlong = 1;
 	err = 1;
     }
-    if (currprefs.comptrustnaddr < 0 || currprefs.comptrustnaddr > 3) {
+    if (p->comptrustnaddr < 0 || p->comptrustnaddr > 3) {
 	write_log ("Bad value for comptrustnaddr parameter: value must be within 0..2\n");
-	currprefs.comptrustnaddr = 1;
+	p->comptrustnaddr = 1;
 	err = 1;
     }
-    if (currprefs.compnf < 0 || currprefs.compnf > 1) {
+    if (p->compnf < 0 || p->compnf > 1) {
 	write_log ("Bad value for compnf parameter: value must be within 0..1\n");
-	currprefs.compnf = 1;
+	p->compnf = 1;
 	err = 1;
     }
-    if (currprefs.comp_hardflush < 0 || currprefs.comp_hardflush > 1) {
+    if (p->comp_hardflush < 0 || p->comp_hardflush > 1) {
 	write_log ("Bad value for comp_hardflush parameter: value must be within 0..1\n");
-	currprefs.comp_hardflush = 1;
+	p->comp_hardflush = 1;
 	err = 1;
     }
-    if (currprefs.comp_constjump < 0 || currprefs.comp_constjump > 1) {
+    if (p->comp_constjump < 0 || p->comp_constjump > 1) {
 	write_log ("Bad value for comp_constjump parameter: value must be within 0..1\n");
-	currprefs.comp_constjump = 1;
+	p->comp_constjump = 1;
 	err = 1;
     }
-    if (currprefs.comp_oldsegv < 0 || currprefs.comp_oldsegv > 1) {
+    if (p->comp_oldsegv < 0 || p->comp_oldsegv > 1) {
 	write_log ("Bad value for comp_oldsegv parameter: value must be within 0..1\n");
-	currprefs.comp_oldsegv = 1;
+	p->comp_oldsegv = 1;
 	err = 1;
     }
-    if (currprefs.cachesize < 0 || currprefs.cachesize > 16384) {
+    if (p->cachesize < 0 || p->cachesize > 16384) {
 	write_log ("Bad value for cachesize parameter: value must be within 0..16384\n");
-	currprefs.cachesize = 0;
+	p->cachesize = 0;
 	err = 1;
     }
 
-    if (currprefs.cpu_level < 2 && currprefs.z3fastmem_size > 0) {
+    if (p->cpu_level < 2 && p->z3fastmem_size > 0) {
 	write_log ("Z3 fast memory can't be used with a 68000/68010 emulation. It\n"
 		 "requires a 68020 emulation. Turning off Z3 fast memory.\n");
-	currprefs.z3fastmem_size = 0;
+	p->z3fastmem_size = 0;
 	err = 1;
     }
-    if (currprefs.gfxmem_size > 0 && (currprefs.cpu_level < 2 || currprefs.address_space_24)) {
+    if (p->gfxmem_size > 0 && (p->cpu_level < 2 || p->address_space_24)) {
 	write_log ("Picasso96 can't be used with a 68000/68010 or 68EC020 emulation. It\n"
 		 "requires a 68020 emulation. Turning off Picasso96.\n");
-	currprefs.gfxmem_size = 0;
+	p->gfxmem_size = 0;
 	err = 1;
     }
 #ifndef BSDSOCKET
-    if (currprefs.socket_emu) {
+    if (p->socket_emu) {
 	write_log ("Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n");
-	currprefs.socket_emu = 0;
+	p->socket_emu = 0;
 	err = 1;
     }
 #endif
 
-    if (currprefs.nr_floppies < 0 || currprefs.nr_floppies > 4) {
+    if (p->nr_floppies < 0 || p->nr_floppies > 4) {
 	write_log ("Invalid number of floppies.  Using 4.\n");
-	currprefs.nr_floppies = 4;
-	currprefs.dfxtype[0] = 0;
-	currprefs.dfxtype[1] = 0;
-	currprefs.dfxtype[2] = 0;
-	currprefs.dfxtype[3] = 0;
+	p->nr_floppies = 4;
+	p->dfxtype[0] = 0;
+	p->dfxtype[1] = 0;
+	p->dfxtype[2] = 0;
+	p->dfxtype[3] = 0;
 	err = 1;
     }
 
-    if (currprefs.floppy_speed > 0 && currprefs.floppy_speed < 10) {
-	currprefs.floppy_speed = 100;
+    if (p->floppy_speed > 0 && p->floppy_speed < 10) {
+	p->floppy_speed = 100;
     }
-    if (currprefs.input_mouse_speed < 1 || currprefs.input_mouse_speed > 1000) {
-	currprefs.input_mouse_speed = 100;
+    if (p->input_mouse_speed < 1 || p->input_mouse_speed > 1000) {
+	p->input_mouse_speed = 100;
     }
-    if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact)
-	currprefs.fast_copper = 0;
+    if (p->cpu_cycle_exact || p->blitter_cycle_exact)
+	p->fast_copper = 0;
 
-    if (currprefs.collision_level < 0 || currprefs.collision_level > 3) {
+    if (p->collision_level < 0 || p->collision_level > 3) {
 	write_log ("Invalid collision support level.  Using 1.\n");
-	currprefs.collision_level = 1;
+	p->collision_level = 1;
 	err = 1;
     }
-    fixup_prefs_dimensions (&currprefs);
+
+    if (p->parallel_postscript_emulation)
+	p->parallel_postscript_detection = 1;
+
+    fixup_prefs_dimensions (p);
 
 #ifdef CPU_68000_ONLY
-    currprefs.cpu_level = 0;
+    p->cpu_level = 0;
 #endif
 #ifndef CPUEMU_0
-    currprefs.cpu_compatible = 1;
-    currprefs.address_space_24 = 1;
+    p->cpu_compatible = 1;
+    p->address_space_24 = 1;
 #endif
 #if !defined(CPUEMU_5) && !defined (CPUEMU_6)
-    currprefs.cpu_compatible = 0;
-    currprefs.address_space_24 = 0;
+    p->cpu_compatible = 0;
+    p->address_space_24 = 0;
 #endif
 #if !defined (CPUEMU_6)
-    currprefs.cpu_cycle_exact = currprefs.blitter_cycle_exact = 0;
+    p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
 #endif
 #ifndef AGA
-    currprefs.chipset_mask &= ~CSMASK_AGA;
+    p->chipset_mask &= ~CSMASK_AGA;
 #endif
 #ifndef AUTOCONFIG
-    currprefs.z3fastmem_size = 0;
-    currprefs.fastmem_size = 0;
-    currprefs.gfxmem_size = 0;
+    p->z3fastmem_size = 0;
+    p->fastmem_size = 0;
+    p->gfxmem_size = 0;
 #endif
 #if !defined (BSDSOCKET)
-    currprefs.socket_emu = 0;
+    p->socket_emu = 0;
 #endif
 #if !defined (SCSIEMU)
-    currprefs.scsi = 0;
-    currprefs.win32_aspi = 0;
+    p->scsi = 0;
+    p->win32_aspi = 0;
 #endif
+
 
     if (err)
 	write_log ("Please use \"uae -h\" to get usage information.\n");
@@ -452,7 +457,7 @@ static void parse_cmdline_and_init_file (int argc, char **argv)
 	target_cfgfile_load (&currprefs, optionsfile, 0);
 #endif
     }
-    fix_options ();
+    fixup_prefs (&currprefs);
 
     parse_cmdline (argc, argv);
 }
@@ -554,7 +559,7 @@ static void real_main2 (int argc, char **argv)
         currprefs.mountinfo = alloc_mountinfo ();
 #endif
 	default_prefs (&currprefs, 0);
-	fix_options ();
+	fixup_prefs (&currprefs);
     }
 
     if (! graphics_setup ()) {
@@ -609,7 +614,7 @@ static void real_main2 (int argc, char **argv)
 
     logging_init(); /* Yes, we call this twice - the first case handles when the user has loaded
 		       a config using the cmd-line.  This case handles loads through the GUI. */
-    fix_options ();
+    fixup_prefs (&currprefs);
     changed_prefs = currprefs;
 
     savestate_init ();

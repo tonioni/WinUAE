@@ -57,7 +57,7 @@ BEGIN
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_CARTCHOOSER,280,90,10,15
     RTEXT           "Flash RAM File:",IDC_FLASHTEXT,8,112,75,10
-    EDITTEXT        IDC_FLASHFILE,89,110,185,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
 END
 
@@ -285,14 +285,12 @@ FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,5,260,185
-    PUSHBUTTON      "",IDC_UP,270,52,25,15,BS_ICON
-    PUSHBUTTON      "",IDC_DOWN,270,132,25,15,BS_ICON
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,5,290,185
     PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,196,60,15
     PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,70,196,60,15
     PUSHBUTTON      "Add Ha&rddrive...",IDC_NEW_HD,135,196,60,15
-    PUSHBUTTON      "Remove",IDC_REMOVE,135,218,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,200,218,60,15
+    PUSHBUTTON      "Remove",IDC_REMOVE,235,196,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,235,217,60,15
     CONTROL         "Add PC Drives at Startup",IDC_MAPDRIVES,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,5,216,105,10,0,
                     HIDC_MAPDRIVES
@@ -396,60 +394,67 @@ BEGIN
     PUSHBUTTON      "Delete",IDC_DELETE,255,225,40,15
 END
 
-IDD_PORTS DIALOGEX 0, 0, 300, 194
+IDD_PORTS DIALOGEX 0, 0, 300, 242
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Serial and Parallel",IDC_SERPARFRAME,4,2,291,46
-    RTEXT           "Serial:",IDC_STATIC,20,15,25,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_SERIAL,50,15,95,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    GROUPBOX        "Parallel Port",IDC_SERPARFRAME,5,2,291,68
+    COMBOBOX        IDC_SERIAL,19,83,95,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "Shared",IDC_SHARED,"Button",BS_AUTOCHECKBOX | 
-                    BS_VCENTER | WS_TABSTOP,33,32,37,12
+                    BS_VCENTER | WS_TABSTOP,132,83,48,13
     CONTROL         "RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | 
-                    BS_VCENTER | WS_TABSTOP,77,32,44,12
+                    BS_VCENTER | WS_TABSTOP,185,83,53,12
     CONTROL         "Direct",IDC_SERIAL_DIRECT,"Button",BS_AUTOCHECKBOX | 
-                    BS_VCENTER | WS_TABSTOP,128,32,40,12
-    RTEXT           "Printer:",IDC_STATIC,155,15,25,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_PRINTERLIST,185,15,95,134,CBS_DROPDOWNLIST | 
+                    BS_VCENTER | WS_TABSTOP,243,83,46,12
+    RTEXT           "Printer:",IDC_STATIC,15,15,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_PRINTERLIST,49,15,153,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,199,31,58,12
-    GROUPBOX        "MIDI",IDC_MIDIFRAME,4,50,292,36
-    RTEXT           "Out:",IDC_MIDI,10,64,34,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MIDIOUTLIST,50,64,95,130,CBS_DROPDOWNLIST | 
+    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,220,14,58,12
+    GROUPBOX        "MIDI",IDC_MIDIFRAME,4,104,292,33
+    RTEXT           "Out:",IDC_MIDI,10,115,34,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIOUTLIST,50,115,95,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "In:",IDC_MIDI2,150,64,29,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MIDIINLIST,185,64,95,134,CBS_DROPDOWNLIST | 
+    RTEXT           "In:",IDC_MIDI2,150,115,29,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIINLIST,185,115,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,92,141,78
+    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,141,141,78
     CONTROL         "",IDC_PORT0_JOYSC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,10,107,9,11
+                    WS_GROUP | WS_TABSTOP,10,156,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT0_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,127,90,10
+                    10,176,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
                     IDC_PORT0_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,142,90,10
+                    10,191,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT0_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,156,90,10
-    COMBOBOX        IDC_PORT0_JOYS,23,106,117,130,CBS_DROPDOWNLIST | 
+                    10,205,90,10
+    COMBOBOX        IDC_PORT0_JOYS,23,155,117,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,92,146,78
+    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,141,146,78
     CONTROL         "",IDC_PORT1_JOYSC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,155,107,9,11
+                    WS_GROUP | WS_TABSTOP,155,156,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT1_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,127,90,10
+                    155,176,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
                     IDC_PORT1_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,142,90,10
+                    155,191,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT1_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,156,90,10
-    COMBOBOX        IDC_PORT1_JOYS,168,106,123,130,CBS_DROPDOWNLIST | 
+                    155,205,90,10
+    COMBOBOX        IDC_PORT1_JOYS,168,155,123,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Swap ports",IDC_SWAP,119,176,54,14
+    PUSHBUTTON      "Swap ports",IDC_SWAP,119,225,54,14
+    CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",
+                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,18,32,103,12
+    CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",
+                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,122,32,103,12
+    EDITTEXT        IDC_PS_PARAMS,121,50,165,12,ES_AUTOHSCROLL
+    GROUPBOX        "Serial Port",IDC_SERIALFRAME,4,72,292,29
+    RTEXT           "Ghostscript extra parameters:",IDC_STATIC,15,49,91,15,
+                    SS_CENTERIMAGE
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
@@ -846,10 +851,8 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     CONTROL         "",IDC_DISKLIST,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,262,211
-    PUSHBUTTON      "",IDC_UP,270,66,25,15,BS_ICON
-    PUSHBUTTON      "",IDC_DOWN,270,146,25,15,BS_ICON
-    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,94,223,93,15
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,292,211
+    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,98,223,93,15
 END
 
 IDD_PANEL DIALOGEX 0, 0, 420, 278
@@ -1016,8 +1019,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,91,0
- PRODUCTVERSION 0,9,91,0
+ FILEVERSION 0,9,92,0
+ PRODUCTVERSION 0,9,92,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1033,12 +1036,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "0.9.91"
+            VALUE "FileVersion", "0.9.92"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2004 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "0.9.91"
+            VALUE "ProductVersion", "0.9.92"
         END
     END
     BLOCK "VarFileInfo"

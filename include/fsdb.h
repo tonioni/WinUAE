@@ -84,6 +84,8 @@ typedef struct a_inode_struct {
     /* If nonzero, this represents a deleted file; the corresponding
      * entry in the database must be cleared.  */
     unsigned int deleted:1;
+    /* target volume flag */
+    unsigned int volflags;
 #ifdef AINO_DEBUG
     uae_u32 checksum2;
 #endif
@@ -110,8 +112,8 @@ STATIC_INLINE int same_aname (const char *an1, const char *an2)
 
 /* Filesystem-dependent functions.  */
 extern int fsdb_name_invalid (const char *n);
-extern int fsdb_fill_file_attrs (a_inode *);
-extern int fsdb_set_file_attrs (a_inode *, int);
+extern int fsdb_fill_file_attrs (a_inode *, a_inode *);
+extern int fsdb_set_file_attrs (a_inode *);
 extern int fsdb_mode_representable_p (const a_inode *);
 extern char *fsdb_create_unique_nname (a_inode *base, const char *);
 
@@ -131,4 +133,15 @@ extern unsigned int my_read (void*, void*, unsigned int);
 extern unsigned int my_write (void*, void*, unsigned int);
 extern int my_truncate (const char *name, long int len);
 extern int dos_errno (void);
+extern int my_existsfile (const char *name);
+extern int my_existsdir (const char *name);
 
+extern char *custom_fsdb_search_dir (const char *dirname, char *rel);
+extern a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const char *aname);
+extern a_inode *custom_fsdb_lookup_aino_nname (a_inode *base, const char *nname);
+extern int custom_fsdb_used_as_nname (a_inode *base, const char *nname);
+
+#define MYVOLUMEINFO_READONLY 1
+#define MYVOLUMEINFO_STREAMS 2
+
+extern int my_getvolumeinfo (char *root);

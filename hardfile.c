@@ -463,6 +463,14 @@ static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, 
         *cylsec = hfd->sectors * hfd->heads;
         return;
     }
+    /* what about HDF settings? */
+    if (hfd->surfaces && hfd->secspertrack) {
+	*head = hfd->surfaces;
+	*tracksec = hfd->secspertrack;
+	*cylsec = (*head) * (*tracksec);
+	*cyl = (unsigned int)(hfd->size / hfd->blocksize) / ((*tracksec) * (*head));
+	return;
+    }
     /* no, lets guess something.. */
     if (total <= 504 * 1024)
 	heads = 16;

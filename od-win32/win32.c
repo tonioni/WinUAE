@@ -96,7 +96,7 @@ COLORREF g_dwBackgroundColor  = RGB(10, 0, 10);
 
 static int emulation_paused;
 static int activatemouse = 1;
-static int ignore_messages_all;
+int ignore_messages_all;
 int pause_emulation;
 
 static int didmousepos;
@@ -588,7 +588,9 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     {
     case WM_SIZE:
     {
+#if 0
 	write_log ("WM_SIZE %d %d\n", wParam, minimized);
+#endif
 	if (isfullscreen ()) {
 	    v = minimized;
 	    switch (wParam)
@@ -616,7 +618,9 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     }
 	    
     case WM_ACTIVATE:
+#if 0
 	write_log ("WM_ACTIVE %d %d %d\n", HIWORD (wParam), LOWORD (wParam), minimized);
+#endif
 	if (!isfullscreen ()) {
     	    minimized = HIWORD (wParam);
 	    if (LOWORD (wParam) != WA_INACTIVE) {
@@ -638,7 +642,9 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	break;
 
     case WM_ACTIVATEAPP:
+#if 0
 	write_log ("WM_ACTIVATEAPP %d %d\n", wParam, minimized);
+#endif
 	if (!wParam) {
 	    setmouseactive (0);
 	    if (normal_display_change_starting == 0)
@@ -1139,7 +1145,7 @@ int WIN32_RegisterClasses( void )
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_OWNDC;
     wc.lpfnWndProc = AmigaWindowProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
+    wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
@@ -1152,7 +1158,7 @@ int WIN32_RegisterClasses( void )
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = MainWindowProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
+    wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
@@ -1165,7 +1171,7 @@ int WIN32_RegisterClasses( void )
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = HiddenWindowProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
+    wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
@@ -1975,9 +1981,7 @@ static void WIN32_HandleRegistryStuff( void )
 		    
 	    if( MessageBox( NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES )
 	    {
-	        ignore_messages_all++;
 	        colortype = WIN32GFX_FigurePixelFormats(0);
-	        ignore_messages_all--;
 	        RegSetValueEx( hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
 	    }
 	}
@@ -2120,7 +2124,6 @@ static int osdetect (void)
     os_winnt_admin = isadminpriv ();
     return 1;
 }
-
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
@@ -2249,7 +2252,6 @@ __asm{
 #endif
 #ifdef PARALLEL_PORT
     paraport_free ();
-    flushprinter ();
     closeprinter ();
 #endif
     WIN32_CleanupLibraries();

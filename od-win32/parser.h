@@ -29,3 +29,6 @@ void serialuartbreak (int);
 #define TIOCM_DTR 8
 #define TIOCM_RTS 16
 #define TIOCM_CTS 32
+
+extern void unload_ghostscript (void);
+extern int load_ghostscript (void);

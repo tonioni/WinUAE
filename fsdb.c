@@ -28,7 +28,7 @@
  * Offset 1, 4 bytes, mode
  * Offset 5, 257 bytes, aname
  * Offset 263, 257 bytes, nname
- * Offset 518, 81 bytes, comment
+ * Offset 519, 81 bytes, comment
  */
 
 #define TRACING_ENABLED 0
@@ -46,6 +46,7 @@ char *nname_begin (char *nname)
     return nname;
 }
 
+#ifndef _WIN32
 /* Find the name REL in directory DIRNAME.  If we find a file that
  * has exactly the same name, return REL.  If we find a file that
  * has the same name when compared case-insensitively, return a
@@ -55,9 +56,10 @@ char *fsdb_search_dir (const char *dirname, char *rel)
 {
     char *p = 0;
     int de;
-    void *dir = my_opendir (dirname);
+    void *dir;
     char fn[MAX_DPATH];
 
+    dir = my_opendir (dirname);
     /* This really shouldn't happen...  */
     if (! dir)
 	return 0;
@@ -71,6 +73,7 @@ char *fsdb_search_dir (const char *dirname, char *rel)
     my_closedir (dir);
     return p;
 }
+#endif
 
 static FILE *get_fsdb (a_inode *dir, const char *mode)
 {
@@ -113,10 +116,12 @@ static void fsdb_fixup (FILE *f, char *buf, int size, a_inode *base)
 void fsdb_clean_dir (a_inode *dir)
 {
     char buf[1 + 4 + 257 + 257 + 81];
-    char *n = build_nname (dir->nname, FSDB_FILE);
-    FILE *f = fopen (n, "r+b");
+    char *n;
+    FILE *f;
     off_t pos1 = 0, pos2;
 
+    n = build_nname (dir->nname, FSDB_FILE);
+    f = fopen (n, "r+b");
     if (f == 0) {
 	free (n);
 	return;
@@ -152,23 +157,24 @@ static a_inode *aino_from_buf (a_inode *base, char *buf, long off)
     aino->nname = build_nname (base->nname, buf);
     buf += 257;
     aino->comment = *buf != '\0' ? my_strdup (buf) : 0;
-    fsdb_fill_file_attrs (aino);
+    fsdb_fill_file_attrs (base, aino);
     aino->amigaos_mode = mode;
     aino->has_dbentry = 1;
     aino->dirty = 0;
     aino->db_offset = off;
-    TRACE (("aino=%d a='%s' n='%s' c='%s' mode=%d dir=%d\n",
-	off, aino->aname, aino->nname, aino->comment, aino->amigaos_mode, aino->dir));
     return aino;
 }
 
 a_inode *fsdb_lookup_aino_aname (a_inode *base, const char *aname)
 {
-    FILE *f = get_fsdb (base, "r+b");
+    FILE *f;
 
-    if (f == 0)
+    f = get_fsdb (base, "r+b");
+    if (f == 0) {
+	if (currprefs.filesys_custom_uaefsdb && (base->volflags & MYVOLUMEINFO_STREAMS))
+	    return custom_fsdb_lookup_aino_aname (base, aname);
 	return 0;
-
+    }
     for (;;) {
 	char buf[1 + 4 + 257 + 257 + 81];
 	if (fread (buf, 1, sizeof buf, f) < sizeof buf)
@@ -185,11 +191,14 @@ a_inode *fsdb_lookup_aino_aname (a_inode *base, const char *aname)
 
 a_inode *fsdb_lookup_aino_nname (a_inode *base, const char *nname)
 {
-    FILE *f = get_fsdb (base, "r+b");
+    FILE *f;
 
-    if (f == 0)
+    f = get_fsdb (base, "r+b");
+    if (f == 0) {
+	if (currprefs.filesys_custom_uaefsdb && (base->volflags & MYVOLUMEINFO_STREAMS))
+	    return custom_fsdb_lookup_aino_nname (base, nname);
 	return 0;
-
+    }
     for (;;) {
 	char buf[1 + 4 + 257 + 257 + 81];
 	if (fread (buf, 1, sizeof buf, f) < sizeof buf)
@@ -206,11 +215,15 @@ a_inode *fsdb_lookup_aino_nname (a_inode *base, const char *nname)
 
 int fsdb_used_as_nname (a_inode *base, const char *nname)
 {
-    FILE *f = get_fsdb (base, "r+b");
+    FILE *f;
     char buf[1 + 4 + 257 + 257 + 81];
     
-    if (f == 0)
-	return 0;
+    f = get_fsdb (base, "r+b");
+    if (f == 0) {
+	if (currprefs.filesys_custom_uaefsdb && (base->volflags & MYVOLUMEINFO_STREAMS))
+	    return custom_fsdb_used_as_nname (base, nname);
+    	return 0;
+    }
     for (;;) {
 	if (fread (buf, 1, sizeof buf, f) < sizeof buf)
 	    break;
@@ -248,7 +261,7 @@ static void write_aino (FILE *f, a_inode *aino)
     buf[5 + 256] = '\0';
     strncpy (buf + 5 + 257, nname_begin (aino->nname), 256);
     buf[5 + 257 + 256] = '\0';
-    strncpy (buf + 5 + 2*257, aino->comment ? aino->comment : "", 80);
+    strncpy (buf + 5 + 2 * 257, aino->comment ? aino->comment : "", 80);
     buf[5 + 2 * 257 + 80] = '\0';
     aino->db_offset = ftell (f);
     fwrite (buf, 1, sizeof buf, f);
@@ -300,8 +313,12 @@ void fsdb_dir_writeback (a_inode *dir)
 
     f = get_fsdb (dir, "r+b");
     if (f == 0) {
-	if (currprefs.filesys_no_uaefsdb) {
-	    TRACE (("disabled\n"));
+	if ((currprefs.filesys_custom_uaefsdb  && (dir->volflags & MYVOLUMEINFO_STREAMS)) ||currprefs.filesys_no_uaefsdb) {
+	    for (aino = dir->child; aino; aino = aino->sibling) {
+		aino->dirty = 0;
+		aino->has_dbentry = 0;
+		aino->needs_dbentry = 0;
+	    }
 	    return;
 	}
 	f = get_fsdb (dir, "w+b");

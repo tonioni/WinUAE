@@ -1801,6 +1801,12 @@ void memory_reset (void)
     map_banks (&kickmem_bank, 0xF8, 8, 0);
     if (currprefs.maprom)
 	map_banks (&kickram_bank, currprefs.maprom >> 16, 8, 0);
+    /* map beta Kickstarts to 0x200000 */
+    if (kickmemory[2] == 0x4e && kickmemory[3] == 0xf9 && kickmemory[4] == 0x00) {
+	uae_u32 addr = kickmemory[5];
+        if (addr == 0x20 && currprefs.chipmem_size <= 0x200000 && currprefs.fastmem_size == 0)
+	    map_banks (&kickmem_bank, addr, 8, 0);
+    }
 
     if (a1000_bootrom)
         a1000_handle_kickstart (1);

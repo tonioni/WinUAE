@@ -115,13 +115,13 @@ extern unsigned long syncbase;
 #define DMA_BLITPRI   0x0400
 
 #define CYCLE_REFRESH	0x01
-#define CYCLE_DISK	0x02
-#define CYCLE_AUDIO	0x04
-#define CYCLE_SPRITE	0x08
-#define CYCLE_BITPLANE	0x10
-#define CYCLE_COPPER	0x20
-#define CYCLE_BLITTER	0x40
-#define CYCLE_CPU	0x80
+#define CYCLE_MISC	0x02
+#define CYCLE_SPRITE	0x04
+#define CYCLE_BITPLANE	0x08
+#define CYCLE_COPPER	0x10
+#define CYCLE_BLITTER	0x20
+#define CYCLE_CPU	0x40
+#define CYCLE_NOCPU	0x80
 
 extern unsigned long frametime, timeframes;
 extern int plfstrt, plfstop, plffirstline, plflastline;

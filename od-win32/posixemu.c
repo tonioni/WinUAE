@@ -89,22 +89,6 @@ static DWORD getattr(const char *name, LPFILETIME lpft, size_t *size)
     return fd.dwFileAttributes;
 }
 
-int isspecialdrive(const char *name)
-{
-    int v, err;
-    DWORD last = SetErrorMode (SEM_FAILCRITICALERRORS);
-    v = GetFileAttributes(name);
-    err = GetLastError ();
-    SetErrorMode (last);
-    if (v != INVALID_FILE_ATTRIBUTES)
-	return 0;
-    if (err == ERROR_NOT_READY)
-	return 1;
-    if (err)
-	return -1;
-    return 0;
-}
-
 int posixemu_stat(const char *name, struct stat *statbuf)
 {
     DWORD attr;

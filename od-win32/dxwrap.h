@@ -13,7 +13,6 @@ struct ScreenResolution
 #define MAX_REFRESH_RATES 100
 struct PicassoResolution
 {
-    struct Resolutions *next;
     struct ScreenResolution res;
     int depth;   /* depth in bytes-per-pixel */
     int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */

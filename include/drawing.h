@@ -232,7 +232,7 @@ extern uae_u8 *real_bplpt[8];
 extern int coord_native_to_amiga_y (int);
 extern int coord_native_to_amiga_x (int);
 
-extern void record_diw_line (int first, int last);
+extern void record_diw_line (int plfstrt, int first, int last);
 extern void hardware_line_completed (int lineno);
 
 /* Determine how to draw a scan line.  */

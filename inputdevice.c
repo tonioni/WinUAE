@@ -1247,7 +1247,19 @@ void inputdevice_handle_inputcode (void)
 	case AKS_STATERESTOREDIALOG:
 	gui_display (4);
 	break;
-
+	case AKS_DECREASEREFRESHRATE:
+	case AKS_INCREASEREFRESHRATE:
+	{
+	    int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
+	    if (currprefs.chipset_refreshrate == 0)
+		currprefs.chipset_refreshrate = currprefs.ntscmode ? 60 : 50;
+	    changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate + dir;
+	    if (changed_prefs.chipset_refreshrate < 10)
+		changed_prefs.chipset_refreshrate = 10;
+	    if (changed_prefs.chipset_refreshrate > 900)
+		changed_prefs.chipset_refreshrate = 900;
+	}
+	break;
     }
 }
 

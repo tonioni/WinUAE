@@ -11,13 +11,149 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "config.h"
+#include "options.h"
+#include "memory.h"
 
 #include "fsdb.h"
+#include "win32.h"
 #include <windows.h>
+
+#define TRACING_ENABLED 0
+#if TRACING_ENABLED
+#define TRACE(x)	do { write_log x; } while(0)
+#else
+#define TRACE(x)
+#endif
 
 /* these are deadly (but I think allowed on the Amiga): */
 #define NUM_EVILCHARS 7
 static char evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
+
+#define UAEFSDB_BEGINS "__uae___"
+#define UAEFSDB_BEGINSX "__uae___*"
+#define UAEFSDB_LEN 604
+
+/* The on-disk format is as follows:
+ * Offset 0, 1 byte, valid
+ * Offset 1, 4 bytes, mode
+ * Offset 5, 257 bytes, aname
+ * Offset 263, 257 bytes, nname
+ * Offset 519, 81 bytes, comment
+ * Offset 600, 4 bytes, Windows-side mode
+ */
+
+static char *make_uaefsdbpath (const char *dir, const char *name)
+{
+    int len;
+    char *p;
+    
+    len = strlen (dir) + 1 + 1;
+    if (name)
+	len += 1 + strlen (name);
+    len += 1 + strlen (FSDB_FILE);
+    p = xmalloc (len);
+    if (!p)
+	return NULL;
+    if (name)
+	sprintf (p, "%s\\%s:%s", dir, name, FSDB_FILE);
+    else
+	sprintf (p, "%s:%s", dir, FSDB_FILE);
+    return p;
+}
+
+static int read_uaefsdb (const char *dir, const char *name, uae_u8 *fsdb)
+{
+    char *p;
+    HANDLE h;
+    DWORD read;
+    
+    p = make_uaefsdbpath (dir, name);
+    h = CreateFile (p, GENERIC_READ, 0,
+	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    xfree (p);
+    if (h != INVALID_HANDLE_VALUE) {
+	ReadFile (h, fsdb, UAEFSDB_LEN, &read, NULL);
+	CloseHandle (h);
+	if (read == UAEFSDB_LEN)
+	    return 1;
+    }
+    memset (fsdb, 0, UAEFSDB_LEN);
+    return 0;
+}
+
+static int write_uaefsdb (const char *dir, const char *name, uae_u8 *fsdb)
+{
+    char *p;
+    HANDLE h;
+    DWORD written, attr = INVALID_FILE_ATTRIBUTES;
+    int ret = 0;
+    
+    p = make_uaefsdbpath (dir, name);
+    h = CreateFile (p, GENERIC_WRITE, 0,
+        NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE && GetLastError () == ERROR_ACCESS_DENIED) {
+	attr = GetFileAttributes (p);
+	if (attr != INVALID_FILE_ATTRIBUTES) {
+	    if (attr & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)) {
+		SetFileAttributes (p, attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN));
+		h = CreateFile (p, GENERIC_WRITE, 0,
+		    NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	    }
+	}
+    }
+    if (h != INVALID_HANDLE_VALUE) {
+	WriteFile (h, fsdb, UAEFSDB_LEN, &written, NULL);
+	CloseHandle (h);
+	if (written == UAEFSDB_LEN) {
+	    ret = 1;
+	    goto end;
+	}
+    }
+    DeleteFile (p);
+end:
+    if (attr != INVALID_FILE_ATTRIBUTES)
+	SetFileAttributes (p, attr);
+    xfree (p);
+    return ret;
+}
+
+static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
+{
+    buf[0] = 1;
+    do_put_mem_long ((uae_u32 *)(buf + 1), aino->amigaos_mode);
+    strncpy (buf + 5, aino->aname, 256);
+    buf[5 + 256] = '\0';
+    strncpy (buf + 5 + 257, nname_begin (aino->nname), 256);
+    buf[5 + 257 + 256] = '\0';
+    strncpy (buf + 5 + 2 * 257, aino->comment ? aino->comment : "", 80);
+    buf[5 + 2 * 257 + 80] = '\0';
+    do_put_mem_long ((uae_u32 *)(buf + 5 + 2 * 257 + 81), winmode); 
+    aino->has_dbentry = 0;
+    aino->dirty = 0;
+}
+
+static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
+{
+    uae_u32 mode;
+    a_inode *aino = (a_inode *) xcalloc (sizeof (a_inode), 1);
+
+    mode = do_get_mem_long ((uae_u32 *)(buf + 1));
+    buf += 5;
+    aino->aname = my_strdup (buf);
+    buf += 257;
+    aino->nname = build_nname (base->nname, buf);
+    buf += 257;
+    aino->comment = *buf != '\0' ? my_strdup (buf) : 0;
+    buf += 81;
+    aino->amigaos_mode = mode;
+    *winmode = do_get_mem_long ((uae_u32 *)buf);
+    *winmode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
+    aino->has_dbentry = 0;
+    aino->dirty = 0;
+    aino->db_offset = 0;
+    return aino;
+}
 
 /* Return nonzero for any name we can't create on the native filesystem.  */
 int fsdb_name_invalid (const char *n)
@@ -72,23 +208,41 @@ uae_u32 filesys_parse_mask(uae_u32 mask)
 
 int fsdb_exists (char *nname)
 {
-    if (GetFileAttributes(nname) == 0xFFFFFFFF)
+    if (GetFileAttributes(nname) == INVALID_FILE_ATTRIBUTES)
 	return 0;
     return 1;
 }
 
 /* For an a_inode we have newly created based on a filename we found on the
  * native fs, fill in information about this file/directory.  */
-int fsdb_fill_file_attrs (a_inode *aino)
+int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 {
-    int mode;
+    int mode, winmode, oldamode;
+    uae_u8 fsdb[UAEFSDB_LEN];
+    int reset = 0;
 
-    if((mode = GetFileAttributes(aino->nname)) == 0xFFFFFFFF) {
-	write_log("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n", aino->nname,GetLastError(),aino,aino->dir);
+    if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
+	write_log("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n",
+	    aino->nname, GetLastError(), aino,aino->dir);
 	return 0;
     }
-
     aino->dir = (mode & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+    mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
+
+    if ((base->volflags & MYVOLUMEINFO_STREAMS) && read_uaefsdb (aino->nname, NULL, fsdb)) {
+	aino->amigaos_mode = do_get_mem_long ((uae_u32 *)(fsdb + 1));
+	xfree (aino->comment);
+	if (fsdb[5 + 2 * 257])
+	    aino->comment = my_strdup (fsdb + 5 + 2 * 257);
+	xfree (aino_from_buf (base, fsdb, &winmode));
+	if (winmode == mode) /* no Windows-side editing? */
+	    return 1;
+	write_log ("FS: '%s' protection flags edited from Windows-side\n", aino->nname);
+	reset = 1;
+	/* edited from Windows-side -> use Windows side flags instead */
+    }
+
+    oldamode = aino->amigaos_mode;
     aino->amigaos_mode = A_FIBF_EXECUTE | A_FIBF_READ;
     if (!(FILE_ATTRIBUTE_ARCHIVE & mode))
 	aino->amigaos_mode |= A_FIBF_ARCHIVE;
@@ -99,41 +253,49 @@ int fsdb_fill_file_attrs (a_inode *aino)
     if (FILE_ATTRIBUTE_HIDDEN & mode)
 	aino->amigaos_mode |= A_FIBF_HIDDEN;
     aino->amigaos_mode = filesys_parse_mask(aino->amigaos_mode);
+    aino->amigaos_mode |= oldamode & A_FIBF_SCRIPT;
+    if (reset) {
+	if (base->volflags & MYVOLUMEINFO_STREAMS) {
+	    create_uaefsdb (aino, fsdb, mode);
+	    write_uaefsdb (aino->nname, NULL, fsdb);
+	}
+    }
     return 1;
 }
 
-int fsdb_set_file_attrs (a_inode *aino, int mask)
+int fsdb_set_file_attrs (a_inode *aino)
 {
-    struct stat statbuf;
-    uae_u32 mode=0, tmpmask;
+    uae_u32 tmpmask;
+    uae_u8 fsdb[UAEFSDB_LEN];
+    uae_u32 mode;
 
-    tmpmask = filesys_parse_mask(mask);
+    tmpmask = filesys_parse_mask (aino->amigaos_mode);
 
-    if (stat (aino->nname, &statbuf) == -1)
+    mode = GetFileAttributes (aino->nname);
+    if (mode == INVALID_FILE_ATTRIBUTES)
 	return ERROR_OBJECT_NOT_AROUND;
+    mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
 
     /* Unix dirs behave differently than AmigaOS ones.  */
     /* windows dirs go where no dir has gone before...  */
     if (! aino->dir) {
+	mode = 0;
 	if ((tmpmask & (A_FIBF_READ | A_FIBF_DELETE)) == 0)
 	    mode |= FILE_ATTRIBUTE_READONLY;
 	if (!(tmpmask & A_FIBF_ARCHIVE))
 	    mode |= FILE_ATTRIBUTE_ARCHIVE;
-	else
-	    mode &= ~FILE_ATTRIBUTE_ARCHIVE;
 	if (tmpmask & A_FIBF_PURE)
 	    mode |= FILE_ATTRIBUTE_SYSTEM;
-	else
-	    mode &= ~FILE_ATTRIBUTE_SYSTEM;
 	if (tmpmask & A_FIBF_HIDDEN)
 	    mode |= FILE_ATTRIBUTE_HIDDEN;
-	else
-	    mode &= ~FILE_ATTRIBUTE_HIDDEN;
-	SetFileAttributes(aino->nname, mode);
+	SetFileAttributes (aino->nname, mode);
     }
 
-    aino->amigaos_mode = mask;
     aino->dirty = 1;
+    if (aino->volflags & MYVOLUMEINFO_STREAMS) {
+	create_uaefsdb (aino, fsdb, mode);
+	write_uaefsdb (aino->nname, NULL, fsdb);
+    }
     return 0;
 }
 
@@ -163,7 +325,7 @@ int fsdb_mode_representable_p (const a_inode *aino)
 char *fsdb_create_unique_nname (a_inode *base, const char *suggestion)
 {
     char *c;
-    char tmp[256] = "__uae___";
+    char tmp[256] = UAEFSDB_BEGINS;
     int i;
 
     strncat (tmp, suggestion, 240);
@@ -191,6 +353,72 @@ char *fsdb_create_unique_nname (a_inode *base, const char *suggestion)
 	    tmp[i+8] = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[rand () % 63];
 	}
     }
+}
+
+char *fsdb_search_dir (const char *dirname, char *rel)
+{
+    WIN32_FIND_DATA fd;
+    HANDLE h;
+    char *tmp, *p = 0;
+
+    tmp = build_nname (dirname, rel);
+    h = FindFirstFile (tmp, &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+	if (strcmp (fd.cFileName, rel) == 0)
+	    p = rel;
+	else
+	    p = my_strdup (fd.cFileName);
+	FindClose (h);
+    }
+    xfree (tmp);
+    return p;
+}
+
+static a_inode *custom_fsdb_lookup_aino (a_inode *base, const char *aname, int offset, int dontcreate)
+{
+    uae_u8 fsdb[UAEFSDB_LEN];
+    char *tmp1;
+    HANDLE h;
+    WIN32_FIND_DATA fd;
+    static a_inode dummy;
+    
+    tmp1 = build_nname (base->nname, UAEFSDB_BEGINSX);
+    if (!tmp1)
+	return NULL;
+    h = FindFirstFile (tmp1, &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+	do {
+	    if (read_uaefsdb (base->nname, fd.cFileName, fsdb)) {
+		if (same_aname (fsdb + offset, aname)) {
+		    int winmode;
+		    FindClose (h);
+		    xfree (tmp1);
+		    if (dontcreate)
+			return &dummy;
+		    return aino_from_buf (base, fsdb, &winmode);
+		}
+	    }
+	} while (FindNextFile (h, &fd));
+	FindClose (h);
+    }
+    xfree (tmp1);
+    return NULL;
+}
+
+a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const char *aname)
+{
+    return custom_fsdb_lookup_aino (base, aname, 5, 0);
+}
+a_inode *custom_fsdb_lookup_aino_nname (a_inode *base, const char *nname)
+{
+    return custom_fsdb_lookup_aino (base, nname, 5 + 257, 0);
+}
+
+int custom_fsdb_used_as_nname (a_inode *base, const char *nname)
+{
+    if (custom_fsdb_lookup_aino (base, nname, 5 + 257, 1))
+	return 1;
+    return 0;
 }
 
 int my_mkdir (const char *name)
@@ -310,6 +538,7 @@ void my_close (void *d)
 {
     struct my_opens *mos = d;
     CloseHandle (mos->h);
+    //write_log ("closehandle %x\n", mos->h);
     xfree (mos);
 }
 
@@ -336,6 +565,26 @@ unsigned int my_write (void *d, void *b, unsigned int size)
     return written;
 }
 
+int my_existsfile (const char *name)
+{
+    HANDLE h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ,
+	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE)
+	return 0;
+    CloseHandle (h);
+    return 1;
+}
+
+int my_existsdir (const char *name)
+{
+    DWORD attr = GetFileAttributes (name);
+    if (attr == INVALID_FILE_ATTRIBUTES)
+	return 0;
+    if (attr & FILE_ATTRIBUTE_DIRECTORY)
+	return 1;
+    return 0;
+}
+
 void *my_open (const char *name, int flags)
 {
     struct my_opens *mos;
@@ -344,10 +593,12 @@ void *my_open (const char *name, int flags)
     DWORD ShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
     DWORD CreationDisposition = OPEN_EXISTING;
     DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+    DWORD attr;
     
     mos = xmalloc (sizeof (struct my_opens));
     if (!mos)
 	return NULL;
+    attr = GetFileAttributes (name);
     if (flags & O_TRUNC)
 	CreationDisposition = CREATE_ALWAYS;
     else if (flags & O_CREAT)
@@ -360,20 +611,25 @@ void *my_open (const char *name, int flags)
     }
     if (flags & O_RDWR)
 	DesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    if (CreationDisposition == CREATE_ALWAYS && attr != INVALID_FILE_ATTRIBUTES &&
+	(attr & (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)))
+	SetFileAttributes (name, FILE_ATTRIBUTE_NORMAL);
     h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
     if (h == INVALID_HANDLE_VALUE) {
-	if (DesiredAccess & GENERIC_WRITE) {
+	if (GetLastError () == ERROR_ACCESS_DENIED && (DesiredAccess & GENERIC_WRITE)) {
 	    DesiredAccess &= ~GENERIC_WRITE;
-	    CreationDisposition = OPEN_EXISTING;
 	    h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
 	}
 	if (h == INVALID_HANDLE_VALUE) {
 	    write_log ("failed to open '%s' %x %x\n", name, DesiredAccess, CreationDisposition);
 	    xfree (mos);
-	    return 0;
+	    mos = 0;
+	    goto err;
 	}
     }
     mos->h = h;
+err:
+    //write_log ("open '%s' = %x\n", name, mos ? mos->h : 0);
     return mos;
 }
 
@@ -403,6 +659,7 @@ int dos_errno (void)
 {
     DWORD e = GetLastError ();
 
+    //write_log ("ec=%d\n", e);
     switch (e) {
      case ERROR_NOT_ENOUGH_MEMORY:
      case ERROR_OUTOFMEMORY:
@@ -439,3 +696,46 @@ int dos_errno (void)
         return ERROR_NOT_IMPLEMENTED;
     }
 }
+
+typedef BOOL (CALLBACK* GETVOLUMEPATHNAME)
+  (LPCTSTR lpszFileName, LPTSTR lpszVolumePathName, DWORD cchBufferLength);
+
+int my_getvolumeinfo (char *root)
+{
+    DWORD last, v, err;
+    int ret = 0;
+    GETVOLUMEPATHNAME pGetVolumePathName;
+    char volume[MAX_DPATH];
+
+    last = SetErrorMode (SEM_FAILCRITICALERRORS);
+    v = GetFileAttributes (root);
+    err = GetLastError ();
+    SetErrorMode (last);
+    if (v == INVALID_FILE_ATTRIBUTES)
+	return -1;
+    if (!(v & FILE_ATTRIBUTE_DIRECTORY))
+	return -1;
+    if (v & FILE_ATTRIBUTE_READONLY)
+	ret |= MYVOLUMEINFO_READONLY;
+    if (!os_winnt)
+	return ret;
+    pGetVolumePathName = (GETVOLUMEPATHNAME)GetProcAddress(
+	GetModuleHandle("kernel32.dll"), "GetVolumePathNameA");
+    if (pGetVolumePathName && pGetVolumePathName (root, volume, sizeof (volume))) {
+	char fsname[MAX_DPATH];
+	DWORD comlen;
+	DWORD flags;
+	if (GetVolumeInformation (volume, NULL, 0, NULL, &comlen, &flags, fsname, sizeof (fsname))) {
+	    write_log ("Volume %s FS=%s maxlen=%d flags=%08.8X\n", volume, fsname, comlen, flags);
+	    if (flags & FILE_NAMED_STREAMS)
+		ret |= MYVOLUMEINFO_STREAMS;
+	}
+    }
+    return ret;
+}
+
+
+
+
+
+

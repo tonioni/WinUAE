@@ -261,6 +261,7 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
     int code = 0;
+    static int swapperdrive = 0;
 
 //    write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
     if (newstate) {
@@ -299,6 +300,34 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		    code = AKS_STATESAVEDIALOG;
 		else
 		    code = AKS_STATERESTOREDIALOG;
+	    }
+	    break;
+	    case DIK_1:
+	    case DIK_2:
+	    case DIK_3:
+	    case DIK_4:
+	    case DIK_5:
+	    case DIK_6:
+	    case DIK_7:
+	    case DIK_8:
+	    case DIK_9:
+	    case DIK_0:
+	    if (endpressed ()) {
+		int num = scancode - DIK_1;
+		if (shiftpressed ())
+		    num += 10;
+		if (ctrlpressed ()) {
+		    swapperdrive = num;
+		    if (num > 3)
+			swapperdrive = 0;
+		} else {
+		    int i;
+		    for (i = 0; i < 4; i++) {
+			if (!strcmp (currprefs.df[i], currprefs.dfxlist[num]))
+			    changed_prefs.df[i][0] = 0;
+		    }
+		    strcpy (changed_prefs.df[swapperdrive], currprefs.dfxlist[num]);
+		}
 	    }
 	    break;
 	    case DIK_NUMPAD0:
@@ -345,12 +374,20 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_NEXT:
 	    break;
 	    case DIK_NUMPADMINUS:
-	    if (endpressed ())
-		code = AKS_VOLDOWN;
+	    if (endpressed ()) {
+		if (shiftpressed ())
+		    code = AKS_DECREASEREFRESHRATE;
+		else
+		    code = AKS_VOLDOWN;
+	    }
 	    break;
 	    case DIK_NUMPADPLUS:
-	    if (endpressed ())
-		code = AKS_VOLUP;
+	    if (endpressed ()) {
+		if (shiftpressed ())
+		    code = AKS_INCREASEREFRESHRATE;
+		else
+		    code = AKS_VOLUP;
+	    }
 	    break;
 	    case DIK_NUMPADSTAR:
 	    if (endpressed ())

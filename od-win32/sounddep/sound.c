@@ -84,7 +84,7 @@ void update_sound (int freq)
     	freq = lastfreq;
     lastfreq = freq;
     if (have_sound) {
-	if (currprefs.gfx_vsync && currprefs.gfx_afullscreen) {
+	if ((currprefs.gfx_vsync && currprefs.gfx_afullscreen) || currprefs.chipset_refreshrate) {
 	    if (currprefs.ntscmode)
 		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_NTSC * MAXVPOS_NTSC * freq * CYCLE_UNIT + obtainedfreq - 1) / obtainedfreq;
 	    else
@@ -249,7 +249,6 @@ static int open_audio_ds (int size)
     DSCAPS DSCaps;
     DSBCAPS DSBCaps;
     WAVEFORMATEX wavfmt;
-    int minfreq, maxfreq;
     int freq = currprefs.sound_freq;
     
     enumerate_sound_devices (0);
@@ -280,10 +279,10 @@ static int open_audio_ds (int size)
     if (DSCaps.dwFlags & DSCAPS_EMULDRIVER) {
 	write_log ("SOUND: Emulated DirectSound driver detected, don't complain if sound quality is crap :)\n");
     }
-    minfreq = DSCaps.dwMinSecondarySampleRate;
-    maxfreq = DSCaps.dwMaxSecondarySampleRate;
-    if (maxfreq > 11000) {
-	if (minfreq > freq && minfreq < 22050) {
+    if (DSCaps.dwFlags & DSCAPS_CONTINUOUSRATE) {
+	int minfreq = DSCaps.dwMinSecondarySampleRate;
+	int maxfreq = DSCaps.dwMaxSecondarySampleRate;
+	if (minfreq > freq) {
 	    freq = minfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
 	    write_log("SOUND: minimum supported frequency: %d\n", minfreq);
@@ -293,8 +292,6 @@ static int open_audio_ds (int size)
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
 	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
-    } else {
-	write_log("SOUND: ignored weird min (%d) or max (%d) sample rate\n", minfreq, maxfreq);
     }
     filter_mul1 = exp (-FILTER_FREQUENCY / freq);
     filter_mul2 = 1 - filter_mul1;
@@ -480,11 +477,12 @@ void sound_setadjust (double v)
     if ((currprefs.gfx_vsync && currprefs.gfx_afullscreen) || (avioutput_audio && !compiled_code)) {
 	vsynctime = vsynctime_orig;
 	scaled_sample_evtime = (long)(((double)scaled_sample_evtime_orig) * mult / 1000.0);
-    } else if (compiled_code) {
+    } else if (compiled_code || currprefs.m68k_speed != 0) {
 	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
-    } else
+    } else {
 	vsynctime = vsynctime_orig * 9 / 10;
+    }
 }
 
 static void finish_sound_buffer_ds (void)

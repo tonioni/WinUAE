@@ -41,8 +41,12 @@
 #include "win32.h"
 #include "ioport.h"
 #include "parallel.h"
+#include "zfile.h"
+#include "threaddep/thread.h"
 
-static UINT prttimer;
+#include <Ghostscript/errors.h>
+#include <Ghostscript/iapi.h>
+
 static char prtbuf[PRTBUFSIZE];
 static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
@@ -53,24 +57,172 @@ extern void flushpixels(void);
 void DoSomeWeirdPrintingStuff( char val );
 static int uartbreak;
 
+static uae_thread_id prt_tid;
+static volatile int prt_running;
+static volatile int prt_started;
+static smp_comm_pipe prt_requests;
+
+#ifdef PRINT_DUMP
+static struct zfile *prtdump;
+#endif
+
+static int psmode = 0;
+static HMODULE gsdll;
+static gs_main_instance *gsinstance;
+static int gs_exitcode;
+
+typedef int (CALLBACK* GSAPI_REVISION)(gsapi_revision_t *pr, int len);
+static GSAPI_REVISION ptr_gsapi_revision;
+typedef int (CALLBACK* GSAPI_NEW_INSTANCE)(gs_main_instance **pinstance, void *caller_handle);
+static GSAPI_NEW_INSTANCE ptr_gsapi_new_instance;
+typedef void (CALLBACK* GSAPI_DELETE_INSTANCE)(gs_main_instance *instance);
+static GSAPI_DELETE_INSTANCE ptr_gsapi_delete_instance;
+typedef int (CALLBACK* GSAPI_SET_STDIO)(gs_main_instance *instance,
+    int (GSDLLCALLPTR stdin_fn)(void *caller_handle, char *buf, int len),
+    int (GSDLLCALLPTR stdout_fn)(void *caller_handle, const char *str, int len),
+    int (GSDLLCALLPTR stderr_fn)(void *caller_handle, const char *str, int len));
+static GSAPI_SET_STDIO ptr_gsapi_set_stdio;
+typedef int (CALLBACK* GSAPI_INIT_WITH_ARGS)(gs_main_instance *instance, int argc, char **argv);
+static GSAPI_INIT_WITH_ARGS ptr_gsapi_init_with_args;
+
+typedef int (CALLBACK* GSAPI_EXIT)(gs_main_instance *instance);
+static GSAPI_EXIT ptr_gsapi_exit;
+
+typedef (CALLBACK* GSAPI_RUN_STRING_BEGIN)(gs_main_instance *instance, int user_errors, int *pexit_code);
+static GSAPI_RUN_STRING_BEGIN ptr_gsapi_run_string_begin;
+typedef (CALLBACK* GSAPI_RUN_STRING_CONTINUE)(gs_main_instance *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
+static GSAPI_RUN_STRING_CONTINUE ptr_gsapi_run_string_continue;
+typedef (CALLBACK* GSAPI_RUN_STRING_END)(gs_main_instance *instance, int user_errors, int *pexit_code);
+static GSAPI_RUN_STRING_END ptr_gsapi_run_string_end;
+
+static uae_u8 **psbuffer;
+static int psbuffers;
+
+static LONG WINAPI ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+{
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static void freepsbuffers (void)
+{
+    int i;
+    for (i = 0; i < psbuffers; i++)
+	free (psbuffer[i]);
+    free (psbuffer);
+    psbuffer = NULL;
+    psbuffers = 0;
+}
+
+static int openprinter_ps (void)
+{
+    char *gsargv[] = {
+        "-dNOPAUSE", "-dBATCH", "-dNOPAGEPROMPT", "-dNOPROMPT", "-dQUIET", "-dNoCancel", 
+        "-sDEVICE=mswinpr2", NULL
+    };
+    int gsargc, gsargc2, i;
+    char *tmpparms[100];
+    char tmp[MAX_DPATH];
+
+    if (ptr_gsapi_new_instance (&gsinstance, NULL) < 0)
+        return 0;
+    tmpparms[0] = "WinUAE";
+    gsargc2 = cmdlineparser (currprefs.ghostscript_parameters, tmpparms + 1, 100 - 10) + 1;
+    for (gsargc = 0; gsargv[gsargc]; gsargc++);
+    for (i = 0; i < gsargc; i++)
+	tmpparms[gsargc2++] = gsargv[i];
+    sprintf (tmp, "-sOutputFile=%%printer%%%s", currprefs.prtname);
+    tmpparms[gsargc2++] = tmp;
+    __try {
+	ptr_gsapi_init_with_args (gsinstance, gsargc2, tmpparms);
+	ptr_gsapi_run_string_begin (gsinstance, 0, &gs_exitcode);
+    } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+	write_log("GS crashed\n");
+	return 0;
+    }
+    psmode = 1;    
+    return 1;
+}
+
+static void *prt_thread (void *p)
+{
+    uae_u8 **buffers = p;
+    int err, cnt, ok;
+
+    ok = 1;
+    prt_running++;
+    prt_started = 1;
+    SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    if (load_ghostscript ()) {
+        if (openprinter_ps ()) {
+            write_log ("PostScript printing emulation started..\n");
+	    cnt = 0;
+	    while (buffers[cnt]) {
+		uae_u8 *p = buffers[cnt];
+		err = ptr_gsapi_run_string_continue (gsinstance, p + 2, (p[0] << 8) | p[1], 0, &gs_exitcode);
+		if (err != e_NeedInput && err <= e_Fatal) {
+		    ptr_gsapi_exit (gsinstance);
+		    write_log ("PostScript parsing failed.\n");
+		    ok = 0;
+		    break;
+		}
+		cnt++;
+	    }
+	    cnt = 0;
+	    while (buffers[cnt]) {
+		free (buffers[cnt]);
+		cnt++;
+	    }
+	    free (buffers);
+	    if (ok) {
+    		write_log ("PostScript printing emulation finished..\n");
+		ptr_gsapi_run_string_end (gsinstance, 0, &gs_exitcode);
+	    }
+	} else {
+	    write_log ("gsdll32.dll failed to initialize\n");
+	}
+    } else {
+    	write_log ("gsdll32.dll failed to load\n");
+    }
+    unload_ghostscript ();
+    prt_running--;
+    return 0;
+}
+
+
+
 static void flushprtbuf (void)
 {
     DWORD written = 0;
 
-    if (hPrt != INVALID_HANDLE_VALUE)
-    {
-	if( WritePrinter( hPrt, prtbuf, prtbufbytes, &written ) )
-	{
+    if (!prtbufbytes)
+	return;
+
+#ifdef PRINT_DUMP
+    if (prtdump)
+	zfile_fwrite (prtbuf, prtbufbytes, 1, prtdump);
+#endif
+
+    if (currprefs.parallel_postscript_emulation) {
+	if (psmode) {
+	    uae_u8 *p;
+	    psbuffer = realloc (psbuffer, (psbuffers + 2) * sizeof (uae_u8*));
+	    p = malloc (prtbufbytes + 2);
+	    p[0] = prtbufbytes >> 8;
+	    p[1] = prtbufbytes;
+	    memcpy (p + 2, prtbuf, prtbufbytes);
+	    psbuffer[psbuffers++] = p;
+	    psbuffer[psbuffers] = NULL;
+	}
+	prtbufbytes = 0;
+	return;
+    } else if (hPrt != INVALID_HANDLE_VALUE) {
+	if( WritePrinter( hPrt, prtbuf, prtbufbytes, &written ) ) {
 	    if( written != prtbufbytes )
 		write_log( "PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes );
-	}
-	else
-	{
+	} else {
 	    write_log( "PRINTER: Couldn't write data!\n" );
 	}
-    }
-    else
-    {
+    } else {
 	write_log( "PRINTER: Not open!\n" );
     }
     prtbufbytes = 0;
@@ -80,19 +232,53 @@ void finishjob (void)
 {
     flushprtbuf ();
 }
- 
-static void DoSomeWeirdPrintingStuff( char val )
+
+static void DoSomeWeirdPrintingStuff (char val)
 {
-	//if (prttimer)
-	//KillTimer (hAmigaWnd, prttimer);
+    static char prev[4];
+    static uae_u8 one = 1;
+    static uae_u8 three = 3;
+
+    memmove (prev, prev + 1, 3);
+    prev[3] = val;
+    if (currprefs.parallel_postscript_detection) {
+	if (psmode && val == 4) {
+	    flushprtbuf ();
+	    *prtbuf = val;
+	    prtbufbytes = 1;
+	    flushprtbuf ();
+	    write_log ("PostScript end detected..\n");
+	    if (currprefs.parallel_postscript_emulation) {
+		prt_started = 0;
+		if (uae_start_thread (prt_thread, psbuffer, &prt_tid)) {
+		    while (!prt_started)
+			Sleep (5);
+		    psbuffers = 0;
+		    psbuffer = NULL;
+		}
+	    } else {
+		closeprinter ();
+	    }
+	    freepsbuffers ();
+	    return;
+	} else if (!psmode && !stricmp (prev, "%!PS")) {
+	    psmode = 1;
+	    psbuffer = malloc (sizeof (uae_u8*));
+	    psbuffer[0] = 0;
+	    psbuffers = 0;
+	    strcpy (prtbuf, "%!PS\n");
+	    prtbufbytes = strlen (prtbuf);
+	    flushprtbuf ();
+	    write_log ("PostScript start detected..\n");
+	    return;
+	}
+    }
     if (prtbufbytes < PRTBUFSIZE) {
 	prtbuf[prtbufbytes++] = val;
-	//prttimer = SetTimer (hAmigaWnd, 1, 2000, NULL);
     } else {
 	flushprtbuf ();
 	*prtbuf = val;
 	prtbufbytes = 1;
-	prttimer = 0;
     }
 }
 
@@ -114,74 +300,152 @@ int isprinteropen (void)
     return 0;
 }
 
+int load_ghostscript (void)
+{
+    struct gsapi_revision_s r;
+    char path[MAX_DPATH];
+
+    if (gsdll)
+	return 1;
+    gsdll = LoadLibrary ("gsdll32.dll");
+    if (!gsdll) {
+	if (GetEnvironmentVariable ("GS_DLL", path, sizeof (path)))
+	    gsdll = LoadLibrary (path);
+    }
+    if (!gsdll) {
+	HKEY key;
+	if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+	    int idx = 0;
+	    char tmp1[MAX_DPATH];
+	    for (;;) {
+		DWORD size1 = sizeof (tmp1);
+		FILETIME ft;
+	        if (RegEnumKeyEx (key, idx, tmp1, &size1, NULL, NULL, NULL, &ft) == ERROR_SUCCESS) {
+		    HKEY key2;
+		    if (RegOpenKeyEx (key, tmp1, 0, KEY_ALL_ACCESS, &key2) == ERROR_SUCCESS) {
+		        DWORD type = REG_SZ;
+			DWORD size = sizeof (path);
+			if (RegQueryValueEx (key2, "GS_DLL", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS)
+			    gsdll = LoadLibrary (path);
+			RegCloseKey (key2);
+			if (gsdll)
+			    break;
+		    }
+		}
+		idx++;
+	    }
+	    RegCloseKey (key);
+	}
+    }
+    if (!gsdll)
+	return 0;
+    ptr_gsapi_revision = (GSAPI_REVISION)GetProcAddress (gsdll, "gsapi_revision");
+    if (!ptr_gsapi_revision) {
+	unload_ghostscript ();
+        return -1;
+    }
+    if (ptr_gsapi_revision(&r, sizeof(r))) {
+	unload_ghostscript ();
+	return -2;
+    }
+    ptr_gsapi_new_instance = (GSAPI_NEW_INSTANCE)GetProcAddress (gsdll, "gsapi_new_instance");
+    ptr_gsapi_delete_instance = (GSAPI_DELETE_INSTANCE)GetProcAddress (gsdll, "gsapi_delete_instance");
+    ptr_gsapi_set_stdio = (GSAPI_SET_STDIO)GetProcAddress (gsdll, "gsapi_set_stdio");
+    ptr_gsapi_exit = (GSAPI_EXIT)GetProcAddress (gsdll, "gsapi_exit");
+    ptr_gsapi_run_string_begin = (GSAPI_RUN_STRING_BEGIN)GetProcAddress (gsdll, "gsapi_run_string_begin");
+    ptr_gsapi_run_string_continue = (GSAPI_RUN_STRING_CONTINUE)GetProcAddress (gsdll, "gsapi_run_string_continue");
+    ptr_gsapi_run_string_end = (GSAPI_RUN_STRING_END)GetProcAddress (gsdll, "gsapi_run_string_end");
+    ptr_gsapi_init_with_args = (GSAPI_INIT_WITH_ARGS)GetProcAddress (gsdll, "gsapi_init_with_args");
+    if (!ptr_gsapi_new_instance || !ptr_gsapi_delete_instance || !ptr_gsapi_exit ||
+	!ptr_gsapi_run_string_begin || !ptr_gsapi_run_string_continue || !ptr_gsapi_run_string_end ||
+	!ptr_gsapi_init_with_args) {
+	unload_ghostscript ();
+	return -3;
+    }
+    write_log ("gsdll32.dll: %s rev %d initialized\n", r.product, r.revision);
+    return 1;
+}
+
+void unload_ghostscript (void)
+{
+    if (gsinstance) {
+        ptr_gsapi_exit (gsinstance);
+        ptr_gsapi_delete_instance (gsinstance);
+    }
+    gsinstance = NULL;
+    if (gsdll)
+        FreeLibrary (gsdll);
+    gsdll = NULL;
+    psmode = 0;
+}
+
 void openprinter( void )
 {
     DOC_INFO_1 DocInfo;
-
+    static int first;
+    
     closeprinter ();
     if (!strcasecmp(currprefs.prtname,"none"))
 	return;
-    if( ( hPrt == INVALID_HANDLE_VALUE ) && *currprefs.prtname)
-    {
-	if( OpenPrinter(currprefs.prtname, &hPrt, NULL ) )
-	{
+#ifdef PRINT_DUMP
+    prtdump = zfile_fopen ("c:\\prtdump.dat", "wb");
+#endif
+
+    if (currprefs.parallel_postscript_emulation) {
+	prtopen = 1;
+	return;
+    } else if (hPrt == INVALID_HANDLE_VALUE) {
+	if( OpenPrinter(currprefs.prtname, &hPrt, NULL ) ) {
 	    // Fill in the structure with info about this "document."
 	    DocInfo.pDocName = "My Document";
 	    DocInfo.pOutputFile = NULL;
 	    DocInfo.pDatatype = "RAW";
 	    // Inform the spooler the document is beginning.
-	    if( (dwJob = StartDocPrinter( hPrt, 1, (LPSTR)&DocInfo )) == 0 )
-	    {
+	    if( (dwJob = StartDocPrinter( hPrt, 1, (LPSTR)&DocInfo )) == 0 ) {
 		ClosePrinter( hPrt );
 		hPrt = INVALID_HANDLE_VALUE;
-	    }
-	    else if( StartPagePrinter( hPrt ) )
-	    {
+	    } else if( StartPagePrinter( hPrt ) ) {
 		prtopen = 1;
 	    }
-	}
-	else
-	{
+	} else {
 	    hPrt = INVALID_HANDLE_VALUE; // Stupid bug in Win32, where OpenPrinter fails, but hPrt ends up being zero
 	}
     }
-    if( hPrt != INVALID_HANDLE_VALUE )
-    {
+    if( hPrt != INVALID_HANDLE_VALUE ) {
 	write_log( "PRINTER: Opening printer \"%s\" with handle 0x%x.\n", currprefs.prtname, hPrt );
-    }
-    else if( *currprefs.prtname )
-    {
+    } else if( *currprefs.prtname ) {
 	write_log( "PRINTER: ERROR - Couldn't open printer \"%s\" for output.\n", currprefs.prtname );
     }
 }
 
 void flushprinter (void)
 {
-    if (hPrt != INVALID_HANDLE_VALUE) {
-        SetJob(
-	    hPrt,  // handle to printer object
-	    dwJob,      // print job identifier
-	    0,      // information level
-	    0,     // job information buffer
-	    5     // job command value
-	);
-	closeprinter();
-    }
+    closeprinter();
 }
 
 void closeprinter( void )
 {
-    if( hPrt != INVALID_HANDLE_VALUE )
-    {
-	EndPagePrinter( hPrt );
-	EndDocPrinter( hPrt );
-	ClosePrinter( hPrt );
+#ifdef PRINT_DUMP
+    zfile_fclose (prtdump);
+#endif
+    psmode = 0;
+    if (hPrt != INVALID_HANDLE_VALUE) {
+	EndPagePrinter (hPrt);
+	EndDocPrinter (hPrt);
+	ClosePrinter (hPrt);
 	hPrt = INVALID_HANDLE_VALUE;
-	write_log( "PRINTER: Closing printer.\n" );
+	write_log ("PRINTER: Closing printer.\n");
     }
-    //KillTimer( hAmigaWnd, prttimer );
-    prttimer = 0;
-    prtopen = 0;
+    if (currprefs.parallel_postscript_emulation)
+	prtopen = 1;
+    else
+	prtopen = 0;
+    if (prt_running) {
+	write_log ("waiting for printing to finish...\n");
+	while (prt_running)
+	    Sleep (10);
+    }
+    freepsbuffers ();
 }
 
 static void putprinter (char val)
@@ -528,10 +792,7 @@ void hsyncstuff(void)
     keycheck++;
     if(keycheck==1000)
     {
-	if (prtbufbytes)
-	{
-	    flushprtbuf ();
-	} 
+        flushprtbuf ();
 	{
 	    extern flashscreen;
 	    int DX_Fill( int , int , int, int, uae_u32 , enum RGBFTYPE  );

@@ -97,6 +97,7 @@ typedef struct {
     uaecptr devname_amiga;
     uaecptr startup;
     char *volname; /* volume name, e.g. CDROM, WORK, etc. */
+    int volflags; /* volume flags, readonly, stream uaefsdb support */
     char *rootdir; /* root unix directory */
     int readonly; /* disallow write access? */
     int bootpri; /* boot priority */
@@ -208,7 +209,6 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
 				 int blocksize, int bootpri, char *filesysdir)
 {
     UnitInfo *ui = mountinfo->ui + nr;
-    int v;
     static char errmsg[1024];
 
     if (nr >= mountinfo->num_units)
@@ -224,24 +224,18 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
     ui->filesysdir = 0;
 
     if (volname != 0) {
-        struct stat statbuf;
-	memset (&statbuf, 0, sizeof (statbuf));
+	int flags;
 	ui->volname = my_strdup (volname);
-	v = isspecialdrive (rootdir);
-	if (v < 0) {
-	    sprintf (errmsg, "invalid drive '%s'", rootdir);
+	flags = my_getvolumeinfo (rootdir);
+	if (flags < 0) {
+	    sprintf (errmsg, "directory '%s' not found", rootdir);
 	    return errmsg;
 	}
-	if (v == 0) {
-            if (stat (rootdir, &statbuf) < 0) {
-		sprintf (errmsg, "directory '%s' not found", rootdir);
-	        return errmsg;
-	    }
-	    if (!(statbuf.st_mode & FILEFLAG_WRITE)) {
-		write_log ("'%s' set to read-only\n", rootdir);
-		readonly = 1;
-	    }
+	if (flags & MYVOLUMEINFO_READONLY) {
+	    write_log ("'%s' set to read-only\n", rootdir);
+	    readonly = 1;
 	}
+	ui->volflags = flags;
     } else {
 	ui->hf.secspertrack = secspertrack;
 	ui->hf.surfaces = surfaces;
@@ -588,6 +582,8 @@ typedef struct _unit {
     unsigned long nr_cache_lookups;
 
     struct notify *notifyhash[NOTIFY_HASH_SIZE];
+    
+    int volflags;
 
 } Unit;
 
@@ -984,7 +980,7 @@ static char *create_nname (Unit *unit, a_inode *base, char *rel)
 #if 0
 	oh_dear:
 #endif
-	if (currprefs.filesys_no_uaefsdb) {
+	if (currprefs.filesys_no_uaefsdb && !(base->volflags & MYVOLUMEINFO_STREAMS)) {
 	    write_log ("illegal filename '%s' and uaefsdb disabled\n", rel);
 	    return 0;
 	}
@@ -1045,6 +1041,7 @@ static void init_child_aino (Unit *unit, a_inode *base, a_inode *aino)
     aino->sibling = base->child;
     base->child = aino;
     aino->next = aino->prev = 0;
+    aino->volflags = unit->volflags;
 
     aino_test_init (aino);
     aino_test (aino);
@@ -1073,7 +1070,7 @@ static a_inode *new_child_aino (Unit *unit, a_inode *base, char *rel)
 	aino->comment = 0;
 	aino->has_dbentry = 0;
 
-	if (!fsdb_fill_file_attrs (aino)) {
+	if (!fsdb_fill_file_attrs (base, aino)) {
 	    xfree (aino);
 	    return 0;
 	}
@@ -1173,7 +1170,7 @@ static a_inode *lookup_child_aino_for_exnext (Unit *unit, a_inode *base, char *r
 	c->aname = get_aname (unit, base, rel);
 	c->comment = 0;
 	c->has_dbentry = 0;
-	if (!fsdb_fill_file_attrs (c)) {
+	if (!fsdb_fill_file_attrs (base, c)) {
 	    xfree (c);
 	    *err = ERROR_NO_FREE_STORE;
 	    return 0;
@@ -1299,6 +1296,7 @@ static Unit *startup_create_unit (UnitInfo *uinfo)
     unit->rootnode.elock = 0;
     unit->rootnode.comment = 0;
     unit->rootnode.has_dbentry = 0;
+    unit->rootnode.volflags = uinfo->volflags;
     aino_test_init (&unit->rootnode);
     unit->aino_cache_size = 0;
     for (i = 0; i < MAX_AINO_HASH; i++)
@@ -1336,7 +1334,7 @@ static uae_u32 startup_handler (void)
     }
 
     if (i == current_mountinfo->num_units
-	|| access (current_mountinfo->ui[i].rootdir, R_OK) != 0)
+	|| !my_existsdir (current_mountinfo->ui[i].rootdir))
     {
 	write_log ("Failed attempt to mount device\n", devname);
 	put_long (pkt + dp_Res1, DOS_FALSE);
@@ -1345,10 +1343,11 @@ static uae_u32 startup_handler (void)
     }
     uinfo = current_mountinfo->ui + i;
     unit = startup_create_unit (uinfo);
+    unit->volflags = uinfo->volflags;
 
 /*    write_comm_pipe_int (unit->ui.unit_pipe, -1, 1);*/
 
-    TRACE(("**** STARTUP volume %s\n", unit->ui.volname));
+    write_log ("FS: %s (flags=%08.8X) starting..\n", unit->ui.volname, unit->volflags);
 
     /* fill in our process in the device node */
     put_long ((get_long (pkt + dp_Arg3) << 2) + 8, unit->port);
@@ -1445,7 +1444,7 @@ static void free_key (Unit *unit, Key *k)
 	prev = k1;
     }
 
-    if (k->fd >= 0)
+    if (k->fd != NULL)
 	my_close (k->fd);
 
     xfree(k);
@@ -2452,6 +2451,7 @@ action_read (Unit *unit, dpacket packet)
 	}
 	xfree (buf);
     }
+    TRACE(("=%d\n", actual));
 }
 
 static void
@@ -2460,6 +2460,7 @@ action_write (Unit *unit, dpacket packet)
     Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
     uaecptr addr = GET_PCK_ARG2 (packet);
     long size = GET_PCK_ARG3 (packet);
+    long actual;
     char *buf;
     int i;
 
@@ -2489,11 +2490,13 @@ action_write (Unit *unit, dpacket packet)
     for (i = 0; i < size; i++)
 	buf[i] = get_byte(addr + i);
 
-    PUT_PCK_RES1 (packet, my_write (k->fd, buf, size));
-    if (GET_PCK_RES1 (packet) != size)
+    actual = my_write (k->fd, buf, size);
+    TRACE(("=%d\n", actual));
+    PUT_PCK_RES1 (packet, actual);
+    if (actual != size)
 	PUT_PCK_RES2 (packet, dos_errno ());
-    if (GET_PCK_RES1 (packet) >= 0)
-	k->file_pos += GET_PCK_RES1 (packet);
+    if (actual >= 0)
+	k->file_pos += actual;
 
     k->notifyactive = 1;
     xfree (buf);
@@ -2571,7 +2574,8 @@ action_set_protect (Unit *unit, dpacket packet)
 	return;
     }
 
-    err = fsdb_set_file_attrs (a, mask);
+    a->amigaos_mode = mask;
+    err = fsdb_set_file_attrs (a);
     if (err != 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, err);
@@ -2620,7 +2624,7 @@ static void action_set_comment (Unit * unit, dpacket packet)
     if (a->comment)
 	xfree (a->comment);
     a->comment = commented;
-    a->dirty = 1;
+    fsdb_set_file_attrs (a);
     notify_check (unit, a);
     gui_hd_led (1);
 }
@@ -4024,9 +4028,12 @@ static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecpt
     }
     *devname_amiga = ds (device_dupfix (get_long (parmpacket + PP_EXPLIB), buffer));
     if (type == FILESYS_VIRTUAL)
-	write_log ("FS: mounted virtual unit %s\n", buffer);
+	write_log ("FS: mounted virtual unit %s (%s)\n", buffer, current_mountinfo->ui[unit_no].rootdir);
     else
-	write_log ("FS: mounted HDF unit %s\n", buffer);
+	write_log ("FS: mounted HDF unit %s (%04.4x-%08.8x, %s)\n", buffer,
+	    (uae_u32)(current_mountinfo->ui[unit_no].hf.size >> 32),
+	    (uae_u32)(current_mountinfo->ui[unit_no].hf.size),
+	    current_mountinfo->ui[unit_no].rootdir);
 }
 
 /* Fill in per-unit fields of a parampacket */

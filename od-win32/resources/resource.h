@@ -267,6 +267,7 @@
 #define IDC_FASTMEM                     1027
 #define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
+#define IDC_PRINTERLIST2                1028
 #define IDC_SLOWMEM                     1030
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
@@ -394,6 +395,7 @@
 #define IDC_PORT1                       1313
 #define IDC_MIDIFRAME                   1314
 #define IDC_SERPARFRAME                 1315
+#define IDC_SERIALFRAME                 1316
 #define IDC_EDIT                        1334
 #define IDC_REMOVE                      1335
 #define IDC_VOLUMELIST                  1336
@@ -530,7 +532,9 @@
 #define IDC_T5                          1555
 #define IDC_SERIAL_DIRECT               1555
 #define IDC_T6                          1556
+#define IDC_PSPRINTER                   1556
 #define IDC_T7                          1557
+#define IDC_PSPRINTERDETECT             1557
 #define IDC_T8                          1558
 #define IDC_T9                          1559
 #define IDC_T10                         1560
@@ -777,6 +781,7 @@
 #define IDC_FILTERHOV                   1694
 #define IDC_CONFIGLINK                  1694
 #define IDC_FILTERVZV                   1695
+#define IDC_PS_PARAMS                   1695
 #define IDC_FILTERHZV                   1696
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
@@ -798,7 +803,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        245
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1695
+#define _APS_NEXT_CONTROL_VALUE         1696
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

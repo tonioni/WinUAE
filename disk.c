@@ -1370,7 +1370,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 
 	trackoffs = (id & 0xff00) >> 8;
 	if (trackoffs + 1 > drvsec) {
-	    write_log ("Disk write: weird sector number %d\n", trackoffs);
+	    write_log ("Disk decode: weird sector number %d\n", trackoffs);
 	    if (filetype == ADF_EXT2)
 		return 2;
 	    continue;
@@ -1394,7 +1394,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	even = getmfmlong (mbuf + 2, shift);
 	mbuf += 4;
 	if (((odd << 1) | even) != chksum || ((id & 0x00ff0000) >> 16) != cyl * 2 + side) {
-	    write_log ("Disk write: checksum error on sector %d header\n", trackoffs);
+	    write_log ("Disk decode: checksum error on sector %d header\n", trackoffs);
 	    if (filetype == ADF_EXT2)
 		return 3;
 	    continue;
@@ -1417,7 +1417,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	}
 	mbuf += 256;
 	if (chksum) {
-	    write_log ("Disk write: sector %d, data checksum error\n", trackoffs);
+	    write_log ("Disk decode: sector %d, data checksum error\n", trackoffs);
 	    if (filetype == ADF_EXT2)
 		return 4;
 	    continue;
@@ -1429,9 +1429,9 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
     if (filetype == ADF_EXT2 && (secwritten == 0 || secwritten < 0))
 	return 5;
     if (secwritten == 0)
-	write_log ("Disk write in unsupported format\n");
+	write_log ("Disk decode: unsupported format\n");
     if (secwritten < 0)
-	write_log ("Disk write: sector labels ignored\n");
+	write_log ("Disk decode: sector labels ignored\n");
     *drvsecp = drvsec;
     return 0;
 }
@@ -1745,6 +1745,7 @@ char *DISK_history_get (int idx)
 void disk_insert (int num, const char *name)
 {
     drive *drv = floppy + num;
+
     if (!strcmp (currprefs.df[num], name))
 	return;
     strcpy (drv->newname, name);
@@ -2240,8 +2241,8 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	        put_word (dskpt, word);
 	        dskpt += 2;
 #ifdef CPUEMU_6
-	        cycle_line[7] |= CYCLE_DISK;
-	        cycle_line[9] |= CYCLE_DISK;
+	        cycle_line[7] |= CYCLE_MISC;
+	        cycle_line[9] |= CYCLE_MISC;
 #endif
 	    }
 #if 0

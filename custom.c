@@ -11,8 +11,8 @@
 //#define CUSTOM_DEBUG
 #define DEBUG_COPPER 0
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 0
-#define SPRITE_DEBUG_MAXY 400
+#define SPRITE_DEBUG_MINY 50
+#define SPRITE_DEBUG_MAXY 200
 //#define DISABLE_SPRITES
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
@@ -357,6 +357,11 @@ enum fetchstate {
 /*
  * helper functions
  */
+
+STATIC_INLINE int nodraw (void)
+{
+    return !currprefs.cpu_cycle_exact && framecnt != 0;
+}
 
 uae_u32 get_copper_address (int copno)
 {
@@ -1386,7 +1391,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
     int ddfstop_to_test;
 
-    if (framecnt != 0 || passed_plfstop == 3)
+    if (nodraw() || passed_plfstop == 3)
 	return;
 
     /* We need an explicit test against HARD_DDF_STOP here to guard against
@@ -1519,7 +1524,7 @@ static void start_bpl_dma (int hpos, int hstart)
 
     /* If someone already wrote BPL1DAT, clear the area between that point and
        the real fetch start.  */
-    if (framecnt == 0) {
+    if (!nodraw ()) {
 	if (thisline_decision.plfleft != -1) {
 	    out_nbits = (plfstrt - thisline_decision.plfleft) << (1 + toscr_res);
 	    out_offs = out_nbits >> 5;
@@ -1604,7 +1609,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
     }
 
     /* Early positions don't appear on-screen. */
-    if (framecnt != 0 || vpos < minfirstline || hpos < HARD_DDF_START
+    if (nodraw () || vpos < minfirstline || hpos < HARD_DDF_START
 	/*|| currprefs.emul_accuracy == 0*/)
 	return;
 
@@ -1937,7 +1942,7 @@ static void decide_sprites (int hpos)
     int width = sprite_width;
     int window_width = (width << lores_shift) >> sprres;
 
-    if (framecnt != 0 || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
+    if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
 	return;
 #ifdef DISABLE_SPRITES
     return;
@@ -2040,7 +2045,7 @@ static void finish_decisions (void)
     int changed;
     int hpos = current_hpos ();
 
-    if (framecnt != 0)
+    if (nodraw ())
 	return;
 
     decide_diw (hpos);
@@ -2074,7 +2079,7 @@ static void finish_decisions (void)
     changed = thisline_changed;
 
     if (thisline_decision.plfleft != -1) {
-	record_diw_line (diwfirstword, diwlastword);
+	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
 	decide_sprites (hpos);
     }
@@ -2110,7 +2115,7 @@ static void finish_decisions (void)
 /* Set the state of all decisions to "undecided" for a new scanline. */
 static void reset_decisions (void)
 {
-    if (framecnt != 0)
+    if (nodraw ())
 	return;
     toscr_res_first = 0;
 
@@ -2164,22 +2169,14 @@ int turbo_emulation;
 void compute_vsynctime (void)
 {
     fake_vblank_hz = 0;
-    if (currprefs.gfx_vsync && currprefs.gfx_afullscreen && currprefs.gfx_refreshrate) {
-	vblank_hz = abs (currprefs.gfx_refreshrate);
-	vblank_skip = 1;
-#if 0
-	if (vblank_hz == 75) {
-	    fake_vblank_hz = 50;
-	    vblank_skip = 2;
-	}
-	if (vblank_hz == 90) {
-	    fake_vblank_hz = 60;
-	    vblank_skip = 2;
-	}
-#endif
-	if (!fake_vblank_hz && vblank_hz > 85) {
-	    vblank_hz /= 2;
-	    vblank_skip = -1;
+    if (currprefs.chipset_refreshrate) {
+	vblank_hz = currprefs.chipset_refreshrate;
+	if (currprefs.gfx_vsync && currprefs.gfx_afullscreen) {
+	    vblank_skip = 1;
+	    if (!fake_vblank_hz && vblank_hz > 85) {
+		vblank_hz /= 2;
+		vblank_skip = -1;
+	    }
 	}
     }
     if (!fake_vblank_hz)
@@ -2203,6 +2200,16 @@ void compute_vsynctime (void)
 void init_hz (void)
 {
     int isntsc;
+
+    if ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
+        (currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
+    	currprefs.chipset_refreshrate = 0;
+    	changed_prefs.chipset_refreshrate = 0;
+    }
+    if (currprefs.gfx_vsync && currprefs.gfx_afullscreen) {
+        currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+        changed_prefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+    }
 
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
@@ -2301,10 +2308,12 @@ static void calcdiw (void)
     plfstrt = ddfstrt;
     plfstop = ddfstop;
     /* probably not the correct place.. */
-    if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && ddfstop > maxhpos)
-	plfstrt = 0;
-    if (plfstrt < HARD_DDF_START)
-	plfstrt = HARD_DDF_START;
+    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+	if (ddfstop > maxhpos)
+	    plfstrt = 0;
+	if (plfstrt < HARD_DDF_START)
+	    plfstrt = HARD_DDF_START;
+    }
 }
 
 /* display mode changed (lores, doubling etc..), recalculate everything */
@@ -2493,7 +2502,7 @@ static int intlev_2 (void)
 {
     uae_u16 imask = intreq & intena;
     unsigned long cycles = get_cycles ();
-    int c = currprefs.cpu_level >= 2 ? 20 : 4;
+    int c = 4;
     int i;
 
     if (!(imask && (intena & 0x4000))) {
@@ -3006,7 +3015,7 @@ STATIC_INLINE void SPRxCTLPOS (int num)
     if (vpos == s->vstop)
         s->dmastate = 0;
 }
-    
+
 STATIC_INLINE void SPRxCTL_1 (uae_u16 v, int num, int hpos)
 {
     struct sprite *s = &spr[num];
@@ -4320,12 +4329,22 @@ static void hsync_handler (void)
 
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
+	int i;
         decide_blitter (hpos);
 	memset (cycle_line, 0, MAXHPOS);
+#if 1
 	cycle_line[maxhpos - 1] = CYCLE_REFRESH;
-	cycle_line[0] = CYCLE_REFRESH;
 	cycle_line[2] = CYCLE_REFRESH;
 	cycle_line[4] = CYCLE_REFRESH;
+	cycle_line[6] = CYCLE_REFRESH;
+#else
+	cycle_line[4] = CYCLE_REFRESH;
+	cycle_line[6] = CYCLE_REFRESH;
+	cycle_line[8] = CYCLE_REFRESH;
+	cycle_line[10] = CYCLE_REFRESH;
+	for (i = 12; i < 0x16; i += 2)
+	    cycle_line[i] = CYCLE_NOCPU;
+#endif
     }
 #endif
     if ((currprefs.chipset_mask & CSMASK_AGA) || (!currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -4378,7 +4397,7 @@ static void hsync_handler (void)
     if ((bplcon0 & 4) && currprefs.gfx_linedbl)
 	notice_interlace_seen ();
 
-    if (framecnt == 0) {
+    if (!nodraw ()) {
 	int lineno = vpos;
 	nextline_how = nln_normal;
 	if (currprefs.gfx_linedbl) {
