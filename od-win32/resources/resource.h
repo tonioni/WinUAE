@@ -201,6 +201,7 @@
 #define IDS_STARTEMULATION              238
 #define IDS_TREEVIEW_ABOUT              239
 #define IDS_NOHARDDRIVES                240
+#define IDS_DEFAULT_HOST                241
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -220,6 +221,18 @@
 #define IDS_IMGCHK_DAMAGED              316
 #define IDS_IMGCHK_KS2                  317
 #define IDS_IMGCHK_KS3                  318
+#define IDS_ROMSCANEND                  319
+#define IDS_ROM_AVAILABLE               320
+#define IDS_ROM_UNAVAILABLE             321
+#define IDS_QS_MODELS                   1000
+#define IDS_QS_MODEL_A500               1001
+#define IDS_QS_MODEL_A500P              1002
+#define IDS_QS_MODEL_A600               1003
+#define IDS_QS_MODEL_A1000              1004
+#define IDS_QS_MODEL_A1200              1005
+#define IDS_QS_MODEL_CD32               1006
+#define IDS_QS_MODEL_CDTV               1007
+#define IDS_QS_MODEL_UAE                1008
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022

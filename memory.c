@@ -85,7 +85,7 @@ char *romlist_get (struct romdata *rd)
 
 void romlist_clear (void)
 {
-    free (rl);
+    xfree (rl);
     rl = 0;
     romlist_cnt = 0;
 }
@@ -93,34 +93,34 @@ void romlist_clear (void)
 static struct romdata roms[] = {
     { "Cloanto Amiga Forever ROM key", 0, 0, 0x869ae1b1, 2069, 0, 68000, ROMTYPE_KEY },
 
-    { "Kickstart v1.0", 0, 0, 0x299790ff, 262144, 1, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.1 (NTSC)", 31, 34, 0xd060572a, 262144, 2, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.1 (PAL)", 31, 34, 0xec86dae2, 262144, 3, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.2", 33, 166, 0x0ed783d0, 262144, 4, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.2", 33, 180, 0xa6ce1636, 262144, 5, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.3", 34, 5, 0xc4f0f55f, 262144, 6, 68000, ROMTYPE_KICK },
-    { "Kickstart v1.3", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.0 (A1000)(NTSC)", 0, 0, 0x299790ff, 262144, 1, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(NTSC)", 31, 34, 0xd060572a, 262144, 2, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(PAL)", 31, 34, 0xec86dae2, 262144, 3, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A1000)", 33, 166, 0x0ed783d0, 262144, 4, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A500,A1000,A2000)", 33, 180, 0xa6ce1636, 262144, 5, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A500,A1000,A2000)", 34, 5, 0xc4f0f55f, 262144, 6, 68000, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A3000)", 34, 5, 0xe0f37258, 262144, 32, 68000, ROMTYPE_KICK },
 
-    { "Kickstart v2.04", 37, 175, 0xc3bdb240, 524288, 7, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05", 37, 299, 0x83028fb5, 524288, 8, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05", 37, 300, 0x64466c2a, 524288, 9, 68000, ROMTYPE_KICK },
-    { "Kickstart v2.05", 37, 350, 0x43b0df7b, 524288, 10, 68000, ROMTYPE_KICK },
+    { "Kickstart v2.04 (A500+)", 37, 175, 0xc3bdb240, 524288, 7, 68000, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600)", 37, 299, 0x83028fb5, 524288, 8, 68000, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 37, 300, 0x64466c2a, 524288, 9, 68000, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 37, 350, 0x43b0df7b, 524288, 10, 68000, ROMTYPE_KICK },
 
-    { "Kickstart v3.0", 39, 106, 0x6c9b07d2, 524288, 11, 68000, ROMTYPE_KICK },
-    { "Kickstart v3.0", 39, 106, 0x9e6ac152, 524288, 12, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1", 40, 55, 0x14e93bcc, 524288, 13, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1", 40, 63, 0xfc24ae0d, 524288, 14, 68000, ROMTYPE_KICK },
-    { "Kickstart v3.1", 40, 68, 0x1483a091, 524288, 15, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1 (Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 68020, ROMTYPE_KICK },
-    { "Kickstart v3.1", 40, 68, 0xd6bae334, 524288, 16, 68020, ROMTYPE_KICK },
-//    { "Kickstart v3.1", 40, 70, 0x917100a0, 524288, 17, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A1200)", 39, 106, 0x6c9b07d2, 524288, 11, 68000, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A4000)", 39, 106, 0x9e6ac152, 524288, 12, 68020, ROMTYPE_KICK },
+//    { "Kickstart v3.1", 40, 55, 0x14e93bcc, 524288, 13, 68020, ROMTYPE_KICK }, !! HACK
+    { "Kickstart v3.1 (A500,A600,A2000)", 40, 63, 0xfc24ae0d, 524288, 14, 68000, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A1200)", 40, 68, 0x1483a091, 524288, 15, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)(Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)", 40, 68, 0xd6bae334, 524288, 16, 68020, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 68020, ROMTYPE_KICK },
 
     { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 68020, ROMTYPE_KICKCD32 },
     { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 68020, ROMTYPE_EXTCD32 },
 
     { "CDTV Extended v1.0", 0, 0, 0x42baa124, 262144, 20, 68000, ROMTYPE_EXTCDTV },
     { "CDTV Extended v2.3", 0, 0, 0x30b54232, 262144, 21, 68000, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.7", 0, 0, 0xceae68d2, 262144, 22, 68000, ROMTYPE_EXTCDTV },
+//    { "CDTV Extended v2.7", 0, 0, 0xceae68d2, 262144, 22, 68000, ROMTYPE_EXTCDTV }, !! Non Confirmed
 
     { "A1000 Bootstrap", 0, 0, 0x62f11c04, 8192, 23, 68000, ROMTYPE_KICK },
     { "A1000 Bootstrap", 0, 0, 0x0b1ad2d0, 65536, 24, 68000, ROMTYPE_KICK },
@@ -1162,7 +1162,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 	keysize = zfile_ftell (f);
 	if (keysize > 0) {
 	    zfile_fseek (f, 0, SEEK_SET);
-	    keybuf = malloc (keysize);
+	    keybuf = xmalloc (keysize);
 	    zfile_fread (keybuf, 1, keysize, f);
 	}
 	zfile_fclose (f);
@@ -1172,7 +1172,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 }
 void free_keyfile (uae_u8 *key)
 {
-    free (key);
+    xfree (key);
 }
 
 static int decode_cloanto_rom (uae_u8 *mem, int size, int real_size)
@@ -1246,7 +1246,7 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	    return 0;
     }
     if (i == 8192 || i == 65536) {
-        a1000_bootrom = malloc (65536);
+        a1000_bootrom = xmalloc (65536);
         memcpy (a1000_bootrom, kickmemory, 65536);
         memset (kickmemory, 0, kickmem_size);
         a1000_handle_kickstart (1);
@@ -1392,12 +1392,12 @@ err:
 
 uae_u8 *mapped_malloc (size_t s, char *file)
 {
-    return malloc (s);
+    return xmalloc (s);
 }
 
 void mapped_free (uae_u8 *p)
 {
-    free (p);
+    xfree (p);
 }
 
 #else
@@ -1466,7 +1466,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 		x->prev->next = x->next;
 	    else
 		shm_start = x->next;
-	    free (x);
+	    xfree (x);
 	} else {
 	    size -= 0x10000;
 	    start += 0x10000;
@@ -1488,7 +1488,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     x = find_shmpiece (base);
     if (!x)
 	return;
-    y = malloc (sizeof (shmpiece));
+    y = xmalloc (sizeof (shmpiece));
     *y = *x;
     base = ((uae_u8 *) NATMEM_OFFSET) + start;
     y->native_address = shmat (y->id, base, 0);
@@ -1522,7 +1522,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     answer = shmat (id, 0, 0);
     shmctl (id, IPC_RMID, NULL);
     if (answer != (void *) -1) {
-	x = malloc (sizeof (shmpiece));
+	x = xmalloc (sizeof (shmpiece));
 	x->native_address = answer;
 	x->id = id;
 	x->size = s;
@@ -1657,7 +1657,7 @@ void memory_reset (void)
     {
 	ersatzkickfile = 0;
 	a1000_handle_kickstart (0);
-	free (a1000_bootrom);
+	xfree (a1000_bootrom);
 	a1000_bootrom = 0;
 	a1000_kickstart_mode = 0;
 	memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
@@ -1804,7 +1804,7 @@ void memory_cleanup (void)
     if (kickmemory)
 	mapped_free (kickmemory);
     if (a1000_bootrom)
-	free (a1000_bootrom);
+	xfree (a1000_bootrom);
     if (chipmemory)
 	mapped_free (chipmemory);
   
@@ -1924,6 +1924,7 @@ uae_u8 *restore_rom (uae_u8 *src)
 	}
     }
     src += strlen (src) + 1;
+    src += strlen (src) + 1;
     return src;
 }
 
@@ -1965,7 +1966,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-        dstbak = dst = malloc (4 + 4 + 4 + 4 + 4 + 256 + 256 + mem_size);
+        dstbak = dst = xmalloc (4 + 4 + 4 + 4 + 4 + 256 + 256 + mem_size);
     save_u32 (mem_start);
     save_u32 (mem_size);
     save_u32 (mem_type);

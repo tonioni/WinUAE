@@ -817,7 +817,7 @@ static void blit_bltset (int con)
 		* negative effects. */
 		static int warn = 1;
 		if (warn)
-		    write_log ("warning: weird fill mode (further messages suppressed)\n");
+		    write_log ("warning: weird fill mode (further messages suppressed) PC=%x\n", m68k_getpc());
 		warn = 0;
 		blitife = 0;
 	    }
@@ -825,7 +825,7 @@ static void blit_bltset (int con)
 	if (blitfill && !blitdesc) {
 	    static int warn = 1;
 	    if (warn)
-	        write_log ("warning: blitter fill without desc (further messages suppressed)\n");
+	        write_log ("warning: blitter fill without desc (further messages suppressed) PC=%x\n", m68k_getpc());
 	    warn = 0;
 	}
 	blit_diag = blitfill ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];

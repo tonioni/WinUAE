@@ -285,8 +285,10 @@ r18	addq.l #1,d6
 	bne.s r15
 
 	moveq #0,d6
-r3	
-	move.l 0(a4,d6.l*4),a0
+r3	move.l d6,d1
+	add.l d1,d1
+	add.l d1,d1
+	move.l 0(a4,d1.l),a0
 	addq.l #4,a0
 	move.l (a3)+,d3 ; hunk type
 	move.l (a3)+,d4 ; hunk size
@@ -313,12 +315,17 @@ r7 ; scan for reloc32 or hunk_end
 	bne.s r13
 
 	; relocate
-	move.l 0(a4,d6.l*4),a0 ; current hunk
+	move.l d6,d1
+	add.l d1,d1
+	add.l d1,d1
+	move.l 0(a4,d1.l),a0 ; current hunk
 	addq.l #4,a0
 r11	move.l (a3)+,d0 ;number of relocs
 	beq.s r7
 	move.l (a3)+,d1 ;hunk
-	move.l 0(a4,d1.l*4),d3 ;hunk start address
+	add.l d1,d1
+	add.l d1,d1
+	move.l 0(a4,d1.l),d3 ;hunk start address
 	addq.l #4,d3
 r9	move.l (a3)+,d2 ;offset
 	add.l d3,0(a0,d2.l)

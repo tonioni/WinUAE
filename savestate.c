@@ -92,6 +92,11 @@ void save_u32_func (uae_u8 **dstp, uae_u32 v)
     *dst++ = (uae_u8)(v >> 0);
     *dstp = dst;
 }
+void save_u64_func (uae_u8 **dstp, uae_u64 v)
+{
+    save_u32_func (dstp, (uae_u32)(v >> 32));
+    save_u32_func (dstp, (uae_u32)v);
+}
 void save_u16_func (uae_u8 **dstp, uae_u16 v)
 {
     uae_u8 *dst = *dstp;
@@ -108,7 +113,7 @@ void save_u8_func (uae_u8 **dstp, uae_u8 v)
 void save_string_func (uae_u8 **dstp, char *from)
 {
     uae_u8 *dst = *dstp;
-    while(*from)
+    while(from && *from)
 	*dst++ = *from++;
     *dst++ = 0;
     *dstp = dst;
@@ -120,6 +125,15 @@ uae_u32 restore_u32_func (uae_u8 **dstp)
     uae_u8 *dst = *dstp;
     v = (dst[0] << 24) | (dst[1] << 16) | (dst[2] << 8) | (dst[3]);
     *dstp = dst + 4;
+    return v;
+}
+uae_u64 restore_u64_func (uae_u8 **dstp)
+{
+    uae_u64 v;
+    
+    v = restore_u32_func (dstp);
+    v <<= 32;
+    v |= restore_u32_func (dstp);
     return v;
 }
 uae_u16 restore_u16_func (uae_u8 **dstp)
@@ -306,9 +320,9 @@ static void restore_header (uae_u8 *src)
     description = restore_string ();
     write_log ("Saved with: '%s %s', description: '%s'\n",
 	emuname,emuversion,description);
-    free (description);
-    free (emuversion);
-    free (emuname);
+    xfree (description);
+    xfree (emuversion);
+    xfree (emuname);
 }
 
 /* restore all subsystems */
@@ -334,7 +348,7 @@ void restore_state (char *filename)
     }
     savestate_file = f;
     restore_header (chunk);
-    free (chunk);
+    xfree (chunk);
     changed_prefs.bogomem_size = 0;
     changed_prefs.chipmem_size = 0;
     changed_prefs.fastmem_size = 0;
@@ -433,12 +447,16 @@ void restore_state (char *filename)
 	else if (!strcmp (name, "ACTR"))
 	    end = restore_action_replay (chunk);
 #endif
+#ifdef FILESYS
+	else if (!strcmp (name, "FSYS"))
+	    end = restore_filesys (chunk);
+#endif
 	else
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);
 	if (len != end - chunk)
 	    write_log ("Chunk '%s' total size %d bytes but read %d bytes!\n",
 		       name, len, end - chunk);
-	free (chunk);
+	xfree (chunk);
     }
     return;
 
@@ -446,7 +464,7 @@ void restore_state (char *filename)
     savestate_state = 0;
     savestate_file = 0;
     if (chunk)
-	free (chunk);
+	xfree (chunk);
     if (f)
 	zfile_fclose (f);
 }
@@ -532,12 +550,12 @@ void save_state (char *filename, char *description)
 
     dst = save_cpu (&len, 0);
     save_chunk (f, dst, len, "CPU ", 0);
-    free (dst);
+    xfree (dst);
 
 #ifdef FPUEMU
     dst = save_fpu (&len,0 );
     save_chunk (f, dst, len, "FPU ", 0);
-    free (dst);
+    xfree (dst);
 #endif
 
     strcpy(name, "DSKx");
@@ -546,31 +564,31 @@ void save_state (char *filename, char *description)
 	if (dst) {
 	    name[3] = i + '0';
 	    save_chunk (f, dst, len, name, 0);
-	    free (dst);
+	    xfree (dst);
 	}
     }
     dst = save_floppy (&len, 0);
     save_chunk (f, dst, len, "DISK", 0);
-    free (dst);
+    xfree (dst);
 
     dst = save_custom (&len, 0, 0);
     save_chunk (f, dst, len, "CHIP", 0);
-    free (dst);
+    xfree (dst);
 
     dst = save_blitter (&len, 0);
     save_chunk (f, dst, len, "BLIT", 0);
-    free (dst);
+    xfree (dst);
 
     dst = save_custom_agacolors (&len, 0);
     save_chunk (f, dst, len, "AGAC", 0);
-    free (dst);
+    xfree (dst);
 
     strcpy (name, "SPRx");
     for (i = 0; i < 8; i++) {
 	dst = save_custom_sprite (i, &len, 0);
 	name[3] = i + '0';
 	save_chunk (f, dst, len, name, 0);
-	free (dst);
+	xfree (dst);
     }
 
     strcpy (name, "AUDx");
@@ -578,20 +596,20 @@ void save_state (char *filename, char *description)
 	dst = save_audio (i, &len, 0);
 	name[3] = i + '0';
 	save_chunk (f, dst, len, name, 0);
-	free (dst);
+	xfree (dst);
     }
 
     dst = save_cia (0, &len, 0);
     save_chunk (f, dst, len, "CIAA", 0);
-    free (dst);
+    xfree (dst);
 
     dst = save_cia (1, &len, 0);
     save_chunk (f, dst, len, "CIAB", 0);
-    free (dst);
+    xfree (dst);
 
     dst = save_keyboard (&len);
     save_chunk (f, dst, len, "KEYB", 0);
-    free (dst);
+    xfree (dst);
 
 #ifdef AUTOCONFIG
     dst = save_expansion (&len, 0);
@@ -604,12 +622,21 @@ void save_state (char *filename, char *description)
 	if (!dst)
 	    break;
 	save_chunk (f, dst, len, "ROM ", 0);
-	free (dst);
+	xfree (dst);
     } while ((dst = save_rom (0, &len, 0)));
 
 #ifdef ACTION_REPLAY
     dst = save_action_replay (&len, 0);
     save_chunk (f, dst, len, "ACTR", 0);
+#endif
+#ifdef FILESYS
+    for (i = 0; i < nr_units (currprefs.mountinfo); i++) {
+	dst = save_filesys (i, &len);
+	if (dst) {
+	    save_chunk (f, dst, len, "FSYS", 0);
+	    xfree (dst);
+	}
+    }
 #endif
 
     zfile_fwrite ("END ", 1, 4, f);
@@ -947,7 +974,7 @@ retry:
 
 void savestate_free (void)
 {
-    free (replaybuffer);
+    xfree (replaybuffer);
     replaybuffer = 0;
 }
 

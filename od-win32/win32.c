@@ -1538,6 +1538,10 @@ void fetch_saveimagepath (char *out, int size, int dir)
         fetch_path ("SaveimagePath", out, size);
     }
 }
+void fetch_configurationpath (char *out, int size)
+{
+    fetch_path ("ConfigurationPath", out, size);
+}
 
 void fetch_path (char *name, char *out, int size)
 {
@@ -1549,6 +1553,8 @@ void fetch_path (char *name, char *out, int size)
 	strcat (out, "..\\shared\\hdf\\");
     if (!strcmp (name, "KickstartPath"))
 	strcat (out, "..\\shared\\rom\\");
+    if (!strcmp (name, "ConfigurationPath"))
+	strcat (out, "Configurations\\");
     if (hWinUAEKey)
 	RegQueryValueEx (hWinUAEKey, name, 0, NULL, out, &size);
     if (out[0] == '\\') { /* relative? */

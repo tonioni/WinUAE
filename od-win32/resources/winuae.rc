@@ -624,13 +624,13 @@ BEGIN
     CONTROL         "ECS Agnus [] Partial Enhanced Chipset. Later A500 and A2000 hardware revisions.",
                     IDC_ECS_AGNUS,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
                     38,47,55,10
-    CONTROL         "Full ECS [] Full ECS Chipset, ECS Agnus and ECS Denise. (A500+/A600, A3000)",
+    CONTROL         "Full ECS [] Full ECS Chipset, ECS Agnus and ECS Denise. (A500+, A600, A3000)",
                     IDC_ECS,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,38,63,
                     52,10
     CONTROL         "AGA [] The next generation Amiga chipset (A1200, A4000 and CD32)",
                     IDC_AGA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,101,31,
                     51,10
-    CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. (PAL is 50Hz)",
+    CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",
                     IDC_NTSC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,63,50,
                     10
     GROUPBOX        "Misc chipset options",IDC_STATIC,168,11,114,82
@@ -1327,6 +1327,7 @@ END
 STRINGTABLE 
 BEGIN
     IDS_NOHARDDRIVES        "No Amiga formatted or completely empty harddrives detected."
+    IDS_DEFAULT_HOST        "Default Configuration"
 END
 
 STRINGTABLE 
@@ -1355,6 +1356,30 @@ BEGIN
     IDS_IMGCHK_DAMAGED      "Selected disk image is damaged or unformatted"
     IDS_IMGCHK_KS2          "Selected disk image requires Kickstart 2.04 or 3.0\nConfiguration updated"
     IDS_IMGCHK_KS3          "Selected disk image requires Kickstart 3.0 or later\nConfiguration updated"
+    IDS_ROMSCANEND          "ROM scan finished"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_ROM_AVAILABLE       "available"
+    IDS_ROM_UNAVAILABLE     "unavailable"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_QS_MODELS           "Amiga 500\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nExpanded UAE example configuration"
+    IDS_QS_MODEL_A500       "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)\nThis configuration is capable of running most games and demos ever produced for the first Amiga line. Only few exceptions need different configuration. Oldest Amiga games tend to be incompatible with this configuration.\nKS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow\nLater hardware revision of Amiga 500. Nearly 100% compatible with previous configuration.\nKS 1.3, ECS Agnus, 1.0M Chip\nFew newer games and demos require this configuration.\nKS 1.3, OCS Agnus, 0.5M Chip\nVery old (~1987 and older) games and demos may require this configuration.\nKS 1.2, OCS Agnus, 0.5M Chip\nThe first Amiga 500 produced had this configuration. Some very old programs only work correctly with this configuration. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD.\nKS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow\nThis configuration adds expansion memory to the first Amiga 500 ever produced. Try this if your game do not work with newer configurations but works with the previous one. It could add some features to the game and faster game loading. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD."
+    IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nA500+ is basically an Amiga 500 with ECS Agnus,  1MB of Chip RAM and Kickstart 2.0 ROM. Many Amiga 500 games and demos won't work properly on an Amiga 500+.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
+    IDS_QS_MODEL_A600       "Basic non-expanded configuration\nA600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
+    IDS_QS_MODEL_A1000      "0.5M Chip\nThe Amiga 1000 was the first Amiga ever produced, configuration is basically an OCS A500. You should never use this configuration unless you are nostalgic and you want to hear short special A1000 boot tune\n256K Chip\nUnexpanded Amiga 1000. All later A1000 models were sold with 256K RAM expansion build-in."
+    IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4M Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
+    IDS_QS_MODEL_CD32       "CD32\nCD32 was the first 32bit console. It is basically an A1200 with build-in CDROM. Insert your CD32 or CDTV CDROM into a free CDROM drive before starting emulation."
+    IDS_QS_MODEL_CDTV       "CDTV\nCDTV was Commodore`s first attempt at making a CD-ROM equipped computer. It is an 1MB ECS Amiga 500 in a black box that looks like a CD player."
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_QS_MODEL_UAE        "High-end expanded configuration\nThis configuration can be used as a basis for your own A3000/A4000-style high-performance, expanded custom configuration for Workbench, applications, WHDLoad etc.."
 END
 
 #endif    // English (U.S.) resources

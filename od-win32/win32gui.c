@@ -96,9 +96,6 @@ extern char *start_path;
 
 static char config_filename[ MAX_DPATH ] = "";
 
-static drive_specs blankdrive =
-{"", "", 1, 32, 1, 2, 0, 0};
-
 #define Error(x) MessageBox( NULL, (x), "WinUAE Error", MB_OK )
 
 void WIN32GUI_LoadUIString( DWORD id, char *string, DWORD dwStringLen )
@@ -248,49 +245,95 @@ static void show_rom_list (void)
 {
     char *p;
     int roms[6], ok;
+    char unavail[MAX_DPATH], avail[MAX_DPATH], tmp1[MAX_DPATH];
+    char *p1, *p2;
+    
+    WIN32GUI_LoadUIString (IDS_ROM_AVAILABLE, avail, sizeof (avail));
+    WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail));
+    strcat (avail, "\n");
+    strcat (unavail, "\n");
+    WIN32GUI_LoadUIString (IDS_QS_MODELS, tmp1, sizeof (tmp1));
+    p1 = tmp1;
     
     p = malloc (100000);
     if (!p)
 	return;
-    strcpy (p, "ROM scan results:\n\n");
+    WIN32GUI_LoadUIString (IDS_ROMSCANEND, p, 100);
+    strcat (p, "\n\n");
 
-    strcat (p, "Amiga 500 Kickstart 1.2: ");
+    /* A500 */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, " Kickstart 1.2:");
     roms[0] = 5; roms[1] = 4; roms[2] = -1;
-    if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
-
-    strcat (p, "\nAmiga 500 Kickstart 1.3: ");
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    strcat (p, p1); strcat (p, " Kickstart 1.3:");
     roms[0] = 6; roms[1] = 32; roms[2] = -1;
-    if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
+   
+    /* A500+ */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
+    roms[0] = 7; roms[1] = -1;
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
 
-    strcat (p, "\nAmiga 1000: ");
+    /* A600 */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
+    roms[0] = 9; roms[1] = 10; roms[2] = -1;
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
+
+    /* A1000 */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 23; roms[1] = 24; roms[2] = -1;
-    if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
 
-    strcat (p, "\nAmiga 1200: ");
+    /* A1200 */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 11; roms[1] = 31; roms[2] = 15; roms[3] = -1;
-    if (listrom (roms)) strcat (p, "available"); else strcat (p, "unavailable");
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
 
+    /* CD32 */
     ok = 0;
-    strcat (p, "\nCD32: ");
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 18; roms[1] = -1;
     if (listrom (roms)) {
 	roms[0] = 19;
 	if (listrom (roms))
 	    ok = 1;
     }
-    if (ok) strcat (p, "available"); else strcat (p, "unavailable");
+    if (ok) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
 
+    /* CDTV */
     ok = 0;
-    strcat (p, "\nCDTV: ");
-    roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
+    roms[0] = 20; roms[1] = 21; roms[2] = -1;
     if (listrom (roms)) {
 	roms[0] = 6; roms[1] = 32; roms[2] = -1;
 	if (listrom (roms))
 	    ok = 1;
     }
-    if (ok) strcat (p, "available"); else strcat (p, "unavailable");
+    if (ok) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
 
     pre_gui_message (p);
+end:
     free (p);
 }
 
@@ -2180,6 +2223,9 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	recursive++;
 	pages[PATHS_ID] = hDlg;
 	currentpage = PATHS_ID;
+#ifndef WINUAEBETA
+	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
+#endif
 	values_to_pathsdialog (hDlg);
 	recursive--;
 	return TRUE;
@@ -2259,102 +2305,21 @@ static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 }
 
 struct amigamodels {
-    char *name;
     int compalevels;
+    int id;
 };
 static struct amigamodels amodels[] = {
-    { "Amiga 500", 4 },
-    { "Amiga 500+", 4 },
-    { "Amiga 600", 4 },
-    { "Amiga 1000", 4 },
-    { "Amiga 1200", 3 },
-    { "CD32", 3 },
-    { "CDTV (CDROM emulation not yet working)", 4 },
-    { "", 0 },
-    { "", 0 },
-    { "", 0 },
-    { "Expanded UAE example configuration", 1 },
-    { 0 }
-};
-
-struct amigaconfig {
-    int model;
-    char *name;
-    char *info;
-};
-static struct amigaconfig aconf[] = {
-    { 0, "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)",
-    	"This configuration is capable of running most games and demos ever produced "
-	"for the first Amiga line. Only few exceptions need different configuration. "
-	"Oldest Amiga games tend to be incompatible with this configuration. "
-    },
-    { 0, "KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow",
-    	"Later hardware revision of Amiga 500. Nearly 100% compatible with "
-	"previous configuration."
-    },
-    { 0, "KS 1.3, ECS Agnus, 1.0M Chip",
-	"Few newer games and demos require this configuration."
-    },
-    { 0, "KS 1.3, OCS Agnus, 0.5M Chip",
-	"Very old (~1987 and older) games and demos may require this configuration."
-    },
-    { 0, "KS 1.2, OCS Agnus, 0.5M Chip",
-	"The first Amiga 500 produced had this configuration. Some very "
-	"old programs only work correctly with this configuration. NOTE: This configuration "
-	"cannot boot the Amiga OS installed on an emulated HD."
-    },
-    { 0, "KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow",
-	"This configuration adds expansion memory to the first Amiga 500 ever "
-	"produced. Try this if your game do not work with newer configurations "
-	"but works with the previous one. It could add some features to the game and "
-	"faster game loading. NOTE: This configuration cannot boot the Amiga OS "
-	"installed on an emulated HD."
-    },
-
-    { 1, "Basic non-expanded configuration",
-	"A500+ is basically an Amiga 500 with ECS Agnus, "
-	"1MB of Chip RAM and Kickstart 2.0 ROM. "
-	"Many Amiga 500 games and demos won't work properly on an Amiga 500+." },
-    { 1, "2M Chip RAM expanded configuration",
-	NULL },
-    { 1, "4M Fast RAM expanded configuration",
-	NULL },
-
-    { 2, "Basic non-expanded configuration",
-	"A600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM." },
-    { 2, "2M Chip RAM expanded configuration",
-	NULL },
-    { 2, "4M Fast RAM expanded configuration",
-	NULL },
-
-    { 3, "0.5M Chip",
-	"The Amiga 1000 was the first Amiga ever produced, configuration is basically "
-	"an OCS A500. You should never use this configuration unless "
-	"you are nostalgic and you want to hear short special A1000 boot tune :)"
-    },
-    { 3, "256K Chip",
-	"Unexpanded Amiga 1000. All later A1000 models were sold with 256K RAM "
-	"expansion build-in."
-    },
-    { 4, "Basic non-expanded configuration",
-	"Use this configuration to run most AGA demos and games."
-    },
-    { 4, "4M Fast RAM expanded configuration",
-	"Some newer AGA games and demos need an expanded A1200 to run."
-    },
-    { 5, "CD32",
-	"CD32 was the first 32bit console. It is basically an A1200 with "
-	"build-in CDROM. Insert your CD32 or CDTV CDROM into a free CDROM drive before "
-	"starting emulation."
-    },
-    { 6, "CDTV",
-	"CDTV was Commodore`s first attempt at making a CD-ROM equipped computer. "
-	"It is an 1MB ECS Amiga 500 in a black box that looks like a CD player."
-     },
-    { 10, "High-end expanded configuration", 
-	"This configuration can be used as a basis for your own A3000/A4000-style "
-	"high-performance, expanded custom configuration for Workbench, applications, WHDLoad etc.."
-    },
+    { 4, IDS_QS_MODEL_A500 }, // "Amiga 500"
+    { 4, IDS_QS_MODEL_A500P }, // "Amiga 500+"
+    { 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
+    { 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
+    { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200", 
+    { 3, IDS_QS_MODEL_CD32 }, // "CD32"
+    { 4, IDS_QS_MODEL_CDTV }, // "CDTV"
+    { 0, 0 },
+    { 0, 0 },
+    { 0, 0 },
+    { 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
     { -1 }
 };
 
@@ -2405,9 +2370,10 @@ static void init_quickstartdlg_tooltip (HWND hDlg, char *tt)
 static void init_quickstartdlg (HWND hDlg)
 {
     static int firsttime;
-    int i, j, cnt, idx, idx2;
+    int i, j, idx, idx2;
     DWORD dwType, qssize;
-    char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    char tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH];
+    char *p1, *p2;
 
     qssize = sizeof (tmp1);
     RegQueryValueEx (hWinUAEKey, "QuickStartHostConfig", 0, &dwType, (LPBYTE)tmp1, &qssize);
@@ -2433,12 +2399,20 @@ static void init_quickstartdlg (HWND hDlg)
 
     CheckDlgButton (hDlg, IDC_QUICKSTARTMODE, quickstart);
 
+    WIN32GUI_LoadUIString (IDS_QS_MODELS, tmp1, sizeof (tmp1));
+    strcat (tmp1, "\n");
+    p1 = tmp1;
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_RESETCONTENT, 0, 0L);
     idx = idx2 = 0;
     i = 0;
-    while (amodels[i].name) {
+    while (amodels[i].compalevels >= 0) {
 	if (amodels[i].compalevels > 0) {
-	    SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_ADDSTRING, 0, (LPARAM)amodels[i].name);
+	    p2 = strchr (p1, '\n');
+	    if (p2 && strlen (p2) > 0) {
+		*p2++ = 0;
+		SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_ADDSTRING, 0, (LPARAM)p1);
+		p1 = p2;
+	    }
 	    if (i == quickstart_model)
 		idx2 = idx;
 	    idx++;
@@ -2447,24 +2421,34 @@ static void init_quickstartdlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_SETCURSEL, idx2, 0);
 
+    WIN32GUI_LoadUIString (amodels[quickstart_model].id, tmp1, sizeof (tmp1));
+    strcat (tmp1, "\n");
+    p1 = tmp1;
     init_quickstartdlg_tooltip (hDlg, 0);
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_RESETCONTENT, 0, 0L);
     i = 0;
-    cnt = 0;
-    while (aconf[i].model >= 0) {
-	if (aconf[i].model == quickstart_model) {
-	    SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)aconf[i].name);
-	    if (quickstart_conf == cnt) {
-		init_quickstartdlg_tooltip (hDlg, aconf[i].info);
-	    }
-	    cnt++;
-	}
+    for (;;) {
+        p2 = strchr (p1, '\n');
+        if (!p2)
+	    break;
+	*p2++= 0;
+	SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)p1);
+	p1 = p2;
+        p2 = strchr (p1, '\n');
+	if (!p2)
+	    break;
+	*p2++= 0;
+	if (quickstart_conf == i && strlen (p1) > 0)
+	    init_quickstartdlg_tooltip (hDlg, p1);
+	p1 = p2;
 	i++;
     }
-    if (quickstart_conf >= cnt)
+    if (quickstart_conf >= i)
 	quickstart_conf = 0;
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_SETCURSEL, quickstart_conf, 0);
     
+    if (quickstart_compa >= amodels[quickstart_model].compalevels)
+	quickstart_compa = 1;
     if (quickstart_compa >= amodels[quickstart_model].compalevels)
 	quickstart_compa = 0;
     i = amodels[quickstart_model].compalevels;
@@ -2474,7 +2458,8 @@ static void init_quickstartdlg (HWND hDlg)
     SendDlgItemMessage( hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPOS, TRUE, quickstart_compa);
 
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_RESETCONTENT, 0, 0L);
-    SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)"Default configuration");
+    WIN32GUI_LoadUIString (IDS_DEFAULT_HOST, tmp1, sizeof (tmp1));
+    SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp1);
     idx = 0;
     j = 1;
     for (i = 0; i < configstoresize; i++) {
@@ -2606,7 +2591,7 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_GETCURSEL, 0, 0L);
 		if (val != CB_ERR) {
 		    i = 0;
-		    while (amodels[i].name) {
+		    while (amodels[i].compalevels >= 0) {
 			if (amodels[i].compalevels > 0)
 			    val--;
 			if (val < 0)
@@ -2683,16 +2668,20 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	recursive--;
 	break;
     }
-    if (strcmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0]) {
-    	strcpy (df0, workprefs.df[0]);
-	dfxtype[0] = workprefs.dfxtype[0];
-        testimage (hDlg, 0);
-        enable_for_quickstart (hDlg);
-    }
-    if (strcmp (workprefs.df[1], df1) || workprefs.dfxtype[1] != dfxtype[1]) {
-    	strcpy (df1, workprefs.df[1]);
-	dfxtype[1] = workprefs.dfxtype[1];
-        testimage (hDlg, 1);
+    if (recursive == 0) {
+	recursive++;
+	if (strcmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0]) {
+    	    strcpy (df0, workprefs.df[0]);
+	    dfxtype[0] = workprefs.dfxtype[0];
+	    testimage (hDlg, 0);
+	    enable_for_quickstart (hDlg);
+	}
+	if (strcmp (workprefs.df[1], df1) || workprefs.dfxtype[1] != dfxtype[1]) {
+    	    strcpy (df1, workprefs.df[1]);
+	    dfxtype[1] = workprefs.dfxtype[1];
+	    testimage (hDlg, 1);
+	}
+	recursive--;
     }
     return ret;
 }
@@ -7778,7 +7767,7 @@ void gui_message (const char *format,...)
     int flipflop = 0;
     int fullscreen = 0;
     int focuso = focus;
-    DWORD flags = MB_OK | MB_ICONWARNING | MB_TASKMODAL;
+    DWORD flags = MB_OK | MB_TASKMODAL;
     HWND hwnd;
 
     va_start (parms, format);
@@ -7810,7 +7799,7 @@ void gui_message (const char *format,...)
 void pre_gui_message (const char *format,...)
 {
     char msg[2048];
-    char szTitle[ MAX_DPATH ];
+    char szTitle[MAX_DPATH];
     va_list parms;
 
     va_start (parms, format);
@@ -7820,8 +7809,8 @@ void pre_gui_message (const char *format,...)
     if (msg[strlen(msg)-1]!='\n')
 	write_log("\n");
 
-    WIN32GUI_LoadUIString( IDS_ERRORTITLE, szTitle, MAX_DPATH );
-    MessageBox (guiDlg, msg, szTitle, MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
+    WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
+    MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND );
 
 }
 

@@ -1268,19 +1268,20 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 {
     int i;
     int lastpos = visible_left_border;
+    int endpos = visible_left_border + gfxvidinfo.width;
 
     for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 	int regno = curr_color_changes[i].regno;
 	unsigned int value = curr_color_changes[i].value;
 	int nextpos, nextpos_in_range;
 	if (i == dip_for_drawing->last_color_change)
-	    nextpos = max_diwlastword;
+	    nextpos = endpos;
 	else
 	    nextpos = coord_hw_to_window_x (curr_color_changes[i].linepos * 2);
 
 	nextpos_in_range = nextpos;
-	if (nextpos > visible_right_border)
-	    nextpos_in_range = visible_right_border;
+	if (nextpos > endpos)
+	    nextpos_in_range = endpos;
 
 	if (nextpos_in_range > lastpos) {
 	    if (lastpos < playfield_start) {
@@ -1309,7 +1310,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 		colors_for_drawing.acolors[regno] = getxcolor (value);
 	    }
 	}
-	if (lastpos >= visible_right_border)
+	if (lastpos >= endpos)
 	    break;
     }
 }
