@@ -149,7 +149,6 @@ struct uae_prefs {
     char dfxlist[MAX_SPARE_DRIVES][256];
     char romfile[256];
     char romextfile[256];
-    char keyfile[256];
     char flashfile[256];
     char cartfile[256];
     char pci_devices[256];

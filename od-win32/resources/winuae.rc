@@ -45,18 +45,18 @@ BEGIN
     COMBOBOX        IDC_ROMFILE2,89,31,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_ROMCHOOSER2,280,30,10,15
-    RTEXT           "Cartridge ROM File:",IDC_FLASHTEXT2,8,53,75,10
-    COMBOBOX        IDC_CARTFILE,89,50,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+    RTEXT           "Cartridge ROM File:",IDC_FLASHTEXT2,8,93,75,10
+    COMBOBOX        IDC_CARTFILE,89,90,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_CARTCHOOSER,280,50,10,15
+    PUSHBUTTON      "...",IDC_CARTCHOOSER,280,90,10,15
     GROUPBOX        "Misc settings:",-1,5,76,290,57
-    RTEXT           "Flash RAM File:",IDC_FLASHTEXT,8,90,75,10
-    EDITTEXT        IDC_FLASHFILE,89,88,185,15,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,88,10,15
+    RTEXT           "Flash RAM File:",IDC_FLASHTEXT,8,112,75,10
+    EDITTEXT        IDC_FLASHFILE,89,110,185,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
     CONTROL         "MAPROM emulation",IDC_MAPROM,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,104,114,80,10
+                    WS_TABSTOP,95,54,80,10
     CONTROL         "ShapeShifter support",IDC_KICKSHIFTER,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,196,114,80,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,187,54,80,10
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 300, 194
@@ -146,11 +146,11 @@ BEGIN
                     WS_BORDER
 END
 
-IDD_CPU DIALOGEX 0, 0, 300, 175
+IDD_CPU DIALOGEX 0, 0, 300, 191
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "CPU Type:",IDC_STATIC,5,5,80,134,BS_LEFT
+    GROUPBOX        "CPU Type:",IDC_STATIC,5,5,81,166,BS_LEFT
     CONTROL         "68000",IDC_CPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | 
                     WS_TABSTOP,10,18,34,10
     CONTROL         "68010",IDC_CPU1,"Button",BS_AUTORADIOBUTTON | 
@@ -166,7 +166,7 @@ BEGIN
     CONTROL         "68040",IDC_CPU6,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,10,108,36,10
     CONTROL         "More compatible",IDC_COMPATIBLE,"Button",
-                    BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,123,
+                    BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,130,
                     70,10
     GROUPBOX        "CPU Emulation Speed:",IDC_STATIC,90,5,205,86
     CONTROL         "Fastest possible, but maintain chipset timing",
@@ -187,28 +187,30 @@ BEGIN
                     WS_TABSTOP
     CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | 
                     TBS_TOP | WS_TABSTOP,219,66,69,20
-    GROUPBOX        "JIT Settings:",IDC_STATIC,90,94,205,76
+    GROUPBOX        "Advanced JIT settings:",IDC_STATIC,90,92,205,79
     RTEXT           "Cache Size:",IDC_CS_CACHE_TEXT,95,109,45,10,
                     SS_CENTERIMAGE | WS_TABSTOP
     CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | 
                     TBS_TOP | WS_TABSTOP,140,104,115,20
     EDITTEXT        IDC_CACHETEXT,255,109,30,12,ES_CENTER | ES_READONLY
     CONTROL         "Hard Flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,100,127,60,10
+                    WS_TABSTOP,100,128,60,10
     CONTROL         "Const Jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,100,141,60,10
+                    WS_TABSTOP,100,142,60,10
     CONTROL         "FPU Support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,100,154,60,10
+                    WS_TABSTOP,100,155,60,10
     CONTROL         "Force Settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,165,127,61,10
+                    WS_TABSTOP,165,128,61,10
     CONTROL         "No Flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,165,141,60,10
+                    WS_TABSTOP,165,142,60,10
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,230,127,34,10
+                    WS_GROUP | WS_TABSTOP,230,128,34,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,230,141,45,10
+                    WS_TABSTOP,230,142,45,10
     CONTROL         "After Picasso96",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,230,154,64,10
+                    WS_TABSTOP,230,155,64,10
+    CONTROL         "JIT",IDC_JITENABLE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,10,145,60,10
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 300, 230
@@ -876,21 +878,19 @@ BEGIN
                     CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Disk Drive",IDC_QUICKSTART_DF,5,126,294,87
     LTEXT           "Disk Drive DF0:",IDC_STATIC,12,141,56,10,SS_CENTERIMAGE
-    PUSHBUTTON      "Select Disk Image",IDC_DF0QQ,79,138,84,15
-    RTEXT           "Write Protected",IDC_STATIC,168,142,58,10,
+    PUSHBUTTON      "Select Disk Image",IDC_DF0QQ,79,138,98,15
+    RTEXT           "Write Protected",IDC_STATIC,182,142,58,10,
                     SS_CENTERIMAGE
     CONTROL         "",IDC_DF0WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
-                    WS_TABSTOP,233,140,10,15
-    PUSHBUTTON      "Eject",IDC_EJECT0Q,248,139,30,15
-    PUSHBUTTON      "...",IDC_DF0Q2,282,139,10,15
+                    WS_TABSTOP,247,140,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT0Q,262,139,30,15
     COMBOBOX        IDC_DF0TEXTQ,11,157,282,75,CBS_DROPDOWN | 
                     CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_DF1TEXTQ,11,193,282,75,CBS_DROPDOWN | 
                     CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_DF1WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | 
-                    WS_TABSTOP,233,176,10,15
-    PUSHBUTTON      "Eject",IDC_EJECT1Q,248,175,30,15
-    PUSHBUTTON      "...",IDC_DF1Q2,282,175,10,15
+                    WS_TABSTOP,247,176,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT1Q,262,175,30,15
     CONTROL         "Start in Quickstart-mode",IDC_QUICKSTARTMODE,"Button",
                     BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,202,221,94,10
     COMBOBOX        IDC_QUICKSTART_HOSTCONFIG,67,103,225,50,CBS_DROPDOWNLIST | 
@@ -898,8 +898,8 @@ BEGIN
     GROUPBOX        "Host configuration",IDC_QUICKSTART_HOST,5,91,294,33
     RTEXT           "Configuration:",IDC_STATIC,7,105,55,10,SS_CENTERIMAGE
     LTEXT           "Disk Drive DF1:",IDC_STATIC,12,179,56,10,SS_CENTERIMAGE
-    PUSHBUTTON      "Select Disk Image",IDC_DF1QQ,79,175,84,15
-    RTEXT           "Write Protected",IDC_STATIC,168,178,58,10,
+    PUSHBUTTON      "Select Disk Image",IDC_DF1QQ,79,175,98,15
+    RTEXT           "Write Protected",IDC_STATIC,182,178,58,10,
                     SS_CENTERIMAGE
 END
 
@@ -1011,6 +1011,11 @@ IDC_MYHAND              CURSOR                  "H_arrow.cur"
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO 
 BEGIN
+    IDD_CPU, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 175
+    END
+
     IDD_HARDDISK, DIALOG
     BEGIN
         BOTTOMMARGIN, 175
@@ -1056,7 +1061,6 @@ BEGIN
     IDD_QUICKSTART, DIALOG
     BEGIN
         RIGHTMARGIN, 299
-        BOTTOMMARGIN, 223
     END
 END
 #endif    // APSTUDIO_INVOKED

@@ -241,7 +241,7 @@ static void show_rom_list (void)
 	    ok = 1;
     }
     if (ok) strcat (p, "available"); else strcat (p, "unavailable");
-
+/*
     ok = 0;
     strcat (p, "\nCDTV: ");
     roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
@@ -251,7 +251,7 @@ static void show_rom_list (void)
 	    ok = 1;
     }
     if (ok) strcat (p, "available"); else strcat (p, "unavailable");
-
+*/
     pre_gui_message (p);
     free (p);
 }
@@ -745,14 +745,12 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
             break;
 	case IDC_DF0:
 	case IDC_DF0QQ:
-	case IDC_DF0Q2:
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, full_path);
 	    strcpy( prefs->df[0], full_path );
 	    DISK_history_add (full_path, -1);
             break;
 	case IDC_DF1:
 	case IDC_DF1QQ:
-	case IDC_DF1Q2:
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, full_path);
 	    strcpy( prefs->df[1], full_path );
 	    DISK_history_add (full_path, -1);
@@ -2227,11 +2225,13 @@ static struct amigamodels amodels[] = {
 	"Medium compatibility, very fast CPU emulation",
 	"Low compatibility, very fast CPU emulation"
     },
+/*
     { "CDTV",
 	"High compatibility (incomplete)",
 	"Medium compatibility (incomplete)",
 	"Low compatiblity (incomplete)"
     },
+*/
     { 0 }
 };
 
@@ -2241,7 +2241,7 @@ struct amigaconfig {
     char *name;
 };
 static struct amigaconfig aconf[] = {
-    { 0, "", "KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow" },
+    { 0, "", "KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow (most common)" },
     { 0, "", "KS 1.3, OCS Agnus, 0.5M Chip" },
     { 0, "", "KS 1.3, ECS Agnus, 1.0M Chip" },
     { 0, "", "KS 1.2, OCS Agnus, 0.5M Chip" },
@@ -2257,9 +2257,9 @@ static struct amigaconfig aconf[] = {
     { 2, "", "2.0M Chip + 4.0M Fast" },
 
     { 3, "", "CD32" },
-
+/*
     { 4, "", "CDTV" },
-
+*/
     { -1 }
 };
 
@@ -2516,12 +2516,10 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    case IDC_DF0WPQ:
 	    case IDC_EJECT0Q:
 	    case IDC_DF0QQ:
-	    case IDC_DF0Q2:
 	    case IDC_DF1TEXTQ:
 	    case IDC_DF1WPQ:
 	    case IDC_EJECT1Q:
 	    case IDC_DF1QQ:
-	    case IDC_DF1Q2:
 	    ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 	    break;
 	}   
@@ -3874,7 +3872,6 @@ static void enable_for_cpudlg (HWND hDlg)
     BOOL enable = FALSE, enable2 = FALSE;
     BOOL cpu_based_enable = FALSE;
 
-    EnableWindow (GetDlgItem (hDlg, IDC_COMPATIBLE), !workprefs.cpu_cycle_exact && !workprefs.cachesize);
     /* These four items only get enabled when adjustable CPU style is enabled */
     EnableWindow (GetDlgItem (hDlg, IDC_SPEED), workprefs.m68k_speed > 0);
     EnableWindow (GetDlgItem (hDlg, IDC_CS_CPU_TEXT), workprefs.m68k_speed > 0);
@@ -3906,10 +3903,12 @@ static void enable_for_cpudlg (HWND hDlg)
     EnableWindow( GetDlgItem( hDlg, IDC_CONSTJUMP ), enable2 );
     EnableWindow( GetDlgItem( hDlg, IDC_JITFPU ), enable2 );
     EnableWindow( GetDlgItem( hDlg, IDC_NOFLAGS ), enable2 );
-    EnableWindow( GetDlgItem( hDlg, IDC_CS_CACHE_TEXT ), cpu_based_enable );
-    EnableWindow( GetDlgItem( hDlg, IDC_CACHE ), cpu_based_enable );
-    EnableWindow( GetDlgItem( hDlg, IDC_CACHETEXT ), cpu_based_enable );
+    EnableWindow( GetDlgItem( hDlg, IDC_CS_CACHE_TEXT ), cpu_based_enable && workprefs.cachesize );
+    EnableWindow( GetDlgItem( hDlg, IDC_CACHE ), cpu_based_enable && workprefs.cachesize );
+    EnableWindow( GetDlgItem( hDlg, IDC_CACHETEXT ), cpu_based_enable && workprefs.cachesize );
     EnableWindow( GetDlgItem( hDlg, IDC_FORCE ), enable );
+    EnableWindow( GetDlgItem( hDlg, IDC_JITENABLE ), cpu_based_enable );
+    EnableWindow (GetDlgItem (hDlg, IDC_COMPATIBLE), !workprefs.cpu_cycle_exact && !workprefs.cachesize);
 
 #ifdef JIT
     if( enable )
@@ -3988,11 +3987,12 @@ static void values_to_cpudlg (HWND hDlg)
     CheckDlgButton( hDlg, IDC_JITFPU, workprefs.compfpu );
     CheckDlgButton( hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush );
     CheckDlgButton( hDlg, IDC_CONSTJUMP, workprefs.comp_constjump );
+    CheckDlgButton( hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
 }
 
 static void values_from_cpudlg (HWND hDlg)
 {
-    int newcpu, newtrust, oldcache;
+    int newcpu, newtrust, oldcache, jitena;
     
     workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (IsDlgButtonChecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
     workprefs.m68k_speed = IsDlgButtonChecked (hDlg, IDC_CS_HOST) ? -1
@@ -4036,9 +4036,14 @@ static void values_from_cpudlg (HWND hDlg)
     workprefs.comp_hardflush    = IsDlgButtonChecked( hDlg, IDC_HARDFLUSH );
     workprefs.comp_constjump    = IsDlgButtonChecked( hDlg, IDC_CONSTJUMP );
 
-    oldcache = workprefs.cachesize;
-    workprefs.cachesize = SendMessage(GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
 #ifdef JIT
+    oldcache = workprefs.cachesize;
+    jitena = IsDlgButtonChecked (hDlg, IDC_JITENABLE) ? 1 : 0;
+    workprefs.cachesize = SendMessage(GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
+    if (!jitena)
+	workprefs.cachesize = 0;
+    else if (jitena && !oldcache)
+	workprefs.cachesize = 8192;
     if (oldcache == 0 && workprefs.cachesize > 0)
 	canbang = 1;
 #endif
@@ -5022,18 +5027,18 @@ static void out_floppyspeed (HWND hDlg)
     SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
-#define BUTTONSPERFLOPPY 6
+#define BUTTONSPERFLOPPY 5
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1 },
-    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1 },
-    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1 },
-    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1 }
+    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP },
+    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP },
+    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP },
+    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP }
 };
 static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXTQ,IDC_DF0Q2,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0QQ },
-    { IDC_DF1TEXTQ,IDC_DF1Q2,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1QQ },
-    { -1,-1,-1,-1,-1,-1 },
-    { -1,-1,-1,-1,-1,-1 }
+    { IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ },
+    { IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ },
+    { -1,-1,-1,-1,-1 },
+    { -1,-1,-1,-1,-1 }
 };
     
 static void addfloppytype (HWND hDlg, int n)
@@ -5048,7 +5053,6 @@ static void addfloppytype (HWND hDlg, int n)
     int f_driveq = floppybuttonsq[n][1];
     int f_ejectq = floppybuttonsq[n][2];
     int f_wpq = floppybuttonsq[n][4];
-    int f_driveqq = floppybuttonsq[n][5];
 
     int nn = workprefs.dfxtype[n] + 1;
     int state, i, chk;
@@ -5071,8 +5075,6 @@ static void addfloppytype (HWND hDlg, int n)
     EnableWindow(GetDlgItem(hDlg, f_drive), state);
     if (f_driveq >= 0)
 	EnableWindow(GetDlgItem(hDlg, f_driveq), state);
-    if (f_driveqq >= 0)
-	EnableWindow(GetDlgItem(hDlg, f_driveqq), state);
     chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
     CheckDlgButton(hDlg, f_wp, chk);
     if (f_wpq >= 0)
@@ -5267,14 +5269,12 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    break;
 	case IDC_DF0:
 	case IDC_DF0QQ:
-	case IDC_DF0Q2:
 	    DiskSelection (hDlg, wParam, 0, &workprefs, 0);
 	    disk_insert (0, workprefs.df[0]);
 	    addfloppytype (hDlg, 0);
 	    break;
 	case IDC_DF1:
 	case IDC_DF1QQ:
-	case IDC_DF1Q2:
 	    DiskSelection (hDlg, wParam, 0, &workprefs, 0);
 	    disk_insert (1, workprefs.df[1]);
 	    addfloppytype (hDlg, 1);
@@ -6889,9 +6889,6 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 		break;
 		case ZFILE_ROM:
 		    strcpy (prefs->romfile, file);
-		break;
-		case ZFILE_KEY:
-		    strcpy (prefs->keyfile, file);
 		break;
 		case ZFILE_NVR:
 		    strcpy (prefs->flashfile, file);

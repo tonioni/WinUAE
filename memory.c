@@ -1311,10 +1311,9 @@ static void kickstart_fix_checksum (uae_u8 *mem, int size)
 static int load_kickstart (void)
 {
     struct zfile *f = zfile_fopen (currprefs.romfile, "rb");
-    char tmprom[512], tmpkey[512];
+    char tmprom[512];
 
     strcpy (tmprom, currprefs.romfile);
-    strcpy (tmpkey, currprefs.keyfile);
     if (f == NULL) {
 	strcpy (currprefs.romfile, "roms/kick.rom");
 	f = zfile_fopen (currprefs.romfile, "rb");
@@ -1378,7 +1377,6 @@ static int load_kickstart (void)
     return 1;
 err:
     strcpy (currprefs.romfile, tmprom);
-    strcpy (currprefs.keyfile, tmpkey);
     return 0;
 }
 
@@ -1647,8 +1645,7 @@ void memory_reset (void)
     allocate_memory ();
 
     if (strcmp (currprefs.romfile, changed_prefs.romfile) != 0
-	|| strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0
-	|| strcmp (currprefs.keyfile, changed_prefs.keyfile) != 0)
+	|| strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
     {
 	ersatzkickfile = 0;
 	a1000_handle_kickstart (0);
@@ -1657,7 +1654,6 @@ void memory_reset (void)
 	a1000_kickstart_mode = 0;
 	memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 	memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
-	memcpy (currprefs.keyfile, changed_prefs.keyfile, sizeof currprefs.keyfile);
         if (savestate_state != STATE_RESTORE)
 	    clearexec ();
         load_extendedkickstart ();
@@ -1768,7 +1764,7 @@ void memory_init (void)
     memset (kickmemory, 0, kickmem_size);
     kickmem_bank.baseaddr = kickmemory;
     currprefs.romfile[0] = 0;
-    currprefs.keyfile[0] = 0;
+    currprefs.romextfile[0] = 0;
 #ifdef AUTOCONFIG
     init_ersatz_rom (kickmemory);
     ersatzkickfile = 1;

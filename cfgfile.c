@@ -220,9 +220,6 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->romextfile);
     cfgfile_write (f, "kickstart_ext_rom_file=%s\n", str);
     free (str);
-    str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->keyfile);
-    cfgfile_write (f, "kickstart_key_file=%s\n", str);
-    free (str);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->flashfile);
     cfgfile_write (f, "flash_file=%s\n", str);
     free (str);
@@ -837,7 +834,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
     if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, 256)
 	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, 256)
-	|| cfgfile_string (option, value, "kickstart_key_file", p->keyfile, 256)
 	|| cfgfile_string (option, value, "flash_file", p->flashfile, 256)
 	|| cfgfile_string (option, value, "cart_file", p->cartfile, 256)
 	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, 256))
@@ -1257,7 +1253,6 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 	subst (p->path_floppy, p->df[i], sizeof p->df[i]);
     subst (p->path_rom, p->romfile, sizeof p->romfile);
     subst (p->path_rom, p->romextfile, sizeof p->romextfile);
-    subst (p->path_rom, p->keyfile, sizeof p->keyfile);
 
     return 1;
 }
@@ -1553,7 +1548,7 @@ int parse_cmdline_option (struct uae_prefs *p, char c, char *arg)
     case '2': strncpy (p->df[2], arg, 255); p->df[2][255] = 0; break;
     case '3': strncpy (p->df[3], arg, 255); p->df[3][255] = 0; break;
     case 'r': strncpy (p->romfile, arg, 255); p->romfile[255] = 0; break;
-    case 'K': strncpy (p->keyfile, arg, 255); p->keyfile[255] = 0; break;
+    case 'K': strncpy (p->romextfile, arg, 255); p->romextfile[255] = 0; break;
     case 'p': strncpy (p->prtname, arg, 255); p->prtname[255] = 0; break;
 	/*     case 'I': strncpy (p->sername, arg, 255); p->sername[255] = 0; currprefs.use_serial = 1; break; */
     case 'm': case 'M': parse_filesys_spec (c == 'M', arg); break;
@@ -1878,7 +1873,6 @@ void default_prefs (struct uae_prefs *p, int type)
     strcpy (p->df[3], "df3.adf");
 
     configure_rom (p, roms, 0);
-    strcpy (p->keyfile, "");
     strcpy (p->romextfile, "");
     strcpy (p->flashfile, "");
     strcpy (p->cartfile, "");
@@ -1971,7 +1965,6 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->gfxmem_size = 0x00000000;
 
     strcpy (p->romfile, "");
-    strcpy (p->keyfile, "");
     strcpy (p->romextfile, "");
     strcpy (p->flashfile, "");
     strcpy (p->cartfile, "");

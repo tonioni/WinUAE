@@ -504,6 +504,8 @@
 #define IDC_CS_CACHE_TEXT               1582
 #define IDC_FORCE                       1583
 #define IDC_COLLISIONS                  1584
+#define IDC_CS_JIT                      1584
+#define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585
 #define IDC_CTRLF11                     1586
 #define IDC_FASTCOPPER                  1588
@@ -688,8 +690,6 @@
 #define IDC_DF1WPQ                      1686
 #define IDC_EJECT1Q                     1687
 #define IDC_DF1TEXTQ                    1688
-#define IDC_DF0Q2                       1689
-#define IDC_DF1Q2                       1690
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
