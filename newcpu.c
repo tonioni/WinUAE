@@ -125,8 +125,6 @@ void dump_counts (void)
 #endif
 
 
-int broken_in;
-
 static unsigned long op_illg_1 (uae_u32 opcode) REGPARAM;
 
 static unsigned long REGPARAM2 op_illg_1 (uae_u32 opcode)
@@ -1518,6 +1516,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 {
     uaecptr pc = m68k_getpc ();
     static int warned;
+    static int cpu68020;
 
     if (cloanto_rom && (opcode & 0xF100) == 0x7100) {
 	m68k_dreg (regs, (opcode >> 9) & 7) = (uae_s8)(opcode & 0xFF);
@@ -1527,11 +1526,9 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
     }
 
     compiler_flush_jsr_stack ();
-    if (opcode == 0x4E7B && get_long (0x10) == 0 && in_rom (pc)) {
-	gui_message ("Your Kickstart requires a 68020 CPU. Giving up.\n");
-	broken_in = 1;
-	set_special (SPCFLAG_BRK);
-	quit_program = 1;
+    if (opcode == 0x4E7B && get_long (0x10) == 0 && in_rom (pc) && !cpu68020) {
+	gui_message ("Your Kickstart requires a 68020 CPU");
+	cpu68020 = 1;
     }
 
 #ifdef AUTOCONFIG
@@ -1715,6 +1712,10 @@ static int do_specialties (int cycles)
 	    do_copper ();
 	if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
 	    int intr = intlev ();
+#ifdef JIT
+	    if (currprefs.cachesize)
+		unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
+#endif
 	    if (intr != -1 && intr > regs.intmask)
 	        Interrupt (intr);
 	}
@@ -1751,17 +1752,20 @@ static int do_specialties (int cycles)
      */
     if ((regs.spcflags & SPCFLAG_DOINT) 
 #ifdef JIT	
-	|| (!compiled_code && (regs.spcflags & SPCFLAG_INT))
+	|| (!currprefs.cachesize && (regs.spcflags & SPCFLAG_INT))
 #endif
 	) {
         int intr = intlev ();
-	unset_special (SPCFLAG_DOINT);
+#ifdef JIT
+	if (currprefs.cachesize)
+	    unset_special (SPCFLAG_DOINT);
+#endif
  	if (intr != -1 && intr > regs.intmask)
 	    Interrupt (intr);
     }
 
 #ifdef JIT
-    if ((regs.spcflags & SPCFLAG_INT) && compiled_code) {
+    if ((regs.spcflags & SPCFLAG_INT) && currprefs.cachesize) {
 	unset_special (SPCFLAG_INT);
 	set_special (SPCFLAG_DOINT);
     }

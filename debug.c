@@ -207,8 +207,7 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 {
     char line[80];
     int cols = 8;
-    broken_in = 0;
-    for (;lines-- && !broken_in;) {
+    for (;lines--;) {
 	int i;
 	sprintf (line, "%08lx ", addr);
 	for (i = 0; i < cols; i++) {

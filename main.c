@@ -183,47 +183,47 @@ static void fix_options (void)
 	err = 1;
     }
     if (currprefs.comptrustbyte < 0 || currprefs.comptrustbyte > 3) {
-	fprintf (stderr, "Bad value for comptrustbyte parameter: value must be within 0..2\n");
+	write_log ("Bad value for comptrustbyte parameter: value must be within 0..2\n");
 	currprefs.comptrustbyte = 1;
 	err = 1;
     }
     if (currprefs.comptrustword < 0 || currprefs.comptrustword > 3) {
-	fprintf (stderr, "Bad value for comptrustword parameter: value must be within 0..2\n");
+	write_log ("Bad value for comptrustword parameter: value must be within 0..2\n");
 	currprefs.comptrustword = 1;
 	err = 1;
     }
     if (currprefs.comptrustlong < 0 || currprefs.comptrustlong > 3) {
-	fprintf (stderr, "Bad value for comptrustlong parameter: value must be within 0..2\n");
+	write_log ("Bad value for comptrustlong parameter: value must be within 0..2\n");
 	currprefs.comptrustlong = 1;
 	err = 1;
     }
     if (currprefs.comptrustnaddr < 0 || currprefs.comptrustnaddr > 3) {
-	fprintf (stderr, "Bad value for comptrustnaddr parameter: value must be within 0..2\n");
+	write_log ("Bad value for comptrustnaddr parameter: value must be within 0..2\n");
 	currprefs.comptrustnaddr = 1;
 	err = 1;
     }
     if (currprefs.compnf < 0 || currprefs.compnf > 1) {
-	fprintf (stderr, "Bad value for compnf parameter: value must be within 0..1\n");
+	write_log ("Bad value for compnf parameter: value must be within 0..1\n");
 	currprefs.compnf = 1;
 	err = 1;
     }
     if (currprefs.comp_hardflush < 0 || currprefs.comp_hardflush > 1) {
-	fprintf (stderr, "Bad value for comp_hardflush parameter: value must be within 0..1\n");
+	write_log ("Bad value for comp_hardflush parameter: value must be within 0..1\n");
 	currprefs.comp_hardflush = 1;
 	err = 1;
     }
     if (currprefs.comp_constjump < 0 || currprefs.comp_constjump > 1) {
-	fprintf (stderr, "Bad value for comp_constjump parameter: value must be within 0..1\n");
+	write_log ("Bad value for comp_constjump parameter: value must be within 0..1\n");
 	currprefs.comp_constjump = 1;
 	err = 1;
     }
     if (currprefs.comp_oldsegv < 0 || currprefs.comp_oldsegv > 1) {
-	fprintf (stderr, "Bad value for comp_oldsegv parameter: value must be within 0..1\n");
+	write_log ("Bad value for comp_oldsegv parameter: value must be within 0..1\n");
 	currprefs.comp_oldsegv = 1;
 	err = 1;
     }
     if (currprefs.cachesize < 0 || currprefs.cachesize > 16384) {
-	fprintf (stderr, "Bad value for cachesize parameter: value must be within 0..16384\n");
+	write_log ("Bad value for cachesize parameter: value must be within 0..16384\n");
 	currprefs.cachesize = 0;
 	err = 1;
     }

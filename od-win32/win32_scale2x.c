@@ -68,10 +68,11 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 void S2X_render (void)
 {
     int aw = amiga_width, ah = amiga_height, v, pitch;
-    uae_u8 *dptr, *sptr;
+    uae_u8 *dptr, *sptr, *endsptr;
     int ok = 0;
 
     sptr = gfxvidinfo.bufmem;
+    endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
 
     v = currprefs.gfx_filter_horiz_offset;
     v += (dst_width / scale - amiga_width) / 8;
@@ -164,7 +165,10 @@ void S2X_render (void)
 	if (amiga_depth == dst_depth) {
 	    int y;
 	    for (y = 0; y < dst_height; y++) {
-		memcpy (dptr, sptr, dst_width * dst_depth / 8);
+		if (sptr < endsptr)
+		    memcpy (dptr, sptr, dst_width * dst_depth / 8);
+		else
+		    memset (dptr, 0, dst_width * dst_depth / 8);
 		sptr += gfxvidinfo.rowbytes;
 		dptr += pitch;
 	    }

@@ -411,9 +411,9 @@ static struct zfile *unzip (struct zfile *z)
 		}
 		if (first) {
 		    if (isdiskimage (filename_inzip))
-			sprintf (tmphist," %s/%s", z->name, filename_inzip);
+			sprintf (tmphist,"%s/%s", z->name, filename_inzip);
 		} else {
-		    sprintf (tmphist," %s/%s", z->name, filename_inzip);
+		    sprintf (tmphist,"%s/%s", z->name, filename_inzip);
 		    DISK_history_add (tmphist, -1);
 		    tmphist[0] = 0;
 		}

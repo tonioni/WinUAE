@@ -618,7 +618,7 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 	}
 }
 
-static void genastore (char *from, amodes mode, char *reg, wordsizes size, char *to)
+static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, char *to, int store_dir)
 {
     switch (mode) {
      case Dreg:
@@ -671,8 +671,10 @@ static void genastore (char *from, amodes mode, char *reg, wordsizes size, char 
 	     case sz_long:
 		if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 		    abort ();
-		printf ("\tput_word_ce (%sa, %s >> 16); put_word_ce (%sa + 2, %s);\n", to, from, to, from);
-		//printf ("\tput_word_ce (%sa + 2, %s); put_word_ce (%sa, %s >> 16);\n", to, from, to, from);
+		if (store_dir)
+		    printf ("\tput_word_ce (%sa + 2, %s); put_word_ce (%sa, %s >> 16);\n", to, from, to, from);
+		else
+		    printf ("\tput_word_ce (%sa, %s >> 16); put_word_ce (%sa + 2, %s);\n", to, from, to, from);
 		break;
 	     default:
 		abort ();
@@ -711,6 +713,16 @@ static void genastore (char *from, amodes mode, char *reg, wordsizes size, char 
 	abort ();
     }
 }
+
+static void genastore (char *from, amodes mode, char *reg, wordsizes size, char *to)
+{
+    genastore_2 (from, mode, reg, size, to, 0);
+}
+static void genastore_rev (char *from, amodes mode, char *reg, wordsizes size, char *to)
+{
+    genastore_2 (from, mode, reg, size, to, 1);
+}
+
 
 static void genmovemel (uae_u16 opcode)
 {
@@ -1298,7 +1310,7 @@ static void gen_opcode (unsigned long int opcode)
         fill_prefetch_next_delay (tmpc);
 	start_brace ();
 	genflags (flag_sub, curi->size, "dst", "src", "0");
-	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
+	genastore_rev ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
     case i_NEGX:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -1308,7 +1320,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuae_u32 newv = 0 - src - (GET_XFLG ? 1 : 0);\n");
 	genflags (flag_subx, curi->size, "newv", "src", "0");
 	genflags (flag_zn, curi->size, "newv", "", "");
-	genastore ("newv", curi->smode, "srcreg", curi->size, "src");
+	genastore_rev ("newv", curi->smode, "srcreg", curi->size, "src");
 	break;
     case i_NBCD:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -1333,7 +1345,7 @@ static void gen_opcode (unsigned long int opcode)
 	if (isreg (curi->smode) && curi->size == sz_long) tmpc += 2;
         fill_prefetch_next_delay (tmpc);
 	genflags (flag_logical, curi->size, "0", "", "");
-	genastore ("0", curi->smode, "srcreg", curi->size, "src");
+	genastore_rev ("0", curi->smode, "srcreg", curi->size, "src");
 	break;
     case i_NOT:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -1342,7 +1354,7 @@ static void gen_opcode (unsigned long int opcode)
 	start_brace ();
 	printf ("\tuae_u32 dst = ~src;\n");
 	genflags (flag_logical, curi->size, "dst", "", "");
-	genastore ("dst", curi->smode, "srcreg", curi->size, "src");
+	genastore_rev ("dst", curi->smode, "srcreg", curi->size, "src");
 	break;
     case i_TST:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);

@@ -3366,8 +3366,9 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_MAKE_LINK:
      case ACTION_READ_LINK:
      case ACTION_FORMAT:
+	 return 0;
      default:
-	write_log ("FILESYS: UNSUPPORTED PACKET %x\n", type);
+	write_log ("FILESYS: UNKNOWN PACKET %x\n", type);
 	return 0;
     }
     return 1;

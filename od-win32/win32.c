@@ -1510,12 +1510,6 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	return 1;
     }
 
-    v = -1;
-    if (cfgfile_yesno (option, value, "cpu_idle", &v)) {
-	if (v == 1)
-	     p->cpu_idle = 60;
-    }
-
     if (p->sername[0] == 'n')
 	p->use_serial = 0;
     else
@@ -2029,8 +2023,10 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 			exinfo.ClientPointers = 0;
 			dump (GetCurrentProcess(), GetCurrentProcessId(), f, MiniDumpNormal, &exinfo, NULL, NULL);
 			CloseHandle (f);
-			sprintf (msg, "Crash detected. MiniDump saved as:\n%s\n", path2);
-			MessageBox( NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
+			if (!isfullscreen ()) {
+			    sprintf (msg, "Crash detected. MiniDump saved as:\n%s\n", path2);
+			    MessageBox( NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
+			}
 		    }
 		}
 	    }

@@ -321,9 +321,9 @@ void writeser (int c)
 
 int checkserwrite (void)
 {
-    if (midi_ready) {
-	return 1;
     if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
+	return 1;
+    if (midi_ready) {
 	return 1;
     } else {
         outser ();

@@ -1626,36 +1626,69 @@ typedef int sprbuf_res_t, cclockres_t, hwres_t, bplres_t;
 
 static void do_playfield_collisions (void)
 {
-    uae_u8 *ld = line_data[next_lineno];
-    int i;
+    int bplres = GET_RES (bplcon0);
+    hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
+    hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
+    hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
+    int i, collided, minpos, maxpos;
+#ifdef AGA
+    int planes = (currprefs.chipset_mask & CSMASK_AGA) ? 8 : 6;
+#else
+    int planes = 6;
+#endif
 
     if (clxcon_bpl_enable == 0) {
 	clxdat |= 1;
 	return;
     }
-	
-    for (i = thisline_decision.plfleft; i < thisline_decision.plfright; i += 2) {
+    if (clxdat & 1)
+	return;
+
+    collided = 0;
+    minpos = thisline_decision.plfleft * 2;
+    if (minpos < hw_diwfirst)
+	minpos = hw_diwfirst;
+    maxpos = thisline_decision.plfright * 2;
+    if (maxpos > hw_diwlast)
+	maxpos = hw_diwlast;
+    for (i = minpos; i < maxpos && !collided; i+= 32) {
+	int offs = ((i << bplres) - ddf_left) >> 3;
 	int j;
-	uae_u32 total = 0xFFFFFFFF;
-	for (j = 0; j < 8; j++) {
-	    uae_u32 t = 0;
-	    if ((clxcon_bpl_enable & (1 << j)) == 0)
-		t = 0xFFFFFFFF;
-	    else if (j < thisline_decision.nr_planes) {
-		t = *(uae_u32 *)(line_data[next_lineno] + 2 * i + 2 * j * MAX_WORDS_PER_LINE);
-		t ^= ~(((clxcon_bpl_match >> j) & 1) - 1);
+	uae_u32 total = 0xffffffff;
+	for (j = 0; j < planes; j++) {
+	    int ena = (clxcon_bpl_enable >> j) & 1;
+	    int match = (clxcon_bpl_match >> j) & 1;
+	    uae_u32 t = 0xffffffff;
+	    if (ena) {
+		if (j < thisline_decision.nr_planes) {
+		    t = *(uae_u32 *)(line_data[next_lineno] + offs + 2 * j * MAX_WORDS_PER_LINE);
+		    t ^= (match & 1) - 1;
+		} else {
+		    t = (match & 1) - 1;
+		}
 	    }
 	    total &= t;
 	}
-	if (total)
-	    clxdat |= 1;	
+	if (total) {
+	    collided = 1;
+#if 0
+	    {
+		int k;
+		for (k = 0; k < 1; k++) {
+		    uae_u32 *ldata = (uae_u32 *)(line_data[next_lineno] + offs + 2 * k * MAX_WORDS_PER_LINE);
+		    *ldata ^= 0x5555555555;
+		}
+	    }
+#endif
+
+	}
     }
+    if (collided)
+	clxdat |= 1;
 }
 
 /* Sprite-to-sprite collisions are taken care of in record_sprite.  This one does
-   playfield/sprite collisions.
-   That's the theory.  In practice this doesn't work yet.  I also suspect this code
-   is way too slow.  */
+   playfield/sprite collisions. */
 static void do_sprite_collisions (void)
 {
     int nr_sprites = curr_drawinfo[next_lineno].nr_sprites;
@@ -2350,7 +2383,9 @@ static void VPOSW (uae_u16 v)
 
 STATIC_INLINE uae_u16 VHPOSR (void)
 {
-    uae_u16 v = (vpos << 8) | current_hpos ();
+    uae_u16 v = vpos << 8;
+    uae_u16 hp = current_hpos ();
+    v |= hp;
     return v;
 }
 
@@ -2483,7 +2518,7 @@ int intlev (void)
 {
     int il = -1;
 #ifdef JIT
-    if (compiled_code) {
+    if (currprefs.cachesize) {
 	uae_u16 imask = intreq & intena;
 	if (imask && (intena & 0x4000)) {
 	    if (imask & 0x2000)
@@ -2513,13 +2548,14 @@ int intlev (void)
 static void doint (void)
 {
     int i;
-    uae_u16 imask = intreq & intena;
+    uae_u16 imask;
 
     set_special (SPCFLAG_INT);
 #ifdef JIT
-    if (compiled_code)
+    if (currprefs.cachesize)
 	return;
 #endif
+    imask = intreq & intena;
     if (imask && (intena & 0x4000)) {
 	for (i = 0; i < 14; i++) {
 	    if ((imask & (1 << i)) && irqdelay[i] == 0) {
