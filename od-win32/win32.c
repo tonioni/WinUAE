@@ -368,6 +368,21 @@ static void setcursor(int oldx, int oldy)
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
+static int activateapp;
+
+static void checkpause (void)
+{
+    if (activateapp)
+	return;
+    if (currprefs.win32_inactive_pause) {
+	close_sound ();
+    #ifdef AHI
+	ahi_close_sound ();
+    #endif
+	emulation_paused = 1;
+    }
+}
+
 void setmouseactive (int active)
 {
     int oldactive = mouseactive;
@@ -418,6 +433,8 @@ void setmouseactive (int active)
 	}
 	inputdevice_acquire ();
     }
+    if (!active)
+	checkpause ();
 }
 
 #ifndef AVIOUTPUT
@@ -495,7 +512,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     if (minimized)
 	exit_gui (0);
     focus = 0;
-    write_log( "WinUAE now inactive via WM_ACTIVATE\n" );
+    write_log ("WinUAE now inactive via WM_ACTIVATE\n");
     wait_keyrelease ();
     setmouseactive (0);
     close_sound ();
@@ -533,13 +550,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
     #ifdef AHI
 		ahi_close_sound ();
     #endif
-	    }
-	    if (currprefs.win32_inactive_pause) {
-		close_sound ();
-    #ifdef AHI
-		ahi_close_sound ();
-    #endif
-		emulation_paused = 1;
 	    }
 	}
     }
@@ -648,6 +658,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 #if 0
 	write_log ("WM_ACTIVATEAPP %d %d\n", wParam, minimized);
 #endif
+	activateapp = wParam;
 	if (!wParam) {
 	    setmouseactive (0);
 	    if (normal_display_change_starting == 0)
@@ -770,7 +781,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     break;
 
     case WM_CLOSE:
-	if( !currprefs.win32_ctrl_F11_is_quit )
+	if (!currprefs.win32_ctrl_F11_is_quit)
 	    uae_quit ();
     return 0;
 
@@ -1101,6 +1112,7 @@ void handle_events (void)
 #endif
 	    was_paused = 1;
 	    manual_painting_needed++;
+	    gui_fps (0, 0);
 	}
 	if (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage (&msg);
@@ -1533,7 +1545,7 @@ int WIN32_InitLibraries( void )
     /* Make sure we do an InitCommonControls() to get some advanced controls */
     InitCommonControls();
     
-    hRichEdit = LoadLibrary( "RICHED32.DLL" );
+    hRichEdit = LoadLibrary ("RICHED32.DLL");
     
     hUIDLL = LoadGUI();
     pritransla ();
@@ -1571,14 +1583,14 @@ void logging_init( void )
         debugfile = 0;
     }
 #ifndef SINGLEFILE
-    if( currprefs.win32_logfile ) {
-	sprintf( debugfilename, "%swinuaelog.txt", start_path );
+    if (currprefs.win32_logfile) {
+	sprintf (debugfilename, "%swinuaelog.txt", start_path);
 	if( !debugfile )
-	    debugfile = fopen( debugfilename, "wt" );
+	    debugfile = fopen (debugfilename, "wt");
     } else if (!first) {
-	sprintf( debugfilename, "%swinuaebootlog.txt", start_path );
+	sprintf (debugfilename, "%swinuaebootlog.txt", start_path);
 	if( !debugfile )
-	    debugfile = fopen( debugfilename, "wt" );
+	    debugfile = fopen (debugfilename, "wt");
     }
 #endif
     first++;
@@ -1599,8 +1611,8 @@ void logging_init( void )
 
 void logging_cleanup( void )
 {
-    if( debugfile )
-        fclose( debugfile );
+    if (debugfile)
+        fclose (debugfile);
     debugfile = 0;
 }
 

@@ -1447,6 +1447,8 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	    }
 	    bplham = dp_for_drawing->ham_at_start;
 	}
+        if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
+	    weird_bitplane_fix ();
 
 	{
 	    if (dip_for_drawing->nr_sprites) {
@@ -1464,8 +1466,6 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 			draw_sprites_ecs (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
 		}
 	    }
- 	    if (plf2pri > 5 && bplplanecnt > 4 && bplplanecnt < 6 && !(currprefs.chipset_mask & CSMASK_AGA))
- 		weird_bitplane_fix ();
 	}
 
 	do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);

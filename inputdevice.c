@@ -88,7 +88,7 @@ struct inputevent {
 
 #define DEFEVENT(A, B, C, D, E, F) {#A, B, C, D, E, F },
 struct inputevent events[] = {
-{0, 0, 0, 0, 0, 0},
+{0, 0, AM_K,0,0,0},
 #include "inputevents.def"
 {0, 0, 0, 0, 0, 0}
 };
@@ -178,12 +178,14 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *
 {
     char tmp2[200], *p;
     int event, got, j, k;
+    char *custom;
 
     p = tmp2;
     got = 0;
     for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
         event = id->eventid[i + offset][j];
-	if (event <= 0) {
+	custom = id->custom[i + offset][j];
+	if (custom == NULL && event <= 0) {
 	    for (k = j + 1; k < MAX_INPUT_SUB_EVENT; k++) {
 		if (id->eventid[i + offset][k] > 0) break;
 	    }
@@ -194,7 +196,9 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *
 	    *p++ = ',';
 	    *p = 0;
 	}
-	if (event <= 0)
+	if (custom)
+	    sprintf (p, "\"%s\".%d", custom, id->flags[i + offset][j]);
+	else if (event <= 0)
 	    sprintf (p, "NULL");
 	else
 	    sprintf (p, "%s.%d", events[event].confname, id->flags[i + offset][j]);
@@ -262,8 +266,9 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	p = tmp2;
 	p[0] = 0;
 	for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
+	    char *custom = kbr->custom[i][j];
 	    event = kbr->eventid[i][j];
-	    if (event <= 0) {
+	    if (custom == NULL && event <= 0) {
 		for (k = j + 1; k < MAX_INPUT_SUB_EVENT; k++) {
 		    if (kbr->eventid[i][k] > 0) break;
 		}
@@ -274,7 +279,9 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	        *p++ = ',';
 		*p = 0;
 	    }
-	    if (event > 0)
+	    if (custom)
+	        sprintf (p, "\"%s\".%d", custom, kbr->flags[i][j]);
+	    else if (event > 0)
 		sprintf (p, "%s.%d", events[event].confname, kbr->flags[i][j]);
 	    else
 		strcat (p, "NULL");
@@ -341,13 +348,26 @@ void reset_inputdevice_config (struct uae_prefs *pr)
     memset (mouse_settings_reset, 0, sizeof (mouse_settings_reset));
 }
 
+static void clear_id (struct uae_input_device *id)
+{
+    int i, j;
+#ifndef _DEBUG
+    for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
+	for (j = 0; j < MAX_INPUT_SUB_EVENT; j++)
+	    xfree (id->custom[i][j]);
+    }
+#endif
+    memset (id, 0, sizeof (struct uae_input_device));
+    id->enabled = 1;
+}
+
 void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 {
     struct uae_input_device *id = 0;
     struct inputevent *ie;
     int devnum, num, button, joystick, flags, i, subnum, idnum, keynum;
     int mask;
-    char *p, *p2;
+    char *p, *p2, *custom;
 
     option += 6; /* "input." */
     p = getstring (&option);
@@ -374,10 +394,8 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	if (devnum < 0 || devnum >= MAX_INPUT_DEVICES)
 	    return;
 	id = &pr->mouse_settings[idnum][devnum];
-	if (!mouse_settings_reset[idnum][devnum]) {
-	    memset (id, 0, sizeof (struct uae_input_device));
-	    id->enabled = 1;
-	}
+	if (!mouse_settings_reset[idnum][devnum])
+	    clear_id (id);
 	mouse_settings_reset[idnum][devnum] = 1;
 	joystick = 0;
     } else if (memcmp (option, "joystick.", 9) == 0) {
@@ -386,10 +404,8 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	if (devnum < 0 || devnum >= MAX_INPUT_DEVICES)
 	    return;
 	id = &pr->joystick_settings[idnum][devnum];
-	if (!joystick_settings_reset[idnum][devnum]) {
-	    memset (id, 0, sizeof (struct uae_input_device));
-	    id->enabled = 1;
-	}
+	if (!joystick_settings_reset[idnum][devnum])
+	    clear_id (id);
 	joystick_settings_reset[idnum][devnum] = 1;
 	joystick = 1;
     } else if (memcmp (option, "keyboard.", 9) == 0) {
@@ -435,10 +451,13 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
     }
     p = value;
     
-    subnum = 0;
-    while (subnum < MAX_INPUT_SUB_EVENT) {
+    custom = NULL;
+    for (subnum = 0; subnum < MAX_INPUT_SUB_EVENT; subnum++) {
+        xfree (custom);
+	custom = NULL;
 	p2 = getstring (&p);
-	if (!p2) break;
+	if (!p2)
+	    break;
 	i = 1;
 	while (events[i].name) {
 	    if (!strcmp (events[i].confname, p2))
@@ -447,36 +466,48 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	}
 	ie = &events[i];
 	if (!ie->name) {
-	    subnum++;
-	    continue;
+	    ie = &events[0];
+	    if (strlen (p2) > 2 && p2[0] == '"' && p2[strlen (p2) - 1] == '"') {
+	        custom = my_strdup (p2 + 1);
+	        custom[strlen (custom) - 1] = 0;
+	    }
 	}
 	flags = getnum (&p);
+	if (custom == NULL && ie->name == NULL)
+	    continue;
 	if (joystick < 0) {
 	    if (!(ie->allow_mask & AM_K))
-		return;
+		continue;
 	    id->eventid[keynum][subnum] = ie - events;
 	    id->flags[keynum][subnum] = flags;
+	    xfree (id->custom[keynum][subnum]);
+	    id->custom[keynum][subnum] = custom;
 	} else  if (button) {
 	    if (joystick)
 		mask = AM_JOY_BUT;
 	    else
 		mask = AM_MOUSE_BUT;
 	    if (!(ie->allow_mask & mask))
-		return;
+		continue;
 	    id->eventid[num + ID_BUTTON_OFFSET][subnum] = ie - events;
 	    id->flags[num + ID_BUTTON_OFFSET][subnum] = flags;
+	    xfree (id->custom[num + ID_BUTTON_OFFSET][subnum]);
+	    id->custom[num + ID_BUTTON_OFFSET][subnum] = custom;
 	} else {
 	    if (joystick)
 		mask = AM_JOY_AXIS;
 	    else
 		mask = AM_MOUSE_AXIS;
 	    if (!(ie->allow_mask & mask))
-		return;
+		continue;
 	    id->eventid[num + ID_AXIS_OFFSET][subnum] = ie - events;
 	    id->flags[num + ID_AXIS_OFFSET][subnum] = flags;
+	    xfree (id->custom[num + ID_AXIS_OFFSET][subnum]);
+	    id->custom[num + ID_AXIS_OFFSET][subnum] = custom;
 	}
-	subnum++;
+	custom = NULL;
     }
+    xfree (custom);
 }
 
 /* Mousehack stuff */
@@ -1843,49 +1874,58 @@ static struct uae_input_device *get_uid (struct inputdevice_functions *id, int d
     return uid;
 }
 
-static int get_event_data (struct inputdevice_functions *id, int devnum, int num, int *eventid, int *flags, int sub)
+static int get_event_data (struct inputdevice_functions *id, int devnum, int num, int *eventid, char **custom, int *flags, int sub)
 {
     struct uae_input_device *uid = get_uid (id, devnum);
     int type = id->get_widget_type (devnum, num, 0, 0);
     int i;
     if (type == IDEV_WIDGET_BUTTON) {
-	i = num - id->get_widget_first (devnum, type);
-	*eventid = uid->eventid[ID_BUTTON_OFFSET + i][sub];
-	*flags = uid->flags[ID_BUTTON_OFFSET + i][sub];
+	i = num - id->get_widget_first (devnum, type) + ID_BUTTON_OFFSET;
+	*eventid = uid->eventid[i][sub];
+	*flags = uid->flags[i][sub];
+	*custom = uid->custom[i][sub];
 	return i;
     } else if (type == IDEV_WIDGET_AXIS) {
-	i = num - id->get_widget_first (devnum, type);
-	*eventid = uid->eventid[ID_AXIS_OFFSET + i][sub];
-	*flags = uid->flags[ID_AXIS_OFFSET + i][sub];
+	i = num - id->get_widget_first (devnum, type) + ID_AXIS_OFFSET;
+	*eventid = uid->eventid[i][sub];
+	*flags = uid->flags[i][sub];
+	*custom = uid->custom[i][sub];
 	return i;
     } else if (type == IDEV_WIDGET_KEY) {
 	i = num - id->get_widget_first (devnum, type);
 	*eventid = uid->eventid[i][sub];
 	*flags = uid->flags[i][sub];
+	*custom = uid->custom[i][sub];
 	return i;
     }
     return -1;
 }
 
-static int put_event_data (struct inputdevice_functions *id, int devnum, int num, int eventid, int flags, int sub)
+static int put_event_data (struct inputdevice_functions *id, int devnum, int num, int eventid, char *custom, int flags, int sub)
 {
     struct uae_input_device *uid = get_uid (id, devnum);
     int type = id->get_widget_type (devnum, num, 0, 0);
     int i;
     if (type == IDEV_WIDGET_BUTTON) {
-	i = num - id->get_widget_first (devnum, type);
-	uid->eventid[ID_BUTTON_OFFSET + i][sub] = eventid;
-	uid->flags[ID_BUTTON_OFFSET + i][sub] = flags;
+	i = num - id->get_widget_first (devnum, type) + ID_BUTTON_OFFSET;
+	uid->eventid[i][sub] = eventid;
+	uid->flags[i][sub] = flags;
+	xfree (uid->custom[i][sub]);
+	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
 	return i;
     } else if (type == IDEV_WIDGET_AXIS) {
-	i = num - id->get_widget_first (devnum, type);
-	uid->eventid[ID_AXIS_OFFSET + i][sub] = eventid;
-	uid->flags[ID_AXIS_OFFSET + i][sub] = flags;
+	i = num - id->get_widget_first (devnum, type) + ID_AXIS_OFFSET;
+	uid->eventid[i][sub] = eventid;
+	uid->flags[i][sub] = flags;
+	xfree (uid->custom[i][sub]);
+	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
 	return i;
     } else if (type == IDEV_WIDGET_KEY) {
 	i = num - id->get_widget_first (devnum, type);
 	uid->eventid[i][sub] = eventid;
 	uid->flags[i][sub] = flags;
+	xfree (uid->custom[i][sub]);
+	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
 	return i;
     }
     return -1;
@@ -1895,10 +1935,11 @@ static int is_event_used (struct inputdevice_functions *id, int devnum, int isnu
 {
     struct uae_input_device *uid = get_uid (id, devnum);
     int num, event, flag, sub;
+    char *custom;
 
     for (num = 0; num < id->get_widget_num (devnum); num++) {
 	for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-	    if (get_event_data (id, devnum, num, &event, &flag, sub) >= 0) {
+	    if (get_event_data (id, devnum, num, &event, &custom, &flag, sub) >= 0) {
 		if (event == isevent && isnum != num)
 		    return 1;
 	    }
@@ -1987,6 +2028,7 @@ int inputdevice_iterate (int devnum, int num, char *name, int *af)
     struct inputevent *ie;
     int mask, data, flags, type;
     int devindex = inputdevice_get_device_index (devnum);
+    char *custom;
 
     *af = 0;
     *name = 0;
@@ -2028,31 +2070,37 @@ int inputdevice_iterate (int devnum, int num, char *name, int *af)
 	}
 	if (!(ie->allow_mask & mask))
 	    continue;
-	get_event_data (idf, devindex, num, &data, &flags, 0);
+	get_event_data (idf, devindex, num, &data, &custom, &flags, 0);
         get_ename (ie, name);
 	*af = (flags & ID_FLAG_AUTOFIRE) ? 1 : 0;
 	return 1;
     }
 }
 
-int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, int sub)
+int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, char *custom, int sub)
 {
     struct inputdevice_functions *idf = getidf (devnum);
     struct uae_input_device *uid = get_uid (idf, inputdevice_get_device_index (devnum));
     int flags = 0, flag, data;
     int devindex = inputdevice_get_device_index (devnum);
+    char *customp = NULL;
 
     if (name)
 	strcpy (name, "<none>");
+    if (custom)
+	custom[0] = 0;
     if (pflags)
 	*pflags = 0;
     if (uid == 0 || num < 0)
 	return 0;
-    if (get_event_data (idf, devindex, num, &data, &flag, sub) < 0)
+    if (get_event_data (idf, devindex, num, &data, &customp, &flag, sub) < 0)
 	return 0;
+    if (customp && custom)
+	sprintf (custom, "\"%s\"", customp);
     if (flag & ID_FLAG_AUTOFIRE)
 	flags |= IDEV_MAPPED_AUTOFIRE_SET;
-    if (!data) return 0;
+    if (!data)
+	return 0;
     if (events[data].allow_mask & AM_AF)
 	flags |= IDEV_MAPPED_AUTOFIRE_POSSIBLE;
     if (pflags)
@@ -2061,7 +2109,7 @@ int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, i
     return data;
 }
 
-int inputdevice_set_mapping (int devnum, int num, char *name, int af, int sub)
+int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int af, int sub)
 {
     struct inputdevice_functions *idf = getidf (devnum);
     struct uae_input_device *uid = get_uid (idf, inputdevice_get_device_index (devnum));
@@ -2085,14 +2133,14 @@ int inputdevice_set_mapping (int devnum, int num, char *name, int af, int sub)
     } else {
 	eid = 0;
     }
-    if (get_event_data (idf, devindex, num, &data, &flag, sub) < 0)
+    if (get_event_data (idf, devindex, num, &data, &custom, &flag, sub) < 0)
 	return 0;
     if (data >= 0) {
 	amask = events[eid].allow_mask;
 	flag &= ~ID_FLAG_AUTOFIRE;
 	if (amask & AM_AF)
 	    flag |= af ? ID_FLAG_AUTOFIRE : 0;
-	put_event_data (idf, devindex, num, eid, flag, sub);
+	put_event_data (idf, devindex, num, eid, custom, flag, sub);
 	return 1;
     }
     return 0;

@@ -24,6 +24,7 @@
 #include "crc32.h"
 #include "gui.h"
 #include "cdtv.h"
+#include "enforcer.h"
 
 #ifdef JIT
 int canbang;
@@ -1129,6 +1130,7 @@ uae_u8 REGPARAM2 *default_xlate (uaecptr a)
     if (quit_program == 0) {
 	/* do this only in 68010+ mode, there are some tricky A500 programs.. */
 	if (currprefs.cpu_level > 0 || !currprefs.cpu_compatible) {
+	    enforcer_disable ();
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;

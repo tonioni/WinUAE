@@ -566,9 +566,20 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
     int v, i, type2;
     DWORD ct, ct2, size;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    char fname[MAX_DPATH];
+    
+    strcpy (fname, filename);
+    if (!zfile_exists (fname)) {
+	fetch_configurationpath (fname, sizeof (fname));
+	strcat (fname, filename);
+    }
 
     if (isdefault)
 	qs_override = 1;
+    if (type < 0) {
+	type = 0;
+	cfgfile_get_description (fname, NULL, NULL, NULL, &type);
+    }
     if (type == 0 || type == 1) {
 	if (p->mountinfo == currprefs.mountinfo)
 	    currprefs.mountinfo = 0;
@@ -582,7 +593,7 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
     if (type == 0)
 	default_prefs (p, type);
     RegQueryValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, NULL, (LPBYTE)&ct2, &size);
-    v = cfgfile_load (p, filename, &type2, ct2);
+    v = cfgfile_load (p, fname, &type2, ct2);
     if (!v)
 	return v;
     if (type > 0)
@@ -1479,20 +1490,22 @@ static void set_lventry_input (HWND list, int index)
 {
     int flags, i, sub;
     char name[256];
+    char custom[MAX_DPATH];
     char af[10];
 
-    inputdevice_get_mapped_name (input_selected_device, index, &flags, name, input_selected_sub_num);
+    inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, input_selected_sub_num);
     if (flags & IDEV_MAPPED_AUTOFIRE_SET)
         WIN32GUI_LoadUIString (IDS_YES, af, sizeof (af));
     else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
         WIN32GUI_LoadUIString (IDS_YES, af, sizeof (af));
     else
 	strcpy (af,"-");
-    ListView_SetItemText(list, index, 1, name);
+    ListView_SetItemText(list, index, 1, custom[0] ? custom : name);
     ListView_SetItemText(list, index, 2, af);
     sub = 0;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-	if (inputdevice_get_mapped_name (input_selected_device, index, &flags, name, i)) sub++;
+	if (inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, i) || custom[0])
+	    sub++;
     }
     sprintf (name, "%d", sub);
     ListView_SetItemText(list, index, 3, name);
@@ -4129,9 +4142,9 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
     CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
     CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
-    CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound);
+    CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
     CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
-    CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound);
+    CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
     CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
     CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
     CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
@@ -4252,16 +4265,22 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.win32_logfile = IsDlgButtonChecked (hDlg, IDC_CREATELOGFILE);
 	    enable_for_miscdlg( hDlg );
 	    break;
+	case IDC_INACTIVE_NOSOUND:
+	    if (!IsDlgButtonChecked (hDlg, IDC_INACTIVE_NOSOUND))
+		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, BST_UNCHECKED);
 	case IDC_INACTIVE_PAUSE:
 	    workprefs.win32_inactive_pause = IsDlgButtonChecked (hDlg, IDC_INACTIVE_PAUSE);
-	    break;
-	case IDC_INACTIVE_NOSOUND:
+	    if (workprefs.win32_inactive_pause)
+		CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, BST_CHECKED);
 	    workprefs.win32_inactive_nosound = IsDlgButtonChecked (hDlg, IDC_INACTIVE_NOSOUND);
 	    break;
+	case IDC_MINIMIZED_NOSOUND:
+	    if (!IsDlgButtonChecked (hDlg, IDC_MINIMIZED_NOSOUND))
+		CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, BST_UNCHECKED);
 	case IDC_MINIMIZED_PAUSE:
 	    workprefs.win32_iconified_pause = IsDlgButtonChecked (hDlg, IDC_MINIMIZED_PAUSE);
-	    break;
-	case IDC_MINIMIZED_NOSOUND:
+	    if (workprefs.win32_iconified_pause)
+		CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, BST_CHECKED);
 	    workprefs.win32_iconified_nosound = IsDlgButtonChecked (hDlg, IDC_MINIMIZED_NOSOUND);
 	    break;
 	case IDC_CTRLF11:
@@ -6425,13 +6444,13 @@ static void values_from_portsdlg (HWND hDlg)
 	break;
     }
     workprefs.serial_demand = 0;
-    if( IsDlgButtonChecked( hDlg, IDC_SHARED ) )
+    if (IsDlgButtonChecked (hDlg, IDC_SHARED))
         workprefs.serial_demand = 1;
     workprefs.serial_hwctsrts = 0;
-    if( IsDlgButtonChecked( hDlg, IDC_SER_CTSRTS ) )
+    if (IsDlgButtonChecked (hDlg, IDC_SER_CTSRTS))
         workprefs.serial_hwctsrts = 1;
     workprefs.serial_direct = 0;
-    if( IsDlgButtonChecked( hDlg, IDC_SERIAL_DIRECT ) )
+    if (IsDlgButtonChecked (hDlg, IDC_SERIAL_DIRECT))
         workprefs.serial_direct = 1;
     GetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters, 256);
 
@@ -6709,6 +6728,7 @@ static void values_to_inputdlg (HWND hDlg)
 static void init_inputdlg_2( HWND hDlg )
 {
     char name1[256], name2[256];
+    char custom1[MAX_DPATH];
     int cnt, index, af, aftmp;
 
     if (input_selected_widget < 0) {
@@ -6720,7 +6740,7 @@ static void init_inputdlg_2( HWND hDlg )
     SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)szNone);
     index = -1; af = 0;
     if (input_selected_widget >= 0) {
-	inputdevice_get_mapped_name (input_selected_device, input_selected_widget, 0, name1, input_selected_sub_num);
+	inputdevice_get_mapped_name (input_selected_device, input_selected_widget, 0, name1, custom1, input_selected_sub_num);
 	cnt = 1;
 	while(inputdevice_iterate (input_selected_device, input_selected_widget, name2, &aftmp)) {
 	    free (eventnames[cnt]);
@@ -6874,9 +6894,9 @@ static void values_from_inputdlg (HWND hDlg)
     if (doselect && input_selected_device >= 0 && input_selected_event >= 0) {
 	int flags;
 	inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-	    &flags, 0, input_selected_sub_num);
+	    &flags, 0, NULL, input_selected_sub_num);
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-	    eventnames[input_selected_event], (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0,
+	    eventnames[input_selected_event], NULL, (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0,
 	    input_selected_sub_num);
 	update_listview_input (hDlg);
         inputdevice_updateconfig (&workprefs);
@@ -6903,15 +6923,16 @@ static void input_toggleautofire (void)
 {
     int af, flags, event;
     char name[256];
+    char custom[MAX_DPATH];
     if (input_selected_device < 0 || input_selected_widget < 0)
 	return;
     event = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-	&flags, name, input_selected_sub_num);
+	&flags, name, custom, input_selected_sub_num);
     if (event <= 0)
 	return;
     af = (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 0 : 1;
     inputdevice_set_mapping (input_selected_device, input_selected_widget,
-	name, af, input_selected_sub_num);
+	name, custom, af, input_selected_sub_num);
 }
 
 static BOOL CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -8074,8 +8095,13 @@ static BOOL CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
         return TRUE;
 	case WM_CLOSE:
         DestroyWindow(hDlg);
-        if (dialogreturn < 0)
+        if (dialogreturn < 0) {
 	    dialogreturn = 0;
+	    if (allow_quit) {
+		quit_program = 1;
+		regs.spcflags |= SPCFLAG_BRK;
+	    }
+	}	    
         return TRUE;
 	case WM_INITDIALOG:
 	    guiDlg = hDlg;
@@ -8397,7 +8423,7 @@ void gui_led (int led, int on)
     } else if (led == 7) {
 	pos = 1;
 	ptr = drive_text + pos * 16;
-	sprintf(ptr, "FPS: %.1f", (double)((gui_data.fps + 5) / 10.0));
+	sprintf(ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
     } else if (led == 8) {
         pos = 0;
         ptr = drive_text + pos * 16;

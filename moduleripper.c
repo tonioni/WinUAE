@@ -92,4 +92,15 @@ FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id)
     return fopen (name, mode);
 }
 
+#else
+
+FILE *moduleripper_fopen (const char *name, const char *mode)
+{
+    return NULL;
+}
+FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id)
+{
+    return NULL;
+}
+
 #endif

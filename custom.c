@@ -13,6 +13,7 @@
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 50
 #define SPRITE_DEBUG_MAXY 101
+//#define SPRITE_MASK 0
 #define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
@@ -250,6 +251,7 @@ struct copper {
     unsigned int first_sync;
     unsigned int regtypes_modified;
     int strobe; /* COPJMP1 / COPJMP2 accessed */
+    int last_write, last_write_hpos;
 };
 
 #define REGTYPE_NONE 0
@@ -3005,11 +3007,20 @@ STATIC_INLINE spr_arm (int num, int state)
     }
 }
 
+STATIC_INLINE void sprstartstop (struct sprite *s)
+{
+    if (vpos == s->vstart)
+        s->dmastate = 1;
+    if (vpos == s->vstop)
+        s->dmastate = 0;
+}
+
 STATIC_INLINE void SPRxCTLPOS (int num)
 {
     int sprxp;
     struct sprite *s = &spr[num];
 
+    sprstartstop (s);
     sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
     /* Quite a bit salad in this register... */
 #ifdef AGA
@@ -3028,10 +3039,7 @@ STATIC_INLINE void SPRxCTLPOS (int num)
 	s->vstart |= (sprctl[num] << 3) & 0x200;
 	s->vstop |= (sprctl[num] << 4) & 0x200;
     }
-    if (vpos == s->vstart)
-        s->dmastate = 1;
-    if (vpos == s->vstop)
-        s->dmastate = 0;
+    sprstartstop (s);
 }
 
 STATIC_INLINE void SPRxCTL_1 (uae_u16 v, int num, int hpos)
@@ -3463,18 +3471,27 @@ static void perform_copper_write (int old_hpos)
     } else if (address == 0x8A) {
 	cop_state.ip = cop2lc;
 	cop_state.state = COP_strobe_delay;
-    } else
+    } else {
 	custom_wput_1 (old_hpos, cop_state.saved_i1, cop_state.saved_i2, 0);
+	cop_state.last_write = cop_state.saved_i1;
+	cop_state.last_write_hpos = old_hpos;
+	old_hpos++;
+	if (cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
+	    //write_log ("%d:%d %04.4X:%04.4X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
+	    do_sprites (old_hpos);
+	}
+    }
 }
 
 static int isagnus[]= {
     1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0, /* 32 0x00 - 0x3e */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 27 0x40 - 0x74 */
+
     0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0, /* 21 */
     1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde
     /* BPLxPTH/BPLxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
-    0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0, /* 16 */
+    0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0, /* 16 */
     /* SPRxPTH/SPRxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
     /* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
@@ -3587,7 +3604,8 @@ static void update_copper (int until_hpos)
 	    continue;
 #endif
         if (cop_state.strobe) {
-	    cop_state.ip = cop_state.strobe == 1 ? cop1lc : cop2lc;
+	    if (cop_state.strobe > 0)
+		cop_state.ip = cop_state.strobe == 1 ? cop1lc : cop2lc;
 	    cop_state.strobe = 0;
 	}
 
@@ -3885,6 +3903,10 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     }
     if (!dmaen (DMA_SPRITE))
 	return;
+    if (cycle && !s->dmacycle)
+        return; /* Superfrog intro flashing bee fix */
+
+
     dma = hpos < plfstrt || diwstate != DIW_waiting_stop || !dmaen (DMA_BITPLANE);
     if (vpos == s->vstop || vpos == sprite_vblank_endline) {
 	s->dmastate = 0;
@@ -3908,13 +3930,18 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    write_log ("%d:%d:dma:P=%06.6X ", vpos, hpos, s->pt);
 	}
 #endif
-        if (cycle == 0)
+	//write_log ("%d:%d: %04.4X=%04.4X\n", vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
+        if (cycle == 0) {
 	    SPRxPOS_1 (data, num, hpos);
-	else
+	    s->dmacycle = 1;
+	} else {
 	    SPRxCTL_1 (data, num, hpos);
+	}
     }
     if (s->dmastate && !posctl) {
-    	uae_u16 data = sprite_fetch (s, dma, hpos, cycle, 1);
+    	uae_u16 data;
+    	
+    	data = sprite_fetch (s, dma, hpos, cycle, 1);
         /* Hack for X mouse auto-calibration */
         if (num == 0 && cycle == 0)
             mousehack_handle (sprctl[0], sprpos[0]);
@@ -3923,10 +3950,13 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    write_log ("%d:%d:dma:P=%06.6X ", vpos, hpos, s->pt);
 	}
 #endif
-        if (cycle == 0)
+        if (cycle == 0) {
             SPRxDATA_1 (dma ? data : sprdata[num][0], num, hpos);
-        else
+            s->dmacycle = 1;
+        } else {
             SPRxDATB_1 (dma ? data : sprdatb[num][0], num, hpos);
+            spr_arm (num, 1);
+        }
 #ifdef AGA
         switch (sprite_width)
             {
@@ -4003,22 +4033,26 @@ static void do_sprites (int hpos)
 
     for (i = minspr; i < maxspr; i++) {
 	int cycle = -1;
+	int num = (i - SPR0_HPOS) / 4;
         switch ((i - SPR0_HPOS) & 3)
 	    {
 	    case 0:
 	    cycle = 0;
+	    spr[num].dmacycle = 0;
 	    break;
 	    case 2:
 	    cycle = 1;
 	    break;
 	}
 	if (cycle >= 0)
-	    do_sprites_1 ((i - SPR0_HPOS) / 4, cycle, i);
+	    do_sprites_1 (num, cycle, i);
     }
     last_sprite_hpos = hpos;
 #else
-    for (i = 0; i < MAX_SPRITES * 2; i++)
+    for (i = 0; i < MAX_SPRITES * 2; i++) {
+	spr[i / 2].dmacycle = 1;
 	do_sprites_1 (i / 2, i & 1, 0);
+    }
 #endif
 }
 
@@ -4453,6 +4487,7 @@ static void hsync_handler (void)
 #endif
     /* See if there's a chance of a copper wait ending this line.  */
     cop_state.hpos = 0;
+    cop_state.last_write = 0;
     compute_spcflag_copper ();
     inputdevice_hsync ();
     serial_hsynchandler ();

@@ -1377,7 +1377,8 @@ int cfgfile_get_description (const char *filename, char *description, char *host
     p->config_hardware_path[0] = 0;
     if (cfgfile_load_2 (p, filename, 0, type)) {
 	result = 1;
-	strcpy (description, p->description);
+	if (description)
+	    strcpy (description, p->description);
 	if (hostlink)
 	    strcpy (hostlink, p->config_host_path);
 	if (hardwarelink)

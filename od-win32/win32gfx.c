@@ -45,7 +45,7 @@
 #include "parser.h"
 
 #define AMIGA_WIDTH_MAX 736
-#define AMIGA_HEIGHT_MAX 564
+#define AMIGA_HEIGHT_MAX 568
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2

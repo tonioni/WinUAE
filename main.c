@@ -394,7 +394,7 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
-	    target_cfgfile_load (&currprefs, argv[i] + 8, 0, 1);
+	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */
 	else if (strcmp (argv[i], "-f") == 0) {
@@ -405,7 +405,7 @@ static void parse_cmdline (int argc, char **argv)
                 free_mountinfo (currprefs.mountinfo);
 	        currprefs.mountinfo = alloc_mountinfo ();
 #endif
-		target_cfgfile_load (&currprefs, argv[++i], 0, 1);
+		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
 	} else if (strcmp (argv[i], "-s") == 0) {
 	    if (i + 1 == argc)

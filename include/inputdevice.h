@@ -49,8 +49,8 @@ struct uae_input_device_kbr_default {
 #define ID_AXIS_TOTAL 32
 
 extern int inputdevice_iterate (int devnum, int num, char *name, int *af);
-extern int inputdevice_set_mapping (int devnum, int num, char *name, int af, int sub);
-extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, int sub);
+extern int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int af, int sub);
+extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, char *custom, int sub);
 extern void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);

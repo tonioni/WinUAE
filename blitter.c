@@ -524,6 +524,8 @@ void blitter_handler(void)
 
 STATIC_INLINE int channel_state (int cycles)
 {
+    if (cycles < 0)
+	return 0;
     if (cycles < blit_diag[0])
         return blit_diag[blit_diag[1] + 2 + cycles];
     return blit_diag[((cycles - blit_diag[0]) % blit_diag[1]) + 2];
@@ -890,7 +892,8 @@ void do_blitter (int hpos)
     prevb = 0;
 
     blit_firstline_cycles = blit_first_cycle = get_cycles ();
-    blit_cyclecounter = blit_misscyclecounter = 0;
+    blit_cyclecounter = -1;
+    blit_misscyclecounter = 0;
     blit_last_cycle = 0;
     blit_maxcyclecounter = 0;
     blit_last_hpos = hpos;
