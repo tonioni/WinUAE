@@ -24,6 +24,11 @@
 
 #if 1
 
+STATIC_INLINE int isinrom (void)
+{
+    return (munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000;
+}
+
 #define	DEBUG_FPP	0
 
 #define FFLAG_Z   0x4000
@@ -366,6 +371,10 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra)
     static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
     static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
+#if DEBUG_FPP
+    if (!isinrom ())
+	write_log ("PUTFP: %f %04.4X %04.4X\n", value, opcode, extra);
+#endif
     if ((extra & 0x4000) == 0) {
 	regs.fp[(extra >> 10) & 7] = value;
 	return 1;
@@ -635,8 +644,8 @@ void fdbcc_opp (uae_u32 opcode, uae_u16 extra)
     int cc;
 
 #if DEBUG_FPP
-    printf ("fdbcc_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("fdbcc_opp at %08lx\n", m68k_getpc ());
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
     if (cc == -1) {
@@ -658,8 +667,8 @@ void fscc_opp (uae_u32 opcode, uae_u16 extra)
     int cc;
 
 #if DEBUG_FPP
-    printf ("fscc_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("fscc_opp at %08lx\n", m68k_getpc ());
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
     if (cc == -1) {
@@ -681,8 +690,8 @@ void ftrapcc_opp (uae_u32 opcode, uaecptr oldpc)
     int cc;
 
 #if DEBUG_FPP
-    printf ("ftrapcc_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("ftrapcc_opp at %08lx\n", m68k_getpc ());
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
     if (cc == -1) {
@@ -698,8 +707,8 @@ void fbcc_opp (uae_u32 opcode, uaecptr pc, uae_u32 extra)
     int cc;
 
 #if DEBUG_FPP
-    printf ("fbcc_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("fbcc_opp at %08lx\n", m68k_getpc ());
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
     if (cc == -1) {
@@ -722,8 +731,8 @@ void fsave_opp (uae_u32 opcode)
 
 
 #if DEBUG_FPP
-    printf ("fsave_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("fsave_opp at %08lx\n", m68k_getpc ());
 #endif
     if (get_fp_ad (opcode, &ad) == 0) {
 	m68k_setpc (m68k_getpc () - 2);
@@ -774,8 +783,8 @@ void frestore_opp (uae_u32 opcode)
     int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
 
 #if DEBUG_FPP
-    printf ("frestore_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("frestore_opp at %08lx\n", m68k_getpc ());
 #endif
     if (get_fp_ad (opcode, &ad) == 0) {
 	m68k_setpc (m68k_getpc () - 2);
@@ -850,8 +859,8 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
     fptype src;
 
 #if DEBUG_FPP
-    printf ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra & 0xffff, m68k_getpc () - 4);
-    fflush (stdout);
+    if (!isinrom ())
+	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc () - 4);
 #endif
     switch ((extra >> 13) & 0x7) {
     case 3:

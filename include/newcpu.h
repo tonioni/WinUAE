@@ -108,8 +108,7 @@ extern struct regstruct
     uae_u32 kick_mask;
     uae_u32 address_space_mask;
 
-    uae_u16 irc;
-    uae_u16 ir;
+    uae_u16 irc, ir;
 
     uae_u8 panic;
     uae_u32 panic_pc, panic_addr;

@@ -14,7 +14,7 @@ extern void real_main (int, char **);
 extern void usage (void);
 extern void parse_cmdline (int argc, char **argv);
 extern void sleep_millis (int ms);
-
+extern int sleep_resolution;
 
 extern void uae_reset (int);
 extern void uae_quit (void);

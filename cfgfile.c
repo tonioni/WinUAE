@@ -24,6 +24,8 @@
 #include "savestate.h"
 #include "memory.h"
 #include "gui.h"
+#include "newcpu.h"
+#include "zfile.h"
 
 #define CONFIG_BLEN 2560
 
@@ -143,7 +145,8 @@ static const char *filtermode2[] = { "0x", "1x", "2x", "3x", "4x", 0 };
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
-    "sound_pri_cutoff", "sound_pri_time", "sound_min_buff", 0 };
+    "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
+    "gfx_test_speed", "gfxlib_replacement", "enforcer", 0 };
 
 #define UNEXPANDED "$(FILE_PATH)"
 
@@ -175,18 +178,18 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
     return my_strdup (file);
 }
 
-void cfgfile_write (FILE *f, char *format,...)
+void cfgfile_write (struct zfile *f, char *format,...)
 {
     va_list parms;
     char tmp[CONFIG_BLEN];
 
     va_start (parms, format);
     vsprintf (tmp, format, parms);
-    fprintf (f, tmp);
+    zfile_fwrite (tmp, 1, strlen (tmp), f);
     va_end (parms);
 }
 
-void save_options (FILE *f, struct uae_prefs *p, int type)
+static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
     struct strlist *sl;
     char *str;
@@ -1344,7 +1347,7 @@ end:
 
 int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
 {
-    FILE *fh = fopen (filename, "w");
+    struct zfile *fh = zfile_fopen (filename, "w");
     write_log ("save config '%s'\n", filename);
     if (! fh)
 	return 0;
@@ -1352,7 +1355,7 @@ int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
     if (!type)
 	type = CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST;
     save_options (fh, p, type);
-    fclose (fh);
+    zfile_fclose (fh);
     return 1;
 }
 
@@ -1759,8 +1762,209 @@ void cfgfile_addcfgparam (char *line)
     temp_lines = u;
 }
 
+static int cmdlineparser (char *s, char *outp[], int max)
+{
+    int j, cnt = 0;
+    int slash = 0;
+    int quote = 0;
+    char tmp1[MAX_DPATH];
+    char *prev;
+    int doout;
 
-uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
+    doout = 0;
+    prev = s;
+    j = 0;
+    while (cnt < max) {
+	char c = *s++;
+	if (!c)
+	    break;
+	if (c < 32)
+	    continue;
+	if (c == '\\')
+	    slash = 1;
+        if (!slash && c == '"') {
+	    if (quote) {
+	        quote = 0;
+	        doout = 1;
+	    } else {
+	        quote = 1;
+	        j = -1;
+	    }
+	}
+	if (!quote && c == ' ')
+	    doout = 1;
+	if (!doout) {
+	    if (j >= 0) {
+		tmp1[j] = c;
+		tmp1[j + 1] = 0;
+	    }
+	    j++;
+	}
+	if (doout) {
+	    outp[cnt++] = my_strdup (tmp1);
+	    tmp1[0] = 0;
+	    doout = 0;
+	    j = 0;
+	}
+	slash = 0;
+    }
+    if (j > 0 && cnt < max)
+	outp[cnt++] = my_strdup (tmp1);
+    return cnt;
+}
+
+#define UAELIB_MAX_PARSE 100
+uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize)
+{
+    char *p;
+    char *argc[UAELIB_MAX_PARSE];
+    int argv, i;
+    uae_u32 err;
+    uae_u8 zero = 0;
+    static struct zfile *configstore;
+    static char *configsearch;
+    static int configsearchfound;
+    
+    err = 0;
+    argv = 0;
+    p = 0;
+    if (index != 0xffffffff) {
+        if (!configstore) {
+	    err = 20;
+	    goto end;
+	}
+	if (configsearch) {
+	    char tmp[CONFIG_BLEN];
+	    int j = 0;
+	    char *in = configsearch;
+	    int inlen = strlen (configsearch);
+	    int joker = 0;
+
+	    if (in[inlen - 1] == '*') {
+		joker = 1;
+		inlen--;
+	    }
+
+	    for (;;) {
+		uae_u8 b = 0;
+
+		if (zfile_fread (&b, 1, 1, configstore) != 1) {
+		    err = 10;
+		    if (configsearch)
+			err = 5;
+		    if (configsearchfound)
+			err = 0;
+		    goto end;
+		}
+		if (j >= sizeof (tmp) - 1)
+		    j = sizeof (tmp) - 1;
+		if (b == 0) {
+		    err = 10;
+		    if (configsearch)
+			err = 5;
+		    if (configsearchfound)
+			err = 0;
+		    goto end;
+		}
+		if (b == '\n') {
+		    if (configsearch && !strncmp (tmp, in, inlen) &&
+			((inlen > 0 && strlen (tmp) > inlen && tmp[inlen] == '=') || (joker))) {
+			char *p;
+			if (joker)
+			    p = tmp - 1;
+			else
+			    p = strchr (tmp, '=');
+			if (p) {
+			    for (i = 0; i < outsize - 1; i++) {
+				uae_u8 b = *++p;
+				put_byte (out + i, b);
+				put_byte (out + i + 1, 0);
+				if (!b)
+				    break;
+			    }
+			}
+			err = 0xffffffff;
+			configsearchfound++;
+			goto end;
+		    }
+		    index--;
+		    j = 0;
+		} else {
+		    tmp[j++] = b;
+		    tmp[j] = 0;
+		}
+	    }
+	}
+	err = 0xffffffff;
+	for (i = 0; i < outsize - 1; i++) {
+	    uae_u8 b = 0;
+	    if (zfile_fread (&b, 1, 1, configstore) != 1)
+		err = 0;
+	    if (b == 0)
+		err = 0;
+	    if (b == '\n')
+		b = 0;
+	    put_byte (out + i, b);
+	    put_byte (out + i + 1, 0);
+	    if (!b)
+		break;
+	}
+	goto end;
+    }
+ 
+    if (size > 10000)
+	return 10;
+    p = xmalloc (size + 1);
+    if (!p)
+	return 10;
+    for (i = 0; i < size; i++) {
+        p[i] = get_byte (parms + i);
+        if (p[i] == 10 || p[i] == 13 || p[i] == 0)
+	    break;
+    }
+    p[i] = 0;
+    argv = cmdlineparser (p, argc, UAELIB_MAX_PARSE);
+
+    if (argv <= 1 && index == 0xffffffff) {
+	zfile_fclose (configstore);
+	xfree (configsearch);
+	configstore = zfile_fopen_empty ("configstore", 50000);
+	configsearch = NULL;
+	if (argv > 0 && strlen (argc[0]) > 0)
+	    configsearch = my_strdup (argc[0]);
+	if (!configstore) {
+	    err = 20;
+	    goto end;
+	}
+	zfile_fseek (configstore, 0, SEEK_SET);
+	save_options (configstore, &currprefs, 0);
+	zfile_fwrite (&zero, 1, 1, configstore);
+	zfile_fseek (configstore, 0, SEEK_SET);
+	err = 0xffffffff;
+	configsearchfound = 0;
+	goto end;
+    }
+
+    for (i = 0; i < argv; i++) {
+	if (i + 2 <= argv) {
+	    if (!inputdevice_uaelib (argc[i], argc[i + 1])) {
+		if (!cfgfile_parse_option (&changed_prefs, argc[i], argc[i + 1], 0)) {
+		    err = 5;
+		    break;
+		}
+	    }
+	    set_special (SPCFLAG_BRK);
+	    i++;
+	}
+    }
+end:
+    for (i = 0; i < argv; i++)
+	xfree (argc[i]);
+    xfree (p);
+    return err;
+}	
+
+uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
 {
     char tmp[CONFIG_BLEN];
     int i;
@@ -1886,7 +2090,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->produce_sound = 3;
     p->sound_stereo = 1;
     p->sound_stereo_separation = 7;
-    p->sound_mixed_stereo = -1;
+    p->sound_mixed_stereo = 0;
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
@@ -2055,7 +2259,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->sound_filter = 1;
     p->sound_stereo = 1;
     p->sound_stereo_separation = 7;
-    p->sound_mixed_stereo = -1;
+    p->sound_mixed_stereo = 0;
+    p->cachesize = 0;
 
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -2103,6 +2308,7 @@ static void set_68000_compa (struct uae_prefs *p, int compa)
 	p->fast_copper = 0;
 	break;
 	case 1:
+	p->fast_copper = 0;
 	break;
 	case 2:
 	p->cpu_compatible = 0;

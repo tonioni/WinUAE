@@ -119,6 +119,19 @@ static int isdevice (struct uae_input_device *id)
     return 0;
 }
 
+int inputdevice_uaelib (char *s, char *parm)
+{
+    int i;
+    
+    for (i = 1; events[i].name; i++) {
+	if (!strcmp (s, events[i].confname)) {
+	    handle_input_event (i, atol (parm), 1, 0);
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 static struct uae_input_device *joysticks;
 static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
@@ -155,13 +168,13 @@ struct input_queue_struct {
 };
 static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 
-static void out_config (FILE *f, int id, int num, char *s1, char *s2)
+static void out_config (struct zfile *f, int id, int num, char *s1, char *s2)
 {
     cfgfile_write (f, "input.%d.%s%d=%s\n", id, s1, num, s2);
     //write_log ("-input.%d.%s%d=%s\n", id, s1, num, s2);
 }
 
-static void write_config2 (FILE *f, int idnum, int i, int offset, char *tmp1, struct uae_input_device *id)
+static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *tmp1, struct uae_input_device *id)
 {
     char tmp2[200], *p;
     int event, got, j, k;
@@ -191,7 +204,7 @@ static void write_config2 (FILE *f, int idnum, int i, int offset, char *tmp1, st
 	out_config (f, idnum, i, tmp1, tmp2);
 }
 
-static void write_config (FILE *f, int idnum, int devnum, char *name, struct uae_input_device *id, struct uae_input_device2 *id2)
+static void write_config (struct zfile *f, int idnum, int devnum, char *name, struct uae_input_device *id, struct uae_input_device2 *id2)
 {
     char tmp1[100];
     int i;
@@ -216,7 +229,7 @@ static void kbrlabel (char *s)
     }
 }
 
-static void write_kbr_config (FILE *f, int idnum, int devnum, struct uae_input_device *kbr)
+static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae_input_device *kbr)
 {
     char tmp1[200], tmp2[200], tmp3[200], *p;
     int i, j, k, event, skip;
@@ -275,7 +288,7 @@ static void write_kbr_config (FILE *f, int idnum, int devnum, struct uae_input_d
     }
 }
 
-void write_inputdevice_config (struct uae_prefs *p, FILE *f)
+void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 {
     int i, id;
 

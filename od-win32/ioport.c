@@ -23,7 +23,11 @@ int ioport_init (void)
     if (initialized)
 	return 1;
 #ifndef IOPORT_EMU
-    initialized = InitializeWinIo();
+    __try {
+        initialized = InitializeWinIo();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        initialized = 0;
+    }
 #else
     initialized = 1;
 #endif

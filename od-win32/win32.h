@@ -75,6 +75,7 @@ struct threadpriorities {
     char *name;
     int value;
     int classvalue;
+    int id;
 };
 extern struct threadpriorities priorities[];
 extern void setpriority (struct threadpriorities *pri);

@@ -149,6 +149,7 @@ static void init_mmtimer (void)
     timehandle = CreateEvent (NULL, TRUE, FALSE, NULL);
 }
 
+int sleep_resolution;
 void sleep_millis (int ms)
 {
     UINT TimerEvent;
@@ -328,14 +329,17 @@ static int figure_processor_speed (void)
 
     SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_NORMAL);
     dummythread_die = 1;
-   
+
+    sleep_resolution = 1;
     if (clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) {
 	limit = 2.5;
 	if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
 	    timermode = 1;
+	    sleep_resolution = ratea2 * clockrate1000 / (ratecnt * 1000000);
 	    write_log ("Using Sleep() (resolution < %.1fms)\n", limit);
 	} else if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
 	    timermode = 0;
+	    sleep_resolution = ratea1 * clockrate1000 / (ratecnt * 1000000);
 	    timebegin ();
 	    write_log ("Using MultiMedia timers (resolution < %.1fms)\n", limit);
 	} else {
@@ -346,6 +350,8 @@ static int figure_processor_speed (void)
 	timermode = -1;
 	write_log ("forcing busy-loop wait mode\n");
     }
+    if (sleep_resolution < 1000)
+	sleep_resolution = 1000;
     syncbase = (unsigned long)clockrate;
     return 1;
 }
@@ -483,6 +489,8 @@ static void winuae_inactive (HWND hWnd, int minimized)
 {
     struct threadpriorities *pri;
 
+    if (minimized)
+	exit_gui (0);
     focus = 0;
     write_log( "WinUAE now inactive via WM_ACTIVATE\n" );
     wait_keyrelease ();
@@ -562,7 +570,6 @@ static void handleXbutton (WPARAM wParam, int updown)
 
 static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    static int ignorenextactivateapp;
     PAINTSTRUCT ps;
     HDC hDC;
     LPMINMAXINFO lpmmi;
@@ -594,12 +601,15 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		v = TRUE;
 		break;
 	    }
+	    exit_gui (0);
 	    if (v != minimized) {
 		minimized = v;
-		if (v)
+		if (v) {
 		    winuae_inactive (hWnd, wParam == SIZE_MINIMIZED);
-		else
+		} else {
+		    pausemode (0);
 		    winuae_active (hWnd, minimized);
+		}
 	    }
 	    return 0;
 	}
@@ -611,8 +621,6 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     	    minimized = HIWORD (wParam);
 	    if (LOWORD (wParam) != WA_INACTIVE) {
       		winuae_active (hWnd, minimized);
-		if (ignorenextactivateapp > 0)
-		    ignorenextactivateapp--;
 	    } else {
 		winuae_inactive (hWnd, minimized);
 	    }
@@ -625,8 +633,6 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		if (!minimized)
 		    winuae_active (hWnd, minimized);
 	    }
-	    if (ignorenextactivateapp > 0)
-	        ignorenextactivateapp--;
 	    return 0;
 	}
 	break;
@@ -634,19 +640,18 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_ACTIVATEAPP:
 	write_log ("WM_ACTIVATEAPP %d %d\n", wParam, minimized);
 	if (!wParam) {
-	    if (gui_active && isfullscreen())
-	        exit_gui (0);
 	    setmouseactive (0);
+	    if (normal_display_change_starting == 0)
+		normal_display_change_starting = 4;
 	} else {
 	    if (minimized)
 		minimized = 0;
 	    winuae_active (hWnd, minimized);
-	    if (!ignorenextactivateapp && isfullscreen () && is3dmode ()) {
-	        WIN32GFX_DisplayChangeRequested ();
-	        ignorenextactivateapp = 3;
+	    if (normal_display_change_starting) {
+		if (isfullscreen () && is3dmode () && normal_display_change_starting == 4)
+		    WIN32GFX_DisplayChangeRequested ();
+	        normal_display_change_starting--;
 	    }
-	    if (gui_active && isfullscreen())
-	        exit_gui (0);
 	}
         manual_palette_refresh_needed = 1;
     return 0;
@@ -719,19 +724,26 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     return 0;
 
     case WM_PAINT:
-	notice_screen_contents_lost ();
-        hDC = BeginPaint (hWnd, &ps);
-        /* Check to see if this WM_PAINT is coming while we've got the GUI visible */
-        if (manual_painting_needed)
-	    updatedisplayarea ();
-	EndPaint (hWnd, &ps);
-	if (manual_palette_refresh_needed) {
-	    WIN32GFX_SetPalette();
+    {
+	static int recursive = 0;
+	if (recursive == 0) {
+	    recursive++;
+    	    notice_screen_contents_lost ();
+	    hDC = BeginPaint (hWnd, &ps);
+	    /* Check to see if this WM_PAINT is coming while we've got the GUI visible */
+	    if (manual_painting_needed)
+		updatedisplayarea ();
+	    EndPaint (hWnd, &ps);
+	    if (manual_palette_refresh_needed) {
+		WIN32GFX_SetPalette();
 #ifdef PICASSO96
-	    DX_SetPalette (0, 256);
+		DX_SetPalette (0, 256);
 #endif
+	    }
 	    manual_palette_refresh_needed = 0;
+	    recursive--;
 	}
+    }
     break;
 
     case WM_DROPFILES:
@@ -1090,6 +1102,7 @@ void handle_events (void)
 	inputdevicefunc_mouse.read();
 	inputdevicefunc_joystick.read();
         inputdevice_handle_inputcode ();
+	check_prefs_changed_gfx ();
     }
     while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
         TranslateMessage (&msg);
@@ -1214,209 +1227,210 @@ static HMODULE LoadGUI( void )
     HMODULE result = NULL;
     LPCTSTR dllname = NULL;
     LANGID language = GetUserDefaultLangID() & 0x3FF; // low 9-bits form the primary-language ID
+    char dllbuf[MAX_DPATH];
 
     switch( language )
     {
     case LANG_AFRIKAANS:
-	dllname = "WinUAE_Afrikaans.dll";
+	dllname = "Afrikaans";
 	break;
     case LANG_ARABIC:
-	dllname = "WinUAE_Arabic.dll";
+	dllname = "Arabic";
 	break;
     case LANG_ARMENIAN:
-	dllname = "WinUAE_Armenian.dll";
+	dllname = "Armenian";
 	break;
     case LANG_ASSAMESE:
-	dllname = "WinUAE_Assamese.dll";
+	dllname = "Assamese";
 	break;
     case LANG_AZERI:
-	dllname = "WinUAE_Azeri.dll";
+	dllname = "Azeri";
 	break;
     case LANG_BASQUE:
-	dllname = "WinUAE_Basque.dll";
+	dllname = "Basque";
 	break;
     case LANG_BELARUSIAN:
-	dllname = "WinUAE_Belarusian.dll";
+	dllname = "Belarusian";
 	break;
     case LANG_BENGALI:
-	dllname = "WinUAE_Bengali.dll";
+	dllname = "Bengali";
 	break;
     case LANG_BULGARIAN:
-	dllname = "WinUAE_Bulgarian.dll";
+	dllname = "Bulgarian";
 	break;
     case LANG_CATALAN:
-	dllname = "WinUAE_Catalan.dll";
+	dllname = "Catalan";
 	break;
     case LANG_CHINESE:
-	dllname = "WinUAE_Chinese.dll";
+	dllname = "Chinese";
 	break;
     case LANG_CROATIAN:
-	dllname = "WinUAE_CroatianSerbian.dll";
+	dllname = "CroatianSerbian";
 	break;
     case LANG_CZECH:
-	dllname = "WinUAE_Czech.dll";
+	dllname = "Czech";
 	break;
     case LANG_DANISH:
-	dllname = "WinUAE_Danish.dll";
+	dllname = "Danish";
 	break;
     case LANG_DUTCH:
-	dllname = "WinUAE_Dutch.dll";
+	dllname = "Dutch";
 	break;
     case LANG_ESTONIAN:
-	dllname = "WinUAE_Estonian.dll";
+	dllname = "Estonian";
 	break;
     case LANG_FAEROESE:
-	dllname = "WinUAE_Faeroese.dll";
+	dllname = "Faeroese";
 	break;
     case LANG_FARSI:
-	dllname = "WinUAE_Farsi.dll";
+	dllname = "Farsi";
 	break;
     case LANG_FINNISH:
-	dllname = "WinUAE_Finnish.dll";
+	dllname = "Finnish";
 	break;
     case LANG_FRENCH:
-	dllname = "WinUAE_French.dll";
+	dllname = "French";
 	break;
     case LANG_GEORGIAN:
-	dllname = "WinUAE_Georgian.dll";
+	dllname = "Georgian";
 	break;
     case LANG_GERMAN:
-	dllname = "WinUAE_German.dll";
+	dllname = "German";
 	break;
     case LANG_GREEK:
-	dllname = "WinUAE_Greek.dll";
+	dllname = "Greek";
 	break;
     case LANG_GUJARATI:
-	dllname = "WinUAE_Gujarati.dll";
+	dllname = "Gujarati";
 	break;
     case LANG_HEBREW:
-	dllname = "WinUAE_Hebrew.dll";
+	dllname = "Hebrew";
 	break;
     case LANG_HINDI:
-	dllname = "WinUAE_Hindi.dll";
+	dllname = "Hindi";
 	break;
     case LANG_HUNGARIAN:
-	dllname = "WinUAE_Hungarian.dll";
+	dllname = "Hungarian";
 	break;
     case LANG_ICELANDIC:
-	dllname = "WinUAE_Icelandic.dll";
+	dllname = "Icelandic";
 	break;
     case LANG_INDONESIAN:
-	dllname = "WinUAE_Indonesian.dll";
+	dllname = "Indonesian";
 	break;
     case LANG_ITALIAN:
-	dllname = "WinUAE_Italian.dll";
+	dllname = "Italian";
 	break;
     case LANG_JAPANESE:
-	dllname = "WinUAE_Japanese.dll";
+	dllname = "Japanese";
 	break;
     case LANG_KANNADA:
-	dllname = "WinUAE_Kannada.dll";
+	dllname = "Kannada";
 	break;
     case LANG_KASHMIRI:
-	dllname = "WinUAE_Kashmiri.dll";
+	dllname = "Kashmiri";
 	break;
     case LANG_KAZAK:
-	dllname = "WinUAE_Kazak.dll";
+	dllname = "Kazak";
 	break;
     case LANG_KONKANI:
-	dllname = "WinUAE_Konkani.dll";
+	dllname = "Konkani";
 	break;
     case LANG_KOREAN:
-	dllname = "WinUAE_Korean.dll";
+	dllname = "Korean";
 	break;
     case LANG_LATVIAN:
-	dllname = "WinUAE_Latvian.dll";
+	dllname = "Latvian";
 	break;
     case LANG_LITHUANIAN:
-	dllname = "WinUAE_Lithuanian.dll";
+	dllname = "Lithuanian";
 	break;
     case LANG_MACEDONIAN:
-	dllname = "WinUAE_Macedonian.dll";
+	dllname = "Macedonian";
 	break;
     case LANG_MALAY:
-	dllname = "WinUAE_Malay.dll";
+	dllname = "Malay";
 	break;
     case LANG_MALAYALAM:
-	dllname = "WinUAE_Malayalam.dll";
+	dllname = "Malayalam";
 	break;
     case LANG_MANIPURI:
-	dllname = "WinUAE_Manipuri.dll";
+	dllname = "Manipuri";
 	break;
     case LANG_MARATHI:
-	dllname = "WinUAE_Marathi.dll";
+	dllname = "Marathi";
 	break;
     case LANG_NEPALI:
-	dllname = "WinUAE_Nepali.dll";
+	dllname = "Nepali";
 	break;
     case LANG_NORWEGIAN:
-	dllname = "WinUAE_Norwegian.dll";
+	dllname = "Norwegian";
 	break;
     case LANG_ORIYA:
-	dllname = "WinUAE_Oriya.dll";
+	dllname = "Oriya";
 	break;
     case LANG_POLISH:
-	dllname = "WinUAE_Polish.dll";
+	dllname = "Polish";
 	break;
     case LANG_PORTUGUESE:
-	dllname = "WinUAE_Portuguese.dll";
+	dllname = "Portuguese";
 	break;
     case LANG_PUNJABI:
-	dllname = "WinUAE_Punjabi.dll";
+	dllname = "Punjabi";
 	break;
     case LANG_ROMANIAN:
-	dllname = "WinUAE_Romanian.dll";
+	dllname = "Romanian";
 	break;
     case LANG_RUSSIAN:
-	dllname = "WinUAE_Russian.dll";
+	dllname = "Russian";
 	break;
     case LANG_SANSKRIT:
-	dllname = "WinUAE_Sanskrit.dll";
+	dllname = "Sanskrit";
 	break;
     case LANG_SINDHI:
-	dllname = "WinUAE_Sindhi.dll";
+	dllname = "Sindhi";
 	break;
     case LANG_SLOVAK:
-	dllname = "WinUAE_Slovak.dll";
+	dllname = "Slovak";
 	break;
     case LANG_SLOVENIAN:
-	dllname = "WinUAE_Slovenian.dll";
+	dllname = "Slovenian";
 	break;
     case LANG_SPANISH:
-	dllname = "WinUAE_Spanish.dll";
+	dllname = "Spanish";
 	break;
     case LANG_SWAHILI:
-	dllname = "WinUAE_Swahili.dll";
+	dllname = "Swahili";
 	break;
     case LANG_SWEDISH:
-	dllname = "WinUAE_Swedish.dll";
+	dllname = "Swedish";
 	break;
     case LANG_TAMIL:
-	dllname = "WinUAE_Tamil.dll";
+	dllname = "Tamil";
 	break;
     case LANG_TATAR:
-	dllname = "WinUAE_Tatar.dll";
+	dllname = "Tatar";
 	break;
     case LANG_TELUGU:
-	dllname = "WinUAE_Telugu.dll";
+	dllname = "Telugu";
 	break;
     case LANG_THAI:
-	dllname = "WinUAE_Thai.dll";
+	dllname = "Thai";
 	break;
     case LANG_TURKISH:
-	dllname = "WinUAE_Turkish.dll";
+	dllname = "Turkish";
 	break;
     case LANG_UKRAINIAN:
-	dllname = "WinUAE_Ukrainian.dll";
+	dllname = "Ukrainian";
 	break;
     case LANG_URDU:
-	dllname = "WinUAE_Urdu.dll";
+	dllname = "Urdu";
 	break;
     case LANG_UZBEK:
-	dllname = "WinUAE_Uzbek.dll";
+	dllname = "Uzbek";
 	break;
     case LANG_VIETNAMESE:
-	dllname = "WinUAE_Vietnamese.dll";
+	dllname = "Vietnamese";
 	break;
     case 0x400:
 	dllname = "guidll.dll";
@@ -1425,22 +1439,28 @@ static HMODULE LoadGUI( void )
 
     if( dllname )
     {
-	TCHAR  szFilename[ MAX_DPATH ];
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;
 	LPVOID lpFileVersionData = NULL;
 	BOOL   success = FALSE;
-	result = LoadLibrary( dllname );
-	if( result && GetModuleFileName( result, (LPTSTR)&szFilename, MAX_DPATH ) )
+	int fail = 1;
+
+        if (language == 0x400)
+	    sprintf (dllbuf, "%sguidll.dll", start_path);
+	else
+	    sprintf (dllbuf, "%sWinUAE_%s.dll", start_path, dllname);
+	result = LoadLibrary (dllbuf);
+	if( result) 
 	{
-	    dwFileVersionInfoSize = GetFileVersionInfoSize( szFilename, &dwVersionHandle );
+	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle );
 	    if( dwFileVersionInfoSize )
 	    {
 		if( lpFileVersionData = calloc( 1, dwFileVersionInfoSize ) )
 		{
-		    if( GetFileVersionInfo( szFilename, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData ) )
+		    if( GetFileVersionInfo (dllbuf, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData ) )
 		    {
 			VS_FIXEDFILEINFO *vsFileInfo = NULL;
 			UINT uLen;
+			fail = 0;
 			if( VerQueryValue( lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen ) )
 			{
 			    if( vsFileInfo &&
@@ -1449,9 +1469,9 @@ static HMODULE LoadGUI( void )
 				&& HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)
 			    {
 				success = TRUE;
-				write_log ("Translation DLL '%s' loaded and used\n", dllname);
+				write_log ("Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {
-				write_log ("Translation DLL '%s' version mismatch (%d.%d.%d)\n", dllname,
+				write_log ("Translation DLL '%s' version mismatch (%d.%d.%d)\n", dllbuf,
 				    HIWORD(vsFileInfo->dwProductVersionMS),
 				    LOWORD(vsFileInfo->dwProductVersionMS),
 				    HIWORD(vsFileInfo->dwProductVersionLS));
@@ -1462,6 +1482,8 @@ static HMODULE LoadGUI( void )
 		}
 	    }
 	}
+	if (fail)
+	    write_log ("Translation DLL '%s' failed to load, error %d\n", dllbuf, GetLastError ());
 	if( result && !success )
 	{
 	    FreeLibrary( result );
@@ -1472,6 +1494,24 @@ static HMODULE LoadGUI( void )
     return result;
 }
 
+struct threadpriorities priorities[] = {
+    { NULL, THREAD_PRIORITY_ABOVE_NORMAL, ABOVE_NORMAL_PRIORITY_CLASS, IDS_PRI_ABOVENORMAL },
+    { NULL, THREAD_PRIORITY_NORMAL, NORMAL_PRIORITY_CLASS, IDS_PRI_NORMAL },
+    { NULL, THREAD_PRIORITY_BELOW_NORMAL, BELOW_NORMAL_PRIORITY_CLASS, IDS_PRI_BELOWNORMAL },
+    { NULL, THREAD_PRIORITY_LOWEST, IDLE_PRIORITY_CLASS, IDS_PRI_LOW },
+    { 0, 0, 0, 0 }
+};
+
+static void pritransla (void)
+{
+    int i;
+    
+    for (i = 0; priorities[i].id; i++) {
+	char tmp[MAX_DPATH];
+        WIN32GUI_LoadUIString (priorities[i].id, tmp, sizeof (tmp));
+	priorities[i].name = my_strdup (tmp);
+    }
+}
 
 /* try to load COMDLG32 and DDRAW, initialize csDraw */
 int WIN32_InitLibraries( void )
@@ -1487,6 +1527,7 @@ int WIN32_InitLibraries( void )
     hRichEdit = LoadLibrary( "RICHED32.DLL" );
     
     hUIDLL = LoadGUI();
+    pritransla ();
 
     return result;
 }
@@ -1577,7 +1618,7 @@ void target_default_options (struct uae_prefs *p, int type)
     }
 }
 
-void target_save_options (FILE *f, struct uae_prefs *p)
+void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
     cfgfile_write (f, "win32.middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
     cfgfile_write (f, "win32.logfile=%s\n", p->win32_logfile ? "true" : "false");
@@ -1693,9 +1734,16 @@ void fetch_configurationpath (char *out, int size)
     fetch_path ("ConfigurationPath", out, size);
 }
 
+static void strip_slashes (char *p)
+{
+    while (strlen (p) > 0 && (p[strlen (p) - 1] == '\\' || p[strlen (p) - 1] == '/'))
+	p[strlen (p) - 1] = 0;
+}
+
 void fetch_path (char *name, char *out, int size)
 {
     int size2 = size;
+
     strcpy (out, start_path);
     if (!strcmp (name, "FloppyPath"))
 	strcat (out, "..\\shared\\adf\\");
@@ -1714,10 +1762,18 @@ void fetch_path (char *name, char *out, int size)
 	    RegQueryValueEx (hWinUAEKey, name, 0, NULL, out + strlen (out) - 1, &size2);
 	}
     }
+    strip_slashes (out);
+    if (!strcmp (name, "KickstartPath")) {
+	DWORD v = GetFileAttributes (out);
+	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
+	    strcpy (out, start_path);
+    }
+    strncat (out, "\\", size);
 }
 void set_path (char *name, char *path)
 {
     char tmp[MAX_DPATH];
+
     if (!path) {
 	strcpy (tmp, start_path);
 	if (!strcmp (name, "KickstartPath"))
@@ -1733,8 +1789,14 @@ void set_path (char *name, char *path)
     } else {
 	strcpy (tmp, path);
     }
-    if (tmp[strlen (tmp) - 1] != '\\' && tmp[strlen (tmp) - 1] != '/')
-	strcat (tmp, "\\");
+    strip_slashes (tmp);
+    if (!strcmp (name, "KickstartPath")) {
+	DWORD v = GetFileAttributes (tmp);
+	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
+	    strcpy (tmp, start_path);
+    }
+    strcat (tmp, "\\");
+
     if (hWinUAEKey)
 	RegSetValueEx (hWinUAEKey, name, 0, REG_SZ, (CONST BYTE *)tmp, strlen (tmp) + 1);
 }
@@ -1812,13 +1874,13 @@ static int checkversion (char *vs)
     if (memcmp (vs, "WinUAE ", 7))
 	return 0;
     vs += 7;
-    if (parseversion (&vs) < UAEMAJOR)
-	return 1;
-    if (parseversion (&vs) < UAEMINOR)
-	return 1;
-    if (parseversion (&vs) < UAESUBREV)
-	return 1;
-    return 0;
+    if (parseversion (&vs) > UAEMAJOR)
+	return 0;
+    if (parseversion (&vs) > UAEMINOR)
+	return 0;
+    if (parseversion (&vs) >= UAESUBREV)
+	return 0;
+    return 1;
 }
 
 static void WIN32_HandleRegistryStuff( void )
@@ -1833,7 +1895,6 @@ static void WIN32_HandleRegistryStuff( void )
     HKEY hWinUAEKeyLocal = NULL;
     HKEY fkey;
     int forceroms = 0;
-    int updateversion = 1;
 
     /* Create/Open the hWinUAEKey which points to our config-info */
     if( RegCreateKeyEx( HKEY_CLASSES_ROOT, ".uae", 0, "", REG_OPTION_NON_VOLATILE,
@@ -1889,18 +1950,19 @@ static void WIN32_HandleRegistryStuff( void )
             RegSetValueEx( hWinUAEKey, "yPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
         }
 	size = sizeof (version);
-	if (RegQueryValueEx( hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
+	if (RegQueryValueEx (hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
 	    if (checkversion (version))
-		forceroms = 1;
-	    else
-		updateversion = 0;
-	} else {
-	    forceroms = 1;
+	    	RegSetValueEx (hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1);
 	}
-	if (updateversion) {
-	    // Set this even when we're opening an existing key, so that the version info is always up to date.
-	    if (RegSetValueEx( hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen( VersionStr ) + 1 ) != ERROR_SUCCESS)
-		forceroms = 0;
+	size = sizeof (version);
+	if (RegQueryValueEx (hWinUAEKey, "ROMCheckVersion", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
+	    if (checkversion (version)) {
+	    	if (RegSetValueEx (hWinUAEKey, "ROMCheckVersion", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1) == ERROR_SUCCESS)
+		    forceroms = 1;
+	    }
+	} else {
+	    if (RegSetValueEx (hWinUAEKey, "ROMCheckVersion", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1) == ERROR_SUCCESS)
+	        forceroms = 1;
 	}
         
 	RegQueryValueEx( hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize );
@@ -2218,14 +2280,6 @@ int execute_command (char *cmd)
     return 0;
 }
 
-struct threadpriorities priorities[] = {
-    { "Above Normal", THREAD_PRIORITY_ABOVE_NORMAL, ABOVE_NORMAL_PRIORITY_CLASS },
-    { "Normal", THREAD_PRIORITY_NORMAL, NORMAL_PRIORITY_CLASS },
-    { "Below Normal", THREAD_PRIORITY_BELOW_NORMAL, BELOW_NORMAL_PRIORITY_CLASS },
-    { "Low", THREAD_PRIORITY_LOWEST, IDLE_PRIORITY_CLASS },
-    { 0 }
-};
-
 static int drvsampleres[] = {
     IDR_DRIVE_CLICK_A500_1, IDR_DRIVE_SPIN_A500_1, IDR_DRIVE_SPINND_A500_1,
     IDR_DRIVE_STARTUP_A500_1, IDR_DRIVE_SNATCH_A500_1
@@ -2273,6 +2327,7 @@ static void efix (DWORD *regp, void *p, void *ps, int *got)
 
 static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
+    static uae_u8 *prevpc;
     LONG lRet = EXCEPTION_CONTINUE_SEARCH;
     PEXCEPTION_RECORD er = pExceptionPointers->ExceptionRecord;
     PCONTEXT ctx = pExceptionPointers->ContextRecord;
@@ -2281,7 +2336,9 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
     if (ec == EXCEPTION_ACCESS_VIOLATION && !er->ExceptionFlags &&
 	er->NumberParameters >= 2 && !er->ExceptionInformation[0] && regs.pc_p) {
 	    void *p = (void*)er->ExceptionInformation[1];
-	    if (p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32)) {
+	    write_log ("%p %p %p\n", p, regs.pc_p, prevpc);
+	    if ((p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32))
+		|| (p >= (void*)prevpc && p < (void*)(prevpc + 32))) {
 		int got = 0;
 		uaecptr opc = m68k_getpc();
 		void *ps = get_real_address (0);
@@ -2301,7 +2358,11 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 		if (got == 0) {
 		    write_log ("failed to find and fix the problem (%p). crashing..\n", p);
 		} else {
+		    void *ppc = regs.pc_p;
 		    m68k_setpc (0);
+		    if (ppc != regs.pc_p) {
+			prevpc = (uae_u8*)ppc;
+		    }
 		    exception2 (opc, (uaecptr)p);
 		    lRet = EXCEPTION_CONTINUE_EXECUTION;
 		}
@@ -2402,7 +2463,7 @@ void systraymenu (HWND hwnd)
     winuae_inactive (hwnd, FALSE);
     WIN32GUI_LoadUIString( IDS_STMENUNOFLOPPY, text, sizeof (text));
     GetCursorPos (&pt);
-    menu = LoadMenu (hInst, MAKEINTRESOURCE (IDM_SYSTRAY));
+    menu = LoadMenu (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDM_SYSTRAY));
     if (!menu)
 	return;
     menu2 = GetSubMenu (menu, 0);

@@ -2037,6 +2037,28 @@ uae_u32 host_inet_addr(uae_u32 cp)
 	return addr;
 }
 
+int isfullscreen (void);
+BOOL CheckOnline(SB)
+	{
+	DWORD dwFlags;
+	BOOL bReturn = TRUE;
+	if (InternetGetConnectedState(&dwFlags,0) == FALSE)
+		{ // Internet is offline
+		if (InternetAttemptConnect(0) != ERROR_SUCCESS)
+			{ // Show Dialer window
+			sb->sb_errno = 10001;
+			sb->sb_herrno = 1;
+			bReturn = FALSE;
+			// No success or aborted
+			}
+		if (isfullscreen())
+			{
+			ShowWindow (hAmigaWnd, SW_RESTORE);
+			SetActiveWindow(hAmigaWnd);
+			}
+		}
+	return(bReturn);
+	}
 
 static unsigned int __stdcall thread_get(void *index2)
 {
@@ -2063,33 +2085,36 @@ static unsigned int __stdcall thread_get(void *index2)
 			if (args[1] == 0)
 				{ // gethostbyname or gethostbyaddr
 				struct hostent *host;
-				
-				name = args[2];
-				namelen = args[3];
-				addrtype = args[4];
-				buf = (char*) args[5];
-				name_rp = get_real_address(name);
-				
-				if (addrtype == -1)
+				if (CheckOnline(sb) == TRUE)
 					{
-					host = gethostbyname(name_rp);
-					}
-				else
-					{
-					host = gethostbyaddr(name_rp,namelen,addrtype);
-					}
-				if (threadGetargs[index] != -1)
-					{ // No CTRL-C Signal
-					if (host == 0)
+			
+					name = args[2];
+					namelen = args[3];
+					addrtype = args[4];
+					buf = (char*) args[5];
+					name_rp = get_real_address(name);
+					
+					if (addrtype == -1)
 						{
-						// Error occured 
-						SETERRNO;
-						TRACE(("failed (%d) - ",sb->sb_errno));
+						host = gethostbyname(name_rp);
 						}
 					else
 						{
-						seterrno(sb,0);
-						memcpy(buf,host,sizeof(HOSTENT));
+						host = gethostbyaddr(name_rp,namelen,addrtype);
+						}
+					if (threadGetargs[index] != -1)
+						{ // No CTRL-C Signal
+						if (host == 0)
+							{
+							// Error occured 
+							SETERRNO;
+							TRACE(("failed (%d) - ",sb->sb_errno));
+							}
+						else
+							{
+							seterrno(sb,0);
+							memcpy(buf,host,sizeof(HOSTENT));
+							}
 						}
 					}
 				}
@@ -2174,6 +2199,7 @@ static unsigned int __stdcall thread_get(void *index2)
     return result;
 }
 
+
 void host_gethostbynameaddr(SB, uae_u32 name, uae_u32 namelen, long addrtype)
 {
 	HOSTENT *h;
@@ -2190,8 +2216,12 @@ void host_gethostbynameaddr(SB, uae_u32 name, uae_u32 namelen, long addrtype)
 	char buf[MAXGETHOSTSTRUCT];
 	unsigned int wMsg = 0;
 
-	char on = 1;
-	InternetSetOption(0,INTERNET_OPTION_SETTINGS_CHANGED,&on,strlen(&on));
+		
+
+
+//	char on = 1;
+//	InternetSetOption(0,INTERNET_OPTION_SETTINGS_CHANGED,&on,strlen(&on));
+//  Do not use: Causes locks with some machines
 
 	name_rp = get_real_address(name);
 

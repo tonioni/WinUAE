@@ -217,6 +217,29 @@ static int recycle (const char *name)
 
 int my_rmdir (const char *name)
 {
+    void *od;
+    int cnt;
+    char tname[MAX_DPATH];
+
+    /* SHFileOperation() ignores FOF_NORECURSION when deleting directories.. */
+    od = my_opendir (name);
+    if (!od) {
+	SetLastError (ERROR_FILE_NOT_FOUND);
+	return -1;
+    }
+    cnt = 0;
+    while (my_readdir (od, tname)) {
+	if (!strcmp (tname, ".") || !strcmp (tname, ".."))
+	    continue;
+	cnt++;
+	break;
+    }
+    my_closedir (od);
+    if (cnt > 0) {
+	SetLastError (ERROR_CURRENT_DIRECTORY);
+	return -1;
+    }
+
     return recycle (name);
     //return RemoveDirectory (name) == 0 ? -1 : 0;
 }
@@ -317,7 +340,7 @@ void *my_open (const char *name, int flags)
 {
     struct my_opens *mos;
     HANDLE h;
-    DWORD DesiredAccess = GENERIC_READ | GENERIC_WRITE;
+    DWORD DesiredAccess = GENERIC_READ;
     DWORD ShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
     DWORD CreationDisposition = OPEN_EXISTING;
     DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
@@ -326,19 +349,29 @@ void *my_open (const char *name, int flags)
     if (!mos)
 	return NULL;
     if (flags & O_TRUNC)
-	CreationDisposition = TRUNCATE_EXISTING;
-    if (flags & O_CREAT)
 	CreationDisposition = CREATE_ALWAYS;
+    else if (flags & O_CREAT)
+	CreationDisposition = OPEN_ALWAYS;
     if (flags & O_WRONLY)
 	DesiredAccess = GENERIC_WRITE;
-    if (flags & O_RDONLY)
+    if (flags & O_RDONLY) {
 	DesiredAccess = GENERIC_READ;
+	CreationDisposition = OPEN_EXISTING;
+    }
     if (flags & O_RDWR)
 	DesiredAccess = GENERIC_READ | GENERIC_WRITE;
     h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
     if (h == INVALID_HANDLE_VALUE) {
-	xfree (mos);
-	return 0;
+	if (DesiredAccess & GENERIC_WRITE) {
+	    DesiredAccess &= ~GENERIC_WRITE;
+	    CreationDisposition = OPEN_EXISTING;
+	    h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+	}
+	if (h == INVALID_HANDLE_VALUE) {
+	    write_log ("failed to open '%s' %x %x\n", name, DesiredAccess, CreationDisposition);
+	    xfree (mos);
+	    return 0;
+	}
     }
     mos->h = h;
     return mos;
@@ -364,4 +397,45 @@ int my_truncate (const char *name, long int len)
         write_log ("truncate: CreateFile() failed to open %s\n", name);
     }
     return result;
+}
+
+int dos_errno (void)
+{
+    DWORD e = GetLastError ();
+
+    switch (e) {
+     case ERROR_NOT_ENOUGH_MEMORY:
+     case ERROR_OUTOFMEMORY:
+	return ERROR_NO_FREE_STORE;
+
+     case ERROR_FILE_EXISTS:
+     case ERROR_ALREADY_EXISTS:
+	return ERROR_OBJECT_EXISTS;
+
+     case ERROR_WRITE_PROTECT:
+     case ERROR_ACCESS_DENIED:
+	return ERROR_WRITE_PROTECTED;
+
+     case ERROR_FILE_NOT_FOUND:
+     case ERROR_INVALID_DRIVE:
+	return ERROR_OBJECT_NOT_AROUND;
+
+     case ERROR_HANDLE_DISK_FULL:
+	return ERROR_DISK_IS_FULL;
+
+     case ERROR_SHARING_VIOLATION:
+     case ERROR_BUSY:
+	return ERROR_OBJECT_IN_USE;
+
+     case ERROR_CURRENT_DIRECTORY:
+	return ERROR_DIRECTORY_NOT_EMPTY;
+
+     case ERROR_NEGATIVE_SEEK:
+     case ERROR_SEEK_ON_DEVICE:
+	return ERROR_SEEK_ERROR;
+
+     default:
+        write_log ("Unimplemented error %d\n", e);
+        return ERROR_NOT_IMPLEMENTED;
+    }
 }

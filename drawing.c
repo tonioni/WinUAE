@@ -1346,7 +1346,7 @@ static void pfield_expand_dp_bplcon (void)
 
     brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
     /* FIXME: we must update top and bottom borders when BRDBLANK changes */
-    brdblank = (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
+    brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
     if (brdblank)
 	brdsprt = 0;
 #endif

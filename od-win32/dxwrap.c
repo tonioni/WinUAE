@@ -1205,6 +1205,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 #endif
     }
 out:
+    DirectDraw_ClearSurfaces ();
     return ddrval;
 }
 
@@ -1737,7 +1738,7 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
         if (ddrval == DDERR_SURFACELOST) 
         {
 	    if (errcnt > 10)
-		break;
+		return 1;
 	    errcnt++;
     	    ddrval = restoresurface ( dstsurf );
             if (ddrval != DD_OK)

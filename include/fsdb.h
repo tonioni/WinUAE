@@ -16,6 +16,7 @@
 #endif
 
 /* AmigaOS errors */
+#define ERROR_BAD_NUMBER		  6
 #define ERROR_NO_FREE_STORE		103
 #define ERROR_OBJECT_IN_USE		202
 #define ERROR_OBJECT_EXISTS		203
@@ -129,5 +130,5 @@ extern unsigned int my_lseek (void*, unsigned int, int);
 extern unsigned int my_read (void*, void*, unsigned int);
 extern unsigned int my_write (void*, void*, unsigned int);
 extern int my_truncate (const char *name, long int len);
-
+extern int dos_errno (void);
 

@@ -745,8 +745,11 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
 {
     long len = l1 * l2;
     if (z->data) {
-	if (z->seek + len > z->size)
+	if (z->seek + len > z->size) {
 	    len = z->size - z->seek;
+	    if (len < 0)
+		len = 0;
+	}
 	memcpy (b, z->data + z->seek, len);
 	z->seek += len;
 	return len;
@@ -754,12 +757,20 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
     return fread (b, l1, l2, z->f);
 }
 
+size_t zfile_fputs (struct zfile *z, char *s)
+{
+    return zfile_fwrite (s, strlen (s), 1, z);
+}
+
 size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
 {
     long len = l1 * l2;
     if (z->data) {
-	if (z->seek + len > z->size)
+	if (z->seek + len > z->size) {
 	    len = z->size - z->seek;
+	    if (len < 0)
+		len = 0;
+	}
 	memcpy (z->data + z->seek, b, len);
 	z->seek += len;
 	return len;

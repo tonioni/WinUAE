@@ -743,11 +743,13 @@ STATIC_INLINE void compute_delay_offset (void)
 	delayoffset = 8;
     else if (delayoffset == 16) /* Overkill AGA */
 	delayoffset = 48;
+    else if (delayoffset == 24) /* AB 2 */
+	delayoffset = 8;
     else if (delayoffset == 32)
 	delayoffset = 32;
     else if (delayoffset == 48) /* Pinball Illusions AGA, ingame */
 	delayoffset = 16;
-    else
+    else /* what about 40 and 56? */
 	delayoffset = 0;
 }
 
@@ -4332,7 +4334,8 @@ static void hsync_handler (void)
 	last_custom_value = 0xffff;
 
     if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop)
-	blitter_slowdown (ddfstrt, ddfstop, cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES (bplcon0)],
+	blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
+	    cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES (bplcon0)],
 	    cycle_diagram_free_cycles[fmode][GET_RES (bplcon0)][GET_PLANES (bplcon0)]);
 
     if (currprefs.produce_sound)

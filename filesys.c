@@ -83,36 +83,6 @@ static void aino_test_init (a_inode *aino)
 #endif
 }
 
-static long dos_errno(void)
-{
-    int e = errno;
-
-    switch (e) {
-     case ENOMEM:	return ERROR_NO_FREE_STORE;
-     case EEXIST:	return ERROR_OBJECT_EXISTS;
-     case EACCES:	return ERROR_WRITE_PROTECTED;
-     case ENOENT:	return ERROR_OBJECT_NOT_AROUND;
-     case ENOTDIR:	return ERROR_OBJECT_WRONG_TYPE;
-     case ENOSPC:	return ERROR_DISK_IS_FULL;
-     case EBUSY:       	return ERROR_OBJECT_IN_USE;
-     case EISDIR:	return ERROR_OBJECT_WRONG_TYPE;
-#if defined(ETXTBSY)
-     case ETXTBSY:	return ERROR_OBJECT_IN_USE;
-#endif
-#if defined(EROFS)
-     case EROFS:       	return ERROR_DISK_WRITE_PROTECTED;
-#endif
-#if defined(ENOTEMPTY)
-#if ENOTEMPTY != EEXIST
-     case ENOTEMPTY:	return ERROR_DIRECTORY_NOT_EMPTY;
-#endif
-#endif
-
-     default:
-	TRACE(("Unimplemented error %s\n", strerror(e)));
-	return ERROR_NOT_IMPLEMENTED;
-    }
-}
 
 uaecptr filesys_initcode;
 static uae_u32 fsdevname, filesys_configdev;
@@ -403,32 +373,26 @@ int sprintf_filesys_unit (struct uaedev_mount_info *mountinfo, char *buffer, int
 }
 
 void write_filesys_config (struct uaedev_mount_info *mountinfo,
-			   const char *unexpanded, const char *default_path, FILE *f)
+			   const char *unexpanded, const char *default_path, struct zfile *f)
 {
     UnitInfo *uip = mountinfo->ui;
     int i;
+    char tmp[MAX_DPATH];
 
     for (i = 0; i < mountinfo->num_units; i++) {
 	char *str;
 	str = cfgfile_subst_path (default_path, unexpanded, uip[i].rootdir);
 	if (uip[i].volname != 0) {
-	    fprintf (f, "filesystem2=%s,%s:%s:%s,%d\n", uip[i].readonly ? "ro" : "rw",
+	    sprintf (tmp, "filesystem2=%s,%s:%s:%s,%d\n", uip[i].readonly ? "ro" : "rw",
 		uip[i].devname ? uip[i].devname : "", uip[i].volname, str, uip[i].bootpri);
-#if 0
-	    fprintf (f, "filesystem=%s,%s:%s\n", uip[i].readonly ? "ro" : "rw",
-		uip[i].volname, str);
-#endif
+	    zfile_fputs (f, tmp);
 	} else {
-	    fprintf (f, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s\n",
+	    sprintf (tmp, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s\n",
 		     uip[i].readonly ? "ro" : "rw",
 		     uip[i].devname ? uip[i].devname : "", str,
 		     uip[i].hf.secspertrack, uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize,
 		     uip[i].bootpri,uip[i].filesysdir ? uip[i].filesysdir : "");
-#if 0
-	    fprintf (f, "hardfile=%s,%d,%d,%d,%d,%s\n",
-		     uip[i].readonly ? "ro" : "rw", uip[i].hf.secspertrack,
-		     uip[i].hf.surfaces, uip[i].hf.reservedblocks, uip[i].hf.blocksize, str);
-#endif
+	    zfile_fputs (f, tmp);
 	}
 	xfree (str);
     }
@@ -1685,6 +1649,12 @@ action_add_notify (Unit *unit, dpacket packet)
     name = my_strdup (char1 (get_long (nr + 4)));
     flags = get_long (nr + 12);
 
+    if (!(flags & (NRF_SEND_MESSAGE | NRF_SEND_SIGNAL))) {
+        PUT_PCK_RES1 (packet, DOS_FALSE);
+        PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER);
+	return;
+    }
+
 #if 0
     write_log ("Notify:\n");
     write_log ("nr_Name '%s'\n", char1 (get_long (nr + 0)));
@@ -2123,6 +2093,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
     uae_u32 uniq;
 
     TRACE(("ACTION_EXAMINE_NEXT(0x%lx,0x%lx)\n", lock, info));
+    gui_hd_led (1);
     DUMPLOCK(unit, lock);
 
     if (lock != 0)
@@ -2315,7 +2286,7 @@ action_fh_from_lock (Unit *unit, dpacket packet)
 
     fd = my_open (aino->nname, openmode | O_BINARY);
 
-    if (fd < 0) {
+    if (fd == NULL) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, dos_errno());
 	return;
@@ -2324,7 +2295,7 @@ action_fh_from_lock (Unit *unit, dpacket packet)
     k->fd = fd;
     k->aino = aino;
 
-    put_long (fh+36, k->uniq);
+    put_long (fh + 36, k->uniq);
     /* I don't think I need to play with shlock count here, because I'm
        opening from an existing lock ??? */
 
@@ -2548,6 +2519,7 @@ action_seek (Unit *unit, dpacket packet)
     if (mode < 0) whence = SEEK_SET;
 
     TRACE(("ACTION_SEEK(%s,%d,%d)\n", k->aino->nname, pos, mode));
+    gui_hd_led (1);
 
     old = my_lseek (k->fd, 0, SEEK_CUR);
     {
@@ -2607,6 +2579,7 @@ action_set_protect (Unit *unit, dpacket packet)
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     }
     notify_check (unit, a);
+    gui_hd_led (1);
 }
 
 static void action_set_comment (Unit * unit, dpacket packet)
@@ -2649,6 +2622,7 @@ static void action_set_comment (Unit * unit, dpacket packet)
     a->comment = commented;
     a->dirty = 1;
     notify_check (unit, a);
+    gui_hd_led (1);
 }
 
 static void
@@ -2834,6 +2808,7 @@ action_create_dir (Unit *unit, dpacket packet)
     notify_check (unit, aino);
     updatedirtime (aino, 0);
     PUT_PCK_RES1 (packet, make_lock (unit, aino->uniq, -2) >> 2);
+    gui_hd_led (1);
 }
 
 static void
@@ -2883,6 +2858,7 @@ action_set_file_size (Unit *unit, dpacket packet)
 	return;
     }
 
+    gui_hd_led (1);
     k->notifyactive = 1;
     /* If any open files have file pointers beyond this size, truncate only
      * so far that these pointers do not become invalid.  */
@@ -2970,6 +2946,7 @@ action_delete_object (Unit *unit, dpacket packet)
 	delete_aino (unit, a);
     }
     PUT_PCK_RES1 (packet, DOS_TRUE);
+    gui_hd_led (1);
 }
 
 static void
@@ -3001,6 +2978,7 @@ action_set_date (Unit *unit, dpacket packet)
     } else
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     notify_check (unit, a);
+    gui_hd_led (1);
 }
 
 static void
@@ -3096,7 +3074,7 @@ action_rename_object (Unit *unit, dpacket packet)
 		    k1->fd = my_open (a2->nname, mode);
 		    write_log ("restoring new handle '%s' %d\n", a2->nname, k1->dosmode);
 		}
-	        if (k1->fd < 0) {
+	        if (k1->fd == NULL) {
 		    write_log ("relocking failed '%s' -> '%s'\n", a1->nname, a2->nname);
 		    free_key (unit, k1);
 		} else {
@@ -3133,6 +3111,7 @@ action_rename_object (Unit *unit, dpacket packet)
     if (a2->elock > 0 || a2->shlock > 0 || wehavekeys > 0)
 	de_recycle_aino (unit, a2);
     PUT_PCK_RES1 (packet, DOS_TRUE);
+    gui_hd_led (1);
 }
 
 static void

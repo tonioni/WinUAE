@@ -145,14 +145,22 @@
 #define IDS_BOOTPRI                     178
 #define IDS_WRONGDXVERSION              179
 #define IDI_MISC2                       180
+#define IDS_FLOPPY_COMPATIBLE           180
 #define IDR_DRIVE_SNATCH_A500_1         181
+#define IDS_FLOPPY_TURBO                181
 #define IDI_DISK                        182
 #define IDR_DRIVE_SPINND_A500_1         182
+#define IDS_YES                         182
 #define IDD_PANEL                       183
+#define IDS_NO                          183
 #define IDD_PATHS                       184
+#define IDS_PRI_ABOVENORMAL             184
 #define IDI_CONFIGFILE                  185
 #define IDD_QUICKSTART                  185
+#define IDS_PRI_NORMAL                  185
 #define IDM_SYSTRAY                     186
+#define IDS_PRI_BELOWNORMAL             186
+#define IDS_PRI_LOW                     187
 #define IDI_FOLDER                      188
 #define IDI_DISPLAY                     190
 #define IDI_ROOT                        192
@@ -788,7 +796,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        244
+#define _APS_NEXT_RESOURCE_VALUE        245
 #define _APS_NEXT_COMMAND_VALUE         40021
 #define _APS_NEXT_CONTROL_VALUE         1695
 #define _APS_NEXT_SYMED_VALUE           101

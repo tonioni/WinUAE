@@ -60,7 +60,7 @@ extern int kill_filesys_unit (struct uaedev_mount_info *mountinfo, int);
 extern int move_filesys_unit (struct uaedev_mount_info *mountinfo, int nr, int to);
 extern int sprintf_filesys_unit (struct uaedev_mount_info *mountinfo, char *buffer, int num);
 extern void write_filesys_config (struct uaedev_mount_info *mountinfo, const char *unexpanded,
-				  const char *defaultpath, FILE *f);
+				  const char *defaultpath, struct zfile *f);
 
 extern struct uaedev_mount_info *alloc_mountinfo (void);
 extern struct uaedev_mount_info *dup_mountinfo (struct uaedev_mount_info *);

@@ -86,7 +86,8 @@ struct MultiDisplay Displays[MAX_DISPLAYS];
 GUID *displayGUID;
 
 static struct winuae_currentmode currentmodestruct;
-int display_change_requested;
+static int screen_is_initialized;
+int display_change_requested, normal_display_change_starting;
 extern int console_logging;
 
 #define SM_WINDOW 0
@@ -884,6 +885,7 @@ void gfx_unlock_picasso (void)
 
 static void close_hwnds( void )
 {
+    screen_is_initialized = 0;
 #ifdef AVIOUTPUT
     AVIOutput_Restart ();
 #endif
@@ -900,10 +902,6 @@ static void close_hwnds( void )
 #endif
 #ifdef D3D
 	D3D_free ();
-#endif
-#if 0
-	if (currentmode->flags & DM_W_FULLSCREEN)
-	    ChangeDisplaySettings (NULL, 0);
 #endif
 	ShowWindow (hAmigaWnd, SW_HIDE);
 	DestroyWindow (hAmigaWnd);
@@ -970,6 +968,9 @@ int check_prefs_changed_gfx (void)
 {
     int c = 0;
 
+    if (normal_display_change_starting  > 0 && normal_display_change_starting < 4)
+	normal_display_change_starting--;
+
     c |= currprefs.gfx_width_fs != changed_prefs.gfx_width_fs ? 1 : 0;
     c |= currprefs.gfx_height_fs != changed_prefs.gfx_height_fs ? 1 : 0;
     c |= currprefs.gfx_width_win != changed_prefs.gfx_width_win ? 2 : 0;
@@ -986,6 +987,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_display != changed_prefs.gfx_display? 1 : 0;
     if (display_change_requested || c) 
     {
+	if (!display_change_requested)
+	    normal_display_change_starting = 4;
 	display_change_requested = 0;
 	fixup_prefs_dimensions (&changed_prefs);
 	currprefs.gfx_width_win = changed_prefs.gfx_width_win;
@@ -2073,6 +2076,7 @@ static BOOL doInit (void)
     }
 #endif
 #endif
+    screen_is_initialized = 1;
     return 1;
 
 oops:
@@ -2127,6 +2131,8 @@ void WIN32GFX_WindowMove ( void )
 
 void updatedisplayarea (void)
 {
+    if (!screen_is_initialized)
+	return;
     if (picasso_on)
 	return;
     /* Update the display area */
@@ -2156,7 +2162,9 @@ void updatedisplayarea (void)
 #endif
 	{
 	    if( !isfullscreen() ) {
-		if(DirectDraw_GetLockableType() != overlay_surface)
+		surface_type_e s;
+		s = DirectDraw_GetLockableType();
+		if (s != overlay_surface && s != invalid_surface)
 		    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
 	    } else {
 		DirectDraw_Blt( primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL );

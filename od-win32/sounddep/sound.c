@@ -271,7 +271,7 @@ static int open_audio_ds (int size)
         return 0;
     }
     memset (&DSCaps, 0, sizeof (DSCaps));
-    DSCaps.dwSize = sizeof(DSCaps);
+    DSCaps.dwSize = sizeof (DSCaps);
     hr = IDirectSound_GetCaps (lpDS, &DSCaps);
     if (hr!= DS_OK) {
 	write_log ("SOUND: Error getting DirectSound capabilities: %s\n", DXError (hr));
@@ -283,7 +283,7 @@ static int open_audio_ds (int size)
     minfreq = DSCaps.dwMinSecondarySampleRate;
     maxfreq = DSCaps.dwMaxSecondarySampleRate;
     if (maxfreq > 11000) {
-	if (minfreq > freq) {
+	if (minfreq > freq && minfreq < 22050) {
 	    freq = minfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
 	    write_log("SOUND: minimum supported frequency: %d\n", minfreq);

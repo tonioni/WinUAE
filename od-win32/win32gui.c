@@ -79,6 +79,7 @@ static struct uae_prefs *pguiprefs;
 struct uae_prefs workprefs;
 static int currentpage;
 static int qs_request_reset;
+static int qs_override;
 int gui_active;
 
 extern HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD );
@@ -117,8 +118,11 @@ static HWND guiDlg, panelDlg, ToolTipHWND;
 
 void exit_gui (int ok)
 {
+    if (!gui_active)
+	return;
     if (guiDlg == NULL)
 	return;
+    write_log ("exit_gui %d\n", ok);
     SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
 }
 
@@ -431,12 +435,14 @@ static struct ConfigStruct *getconfigstorefrompath (char *path, char *out, int t
     return 0;
 }
 
-int target_cfgfile_load (struct uae_prefs *p, char *filename, int type)
+int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isdefault)
 {
     int v, i, type2;
     DWORD ct, ct2, size;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
+    if (isdefault)
+	qs_override = 1;
     if (type == 0 || type == 1) {
 	if (p->mountinfo == currprefs.mountinfo)
 	    currprefs.mountinfo = 0;
@@ -482,7 +488,6 @@ void gui_display( int shortcut )
     int flipflop = 0;
     HRESULT hr;
 
-    gui_active = 1;
 #ifdef D3D
     D3D_guimode (TRUE);
 #endif
@@ -508,9 +513,11 @@ void gui_display( int shortcut )
     WIN32GFX_ClearPalette();
     manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
-    hr = DirectDraw_FlipToGDISurface();
-    if (hr != DD_OK)
-	write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
+    if (isfullscreen ()) {
+	hr = DirectDraw_FlipToGDISurface();
+	if (hr != DD_OK)
+	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
+    }
 
     if( shortcut == -1 ) {
 	int ret;
@@ -557,7 +564,6 @@ void gui_display( int shortcut )
 #ifdef PICASSO96
     DX_SetPalette (0, 256);
 #endif
-    gui_active = 0;
 
 }
 
@@ -871,7 +877,7 @@ int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, 
 	    disk_creatediskfile( full_path, 1, SendDlgItemMessage( hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L ));
 	    break;
 	case IDC_LOAD:
-	    if (target_cfgfile_load(&workprefs, full_path, 0) == 0)
+	    if (target_cfgfile_load(&workprefs, full_path, 0, 0) == 0)
 	    {
 		char szMessage[MAX_DPATH];
 		WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
@@ -1230,7 +1236,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		WIN32GUI_LoadUIString( IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH );
 		pre_gui_message (szMessage);
 	    } else {
-		if (target_cfgfile_load (&workprefs, path, configtypepanel) == 0) {
+		if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
 		    char szMessage[ MAX_DPATH ];
 		    WIN32GUI_LoadUIString( IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH );
 		    pre_gui_message (szMessage);
@@ -1323,9 +1329,9 @@ static void set_lventry_input (HWND list, int index)
 
     inputdevice_get_mapped_name (input_selected_device, index, &flags, name, input_selected_sub_num);
     if (flags & IDEV_MAPPED_AUTOFIRE_SET)
-	strcpy (af, "yes");
+        WIN32GUI_LoadUIString (IDS_YES, af, sizeof (af));
     else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
-	strcpy (af, "no");
+        WIN32GUI_LoadUIString (IDS_YES, af, sizeof (af));
     else
 	strcpy (af,"-");
     ListView_SetItemText(list, index, 1, name);
@@ -1372,7 +1378,7 @@ void InitializeListView( HWND hDlg )
     RECT rect;
     char column_heading[ HARDDISK_COLUMNS ][ MAX_COLUMN_HEADING_WIDTH ];
     char blocksize_str[6] = "";
-    char readwrite_str[4] = "";
+    char readwrite_str[10] = "";
     char size_str[32] = "";
     char volname_str[ MAX_DPATH ] = "";
     char devname_str[ MAX_DPATH ] = "";
@@ -1523,7 +1529,10 @@ void InitializeListView( HWND hDlg )
 		strcpy (size_str, "n/a");
 		sprintf (bootpri_str, "%d", bootpri);
             }
-            sprintf( readwrite_str, "%s", readonly ? "no" : "yes" );
+	    if (readonly)
+                WIN32GUI_LoadUIString (IDS_NO, readwrite_str, sizeof (readwrite_str));
+	    else
+                WIN32GUI_LoadUIString (IDS_YES, readwrite_str, sizeof (readwrite_str));
 
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
             lvstruct.pszText  = devname_str;
@@ -5352,10 +5361,15 @@ HKEY read_disk_history (void)
 static void out_floppyspeed (HWND hDlg)
 {
     char txt[30];
+    char tmp1[MAX_DPATH];
+    char tmp2[MAX_DPATH];
+
+    WIN32GUI_LoadUIString (IDS_FLOPPY_COMPATIBLE, tmp1, sizeof (tmp1));
+    WIN32GUI_LoadUIString (IDS_FLOPPY_TURBO, tmp2, sizeof (tmp2));
     if (workprefs.floppy_speed)
-	sprintf (txt, "%d%%%s", workprefs.floppy_speed, workprefs.floppy_speed == 100 ? " (compatible)" : "");
+	sprintf (txt, "%d%%%s", workprefs.floppy_speed, workprefs.floppy_speed == 100 ? tmp1 : "");
     else
-        strcpy (txt, "Turbo");
+        strcpy (txt, tmp2);
     SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
@@ -7616,7 +7630,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 		    strcpy (prefs->flashfile, file);
 		break;
 		case ZFILE_CONFIGURATION:
-		    if (target_cfgfile_load (&workprefs, file, 0)) {
+		    if (target_cfgfile_load (&workprefs, file, 0, 0)) {
 			if (full_property_sheet) {
 			    inputdevice_updateconfig (&workprefs);
 			    if (!workprefs.start_gui)
@@ -7737,6 +7751,8 @@ static int GetSettings (int all_options, HWND hwnd)
     static int init_called = 0;
     int psresult;
 
+    gui_active = 1;
+
     full_property_sheet = all_options;
     allow_quit = all_options;
     pguiprefs = &currprefs;
@@ -7775,7 +7791,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	ABOUT_ID = init_page (IDD_ABOUT, IDI_ABOUT, IDS_ABOUT, AboutDlgProc, NULL);
 	C_PAGES = ABOUT_ID + 1;
 	init_called = 1;
-	if (quickstart)
+	if (quickstart && !qs_override)
 	    currentpage = QUICKSTART_ID;
 	else
 	    currentpage = LOADSAVE_ID;
@@ -7794,6 +7810,7 @@ static int GetSettings (int all_options, HWND hwnd)
 
     qs_request_reset = 0;
     full_property_sheet = 0;
+    gui_active = 0;
     return psresult;
 }
 

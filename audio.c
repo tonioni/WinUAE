@@ -106,21 +106,21 @@ static uae_u32 right_word_saved[MAX_DELAY_BUFFER];
 static uae_u32 left_word_saved[MAX_DELAY_BUFFER];
 static int saved_ptr;
 
+#define MIXED_STEREO_MAX 32
+static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
+
 STATIC_INLINE void put_sound_word_right (uae_u32 w)
 {
-    if (currprefs.sound_mixed_stereo) {
+    if (mixed_on) {
 	right_word_saved[saved_ptr] = w;
 	return;
     }
     PUT_SOUND_WORD_RIGHT (w);
 }
 
-#define MIXED_STEREO_MAX 32
-static int mixed_stereo_size, mixed_mul1, mixed_mul2;
-
 STATIC_INLINE void put_sound_word_left (uae_u32 w)
 {
-    if (currprefs.sound_mixed_stereo) {
+    if (mixed_on) {
 	uae_u32 rold, lold, rnew, lnew, tmp;
 
 	left_word_saved[saved_ptr] = w;
@@ -789,6 +789,7 @@ void check_prefs_changed_audio (void)
     mixed_mul1 = MIXED_STEREO_MAX / 2 - ((currprefs.sound_stereo_separation * 3) / 2);
     mixed_mul2 = MIXED_STEREO_MAX / 2 + ((currprefs.sound_stereo_separation * 3) / 2);
     mixed_stereo_size = currprefs.sound_mixed_stereo > 0 ? (1 << (currprefs.sound_mixed_stereo - 1)) - 1 : 0;
+    mixed_on = (currprefs.sound_stereo_separation > 0 || currprefs.sound_mixed_stereo > 0) ? 1 : 0;
 
     /* Select the right interpolation method.  */
     if (sample_handler == sample16_handler

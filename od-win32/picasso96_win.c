@@ -933,7 +933,7 @@ STATIC_INLINE void do_fillrect_frame_buffer( struct RenderInfo *ri, int X, int Y
 
 void picasso_handle_vsync (void)
 {
-    DX_Invalidate(1,4000);      //so a flushpixel is done every vsync if pixel are in buffer
+    DX_Invalidate(0,4000); //so a flushpixel is done every vsync if pixel are in buffer
     PICASSO96_Unlock();
     if (palette_changed) {
         DX_SetPalette (0,256);
@@ -950,7 +950,7 @@ static int set_panning_called = 0;
 * 3. whenever the graphics code notifies us that the screen contents have been lost.
 */
 extern unsigned int new_beamcon0;
-void picasso_refresh( int call_setpalette )
+void picasso_refresh ( int call_setpalette )
 {
     struct RenderInfo ri;
    
@@ -3195,7 +3195,7 @@ static void flushpixels( void )
 	   //panoffset=picasso96_state.Address+(picasso96_state.XOffset*picasso96_state.BytesPerPixel)
 	   //		  +(picasso96_state.YOffset*picasso96_state.BytesPerRow);
 	   
-	   DX_Invalidate (1,4000);
+	   DX_Invalidate (0,4000);
 #ifndef _DEBUG
 	   if(DirectDraw_IsLocked()==FALSE) {
 	       dst = gfx_lock_picasso ();

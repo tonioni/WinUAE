@@ -14,6 +14,7 @@
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
+#include "uae.h"
 #include "enforcer.h"
 
 /* Configurable options */
@@ -352,6 +353,7 @@ static void enforcer_display_hit(const char *addressmode, uae_u32 pc, uaecptr ad
 
 	console_out(enforcer_buf);
 	write_log(enforcer_buf);
+	sleep_millis (5);
 
 	enforcer_hit = 0;
 	flashscreen = 30;

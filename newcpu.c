@@ -241,7 +241,7 @@ void check_prefs_changed_cpu (void)
 	|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
 
 	if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
-	    regs.ir = get_word (m68k_getpc()); /* non-prefetch to prefetch fix */
+	    fill_prefetch_slow ();
 
 	currprefs.cpu_level = changed_prefs.cpu_level;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
@@ -912,7 +912,7 @@ static void Exception_ce (int nr, uaecptr oldpc)
         put_word_ce (m68k_areg(regs, 7) + 4, last_fault_for_exception_3);
         put_word_ce (m68k_areg(regs, 7) + 0, mode);
         put_word_ce (m68k_areg(regs, 7) + 2, last_fault_for_exception_3 >> 16);
-        write_log ("Exception %d at %x -> %x!\n", nr, currpc, get_long (4 * nr));
+        write_log ("Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (4 * nr));
         goto kludge_me_do;
     }
     m68k_areg (regs, 7) -= 6;
@@ -1002,7 +1002,7 @@ static void Exception_normal (int nr, uaecptr oldpc)
 		m68k_areg(regs, 7) -= 2;
 		put_word (m68k_areg(regs, 7), 0xb000 + nr * 4);
 	    }
-	    write_log ("Exception %d at %p!\n", nr, currpc);
+	    write_log ("Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (regs.vbr + 4*nr));
 	} else if (nr ==5 || nr == 6 || nr == 7 || nr == 9) {
 	    m68k_areg(regs, 7) -= 4;
 	    put_long (m68k_areg(regs, 7), oldpc);
@@ -1034,7 +1034,7 @@ static void Exception_normal (int nr, uaecptr oldpc)
 	put_word (m68k_areg(regs, 7) + 6, last_op_for_exception_3);
 	put_word (m68k_areg(regs, 7) + 8, regs.sr);
 	put_long (m68k_areg(regs, 7) + 10, last_addr_for_exception_3);
-	write_log ("Exception %d at %x -> %x!\n", nr, currpc, get_long (regs.vbr + 4*nr));
+        write_log ("Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (regs.vbr + 4*nr));
 	goto kludge_me_do;
     }
     m68k_areg(regs, 7) -= 4;
@@ -1042,7 +1042,7 @@ static void Exception_normal (int nr, uaecptr oldpc)
     m68k_areg(regs, 7) -= 2;
     put_word (m68k_areg(regs, 7), regs.sr);
 kludge_me_do:
-    newpc = get_long (regs.vbr + 4*nr);
+    newpc = get_long (regs.vbr + 4 * nr);
     if (newpc & 1) {
 	if (nr == 2 || nr == 3)
 	    uae_reset (1); /* there is nothing else we can do.. */
@@ -1637,8 +1637,6 @@ static void do_trace (void)
     }
 }
 
-#define CPU_IDLE_LINES 60
-
 static int do_specialties (int cycles)
 {
     #ifdef ACTION_REPLAY
@@ -1727,11 +1725,11 @@ static int do_specialties (int cycles)
 		    sleepcnt--;
 		    if (pissoff == 0 && compiled_code && --zerocnt < 0) {
 			sleepcnt = -1;
-			zerocnt = currprefs.cpu_idle / 2;
+			zerocnt = (currprefs.cpu_idle * sleep_resolution / 1000) / 4;
 		    }
 		    lvpos = vpos;
 		    if (sleepcnt < 0) {
-		        sleepcnt = currprefs.cpu_idle;
+		        sleepcnt = (currprefs.cpu_idle * sleep_resolution / 1000) / 2;
 			sleep_millis (1);
 		    }
 		}
@@ -1745,11 +1743,12 @@ static int do_specialties (int cycles)
     /* interrupt takes at least 2 cycles (maybe 4) to reach the CPU and
      * there are programs that require this delay (which is not too surprising..)
      */
-    if ((regs.spcflags & SPCFLAG_DOINT) 
-#ifdef JIT	
-	|| (!currprefs.cachesize && (regs.spcflags & SPCFLAG_INT))
+#ifdef JIT
+    if ((regs.spcflags & SPCFLAG_DOINT)
+	|| (!currprefs.cachesize && (regs.spcflags & SPCFLAG_INT))) {
+#else
+    if (regs.spcflags & SPCFLAG_INT) {
 #endif
-	) {
         int intr = intlev ();
 #ifdef JIT
 	if (currprefs.cachesize)
@@ -2139,6 +2138,15 @@ STATIC_INLINE void m68k_run1 (void (*func)(void))
 
 int in_m68k_go = 0;
 
+static void exception2_handle (uaecptr addr, uaecptr fault)
+{
+    last_addr_for_exception_3 = addr;
+    last_fault_for_exception_3 = fault;
+    last_writeaccess_for_exception_3 = 0;
+    last_instructionaccess_for_exception_3 = 0;
+    Exception (2, addr);
+}
+
 void m68k_go (int may_quit)
 {
     if (in_m68k_go || !may_quit) {
@@ -2196,7 +2204,7 @@ void m68k_go (int may_quit)
 	    if (regs.isp & 1)
 		regs.panic = 1;
 	    if (!regs.panic)
-	        exception2 (regs.panic_pc, regs.panic_addr);
+	        exception2_handle (regs.panic_pc, regs.panic_addr);
 	    if (regs.panic) {
 		/* system is very badly confused */
 		write_log ("double bus error or corrupted stack, forcing reboot..\n");
@@ -2549,7 +2557,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, uaecptr fault, int writea
     last_op_for_exception_3 = opcode;
     last_writeaccess_for_exception_3 = writeaccess;
     last_instructionaccess_for_exception_3 = instructionaccess;
-    Exception (3,0);
+    Exception (3, fault);
 }
 
 void exception3 (uae_u32 opcode, uaecptr addr, uaecptr fault)
@@ -2563,11 +2571,16 @@ void exception3i (uae_u32 opcode, uaecptr addr, uaecptr fault)
 
 void exception2 (uaecptr addr, uaecptr fault)
 {
-    last_addr_for_exception_3 = addr;
-    last_fault_for_exception_3 = fault;
-    last_writeaccess_for_exception_3 = 0;
-    last_instructionaccess_for_exception_3 = 0;
-    Exception (2, 0);
+    write_log ("delayed exception2!\n");
+    regs.panic_pc = m68k_getpc();
+    regs.panic_addr = addr;
+    regs.panic = 2;
+    set_special (SPCFLAG_BRK);
+    m68k_setpc (0xf80000);
+#ifdef JIT
+    set_special(SPCFLAG_END_COMPILE);
+#endif
+    fill_prefetch_slow ();
 }
 
 void cpureset (void)

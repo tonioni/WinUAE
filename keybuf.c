@@ -24,7 +24,7 @@
 #include "custom.h"
 #include "savestate.h"
 
-static int fakestate[3][6] = { { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
+static int fakestate[4][6] = { { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
 
 static int *fs_np;
 static int *fs_ck;
@@ -92,7 +92,7 @@ void record_key (int kc)
 	case AK_LF: fs = 1; fs_ck[1] = !(kc & 1); break;
 	case AK_RT: fs = 1; fs_ck[2] = !(kc & 1); break;
 	case AK_DN: fs = 1; fs_ck[3] = !(kc & 1); break;
-	case AK_RCTRL: fs = 1; fs_ck[4] = !(kc & 1); break;
+	case AK_RCTRL: case AK_RALT: fs = 1; fs_ck[4] = !(kc & 1); break;
 	case AK_RSH: fs = 1; fs_ck[5] = !(kc & 1); break;
 	}
     }
@@ -142,7 +142,8 @@ void joystick_setting_changed (void)
 	fs_se = fakestate[0];
     else if (JSEM_ISSOMEWHEREELSE (1, &currprefs))
 	fs_se = fakestate[1];
-}
+
+ }
 
 void keybuf_init (void)
 {

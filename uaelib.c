@@ -361,6 +361,7 @@ static uae_u32 uaelib_demux (void)
 #define ARG2 (get_long (m68k_areg (regs, 7) + 12))
 #define ARG3 (get_long (m68k_areg (regs, 7) + 16))
 #define ARG4 (get_long (m68k_areg (regs, 7) + 20))
+#define ARG5 (get_long (m68k_areg (regs, 7) + 24))
 
     switch (ARG0) {
      case 0: return emulib_GetVersion ();
@@ -414,6 +415,7 @@ static uae_u32 uaelib_demux (void)
 
      case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
+     case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);
     }
     return 0;
 }

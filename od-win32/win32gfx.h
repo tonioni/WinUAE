@@ -31,6 +31,7 @@ extern HWND hStatusWnd;
 extern HINSTANCE hDDraw;
 extern char *start_path;
 extern uae_u32 default_freq;
+extern int normal_display_change_starting;
 
 extern HDC gethdc (void);
 extern void releasehdc (HDC hdc);

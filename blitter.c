@@ -999,7 +999,7 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
     static int oddfstrt, oddfstop, ototal, ofree;
     static int slow;
     
-    if (!totalcycles)
+    if (!totalcycles || ddfstrt < 0 || ddfstop < 0)
 	return;
     if (ddfstrt != oddfstrt || ddfstop != oddfstop || totalcycles != ototal || ofree != freecycles) {
 	int linecycles = ((ddfstop - ddfstrt + totalcycles - 1) / totalcycles) * totalcycles;
@@ -1013,7 +1013,7 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
 	if (dmacycles > freelinecycles)
 	    slow = dmacycles - freelinecycles;
     }
-    if (blit_slowdown <= 0 || blitline)
+    if (blit_slowdown < 0 || blitline)
 	return;
     blit_slowdown += slow;
     blit_misscyclecounter += slow;

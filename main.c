@@ -389,7 +389,7 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
-	    target_cfgfile_load (&currprefs, argv[i] + 8, 0);
+	    target_cfgfile_load (&currprefs, argv[i] + 8, 0, 1);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */
 	else if (strcmp (argv[i], "-f") == 0) {
@@ -400,7 +400,7 @@ static void parse_cmdline (int argc, char **argv)
                 free_mountinfo (currprefs.mountinfo);
 	        currprefs.mountinfo = alloc_mountinfo ();
 #endif
-		target_cfgfile_load (&currprefs, argv[++i], 0);
+		target_cfgfile_load (&currprefs, argv[++i], 0, 1);
 	    }
 	} else if (strcmp (argv[i], "-s") == 0) {
 	    if (i + 1 == argc)
@@ -444,12 +444,12 @@ static void parse_cmdline_and_init_file (int argc, char **argv)
 
     strcat (optionsfile, restart_config);
 
-    if (! target_cfgfile_load (&currprefs, optionsfile, 0)) {
+    if (! target_cfgfile_load (&currprefs, optionsfile, 0, 0)) {
 	write_log ("failed to load config '%s'\n", optionsfile);
 #ifdef OPTIONS_IN_HOME
 	/* sam: if not found in $HOME then look in current directory */
 	strcpy (optionsfile, restart_config);
-	target_cfgfile_load (&currprefs, optionsfile);
+	target_cfgfile_load (&currprefs, optionsfile, 0);
 #endif
     }
     fix_options ();

@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 0
 #define UAEMINOR 9
-#define UAESUBREV 90
+#define UAESUBREV 91
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -235,8 +235,8 @@ struct uae_prefs {
 
 /* Contains the filename of .uaerc */
 extern char optionsfile[];
-extern void save_options (FILE *, struct uae_prefs *, int);
-extern void cfgfile_write (FILE *f, char *format,...);
+extern void save_options (struct zfile *, struct uae_prefs *, int);
+extern void cfgfile_write (struct zfile *, char *format,...);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
@@ -250,9 +250,9 @@ extern int cfgfile_string (char *option, char *value, char *name, char *location
 extern char *cfgfile_subst_path (const char *path, const char *subst, const char *file);
 
 extern int target_parse_option (struct uae_prefs *, char *option, char *value);
-extern void target_save_options (FILE *, struct uae_prefs *);
+extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
-extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type);
+extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type, int isdefault);
 
 extern int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink);
 extern int cfgfile_save (struct uae_prefs *, const char *filename, int);
@@ -260,7 +260,8 @@ extern void cfgfile_parse_line (struct uae_prefs *p, char *, int);
 extern int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int);
 extern int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
-extern uae_u32 cfgfile_uaelib(int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
+extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
+extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (char *);
 extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 

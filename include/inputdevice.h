@@ -118,7 +118,7 @@ extern void inputdevice_vsync (void);
 extern void inputdevice_hsync (void);
 extern void inputdevice_reset (void);
 
-extern void write_inputdevice_config (struct uae_prefs *p, FILE *f);
+extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, char *option, char *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
 
@@ -151,3 +151,4 @@ extern int jsem_isjoy (int port, struct uae_prefs *p);
 extern int jsem_ismouse (int port, struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, struct uae_prefs *p);
 
+extern int inputdevice_uaelib (char*, char*);
