@@ -5,5 +5,4 @@ extern void ahi_close_sound (void);
 extern void ahi_finish_sound_buffer( void );
 
 extern int ahi_on;
-
-
+extern int ahi_pollrate;

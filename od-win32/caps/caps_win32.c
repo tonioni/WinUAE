@@ -181,7 +181,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
     type = ci.type & CTIT_MASK_TYPE;
     len = ci.tracklen;
     *tracklength = len * 8;
-    *gapoffset = ci.overlap * 8;
+    *gapoffset = ci.overlap >= 0 ? ci.overlap * 8 : -1;
     for (i = 0; i < (len + 1) / 2; i++) {
         uae_u8 *data = ci.trackbuf + i * 2;
         *mfm++ = 256 * *data + *(data + 1);

@@ -244,7 +244,7 @@ static int handlecd32 (int scancode, int state)
     }
     if (!e)
 	return 0;
-    handle_input_event (e, state, 1, 0, NULL);
+    handle_input_event (e, state, 1, 0);
     return 1;
 }
 #endif
@@ -263,7 +263,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     int code = 0;
     static int swapperdrive = 0;
 
-//    write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
+    //write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
     if (newstate) {
 	switch (scancode)
 	{

@@ -70,6 +70,39 @@ static int restoresurface (LPDIRECTDRAWSURFACE7 surface)
     }
     return hr;
 }
+
+
+/*
+ * FUNCTION:
+ *
+ * PURPOSE:
+ *
+ * PARAMETERS:
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ *
+ * HISTORY:
+ *   1999.08.02  Brian King             Creation
+ *
+ */
+static void clearsurface(int surface)
+{
+    DDBLTFX ddbltfx;
+    memset(&ddbltfx, 0, sizeof(ddbltfx));
+    ddbltfx.dwFillColor = 0;
+    ddbltfx.dwSize = sizeof(ddbltfx);
+    DirectDraw_Blt(surface, NULL, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
+}
+
+void DirectDraw_ClearSurfaces(void)
+{
+    clearsurface(secondary_surface);
+    if(DirectDrawState.isoverlay)
+	clearsurface(overlay_surface);
+}
+
 /*
  * FUNCTION:ShowDDCaps
  *
@@ -941,12 +974,13 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
 }
 
 
-HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
+HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int type)
 {
     DDSURFACEDESC2 ddsd;
     DDPIXELFORMAT ddpfOverlayFormat;
     HRESULT ddrval = DDERR_UNSUPPORTED;
     DWORD dwDDSColor;
+    DWORD flags = DDPF_RGB;
 
     if( bOverlayAvailable )
     {
@@ -956,7 +990,7 @@ HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
 	    // Set the overlay format to 16 bit RGB 5:6:5
 	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
 	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
-	    ddpfOverlayFormat.dwFlags       = DDPF_RGB;
+	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 16;
 	    ddpfOverlayFormat.dwRBitMask    = 0xF800; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x07E0;
@@ -967,7 +1001,7 @@ HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
 	    // Set the overlay format to 32 bit ARGB 8:8:8:8
 	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
 	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
-	    ddpfOverlayFormat.dwFlags       = DDPF_RGB;
+	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 32;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00FF0000; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x0000FF00;
@@ -978,7 +1012,7 @@ HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
 	    // Set the overlay format to 8 bit palette
 	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
 	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
-	    ddpfOverlayFormat.dwFlags       = DDPF_RGB | DDPF_PALETTEINDEXED8;
+	    ddpfOverlayFormat.dwFlags       = flags | DDPF_PALETTEINDEXED8;
 	    ddpfOverlayFormat.dwRGBBitCount = 8;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00000000; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x00000000;
@@ -1003,12 +1037,12 @@ HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits)
 	overlayfx.dwSize = sizeof(overlayfx);
 	overlayflags = DDOVER_SHOW | DDOVER_DDFX | DDOVER_KEYDESTOVERRIDE;
 
-	dwDDSColor = ConvertGDIColor( g_dwBackgroundColor );
+	dwDDSColor = ConvertGDIColor(g_dwBackgroundColor);
 	overlayfx.dckDestColorkey.dwColorSpaceLowValue  = dwDDSColor;
 	overlayfx.dckDestColorkey.dwColorSpaceHighValue = dwDDSColor;
 
 	// Attempt to create the surface with theses settings
-	ddrval = IDirectDraw7_CreateSurface ( DirectDrawState.directdraw.dd, &ddsd, &DirectDrawState.overlay.surface, NULL);
+	ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, &ddsd, &DirectDrawState.overlay.surface, NULL);
 	if( ddrval == DD_OK )
 	{
 	    DirectDrawState.isoverlay = 1;
@@ -1047,46 +1081,41 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 
     DirectDrawState.flipping = single_buffer;
 
-    if( DirectDrawState.fullscreen ) // Create a flipping pair!
+    if (DirectDrawState.fullscreen) // Create a flipping pair!
     {
-	ZeroMemory( &DirectDrawState.primary.desc, sizeof( DDSURFACEDESC2 ) );
-	DirectDrawState.primary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	ZeroMemory (&DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
+	DirectDrawState.primary.desc.dwSize = sizeof (DDSURFACEDESC2);
 	DirectDrawState.primary.desc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
 	DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_COMPLEX | DDSCAPS_FLIP;
 	DirectDrawState.primary.desc.dwBackBufferCount = 2;
-	ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
+	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
 					    &DirectDrawState.primary.desc,
 					    &DirectDrawState.primary.surface,
-					    NULL );
-	if( ddrval != DD_OK )
-	{
+					    NULL);
+	if (ddrval != DD_OK) {
 	    // Create a non-flipping pair, since the flipping pair creation failed...
-	    ZeroMemory( &DirectDrawState.primary.desc, sizeof( DDSURFACEDESC2 ) );
-	    DirectDrawState.primary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	    ZeroMemory (&DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
+	    DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
 	    DirectDrawState.primary.desc.dwFlags = DDSD_CAPS;
 	    DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	    ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
+	    ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
 						&DirectDrawState.primary.desc,
 						&DirectDrawState.primary.surface,
-						NULL );
-	}
-	else
-	{
+						NULL);
+	} else {
 	    DirectDrawState.flipping = triple_buffer;
 	}
-    }
-    else
-    {
+        clearsurface (primary_surface);
+    } else {
 	// We're not full-screen, so you cannot create a flipping pair...
-
-	ZeroMemory( &DirectDrawState.primary.desc, sizeof( DDSURFACEDESC2 ) );
-	DirectDrawState.primary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	ZeroMemory( &DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
+	DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
 	DirectDrawState.primary.desc.dwFlags = DDSD_CAPS;
 	DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
+	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
 					    &DirectDrawState.primary.desc,
 					    &DirectDrawState.primary.surface,
-					    NULL );
+					    NULL);
     }
 
     if( ddrval != DD_OK )
@@ -1115,6 +1144,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 	    ddrval = IDirectDrawSurface7_GetAttachedSurface( DirectDrawState.secondary.surface, &ddSCaps, &DirectDrawState.tertiary.surface );
 	    if( ddrval == DD_OK )
 	    {
+		clearsurface (tertiary_surface);
     #if 0
 		// Get our IDirectDrawSurface7 pointer
 		ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.tertiary.surface,
@@ -1207,33 +1237,6 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 out:
     DirectDraw_ClearSurfaces ();
     return ddrval;
-}
-
-/*
- * FUNCTION:
- *
- * PURPOSE:
- *
- * PARAMETERS:
- *
- * RETURNS:
- *
- * NOTES:
- *
- * HISTORY:
- *   1999.08.02  Brian King             Creation
- *
- */
-void DirectDraw_ClearSurfaces( void )
-{
-    DDBLTFX ddbltfx;
-    memset( &ddbltfx, 0, sizeof( ddbltfx ) );
-    ddbltfx.dwFillColor = 0;
-    ddbltfx.dwSize = sizeof( ddbltfx );
-
-    DirectDraw_Blt( secondary_surface, NULL, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx );
-    if( DirectDrawState.isoverlay )
-	DirectDraw_Blt( overlay_surface, NULL, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx );
 }
 
 /*
@@ -1783,55 +1786,55 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
  *
  */
 
-int DirectDraw_Flip( int wait )
+int DirectDraw_Flip(int wait)
 {
     int result = 0;
     HRESULT ddrval = DD_OK;
     DWORD flags = DDFLIP_WAIT;
-    int start = read_processor_time();
     static int skip;
-
-    if( DirectDrawState.flipping == triple_buffer )
-    {
+    frame_time_t start;
+    
+    start = read_processor_time ();
+    if (DirectDrawState.flipping == triple_buffer) {
 	if (!currprefs.gfx_afullscreen && !currprefs.gfx_vsync) {
-	    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
+	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
 	} else if (currprefs.gfx_vsync) {
 	    if (vblank_skip >= 0) {
 		skip++;
     		if (vblank_skip > skip) {
-		    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
+		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
 		} else {
 		    skip = 0;
-		    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags );
+		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 		    idletime += read_processor_time() - start;
 		}
 	    } else {
 		if (flipinterval_supported) {
-		    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags | DDFLIP_INTERVAL2 );
+		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_INTERVAL2);
 		    idletime += read_processor_time() - start;
 		} else {
-		    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags );
+		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 		    idletime += read_processor_time() - start;
-		    result = DirectDraw_BltFast( tertiary_surface, 0, 0, primary_surface, NULL );
+		    result = DirectDraw_BltFast(tertiary_surface, 0, 0, primary_surface, NULL);
 		    start = read_processor_time();
-		    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags );
+		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 		    idletime += read_processor_time() - start;
 		}
 	    }
 	} else {
-	    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags );
+	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 	}
-    } else if( DirectDrawState.flipping == double_buffer ) {
+    } else if(DirectDrawState.flipping == double_buffer) {
 	if (!currprefs.gfx_afullscreen && !currprefs.gfx_vsync) {
-	    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
+	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
 	} else {
-	    ddrval = IDirectDrawSurface7_Flip( DirectDrawState.primary.surface, NULL, flags );
+	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 	    idletime += read_processor_time() - start;
 	}
     } else {
 	return 1;
     }
-    if( ddrval == DD_OK ) {
+    if(ddrval == DD_OK) {
         result = 1;
     } else {
 	if (ddrval == DDERR_SURFACELOST) {
@@ -1842,8 +1845,9 @@ int DirectDraw_Flip( int wait )
 		DirectDraw_Flip (wait);
 		recurse--;
 	    }
-	} else
+	} else {
 	    write_log("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
+	}
     }
     return result;
 }

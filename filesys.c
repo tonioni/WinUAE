@@ -2946,6 +2946,7 @@ action_delete_object (Unit *unit, dpacket packet)
     updatedirtime (a, 1);
     if (a->child != 0) {
 	write_log ("Serious error in action_delete_object.\n");
+	a->deleted = 1;
     } else {
 	delete_aino (unit, a);
     }

@@ -1413,13 +1413,13 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	    *secdata++ = dlong;
 	    chksum ^= odd ^ even;
 	}
-	mbuf += 256;
 	if (chksum) {
 	    write_log ("Disk decode: sector %d, data checksum error\n", trackoffs);
 	    if (filetype == ADF_EXT2)
 		return 4;
 	    continue;
 	}
+	mbuf += 256;
 	sectable[trackoffs] = 1;
 	secwritten++;
 	memcpy (writebuffer + trackoffs * 512, secbuf + 32, 512);

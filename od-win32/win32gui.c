@@ -4221,6 +4221,7 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
     CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
     CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
+    CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
     CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
@@ -4368,6 +4369,9 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
+	    break;
+	case IDC_ALWAYSONTOP:
+	    workprefs.win32_alwaysontop = IsDlgButtonChecked (hDlg, IDC_ALWAYSONTOP);
 	    break;
 	}
 	return TRUE;
@@ -5873,10 +5877,10 @@ static void deletesaveimage (HWND hDlg, int num)
 static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv)
 {
     MultiDiskSelection (hDlg, wParam, 0, &workprefs, NULL);
-    disk_insert (drv, p->df[0]);
-    disk_insert (drv, p->df[1]);
-    disk_insert (drv, p->df[2]);
-    disk_insert (drv, p->df[3]);
+    disk_insert (0, p->df[0]);
+    disk_insert (1, p->df[1]);
+    disk_insert (2, p->df[2]);
+    disk_insert (3, p->df[3]);
     addfloppytype (hDlg, drv);
 }
 

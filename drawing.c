@@ -1,3 +1,5 @@
+//#define XLINECHECK
+
  /*
   * UAE - The Un*x Amiga Emulator
   *
@@ -117,6 +119,21 @@ union sps_union spixstate;
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
 
 char *xlinebuffer;
+#ifdef XLINECHECK
+char *xlinebuffer_start, *xlinebuffer_end;
+static void xlinecheck (int start, int end)
+{
+    char *xstart = xlinebuffer + start * gfxvidinfo.pixbytes;
+    char *xend = xlinebuffer + end * gfxvidinfo.pixbytes;
+    if (xstart < xlinebuffer_start || xstart > xlinebuffer_end ||
+	xend < xlinebuffer_start || xend > xlinebuffer_end)
+	    write_log ("*** %dx%d (%dx%dx%d) %p %p %p\n",
+		start, end, gfxvidinfo.width, gfxvidinfo.height, gfxvidinfo.pixbytes,
+		xlinebuffer, xlinebuffer_start, xlinebuffer_end);
+}
+#else
+#define xlinecheck
+#endif
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
 static char *row_map[MAX_VIDHEIGHT + 1];
@@ -578,6 +595,7 @@ static void pfield_do_linetoscr (int start, int stop)
 
 static void pfield_do_fill_line (int start, int stop)
 {
+    xlinecheck(start, stop);
     switch (gfxvidinfo.pixbytes) {
     case 1: fill_line_8 (xlinebuffer, start, stop); break;
     case 2: fill_line_16 (xlinebuffer, start, stop); break;
@@ -590,6 +608,7 @@ static void pfield_do_linetoscr_full (int double_line)
     char *oldxlb = (char *)xlinebuffer;
     int old_src_pixel = src_pixel;
 
+    xlinecheck(playfield_start, playfield_end);
     pfield_do_linetoscr (playfield_start, playfield_end);
     xlinebuffer = oldxlb + linetoscr_double_offset;
     src_pixel = old_src_pixel;
@@ -1111,13 +1130,14 @@ static void pfield_doline (int lineno)
 
 void init_row_map (void)
 {
-    int i;
+    int i, j;
     if (gfxvidinfo.height > MAX_VIDHEIGHT) {
 	write_log ("Resolution too high, aborting\n");
 	abort ();
     }
-    for (i = 0; i < gfxvidinfo.height + 1; i++)
-	row_map[i] = gfxvidinfo.bufmem + gfxvidinfo.rowbytes * i;
+    j = 0;
+    for (i = 0; i < gfxvidinfo.height + 1; i++, j += gfxvidinfo.rowbytes)
+	row_map[i] = gfxvidinfo.bufmem + j;
 }
 
 static void init_aspect_maps (void)
@@ -1420,7 +1440,12 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	xlinebuffer = gfxvidinfo.emergmem, dh = dh_emerg;
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[gfx_ypos], dh = dh_buf;
+#ifdef XLINECHECK
+    xlinebuffer_start =  xlinebuffer;
+    xlinebuffer_end = xlinebuffer + gfxvidinfo.width * gfxvidinfo.pixbytes;
+#endif
     xlinebuffer -= linetoscr_x_adjust_bytes;
+
 
     if (border == 0) {
 	pfield_expand_dp_bplcon ();

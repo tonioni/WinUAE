@@ -1247,12 +1247,23 @@ int WIN32_InitHtmlHelp( void )
     return result;
 }
 
+typedef LANGID (CALLBACK* PGETUSERDEFAULTUILANGUAGE)(void);
+static PGETUSERDEFAULTUILANGUAGE pGetUserDefaultUILanguage;
+
 static HMODULE LoadGUI( void )
 {
     HMODULE result = NULL;
     LPCTSTR dllname = NULL;
-    LANGID language = GetUserDefaultLangID() & 0x3FF; // low 9-bits form the primary-language ID
     char dllbuf[MAX_DPATH];
+    LANGID language;
+
+    /* new user-specific Windows ME/2K/XP method to get UI language */
+    pGetUserDefaultUILanguage = (PGETUSERDEFAULTUILANGUAGE)GetProcAddress(
+	GetModuleHandle("kernel32.dll"), "GetUserDefaultUILanguage");
+    language = GetUserDefaultLangID();
+    if (pGetUserDefaultUILanguage)
+	language = pGetUserDefaultUILanguage();
+    language &= 0x3ff; // low 9-bits form the primary-language ID
 
     switch( language )
     {
@@ -1632,10 +1643,11 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_no_overlay = 0;
 	p->win32_ctrl_F11_is_quit = 0;
 	p->win32_soundcard = 0;
-	p->win32_active_priority = 0;
+	p->win32_active_priority = 1;
 	p->win32_inactive_priority = 2;
 	p->win32_iconified_priority = 3;
 	p->win32_notaskbarbutton = 0;
+	p->win32_alwaysontop = 0;
     }
     if (type == 1 || type == 0) {
         p->win32_midioutdev = -2;
@@ -1667,6 +1679,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_write (f, "win32.soundcard=%d\n", p->win32_soundcard );
     cfgfile_write (f, "win32.cpu_idle=%d\n", p->cpu_idle);
     cfgfile_write (f, "win32.notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
+    cfgfile_write (f, "win32.always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
 }
 
 static int fetchpri (int pri, int defpri)
@@ -1709,14 +1722,15 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_string (option, value, "serial_port", &p->sername[0], 256)
 	    || cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)
 	    || cfgfile_yesno  (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
+	    || cfgfile_yesno  (option, value, "always_on_top", &p->win32_alwaysontop)
 	    || cfgfile_intval  (option, value, "cpu_idle", &p->cpu_idle, 1));
 
     if (cfgfile_intval (option, value, "active_priority", &v, 1)) {
-	p->win32_active_priority = fetchpri (v, 0);
+	p->win32_active_priority = fetchpri (v, 1);
 	return 1;
     }
     if (cfgfile_intval (option, value, "activepriority", &v, 1)) {
-	p->win32_active_priority = fetchpri (v, 0);
+	p->win32_active_priority = fetchpri (v, 1);
 	return 1;
     }
     if (cfgfile_intval (option, value, "inactive_priority", &v, 1)) {

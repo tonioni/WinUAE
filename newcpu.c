@@ -1637,6 +1637,8 @@ static void do_trace (void)
     }
 }
 
+#define IDLETIME (currprefs.cpu_idle * sleep_resolution / 1000)
+
 static int do_specialties (int cycles)
 {
     #ifdef ACTION_REPLAY
@@ -1725,11 +1727,11 @@ static int do_specialties (int cycles)
 		    sleepcnt--;
 		    if (pissoff == 0 && compiled_code && --zerocnt < 0) {
 			sleepcnt = -1;
-			zerocnt = (currprefs.cpu_idle * sleep_resolution / 1000) / 4;
+			zerocnt = IDLETIME / 4;
 		    }
 		    lvpos = vpos;
 		    if (sleepcnt < 0) {
-		        sleepcnt = (currprefs.cpu_idle * sleep_resolution / 1000) / 2;
+		        sleepcnt = IDLETIME / 2;
 			sleep_millis (1);
 		    }
 		}

@@ -473,31 +473,12 @@ static void CopyLibResolutionStructureU2A (struct LibResolution *libres, uaecptr
 
 /* list is Amiga address of list, in correct endian format for UAE
 * node is Amiga address of node, in correct endian format for UAE */
-static void AmigaListAddTail (uaecptr list, uaecptr node)
+static void AmigaListAddTail (uaecptr l, uaecptr n)
 {
-    uaecptr amigamemptr = 0;
-    
-    if (get_long (list + 8) == list) {
-	/* Empty list - set it up */
-	put_long (list, node);     /* point the lh_Head to our new node */
-	put_long (list + 4, 0);    /* set the lh_Tail to NULL */
-	put_long (list + 8, node); /* point the lh_TailPred to our new node */
-	
-	/* Adjust the new node - don't rely on it being zeroed out */
-	put_long (node, 0); /* ln_Succ */
-	put_long (node + 4, 0); /* ln_Pred */
-    } else {
-	amigamemptr = get_long (list + 8); /* get the lh_TailPred contents */
-	
-	put_long (list + 8, node); /* point the lh_TailPred to our new node */
-	
-	/* Adjust the previous lh_TailPred node */
-	put_long (amigamemptr, node); /* point the ln_Succ to our new node */
-	
-	/* Adjust the new node - don't rely on it being zeroed out */
-	put_long (node, 0); /* ln_Succ */
-	put_long (node + 4, amigamemptr); /* ln_Pred */
-    }
+    put_long (n + 0, l + 4); // n->ln_Succ = (struct Node *)&l->lh_Tail;
+    put_long (n + 4, get_long (l + 8)); // n->ln_Pred = l->lh_TailPred;
+    put_long (get_long (l + 8) + 0, n); // l->lh_TailPred->ln_Succ = n;
+    put_long (l + 8, n); // l->lh_TailPred = n;
 }
 
 /*
@@ -953,22 +934,28 @@ extern unsigned int new_beamcon0;
 void picasso_refresh ( int call_setpalette )
 {
     struct RenderInfo ri;
+    static int beamcon0_before, p96refresh_was;
    
     if (! picasso_on)
 	return;
     {  //for higher P96 mousedraw rate
 	/* HACK */
 	extern uae_u16 vtotal;
-	if (p96hack_vpos2){
+	if (p96hack_vpos2) {
 	    vtotal=p96hack_vpos2;
+	    beamcon0_before = new_beamcon0;
 	    new_beamcon0 |= 0x80;
-	    p96refresh_active=1;
-	} else new_beamcon0 |= 0x20;
+	    p96refresh_active = 1;
+	    p96refresh_was = 1;
+	} else {
+	    if (p96refresh_was) {
+		new_beamcon0 = beamcon0_before;
+		p96refresh_was = 0;
+	    }
+	    new_beamcon0 |= 0x20;
+	}
 		/* HACK until ntsc timing is fixed.. */
     } //end for higher P96 mousedraw rate
-	
-    
-
     have_done_picasso = 1;
     
     /* Make sure that the first time we show a Picasso video mode, we don't blit any crap.

@@ -1122,8 +1122,6 @@ static int init_kb (void)
     LPDIRECTINPUTDEVICE8 lpdi;
     DIPROPDWORD dipdw;
     HRESULT hr;
-    HKL keyboardlayoutid;
-    WORD keyboardlangid;
 
     if (keyboard_inited)
 	return 1;
@@ -1155,14 +1153,9 @@ static int init_kb (void)
 		write_log ("keyboard CreateDevice failed, %s\n", DXError (hr));
 	}
     }
-    keyboardlayoutid = GetKeyboardLayout(0);      
-    keyboardlangid = LOWORD(keyboardlayoutid);
     keyboard_german = 0;
-    if (keyboardlangid == 0x0407) keyboard_german = 1; //German Standard
-    if (keyboardlangid == 0x0807) keyboard_german = 1; //German Switzerland
-    if (keyboardlangid == 0x0c07) keyboard_german = 1; //German Austria
-    if (keyboardlangid == 0x1007) keyboard_german = 1; //German Louxembourg
-    if (keyboardlangid == 0x1407) keyboard_german = 1; //German Lichtenstein
+    if ((LOWORD(GetKeyboardLayout(0)) & 0x3ff) == 7)
+	keyboard_german = 1;
     return 1;
 }
 
@@ -1426,7 +1419,6 @@ static int acquire_kb (int num, int flags)
     LPDIRECTINPUTDEVICE8 lpdi = di_keyboard[num].lpdi;
 
     unacquire (lpdi, "keyboard");
-
     if (currprefs.keyboard_leds_in_use) {
 #ifdef WINDDK
 	if (os_winnt && !usbledmode) {

@@ -781,7 +781,7 @@ void hsyncstuff(void)
 	if (ahi_on) {
 	    count++;
 	    //15625/count freebuffer check
-	    if(count > 20) {
+	    if(count > ahi_pollrate) {
 		ahi_updatesound (1);
 		count = 0;
 	    }

@@ -656,19 +656,25 @@ void savestate_quick (int slot, int save)
 	i = len - 1;
 	while (i >= 0 && savestate_fname[i] != '.')
 	    i--;
-	if (i <= 0)
+	if (i <= 0) {
+	    write_log ("savestate name skipped '%s'\n", savestate_fname);
 	    return;
+	}
     }
     strcpy (savestate_fname + i, ".uss");
     if (slot > 0)
 	sprintf (savestate_fname + i, "_%d.uss", slot);
     if (save) {
+	write_log ("saving '%s'\n", savestate_fname);
 	savestate_docompress = 1;
 	save_state (savestate_fname, "");
     } else {
-	if (!zfile_exists (savestate_fname))
+	if (!zfile_exists (savestate_fname)) {
+	    write_log ("staterestore, file '%s' not found\n", savestate_fname);
 	    return;
+	}
 	savestate_state = STATE_DORESTORE;
+	write_log ("staterestore starting '%s'\n", savestate_fname);
     }
 }
 

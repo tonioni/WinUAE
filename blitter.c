@@ -707,10 +707,8 @@ void decide_blitter (int hpos)
 {
     if (bltstate == BLT_done)
 	return;
-    if (!currprefs.blitter_cycle_exact) {
-        blitter_handler ();
+    if (!currprefs.blitter_cycle_exact)
 	return;
-    }
     if (blitline) {
 	decide_blitter_line (hpos);
 	return;
@@ -888,7 +886,6 @@ void do_blitter (int hpos)
 #ifdef BLITTER_DEBUG
     int oldstate = bltstate;
 #endif
-
     blt_info.blitzero = 1;
     bltstate = BLT_init;
     preva = 0;

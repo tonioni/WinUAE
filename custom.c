@@ -2172,6 +2172,11 @@ static void reset_decisions (void)
 
 }
 
+static int isvsync (void)
+{
+    return currprefs.gfx_vsync && currprefs.gfx_afullscreen;
+}
+
 int vsynctime_orig;
 int turbo_emulation;
 
@@ -2180,7 +2185,7 @@ void compute_vsynctime (void)
     fake_vblank_hz = 0;
     if (currprefs.chipset_refreshrate) {
 	vblank_hz = currprefs.chipset_refreshrate;
-	if (currprefs.gfx_vsync && currprefs.gfx_afullscreen) {
+	if (isvsync()) {
 	    vblank_skip = 1;
 	    if (!fake_vblank_hz && vblank_hz > 85) {
 		vblank_hz /= 2;
@@ -2270,7 +2275,8 @@ void init_hz (void)
 #ifdef PICASSO96
     init_hz_p96 ();
 #endif
-    write_log ("%s mode, %dHz\n", isntsc ? "NTSC" : "PAL", vblank_hz);
+    write_log ("%s mode, %dHz (h=%d v=%d)\n",
+	isntsc ? "NTSC" : "PAL", vblank_hz, maxhpos, maxvpos);
 }
 
 static void calcdiw (void)
@@ -2738,6 +2744,7 @@ STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
 	v &= 0xff;
     if (bplcon1 == v)
 	return;
+    ddf_change = vpos;
     decide_line (hpos);
     decide_fetch (hpos);
     bplcon1 = v;
@@ -4171,12 +4178,14 @@ static void framewait (void)
         double v = rpt_vsync () / (syncbase / 1000.0);
 	if (v >= -4)
 	    break;
-        sleep_millis_busy (1);
+        sleep_millis_busy (2);
     }
-    start = read_processor_time();
-    do {
-        curr_time = read_processor_time ();
-    } while (rpt_vsync () < 0);
+    curr_time = start = read_processor_time();
+    if (!isvsync()) {
+	do {
+	    curr_time = read_processor_time ();
+	} while (rpt_vsync () < 0);
+    }
     vsyncmintime = curr_time + vsynctime;
     idletime += read_processor_time() - start;
 }
@@ -4231,7 +4240,7 @@ static void vsync_handler (void)
 {
     fpscounter ();
 
-    if ((!currprefs.gfx_vsync || !currprefs.gfx_afullscreen)
+    if (!isvsync()
 #ifdef AVIOUTPUT
 	&& ((avioutput_framelimiter && avioutput_enabled) || !avioutput_enabled)
 #endif
@@ -4404,7 +4413,6 @@ static void hsync_handler (void)
 
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
-	int i;
         decide_blitter (hpos);
 	memset (cycle_line, 0, MAXHPOS);
 #if 1
@@ -4413,12 +4421,15 @@ static void hsync_handler (void)
 	cycle_line[4] = CYCLE_REFRESH;
 	cycle_line[6] = CYCLE_REFRESH;
 #else
+{
+	int i;
 	cycle_line[4] = CYCLE_REFRESH;
 	cycle_line[6] = CYCLE_REFRESH;
 	cycle_line[8] = CYCLE_REFRESH;
 	cycle_line[10] = CYCLE_REFRESH;
 	for (i = 12; i < 0x16; i += 2)
 	    cycle_line[i] = CYCLE_NOCPU;
+}
 #endif
     }
 #endif
@@ -5621,6 +5632,12 @@ STATIC_INLINE void sync_copper (int hpos)
 	update_copper (hpos);
 }
 
+STATIC_INLINE decide_fetch_ce (int hpos)
+{
+    if (ddf_change == vpos)
+	decide_fetch (hpos);
+}
+
 STATIC_INLINE int dma_cycle(void)
 {
     int hpos, cycles = 0, bnasty = 0;
@@ -5633,7 +5650,7 @@ STATIC_INLINE int dma_cycle(void)
         hpos = current_hpos ();
 	sync_copper (hpos);
 	decide_line (hpos);
-        decide_fetch (hpos);
+        decide_fetch_ce (hpos);
 	bpldma = is_bitplane_dma (hpos);
 	if (cycle_line[hpos] == 0 && !bpldma) {
 	    if (bltstate == BLT_done || bnasty >= 3)
@@ -5695,7 +5712,7 @@ void do_cycles_ce (long cycles)
         hpos = current_hpos ();
 	sync_copper (hpos);
 	decide_line (hpos);
-        decide_fetch (hpos);
+        decide_fetch_ce (hpos);
 	bpldma = is_bitplane_dma (hpos);
 	if (cycle_line[hpos] == 0 && !bpldma)
 	    decide_blitter (hpos);

@@ -67,9 +67,10 @@ static char *ahisndbuffer,*sndrecbuffer;
 static int ahisndbufsize,oldpos,*ahisndbufpt,ahitweak;;
 static unsigned int dwBytes,dwBytes1,dwBytes2,espstore;
 static LPVOID dwData1,dwData2;
+int ahi_pollrate;
 
 int sound_freq_ahi;
-	
+
 static int vin,devicenum;
 static int amigablksize;
 
@@ -717,12 +718,11 @@ switch (opcode) {
        extern int p96hack_vpos2,hack_vpos,p96refresh_active;
        extern uae_u16 vtotal;
        extern unsigned int new_beamcon0;
-       p96hack_vpos2=15625/m68k_dreg (regs, 1);
+       p96hack_vpos2 = 0;
+       if (m68k_dreg (regs, 1) > 0)
+	    p96hack_vpos2 = 15625 / m68k_dreg (regs, 1);
        p96refresh_active=1;
-       if (!picasso_on)return 0;
-       vtotal=p96hack_vpos2;           // only do below if P96 screen is visible
-       new_beamcon0 |= 0x80;              
-       hack_vpos=vtotal;                  
+       picasso_refresh (0);
         } //end for higher P96 mouse draw rate
       return 0;
 
@@ -894,8 +894,13 @@ switch (opcode) {
 		bswap_buffer = NULL;
 		return 0; 	
 	case 200:
-     ahitweak = m68k_dreg (regs, 1);
-	 return 1;
+	ahitweak = m68k_dreg (regs, 1);
+	ahi_pollrate = m68k_dreg (regs, 2);
+	if (ahi_pollrate < 10)
+	    ahi_pollrate = 10;
+	if (ahi_pollrate > 60)
+	    ahi_pollrate = 60;
+	return 1;
 	default:
 	return 0x12345678;     // Code for not supportet function
 	}

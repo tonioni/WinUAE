@@ -1179,7 +1179,6 @@ void inputdevice_handle_inputcode (void)
 	return;
     if (vpos != 0)
 	write_log ("inputcode=%d but vpos = %d", code, vpos);
-
     switch (code)
     {
 	case AKS_ENTERGUI:
@@ -1272,7 +1271,7 @@ void inputdevice_handle_inputcode (void)
 	case AKS_STATERESTOREQUICK7:
 	case AKS_STATERESTOREQUICK8:
 	case AKS_STATERESTOREQUICK9:
-	savestate_quick ((code - AKS_STATESAVEQUICK) / 2, 0);
+	savestate_quick ((code - AKS_STATERESTOREQUICK) / 2, 0);
 	break;
 	case AKS_TOGGLEFULLSCREEN:
 	fullscreentoggle ();

@@ -213,7 +213,6 @@
 #define IDS_SOUND_4CHANNEL              242
 #define IDS_HF_FS_CUSTOM                243
 #define IDS_SELECTFS                    244
-#define IDB_BITMAP1                     246
 #define IDB_XARCADE                     246
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
@@ -624,6 +623,8 @@
 #define IDC_MAPROM                      1609
 #define IDC_AVIOUTPUT_FILETEXT          1610
 #define IDC_INPUTDEVICETEXT             1610
+#define IDC_NOTASKBARBUTTON2            1610
+#define IDC_ALWAYSONTOP                 1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_AVIOUTPUT_FPS_STATIC        1612

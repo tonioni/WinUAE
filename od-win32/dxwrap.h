@@ -198,7 +198,7 @@ struct DirectDrawSurfaceMapper
     LPDIRECTDRAWPALETTE lpOverlayDDP;
     surface_type_e surface_type;
 };
-HRESULT DirectDraw_CreateOverlaySurface( int width, int height, int bits );
+HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int type);
 int DirectDraw_Start( GUID *);
 void DirectDraw_Release( void );
 HRESULT DirectDraw_SetCooperativeLevel( HWND window, int want_fullscreen );

@@ -261,7 +261,7 @@ uae_u16 picasso96_pixel_format = RGBFF_CHUNKY;
 /* For the DX_Invalidate() and gfx_unlock_picasso() functions */
 static int p96_double_buffer_first, p96_double_buffer_last, p96_double_buffer_needs_flushing = 0;
 
-static char scrlinebuf[4096];	/* this is too large, but let's rather play on the safe side here */
+static char scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
 static int rgbformat_bits (RGBFTYPE t)
 {
@@ -364,7 +364,7 @@ static int set_ddraw (void)
 	    goto oops;
 	}
 	if (DirectDraw_GetPrimaryBitCount() != (unsigned)bits && overlay) {
-	    ddrval = DirectDraw_CreateOverlaySurface (width, height, bits);
+	    ddrval = DirectDraw_CreateOverlaySurface (width, height, bits, 0);
 	    if( ddrval != DD_OK )
 	    {
 		write_log( "set_ddraw: Couldn't CreateOverlaySurface(%d,%d,%d) because %s.\n", width, height, bits, DXError( ddrval ) );
@@ -739,20 +739,35 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
 // the front and back buffers.  Additionally, because the emulation is not always drawing
 // complete frames, we also need to update the back-buffer with the new contents we just
 // flipped to.  Thus, after our flip, we blit.
-static int DX_Flip( void )
+static int DX_Flip(void)
 {
     int result = 0;
+#if 0
+    static frame_time_t end;
+    frame_time_t start, used;
 
+    start = read_processor_time();
+    used = start - end;
+    if (used > 0 && used < vsynctime * 2) {
+        int pct = used * 100 / vsynctime;
+	write_log ("%d\n", pct);
+	if (pct < 95)
+	    sleep_millis_busy (2 + (95 - pct) / 10);
+    }
+#endif
     result = DirectDraw_Flip(0);
     if( result )
     {
-//	result = DirectDraw_BltFast( primary_surface, 0, 0, secondary_surface, NULL );
-//	result = DirectDraw_BltFast( primary_surface, 0, 0, tertiary_surface, NULL );
-//	result = DirectDraw_BltFast( secondary_surface, 0, 0, primary_surface, NULL );
-//	result = DirectDraw_BltFast( secondary_surface, 0, 0, tertiary_surface, NULL );
-	result = DirectDraw_BltFast( tertiary_surface, 0, 0, primary_surface, NULL );
-//	result = DirectDraw_BltFast( tertiary_surface, 0, 0, secondary_surface, NULL );
+//	result = DirectDraw_BltFast(primary_surface, 0, 0, secondary_surface, NULL);
+//	result = DirectDraw_BltFast(primary_surface, 0, 0, tertiary_surface, NULL);
+//	result = DirectDraw_BltFast(secondary_surface, 0, 0, primary_surface, NULL);
+//	result = DirectDraw_BltFast(secondary_surface, 0, 0, tertiary_surface, NULL);
+	result = DirectDraw_BltFast(tertiary_surface, 0, 0, primary_surface, NULL);
+//	result = DirectDraw_BltFast(tertiary_surface, 0, 0, secondary_surface, NULL);
     }
+#if 0
+    end = read_processor_time();
+#endif
     return result;
 }
 
@@ -793,21 +808,12 @@ void flush_screen (int a, int b)
 
 static uae_u8 *ddraw_dolock (void)
 {
-    static char *surface = NULL, *oldsurface;
-
-    if( !DirectDraw_SurfaceLock( lockable_surface ) )
+    if (!DirectDraw_SurfaceLock(lockable_surface))
     	return 0;
-
-    surface = DirectDraw_GetSurfacePointer();
-    oldsurface = gfxvidinfo.bufmem;
-    gfxvidinfo.bufmem = surface;
-    if (surface != oldsurface && !screen_is_picasso) 
-    {
-	init_row_map ();
-    }
-
+    gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer();
+    init_row_map ();
     clear_inhibit_frame (IHF_WINDOWHIDDEN);
-    return surface;
+    return gfxvidinfo.bufmem;
 }
 
 int lockscr (void)
@@ -981,12 +987,13 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? 2 : 0;
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? 2 : 0;
     c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? 2 : 0;
-    c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate? 1 : 0;
-    c |= currprefs.gfx_filter != changed_prefs.gfx_filter? 1 : 0;
-    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode? 1 : 0;
-    c |= currprefs.gfx_lores != changed_prefs.gfx_lores? 1 : 0;
-    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl? 1 : 0;
-    c |= currprefs.gfx_display != changed_prefs.gfx_display? 1 : 0;
+    c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 1 : 0;
+    c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? 1 : 0;
+    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? 1 : 0;
+    c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 1 : 0;
+    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 1 : 0;
+    c |= currprefs.gfx_display != changed_prefs.gfx_display ? 1 : 0;
+    c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
     if (display_change_requested || c) 
     {
 	if (!display_change_requested)
@@ -1008,6 +1015,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_lores = changed_prefs.gfx_lores;
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
+	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
         inputdevice_unacquire ();
 	close_windows ();
 	graphics_init ();
@@ -1731,7 +1739,7 @@ static int create_windows (void)
 	    break;
 	}
 
-        hMainWnd = CreateWindowEx ((picasso_on ? WS_EX_ACCEPTFILES : WS_EX_ACCEPTFILES) | exstyle,
+        hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 					"PCsuxRox", "WinUAE",
 				       NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
 				       rc.left, rc.top,
@@ -1749,7 +1757,7 @@ static int create_windows (void)
     else
 	hMainWnd = NULL;
 
-    hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle,
+    hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
 				hMainWnd ? 2 : CW_USEDEFAULT, hMainWnd ? 2 : CW_USEDEFAULT,

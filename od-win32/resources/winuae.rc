@@ -529,7 +529,7 @@ IDD_MISC1 DIALOGEX 0, 0, 300, 223
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,90
+    GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,103
     CONTROL         "Middle-Mouse-Button --> ALT-TAB",IDC_JULIAN,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,29,21,120,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",
@@ -550,32 +550,34 @@ BEGIN
                     WS_TABSTOP,159,66,115,10
     CONTROL         "Syncronize clock",IDC_CLOCKSYNC,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,159,80,115,10
-    GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,99,85,73
-    COMBOBOX        IDC_KBLED1,22,112,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,110,85,73
+    COMBOBOX        IDC_KBLED1,22,123,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    COMBOBOX        IDC_KBLED2,22,131,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        IDC_KBLED2,22,142,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    COMBOBOX        IDC_KBLED3,22,151,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
+    COMBOBOX        IDC_KBLED3,22,162,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    GROUPBOX        "Logging:",IDC_STATIC,97,99,195,25
+    GROUPBOX        "Logging:",IDC_STATIC,97,110,195,25
     CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,107,109,72,10,0,
+                    BS_AUTOCHECKBOX | WS_TABSTOP,107,120,72,10,0,
                     HIDC_CREATELOGFILE
     CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,189,109,80,10
-    GROUPBOX        "State files:",IDC_STATIC,98,126,195,83
-    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,145,49,14
-    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,171,49,14
+                    BS_AUTOCHECKBOX | WS_TABSTOP,189,120,80,10
+    GROUPBOX        "State files:",IDC_STATIC,98,137,195,83
+    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,156,49,14
+    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,182,49,14
     CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,188,144,88,10
-    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,162,
+                    BS_AUTOCHECKBOX | WS_TABSTOP,188,155,88,10
+    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,173,
                     86,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_RATE,248,160,38,65,CBS_DROPDOWN | WS_VSCROLL | 
+    COMBOBOX        IDC_STATE_RATE,248,171,38,65,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
     RTEXT           "Recording buffer (MB)",IDC_STATE_BUFFERSIZE_TEXT,157,
-                    182,83,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_BUFFERSIZE,248,180,38,65,CBS_DROPDOWN | 
+                    193,83,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_BUFFERSIZE,248,191,38,65,CBS_DROPDOWN | 
                     WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,29,94,117,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 212
