@@ -969,6 +969,7 @@ static void expamem_init_z3fastmem (void)
 		: allocated_z3fastmem == 0x10000000 ? Z2_MEM_256MB
 		: allocated_z3fastmem == 0x20000000 ? Z2_MEM_512MB
 		: Z2_MEM_1GB);
+
     expamem_init_clear();
     expamem_write (0x00, add_memory | zorroIII | code);
 
@@ -1010,24 +1011,19 @@ static void expamem_map_gfxcard (void)
 
 static void expamem_init_gfxcard (void)
 {
+    int code = (allocated_gfxmem == 0x100000 ? Z2_MEM_1MB
+        : allocated_gfxmem == 0x200000 ? Z2_MEM_2MB
+        : allocated_gfxmem == 0x400000 ? Z2_MEM_4MB
+        : allocated_gfxmem == 0x800000 ? Z2_MEM_8MB
+        : allocated_gfxmem == 0x1000000 ? Z2_MEM_16MB
+        : allocated_gfxmem == 0x2000000 ? Z2_MEM_32MB
+        : allocated_gfxmem == 0x4000000 ? Z2_MEM_64MB
+        : Z2_MEM_128MB);
+
     expamem_init_clear();
-    expamem_write (0x00, zorroIII);
+    expamem_write (0x00, zorroIII | code);
 
-    switch (allocated_gfxmem) {
-     case 0x00100000:
-	expamem_write (0x08, no_shutup | force_z3 | Z3_MEM_1MB);
-	break;
-     case 0x00200000:
-	expamem_write (0x08, no_shutup | force_z3 | Z3_MEM_2MB);
-	break;
-     case 0x00400000:
-	expamem_write (0x08, no_shutup | force_z3 | Z3_MEM_4MB);
-	break;
-     case 0x00800000:
-	expamem_write (0x08, no_shutup | force_z3 | Z3_MEM_8MB);
-	break;
-    }
-
+    expamem_write (0x08, no_shutup | force_z3 | (allocated_gfxmem > 0x800000 ? ext_size : Z3_MEM_AUTO));
     expamem_write (0x04, 96);
 
     expamem_write (0x10, hackers_id >> 8);

@@ -138,7 +138,7 @@ void fixup_prefs (struct uae_prefs *p)
 	err = 1;
     }
     if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
-	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > 0x2000000)))
+	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > 0x8000000)))
     {
 	write_log ("Unsupported graphics card memory size %lx!\n", p->gfxmem_size);
 	p->gfxmem_size = 0;

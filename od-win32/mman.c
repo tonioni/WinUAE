@@ -10,6 +10,7 @@
 #include "include/memory.h"
 #include "options.h"
 #include "autoconf.h"
+#include "win32.h"
 
 static struct shmid_ds shmids[ MAX_SHMID ];
 static uae_u32 gfxoffs;
@@ -53,6 +54,8 @@ void init_shm( void )
 	    VirtualFree (blah, 0, MEM_RELEASE);
 	    while (address < (LPBYTE)0xa0000000) {
 		address += add * 8;
+		if (!os_winnt) /* Windows 9x/ME sucks */
+		    break;
 		blah = VirtualAlloc (address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (blah == NULL) {
 		    address -= add * 8;
@@ -61,7 +64,7 @@ void init_shm( void )
 	        VirtualFree (blah, 0, MEM_RELEASE);
 	    }
 	    natmem_offset = (uae_u8*)natmem_offset + ((uae_u8*)address - (uae_u8*)natmem_offset) / 2;
-    	    write_log ("NATMEM: after adjustment; 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
+    	    write_log ("NATMEM: after adjustment: 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
 	    canbang = 1;
 	    break;
 	}

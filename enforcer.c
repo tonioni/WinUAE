@@ -464,12 +464,12 @@ void REGPARAM2 chipmem_bput2 (uaecptr addr, uae_u32 b)
 	if (ISILLEGAL(addr))
 	{
 		enforcer_display_hit("BYTE WRITE to",(uae_u32)(regs.pc_p - NATMEM_OFFSET),addr);
-		chipmemory[addr] = b;
 			if (enforcermode==1)
 			{
 			set_special (SPCFLAG_TRAP);	
 			}
 	}
+    chipmemory[addr] = b;
 }
 
 int REGPARAM2 chipmem_check2 (uaecptr addr, uae_u32 size)

@@ -1958,7 +1958,7 @@ static void WIN32_HandleRegistryStuff( void )
                               KEY_ALL_ACCESS, NULL, &hWinUAEKeyLocal, &disposition ) == ERROR_SUCCESS ) )
         {
             /* Set our (default) sub-key to BE the "WinUAE" command for launching a configuration */
-            sprintf( path, "%sWinUAE.exe -log -f \"%%1\"", start_path );
+            sprintf( path, "%sWinUAE.exe -f \"%%1\"", start_path );
             RegSetValueEx( hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen( path ) + 1 );
         }
 	RegCloseKey( hWinUAEKeyLocal );
@@ -2533,11 +2533,17 @@ HMODULE WIN32_LoadLibrary (const char *name)
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
+    HANDLE thread;
+    DWORD oldaff;
+
+    thread = GetCurrentThread();
+    oldaff = SetThreadAffinityMask(thread, 1); 
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
         } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode()))
     {
     }
+    SetThreadAffinityMask(thread, oldaff);
     return FALSE;
 }
 

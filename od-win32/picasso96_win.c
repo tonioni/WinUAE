@@ -63,7 +63,7 @@ int p96hsync_counter;
 #endif
 #define LOCK_UNLOCK_MADNESS //need for 7 times faster linedraw
 #define PIXEL_LOCK         //and scrollable screens
-#define MAXFLUSHPIXEL 1600 //pixel draw in a lock
+#define MAXFLUSHPIXEL 3200 //pixel draw in a lock
 static void flushpixels(void);
 int pixelcount,palette_changed;
 struct pixel32{

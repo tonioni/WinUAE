@@ -1505,6 +1505,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		    WIN32GUI_LoadUIString( IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
                     if( MessageBox( hDlg, szMessage, szTitle,
 			MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND ) == IDYES ) {
+			cfgfile_backup (path);
 			DeleteFile (path);
 			write_log ("deleted config '%s'\n", path);
                     }

@@ -1359,9 +1359,22 @@ end:
     return v;
 }
 
+void cfgfile_backup (const char *path)
+{
+    char dpath[MAX_DPATH];
+
+    fetch_configurationpath (dpath, sizeof (dpath));
+    strcat (dpath, "configuration.backup");
+    my_unlink (dpath);
+    my_rename (path, dpath);
+}
+
 int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
 {
-    struct zfile *fh = zfile_fopen (filename, "w");
+    struct zfile *fh;
+
+    cfgfile_backup (filename);
+    fh = zfile_fopen (filename, "w");
     write_log ("save config '%s'\n", filename);
     if (! fh)
 	return 0;

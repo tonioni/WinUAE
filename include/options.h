@@ -246,6 +246,7 @@ struct uae_prefs {
 extern char optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
 extern void cfgfile_write (struct zfile *, char *format,...);
+extern void cfgfile_backup (const char *path);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
