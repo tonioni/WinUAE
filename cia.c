@@ -953,7 +953,7 @@ void CIA_reset (void)
 	ciaaicr = ciabicr = ciaaimask = ciabimask = 0;
 	ciaacra = ciaacrb = ciabcra = ciabcrb = 0x4; /* outmode = toggle; */
 	ciaala = ciaalb = ciabla = ciablb = ciaata = ciaatb = ciabta = ciabtb = 0xFFFF;
-	ciaaalarm = ciabalarm = 0xffffff;
+	ciaaalarm = ciabalarm = currprefs.cpu_cycle_exact ? 0 : 0xffffff;
 	ciabpra = 0x8C; ciabdra = 0;
 	div10 = 0;
 	ciaasdr_cnt = 0; ciaasdr = 0;

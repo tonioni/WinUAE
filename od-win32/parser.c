@@ -58,6 +58,7 @@ static int prtopen;
 extern void flushpixels(void);
 void DoSomeWeirdPrintingStuff( char val );
 static int uartbreak;
+static int parflush;
 
 static uae_thread_id prt_tid;
 static volatile int prt_running;
@@ -433,6 +434,7 @@ void closeprinter( void )
 #ifdef PRINT_DUMP
     zfile_fclose (prtdump);
 #endif
+    parflush = 0;
     psmode = 0;
     if (hPrt != INVALID_HANDLE_VALUE) {
 	EndPagePrinter (hPrt);
@@ -460,6 +462,7 @@ static void putprinter (char val)
 
 int doprinter (uae_u8 val)
 {
+    parflush = 0;
     if (!prtopen)
 	openprinter ();
     if (prtopen)
@@ -798,7 +801,7 @@ void hsyncstuff(void)
     if(keycheck==1000)
     {
         flushprtbuf ();
-	{
+   	{
 	    extern flashscreen;
 	    int DX_Fill( int , int , int, int, uae_u32 , enum RGBFTYPE  );
 	    //extern int warned_JIT_0xF10000;
@@ -809,6 +812,13 @@ void hsyncstuff(void)
 	    }
 	}
 	keycheck = 0;
+    }
+    if (currprefs.parallel_autoflush_time) {
+        parflush++;
+        if (parflush / ((currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) >= currprefs.parallel_autoflush_time * 50) {
+	    flushprinter ();
+	    parflush = 0;
+	}
     }
 #endif
 }

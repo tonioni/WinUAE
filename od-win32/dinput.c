@@ -999,7 +999,7 @@ static int get_kb_widget_first (int kb, int type)
 static int get_kb_widget_type (int kb, int num, char *name, uae_u32 *code)
 {
     if (name)
-	strcpy (name, di_keyboard[kb].buttonname[num]);
+	sprintf (name, "[%02.2X] %s", di_keyboard[kb].buttonmappings[num], di_keyboard[kb].buttonname[num]);
     if (code)
 	*code = di_keyboard[kb].buttonmappings[num];
     return IDEV_WIDGET_KEY;

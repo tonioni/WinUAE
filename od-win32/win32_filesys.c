@@ -125,7 +125,7 @@ void filesys_init( void )
 
 		    result = add_filesys_unit (currprefs.mountinfo, 0, volumename, volumepath, 0, 0, 0, 0, 0, 0, 0);
 		    if( result )
-			write_log( result );
+			write_log ("%s\n", result);
 		}
             } /* if drivemask */
             dwDriveMask >>= 1;

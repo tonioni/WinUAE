@@ -224,6 +224,21 @@ int getsock (SB, int sd)
 
 	return -1;
     }
+	if (sb->dtable[sd -1] == INVALID_SOCKET)
+		{
+		struct socketbase *sb1,*nsb;
+		// Fix for Newsrog (All Tasks of Newsrog using the same dtable)
+	    for (sb1 = socketbases; sb1; sb1 = nsb) 
+			{
+			if (strcmp(get_real_address (get_long (sb1->ownertask + 10)),get_real_address (get_long (sb->ownertask + 10))) == 0)
+				{ // Task with same name already exists -> use same dtable 
+				if (sb1->dtable[sd-1] != INVALID_SOCKET)
+					return sb1->dtable[sd-1];
+				}	
+	
+			nsb = sb1->next;
+			}
+		}
     return sb->dtable[sd - 1];
 }
 

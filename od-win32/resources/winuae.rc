@@ -61,7 +61,7 @@ BEGIN
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
 END
 
-IDD_DISPLAY DIALOGEX 0, 0, 300, 194
+IDD_DISPLAY DIALOGEX 0, 0, 300, 202
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -79,7 +79,7 @@ BEGIN
     EDITTEXT        IDC_YSIZE,103,48,35,12,ES_NUMBER
     CONTROL         "VSync",IDC_VSYNC,"Button",BS_AUTOCHECKBOX | BS_LEFT | 
                     WS_TABSTOP,145,49,54,10
-    GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,77,199,73
+    GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,77,199,89
     CONTROL         "Full Screen",IDC_AFULLSCREEN,"Button",BS_AUTOCHECKBOX | 
                     BS_LEFT | WS_TABSTOP,35,89,90,10
     CONTROL         "Full Screen RTG",IDC_PFULLSCREEN,"Button",
@@ -105,13 +105,17 @@ BEGIN
                     BS_LEFT | WS_TABSTOP,233,105,41,10
     CONTROL         "Scanline",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | 
                     BS_LEFT | WS_TABSTOP,233,121,40,10
-    COMBOBOX        IDC_DA_MODE,35,163,58,150,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_DA_MODE,35,183,58,150,CBS_DROPDOWNLIST | 
                     CBS_HASSTRINGS | NOT WS_VISIBLE | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | 
-                    TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,97,161,101,20
-    PUSHBUTTON      "Detect pixel format",IDC_TEST16BIT,210,161,73,14,0,0,
+                    TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,99,179,101,20
+    PUSHBUTTON      "Detect pixel format",IDC_TEST16BIT,210,181,73,14,0,0,
                     HIDC_TEST16BIT
+    LTEXT           "FPS Adj.",IDC_REFRESH2TEXT,18,149,28,8
+    CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    TBS_TOP | WS_TABSTOP,46,144,127,20
+    EDITTEXT        IDC_RATE2TEXT,177,148,26,12,ES_CENTER | ES_READONLY
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 300, 175
@@ -399,6 +403,21 @@ STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Parallel Port",IDC_SERPARFRAME,5,2,291,68
+    RTEXT           "Printer:",IDC_STATIC,12,15,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_PRINTERLIST,49,15,153,134,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,220,14,58,12
+    CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",
+                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,11,33,78,12
+    CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",
+                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,93,33,100,12
+    RTEXT           "Autoflush timeout []Time in seconds after pending print job is automatically flushed.",
+                    IDC_PRINTERAUTOFLUSHTXT,202,32,57,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_PRINTERAUTOFLUSH,263,33,25,12,ES_NUMBER
+    RTEXT           "Ghostscript extra parameters:",IDC_STATIC,12,49,91,15,
+                    SS_CENTERIMAGE
+    EDITTEXT        IDC_PS_PARAMS,120,50,169,12,ES_AUTOHSCROLL
+    GROUPBOX        "Serial Port",IDC_SERIALFRAME,4,72,292,29
     COMBOBOX        IDC_SERIAL,19,83,95,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "Shared",IDC_SHARED,"Button",BS_AUTOCHECKBOX | 
@@ -407,10 +426,6 @@ BEGIN
                     BS_VCENTER | WS_TABSTOP,185,83,53,12
     CONTROL         "Direct",IDC_SERIAL_DIRECT,"Button",BS_AUTOCHECKBOX | 
                     BS_VCENTER | WS_TABSTOP,243,83,46,12
-    RTEXT           "Printer:",IDC_STATIC,15,15,25,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_PRINTERLIST,49,15,153,134,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,220,14,58,12
     GROUPBOX        "MIDI",IDC_MIDIFRAME,4,104,292,33
     RTEXT           "Out:",IDC_MIDI,10,115,34,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIOUTLIST,50,115,95,130,CBS_DROPDOWNLIST | 
@@ -418,43 +433,43 @@ BEGIN
     RTEXT           "In:",IDC_MIDI2,150,115,29,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIINLIST,185,115,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,141,141,78
+    GROUPBOX        "Amiga Mouse/Joystick Port 0",IDC_PORT0,4,139,142,97
     CONTROL         "",IDC_PORT0_JOYSC,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP | WS_TABSTOP,10,156,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT0_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,176,90,10
+                    10,173,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
                     IDC_PORT0_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,191,90,10
+                    10,186,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT0_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    10,205,90,10
-    COMBOBOX        IDC_PORT0_JOYS,23,155,117,130,CBS_DROPDOWNLIST | 
+                    10,198,90,10
+    CONTROL         "X-Arcade (left)",IDC_PORT0_KBDD,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,10,210,90,10
+    CONTROL         "X-Arcade (right)",IDC_PORT0_KBDE,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,10,222,90,10
+    COMBOBOX        IDC_PORT0_JOYS,23,153,117,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,141,146,78
+    GROUPBOX        "Amiga Joystick/Mouse Port 1",IDC_PORT1,150,139,146,98
     CONTROL         "",IDC_PORT1_JOYSC,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP | WS_TABSTOP,155,156,9,11
     CONTROL         "Keyboard Layout ""A"" []Numeric keypad, 0 and 5 = fire",
                     IDC_PORT1_KBDA,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,176,90,10
+                    155,173,90,10
     CONTROL         "Keyboard Layout ""B"" []Cursor keys, right CTRL and ALT = fire",
                     IDC_PORT1_KBDB,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,191,90,10
+                    155,186,90,10
     CONTROL         "Keyboard Layout ""C"" []T = up, B = down, F = left, H = right, left ALT = fire",
                     IDC_PORT1_KBDC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    155,205,90,10
-    COMBOBOX        IDC_PORT1_JOYS,168,155,123,130,CBS_DROPDOWNLIST | 
+                    155,198,90,10
+    CONTROL         "X-Arcade (left)",IDC_PORT1_KBDD,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,155,210,90,10
+    CONTROL         "X-Arcade (right)",IDC_PORT1_KBDE,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,155,222,90,10
+    COMBOBOX        IDC_PORT1_JOYS,168,153,123,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Swap ports",IDC_SWAP,119,225,54,14
-    CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",
-                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,18,32,103,12
-    CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",
-                    BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,122,32,103,12
-    EDITTEXT        IDC_PS_PARAMS,121,50,165,12,ES_AUTOHSCROLL
-    GROUPBOX        "Serial Port",IDC_SERIALFRAME,4,72,292,29
-    RTEXT           "Ghostscript extra parameters:",IDC_STATIC,15,49,91,15,
-                    SS_CENTERIMAGE
+    PUSHBUTTON      "Swap",IDC_SWAP,256,213,33,14
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242

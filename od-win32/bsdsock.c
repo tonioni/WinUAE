@@ -1730,8 +1730,8 @@ static void makesockbitfield(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win
 		
 		for (i = 0; i < 32; i++, mask <<= 1)
 		{
-			if ((currsock = sb->dtable[n+i]) != INVALID_SOCKET)
-			{
+			if ((currsock = getsock(sb, n+i+1)) != INVALID_SOCKET)
+			{ // Do not use sb->dtable directly because of Newsrog
 				for (j = fd_set_win->fd_count; j--; )
 				{
 					if (fd_set_win->fd_array[j] == currsock)
@@ -1827,7 +1827,6 @@ static unsigned int __stdcall thread_WaitSelect(void *index2)
 				{
 	       		sb->needAbort = 0;
 				}
-
 		    if (sb->resultval == SOCKET_ERROR)
 		    {
 			    SETERRNO;

@@ -7,11 +7,14 @@
   */
 
 
+#define CLICK_TRACKS 84
+
 struct drvsample {
     unsigned int len;
     unsigned pos;
     uae_s16 *p;
-    unsigned int multisize, multilen;
+    unsigned int indexes[CLICK_TRACKS];
+    unsigned int lengths[CLICK_TRACKS];
 };
 
 #define DS_CLICK 0

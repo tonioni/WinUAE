@@ -145,6 +145,10 @@ extern void inputdevice_handle_inputcode (void);
 #define JSEM_ISNUMPAD(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT)
 #define JSEM_ISCURSOR(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 1)
 #define JSEM_ISSOMEWHEREELSE(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 2)
+#define JSEM_ISXARCADE1(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 3)
+#define JSEM_ISXARCADE2(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 4)
+#define JSEM_LASTKBD 5
+#define JSEM_ISANYKBD(port,p) (jsem_iskbdjoy(port,p) >= JSEM_KBDLAYOUT && jsem_iskbdjoy(port,p) < JSEM_KBDLAYOUT + JSEM_LASTKBD)
 extern int compatibility_device[2];
 
 extern int jsem_isjoy (int port, struct uae_prefs *p);

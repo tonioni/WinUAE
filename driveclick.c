@@ -20,8 +20,6 @@
 
 #include "driveclick.h"
 
-#define CLICK_TRACKS 84
-
 static struct drvsample drvs[4][DS_END];
 static int freq = 44100;
 
@@ -66,11 +64,17 @@ static int loadsample (char *path, struct drvsample *ds)
     struct zfile *f;
     uae_u8 *buf;
     int size;
+    char name[MAX_DPATH];
 
     f = zfile_fopen (path, "rb");
     if (!f) {
-	write_log ("driveclick: can't open '%s'\n", path);
-	return 0;
+	strcpy (name, path);
+	strcat (name, ".wav");
+	f = zfile_fopen (name, "rb");
+	if (!f) {
+	    write_log ("driveclick: can't open '%s' (or '%s')\n", path, name);
+	    return 0;
+	}
     }
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
@@ -90,6 +94,44 @@ static void freesample (struct drvsample *s)
     s->p = 0;
 }
 
+static void processclicks(struct drvsample *ds) 
+{
+    unsigned int n = 0;
+    unsigned int nClick = 0;
+
+    for (n = 0; n < CLICK_TRACKS; n++)  {
+	ds->indexes[n] = 0;
+	ds->lengths[n] = 0;
+    }
+    for(n = 0; n < ds->len; n++) {
+	uae_s16 smp = ds->p[n];
+	if ((smp > 0x6ff0) && (nClick < CLICK_TRACKS))  {
+		ds->indexes[nClick] = n - 128;
+		ds->lengths[nClick] = 2800;
+		nClick ++;
+		n += 3000;
+	}
+    }
+    if (nClick == 0) {
+        for(n = 0; n < CLICK_TRACKS; n++) {
+            ds->indexes[n] = 0;
+            ds->lengths[n] = ds->len;
+        }
+    } else {
+        if (nClick == 1) {	
+	    ds->lengths[0] = ds->len - ds->indexes[0];
+	    for(n = 1; n < CLICK_TRACKS; n++) {
+	        ds->indexes[n] = ds->indexes[0];
+	        ds->lengths[n] = ds->lengths[0];
+	    }
+	} else  {
+	    for(n = nClick; n < CLICK_TRACKS; n++) {
+	        ds->indexes[n] = ds->indexes[nClick-1];
+	        ds->lengths[n] = ds->lengths[nClick-1]; 
+	    }
+	}
+    }
+}
 void driveclick_init(void)
 {
     int v, vv, i, j;
@@ -98,14 +140,24 @@ void driveclick_init(void)
     driveclick_free ();
     vv = 0;
     for (i = 0; i < 4; i++) {
+	for (j = 0; j < CLICK_TRACKS; j++)  {
+   	    drvs[i][DS_CLICK].indexes[j] = 0;
+	    drvs[i][DS_CLICK].lengths[j] = 0;
+	}
 	if (currprefs.dfxclick[i]) {
 	    if (currprefs.dfxclick[i] > 0) {
 		v = 0;
 		if (driveclick_loadresource (drvs[i], currprefs.dfxclick[i]))
 		    v = 3;
+		for (j = 0; j < CLICK_TRACKS; j++)  {
+		    drvs[i][DS_CLICK].indexes[j] = 0;
+		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len >> DS_SHIFT;
+		}
 	    } else if (currprefs.dfxclick[i] == -1) {
 		sprintf (tmp, "%suae_data%cdrive_click_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v = loadsample (tmp, &drvs[i][DS_CLICK]);
+		if (v)
+		    processclicks (&drvs[i][DS_CLICK]);
 		sprintf (tmp, "%suae_data%cdrive_spin_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPIN]);
 		sprintf (tmp, "%suae_data%cdrive_spinnd_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
@@ -127,10 +179,6 @@ void driveclick_init(void)
 		drvs[i][j].len <<= DS_SHIFT;
 	    drvs[i][DS_CLICK].pos = drvs[i][DS_CLICK].len;
 	    drvs[i][DS_SNATCH].pos = drvs[i][DS_SNATCH].len;
-	    if (drvs[i][DS_CLICK].len > (100000 << DS_SHIFT)) {
-		drvs[i][DS_CLICK].multisize = drvs[i][DS_CLICK].len / CLICK_TRACKS;
-		drvs[i][DS_CLICK].multilen = (drvs[i][DS_CLICK].multisize * 9) / 10;
-	    }
 	}
     }
     if (vv > 0) {
@@ -259,19 +307,17 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 
 void driveclick_click (int drive, int cyl)
 {
+    static int prevcyl[4];
     if (!click_initialized)
 	return;
     if (!currprefs.dfxclick[drive])
 	return;
+    if (prevcyl[drive] == 0 && cyl == 0) // "noclick" check
+	return;
+    prevcyl[drive] = cyl;
     mix();
-    if (drvs[drive][DS_CLICK].multisize) {
-	drvs[drive][DS_CLICK].pos = drvs[drive][DS_CLICK].multisize * cyl;
-	drvs[drive][DS_CLICK].len = drvs[drive][DS_CLICK].pos + drvs[drive][DS_CLICK].multilen;
-    } else {
-	drvs[drive][DS_CLICK].pos = (cyl * 4) << DS_SHIFT;
-	if (drvs[drive][DS_CLICK].pos > drvs[drive][DS_CLICK].len / 2)
-	    drvs[drive][DS_CLICK].pos = drvs[drive][DS_CLICK].len / 2;
-    }
+    drvs[drive][DS_CLICK].pos = drvs[drive][DS_CLICK].indexes[cyl] << DS_SHIFT;
+    drvs[drive][DS_CLICK].len = (drvs[drive][DS_CLICK].indexes[cyl] + (drvs[drive][DS_CLICK].lengths[cyl] / 2)) << DS_SHIFT;
 }
 
 void driveclick_motor (int drive, int running)

@@ -885,6 +885,9 @@ void reset_blit (int bltcon)
 void do_blitter (int hpos)
 {
     int cycles;
+#ifdef BLITTER_DEBUG
+    int oldstate = bltstate;
+#endif
 
     blt_info.blitzero = 1;
     bltstate = BLT_init;
@@ -915,6 +918,8 @@ void do_blitter (int hpos)
 #ifdef BLITTER_DEBUG
     blitter_dontdo = 0;
     if (1) {
+	if (oldstate != BLT_done)
+	    write_log ("blitter was already active!\n");
 	write_log("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02.2X n=%d pc=%p l=%d dma=%d\n",
 	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, cycles, blit_ch,
 	    blitdesc ? 1 : 0, blitfill,

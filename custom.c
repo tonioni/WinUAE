@@ -11,8 +11,8 @@
 //#define CUSTOM_DEBUG
 #define DEBUG_COPPER 0
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 50
-#define SPRITE_DEBUG_MAXY 101
+#define SPRITE_DEBUG_MINY 0
+#define SPRITE_DEBUG_MAXY 401
 //#define SPRITE_MASK 0
 #define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
@@ -1459,6 +1459,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 		compute_delay_offset ();
 		compute_toscr_delay_1 ();
 	    }
+
 	    do_long_fetch (pos, count >> (3 - toscr_res), dma, fm);
 
 	    /* This must come _after_ do_long_fetch so as not to confuse flush_display
@@ -1475,6 +1476,10 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	    pos += count;
 	    fetch_cycle += count;
 	}
+    } else {
+#endif
+	//maybe_first_bpl1dat (pos);
+#ifdef SPEEDUP
     }
 #endif
     for (; pos < until; pos++) {
@@ -1917,7 +1922,8 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     /* We have 8 bits per pixel in spixstate, two for every sprite pair.  The
        low order bit records whether the attach bit was set for this pair.  */
 
-    if (ctl & 0x80) {
+    if ((sprctl[num] & 0x80) || (sprctl[num ^ 1] & 0x80)) {
+//    if (ctl & 0x80) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;	
@@ -3491,7 +3497,7 @@ static int isagnus[]= {
     1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde
     /* BPLxPTH/BPLxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
-    0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0, /* 16 */
+    0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0, /* 16 */
     /* SPRxPTH/SPRxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
     /* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
@@ -3883,7 +3889,10 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     int dma, posctl = 0;
     uae_u16 data;
 
-#if SPRITE_DEBUG > 2
+    if (vpos == sprite_vblank_endline)
+	spr_arm (num, 0);
+
+#if SPRITE_DEBUG > 3
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
 	write_log("%d:%d:slot%d:%d\n", vpos, hpos, num, cycle);
 #endif
@@ -3936,6 +3945,8 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    s->dmacycle = 1;
 	} else {
 	    SPRxCTL_1 (data, num, hpos);
+	    s->dmastate = 0;
+	    sprstartstop (s);
 	}
     }
     if (s->dmastate && !posctl) {
@@ -5622,6 +5633,7 @@ STATIC_INLINE int dma_cycle(void)
         hpos = current_hpos ();
 	sync_copper (hpos);
 	decide_line (hpos);
+        decide_fetch (hpos);
 	bpldma = is_bitplane_dma (hpos);
 	if (cycle_line[hpos] == 0 && !bpldma) {
 	    if (bltstate == BLT_done || bnasty >= 3)
@@ -5683,6 +5695,7 @@ void do_cycles_ce (long cycles)
         hpos = current_hpos ();
 	sync_copper (hpos);
 	decide_line (hpos);
+        decide_fetch (hpos);
 	bpldma = is_bitplane_dma (hpos);
 	if (cycle_line[hpos] == 0 && !bpldma)
 	    decide_blitter (hpos);

@@ -313,6 +313,8 @@
 #define IDC_PFULLSCREEN                 1192
 #define IDC_P96MEM                      1193
 #define IDC_DA_SLIDER                   1193
+#define IDC_FRAMERATE2                  1194
+#define IDC_RATE2TEXT                   1195
 #define IDC_CPU0                        1200
 #define IDC_CPU1                        1201
 #define IDC_CPU2                        1202
@@ -388,12 +390,16 @@
 #define IDC_PORT0_KBDA                  1303
 #define IDC_PORT0_KBDB                  1304
 #define IDC_PORT0_KBDC                  1305
+#define IDC_PORT0_KBDD                  1306
+#define IDC_PORT0_KBDE                  1307
 #define IDC_PORT1_JOYSC                 1308
 #define IDC_PORT1_KBDA                  1309
 #define IDC_PORT1_KBDB                  1310
 #define IDC_PORT1_KBDC                  1311
-#define IDC_PORT0                       1312
-#define IDC_PORT1                       1313
+#define IDC_PORT1_KBDD                  1312
+#define IDC_PORT1_KBDE                  1313
+#define IDC_PORT0                       1342
+#define IDC_PORT1                       1343
 #define IDC_MIDIFRAME                   1314
 #define IDC_SERPARFRAME                 1315
 #define IDC_SERIALFRAME                 1316
@@ -478,6 +484,7 @@
 #define IDC_DISABLE1                    1516
 #define IDC_DF1WP                       1516
 #define IDC_QUICKSTART_COMPA            1516
+#define IDC_REFRESH2TEXT                1516
 #define IDC_DISABLE2                    1517
 #define IDC_DF2WP                       1517
 #define IDC_QUICKSTART_DF               1517
@@ -788,6 +795,8 @@
 #define IDC_PS_PARAMS                   1695
 #define IDC_FILTERHZV                   1696
 #define IDC_HF_TYPE                     1696
+#define IDC_PRINTERAUTOFLUSH            1697
+#define IDC_PRINTERAUTOFLUSHTXT         1698
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -808,7 +817,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        245
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1697
+#define _APS_NEXT_CONTROL_VALUE         1699
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

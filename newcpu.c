@@ -2510,6 +2510,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	       model / 1000, flags & 1 ? "EC" : "", model % 1000, regs.pc);
 
     init_m68k_full ();
+    m68k_setpc (regs.pc);
     return src;
 }
 

@@ -350,8 +350,8 @@ void reset_inputdevice_config (struct uae_prefs *pr)
 
 static void clear_id (struct uae_input_device *id)
 {
-    int i, j;
 #ifndef _DEBUG
+    int i, j;
     for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 	for (j = 0; j < MAX_INPUT_SUB_EVENT; j++)
 	    xfree (id->custom[i][j]);
@@ -1242,6 +1242,12 @@ void inputdevice_handle_inputcode (void)
 	case AKS_QUIT:
 	uae_quit ();
 	break;
+	case AKS_SOFTRESET:
+	uae_reset (0);
+	break;
+	case AKS_HARDRESET:
+	uae_reset (1);
+	break;
 	case AKS_STATESAVEQUICK:
 	case AKS_STATESAVEQUICK1:
 	case AKS_STATESAVEQUICK2:
@@ -1672,7 +1678,7 @@ static void compatibility_mode (struct uae_prefs *prefs)
     }
 
     for (joy = 0; used[joy]; joy++);
-    if (JSEM_ISNUMPAD (0, prefs) || JSEM_ISCURSOR (0, prefs) || JSEM_ISSOMEWHEREELSE (0, prefs)) {
+    if (JSEM_ISANYKBD (0, prefs)) {
         joysticks[joy].eventid[ID_AXIS_OFFSET +  0][0] = INPUTEVENT_JOY1_HORIZ;
 	joysticks[joy].eventid[ID_AXIS_OFFSET +  1][0] = INPUTEVENT_JOY1_VERT;
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY1_FIRE_BUTTON;
@@ -1683,7 +1689,7 @@ static void compatibility_mode (struct uae_prefs *prefs)
 	compatibility_device[0] = joy;
     }
     for (joy = 0; used[joy]; joy++);
-    if (JSEM_ISNUMPAD (1, prefs) || JSEM_ISCURSOR (1, prefs) || JSEM_ISSOMEWHEREELSE (1, prefs)) {
+    if (JSEM_ISANYKBD (1, prefs)) {
         joysticks[joy].eventid[ID_AXIS_OFFSET +  0][0] = INPUTEVENT_JOY2_HORIZ;
 	joysticks[joy].eventid[ID_AXIS_OFFSET +  1][0] = INPUTEVENT_JOY2_VERT;
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY2_FIRE_BUTTON;
@@ -2442,12 +2448,10 @@ int jsem_iskbdjoy (int port, struct uae_prefs *p)
     if (v < JSEM_KBDLAYOUT)
 	return -1;
     v -= JSEM_KBDLAYOUT;
-    if (v >= 3)
+    if (v >= JSEM_LASTKBD)
 	return -1;
     return v;
 }
-
-
 
 extern int jsem_ismouse (int v, struct uae_prefs*);
 extern int jsem_iskbd (int v, struct uae_prefs*);

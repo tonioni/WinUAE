@@ -65,6 +65,7 @@ struct uae_prefs {
     int parallel_demand;
     int parallel_postscript_emulation;
     int parallel_postscript_detection;
+    int parallel_autoflush_time;
     char ghostscript_parameters[256];
     int use_gfxlib;
     int socket_emu;
