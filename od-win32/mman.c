@@ -12,7 +12,7 @@
 #include "autoconf.h"
 #include "win32.h"
 
-static struct shmid_ds shmids[ MAX_SHMID ];
+static struct shmid_ds shmids[MAX_SHMID];
 static uae_u32 gfxoffs;
 
 uae_u32 natmem_offset = 0;
@@ -21,56 +21,41 @@ void init_shm( void )
 {
     int i;
     LPVOID blah = NULL;
-#if 0
-    LPBYTE address = NULL; // Let the system decide where to put the memory...
-#else
     LPBYTE address = (LPBYTE)0x10000000; // Letting the system decide doesn't seem to work on some systems
-#endif
     int size = 0x19000000;
     int add = 0x1000000;
 
     canbang = 0;
     gfxoffs = 0;
     shm_start = 0;
-    for( i = 0; i < MAX_SHMID; i++ )
-    {
+    for (i = 0; i < MAX_SHMID; i++) {
 	shmids[i].attached = 0;
 	shmids[i].key = -1;
 	shmids[i].size = 0;
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
-    while (address < (LPBYTE)0xa0000000)
-    {
-        blah = VirtualAlloc( address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE );
-        if (blah == NULL)
-        {
-	    address += add;
-	}
-        else
-        {
-	    natmem_offset = (uae_u32)blah;
-    	    write_log ("NATMEM: Our special area: 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
-	    VirtualFree (blah, 0, MEM_RELEASE);
-	    while (address < (LPBYTE)0xa0000000) {
+    if (os_winnt) {
+	natmem_offset = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    } else {
+        while (address < (LPBYTE)0xa0000000) {
+	    blah = VirtualAlloc(address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	    if (blah == NULL) {
+		address += add;
+	    } else {
+		VirtualFree (blah, 0, MEM_RELEASE);
 		address += add * 32;
-		if (!os_winnt) /* Windows 9x/ME sucks */
-		    break;
-		blah = VirtualAlloc (address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-		if (blah == NULL) {
-		    address -= add * 32;
-		    break;
-		}
-	        VirtualFree (blah, 0, MEM_RELEASE);
+		natmem_offset = (uae_u8*)address;
+		break;
 	    }
-	    natmem_offset = (uae_u8*)natmem_offset + ((uae_u8*)address - (uae_u8*)natmem_offset) / 2;
-    	    write_log ("NATMEM: after adjustment: 0x%x-0x%x\n", natmem_offset, natmem_offset + size);
-	    canbang = 1;
-	    break;
 	}
     }
     if (!natmem_offset) {
-	write_log( "NATMEM: No special area could be allocated!\n" );
+	write_log("NATMEM: No special area could be allocated!\n");
+    } else {
+	write_log("NATMEM: Our special area: 0x%p-0x%p\n",
+	    natmem_offset, (uae_u8*)natmem_offset + size);
+	canbang = 1;
     }
 }
 
@@ -96,7 +81,7 @@ void mapped_free(uae_u8 *mem)
 	    else
 	    {
 		//free( x->native_address );
-	        VirtualFree((LPVOID)mem, 0, MEM_DECOMMIT |MEM_RELEASE );
+	        VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_RESET : (MEM_DECOMMIT | MEM_RELEASE));
 	    }
 	}
 	x = x->next;
@@ -151,8 +136,8 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 	{
 	    shmaddr=natmem_offset;
 	    got = TRUE;
-	    if(!currprefs.fastmem_size)
-		size+=32;
+//	    if(!currprefs.fastmem_size)
+//		size+=32;
 	}
 	if(!strcmp(shmids[shmid].name,"kick"))
 	{
@@ -220,22 +205,18 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 }
 #endif
     
-    if( ( shmids[shmid].key == shmid ) && shmids[shmid].size )
-    {
+    if( ( shmids[shmid].key == shmid ) && shmids[shmid].size ) {
 	got = FALSE;
 	if (got == FALSE) {
-	    if (shmaddr)
-	    {
-		result=(void*)VirtualFree(shmaddr,0,MEM_RELEASE);
+	    if (shmaddr) {
+		result = (void*)VirtualFree(shmaddr, 0, os_winnt ? MEM_RESET : MEM_RELEASE);
 	    }
-	    result = VirtualAlloc(shmaddr,size,MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE );
-	    if( result == NULL )
-	    {
+	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT),
+		PAGE_EXECUTE_READWRITE);
+	    if( result == NULL ) {
 		result = (void *)-1;
-		write_log ("VirtualAlloc %x %x failed %d\n", shmaddr, size, GetLastError ());
-	    }
-	    else
-	    {
+		write_log ("VirtualAlloc %p %x failed %d\n", shmaddr, size, GetLastError ());
+	    } else {
 		shmids[shmid].attached=result; 
 	    }
 	} else {

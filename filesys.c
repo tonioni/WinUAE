@@ -3496,8 +3496,6 @@ void filesys_start_threads (void)
     UnitInfo *uip;
     int i;
 
-    if (savestate_state == STATE_RESTORE)
-	init_filesys_diagentry ();
     free_mountinfo (&current_mountinfo);
     dup_mountinfo (&options_mountinfo, &current_mountinfo);
     uip = current_mountinfo.ui;

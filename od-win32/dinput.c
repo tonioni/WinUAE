@@ -468,7 +468,7 @@ static int acquire (LPDIRECTINPUTDEVICE8 lpdi, char *txt)
 static int setcoop (LPDIRECTINPUTDEVICE8 lpdi, DWORD mode, char *txt)
 {
     HRESULT hr = DI_OK;
-    if (lpdi) {
+    if (lpdi && hMainWnd) {
 	hr = IDirectInputDevice8_SetCooperativeLevel (lpdi, hMainWnd, mode);
 	if (hr != DI_OK && hr != E_NOTIMPL)
 	    write_log ("setcooperativelevel %s failed, %s\n", txt, DXError (hr));

@@ -68,6 +68,7 @@ unsigned long *win32_freestack[42]; //EXTRA_STACK_SIZE
 extern FILE *debugfile;
 extern int console_logging;
 static OSVERSIONINFO osVersion;
+static SYSTEM_INFO SystemInfo;
 
 int useqpc = 0; /* Set to TRUE to use the QueryPerformanceCounter() function instead of rdtsc() */
 int cpu_mmx = 0;
@@ -1609,6 +1610,12 @@ void logging_init( void )
     write_log (" (%s %d.%d %s%s)", os_winnt ? "NT" : "W9X/ME",
 	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 	os_winnt_admin ? " Admin" : "");
+    write_log (" %s %X.%X %d",
+	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? "32-bit x86" :
+	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64 ? "IA64" :
+	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? "AMD64" : "Unknown",
+	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
+	SystemInfo.dwNumberOfProcessors);
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
 	       "\n(c) 1998-2005 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
@@ -2117,16 +2124,23 @@ static int isadminpriv (void)
     return isadmin;
 }
 
+typedef void (CALLBACK* PGETNATIVESYSTEMINFO)(LPSYSTEM_INFO);
+static PGETNATIVESYSTEMINFO pGetNativeSystemInfo;
+
 static int osdetect (void)
 {
     os_winnt = 0;
     os_winnt_admin = 0;
 
-    osVersion.dwOSVersionInfoSize = sizeof( OSVERSIONINFO );
-    if( GetVersionEx( &osVersion ) )
-    {
-	if( ( osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT ) &&
-	    ( osVersion.dwMajorVersion <= 4 ) )
+    pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(
+	GetModuleHandle("kernel32.dll"), "GetNativeSystemInfo");
+    GetNativeSystemInfo(&SystemInfo);
+    if (pGetNativeSystemInfo)
+	pGetNativeSystemInfo(&SystemInfo);
+    osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osVersion)) {
+	if ((osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) &&
+	    (osVersion.dwMajorVersion <= 4))
 	{
 	    /* WinUAE not supported on this version of Windows... */
 	    char szWrongOSVersion[ MAX_DPATH ];
@@ -2157,6 +2171,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     int i;
     int multi_display = 1;
 
+#if 1
 #ifdef __GNUC__
     __asm__ ("leal -2300*1024(%%esp),%0" : "=r" (win32_stackbase) :);
 #else
@@ -2165,6 +2180,7 @@ __asm{
     sub eax,2300*1024
     mov win32_stackbase,eax
  }
+#endif
 #endif
 
 #ifdef _DEBUG

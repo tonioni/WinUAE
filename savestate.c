@@ -237,6 +237,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, long *len, long *tota
     uae_u32 flags;
     long len2;
 
+    *totallen = 0;
     /* chunk name */
     zfile_fread (name, 1, 4, f);
     name[4] = 0;
@@ -359,7 +360,7 @@ void restore_state (char *filename)
 	if (!strcmp (name, prevchunk))
 	    break;
 	strcpy (prevchunk, name);
-	write_log ("Chunk '%s' size %d\n", name, len);
+	write_log ("Chunk '%s' size %d (%d)\n", name, len, totallen);
 	if (!strcmp (name, "END "))
 	    break;
 	if (!strcmp (name, "CRAM")) {

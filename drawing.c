@@ -1446,8 +1446,8 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 #endif
     xlinebuffer -= linetoscr_x_adjust_bytes;
 
-
     if (border == 0) {
+
 	pfield_expand_dp_bplcon ();
 
 	if (bplres == RES_LORES && ! currprefs.gfx_lores)
@@ -1507,16 +1507,15 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	}
 	if (currprefs.gfx_lores == 2)
 	    currprefs.gfx_lores = 0;
+
     } else if (border == 1) {
+
 	adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
 	if (dip_for_drawing->nr_color_changes == 0) {
 	    fill_line ();
 	    do_flush_line (gfx_ypos);
-#if 0
-	    if (dh == dh_emerg)
-		abort ();
-#endif
+
 	    if (do_double) {
 		if (dh == dh_buf) {
 		    xlinebuffer = row_map[follow_ypos] - linetoscr_x_adjust_bytes;
@@ -1547,12 +1546,15 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	     * from linemem.  */
 	    do_flush_line (follow_ypos);
 	}
+
     } else {
+
 	xcolnr tmp = colors_for_drawing.acolors[0];
 	colors_for_drawing.acolors[0] = getxcolor (0);
 	fill_line ();
 	do_flush_line (gfx_ypos);
 	colors_for_drawing.acolors[0] = tmp;
+
     }
 }
 

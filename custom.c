@@ -12,7 +12,7 @@
 #define DEBUG_COPPER 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0
-#define SPRITE_DEBUG_MAXY 41
+#define SPRITE_DEBUG_MAXY 100
 //#define SPRITE_MASK 0
 #define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
@@ -212,7 +212,8 @@ enum diw_states
 
 int plffirstline, plflastline;
 int plfstrt, plfstop;
-static int last_diw_pix_hpos, last_ddf_pix_hpos, last_decide_line_hpos;
+static int last_diw_pix_hpos, last_ddf_pix_hpos;
+static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 int diwfirstword, diwlastword;
 static enum diw_states diwstate, hdiwstate, ddfstate;
@@ -1607,9 +1608,11 @@ STATIC_INLINE void decide_line (int hpos)
     }
 
 #ifndef CUSTOM_SIMPLE
-    if (last_decide_line_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
+    if (last_sprite_decide_line_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
 	do_sprites (hpos);
 #endif
+    last_sprite_decide_line_hpos = hpos;
+
     last_decide_line_hpos = hpos;
 }
 
@@ -1966,11 +1969,6 @@ static void decide_sprites (int hpos)
     decide_diw (hpos);
     decide_line (hpos);
 
-#if 0
-    /* This tries to detect whether the line is border, but that doesn't work, it's too early.  */
-    if (thisline_decision.plfleft == -1)
-	return;
-#endif
     count = 0;
     for (i = 0; i < MAX_SPRITES; i++) {
 	int sprxp = spr[i].xpos;
@@ -2097,11 +2095,11 @@ static void finish_decisions (void)
     dp = line_decisions + next_lineno;
     changed = thisline_changed;
 
-    if (thisline_decision.plfleft != -1) {
+    if (thisline_decision.plfleft != -1)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
+    if (thisline_decision.plfleft != -1 || (bplcon3 & 2))
 	decide_sprites (hpos);
-    }
 
     dip->last_sprite_entry = next_sprite_entry;
     dip->last_color_change = next_color_change;
@@ -2175,6 +2173,7 @@ static void reset_decisions (void)
     memset (outword, 0, sizeof outword);
 
     last_decide_line_hpos = -1;
+    last_sprite_decide_line_hpos = -1;
     last_diw_pix_hpos = -1;
     last_ddf_pix_hpos = -1;
     last_sprite_hpos = -1;
@@ -2309,6 +2308,10 @@ static void calcdiw (void)
 
     diwfirstword = coord_diw_to_window_x (hstrt);
     diwlastword = coord_diw_to_window_x (hstop);
+    if (diwfirstword >= diwlastword) {
+	diwfirstword = 0;
+	diwlastword = max_diwlastword;
+    }
     if (diwfirstword < 0)
 	diwfirstword = 0;
 

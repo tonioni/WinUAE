@@ -2158,7 +2158,7 @@ uae_u8 *restore_rom (uae_u8 *src)
     restore_u32 ();
     crc32 = restore_u32 ();
     for (i = 0; i < romlist_cnt; i++) {
-	if (rl[i].rd->crc32 == crc32) {
+	if (rl[i].rd->crc32 == crc32 && crc32) {
 	    strncpy (changed_prefs.romfile, rl[i].path, 255);
 	    break;
 	}
