@@ -832,20 +832,24 @@ char *zfile_getname (struct zfile *f)
 uae_u32 zfile_crc32 (struct zfile *f)
 {
     uae_u8 *p;
-    int pos = f->seek;
+    int pos, size;
     uae_u32 crc;
 
     if (!f)
 	return 0;
     if (f->data)
 	return get_crc32 (f->data, f->size);
-    p = xmalloc (f->size);
+    pos = zfile_ftell (f);
+    zfile_fseek (f, 0, SEEK_END);
+    size = zfile_ftell (f);
+    p = xmalloc (size);
     if (!p)
 	return 0;
+    memset (p, 0, size);
     zfile_fseek (f, 0, SEEK_SET);
-    zfile_fread (p, 1, f->size, f);
+    zfile_fread (p, 1, size, f);
     zfile_fseek (f, pos, SEEK_SET);        
-    crc = get_crc32 (f->data, f->size);
+    crc = get_crc32 (p, size);
     xfree (p);
     return crc;
 }

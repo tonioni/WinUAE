@@ -1012,7 +1012,7 @@ int check_prefs_changed_gfx (void)
 	init_hz ();
 	pause_sound ();
 	resume_sound ();
-	inputdevice_acquire (mouseactive);
+	inputdevice_acquire ();
 	return 1;
     }
     if (currprefs.gfx_correct_aspect != changed_prefs.gfx_correct_aspect ||
@@ -1056,7 +1056,7 @@ int check_prefs_changed_gfx (void)
         currprefs.keyboard_leds_in_use = currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2];
 	pause_sound ();
 	resume_sound ();
-	inputdevice_acquire (mouseactive);
+	inputdevice_acquire ();
 #ifndef _DEBUG
 	setpriority (&priorities[currprefs.win32_active_priority]);
 #endif
@@ -1784,8 +1784,8 @@ static void setoverlay(void)
     dr.right -= mi.rcMonitor.left;
     dr.bottom -= mi.rcMonitor.top;
 
-    w = currentmode->current_width; // * (currprefs.gfx_filter_horiz_zoom + 100) / 100;
-    h = currentmode->current_height; // * (currprefs.gfx_filter_vert_zoom + 100) / 100;
+    w = currentmode->current_width;
+    h = currentmode->current_height;
 
     sr.left = 0;
     sr.top = 0;

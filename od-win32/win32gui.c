@@ -540,7 +540,7 @@ void gui_display( int shortcut )
     inputdevice_copyconfig (&changed_prefs, &currprefs);
     inputdevice_config_change_test ();
     clearallkeys ();
-    inputdevice_acquire (mouseactive);
+    inputdevice_acquire ();
 #ifdef CD32
     akiko_exitgui ();
 #endif
@@ -2435,6 +2435,7 @@ static void enable_for_quickstart (HWND hDlg)
 {
     int v = quickstart_ok && quickstart_ok_floppy ? TRUE : FALSE;
     EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), !full_property_sheet ? TRUE : FALSE);
+    ShowWindow (GetDlgItem (hDlg, IDC_QUICKSTART_SETCONFIG), quickstart ? SW_HIDE : SW_SHOW);
 }
 
 static void load_quickstart (HWND hDlg, int romcheck)
@@ -2645,7 +2646,7 @@ static void testimage (HWND hDlg, int num)
 	WIN32GUI_LoadUIString (messageid, tmp, sizeof (tmp));
 	gui_message (tmp);
     }
-    if (reload) {
+    if (reload && quickstart) {
 	load_quickstart (hDlg, 1);
 	init_quickstartdlg (hDlg);
     }
@@ -2668,6 +2669,7 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	case WM_INITDIALOG:
 	    pages[QUICKSTART_ID] = hDlg;
 	    currentpage = QUICKSTART_ID;
+	    enable_for_quickstart (hDlg);
 	    doinit = 1;
 	    break;
 	case WM_NULL:
@@ -2678,7 +2680,6 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		addfloppytype (hDlg, 0);
 		addfloppytype (hDlg, 1);
 		init_quickstartdlg (hDlg);
-		enable_for_quickstart (hDlg);
 	    }
 	    doinit = 0;
 	    recursive--;
@@ -2705,7 +2706,8 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		    if (i != quickstart_model) {
 			quickstart_model = i;
 			init_quickstartdlg (hDlg);
-			load_quickstart (hDlg, 1);
+			if (quickstart)
+			    load_quickstart (hDlg, 1);
 			if (quickstart && !full_property_sheet)
 			    qs_request_reset = 2;
 		    }
@@ -2716,7 +2718,8 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (val != CB_ERR && val != quickstart_conf) {
 		    quickstart_conf = val;
 		    init_quickstartdlg (hDlg);
-		    load_quickstart (hDlg, 1);
+		    if (quickstart)
+			load_quickstart (hDlg, 1);
 		    if (quickstart && !full_property_sheet)
 			qs_request_reset = 2;
 		}
@@ -2742,6 +2745,7 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
     		    init_quickstartdlg (hDlg);
 		    load_quickstart (hDlg, 0);
 		}
+	        enable_for_quickstart (hDlg);
 		break;
 	    }
 	}
@@ -2757,7 +2761,10 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    case IDC_DF1QQ:
 	    ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 	    break;
-	}   
+	    case IDC_QUICKSTART_SETCONFIG:
+	    load_quickstart (hDlg, 1);
+	    break;
+	}
 	recursive--;
 	case WM_HSCROLL:
 	if (recursive > 0)
@@ -2767,7 +2774,8 @@ static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	if (val >= 0 && val != quickstart_compa) {
 	    quickstart_compa = val;
 	    init_quickstartdlg (hDlg);
-	    load_quickstart (hDlg, 0);
+	    if (quickstart)
+		load_quickstart (hDlg, 0);
 	}
 	recursive--;
 	break;
@@ -5821,7 +5829,7 @@ static int joy1idc[] = {
     IDC_PORT1_JOYSC, IDC_PORT1_KBDA, IDC_PORT1_KBDB, IDC_PORT1_KBDC,
     IDC_PORT1_JOYS, -1
 };
-static int joy0previous = -1, joy1previous = -1;
+static int joy0previous, joy1previous;
 
 static BOOL bNoMidiIn = FALSE;
 
@@ -5875,24 +5883,27 @@ static void updatejoyport (HWND hDlg)
     }
     
     if (joy0previous < 0)
-	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK);
+	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
     if (joy1previous < 0)
-	joy1previous = 0;
+	joy1previous = 1;
     for (i = 0; i < 2; i++) {
+	int total = 0;
 	int idx = i == 0 ? joy0previous : joy1previous;
 	int id1 = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
 	int id2 = i == 0 ? IDC_PORT0_JOYSC : IDC_PORT1_JOYSC;
 	int v = i == 0 ? workprefs.jport0 : workprefs.jport1;
 	SendDlgItemMessage (hDlg, id1, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)"");
-        for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++)
+        for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++, total++)
 	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
-        for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++)
+        for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 	    SendDlgItemMessage (hDlg, id1, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
 	if (v >= JSEM_MICE)
 	    idx = inputdevice_get_device_total (IDTYPE_JOYSTICK) + (v - JSEM_MICE) + 1;
 	else if (v >= JSEM_JOYS)
 	    idx = v - JSEM_JOYS + 1;
+	if (idx >= total)
+	    idx = 0;
 	SendDlgItemMessage (hDlg, id1, CB_SETCURSEL, idx, 0);
     }
 }
@@ -6120,10 +6131,10 @@ static void init_portsdlg( HWND hDlg )
     int port, portcnt, numdevs;
     COMMCONFIG cc;
     DWORD size = sizeof(COMMCONFIG);
-
     MIDIOUTCAPS midiOutCaps;
     MIDIINCAPS midiInCaps;
 
+    joy0previous = joy1previous = -1;
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone );
     portcnt = 0;
@@ -7549,6 +7560,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 	z = zfile_fopen (file, "rb");
 	if (z) {
 	    int type = zfile_gettype (z);
+	    struct romdata *rd = getromdatabyzfile (z);
 	    zfile_fclose (z);
 	    switch (type)
 	    {
@@ -7583,7 +7595,16 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 		    }
 		break;
 		case ZFILE_ROM:
-		    strcpy (prefs->romfile, file);
+		    if (rd) {
+			if (rd->type == ROMTYPE_KICK || rd->type == ROMTYPE_KICKCD32)
+			    strcpy (prefs->romfile, file);
+			if (rd->type == ROMTYPE_EXTCD32 || rd->type == ROMTYPE_EXTCDTV)
+			    strcpy (prefs->romextfile, file);
+			if (rd->type == ROMTYPE_AR)
+			    strcpy (prefs->cartfile, file);
+		    } else {
+			strcpy (prefs->romfile, file);
+		    }
 		break;
 		case ZFILE_NVR:
 		    strcpy (prefs->flashfile, file);

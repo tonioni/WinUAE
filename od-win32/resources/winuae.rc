@@ -946,6 +946,8 @@ BEGIN
     GROUPBOX        "Compatibility vs required CPU power ",
                     IDC_QUICKSTART_COMPA,3,56,294,33
     GROUPBOX        "Mode",IDC_STATIC,190,211,107,27,BS_LEFT
+    PUSHBUTTON      "Set Configuration",IDC_QUICKSTART_SETCONFIG,9,219,72,15,
+                    NOT WS_VISIBLE
 END
 
 

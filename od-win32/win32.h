@@ -81,6 +81,7 @@ extern void setpriority (struct threadpriorities *pri);
 
 extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
+extern int dinput_winmousemode (void);
 
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);

@@ -12,11 +12,6 @@ typedef int (*allocfunc_type)(int, int, int, xcolnr *);
 
 extern xcolnr xcolors[4096];
 
-extern int buttonstate[3];
-extern int newmousecounters;
-extern int lastmx, lastmy;
-extern int ievent_alive;
-
 extern int graphics_setup (void);
 extern int graphics_init (void);
 extern void graphics_leave (void);
@@ -33,8 +28,6 @@ extern int lockscr (void);
 extern void unlockscr (void);
 
 extern int debuggable (void);
-extern int needmousehack (void);
-extern void togglemouse (void);
 extern void LED (int);
 extern void screenshot (int);
 

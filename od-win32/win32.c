@@ -359,19 +359,13 @@ static void setcursor(int oldx, int oldy)
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
-static void movehackmouse (int x, int y)
-{
-    setmousestate (0, 0, x, 1);
-    setmousestate (0, 1, y, 1);
-}
-
 void setmouseactive (int active)
 {
     int oldactive = mouseactive;
     static int mousecapture, showcursor;
     char txt[100], txt2[110];
 
-    if (active > 0 && ievent_alive > 0) {
+    if (active > 0 && mousehack_allowed () && mousehack_alive ()) {
 	mousehack_set (mousehack_follow);
 	if (!isfullscreen ())
 	    return;
@@ -379,8 +373,6 @@ void setmouseactive (int active)
 	mousehack_set (mousehack_dontcare);
     }
     inputdevice_unacquire ();
-    //mousehack_width = GetSystemMetrics (SM_CXVIRTUALSCREEN);
-    //mousehack_height = GetSystemMetrics (SM_CYVIRTUALSCREEN);
 
     mouseactive = active;
     strcpy (txt, "WinUAE");
@@ -415,7 +407,7 @@ void setmouseactive (int active)
 	    }
 	    setcursor (-1, -1);
 	}
-	inputdevice_acquire (mouseactive);
+	inputdevice_acquire ();
     }
 }
 
@@ -478,9 +470,9 @@ static void winuae_active (HWND hWnd, int minimized)
     if (WIN32GFX_IsPicassoScreen ())
 	WIN32GFX_EnablePicasso();
     getcapslock ();
-    inputdevice_acquire (mouseactive);
+    inputdevice_acquire ();
     wait_keyrelease ();
-    inputdevice_acquire (mouseactive);
+    inputdevice_acquire ();
     if (isfullscreen())
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
@@ -602,12 +594,12 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		break;
 	    }
 	    if (v != minimized) {
+		minimized = v;
 		if (v)
 		    winuae_inactive (hWnd, wParam == SIZE_MINIMIZED);
 		else
 		    winuae_active (hWnd, minimized);
 	    }
-	    minimized = v;
 	    return 0;
 	}
     }
@@ -625,6 +617,8 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	    return 0;
 	} else if (LOWORD (wParam) == WA_INACTIVE) {
 	    minimized = 1;
+	    if (isfullscreen ())
+		winuae_inactive (hWnd, minimized);
 	    if (ignorenextactivateapp > 0)
 	        ignorenextactivateapp--;
 	} else if (!minimized && LOWORD (wParam) != WA_INACTIVE) {
@@ -641,6 +635,10 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	        exit_gui (0);
 	    setmouseactive (0);
 	} else {
+	    if (minimized) {
+		minimized = 0;
+	        winuae_active (hWnd, minimized);
+	    }	
 	    if (!ignorenextactivateapp && isfullscreen () && is3dmode ()) {
 	        WIN32GFX_DisplayChangeRequested ();
 	        ignorenextactivateapp = 3;
@@ -662,7 +660,7 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     return 0;
 
     case WM_LBUTTONUP:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 0, 0);
     return 0;
     case WM_LBUTTONDOWN:
@@ -670,42 +668,42 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	if (!mouseactive && !isfullscreen()) {
 	    setmouseactive (1);
 	}
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 0, 1);
     return 0;
     case WM_RBUTTONUP:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 1, 0);
     return 0;
     case WM_RBUTTONDOWN:
     case WM_RBUTTONDBLCLK:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 1, 1);
     return 0;
     case WM_MBUTTONUP:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 2, 0);
     return 0;
     case WM_MBUTTONDOWN:
     case WM_MBUTTONDBLCLK:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousebuttonstate (dinput_winmouse(), 2, 1);
     return 0;
     case WM_XBUTTONUP:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow) {
+	if (dinput_winmouse () >= 0) {
 	    handleXbutton (wParam, 0);
 	    return TRUE;
 	}
     return 0;
     case WM_XBUTTONDOWN:
     case WM_XBUTTONDBLCLK:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow) {
+	if (dinput_winmouse () >= 0) {
 	    handleXbutton (wParam, 1);
 	    return TRUE;
 	}
     return 0;
     case WM_MOUSEWHEEL:
-	if (dinput_winmouse () > 0 || mousehack_get () == mousehack_follow)
+	if (dinput_winmouse () >= 0)
 	    setmousestate (dinput_winmouse(), 2, ((short)HIWORD(wParam)), 0);
     return 0;
 
@@ -751,16 +749,21 @@ static long FAR PASCAL AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_MOUSEMOVE:
         mx = (signed short) LOWORD (lParam);
         my = (signed short) HIWORD (lParam);
-	if (mousehack_get () == mousehack_follow) {
-	    movehackmouse (mx, my);
-	    return 0;
-	} else if (dinput_winmouse () > 0) {
-	    int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
-	    int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
-	    mx = mx - mxx;
-	    my = my - myy;
-	    setmousestate (dinput_winmouse (), 0, mx, 0);
-	    setmousestate (dinput_winmouse (), 1, my, 0);
+	if (dinput_winmouse () >= 0) {
+	    if (dinput_winmousemode ()) {
+	        /* absolete + mousehack */
+	        setmousestate (dinput_winmouse (), 0, mx, 1);
+		setmousestate (dinput_winmouse (), 1, my, 1);
+		return 0;
+	    } else {
+		/* relative */
+    		int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
+		int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
+		mx = mx - mxx;
+		my = my - myy;
+		setmousestate (dinput_winmouse (), 0, mx, 0);
+		setmousestate (dinput_winmouse (), 1, my, 0);
+	    }
         } else if ((!mouseactive && !isfullscreen())) {
 	    setmousestate (0, 0, mx, 1);
 	    setmousestate (0, 1, my, 1);
@@ -1451,6 +1454,10 @@ int debuggable (void)
 int needmousehack (void)
 {
     return 1;
+}
+int mousehack_allowed (void)
+{
+    return dinput_winmouse () > 0 && dinput_winmousemode ();
 }
 
 void logging_init( void )

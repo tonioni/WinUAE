@@ -28,6 +28,7 @@
 #include "inputdevice.h"
 #include "zfile.h"
 #include "ar.h"
+#include "parallel.h"
 #ifdef CD32
 #include "akiko.h"
 #endif

@@ -104,7 +104,6 @@ struct ev eventtab[ev_max];
 
 volatile frame_time_t vsynctime, vsyncmintime;
 
-int ievent_alive = 0;
 #ifdef JIT
 extern uae_u8* compiled_code;
 #endif
@@ -4218,8 +4217,6 @@ static void vsync_handler (void)
 
     init_hardware_frame ();
 
-    if (ievent_alive > 0)
-	ievent_alive--;
     if (timehack_alive > 0)
 	timehack_alive--;
     inputdevice_vsync ();
@@ -4537,16 +4534,7 @@ void customreset (void)
 
     vpos = 0;
 
-    if (needmousehack ()) {
-#if 0
-	mousehack_set (mousehack_follow);
-#else
-	mousehack_set (mousehack_dontcare);
-#endif
-    } else {
-	mousehack_set (mousehack_normal);
-    }
-    ievent_alive = 0;
+    inputdevice_reset ();
     timehack_alive = 0;
 
     curr_sprite_entries = 0;

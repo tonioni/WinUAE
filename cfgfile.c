@@ -291,11 +291,11 @@ void save_options (FILE *f, struct uae_prefs *p, int type)
 	int v = i == 0 ? p->jport0 : p->jport1;
         char tmp1[100], tmp2[50];
         if (v < JSEM_JOYS)
-	    sprintf (tmp2, "kbd%d", v);
+	    sprintf (tmp2, "kbd%d", v + 1);
 	else if (v < JSEM_MICE)
-	    sprintf (tmp2, "joy%d", v - JSEM_JOYS);
+	    sprintf (tmp2, "joy%d", v - JSEM_JOYS + 1);
 	else
-	    sprintf (tmp2, "mouse%d", v - JSEM_MICE);
+	    sprintf (tmp2, "mouse%d", v - JSEM_MICE + 1);
 	sprintf (tmp1, "joyport%d=%s\n", i, tmp2);
 	cfgfile_write (f, tmp1);
     }
@@ -717,12 +717,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     if (strcmp (option, "joyport0") == 0 || strcmp (option, "joyport1") == 0) {
 	int port = strcmp (option, "joyport0") == 0 ? 0 : 1;
 	int start = -1;
-	int kbdl = 0;
 	char *pp = 0;
 	if (strncmp (value, "kbd", 3) == 0) {
 	    start = JSEM_KBDLAYOUT;
 	    pp = value + 3;
-	    kbdl = 1;
 	} else if (strncmp (value, "joy", 3) == 0) {
 	    start = JSEM_JOYS;
 	    pp = value + 3;
@@ -731,13 +729,15 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	    pp = value + 5;
 	}
 	if (pp) {
-	    start += atol (pp);
-	    if (kbdl && start > 0)
-		start--;
-	    if (port)
-		p->jport1 = start;
-	    else
-		p->jport0 = start;
+	    int v = atol (pp);
+	    if (start >= 0 && v > 0) {
+		v--;
+		start += v;
+		if (port)
+		    p->jport1 = start;
+		else
+		    p->jport0 = start;
+	    }
 	}
 	return 1;
     }
@@ -1917,8 +1917,10 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->optcount[5] = 0;
     }
     p->gfx_framerate = 1;
-    p->gfx_width_win = p->gfx_width_fs = 800;
-    p->gfx_height_win = p->gfx_height_fs = 600;
+    p->gfx_width_fs = 800;
+    p->gfx_height_fs = 600;
+    p->gfx_width_win = 720;
+    p->gfx_height_win = 568;
     p->gfx_lores = 0;
     p->gfx_linedbl = 1;
     p->gfx_afullscreen = 0;
@@ -2110,8 +2112,8 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[4];
 
-    roms[0] = 23;
-    roms[1] = 24;
+    roms[0] = 24;
+    roms[1] = 23;
     roms[2] = -1;
     p->chipset_mask = 0;
     p->bogomem_size = 0;

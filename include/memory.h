@@ -257,6 +257,7 @@ struct romdata {
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
+extern struct romdata *getromdatabyzfile (struct zfile *f);
 extern void getromname (struct romdata*, char*);
 extern struct romdata *getromdatabyname (char*);
 extern void romlist_add (char *path, struct romdata *rd);

@@ -81,7 +81,7 @@ static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int oldleds, oldusedleds, newleds, usbledmode, oldusbleds;
-static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber;
+static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode;
 static int normalkb, superkb, rawkb;
 
 int no_rawinput;
@@ -91,6 +91,12 @@ int dinput_winmouse (void)
     if (winmouse)
 	return winmousenumber;
     return -1;
+}
+int dinput_winmousemode (void)
+{
+    if (winmouse)
+	return winmousemode;
+    return 0;
 }
 
 typedef BOOL (CALLBACK* REGISTERRAWINPUTDEVICES)
@@ -298,39 +304,43 @@ static int initialize_rawinput (void)
 static void initialize_windowsmouse (void)
 {
     struct didata *did = di_mouse;
-    char tmp[100];
-    int j;
+    char tmp[100], *name;
+    int i, j;
 
-    if (num_mouse >= MAX_INPUT_DEVICES)
-	return;
     did += num_mouse;
-    num_mouse++;
-    did->name = my_strdup ("Windows mouse");
-    did->sortname = my_strdup ("Windows mouse");
-    did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
-    if (did->buttons > 5)
-	did->buttons = 5; /* no non-direcinput support for >5 buttons */
-    if (did->buttons > 3 && !os_winnt)
-	did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
-    did->axles = GetSystemMetrics (SM_MOUSEWHEELPRESENT) ? 3 : 2;
-    did->axistype[0] = 1;
-    did->axissort[0] = 0;
-    did->axisname[0] = my_strdup ("X-Axis");
-    did->axistype[1] = 1;
-    did->axissort[1] = 1;
-    did->axisname[1] = my_strdup ("Y-Axis");
-    if (did->axles > 2) {
-	did->axistype[2] = 1;
-	did->axissort[2] = 2;
-	did->axisname[2] = my_strdup ("Wheel");
+    for (i = 0; i < 2; i++) {
+        if (num_mouse >= MAX_INPUT_DEVICES)
+	    return;
+	num_mouse++;
+	name = (i == 0) ? "Windows mouse" : "Mousehack mouse";
+	did->name = my_strdup (i ? "Mousehack mouse" : "Windows mouse");
+	did->sortname = my_strdup (i ? "Windowsmouse2" : "Windowsmouse1");
+	did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
+	if (did->buttons > 5)
+	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
+	if (did->buttons > 3 && !os_winnt)
+	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
+	did->axles = GetSystemMetrics (SM_MOUSEWHEELPRESENT) ? 3 : 2;
+	did->axistype[0] = 1;
+	did->axissort[0] = 0;
+	did->axisname[0] = my_strdup ("X-Axis");
+	did->axistype[1] = 1;
+	did->axissort[1] = 1;
+	did->axisname[1] = my_strdup ("Y-Axis");
+	if (did->axles > 2) {
+	    did->axistype[2] = 1;
+	    did->axissort[2] = 2;
+	    did->axisname[2] = my_strdup ("Wheel");
+	}
+	for (j = 0; j < did->buttons; j++) {
+	    did->buttonsort[j] = j;
+	    sprintf (tmp, "Button %d", j + 1);
+	    did->buttonname[j] = my_strdup (tmp);
+	}
+	did->priority = 2;
+	did->wininput = i + 1;
+	did++;
     }
-    for (j = 0; j < did->buttons; j++) {
-        did->buttonsort[j] = j;
-        sprintf (tmp, "Button %d", j + 1);
-        did->buttonname[j] = my_strdup (tmp);
-    }
-    did->priority = 2;
-    did->wininput = 1;
 }
 
 static void handle_rawinput_2 (RAWINPUT *raw)
@@ -841,12 +851,11 @@ static void close_mouse (void)
 static int acquire_mouse (int num, int flags)
 {
     LPDIRECTINPUTDEVICE8 lpdi = di_mouse[num].lpdi;
+    struct didata *did = &di_mouse[num];
     DIPROPDWORD dipdw;
     HRESULT hr;
 
     unacquire (lpdi, "mouse");
-    if (mousehack_get () == mousehack_follow)
-	return 0;
     if (lpdi) {
 	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "mouse");
 	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
@@ -869,6 +878,7 @@ static int acquire_mouse (int num, int flags)
 	else if (di_mouse[num].wininput) {
 	    winmouse++;
 	    winmousenumber = num;
+	    winmousemode = di_mouse[num].wininput == 2;
 	} else
 	    normalmouse++;
     }
@@ -939,13 +949,11 @@ static void read_mouse (void)
 			    }
 			}
 		    }
-		    if (i == 0 && dimofs == DIMOFS_BUTTON2 && state) {
-			if (currprefs.win32_middle_mouse) {
-			    if (isfullscreen ())
-				minimizewindow ();
-			    if (mouseactive)
-				setmouseactive(0);
-			}
+		    if (currprefs.win32_middle_mouse && dimofs == DIMOFS_BUTTON2 && state) {
+			if (isfullscreen ())
+			    minimizewindow ();
+			if (mouseactive)
+			    setmouseactive(0);
 		    }
 		}
 	    }

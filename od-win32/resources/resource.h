@@ -230,7 +230,6 @@
 #define IDS_ROMSCANNOROMS               324
 #define IDS_NUMSG_KICKREP               325
 #define IDS_NUMSG_KICKREPNO             326
-#define IDS_STRING19                    327
 #define IDS_NUMSG_NOROM                 327
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
@@ -754,6 +753,8 @@
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
 #define IDC_DF1QQ                       1680
+#define IDC_DF1QQ2                      1681
+#define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682
 #define IDC_DF0TEXTQ                    1683
 #define IDC_CONFIGNOLINK                1683
