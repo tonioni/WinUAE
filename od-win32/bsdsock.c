@@ -2076,10 +2076,12 @@ static unsigned int __stdcall thread_get(void *index2)
     for (;;)
     {
 	    WaitForSingleObject(hGetEvents[index],INFINITE);
-
-	    if ((args = threadGetargs[index]) != NULL)
+		if (threadGetargs[index] == -1)
+			{
+			threadGetargs[index] = NULL;
+			}
+	    if ((args = threadGetargs[index]) != NULL )
 	    {
-
 			sb = (struct socketbase *)*args;
 			if (args[1] == 0)
 				{ // gethostbyname or gethostbyaddr
@@ -2256,7 +2258,14 @@ void host_gethostbynameaddr(SB, uae_u32 name, uae_u32 namelen, long addrtype)
 	args[4] = addrtype;
 	args[5] = (uae_u32) &buf[0];
 
-	for (i = 0; i < MAX_GET_THREADS; i++) if (hGetThreads[i] && !threadGetargs[i]) break;
+	for (i = 0; i < MAX_GET_THREADS; i++) 
+		{
+		if (threadGetargs[i] == -1)
+			{
+			threadGetargs[i] = 0;
+			}
+		if (hGetThreads[i] && !threadGetargs[i]) break;
+		}
 
 	if (i >= MAX_GET_THREADS)
 	{
@@ -2376,8 +2385,14 @@ void host_getprotobyname(SB, uae_u32 name)
 	args[2] = name;
 	args[5] = (uae_u32) &buf[0];
 
-	for (i = 0; i < MAX_GET_THREADS; i++) if (hGetThreads[i] && !threadGetargs[i]) break;
-
+	for (i = 0; i < MAX_GET_THREADS; i++) 
+		{
+		if (threadGetargs[i] == -1)
+			{
+			threadGetargs[i] = 0;
+			}
+		if (hGetThreads[i] && !threadGetargs[i]) break;
+		}
 	if (i >= MAX_GET_THREADS)
 	{
 	    for (i = 0; i < MAX_GET_THREADS; i++)
@@ -2496,8 +2511,14 @@ void host_getservbynameport(SB, uae_u32 nameport, uae_u32 proto, uae_u32 type)
 	args[4] = type;
 	args[5] = (uae_u32) &buf[0];
 
-	for (i = 0; i < MAX_GET_THREADS; i++) if (hGetThreads[i] && !threadGetargs[i]) break;
-
+	for (i = 0; i < MAX_GET_THREADS; i++) 
+		{
+		if (threadGetargs[i] == -1)
+			{
+			threadGetargs[i] = 0;
+			}
+		if (hGetThreads[i] && !threadGetargs[i]) break;
+		}
 	if (i >= MAX_GET_THREADS)
 	{
 	    for (i = 0; i < MAX_GET_THREADS; i++)

@@ -525,31 +525,31 @@ BEGIN
                     80,15
 END
 
-IDD_MISC1 DIALOGEX 0, 0, 300, 223
+IDD_MISC1 DIALOGEX 0, 0, 300, 219
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,103
     CONTROL         "Middle-Mouse-Button --> ALT-TAB",IDC_JULIAN,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,29,21,120,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,19,120,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,29,36,120,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,34,120,10
     CONTROL         "On-Screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,29,51,115,10
+                    WS_TABSTOP,29,49,115,10
     CONTROL         "UAEscsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,29,66,117,10
+                    WS_TABSTOP,29,64,117,10
     CONTROL         "Don't show Taskbar button",IDC_NOTASKBARBUTTON,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,29,80,117,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,29,78,117,10
     CONTROL         "BSDsocket.library emulation",IDC_SOCKETS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,159,21,120,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,19,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,159,36,120,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,34,120,10
     CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,159,51,120,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,49,120,10
     CONTROL         "Use ASPI SCSI layer",IDC_ASPI,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,159,66,115,10
+                    WS_TABSTOP,159,64,115,10
     CONTROL         "Syncronize clock",IDC_CLOCKSYNC,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,159,80,115,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,159,78,115,10
     GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,110,85,73
     COMBOBOX        IDC_KBLED1,22,123,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
@@ -563,7 +563,7 @@ BEGIN
                     HIDC_CREATELOGFILE
     CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,189,120,80,10
-    GROUPBOX        "State files:",IDC_STATIC,98,137,195,83
+    GROUPBOX        "State files:",IDC_STATIC,98,137,195,78
     PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,156,49,14
     PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,182,49,14
     CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",
@@ -577,7 +577,7 @@ BEGIN
     COMBOBOX        IDC_STATE_BUFFERSIZE,248,191,38,65,CBS_DROPDOWN | 
                     WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,29,94,117,10
+                    WS_TABSTOP,29,92,117,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 212
@@ -873,8 +873,11 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     CONTROL         "",IDC_DISKLIST,"SysListView32",LVS_REPORT | 
                     LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,292,211
-    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,98,223,93,15
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,6,292,196
+    PUSHBUTTON      "Remove disk image",IDC_DISKLISTREMOVE,153,223,93,15
+    COMBOBOX        IDC_DISKTEXT,3,205,293,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | 
+                    WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Insert disk image",IDC_DISKLISTINSERT,38,223,93,15
 END
 
 IDD_PANEL DIALOGEX 0, 0, 420, 278
@@ -1041,8 +1044,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9,92,0
- PRODUCTVERSION 0,9,92,0
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1058,12 +1061,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "0.9.92"
+            VALUE "FileVersion", "1.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2004 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2005 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "0.9.92"
+            VALUE "ProductVersion", "1.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1435,7 +1438,7 @@ END
 
 STRINGTABLE 
 BEGIN
-    IDS_QS_MODELS           "Amiga 500 / Amiga 2000\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nExpanded UAE example configuration"
+    IDS_QS_MODELS           "Amiga 500 / Amiga 2000\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nArcadia Multi Select system\nExpanded UAE example configuration"
     IDS_QS_MODEL_A500       "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)\nThis configuration is capable of running most games and demos ever produced for the first Amiga line. Only few exceptions need different configuration. Oldest Amiga games tend to be incompatible with this configuration.\nKS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow\nLater hardware revision of Amiga 500. Nearly 100% compatible with previous configuration.\nKS 1.3, ECS Agnus, 1.0M Chip\nFew newer games and demos require this configuration.\nKS 1.3, OCS Agnus, 0.5M Chip\nVery old (~1987 and older) games and demos may require this configuration.\nKS 1.2, OCS Agnus, 0.5M Chip\nThe first Amiga 500 produced had this configuration. Some very old programs only work correctly with this configuration. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD.\nKS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow\nThis configuration adds expansion memory to the first Amiga 500 ever produced. Try this if your game do not work with newer configurations but works with the previous one. It could add some features to the game and faster game loading. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD."
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nA500+ is basically an Amiga 500 with ECS Agnus,  1MB of Chip RAM and Kickstart 2.0 ROM. Many Amiga 500 games and demos won't work properly on an Amiga 500+.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nA600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
@@ -1448,6 +1451,7 @@ END
 STRINGTABLE 
 BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
+    IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an Amiga 500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
 END
 
 #endif    // English (U.S.) resources

@@ -130,7 +130,6 @@ void exit_gui (int ok)
 	return;
     if (guiDlg == NULL)
 	return;
-    write_log ("exit_gui %d\n", ok);
     SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
 }
 
@@ -346,14 +345,18 @@ static struct romdata *scan_single_rom (char *path, uae_u8 *keybuf, int keysize)
     return scan_single_rom_2 (z, keybuf, keysize);
 }
 
+static void addrom (HKEY fkey, struct romdata *rd, char *name)
+{
+    char tmp[MAX_DPATH];
+    sprintf (tmp, "ROM%02d", rd->id);
+    RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)name, strlen (name) + 1);
+}
+
 static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
 {
     struct romdata *rd = scan_single_rom_2 (f, rsd->keybuf, rsd->keysize);
     if (rd) {
-        char tmp[MAX_DPATH];
-        char *name = zfile_getname (f);
-        sprintf (tmp, "ROM%02d", rd->id);
-        RegSetValueEx (rsd->fkey, tmp, 0, REG_SZ, (CONST BYTE *)name, strlen (name) + 1);
+	addrom (rsd->fkey, rd, zfile_getname (f));
         rsd->got = 1;
     }
     return 1;
@@ -362,6 +365,14 @@ static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
 static int scan_rom (char *path, HKEY fkey, uae_u8 *keybuf, int keysize)
 {
     struct romscandata rsd = { keybuf, keysize, fkey, 0 };
+    struct romdata *rd;
+
+    rd = getarcadiarombyname (path);
+    if (rd) {
+	addrom (fkey, rd, path);
+	return 1;
+    }
+
     zfile_zopen (path, scan_rom_2, &rsd);
     return rsd.got;
 }
@@ -470,6 +481,16 @@ static void show_rom_list (void)
     }
     if (ok) strcat (p, avail); else strcat (p, unavail);
     p1 = p2;
+
+#if 0
+    /* Arcadia */
+    p2 = strchr (p1, '\n');
+    if (!p2) goto end;
+    *p2++= 0; strcat (p, p1); strcat (p, ": ");
+    roms[0] = 5; roms[1] = -1;
+    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    p1 = p2;
+#endif
 
     pre_gui_message (p);
 end:
@@ -588,12 +609,9 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
 	cfgfile_get_description (fname, NULL, NULL, NULL, &type);
     }
     if (type == 0 || type == 1) {
-	if (p->mountinfo == currprefs.mountinfo)
-	    currprefs.mountinfo = 0;
 	discard_prefs (p, 0);
 #ifdef FILESYS
 	free_mountinfo (currprefs.mountinfo);
-	currprefs.mountinfo = alloc_mountinfo ();
 #endif
     }
     type2 = type;
@@ -714,10 +732,7 @@ void gui_display( int shortcut )
 static void prefs_to_gui (struct uae_prefs *p)
 {
     workprefs = *p;
-    strcpy (workprefs.path_rom, "roms\\");
     updatewinfsmode (&workprefs);
-    /* Could also duplicate unknown lines, but no need - we never
-       modify those.  */
 #if 0
 #ifdef _DEBUG
     if (workprefs.gfx_framerate < 5)
@@ -728,12 +743,9 @@ static void prefs_to_gui (struct uae_prefs *p)
 
 static void gui_to_prefs (void)
 {
-    struct uaedev_mount_info *mi = currprefs.mountinfo;
     /* Always copy our prefs to changed_prefs, ... */
-    //free_mountinfo (workprefs.mountinfo);
     changed_prefs = workprefs;
     updatewinfsmode (&changed_prefs);
-    currprefs.mountinfo = mi;
 }
 
 int DirectorySelection(HWND hDlg, int flag, char *path)
@@ -1696,8 +1708,10 @@ void InitializeListView (HWND hDlg)
 	    if (j < 0)
 		j = 0;
 	    while (j > 0) {
-		if (tmp2[j - 1] == '\\' || tmp2[j - 1] == '/')
-		    break;
+		if ((tmp2[j - 1] == '\\' || tmp2[j - 1] == '/')) {
+		    if (!(j >= 5 && (tmp2[j - 5] == '.' || tmp2[j - 4] == '.')))
+		        break;
+		}
 		j--;
 	    }
 	    ListView_SetItemText (list, result, 1, tmp2 + j);
@@ -1730,7 +1744,7 @@ void InitializeListView (HWND hDlg)
 	    failure = get_filesys_unit (currprefs.mountinfo, i,
 				        &devname, &volname, &rootdir, &readonly,
 					&secspertrack, &surfaces, &reserved,
-					&cylinders, &size, &blocksize, &bootpri, 0);
+					&cylinders, &size, &blocksize, &bootpri, 0, 0);
 	    type = is_hardfile (currprefs.mountinfo, i);
 	    
 	    if (size >= 1024 * 1024 * 1024)
@@ -2651,7 +2665,7 @@ static struct amigamodels amodels[] = {
     { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
     { 3, IDS_QS_MODEL_CD32 }, // "CD32"
     { 4, IDS_QS_MODEL_CDTV }, // "CDTV"
-    { 0, 0 },
+    { 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
     { 0, 0 },
     { 0, 0 },
     { 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
@@ -2683,8 +2697,10 @@ static void quickstarthost (HWND hDlg, char *name)
     int type = CONFIG_TYPE_HOST;
     char tmp[MAX_DPATH];
 
-    if (getconfigstorefrompath (name, tmp, CONFIG_TYPE_HOST))
-	cfgfile_load (&workprefs, tmp, &type, 1);
+    if (getconfigstorefrompath (name, tmp, CONFIG_TYPE_HOST)) {
+	if (cfgfile_load (&workprefs, tmp, &type, 1))
+	    workprefs.start_gui = 1;
+    }
 }
 
 static void init_quickstartdlg_tooltip (HWND hDlg, char *tt)
@@ -4015,7 +4031,7 @@ static void values_to_kickstartdlg (HWND hDlg)
         keybuf = load_keyfile (&workprefs, NULL, &keysize);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, keybuf, keysize, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, keybuf, keysize, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, keybuf, keysize, ROMTYPE_AR);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, keybuf, keysize, ROMTYPE_AR | ROMTYPE_ARCADIA);
 	free_keyfile (keybuf);
         if (fkey)
 	    RegCloseKey (fkey);
@@ -5347,7 +5363,7 @@ static void new_filesys (HWND hDlg)
     const char *result;
 
     result = add_filesys_unit (currprefs.mountinfo, current_fsvdlg.device, current_fsvdlg.volume,
-		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0);
+		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
     if (result)
 	MessageBox (hDlg, result, "Bad directory",
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5361,7 +5377,7 @@ static void new_hardfile (HWND hDlg)
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
 			       current_hfdlg.reserved, current_hfdlg.blocksize,
-			       current_hfdlg.bootpri, current_hfdlg.fsfilename);
+			       current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
     if (result)
 	MessageBox (hDlg, result, "Bad hardfile",
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5373,7 +5389,7 @@ static void new_harddrive (HWND hDlg)
 
     result = add_filesys_unit (currprefs.mountinfo, 0, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
-			       0, current_hfdlg.blocksize, 0, 0);
+			       0, current_hfdlg.blocksize, 0, 0, 0);
     if (result)
 	MessageBox (hDlg, result, "Bad harddrive",
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5408,7 +5424,7 @@ static void harddisk_edit (HWND hDlg)
     
     failure = get_filesys_unit (currprefs.mountinfo, entry, &devname, &volname, &rootdir, &readonly,
 			    &secspertrack, &surfaces, &reserved, &cylinders, &size,
-			    &blocksize, &bootpri, &filesys);
+			    &blocksize, &bootpri, &filesys, 0);
 
     type = is_hardfile( currprefs.mountinfo, entry );
     if( type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB )
@@ -5438,7 +5454,7 @@ static void harddisk_edit (HWND hDlg)
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
 				       ! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
-				       current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename);
+				       current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad hardfile",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5454,7 +5470,7 @@ static void harddisk_edit (HWND hDlg)
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, 0, 0, current_hfdlg.filename,
 				       ! current_hfdlg.rw, 0, 0,
-				       0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0);
+				       0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad harddrive",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5476,7 +5492,7 @@ static void harddisk_edit (HWND hDlg)
 	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_FILESYS), hDlg, VolumeSettingsProc)) {
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, current_fsvdlg.device, current_fsvdlg.volume,
-				       current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0);
+				       current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad hardfile",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5740,13 +5756,42 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
     SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);	
 }
 
+static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
+{
+    int i;
+    char *s;
+    char tmp[1000];
+    int nn = workprefs.dfxtype[n] + 1;
+
+    if (f_text < 0)
+	return;
+    SendDlgItemMessage(hDlg, f_text, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
+    i = 0;
+    while (s = DISK_history_get (i)) {
+	i++;
+	if (strlen (s) == 0)
+	    continue;
+	if (f_text >= 0)
+	    SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)s);
+	if (fkey) {
+	    sprintf (tmp, "Image%02d", i);
+	    RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
+	}
+	if (!strcmp (workprefs.df[n], s)) {
+	    if (f_text >= 0)
+		SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
+	}
+	if (nn <= 0)
+	    break;
+    }
+}
+
 static void addfloppytype (HWND hDlg, int n)
 {
-    int nn = workprefs.dfxtype[n] + 1;
-    int state, i, chk;
-    char *s;
+    int state, chk;
     HKEY fkey;
-    char tmp[1000];
+    int nn = workprefs.dfxtype[n] + 1;
 
     int f_text = floppybuttons[n][0];
     int f_drive = floppybuttons[n][1];
@@ -5788,28 +5833,8 @@ static void addfloppytype (HWND hDlg, int n)
  
     fkey = read_disk_history ();
 
-    if (f_text >= 0) {
-	SendDlgItemMessage(hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
-    }
-    i = 0;
-    while (s = DISK_history_get (i)) {
-	i++;
-	if (strlen (s) == 0)
-	    continue;
-	if (f_text >= 0)
-	    SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)s);
-	if (fkey) {
-	    sprintf (tmp, "Image%02d", i);
-	    RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
-	}
-	if (!strcmp (workprefs.df[n], s)) {
-	    if (f_text >= 0)
-		SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
-	}
-	if (nn <= 0)
-	    break;
-    }
+    addfloppyhistory (hDlg, fkey, n, f_text);
+
     if (fkey)
 	RegCloseKey (fkey);
 }
@@ -5825,28 +5850,34 @@ static void getfloppytype (HWND hDlg, int n)
     }
 }
 
-static void getfloppyname (HWND hDlg, int n)
+static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
 {
     int val;
+
+    out[0] = 0;
+    val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
+    if (val == CB_ERR) {
+	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
+    } else {
+	val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
+	if (val != CB_ERR && val > 0) {
+	    if (out[0]) {
+		/* add to top of list */
+		DISK_history_add (out, -1);
+	    }
+	} else {
+	    out[0] = 0;
+	}
+    }
+    return out[0] ? 1 : 0;
+}
+
+static void getfloppyname (HWND hDlg, int n)
+{
     int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
     char tmp[1000];
 
-    tmp[0] = 0;
-    val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
-    if (val == CB_ERR) {
-	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)sizeof (tmp), (LPARAM)tmp);
-    } else {
-	val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
-	if (val != CB_ERR && val > 0) {
-	    if (tmp[0]) {
-		/* add to top of list */
-		DISK_history_add (tmp, -1);
-	    }
-	} else {
-	    tmp[0] = 0;
-	}
-    }
-    if (tmp[0]) {
+    if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp))) {
 	disk_insert (n, tmp);
 	strcpy (workprefs.df[n], tmp);
     }
@@ -6087,10 +6118,11 @@ static ACCEL SwapperAccel[] = {
     { 0, 0, 0 }
 };
 
-static void swapperhili (int entry)
+static void swapperhili (HWND hDlg, int entry)
 {
     ListView_SetItemState (cachedlist, entry,
         LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+    SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 }
 
 static void addswapperfile (HWND hDlg, int entry)
@@ -6104,7 +6136,7 @@ static void addswapperfile (HWND hDlg, int entry)
             entry++;
         }
         InitializeListView (hDlg);
-        swapperhili (entry);
+        swapperhili (hDlg, entry);
     }
 }
 
@@ -6113,6 +6145,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     static int recursive = 0;
     static int entry;
     char tmp[MAX_DPATH];
+    HKEY fkey;
 
     switch (msg) 
     {
@@ -6120,8 +6153,12 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	pages[DISK_ID] = hDlg;
 	currentpage = DISK_ID;
 	InitializeListView(hDlg);
+	fkey = read_disk_history ();
+        addfloppyhistory (hDlg, fkey, 0, IDC_DISKTEXT);
+        if (fkey)
+	    RegCloseKey (fkey);
 	entry = 0;
-	swapperhili (entry);
+	swapperhili (hDlg, entry);
     break;
     case WM_LBUTTONUP:
     {
@@ -6139,7 +6176,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		}
 	    }
 	    InitializeListView(hDlg);
-	    swapperhili (entry);
+	    swapperhili (hDlg, entry);
 	    return TRUE;
 	}
 	xfree (draggeditems);
@@ -6174,25 +6211,25 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    case 10019:
 	    case 10020:
 	    entry = LOWORD (wParam) - 10001;
-	    swapperhili (entry);
+	    swapperhili (hDlg, entry);
 	    break;
 	    case 10101:
 	    if (entry > 0) {
 		entry--;
-	        swapperhili (entry);
+	        swapperhili (hDlg, entry);
 	    }
 	    break;
 	    case 10102:
 	    if (entry >= 0 && entry < MAX_SPARE_DRIVES - 1) {
 		entry++;
-	        swapperhili (entry);
+	        swapperhili (hDlg, entry);
 	    }
 	    break;
 	    case 10103:
 	    case 10104:
 	    disk_swap (entry, 1);
 	    InitializeListView (hDlg);
-	    swapperhili (entry);
+	    swapperhili (hDlg, entry);
 	    break;
 	    case 10201:
 	    case 10202:
@@ -6211,7 +6248,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		    strcpy (workprefs.df[drv], workprefs.dfxlist[entry]);
 		    disk_insert (drv, workprefs.df[drv]);
 		    InitializeListView (hDlg);
-		    swapperhili (entry);
+		    swapperhili (hDlg, entry);
 		}
 	    }
 	    break;
@@ -6223,7 +6260,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		int drv = LOWORD (wParam) - 10201;
 		disk_eject (drv);
 		InitializeListView (hDlg);
-		swapperhili (entry);
+		swapperhili (hDlg, entry);
 	    }
 	    break;
 	    case 10209:
@@ -6232,11 +6269,19 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    }
 	    break;
 	
+	    case IDC_DISKLISTINSERT:
+		if (entry >= 0 && getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp))) {
+		    strcpy (workprefs.dfxlist[entry], tmp);
+		    InitializeListView (hDlg);
+		    swapperhili (hDlg, entry);
+		}
+		break;		    
+
 	    case IDC_DISKLISTREMOVE:
 		if (entry >= 0) {
 		    workprefs.dfxlist[entry][0] = 0;
 		    InitializeListView (hDlg);
-		    swapperhili (entry);
+		    swapperhili (hDlg, entry);
 		}
 		break;
 	    case IDC_UP:
@@ -6246,7 +6291,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		    strcpy (workprefs.dfxlist[entry], tmp);
 		    InitializeListView (hDlg);
 		    entry--;
-		    swapperhili (entry);
+		    swapperhili (hDlg, entry);
 		}
 		break;
 	    case IDC_DOWN:
@@ -6256,7 +6301,7 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		    strcpy (workprefs.dfxlist[entry], tmp);
 		    InitializeListView (hDlg);
 		    entry++;
-	            swapperhili (entry);
+	            swapperhili (hDlg, entry);
 		}
 	        break;
 	}
@@ -6284,11 +6329,12 @@ static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		    if (col == 2) {
 			if (disk_swap (entry, 0))
 			    InitializeListView (hDlg);
-		        swapperhili (entry);
+		        swapperhili (hDlg, entry);
 		    } else if (col == 1) {
 			if (dblclick)
 			    addswapperfile (hDlg, entry);
 		    }
+	            SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 		}
 		break;
 	    }

@@ -29,10 +29,9 @@
 #include "zfile.h"
 #include "ar.h"
 #include "parallel.h"
-#ifdef CD32
 #include "akiko.h"
-#endif
 #include "debug.h"
+#include "arcadia.h"
 
 //#define CIA_DEBUG_R
 //#define CIA_DEBUG_W
@@ -485,6 +484,10 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    uae_u8 v;
 	    parallel_direct_read_data (&v);
 	    tmp = v;
+#ifdef ARCADIA
+	} else if (arcadia_rom) {
+	    tmp = arcadia_parport (0, ciaaprb, ciaadrb);
+#endif
 	} else {
 	    tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
 	}
@@ -680,6 +683,10 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    doprinter (val);
 	} else if (isprinter() < 0) {
 	    parallel_direct_write_data (val, ciaadrb);
+#ifdef ARCADIA
+	} else if (arcadia_rom) {
+	    arcadia_parport (1, ciaaprb, ciaadrb);
+#endif
 	}
 	cia_parallelack ();
 #endif
@@ -691,11 +698,16 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #endif
 	ciaadra = val; bfe001_change (); break;
     case 3:
+	ciaadrb = val; 
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
 	    write_log ("BFE301 W %02.2X %s\n", val, debuginfo(0));
 #endif
-	ciaadrb = val; break;
+#ifdef ARCADIA
+	if (arcadia_rom)
+	    arcadia_parport (1, ciaaprb, ciaadrb);
+#endif
+	break;
     case 4:
 	CIA_update ();
 	ciaala = (ciaala & 0xff00) | val;

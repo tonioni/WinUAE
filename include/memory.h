@@ -242,6 +242,7 @@ extern void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 
 #define ROMTYPE_EXTCDTV 8
 #define ROMTYPE_AR 16
 #define ROMTYPE_KEY 32
+#define ROMTYPE_ARCADIA 64
 
 struct romdata {
     char *name;
@@ -258,6 +259,7 @@ extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
+extern struct romdata *getarcadiarombyname (char *name);
 extern void getromname (struct romdata*, char*);
 extern struct romdata *getromdatabyname (char*);
 extern void romlist_add (char *path, struct romdata *rd);

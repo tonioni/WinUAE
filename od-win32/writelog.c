@@ -73,7 +73,7 @@ void write_dlog (const char *format, ...)
 	openconsole();
 	WriteConsole(stdoutput,buffer,strlen(buffer),&numwritten,0);
     }
-    if( debugfile ) {
+    if (debugfile) {
 	fprintf( debugfile, buffer );
 	fflush (debugfile);
     }
@@ -92,8 +92,8 @@ void write_log (const char *format, ...)
 	openconsole();
 	WriteConsole(stdoutput,buffer,strlen(buffer),&numwritten,0);
     }
-    if( debugfile ) {
-	fprintf( debugfile, buffer );
+    if (debugfile) {
+	fprintf (debugfile, buffer);
 	fflush (debugfile);
     }
     va_end (parms);

@@ -1595,7 +1595,7 @@ int graphics_init (void)
 
 int graphics_setup (void)
 {
-    if( !DirectDraw_Start (NULL) )
+    if (!DirectDraw_Start (NULL))
 	return 0;
     DirectDraw_Release();
 #ifdef PICASSO96

@@ -38,6 +38,8 @@
 #include "ahidsound.h"
 #include "savestate.h"
 #include "sound.h"
+#include "akiko.h"
+#include "arcadia.h"
 
 extern void screenshot(int);
 
@@ -53,6 +55,7 @@ static struct uae_input_device_kbr_default keytrans[] = {
     { DIK_F3, INPUTEVENT_KEY_F3 },
     { DIK_F4, INPUTEVENT_KEY_F4 },
     { DIK_F5, INPUTEVENT_KEY_F5 },
+
     { DIK_F6, INPUTEVENT_KEY_F6 },
     { DIK_F7, INPUTEVENT_KEY_F7 },
     { DIK_F8, INPUTEVENT_KEY_F8 },
@@ -210,8 +213,40 @@ int getcapslock (void)
     return capslockstate;
 }
 
+#ifdef ARCADIA
+
+static int handlearcadia (int scancode, int state)
+{
+    int e = 0;
+    if (!arcadia_rom)
+	return 0;
+    switch (scancode)
+    {
+	case DIK_F2:
+	e = INPUTEVENT_SPC_ARCADIA_DIAGNOSTICS;
+	break;
+	case DIK_1:
+	e = INPUTEVENT_SPC_ARCADIA_PLAYER1;
+	break;
+	case DIK_2:
+	e = INPUTEVENT_SPC_ARCADIA_PLAYER2;
+	break;
+	case DIK_5:
+	e = INPUTEVENT_SPC_ARCADIA_COIN1;
+	break;
+	case DIK_6:
+	e = INPUTEVENT_SPC_ARCADIA_COIN2;
+	break;
+    }
+    if (!e)
+	return 0;
+    handle_input_event (e, state, 1, 0);
+    return 1;
+}
+
+#endif
+
 #ifdef CD32
-extern int cd32_enabled;
 
 static int handlecd32 (int scancode, int state)
 {
@@ -400,7 +435,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	}
     }
     if (code) {
-	inputdevice_add_inputcode (code);
+	inputdevice_add_inputcode (code, 1);
 	return;
     }
     if (endpressed ())
@@ -416,6 +451,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     if (currprefs.input_selected_setting == 0) {
 #ifdef CD32
         if (handlecd32 (scancode, newstate))
+	    return;
+#endif
+#ifdef ARCADIA
+        if (handlearcadia (scancode, newstate))
 	    return;
 #endif
     }

@@ -674,7 +674,7 @@ static struct zfile *unzip (struct zfile *z)
 	}
 	zipcnt++;
 	err = unzGoToNextFile (uz);
-	if (err != UNZ_OK)
+	if (err != UNZ_OK) 
 	    break;
     }
     if (zf) {

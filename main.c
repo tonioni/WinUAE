@@ -39,6 +39,7 @@
 #include "scsidev.h"
 #include "akiko.h"
 #include "savestate.h"
+#include "filesys.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -91,7 +92,6 @@ void discard_prefs (struct uae_prefs *p, int type)
 #ifdef FILESYS
     filesys_cleanup ();
     free_mountinfo (p->mountinfo);
-    p->mountinfo = alloc_mountinfo ();
 #endif
 }
 
@@ -405,7 +405,6 @@ static void parse_cmdline (int argc, char **argv)
 	    } else {
 #ifdef FILESYS
                 free_mountinfo (currprefs.mountinfo);
-	        currprefs.mountinfo = alloc_mountinfo ();
 #endif
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
@@ -558,7 +557,6 @@ static void real_main2 (int argc, char **argv)
     if (restart_config[0]) {
 #ifdef FILESYS
 	free_mountinfo (currprefs.mountinfo);
-        currprefs.mountinfo = alloc_mountinfo ();
 #endif
 	default_prefs (&currprefs, 0);
 	fixup_prefs (&currprefs);
@@ -599,9 +597,7 @@ static void real_main2 (int argc, char **argv)
     restart_program = 0;
     if (! no_gui) {
 	int err = gui_init ();
-	struct uaedev_mount_info *mi = currprefs.mountinfo;
 	currprefs = changed_prefs;
-	currprefs.mountinfo = mi;
 	if (err == -1) {
 	    write_log ("Failed to initialize the GUI\n");
 	} else if (err == -2) {
@@ -687,6 +683,8 @@ static void real_main2 (int argc, char **argv)
 
 void real_main (int argc, char **argv)
 {
+    free_mountinfo (&options_mountinfo);
+    currprefs.mountinfo = changed_prefs.mountinfo = &options_mountinfo;
     restart_program = 1;
     fetch_configurationpath (restart_config, sizeof (restart_config));
     strcat (restart_config, OPTIONSFILENAME);

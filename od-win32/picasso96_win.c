@@ -2235,7 +2235,8 @@ STATIC_INLINE int BlitRectHelper( void )
     * If we have a destination RenderInfo, then we've been called from picasso_BlitRectNoMaskComplete()
     * and we need to put the results on the screen from the frame-buffer.
     */
-    if (dstri == NULL) 
+    //if (dstri == NULL) 
+    if (dstri->Memory == ri->Memory)
     {
         if( mask != 0xFF && Bpp > 1 ) 
         {
@@ -2652,8 +2653,8 @@ uae_u32 picasso_BlitTemplate (void)
     uae_u8 *tmpl_base;
     uae_u32 result = 0;
 
-    if (W * H <= 2500)
-	return 0;
+//  if (W * H <= 2500)
+//	return 0;
     special_mem|=picasso_is_special_read|picasso_is_special;     
 
 #ifdef LOCK_UNLOCK_MADNESS

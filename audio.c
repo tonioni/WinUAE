@@ -306,10 +306,10 @@ void sample16ss_handler (void)
     data2 &= audio_channel[2].adk_mask;
     data3 &= audio_channel[3].adk_mask;
     
-    PUT_SOUND_WORD (data1 << 2);
     PUT_SOUND_WORD (data0 << 2);
-    PUT_SOUND_WORD (data2 << 2);
+    PUT_SOUND_WORD (data1 << 2);
     PUT_SOUND_WORD (data3 << 2);
+    PUT_SOUND_WORD (data2 << 2);
     
     check_sound_buffers ();
 }
@@ -334,14 +334,14 @@ void sample16s_handler (void)
     {
 	uae_u32 data = SBASEVAL16(1) + data0;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_right (data);
+        put_sound_word_left (data);
     }
 
     data1 += data2;
     {
         uae_u32 data = SBASEVAL16(1) + data1;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_left (data);
+        put_sound_word_right (data);
     }
 
     check_sound_buffers ();
@@ -413,13 +413,13 @@ void sample16si_crux_handler (void)
     {
 	uae_u32 data = SBASEVAL16(1) + data0;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_right (data);
+        put_sound_word_left (data);
     }
 
     {
         uae_u32 data = SBASEVAL16(1) + data1;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_left (data);
+        put_sound_word_right (data);
     }    
     check_sound_buffers ();
 }
@@ -471,13 +471,13 @@ void sample16si_rh_handler (void)
     {
 	uae_u32 data = SBASEVAL16(1) + data0;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_right (data);
+        put_sound_word_left (data);
     }
 
     {
         uae_u32 data = SBASEVAL16(1) + data1;
         FINISH_DATA (data, 16, 1);
-        put_sound_word_left (data);
+        put_sound_word_right (data);
     }    
     check_sound_buffers ();
 }

@@ -123,7 +123,7 @@ void filesys_init( void )
 		    else
 			strcat( volumepath, ".." );
 
-		    result = add_filesys_unit (currprefs.mountinfo, 0, volumename, volumepath, 0, 0, 0, 0, 0, 0, 0);
+		    result = add_filesys_unit (currprefs.mountinfo, 0, volumename, volumepath, 0, 0, 0, 0, 0, 0, 0, FILESYS_FLAG_DONOTSAVE);
 		    if( result )
 			write_log ("%s\n", result);
 		}

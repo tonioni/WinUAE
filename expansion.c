@@ -24,6 +24,7 @@
 #include "zfile.h"
 #include "catweasel.h"
 #include "cdtv.h"
+#include "arcadia.h"
 
 #define MAX_EXPANSION_BOARDS	8
 
@@ -762,6 +763,118 @@ static void expamem_init_fastcard (void)
 
 /* ********************************************************** */
 
+#ifdef ARCADIA
+
+static uae_u8 *arcadiaboot;
+static uae_u32 arcadia_start;
+
+static uae_u32 REGPARAM2 arcadia_lget (uaecptr addr)
+{
+    uae_u8 *m;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    addr -= arcadia_start & 65535;
+    addr &= 65535;
+    m = arcadiaboot + addr;
+    return do_get_mem_long ((uae_u32 *)m);
+}
+
+static uae_u32 REGPARAM2 arcadia_wget (uaecptr addr)
+{
+    uae_u8 *m;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    addr -= arcadia_start & 65535;
+    addr &= 65535;
+    m = arcadiaboot + addr;
+    return do_get_mem_word ((uae_u16 *)m);
+}
+
+static uae_u32 REGPARAM2 arcadia_bget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    addr -= arcadia_start & 65535;
+    addr &= 65535;
+    return arcadiaboot[addr];
+}
+
+static void REGPARAM2 arcadia_lput (uaecptr addr, uae_u32 l)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    write_log ("arcadia_lput called PC=%p\n", m68k_getpc());
+}
+
+static void REGPARAM2 arcadia_wput (uaecptr addr, uae_u32 w)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    write_log ("arcadia_wput called PC=%p\n", m68k_getpc());
+}
+
+static void REGPARAM2 arcadia_bput (uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+}
+
+static addrbank arcadia_bank = {
+    arcadia_lget, arcadia_wget, arcadia_bget,
+    arcadia_lput, arcadia_wput, arcadia_bput,
+    default_xlate, default_check, NULL
+};
+
+static void expamem_map_arcadia (void)
+{
+    arcadia_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
+    write_log ("Arcadia initialized @%08.8X\n", arcadia_start);
+    map_banks (&arcadia_bank, arcadia_start >> 16, 1, 0);
+}
+
+static void expamem_init_arcadia (void)
+{
+    expamem_init_clear();
+    expamem_write (0x00, zorroII | Z2_MEM_2MB | rom_card);
+
+    expamem_write (0x04, 1);
+    expamem_write (0x08, no_shutup);
+
+    expamem_write (0x10, 0x07);
+    expamem_write (0x14, 0x70);
+
+    expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
+    expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
+    expamem_write (0x20, 0x00); /* ser.no. Byte 2 */
+    expamem_write (0x24, 0x01); /* ser.no. Byte 3 */
+
+    expamem_write (0x28, 0x10); /* Rom-Offset hi */
+    expamem_write (0x2c, 0x00); /* ROM-Offset lo */
+
+    expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
+
+    expamem[0x1000] = 0x90;
+    expamem[0x1001] = 0x00;
+    expamem[0x1002] = 0x01;
+    expamem[0x1003] = 0x06;
+    expamem[0x1004] = 0x01;
+    expamem[0x1005] = 0x00;
+
+    /* Call DiagEntry */
+    do_put_mem_word ((uae_u16 *)(expamem + 0x1100), 0x4EF9); /* JMP */
+    do_put_mem_long ((uae_u32 *)(expamem + 0x1102), arcadia_rom->boot);
+
+    memcpy (arcadiaboot, expamem, 0x2000);
+}
+
+#endif
+
 /* 
  * Filesystem device
  */
@@ -1047,6 +1160,12 @@ void expamem_reset (void)
     if (nr_units (currprefs.mountinfo) == 0)
 	do_mount = 0;
 
+#ifdef ARCADIA
+    if (arcadia_rom) {
+	card_init[cardno] = expamem_init_arcadia;
+	card_map[cardno++] = expamem_map_arcadia;
+    }
+#endif
     if (fastmemory != NULL) {
 	card_init[cardno] = expamem_init_fastcard;
 	card_map[cardno++] = expamem_map_fastcard;
@@ -1105,7 +1224,10 @@ void expansion_init (void)
 	exit (0);
     }
     filesys_bank.baseaddr = (uae_u8*)filesysory;
-
+#ifdef ARCADIA
+    arcadiaboot = mapped_malloc (0x10000, "arcadia");
+    arcadia_bank.baseaddr = arcadiaboot;    
+#endif
 }
 
 void expansion_cleanup (void)

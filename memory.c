@@ -24,6 +24,8 @@
 #include "crc32.h"
 #include "gui.h"
 #include "cdtv.h"
+#include "akiko.h"
+#include "arcadia.h"
 #include "enforcer.h"
 
 #ifdef JIT
@@ -34,10 +36,6 @@ int special_mem;
 #endif
 
 int ersatzkickfile;
-
-#ifdef CD32
-extern int cd32_enabled;
-#endif
 
 uae_u32 allocated_chipmem;
 uae_u32 allocated_fastmem;
@@ -130,8 +128,39 @@ static struct romdata roms[] = {
     { "Action Replay Mk II v2.14", 0, 0, 0x49650e4f, 131072, 28, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.09", 0, 0, 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.17", 0, 0, 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
+
+    { "SportTime Table Hockey\0ar_airh", 0, 0, 0, 0, 33, 0, 0, ROMTYPE_ARCADIA },
+    { "SportTime Bowling\0ar_bowl", 0, 0, 0, 0, 34, 0, 0, ROMTYPE_ARCADIA },
+    { "World Darts\0ar_dart", 0, 0, 0, 0, 35, 0, 0, ROMTYPE_ARCADIA },
+    { "Magic Johnson's Fast Break\0ar_fast", 0, 0, 0, 0, 36, 0, 0, ROMTYPE_ARCADIA },
+    { "Leader Board Golf\0ar_ldrb", 0, 0, 0, 0, 37, 0, 0, ROMTYPE_ARCADIA },
+    { "Leader Board Golf (alt)\0ar_ldrba", 0, 0, 0, 0, 38, 0, 0, ROMTYPE_ARCADIA },
+    { "Ninja Mission\0ar_ninj", 0, 0, 0, 0, 39, 0, 0, ROMTYPE_ARCADIA },
+    { "Road Wars\0ar_rdwr", 0, 0, 0, 0, 40, 0, 0, ROMTYPE_ARCADIA },
+    { "Sidewinder\0ar_sdwr", 0, 0, 0, 0, 41, 0, 0, ROMTYPE_ARCADIA },
+    { "Cool Spot\0ar_spot", 0, 0, 0, 0, 42, 0, 0, ROMTYPE_ARCADIA },
+    { "Space Ranger\0ar_sprg", 0, 0, 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
+    { "Xenon\0ar_xeon", 0, 0, 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
+
     { 0 }
 };
+
+struct romdata *getarcadiarombyname (char *name)
+{
+    int i;
+    for (i = 0; roms[i].name; i++) {
+        if (roms[i].type == ROMTYPE_ARCADIA) {
+	    char *p = roms[i].name;
+	    p = p + strlen (p) + 1;
+	    if (strlen (name) >= strlen (p) + 4) {
+		char *p2 = name + strlen (name) - strlen (p) - 4;
+		if (!memcmp (p, p2, strlen (p)) && !memcmp (p2 + strlen (p2) - 4, ".zip", 4))
+		    return &roms[i];
+	    }
+	}
+    }
+    return NULL;
+}
 
 void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 *key, int keysize)
 {
@@ -306,10 +335,14 @@ struct romdata *getromdatabyzfile (struct zfile *f)
 
 void getromname (struct romdata *rd, char *name)
 {
-    strcpy (name, rd->name);
+    name[0] = 0;
+    if (rd->type == ROMTYPE_ARCADIA)
+	strcat (name, "Arcadia ");
+    strcat (name, rd->name);
     if (rd->revision)
 	sprintf (name + strlen (name), " rev %d.%d", rd->version, rd->revision);
-    sprintf (name + strlen (name), " (%dk)", (rd->size + 1023) / 1024);
+    if (rd->size > 0)
+	sprintf (name + strlen (name), " (%dk)", (rd->size + 1023) / 1024);
 }
 
 addrbank *mem_banks[MEMORY_BANKS];
@@ -1847,7 +1880,21 @@ void memory_reset (void)
 	    map_banks (&kickmem_bank, 0xE0, 8, 0);
     }
 
+#ifdef ARCADIA
+    is_arcadia_rom (currprefs.cartfile);
+    if (arcadia_rom) {
+	if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0) {
+	    memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
+	    arcadia_unmap ();
+	}
+        arcadia_map_banks ();
+    }
+#endif
+
 #ifdef ACTION_REPLAY
+#ifdef ARCADIA
+    if (!arcadia_rom) {
+#endif
     action_replay_memory_reset(); 
     #ifdef ACTION_REPLAY_HRTMON
     hrtmon_map_banks();
@@ -1858,6 +1905,9 @@ void memory_reset (void)
     action_replay_map_banks(); 
     #endif
     #endif
+#ifdef ARCADIA
+    }
+#endif
 #endif
 }
 
@@ -1921,6 +1971,9 @@ void memory_cleanup (void)
 
     #ifdef ACTION_REPLAY
     action_replay_cleanup();
+    #endif
+    #ifdef ARCADIA
+    arcadia_unmap ();
     #endif
 }
 

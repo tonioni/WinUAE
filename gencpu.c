@@ -383,7 +383,7 @@ static void sync_m68k_pc (void)
 /* getv == 1: fetch data; getv != 0: check for odd address. If movem != 0,
  * the calling routine handles Apdi and Aipi modes.
  * gb-- movem == 2 means the same thing but for a MOVE16 instruction */
-static void genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
+static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags, int e3fudge)
 {
     char namea[100];
     int m68k_pc_offset_last = m68k_pc_offset;
@@ -562,10 +562,8 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 
     if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {	    
 	printf ("\tif (%sa & 1) {\n", name);
-	if (using_prefetch || using_ce)
-	    printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n", m68k_pc_offset + 2, name); 
-	else
-	    printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n", m68k_pc_offset_last, name); 
+        printf ("\t\texception3 (opcode, m68k_getpc() + %d, %sa);\n",
+	    m68k_pc_offset_last + e3fudge, name); 
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t}\n");
 	need_endlabel = 1;
@@ -620,6 +618,17 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 	    break;
 	}
 }
+
+static void genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
+{
+    genamode2 (mode, reg, size, name, getv, movem, flags, 0);
+}
+/*
+static void genamode_e3 (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags, int e3fudge)
+{
+    genamode2 (mode, reg, size, name, getv, movem, flags, e3fudge);
+}
+*/
 
 static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, char *to, int store_dir)
 {

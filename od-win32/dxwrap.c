@@ -2022,11 +2022,11 @@ HRESULT DirectDraw_GetDC( HDC *hdc, surface_type_e surface )
 {
     HRESULT result = ~DD_OK;
     if( surface == primary_surface )
-        result = IDirectDrawSurface7_GetDC( DirectDrawState.primary.surface, hdc );
+        result = IDirectDrawSurface7_GetDC (DirectDrawState.primary.surface, hdc);
     else if (surface == overlay_surface)
-        result = IDirectDrawSurface7_GetDC( DirectDrawState.overlay.surface, hdc );
+        result = IDirectDrawSurface7_GetDC (DirectDrawState.overlay.surface, hdc);
     else if (surface == secondary_surface)
-        result = IDirectDrawSurface7_GetDC( DirectDrawState.secondary.surface, hdc );
+        result = IDirectDrawSurface7_GetDC (DirectDrawState.secondary.surface, hdc);
     return result;
 }
 

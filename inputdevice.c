@@ -41,6 +41,7 @@
 #include "disk.h"
 #include "sound.h"
 #include "savestate.h"
+#include "arcadia.h"
 
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
@@ -822,7 +823,6 @@ int getjoystate (int joy)
 	v &= ~0x0303;
 	v |= bot | (right << 1) | (top << 8) | (left << 9);
     }
-//    write_log ("%d:%d:%04.4X %p\n",vpos,joy,v,m68k_getpc());
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log ("JOY%dDAT %04.4X %s\n", joy, v, debuginfo (0));
@@ -868,6 +868,8 @@ static uae_u8 parconvert (uae_u8 v, int jd, int shift)
 	v &= ~(8 << shift);
     return v;
 }
+
+
 
 /* io-pins floating: dir=1 -> return data, dir=0 -> always return 1 */
 uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
@@ -1145,11 +1147,12 @@ static void queue_input_event (int event, int state, int max, int framecnt, int 
 }
 
 static uae_u8 keybuf[256];
-static int inputcode_pending;
+static int inputcode_pending, inputcode_pending_state;
 
-void inputdevice_add_inputcode (int code)
+void inputdevice_add_inputcode (int code, int state)
 {
     inputcode_pending = code;
+    inputcode_pending_state = state;
 }
 
 void inputdevice_do_keyboard (int code, int state)
@@ -1166,19 +1169,47 @@ void inputdevice_do_keyboard (int code, int state)
 	//write_log("Amiga key %02.2X %d\n", key & 0x7f, key >> 7);
 	return;
     }
-    if (state == 0)
-	return;
-    inputdevice_add_inputcode (code);
+    inputdevice_add_inputcode (code, state);
 }
 
 void inputdevice_handle_inputcode (void)
 {
     int code = inputcode_pending;
+    int state = inputcode_pending_state;
     inputcode_pending = 0;
     if (code == 0)
 	return;
     if (vpos != 0)
 	write_log ("inputcode=%d but vpos = %d", code, vpos);
+
+#ifdef ARCADIA
+    switch (code)
+    {
+	case AKS_ARCADIADIAGNOSTICS:
+	arcadia_flag &= ~1;
+	arcadia_flag |= state ? 1 : 0;
+	break;
+	case AKS_ARCADIAPLY1:
+	arcadia_flag &= ~4;
+	arcadia_flag |= state ? 4 : 0;
+	break;
+	case AKS_ARCADIAPLY2:
+	arcadia_flag &= ~2;
+	arcadia_flag |= state ? 2 : 0;
+	break;
+	case AKS_ARCADIACOIN1:
+	if (state)
+	    arcadia_coin[0]++;
+	break;
+	case AKS_ARCADIACOIN2:
+	if (state)
+	    arcadia_coin[1]++;
+	break;
+    }
+#endif
+
+    if (!state)
+	return;
     switch (code)
     {
 	case AKS_ENTERGUI:
@@ -1440,6 +1471,10 @@ void inputdevice_vsync (void)
     inputdevice_handle_inputcode ();
     if (ievent_alive > 0)
 	ievent_alive--;
+#ifdef ARCADIA
+    if (arcadia_rom)
+	arcadia_vsync ();
+#endif
 }
 
 void inputdevice_reset (void)

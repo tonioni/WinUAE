@@ -128,6 +128,7 @@
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
+				AdditionalLibraryDirectories=""
 				DelayLoadDLLs="setupapi.dll"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
@@ -441,6 +442,9 @@
 			</File>
 			<File
 				RelativePath="..\..\ar.c">
+			</File>
+			<File
+				RelativePath="..\..\arcadia.c">
 			</File>
 			<File
 				RelativePath="..\..\audio.c">

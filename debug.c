@@ -181,6 +181,25 @@ static int more_params (char **c)
     return (**c) != 0;
 }
 
+static int next_string (char **c, char *out, int max)
+{
+    char *p = out;
+
+    *p = 0;
+    while (**c != 0) {
+	if (**c == 32) {
+	    ignore_ws (c);
+	    return strlen (out);
+	}
+	*p++ = next_char (c);
+	*p = 0;
+	max--;
+	if (max <= 1)
+	    break;
+    }
+    return strlen (out);
+}
+
 static uae_u32 nextaddr (uae_u32 addr)
 {
     if (addr == 0xffffffff) {
@@ -1187,16 +1206,21 @@ static int staterecorder (char **cc)
 
 static void m68k_modify (char **inptr)
 {
-    char c1, c2;
     uae_u32 v;
+    char parm[10];
+    char c1, c2;
     
-    c1 = toupper (next_char (inptr));
-    if (!more_params (inptr))
+    if (!next_string (inptr, parm, sizeof (parm)))
 	return;
-    c2 = toupper (next_char (inptr));
-    if (c2 < '0' || c2 > '7')
-	return;
-    c2 -= '0';
+    for (v = 0; parm[v]; v++)
+	parm[v] = toupper (parm[v]);
+    c1 = toupper (parm[0]);
+    c2 = toupper (parm[1]);
+    if (c1 == 'A' || c1 == 'D' || c1 == 'P') {
+	if (!isdigit (c2))
+	    return;
+	c2 -= '0';
+    }
     v = readhex (inptr);
     if (c1 == 'A')
 	regs.regs[8 + c2] = v;
@@ -1206,6 +1230,24 @@ static void m68k_modify (char **inptr)
 	regs.irc = v;
     else if (c1 == 'P' && c2 == 1)
 	regs.ir = v;
+    else if (!strcmp (parm, "VBR"))
+	regs.vbr = v;
+    else if (!strcmp (parm, "USP")) {
+	regs.usp = v;
+	MakeFromSR ();
+    } else if (!strcmp (parm, "ISP")) {
+	regs.isp = v;
+	MakeFromSR ();
+    } else if (!strcmp (parm, "MSP")) {
+	regs.msp = v;
+	MakeFromSR ();
+    } else if (!strcmp (parm, "SR")) {
+	regs.sr = v;
+	MakeFromSR ();
+    } else if (!strcmp (parm, "CCR")) {
+	regs.sr = (regs.sr & ~15) | (v & 15);
+	MakeFromSR ();
+    }
 }
 
 static void debug_1 (void)
@@ -1239,7 +1281,13 @@ static void debug_1 (void)
 	case 'W': writeintomem (&inptr); break;
 	case 'w': memwatch (&inptr); break;
 	case 'S': savemem (&inptr); break;
-	case 's': searchmem (&inptr); break;
+	case 's':
+	    if (more_params(&inptr) && next_char(&inptr) == 'c') {
+		screenshot (1);
+	    } else {
+		searchmem (&inptr);
+	    }
+	break;
 	case 'd':
 	{
 	    uae_u32 daddr;

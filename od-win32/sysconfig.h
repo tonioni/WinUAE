@@ -44,6 +44,7 @@
 #define FDI2RAW /* FDI 1.0 and 2.0 image support */
 #define AVIOUTPUT /* Avioutput support */
 #define PROWIZARD /* Pro-Wizard module ripper */
+#define ARCADIA /* Arcadia arcade system */
 
 #else
 

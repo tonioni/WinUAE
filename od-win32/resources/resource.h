@@ -251,6 +251,7 @@
 #define IDS_QS_MODEL_CD32               1006
 #define IDS_QS_MODEL_CDTV               1007
 #define IDS_QS_MODEL_UAE                1008
+#define IDS_QS_MODEL_ARCADIA            1009
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
@@ -623,7 +624,6 @@
 #define IDC_MAPROM                      1609
 #define IDC_AVIOUTPUT_FILETEXT          1610
 #define IDC_INPUTDEVICETEXT             1610
-#define IDC_NOTASKBARBUTTON2            1610
 #define IDC_ALWAYSONTOP                 1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
@@ -729,6 +729,8 @@
 #define IDC_SOUNDCARD                   1650
 #define IDC_CS_SOUND0                   1650
 #define IDC_UPBM                        1650
+#define IDC_DISKLISTREMOVE2             1650
+#define IDC_DISKLISTINSERT              1650
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_CS_SOUND1                   1651
 #define IDC_SOUNDFREQ                   1652
@@ -800,6 +802,7 @@
 #define IDC_HF_TYPE                     1696
 #define IDC_PRINTERAUTOFLUSH            1697
 #define IDC_PRINTERAUTOFLUSHTXT         1698
+#define IDC_DISKTEXT                    1699
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -820,7 +823,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        247
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1699
+#define _APS_NEXT_CONTROL_VALUE         1700
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -198,8 +198,8 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	    tracktiming[i] = (uae_u16)ci.timebuf[i];
     }
 #if 0
-    write_log ("caps: drive:%d track:%d len:%d flakey:%d multi:%d timing:%d type:%d\n",
-	drv, track, len, *multirev, ci.trackcnt, ci.timelen, type);
+    write_log ("caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n",
+	drv, track, len, *multirev, ci.timelen, type, ci.overlap);
 #endif
     return 1;
 }

@@ -104,6 +104,7 @@ void catweasel_free (void)
     if (!currprefs.catweasel_io)
 	return;
     ioport_free ();
+    cwc.type = 0;
 }
 
 #define outb(v,port) ioport_write(port,v)

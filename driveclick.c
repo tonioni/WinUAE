@@ -78,19 +78,19 @@ static int loadsample (char *path, struct drvsample *ds)
     }
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
-    buf = malloc (size);
+    buf = xmalloc (size);
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (buf, size, 1, f);
     zfile_fclose (f);
     ds->len = size;
     ds->p = decodewav (buf, &ds->len);
-    free (buf);
+    xfree (buf);
     return 1;
 }
 
 static void freesample (struct drvsample *s)
 {
-    free (s->p);
+    xfree (s->p);
     s->p = 0;
 }
 
@@ -105,7 +105,7 @@ static void processclicks(struct drvsample *ds)
     }
     for(n = 0; n < ds->len; n++) {
 	uae_s16 smp = ds->p[n];
-	if ((smp > 0x6ff0) && (nClick < CLICK_TRACKS))  {
+	if (smp > 0x6ff0 && nClick < CLICK_TRACKS)  {
 		ds->indexes[nClick] = n - 128;
 		ds->lengths[nClick] = 2800;
 		nClick ++;
@@ -152,17 +152,24 @@ void driveclick_init(void)
 		for (j = 0; j < CLICK_TRACKS; j++)
 		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 	    } else if (currprefs.dfxclick[i] == -1) {
-		sprintf (tmp, "%suae_data%cdrive_click_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		for (j = 0; j < CLICK_TRACKS; j++)
+		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
+		sprintf (tmp, "%suae_data%cdrive_click_%s",
+		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v = loadsample (tmp, &drvs[i][DS_CLICK]);
 		if (v)
 		    processclicks (&drvs[i][DS_CLICK]);
-		sprintf (tmp, "%suae_data%cdrive_spin_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		sprintf (tmp, "%suae_data%cdrive_spin_%s",
+		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPIN]);
-		sprintf (tmp, "%suae_data%cdrive_spinnd_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		sprintf (tmp, "%suae_data%cdrive_spinnd_%s",
+		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPINND]);
-		sprintf (tmp, "%suae_data%cdrive_startup_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		sprintf (tmp, "%suae_data%cdrive_startup_%s",
+		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_START]);
-		sprintf (tmp, "%suae_data%cdrive_snatch_%s", start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		sprintf (tmp, "%suae_data%cdrive_snatch_%s",
+		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 	    }
 	    if (v == 0) {
@@ -187,7 +194,7 @@ void driveclick_init(void)
 
 void driveclick_reset (void)
 {
-    free (clickbuffer);
+    xfree (clickbuffer);
     clickbuffer = xmalloc (sndbufsize);
     sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
@@ -201,7 +208,7 @@ void driveclick_free (void)
 	    freesample (&drvs[i][j]);
     }
     memset (drvs, 0, sizeof (drvs));
-    free (clickbuffer);
+    xfree (clickbuffer);
     clickbuffer = 0;
     click_initialized = 0;
 }
