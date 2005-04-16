@@ -2679,7 +2679,7 @@ uae_u32 picasso_BlitTemplate (void)
     special_mem|=picasso_is_special_read|picasso_is_special;     
 
 #ifdef LOCK_UNLOCK_MADNESS
-    PICASSO96_Unlock(); // @@@ We need to unlock here, because do_blit (later) needs to lock...
+    //PICASSO96_Unlock(); // @@@ We need to unlock here, because do_blit (later) needs to lock...
 #else
     wgfx_flushline ();
 #endif

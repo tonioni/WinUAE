@@ -682,7 +682,7 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_TABSTOP,39,197,95,10
 END
 
-IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 210
+IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 233
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -712,9 +712,11 @@ BEGIN
                     TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP,21,137,120,
                     11
     LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,148,138,23,8
-    PUSHBUTTON      "Save Screenshot",IDC_SCREENSHOT,15,176,95,14
-    GROUPBOX        "Ripper",IDC_STATIC,5,160,184,41
-    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,127,176,49,14,WS_DISABLED
+    PUSHBUTTON      "Save Screenshot",IDC_SCREENSHOT,15,176,85,14
+    GROUPBOX        "Ripper",IDC_STATIC,5,160,184,63
+    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,112,176,69,14,WS_DISABLED
+    CONTROL         "Sampleripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",
+                    BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,15,198,84,14
 END
 
 IDD_INPUT DIALOGEX 0, 0, 300, 242
@@ -956,6 +958,17 @@ BEGIN
                     BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,199,222,94,10
 END
 
+IDD_FRONTEND DIALOGEX 0, 0, 420, 242
+STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_FE_LIST,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | 
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,6,9,235,124
+    GROUPBOX        "",IDC_FE_INFO,249,140,160,95
+    GROUPBOX        "",IDC_FE_SCREENSHOT,249,7,160,128
+END
+
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -1097,12 +1110,6 @@ BEGIN
         BOTTOMMARGIN, 187
     END
 
-    IDD_PANEL, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        TOPMARGIN, 7
-    END
-
     IDD_QUICKSTART, DIALOG
     BEGIN
         RIGHTMARGIN, 299
@@ -1190,6 +1197,7 @@ BEGIN
     IDS_MISC2               "Priority"
     IDS_PATHS               "Paths"
     IDS_QUICKSTART          "Quickstart"
+    IDS_FRONTEND            "Frontend"
 END
 
 STRINGTABLE 
@@ -1368,6 +1376,9 @@ BEGIN
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select filesystem handler (FastFileSystem, SmartFilesystem,...)"
     IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = fire)\nKeyboard Layout B (Cursor keys, right CTRL and ALT = fire)\nKeyboard Layout C (T=up B=down F=left H=right, left ALT = fire)\nX-Arcade (Left)\nX-Arcade (Right)"
+    IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
+    IDS_STATEFILE_RAMDUMP   "RAM dump"
+    IDS_STATEFILE_WAVE      "Wave audio dump"
 END
 
 STRINGTABLE 

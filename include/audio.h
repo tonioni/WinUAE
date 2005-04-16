@@ -30,3 +30,6 @@ extern void audio_hsync (int);
 extern void update_adkmasks (void);
 extern void update_sound (int freq);
 
+extern void audio_sampleripper(int);
+extern int sampleripper_enabled;
+extern void write_wavheader (struct zfile *wavfile, uae_u32 size, uae_u32 freq);

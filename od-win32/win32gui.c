@@ -7,6 +7,8 @@
  *
  ***************************************************************************/
 
+#define FRONTEND 0
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -45,6 +47,7 @@
 #include "keyboard.h"
 #include "zfile.h"
 #include "parallel.h"
+#include "audio.h"
 
 #include "dxwrap.h"
 #include "win32.h"
@@ -113,7 +116,7 @@ static int C_PAGES;
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
     HARDDISK_ID = -1, PORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
-    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1;
+    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, FRONTEND_ID = -1;
 static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
@@ -717,12 +720,12 @@ void gui_display( int shortcut )
 	    savestate_state = 0;
 	}
     } else if (shortcut >= 0 && shortcut < 4) {
-        DiskSelection (hAmigaWnd, IDC_DF0+shortcut, 0, &changed_prefs, 0);
+        DiskSelection(hAmigaWnd, IDC_DF0+shortcut, 0, &changed_prefs, 0);
     } else if (shortcut == 5) {
-        if (DiskSelection (hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0))
+        if (DiskSelection(hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0))
 	    save_state (savestate_fname, "Description!");
     } else if (shortcut == 4) {
-        if (DiskSelection (hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, 0))
+        if (DiskSelection(hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, 0))
 	    savestate_state = STATE_DORESTORE;
     }
     manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
@@ -926,24 +929,35 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
         break;
     case 9:
     case 10:
-	WIN32GUI_LoadUIString( flag == 10 ? IDS_RESTOREUSS : IDS_SAVEUSS, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_USS, szFormat, MAX_DPATH );
+	WIN32GUI_LoadUIString(flag == 10 ? IDS_RESTOREUSS : IDS_SAVEUSS, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_USS, szFormat, MAX_DPATH);
 	sprintf( szFilter, "%s ", szFormat );
 	if (flag == 10) {
-	    memcpy( szFilter + strlen( szFilter ), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + 1);
+	    memcpy(szFilter + strlen(szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + 1);
 	    all = 1;
 	} else {
-	    memcpy( szFilter + strlen( szFilter ), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE) + 1);
+	    char tmp[MAX_DPATH];
+	    memcpy(szFilter + strlen(szFilter), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE) + 1);
 	    p = szFilter;
 	    while (p[0] != 0 || p[1] !=0 ) p++;
 	    p++;
-	    strcpy (p, "Uncompressed (*.uss)");
+	    WIN32GUI_LoadUIString(IDS_STATEFILE_UNCOMPRESSED, tmp, sizeof(tmp));
+	    strcat(p, tmp);
+	    strcat(p, " (*.uss");
 	    p += strlen(p) + 1;
-	    strcpy (p, "*.uss");
+	    strcpy(p, "*.uss");
 	    p += strlen(p) + 1;
-	    strcpy (p, "RAM dump (*.dat)");
+	    WIN32GUI_LoadUIString(IDS_STATEFILE_RAMDUMP, tmp, sizeof(tmp));
+	    strcat(p, tmp);
+	    strcat(p, " (*.dat)");
 	    p += strlen(p) + 1;
 	    strcpy (p, "*.dat");
+	    p += strlen(p) + 1;
+	    WIN32GUI_LoadUIString(IDS_STATEFILE_WAVE, tmp, sizeof(tmp));
+	    strcat(p, tmp);
+	    strcat(p, " (*.wav)");
+	    p += strlen(p) + 1;
+	    strcpy (p, "*.wav");
 	    p += strlen(p) + 1;
 	    *p = 0;
 	    all = 0;
@@ -1085,10 +1099,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    savestate_initsave (full_path, openFileName.nFilterIndex);
 	    break;
 	case IDC_CREATE:
-	    disk_creatediskfile( full_path, 0, SendDlgItemMessage( hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L ));
+	    disk_creatediskfile(full_path, 0, SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L));
             break;
 	case IDC_CREATE_RAW:
-	    disk_creatediskfile( full_path, 1, SendDlgItemMessage( hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L ));
+	    disk_creatediskfile(full_path, 1, SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L));
 	    break;
 	case IDC_LOAD:
 	    if (target_cfgfile_load(&workprefs, full_path, 0, 0) == 0) {
@@ -1140,11 +1154,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     }
     return result;
 }
-int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
+int DiskSelection(HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
 {
     return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, NULL);
 }
-int MultiDiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
+int MultiDiskSelection(HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
 {
     int multi = 0;
     return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, &multi);
@@ -1243,6 +1257,7 @@ static const char *memsize_names[] = {
 /* 13*/ "1 GB",
 /* 14*/ "1.5MB",
 /* 15*/ "1.8MB",
+/* 16*/ "2 GB",
 };
 
 static unsigned long memsizes[] = {
@@ -1262,12 +1277,13 @@ static unsigned long memsizes[] = {
 /* 13*/ 0x40000000, //1GB
 /* 14*/ 0x00180000, //1.5MB
 /* 15*/ 0x001C0000, //1.8MB
+/* 16*/ 0x80000000, //2GB
 };
 
 static int msi_chip[] = { 1, 2, 3, 4, 5, 6 };
 static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
-static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13 };
+static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16 };
 static int msi_gfx[] = { 0, 3, 4, 5, 6,7,8};
 
 static int CalculateHardfileSize (HWND hDlg)
@@ -1469,12 +1485,12 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
     switch (flag)
     {
 	case CONFIG_SAVE_FULL:
-	    DiskSelection( hDlg, IDC_SAVE, 5, &workprefs, 0);
+	    DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, 0);
 	break;
 
 	case CONFIG_LOAD_FULL:
-	    DiskSelection (hDlg, IDC_LOAD, 4, &workprefs, 0);
-	    EnableWindow (GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
+	    DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, 0);
+	    EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
 	break;
 		
 	case CONFIG_SAVE:
@@ -3890,6 +3906,7 @@ static void values_to_memorydlg (HWND hDlg)
      case 0x10000000: mem_size = 9; break; /* 256-megs */
      case 0x20000000: mem_size = 10; break; /* 512-megs */
      case 0x40000000: mem_size = 11; break; /* 1 GB */
+     case 0x80000000: mem_size = 12; break; /* 2 GB */
 
     }
     SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETPOS, TRUE, mem_size);
@@ -3920,8 +3937,6 @@ static void fix_values_memorydlg (void)
 static BOOL CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    unsigned int max_z3_mem = MAX_Z3_MEM;
-    MEMORYSTATUS memstats;
 
     switch (msg)
     {
@@ -3929,15 +3944,10 @@ static BOOL CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	pages[MEMORY_ID] = hDlg;
 	currentpage = MEMORY_ID;
 
-	memstats.dwLength = sizeof( memstats );
-	GlobalMemoryStatus( &memstats );
-	while( ( memstats.dwAvailPageFile + memstats.dwAvailPhys - 32000000) < (DWORD)( 1 << (max_z3_mem + 19) ) )
-	    max_z3_mem--;
-
 	SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
 	SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
 	SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
-	SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, max_z3_mem));
+	SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
 
     case WM_USER:
@@ -4126,17 +4136,17 @@ static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	switch (LOWORD (wParam))
 	{
 	case IDC_KICKCHOOSER:
-	    DiskSelection( hDlg, IDC_ROMFILE, 6, &workprefs, 0);
+	    DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
 	    break;
 
 	case IDC_ROMCHOOSER2:
-	    DiskSelection( hDlg, IDC_ROMFILE2, 6, &workprefs, 0);
+	    DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
 	    break;
 	            
 	case IDC_FLASHCHOOSER:
-	    DiskSelection( hDlg, IDC_FLASHFILE, 11, &workprefs, 0);
+	    DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
 	    break;
 	case IDC_FLASHFILE:
@@ -4145,7 +4155,7 @@ static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    break;
 
 	case IDC_CARTCHOOSER:
-	    DiskSelection( hDlg, IDC_CARTFILE, 6, &workprefs, 0);
+	    DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, 0);
 	    values_to_kickstartdlg (hDlg);
 	    break;
 
@@ -4355,11 +4365,11 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	switch( wParam )
 	{
 	case IDC_DOSAVESTATE:
-	    if (DiskSelection( hDlg, wParam, 9, &workprefs, 0)) 
+	    if (DiskSelection(hDlg, wParam, 9, &workprefs, 0)) 
 	        save_state (savestate_fname, "Description!");
 	    break;
 	case IDC_DOLOADSTATE:
-	    if (DiskSelection( hDlg, wParam, 10, &workprefs, 0))
+	    if (DiskSelection(hDlg, wParam, 10, &workprefs, 0))
 		savestate_state = STATE_DORESTORE;
 	    break;
 	case IDC_STATE_CAPTURE:
@@ -6123,7 +6133,7 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    DiskSelection (hDlg, wParam, 1, &workprefs, 0);
 	    break;
 	case IDC_CREATE_RAW:
-	    DiskSelection( hDlg, wParam, 1, &workprefs, 0);
+	    DiskSelection(hDlg, wParam, 1, &workprefs, 0);
 	    break;
 	}
 	recursive--;
@@ -7699,6 +7709,7 @@ static void values_to_avioutputdlg(HWND hDlg)
 	
         CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
         CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7817,6 +7828,11 @@ static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		    moduleripper ();
 		break;
 #endif
+		case IDC_SAMPLERIPPER_ACTIVATED:
+		    sampleripper_enabled = sampleripper_enabled ? 0 : 1;
+		    audio_sampleripper(-1);
+		break;
+
 		case IDC_AVIOUTPUT_ACTIVATED:
 		    avioutput_requested = !avioutput_requested;
 		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
@@ -7944,6 +7960,7 @@ struct GUIPAGE {
     int idx;
     const char *help;
     HACCEL accel;
+    int fullpanel;
 };
 
 static int GetPanelRect (HWND hDlg, RECT *r)
@@ -8106,6 +8123,7 @@ static HWND updatePanel (HWND hDlg, int id)
     static HWND hwndTT;
     RECT r1c, r1w, r2c, r2w, r3c, r3w;
     int w, h, pw, ph, x , y, i;
+    int fullpanel;
 
     EnableWindow (GetDlgItem (guiDlg, IDC_RESETAMIGA), full_property_sheet ? FALSE : TRUE);
     EnableWindow (GetDlgItem (guiDlg, IDOK), TRUE);
@@ -8139,6 +8157,7 @@ static HWND updatePanel (HWND hDlg, int id)
 	return NULL;
     }
 
+    fullpanel = ppage[id].fullpanel;
     GetWindowRect (GetDlgItem (hDlg, IDC_PANEL_FRAME), &r1w);
     GetClientRect (GetDlgItem (hDlg, IDC_PANEL_FRAME), &r1c);
     GetWindowRect (hDlg, &r2w);
@@ -8160,8 +8179,13 @@ static HWND updatePanel (HWND hDlg, int id)
     GetClientRect (panelDlg, &r3c);
     x -= r3w.left - r2w.left - 1;
     y -= r3w.top - r2w.top - 1;
-    SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
-	SWP_NOSIZE | SWP_NOOWNERZORDER);
+    if (!fullpanel) {
+	SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
+	    SWP_NOSIZE | SWP_NOOWNERZORDER);
+    }
+    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME), FALSE);
+    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel);
+    ShowWindow(GetDlgItem(hDlg, IDC_PANELTREE), !fullpanel);
     ShowWindow (panelDlg, TRUE);
     EnableWindow (GetDlgItem (hDlg, IDHELP), pHtmlHelp && ppage[currentpage].help ? TRUE : FALSE);
 
@@ -8252,6 +8276,9 @@ static void createTreeView (HWND hDlg, int currentpage)
     CN(PATHS_ID);
     CN(QUICKSTART_ID);
     CN(LOADSAVE_ID);
+#if FRONTEND == 1
+    CN(FRONTEND_ID);
+#endif
 
     p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HARDWARE, root, LOADSAVE_ID, CONFIG_TYPE_HARDWARE);
     CN(CPU_ID);
@@ -8541,6 +8568,8 @@ static int init_page (int tmpl, int icon, int title,
 	accels = EmptyAccel;
     while (accels[++i].key);
     ppage[id].accel = CreateAcceleratorTable (accels, i);
+    if (tmpl == IDD_FRONTEND)
+	ppage[id].fullpanel = TRUE;
     id++;
     return id - 1;
 }
@@ -8588,7 +8617,8 @@ static int GetSettings (int all_options, HWND hwnd)
 	PATHS_ID = init_page (IDD_PATHS, IDI_PATHS, IDS_PATHS, PathsDlgProc, NULL, "gui/paths.htm");
 	QUICKSTART_ID = init_page (IDD_QUICKSTART, IDI_QUICKSTART, IDS_QUICKSTART, QuickstartDlgProc, NULL, "gui/quickstart.htm");
 	ABOUT_ID = init_page (IDD_ABOUT, IDI_ABOUT, IDS_ABOUT, AboutDlgProc, NULL, NULL);
-	C_PAGES = ABOUT_ID + 1;
+	FRONTEND_ID = init_page (IDD_FRONTEND, IDI_QUICKSTART, IDS_FRONTEND, AboutDlgProc, NULL, NULL);
+	C_PAGES = FRONTEND_ID + 1;
 	init_called = 1;
 	if (quickstart && !qs_override)
 	    currentpage = QUICKSTART_ID;

@@ -44,6 +44,8 @@ uae_u32 allocated_gfxmem;
 uae_u32 allocated_z3fastmem;
 uae_u32 allocated_a3000mem;
 
+uae_u32 max_z3fastmem = 512 * 1024 * 1024;
+
 static long chip_filepos;
 static long bogo_filepos;
 static long rom_filepos;

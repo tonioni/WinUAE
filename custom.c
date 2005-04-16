@@ -2450,6 +2450,8 @@ STATIC_INLINE void COP2LCL (uae_u16 v) { cop2lc = (cop2lc & ~0xffff) | (v & 0xff
 static void COPJMP (int num)
 {
     int was_active = eventtab[ev_copper].active;
+    int oldstrobe = cop_state.strobe;
+
     eventtab[ev_copper].active = 0;
     if (was_active)
 	events_schedule ();
@@ -2458,12 +2460,17 @@ static void COPJMP (int num)
     cop_state.state = COP_read1;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
-    cop_state.strobe = num;
     copper_enabled_thisline = 0;
+    cop_state.strobe = num;
 
     if (dmaen (DMA_COPPER)) {
 	copper_enabled_thisline = 1;
 	set_special (SPCFLAG_COPPER);
+    } else if (oldstrobe != num) {
+	/* dma disabled and accessing both COPxJMPs -> copper stops! */
+	cop_state.state = COP_stop;
+	copper_enabled_thisline = 0;
+	unset_special (SPCFLAG_COPPER);
     }
 }
 
@@ -2574,7 +2581,7 @@ int intlev (void)
     if (currprefs.cachesize) {
 	uae_u16 imask = intreq & intena;
 	if (imask && (intena & 0x4000)) {
-	    if (imask & 0x2000)
+	    if (imask & 0x6000)
 		il = 6;
 	    if (imask & 0x1800)
 		il = 5;
@@ -4434,19 +4441,21 @@ static void hsync_handler (void)
         decide_blitter (hpos);
 	memset (cycle_line, 0, MAXHPOS);
 #if 1
+{
 	cycle_line[maxhpos - 1] = CYCLE_REFRESH;
 	cycle_line[2] = CYCLE_REFRESH;
 	cycle_line[4] = CYCLE_REFRESH;
 	cycle_line[6] = CYCLE_REFRESH;
+}
 #else
 {
 	int i;
+	for (i = 12; i < 0x16; i += 2)
+	    cycle_line[i] = CYCLE_NOCPU;
 	cycle_line[4] = CYCLE_REFRESH;
 	cycle_line[6] = CYCLE_REFRESH;
 	cycle_line[8] = CYCLE_REFRESH;
 	cycle_line[10] = CYCLE_REFRESH;
-	for (i = 12; i < 0x16; i += 2)
-	    cycle_line[i] = CYCLE_NOCPU;
 }
 #endif
     }

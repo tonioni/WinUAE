@@ -986,6 +986,7 @@ static int open_windows (void)
 	ret = doInit ();
     } while (ret < 0);
 
+    setpriority(&priorities[currprefs.win32_active_priority]);
     setmouseactive (1);
     for (i = 0; i < NUM_LEDS; i++)
 	gui_led (i, 0);

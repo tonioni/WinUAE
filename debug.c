@@ -105,6 +105,7 @@ static char help[] = {
     "  h,?                   Show this help page\n"
     "  b                     Step to previous state capture position\n"
     "  am <channel mask>     Enable or disable audio channels\n"                  
+    "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
 
@@ -169,10 +170,16 @@ static uae_u32 readint (char **c)
     return val * (negative ? -1 : 1);
 }
 
-static char next_char( char **c)
+static char next_char(char **c)
 {
     ignore_ws (c);
     return *(*c)++;
+}
+
+static char peek_next_char(char **c)
+{
+    char *pc = *c;
+    return pc[1];
 }
 
 static int more_params (char **c)
@@ -181,7 +188,7 @@ static int more_params (char **c)
     return (**c) != 0;
 }
 
-static int next_string (char **c, char *out, int max)
+static int next_string (char **c, char *out, int max, int forceupper)
 {
     char *p = out;
 
@@ -191,8 +198,10 @@ static int next_string (char **c, char *out, int max)
 	    ignore_ws (c);
 	    return strlen (out);
 	}
-	*p++ = next_char (c);
-	*p = 0;
+	*p = next_char (c);
+	if (forceupper)
+	    *p = toupper(*p);
+	*++p = 0;
 	max--;
 	if (max <= 1)
 	    break;
@@ -1204,16 +1213,44 @@ static int staterecorder (char **cc)
     return 0;
 }
 
+static void disk_debug(char **inptr)
+{
+    char parm[10];
+    int i;
+
+    disk_debug_mode = 0;
+    disk_debug_track = -1;
+    ignore_ws(inptr);
+    if (!next_string (inptr, parm, sizeof (parm), 1))
+	goto end;
+    for (i = 0; i < strlen(parm); i++) {
+	if (parm[i] == 'R')
+	    disk_debug_mode |= DISK_DEBUG_DMA_READ;
+	if (parm[i] == 'W')
+	    disk_debug_mode |= DISK_DEBUG_DMA_WRITE;
+	if (parm[i] == 'P')
+	    disk_debug_mode |= DISK_DEBUG_PIO;
+    }
+    if (more_params(inptr))
+	disk_debug_track = readint(inptr);
+    if (disk_debug_track < 0 || disk_debug_track > 2 * 83)
+	disk_debug_track = -1;
+end:
+    console_out("disk breakpoint mode %c%c%c track %d\n",
+	disk_debug_mode & DISK_DEBUG_DMA_READ ? 'R' : '-',
+	disk_debug_mode & DISK_DEBUG_DMA_WRITE ? 'W' : '-',
+	disk_debug_mode & DISK_DEBUG_PIO ? 'P' : '-',
+	disk_debug_track);
+}
+
 static void m68k_modify (char **inptr)
 {
     uae_u32 v;
     char parm[10];
     char c1, c2;
     
-    if (!next_string (inptr, parm, sizeof (parm)))
+    if (!next_string (inptr, parm, sizeof (parm), 1))
 	return;
-    for (v = 0; parm[v]; v++)
-	parm[v] = toupper (parm[v]);
     c1 = toupper (parm[0]);
     c2 = toupper (parm[1]);
     if (c1 == 'A' || c1 == 'D' || c1 == 'P') {
@@ -1282,7 +1319,7 @@ static void debug_1 (void)
 	case 'w': memwatch (&inptr); break;
 	case 'S': savemem (&inptr); break;
 	case 's':
-	    if (more_params(&inptr) && next_char(&inptr) == 'c') {
+	    if (*inptr == 'c') {
 		screenshot (1);
 	    } else {
 		searchmem (&inptr);
@@ -1290,18 +1327,22 @@ static void debug_1 (void)
 	break;
 	case 'd':
 	{
-	    uae_u32 daddr;
-	    int count;
-
-	    if (more_params(&inptr))
-		daddr = readhex(&inptr);
-	    else
-		daddr = nxdis;
-	    if (more_params(&inptr))
-		count = readhex(&inptr);
-	    else
-		count = 10;
-	    m68k_disasm (stdout, daddr, &nxdis, count);
+	    if (*inptr == 'i') {
+		next_char(&inptr);
+		disk_debug(&inptr);
+	    } else {
+	        uae_u32 daddr;
+		int count;
+		if (more_params(&inptr))
+		    daddr = readhex(&inptr);
+		else
+		    daddr = nxdis;
+		if (more_params(&inptr))
+		    count = readhex(&inptr);
+		else
+		    count = 10;
+		m68k_disasm (stdout, daddr, &nxdis, count);
+	    }
 	}
 	break;
 	case 'T': show_exec_tasks (); break;

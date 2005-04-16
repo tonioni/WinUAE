@@ -21,6 +21,7 @@
 #define IDS_MISC2                       16
 #define IDS_PATHS                       17
 #define IDS_QUICKSTART                  18
+#define IDS_FRONTEND                    19
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -215,6 +216,10 @@
 #define IDS_SELECTFS                    244
 #define IDS_KEYJOY                      245
 #define IDB_XARCADE                     246
+#define IDS_STATEFILE_UNCOMPRESSED      246
+#define IDS_STATEFILE_RAMDUMP           247
+#define IDS_STATEFILE_WAVE              248
+#define IDD_FRONTEND                    249
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -645,6 +650,7 @@
 #define IDC_OPENGLHZ                    1616
 #define IDC_INPUTAMIGACNT               1616
 #define IDC_FILTERHZ                    1616
+#define IDC_SAMPLERIPPER_ACTIVATED      1616
 #define IDC_AVIOUTPUT_BORDER_TRIM       1617
 #define IDC_OPENGLVZ                    1617
 #define IDC_FILTERVZ                    1617
@@ -806,6 +812,10 @@
 #define IDC_PRINTERAUTOFLUSH            1697
 #define IDC_PRINTERAUTOFLUSHTXT         1698
 #define IDC_DISKTEXT                    1699
+#define IDC_FE_LIST                     1700
+#define IDC_FE_INFO                     1701
+#define IDC_FE_INFO2                    1702
+#define IDC_FE_SCREENSHOT               1702
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -824,9 +834,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        247
+#define _APS_NEXT_RESOURCE_VALUE        249
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1700
+#define _APS_NEXT_CONTROL_VALUE         1703
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

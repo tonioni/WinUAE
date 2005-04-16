@@ -108,7 +108,7 @@ static int timermode, timeon;
 static HANDLE timehandle;
 
 char *start_path;
-char help_file[ MAX_DPATH ];
+char help_file[MAX_DPATH];
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 int log_scsi;
@@ -331,7 +331,7 @@ static int figure_processor_speed (void)
 	write_log("\n");
     }
 
-    SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
     dummythread_die = 1;
 
     sleep_resolution = 1;
@@ -1777,6 +1777,10 @@ void fetch_configurationpath (char *out, int size)
 {
     fetch_path ("ConfigurationPath", out, size);
 }
+void fetch_screenshotpath (char *out, int size)
+{
+    fetch_path ("ScreenshotPath", out, size);
+}
 
 static void strip_slashes (char *p)
 {
@@ -2134,7 +2138,7 @@ static int osdetect (void)
 
     pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(
 	GetModuleHandle("kernel32.dll"), "GetNativeSystemInfo");
-    GetNativeSystemInfo(&SystemInfo);
+    GetSystemInfo(&SystemInfo);
     if (pGetNativeSystemInfo)
 	pGetNativeSystemInfo(&SystemInfo);
     osVersion.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -2143,9 +2147,9 @@ static int osdetect (void)
 	    (osVersion.dwMajorVersion <= 4))
 	{
 	    /* WinUAE not supported on this version of Windows... */
-	    char szWrongOSVersion[ MAX_DPATH ];
-	    WIN32GUI_LoadUIString( IDS_WRONGOSVERSION, szWrongOSVersion, MAX_DPATH );
-	    pre_gui_message( szWrongOSVersion );
+	    char szWrongOSVersion[MAX_DPATH];
+	    WIN32GUI_LoadUIString(IDS_WRONGOSVERSION, szWrongOSVersion, MAX_DPATH);
+	    pre_gui_message(szWrongOSVersion);
 	    return FALSE;
 	}
 	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)

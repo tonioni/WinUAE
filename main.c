@@ -145,8 +145,10 @@ void fixup_prefs (struct uae_prefs *p)
 	err = 1;
     }
     if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
-	|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > 0x20000000)))
+	|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > max_z3fastmem)))
     {
+	if (p->z3fastmem_size > max_z3fastmem)
+	    p->z3fastmem_size = max_z3fastmem;
 	p->z3fastmem_size = 0;
 	write_log ("Unsupported Zorro III fastmem size!\n");
 	err = 1;

@@ -23,6 +23,8 @@
 #include "audio.h"
 #include "savestate.h"
 #include "driveclick.h"
+#include "zfile.h"
+#include "uae.h"
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -53,6 +55,179 @@ struct audio_channel_data {
     uae_u16 dat, dat2;
     int request_word, request_word_skip;
 };
+
+int sampleripper_enabled;
+struct ripped_sample
+{
+    struct ripped_sample *next;
+    uae_u8 *sample;
+    int len, per, changed;
+};
+
+static struct ripped_sample *ripped_samples;
+
+void write_wavheader (struct zfile *wavfile, uae_u32 size, uae_u32 freq)
+{
+    uae_u16 tw;
+    uae_u32 tl;
+    int bits = 8, channels = 1;
+
+    zfile_fseek (wavfile, 0, SEEK_SET);
+    zfile_fwrite ("RIFF", 1, 4, wavfile);
+    tl = 0;
+    if (size)
+	tl = size - 8;
+    zfile_fwrite (&tl, 1, 4, wavfile);
+    zfile_fwrite ("WAVEfmt ", 1, 8, wavfile);
+    tl = 16;
+    zfile_fwrite (&tl, 1, 4, wavfile);
+    tw = 1;
+    zfile_fwrite (&tw, 1, 2, wavfile);
+    tw = channels;
+    zfile_fwrite (&tw, 1, 2, wavfile);
+    tl = freq;
+    zfile_fwrite (&tl, 1, 4, wavfile);
+    tl = freq * channels * bits / 8;
+    zfile_fwrite (&tl, 1, 4, wavfile);
+    tw = channels * bits / 8;
+    zfile_fwrite (&tw, 1, 2, wavfile);
+    tw = bits;
+    zfile_fwrite (&tw, 1, 2, wavfile);
+    zfile_fwrite ("data", 1, 4, wavfile);
+    tl = 0;
+    if (size)
+	tl = size - 44;
+    zfile_fwrite (&tl, 1, 4, wavfile);
+}
+
+static void convertsample(uae_u8 *sample, int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+	sample[i] += 0x80;
+}
+
+static void namesplit (char *s)
+{
+    int l;
+    
+    l = strlen (s) - 1;
+    while (l >= 0) {
+	if (s[l] == '.')
+	    s[l] = 0;
+	if (s[l] == '\\' || s[l] == '/' || s[l] == ':' || s[l] == '?') {
+	    l++;
+	    break;
+	}
+	l--;
+    }
+    if (l > 0)
+	memmove (s, s + l, strlen (s + l) + 1);
+}
+
+void audio_sampleripper(int mode)
+{
+    struct ripped_sample *rs = ripped_samples;
+    int cnt = 1;
+    char path[MAX_DPATH], name[MAX_DPATH], filename[MAX_DPATH];
+    char underline[] = "_";
+    char extension[4];
+    struct zfile *wavfile;
+
+    if (mode < 0) {
+        while (rs) {
+	    struct ripped_sample *next = rs->next;
+	    xfree(rs);
+	    rs = next;
+	}
+	ripped_samples = NULL;
+	return;
+    }
+
+    while (rs) {
+	if (rs->changed) {
+	    rs->changed = 0;
+	    fetch_screenshotpath(path, sizeof (path));
+	    name[0] = 0;
+	    if (currprefs.dfxtype[0] >= 0)
+		strcpy (name, currprefs.df[0]);
+	    if (!name[0])
+		underline[0] = 0;
+	    namesplit (name);
+	    strcpy(extension, "wav");
+	    sprintf(filename,"%s%s%s%03.3d.%s", path, name, underline, cnt, extension);
+	    wavfile = zfile_fopen(filename, "wb");
+	    if (wavfile) {
+		int freq = rs->per > 0 ? (currprefs.ntscmode ? 3579545 : 3546895 / rs->per) : 8000;
+		write_wavheader(wavfile, 0, 0);
+		convertsample(rs->sample, rs->len);
+		zfile_fwrite(rs->sample, rs->len, 1, wavfile);
+		convertsample(rs->sample, rs->len);
+		write_wavheader(wavfile, zfile_ftell(wavfile), freq);
+		zfile_fclose(wavfile);
+		write_log("SAMPLERIPPER: %d: %dHz %d bytes\n", cnt, freq, rs->len);
+	    } else {
+		write_log("SAMPLERIPPER: failed to open '%s'\n", filename);
+	    }
+	}
+	cnt++;
+	rs = rs->next;
+    }
+}
+
+static void do_samplerip(struct audio_channel_data *adp)
+{
+    struct ripped_sample *rs = ripped_samples, *prev;
+    int len = adp->len * 2;
+    uae_u8 *smp = chipmem_bank.xlateaddr(adp->pt);
+    int cnt = 0, i;
+
+    if (!smp || !chipmem_bank.check(adp->pt, len))
+	return;
+    for (i = 0; i < len; i++) {
+	if (smp[i] != 0)
+	    break;
+    }
+    if (i == len || len <= 2)
+	return;
+    prev = NULL;
+    while(rs) {
+	if (rs->sample) {
+	    if (len == rs->len && !memcmp(rs->sample, smp, len))
+		break;
+	    /* replace old identical but shorter sample */
+	    if (len > rs->len && !memcmp(rs->sample, smp, rs->len)) {
+		xfree(rs->sample);
+		rs->sample = xmalloc(len);
+		memcpy(rs->sample, smp, len);
+	        write_log("SAMPLERIPPER: replaced sample %d (%d -> %d)\n", cnt, rs->len, len);
+		rs->len = len;
+	        rs->per = adp->per / CYCLE_UNIT;
+		rs->changed = 1;
+		audio_sampleripper(0);
+		return;
+	    }
+	}
+	prev = rs;
+	rs = rs->next;
+	cnt++;
+    }
+    if (rs)
+	return;
+    rs = xmalloc(sizeof(struct ripped_sample));
+    if (prev)
+	prev->next = rs;
+    else
+	ripped_samples = rs;
+    rs->len = len;
+    rs->per = adp->per / CYCLE_UNIT;
+    rs->sample = xmalloc(len);
+    memcpy(rs->sample, smp, len);
+    rs->next = NULL;
+    rs->changed = 1;
+    write_log("SAMPLERIPPER: sample added (%06.6X, %d bytes), total %d samples\n", adp->pt, len, ++cnt);
+    audio_sampleripper(0);
+}
 
 STATIC_INLINE int current_hpos (void)
 {
@@ -553,6 +728,8 @@ static void state23 (struct audio_channel_data *cdp)
 	cdp->wlen = cdp->len;
 	cdp->pt = cdp->lc;
 	cdp->intreq2 = 1;
+	if (sampleripper_enabled)
+	    do_samplerip(cdp);
 #ifdef DEBUG_AUDIO
 	if (debugchannel (cdp - audio_channel))
 	    write_log ("Channel %d looped, LC=%08.8X LEN=%d\n", cdp - audio_channel, cdp->pt, cdp->wlen);
@@ -901,6 +1078,8 @@ void audio_hsync (int dmaaction)
 
 	    if (cdp->state == 5) {
 	        cdp->pt = cdp->lc;
+		if (sampleripper_enabled)
+		    do_samplerip(cdp);
 #ifdef DEBUG_AUDIO
 		if (debugchannel (nr))
 		    write_log ("%d:>5: LEN=%d PT=%08.8X\n", nr, cdp->wlen, cdp->pt);

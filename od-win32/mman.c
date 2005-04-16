@@ -17,13 +17,26 @@ static uae_u32 gfxoffs;
 
 uae_u32 natmem_offset = 0;
 
-void init_shm( void )
+void init_shm(void)
 {
     int i;
     LPVOID blah = NULL;
     LPBYTE address = (LPBYTE)0x10000000; // Letting the system decide doesn't seem to work on some systems
-    int size = 0x19000000;
-    int add = 0x1000000;
+    uae_u32 size;
+    uae_u32 add = 0x11000000;
+    uae_u32 inc = 0x100000;
+    MEMORYSTATUS memstats;
+
+    memstats.dwLength = sizeof(memstats);
+    GlobalMemoryStatus(&memstats);
+    max_z3fastmem = 16 * 1024 * 1024;
+
+    while ((uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys >= ((uae_u64)max_z3fastmem << 1)
+	&& max_z3fastmem != ((uae_u64)2048 * 1024 * 1024))
+	max_z3fastmem <<= 1;
+    size = max_z3fastmem;
+    if (size > 512 * 1024 * 1024)
+	size = 512 * 1024 * 1024;
 
     canbang = 0;
     gfxoffs = 0;
@@ -35,29 +48,48 @@ void init_shm( void )
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
+    for (;;) {
+	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (blah)
+	    break;
+	size >>= 1;
+	if (size < 0x10000000) {
+	    write_log("NATMEM: No special area could be allocated (2)!\n");
+	    return;
+	}
+    }
     if (os_winnt) {
-	natmem_offset = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	natmem_offset = (uae_u32)blah;
     } else {
+	VirtualFree(blah, 0, MEM_RELEASE);
         while (address < (LPBYTE)0xa0000000) {
-	    blah = VirtualAlloc(address, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	    blah = VirtualAlloc(address, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	    if (blah == NULL) {
-		address += add;
+		address += inc;
 	    } else {
 		VirtualFree (blah, 0, MEM_RELEASE);
-		address += add * 32;
-		natmem_offset = (uae_u8*)address;
+		address += inc * 32;
+		natmem_offset = (uae_u32)address;
 		break;
 	    }
 	}
     }
+
     if (!natmem_offset) {
-	write_log("NATMEM: No special area could be allocated!\n");
+	write_log("NATMEM: No special area could be allocated! (1)\n");
     } else {
-	write_log("NATMEM: Our special area: 0x%p-0x%p\n",
-	    natmem_offset, (uae_u8*)natmem_offset + size);
+	max_z3fastmem = size;
+	write_log("NATMEM: Our special area: 0x%p-0x%p (%dM)\n",
+	    natmem_offset, (uae_u8*)natmem_offset + size + add, (size + add) >> 20);
 	canbang = 1;
     }
+
+    while (memstats.dwAvailPageFile + memstats.dwAvailPhys < max_z3fastmem)
+        max_z3fastmem <<= 1;
+
+    write_log("Max Z3FastRAM %dM\n", max_z3fastmem >> 20);
 }
+
 
 void mapped_free(uae_u8 *mem)
 {
@@ -205,7 +237,7 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 }
 #endif
     
-    if( ( shmids[shmid].key == shmid ) && shmids[shmid].size ) {
+    if ((shmids[shmid].key == shmid) && shmids[shmid].size) {
 	got = FALSE;
 	if (got == FALSE) {
 	    if (shmaddr) {
@@ -213,11 +245,13 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 	    }
 	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT),
 		PAGE_EXECUTE_READWRITE);
-	    if( result == NULL ) {
-		result = (void *)-1;
-		write_log ("VirtualAlloc %p %x failed %d\n", shmaddr, size, GetLastError ());
+	    if (result == NULL) {
+		result = (void*)-1;
+		write_log ("VirtualAlloc %p-%p %x (%dk) failed %d\n", shmaddr, (uae_u8*)shmaddr + size,
+		    size, size >> 10, GetLastError());
 	    } else {
-		shmids[shmid].attached=result; 
+		shmids[shmid].attached = result; 
+		write_log ("VirtualAlloc %p-%p %x (%dk) ok\n", shmaddr, (uae_u8*)shmaddr + size, size, size >> 10);
 	    }
 	} else {
 	    shmids[shmid].attached = shmaddr;
@@ -239,7 +273,7 @@ int shmget(key_t key, size_t size, int shmflg, char *name)
     if( ( key == IPC_PRIVATE ) ||
 	( ( shmflg & IPC_CREAT ) && ( find_shmkey( key ) == -1) ) )
     {
-	write_log( "shmget of size %d for %s\n", size, name );
+	write_log( "shmget of size %d (%dk) for %s\n", size, size >> 10, name );
 	if( ( result = get_next_shmkey() ) != -1 )
     {
 		

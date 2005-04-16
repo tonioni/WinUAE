@@ -35,7 +35,7 @@ extern uae_u32 allocated_chipmem;
 extern uae_u32 allocated_fastmem;
 extern uae_u32 allocated_bogomem;
 extern uae_u32 allocated_gfxmem;
-extern uae_u32 allocated_z3fastmem;
+extern uae_u32 allocated_z3fastmem, max_z3fastmem;
 extern uae_u32 allocated_a3000mem;
 
 extern uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode);
