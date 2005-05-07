@@ -155,21 +155,21 @@ void driveclick_init(void)
 		for (j = 0; j < CLICK_TRACKS; j++)
 		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 		sprintf (tmp, "%suae_data%cdrive_click_%s",
-		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		    start_path_data, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v = loadsample (tmp, &drvs[i][DS_CLICK]);
 		if (v)
 		    processclicks (&drvs[i][DS_CLICK]);
 		sprintf (tmp, "%suae_data%cdrive_spin_%s",
-		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		    start_path_data, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPIN]);
 		sprintf (tmp, "%suae_data%cdrive_spinnd_%s",
-		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		    start_path_data, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPINND]);
 		sprintf (tmp, "%suae_data%cdrive_startup_%s",
-		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		    start_path_data, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_START]);
 		sprintf (tmp, "%suae_data%cdrive_snatch_%s",
-		    start_path, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
+		    start_path_data, FSDB_DIR_SEPARATOR, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 	    }
 	    if (v == 0) {

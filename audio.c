@@ -922,6 +922,8 @@ STATIC_INLINE int sound_prefs_changed (void)
 	    || changed_prefs.sound_adjust != currprefs.sound_adjust
 	    || changed_prefs.sound_interpol != currprefs.sound_interpol
 	    || changed_prefs.sound_volume != currprefs.sound_volume
+	    || changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
+	    || changed_prefs.sound_stereo_swap_ahi != currprefs.sound_stereo_swap_ahi
 	    || changed_prefs.sound_filter != currprefs.sound_filter);
 }
 
@@ -947,6 +949,8 @@ void check_prefs_changed_audio (void)
 	currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
 	currprefs.sound_filter = changed_prefs.sound_filter;
 	currprefs.sound_volume = changed_prefs.sound_volume;
+	currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
+	currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
 	if (currprefs.produce_sound >= 2) {
 	    if (!init_audio ()) {
 		if (! sound_available) {

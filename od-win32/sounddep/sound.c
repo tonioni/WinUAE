@@ -106,7 +106,7 @@ static void clearbuffer (void)
 	IDirectSoundBuffer_Restore (lpDSBsecondary);
 	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
     }
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
 	write_log ("failed to Lock sound buffer (clear): %s\n", DXError (hr));
 	return;
     }
@@ -128,7 +128,7 @@ static void resume_audio_ds (void)
     paused = 0;
     clearbuffer ();
     hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
-    if (hr != DS_OK)
+    if (FAILED(hr))
 	write_log ("Play failed: %s\n", DXError (hr));
     writepos = snd_configsize;
 }
@@ -141,7 +141,7 @@ static int restore (DWORD hr)
     write_log ("sound buffer lost\n");
 #endif
     hr = IDirectSoundBuffer_Restore (lpDSBsecondary);
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
 	//write_log ("restore failed %s\n", DXError (hr));
 	return 1;
     }
@@ -168,7 +168,7 @@ static int getpos (void)
     HRESULT hr;
 
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
 	write_log ("GetCurrentPosition failed: %s\n", DXError (hr));
 	return -1;
     }
@@ -238,7 +238,7 @@ static void setvolume (void)
     if (currprefs.sound_volume < 100 && !mute)
         vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - currprefs.sound_volume / 100.0)));
     hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
-    if (hr != DS_OK)
+    if (FAILED(hr))
         write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 }
 
@@ -265,14 +265,14 @@ static int open_audio_ds (int size)
         sndbufsize = SND_MAX_BUFFER;
 
     hr = DirectSoundCreate (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
-    if (hr != DS_OK)  {
+    if (FAILED(hr))  {
         write_log ("SOUND: DirectSoundCreate() failure: %s\n", DXError (hr));
         return 0;
     }
     memset (&DSCaps, 0, sizeof (DSCaps));
     DSCaps.dwSize = sizeof (DSCaps);
     hr = IDirectSound_GetCaps (lpDS, &DSCaps);
-    if (hr!= DS_OK) {
+    if (FAILED(hr)) {
 	write_log ("SOUND: Error getting DirectSound capabilities: %s\n", DXError (hr));
 	goto error;
     }
@@ -300,7 +300,7 @@ static int open_audio_ds (int size)
     sound_buffer.dwSize = sizeof (sound_buffer);
     sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_GETCURRENTPOSITION2;
     hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &lpDSBprimary, NULL);
-    if( hr != DS_OK )  {
+    if (FAILED(hr))  {
         write_log ("SOUND: Primary CreateSoundBuffer() failure: %s\n", DXError (hr));
 	goto error;
     }
@@ -308,7 +308,7 @@ static int open_audio_ds (int size)
     memset(&DSBCaps, 0, sizeof(DSBCaps));
     DSBCaps.dwSize = sizeof(DSBCaps);
     hr = IDirectSoundBuffer_GetCaps(lpDSBprimary, &DSBCaps);
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
 	write_log ("SOUND: Primary GetCaps() failure: %s\n",  DXError (hr));
 	goto error;
     }
@@ -326,7 +326,7 @@ static int open_audio_ds (int size)
         max_sndbufsize = SND_MAX_BUFFER2;
     dsoundbuf = max_sndbufsize * 2;
     hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
         write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
         goto error;
     }
@@ -344,14 +344,14 @@ static int open_audio_ds (int size)
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS | DSBCAPS_STATIC;
     sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME;
 
-    hr = IDirectSound_CreateSoundBuffer( lpDS, &sound_buffer, &lpDSBsecondary, NULL );
-    if (hr != DS_OK) {
+    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &lpDSBsecondary, NULL);
+    if (FAILED(hr)) {
         write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
         goto error;
     }
 
     hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt);
-    if( hr != DS_OK )  {
+    if (FAILED(hr))  {
         write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
         goto error;
     }
@@ -496,7 +496,7 @@ static void finish_sound_buffer_ds (void)
     double vdiff, m, skipmode;
 
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
-    if (hr != DS_OK)
+    if (FAILED(hr))
 	return;
     if (status & DSBSTATUS_BUFFERLOST) {
 	restore (DSERR_BUFFERLOST);
@@ -509,7 +509,7 @@ static void finish_sound_buffer_ds (void)
     }
     for (;;) {
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
-	if (hr != DS_OK) {
+	if (FAILED(hr)) {
 	    restore (hr);
 	    //write_log ("GetCurrentPosition failed: %s\n", DirectSound_ErrorText (hr));
 	    return;
@@ -547,7 +547,7 @@ static void finish_sound_buffer_ds (void)
     hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
     if (restore (hr))
 	return;
-    if (hr != DS_OK) {
+    if (FAILED(hr)) {
         write_log ("lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
         return;
     }
@@ -578,6 +578,16 @@ static void finish_sound_buffer_ds (void)
     sound_setadjust (skipmode);
 }
 
+static void channelswap(uae_s16 *sndbuffer, int len)
+{
+    int i;
+    for (i = 0; i < len; i += 2) {
+	uae_s16 t = sndbuffer[i];
+	sndbuffer[i] = sndbuffer[i + 1];
+	sndbuffer[i + 1] = t;
+    }
+}
+
 static void filtercheck (uae_s16 *sndbuffer, int len)
 {
     int ch = currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1);
@@ -585,8 +595,6 @@ static void filtercheck (uae_s16 *sndbuffer, int len)
     static double cold[4];
     double old0, old1, v;
     
-    if (!currprefs.sound_filter)
-	return;
     if (gui_data.powerled || currprefs.sound_filter == 2) {
 	if (ch == 1) {
 	    old0 = cold[0];
@@ -620,7 +628,10 @@ void finish_sound_buffer (void)
 {
     if (turbo_emulation)
 	return;
-    filtercheck ((uae_s16*)sndbuffer, sndbufsize / 2);
+    if (currprefs.sound_filter)
+        filtercheck((uae_s16*)sndbuffer, sndbufsize / 2);
+    if (currprefs.sound_stereo == 1 && currprefs.sound_stereo_swap_paula)
+        channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
 #ifdef DRIVESOUND
     driveclick_mix ((uae_s16*)sndbuffer, sndbufsize / 2);
 #endif

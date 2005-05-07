@@ -1,7 +1,7 @@
-cd c:\projects\winuae_bak
+cd e:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-copy /s c:\projects\winuae\src\*.* c:\projects\winuae_bak\bak\
+copy /s e:\projects\winuae\src\*.* e:\projects\winuae_bak\bak\
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
 
@@ -84,6 +84,6 @@ zip -9 -r winuaesrc *
 
 copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
 move winuaesrc.zip d:\amiga
-cd c:\projects\winuae\src\od-win32
+cd e:\projects\winuae\src\od-win32
 zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb
 move winuaedebug%1.zip d:\amiga\winuaepackets\

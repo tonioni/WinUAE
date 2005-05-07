@@ -186,7 +186,7 @@ static uae_u8 *ioctl_command_read (int unitnum, int sector)
     while (cnt-- > 0) {
 	gui_cd_led (1);
 	seterrormode ();
-	if (SetFilePointer (ciw32[unitnum].h, sector  * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+	if (SetFilePointer (ciw32[unitnum].h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, "SetFilePointer") < 0)
 		continue;
@@ -257,7 +257,7 @@ static uae_u8 *ioctl_command_toc (int unitnum)
         seterrormode ();
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_READ_TOC, NULL, 0, &toc, sizeof(toc), &len, NULL)) {
 	    reseterrormode ();
-	    if (!win32_error (unitnum, "IOCTL_CDROM_READ_TOC"))
+	    if (win32_error (unitnum, "IOCTL_CDROM_READ_TOC") < 0)
 		continue;
 	    return 0;
 	}

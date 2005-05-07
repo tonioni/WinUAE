@@ -1216,7 +1216,7 @@ void inputdevice_handle_inputcode (void)
 	gui_display (-1);
 	break;
 	case AKS_SCREENSHOT:
-	screenshot (1);
+	screenshot(1, 1);
 	break;
 #ifdef ACTION_REPLAY
 	case AKS_FREEZEBUTTON:

@@ -41,8 +41,6 @@
 #include "akiko.h"
 #include "arcadia.h"
 
-extern void screenshot(int);
-
 //#define DBG_KEYBD 1
 //#define DEBUG_KBD
 
@@ -389,7 +387,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_SYSRQ:
-	    screenshot (endpressed() ? 1 : 0);
+	    screenshot (endpressed() ? 1 : 0, 1);
 	    break;
 	    case DIK_PAUSE:
 	    if (endpressed ())

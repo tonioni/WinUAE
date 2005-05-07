@@ -9,17 +9,9 @@
 
 #ifdef DEBUGGER
 
-#define	MAX_HIST	10000
+#define	MAX_HIST 100
 
-extern int firsthist;
-extern int lasthist;
 extern int debugging;
-#ifdef NEED_TO_DEBUG_BADLY
-extern struct regstruct history[MAX_HIST];
-extern union flagu historyf[MAX_HIST];
-#else
-extern uaecptr history[MAX_HIST];
-#endif
 extern int exception_debugging;
 
 extern void debug(void);

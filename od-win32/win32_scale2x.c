@@ -90,7 +90,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
                                             &DirectDrawState.temporary.desc,
                                             &DirectDrawState.temporary.surface,
                                             NULL);
-    if (ddrval != DD_OK) {
+    if (FAILED(ddrval)) {
 	write_log ("DDRAW: failed to create temp surface\n%s\n", DXError (ddrval));
 	tempsurf = 0;
     }
@@ -175,10 +175,10 @@ void S2X_render (void)
 
     if (temp_needed) {
 	desc.dwSize = sizeof (desc);
-	while ((ddrval = IDirectDrawSurface7_Lock (dds, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)) != DD_OK) {
+	while (FAILED(ddrval = IDirectDrawSurface7_Lock (dds, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
 	    if (ddrval == DDERR_SURFACELOST) {
 		ddrval = IDirectDrawSurface7_Restore (dds);
-		if (ddrval != DD_OK)
+		if (FAILED(ddrval))
 		    return;
 	    } else if (ddrval != DDERR_SURFACEBUSY) {
 		return;

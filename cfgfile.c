@@ -27,6 +27,7 @@
 #include "newcpu.h"
 #include "zfile.h"
 #include "filesys.h"
+#include "fsdb.h"
 
 #define CONFIG_BLEN 2560
 
@@ -148,7 +149,9 @@ static const char *obsolete[] = {
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
-    0 };
+    "kickstart_key_file",
+    0
+};
 
 #define UNEXPANDED "$(FILE_PATH)"
 

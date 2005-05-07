@@ -16,6 +16,7 @@ static struct shmid_ds shmids[MAX_SHMID];
 static uae_u32 gfxoffs;
 
 uae_u32 natmem_offset = 0;
+uae_u32 max_allowed_mman = 512;
 
 void init_shm(void)
 {
@@ -33,10 +34,10 @@ void init_shm(void)
 
     while ((uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys >= ((uae_u64)max_z3fastmem << 1)
 	&& max_z3fastmem != ((uae_u64)2048 * 1024 * 1024))
-	max_z3fastmem <<= 1;
+	    max_z3fastmem <<= 1;
     size = max_z3fastmem;
-    if (size > 512 * 1024 * 1024)
-	size = 512 * 1024 * 1024;
+    if (size > max_allowed_mman * 1024 * 1024)
+	size = max_allowed_mman * 1024 * 1024;
 
     canbang = 0;
     gfxoffs = 0;

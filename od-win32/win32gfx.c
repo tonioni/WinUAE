@@ -325,23 +325,23 @@ static int set_ddraw (void)
     overlay = (currentmode->flags & DM_OVERLAY) ? TRUE : FALSE;
 
     ddrval = DirectDraw_SetCooperativeLevel( hAmigaWnd, dxfullscreen);
-    if (ddrval != DD_OK)
+    if (FAILED(ddrval))
 	goto oops;
 
     if (dxfullscreen)  {
         write_log( "set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq );
         ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
-        if (ddrval != DD_OK) {
+        if (FAILED(ddrval)) {
 	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
             ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
-	    if (ddrval != DD_OK) {
+	    if (FAILED(ddrval)) {
 		write_log( "set_ddraw: Couldn't SetDisplayMode()\n" );
 		goto oops;
 	    }
         }
 
 	ddrval = DirectDraw_GetDisplayMode();
-	if (ddrval != DD_OK) {
+	if (FAILED(ddrval)) {
             write_log( "set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
         }
@@ -354,18 +354,18 @@ static int set_ddraw (void)
 
     if (dd) {
         ddrval = DirectDraw_CreateClipper();
-        if (ddrval != DD_OK) {
+        if (FAILED(ddrval)) {
 	    write_log( "set_ddraw: No clipping support\n" );
 	    goto oops;
 	}
 	ddrval = DirectDraw_CreateSurface (width, height);
-	if (ddrval != DD_OK) {
+	if (FAILED(ddrval)) {
 	    write_log( "set_ddraw: Couldn't CreateSurface() for primary because %s.\n", DXError( ddrval ) );
 	    goto oops;
 	}
 	if (DirectDraw_GetPrimaryBitCount() != (unsigned)bits && overlay) {
 	    ddrval = DirectDraw_CreateOverlaySurface (width, height, bits, 0);
-	    if( ddrval != DD_OK )
+	    if(FAILED(ddrval))
 	    {
 		write_log( "set_ddraw: Couldn't CreateOverlaySurface(%d,%d,%d) because %s.\n", width, height, bits, DXError( ddrval ) );
 		goto oops2;
@@ -384,14 +384,14 @@ static int set_ddraw (void)
 
 	ddrval = DirectDraw_SetClipper (hAmigaWnd);
 
-	if (ddrval != DD_OK) {
+	if (FAILED(ddrval)) {
 	    write_log( "set_ddraw: Couldn't SetHWnd()\n" );
 	    goto oops;
 	}
 
         if (bits == 8) {
 	    ddrval = DirectDraw_CreatePalette (currentmode->pal);
-	    if (ddrval != DD_OK)
+	    if (FAILED(ddrval))
 	    {
 		write_log( "set_ddraw: Couldn't CreatePalette()\n" );
 		goto oops;
@@ -576,7 +576,7 @@ void sortdisplays (void)
         DisplayModes[0].depth = -1;
 	md1->disabled = 1;
 	if (DirectDraw_Start (md1->primary ? NULL : &md1->guid)) {
-	    if (DirectDraw_GetDisplayMode () == DD_OK) {
+	    if (SUCCEEDED(DirectDraw_GetDisplayMode())) {
 		int w = DirectDraw_CurrentWidth ();
 		int h = DirectDraw_CurrentHeight ();
 		int b = DirectDraw_GetSurfaceBitCount ();
@@ -612,7 +612,7 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
 
     ignore_messages_all++;
     DirectDraw_Start (NULL);
-    if( colortype == 0 ) /* Need to query a 16-bit display mode for its pixel-format.  Do this by opening such a screen */
+    if(colortype == 0) /* Need to query a 16-bit display mode for its pixel-format.  Do this by opening such a screen */
     {
         hAmigaWnd = CreateWindowEx (WS_EX_TOPMOST,
 			       "AmigaPowah", VersionStr,
@@ -621,19 +621,19 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
 			       1,//GetSystemMetrics (SM_CXSCREEN),
 			       1,//GetSystemMetrics (SM_CYSCREEN),
 			       hHiddenWnd, NULL, 0, NULL);
-        if( hAmigaWnd )
+        if(hAmigaWnd)
         {
             window_created = 1;
             ddrval = DirectDraw_SetCooperativeLevel( hAmigaWnd, TRUE ); /* TRUE indicates full-screen */
-            if( ddrval != DD_OK )
+            if(FAILED(ddrval))
             {
-	        gui_message( "WIN32GFX_FigurePixelFormats: ERROR - %s\n", DXError(ddrval) );
+	        gui_message("WIN32GFX_FigurePixelFormats: ERROR - %s\n", DXError(ddrval));
 	        goto out;
             }
         }
         else
         {
-            gui_message( "WIN32GFX_FigurePixelFormats: ERROR - test-window could not be created.\n" );
+            gui_message("WIN32GFX_FigurePixelFormats: ERROR - test-window could not be created.\n");
         }
     }
     else
@@ -648,11 +648,11 @@ RGBFTYPE WIN32GFX_FigurePixelFormats( RGBFTYPE colortype )
     	    write_log ("figure_pixel_formats: Attempting %dx%d..\n", dm->res.width, dm->res.height);
 
 	    ddrval = DirectDraw_SetDisplayMode (dm->res.width, dm->res.height, 16, 0); /* 0 for default freq */
-	    if (ddrval != DD_OK)
+	    if (FAILED(ddrval))
 		continue;
 
 	    ddrval = DirectDraw_GetDisplayMode();
-	    if (ddrval != DD_OK)
+	    if (FAILED(ddrval))
 		continue;
 
 	    colortype = DirectDraw_GetPixelFormat();
@@ -1200,7 +1200,7 @@ void init_colors (void)
 	    case 1:
 		memcpy (xcolors, xcol8, sizeof xcolors);
 		ddrval = DirectDraw_SetPaletteEntries( 0, 256, colors256 );
-		if (ddrval != DD_OK)
+		if (FAILED(ddrval))
 		    write_log ("DX_SetPalette() failed with %s/%d\n", DXError (ddrval), ddrval);
 	    break;
 
@@ -1292,9 +1292,9 @@ void DX_SetPalette (int start, int count)
     /* Set our DirectX palette here */
     if( currentmode->current_depth == 8 )
     {
-	if (DirectDraw_SetPalette( 0 ) == DD_OK) {
+	if (SUCCEEDED(DirectDraw_SetPalette(0))) {
 	    ddrval = DirectDraw_SetPaletteEntries( start, count, (LPPALETTEENTRY)&(picasso96_state.CLUT[start] ) );
-	    if (ddrval != DD_OK)
+	    if (FAILED(ddrval))
 		gui_message("DX_SetPalette() failed with %s/%d\n", DXError (ddrval), ddrval);
 	}
     }
@@ -2141,10 +2141,10 @@ void WIN32GFX_PaletteChange( void )
     if (currentmode->current_depth > 8)
 	return;
     hr = DirectDraw_SetPalette (1); /* Remove current palette */
-    if (hr != DD_OK)
+    if (FAILED(hr))
 	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
     hr = DirectDraw_SetPalette (0); /* Set our real palette */
-    if (hr != DD_OK)
+    if (FAILED(hr))
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
 }
 
@@ -2155,9 +2155,9 @@ int WIN32GFX_ClearPalette( void )
 	return 1;
     if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
     hr = DirectDraw_SetPalette (1); /* Remove palette */
-    if (hr != DD_OK)
+    if (FAILED(hr))
 	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
-    return hr == DD_OK;
+    return SUCCEEDED(hr);
 }
 
 int WIN32GFX_SetPalette( void )
@@ -2167,9 +2167,9 @@ int WIN32GFX_SetPalette( void )
     if (currentmode->current_depth > 8)
 	return 1;
     hr = DirectDraw_SetPalette (0); /* Set palette */
-    if (hr != DD_OK)
+    if (FAILED(hr))
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
-    return hr == DD_OK;
+    return SUCCEEDED(hr);
 }
 void WIN32GFX_WindowMove ( void )
 {
@@ -2268,7 +2268,7 @@ HDC gethdc (void)
     if (D3D_isenabled())
 	return D3D_getDC (0);
 #endif
-    if(DirectDraw_GetDC(&hdc, DirectDraw_GetLockableType()) != DD_OK)
+    if(FAILED(DirectDraw_GetDC(&hdc, DirectDraw_GetLockableType())))
         hdc = 0;
     return hdc;
 }

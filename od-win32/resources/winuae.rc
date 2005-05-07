@@ -136,8 +136,8 @@ BEGIN
     RTEXT           "Z3-Fast:",IDC_Z3TEXT,139,85,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",
                     TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,80,60,20
-    RTEXT           "RTG (graphics card):",IDC_GFXCARDTEXT,96,110,76,10,
-                    SS_CENTERIMAGE
+    RTEXT           "RTG: [] Graphics card memory. Required for Picasso96 emulation.",
+                    IDC_GFXCARDTEXT,96,110,76,10,SS_NOTIFY | SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | 
                     TBS_TOP | WS_TABSTOP,179,105,60,20
     EDITTEXT        IDC_CHIPRAM,105,59,30,12,ES_CENTER | ES_READONLY
@@ -329,28 +329,28 @@ BEGIN
                     TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,138,75,106,19
     EDITTEXT        IDC_SOUNDBUFFERMEM,248,78,40,12,ES_CENTER | ES_READONLY
     GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,6,101,290,60
-    RTEXT           "Frequency:",IDC_SOUNDFREQTXT,34,110,37,8,SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDFREQ,36,119,67,75,CBS_DROPDOWN | WS_VSCROLL | 
+    LTEXT           "Frequency",IDC_SOUNDFREQTXT,13,111,37,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDFREQ,15,120,59,75,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
-    RTEXT           "Audio filter:",IDC_SOUNDFILTERTXT,36,135,36,8,
+    LTEXT           "Audio filter",IDC_SOUNDFILTERTXT,227,135,34,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDFILTER,36,144,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDFILTER,227,144,62,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Stereo mode:",IDC_SOUNDSTEREOTXT,116,110,43,8,
+    LTEXT           "Stereo mode",IDC_SOUNDSTEREOTXT,86,111,41,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDSTEREO,116,119,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDSTEREO,85,120,62,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Interpolation:",IDC_SOUNDINTERPOLATIONTXT,115,135,41,8,
+    LTEXT           "Interpolation",IDC_SOUNDINTERPOLATIONTXT,227,111,41,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDINTERPOLATION,116,144,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDINTERPOLATION,227,119,62,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Stereo separation:",IDC_SOUNDSTEREOSEPTXT,196,110,58,8,
+    LTEXT           "Stereo separation",IDC_SOUNDSTEREOSEPTXT,155,111,56,8,
                     SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDSTEREOSEP,197,119,67,75,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SOUNDSTEREOSEP,156,120,62,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Stereo mixing delay:",IDC_SOUNDSTEREOMIXTXT,196,135,63,
-                    8,SS_CENTERIMAGE
-    COMBOBOX        IDC_SOUNDSTEREOMIX,197,144,67,75,CBS_DROPDOWNLIST | 
+    LTEXT           "Stereo mixing delay",IDC_SOUNDSTEREOMIXTXT,155,135,63,8,
+                    SS_CENTERIMAGE
+    COMBOBOX        IDC_SOUNDSTEREOMIX,156,144,62,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Disk Drive Sound Emulation",IDC_STATIC,6,164,290,46
     CONTROL         "",IDC_SOUNDDRIVEVOLUME,"msctls_trackbar32",
@@ -366,6 +366,10 @@ BEGIN
                     TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,14,221,107,19
     EDITTEXT        IDC_SOUNDADJUSTNUM,124,224,40,12,ES_CENTER | ES_READONLY
     PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,223,40,14
+    COMBOBOX        IDC_SOUNDSWAP,85,144,62,75,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "Swap channels",IDC_SOUNDSWAPTXT,86,135,50,8,
+                    SS_CENTERIMAGE
 END
 
 IDD_LOADSAVE DIALOGEX 0, 0, 302, 241
@@ -413,8 +417,9 @@ BEGIN
                     BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,11,33,78,12
     CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",
                     BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,93,33,100,12
-    RTEXT           "Autoflush timeout []Time in seconds after pending print job is automatically flushed.",
-                    IDC_PRINTERAUTOFLUSHTXT,202,32,57,15,SS_CENTERIMAGE
+    RTEXT           "Autoflush timeout [] Time in seconds after pending print job is automatically flushed.",
+                    IDC_PRINTERAUTOFLUSHTXT,202,32,57,15,SS_NOTIFY | 
+                    SS_CENTERIMAGE
     EDITTEXT        IDC_PRINTERAUTOFLUSH,263,33,25,12,ES_NUMBER
     RTEXT           "Ghostscript extra parameters:",IDC_STATIC,12,49,91,15,
                     SS_CENTERIMAGE
@@ -426,8 +431,9 @@ BEGIN
                     BS_VCENTER | WS_TABSTOP,132,83,48,13
     CONTROL         "RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | 
                     BS_VCENTER | WS_TABSTOP,185,83,53,12
-    CONTROL         "Direct",IDC_SERIAL_DIRECT,"Button",BS_AUTOCHECKBOX | 
-                    BS_VCENTER | WS_TABSTOP,243,83,46,12
+    CONTROL         "Direct []Use when emulating serial linked games on two PCs running WinUAE",
+                    IDC_SERIAL_DIRECT,"Button",BS_AUTOCHECKBOX | BS_VCENTER | 
+                    WS_TABSTOP,243,83,46,12
     GROUPBOX        "MIDI",IDC_MIDIFRAME,4,104,292,33
     RTEXT           "Out:",IDC_MIDI,10,115,34,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIOUTLIST,50,115,95,130,CBS_DROPDOWNLIST | 
@@ -435,14 +441,16 @@ BEGIN
     RTEXT           "In:",IDC_MIDI2,150,115,29,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MIDIINLIST,185,115,95,134,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Amiga Mouse/Joystick Ports",IDC_PORT0,4,139,292,77
+    GROUPBOX        "Mouse/Joystick Ports",IDC_PORT0,4,139,292,75
     COMBOBOX        IDC_PORT0_JOYS,45,155,241,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_PORT1_JOYS,45,176,241,130,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Swap Ports",IDC_SWAP,114,195,75,14
+    PUSHBUTTON      "Swap Ports",IDC_SWAP,211,195,75,14
     RTEXT           "Port 0:",IDC_STATIC,11,154,25,15,SS_CENTERIMAGE
     RTEXT           "Port 1:",IDC_STATIC,11,175,25,15,SS_CENTERIMAGE
+    LTEXT           "X-Arcade layout information []#1",IDC_STATIC,16,195,106,
+                    15,SS_NOTIFY | SS_CENTERIMAGE
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
@@ -1287,6 +1295,7 @@ BEGIN
     IDS_PRI_NORMAL          "Normal"
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
+    IDS_OLDRTGLIBRARY       "Your LIBS:Picasso96/rtg.library (%d.%d) requires updating.\nReplace it with version from ""Amiga Programs""-directory in WinUAE archive.\nNew library fixes graphics problems and increases performance."
 END
 
 STRINGTABLE 
@@ -1379,6 +1388,9 @@ BEGIN
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"
+    IDS_SOUND_SWAP_PAULA    "Paula only"
+    IDS_SOUND_SWAP_AHI      "AHI only"
+    IDS_SOUND_SWAP_BOTH     "Both"
 END
 
 STRINGTABLE 
@@ -1438,7 +1450,7 @@ END
 STRINGTABLE 
 BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
-    IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an Amiga 500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
+    IDS_QS_MODEL_ARCADIA    "Your LIBS:Picasso96/rtg.library (%d.%d) needs updating\nReplace it with newer version from ""Amiga Programs""-directory in WinUAE archive."
 END
 
 #endif    // English (U.S.) resources

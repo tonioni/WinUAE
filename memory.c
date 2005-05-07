@@ -198,11 +198,11 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 	    if (!f) {
 		f = zfile_fopen ("roms/rom.key", "rb");
 		if (!f) {
-		    strcpy (tmp, start_path);
+		    strcpy (tmp, start_path_data);
 		    strcat (tmp, "rom.key");
 		    f = zfile_fopen(tmp, "rb");
 		    if (!f) {
-			sprintf (tmp, "%s../shared/rom/rom.key", start_path);
+			sprintf (tmp, "%s../shared/rom/rom.key", start_path_data);
 			f = zfile_fopen(tmp, "rb");
 		    }
 		}
@@ -1512,16 +1512,16 @@ static int load_kickstart (void)
 
     strcpy (tmprom, currprefs.romfile);
     if (f == NULL) {
-	sprintf (tmprom2, "%s%s", start_path, currprefs.romfile);
+	sprintf (tmprom2, "%s%s", start_path_data, currprefs.romfile);
 	f = zfile_fopen (tmprom2, "rb");
 	if (f == NULL) {
-	    sprintf (currprefs.romfile, "%sroms/kick.rom", start_path);
+	    sprintf (currprefs.romfile, "%sroms/kick.rom", start_path_data);
 	    f = zfile_fopen (currprefs.romfile, "rb");
 	    if (f == NULL) {
-		sprintf (currprefs.romfile, "%skick.rom", start_path);
+		sprintf (currprefs.romfile, "%skick.rom", start_path_data);
 		f = zfile_fopen (currprefs.romfile, "rb");
 		if (f == NULL) {
-		    sprintf (currprefs.romfile, "%s../shared/rom/kick.rom", start_path);
+		    sprintf (currprefs.romfile, "%s../shared/rom/kick.rom", start_path_data);
 		    f = zfile_fopen (currprefs.romfile, "rb");
 		}
 	    }

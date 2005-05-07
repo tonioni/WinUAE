@@ -108,6 +108,41 @@ struct ScreenResolution hicolour = { 640, 480 };
 struct ScreenResolution truecolour = { 640, 480 };
 struct ScreenResolution alphacolour = { 640, 480 };
 
+#include "win32gui.h"
+#include "resource.h"
+#define UAE_RTG_LIBRARY_VERSION 40
+#define UAE_RTG_LIBRARY_REVISION 3993
+static void checkrtglibrary(void)
+{
+    uae_u32 v;
+    static int checked = FALSE;
+
+    if (checked)
+	return;
+    v = get_long (4); // execbase
+    v += 378; // liblist
+    while ((v = get_long(v))) {
+	uae_u32 v2 = get_long(v + 10); // name
+	uae_u8 *p;
+	addrbank *b = &get_mem_bank(v2);
+	if (!b || !b->check (v2, 12))
+	    continue;
+	p = b->xlateaddr(v2);
+	if (!memcmp(p, "rtg.library\0", 12)) {
+	    uae_u16 ver = get_word(v + 20);
+	    uae_u16 rev = get_word(v + 22);
+	    if (ver * 10000 + rev < UAE_RTG_LIBRARY_VERSION * 10000 + UAE_RTG_LIBRARY_REVISION) {
+		char msg[2000];
+		WIN32GUI_LoadUIString(IDS_OLDRTGLIBRARY, msg, sizeof(msg));
+		gui_message(msg, ver, rev, UAE_RTG_LIBRARY_VERSION, UAE_RTG_LIBRARY_REVISION);
+	    } else {
+		write_log("P96: rtg.library %d.%d detected\n", ver, rev);
+	    }
+	    checked = TRUE;
+	}
+    }
+}
+
 static uae_u32 p2ctab[256][2];
 static int set_gc_called = 0;
 //fastscreen
@@ -1751,6 +1786,7 @@ void picasso_enablescreen (int on)
     wgfx_linestart = 0xFFFFFFFF;
     picasso_refresh (1);
     write_log ("SetSwitch() from threadid %d - showing %s screen\n", GetCurrentThreadId(), on ? "picasso96": "amiga");
+    checkrtglibrary();
 }
 
 /*

@@ -87,6 +87,8 @@ struct uae_prefs {
     int sound_adjust;
     int sound_filter;
     int sound_volume;
+    int sound_stereo_swap_paula;
+    int sound_stereo_swap_ahi;
 
     int comptrustbyte;
     int comptrustword;

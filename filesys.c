@@ -3789,7 +3789,7 @@ static char *device_dupfix (uaecptr expbase, char *devname)
 static void dump_partinfo (char *name, int num, uaecptr pp)
 {
     uae_u32 dostype = get_long (pp + 80);
-    write_log ("RDB: '%s' uaehf.device:%d, dostype=%08.8X\n", name, num, dostype);
+    write_log ("RDB: '%s' dostype=%08.8X\n", name, dostype);
     write_log ("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n",
 	get_long (pp + 20) * 4, get_long (pp + 28), get_long (pp + 32));
     write_log ("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d\n",
@@ -3797,6 +3797,8 @@ static void dump_partinfo (char *name, int num, uaecptr pp)
     write_log ("Buffers: %d, BufMemType: %08.8x, MaxTransfer: %08.8x, BootPri: %d\n",
 	get_long (pp + 60), get_long (pp + 64), get_long (pp + 68), get_long (pp + 76));
 }
+
+#define rdbmnt write_log("Mounting uaehf.device %d (%d) (size=%I64u):\n", unit_no, partnum, hfd->size);
 
 static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacket)
 {
@@ -3812,10 +3814,16 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     int oldversion, oldrevision;
     int newversion, newrevision;
 
-    if (lastblock * hfd->blocksize > hfd->size)
+    if (lastblock * hfd->blocksize > hfd->size) {
+	rdbmnt
+	write_log("failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->size);
 	return -2;
-    if (hfd->blocksize == 0)
+    }
+    if (hfd->blocksize == 0) {
+	rdbmnt
+	write_log("failed, blocksize == 0\n");
 	return -2;
+    }
     for (rdblock = 0; rdblock < lastblock; rdblock++) {
 	hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
 	if (rdb_checksum ("RDSK", bufrdb, rdblock))
@@ -3833,17 +3841,22 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    }
 	}
     }
-    if (rdblock == lastblock)
+    if (rdblock == lastblock) {
+	rdbmnt
+	write_log("failed, no RDB detected\n");
 	return -2;
+    }
     blocksize = rl (bufrdb + 16);
     readblocksize = blocksize > hfd->blocksize ? blocksize : hfd->blocksize;
     badblock = rl (bufrdb + 24);
     if (badblock != -1) {
+	rdbmnt
 	write_log ("RDB: badblock list is not yet supported. Contact the author.\n");
 	return -2;
     }
     driveinitblock = rl (bufrdb + 36);
     if (driveinitblock != -1) {
+	rdbmnt
 	write_log ("RDB: driveinit is not yet supported. Contact the author.\n");
 	return -2;
     }
@@ -3866,9 +3879,11 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	partblock = rl (buf + 4 * 4);
     }
 
+    rdbmnt
     flags = rl (buf + 20);
     if (flags & 2) { /* do not mount */
 	err = -1;
+	write_log("Automount disabled, not mounting\n");
 	goto error;
     }
 
@@ -3887,10 +3902,14 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     dostype = get_long (parmpacket + 80);
 
     if (dostype == 0) {
+	write_log("failed, dostype==0\n");
 	err = -1;
 	goto error;
     }
     
+    if (hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->size)
+	write_log("WARNING: end of partition > size of disk!\n");
+
     err = 2;
 
     /* load custom filesystems if needed */
@@ -3931,10 +3950,10 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     if (get_long (fsnode)) {
 	oldversion = get_word (fsnode + 18);
 	oldrevision = get_word (fsnode + 20);
-	write_log ("RDB: ROM filesystem version %d.%d\n", oldversion, oldrevision);
+	write_log ("RDB: %08.8X in FileSystem.resouce version %d.%d\n", dostype, oldversion, oldrevision);
     }
     if (newversion * 65536 + newrevision <= oldversion * 65536 + oldrevision && oldversion >= 0) {
-	write_log ("RDB: ROM filesystem is newer or same, ignoring RDB filesystem\n");
+	write_log ("RDB: fs in FileSystem.resource is newer or same, ignoring RDB filesystem\n");
 	goto error;
     }
 
@@ -4072,6 +4091,7 @@ static uae_u32 filesys_dev_storeinfo (void)
     }
     if (sub_no)
         return -2;
+    write_log("Mounting uaehf.device %d (%d):\n", unit_no, sub_no);
     get_new_device (type, parmpacket, &uip[unit_no].devname, &uip[unit_no].devname_amiga, unit_no);
     uip[unit_no].devno = unit_no;
     put_long (parmpacket, uip[unit_no].devname_amiga);

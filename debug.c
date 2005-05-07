@@ -62,12 +62,8 @@ void activate_debugger (void)
 
 int firsthist = 0;
 int lasthist = 0;
-#ifdef NEED_TO_DEBUG_BADLY
-struct regstruct history[MAX_HIST];
-union flagu historyf[MAX_HIST];
-#else
-uaecptr history[MAX_HIST];
-#endif
+static struct regstruct history[MAX_HIST];
+static struct flag_struct historyf[MAX_HIST];
 
 static char help[] = {
     "          HELP for UAE Debugger\n"
@@ -91,7 +87,7 @@ static char help[] = {
     "  o <1|2|addr> [<lines>]View memory as Copper instructions\n"
     "  O                     Display bitplane offsets\n"
     "  O <plane> <offset>    Offset a bitplane\n"
-    "  H <count>             Show PC history <count> instructions\n"
+    "  H[H] <count>          Show PC history (HH=full CPU info) <count> instructions\n"
     "  M                     Search for *Tracker sound modules\n"
     "  C <value>             Search for values like energy or lifes in games\n"
     "  W <address> <value>   Write into Amiga memory\n"
@@ -1320,7 +1316,7 @@ static void debug_1 (void)
 	case 'S': savemem (&inptr); break;
 	case 's':
 	    if (*inptr == 'c') {
-		screenshot (1);
+		screenshot (1, 1);
 	    } else {
 		searchmem (&inptr);
 	    }
@@ -1383,12 +1379,16 @@ static void debug_1 (void)
 
 	case 'H':
 	{
-	    int count;
-	    int temp;
-#ifdef NEED_TO_DEBUG_BADLY
+	    int count, temp, badly;
+	    uae_u32 oldpc = m68k_getpc();
 	    struct regstruct save_regs = regs;
-	    union flagu save_flags = regflags;
-#endif
+	    struct flag_struct save_flags = regflags;
+
+	    badly = 0;
+	    if (inptr[0] == 'H') {
+		badly = 1;
+		inptr++;
+	    }
 
 	    if (more_params(&inptr))
 		count = readhex(&inptr);
@@ -1398,22 +1398,26 @@ static void debug_1 (void)
 		break;
 	    temp = lasthist;
 	    while (count-- > 0 && temp != firsthist) {
-		if (temp == 0) temp = MAX_HIST-1; else temp--;
+		if (temp == 0)
+		    temp = MAX_HIST-1;
+		else
+		    temp--;
 	    }
 	    while (temp != lasthist) {
-#ifdef NEED_TO_DEBUG_BADLY
-		regs = history[temp];
+	        regs = history[temp];
 		regflags = historyf[temp];
-		m68k_dumpstate (NULL);
-#else
-		m68k_disasm (stdout, history[temp], NULL, 1);
-#endif
-		if (++temp == MAX_HIST) temp = 0;
+	        m68k_setpc(history[temp].pc);
+		if (badly) {
+		    m68k_dumpstate(stdout, NULL);
+		} else {
+		    m68k_disasm(stdout, history[temp].pc, NULL, 1);
+		}
+		if (++temp == MAX_HIST)
+		    temp = 0;
 	    }
-#ifdef NEED_TO_DEBUG_BADLY
 	    regs = save_regs;
 	    regflags = save_flags;
-#endif
+	    m68k_setpc(oldpc);
 	}
 	break;
 	case 'm':
@@ -1482,6 +1486,18 @@ static void debug_1 (void)
     }
 }
 
+static void addhistory(void)
+{
+    history[lasthist] = regs;
+    history[lasthist].pc = m68k_getpc();
+    historyf[lasthist] = regflags;
+    if (++lasthist == MAX_HIST)
+	lasthist = 0;
+    if (lasthist == firsthist) {
+	if (++firsthist == MAX_HIST) firsthist = 0;
+    }
+}
+
 void debug (void)
 {
     int i;
@@ -1490,6 +1506,7 @@ void debug (void)
 	return;
 
     bogusframe = 1;
+    addhistory();
 
     if (do_skip && skipaddr_start == 0xC0DEDBAD) {
 #if 0
@@ -1562,16 +1579,6 @@ void debug (void)
 	}
     }
 
-#ifdef NEED_TO_DEBUG_BADLY
-    history[lasthist] = regs;
-    historyf[lasthist] = regflags;
-#else
-    history[lasthist] = m68k_getpc();
-#endif
-    if (++lasthist == MAX_HIST) lasthist = 0;
-    if (lasthist == firsthist) {
-	if (++firsthist == MAX_HIST) firsthist = 0;
-    }
     inputdevice_unacquire ();
     pause_sound ();
     do_skip = 0;

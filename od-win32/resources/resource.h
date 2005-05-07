@@ -163,6 +163,7 @@
 #define IDS_PRI_BELOWNORMAL             186
 #define IDS_PRI_LOW                     187
 #define IDI_FOLDER                      188
+#define IDS_OLDRTGLIBRARY               188
 #define IDI_DISPLAY                     190
 #define IDI_ROOT                        192
 #define IDI_ICON2                       194
@@ -220,6 +221,9 @@
 #define IDS_STATEFILE_RAMDUMP           247
 #define IDS_STATEFILE_WAVE              248
 #define IDD_FRONTEND                    249
+#define IDS_SOUND_SWAP_PAULA            249
+#define IDS_SOUND_SWAP_AHI              250
+#define IDS_SOUND_SWAP_BOTH             251
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -767,8 +771,11 @@
 #define IDC_PATHS_ROMS                  1661
 #define IDC_SOUNDSTEREOMIX              1661
 #define IDC_PATHS_CONFIGS               1662
+#define IDC_SOUNDSWAP                   1662
 #define IDC_PATHS_SCREENSHOTS           1663
 #define IDC_PATHS_SAVESTATES            1664
+#define IDC_SOUNDSTEREOSWAPTXT          1664
+#define IDC_SOUNDSWAPTXT                1664
 #define IDC_PATHS_SAVEIMAGES            1665
 #define IDC_PATHS_ROML                  1666
 #define IDC_PATHS_CONFIGL               1667
@@ -836,7 +843,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        249
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1703
+#define _APS_NEXT_CONTROL_VALUE         1704
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -50,13 +50,13 @@ static int flipinterval_supported;
 static int restoresurface (LPDIRECTDRAWSURFACE7 surface)
 {
     HRESULT hr = IDirectDrawSurface7_Restore (surface);
-    if (hr == DD_OK) {
+    if (SUCCEEDED(hr)) {
 	HRESULT hr2;
 	DDBLTFX bltfx;
 	memset (&bltfx, 0, sizeof (bltfx));
 	bltfx.dwSize = sizeof (bltfx);
 	hr2 = IDirectDrawSurface7_Blt (surface, NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &bltfx);
-	if (hr2 != DD_OK) {
+	if (FAILED(hr2)) {
 	    static int crap = 0;
 	    if (hr2 == 0x887601C2) {
 		if (crap)
@@ -265,12 +265,12 @@ static int LockStub( surface_type_e type )
 	IDirectDrawSurface7_Restore( DirectDrawState.primary.surface );
     }
 
-    while ( (ddrval = IDirectDrawSurface7_Lock( surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT,
-                                                NULL ) ) != DD_OK )
+    while (FAILED(ddrval = IDirectDrawSurface7_Lock(surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT,
+                                                NULL)))
     {
         if (ddrval == DDERR_SURFACELOST) {
     	    ddrval = restoresurface (surface);
-            if (ddrval != DD_OK)
+            if (FAILED(ddrval))
             {
                 result = 0;
                 break;
@@ -283,7 +283,7 @@ static int LockStub( surface_type_e type )
             break;
         }
     }
-    if( ddrval == DD_OK )
+    if(SUCCEEDED(ddrval))
         result = 1;
     
     if( result )
@@ -680,8 +680,8 @@ int DirectDraw_Start( GUID *guid )
     helcaps.dwSize = sizeof( helcaps );
 
     ddrval = DirectDrawCreate( guid, &DirectDrawState.directdraw.ddx, NULL );
-    if (ddrval != DD_OK) {
-	if ( guid != NULL)
+    if (FAILED(ddrval)) {
+	if (guid != NULL)
 	    return 0;
 	goto oops;
     }
@@ -691,7 +691,7 @@ int DirectDraw_Start( GUID *guid )
     ddrval = IDirectDraw_QueryInterface( DirectDrawState.directdraw.ddx,
                                          &IID_IDirectDraw7,
                                          (LPVOID *)&DirectDrawState.directdraw.dd );
-    if( ddrval != DD_OK )
+    if(FAILED(ddrval))
     {
 	gui_message("start_ddraw(): DirectX 7 or newer required");
         DirectDraw_Release();
@@ -701,7 +701,7 @@ int DirectDraw_Start( GUID *guid )
     DirectDraw_GetCaps( &drivercaps, &helcaps );
     ShowDDCaps( drivercaps, 1 );
     ShowDDCaps( helcaps, 0 );
-    if (DirectDraw_GetDisplayMode () == DD_OK)
+    if (SUCCEEDED(DirectDraw_GetDisplayMode ()))
 	return 1;
     if (guid != NULL) {
 	DirectDraw_Release ();
@@ -787,8 +787,7 @@ HRESULT DirectDraw_SetCooperativeLevel( HWND window, int want_fullscreen )
                                                want_fullscreen ?
                                                DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN  :
                                                DDSCL_NORMAL );
-    if( ddrval == DD_OK )
-    {
+    if(SUCCEEDED(ddrval)) {
 	DirectDrawState.fullscreen = want_fullscreen;
 	DirectDrawState.window = window;
     }
@@ -945,7 +944,7 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
     IDirectDrawSurface7_GetSurfaceDesc(DirectDrawState.primary.surface, &pdds);
 
     //  Use GDI SetPixel to color match for us
-    if( dwGDIColor != CLR_INVALID && IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface, &hdc) == DD_OK)
+    if(dwGDIColor != CLR_INVALID && SUCCEEDED(IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface, &hdc)))
     {
         rgbT = GetPixel(hdc, 0, 0);     // Save current pixel value
         SetPixel(hdc, 0, 0, dwGDIColor);       // Set our value
@@ -955,7 +954,7 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
     // Now lock the surface so we can read back the converted color
     ddsd.dwSize = sizeof(ddsd);
     hr = IDirectDrawSurface7_Lock(DirectDrawState.primary.surface, NULL, &ddsd, DDLOCK_WAIT, NULL );
-    if( hr == DD_OK)
+    if(SUCCEEDED(hr))
     {
         dw = *(DWORD *) ddsd.lpSurface; 
         if( ddsd.ddpfPixelFormat.dwRGBBitCount < 32 ) // Mask it to bpp
@@ -964,7 +963,7 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
     }
 
     //  Now put the color that was there back.
-    if( dwGDIColor != CLR_INVALID && IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface,&hdc) == DD_OK )
+    if(dwGDIColor != CLR_INVALID && SUCCEEDED(IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface,&hdc)))
     {
         SetPixel( hdc, 0, 0, rgbT );
 	IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface,hdc);
@@ -1043,7 +1042,7 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 
 	// Attempt to create the surface with theses settings
 	ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, &ddsd, &DirectDrawState.overlay.surface, NULL);
-	if( ddrval == DD_OK )
+	if(SUCCEEDED(ddrval))
 	{
 	    DirectDrawState.isoverlay = 1;
 	}
@@ -1092,7 +1091,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 					    &DirectDrawState.primary.desc,
 					    &DirectDrawState.primary.surface,
 					    NULL);
-	if (ddrval != DD_OK) {
+	if (FAILED(ddrval)) {
 	    // Create a non-flipping pair, since the flipping pair creation failed...
 	    ZeroMemory (&DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
 	    DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
@@ -1118,7 +1117,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 					    NULL);
     }
 
-    if( ddrval != DD_OK )
+    if(FAILED(ddrval))
     {
 	goto out;
     }
@@ -1135,14 +1134,14 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 	ddSCaps.dwCaps = DDSCAPS_BACKBUFFER;
 
 	ddrval = IDirectDrawSurface7_GetAttachedSurface( DirectDrawState.primary.surface, &ddSCaps, &DirectDrawState.secondary.surface );
-	if( ddrval == DD_OK )
+	if(SUCCEEDED(ddrval))
 	{
 	    /* get third buffer */
 	    ZeroMemory(&ddSCaps, sizeof(ddSCaps));
 	    ddSCaps.dwCaps = DDSCAPS_FLIP;
 
 	    ddrval = IDirectDrawSurface7_GetAttachedSurface( DirectDrawState.secondary.surface, &ddSCaps, &DirectDrawState.tertiary.surface );
-	    if( ddrval == DD_OK )
+	    if(SUCCEEDED(ddrval))
 	    {
 		clearsurface (tertiary_surface);
     #if 0
@@ -1150,7 +1149,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 		ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.tertiary.surface,
 							    &IID_IDirectDrawSurface7,
 							    (LPVOID *)&DirectDrawState.tertiary.surface );
-		if( ddrval != DD_OK )
+		if(FAILED(ddrval))
 		{
 		    goto out;
 		}
@@ -1165,7 +1164,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 	    ddrval = IDirectDrawSurface_QueryInterface( DirectDrawState.secondary.surface,
 							&IID_IDirectDrawSurface7,
 							(LPVOID *)&DirectDrawState.secondary.surface );
-	    if( ddrval != DD_OK )
+	    if(FAILED(ddrval))
 	    {
 		goto out;
 	    }
@@ -1183,7 +1182,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 						&IID_IDirectDrawSurface7,
 						(LPVOID *)&DirectDrawState.primary.surface );
 
-    if( ddrval != DD_OK )
+    if(FAILED(ddrval))
     {
 	goto out;
     }
@@ -1204,7 +1203,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
                                             &DirectDrawState.secondary.desc,
                                             &DirectDrawState.secondary.surface,
                                             NULL );
-        if( ddrval != DD_OK )
+        if(FAILED(ddrval))
         {
 	    write_log( "DDRAW:Secondary surface creation attempt #1 failed with %s\n", DXError(ddrval));
             DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
@@ -1212,7 +1211,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
                                                 &DirectDrawState.secondary.desc,
                                                 &DirectDrawState.secondary.surface,
                                                 NULL );
-	    if( ddrval == DD_OK )
+	    if(SUCCEEDED(ddrval))
 		write_log( "DDRAW: Secondary surface created in plain system-memory\n" );
 	    else
 	    {
@@ -1228,7 +1227,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
         ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.secondary.surface,
                                                     &IID_IDirectDrawSurface7,
                                                     (LPVOID *)&DirectDrawState.secondary.surface );
-        if( ddrval != DD_OK )
+        if(FAILED(ddrval))
         {
 	    goto out;
         }
@@ -1325,7 +1324,7 @@ HRESULT DirectDraw_SetClipper( HWND hWnd )
 
     ddrval = IDirectDrawSurface7_SetClipper( DirectDrawState.primary.surface,
                                              hWnd ? DirectDrawState.lpDDC : NULL );
-    if( hWnd && ( ddrval == DD_OK ) )
+    if( hWnd && SUCCEEDED(ddrval))
     {
         ddrval = IDirectDrawClipper_SetHWnd( DirectDrawState.lpDDC, 0, hWnd );
     }
@@ -1402,7 +1401,7 @@ HRESULT DirectDraw_SetPalette( int remove )
 	remove ? NULL : DirectDrawState.lpDDP);
     if (ddrval == DDERR_SURFACELOST) {
 	ddrval = restoresurface (DirectDrawState.primary.surface);
-	if (ddrval == DD_OK) {
+	if (SUCCEEDED(ddrval)) {
 	    ddrval = IDirectDrawSurface7_SetPalette (DirectDrawState.primary.surface,
 		remove ? NULL : DirectDrawState.lpDDP);
 	}
@@ -1431,7 +1430,7 @@ HRESULT DirectDraw_CreatePalette( LPPALETTEENTRY pal )
     ddrval = IDirectDraw_CreatePalette( DirectDrawState.directdraw.dd,
                                         DDPCAPS_8BIT | DDPCAPS_ALLOW256,
                                         pal, &DirectDrawState.lpDDP, NULL);
-    if( ddrval == DD_OK )
+    if(SUCCEEDED(ddrval))
     {
         ddrval = DirectDraw_SetPalette(0);
     }
@@ -1613,7 +1612,7 @@ DWORD DirectDraw_CurrentHeight( void )
 int DirectDraw_GetVerticalBlankStatus (void)
 {
     BOOL status;
-    if (IDirectDraw7_GetVerticalBlankStatus (DirectDrawState.directdraw.dd, &status) != DD_OK)
+    if (FAILED(IDirectDraw7_GetVerticalBlankStatus (DirectDrawState.directdraw.dd, &status)))
 	return -1;
     return status;
 }
@@ -1645,12 +1644,12 @@ static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD
     int result = 0;
     HRESULT ddrval;
 
-    while( ( ddrval = IDirectDrawSurface7_BltFast( dstsurf, x, y, srcsurf, srcrect, DDBLTFAST_NOCOLORKEY | DDBLTFAST_WAIT ) ) != DD_OK )
+    while(FAILED(ddrval = IDirectDrawSurface7_BltFast( dstsurf, x, y, srcsurf, srcrect, DDBLTFAST_NOCOLORKEY | DDBLTFAST_WAIT )))
     {
         if (ddrval == DDERR_SURFACELOST) 
         {
     	    ddrval = restoresurface ( dstsurf );
-            if (ddrval != DD_OK)
+            if (FAILED(ddrval))
             {
                 break;
             }
@@ -1661,7 +1660,7 @@ static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD
             break;
         }
     }
-    if( ddrval == DD_OK )
+    if(SUCCEEDED(ddrval))
     {
         result = 1;
     }
@@ -1736,7 +1735,7 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
     int result = 0, errcnt = 0;
     HRESULT ddrval;
 
-    while( ( ddrval = IDirectDrawSurface7_Blt( dstsurf, dstrect, srcsurf, srcrect, flags, ddbltfx ) ) != DD_OK )
+    while(FAILED(ddrval = IDirectDrawSurface7_Blt( dstsurf, dstrect, srcsurf, srcrect, flags, ddbltfx)))
     {
         if (ddrval == DDERR_SURFACELOST) 
         {
@@ -1744,7 +1743,7 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
 		return 1;
 	    errcnt++;
     	    ddrval = restoresurface ( dstsurf );
-            if (ddrval != DD_OK)
+            if (FAILED(ddrval))
             {
                 break;
             }
@@ -1763,7 +1762,7 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
 	}
 #endif
     }
-    if( ddrval == DD_OK )
+    if(SUCCEEDED(ddrval))
     {
         result = 1;
     }
@@ -1834,7 +1833,7 @@ int DirectDraw_Flip(int wait)
     } else {
 	return 1;
     }
-    if(ddrval == DD_OK) {
+    if(SUCCEEDED(ddrval)) {
         result = 1;
     } else {
 	if (ddrval == DDERR_SURFACELOST) {
@@ -2076,7 +2075,7 @@ HRESULT DirectDraw_UpdateOverlay( RECT sr, RECT dr )
 	result = IDirectDrawSurface7_UpdateOverlay( DirectDrawState.overlay.surface, &sr, DirectDrawState.primary.surface, &dr, overlayflags, &overlayfx);
 	
     }
-    if (result != DD_OK) {
+    if (FAILED(result)) {
 	if (result == DDERR_SURFACELOST)
 	    display_change_requested++;
 	write_log ("UpdateOverlay failed %s\n", DXError (result));
@@ -2107,7 +2106,7 @@ int DirectDraw_GetPrimaryPixelFormat (LPDDPIXELFORMAT ddpf)
 	ddrval = IDirectDrawSurface7_GetPixelFormat (DirectDrawState.overlay.surface, ddpf);
     else
 	ddrval = IDirectDrawSurface7_GetPixelFormat (DirectDrawState.primary.surface, ddpf);
-    if (ddrval != DD_OK) {
+    if (FAILED(ddrval)) {
 	write_log ("GetPixelFormat failed\n%s\n", DXError (ddrval));
 	return 0;
     }

@@ -29,7 +29,6 @@ int WIN32GFX_AdjustScreenmode( uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixb
 
 extern HWND hStatusWnd;
 extern HINSTANCE hDDraw;
-extern char *start_path;
 extern uae_u32 default_freq;
 extern int normal_display_change_starting;
 

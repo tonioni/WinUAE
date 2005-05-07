@@ -96,10 +96,9 @@ extern HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD );
 { char szMessage[MAX_DPATH]; WIN32GUI_LoadUIString( IDS_NOHELP, szMessage, MAX_DPATH ); gui_message( szMessage ); }
 
 extern HWND hAmigaWnd;
-extern char help_file[ MAX_DPATH ];
+extern char help_file[MAX_DPATH];
 
 extern int mouseactive;
-extern char *start_path;
 
 static char config_filename[ MAX_DPATH ] = "";
 
@@ -560,7 +559,7 @@ int scan_roms (char *pathp)
     char path[MAX_DPATH];
 
     int ret = scan_roms_2 (pathp);
-    sprintf (path, "%s..\\shared\\rom\\", start_path);
+    sprintf (path, "%s..\\shared\\rom\\", start_path_data);
     if (!ret && pathp == NULL) {
 	ret = scan_roms_2 (path);
 	if (ret)
@@ -678,6 +677,7 @@ void gui_display( int shortcut )
     int flipflop = 0;
     HRESULT hr;
 
+    screenshot_prepare();
 #ifdef D3D
     D3D_guimode (TRUE);
 #endif
@@ -705,7 +705,7 @@ void gui_display( int shortcut )
 
     if (isfullscreen ()) {
 	hr = DirectDraw_FlipToGDISurface();
-	if (hr != DD_OK)
+	if (FAILED(hr))
 	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     }
 
@@ -754,6 +754,7 @@ void gui_display( int shortcut )
 #ifdef PICASSO96
     DX_SetPalette (0, 256);
 #endif
+    screenshot_free();
 }
 
 static void prefs_to_gui (struct uae_prefs *p)
@@ -832,7 +833,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     
     memset (&openFileName, 0, sizeof (OPENFILENAME));
     
-    strncpy (init_path, start_path, MAX_DPATH);
+    strncpy (init_path, start_path_data, MAX_DPATH);
     switch (flag)
     {
 	case 0:
@@ -2294,7 +2295,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (workprefs.info[0]) {
 		    char name_buf[MAX_DPATH];
 		    if (strstr (workprefs.info, "Configurations\\"))
-			sprintf (name_buf, "%s\\%s", start_path, workprefs.info);
+			sprintf (name_buf, "%s\\%s", start_path_data, workprefs.info);
 		    else
 			strcpy (name_buf, workprefs.info);
 		    ShellExecute (NULL, NULL, name_buf, NULL, NULL, SW_SHOWNORMAL);
@@ -3670,7 +3671,7 @@ static BOOL CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	recursive++;
 	if( ( wParam == IDC_TEST16BIT ) && DirectDraw_Start(NULL) )
 	{
-	    if( RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, KEY_ALL_ACCESS, &hPixelFormatKey ) == ERROR_SUCCESS )
+	    if( RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, KEY_WRITE | KEY_READ, &hPixelFormatKey ) == ERROR_SUCCESS )
 	    {
 		char szMessage[ 4096 ];
 		char szTitle[ MAX_DPATH ];
@@ -3716,7 +3717,7 @@ static void values_to_chipsetdlg (HWND hDlg)
     LPTSTR string = NULL;
     int which_button;
 
-    switch( workprefs.chipset_mask )
+    switch(workprefs.chipset_mask)
     {
     case 0:
 	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+0 );
@@ -3802,9 +3803,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 static BOOL CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    RGBFTYPE colortype      = RGBFB_NONE;
-    DWORD dwType            = REG_DWORD;
-    DWORD dwDisplayInfoSize = sizeof( colortype );
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -4730,7 +4728,7 @@ static void enable_for_sounddlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME2), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), workprefs.sound_stereo == 1 && workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo == 1&& workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo == 1 && workprefs.produce_sound);
 
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERMEM), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), workprefs.produce_sound);
@@ -4770,7 +4768,7 @@ static void sound_loaddrivesamples (void)
 
     free (drivesounds);
     p = drivesounds = 0;
-    sprintf (dirname, "%s\\uae_data\\*.wav", start_path);
+    sprintf (dirname, "%s\\uae_data\\*.wav", start_path_data);
     h = FindFirstFile (dirname, &fd);
     if (h == INVALID_HANDLE_VALUE)
 	return;
@@ -4861,6 +4859,16 @@ static void values_to_sounddlg (HWND hDlg)
     WIN32GUI_LoadUIString (IDS_SOUND_4CHANNEL, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo, 0);
+
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)"-");
+    WIN32GUI_LoadUIString (IDS_SOUND_SWAP_PAULA, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_SOUND_SWAP_AHI, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_SOUND_SWAP_BOTH, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_SETCURSEL, workprefs.sound_stereo_swap_paula + workprefs.sound_stereo_swap_ahi * 2, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_RESETCONTENT, 0, 0);
     for (i = 10; i >= 0; i--) {
@@ -4996,6 +5004,9 @@ static void values_from_sounddlg (HWND hDlg)
     workprefs.sound_interpol = SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_GETCURSEL, 0, 0);
     workprefs.win32_soundcard = SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_GETCURSEL, 0, 0L);
     workprefs.sound_filter = SendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_GETCURSEL, 0, 0);
+
+    workprefs.sound_stereo_swap_paula = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 1) ? 1 : 0;
+    workprefs.sound_stereo_swap_ahi = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 2) ? 1 : 0;
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
     if (idx >= 0) {
@@ -6409,20 +6420,7 @@ static DWORD dwEnumeratedPrinters = 0;
 static char comports[MAX_SERIALS][8];
 static int ghostscript_available;
 
-/*
-static int joy0idc[] = {
-    IDC_PORT0_JOYSC, IDC_PORT0_KBDA, IDC_PORT0_KBDB, IDC_PORT0_KBDC, IDC_PORT0_KBDD, IDC_PORT0_KBDE,
-    IDC_PORT0_JOYS, -1
-};
-
-static int joy1idc[] = {
-    IDC_PORT1_JOYSC, IDC_PORT1_KBDA, IDC_PORT1_KBDB, IDC_PORT1_KBDC, IDC_PORT1_KBDD, IDC_PORT1_KBDE,
-    IDC_PORT1_JOYS, -1
-};
-*/
 static int joy0previous, joy1previous;
-
-
 static BOOL bNoMidiIn = FALSE;
 
 static void enable_for_portsdlg( HWND hDlg )
@@ -6430,12 +6428,6 @@ static void enable_for_portsdlg( HWND hDlg )
     int v;
 
     v = workprefs.input_selected_setting > 0 ? FALSE : TRUE;
-/*
-    for (i = 0; joy0idc[i] >= 0; i++) {
-        EnableWindow (GetDlgItem (hDlg, joy0idc[i]), v);
-        EnableWindow (GetDlgItem (hDlg, joy1idc[i]), v);
-    }
-*/
     EnableWindow (GetDlgItem (hDlg, IDC_SWAP), v);
 #if !defined (SERIAL_PORT)
     EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST), FALSE );
@@ -6470,20 +6462,6 @@ static void updatejoyport (HWND hDlg)
     char tmp[MAX_DPATH];
  
     enable_for_portsdlg (hDlg);
-/*
-    for (i = 0; i < 2; i++) {
-        int *idcs1 = i == 0 ? joy0idc : joy1idc;
-        int *idcs2 = i == 0 ? joy1idc : joy0idc;
-	v = jsem_iskbdjoy (i, &workprefs);
-	if (v < 0)
-	    v = 0;
-	else
-	    v++;
-	CheckRadioButton (hDlg, idcs1[0], idcs1[NUM_JOYKBD], idcs1[v]);
-	for (j = 1; j < NUM_JOYKBD + 2; j++)
-	    EnableWindow (GetDlgItem (hDlg, idcs2[j]), workprefs.input_selected_setting == 0 && j != v);
-    }
-*/
     if (joy0previous < 0)
 	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
     if (joy1previous < 0)
@@ -6596,44 +6574,6 @@ static void values_from_portsdlg (HWND hDlg)
 	else
 	    fixjport (&workprefs.jport1, workprefs.jport0);
     }
-
-/*    
-    for (i = 0; i < 2; i++) {
-	int *idcs = i == 0 ? joy0idc : joy1idc;
-	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
-	int prevport = *port;
-	int *joyprev = i == 0 ? &joy0previous : &joy1previous;
-        int v = SendDlgItemMessage (hDlg, idcs[NUM_JOYKBD + 1], CB_GETCURSEL, 0, 0L);
-	if (v != CB_ERR)
-	    *joyprev = v;
-	for (j = 0; j < NUM_JOYKBD + 1; j++) {
-	    if (IsDlgButtonChecked (hDlg, idcs[j])) {
-		if (j > 0) {
-		    *port = JSEM_KBDLAYOUT + j - 1;
-		} else {
-		    if (v != CB_ERR && v > 0) {
-			*joyprev = v;
-			v--;
-			if (v >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
-			    *port = JSEM_MICE + v - inputdevice_get_device_total (IDTYPE_JOYSTICK);
-			else
-			    *port = JSEM_JOYS + v;
-		    }
-		}
-	    }
-	}
-	if (*port != prevport) {
-	    lastside = i;
-	    changed = 1;
-	}
-    }
-    if (changed) {
-	if (lastside)
-	    fixjport (&workprefs.jport0, workprefs.jport1);
-	else
-	    fixjport (&workprefs.jport1, workprefs.jport0);
-    }
-*/
 
     item = SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L );
     if( item != CB_ERR )
@@ -6922,10 +6862,10 @@ static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	recursive++;
 	pages[PORTS_ID] = hDlg;
 	currentpage = PORTS_ID;
-	init_portsdlg( hDlg );
-	enable_for_portsdlg (hDlg);
-	values_to_portsdlg (hDlg);
-	updatejoyport (hDlg);
+	init_portsdlg(hDlg);
+	enable_for_portsdlg(hDlg);
+	values_to_portsdlg(hDlg);
+	updatejoyport(hDlg);
 	recursive--;
 	break;	    
     case WM_USER:
@@ -7213,7 +7153,7 @@ static BOOL CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPa
 	inputdevice_updateconfig (&workprefs);
 	inputdevice_config_change ();
 	input_selected_widget = -1;
-	init_inputdlg( hDlg );
+	init_inputdlg(hDlg);
 	    
     case WM_USER:
 	recursive++;
@@ -7841,7 +7781,7 @@ static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		    break;
 
 		case IDC_SCREENSHOT:
-			screenshot(1);
+			screenshot(1, 0);
 			break;
 			
 		case IDC_AVIOUTPUT_PAL:
@@ -8033,6 +7973,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
     TOOLINFO ti;
     char tmp[MAX_DPATH];
     char *p;
+    int v;
 
     tmp[0] = 0;
     SendMessage (hwnd, WM_GETTEXT, (WPARAM)sizeof (tmp), (LPARAM)tmp);
@@ -8078,11 +8019,11 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 		SendMessage(ToolTipHWND2, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
 		SendMessage(ToolTipHWND2, TTM_SETMAXTIPWIDTH, 0, 400);
 	        SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
-		SendMessage(ToolTipHWND2, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+		v = SendMessage(ToolTipHWND2, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 	    }
 	} else {
-	    SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
-	    SendMessage(ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
+	    v = SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)tmp);
+	    v = SendMessage(ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 	}
         return 1;
     }
@@ -8826,14 +8767,14 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
     if (!isfullscreen ())
 	return 0;
     hr = DirectDraw_FlipToGDISurface();
-    if (hr != DD_OK)
+    if (FAILED(hr))
 	write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     *flags &= ~MB_SETFOREGROUND;
     return 0;
 /*
     HRESULT hr;
     hr = DirectDraw_FlipToGDISurface();
-    if (hr != DD_OK) {
+    if (FAILED(hr)) {
         write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
 	return 0;
     }

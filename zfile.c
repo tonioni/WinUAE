@@ -969,13 +969,26 @@ static int zunzip (struct zfile *z, zfile_callback zc, void *user)
     return 1;
 }
 
+#define AF "%AMIGAFOREVERDATA%"
+
+static void manglefilename(char *out, const char *in)
+{
+    out[0] = 0;
+    if (!strncasecmp(in, AF, strlen(AF)))
+	strcpy (out, start_path_data);
+    if ((in[0] == '/' || in[0] == '\\') || (strlen(in) > 3 && in[1] == ':' && in[2] == '\\'))
+	out[0] = 0;
+    strcat(out, in);
+}
 
 int zfile_zopen (const char *name, zfile_callback zc, void *user)
 {
     struct zfile *l;
     int ztype;
-    
-    l = zfile_fopen_2 (name, "rb");
+    char path[MAX_DPATH];
+
+    manglefilename(path, name);
+    l = zfile_fopen_2(path, "rb");
     if (!l)
 	return 0;
     ztype = iszip (l);
@@ -987,7 +1000,7 @@ int zfile_zopen (const char *name, zfile_callback zc, void *user)
 	arcacc_zunzip (l, zc, user, ztype);
     zfile_fclose (l);
     return 1;
-}    
+}
 
 /*
  * fopen() for a compressed file
@@ -995,7 +1008,10 @@ int zfile_zopen (const char *name, zfile_callback zc, void *user)
 struct zfile *zfile_fopen (const char *name, const char *mode)
 {
     struct zfile *l;
-    l = zfile_fopen_2 (name, mode);
+    char path[MAX_DPATH];
+
+    manglefilename(path, name);
+    l = zfile_fopen_2 (path, mode);
     if (!l)
 	return 0;
     l = zuncompress (l);
@@ -1009,10 +1025,12 @@ int zfile_exists (const char *name)
 
     if (strlen (name) == 0)
 	return 0;
-    strcpy (fname, name);
+    manglefilename(fname, name);
     f = openzip (fname, 0);
-    if (!f)
-	f = fopen(name,"rb");
+    if (!f) {
+	manglefilename(fname, name);
+	f = fopen(fname,"rb");
+    }
     if (!f)
 	return 0;
     fclose (f);
