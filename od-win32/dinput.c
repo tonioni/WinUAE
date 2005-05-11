@@ -427,7 +427,7 @@ static void read_rawinput (void)
 }
 #endif
 
-void handle_rawinput (DWORD lParam)
+void handle_rawinput (LPARAM lParam)
 {
     UINT dwSize;
     BYTE lpb[1000];

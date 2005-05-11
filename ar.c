@@ -267,17 +267,17 @@ addrbank hrtmem_bank = {
     hrtmem_xlate, hrtmem_check, NULL
 };
 
-static void copyfromamiga(uae_u8 *dst,uae_u8 *src,int len)
+static void copyfromamiga(uae_u8 *dst,uaecptr src,int len)
 {
 while(len--) {
-    *dst++ = get_byte ((uaecptr)src);
+    *dst++ = get_byte (src);
     src++;
 }
 }
-static void copytoamiga(uae_u8 *dst,uae_u8 *src,int len)
+static void copytoamiga(uaecptr dst,uae_u8 *src,int len)
 {
 while(len--) {
-    put_byte ((uaecptr)dst, *src++);
+    put_byte (dst, *src++);
     dst++;
 }
 }
@@ -398,7 +398,7 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
         set_special (SPCFLAG_ACTION_REPLAY);
         action_replay_flag = ACTION_REPLAY_HIDE;
     } else if (addr == 6) {
-        copytoamiga ((uae_u8*)regs.vbr + 0x7c, artemp, 4);
+        copytoamiga (regs.vbr + 0x7c, artemp, 4);
         write_log ("AR: chipmem returned\n");
     }
     return 0;
@@ -718,8 +718,8 @@ static void action_replay_go (void)
     memcpy (armemory_ram + 0xf000, ar_custom, 2 * 256);
     action_replay_flag = ACTION_REPLAY_ACTIVE;
     set_special (SPCFLAG_ACTION_REPLAY);
-    copyfromamiga (artemp, (uae_u8*)regs.vbr + 0x7c, 4);
-    copytoamiga ((uae_u8*)regs.vbr+0x7c, armemory_rom + 0x7c, 4);
+    copyfromamiga (artemp, regs.vbr + 0x7c, 4);
+    copytoamiga (regs.vbr+0x7c, armemory_rom + 0x7c, 4);
     Interrupt (7);
 }
 
@@ -737,7 +737,7 @@ static void hrtmon_go (int mode)
     memcpy (hrtmon_custom, ar_custom, 2 * 256);
     hrtmon_flag = ACTION_REPLAY_ACTIVE;
     set_special (SPCFLAG_ACTION_REPLAY);
-    put_long ((uaecptr)((uae_u8*)regs.vbr+0x7c), hrtmem_start + 8 + (mode ? 4 : 0));
+    put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 8 + (mode ? 4 : 0));
     Interrupt (7);
 }
 
@@ -878,8 +878,8 @@ void action_replay_chipwrite(void)
     {
 	/* copy 0x60 addr info to level 7 */
 	/* This is to emulate the 0x60 interrupt. */
-    	copyfromamiga (artemp, (uae_u8*)regs.vbr + 0x60, 4);
-    	copytoamiga ((uae_u8*)regs.vbr + 0x7c, artemp, 4);
+    	copyfromamiga (artemp, regs.vbr + 0x60, 4);
+    	copytoamiga (regs.vbr + 0x7c, artemp, 4);
 	ar_wait_pop = 1; /* Wait for stack to pop. */
  
 	action_replay_flag = ACTION_REPLAY_ACTIVATE;

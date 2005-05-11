@@ -165,6 +165,7 @@ static char *getdevname (int type)
 	return UAEDEV_DISK;
 	default:
 	abort ();
+	return NULL;
     }
 }
 

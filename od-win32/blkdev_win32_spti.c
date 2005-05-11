@@ -71,6 +71,8 @@ static int doscsi (HANDLE *h, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *er
     if (log_scsi)
 	scsi_log_after (swb->spt.DataIn == SCSI_IOCTL_DATA_IN ? swb->spt.DataBuffer : 0, swb->spt.DataTransferLength,
 	    swb->SenseBuf, swb->spt.SenseInfoLength);
+    if (swb->spt.SenseInfoLength > 0 && (swb->SenseBuf[0] == 0 || swb->SenseBuf[0] == 1))
+	swb->spt.SenseInfoLength = 0; /* 0 and 1 = success, not error.. */
     if (swb->spt.SenseInfoLength > 0)
 	return 0;
     gui_cd_led (1);
@@ -275,19 +277,31 @@ static int isatapi (int unitnum)
     uae_u8 out[36];
     int outlen = sizeof (out);
     uae_u8 *p = execscsicmd_in (unitnum, cmd, sizeof (cmd), &outlen);
-    if (!p)
+    int v = 0;
+
+    if (!p) {
+	if (log_scsi)
+	    write_log("INQUIRY failed!?\n");
 	return 0;
+    }
     if (outlen >= 2 && (p[0] & 31) == 5 && (p[2] & 7) == 0)
-	return 1;
-    return 0;
+	v = 1;
+    if (log_scsi) {
+	if (outlen >= 36) 
+	    write_log("INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
+		p[0], p[1], p[2], v, p + 8, p + 16);
+    }
+    return v;
 }
 
 static int mediacheck (int unitnum)
 {
     uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
+    int v;
     if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
-    return execscsicmd (unitnum, cmd, sizeof (cmd), 0, 0) >= 0 ? 1 : 0;
+    v = execscsicmd (unitnum, cmd, sizeof (cmd), 0, 0);
+    return v >= 0 ? 1 : 0;
 }
 
 int open_scsi_device (int unitnum)

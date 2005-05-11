@@ -893,6 +893,7 @@ uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
 	return v;
 	default:
 	abort ();
+	return 0;
     }
 }
 

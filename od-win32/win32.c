@@ -341,11 +341,11 @@ static int figure_processor_speed (void)
 	limit = 2.5;
 	if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
 	    timermode = 1;
-	    sleep_resolution = ratea2 * clockrate1000 / (ratecnt * 1000000);
+	    sleep_resolution = (int)(ratea2 * clockrate1000 / (ratecnt * 1000000));
 	    write_log ("Using Sleep() (resolution < %.1fms)\n", limit);
 	} else if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
 	    timermode = 0;
-	    sleep_resolution = ratea1 * clockrate1000 / (ratecnt * 1000000);
+	    sleep_resolution = (int)(ratea1 * clockrate1000 / (ratecnt * 1000000));
 	    timebegin ();
 	    write_log ("Using MultiMedia timers (resolution < %.1fms)\n", limit);
 	} else {
@@ -371,7 +371,7 @@ static void setcursor(int oldx, int oldy)
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
-static int activateapp;
+static WPARAM activateapp;
 
 static void checkpause (void)
 {
@@ -2182,19 +2182,66 @@ static int osdetect (void)
     return 1;
 }
 
+typedef HRESULT (CALLBACK* SHGETFOLDERPATH)(HWND,int,HANDLE,DWORD,LPTSTR);
+typedef BOOL (CALLBACK* SHGETSPECIALFOLDERPATH)(HWND,LPTSTR,int,BOOL);
+
+static void getstartpaths(int start_data)
+{
+    SHGETFOLDERPATH pSHGetFolderPath;
+    SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
+    char *posn, *p;
+    DWORD v;
+
+    pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
+    pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
+    GetModuleFileName(NULL, start_path_exe, MAX_DPATH);
+    if((posn = strrchr (start_path_exe, '\\')))
+        posn[1] = 0;
+    p = getenv("AMIGAFOREVERDATA");
+    if (start_data == 0 && p) {
+	strcpy (start_path_data, p);
+	v = GetFileAttributes(start_path_data);
+        strcat(start_path_data, "\\WinUAE");
+	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY))
+	    start_data = 1;
+    }
+    if (start_data == 0) {
+	BOOL ok = FALSE;
+	if (pSHGetFolderPath)
+	    ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, start_path_data));
+	else if (pSHGetSpecialFolderPath)
+	    ok = pSHGetSpecialFolderPath(NULL, start_path_data, CSIDL_COMMON_DOCUMENTS, 0);
+	if (ok) {
+	    strcat(start_path_data, "\\My Amiga Files\\WinUAE");
+	    v = GetFileAttributes(start_path_data);
+	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY))
+		start_data = 1;
+	}
+    }
+    v = GetFileAttributes(start_path_data);
+    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0)
+        strcpy(start_path_data, start_path_exe);
+
+    if (strlen(start_path_data) > 0 && (start_path_data[strlen(start_path_data) - 1] != '\\' && start_path_data[strlen(start_path_data) - 1] != '/'))
+	strcat(start_path_data, "\\");
+}
+
+
 extern void test (void);
+
+
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
-    char *posn, *p;
     HANDLE hMutex;
     char **argv;
     int argc;
     int i;
     int multi_display = 1;
     int start_data = 0;
-    DWORD v;
 
 #if 1
 #ifdef __GNUC__
@@ -2260,30 +2307,7 @@ __asm{
     argv = 0;
     argv[0] = 0;
 #endif
-    GetModuleFileName(NULL, start_path_exe, MAX_DPATH);
-    if((posn = strrchr (start_path_exe, '\\')))
-        posn[1] = 0;
-    p = getenv("AMIGAFOREVERDATA");
-    if (start_data == 0 && p) {
-	strcpy (start_path_data, p);
-	v = GetFileAttributes(start_path_data);
-        strcat(start_path_data, "\\WinUAE");
-	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY))
-	    start_data = 1;
-    }
-    if (start_data == 0 && SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, start_path_data))) {
-	strcat(start_path_data, "\\My Amiga Files\\WinUAE");
-	v = GetFileAttributes(start_path_data);
-	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY))
-	    start_data = 1;
-    }
-    v = GetFileAttributes(start_path_data);
-    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0)
-        strcpy(start_path_data, start_path_exe);
-
-    if (strlen(start_path_data) > 0 && (start_path_data[strlen(start_path_data) - 1] != '\\' && start_path_data[strlen(start_path_data) - 1] != '/'))
-	strcat(start_path_data, "\\");
-
+    getstartpaths(start_data);
     sprintf(help_file, "%sWinUAE.chm", start_path_data);
     sprintf(VersionStr, "WinUAE %d.%d.%d%s", UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "");
     SetCurrentDirectory (start_path_data);
@@ -2594,7 +2618,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		    int nCmdShow)
 {
     HANDLE thread;
-    DWORD oldaff;
+    DWORD_PTR oldaff;
 
     thread = GetCurrentThread();
     oldaff = SetThreadAffinityMask(thread, 1); 

@@ -362,6 +362,7 @@ static uae_u8 GetBytesPerPixel2(uae_u32 RGBfmt, char *file, int line)
 	    abort();
 	}
     }
+    return 0;
 }
 
 /*

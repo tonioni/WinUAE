@@ -486,6 +486,7 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 	}
     }
     abort();
+    return -1;
 }
 
 void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra)

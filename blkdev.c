@@ -304,15 +304,13 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
 {
     int i;
-    if (data) {
-	write_log ("DATAIN: %d\n", datalen);
-	for (i = 0; i < datalen && i < 100; i++)
-	    write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
-	if (datalen > 0)
-	    write_log("\n");
-    }
+    write_log ("DATAIN: %d\n", datalen);
+    for (i = 0; i < datalen && i < 100 && data; i++)
+        write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
+    if (data && datalen > 0)
+        write_log("\n");
     if (senselen > 0) {
-        write_log("SENSE: ");
+        write_log("SENSE: %d,", senselen);
         for (i = 0; i < senselen && i < 32; i++) {
 	    write_log("%s%02.2X", i > 0 ? "." : "", sense[i]);
 	}

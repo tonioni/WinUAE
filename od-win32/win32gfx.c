@@ -1679,12 +1679,12 @@ static void createstatuswindow (void)
     scaleX = GetDeviceCaps (hdc, LOGPIXELSX) / 96.0;
     scaleY = GetDeviceCaps (hdc, LOGPIXELSY) / 96.0;
     ReleaseDC (hStatusWnd, hdc);
-    drive_width = 24 * scaleX;
-    hd_width = 24 * scaleX;
-    cd_width = 24 * scaleX;
-    power_width = 42 * scaleX;
-    fps_width = 64 * scaleX;
-    idle_width = 64 * scaleX;
+    drive_width = (int)(24 * scaleX);
+    hd_width = (int)(24 * scaleX);
+    cd_width = (int)(24 * scaleX);
+    power_width = (int)(42 * scaleX);
+    fps_width = (int)(64 * scaleX);
+    idle_width = (int)(64 * scaleX);
     GetClientRect (hMainWnd, &rc);
     /* Allocate an array for holding the right edge coordinates. */
     hloc = LocalAlloc (LHND, sizeof (int) * num_parts);

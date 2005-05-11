@@ -71,7 +71,7 @@ extern void sleep_millis_busy (int ms);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);
 
-extern void handle_rawinput (DWORD lParam);
+extern void handle_rawinput (LPARAM lParam);
 
 #define DEFAULT_PRIORITY 2
 struct threadpriorities {

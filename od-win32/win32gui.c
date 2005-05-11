@@ -138,7 +138,7 @@ void exit_gui (int ok)
 
 static int getcbn (HWND hDlg, int v, char *out, int len)
 {
-    int val = SendDlgItemMessage (hDlg, v, CB_GETCURSEL, 0, 0L);
+    LRESULT val = SendDlgItemMessage (hDlg, v, CB_GETCURSEL, 0, 0L);
     out[0] = 0;
     if (val == CB_ERR) {
 	SendDlgItemMessage (hDlg, v, WM_GETTEXT, (WPARAM)len, (LPARAM)out);
@@ -2946,12 +2946,13 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
-    int val, ret = FALSE, i;
+    int ret = FALSE, i;
     char tmp[MAX_DPATH];
     static char df0[MAX_DPATH];
     static char df1[MAX_DPATH];
     static int dfxtype[2] = { -1, -1 };
     static int doinit;
+    LRESULT val;
 
     switch( msg )
     {
@@ -6544,9 +6545,10 @@ static void fixjport (int *port, int v)
 
 static void values_from_portsdlg (HWND hDlg)
 {
-    int item, i, lastside = 0, changed = 0, v;
+    int i, lastside = 0, changed = 0, v;
     char tmp[256];
     BOOL success;
+    LRESULT item;
 
     for (i = 0; i < 2; i++) {
 	int idx = 0;
@@ -7511,7 +7513,7 @@ end:
 
 static void filter_handle (HWND hDlg)
 {
-    int item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
+    LRESULT item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
     if (item != CB_ERR) {
 	int of = workprefs.gfx_filter;
 	int off = workprefs.gfx_filter_filtermode;
@@ -8040,7 +8042,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
         ti.uFlags = TTF_SUBCLASS;
         ti.hwnd = GetParent (hwnd);
         ti.hinst = hInst;
-        ti.uId = (UINT)hwnd;
+        ti.uId = (UINT_PTR)hwnd;
         ti.lpszText = p;
 	GetWindowRect (GetParent (hwnd), &r);
 	GetWindowRect (hwnd, &ti.rect);

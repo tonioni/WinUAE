@@ -1291,8 +1291,6 @@ void akiko_reset (void)
     akiko_cdrom_free ();
 }
 
-extern uae_u32 extendedkickmemory;
-
 static uae_u8 patchdata[]={0x0c,0x82,0x00,0x00,0x03,0xe8,0x64,0x00,0x00,0x46};
 
 static void patchrom (void)
