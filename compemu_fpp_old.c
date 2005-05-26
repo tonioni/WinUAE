@@ -486,6 +486,7 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 	}
     }
     abort();
+    return -1;
 }
 
 void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra)
@@ -865,9 +866,9 @@ void comp_frestore_opp (uae_u32 opcode)
 	m68k_areg (regs, opcode & 7) = ad;
 }
 
-static fptype       const_e=2.718281828459045235360;
-static fptype const_log10_e=0.434294481903251827651;
-static fptype const_loge_10=2.302585092994045684018;
+static fptype const_e=2.718281828;  /* Got some more digits? */
+static fptype const_log10_e=0.4342944819;
+static fptype const_loge_10=2.302585093;
 static fptype power10[]={1e0,1e1,1e2,1e4,1e8,1e16,1e32,1e64,1e128,1e256
 #if USE_LONG_DOUBLE
 ,       1e512, 1e1024, 1e2048, 1e4096
@@ -1191,24 +1192,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (src);
 	    break;
 	 case 0x01:		/* FINT */
+	    FAIL(1);    
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    frndint_rr(reg,src);
-	    MAKE_FPSR (reg);
-	    break;
 	 case 0x02:		/* FSINH */
+	    FAIL(1);  
+	    return;
+
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fsinh_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = sinh (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x03:		/* FINTRZ */
 #if USE_X86_FPUCW 
@@ -1250,64 +1243,50 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x06:		/* FLOGNP1 */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    flogNP1_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = log (src + 1.0);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x08:		/* FETOXM1 */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fetoxM1_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = exp (src) - 1.0;
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x09:		/* FTANH */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    ftanh_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = tanh (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x0a:		/* FATAN */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fatan_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = atan (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x0c:		/* FASIN */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fasin_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = asin (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x0d:		/* FATANH */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fatanh_rr(reg,src);
-	    MAKE_FPSR (reg);
+#if 1				/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
+	    regs.fp[reg] = log ((1 + src) / (1 - src)) / 2;
+#else
+	    regs.fp[reg] = atanh (src);
+#endif
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x0e:		/* FSIN */
 	    dont_care_fflags();
@@ -1320,14 +1299,11 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x0f:		/* FTAN */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    ftan_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = tan (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x10:		/* FETOX */
 	    dont_care_fflags();
@@ -1350,37 +1326,26 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x12:		/* FTENTOX */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    ftentox_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = pow (10.0, src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x14:		/* FLOGN */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    flogN_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = log (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-
 	 case 0x15:		/* FLOG10 */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    flog10_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = log10 (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-
 	 case 0x16:		/* FLOG2 */
 	    dont_care_fflags();
 	    src=get_fp_value (opcode, extra);
@@ -1404,14 +1369,11 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x19:		/* FCOSH */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fcosh_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = cosh (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x1a:		/* FNEG */
 	 case 0x5a:
@@ -1426,14 +1388,11 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x1c:		/* FACOS */
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    facos_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = acos (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x1d:		/* FCOS */
 	    dont_care_fflags();
@@ -1534,13 +1493,10 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    break;
 	 case 0x26:		/* FSCALE */
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fscale_rr(reg,src);
-	    MAKE_FPSR (reg);
+	    FAIL(1);  
+	    return;
+	    regs.fp[reg] *= exp (log (2.0) * src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x27:		/* FSGLMUL */
 	    dont_care_fflags();
@@ -1572,15 +1528,12 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	 case 0x35:
 	 case 0x36:
 	 case 0x37:
+	    FAIL(1);  
+	    return;
 	    dont_care_fflags();
-	    src=get_fp_value (opcode, extra);
-	    if (src < 0) {
-		FAIL(1);  /* Illegal instruction */
-		return;
-	    }
-	    fsincos_rr(reg,extra & 7,src);
-	    MAKE_FPSR (extra & 7);
-	    MAKE_FPSR (reg);
+	    regs.fp[reg] = sin (src);
+	    regs.fp[extra & 7] = cos (src);
+	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	 case 0x38:		/* FCMP */
 	    src=get_fp_value (opcode, extra);

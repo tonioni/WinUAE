@@ -84,7 +84,10 @@ uae_u32 catweasel_do_bget (uaecptr addr)
     if (addr >= 0x100)
 	return 0;
     buf1[0] = (uae_u8)addr;
-    DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0);
+    if (handle != INVALID_HANDLE_VALUE)
+	DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0);
+    else
+	buf2[0] = ioport_read (cwc.iobase + addr);
     //write_log ("G %02.2X %02.2X %d\n", buf1[0], buf2[0], did_read);
     return buf2[0];
 }
@@ -98,7 +101,10 @@ void catweasel_do_bput (uaecptr addr, uae_u32 b)
 	return;
     buf[0] = (uae_u8)addr;
     buf[1] = b;
-    DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
+    if (handle != INVALID_HANDLE_VALUE)
+        DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
+    else
+	ioport_write (cwc.iobase + addr, b);
     //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
 }
 
@@ -114,42 +120,52 @@ int catweasel_init (void)
 
     if (!currprefs.catweasel)
 	return 0;
-    for (i = 0; i < 4; i++) {
-	if (currprefs.catweasel > 0)
-	    i = currprefs.catweasel;
-        sprintf (name, "\\\\.\\CAT%d_F0", i);
-	handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
-	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
-	    break;
-    }
-    if (handle == INVALID_HANDLE_VALUE) {
-	write_log ("No Catweasel detected\n");
-	goto fail;
-    }
-    if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	write_log ("CW_GET_VERSION failed %d\n", GetLastError());
-	goto fail;
-    }
-    write_log ("CW driver version string '%s'\n", buffer);
-    if (!DeviceIoControl (handle, CW_GET_HWVERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	write_log ("CW_GET_HWVERSION failed %d\n", GetLastError());
-	goto fail;
-    }
-    write_log ("CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n",
+
+    if (currprefs.catweasel >= 100) {
+	cwc.type = currprefs.catweasel >= 0x400 ? 3 : 1;
+	cwc.iobase = currprefs.catweasel;
+	if (!ioport_init())
+	    goto fail;
+	strcpy(name, "[DIRECT]");
+    } else {
+	for (i = 0; i < 4; i++) {
+	    if (currprefs.catweasel > 0)
+		i = currprefs.catweasel;
+	    sprintf (name, "\\\\.\\CAT%d_F0", i);
+	    handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	    if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
+		break;
+	}
+	if (handle == INVALID_HANDLE_VALUE) {
+	    write_log ("No Catweasel detected\n");
+	    goto fail;
+	}
+	if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+	    write_log ("CW_GET_VERSION failed %d\n", GetLastError());
+	    goto fail;
+	}
+	write_log ("CW driver version string '%s'\n", buffer);
+	if (!DeviceIoControl (handle, CW_GET_HWVERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+	    write_log ("CW_GET_HWVERSION failed %d\n", GetLastError());
+	    goto fail;
+	}
+	write_log ("CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n",
 	buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5],
 	buffer[6], buffer[7], ((uae_u32*)(buffer + 8))[0]);
-    if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	write_log ("CW_LOCK_EXCLUSIVE failed %d\n", GetLastError());
-	goto fail;
+	if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
+	    write_log ("CW_LOCK_EXCLUSIVE failed %d\n", GetLastError());
+	    goto fail;
+	}
+	model = *((uae_u32*)(buffer + 4));
+	base = *((uae_u32*)(buffer + 0));
+	cwc.type = model == 0 ? 1 : model == 2 ? 4 : 3;
+	cwc.iobase = base;
     }
-    model = *((uae_u32*)(buffer + 4));
-    base = *((uae_u32*)(buffer + 0));
-    cwc.type = model == 0 ? 1 : model == 2 ? 4 : 3;
-    cwc.iobase = base;
     write_log ("Catweasel MK%d @%p (%s) detected and enabled\n",
 	cwc.type, cwc.iobase, name);
-    catweasel_do_bput (3, 0x41); /* enable MK3-mode */
+    if (cwc.type == CATWEASEL_TYPE_MK4)
+        catweasel_do_bput (3, 0x41); /* enable MK3-mode */
     catweasel_init_controller (&cwc);
     return 1;
 fail:
@@ -163,6 +179,7 @@ void catweasel_free (void)
     if (handle != INVALID_HANDLE_VALUE)
 	CloseHandle (handle);
     handle = INVALID_HANDLE_VALUE;
+    ioport_free();
     cwc.type = 0;
 }
 

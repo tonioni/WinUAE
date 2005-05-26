@@ -64,9 +64,9 @@ void ioport_free (void)
     if (initialized) {
 	pShutdownWinIo();
 	FreeLibrary (ioh);
+        io_log ("io freed\n");
     }
 #endif
-    io_log ("io freed\n");
     initialized = 0;
 }
 

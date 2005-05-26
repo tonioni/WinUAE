@@ -833,6 +833,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     currprefs.df[dnum][255] = 0;
     strncpy (changed_prefs.df[dnum], fname, 255);
     changed_prefs.df[dnum][255] = 0;
+    strcpy (drv->newname, fname);
     gui_filename (dnum, fname);
 
     memset (buffer, 0, sizeof (buffer));
@@ -1657,6 +1658,9 @@ static void setdskchangetime(drive *drv, int dsktime)
 	}
     }
     drv->dskchange_time = dsktime;
+#ifdef DISK_DEBUG
+    write_dlog("delayed insert enable %d\n", dsktime);
+#endif
 }
 
 void DISK_reinsert (int num)

@@ -3989,6 +3989,7 @@ MIDFUNC(0,nop,(void))
 }
 MENDFUNC(0,nop,(void))
 
+
 MIDFUNC(1,f_forget_about,(FW r))
 {
     if (f_isinreg(r))
@@ -4196,38 +4197,6 @@ MIDFUNC(2,fcos_rr,(FW d, FR s))
 }
 MENDFUNC(2,fcos_rr,(FW d, FR s))
 
-MIDFUNC(2,ftan_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_ftan_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,ftan_rr,(FW d, FR s))
-
-MIDFUNC(3,fsincos_rr,(FW d, FW c, FR s))
-{
-    s=f_readreg(s);  /* s for source */
-    d=f_writereg(d); /* d for sine   */
-    c=f_writereg(c); /* c for cosine */
-    raw_fsincos_rr(d,c,s);
-    f_unlock(s);
-    f_unlock(d);
-    f_unlock(c);
-}
-MENDFUNC(3,fsincos_rr,(FW d, FW c, FR s))
-
-MIDFUNC(2,fscale_rr,(FRW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_rmw(d);
-    raw_fscale_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fscale_rr,(FRW d, FR s))
-
 MIDFUNC(2,ftwotox_rr,(FW d, FR s))
 {
     s=f_readreg(s);
@@ -4248,26 +4217,6 @@ MIDFUNC(2,fetox_rr,(FW d, FR s))
 }
 MENDFUNC(2,fetox_rr,(FW d, FR s))
 
-MIDFUNC(2,fetoxM1_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fetoxM1_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fetoxM1_rr,(FW d, FR s))
-
-MIDFUNC(2,ftentox_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_ftentox_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,ftentox_rr,(FW d, FR s))
-
 MIDFUNC(2,frndint_rr,(FW d, FR s))
 {
     s=f_readreg(s);
@@ -4287,106 +4236,6 @@ MIDFUNC(2,flog2_rr,(FW d, FR s))
     f_unlock(d);
 }
 MENDFUNC(2,flog2_rr,(FW d, FR s))
-
-MIDFUNC(2,flogN_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_flogN_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,flogN_rr,(FW d, FR s))
-
-MIDFUNC(2,flogNP1_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_flogNP1_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,flogNP1_rr,(FW d, FR s))
-
-MIDFUNC(2,flog10_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_flog10_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,flog10_rr,(FW d, FR s))
-
-MIDFUNC(2,fasin_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fasin_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fasin_rr,(FW d, FR s))
-
-MIDFUNC(2,facos_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_facos_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,facos_rr,(FW d, FR s))
-
-MIDFUNC(2,fatan_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fatan_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fatan_rr,(FW d, FR s))
-
-MIDFUNC(2,fatanh_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fatanh_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fatanh_rr,(FW d, FR s))
-
-MIDFUNC(2,fsinh_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fsinh_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fsinh_rr,(FW d, FR s))
-
-MIDFUNC(2,fcosh_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_fcosh_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,fcosh_rr,(FW d, FR s))
-
-MIDFUNC(2,ftanh_rr,(FW d, FR s))
-{
-    s=f_readreg(s);
-    d=f_writereg(d);
-    raw_ftanh_rr(d,s);
-    f_unlock(s);
-    f_unlock(d);
-}
-MENDFUNC(2,ftanh_rr,(FW d, FR s))
 
 MIDFUNC(2,fneg_rr,(FW d, FR s))
 {

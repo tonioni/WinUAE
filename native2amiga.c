@@ -51,7 +51,7 @@ void uae_Cause(uaecptr interrupt)
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 3, 0);
     write_comm_pipe_u32 (&native2amiga_pending, interrupt, 1);
-    uae_int_requested = 1;
+    do_uae_int_requested();
     uae_sem_post (&n2asem);
 }
 
@@ -60,7 +60,7 @@ void uae_ReplyMsg(uaecptr msg)
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 2, 0);
     write_comm_pipe_u32 (&native2amiga_pending, msg, 1);
-    uae_int_requested = 1;
+    do_uae_int_requested();
     uae_sem_post (&n2asem);
 }
 
@@ -70,7 +70,7 @@ void uae_PutMsg(uaecptr port, uaecptr msg)
     write_comm_pipe_int (&native2amiga_pending, 1, 0);
     write_comm_pipe_u32 (&native2amiga_pending, port, 0);
     write_comm_pipe_u32 (&native2amiga_pending, msg, 1);
-    uae_int_requested = 1;
+    do_uae_int_requested();
     uae_sem_post (&n2asem);
 }
 
@@ -80,7 +80,7 @@ void uae_Signal(uaecptr task, uae_u32 mask)
     write_comm_pipe_int (&native2amiga_pending, 0, 0);
     write_comm_pipe_u32 (&native2amiga_pending, task, 0);
     write_comm_pipe_int (&native2amiga_pending, mask, 1);
-    uae_int_requested = 1;
+    do_uae_int_requested();
     uae_sem_post (&n2asem);
 }
 
@@ -90,7 +90,7 @@ void uae_NotificationHack(uaecptr port, uaecptr nr)
     write_comm_pipe_int (&native2amiga_pending, 4, 0);
     write_comm_pipe_int (&native2amiga_pending, port, 0);
     write_comm_pipe_int (&native2amiga_pending, nr, 1);
-    uae_int_requested = 1;
+    do_uae_int_requested();
     uae_sem_post (&n2asem);
 }
 

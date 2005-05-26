@@ -241,9 +241,8 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
     if ((shmids[shmid].key == shmid) && shmids[shmid].size) {
 	got = FALSE;
 	if (got == FALSE) {
-	    if (shmaddr) {
-		result = (void*)VirtualFree(shmaddr, 0, os_winnt ? MEM_RESET : MEM_RELEASE);
-	    }
+	    if (shmaddr)
+		VirtualFree(shmaddr, 0, os_winnt ? MEM_RESET : MEM_RELEASE);
 	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT),
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {

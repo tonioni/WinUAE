@@ -113,12 +113,12 @@ void filesys_init( void )
 	    /* Is this drive-letter valid (it used to check for media in drive) */
             if( ( dwDriveMask & 1 ) /* && CheckRM( volumepath ) */ ) 
             {
-		BOOL inserted = CheckRM( volumepath ); /* Is there a disk inserted? */
-                drivetype = GetDriveType( volumepath );
+		BOOL inserted = CheckRM(volumepath); /* Is there a disk inserted? */
+                drivetype = GetDriveType(volumepath);
 		if (drivetype != DRIVE_CDROM) {
 
 		    get_volume_name( currprefs.mountinfo, volumepath, volumename, MAX_DPATH, inserted, drivetype, 1 );
-		    if( drivetype == DRIVE_REMOTE )
+		    if (drivetype == DRIVE_REMOTE)
 			strcat( volumepath, "." );
 		    else
 			strcat( volumepath, ".." );

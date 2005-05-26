@@ -4281,7 +4281,7 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
     cw = catweasel_detect();
     EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
-    if (!cw)
+    if (!cw && workprefs.catweasel < 100)
 	workprefs.catweasel = 0;
     CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);

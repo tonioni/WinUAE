@@ -112,7 +112,7 @@ static struct cfg_lines opttable[] =
     {"floppy3", "Diskfile for drive 3" },
     {"hardfile", "access,sectors, surfaces, reserved, blocksize, path format" },
     {"filesystem", "access,'Amiga volume-name':'host directory path' - where 'access' can be 'read-only' or 'read-write'" },
-    {"catweasel_io","Catweasel board io base address" }
+    {"catweasel", "Catweasel board io base address" }
 };
 
 static const char *guimode1[] = { "no", "yes", "nowait", 0 };
@@ -412,7 +412,10 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
 
     cfgfile_write (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
-    cfgfile_write (f, "catweasel=%d\n", p->catweasel);
+    if (p->catweasel >= 100)
+	cfgfile_write (f, "catweasel=0x%x\n", p->catweasel);
+    else
+	cfgfile_write (f, "catweasel=%d\n", p->catweasel);
 
     cfgfile_write (f, "kbd_lang=%s\n", (p->keyboard_lang == KBD_LANG_DE ? "de"
 				  : p->keyboard_lang == KBD_LANG_DK ? "dk"

@@ -3414,7 +3414,7 @@ static void *filesys_thread (void *unit_v)
 	ui->self->cmds_sent++;
 	/* The message is sent by our interrupt handler, so make sure an interrupt
 	 * happens. */
-	uae_int_requested = 1;
+	do_uae_int_requested();
 	/* Send back the locks. */
 	if (get_long (ui->self->locklist) != 0)
 	    write_comm_pipe_int (ui->back_pipe, (int)(get_long (ui->self->locklist)), 0);

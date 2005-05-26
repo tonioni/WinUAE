@@ -54,3 +54,10 @@ void native2amiga_startup (void);
  * It's emptied via exter_int_helper by the EXTER interrupt. */
 extern smp_comm_pipe native2amiga_pending;
 #endif
+
+STATIC_INLINE do_uae_int_requested(void)
+{
+	uae_int_requested = 1;
+	set_uae_int_flag ();
+	INTREQ (0x8000 | 0x0008);
+}
