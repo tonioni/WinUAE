@@ -179,7 +179,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     struct zfile *f;
     uae_u8 *keybuf = 0;
     int keysize = 0;
-    char tmp[MAX_PATH];
+    char tmp[MAX_PATH], *d;
  
     tmp[0] = 0;
     if (path)
@@ -187,23 +187,33 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     strcat (tmp, "rom.key");
     f = zfile_fopen (tmp, "rb");
     if (!f) {
-	struct romdata *rd = getromdatabyid (0);
-        char *s = romlist_get (rd);
-        if (s)
-	    f = zfile_fopen (s, "rb");
+	strcpy (tmp, p->romfile);
+	d = strrchr(tmp, '/');
+	if (!d)
+	    d = strrchr(tmp, '\\');
+	if (d) {
+	    strcpy (d + 1, "rom.key");
+	    f = zfile_fopen(tmp, "rb");
+	}
 	if (!f) {
-	    strcpy (tmp, p->path_rom);
-	    strcat (tmp, "rom.key");
-	    f = zfile_fopen (tmp, "rb");
+	    struct romdata *rd = getromdatabyid (0);
+	    char *s = romlist_get (rd);
+	    if (s)
+		f = zfile_fopen (s, "rb");
 	    if (!f) {
-		f = zfile_fopen ("roms/rom.key", "rb");
+		strcpy (tmp, p->path_rom);
+		strcat (tmp, "rom.key");
+		f = zfile_fopen (tmp, "rb");
 		if (!f) {
-		    strcpy (tmp, start_path_data);
-		    strcat (tmp, "rom.key");
-		    f = zfile_fopen(tmp, "rb");
+		    f = zfile_fopen ("roms/rom.key", "rb");
 		    if (!f) {
-			sprintf (tmp, "%s../shared/rom/rom.key", start_path_data);
+			strcpy (tmp, start_path_data);
+			strcat (tmp, "rom.key");
 			f = zfile_fopen(tmp, "rb");
+			if (!f) {
+			    sprintf (tmp, "%s../shared/rom/rom.key", start_path_data);
+			    f = zfile_fopen(tmp, "rb");
+			}
 		    }
 		}
 	    }

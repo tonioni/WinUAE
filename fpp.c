@@ -1372,8 +1372,8 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	case 0x35:
 	case 0x36:
 	case 0x37:
-	    regs.fp[reg] = sin (src);
 	    regs.fp[extra & 7] = cos (src);
+	    regs.fp[reg] = sin (src);
 	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	case 0x38:		/* FCMP */

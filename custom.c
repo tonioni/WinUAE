@@ -707,7 +707,7 @@ static void create_cycle_diagram_table(void)
 		if (planes <= max_planes) {
 		    for (cycle = 0; cycle < fetch_start; cycle++) {
 			if (cycle < max_planes && planes >= cycle_sequence[cycle & 7]) {
-			    v = 1;
+			    v = cycle_sequence[cycle & 7];
 			} else {
 			    v = 0;
 			    freecycles++;
@@ -2714,6 +2714,26 @@ static void varsync (void)
 }
 #endif
 
+int is_bitplane_dma (int hpos)
+{
+    if (fetch_state == fetch_not_started || hpos < thisline_decision.plfleft)
+	return 0;
+    if ((passed_plfstop == 3 && hpos >= thisline_decision.plfright)
+	|| hpos >= estimated_last_fetch_cycle)
+	return 0;
+    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
+}
+
+STATIC_INLINE int is_bitplane_dma_inline (int hpos)
+{
+    if (fetch_state == fetch_not_started || hpos < thisline_decision.plfleft)
+	return 0;
+    if ((passed_plfstop == 3 && hpos >= thisline_decision.plfright)
+	|| hpos >= estimated_last_fetch_cycle)
+	return 0;
+    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
+}
+
 static void BPLxPTH (int hpos, uae_u16 v, int num)
 {
     decide_line (hpos);
@@ -2723,9 +2743,14 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 }
 static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
+    int delta = 0;
     decide_line (hpos);
     decide_fetch (hpos);
-    bplpt[num] = (bplpt[num] & ~0xffff) | (v & 0xfffe);
+    /* fix for "bitplane dma fetch at the same time while updating BPLxPTL" */
+    /* fixes "3v Demo" by Cave and "New Year Demo" by Phoenix */
+    if (is_bitplane_dma(hpos - 1) == num + 1)
+	delta = 2 << fetchmode;
+    bplpt[num] = (bplpt[num] & ~0xffff) | ((v + delta) & 0xfffe);
     //write_log("%d:%d:BPL%dPTL %08.8X\n", hpos, vpos, num, v);
 }
 
@@ -3302,26 +3327,6 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 
 /* Determine which cycles are available for the copper in a display
  * with a agiven number of planes.  */
-
-int is_bitplane_dma (int hpos)
-{
-    if (fetch_state == fetch_not_started || hpos < thisline_decision.plfleft)
-	return 0;
-    if ((passed_plfstop == 3 && hpos >= thisline_decision.plfright)
-	|| hpos >= estimated_last_fetch_cycle)
-	return 0;
-    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
-}
-
-STATIC_INLINE int is_bitplane_dma_inline (int hpos)
-{
-    if (fetch_state == fetch_not_started || hpos < thisline_decision.plfleft)
-	return 0;
-    if ((passed_plfstop == 3 && hpos >= thisline_decision.plfright)
-	|| hpos >= estimated_last_fetch_cycle)
-	return 0;
-    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
-}
 
 STATIC_INLINE int copper_cant_read (int hpos)
 {

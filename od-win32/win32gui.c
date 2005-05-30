@@ -2453,7 +2453,7 @@ static urlinfo urls[] =
     {IDC_PICASSOHOME, FALSE, "Picasso96 Home Page", "http://www.picasso96.cogito.de/"}, 
     {IDC_UAEHOME, FALSE, "UAE Home Page", "http://www.freiburg.linux.de/~uae/"},
     {IDC_WINUAEHOME, FALSE, "WinUAE Home Page", "http://www.winuae.net/"},
-    {IDC_AIABHOME, FALSE, "AIAB", "http://aiab.emuunlim.com/"},
+    {IDC_AIABHOME, FALSE, "AIAB", "http://www.amigainabox.co.uk/"},
     {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
     {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
     {IDC_CAPS, FALSE, "CAPS", "http://caps-project.org/"},

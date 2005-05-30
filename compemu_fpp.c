@@ -1446,25 +1446,24 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x1e:		/* FGETEXP */
-	    FAIL(1);  
-	    return;
 	    dont_care_fflags();
-	    {
-		int expon;
-		frexp (src, &expon);
-		regs.fp[reg] = (double) (expon - 1);
-		MAKE_FPSR (regs.fp[reg]);
+	    src=get_fp_value (opcode, extra);
+	    if (src < 0) {
+		FAIL(1);  /* Illegal instruction */
+		return;
 	    }
+	    fgetexp_rr(reg,src);
+	    MAKE_FPSR (reg);
 	    break;
 	 case 0x1f:		/* FGETMAN */
-	    FAIL(1);  
-	    return;
 	    dont_care_fflags();
-	    {
-		int expon;
-		regs.fp[reg] = frexp (src, &expon) * 2.0;
-		MAKE_FPSR (regs.fp[reg]);
+	    src=get_fp_value (opcode, extra);
+	    if (src < 0) {
+		FAIL(1);  /* Illegal instruction */
+		return;
 	    }
+	    fgetman_rr(reg,src);
+	    MAKE_FPSR (reg);
 	    break;
 	 case 0x20:		/* FDIV */
 	 case 0x60:
@@ -1578,8 +1577,10 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		FAIL(1);  /* Illegal instruction */
 		return;
 	    }
-	    fsincos_rr(reg,extra & 7,src);
-	    MAKE_FPSR (extra & 7);
+	    if (reg == (extra & 7))
+		fsin_rr(reg, src);
+	    else
+		fsincos_rr(reg, extra & 7, src);
 	    MAKE_FPSR (reg);
 	    break;
 	 case 0x38:		/* FCMP */
