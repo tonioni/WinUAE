@@ -55,7 +55,7 @@ int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons)
     *buttons = catweasel_do_bget (0xc8);
     if (cwc.type == CATWEASEL_TYPE_MK4) {
 	*buttons &= ~0x80;
-	*buttons |= (catweasel_do_bget (0x07) << 4) & 0x80;
+	*buttons |= (catweasel_do_bget (0x07) << 3) & 0x80;
     }
     return 1;
 }

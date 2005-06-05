@@ -156,19 +156,19 @@ SubSection "Additional files" secAdditionalFiles
  SectionEnd
 SubSectionEnd
 
-;SubSection "Translations" secTranslations
-; Section "German" secTransGerman
-;  SectionIn 1
-;  SetOutPath "$INSTDIR\"
-;  File "${DISTPATH}\WinUAE_German.dll"
-; SectionEnd
+#SubSection "Translations" secTranslations
+# Section "German" secTransGerman
+#  SectionIn 1
+#  SetOutPath "$INSTDIR\"
+#  File "${DISTPATH}\WinUAE_German.dll"
+# SectionEnd
  
 ; Section "Foo" secTransFoo
 ;  SectionIn 1
 ;  SetOutPath "$INSTDIR\"
 ;  File "${DISTPATH}\WinUAE_Foo.dll"
 ; SectionEnd
-;SubSectionEnd
+SubSectionEnd
 
 SubSection "Shortcuts" secShortcuts
  Section "Startmenu" secStartmenu

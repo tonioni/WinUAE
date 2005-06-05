@@ -1169,7 +1169,7 @@ END
 STRINGTABLE 
 BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
-    IDS_QS_MODEL_ARCADIA    "Your LIBS:Picasso96/rtg.library (%d.%d) needs updating\nReplace it with newer version from ""Amiga Programs""-directory in WinUAE archive."
+    IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an Amiga 500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to """"Cartridge ROM File"""" in ROM-panel."""
 END
 
 #endif    // English (U.S.) resources
