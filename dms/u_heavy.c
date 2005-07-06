@@ -3,7 +3,7 @@
  *     xDMS  v1.3  -  Portable DMS archive unpacker  -  Public Domain
  *     Written by     Andre Rodrigues de la Rocha  <adlroc@usa.net>
  *
- *     Lempel-Ziv-Huffman decompression functions used in Heavy 1 & 2 
+ *     Lempel-Ziv-Huffman decompression functions used in Heavy 1 & 2
  *     compression modes. Based on LZH decompression functions from
  *     UNIX LHA made by Masaru Oki
  *

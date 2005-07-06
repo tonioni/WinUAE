@@ -63,7 +63,7 @@ char *fsdb_search_dir (const char *dirname, char *rel)
     /* This really shouldn't happen...  */
     if (! dir)
 	return 0;
-    
+
     while (p == 0 && (de = my_readdir (dir, fn)) != 0) {
 	if (strcmp (fn, rel) == 0)
 	    p = rel;
@@ -79,7 +79,7 @@ static FILE *get_fsdb (a_inode *dir, const char *mode)
 {
     char *n;
     FILE *f;
-    
+
     n = build_nname (dir->nname, FSDB_FILE);
     f = fopen (n, mode);
     free (n);
@@ -103,7 +103,7 @@ static void fsdb_fixup (FILE *f, char *buf, int size, a_inode *base)
     nname = build_nname (base->nname, buf + 5 + 257);
     ret = fsdb_exists (nname);
     if (ret) {
-        free (nname);
+	free (nname);
 	return;
     }
     TRACE (("uaefsdb '%s' deleted\n", nname));
@@ -217,12 +217,12 @@ int fsdb_used_as_nname (a_inode *base, const char *nname)
 {
     FILE *f;
     char buf[1 + 4 + 257 + 257 + 81];
-    
+
     f = get_fsdb (base, "r+b");
     if (f == 0) {
 	if (currprefs.filesys_custom_uaefsdb && (base->volflags & MYVOLUMEINFO_STREAMS))
 	    return custom_fsdb_used_as_nname (base, nname);
-    	return 0;
+	return 0;
     }
     for (;;) {
 	if (fread (buf, 1, sizeof buf, f) < sizeof buf)
@@ -244,7 +244,7 @@ static int needs_dbentry (a_inode *aino)
 
     if (aino->deleted)
 	return 0;
-    
+
     if (! fsdb_mode_representable_p (aino) || aino->comment != 0)
 	return 1;
 

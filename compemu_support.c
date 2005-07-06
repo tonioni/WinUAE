@@ -1,3 +1,4 @@
+
 #define writemem_special writemem
 #define readmem_special  readmem
 
@@ -13,6 +14,10 @@
 #include "newcpu.h"
 #include "comptbl.h"
 #include "compemu.h"
+
+#if defined(JIT)
+
+#define NATMEM_OFFSETX (uae_u32)NATMEM_OFFSET
 
 // %%% BRIAN KING WAS HERE %%%
 extern int canbang;
@@ -5056,9 +5061,9 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 	if (clobber)
 	    f=source;
 	switch(size) {
-	 case 1: mov_b_bRr(address,source,NATMEM_OFFSET); break; 
-	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,NATMEM_OFFSET); break;
-	 case 4: mov_l_rr(f,source); bswap_32(f); mov_l_bRr(address,f,NATMEM_OFFSET); break;
+	 case 1: mov_b_bRr(address,source,NATMEM_OFFSETX); break; 
+	 case 2: mov_w_rr(f,source); bswap_16(f); mov_w_bRr(address,f,NATMEM_OFFSETX); break;
+	 case 4: mov_l_rr(f,source); bswap_32(f); mov_l_bRr(address,f,NATMEM_OFFSETX); break;
 	}
 	forget_about(tmp);
 	forget_about(f);
@@ -5193,9 +5198,9 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 #ifdef NATMEM_OFFSET
     if (canbang) {  /* Woohoo! go directly at the memory! */
 	switch(size) {
-	 case 1: mov_b_brR(dest,address,NATMEM_OFFSET); break; 
-	 case 2: mov_w_brR(dest,address,NATMEM_OFFSET); bswap_16(dest); break;
-	 case 4: mov_l_brR(dest,address,NATMEM_OFFSET); bswap_32(dest); break;
+	 case 1: mov_b_brR(dest,address,NATMEM_OFFSETX); break; 
+	 case 2: mov_w_brR(dest,address,NATMEM_OFFSETX); bswap_16(dest); break;
+	 case 4: mov_l_brR(dest,address,NATMEM_OFFSETX); bswap_32(dest); break;
 	}
 	forget_about(tmp);
 	return;
@@ -5298,7 +5303,7 @@ static __inline__ void get_n_addr_real(int address, int dest, int tmp)
 
 #ifdef NATMEM_OFFSET
     if (canbang) {
-	lea_l_brr(dest,address,NATMEM_OFFSET);
+	lea_l_brr(dest,address,NATMEM_OFFSETX);
 	forget_about(tmp);
 	return;
     }
@@ -6350,4 +6355,4 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
     }
 }
 
-
+#endif

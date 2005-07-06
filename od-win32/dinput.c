@@ -45,6 +45,11 @@
 #define DID_JOYSTICK 2
 #define DID_KEYBOARD 3
 
+#define DIDC_DX 1
+#define DIDC_RAW 2
+#define DIDC_WIN 3
+#define DIDC_CAT 4
+
 struct didata {
     int type;
     int disabled;
@@ -55,9 +60,11 @@ struct didata {
     char *name;
     char *sortname;
 
+    int connection;
     LPDIRECTINPUTDEVICE8 lpdi;
     HANDLE rawinput;
     int wininput;
+    int catweasel;
 
     int axles;
     int buttons;
@@ -150,6 +157,79 @@ static int register_rawinput (void)
     return 1;
 }
 
+static void cleardid(struct didata *did)
+{
+    int i;
+    memset (did, 0, sizeof (*did));
+    for (i = 0; i < MAX_MAPPINGS; i++) {
+	did->axismappings[i] = -1;
+	did->buttonmappings[i] = -1;
+    }
+}
+
+static int initialize_catweasel(void)
+{
+    int j, i;
+    char tmp[MAX_DPATH];
+    struct didata *did;
+
+    if (catweasel_ismouse()) {
+	for (i = 0; i < 2 && num_mouse < MAX_INPUT_DEVICES; i++) {
+	    did = di_mouse;
+	    did += num_mouse;
+	    cleardid(did);
+	    did->connection = DIDC_CAT;
+	    did->catweasel = i;
+	    did->name = my_strdup ("Catweasel mouse");
+	    did->sortname = my_strdup (tmp);
+	    did->buttons = 3;
+	    did->axles = 2;
+	    did->axistype[0] = 1;
+	    did->axissort[0] = 0;
+	    did->axisname[0] = my_strdup ("X-Axis");
+	    did->axistype[1] = 1;
+	    did->axissort[1] = 1;
+	    did->axisname[1] = my_strdup ("Y-Axis");
+	    for (j = 0; j < did->buttons; j++) {
+		did->buttonsort[j] = j;
+		sprintf (tmp, "Button %d", j + 1);
+		did->buttonname[j] = my_strdup (tmp);
+	    }
+	    did->priority = -1;
+	    num_mouse++;
+	}
+    }
+    if (catweasel_isjoystick()) {
+	for (i = 0; i < 2 && num_joystick < MAX_INPUT_DEVICES; i++) {
+	    did = di_joystick;
+	    did += num_joystick;
+	    cleardid(did);
+	    did->connection = DIDC_CAT;
+	    did->catweasel = i;
+	    sprintf (tmp, "Catweasel joystick");
+	    did->name = my_strdup (tmp);
+	    did->sortname = my_strdup (tmp);
+	    did->buttons = (catweasel_isjoystick() & 0x80) ? 3 : 1;
+	    did->axles = 2;
+	    did->axistype[0] = 1;
+	    did->axissort[0] = 0;
+	    did->axisname[0] = my_strdup ("X-Axis");
+	    did->axistype[1] = 1;
+	    did->axissort[1] = 1;
+	    did->axisname[1] = my_strdup ("Y-Axis");
+	    for (j = 0; j < did->buttons; j++) {
+		did->buttonsort[j] = j;
+		sprintf (tmp, "Button %d", j + 1);
+		did->buttonname[j] = my_strdup (tmp);
+	    }
+	    did->priority = -1;
+	    num_joystick++;
+	}
+    }
+    return 1;
+}
+
+
 #define RDP_MOUSE "\\??\\Root#RDP_MOU#"
 
 static int initialize_rawinput (void)
@@ -241,14 +321,11 @@ static int initialize_rawinput (void)
 	    }
 
 	    rnum_raw++;
-	    memset (did, 0, sizeof (*did));
-	    for (j = 0; j < MAX_MAPPINGS; j++) {
-		did->axismappings[j] = -1;
-		did->buttonmappings[j] = -1;
-	    }
+	    cleardid(did);
 	    sprintf (tmp, "%s", type == RIM_TYPEMOUSE ? "RAW Mouse" : "RAW Keyboard");
 	    did->name = my_strdup (tmp);
 	    did->rawinput = h;
+	    did->connection = DIDC_RAW;
 
 	    write_log ("%p %s: ", h, type == RIM_TYPEMOUSE ? "mouse" : "keyboard");
 	    did->sortname = my_strdup (buf);
@@ -313,6 +390,7 @@ static void initialize_windowsmouse (void)
 	    return;
 	num_mouse++;
 	name = (i == 0) ? "Windows mouse" : "Mousehack mouse";
+	did->connection = DIDC_WIN;
 	did->name = my_strdup (i ? "Mousehack mouse" : "Windows mouse");
 	did->sortname = my_strdup (i ? "Windowsmouse2" : "Windowsmouse1");
 	did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
@@ -686,6 +764,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
         did->buttonmappings[i] = -1;
     }
     len = strlen (lpddi->tszInstanceName) + 3 + 1;
+    did->connection = DIDC_DX;
     did->name = malloc (len);
     strcpy (did->name, lpddi->tszInstanceName);
     did->guid = lpddi->guidInstance;
@@ -719,8 +798,9 @@ static int di_do_init (void)
     }
 
     IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-    initialize_rawinput ();
-    initialize_windowsmouse ();
+    initialize_rawinput();
+    initialize_windowsmouse();
+    initialize_catweasel();
 
     sortdd (di_joystick, num_joystick, DID_JOYSTICK);
     sortdd (di_mouse, num_mouse, DID_MOUSE);
@@ -818,7 +898,7 @@ static int init_mouse (void)
     mouse_inited = 1;
     for (i = 0; i < num_mouse; i++) {
 	did = &di_mouse[i];
-	if (!did->disabled && !did->rawinput && !did->wininput) {
+	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (hr == DI_OK) {
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIMouse); 
@@ -858,7 +938,7 @@ static int acquire_mouse (int num, int flags)
     HRESULT hr;
 
     unacquire (lpdi, "mouse");
-    if (lpdi) {
+    if (did->connection == DIDC_DX && lpdi) {
 	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "mouse");
 	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
 	dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
@@ -916,7 +996,21 @@ static void read_mouse (void)
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	struct didata *did = &di_mouse[i];
 	LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
-	if (!lpdi)
+	if (!did->acquired)
+	    continue;
+	if (did->connection == DIDC_CAT) {
+	    int cx, cy, cbuttons;
+	    catweasel_read_mouse(did->catweasel, &cx, &cy, &cbuttons);
+	    if (cx)
+		setmousestate(i, 0, cx, 0);
+	    if (cy)
+		setmousestate(i, 1, cy, 0);
+	    setmousebuttonstate(i, 0, cbuttons & 8);
+	    setmousebuttonstate(i, 1, cbuttons & 4);
+	    setmousebuttonstate(i, 2, cbuttons & 2);
+	    continue;
+	}
+	if (!lpdi || did->connection != DIDC_DX)
 	    continue;
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
@@ -1130,7 +1224,7 @@ static int init_kb (void)
     keyboard_inited = 1;
     for (i = 0; i < num_keyboard; i++) {
         struct didata *did = &di_keyboard[i];
-	if (!did->disabled && !did->rawinput && !did->wininput) {
+	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (hr == DI_OK) {
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIKeyboard); 
@@ -1326,6 +1420,8 @@ static void read_kb (void)
     update_leds ();
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	struct didata *did = &di_keyboard[i];
+	if (!did->acquired)
+	    continue;
 	lpdi = did->lpdi;
 	if (!lpdi)
 	    continue;
@@ -1545,13 +1641,27 @@ static void read_joystick (void)
 
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	struct didata *did = &di_joystick[i];
-	lpdi = did->lpdi;
-	if (!lpdi)
-	    continue;
 	if (currprefs.input_selected_setting == 0) {
 	    if (jsem_isjoy (0, &currprefs) != i && jsem_isjoy (1, &currprefs) != i)
 		continue;
 	}
+	if (!did->acquired)
+	    continue;
+	if (did->connection == DIDC_CAT) {
+	    uae_u8 cdir, cbuttons;
+	    catweasel_read_joystick(&cdir, &cbuttons);
+	    cdir >>= did->catweasel * 4;
+	    cbuttons >>= did->catweasel * 4;
+	    setjoystickstate(i, 0, !(cdir & 1) ? 1 : !(cdir & 2) ? -1 : 0, 0);
+	    setjoystickstate(i, 1, !(cdir & 4) ? 1 : !(cdir & 8) ? -1 : 0, 0);
+	    setjoybuttonstate(i, 0, cbuttons & 8);
+	    setjoybuttonstate(i, 1, cbuttons & 4);
+	    setjoybuttonstate(i, 2, cbuttons & 2);
+	    continue;
+	}
+	lpdi = did->lpdi;
+	if (!lpdi || did->connection != DIDC_DX)
+	    continue;
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 	if (hr == DI_OK) {
@@ -1598,7 +1708,7 @@ static void read_joystick (void)
 	}
         IDirectInputDevice8_Poll (lpdi);
     }
-#ifdef CATWEASEL
+#if 0
     {
 	static uae_u8 odir, obut;
 	uae_u8 dir, dir2, but;
@@ -1638,7 +1748,7 @@ static int init_joystick (void)
     joystick_inited = 1;
     for (i = 0; i < num_joystick; i++) {
 	did = &di_joystick[i];
-	if (!did->disabled) {
+	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (hr == DI_OK) {
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIJoystick);
@@ -1648,8 +1758,9 @@ static int init_joystick (void)
 		    sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		    sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		}
-	    } else
+	    } else {
 		write_log ("joystick createdevice failed, %s\n", DXError (hr));
+	    }
 	}
     }
     return 1;
@@ -1677,17 +1788,21 @@ static int acquire_joystick (int num, int flags)
     HRESULT hr;
 
     unacquire (lpdi, "joystick");
-    setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "joystick");
-    memset (&dipdw, 0, sizeof (dipdw));
-    dipdw.diph.dwSize = sizeof(DIPROPDWORD);
-    dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
-    dipdw.diph.dwObj = 0;
-    dipdw.diph.dwHow = DIPH_DEVICE;
-    dipdw.dwData = DI_BUFFER;
-    hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
-    if (hr != DI_OK)
+    if (di_joystick[num].connection == DIDC_DX && lpdi) {
+	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "joystick");
+	memset (&dipdw, 0, sizeof (dipdw));
+	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
+	dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	dipdw.diph.dwObj = 0;
+	dipdw.diph.dwHow = DIPH_DEVICE;
+	dipdw.dwData = DI_BUFFER;
+	hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
+	if (hr != DI_OK)
 	write_log ("joystick setproperty failed, %s\n", DXError (hr));
-    di_joystick[num].acquired = acquire (lpdi, "joystick") ? 1 : -1;
+	di_joystick[num].acquired = acquire (lpdi, "joystick") ? 1 : -1;
+    } else {
+	di_joystick[num].acquired = 1;
+    }
     return di_joystick[num].acquired > 0 ? 1 : 0;
 }
 

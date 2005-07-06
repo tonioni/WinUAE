@@ -581,9 +581,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	*tmpp = '\0';
 	if (strcmp (section, TARGET_NAME) == 0) {
 	    /* We special case the various path options here.  */
-	    if (cfgfile_string (option, value, "rom_path", p->path_rom, 256)
-		|| cfgfile_string (option, value, "floppy_path", p->path_floppy, 256)
-		|| cfgfile_string (option, value, "hardfile_path", p->path_hardfile, 256))
+	    if (cfgfile_string (option, value, "rom_path", p->path_rom, sizeof p->path_rom)
+		|| cfgfile_string (option, value, "floppy_path", p->path_floppy, sizeof p->path_floppy)
+		|| cfgfile_string (option, value, "hardfile_path", p->path_hardfile, sizeof p->path_hardfile))
 		return 1;
 	    return target_parse_option (p, option, value);
 	}
@@ -591,7 +591,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
     for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	sprintf (tmpbuf, "diskimage%d", i);
-	if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], 256)) {
+	if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i])) {
 #if 0
 	    if (i < 4 && !p->df[i][0])
 		strcpy (p->df[i], p->dfxlist[i]);
@@ -635,12 +635,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "override_dga_address", &p->override_dga_address, 1))
 	    return 1;
 
-	if (cfgfile_string (option, value, "floppy0soundext", p->dfxclickexternal[0], 256)
-	|| cfgfile_string (option, value, "floppy1soundext", p->dfxclickexternal[1], 256)
-	|| cfgfile_string (option, value, "floppy2soundext", p->dfxclickexternal[2], 256)
-	|| cfgfile_string (option, value, "floppy3soundext", p->dfxclickexternal[3], 256)
-	|| cfgfile_string (option, value, "config_info", p->info, 256)
-	|| cfgfile_string (option, value, "config_description", p->description, 256))
+    if (cfgfile_string (option, value, "floppy0soundext", p->dfxclickexternal[0], sizeof p->dfxclickexternal[0])
+	|| cfgfile_string (option, value, "floppy1soundext", p->dfxclickexternal[1], sizeof p->dfxclickexternal[1])
+	|| cfgfile_string (option, value, "floppy2soundext", p->dfxclickexternal[2], sizeof p->dfxclickexternal[2])
+	|| cfgfile_string (option, value, "floppy3soundext", p->dfxclickexternal[3], sizeof p->dfxclickexternal[3])
+	|| cfgfile_string (option, value, "config_info", p->info, sizeof p->info)
+	|| cfgfile_string (option, value, "config_description", p->description, sizeof p->description))
 	    return 1;
 
 	if (cfgfile_yesno (option, value, "use_debugger", &p->start_debugger)
@@ -896,17 +896,17 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_strval (option, value, "collision_level", &p->collision_level, collmode, 0)
 	|| cfgfile_strval (option, value, "comp_flushmode", &p->comp_hardflush, flushmode, 0))
 	return 1;
-    if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, 256)
-	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, 256)
-	|| cfgfile_string (option, value, "flash_file", p->flashfile, 256)
-	|| cfgfile_string (option, value, "cart_file", p->cartfile, 256)
-	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, 256)
-	|| cfgfile_string (option, value, "ghostscript_parameters", p->ghostscript_parameters, 256))
+    if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, sizeof p->romfile)
+	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile)
+	|| cfgfile_string (option, value, "flash_file", p->flashfile, sizeof p->flashfile)
+	|| cfgfile_string (option, value, "cart_file", p->cartfile, sizeof p->cartfile)
+	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, sizeof p->pci_devices)
+	|| cfgfile_string (option, value, "ghostscript_parameters", p->ghostscript_parameters, sizeof p->ghostscript_parameters))
 	return 1;
 
     for (i = 0; i < 4; i++) {
 	sprintf (tmpbuf, "floppy%d", i);
-	if (cfgfile_string (option, value, tmpbuf, p->df[i], 256)) {
+	if (cfgfile_string (option, value, tmpbuf, p->df[i], sizeof p->df[i])) {
 #if 0
 	    strcpy (p->dfxlist[i], p->df[i]);
 #endif
@@ -1104,9 +1104,9 @@ int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int ty
 	return 1;
     if (!strcmp (option, "config_host"))
 	return 1;
-    if (cfgfile_string (option, value, "config_hardware_path", p->config_hardware_path, 256))
+    if (cfgfile_string (option, value, "config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path))
 	return 1;
-    if (cfgfile_string (option, value, "config_host_path", p->config_host_path, 256))
+    if (cfgfile_string (option, value, "config_host_path", p->config_host_path, sizeof p->config_host_path))
 	return 1;
     if (type == 0 || (type & CONFIG_TYPE_HARDWARE)) {
 	if (cfgfile_parse_hardware (p, option, value))

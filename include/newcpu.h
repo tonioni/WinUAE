@@ -162,12 +162,12 @@ STATIC_INLINE void m68k_setpc (uaecptr newpc)
 
 STATIC_INLINE uaecptr m68k_getpc (void)
 {
-    return regs.pc + ((char *)regs.pc_p - (char *)regs.pc_oldp);
+    return regs.pc + (uaecptr)(((char *)regs.pc_p - (char *)regs.pc_oldp));
 }
 
 STATIC_INLINE uaecptr m68k_getpc_p (uae_u8 *p)
 {
-    return regs.pc + ((char *)p - (char *)regs.pc_oldp);
+    return regs.pc + (uaecptr)(((char *)p - (char *)regs.pc_oldp));
 }
 
 #define get_ibyte(o) do_get_mem_byte((uae_u8 *)(regs.pc_p + (o) + 1))
@@ -253,6 +253,8 @@ extern void m68k_dumpstate (void *, uaecptr *);
 extern void m68k_disasm (void *, uaecptr, uaecptr *, int);
 extern void sm68k_disasm(char *, char *, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (void);
+extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
+extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
 
 extern void mmu_op (uae_u32, uae_u16);
 
@@ -290,7 +292,7 @@ extern struct cputbl op_smalltbl_6_ff[];
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 
-  
+
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 #define TAGMASK 0x000fffff

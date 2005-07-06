@@ -62,9 +62,7 @@
 #include "parser.h"
 #include "scsidev.h"
 #include "disk.h"
-
-unsigned long *win32_stackbase; 
-unsigned long *win32_freestack[42]; //EXTRA_STACK_SIZE
+#include "catweasel.h"
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -189,14 +187,18 @@ static void dummythread (void *dummy)
 
 static uae_u64 win32_read_processor_time (void)
 {
+#if defined(X86_MSVC_ASSEMBLY)
     uae_u32 foo, bar;
-     __asm
+    __asm
     {
         rdtsc
         mov foo, eax
         mov bar, edx
     }
     return ((uae_u64)bar << 32) | foo;
+#else
+    return 0;
+#endif
 }
 
 static int figure_processor_speed (void)
@@ -212,13 +214,14 @@ static int figure_processor_speed (void)
     int mmx = 0; 
 
     rpt_available = no_rdtsc > 0 ? 0 : 1;
+#ifdef X86_MSVC_ASSEMBLY
     __try
     {
 	__asm 
 	{
 	    rdtsc
 	}
-    } __except( GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION ) {
+    } __except(GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
 	rpt_available = 0;
 	write_log ("CLOCKFREQ: RDTSC not supported\n");
     }
@@ -235,6 +238,11 @@ static int figure_processor_speed (void)
 	    cpu_mmx = 1;
     } __except(GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
     }
+#endif
+#ifdef WIN64
+    cpu_mmx = 1;
+    rpt_available = 0;
+#endif
 
     if (QueryPerformanceFrequency(&freq)) {
 	qpc_avail = 1;
@@ -695,7 +703,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
-	if (!mouseactive && !isfullscreen()) {
+	if (!mouseactive && !isfullscreen() && !gui_active) {
 	    setmouseactive (1);
 	}
 	if (dinput_winmouse () >= 0)
@@ -899,7 +907,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		case NM_RCLICK:
 		{
 		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam; 
-		    int num = lpnm->dwItemSpec;
+		    int num = (int)lpnm->dwItemSpec;
 		    if (num >= 6 && num <= 9) {
 			num -= 6;
 			if (nm->code == NM_RCLICK) {
@@ -2076,6 +2084,7 @@ static void betamessage (void)
 
 static int dxdetect (void)
 {
+#if !defined(WIN64)
     /* believe or not but this is MS supported way of detecting DX8+ */
     HMODULE h = LoadLibrary("D3D8.DLL");
     char szWrongDXVersion[ MAX_DPATH ];
@@ -2086,6 +2095,9 @@ static int dxdetect (void)
     WIN32GUI_LoadUIString( IDS_WRONGDXVERSION, szWrongDXVersion, MAX_DPATH );
     pre_gui_message( szWrongDXVersion );
     return 0;
+#else
+    return 1;
+#endif
 }
 
 int os_winnt, os_winnt_admin;
@@ -2243,18 +2255,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     int multi_display = 1;
     int start_data = 0;
 
-#if 1
-#ifdef __GNUC__
-    __asm__ ("leal -2300*1024(%%esp),%0" : "=r" (win32_stackbase) :);
-#else
-__asm{
-    mov eax,esp
-    sub eax,2300*1024
-    mov win32_stackbase,eax
- }
-#endif
-#endif
-
 #ifdef _DEBUG
     {
 	int tmp = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
@@ -2309,7 +2309,14 @@ __asm{
 #endif
     getstartpaths(start_data);
     sprintf(help_file, "%sWinUAE.chm", start_path_data);
-    sprintf(VersionStr, "WinUAE %d.%d.%d%s", UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "");
+    sprintf(VersionStr, "WinUAE %d.%d.%d%s (%d-bit)",
+	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "",
+	#if defined(WIN64)
+	64
+	#else
+	32
+	#endif
+    );
     SetCurrentDirectory (start_path_data);
 
     logging_init ();
@@ -2340,6 +2347,9 @@ __asm{
         DirectDraw_Release();
         betamessage ();
         keyboard_settrans ();
+#ifdef CATWEASEL
+	catweasel_init();
+#endif
 #ifdef PARALLEL_PORT
         paraport_mask = paraport_init ();
 #endif
@@ -2415,6 +2425,15 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
     }
     return ok;
 }
+
+#if defined(WIN64)
+
+static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+{
+    write_log("EVALEXCEPTION!\n");
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#else
 
 #if 0
 #include <errorrep.h>
@@ -2543,6 +2562,8 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
     return lRet ;
 }
 
+#endif
+
 void systray (HWND hwnd, int remove)
 {
     NOTIFYICONDATA nid;
@@ -2599,26 +2620,82 @@ void systraymenu (HWND hwnd)
     winuae_active (hwnd, FALSE);
 }
 
+static void LLError(const char *s)
+{
+    DWORD err = GetLastError();
+
+    if (err == ERROR_MOD_NOT_FOUND)
+	return;
+    write_log("%s failed to open %d\n", s, err);
+}
 
 HMODULE WIN32_LoadLibrary (const char *name)
 {
-    HMODULE m;
-    char *s = xmalloc (strlen (start_path_exe) + strlen (WIN32_PLUGINDIR) + strlen (name) + 1);
-    if (s) {
-	sprintf (s, "%s%s%s", start_path_exe, WIN32_PLUGINDIR, name);
-	m = LoadLibrary (s);
-        xfree (s);
+    HMODULE m = NULL;
+    char *newname;
+    DWORD err = -1;
+    char *p;
+    int round;
+
+    newname = xmalloc(strlen(name) + 1 + 10);
+    if (!newname)
+	return NULL;
+    for (round = 0; round < 4; round++) {
+	char *s;
+	strcpy(newname, name);
+#ifdef CPU_64_BIT
+	switch(round)
+	{
+	    case 0:
+	    p = strstr(newname,"32");
+	    if (p) {
+		p[0] = '6';
+		p[1] = '4';
+	    }
+	    break;
+	    case 1:
+	    p = strchr(newname,'.');
+	    strcpy(p,"_64");
+	    strcat(p, strchr(name,'.'));
+	    break;
+	    case 2:
+	    p = strchr(newname,'.');
+	    strcpy(p,"64");
+	    strcat(p, strchr(name,'.'));
+	    break;
+	}
+#endif
+	s = xmalloc (strlen (start_path_exe) + strlen (WIN32_PLUGINDIR) + strlen (newname) + 1);
+	if (s) {
+	    sprintf (s, "%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
+	    m = LoadLibrary (s);
+	    if (m)
+		goto end;
+	    LLError(s);
+	    xfree (s);
+	}
+        m = LoadLibrary (newname);
 	if (m)
-	    return m;
+	    goto end;
+	LLError(newname);
+#ifndef CPU_64_BIT
+	break;
+#endif
     }
-    return LoadLibrary (name);
+end:
+    xfree(newname);
+    return m;
 }
+
+uae_u8 *win32_stackbase; 
 
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
     HANDLE thread;
     DWORD_PTR oldaff;
+
+    win32_stackbase = _alloca(32768 * 32);
 
     thread = GetCurrentThread();
     oldaff = SetThreadAffinityMask(thread, 1); 

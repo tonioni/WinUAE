@@ -8,11 +8,12 @@
  * Copyright 2000-2002 Bernd Roesch
  */
     
-
 #define NATIVBUFFNUM 4
 #define RECORDBUFFER 50 //survive 9 sec of blocking at 44100
 
 #include "sysconfig.h"
+
+#if defined(AHI)
 
 #ifdef __GNUC__
 #define INITGUID
@@ -45,9 +46,9 @@
 #include "sounddep/sound.h"
 #include "od-win32/ahidsound.h"
 #include "vfw.h"
+#include "dxwrap.h"
 #include "win32.h"
 #include "win32gfx.h"
-#include "dxwrap.h"
 #include "inputdevice.h"
 #include "avioutput.h"
 #include "parser.h"
@@ -77,9 +78,6 @@ static int amigablksize;
 static DWORD sound_flushes2 = 0;
 
 extern HWND hAmigaWnd;
-#ifdef __GNUC__
-DEFINE_GUID(IID_IDirectSoundNotify, 0xb0210783, 0x89cd, 0x11d0, 0xaf, 0x8, 0x0, 0xa0, 0xc9, 0x25, 0xcd, 0x16);
-#endif
 
 static LPDIRECTSOUND lpDS2 = NULL;
 static LPDIRECTSOUNDBUFFER lpDSBprimary2 = NULL;
@@ -98,9 +96,10 @@ struct winuae        //this struct is put in a6 if you call
     unsigned int changenum;   //number to detect screen close/open 
     unsigned int z3offset;    //the offset to add to acsess Z3 mem from Dll side
 };
+static struct winuae uaevar;
+static struct winuae *a6;
 
-struct winuae uaevar;
-struct winuae *a6;
+#if defined(X86_MSVC_ASSEMBLY)
 
 #define CREATE_NATIVE_FUNC_PTR2 uae_u32 (* native_func)( uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
 						 uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,uae_u32,uae_u32)
@@ -156,6 +155,8 @@ static uae_u32 emulib_ExecuteNativeCode2 (void)
 	else
     return 0;
 }
+
+#endif
 
 void ahi_close_sound (void)
 {
@@ -674,6 +675,8 @@ uae_u32 ahi_demux (void)
 	    flushprinter ();
 	return 0;
 	
+#if defined(X86_MSVC_ASSEMBLY)
+
 	case 100: // open dll
 	{  
 	    char *dllname;
@@ -697,7 +700,7 @@ uae_u32 ahi_demux (void)
 
 	case 102:      //execute native code
 	    return emulib_ExecuteNativeCode2 ();
-		
+
 	case 103:      //close dll
 	{
 	    HMODULE libaddr;
@@ -705,6 +708,7 @@ uae_u32 ahi_demux (void)
 	    FreeLibrary(libaddr);
 	    return 0;
 	}
+#endif
 
 	case 104:        //screenlost
 	{
@@ -715,6 +719,7 @@ uae_u32 ahi_demux (void)
 	    return 1;
 	}
 
+#if defined(X86_MSVC_ASSEMBLY)
 	case 105:   //returns memory offset
 	    return (uae_u32) get_real_address(0);
 	case 106:   //byteswap 16bit vars
@@ -838,6 +843,7 @@ uae_u32 ahi_demux (void)
 	    free(bswap_buffer);
 	    bswap_buffer = NULL;
 	return 0; 	
+#endif
 
 	case 200:
 	    ahitweak = m68k_dreg (regs, 1);
@@ -852,3 +858,5 @@ uae_u32 ahi_demux (void)
 	return 0x12345678;     // Code for not supportet function
     }
 } 
+
+#endif

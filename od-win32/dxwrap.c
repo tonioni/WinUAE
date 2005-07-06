@@ -47,18 +47,20 @@ static int flipinterval_supported;
 
 #define dxwrite_log
 
-static int restoresurface (LPDIRECTDRAWSURFACE7 surface)
+static HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surface)
 {
-    HRESULT hr = IDirectDrawSurface7_Restore (surface);
+    HRESULT hr2, hr;
+    DDSURFACEDESC2 surfacedesc;
+
+    hr = IDirectDrawSurface7_Restore (surface);
     if (SUCCEEDED(hr)) {
-	HRESULT hr2;
 	DDBLTFX bltfx;
 	memset (&bltfx, 0, sizeof (bltfx));
 	bltfx.dwSize = sizeof (bltfx);
 	hr2 = IDirectDrawSurface7_Blt (surface, NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &bltfx);
 	if (FAILED(hr2)) {
 	    static int crap = 0;
-	    if (hr2 == 0x887601C2) {
+	    if (hr2 == DDERR_SURFACELOST) {
 		if (crap)
 		    return hr;
 		crap = 1;
@@ -66,6 +68,12 @@ static int restoresurface (LPDIRECTDRAWSURFACE7 surface)
 		return hr;
 	    }
 	    write_log("Surface clear failed: %s\n", DXError (hr2));
+	}
+	surfacedesc.dwSize = sizeof surfacedesc;
+	hr2 = IDirectDrawSurface7_Lock(surface, NULL, &surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL);
+	if (SUCCEEDED(hr2)) {
+	    write_log("Surface Pointer: %p\n", surfacedesc.lpSurface);
+	    IDirectDrawSurface7_Unlock(surface, NULL);
 	}
     }
     return hr;
@@ -286,7 +294,7 @@ static int LockStub( surface_type_e type )
     if(SUCCEEDED(ddrval))
         result = 1;
     
-    if( result )
+    if(result)
         lockcnt++;
 
     return result;
@@ -367,7 +375,7 @@ char *DirectDraw_GetSurfacePointer( void )
     char *pixels = NULL;
 
     /* Make sure that somebody has done a lock before returning the lpSurface member */
-    if( lockcnt )
+    if(lockcnt)
     {
         pixels = DirectDrawState.lockable.lpdesc->lpSurface;
     }
@@ -1639,7 +1647,7 @@ DWORD DirectDraw_CurrentRefreshRate( void )
  *   1999.08.02  Brian King             Creation
  *
  */
-static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD y, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect )
+static int DirectDraw_BltFastStub4(LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD y, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect )
 {
     int result = 0;
     HRESULT ddrval;
@@ -1650,9 +1658,7 @@ static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD
         {
     	    ddrval = restoresurface ( dstsurf );
             if (FAILED(ddrval))
-            {
                 break;
-            }
         }
         else if (ddrval != DDERR_SURFACEBUSY) 
         {
@@ -1661,9 +1667,7 @@ static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD
         }
     }
     if(SUCCEEDED(ddrval))
-    {
         result = 1;
-    }
     return result;
 }
 
@@ -1682,10 +1686,8 @@ static int DirectDraw_BltFastStub4( LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD
  *   1999.08.02  Brian King             Creation
  *
  */
-int DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_type_e srctype, LPRECT srcrect )
+HRESULT DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_type_e srctype, LPRECT srcrect )
 {
-    int result;
-
     LPDIRECTDRAWSURFACE7 lpDDS4_dst, lpDDS4_src;
     if( dsttype == primary_surface )
     {
@@ -1711,8 +1713,7 @@ int DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_t
     {
         lpDDS4_src = DirectDrawState.secondary.surface;
     }
-    result = DirectDraw_BltFastStub4( lpDDS4_dst, left, top, lpDDS4_src, srcrect );
-    return result;
+    return DirectDraw_BltFastStub4( lpDDS4_dst, left, top, lpDDS4_src, srcrect );
 }
 
 /*
@@ -1730,12 +1731,12 @@ int DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_t
  *   1999.08.02  Brian King             Creation
  *
  */
-static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect, DWORD flags, LPDDBLTFX ddbltfx )
+static HRESULT DirectDraw_BltStub(LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect, DWORD flags, LPDDBLTFX ddbltfx)
 {
     int result = 0, errcnt = 0;
     HRESULT ddrval;
 
-    while(FAILED(ddrval = IDirectDrawSurface7_Blt( dstsurf, dstrect, srcsurf, srcrect, flags, ddbltfx)))
+    while(FAILED(ddrval = IDirectDrawSurface7_Blt(dstsurf, dstrect, srcsurf, srcrect, flags, ddbltfx)))
     {
         if (ddrval == DDERR_SURFACELOST) 
         {
@@ -1753,20 +1754,8 @@ static int DirectDraw_BltStub( LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, LPD
 	    write_log("BltStub(): DirectDrawSURFACE7_Blt() failed with %s\n", DXError (ddrval));
             break;
         }
-#if 0
-	else
-	{
-	    write_log( "Blt() failed - %s\n", DXError (ddrval));
-	    result = 0;
-	    break;
-	}
-#endif
     }
-    if(SUCCEEDED(ddrval))
-    {
-        result = 1;
-    }
-    return result;
+    return ddrval;
 }
 
 /*
@@ -1866,12 +1855,10 @@ int DirectDraw_Flip(int wait)
  *   1999.08.02  Brian King             Creation
  *
  */
-int DirectDraw_Blt( surface_type_e dsttype, LPRECT dstrect,
+HRESULT DirectDraw_Blt(surface_type_e dsttype, LPRECT dstrect,
                     surface_type_e srctype, LPRECT srcrect,
-                    DWORD flags, LPDDBLTFX fx )
+                    DWORD flags, LPDDBLTFX fx)
 {
-    int result;
-
     LPDIRECTDRAWSURFACE7 lpDDS4_dst, lpDDS4_src;
     
     if( dsttype == primary_surface )
@@ -1922,8 +1909,7 @@ int DirectDraw_Blt( surface_type_e dsttype, LPRECT dstrect,
     {
 	lpDDS4_src = NULL; /* For using BltStub to do rect-fills */
     }
-    result = DirectDraw_BltStub( lpDDS4_dst, dstrect, lpDDS4_src, srcrect, flags, fx );
-    return result;
+    return DirectDraw_BltStub(lpDDS4_dst, dstrect, lpDDS4_src, srcrect, flags, fx);
 }
 
 /*

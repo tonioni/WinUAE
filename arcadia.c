@@ -35,7 +35,7 @@
  * - ar_xeon
  *
  */
- 
+
 int arcadia_flag, arcadia_coin[2];
 struct arcadiarom *arcadia_rom;
 
@@ -75,7 +75,7 @@ static int load_rom8 (char *xpath, uae_u8 *mem, int isbin)
     int i;
     uae_u8 *tmp = xmalloc (131072);
     char *bin = isbin ? ".bin" : "";
-    
+
     memset (tmp, 0, 131072);
     sprintf (path, "%sh%s", xpath, bin);
     zf = zfile_fopen (path, "rb");
@@ -132,15 +132,15 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
 {
     char path[MAX_DPATH], path2[MAX_DPATH], path3[MAX_DPATH], *p;
     int i;
-    
+
     strcpy (path3, xpath);
     p = path3 + strlen (path3) - 1;
     while (p > path3) {
 	if (p[0] == '\\' || p[0] == '/') {
 	    *p = 0;
 	    break;
-        }
-        p--;
+	}
+	p--;
     }
     if (p == path3)
 	*p = 0;
@@ -150,9 +150,9 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
 
     sprintf (path, "%s/ar_bios.zip/%s", path3, rom->bios);
     if (!load_rom8 (path, arbmemory + bios_offset, 0)) {
-        write_log ("Arcadia: bios load failed ('%s')\n", path);
+	write_log ("Arcadia: bios load failed ('%s')\n", path);
 	sprintf (path, "%s/%s", path2, rom->bios);
-        if (!load_rom8 (path, arbmemory + bios_offset, 0)) {
+	if (!load_rom8 (path, arbmemory + bios_offset, 0)) {
 	    write_log ("Arcadia: bios load failed ('%s')\n", path);
 	    return 0;
 	}
@@ -160,10 +160,10 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
     write_log ("Arcadia: bios '%s' loaded\n", path);
     i = 0;
     for (;;) {
-        sprintf (path, "%s/%s%d", xpath, rom->rom, i + 1);
+	sprintf (path, "%s/%s%d", xpath, rom->rom, i + 1);
 	if (!load_rom8 (path, arbmemory + 2 * 65536 * i, rom->bin)) {
 	    if (i == 0)
-	        write_log ("Arcadia: game rom load failed ('%s')\n", path);
+		write_log ("Arcadia: game rom load failed ('%s')\n", path);
 	    break;
 	}
 	i++;
@@ -177,7 +177,7 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
 static uae_u8 bswap (uae_u8 v,int b7,int b6,int b5,int b4,int b3,int b2,int b1,int b0)
 {
     uae_u8 b = 0;
-    
+
     b |= ((v >> b7) & 1) << 7;
     b |= ((v >> b6) & 1) << 6;
     b |= ((v >> b5) & 1) << 5;
@@ -192,7 +192,7 @@ static uae_u8 bswap (uae_u8 v,int b7,int b6,int b5,int b4,int b3,int b2,int b1,i
 static void decrypt_roms (struct arcadiarom *rom)
 {
     int i, j;
-    
+
     for (i = 1; i < 0x20000; i += 2)
 	arbmemory[i] = bswap (arbmemory[i],
 	    rom->b7,rom->b6,rom->b5,rom->b4,rom->b3,rom->b2,rom->b1,rom->b0);
@@ -347,8 +347,8 @@ static void nvram_write (void)
 {
     struct zfile *f = zfile_fopen (currprefs.flashfile, "rb+");
     if (!f) {
-        f = zfile_fopen (currprefs.flashfile, "wb");
-        if (!f)
+	f = zfile_fopen (currprefs.flashfile, "wb");
+	if (!f)
 	    return;
     }
     zfile_fwrite (arbmemory + nvram_offset, NVRAM_SIZE, 1, f);

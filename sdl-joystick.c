@@ -48,7 +48,7 @@ static void read_joy(int nr)
 		return;
 	} else if (isjoy (nr, 1)) {
 	    if (JSEM_ISNUMPAD (1, &currprefs) || JSEM_ISCURSOR (1, &currprefs) || JSEM_ISSOMEWHEREELSE (1, &currprefs))
-	        return;
+		return;
 	} else
 	    return;
     }

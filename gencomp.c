@@ -81,7 +81,7 @@ static int *opcode_next_clev;
 static int *opcode_last_postfix;
 static unsigned long *counts;
 
-static void 
+static void
 read_counts (void)
 {
     FILE *file;
@@ -123,14 +123,14 @@ read_counts (void)
 static int n_braces = 0;
 static int insn_n_cycles;
 
-static void 
+static void
 start_brace (void)
 {
     n_braces++;
     comprintf ("{");
 }
 
-static void 
+static void
 close_brace (void)
 {
     assert (n_braces > 0);
@@ -138,21 +138,21 @@ close_brace (void)
     comprintf ("}");
 }
 
-static void 
+static void
 finish_braces (void)
 {
     while (n_braces > 0)
 	close_brace ();
 }
 
-static void 
+static void
 pop_braces (int to)
 {
     while (n_braces > to)
 	close_brace ();
 }
 
-static int 
+static int
 bit_size (int size)
 {
     switch (size)
@@ -230,7 +230,7 @@ gen_nextilong (void)
 
     sprintf (buffer, "comp_get_ilong((m68k_pc_offset+=4)-4)");
     insn_n_cycles += 4;
-  
+
     long_opcode=1;
     return buffer;
 }
@@ -259,16 +259,16 @@ gen_nextibyte (void)
     return buffer;
 }
 
-static void 
+static void
 sync_m68k_pc (void)
 {
-    comprintf("\t if (m68k_pc_offset>100) sync_m68k_pc();\n"); 
+    comprintf("\t if (m68k_pc_offset>100) sync_m68k_pc();\n");
 }
 
 
 /* getv == 1: fetch data; getv != 0: check for odd address. If movem != 0,
  * the calling routine handles Apdi and Aipi modes. */
-static void 
+static void
 genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem)
 {
     start_brace ();
@@ -277,7 +277,7 @@ genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int move
      case Dreg: /* Do we need to check dodgy here? */
 	if (movem)
 	    abort ();
-	if (getv == 1 || getv==2) { 
+	if (getv == 1 || getv==2) {
 	    /* We generate the variable even for getv==2, so we can use
 	       it as a destination for MOVE */
 	    comprintf ("\tint %s=%s;\n",name,reg);
@@ -306,8 +306,8 @@ genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int move
 	comprintf ("\tint %sa=scratchie++;\n",name,reg);
 	comprintf ("\tmov_l_rr(%sa,%s+8);\n",name, reg);
 	break;
-     case Apdi: 
-	switch (size)   
+     case Apdi:
+	switch (size)
 	{
 	 case sz_byte:
 	    if (movem) {
@@ -507,7 +507,7 @@ genamode (amodes mode, char *reg, wordsizes size, char *name, int getv, int move
     }
 }
 
-static void 
+static void
 genastore (char *from, amodes mode, char *reg, wordsizes size, char *to)
 {
     switch (mode)
@@ -559,7 +559,7 @@ genastore (char *from, amodes mode, char *reg, wordsizes size, char *to)
      {
 	 char astring[80];
 	 sprintf(astring,"%sa",to);
-	
+
 	 switch (size)
 	 {
 	  case sz_byte:
@@ -596,7 +596,7 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
     comprintf("\tint dst=scratchie++;\n");
 
     if ((opcode & 0xfff8) == 0xf620) {
-    	/* MOVE16 (Ax)+,(Ay)+ */
+	/* MOVE16 (Ax)+,(Ay)+ */
 	comprintf("\tuae_u16 dstreg=((%s)>>12)&0x07;\n", gen_nextiword());
 	comprintf("\tmov_l_rr(src,8+srcreg);\n");
 	comprintf("\tmov_l_rr(dst,8+dstreg);\n");
@@ -607,14 +607,14 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	comprintf("\tmov_l_rr(src,srca);\n");
 	comprintf("\tmov_l_rr(dst,dsta);\n");
     }
-	
+
     /* Align on 16-byte boundaries */
     comprintf("\tand_l_ri(src,~15);\n");
     comprintf("\tand_l_ri(dst,~15);\n");
-	
-	
+
+
     if ((opcode & 0xfff8) == 0xf620) {
-    	comprintf("\tif (srcreg != dstreg)\n");
+	comprintf("\tif (srcreg != dstreg)\n");
 	comprintf("\tadd_l_ri(srcreg+8,16);\n");
 	comprintf("\tadd_l_ri(dstreg+8,16);\n");
     } else if ((opcode & 0xfff8) == 0xf600)
@@ -706,7 +706,7 @@ static void genmov16(void)
 }
 #endif
 
-static void 
+static void
 genmovemel (uae_u16 opcode)
 {
     comprintf ("\tuae_u16 mask = %s;\n", gen_nextiword ());
@@ -723,12 +723,12 @@ genmovemel (uae_u16 opcode)
     comprintf("\tfor (i=0;i<16;i++) {\n"
 	      "\t\tif ((mask>>i)&1) {\n");
     switch(table68k[opcode].size) {
-     case sz_long: 
+     case sz_long:
 	comprintf("\t\t\tmov_l_rR(i,native,offset);\n"
 		  "\t\t\tbswap_32(i);\n"
 		  "\t\t\toffset+=4;\n");
 	break;
-     case sz_word: 
+     case sz_word:
 	comprintf("\t\t\tmov_w_rR(i,native,offset);\n"
 		  "\t\t\tbswap_16(i);\n"
 		  "\t\t\tsign_extend_16_rr(i,i);\n"
@@ -739,7 +739,7 @@ genmovemel (uae_u16 opcode)
     comprintf("\t\t}\n"
 	      "\t}");
     if (table68k[opcode].dmode == Aipi) {
-	comprintf("\t\t\tlea_l_brr(8+dstreg,srca,offset);\n"); 
+	comprintf("\t\t\tlea_l_brr(8+dstreg,srca,offset);\n");
     }
     /* End fast but unsafe.   */
 
@@ -751,7 +751,7 @@ genmovemel (uae_u16 opcode)
     comprintf("\tfor (i=0;i<16;i++) {\n"
 	      "\t\tif ((mask>>i)&1) {\n");
     switch(table68k[opcode].size) {
-    case sz_long: 
+    case sz_long:
 	comprintf("\t\t\treadlong(tmp,i,scratchie);\n"
 		  "\t\t\tadd_l_ri(tmp,4);\n");
 	break;
@@ -772,7 +772,7 @@ genmovemel (uae_u16 opcode)
 }
 
 
-static void 
+static void
 genmovemle (uae_u16 opcode)
 {
     comprintf ("\tuae_u16 mask = %s;\n", gen_nextiword ());
@@ -794,13 +794,13 @@ genmovemle (uae_u16 opcode)
 	comprintf("\tfor (i=0;i<16;i++) {\n"
 		  "\t\tif ((mask>>i)&1) {\n");
 	switch(table68k[opcode].size) {
-	 case sz_long: 
+	 case sz_long:
 	    comprintf("\t\t\tmov_l_rr(tmp,i);\n"
 		      "\t\t\tbswap_32(tmp);\n"
 		      "\t\t\tmov_l_Rr(native,tmp,offset);\n"
 		      "\t\t\toffset+=4;\n");
 	    break;
-	 case sz_word: 
+	 case sz_word:
 	    comprintf("\t\t\tmov_l_rr(tmp,i);\n"
 		      "\t\t\tbswap_16(tmp);\n"
 		      "\t\t\tmov_w_Rr(native,tmp,offset);\n"
@@ -812,14 +812,14 @@ genmovemle (uae_u16 opcode)
 	comprintf("\tfor (i=0;i<16;i++) {\n"
 		  "\t\tif ((mask>>i)&1) {\n");
 	switch(table68k[opcode].size) {
-	 case sz_long: 
+	 case sz_long:
 	    comprintf("\t\t\toffset-=4;\n"
 		      "\t\t\tmov_l_rr(tmp,15-i);\n"
 		      "\t\t\tbswap_32(tmp);\n"
 		      "\t\t\tmov_l_Rr(native,tmp,offset);\n"
 		      );
 	    break;
-	 case sz_word: 
+	 case sz_word:
 	    comprintf("\t\t\toffset-=2;\n"
 		      "\t\t\tmov_l_rr(tmp,15-i);\n"
 		      "\t\t\tbswap_16(tmp);\n"
@@ -842,11 +842,11 @@ genmovemle (uae_u16 opcode)
 	comprintf("\tfor (i=0;i<16;i++) {\n"
 		  "\t\tif ((mask>>i)&1) {\n");
 	switch(table68k[opcode].size) {
-	 case sz_long: 
+	 case sz_long:
 	    comprintf("\t\t\twritelong(tmp,i,scratchie);\n"
 		      "\t\t\tadd_l_ri(tmp,4);\n");
 	    break;
-	 case sz_word: 
+	 case sz_word:
 	    comprintf("\t\t\twriteword(tmp,i,scratchie);\n"
 		      "\t\t\tadd_l_ri(tmp,2);\n");
 	    break;
@@ -857,18 +857,18 @@ genmovemle (uae_u16 opcode)
 	comprintf("\tfor (i=0;i<16;i++) {\n"
 		  "\t\tif ((mask>>i)&1) {\n");
 	switch(table68k[opcode].size) {
-	 case sz_long: 
+	 case sz_long:
 	    comprintf("\t\t\tsub_l_ri(srca,4);\n"
 		      "\t\t\twritelong(srca,15-i,scratchie);\n");
 	    break;
-	 case sz_word: 
+	 case sz_word:
 	    comprintf("\t\t\tsub_l_ri(srca,2);\n"
 		      "\t\t\twriteword(srca,15-i,scratchie);\n");
 	    break;
 	 default: abort();
 	}
     }
-  
+
 
     comprintf("\t\t}\n"
 	      "\t}");
@@ -879,7 +879,7 @@ genmovemle (uae_u16 opcode)
 }
 
 
-static void 
+static void
 duplicate_carry (void)
 {
     comprintf ("\tif (needed_flags&FLAG_X) duplicate_carry();\n");
@@ -887,14 +887,14 @@ duplicate_carry (void)
 
 typedef enum
 {
-    flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp, 
+    flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp,
     flag_addx, flag_subx, flag_zn, flag_av, flag_sv, flag_and, flag_or,
     flag_eor, flag_mov
 }
 flagtypes;
 
 
-static void 
+static void
 genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 {
     if (noflags) {
@@ -1021,11 +1021,11 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 		close_brace();
 		return;
 	    }
-      
+
 
 	 case flag_addx:
 	 case flag_subx:
-		
+
 	    comprintf("\tdont_care_flags();\n");
 	    {
 		char* op;
@@ -1053,7 +1053,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 	 default: return;
 	}
     }
-  
+
     /* Need the flags, but possibly not all of them */
     switch (type)
     {
@@ -1194,10 +1194,10 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
 		duplicate_carry();
 	    }
 	    comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
-	    
+
 	    return;
 	}
-      
+
      case flag_addx:
      case flag_subx:
 		 uses_cmov;
@@ -1251,7 +1251,7 @@ genflags (flagtypes type, wordsizes size, char *value, char *src, char *dst)
     }
 }
 
-static void 
+static void
 force_range_for_rox (const char *var, wordsizes size)
 {
     /* Could do a modulo operation here... which one is faster? */
@@ -1288,7 +1288,7 @@ cmask (wordsizes size)
     }
 }
 
-static int 
+static int
 source_is_imm1_8 (struct instr *i)
 {
     return i->stype == 3;
@@ -1358,11 +1358,11 @@ gen_opcode (unsigned long int opcode)
      case i_ORSR:
      case i_EORSR:
 	failure;
-	isjump; 
+	isjump;
 	break;
      case i_ANDSR:
 	failure;
-	isjump; 
+	isjump;
 	break;
      case i_SUB:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
@@ -1472,7 +1472,7 @@ gen_opcode (unsigned long int opcode)
      case i_BCLR:
      case i_BSET:
      case i_BTST:
-		 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
+			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	start_brace();
 	comprintf("\tint s=scratchie++;\n"
@@ -1482,7 +1482,7 @@ gen_opcode (unsigned long int opcode)
 	else
 	    comprintf("\tand_l_ri(s,31);\n");
 
-	{ 
+	{
 	    char* op;
 	    int need_write=1;
 
@@ -1502,7 +1502,7 @@ gen_opcode (unsigned long int opcode)
 					"\tlive_flags();\n"
 					"\tend_needflags();\n");
 		}
-	    if (need_write) 
+	    if (need_write)
 		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	}
 	break;
@@ -1530,15 +1530,15 @@ gen_opcode (unsigned long int opcode)
 	     case i_BSET: op="bts"; break;
 	     case i_BTST: op="bt"; need_write=0; break;
 	    }
-	    comprintf("\t%s_l_rr(dst,s);\n"  // Answer now in C 
-		      "\tsbb_l(s,s);\n" // s is 0 if bit was 0,  -1 otherwise 
-		      "\tmake_flags_live();\n" // Get the flags back 
-		      "\tdont_care_flags();\n" 
+	    comprintf("\t%s_l_rr(dst,s);\n"  // Answer now in C
+		      "\tsbb_l(s,s);\n" // s is 0 if bit was 0,  -1 otherwise
+		      "\tmake_flags_live();\n" // Get the flags back
+		      "\tdont_care_flags();\n"
 		      "\tstart_needflags();\n"
 		      "\tbsf_l_rr(s,s);\n"
 		      "\tlive_flags();\n"
 		      "\tend_needflags();\n",op);
-	    if (need_write) 
+	    if (need_write)
 		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	}
 	break;
@@ -1566,11 +1566,11 @@ gen_opcode (unsigned long int opcode)
 	/* The next two are coded a little unconventional, but they are doing
 	 * weird things... */
      case i_MVPRM:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MVPMR:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MOVE:
@@ -1605,11 +1605,11 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_MVSR2:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MV2SR:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_SWAP:
@@ -1661,29 +1661,29 @@ gen_opcode (unsigned long int opcode)
 	genmovemle (opcode);
 	break;
      case i_TRAP:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MVR2USP:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MVUSP2R:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_RESET:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_NOP:
 	break;
      case i_STOP:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_RTE:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_RTD:
@@ -1700,7 +1700,7 @@ gen_opcode (unsigned long int opcode)
 		  "\tm68k_pc_offset=0;\n"
 		  "\tadd_l(15,offs);\n");
 	gen_update_next_handler();
-	isjump; 
+	isjump;
 	break;
      case i_LINK:
 	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0);
@@ -1730,18 +1730,18 @@ gen_opcode (unsigned long int opcode)
 		  "\tm68k_pc_offset=0;\n"
 		  "\tlea_l_brr(15,15,4);\n");
 	gen_update_next_handler();
-	isjump; 
+	isjump;
 	break;
      case i_TRAPV:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_RTR:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_JSR:
-	isjump; 
+	isjump;
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
 	start_brace();
 	comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
@@ -1797,7 +1797,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tsub_l_ri(src,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
 	/* Leave the following as "add" --- it will allow it to be optimized
 	   away due to src being a constant ;-) */
-	comprintf("\tadd_l_ri(src,(uae_u32)comp_pc_p);\n");  
+	comprintf("\tadd_l_ri(src,(uae_u32)comp_pc_p);\n");
 	comprintf("\tmov_l_ri(PC_P,(uae_u32)comp_pc_p);\n");
 	/* Now they are both constant. Might as well fold in m68k_pc_offset */
 	comprintf("\tadd_l_ri(src,m68k_pc_offset);\n");
@@ -1810,15 +1810,15 @@ gen_opcode (unsigned long int opcode)
 		      "\tregister_branch(v1,v2,%d);\n",
 		      cond_codes_x86[curi->cc]);
 	    comprintf("\tmake_flags_live();\n"); /* Load the flags */
-	    isjump; 
+	    isjump;
 	}
 	else {
-	    is_const_jump; 
+	    is_const_jump;
 	}
 
 	switch(curi->cc) {
 	 case 0:  /* Unconditional jump */
-	    comprintf("\tmov_l_rr(PC_P,src);\n"); 
+	    comprintf("\tmov_l_rr(PC_P,src);\n");
 	    comprintf("\tcomp_pc_p=(void*)get_const(PC_P);\n");
 	    break;
 	 case 1: break; /* This is silly! */
@@ -1836,7 +1836,7 @@ gen_opcode (unsigned long int opcode)
 	 case 12:
 	 case 13:
 	 case 14:
-	 case 15: 
+	 case 15:
 	    break;
 	 default: abort();
 	}
@@ -1847,12 +1847,12 @@ gen_opcode (unsigned long int opcode)
 	genastore ("srca", curi->dmode, "dstreg", curi->size, "dst");
 	break;
      case i_PEA:
-	if (table68k[opcode].smode==Areg || 
-	    table68k[opcode].smode==Aind || 
-	    table68k[opcode].smode==Aipi || 
-	    table68k[opcode].smode==Apdi || 
-	    table68k[opcode].smode==Ad16 || 
-	    table68k[opcode].smode==Ad8r) 
+	if (table68k[opcode].smode==Areg ||
+	    table68k[opcode].smode==Aind ||
+	    table68k[opcode].smode==Aipi ||
+	    table68k[opcode].smode==Apdi ||
+	    table68k[opcode].smode==Ad16 ||
+	    table68k[opcode].smode==Ad8r)
 	    comprintf("if (srcreg==7) dodgy=1;\n");
 
 	genamode (curi->smode, "srcreg", curi->size, "src", 0, 0);
@@ -1860,7 +1860,7 @@ gen_opcode (unsigned long int opcode)
 	genastore ("srca", Apdi, "7", sz_long, "dst");
 	break;
      case i_DBcc:
-	isjump; 
+	isjump;
 	uses_cmov;
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0);
@@ -1870,9 +1870,9 @@ gen_opcode (unsigned long int opcode)
 	 case sz_word: comprintf("\tsign_extend_16_rr(offs,offs);\n"); break;
 	 default: abort();  /* Seems this only comes in word flavour */
 	}
-	comprintf("\tsub_l_ri(offs,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n"); 
-	comprintf("\tadd_l_ri(offs,(uae_u32)comp_pc_p);\n"); /* New PC, 
-								once the 
+	comprintf("\tsub_l_ri(offs,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
+	comprintf("\tadd_l_ri(offs,(uae_u32)comp_pc_p);\n"); /* New PC,
+								once the
 								offset_68k is
 								* also added */
 	/* Let's fold in the m68k_pc_offset at this point */
@@ -1887,14 +1887,14 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tmake_flags_live();\n"); /* Load the flags */
 	}
 
-	if (curi->size!=sz_word) 
+	if (curi->size!=sz_word)
 	    abort();
 
 
 	switch(curi->cc) {
 	 case 0: /* This is an elaborate nop? */
 	    break;
-	 case 1: 
+	 case 1:
 	    comprintf("\tstart_needflags();\n");
 	    comprintf("\tsub_w_ri(src,1);\n");
 	    comprintf("\t end_needflags();\n");
@@ -1927,14 +1927,14 @@ gen_opcode (unsigned long int opcode)
 		      cond_codes_x86[curi->cc]);
 	    comprintf("\tcmov_l_rr(src,nsrc,%d);\n",
 		      cond_codes_x86[curi->cc]);
-	    /* OK, now for cc=true, we have src==nsrc and offs==PC_P, 
+	    /* OK, now for cc=true, we have src==nsrc and offs==PC_P,
 	       so whether we move them around doesn't matter. However,
 	       if cc=false, we have offs==jump_pc, and src==nsrc-1 */
 
 	    comprintf("\t start_needflags();\n");
-	    comprintf("\ttest_w_rr(nsrc,nsrc);\n"); 
+	    comprintf("\ttest_w_rr(nsrc,nsrc);\n");
 	    comprintf("\t end_needflags();\n");
-	    comprintf("\tcmov_l_rr(PC_P,offs,5);\n"); 
+	    comprintf("\tcmov_l_rr(PC_P,offs,5);\n");
 	    break;
 	 default: abort();
 	}
@@ -1950,11 +1950,11 @@ gen_opcode (unsigned long int opcode)
 	/* We set val to 0 if we really should use 255, and to 1 for real 0 */
 	switch(curi->cc) {
 	 case 0:  /* Unconditional set */
-	    comprintf("\tmov_l_ri(val,0);\n"); 
+	    comprintf("\tmov_l_ri(val,0);\n");
 	    break;
-	 case 1: 
+	 case 1:
 	    /* Unconditional not-set */
-	    comprintf("\tmov_l_ri(val,1);\n"); 
+	    comprintf("\tmov_l_ri(val,1);\n");
 	    break;
 	 case 8: failure; break;  /* Work out details! FIXME */
 	 case 9: failure; break;  /* Not critical, though! */
@@ -1981,18 +1981,18 @@ gen_opcode (unsigned long int opcode)
 	genastore ("val", curi->smode, "srcreg", curi->size, "src");
 	break;
      case i_DIVU:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_DIVS:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MULU:
 	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0);
-	/* To do 16x16 unsigned multiplication, we actually use 
+	/* To do 16x16 unsigned multiplication, we actually use
 	   32x32 signed, and zero-extend the registers first.
 	   That solves the problem of MUL needing dedicated registers
 	   on the x86 */
@@ -2013,12 +2013,12 @@ gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->dmode, "dstreg", sz_long, "dst");
 	break;
      case i_CHK:
-	isjump; 
+	isjump;
 	failure;
 	break;
 
      case i_CHK2:
-	isjump; 
+	isjump;
 	failure;
 	break;
 
@@ -2053,15 +2053,15 @@ gen_opcode (unsigned long int opcode)
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshra_b_rr(data,cnt);\n"
 					 "\thighmask=0x38;\n"
-					 "\twidth=8;\n"); 
+					 "\twidth=8;\n");
 		 break;
 		 case sz_word: comprintf("\tshra_w_rr(data,cnt);\n"
 					 "\thighmask=0x30;\n"
-					 "\twidth=16;\n"); 
+					 "\twidth=16;\n");
 		 break;
 		 case sz_long: comprintf("\tshra_l_rr(data,cnt);\n"
 					 "\thighmask=0x20;\n"
-					 "\twidth=32;\n"); 
+					 "\twidth=32;\n");
 		 break;
 		 default: abort();
 		}
@@ -2084,7 +2084,7 @@ gen_opcode (unsigned long int opcode)
 		 case sz_long: comprintf("\tshra_l_rr(data,highshift);\n");break;
 		 default: abort();
 		}
-		
+
 		/* Result of shift is now in data. Now we need to determine
 		   the carry by shifting cdata one less */
 		comprintf("\tsub_l_ri(tmpcnt,1);\n");
@@ -2122,15 +2122,15 @@ gen_opcode (unsigned long int opcode)
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshra_b_rr(data,cnt);\n"
 					 "\thighmask=0x38;\n"
-					 "\twidth=8;\n"); 
+					 "\twidth=8;\n");
 		 break;
 		 case sz_word: comprintf("\tshra_w_rr(data,cnt);\n"
 					 "\thighmask=0x30;\n"
-					 "\twidth=16;\n"); 
+					 "\twidth=16;\n");
 		 break;
 		 case sz_long: comprintf("\tshra_l_rr(data,cnt);\n"
 					 "\thighmask=0x20;\n"
-					 "\twidth=32;\n"); 
+					 "\twidth=32;\n");
 		 break;
 		 default: abort();
 		}
@@ -2207,7 +2207,7 @@ gen_opcode (unsigned long int opcode)
 		  "  FAIL(1);\n"
 		  "  return 0;\n"
 		  "} \n");
-	
+
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
 	if (curi->smode!=immi) {
@@ -2225,13 +2225,13 @@ gen_opcode (unsigned long int opcode)
 		   0 (for shift count==0) */
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshll_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		 break;
 		 case sz_word: comprintf("\tshll_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		 break;
 		 case sz_long: comprintf("\tshll_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		 break;
 		 default: abort();
 		}
@@ -2261,11 +2261,11 @@ gen_opcode (unsigned long int opcode)
 
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 		switch(curi->size) {
-		 case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); 
+		 case sz_byte: comprintf("\t  test_b_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,7);\n"); break;
-		 case sz_word: comprintf("\t  test_w_rr(data,data);\n"); 
+		 case sz_word: comprintf("\t  test_w_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,15);\n"); break;
-		 case sz_long: comprintf("\t  test_l_rr(data,data);\n"); 
+		 case sz_long: comprintf("\t  test_l_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,31);\n"); break;
 		}
 		comprintf("\t live_flags();\n");
@@ -2280,13 +2280,13 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tint highmask;\n");
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshll_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		    break;
 		 case sz_word: comprintf("\tshll_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		    break;
 		 case sz_long: comprintf("\tshll_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		    break;
 		 default: abort();
 		}
@@ -2334,7 +2334,7 @@ gen_opcode (unsigned long int opcode)
 	    genastore ("data", curi->dmode, "dstreg", curi->size, "data");
 	}
 	break;
-    
+
      case i_LSR:
 	mayfail;
 	if (curi->smode==Dreg) {
@@ -2363,13 +2363,13 @@ gen_opcode (unsigned long int opcode)
 		   0 (for shift count==0) */
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshrl_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		 break;
 		 case sz_word: comprintf("\tshrl_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		 break;
 		 case sz_long: comprintf("\tshrl_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		 break;
 		 default: abort();
 		}
@@ -2415,13 +2415,13 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tint highmask;\n");
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshrl_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		    break;
 		 case sz_word: comprintf("\tshrl_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		    break;
 		 case sz_long: comprintf("\tshrl_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		    break;
 		 default: abort();
 		}
@@ -2490,13 +2490,13 @@ gen_opcode (unsigned long int opcode)
 		   0 (for shift count==0) */
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshll_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		 break;
 		 case sz_word: comprintf("\tshll_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		 break;
 		 case sz_long: comprintf("\tshll_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		 break;
 		 default: abort();
 		}
@@ -2525,11 +2525,11 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tstart_needflags();\n");
 		comprintf("\tif (needed_flags & FLAG_ZNV)\n");
 		switch(curi->size) {
-		 case sz_byte: comprintf("\t  test_b_rr(data,data);\n"); 
+		 case sz_byte: comprintf("\t  test_b_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,7);\n"); break;
-		 case sz_word: comprintf("\t  test_w_rr(data,data);\n"); 
+		 case sz_word: comprintf("\t  test_w_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,15);\n"); break;
-		 case sz_long: comprintf("\t  test_l_rr(data,data);\n"); 
+		 case sz_long: comprintf("\t  test_l_rr(data,data);\n");
 		    comprintf("\t bt_l_ri(cdata,31);\n"); break;
 		}
 		comprintf("\t live_flags();\n");
@@ -2544,13 +2544,13 @@ gen_opcode (unsigned long int opcode)
 		comprintf("\tint highmask;\n");
 		switch(curi->size) {
 		 case sz_byte: comprintf("\tshll_b_rr(data,cnt);\n"
-					 "\thighmask=0x38;\n"); 
+					 "\thighmask=0x38;\n");
 		    break;
 		 case sz_word: comprintf("\tshll_w_rr(data,cnt);\n"
-					 "\thighmask=0x30;\n"); 
+					 "\thighmask=0x30;\n");
 		    break;
 		 case sz_long: comprintf("\tshll_l_rr(data,cnt);\n"
-					 "\thighmask=0x20;\n"); 
+					 "\thighmask=0x20;\n");
 		    break;
 		 default: abort();
 		}
@@ -2618,7 +2618,7 @@ gen_opcode (unsigned long int opcode)
 	 case sz_word: comprintf("\t rol_w_rr(data,cnt);\n"); break;
 	 case sz_byte: comprintf("\t rol_b_rr(data,cnt);\n"); break;
 	}
-      
+
 	if (!noflags) {
 	    comprintf("\tstart_needflags();\n");
 	    comprintf("\tif (needed_flags & FLAG_ZNV)\n");
@@ -2643,7 +2643,7 @@ gen_opcode (unsigned long int opcode)
 		"} \n");
 	    start_brace();
 	}
- 	comprintf("\tdont_care_flags();\n");
+	comprintf("\tdont_care_flags();\n");
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0);
 	start_brace ();
@@ -2653,7 +2653,7 @@ gen_opcode (unsigned long int opcode)
 	 case sz_word: comprintf("\t ror_w_rr(data,cnt);\n"); break;
 	 case sz_byte: comprintf("\t ror_b_rr(data,cnt);\n"); break;
 	}
-      
+
 	if (!noflags) {
 	    comprintf("\tstart_needflags();\n");
 	    comprintf("\tif (needed_flags & FLAG_ZNV)\n");
@@ -2704,11 +2704,11 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_MOVEC2:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MOVE2C:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_CAS:
@@ -2718,27 +2718,27 @@ gen_opcode (unsigned long int opcode)
 	failure;
 	break;
      case i_MOVES:		/* ignore DFC and SFC because we have no MMU */
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_BKPT:		/* only needed for hardware emulators */
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_CALLM:		/* not present in 68030 */
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_RTM:		/* not present in 68030 */
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_TRAPcc:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_DIVL:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_MULL:
@@ -2749,7 +2749,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tuae_u16 extra=%s;\n",gen_nextiword());
 	comprintf("\tint r2=(extra>>12)&7;\n"
 		  "\tint tmp=scratchie++;\n");
-       
+
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 	/* The two operands are in dst and r2 */
 	comprintf("\tif (extra&0x0400) {\n" /* Need full 64 bit result */
@@ -2799,7 +2799,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tcomp_fbcc_opp(opcode);\n");
 	break;
      case i_FDBcc:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_FScc:
@@ -2809,7 +2809,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tcomp_fscc_opp(opcode,extra);\n");
 	break;
      case i_FTRAPcc:
-	isjump; 
+	isjump;
 	failure;
 	break;
      case i_FSAVE:
@@ -2822,7 +2822,7 @@ gen_opcode (unsigned long int opcode)
      case i_CINVL:
      case i_CINVP:
      case i_CINVA:
-	isjump;  /* Not really, but it's probably a good idea to stop 
+	isjump;  /* Not really, but it's probably a good idea to stop
 		    translating at this point */
 	failure;
 	comprintf ("\tflush_icache();\n");  /* Differentiate a bit more? */
@@ -2830,7 +2830,7 @@ gen_opcode (unsigned long int opcode)
      case i_CPUSHL:
      case i_CPUSHP:
      case i_CPUSHA:
-	isjump;  /* Not really, but it's probably a good idea to stop 
+	isjump;  /* Not really, but it's probably a good idea to stop
 		    translating at this point */
 	failure;
 	break;
@@ -2844,7 +2844,7 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_MMUOP:
-	isjump; 
+	isjump;
 	failure;
 	break;
      default:
@@ -2859,10 +2859,11 @@ gen_opcode (unsigned long int opcode)
     return global_failure;
 }
 
-static void 
+static void
 generate_includes (FILE * f)
 {
     fprintf (f, "#include \"sysconfig.h\"\n");
+    fprintf (f, "#if defined(JIT)\n");
     fprintf (f, "#include \"sysdeps.h\"\n");
     fprintf (f, "#include \"config.h\"\n");
     fprintf (f, "#include \"options.h\"\n");
@@ -2875,7 +2876,7 @@ generate_includes (FILE * f)
 
 static int postfix;
 
-static void 
+static void
 generate_one_opcode (int rp, int noflags)
 {
     int i;
@@ -2930,7 +2931,7 @@ generate_one_opcode (int rp, int noflags)
 	{
 	    char source[100];
 	    int pos = table68k[opcode].spos;
-	  
+
 	    if (pos)
 		sprintf (source, "((opcode >> %d) & %d)", pos, smsk);
 	    else
@@ -2961,7 +2962,7 @@ generate_one_opcode (int rp, int noflags)
 	else
 	{
 	    int pos = table68k[opcode].dpos;
-	  
+
 	    if (pos)
 		comprintf ("\tuae_u32 dstreg = (opcode >> %d) & %d;\n",
 			   pos, dmsk);
@@ -2971,18 +2972,18 @@ generate_one_opcode (int rp, int noflags)
     }
 
     if (have_srcreg && have_dstreg &&
-	(table68k[opcode].dmode==Areg || 
-	 table68k[opcode].dmode==Aind || 
-	 table68k[opcode].dmode==Aipi || 
-	 table68k[opcode].dmode==Apdi || 
-	 table68k[opcode].dmode==Ad16 || 
+	(table68k[opcode].dmode==Areg ||
+	 table68k[opcode].dmode==Aind ||
+	 table68k[opcode].dmode==Aipi ||
+	 table68k[opcode].dmode==Apdi ||
+	 table68k[opcode].dmode==Ad16 ||
 	 table68k[opcode].dmode==Ad8r) &&
-	(table68k[opcode].smode==Areg || 
-	 table68k[opcode].smode==Aind || 
-	 table68k[opcode].smode==Aipi || 
-	 table68k[opcode].smode==Apdi || 
-	 table68k[opcode].smode==Ad16 || 
-	 table68k[opcode].smode==Ad8r) 
+	(table68k[opcode].smode==Areg ||
+	 table68k[opcode].smode==Aind ||
+	 table68k[opcode].smode==Aipi ||
+	 table68k[opcode].smode==Apdi ||
+	 table68k[opcode].smode==Ad16 ||
+	 table68k[opcode].smode==Ad8r)
 	) {
 	comprintf("\tuae_u32 dodgy=(srcreg==(uae_s32)dstreg);\n");
     }
@@ -3002,7 +3003,7 @@ generate_one_opcode (int rp, int noflags)
 	if (global_iscjump) flags|=16;
 	comprintf ("return 0;\n");
 	comprintf ("}\n");
-    
+
 	if (aborted) {
 	    fprintf (stblfile, "{ NULL, %ld, 0x%08x }, /* %s */\n", opcode, flags, lookuptab[i].name);
 	    com_discard();
@@ -3023,7 +3024,7 @@ generate_one_opcode (int rp, int noflags)
     opcode_last_postfix[rp] = postfix;
 }
 
-static void 
+static void
 generate_func (int noflags)
 {
     int i, j, rp;
@@ -3073,7 +3074,7 @@ generate_func (int noflags)
 
 }
 
-int 
+int
 main (int argc, char **argv)
 {
     read_table68k ();
@@ -3109,6 +3110,9 @@ main (int argc, char **argv)
     read_counts ();
     noflags=1;
     generate_func (noflags);
+
+    printf ("#endif\n");
+    fprintf (stblfile, "#endif\n");
 
     free (table68k);
     return 0;

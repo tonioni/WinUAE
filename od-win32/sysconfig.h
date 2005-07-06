@@ -9,6 +9,8 @@
 
 #define DRIVESOUND
 #define GFXFILTER
+#define CAN_DO_STACK_MAGIC
+#define X86_MSVC_ASSEMBLY
 
 #ifndef UAE_MINI
 
@@ -25,6 +27,7 @@
 #define WINDDK /* Windows DDK available, keyboard leds and harddrive support */
 #define CATWEASEL /* Catweasel MK2/3 support */
 #define AHI /* AHI sound emulation */
+#define ENFORCER /* UAE Enforcer */
 #define AGA /* AGA chipset emulation */
 #define CD32 /* CD32 emulation */
 #define CDTV /* CDTV emulation */
@@ -77,6 +80,16 @@
 #include <crtdbg.h>
 #endif
 
+#ifdef WIN64
+#undef JIT
+#undef X86_MSVC_ASSEMBLY
+#define X64_MSVC_ASSEMBLY
+#define CPU_64_BIT
+#endif
+
+#if !defined(AHI)
+#undef ENFORCER
+#endif
 
 /* src/sysconfig.h.  Generated automatically by configure.  */
 /* src/sysconfig.h.in.  Generated automatically from configure.in by autoheader.  */

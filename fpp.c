@@ -62,11 +62,11 @@ static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
   }
    
   x=0x107f + (iprec<<8) + (iround<<10);
-#ifdef _MSC_VER
+#if defined(X86_MSVC_ASSEMBLY)
   __asm {
   fldcw x
   }
-#else
+#elif defined(X86_ASSEMBLY)
   __asm__ ("fldcw %0" : : "m" (*&x));
 #endif
 #endif

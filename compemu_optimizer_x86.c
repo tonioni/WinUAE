@@ -68,22 +68,22 @@
 #define LOPT_MEMW LMEMW,
 #define LOPT_MEMRW LMEMRW,
 
-#define LDIR_IMM 
-#define LDIR_R1  
-#define LDIR_R2  
-#define LDIR_R4  
-#define LDIR_W1  
-#define LDIR_W2  
-#define LDIR_W4  
-#define LDIR_RW1 
-#define LDIR_RW2 
-#define LDIR_RW4 
+#define LDIR_IMM
+#define LDIR_R1
+#define LDIR_R2
+#define LDIR_R4
+#define LDIR_W1
+#define LDIR_W2
+#define LDIR_W4
+#define LDIR_RW1
+#define LDIR_RW2
+#define LDIR_RW4
 #define LDIR_FW
 #define LDIR_FR
 #define LDIR_FRW
-#define LDIR_MEMR 
-#define LDIR_MEMW 
-#define LDIR_MEMRW 
+#define LDIR_MEMR
+#define LDIR_MEMW
+#define LDIR_MEMRW
 
 
 #undef LOWFUNC
@@ -100,7 +100,7 @@
   } else { \
     do_##func ldirect##nargs##args; \
   } \
-  } 
+  }
 
 typedef struct lopt_inst_rec {
     void* func;
@@ -124,13 +124,13 @@ static __inline__ int argsize(int type)
 static __inline__ int reads_mem(int i) {
     return linst[i].mem & READ;
 }
-    
-    
+
+
 static __inline__ int access_reg(int i, int r, int mode)
 {
     int k;
     for (k=0;k<linst[i].nargs;k++)
-	if (linst[i].args[k]==r && 
+	if (linst[i].args[k]==r &&
 	    (linst[i].argtype[k]&mode) &&
 	    !(linst[i].argtype[k]&FLOAT))
 	    return 1;
@@ -195,7 +195,7 @@ static __inline__ int depends_on(int i, int j)
 	return 1;
     if (reads_flags(i) && writes_flags(j))
 	return 1;
-    
+
     for (n=0;n<linst[i].nargs;n++) {
 	if (linst[i].argtype[n] & FLOAT)
 	    return 1;
@@ -232,15 +232,15 @@ static __inline__ int depends_on(int i, int j)
 }
 
 static void do_raw_mov_l_rm(W4 d, MEMR s);
-	    
+
 static __inline__ void low_peephole(void)
 {
     int i;
-    
+
     for (i=0;i<lopt_index;i++) {
 	if (uses_mem(i)) {
 	    int j=i-1;
-	    
+
 	    while (j>=i-4 && j>=0 && !depends_on(i,j)) {
 		j--;
 	    }
@@ -272,7 +272,7 @@ static void lopt_emit_all(void)
     int i;
     lopt_inst* x;
     static int inemit=0;
-    
+
     if (inemit) {
 	printf("WARNING: lopt_emit is not reentrant!\n");
     }
@@ -305,7 +305,7 @@ static __inline__ void low_advance(void)
     lopt_emit_all();
 }
 
-static __inline__ void lopt_store_op0(void* lfuncptr, uae_u32 lmem, 
+static __inline__ void lopt_store_op0(void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -316,7 +316,7 @@ static __inline__ void lopt_store_op0(void* lfuncptr, uae_u32 lmem,
 }
 
 static __inline__ void lopt_store_op1(uae_u8 t1, uae_u32 a1,
-				      void* lfuncptr, uae_u32 lmem, 
+				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -330,7 +330,7 @@ static __inline__ void lopt_store_op1(uae_u8 t1, uae_u32 a1,
 
 static __inline__ void lopt_store_op2(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
-				      void* lfuncptr, uae_u32 lmem, 
+				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -347,7 +347,7 @@ static __inline__ void lopt_store_op2(uae_u8 t1, uae_u32 a1,
 static __inline__ void lopt_store_op3(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      uae_u8 t3, uae_u32 a3,
-				      void* lfuncptr, uae_u32 lmem, 
+				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -367,7 +367,7 @@ static __inline__ void lopt_store_op4(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      uae_u8 t3, uae_u32 a3,
 				      uae_u8 t4, uae_u32 a4,
-				      void* lfuncptr, uae_u32 lmem, 
+				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -390,7 +390,7 @@ static __inline__ void lopt_store_op5(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t3, uae_u32 a3,
 				      uae_u8 t4, uae_u32 a4,
 				      uae_u8 t5, uae_u32 a5,
-				      void* lfuncptr, uae_u32 lmem, 
+				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -410,7 +410,7 @@ static __inline__ void lopt_store_op5(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void empty_low_optimizer(void) 
+static __inline__ void empty_low_optimizer(void)
 {
   lopt_emit_all();
 }

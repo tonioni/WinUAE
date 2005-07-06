@@ -263,7 +263,7 @@ static void print_configuration (void)
 	sprintf (tmp, "Picasso 96 %d MB", currprefs.gfxmem_size / 0x100000);
 	tui_puts(tmp);
     } else
- 	tui_puts ("Picasso 96 Off");
+	tui_puts ("Picasso 96 Off");
     y++;
 
     tui_gotoxy (OPTION_COLUMN, y++);
@@ -627,7 +627,7 @@ static void OtherOptions (void)
 	 case 0:
 	    currprefs.jport0 = (currprefs.jport0 + 1) % 6;
 	    if (currprefs.jport0 == currprefs.jport1)
-	      currprefs.jport1 = (currprefs.jport1 + 5) % 6;	      
+	      currprefs.jport1 = (currprefs.jport1 + 5) % 6;
 	    break;
 	 case 1:
 	    currprefs.jport1 = (currprefs.jport1 + 1) % 6;

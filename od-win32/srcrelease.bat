@@ -50,6 +50,10 @@ rm -f winuae_msvc.plg
 rm -f winuae_msvc.ncb
 rm -rf debug
 rm -rf release
+rm -rf debug64
+rm -rf release64
+rm -rf x64
+rm -rf _UpgradeReport_Files
 cd ..
 
 cd miniuae

@@ -575,6 +575,8 @@ static int zlib_test (int needzlib, int nomsg)
 	return 1;
 #ifdef _WIN32
     zlib = WIN32_LoadLibrary ("zlib1.dll");
+    if (!zlib)
+	zlib = WIN32_LoadLibrary("zlib1_64.dll");
     if (zlib) {
 	pinflateInit2 = (INFLATEINIT2)GetProcAddress (zlib, "inflateInit2_");
 	pinflateInit = (INFLATEINIT)GetProcAddress (zlib, "inflateInit_");

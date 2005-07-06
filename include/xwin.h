@@ -51,7 +51,7 @@ struct vidbuf_description
      *   - set bufmem to point at it
      *   - set linemem to 0
      *   - if memcpy within bufmem would be very slow, i.e. because bufmem is
-     *     in graphics card memory, also set emergmem to point to a buffer 
+     *     in graphics card memory, also set emergmem to point to a buffer
      *     that is large enough to hold a single line.
      *   - implement flush_line to be a no-op.
      * If you use a single line buffer:

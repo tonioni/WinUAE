@@ -105,7 +105,7 @@ static int tree_cst (tree t, unsigned int *src, unsigned int *notsrc)
      case op_xor:
      case op_or:
 	return 4 + tree_cst (t->left, src, notsrc) + tree_cst (t->right, src, notsrc);
-	
+
      default:
 	abort ();
     }
@@ -173,7 +173,7 @@ static void do_sprint_tree (char *s, tree t)
      case op_or:
      case op_xor:
 	{
-	    
+
 	    char *c = op == op_and ? " & " : op == op_or ? " | " : " ^ ";
 	    strcat (s, "(");
 	    do_sprint_tree (s, t->left);
@@ -300,7 +300,7 @@ static void find_best_trees (void)
     for (size = 2; ! do_stop && size < 20; size++) {
 	int split, last_split;
 	tree_vec *sv = size_trees + size - 1;
-	
+
 	if (n_unknown == 0)
 	    do_stop = 1;
 	last_split = (size >> 1) + 1;

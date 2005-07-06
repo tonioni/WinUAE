@@ -47,7 +47,7 @@ USHORT Unpack_MEDIUM(UCHAR *in, UCHAR *out, USHORT origsize){
 			i = (USHORT) (medium_text_loc - c - 1);
 
 			while(j--) *out++ = text[medium_text_loc++ & MBITMASK] = text[i++ & MBITMASK];
-			
+
 		}
 	}
 	medium_text_loc = (USHORT)((medium_text_loc+66) & MBITMASK);

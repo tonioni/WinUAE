@@ -28,9 +28,8 @@
 #include "arcadia.h"
 #include "enforcer.h"
 
-#ifdef JIT
 int canbang;
-
+#ifdef JIT
 /* Set by each memory handler that does not simply access real memory.  */
 int special_mem;
 #endif
@@ -44,7 +43,11 @@ uae_u32 allocated_gfxmem;
 uae_u32 allocated_z3fastmem;
 uae_u32 allocated_a3000mem;
 
+#if defined(CPU_64_BIT)
+uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
+#else
 uae_u32 max_z3fastmem = 512 * 1024 * 1024;
+#endif
 
 static long chip_filepos;
 static long bogo_filepos;
@@ -186,15 +189,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 	strcpy (tmp, path);
     strcat (tmp, "rom.key");
     f = zfile_fopen (tmp, "rb");
-    if (!f) {
-	strcpy (tmp, p->romfile);
-	d = strrchr(tmp, '/');
-	if (!d)
-	    d = strrchr(tmp, '\\');
-	if (d) {
-	    strcpy (d + 1, "rom.key");
-	    f = zfile_fopen(tmp, "rb");
-	}
+    {
 	if (!f) {
 	    struct romdata *rd = getromdatabyid (0);
 	    char *s = romlist_get (rd);
@@ -213,6 +208,20 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 			if (!f) {
 			    sprintf (tmp, "%s../shared/rom/rom.key", start_path_data);
 			    f = zfile_fopen(tmp, "rb");
+			    if (!f) {
+				if (!f) {
+				    strcpy (tmp, p->romfile);
+				    d = strrchr(tmp, '/');
+				    if (!d)
+				        d = strrchr(tmp, '\\');
+				    if (d) {
+				        strcpy (d + 1, "rom.key");
+				        f = zfile_fopen(tmp, "rb");
+				    }
+				}
+				
+			    }
+
 			}
 		    }
 		}
@@ -526,7 +535,9 @@ static int mbres_val = 0;
 
 uae_u32 REGPARAM2 mbres_lget (uaecptr addr)
 {
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal lget at %08lx\n", addr);
 
@@ -535,7 +546,9 @@ uae_u32 REGPARAM2 mbres_lget (uaecptr addr)
 
 uae_u32 REGPARAM2 mbres_wget (uaecptr addr)
 {
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal wget at %08lx\n", addr);
 
@@ -544,7 +557,9 @@ uae_u32 REGPARAM2 mbres_wget (uaecptr addr)
 
 uae_u32 REGPARAM2 mbres_bget (uaecptr addr)
 {
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal bget at %08lx\n", addr);
 
@@ -553,19 +568,25 @@ uae_u32 REGPARAM2 mbres_bget (uaecptr addr)
 
 void REGPARAM2 mbres_lput (uaecptr addr, uae_u32 l)
 {
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal lput at %08lx\n", addr);
 }
 void REGPARAM2 mbres_wput (uaecptr addr, uae_u32 w)
 {
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal wput at %08lx\n", addr);
 }
 void REGPARAM2 mbres_bput (uaecptr addr, uae_u32 b)
 {
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     if (currprefs.illegal_mem)
 	write_log ("Illegal bput at %08lx\n", addr);
 
@@ -603,7 +624,9 @@ uae_u32 REGPARAM2 chipmem_lget_ce2 (uaecptr addr)
 {
     uae_u32 *m;
 
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     m = (uae_u32 *)(chipmemory + addr);
@@ -615,7 +638,9 @@ uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 {
     uae_u16 *m;
 
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
@@ -625,7 +650,9 @@ uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 
 uae_u32 REGPARAM2 chipmem_bget_ce2 (uaecptr addr)
 {
+#ifdef JIT
     special_mem |= S_READ;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     ce2_timeout ();
@@ -636,7 +663,9 @@ void REGPARAM2 chipmem_lput_ce2 (uaecptr addr, uae_u32 l)
 {
     uae_u32 *m;
 
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     m = (uae_u32 *)(chipmemory + addr);
@@ -648,7 +677,9 @@ void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 {
     uae_u16 *m;
 
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
@@ -658,7 +689,9 @@ void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 
 void REGPARAM2 chipmem_bput_ce2 (uaecptr addr, uae_u32 b)
 {
+#ifdef JIT
     special_mem |= S_WRITE;
+#endif
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     ce2_timeout ();
@@ -1236,7 +1269,9 @@ uae_u8 REGPARAM2 *default_xlate (uaecptr a)
     if (quit_program == 0) {
 	/* do this only in 68010+ mode, there are some tricky A500 programs.. */
 	if (currprefs.cpu_level > 0 || !currprefs.cpu_compatible) {
+#if defined(ENFORCER)
 	    enforcer_disable ();
+#endif
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;

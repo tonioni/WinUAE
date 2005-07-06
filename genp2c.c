@@ -360,7 +360,7 @@ static void gen_x86_set_hires_h (int pl, int mode)
 	    }
 	    break;
 	}
-	
+
 	if (i < pl) {
 	    orl (esi, ecx);
 	    orl (ebp, ebx);
@@ -388,7 +388,7 @@ static void gen_x86_set_hires_h (int pl, int mode)
     printf ("\n\n");
 }
 
-/* Squeeze: every second bit does not generate a pixel 
+/* Squeeze: every second bit does not generate a pixel
    Not optimized, this mode isn't useful. */
 static void gen_x86_set_hires_l (int pl, int mode)
 {
@@ -405,7 +405,7 @@ static void gen_x86_set_hires_l (int pl, int mode)
     pushl (esi);
     pushl (edi);
     pushl (ebx);
-    
+
     movl (ind (esp, 20), ebp);
     movl (ind (esp, 24), esi);
     movl (imm (0), edi);
@@ -464,7 +464,7 @@ static void gen_x86_set_lores_h (int pl, int mode)
     pushl (esi);
     pushl (edi);
     pushl (ebx);
-    
+
     movl (ind (esp, 20), ebp);
     movl (ind (esp, 24), esi);
     movl (imm (0), edi);
@@ -483,7 +483,7 @@ static void gen_x86_set_lores_h (int pl, int mode)
 	    char *data1 = (i == 0 && mode != 2 ? ecx : edx);
 	    char *data2 = (i == 0 && mode != 2 ? ebx : eax);
 	    char *indb0;
-	    
+
 	    indb0 = gen_indx (esi, realpl*MAX_WORDS_PER_LINE*2, edi, 1);
 	    movzbl (indb0, data2);
 	    free (indb0);
@@ -542,10 +542,10 @@ static void gen_c_set_hires_h (int pl, int mode, int header)
     for (i = 0; i <= pl; i++) {
 	int realpl = i * plmul + ploff;
 	char *asgn = (i == 0 && mode != 2 ? "=" : "|=");
-	
+
 	printf ("\t\t{\n");
 	printf ("\t\t\tunsigned int data = *(ptr + i  + %d);\n", MAX_WORDS_PER_LINE*2*realpl);
-	
+
 	printf ("\t\t\tv1 %s hirestab_h[data][0] << %d;\n", asgn, realpl);
 	printf ("\t\t\tv2 %s hirestab_h[data][1] << %d;\n", asgn, realpl);
 	printf ("\t\t}\n");
@@ -556,7 +556,7 @@ static void gen_c_set_hires_h (int pl, int mode, int header)
     printf ("}\n\n");
 }
 
-/* Squeeze: every second bit does not generate a pixel 
+/* Squeeze: every second bit does not generate a pixel
    Not optimized, this mode isn't useful. */
 static void gen_c_set_hires_l (int pl, int mode, int header)
 {
@@ -581,7 +581,7 @@ static void gen_c_set_hires_l (int pl, int mode, int header)
     for (i = 0; i <= pl; i++) {
 	int realpl = i * plmul + ploff;
 	char *asgn = (i == 0 && mode != 2 ? "=" : "|=");
-	
+
 	printf ("\t\t{\n");
 	printf ("\t\t\tunsigned int data = *(ptr + i  + %d);\n", MAX_WORDS_PER_LINE*2*realpl);
 

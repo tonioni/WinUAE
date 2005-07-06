@@ -12,21 +12,59 @@
 #include "autoconf.h"
 #include "win32.h"
 
+#if defined(NATMEM_OFFSET)
+
 static struct shmid_ds shmids[MAX_SHMID];
 static uae_u32 gfxoffs;
 
-uae_u32 natmem_offset = 0;
+uae_u8 *natmem_offset = NULL;
+#ifdef CPU_64_BIT
+uae_u32 max_allowed_mman = 2048;
+#else
 uae_u32 max_allowed_mman = 512;
+#endif
+
+static uae_u8 stackmagic64asm[] = {
+    0x48,0x8b,0x44,0x24,0x28,	// mov rax,qword ptr [rsp+28h] 
+    0x49,0x8b,0xe1,		// mov rsp,r9 
+    0xff,0xd0			// call rax
+};
+uae_u8 *stack_magic_amd64_asm_executable;
+
+void cache_free(void *cache)
+{
+    VirtualFree (cache, 0, MEM_RELEASE);
+}
+
+void *cache_alloc(int size)
+{
+    uae_u8 *cache;
+    cache = VirtualAlloc (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    return cache;
+}
 
 void init_shm(void)
 {
+    static int allocated;
     int i;
     LPVOID blah = NULL;
-    LPBYTE address = (LPBYTE)0x10000000; // Letting the system decide doesn't seem to work on some systems
+    // Letting the system decide doesn't seem to work on some systems (Win9x..)
+    LPBYTE address = (LPBYTE)0x10000000;
     uae_u32 size;
     uae_u32 add = 0x11000000;
     uae_u32 inc = 0x100000;
     MEMORYSTATUS memstats;
+
+#ifdef CPU_64_BIT
+    if (!stack_magic_amd64_asm_executable) {
+	stack_magic_amd64_asm_executable = cache_alloc(sizeof stackmagic64asm);
+	memcpy(stack_magic_amd64_asm_executable, stackmagic64asm, sizeof stackmagic64asm);
+    }
+#endif
+
+    if (natmem_offset && os_winnt)
+	VirtualFree(natmem_offset, 0, MEM_RELEASE);
+    natmem_offset = NULL;
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
@@ -60,7 +98,7 @@ void init_shm(void)
 	}
     }
     if (os_winnt) {
-	natmem_offset = (uae_u32)blah;
+	natmem_offset = blah;
     } else {
 	VirtualFree(blah, 0, MEM_RELEASE);
         while (address < (LPBYTE)0xa0000000) {
@@ -70,7 +108,7 @@ void init_shm(void)
 	    } else {
 		VirtualFree (blah, 0, MEM_RELEASE);
 		address += inc * 32;
-		natmem_offset = (uae_u32)address;
+		natmem_offset = address;
 		break;
 	    }
 	}
@@ -83,6 +121,7 @@ void init_shm(void)
 	write_log("NATMEM: Our special area: 0x%p-0x%p (%dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + size + add, (size + add) >> 20);
 	canbang = 1;
+	allocated = 1;
     }
 
     while (memstats.dwAvailPageFile + memstats.dwAvailPhys < max_z3fastmem)
@@ -154,17 +193,17 @@ int mprotect(void *addr, size_t len, int prot)
     return result;
 }
 
-void *shmat(int shmid, LPVOID shmaddr, int shmflg)
+void *shmat(int shmid, void *shmaddr, int shmflg)
 { 
     void *result = (void *)-1;
     BOOL got = FALSE;
 	
 #ifdef NATMEM_OFFSET
-    int size=shmids[shmid].size;
+    unsigned int size=shmids[shmid].size;
     extern uae_u32 allocated_z3fastmem;
     if(shmids[shmid].attached )
 	return shmids[shmid].attached;
-    if (shmaddr<natmem_offset){
+    if ((uae_u8*)shmaddr<natmem_offset){
 	if(!strcmp(shmids[shmid].name,"chip"))
 	{
 	    shmaddr=natmem_offset;
@@ -340,15 +379,4 @@ int isnan( double x )
     return result;
 }
 
-void cache_free(void *cache)
-{
-    VirtualFree (cache, 0, MEM_RELEASE);
-}
-
-void *cache_alloc(int size)
-{
-    uae_u8 *cache;
-    cache = VirtualAlloc (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-    return cache;
-}
-
+#endif

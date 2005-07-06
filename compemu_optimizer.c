@@ -56,19 +56,19 @@
 #define OPT_FR  OFR ,
 #define OPT_FRW OFRW ,
 
-#define DIR_IMM 
-#define DIR_MEMR 
-#define DIR_MEMW 
-#define DIR_MEMRW 
-#define DIR_R1  
-#define DIR_R2  
-#define DIR_R4  
-#define DIR_W1  
-#define DIR_W2  
-#define DIR_W4  
-#define DIR_RW1 
-#define DIR_RW2 
-#define DIR_RW4 
+#define DIR_IMM
+#define DIR_MEMR
+#define DIR_MEMW
+#define DIR_MEMRW
+#define DIR_R1
+#define DIR_R2
+#define DIR_R4
+#define DIR_W1
+#define DIR_W2
+#define DIR_W4
+#define DIR_RW1
+#define DIR_RW2
+#define DIR_RW4
 
 #define DIR_FR
 #define DIR_FW
@@ -108,7 +108,7 @@ static __inline__ void store_any(uae_u8 type, uae_u32 val)
 
 static __inline__ void store_arg(uae_u8 type, uae_u32 val)
 {
-    if (type<OR1 || type>ORW4) 
+    if (type<OR1 || type>ORW4)
 	return;
     store_any(type,val);
 }
@@ -123,7 +123,7 @@ static __inline__ void opt_store_op1(uae_u8 t1, uae_u32 a1)
     store_arg(t1,a1);
     opt_store_op0();
 }
- 
+
 static __inline__ void opt_store_op2(uae_u8 t1, uae_u32 a1,
 				     uae_u8 t2, uae_u32 a2)
 {
@@ -162,7 +162,7 @@ static void opt_assert_empty(int line)
 {
 }
 
-void empty_optimizer(void) 
+void empty_optimizer(void)
 {
 }
 

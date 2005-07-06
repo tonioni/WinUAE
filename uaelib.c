@@ -416,6 +416,7 @@ static uae_u32 uaelib_demux (void)
      case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
      case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);
+     case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
     }
     return 0;
 }
@@ -426,6 +427,7 @@ static uae_u32 uaelib_demux (void)
 void emulib_install (void)
 {
     uaecptr a = here ();
+    currprefs.mmkeyboard = 0;
     org (RTAREA_BASE + 0xFF60);
     dw (0x4eb9);
     dw ((RTAREA_BASE >> 16) | get_word(RTAREA_BASE + 36));

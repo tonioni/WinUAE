@@ -613,7 +613,7 @@ static void internal_scale2x_32_def(u32* dst0,
   dst1[1] = src1[0];
 }
 
-#ifdef MMX
+#if defined(MMX) && (defined(X86_ASSEMBLY) || defined(X86_MSVC_ASSEMBLY))
 static void internal_scale2x_16_mmx_single(u16* dst, const u16* src0, const u16* src1, const u16* src2, unsigned count) {
   /* always do the first and last run */
   count -= 2*4;
@@ -1391,7 +1391,7 @@ void AdMame2x(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
   u16 *src0 = (u16 *)srcPtr;
   u16 *src1 = src0 + (srcPitch/2);
   u16 *src2 = src1 + (srcPitch/2);
-#ifdef MMX
+#if defined(MMX) && (defined(X86_ASSEMBLY) || defined(X86_MSVC_ASSEMBLY))
   if(cpu_mmx) {
     internal_scale2x_16_mmx(dst0, dst1, src0, src0, src1, width);
 
@@ -1433,7 +1433,7 @@ void AdMame2x(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
     dst0 += dstPitch;
     dst1 += dstPitch;
     internal_scale2x_16_def(dst0, dst1, src0, src1, src1, width);
-#ifdef MMX
+#if defined(MMX) && (defined(X86_ASSEMBLY) || defined(X86_MSVC_ASSEMBLY))
   }
 #endif
 }
@@ -1447,7 +1447,7 @@ void AdMame2x32(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
   u32 *src0 = (u32 *)srcPtr;
   u32 *src1 = src0 + (srcPitch/4);
   u32 *src2 = src1 + (srcPitch/4);
-#ifdef MMX
+#if defined(MMX) && (defined(X86_ASSEMBLY) || defined(X86_MSVC_ASSEMBLY))
   if(cpu_mmx) {
     internal_scale2x_32_mmx(dst0, dst1, src0, src0, src1, width);
   
@@ -1488,7 +1488,7 @@ void AdMame2x32(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
     dst0 += dstPitch/2;
     dst1 += dstPitch/2;
     internal_scale2x_32_def(dst0, dst1, src0, src1, src1, width);
-#ifdef MMX
+#if defined(MMX) && (defined(X86_ASSEMBLY) || defined(X86_MSVC_ASSEMBLY))
   }
 #endif
 }

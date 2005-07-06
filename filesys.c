@@ -285,8 +285,8 @@ char *set_filesys_unit (struct uaedev_mount_info *mountinfo, int nr,
 			int blocksize, int bootpri, char *filesysdir, int flags)
 {
     char *result;
-    UnitInfo ui = mountinfo->ui[nr];
 
+    UnitInfo ui = mountinfo->ui[nr];
     hdf_close (&ui.hf);
     result = set_filesys_unit_1 (mountinfo, nr, devname, volname, rootdir, readonly,
 	secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, flags);
@@ -3588,6 +3588,26 @@ void filesys_prepare_reset (void)
     }
 }
 
+/*
+static uaecptr uaeresource_startup (uaecptr resaddr)
+{
+    uaecptr ROM_uaeresource_resname, ROM_uaeresource_resid;
+
+    ROM_uaeresource_resname = ds ("uae.resource");
+    ROM_uaeresource_resid = ds ("uae.resource 0.1");
+    put_word(resaddr + 0x0, 0x4AFC);
+    put_long(resaddr + 0x2, resaddr);
+    put_long(resaddr + 0x6, resaddr + 0x1A); // Continue scan here
+    put_word(resaddr + 0xA, 0x0001); // RTF_COLDSTART; Version 1
+    put_word(resaddr + 0xC, 0x0801); // NT_RESOURCE; pri 01
+    put_long(resaddr + 0xE, ROM_uaeresource_resname);
+    put_long(resaddr + 0x12, ROM_uaeresource_resid);
+    put_long(resaddr + 0x16, 0);
+    resaddr += 0x1A;
+    return resaddr;
+}
+*/
+
 static uae_u32 filesys_diagentry (void)
 {
     uaecptr resaddr = m68k_areg (regs, 2) + 0x10;
@@ -3623,6 +3643,7 @@ static uae_u32 filesys_diagentry (void)
      * Resident structures and call InitResident() for them at the end of the
      * diag entry. */
 
+    //resaddr = uaeresource_startup(resaddr);
     resaddr = scsidev_startup(resaddr);
 
     /* scan for Residents and return pointer to array of them */

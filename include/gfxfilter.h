@@ -21,9 +21,9 @@ extern void Super2xSaI(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint
 extern void SuperEagle(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
 extern void _2xSaI(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height);
 extern void AdMame2x(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
-              u8 *dstPtr, u32 dstPitch, int width, int height);
+	      u8 *dstPtr, u32 dstPitch, int width, int height);
 extern void AdMame2x32(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
-              u8 *dstPtr, u32 dstPitch, int width, int height);
+	      u8 *dstPtr, u32 dstPitch, int width, int height);
 
 extern void hq_init(int rb, int gb, int bb, int rs, int gs, int bs);
 extern void hq2x_32(unsigned char*, unsigned char*, int, int, int, int, int);

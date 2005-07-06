@@ -1333,13 +1333,13 @@ void inputdevice_handle_inputcode (void)
     }
 }
 
-void handle_input_event (int nr, int state, int max, int autofire)
+int handle_input_event (int nr, int state, int max, int autofire)
 {
     struct inputevent *ie;
     int joy;
     
     if (nr <= 0)
-	return;
+	return 0;
     ie = &events[nr];
     //write_log("'%s' %d %d\n", ie->name, state, max);
     if (autofire) {
@@ -1446,6 +1446,7 @@ void handle_input_event (int nr, int state, int max, int autofire)
 	    inputdevice_do_keyboard (ie->data, state);
 	break;
     }
+    return 1;
 }
 
 void inputdevice_vsync (void)
@@ -1869,9 +1870,10 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 {
     struct uae_input_device *na = &keyboards[keyboard];
     int j, k;
+    int handled = 0;
 
     if (!keyboards || scancode < 0)
-	return 0;
+	return handled;
     j = 0;
     while (na->extra[j][0] >= 0) {
         if (na->extra[j][0] == scancode) {
@@ -1879,14 +1881,14 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 		int autofire = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 		int event = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
 		char *custom = na->custom[j][sublevdir[state == 0 ? 1 : 0][k]];
-		handle_input_event (event, state, 1, autofire);
+		handled |= handle_input_event (event, state, 1, autofire);
 		//write_log ("'%s' %d ('%s') %d\n", na->name, event, events[event].name,  state);
 	    }
-	    return 1;
+	    return handled;
 	}
 	j++;
     }
-    return 0;
+    return handled;
 }
 
 static struct inputdevice_functions idev[3];

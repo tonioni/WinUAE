@@ -21,6 +21,8 @@
 #include "md-fpp.h"
 #include "compemu.h"
 
+#if defined(JIT)
+
 #define MAKE_FPSR(r) do { fmov_rr(FP_RESULT,r); } while (0)
 
 #define delay   //nop() ;nop()  
@@ -1610,3 +1612,5 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
     m68k_setpc (m68k_getpc () - 4);
     op_illg (opcode);
 }
+
+#endif

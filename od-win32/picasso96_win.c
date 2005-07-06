@@ -45,18 +45,20 @@
 #include "savestate.h"
 #include "autoconf.h"
 
+#if defined(PICASSO96)
+
 #include "dxwrap.h"
 #include "picasso96_win.h"
 #include "win32gfx.h"
 
 int p96hack_vpos, p96hack_vpos2, p96refresh_active; 
 int have_done_picasso; /* For the JIT compiler */
-int picasso_is_special = PIC_WRITE; /* ditto */
-int picasso_is_special_read = PIC_READ; /* ditto */
 static int vsyncgfxwrite = 0; 
 static int p96syncrate,vsyncgfxcount;
 int p96hsync_counter;
-#define SWAPSPEEDUP 
+#if defined(X86_MSVC_ASSEMBLY)
+#define SWAPSPEEDUP
+#endif
 #ifdef PICASSO96
 #ifdef DEBUG // Change this to _DEBUG for debugging
 #define P96TRACING_ENABLED 1
@@ -80,6 +82,18 @@ struct pixel32 pixelbase[MAXFLUSHPIXEL+2];
 #endif
 
 #define GetBytesPerPixel(x) GetBytesPerPixel2(x,__FILE__,__LINE__)
+
+#if defined(JIT)
+static int picasso_is_special = PIC_WRITE; /* ditto */
+static int picasso_is_special_read = PIC_READ; /* ditto */
+#define P96_SM_RS special_mem |= picasso_is_special_read | picasso_is_special
+#define P96_SM_R special_mem |= picasso_is_special_read;
+#define P96_SM_S special_mem |= picasso_is_special;
+#else
+#define P96_SM_RS
+#define P96_SM_R
+#define P96_SM_S
+#endif
 
 static uae_u32 REGPARAM2 gfxmem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM2 gfxmem_wget (uaecptr) REGPARAM;
@@ -707,8 +721,7 @@ static void do_blit( struct RenderInfo *ri, int Bpp,
 #endif
 
     srcp = ri->Memory + srcx*Bpp + srcy*ri->BytesPerRow;
-    
-    
+
     DX_Invalidate (dsty, dsty + height - 1);
     if (! picasso_vidinfo.extra_mem)
 	{
@@ -743,7 +756,7 @@ static void do_blit( struct RenderInfo *ri, int Bpp,
         width *= Bpp;
         while (height-- > 0) 
         {
-			memcpy (dstp, srcp, width);
+            memcpy (dstp, srcp, width);
             srcp += ri->BytesPerRow;
             dstp += picasso_vidinfo.rowbytes;
 			
@@ -1112,7 +1125,7 @@ long height, uae_u8 mask, BLIT_OPCODE opcode )
         
         for( y = 0; y < height; y++ ) /* Vertical lines */
         {
-        int bound = src + total_width - 4;
+        uae_u8 *bound = src + total_width - 4;
         //copy now the longs
         for( src2_32 = src, dst2_32 = dst; src2_32 < bound; src2_32++, dst2_32++ ) /* Horizontal bytes */
         {
@@ -2098,7 +2111,7 @@ uae_u32 picasso_FillRect (void)
 
     if (Width * Height <= 2500)
 	return 0;
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
 
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock(); // We need this, because otherwise we're still Locked from custom.c
@@ -2381,7 +2394,7 @@ uae_u32 picasso_BlitRect (void)
     uae_u8  Mask = (uae_u8)m68k_dreg (regs, 6);
     uae_u32 result = 0;
 
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
    
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock();
@@ -2430,7 +2443,7 @@ uae_u32 picasso_BlitRectNoMaskComplete (void)
     uae_u32 RGBFmt = m68k_dreg (regs, 7);
     uae_u32 result = 0;
 
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
     
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock();
@@ -2538,7 +2551,7 @@ uae_u32 picasso_BlitPattern (void)
     unsigned long ysize_mask;
     uae_u32 result = 0;
 
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
    
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock();
@@ -2713,7 +2726,7 @@ uae_u32 picasso_BlitTemplate (void)
 
 //  if (W * H <= 2500)
 //	return 0;
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
 
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock(); // @@@ We need to unlock here, because do_blit (later) needs to lock...
@@ -3030,7 +3043,7 @@ uae_u32 picasso_BlitPlanar2Chunky (void)
     struct BitMap local_bm;
     uae_u32 result = 0;
 
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
    
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock();
@@ -3187,7 +3200,7 @@ uae_u32 picasso_BlitPlanar2Direct (void)
     struct ColorIndexMapping local_cim;
     uae_u32 result = 0;
 
-    special_mem|=picasso_is_special_read|picasso_is_special;     
+    P96_SM_RS;
     
 #ifdef LOCK_UNLOCK_MADNESS
     //PICASSO96_Unlock();
@@ -3230,10 +3243,9 @@ uae_u32 picasso_BlitPlanar2Direct (void)
 static void flushpixels( void )
 {
     int i,y,x,xbytes,size;
-    uae_u8 *dst;
-    uaecptr addr,xminaddr=0,xmaxaddr,ydestaddr;
+    uae_u8 *dst, *ydestaddr;
+    uaecptr addr,xminaddr=0,xmaxaddr;
     uae_u32 value;
-    
     int lock=0;
     
     if (pixelcount==0)return;
@@ -3279,7 +3291,8 @@ static void flushpixels( void )
 		       if(psiz==4)
 		       {
 			   int i2;
-			   unsigned int addr,val;
+			   unsigned int val;
+			   uae_u8 *addr;
 			   
 			   i2=pixelbase[i].size;
 			   addr=dst + y * picasso_vidinfo.rowbytes + ((xbytes)*4);
@@ -3311,7 +3324,8 @@ static void flushpixels( void )
 		       else
 		       {
 			   int i2;
-			   unsigned int addr,val;
+			   unsigned int val;
+			   uae_u8 *addr;
 			   
 			   i2=pixelbase[i].size;
 			   addr=dst + y * picasso_vidinfo.rowbytes + ((xbytes)*2);
@@ -3666,7 +3680,7 @@ static uae_u32 REGPARAM2 gfxmem_lget (uaecptr addr)
 {
     uae_u32 *m;
 
-    special_mem|=picasso_is_special_read;  
+    P96_SM_R;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u32 *)(gfxmemory + addr);
@@ -3676,7 +3690,7 @@ static uae_u32 REGPARAM2 gfxmem_lget (uaecptr addr)
 static uae_u32 REGPARAM2 gfxmem_wget (uaecptr addr)
 {
     uae_u16 *m;
-    special_mem|=picasso_is_special_read;  
+    P96_SM_R;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u16 *)(gfxmemory + addr);
@@ -3685,7 +3699,7 @@ static uae_u32 REGPARAM2 gfxmem_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 gfxmem_bget (uaecptr addr)
 {
-    special_mem|=picasso_is_special_read;  
+    P96_SM_R;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     return gfxmemory[addr];
@@ -3701,7 +3715,7 @@ static void REGPARAM2 gfxmem_lput (uaecptr addr, uae_u32 l)
 	mov l,eax
 	}
 #endif
-    special_mem|=picasso_is_special; 
+    P96_SM_S;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
 
@@ -3730,7 +3744,7 @@ l2:
 static void REGPARAM2 gfxmem_wput (uaecptr addr, uae_u32 w)
 {
     uae_u16 *m;
-    special_mem|=picasso_is_special; 
+    P96_SM_S;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u16 *)(gfxmemory + addr);
@@ -3742,7 +3756,7 @@ static void REGPARAM2 gfxmem_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 gfxmem_bput (uaecptr addr, uae_u32 b)
 {
-    special_mem|=picasso_is_special; 
+    P96_SM_S;
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     gfxmemory[addr] = b;
@@ -3837,7 +3851,7 @@ uae_u8 *restore_p96 (uae_u8 *src)
     return src;
 }
 
-uae_u8 *save_p96 (int *len)
+uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
 
@@ -3845,7 +3859,6 @@ uae_u8 *save_p96 (int *len)
     return 0;
 }
 
-
-
+#endif
 
 #endif

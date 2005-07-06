@@ -223,7 +223,7 @@ void sem_close (HANDLE * event)
 
 typedef unsigned (__stdcall *BEGINTHREADEX_FUNCPTR)(void *);
 
-int start_penguin (void *(*f)(void *), void *arg, DWORD * foo)
+int start_penguin (void *(*f)(void *), void *arg, DWORD *foo)
 {
     HANDLE hThread;
     int result = 1;

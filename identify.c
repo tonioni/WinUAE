@@ -1,7 +1,7 @@
  /*
   * UAE - The Un*x Amiga Emulator
   *
-  * Routines for labelling amiga internals. 
+  * Routines for labelling amiga internals.
   *
   */
 
@@ -111,7 +111,7 @@ struct mem_labels mem_labels[] =
     { NULL, 0 }
 };
 
-/* This table was generated from the list of AGA chip names in 
+/* This table was generated from the list of AGA chip names in
  * AGA.guide available on aminet. It could well have errors in it. */
 
 struct customData custd[] =

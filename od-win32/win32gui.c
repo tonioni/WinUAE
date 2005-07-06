@@ -284,7 +284,11 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
+#if defined(WIN64)
+#define MAX_Z3_MEM 12
+#else
 #define MAX_Z3_MEM 10
+#endif
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM 6
 #define MIN_M68K_PRIORITY 1
@@ -503,7 +507,7 @@ end:
 static int scan_roms_2 (char *pathp)
 {
     HKEY fkey = NULL;
-    char buf[MAX_PATH], path[MAX_PATH];
+    char buf[MAX_DPATH], path[MAX_DPATH];
     WIN32_FIND_DATA find_data;
     HANDLE handle;
     uae_u8 *keybuf;
@@ -530,7 +534,7 @@ static int scan_roms_2 (char *pathp)
 	if (handle == INVALID_HANDLE_VALUE)
 	    goto end;
 	for (;;) {
-	    char tmppath[MAX_PATH];
+	    char tmppath[MAX_DPATH];
 	    strcpy (tmppath, path);
 	    strcat (tmppath, find_data.cFileName);
 	    if (find_data.nFileSizeLow < 10000000 && scan_rom (tmppath, fkey, keybuf, keysize))
@@ -815,6 +819,7 @@ int DirectorySelection(HWND hDlg, int flag, char *path)
 // flag = 14 for loading filesystem
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out, int *multi)
 {
+    static int statefile_previousfilter;
     OPENFILENAME openFileName;
     char full_path[MAX_DPATH] = "";
     char full_path2[MAX_DPATH];
@@ -826,6 +831,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     char *p, *nextp;
     int all = 1;
     int next;
+    int filterindex = 0;
 
     char szTitle[MAX_DPATH];
     char szFormat[MAX_DPATH];
@@ -962,6 +968,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    p += strlen(p) + 1;
 	    *p = 0;
 	    all = 0;
+	    filterindex = statefile_previousfilter;
 	}
 	openFileName.lpstrTitle  = szTitle;
 	openFileName.lpstrDefExt = "USS";
@@ -1016,7 +1023,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     openFileName.lpstrCustomFilter = NULL;
     openFileName.nMaxCustFilter = 0;
-    openFileName.nFilterIndex = 0;
+    openFileName.nFilterIndex = filterindex;
     openFileName.lpstrFile = full_path;
     openFileName.nMaxFile = MAX_DPATH;
     openFileName.lpstrFileTitle = file_name;
@@ -1097,6 +1104,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
             break;
 	case IDC_DOSAVESTATE:
 	case IDC_DOLOADSTATE:
+	    statefile_previousfilter = openFileName.nFilterIndex;
 	    savestate_initsave (full_path, openFileName.nFilterIndex);
 	    break;
 	case IDC_CREATE:
@@ -1144,7 +1152,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
             amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
             if (amiga_path && amiga_path != openFileName.lpstrFile) {
                 *amiga_path = 0;
-                if( hWinUAEKey )
+                if(hWinUAEKey)
                     RegSetValueEx(hWinUAEKey, "hdfPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen(openFileName.lpstrFile) + 1);
             }
         }
@@ -1938,7 +1946,7 @@ static int listview_entry_from_click (HWND list, int *column)
     return -1;
 }
 
-static int CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     
@@ -2218,10 +2226,9 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
     return config;
 }
 
-static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char *cfgfile;
-    int val;
     static int recursive;
     static struct ConfigStruct *config;
 
@@ -2319,6 +2326,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    break;
 	    case IDC_CONFIGLINK:
 	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		LRESULT val;
 	        char tmp[MAX_DPATH];
 		tmp[0] = 0;
 		val = SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_GETCURSEL, 0, 0L);
@@ -2398,7 +2406,7 @@ static BOOL CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 #define MAX_CONTRIBUTORS_LENGTH 2048
 
-static int CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     CHARFORMAT CharFormat;
     char szContributors1[ MAX_CONTRIBUTORS_LENGTH ];
@@ -2578,7 +2586,7 @@ static void resetregistry (void)
     RegDeleteValue (hWinUAEKey, "QuickStartHostConfig");
 }
 
-static BOOL CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
     char tmp[MAX_DPATH];
@@ -2941,9 +2949,9 @@ static void testimage (HWND hDlg, int num)
     }
 }
 
-static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam);
+static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam);
 
-static BOOL CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
     int ret = FALSE, i;
@@ -3125,7 +3133,7 @@ static void init_aboutdlg (HWND hDlg)
     }
 }
 
-static BOOL CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch( msg )
     {
@@ -3137,9 +3145,7 @@ static BOOL CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    
 	case WM_COMMAND:
 	    if (wParam == IDC_CONTRIBUTORS) 
-	    {
 		DisplayContributors (hDlg);
-	    }
 	    break;
 	case WM_SETCURSOR:
 	    return TRUE;
@@ -3240,8 +3246,9 @@ static int storedrefreshrates[MAX_REFRESH_RATES + 1];
 
 static void init_frequency_combo (HWND hDlg, int dmode)
 {
-    int i, j, freq, index, tmp;
+    int i, j, freq, tmp;
     char hz[20], hz2[20], txt[100];
+    LRESULT index;
     
     i = 0; index = 0;
     while ((freq = DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
@@ -3572,8 +3579,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE) 
     {
 	if (LOWORD (wParam) == IDC_DISPLAYSELECT) {
-	    LONG posn;
-	    posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
+	    LRESULT posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
 	    if (posn != CB_ERR && posn != workprefs.gfx_display) {
 		if (Displays[posn].disabled)
 		    posn = 0;
@@ -3584,7 +3590,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    }
 	    return;
 	} else if (LOWORD (wParam) == IDC_RESOLUTION) {
-	    LONG posn = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
+	    LRESULT posn = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
 	    if (posn == CB_ERR)
 		return;
 	    workprefs.gfx_width_fs  = DisplayModes[posn].res.width;
@@ -3607,7 +3613,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_height_win, FALSE);
 	    init_frequency_combo (hDlg, posn);
 	} else if (LOWORD (wParam) == IDC_REFRESHRATE) {
-	    LONG posn1, posn2;
+	    LRESULT posn1, posn2;
 	    posn1 = SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_GETCURSEL, 0, 0);
 	    if (posn1 == CB_ERR)
 		return;
@@ -3635,7 +3641,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 static int hw3d_changed;
 
-static BOOL CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     HKEY hPixelFormatKey;
@@ -3801,7 +3807,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     }
 }
 
-static BOOL CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
 
@@ -3933,7 +3939,7 @@ static void fix_values_memorydlg (void)
 	workprefs.chipset_mask |= CSMASK_ECS_AGNUS;
 }
 
-static BOOL CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
 
@@ -3983,9 +3989,9 @@ static BOOL CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, uae_u8 *keybuf, int keysize, int type)
 {
     int idx, idx2;
-    char tmp[1000];
-    char tmp2[1000];
-    char seltmp[1000];
+    char tmp[MAX_DPATH];
+    char tmp2[MAX_DPATH];
+    char seltmp[MAX_DPATH];
     struct romdata *rdx;
 
     rdx = scan_single_rom (path, keybuf, keysize);
@@ -4016,16 +4022,16 @@ static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, uae_u8 *keyb
     if (seltmp[0])
 	SendDlgItemMessage (hDlg, d, CB_SELECTSTRING, (WPARAM)-1, (LPARAM)seltmp);
     else
-	SetDlgItemText( hDlg, d, path);
+	SetDlgItemText(hDlg, d, path);
 }
 
 static void getromfile (HWND hDlg, DWORD d, char *path, int size)
 {
-    DWORD val = SendDlgItemMessage (hDlg, d, CB_GETCURSEL, 0, 0L);
+    LRESULT val = SendDlgItemMessage (hDlg, d, CB_GETCURSEL, 0, 0L);
     if (val == CB_ERR) {
 	SendDlgItemMessage (hDlg, d, WM_GETTEXT, (WPARAM)size, (LPARAM)path);
     } else {
-	char tmp1[MAX_PATH], tmp2[MAX_PATH];
+	char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 	struct romdata *rd;
 	SendDlgItemMessage (hDlg, d, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp1);
 	path[0] = 0;
@@ -4104,7 +4110,7 @@ static void init_kickstart (HWND hDlg)
 	RegCloseKey (fkey);
 }
 
-static BOOL CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
     char tmp[MAX_DPATH];
@@ -4230,7 +4236,7 @@ static void misc_kbled (HWND hDlg, int v, int nv)
 
 static void misc_getkbled (HWND hDlg, int v, int n)
 {
-    int nv = SendDlgItemMessage(hDlg, v, CB_GETCURSEL, 0, 0L);
+    LRESULT nv = SendDlgItemMessage(hDlg, v, CB_GETCURSEL, 0, 0L);
     if (nv != CB_ERR) {
 	workprefs.keyboard_leds[n] = nv;
 	misc_kbled (hDlg, v, nv);
@@ -4240,7 +4246,7 @@ static void misc_getkbled (HWND hDlg, int v, int n)
 
 static void misc_getpri (HWND hDlg, int v, int *n)
 {
-    int nv = SendDlgItemMessage(hDlg, v, CB_GETCURSEL, 0, 0L);
+    LRESULT nv = SendDlgItemMessage(hDlg, v, CB_GETCURSEL, 0, 0L);
     if (nv != CB_ERR)
 	*n = nv;
 }
@@ -4319,7 +4325,7 @@ static void values_to_miscdlg (HWND hDlg)
     SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt); 
 }
 
-static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char txt[100];
 
@@ -4442,7 +4448,7 @@ static BOOL MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     return FALSE;
 }
 
-static BOOL CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (msg == WM_INITDIALOG) {
 	pages[MISC1_ID] = hDlg;
@@ -4454,7 +4460,7 @@ static BOOL CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
     return MiscDlgProc (hDlg, msg, wParam, lParam);
 }
 
-static BOOL CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (msg == WM_INITDIALOG) {
 	pages[MISC2_ID] = hDlg;
@@ -4669,7 +4675,7 @@ static void values_from_cpudlg (HWND hDlg)
         SendMessage(pages[MEMORY_ID], WM_USER, 0, 0 );
 }
 
-static BOOL CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
 
@@ -4838,7 +4844,8 @@ static void values_to_sounddlg (HWND hDlg)
     int produce_sound = workprefs.produce_sound;
     int stereo = workprefs.sound_stereo;
     char txt[100], *p;
-    int i, idx, selected;
+    int i, selected;
+    LRESULT idx;
 
     if (workprefs.sound_maxbsiz & (workprefs.sound_maxbsiz - 1))
 	workprefs.sound_maxbsiz = DEFAULT_SOUND_MAXB;
@@ -4967,8 +4974,8 @@ static void values_to_sounddlg (HWND hDlg)
 
 static void values_from_sounddlg (HWND hDlg)
 {
-    int idx, i;
     char txt[6];
+    LRESULT idx;
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDFREQ, CB_GETCURSEL, 0, 0);
     if (idx >= 0) {
@@ -5011,17 +5018,17 @@ static void values_from_sounddlg (HWND hDlg)
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
     if (idx >= 0) {
-	i = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_GETCURSEL, 0, 0);
-	if (i >= 0) {
-	    if (i > DS_BUILD_IN_SOUNDS) {
-		int j = i - (DS_BUILD_IN_SOUNDS + 1);
+	LRESULT res = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_GETCURSEL, 0, 0);
+	if (res >= 0) {
+	    if (res > DS_BUILD_IN_SOUNDS) {
+		int j = res - (DS_BUILD_IN_SOUNDS + 1);
 		char *p = drivesounds;
 		while (j-- > 0)
 		    p += strlen (p) + 1;
 		workprefs.dfxclick[idx] = -1;
 		strcpy (workprefs.dfxclickexternal[idx], p);
 	    } else {
-		workprefs.dfxclick[idx] = i;
+		workprefs.dfxclick[idx] = res;
 		workprefs.dfxclickexternal[idx][0] = 0;
 	    }
 	}
@@ -5030,7 +5037,7 @@ static void values_from_sounddlg (HWND hDlg)
 
 extern int sound_calibrate (HWND, struct uae_prefs*);
 
-static BOOL CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int numdevs;
@@ -5130,7 +5137,7 @@ struct hfdlg_vals
 static struct hfdlg_vals empty_hfdlg = { "", "", "", "", 32, 2, 1, 0, 512, 1, 0, 0 };
 static struct hfdlg_vals current_hfdlg;
 
-static int CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     BROWSEINFO browse_info;
@@ -5269,10 +5276,10 @@ static void hardfile_testrdb (HWND hDlg)
     sethardfile (hDlg);
 }
 
-static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    int i;
+    LRESULT res;
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -5293,24 +5300,24 @@ static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	        EnableWindow (GetDlgItem (hDlg, IDC_HF_CREATE), CalculateHardfileSize (hDlg) > 0);
 	    break;
 	    case IDC_HF_TYPE:
-		i = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
-	        sethfdostype (hDlg, i);
-	        EnableWindow (GetDlgItem (hDlg, IDC_HF_DOSTYPE), i >= 2);
+		res = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
+	        sethfdostype (hDlg, (int)res);
+	        EnableWindow (GetDlgItem (hDlg, IDC_HF_DOSTYPE), res >= 2);
 	    break;
 	    case IDC_HF_CREATE:
 	    {
 		UINT setting = CalculateHardfileSize (hDlg);
 		char dostype[16];
 		GetDlgItemText (hDlg, IDC_HF_DOSTYPE, dostype, sizeof (dostype));
-		i = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
-		if (i == 0)
+		res = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
+		if (res == 0)
 		    dostype[0] = 0;
 		if (!CreateHardFile(hDlg, setting, dostype)) {
 		    char szMessage[MAX_DPATH];
 		    char szTitle[MAX_DPATH];
 		    WIN32GUI_LoadUIString (IDS_FAILEDHARDFILECREATION, szMessage, MAX_DPATH);
 		    WIN32GUI_LoadUIString (IDS_CREATIONERROR, szTitle, MAX_DPATH);
-		    MessageBox( hDlg, szMessage, szTitle,
+		    MessageBox(hDlg, szMessage, szTitle,
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 		}
 	    }
@@ -5324,10 +5331,10 @@ static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
 		break;
 	    case IDOK:
-		if( strlen( current_hfdlg.filename ) == 0 ) 
+		if( strlen(current_hfdlg.filename) == 0 ) 
 		{
-		    char szMessage[ MAX_DPATH ];
-		    char szTitle[ MAX_DPATH ];
+		    char szMessage[MAX_DPATH];
+		    char szTitle[MAX_DPATH];
 		    WIN32GUI_LoadUIString( IDS_MUSTSELECTFILE, szMessage, MAX_DPATH );
 		    WIN32GUI_LoadUIString( IDS_SETTINGSERROR, szTitle, MAX_DPATH );
 
@@ -5369,10 +5376,11 @@ static int CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
     return FALSE;
 }
 
-static int CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    int i, posn, index;
+    int i, index;
+    LRESULT posn;
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -5408,7 +5416,7 @@ static int CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, L
 
         posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
-	    strcpy (current_hfdlg.filename, hdf_getnameharddrive (posn, 0));
+	    strcpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0));
 	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
 	recursive--;
 	break;
@@ -5665,7 +5673,7 @@ static void hilitehd (void)
     ListView_SetItemState( cachedlist, clicked_entry, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED );
 }
 
-static BOOL CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 
     switch (msg) {
@@ -5906,17 +5914,17 @@ static void addfloppytype (HWND hDlg, int n)
 static void getfloppytype (HWND hDlg, int n)
 {
     int f_type = floppybuttons[n][3];
-    int val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
+    LRESULT val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
     
     if (val != CB_ERR && workprefs.dfxtype[n] != val - 1) {
-	workprefs.dfxtype[n] = val - 1;
+	workprefs.dfxtype[n] = (int)val - 1;
 	addfloppytype (hDlg, n);
     }
 }
 
 static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
 {
-    int val;
+    LRESULT val;
 
     out[0] = 0;
     val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
@@ -5981,7 +5989,7 @@ static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv)
     addfloppytype (hDlg, drv);
 }
 
-static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int i;
@@ -6152,7 +6160,7 @@ static BOOL CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	break;
 
     case WM_HSCROLL:
-	workprefs.floppy_speed = SendMessage (GetDlgItem (hDlg, IDC_FLOPPYSPD), TBM_GETPOS, 0, 0);
+	workprefs.floppy_speed = (int)SendMessage (GetDlgItem (hDlg, IDC_FLOPPYSPD), TBM_GETPOS, 0, 0);
 	if (workprefs.floppy_speed > 0) {
 	    workprefs.floppy_speed--;
 	    workprefs.floppy_speed = 1 << workprefs.floppy_speed;
@@ -6207,7 +6215,7 @@ static void addswapperfile (HWND hDlg, int entry)
     }
 }
 
-static BOOL CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     static int entry;
@@ -6555,15 +6563,15 @@ static void values_from_portsdlg (HWND hDlg)
 	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
 	int prevport = *port;
 	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
-        int v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
+        LRESULT v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
 	if (v != CB_ERR && v > 0) {
 	    v--;
 	    if (v < JSEM_LASTKBD)
-		*port = JSEM_KBDLAYOUT + v;
+		*port = JSEM_KBDLAYOUT + (int)v;
 	    else if (v >= JSEM_LASTKBD + inputdevice_get_device_total (IDTYPE_JOYSTICK))
-	        *port = JSEM_MICE + v - inputdevice_get_device_total (IDTYPE_JOYSTICK) - JSEM_LASTKBD;
+	        *port = JSEM_MICE + (int)v - inputdevice_get_device_total (IDTYPE_JOYSTICK) - JSEM_LASTKBD;
 	    else
-		*port = JSEM_JOYS + v - JSEM_LASTKBD;
+		*port = JSEM_JOYS + (int)v - JSEM_LASTKBD;
 	}
 	if (*port != prevport) {
 	    lastside = i;
@@ -6608,7 +6616,7 @@ static void values_from_portsdlg (HWND hDlg)
 #endif
     }
 
-    workprefs.win32_midioutdev = SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0 );
+    workprefs.win32_midioutdev = (int)SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0 );
     workprefs.win32_midioutdev -= 2;
 
     if( bNoMidiIn )
@@ -6617,7 +6625,7 @@ static void values_from_portsdlg (HWND hDlg)
     }
     else
     {
-	workprefs.win32_midiindev = SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0 );
+	workprefs.win32_midiindev = (int)SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0 );
     }
     EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
@@ -6650,7 +6658,7 @@ static void values_from_portsdlg (HWND hDlg)
     workprefs.serial_direct = 0;
     if (IsDlgButtonChecked (hDlg, IDC_SERIAL_DIRECT))
         workprefs.serial_direct = 1;
-    GetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters, 256);
+    GetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters, sizeof workprefs.ghostscript_parameters);
     v  = GetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, &success, FALSE);
     if (success)
 	workprefs.parallel_autoflush_time = v;
@@ -6659,7 +6667,7 @@ static void values_from_portsdlg (HWND hDlg)
 
 static void values_to_portsdlg (HWND hDlg)
 {
-    LONG result = 0;
+    LRESULT result = 0;
 
     if( strcmp (workprefs.prtname, "none"))
     {
@@ -6713,10 +6721,11 @@ static void values_to_portsdlg (HWND hDlg)
     else
     {
 	int t = (workprefs.sername[0] == '\0' ? 0 : workprefs.sername[3] - '0');
-	int i, result = -1;
+	int i;
+	LRESULT result = -1;
 	for (i = 0; i < MAX_SERIALS; i++) {
 	    if (!strcmp (comports[i], workprefs.sername)) {
-	        result = SendDlgItemMessage( hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L );
+	        result = SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L);
 		break;
 	    }
 	}
@@ -6853,7 +6862,7 @@ static void init_portsdlg( HWND hDlg )
 }
 
 /* Handle messages for the Joystick Settings page of our property-sheet */
-static BOOL CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int temp;
@@ -7034,8 +7043,9 @@ static void clearinputlistview (HWND hDlg)
 
 static void values_from_inputdlg (HWND hDlg)
 {
-    int item, doselect = 0, v;
+    int doselect = 0, v;
     BOOL success;
+    LRESULT item;
 
     v  = GetDlgItemInt( hDlg, IDC_INPUTDEADZONE, &success, FALSE );
     if (success) {
@@ -7057,7 +7067,7 @@ static void values_from_inputdlg (HWND hDlg)
 
     item = SendDlgItemMessage( hDlg, IDC_INPUTAMIGACNT, CB_GETCURSEL, 0, 0L );
     if (item != CB_ERR && input_selected_sub_num != item) {
-	input_selected_sub_num = item;
+	input_selected_sub_num = (int)item;
 	doselect = 0;
         init_inputdlg_2 (hDlg);
 	update_listview_input (hDlg);
@@ -7065,9 +7075,9 @@ static void values_from_inputdlg (HWND hDlg)
     }
 
     item = SendDlgItemMessage( hDlg, IDC_INPUTTYPE, CB_GETCURSEL, 0, 0L );
-    if( item != CB_ERR ) {
+    if(item != CB_ERR) {
 	if (item != workprefs.input_selected_setting) {
-	    workprefs.input_selected_setting = item;
+	    workprefs.input_selected_setting = (int)item;
 	    input_selected_widget = -1;
 	    inputdevice_updateconfig (&workprefs);
 	    enable_for_inputdlg( hDlg );
@@ -7076,9 +7086,9 @@ static void values_from_inputdlg (HWND hDlg)
 	}
     }
     item = SendDlgItemMessage( hDlg, IDC_INPUTDEVICE, CB_GETCURSEL, 0, 0L );
-    if( item != CB_ERR ) {
+    if(item != CB_ERR) {
 	if (item != input_selected_device) {
-	    input_selected_device = item;
+	    input_selected_device = (int)item;
 	    input_selected_widget = -1;
 	    input_selected_event = -1;
 	    InitializeListView (hDlg);
@@ -7088,8 +7098,8 @@ static void values_from_inputdlg (HWND hDlg)
 	}
     }
     item = SendDlgItemMessage( hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L );
-    if( item != CB_ERR) {
-	input_selected_event = item;
+    if(item != CB_ERR) {
+	input_selected_event = (int)item;
 	doselect = 1;
     }
 
@@ -7114,10 +7124,10 @@ static void input_swap (HWND hDlg)
 static void input_copy (HWND hDlg)
 {
     int dst = workprefs.input_selected_setting;
-    int src = SendDlgItemMessage( hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L );
+    LRESULT src = SendDlgItemMessage( hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L );
     if (src == CB_ERR)
 	return;
-    inputdevice_copy_single_config (&workprefs, src, workprefs.input_selected_setting, input_selected_device);
+    inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device);
     init_inputdlg (hDlg);
 }
 
@@ -7137,7 +7147,7 @@ static void input_toggleautofire (void)
 	name, custom, af, input_selected_sub_num);
 }
 
-static BOOL CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char name_buf[MAX_DPATH] = "", desc_buf[128] = "";
     char *posn = NULL;
@@ -7418,11 +7428,12 @@ static void values_from_hw3ddlg (HWND hDlg)
 
 static void filter_preset (HWND hDlg, WPARAM wParam)
 {
-    int item, ok, err, load;
+    int ok, err, load;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
     DWORD outsize;
     HKEY fkey;
     struct uae_prefs *p = &workprefs;
+    LRESULT item;
 
     load = 0;
     ok = 0;
@@ -7435,7 +7446,7 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
     item = SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETCURSEL, 0, 0);
     tmp1[0] = 0;
     if (item != CB_ERR) {
-	filterpreset = item;
+	filterpreset = (int)item;
         SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp1);
     } else {
         SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)item, (LPARAM)tmp1);
@@ -7522,7 +7533,7 @@ static void filter_handle (HWND hDlg)
 	    workprefs.gfx_filter = uaefilters[item].type;
 	    item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
 	    if (item != CB_ERR)
-		workprefs.gfx_filter_filtermode = item;
+		workprefs.gfx_filter_filtermode = (int)item;
 	    if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
 		values_to_hw3ddlg (hDlg);
 		hw3d_changed = 1;
@@ -7533,10 +7544,10 @@ static void filter_handle (HWND hDlg)
     updatedisplayarea ();
 }
 
-static BOOL CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
-    int item;
+    LRESULT item;
 
     switch (msg) 
     {
@@ -7599,12 +7610,12 @@ static BOOL CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
 	recursive--;
 	break;
     case WM_HSCROLL:
-	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = SendMessage( GetDlgItem( hDlg, IDC_FILTERHZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = SendMessage( GetDlgItem( hDlg, IDC_FILTERVZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = SendMessage( GetDlgItem( hDlg, IDC_FILTERHO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = SendMessage( GetDlgItem( hDlg, IDC_FILTERVO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = SendMessage( GetDlgItem( hDlg, IDC_FILTERSL ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = SendMessage( GetDlgItem( hDlg, IDC_FILTERSL2 ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERHZ ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERVZ ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERHO ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERVO ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERSL ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERSL2 ), TBM_GETPOS, 0, 0 );
 	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
@@ -7656,14 +7667,14 @@ static void values_to_avioutputdlg(HWND hDlg)
 
 static void values_from_avioutputdlg(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	int tmp;
+	LRESULT tmp;
 
         updatewinfsmode (&workprefs);
 	tmp = SendMessage(GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS), TBM_GETPOS, 0, 0);
 	if (tmp < 1)
 	    tmp = 1;
 	if (tmp != avioutput_fps) {
-	    avioutput_fps = tmp;
+	    avioutput_fps = (int)tmp;
 	    AVIOutput_Restart ();
 	}
 	avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
@@ -7716,7 +7727,7 @@ static void enable_for_avioutputdlg(HWND hDlg)
 	EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_ACTIVATED), (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 }
 
-static BOOL CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
 	
@@ -7922,7 +7933,7 @@ static int GetPanelRect (HWND hDlg, RECT *r)
 static int ToolTipImageIDs[] = { 1, IDB_XARCADE, -1 };
 
 static WNDPROC ToolTipWndProcOld;
-static long FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     RECT r1;
     POINT p1;
@@ -7975,7 +7986,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
     TOOLINFO ti;
     char tmp[MAX_DPATH];
     char *p;
-    int v;
+    LRESULT v;
 
     tmp[0] = 0;
     SendMessage (hwnd, WM_GETTEXT, (WPARAM)sizeof (tmp), (LPARAM)tmp);
@@ -8013,9 +8024,9 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 		    panelDlg, NULL, hInst, NULL);
 		ToolTipHWNDS2[idx].hwnd = ToolTipHWND2;
 		ToolTipHWNDS2[idx+1].hwnd = NULL;
-		ToolTipHWNDS2[idx].proc = (WNDPROC)GetWindowLongPtr (ToolTipHWND2, GWL_WNDPROC);
+		ToolTipHWNDS2[idx].proc = (WNDPROC)GetWindowLongPtr (ToolTipHWND2, GWLP_WNDPROC);
 		ToolTipHWNDS2[idx].imageid = ToolTipImageIDs[i + 1];
-		SetWindowLongPtr (ToolTipHWND2, GWL_WNDPROC, (LONG_PTR)ToolTipWndProc);
+		SetWindowLongPtr (ToolTipHWND2, GWLP_WNDPROC, (LONG_PTR)ToolTipWndProc);
 		SetWindowPos (ToolTipHWND2, HWND_TOPMOST, 0, 0, 0, 0,
 		    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 		SendMessage(ToolTipHWND2, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
@@ -8396,7 +8407,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage)
 }
 
 static int dialogreturn;
-static BOOL CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
 
@@ -8440,8 +8451,8 @@ static BOOL CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 		case TVN_SELCHANGED:
 		{
 		    LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
-		    currentpage = tv->itemNew.lParam & 0xffff;
-		    configtypepanel = configtype = tv->itemNew.lParam >> 16;
+		    currentpage = (int)(tv->itemNew.lParam & 0xffff);
+		    configtypepanel = configtype = (int)(tv->itemNew.lParam >> 16);
 		    updatePanel (hDlg, currentpage);
 		    return TRUE;
 		}
@@ -8492,7 +8503,7 @@ static ACCEL EmptyAccel[] = {
 };
 
 static int init_page (int tmpl, int icon, int title,
-               BOOL (CALLBACK FAR *func) (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam), ACCEL *accels, char *help)
+               INT_PTR (CALLBACK FAR *func) (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam), ACCEL *accels, char *help)
 {
     static id = 0;
     int i = -1;

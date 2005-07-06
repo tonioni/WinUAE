@@ -503,15 +503,15 @@ int Midi_Parse( midi_direction_e direction, BYTE *dataptr )
 static unsigned char midibuf[BUFFLEN];
 static long midi_inptr = 0, midi_inlast = 0;
 
-static void  add1byte(char w) //put 1 Byte to Midibuffer
+static void  add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
 	    TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
 	    return;
 	}
-	midibuf[midi_inlast++] = w;
+	midibuf[midi_inlast++] = (uae_u8)w;
 }
-static void  add2byte(long w) //put 2 Byte to Midibuffer
+static void  add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
 	    TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
@@ -521,7 +521,7 @@ static void  add2byte(long w) //put 2 Byte to Midibuffer
 	w = w>>8;
 	midibuf[midi_inlast++] = (uae_u8)w;
 }
-static void  add3byte(long w) //put 3 Byte to Midibuffer
+static void  add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
 	    TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
@@ -582,7 +582,7 @@ LONG getmidibyte(void) //return midibyte or -1 if none
     return rv;
 }
 
-static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD dwInstance,DWORD dwParam1,DWORD dwParam2)    
+static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,DWORD_PTR dwParam1,DWORD_PTR dwParam2)    
 {
 	EnterCriticalSection (&cs_proc);
 	if(wMsg == MIM_ERROR)

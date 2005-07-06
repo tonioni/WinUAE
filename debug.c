@@ -100,7 +100,7 @@ static char help[] = {
     "  T                     Show exec tasks and their PCs\n"
     "  h,?                   Show this help page\n"
     "  b                     Step to previous state capture position\n"
-    "  am <channel mask>     Enable or disable audio channels\n"                  
+    "  am <channel mask>     Enable or disable audio channels\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
@@ -153,7 +153,7 @@ static uae_u32 readint (char **c)
 	return readhex (c);
     }
     if (**c == '0' && toupper((*c)[1]) == 'X') {
-	(*c)+= 2;	
+	(*c)+= 2;
 	return readhex (c);
     }
     if (**c == '-')
@@ -276,7 +276,7 @@ static void foundmod (uae_u32 ptr, char *type)
     ptr2 += 0x2A;
     for (i = 0; i < 31; i++, ptr2 += 30)
 	length += 2*((ptr2[0]<<8)+ptr2[1]);
-    
+
     console_out ("Name \"%s\", Length 0x%lx bytes.\n", name, length);
 }
 
@@ -486,7 +486,7 @@ static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
     }
     return address;
     /* You may wonder why I don't stop this at the end of the copperlist?
-     * Well, often nice things are hidden at the end and it is debatable the actual 
+     * Well, often nice things are hidden at the end and it is debatable the actual
      * values that mean the end of the copperlist */
 }
 
@@ -530,7 +530,7 @@ static void cheatsearch (char **c)
     } else {
 	for (count = 0; count<255; count++) {
 	    if (p[vlist[count]+3] == (val & 0xff)
-		&& p[vlist[count]+2] == (val>>8 & 0xff) 
+		&& p[vlist[count]+2] == (val>>8 & 0xff)
 		&& p[vlist[count]+1] == (val>>16 & 0xff)
 		&& p[vlist[count]] == (val>>24 & 0xff))
 	    {
@@ -647,15 +647,15 @@ static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
 	    else
 		write_log ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
 	    if (illgdebug_break)
-    		activate_debugger ();
+		activate_debugger ();
 	} else if ((mask & 1) && rw) {
 	    write_log ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
 	    if (illgdebug_break)
-    		activate_debugger ();
+		activate_debugger ();
 	} else if ((mask & 2) && !rw) {
 	    write_log ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
 	    if (illgdebug_break)
-    		activate_debugger ();
+		activate_debugger ();
 	}
     }
 }
@@ -692,7 +692,7 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 	    brk = 1;
 	if (brk && mwnodes[i].modval_written) {
 	    if (!rw) {
-	        brk = 0;
+		brk = 0;
 	    } else if (mwnodes[i].modval_written == 1) {
 		mwnodes[i].modval_written = 2;
 		mwnodes[i].modval = val;
@@ -745,19 +745,19 @@ static void debug_lput (uaecptr addr, uae_u32 v)
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 4, v);
     debug_mem_banks[off]->lput(addr, v);
-}   
+}
 static void debug_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 2, v);
     debug_mem_banks[off]->wput(addr, v);
-}   
+}
 static void debug_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 1, v);
     debug_mem_banks[off]->bput(addr, v);
-}   
+}
 static int debug_check (uaecptr addr, uae_u32 size)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->check (addr, size);
@@ -1016,7 +1016,7 @@ static int instruction_breakpoint (char **c)
 		console_out ("No breakpoints\n");
 	    else
 		console_out ("\n");
-    	    return 0;
+	    return 0;
 	}
 	skipaddr_doskip = 1;
 	skipaddr_start = readhex (c);
@@ -1040,15 +1040,15 @@ static int instruction_breakpoint (char **c)
 		bpn->addr = skipaddr_start;
 		bpn->enabled = 1;
 		console_out ("Breakpoint added\n");
-	        skipaddr_start = 0xffffffff;
-	        skipaddr_doskip = 0;
+		skipaddr_start = 0xffffffff;
+		skipaddr_doskip = 0;
 		break;
 	    }
 	    return 0;
 	}
     }
     if (skipaddr_start == 0xC0DEDBAD) {
-        trace_same_insn_count = 0;
+	trace_same_insn_count = 0;
 	logfile = fopen ("uae.trace", "w");
 	memcpy (trace_insn_copy, regs.pc_p, 10);
 	memcpy (&trace_prev_regs, &regs, sizeof regs);
@@ -1188,14 +1188,14 @@ static void searchmem (char **cc)
     if (!got)
 	console_out ("nothing found");
     console_out ("\n");
-}	
+}
 
 static int staterecorder (char **cc)
 {
     char nc;
 
     if (!more_params (cc)) {
-        if (savestate_dorewind (1)) {
+	if (savestate_dorewind (1)) {
 	    debug_rewind = 1;
 	    return 1;
 	}
@@ -1244,7 +1244,7 @@ static void m68k_modify (char **inptr)
     uae_u32 v;
     char parm[10];
     char c1, c2;
-    
+
     if (!next_string (inptr, parm, sizeof (parm), 1))
 	return;
     c1 = toupper (parm[0]);
@@ -1296,7 +1296,7 @@ static void debug_1 (void)
 
 	console_out (">");
 	console_flush ();
-        if (!console_get (input, 80))
+	if (!console_get (input, 80))
 	    continue;
 	inptr = input;
 	cmd = next_char (&inptr);
@@ -1310,7 +1310,7 @@ static void debug_1 (void)
 		      m68k_dumpstate (stdout, &nextpc);
 	break;
 	case 'M': modulesearch (); break;
-	case 'C': cheatsearch (&inptr); break; 
+	case 'C': cheatsearch (&inptr); break;
 	case 'W': writeintomem (&inptr); break;
 	case 'w': memwatch (&inptr); break;
 	case 'S': savemem (&inptr); break;
@@ -1327,7 +1327,7 @@ static void debug_1 (void)
 		next_char(&inptr);
 		disk_debug(&inptr);
 	    } else {
-	        uae_u32 daddr;
+		uae_u32 daddr;
 		int count;
 		if (more_params(&inptr))
 		    daddr = readhex(&inptr);
@@ -1404,9 +1404,9 @@ static void debug_1 (void)
 		    temp--;
 	    }
 	    while (temp != lasthist) {
-	        regs = history[temp];
+		regs = history[temp];
 		regflags = historyf[temp];
-	        m68k_setpc(history[temp].pc);
+		m68k_setpc(history[temp].pc);
 		if (badly) {
 		    m68k_dumpstate(stdout, NULL);
 		} else {
@@ -1438,11 +1438,11 @@ static void debug_1 (void)
 	{
 	    uae_u32 maddr;
 	    int lines;
- 
+
 	    if (more_params(&inptr)) {
 		maddr = readhex(&inptr);
 		if (maddr == 1 || maddr == 2)
-		    maddr = get_copper_address (maddr);		
+		    maddr = get_copper_address (maddr);
 	    }
 	    else
 		maddr = nxcopper;
@@ -1469,7 +1469,7 @@ static void debug_1 (void)
 	    break;
 	case 'b':
 	    if (staterecorder (&inptr))
-	        return;
+		return;
 	    break;
 	case 'a':
 	    if (more_params (&inptr)) {
@@ -1534,7 +1534,7 @@ void debug (void)
 	    int bp = 0;
 
 	    for (i = 0; i < BREAKPOINT_TOTAL; i++) {
-	        if (!bpnodes[i].enabled)
+		if (!bpnodes[i].enabled)
 		    continue;
 		if (bpnodes[i].addr == pc) {
 		    bp = 1;
@@ -1562,12 +1562,12 @@ void debug (void)
 		}
 	    }
 	    if (!bp) {
-	        set_special (SPCFLAG_BRK);
+		set_special (SPCFLAG_BRK);
 		return;
 	    }
 	}
     } else {
-        write_log ("Memwatch %d: break at %08.8X.%c %c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
+	write_log ("Memwatch %d: break at %08.8X.%c %c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
 	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'), mwhit.rw ? 'W' : 'R', mwhit.val);
 	memwatch_triggered = 0;
     }
@@ -1607,7 +1607,7 @@ void debug (void)
 	    do_skip = 1;
     }
     if (do_skip) {
-        set_special (SPCFLAG_BRK);
+	set_special (SPCFLAG_BRK);
 	debugging = 1;
     }
     resume_sound ();

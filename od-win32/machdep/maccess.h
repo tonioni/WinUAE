@@ -165,7 +165,7 @@ static __inline__ void byteput_1 (uae_cptr addr, uae_u32 b)
 
 static __inline__ uae_u32 do_get_mem_long(uae_u32 *a)
 {
-#ifndef _MSC_VER
+#if !defined(X86_MSVC_ASSEMBLY)
     uae_u8 *b = (uae_u8 *)a;
     return (*b << 24) | (*(b+1) << 16) | (*(b+2) << 8) | (*(b+3));
 #else
@@ -192,7 +192,7 @@ static __inline__ uae_u16 do_get_mem_word(uae_u16 *a)
 
 static __inline__ void do_put_mem_long(uae_u32 *a, uae_u32 v)
 {
-#ifndef _MSC_VER
+#if !defined(X86_MSVC_ASSEMBLY)
     uae_u8 *b = (uae_u8 *)a;
     
     *b = v >> 24;

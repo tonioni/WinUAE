@@ -1722,17 +1722,19 @@ static int do_specialties (int cycles)
 	    unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	    return 1;
 	}
-#ifdef JIT
+
 	if (currprefs.cpu_idle && currprefs.m68k_speed != 0 && ((regs.spcflags & SPCFLAG_STOP)) == SPCFLAG_STOP) {
 	    /* sleep 1ms if STOP-instruction is executed */
 	    if (1) {
 		static int sleepcnt, lvpos, zerocnt;
 		if (vpos != lvpos) {
 		    sleepcnt--;
+#ifdef JIT
 		    if (pissoff == 0 && compiled_code && --zerocnt < 0) {
 			sleepcnt = -1;
 			zerocnt = IDLETIME / 4;
 		    }
+#endif
 		    lvpos = vpos;
 		    if (sleepcnt < 0) {
 		        sleepcnt = IDLETIME / 2;
@@ -1741,8 +1743,8 @@ static int do_specialties (int cycles)
 		}
 	    }
 	}
-#endif
     }
+
     if (regs.spcflags & SPCFLAG_TRACE)
 	do_trace ();
 
@@ -2613,3 +2615,146 @@ void cpureset (void)
 }
 
 
+/*
+
+ The routines below take dividend and divisor as parameters.
+ They return 0 if division by zero, or exact number of cycles otherwise.
+
+ The number of cycles returned assumes a register operand.
+ Effective address time must be added if memory operand.
+
+ For 68000 only (not 68010, 68012, 68020, etc).
+ Probably valid for 68008 after adding the extra prefetch cycle.
+
+
+ Best and worst cases are for register operand:
+ (Note the difference with the documented range.)
+
+
+ DIVU:
+
+ Overflow (always): 10 cycles.
+ Worst case: 136 cycles.
+ Best case: 76 cycles.
+
+
+ DIVS:
+
+ Absolute overflow: 16-18 cycles.
+ Signed overflow is not detected prematurely.
+
+ Worst case: 156 cycles.
+ Best case without signed overflow: 122 cycles.
+ Best case with signed overflow: 120 cycles
+
+ 
+ */
+
+
+//
+// DIVU
+// Unsigned division
+//
+
+STATIC_INLINE int getDivu68kCycles_2(uae_u32 dividend, uae_u16 divisor)
+{
+	int mcycles;
+	uae_u32 hdivisor;
+	int i;
+
+	if(divisor == 0)
+		return 0;
+
+	// Overflow
+	if((dividend >> 16) >= divisor)
+		return (mcycles = 5) * 2;
+
+	mcycles = 38;
+	hdivisor = divisor << 16;
+
+	for( i = 0; i < 15; i++)
+	{
+		uae_u32 temp;
+		temp = dividend;
+
+		dividend <<= 1;
+
+		// If carry from shift
+		if((uae_s32)temp < 0)
+		{
+			dividend -= hdivisor;
+		}
+		else
+		{
+			mcycles += 2;
+			if(dividend >= hdivisor)
+			{
+				dividend -= hdivisor;
+				mcycles--;
+			}
+		}
+	}
+	return mcycles * 2;
+}
+int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor)
+{
+    int v = getDivu68kCycles_2(dividend, divisor) - 4;
+//    write_log("U%d ", v);
+    return v;
+}
+
+//
+// DIVS
+// Signed division
+//
+
+STATIC_INLINE int getDivs68kCycles_2(uae_s32 dividend, uae_s16 divisor)
+{
+	int mcycles;
+	uae_u32 aquot;
+	int i;
+
+	if(divisor == 0)
+		return 0;
+
+	mcycles = 6;
+
+	if( dividend < 0)
+		mcycles++;
+
+	// Check for absolute overflow
+	if(((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
+	{
+		return (mcycles + 2) * 2;
+	}
+
+	// Absolute quotient
+	aquot = (uae_u32) abs(dividend) / (uae_u16)abs(divisor);
+
+	mcycles += 55;
+
+	if(divisor >= 0)
+	{
+		if(dividend >= 0)
+			mcycles--;
+		else
+			mcycles++;
+	}
+
+	// Count 15 msbits in absolute of quotient
+
+	for( i = 0; i < 15; i++)
+	{
+		if((uae_s16)aquot >= 0)
+			mcycles++;
+		aquot <<= 1;
+	}
+
+	return mcycles * 2;
+}
+int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor)
+{
+    int v = getDivs68kCycles_2(dividend, divisor) - 4;
+//    write_log("S%d ", v);
+    return v;
+}

@@ -71,7 +71,7 @@ static __inline__ void write_comm_pipe_pt (smp_comm_pipe *p, uae_pt data, int no
 	maybe_wake_reader (p, no_buffer);
 	return;
     }
-    
+
     uae_sem_wait (&p->lock);
     if (nxwrp == p->rdp) {
 	/* Pipe full! */

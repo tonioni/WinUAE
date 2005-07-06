@@ -212,7 +212,7 @@ static void do_samplerip(struct audio_channel_data *adp)
 	rs = rs->next;
 	cnt++;
     }
-    if (rs)
+    if (rs || cnt > 100)
 	return;
     rs = xmalloc(sizeof(struct ripped_sample));
     if (prev)

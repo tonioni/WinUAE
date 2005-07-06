@@ -1,6 +1,6 @@
 /*
  * Data used for communication between custom.c and drawing.c.
- * 
+ *
  * Copyright 1996-1998 Bernd Schmidt
  */
 
@@ -57,7 +57,7 @@ extern int framecnt;
 
 
 /* color values in two formats: 12 (OCS/ECS) or 24 (AGA) bit Amiga RGB (color_regs),
- * and the native color value; both for each Amiga hardware color register. 
+ * and the native color value; both for each Amiga hardware color register.
  *
  * !!! See color_reg_xxx functions below before touching !!!
  */
@@ -116,7 +116,7 @@ STATIC_INLINE int color_reg_cmp (struct color_entry *ce1, struct color_entry *ce
 	return memcmp (ce1->color_regs_aga, ce2->color_regs_aga, sizeof (uae_u32) * 256);
     else
 #endif
-	return memcmp (ce1->color_regs_ecs, ce2->color_regs_ecs, sizeof (uae_u16) * 32);    
+	return memcmp (ce1->color_regs_ecs, ce2->color_regs_ecs, sizeof (uae_u16) * 32);
 }
 /* ugly copy hack, is there better solution? */
 STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *src)

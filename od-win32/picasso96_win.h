@@ -470,7 +470,7 @@ struct picasso96_state_struct
     //here follow winuae additional entrys
     uae_u8  BigAssBitmap; /* Set to 1 when our Amiga screen is bigger than the displayable area */
     unsigned int        Version;
-    uaecptr  HostAddress; /* Active screen address (PC-side) */
+    uae_u8 *HostAddress; /* Active screen address (PC-side) */
     // host address is need because Windows
     // support NO direct access all the time to gfx Card
     // everytime windows can remove your surface from card so the mainrender place

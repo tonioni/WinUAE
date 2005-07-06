@@ -28,16 +28,16 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 	return;
 
     while ((nextevent - currcycle) <= cycles_to_add) {
-        int i;
-        cycles_to_add -= (nextevent - currcycle);
-        currcycle = nextevent;
+	int i;
+	cycles_to_add -= (nextevent - currcycle);
+	currcycle = nextevent;
 
-        for (i = 0; i < ev_max; i++) {
+	for (i = 0; i < ev_max; i++) {
 	    if (eventtab[i].active && eventtab[i].evtime == currcycle) {
 		(*eventtab[i].handler)();
 	    }
 	}
-        events_schedule();
+	events_schedule();
     }
     currcycle += cycles_to_add;
 }

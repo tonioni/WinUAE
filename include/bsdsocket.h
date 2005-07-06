@@ -27,6 +27,12 @@ extern void deinit_socket_layer (void);
 
 #define MAXADDRLEN 256
 
+#ifdef _WIN32
+#define SOCKET_TYPE SOCKET
+#else
+#define SOCKET_TYPE int
+#endif
+
 /* allocated and maintained on a per-task basis */
 struct socketbase {
     struct socketbase *next;
@@ -39,7 +45,7 @@ struct socketbase {
     uae_u32 errnoptr, herrnoptr;	/* pointers */
     uae_u32 errnosize, herrnosize;	/* pinter sizes */
     int dtablesize;		/* current descriptor/flag etc. table size */
-    int *dtable;		/* socket descriptor table */
+    SOCKET_TYPE *dtable;	/* socket descriptor table */
     int *ftable;		/* socket flags */
     int resultval;
     uae_u32 hostent;		/* pointer to the current hostent structure (Amiga mem) */
@@ -56,8 +62,8 @@ struct socketbase {
 
     /* host-specific fields below */
 #ifdef _WIN32
-    unsigned int sockAbort;	/* for aborting WinSock2 select() (damn Microsoft) */
-    unsigned int sockAsync;	/* for aborting WSBAsyncSelect() in window message handler */
+    SOCKET_TYPE sockAbort;	/* for aborting WinSock2 select() (damn Microsoft) */
+    SOCKET_TYPE sockAsync;	/* for aborting WSBAsyncSelect() in window message handler */
     int needAbort;		/* abort flag */
     void *hAsyncTask;		/* async task handle */
     void *hEvent;		/* thread event handle */
@@ -112,7 +118,7 @@ extern uae_u32 strncpyha (uae_u32, char *, int);
 extern void seterrno (SB, int);
 extern void setherrno (SB, int);
 
-extern void sockmsg (unsigned int, unsigned long, unsigned long);
+extern void sockmsg (unsigned int, WPARAM, LPARAM);
 extern void sockabort (SB);
 
 extern void addtosigqueue (SB, int);
@@ -122,9 +128,9 @@ extern void locksigqueue (void);
 extern void unlocksigqueue (void);
 
 extern BOOL checksd(SB, int sd);
-extern void setsd(SB, int ,int );
-extern int getsd (SB, int);
-extern int getsock (SB, int);
+extern void setsd(SB, int , SOCKET_TYPE);
+extern int getsd (SB, SOCKET_TYPE);
+extern SOCKET_TYPE getsock (SB, int);
 extern void releasesock (SB, int);
 
 extern void waitsig (SB);
@@ -133,7 +139,7 @@ extern void cancelsig (SB);
 extern int host_sbinit (SB);
 extern void host_sbcleanup (SB);
 extern void host_sbreset (void);
-extern void host_closesocketquick (int);
+extern void host_closesocketquick (SOCKET_TYPE);
 
 extern int host_dup2socket (SB, int, int);
 extern int host_socket (SB, int, int, int);

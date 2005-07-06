@@ -12,8 +12,8 @@
 STATIC_INLINE double to_single (uae_u32 value)
 {
     union {
-        float f;
-        uae_u32 u;
+	float f;
+	uae_u32 u;
     } val;
 
     val.u = value;
@@ -23,8 +23,8 @@ STATIC_INLINE double to_single (uae_u32 value)
 STATIC_INLINE uae_u32 from_single (double src)
 {
     union {
-        float f;
-        uae_u32 u;
+	float f;
+	uae_u32 u;
     } val;
 
     val.f = src;
@@ -34,8 +34,8 @@ STATIC_INLINE uae_u32 from_single (double src)
 STATIC_INLINE double to_double(uae_u32 wrd1, uae_u32 wrd2)
 {
     union {
-        double d;
-        uae_u32 u[2];
+	double d;
+	uae_u32 u[2];
     } val;
 
     val.u[0] = wrd1;
@@ -46,8 +46,8 @@ STATIC_INLINE double to_double(uae_u32 wrd1, uae_u32 wrd2)
 STATIC_INLINE void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
 {
     union {
-        double d;
-        uae_u32 u[2];
+	double d;
+	uae_u32 u[2];
     } val;
 
     val.d = src;

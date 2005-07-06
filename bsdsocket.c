@@ -32,7 +32,7 @@ static uae_u32 SockLibBase;
 
 /* ObtainSocket()/ReleaseSocket() public socket pool */
 long sockpoolids[SOCKPOOLSIZE];
-int sockpoolsocks[SOCKPOOLSIZE];
+SOCKET_TYPE sockpoolsocks[SOCKPOOLSIZE];
 uae_u32 sockpoolflags[SOCKPOOLSIZE];
 
 long curruniqid = 65536;
@@ -187,16 +187,17 @@ BOOL checksd(SB, int sd)
 	TRACE(("checksd FALSE s 0x%x sd %d\n",s,sd));
 	return FALSE;
 	}
-void setsd(SB, int sd, int s)
-	{
+
+void setsd(SB, int sd, SOCKET_TYPE s)
+{
     sb->dtable[sd - 1] = s;
-	}
+}
 
 /* Socket descriptor/opaque socket handle management */
-int getsd (SB, int s)
+int getsd (SB, SOCKET_TYPE s)
 {
     int i;
-    int *dt = sb->dtable;
+    SOCKET_TYPE *dt = sb->dtable;
 
     /* return socket descriptor if already exists */
     for (i = sb->dtablesize; i--;)
@@ -216,7 +217,7 @@ int getsd (SB, int s)
     return -1;
 }
 
-int getsock (SB, int sd)
+SOCKET_TYPE getsock (SB, int sd)
 {
     if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
 	TRACE (("Invalid Socket Descriptor (%d)\n", sd));
@@ -666,7 +667,7 @@ static uae_u32 bsdsocklib_ObtainSocket (void)
     SB = SOCKETBASE;
     int sd;
     long id;
-    int s;
+    SOCKET_TYPE s;
     int i;
 
     id = m68k_dreg (regs, 0);
@@ -698,7 +699,7 @@ static uae_u32 bsdsocklib_ReleaseSocket (void)
     SB = SOCKETBASE;
     int sd;
     long id;
-    int s;
+    SOCKET_TYPE s;
     int i;
     uae_u32 flags;
 
@@ -1251,12 +1252,12 @@ static uae_u32 bsdsocklib_init (void)
     /* Install error strings in Amiga memory */
 	tmp1 = 0;
     for (i = number_sys_error; i--;)
-		tmp1 += strlen (errortexts[i])+1;
+	tmp1 += strlen (errortexts[i])+1;
 
-	for (i = number_host_error; i--;)
-		tmp1 += strlen (herrortexts[i])+1;
+    for (i = number_host_error; i--;)
+	tmp1 += strlen (herrortexts[i])+1;
 
-	tmp1 += strlen(strErr)+1;
+    tmp1 += strlen(strErr)+1;
 
     m68k_dreg (regs, 0) = tmp1;
     m68k_dreg (regs, 1) = 0;
@@ -1267,12 +1268,12 @@ static uae_u32 bsdsocklib_init (void)
 	return 0;
     }
     for (i = 0; i < (int) (number_sys_error); i++)
-		errnotextptrs[i] = addstr (&tmp1, errortexts[i]);
+	errnotextptrs[i] = addstr (&tmp1, errortexts[i]);
 
-	for (i = 0; i < (int) (number_host_error); i++)
-		herrnotextptrs[i] = addstr (&tmp1, herrortexts[i]);
+    for (i = 0; i < (int) (number_host_error); i++)
+	herrnotextptrs[i] = addstr (&tmp1, herrortexts[i]);
 
-	strErrptr = addstr (&tmp1, strErr);
+    strErrptr = addstr (&tmp1, strErr);
 
     /* @@@ someone please implement a proper interrupt handler setup here :) */
     tmp1 = here ();

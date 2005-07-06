@@ -217,6 +217,7 @@ int hdf_open (struct hardfiledata *hfd, char *name)
     }
     hfd->handle = h;
     if (hfd->handle != INVALID_HANDLE_VALUE) {
+	hfd->handle_valid = 1;
 	hfd_log ("HDF '%s' opened succesfully, handle=%p\n", name, hfd->handle);
 	return 1;
     }
@@ -226,11 +227,14 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 
 void hdf_close (struct hardfiledata *hfd)
 {
+    if (!hfd->handle_valid)
+	return;
     hfd_log ("close handle=%p\n", hfd->handle);
     hfd->flags = 0;
     if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE)
 	CloseHandle (hfd->handle);
     hfd->handle = 0;
+    hfd->handle_valid = 0;
     if (hfd->cache)
 	VirtualFree (hfd->cache, 0, MEM_RELEASE);
     hfd->cache = 0;
@@ -247,6 +251,7 @@ int hdf_dup (struct hardfiledata *hfd, void *src)
     hfd->handle = duphandle;
     hfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
     hfd->cache_valid = 0;
+    hfd->handle_valid = 1;
     if (!hfd->cache) {
 	hdf_close (hfd);
 	return 0;
@@ -449,7 +454,7 @@ Return Value:
     status = SetupDiEnumDeviceInterfaces ( 
                 IntDevInfo,             // Interface Device Info handle
                 0,                      // Device Info data
-                (LPGUID)&DiskClassGuid, // Interface registered by driver
+                &GUID_DEVINTERFACE_DISK, // Interface registered by driver
                 Index,                  // Member
                 &interfaceData          // Device Interface Data
                 );
@@ -757,7 +762,7 @@ int hdf_init (void)
     if (buffer) {
 	memset (uae_drives, 0, sizeof (uae_drives));
 	num_drives = 0;
-	hIntDevInfo = SetupDiGetClassDevs ((LPGUID)&DiskClassGuid, NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
+	hIntDevInfo = SetupDiGetClassDevs (&GUID_DEVINTERFACE_DISK, NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
 	if (hIntDevInfo != INVALID_HANDLE_VALUE) {
 	    while (index < MAX_FILESYSTEM_UNITS) {
 		memset (uae_drives + index2, 0, sizeof (struct uae_driveinfo));
@@ -797,6 +802,5 @@ char *hdf_getnameharddrive (int index, int flags)
     }
     return uae_drives[index].device_name;
 }
-
 
 

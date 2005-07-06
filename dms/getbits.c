@@ -3,7 +3,7 @@
  *     xDMS  v1.3  -  Portable DMS archive unpacker  -  Public Domain
  *     Written by     Andre Rodrigues de la Rocha  <adlroc@usa.net>
  *     Functions/macros to get a variable number of bits
- * 
+ *
  */
 
 #include "cdata.h"
@@ -29,6 +29,6 @@ void initbitbuf(UCHAR *in){
 	bitcount = 0;
 	indata = in;
 	DROPBITS(0);
-}	
+}
 
 

@@ -324,9 +324,9 @@ int load_ghostscript (void)
     if (!gsdll) {
 	HKEY key;
 	if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
-	    int idx = 0;
+	    int idx = 0, cnt = 20;
 	    char tmp1[MAX_DPATH];
-	    for (;;) {
+	    while (cnt-- > 0) {
 		DWORD size1 = sizeof (tmp1);
 		FILETIME ft;
 	        if (RegEnumKeyEx (key, idx, tmp1, &size1, NULL, NULL, NULL, &ft) == ERROR_SUCCESS) {
@@ -803,6 +803,7 @@ void hsyncstuff(void)
     {
         flushprtbuf ();
    	{
+#if defined(AHI)
 	    extern flashscreen;
 	    int DX_Fill( int , int , int, int, uae_u32 , enum RGBFTYPE  );
 	    //extern int warned_JIT_0xF10000;
@@ -811,6 +812,7 @@ void hsyncstuff(void)
 		DX_Fill(0,0,300,40,0x000000,9);
 		flashscreen--;
 	    }
+#endif
 	}
 	keycheck = 0;
     }

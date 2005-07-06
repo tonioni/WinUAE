@@ -1982,14 +1982,14 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	    blockinfo* bi;
 	    
 	    if (currprefs.comp_oldsegv) {
-		addr-=NATMEM_OFFSET;
+		addr-=(uae_u32)NATMEM_OFFSET;
 		
+#ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-#ifdef JIT_DEBUG
 		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
-#endif
 	        }
+#endif
 		if (dir==SIG_READ) {
 		    switch(size) {
 		    case 1: *((uae_u8*)pr)=get_byte(addr); break;
@@ -2018,14 +2018,14 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		int i;
 		uae_u8 vecbuf[5];
 		
-		addr-=NATMEM_OFFSET;
+		addr-=(uae_u32)NATMEM_OFFSET;
 		
+#ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-#ifdef JIT_DEBUG
 		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
-#endif
 	        }
+#endif
 	
 		target=(uae_u8*)pContext->Eip;
 		for (i=0;i<5;i++)
@@ -2111,14 +2111,14 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	    return EXCEPTION_CONTINUE_EXECUTION;
 	}
     }
-    write_log("JIT: Can't handle access!\n");
-    if( i )
+    write_log("JIT: Can't handle access %08.8X!\n", i);
+#if 0
+    if (i)
     {
 	for (j=0;j<10;j++) {
 	    write_log("JIT: instruction byte %2d is 0x%02x\n",j,i[j]);
 	}
     }
-#if 0
     write_log("Please send the above info (starting at \"fault address\") to\n"
 	   "bmeyer@csse.monash.edu.au\n"
 	   "This shouldn't happen ;-)\n");
@@ -3191,21 +3191,21 @@ LOWFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
 
     ds=stackpos(s);
     emit_byte(0xd9);
-    emit_byte(0xe8);    /* fld 1.0 */
-    emit_byte(0xd9);
-    emit_byte(0xc1+ds); /* fld x */
+    emit_byte(0xc0+ds); /* fld x */
     emit_byte(0xd8);
     emit_byte(0xc8);    /* fmul x*x */
-    emit_byte(0xd8);
-    emit_byte(0xe9);    /* fsubr 1 - (x^2) */
+    emit_byte(0xd9);
+    emit_byte(0xe8);    /* fld 1.0 */
+    emit_byte(0xde);
+    emit_byte(0xe1);    /* fsubrp 1 - (x^2) */
     emit_byte(0xd9);
     emit_byte(0xfa);    /* fsqrt sqrt(1-(x^2)) */
-    emit_byte(0xd8);
-    emit_byte(0xfa+ds); /* fdivr x / sqrt(1-(x^2)) */
     emit_byte(0xd9);
-    emit_byte(0xc9);    /* fxch swap with 1.0 */
+    emit_byte(0xc1+ds); /* fld x again */
     emit_byte(0xd9);
-    emit_byte(0xf3);    /* fpatan atan(x)/1 & pop */
+    emit_byte(0xc9);    /* fxch swap x with sqrt(1-(x^2))  */
+    emit_byte(0xd9);
+    emit_byte(0xf3);    /* fpatan atan(x/sqrt(1-(x^2))) & pop */
     tos_make(d);        /* store y=asin(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
@@ -3225,12 +3225,14 @@ LOWFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
     emit_byte(0xe9);    /* fsubr 1 - (x^2) */
     emit_byte(0xd9);
     emit_byte(0xfa);    /* fsqrt sqrt(1-(x^2)) */
-    emit_byte(0xd8);
-    emit_byte(0xf2+ds); /* fdiv sqrt(1-(x^2)) / x */
     emit_byte(0xd9);
     emit_byte(0xc9);    /* fxch swap with 1.0 */
+    emit_byte(0xd8);
+    emit_byte(0xc2+ds); /* fadd 1 + x */
     emit_byte(0xd9);
-    emit_byte(0xf3);    /* fpatan atan(x)/1 & pop */
+    emit_byte(0xf3);    /* fpatan atan(sqrt(1-(x^2))/(1+x))  & pop */
+    emit_byte(0xd8);
+    emit_byte(0xc0);    /* fadd  2*atan(sqrt(1-(x^2))/(1+x)) */
     tos_make(d);        /* store y=acos(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
@@ -3245,7 +3247,7 @@ LOWFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))
     emit_byte(0xd9);
     emit_byte(0xe8);    /* fld 1.0 */
     emit_byte(0xd9);
-    emit_byte(0xf3);    /* fpatan atan(x)/1 */
+    emit_byte(0xf3);    /* fpatan atan(x)/1  & pop*/
     tos_make(d);        /* store y=atan(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))

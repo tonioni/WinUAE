@@ -107,7 +107,7 @@ static void clearbuffer (void)
 	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
     }
     if (FAILED(hr)) {
-	write_log ("failed to Lock sound buffer (clear): %s\n", DXError (hr));
+	write_log ("SOUND: failed to Lock sound buffer (clear): %s\n", DXError (hr));
 	return;
     }
     memset (buffer, 0, size);
@@ -129,7 +129,7 @@ static void resume_audio_ds (void)
     clearbuffer ();
     hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
     if (FAILED(hr))
-	write_log ("Play failed: %s\n", DXError (hr));
+	write_log ("SOUND: play failed: %s\n", DXError (hr));
     writepos = snd_configsize;
 }
 
@@ -142,7 +142,7 @@ static int restore (DWORD hr)
 #endif
     hr = IDirectSoundBuffer_Restore (lpDSBsecondary);
     if (FAILED(hr)) {
-	//write_log ("restore failed %s\n", DXError (hr));
+	write_log ("SOUND: restore failed %s\n", DXError (hr));
 	return 1;
     }
     pause_audio_ds ();
@@ -169,7 +169,7 @@ static int getpos (void)
 
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
     if (FAILED(hr)) {
-	write_log ("GetCurrentPosition failed: %s\n", DXError (hr));
+	write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	return -1;
     }
     return playpos;
@@ -183,7 +183,7 @@ static int calibrate (void)
     double qv, pct;
 
     if (!QueryPerformanceFrequency(&qpf)) {
-	write_log ("no QPF, can't calibrate\n");
+	write_log ("SOUND: no QPF, can't calibrate\n");
 	return 100 * 10;
     }
     pos = 1000;
@@ -210,7 +210,7 @@ static int calibrate (void)
     tpos /= mult;
     diff = tpos - expected;
     pct = tpos * 100.0 / expected;
-    write_log ("sound calibration: %d %d (%d %.2f%%)\n", tpos, expected, diff, pct);
+    write_log ("SOUND: calibration: %d %d (%d %.2f%%)\n", tpos, expected, diff, pct);
     return (int)(pct * 10);
 }
 
@@ -223,7 +223,7 @@ static void close_audio_ds (void)
     lpDSBsecondary = lpDSBprimary = 0;
     if (lpDS) {
 	IDirectSound_Release (lpDS);
-	write_log ("DirectSound driver freed\n");
+	write_log ("SOUND: DirectSound driver freed\n");
     }
     lpDS = 0;
 }
@@ -496,14 +496,17 @@ static void finish_sound_buffer_ds (void)
     double vdiff, m, skipmode;
 
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
 	return;
+    }
     if (status & DSBSTATUS_BUFFERLOST) {
+	write_log ("SOUND: buffer lost\n");
 	restore (DSERR_BUFFERLOST);
 	return;
     }
     if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
-	write_log ("sound status = %08.8X\n", status);
+	write_log ("SOUND: status = %08.8X\n", status);
 	restore (DSERR_BUFFERLOST);
 	return;
     }
@@ -511,7 +514,7 @@ static void finish_sound_buffer_ds (void)
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
 	if (FAILED(hr)) {
 	    restore (hr);
-	    //write_log ("GetCurrentPosition failed: %s\n", DirectSound_ErrorText (hr));
+	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
 	}
 
@@ -535,7 +538,7 @@ static void finish_sound_buffer_ds (void)
 	    sleep_millis_busy (1);
 	    counter--;
 	    if (counter < 0) {
-		write_log ("sound system got stuck!?\n");
+		write_log ("SOUND: sound system got stuck!?\n");
 		restore (DSERR_BUFFERLOST);
 		return;
 	    }
@@ -548,7 +551,7 @@ static void finish_sound_buffer_ds (void)
     if (restore (hr))
 	return;
     if (FAILED(hr)) {
-        write_log ("lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
+	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
         return;
     }
     memcpy (b1, sndbuffer, sndbufsize >= s1 ? s1 : sndbufsize);

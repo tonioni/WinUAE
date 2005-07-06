@@ -15,6 +15,7 @@ struct hardfiledata {
     int reservedblocks;
     int blocksize;
     void *handle;
+    int handle_valid;
     int readonly;
     int flags;
     uae_u8 *cache;

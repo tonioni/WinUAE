@@ -13,9 +13,10 @@ extern void a1000_reset (void);
 extern int special_mem;
 #define S_READ 1
 #define S_WRITE 2
+#endif
+
 extern void *cache_alloc (int);
 extern void cache_free (void*);
-#endif
 
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256
@@ -115,9 +116,9 @@ extern uae_u8 *baseaddr[MEMORY_BANKS];
 #define put_mem_bank(addr, b, realstart) do { \
     (mem_banks[bankindex(addr)] = (b)); \
     if ((b)->baseaddr) \
-        baseaddr[bankindex(addr)] = (b)->baseaddr - (realstart); \
+	baseaddr[bankindex(addr)] = (b)->baseaddr - (realstart); \
     else \
-        baseaddr[bankindex(addr)] = (uae_u8*)(((long)b)+1); \
+	baseaddr[bankindex(addr)] = (uae_u8*)(((long)b)+1); \
 } while (0)
 
 extern void memory_init (void);
@@ -243,6 +244,7 @@ extern void clearexec (void);
 extern void mapkick (void);
 extern int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom);
 extern void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 *key, int keysize);
+extern void init_shm(void);
 
 #define ROMTYPE_KICK 1
 #define ROMTYPE_KICKCD32 2

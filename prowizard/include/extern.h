@@ -290,7 +290,7 @@ extern short testSpecialCruncherData ( long , long );
 extern void Rip_SpecialCruncherData ( char * , int , int );
 extern short test_1_start ( Ulong );
 extern short test_smps ( long, long, long, Uchar, Uchar );
-extern long  GetFileSize ( char * );
+extern long  GetFileSizeX ( char * );
 
 /* globals */
 /* Some say it's badly coding when using Globals ... sure it is, now what's the solution ? */

@@ -156,11 +156,25 @@ static struct uae_input_device_kbr_default keytrans[] = {
     { DIK_SLASH, INPUTEVENT_KEY_DIV },
     { DIK_OEM_102, INPUTEVENT_KEY_30 },
 
-    { DIK_BACK, INPUTEVENT_SPC_STATEREWIND },
-
     { DIK_VOLUMEDOWN, INPUTEVENT_SPC_VOLUME_DOWN },
     { DIK_VOLUMEUP, INPUTEVENT_SPC_VOLUME_UP },
     { DIK_MUTE, INPUTEVENT_SPC_VOLUME_MUTE },
+
+    { DIK_HOME, INPUTEVENT_KEY_70 },
+    { DIK_END, INPUTEVENT_KEY_71 },
+    { DIK_SYSRQ, INPUTEVENT_KEY_6E },
+    { DIK_F12, INPUTEVENT_KEY_6F },
+    { DIK_INSERT, INPUTEVENT_KEY_47 },
+    { DIK_NEXT, INPUTEVENT_KEY_48 },
+    { DIK_PRIOR, INPUTEVENT_KEY_49 },
+    { DIK_F11, INPUTEVENT_KEY_4B },
+
+    { DIK_STOP, INPUTEVENT_KEY_CDTV_STOP },
+    { DIK_PLAYPAUSE, INPUTEVENT_KEY_CDTV_PLAYPAUSE },
+    { DIK_PREVTRACK, INPUTEVENT_KEY_CDTV_REW },
+    { DIK_NEXTTRACK, INPUTEVENT_KEY_CDTV_FF },
+    { DIK_WEBBACK, INPUTEVENT_KEY_76 },
+    { DIK_WEBFORWARD, INPUTEVENT_KEY_77 },
 
     { -1, 0 }
 };
@@ -290,6 +304,83 @@ void clearallkeys (void)
 static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUMPAD2, 2,
     DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
     DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
+
+#define IECODE_UP_PREFIX 0x80
+#define RAW_STEALTH 0x68
+#define STEALTHF_E0KEY 0x08
+#define STEALTHF_UPSTROKE 0x04
+#define STEALTHF_SPECIAL 0x02
+#define STEALTHF_E1KEY 0x01
+
+#define RAW_HOME            0x70
+#define RAW_END             0x71
+#define RAW_BREAK           0x6e
+#define RAW_F12             0x6f
+#define RAW_INSERT          0x47
+#define RAW_PAGEUP          0x48
+#define RAW_PAGEDOWN        0x49
+#define RAW_F11             0x4b
+#define RAW_STOP            0x72
+#define RAW_PLAY            0x73
+#define RAW_PREVIOUS        0x74
+#define RAW_NEXT            0x75
+#define RAW_REWIND          0x76
+#define RAW_FORWARD         0x77
+
+static void sendmmcodes(int code, int newstate)
+{
+    uae_u8 b;
+
+    switch (code)
+    {
+	case DIK_END:
+            code=RAW_END;
+            break;
+        case DIK_HOME:
+            code=RAW_HOME;
+            break;
+        case DIK_F11:
+            code=RAW_F11;
+            break;
+        case DIK_INSERT:
+            code=RAW_INSERT;
+            break;
+        case DIK_PRIOR:
+            code=RAW_PAGEUP;
+            break;
+        case DIK_PAUSE:
+            code=RAW_BREAK;
+            break;
+        case DIK_MEDIASTOP:
+            code=RAW_STOP;
+            break;
+        case DIK_PLAYPAUSE:
+            code=RAW_PLAY;
+            break;
+        case DIK_NEXTTRACK:
+            code=RAW_NEXT;
+            break;
+        case DIK_PREVTRACK:
+            code=RAW_PREVIOUS;
+            break;
+    }
+
+    code |= 0xe000;
+    b = RAW_STEALTH | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = IECODE_UP_PREFIX;
+    if ((code >> 8) == 0xe0)
+        b |= STEALTHF_E0KEY;
+    if ((code >> 8) == 0xe1)
+        b |= STEALTHF_E1KEY;
+    if (!newstate)
+        b |= STEALTHF_UPSTROKE;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = ((code >> 4) & 0x0f) | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = (code & 0x0f) | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+}
 
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
@@ -456,7 +547,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    return;
 #endif
     }
-    inputdevice_translatekeycode (keyboard, scancode, newstate);
+    if (inputdevice_translatekeycode (keyboard, scancode, newstate))
+	return;
+
+    if (currprefs.mmkeyboard)
+        sendmmcodes(scancode, newstate);
 }
 
 void keyboard_settrans (void)

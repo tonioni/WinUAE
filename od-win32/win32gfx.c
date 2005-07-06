@@ -883,7 +883,9 @@ void flush_clear_screen (void)
 
 uae_u8 *gfx_lock_picasso (void)
 {
-    return ddraw_dolock ();
+    uae_u8 *p = ddraw_dolock ();
+    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch();
+    return p;
 }
 
 void gfx_unlock_picasso (void)
@@ -1390,32 +1392,32 @@ static COLORREF BuildColorRef( int color, RGBFTYPE pixelformat )
  * Definitions:
  * - primary is the displayed (visible) surface in VRAM, which may have an associated offscreen surface (or back-buffer)
  */
-int DX_Fill( int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE rgbtype )
+int DX_Fill(int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE rgbtype)
 {
     int result = 0;
     RECT dstrect;
     RECT srcrect;
     DDBLTFX ddbltfx;
-    memset( &ddbltfx, 0, sizeof( ddbltfx ) );
-    ddbltfx.dwFillColor = BuildColorRef( color, rgbtype );
-    ddbltfx.dwSize = sizeof( ddbltfx );
+    memset(&ddbltfx, 0, sizeof(ddbltfx));
+    ddbltfx.dwFillColor = BuildColorRef(color, rgbtype);
+    ddbltfx.dwSize = sizeof(ddbltfx);
 
     /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
      * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
-    SetRect( &srcrect, dstx, dsty, dstx+width, dsty+height );
+    SetRect(&srcrect, dstx, dsty, dstx+width, dsty+height);
 
     /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
-    SetRect( &dstrect, dstx, dsty, dstx+width, dsty+height );
-    if( !(currentmode->flags & (DM_DX_FULLSCREEN | DM_OVERLAY)))
-	OffsetRect( &dstrect, amigawin_rect.left, amigawin_rect.top );
+    SetRect(&dstrect, dstx, dsty, dstx+width, dsty+height);
+    if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_OVERLAY)))
+	OffsetRect(&dstrect, amigawin_rect.left, amigawin_rect.top);
 
     /* Render our fill to the visible (primary) surface */
-    if( ( result = DirectDraw_Blt( primary_surface, &dstrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx ) ) )
+    if((result = DirectDraw_Blt(primary_surface, &dstrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx)))
     {
-	if( DirectDraw_GetLockableType() == secondary_surface )
+	if(DirectDraw_GetLockableType() == secondary_surface)
 	{
 	    /* We've colour-filled the visible, but still need to colour-fill the offscreen */
-	    result = DirectDraw_Blt( secondary_surface, &srcrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx );
+	    result = DirectDraw_Blt(secondary_surface, &srcrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
 	}
     }
     return result;
@@ -1426,9 +1428,9 @@ int DX_Fill( int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE 
  * - primary is the displayed (visible) surface in VRAM, which may have an associated offscreen surface (or back-buffer)
  */
 
-static DDBLTFX fx = { sizeof( DDBLTFX ) };
+static DDBLTFX fx = { sizeof(DDBLTFX) };
 
-static DWORD BLIT_OPCODE_TRANSLATION[ BLIT_LAST ] =
+static DWORD BLIT_OPCODE_TRANSLATION[BLIT_LAST] =
 {
     BLACKNESS,  /* BLIT_FALSE */
     NOTSRCERASE,/* BLIT_NOR */
@@ -1448,53 +1450,46 @@ static DWORD BLIT_OPCODE_TRANSLATION[ BLIT_LAST ] =
     WHITENESS   /* BLIT_TRUE */
 };
 
-int DX_Blit( int srcx, int srcy, int dstx, int dsty, int width, int height, BLIT_OPCODE opcode )
+int DX_Blit(int srcx, int srcy, int dstx, int dsty, int width, int height, BLIT_OPCODE opcode)
 {
-    int result = 0;
-    RECT dstrect;
-    RECT srcrect;
-    DWORD dwROP = BLIT_OPCODE_TRANSLATION[ opcode ];
+    HRESULT result;
+    RECT dstrect, srcrect;
+    DWORD dwROP = BLIT_OPCODE_TRANSLATION[opcode];
 
-    /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
-     * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
-    SetRect( &srcrect, srcx, srcy, srcx+width, srcy+height );
-
-    /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
-    SetRect( &dstrect, dstx, dsty, dstx+width, dsty+height );
-    
-    if( !(currentmode->flags & (DM_DX_FULLSCREEN | DM_OVERLAY)))
-        OffsetRect( &dstrect, amigawin_rect.left, amigawin_rect.top );
-
-    if( dwROP == -1 )
-    {
+    if(dwROP == -1) {
 	/* Unsupported blit opcode! */
 	return 0;
     }
-    else
-    {
-	fx.dwROP = dwROP;
-    }
+    fx.dwROP = dwROP;
+
+    /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
+     * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
+    SetRect(&srcrect, srcx, srcy, srcx+width, srcy+height);
+
+    /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
+    SetRect(&dstrect, dstx, dsty, dstx+width, dsty+height);
+    
+    if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_OVERLAY)))
+	OffsetRect(&dstrect, amigawin_rect.left, amigawin_rect.top);
 
     /* Render our blit within the primary surface */
-    result = DirectDraw_Blt( primary_surface, &dstrect, DirectDraw_GetLockableType(), &srcrect, DDBLT_WAIT | DDBLT_ROP, &fx );
-
-    if( !result )
-    {
-	BLIT_OPCODE_TRANSLATION[ opcode ] = -1;
-    }
-    else if( DirectDraw_GetLockableType() == secondary_surface )
-    {
+    result = DirectDraw_Blt(primary_surface, &dstrect, DirectDraw_GetLockableType(), &srcrect, DDBLT_WAIT | DDBLT_ROP, &fx);
+    if (FAILED(result)) {
+	write_log("DX_Blit1() failed %s\n", DXError(result));
+	return 0;
+    } else if(DirectDraw_GetLockableType() == secondary_surface) {
 	/* We've just blitted from the offscreen to the visible, but still need to blit from offscreen to offscreen
 	 * NOTE: reset our destination rectangle again if its been modified above... */
-	if( ( srcx != dstx ) || ( srcy != dsty ) )
-	{
-	    if(!(currentmode->flags & DM_DX_FULLSCREEN))
-	        SetRect( &dstrect, dstx, dsty, dstx+width, dsty+height );
-            result = DirectDraw_Blt( secondary_surface, &dstrect, secondary_surface, &srcrect, DDBLT_WAIT | DDBLT_ROP, &fx );
+	if((srcx != dstx) || (srcy != dsty)) {
+		    SetRect(&dstrect, dstx, dsty, dstx+width, dsty+height);
+            result = DirectDraw_Blt(secondary_surface, &dstrect, secondary_surface, &srcrect, DDBLT_WAIT | DDBLT_ROP, &fx);
+	    if (FAILED(result)) {
+		write_log("DX_Blit2() failed %s\n", DXError(result));
+	    }
 	}
     }
 
-    return result;
+    return 1;
 }
 
 void DX_WaitVerticalSync( void )
@@ -1502,6 +1497,7 @@ void DX_WaitVerticalSync( void )
     DirectDraw_WaitForVerticalBlank (DDWAITVB_BLOCKBEGIN);
 }
 
+#if 0
 uae_u32 DX_ShowCursor( uae_u32 activate )
 {
     uae_u32 result = 0;
@@ -1509,7 +1505,6 @@ uae_u32 DX_ShowCursor( uae_u32 activate )
 	result = 1;
     return result;
 }
-
 uae_u32 DX_MoveCursor( uae_u32 x, uae_u32 y )
 {
     uae_u32 result = 0;
@@ -1528,6 +1523,7 @@ uae_u32 DX_MoveCursor( uae_u32 x, uae_u32 y )
 	result = 1;
     return result;
 }
+#endif
 
 static void open_screen( void )
 {
@@ -1922,9 +1918,9 @@ static BOOL doInit (void)
 	if (currentmode->current_depth < 15 && (currprefs.chipset_mask & CSMASK_AGA) && isfullscreen () && !WIN32GFX_IsPicassoScreen()) {
 	    static int warned;
 	    if (!warned) {
-		char szMessage[ MAX_DPATH ];
+		char szMessage[MAX_DPATH];
 		currentmode->current_depth = 16;
-	        WIN32GUI_LoadUIString( IDS_AGA8BIT, szMessage, MAX_DPATH );
+	        WIN32GUI_LoadUIString(IDS_AGA8BIT, szMessage, MAX_DPATH);
 		gui_message(szMessage);
 	    }
 	    warned = 1;

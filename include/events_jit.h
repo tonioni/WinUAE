@@ -66,16 +66,16 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 	}
     }
     while ((nextevent - currcycle) <= cycles_to_add) {
-        int i;
-        cycles_to_add -= (nextevent - currcycle);
-        currcycle = nextevent;
+	int i;
+	cycles_to_add -= (nextevent - currcycle);
+	currcycle = nextevent;
 
-        for (i = 0; i < ev_max; i++) {
+	for (i = 0; i < ev_max; i++) {
 	    if (eventtab[i].active && eventtab[i].evtime == currcycle) {
 		(*eventtab[i].handler)();
 	    }
 	}
-        events_schedule();
+	events_schedule();
     }
     currcycle += cycles_to_add;
 }
@@ -127,7 +127,7 @@ STATIC_INLINE void events_schedule (void)
     for (i = 0; i < ev_max; i++) {
 	if (eventtab[i].active) {
 	    unsigned long int eventtime = eventtab[i].evtime - curcycles;
-	    if (eventtime < mintime) 
+	    if (eventtime < mintime)
 		mintime = eventtime;
 	}
     }
@@ -154,7 +154,7 @@ STATIC_INLINE void do_cycles_slow (long cycles_to_add)
 
     if (is_lastline
 	&& /*cycles_to_next_event <= cycles_to_hsync_event*/
-	eventtab[ev_hsync].evtime == nextevent) 
+	eventtab[ev_hsync].evtime == nextevent)
     {
 	frame_time_t now=read_processor_time();
 	if (diff32(now, vsyncmintime)<0)

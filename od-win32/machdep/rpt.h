@@ -50,20 +50,27 @@ STATIC_INLINE frame_time_t read_processor_time_qpc (void)
 
 STATIC_INLINE frame_time_t read_processor_time (void)
 {
-    frame_time_t foo, bar;
+    frame_time_t foo;
 
     if (useqpc) /* No RDTSC or RDTSC is not stable */
 	return read_processor_time_qpc();
 
-     __asm
+#if defined(X86_MSVC_ASSEMBLY)
     {
-        rdtsc
-        mov foo, eax
-        mov bar, edx
+	frame_time_t bar;
+	__asm
+	{
+	    rdtsc
+	    mov foo, eax
+	    mov bar, edx
+	}
+	/* very high speed CPU's RDTSC might overflow without this.. */
+	foo >>= 6;
+	foo |= bar << 26;
     }
-    /* very high speed CPU's RDTSC might overflow without this.. */
-    foo >>= 6;
-    foo |= bar << 26;
+#else
+    foo = 0;
+#endif
 #ifdef HIBERNATE_TEST
     if (rpt_skip_trigger) {
 	foo += rpt_skip_trigger;

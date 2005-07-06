@@ -177,7 +177,7 @@ void fixup_prefs (struct uae_prefs *p)
 	err = 1;
     }
 #endif
-  
+
     if (p->produce_sound < 0 || p->produce_sound > 3) {
 	write_log ("Bad value for -S parameter: enable value must be within 0..3\n");
 	p->produce_sound = 0;
@@ -241,7 +241,7 @@ void fixup_prefs (struct uae_prefs *p)
 	p->gfxmem_size = 0;
 	err = 1;
     }
-#ifndef BSDSOCKET
+#if !defined(BSDSOCKET)
     if (p->socket_emu) {
 	write_log ("Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n");
 	p->socket_emu = 0;
@@ -327,7 +327,7 @@ void uae_reset (int hardreset)
 	if (hardreset)
 	    quit_program = -3;
     }
-    
+
 }
 
 void uae_quit (void)
@@ -375,8 +375,8 @@ static void parse_diskswapper (char *s)
 
     p1 = tmp;
     for(;;) {
-        p2 = strtok (p1, delim);
-        if (!p2)
+	p2 = strtok (p1, delim);
+	if (!p2)
 	    break;
 	p1 = NULL;
 	if (num >= MAX_SPARE_DRIVES)
@@ -406,7 +406,7 @@ static void parse_cmdline (int argc, char **argv)
 		write_log ("Missing argument for '-f' option.\n");
 	    } else {
 #ifdef FILESYS
-                free_mountinfo (currprefs.mountinfo);
+		free_mountinfo (currprefs.mountinfo);
 #endif
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
@@ -470,7 +470,7 @@ void reset_all_systems (void)
     init_eventtab ();
 
     memory_reset ();
-#ifdef BSDSOCKET
+#if defined(BSDSOCKET)
     bsdlib_reset ();
 #endif
 #ifdef FILESYS
@@ -546,7 +546,7 @@ void leave_program (void)
 
 static void real_main2 (int argc, char **argv)
 {
-#if defined (NATMEM_OFFSET) && defined( _WIN32 ) && !defined( NO_WIN32_EXCEPTION_HANDLER )
+#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined( NO_WIN32_EXCEPTION_HANDLER )
     extern int EvalException ( LPEXCEPTION_POINTERS blah, int n_except );
     __try
 #endif
@@ -568,7 +568,7 @@ static void real_main2 (int argc, char **argv)
 	exit (1);
     }
 
-#ifdef JIT
+#ifdef NATMEM_OFFSET
     init_shm();
 #endif
 
@@ -578,7 +578,7 @@ static void real_main2 (int argc, char **argv)
 #endif
 
     if (restart_config[0])
-        parse_cmdline_and_init_file (argc, argv);
+	parse_cmdline_and_init_file (argc, argv);
     else
 	currprefs = changed_prefs;
 
@@ -588,7 +588,7 @@ static void real_main2 (int argc, char **argv)
 	write_log ("Sound driver unavailable: Sound output disabled\n");
 	currprefs.produce_sound = 0;
     }
-    inputdevice_init ();
+    inputdevice_init();
 
     changed_prefs = currprefs;
     no_gui = ! currprefs.start_gui;
@@ -639,7 +639,9 @@ static void real_main2 (int argc, char **argv)
 #endif
 #ifdef AUTOCONFIG
     gfxlib_install ();
+#if defined(BSDSOCKET)
     bsdlib_install ();
+#endif
     emulib_install ();
     uaeexe_install ();
     native2amiga_install ();
@@ -675,7 +677,7 @@ static void real_main2 (int argc, char **argv)
     }
 
     }
-#if defined (NATMEM_OFFSET) && defined( _WIN32 ) && !defined( NO_WIN32_EXCEPTION_HANDLER )
+#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined( NO_WIN32_EXCEPTION_HANDLER )
     __except( EvalException( GetExceptionInformation(), GetExceptionCode() ) )
     {
 	// EvalException does the good stuff...
@@ -693,7 +695,7 @@ void real_main (int argc, char **argv)
     while (restart_program) {
 	changed_prefs = currprefs;
 	real_main2 (argc, argv);
-        leave_program ();
+	leave_program ();
 	quit_program = 0;
     }
     zfile_exit ();

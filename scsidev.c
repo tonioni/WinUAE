@@ -50,7 +50,7 @@ static int scsierr(SCSI *scgp)
 
     if(cp->error != SCG_NO_ERROR ||
        cp->ux_errno != 0 || *(u_char *)&cp->scb != 0)
-        return -1;
+	return -1;
     return 0;
 }
 
@@ -69,11 +69,11 @@ static int inquiry (SCSI *scgp, void *bp, int cnt)
     scmd->cdb.g0_cdb.cmd = SC_INQUIRY;
     scmd->cdb.g0_cdb.lun = scgp->lun;
     scmd->cdb.g0_cdb.count = cnt;
-	
+
     scgp->cmdname = "inquiry";
 
     if (scsicmd(scgp) < 0)
-        return (-1);
+	return (-1);
     return (0);
 }
 
@@ -83,7 +83,7 @@ static void print_product(struct scsi_inquiry *ip)
     write_log ("'%.16s' ", ip->ident);
     write_log ("'%.4s' ", ip->revision);
     if (ip->add_len < 31) {
-        write_log ("NON CCS ");
+	write_log ("NON CCS ");
     }
 }
 
@@ -99,7 +99,7 @@ static SCSI *openscsi (int scsibus, int target, int lun)
 {
     SCSI *scgp = scsi_smalloc ();
     if (!scgp) {
-        return NULL;
+	return NULL;
     }
 
     scgp->debug = getenvint ("UAE_SCSI_DEBUG", 0);
@@ -111,11 +111,11 @@ static SCSI *openscsi (int scsibus, int target, int lun)
     scgp->lun = lun;
 
     if (!scsi_open(scgp, NULL, scsibus, target, lun)) {
-        scsi_sfree (scgp);
-        return NULL;
+	scsi_sfree (scgp);
+	return NULL;
     } else {
-        return scgp;
-    } 
+	return scgp;
+    }
 }
 
 static void closescsi (SCSI *scgp)
@@ -160,9 +160,9 @@ static struct scsidevdata *get_scsidev_data (int unit)
     int i;
 
     for (i = 0; i < num_drives; i++) {
-        if (unit == drives[i].aunit) {
-            return &drives[i];
-        }
+	if (unit == drives[i].aunit) {
+	    return &drives[i];
+	}
     }
     return NULL;
 }
@@ -170,21 +170,21 @@ static struct scsidevdata *get_scsidev_data (int unit)
 static struct scsidevdata *add_scsidev_data (int bus, int target, int lun, int aunit)
 {
     if (num_drives + 1 < MAX_DRIVES) {
-        memset(&drives[num_drives], 0, sizeof(drives[num_drives]));
-        drives[num_drives].bus = bus;
-        drives[num_drives].target = target;
-        drives[num_drives].lun = lun;
-        drives[num_drives].aunit = aunit;
+	memset(&drives[num_drives], 0, sizeof(drives[num_drives]));
+	drives[num_drives].bus = bus;
+	drives[num_drives].target = target;
+	drives[num_drives].lun = lun;
+	drives[num_drives].aunit = aunit;
 #if !defined(UAE_SCSIDEV_THREADS)
-        drives[num_drives].scgp = scgp;
-        drives[num_drives].max_dma = scsi_bufsize (scgp, 512 * 1024);
+	drives[num_drives].scgp = scgp;
+	drives[num_drives].max_dma = scsi_bufsize (scgp, 512 * 1024);
 #endif
-        /* check if this drive is an ATAPI drive */
-        scgp->scsibus = bus;
-        scgp->target = target;
-        scgp->lun = lun;
-        drives[num_drives].isatapi = scsi_isatapi (scgp);
-        return &drives[num_drives++];
+	/* check if this drive is an ATAPI drive */
+	scgp->scsibus = bus;
+	scgp->target = target;
+	scgp->lun = lun;
+	drives[num_drives].isatapi = scsi_isatapi (scgp);
+	return &drives[num_drives++];
     }
 
     return NULL;
@@ -195,7 +195,7 @@ static int start_thread (struct scsidevdata *sdd)
 {
 #ifdef UAE_SCSIDEV_THREADS
     if (sdd->thread_running)
-        return 1;
+	return 1;
     init_comm_pipe (&sdd->requests, 10, 1);
     uae_sem_init (&sdd->sync_sem, 0, 0);
     uae_start_thread (scsidev_thread, sdd, &sdd->tid);
@@ -205,7 +205,7 @@ static int start_thread (struct scsidevdata *sdd)
     return 1;
 #endif
 }
-    
+
 /************* Exec device functions ****************/
 
 
@@ -221,7 +221,7 @@ static uae_u32 scsidev_open (void)
 
     /* Check unit number */
     if ((sdd = get_scsidev_data (unit)) &&
-        start_thread (sdd)) {
+	start_thread (sdd)) {
 	opencount++;
 	put_word (m68k_areg(regs, 6)+32, get_word (m68k_areg(regs, 6)+32) + 1);
 	put_long (tmp1 + 24, unit); /* io_Unit */
@@ -281,8 +281,8 @@ static LONG TestNegativeTime(LONG block)
        -150 == 100:00:00 = 00:00:00 */
     if (block > (97 * 60 * 75))
     {
-        /* must be a negative block */
-        block -= 100 * 60 * 75;
+	/* must be a negative block */
+	block -= 100 * 60 * 75;
     }
     return block;
 }
@@ -322,9 +322,9 @@ static void scsidev_do_scsi (struct scsidevdata *sdd, uaecptr request)
 
     /* do transfer directly to and from Amiga memory */
     if (!bank_data || !bank_data->check (scsi_data, scsi_len) ||
-        !bank_cmd  || !bank_cmd->check (scsi_cmd, scsi_cmd_len)) {
-        put_byte (request + 31, (uae_u8)-5); /* IOERR_BADADDRESS */
-        return;
+	!bank_cmd  || !bank_cmd->check (scsi_cmd, scsi_cmd_len)) {
+	put_byte (request + 31, (uae_u8)-5); /* IOERR_BADADDRESS */
+	return;
     }
 
 #ifdef SCSI_IS_NOT_THREAD_SAFE
@@ -339,46 +339,46 @@ static void scsidev_do_scsi (struct scsidevdata *sdd, uaecptr request)
     memcpy(&scmd->cdb, bank_cmd->xlateaddr (scsi_cmd), scsi_cmd_len);
     scmd->target = sdd->target;
     scmd->sense_len = (scsi_flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-        (scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
-        -1;
+	(scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
+	-1;
     scmd->sense_count = 0;
     *(uae_u8 *)&scmd->scb = 0;
 
     #ifdef DEBUG_CDR
     /* please ignore this code - it can be used to debug raw CD-R writing... */
     if (!(scsi_len % 2368)) {
-        /* Structure for generating bytes 2353...2368 if writing in ultra raw mode */
-        typedef struct QDATAtag {
-            BYTE ControlAdr;
-            BCD Tno;
-            BCD Point;
-            BCD Min;
-            BCD Sec;
-            BCD Frame;
-            BYTE Zero;
-            BCD PMin;
-            BCD PSec;
-            BCD PFrame;
-            WORD Crc;
-            BYTE Reserved[3];
-            BYTE PChannel;
-        } QDATA;
+	/* Structure for generating bytes 2353...2368 if writing in ultra raw mode */
+	typedef struct QDATAtag {
+	    BYTE ControlAdr;
+	    BCD Tno;
+	    BCD Point;
+	    BCD Min;
+	    BCD Sec;
+	    BCD Frame;
+	    BYTE Zero;
+	    BCD PMin;
+	    BCD PSec;
+	    BCD PFrame;
+	    WORD Crc;
+	    BYTE Reserved[3];
+	    BYTE PChannel;
+	} QDATA;
 
-        int i = scsi_len / 2368;
-        QDATA *data = (QDATA *)&((unsigned char *)scmd->addr)[2352];
-        for (; i > 0; i--, data = (QDATA *)&((unsigned char *)data)[2368]) {
-            printf ("$%02x: $%02x $%02x | $%02x:$%02x:$%02x = %6ld | $%02x | $%02x:$%02x:$%02x = %6ld\n",
-                    (int)data->ControlAdr, (int)*(UBYTE *)&data->Tno, (int)*(UBYTE *)&data->Point,
-                    (int)*(UBYTE *)&data->Min, (int)*(UBYTE *)&data->Sec, (int)*(UBYTE *)&data->Frame,
-                    BCDTime2Block_Pointer (&data->Min) + 150,
-                    *(UBYTE *)&data->Zero,
-                    *(UBYTE *)&data->PMin, *(UBYTE *)&data->PSec, *(UBYTE *)&data->PFrame,
-                    BCDTime2Block_Pointer (&data->PMin));
-        }
-        fflush (stdout);
+	int i = scsi_len / 2368;
+	QDATA *data = (QDATA *)&((unsigned char *)scmd->addr)[2352];
+	for (; i > 0; i--, data = (QDATA *)&((unsigned char *)data)[2368]) {
+	    printf ("$%02x: $%02x $%02x | $%02x:$%02x:$%02x = %6ld | $%02x | $%02x:$%02x:$%02x = %6ld\n",
+		    (int)data->ControlAdr, (int)*(UBYTE *)&data->Tno, (int)*(UBYTE *)&data->Point,
+		    (int)*(UBYTE *)&data->Min, (int)*(UBYTE *)&data->Sec, (int)*(UBYTE *)&data->Frame,
+		    BCDTime2Block_Pointer (&data->Min) + 150,
+		    *(UBYTE *)&data->Zero,
+		    *(UBYTE *)&data->PMin, *(UBYTE *)&data->PSec, *(UBYTE *)&data->PFrame,
+		    BCDTime2Block_Pointer (&data->PMin));
+	}
+	fflush (stdout);
     }
     #endif
- 
+
     scgp->scsibus = sdd->bus;
     scgp->target  = sdd->target;
     scgp->lun     = sdd->lun;
@@ -388,129 +388,129 @@ static void scsidev_do_scsi (struct scsidevdata *sdd, uaecptr request)
     /* replace MODE_SELECT/SENSE_6 if we access a ATAPI drive,
        otherwise send it now */
     if (sdd->isatapi &&
-        (scmd->cdb.g0_cdb.cmd == MODE_SELECT_6 ||
-         scmd->cdb.g0_cdb.cmd == MODE_SENSE_6)) {
-        uae_u8 buffer[256 + 2], *data = scmd->addr, *tmp;
-        int len = 0, page_len, i;
-        int do_it = 1;
-        uae_u8 sp = scmd->cdb.g0_cdb.high_addr & 1;
-        uae_u8 alloc_len = scmd->cdb.g0_cdb.count;
-        uae_u8 pcf_page_code = scmd->cdb.g0_cdb.mid_addr;
-        uae_u8 cmd = scmd->cdb.g0_cdb.cmd;
+	(scmd->cdb.g0_cdb.cmd == MODE_SELECT_6 ||
+	 scmd->cdb.g0_cdb.cmd == MODE_SENSE_6)) {
+	uae_u8 buffer[256 + 2], *data = scmd->addr, *tmp;
+	int len = 0, page_len, i;
+	int do_it = 1;
+	uae_u8 sp = scmd->cdb.g0_cdb.high_addr & 1;
+	uae_u8 alloc_len = scmd->cdb.g0_cdb.count;
+	uae_u8 pcf_page_code = scmd->cdb.g0_cdb.mid_addr;
+	uae_u8 cmd = scmd->cdb.g0_cdb.cmd;
 
-        memset (&scmd->cdb.g1_cdb, 0, sizeof(scmd->cdb.g1_cdb));
-        if (cmd == MODE_SELECT_6) {
-            /* expand parameter list */
-            tmp = data;
-            buffer[len++] = *tmp++;      /* first byte, should be 0 */
-            buffer[len++] = 0;           /* reserved */
-            buffer[len++] = *tmp++;      /* medium type */
-            buffer[len++] = 0; *tmp++;   /* ignore host application code */
-            for (i = 0; i < 4; i++) {
-                buffer[len++] = 0;
-            }
-            if (*tmp) {
-                /* skip block descriptor */
-                tmp += 8;
-            }
-            tmp++;
-            page_len = scsi_len - (tmp - data);
-            if (page_len > 0) {
-                memcpy (&buffer[len], tmp, page_len);
-                len += page_len;
+	memset (&scmd->cdb.g1_cdb, 0, sizeof(scmd->cdb.g1_cdb));
+	if (cmd == MODE_SELECT_6) {
+	    /* expand parameter list */
+	    tmp = data;
+	    buffer[len++] = *tmp++;      /* first byte, should be 0 */
+	    buffer[len++] = 0;           /* reserved */
+	    buffer[len++] = *tmp++;      /* medium type */
+	    buffer[len++] = 0; *tmp++;   /* ignore host application code */
+	    for (i = 0; i < 4; i++) {
+		buffer[len++] = 0;
+	    }
+	    if (*tmp) {
+		/* skip block descriptor */
+		tmp += 8;
+	    }
+	    tmp++;
+	    page_len = scsi_len - (tmp - data);
+	    if (page_len > 0) {
+		memcpy (&buffer[len], tmp, page_len);
+		len += page_len;
 
-                scmd->cdb.g1_cdb.cmd = MODE_SELECT_10;
-                scmd->cdb.g1_cdb.lun = sdd->lun;
-                scmd->cdb.g1_cdb.res = 1 << 3; /* PF bit */
-                scmd->cdb.g1_cdb.reladr = sp;
-                scmd->cdb.g1_cdb.count[0] = len >> 8;
-                scmd->cdb.g1_cdb.count[1] = len;
-            } else {
-                do_it = 0;
-                scmd->error = 0;
-                *(uae_u8 *)&scmd->scb = 0;
-                scmd->ux_errno = 0;
-            }
-        } else {
-            /* MODE_SENSE_6 */
-            len = alloc_len + 2;
-            scmd->cdb.g1_cdb.cmd = MODE_SENSE_10;
-            scmd->cdb.g1_cdb.lun = sdd->lun;
-            scmd->cdb.g1_cdb.addr[0] = pcf_page_code;
-            scmd->cdb.g1_cdb.count[0] = len >> 8;
-            scmd->cdb.g1_cdb.count[1] = len;
-        }
-        if (do_it) {
-            scmd->cdb_len = 10;
-            scmd->addr = buffer;
-            scmd->size = len;
-            scmd->sense_count = 0;
-            *(uae_u8 *)&scmd->scb = 0;
-            
-            scsicmd (scgp);
+		scmd->cdb.g1_cdb.cmd = MODE_SELECT_10;
+		scmd->cdb.g1_cdb.lun = sdd->lun;
+		scmd->cdb.g1_cdb.res = 1 << 3; /* PF bit */
+		scmd->cdb.g1_cdb.reladr = sp;
+		scmd->cdb.g1_cdb.count[0] = len >> 8;
+		scmd->cdb.g1_cdb.count[1] = len;
+	    } else {
+		do_it = 0;
+		scmd->error = 0;
+		*(uae_u8 *)&scmd->scb = 0;
+		scmd->ux_errno = 0;
+	    }
+	} else {
+	    /* MODE_SENSE_6 */
+	    len = alloc_len + 2;
+	    scmd->cdb.g1_cdb.cmd = MODE_SENSE_10;
+	    scmd->cdb.g1_cdb.lun = sdd->lun;
+	    scmd->cdb.g1_cdb.addr[0] = pcf_page_code;
+	    scmd->cdb.g1_cdb.count[0] = len >> 8;
+	    scmd->cdb.g1_cdb.count[1] = len;
+	}
+	if (do_it) {
+	    scmd->cdb_len = 10;
+	    scmd->addr = buffer;
+	    scmd->size = len;
+	    scmd->sense_count = 0;
+	    *(uae_u8 *)&scmd->scb = 0;
 
-            if (cmd == MODE_SENSE_6 &&
-                !scmd->error &&
-                !scmd->ux_errno &&
-                !*(uae_u8 *)&scmd->scb) {
-                int req_len = len;
-                
-                /* compress result */
-                tmp = buffer;
-                len = 0;
-                tmp++;                 /* skip first byte of length - should better be zero */
-                data[len++] = *tmp++;  /* mode data length */
-                data[len++] = *tmp++;  /* medium type */
-                data[len++] = 0;       /* host application type */
-                data[len++] = 0;       /* block descr length */
-                tmp += 4;
-                if (*tmp) {
-                    /* skip block descr - should not happen */
-                    tmp += *tmp;
-                }
-                tmp++;
-                memcpy (&data[len], tmp, req_len - (tmp - buffer));
-            }
-        }
+	    scsicmd (scgp);
+
+	    if (cmd == MODE_SENSE_6 &&
+		!scmd->error &&
+		!scmd->ux_errno &&
+		!*(uae_u8 *)&scmd->scb) {
+		int req_len = len;
+
+		/* compress result */
+		tmp = buffer;
+		len = 0;
+		tmp++;                 /* skip first byte of length - should better be zero */
+		data[len++] = *tmp++;  /* mode data length */
+		data[len++] = *tmp++;  /* medium type */
+		data[len++] = 0;       /* host application type */
+		data[len++] = 0;       /* block descr length */
+		tmp += 4;
+		if (*tmp) {
+		    /* skip block descr - should not happen */
+		    tmp += *tmp;
+		}
+		tmp++;
+		memcpy (&data[len], tmp, req_len - (tmp - buffer));
+	    }
+	}
     } else {
-        scsicmd (scgp);
+	scsicmd (scgp);
     }
-    
+
     put_word (acmd + 18, scmd->error == SCG_FATAL ? 0 : scsi_cmd_len); /* fake scsi_CmdActual */
     put_byte (acmd + 21, *(uae_u8 *)&scmd->scb); /* scsi_Status */
     if (*(uae_u8 *)&scmd->scb) {
-        put_byte (request + 31, 45); /* HFERR_BadStatus */
+	put_byte (request + 31, 45); /* HFERR_BadStatus */
 
-        /* copy sense? */
-        for (sactual = 0;
-             scsi_sense && sactual < scsi_sense_len && sactual < scmd->sense_count;
-             sactual++) {
-            put_byte (scsi_sense + sactual, scmd->u_sense.cmd_sense[sactual]);
-        }
-        put_long (acmd + 8, 0); /* scsi_Actual */
+	/* copy sense? */
+	for (sactual = 0;
+	     scsi_sense && sactual < scsi_sense_len && sactual < scmd->sense_count;
+	     sactual++) {
+	    put_byte (scsi_sense + sactual, scmd->u_sense.cmd_sense[sactual]);
+	}
+	put_long (acmd + 8, 0); /* scsi_Actual */
     } else {
-        int i;
-        
-        for (i = 0; i < scsi_sense_len; i++) {
-            put_byte (scsi_sense + i, 0);
-        }
-        sactual = 0;
+	int i;
 
-        if (scmd->error != SCG_NO_ERROR ||
-            scmd->ux_errno != 0) {
-            /* we might have been limited by the hosts DMA limits,
-               which is usually indicated by ENOMEM */
-            if (scsi_len > (unsigned int)sdd->max_dma &&
-                scmd->ux_errno == ENOMEM) {
-                put_byte (request + 31, (uae_u8)-4); /* IOERR_BADLENGTH */
-            } else {
-                put_byte (request + 31, 20); /* io_Error, but not specified */
-                put_long (acmd + 8, 0); /* scsi_Actual */
-            }
-        } else {
-            put_byte (request + 31, 0);
-            put_long (acmd + 8, scsi_len - scmd->resid); /* scsi_Actual */
-        }
+	for (i = 0; i < scsi_sense_len; i++) {
+	    put_byte (scsi_sense + i, 0);
+	}
+	sactual = 0;
+
+	if (scmd->error != SCG_NO_ERROR ||
+	    scmd->ux_errno != 0) {
+	    /* we might have been limited by the hosts DMA limits,
+	       which is usually indicated by ENOMEM */
+	    if (scsi_len > (unsigned int)sdd->max_dma &&
+		scmd->ux_errno == ENOMEM) {
+		put_byte (request + 31, (uae_u8)-4); /* IOERR_BADLENGTH */
+	    } else {
+		put_byte (request + 31, 20); /* io_Error, but not specified */
+		put_long (acmd + 8, 0); /* scsi_Actual */
+	    }
+	} else {
+	    put_byte (request + 31, 0);
+	    put_long (acmd + 8, scsi_len - scmd->resid); /* scsi_Actual */
+	}
     }
     put_word (acmd + 28, sactual);
 
@@ -522,13 +522,13 @@ static void scsidev_do_scsi (struct scsidevdata *sdd, uaecptr request)
 static void scsidev_do_io (struct scsidevdata *sdd, uaecptr request)
 {
     uae_u32 tmp2, dataptr, offset;
-    
+
     tmp2 = get_word (request+28); /* io_Command */
     switch (tmp2) {
      case 28:
-        /* HD_SCSICMD */
-        scsidev_do_scsi (sdd, request);
-        break;
+	/* HD_SCSICMD */
+	scsidev_do_scsi (sdd, request);
+	break;
      default:
 	/* Command not understood. */
 	put_byte (request+31, (uae_u8)-3); /* io_Error */
@@ -559,13 +559,13 @@ static uae_u32 scsidev_beginio (void)
 
 #ifdef UAE_SCSIDEV_THREADS
     {
-        uae_pt data;
+	uae_pt data;
 
-        /* clear IOF_QUICK */
-        put_byte (request+30, get_byte (request+30) & ~1);
-        /* forward to unit thread */
-        write_comm_pipe_u32 (&sdd->requests, request, 1);
-        return 0;
+	/* clear IOF_QUICK */
+	put_byte (request+30, get_byte (request+30) & ~1);
+	/* forward to unit thread */
+	write_comm_pipe_u32 (&sdd->requests, request, 1);
+	return 0;
     }
 #else
     put_byte (request+30, get_byte (request+30) & ~1);
@@ -581,13 +581,13 @@ static void *scsidev_thread (void *sddv)
 
 #ifdef DEBUGME
     printf ("scsidev_penguin: sdd  = 0x%x ready\n", sdd);
-#endif    
+#endif
     /* init SCSI */
     if (!(sdd->scgp = openscsi (sdd->bus, sdd->target, sdd->lun)) ||
-        (sdd->max_dma = scsi_bufsize (sdd->scgp, 512 * 1024)) <= 0) {
-        sdd->thread_running = 0;
-        uae_sem_post (&sdd->sync_sem);
-        return 0;
+	(sdd->max_dma = scsi_bufsize (sdd->scgp, 512 * 1024)) <= 0) {
+	sdd->thread_running = 0;
+	uae_sem_post (&sdd->sync_sem);
+	return 0;
     }
     sdd->thread_running = 1;
     uae_sem_post (&sdd->sync_sem);
@@ -597,21 +597,21 @@ static void *scsidev_thread (void *sddv)
 
 	request = (uaecptr)read_comm_pipe_u32_blocking (&sdd->requests);
 #ifdef DEBUGME
-        printf ("scsidev_penguin: sdd  = 0x%x\n", sdd);
-        printf ("scsidev_penguin: req  = %08lx\n", (unsigned long)request);
-        printf ("scsidev_penguin: cmd  = %d\n", (int)get_word(request+28));
+	printf ("scsidev_penguin: sdd  = 0x%x\n", sdd);
+	printf ("scsidev_penguin: req  = %08lx\n", (unsigned long)request);
+	printf ("scsidev_penguin: cmd  = %d\n", (int)get_word(request+28));
 #endif
-        if (!request) {
-            printf ("scsidev_penguin: going down with 0x%x\n", sdd->sync_sem);
+	if (!request) {
+	    printf ("scsidev_penguin: going down with 0x%x\n", sdd->sync_sem);
 	    /* Death message received. */
-            sdd->thread_running = 0;
+	    sdd->thread_running = 0;
 	    uae_sem_post (&sdd->sync_sem);
 	    /* Die.  */
 	    return 0;
 	}
 
-        scsidev_do_io (sdd, request);
-        uae_ReplyMsg (request);
+	scsidev_do_io (sdd, request);
+	uae_ReplyMsg (request);
     }
     return 0;
 }
@@ -628,43 +628,43 @@ static uae_u32 scsidev_init (void)
 #ifdef DEBUGME
     printf("scsidev_init()\n");
 #endif
-    
+
     if (scgp) {
-        /* we still have everything in place */
-        return m68k_dreg (regs, 0); /* device base */
+	/* we still have everything in place */
+	return m68k_dreg (regs, 0); /* device base */
     }
-    
+
     /* init global SCSI */
     if (!(scgp = openscsi (-1, -1, -1))) {
-        return 0;
+	return 0;
     }
 
     uae_sem_init (&scgp_sem, 0, 1);
 
     /* add all units we find */
     for (scgp->scsibus=0; scgp->scsibus < 8; scgp->scsibus++) {
-        if (!scsi_havebus(scgp, scgp->scsibus))
-            continue;
-        printf("scsibus%d:\n", scgp->scsibus);
-        for (scgp->target=0; scgp->target < 16; scgp->target++) {
-            struct scsi_inquiry inq;
-            scgp->lun = 0;
-            if (inquiry (scgp, &inq, sizeof(inq))) {
-                continue;
-            }
-            for (scgp->lun=0; scgp->lun < 8; scgp->lun++) {
-                if (!inquiry (scgp, &inq, sizeof(inq))) {
-                    int aunit = BTL2UNIT(scgp->scsibus, scgp->target, scgp->lun);
-                    struct scsidevdata *sdd;
-                    
-                    write_log ("   %2.01d,%d (= %3.d): ", scgp->target, scgp->lun, aunit);
-                    print_product (&inq);
-                    sdd = add_scsidev_data (scgp->scsibus, scgp->target, scgp->lun, aunit);
-                    write_log (!sdd ? " - init failed ???" : sdd->isatapi ? " - ATAPI" : " - SCSI");
-                    write_log ("\n");
+	if (!scsi_havebus(scgp, scgp->scsibus))
+	    continue;
+	printf("scsibus%d:\n", scgp->scsibus);
+	for (scgp->target=0; scgp->target < 16; scgp->target++) {
+	    struct scsi_inquiry inq;
+	    scgp->lun = 0;
+	    if (inquiry (scgp, &inq, sizeof(inq))) {
+		continue;
+	    }
+	    for (scgp->lun=0; scgp->lun < 8; scgp->lun++) {
+		if (!inquiry (scgp, &inq, sizeof(inq))) {
+		    int aunit = BTL2UNIT(scgp->scsibus, scgp->target, scgp->lun);
+		    struct scsidevdata *sdd;
+
+		    write_log ("   %2.01d,%d (= %3.d): ", scgp->target, scgp->lun, aunit);
+		    print_product (&inq);
+		    sdd = add_scsidev_data (scgp->scsibus, scgp->target, scgp->lun, aunit);
+		    write_log (!sdd ? " - init failed ???" : sdd->isatapi ? " - ATAPI" : " - SCSI");
+		    write_log ("\n");
 		}
-            }
-        }
+	    }
+	}
     }
     return m68k_dreg (regs, 0); /* device base */
 }
@@ -709,7 +709,7 @@ void scsidev_install (void)
     /* initcode */
     initcode = here ();
     calltrap (deftrap (scsidev_init)); dw (RTS);
-    
+
     /* Open */
     openfunc = here ();
     calltrap (deftrap (scsidev_open)); dw (RTS);
@@ -788,25 +788,25 @@ void scsidev_reset (void)
 #ifdef SCSI_CLOSE
 #ifdef UAE_SCSIDEV_THREADS
     {
-        int i;
+	int i;
 
-        for (i = 0; i < num_drives; i++) {
-            if (!drives[i].thread_running) {
-                continue;
-            }
-            write_comm_pipe_int (&drives[i].requests, 0, 1);
-            uae_sem_wait (&drives[i].sync_sem);
-        }
-        num_drives = 0;
+	for (i = 0; i < num_drives; i++) {
+	    if (!drives[i].thread_running) {
+		continue;
+	    }
+	    write_comm_pipe_int (&drives[i].requests, 0, 1);
+	    uae_sem_wait (&drives[i].sync_sem);
+	}
+	num_drives = 0;
     }
 #endif
-    
+
     if (scgp) {
-        closescsi (scgp);
-        scgp = NULL;
+	closescsi (scgp);
+	scgp = NULL;
     }
 #endif
-    
+
     opencount = 0;
 }
 

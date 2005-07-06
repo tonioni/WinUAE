@@ -1,8 +1,8 @@
- /* 
+ /*
   * UAE - The Un*x Amiga Emulator
-  * 
+  *
   * Joystick emulation stubs
-  * 
+  *
   * Copyright 1997 Bernd Schmidt
   * Copyright 2003 Richard Drummond
   */

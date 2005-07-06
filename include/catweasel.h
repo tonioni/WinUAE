@@ -10,6 +10,9 @@ extern uae_u32 catweasel_do_bget (uaecptr addr);
 extern void catweasel_do_bput (uaecptr addr, uae_u32 b);
 extern int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons);
 extern void catweasel_hsync (void);
+extern int catweasel_isjoystick(void);
+extern int catweasel_ismouse(void);
+extern int catweasel_read_mouse(int port, int *dx, int *dy, int *buttons);
 
 typedef struct catweasel_drive {
     struct catweasel_contr *contr; /* The controller this drive belongs to */
@@ -40,6 +43,8 @@ typedef struct catweasel_contr {
     unsigned char srm_dskready;
     int io_sr;                     /* IO port of control / status register */
     int io_mem;                    /* IO port of memory register */
+    int sid[2];
+    int can_sid, can_mouse, can_joy, can_kb;
 } catweasel_contr;
 
 #define CATWEASEL_TYPE_NONE  -1
@@ -83,5 +88,6 @@ int catweasel_fillmfm (catweasel_drive *d, uae_u16 *mfm, int side, int clock, in
 
 int catweasel_diskready(catweasel_drive *d);
 int catweasel_track0(catweasel_drive *d);
+
 
 #endif

@@ -1,10 +1,10 @@
  /*
   * UAE - The Un*x Amiga Emulator
   *
-  * Tables for labelling amiga internals. 
+  * Tables for labelling amiga internals.
   *
   */
-		
+
 struct mem_labels
 {
     const char *name;

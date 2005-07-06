@@ -31,7 +31,7 @@ void Support_Types ( void )
   }
 
   /* get "_TYPES_" size */
-  types_file_size = GetFileSize ( _TYPES_FILENAME );
+  types_file_size = GetFileSizeX ( _TYPES_FILENAME );
   fseek ( types_file , 0 , 0 ); /* just to be sure. put the fp back at the beginning */
 
   PW_i = 0;  /* will inc up to _KNOWN_FORMATS */
@@ -399,7 +399,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
 }
 
 /* yet again on Xigh's suggestion. How to handle 'correctly' a file size */
-long GetFileSize (char *infile)
+long GetFileSizeX (char *infile)
 {
   long i;
   struct stat *Stat;

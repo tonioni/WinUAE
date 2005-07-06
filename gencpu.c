@@ -292,16 +292,12 @@ static void fill_prefetch_2 (void)
     insn_n_cycles += 4;
 }
 
-static void fill_prefetch_1 (int o, int needcycles)
+static void fill_prefetch_1 (int o)
 {
     if (!using_prefetch)
 	return;
     if (using_ce) {
-	if (needcycles) {
-	    printf ("\tlostcycles = get_word_ce_prefetch_cycles (%d);\n", o);
-	} else {
-	    printf ("\tget_word_ce_prefetch (%d);\n", o);
-	}
+        printf ("\tget_word_ce_prefetch (%d);\n", o);
     } else {
 	printf ("\tget_word_prefetch (%d);\n", o);
     }
@@ -311,9 +307,9 @@ static void fill_prefetch_1 (int o, int needcycles)
 
 static void fill_prefetch_full (void)
 {
-    fill_prefetch_1 (0, 0);
+    fill_prefetch_1 (0);
     irc2ir ();
-    fill_prefetch_1 (2, 0);
+    fill_prefetch_1 (2);
 }
 
 static void fill_prefetch_0 (void)
@@ -328,22 +324,15 @@ static void fill_prefetch_0 (void)
     insn_n_cycles += 4;
 } 
 
-static void fill_prefetch_next_1 (needcycles)
+static void fill_prefetch_next_1 (void)
 {
-    if (needcycles && using_ce) {
-	printf ("\tint lostcycles;\n");
-    }
     irc2ir ();
-    fill_prefetch_1 (m68k_pc_offset + 2, needcycles);
+    fill_prefetch_1 (m68k_pc_offset + 2);
 } 
 
 static void fill_prefetch_next (void)
 {
-    fill_prefetch_next_1 (0);
-}
-static void fill_prefetch_next_cycles (void)
-{
-    fill_prefetch_next_1 (1);
+    fill_prefetch_next_1 ();
 }
 
 static void fill_prefetch_next_delay (int extracycles)
@@ -353,9 +342,9 @@ static void fill_prefetch_next_delay (int extracycles)
     if (using_ce) {
 	if (extracycles > 0) {
 	    printf("\t{\n");
-	    fill_prefetch_next_cycles ();
-	    printf("\tif ((%d + 4) * %d > lostcycles) do_cycles_ce ((%d + 4) * %d - lostcycles);\n",
-		extracycles, CYCLE_UNIT / 2, extracycles, CYCLE_UNIT / 2);
+	    fill_prefetch_next ();
+	    printf("\tif (%d > 0) do_cycles(%d * %d);\n",
+		extracycles, CYCLE_UNIT / 2, extracycles);
 	    printf("\t}\n");
 	} else {
 	    fill_prefetch_next ();
@@ -369,7 +358,7 @@ static void fill_prefetch_finish (void)
 {
     if (did_prefetch || !using_prefetch)
 	return;
-    fill_prefetch_1 (m68k_pc_offset, 0);
+    fill_prefetch_1 (m68k_pc_offset);
 }
 
 static void sync_m68k_pc (void)
@@ -1131,7 +1120,7 @@ static void shift_ce (amodes dmode, int size)
 {
     if (using_ce && isreg (dmode)) {
         printf ("\t{\n");
-        printf ("\t\tint cycles = %d * %d - lostcycles;\n", size == sz_long ? 8 : 6, CYCLE_UNIT / 2);
+	printf ("\t\tint cycles = %d * %d;\n", size == sz_long ? 8 : 6, CYCLE_UNIT / 2);
 	printf ("\t\tcycles += 2 * %d * ccnt;\n", CYCLE_UNIT / 2);
         addcycles3 ("\t\t");
         printf ("\t}\n");
@@ -1717,7 +1706,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
         printf ("\tm68k_setpc (srca);\n");
 	m68k_pc_offset = 0;
-	fill_prefetch_1 (0, 0);
+	fill_prefetch_1 (0);
         printf("\tm68k_areg (regs, 7) -= 4;\n");
 	if (using_ce) {
 	    printf("\tput_word_ce (m68k_areg (regs, 7), oldpc >> 16);\n");
@@ -1839,7 +1828,7 @@ static void gen_opcode (unsigned long int opcode)
 	addcycles (2);
 	printf ("\tif (!cctrue(%d)) {\n", curi->cc);
 	printf ("\t\tm68k_incpc((uae_s32)offs + 2);\n");
-	printf ("\t"); fill_prefetch_1 (0, 0);
+	printf ("\t"); fill_prefetch_1 (0);
 	printf ("\t"); genastore ("(src-1)", curi->smode, "srcreg", curi->size, "src");
 
 	printf ("\t\tif (src) {\n");
@@ -1851,7 +1840,7 @@ static void gen_opcode (unsigned long int opcode)
 	    need_endlabel = 1;
 	}
 	irc2ir ();
-	fill_prefetch_1 (2, 0);
+	fill_prefetch_1 (2);
 	returncycles ("\t\t\t", 12);
 	if (using_ce)
 	    printf ("\t\t\treturn;\n");
@@ -1868,11 +1857,11 @@ static void gen_opcode (unsigned long int opcode)
     case i_Scc:
 	genamode (curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, 0);
 	start_brace ();
-        fill_prefetch_next_cycles ();
+        fill_prefetch_next();
 	start_brace ();
 	printf ("\tint val = cctrue(%d) ? 0xff : 0;\n", curi->cc);
 	if (using_ce) {
-	    printf ("\tint cycles = -lostcycles;\n");
+	    printf ("\tint cycles = 0;\n");
 	    if (isreg (curi->smode))
 		printf ("\tif (val) cycles += 2 * %d;\n", CYCLE_UNIT / 2);
 	    addcycles3 ("\t");
@@ -1883,8 +1872,6 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
-        fill_prefetch_next_cycles ();
-	sync_m68k_pc ();
 	printf ("\tCLEAR_CZNV;\n");
 	printf ("\tif (src == 0) {\n");
 	if (cpu_level > 0) {
@@ -1900,7 +1887,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
 	printf ("\t\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
 	if (using_ce) {
-	    printf ("\t\tint cycles = 138 * %d - lostcycles;\n", CYCLE_UNIT / 2);
+	    printf ("\t\tint cycles = getDivu68kCycles((uae_u32)dst, (uae_u16)src) * %d;\n", CYCLE_UNIT / 2);
 	    addcycles3 ("\t\t");
 	}
 	/* The N flag appears to be set each time there is an overflow.
@@ -1918,16 +1905,16 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
 	printf ("\t\t"); genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 	printf ("\t\t}\n");
+        fill_prefetch_next ();
+	sync_m68k_pc ();
 	printf ("\t}\n");
-	insn_n_cycles += 136;
+	insn_n_cycles += 136 - (136 - 76) / 2; /* average */
 	need_endlabel = 1;
 	break;
     case i_DIVS:
 	printf ("\tuaecptr oldpc = m68k_getpc();\n");
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
-        fill_prefetch_next_cycles ();
-	sync_m68k_pc ();
 	printf ("\tCLEAR_CZNV;\n");
 	printf ("\tif (src == 0) {\n");
 	if (cpu_level > 0) {
@@ -1943,7 +1930,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
 	printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
 	if (using_ce) {
-	    printf ("\t\tint cycles = 156 * %d - lostcycles;\n", CYCLE_UNIT / 2);
+	    printf ("\t\tint cycles = getDivs68kCycles((uae_s32)dst, (uae_s16)src) * %d;\n", CYCLE_UNIT / 2);
 	    addcycles3 ("\t\t");
 	}
 	printf ("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
@@ -1960,18 +1947,20 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
 	printf ("\t\t"); genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 	printf ("\t\t}\n");
+        fill_prefetch_next ();
+	sync_m68k_pc ();
 	printf ("\t}\n");
-	insn_n_cycles += 154;
+	insn_n_cycles += 156 - (156 - 120) / 2; /* average */
 	need_endlabel = 1;
 	break;
     case i_MULU:
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0, 0);
-        fill_prefetch_next_cycles ();
+        fill_prefetch_next();
 	start_brace ();
 	printf ("\tuae_u32 newv = (uae_u32)(uae_u16)dst * (uae_u32)(uae_u16)src;\n");
 	if (using_ce)
-	    printf ("\tint cycles = 36 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
+	    printf ("\tint cycles = 36 * %d, bits;\n", CYCLE_UNIT / 2);
 	genflags (flag_logical, sz_long, "newv", "", "");
 	if (using_ce) {
 	    printf ("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n");
@@ -1985,11 +1974,11 @@ static void gen_opcode (unsigned long int opcode)
     case i_MULS:
 	genamode (curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", sz_word, "dst", 1, 0, 0);
-        fill_prefetch_next_cycles ();
+        fill_prefetch_next();
 	start_brace ();
 	printf ("\tuae_u32 newv = (uae_s32)(uae_s16)dst * (uae_s32)(uae_s16)src;\n");
 	if (using_ce)
-	    printf ("\tint cycles = 36 * %d - lostcycles, bits;\n", CYCLE_UNIT / 2);
+	    printf ("\tint cycles = 36 * %d, bits;\n", CYCLE_UNIT / 2);
 	genflags (flag_logical, sz_long, "newv", "", "");
 	if (using_ce) {
 	    printf ("\tsrc <<= 1;\n");
@@ -2047,7 +2036,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ASR:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2083,7 +2072,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ASL:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2122,7 +2111,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_LSR:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2154,7 +2143,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_LSL:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2187,7 +2176,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ROL:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2217,7 +2206,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ROR:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2247,7 +2236,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ROXL:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;
@@ -2280,7 +2269,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_ROXR:
 	genamode (curi->smode, "srcreg", curi->size, "cnt", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "data", 1, 0, 0);
-	fill_prefetch_next_cycles ();
+	fill_prefetch_next();
 	start_brace ();
 	switch (curi->size) {
 	case sz_byte: printf ("\tuae_u32 val = (uae_u8)data;\n"); break;

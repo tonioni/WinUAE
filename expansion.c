@@ -997,7 +997,7 @@ static void expamem_init_z3fastmem (void)
 
 }
 
-#ifdef PICASSO96
+#if defined(PICASSO96)
 /*
  *  Fake Graphics Card (ZORRO III) - BDK
  */
@@ -1082,6 +1082,7 @@ static void allocate_expamem (void)
 	}
 	clearexec ();
     }
+#if defined(PICASSO96)
     if (allocated_gfxmem != currprefs.gfxmem_size) {
 	if (gfxmemory)
 	    mapped_free (gfxmemory);
@@ -1099,6 +1100,7 @@ static void allocate_expamem (void)
 	}
 	clearexec ();
     }
+#endif
 
     z3fastmem_bank.baseaddr = z3fastmem;
     fastmem_bank.baseaddr = fastmemory;
@@ -1114,11 +1116,13 @@ static void allocate_expamem (void)
 	    map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
 		       allocated_z3fastmem);
 	}
+#if defined(PICASSO96)
 	if (allocated_gfxmem > 0 && gfxmem_start > 0) {
 	    restore_ram (p96_filepos, gfxmemory);
 	    map_banks (&gfxmem_bank, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
 		       allocated_gfxmem);
 	}
+#endif
     }
 }
 
@@ -1183,7 +1187,7 @@ void expamem_reset (void)
 	card_map[cardno++] = expamem_map_filesys;
     }
 #ifdef CATWEASEL
-    if (catweasel_init ()) {
+    if (currprefs.catweasel && catweasel_init ()) {
         card_init[cardno] = expamem_init_catweasel;
         card_map[cardno++] = expamem_map_catweasel;
     }
@@ -1206,8 +1210,10 @@ void expansion_init (void)
     allocated_fastmem = 0;
     fastmem_mask = fastmem_start = 0;
     fastmemory = 0;
+#if defined(PICASSO96)
     gfxmem_mask = gfxmem_start = 0;
     gfxmemory = 0;
+#endif
     catweasel_mask = catweasel_start = 0;
     filesys_start = 0;
     filesysory = 0;

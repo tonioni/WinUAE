@@ -95,7 +95,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		free(text);
 		return ERR_HCRC;
 	}
-	
+
 	geninfo = (USHORT) ((b1[10]<<8) | b1[11]);	/* General info about archive */
 	date = (time_t) ((((ULONG)b1[12])<<24) | (((ULONG)b1[13])<<16) | (((ULONG)b1[14])<<8) | (ULONG)b1[15]);	/* date in standard UNIX/ANSI format */
 	from = (USHORT) ((b1[16]<<8) | b1[17]);		/*  Lowest track in archive. May be incorrect if archive is "appended" */
@@ -289,7 +289,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if ((cmd == CMD_UNPACK) && (number<80) && (unpklen>2048)) {
 		r = Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags);
-		if (r != NO_PROBLEM) 
+		if (r != NO_PROBLEM)
 			if (pwd)
 				return ERR_BADPASSWD;
 			else
@@ -304,7 +304,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if ((cmd == CMD_SHOWBANNER) && (number == 0xffff)){
 		r = Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags);
-		if (r != NO_PROBLEM) 
+		if (r != NO_PROBLEM)
 			if (pwd)
 				return ERR_BADPASSWD;
 			else

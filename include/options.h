@@ -8,7 +8,7 @@
   */
 
 #define UAEMAJOR 1
-#define UAEMINOR 0
+#define UAEMINOR 1
 #define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
@@ -24,7 +24,7 @@ struct strlist {
 };
 
 /* maximum number native input devices supported (single type) */
-#define MAX_INPUT_DEVICES 6
+#define MAX_INPUT_DEVICES 8
 /* maximum number of native input device's buttons and axles supported */
 #define MAX_INPUT_DEVICE_EVENTS 256
 /* 4 different customization settings */
@@ -53,8 +53,8 @@ struct uae_prefs {
     char description[256];
     char info[256];
     int config_version;
-    char config_hardware_path[256];
-    char config_host_path[256];
+    char config_hardware_path[MAX_DPATH];
+    char config_host_path[MAX_DPATH];
 
     int illegal_mem;
     int no_xhair;
@@ -156,12 +156,12 @@ struct uae_prefs {
     int tod_hack;
     uae_u32 maprom;
 
-    char df[4][256];
-    char dfxlist[MAX_SPARE_DRIVES][256];
-    char romfile[256];
-    char romextfile[256];
-    char flashfile[256];
-    char cartfile[256];
+    char df[4][MAX_DPATH];
+    char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
+    char romfile[MAX_DPATH];
+    char romextfile[MAX_DPATH];
+    char flashfile[MAX_DPATH];
+    char cartfile[MAX_DPATH];
     char pci_devices[256];
     char prtname[256];
     char sername[256];
@@ -185,6 +185,7 @@ struct uae_prefs {
     int kickshifter;
     int filesys_no_uaefsdb;
     int filesys_custom_uaefsdb;
+    int mmkeyboard;
 
     struct uaedev_mount_info *mountinfo;
 
