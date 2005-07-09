@@ -465,11 +465,11 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,63,50,10
     GROUPBOX        "Misc chipset options",IDC_STATIC,168,11,114,82
     CONTROL         "Fast Copper [] Faster but less compatible copper emulation.",IDC_FASTCOPPER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,31,98,10
+                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,176,198,98,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,47,96,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,30,96,10
     CONTROL         "Cycle exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast CPU recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,64,100,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,43,100,10
     GROUPBOX        "Collision level",IDC_STATIC,14,97,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,40,113,50,10
@@ -483,6 +483,8 @@ BEGIN
     CONTROL         "Disabled",IDC_CS_SOUND0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,39,167,102,10
     CONTROL         "Emulated",IDC_CS_SOUND1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,39,182,91,10
     CONTROL         "Emulated, 100% accurate",IDC_CS_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,39,197,95,10
+    CONTROL         "Genlock connected [] Allow Kickstart to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,56,100,10
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 233
@@ -825,11 +827,6 @@ BEGIN
     BEGIN
         RIGHTMARGIN, 370
         BOTTOMMARGIN, 212
-    END
-
-    IDD_FILESYS, DIALOG
-    BEGIN
-        RIGHTMARGIN, 229
     END
 
     IDD_INPUT, DIALOG

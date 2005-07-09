@@ -20,7 +20,7 @@
 #include "arcadia.h"
 #include "zfile.h"
 
-/* supported roms (mame 0.90)
+/* supported roms (mame	0.90)
  *
  * - ar_airh
  * - ar_bowl
@@ -41,7 +41,7 @@ struct arcadiarom *arcadia_rom;
 
 static char arcadia_path[MAX_DPATH];
 
-static struct arcadiarom roms[] = {
+static struct arcadiarom roms[]	= {
     { "ar_airh.zip", "scpa211", "airh_", 1, 5, 0, 2, 4, 7, 6, 1, 3, 0x98f564 },
     { "ar_bowl.zip", "scpa211", "bowl_", 1, 7, 6, 0, 1, 2, 3, 4, 5, 0x98f564 },
     { "ar_dart.zip", "scpa211", "dart_", 1, 4, 0, 7, 6, 3, 1, 2, 5, 0x98f564 },
@@ -58,17 +58,17 @@ static struct arcadiarom roms[] = {
 };
 
 static uae_u8 *arbmemory;
-#define arb_start 0x800000
-#define arb_mask 0x1fffff
-#define allocated_arbmemory 0x200000
+#define	arb_start 0x800000
+#define	arb_mask 0x1fffff
+#define	allocated_arbmemory 0x200000
 
-#define nvram_offset 0x1fc000
-#define bios_offset 0x180000
-#define NVRAM_SIZE 0x4000
+#define	nvram_offset 0x1fc000
+#define	bios_offset 0x180000
+#define	NVRAM_SIZE 0x4000
 
 static int nvwrite;
 
-static int load_rom8 (char *xpath, uae_u8 *mem, int isbin)
+static int load_rom8 (char *xpath, uae_u8 *mem,	int isbin)
 {
     struct zfile *zf;
     char path[MAX_DPATH];
@@ -174,7 +174,7 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
     return 1;
 }
 
-static uae_u8 bswap (uae_u8 v,int b7,int b6,int b5,int b4,int b3,int b2,int b1,int b0)
+static uae_u8 bswap (uae_u8 v,int b7,int b6,int	b5,int b4,int b3,int b2,int b1,int b0)
 {
     uae_u8 b = 0;
 
@@ -204,7 +204,7 @@ static void decrypt_roms (struct arcadiarom *rom)
 	arbmemory[1] = 0xfc;
 }
 
-uae_u32 REGPARAM2 aab_bget (uaecptr addr)
+uae_u32	REGPARAM2 aab_bget (uaecptr addr)
 {
     return 0;
 }

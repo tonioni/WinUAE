@@ -29,11 +29,11 @@ STATIC_INLINE int isinrom (void)
     return (munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000;
 }
 
-#define	DEBUG_FPP	0
+#define DEBUG_FPP 0
 
-#define FFLAG_Z   0x4000
-#define FFLAG_N   0x0100
-#define FFLAG_NAN 0x0400 
+#define FFLAG_Z	    0x4000
+#define FFLAG_N	    0x0100
+#define FFLAG_NAN   0x0400 
 
 #define MAKE_FPSR(r)  regs.fp_result=(r)
 
@@ -97,7 +97,7 @@ static __inline__ tointtype toint(fptype src)
     return (tointtype)src; /* Should never be reached */
 }
 
-uae_u32 get_fpsr (void) 
+uae_u32 get_fpsr (void)
 {
     uae_u32 answer = regs.fpsr & 0x00ffffff;
 #ifdef HAVE_ISNAN
@@ -118,7 +118,7 @@ uae_u32 get_fpsr (void)
     return answer;
 }
 
-STATIC_INLINE void set_fpsr (uae_u32 x) 
+STATIC_INLINE void set_fpsr (uae_u32 x)
 {
     regs.fpsr = x;
 
@@ -389,11 +389,11 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra)
 	switch (size) {
 	case 6:
 	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value) & 0xff)
-				     | (m68k_dreg (regs, reg) & ~0xff)));
+		| (m68k_dreg (regs, reg) & ~0xff)));
 	    break;
 	case 4:
 	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value) & 0xffff)
-				     | (m68k_dreg (regs, reg) & ~0xffff)));
+	    | (m68k_dreg (regs, reg) & ~0xffff)));
 	    break;
 	case 0:
 	    m68k_dreg (regs, reg) = (uae_u32)toint(value);
@@ -623,9 +623,9 @@ STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
 	return NotANumber || Z || !N;
     case 0x1c:
 #if 0
-        return NotANumber || (Z && N); /* This is wrong, compare 0x0c */
+	return NotANumber || (Z && N); /* This is wrong, compare 0x0c */
 #else
-        return NotANumber || (N && !Z);  
+	return NotANumber || (N && !Z);  
 #endif
     case 0x1d:
 	return NotANumber || Z || N;
@@ -655,7 +655,7 @@ void fdbcc_opp (uae_u32 opcode, uae_u16 extra)
 	int reg = opcode & 0x7;
 
 	m68k_dreg (regs, reg) = ((m68k_dreg (regs, reg) & ~0xffff)
-				 | ((m68k_dreg (regs, reg) - 1) & 0xffff));
+	    | ((m68k_dreg (regs, reg) - 1) & 0xffff));
 	if ((m68k_dreg (regs, reg) & 0xffff) == 0xffff)
 	    m68k_setpc (pc + disp);
     }
@@ -1191,7 +1191,7 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    break;
 	case 0x01:		/* FINT */
 	    /* need to take the current rounding mode into account */
- 	    regs.fp[reg] = (fptype)toint(src);
+	    regs.fp[reg] = (fptype)toint(src);
 	    break;
 	case 0x02:		/* FSINH */
 	    regs.fp[reg] = sinh (src);
@@ -1230,7 +1230,7 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	case 0x0d:		/* FATANH */
-#if 1				/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
+#if 1				/* The BeBox doesn't have atanh, and it	isn't in the HPUX libm either */
 	    regs.fp[reg] = log ((1 + src) / (1 - src)) / 2;
 #else
 	    regs.fp[reg] = atanh (src);
@@ -1408,7 +1408,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
     restore_u32 ();
     if (currprefs.cpu_level == 2) {
 	currprefs.cpu_level++;
-        init_m68k_full ();
+	init_m68k_full ();
     }
     changed_prefs.cpu_level = currprefs.cpu_level;
     for (i = 0; i < 8; i++) {
@@ -1446,7 +1446,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-        dstbak = dst = malloc(4+4+8*10+4+4+4);
+	dstbak = dst = malloc(4+4+8*10+4+4+4);
     save_u32 (model);
     save_u32 (0);
     for (i = 0; i < 8; i++) {

@@ -140,6 +140,7 @@ struct uae_prefs {
     int immediate_blits;
     unsigned int chipset_mask;
     int ntscmode;
+    int genlock;
     int chipset_refreshrate;
     int collision_level;
     int leds_on_screen;

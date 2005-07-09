@@ -254,75 +254,6 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
     *nxmem = addr;
 }
 
-static void foundmod (uae_u32 ptr, char *type)
-{
-    char name[21];
-    uae_u8 *ptr2 = chipmemory + ptr;
-    int i,length;
-
-    console_out ("Found possible %s module at 0x%lx.\n", type, ptr);
-    memcpy (name, ptr2, 20);
-    name[20] = '\0';
-
-    /* Browse playlist */
-    length = 0;
-    for (i = 0x3b8; i < 0x438; i++)
-	if (ptr2[i] > length)
-	    length = ptr2[i];
-
-    length = (length+1)*1024 + 0x43c;
-
-    /* Add sample lengths */
-    ptr2 += 0x2A;
-    for (i = 0; i < 31; i++, ptr2 += 30)
-	length += 2*((ptr2[0]<<8)+ptr2[1]);
-
-    console_out ("Name \"%s\", Length 0x%lx bytes.\n", name, length);
-}
-
-static void modulesearch (void)
-{
-    uae_u8 *p = get_real_address (0);
-    uae_u32 ptr;
-
-    for (ptr = 0; ptr < allocated_chipmem - 40; ptr += 2, p += 2) {
-	/* Check for Mahoney & Kaktus */
-	/* Anyone got the format of old 15 Sample (SoundTracker)modules? */
-	if (ptr >= 0x438 && p[0] == 'M' && p[1] == '.' && p[2] == 'K' && p[3] == '.')
-	    foundmod (ptr - 0x438, "ProTracker (31 samples)");
-
-	if (ptr >= 0x438 && p[0] == 'F' && p[1] == 'L' && p[2] == 'T' && p[3] == '4')
-	    foundmod (ptr - 0x438, "Startrekker");
-
-	if (strncmp ((char *)p, "SMOD", 4) == 0) {
-	    console_out ("Found possible FutureComposer 1.3 module at 0x%lx, length unknown.\n", ptr);
-	}
-	if (strncmp ((char *)p, "FC14", 4) == 0) {
-	    console_out ("Found possible FutureComposer 1.4 module at 0x%lx, length unknown.\n", ptr);
-	}
-	if (p[0] == 0x48 && p[1] == 0xe7 && p[4] == 0x61 && p[5] == 0
-	    && p[8] == 0x4c && p[9] == 0xdf && p[12] == 0x4e && p[13] == 0x75
-	    && p[14] == 0x48 && p[15] == 0xe7 && p[18] == 0x61 && p[19] == 0
-	    && p[22] == 0x4c && p[23] == 0xdf && p[26] == 0x4e && p[27] == 0x75) {
-	    console_out ("Found possible Whittaker module at 0x%lx, length unknown.\n", ptr);
-	}
-	if (p[4] == 0x41 && p[5] == 0xFA) {
-	    int i;
-
-	    for (i = 0; i < 0x240; i += 2)
-		if (p[i] == 0xE7 && p[i + 1] == 0x42 && p[i + 2] == 0x41 && p[i + 3] == 0xFA)
-		    break;
-	    if (i < 0x240) {
-		uae_u8 *p2 = p + i + 4;
-		for (i = 0; i < 0x30; i += 2)
-		    if (p2[i] == 0xD1 && p2[i + 1] == 0xFA) {
-			console_out ("Found possible MarkII module at %lx, length unknown.\n", ptr);
-		    }
-	    }
-	}
-    }
-}
-
 static void dump_custom_regs (void)
 {
     int len, i, j, end;
@@ -1305,11 +1236,10 @@ static void debug_1 (void)
 	case 'i': dump_vectors (); break;
 	case 'e': dump_custom_regs (); break;
 	case 'r': if (more_params(&inptr))
-		      m68k_modify (&inptr);
+		    m68k_modify (&inptr);
 		  else
-		      m68k_dumpstate (stdout, &nextpc);
+		    m68k_dumpstate (stdout, &nextpc);
 	break;
-	case 'M': modulesearch (); break;
 	case 'C': cheatsearch (&inptr); break;
 	case 'W': writeintomem (&inptr); break;
 	case 'w': memwatch (&inptr); break;

@@ -309,12 +309,12 @@ static uae_u32 FindFunctionInObject (uae_u8 *objectptr)
     return 0;
 }
 
-#define CREATE_NATIVE_FUNC_PTR uae_u32 (* native_func)( uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
+#define	CREATE_NATIVE_FUNC_PTR uae_u32 (* native_func)(	uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
 						 uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32)
-#define SET_NATIVE_FUNC(x) native_func = (uae_u32 (*)(uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32))(x)
-#define CALL_NATIVE_FUNC( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 ) if(native_func) native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 )
+#define	SET_NATIVE_FUNC(x) native_func = (uae_u32 (*)(uae_u32, uae_u32,	uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,	uae_u32, uae_u32, uae_u32))(x)
+#define	CALL_NATIVE_FUNC( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 ) if(native_func) native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 )
 /* A0 - Contains a ptr to the native .obj data.  This ptr is Amiga-based. */
-/*      We simply find the first function in this .obj data, and execute it. */
+/*	We simply find the first function in this .obj data, and execute it. */
 static uae_u32 emulib_ExecuteNativeCode (void)
 {
 #if 0

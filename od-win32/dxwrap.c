@@ -38,7 +38,7 @@
 #include "custom.h"
 
 static BOOL bColourKeyAvailable = FALSE;
-static BOOL bOverlayAvailable   = FALSE;
+static BOOL bOverlayAvailable = FALSE;
 static DDCAPS_DX7 drivercaps, helcaps;
 static DWORD overlayflags;
 static DDOVERLAYFX overlayfx;
@@ -244,19 +244,19 @@ static int LockStub( surface_type_e type )
 	break;
     case secondary_surface:
 	surface = DirectDrawState.secondary.surface;
-        surfacedesc = &DirectDrawState.secondary.desc;
+	surfacedesc = &DirectDrawState.secondary.desc;
 	break;
     case tertiary_surface:
 	surface = DirectDrawState.tertiary.surface;
-        surfacedesc = &DirectDrawState.tertiary.desc;
+	surfacedesc = &DirectDrawState.tertiary.desc;
 	break;
     case temporary_surface:
 	surface = DirectDrawState.temporary.surface;
-        surfacedesc = &DirectDrawState.temporary.desc;
+	surfacedesc = &DirectDrawState.temporary.desc;
 	break;
     case overlay_surface:
 	surface = DirectDrawState.overlay.surface;
-        surfacedesc = &DirectDrawState.overlay.desc;
+	surfacedesc = &DirectDrawState.overlay.desc;
 	break;
     }
 
@@ -274,28 +274,28 @@ static int LockStub( surface_type_e type )
     }
 
     while (FAILED(ddrval = IDirectDrawSurface7_Lock(surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT,
-                                                NULL)))
+	NULL)))
     {
-        if (ddrval == DDERR_SURFACELOST) {
-    	    ddrval = restoresurface (surface);
-            if (FAILED(ddrval))
-            {
-                result = 0;
-                break;
-            }
-        }
-        else if (ddrval != DDERR_SURFACEBUSY) 
-        {
+	if (ddrval == DDERR_SURFACELOST) {
+	    ddrval = restoresurface (surface);
+	    if (FAILED(ddrval))
+	    {
+		result = 0;
+		break;
+	    }
+	}
+	else if (ddrval != DDERR_SURFACEBUSY) 
+	{
 	    write_log ("lpDDS->Lock() failed - %s\n", DXError (ddrval));
-            result = 0;
-            break;
-        }
+	    result = 0;
+	    break;
+	}
     }
     if(SUCCEEDED(ddrval))
-        result = 1;
+	result = 1;
     
     if(result)
-        lockcnt++;
+	lockcnt++;
 
     return result;
 }
@@ -321,34 +321,34 @@ int DirectDraw_SurfaceLock( surface_type_e surface_type )
     int result = 0;
 
     if( surface_type == lockable_surface )
-        surface_type = DirectDraw_GetLockableType();
+	surface_type = DirectDraw_GetLockableType();
 
     switch( surface_type )
     {
-        case primary_surface:
-            DirectDrawState.primary.desc.dwSize = sizeof( DDSURFACEDESC2 );
-            result = LockStub( surface_type );
-        break;
-        case secondary_surface:
-            DirectDrawState.secondary.desc.dwSize = sizeof( DDSURFACEDESC2 );
-            result = LockStub( surface_type );
-        break;
-        case tertiary_surface:
-            DirectDrawState.tertiary.desc.dwSize = sizeof( DDSURFACEDESC2 );
-            result = LockStub( surface_type );
-        break;
-        case temporary_surface:
-            DirectDrawState.temporary.desc.dwSize = sizeof( DDSURFACEDESC2 );
-            result = LockStub( surface_type );
-        break;
+	case primary_surface:
+	    DirectDrawState.primary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	    result = LockStub( surface_type );
+	break;
+	case secondary_surface:
+	    DirectDrawState.secondary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	    result = LockStub( surface_type );
+	break;
+	case tertiary_surface:
+	    DirectDrawState.tertiary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	    result = LockStub( surface_type );
+	break;
+	case temporary_surface:
+	    DirectDrawState.temporary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	    result = LockStub( surface_type );
+	break;
 	case overlay_surface:
 	    DirectDrawState.overlay.desc.dwSize = sizeof( DDSURFACEDESC2 );
 	    result = LockStub( surface_type );
-        case lockable_surface:
-        case invalid_surface:
-        default:
+	case lockable_surface:
+	case invalid_surface:
+	default:
 
-        break;
+	break;
     }
     DirectDrawState.locked = result;
 
@@ -377,7 +377,7 @@ char *DirectDraw_GetSurfacePointer( void )
     /* Make sure that somebody has done a lock before returning the lpSurface member */
     if(lockcnt)
     {
-        pixels = DirectDrawState.lockable.lpdesc->lpSurface;
+	pixels = DirectDrawState.lockable.lpdesc->lpSurface;
     }
     return pixels;
 }
@@ -532,15 +532,15 @@ DWORD DirectDraw_GetPixelFormatBitMask( DirectDraw_Mask_e mask )
     DWORD result = 0;
     switch( mask )
     {
-        case red_mask:
-            result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwRBitMask;
-        break;
-        case green_mask:
-            result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwGBitMask;
-        break;
-        case blue_mask:
-            result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwBBitMask;
-        break;
+	case red_mask:
+	    result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwRBitMask;
+	break;
+	case green_mask:
+	    result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwGBitMask;
+	break;
+	case blue_mask:
+	    result = DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwBBitMask;
+	break;
     }
     return result;
 }
@@ -624,11 +624,11 @@ static surface_type_e try_surface_locks( int want_fullscreen )
     }
     else
     {
-        if( DirectDraw_SurfaceLock( secondary_surface ) )
-        {
-            result = secondary_surface;
+	if( DirectDraw_SurfaceLock( secondary_surface ) )
+	{
+	    result = secondary_surface;
 	    write_log( "try_surface_locks() returning secondary\n" );
-        }
+	}
     }
 
     return result;
@@ -697,12 +697,12 @@ int DirectDraw_Start( GUID *guid )
     DirectDrawState.initialized = TRUE;
 
     ddrval = IDirectDraw_QueryInterface( DirectDrawState.directdraw.ddx,
-                                         &IID_IDirectDraw7,
-                                         (LPVOID *)&DirectDrawState.directdraw.dd );
+					 &IID_IDirectDraw7,
+					 (LPVOID *)&DirectDrawState.directdraw.dd );
     if(FAILED(ddrval))
     {
 	gui_message("start_ddraw(): DirectX 7 or newer required");
-        DirectDraw_Release();
+	DirectDraw_Release();
 	return 0;
     }
 
@@ -775,12 +775,12 @@ void DirectDraw_Release( void )
  * PURPOSE:Wrapper for setting the cooperative level (fullscreen or normal)
  *
  * PARAMETERS:
- *   window		Window to set the cooperative level for
- *   want_fullscreen	fullscreen mode flag
+ *   window  Window to set the cooperative level for
+ *   want_fullscreen fullscreen mode flag
  *
- * RETURNS:		result of underlying DirectDraw call
+ * RETURNS:  result of underlying DirectDraw call
  *
- * NOTES:		Updates the .fullscreen and .window members.
+ * NOTES:  Updates the .fullscreen and .window members.
  *
  * HISTORY:
  *   1999.08.02  Brian King             Creation
@@ -791,10 +791,9 @@ HRESULT DirectDraw_SetCooperativeLevel( HWND window, int want_fullscreen )
     HRESULT ddrval;
 
     ddrval = IDirectDraw7_SetCooperativeLevel( DirectDrawState.directdraw.dd,
-                                               window,
-                                               want_fullscreen ?
-                                               DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN  :
-                                               DDSCL_NORMAL );
+	window,
+	want_fullscreen ?
+	DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN : DDSCL_NORMAL );
     if(SUCCEEDED(ddrval)) {
 	DirectDrawState.fullscreen = want_fullscreen;
 	DirectDrawState.window = window;
@@ -808,12 +807,12 @@ HRESULT DirectDraw_SetCooperativeLevel( HWND window, int want_fullscreen )
  * PURPOSE:Wrapper for setting the cooperative level (fullscreen or normal)
  *
  * PARAMETERS:
- *   window		Window to set the cooperative level for
- *   want_fullscreen	fullscreen mode flag
+ *   window  Window to set the cooperative level for
+ *   want_fullscreen fullscreen mode flag
  *
- * RETURNS:		result of underlying DirectDraw call
+ * RETURNS:  result of underlying DirectDraw call
  *
- * NOTES:		Updates the .fullscreen and .window members.
+ * NOTES:  Updates the .fullscreen and .window members.
  *
  * HISTORY:
  *   1999.08.02  Brian King             Creation
@@ -857,7 +856,7 @@ HRESULT DirectDraw_SetDisplayMode( int width, int height, int bits, int freq )
     HRESULT ddrval;
 
     ddrval = IDirectDraw7_SetDisplayMode( DirectDrawState.directdraw.dd,
-                                          width, height, bits, freq, 0 );
+	width, height, bits, freq, 0 );
     DirectDrawState.modeset = 1;
     return ddrval;
 }
@@ -885,7 +884,7 @@ HRESULT DirectDraw_GetDisplayMode( void )
     /* We fill in the current.desc in all cases */
     DirectDrawState.current.desc.dwSize = sizeof( DDSURFACEDESC2 );
     ddrval = IDirectDraw7_GetDisplayMode( DirectDrawState.directdraw.dd,
-                                         &DirectDrawState.current.desc );
+	&DirectDrawState.current.desc );
     return ddrval;
 }
 
@@ -909,7 +908,7 @@ HRESULT DirectDraw_GetCaps( DDCAPS_DX7 *driver_caps, DDCAPS_DX7 *hel_caps )
     HRESULT ddrval;
 
     ddrval = IDirectDraw7_GetCaps( DirectDrawState.directdraw.dd,
-                                   driver_caps, hel_caps );
+	driver_caps, hel_caps );
     return ddrval;
 }
 
@@ -932,9 +931,7 @@ HRESULT DirectDraw_CreateClipper( void )
 {
     HRESULT ddrval;
     ddrval = IDirectDraw7_CreateClipper( DirectDrawState.directdraw.dd,
-                                         0,
-                                         &DirectDrawState.lpDDC,
-                                         NULL );
+	0, &DirectDrawState.lpDDC, NULL );
     return ddrval;
 }
 
@@ -954,9 +951,9 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
     //  Use GDI SetPixel to color match for us
     if(dwGDIColor != CLR_INVALID && SUCCEEDED(IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface, &hdc)))
     {
-        rgbT = GetPixel(hdc, 0, 0);     // Save current pixel value
-        SetPixel(hdc, 0, 0, dwGDIColor);       // Set our value
-        IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface,hdc);
+	rgbT = GetPixel(hdc, 0, 0);     // Save current pixel value
+	SetPixel(hdc, 0, 0, dwGDIColor);       // Set our value
+	IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface,hdc);
     }
 
     // Now lock the surface so we can read back the converted color
@@ -964,16 +961,16 @@ static DWORD ConvertGDIColor( COLORREF dwGDIColor )
     hr = IDirectDrawSurface7_Lock(DirectDrawState.primary.surface, NULL, &ddsd, DDLOCK_WAIT, NULL );
     if(SUCCEEDED(hr))
     {
-        dw = *(DWORD *) ddsd.lpSurface; 
-        if( ddsd.ddpfPixelFormat.dwRGBBitCount < 32 ) // Mask it to bpp
-            dw &= ( 1 << ddsd.ddpfPixelFormat.dwRGBBitCount ) - 1;
+	dw = *(DWORD *) ddsd.lpSurface; 
+	if( ddsd.ddpfPixelFormat.dwRGBBitCount < 32 ) // Mask it to bpp
+	    dw &= ( 1 << ddsd.ddpfPixelFormat.dwRGBBitCount ) - 1;
 	IDirectDrawSurface7_Unlock(DirectDrawState.primary.surface,NULL);
     }
 
     //  Now put the color that was there back.
     if(dwGDIColor != CLR_INVALID && SUCCEEDED(IDirectDrawSurface7_GetDC(DirectDrawState.primary.surface,&hdc)))
     {
-        SetPixel( hdc, 0, 0, rgbT );
+	SetPixel( hdc, 0, 0, rgbT );
 	IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface,hdc);
     }
     
@@ -1112,7 +1109,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 	} else {
 	    DirectDrawState.flipping = triple_buffer;
 	}
-        clearsurface (primary_surface);
+	clearsurface (primary_surface);
     } else {
 	// We're not full-screen, so you cannot create a flipping pair...
 	ZeroMemory( &DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
@@ -1201,44 +1198,44 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
     // we're not full-screen, then lets create ourselves a back-buffer manually.
     if( DirectDrawState.flipping == single_buffer )
     {
-        ZeroMemory( &DirectDrawState.secondary.desc, sizeof( DDSURFACEDESC2 ) );
-        DirectDrawState.secondary.desc.dwSize = sizeof( DDSURFACEDESC2 );
-        DirectDrawState.secondary.desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
-        DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-        DirectDrawState.secondary.desc.dwWidth = width;
-        DirectDrawState.secondary.desc.dwHeight = height;
-        ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
-                                            &DirectDrawState.secondary.desc,
-                                            &DirectDrawState.secondary.surface,
-                                            NULL );
-        if(FAILED(ddrval))
-        {
+	ZeroMemory( &DirectDrawState.secondary.desc, sizeof( DDSURFACEDESC2 ) );
+	DirectDrawState.secondary.desc.dwSize = sizeof( DDSURFACEDESC2 );
+	DirectDrawState.secondary.desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
+	DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+	DirectDrawState.secondary.desc.dwWidth = width;
+	DirectDrawState.secondary.desc.dwHeight = height;
+	ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
+					    &DirectDrawState.secondary.desc,
+					    &DirectDrawState.secondary.surface,
+					    NULL );
+	if(FAILED(ddrval))
+	{
 	    write_log( "DDRAW:Secondary surface creation attempt #1 failed with %s\n", DXError(ddrval));
-            DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-            ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
-                                                &DirectDrawState.secondary.desc,
-                                                &DirectDrawState.secondary.surface,
-                                                NULL );
+	    DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
+	    ddrval = IDirectDraw7_CreateSurface( DirectDrawState.directdraw.dd, 
+						&DirectDrawState.secondary.desc,
+						&DirectDrawState.secondary.surface,
+						NULL );
 	    if(SUCCEEDED(ddrval))
 		write_log( "DDRAW: Secondary surface created in plain system-memory\n" );
 	    else
 	    {
 		goto out;
 	    }
-        }
-        else
-        {
-            write_log( "DDRAW: Secondary surface created in video-memory\n" );
-        }
+	}
+	else
+	{
+	    write_log( "DDRAW: Secondary surface created in video-memory\n" );
+	}
 #if 0
 	// Get our IDirectDrawSurface7 pointer
-        ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.secondary.surface,
-                                                    &IID_IDirectDrawSurface7,
-                                                    (LPVOID *)&DirectDrawState.secondary.surface );
-        if(FAILED(ddrval))
-        {
+	ddrval = IDirectDrawSurface7_QueryInterface( DirectDrawState.secondary.surface,
+						    &IID_IDirectDrawSurface7,
+						    (LPVOID *)&DirectDrawState.secondary.surface );
+	if(FAILED(ddrval))
+	{
 	    goto out;
-        }
+	}
 #endif
     }
 out:
@@ -1269,44 +1266,44 @@ int DirectDraw_DetermineLocking( int wantfull )
     {
     case invalid_surface:
     case lockable_surface:
-        DirectDrawState.lockable.lpdesc = NULL;
-        DirectDrawState.lockable.lpdesc = NULL;
-        DirectDrawState.lockable.surface = NULL;
-        DirectDrawState.lockable.surface = NULL;
-        write_log( "set_ddraw: Couldn't lock primary, and no secondary available.\n" );
-        break;
+	DirectDrawState.lockable.lpdesc = NULL;
+	DirectDrawState.lockable.lpdesc = NULL;
+	DirectDrawState.lockable.surface = NULL;
+	DirectDrawState.lockable.surface = NULL;
+	write_log( "set_ddraw: Couldn't lock primary, and no secondary available.\n" );
+	break;
     case primary_surface:
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.primary.desc;
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.primary.desc;
-        DirectDrawState.lockable.surface = DirectDrawState.primary.surface;
-        DirectDrawState.lockable.surface = DirectDrawState.primary.surface;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.primary.desc;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.primary.desc;
+	DirectDrawState.lockable.surface = DirectDrawState.primary.surface;
+	DirectDrawState.lockable.surface = DirectDrawState.primary.surface;
 	result = 1;
-        break;
+	break;
     case overlay_surface:
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.overlay.desc;
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.overlay.desc;
-        DirectDrawState.lockable.surface = DirectDrawState.overlay.surface;
-        DirectDrawState.lockable.surface = DirectDrawState.overlay.surface;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.overlay.desc;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.overlay.desc;
+	DirectDrawState.lockable.surface = DirectDrawState.overlay.surface;
+	DirectDrawState.lockable.surface = DirectDrawState.overlay.surface;
 	result = 1;
-        break;
+	break;
     case secondary_surface:
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.secondary.desc;
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.secondary.desc;
-        DirectDrawState.lockable.surface = DirectDrawState.secondary.surface;
-        DirectDrawState.lockable.surface = DirectDrawState.secondary.surface;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.secondary.desc;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.secondary.desc;
+	DirectDrawState.lockable.surface = DirectDrawState.secondary.surface;
+	DirectDrawState.lockable.surface = DirectDrawState.secondary.surface;
 	result = 1;
-        break;
+	break;
     case tertiary_surface:
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.tertiary.desc;
-        DirectDrawState.lockable.lpdesc = &DirectDrawState.tertiary.desc;
-        DirectDrawState.lockable.surface = DirectDrawState.tertiary.surface;
-        DirectDrawState.lockable.surface = DirectDrawState.tertiary.surface;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.tertiary.desc;
+	DirectDrawState.lockable.lpdesc = &DirectDrawState.tertiary.desc;
+	DirectDrawState.lockable.surface = DirectDrawState.tertiary.surface;
+	DirectDrawState.lockable.surface = DirectDrawState.tertiary.surface;
 	result = 1;
-        break;
+	break;
     }
 
     if( DirectDrawState.lockable.surface )
-        DirectDraw_SurfaceUnlock();
+	DirectDraw_SurfaceUnlock();
 
     return result;
 }
@@ -1331,10 +1328,10 @@ HRESULT DirectDraw_SetClipper( HWND hWnd )
     HRESULT ddrval;
 
     ddrval = IDirectDrawSurface7_SetClipper( DirectDrawState.primary.surface,
-                                             hWnd ? DirectDrawState.lpDDC : NULL );
+	hWnd ? DirectDrawState.lpDDC : NULL );
     if( hWnd && SUCCEEDED(ddrval))
     {
-        ddrval = IDirectDrawClipper_SetHWnd( DirectDrawState.lpDDC, 0, hWnd );
+	ddrval = IDirectDrawClipper_SetHWnd( DirectDrawState.lpDDC, 0, hWnd );
     }
     return ddrval;
 }
@@ -1436,11 +1433,10 @@ HRESULT DirectDraw_CreatePalette( LPPALETTEENTRY pal )
 {
     HRESULT ddrval;
     ddrval = IDirectDraw_CreatePalette( DirectDrawState.directdraw.dd,
-                                        DDPCAPS_8BIT | DDPCAPS_ALLOW256,
-                                        pal, &DirectDrawState.lpDDP, NULL);
+	DDPCAPS_8BIT | DDPCAPS_ALLOW256, pal, &DirectDrawState.lpDDP, NULL);
     if(SUCCEEDED(ddrval))
     {
-        ddrval = DirectDraw_SetPalette(0);
+	ddrval = DirectDraw_SetPalette(0);
     }
     return ddrval;
 }
@@ -1464,7 +1460,7 @@ HRESULT DirectDraw_SetPaletteEntries( int start, int count, PALETTEENTRY *palett
 {
     HRESULT ddrval = DDERR_NOPALETTEATTACHED;
     if( DirectDrawState.lpDDP )
-        ddrval = IDirectDrawPalette_SetEntries( DirectDrawState.lpDDP, 0, start, count, palette );
+	ddrval = IDirectDrawPalette_SetEntries( DirectDrawState.lpDDP, 0, start, count, palette );
     return ddrval;
 }
 
@@ -1654,20 +1650,20 @@ static int DirectDraw_BltFastStub4(LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD 
 
     while(FAILED(ddrval = IDirectDrawSurface7_BltFast( dstsurf, x, y, srcsurf, srcrect, DDBLTFAST_NOCOLORKEY | DDBLTFAST_WAIT )))
     {
-        if (ddrval == DDERR_SURFACELOST) 
-        {
-    	    ddrval = restoresurface ( dstsurf );
-            if (FAILED(ddrval))
-                break;
-        }
-        else if (ddrval != DDERR_SURFACEBUSY) 
-        {
+	if (ddrval == DDERR_SURFACELOST) 
+	{
+	    ddrval = restoresurface ( dstsurf );
+	    if (FAILED(ddrval))
+		break;
+	}
+	else if (ddrval != DDERR_SURFACEBUSY) 
+	{
 	    write_log("BltFastStub7(): DirectDrawSURFACE7_BltFast() failed with %s\n", DXError (ddrval));
-            break;
-        }
+	    break;
+	}
     }
     if(SUCCEEDED(ddrval))
-        result = 1;
+	result = 1;
     return result;
 }
 
@@ -1691,27 +1687,27 @@ HRESULT DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surfa
     LPDIRECTDRAWSURFACE7 lpDDS4_dst, lpDDS4_src;
     if( dsttype == primary_surface )
     {
-        lpDDS4_dst = DirectDrawState.primary.surface;
+	lpDDS4_dst = DirectDrawState.primary.surface;
     }
     else if (dsttype == temporary_surface)
     {
-        lpDDS4_dst = DirectDrawState.temporary.surface;
+	lpDDS4_dst = DirectDrawState.temporary.surface;
     }
     else
     {
-        lpDDS4_dst = DirectDrawState.secondary.surface;
+	lpDDS4_dst = DirectDrawState.secondary.surface;
     }
     if( srctype == primary_surface )
     {
-        lpDDS4_src = DirectDrawState.primary.surface;
+	lpDDS4_src = DirectDrawState.primary.surface;
     }
     else if (srctype == temporary_surface)
     {
-        lpDDS4_src = DirectDrawState.temporary.surface;
+	lpDDS4_src = DirectDrawState.temporary.surface;
     }
     else
     {
-        lpDDS4_src = DirectDrawState.secondary.surface;
+	lpDDS4_src = DirectDrawState.secondary.surface;
     }
     return DirectDraw_BltFastStub4( lpDDS4_dst, left, top, lpDDS4_src, srcrect );
 }
@@ -1738,22 +1734,22 @@ static HRESULT DirectDraw_BltStub(LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, 
 
     while(FAILED(ddrval = IDirectDrawSurface7_Blt(dstsurf, dstrect, srcsurf, srcrect, flags, ddbltfx)))
     {
-        if (ddrval == DDERR_SURFACELOST) 
-        {
+	if (ddrval == DDERR_SURFACELOST) 
+	{
 	    if (errcnt > 10)
 		return 1;
 	    errcnt++;
-    	    ddrval = restoresurface ( dstsurf );
-            if (FAILED(ddrval))
-            {
-                break;
-            }
-        }
-        else if (ddrval != DDERR_SURFACEBUSY) 
-        {
+	    ddrval = restoresurface ( dstsurf );
+	    if (FAILED(ddrval))
+	    {
+		break;
+	    }
+	}
+	else if (ddrval != DDERR_SURFACEBUSY) 
+	{
 	    write_log("BltStub(): DirectDrawSURFACE7_Blt() failed with %s\n", DXError (ddrval));
-            break;
-        }
+	    break;
+	}
     }
     return ddrval;
 }
@@ -1789,7 +1785,7 @@ int DirectDraw_Flip(int wait)
 	} else if (currprefs.gfx_vsync) {
 	    if (vblank_skip >= 0) {
 		skip++;
-    		if (vblank_skip > skip) {
+		if (vblank_skip > skip) {
 		    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
 		} else {
 		    skip = 0;
@@ -1823,7 +1819,7 @@ int DirectDraw_Flip(int wait)
 	return 1;
     }
     if(SUCCEEDED(ddrval)) {
-        result = 1;
+	result = 1;
     } else {
 	if (ddrval == DDERR_SURFACELOST) {
 	    static int recurse;
@@ -1856,8 +1852,8 @@ int DirectDraw_Flip(int wait)
  *
  */
 HRESULT DirectDraw_Blt(surface_type_e dsttype, LPRECT dstrect,
-                    surface_type_e srctype, LPRECT srcrect,
-                    DWORD flags, LPDDBLTFX fx)
+	    surface_type_e srctype, LPRECT srcrect,
+	    DWORD flags, LPDDBLTFX fx)
 {
     LPDIRECTDRAWSURFACE7 lpDDS4_dst, lpDDS4_src;
     
@@ -1870,15 +1866,15 @@ HRESULT DirectDraw_Blt(surface_type_e dsttype, LPRECT dstrect,
     }
     else if( dsttype == secondary_surface )
     {
-        lpDDS4_dst = DirectDrawState.secondary.surface;
+	lpDDS4_dst = DirectDrawState.secondary.surface;
     }
     else if( dsttype == tertiary_surface )
     {
-        lpDDS4_dst = DirectDrawState.tertiary.surface;
+	lpDDS4_dst = DirectDrawState.tertiary.surface;
     }
     else if( dsttype == temporary_surface )
     {
-        lpDDS4_dst = DirectDrawState.temporary.surface;
+	lpDDS4_dst = DirectDrawState.temporary.surface;
     }
     else
     {
@@ -1887,15 +1883,15 @@ HRESULT DirectDraw_Blt(surface_type_e dsttype, LPRECT dstrect,
 
     if( srctype == primary_surface )
     {
-        lpDDS4_src = DirectDrawState.primary.surface;
+	lpDDS4_src = DirectDrawState.primary.surface;
     }
     else if( srctype == secondary_surface )
     {
-        lpDDS4_src = DirectDrawState.secondary.surface;
+	lpDDS4_src = DirectDrawState.secondary.surface;
     }
     else if( srctype == tertiary_surface )
     {
-        lpDDS4_src = DirectDrawState.tertiary.surface;
+	lpDDS4_src = DirectDrawState.tertiary.surface;
     }
     else if( srctype == temporary_surface )
     {
@@ -2007,11 +2003,11 @@ HRESULT DirectDraw_GetDC( HDC *hdc, surface_type_e surface )
 {
     HRESULT result = ~DD_OK;
     if( surface == primary_surface )
-        result = IDirectDrawSurface7_GetDC (DirectDrawState.primary.surface, hdc);
+	result = IDirectDrawSurface7_GetDC (DirectDrawState.primary.surface, hdc);
     else if (surface == overlay_surface)
-        result = IDirectDrawSurface7_GetDC (DirectDrawState.overlay.surface, hdc);
+	result = IDirectDrawSurface7_GetDC (DirectDrawState.overlay.surface, hdc);
     else if (surface == secondary_surface)
-        result = IDirectDrawSurface7_GetDC (DirectDrawState.secondary.surface, hdc);
+	result = IDirectDrawSurface7_GetDC (DirectDrawState.secondary.surface, hdc);
     return result;
 }
 
@@ -2034,11 +2030,11 @@ HRESULT DirectDraw_ReleaseDC( HDC hdc, surface_type_e surface )
 {
     HRESULT result;
     if( surface == primary_surface )
-        result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.primary.surface, hdc );
+	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.primary.surface, hdc );
     else if (surface == overlay_surface)
-        result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.overlay.surface, hdc );
+	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.overlay.surface, hdc );
     else
-        result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.secondary.surface, hdc );
+	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.secondary.surface, hdc );
     return result;
 }
 

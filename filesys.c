@@ -47,8 +47,8 @@
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
-#define TRACE(x)	do { write_log x; } while(0)
-#define DUMPLOCK(u,x)	dumplock(u,x)
+#define TRACE(x) do { write_log x; } while(0)
+#define DUMPLOCK(u,x) dumplock(u,x)
 #else
 #define TRACE(x)
 #define DUMPLOCK(u,x)
@@ -59,7 +59,7 @@ static void aino_test (a_inode *aino)
 #ifdef AINO_DEBUG
     a_inode *aino2 = aino, *aino3;
     for (;;) {
-        if (!aino || !aino->next)
+	if (!aino || !aino->next)
 	    return;
 	if ((aino->checksum1 ^ aino->checksum2) != 0xaaaa5555) {
 	    write_log ("PANIC: corrupted or freed but used aino detected!", aino);
@@ -252,7 +252,7 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
 	    ui->hf.readonly = readonly = 1;
 	    hdf_open (&ui->hf, rootdir);
 	}
-        ui->hf.readonly = readonly;
+	ui->hf.readonly = readonly;
 	if (ui->hf.handle == 0)
 	    return "Hardfile not found";
 	if ((ui->hf.blocksize & (ui->hf.blocksize - 1)) != 0 || ui->hf.blocksize == 0)
@@ -450,11 +450,11 @@ struct hardfiledata *get_hardfile_data (int nr)
     return &uip[nr].hf;
 }
 
-/* minimal AmigaDOS definitions */
+/* minimal AmigaDOS definitions	*/
 
 /* field offsets in DosPacket */
 #define dp_Type 8
-#define dp_Res1	12
+#define dp_Res1 12
 #define dp_Res2 16
 #define dp_Arg1 20
 #define dp_Arg2 24
@@ -466,10 +466,10 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define DOS_FALSE (0L)
 
 /* Passed as type to Lock() */
-#define SHARED_LOCK         -2     /* File is readable by others */
-#define ACCESS_READ         -2     /* Synonym */
-#define EXCLUSIVE_LOCK      -1     /* No other access allowed    */
-#define ACCESS_WRITE        -1     /* Synonym */
+#define SHARED_LOCK	-2  /* File is readable by others */
+#define ACCESS_READ	-2  /* Synonym */
+#define EXCLUSIVE_LOCK	-1  /* No other access allowed  */
+#define ACCESS_WRITE	-1  /* Synonym */
 
 /* packet types */
 #define ACTION_CURRENT_VOLUME	7
@@ -499,23 +499,23 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_WRITE		'W'
 
 /* 2.0+ packet types */
-#define ACTION_INHIBIT       31
-#define ACTION_SET_FILE_SIZE 1022
-#define ACTION_LOCK_RECORD   2008
-#define ACTION_FREE_RECORD   2009
-#define ACTION_SAME_LOCK     40
-#define ACTION_CHANGE_MODE   1028
-#define ACTION_FH_FROM_LOCK  1026
-#define ACTION_COPY_DIR_FH   1030
-#define ACTION_PARENT_FH     1031
-#define ACTION_EXAMINE_FH    1034
-#define ACTION_EXAMINE_ALL   1033
-#define ACTION_MAKE_LINK     1021
-#define ACTION_READ_LINK     1024
-#define ACTION_FORMAT        1020
-#define ACTION_IS_FILESYSTEM 1027
-#define ACTION_ADD_NOTIFY    4097
-#define ACTION_REMOVE_NOTIFY 4098
+#define ACTION_INHIBIT		31
+#define ACTION_SET_FILE_SIZE	1022
+#define ACTION_LOCK_RECORD	2008
+#define ACTION_FREE_RECORD	2009
+#define ACTION_SAME_LOCK	40
+#define ACTION_CHANGE_MODE	1028
+#define ACTION_FH_FROM_LOCK	1026
+#define ACTION_COPY_DIR_FH	1030
+#define ACTION_PARENT_FH	1031
+#define ACTION_EXAMINE_FH	1034
+#define ACTION_EXAMINE_ALL	1033
+#define ACTION_MAKE_LINK	1021
+#define ACTION_READ_LINK	1024
+#define ACTION_FORMAT		1020
+#define ACTION_IS_FILESYSTEM	1027
+#define ACTION_ADD_NOTIFY	4097
+#define ACTION_REMOVE_NOTIFY	4098
 
 #define DISK_TYPE		0x444f5301 /* DOS\1 */
 
@@ -1628,7 +1628,7 @@ static void notify_check (Unit *unit, a_inode *a)
 	    uae_u32 err;
 	    a_inode *a2 = find_aino (unit, 0, n->fullname, &err);
 	    if (err == 0 && a == a2)
-	        notify_send (unit, n);
+		notify_send (unit, n);
 	}
     }
     if (a->parent) {
@@ -1659,8 +1659,8 @@ action_add_notify (Unit *unit, dpacket packet)
     flags = get_long (nr + 12);
 
     if (!(flags & (NRF_SEND_MESSAGE | NRF_SEND_SIGNAL))) {
-        PUT_PCK_RES1 (packet, DOS_FALSE);
-        PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER);
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER);
 	return;
     }
 
@@ -1704,7 +1704,7 @@ action_remove_notify (Unit *unit, dpacket packet)
 
     TRACE(("ACTION_REMOVE_NOTIFY\n"));
     for (hash = 0; hash < NOTIFY_HASH_SIZE; hash++) {
-        for (n = unit->notifyhash[hash]; n; n = n->next) {
+	for (n = unit->notifyhash[hash]; n; n = n->next) {
 	    if (n->notifyrequest == nr) {
 		//write_log ("NotifyRequest %08.8X freed\n", n->notifyrequest);
 		xfree (n->fullname);
@@ -2849,7 +2849,7 @@ action_examine_fh (Unit *unit, dpacket packet)
 	put_long (info, 0);
 }
 
-/* For a nice example of just how contradictory documentation can be, see the
+/* For a nice example of just how contradictory	documentation can be, see the
  * Autodoc for DOS:SetFileSize and the Packets.txt description of this packet...
  * This implementation tries to mimic the behaviour of the Kick 3.1 ramdisk
  * (which seems to match the Autodoc description). */
@@ -2948,9 +2948,9 @@ action_delete_object (Unit *unit, dpacket packet)
 	}
     } else {
 	if (my_unlink (a->nname) == -1) {
-            PUT_PCK_RES1 (packet, DOS_FALSE);
+	    PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, dos_errno());
-    	    return;
+	    return;
 	}
     }
     notify_check (unit, a);
@@ -2966,7 +2966,7 @@ action_delete_object (Unit *unit, dpacket packet)
 }
 
 static void
-action_set_date (Unit *unit, dpacket packet)
+action_set_date	(Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG2 (packet) << 2;
     uaecptr name = GET_PCK_ARG3 (packet) << 2;
@@ -2984,7 +2984,7 @@ action_set_date (Unit *unit, dpacket packet)
     }
 
     ut.actime = ut.modtime = put_time(get_long (date), get_long (date + 4),
-				      get_long (date + 8));
+				get_long (date + 8));
     a = find_aino (unit, lock, bstr (unit, name), &err);
     if (err == 0 && utime (a->nname, &ut) == -1)
 	err = dos_errno ();
@@ -3027,7 +3027,7 @@ action_rename_object (Unit *unit, dpacket packet)
 
     /* rename always fails if file is open for writing */
     for (k1 = unit->keys; k1; k1 = knext) {
-        knext = k1->next;
+	knext = k1->next;
 	if (k1->aino == a1 && k1->fd >= 0 && k1->createmode == 2) {
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, ERROR_OBJECT_IN_USE);
@@ -3069,10 +3069,10 @@ action_rename_object (Unit *unit, dpacket packet)
 	    knext = k1->next;
 	    if (k1->aino == a1 && k1->fd >= 0) {
 		wehavekeys++;
-	        my_close (k1->fd);
+		my_close (k1->fd);
 		write_log ("handle %d freed\n", k1->fd);
 	    }
-        }
+	}
 	/* try again... */
 	ret = my_rename (a1->nname, a2->nname);
 	for (k1 = unit->keys; k1; k1 = knext) {
@@ -3090,14 +3090,14 @@ action_rename_object (Unit *unit, dpacket packet)
 		    k1->fd = my_open (a2->nname, mode);
 		    write_log ("restoring new handle '%s' %d\n", a2->nname, k1->dosmode);
 		}
-	        if (k1->fd == NULL) {
+		if (k1->fd == NULL) {
 		    write_log ("relocking failed '%s' -> '%s'\n", a1->nname, a2->nname);
 		    free_key (unit, k1);
 		} else {
 		    my_lseek (k1->fd, k1->file_pos, SEEK_SET);
 		}
 	    }
-        }
+	}
 	if (ret == -1) {
 	    delete_aino (unit, a2);
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -3503,7 +3503,7 @@ void filesys_start_threads (void)
 	UnitInfo *ui = &uip[i];
 	ui->unit_pipe = 0;
 	ui->back_pipe = 0;
-        ui->reset_state = FS_STARTUP;
+	ui->reset_state = FS_STARTUP;
 	if (savestate_state != STATE_RESTORE) {
 	    ui->startup = 0;
 	    ui->self = 0;
@@ -3699,15 +3699,15 @@ static uae_u32 filesys_dev_bootfilesys (void)
     dostype = get_long (parmpacket + 80);
     fsnode = get_long (fsres + 18);
     while (get_long (fsnode)) {
-        dostype2 = get_long (fsnode + 14);
-        if (dostype2 == dostype) {
+	dostype2 = get_long (fsnode + 14);
+	if (dostype2 == dostype) {
 	    if (get_long (fsnode + 22) & (1 << 7)) {
-	        put_long (devicenode + 32, get_long (fsnode + 54)); /* dn_SegList */
-	        put_long (devicenode + 36, -1); /* dn_GlobalVec */
+		put_long (devicenode + 32, get_long (fsnode + 54)); /* dn_SegList */
+		put_long (devicenode + 36, -1); /* dn_GlobalVec */
 	    }
 	    return 1;
-        }
-        fsnode = get_long (fsnode);
+	}
+	fsnode = get_long (fsnode);
     }
     return 0;
 }
@@ -3733,7 +3733,7 @@ static uae_u32 filesys_dev_remember (void)
 	uip->rdb_filesyssize = 0;
     }
     if (m68k_dreg (regs, 3) >= 0)
-        uip->startup = get_long (devicenode + 28);
+	uip->startup = get_long (devicenode + 28);
     return devicenode;
 }
 
@@ -4040,7 +4040,7 @@ static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 		addfakefilesys (parmpacket, dostype);
 	    return;
 	}
-        fsnode = get_long (fsnode);
+	fsnode = get_long (fsnode);
     }
 
     tmp[0] = 0;
@@ -4051,7 +4051,7 @@ static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 	i = strlen (tmp);
 	while (i > 0 && tmp[i - 1] != '/' && tmp[i - 1] != '\\')
 	    i--;
-        strcpy (tmp + i, "FastFileSystem");
+	strcpy (tmp + i, "FastFileSystem");
     }
     if (tmp[0] == 0) {
 	write_log ("RDB: no filesystem for dostype 0x%08.8X\n", dostype);
@@ -4061,7 +4061,7 @@ static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     zf = zfile_fopen (tmp,"rb");
     if (!zf) {
 	write_log ("RDB: filesys not found\n");
-        return;
+	return;
     }
 
     zfile_fseek (zf, 0, SEEK_END);
@@ -4081,7 +4081,7 @@ static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecpt
     char buffer[80];
 
     if (*devname == 0 || strlen(*devname) == 0) {
-        sprintf (buffer, "DH%d", unit_no);
+	sprintf (buffer, "DH%d", unit_no);
     } else {
 	strcpy (buffer, *devname);
     }
@@ -4107,11 +4107,11 @@ static uae_u32 filesys_dev_storeinfo (void)
 
     if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
 	/* RDB hardfile */
-        uip[unit_no].devno = unit_no;
+	uip[unit_no].devno = unit_no;
 	return rdb_mount (&uip[unit_no], unit_no, sub_no, parmpacket);
     }
     if (sub_no)
-        return -2;
+	return -2;
     write_log("Mounting uaehf.device %d (%d):\n", unit_no, sub_no);
     get_new_device (type, parmpacket, &uip[unit_no].devname, &uip[unit_no].devname_amiga, unit_no);
     uip[unit_no].devno = unit_no;

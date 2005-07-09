@@ -38,7 +38,7 @@ static void cdtv_do_interrupt (void)
 {
     if (dmacmemory[0x41] & 0x10) {
 	write_log ("cdtv doint\n");
-        INTREQ (0x8008);
+	INTREQ (0x8008);
     }
 }
 

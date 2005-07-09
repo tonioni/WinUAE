@@ -348,6 +348,8 @@
 #define IDC_CYCLEEXACT                  1219
 #define IDC_CS_CPU_TEXT2                1219
 #define IDC_CPUIDLE                     1220
+#define IDC_CYCLEEXACT2                 1220
+#define IDC_GENLOCK                     1220
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_8BIT                        1230
 #define IDC_16BIT                       1231

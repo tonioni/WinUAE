@@ -33,7 +33,7 @@
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
-#define TRACE(x)	do { write_log x; } while(0)
+#define TRACE(x) do { write_log x; } while(0)
 #else
 #define TRACE(x)
 #endif

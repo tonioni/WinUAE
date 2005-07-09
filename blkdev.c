@@ -32,11 +32,11 @@ static void install_driver (int flags)
 #ifdef WINDDK
     if (os_winnt && os_winnt_admin) {
 	device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
-        device_func[DF_SCSI] = &devicefunc_win32_spti;
-        installed = 1;
+	device_func[DF_SCSI] = &devicefunc_win32_spti;
+	installed = 1;
     }
     if (currprefs.win32_aspi || !installed) {
-        device_func[DF_SCSI] = &devicefunc_win32_aspi;
+	device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	device_func[DF_IOCTL] = 0;
     }
 #endif
@@ -121,7 +121,7 @@ void sys_command_stop (int mode, int unitnum)
 int sys_command_play (int mode, int unitnum,uae_u32 startmsf, uae_u32 endmsf, int scan)
 {
     if (mode == DF_SCSI || !ioctl) {
-        uae_u8 cmd[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+	uae_u8 cmd[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 #if 0
 	if (scan) {
 	    cmd[0] = 0xba;
@@ -142,7 +142,7 @@ int sys_command_play (int mode, int unitnum,uae_u32 startmsf, uae_u32 endmsf, in
 #if 0
 	}
 #endif
-        return device_func[DF_SCSI]->exec_out (unitnum, cmd, sizeof (cmd)) == 0 ? 0 : 1;
+	return device_func[DF_SCSI]->exec_out (unitnum, cmd, sizeof (cmd)) == 0 ? 0 : 1;
     }
     return device_func[DF_IOCTL]->play (unitnum, startmsf, endmsf, scan);
 }
@@ -162,7 +162,7 @@ uae_u8 *sys_command_toc (int mode, int unitnum)
 {
     if (mode == DF_SCSI || !ioctl) {
 	uae_u8 cmd [10] = { 0x43,0,2,0,0,0,1,DEVICE_SCSI_BUFSIZE>>8,DEVICE_SCSI_BUFSIZE&0xFF,0};
-        return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof(cmd), 0);
+	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof(cmd), 0);
     }
     return device_func[DF_IOCTL]->toc (unitnum);
 }
@@ -175,7 +175,7 @@ uae_u8 *sys_command_read (int mode, int unitnum, int offset)
 	cmd[3] = (uae_u8)(offset >> 16);
 	cmd[4] = (uae_u8)(offset >> 8);
 	cmd[5] = (uae_u8)(offset >> 0);
-        return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
+	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
     }
     return device_func[DF_IOCTL]->read (unitnum, offset);
 }
@@ -248,7 +248,7 @@ void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *
 	olddata[1] = data[2];
 	olddata[2] = data[3];
 	olddata[3] = data[7];
-        datalen -= 4;
+	datalen -= 4;
 	if (datalen > 4)
 	    memcpy (olddata + 4, data + 8, datalen - 4);
 	*datalenp = datalen;
@@ -281,7 +281,7 @@ int sys_command_scsi_direct (int unitnum, uaecptr request)
 {
     int ret = device_func[DF_SCSI]->exec_direct (unitnum, request);
     if (!ret && device_func[DF_SCSI]->isatapi(unitnum))
-        scsi_atapi_fixup_inquiry (request);
+	scsi_atapi_fixup_inquiry (request);
     return ret;
 }
 
@@ -289,14 +289,14 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 {
     int i;
     for (i = 0; i < cdblen; i++) {
-        write_log("%s%02.2X", i > 0 ? "." : "", cdb[i]);
+	write_log("%s%02.2X", i > 0 ? "." : "", cdb[i]);
     }
     write_log("\n");
     if (data) {
 	write_log ("DATAOUT: %d\n", datalen);
-        for (i = 0; i < datalen && i < 100; i++)
+	for (i = 0; i < datalen && i < 100; i++)
 	    write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
-        if (datalen > 0)
+	if (datalen > 0)
 	    write_log("\n");
     }
 }
@@ -306,12 +306,12 @@ void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
     int i;
     write_log ("DATAIN: %d\n", datalen);
     for (i = 0; i < datalen && i < 100 && data; i++)
-        write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
+	write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
     if (data && datalen > 0)
-        write_log("\n");
+	write_log("\n");
     if (senselen > 0) {
-        write_log("SENSE: %d,", senselen);
-        for (i = 0; i < senselen && i < 32; i++) {
+	write_log("SENSE: %d,", senselen);
+	for (i = 0; i < senselen && i < 32; i++) {
 	    write_log("%s%02.2X", i > 0 ? "." : "", sense[i]);
 	}
 	write_log("\n");

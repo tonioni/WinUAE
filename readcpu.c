@@ -165,7 +165,7 @@ static int specialcase (uae_u16 opcode, int cpu_lev)
     return cpu_lev;
 }
 
-static amodes mode_from_str (const char *str)
+static amodes mode_from_str (const char	*str)
 {
     if (strncmp (str, "Dreg", 4) == 0) return Dreg;
     if (strncmp (str, "Areg", 4) == 0) return Areg;
@@ -554,7 +554,7 @@ static void build_insn (int insn)
 	    case 'R': destreg = bitval[bitR]; dstgather = 1; dstpos = bitpos[bitR]; break;
 	    default: abort();
 	    }
-            if (dstpos < 0 || dstpos >= 32)
+	    if (dstpos < 0 || dstpos >= 32)
 		abort ();
 	    break;
 	case 'A':
@@ -565,7 +565,7 @@ static void build_insn (int insn)
 	    case 'x': destreg = 0; dstgather = 0; dstpos = 0; break;
 	    default: abort();
 	    }
-            if (dstpos < 0 || dstpos >= 32)
+	    if (dstpos < 0 || dstpos >= 32)
 		abort ();
 	    switch (opcstr[pos]) {
 	    case 'p': destmode = Apdi; pos++; break;

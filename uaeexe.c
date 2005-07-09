@@ -66,8 +66,8 @@ int uaeexe(char *cmd)
 
     if(!first) first  = nw;
     if(last) {
-           last->next = nw;
-           last       = nw;
+	   last->next = nw;
+	   last       = nw;
     } else last       = nw;
 
     return UAEEXE_OK;
@@ -105,8 +105,8 @@ static uae_u32 uaeexe_server(void)
     char *dst;
 
     if(ARG(0) && !running) {
-        running = 1;
-        write_log("Remote CLI started.\n");
+	running = 1;
+	write_log("Remote CLI started.\n");
     }
 
     cmd = get_cmd(); if(!cmd) return 0;

@@ -26,7 +26,7 @@
 #include "cdtv.h"
 #include "arcadia.h"
 
-#define MAX_EXPANSION_BOARDS	8
+#define MAX_EXPANSION_BOARDS 8
 
 /* ********************************************************** */
 /* 00 / 02 */
@@ -67,10 +67,10 @@
 #define hackers_id	2011 /* Special ID for test cards */
 
 /* Card Type */
-#define commodore_a2091	     3 /* A2091 / A590 Card from C= */
+#define commodore_a2091	    3 /* A2091 / A590 Card from C= */
 #define commodore_a2091_ram 10 /* A2091 / A590 Ram on HD-Card */
 #define commodore_a2232	    70 /* A2232 Multiport Expansion */
-#define ass_nexus_scsi	     1 /* Nexus SCSI Controller */
+#define ass_nexus_scsi	    1 /* Nexus SCSI Controller */
 
 #define gvp_series_2_scsi   11
 #define gvp_iv_24_gfx	    32
@@ -897,9 +897,9 @@ static void expamem_init_filesys (void)
 {
     /* struct DiagArea - the size has to be large enough to store several device ROMTags */
     uae_u8 diagarea[] = { 0x90, 0x00, /* da_Config, da_Flags */
-                          0x02, 0x00, /* da_Size */
-                          0x01, 0x00, /* da_DiagPoint */
-                          0x01, 0x06  /* da_BootPoint */
+	0x02, 0x00, /* da_Size */
+	0x01, 0x00, /* da_DiagPoint */
+	0x01, 0x06  /* da_BootPoint */
     };
 
     expamem_init_clear();
@@ -993,7 +993,7 @@ static void expamem_init_z3fastmem (void)
     z3fastmem_start = 0x10000000;
 
     map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
-	       allocated_z3fastmem);
+	allocated_z3fastmem);
 
 }
 
@@ -1012,13 +1012,13 @@ static void expamem_map_gfxcard (void)
 static void expamem_init_gfxcard (void)
 {
     int code = (allocated_gfxmem == 0x100000 ? Z2_MEM_1MB
-        : allocated_gfxmem == 0x200000 ? Z2_MEM_2MB
-        : allocated_gfxmem == 0x400000 ? Z2_MEM_4MB
-        : allocated_gfxmem == 0x800000 ? Z2_MEM_8MB
-        : allocated_gfxmem == 0x1000000 ? Z2_MEM_16MB
-        : allocated_gfxmem == 0x2000000 ? Z2_MEM_32MB
-        : allocated_gfxmem == 0x4000000 ? Z2_MEM_64MB
-        : Z2_MEM_128MB);
+	: allocated_gfxmem == 0x200000 ? Z2_MEM_2MB
+	: allocated_gfxmem == 0x400000 ? Z2_MEM_4MB
+	: allocated_gfxmem == 0x800000 ? Z2_MEM_8MB
+	: allocated_gfxmem == 0x1000000 ? Z2_MEM_16MB
+	: allocated_gfxmem == 0x2000000 ? Z2_MEM_32MB
+	: allocated_gfxmem == 0x4000000 ? Z2_MEM_64MB
+	: Z2_MEM_128MB);
 
     expamem_init_clear();
     expamem_write (0x00, zorroIII | code);
@@ -1139,8 +1139,8 @@ void expamem_reset (void)
 #ifdef CDTV
 #if 0
     if (cdtv_enabled) {
-        map_banks (&dmac_bank, DMAC_START >> 16, 0x10000 >> 16, 0x10000);
-        dmac_init ();
+	map_banks (&dmac_bank, DMAC_START >> 16, 0x10000 >> 16, 0x10000);
+	dmac_init ();
     }
 #endif
 #endif
@@ -1188,8 +1188,8 @@ void expamem_reset (void)
     }
 #ifdef CATWEASEL
     if (currprefs.catweasel && catweasel_init ()) {
-        card_init[cardno] = expamem_init_catweasel;
-        card_map[cardno++] = expamem_map_catweasel;
+	card_init[cardno] = expamem_init_catweasel;
+	card_map[cardno++] = expamem_map_catweasel;
     }
 #endif
     while (cardno < MAX_EXPANSION_BOARDS) {
@@ -1214,7 +1214,9 @@ void expansion_init (void)
     gfxmem_mask = gfxmem_start = 0;
     gfxmemory = 0;
 #endif
+#if defined(CATWEASEL)
     catweasel_mask = catweasel_start = 0;
+#endif
     filesys_start = 0;
     filesysory = 0;
     z3fastmem_mask = z3fastmem_start = 0;
@@ -1244,7 +1246,7 @@ void expansion_cleanup (void)
     z3fastmem = 0;
     gfxmemory = 0;
     filesysory = 0;
-#ifdef CATWEASEL
+#if defined(CATWEASEL)
     catweasel_free ();
 #endif
 }

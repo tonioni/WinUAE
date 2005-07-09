@@ -61,7 +61,7 @@ int caps_init (void)
 	notify_user (NUMSG_OLDCAPS);
 	noticed = 1;
 	return 0;
-    }	
+    }
     pCAPSInit = (CAPSINIT)GetProcAddress (h, "CAPSInit");
     pCAPSAddImage = (CAPSADDIMAGE)GetProcAddress (h, "CAPSAddImage");
     pCAPSLockImageMemory = (CAPSLOCKIMAGEMEMORY)GetProcAddress (h, "CAPSLockImageMemory");

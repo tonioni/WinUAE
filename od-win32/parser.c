@@ -119,15 +119,15 @@ static void freepsbuffers (void)
 static int openprinter_ps (void)
 {
     char *gsargv[] = {
-        "-dNOPAUSE", "-dBATCH", "-dNOPAGEPROMPT", "-dNOPROMPT", "-dQUIET", "-dNoCancel", 
-        "-sDEVICE=mswinpr2", NULL
+	"-dNOPAUSE", "-dBATCH", "-dNOPAGEPROMPT", "-dNOPROMPT", "-dQUIET", "-dNoCancel", 
+	"-sDEVICE=mswinpr2", NULL
     };
     int gsargc, gsargc2, i;
     char *tmpparms[100];
     char tmp[MAX_DPATH];
 
     if (ptr_gsapi_new_instance (&gsinstance, NULL) < 0)
-        return 0;
+	return 0;
     tmpparms[0] = "WinUAE";
     gsargc2 = cmdlineparser (currprefs.ghostscript_parameters, tmpparms + 1, 100 - 10) + 1;
     for (gsargc = 0; gsargv[gsargc]; gsargc++);
@@ -156,8 +156,8 @@ static void *prt_thread (void *p)
     prt_started = 1;
     SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     if (load_ghostscript ()) {
-        if (openprinter_ps ()) {
-            write_log ("PostScript printing emulation started..\n");
+	if (openprinter_ps ()) {
+	    write_log ("PostScript printing emulation started..\n");
 	    cnt = 0;
 	    while (buffers[cnt]) {
 		uae_u8 *p = buffers[cnt];
@@ -177,21 +177,19 @@ static void *prt_thread (void *p)
 	    }
 	    free (buffers);
 	    if (ok) {
-    		write_log ("PostScript printing emulation finished..\n");
+		write_log ("PostScript printing emulation finished..\n");
 		ptr_gsapi_run_string_end (gsinstance, 0, &gs_exitcode);
 	    }
 	} else {
 	    write_log ("gsdll32.dll failed to initialize\n");
 	}
     } else {
-    	write_log ("gsdll32.dll failed to load\n");
+	write_log ("gsdll32.dll failed to load\n");
     }
     unload_ghostscript ();
     prt_running--;
     return 0;
 }
-
-
 
 static void flushprtbuf (void)
 {
@@ -329,10 +327,10 @@ int load_ghostscript (void)
 	    while (cnt-- > 0) {
 		DWORD size1 = sizeof (tmp1);
 		FILETIME ft;
-	        if (RegEnumKeyEx (key, idx, tmp1, &size1, NULL, NULL, NULL, &ft) == ERROR_SUCCESS) {
+		if (RegEnumKeyEx (key, idx, tmp1, &size1, NULL, NULL, NULL, &ft) == ERROR_SUCCESS) {
 		    HKEY key2;
 		    if (RegOpenKeyEx (key, tmp1, 0, KEY_ALL_ACCESS, &key2) == ERROR_SUCCESS) {
-		        DWORD type = REG_SZ;
+			DWORD type = REG_SZ;
 			DWORD size = sizeof (path);
 			if (RegQueryValueEx (key2, "GS_DLL", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS)
 			    gsdll = LoadLibrary (path);
@@ -351,7 +349,7 @@ int load_ghostscript (void)
     ptr_gsapi_revision = (GSAPI_REVISION)GetProcAddress (gsdll, "gsapi_revision");
     if (!ptr_gsapi_revision) {
 	unload_ghostscript ();
-        return -1;
+	return -1;
     }
     if (ptr_gsapi_revision(&r, sizeof(r))) {
 	unload_ghostscript ();
@@ -378,12 +376,12 @@ int load_ghostscript (void)
 void unload_ghostscript (void)
 {
     if (gsinstance) {
-        ptr_gsapi_exit (gsinstance);
-        ptr_gsapi_delete_instance (gsinstance);
+	ptr_gsapi_exit (gsinstance);
+	ptr_gsapi_delete_instance (gsinstance);
     }
     gsinstance = NULL;
     if (gsdll)
-        FreeLibrary (gsdll);
+	FreeLibrary (gsdll);
     gsdll = NULL;
     psmode = 0;
 }
@@ -430,7 +428,7 @@ void flushprinter (void)
     closeprinter();
 }
 
-void closeprinter( void )
+void closeprinter( void	)
 {
 #ifdef PRINT_DUMP
     zfile_fclose (prtdump);
@@ -467,7 +465,7 @@ int doprinter (uae_u8 val)
     if (!prtopen)
 	openprinter ();
     if (prtopen)
-        putprinter (val);
+	putprinter (val);
     return prtopen;
 }
 
@@ -521,9 +519,9 @@ int openser (char *sername)
 	dcb.Parity = NOPARITY;
 	dcb.StopBits = ONESTOPBIT;
 
-        dcb.fDsrSensitivity = FALSE;
-        dcb.fOutxDsrFlow = FALSE;
-        dcb.fDtrControl = DTR_CONTROL_DISABLE;
+	dcb.fDsrSensitivity = FALSE;
+	dcb.fOutxDsrFlow = FALSE;
+	dcb.fDtrControl = DTR_CONTROL_DISABLE;
    
 	if (currprefs.serial_hwctsrts) {
 	    dcb.fOutxCtsFlow = TRUE;
@@ -562,7 +560,7 @@ void closeser (void)
 	hCom = INVALID_HANDLE_VALUE;
     }
     if (midi_ready)
-        Midi_Close();
+	Midi_Close();
     if( writeevent )
 	CloseHandle( writeevent );
     writeevent = 0;
@@ -573,9 +571,9 @@ static void outser (void)
 {
     DWORD actual;
     if (WaitForSingleObject (writeevent, 0) == WAIT_OBJECT_0 && datainoutput > 0) {
-        memcpy (outputbufferout, outputbuffer, datainoutput);
-        WriteFile (hCom, outputbufferout, datainoutput, &actual, &writeol);
-        datainoutput = 0;
+	memcpy (outputbufferout, outputbuffer, datainoutput);
+	WriteFile (hCom, outputbufferout, datainoutput, &actual, &writeol);
+	datainoutput = 0;
     }
 }
 
@@ -584,7 +582,7 @@ void writeser (int c)
     if (midi_ready)
     {
 	BYTE outchar = (BYTE)c;
-        Midi_Parse( midi_output, &outchar );
+	Midi_Parse( midi_output, &outchar );
     }
     else
     {
@@ -607,7 +605,7 @@ int checkserwrite (void)
     if (midi_ready) {
 	return 1;
     } else {
-        outser ();
+	outser ();
 	if (datainoutput >= sizeof (outputbuffer) - 1)
 	    return 0;
     }
@@ -657,7 +655,7 @@ int readser (int *buffer)
 	    *buffer = inputbuffer[dataininputcnt++];
 	    return 1;
 	}
-        dataininput = 0;
+	dataininput = 0;
 	dataininputcnt = 0;
 	if (hCom != INVALID_HANDLE_VALUE) 
 	{
@@ -705,13 +703,13 @@ void getserstat (int *pstatus)
     
     GetCommModemStatus (hCom, &stat);
     if (stat & MS_CTS_ON)
-        status |= TIOCM_CTS;
+	status |= TIOCM_CTS;
     if (stat & MS_RLSD_ON)
-        status |= TIOCM_CAR;
+	status |= TIOCM_CAR;
     if (stat & MS_DSR_ON)
-        status |= TIOCM_DSR;
+	status |= TIOCM_DSR;
     if (stat & MS_RING_ON)
-        status |= TIOCM_RI;
+	status |= TIOCM_RI;
     *pstatus = status;
 }
 
@@ -722,7 +720,7 @@ void setserstat (int mask, int onoff)
 	return;
 
     if (mask & TIOCM_DTR)
-        EscapeCommFunction (hCom, onoff ? SETDTR : CLRDTR);
+	EscapeCommFunction (hCom, onoff ? SETDTR : CLRDTR);
     if (!currprefs.serial_hwctsrts) {
 	if (mask & TIOCM_RTS)
 	    EscapeCommFunction (hCom, onoff ? SETRTS : CLRRTS);
@@ -733,36 +731,36 @@ int setbaud (long baud)
 {
     if( baud == 31400 && currprefs.win32_midioutdev >= -1) /* MIDI baud-rate */
     {
-        if (!midi_ready)
-        {
-            if (Midi_Open())
+	if (!midi_ready)
+	{
+	    if (Midi_Open())
 		write_log ("Midi enabled\n");
-        }
-        return 1;
+	}
+	return 1;
     }
     else
     {
-        if (midi_ready)
-        {
-            Midi_Close();
-        }
-        if (!currprefs.use_serial)
+	if (midi_ready)
+	{
+	    Midi_Close();
+	}
+	if (!currprefs.use_serial)
 	    return 1;
 	if (hCom != INVALID_HANDLE_VALUE) 
-        {
+	{
 	    if (GetCommState (hCom, &dcb)) 
-            {
+	    {
 		dcb.BaudRate = baud;
-	        if (!SetCommState (hCom, &dcb)) {
+		if (!SetCommState (hCom, &dcb)) {
 		    write_log ("SERIAL: Error setting baud rate %d!\n", baud);
 		    return 0;
 		}
 	    } 
-            else
-            {
+	    else
+	    {
 		write_log ("SERIAL: setbaud internal error!\n");
-            }
-        }
+	    }
+	}
     }
     return 1;
 }
@@ -801,8 +799,8 @@ void hsyncstuff(void)
     keycheck++;
     if(keycheck==1000)
     {
-        flushprtbuf ();
-   	{
+	flushprtbuf ();
+	{
 #if defined(AHI)
 	    extern flashscreen;
 	    int DX_Fill( int , int , int, int, uae_u32 , enum RGBFTYPE  );
@@ -817,8 +815,8 @@ void hsyncstuff(void)
 	keycheck = 0;
     }
     if (currprefs.parallel_autoflush_time) {
-        parflush++;
-        if (parflush / ((currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) >= currprefs.parallel_autoflush_time * 50) {
+	parflush++;
+	if (parflush / ((currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) >= currprefs.parallel_autoflush_time * 50) {
 	    flushprinter ();
 	    parflush = 0;
 	}

@@ -21,7 +21,7 @@
 #include "osdep/exectasks.h"
 
 /* We'll need a lot of these. */
-#define MAX_TRAPS 4096
+#define	MAX_TRAPS 4096
 static TrapFunction traps[MAX_TRAPS];
 static int trapmode[MAX_TRAPS];
 static const char *trapstr[MAX_TRAPS];
@@ -37,7 +37,7 @@ int lasttrap;
 
 /* Stack management */
 
-/* The mechanism for doing m68k calls from native code is as follows:
+/* The mechanism for doing m68k	calls from native code is as follows:
  *
  * m68k code executes, stack is main
  * calltrap to execute_fn_on_extra_stack. new stack is allocated
@@ -196,7 +196,7 @@ static uae_u32 call_m68k (uaecptr addr, int saveregs)
     volatile int do_save = saveregs;
 
     sm_log("\nDoing call_m68k (addr=%08x, savereg=%d) extra_stack=%p\n",
-                  addr,saveregs,current_extra_stack);
+		  addr,saveregs,current_extra_stack);
 
     if (current_extra_stack != NULL)
     {
@@ -384,7 +384,7 @@ void REGPARAM2 call_calltrap (int func)
 static volatile int four = 4;
 
 uaecptr libemu_InstallFunctionFlags (TrapFunction f, uaecptr libbase, int offset,
-				     int flags, const char *tracename)
+     int flags, const char *tracename)
 {
     int i;
     uaecptr retval;

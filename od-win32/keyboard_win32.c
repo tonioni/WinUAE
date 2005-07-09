@@ -165,16 +165,14 @@ static struct uae_input_device_kbr_default keytrans[] = {
     { DIK_SYSRQ, INPUTEVENT_KEY_6E },
     { DIK_F12, INPUTEVENT_KEY_6F },
     { DIK_INSERT, INPUTEVENT_KEY_47 },
-    { DIK_NEXT, INPUTEVENT_KEY_48 },
-    { DIK_PRIOR, INPUTEVENT_KEY_49 },
+    { DIK_PRIOR, INPUTEVENT_KEY_48 },
+    { DIK_NEXT, INPUTEVENT_KEY_49 },
     { DIK_F11, INPUTEVENT_KEY_4B },
 
-    { DIK_STOP, INPUTEVENT_KEY_CDTV_STOP },
+    { DIK_MEDIASTOP, INPUTEVENT_KEY_CDTV_STOP },
     { DIK_PLAYPAUSE, INPUTEVENT_KEY_CDTV_PLAYPAUSE },
-    { DIK_PREVTRACK, INPUTEVENT_KEY_CDTV_REW },
-    { DIK_NEXTTRACK, INPUTEVENT_KEY_CDTV_FF },
-    { DIK_WEBBACK, INPUTEVENT_KEY_76 },
-    { DIK_WEBFORWARD, INPUTEVENT_KEY_77 },
+    { DIK_PREVTRACK, INPUTEVENT_KEY_CDTV_PREV },
+    { DIK_NEXTTRACK, INPUTEVENT_KEY_CDTV_NEXT },
 
     { -1, 0 }
 };
@@ -220,7 +218,7 @@ int getcapslock (void)
     GetKeyboardState (keyState);
     newstate = keyState[VK_CAPITAL] & 1;
     if (newstate != capslockstate)
-        inputdevice_translatekeycode (0, DIK_CAPITAL, newstate);
+	inputdevice_translatekeycode (0, DIK_CAPITAL, newstate);
     capslockstate = newstate;
     return capslockstate;
 }
@@ -312,69 +310,19 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
 #define STEALTHF_SPECIAL 0x02
 #define STEALTHF_E1KEY 0x01
 
-#define RAW_HOME            0x70
-#define RAW_END             0x71
-#define RAW_BREAK           0x6e
-#define RAW_F12             0x6f
-#define RAW_INSERT          0x47
-#define RAW_PAGEUP          0x48
-#define RAW_PAGEDOWN        0x49
-#define RAW_F11             0x4b
-#define RAW_STOP            0x72
-#define RAW_PLAY            0x73
-#define RAW_PREVIOUS        0x74
-#define RAW_NEXT            0x75
-#define RAW_REWIND          0x76
-#define RAW_FORWARD         0x77
-
 static void sendmmcodes(int code, int newstate)
 {
     uae_u8 b;
 
-    switch (code)
-    {
-	case DIK_END:
-            code=RAW_END;
-            break;
-        case DIK_HOME:
-            code=RAW_HOME;
-            break;
-        case DIK_F11:
-            code=RAW_F11;
-            break;
-        case DIK_INSERT:
-            code=RAW_INSERT;
-            break;
-        case DIK_PRIOR:
-            code=RAW_PAGEUP;
-            break;
-        case DIK_PAUSE:
-            code=RAW_BREAK;
-            break;
-        case DIK_MEDIASTOP:
-            code=RAW_STOP;
-            break;
-        case DIK_PLAYPAUSE:
-            code=RAW_PLAY;
-            break;
-        case DIK_NEXTTRACK:
-            code=RAW_NEXT;
-            break;
-        case DIK_PREVTRACK:
-            code=RAW_PREVIOUS;
-            break;
-    }
-
-    code |= 0xe000;
     b = RAW_STEALTH | IECODE_UP_PREFIX;
     record_key(((b << 1) | (b >> 7)) & 0xff);
     b = IECODE_UP_PREFIX;
-    if ((code >> 8) == 0xe0)
-        b |= STEALTHF_E0KEY;
-    if ((code >> 8) == 0xe1)
-        b |= STEALTHF_E1KEY;
+    if ((code >> 8) == 0x01)
+	b |= STEALTHF_E0KEY;
+    if ((code >> 8) == 0x02)
+	b |= STEALTHF_E1KEY;
     if (!newstate)
-        b |= STEALTHF_UPSTROKE;
+	b |= STEALTHF_UPSTROKE;
     record_key(((b << 1) | (b >> 7)) & 0xff);
     b = ((code >> 4) & 0x0f) | IECODE_UP_PREFIX;
     record_key(((b << 1) | (b >> 7)) & 0xff);
@@ -395,7 +343,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (ctrlpressed ()) {
 		code = AKS_TOGGLEFULLSCREEN;
 	    } else if (shiftpressed () || endpressed ()) {
-	        disablecapture ();
+		disablecapture ();
 		code = AKS_ENTERDEBUGGER;
 	    } else {
 		code = AKS_ENTERGUI;
@@ -539,11 +487,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
     if (currprefs.input_selected_setting == 0) {
 #ifdef CD32
-        if (handlecd32 (scancode, newstate))
+	if (handlecd32 (scancode, newstate))
 	    return;
 #endif
 #ifdef ARCADIA
-        if (handlearcadia (scancode, newstate))
+	if (handlearcadia (scancode, newstate))
 	    return;
 #endif
     }
@@ -551,7 +499,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	return;
 
     if (currprefs.mmkeyboard)
-        sendmmcodes(scancode, newstate);
+	sendmmcodes(scancode, newstate);
 }
 
 void keyboard_settrans (void)

@@ -11,9 +11,9 @@
 #include "custom.h"
 #include "xwin.h"
 
-#define	RED 	0
-#define	GRN	1
-#define	BLU	2
+#define RED	0
+#define GRN	1
+#define BLU	2
 
 /*
  * dither matrix
@@ -312,7 +312,7 @@ void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc)
 			p = (c * k) / 256;
 			q = (c * k) % 256;
 			if (q /*/ k*/> d /*/ k*/ && p < k) ++p;
-/* sam:                      ^^^^^^^ */
+/* sam:			     ^^^^^^^ */
 /*  It seems that produces better output */
 			cidx[i][rgb + (j+4)*4096] =
 			    cidx[i][rgb + j*4096] = (uae_u8)map[p];

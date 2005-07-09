@@ -48,8 +48,8 @@ static int unitcnt;
 static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 {
     DWORD Status;
-	
-    ip->SRB_Cmd	= SC_HA_INQUIRY;
+
+    ip->SRB_Cmd = SC_HA_INQUIRY;
     ip->SRB_HaId = id;
     ip->SRB_Flags = 0;
     ip->SRB_Hdr_Rsvd = 0;
@@ -59,17 +59,17 @@ static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 	write_log ("ASPI: S=%d ha=%d, ID=%d, M='%s', Id='%s'\n",
 	    Status, ip->HA_Count, ip->HA_SCSI_ID, ip->HA_ManagerId, ip->HA_Identifier);
     if (ip->SRB_Status != SS_COMP)
-    	return -1;
+	return -1;
     return 0;
 }
 
 static int open_driver (SCSI *scgp)
 {
     char path[MAX_DPATH];
-    DWORD	astatus;
-    BYTE	HACount;
-    BYTE	ASPIStatus;
-    int	i;
+    DWORD astatus;
+    BYTE HACount;
+    BYTE ASPIStatus;
+    int i;
     int nero;
     HKEY key;
     DWORD type = REG_SZ;
@@ -105,7 +105,7 @@ static int open_driver (SCSI *scgp)
      */
     if (hAspiLib == NULL) {
 	write_log ("ASPI: failed to load wnaspi32.dll\n");
-    	return FALSE;
+	return FALSE;
     }
     /*
      * Get a pointer to GetASPI32SupportInfo function
@@ -116,7 +116,7 @@ static int open_driver (SCSI *scgp)
 
     if ((pfnGetASPI32SupportInfo == NULL) || (pfnSendASPI32Command == NULL)) {
 	write_log ("ASPI: obsolete wnaspi32.dll found\n");
-    	return FALSE;
+	return FALSE;
     }
 
     pfnGetASPI32Buffer = (BOOL(*)(PASPI32BUFF))GetProcAddress(hAspiLib, "GetASPI32Buffer");
@@ -136,7 +136,7 @@ static int open_driver (SCSI *scgp)
     write_log ("ASPI: open_driver %X HostASPIStatus=0x%x HACount=0x%x\n", astatus, ASPIStatus, HACount);
 
     if (ASPIStatus != SS_COMP && ASPIStatus != SS_NO_ADAPTERS) {
-    	write_log ("ASPI: Could not find any host adapters, ASPIStatus == 0x%02X\n", ASPIStatus);
+	write_log ("ASPI: Could not find any host adapters, ASPIStatus == 0x%02X\n", ASPIStatus);
 	return FALSE;
     }
     busses = HACount;
@@ -144,7 +144,7 @@ static int open_driver (SCSI *scgp)
     write_log ("ASPI: open_driver HostASPIStatus=0x%x HACount=0x%x\n", ASPIStatus, HACount);
 
     for (i=0; i < busses; i++) {
-    	SRB_HAInquiry	s;
+	SRB_HAInquiry s;
 	ha_inquiry(scgp, i, &s);
     }
     return TRUE;
@@ -154,11 +154,11 @@ static int open_driver (SCSI *scgp)
 static void close_driver (void)
 {
     if (!AspiLoaded) return;
-    AspiLoaded	= FALSE;
+    AspiLoaded = FALSE;
     pfnGetASPI32SupportInfo = NULL;
     pfnSendASPI32Command = NULL;
-    pfnGetASPI32Buffer	= NULL;
-    pfnFreeASPI32Buffer	= NULL;
+    pfnGetASPI32Buffer = NULL;
+    pfnFreeASPI32Buffer = NULL;
     pfnTranslateASPI32Address = NULL;
     FreeLibrary(hAspiLib);
     hAspiLib = NULL;
@@ -186,19 +186,19 @@ static void *scgo_getbuf (SCSI *scgp, long amt)
 static void scsi_sfree (SCSI *scgp)
 {
     if (scgp->cmdstart)
-    	free(scgp->cmdstart);
+	free(scgp->cmdstart);
     if (scgp->cmdstop)
-    	free(scgp->cmdstop);
+	free(scgp->cmdstop);
     if (scgp->scmd)
-    	free(scgp->scmd);
+	free(scgp->scmd);
     if (scgp->inq)
-    	free(scgp->inq);
+	free(scgp->inq);
     if (scgp->cap)
-    	free(scgp->cap);
+	free(scgp->cap);
     if (scgp->local)
-    	free(scgp->local);
+	free(scgp->local);
     if (scgp->errstr)
-    	free(scgp->errstr);
+	free(scgp->errstr);
     free(scgp);
 }
 
@@ -208,7 +208,7 @@ static SCSI *scsi_smalloc(void)
 
     scgp = (SCSI *)malloc(sizeof(*scgp));
     if (scgp == NULL)
-        return 0;
+	return 0;
 
     memset (scgp, 0, sizeof (*scgp));
     scgp->deftimeout = 20;
@@ -216,7 +216,7 @@ static SCSI *scsi_smalloc(void)
 
     scgp->cmdstart = (struct timeval *)malloc(sizeof(struct timeval));
     if (scgp->cmdstart == NULL)
-    	goto err;
+	goto err;
     scgp->cmdstop = (struct timeval *)malloc(sizeof(struct timeval));
     if (scgp->cmdstop == NULL)
 	goto err;
@@ -240,21 +240,21 @@ err:
     return 0;
 }
 
-#define	MAX_SCG		16	/* Max # of SCSI controllers	*/
-#define	MAX_TGT		16	/* Max # of SCSI Targets	*/
-#define	MAX_LUN		8	/* Max # of SCSI LUNs		*/
+#define MAX_SCG 16 /* Max # of SCSI controllers */
+#define MAX_TGT 16 /* Max # of SCSI Targets */
+#define MAX_LUN 8  /* Max # of SCSI LUNs */
 
 struct scg_local {
     int dummy;
 };
-#define scglocal(p)	((struct scg_local *)((p)->local)) 
+#define scglocal(p) ((struct scg_local *)((p)->local)) 
 
 static SCSI *openscsi (int busno, int tgt, int tlun)
 {
     SCSI *scgp = scsi_smalloc ();
 
     if (busno >= MAX_SCG || tgt >= MAX_TGT || tlun >= MAX_LUN) {
-    	errno = EINVAL;
+	errno = EINVAL;
 	if (log_scsi)
 	    write_log ("ASPI: Illegal value for busno, target or lun '%d,%d,%d'\n", busno, tgt, tlun);
 	return 0;
@@ -263,13 +263,13 @@ static SCSI *openscsi (int busno, int tgt, int tlun)
      *  Check if variables are within the range
      */
     if (tgt >= 0 && tgt >= 0 && tlun >= 0) {
-    	/*
-    	 * This is the non -scanbus case.
-    	 */
+	/*
+	 * This is the non -scanbus case.
+	 */
 	;
     } else if (tgt != -1 || tgt != -1 || tlun != -1) {
-    	errno = EINVAL;
-    	return 0;
+	errno = EINVAL;
+	return 0;
     }
     if (scgp->local == NULL) {
 	scgp->local = malloc(sizeof(struct scg_local));
@@ -285,7 +285,7 @@ static SCSI *openscsi (int busno, int tgt, int tlun)
      * More than we have ...
      */
     if (busno >= busses) {
-    	close_driver ();
+	close_driver ();
 	return 0;
     }
     return scgp;
@@ -305,13 +305,13 @@ static void scsi_debug (SCSI *scgp, SRB_ExecSCSICmd *s)
     write_log ("ASPI EXEC_SCSI: bus=%d,target=%d,lun=%d\n",
 	s->SRB_HaId, s->SRB_Target, s->SRB_Lun);
     scsi_log_before (scgp->scmd->cdb.cmd_cdb, scgp->scmd->cdb_len,
-        (s->SRB_Flags & SRB_DIR_OUT) ? s->SRB_BufPointer : 0, s->SRB_BufLen);
+	(s->SRB_Flags & SRB_DIR_OUT) ? s->SRB_BufPointer : 0, s->SRB_BufLen);
 }
 
 
-static void copy_sensedata(SRB_ExecSCSICmd *cp, struct scg_cmd *sp)
+static void copy_sensedata(SRB_ExecSCSICmd *cp,	struct scg_cmd *sp)
 {
-    sp->sense_count	= cp->SRB_SenseLen;
+    sp->sense_count = cp->SRB_SenseLen;
     if (sp->sense_count > sp->sense_len)
 	sp->sense_count = sp->sense_len;
     memset(&sp->u_sense.Sense, 0x00, sizeof(sp->u_sense.Sense));
@@ -395,7 +395,7 @@ static int scsiabort(SCSI *scgp, SRB_ExecSCSICmd *sp)
     s.SRB_Cmd	= SC_ABORT_SRB;			/* ASPI command code = SC_ABORT_SRB	*/
     s.SRB_HaId	= scg_scsibus(scgp);		/* ASPI host adapter number		*/
     s.SRB_Flags	= 0;				/* Flags				*/
-    s.SRB_ToAbort	= (LPSRB)&sp;			/* sp					*/
+    s.SRB_ToAbort	= (LPSRB)&sp;		/* sp					*/
     /*
      * Initiate SCSI abort
      */
@@ -438,11 +438,11 @@ static int scsicmd(SCSI *scgp)
      * Check cbd_len > the maximum command pakket that can be handled by ASPI
      */
     if (sp->cdb_len > 16) {
-    	sp->error = SCG_FATAL;
-    	sp->ux_errno = EINVAL;
+	sp->error = SCG_FATAL;
+	sp->ux_errno = EINVAL;
 	if (log_scsi)
 	    write_log ("ASPI: sp->cdb_len > sizeof(SRB_ExecSCSICmd.CDBByte). Fatal error in scgo_send, exiting...\n");
-    	return -1;
+	return -1;
     }
     /*
      * copy command into SRB
@@ -454,16 +454,16 @@ static int scsicmd(SCSI *scgp)
     /*
      * Fill ASPI structure
      */
-    s.SRB_Cmd	= SC_EXEC_SCSI_CMD; /* SCSI Command */
-    s.SRB_HaId	= scg_scsibus(scgp); /* Host adapter number */
-    s.SRB_Flags	= SRB_EVENT_NOTIFY; /* Flags */
-    s.SRB_Target	= scg_target(scgp); /* Target SCSI ID */
-    s.SRB_Lun	= scg_lun(scgp); /* Target SCSI LUN */
-    s.SRB_BufLen	= sp->size; /* # of bytes transferred */
-    s.SRB_BufPointer= sp->addr;	/* pointer to data buffer */
-    s.SRB_CDBLen	= sp->cdb_len; 	/* SCSI command length */
-    s.SRB_PostProc	= Event; /* Post proc event */
-    s.SRB_SenseLen	= SENSE_LEN; /* Lenght of sense buffer */
+    s.SRB_Cmd = SC_EXEC_SCSI_CMD; /* SCSI Command */
+    s.SRB_HaId = scg_scsibus(scgp); /* Host adapter number */
+    s.SRB_Flags = SRB_EVENT_NOTIFY; /* Flags */
+    s.SRB_Target = scg_target(scgp); /* Target SCSI ID */
+    s.SRB_Lun = scg_lun(scgp); /* Target SCSI LUN */
+    s.SRB_BufLen = sp->size; /* # of bytes transferred */
+    s.SRB_BufPointer= sp->addr; /* pointer to data buffer */
+    s.SRB_CDBLen = sp->cdb_len;  /* SCSI command length */
+    s.SRB_PostProc = Event; /* Post proc event */
+    s.SRB_SenseLen = SENSE_LEN; /* Lenght of sense buffer */
     
     /*
      * Do we receive data from this ASPI command?
@@ -471,11 +471,11 @@ static int scsicmd(SCSI *scgp)
     if (sp->flags & SCG_RECV_DATA) {
 	s.SRB_Flags |= SRB_DIR_IN;
     } else {
-    	/*
-    	 * Set direction to output
-    	 */
-    	if (sp->size > 0)
-    	    s.SRB_Flags |= SRB_DIR_OUT;
+	/*
+	 * Set direction to output
+	 */
+	if (sp->size > 0)
+	    s.SRB_Flags |= SRB_DIR_OUT;
     }
 
     scsi_debug (scgp,&s);
@@ -488,18 +488,18 @@ static int scsicmd(SCSI *scgp)
     Status = pfnSendASPI32Command((LPSRB)&s);/* Initiate SCSI command  */
 
     if (Status == SS_PENDING) { /* If in progress */
-    	/*
-    	 * Wait until command completes, or times out.
-    	 */
-    	EventStatus = WaitForSingleObject(Event, sp->timeout * 1000);
+	/*
+	 * Wait until command completes, or times out.
+	 */
+	EventStatus = WaitForSingleObject(Event, sp->timeout * 1000);
 	if (EventStatus == WAIT_OBJECT_0)
-	    ResetEvent(Event);	/* Clear event, time out */
+	    ResetEvent(Event); /* Clear event, time out */
 	if (s.SRB_Status == SS_PENDING) {/* Check if we got a timeout*/
 	    scsiabort(scgp, &s);
-	    ResetEvent(Event);	/* Clear event, time out */
-	    CloseHandle(Event);	/* Close the event handle */
+	    ResetEvent(Event); /* Clear event, time out */
+	    CloseHandle(Event); /* Close the event handle */
 	    sp->error = SCG_TIMEOUT;
-	    return 1;		/* Return error	*/
+	    return 1; /* Return error */
 	}
     }
     CloseHandle (Event); /* Close the event handle  */
@@ -513,7 +513,7 @@ static int scsicmd(SCSI *scgp)
 	    sp->u_sense.cmd_sense, sp->sense_len);
 
     if (s.SRB_Status != SS_COMP) {
-        if (log_scsi && s.SRB_Status != 0x82)
+	if (log_scsi && s.SRB_Status != 0x82)
 	    write_log ("ASPI: Error in scgo_send: s.SRB_Status is 0x%x\n", s.SRB_Status);
 	set_error(&s, sp); /* Set error flags */
 	copy_sensedata(&s, sp); /* Copy sense and status */
@@ -544,7 +544,7 @@ static int inquiry (SCSI *scgp, void *bp, int cnt)
     scmd->cdb.g0_cdb.count = cnt;
     scgp->scmd->timeout = 10 * 60;
     if (scsicmd(scgp))
-        return -1;
+	return -1;
     return 0;
 }
 
@@ -554,7 +554,7 @@ static int scsierr(SCSI *scgp)
 
     if(cp->error != SCG_NO_ERROR ||
        cp->ux_errno != 0 || *(u_char *)&cp->scb != 0)
-        return -1;
+	return -1;
     return 0;
 }
 
@@ -564,15 +564,15 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
     write_log ("ASPI: SCSI scan starting..\n");
     scanphase = 1;
     for (scgp->addr.scsibus=0; scgp->addr.scsibus < 8; scgp->addr.scsibus++) {
-        if (!scsi_havebus(scgp, scgp->addr.scsibus))
-            continue;
-        for (scgp->addr.target=0; scgp->addr.target < 16; scgp->addr.target++) {
-            struct scsi_inquiry inq;
-            scgp->addr.lun = 0;
-            if (inquiry (scgp, &inq, sizeof(inq)))
-                continue;
-            for (scgp->addr.lun=0; scgp->addr.lun < 8; scgp->addr.lun++) {
-                if (!inquiry (scgp, &inq, sizeof(inq))) {
+	if (!scsi_havebus(scgp, scgp->addr.scsibus))
+	    continue;
+	for (scgp->addr.target=0; scgp->addr.target < 16; scgp->addr.target++) {
+	    struct scsi_inquiry inq;
+	    scgp->addr.lun = 0;
+	    if (inquiry (scgp, &inq, sizeof(inq)))
+		continue;
+	    for (scgp->addr.lun=0; scgp->addr.lun < 8; scgp->addr.lun++) {
+		if (!inquiry (scgp, &inq, sizeof(inq))) {
 		    write_log ("ASPI: %d:%d:%d ", scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun);
 		    write_log ("'%.8s' ", inq.vendor_info);
 		    write_log ("'%.16s' ", inq.prod_ident);
@@ -608,8 +608,8 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 		    }
 		    write_log ("\n");
 		}
-            }
-        }
+	    }
+	}
     }
     write_log ("ASPI: SCSI scan ended\n");
     scanphase = 0;
@@ -683,7 +683,7 @@ static int open_scsi_bus (int flags)
     unitcnt = 0;
     if (scgp) {
 	scan_scsi_bus (scgp, flags);
-        uae_sem_init (&scgp_sem, 0, 1);
+	uae_sem_init (&scgp_sem, 0, 1);
     }
     scsi_handle = scgp;
     return scgp ? 1 : 0;
@@ -746,7 +746,7 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
 
     /* do transfer directly to and from Amiga memory */
     if (!bank_data || !bank_data->check (scsi_data, scsi_len))
-        return -5; /* IOERR_BADADDRESS */
+	return -5; /* IOERR_BADADDRESS */
 
     uae_sem_wait (&scgp_sem);
 
@@ -758,15 +758,15 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
 	scmd->cdb.cmd_cdb[i] = get_byte (scsi_cmd + i);
     scmd->target = si[unitnum].target;
     scmd->sense_len = (scsi_flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-        (scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
-        -1;
+	(scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
+	-1;
     scmd->sense_count = 0;
     scmd->u_scb.cmd_scb[0] = 0;
     scgp->addr.scsibus = si[unitnum].scsibus;
     scgp->addr.target = si[unitnum].target;
     scgp->addr.lun = si[unitnum].lun;
     if (si[unitnum].isatapi)
-        scsi_atapi_fixup_pre (scmd->cdb.cmd_cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
+	scsi_atapi_fixup_pre (scmd->cdb.cmd_cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
     scmd->addr = scsi_datap;
     scmd->size = scsi_len;
     scmd->cdb_len = scsi_cmd_len;
@@ -777,25 +777,25 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
     put_word (acmd + 18, scmd->error == SCG_FATAL ? 0 : scsi_cmd_len_org); /* fake scsi_CmdActual */
     put_byte (acmd + 21, scmd->u_scb.cmd_scb[0]); /* scsi_Status */
     if (scmd->u_scb.cmd_scb[0]) {
-        io_error = 45; /* HFERR_BadStatus */
-        /* copy sense? */
-        for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < scmd->sense_count; sactual++)
-            put_byte (scsi_sense + sactual, scmd->u_sense.cmd_sense[sactual]);
-        put_long (acmd + 8, 0); /* scsi_Actual */
+	io_error = 45; /* HFERR_BadStatus */
+	/* copy sense? */
+	for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < scmd->sense_count; sactual++)
+	    put_byte (scsi_sense + sactual, scmd->u_sense.cmd_sense[sactual]);
+	put_long (acmd + 8, 0); /* scsi_Actual */
     } else {
-        int i;
-        for (i = 0; i < scsi_sense_len; i++)
-            put_byte (scsi_sense + i, 0);
-        sactual = 0;
-        if (scmd->error != SCG_NO_ERROR) {
+	int i;
+	for (i = 0; i < scsi_sense_len; i++)
+	    put_byte (scsi_sense + i, 0);
+	sactual = 0;
+	if (scmd->error != SCG_NO_ERROR) {
 	    io_error = 20; /* io_Error, but not specified */
 	    put_long (acmd + 8, 0); /* scsi_Actual */
-        } else {
+	} else {
 	    io_error = 0;
 	    if (si[unitnum].isatapi)
 		scsi_atapi_fixup_post (scmd->cdb.cmd_cdb, scsi_cmd_len, scsi_datap_org, scsi_datap, &scsi_len, parm);
-            put_long (acmd + 8, scsi_len - scmd->resid); /* scsi_Actual */
-        }
+	    put_long (acmd + 8, scsi_len - scmd->resid); /* scsi_Actual */
+	}
     }
     put_word (acmd + 28, sactual);
 

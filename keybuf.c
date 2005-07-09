@@ -138,7 +138,7 @@ void record_key (int kc)
 	    do_fake (1);
 	return;
     } else {
-        if ((kc >> 1) == AK_RCTRL) {
+	if ((kc >> 1) == AK_RCTRL) {
 	    kc ^= AK_RCTRL << 1;
 	    kc ^= AK_CTRL << 1;
 	}

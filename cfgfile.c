@@ -136,7 +136,7 @@ static const char *stereomode[] = { "mono", "stereo", "4ch", "mixed", 0 };
 static const char *interpolmode[] = { "none", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
-static const char *flushmode[]   = { "soft", "hard", 0 };
+static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
 static const char *soundfiltermode[] = { "off", "emulated", "on", 0 };
 #ifdef GFXFILTER
@@ -297,8 +297,8 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     for (i = 0; i < 2; i++) {
 	int v = i == 0 ? p->jport0 : p->jport1;
-        char tmp1[100], tmp2[50];
-        if (v < JSEM_JOYS) {
+	char tmp1[100], tmp2[50];
+	if (v < JSEM_JOYS) {
 	    sprintf (tmp2, "kbd%d", v + 1);
 	} else if (v < JSEM_MICE) {
 	    sprintf (tmp2, "joy%d", v - JSEM_JOYS);
@@ -342,7 +342,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 #ifdef GFXFILTER
     if (p->gfx_filter > 0) {
 	int i = 0;
-        struct uae_filter *uf;
+	struct uae_filter *uf;
 	while (uaefilters[i].name) {
 	    uf = &uaefilters[i];
 	    if (uf->type == p->gfx_filter) {
@@ -363,7 +363,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 	    i++;
 	}
     } else {
-        cfgfile_write (f, "gfx_filter=no\n");
+	cfgfile_write (f, "gfx_filter=no\n");
     }
 
     cfgfile_write (f, "gfx_filter_vert_zoom=%d\n", p->gfx_filter_vert_zoom);
@@ -378,6 +378,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
     cfgfile_write (f, "fast_copper=%s\n", p->fast_copper ? "true" : "false");
     cfgfile_write (f, "ntsc=%s\n", p->ntscmode ? "true" : "false");
+    cfgfile_write (f, "genlock=%s\n", p->genlock ? "true" : "false");
     cfgfile_write (f, "show_leds=%s\n", p->leds_on_screen ? "true" : "false");
     cfgfile_write (f, "keyboard_leds=numlock:%s,capslock:%s,scrolllock:%s\n",
 	kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
@@ -418,13 +419,13 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, "catweasel=%d\n", p->catweasel);
 
     cfgfile_write (f, "kbd_lang=%s\n", (p->keyboard_lang == KBD_LANG_DE ? "de"
-				  : p->keyboard_lang == KBD_LANG_DK ? "dk"
-				  : p->keyboard_lang == KBD_LANG_ES ? "es"
-				  : p->keyboard_lang == KBD_LANG_US ? "us"
-				  : p->keyboard_lang == KBD_LANG_SE ? "se"
-				  : p->keyboard_lang == KBD_LANG_FR ? "fr"
-				  : p->keyboard_lang == KBD_LANG_IT ? "it"
-				  : "FOO"));
+	: p->keyboard_lang == KBD_LANG_DK ? "dk"
+	: p->keyboard_lang == KBD_LANG_ES ? "es"
+	: p->keyboard_lang == KBD_LANG_US ? "us"
+	: p->keyboard_lang == KBD_LANG_SE ? "se"
+	: p->keyboard_lang == KBD_LANG_FR ? "fr"
+	: p->keyboard_lang == KBD_LANG_IT ? "it"
+	: "FOO"));
 
     cfgfile_write (f, "state_replay=%s\n", p->statecapture ? "yes" : "no");
     cfgfile_write (f, "state_replay_rate=%d\n", p->statecapturerate);
@@ -433,7 +434,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 #ifdef FILESYS
     write_filesys_config (&currprefs, currprefs.mountinfo, UNEXPANDED, p->path_hardfile, f);
     if (p->filesys_no_uaefsdb)
-        cfgfile_write (f, "filesys_no_fsdb=%s\n", p->filesys_no_uaefsdb ? "true" : "false");
+	cfgfile_write (f, "filesys_no_fsdb=%s\n", p->filesys_no_uaefsdb ? "true" : "false");
 #endif
     write_inputdevice_config (p, f);
 
@@ -553,10 +554,10 @@ static int getintval2 (char **p, int *result, int delim)
 static void set_chipset_mask (struct uae_prefs *p, int val)
 {
     p->chipset_mask = (val == 0 ? 0
-		       : val == 1 ? CSMASK_ECS_AGNUS
-		       : val == 2 ? CSMASK_ECS_DENISE
-		       : val == 3 ? CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS
-		       : CSMASK_AGA | CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS);
+	: val == 1 ? CSMASK_ECS_AGNUS
+	: val == 2 ? CSMASK_ECS_DENISE
+	: val == 3 ? CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS
+	: CSMASK_AGA | CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS);
 }
 
 static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
@@ -704,7 +705,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 		    if (uf->x[0]) {
 			cfgfile_strval (option, value, "gfx_filter_mode", &p->gfx_filter_filtermode, filtermode1, 0);
 		    } else {
- 			int mt[4], j;
+			int mt[4], j;
 			i = 0;
 			if (uf->x[1]) mt[i++] = 1;
 			if (uf->x[2]) mt[i++] = 2;
@@ -812,7 +813,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_string (option, value, "keyboard_leds", tmpbuf, sizeof (tmpbuf))) {
-        char *tmpp2 = tmpbuf;
+	char *tmpp2 = tmpbuf;
 	int i, num;
 	p->keyboard_leds[0] = p->keyboard_leds[1] = p->keyboard_leds[2] = 0;
 	p->keyboard_leds_in_use = 0;
@@ -829,11 +830,11 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	    tmpp2 = tmpp;
 	    tmpp = strchr (tmpp2, ',');
 	    if (!tmpp)
-	        break;
+		break;
 	    *tmpp++= 0;
 	    if (num >= 0) {
-	        p->keyboard_leds[num] = match_string (kbleds, tmpp2);
-	        if (p->keyboard_leds[num]) p->keyboard_leds_in_use = 1;
+		p->keyboard_leds[num] = match_string (kbleds, tmpp2);
+		if (p->keyboard_leds[num]) p->keyboard_leds_in_use = 1;
 	    }
 	    tmpp2 = tmpp;
 	}
@@ -853,6 +854,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "fast_copper", &p->fast_copper)
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
+	|| cfgfile_yesno (option, value, "genlock", &p->genlock)
 	|| cfgfile_yesno (option, value, "cpu_compatible", &p->cpu_compatible)
 	|| cfgfile_yesno (option, value, "cpu_cycle_exact", &p->cpu_cycle_exact)
 	|| cfgfile_yesno (option, value, "blitter_cycle_exact", &p->blitter_cycle_exact)
@@ -943,7 +945,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     }
 
     if (cfgfile_intval (option, value, "cpu_speed", &p->m68k_speed, 1)) {
-        p->m68k_speed *= CYCLE_UNIT;
+	p->m68k_speed *= CYCLE_UNIT;
 	return 1;
     }
 
@@ -952,7 +954,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	    int factor = OFFICIAL_CYCLE_UNIT / CYCLE_UNIT;
 	    p->m68k_speed = (p->m68k_speed + factor - 1) / factor;
 	}
-        if (strcasecmp (value, "max") == 0)
+	if (strcasecmp (value, "max") == 0)
 	    p->m68k_speed = -1;
 	return 1;
     }
@@ -1005,7 +1007,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	tmpp = 0;
 #ifdef FILESYS
 	tmpp = add_filesys_unit (currprefs.mountinfo, 0, aname, str, ro, secs,
-				 heads, reserved, bs, 0, 0, 0);
+	    heads, reserved, bs, 0, 0, 0);
 #endif
 	free (str);
 	if (tmpp)
@@ -1074,7 +1076,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 		goto invalid_fs;
 	    if (getintval2 (&tmpp, &bp, ',')) {
 		fs = tmpp;
-	        tmpp = strchr (tmpp, ',');
+		tmpp = strchr (tmpp, ',');
 		if (tmpp != 0)
 		    *tmpp = 0;
 	    }
@@ -1083,7 +1085,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	tmpp = 0;
 #ifdef FILESYS
 	tmpp = add_filesys_unit (currprefs.mountinfo, dname, aname, str, ro, secs,
-				 heads, reserved, bs, bp, fs, 0);
+	    heads, reserved, bs, bp, fs, 0);
 #endif
 	free (str);
 	if (tmpp)
@@ -1139,13 +1141,13 @@ static int separate_line (char *line, char *line1b, char *line2b)
     /* Get rid of whitespace.  */
     i = strlen (line2);
     while (i > 0 && (line2[i - 1] == '\t' || line2[i - 1] == ' '
-		     || line2[i - 1] == '\r' || line2[i - 1] == '\n'))
+	    || line2[i - 1] == '\r' || line2[i - 1] == '\n'))
 	line2[--i] = '\0';
     line2 += strspn (line2, "\t \r\n");
     strcpy (line2b, line2);
     i = strlen (line);
     while (i > 0 && (line[i - 1] == '\t' || line[i - 1] == ' '
-		     || line[i - 1] == '\r' || line[i - 1] == '\n'))
+	    || line[i - 1] == '\r' || line[i - 1] == '\n'))
 	line[--i] = '\0';
     line += strspn (line, "\t \r\n");
     strcpy (line1b, line);
@@ -1273,7 +1275,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
     }
 
     fh = fopen (filename, "r");
-#ifndef SINGLEFILE
+#ifndef	SINGLEFILE
     if (! fh)
 	return 0;
 #endif
@@ -1290,10 +1292,10 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 		continue;
 	    type1 = type2 = 0;
 	    if (cfgfile_yesno (line1b, line2b, "config_hardware", &type1) ||
-	        cfgfile_yesno (line1b, line2b, "config_host", &type2)) {
-	    	if (type1 && type)
-	    	    *type |= CONFIG_TYPE_HARDWARE;
-	    	if (type2 && type)
+		cfgfile_yesno (line1b, line2b, "config_host", &type2)) {
+		if (type1 && type)
+		    *type |= CONFIG_TYPE_HARDWARE;
+		if (type2 && type)
 		    *type |= CONFIG_TYPE_HOST;
 		continue;
 	    }
@@ -1365,7 +1367,7 @@ end:
     return v;
 }
 
-void cfgfile_backup (const char *path)
+void cfgfile_backup (const char	*path)
 {
     char dpath[MAX_DPATH];
 
@@ -1421,7 +1423,7 @@ void cfgfile_show_usage (void)
 	write_log ("%s: %s\n", opttable[i].config_label, opttable[i].config_help);
 }
 
-/* This implements the old commandline option parsing.  I've re-added this
+/* This implements the old commandline option parsing. I've re-added this
    because the new way of doing things is painful for me (it requires me
    to type a couple hundred characters when invoking UAE).  The following
    is far less annoying to use.  */
@@ -1812,7 +1814,6 @@ static int getconfigstoreline (struct zfile *z, char *option, char *value)
     }
     return separate_line (tmp, option, value);
 }
-	
 
 int cfgfile_handle_custom_event (char *custom, int mode)
 {
@@ -1824,7 +1825,7 @@ int cfgfile_handle_custom_event (char *custom, int mode)
 
     if (!mode) {
 	uae_u8 zero = 0;
-    	configstore = zfile_fopen_empty ("configstore", 50000);
+	configstore = zfile_fopen_empty ("configstore", 50000);
 	save_options (configstore, &currprefs, 0);
 	zfile_fwrite (&zero, 1, 1, configstore);
     }
@@ -1892,13 +1893,13 @@ int cmdlineparser (char *s, char *outp[], int max)
 	    continue;
 	if (c == '\\')
 	    slash = 1;
-        if (!slash && c == '"') {
+	if (!slash && c == '"') {
 	    if (quote) {
-	        quote = 0;
-	        doout = 1;
+		quote = 0;
+		doout = 1;
 	    } else {
-	        quote = 1;
-	        j = -1;
+		quote = 1;
+		j = -1;
 	    }
 	}
 	if (!quote && c == ' ')
@@ -1939,7 +1940,7 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     argv = 0;
     p = 0;
     if (index != 0xffffffff) {
-        if (!configstore) {
+	if (!configstore) {
 	    err = 20;
 	    goto end;
 	}
@@ -2028,8 +2029,8 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     if (!p)
 	return 10;
     for (i = 0; i < size; i++) {
-        p[i] = get_byte (parms + i);
-        if (p[i] == 10 || p[i] == 13 || p[i] == 0)
+	p[i] = get_byte (parms + i);
+	if (p[i] == 10 || p[i] == 13 || p[i] == 0)
 	    break;
     }
     p[i] = 0;
@@ -2072,7 +2073,7 @@ end:
 	xfree (argc[i]);
     xfree (p);
     return err;
-}	
+}
 
 uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
 {
@@ -2097,11 +2098,11 @@ uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
     }
 
     if (sl) {
-        for (i = 0; i < maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 	    put_byte (dst + i, sl->value[i]);
 	    if (sl->value[i] == 0)
 		break;
-        }
+	}
 	return dst;
     }
     return 0;
@@ -2117,7 +2118,7 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
     tmp2[0] = 0;
     i = 0;
     while (rom[i] >= 0) {
-        rd = getromdatabyid (rom[i]);
+	rd = getromdatabyid (rom[i]);
 	if (!rd) {
 	    i++;
 	    continue;
@@ -2143,12 +2144,12 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
     }
     switch (rd->type)
     {
-        case ROMTYPE_KICK:
-        case ROMTYPE_KICKCD32:
+	case ROMTYPE_KICK:
+	case ROMTYPE_KICKCD32:
 	strcpy (p->romfile, path);
 	break;
-        case ROMTYPE_EXTCD32:
-        case ROMTYPE_EXTCDTV:
+	case ROMTYPE_EXTCD32:
+	case ROMTYPE_EXTCDTV:
 	strcpy (p->romextfile, path);
 	break;
     }
@@ -2232,8 +2233,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	int i;
 	for (i = 0;i < 10; i++)
 	    p->optcount[i] = -1;
-	p->optcount[0] = 4; /* How often a block has to be executed before it
-			     is translated */
+	p->optcount[0] = 4;	/* How often a block has to be executed before it
+				is translated */
 	p->optcount[1] = 0; /* How often to use the naive translation */
 	p->optcount[2] = 0; 
 	p->optcount[3] = 0;
@@ -2306,6 +2307,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cpu_cycle_exact = 0;
     p->blitter_cycle_exact = 0;
     p->chipset_mask = CSMASK_ECS_AGNUS;
+    p->genlock = 0;
+    p->ntscmode = 0;
 
     p->fastmem_size = 0x00000000;
     p->a3000mem_size = 0x00000000;
@@ -2413,7 +2416,7 @@ static void set_68020_compa (struct uae_prefs *p, int compa)
     if (compa > 1) {
 	p->immediate_blits = 1;
 	p->produce_sound = 2;
-    }	
+    }
 }
 
 /* 0: cycle-exact
@@ -2580,7 +2583,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[1] = 32;
 	p->bogomem_size = 0;
 	p->chipset_mask = 0;
-        p->dfxtype[1] = -1;
+	p->dfxtype[1] = -1;
 	break;
 	case 4: // KS 1.2, OCS Agnus, 0.5M Chip
 	roms[0] = 5;
@@ -2588,7 +2591,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[2] = 3;
 	p->bogomem_size = 0;
 	p->chipset_mask = 0;
-        p->dfxtype[1] = -1;
+	p->dfxtype[1] = -1;
 	break;
 	case 5: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
 	roms[0] = 5;
@@ -2631,7 +2634,6 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->socket_emu = 1;
     return configure_rom (p, roms, romcheck);
 }
-
 
 int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {

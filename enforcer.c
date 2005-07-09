@@ -45,21 +45,21 @@ static int enforcer_hit = 0; /* set to 1 if displaying the hit */
 #define ENFORCER_BUF_SIZE 4096
 static char enforcer_buf[ENFORCER_BUF_SIZE];
 
-uae_u32 REGPARAM2	(*saved_chipmem_lget) (uaecptr addr);
-uae_u32 REGPARAM2	(*saved_chipmem_wget) (uaecptr addr);
-uae_u32 REGPARAM2	(*saved_chipmem_bget) (uaecptr addr);
-void REGPARAM2		(*saved_chipmem_lput) (uaecptr addr, uae_u32 l);
-void REGPARAM2		(*saved_chipmem_wput) (uaecptr addr, uae_u32 w);
-void REGPARAM2		(*saved_chipmem_bput) (uaecptr addr, uae_u32 b);
-int REGPARAM2		(*saved_chipmem_check) (uaecptr addr, uae_u32 size);
-uae_u8 * REGPARAM2	(*saved_chipmem_xlate) (uaecptr addr);
-uae_u32 REGPARAM2	(*saved_dummy_lget) (uaecptr addr);
-uae_u32 REGPARAM2	(*saved_dummy_wget) (uaecptr addr);
-uae_u32 REGPARAM2	(*saved_dummy_bget) (uaecptr addr);
-void REGPARAM2		(*saved_dummy_lput) (uaecptr addr, uae_u32 l);
-void REGPARAM2		(*saved_dummy_wput) (uaecptr addr, uae_u32 w);
-void REGPARAM2		(*saved_dummy_bput) (uaecptr addr, uae_u32 b);
-int REGPARAM2		(*saved_dummy_check) (uaecptr addr, uae_u32 size);
+uae_u32 REGPARAM2 (*saved_chipmem_lget) (uaecptr addr);
+uae_u32 REGPARAM2 (*saved_chipmem_wget) (uaecptr addr);
+uae_u32 REGPARAM2 (*saved_chipmem_bget) (uaecptr addr);
+void REGPARAM2  (*saved_chipmem_lput) (uaecptr addr, uae_u32 l);
+void REGPARAM2  (*saved_chipmem_wput) (uaecptr addr, uae_u32 w);
+void REGPARAM2  (*saved_chipmem_bput) (uaecptr addr, uae_u32 b);
+int REGPARAM2 (*saved_chipmem_check) (uaecptr addr, uae_u32 size);
+uae_u8 * REGPARAM2 (*saved_chipmem_xlate) (uaecptr addr);
+uae_u32 REGPARAM2 (*saved_dummy_lget) (uaecptr addr);
+uae_u32 REGPARAM2 (*saved_dummy_wget) (uaecptr addr);
+uae_u32 REGPARAM2 (*saved_dummy_bget) (uaecptr addr);
+void REGPARAM2 (*saved_dummy_lput) (uaecptr addr, uae_u32 l);
+void REGPARAM2 (*saved_dummy_wput) (uaecptr addr, uae_u32 w);
+void REGPARAM2 (*saved_dummy_bput) (uaecptr addr, uae_u32 b);
+int REGPARAM2 (*saved_dummy_check) (uaecptr addr, uae_u32 size);
 
 /*************************************************************
  Returns the first node entry of an exec list or 0 if
@@ -385,7 +385,7 @@ uae_u32 REGPARAM2 chipmem_lget2 (uaecptr addr)
 	if (ISILLEGAL(addr))
 		{
 		enforcer_display_hit("LONG READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
-        if (enforcermode==1)
+	if (enforcermode==1)
 			{
 			set_special (SPCFLAG_TRAP);
 			}	
@@ -404,7 +404,7 @@ uae_u32 REGPARAM2 chipmem_wget2(uaecptr addr)
 	if (ISILLEGAL(addr))
 	{	
 		enforcer_display_hit("WORD READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
-        if (enforcermode==1)
+	if (enforcermode==1)
 			{
 			set_special (SPCFLAG_TRAP);
 			}		
@@ -466,7 +466,6 @@ void REGPARAM2 chipmem_wput2 (uaecptr addr, uae_u32 w)
 	}
     do_put_mem_word (m, w);
 }
-
 
 void REGPARAM2 chipmem_bput2 (uaecptr addr, uae_u32 b)
 {
@@ -539,7 +538,7 @@ uae_u32 REGPARAM2 dummy_wget2 (uaecptr addr)
 	return 0xbadf;
 }
 
-uae_u32 REGPARAM2 dummy_bget2 (uaecptr addr)
+uae_u32	REGPARAM2 dummy_bget2 (uaecptr addr)
 {
     special_mem_r;
 	enforcer_display_hit("BYTE READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
@@ -645,22 +644,22 @@ int enforcer_disable(void)
 {
 	if (enforcer_installed)
 	{
-		dummy_bank.lget = saved_dummy_lget;
+	    dummy_bank.lget = saved_dummy_lget;
 	    dummy_bank.wget = saved_dummy_wget;
-		dummy_bank.bget = saved_dummy_bget;
-		dummy_bank.lput = saved_dummy_lput;
+	    dummy_bank.bget = saved_dummy_bget;
+	    dummy_bank.lput = saved_dummy_lput;
 	    dummy_bank.wput = saved_dummy_wput;
-		dummy_bank.bput = saved_dummy_bput;
+	    dummy_bank.bput = saved_dummy_bput;
 	    chipmem_bank.lget = saved_chipmem_lget;
 	    chipmem_bank.wget = saved_chipmem_wget;
 	    chipmem_bank.bget = saved_chipmem_bget;
 	    chipmem_bank.lput = saved_chipmem_lput;
 	    chipmem_bank.wput = saved_chipmem_wput;
 	    chipmem_bank.bput = saved_chipmem_bput;
-		chipmem_bank.xlateaddr = saved_chipmem_xlate;
-		chipmem_bank.check = saved_chipmem_check;
+	    chipmem_bank.xlateaddr = saved_chipmem_xlate;
+	    chipmem_bank.check = saved_chipmem_check;
 
-		enforcer_installed = 0;
+	    enforcer_installed = 0;
 	}
 	return 1;
 }

@@ -201,15 +201,15 @@ static struct zfile *updateoutputfile (struct zfile *z)
     for (;;) {
 	if (!f)
 	    break;
-        fseek (f, 0, SEEK_END);
+	fseek (f, 0, SEEK_END);
 	size = ftell (f);
 	fseek (f, 0, SEEK_SET);
 	if (!size)
 	    break;
-        z2 = zfile_fopen_empty (z->name, size);
+	z2 = zfile_fopen_empty (z->name, size);
 	if (!z2)
 	    break;
-        fread (z2->data, size, 1, f);
+	fread (z2->data, size, 1, f);
 	fclose (f);
 	zfile_fclose (z);
 	return z2;
@@ -250,7 +250,7 @@ static struct zfile *gunzip (struct zfile *z)
     if (flags & 32) /* encryption not supported */
 	return z;
     if (flags & 4) { /* skip extra field */
-        zfile_fread (&b, 1, 1, z);
+	zfile_fread (&b, 1, 1, z);
 	size = b;
 	zfile_fread (&b, 1, 1, z);
 	size |= b << 8;
@@ -542,7 +542,7 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 			if (zf->seek != fi.UncompressedFileSize)
 			    write_log ("%s unpack failed, got only %d bytes\n", name, zf->seek);
 			if (zf->seek == fi.UncompressedFileSize && (select < 0 || zfile_gettype (zf)))
-		    	    we_have_file = 1;
+			    we_have_file = 1;
 			 if (!we_have_file) {
 			    zfile_fclose (zf);
 			    zf = 0;
@@ -662,7 +662,7 @@ static struct zfile *unzip (struct zfile *z)
 			    if (err == 0 || err == file_info.uncompressed_size) {
 				zf = zuncompress (zf);
 				if (select < 0 || zfile_gettype (zf)) {
-		    		    we_have_file = 1;
+				    we_have_file = 1;
 				}
 			    }
 			}
@@ -733,7 +733,7 @@ static struct zfile *zuncompress (struct zfile *z)
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
 	for (i = 0; plugins_7z[i]; i++) {
-    	    if (strcasecmp (ext, plugins_7z[i]) == 0)
+	    if (strcasecmp (ext, plugins_7z[i]) == 0)
 		return arcacc_unpack (z, plugins_7z_t[i]);
 	}
 	if (strcasecmp (ext, "lha") == 0
@@ -781,7 +781,7 @@ static FILE *openzip (char *name, char *zippath)
 	}
 	i--;
     }
-    return 0;	    
+    return 0;
 }
 
 #ifdef SINGLEFILE
@@ -828,7 +828,7 @@ static struct zfile *zfile_fopen_2 (const char *name, const char *mode)
     char zipname[1000];
 
     if( *name == '\0' )
-        return NULL;
+	return NULL;
     l = zfile_create ();
     l->name = strdup (name);
 #ifdef SINGLEFILE
@@ -910,9 +910,9 @@ static int arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int ty
 	    }
 	    zfile_fclose (zf);
 	}
-        if (fi.CompressedFileSize)
+	if (fi.CompressedFileSize)
 	    skipsize = 0;
-        skipsize += (int)fi.UncompressedFileSize;
+	skipsize += (int)fi.UncompressedFileSize;
     }
     closeArchive (ah);
     arcacc_pop ();
@@ -930,20 +930,20 @@ static int zunzip (struct zfile *z, zfile_callback zc, void *user)
     int err;
 
     if (!zlib_test (1, 0))
-        return 0;
+	return 0;
     zf = 0;
     uz = unzOpen (z);
     if (!uz)
-        return 0;
+	return 0;
     if (unzGoToFirstFile (uz) != UNZ_OK)
-        return 0;
+	return 0;
     for (;;) {
-        err = unzGetCurrentFileInfo(uz, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
-        if (err != UNZ_OK)
+	err = unzGetCurrentFileInfo(uz, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+	if (err != UNZ_OK)
 	    return 0;
 	if (file_info.uncompressed_size > 0) {
 	    int err = unzOpenCurrentFile (uz);
-    	    if (err == UNZ_OK) {
+	    if (err == UNZ_OK) {
 		tmp2[0] = FSDB_DIR_SEPARATOR;
 		tmp2[1] = 0;
 		strcpy (tmp, z->name);
@@ -1178,7 +1178,7 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
     v = Z_OK;
     while (v == Z_OK) {
 	zs.next_out = outbuf;
-        zs.avail_out = sizeof (outbuf);
+	zs.avail_out = sizeof (outbuf);
 	v = pdeflate(&zs, Z_NO_FLUSH | Z_FINISH);
 	if (sizeof(outbuf) - zs.avail_out > 0)
 	    zfile_fwrite (outbuf, 1, sizeof (outbuf) - zs.avail_out, f);

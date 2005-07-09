@@ -109,11 +109,11 @@ static int restoredeviceobjects(void)
 
     switch (currprefs.gfx_filter_filtermode & 1)
     {
-	case 0:
+    case 0:
 	v = D3DTEXF_POINT;
 	break;
-	case 1:
-	default:
+    case 1:
+    default:
 	v = D3DTEXF_LINEAR;
 	break;
     }
@@ -193,7 +193,7 @@ static void createscanlines (int force)
 
     hr = IDirect3DTexture9_LockRect(sltexture, 0, &locked, NULL, D3DLOCK_DISCARD);
     if (FAILED (hr)) {
-        write_log ("SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	write_log ("SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	return;
     }
     sld = (uae_u8*)locked.pBits;
@@ -202,11 +202,11 @@ static void createscanlines (int force)
     for (y = 1; y < window_h; y += l1 + l2) {
 	for (yy = 0; yy < l2 && y + yy < window_h; yy++) {
 	    for (x = 0; x < window_w; x++) {
-	        /* 16-bit, A4R4G4B4 */
-	        uae_u8 sll = sl42;
-    	        p = &sld[(y + yy) * locked.Pitch + (x * 2)];
-	        p[1] = (sl4 << 4) | (sll << 0);
-	        p[0] = (sll << 4) | (sll << 0);
+		/* 16-bit, A4R4G4B4 */
+		uae_u8 sll = sl42;
+		p = &sld[(y + yy) * locked.Pitch + (x * 2)];
+		p[1] = (sl4 << 4) | (sll << 0);
+		p[0] = (sll << 4) | (sll << 0);
 	    }
 	}
     }
@@ -239,11 +239,11 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
     d3dDLL = LoadLibrary("D3D9.DLL");
     if (d3dDLL == NULL) {
-        strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
-        return errmsg;
+	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
+	return errmsg;
     }
     D3DCreate = (LPDIRECT3D9 (WINAPI *)(UINT))
-    GetProcAddress(d3dDLL, "Direct3DCreate9");
+	GetProcAddress(d3dDLL, "Direct3DCreate9");
     if(D3DCreate == NULL) {
 	D3D_free ();
 	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
@@ -281,7 +281,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	    }
 	}    
     }
-  
+
     ret = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, ahwnd,
 	D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &d3ddev);
     if(FAILED(ret)) {
@@ -314,14 +314,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     t_depth = depth;
     switch (depth)
     {
-	case 32:
+    case 32:
 	if (currprefs.gfx_filter_scanlines)
 	    tformat = D3DFMT_A8R8G8B8;
 	else
 	    tformat = D3DFMT_X8R8G8B8;
 	break;
-	case 15:
-	case 16:
+    case 15:
+    case 16:
 	if (currprefs.gfx_filter_scanlines)
 	    tformat = D3DFMT_A1R5G5B5;
 	else
@@ -354,7 +354,7 @@ typedef struct _D3DTLVERTEX {
 } D3DTLVERTEX, *LPD3DTLVERTEX;
 
 static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
-		float left, float top, float right, float bottom, D3DCOLOR col,float z)
+		     float left, float top, float right, float bottom, D3DCOLOR col,float z)
 {
     int i;
     HRESULT hr;
@@ -377,20 +377,20 @@ static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
     // set the texture
     hr = IDirect3DDevice9_SetTexture(dev, 0, src);
     if (FAILED (hr))
-        write_log ("IDirect3DDevice9_SetTexture failed: %s\n", D3D_ErrorString (hr));
+	write_log ("IDirect3DDevice9_SetTexture failed: %s\n", D3D_ErrorString (hr));
 
     hr = IDirect3DDevice9_SetVertexShader(dev, NULL);
     if (FAILED (hr))
-        write_log ("IDirect3DDevice9_SetVertexShader failed: %s\n", D3D_ErrorString (hr));
+	write_log ("IDirect3DDevice9_SetVertexShader failed: %s\n", D3D_ErrorString (hr));
     // configure shader for vertex type
     hr = IDirect3DDevice9_SetFVF(dev, D3DFVF_TLVERTEX);
     if (FAILED (hr))
-        write_log ("IDirect3DDevice9_SetFVF failed: %s\n", D3D_ErrorString (hr));
+	write_log ("IDirect3DDevice9_SetFVF failed: %s\n", D3D_ErrorString (hr));
 
     // draw the rectangle
     hr = IDirect3DDevice9_DrawPrimitiveUP(dev, D3DPT_TRIANGLEFAN, 2, verts, sizeof(D3DTLVERTEX));
     if (FAILED (hr))
-        write_log ("IDirect3DDevice9_DrawPrimitiveUP failed: %s\n", D3D_ErrorString (hr));
+	write_log ("IDirect3DDevice9_DrawPrimitiveUP failed: %s\n", D3D_ErrorString (hr));
 }
 
 static void calc (float *xp, float *yp, float *sxp, float *syp)
@@ -451,7 +451,7 @@ int D3D_locktexture (void)
     }
     hr = IDirect3DTexture9_LockRect(texture, 0, &locked, NULL, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK);
     if (FAILED (hr)) {
-        write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	D3D_unlocktexture ();
 	return 0;
     }
@@ -494,8 +494,8 @@ void D3D_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 {
     switch (depth)
     {
-	case 32:
-        *rb = 8;
+    case 32:
+	*rb = 8;
 	*gb = 8;
 	*bb = 8;
 	*ab = 8;
@@ -505,9 +505,9 @@ void D3D_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 	*as = 24;
 	*a = 255;
 	break;
-	case 15:
-	case 16:
-        *rb = 5;
+    case 15:
+    case 16:
+	*rb = 5;
 	*gb = 5;
 	*bb = 5;
 	*ab = 1;
@@ -536,7 +536,7 @@ HDC D3D_getDC(HDC hdc)
     if (!d3d_enabled)
 	return 0;
     if (!hdc) {
-        hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
+	hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
 	if (!SUCCEEDED (hr)) {
 	    write_log ("failed to create backbuffer: %s\n", D3D_ErrorString (hr));
 	    return 0;

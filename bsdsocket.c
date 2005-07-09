@@ -28,7 +28,7 @@
 static uae_u32 SockLibBase;
 
 #define SOCKPOOLSIZE 128
-#define UNIQUE_ID	(-1)
+#define UNIQUE_ID (-1)
 
 /* ObtainSocket()/ReleaseSocket() public socket pool */
 long sockpoolids[SOCKPOOLSIZE];
@@ -112,7 +112,7 @@ static uae_u32 gettask (void)
     uae_u32 currtask, a1 = m68k_areg (regs, 1);
 
     m68k_areg (regs, 1) = 0;
-    currtask = CallLib (get_long (4), -0x126);	/* FindTask */
+    currtask = CallLib (get_long (4), -0x126); /* FindTask */
 
     m68k_areg (regs, 1) = a1;
 
@@ -123,10 +123,9 @@ static uae_u32 gettask (void)
 /* errno/herrno setting */
 void seterrno (SB, int sb_errno)
 {
-    sb->sb_errno = sb_errno;			
-	
-	if (sb->sb_errno >= 1001 && sb->sb_errno <= 1005) setherrno(sb,sb->sb_errno-1000);
-
+    sb->sb_errno = sb_errno;
+    if (sb->sb_errno >= 1001 && sb->sb_errno <= 1005)
+	setherrno(sb,sb->sb_errno-1000);
     if (sb->errnoptr) {
 	switch (sb->errnosize) {
 	 case 1:
@@ -212,7 +211,7 @@ int getsd (SB, SOCKET_TYPE s)
 		return i + 1;
 		}
     /* descriptor table full. */
-    seterrno (sb, 24);		/* EMFILE */
+    seterrno (sb, 24); /* EMFILE */
 
     return -1;
 }
@@ -221,7 +220,7 @@ SOCKET_TYPE getsock (SB, int sd)
 {
     if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
 	TRACE (("Invalid Socket Descriptor (%d)\n", sd));
-	seterrno (sb, 38);	/* ENOTSOCK */
+	seterrno (sb, 38); /* ENOTSOCK */
 
 	return -1;
     }
@@ -285,7 +284,7 @@ static uae_u32 bsdsock_int_handler (void)
 		struct regstruct sbved_regs = regs;
 		m68k_areg (regs, 1) = sb->ownertask;
 		m68k_dreg (regs, 0) = sb->sigstosend;
-		CallLib (get_long (4), -0x144);		/* Signal() */
+		CallLib (get_long (4), -0x144); /* Signal() */
 
 		regs = sbved_regs;
 
@@ -306,12 +305,12 @@ void waitsig (SB)
     m68k_dreg (regs, 0) = (((uae_u32) 1) << sb->signal) | sb->eintrsigs;
     if ((sigs = CallLib (get_long (4), -0x13e)) & sb->eintrsigs) {
 	sockabort (sb); 
-	seterrno (sb, 4);	/* EINTR */
+	seterrno (sb, 4); /* EINTR */
 
 	// Set signal
 	m68k_dreg (regs, 0) = sigs;
 	m68k_dreg (regs, 1) = sb->eintrsigs;
-	sigs = CallLib (get_long (4), -0x132);	/* SetSignal() */
+	sigs = CallLib (get_long (4), -0x132); /* SetSignal() */
 
 	sb->eintr = 1;
     } else
@@ -327,7 +326,7 @@ void cancelsig (SB)
 
     m68k_dreg (regs, 0) = 0;
     m68k_dreg (regs, 1) = ((uae_u32) 1) << sb->signal;
-    CallLib (get_long (4), -0x132);	/* SetSignal() */
+    CallLib (get_long (4), -0x132); /* SetSignal() */
 
 }
 
@@ -359,7 +358,7 @@ static struct socketbase *alloc_socketbase (void)
 	for (i = sb->dtablesize; i--;)
 	    sb->dtable[i] = -1;
 
-	sb->eintrsigs = 0x1000;	/* SIGBREAKF_CTRL_C */
+	sb->eintrsigs = 0x1000; /* SIGBREAKF_CTRL_C */
 
 	if (!host_sbinit (sb)) {
 	    /* @@@ free everything   */
@@ -385,24 +384,24 @@ static void free_socketbase (void)
 
     if ((sb = get_socketbase ()) != NULL) {
 	m68k_dreg (regs, 0) = sb->signal;
-	CallLib (get_long (4), -0x150);		/* FreeSignal */
+	CallLib (get_long (4), -0x150); /* FreeSignal */
 
 	if (sb->hostent) {
 	    m68k_areg (regs, 1) = sb->hostent;
 	    m68k_dreg (regs, 0) = sb->hostentsize;
-	    CallLib (get_long (4), -0xD2);	/* FreeMem */
+	    CallLib (get_long (4), -0xD2); /* FreeMem */
 
 	}
 	if (sb->protoent) {
 	    m68k_areg (regs, 1) = sb->protoent;
 	    m68k_dreg (regs, 0) = sb->protoentsize;
-	    CallLib (get_long (4), -0xD2);	/* FreeMem */
+	    CallLib (get_long (4), -0xD2); /* FreeMem */
 
 	}
 	if (sb->servent) {
 	    m68k_areg (regs, 1) = sb->servent;
 	    m68k_dreg (regs, 0) = sb->serventsize;
-	    CallLib (get_long (4), -0xD2);	/* FreeMem */
+	    CallLib (get_long (4), -0xD2); /* FreeMem */
 
 	}
 	host_sbcleanup (sb);
@@ -495,7 +494,7 @@ static uae_u32 bsdsocklib_Close (void)
 
     m68k_areg (regs, 1) = base - negsize;
     m68k_dreg (regs, 0) = negsize + get_word (base + 18);
-    CallLib (get_long (4), -0xD2);	/* FreeMem */
+    CallLib (get_long (4), -0xD2); /* FreeMem */
 
     TRACE (("CloseLibrary() -> [%d]\n", opencount));
 
@@ -506,15 +505,15 @@ static uae_u32 bsdsocklib_Close (void)
 static uae_u32 bsdsocklib_socket (void)
 {
     return host_socket (SOCKETBASE, m68k_dreg (regs, 0), m68k_dreg (regs, 1),
-			m68k_dreg (regs, 2));
+	m68k_dreg (regs, 2));
 }
 
 /* bind(s, name, namelen)(d0/a0/d1) */
 static uae_u32 bsdsocklib_bind (void)
 {
     return host_bind (SOCKETBASE, m68k_dreg (regs, 0), m68k_areg (regs, 0),
-		      m68k_dreg (regs, 1));
-	}
+	m68k_dreg (regs, 1));
+}
 
 /* listen(s, backlog)(d0/d1) */
 static uae_u32 bsdsocklib_listen (void)
@@ -543,7 +542,7 @@ static uae_u32 bsdsocklib_sendto (void)
 {
     SB = get_socketbase ();
     host_sendto (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		 m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_dreg (regs, 3));
+	m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_dreg (regs, 3));
     return sb->resultval;
 }
 
@@ -552,7 +551,7 @@ static uae_u32 bsdsocklib_send (void)
 {
     SB = get_socketbase ();
     host_sendto (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		 m68k_dreg (regs, 2), 0, 0);
+	m68k_dreg (regs, 2), 0, 0);
     return sb->resultval;
 }
 
@@ -561,16 +560,16 @@ static uae_u32 bsdsocklib_recvfrom (void)
 {
     SB = get_socketbase ();
     host_recvfrom (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		   m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_areg (regs, 2));
+	m68k_dreg (regs, 2), m68k_areg (regs, 1), m68k_areg (regs, 2));
     return sb->resultval;
 }
 
-/* recv(s, buf, len, flags)(d0/a0/d1/d2) */
+/* recv(s, buf,	len, flags)(d0/a0/d1/d2) */
 static uae_u32 bsdsocklib_recv (void)
 {
     SB = get_socketbase ();
     host_recvfrom (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_dreg (regs, 1),
-		   m68k_dreg (regs, 2), 0, 0);
+	m68k_dreg (regs, 2), 0, 0);
     return sb->resultval;
 }
 
@@ -585,7 +584,7 @@ static uae_u32 bsdsocklib_setsockopt (void)
 {
     SB = get_socketbase ();
     host_setsockopt (sb, m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2),
-		     m68k_areg (regs, 0), m68k_dreg (regs, 3));
+	m68k_areg (regs, 0), m68k_dreg (regs, 3));
     return sb->resultval;
 }
 
@@ -593,7 +592,7 @@ static uae_u32 bsdsocklib_setsockopt (void)
 static uae_u32 bsdsocklib_getsockopt (void)
 {
     return host_getsockopt (SOCKETBASE, m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2),
-			    m68k_areg (regs, 0), m68k_areg (regs, 1));
+	m68k_areg (regs, 0), m68k_areg (regs, 1));
 }
 
 /* getsockname(s, hostname, namelen)(d0/a0/a1) */
@@ -627,7 +626,7 @@ static uae_u32 bsdsocklib_WaitSelect (void)
 {
     SB = get_socketbase ();
     host_WaitSelect (sb, m68k_dreg (regs, 0), m68k_areg (regs, 0), m68k_areg (regs, 1),
-		     m68k_areg (regs, 2), m68k_areg (regs, 3), m68k_dreg (regs, 1));
+	m68k_areg (regs, 2), m68k_areg (regs, 3), m68k_dreg (regs, 1));
     return sb->resultval;
 }
 
@@ -705,8 +704,8 @@ static uae_u32 bsdsocklib_ReleaseSocket (void)
 
     sd = m68k_dreg (regs, 0);
     id = m68k_dreg (regs, 1);
-	
-	sd++;
+
+    sd++;
     TRACE (("ReleaseSocket(%d,%d) -> ", sd, id));
 
     s = getsock (sb, sd);
@@ -785,7 +784,7 @@ static uae_u32 bsdsocklib_SetErrnoPtr (void)
 	TRACE (("OK\n"));
 	return 0;
     }
-    seterrno (sb, 22);		/* EINVAL */
+    seterrno (sb, 22); /* EINVAL */
 
     return -1;
 }
@@ -885,7 +884,7 @@ static uae_u32 bsdsocklib_getprotobyname (void)
     return sb->sb_errno ? 0 : sb->protoent;
 }
 
-/* getprotobynumber(proto)(d0)  */
+/* getprotobynumber(proto)(d0) */
 static uae_u32 bsdsocklib_getprotobynumber (void)
 {
     write_log ("bsdsocket: UNSUPPORTED: getprotobynumber()\n");
@@ -971,10 +970,10 @@ static const char * const strErr = "Errlist lookup error";
 uae_u32 strErrptr;
 
 
-#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused */
-#define	TAG_IGNORE (1L)		/* ignore this item, not end of array               */
-#define	TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
-#define	TAG_SKIP   (3L)		/* skip this and the next ti_Data items     */
+#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused	*/
+#define TAG_IGNORE (1L)		/* ignore this item, not end of	array		    */
+#define TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
+#define TAG_SKIP   (3L)		/* skip	this and the next ti_Data items	    */
 #define TAG_USER   ((uae_u32)(1L<<31))
 
 #define SBTF_VAL 0x0000
@@ -991,23 +990,23 @@ uae_u32 strErrptr;
  (TAG_USER | SBTF_REF | (((code) & SBTS_CODE) << SBTB_CODE) | SBTF_SET)
 #define SBTM_SETVAL(code) \
  (TAG_USER | (((code) & SBTS_CODE) << SBTB_CODE) | SBTF_SET)
-#define SBTC_BREAKMASK      1
-#define SBTC_SIGIOMASK      2
-#define SBTC_SIGURGMASK     3
+#define SBTC_BREAKMASK	    1
+#define SBTC_SIGIOMASK	    2
+#define SBTC_SIGURGMASK	    3
 #define SBTC_SIGEVENTMASK   4
-#define SBTC_ERRNO          6
-#define SBTC_HERRNO         7
-#define SBTC_DTABLESIZE     8
-#define SBTC_FDCALLBACK     9
-#define SBTC_LOGSTAT        10
-#define SBTC_LOGTAGPTR      11
+#define SBTC_ERRNO	    6
+#define SBTC_HERRNO	    7
+#define SBTC_DTABLESIZE	    8
+#define SBTC_FDCALLBACK	    9
+#define SBTC_LOGSTAT	    10
+#define SBTC_LOGTAGPTR	    11
 #define SBTC_LOGFACILITY    12
-#define SBTC_LOGMASK        13
-#define SBTC_ERRNOSTRPTR    14	/* <sys/errno.h> */
-#define SBTC_HERRNOSTRPTR   15	/* <netdb.h> */
-#define SBTC_IOERRNOSTRPTR  16	/* <exec/errors.h> */
-#define SBTC_S2ERRNOSTRPTR  17	/* <devices/sana2.h> */
-#define SBTC_S2WERRNOSTRPTR 18	/* <devices/sana2.h> */
+#define SBTC_LOGMASK	    13
+#define SBTC_ERRNOSTRPTR    14 /* <sys/errno.h> */
+#define SBTC_HERRNOSTRPTR   15 /* <netdb.h> */
+#define SBTC_IOERRNOSTRPTR  16 /* <exec/errors.h> */
+#define SBTC_S2ERRNOSTRPTR  17 /* <devices/sana2.h> */
+#define SBTC_S2WERRNOSTRPTR 18 /* <devices/sana2.h> */
 #define SBTC_ERRNOBYTEPTR   21
 #define SBTC_ERRNOWORDPTR   22
 #define SBTC_ERRNOLONGPTR   24
@@ -1017,19 +1016,19 @@ uae_u32 strErrptr;
 static void tagcopy (uae_u32 currtag, uae_u32 currval, uae_u32 tagptr, uae_u32 * ptr)
 {
     switch (currtag & 0x8001) {
-     case 0x0000:		/* SBTM_GETVAL */
+     case 0x0000:	/* SBTM_GETVAL */
 
 	put_long (tagptr + 4, *ptr);
 	break;
-     case 0x8000:		/* SBTM_GETREF */
+     case 0x8000:	/* SBTM_GETREF */
 
 	put_long (currval, *ptr);
 	break;
-     case 0x0001:		/* SBTM_SETVAL */
+     case 0x0001:	/* SBTM_SETVAL */
 
 	*ptr = currval;
 	break;
-     default:			/* SBTM_SETREF */
+     default:		/* SBTM_SETREF */
 
 	*ptr = get_long (currval);
     }
@@ -1224,6 +1223,7 @@ static uae_u32 bsdsocklib_init (void)
 {
     uae_u32 tmp1;
     int i;
+
     write_log ("Creating UAE bsdsocket.library 4.1\n");
     if (SockLibBase)
 	bsdlib_reset ();

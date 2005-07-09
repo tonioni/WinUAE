@@ -63,7 +63,7 @@ static int doscsi (HANDLE *h, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *er
     if (!status) {
 	int lasterror = GetLastError();
 	*err = lasterror;
-        write_log("SCSI ERROR, H=%X: ", h);
+	write_log("SCSI ERROR, H=%X: ", h);
 	write_log("Error code = %d, LastError=%d\n", swb->spt.ScsiStatus, lasterror);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
@@ -138,7 +138,7 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
 
     /* do transfer directly to and from Amiga memory */
     if (!bank_data || !bank_data->check (scsi_data, scsi_len))
-        return -5; /* IOERR_BADADDRESS */
+	return -5; /* IOERR_BADADDRESS */
 
     uae_sem_wait (&scgp_sem);
 
@@ -151,10 +151,10 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
     if (scsi_sense_len > 32)
 	scsi_sense_len = 32;
     swb.spt.SenseInfoLength  = (scsi_flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-        (scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
-        32;
+	(scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
+	32;
     if (dev_info[unitnum].isatapi)
-        scsi_atapi_fixup_pre (swb.spt.Cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
+	scsi_atapi_fixup_pre (swb.spt.Cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
     swb.spt.CdbLength = (UCHAR)scsi_cmd_len;
     swb.spt.DataTransferLength = scsi_len;
     swb.spt.DataBuffer = scsi_datap;
@@ -164,26 +164,26 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
     put_word (acmd + 18, status == 0 ? 0 : scsi_cmd_len_orig); /* fake scsi_CmdActual */
     put_byte (acmd + 21, swb.spt.ScsiStatus); /* scsi_Status */
     if (swb.spt.ScsiStatus) {
-        io_error = 45; /* HFERR_BadStatus */
-        /* copy sense? */
-        for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < swb.spt.SenseInfoLength; sactual++)
-            put_byte (scsi_sense + sactual, swb.SenseBuf[sactual]);
-        put_long (acmd + 8, 0); /* scsi_Actual */
+	io_error = 45; /* HFERR_BadStatus */
+	/* copy sense? */
+	for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < swb.spt.SenseInfoLength; sactual++)
+	    put_byte (scsi_sense + sactual, swb.SenseBuf[sactual]);
+	put_long (acmd + 8, 0); /* scsi_Actual */
     } else {
-        int i;
-        for (i = 0; i < scsi_sense_len; i++)
-            put_byte (scsi_sense + i, 0);
-        sactual = 0;
-        if (status == 0) {
+	int i;
+	for (i = 0; i < scsi_sense_len; i++)
+	    put_byte (scsi_sense + i, 0);
+	sactual = 0;
+	if (status == 0) {
 	    io_error = 20; /* io_Error, but not specified */
 	    put_long (acmd + 8, 0); /* scsi_Actual */
-        } else {
+	} else {
 	    scsi_len = swb.spt.DataTransferLength;
 	    if (dev_info[unitnum].isatapi)
 		scsi_atapi_fixup_post (swb.spt.Cdb, scsi_cmd_len, scsi_datap_org, scsi_datap, &scsi_len, parm);
 	    io_error = 0;
-            put_long (acmd + 8, scsi_len); /* scsi_Actual */
-        }
+	    put_long (acmd + 8, scsi_len); /* scsi_Actual */
+	}
     }
     put_word (acmd + 28, sactual);
     uae_sem_post (&scgp_sem);
@@ -315,14 +315,14 @@ int open_scsi_device (int unitnum)
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     dev_info[unitnum].handle = h;
     if (h == INVALID_HANDLE_VALUE) {
-        write_log ("failed to open cd unit %d (%s)\n", unitnum, dev);
+	write_log ("failed to open cd unit %d (%s)\n", unitnum, dev);
     } else {
-        dev_info[unitnum].mediainserted = mediacheck (unitnum);
+	dev_info[unitnum].mediainserted = mediacheck (unitnum);
 	dev_info[unitnum].isatapi = isatapi (unitnum);
 	write_log ("cd unit %d %s opened (%s), %s\n", unitnum,
 	    dev_info[unitnum].isatapi ? "[ATAPI]" : "[SCSI]", dev,
 	    dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty");
-        return 1;
+	return 1;
     }
     return 0;
 }

@@ -47,9 +47,9 @@ int ioport_init (void)
 	return 0;
     }
     __try {
-        initialized = pInitializeWinIo();
+	initialized = pInitializeWinIo();
     } __except (EXCEPTION_EXECUTE_HANDLER) {
-        initialized = 0;
+	initialized = 0;
     }
 #else
     initialized = 1;
@@ -64,7 +64,7 @@ void ioport_free (void)
     if (initialized) {
 	pShutdownWinIo();
 	FreeLibrary (ioh);
-        io_log ("io freed\n");
+	io_log ("io freed\n");
     }
 #endif
     initialized = 0;
@@ -119,7 +119,7 @@ void paraport_free (void)
     if (para) {
 	if (pport)
 	    pp_closeport (pport);
-	pport = 0;	
+	pport = 0;
 	FreeLibrary (para);
 	para = 0;
     }

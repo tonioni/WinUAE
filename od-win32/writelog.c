@@ -46,11 +46,12 @@ int console_get (char *out, int maxlen)
     totallen=0;
     while(maxlen>0) 
     {
-	    ReadConsole(stdinput,out,1,&len,0);
-	    if(*out == 13) break;
-	    out++;
-	    maxlen--;
-	    totallen++;
+	ReadConsole(stdinput,out,1,&len,0);
+	if(*out == 13)
+	    break;
+	out++;
+	maxlen--;
+	totallen++;
     }
     *out=0;
     return totallen;

@@ -26,7 +26,7 @@ int catweasel_isjoystick(void)
 {
     uae_u8 b = cwc.can_joy;
     if (b) {
-        if (cwc.type == CATWEASEL_TYPE_MK3 && cwc.sid[0])
+	if (cwc.type == CATWEASEL_TYPE_MK3 && cwc.sid[0])
 	    b |= 0x80;
 	if (cwc.type >= CATWEASEL_TYPE_MK4)
 	    b |= 0x80;
@@ -71,7 +71,7 @@ static uae_u8 get_buttons(void)
     if (!(b2 & 0x40))
 	b |= 0x08;
     if (cwc.type >= CATWEASEL_TYPE_MK4) {
-        b &= ~0x80;
+	b &= ~0x80;
 	catweasel_do_bput(3, 0x81);
 	if (!(catweasel_do_bget(0x07) & 0x10))
 	    b |= 0x80;
@@ -116,7 +116,7 @@ static void sid_reset(void)
     int i;
     for (i = 0; i < 0x19; i++) {
 	sid_write(i, 0, 0);
-        sid_write(i, 0, 1);
+	sid_write(i, 0, 1);
     }
 }
 
@@ -130,7 +130,7 @@ static void catweasel_detect_sid(void)
 	return;
     sid_reset();
     if (cwc.type >= CATWEASEL_TYPE_MK4) {
-        catweasel_do_bput(3, 0x81);
+	catweasel_do_bput(3, 0x81);
 	b1 = catweasel_do_bget(0xd0);
 	for (i = 0; i < 100; i++) {
 	    sid_read(0x19, 0); // delay
@@ -143,17 +143,17 @@ static void catweasel_detect_sid(void)
     }
     catweasel_do_bput(3, 0x41);
     for (i = 0; i < 2 ;i++) {
-        sid_reset();
+	sid_reset();
 	sid_write(0x0f, 0xff, i);
-        sid_write(0x12, 0x10, i);
+	sid_write(0x12, 0x10, i);
 	for(j = 0; j != 1000; j++) {
 	    sid_write(0, 0, i);
 	    if((sid_read(0x1b, i) & 0x80) != 0) {
-	        cwc.sid[i] = 6581;
-	        break;
+		cwc.sid[i] = 6581;
+		break;
 	    }
-        }
-        sid_reset();
+	}
+	sid_reset();
 	sid_write(0x0f, 0xff, i);
 	sid_write(0x12, 0x30, i);
 	for(j = 0; j != 1000; j++) {
@@ -179,12 +179,12 @@ void catweasel_hsync (void)
     cwhsync = 10;
     if (handshake) {
 	/* keyboard handshake */
-        catweasel_do_bput(0xd0, 0);
+	catweasel_do_bput(0xd0, 0);
 	handshake = 0;
     }
     if (cwc.type == CATWEASEL_TYPE_MK3 && cwc.sid[0]) {
 	uae_u8 b;
-        cwmk3buttonsync--;
+	cwmk3buttonsync--;
 	if (cwmk3buttonsync <= 0) {
 	    cwmk3buttonsync = 30;
 	    b = 0;
@@ -198,7 +198,7 @@ void catweasel_hsync (void)
 		cwmk3port = 1;
 	    } else {
 		cwmk3port2 = b;
-    		catweasel_do_bget(0xd4); // select port1
+		catweasel_do_bget(0xd4); // select port1
 		cwmk3port = 0;
 	    }
 	}
@@ -255,7 +255,7 @@ int catweasel_read_keyboard (uae_u8 *keycode)
     return 1;
 }
 
-uae_u32 catweasel_do_bget (uaecptr addr)
+uae_u32	catweasel_do_bget (uaecptr addr)
 {
     DWORD did_read = 0;
     uae_u8 buf1[1], buf2[1];
@@ -271,7 +271,7 @@ uae_u32 catweasel_do_bget (uaecptr addr)
     return buf2[0];
 }
 
-void catweasel_do_bput (uaecptr addr, uae_u32 b)
+void catweasel_do_bput (uaecptr	addr, uae_u32 b)
 {
     uae_u8 buf[2];
     DWORD did_read = 0;
@@ -281,7 +281,7 @@ void catweasel_do_bput (uaecptr addr, uae_u32 b)
     buf[0] = (uae_u8)addr;
     buf[1] = b;
     if (handle != INVALID_HANDLE_VALUE)
-        DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
+	DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
     else
 	ioport_write (cwc.iobase + addr, b);
     //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
@@ -364,16 +364,16 @@ int catweasel_init(void)
     sprintf(tmp, "CW: Catweasel MK%d @%p (%s) enabled.",
 	cwc.type, (uae_u8*)cwc.iobase, name);
     if (cwc.can_sid) {
-        char *p = tmp + strlen(tmp);
+	char *p = tmp + strlen(tmp);
 	catweasel_detect_sid();
-        sprintf(p, " SID0=%d", cwc.sid[0]);
+	sprintf(p, " SID0=%d", cwc.sid[0]);
 	if (cwc.can_sid > 1) {
 	    p += strlen(p);
 	    sprintf(p, " SID1=%d", cwc.sid[1]);
 	}
     }
     write_log("%s\n", tmp);
-	
+
     return 1;
 fail:
     catweasel_free ();
@@ -402,7 +402,7 @@ int catweasel_detect (void)
     if (handle != INVALID_HANDLE_VALUE)
 	return TRUE;
     for (i = 0; i < 4; i++) {
-        sprintf (name, "\\\\.\\CAT%u_F0", i);
+	sprintf (name, "\\\\.\\CAT%u_F0", i);
 	handle = CreateFile (name, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (handle != INVALID_HANDLE_VALUE)
@@ -463,8 +463,8 @@ static uae_u8 *mergepieces(uae_u8 *start,int len,int bits,uae_u8 *sync)
 	}
 	return tmpmfmbuffer;
 }	
-		
-#define SCANOFFSET 1 /* scanning range in bytes, -SCANOFFSET to SCANOFFSET */
+
+#define SCANOFFSET 1 /*	scanning range in bytes, -SCANOFFSET to SCANOFFSET */
 #define SCANOFFSET2 20
 #define SCANLENGHT 200 /* scanning length in bytes */
 
@@ -582,7 +582,7 @@ void catweasel_init_controller(catweasel_contr *c)
 	c->io_mem   = c->iobase + 0xe0;
 	break;
     default:
-	return;	
+	return;
     }
 
     c->control_register = 255;
@@ -662,7 +662,7 @@ int catweasel_disk_changed(catweasel_drive *d)
     return ret;
 }
 
-int catweasel_diskready(catweasel_drive *d)
+int catweasel_diskready(catweasel_drive	*d)
 {
     int ret;
     CWSetCReg(d->contr, d->sel, 0);
@@ -819,7 +819,7 @@ static void mfmcode (uae_u16 * mfm, int words)
     }
 }
 
-#define FLOPPY_GAP_LEN 360
+#define	FLOPPY_GAP_LEN 360
 
 static int amigados_mfmcode (uae_u8 *src, uae_u16 *dst, int num_secs, int track)
 {
@@ -1015,7 +1015,7 @@ int catweasel_fillmfm (catweasel_drive *d, uae_u16 *mfm, int side, int clock, in
 		for (i = 0; i < bytes + 2; i+=2) {
 		    mfm[j++] = (p1[i] << 8) | p1[i + 1];
 		}
-	        return bytes * 8 + bits;
+		return bytes * 8 + bits;
 	    }
 	}
     } else {

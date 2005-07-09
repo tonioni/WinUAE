@@ -1186,9 +1186,9 @@ static void LY_UnlockLayers(uaecptr li)
     LY_UnlockLayerInfo(li);
 }
 
-#define LAYER_CLUELESS   0x8000 /* Indicates we know nothing about the layer's regions. */
+#define LAYER_CLUELESS	 0x8000 /* Indicates we know nothing about the layer's regions. */
 #define LAYER_CR_CHANGED 0x4000 /* Indicates that the cliprects in Amiga memory need to be re-done */
-#define LAYER_REDO       0x2000 /* Indicates that we have regions, but they are bogus. */
+#define LAYER_REDO	 0x2000 /* Indicates that we have regions, but they are bogus. */
 
 static uae_u32 layer_uniq = 1;
 

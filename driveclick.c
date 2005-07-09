@@ -94,7 +94,7 @@ static void freesample (struct drvsample *s)
     s->p = 0;
 }
 
-static void processclicks(struct drvsample *ds) 
+static void processclicks(struct drvsample *ds)
 {
     unsigned int n = 0;
     unsigned int nClick = 0;
@@ -113,21 +113,21 @@ static void processclicks(struct drvsample *ds)
 	}
     }
     if (nClick == 0) {
-        for(n = 0; n < CLICK_TRACKS; n++) {
-            ds->indexes[n] = 0;
-            ds->lengths[n] = ds->len;
-        }
+	for(n = 0; n < CLICK_TRACKS; n++) {
+	    ds->indexes[n] = 0;
+	    ds->lengths[n] = ds->len;
+	}
     } else {
-        if (nClick == 1) {	
+	if (nClick == 1) {
 	    ds->lengths[0] = ds->len - ds->indexes[0];
 	    for(n = 1; n < CLICK_TRACKS; n++) {
-	        ds->indexes[n] = ds->indexes[0];
-	        ds->lengths[n] = ds->lengths[0];
+		ds->indexes[n] = ds->indexes[0];
+		ds->lengths[n] = ds->lengths[0];
 	    }
 	} else  {
 	    for(n = nClick; n < CLICK_TRACKS; n++) {
-	        ds->indexes[n] = ds->indexes[nClick-1];
-	        ds->lengths[n] = ds->lengths[nClick-1]; 
+		ds->indexes[n] = ds->indexes[nClick-1];
+		ds->lengths[n] = ds->lengths[nClick-1]; 
 	    }
 	}
     }
@@ -141,7 +141,7 @@ void driveclick_init(void)
     vv = 0;
     for (i = 0; i < 4; i++) {
 	for (j = 0; j < CLICK_TRACKS; j++)  {
-   	    drvs[i][DS_CLICK].indexes[j] = 0;
+	    drvs[i][DS_CLICK].indexes[j] = 0;
 	    drvs[i][DS_CLICK].lengths[j] = 0;
 	}
 	if (currprefs.dfxclick[i]) {
@@ -296,14 +296,14 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
     mix();
     clickcnt = 0;
     if (currprefs.sound_stereo) {
-        for (i = 0; i < size / 2; i++) {
+	for (i = 0; i < size / 2; i++) {
 	    uae_s16 s = clickbuffer[i];
 	    sndbuffer[0] = limit(((sndbuffer[0] + s) * 2) / 3);
 	    sndbuffer[1] = limit(((sndbuffer[1] + s) * 2) / 3);
 	    sndbuffer += 2;
-        }
+	}
     } else {
-        for (i = 0; i < size; i++) {
+	for (i = 0; i < size; i++) {
 	    sndbuffer[0] = limit(((sndbuffer[0] + clickbuffer[i]) * 2) / 3);
 	    sndbuffer++;
 	}
@@ -336,7 +336,7 @@ void driveclick_motor (int drive, int running)
 	drv_starting[drive] = 0;
 	drv_spinning[drive] = 0;
     } else {
-        if (drv_spinning[drive] == 0) {
+	if (drv_spinning[drive] == 0) {
 	    drv_starting[drive] = 1;
 	    drv_spinning[drive] = 1;
 	    if (drv_has_disk[drive] && drv_has_spun[drive] == 0 && drvs[drive][DS_SNATCH].pos >= drvs[drive][DS_SNATCH].len)

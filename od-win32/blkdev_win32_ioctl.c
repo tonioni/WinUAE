@@ -81,14 +81,14 @@ static int ioctl_command_pause (int unitnum, int paused)
     int cnt = 3;
 
     while (cnt-- > 0) {
-        seterrormode ();
+	seterrormode ();
 	if (!DeviceIoControl(ciw32[unitnum].h, command, NULL, 0, NULL, 0, &len, NULL)) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, paused ? "IOCTL_CDROM_PAUSE_AUDIO" : "IOCTL_CDROM_RESUME_AUDIO") < 0)
 		continue;
 	    return 0;
 	}
-        reseterrormode ();
+	reseterrormode ();
 	break;
     }
     return 1;
@@ -101,7 +101,7 @@ static int ioctl_command_stop (int unitnum)
     int cnt = 3;
 
     while (cnt-- > 0) {
-        seterrormode ();
+	seterrormode ();
 	if(!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_STOP_AUDIO, NULL, 0, NULL, 0, &len, NULL)) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, "IOCTL_CDROM_STOP_AUDIO") < 0)
@@ -192,7 +192,7 @@ static uae_u8 *ioctl_command_read (int unitnum, int sector)
 		continue;
 	    return 0;
 	}
-        reseterrormode ();
+	reseterrormode ();
 	break;
     }
     cnt = 3;
@@ -223,18 +223,18 @@ static int fetch_geometry (int unitnum, struct device_info *di)
     int cnt = 3;
 
     while (cnt-- > 0) {
-        seterrormode ();
+	seterrormode ();
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_GET_DRIVE_GEOMETRY, NULL, 0, &geom, sizeof(geom), &len, NULL)) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, "IOCTL_CDROM_GET_DRIVE_GEOMETRY") < 0)
 		continue;
 	    return 0;
 	}
-        reseterrormode ();
+	reseterrormode ();
 	break;
     }
     if (di) {
-        di->cylinders = geom.Cylinders.LowPart;
+	di->cylinders = geom.Cylinders.LowPart;
 	di->sectorspertrack = geom.SectorsPerTrack;
 	di->trackspercylinder = geom.TracksPerCylinder;
 	di->bytespersector = geom.BytesPerSector;
@@ -254,14 +254,14 @@ static uae_u8 *ioctl_command_toc (int unitnum)
 
     gui_cd_led (1);
     while (cnt-- > 0) {
-        seterrormode ();
+	seterrormode ();
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_READ_TOC, NULL, 0, &toc, sizeof(toc), &len, NULL)) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, "IOCTL_CDROM_READ_TOC") < 0)
 		continue;
 	    return 0;
 	}
-        reseterrormode ();
+	reseterrormode ();
 	break;
     }
 
@@ -322,8 +322,8 @@ static int sys_cddev_open (int unitnum)
     ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (ciw->h == INVALID_HANDLE_VALUE) {
 	flags |= GENERIC_WRITE;
-        ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (ciw->h == INVALID_HANDLE_VALUE) {
+	ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (ciw->h == INVALID_HANDLE_VALUE) {
 	    write_log ("IOCTL: failed to open device handle (%s)\n", ciw->devname);
 	    goto error;
 	}
@@ -405,7 +405,7 @@ static int open_bus (int flags)
 	    if (log_scsi)
 		write_log ("IOCTL: drive %c type %d\n", drive, dt);
 	    if (((flags & (1 << INQ_ROMD)) && dt == DRIVE_CDROM) || ((flags & (1 << INQ_DASD)) && dt == DRIVE_FIXED)) {
-	        if (log_scsi)
+		if (log_scsi)
 		    write_log ("IOCTL: drive %c: = unit %d\n", drive, total_devices);
 		ciw32[total_devices].drvletter = drive;
 		ciw32[total_devices].type = dt;

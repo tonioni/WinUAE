@@ -264,7 +264,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, long *len, long *tota
 	*filepos = zfile_ftell (f) - 4 - 4 - 4;
 	len2 -= 4;
     } else {
-        *filepos = zfile_ftell (f) - 4 - 4;
+	*filepos = zfile_ftell (f) - 4 - 4;
     }
     /* chunk data.  RAM contents will be loaded during the reset phase,
        no need to malloc multiple megabytes here.  */
@@ -302,8 +302,8 @@ void restore_ram (long filepos, uae_u8 *memory)
     flags = restore_u32();
     size -= 4 + 4 + 4;
     if (flags & 1) {
-        zfile_fread (tmp, 1, 4, savestate_file);
-        src = tmp;
+	zfile_fread (tmp, 1, 4, savestate_file);
+	src = tmp;
 	fullsize = restore_u32();
 	size -= 4;
 	zfile_zuncompress (memory, fullsize, savestate_file, size);
@@ -511,7 +511,7 @@ static void save_rams (struct zfile *f, int comp)
 #endif
 }
 
-/* Save all subsystems  */
+/* Save all subsystems */
 
 void save_state (char *filename, char *description)
 {
@@ -555,7 +555,7 @@ void save_state (char *filename, char *description)
 	    zfile_fwrite(tmp, len2, 1, f);	    
 	    xfree(tmp);
 	}
-        zfile_fclose (f);
+	zfile_fclose (f);
 	return;
     }
 
@@ -795,7 +795,7 @@ void savestate_rewind (void)
 #endif
 #ifdef ACTION_REPLAY
     if (restore_u32_func (&p))
-        p = restore_action_replay (p);
+	p = restore_action_replay (p);
 #endif
     p += 4;
     if (p != p2) {
@@ -869,8 +869,8 @@ retry2:
 	if (bufcheck (&p, 0))
 	    goto retry;
 	save_disk (i, &len, p);
-        tlen += len;
-        p += len;
+	tlen += len;
+	p += len;
     }
     if (bufcheck (&p, 0))
 	goto retry;
@@ -893,18 +893,18 @@ retry2:
     tlen += len;
     p += len;
     for (i = 0; i < 8; i++) {
-        if (bufcheck (&p, 0))
+	if (bufcheck (&p, 0))
 	    goto retry;
 	save_custom_sprite (i, &len, p);
-        tlen += len;
-        p += len;
+	tlen += len;
+	p += len;
     }
     for (i = 0; i < 4; i++) {
 	if (bufcheck (&p, 0))
 	    goto retry;
 	save_audio (i, &len, p);
-        tlen += len;
-        p += len;
+	tlen += len;
+	p += len;
     }
     if (bufcheck (&p, 0))
 	goto retry;
@@ -1031,237 +1031,237 @@ version 0.8
 
 HUNK HEADER (beginning of every hunk)
 
-        hunk name (4 ascii-characters)
-        hunk size (including header)
-        hunk flags             
+	hunk name (4 ascii-characters)
+	hunk size (including header)
+	hunk flags             
 
-        bit 0 = chunk contents are compressed with zlib (maybe RAM chunks only?)
+	bit 0 = chunk contents are compressed with zlib (maybe RAM chunks only?)
 
 HEADER
 
-        "ASF " (AmigaStateFile)
-        
+	"ASF " (AmigaStateFile)
+	
 	statefile version
-        emulator name ("uae", "fellow" etc..)
-        emulator version string (example: "0.8.15")
-        free user writable comment string
+	emulator name ("uae", "fellow" etc..)
+	emulator version string (example: "0.8.15")
+	free user writable comment string
 
 CPU
 
-         "CPU "
+	 "CPU "
 
-        CPU model               4 (68000,68010 etc..)
-        CPU typeflags           bit 0=EC-model or not
-        D0-D7                   8*4=32
-        A0-A6                   7*4=32
-        PC                      4
+	CPU model               4 (68000,68010 etc..)
+	CPU typeflags           bit 0=EC-model or not
+	D0-D7                   8*4=32
+	A0-A6                   7*4=32
+	PC                      4
 	unused			4
 	68000 prefetch (IRC)    2
 	68000 prefetch (IR)     2
-        USP                     4
-        ISP                     4
-        SR/CCR                  2
-        flags                   4 (bit 0=CPU was HALTed)
+	USP                     4
+	ISP                     4
+	SR/CCR                  2
+	flags                   4 (bit 0=CPU was HALTed)
 
-        CPU specific registers
+	CPU specific registers
 
-        68000: SR/CCR is last saved register
-        68010: save also DFC,SFC and VBR
-        68020: all 68010 registers and CAAR,CACR and MSP
-        etc..
+	68000: SR/CCR is last saved register
+	68010: save also DFC,SFC and VBR
+	68020: all 68010 registers and CAAR,CACR and MSP
+	etc..
 
-        DFC                     4 (010+)
-        SFC                     4 (010+)
-        VBR                     4 (010+)
+	DFC                     4 (010+)
+	SFC                     4 (010+)
+	VBR                     4 (010+)
 
-        CAAR                    4 (020-030)
-        CACR                    4 (020+)
-        MSP                     4 (020+)
+	CAAR                    4 (020-030)
+	CACR                    4 (020+)
+	MSP                     4 (020+)
 
 FPU (only if used)
 
 	"FPU "
 
-        FPU model               4 (68881/68882/68040)
-        FPU typeflags           4 (keep zero)
+	FPU model               4 (68881/68882/68040)
+	FPU typeflags           4 (keep zero)
 
-        FP0-FP7                 4+4+2 (80 bits)
-        FPCR                    4
-        FPSR                    4
-        FPIAR                   4
+	FP0-FP7                 4+4+2 (80 bits)
+	FPCR                    4
+	FPSR                    4
+	FPIAR                   4
 
 MMU (when and if MMU is supported in future..)
 
-        MMU model               4 (68851,68030,68040)
+	MMU model               4 (68851,68030,68040)
 
-        // 68040 fields
+	// 68040 fields
 
-        ITT0                    4
-        ITT1                    4
-        DTT0                    4
-        DTT1                    4
-        URP                     4
-        SRP                     4
-        MMUSR                   4
-        TC                      2
+	ITT0                    4
+	ITT1                    4
+	DTT0                    4
+	DTT1                    4
+	URP                     4
+	SRP                     4
+	MMUSR                   4
+	TC                      2
 
 		
 CUSTOM CHIPS
 
-        "CHIP"
+	"CHIP"
 
-        chipset flags   4      OCS=0,ECSAGNUS=1,ECSDENISE=2,AGA=4
-                               ECSAGNUS and ECSDENISE can be combined
+	chipset flags   4      OCS=0,ECSAGNUS=1,ECSDENISE=2,AGA=4
+			       ECSAGNUS and ECSDENISE can be combined
 
-        DFF000-DFF1FF   352    (0x120 - 0x17f and 0x0a0 - 0xdf excluded)
+	DFF000-DFF1FF   352    (0x120 - 0x17f and 0x0a0 - 0xdf excluded)
 
-        sprite registers (0x120 - 0x17f) saved with SPRx chunks
-        audio registers (0x0a0 - 0xdf) saved with AUDx chunks
+	sprite registers (0x120 - 0x17f) saved with SPRx chunks
+	audio registers (0x0a0 - 0xdf) saved with AUDx chunks
 
 AGA COLORS
 
-        "AGAC"
+	"AGAC"
 
-        AGA color               8 banks * 32 registers *
-        registers               LONG (XRGB) = 1024
+	AGA color               8 banks * 32 registers *
+	registers               LONG (XRGB) = 1024
 
 SPRITE
 
-        "SPR0" - "SPR7"
+	"SPR0" - "SPR7"
 
 
-        SPRxPT                  4
-        SPRxPOS                 2
-        SPRxCTL                 2
-        SPRxDATA                2
-        SPRxDATB                2
-        AGA sprite DATA/DATB    3 * 2 * 2
-        sprite "armed" status   1
+	SPRxPT                  4
+	SPRxPOS                 2
+	SPRxCTL                 2
+	SPRxDATA                2
+	SPRxDATB                2
+	AGA sprite DATA/DATB    3 * 2 * 2
+	sprite "armed" status   1
 
-        sprites maybe armed in non-DMA mode
-        use bit 0 only, other bits are reserved
+	sprites maybe armed in non-DMA mode
+	use bit 0 only, other bits are reserved
 
 
 AUDIO
-        "AUD0" "AUD1" "AUD2" "AUD3"
+	"AUD0" "AUD1" "AUD2" "AUD3"
 
-        audio state             1
-        machine mode
-        AUDxVOL                 1
+	audio state             1
+	machine mode
+	AUDxVOL                 1
 	irq?                    1
 	data_written?           1
-        internal AUDxLEN        2
-        AUDxLEN                 2
+	internal AUDxLEN        2
+	AUDxLEN                 2
 	internal AUDxPER        2
 	AUDxPER                 2
-        internal AUDxLC         4
+	internal AUDxLC         4
 	AUDxLC                  4
 	evtime?                 4
 
 BLITTER
 
-        "BLIT"
+	"BLIT"
 
-        internal blitter state
+	internal blitter state
 
-        flags                   4
-        bit 0=blitter active
-        bit 1=fill carry bit
-        internal ahold          4
+	flags                   4
+	bit 0=blitter active
+	bit 1=fill carry bit
+	internal ahold          4
 	internal bhold          4
 	internal hsize          2
 	internal vsize          2
 
 CIA
 
-        "CIAA" and "CIAB"
+	"CIAA" and "CIAB"
 
-        BFE001-BFEF01   16*1 (CIAA)
-        BFD000-BFDF00   16*1 (CIAB)
+	BFE001-BFEF01   16*1 (CIAA)
+	BFD000-BFDF00   16*1 (CIAB)
 
-        internal registers
+	internal registers
 
-        IRQ mask (ICR)  1 BYTE
-        timer latches   2 timers * 2 BYTES (LO/HI)
-        latched tod     3 BYTES (LO/MED/HI)
-        alarm           3 BYTES (LO/MED/HI)
-        flags           1 BYTE
-                        bit 0=tod latched (read)
-                        bit 1=tod stopped (write)
+	IRQ mask (ICR)  1 BYTE
+	timer latches   2 timers * 2 BYTES (LO/HI)
+	latched tod     3 BYTES (LO/MED/HI)
+	alarm           3 BYTES (LO/MED/HI)
+	flags           1 BYTE
+			bit 0=tod latched (read)
+			bit 1=tod stopped (write)
 	div10 counter	1 BYTE
 
 FLOPPY DRIVES
 
-        "DSK0" "DSK1" "DSK2" "DSK3"
+	"DSK0" "DSK1" "DSK2" "DSK3"
 
-        drive state
+	drive state
 
-        drive ID-word           4
-        state                   1 (bit 0: motor on, bit 1: drive disabled, bit 2: current id bit)
-        rw-head track           1
-        dskready                1
-        id-mode                 1 (ID mode bit number 0-31)
-        floppy information
+	drive ID-word           4
+	state                   1 (bit 0: motor on, bit 1: drive disabled, bit 2: current id bit)
+	rw-head track           1
+	dskready                1
+	id-mode                 1 (ID mode bit number 0-31)
+	floppy information
 
-        bits from               4
-        beginning of track
-        CRC of disk-image       4 (used during restore to check if image
-                                  is correct)
-        disk-image              null-terminated
-        file name
+	bits from               4
+	beginning of track
+	CRC of disk-image       4 (used during restore to check if image
+				  is correct)
+	disk-image              null-terminated
+	file name
 
-INTERNAL FLOPPY CONTROLLER STATUS
+INTERNAL FLOPPY	CONTROLLER STATUS
 
-        "DISK"
+	"DISK"
 
-        current DMA word        2
-        DMA word bit offset     1
-        WORDSYNC found          1 (no=0,yes=1)
-        hpos of next bit        1
-        DSKLENGTH status        0=off,1=written once,2=written twice
+	current DMA word        2
+	DMA word bit offset     1
+	WORDSYNC found          1 (no=0,yes=1)
+	hpos of next bit        1
+	DSKLENGTH status        0=off,1=written once,2=written twice
 	unused                  2
 
 RAM SPACE 
 
-        "xRAM" (CRAM = chip, BRAM = bogo, FRAM = fast, ZFRAM = Z3)
+	"xRAM" (CRAM = chip, BRAM = bogo, FRAM = fast, ZFRAM = Z3)
 
-        start address           4 ("bank"=chip/slow/fast etc..)
-        of RAM "bank"
-        RAM "bank" size         4
-        RAM flags               4 (bit 0 = zlib compressed)
-        RAM "bank" contents
+	start address           4 ("bank"=chip/slow/fast etc..)
+	of RAM "bank"
+	RAM "bank" size         4
+	RAM flags               4 (bit 0 = zlib compressed)
+	RAM "bank" contents
 
 ROM SPACE
 
-        "ROM "
+	"ROM "
 
-        ROM start               4
-        address
-        size of ROM             4
-        ROM type                4 KICK=0
-        ROM flags               4
-        ROM version             2
-        ROM revision            2
-        ROM CRC                 4 see below
-        ROM-image ID-string     null terminated, see below
-        path to rom image
-        ROM contents            (Not mandatory, use hunk size to check if
-                                this hunk contains ROM data or not)
+	ROM start               4
+	address
+	size of ROM             4
+	ROM type                4 KICK=0
+	ROM flags               4
+	ROM version             2
+	ROM revision            2
+	ROM CRC                 4 see below
+	ROM-image ID-string     null terminated, see below
+	path to rom image
+	ROM contents            (Not mandatory, use hunk size to check if
+				this hunk contains ROM data or not)
 
-        Kickstart ROM:
-         ID-string is "Kickstart x.x"
-         ROM version: version in high word and revision in low word
-         Kickstart ROM version and revision can be found from ROM start
-         + 12 (version) and +14 (revision)
+	Kickstart ROM:
+	 ID-string is "Kickstart x.x"
+	 ROM version: version in high word and revision in low word
+	 Kickstart ROM version and revision can be found from ROM start
+	 + 12 (version) and +14 (revision)
 
-        ROM version and CRC is only meant for emulator to automatically
-        find correct image from its ROM-directory during state restore.
+	ROM version and CRC is only meant for emulator to automatically
+	find correct image from its ROM-directory during state restore.
 
-        Usually saving ROM contents is not good idea.
+	Usually saving ROM contents is not good idea.
 
 
 END
-        hunk "END " ends, remember hunk size 8!
+	hunk "END " ends, remember hunk size 8!
 
 
 EMULATOR SPECIFIC HUNKS

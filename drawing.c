@@ -113,7 +113,7 @@ union {
 } pixdata;
 
 uae_u16 spixels[2 * MAX_SPR_PIXELS];
-/* Eight bits for every pixel.  */
+/* Eight bits for every pixel. */
 union sps_union spixstate;
 
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
@@ -307,8 +307,8 @@ static void pfield_init_linetoscr (void)
     real_playfield_start = playfield_start;
 #ifdef AGA
     if (brdsprt && dip_for_drawing->nr_sprites) {
-        int min = visible_right_border, max = visible_left_border, i;
-        for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
+	int min = visible_right_border, max = visible_left_border, i;
+	for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 	    int x;
 	    x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].pos;
 	    if (x < min) min = x;
@@ -319,11 +319,11 @@ static void pfield_init_linetoscr (void)
 	max += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << (2 - lores_shift);
 	if (min < playfield_start)
 	    playfield_start = min;
-        if (playfield_start < visible_left_border)
+	if (playfield_start < visible_left_border)
 	    playfield_start = visible_left_border;
 	if (max > playfield_end)
 	    playfield_end = max;
-        if (playfield_end > visible_right_border)
+	if (playfield_end > visible_right_border)
 	    playfield_end = visible_right_border;
     }    
 #endif
@@ -514,7 +514,7 @@ STATIC_INLINE void fill_line (void)
     val = colors_for_drawing.acolors[0];
 #endif
     if (gfxvidinfo.pixbytes == 2)
-        val |= val << 16;
+	val |= val << 16;
     for (; nints > 0; nints -= 8, start += 8) {
 	*start = val;
 	*(start+1) = val;
@@ -550,7 +550,7 @@ static void pfield_do_linetoscr (int start, int stop)
 {
 #ifdef AGA
     if (currprefs.chipset_mask & CSMASK_AGA) {
-        if (res_shift == 0)
+	if (res_shift == 0)
 	    switch (gfxvidinfo.pixbytes) {
 	    case 1: src_pixel = linetoscr_8_aga (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_aga (src_pixel, start, stop); break;
@@ -570,7 +570,7 @@ static void pfield_do_linetoscr (int start, int stop)
 	    }
     } else {
 #endif
-        if (res_shift == 0)
+	if (res_shift == 0)
 	    switch (gfxvidinfo.pixbytes) {
 	    case 1: src_pixel = linetoscr_8 (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16 (src_pixel, start, stop); break;
@@ -656,7 +656,7 @@ static void init_ham_decoding (void)
 	    }
 	} else if (bplplanecnt == 6) { /* AGA mode HAM6 */
 	    while (unpainted_amiga-- > 0) {
-    		int pv = pixdata.apixels[ham_decode_pixel++];
+		int pv = pixdata.apixels[ham_decode_pixel++];
 		switch (pv & 0x30) {
 		case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv]; break;
 		case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= (pv & 0xF) << 4; break;
@@ -667,7 +667,7 @@ static void init_ham_decoding (void)
 	}
 #endif
     } else {
-        if (bplplanecnt == 6) { /* OCS/ECS mode HAM6 */
+	if (bplplanecnt == 6) { /* OCS/ECS mode HAM6 */
 	    while (unpainted_amiga-- > 0) {
 		int pv = pixdata.apixels[ham_decode_pixel++];
 		switch (pv & 0x30) {
@@ -724,9 +724,9 @@ static void decode_ham (int pix, int stoppos)
 	}
 #endif
     } else {
-        if (bplplanecnt == 6) { /* OCS/ECS mode HAM6 */
+	if (bplplanecnt == 6) { /* OCS/ECS mode HAM6 */
 	    while (todraw_amiga-- > 0) {
-    		int pv = pixdata.apixels[ham_decode_pixel];
+		int pv = pixdata.apixels[ham_decode_pixel];
 		switch (pv & 0x30) {
 		case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv]; break;
 		case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
@@ -787,7 +787,7 @@ static void gen_pfield_tables (void)
    function only pass in constant arguments (except for E).  This means
    that many of the if statements will go away completely after inlining.  */
 STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
-				   int doubling, int skip, int has_attach, int aga)
+    int doubling, int skip, int has_attach, int aga)
 {
     int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
     uae_u16 *buf = spixels + e->first_pixel;
@@ -907,22 +907,22 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
     }
 }
   
-/* See comments above.  Do not touch if you don't know what's going on.
+/* See comments above. Do not touch if you don't know what's going on.
  * (We do _not_ want the following to be inlined themselves).  */
 /* lores bitplane, lores sprites */
-static void draw_sprites_normal_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1	(e, 0, 0, 0, 0, 0, 0); }
-static void draw_sprites_normal_dp_lo_nat (struct sprite_entry *e) { draw_sprites_1	(e, 0, 1, 0, 0, 0, 0); }
-static void draw_sprites_ham_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1	(e, 1, 0, 0, 0, 0, 0); }
-static void draw_sprites_normal_sp_lo_at (struct sprite_entry *e) { draw_sprites_1	(e, 0, 0, 0, 0, 1, 0); }
-static void draw_sprites_normal_dp_lo_at (struct sprite_entry *e) { draw_sprites_1	(e, 0, 1, 0, 0, 1, 0); }
-static void draw_sprites_ham_sp_lo_at (struct sprite_entry *e) { draw_sprites_1		(e, 1, 0, 0, 0, 1, 0); }
+static void NOINLINE draw_sprites_normal_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 0, 0, 0, 0); }
+static void NOINLINE draw_sprites_normal_dp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 0, 0, 0, 0); }
+static void NOINLINE draw_sprites_ham_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 0, 0, 0, 0); }
+static void NOINLINE draw_sprites_normal_sp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 0, 0, 1, 0); }
+static void NOINLINE draw_sprites_normal_dp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 0, 0, 1, 0); }
+static void NOINLINE draw_sprites_ham_sp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 0, 0, 1, 0); }
 /* hires bitplane, lores sprites */
-static void draw_sprites_normal_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1	(e, 0, 0, 1, 0, 0, 0); }
-static void draw_sprites_normal_dp_hi_nat (struct sprite_entry *e) { draw_sprites_1	(e, 0, 1, 1, 0, 0, 0); }
-static void draw_sprites_ham_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1	(e, 1, 0, 1, 0, 0, 0); }
-static void draw_sprites_normal_sp_hi_at (struct sprite_entry *e) { draw_sprites_1	(e, 0, 0, 1, 0, 1, 0); }
-static void draw_sprites_normal_dp_hi_at (struct sprite_entry *e) { draw_sprites_1	(e, 0, 1, 1, 0, 1, 0); }
-static void draw_sprites_ham_sp_hi_at (struct sprite_entry *e) { draw_sprites_1		(e, 1, 0, 1, 0, 1, 0); }
+static void NOINLINE draw_sprites_normal_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 1, 0, 0, 0); }
+static void NOINLINE draw_sprites_normal_dp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 1, 0, 0, 0); }
+static void NOINLINE draw_sprites_ham_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 1, 0, 0, 0); }
+static void NOINLINE draw_sprites_normal_sp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 1, 0, 1, 0); }
+static void NOINLINE draw_sprites_normal_dp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 1, 0, 1, 0); }
+static void NOINLINE draw_sprites_ham_sp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 1, 0, 1, 0); }
 
 #ifdef AGA
 /* not very optimized */
@@ -1080,17 +1080,17 @@ STATIC_INLINE void pfield_doline_1 (uae_u32 *pixels, int wordcount, int planes)
     }
 }
 
-/* See above for comments on inlining.  These functions should _not_
+/* See above for comments on inlining. These functions should _not_
    be inlined themselves.  */
-static void pfield_doline_n1 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 1); }
-static void pfield_doline_n2 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 2); }
-static void pfield_doline_n3 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 3); }
-static void pfield_doline_n4 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 4); }
-static void pfield_doline_n5 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 5); }
-static void pfield_doline_n6 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 6); }
+static void NOINLINE pfield_doline_n1 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 1); }
+static void NOINLINE pfield_doline_n2 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 2); }
+static void NOINLINE pfield_doline_n3 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 3); }
+static void NOINLINE pfield_doline_n4 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 4); }
+static void NOINLINE pfield_doline_n5 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 5); }
+static void NOINLINE pfield_doline_n6 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 6); }
 #ifdef AGA
-static void pfield_doline_n7 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 7); }
-static void pfield_doline_n8 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 8); }
+static void NOINLINE pfield_doline_n7 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 7); }
+static void NOINLINE pfield_doline_n8 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 8); }
 #endif
 
 static void pfield_doline (int lineno)
@@ -1156,9 +1156,9 @@ static void init_aspect_maps (void)
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
-				       * (currprefs.gfx_lores ? 320 : 640)
-				       / (currprefs.gfx_linedbl ? 512 : 256)
-				       / gfxvidinfo.width);
+	    * (currprefs.gfx_lores ? 320 : 640)
+	    / (currprefs.gfx_linedbl ? 512 : 256)
+	    / gfxvidinfo.width);
     else
 	native_lines_per_amiga_line = 1;
 
@@ -1278,7 +1278,7 @@ static void adjust_drawing_colors (int ctable, int need_full)
 	    color_match_type = color_match_full;
 	} else {
 	    memcpy (colors_for_drawing.acolors, curr_color_tables[ctable].acolors,
-	        sizeof colors_for_drawing.acolors);
+		sizeof colors_for_drawing.acolors);
 	    color_match_type = color_match_acolors;
 	}
 	drawing_color_matches = ctable;
@@ -1472,12 +1472,12 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	    }
 	    bplham = dp_for_drawing->ham_at_start;
 	}
-        if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
+	if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
 	    weird_bitplane_fix ();
 
 	{
 	    if (dip_for_drawing->nr_sprites) {
-	        int i;
+		int i;
 #ifdef AGA
 		if (brdsprt)
 		    clear_bitplane_border_aga ();
@@ -1564,7 +1564,7 @@ static void center_image (void)
     int prev_y_adjust = thisframe_y_adjust;
 
     if (currprefs.gfx_xcenter) {
-        int w = gfxvidinfo.width;
+	int w = gfxvidinfo.width;
 
 	if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
 	    /* Try to center. */
@@ -1637,7 +1637,7 @@ static void init_drawing_frame (void)
     int i, maxline;
 
     if (can_use_lores > AUTO_LORES_FRAMES && 0) {
-        lores_factor = 1;
+	lores_factor = 1;
 	lores_shift = 0;
     } else {
 	can_use_lores++;
@@ -1762,9 +1762,9 @@ static void draw_status_line (int line)
     int x_start, y, j, led;
     
     if (td_pos & TD_RIGHT)
-        x_start = gfxvidinfo.width - TD_PADX - NUM_LEDS * TD_WIDTH;
+	x_start = gfxvidinfo.width - TD_PADX - NUM_LEDS * TD_WIDTH;
     else
-        x_start = TD_PADX;
+	x_start = TD_PADX;
 
     y = line - (gfxvidinfo.height - TD_TOTAL_HEIGHT);
     xlinebuffer = gfxvidinfo.linemem;
@@ -1785,8 +1785,8 @@ static void draw_status_line (int line)
 		num1 = -1;
 		num2 = track / 10;
 		num3 = track % 10;
-	        on = gui_data.drive_motor[pled];
-	        if (gui_data.drive_writing[pled])
+		on = gui_data.drive_motor[pled];
+		if (gui_data.drive_writing[pled])
 		    on_rgb = 0xc00;
 	    }
 	    side = gui_data.drive_side;
@@ -1844,7 +1844,7 @@ static void draw_status_line (int line)
 		    write_tdnumber (x + offs, y - TD_PADY, num1);
 		    offs += TD_NUM_WIDTH;
 		}
-	        write_tdnumber (x + offs, y - TD_PADY, num2);
+		write_tdnumber (x + offs, y - TD_PADY, num2);
 		write_tdnumber (x + offs + TD_NUM_WIDTH, y - TD_PADY, num3);
 		if (num4 > 0)
 		    write_tdnumber (x + offs + 2 * TD_NUM_WIDTH, y - TD_PADY, num4);

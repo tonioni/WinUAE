@@ -101,7 +101,7 @@ void init_shm(void)
 	natmem_offset = blah;
     } else {
 	VirtualFree(blah, 0, MEM_RELEASE);
-        while (address < (LPBYTE)0xa0000000) {
+	while (address < (LPBYTE)0xa0000000) {
 	    blah = VirtualAlloc(address, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	    if (blah == NULL) {
 		address += inc;
@@ -125,7 +125,7 @@ void init_shm(void)
     }
 
     while (memstats.dwAvailPageFile + memstats.dwAvailPhys < max_z3fastmem)
-        max_z3fastmem <<= 1;
+	max_z3fastmem <<= 1;
 
     write_log("Max Z3FastRAM %dM\n", max_z3fastmem >> 20);
 }
@@ -153,7 +153,7 @@ void mapped_free(uae_u8 *mem)
 	    else
 	    {
 		//free( x->native_address );
-	        VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_RESET : (MEM_DECOMMIT | MEM_RELEASE));
+		VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_RESET : (MEM_DECOMMIT | MEM_RELEASE));
 	    }
 	}
 	x = x->next;
@@ -242,7 +242,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"z3")) {
 	    shmaddr=natmem_offset+0x10000000;
 	    if (allocated_z3fastmem<0x1000000)
-	        gfxoffs=0x1000000;
+		gfxoffs=0x1000000;
 	    else
 		gfxoffs=allocated_z3fastmem;
 	    got = TRUE;
@@ -314,18 +314,15 @@ int shmget(key_t key, size_t size, int shmflg, char *name)
     {
 	write_log( "shmget of size %d (%dk) for %s\n", size, size >> 10, name );
 	if( ( result = get_next_shmkey() ) != -1 )
-    {
-		
-        //blah = VirtualAlloc( 0, size,MEM_COMMIT, PAGE_EXECUTE_READWRITE );
-
-		shmids[result].size = size;
-		strcpy( shmids[result].name, name );
-	    }
-		
-	    else
-	    {
-		result = -1;
-	    }
+	{
+	    //blah = VirtualAlloc( 0, size,MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+	    shmids[result].size = size;
+	    strcpy( shmids[result].name, name );
+	}
+	else
+        {
+	    result = -1;
+	}
     }
     return result;
 }
@@ -359,12 +356,11 @@ int isinf( double x )
     const int nClass = _fpclass(x);
     int result;
     if (nClass == _FPCLASS_NINF || nClass == _FPCLASS_PINF)  result = 1;
-    else
- result = 0;
+	else
+    result = 0;
 #else
     int result = 0;
 #endif
-
     return result;
 }
 
@@ -375,7 +371,6 @@ int isnan( double x )
 #else
     int result = 0;
 #endif
-
     return result;
 }
 
