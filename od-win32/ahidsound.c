@@ -196,9 +196,15 @@ void ahi_close_sound (void)
 	IDirectSoundCaptureBuffer_Release(lpDSB2r);
 	lpDSB2r = NULL;
     }
+    if(lpDS2r)
+    {
+        IDirectSound_Release(lpDS2r);
+        lpDS2 = NULL;
+    }
     if (dsound_tmpw)
     {
-	DestroyWindow(dsound_tmpw);dsound_tmpw=0;
+	DestroyWindow(dsound_tmpw);
+	dsound_tmpw = 0;
     }
     if (ahisndbuffer)
 	free(ahisndbuffer);
