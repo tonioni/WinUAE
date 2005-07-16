@@ -349,15 +349,15 @@ static int figure_processor_speed (void)
     sleep_resolution = 1;
     if (clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) {
 	limit = 2.5;
-	if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
-	    timermode = 1;
-	    sleep_resolution = (int)(ratea2 * clockrate1000 / (ratecnt * 1000000));
-	    write_log ("Using Sleep() (resolution < %.1fms)\n", limit);
-	} else if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
+	if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
 	    timermode = 0;
 	    sleep_resolution = (int)(ratea1 * clockrate1000 / (ratecnt * 1000000));
 	    timebegin ();
 	    write_log ("Using MultiMedia timers (resolution < %.1fms)\n", limit);
+	} else if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
+	    timermode = 1;
+	    sleep_resolution = (int)(ratea2 * clockrate1000 / (ratecnt * 1000000));
+	    write_log ("Using Sleep() (resolution < %.1fms)\n", limit);
 	} else {
 	    timermode = -1; /* both timers are bad, fall back to busy-wait */
 	    write_log ("falling back to busy-loop waiting (timer resolution > %.1fms)\n", limit);
@@ -595,8 +595,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 {
     PAINTSTRUCT ps;
     HDC hDC;
-    LPMINMAXINFO lpmmi;
-    RECT rect;
     int mx, my, v;
     static int mm;
     static int minimized;
@@ -829,16 +827,22 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	WIN32GFX_WindowMove();
     return TRUE;
 
+#if 0
     case WM_GETMINMAXINFO:
-	rect.left=0;
-	rect.top=0;
-	lpmmi=(LPMINMAXINFO)lParam;
-	rect.right=320;
-	rect.bottom=256;
+    {
+	LPMINMAXINFO lpmmi;
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	lpmmi = (LPMINMAXINFO)lParam;
+	rect.right = 320;
+	rect.bottom = 256;
 	//AdjustWindowRectEx(&rect,WSTYLE,0,0);
-	lpmmi->ptMinTrackSize.x=rect.right-rect.left;
-	lpmmi->ptMinTrackSize.y=rect.bottom-rect.top;
+	lpmmi->ptMinTrackSize.x = rect.right-rect.left;
+	lpmmi->ptMinTrackSize.y = rect.bottom-rect.top;
+    }
     return 0;
+#endif
 
 #ifdef FILESYS
     case WM_DEVICECHANGE:
@@ -1588,6 +1592,10 @@ int mousehack_allowed (void)
     return dinput_winmouse () > 0 && dinput_winmousemode ();
 }
 
+void toggle_mousegrab (void)
+{
+}
+
 void logging_init( void )
 {
     static int started;
@@ -1660,6 +1668,10 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_iconified_priority = 3;
 	p->win32_notaskbarbutton = 0;
 	p->win32_alwaysontop = 0;
+	p->win32_specialkey = 0xcf; // DIK_END
+	p->win32_automount_drives = 0;
+	p->win32_automount_netdrives = 0;
+	p->win32_kbledmode = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_midioutdev = -2;
@@ -1669,31 +1681,33 @@ void target_default_options (struct uae_prefs *p, int type)
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
-    cfgfile_write (f, "win32.middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
-    cfgfile_write (f, "win32.logfile=%s\n", p->win32_logfile ? "true" : "false");
-    cfgfile_write (f, "win32.map_drives=%s\n", p->win32_automount_drives ? "true" : "false" );
-    cfgfile_write (f, "win32.serial_port=%s\n", p->use_serial ? p->sername : "none" );
-    cfgfile_write (f, "win32.parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
+    cfgfile_target_write (f, "middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
+    cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
+    cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
+    cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
+    cfgfile_target_write (f, "serial_port=%s\n", p->use_serial ? p->sername : "none" );
+    cfgfile_target_write (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
 
-    cfgfile_write (f, "win32.active_priority=%d\n", priorities[p->win32_active_priority].value);
-    cfgfile_write (f, "win32.inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
-    cfgfile_write (f, "win32.inactive_nosound=%s\n", p->win32_inactive_nosound ? "true" : "false");
-    cfgfile_write (f, "win32.inactive_pause=%s\n", p->win32_inactive_pause ? "true" : "false");
-    cfgfile_write (f, "win32.iconified_priority=%d\n", priorities[p->win32_iconified_priority].value);
-    cfgfile_write (f, "win32.iconified_nosound=%s\n", p->win32_iconified_nosound ? "true" : "false");
-    cfgfile_write (f, "win32.iconified_pause=%s\n", p->win32_iconified_pause ? "true" : "false");
+    cfgfile_target_write (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
+    cfgfile_target_write (f, "inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
+    cfgfile_target_write (f, "inactive_nosound=%s\n", p->win32_inactive_nosound ? "true" : "false");
+    cfgfile_target_write (f, "inactive_pause=%s\n", p->win32_inactive_pause ? "true" : "false");
+    cfgfile_target_write (f, "iconified_priority=%d\n", priorities[p->win32_iconified_priority].value);
+    cfgfile_target_write (f, "iconified_nosound=%s\n", p->win32_iconified_nosound ? "true" : "false");
+    cfgfile_target_write (f, "iconified_pause=%s\n", p->win32_iconified_pause ? "true" : "false");
 
-    cfgfile_write (f, "win32.ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
-    cfgfile_write (f, "win32.midiout_device=%d\n", p->win32_midioutdev );
-    cfgfile_write (f, "win32.midiin_device=%d\n", p->win32_midiindev );
-    cfgfile_write (f, "win32.no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
-    cfgfile_write (f, "win32.aspi=%s\n", p->win32_aspi ? "true" : "false" );
-    cfgfile_write (f, "win32.soundcard=%d\n", p->win32_soundcard );
-    cfgfile_write (f, "win32.cpu_idle=%d\n", p->cpu_idle);
-    cfgfile_write (f, "win32.notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
-    cfgfile_write (f, "win32.always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
-    cfgfile_write (f, "win32.no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
-}
+    cfgfile_target_write (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
+    cfgfile_target_write (f, "midiout_device=%d\n", p->win32_midioutdev );
+    cfgfile_target_write (f, "midiin_device=%d\n", p->win32_midiindev );
+    cfgfile_target_write (f, "no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
+    cfgfile_target_write (f, "aspi=%s\n", p->win32_aspi ? "true" : "false" );
+    cfgfile_target_write (f, "soundcard=%d\n", p->win32_soundcard );
+    cfgfile_target_write (f, "cpu_idle=%d\n", p->cpu_idle);
+    cfgfile_target_write (f, "notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
+    cfgfile_target_write (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
+    cfgfile_target_write (f, "no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
+    cfgfile_target_write (f, "specialkey=0x%x\n", p->win32_specialkey);
+    cfgfile_target_write (f, "kbledmode=%d\n", p->win32_kbledmode);}
 
 static int fetchpri (int pri, int defpri)
 {
@@ -1718,26 +1732,29 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 {
     int i, v;
     int result = (cfgfile_yesno (option, value, "middle_mouse", &p->win32_middle_mouse)
+	    || cfgfile_yesno (option, value, "map_drives", &p->win32_automount_drives)
+	    || cfgfile_yesno (option, value, "map_net_drives", &p->win32_automount_netdrives)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
-	    || cfgfile_yesno  (option, value, "networking", &p->socket_emu)
+	    || cfgfile_yesno (option, value, "networking", &p->socket_emu)
 	    || cfgfile_yesno (option, value, "no_overlay", &p->win32_no_overlay)
 	    || cfgfile_yesno (option, value, "aspi", &p->win32_aspi)
-	    || cfgfile_yesno  (option, value, "map_drives", &p->win32_automount_drives)
 	    || cfgfile_yesno (option, value, "inactive_pause", &p->win32_inactive_pause)
 	    || cfgfile_yesno (option, value, "inactive_nosound", &p->win32_inactive_nosound)
 	    || cfgfile_yesno (option, value, "iconified_pause", &p->win32_iconified_pause)
 	    || cfgfile_yesno (option, value, "iconified_nosound", &p->win32_iconified_nosound)
-	    || cfgfile_yesno  (option, value, "ctrl_f11_is_quit", &p->win32_ctrl_F11_is_quit)
-	    || cfgfile_yesno  (option, value, "no_recyclebin", &p->win32_norecyclebin)
+	    || cfgfile_yesno (option, value, "ctrl_f11_is_quit", &p->win32_ctrl_F11_is_quit)
+	    || cfgfile_yesno (option, value, "no_recyclebin", &p->win32_norecyclebin)
 	    || cfgfile_intval (option, value, "midi_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, "midiout_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, "midiin_device", &p->win32_midiindev, 1)
 	    || cfgfile_intval (option, value, "soundcard", &p->win32_soundcard, 1)
 	    || cfgfile_string (option, value, "serial_port", &p->sername[0], 256)
 	    || cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)
-	    || cfgfile_yesno  (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
-	    || cfgfile_yesno  (option, value, "always_on_top", &p->win32_alwaysontop)
-	    || cfgfile_intval  (option, value, "cpu_idle", &p->cpu_idle, 1));
+	    || cfgfile_yesno (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
+	    || cfgfile_yesno (option, value, "always_on_top", &p->win32_alwaysontop)
+	    || cfgfile_intval (option, value, "specialkey", &p->win32_specialkey, 1)
+	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
+	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
 
     if (cfgfile_intval (option, value, "active_priority", &v, 1)) {
 	p->win32_active_priority = fetchpri (v, 1);
@@ -2679,7 +2696,7 @@ HMODULE WIN32_LoadLibrary (const char *name)
 	if (m)
 	    goto end;
 	LLError(newname);
-#ifndef	CPU_64_BIT
+#ifndef CPU_64_BIT
 	break;
 #endif
     }

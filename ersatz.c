@@ -22,7 +22,7 @@
 #include "ersatz.h"
 #include "gui.h"
 
-#define	EOP_INIT     0
+#define EOP_INIT     0
 #define EOP_NIMP     1
 #define EOP_SERVEINT 2
 #define EOP_DOIO     3

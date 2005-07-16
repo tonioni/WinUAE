@@ -48,7 +48,7 @@ struct audio_channel_data {
     uaecptr lc, pt;
     int current_sample, last_sample;
     int *voltbl;
-    int state;    
+    int state;
     int per;
     int vol;
     int len, wlen;
@@ -110,7 +110,7 @@ static void convertsample(uae_u8 *sample, int len)
 static void namesplit (char *s)
 {
     int l;
-    
+
     l = strlen (s) - 1;
     while (l >= 0) {
 	if (s[l] == '.')
@@ -421,7 +421,7 @@ void sample16i_crux_handler (void)
     data3 &= audio_channel[3].adk_mask;
     data3p &= audio_channel[3].adk_mask;
 
-    {    
+    {
 	struct audio_channel_data *cdp;
 	unsigned long ratio, ratio1;
 #define	INTERVAL (scaled_sample_evtime * 3)
@@ -480,12 +480,12 @@ void sample16ss_handler (void)
     data1 &= audio_channel[1].adk_mask;
     data2 &= audio_channel[2].adk_mask;
     data3 &= audio_channel[3].adk_mask;
-    
+
     PUT_SOUND_WORD (data0 << 2);
     PUT_SOUND_WORD (data1 << 2);
     PUT_SOUND_WORD (data3 << 2);
     PUT_SOUND_WORD (data2 << 2);
-    
+
     check_sound_buffers ();
 }
 
@@ -504,7 +504,7 @@ void sample16s_handler (void)
     data1 &= audio_channel[1].adk_mask;
     data2 &= audio_channel[2].adk_mask;
     data3 &= audio_channel[3].adk_mask;
-    
+
     data0 += data3;
     {
 	uae_u32 data = SBASEVAL16(1) + data0;
@@ -551,7 +551,7 @@ void sample16si_crux_handler (void)
     data3 &= audio_channel[3].adk_mask;
     data3p &= audio_channel[3].adk_mask;
 
-    {    
+    {
 	struct audio_channel_data *cdp;
 	unsigned long ratio, ratio1;
 #define	INTERVAL (scaled_sample_evtime * 3)
@@ -595,7 +595,7 @@ void sample16si_crux_handler (void)
 	uae_u32 data = SBASEVAL16(1) + data1;
 	FINISH_DATA (data, 16, 1);
 	put_sound_word_right (data);
-    }    
+    }
     check_sound_buffers ();
 }
 
@@ -653,7 +653,7 @@ void sample16si_rh_handler (void)
 	uae_u32 data = SBASEVAL16(1) + data1;
 	FINISH_DATA (data, 16, 1);
 	put_sound_word_right (data);
-    }    
+    }
     check_sound_buffers ();
 }
 
@@ -686,7 +686,7 @@ void schedule_audio (void)
 		best = cdp->evtime;
 		eventtab[ev_audio].active = 1;
 	    }
-	}	
+	}
     }
     eventtab[ev_audio].evtime = get_cycles () + best;
 }
@@ -840,7 +840,7 @@ static void audio_handler (int nr, int timed)
 		}
 	    }
 	return;
-	
+
 	case 3:
 	    if (currprefs.produce_sound == 0)
 		cdp->per = PERIOD_MAX;
@@ -1011,7 +1011,7 @@ void update_audio (void)
 	    best_evtime = audio_channel[2].evtime;
 	if (audio_channel[3].evtime != MAX_EV && best_evtime > audio_channel[3].evtime)
 	    best_evtime = audio_channel[3].evtime;
-	
+
 	if (currprefs.produce_sound > 1 && best_evtime > next_sample_evtime)
 	    best_evtime = next_sample_evtime;
 
@@ -1061,7 +1061,7 @@ uae_u16	dmacon;
 void audio_hsync (int dmaaction)
 {
     int nr, handle;
- 
+
     if (currprefs.produce_sound == 0)
 	return;
 

@@ -219,11 +219,14 @@ struct uae_prefs {
     int win32_no_overlay; /* If this is set, we won't try and use any RGB overlays */
     int win32_ctrl_F11_is_quit;
     int win32_automount_drives;
+    int win32_automount_netdrives;
     int win32_midioutdev;
     int win32_midiindev;
     int win32_aspi;
     int win32_soundcard;
     int win32_norecyclebin;
+    int win32_specialkey;
+    int win32_kbledmode;
 
     int curses_reverse_video;
 
@@ -250,6 +253,7 @@ struct uae_prefs {
 extern char optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
 extern void cfgfile_write (struct zfile *, char *format,...);
+extern void cfgfile_target_write (struct zfile *, char *format,...);
 extern void cfgfile_backup (const char *path);
 
 extern void default_prefs (struct uae_prefs *, int);

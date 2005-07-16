@@ -468,7 +468,7 @@ extern void logging_init(void);
 #elif _MSC_VER
 #define STATIC_INLINE static __forceinline
 #define NOINLINE __declspec(noinline)
-#define NORETURN __declspec(noreturn) 
+#define NORETURN __declspec(noreturn)
 #else
 #define STATIC_INLINE static __inline__
 #define NOINLINE

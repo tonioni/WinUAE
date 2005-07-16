@@ -78,7 +78,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	{
 	    case 0x17: /* SCSI STATUS */
 	    return 0x22;
-	    
+
 	    default:
 	    return dmacmemory[0x93];
 	}

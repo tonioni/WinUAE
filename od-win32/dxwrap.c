@@ -273,30 +273,29 @@ static int LockStub( surface_type_e type )
 	IDirectDrawSurface7_Restore( DirectDrawState.primary.surface );
     }
 
-    while (FAILED(ddrval = IDirectDrawSurface7_Lock(surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT,
-	NULL)))
+    while (FAILED(ddrval = IDirectDrawSurface7_Lock(surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)))
     {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (surface);
 	    if (FAILED(ddrval))
-	    {
-		result = 0;
 		break;
-	    }
 	}
 	else if (ddrval != DDERR_SURFACEBUSY) 
 	{
 	    write_log ("lpDDS->Lock() failed - %s\n", DXError (ddrval));
-	    result = 0;
 	    break;
 	}
     }
-    if(SUCCEEDED(ddrval))
-	result = 1;
-    
-    if(result)
+    if(SUCCEEDED(ddrval)) {
+	static int warned = 10;
+	DWORD_PTR pixels = (DWORD_PTR)(surfacedesc->lpSurface);
+	if (warned > 0 && (pixels & 7)) {
+	    write_log("bogus surface pointer %x!\n", pixels);
+	    warned--;
+	}
 	lockcnt++;
-
+	result = 1;
+    }
     return result;
 }
 

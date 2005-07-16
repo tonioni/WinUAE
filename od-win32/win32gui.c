@@ -2430,7 +2430,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	SetDlgItemText (hDlg, IDC_CONTRIBUTORS, szContributors );
 	SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.yHeight = 10 * 20;	/* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+	CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
 	strcpy (CharFormat.szFaceName, "Times New Roman");
 	SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
@@ -2465,6 +2465,7 @@ static urlinfo urls[] =
     {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
     {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
     {IDC_CAPS, FALSE, "CAPS", "http://caps-project.org/"},
+    {IDC_AMIGASYS, FALSE, "AmigaSYS", "http://amigasys.fw.hu/"},
     { -1, FALSE, NULL, NULL }
 };
 
@@ -2761,7 +2762,7 @@ static void init_quickstartdlg_tooltip (HWND hDlg, char *tt)
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
     ti.hwnd = hDlg;
     ti.hinst = hInst;
-    ti.uId = (UINT)GetDlgItem (hDlg, IDC_QUICKSTART_CONFIGURATION);
+    ti.uId = (UINT_PTR)GetDlgItem (hDlg, IDC_QUICKSTART_CONFIGURATION);
     ti.lpszText = tt;
     SendMessage (ToolTipHWND, TTM_DELTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
     if (!tt)
@@ -4445,6 +4446,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	case IDC_ALWAYSONTOP:
 	    workprefs.win32_alwaysontop = IsDlgButtonChecked (hDlg, IDC_ALWAYSONTOP);
 	    break;
+	case IDC_KBLED_USB:
+	    workprefs.win32_kbledmode = IsDlgButtonChecked (hDlg, IDC_KBLED_USB) ? 1 : 0;
+	    break;
 	}
 	return TRUE;
     }
@@ -5445,8 +5449,8 @@ static void new_hardfile (HWND hDlg)
     result = add_filesys_unit (currprefs.mountinfo, current_hfdlg.devicename, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
-			       current_hfdlg.reserved, current_hfdlg.blocksize,
-			       current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
+				current_hfdlg.reserved, current_hfdlg.blocksize,
+				current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
     if (result)
 	MessageBox (hDlg, result, "Bad hardfile",
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5458,7 +5462,7 @@ static void new_harddrive (HWND hDlg)
 
     result = add_filesys_unit (currprefs.mountinfo, 0, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
-			       0, current_hfdlg.blocksize, 0, 0, 0);
+				0, current_hfdlg.blocksize, 0, 0, 0);
     if (result)
 	MessageBox (hDlg, result, "Bad harddrive",
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5522,8 +5526,8 @@ static void harddisk_edit (HWND hDlg)
 	{
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
-				       ! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
-				       current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
+					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
+					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad hardfile",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5538,8 +5542,8 @@ static void harddisk_edit (HWND hDlg)
 	{
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, 0, 0, current_hfdlg.filename,
-				       ! current_hfdlg.rw, 0, 0,
-				       0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
+					! current_hfdlg.rw, 0, 0,
+					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad harddrive",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5561,7 +5565,7 @@ static void harddisk_edit (HWND hDlg)
 	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_FILESYS), hDlg, VolumeSettingsProc)) {
 	    const char *result;
 	    result = set_filesys_unit (currprefs.mountinfo, entry, current_fsvdlg.device, current_fsvdlg.volume,
-				       current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
+					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
 	    if (result)
 		MessageBox (hDlg, result, "Bad hardfile",
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -5620,9 +5624,13 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	harddisk_move (hDlg, 0);
 	clicked_entry++;
 	break;
-     
-    case IDC_MAPDRIVES:
-	workprefs.win32_automount_drives = IsDlgButtonChecked(hDlg, button);
+
+     case IDC_MAPDRIVES:
+	workprefs.win32_automount_drives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES);
+	break;
+
+     case IDC_MAPDRIVES_NET:
+	workprefs.win32_automount_netdrives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES_NET);
 	break;
 
     case IDC_NOUAEFSDB:
@@ -5688,6 +5696,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	
     case WM_USER:
 	CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
+	CheckDlgButton (hDlg, IDC_MAPDRIVES_NET, workprefs.win32_automount_netdrives);
 	CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 	CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
 	InitializeListView (hDlg);
@@ -5822,7 +5831,7 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
     ti.hwnd = hDlg;
     ti.hinst = hInst;
-    ti.uId = (UINT)GetDlgItem (hDlg, id);
+    ti.uId = (UINT_PTR)GetDlgItem (hDlg, id);
     SendMessage (ToolTipHWND, TTM_DELTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
     if (crc32 == 0)
 	return;
@@ -8007,7 +8016,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
 	ti.hwnd = GetParent (hwnd);
 	ti.hinst = hInst;
-	ti.uId = (UINT)hwnd;
+	ti.uId = (UINT_PTR)hwnd;
 	ti.lpszText = p;
 	if (imageid > 0) {
 	    int idx, i;

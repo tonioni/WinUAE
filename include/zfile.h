@@ -7,7 +7,6 @@
   */
 
 struct zfile;
-extern int is_zlib;
 
 typedef int (*zfile_callback)(struct zfile*, void*);
 

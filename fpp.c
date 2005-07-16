@@ -33,7 +33,7 @@ STATIC_INLINE int isinrom (void)
 
 #define FFLAG_Z	    0x4000
 #define FFLAG_N	    0x0100
-#define FFLAG_NAN   0x0400 
+#define FFLAG_NAN   0x0400
 
 #define MAKE_FPSR(r)  regs.fp_result=(r)
 
@@ -60,7 +60,7 @@ static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
   case 2: /* down    */ iround=1; break;
   case 3: /* up      */ iround=2; break;
   }
-   
+
   x=0x107f + (iprec<<8) + (iround<<10);
 #if defined(X86_MSVC_ASSEMBLY)
   __asm {
@@ -383,7 +383,7 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra)
     reg = opcode & 7;
     size = (extra >> 10) & 7;
     ad = -1;
-    
+
     switch (mode) {
     case 0:
 	switch (size) {
@@ -625,7 +625,7 @@ STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
 #if 0
 	return NotANumber || (Z && N); /* This is wrong, compare 0x0c */
 #else
-	return NotANumber || (N && !Z);  
+	return NotANumber || (N && !Z);
 #endif
     case 0x1d:
 	return NotANumber || Z || N;
@@ -1180,7 +1180,7 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	case 0x00:		/* FMOVE */
 	case 0x40:  /* Explicit rounding. This is just a quick fix. Same
 		     * for all other cases that have three choices */
-	case 0x44:   
+	case 0x44:
 	    regs.fp[reg] = src;
 	    /* Brian King was here.  <ea> to register needs FPSR updated.
 	     * See page 3-73 in Motorola 68K programmers reference manual.
@@ -1230,7 +1230,7 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    MAKE_FPSR (regs.fp[reg]);
 	    break;
 	case 0x0d:		/* FATANH */
-#if 1				/* The BeBox doesn't have atanh, and it	isn't in the HPUX libm either */
+#if 1				/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
 	    regs.fp[reg] = log ((1 + src) / (1 - src)) / 2;
 #else
 	    regs.fp[reg] = atanh (src);

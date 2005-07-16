@@ -179,9 +179,13 @@ static struct uae_input_device_kbr_default keytrans[] = {
 
 extern int ispressed (int key);
 
-static int endpressed (void)
+static int specialkeycode (void)
 {
-    return ispressed(DIK_END);
+    return currprefs.win32_specialkey;
+}
+static int specialpressed (void)
+{
+    return ispressed(specialkeycode());
 }
 
 static int shiftpressed (void)
@@ -303,33 +307,6 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
     DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
     DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
 
-#define IECODE_UP_PREFIX 0x80
-#define RAW_STEALTH 0x68
-#define STEALTHF_E0KEY 0x08
-#define STEALTHF_UPSTROKE 0x04
-#define STEALTHF_SPECIAL 0x02
-#define STEALTHF_E1KEY 0x01
-
-static void sendmmcodes(int code, int newstate)
-{
-    uae_u8 b;
-
-    b = RAW_STEALTH | IECODE_UP_PREFIX;
-    record_key(((b << 1) | (b >> 7)) & 0xff);
-    b = IECODE_UP_PREFIX;
-    if ((code >> 8) == 0x01)
-	b |= STEALTHF_E0KEY;
-    if ((code >> 8) == 0x02)
-	b |= STEALTHF_E1KEY;
-    if (!newstate)
-	b |= STEALTHF_UPSTROKE;
-    record_key(((b << 1) | (b >> 7)) & 0xff);
-    b = ((code >> 4) & 0x0f) | IECODE_UP_PREFIX;
-    record_key(((b << 1) | (b >> 7)) & 0xff);
-    b = (code & 0x0f) | IECODE_UP_PREFIX;
-    record_key(((b << 1) | (b >> 7)) & 0xff);
-}
-
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
     int code = 0;
@@ -342,7 +319,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_F12:
 	    if (ctrlpressed ()) {
 		code = AKS_TOGGLEFULLSCREEN;
-	    } else if (shiftpressed () || endpressed ()) {
+	    } else if (shiftpressed () || specialpressed ()) {
 		disablecapture ();
 		code = AKS_ENTERDEBUGGER;
 	    } else {
@@ -359,7 +336,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_F2:
 	    case DIK_F3:
 	    case DIK_F4:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_EFLOPPY0 + (scancode - DIK_F1);
 		else
@@ -367,7 +344,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_F5:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_STATESAVEDIALOG;
 		else
@@ -384,7 +361,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_8:
 	    case DIK_9:
 	    case DIK_0:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		int num = scancode - DIK_1;
 		if (shiftpressed ())
 		    num += 10;
@@ -413,7 +390,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_NUMPAD8:
 	    case DIK_NUMPAD9:
 	    case DIK_NUMPADPERIOD:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		int i = 0, v = -1;
 		while (np[i] >= 0) {
 		    v = np[i + 1];
@@ -426,10 +403,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_SYSRQ:
-	    screenshot (endpressed() ? 1 : 0, 1);
+	    screenshot (specialpressed() ? 1 : 0, 1);
 	    break;
 	    case DIK_PAUSE:
-	    if (endpressed ())
+	    if (specialpressed ())
 		code = AKS_WARP;
 	    else
 		code = AKS_PAUSE;
@@ -446,7 +423,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    case DIK_NEXT:
 	    break;
 	    case DIK_NUMPADMINUS:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_DECREASEREFRESHRATE;
 		else
@@ -454,7 +431,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_NUMPADPLUS:
-	    if (endpressed ()) {
+	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_INCREASEREFRESHRATE;
 		else
@@ -462,11 +439,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_NUMPADSTAR:
-	    if (endpressed ())
+	    if (specialpressed ())
 		code = AKS_VOLMUTE;
 	    break;
 	    case DIK_NUMPADSLASH:
-	    if (endpressed ())
+	    if (specialpressed ())
 		code = AKS_STATEREWIND;
 	    break;
 	}
@@ -475,7 +452,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	inputdevice_add_inputcode (code, 1);
 	return;
     }
-    if (endpressed ())
+    if (scancode == specialkeycode())
 	return;
 
     if (scancode == DIK_CAPITAL) {
@@ -495,11 +472,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    return;
 #endif
     }
-    if (inputdevice_translatekeycode (keyboard, scancode, newstate))
-	return;
-
-    if (currprefs.mmkeyboard)
-	sendmmcodes(scancode, newstate);
+    inputdevice_translatekeycode (keyboard, scancode, newstate);
 }
 
 void keyboard_settrans (void)

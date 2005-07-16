@@ -81,7 +81,6 @@
 #endif
 
 #ifdef WIN64
-#undef JIT
 #undef X86_MSVC_ASSEMBLY
 #define X64_MSVC_ASSEMBLY
 #define CPU_64_BIT

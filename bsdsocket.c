@@ -234,7 +234,7 @@ SOCKET_TYPE getsock (SB, int sd)
 				{ // Task with same name already exists -> use same dtable 
 				if (sb1->dtable[sd-1] != INVALID_SOCKET)
 					return sb1->dtable[sd-1];
-				}	
+				}
 	
 			nsb = sb1->next;
 			}
@@ -340,7 +340,7 @@ static struct socketbase *alloc_socketbase (void)
 	sb->ownertask = gettask ();
 
 	m68k_dreg (regs, 0) = -1;
-	sb->signal = CallLib (get_long (4), -0x14A);
+	sb->signal = CallLib (get_long (4), -0x14A); /* AllocSignal */
 
 	if (sb->signal == -1) {
 	    write_log ("bsdsocket: ERROR: Couldn't allocate signal for task 0x%lx.\n", sb->ownertask);
@@ -374,8 +374,12 @@ static struct socketbase *alloc_socketbase (void)
 
 struct socketbase *get_socketbase (void)
 {
-    /* @@@ make portable for sizeof(void *) != sizeof(uae_u32) */
-    return (struct socketbase *) get_long (m68k_areg (regs, 6) + offsetof (struct UAEBSDBase, sb));
+    int i;
+    uae_u32 p[sizeof(void*) / 4];
+
+    for (i = 0; i < (sizeof p) / 4; i++)
+	p[i] = get_long (m68k_areg (regs, 6) + offsetof (struct UAEBSDBase, sb) + i * 4);
+    return *((struct socketbase**)p);
 }
 
 static void free_socketbase (void)
@@ -452,8 +456,9 @@ static uae_u32 functable, datatable, inittable;
 static uae_u32 bsdsocklib_Open (void)
 {
     uae_u32 result = 0;
-    int opencount;
+    int opencount, i;
     SB;
+    uae_u32 p[sizeof (void*) / 4];
 
     locksigqueue ();
 
@@ -467,10 +472,11 @@ static uae_u32 bsdsocklib_Open (void)
 	m68k_areg (regs, 2) = 0;
 	m68k_dreg (regs, 0) = sizeof (struct UAEBSDBase);
 	m68k_dreg (regs, 1) = 0;
-	result = CallLib (get_long (4), -0x54);
+	result = CallLib (get_long (4), -0x54); /* MakeLibrary */
 
-	/* @@@ make portable for sizeof(void *) != sizeof(uae_u32) */
-	put_long (result + offsetof (struct UAEBSDBase, sb), (uae_u32) sb);
+	*((struct socketbase**)p) = sb;
+	for (i = 0; i < (sizeof p) / 4; i++)
+	    put_long(result + offsetof (struct UAEBSDBase, sb) + i * 4, p[i]);
 
 	TRACE (("%0lx [%d]\n", result, opencount));
     } else
@@ -564,7 +570,7 @@ static uae_u32 bsdsocklib_recvfrom (void)
     return sb->resultval;
 }
 
-/* recv(s, buf,	len, flags)(d0/a0/d1/d2) */
+/* recv(s, buf, len, flags)(d0/a0/d1/d2) */
 static uae_u32 bsdsocklib_recv (void)
 {
     SB = get_socketbase ();
@@ -970,10 +976,10 @@ static const char * const strErr = "Errlist lookup error";
 uae_u32 strErrptr;
 
 
-#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused	*/
-#define TAG_IGNORE (1L)		/* ignore this item, not end of	array		    */
+#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused */
+#define TAG_IGNORE (1L)		/* ignore this item, not end of array */
 #define TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
-#define TAG_SKIP   (3L)		/* skip	this and the next ti_Data items	    */
+#define TAG_SKIP   (3L)		/* skip this and the next ti_Data items */
 #define TAG_USER   ((uae_u32)(1L<<31))
 
 #define SBTF_VAL 0x0000
@@ -1231,26 +1237,20 @@ static uae_u32 bsdsocklib_init (void)
     m68k_areg (regs, 0) = functable;
     m68k_areg (regs, 1) = datatable;
     m68k_areg (regs, 2) = 0;
-    m68k_dreg (regs, 0) = LIBRARY_SIZEOF;
+    m68k_dreg (regs, 0) = sizeof (struct UAEBSDBase);
     m68k_dreg (regs, 1) = 0;
-    tmp1 = CallLib (m68k_areg (regs, 6), -0x54);
+    tmp1 = CallLib (m68k_areg (regs, 6), -0x54); /* MakeLibrary */
 
     if (!tmp1) {
 	write_log ("bsdoscket: FATAL: Cannot create bsdsocket.library!\n");
 	return 0;
     }
     m68k_areg (regs, 1) = tmp1;
-    CallLib (m68k_areg (regs, 6), -0x18c);
+    CallLib (m68k_areg (regs, 6), -0x18c); /* AddLibrary */
     SockLibBase = tmp1;
-#if 0
-    m68k_areg (regs, 1) = ds ("dos.library");
-    m68k_dreg (regs, 0) = 0;
-    dosbase = CallLib (m68k_areg (regs, 6), -552);
-    printf ("%08lx\n", dosbase);
-#endif
 
     /* Install error strings in Amiga memory */
-	tmp1 = 0;
+    tmp1 = 0;
     for (i = number_sys_error; i--;)
 	tmp1 += strlen (errortexts[i])+1;
 
@@ -1261,7 +1261,7 @@ static uae_u32 bsdsocklib_init (void)
 
     m68k_dreg (regs, 0) = tmp1;
     m68k_dreg (regs, 1) = 0;
-    tmp1 = CallLib (get_long (4), -0xC6);
+    tmp1 = CallLib (get_long (4), -0xC6); /* AllocMem */
 
     if (!tmp1) {
 	write_log ("bsdsocket: FATAL: Ran out of memory while creating bsdsocket.library!\n");

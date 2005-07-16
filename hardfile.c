@@ -687,7 +687,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	case CMD_REMCHANGEINT:
 	release_async_request (hfpd, request);
 	break;
- 
+
 	case HD_SCSICMD: /* SCSI */
 	    if (hfd->nrcyls == 0)
 		error = handle_scsi (request, hfd);
@@ -705,7 +705,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 
     hf_log2 ("hf: unit=%d, request=%p, cmd=%d offset=%u len=%d, actual=%d error%=%d\n", unit, request,
 	get_word(request + 28), get_long (request + 44), get_long (request + 36), actual, error);
- 
+
     return async;
 }
 
@@ -818,7 +818,7 @@ void hardfile_reset (void)
 	if (hfpd->opencount > 0) {
 	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 		uaecptr request;
-		if (request = hfpd->d_request[i]) 
+		if (request = hfpd->d_request[i])
 		    abort_async (hfpd, request, 0, 0);
 	    }
 	}

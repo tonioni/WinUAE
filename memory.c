@@ -75,7 +75,7 @@ void romlist_add (char *path, struct romdata *rd)
 char *romlist_get (struct romdata *rd)
 {
     int i;
-    
+
     if (!rd)
 	return 0;
     for (i = 0; i < romlist_cnt; i++) {
@@ -147,7 +147,8 @@ static struct romdata roms[] = {
     { "Space Ranger\0ar_sprg", 0, 0, 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
     { "Xenon\0ar_xeon", 0, 0, 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
 
-    { 0 }
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
+
 };
 
 struct romdata *getarcadiarombyname (char *name)
@@ -183,7 +184,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     uae_u8 *keybuf = 0;
     int keysize = 0;
     char tmp[MAX_PATH], *d;
- 
+
     tmp[0] = 0;
     if (path)
 	strcpy (tmp, path);
@@ -219,7 +220,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 					f = zfile_fopen(tmp, "rb");
 				    }
 				}
-				
+
 			    }
 
 			}
@@ -349,7 +350,7 @@ struct romdata *getromdatabyzfile (struct zfile *f)
     memset (p, 0, size);
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (p, 1, size, f);
-    zfile_fseek (f, pos, SEEK_SET);        
+    zfile_fseek (f, pos, SEEK_SET);
     rd = getromdatabydata (p, size);
     xfree (p);
     return rd;
@@ -472,7 +473,7 @@ void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
-#endif 
+#endif
    if (currprefs.illegal_mem) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
@@ -1406,7 +1407,7 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
     } else {
 	cr = 1;
     }
-    
+
     if (cloanto_rom)
 	*cloanto_rom = cr;
 
@@ -1475,7 +1476,7 @@ static void kickstart_fix_checksum (uae_u8 *mem, int size)
 {
     uae_u32 cksum = 0, prevck = 0;
     int i, ch = size == 524288 ? 0x7ffe8 : 0x3e;
-    
+
     mem[ch] = 0;
     mem[ch + 1] = 0;
     mem[ch + 2] = 0;
@@ -1504,7 +1505,7 @@ static int patch_shapeshifter (uae_u8 *kickmemory)
     uae_u8 kickshift1[] = { 0x41, 0xf8, 0x04, 0x00 };
     uae_u8 kickshift2[] = { 0x41, 0xf8, 0x10, 0x00 };
     uae_u8 kickshift3[] = { 0x43, 0xf8, 0x04, 0x00 };
-	
+
     for (i = 0x200; i < 0x300; i++) {
 	if (!memcmp (kickmemory + i, kickshift1, sizeof (kickshift1)) ||
 	!memcmp (kickmemory + i, kickshift2, sizeof (kickshift2)) ||
@@ -1577,7 +1578,7 @@ static int load_kickstart (void)
     if( f == NULL ) { /* still no luck */
 #if defined(AMIGA)||defined(__POS__)
 #define USE_UAE_ERSATZ "USE_UAE_ERSATZ"
-	if( !getenv(USE_UAE_ERSATZ)) 
+	if( !getenv(USE_UAE_ERSATZ))
 	{
 	    write_log ("Using current ROM. (create ENV:%s to "
 		"use uae's ROM replacement)\n",USE_UAE_ERSATZ);
@@ -1693,7 +1694,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 	}
     }
 }
- 
+
 static void add_shmmaps (uae_u32 start, addrbank *what)
 {
     shmpiece *x = shm_start;
@@ -2024,14 +2025,14 @@ void memory_reset (void)
 #ifdef ARCADIA
     if (!arcadia_rom) {
 #endif
-    action_replay_memory_reset(); 
+    action_replay_memory_reset();
     #ifdef ACTION_REPLAY_HRTMON
     hrtmon_map_banks();
     #endif
 
     #ifndef ACTION_REPLAY_HIDE_CARTRIDGES
     #ifdef ACTION_REPLAY
-    action_replay_map_banks(); 
+    action_replay_map_banks();
     #endif
     #endif
 #ifdef ARCADIA
@@ -2064,10 +2065,10 @@ void memory_init (void)
     ersatzkickfile = 1;
 #endif
 
-#ifdef ACTION_REPLAY   
+#ifdef ACTION_REPLAY
     action_replay_load();
     action_replay_init(1);
-    
+
     #ifdef ACTION_REPLAY_HRTM
     hrtmon_load(1);
     #endif
@@ -2091,7 +2092,7 @@ void memory_cleanup (void)
 	xfree (a1000_bootrom);
     if (chipmemory)
 	mapped_free (chipmemory);
-  
+
     bogomemory = 0;
     kickmemory = 0;
     a1000_bootrom = 0;
@@ -2198,7 +2199,7 @@ uae_u8 *restore_rom (uae_u8 *src)
 {
     uae_u32 crc32;
     int i;
-    
+
     restore_u32 ();
     restore_u32 ();
     restore_u32 ();

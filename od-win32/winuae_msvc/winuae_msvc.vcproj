@@ -53,7 +53,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32,_WINDOWS,ZLIB_DLL,OPENGL_SUPPORT,_WIN32_IE 0x0500,UNIX"
+				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32,_WINDOWS,_WIN32_IE 0x0500,UNIX"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -65,7 +65,7 @@
 				ProgramDataBaseFileName=".\Debug/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
-				Detect64BitPortabilityProblems="true"
+				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 				CompileAs="0"
 				DisableSpecificWarnings="4996"
@@ -85,7 +85,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zlib1.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zlib.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
@@ -265,7 +265,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,ZLIB_DLL,_WIN32_IE 0x0500,UNIX"
+				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,_WIN32_IE 0x0500,UNIX"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -300,8 +300,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlib.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -318,6 +317,7 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
+				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -735,7 +735,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,ZLIB_DLL,_WIN32_IE 0x0500,UNIX;WIN64"
+				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,_WIN32_IE 0x0500,UNIX;WIN64"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -771,7 +771,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlib.lib"
 				OutputFile="d:\amiga\winuae64.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -954,7 +954,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32,_WINDOWS,ZLIB_DLL,OPENGL_SUPPORT,_WIN32_IE 0x0500,UNIX,WIN64"
+				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32,_WINDOWS,_WIN32_IE 0x0500,UNIX,WIN64"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -985,7 +985,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zlib1.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib zlib.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib"
 				OutputFile="d:\amiga\winuae64.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"

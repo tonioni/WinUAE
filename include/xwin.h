@@ -18,6 +18,8 @@ extern void graphics_leave (void);
 extern void handle_events (void);
 extern void setup_brkhandler (void);
 extern int isfullscreen (void);
+extern void toggle_fullscreen (void);
+extern void toggle_mousegrab (void);
 
 extern void flush_line (int);
 extern void flush_block (int, int);

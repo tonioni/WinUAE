@@ -739,7 +739,7 @@ static void build_insn (int insn)
 	table68k[opc].stype = srctype;
 	table68k[opc].plev = id.plevel;
 	table68k[opc].clev = specialcase(opc, id.cpulevel);
-	
+
 #if 0
 	for (i = 0; i < 5; i++) {
 	    table68k[opc].flaginfo[i].flagset = id.flaginfo[i].flagset;

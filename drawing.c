@@ -113,7 +113,7 @@ union {
 } pixdata;
 
 uae_u16 spixels[2 * MAX_SPR_PIXELS];
-/* Eight bits for every pixel. */
+/* Eight bits for every pixel.  */
 union sps_union spixstate;
 
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
@@ -293,7 +293,7 @@ static void pfield_init_linetoscr (void)
 
     playfield_start = linetoscr_diw_start;
     playfield_end = linetoscr_diw_end;
-    
+
     if (playfield_start < visible_left_border)
 	playfield_start = visible_left_border;
     if (playfield_start > visible_right_border)
@@ -325,7 +325,7 @@ static void pfield_init_linetoscr (void)
 	    playfield_end = max;
 	if (playfield_end > visible_right_border)
 	    playfield_end = visible_right_border;
-    }    
+    }
 #endif
     /* Now, compute some offsets.  */
 
@@ -837,7 +837,7 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
 #if SPRITE_DEBUG > 0
 	    v |= 1 | 4;
 #endif
- 
+
 	    if (has_attach && (stbuf[pos] & (3 << offs))) {
 		col = v;
 		if (aga)
@@ -906,8 +906,8 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
 	window_pos += 1 << doubling;
     }
 }
-  
-/* See comments above. Do not touch if you don't know what's going on.
+
+/* See comments above.  Do not touch if you don't know what's going on.
  * (We do _not_ want the following to be inlined themselves).  */
 /* lores bitplane, lores sprites */
 static void NOINLINE draw_sprites_normal_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 0, 0, 0, 0); }
@@ -999,7 +999,7 @@ static void clear_bitplane_border_aga (void)
 static void weird_bitplane_fix (void)
 {
     int i, shift = lores_shift - bplres;
-    
+
     if (shift < 0) {
 	shift = -shift;
 	for (i = playfield_start << lores_shift; i < playfield_end << lores_shift; i++) {
@@ -1080,7 +1080,7 @@ STATIC_INLINE void pfield_doline_1 (uae_u32 *pixels, int wordcount, int planes)
     }
 }
 
-/* See above for comments on inlining. These functions should _not_
+/* See above for comments on inlining.  These functions should _not_
    be inlined themselves.  */
 static void NOINLINE pfield_doline_n1 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 1); }
 static void NOINLINE pfield_doline_n2 (uae_u32 *data, int count) { pfield_doline_1 (data, count, 2); }
@@ -1156,9 +1156,9 @@ static void init_aspect_maps (void)
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
-	    * (currprefs.gfx_lores ? 320 : 640)
-	    / (currprefs.gfx_linedbl ? 512 : 256)
-	    / gfxvidinfo.width);
+				       * (currprefs.gfx_lores ? 320 : 640)
+				       / (currprefs.gfx_linedbl ? 512 : 256)
+				       / gfxvidinfo.width);
     else
 	native_lines_per_amiga_line = 1;
 
@@ -1707,7 +1707,9 @@ static int td_pos = (TD_RIGHT|TD_BOTTOM);
 
 #define NUMBERS_NUM 14
 
-static char *numbers = { /* ugly */
+#define TD_BORDER 0x333
+
+static char *numbers = { /* ugly  0123456789CHD% */
 "+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+"
 "+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x"
 "+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x+"
@@ -1746,7 +1748,7 @@ static void write_tdnumber (int x, int y, int num)
 {
     int j;
     uae_u8 *numptr;
-    
+
     numptr = numbers + num * TD_NUM_WIDTH + NUMBERS_NUM * TD_NUM_WIDTH * y;
     for (j = 0; j < TD_NUM_WIDTH; j++) {
 	if (*numptr == 'x')
@@ -1760,7 +1762,7 @@ static void write_tdnumber (int x, int y, int num)
 static void draw_status_line (int line)
 {
     int x_start, y, j, led;
-    
+
     if (td_pos & TD_RIGHT)
 	x_start = gfxvidinfo.width - TD_PADX - NUM_LEDS * TD_WIDTH;
     else
@@ -1771,10 +1773,9 @@ static void draw_status_line (int line)
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[line];
 
-    memset (xlinebuffer, 0, gfxvidinfo.width * gfxvidinfo.pixbytes);
-
     for (led = 0; led < NUM_LEDS; led++) {
-	int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1, x, off_rgb, on_rgb, c, on = 0;
+	int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
+	int x, off_rgb, on_rgb, c, on = 0, am = 2;
 	if (led >= 1 && led <= 4) {
 	    int pled = led - 1;
 	    int track = gui_data.drive_track[pled];
@@ -1819,6 +1820,9 @@ static void draw_status_line (int line)
 	    num1 = fps / 100;
 	    num2 = (fps - num1 * 100) / 10;
 	    num3 = fps % 10;
+	    am = 3;
+	    if (num1 == 0)
+		am = 2;
 	} else if (led == 8) {
 	    int idle = (gui_data.idle + 5) / 10;
 	    pos = 0;
@@ -1828,26 +1832,34 @@ static void draw_status_line (int line)
 	    num2 = (idle - num1 * 100) / 10;
 	    num3 = idle % 10;
 	    num4 = 13;
+	    am = 4;
+	    if (num1 == 0)
+		am = 3;
 	}
 
 	c = xcolors[on ? on_rgb : off_rgb];
+	if (y == 0 || y == TD_TOTAL_HEIGHT - 1)
+	    c = xcolors[TD_BORDER];
 
 	x = x_start + pos * TD_WIDTH;
-	for (j = 0; j < TD_LED_WIDTH; j++) 
+	putpixel (x - 1, xcolors[TD_BORDER]);
+	for (j = 0; j < TD_LED_WIDTH; j++)
 	    putpixel (x + j, c);
+	putpixel (x + j, xcolors[TD_BORDER]);
 
 	if (y >= TD_PADY && y - TD_PADY < TD_NUM_HEIGHT) {
 	    if (num3 >= 0) {
-		int tn = num1 > 0 ? 3 : 2;
-		int offs = (TD_LED_WIDTH - tn * TD_NUM_WIDTH) / 2;
+		x += (TD_LED_WIDTH - am * TD_NUM_WIDTH) / 2;
 		if (num1 > 0) {
-		    write_tdnumber (x + offs, y - TD_PADY, num1);
-		    offs += TD_NUM_WIDTH;
+		    write_tdnumber (x, y - TD_PADY, num1);
+		    x += TD_NUM_WIDTH;
 		}
-		write_tdnumber (x + offs, y - TD_PADY, num2);
-		write_tdnumber (x + offs + TD_NUM_WIDTH, y - TD_PADY, num3);
+		write_tdnumber (x, y - TD_PADY, num2);
+		x += TD_NUM_WIDTH;
+		write_tdnumber (x, y - TD_PADY, num3);
+		x += TD_NUM_WIDTH;
 		if (num4 > 0)
-		    write_tdnumber (x + offs + 2 * TD_NUM_WIDTH, y - TD_PADY, num4);
+		    write_tdnumber (x, y - TD_PADY, num4);
 	    }
 	}
     }
@@ -1879,7 +1891,7 @@ void finish_drawing_frame (void)
 	    break;
 
 	where = amiga2aspect_line_map[i1];
-	if (where >= gfxvidinfo.height - (currprefs.leds_on_screen ? TD_TOTAL_HEIGHT : 0))
+	if (where >= gfxvidinfo.height)
 	    break;
 	if (where == -1)
 	    continue;

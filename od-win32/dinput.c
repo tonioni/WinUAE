@@ -31,6 +31,7 @@
 #include "keyboard.h"
 #include "custom.h"
 #include "dxwrap.h"
+#include "akiko.h"
 
 #ifdef WINDDK
 #include <winioctl.h>
@@ -87,7 +88,7 @@ static int num_mouse, num_keyboard, num_joystick;
 static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
-static int oldleds, oldusedleds, newleds, usbledmode, oldusbleds;
+static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode;
 static int normalkb, superkb, rawkb;
 
@@ -1115,9 +1116,9 @@ static uae_u32 get_leds (void)
     if (ledkeystate[VK_SCROLL] & 1)
 	led |= KBLED_SCROLLLOCK;
 
-    if (usbledmode && os_winnt) {
+    if (currprefs.win32_kbledmode && os_winnt) {
 	oldusbleds = led;
-    } else if (!usbledmode && os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
+    } else if (!currprefs.win32_kbledmode && os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
 #ifdef WINDDK
 	KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
 	KEYBOARD_INDICATOR_PARAMETERS OutputBuffer;
@@ -1140,7 +1141,7 @@ static uae_u32 get_leds (void)
 
 static void set_leds (uae_u32 led)
 {
-    if (os_winnt && usbledmode) {
+    if (os_winnt && currprefs.win32_kbledmode) {
 	if((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK)) {
 	    keybd_event (VK_NUMLOCK, 0, KEYEVENTF_EXTENDEDKEY, 0);
 	    keybd_event (VK_NUMLOCK, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
@@ -1306,6 +1307,8 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
     hr = IDirectInputDevice8_GetDeviceState (lpdi, sizeof (kc), kc);
     if (hr == DI_OK) {
 	for (i = 0; i < sizeof (kc); i++) {
+	    if (i == 0x80) /* USB KB led causes this, better ignore it */
+		continue;
 	    if (kc[i] & 0x80) kc[i] = 1; else kc[i] = 0;
 	    if (kc[i] != di_keycodes[num][i]) {
 		write_log ("%02.2X -> %d\n", i, kc[i]);
@@ -1323,7 +1326,7 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 }
 
 
-static int keyhack (int	scancode,int pressed, int num)
+static int keyhack (int scancode,int pressed, int num)
 {
     static byte backslashstate,apostrophstate;
     
@@ -1378,14 +1381,14 @@ static int keyhack (int	scancode,int pressed, int num)
 	{
 	    inputdevice_translatekeycode (num, DIK_LALT, 1);
 	    inputdevice_translatekeycode (num, DIK_LSHIFT,1);
-	    return 4;           // the german # key        
+	    return 4;           // the german # key
 	}
 	    else
 	{
 	    inputdevice_translatekeycode (num, DIK_LALT, 0);
 	    inputdevice_translatekeycode (num, DIK_LSHIFT, 0);
 	    // Here is the same not nice but do the job
-	    return 4;           // the german # key        
+	    return 4;           // the german # key
 	    
 	}    
     }
@@ -1397,7 +1400,7 @@ static int keyhack (int	scancode,int pressed, int num)
 	    {   
 		backslashstate=1;
 		inputdevice_translatekeycode (num, DIK_RALT, 0);
-		return DIK_BACKSLASH;      
+		return DIK_BACKSLASH;
 	    }
 	    else
 	    {
@@ -1517,20 +1520,20 @@ static int acquire_kb (int num, int flags)
     unacquire (lpdi, "keyboard");
     if (currprefs.keyboard_leds_in_use) {
 #ifdef WINDDK
-	if (os_winnt && !usbledmode) {
+	if (os_winnt && !currprefs.win32_kbledmode) {
 	    if (DefineDosDevice (DDD_RAW_TARGET_PATH, "Kbd","\\Device\\KeyboardClass0")) {
 		kbhandle = CreateFile("\\\\.\\Kbd", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 		if (kbhandle == INVALID_HANDLE_VALUE) {
 		    write_log ("kbled: CreateFile failed, error %d\n", GetLastError());
-		    usbledmode = 1;
+		    currprefs.win32_kbledmode = 1;
 		}
 	    } else {
-		usbledmode = 1;
+		currprefs.win32_kbledmode = 1;
 		write_log ("kbled: DefineDosDevice failed, error %d\n", GetLastError());
 	    }
 	}
 #else
-	usbledmode = 1;
+	currprefs.kbledmode = 1;
 #endif
 	oldleds = get_leds ();
 	if (oldusedleds < 0) 
@@ -1567,7 +1570,7 @@ static void unacquire_kb (int num)
 
     if (currprefs.keyboard_leds_in_use) {
 	if (oldusedleds >= 0) {
-	    if (!usbledmode)
+	    if (!currprefs.win32_kbledmode)
 		set_leds (oldleds);
 	    oldusedleds = oldleds;
 	}
@@ -1856,13 +1859,22 @@ void input_get_default_joystick (struct uae_input_device *uid)
 {
     int i, port;
 
-    for (i = 0; i < num_mouse; i++) {
+    for (i = 0; i < num_joystick; i++) {
 	port = i & 1;
 	uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
 	uid[i].eventid[ID_AXIS_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
 	uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON;
 	uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON;
 	uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
+	if (cd32_enabled) {
+	    uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_CD32_YELLOW : INPUTEVENT_JOY1_CD32_YELLOW;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = port ? INPUTEVENT_JOY2_CD32_GREEN : INPUTEVENT_JOY1_CD32_GREEN;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 4][0] = port ? INPUTEVENT_JOY2_CD32_FFW : INPUTEVENT_JOY1_CD32_FFW;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 5][0] = port ? INPUTEVENT_JOY2_CD32_RWD : INPUTEVENT_JOY1_CD32_RWD;
+	    uid[i].eventid[ID_BUTTON_OFFSET + 6][0] = port ? INPUTEVENT_JOY2_CD32_PLAY :  INPUTEVENT_JOY1_CD32_PLAY;
+	}
     }
     uid[0].enabled = 1;
 }

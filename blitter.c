@@ -583,7 +583,7 @@ void blitter_handler(void)
 	return;
     }
 #ifdef BLITTER_DEBUG
-    if (!blitter_dontdo) 
+    if (!blitter_dontdo)
 	actually_do_blit();
     else
 	bltstate = BLT_done;
@@ -623,7 +623,7 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 	    + (blit_filltable[d >> 8][ifemode + fc1][0] << 8));
 	blitfc = blit_filltable[d >> 8][ifemode + fc1][1];
     }
-	
+
     if (ddat)
 	blt_info.blitzero = 0;
 
@@ -822,7 +822,7 @@ static void blit_bltset (int con)
 {
     int i;
 
-    blitline = bltcon1 & 1; 
+    blitline = bltcon1 & 1;
     blitfill = bltcon1 & 0x18;
     blitdesc = bltcon1 & 2;
     blit_ch = (bltcon0 & 0x0f00) >> 8;
@@ -915,7 +915,7 @@ void do_blitter	(int hpos)
     blit_last_hpos = hpos;
     blit_cyclecounter = 0;
 
-    reset_blit (1|2); 
+    reset_blit (1|2);
 
     if (blitline) {
 	blitsing = bltcon1 & 0x2;
@@ -1035,7 +1035,7 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
 {
     static int oddfstrt, oddfstop, ototal, ofree;
     static int slow;
-    
+
     if (!totalcycles || ddfstrt < 0 || ddfstop < 0)
 	return;
     if (ddfstrt != oddfstrt || ddfstop != oddfstop || totalcycles != ototal || ofree != freecycles) {

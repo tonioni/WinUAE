@@ -70,7 +70,7 @@ static unsigned int dwBytes,dwBytes1,dwBytes2,espstore;
 static LPVOID dwData1,dwData2;
 int ahi_pollrate = 40;
 
-int sound_freq_ahi;
+int sound_freq_ahi, sound_channels_ahi, sound_bits_ahi;
 
 static int vin,devicenum;
 static int amigablksize;
@@ -235,7 +235,7 @@ void ahi_updatesound(int force)
 	//memset( lpData, 0x80,4 );
     }
 /*
-		{
+{
 long dwEvt=1;
 
   dwEvt = MsgWaitForMultipleObjects(
@@ -251,7 +251,7 @@ if (dwEvt==1)freeblock=1;
 
 
 if (dwEvt>1 ){calcsound=0;return;}
-		}
+}
 */
 
     hr = IDirectSoundBuffer_GetCurrentPosition(lpDSB2, &i, 0);
@@ -334,10 +334,10 @@ static int ahi_init_sound_win32 (void)
 
     enumerate_sound_devices (0);
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
-    wavfmt.nChannels = 2;
+    wavfmt.nChannels = sound_channels_ahi;
     wavfmt.nSamplesPerSec = sound_freq_ahi;
-    wavfmt.wBitsPerSample = 16;
-    wavfmt.nBlockAlign = 16 / 8 * 2;
+    wavfmt.wBitsPerSample = sound_bits_ahi;
+    wavfmt.nBlockAlign = wavfmt.wBitsPerSample / 8 * wavfmt.nChannels;
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * sound_freq_ahi;
     wavfmt.cbSize = 0;
 
@@ -347,7 +347,7 @@ static int ahi_init_sound_win32 (void)
     if (!ahisndbuffer)
 	return 0;
     hr = DirectSoundCreate( &sound_device_guid[currprefs.win32_soundcard], &lpDS2, NULL );
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
 	write_log( "DirectSoundCreate() failure: %s\n", DXError(hr));
 	return 0;
@@ -379,13 +379,13 @@ static int ahi_init_sound_win32 (void)
     if FAILED(IDirectSound_SetCooperativeLevel(lpDS2,dsound_tmpw, DSSCL_PRIORITY))
 	return 0;
     hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSBprimary2, NULL);
-    if(FAILED(hr)) 
+    if(FAILED(hr))
     {
 	write_log("CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
     }
     hr = IDirectSoundBuffer_SetFormat(lpDSBprimary2, &wavfmt);
-    if(FAILED(hr)) 
+    if(FAILED(hr))
     {
 	write_log( "SetFormat() failure: %s\n", DXError(hr));
 	return 0;
@@ -395,7 +395,7 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.dwFlags = DSBCAPS_CTRLFREQUENCY | DSBCAPS_CTRLVOLUME /*| DSBCAPS_CTRLPOSITIONNOTIFY */
 	| DSBCAPS_GETCURRENTPOSITION2|DSBCAPS_GLOBALFOCUS |DSBCAPS_STATIC ;
     hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSB2, NULL);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
 	write_log("CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
@@ -426,21 +426,21 @@ static int ahi_init_sound_win32 (void)
 */
 
     hr = IDirectSoundBuffer_SetVolume (lpDSB2, 0);
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
 	write_log("SetVolume() 2 failure: %s\n", DXError(hr));
 	return 0;
     }
 
     hr = IDirectSoundBuffer_GetFormat(lpDSBprimary2,&wavfmt,500,0);
-    if(FAILED(hr)) 
+    if(FAILED(hr))
     {
 	write_log("GetFormat() failure: %s\n", DXError(hr));
 	return 0;
     }
     // Record begin
     hr = DirectSoundCaptureCreate( NULL, &lpDS2r, NULL );
-    if (FAILED(hr)) 
+    if (FAILED(hr))
     {
 	write_log( "DirectSoundCaptureCreate() failure: %s\n", DXError(hr));
 	norec = 1;
@@ -460,14 +460,15 @@ static int ahi_init_sound_win32 (void)
 	    norec = 1;
 	}
     }
-		
+
     if(ahisndbuffer==0)
 	return 0;
     ahisndbufpt =(int*) ahisndbuffer;
     sndptrmax = ahisndbuffer + ahisndbufsize;
     samplecount = 0;
     memset(ahisndbuffer,  soundneutral, amigablksize*8);
-    write_log("Init AHI Sound Rate %d Buffsize %d\n",sound_freq_ahi,amigablksize); 
+    write_log("Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
+	sound_freq_ahi, sound_channels_ahi, sound_bits_ahi, amigablksize); 
     if (!norec)
 	write_log("Init AHI Audio Recording \n");
     ahi_on = 1;
@@ -491,7 +492,6 @@ int ahi_open_sound (void)
 } 
 
 
-static char *addr;
 static void *bswap_buffer = NULL;
 static uae_u32 bswap_buffer_size = 0;
 
@@ -499,6 +499,7 @@ uae_u32 ahi_demux (void)
 {
 //use the extern int (6 #13)  
 // d0 0=opensound      d1=unit d2=samplerate d3=blksize ret: sound frequency
+// d0 6=opensound_new  d1=unit d2=samplerate d3=blksize ret d4=channels d5=bits d6=zero: sound frequency
 // d0 1=closesound     d1=unit
 // d0 2=writesamples   d1=unit a0=addr     write blksize samples to card     
 // d0 3=readsamples    d1=unit a0=addr     read samples from card ret: d0=samples read
@@ -512,7 +513,8 @@ uae_u32 ahi_demux (void)
 // d0 4=writeinterrupt d1=unit d0=0 no interrupt happen for this unit
 	// d0=-2 no playing open
 	//note units for now not support use only unit 0
-// d0=10 get clipboard size  d0=size in bytes  
+// d0 5=?
+    // d0=10 get clipboard size  d0=size in bytes
 // d0=11 get clipboard data  a0=clipboarddata
 				  //Note: a get clipboard size must do before
 // d0=12 write clipboard data	 a0=clipboarddata
@@ -523,7 +525,7 @@ uae_u32 ahi_demux (void)
 // d0=103 close dll
 // d0=104 screenlost
 // d0=105 mem offset
-// d0=106 16Bit byteswap    
+// d0=106 16Bit byteswap
 // d0=107 32Bit byteswap
 // d0=108 free swap array
 // d0=200 ahitweak		 d1=offset for dsound position pointer
@@ -539,10 +541,19 @@ uae_u32 ahi_demux (void)
 	int cur_pos;
 
 	case 0:
-	    cap_pos=0;
-	    sound_freq_ahi=m68k_dreg (regs, 2);
-	    amigablksize=m68k_dreg (regs, 3);
-	    sound_freq_ahi=ahi_open_sound();
+	    cap_pos = 0;
+	    sound_freq_ahi = m68k_dreg (regs, 2);
+	    amigablksize = m68k_dreg (regs, 3);
+	    sound_freq_ahi = ahi_open_sound();
+	    uaevar.changenum--;
+	return sound_freq_ahi;
+	case 6: /* new open function */
+	    cap_pos = 0;
+	    sound_freq_ahi = m68k_dreg (regs, 2);
+	    amigablksize = m68k_dreg (regs, 3);
+	    sound_channels_ahi = m68k_dreg (regs, 4);
+	    sound_bits_ahi = m68k_dreg (regs, 5);
+	    sound_freq_ahi = ahi_open_sound();
 	    uaevar.changenum--;
 	return sound_freq_ahi;
 
@@ -552,107 +563,104 @@ uae_u32 ahi_demux (void)
 	return 0;
 
 	case 2:
-	    addr=(char *)m68k_areg (regs, 0);
-	    for (i=0;i<(amigablksize*4);i+=4)
-	    { 
-		ahisndbufpt[0] = get_long((unsigned int)addr+i);
-		ahisndbufpt+=1;
-		/*ahisndbufpt[0]=chipmem_bget((unsigned int)addr+i+2);
-		ahisndbufpt+=1;
-		ahisndbufpt[0]=chipmem_bget((unsigned int)addr+i+1);
-		ahisndbufpt+=1;
-		ahisndbufpt[0]=chipmem_bget((unsigned int)addr+i);
-		ahisndbufpt+=1;*/
-	    }
+	{
+	    uaecptr addr = m68k_areg (regs, 0);
+	    for (i = 0; i < amigablksize * 4; i += 4)
+		*ahisndbufpt++ = get_long(addr + i);
 	    ahi_finish_sound_buffer();
+	}
 	return amigablksize;
 
 	case 3:
-	    if (norec)return -1;
-	    if (!ahi_on)return -2;
-	    i = IDirectSoundCaptureBuffer_GetCurrentPosition(lpDSB2r,&t,&cur_pos);
-	    t =  amigablksize*4;
+	{
+	    uaecptr addr;
+	    HRESULT hr;
+	    if (norec)
+		return -1;
+	    if (!ahi_on)
+		return -2;
+	    hr = IDirectSoundCaptureBuffer_GetCurrentPosition(lpDSB2r,&t,&cur_pos);
+	    if (FAILED(hr))
+		return -1;
+	    t =  amigablksize * 4;
 		
-	    if (cap_pos<=cur_pos)
-		todo=cur_pos-cap_pos;
+	    if (cap_pos <= cur_pos)
+		todo = cur_pos - cap_pos;
 	    else
-		todo=cur_pos+(RECORDBUFFER*t)-cap_pos;
-	    if (todo<t)    
-	    {                //if no complete buffer ready exit
+		todo = cur_pos + (RECORDBUFFER * t) - cap_pos;
+	    if (todo < t) { //if no complete buffer ready exit
 		return -1;
 	    }
-	    i = IDirectSoundCaptureBuffer_Lock(lpDSB2r,cap_pos,t,&pos1,&byte1,&pos2,&byte2,0);
-
-	    if ((cap_pos+t)< (t*RECORDBUFFER))
-	    {
-		cap_pos=cap_pos+t;
-	    }
-	    else
-	    {
+	    hr = IDirectSoundCaptureBuffer_Lock(lpDSB2r,cap_pos,t,&pos1,&byte1,&pos2,&byte2,0);
+	    if (FAILED(hr))
+		return -1;
+	    if ((cap_pos + t) < (t * RECORDBUFFER)) {
+		cap_pos = cap_pos + t;
+	    } else {
 		cap_pos = 0;
 	    }  
-	    addr=(char *)m68k_areg (regs, 0);
-	    sndbufrecpt=(unsigned int*)pos1;
+	    addr = m68k_areg (regs, 0);
+	    sndbufrecpt = (unsigned int*)pos1;
 	    t=t/4;
-	    for (i=0;i<t;i++)
-	    {
-		put_long((uae_u32)addr,sndbufrecpt[0]);
-		addr+=4;
-		sndbufrecpt+=1;
+	    for (i = 0; i < t; i++) {
+		put_long(addr, *sndbufrecpt++);
+		addr += 4;
 	    }
-	    t=t*4;
-	    i=IDirectSoundCaptureBuffer_Unlock(lpDSB2r,pos1,byte1,pos2,byte2);
-	return (todo-t)/t;
+	    t *= 4;
+	    IDirectSoundCaptureBuffer_Unlock(lpDSB2r,pos1,byte1,pos2,byte2);
+	}
+	return (todo - t) / t;
 
 	case 4:
 	    if (!ahi_on)
 		return -2;
-	    i=intcount;
-	    intcount=0;
+	    i = intcount;
+	    intcount = 0;
 	return i;
 
 	case 5:
-	    if ( !ahi_on )
+	    if (!ahi_on)
 		return 0;
 	    ahi_updatesound ( 1 );
-	return 1;	
+	return 1;
 
-	case 10:	
-	    i=OpenClipboard(0);
-	    clipdat=GetClipboardData(CF_TEXT);
-	    if (clipdat)
-	    {
-		clipsize=strlen(clipdat);
-		clipsize++;
-		return clipsize;
+	case 10:
+	    if (OpenClipboard(0)) {
+		clipdat=GetClipboardData(CF_TEXT);
+		if (clipdat) {
+		    clipsize=strlen(clipdat);
+		    clipsize++;
+		    return clipsize;
+		}
 	    }
 	return 0;
 
 	case 11:
-	    addr=(char *)m68k_areg (regs, 0);
-	    for (i=0;i<clipsize;i++)
-	    {
-		put_byte((uae_u32)addr,clipdat[0]);
-		addr++;
-		clipdat++;
-	    }
+	    for (i = 0; i < clipsize; i++)
+		put_byte(m68k_areg (regs, 0) + i,clipdat[i]);
 	    CloseClipboard();
 	return 0;
 
-	case 12:	   
-	    addr = (char *)m68k_areg (regs, 0);
-	    addr = (char *)get_real_address ((uae_u32)addr);
-	    i = OpenClipboard (0);
-	    EmptyClipboard();
-	    slen = strlen(addr);
-	    p = GlobalAlloc (GMEM_DDESHARE,slen+2);
-	    p2 = GlobalLock (p);
-	    memcpy (p2,addr,slen);
-	    p2[slen]=0;
-	    GlobalUnlock (p);
-	    i = (int)SetClipboardData (CF_TEXT,p2);
-	    CloseClipboard ();
-	    GlobalFree (p);
+	case 12:
+	{
+	    uae_u8 *addr = get_real_address (m68k_areg (regs, 0));
+	    if (OpenClipboard (0)) {
+		EmptyClipboard();
+		slen = strlen(addr);
+		p = GlobalAlloc (GMEM_DDESHARE,slen+2);
+		if (p) {
+		    p2 = GlobalLock (p);
+		    if (p2) {
+			memcpy (p2, addr, slen);
+			p2[slen] = 0;
+			GlobalUnlock (p);
+			SetClipboardData (CF_TEXT,p2);
+		    }
+		    GlobalFree (p);
+		}
+		CloseClipboard ();
+	    }
+	}
 	return 0;
 
 	case 13: /* HACK */
@@ -681,7 +689,7 @@ uae_u32 ahi_demux (void)
 #if defined(X86_MSVC_ASSEMBLY)
 
 	case 100: // open dll
-	{  
+	{
 	    char *dllname;
 	    uae_u32 result;
 	    dllname = ( char *) m68k_areg (regs, 0);
@@ -731,7 +739,7 @@ uae_u32 ahi_demux (void)
 		    //returns address of new array
 	    src = m68k_areg(regs, 0);
 	    num_vars = m68k_dreg(regs, 1);
-		
+
 	    if (bswap_buffer_size < num_vars * 2) {
 		bswap_buffer_size = (num_vars + 1024) * 2;
 		free(bswap_buffer);
@@ -741,11 +749,11 @@ uae_u32 ahi_demux (void)
 		mov esi, dword ptr [src]
 		mov edi, dword ptr [bswap_buffer]
 		mov ecx, num_vars
-				
+
 		mov ebx, ecx
 		and ecx, 3
 		je BSWAP_WORD_4X
-				
+
 		BSWAP_WORD_LOOP:
 		mov ax, [esi]
 		mov dl, al
@@ -783,7 +791,7 @@ uae_u32 ahi_demux (void)
 		mov [edi+6], ax
 		add esi, 8
 		add edi, 8
-		loopne BSWAP_WORD_4X_LOOP		
+		loopne BSWAP_WORD_4X_LOOP
 		BSWAP_WORD_END:
 	    }
 	return (uae_u32) bswap_buffer;
@@ -860,6 +868,6 @@ uae_u32 ahi_demux (void)
 	default:
 	return 0x12345678;     // Code for not supportet function
     }
-} 
+}
 
 #endif

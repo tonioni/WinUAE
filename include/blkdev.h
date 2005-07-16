@@ -39,7 +39,7 @@ struct device_info {
     int bytespersector;
     int bus, target, lun;
     int id;
-    char label[60];
+    char *label;
 };
 
 typedef int (*open_bus_func)(int flags);

@@ -58,12 +58,6 @@ typedef int (ZEXPORT *DEFLATEEND)(z_streamp strm);
 typedef int (ZEXPORT *DEFLATE)(z_streamp strm, int flush);
 typedef uLong (ZEXPORT *CRC32)(uLong crc, const Bytef *buf, uInt len);
 
-extern INFLATEINIT2 pinflateInit2;
-extern INFLATEINIT pinflateInit;
-extern INFLATEEND pinflateEnd;
-extern INFLATE pinflate;
-extern CRC32 pcrc32;
-
 #if defined(STRICTUNZIP) || defined(STRICTZIPUNZIP)
 /* like the STRICT of WIN32, we define a pointer that cannot be converted
     from (void*) without cast */

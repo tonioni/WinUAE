@@ -24,7 +24,7 @@
   *
   * - blitter state is not saved, blitter is forced to finish immediately if it
   *   was active
-  * - disk DMA state is completely saved 
+  * - disk DMA state is completely saved
   * - does not ask for statefile name and description. Currently uses DF0's disk
   *   image name (".adf" is replaced with ".asf")
   * - only Amiga state is restored, harddisk support, autoconfig, expansion boards etc..
@@ -35,11 +35,11 @@
  /* Usage :
   *
   * save:
-  * 
+  *
   * set savestate_state = STATE_DOSAVE, savestate_filename = "..."
   *
   * restore:
-  * 
+  *
   * set savestate_state = STATE_DORESTORE, savestate_filename = "..."
   *
   */
@@ -131,7 +131,7 @@ uae_u32 restore_u32_func (uae_u8 **dstp)
 uae_u64 restore_u64_func (uae_u8 **dstp)
 {
     uae_u64 v;
-    
+
     v = restore_u32_func (dstp);
     v <<= 32;
     v |= restore_u32_func (dstp);
@@ -166,7 +166,7 @@ char *restore_string_func (uae_u8 **dstp)
 	*top++ = v;
     } while(v);
     *dstp = dst;
-    return to; 
+    return to;
 }
 
 /* read and write IFF-style hunks */
@@ -275,7 +275,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, long *len, long *tota
 	&& strcmp (name, "PRAM") != 0)
     {
 	/* without zeros at the end old state files may not work */
-	mem = calloc (1, len2 + 32); 
+	mem = calloc (1, len2 + 32);
 	zfile_fread (mem, 1, len2, f);
     } else {
 	mem = 0;
@@ -295,7 +295,7 @@ void restore_ram (long filepos, uae_u8 *memory)
     uae_u8 *src = tmp;
     int size, fullsize;
     uae_u32 flags;
-    
+
     zfile_fseek (savestate_file, filepos, SEEK_SET);
     zfile_fread (tmp, 1, sizeof(tmp), savestate_file);
     size = restore_u32();
@@ -552,7 +552,7 @@ void save_state (char *filename, char *description)
 	    for (i = 0; i < len2; i++)
 		tmp[i] += 0x80;
 	    write_wavheader(f, len, 22050);
-	    zfile_fwrite(tmp, len2, 1, f);	    
+	    zfile_fwrite(tmp, len2, 1, f);
 	    xfree(tmp);
 	}
 	zfile_fclose (f);
@@ -1033,14 +1033,14 @@ HUNK HEADER (beginning of every hunk)
 
 	hunk name (4 ascii-characters)
 	hunk size (including header)
-	hunk flags             
+	hunk flags
 
 	bit 0 = chunk contents are compressed with zlib (maybe RAM chunks only?)
 
 HEADER
 
 	"ASF " (AmigaStateFile)
-	
+
 	statefile version
 	emulator name ("uae", "fellow" etc..)
 	emulator version string (example: "0.8.15")
@@ -1105,7 +1105,7 @@ MMU (when and if MMU is supported in future..)
 	MMUSR                   4
 	TC                      2
 
-		
+
 CUSTOM CHIPS
 
 	"CHIP"
@@ -1221,7 +1221,7 @@ INTERNAL FLOPPY	CONTROLLER STATUS
 	DSKLENGTH status        0=off,1=written once,2=written twice
 	unused                  2
 
-RAM SPACE 
+RAM SPACE
 
 	"xRAM" (CRAM = chip, BRAM = bogo, FRAM = fast, ZFRAM = Z3)
 

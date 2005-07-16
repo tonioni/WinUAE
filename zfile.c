@@ -34,22 +34,6 @@ struct zfile {
 };
 
 static struct zfile *zlist = 0;
-int is_zlib;
-
-#ifdef _WIN32
-static HMODULE zlib;
-#include "win32.h"
-#endif
-
-INFLATEINIT2 pinflateInit2;
-INFLATEINIT pinflateInit;
-INFLATEEND pinflateEnd;
-INFLATE pinflate;
-static DEFLATEINIT pdeflateInit;
-static DEFLATEEND pdeflateEnd;
-static DEFLATE pdeflate;
-CRC32 pcrc32;
-static int zlib_test (int, int);
 
 static struct zfile *zfile_create (void)
 {
@@ -117,7 +101,7 @@ int zfile_gettype (struct zfile *z)
 {
     uae_u8 buf[8];
     char *ext;
-    
+
     if (!z)
 	return ZFILE_UNKNOWN;
     ext = strrchr (z->name, '.');
@@ -236,8 +220,6 @@ static struct zfile *gunzip (struct zfile *z)
     struct zfile *z2;
     uae_u8 b;
 
-    if (!zlib_test (1, 0))
-	return z;
     strcpy (name, z->name);
     memset (&zs, 0, sizeof (zs));
     memset (header, 0, sizeof (header));
@@ -292,13 +274,13 @@ static struct zfile *gunzip (struct zfile *z)
 	zs.avail_in = sizeof (buffer);
 	zfile_fread (buffer, sizeof (buffer), 1, z);
 	if (first) {
-	    if (pinflateInit2 (&zs, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
+	    if (inflateInit2_ (&zs, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 		break;
 	    first = 0;
 	}
-	ret = pinflate (&zs, 0);
+	ret = inflate (&zs, 0);
     } while (ret == Z_OK);
-    pinflateEnd (&zs);
+    inflateEnd (&zs);
     if (ret != Z_STREAM_END || first != 0) {
 	zfile_fclose (z2);
 	return z;
@@ -322,7 +304,7 @@ static struct zfile *dms (struct zfile *z)
 {
     int ret;
     struct zfile *zo;
-    
+
     zo = zfile_fopen_empty ("zipped.dms", 1760 * 512);
     if (!zo) return z;
     ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0);
@@ -349,7 +331,7 @@ static struct zfile *dms (struct zfile *z)
 }
 #endif
 
-static char *ignoreextensions[] = 
+static char *ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
 static char *diskimageextensions[] =
     { ".adf", ".adz", ".ipf", ".fdi", 0 };
@@ -412,15 +394,15 @@ static int arcacc_init (void)
 {
     if (arcacc_mod)
 	return 1;
-    arcacc_mod = WIN32_LoadLibrary ("archiveaccess.dll"); 
+    arcacc_mod = WIN32_LoadLibrary ("archiveaccess.dll");
     if (!arcacc_mod) {
 	arcacc_mod = WIN32_LoadLibrary ("archiveaccess-debug.dll");
 	if (!arcacc_mod)
 	    return 0;
     }
-    openArchive = (aa_pOpenArchive) GetProcAddress (arcacc_mod, "openArchive"); 
+    openArchive = (aa_pOpenArchive) GetProcAddress (arcacc_mod, "openArchive");
     getFileCount = (aa_pGetFileCount) GetProcAddress (arcacc_mod, "getFileCount");
-    getFileInfo = (aa_pGetFileInfo) GetProcAddress (arcacc_mod, "getFileInfo"); 
+    getFileInfo = (aa_pGetFileInfo) GetProcAddress (arcacc_mod, "getFileInfo");
     extract = (aa_pExtract) GetProcAddress (arcacc_mod, "extract");
     closeArchive = (aa_pCloseArchive) GetProcAddress (arcacc_mod, "closeArchive");
     if (!openArchive || !getFileCount || !getFileInfo || !extract || !closeArchive) {
@@ -556,7 +538,7 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 		    skipsize = 0;
 		skipsize += (int)fi.UncompressedFileSize;
 	    }
-	}   
+	}
     }
     closeArchive (ah);
     arcacc_pop ();
@@ -566,37 +548,6 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 	zfile_fseek (z, 0, SEEK_SET);
     }
     return z;
-}
-
-static int zlib_test (int needzlib, int nomsg)
-{
-    static int zlibmsg;
-    if (is_zlib)
-	return 1;
-#ifdef _WIN32
-    zlib = WIN32_LoadLibrary ("zlib1.dll");
-    if (!zlib)
-	zlib = WIN32_LoadLibrary("zlib1_64.dll");
-    if (zlib) {
-	pinflateInit2 = (INFLATEINIT2)GetProcAddress (zlib, "inflateInit2_");
-	pinflateInit = (INFLATEINIT)GetProcAddress (zlib, "inflateInit_");
-	pinflate = (INFLATE)GetProcAddress (zlib, "inflate");
-	pinflateEnd = (INFLATEEND)GetProcAddress (zlib, "inflateEnd");
-	pdeflateInit = (DEFLATEINIT)GetProcAddress (zlib, "deflateInit_");
-	pdeflate = (DEFLATE)GetProcAddress (zlib, "deflate");
-	pdeflateEnd = (DEFLATEEND)GetProcAddress (zlib, "deflateEnd");
-	pcrc32 = (CRC32)GetProcAddress (zlib, "crc32");
-	is_zlib = 1;
-	return 1;
-    }
-#endif
-    if (!needzlib && arcacc_init ())
-	return 1;
-    if (zlibmsg || nomsg)
-	return 0;
-    zlibmsg = 1;
-    notify_user (NUMSG_NOZLIB);
-    return 0;
 }
 
 static struct zfile *unzip (struct zfile *z)
@@ -609,8 +560,6 @@ static struct zfile *unzip (struct zfile *z)
     char tmphist[MAX_DPATH];
     int first = 1;
 
-    if (!zlib_test (1, 0))
-	return z;
     zf = 0;
     uz = unzOpen (z);
     if (!uz)
@@ -676,7 +625,7 @@ static struct zfile *unzip (struct zfile *z)
 	}
 	zipcnt++;
 	err = unzGoToNextFile (uz);
-	if (err != UNZ_OK) 
+	if (err != UNZ_OK)
 	    break;
     }
     if (zf) {
@@ -703,7 +652,7 @@ static int iszip (struct zfile *z)
     zfile_fseek (z, 0, SEEK_SET);
     zfile_fread (header, sizeof (header), 1, z);
     zfile_fseek (z, 0, SEEK_SET);
-    if (!strcasecmp (ext, ".zip") && header[0] == 'P' && header[1] == 'K' && zlib_test (1, 1))
+    if (!strcasecmp (ext, ".zip") && header[0] == 'P' && header[1] == 'K')
 	return -1;
     for (i = 0; plugins_7z[i]; i++) {
 	if (plugins_7z_x[i] && !strcasecmp (ext + 1, plugins_7z[i]) &&
@@ -722,7 +671,7 @@ static struct zfile *zuncompress (struct zfile *z)
 
     if (ext != NULL) {
 	ext++;
-	if (strcasecmp (ext, "zip") == 0 && zlib_test (1, 1))
+	if (strcasecmp (ext, "zip") == 0)
 	     return unzip (z);
 	if (strcasecmp (ext, "gz") == 0)
 	     return gunzip (z);
@@ -757,7 +706,7 @@ static FILE *openzip (char *name, char *zippath)
 {
     int i, j;
     char v;
-    
+
     i = strlen (name) - 2;
     if (zippath)
 	zippath[0] = 0;
@@ -929,8 +878,6 @@ static int zunzip (struct zfile *z, zfile_callback zc, void *user)
     struct zfile *zf;
     int err;
 
-    if (!zlib_test (1, 0))
-	return 0;
     zf = 0;
     uz = unzOpen (z);
     if (!uz)
@@ -1109,7 +1056,7 @@ size_t zfile_fputs (struct zfile *z, char *s)
 size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
 {
     long len = l1 * l2;
-    
+
     if (z->writeskipbytes) {
 	z->writeskipbytes -= len;
 	if (z->writeskipbytes >= 0)
@@ -1137,10 +1084,8 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
     uae_u8 inbuf[4096];
     int incnt;
 
-    if (!zlib_test (1, 0))
-	return 0;
     memset (&zs, 0, sizeof(zs));
-    if (pinflateInit (&zs, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
+    if (inflateInit_ (&zs, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 	return 0;
     zs.next_out = dst;
     zs.avail_out = dstsize;
@@ -1156,9 +1101,9 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
 	    zs.avail_in = zfile_fread (inbuf, 1, left, src);
 	    incnt += left;
 	}
-	v = pinflate (&zs, 0);
+	v = inflate (&zs, 0);
     }
-    pinflateEnd (&zs);
+    inflateEnd (&zs);
     return 0;
 }
 
@@ -1168,10 +1113,8 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
     z_stream zs;
     uae_u8 outbuf[4096];
 
-    if (!is_zlib)
-	return 0;
     memset (&zs, 0, sizeof (zs));
-    if (pdeflateInit (&zs, Z_DEFAULT_COMPRESSION, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
+    if (deflateInit_ (&zs, Z_DEFAULT_COMPRESSION, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 	return 0;
     zs.next_in = src;
     zs.avail_in = size;
@@ -1179,11 +1122,11 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
     while (v == Z_OK) {
 	zs.next_out = outbuf;
 	zs.avail_out = sizeof (outbuf);
-	v = pdeflate(&zs, Z_NO_FLUSH | Z_FINISH);
+	v = deflate(&zs, Z_NO_FLUSH | Z_FINISH);
 	if (sizeof(outbuf) - zs.avail_out > 0)
 	    zfile_fwrite (outbuf, 1, sizeof (outbuf) - zs.avail_out, f);
     }
-    pdeflateEnd(&zs);
+    deflateEnd(&zs);
     return zs.total_out;
 }
 
@@ -1211,7 +1154,7 @@ uae_u32 zfile_crc32 (struct zfile *f)
     memset (p, 0, size);
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (p, 1, size, f);
-    zfile_fseek (f, pos, SEEK_SET);        
+    zfile_fseek (f, pos, SEEK_SET);
     crc = get_crc32 (p, size);
     xfree (p);
     return crc;

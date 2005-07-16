@@ -21,7 +21,7 @@
 #include "osdep/exectasks.h"
 
 /* We'll need a lot of these. */
-#define	MAX_TRAPS 4096
+#define MAX_TRAPS 4096
 static TrapFunction traps[MAX_TRAPS];
 static int trapmode[MAX_TRAPS];
 static const char *trapstr[MAX_TRAPS];
@@ -37,7 +37,7 @@ int lasttrap;
 
 /* Stack management */
 
-/* The mechanism for doing m68k	calls from native code is as follows:
+/* The mechanism for doing m68k calls from native code is as follows:
  *
  * m68k code executes, stack is main
  * calltrap to execute_fn_on_extra_stack. new stack is allocated

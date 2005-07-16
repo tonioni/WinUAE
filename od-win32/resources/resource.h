@@ -300,6 +300,7 @@
 #define IDC_THEROOTS                    1076
 #define IDC_CAPS                        1077
 #define IDC_ABIME                       1078
+#define IDC_AMIGASYS                    1079
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092
 #define IDC_CONTRIBUTORS                1124
@@ -348,7 +349,6 @@
 #define IDC_CYCLEEXACT                  1219
 #define IDC_CS_CPU_TEXT2                1219
 #define IDC_CPUIDLE                     1220
-#define IDC_CYCLEEXACT2                 1220
 #define IDC_GENLOCK                     1220
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_8BIT                        1230
@@ -484,6 +484,7 @@
 #define IDC_TEST16BIT                   1506
 #define IDC_MAPDRIVES                   1507
 #define IDC_CPUTEXT                     1508
+#define IDC_MAPDRIVES_NET               1508
 #define IDC_SWAP                        1509
 #define IDC_CACHETEXT                   1509
 #define IDC_SELECTRESTEXT               1510
@@ -531,6 +532,8 @@
 #define IDC_D0                          1532
 #define IDC_STATE_CAPTURE               1532
 #define IDC_D1                          1533
+#define IDC_STATE_CAPTURE2              1533
+#define IDC_KBLED_USB                   1533
 #define IDC_D2                          1534
 #define IDC_D3                          1535
 #define IDC_D4                          1536

@@ -127,7 +127,7 @@ static void processclicks(struct drvsample *ds)
 	} else  {
 	    for(n = nClick; n < CLICK_TRACKS; n++) {
 		ds->indexes[n] = ds->indexes[nClick-1];
-		ds->lengths[n] = ds->lengths[nClick-1]; 
+		ds->lengths[n] = ds->lengths[nClick-1];
 	    }
 	}
     }
@@ -266,7 +266,7 @@ static int clickcnt;
 static void mix (void)
 {
     int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (currprefs.sound_stereo ? 4 : 2);
-    
+
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {
 	    clickbuffer[clickcnt++] = getsample() * (100 - currprefs.dfxclickvolume) / 100;

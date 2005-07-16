@@ -194,6 +194,19 @@ void cfgfile_write (struct zfile *f, char *format,...)
     va_end (parms);
 }
 
+void cfgfile_target_write (struct zfile *f, char *format,...)
+{
+    va_list parms;
+    char tmp[CONFIG_BLEN];
+
+    va_start (parms, format);
+    vsprintf (tmp + strlen (TARGET_NAME) + 1, format, parms);
+    memcpy (tmp, TARGET_NAME, strlen (TARGET_NAME));
+    tmp[strlen (TARGET_NAME)] = '.';
+    zfile_fwrite (tmp, 1, strlen (tmp), f);
+    va_end (parms);
+}
+
 static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
     struct strlist *sl;
@@ -208,7 +221,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "config_version=%d.%d.%d\n", UAEMAJOR, UAEMINOR, UAESUBREV);
     cfgfile_write (f, "config_hardware_path=%s\n", p->config_hardware_path);
     cfgfile_write (f, "config_host_path=%s\n", p->config_host_path);
-   
+
     for (sl = p->all_lines; sl; sl = sl->next) {
 	if (sl->unknown)
 	    cfgfile_write (f, "%s=%s\n", sl->option, sl->value);
@@ -267,7 +280,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
     cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
     cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo >= 0 ? p->sound_mixed_stereo : 0);
-    
+
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
     cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
@@ -282,7 +295,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "comp_nf=%s\n", p->compnf ? "true" : "false");
     cfgfile_write (f, "comp_constjump=%s\n", p->comp_constjump ? "true" : "false");
     cfgfile_write (f, "comp_oldsegv=%s\n", p->comp_oldsegv ? "true" : "false");
-    
+
     cfgfile_write (f, "comp_flushmode=%s\n", flushmode[p->comp_hardflush]);
     cfgfile_write (f, "compforcesettings=%s\n", p->compforcesettings ? "true" : "false");
     cfgfile_write (f, "compfpu=%s\n", p->compfpu ? "true" : "false");
@@ -376,7 +389,6 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 #endif
 
     cfgfile_write (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
-    cfgfile_write (f, "fast_copper=%s\n", p->fast_copper ? "true" : "false");
     cfgfile_write (f, "ntsc=%s\n", p->ntscmode ? "true" : "false");
     cfgfile_write (f, "genlock=%s\n", p->genlock ? "true" : "false");
     cfgfile_write (f, "show_leds=%s\n", p->leds_on_screen ? "true" : "false");
@@ -451,8 +463,10 @@ int cfgfile_yesno (char *option, char *value, char *name, int *location)
     else if (strcasecmp (value, "no") == 0 || strcasecmp (value, "n") == 0
 	|| strcasecmp (value, "false") == 0 || strcasecmp (value, "f") == 0)
 	*location = 0;
-    else
+    else {
 	write_log ("Option `%s' requires a value of either `yes' or `no'.\n", option);
+	return -1;
+    }
     return 1;
 }
 
@@ -467,8 +481,10 @@ int cfgfile_intval (char *option, char *value, char *name, int *location, int sc
 	value += 2, base = 16;
     *location = strtol (value, &endptr, base) * scale;
 
-    if (*endptr != '\0' || *value == '\0')
+    if (*endptr != '\0' || *value == '\0') {
 	write_log ("Option `%s' requires a numeric argument.\n", option);
+	return -1;
+    }
     return 1;
 }
 
@@ -483,7 +499,7 @@ int cfgfile_strval (char *option, char *value, char *name, int *location, const 
 	    return 0;
 
 	write_log ("Unknown value for option `%s'.\n", option);
-	return 1;
+	return -1;
     }
     *location = val;
     return 1;
@@ -679,7 +695,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode1, 1)
 	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode2, 0))
 	    return 1;
-	
+
 
 #ifdef GFXFILTER
     if (strcmp (option,"gfx_filter") == 0) {
@@ -851,7 +867,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     char tmpbuf[CONFIG_BLEN];
 
     if (cfgfile_yesno (option, value, "immediate_blits", &p->immediate_blits)
-	|| cfgfile_yesno (option, value, "fast_copper", &p->fast_copper)
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
 	|| cfgfile_yesno (option, value, "genlock", &p->genlock)
@@ -1023,7 +1038,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	char *dname, *aname, *root, *fs;
 	char *tmpp = strchr (value, ',');
 	char *str;
-	
+
 	config_newfilesystem = 1;
 	if (tmpp == 0)
 	    goto invalid_fs;
@@ -1454,7 +1469,7 @@ static void parse_gfx_specs (struct uae_prefs *p, char *spec)
     if (p->gfx_linedbl == 3) {
 	write_log ("You can't use both 'd' and 'D' modifiers in the display mode specification.\n");
     }
-    
+
     free (x0);
     return;
 
@@ -1559,7 +1574,7 @@ static void parse_filesys_spec (int readonly, char *spec)
 #ifdef __DOS__
 	{
 	    char *tmp;
- 
+
 	    while ((tmp = strchr (s2, '\\')))
 		*tmp = '/';
 	}
@@ -1574,7 +1589,7 @@ static void parse_filesys_spec (int readonly, char *spec)
 	write_log ("Usage: [-m | -M] VOLNAME:mount_point\n");
     }
 }
- 
+
 static void parse_hardfile_spec (char *spec)
 {
     char *x0 = my_strdup (spec);
@@ -1618,7 +1633,7 @@ static void parse_cpu_specs (struct uae_prefs *p, char *spec)
 	write_log ("CPU parameter string must begin with '0', '1', '2', '3' or '4'.\n");
 	return;
     }
-	
+
     p->cpu_level = *spec++ - '0';
     p->address_space_24 = p->cpu_level < 2;
     p->cpu_compatible = 0;
@@ -1860,9 +1875,9 @@ int cfgfile_handle_custom_event (char *custom, int mode)
 			cnt_ok++;
 			break;
 		    }
-		}   
+		}
 	    }
-	}	
+	}
 	p = nextp;
     }
     xfree (tmp);
@@ -1935,7 +1950,7 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     static struct zfile *configstore;
     static char *configsearch;
     static int configsearchfound;
-    
+
     err = 0;
     argv = 0;
     p = 0;
@@ -2022,7 +2037,7 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 	}
 	goto end;
     }
- 
+
     if (size > 10000)
 	return 10;
     p = xmalloc (size + 1);
@@ -2114,7 +2129,7 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
     char *path = 0;
     int i;
-    
+
     tmp2[0] = 0;
     i = 0;
     while (rom[i] >= 0) {
@@ -2234,9 +2249,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	for (i = 0;i < 10; i++)
 	    p->optcount[i] = -1;
 	p->optcount[0] = 4;	/* How often a block has to be executed before it
-				is translated */
-	p->optcount[1] = 0; /* How often to use the naive translation */
-	p->optcount[2] = 0; 
+				 * is translated */
+	p->optcount[1] = 0;	/* How often to use the naive translation */
+	p->optcount[2] = 0;
 	p->optcount[3] = 0;
 	p->optcount[4] = 0;
 	p->optcount[5] = 0;
@@ -2270,7 +2285,6 @@ void default_prefs (struct uae_prefs *p, int type)
     p->leds_on_screen = 0;
     p->keyboard_leds_in_use = 0;
     p->keyboard_leds[0] = p->keyboard_leds[1] = p->keyboard_leds[2] = 0;
-    p->fast_copper = 1;
     p->scsi = 0;
     p->cpu_idle = 0;
     p->catweasel = 0;
@@ -2379,7 +2393,6 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->chipset_mask = CSMASK_ECS_AGNUS;
     p->immediate_blits = 0;
     p->collision_level = 2;
-    p->fast_copper = 1;
     p->produce_sound = 3;
     p->scsi = 0;
     p->cpu_idle = 0;
@@ -2431,10 +2444,8 @@ static void set_68000_compa (struct uae_prefs *p, int compa)
     {
 	case 0:
 	p->cpu_cycle_exact = p->blitter_cycle_exact = 1;
-	p->fast_copper = 0;
 	break;
 	case 1:
-	p->fast_copper = 0;
 	break;
 	case 2:
 	p->cpu_compatible = 0;
@@ -2462,12 +2473,12 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     set_68000_compa (p, compa);
     p->dfxtype[1] = -1;
     return configure_rom (p, roms, romcheck);
-}    
+}
 
 static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[4];
-    
+
     roms[0] = 6;
     roms[1] = 32;
     roms[2] = -1;
@@ -2490,7 +2501,7 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[2];
-    
+
     buildin_default_prefs_68020 (p);
     roms[0] = 18;
     roms[1] = -1;

@@ -647,7 +647,7 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
     }
 }
 
-static uae_u32 debug_lget (uaecptr addr)
+static uae_u32 REGPARAM debug_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
@@ -655,7 +655,7 @@ static uae_u32 debug_lget (uaecptr addr)
     memwatch_func (addr, 0, 4, v);
     return v;
 }
-static uae_u32 debug_wget (uaecptr addr)
+static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
@@ -663,7 +663,7 @@ static uae_u32 debug_wget (uaecptr addr)
     memwatch_func (addr, 0, 2, v);
     return v;
 }
-static uae_u32 debug_bget (uaecptr addr)
+static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
@@ -671,29 +671,29 @@ static uae_u32 debug_bget (uaecptr addr)
     memwatch_func (addr, 0, 1, v);
     return v;
 }
-static void debug_lput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 4, v);
     debug_mem_banks[off]->lput(addr, v);
 }
-static void debug_wput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 2, v);
     debug_mem_banks[off]->wput(addr, v);
 }
-static void debug_bput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     memwatch_func (addr, 1, 1, v);
     debug_mem_banks[off]->bput(addr, v);
 }
-static int debug_check (uaecptr addr, uae_u32 size)
+static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->check (addr, size);
 }
-static uae_u8 *debug_xlate (uaecptr addr)
+static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
 }

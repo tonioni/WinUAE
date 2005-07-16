@@ -343,7 +343,7 @@ void init_m68k (void)
 	write_log (" 24-bit addressing");
     }
     write_log ("\n");
-    
+
     read_table68k ();
     do_merges ();
 
@@ -821,7 +821,7 @@ static void exception_debug (int nr)
 #ifdef DEBUGGER
     if (!exception_debugging)
 	return;
-    console_out ("Exception %d, PC=%08.8X\n", nr, m68k_getpc()); 
+    console_out ("Exception %d, PC=%08.8X\n", nr, m68k_getpc());
 #endif
 }
 
@@ -1127,7 +1127,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	switch (regno) {
 	case 0: regs.sfc = *regp & 7; break;
 	case 1: regs.dfc = *regp & 7; break;
-	 case 2: 
+	 case 2:
 	    cacr = *regp & (currprefs.cpu_level < 4 ? 0x3 : (currprefs.cpu_level == 4 ? 0x80008000 : 0xf8800e00));
 #ifdef JIT
 	    if (currprefs.cpu_level < 4) {
@@ -1654,14 +1654,14 @@ static int do_specialties (int cycles)
 	if(!(regs.spcflags & ~SPCFLAG_ACTION_REPLAY)) return 0;
     }
     #endif
-    if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE ) 
+    if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE )
     {
 	/*if(action_replay_flag == ACTION_REPLAY_ACTIVE && !is_ar_pc_in_rom())*/
 	/*	write_log("PC:%p\n",m68k_getpc());*/
-		
-	if(action_replay_flag == ACTION_REPLAY_ACTIVATE || action_replay_flag == ACTION_REPLAY_DORESET) 
+
+	if(action_replay_flag == ACTION_REPLAY_ACTIVATE || action_replay_flag == ACTION_REPLAY_DORESET)
 	    action_replay_enter();
-	if(action_replay_flag == ACTION_REPLAY_HIDE && !is_ar_pc_in_rom()) 
+	if(action_replay_flag == ACTION_REPLAY_HIDE && !is_ar_pc_in_rom())
 	{
 	    action_replay_hide();
 	    unset_special(SPCFLAG_ACTION_REPLAY);
@@ -1887,14 +1887,14 @@ void exec_nostats(void)
 {
     int new_cycles;
 
-    for (;;) 
-    { 
+    for (;;)
+    {
 	uae_u16 opcode = get_iword(0);
 #if defined X86_ASSEMBLY
 	__asm__ __volatile__("\tpush %%ebp\n\tcall *%%ebx\n\tpop %%ebp" /* FIXME */
-			     : "=&a" (new_cycles) 
+			     : "=&a" (new_cycles)
 			     : "b" (cpufunctbl[opcode]), "0" (opcode)
-			     : "%edx", "%ecx", "%esi", "%edi", 
+			     : "%edx", "%ecx", "%esi", "%edi",
 			     "%ebp", "memory", "cc");
 #else
 	new_cycles = (*cpufunctbl[opcode])(opcode);
@@ -1903,7 +1903,7 @@ void exec_nostats(void)
 	new_cycles &= cycles_mask;
 	new_cycles |= cycles_val;
 	do_cycles (new_cycles);
-	
+
 	if (end_block(opcode) ||
 	    regs.spcflags) {
 	    return; /* We will deal with the spcflags in the caller */
@@ -1924,9 +1924,9 @@ void execute_normal(void)
 	return;
     total_cycles = 0;
     blocklen = 0;
-    start_pc_p = regs.pc_oldp;  
-    start_pc = regs.pc; 
-    for (;;) 
+    start_pc_p = regs.pc_oldp;
+    start_pc = regs.pc;
+    for (;;)
     {    /* Take note: This is the do-it-normal loop */
 	uae_u16 opcode = get_iword (0);
 
@@ -1934,9 +1934,9 @@ void execute_normal(void)
 	pc_hist[blocklen].location = (uae_u16*)regs.pc_p;
 #if defined X86_ASSEMBLY
 	__asm__ __volatile__("\tpush %%ebp\n\tcall *%%ebx\n\tpop %%ebp" /* FIXME */
-			     : "=&a" (new_cycles) 
+			     : "=&a" (new_cycles)
 			     : "b" (cpufunctbl[opcode]), "0" (opcode)
-			     : "%edx", "%ecx", "%esi", "%edi", 
+			     : "%edx", "%ecx", "%esi", "%edi",
 			     "%ebp", "memory", "cc");
 #else
 	new_cycles = (*cpufunctbl[opcode])(opcode);
@@ -1961,11 +1961,11 @@ typedef void compiled_handler(void);
 
 static void m68k_run_2a (void)
 {
-    for (;;) {  
-#if defined X86_ASSEMBLY 
+    for (;;) {
+#if defined X86_ASSEMBLY
 	__asm__ __volatile__(
 	    "\tpush %%ebp\n\tcall *%0\n\tpop %%ebp"  /* FIXME */
-	    :: "m" (cache_tags[cacheline(regs.pc_p)].handler) 
+	    :: "m" (cache_tags[cacheline(regs.pc_p)].handler)
 	    : "%edx", "%ecx", "%eax",
 	    "%esi", "%ebx", "%edi", "%ebp", "memory", "cc");
 #else
@@ -2226,8 +2226,8 @@ void m68k_go (int may_quit)
 		    currprefs.cpu_level == 0 && currprefs.cpu_compatible ? m68k_run_1 :
 		    currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2);
 #else
-	m68k_run1 (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0 ? m68k_run_1_ce : 
-		   currprefs.cpu_compatible > 0 && currprefs.cpu_level == 0 ? m68k_run_1 : 
+	m68k_run1 (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0 ? m68k_run_1_ce :
+		   currprefs.cpu_compatible > 0 && currprefs.cpu_level == 0 ? m68k_run_1 :
 		   currprefs.cpu_level >= 2 && currprefs.cachesize ? m68k_run_2a :
 		   currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2);
 #endif
@@ -2310,7 +2310,7 @@ void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt)
 	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname);
 	}
 
-    
+
 	for (i = 0; i < (m68kpc_offset - oldpc) / 2; i++) {
 	    f_out (f, "%04x ", get_iword_1 (oldpc + i * 2));
 	}
@@ -2378,7 +2378,7 @@ void sm68k_disasm(char *instrname, char *instrcode, uaecptr addr, uaecptr *nextp
 	newpc = m68k_getpc () + m68kpc_offset;
 	newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname);
     }
-    
+
     if (instrcode)
     {
 	int i;
@@ -2573,6 +2573,7 @@ void exception3 (uae_u32 opcode, uaecptr addr, uaecptr fault)
 {
     exception3f (opcode, addr, fault, 0, 0);
 }
+
 void exception3i (uae_u32 opcode, uaecptr addr, uaecptr fault)
 {
     exception3f (opcode, addr, fault, 0, 1);
@@ -2647,7 +2648,7 @@ void cpureset (void)
  Best case without signed overflow: 122 cycles.
  Best case with signed overflow: 120 cycles
 
- 
+
  */
 
 

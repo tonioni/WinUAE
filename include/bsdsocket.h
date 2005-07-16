@@ -76,7 +76,7 @@ struct socketbase {
 
 struct UAEBSDBase {
     char dummy[LIBRARY_SIZEOF];
-    struct socketbase *sb;
+    uae_u32 sb[sizeof (void*) / 4];
     char scratchbuf[SCRATCHBUFSIZE];
 };
 

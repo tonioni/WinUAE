@@ -698,7 +698,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #endif
 	ciaadra = val; bfe001_change (); break;
     case 3:
-	ciaadrb = val; 
+	ciaadrb = val;
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
 	    write_log ("BFE301 W %02.2X %s\n", val, debuginfo(0));
@@ -975,7 +975,7 @@ void CIA_reset (void)
     if (! ersatzkickfile)
 	map_overlay (0);
 #ifdef SERIAL_PORT
-    if (currprefs.use_serial && !savestate_state) 
+    if (currprefs.use_serial && !savestate_state)
 	serial_dtr_off (); /* Drop DTR at reset */
 #endif
     if (savestate_state) {
@@ -1234,8 +1234,10 @@ static void cdtv_battram_write (int addr, int v)
 {
     struct zfile *f;
     int offset = addr & CDTV_NVRAM_MASK;
-    if (offset >= CDTV_NVRAM_SIZE) return;
-    if (cdtv_battram[offset] == v) return;
+    if (offset >= CDTV_NVRAM_SIZE)
+	return;
+    if (cdtv_battram[offset] == v)
+	return;
     cdtv_battram[offset] = v;
     f = zfile_fopen (currprefs.flashfile,"rb+");
     if (!f)
@@ -1250,8 +1252,9 @@ static uae_u8 cdtv_battram_read (int addr)
     uae_u8 v;
     int offset;
     offset = addr & CDTV_NVRAM_MASK;
-    if (offset >= CDTV_NVRAM_SIZE) return 0;
-    v =  cdtv_battram[offset];
+    if (offset >= CDTV_NVRAM_SIZE)
+	return 0;
+    v = cdtv_battram[offset];
     return v;
 }
 #endif
@@ -1380,7 +1383,7 @@ uae_u8 *restore_cia (int num, uae_u8 *src)
     b = restore_u8 ();					/* F CRB */
     if (num) ciabcrb = b; else ciaacrb = b;
 
-/* CIA internal	data */
+    /* CIA internal data */
 
     b = restore_u8 ();					/* ICR MASK */
     if (num) ciabimask = b; else ciaaimask = b;
@@ -1428,7 +1431,7 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
     b = num ? ciabprb : ciaaprb;				/* 1 PRB */
     save_u8 (b);
     b = num ? ciabdra : ciaadra;				/* 2 DDRA */
-    save_u8 (b); 
+    save_u8 (b);
     b = num ? ciabdrb : ciaadrb;				/* 3 DDRB */
     save_u8 (b);
     t = (num ? ciabta - ciabta_passed : ciaata - ciaata_passed);/* 4 TA */

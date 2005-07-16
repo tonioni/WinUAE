@@ -22,8 +22,13 @@
 #include <stddef.h>
 
 #include <windows.h>
-#include <devioctl.h>
+#include <initguid.h>   // Guid definition
+#include <devguid.h>    // Device guids
+#include <setupapi.h>   // for SetupDiXxx functions.
+#include <cfgmgr32.h>   // for SetupDiXxx functions.
+#include <devioctl.h>  
 #include <ntddscsi.h>
+
 
 typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
   SCSI_PASS_THROUGH_DIRECT spt;
@@ -34,11 +39,11 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
 static int unitcnt = 0;
 
 struct dev_info_spti {
-    char drvletter;
-    char drvpath[10];
+    char *drvpath;
     int mediainserted;
     HANDLE handle;
     int isatapi;
+    int type;
 };
 
 static uae_sem_t scgp_sem;
@@ -214,19 +219,42 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
     return scsibuf;
 }
 
-static int adddrive (int unitnum, char drive)
+static int total_devices;
+
+static int adddrive (char *drvpath, int type)
 {
-    if (unitcnt >= MAX_TOTAL_DEVICES)
+    int cnt = total_devices, i;
+    if (cnt >= MAX_TOTAL_DEVICES)
 	return 0;
-    sprintf (dev_info[unitcnt].drvpath, "\\\\.\\%c:", drive);
-    dev_info[unitcnt].drvletter = drive;
-    write_log ("SPTI: selected drive %c: (uaescsi.device:%d)\n", drive, unitnum);
-    unitcnt++;
+    for (i = 0; i < total_devices; i++) {
+	if (!strcmp(drvpath, dev_info[i].drvpath))
+	    return 0;
+    }
+    dev_info[cnt].drvpath = my_strdup(drvpath);
+    dev_info[cnt].type = type;
+    write_log ("SPTI: uaescsi.device:%d ('%s')\n", cnt, drvpath);
+    total_devices++;
     return 1;
 }
 
-static int total_devices;
+int rescan(void);
+static int open_scsi_bus (int flags)
+{
+    int i;
 
+    total_devices = 0;
+    uae_sem_init (&scgp_sem, 0, 1);
+    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	memset (&dev_info[i], 0, sizeof (struct dev_info_spti));
+	dev_info[i].handle = INVALID_HANDLE_VALUE;
+    }
+    if (!scsibuf)
+	scsibuf = VirtualAlloc (NULL, DEVICE_SCSI_BUFSIZE, MEM_COMMIT, PAGE_READWRITE);
+    rescan();
+    return total_devices;
+}
+
+#if 0
 static int open_scsi_bus (int flags)
 {
     int dwDriveMask;
@@ -264,6 +292,7 @@ static int open_scsi_bus (int flags)
     }
     return total_devices;
 }
+#endif
 
 static void close_scsi_bus (void)
 {
@@ -310,18 +339,23 @@ int open_scsi_device (int unitnum)
     char *dev;
 
     dev = dev_info[unitnum].drvpath;
-    if (!dev[0])
+    if (!dev)
 	return 0;
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     dev_info[unitnum].handle = h;
     if (h == INVALID_HANDLE_VALUE) {
-	write_log ("failed to open cd unit %d (%s)\n", unitnum, dev);
+	write_log ("failed to open cd unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
     } else {
-	dev_info[unitnum].mediainserted = mediacheck (unitnum);
-	dev_info[unitnum].isatapi = isatapi (unitnum);
-	write_log ("cd unit %d %s opened (%s), %s\n", unitnum,
-	    dev_info[unitnum].isatapi ? "[ATAPI]" : "[SCSI]", dev,
-	    dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty");
+	if (dev_info[unitnum].type == INQ_ROMD) {
+	    dev_info[unitnum].mediainserted = mediacheck (unitnum);
+	    dev_info[unitnum].isatapi = isatapi (unitnum);
+	    write_log ("scsi cd unit %d opened (%s), %s ('%s')\n", unitnum,
+		dev_info[unitnum].isatapi ? "[ATAPI]" : "[SCSI]",
+		dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty", dev);
+	} else {
+	    write_log ("scsi unit %d, type %d opened ('%s')\n",
+		unitnum, dev_info[unitnum].type, dev);
+	}
 	return 1;
     }
     return 0;
@@ -339,7 +373,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 {
     if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
-    sprintf(di->label,"Drive %c", dev_info[unitnum].drvletter);
+    di->label = my_strdup(dev_info[unitnum].drvpath);
     di->bus = 0;
     di->target = unitnum;
     di->lun = 0;
@@ -347,13 +381,27 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->write_protected = 1;
     di->bytespersector = 2048;
     di->cylinders = 1;
-    di->type = INQ_ROMD;
-    di->id = dev_info[unitnum].drvletter;
+    di->type = dev_info[unitnum].type;
+    di->id = unitnum + 1;
     return di;
 }
 
 void win32_spti_media_change (char driveletter, int insert)
 {
+#if 1
+    int i, now;
+
+    for (i = 0; i < total_devices; i++) {
+	if (dev_info[i].type == INQ_ROMD) {
+	    now = mediacheck (i);
+	    if (now != dev_info[i].mediainserted) {
+		write_log ("SPTI: media change %c %d\n", driveletter, insert);
+		dev_info[i].mediainserted = now;
+		scsi_do_disk_change (i + 1, insert);
+	    }
+	}
+    }
+#else
     int i;
 
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
@@ -363,6 +411,7 @@ void win32_spti_media_change (char driveletter, int insert)
 	    scsi_do_disk_change (driveletter, insert);
 	}
     }
+#endif
 }
 
 static int check_isatapi (int unitnum)
@@ -375,5 +424,94 @@ struct device_functions devicefunc_win32_spti = {
     execscsicmd_out, execscsicmd_in, execscsicmd_direct,
     0, 0, 0, 0, 0, 0, 0, check_isatapi
 };
+
+static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
+{
+    SP_DEVICE_INTERFACE_DATA interfaceData;
+    PSP_DEVICE_INTERFACE_DETAIL_DATA interfaceDetailData = NULL;
+    DWORD interfaceDetailDataSize, reqSize;
+    DWORD status, errorCode;
+
+    interfaceData.cbSize = sizeof (SP_INTERFACE_DEVICE_DATA);
+    status = SetupDiEnumDeviceInterfaces ( 
+	DevInfo,	// Interface Device Info handle
+	0,		// Device Info data
+	guid,		// Interface registered by driver
+	idx,		// Member
+	&interfaceData	// Device Interface Data
+	);
+    if (status == FALSE)
+	return FALSE;
+
+    status = SetupDiGetDeviceInterfaceDetail (
+	DevInfo,	// Interface Device info handle
+	&interfaceData,	// Interface data for the event class
+	NULL,		// Checking for buffer size
+	0,		// Checking for buffer size
+	&reqSize,	// Buffer size required to get the detail data
+	NULL		// Checking for buffer size
+	);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_INSUFFICIENT_BUFFER)
+	    return FALSE;
+    }
+
+    interfaceDetailDataSize = reqSize;
+    interfaceDetailData = malloc (interfaceDetailDataSize);
+    if (interfaceDetailData == NULL)
+	return FALSE;
+    interfaceDetailData->cbSize = sizeof (SP_INTERFACE_DEVICE_DETAIL_DATA);
+
+    status = SetupDiGetDeviceInterfaceDetail (
+		DevInfo,		// Interface Device info handle
+		&interfaceData,		// Interface data for the event class
+		interfaceDetailData,	// Interface detail data
+		interfaceDetailDataSize,// Interface detail data size
+		&reqSize,		// Buffer size required to get the detail data
+		NULL);			// Interface device info
+
+    if (status == FALSE)
+	return FALSE;
+
+    adddrive (interfaceDetailData->DevicePath, INQ_ROMD);
+
+    free (interfaceDetailData);
+
+    return TRUE;
+}
+
+static const GUID *guids[] = {
+    &GUID_DEVINTERFACE_CDROM,
+    &GUID_DEVINTERFACE_TAPE,
+    &GUID_DEVINTERFACE_WRITEONCEDISK,
+    &GUID_DEVINTERFACE_MEDIUMCHANGER,
+    &GUID_DEVINTERFACE_CDCHANGER,
+    &GUID_DEVINTERFACE_STORAGEPORT,
+    NULL};
+
+static int rescan(void)
+{
+    HDEVINFO hDevInfo;
+    int idx, idx2;
+
+    write_log("Scan starts..\n");
+    for (idx2 = 0; guids[idx2]; idx2++) {
+	hDevInfo = SetupDiGetClassDevs(
+	    guids[idx2],
+	    NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
+	if (hDevInfo != INVALID_HANDLE_VALUE) {
+	    write_log("%d:\n", idx2);
+	    for (idx = 0; ; idx++) {
+		if (!getCDROMProperty(idx, hDevInfo, guids[idx2]))
+		    break;
+	    }
+	    SetupDiDestroyDeviceInfoList(hDevInfo);
+	}
+    }
+    write_log("finished.\n");
+    return 1;
+}
 
 #endif

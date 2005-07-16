@@ -4,7 +4,7 @@
   * Call Amiga Exec functions outside the main UAE thread.
   *
   * Copyright 1999 Patrick Ohly
-  * 
+  *
   * Uses the EXTER interrupt that is setup in filesys.c
   * and needs thread support.
   */

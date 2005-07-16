@@ -1,8 +1,8 @@
- /* 
+ /*
   * UAE - The Un*x Amiga Emulator
-  * 
+  *
   * SDL Joystick code
-  * 
+  *
   * Copyright 1997 Bernd Schmidt
   * Copyright 1998 Krister Walfridsson
   */
@@ -62,7 +62,7 @@ static void read_joy(int nr)
     num = SDL_JoystickNumButtons (joy);
     for (i = 0; i < num; i++) {
 	int bs = SDL_JoystickGetButton (joy, i) ? 1 : 0;
-        setjoybuttonstate (nr, i, bs);
+	setjoybuttonstate (nr, i, bs);
     }
 }
 

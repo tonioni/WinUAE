@@ -94,7 +94,6 @@ extern int console_logging;
 #define SM_WINDOW_OVERLAY 1
 #define SM_FULLSCREEN_DX 2
 #define SM_OPENGL_WINDOW 3
-//#define SM_OPENGL_FULLSCREEN_W 4
 #define SM_OPENGL_FULLSCREEN_DX 4
 #define SM_D3D_WINDOW 5
 #define SM_D3D_FULLSCREEN_DX 6
@@ -127,13 +126,6 @@ static struct winuae_modes wmodes[] =
 	DM_OPENGL | DM_DX_FULLSCREEN | DM_DC,
 	0
     },
-#if 0
-    {
-	3, "DirectDraw Fullscreen OpenGL",
-	DM_OPENGL | DM_DX_FULLSCREEN | DM_DC,
-	0
-    },
-#endif
     {
 	0, "Windowed Direct3D",
 	DM_D3D,
@@ -1664,7 +1656,6 @@ static void createstatuswindow (void)
     int num_parts = 10;
     double scaleX, scaleY;
 
-    
     hStatusWnd = CreateWindowEx(
 	0, STATUSCLASSNAME, (LPCTSTR) NULL, SBT_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 	0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
@@ -1742,7 +1733,7 @@ static int create_windows (void)
 		rc.top = stored_y;
 
 	    rc.right = rc.left + 2 + currentmode->current_width + 2;
-	    rc.bottom = rc.top + 2 + currentmode->current_height + 2 + GetSystemMetrics (SM_CYMENU);
+	    rc.bottom = rc.top + 2 + currentmode->current_height + 2 + GetSystemMetrics (SM_CYMENU) - 1;
 
 	    oldx = rc.left;
 	    oldy = rc.top;
@@ -1759,17 +1750,17 @@ static int create_windows (void)
 	}
 
 	hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
-					"PCsuxRox", "WinUAE",
-				       NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-				       rc.left, rc.top,
-				       rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-				       hhWnd, NULL, 0, NULL);
+				"PCsuxRox", "WinUAE",
+				NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+				rc.left, rc.top,
+				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
+				hhWnd, NULL, 0, NULL);
 
 	if (! hMainWnd) {
 	    write_log ("main window creation failed\n");
 	    return 0;
 	}
-	
+
 	createstatuswindow ();
 
     }
@@ -1782,7 +1773,7 @@ static int create_windows (void)
 				hMainWnd ? 2 : CW_USEDEFAULT, hMainWnd ? 2 : CW_USEDEFAULT,
 				currentmode->current_width, currentmode->current_height,
 				hMainWnd ? hMainWnd : hhWnd, NULL, 0, NULL);
-    
+
     if (! hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
 	close_hwnds();
@@ -2064,12 +2055,12 @@ static BOOL doInit (void)
 	}
     } else if (!(currentmode->flags & DM_SWSCALE)) {
 	int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
-	gfxvidinfo.realbufmem = malloc (size);
+	gfxvidinfo.realbufmem = xmalloc (size);
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
 	gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
     } else if (!(currentmode->flags & DM_D3D)) {
 	int size = (currentmode->amiga_width * 2) * (currentmode->amiga_height * 3) * gfxvidinfo.pixbytes;
-	gfxvidinfo.realbufmem = malloc (size);
+	gfxvidinfo.realbufmem = xmalloc (size);
 	memset (gfxvidinfo.realbufmem, 0, size);
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (currentmode->amiga_width + (currentmode->amiga_width * 2) * currentmode->amiga_height) * gfxvidinfo.pixbytes;
 	gfxvidinfo.rowbytes = currentmode->amiga_width * 2 * gfxvidinfo.pixbytes;
@@ -2244,7 +2235,7 @@ void updatewinfsmode (struct uae_prefs *p)
 	displayGUID = &Displays[p->gfx_display].guid;
 }
 
-void fullscreentoggle (void)
+void toggle_fullscreen (void)
 {
     if(picasso_on)
 	changed_prefs.gfx_pfullscreen = !changed_prefs.gfx_pfullscreen;

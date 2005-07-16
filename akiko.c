@@ -124,7 +124,7 @@ static void i2c_do (void)
 	    }
 	    return;
 	}
-    } 
+    }
     if (bitcounter >= 0) {
 	if (direction) {
 	    /* Amiga -> NVRAM */
@@ -543,7 +543,7 @@ static int sys_cddev_open (void)
 			    }
 			} else {
 			    write_log ("read error\n");
-			}   
+			}
 		    } else {
 			write_log ("Audio CD\n");
 			if (audiounit < 0)
@@ -917,7 +917,7 @@ static void akiko_handler (void)
 	return;
     }
 }
-	
+
 static void akiko_internal (void)
 {
     cdrom_run_command ();
@@ -1381,7 +1381,7 @@ uae_u8 *save_akiko(int *len)
 	save_u32 (akiko_buffer[i]);
     save_u8 ((uae_u8)akiko_read_offset);
     save_u8 ((uae_u8)akiko_write_offset);
-    
+
     save_u32 ((cdrom_playing ? 1 : 0) | (cdrom_paused ? 2 : 0));
     if (cdrom_playing)
 	cd_qcode (0);

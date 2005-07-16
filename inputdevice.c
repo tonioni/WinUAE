@@ -123,7 +123,7 @@ static int isdevice (struct uae_input_device *id)
 int inputdevice_uaelib (char *s, char *parm)
 {
     int i;
-    
+
     for (i = 1; events[i].name; i++) {
 	if (!strcmp (s, events[i].confname)) {
 	    handle_input_event (i, atol (parm), 1, 0);
@@ -370,19 +370,19 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 
     option += 6; /* "input." */
     p = getstring (&option);
-    if (!strcasecmp (p, "config")) 
+    if (!strcasecmp (p, "config"))
 	pr->input_selected_setting = atol (value);
-    if (!strcasecmp (p, "joymouse_speed_analog")) 
+    if (!strcasecmp (p, "joymouse_speed_analog"))
 	pr->input_joymouse_multiplier = atol (value);
-    if (!strcasecmp (p, "joymouse_speed_digital")) 
+    if (!strcasecmp (p, "joymouse_speed_digital"))
 	pr->input_joymouse_speed = atol (value);
-    if (!strcasecmp (p, "joystick_deadzone")) 
+    if (!strcasecmp (p, "joystick_deadzone"))
 	pr->input_joystick_deadzone = atol (value);
-    if (!strcasecmp (p, "joymouse_deadzone")) 
+    if (!strcasecmp (p, "joymouse_deadzone"))
 	pr->input_joymouse_deadzone = atol (value);
-    if (!strcasecmp (p, "mouse_speed")) 
+    if (!strcasecmp (p, "mouse_speed"))
 	pr->input_mouse_speed = atol (value);
-    if (!strcasecmp (p, "autofire")) 
+    if (!strcasecmp (p, "autofire"))
 	pr->input_autofire_framecnt = atol (value);
     idnum = atol (p);
     if (idnum <= 0 || idnum > MAX_INPUT_SETTINGS)
@@ -449,7 +449,7 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	num = getnum (&p);
     }
     p = value;
-    
+
     custom = NULL;
     for (subnum = 0; subnum < MAX_INPUT_SUB_EVENT; subnum++) {
 	xfree (custom);
@@ -608,7 +608,7 @@ static void mouseupdate (int pct)
 	    mouse_frame_x[i] = mouse_x[i];
 	    mouse_frame_y[i] = mouse_y[i];
 	}
-    
+
     }
 }
 
@@ -729,7 +729,7 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 {
     uae_u8 but = 0;
     int i;
-    
+
     for (i = 0; i < 2; i++) {
 	if (cd32_pad_enabled[i]) {
 	    uae_u16 p5dir = 0x0200 << (i * 4);
@@ -751,8 +751,8 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 {
     static int oldstate[2];
-    int i; 
-    
+    int i;
+
     for (i = 0; i < 2; i++) {
 	uae_u8 but = 0x40 << i;
 	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
@@ -978,6 +978,19 @@ static void queue_input_event (int event, int state, int max, int framecnt, int 
 static uae_u8 keybuf[256];
 static int inputcode_pending, inputcode_pending_state;
 
+ void inputdevice_release_all_keys (void)
+ {
+     int i;
+ 
+     for (i = 0; i < 0x80; i++) {
+ 	if (keybuf[i] != 0) {
+ 	    keybuf[i] = 0;
+ 	    record_key (i << 1|1);
+ 	}
+     }
+ }
+ 
+
 void inputdevice_add_inputcode (int code, int state)
 {
     inputcode_pending = code;
@@ -1014,23 +1027,23 @@ void inputdevice_handle_inputcode (void)
 #ifdef ARCADIA
     switch (code)
     {
-	case AKS_ARCADIADIAGNOSTICS:
+    case AKS_ARCADIADIAGNOSTICS:
 	arcadia_flag &= ~1;
 	arcadia_flag |= state ? 1 : 0;
 	break;
-	case AKS_ARCADIAPLY1:
+    case AKS_ARCADIAPLY1:
 	arcadia_flag &= ~4;
 	arcadia_flag |= state ? 4 : 0;
 	break;
-	case AKS_ARCADIAPLY2:
+    case AKS_ARCADIAPLY2:
 	arcadia_flag &= ~2;
 	arcadia_flag |= state ? 2 : 0;
 	break;
-	case AKS_ARCADIACOIN1:
+    case AKS_ARCADIACOIN1:
 	if (state)
 	    arcadia_coin[0]++;
 	break;
-	case AKS_ARCADIACOIN2:
+    case AKS_ARCADIACOIN2:
 	if (state)
 	    arcadia_coin[1]++;
 	break;
@@ -1041,123 +1054,126 @@ void inputdevice_handle_inputcode (void)
 	return;
     switch (code)
     {
-	case AKS_ENTERGUI:
+    case AKS_ENTERGUI:
 	gui_display (-1);
 	break;
-	case AKS_SCREENSHOT:
+    case AKS_SCREENSHOT:
 	screenshot(1, 1);
 	break;
 #ifdef ACTION_REPLAY
-	case AKS_FREEZEBUTTON:
+    case AKS_FREEZEBUTTON:
 	action_replay_freeze ();
 	break;
 #endif
-	case AKS_FLOPPY0:
+    case AKS_FLOPPY0:
 	gui_display (0);
 	break;
-	case AKS_FLOPPY1:
+    case AKS_FLOPPY1:
 	gui_display (1);
 	break;
-	case AKS_FLOPPY2:
+    case AKS_FLOPPY2:
 	gui_display (2);
 	break;
-	case AKS_FLOPPY3:
+    case AKS_FLOPPY3:
 	gui_display (3);
 	break;
-	case AKS_EFLOPPY0:
+    case AKS_EFLOPPY0:
 	disk_eject (0);
 	break;
-	case AKS_EFLOPPY1:
+    case AKS_EFLOPPY1:
 	disk_eject (1);
 	break;
-	case AKS_EFLOPPY2:
+    case AKS_EFLOPPY2:
 	disk_eject (2);
 	break;
-	case AKS_EFLOPPY3:
+    case AKS_EFLOPPY3:
 	disk_eject (3);
 	break;
-	case AKS_IRQ7:
+    case AKS_IRQ7:
 	Interrupt (7);
 	break;
-	case AKS_PAUSE:
+    case AKS_PAUSE:
 	pausemode (-1);
 	break;
-	case AKS_WARP:
+    case AKS_WARP:
 	warpmode (-1);
 	break;
-	case AKS_INHIBITSCREEN:
+    case AKS_INHIBITSCREEN:
 	toggle_inhibit_frame (IHF_SCROLLLOCK);
 	break;
-	case AKS_STATEREWIND:
+    case AKS_STATEREWIND:
 	savestate_dorewind(1);
 	break;
-	case AKS_VOLDOWN:
+    case AKS_VOLDOWN:
 	sound_volume (-1);
 	break;
-	case AKS_VOLUP:
+    case AKS_VOLUP:
 	sound_volume (1);
 	break;
-	case AKS_VOLMUTE:
+    case AKS_VOLMUTE:
 	sound_volume (0);
 	break;
-	case AKS_QUIT:
+    case AKS_QUIT:
 	uae_quit ();
 	break;
-	case AKS_SOFTRESET:
+    case AKS_SOFTRESET:
 	uae_reset (0);
 	break;
-	case AKS_HARDRESET:
+    case AKS_HARDRESET:
 	uae_reset (1);
 	break;
-	case AKS_STATESAVEQUICK:
-	case AKS_STATESAVEQUICK1:
-	case AKS_STATESAVEQUICK2:
-	case AKS_STATESAVEQUICK3:
-	case AKS_STATESAVEQUICK4:
-	case AKS_STATESAVEQUICK5:
-	case AKS_STATESAVEQUICK6:
-	case AKS_STATESAVEQUICK7:
-	case AKS_STATESAVEQUICK8:
-	case AKS_STATESAVEQUICK9:
+    case AKS_STATESAVEQUICK:
+    case AKS_STATESAVEQUICK1:
+    case AKS_STATESAVEQUICK2:
+    case AKS_STATESAVEQUICK3:
+    case AKS_STATESAVEQUICK4:
+    case AKS_STATESAVEQUICK5:
+    case AKS_STATESAVEQUICK6:
+    case AKS_STATESAVEQUICK7:
+    case AKS_STATESAVEQUICK8:
+    case AKS_STATESAVEQUICK9:
 	savestate_quick ((code - AKS_STATESAVEQUICK) / 2, 1);
 	break;
-	case AKS_STATERESTOREQUICK:
-	case AKS_STATERESTOREQUICK1:
-	case AKS_STATERESTOREQUICK2:
-	case AKS_STATERESTOREQUICK3:
-	case AKS_STATERESTOREQUICK4:
-	case AKS_STATERESTOREQUICK5:
-	case AKS_STATERESTOREQUICK6:
-	case AKS_STATERESTOREQUICK7:
-	case AKS_STATERESTOREQUICK8:
-	case AKS_STATERESTOREQUICK9:
+    case AKS_STATERESTOREQUICK:
+    case AKS_STATERESTOREQUICK1:
+    case AKS_STATERESTOREQUICK2:
+    case AKS_STATERESTOREQUICK3:
+    case AKS_STATERESTOREQUICK4:
+    case AKS_STATERESTOREQUICK5:
+    case AKS_STATERESTOREQUICK6:
+    case AKS_STATERESTOREQUICK7:
+    case AKS_STATERESTOREQUICK8:
+    case AKS_STATERESTOREQUICK9:
 	savestate_quick ((code - AKS_STATERESTOREQUICK) / 2, 0);
 	break;
-	case AKS_TOGGLEFULLSCREEN:
-	fullscreentoggle ();
+    case AKS_TOGGLEFULLSCREEN:
+	toggle_fullscreen ();
 	break;
-	case AKS_ENTERDEBUGGER:
+    case AKS_TOGGLEMOUSEGRAB:
+	toggle_mousegrab ();
+	break;
+    case AKS_ENTERDEBUGGER:
 	activate_debugger ();
 	break;
-	case AKS_STATESAVEDIALOG:
+    case AKS_STATESAVEDIALOG:
 	gui_display (5);
-	break;
+    break;
 	case AKS_STATERESTOREDIALOG:
 	gui_display (4);
 	break;
-	case AKS_DECREASEREFRESHRATE:
-	case AKS_INCREASEREFRESHRATE:
-	{
-	    int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
-	    if (currprefs.chipset_refreshrate == 0)
-		currprefs.chipset_refreshrate = currprefs.ntscmode ? 60 : 50;
-	    changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate + dir;
-	    if (changed_prefs.chipset_refreshrate < 10)
-		changed_prefs.chipset_refreshrate = 10;
-	    if (changed_prefs.chipset_refreshrate > 900)
-		changed_prefs.chipset_refreshrate = 900;
-	}
-	break;
+    case AKS_DECREASEREFRESHRATE:
+    case AKS_INCREASEREFRESHRATE:
+    {
+        int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
+        if (currprefs.chipset_refreshrate == 0)
+	    currprefs.chipset_refreshrate = currprefs.ntscmode ? 60 : 50;
+	changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate + dir;
+	if (changed_prefs.chipset_refreshrate < 10)
+	    changed_prefs.chipset_refreshrate = 10;
+	if (changed_prefs.chipset_refreshrate > 900)
+	    changed_prefs.chipset_refreshrate = 900;
+    }
+    break;
     }
 }
 
@@ -1165,7 +1181,7 @@ int handle_input_event (int nr, int state, int max, int autofire)
 {
     struct inputevent *ie;
     int joy;
-    
+
     if (nr <= 0)
 	return 0;
     ie = &events[nr];
@@ -1319,7 +1335,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
     uae_u32 omask = id2->buttonmask & mask;
     uae_u32 nmask = (state ? 1 : 0) << button;
     char *custom;
-    
+
     if (button >= ID_BUTTON_TOTAL)
 	return;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
@@ -1341,7 +1357,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 	    id2->buttonmask |= mask;
 	else
 	    id2->buttonmask &= ~mask;
-    }    
+    }
 }
 
 
@@ -1597,7 +1613,7 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	mouse_delta[i][2] = 0;
     }
     memset (keybuf, 0, sizeof (keybuf));
- 
+
     for (i = 0; i < INPUT_QUEUE_SIZE; i++)
 	input_queue[i].framecnt = input_queue[i].nextframecnt = -1;
 
@@ -1690,7 +1706,7 @@ void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans)
     keyboard_default = trans;
 }
 
-int inputdevice_translatekeycode (int keyboard, int scancode, int state)
+static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state)
 {
     struct uae_input_device *na = &keyboards[keyboard];
     int j, k;
@@ -1713,6 +1729,42 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 	j++;
     }
     return handled;
+}
+
+#define IECODE_UP_PREFIX 0x80
+#define RAW_STEALTH 0x68
+#define STEALTHF_E0KEY 0x08
+#define STEALTHF_UPSTROKE 0x04
+#define STEALTHF_SPECIAL 0x02
+#define STEALTHF_E1KEY 0x01
+
+static void sendmmcodes(int code, int newstate)
+{
+    uae_u8 b;
+
+    b = RAW_STEALTH | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = IECODE_UP_PREFIX;
+    if ((code >> 8) == 0x01)
+	b |= STEALTHF_E0KEY;
+    if ((code >> 8) == 0x02)
+	b |= STEALTHF_E1KEY;
+    if (!newstate)
+	b |= STEALTHF_UPSTROKE;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = ((code >> 4) & 0x0f) | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+    b = (code & 0x0f) | IECODE_UP_PREFIX;
+    record_key(((b << 1) | (b >> 7)) & 0xff);
+}
+
+int inputdevice_translatekeycode (int keyboard, int scancode, int state)
+{
+    if (inputdevice_translatekeycode_2 (keyboard, scancode, state))
+	return 1;
+    if (currprefs.mmkeyboard)
+	sendmmcodes(scancode, state);
+    return 0;
 }
 
 static struct inputdevice_functions idev[3];
@@ -2060,7 +2112,7 @@ void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst)
 	    memcpy (&dst->keyboard_settings[i][j], &src->keyboard_settings[i][j], sizeof (struct uae_input_device));
 	}
     }
-    
+
     inputdevice_updateconfig (dst);
 }
 
@@ -2090,7 +2142,7 @@ void inputdevice_swap_ports (struct uae_prefs *p, int devnum)
 		k++;
 	    }
 	}
-    }    
+    }
 }
 
 void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum)
@@ -2248,7 +2300,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     fract2[mouse][axis] += v;
     diff = fract2[mouse][axis] - fract1[mouse][axis];
     if (diff > 1 || diff < -1) {
-	v -= (int)diff; 
+	v -= (int)diff;
 	fract2[mouse][axis] -= diff;
     }
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)

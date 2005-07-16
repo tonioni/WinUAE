@@ -103,7 +103,7 @@ typedef struct {
     int bootpri; /* boot priority */
     int devno;
     int automounted; /* don't save to config if set */
-    
+
     struct hardfiledata hf;
 
     /* Threading stuff */
@@ -183,7 +183,7 @@ char *get_filesys_unit (struct uaedev_mount_info *mountinfo, int nr,
 
     if (nr >= mountinfo->num_units)
 	return "No slot allocated for this unit";
-    
+
     *volname = uip->volname ? my_strdup (uip->volname) : 0;
     if (uip->devname == 0 || strlen(uip->devname) == 0) {
 	*devname = xmalloc (10);
@@ -592,7 +592,7 @@ typedef struct _unit {
     unsigned long nr_cache_lookups;
 
     struct notify *notifyhash[NOTIFY_HASH_SIZE];
-    
+
     int volflags;
 
 } Unit;
@@ -674,7 +674,7 @@ find_unit (uaecptr port)
 
     return u;
 }
-    
+
 static void prepare_for_open (char *name)
 {
 #if 0
@@ -800,7 +800,7 @@ static void update_child_names (Unit *unit, a_inode *a, a_inode *parent)
 	char *name_start;
 	char *new_name;
 	char dirsep[2] = { FSDB_DIR_SEPARATOR, '\0' };
-	  
+
 	a->parent = parent;
 	name_start = strrchr (a->nname, FSDB_DIR_SEPARATOR);
 	if (name_start == 0) {
@@ -949,7 +949,7 @@ static char *get_nname (Unit *unit, a_inode *base, char *rel,
     aino_test (base);
 
     *modified_rel = 0;
-    
+
     /* If we have a mapping of some other aname to "rel", we must pretend
      * it does not exist.
      * This can happen for example if an Amiga program creates a
@@ -983,7 +983,7 @@ static char *create_nname (Unit *unit, a_inode *base, char *rel)
 
     aino_test (base);
     /* We are trying to create a file called REL.  */
-    
+
     /* If the name is used otherwise in the directory (or globally), we
      * need a new unique nname.  */
     if (fsdb_name_invalid (rel) || fsdb_used_as_nname (base, rel)) {
@@ -1404,7 +1404,7 @@ static void
 do_info (Unit *unit, dpacket packet, uaecptr info)
 {
     struct fs_usage fsu;
-    
+
     if (get_fs_usage (unit->ui.rootdir, 0, &fsu) != 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, dos_errno ());
@@ -2083,7 +2083,7 @@ static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info
     get_fileinfo (unit, packet, info, ek->curr_file);
     ek->curr_file = ek->curr_file->sibling;
     TRACE (("curr_file set to %p %s\n", ek->curr_file,
-	ek->curr_file ? ek->curr_file->aname : "NULL"));
+	    ek->curr_file ? ek->curr_file->aname : "NULL"));
     return;
 
   no_more_entries:
@@ -2663,7 +2663,7 @@ action_change_mode (Unit *unit, dpacket packet)
     /* will be CHANGE_FH or CHANGE_LOCK value */
     long type = GET_PCK_ARG1 (packet);
     /* either a file-handle or lock */
-    uaecptr object = GET_PCK_ARG2 (packet) << 2; 
+    uaecptr object = GET_PCK_ARG2 (packet) << 2;
     /* will be EXCLUSIVE_LOCK/SHARED_LOCK if CHANGE_LOCK,
      * or MODE_OLDFILE/MODE_NEWFILE/MODE_READWRITE if CHANGE_FH */
     long mode = GET_PCK_ARG3 (packet);
@@ -2849,7 +2849,7 @@ action_examine_fh (Unit *unit, dpacket packet)
 	put_long (info, 0);
 }
 
-/* For a nice example of just how contradictory	documentation can be, see the
+/* For a nice example of just how contradictory documentation can be, see the
  * Autodoc for DOS:SetFileSize and the Packets.txt description of this packet...
  * This implementation tries to mimic the behaviour of the Kick 3.1 ramdisk
  * (which seems to match the Autodoc description). */
@@ -2966,7 +2966,7 @@ action_delete_object (Unit *unit, dpacket packet)
 }
 
 static void
-action_set_date	(Unit *unit, dpacket packet)
+action_set_date (Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG2 (packet) << 2;
     uaecptr name = GET_PCK_ARG3 (packet) << 2;
@@ -2984,7 +2984,7 @@ action_set_date	(Unit *unit, dpacket packet)
     }
 
     ut.actime = ut.modtime = put_time(get_long (date), get_long (date + 4),
-				get_long (date + 8));
+				      get_long (date + 8));
     a = find_aino (unit, lock, bstr (unit, name), &err);
     if (err == 0 && utime (a->nname, &ut) == -1)
 	err = dos_errno ();
@@ -3634,7 +3634,7 @@ static uae_u32 filesys_diagentry (void)
     }
     resaddr += 0x1A;
     tmp = resaddr;
-    
+
     /* The good thing about this function is that it always gets called
      * when we boot. So we could put all sorts of stuff that wants to be done
      * here.
@@ -3927,7 +3927,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	err = -1;
 	goto error;
     }
-    
+
     if (hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->size)
 	write_log("WARNING: end of partition > size of disk!\n");
 
@@ -4437,7 +4437,7 @@ static uae_u8 *restore_filesys_virtual (UnitInfo *ui, uae_u8 *src)
 {
     Unit *u = startup_create_unit (ui);
     int cnt;
- 
+
     u->a_uniq = restore_u64 ();
     u->key_uniq = restore_u64 ();
     u->dosbase = restore_u32 ();

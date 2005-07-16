@@ -312,7 +312,7 @@ static int is_async_request (struct devstruct *dev, uaecptr request)
 void scsi_do_disk_change (int device_id, int insert)
 {
     int i, j;
-    
+
     uae_sem_wait (&change_sem);
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	if (devst[i].di.id == device_id) {
@@ -636,7 +636,7 @@ static void dev_reset (void)
 	if (dev->opencnt > 0) {
 	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 		uaecptr request;
-		if (request = dev->d_request[i]) 
+		if (request = dev->d_request[i])
 		    abort_async (dev, request, 0, 0);
 	    }
 	    dev->opencnt = 1;
@@ -687,6 +687,8 @@ static void dev_reset (void)
 	    }
 	    write_log ("%s = %s:%d\n", dev->di.label, UAEDEV_SCSI, dev->aunit);
 	}
+	xfree(dev->di.label);
+	dev->di.label = NULL;
     }
 }
 
@@ -755,7 +757,7 @@ static void diskdev_install (void)
     /* initcode */
     initcode = here ();
     calltrap (deftrap (diskdev_init)); dw (RTS);
-    
+
     /* Open */
     openfunc = here ();
     calltrap (deftrap (diskdev_open)); dw (RTS);
@@ -834,7 +836,7 @@ void scsidev_install (void)
     /* initcode */
     initcode = here ();
     calltrap (deftrap (dev_init)); dw (RTS);
-    
+
     /* Open */
     openfunc = here ();
     calltrap (deftrap (dev_open)); dw (RTS);

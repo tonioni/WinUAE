@@ -5,7 +5,7 @@
  *
  * Copyright 1997, 1998 Bernd Schmidt
  * Copyright 1998 Michael Krause
- * 
+ *
  * The Tk GUI doesn't work.
  * The X Forms Library isn't available as source, and there aren't any
  * binaries compiled against glibc
@@ -293,7 +293,7 @@ static void set_hd_state (void)
 				    &volname, &rootdir, &readonly,
 				    &secspertrack, &surfaces, &reserved,
 				    &cylinders, &size, &blocksize);
-	    
+
 	if (is_hardfile (currprefs.mountinfo, i)) {
 	    sprintf (texts[0], "DH%d", i );
 	    sprintf (texts[3], "%d", surfaces);
@@ -539,7 +539,7 @@ static void did_reset (void)
 {
     if (quit_gui)
 	return;
-    
+
     write_comm_pipe_int (&from_gui_pipe, 2, 1);
 }
 
@@ -547,7 +547,7 @@ static void did_debug (void)
 {
     if (quit_gui)
 	return;
-    
+
     write_comm_pipe_int (&from_gui_pipe, 3, 1);
 }
 
@@ -555,7 +555,7 @@ static void did_quit (void)
 {
     if (quit_gui)
 	return;
-    
+
     write_comm_pipe_int (&from_gui_pipe, 4, 1);
 }
 
@@ -563,7 +563,7 @@ static void did_eject (GtkWidget *w, gpointer data)
 {
     if (quit_gui)
 	return;
-    
+
     write_comm_pipe_int (&from_gui_pipe, 0, 0);
     write_comm_pipe_int (&from_gui_pipe, (int)data, 1);
 }
@@ -573,14 +573,14 @@ static void pause_uae (GtkWidget *widget, gpointer data)
     if (quit_gui)
 	return;
 
-    write_comm_pipe_int (&from_gui_pipe, GTK_TOGGLE_BUTTON (widget)->active ? 5 : 6, 1);  
+    write_comm_pipe_int (&from_gui_pipe, GTK_TOGGLE_BUTTON (widget)->active ? 5 : 6, 1);
 }
 
 static void end_pause_uae (void)
 {
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (pause_uae_widget), FALSE);
 }
-    
+
 static int filesel_active = -1;
 static GtkWidget *disk_selector;
 
@@ -936,7 +936,7 @@ static GtkWidget *make_led (int nr)
     thing = gtk_preview_new (GTK_PREVIEW_COLOR);
     gtk_box_pack_start (GTK_BOX (the_led), thing, TRUE, TRUE, 0);
     gtk_widget_show (thing);
-    
+
     return the_led;
 }
 
@@ -984,7 +984,7 @@ static void make_floppy_disks (GtkWidget *vbox)
 	/* Frame with an hbox and the "DFx:" title */
 	sprintf (buf, "DF%d:", i);
 	buttonbox = make_file_container (buf, vbox);
-	
+
 	/* LED */
 	subthing = make_led (i + 1);
 	gtk_box_pack_start (GTK_BOX (buttonbox), subthing, FALSE, TRUE, 0);
@@ -1063,7 +1063,7 @@ static void make_cpu_widgets (GtkWidget *vbox)
     gtk_box_pack_start (GTK_BOX (hbox), newbox, FALSE, FALSE, 0);
 
     add_empty_vbox (hbox);
-    gtk_widget_show (hbox); 
+    gtk_widget_show (hbox);
     gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
 
     frame = gtk_frame_new ("CPU flags");
@@ -1086,7 +1086,7 @@ static void make_cpu_widgets (GtkWidget *vbox)
     gtk_signal_connect (GTK_OBJECT (ccpu_widget), "clicked",
 			(GtkSignalFunc) cputype_changed, NULL);
     gtk_signal_connect (GTK_OBJECT (a24m_widget), "clicked",
-			(GtkSignalFunc) cputype_changed, NULL);    
+			(GtkSignalFunc) cputype_changed, NULL);
 }
 
 static void make_gfx_widgets (GtkWidget *vbox)
@@ -1311,13 +1311,13 @@ static void make_comp_widgets (GtkWidget *vbox)
 	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso",
 	NULL
     },*complabels2[] = {
-	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso", 
+	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso",
 	NULL
     },*complabels3[] = {
-	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso", 
+	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso",
 	NULL
     },*complabels3a[] = {
-	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso", 
+	"Direct", "Indirect", "Indirect for KS", "Direct after Picasso",
 	NULL
     }, *complabels4[] = {
       "Always generate", "Only generate when needed",
@@ -1335,7 +1335,7 @@ static void make_comp_widgets (GtkWidget *vbox)
       "Soft", "Hard",
 	NULL
     }, *complabels9[] = {
-      "Disable", "Enable", 
+      "Disable", "Enable",
 	NULL
     };
     GtkWidget *thing;
@@ -1473,7 +1473,7 @@ static GtkWidget *create_dirdlg (const char *title)
     gtk_box_pack_start (GTK_BOX (hbox), label1, FALSE, TRUE, 10);
     gtk_widget_show (label1);
     thing = gtk_entry_new_with_max_length (255);
-    gtk_box_pack_start (GTK_BOX (hbox), thing, TRUE, TRUE, 10);   
+    gtk_box_pack_start (GTK_BOX (hbox), thing, TRUE, TRUE, 10);
     gtk_widget_show (thing);
     path_entry = thing;
 
@@ -1484,7 +1484,7 @@ static GtkWidget *create_dirdlg (const char *title)
     gtk_box_pack_start (GTK_BOX (hbox), thing, FALSE, TRUE, 10);
     gtk_widget_show (thing);
     thing = gtk_entry_new_with_max_length (255);
-    gtk_box_pack_start (GTK_BOX (hbox), thing, TRUE, TRUE, 10);   
+    gtk_box_pack_start (GTK_BOX (hbox), thing, TRUE, TRUE, 10);
     gtk_widget_show (thing);
     gtk_widget_set_usize (thing, 200, -1);
     volname_entry = thing;
@@ -1531,7 +1531,7 @@ static void did_hdchange (void)
     hd_change_mode = 1;
     if (is_hardfile (currprefs.mountinfo, selected_hd_row)) {
     } else {
-	create_dirdlg ("Change a mounted directory"); 
+	create_dirdlg ("Change a mounted directory");
 	gtk_entry_set_text (GTK_ENTRY (volname_entry), volname);
 	gtk_entry_set_text (GTK_ENTRY (path_entry), rootdir);
    }
@@ -1657,7 +1657,7 @@ static void create_guidlg (void)
 	{ "Graphics", make_gfx_widgets },
 	{ "Chipset", make_chipset_widgets },
 	{ "Sound", make_sound_widgets },
- 	{ "JIT", make_comp_widgets },
+	{ "JIT", make_comp_widgets },
 	{ "Game ports", make_joy_widgets },
 	{ "Harddisks", make_hd_widgets },
 	{ "About", make_about_widgets }
@@ -1743,7 +1743,7 @@ static void *gtk_gui_thread (void *dummy)
 
 void gui_changesettings(void)
 {
-    
+
 }
 
 void gui_fps (int x)
@@ -1778,15 +1778,15 @@ void gui_filename (int num, const char *name)
 void gui_handle_events (void)
 {
     int pause_uae = FALSE;
-    
+
     if (no_gui)
 	return;
 
     do {
-        while (pause_uae || comm_pipe_has_data (&from_gui_pipe)) {
-            int cmd = read_comm_pipe_int_blocking (&from_gui_pipe);
-            int n;
-            switch (cmd) {
+	while (pause_uae || comm_pipe_has_data (&from_gui_pipe)) {
+	    int cmd = read_comm_pipe_int_blocking (&from_gui_pipe);
+	    int n;
+	    switch (cmd) {
 	    case 0:
 		n = read_comm_pipe_int_blocking (&from_gui_pipe);
 		changed_prefs.df[n][0] = '\0';
@@ -1839,8 +1839,8 @@ void gui_handle_events (void)
 		free (gui_keyname);
 		uae_sem_post (&gui_sem);
 		break;
-            }
-        }
+	    }
+	}
     } while (pause_uae);
 }
 
@@ -1856,7 +1856,7 @@ int gui_init (void)
     uae_thread_id tid;
 
     gui_active = 0;
-    
+
     init_comm_pipe (&to_gui_pipe, 20, 1);
     init_comm_pipe (&from_gui_pipe, 20, 1);
     uae_sem_init (&gui_sem, 0, 1);

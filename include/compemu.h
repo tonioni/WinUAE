@@ -1,3 +1,9 @@
+#ifdef CPU_64_BIT
+typedef uae_u64 uintptr;
+#else
+typedef uae_u32 uintptr;
+#endif
+
 #define USE_OPTIMIZER 0
 #define USE_LOW_OPTIMIZER 0
 #define USE_ALIAS 1

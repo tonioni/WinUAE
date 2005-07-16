@@ -814,13 +814,13 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->bus = si[unitnum].scsibus;
     di->target = si[unitnum].target;
     di->lun = si[unitnum].lun;
-    di->media_inserted = mediacheck (unitnum); //si[unitnum].mediainserted;
+    di->media_inserted = mediacheck (unitnum);
     di->write_protected = 1;
     di->bytespersector = 2048;
     di->cylinders = 1;
     di->type = si[unitnum].type;
     di->id = unitnum + 1;
-    strcpy (di->label, si[unitnum].label);
+    di->label = my_strdup (si[unitnum].label);
     return di;
 }
 
@@ -828,12 +828,14 @@ void win32_aspi_media_change (char driveletter, int insert)
 {
     int i, now;
 
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	now = mediacheck (i);
-	if (now != si[i].mediainserted) {
-	    write_log ("ASPI: media change %c %d\n", driveletter, insert);
-	    si[i].mediainserted = now;
-	    scsi_do_disk_change (i + 1, insert);
+    for (i = 0; i < unitcnt; i++) {
+	if (si[i].type == INQ_ROMD) {
+	    now = mediacheck (i);
+	    if (now != si[i].mediainserted) {
+		write_log ("ASPI: media change %c %d\n", driveletter, insert);
+		si[i].mediainserted = now;
+		scsi_do_disk_change (i + 1, insert);
+	    }
 	}
     }
 }

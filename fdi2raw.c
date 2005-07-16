@@ -19,9 +19,9 @@
   any later version.
 
   This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details. 
+  more details.
 
   You should have received a copy of the GNU General Public License along
   with this program; if not, write to the Free Software Foundation, Inc.,
@@ -385,7 +385,7 @@ static void bit_add (FDI *fdi, int bit)
 		return;
 	}
 	fdi->track_dst[BIT_BYTEOFFSET] &= ~(1 << BIT_BITOFFSET);
-	if (bit) 
+	if (bit)
 		fdi->track_dst[BIT_BYTEOFFSET] |= (1 << BIT_BITOFFSET);
 	fdi->out++;
 	if (fdi->out >= MAX_DST_BUFFER * 8) {
@@ -877,7 +877,7 @@ static void amiga_sector_header	(FDI *fdi, uae_u8 *header, uae_u8 *data, int sec
 static void s20(FDI *fdi)
 {
 	bit_drop_next (fdi);
-	debuglog ("s20:header=%s,data=%s", datalog(fdi->track_src, 4), datalog(fdi->track_src + 4, 16)); 
+	debuglog ("s20:header=%s,data=%s", datalog(fdi->track_src, 4), datalog(fdi->track_src + 4, 16));
 	amiga_sector_header (fdi, fdi->track_src, fdi->track_src + 4, 0, 0);
 	fdi->track_src += 4 + 16;
 }
@@ -1281,7 +1281,7 @@ static void track_pc_36 (struct fdi *fdi)
 typedef void (*decode_normal_track_func)(FDI*);
 
 static decode_normal_track_func decode_normal_track[] =
-{ 
+{
 	track_empty, /* 0 */
 	track_amiga_dd, track_amiga_hd, /* 1-2 */
 	track_atari_st_9, track_atari_st_10, /* 3-4 */
@@ -1378,7 +1378,7 @@ static void dumpstream(int track, uae_u8 *stream, int len)
     fwrite (stream, 1, len * 4, f);
     fclose (f);
 #endif
-}    
+}
 
 static int bitoffset;
 
@@ -1407,7 +1407,7 @@ static int totaldiv;
 static void init_array(unsigned long standard_MFM_2_bit_cell_size, int nb_of_bits)
 {
 	int i;
-	
+
 	for (i = 0; i < FDI_MAX_ARRAY; i++) {
 		psarray[i].size = standard_MFM_2_bit_cell_size; // That is (total track length / 50000) for Amiga double density
 		total += psarray[i].size;
@@ -1527,7 +1527,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			for (j = 0; j <	real_size; j++)
 				*pt++ =	(uae_u16)(pulse / real_size);
 		}
-		
+
 		/* prepares for the next pulse */
 		adjust = ((real_size * avg_size)/8) - pulse;
 		total -= psarray[array_index].size;
@@ -1684,7 +1684,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			}
 			if (outstep == 1 && indexoffset == i)
 			    *indexoffsetp = bitoffset;
- 		}
+		}
 
 		/* gets the size in bits from the pulse width, considering the current average bitrate */
 		adjusted_pulse = pulse;
@@ -1771,7 +1771,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			for (j = 0; j < real_size; j++)
 				*pt++ = (uae_u16)(pulse / real_size);
 		}
-		
+
 		/* prepares for the next pulse */
 		adjust = ((real_size * avg_size) / (4 << mfm)) - pulse;
 		total -= psarray[array_index].size;
@@ -1897,7 +1897,7 @@ static int decode_lowlevel_track (FDI *fdi, int track, struct fdi_cache *cache)
 		{
 			while ((i != j) && (p1[idx_off1] > p1[idx_off2])) { /* falling edge, replace with "<" for rising edge */
 				i++;
- 				p1 += idx_off3;
+				p1 += idx_off3;
 				if (i >= pulses) {
 					i = 0;
 					p1 = idxp;
@@ -2033,7 +2033,7 @@ FDI *fdi2raw_header(struct zfile *f)
 	fdi->track_src_buffer = fdi_malloc (MAX_SRC_BUFFER);
 	fdi->track_dst_buffer = fdi_malloc (MAX_DST_BUFFER);
 	fdi->track_dst_buffer_timing = fdi_malloc (MAX_TIMING_BUFFER);
-	
+
 	fdi->last_track = ((fdi->header[142] << 8) + fdi->header[143]) + 1;
 	fdi->last_track *= fdi->header[144] + 1;
 	if (fdi->last_track > MAX_TRACKS)
@@ -2155,7 +2155,7 @@ int fdi2raw_loadtrack (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int trac
 
 		zxx (fdi);
 		outlen = -1;
-		
+
 	} else if (fdi->track_type < 0x10) {
 
 		decode_normal_track[fdi->track_type](fdi);

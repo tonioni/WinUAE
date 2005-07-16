@@ -66,8 +66,8 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 #define CLOBBER_SHRL clobber_flags()
 #define CLOBBER_SHRA clobber_flags()
 #define CLOBBER_TEST clobber_flags()
-#define CLOBBER_CL16 
-#define CLOBBER_CL8  
+#define CLOBBER_CL16
+#define CLOBBER_CL8
 #define CLOBBER_SE16
 #define CLOBBER_SE8
 #define CLOBBER_ZE16
@@ -82,9 +82,6 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 /*************************************************************************
  * Actual encoding of the instructions on the target CPU                 *
  *************************************************************************/
-
-static int have_cmov=0;  /* We need to generate different code if 
-			    we don't have cmov */
 
 #include "compemu_optimizer_x86.c"
 
@@ -518,7 +515,7 @@ LOWFUNC(READ,NONE,3,raw_cmov_l_rr,(RW4 d, R4 s, IMM cc))
     }
     else { /* replacement using branch and mov */
 	int uncc=(cc^1);
-	emit_byte(0x70+uncc); 
+	emit_byte(0x70+uncc);
 	emit_byte(2);  /* skip next 2 bytes if not cc=true */
 	emit_byte(0x89);
 	emit_byte(0xc0+8*s+d);
@@ -622,7 +619,7 @@ LOWFUNC(NONE,READ,4,raw_mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
 {
     int isebp=(baser==5)?0x40:0;
     int fi;
-    
+
     switch(factor) {
      case 1: fi=0; break;
      case 2: fi=1; break;
@@ -644,7 +641,7 @@ LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor)
 {
     int fi;
     int isebp;
-    
+
     switch(factor) {
      case 1: fi=0; break;
      case 2: fi=1; break;
@@ -653,7 +650,7 @@ LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor)
      default: abort();
     }
     isebp=(baser==5)?0x40:0;
-    
+
     emit_byte(0x66);
     emit_byte(0x8b);
     emit_byte(0x04+8*d+isebp);
@@ -698,7 +695,7 @@ LOWFUNC(NONE,WRITE,4,raw_mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s
   default: abort();
   }
 
-  
+
   isebp=(baser==5)?0x40:0;
 
     emit_byte(0x89);
@@ -878,7 +875,7 @@ LOWFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
   case 2: fi=1; break;
   case 4: fi=2; break;
   case 8: fi=3; break;
-  default: 
+  default:
     fprintf(stderr,"Bad factor %d in mov_l_rm_indexed!\n",factor);
     abort();
   }
@@ -897,7 +894,7 @@ LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor,
      case 2: fi=1; break;
      case 4: fi=2; break;
      case 8: fi=3; break;
-     default: 
+     default:
 	fprintf(stderr,"Bad factor %d in mov_l_rm_indexed!\n",factor);
 	abort();
     }
@@ -910,7 +907,7 @@ LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor,
     }
     else { /* replacement using branch and mov */
 	int uncc=(cond^1);
-	emit_byte(0x70+uncc); 
+	emit_byte(0x70+uncc);
 	emit_byte(7);  /* skip next 7 bytes if not cc=true */
 	emit_byte(0x8b);
 	emit_byte(0x04+8*d);
@@ -930,7 +927,7 @@ LOWFUNC(NONE,READ,3,raw_cmov_l_rm,(W4 d, IMM mem, IMM cond))
     }
     else { /* replacement using branch and mov */
 	int uncc=(cond^1);
-	emit_byte(0x70+uncc); 
+	emit_byte(0x70+uncc);
 	emit_byte(6);  /* skip next 6 bytes if not cc=true */
 	emit_byte(0x8b);
 	emit_byte(0x05+8*d);
@@ -1053,7 +1050,7 @@ LENDFUNC(NONE,NONE,3,raw_lea_l_brr,(W4 d, R4 s, IMM offset))
 LOWFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 {
   int fi;
-  
+
   switch(factor) {
   case 1: fi=0; break;
   case 2: fi=1; break;
@@ -1073,7 +1070,7 @@ LOWFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 {
   int isebp=(s==5)?0x40:0;
   int fi;
-  
+
   switch(factor) {
   case 1: fi=0; break;
   case 2: fi=1; break;
@@ -1219,16 +1216,16 @@ LOWFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
 }
 LENDFUNC(RMW,RMW,2,raw_adc_l_mi,(MEMRW d, IMM s))
 
-LOWFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
+LOWFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s))
 {
     emit_byte(0x81);
     emit_byte(0x05);
     emit_long(d);
     emit_long(s);
 }
-LENDFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s)) 
+LENDFUNC(WRITE,RMW,2,raw_add_l_mi,(IMM d, IMM s))
 
-LOWFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
+LOWFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s))
 {
     emit_byte(0x66);
     emit_byte(0x81);
@@ -1236,16 +1233,16 @@ LOWFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s))
     emit_long(d);
     emit_word(s);
 }
-LENDFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s)) 
+LENDFUNC(WRITE,RMW,2,raw_add_w_mi,(IMM d, IMM s))
 
-LOWFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
+LOWFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s))
 {
     emit_byte(0x80);
     emit_byte(0x05);
     emit_long(d);
     emit_byte(s);
 }
-LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s)) 
+LENDFUNC(WRITE,RMW,2,raw_add_b_mi,(IMM d, IMM s))
 
 LOWFUNC(WRITE,NONE,2,raw_test_l_ri,(R4 d, IMM i))
 {
@@ -1538,7 +1535,7 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
 LOWFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 {
     int fi;
-    
+
     switch(factor) {
      case 1: fi=0; break;
      case 2: fi=1; break;
@@ -1697,45 +1694,45 @@ static __inline__ void raw_jnz(uae_u32 t)
 static __inline__ void raw_jnz_l_oponly(void)
 {
     lopt_emit_all();
-    emit_byte(0x0f); 
-    emit_byte(0x85); 
+    emit_byte(0x0f);
+    emit_byte(0x85);
 }
 
 static __inline__ void raw_jcc_l_oponly(int cc)
 {
     lopt_emit_all();
-    emit_byte(0x0f); 
-    emit_byte(0x80+cc); 
+    emit_byte(0x0f);
+    emit_byte(0x80+cc);
 }
 
 static __inline__ void raw_jnz_b_oponly(void)
 {
     lopt_emit_all();
-    emit_byte(0x75); 
+    emit_byte(0x75);
 }
 
 static __inline__ void raw_jz_b_oponly(void)
 {
     lopt_emit_all();
-    emit_byte(0x74); 
+    emit_byte(0x74);
 }
 
 static __inline__ void raw_jmp_l_oponly(void)
 {
     lopt_emit_all();
-    emit_byte(0xe9); 
+    emit_byte(0xe9);
 }
 
 static __inline__ void raw_jmp_b_oponly(void)
 {
     lopt_emit_all();
-    emit_byte(0xeb); 
+    emit_byte(0xeb);
 }
 
 static __inline__ void raw_ret(void)
 {
     lopt_emit_all();
-    emit_byte(0xc3);  
+    emit_byte(0xc3);
 }
 
 static __inline__ void raw_nop(void)
@@ -1756,8 +1753,8 @@ static __inline__ void raw_flags_to_reg(int r)
 {
   raw_lahf(0);  /* Most flags in AH */
   //raw_setcc(r,0); /* V flag in AL */
-  raw_setcc_m((uae_u32)live.state[FLAGTMP].mem,0); 
-  
+  raw_setcc_m((uae_u32)live.state[FLAGTMP].mem,0);
+
 #if 1   /* Let's avoid those nasty partial register stalls */
   //raw_mov_b_mr((uae_u32)live.state[FLAGTMP].mem,r);
   raw_mov_b_mr(((uae_u32)live.state[FLAGTMP].mem)+1,r+4);
@@ -1845,6 +1842,13 @@ static int in_handler=0;
 static uae_u8 *veccode;
 
 #ifdef _WIN32
+
+#if defined(CPU_64_BIT)
+#define ctxPC (pContext->Rip)
+#else
+#define ctxPC (pContext->Eip)
+#endif
+
 int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 {
     PEXCEPTION_RECORD pExceptRecord = NULL;
@@ -1859,14 +1863,14 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
     int j;
 
     if( n_except != STATUS_ACCESS_VIOLATION || !canbang)
-        return EXCEPTION_CONTINUE_SEARCH;
+	return EXCEPTION_CONTINUE_SEARCH;
 
     pExceptRecord = blah->ExceptionRecord;
     pContext = blah->ContextRecord;
 
     if( pContext )
     {
-	i = (uae_u8 *)(pContext->Eip);
+	i = (uae_u8 *)ctxPC;
     }
     if( pExceptRecord )
     {
@@ -1875,7 +1879,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #ifdef JIT_DEBUG
     write_log("JIT: fault address is 0x%x at 0x%x\n",addr,i);
 #endif
-    if (!canbang || !currprefs.cachesize) 
+    if (!canbang || !currprefs.cachesize)
     {
 #ifdef JIT_DEBUG
 	write_log("JIT: Not happy! Canbang or cachesize is 0 in SIGSEGV handler!\n");
@@ -1883,16 +1887,16 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    if (in_handler) 
+    if (in_handler)
 	write_log("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
-    
+
     if (canbang && i>=compiled_code && i<=current_compile_p) {
 	if (*i==0x66) {
 	    i++;
 	    size=2;
 	    len++;
 	}
-	
+
 	switch(i[0]) {
 	case 0x8a:
 	    if ((i[1]&0xc0)==0x80) {
@@ -1929,7 +1933,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		dir=SIG_READ;
 		len+=2;
 		break;
-	    default: 
+	    default:
 		break;
 	    }
 	    break;
@@ -1952,16 +1956,32 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    break;
 		}
 		break;
-	}	
+	}
     }
-    
-    if (r!=-1) { 
+
+    if (r!=-1) {
 	void* pr=NULL;
 #ifdef JIT_DEBUG
 	write_log("register was %d, direction was %d, size was %d\n",r,dir,size);
 #endif
 
 	switch(r) {
+#if defined(CPU_64_BIT)
+	case 0: pr=&(pContext->Rax); break;
+	case 1: pr=&(pContext->Rcx); break;
+	case 2: pr=&(pContext->Rdx); break;
+	case 3: pr=&(pContext->Rbx); break;
+	case 4: pr=(size>1)?NULL:(((uae_u8*)&(pContext->Rax))+1); break;
+	case 5: pr=(size>1)?
+		    (void*)(&(pContext->Rbp)):
+	    (void*)(((uae_u8*)&(pContext->Rcx))+1); break;
+	case 6: pr=(size>1)?
+		    (void*)(&(pContext->Rsi)):
+	    (void*)(((uae_u8*)&(pContext->Rdx))+1); break;
+	case 7: pr=(size>1)?
+		    (void*)(&(pContext->Rdi)):
+	    (void*)(((uae_u8*)&(pContext->Rbx))+1); break;
+#else
 	case 0: pr=&(pContext->Eax); break;
 	case 1: pr=&(pContext->Ecx); break;
 	case 2: pr=&(pContext->Edx); break;
@@ -1976,19 +1996,20 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	case 7: pr=(size>1)?
 		    (void*)(&(pContext->Edi)):
 	    (void*)(((uae_u8*)&(pContext->Ebx))+1); break;
+#endif
 	default: abort();
 	}
 	if (pr) {
 	    blockinfo* bi;
-	    
+
 	    if (currprefs.comp_oldsegv) {
 		addr-=(uae_u32)NATMEM_OFFSET;
-		
+
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
 		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
-	        }
+		}
 #endif
 		if (dir==SIG_READ) {
 		    switch(size) {
@@ -2011,23 +2032,23 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #endif
 		fflush(stdout);
 		segvcount++;
-		pContext->Eip+=len;
+		ctxPC+=len;
 	    }
 	    else {
 		void* tmp=target;
 		int i;
 		uae_u8 vecbuf[5];
-		
+
 		addr-=(uae_u32)NATMEM_OFFSET;
-		
+
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
 		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
-	        }
+		}
 #endif
-	
-		target=(uae_u8*)pContext->Eip;
+
+		target=(uae_u8*)ctxPC;
 		for (i=0;i<5;i++)
 		    vecbuf[i]=target[i];
 		emit_byte(0xe9);
@@ -2038,9 +2059,9 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		write_log("Handled one access!\n");
 #endif
 		segvcount++;
-		
+
 		target=veccode;
-		
+
 		if (dir==SIG_READ) {
 		    switch(size) {
 		    case 1: raw_mov_b_ri(r,get_byte(addr)); break;
@@ -2058,16 +2079,16 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    }
 		}
 		for (i=0;i<5;i++)
-		    raw_mov_b_mi(pContext->Eip+i,vecbuf[i]);
+		    raw_mov_b_mi(ctxPC+i,vecbuf[i]);
 		raw_mov_l_mi((uae_u32)&in_handler,0);
 		emit_byte(0xe9);
-		emit_long(pContext->Eip+len-(uae_u32)target-4);
+		emit_long(ctxPC+len-(uae_u32)target-4);
 		in_handler=1;
 		target=tmp;
 	    }
 	    bi=active;
 	    while (bi) {
-		if (bi->handler && 
+		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
@@ -2088,7 +2109,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	    is in the dormant list */
 	    bi=dormant;
 	    while (bi) {
-		if (bi->handler && 
+		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
@@ -2135,11 +2156,11 @@ static void vec(int x, struct sigcontext sc)
     int dir=-1;
     int len=0;
     int j;
-    
+
     write_log("fault address is %08x at %08x\n",sc.cr2,sc.eip);
-    if (!canbang) 
+    if (!canbang)
 	write_log("Not happy! Canbang is 0 in SIGSEGV handler!\n");
-    if (in_handler) 
+    if (in_handler)
 	write_log("Argh --- Am already in a handler. Shouldn't happen!\n");
 
     if (canbang && i>=compiled_code && i<=current_compile_p) {
@@ -2148,7 +2169,7 @@ static void vec(int x, struct sigcontext sc)
 	    size=2;
 	    len++;
 	}
-	
+
 	switch(i[0]) {
 	 case 0x8a:
 	    if ((i[1]&0xc0)==0x80) {
@@ -2186,11 +2207,11 @@ static void vec(int x, struct sigcontext sc)
 	     dir=SIG_READ;
 	     len+=2;
 	     break;
-	   default: 
+	   default:
 	     break;
 	   }
 	   break;
-	    
+
 	 case 0x89:
 	   switch(i[1]&0xc0) {
 	   case 0x80:
@@ -2210,13 +2231,13 @@ static void vec(int x, struct sigcontext sc)
 	     break;
 	   }
 	   break;
-	}	
+	}
     }
 
-    if (r!=-1) { 
+    if (r!=-1) {
 	void* pr=NULL;
 	write_log("register was %d, direction was %d, size was %d\n",r,dir,size);
-	
+
 	switch(r) {
 	 case 0: pr=&(sc.eax); break;
 	 case 1: pr=&(sc.ecx); break;
@@ -2239,7 +2260,7 @@ static void vec(int x, struct sigcontext sc)
 
 	    if (currprefs.comp_oldsegv) {
 	    addr-=NATMEM_OFFSET;
-		
+
 	    if ((addr>=0x10000000 && addr<0x40000000) ||
 		(addr>=0x50000000)) {
 		write_log("Suspicious address in %x SEGV handler.\n",addr);
@@ -2269,14 +2290,14 @@ static void vec(int x, struct sigcontext sc)
 		void* tmp=target;
 		int i;
 		uae_u8 vecbuf[5];
-		
+
 		addr-=NATMEM_OFFSET;
-		
+
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
 		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
-		
+
 		target=(uae_u8*)sc.eip;
 		for (i=0;i<5;i++)
 		    vecbuf[i]=target[i];
@@ -2287,7 +2308,7 @@ static void vec(int x, struct sigcontext sc)
 		write_log("Handled one access!\n");
 		fflush(stdout);
 		segvcount++;
-		
+
 		target=veccode;
 
 		if (dir==SIG_READ) {
@@ -2316,7 +2337,7 @@ static void vec(int x, struct sigcontext sc)
 	    }
 	    bi=active;
 	    while (bi) {
-		if (bi->handler && 
+		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 		    write_log("deleted trigger (%p<%p<%p) %p\n",
@@ -2335,7 +2356,7 @@ static void vec(int x, struct sigcontext sc)
 	       is in the dormant list */
 	    bi=dormant;
 	    while (bi) {
-		if (bi->handler && 
+		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 		    write_log("deleted trigger (%p<%p<%p) %p\n",
@@ -2368,6 +2389,294 @@ static void vec(int x, struct sigcontext sc)
 }
 #endif
 #endif
+
+/*************************************************************************
+ * Checking for CPU features                                             *
+ *************************************************************************/
+
+struct cpuinfo_x86 {
+  uae_u8	x86;			// CPU family
+  uae_u8	x86_vendor;		// CPU vendor
+  uae_u8	x86_processor;	// CPU canonical processor type
+  uae_u8	x86_brand_id;	// CPU BrandID if supported, yield 0 otherwise
+  uae_u32	x86_hwcap;
+  uae_u8	x86_model;
+  uae_u8	x86_mask;
+  int		cpuid_level;    // Maximum supported CPUID level, -1=no CPUID
+  char		x86_vendor_id[16];
+};
+struct cpuinfo_x86 cpuinfo;
+
+enum {
+  X86_VENDOR_INTEL		= 0,
+  X86_VENDOR_CYRIX		= 1,
+  X86_VENDOR_AMD		= 2,
+  X86_VENDOR_UMC		= 3,
+  X86_VENDOR_NEXGEN		= 4,
+  X86_VENDOR_CENTAUR	= 5,
+  X86_VENDOR_RISE		= 6,
+  X86_VENDOR_TRANSMETA	= 7,
+  X86_VENDOR_NSC		= 8,
+  X86_VENDOR_UNKNOWN	= 0xff
+};
+
+enum {
+  X86_PROCESSOR_I386,                       /* 80386 */
+  X86_PROCESSOR_I486,                       /* 80486DX, 80486SX, 80486DX[24] */
+  X86_PROCESSOR_PENTIUM,
+  X86_PROCESSOR_PENTIUMPRO,
+  X86_PROCESSOR_K6,
+  X86_PROCESSOR_ATHLON,
+  X86_PROCESSOR_PENTIUM4,
+  X86_PROCESSOR_K8,
+  X86_PROCESSOR_max
+};
+
+static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
+  "80386",
+  "80486",
+  "Pentium",
+  "PentiumPro",
+  "K6",
+  "Athlon",
+  "Pentium4",
+  "K8"
+};
+
+static struct ptt {
+  const int align_loop;
+  const int align_loop_max_skip;
+  const int align_jump;
+  const int align_jump_max_skip;
+  const int align_func;
+}
+x86_alignments[X86_PROCESSOR_max] = {
+  {  4,  3,  4,  3,  4 },
+  { 16, 15, 16, 15, 16 },
+  { 16,  7, 16,  7, 16 },
+  { 16, 15, 16,  7, 16 },
+  { 32,  7, 32,  7, 32 },
+  { 16,  7, 16,  7, 16 },
+  {  0,  0,  0,  0,  0 },
+  { 16,  7, 16,  7, 16 }
+};
+
+static void
+x86_get_cpu_vendor(struct cpuinfo_x86 *c)
+{
+	char *v = c->x86_vendor_id;
+
+	if (!strcmp(v, "GenuineIntel"))
+		c->x86_vendor = X86_VENDOR_INTEL;
+	else if (!strcmp(v, "AuthenticAMD"))
+		c->x86_vendor = X86_VENDOR_AMD;
+	else if (!strcmp(v, "CyrixInstead"))
+		c->x86_vendor = X86_VENDOR_CYRIX;
+	else if (!strcmp(v, "Geode by NSC"))
+		c->x86_vendor = X86_VENDOR_NSC;
+	else if (!strcmp(v, "UMC UMC UMC "))
+		c->x86_vendor = X86_VENDOR_UMC;
+	else if (!strcmp(v, "CentaurHauls"))
+		c->x86_vendor = X86_VENDOR_CENTAUR;
+	else if (!strcmp(v, "NexGenDriven"))
+		c->x86_vendor = X86_VENDOR_NEXGEN;
+	else if (!strcmp(v, "RiseRiseRise"))
+		c->x86_vendor = X86_VENDOR_RISE;
+	else if (!strcmp(v, "GenuineTMx86") ||
+		 !strcmp(v, "TransmetaCPU"))
+		c->x86_vendor = X86_VENDOR_TRANSMETA;
+	else
+		c->x86_vendor = X86_VENDOR_UNKNOWN;
+}
+
+static void cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
+{
+  const int CPUID_SPACE = 4096;
+  uae_u8* cpuid_space = cache_alloc(CPUID_SPACE);
+  static uae_u32 s_op, s_eax, s_ebx, s_ecx, s_edx;
+  uae_u8* tmp=get_target();
+
+  s_op = op;
+  set_target(cpuid_space);
+  raw_push_l_r(0); /* eax */
+  raw_push_l_r(1); /* ecx */
+  raw_push_l_r(2); /* edx */
+  raw_push_l_r(3); /* ebx */
+  raw_mov_l_rm(0,(uintptr)&s_op);
+  raw_cpuid(0);
+  raw_mov_l_mr((uintptr)&s_eax,0);
+  raw_mov_l_mr((uintptr)&s_ebx,3);
+  raw_mov_l_mr((uintptr)&s_ecx,1);
+  raw_mov_l_mr((uintptr)&s_edx,2);
+  raw_pop_l_r(3);
+  raw_pop_l_r(2);
+  raw_pop_l_r(1);
+  raw_pop_l_r(0);
+  raw_ret();
+  set_target(tmp);
+
+  ((cpuop_func*)cpuid_space)(0);
+  if (eax != NULL) *eax = s_eax;
+  if (ebx != NULL) *ebx = s_ebx;
+  if (ecx != NULL) *ecx = s_ecx;
+  if (edx != NULL) *edx = s_edx;
+
+  cache_free (cpuid_space);
+}
+
+static void raw_init_cpu(void)
+{
+  struct cpuinfo_x86 *c = &cpuinfo;
+  uae_u32 xlvl;
+
+  /* Defaults */
+  c->x86_processor = X86_PROCESSOR_max;
+  c->x86_vendor = X86_VENDOR_UNKNOWN;
+  c->cpuid_level = -1;				/* CPUID not detected */
+  c->x86_model = c->x86_mask = 0;	/* So far unknown... */
+  c->x86_vendor_id[0] = '\0';		/* Unset */
+  c->x86_hwcap = 0;
+  
+  /* Get vendor name */
+  c->x86_vendor_id[12] = '\0';
+  cpuid(0x00000000,
+		(uae_u32 *)&c->cpuid_level,
+		(uae_u32 *)&c->x86_vendor_id[0],
+		(uae_u32 *)&c->x86_vendor_id[8],
+		(uae_u32 *)&c->x86_vendor_id[4]);
+  x86_get_cpu_vendor(c);
+
+  /* Intel-defined flags: level 0x00000001 */
+  c->x86_brand_id = 0;
+  if ( c->cpuid_level >= 0x00000001 ) {
+	uae_u32 tfms, brand_id;
+	cpuid(0x00000001, &tfms, &brand_id, NULL, &c->x86_hwcap);
+	c->x86 = (tfms >> 8) & 15;
+	c->x86_model = (tfms >> 4) & 15;
+	c->x86_brand_id = brand_id & 0xff;
+	if ( (c->x86_vendor == X86_VENDOR_AMD) &&
+		 (c->x86 == 0xf)) {
+	  /* AMD Extended Family and Model Values */
+	  c->x86 += (tfms >> 20) & 0xff;
+	  c->x86_model += (tfms >> 12) & 0xf0;
+	}
+	c->x86_mask = tfms & 15;
+  } else {
+	/* Have CPUID level 0 only - unheard of */
+	c->x86 = 4;
+  }
+
+  /* AMD-defined flags: level 0x80000001 */
+  cpuid(0x80000000, &xlvl, NULL, NULL, NULL);
+  if ( (xlvl & 0xffff0000) == 0x80000000 ) {
+	if ( xlvl >= 0x80000001 ) {
+	  uae_u32 features;
+	  cpuid(0x80000001, NULL, NULL, NULL, &features);
+	  if (features & (1 << 29)) {
+		/* Assume x86-64 if long mode is supported */
+		c->x86_processor = X86_PROCESSOR_K8;
+	  }
+	}
+  }
+	  
+  /* Canonicalize processor ID */
+  switch (c->x86) {
+  case 3:
+	c->x86_processor = X86_PROCESSOR_I386;
+	break;
+  case 4:
+	c->x86_processor = X86_PROCESSOR_I486;
+	break;
+  case 5:
+	if (c->x86_vendor == X86_VENDOR_AMD)
+	  c->x86_processor = X86_PROCESSOR_K6;
+	else
+	  c->x86_processor = X86_PROCESSOR_PENTIUM;
+	break;
+  case 6:
+	if (c->x86_vendor == X86_VENDOR_AMD)
+	  c->x86_processor = X86_PROCESSOR_ATHLON;
+	else
+	  c->x86_processor = X86_PROCESSOR_PENTIUMPRO;
+	break;
+  case 15:
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+	  /* Assume any BrandID >= 8 and family == 15 yields a Pentium 4 */
+	  if (c->x86_brand_id >= 8)
+		c->x86_processor = X86_PROCESSOR_PENTIUM4;
+	}
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+	  /* Assume an Athlon processor if family == 15 and it was not
+	     detected as an x86-64 so far */
+	  if (c->x86_processor == X86_PROCESSOR_max)
+		c->x86_processor = X86_PROCESSOR_ATHLON;
+	}
+	break;
+  }
+  if (c->x86_processor == X86_PROCESSOR_max) {
+	write_log ("Error: unknown processor type\n");
+	write_log ("..Family  : %d\n", c->x86);
+	write_log ("..Model   : %d\n", c->x86_model);
+	write_log ("..Mask    : %d\n", c->x86_mask);
+	write_log ("  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
+	if (c->x86_brand_id)
+	  write_log("  BrandID : %02x\n", c->x86_brand_id);
+	abort();
+  }
+
+  /* Have CMOV support? */
+  have_cmov = c->x86_hwcap & (1 << 15);
+
+  /* Can the host CPU suffer from partial register stalls? */
+  have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
+#if 1
+  /* It appears that partial register writes are a bad idea even on
+	 AMD K7 cores, even though they are not supposed to have the
+	 dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
+  if (c->x86_processor == X86_PROCESSOR_ATHLON)
+	have_rat_stall = 1;
+#endif
+
+  /* Alignments */
+  if (tune_alignment) {
+	align_loops = x86_alignments[c->x86_processor].align_loop;
+	align_jumps = x86_alignments[c->x86_processor].align_jump;
+  }
+
+  write_log("Max CPUID level=%d Processor is %s [%s]\n",
+			c->cpuid_level, c->x86_vendor_id,
+			x86_processor_string_table[c->x86_processor]);
+}
+
+#if 0
+static int target_check_bsf(void)
+{
+	int mismatch = 0;
+	for (int g_ZF = 0; g_ZF <= 1; g_ZF++) {
+	for (int g_CF = 0; g_CF <= 1; g_CF++) {
+	for (int g_OF = 0; g_OF <= 1; g_OF++) {
+	for (int g_SF = 0; g_SF <= 1; g_SF++) {
+		for (int value = -1; value <= 1; value++) {
+			unsigned long flags = (g_SF << 7) | (g_OF << 11) | (g_ZF << 6) | g_CF;
+			unsigned long tmp = value;
+			__asm__ __volatile__ ("push %0; popf; bsf %1,%1; pushf; pop %0"
+								  : "+r" (flags), "+r" (tmp) : : "cc");
+			int OF = (flags >> 11) & 1;
+			int SF = (flags >>  7) & 1;
+			int ZF = (flags >>  6) & 1;
+			int CF = flags & 1;
+			tmp = (value == 0);
+			if (ZF != tmp || SF != g_SF || OF != g_OF || CF != g_CF)
+				mismatch = true;
+		}
+	}}}}
+	if (mismatch)
+		write_log("Target CPU defines all flags on BSF instruction\n");
+	return !mismatch;
+}
+#endif
+
+#if 0
 
 /*************************************************************************
  * Checking for CPU features                                             *
@@ -2427,7 +2736,7 @@ static void raw_init_cpu(void)
 {
     x86_regs x;
     uae_u32 maxlev;
-    
+
     x=cpuid(0);
     maxlev=x.eax;
     write_log("Max CPUID level=%d Processor is %c%c%c%c%c%c%c%c%c%c%c%c\n",
@@ -2449,7 +2758,7 @@ static void raw_init_cpu(void)
 
     if (maxlev>=1) {
 	x=cpuid(1);
-	if (x.edx&(1<<15)) 
+	if (x.edx&(1<<15))
 	    have_cmov=1;
     }
     have_rat_stall=1;
@@ -2479,6 +2788,7 @@ static void raw_init_cpu(void)
       have_rat_stall=1;
 #endif
 }
+#endif
 
 /*************************************************************************
  * FPU stuff                                                             *
@@ -2488,7 +2798,7 @@ static void raw_init_cpu(void)
 static __inline__ void raw_fp_init(void)
 {
     int i;
-    
+
     for (i=0;i<N_FREGS;i++)
 	live.spos[i]=-2;
     live.tos=-1;  /* Stack is empty */
@@ -2584,8 +2894,8 @@ static __inline__ void tos_make(int r)
     emit_byte(0xd8+(live.tos+1)-live.spos[r]);
     /* store top of stack in reg and pop it*/
 }
-    
-	
+
+
 LOWFUNC(NONE,WRITE,2,raw_fmov_mr,(MEMW m, FR r))
 {
     make_tos(r);
@@ -2656,7 +2966,7 @@ LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 {
     int rs;
 
-    /* Stupid x87 can't write a long double to mem without popping the 
+    /* Stupid x87 can't write a long double to mem without popping the
        stack! */
     usereg(r);
     rs=stackpos(r);
@@ -2784,7 +3094,7 @@ LOWFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xfa);    /* fsqrt y=sqrt(x) */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
 
@@ -2804,7 +3114,7 @@ LOWFUNC(NONE,NONE,2,raw_fabs_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xe1);    /* fabs y=abs(x) */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fabs_rr,(FW d, FR s))
 
@@ -2824,7 +3134,7 @@ LOWFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xfc);    /* frndint y=int(x) */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 
@@ -2836,19 +3146,19 @@ LOWFUNC(NONE,NONE,2,raw_fgetexp_rr,(FW d, FR s))
 	ds=stackpos(s);
 	emit_byte(0xd9);
 	emit_byte(0xc0+ds); /* fld x */
-    	emit_byte(0xd9);
-    	emit_byte(0xf4);    /* fxtract exp push man */
-    	emit_byte(0xdd);
-    	emit_byte(0xd8);    /* fstp just pop man */
+	emit_byte(0xd9);
+	emit_byte(0xf4);    /* fxtract exp push man */
+	emit_byte(0xdd);
+	emit_byte(0xd8);    /* fstp just pop man */
 	tos_make(d);        /* store exp to destination */
     }
     else {
 	make_tos(d);        /* tos=x=y */
-    	emit_byte(0xd9);
-    	emit_byte(0xf4);    /* fxtract exp push man */
-    	emit_byte(0xdd);
-    	emit_byte(0xd8);    /* fstp just pop man */
-    }	
+	emit_byte(0xd9);
+	emit_byte(0xf4);    /* fxtract exp push man */
+	emit_byte(0xdd);
+	emit_byte(0xd8);    /* fstp just pop man */
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fgetexp_rr,(FW d, FR s))
 
@@ -2860,19 +3170,19 @@ LOWFUNC(NONE,NONE,2,raw_fgetman_rr,(FW d, FR s))
 	ds=stackpos(s);
 	emit_byte(0xd9);
 	emit_byte(0xc0+ds); /* fld x */
-    	emit_byte(0xd9);
-    	emit_byte(0xf4);    /* fxtract exp push man */
-    	emit_byte(0xdd);
-    	emit_byte(0xd9);    /* fstp copy man up & pop */
+	emit_byte(0xd9);
+	emit_byte(0xf4);    /* fxtract exp push man */
+	emit_byte(0xdd);
+	emit_byte(0xd9);    /* fstp copy man up & pop */
 	tos_make(d);        /* store man to destination */
     }
     else {
 	make_tos(d);        /* tos=x=y */
-    	emit_byte(0xd9);
-    	emit_byte(0xf4);    /* fxtract exp push man */
-    	emit_byte(0xdd);
-    	emit_byte(0xd9);    /* fstp copy man up & pop */
-    }	
+	emit_byte(0xd9);
+	emit_byte(0xf4);    /* fxtract exp push man */
+	emit_byte(0xdd);
+	emit_byte(0xd9);    /* fstp copy man up & pop */
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fgetman_rr,(FW d, FR s))
 
@@ -2892,7 +3202,7 @@ LOWFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xfe);    /* fsin y=sin(x) */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 
@@ -2912,7 +3222,7 @@ LOWFUNC(NONE,NONE,2,raw_fcos_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xff);    /* fcos y=cos(x) */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fcos_rr,(FW d, FR s))
 
@@ -2924,19 +3234,19 @@ LOWFUNC(NONE,NONE,2,raw_ftan_rr,(FW d, FR s))
 	ds=stackpos(s);
 	emit_byte(0xd9);
 	emit_byte(0xc0+ds); /* fld x */
-    	emit_byte(0xd9);
-    	emit_byte(0xf2);    /* fptan tan(x)=y/1.0 */
-    	emit_byte(0xdd);
-    	emit_byte(0xd8);    /* fstp pop 1.0 */
+	emit_byte(0xd9);
+	emit_byte(0xf2);    /* fptan tan(x)=y/1.0 */
+	emit_byte(0xdd);
+	emit_byte(0xd8);    /* fstp pop 1.0 */
 	tos_make(d);        /* store to destination */
     }
     else {
 	make_tos(d);
-    	emit_byte(0xd9);
-    	emit_byte(0xf2);    /* fptan tan(x)=y/1.0 */
-    	emit_byte(0xdd);
-    	emit_byte(0xd8);    /* fstp pop 1.0 */
-    }	
+	emit_byte(0xd9);
+	emit_byte(0xf2);    /* fptan tan(x)=y/1.0 */
+	emit_byte(0xdd);
+	emit_byte(0xd8);    /* fstp pop 1.0 */
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_ftan_rr,(FW d, FR s))
 
@@ -2959,18 +3269,18 @@ LOWFUNC(NONE,NONE,3,raw_fsincos_rr,(FW d, FW c, FR s))
 	return;          /* occupy both regs directly */
     }
     if (live.spos[c]<0) {
-    	emit_byte(0xd9);
-    	emit_byte(0xc9); /* fxch swap cos(x) with sin(x) */
-    	emit_byte(0xdd); /* store sin(x) to d & pop */
-    	emit_byte(0xd8+(live.tos+2)-live.spos[d]);
+	emit_byte(0xd9);
+	emit_byte(0xc9); /* fxch swap cos(x) with sin(x) */
+	emit_byte(0xdd); /* store sin(x) to d & pop */
+	emit_byte(0xd8+(live.tos+2)-live.spos[d]);
 	live.tos++;      /* occupy a reg for cos(x) here */
 	live.spos[c]=live.tos;
 	live.onstack[live.tos]=c;
     }
     else {
-    	emit_byte(0xdd); /* store cos(x) to c & pop */
-    	emit_byte(0xd8+(live.tos+2)-live.spos[c]);
-    	tos_make(d);     /* store sin(x) to destination */
+	emit_byte(0xdd); /* store cos(x) to c & pop */
+	emit_byte(0xd8+(live.tos+2)-live.spos[c]);
+	tos_make(d);     /* store sin(x) to destination */
     }
 }
 LENDFUNC(NONE,NONE,3,raw_fsincos_rr,(FW d, FW c, FR s))
@@ -2982,18 +3292,18 @@ LOWFUNC(NONE,NONE,2,raw_fscale_rr,(FRW d, FR s))
     int ds;
 
     if (live.spos[d]==live.tos && live.spos[s]==live.tos-1) {
-        //write_log ("fscale found x in TOS-1 and y in TOS\n");
-    	emit_byte(0xd9);
-    	emit_byte(0xfd);    /* fscale y*(2^x) */
+	//write_log ("fscale found x in TOS-1 and y in TOS\n");
+	emit_byte(0xd9);
+	emit_byte(0xfd);    /* fscale y*(2^x) */
     }
     else {
-    	make_tos(s);        /* tos=x */
-    	ds=stackpos(d);
-    	emit_byte(0xd9);
-    	emit_byte(0xc0+ds); /* fld y */
-    	emit_byte(0xd9);
-    	emit_byte(0xfd);    /* fscale y*(2^x) */
-    	tos_make(d);        /* store y=y*(2^x) */
+	make_tos(s);        /* tos=x */
+	ds=stackpos(d);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld y */
+	emit_byte(0xd9);
+	emit_byte(0xfd);    /* fscale y*(2^x) */
+	tos_make(d);        /* store y=y*(2^x) */
     }
 }
 LENDFUNC(NONE,NONE,2,raw_fscale_rr,(FRW d, FR s))
@@ -3116,7 +3426,7 @@ LOWFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
     tos_make(d);        /* store y=10^x */
 }
 LENDFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
- 
+
 LOWFUNC(NONE,NONE,2,raw_flog2_rr,(FW d, FR s))
 {
     int ds;
@@ -3236,7 +3546,7 @@ LOWFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
     tos_make(d);        /* store y=acos(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
- 
+
 LOWFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))
 {
     int ds;
@@ -3286,7 +3596,7 @@ LOWFUNC(NONE,NONE,2,raw_fatanh_rr,(FW d, FR s))
     tos_make(d);        /* store y=atanh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fatanh_rr,(FW d, FR s))
- 
+
 LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 {
     int ds,tr;
@@ -3302,14 +3612,14 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
     emit_byte(0xdd);
     emit_byte(0xd1);     /* fst copy x*log2(e) */
     if (tr>=0) {
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap with temp-reg */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0xf4); /* add -12 to esp */
-    	emit_byte(0xdb);
-    	emit_byte(0x3c);
-    	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap with temp-reg */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0xf4); /* add -12 to esp */
+	emit_byte(0xdb);
+	emit_byte(0x3c);
+	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
     }
     emit_byte(0xd9);
     emit_byte(0xe0);     /* fchs -x*log2(e) */
@@ -3348,20 +3658,20 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
     emit_byte(0xdd);
     emit_byte(0xd9);     /* fstp copy e^x & pop */
     if (tr>=0) {
-    	emit_byte(0xdb);
-    	emit_byte(0x2c);
-    	emit_byte(0x24); /* fld load temp-reg from [esp] */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0x0c); /* add +12 to esp */
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
-    	emit_byte(0xde);
-    	emit_byte(0xe9); /* fsubp (e^x)-(e^-x) */
+	emit_byte(0xdb);
+	emit_byte(0x2c);
+	emit_byte(0x24); /* fld load temp-reg from [esp] */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0x0c); /* add +12 to esp */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
+	emit_byte(0xde);
+	emit_byte(0xe9); /* fsubp (e^x)-(e^-x) */
     }
     else {
-    	emit_byte(0xde);
-    	emit_byte(0xe1); /* fsubrp (e^x)-(e^-x) */
+	emit_byte(0xde);
+	emit_byte(0xe1); /* fsubrp (e^x)-(e^-x) */
     }
     emit_byte(0xd9);
     emit_byte(0xe8);     /* fld 1.0 */
@@ -3376,7 +3686,7 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
     tos_make(d);         /* store y=sinh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
- 
+
 LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 {
     int ds,tr;
@@ -3392,14 +3702,14 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
     emit_byte(0xdd);
     emit_byte(0xd1);     /* fst copy x*log2(e) */
     if (tr>=0) {
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap with temp-reg */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0xf4); /* add -12 to esp */
-    	emit_byte(0xdb);
-    	emit_byte(0x3c);
-    	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap with temp-reg */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0xf4); /* add -12 to esp */
+	emit_byte(0xdb);
+	emit_byte(0x3c);
+	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
     }
     emit_byte(0xd9);
     emit_byte(0xe0);     /* fchs -x*log2(e) */
@@ -3438,14 +3748,14 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
     emit_byte(0xdd);
     emit_byte(0xd9);     /* fstp copy e^x & pop */
     if (tr>=0) {
-    	emit_byte(0xdb);
-    	emit_byte(0x2c);
-    	emit_byte(0x24); /* fld load temp-reg from [esp] */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0x0c); /* add +12 to esp */
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
+	emit_byte(0xdb);
+	emit_byte(0x2c);
+	emit_byte(0x24); /* fld load temp-reg from [esp] */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0x0c); /* add +12 to esp */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
     }
     emit_byte(0xde);
     emit_byte(0xc1);     /* faddp (e^x)+(e^-x) */
@@ -3462,7 +3772,7 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
     tos_make(d);         /* store y=cosh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
- 
+
 LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 {
     int ds,tr;
@@ -3478,14 +3788,14 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
     emit_byte(0xdd);
     emit_byte(0xd1);     /* fst copy x*log2(e) */
     if (tr>=0) {
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap with temp-reg */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0xf4); /* add -12 to esp */
-    	emit_byte(0xdb);
-    	emit_byte(0x3c);
-    	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap with temp-reg */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0xf4); /* add -12 to esp */
+	emit_byte(0xdb);
+	emit_byte(0x3c);
+	emit_byte(0x24); /* fstp store temp-reg to [esp] & pop */
     }
     emit_byte(0xd9);
     emit_byte(0xe0);     /* fchs -x*log2(e) */
@@ -3530,20 +3840,20 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
     emit_byte(0xde);
     emit_byte(0xe9);     /* fsubp (e^x)-(e^-x) */
     if (tr>=0) {
-    	emit_byte(0xdb);
-    	emit_byte(0x2c);
-    	emit_byte(0x24); /* fld load temp-reg from [esp] */
-    	emit_byte(0x83);
-    	emit_byte(0xc4);
-    	emit_byte(0x0c); /* add +12 to esp */
-    	emit_byte(0xd9);
-    	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
-    	emit_byte(0xde);
-    	emit_byte(0xf9); /* fdivp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
+	emit_byte(0xdb);
+	emit_byte(0x2c);
+	emit_byte(0x24); /* fld load temp-reg from [esp] */
+	emit_byte(0x83);
+	emit_byte(0xc4);
+	emit_byte(0x0c); /* add +12 to esp */
+	emit_byte(0xd9);
+	emit_byte(0xca); /* fxch swap temp-reg with e^-x in tr */
+	emit_byte(0xde);
+	emit_byte(0xf9); /* fdivp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
     }
     else {
-    	emit_byte(0xde);
-    	emit_byte(0xf1); /* fdivrp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
+	emit_byte(0xde);
+	emit_byte(0xf1); /* fdivrp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
     }
     tos_make(d);         /* store y=tanh(x) */
 }
@@ -3565,7 +3875,7 @@ LOWFUNC(NONE,NONE,2,raw_fneg_rr,(FW d, FR s))
 	make_tos(d);
 	emit_byte(0xd9);
 	emit_byte(0xe0); /* take fchs */
-    }	
+    }
 }
 LENDFUNC(NONE,NONE,2,raw_fneg_rr,(FW d, FR s))
 
@@ -3582,7 +3892,7 @@ LOWFUNC(NONE,NONE,2,raw_fadd_rr,(FRW d, FR s))
     else {
 	make_tos(d);
 	ds=stackpos(s);
-	
+
 	emit_byte(0xd8);
 	emit_byte(0xc0+ds); /* add source to dest*/
     }
@@ -3592,7 +3902,7 @@ LENDFUNC(NONE,NONE,2,raw_fadd_rr,(FRW d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 {
     int ds;
-    
+
     if (live.spos[s]==live.tos) {
 	/* Source is on top of stack */
 	ds=stackpos(d);
@@ -3602,7 +3912,7 @@ LOWFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
     else {
 	make_tos(d);
 	ds=stackpos(s);
-	
+
 	emit_byte(0xd8);
 	emit_byte(0xe0+ds); /* sub src from dest */
     }
@@ -3612,7 +3922,7 @@ LENDFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fcmp_rr,(FR d, FR s))
 {
     int ds;
-    
+
     make_tos(d);
     ds=stackpos(s);
 
@@ -3624,7 +3934,7 @@ LENDFUNC(NONE,NONE,2,raw_fcmp_rr,(FR d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fmul_rr,(FRW d, FR s))
 {
     int ds;
-    
+
     if (live.spos[s]==live.tos) {
 	/* Source is on top of stack */
 	ds=stackpos(d);
@@ -3634,7 +3944,7 @@ LOWFUNC(NONE,NONE,2,raw_fmul_rr,(FRW d, FR s))
     else {
 	make_tos(d);
 	ds=stackpos(s);
-	
+
 	emit_byte(0xd8);
 	emit_byte(0xc8+ds); /* mul dest by source*/
     }
@@ -3644,7 +3954,7 @@ LENDFUNC(NONE,NONE,2,raw_fmul_rr,(FRW d, FR s))
 LOWFUNC(NONE,NONE,2,raw_fdiv_rr,(FRW d, FR s))
 {
     int ds;
-    
+
     if (live.spos[s]==live.tos) {
 	/* Source is on top of stack */
 	ds=stackpos(d);
@@ -3654,7 +3964,7 @@ LOWFUNC(NONE,NONE,2,raw_fdiv_rr,(FRW d, FR s))
     else {
 	make_tos(d);
 	ds=stackpos(s);
-	
+
 	emit_byte(0xd8);
 	emit_byte(0xf0+ds); /* div dest by source*/
     }
@@ -3666,18 +3976,18 @@ LOWFUNC(NONE,NONE,2,raw_frem_rr,(FRW d, FR s))
     int ds;
 
     if (live.spos[d]==live.tos && live.spos[s]==live.tos-1) {
-        //write_log ("frem found x in TOS-1 and y in TOS\n");
-    	emit_byte(0xd9);
-    	emit_byte(0xf8);    /* fprem rem(y/x) */
+	//write_log ("frem found x in TOS-1 and y in TOS\n");
+	emit_byte(0xd9);
+	emit_byte(0xf8);    /* fprem rem(y/x) */
     }
     else {
-    	make_tos(s);        /* tos=x */
-    	ds=stackpos(d);
-    	emit_byte(0xd9);
-    	emit_byte(0xc0+ds); /* fld y */
-    	emit_byte(0xd9);
-    	emit_byte(0xf8);    /* fprem rem(y/x) */
-    	tos_make(d);        /* store y=rem(y/x) */
+	make_tos(s);        /* tos=x */
+	ds=stackpos(d);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld y */
+	emit_byte(0xd9);
+	emit_byte(0xf8);    /* fprem rem(y/x) */
+	tos_make(d);        /* store y=rem(y/x) */
     }
 }
 LENDFUNC(NONE,NONE,2,raw_frem_rr,(FRW d, FR s))
@@ -3687,18 +3997,18 @@ LOWFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
     int ds;
 
     if (live.spos[d]==live.tos && live.spos[s]==live.tos-1) {
-        //write_log ("frem1 found x in TOS-1 and y in TOS\n");
-    	emit_byte(0xd9);
-    	emit_byte(0xf5);    /* fprem1 rem1(y/x) */
+	//write_log ("frem1 found x in TOS-1 and y in TOS\n");
+	emit_byte(0xd9);
+	emit_byte(0xf5);    /* fprem1 rem1(y/x) */
     }
     else {
-    	make_tos(s);        /* tos=x */
-    	ds=stackpos(d);
-    	emit_byte(0xd9);
-    	emit_byte(0xc0+ds); /* fld y */
-    	emit_byte(0xd9);
-    	emit_byte(0xf5);    /* fprem1 rem1(y/x) */
-    	tos_make(d);        /* store y=rem(y/x) */
+	make_tos(s);        /* tos=x */
+	ds=stackpos(d);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld y */
+	emit_byte(0xd9);
+	emit_byte(0xf5);    /* fprem1 rem1(y/x) */
+	tos_make(d);        /* store y=rem(y/x) */
     }
 }
 LENDFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
@@ -3724,17 +4034,17 @@ static __inline__ void raw_fflags_into_flags(int r)
     emit_byte(0xd9);
     emit_byte(0xc9+p); /* swap top two around */
     if (have_cmov) {
-            // gb-- fucomi is for P6 cores only, not K6-2 then...
+	    // gb-- fucomi is for P6 cores only, not K6-2 then...
     emit_byte(0xdb);
     emit_byte(0xe9+p); /* fucomi them */
     }
     else {
-            emit_byte(0xdd);
-            emit_byte(0xe1+p); /* fucom them */
-            emit_byte(0x9b);
-            emit_byte(0xdf);
-            emit_byte(0xe0); /* fstsw ax */
-            raw_sahf(0); /* sahf */
+	    emit_byte(0xdd);
+	    emit_byte(0xe1+p); /* fucom them */
+	    emit_byte(0x9b);
+	    emit_byte(0xdf);
+	    emit_byte(0xe0); /* fstsw ax */
+	    raw_sahf(0); /* sahf */
     }
     emit_byte(0xdd);
     emit_byte(0xd9+p);  /* store value back, and get rid of 0 */

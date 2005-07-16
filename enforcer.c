@@ -381,14 +381,14 @@ uae_u32 REGPARAM2 chipmem_lget2 (uaecptr addr)
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
     m = (uae_u32 *)(chipmemory + addr);
-	
+
 	if (ISILLEGAL(addr))
 		{
 		enforcer_display_hit("LONG READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode==1)
 			{
 			set_special (SPCFLAG_TRAP);
-			}	
+			}
 		}
     return do_get_mem_long (m);
 }
@@ -402,12 +402,12 @@ uae_u32 REGPARAM2 chipmem_wget2(uaecptr addr)
     m = (uae_u16 *)(chipmemory + addr);
 
 	if (ISILLEGAL(addr))
-	{	
+	{
 		enforcer_display_hit("WORD READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode==1)
 			{
 			set_special (SPCFLAG_TRAP);
-			}		
+			}
 	}
     return do_get_mem_word (m);
 }

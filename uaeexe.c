@@ -87,7 +87,7 @@ static char *get_cmd(void)
     char *s;
 
     if(!first) return NULL;
-    s = first->cmd; 
+    s = first->cmd;
     cmd = first; first = first->next;
     if(!first) last = NULL;
     free(cmd);

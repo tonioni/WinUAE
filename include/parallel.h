@@ -5,5 +5,3 @@ extern void flushprinter (void);
 extern void closeprinter (void);
 extern void openprinter (void);
 extern int isprinteropen (void);
-
-

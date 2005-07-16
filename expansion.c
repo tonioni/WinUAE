@@ -1,4 +1,4 @@
- /* 
+ /*
   * UAE - The Un*x Amiga Emulator
   *
   * AutoConfig (tm) Expansions (ZorroII/III)
@@ -140,7 +140,7 @@ static int ecard;
 /* Please note: ZorroIII implementation seems to work different
  * than described in the HRM. This claims that ZorroIII config
  * address is 0xff000000 while the ZorroII config space starts
- * at 0x00e80000. In reality, both, Z2 and Z3 cards are 
+ * at 0x00e80000. In reality, both, Z2 and Z3 cards are
  * configured in the ZorroII config space. Kickstart 3.1 doesn't
  * even do a single read or write access to the ZorroIII space.
  * The original Amiga include files tell the same as the HRM.
@@ -149,7 +149,7 @@ static int ecard;
  * to a ZorroIII card on a real Amiga. This is not implemented
  * yet.
  *  -- Stefan
- * 
+ *
  * Surprising that 0xFF000000 isn't used. Maybe it depends on the
  * ROM. Anyway, the HRM says that Z3 cards may appear in Z2 config
  * space, so what we are doing here is correct.
@@ -261,7 +261,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	 case 0x44:
 	    if (expamem_type() == zorroIII) {
 		// +Bernd Roesch
-		value = value - 0x3000;  // maps to 0x10000000     
+		value = value - 0x3000;  // maps to 0x10000000
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		// -Bernd Roesch
@@ -506,7 +506,7 @@ static addrbank catweasel_bank = {
 static void expamem_map_catweasel (void)
 {
     catweasel_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
-    map_banks (&catweasel_bank, catweasel_start >> 16, 1, 0);  
+    map_banks (&catweasel_bank, catweasel_start >> 16, 1, 0);
     write_log ("Catweasel MK%d: mapped @$%lx\n", cwc.type, catweasel_start);
 }
 
@@ -875,7 +875,7 @@ static void expamem_init_arcadia (void)
 
 #endif
 
-/* 
+/*
  * Filesystem device
  */
 
@@ -1163,7 +1163,7 @@ void expamem_reset (void)
 #ifdef ARCADIA
     if (arcadia_rom) {
 	arcadiaboot = mapped_malloc (0x10000, "arcadia");
-	arcadia_bank.baseaddr = arcadiaboot;    
+	arcadia_bank.baseaddr = arcadiaboot;
 	card_init[cardno] = expamem_init_arcadia;
 	card_map[cardno++] = expamem_map_arcadia;
     }

@@ -256,7 +256,7 @@ static void disk_date (uae_u8 *p)
     }
     p[0] = days >> 24; p[1] = days >> 16; p[2] = days >> 8; p[3] = days >> 0;
     p[4] = minutes >> 24; p[5] = minutes >> 16; p[6] = minutes >> 8; p[7] = minutes >> 0;
-    p[8] = ticks >> 24; p[9] = ticks >> 16; p[10] = ticks >> 8; p[11] = ticks >> 0; 
+    p[8] = ticks >> 24; p[9] = ticks >> 16; p[10] = ticks >> 8; p[11] = ticks >> 0;
 }
 
 static void createbootblock (uae_u8 *sector, int bootable)
@@ -456,7 +456,7 @@ static int createimagefromexe (struct zfile *src, struct zfile *dst)
     pl (sector1, 24 + dirhash (dirname1) * 4, dblock1);
     disk_checksum(sector1, sector1 + 20);
     writeimageblock (dst, sector1, 880 * FS_FLOPPY_BLOCKSIZE);
-    
+
     createbitmapblock (sector1, bitmap);
     writeimageblock (dst, sector1, 881 * FS_FLOPPY_BLOCKSIZE);
 
@@ -482,10 +482,10 @@ static char *drive_id_name(drive *drv)
     case DRIVE_ID_525SD: return "5.25SD";
     case DRIVE_ID_35DD : return "3.5DD";
     }
-    return "UNKNOWN"; 
+    return "UNKNOWN";
 }
 
-/* Simulate exact behaviour of an A3000T 3.5 HD disk drive. 
+/* Simulate exact behaviour of an A3000T 3.5 HD disk drive.
  * The drive reports to be a 3.5 DD drive whenever there is no
  * disk or a 3.5 DD disk is inserted. Only 3.5 HD drive id is reported
  * when a real 3.5 HD disk is inserted. -Adil
@@ -692,7 +692,7 @@ char *DISK_get_saveimagepath (const char *name)
     char name2[MAX_DPATH];
     char path[MAX_DPATH];
     int i;
-    
+
     strcpy (name2, name);
     i = strlen (name2) - 1;
     while (i > 0) {
@@ -768,7 +768,7 @@ static int diskfile_iswriteprotect (const char *fname, int *needwritefile, drive
     struct zfile *zf1, *zf2;
     int wrprot1 = 0, wrprot2 = 1;
     unsigned char buffer[25];
-    
+
     *needwritefile = 0;
     *drvtype = DRV_35_DD;
     zf1 = DISK_validate_filename (fname, 1, &wrprot1, NULL);
@@ -918,7 +918,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 	    tid->offs = i * 512 * drv->num_secs;
 	}
 	drv->useturbo = 1;
-    
+
     } else {
 	int i;
 
@@ -950,7 +950,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     drive_fill_bigbuf (drv, 1);
     drv->mfmpos = (rand () | (rand () << 16)) % drv->tracklen;
     drv->prevtracklen = 0;
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
     driveclick_insert (drv - floppy, 0);
 #endif
     return 1;
@@ -1012,7 +1012,7 @@ static void drive_step (drive * drv)
     if (direction) {
 	if (drv->cyl) {
 	    drv->cyl--;
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
 	    driveclick_click (drv - floppy, drv->cyl);
 #endif
 	}
@@ -1031,7 +1031,7 @@ static void drive_step (drive * drv)
 	}
 	if (drv->cyl >= maxtrack)
 	    write_dlog ("program tried to step over track %d\n", maxtrack);
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
 	driveclick_click (drv - floppy, drv->cyl);
 #endif
     }
@@ -1069,7 +1069,7 @@ static void drive_motor (drive * drv, int off)
     if (drv->motoroff && !off) {
 	drv->dskready_time = DSKREADY_TIME;
 	rand_shifter (drv);
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
 	driveclick_motor (drv - floppy, drv->dskready_down_time == 0 ? 2 : 1);
 #endif
 #ifdef DISK_DEBUG2
@@ -1081,7 +1081,7 @@ static void drive_motor (drive * drv, int off)
     if (!drv->motoroff && off) {
 	drv->drive_id_scnt = 0; /* Reset id shift reg counter */
 	drv->dskready_down_time = DSKREADY_DOWN_TIME;
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
 	driveclick_motor (drv - floppy, 0);
 #endif
 #ifdef DEBUG_DRIVE_ID
@@ -1172,7 +1172,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 	    track_reset (drv);
 	    return;
 	}
-#endif	
+#endif
     } else if (drv->filetype == ADF_IPF) {
 
 #ifdef CAPS
@@ -1270,7 +1270,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 		dstmfmbuf[dstmfmoffset % len] = mfmbuf[i];
 		dstmfmoffset++;
 	    }
-	 
+
 	 }
 
 #ifdef DISK_DEBUG
@@ -1522,7 +1522,7 @@ static void drive_write_data (drive * drv)
 
 static void drive_eject (drive * drv)
 {
-#ifdef DRIVESOUND    
+#ifdef DRIVESOUND
     driveclick_insert (drv - floppy, 1);
 #endif
     drive_image_free (drv);
@@ -1636,7 +1636,7 @@ static void diskfile_readonly (const char *name, int readonly)
 {
     struct stat st;
     int mode, oldmode;
-    
+
     if (stat (name, &st))
 	return;
     oldmode = mode = st.st_mode;
@@ -1676,7 +1676,7 @@ int disk_setwriteprotect (int num, const char *name, int protect)
     int wrprot1, wrprot2, i;
     char *name2;
     drive_type drvtype;
- 
+
     oldprotect = diskfile_iswriteprotect (name, &needwritefile, &drvtype);
     zf1 = DISK_validate_filename (name, 1, &wrprot1, NULL);
     if (!zf1) return 0;
@@ -1890,7 +1890,7 @@ void DISK_select (uae_u8 data)
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	    drive *drv = floppy + dr;
 	    /* motor on/off workings tested with small assembler code on real Amiga 1200. */
-	    /* motor/id flipflop is set only when drive select goes from high to low */ 
+	    /* motor/id flipflop is set only when drive select goes from high to low */
 	    if (!(selected & (1 << dr)) && (lastselected & (1 << dr)) ) {
 		drv->drive_id_scnt++;
 		drv->drive_id_scnt &= 31;
@@ -1966,7 +1966,7 @@ uae_u8 DISK_status (void)
 	    } else if (drv->dskchange && currprefs.dfxtype[dr] != DRV_525_SD) {
 		st &= ~4;
 	    }
-	} 
+	}
     }
     return st;
 }
@@ -2028,7 +2028,7 @@ static void disk_dmafinished (void)
 	write_log ("\n");
     }
 #endif
-}    
+}
 
 static void fetchnextrevolution (drive *drv)
 {
@@ -2092,7 +2092,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 {
     int dr;
     int drives[4];
-    
+
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv2 = &floppy[dr];
 	drives[dr] = 0;
@@ -2298,7 +2298,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 
 static void disk_dma_debugmsg(void)
 {
-    write_dlog ("LEN=%04.4X (%d) SYNC=%04.4X PT=%08.8X ADKCON=%04.4X PC=%08.8X\n", 
+    write_dlog ("LEN=%04.4X (%d) SYNC=%04.4X PT=%08.8X ADKCON=%04.4X PC=%08.8X\n",
 	dsklength, dsklength, (adkcon & 0x400) ? dsksync : 0xffff, dskpt, adkcon, m68k_getpc());
 }
 
@@ -2426,7 +2426,7 @@ void DISK_update (int tohpos)
 
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
-	
+
 	if (drv->motoroff)
 	    continue;
 	drv->floppybitcounter += cycles;
@@ -2599,7 +2599,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	    linecounter = 2;
 	    dskdmaen = 0;
 	    return;
-	}	
+	}
     }
 }
 
@@ -2723,7 +2723,7 @@ end:
     drive_image_free (drv);
     return ret;
 }
-    
+
 
 /* Disk save/restore code */
 

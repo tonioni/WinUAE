@@ -101,7 +101,7 @@ static unsigned int total_skipped = 0;
 STATIC_INLINE void sync_copper (int hpos);
 
 /* Events */
- 
+
 unsigned long int event_cycles, nextevent, is_lastline, currcycle;
 long cycles_to_next_event;
 long max_cycles_to_next_event;
@@ -147,7 +147,7 @@ uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
 
 static uae_u32 cop1lc,cop2lc,copcon;
- 
+
 int maxhpos = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
@@ -299,9 +299,9 @@ static int current_change_set;
 #ifdef OS_WITHOUT_MEMORY_MANAGEMENT
 /* sam: Those arrays uses around 7Mb of BSS... That seems  */
 /* too much for AmigaDOS (uae crashes as soon as one loads */
-/* it. So I use a different strategy here (realloc the    */
+/* it. So I use a different strategy here (realloc the     */
 /* arrays when needed. That strategy might be usefull for  */
-/* computer with low memory.       */
+/* computer with low memory.                               */
 struct sprite_entry  *sprite_entries[2];
 struct color_change *color_changes[2];
 static int max_sprite_entry = 400;
@@ -551,7 +551,7 @@ static int get_maxplanes (int res)
     return planes[fetchmode * 4 + res];
 }
 
-/* Disable bitplane DMA if planes > maxplanes.	This is	needed e.g. by the
+/* Disable bitplane DMA if planes > maxplanes. This is needed e.g. by the
    Sanity WOC demo (at the "Party Effect").  */
 STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 v)
 {
@@ -561,8 +561,8 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 v)
 }
 
 /* The HRM says 0xD8, but that can't work... */
-#define	HARD_DDF_STOP 0xd4
-#define	HARD_DDF_START 0x18
+#define HARD_DDF_STOP 0xd4
+#define HARD_DDF_START 0x18
 
 static void add_modulos (void)
 {
@@ -641,7 +641,7 @@ static int fm_maxplane, fm_maxplane_shift;
 /* The corresponding values, by fetchmode and display resolution.  */
 static int fetchunits[] = { 8,8,8,0, 16,8,8,0, 32,16,8,0 };
 static int fetchstarts[] = { 3,2,1,0, 4,3,2,0, 5,4,3,0 };
-static int fm_maxplanes[] = { 3,2,1,0, 3,3,2,0, 3,3,3,0 }; 
+static int fm_maxplanes[] = { 3,2,1,0, 3,3,2,0, 3,3,3,0 };
 
 static uae_u8 cycle_diagram_table[3][3][9][32];
 static uae_u8 cycle_diagram_free_cycles[3][3][9];
@@ -664,7 +664,7 @@ static void debug_cycle_diagram(void)
 		    if (v==0) aa='-'; else if(v>0) aa='1'; else aa='X';
 		    write_log("%c",aa);
 		}
-		write_log(" %d:%d\n", 
+		write_log(" %d:%d\n",
 		    cycle_diagram_free_cycles[fm][res][planes], cycle_diagram_total_cycles[fm][res][planes]);
 	    }
 	    write_log("\n");
@@ -711,7 +711,7 @@ static void create_cycle_diagram_table(void)
 }
 
 
-/* Used by the copper. */
+/* Used by the copper.  */
 static int estimated_last_fetch_cycle;
 static int cycle_diagram_shift;
 
@@ -745,13 +745,13 @@ static uae_u32 fetched_aga1[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res_first, toscr_nr_planes,	fetchwidth;
+static int toscr_res, toscr_res_first, toscr_nr_planes, fetchwidth;
 static int toscr_delay1x, toscr_delay2x, toscr_delay1, toscr_delay2;
 
-/* The number of bits left from the last fetched words.  
+/* The number of bits left from the last fetched words.
    This is an optimization - conceptually, we have to make sure the result is
    the same as if toscr is called in each clock cycle.  However, to speed this
-   up, we accumulate display data; this variable keeps track of how much. 
+   up, we accumulate display data; this variable keeps track of how much.
    Thus, once we do call toscr_nbits (which happens at least every 16 bits),
    we can do more work at once.  */
 static int toscr_nbits;
@@ -1633,7 +1633,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
     curr_color_changes[next_color_change++].value = value;
 }
 
-typedef	int sprbuf_res_t, cclockres_t, hwres_t,	bplres_t;
+typedef int sprbuf_res_t, cclockres_t, hwres_t,	bplres_t;
 
 /* handle very rarely needed playfield collision (CLXDAT bit 0) */
 static void do_playfield_collisions (void)
@@ -1823,7 +1823,7 @@ static void expand_sprres (void)
 }
 
 STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int dbl,
-    unsigned int mask, int do_collisions, uae_u32 collision_mask)
+				    unsigned int mask, int do_collisions, uae_u32 collision_mask)
 {
     int j = 0;
     while (datab) {
@@ -1942,7 +1942,7 @@ static void decide_sprites (int hpos)
 {
     int nrs[MAX_SPRITES], posns[MAX_SPRITES];
     int count, i;
-     /* apparantly writes to custom registers happen in the 3/4th of cycle 
+     /* apparantly writes to custom registers happen in the 3/4th of cycle
       * and sprite xpos comparator sees it immediately */
     int point = hpos * 2 - 4;
     int width = sprite_width;
@@ -2004,7 +2004,7 @@ STATIC_INLINE int sprites_differ (struct draw_info *dip, struct draw_info *dip_o
 
     if (dip->nr_sprites != dip_old->nr_sprites)
 	return 1;
-    
+
     if (dip->nr_sprites == 0)
 	return 0;
 
@@ -2027,7 +2027,7 @@ STATIC_INLINE int color_changes_differ (struct draw_info *dip, struct draw_info 
 {
     if (dip->nr_color_changes != dip_old->nr_color_changes)
 	return 1;
-    
+
     if (dip->nr_color_changes == 0)
 	return 0;
     if (memcmp (curr_color_changes + dip->first_color_change,
@@ -2454,6 +2454,7 @@ static void COPJMP (int num)
     if (was_active)
 	events_schedule ();
 
+    unset_special (SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
     cop_state.state = COP_read1;
     cop_state.vpos = vpos;
@@ -2467,8 +2468,6 @@ static void COPJMP (int num)
     } else if (oldstrobe != num) {
 	/* dma disabled and accessing both COPxJMPs -> copper stops! */
 	cop_state.state = COP_stop;
-	copper_enabled_thisline = 0;
-	unset_special (SPCFLAG_COPPER);
     }
 }
 
@@ -2528,7 +2527,7 @@ static void DMACON (int hpos, uae_u16 v)
 	if (dmaen (DMA_BITPLANE))
 	    maybe_start_bpl_dma (hpos);
     }
-	    
+
     events_schedule();
 }
 
@@ -3391,7 +3390,7 @@ static int isagnus[]= {
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 27 0x40 - 0x74 */
 
     0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0, /* 21 */
-    1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde
+    1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde */
     /* BPLxPTH/BPLxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
     /* BPLCON0-3,BPLMOD1-2 */
@@ -3408,6 +3407,11 @@ static int isagnus[]= {
 
 static void dump_copper (char *error, int until_hpos)
 {
+    static int warned = 10;
+
+    if (warned < 0)
+	return;
+    warned--;
     write_log("%s: vpos=%d until_hpos=%d\n",
 	error, vpos, until_hpos);
     write_log("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04.4X ci2=%04.4X\n",
@@ -3418,31 +3422,22 @@ static void dump_copper (char *error, int until_hpos)
 
 static void update_copper (int until_hpos)
 {
-    int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);    
+    int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
     int c_hpos = cop_state.hpos;
 
     if (eventtab[ev_copper].active) {
-	static int warned;
-	if (!warned) {
-	    dump_copper ("error1",until_hpos);
-	    warned = 1;
-	}
+	dump_copper ("error1",until_hpos);
 	eventtab[ev_copper].active = 0;
 	return;
-	uae_abort ("update_copper1");
     }
 
     if (cop_state.state == COP_wait && vp < cop_state.vcmp) {
-	static int warned;
-	if (!warned) {
-	    dump_copper ("error2",until_hpos);
-	    warned = 1;
-	}
+	dump_copper ("error2",until_hpos);
+	eventtab[ev_copper].active = 0;
 	copper_enabled_thisline = 0;
 	return;
-	uae_abort ("update_copper2");
     }
-    
+
     until_hpos &= ~1;
 
     if (until_hpos > (maxhpos & ~1))
@@ -3458,7 +3453,7 @@ static void update_copper (int until_hpos)
 
 	/* So we know about the fetch state.  */
 	decide_line (c_hpos);
-	
+
 	switch (cop_state.state) {
 	case COP_read1_in2:
 	    cop_state.state = COP_read1;
@@ -3586,7 +3581,7 @@ static void update_copper (int until_hpos)
 	    cop_state.hcmp = (cop_state.saved_i1 & cop_state.saved_i2 & 0xFE);
 
 	    vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
- 
+
 	    if (cop_state.saved_i1 == 0xFFFF && cop_state.saved_i2 == 0xFFFE) {
 		cop_state.state = COP_stop;
 		copper_enabled_thisline = 0;
@@ -3817,7 +3812,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     }
     if (s->dmastate && !posctl) {
 	uae_u16 data;
-	
+
 	data = sprite_fetch (s, dma, hpos, cycle, 1);
 #if SPRITE_DEBUG > 1
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
@@ -3853,7 +3848,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    }
 	    break;
 	    case 32:
-	    {	
+	    {
 		uae_u16 data32 = sprite_fetch (s, dma, hpos, cycle, 1);
 		if (dma) {
 		    if (cycle == 0)
@@ -4024,7 +4019,7 @@ static int rpt_vsync (void)
     }
     return v;
 }
-	
+
 static void framewait (void)
 {
     frame_time_t curr_time;
@@ -4060,7 +4055,7 @@ void fpscounter_reset (void)
 static void fpscounter (void)
 {
     int now, last;
-    
+
     now = read_processor_time ();
     last = now - lastframetime;
     lastframetime = now;
@@ -4140,7 +4135,7 @@ static void vsync_handler (void)
     if (picasso_on)
 	picasso_handle_vsync ();
 #endif
- 
+
    vsync_handle_redraw (lof, lof_changed);
 
     if (quit_program > 0) {
@@ -4539,6 +4534,10 @@ void customreset (void)
 	dumpcustom ();
 	for (i = 0; i < 8; i++)
 	    nr_armed += spr[i].armed != 0;
+	if (! currprefs.produce_sound) {
+	    eventtab[ev_audio].active = 0;
+	    events_schedule ();
+	}
     }
     expand_sprres ();
 
@@ -4554,14 +4553,14 @@ void customreset (void)
 void dumpcustom (void)
 {
     write_log ("DMACON: %x INTENA: %x INTREQ: %x VPOS: %x HPOS: %x\n", DMACONR(),
-	(unsigned int)intena, (unsigned int)intreq, (unsigned int)vpos, (unsigned int)current_hpos());
+	    (unsigned int)intena, (unsigned int)intreq, (unsigned int)vpos, (unsigned int)current_hpos());
     write_log ("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
     write_log ("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
-	(unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
+	    (unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
     write_log ("BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
     if (timeframes) {
 	write_log ("Average frame time: %f ms [frames: %d time: %d]\n",
-	    (double)frametime / timeframes, timeframes, frametime);
+		    (double)frametime / timeframes, timeframes, frametime);
 	if (total_skipped)
 	    write_log ("Skipped frames: %d\n", total_skipped);
     }
@@ -4605,8 +4604,8 @@ void custom_init (void)
     int num;
 
     for (num = 0; num < 2; num++) {
-       sprite_entries[num] = xmalloc (max_sprite_entry * sizeof (struct sprite_entry));
-       color_changes[num] = xmalloc (max_color_change * sizeof (struct color_change));
+	sprite_entries[num] = xmalloc (max_sprite_entry * sizeof (struct sprite_entry));
+	color_changes[num] = xmalloc (max_color_change * sizeof (struct color_change));
     }
 #endif
 
@@ -4745,7 +4744,7 @@ uae_u32 REGPARAM2 custom_wget (uaecptr addr)
     }
     return custom_wget2 (addr);
  }
- 
+
 uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 {
 #ifdef JIT

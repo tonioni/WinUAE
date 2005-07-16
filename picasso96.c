@@ -434,17 +434,17 @@ static void do_fillrect (uae_u8 *src, int x, int y, int width, int height,
      * the pen values if we're doing 8-bit display-emulation on a 16-bit or higher screen. */
     if (picasso_vidinfo.rgbformat == picasso96_state.RGBFormat) {
 #	ifndef WORDS_BIGENDIAN
-            if (Bpp > 1)
-	        pen = (pen & 0x000000FF) << 24
+	    if (Bpp > 1)
+		pen = (pen & 0x000000FF) << 24
 		    | (pen & 0x0000FF00) << 8
 		    | (pen & 0x00FF0000) >> 8
 		    | (pen & 0xFF000000) >> 24;
 #	endif
-        if (DX_Fill (x, y, width, height, pen, rgbtype))
-            return;
+	if (DX_Fill (x, y, width, height, pen, rgbtype))
+	    return;
     } else {
 	if (DX_Fill (x, y, width, height, picasso_vidinfo.clut[src[0]], rgbtype))
-            return;
+	    return;
     }
 
     P96TRACE ("P96_WARNING: do_fillrect() using fall-back routine!\n");
@@ -513,7 +513,6 @@ static void do_blit (struct RenderInfo *ri, int Bpp, int srcx, int srcy,
     int yoff = picasso96_state.YOffset;
     uae_u8 *srcp, *dstp;
 
-//    write_log ("do_blit (sx:%d sy:%d op:%d cando:%d)\n", srcx, srcy, opcode, can_do_blit);
     /* Clipping.  */
     dstx -= xoff;
     dsty -= yoff;
@@ -547,7 +546,7 @@ static void do_blit (struct RenderInfo *ri, int Bpp, int srcx, int srcy,
 	 * Call OS blitting function that can do it in video memory.
 	 * Should return if it was successful
 	 */
-        if (DX_Blit (srcx, srcy, dstx, dsty, width, height, opcode))
+	if (DX_Blit (srcx, srcy, dstx, dsty, width, height, opcode))
 	    return;
     }
 
@@ -563,12 +562,12 @@ static void do_blit (struct RenderInfo *ri, int Bpp, int srcx, int srcy,
 	goto out;
     dstp += dsty * picasso_vidinfo.rowbytes + dstx * picasso_vidinfo.pixbytes;
     P96TRACE(("do_blit with srcp 0x%x, dstp 0x%x, dst_rowbytes %d, srcx %d, srcy %d, dstx %d, dsty %d, w %d, h %d, dst_pixbytes %d\n",
-        srcp, dstp, picasso_vidinfo.rowbytes, srcx, srcy, dstx, dsty, width, height, picasso_vidinfo.pixbytes));
+	srcp, dstp, picasso_vidinfo.rowbytes, srcx, srcy, dstx, dsty, width, height, picasso_vidinfo.pixbytes));
     P96TRACE(("gfxmem is at 0x%x\n",gfxmemory));
 
     srcp = ri->Memory + srcx * Bpp + srcy * ri->BytesPerRow;
     DX_Invalidate (dsty, dsty + height - 1);
-   
+
     if (picasso_vidinfo.rgbformat == picasso96_state.RGBFormat) {
 	width *= Bpp;
 	while (height-- > 0) {
@@ -758,7 +757,7 @@ void picasso_refresh (int call_setpalette)
 	ri.BytesPerRow = picasso96_state.BytesPerRow;
 	ri.RGBFormat = picasso96_state.RGBFormat;
 
-        if (set_panning_called) {
+	if (set_panning_called) {
 	    width = picasso96_state.VirtualWidth;
 	    height = picasso96_state.VirtualHeight;
 	} else {
@@ -955,7 +954,7 @@ STATIC_INLINE void do_blitrect_frame_buffer (struct RenderInfo *ri,
 		dst += dstri->BytesPerRow;
 	    } /* for height */
 	}
-        return;
+	return;
     }
     // (mask != 0xFF && Bpp <= 1)
     tmp3 = tmp2 = tmp = xmalloc (linewidth * height); /* allocate enough memory for the src-rect */
@@ -1490,8 +1489,8 @@ uae_u32 picasso_InvertRect (void)
 		do_invertrect (&ri, Bpp, X, Y, Width, Height);
 	    else
 		do_blit( &ri, Bpp, X, Y, X, Y, Width, Height, BLIT_SRC, 0);
-        }
-        result = 1;
+	}
+	result = 1;
     }
     return result;
 }
@@ -1601,8 +1600,8 @@ uae_u32 picasso_FillRect (void)
 		int i;
 		uaecptr addr;
 		if (renderinfo_is_current_screen (&ri)) {
-                    uae_u32 diff = gfxmem_start - (uae_u32)gfxmemory;
-                    addr = ri.Memory + X * Bpp + Y * ri.BytesPerRow + diff;
+		    uae_u32 diff = gfxmem_start - (uae_u32)gfxmemory;
+		    addr = ri.Memory + X * Bpp + Y * ri.BytesPerRow + diff;
 
 		    if (Width == 1) {
 			for (i = 0; i < Height; i++) {
@@ -1675,7 +1674,7 @@ uae_u32 picasso_FillRect (void)
 		    do_blit( &ri, Bpp, X, Y, X, Y, Width, Height, BLIT_SRC, 0);
 		result = 1;
 	    }
-        }
+	}
     }
     return result;
 }
@@ -1738,8 +1737,8 @@ STATIC_INLINE int BlitRectHelper( void )
     int can_do_visible_blit = 0;
 
     if (opcode == BLIT_DST) {
-        write_log( "WARNING: BlitRect() being called with opcode of BLIT_DST\n" );
-        return 1;
+	write_log( "WARNING: BlitRect() being called with opcode of BLIT_DST\n" );
+	return 1;
     }
 
     /*
@@ -1751,11 +1750,11 @@ STATIC_INLINE int BlitRectHelper( void )
      * and we need to put the results on the screen from the frame-buffer.
      */
     if (dstri == NULL) {
-        if (mask != 0xFF && Bpp > 1) {
-            mask = 0xFF;
-        }
-        dstri = ri;
-        can_do_visible_blit = 1;
+	if (mask != 0xFF && Bpp > 1) {
+	    mask = 0xFF;
+	}
+	dstri = ri;
+	can_do_visible_blit = 1;
     }
 
     /* Do our virtual frame-buffer memory first */
@@ -1773,15 +1772,15 @@ STATIC_INLINE int BlitRectHelper( void )
 
 	P96TRACE(("Did do_blit 1 in BlitRect()\n"));
     } else {
-        P96TRACE(("Did not do_blit 1 in BlitRect()\n"));
+	P96TRACE(("Did not do_blit 1 in BlitRect()\n"));
     }
 
     return 1;
 }
 
 STATIC_INLINE int BlitRect (uaecptr ri, uaecptr dstri,
-                            unsigned long srcx, unsigned long srcy, unsigned long dstx, unsigned long dsty,
-                            unsigned long width, unsigned long height, uae_u8 mask, BLIT_OPCODE opcode )
+			    unsigned long srcx, unsigned long srcy, unsigned long dstx, unsigned long dsty,
+			    unsigned long width, unsigned long height, uae_u8 mask, BLIT_OPCODE opcode )
 {
     /* Set up the params */
     CopyRenderInfoStructureA2U( ri, &blitrectdata.ri_struct );
@@ -1882,7 +1881,7 @@ uae_u32 picasso_BlitRectNoMaskComplete (void)
     wgfx_flushline ();
 
     P96TRACE(("BlitRectNoMaskComplete() op 0x%2x, xy(%4d,%4d) --> xy(%4d,%4d), wh(%4d,%4d)\n",
-        OpCode, srcx, srcy, dstx, dsty, width, height));
+	OpCode, srcx, srcy, dstx, dsty, width, height));
 
     result = BlitRect (srcri, dstri, srcx, srcy, dstx, dsty, width, height, 0xFF, OpCode);
 
@@ -2077,17 +2076,17 @@ uae_u32 picasso_BlitPattern (void)
 				    } /* switch (Bpp) */
 				}
 				break;
-                        } /* switch (pattern.DrawMode) */
-                    } /* for (bits) */
-                } /* for (cols) */
-            } /* for (rows) */
+			} /* switch (pattern.DrawMode) */
+		    } /* for (bits) */
+		} /* for (cols) */
+	    } /* for (rows) */
 
 	    /* If we need to update a second-buffer (extra_mem is set), then do it only if visible! */
-            if (picasso_vidinfo.extra_mem && renderinfo_is_current_screen (&ri))
+	    if (picasso_vidinfo.extra_mem && renderinfo_is_current_screen (&ri))
 		do_blit( &ri, Bpp, X, Y, X, Y, W, H, BLIT_SRC, 0);
 
 	    result = 1;
-        }
+	}
     }
     return result;
 }
@@ -2156,13 +2155,13 @@ uae_u32 picasso_BlitTemplate (void)
 #		endif
 		return 0;
 	    } else
-                result = 1;
-        } else
-            result = 1;
+		result = 1;
+	} else
+	    result = 1;
 
 #if 1
-        if (tmp.DrawMode == COMP) {
-            /* workaround, let native blitter handle COMP mode */
+	if (tmp.DrawMode == COMP) {
+	    /* workaround, let native blitter handle COMP mode */
 #	    ifdef _WIN32
 		flushpixels();
 #	    endif
@@ -2323,7 +2322,7 @@ static void PlanarToChunky (struct RenderInfo *ri, struct BitMap *bm,
     unsigned long rows, bitoffset = srcx & 7;
     long eol_offset;
 
-    /* if (mask != 0xFF) 
+    /* if (mask != 0xFF)
        write_log ("P2C - pixel-width = %d, bit-offset = %d\n", width, bitoffset); */
 
     /* Set up our bm->Planes[] pointers to the right horizontal offset */
@@ -2560,7 +2559,7 @@ uae_u32 picasso_BlitPlanar2Direct (void)
     wgfx_flushline ();
 
     if (minterm != 0x0C) {
-        write_log ("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n", minterm);
+	write_log ("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n", minterm);
     } else if (CopyRenderInfoStructureA2U (ri, &local_ri) && CopyBitMapStructureA2U (bm, &local_bm)) {
 	Mask = 0xFF;
 	CopyColorIndexMappingA2U (cim, &local_cim);
@@ -2761,9 +2760,9 @@ static void REGPARAM2 gfxmem_lput (uaecptr addr, uae_u32 l)
 static void REGPARAM2 gfxmem_wput (uaecptr addr, uae_u32 w)
 {
     uae_u16 *m;
-#ifdef JIT   
-    special_mem|=picasso_is_special; 
-#endif   
+#ifdef JIT
+    special_mem|=picasso_is_special;
+#endif
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u16 *) (gfxmemory + addr);
@@ -2775,9 +2774,9 @@ static void REGPARAM2 gfxmem_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 gfxmem_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT   
-    special_mem|=picasso_is_special; 
-#endif   
+#ifdef JIT
+    special_mem|=picasso_is_special;
+#endif
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     gfxmemory[addr] = b;
@@ -2810,13 +2809,13 @@ int picasso_display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 {
     int i;
     for (i = 0; i < mode_count; i++) {
-        if (DisplayModes[i].res.width == x
+	if (DisplayModes[i].res.width == x
 	    && DisplayModes[i].res.height == y
 	    && DisplayModes[i].depth == d)
-            break;
+	    break;
     }
     if (i == mode_count)
-        i = -1;
+	i = -1;
     return i;
 }
 
