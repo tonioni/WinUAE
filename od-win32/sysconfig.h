@@ -49,6 +49,7 @@
 #define AVIOUTPUT /* Avioutput support */
 #define PROWIZARD /* Pro-Wizard module ripper */
 #define ARCADIA /* Arcadia arcade system */
+#define ARCHIVEACCESS /* ArchiveAccess decompression library */
 
 #else
 

@@ -339,7 +339,7 @@ static uae_u32 thisline_changed;
 #endif
 
 static struct decision thisline_decision;
-static int passed_plfstop, fetch_cycle;
+static int passed_plfstop, fetch_cycle, fetch_modulo_cycle;
 
 enum fetchstate {
     fetch_not_started,
@@ -787,6 +787,7 @@ static void expand_fmodes (void)
     fm_maxplane_shift = fm_maxplanes[fm * 4 + res];
     fm_maxplane = 1 << fm_maxplane_shift;
     curr_diagram = cycle_diagram_table[fm][res][GET_PLANES_LIMIT (bplcon0)];
+    fetch_modulo_cycle = fetchunit - fetchstart;
 }
 
 /* Expand bplcon0/bplcon1 into the toscr_xxx variables.  */
@@ -825,7 +826,7 @@ STATIC_INLINE void fetch (int nr, int fm)
     uaecptr p;
     if (nr >= toscr_nr_planes)
 	return;
-    p = bplpt[nr] + bpl_off[nr];
+    p = bplpt[nr];
     switch (fm) {
     case 0:
 	fetched[nr] = last_custom_value = chipmem_agnus_wget (p);
@@ -845,7 +846,7 @@ STATIC_INLINE void fetch (int nr, int fm)
 	break;
 #endif
     }
-    if (passed_plfstop == 2 && fetch_cycle >= (fetch_cycle & ~fetchunit_mask) + fetchunit - fetchstart) {
+    if (passed_plfstop == 2 && fetch_cycle >= (fetch_cycle & ~fetchunit_mask) + fetch_modulo_cycle) {
 	int mod;
 	if (fmode & 0x4000) {
 	    if (((diwstrt >> 8) ^ vpos) & 1)
@@ -1356,10 +1357,12 @@ STATIC_INLINE int one_fetch_cycle_0 (int i, int ddfstop_to_test, int dma, int fm
     fetch_cycle++;
     toscr_nbits += 2 << toscr_res;
 
+    if (toscr_nbits > 16) {
+	uae_abort ("toscr_nbits > 16 (%d)", toscr_nbits);
+	toscr_nbits = 0;
+    }
     if (toscr_nbits == 16)
 	flush_display (fm);
-    if (toscr_nbits > 16)
-	uae_abort ("toscr_nbits > 16 (%d)", toscr_nbits);
 
     return 0;
 }
@@ -1919,7 +1922,6 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
        low order bit records whether the attach bit was set for this pair.  */
 
     if ((sprctl[num] & 0x80) || (sprctl[num ^ 1] & 0x80)) {
-//    if (ctl & 0x80) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
@@ -2056,7 +2058,9 @@ static void finish_decisions (void)
 
     if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {
 	if (fetch_state != fetch_not_started) {
-	    write_log("fetch_state=%d plfleft=%d\n",fetch_state,thisline_decision.plfleft);
+	    write_log("fetch_state=%d plfleft=%d,len=%d,vpos=%d,hpos=%d\n",
+		fetch_state, thisline_decision.plfleft, thisline_decision.plflinelen,
+		vpos, hpos);
 	    uae_abort ("fetch_state != fetch_not_started");
 	}
 	thisline_decision.plfright = thisline_decision.plfleft;
@@ -2204,13 +2208,25 @@ void compute_vsynctime (void)
 }
 
 
+static void dumpsync (void)
+{
+    static int cnt = 10;
+    if (cnt < 0)
+	return;
+    cnt--;
+    write_log ("BEAMCON0 = %04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
+    write_log ("HSSTOP=%04.4X HBSTRT=%04.4X HBSTOP=%04.4X\n", hsstop, hbstrt, hbstop);
+    write_log ("VSSTOP=%04.4X VBSTRT=%04.4X VBSTOP=%04.4X\n", vsstop, vbstrt, vbstop);
+    write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
+}
+
 /* set PAL or NTSC timing variables */
 void init_hz (void)
 {
     int isntsc;
 
     if ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
- (currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
+	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
 	currprefs.chipset_refreshrate = 0;
 	changed_prefs.chipset_refreshrate = 0;
     }
@@ -2253,6 +2269,11 @@ void init_hz (void)
 	    htotal = MAXHPOS - 1;
 	maxhpos = htotal + 1;
 	vblank_hz = 227 * 312 * 50 / (maxvpos * maxhpos);
+	minfirstline = vsstop;
+	if (minfirstline < 2)
+	    minfirstline = 2;
+	sprite_vblank_endline = minfirstline - 2;
+	dumpsync();
     }
     /* limit to sane values */
     if (vblank_hz < 10)
@@ -2677,16 +2698,6 @@ static void BEAMCON0 (uae_u16 v)
 }
 
 #ifndef CUSTOM_SIMPLE
-
-static void dumpsync (void)
-{
-#if 0
-    write_log ("BEAMCON0 = %04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
-    write_log ("HSSTOP=%04.4X HBSTRT=%04.4X HBSTOP=%04.4X\n", hsstop, hbstrt, hbstop);
-    write_log ("VSSTOP=%04.4X VBSTRT=%04.4X VBSTOP=%04.4X\n", vsstop, vbstrt, vbstop);
-    write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
-#endif
-}
 
 static void varsync (void)
 {
@@ -4951,8 +4962,8 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
      case 0x1C6: if (hbstop != value) { hbstop = value; varsync (); } break;
      case 0x1C8: if (vtotal != value) { vtotal = value; varsync (); } break;
      case 0x1CA: if (vsstop != value) { vsstop = value; varsync (); } break;
-     case 0x1CC: if (vbstrt != value) { vbstrt = value; varsync (); } break;
-     case 0x1CE: if (vbstop != value) { vbstop = value; varsync (); } break;
+     case 0x1CC: if (vbstrt > value + 1 || vbstrt < value - 1) { vbstrt = value; varsync (); } break;
+     case 0x1CE: if (vbstop > value + 1 || vbstrt < value - 1) { vbstop = value; varsync (); } break;
      case 0x1DE: if (hsstrt != value) { hsstrt = value; varsync (); } break;
      case 0x1E0: if (vsstrt != value) { vsstrt = value; varsync (); } break;
      case 0x1E2: if (hcenter != value) { hcenter = value; varsync (); } break;
@@ -4996,8 +5007,10 @@ void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 #endif
     custom_wput (addr & ~1, rval);
     if (warned < 10) {
-	write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, m68k_getpc());
-	warned++;
+	if (m68k_getpc() < 0xe00000 || m68k_getpc() >= 0x10000000) {
+	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, m68k_getpc());
+	    warned++;
+	}
     }
 }
 
@@ -5115,13 +5128,13 @@ uae_u8 *restore_custom (uae_u8 *src)
     for(i = 0; i < 32; i++)
 	current_colors.color_regs_ecs[i] = RW; /* 180 COLORxx */
     htotal = RW;		/* 1C0 HTOTAL */
-    RW;				/* 1C2 ? */
-    RW;				/* 1C4 ? */
-    RW;				/* 1C6 ? */
+    hsstop = RW;		/* 1C2 HSTOP ? */
+    hbstrt = RW;		/* 1C4 HBSTRT ? */
+    hbstop = RW;		/* 1C6 HBSTOP ? */
     vtotal = RW;		/* 1C8 VTOTAL */
-    RW;				/* 1CA ? */
-    RW;				/* 1CC ? */
-    RW;				/* 1CE ? */
+    vsstop = RW;		/* 1CA VSSTOP */
+    vbstrt = RW;		/* 1CC VBSTRT */
+    vbstop = RW;		/* 1CE VBSTOP */
     RW;				/* 1D0 ? */
     RW;				/* 1D2 ? */
     RW;				/* 1D4 ? */
@@ -5129,10 +5142,10 @@ uae_u8 *restore_custom (uae_u8 *src)
     RW;				/* 1D8 ? */
     RW;				/* 1DA ? */
     new_beamcon0 = RW;		/* 1DC BEAMCON0 */
-    RW;				/* 1DE ? */
-    RW;				/* 1E0 ? */
-    RW;				/* 1E2 ? */
-    diwhigh = RW;		/* 1E4 ? */
+    hsstrt = RW;		/* 1DE HSSTRT */
+    vsstrt = RW;		/* 1E0 VSSTT  */
+    hcenter = RW;		/* 1E2 HCENTER */
+    diwhigh = RW;		/* 1E4 DIWHIGH */
     if (diwhigh & 0x8000)
 	diwhigh_written = 1;
     diwhigh &= 0x7fff;
@@ -5155,7 +5168,6 @@ uae_u8 *restore_custom (uae_u8 *src)
     return src;
 }
 
-
 #define SB save_u8
 #define SW save_u16
 #define SL save_u32
@@ -5174,7 +5186,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (8+256*2);
+	dstbak = dst = malloc (8 + 256 * 2);
 
     SL (currprefs.chipset_mask);
     SW (0);			/* 000 ? */
@@ -5276,13 +5288,13 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     for ( i = 0; i < 32; i++)
 	SW (current_colors.color_regs_ecs[i]); /* 180-1BE COLORxx */
     SW (htotal);		/* 1C0 HTOTAL */
-    SW (0);			/* 1C2 */
-    SW (0);			/* 1C4 */
-    SW (0);			/* 1C6 */
+    SW (hsstop);		/* 1C2 HSTOP*/
+    SW (hbstrt);		/* 1C4 HBSTRT */
+    SW (hbstop);		/* 1C6 HBSTOP */
     SW (vtotal);		/* 1C8 VTOTAL */
-    SW (0);			/* 1CA */
-    SW (0);			/* 1CC */
-    SW (0);			/* 1CE */
+    SW (vsstop);		/* 1CA VSSTOP */
+    SW (vbstrt);		/* 1CC VBSTRT */
+    SW (vbstop);		/* 1CE VBSTOP */
     SW (0);			/* 1D0 */
     SW (0);			/* 1D2 */
     SW (0);			/* 1D4 */
@@ -5290,10 +5302,10 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     SW (0);			/* 1D8 */
     SW (0);			/* 1DA */
     SW (beamcon0);		/* 1DC BEAMCON0 */
-    SW (0);			/* 1DE */
-    SW (0);			/* 1E0 */
-    SW (0);			/* 1E2 */
-    SW (diwhigh | (diwhigh_written ? 0x8000 : 0)); /* 1E4 */
+    SW (hsstrt);		/* 1DE HSSTRT */
+    SW (vsstrt);		/* 1E0 VSSTRT */
+    SW (hcenter);		/* 1E2 HCENTER */
+    SW (diwhigh | (diwhigh_written ? 0x8000 : 0)); /* 1E4 DIWHIGH */
     SW (0);			/* 1E6 */
     SW (0);			/* 1E8 */
     SW (0);			/* 1EA */

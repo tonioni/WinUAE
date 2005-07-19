@@ -2382,7 +2382,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			    InitializeConfig (hDlg, config);
 			} else {
 			    InitializeConfig (hDlg, NULL);
-			}		
+			}
 			SetDlgItemText (hDlg, IDC_EDITPATH, config->Path);
 		    }
 		    if (configtypepanel > 0) {
@@ -2549,7 +2549,7 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
 static void setpath (HWND hDlg, char *name, DWORD d, char *def)
 {
     char tmp[MAX_DPATH];
-    
+
     strcpy (tmp, def);
     fetch_path (name, tmp, sizeof (tmp));
     SetDlgItemText (hDlg, d, tmp);
@@ -2591,7 +2591,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 {
     static int recursive;
     char tmp[MAX_DPATH];
-    
+
     switch (msg)
     {
 	case WM_INITDIALOG:
@@ -2691,6 +2691,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    set_path ("SaveimagePath", NULL);
 	    set_path ("VideoPath", NULL);
 	    values_to_pathsdialog (hDlg);
+	    FreeConfigStore ();
 	    break;
 	    case IDC_ROM_RESCAN:
 	    scan_roms (NULL);
@@ -3024,7 +3025,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		    if (quickstart && !full_property_sheet)
 			qs_request_reset = 2;
 		}
-		break;		
+		break;
 		case IDC_QUICKSTART_HOSTCONFIG:
 		val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETCURSEL, 0, 0);
 		if (val != CB_ERR) {
@@ -4971,7 +4972,7 @@ static void values_to_sounddlg (HWND hDlg)
 	    i++;
 	    p += strlen (p) + 1;
 	}
-	
+
     } else {
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, workprefs.dfxclick[idx], 0);
     }

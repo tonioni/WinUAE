@@ -30,19 +30,20 @@ void console_out (const char *format,...)
 {
     va_list parms;
     char buffer[WRITE_LOG_BUF_SIZE];
-    DWORD temp;
+    DWORD temp, tmp;
 
     va_start (parms, format);
-    _vsnprintf( buffer, WRITE_LOG_BUF_SIZE-1, format, parms );
+    _vsnprintf (buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
     va_end (parms);
     openconsole();
-    WriteConsole(stdoutput,buffer,strlen(buffer),&temp,0);
+    tmp = WriteConsole(stdoutput, buffer, strlen(buffer), &temp,0);
 }
 
 int console_get (char *out, int maxlen)
 {
     DWORD len,totallen;
 
+    *out = 0;
     totallen=0;
     while(maxlen>0) 
     {
@@ -82,7 +83,7 @@ void write_dlog (const char *format, ...)
 }
 void write_log (const char *format, ...)
 {
-    int count;
+    int count, tmp;
     DWORD numwritten;
     char buffer[WRITE_LOG_BUF_SIZE];
 
@@ -91,7 +92,9 @@ void write_log (const char *format, ...)
     count = _vsnprintf( buffer, WRITE_LOG_BUF_SIZE-1, format, parms );
     if (SHOW_CONSOLE || console_logging) {
 	openconsole();
-	WriteConsole(stdoutput,buffer,strlen(buffer),&numwritten,0);
+	tmp = WriteConsole(stdoutput,buffer,strlen(buffer),&numwritten,0);
+	if (!tmp)
+	    tmp = GetLastError();
     }
     if (debugfile) {
 	fprintf (debugfile, buffer);

@@ -1829,7 +1829,7 @@ void fetch_path (char *name, char *out, int size)
 	strcat (out, "Configurations\\");
     if (hWinUAEKey)
 	RegQueryValueEx (hWinUAEKey, name, 0, NULL, out, &size);
-    if (out[0] == '\\') { /* relative? */
+    if (out[0] == '\\' && (strlen(out) >= 2 && out[1] != '\\')) { /* relative? */
 	strcpy (out, start_path_data);
 	if (hWinUAEKey) {
 	    size2 -= strlen (out);
@@ -2224,7 +2224,7 @@ static void getstartpaths(int start_data)
 	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
     pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
-    GetModuleFileName(NULL, start_path_exe, MAX_DPATH);
+    strcpy (start_path_exe, _pgmptr );
     if((posn = strrchr (start_path_exe, '\\')))
 	posn[1] = 0;
     p = getenv("AMIGAFOREVERDATA");
@@ -2252,8 +2252,11 @@ static void getstartpaths(int start_data)
     if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0)
 	strcpy(start_path_data, start_path_exe);
 
-    if (strlen(start_path_data) > 0 && (start_path_data[strlen(start_path_data) - 1] != '\\' && start_path_data[strlen(start_path_data) - 1] != '/'))
-	strcat(start_path_data, "\\");
+    if (strlen(start_path_data) > 0) {
+	p = start_path_data + strlen(start_path_data) - 1;
+	if (p[0] != '\\' && p[0] != '/')
+	    strcat(start_path_data, "\\");
+    }
 }
 
 

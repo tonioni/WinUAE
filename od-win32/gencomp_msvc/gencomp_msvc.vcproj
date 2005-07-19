@@ -4,7 +4,6 @@
 	Version="8,00"
 	Name="gencomp"
 	ProjectGUID="{54197DFF-9CAA-4A9F-B9C2-2881EA04EACB}"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform

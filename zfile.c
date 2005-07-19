@@ -349,34 +349,44 @@ static int isdiskimage (char *name)
     return 0;
 }
 
-struct aa_FILETIME
+#define ArchiveFormat7Zip '7z  '
+#define ArchiveFormatRAR 'rar '
+#define ArchiveFormatZIP 'zip '
+
+#if defined(ARCHIVEACCESS)
+
+struct aaFILETIME
 {
     uae_u32 dwLowDateTime;
     uae_u32 dwHighDateTime;
 };
-struct aa_FileInArchiveInfo {
-    int ArchiveHandle;
-    uae_u64 CompressedFileSize;
-    uae_u64 UncompressedFileSize;
-    int attributes;
-    int IsDir;
-    struct aa_FILETIME LastWriteTime;
-    char path[MAX_DPATH];
+typedef void* aaHandle;
+// This struct contains file information from an archive. The caller may store 
+// this information for accessing this file after calls to findFirst, findNext
+#define FileInArchiveInfoStringSize 1024
+struct aaFileInArchiveInfo {
+	int ArchiveHandle; // handle for Archive/class pointer
+	uae_u64 CompressedFileSize;
+	uae_u64 UncompressedFileSize;
+	uae_u32 attributes;
+	int IsDir, IsEncrypted;
+	struct aaFILETIME LastWriteTime;
+	char path[FileInArchiveInfoStringSize];
 };
 
-typedef int (__stdcall *aa_ReadCallback)(int StreamID, uae_u64 offset, uae_u32 count, void* buf, uae_u32 *processedSize);
-typedef int (__stdcall *aa_WriteCallback)(int StreamID, uae_u32 count, const void *buf, uae_u32 *processedSize);
-typedef int (CALLBACK *aa_pOpenArchive)(aa_ReadCallback function, int StreamID, uae_u64 FileSize, int ArchiveType, int *result);
-typedef int (CALLBACK *aa_pGetFileCount)(int ArchiveHandle);
-typedef int (CALLBACK *aa_pGetFileInfo)(int ArchiveHandle, int FileNum, struct aa_FileInArchiveInfo *FileInfo);
-typedef int (CALLBACK *aa_pExtract)(int ArchiveHandle, int FileNum, int StreamID, aa_WriteCallback WriteFunc);
-typedef int (CALLBACK *aa_pCloseArchive)(int ArchiveHandle);
+typedef HRESULT (__stdcall *aaReadCallback)(int StreamID, uae_u64 offset, uae_u32 count, void* buf, uae_u32 *processedSize);
+typedef HRESULT (__stdcall *aaWriteCallback)(int StreamID, uae_u64 offset, uae_u32 count, const void *buf, uae_u32 *processedSize);
+typedef aaHandle (__stdcall *aapOpenArchive)(aaReadCallback function, int StreamID, uae_u64 FileSize, int ArchiveType, int *result, char *password);
+typedef int (__stdcall *aapGetFileCount)(aaHandle ArchiveHandle);
+typedef int (__stdcall *aapGetFileInfo)(aaHandle ArchiveHandle, int FileNum, struct aaFileInArchiveInfo *FileInfo);
+typedef int (__stdcall *aapExtract)(aaHandle ArchiveHandle, int FileNum, int StreamID, aaWriteCallback WriteFunc, uae_u64 *written);
+typedef int (__stdcall *aapCloseArchive)(aaHandle ArchiveHandle);
 
-static aa_pOpenArchive openArchive;
-static aa_pGetFileCount getFileCount;
-static aa_pGetFileInfo getFileInfo;
-static aa_pExtract extract;
-static aa_pCloseArchive closeArchive;
+static aapOpenArchive aaOpenArchive;
+static aapGetFileCount aaGetFileCount;
+static aapGetFileInfo aaGetFileInfo;
+static aapExtract aaExtract;
+static aapCloseArchive aaCloseArchive;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -396,16 +406,16 @@ static int arcacc_init (void)
 	return 1;
     arcacc_mod = WIN32_LoadLibrary ("archiveaccess.dll");
     if (!arcacc_mod) {
-	arcacc_mod = WIN32_LoadLibrary ("archiveaccess-debug.dll");
-	if (!arcacc_mod)
-	    return 0;
+	write_log ("failed to open archiveaccess.dll\n");
+	return 0;
     }
-    openArchive = (aa_pOpenArchive) GetProcAddress (arcacc_mod, "openArchive");
-    getFileCount = (aa_pGetFileCount) GetProcAddress (arcacc_mod, "getFileCount");
-    getFileInfo = (aa_pGetFileInfo) GetProcAddress (arcacc_mod, "getFileInfo");
-    extract = (aa_pExtract) GetProcAddress (arcacc_mod, "extract");
-    closeArchive = (aa_pCloseArchive) GetProcAddress (arcacc_mod, "closeArchive");
-    if (!openArchive || !getFileCount || !getFileInfo || !extract || !closeArchive) {
+    aaOpenArchive = (aapOpenArchive) GetProcAddress (arcacc_mod, "aaOpenArchive");
+    aaGetFileCount = (aapGetFileCount) GetProcAddress (arcacc_mod, "aaGetFileCount");
+    aaGetFileInfo = (aapGetFileInfo) GetProcAddress (arcacc_mod, "aaGetFileInfo");
+    aaExtract = (aapExtract) GetProcAddress (arcacc_mod, "aaExtract");
+    aaCloseArchive = (aapCloseArchive) GetProcAddress (arcacc_mod, "aaCloseArchive");
+    if (!aaOpenArchive || !aaGetFileCount || !aaGetFileInfo || !aaExtract || !aaCloseArchive) {
+	write_log ("Missing functions in archiveaccess.dll. Old version?\n");
 	arcacc_free ();
 	return 0;
     }
@@ -430,7 +440,7 @@ static void arcacc_pop (void)
     arcacc_stackptr--;
 }
 
-static int __stdcall readCallback (int StreamID, uae_u64 offset, uae_u32 count, void *buf, uae_u32 *processedSize)
+static HRESULT __stdcall readCallback (int StreamID, uae_u64 offset, uae_u32 count, void *buf, uae_u32 *processedSize)
 {
     struct zfile *f = arcacc_stack[StreamID];
     int ret;
@@ -441,7 +451,7 @@ static int __stdcall readCallback (int StreamID, uae_u64 offset, uae_u32 count, 
 	*processedSize = ret;
     return 0;
 }
-int __stdcall writeCallback (int StreamID, uae_u32 count, const void *buf, uae_u32 *processedSize)
+static HRESULT __stdcall writeCallback (int StreamID, uae_u64 offset, uae_u32 count, const void *buf, uae_u32 *processedSize)
 {
     struct zfile *f = arcacc_stack[StreamID];
     int ret;
@@ -456,7 +466,8 @@ int __stdcall writeCallback (int StreamID, uae_u32 count, const void *buf, uae_u
 
 static struct zfile *arcacc_unpack (struct zfile *z, int type)
 {
-    int ah, status, i, f;
+    aaHandle ah;
+    int status, i, f;
     char tmphist[MAX_DPATH];
     int first = 1;
     int we_have_file = 0;
@@ -472,17 +483,17 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
     zfile_fseek (z, 0, SEEK_END);
     size = zfile_ftell (z);
     zfile_fseek (z, 0, SEEK_SET);
-    ah = openArchive (readCallback, id_r, z->size, type, &status);
+    ah = aaOpenArchive (readCallback, id_r, size, type, &status, NULL);
     if (!status) {
-	int fc = getFileCount (ah);
+	int fc = aaGetFileCount (ah);
 	int zipcnt = 0;
 	for (f = 0; f < fc; f++) {
-	    struct aa_FileInArchiveInfo fi;
+	    struct aaFileInArchiveInfo fi;
 	    char *name;
 
 	    zipcnt++;
 	    memset (&fi, 0, sizeof (fi));
-	    getFileInfo (ah, f, &fi);
+	    aaGetFileInfo (ah, f, &fi);
 	    if (fi.IsDir)
 		continue;
 
@@ -518,9 +529,10 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 		    zf = zfile_fopen_empty (name, (int)fi.UncompressedFileSize);
 		    if (zf) {
 			int err;
+			uae_u64 written = 0;
 			zf->writeskipbytes = skipsize;
 			id_w = arcacc_push (zf);
-			err = extract (ah, f, id_w, writeCallback);
+			err = aaExtract (ah, f, id_w, writeCallback, &written);
 			if (zf->seek != fi.UncompressedFileSize)
 			    write_log ("%s unpack failed, got only %d bytes\n", name, zf->seek);
 			if (zf->seek == fi.UncompressedFileSize && (select < 0 || zfile_gettype (zf)))
@@ -539,8 +551,8 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 		skipsize += (int)fi.UncompressedFileSize;
 	    }
 	}
+        aaCloseArchive (ah);
     }
-    closeArchive (ah);
     arcacc_pop ();
     if (zf) {
 	zfile_fclose (z);
@@ -549,6 +561,8 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
     }
     return z;
 }
+
+#endif
 
 static struct zfile *unzip (struct zfile *z)
 {
@@ -637,7 +651,7 @@ static struct zfile *unzip (struct zfile *z)
 
 static char *plugins_7z[] = { "7z", "rar", "zip", NULL };
 static char *plugins_7z_x[] = { "7z", "Rar!", "MK" };
-static int plugins_7z_t[] = { 7, 12, 11 };
+static int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP };
 
 static int iszip (struct zfile *z)
 {
@@ -654,11 +668,13 @@ static int iszip (struct zfile *z)
     zfile_fseek (z, 0, SEEK_SET);
     if (!strcasecmp (ext, ".zip") && header[0] == 'P' && header[1] == 'K')
 	return -1;
+#if defined(ARCHIVEACCESS)
     for (i = 0; plugins_7z[i]; i++) {
 	if (plugins_7z_x[i] && !strcasecmp (ext + 1, plugins_7z[i]) &&
 	    !memcmp (header, plugins_7z_x[i], strlen (plugins_7z_x[i])))
 		return plugins_7z_t[i];
     }
+#endif
     return 0;
 }
 
@@ -681,10 +697,12 @@ static struct zfile *zuncompress (struct zfile *z)
 	     return gunzip (z);
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
+#if defined(ARCHIVEACCESS)
 	for (i = 0; plugins_7z[i]; i++) {
 	    if (strcasecmp (ext, plugins_7z[i]) == 0)
 		return arcacc_unpack (z, plugins_7z_t[i]);
 	}
+#endif
 	if (strcasecmp (ext, "lha") == 0
 	    || strcasecmp (ext, "lzh") == 0)
 	    return lha (z);
@@ -809,9 +827,10 @@ static int arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int ty
 {
     char tmp[MAX_DPATH], tmp2[2];
     struct zfile *zf;
-    int err, fc, size, ah, status, i;
+    aaHandle ah;
+    int err, fc, size, status, i;
     int id_r, id_w;
-    struct aa_FileInArchiveInfo fi;
+    struct aaFileInArchiveInfo fi;
     int skipsize = 0;
 
     memset (&fi, 0, sizeof (fi));
@@ -824,14 +843,14 @@ static int arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int ty
     zfile_fseek (z, 0, SEEK_END);
     size = zfile_ftell (z);
     zfile_fseek (z, 0, SEEK_SET);
-    ah = openArchive (readCallback, id_r, size, type, &status);
+    ah = aaOpenArchive (readCallback, id_r, size, type, &status, NULL);
     if (status) {
 	arcacc_pop ();
 	return 0;
     }
-    fc = getFileCount (ah);
+    fc = aaGetFileCount (ah);
     for (i = 0; i < fc; i++) {
-	getFileInfo (ah, i, &fi);
+	aaGetFileInfo (ah, i, &fi);
 	if (fi.IsDir)
 	    continue;
 	tmp2[0] = FSDB_DIR_SEPARATOR;
@@ -843,12 +862,13 @@ static int arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int ty
 	if (zf) {
 	    id_w = arcacc_push (zf);
 	    if (id_w >= 0) {
+		uae_u64 written = 0;
 		zf->writeskipbytes = skipsize;
-		err = extract (ah, i, id_w, writeCallback);
+		err = aaExtract (ah, i, id_w, writeCallback, &written);
 		if (zf->seek == fi.UncompressedFileSize) {
 		    zfile_fseek (zf, 0, SEEK_SET);
 		    if (!zc (zf, user)) {
-			closeArchive (ah);
+			aaCloseArchive (ah);
 			arcacc_pop ();
 			zfile_fclose (zf);
 			arcacc_pop ();
@@ -863,7 +883,7 @@ static int arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int ty
 	    skipsize = 0;
 	skipsize += (int)fi.UncompressedFileSize;
     }
-    closeArchive (ah);
+    aaCloseArchive (ah);
     arcacc_pop ();
     return 1;
 }
