@@ -37,7 +37,6 @@ static int blitonedot,blitsign;
 static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
 static int blit_ch;
-int blit_singlechannel;
 
 #ifdef BLITTER_DEBUG
 static int blitter_dontdo;
@@ -65,60 +64,130 @@ static long blit_firstline_cycles;
 static long blit_first_cycle;
 static int blit_last_cycle, blit_dmacount, blit_dmacount2;
 static int blit_linecycles, blit_extracycles;
-static uae_u8 *blit_diag;
+static int *blit_diag;
 
 static uae_u16 ddat1, ddat2;
 static int ddat1use, ddat2use;
 
-static uae_u8 blit_cycle_diagram_finald[] =
-    { 0, 2, 0,4 };
+/*
 
-static uae_u8 blit_cycle_diagram[][10] =
+Confirmed blitter ínformation by Toni Wilen
+(order of channels or position of idle cycles are not confirmed)
+
+1=BLTCON0 channel mask
+2=total cycles per blitted word
+3=steals all cycles if BLTNASTY=1 (always if A-channel is enabled. this is illogical..)
+4=total cycles per blitted word in fillmode
+5=cycle diagram (first cycle)
+6=main cycle diagram (ABCD=channels,-=idle cycle,x=idle cycle but bus allocated)
+
+1 234 5    6
+
+F 4*4*ABC- ABCD
+E 4*4*ABC- ABCx
+D 3*4 AB-  ABD
+C 3*4 AB-  ABx
+B 3*3*AC-  ACD
+A 3*3*AC-  ACx
+9 2*3 A-   AD
+8 2*3 A-   Ax
+7 4 4 -BC- -BCD
+6 4 4 -BC- -BC-
+5 3 4 -B-  -BD
+4 3 4 -B-  -B-
+3 3 3 -C-  -CD
+2 3 3 -C-  -C-
+1 2 3 -D   -D
+0 2 3 --   --
+
+NOTES: (BLTNASTY=1)
+
+- Blitter ALWAYS needs free bus cycle, even if it is running an "idle" cycle.
+  Exception: possible extra fill mode idle cycle.is "real" idle cycle.
+- Fill mode may add one extra real idle cycle.(depends on channel mask)
+- All blits with channel A enabled use all available bus cycles
+  (stops CPU accesses to chip RAM if BLTNASTY=1)
+  Can someone explain this? Why does idle cycles need bus cycles?
+- idle cycles (no A-channel enabled) are not "used" by blitter, they are freely
+  available for CPU..
+
+BLTNASTY=0 makes things even more interesting..
+
+- even zero channel blits get slower if BLTNASTY=0 depending on the number of
+  active bitplanes. ALSO "2 cycle" blits with one real cycle and one idle cycle
+  have the exact same speed as zero channel blit in all situations -> only the
+  total number of cycles count, number of active channels does not matter.
+
+*/
+
+
+/* -1 = idle cycle and allocate bus */
+
+static int blit_cycle_diagram[][10] =
 {
     { 0, 2, 0,0 },		/* 0 */
-    { 0, 2, 4,0 },		/* 1 */
-    { 0, 2, 3,0 },		/* 2 */
+    { 0, 2, 0,4 },		/* 1 */
+    { 0, 3, 0,3,0 },		/* 2 */
     { 2, 3, 0,3,4, 3,0 },	/* 3 */
-    { 0, 3, 2,0,0 },		/* 4 */
+    { 0, 3, 0,2,0 },		/* 4 */
     { 2, 3, 0,2,4, 2,0 },	/* 5 */
-    { 0, 3, 2,3,0 },		/* 6 */
+    { 0, 4, 0,2,3,0 },		/* 6 */
     { 3, 4, 0,2,3,4, 2,3,0 },	/* 7 */
-    { 0, 2, 1,0 },		/* 8 */
+    { 0, 2, 1,-1 },		/* 8 */
     { 2, 2, 1,4, 1,0 },		/* 9 */
-    { 0, 2, 1,3 },		/* A */
+    { 0, 3, 1,3,-1 },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
-    { 2, 3, 0,1,2, 1,2 },	/* C */
+    { 2, 3, 1,2,-1, 1,2 },	/* C */
     { 3, 3, 1,2,4, 1,2,0 },	/* D */
-    { 0, 3, 1,2,3 },		/* E */
+    { 0, 4, 1,2,3,-1 },		/* E */
     { 4, 4, 1,2,3,4, 1,2,3,0 }	/* F */
 };
 
-/* fill mode always adds C-channel to cycle-diagram */
-/* Reflect - Sound Vision freezes without this */
-static uae_u8 blit_cycle_diagram_fill[][10] =
+/* 5 = fill mode idle cycle ("real" idle cycle) */
+
+static int blit_cycle_diagram_fill[][10] =
 {
-    { 0, 2, 0,0 },		/* 0 */
-    { 0, 3, 0,3,4 },		/* 1 */
-    { 0, 2, 3,0 },		/* 2 */
-    { 2, 3, 0,3,4, 3,0 },	/* 3 */
-    { 0, 3, 2,0,0 },		/* 4 */
-    { 3, 4, 0,2,0,4, 2,0,0 },	/* 5 */
-    { 0, 3, 2,3,0 },		/* 6 */
-    { 3, 4, 0,2,3,4, 2,3,0 },	/* 7 */
-    { 0, 2, 1,0 },		/* 8 */
-    { 3, 3, 1,0,4, 1,0,0},	/* 9 */
-    { 0, 2, 1,3 },		/* A */
+    { 0, 3, 0,5,0 },		/* 0 */
+    { 0, 3, 3,5,4 },		/* 1 */
+    { 0, 3, 0,3,0 },		/* 2 */
+    { 2, 3, 3,5,4, 3,0 },	/* 3 */
+    { 0, 4, 0,2,5,0 },		/* 4 */
+    { 3, 4, 0,2,5,4, 2,0,0 },	/* 5 */
+    { 0, 4, 2,3,5,0 },		/* 6 */
+    { 3, 4, 2,3,5,4, 2,3,0 },	/* 7 */
+    { 0, 3, 1,5,-1 },		/* 8 */
+    { 2, 3, 1,5,4, 1,0},	/* 9 */
+    { 0, 3, 1,3,5, },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
-    { 2, 3, 0,1,2, 1,2 },	/* C */
-    { 4, 4, 1,2,0,4, 1,2,0,0 },	/* D */
-    { 0, 3, 1,2,3 },		/* E */
+    { 2, 4, 1,2,5,-1, 1,2 },	/* C */
+    { 3, 4, 1,2,5,4, 1,2,0 },	/* D */
+    { 0, 4, 1,2,3,-1 },		/* E */
     { 4, 4, 1,2,3,4, 1,2,3,0 }	/* F */
 };
 
-static uae_u8 blit_cycle_diagram_line[] =
+/*
+
+    line draw takes 4 cycles (two 2-cycle blits combined)
+    it also have real idle cycles and only 2 dma fetches
+    (read from C, write to D, but see below)
+
+    Oddities:
+
+    - first word is written to address pointed by BLTDPT
+      but all following writes go to address pointed by BLTCPT!
+    - BLTDMOD is ignored by blitter (BLTCMOD is used)
+    - state of D-channel enable bit does not matter!
+    - disabling A-channel freezes the content of BPLAPT
+
+*/
+
+static int blit_cycle_diagram_line[] =
 {
-    0, 2, 0,4,0,4 /* total guess.. */
+    0, 4, 3,5,4,5  /* guessed */
 };
+
+static int blit_cycle_diagram_finald[] =
+    { 0, 2, 0,4 };
 
 void build_blitfilltable(void)
 {
@@ -179,10 +248,10 @@ STATIC_INLINE int channel_state (int cycles)
     return blit_diag[((cycles - blit_diag[0]) % blit_diag[1]) + 2];
 }
 
-int is_bitplane_dma (int hpos);
+extern int is_bitplane_dma (int hpos);
 STATIC_INLINE int canblit (int hpos)
 {
-    if ((cycle_line[hpos] == 0 || cycle_line[hpos] == CYCLE_NOCPU) && !is_bitplane_dma (hpos))
+    if (cycle_line[hpos] == 0 && !is_bitplane_dma (hpos))
 	return 1;
     return 0;
 }
@@ -504,22 +573,23 @@ static void decide_blitter_line (int hpos)
     hpos++;
     if (dmaen (DMA_BLITTER)) {
 	while (blit_last_hpos < hpos) {
-	    int c = blit_cyclecounter % 2;
+	    int c = channel_state (blit_cyclecounter);
 	    for (;;) {
-		if (blit_cyclecounter < 0) {
+
+		if (c == 5) {
 		    blit_cyclecounter++;
 		    break;
 		}
 #if 1
-		if ((c == 0 || c == 1) && !canblit(blit_last_hpos))
+		if (c && !canblit(blit_last_hpos))
 		    break;
 #endif
 #if 1
-		//if (c == 1)
+		if (c != 0)
 		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
 #endif
 		blit_cyclecounter++;
-		if (c == 1) {
+		if (c == 4) {
 		    /* believe it or not but try Cardamon or Cardamom without this.. */
 		    if (ddat1use)
 			bltdpt = bltcpt;
@@ -742,11 +812,21 @@ void decide_blitter (int hpos)
 	    }
 #endif
 	    for (;;) {
-		if (c && !canblit (blit_last_hpos)) {
+		if (c == 5) { /* real idle cycle */
+		    blit_cyclecounter++;
+		    break;
+		}
+		
+		/* all cycles need free bus, even idle cycles (except fillmode idle) */
+		if (!canblit (blit_last_hpos)) {
 		    blit_misscyclecounter++;
 		    break;
 		}
-		if (c == 4) {
+
+		if (c < 0) { /* no channel but bus still needs to be allocated.. */
+		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+		    blit_cyclecounter++;
+		} else if (c == 4) {
 		    if (blitter_doddma ()) {
 			cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
 			blit_cyclecounter++;
@@ -827,14 +907,10 @@ static void blit_bltset (int con)
     blitdesc = bltcon1 & 2;
     blit_ch = (bltcon0 & 0x0f00) >> 8;
 
-    blit_singlechannel = 0;
-    if (blit_ch == 0 || blit_ch == 1 || blit_ch == 2 || blit_ch == 4 || blit_ch == 8)
-	blit_singlechannel = 1;
     if (blitline) {
 	if (blt_info.hblitsize != 2)
 	    write_log ("weird hblitsize in linemode: %d vsize=%d PC%=%x\n", blt_info.hblitsize, blt_info.vblitsize, m68k_getpc());
 	blit_diag = blit_cycle_diagram_line;
-	blit_singlechannel = 1;
     } else {
 	if (con & 2) {
 	    blitfc = !!(bltcon1 & 0x4);
@@ -888,7 +964,7 @@ void blit_modset (void)
     blit_modaddd = mult * blt_info.bltdmod;
 }
 
-void reset_blit	(int bltcon)
+void reset_blit (int bltcon)
 {
     if (bltstate == BLT_done)
 	return;
@@ -897,7 +973,7 @@ void reset_blit	(int bltcon)
     blit_modset ();
 }
 
-void do_blitter	(int hpos)
+void do_blitter (int hpos)
 {
     int cycles;
 #ifdef BLITTER_DEBUG

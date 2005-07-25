@@ -497,6 +497,7 @@ int ahi_open_sound (void)
 
 static void *bswap_buffer = NULL;
 static uae_u32 bswap_buffer_size = 0;
+static double syncdivisor;
 
 uae_u32 ahi_demux (void)
 {
@@ -701,10 +702,11 @@ uae_u32 ahi_demux (void)
 	    dllname = (char *)get_real_address ((uae_u32)dllname);
 	    result=(uae_u32) LoadLibrary(dllname);
 	    write_log("%s windows dll/alib loaded at %d (0 mean failure)\n",dllname,result); 
+	    syncdivisor = (3580000.0 * CYCLE_UNIT) / (double)syncbase;
 	return result;
 	}
 
-	case 101:      //get dll label
+	case 101:	//get dll label
 	{
 	    HMODULE m;
 	    char *funcname;
@@ -714,10 +716,24 @@ uae_u32 ahi_demux (void)
 	return (uae_u32) GetProcAddress(m,funcname);
 	}
 
-	case 102:      //execute native code
-	    return emulib_ExecuteNativeCode2 ();
+	case 102:	//execute native code
+	{
+	    uae_u32 ret;
+	    unsigned long rate1;
+	    double v;
+	    rate1 = read_processor_time(); 
+	    ret = emulib_ExecuteNativeCode2 ();
+	    rate1 = read_processor_time() - rate1;
+	    v = syncdivisor * rate1;
+	    if (v > 0) {
+		if (v > 1000000 * CYCLE_UNIT)
+		    v = 1000000 * CYCLE_UNIT;
+		do_extra_cycles((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
+	    }
+	    return ret;
+	}
 
-	case 103:      //close dll
+	case 103:	//close dll
 	{
 	    HMODULE libaddr;
 	    libaddr = (HMODULE) m68k_dreg (regs, 1);

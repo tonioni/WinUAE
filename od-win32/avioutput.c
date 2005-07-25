@@ -895,7 +895,6 @@ void AVIOutput_Initialize(void)
 void frame_drawn(void)
 {
     double diff, skipmode;
-    static int frame;
 
     if (!avioutput_video || !avioutput_enabled)
 	return;

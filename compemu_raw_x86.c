@@ -2627,15 +2627,16 @@ static void raw_init_cpu(void)
   /* Have CMOV support? */
   have_cmov = c->x86_hwcap & (1 << 15);
 
+#if 0
   /* Can the host CPU suffer from partial register stalls? */
   have_rat_stall = (c->x86_vendor == X86_VENDOR_INTEL);
-#if 1
   /* It appears that partial register writes are a bad idea even on
 	 AMD K7 cores, even though they are not supposed to have the
 	 dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
   if (c->x86_processor == X86_PROCESSOR_ATHLON)
 	have_rat_stall = 1;
 #endif
+  have_rat_stall = 1;
 
   /* Alignments */
   if (tune_alignment) {

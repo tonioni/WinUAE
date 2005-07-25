@@ -1881,6 +1881,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf("\t\tSET_VFLG (1);\n");
 	    printf("\t\tif (dst < 0) SET_NFLG (1);\n");
 	}
+	printf ("\t\tm68k_incpc (%d);\n", m68k_pc_offset);
 	printf ("\t\tException (5, oldpc);\n");
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t} else {\n");
@@ -1924,6 +1925,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf("\t\tSET_VFLG (1);\n");
 	    printf("\t\tSET_ZFLG (1);\n");
 	}
+	printf ("\t\tm68k_incpc (%d);\n", m68k_pc_offset);
 	printf ("\t\tException (5, oldpc);\n");
 	printf ("\t\tgoto %s;\n", endlabelstr);
 	printf ("\t} else {\n");

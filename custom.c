@@ -3788,7 +3788,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     if (cycle && !s->dmacycle)
 	return; /* Superfrog intro flashing bee fix */
 
-    dma = hpos < plfstrt || diwstate != DIW_waiting_stop || !dmaen (DMA_BITPLANE);
+    dma = hpos < plfstrt || diwstate != DIW_waiting_stop;
     if (vpos == s->vstop || vpos == sprite_vblank_endline) {
 	s->dmastate = 0;
 	posctl = 1;
@@ -4962,8 +4962,8 @@ int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
      case 0x1C6: if (hbstop != value) { hbstop = value; varsync (); } break;
      case 0x1C8: if (vtotal != value) { vtotal = value; varsync (); } break;
      case 0x1CA: if (vsstop != value) { vsstop = value; varsync (); } break;
-     case 0x1CC: if (vbstrt > value + 1 || vbstrt < value - 1) { vbstrt = value; varsync (); } break;
-     case 0x1CE: if (vbstop > value + 1 || vbstrt < value - 1) { vbstop = value; varsync (); } break;
+     case 0x1CC: if (vbstrt < value || vbstrt > value + 1) { vbstrt = value; varsync (); } break;
+     case 0x1CE: if (vbstop < value || vbstop > value + 1) { vbstop = value; varsync (); } break;
      case 0x1DE: if (hsstrt != value) { hsstrt = value; varsync (); } break;
      case 0x1E0: if (vsstrt != value) { vsstrt = value; varsync (); } break;
      case 0x1E2: if (hcenter != value) { hcenter = value; varsync (); } break;
@@ -5448,7 +5448,8 @@ STATIC_INLINE decide_fetch_ce (int hpos)
 
 STATIC_INLINE int dma_cycle(void)
 {
-    int hpos, cycles = 0, bnasty = 0;
+    int hpos, cycles = 0;
+    static int bnasty;
 
     for (;;) {
 	int bpldma;
@@ -5460,19 +5461,21 @@ STATIC_INLINE int dma_cycle(void)
 	decide_line (hpos);
 	decide_fetch_ce (hpos);
 	bpldma = is_bitplane_dma (hpos);
-	if (cycle_line[hpos] == 0 && !bpldma) {
-	    if (bltstate == BLT_done || bnasty >= 3)
+	if (bltstate != BLT_done) {
+	    if (!blitpri && bnasty >= 3 && !cycle_line[hpos] && !bpldma) {
+		bnasty = 0;
 		break;
+	    }
 	    decide_blitter (hpos);
-	    if (cycle_line[hpos] == 0)
-		break;
-	    if (!blitpri || blit_singlechannel)
-		bnasty++;
-	} else if (bpldma && (blit_singlechannel || !blitpri)) {
+	    bnasty++;
+	} else if (bpldma || cycle_line[hpos]) {
 	    bnasty++;
 	}
+	if (cycle_line[hpos] == 0 && !bpldma)
+	    break;
 	/* bus was allocated to dma channel, wait for next cycle.. */
     }
+    bnasty = 0;
     cycle_line[hpos] |= CYCLE_CPU;
     return cycles;
 }
