@@ -1041,7 +1041,7 @@ static void cia_wait_pre (void)
     int div10 = (get_cycles () - eventtab[ev_cia].oldcycles) % DIV10;
     int cycles;
 
-    cycles = 2 * CYCLE_UNIT / 2;
+    cycles = 5 * CYCLE_UNIT / 2;
     if (div10 > DIV10 * ECLOCK_DATA_CYCLE / 10) {
 	cycles += DIV10 - div10;
 	cycles += DIV10 * ECLOCK_DATA_CYCLE / 10;

@@ -57,7 +57,7 @@ static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown;
 static int blit_linecyclecounter, blit_misscyclecounter;
 
 #ifdef CPUEMU_6
-extern uae_u8 cycle_line[];
+extern int cycle_line[];
 #endif
 
 static long blit_firstline_cycles;
@@ -251,8 +251,12 @@ STATIC_INLINE int channel_state (int cycles)
 extern int is_bitplane_dma (int hpos);
 STATIC_INLINE int canblit (int hpos)
 {
-    if (cycle_line[hpos] == 0 && !is_bitplane_dma (hpos))
+    if (is_bitplane_dma (hpos))
+	return 0;
+    if (cycle_line[hpos] == 0)
 	return 1;
+    if (cycle_line[hpos] & (CYCLE_REFRESH | CYCLE_SPRITE | CYCLE_MISC))
+	return -1;
     return 0;
 }
 
@@ -581,7 +585,7 @@ static void decide_blitter_line (int hpos)
 		    break;
 		}
 #if 1
-		if (c && !canblit(blit_last_hpos))
+		if (c && canblit(blit_last_hpos) <= 0)
 		    break;
 #endif
 #if 1
@@ -812,13 +816,20 @@ void decide_blitter (int hpos)
 	    }
 #endif
 	    for (;;) {
+		int v;
+
 		if (c == 5) { /* real idle cycle */
 		    blit_cyclecounter++;
 		    break;
 		}
-		
+
 		/* all cycles need free bus, even idle cycles (except fillmode idle) */
-		if (!canblit (blit_last_hpos)) {
+		v = canblit (blit_last_hpos);
+		if (v < 0 && c == 0) {
+		    blit_cyclecounter++;
+		    break;
+		}
+		if (v <= 0) {
 		    blit_misscyclecounter++;
 		    break;
 		}
@@ -1066,8 +1077,9 @@ void maybe_blit (int hpos, int hack)
 #ifndef BLITTER_DEBUG
 	warned = 1;
 #endif
-	write_log ("warning: Program does not wait for blitter %p vpos=%d tc=%d\n",
-	    m68k_getpc(), vpos, blit_cyclecounter);
+	if (m68k_getpc() < 0xe0000 || m68k_getpc() >= 0x10000000)
+	    write_log ("warning: Program does not wait for blitter %p vpos=%d tc=%d\n",
+		m68k_getpc(), vpos, blit_cyclecounter);
     }
 
     if (currprefs.blitter_cycle_exact) {

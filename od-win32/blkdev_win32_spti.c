@@ -8,6 +8,9 @@
   */
 
 
+#define WIN32_LEAN_AND_MEAN
+#define _WIN32_WINNT 0x500
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -21,12 +24,14 @@
 
 #include <stddef.h>
 
-#include <windows.h>
+#include <devioctl.h>  
+#include <ntddstor.h>
+#include <winioctl.h>
 #include <initguid.h>   // Guid definition
 #include <devguid.h>    // Device guids
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <cfgmgr32.h>   // for SetupDiXxx functions.
-#include <devioctl.h>  
+
 #include <ntddscsi.h>
 
 
@@ -40,35 +45,44 @@ static int unitcnt = 0;
 
 struct dev_info_spti {
     char *drvpath;
+    char *name;
     int mediainserted;
     HANDLE handle;
     int isatapi;
     int type;
+    int bus, path, target, lun;
 };
 
 static uae_sem_t scgp_sem;
 static struct dev_info_spti dev_info[MAX_TOTAL_DEVICES];
 static uae_u8 *scsibuf;
 
-static int doscsi (HANDLE *h, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
+static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
 {
     DWORD status, returned;
+    struct dev_info_spti *di = &dev_info[unitnum];
 
     *err = 0;
     if (log_scsi) {
-	write_log ("SCSI, H=%X: ", h);
+	write_log ("SCSI, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
     gui_cd_led (1);
-    status = DeviceIoControl (h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
+    swb->spt.ScsiStatus = 0;
+    if (di->bus >= 0) {
+	swb->spt.PathId = di->path;
+	swb->spt.TargetId = di->target;
+	swb->spt.Lun = di->lun;
+    }
+    status = DeviceIoControl (di->handle, IOCTL_SCSI_PASS_THROUGH_DIRECT,
 	swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
 	swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
 	&returned, NULL);
     if (!status) {
 	int lasterror = GetLastError();
 	*err = lasterror;
-	write_log("SCSI ERROR, H=%X: ", h);
+	write_log("SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
 	write_log("Error code = %d, LastError=%d\n", swb->spt.ScsiStatus, lasterror);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
@@ -112,7 +126,7 @@ static int execscsicmd (int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int i
     swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
     swb.spt.SenseInfoLength = 32;
     memcpy (swb.spt.Cdb, data, len);
-    status = doscsi (dev_info[unitnum].handle, &swb, &err);
+    status = doscsi (unitnum, &swb, &err);
     uae_sem_post (&scgp_sem);
     dolen = swb.spt.DataTransferLength;
     if (!status)
@@ -164,7 +178,7 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
     swb.spt.DataTransferLength = scsi_len;
     swb.spt.DataBuffer = scsi_datap;
 
-    status = doscsi (dev_info[unitnum].handle, &swb, &err);
+    status = doscsi (unitnum, &swb, &err);
 
     put_word (acmd + 18, status == 0 ? 0 : scsi_cmd_len_orig); /* fake scsi_CmdActual */
     put_byte (acmd + 21, swb.spt.ScsiStatus); /* scsi_Status */
@@ -221,18 +235,26 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 
 static int total_devices;
 
-static int adddrive (char *drvpath, int type)
+static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid)
 {
+    struct dev_info_spti *di;
     int cnt = total_devices, i;
+
     if (cnt >= MAX_TOTAL_DEVICES)
 	return 0;
     for (i = 0; i < total_devices; i++) {
-	if (!strcmp(drvpath, dev_info[i].drvpath))
+	di = &dev_info[i];
+	if (!strcmp(drvpath, di->drvpath))
 	    return 0;
     }
-    dev_info[cnt].drvpath = my_strdup(drvpath);
-    dev_info[cnt].type = type;
-    write_log ("SPTI: uaescsi.device:%d ('%s')\n", cnt, drvpath);
+    write_log("SPTI: unit %d '%s' added\n", total_devices, drvpath);
+    di = &dev_info[total_devices];
+    di->drvpath = my_strdup(drvpath);
+    di->type = 0;
+    di->bus = bus;
+    di->path = pathid;
+    di->target = targetid;
+    di->lun = lunid;
     total_devices++;
     return 1;
 }
@@ -296,11 +318,18 @@ static int open_scsi_bus (int flags)
 
 static void close_scsi_bus (void)
 {
+    int i;
     VirtualFree (scsibuf, 0, MEM_RELEASE);
     scsibuf = 0;
+    for (i = 0; i < total_devices; i++) {
+	xfree(dev_info[i].name);
+	xfree(dev_info[i].drvpath);
+	dev_info[i].name = NULL;
+	dev_info[i].drvpath = NULL;
+    }
 }
 
-static int isatapi (int unitnum)
+static int inquiry (int unitnum, int *type, uae_u8 *inquirydata, int *inqlen)
 {
     uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
     uae_u8 out[36];
@@ -308,16 +337,22 @@ static int isatapi (int unitnum)
     uae_u8 *p = execscsicmd_in (unitnum, cmd, sizeof (cmd), &outlen);
     int v = 0;
 
+    *inqlen = 0;
+    *type = 0x1f;
     if (!p) {
 	if (log_scsi)
-	    write_log("INQUIRY failed!?\n");
+	    write_log("SPTI: INQUIRY failed!?\n");
 	return 0;
     }
+    *inqlen = outlen > 36 ? 36 : outlen;
+    if (outlen >= 1)
+	*type = p[0] & 31;
     if (outlen >= 2 && (p[0] & 31) == 5 && (p[2] & 7) == 0)
 	v = 1;
+    memcpy (inquirydata, p, *inqlen);
     if (log_scsi) {
 	if (outlen >= 36) 
-	    write_log("INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
+	    write_log("SPTI: INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
 		p[0], p[1], p[2], v, p + 8, p + 16);
     }
     return v;
@@ -333,47 +368,69 @@ static int mediacheck (int unitnum)
     return v >= 0 ? 1 : 0;
 }
 
+static void close_scsi_device (int unitnum)
+{
+    write_log ("SPTI: cd unit %d closed\n", unitnum);
+    if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE)
+	CloseHandle (dev_info[unitnum].handle);
+    dev_info[unitnum].handle = INVALID_HANDLE_VALUE;
+}
+
 int open_scsi_device (int unitnum)
 {
     HANDLE h;
     char *dev;
+    struct dev_info_spti *di;
 
-    dev = dev_info[unitnum].drvpath;
-    if (!dev)
+    di = &dev_info[unitnum];
+    if (unitnum >= total_devices)
 	return 0;
-    h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
-    dev_info[unitnum].handle = h;
-    if (h == INVALID_HANDLE_VALUE) {
-	write_log ("failed to open cd unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
+    if (!di)
+	return 0;
+    if (di->bus >= 0) {
+	dev = xmalloc (100);
+	sprintf (dev, "\\\\.\\Scsi%d:", di->bus);
     } else {
+        dev = my_strdup(di->drvpath);
+    }
+    h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
+    di->handle = h;
+    if (h == INVALID_HANDLE_VALUE) {
+	write_log ("SPTI: failed to open cd unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
+    } else {
+	uae_u8 inqdata[37] = { 0 };
+	int inqlen;
+        dev_info[unitnum].isatapi = inquiry (unitnum, &dev_info[unitnum].type, inqdata, &inqlen);
+	if (inqlen == 0) {
+	    write_log ("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
+		di->bus, di->path, di->target, di->lun);
+	    close_scsi_device (unitnum);
+	    xfree (dev);
+	    return 0;
+	}
+	inqdata[36] = 0;
 	if (dev_info[unitnum].type == INQ_ROMD) {
 	    dev_info[unitnum].mediainserted = mediacheck (unitnum);
-	    dev_info[unitnum].isatapi = isatapi (unitnum);
-	    write_log ("scsi cd unit %d opened (%s), %s ('%s')\n", unitnum,
-		dev_info[unitnum].isatapi ? "[ATAPI]" : "[SCSI]",
-		dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty", dev);
+	    write_log ("SPTI: unit %d opened [%s], %s, '%s'\n", unitnum,
+		dev_info[unitnum].isatapi ? "ATAPI" : "SCSI",
+		dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty", inqdata + 8);
 	} else {
-	    write_log ("scsi unit %d, type %d opened ('%s')\n",
-		unitnum, dev_info[unitnum].type, dev);
+	    write_log ("SPTI: unit %d, '%s'\n",
+		unitnum, dev_info[unitnum].type, inqdata + 8);
 	}
+	dev_info[unitnum].name = my_strdup (inqdata + 8);
+        xfree (dev);
 	return 1;
     }
+    xfree (dev);
     return 0;
-}
-
-static void close_scsi_device (int unitnum)
-{
-    write_log ("cd unit %d closed\n", unitnum);
-    if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE)
-	CloseHandle (dev_info[unitnum].handle);
-    dev_info[unitnum].handle = INVALID_HANDLE_VALUE;
 }
 
 static struct device_info *info_device (int unitnum, struct device_info *di)
 {
     if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
-    di->label = my_strdup(dev_info[unitnum].drvpath);
+    di->label = my_strdup(dev_info[unitnum].name);
     di->bus = 0;
     di->target = unitnum;
     di->lun = 0;
@@ -388,7 +445,6 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 
 void win32_spti_media_change (char driveletter, int insert)
 {
-#if 1
     int i, now;
 
     for (i = 0; i < total_devices; i++) {
@@ -401,17 +457,6 @@ void win32_spti_media_change (char driveletter, int insert)
 	    }
 	}
     }
-#else
-    int i;
-
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (dev_info[i].drvletter == driveletter && dev_info[i].mediainserted != insert) {
-	    write_log ("SPTI: media change %c %d\n", driveletter, insert);
-	    dev_info[i].mediainserted = insert;
-	    scsi_do_disk_change (driveletter, insert);
-	}
-    }
-#endif
 }
 
 static int check_isatapi (int unitnum)
@@ -424,6 +469,473 @@ struct device_functions devicefunc_win32_spti = {
     execscsicmd_out, execscsicmd_in, execscsicmd_direct,
     0, 0, 0, 0, 0, 0, 0, check_isatapi
 };
+
+#define	SCSI_INFO_BUFFER_SIZE	0x5000	// Big enough to hold all Bus/Device info.
+static char* BusType[] = {
+    "UNKNOWN",  // 0x00
+    "SCSI",
+    "ATAPI",
+    "ATA",
+    "IEEE 1394",
+    "SSA",
+    "FIBRE",
+    "USB",
+    "RAID"
+};
+
+static void GetInquiryData(PCTSTR pDevId, DWORD idx)
+{
+    SP_DEVICE_INTERFACE_DATA            interfaceData;
+    PSP_DEVICE_INTERFACE_DETAIL_DATA    interfaceDetailData = NULL;
+    STORAGE_PROPERTY_QUERY              query;
+    PSTORAGE_ADAPTER_DESCRIPTOR         adpDesc;
+    PSCSI_BUS_DATA			BusData;
+    PSCSI_INQUIRY_DATA		        InquiryData;
+    PSCSI_ADAPTER_BUS_INFO          	AdapterInfo;
+    HANDLE                              hDevice;
+    BOOL                                status;
+    DWORD                               index = 0;
+    HDEVINFO                            hIntDevInfo;
+    UCHAR                               outBuf[512];
+    BOOL	                        Claimed;
+    ULONG                               returnedLength;
+    SHORT	                        Bus,
+					Luns;
+    DWORD                               interfaceDetailDataSize,
+					reqSize,
+					errorCode;
+
+
+    hIntDevInfo = SetupDiGetClassDevs (
+		 &StoragePortClassGuid,
+		 pDevId,                                 // Enumerator
+		 NULL,                                   // Parent Window
+		 (DIGCF_PRESENT | DIGCF_INTERFACEDEVICE  // Only Devices present & Interface class
+		 ));
+
+    if (hIntDevInfo == INVALID_HANDLE_VALUE) {
+	write_log ("SetupDiGetClassDevs failed with error: %d\n", GetLastError());
+	return;
+    }
+
+    interfaceData.cbSize = sizeof (SP_INTERFACE_DEVICE_DATA);
+
+    status = SetupDiEnumDeviceInterfaces ( 
+		hIntDevInfo,            // Interface Device Info handle
+		0,
+		(LPGUID) &StoragePortClassGuid,
+		index,                  // Member
+		&interfaceData          // Device Interface Data
+		);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode == ERROR_NO_MORE_ITEMS)
+	    return;
+	write_log ("SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
+	return;
+    }
+	
+    //
+    // Find out required buffer size, so pass NULL 
+    //
+
+    status = SetupDiGetDeviceInterfaceDetail (
+		hIntDevInfo,        // Interface Device info handle
+		&interfaceData,     // Interface data for the event class
+		NULL,               // Checking for buffer size
+		0,                  // Checking for buffer size
+		&reqSize,           // Buffer size required to get the detail data
+		NULL                // Checking for buffer size
+		);
+
+    //
+    // This call returns ERROR_INSUFFICIENT_BUFFER with reqSize 
+    // set to the required buffer size. Ignore the above error and
+    // pass a bigger buffer to get the detail data
+    //
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
+	    write_log ("SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
+	    return;
+	}
+    }
+
+    //
+    // Allocate memory to get the interface detail data
+    // This contains the devicepath we need to open the device
+    //
+
+    interfaceDetailDataSize = reqSize;
+    interfaceDetailData = malloc (interfaceDetailDataSize);
+    if (interfaceDetailData == NULL) {
+	write_log ("Unable to allocate memory to get the interface detail data.\n");
+	return;
+    }
+    interfaceDetailData->cbSize = sizeof (SP_INTERFACE_DEVICE_DETAIL_DATA);
+
+    status = SetupDiGetDeviceInterfaceDetail (
+		  hIntDevInfo,              // Interface Device info handle
+		  &interfaceData,           // Interface data for the event class
+		  interfaceDetailData,      // Interface detail data
+		  interfaceDetailDataSize,  // Interface detail data size
+		  &reqSize,                 // Buffer size required to get the detail data
+		  NULL);                    // Interface device info
+
+    if (status == FALSE) {
+	write_log ("Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
+	return;
+    }
+
+    //
+    // Now we have the device path. Open the device interface
+    // to get adapter property and inquiry data
+
+
+    hDevice = CreateFile(
+		interfaceDetailData->DevicePath,    // device interface name
+		GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
+		FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+		NULL,                               // lpSecurityAttributes
+		OPEN_EXISTING,                      // dwCreationDistribution
+		0,                                  // dwFlagsAndAttributes
+		NULL                                // hTemplateFile
+		);
+		
+    //
+    // We have the handle to talk to the device. 
+    // So we can release the interfaceDetailData buffer
+    //
+
+    free (interfaceDetailData);
+
+    if (hDevice == INVALID_HANDLE_VALUE) {
+	write_log ("CreateFile failed with error: %d\n", GetLastError());
+	CloseHandle ( hDevice );	
+	return;
+    }
+
+    query.PropertyId = StorageAdapterProperty;
+    query.QueryType = PropertyStandardQuery;
+
+    status = DeviceIoControl(
+			hDevice,                
+			IOCTL_STORAGE_QUERY_PROPERTY,
+			&query,
+			sizeof(STORAGE_PROPERTY_QUERY),
+			&outBuf,                   
+			512,                      
+			&returnedLength,      
+			NULL                    
+			);
+    if (!status) {
+	write_log ("IOCTL failed with error code%d.\n\n", GetLastError());
+    } else {
+	adpDesc = (PSTORAGE_ADAPTER_DESCRIPTOR) outBuf;
+	write_log ("\nAdapter Properties\n");
+	write_log ("------------------\n");
+	write_log ("Bus Type       : %s\n",   BusType[adpDesc->BusType]);
+	write_log ("Max. Tr. Length: 0x%x\n", adpDesc->MaximumTransferLength );
+	write_log ("Max. Phy. Pages: 0x%x\n", adpDesc->MaximumPhysicalPages );
+	write_log ("Alignment Mask : 0x%x\n", adpDesc->AlignmentMask );
+    }
+    
+    AdapterInfo = (PSCSI_ADAPTER_BUS_INFO) malloc(SCSI_INFO_BUFFER_SIZE) ;
+    if (AdapterInfo == NULL) {
+	CloseHandle (hDevice);	
+	return;
+    }
+
+    // Get the SCSI inquiry data for all devices for the given SCSI bus
+    status = DeviceIoControl(	
+			    hDevice,
+			    IOCTL_SCSI_GET_INQUIRY_DATA,
+			    NULL,
+			    0,
+			    AdapterInfo,
+			    SCSI_INFO_BUFFER_SIZE,
+			    &returnedLength,
+			    NULL );
+
+    if (!status) {
+	write_log ("Error in IOCTL_SCSI_GET_INQUIRY_DATA\n" );
+	free (AdapterInfo);
+	CloseHandle (hDevice);
+	return;
+    }
+
+    write_log ("Initiator   Path ID  Target ID    LUN  Claimed  Device   \n");
+    write_log ("---------------------------------------------------------\n");
+
+    for (Bus = 0; Bus < AdapterInfo->NumberOfBuses; Bus++) {
+	BusData = &AdapterInfo->BusData[Bus];
+	InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + BusData->InquiryDataOffset );
+	for (Luns = 0; Luns < BusData->NumberOfLogicalUnits; Luns++) {
+	    char label[100];
+	    int type = InquiryData->InquiryData[0] & 0x1f;
+	    Claimed = InquiryData->DeviceClaimed;
+	    write_log ("   %3d        %d         %d          %d     %s     %d\n",
+		BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId, 
+		InquiryData->Lun, Claimed ? "Yes" : "No ", type);
+	    if (!Claimed) {
+		sprintf (label, "SCSI(%d):%d:%d:%d:%d", idx, BusData->InitiatorBusId,
+		    InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
+		adddrive (label, idx, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
+	    }
+	    InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + InquiryData->NextInquiryDataOffset );
+	}   // for Luns
+    }	// for Bus
+
+    write_log ("\n" );
+    free (AdapterInfo);
+    CloseHandle (hDevice);
+}
+
+static void GetChildDevices(DEVINST DevInst)
+{
+    DEVINST         childDevInst;
+    DEVINST         siblingDevInst;
+    CONFIGRET       configRetVal;
+    TCHAR           deviceInstanceId[MAX_DEVICE_ID_LEN];
+//    HDEVINFO	    tmpdi;
+
+    configRetVal = CM_Get_Child (
+			&childDevInst,
+			DevInst,
+			0 );
+
+    if (configRetVal == CR_NO_SUCH_DEVNODE) {
+	write_log ("No child devices\n");
+	return;
+    }
+
+    if (configRetVal != CR_SUCCESS) {
+	write_log ("CM_Get_Child failed with error: %x\n", configRetVal);
+	return;
+    }
+
+    do {
+
+	// Get the Device Instance ID using the handle
+	configRetVal = CM_Get_Device_ID(
+			    childDevInst,
+			    deviceInstanceId,
+			    sizeof(deviceInstanceId)/sizeof(TCHAR),
+			    0
+			    );
+	if (configRetVal != CR_SUCCESS) {
+	    write_log ("CM_Get_Device_ID: Get Device Instance ID failed with error: %x\n", configRetVal);
+	    return;
+	}
+
+	write_log ("'%s'\n", deviceInstanceId);
+#if 0
+	tmpdi = SetupDiCreateDeviceInfoList (NULL, NULL);
+	if (tmpdi) {
+	    SP_DEVINFO_DATA did;
+	    did.cbSize = sizeof (did);
+	    SetupDiOpenDeviceInfo(tmpdi, deviceInstanceId, NULL, 0, &did);
+	    adddrive (deviceInstanceId, -1, -1, -1, -1);
+	    SetupDiDestroyDeviceInfoList (tmpdi);
+	}
+#endif
+	// Get sibling
+	configRetVal = CM_Get_Sibling (
+			    &siblingDevInst,
+			    childDevInst,
+			    0 );
+
+	if (configRetVal == CR_NO_SUCH_DEVNODE)
+	    return;
+
+	if (configRetVal != CR_SUCCESS) {
+	    write_log ("CM_Get_Sibling failed with error: 0x%X\n", configRetVal);
+	    return;
+	}
+	childDevInst = siblingDevInst;
+
+    } while (TRUE);
+
+}
+
+static BOOL GetRegistryProperty(HDEVINFO DevInfo, DWORD Index, int *first)
+{
+    SP_DEVINFO_DATA deviceInfoData;
+    DWORD errorCode;
+    DWORD bufferSize = 0;
+    DWORD dataType;
+    LPTSTR buffer = NULL;
+    BOOL status;
+    CONFIGRET configRetVal;
+    TCHAR deviceInstanceId[MAX_DEVICE_ID_LEN];
+
+    // Get the DEVINFO data. This has the handle to device instance 
+    deviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+    status = SetupDiEnumDeviceInfo(
+	DevInfo,                // Device info set
+	Index,                  // Index in the info set
+	&deviceInfoData);       // Info data. Contains handle to dev inst
+
+    if (status == FALSE) {
+        errorCode = GetLastError();
+	if (errorCode == ERROR_NO_MORE_ITEMS) {
+	    if (*first)
+		write_log ("SPTI: No SCSI adapters detected\n");
+	    return FALSE;
+	}
+	write_log ("SetupDiEnumDeviceInfo failed with error: %d\n", errorCode);
+        return FALSE;
+    }
+    *first = 0;
+
+    // Get the Device Instance ID using the handle
+    configRetVal = CM_Get_Device_ID(
+	deviceInfoData.DevInst,                 // Handle to dev inst
+	deviceInstanceId,                       // Buffer to receive dev inst
+	sizeof(deviceInstanceId)/sizeof(TCHAR), // Buffer size
+	0);                                     // Must be zero
+    if (configRetVal != CR_SUCCESS) {
+        write_log ("CM_Get_Device_ID failed with error: %d\n", configRetVal);
+        return FALSE;
+    }
+
+    //
+    // We won't know the size of the HardwareID buffer until we call
+    // this function. So call it with a null to begin with, and then 
+    // use the required buffer size to Alloc the necessary space.
+    // Call it again with the obtained buffer size
+    //
+    status = SetupDiGetDeviceRegistryProperty(
+	DevInfo,
+	&deviceInfoData,
+	SPDRP_HARDWAREID,
+	&dataType,
+	(PBYTE)buffer,
+	bufferSize,
+	&bufferSize);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
+	    if (errorCode == ERROR_INVALID_DATA) {
+		//
+		// May be a Legacy Device with no HardwareID. Continue.
+		//
+		write_log ("No Hardware ID, may be a legacy device!\n");
+	} else {
+		write_log ("SetupDiGetDeviceRegistryProperty failed with error: %d\n", errorCode);
+		return FALSE;
+	    }
+	}
+    }
+
+    //
+    // We need to change the buffer size.
+    //
+    buffer = LocalAlloc(LPTR, bufferSize);
+    status = SetupDiGetDeviceRegistryProperty(
+	DevInfo,
+	&deviceInfoData,
+	SPDRP_HARDWAREID,
+	&dataType,
+	(PBYTE)buffer,
+	bufferSize,
+	&bufferSize);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode == ERROR_INVALID_DATA) {
+	    //
+	    // May be a Legacy Device with no HardwareID. Continue.
+	    //
+	    write_log ("No Hardware ID, may be a legacy device!\n");
+	} else {
+	    write_log ("SetupDiGetDeviceRegistryProperty failed with error: %d\n", errorCode);
+	    return FALSE;
+	}
+    }
+    write_log ("Device ID '%s'\n",buffer);
+
+    if (buffer)
+        LocalFree(buffer);
+
+    // **** Now get the Device Description
+
+    //
+    // We won't know the size of the Location Information buffer until
+    // we call this function. So call it with a null to begin with,
+    // and then use the required buffer size to Alloc the necessary space.
+    // Call it again with the obtained buffer size
+    //
+
+    status = SetupDiGetDeviceRegistryProperty(
+	DevInfo,
+	&deviceInfoData,
+	SPDRP_DEVICEDESC,
+	&dataType,
+	(PBYTE)buffer,
+	bufferSize,
+	&bufferSize);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
+	    if (errorCode == ERROR_INVALID_DATA) {
+		write_log("No Device Description!\n");
+	    } else {
+		write_log("SetupDiGetDeviceRegistryProperty failed with error: %d\n", errorCode);
+		return FALSE;
+	    }
+	}
+    }
+
+    //
+    // We need to change the buffer size.
+    //
+
+    buffer = LocalAlloc(LPTR, bufferSize);
+    
+    status = SetupDiGetDeviceRegistryProperty(
+	DevInfo,
+	&deviceInfoData,
+	SPDRP_DEVICEDESC,
+	&dataType,
+	(PBYTE)buffer,
+	bufferSize,
+	&bufferSize);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode == ERROR_INVALID_DATA) {
+	    write_log ("No Device Description!\n");
+	} else {
+	    write_log ("SetupDiGetDeviceRegistryProperty failed with error: %d\n", errorCode);
+	    return FALSE;
+	}
+    }
+
+    write_log ("Device Description '%s'\n",buffer);
+
+    if (buffer)
+        LocalFree(buffer);
+
+    // Reenumerate the SCSI adapter device node
+    configRetVal = CM_Reenumerate_DevNode(deviceInfoData.DevInst, 0);
+    
+    if (configRetVal != CR_SUCCESS) {
+	write_log ("CM_Reenumerate_DevNode failed with error: %d\n", configRetVal);
+	return FALSE;
+    }
+
+    GetInquiryData ((PCTSTR)&deviceInstanceId, Index);
+
+    // Find the children devices
+    GetChildDevices (deviceInfoData.DevInst);
+
+    return TRUE;
+}
 
 static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
 {
@@ -475,34 +987,29 @@ static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
     if (status == FALSE)
 	return FALSE;
 
-    adddrive (interfaceDetailData->DevicePath, INQ_ROMD);
+    adddrive (interfaceDetailData->DevicePath, -1, -1, -1, -1);
 
     free (interfaceDetailData);
 
     return TRUE;
 }
 
-static const GUID *guids[] = {
-    &GUID_DEVINTERFACE_CDROM,
-    &GUID_DEVINTERFACE_TAPE,
-    &GUID_DEVINTERFACE_WRITEONCEDISK,
-    &GUID_DEVINTERFACE_MEDIUMCHANGER,
-    &GUID_DEVINTERFACE_CDCHANGER,
-    &GUID_DEVINTERFACE_STORAGEPORT,
-    NULL};
+static const GUID *guids[] = { &GUID_DEVINTERFACE_CDROM, NULL };
+static const char *scsinames[] = { "Tape", "Scanner", NULL };
 
 static int rescan(void)
 {
     HDEVINFO hDevInfo;
+    HANDLE h;
     int idx, idx2;
+    int first;
+    char tmp[100];
 
-    write_log("Scan starts..\n");
     for (idx2 = 0; guids[idx2]; idx2++) {
 	hDevInfo = SetupDiGetClassDevs(
 	    guids[idx2],
 	    NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
 	if (hDevInfo != INVALID_HANDLE_VALUE) {
-	    write_log("%d:\n", idx2);
 	    for (idx = 0; ; idx++) {
 		if (!getCDROMProperty(idx, hDevInfo, guids[idx2]))
 		    break;
@@ -510,8 +1017,31 @@ static int rescan(void)
 	    SetupDiDestroyDeviceInfoList(hDevInfo);
 	}
     }
-    write_log("finished.\n");
+
+    for (idx2 = 0; scsinames[idx2]; idx2++) {
+	for (idx = 0; idx < 10; idx++) {
+	    sprintf (tmp, "\\\\.\\%s%d", scsinames[idx2], idx);
+	    h = CreateFile(tmp, GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		NULL, OPEN_EXISTING, 0, NULL);
+	    if (h != INVALID_HANDLE_VALUE) {
+		adddrive(tmp, -1, -1, -1, -1);
+		CloseHandle(h);
+	    }
+	}
+    }
+
+    first = 1;
+    hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_SCSIADAPTER, NULL, NULL, DIGCF_PRESENT);
+    if (hDevInfo != INVALID_HANDLE_VALUE) {
+	for (idx = 0; ; idx++) {
+	    if (!GetRegistryProperty(hDevInfo, idx, &first))
+		break;
+	}
+    }
+    SetupDiDestroyDeviceInfoList(hDevInfo);
     return 1;
 }
+
 
 #endif

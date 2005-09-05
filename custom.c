@@ -187,7 +187,7 @@ static int last_sprite_point, nr_armed;
 static int sprite_width, sprres, sprite_buffer_res;
 
 #ifdef CPUEMU_6
-uae_u8 cycle_line[256];
+int cycle_line[256];
 #endif
 
 static uae_u32 bpl1dat;
@@ -419,6 +419,16 @@ STATIC_INLINE void setclr (uae_u16 *p, uae_u16 val)
 	*p &= ~val;
 }
 
+static void hsyncdelay(void)
+{
+#if 0 
+    static int prevhpos;
+    while (current_hpos () == prevhpos)
+        do_cycles(CYCLE_UNIT);
+    prevhpos = current_hpos();
+#endif
+}
+
 STATIC_INLINE int current_hpos (void)
 {
     return (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
@@ -535,29 +545,15 @@ static void decide_diw (int hpos)
 }
 
 static int fetchmode;
-static int maxplanes_ocs[]={ 6,4,0,0 };
-static int maxplanes_ecs[]={ 6,4,2,0 };
-static int maxplanes_aga[]={ 8,4,2,0, 8,8,4,0, 8,8,8,0 };
+static int real_bitplane_number[3][3][9];
 
-static int get_maxplanes (int res)
+/* Disable bitplane DMA if planes > available DMA slots. This is needed
+   e.g. by the Sanity WOC demo (at the "Party Effect").  */
+STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 {
-    int *planes;
-    if (currprefs.chipset_mask & CSMASK_AGA)
-	planes = maxplanes_aga;
-    else if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
-	planes = maxplanes_ocs;
-    else
-	planes = maxplanes_ecs;
-    return planes[fetchmode * 4 + res];
-}
-
-/* Disable bitplane DMA if planes > maxplanes. This is needed e.g. by the
-   Sanity WOC demo (at the "Party Effect").  */
-STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 v)
-{
-    if (GET_PLANES(v) > get_maxplanes (GET_RES(v)))
-	v &= ~0x7010;
-    return GET_PLANES (v);
+    int res = GET_RES(bc0);
+    int planes = GET_PLANES(bc0);
+    return real_bitplane_number[fetchmode][res][planes];
 }
 
 /* The HRM says 0xD8, but that can't work... */
@@ -643,11 +639,11 @@ static int fetchunits[] = { 8,8,8,0, 16,8,8,0, 32,16,8,0 };
 static int fetchstarts[] = { 3,2,1,0, 4,3,2,0, 5,4,3,0 };
 static int fm_maxplanes[] = { 3,2,1,0, 3,3,2,0, 3,3,3,0 };
 
-static uae_u8 cycle_diagram_table[3][3][9][32];
-static uae_u8 cycle_diagram_free_cycles[3][3][9];
-static uae_u8 cycle_diagram_total_cycles[3][3][9];
-static uae_u8 *curr_diagram;
-static uae_u8 cycle_sequences[3*8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,4,6,2,7,3,5,1 };
+static int cycle_diagram_table[3][3][9][32];
+static int cycle_diagram_free_cycles[3][3][9];
+static int cycle_diagram_total_cycles[3][3][9];
+static int *curr_diagram;
+static int cycle_sequences[3 * 8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,4,6,2,7,3,5,1 };
 
 static void debug_cycle_diagram(void)
 {
@@ -675,9 +671,9 @@ static void debug_cycle_diagram(void)
 
 static void create_cycle_diagram_table(void)
 {
-    int fm, res, cycle, planes, v;
+    int fm, res, cycle, planes, rplanes, v;
     int fetch_start, max_planes, freecycles;
-    uae_u8 *cycle_sequence;
+    int *cycle_sequence;
 
     for (fm = 0; fm <= 2; fm++) {
 	for (res = 0; res <= 2; res++) {
@@ -702,6 +698,12 @@ static void create_cycle_diagram_table(void)
 		}
 		cycle_diagram_free_cycles[fm][res][planes] = freecycles;
 		cycle_diagram_total_cycles[fm][res][planes] = fetch_start;
+		rplanes = planes;
+		if (rplanes > max_planes)
+		    rplanes = 0;
+		if (rplanes == 7 && fm == 0 && res == 0 && !(currprefs.chipset_mask & CSMASK_AGA))
+		    rplanes = 4;
+		real_bitplane_number[fm][res][planes] = rplanes;
 	    }
 	}
     }
@@ -756,23 +758,32 @@ static int toscr_delay1x, toscr_delay2x, toscr_delay1, toscr_delay2;
    we can do more work at once.  */
 static int toscr_nbits;
 
+/* undocumented bitplane delay hardware feature */
 static int delayoffset;
 
 STATIC_INLINE void compute_delay_offset (void)
 {
-    delayoffset = (((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1) & ~7;
-    if (delayoffset == 8)
+    delayoffset = (16 << fetchmode) - (((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1);
+#if 0
+	/* maybe we can finally get rid of this stupid table.. */
+	if (tmp == 4)
+	delayoffset = 4; // Loons Docs
+    else if (tmp == 8)
 	delayoffset = 8;
-    else if (delayoffset == 16) /* Overkill AGA */
+    else if (tmp == 12) // Loons Docs
+	delayoffset = 4;
+    else if (tmp == 16) /* Overkill AGA */
 	delayoffset = 48;
-    else if (delayoffset == 24) /* AB 2 */
+    else if (tmp == 24) /* AB 2 */
 	delayoffset = 8;
-    else if (delayoffset == 32)
+    else if (tmp == 32)
 	delayoffset = 32;
-    else if (delayoffset == 48) /* Pinball Illusions AGA, ingame */
+    else if (tmp == 48) /* Pinball Illusions AGA, ingame */
 	delayoffset = 16;
     else /* what about 40 and 56? */
 	delayoffset = 0;
+    //write_log("%d:%d ", vpos, delayoffset);
+#endif
 }
 
 static void expand_fmodes (void)
@@ -1553,7 +1564,7 @@ static void maybe_start_bpl_dma (int hpos)
 	return;
     if (hpos <= plfstrt)
 	return;
-    if (hpos > plfstop)
+    if (hpos > plfstop - fetchunit)
 	return;
     if (ddfstate != DIW_waiting_start)
 	passed_plfstop = 1;
@@ -1858,7 +1869,7 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
    The data is recorded either in lores pixels (if ECS), or in hires pixels
    (if AGA).  No support for SHRES sprites.  */
 
-static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl)
+static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl, unsigned int ctlx)
 {
     struct sprite_entry *e = curr_sprite_entries + next_sprite_entry;
     int i;
@@ -1920,8 +1931,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
     /* We have 8 bits per pixel in spixstate, two for every sprite pair.  The
        low order bit records whether the attach bit was set for this pair.  */
-
-    if ((sprctl[num] & 0x80) || (sprctl[num ^ 1] & 0x80)) {
+    if ((sprctl[num] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num ^ 1] & 0x80))) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
@@ -1991,7 +2001,7 @@ static void decide_sprites (int hpos)
     }
     for (i = 0; i < count; i++) {
 	int nr = nrs[i];
-	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr]);
+	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr], sprctl[nr ^ 1]);
     }
     last_sprite_point = point;
 }
@@ -2353,6 +2363,7 @@ static void calcdiw (void)
 /* display mode changed (lores, doubling etc..), recalculate everything */
 void init_custom (void)
 {
+    create_cycle_diagram_table ();
     reset_drawing ();
     init_hz ();
     calcdiw ();
@@ -2439,6 +2450,8 @@ STATIC_INLINE uae_u16 VPOSR (void)
 #if 0
     write_log ("vposr %x at %x\n", vp, m68k_getpc());
 #endif
+    if (currprefs.cpu_level >= 2)
+	hsyncdelay();
     return vp;
 }
 static void VPOSW (uae_u16 v)
@@ -2458,6 +2471,8 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     uae_u16 v = GETVPOS() << 8;
     uae_u16 hp = GETHPOS();
     v |= hp;
+    if (currprefs.cpu_level >= 2)
+	hsyncdelay();
     return v;
 }
 
@@ -2486,7 +2501,7 @@ static void COPJMP (int num)
     if (dmaen (DMA_COPPER)) {
 	copper_enabled_thisline = 1;
 	set_special (SPCFLAG_COPPER);
-    } else if (oldstrobe != num) {
+    } else if (oldstrobe > 0 && oldstrobe != num) {
 	/* dma disabled and accessing both COPxJMPs -> copper stops! */
 	cop_state.state = COP_stop;
     }
@@ -4274,7 +4289,7 @@ static void hsync_handler (void)
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
-	memset (cycle_line, 0, MAXHPOS);
+	memset (cycle_line, 0, sizeof(cycle_line));
 #if 1
 {
 	cycle_line[maxhpos - 1] = CYCLE_REFRESH;
@@ -5000,7 +5015,7 @@ void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 {
     static int warned;
-    /* Is this correct now? (There are people who bput things to the upper byte of AUDxVOL). */
+
     uae_u16 rval = (value << 8) | (value & 0xFF);
 #ifdef JIT
     special_mem |= S_WRITE;
@@ -5446,16 +5461,15 @@ STATIC_INLINE decide_fetch_ce (int hpos)
 	decide_fetch (hpos);
 }
 
-STATIC_INLINE int dma_cycle(void)
+STATIC_INLINE void dma_cycle(void)
 {
-    int hpos, cycles = 0;
+    int hpos;
     static int bnasty;
 
     for (;;) {
 	int bpldma;
 	int blitpri = dmaen (DMA_BLITPRI);
 	do_cycles (1 * CYCLE_UNIT);
-	cycles += CYCLE_UNIT;
 	hpos = current_hpos ();
 	sync_copper (hpos);
 	decide_line (hpos);
@@ -5467,9 +5481,8 @@ STATIC_INLINE int dma_cycle(void)
 		break;
 	    }
 	    decide_blitter (hpos);
-	    bnasty++;
-	} else if (bpldma || cycle_line[hpos]) {
-	    bnasty++;
+	    if (dmaen(DMA_BLITTER))
+		bnasty++;
 	}
 	if (cycle_line[hpos] == 0 && !bpldma)
 	    break;
@@ -5477,7 +5490,6 @@ STATIC_INLINE int dma_cycle(void)
     }
     bnasty = 0;
     cycle_line[hpos] |= CYCLE_CPU;
-    return cycles;
 }
 
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
@@ -5492,6 +5504,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
     return v;
 }
 
+#if 0
 uae_u32 wait_cpu_cycle_read_cycles (uaecptr addr, int mode, int *cycles)
 {
     uae_u32 v = 0;
@@ -5503,6 +5516,7 @@ uae_u32 wait_cpu_cycle_read_cycles (uaecptr addr, int mode, int *cycles)
     do_cycles (1 * CYCLE_UNIT);
     return v;
 }
+#endif
 
 void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
@@ -5516,7 +5530,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 
 void do_cycles_ce (long cycles)
 {
-    int hpos, bpldma;
+    int hpos;
     while (cycles > 0) {
 	do_cycles (1 * CYCLE_UNIT);
 	cycles -= CYCLE_UNIT;
@@ -5524,9 +5538,7 @@ void do_cycles_ce (long cycles)
 	sync_copper (hpos);
 	decide_line (hpos);
 	decide_fetch_ce (hpos);
-	bpldma = is_bitplane_dma (hpos);
-	if (cycle_line[hpos] == 0 && !bpldma)
-	    decide_blitter (hpos);
+	decide_blitter (hpos);
     }
 }
 

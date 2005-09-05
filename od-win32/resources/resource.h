@@ -532,7 +532,6 @@
 #define IDC_D0                          1532
 #define IDC_STATE_CAPTURE               1532
 #define IDC_D1                          1533
-#define IDC_STATE_CAPTURE2              1533
 #define IDC_KBLED_USB                   1533
 #define IDC_D2                          1534
 #define IDC_D3                          1535
@@ -703,38 +702,24 @@
 #define IDC_FILTERPRESETSAVE            1633
 #define IDC_FLOPPYSPD_TEXT              1634
 #define IDC_FILTERPRESETDELETE          1634
-#define IDC_KAILLERA                    1635
 #define IDC_HARDDRIVE                   1635
 #define IDC_INACTIVE_PRI                1635
-#define IDC_KAILLERA_CHAT               1636
 #define IDC_SOUNDPRIMARY                1636
 #define IDC_MINIMIZED_PRI               1636
-#define IDC_KAILLERA_CHAT_TEXT          1637
 #define IDC_VOLUME_BOOTPRI_TEXT         1637
-#define IDC_KAILLERA_CHAT_SEND          1638
 #define IDC_VOLUME_BOOTPRI              1638
-#define IDC_KAILLERA_LIST               1639
 #define IDC_KBLED1                      1639
-#define IDC_KAILLERAFELLOW              1640
 #define IDC_KBLED2                      1640
 #define IDC_SOUNDFILTER                 1640
-#define IDC_KAILLERAJOY                 1641
 #define IDC_KBLED3                      1641
 #define IDC_SOUNDCALIBRATE              1641
-#define IDC_KAILLERAJOYKEYBOARD         1642
-#define IDC_ACTIVEPRIORITY              1642
 #define IDC_ACTIVE_PRIORITY             1642
 #define IDC_SOUNDDRIVE                  1642
-#define IDC_KAILLERAOPTIONS             1643
 #define IDC_INACTIVE_PRIORITY           1643
-#define IDC_KAILLERASUPPRESSWARNINGS    1644
 #define IDC_ACTIVE_PRI                  1644
-#define IDC_KAILLERANONE                1645
 #define IDC_MINIMIZED_PRIORITY          1645
 #define IDC_AVIOUTPUT_FRAMELIMITER      1645
-#define IDC_KAILLERACONTROLS            1646
 #define IDC_STATE_RATE                  1646
-#define IDC_KAILLERANOFPSLIMIT          1647
 #define IDC_STATE_BUFFERSIZE            1647
 #define IDC_SOUNDDRIVESELECT            1647
 #define IDC_PANELTREE                   1647
@@ -828,6 +813,8 @@
 #define IDC_FE_INFO                     1701
 #define IDC_FE_INFO2                    1702
 #define IDC_FE_SCREENSHOT               1702
+#define IDC_PATHS_DEFAULTTYPE           1704
+#define IDC_SCSIMODE                    1705
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -848,7 +835,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        249
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1704
+#define _APS_NEXT_CONTROL_VALUE         1705
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

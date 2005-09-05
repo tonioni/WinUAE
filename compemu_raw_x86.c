@@ -2432,17 +2432,6 @@ enum {
   X86_PROCESSOR_max
 };
 
-static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
-  "80386",
-  "80486",
-  "Pentium",
-  "PentiumPro",
-  "K6",
-  "Athlon",
-  "Pentium4",
-  "K8"
-};
-
 static struct ptt {
   const int align_loop;
   const int align_loop_max_skip;
@@ -2450,7 +2439,7 @@ static struct ptt {
   const int align_jump_max_skip;
   const int align_func;
 }
-x86_alignments[X86_PROCESSOR_max] = {
+x86_alignments[X86_PROCESSOR_max + 1] = {
   {  4,  3,  4,  3,  4 },
   { 16, 15, 16, 15, 16 },
   { 16,  7, 16,  7, 16 },
@@ -2458,7 +2447,8 @@ x86_alignments[X86_PROCESSOR_max] = {
   { 32,  7, 32,  7, 32 },
   { 16,  7, 16,  7, 16 },
   {  0,  0,  0,  0,  0 },
-  { 16,  7, 16,  7, 16 }
+  { 16,  7, 16,  7, 16 },
+  {  0,  0,  0,  0,  0 }
 };
 
 static void
@@ -2613,16 +2603,6 @@ static void raw_init_cpu(void)
 	}
 	break;
   }
-  if (c->x86_processor == X86_PROCESSOR_max) {
-	write_log ("Error: unknown processor type\n");
-	write_log ("..Family  : %d\n", c->x86);
-	write_log ("..Model   : %d\n", c->x86_model);
-	write_log ("..Mask    : %d\n", c->x86_mask);
-	write_log ("  Vendor  : %s [%d]\n", c->x86_vendor_id, c->x86_vendor);
-	if (c->x86_brand_id)
-	  write_log("  BrandID : %02x\n", c->x86_brand_id);
-	abort();
-  }
 
   /* Have CMOV support? */
   have_cmov = c->x86_hwcap & (1 << 15);
@@ -2644,9 +2624,8 @@ static void raw_init_cpu(void)
 	align_jumps = x86_alignments[c->x86_processor].align_jump;
   }
 
-  write_log("Max CPUID level=%d Processor is %s [%s]\n",
-			c->cpuid_level, c->x86_vendor_id,
-			x86_processor_string_table[c->x86_processor]);
+    write_log ("CPUID level=%d, Family=%d, Model=%d, Mask=%d, Vendor=%s [%d]\n",
+	c->cpuid_level, c->x86, c->x86_model, c->x86_mask, c->x86_vendor_id, c->x86_vendor);
 }
 
 #if 0

@@ -9,6 +9,7 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "options.h"
 
 #include "memory.h"
 
@@ -45,6 +46,30 @@ struct scsi_info {
 static struct scsi_info si[MAX_TOTAL_DEVICES];
 static int unitcnt;
 
+char *get_nero_aspi_path(void)
+{
+    static char path[MAX_DPATH];
+    HKEY key;
+    DWORD type = REG_SZ;
+    DWORD size = sizeof (path);
+
+    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+        if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {
+	    HANDLE al;
+	    strcat (path, "\\wnaspi32.dll");
+	    RegCloseKey (key);
+	    al = LoadLibrary(path);
+	    if (al) {
+		FreeLibrary(al);
+		return path;
+	    }
+	    return NULL;
+	}
+	RegCloseKey (key);
+    }
+    return NULL;
+}
+
 static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 {
     DWORD Status;
@@ -71,9 +96,6 @@ static int open_driver (SCSI *scgp)
     BYTE ASPIStatus;
     int i;
     int nero;
-    HKEY key;
-    DWORD type = REG_SZ;
-    DWORD size = sizeof (path);
 
     /*
      * Check if ASPI library is already loaded yet
@@ -83,10 +105,10 @@ static int open_driver (SCSI *scgp)
 
     nero = 0;
     strcpy (path, "WNASPI32");
-    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
-	if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {
-	    strcat (path, "\\wnaspi32.dll");
-	    RegCloseKey (key);
+    if (currprefs.win32_uaescsimode == 2) {
+	char *p = get_nero_aspi_path();
+	if (p) {
+	    strcpy (path, p);
 	    nero = 1;
 	}
     }
@@ -584,7 +606,7 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 			if (inq.type == INQ_ROMD) {
 			    write_log ("CDROM");
 			    use = 1;
-			} else if (!flags && ((inq.type >= INQ_SEQD && inq.type < INQ_COMM && inq.type != INQ_PROCD && aspi_allow_misc) || aspi_allow_all)) {
+			} else if ((inq.type >= INQ_SEQD && inq.type < INQ_COMM && aspi_allow_misc) || aspi_allow_all) {
 			    write_log ("%d", inq.type);
 			    use = 1;
 			} else {

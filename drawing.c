@@ -1033,15 +1033,15 @@ STATIC_INLINE void pfield_doline_1 (uae_u32 *pixels, int wordcount, int planes)
 	b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0;
 	switch (planes) {
 #ifdef AGA
-	case 8: b0 = GETLONG ((uae_u32 *)real_bplpt[7]); real_bplpt[7] += 4;
-	case 7: b1 = GETLONG ((uae_u32 *)real_bplpt[6]); real_bplpt[6] += 4;
+	case 8: b0 = GETLONG (real_bplpt[7]); real_bplpt[7] += 4;
+	case 7: b1 = GETLONG (real_bplpt[6]); real_bplpt[6] += 4;
 #endif
-	case 6: b2 = GETLONG ((uae_u32 *)real_bplpt[5]); real_bplpt[5] += 4;
-	case 5: b3 = GETLONG ((uae_u32 *)real_bplpt[4]); real_bplpt[4] += 4;
-	case 4: b4 = GETLONG ((uae_u32 *)real_bplpt[3]); real_bplpt[3] += 4;
-	case 3: b5 = GETLONG ((uae_u32 *)real_bplpt[2]); real_bplpt[2] += 4;
-	case 2: b6 = GETLONG ((uae_u32 *)real_bplpt[1]); real_bplpt[1] += 4;
-	case 1: b7 = GETLONG ((uae_u32 *)real_bplpt[0]); real_bplpt[0] += 4;
+	case 6: b2 = GETLONG (real_bplpt[5]); real_bplpt[5] += 4;
+	case 5: b3 = GETLONG (real_bplpt[4]); real_bplpt[4] += 4;
+	case 4: b4 = GETLONG (real_bplpt[3]); real_bplpt[3] += 4;
+	case 3: b5 = GETLONG (real_bplpt[2]); real_bplpt[2] += 4;
+	case 2: b6 = GETLONG (real_bplpt[1]); real_bplpt[1] += 4;
+	case 1: b7 = GETLONG (real_bplpt[0]); real_bplpt[0] += 4;
 	}
 
 	MERGE (b0, b1, 0x55555555, 1);

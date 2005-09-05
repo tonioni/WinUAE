@@ -375,7 +375,7 @@ static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
     verts[3].sx = left - 0.5f; verts[3].sy = bottom - 0.5f; verts[3].sz = z;
 
     // set the texture
-    hr = IDirect3DDevice9_SetTexture(dev, 0, src);
+    hr = IDirect3DDevice9_SetTexture(dev, 0, (IDirect3DBaseTexture9*)src);
     if (FAILED (hr))
 	write_log ("IDirect3DDevice9_SetTexture failed: %s\n", D3D_ErrorString (hr));
 

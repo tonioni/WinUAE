@@ -83,7 +83,7 @@ static char help[] = {
     "  fd                    Remove all breakpoints\n"
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
     "  e                     Dump contents of all custom registers\n"
-    "  i                     Dump contents of interrupt and trap vectors\n"
+    "  i [<addr>]            Dump contents of interrupt and trap vectors\n"
     "  o <1|2|addr> [<lines>]View memory as Copper instructions\n"
     "  O                     Display bitplane offsets\n"
     "  O <plane> <offset>    Offset a bitplane\n"
@@ -298,21 +298,24 @@ static void dump_custom_regs (void)
     free (p2);
 }
 
-static void dump_vectors (void)
+static void dump_vectors (uaecptr addr)
 {
     int i = 0, j = 0;
+    
+    if (addr == 0xffffffff)
+	addr = regs.vbr;
 
     while (int_labels[i].name || trap_labels[j].name) {
 	if (int_labels[i].name) {
-	    console_out ("$%08X: %s  \t $%08X\t", int_labels[i].adr + regs.vbr,
-		int_labels[i].name, get_long (int_labels[i].adr + (int_labels[i].adr == 4 ? 0 : regs.vbr)));
+	    console_out ("$%08X: %s  \t $%08X\t", int_labels[i].adr + addr,
+		int_labels[i].name, get_long (int_labels[i].adr + (int_labels[i].adr == 4 ? 0 : addr)));
 	    i++;
 	} else {
 	    console_out ("\t\t\t\t");
 	}
 	if (trap_labels[j].name) {
-	    console_out("$%08X: %s  \t $%08X", trap_labels[j].adr + regs.vbr,
-	       trap_labels[j].name, get_long (trap_labels[j].adr + regs.vbr));
+	    console_out("$%08X: %s  \t $%08X", trap_labels[j].adr + addr,
+	       trap_labels[j].name, get_long (trap_labels[j].adr + addr));
 	    j++;
 	}
 	console_out ("\n");
@@ -1217,7 +1220,7 @@ static void m68k_modify (char **inptr)
 static void debug_1 (void)
 {
     char input[80];
-    uaecptr nxdis,nxmem,nxcopper;
+    uaecptr nxdis, nxmem, nxcopper, addr;
 
     m68k_dumpstate (stdout, &nextpc);
     nxdis = nextpc; nxmem = nxcopper = 0;
@@ -1233,7 +1236,12 @@ static void debug_1 (void)
 	cmd = next_char (&inptr);
 	switch (cmd) {
 	case 'c': dumpcia (); dumpdisk (); dumpcustom (); break;
-	case 'i': dump_vectors (); break;
+	case 'i':
+	    addr = 0xffffffff;
+	    if (more_params (&inptr))
+		addr = readhex (&inptr);
+	    dump_vectors (addr);
+	break;
 	case 'e': dump_custom_regs (); break;
 	case 'r': if (more_params(&inptr))
 		    m68k_modify (&inptr);

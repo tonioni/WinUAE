@@ -149,7 +149,8 @@ void fixup_prefs (struct uae_prefs *p)
     {
 	if (p->z3fastmem_size > max_z3fastmem)
 	    p->z3fastmem_size = max_z3fastmem;
-	p->z3fastmem_size = 0;
+	else
+	    p->z3fastmem_size = 0;
 	write_log ("Unsupported Zorro III fastmem size!\n");
 	err = 1;
     }
@@ -398,6 +399,9 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
+#ifdef FILESYS
+	    free_mountinfo (currprefs.mountinfo);
+#endif
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */

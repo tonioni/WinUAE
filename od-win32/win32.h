@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 5"
+#define WINUAEBETASTR " Beta 6"
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];
@@ -65,6 +65,8 @@ extern HKEY hWinUAEKey;
 extern int screen_is_picasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
+extern int af_path_2005, af_path_old, winuae_path;
+extern char start_path_af[MAX_DPATH];
 
 extern void sleep_millis (int ms);
 extern void sleep_millis_busy (int ms);
@@ -92,7 +94,7 @@ void systraymenu (HWND hwnd);
 void exit_gui (int);
 void fetch_path (char *name, char *out, int size);
 void set_path (char *name, char *path);
-void read_rom_list (int);
+void read_rom_list (void);
 
 #define WIN32_PLUGINDIR "plugins\\"
 HMODULE WIN32_LoadLibrary (const char *);

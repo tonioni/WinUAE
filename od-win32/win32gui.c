@@ -569,7 +569,7 @@ int scan_roms (char *pathp)
 	if (ret)
 	    set_path ("KickstartPath", path);
     }
-    read_rom_list (0);
+    read_rom_list ();
     show_rom_list ();
     return ret;
 }
@@ -2587,10 +2587,13 @@ static void resetregistry (void)
     RegDeleteValue (hWinUAEKey, "QuickStartHostConfig");
 }
 
+int path_type;
 static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
-    char tmp[MAX_DPATH];
+    static int ptypes[3], numtypes;
+    int val, selpath = 0;
+    char tmp[MAX_DPATH], pathmode[32];
 
     switch (msg)
     {
@@ -2601,6 +2604,34 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 #if !WINUAEBETA
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 #endif
+	numtypes = 0;
+        SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
+	if (af_path_2005) {
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"AmigaForever 2005");
+	    if (path_type == 2005)
+		selpath = numtypes;
+	    ptypes[numtypes++] = 2005;
+	}
+	if (af_path_old) {
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"AmigaForever (old)");
+	    if (path_type == 1)
+		selpath = numtypes;
+	    ptypes[numtypes++] = 1;
+	}
+	if (winuae_path) {
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"WinUAE default");
+	    if (path_type == 0)
+		selpath = numtypes;
+	    ptypes[numtypes++] = 0;
+	}
+        SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
+	if (numtypes > 1) {
+	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
+	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
+	} else {
+	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), FALSE);
+	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), FALSE);
+	}
 	values_to_pathsdialog (hDlg);
 	recursive--;
 	return TRUE;
@@ -2683,15 +2714,42 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_AVIOUTPUT), tmp, sizeof (tmp));
 	    set_path ("VideoPath", tmp);
 	    break;
-	    case IDC_PATHS_DEFAULT:
-	    set_path ("KickstartPath", NULL);
-	    set_path ("ConfigurationPath", NULL);
-	    set_path ("ScreenshotPath", NULL);
-	    set_path ("StatefilePath", NULL);
-	    set_path ("SaveimagePath", NULL);
-	    set_path ("VideoPath", NULL);
-	    values_to_pathsdialog (hDlg);
-	    FreeConfigStore ();
+	    case IDC_PATHS_DEFAULT:	
+	    val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
+	    if (val != CB_ERR && val >= 0 && val < numtypes) {
+		char *p = my_strdup (start_path_data);
+		int pp1 = af_path_2005, pp2 = af_path_old;
+		val = ptypes[val];
+		if (val == 0) {
+		    strcpy (start_path_data, start_path_exe);
+		    af_path_2005 = af_path_old = 0;
+		    path_type = 0;
+		    strcpy (pathmode, "WinUAE");
+		} else if (val == 1) {
+		    strcpy (start_path_data, start_path_exe);
+		    af_path_2005 = 0;
+		    strcpy (pathmode, "AF");
+		    path_type = 1;
+		} else {
+		    strcpy (pathmode, "AF2005");
+		    path_type = 2005;
+		    strcpy (start_path_data, start_path_af);
+		}
+		if (hWinUAEKey)
+		    RegSetValueEx (hWinUAEKey, "PathMode", 0, REG_SZ, (CONST BYTE *)pathmode, strlen(pathmode) + 1);
+		set_path ("KickstartPath", NULL);
+		set_path ("ConfigurationPath", NULL);
+		set_path ("ScreenshotPath", NULL);
+		set_path ("StatefilePath", NULL);
+		set_path ("SaveimagePath", NULL);
+		set_path ("VideoPath", NULL);
+		values_to_pathsdialog (hDlg);
+		FreeConfigStore ();
+    		strcpy (start_path_data, p);
+		xfree (p);
+		af_path_2005 = pp1;
+		af_path_old = pp2;
+	    }
 	    break;
 	    case IDC_ROM_RESCAN:
 	    scan_roms (NULL);
@@ -4199,7 +4257,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSOUND), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOOVERLAY), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), TRUE);
-	EnableWindow (GetDlgItem (hDlg, IDC_ASPI), FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_CLOCKSYNC), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), FALSE);
@@ -4221,6 +4279,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), workprefs.statecapture ? TRUE : FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), workprefs.statecapture ? TRUE : FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), workprefs.scsi ? TRUE : FALSE);
     }
 }
 
@@ -4268,6 +4327,32 @@ static void misc_addpri (HWND hDlg, int v, int pri)
     SendDlgItemMessage (hDlg, v, CB_SETCURSEL, pri, 0);
 }
 
+extern char *get_nero_aspi_path(void);
+
+static void misc_scsi(HWND hDlg)
+{
+    char txt[100];
+    HANDLE al;
+
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
+    strcpy (txt, "(SPTI)");
+    if (os_winnt && os_winnt_admin)
+	strcpy (txt, "SPTI");
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
+    strcpy (txt, "(AdaptecASPI)");
+    al = LoadLibrary("wnaspi32.dll");
+    if (al) {
+	FreeLibrary(al);
+	strcpy (txt, "AdaptecASPI");
+    }
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
+    strcpy (txt, "(NeroASPI)");
+    if (get_nero_aspi_path())
+	strcpy (txt, "NeroASPI");
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
+}
+
 static void values_to_miscdlg (HWND hDlg)
 {
     char txt[100];
@@ -4288,7 +4373,6 @@ static void values_to_miscdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
     CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
     CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
-    CheckDlgButton (hDlg, IDC_ASPI, workprefs.win32_aspi);
     CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
     cw = catweasel_detect();
     EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
@@ -4310,7 +4394,6 @@ static void values_to_miscdlg (HWND hDlg)
     misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
     misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
 
-
     SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"1");
     SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"5");
@@ -4328,11 +4411,14 @@ static void values_to_miscdlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"100");
     sprintf (txt, "%d", workprefs.statecapturebuffersize / (1024 * 1024));
     SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt); 
+
+    misc_scsi(hDlg);
 }
 
 static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char txt[100];
+    int v;
 
     switch (msg) 
     {
@@ -4363,6 +4449,11 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    break;
 		    case IDC_STATE_BUFFERSIZE:
 		    getcbn (hDlg, IDC_STATE_BUFFERSIZE, txt, sizeof (txt));
+		    break;
+		    case IDC_SCSIMODE:
+		    v = SendDlgItemMessage(hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR)
+			workprefs.win32_uaescsimode = v;
 		    break;
 		}
 	    }
@@ -4431,9 +4522,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_SCSIDEVICE:
 	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE);
-	    break;
-	case IDC_ASPI:
-	    workprefs.win32_aspi = IsDlgButtonChecked (hDlg, IDC_ASPI);
+	    enable_for_miscdlg (hDlg);
 	    break;
 	case IDC_CLOCKSYNC:
 	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);
@@ -6481,7 +6570,7 @@ static void enable_for_portsdlg( HWND hDlg )
 static void updatejoyport (HWND hDlg)
 {
     int i, j;
-    char tmp[MAX_DPATH];
+    char tmp[MAX_DPATH], tmp2[MAX_DPATH];
  
     enable_for_portsdlg (hDlg);
     if (joy0previous < 0)
@@ -6497,6 +6586,9 @@ static void updatejoyport (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)"");
+	WIN32GUI_LoadUIString (IDS_NONE, tmp, sizeof (tmp) - 3);
+	sprintf (tmp2, "<%s>", tmp);
+	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp2);
 	WIN32GUI_LoadUIString (IDS_KEYJOY, tmp, sizeof (tmp));
 	strcat (tmp, "\n");
 	p1 = tmp;
@@ -6513,7 +6605,9 @@ static void updatejoyport (HWND hDlg)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
 	for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
-	if (v >= JSEM_MICE) {
+	if (v < 0) {
+	    idx = -1;
+	} else if (v >= JSEM_MICE) {
 	    idx = v - JSEM_MICE;
 	    if (idx >= inputdevice_get_device_total (IDTYPE_MOUSE))
 		idx = 0;
@@ -6528,7 +6622,7 @@ static void updatejoyport (HWND hDlg)
 	} else {
 	    idx = v - JSEM_KBDLAYOUT;
 	}
-	idx++;
+	idx+=2;
 	if (idx >= total)
 	    idx = 0;
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
@@ -6578,8 +6672,10 @@ static void values_from_portsdlg (HWND hDlg)
 	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
 	LRESULT v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
 	if (v != CB_ERR && v > 0) {
-	    v--;
-	    if (v < JSEM_LASTKBD)
+	    v-=2;
+	    if (v < 0)
+		*port = -1;
+	    else if (v < JSEM_LASTKBD)
 		*port = JSEM_KBDLAYOUT + (int)v;
 	    else if (v >= JSEM_LASTKBD + inputdevice_get_device_total (IDTYPE_JOYSTICK))
 		*port = JSEM_MICE + (int)v - inputdevice_get_device_total (IDTYPE_JOYSTICK) - JSEM_LASTKBD;
@@ -6598,8 +6694,8 @@ static void values_from_portsdlg (HWND hDlg)
 	    fixjport (&workprefs.jport1, workprefs.jport0);
     }
 
-    item = SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L );
-    if( item != CB_ERR )
+    item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
+    if(item != CB_ERR)
     {
 	int got = 0;
 	strcpy (tmp, workprefs.prtname);
@@ -8638,6 +8734,7 @@ int gui_init (void)
 {
     int ret;
     
+    read_rom_list();
     ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow());
     if (ret > 0) {
 #ifdef AVIOUTPUT

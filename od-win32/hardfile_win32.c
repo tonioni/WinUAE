@@ -263,7 +263,11 @@ int hdf_dup (struct hardfiledata *hfd, void *src)
 static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 {
     DWORD high, ret;
-    
+
+    if (hfd->handle_valid == 0) {
+	gui_message ("hd: hdf handle is not valid. bug.");
+	abort();
+    }
     if (hfd->offset != hfd->offset2 || hfd->size != hfd->size2) {
 	gui_message ("hd: memory corruption detected in seek");
 	abort ();

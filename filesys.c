@@ -214,9 +214,19 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
 {
     UnitInfo *ui = mountinfo->ui + nr;
     static char errmsg[1024];
+    int i;
 
     if (nr >= mountinfo->num_units)
 	return "No slot allocated for this unit";
+
+    for (i = 0; i < mountinfo->num_units; i++) {
+        if (nr == i)
+	    continue;
+	if (!strcmpi (mountinfo->ui[i].rootdir, rootdir)) {
+	    sprintf (errmsg, "directory/hardfile '%s' already added", rootdir);
+	    return errmsg;
+	}
+    }
 
     ui->devname = 0;
     ui->volname = 0;
@@ -1743,7 +1753,7 @@ static void free_lock (Unit *unit, uaecptr lock)
 }
 
 static void
-action_lock (Unit *unit, dpacket packet)
+action_lock(Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG1 (packet) << 2;
     uaecptr name = GET_PCK_ARG2 (packet) << 2;
@@ -1800,23 +1810,23 @@ static void action_free_lock (Unit *unit, dpacket packet)
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
-static void
-action_dup_lock (Unit *unit, dpacket packet)
+static uaecptr
+action_dup_lock_2 (Unit *unit, dpacket packet, uaecptr lock)
 {
-    uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+    uaecptr out;
     a_inode *a;
     TRACE(("ACTION_DUP_LOCK(0x%lx)\n", lock));
     DUMPLOCK(unit, lock);
 
     if (!lock) {
 	PUT_PCK_RES1 (packet, 0);
-	return;
+	return 0;
     }
     a = lookup_aino (unit, get_long (lock + 4));
     if (a == 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
-	return;
+	return 0;
     }
     /* DupLock()ing exclusive locks isn't possible, says the Autodoc, but
      * at least the RAM-Handler seems to allow it. Let's see what happens
@@ -1824,11 +1834,20 @@ action_dup_lock (Unit *unit, dpacket packet)
     if (a->elock) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_OBJECT_IN_USE);
-	return;
+	return 0;
     }
     a->shlock++;
     de_recycle_aino (unit, a);
-    PUT_PCK_RES1 (packet, make_lock (unit, a->uniq, -2) >> 2);
+    out = make_lock (unit, a->uniq, -2) >> 2;
+    PUT_PCK_RES1 (packet, out);
+    return out;
+}
+
+static void
+action_dup_lock (Unit *unit, dpacket packet)
+{
+    uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+    action_dup_lock_2 (unit, packet, lock);
 }
 
 /* convert time_t to/from AmigaDOS time */
@@ -2255,6 +2274,20 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	aino->shlock++;
     de_recycle_aino (unit, aino);
     PUT_PCK_RES1 (packet, DOS_TRUE);
+}
+
+static void
+action_lock_from_fh (Unit *unit, dpacket packet)
+{
+    uaecptr out;
+    Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
+    write_log("lock_from_fh %x\n", k);
+    if (k == 0) {
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	return;
+    }
+    out = action_dup_lock_2 (unit, packet, make_lock (unit, k->aino->uniq, -2) >> 2);
+    write_log("=%x\n", out);
 }
 
 static void
@@ -3356,6 +3389,7 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_SET_FILE_SIZE: action_set_file_size (unit, pck); break;
      case ACTION_EXAMINE_FH: action_examine_fh (unit, pck); break;
      case ACTION_FH_FROM_LOCK: action_fh_from_lock (unit, pck); break;
+     case ACTION_COPY_DIR_FH: action_lock_from_fh (unit, pck); break;
      case ACTION_CHANGE_MODE: action_change_mode (unit, pck); break;
      case ACTION_PARENT_FH: action_parent_fh (unit, pck); break;
      case ACTION_ADD_NOTIFY: action_add_notify (unit, pck); break;
@@ -3364,7 +3398,6 @@ static int handle_packet (Unit *unit, dpacket pck)
      /* unsupported packets */
      case ACTION_LOCK_RECORD:
      case ACTION_FREE_RECORD:
-     case ACTION_COPY_DIR_FH:
      case ACTION_EXAMINE_ALL:
      case ACTION_MAKE_LINK:
      case ACTION_READ_LINK:

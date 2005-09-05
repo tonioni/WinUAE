@@ -685,7 +685,7 @@ static void dev_reset (void)
 		dev->aunit = unitnum;
 		unitnum++;
 	    }
-	    write_log ("%s = %s:%d\n", dev->di.label, UAEDEV_SCSI, dev->aunit);
+	    write_log ("%s:%d = '%s'\n", UAEDEV_SCSI, dev->aunit, dev->di.label);
 	}
 	xfree(dev->di.label);
 	dev->di.label = NULL;

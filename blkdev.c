@@ -35,7 +35,7 @@ static void install_driver (int flags)
 	device_func[DF_SCSI] = &devicefunc_win32_spti;
 	installed = 1;
     }
-    if (currprefs.win32_aspi || !installed) {
+    if (currprefs.win32_uaescsimode >= 1 || !installed) {
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	device_func[DF_IOCTL] = 0;
     }

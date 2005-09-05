@@ -230,6 +230,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 	}
     }
     if (f) {
+	write_log("ROM.key loaded '%s'\n", tmp);
 	zfile_fseek (f, 0, SEEK_END);
 	keysize = zfile_ftell (f);
 	if (keysize > 0) {
@@ -1569,6 +1570,10 @@ static int load_kickstart (void)
 		if (f == NULL) {
 		    sprintf (currprefs.romfile, "%s../shared/rom/kick.rom", start_path_data);
 		    f = zfile_fopen (currprefs.romfile, "rb");
+		    if (f == NULL) {
+			sprintf (currprefs.romfile, "%s../System/rom/kick.rom", start_path_data);
+			f = zfile_fopen (currprefs.romfile, "rb");
+		    }
 		}
 	    }
 	} else {

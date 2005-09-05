@@ -53,6 +53,7 @@ void init_shm(void)
     uae_u32 size;
     uae_u32 add = 0x11000000;
     uae_u32 inc = 0x100000;
+    uae_u64 size64, total64;
     MEMORYSTATUS memstats;
 
 #ifdef CPU_64_BIT
@@ -68,14 +69,19 @@ void init_shm(void)
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
-    max_z3fastmem = 16 * 1024 * 1024;
 
-    while ((uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys >= ((uae_u64)max_z3fastmem << 1)
-	&& max_z3fastmem != ((uae_u64)2048 * 1024 * 1024))
-	    max_z3fastmem <<= 1;
-    size = max_z3fastmem;
-    if (size > max_allowed_mman * 1024 * 1024)
-	size = max_allowed_mman * 1024 * 1024;
+    size64 = 16 * 1024 * 1024;
+    total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys;
+    while (total64 >= (size64 << 1)
+	&& size64 != ((uae_u64)2048) * 1024 * 1024)
+	    size64 <<= 1;
+    if (size64 > max_allowed_mman * 1024 * 1024)
+	size64 = max_allowed_mman * 1024 * 1024;
+    if (size64 > 0x20000000)
+	size64 = 0x20000000;
+    if (size64 < 8 * 1024 * 1024)
+	size64 = 8 * 1024 * 1024;
+    size = max_z3fastmem = (uae_u32)size64;
 
     canbang = 0;
     gfxoffs = 0;

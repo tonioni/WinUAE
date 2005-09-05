@@ -149,7 +149,7 @@ static const char *obsolete[] = {
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
-    "kickstart_key_file",
+    "kickstart_key_file", "fast_copper",
     0
 };
 
@@ -311,7 +311,9 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     for (i = 0; i < 2; i++) {
 	int v = i == 0 ? p->jport0 : p->jport1;
 	char tmp1[100], tmp2[50];
-	if (v < JSEM_JOYS) {
+	if (v < 0) {
+	    strcpy (tmp2, "none");
+	} else if (v < JSEM_JOYS) {
 	    sprintf (tmp2, "kbd%d", v + 1);
 	} else if (v < JSEM_MICE) {
 	    sprintf (tmp2, "joy%d", v - JSEM_JOYS);
@@ -752,30 +754,40 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 
     if (strcmp (option, "joyport0") == 0 || strcmp (option, "joyport1") == 0) {
 	int port = strcmp (option, "joyport0") == 0 ? 0 : 1;
-	int start = -1;
+	int start = -1, got = 0;
 	char *pp = 0;
 	if (strncmp (value, "kbd", 3) == 0) {
 	    start = JSEM_KBDLAYOUT;
 	    pp = value + 3;
+	    got = 1;
 	} else if (strncmp (value, "joy", 3) == 0) {
 	    start = JSEM_JOYS;
 	    pp = value + 3;
+	    got = 1;
 	} else if (strncmp (value, "mouse", 5) == 0) {
 	    start = JSEM_MICE;
 	    pp = value + 5;
+	    got = 1;
+	} else if (strcmp (value, "none") == 0) {
+	    got = 2;
 	}
-	if (pp) {
-	    int v = atol (pp);
-	    if (start >= 0) {
-		if (start == JSEM_KBDLAYOUT)
-		    v--;
-		if (v >= 0) {
-		    start += v;
-		    if (port)
-			p->jport1 = start;
-		    else
-			p->jport0 = start;
+	if (got) {
+	    if (pp) {
+		int v = atol (pp);
+		if (start >= 0) {
+		    if (start == JSEM_KBDLAYOUT)
+			v--;
+		    if (v >= 0) {
+			start += v;
+			got = 2;
+		    }
 		}
+	    }
+	    if (got == 2) {
+		if (port)
+		    p->jport1 = start;
+		else
+		    p->jport0 = start;
 	    }
 	}
 	return 1;

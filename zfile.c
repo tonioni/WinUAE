@@ -7,6 +7,8 @@
   *     2002-2004 Toni Wilen
   */
 
+#define ZLIB_WINAPI
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -18,7 +20,6 @@
 #include "dms/pfile.h"
 #include "gui.h"
 #include "crc32.h"
-
 #include <zlib.h>
 
 struct zfile {
