@@ -29,7 +29,8 @@
  * - ar_ldrba
  * - ar_ninj
  * - ar_rdwr
- * - ar_sdwr (crashes. bad dump?)
+ * - ar_socc (99u8)
+ * - ar_sdwr
  * - ar_spot
  * - ar_sprg
  * - ar_xeon
@@ -50,6 +51,9 @@ static struct arcadiarom roms[]	= {
     { "ar_ldrba.zip", "scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6, 0x98f564 },
     { "ar_ninj.zip", "scpa211", "ninj_", 1, 1, 6, 5, 7, 4, 2, 0, 3, 0x98f564 },
     { "ar_rdwr.zip", "scpa211", "rdwr_", 1, 3, 1, 6, 4, 0, 5, 2, 7, 0x98f564 },
+
+    { "ar_socc.zip", "scpav3_0.1", "socc30.", 2, 0, 7, 1, 6, 5, 4, 3, 2, 0x9902bc  },
+
     { "ar_sdwr.zip", "scpa211", "sdwr_", 1, 6, 3, 4, 5, 2, 1, 0, 7, 0x98f564 },
     { "ar_spot.zip", "scpav3_0.1", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
     { "ar_sprg.zip", "scpa211", "sprg_", 1, 4, 7, 3, 0, 6, 5, 2, 1, 0x98f564 },
@@ -68,23 +72,23 @@ static uae_u8 *arbmemory;
 
 static int nvwrite;
 
-static int load_rom8 (char *xpath, uae_u8 *mem,	int isbin)
+static int load_rom8 (char *xpath, uae_u8 *mem,	int extra)
 {
     struct zfile *zf;
     char path[MAX_DPATH];
     int i;
     uae_u8 *tmp = xmalloc (131072);
-    char *bin = isbin ? ".bin" : "";
+    char *bin = extra == 1 ? ".bin" : "";
 
     memset (tmp, 0, 131072);
-    sprintf (path, "%sh%s", xpath, bin);
+    sprintf (path, "%s%s%s", xpath, extra == 2 ? "hi" : "h", bin);
     zf = zfile_fopen (path, "rb");
     if (!zf)
 	goto end;
     if (zfile_fread (tmp, 65536, 1, zf) == 0)
 	goto end;
     zfile_fclose (zf);
-    sprintf (path, "%sl%s", xpath, bin);
+    sprintf (path, "%s%s%s", xpath, extra == 2 ? "lo" : "l", bin);
     zf = zfile_fopen (path, "rb");
     if (!zf)
 	goto end;
@@ -161,7 +165,7 @@ static int load_roms (char *xpath, struct arcadiarom *rom)
     i = 0;
     for (;;) {
 	sprintf (path, "%s/%s%d", xpath, rom->rom, i + 1);
-	if (!load_rom8 (path, arbmemory + 2 * 65536 * i, rom->bin)) {
+	if (!load_rom8 (path, arbmemory + 2 * 65536 * i, rom->extra)) {
 	    if (i == 0)
 		write_log ("Arcadia: game rom load failed ('%s')\n", path);
 	    break;
@@ -193,12 +197,15 @@ static void decrypt_roms (struct arcadiarom *rom)
 {
     int i, j;
 
-    for (i = 1; i < 0x20000; i += 2)
+    for (i = 1; i < 0x20000; i += 2) {
 	arbmemory[i] = bswap (arbmemory[i],
 	    rom->b7,rom->b6,rom->b5,rom->b4,rom->b3,rom->b2,rom->b1,rom->b0);
+    	if (rom->extra == 2)
+	    arbmemory[i - 1] = bswap (arbmemory[i - 1],7,6,5,4,3,2,1,0);
+    }
     for (i = 1; i < 0x20000; i += 2) {
 	j = i + bios_offset;
-	arbmemory[j] = bswap (arbmemory[j],6,1,0,2,3,4,5,7);
+        arbmemory[j] = bswap (arbmemory[j],6,1,0,2,3,4,5,7);
     }
     if (!strcmp (rom->name, "ar_dart.zip"))
 	arbmemory[1] = 0xfc;

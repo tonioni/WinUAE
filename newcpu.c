@@ -2435,12 +2435,12 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
 	for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++);
 	dp = table68k + regs.ir;
 	for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++);
-	f_out (f, "prefetch %04x (%s) %04x (%s)\n", regs.irc, lookup1->name, regs.ir, lookup2->name);
+	f_out (f, "Prefetch %04x (%s) %04x (%s)\n", regs.irc, lookup1->name, regs.ir, lookup2->name);
     }
 
     m68k_disasm (f, m68k_getpc (), nextpc, 1);
     if (nextpc)
-	f_out (f, "next PC: %08lx\n", *nextpc);
+	f_out (f, "Next PC: %08lx\n", *nextpc);
 }
 
 

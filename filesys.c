@@ -2286,7 +2286,7 @@ action_lock_from_fh (Unit *unit, dpacket packet)
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	return;
     }
-    out = action_dup_lock_2 (unit, packet, make_lock (unit, k->aino->uniq, -2) >> 2);
+    out = action_dup_lock_2 (unit, packet, make_lock (unit, k->aino->uniq, -2));
     write_log("=%x\n", out);
 }
 

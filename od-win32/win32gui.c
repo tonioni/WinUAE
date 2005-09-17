@@ -1572,6 +1572,12 @@ static int disk_swap (int entry, int mode)
 	    drvs[drv] = i;
     }
     if ((drv = disk_in_drive (entry)) >= 0) {
+	if (mode < 0) {
+	    workprefs.df[drv][0] = 0;
+	    disk_eject (drv);
+	    return 1;
+	}
+
 	if (strcmp (workprefs.df[drv], currprefs.df[drv])) {
 	    strcpy (workprefs.df[drv], currprefs.df[drv]);
 	    disk_insert (drv, workprefs.df[drv]);
@@ -2464,7 +2470,7 @@ static urlinfo urls[] =
     {IDC_AIABHOME, FALSE, "AIAB", "http://www.amigainabox.co.uk/"},
     {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
     {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
-    {IDC_CAPS, FALSE, "CAPS", "http://caps-project.org/"},
+    {IDC_CAPS, FALSE, "SPS", "http://www.softpres.org/"},
     {IDC_AMIGASYS, FALSE, "AmigaSYS", "http://amigasys.fw.hu/"},
     { -1, FALSE, NULL, NULL }
 };
@@ -2607,19 +2613,22 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	numtypes = 0;
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
 	if (af_path_2005) {
-	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"AmigaForever 2005");
+	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF2005, tmp, sizeof tmp);
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == 2005)
 		selpath = numtypes;
 	    ptypes[numtypes++] = 2005;
 	}
 	if (af_path_old) {
-	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"AmigaForever (old)");
+	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF, tmp, sizeof tmp);
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == 1)
 		selpath = numtypes;
 	    ptypes[numtypes++] = 1;
 	}
-	if (winuae_path) {
-	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"WinUAE default");
+	if (winuae_path || numtypes == 0) {
+	    WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == 0)
 		selpath = numtypes;
 	    ptypes[numtypes++] = 0;
@@ -4701,6 +4710,7 @@ static void values_to_cpudlg (HWND hDlg)
 static void values_from_cpudlg (HWND hDlg)
 {
     int newcpu, newtrust, oldcache, jitena;
+    static int cachesize_prev;
     
     workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (IsDlgButtonChecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
     workprefs.m68k_speed = IsDlgButtonChecked (hDlg, IDC_CS_HOST) ? -1
@@ -4750,10 +4760,14 @@ static void values_from_cpudlg (HWND hDlg)
     oldcache = workprefs.cachesize;
     jitena = IsDlgButtonChecked (hDlg, IDC_JITENABLE) ? 1 : 0;
     workprefs.cachesize = SendMessage(GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
-    if (!jitena)
+    if (!jitena) {
+        cachesize_prev = workprefs.cachesize;
 	workprefs.cachesize = 0;
-    else if (jitena && !oldcache)
+    } else if (jitena && !oldcache) {
 	workprefs.cachesize = 8192;
+	if (cachesize_prev)
+	    workprefs.cachesize = cachesize_prev;
+    }
     if (oldcache == 0 && workprefs.cachesize > 0)
 	canbang = 1;
 #endif
@@ -6491,7 +6505,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
     case WM_NOTIFY:
 	if (((LPNMHDR) lParam)->idFrom == IDC_DISKLIST) 
 	{
-	    int dblclick = 0, col;
+	    int dblclick = 0, button = 0, col;
 	    HWND list;
 	    NM_LISTVIEW *nmlistview;
 	    nmlistview = (NM_LISTVIEW *) lParam;
@@ -6501,19 +6515,39 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		case LVN_BEGINDRAG:
 		drag_start (hDlg, cachedlist, lParam);
 		break;
+		case NM_RDBLCLK:
 		case NM_DBLCLK:
-		dblclick = 1;
-		/* fall-through */
+	        dblclick = 1;
+		/* fall-through here too */
+		case NM_RCLICK:
+		if (nmlistview->hdr.code == NM_RCLICK || nmlistview->hdr.code == NM_RDBLCLK)
+		    button = 2;
 		case NM_CLICK:
 		entry = listview_entry_from_click (list, &col);
 		if (entry >= 0) {
 		    if (col == 2) {
-			if (disk_swap (entry, 0))
-			    InitializeListView (hDlg);
-			swapperhili (hDlg, entry);
+			if (button) {
+			    if (!dblclick) {
+				if (disk_swap (entry, -1))
+				    InitializeListView (hDlg);
+				swapperhili (hDlg, entry);
+			    }
+			} else {
+			    if (!dblclick) {
+				if (disk_swap (entry, 0))
+				    InitializeListView (hDlg);
+				swapperhili (hDlg, entry);
+			    }
+			}
 		    } else if (col == 1) {
-			if (dblclick)
-			    addswapperfile (hDlg, entry);
+			if (dblclick) {
+			    if (!button) {
+				addswapperfile (hDlg, entry);
+			    } else {
+				workprefs.dfxlist[entry][0] = 0;
+				InitializeListView (hDlg);
+			    }
+			}
 		    }
 		    SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 		}

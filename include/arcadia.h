@@ -15,7 +15,7 @@ extern uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra);
 
 struct arcadiarom {
     char *name, *bios, *rom;
-    int bin;
+    int extra;
     int b7, b6, b5, b4, b3, b2, b1, b0;
     uae_u32 boot;
 };

@@ -9,7 +9,6 @@
   */
 
 //#define CUSTOM_DEBUG
-#define DEBUG_COPPER 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0
 #define SPRITE_DEBUG_MAXY 100
@@ -209,7 +208,6 @@ static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
 static int ddf_change;
-static unsigned int bplcon0_at_start;
 
 /* The display and data fetch windows */
 
@@ -275,23 +273,6 @@ static int cop_min_waittime;
 unsigned long int frametime = 0, lastframetime = 0, timeframes = 0, hsync_counter = 0;
 unsigned long int idletime;
 int bogusframe;
-
-#if DEBUG_COPPER
-/* 10000 isn't enough! */
-#define NR_COPPER_RECORDS 40000
-#else
-#define NR_COPPER_RECORDS 1
-#endif
-
-/* Record copper activity for the debugger.  */
-struct cop_record
-{
-  int hpos, vpos;
-  uaecptr addr;
-};
-static struct cop_record cop_record[2][NR_COPPER_RECORDS];
-static int nr_cop_records[2];
-static int curr_cop_set;
 
 /* Recording of custom chip register changes.  */
 static int current_change_set;
@@ -361,36 +342,9 @@ uae_u32 get_copper_address (int copno)
     switch (copno) {
     case 1: return cop1lc;
     case 2: return cop2lc;
+    case -1: return cop_state.ip;
     default: return 0;
     }
-}
-
-STATIC_INLINE void record_copper (uaecptr addr, int hpos, int vpos)
-{
-#if DEBUG_COPPER
-    int t = nr_cop_records[curr_cop_set];
-    if (t < NR_COPPER_RECORDS) {
-	cop_record[curr_cop_set][t].addr = addr;
-	cop_record[curr_cop_set][t].hpos = hpos;
-	cop_record[curr_cop_set][t].vpos = vpos;
-	nr_cop_records[curr_cop_set] = t + 1;
-    }
-#endif
-}
-
-int find_copper_record (uaecptr addr, int *phpos, int *pvpos)
-{
-    int s = curr_cop_set ^ 1;
-    int t = nr_cop_records[s];
-    int i;
-    for (i = 0; i < t; i++) {
-	if (cop_record[s][i].addr == addr) {
-	    *phpos = cop_record[s][i].hpos;
-	    *pvpos = cop_record[s][i].vpos;
-	    return 1;
-	}
-    }
-    return 0;
 }
 
 int rpt_available = 0;
@@ -1083,6 +1037,11 @@ STATIC_INLINE void flush_display (int fm)
     toscr_nbits = 0;
 }
 
+STATIC_INLINE fetch_start(void)
+{
+    fetch_state = fetch_started;
+}
+
 /* Called when all planes have been fetched, i.e. when a new block
    of data is available to be displayed.  The data in fetched[] is
    moved into todisplay[].  */
@@ -1433,7 +1392,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	if (fetch_state == fetch_was_plane0)
 	    break;
 
-	fetch_state = fetch_started;
+	fetch_start();
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
     }
@@ -1493,7 +1452,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     for (; pos < until; pos++) {
 	if (fetch_state == fetch_was_plane0)
 	    beginning_of_plane_block (pos, fm);
-	fetch_state = fetch_started;
+	fetch_start();
 
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
@@ -1526,7 +1485,7 @@ STATIC_INLINE void decide_fetch (int hpos)
 
 static void start_bpl_dma (int hpos, int hstart)
 {
-    fetch_state = fetch_started;
+    fetch_start();
     fetch_cycle = 0;
     last_fetch_hpos = hstart;
     out_nbits = 0;
@@ -1956,7 +1915,7 @@ static void decide_sprites (int hpos)
     int count, i;
      /* apparantly writes to custom registers happen in the 3/4th of cycle
       * and sprite xpos comparator sees it immediately */
-    int point = hpos * 2 - 4;
+    int point = hpos * 2 - 3;
     int width = sprite_width;
     int window_width = (width << lores_shift) >> sprres;
 
@@ -3389,7 +3348,8 @@ static void perform_copper_write (int old_hpos)
 {
     unsigned int address = cop_state.saved_i1 & 0x1FE;
 
-    record_copper (cop_state.saved_ip - 4, old_hpos, vpos);
+    if (debug_copper)
+	record_copper (cop_state.saved_ip - 4, old_hpos, vpos);
 
     if (test_copper_dangerous (address))
 	return;
@@ -3641,7 +3601,8 @@ static void update_copper (int until_hpos)
 		goto out;
 	    }
 
-	    record_copper (cop_state.ip - 4, old_hpos, vpos);
+	    if (debug_copper)
+		record_copper (cop_state.ip - 4, old_hpos, vpos);
 
 	    cop_state.state = COP_read1;
 	    break;
@@ -3681,7 +3642,8 @@ static void update_copper (int until_hpos)
 		test_copper_dangerous (chipmem_agnus_wget(cop_state.ip));
 	    }
 
-	    record_copper (cop_state.ip - 4, old_hpos, vpos);
+	    if (debug_copper)
+		record_copper (cop_state.ip - 4, old_hpos, vpos);
 
 	    break;
 	}
@@ -4181,9 +4143,8 @@ static void vsync_handler (void)
 	cnt--;
     }
 
-    /* Start a new set of copper records.  */
-    curr_cop_set ^= 1;
-    nr_cop_records[curr_cop_set] = 0;
+    if (debug_copper)
+	record_copper_reset();
 
     /* For now, let's only allow this to change at vsync time.  It gets too
      * hairy otherwise.  */

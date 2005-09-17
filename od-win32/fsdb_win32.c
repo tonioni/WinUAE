@@ -86,14 +86,19 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 {
     char *p;
     HANDLE h;
-    DWORD written, attr = INVALID_FILE_ATTRIBUTES;
+    DWORD written, dirflag, dirattr;
+    DWORD attr = INVALID_FILE_ATTRIBUTES;
     FILETIME t1, t2, t3;
     int time_valid = FALSE;
     int ret = 0;
     
     p = make_uaefsdbpath (dir, NULL);
+    dirattr = GetFileAttributes (dir);
+    dirflag = FILE_ATTRIBUTE_NORMAL;
+    if (dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY))
+	dirflag = FILE_FLAG_BACKUP_SEMANTICS; /* argh... */
     h = CreateFile (dir, GENERIC_READ, 0,
-	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	NULL, OPEN_EXISTING, dirflag, NULL);
     if (h != INVALID_HANDLE_VALUE) {    
 	if (GetFileTime (h, &t1, &t2, &t3))
 	    time_valid = TRUE;
@@ -102,7 +107,7 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
     h = CreateFile (p, GENERIC_WRITE, 0,
 	NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (h == INVALID_HANDLE_VALUE && GetLastError () == ERROR_ACCESS_DENIED) {
-	attr = GetFileAttributes (p);
+        attr = GetFileAttributes (p);
 	if (attr != INVALID_FILE_ATTRIBUTES) {
 	    if (attr & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)) {
 		SetFileAttributes (p, attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN));
@@ -125,7 +130,7 @@ end:
 	SetFileAttributes (p, attr);
     if (time_valid) {
 	h = CreateFile (dir, GENERIC_WRITE, 0,
-	    NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	    NULL, OPEN_EXISTING, dirflag, NULL);
 	if (h != INVALID_HANDLE_VALUE) {	
 	    SetFileTime (h, &t1, &t2, &t3);
 	    CloseHandle (h);

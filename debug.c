@@ -42,6 +42,8 @@ static int debug_rewind;
 static int memwatch_enabled, memwatch_triggered;
 int debugging;
 int exception_debugging;
+int debug_copper;
+static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
 
@@ -75,20 +77,22 @@ static char help[] = {
     "  d <address> [<lines>] Disassembly starting at <address>\n"
     "  t [instructions]      Step one or more instructions\n"
     "  z                     Step through one instruction - useful for JSR, DBRA etc\n"
-    "  f                     Step forward until PC in RAM\n"
+    "  f                     Step forward until PC in RAM (\"boot block finder\")\n"
     "  f <address>           Add/remove breakpoint\n"
     "  fi                    Step forward until PC points to RTS/RTD or RTE\n"
     "  fi <opcode>           Step forward until PC points to <opcode>\n"
     "  fl                    List breakpoints\n"
     "  fd                    Remove all breakpoints\n"
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
-    "  e                     Dump contents of all custom registers\n"
+    "  e [<addr>]            Dump contents of all custom registers\n"
     "  i [<addr>]            Dump contents of interrupt and trap vectors\n"
-    "  o <1|2|addr> [<lines>]View memory as Copper instructions\n"
+    "  o <0-2|addr> [<lines>]View memory as Copper instructions\n"
+    "  od                    Enable/disable Copper vpos/hpos tracing\n"
+    "  ot                    Copper single step trace\n"
+    "  ob <addr>             Copper breakpoint\n"
     "  O                     Display bitplane offsets\n"
     "  O <plane> <offset>    Offset a bitplane\n"
-    "  H[H] <count>          Show PC history (HH=full CPU info) <count> instructions\n"
-    "  M                     Search for *Tracker sound modules\n"
+    "  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions\n"
     "  C <value>             Search for values like energy or lifes in games\n"
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/RW> [<value>]\n"
@@ -359,17 +363,76 @@ static void disassemble_wait (FILE *file, unsigned long insn)
 	     vp, ve, hp, he, bfd);
 }
 
+#define NR_COPPER_RECORDS 40000
+/* Record copper activity for the debugger.  */
+struct cop_record
+{
+  int hpos, vpos;
+  uaecptr addr;
+};
+static struct cop_record *cop_record[2];
+static int nr_cop_records[2], curr_cop_set;
+
+void record_copper_reset(void)
+{
+/* Start a new set of copper records.  */
+    curr_cop_set ^= 1;
+    nr_cop_records[curr_cop_set] = 0;
+}
+
+void record_copper (uaecptr addr, int hpos, int vpos)
+{
+    int t = nr_cop_records[curr_cop_set];
+    if (!cop_record[0]) {
+	cop_record[0] = malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[1] = malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+    }
+    if (t < NR_COPPER_RECORDS) {
+	cop_record[curr_cop_set][t].addr = addr;
+	cop_record[curr_cop_set][t].hpos = hpos;
+	cop_record[curr_cop_set][t].vpos = vpos;
+	nr_cop_records[curr_cop_set] = t + 1;
+    }
+    if (debug_copper & 2) { /* trace */
+	debug_copper &= ~2;
+	activate_debugger();
+    }
+    if ((debug_copper & 4) && addr >= debug_copper_pc && addr <= debug_copper_pc + 3) {
+	debug_copper &= ~4;
+	activate_debugger();
+    }
+}
+
+static int find_copper_record (uaecptr addr, int *phpos, int *pvpos)
+{
+    int s = curr_cop_set ^ 1;
+    int t = nr_cop_records[s];
+    int i;
+    for (i = 0; i < t; i++) {
+	if (cop_record[s][i].addr == addr) {
+	    *phpos = cop_record[s][i].hpos;
+	    *pvpos = cop_record[s][i].vpos;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 /* simple decode copper by Mark Cox */
 static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long addr)
 {
     uae_u32 insn_type = insn & 0x00010001;
     int hpos, vpos;
+    char here = ' ';
     char record[] = "          ";
     if (find_copper_record (addr, &hpos, &vpos)) {
 	sprintf (record, " [%03x %03x]", vpos, hpos);
     }
+    
+    if (get_copper_address(-1) >= addr && get_copper_address(-1) <= addr + 3)
+	here = '*';
 
-    console_out ("%08lx: %04lx %04lx%s\t; ", addr, insn >> 16, insn & 0xFFFF, record);
+    console_out ("%c%08lx: %04lx %04lx%s\t; ", here, addr, insn >> 16, insn & 0xFFFF, record);
 
     switch (insn_type) {
     case 0x00010000: /* WAIT insn */
@@ -409,7 +472,6 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
 
 }
 
-
 static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
 {
     uae_u32 insn;
@@ -424,6 +486,50 @@ static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
      * values that mean the end of the copperlist */
 }
 
+static int copper_debugger (char **c)
+{
+    static uaecptr nxcopper;
+    uae_u32 maddr;
+    int lines;
+
+    if (**c == 'd') {
+	next_char(c);
+	if (debug_copper)
+	    debug_copper = 0;
+	else
+	    debug_copper = 1;
+	console_out ("Copper debugger %s.\n", debug_copper ? "enabled" : "disabled");
+    } else if(**c == 't') {
+	debug_copper = 1|2;
+	return 1;
+    } else if(**c == 'b') {
+	(*c)++;
+	debug_copper = 1|4;
+	if (more_params(c)) {
+	    debug_copper_pc = readhex(c);
+	    console_out ("Copper breakpoint @0x%08.8x\n", debug_copper_pc);
+	} else {
+	    debug_copper &= ~4;
+	}
+    } else {
+	if (more_params(c)) {
+	    maddr = readhex(c);
+	    if (maddr == 1 || maddr == 2)
+		maddr = get_copper_address (maddr);
+	    else if (maddr == 0)
+		maddr = get_copper_address (-1);
+	} else
+	    maddr = nxcopper;
+
+	if (more_params (c))
+	    lines = readhex (c);
+	else
+	    lines = 20;
+
+	nxcopper = decode_copperlist (stdout, maddr, lines);
+    }
+    return 0;
+}
 
 /* cheat-search by Holger Jakob */
 static void cheatsearch (char **c)
@@ -1220,10 +1326,10 @@ static void m68k_modify (char **inptr)
 static void debug_1 (void)
 {
     char input[80];
-    uaecptr nxdis, nxmem, nxcopper, addr;
+    uaecptr nxdis, nxmem, addr;
 
     m68k_dumpstate (stdout, &nextpc);
-    nxdis = nextpc; nxmem = nxcopper = 0;
+    nxdis = nextpc; nxmem = 0;
 
     for (;;) {
 	char cmd, *inptr;
@@ -1374,23 +1480,11 @@ static void debug_1 (void)
 	break;
 	case 'o':
 	{
-	    uae_u32 maddr;
-	    int lines;
-
-	    if (more_params(&inptr)) {
-		maddr = readhex(&inptr);
-		if (maddr == 1 || maddr == 2)
-		    maddr = get_copper_address (maddr);
+	    if (copper_debugger(&inptr)) {
+	        debugger_active = 0;
+	        debugging = 0;
+		return;
 	    }
-	    else
-		maddr = nxcopper;
-
-	    if (more_params (&inptr))
-		lines = readhex (&inptr);
-	    else
-		lines = 20;
-
-	    nxcopper = decode_copperlist (stdout, maddr, lines);
 	    break;
 	}
 	case 'O':
@@ -1558,7 +1652,7 @@ int notinrom (void)
 	return 1;
     return 0;
 }
-
+/*
 const char *debuginfo (int mode)
 {
     static char txt[100];
@@ -1567,3 +1661,4 @@ const char *debuginfo (int mode)
 	pc, get_word(pc), get_word(pc+2), get_word(pc+4));
     return txt;
 }
+*/

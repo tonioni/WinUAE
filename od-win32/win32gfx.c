@@ -1935,7 +1935,8 @@ static BOOL doInit (void)
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_1;
 	} else if (colortype == RGBFB_CLUT && !(currentmode->flags & DM_OVERLAY)) {
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_2;
-	} else if (currentmode->current_width >= GetSystemMetrics(SM_CXVIRTUALSCREEN) || currentmode->current_height >= GetSystemMetrics(SM_CXVIRTUALSCREEN)) {
+	} else if (currentmode->current_width >= GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
+	    currentmode->current_height >= GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
 	    if (!console_logging)
 		fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 #ifdef PICASSO96

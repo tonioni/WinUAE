@@ -146,6 +146,7 @@ static struct romdata roms[] = {
     { "Cool Spot\0ar_spot", 0, 0, 0, 0, 42, 0, 0, ROMTYPE_ARCADIA },
     { "Space Ranger\0ar_sprg", 0, 0, 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
     { "Xenon\0ar_xeon", 0, 0, 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
+    { "World Trophy Soccer\0ar_socc", 0, 0, 0, 0, 45, 0, 0, ROMTYPE_ARCADIA },
 
     { NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
 

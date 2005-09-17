@@ -682,7 +682,8 @@ static void GetInquiryData(PCTSTR pDevId, DWORD idx)
 	    if (!Claimed) {
 		sprintf (label, "SCSI(%d):%d:%d:%d:%d", idx, BusData->InitiatorBusId,
 		    InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
-		adddrive (label, idx, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
+		//adddrive (label, idx, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
+		adddrive (label, idx, 0, 1, 0);
 	    }
 	    InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + InquiryData->NextInquiryDataOffset );
 	}   // for Luns
@@ -994,7 +995,11 @@ static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
     return TRUE;
 }
 
-static const GUID *guids[] = { &GUID_DEVINTERFACE_CDROM, NULL };
+static const GUID *guids[] = {
+    &GUID_DEVINTERFACE_CDROM,
+    &GUID_DEVCLASS_IMAGE,
+    &GUID_DEVCLASS_TAPEDRIVE,
+    NULL };
 static const char *scsinames[] = { "Tape", "Scanner", NULL };
 
 static int rescan(void)
@@ -1019,7 +1024,8 @@ static int rescan(void)
     }
 
     for (idx2 = 0; scsinames[idx2]; idx2++) {
-	for (idx = 0; idx < 10; idx++) {
+	int max = 10;
+	for (idx = 0; idx < max; idx++) {
 	    sprintf (tmp, "\\\\.\\%s%d", scsinames[idx2], idx);
 	    h = CreateFile(tmp, GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -1027,10 +1033,12 @@ static int rescan(void)
 	    if (h != INVALID_HANDLE_VALUE) {
 		adddrive(tmp, -1, -1, -1, -1);
 		CloseHandle(h);
+		if (idx == max - 1)
+		    max++;
 	    }
 	}
     }
-
+/*
     first = 1;
     hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_SCSIADAPTER, NULL, NULL, DIGCF_PRESENT);
     if (hDevInfo != INVALID_HANDLE_VALUE) {
@@ -1040,6 +1048,7 @@ static int rescan(void)
 	}
     }
     SetupDiDestroyDeviceInfoList(hDevInfo);
+*/
     return 1;
 }
 

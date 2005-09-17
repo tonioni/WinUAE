@@ -471,7 +471,7 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,176,198,98,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,30,96,10
-    CONTROL         "Cycle exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast CPU recommended.",IDC_CYCLEEXACT,
+    CONTROL         "Cycle exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,43,100,10
     GROUPBOX        "Collision level",IDC_STATIC,14,97,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
@@ -1004,6 +1004,9 @@ BEGIN
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
     IDS_OLDRTGLIBRARY       "Your LIBS:Picasso96/rtg.library (%d.%d) requires updating.\nReplace it with version from ""Amiga Programs""-directory in WinUAE archive.\nNew library fixes graphics problems and increases performance."
+    IDS_DEFAULT_AF2005      "AmigaForever 2005"
+    IDS_DEFAULT_AF          "AmigaForever (old)"
+    IDS_DEFAULT_WINUAE      "WinUAE default"
 END
 
 STRINGTABLE 
@@ -1114,13 +1117,12 @@ BEGIN
     IDS_NUMSG_NOEXTROM      "No extended Kickstart ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No modules or compressed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packer found\n%s\nDo you want to save it?"
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nDo you want to save it?"
     IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU or later CPU."
     IDS_NUMSG_ROMNEED       "You need any following ROM(s)\n\n%s"
-    IDS_NUMSG_NOZLIB        "Zip and gzip support disabled because zlib1.dll is missing."
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
-    IDS_NUMSG_NOCAPS        "This disk image needs the C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
-    IDS_NUMSG_OLDCAPS       "You need updated C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
+    IDS_NUMSG_NOCAPS        "This disk image needs the S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"
+    IDS_NUMSG_OLDCAPS       "You need updated S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_IMGCHK_BOOTBLOCKCRCERROR 
                             "Selected disk image is not bootable (bootblock CRC error)"
     IDS_IMGCHK_BOOTBLOCKNO  "Selected disk image is not bootable (no bootblock)"

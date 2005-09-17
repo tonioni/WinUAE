@@ -5,7 +5,6 @@
 	Name="winuae"
 	ProjectGUID="{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}"
 	RootNamespace="winuae"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform

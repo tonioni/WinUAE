@@ -26,6 +26,9 @@
 #include "blit.h"
 #include "savestate.h"
 
+/* we must not change ce-mode while blitter is running.. */
+static int blitter_cycle_exact;
+
 uae_u16 oldvblts;
 uae_u16 bltcon0,bltcon1;
 uae_u32 bltapt,bltbpt,bltcpt,bltdpt;
@@ -103,13 +106,13 @@ A 3*3*AC-  ACx
 NOTES: (BLTNASTY=1)
 
 - Blitter ALWAYS needs free bus cycle, even if it is running an "idle" cycle.
-  Exception: possible extra fill mode idle cycle.is "real" idle cycle.
+  Exception: possible extra fill mode idle cycle is "real" idle cycle.
+  Can someone explain this? Why does idle cycles need bus cycles?
 - Fill mode may add one extra real idle cycle.(depends on channel mask)
 - All blits with channel A enabled use all available bus cycles
-  (stops CPU accesses to chip RAM if BLTNASTY=1)
-  Can someone explain this? Why does idle cycles need bus cycles?
+  (stops CPU accesses to Agnus bus if BLTNASTY=1)
 - idle cycles (no A-channel enabled) are not "used" by blitter, they are freely
-  available for CPU..
+  available for CPU.
 
 BLTNASTY=0 makes things even more interesting..
 
@@ -798,7 +801,7 @@ void decide_blitter (int hpos)
 	blitter_dump();
     }
 #endif
-    if (!currprefs.blitter_cycle_exact)
+    if (!blitter_cycle_exact)
 	return;
     if (blitline) {
 	decide_blitter_line (hpos);
@@ -892,7 +895,7 @@ static void blitter_force_finish (void)
 	odmacon = dmacon;
 	dmacon |= DMA_MASTER | DMA_BLITTER;
 	write_log ("forcing blitter finish\n");
-	if (currprefs.blitter_cycle_exact) {
+	if (blitter_cycle_exact) {
 	    int rounds = 10000;
 	    while (bltstate != BLT_done && rounds > 0) {
 		memset (cycle_line, 0, maxhpos);
@@ -990,6 +993,8 @@ void do_blitter (int hpos)
 #ifdef BLITTER_DEBUG
     int oldstate = bltstate;
 #endif
+
+    blitter_cycle_exact = currprefs.blitter_cycle_exact;
     blt_info.blitzero = 1;
     bltstate = BLT_init;
     preva = 0;
@@ -1043,7 +1048,7 @@ void do_blitter (int hpos)
 	bltstate = BLT_work;
 
     blit_maxcyclecounter = 0x7fffffff;
-    if (currprefs.blitter_cycle_exact) {
+    if (blitter_cycle_exact) {
 	blitter_dma_cycles_line_count = 0;
 	blitter_hcounter1 = blitter_hcounter2 = 0;
 	blitter_vcounter1 = blitter_vcounter2 = 0;
@@ -1082,7 +1087,7 @@ void maybe_blit (int hpos, int hack)
 		m68k_getpc(), vpos, blit_cyclecounter);
     }
 
-    if (currprefs.blitter_cycle_exact) {
+    if (blitter_cycle_exact) {
 	decide_blitter (hpos);
 	goto end;
     }

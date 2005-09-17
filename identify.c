@@ -119,23 +119,23 @@ struct customData custd[] =
 #if 0
     { "BLTDDAT",  0xdff000 }, /* Blitter dest. early read (dummy address) */
 #endif
-    { "DMACONR",  0xdff002, 1, 0 }, /* Dma control (and blitter status) read */
-    { "VPOSR",    0xdff004, 1, 0 }, /* Read vert most sig. bits (and frame flop */
-    { "VHPOSR",   0xdff006, 1, 0 }, /* Read vert and horiz position of beam */
+    { "DMACONR",  0xdff002, 1 }, /* Dma control (and blitter status) read */
+    { "VPOSR",    0xdff004, 1 }, /* Read vert most sig. bits (and frame flop */
+    { "VHPOSR",   0xdff006, 1 }, /* Read vert and horiz position of beam */
 #if 0
     { "DSKDATR",  0xdff008 }, /* Disk data early read (dummy address) */
 #endif
-    { "JOY0DAT",  0xdff00A, 1, 0 }, /* Joystick-mouse 0 data (vert,horiz) */
-    { "JOT1DAT",  0xdff00C, 1, 0 }, /* Joystick-mouse 1 data (vert,horiz) */
-    { "CLXDAT",   0xdff00E, 1, 0 }, /* Collision data reg. (read and clear) */
-    { "ADKCONR",  0xdff010, 1, 0 }, /* Audio,disk control register read */
-    { "POT0DAT",  0xdff012, 1, 0 }, /* Pot counter pair 0 data (vert,horiz) */
-    { "POT1DAT",  0xdff014, 1, 0 }, /* Pot counter pair 1 data (vert,horiz) */
-    { "POTGOR",   0xdff016, 1, 0 }, /* Pot pin data read */
-    { "SERDATR",  0xdff018, 1, 0 }, /* Serial port data and status read */
-    { "DSKBYTR",  0xdff01A, 1, 0 }, /* Disk data byte and status read */
-    { "INTENAR",  0xdff01C, 1, 0 }, /* Interrupt enable bits read */
-    { "INTREQR",  0xdff01E, 1, 0 }, /* Interrupt request bits read */
+    { "JOY0DAT",  0xdff00A, 1 }, /* Joystick-mouse 0 data (vert,horiz) */
+    { "JOT1DAT",  0xdff00C, 1 }, /* Joystick-mouse 1 data (vert,horiz) */
+    { "CLXDAT",   0xdff00E, 1 }, /* Collision data reg. (read and clear) */
+    { "ADKCONR",  0xdff010, 1 }, /* Audio,disk control register read */
+    { "POT0DAT",  0xdff012, 1 }, /* Pot counter pair 0 data (vert,horiz) */
+    { "POT1DAT",  0xdff014, 1 }, /* Pot counter pair 1 data (vert,horiz) */
+    { "POTGOR",   0xdff016, 1 }, /* Pot pin data read */
+    { "SERDATR",  0xdff018, 1 }, /* Serial port data and status read */
+    { "DSKBYTR",  0xdff01A, 1 }, /* Disk data byte and status read */
+    { "INTENAR",  0xdff01C, 1 }, /* Interrupt enable bits read */
+    { "INTREQR",  0xdff01E, 1 }, /* Interrupt request bits read */
     { "DSKPTH",   0xdff020, 2, 1 }, /* Disk pointer (high 5 bits) */
     { "DSKPTL",   0xdff022, 2, 2 }, /* Disk pointer (low 15 bits) */
     { "DSKLEN",   0xdff024, 2, 0 }, /* Disk lentgh */
@@ -167,9 +167,9 @@ struct customData custd[] =
     { "BPTDPTH",  0xdff054, 2, 1 }, /* Blitter pointer to destn  D (high 5 bits) */
     { "BLTDPTL",  0xdff056, 2, 2 }, /* Blitter pointer to destn  D (low 15 bits) */
     { "BLTSIZE",  0xdff058, 2, 0 }, /* Blitter start and size (win/width,height) */
-    { "BLTCON0L", 0xdff05A, 2, 0 }, /* Blitter control 0 lower 8 bits (minterms) */
-    { "BLTSIZV",  0xdff05C, 2, 0 }, /* Blitter V size (for 15 bit vert size) */
-    { "BLTSIZH",  0xdff05E, 2, 0 }, /* Blitter H size & start (for 11 bit H size) */
+    { "BLTCON0L", 0xdff05A, 2, 4 }, /* Blitter control 0 lower 8 bits (minterms) */
+    { "BLTSIZV",  0xdff05C, 2, 4 }, /* Blitter V size (for 15 bit vert size) */
+    { "BLTSIZH",  0xdff05E, 2, 4 }, /* Blitter H size & start (for 11 bit H size) */
     { "BLTCMOD",  0xdff060, 2, 0 }, /* Blitter modulo for source C */
     { "BLTBMOD",  0xdff062, 2, 0 }, /* Blitter modulo for source B */
     { "BLTAMOD",  0xdff064, 2, 0 }, /* Blitter modulo for source A */
@@ -188,114 +188,114 @@ struct customData custd[] =
     { "SPRHDAT",  0xdff078 }, /* Ext logic UHRES sprite pointer and data identifier */
     { "BPLHDAT",  0xdff07A }, /* Ext logic UHRES bit plane identifier */
 #endif
-    { "LISAID",   0xdff07C, 1, 0 }, /* Chip revision level for Denise/Lisa */
-    { "DSKSYNC",  0xdff07E, 2, 0 }, /* Disk sync pattern reg for disk read */
+    { "LISAID",   0xdff07C, 1, 8 }, /* Chip revision level for Denise/Lisa */
+    { "DSKSYNC",  0xdff07E, 2 }, /* Disk sync pattern reg for disk read */
     { "COP1LCH",  0xdff080, 2, 1 }, /* Coprocessor first location reg (high 5 bits) */
     { "COP1LCL",  0xdff082, 2, 2 }, /* Coprocessor first location reg (low 15 bits) */
     { "COP2LCH",  0xdff084, 2, 1 }, /* Coprocessor second reg (high 5 bits) */
     { "COP2LCL",  0xdff086, 2, 2 }, /* Coprocessor second reg (low 15 bits) */
-    { "COPJMP1",  0xdff088, 2, 0 }, /* Coprocessor restart at first location */
-    { "COPJMP2",  0xdff08A, 2, 0 }, /* Coprocessor restart at second location */
+    { "COPJMP1",  0xdff088, 2 }, /* Coprocessor restart at first location */
+    { "COPJMP2",  0xdff08A, 2 }, /* Coprocessor restart at second location */
 #if 0
     { "COPINS",   0xdff08C }, /* Coprocessor inst fetch identify */
 #endif
-    { "DIWSTRT",  0xdff08E, 2, 0 }, /* Display window start (upper left vert-hor pos) */
-    { "DIWSTOP",  0xdff090, 2, 0 }, /* Display window stop (lower right vert-hor pos) */
-    { "DDFSTRT",  0xdff092, 2, 0 }, /* Display bit plane data fetch start.hor pos */
-    { "DDFSTOP",  0xdff094, 2, 0 }, /* Display bit plane data fetch stop.hor pos */
-    { "DMACON",   0xdff096, 2, 0 }, /* DMA control write (clear or set) */
-    { "CLXCON",   0xdff098, 2, 0 }, /* Collision control */
-    { "INTENA",   0xdff09A, 2, 0 }, /* Interrupt enable bits (clear or set bits) */
-    { "INTREQ",   0xdff09C, 2, 0 }, /* Interrupt request bits (clear or set bits) */
-    { "ADKCON",   0xdff09E, 2, 0 }, /* Audio,disk,UART,control */
+    { "DIWSTRT",  0xdff08E, 2 }, /* Display window start (upper left vert-hor pos) */
+    { "DIWSTOP",  0xdff090, 2 }, /* Display window stop (lower right vert-hor pos) */
+    { "DDFSTRT",  0xdff092, 2 }, /* Display bit plane data fetch start.hor pos */
+    { "DDFSTOP",  0xdff094, 2 }, /* Display bit plane data fetch stop.hor pos */
+    { "DMACON",   0xdff096, 2 }, /* DMA control write (clear or set) */
+    { "CLXCON",   0xdff098, 2 }, /* Collision control */
+    { "INTENA",   0xdff09A, 2 }, /* Interrupt enable bits (clear or set bits) */
+    { "INTREQ",   0xdff09C, 2 }, /* Interrupt request bits (clear or set bits) */
+    { "ADKCON",   0xdff09E, 2 }, /* Audio,disk,UART,control */
     { "AUD0LCH",  0xdff0A0, 2, 1 }, /* Audio channel 0 location (high 5 bits) */
     { "AUD0LCL",  0xdff0A2, 2, 2 }, /* Audio channel 0 location (low 15 bits) */
-    { "AUD0LEN",  0xdff0A4, 2, 0 }, /* Audio channel 0 lentgh */
-    { "AUD0PER",  0xdff0A6, 2, 0 }, /* Audio channel 0 period */
-    { "AUD0VOL",  0xdff0A8, 2, 0 }, /* Audio channel 0 volume */
-    { "AUD0DAT",  0xdff0AA, 2, 0 }, /* Audio channel 0 data */
+    { "AUD0LEN",  0xdff0A4, 2 }, /* Audio channel 0 lentgh */
+    { "AUD0PER",  0xdff0A6, 2 }, /* Audio channel 0 period */
+    { "AUD0VOL",  0xdff0A8, 2 }, /* Audio channel 0 volume */
+    { "AUD0DAT",  0xdff0AA, 2 }, /* Audio channel 0 data */
 #if 0
     { "Unknown",  0xdff0AC }, /* Unknown or Unused */
     { "Unknown",  0xdff0AE }, /* Unknown or Unused */
 #endif
-    { "AUD1LCH",  0xdff0B0, 2, 0 }, /* Audio channel 1 location (high 5 bits) */
-    { "AUD1LCL",  0xdff0B2, 2, 0 }, /* Audio channel 1 location (low 15 bits) */
-    { "AUD1LEN",  0xdff0B4, 2, 0 }, /* Audio channel 1 lentgh */
-    { "AUD1PER",  0xdff0B6, 2, 0 }, /* Audio channel 1 period */
-    { "AUD1VOL",  0xdff0B8, 2, 0 }, /* Audio channel 1 volume */
-    { "AUD1DAT",  0xdff0BA, 2, 0 }, /* Audio channel 1 data */
+    { "AUD1LCH",  0xdff0B0, 2, 1 }, /* Audio channel 1 location (high 5 bits) */
+    { "AUD1LCL",  0xdff0B2, 2, 2 }, /* Audio channel 1 location (low 15 bits) */
+    { "AUD1LEN",  0xdff0B4, 2 }, /* Audio channel 1 lentgh */
+    { "AUD1PER",  0xdff0B6, 2 }, /* Audio channel 1 period */
+    { "AUD1VOL",  0xdff0B8, 2 }, /* Audio channel 1 volume */
+    { "AUD1DAT",  0xdff0BA, 2 }, /* Audio channel 1 data */
 #if 0
     { "Unknown",  0xdff0BC }, /* Unknown or Unused */
     { "Unknown",  0xdff0BE }, /* Unknown or Unused */
 #endif
-    { "AUD2LCH",  0xdff0C0, 2, 0 }, /* Audio channel 2 location (high 5 bits) */
-    { "AUD2LCL",  0xdff0C2, 2, 0 }, /* Audio channel 2 location (low 15 bits) */
-    { "AUD2LEN",  0xdff0C4, 2, 0 }, /* Audio channel 2 lentgh */
-    { "AUD2PER",  0xdff0C6, 2, 0 }, /* Audio channel 2 period */
-    { "AUD2VOL",  0xdff0C8, 2, 0 }, /* Audio channel 2 volume */
-    { "AUD2DAT",  0xdff0CA, 2, 0 }, /* Audio channel 2 data */
+    { "AUD2LCH",  0xdff0C0, 2, 1 }, /* Audio channel 2 location (high 5 bits) */
+    { "AUD2LCL",  0xdff0C2, 2, 2 }, /* Audio channel 2 location (low 15 bits) */
+    { "AUD2LEN",  0xdff0C4, 2 }, /* Audio channel 2 lentgh */
+    { "AUD2PER",  0xdff0C6, 2 }, /* Audio channel 2 period */
+    { "AUD2VOL",  0xdff0C8, 2 }, /* Audio channel 2 volume */
+    { "AUD2DAT",  0xdff0CA, 2 }, /* Audio channel 2 data */
 #if 0
     { "Unknown",  0xdff0CC }, /* Unknown or Unused */
     { "Unknown",  0xdff0CE }, /* Unknown or Unused */
 #endif
-    { "AUD3LCH",  0xdff0D0, 2, 0 }, /* Audio channel 3 location (high 5 bits) */
-    { "AUD3LCL",  0xdff0D2, 2, 0 }, /* Audio channel 3 location (low 15 bits) */
-    { "AUD3LEN",  0xdff0D4, 2, 0 }, /* Audio channel 3 lentgh */
-    { "AUD3PER",  0xdff0D6, 2, 0 }, /* Audio channel 3 period */
-    { "AUD3VOL",  0xdff0D8, 2, 0 }, /* Audio channel 3 volume */
-    { "AUD3DAT",  0xdff0DA, 2, 0 }, /* Audio channel 3 data */
+    { "AUD3LCH",  0xdff0D0, 2, 1 }, /* Audio channel 3 location (high 5 bits) */
+    { "AUD3LCL",  0xdff0D2, 2, 2 }, /* Audio channel 3 location (low 15 bits) */
+    { "AUD3LEN",  0xdff0D4, 2 }, /* Audio channel 3 lentgh */
+    { "AUD3PER",  0xdff0D6, 2 }, /* Audio channel 3 period */
+    { "AUD3VOL",  0xdff0D8, 2 }, /* Audio channel 3 volume */
+    { "AUD3DAT",  0xdff0DA, 2 }, /* Audio channel 3 data */
 #if 0
     { "Unknown",  0xdff0DC }, /* Unknown or Unused */
     { "Unknown",  0xdff0DE }, /* Unknown or Unused */
 #endif
-    { "BPL1PTH",  0xdff0E0, 2 }, /* Bit plane pointer 1 (high 5 bits) */
-    { "BPL1PTL",  0xdff0E2, 2 }, /* Bit plane pointer 1 (low 15 bits) */
-    { "BPL2PTH",  0xdff0E4, 2 }, /* Bit plane pointer 2 (high 5 bits) */
-    { "BPL2PTL",  0xdff0E6, 2 }, /* Bit plane pointer 2 (low 15 bits) */
-    { "BPL3PTH",  0xdff0E8, 2 }, /* Bit plane pointer 3 (high 5 bits) */
-    { "BPL3PTL",  0xdff0EA, 2 }, /* Bit plane pointer 3 (low 15 bits) */
-    { "BPL4PTH",  0xdff0EC, 2 }, /* Bit plane pointer 4 (high 5 bits) */
-    { "BPL4PTL",  0xdff0EE, 2 }, /* Bit plane pointer 4 (low 15 bits) */
-    { "BPL5PTH",  0xdff0F0, 2 }, /* Bit plane pointer 5 (high 5 bits) */
-    { "BPL5PTL",  0xdff0F2, 2 }, /* Bit plane pointer 5 (low 15 bits) */
-    { "BPL6PTH",  0xdff0F4, 2 }, /* Bit plane pointer 6 (high 5 bits) */
-    { "BPL6PTL",  0xdff0F6, 2 }, /* Bit plane pointer 6 (low 15 bits) */
-    { "BPL7PTH",  0xdff0F8, 2 }, /* Bit plane pointer 7 (high 5 bits) */
-    { "BPL7PTL",  0xdff0FA, 2 }, /* Bit plane pointer 7 (low 15 bits) */
-    { "BPL8PTH",  0xdff0FC, 2 }, /* Bit plane pointer 8 (high 5 bits) */
-    { "BPL8PTL",  0xdff0FE, 2 }, /* Bit plane pointer 8 (low 15 bits) */
+    { "BPL1PTH",  0xdff0E0, 2, 1 }, /* Bit plane pointer 1 (high 5 bits) */
+    { "BPL1PTL",  0xdff0E2, 2, 2 }, /* Bit plane pointer 1 (low 15 bits) */
+    { "BPL2PTH",  0xdff0E4, 2, 1 }, /* Bit plane pointer 2 (high 5 bits) */
+    { "BPL2PTL",  0xdff0E6, 2, 2 }, /* Bit plane pointer 2 (low 15 bits) */
+    { "BPL3PTH",  0xdff0E8, 2, 1 }, /* Bit plane pointer 3 (high 5 bits) */
+    { "BPL3PTL",  0xdff0EA, 2, 2 }, /* Bit plane pointer 3 (low 15 bits) */
+    { "BPL4PTH",  0xdff0EC, 2, 1 }, /* Bit plane pointer 4 (high 5 bits) */
+    { "BPL4PTL",  0xdff0EE, 2, 2 }, /* Bit plane pointer 4 (low 15 bits) */
+    { "BPL5PTH",  0xdff0F0, 2, 1 }, /* Bit plane pointer 5 (high 5 bits) */
+    { "BPL5PTL",  0xdff0F2, 2, 2 }, /* Bit plane pointer 5 (low 15 bits) */
+    { "BPL6PTH",  0xdff0F4, 2, 1|8 }, /* Bit plane pointer 6 (high 5 bits) */
+    { "BPL6PTL",  0xdff0F6, 2, 2|8 }, /* Bit plane pointer 6 (low 15 bits) */
+    { "BPL7PTH",  0xdff0F8, 2, 1|8 }, /* Bit plane pointer 7 (high 5 bits) */
+    { "BPL7PTL",  0xdff0FA, 2, 2|8 }, /* Bit plane pointer 7 (low 15 bits) */
+    { "BPL8PTH",  0xdff0FC, 2, 1|8 }, /* Bit plane pointer 8 (high 5 bits) */
+    { "BPL8PTL",  0xdff0FE, 2, 2|8 }, /* Bit plane pointer 8 (low 15 bits) */
     { "BPLCON0",  0xdff100, 2 }, /* Bit plane control reg (misc control bits) */
     { "BPLCON1",  0xdff102, 2 }, /* Bit plane control reg (scroll val PF1,PF2) */
     { "BPLCON2",  0xdff104, 2 }, /* Bit plane control reg (priority control) */
-    { "BPLCON3",  0xdff106, 2 }, /* Bit plane control reg (enhanced features) */
+    { "BPLCON3",  0xdff106, 2|8 }, /* Bit plane control reg (enhanced features) */
     { "BPL1MOD",  0xdff108, 2 }, /* Bit plane modulo (odd planes,or active- fetch lines if bitplane scan-doubling is enabled */
     { "BPL2MOD",  0xdff10A, 2 }, /* Bit plane modulo (even planes or inactive- fetch lines if bitplane scan-doubling is enabled */
-    { "BPLCON4",  0xdff10C, 2 }, /* Bit plane control reg (bitplane and sprite masks) */
-    { "CLXCON2",  0xdff10e, 2 }, /* Extended collision control reg */
+    { "BPLCON4",  0xdff10C, 2|8 }, /* Bit plane control reg (bitplane and sprite masks) */
+    { "CLXCON2",  0xdff10e, 2|8 }, /* Extended collision control reg */
     { "BPL1DAT",  0xdff110, 2 }, /* Bit plane 1 data (parallel to serial con- vert) */
     { "BPL2DAT",  0xdff112, 2 }, /* Bit plane 2 data (parallel to serial con- vert) */
     { "BPL3DAT",  0xdff114, 2 }, /* Bit plane 3 data (parallel to serial con- vert) */
     { "BPL4DAT",  0xdff116, 2 }, /* Bit plane 4 data (parallel to serial con- vert) */
     { "BPL5DAT",  0xdff118, 2 }, /* Bit plane 5 data (parallel to serial con- vert) */
     { "BPL6DAT",  0xdff11a, 2 }, /* Bit plane 6 data (parallel to serial con- vert) */
-    { "BPL7DAT",  0xdff11c, 2 }, /* Bit plane 7 data (parallel to serial con- vert) */
-    { "BPL8DAT",  0xdff11e, 2 }, /* Bit plane 8 data (parallel to serial con- vert) */
-    { "SPR0PTH",  0xdff120, 2 }, /* Sprite 0 pointer (high 5 bits) */
-    { "SPR0PTL",  0xdff122, 2 }, /* Sprite 0 pointer (low 15 bits) */
-    { "SPR1PTH",  0xdff124, 2 }, /* Sprite 1 pointer (high 5 bits) */
-    { "SPR1PTL",  0xdff126, 2 }, /* Sprite 1 pointer (low 15 bits) */
-    { "SPR2PTH",  0xdff128, 2 }, /* Sprite 2 pointer (high 5 bits) */
-    { "SPR2PTL",  0xdff12A, 2 }, /* Sprite 2 pointer (low 15 bits) */
-    { "SPR3PTH",  0xdff12C, 2 }, /* Sprite 3 pointer (high 5 bits) */
-    { "SPR3PTL",  0xdff12E, 2 }, /* Sprite 3 pointer (low 15 bits) */
-    { "SPR4PTH",  0xdff130, 2 }, /* Sprite 4 pointer (high 5 bits) */
-    { "SPR4PTL",  0xdff132, 2 }, /* Sprite 4 pointer (low 15 bits) */
-    { "SPR5PTH",  0xdff134, 2 }, /* Sprite 5 pointer (high 5 bits) */
-    { "SPR5PTL",  0xdff136, 2 }, /* Sprite 5 pointer (low 15 bits) */
-    { "SPR6PTH",  0xdff138, 2 }, /* Sprite 6 pointer (high 5 bits) */
-    { "SPR6PTL",  0xdff13A, 2 }, /* Sprite 6 pointer (low 15 bits) */
-    { "SPR7PTH",  0xdff13C, 2 }, /* Sprite 7 pointer (high 5 bits) */
-    { "SPR7PTL",  0xdff13E, 2 }, /* Sprite 7 pointer (low 15 bits) */
+    { "BPL7DAT",  0xdff11c, 2|8 }, /* Bit plane 7 data (parallel to serial con- vert) */
+    { "BPL8DAT",  0xdff11e, 2|8 }, /* Bit plane 8 data (parallel to serial con- vert) */
+    { "SPR0PTH",  0xdff120, 2, 1 }, /* Sprite 0 pointer (high 5 bits) */
+    { "SPR0PTL",  0xdff122, 2, 2 }, /* Sprite 0 pointer (low 15 bits) */
+    { "SPR1PTH",  0xdff124, 2, 1 }, /* Sprite 1 pointer (high 5 bits) */
+    { "SPR1PTL",  0xdff126, 2, 2 }, /* Sprite 1 pointer (low 15 bits) */
+    { "SPR2PTH",  0xdff128, 2, 1 }, /* Sprite 2 pointer (high 5 bits) */
+    { "SPR2PTL",  0xdff12A, 2, 2 }, /* Sprite 2 pointer (low 15 bits) */
+    { "SPR3PTH",  0xdff12C, 2, 1 }, /* Sprite 3 pointer (high 5 bits) */
+    { "SPR3PTL",  0xdff12E, 2, 2 }, /* Sprite 3 pointer (low 15 bits) */
+    { "SPR4PTH",  0xdff130, 2, 1 }, /* Sprite 4 pointer (high 5 bits) */
+    { "SPR4PTL",  0xdff132, 2, 2 }, /* Sprite 4 pointer (low 15 bits) */
+    { "SPR5PTH",  0xdff134, 2, 1 }, /* Sprite 5 pointer (high 5 bits) */
+    { "SPR5PTL",  0xdff136, 2, 2 }, /* Sprite 5 pointer (low 15 bits) */
+    { "SPR6PTH",  0xdff138, 2, 1 }, /* Sprite 6 pointer (high 5 bits) */
+    { "SPR6PTL",  0xdff13A, 2, 2 }, /* Sprite 6 pointer (low 15 bits) */
+    { "SPR7PTH",  0xdff13C, 2, 1 }, /* Sprite 7 pointer (high 5 bits) */
+    { "SPR7PTL",  0xdff13E, 2, 2 }, /* Sprite 7 pointer (low 15 bits) */
     { "SPR0POS",  0xdff140, 2 }, /* Sprite 0 vert-horiz start pos data */
     { "SPR0CTL",  0xdff142, 2 }, /* Sprite 0 position and control data */
     { "SPR0DATA", 0xdff144, 2 }, /* Sprite 0 image data register A */
@@ -360,14 +360,14 @@ struct customData custd[] =
     { "COLOR29",  0xdff1BA, 2 }, /* Color table 29 */
     { "COLOR30",  0xdff1BC, 2 }, /* Color table 30 */
     { "COLOR31",  0xdff1BE, 2 }, /* Color table 31 */
-    { "HTOTAL",   0xdff1C0, 2 }, /* Highest number count in horiz line (VARBEAMEN = 1) */
-    { "HSSTOP",   0xdff1C2, 2 }, /* Horiz line pos for HSYNC stop */
-    { "HBSTRT",   0xdff1C4, 2 }, /* Horiz line pos for HBLANK start */
-    { "HBSTOP",   0xdff1C6, 2 }, /* Horiz line pos for HBLANK stop */
-    { "VTOTAL",   0xdff1C8, 2 }, /* Highest numbered vertical line (VARBEAMEN = 1) */
-    { "VSSTOP",   0xdff1CA, 2 }, /* Vert line for VBLANK start */
-    { "VBSTRT",   0xdff1CC, 2 }, /* Vert line for VBLANK start */
-    { "VBSTOP",   0xdff1CE, 2 }, /* Vert line for VBLANK stop */
+    { "HTOTAL",   0xdff1C0, 2|4 }, /* Highest number count in horiz line (VARBEAMEN = 1) */
+    { "HSSTOP",   0xdff1C2, 2|4 }, /* Horiz line pos for HSYNC stop */
+    { "HBSTRT",   0xdff1C4, 2|4 }, /* Horiz line pos for HBLANK start */
+    { "HBSTOP",   0xdff1C6, 2|4 }, /* Horiz line pos for HBLANK stop */
+    { "VTOTAL",   0xdff1C8, 2|4 }, /* Highest numbered vertical line (VARBEAMEN = 1) */
+    { "VSSTOP",   0xdff1CA, 2|4 }, /* Vert line for VBLANK start */
+    { "VBSTRT",   0xdff1CC, 2|4 }, /* Vert line for VBLANK start */
+    { "VBSTOP",   0xdff1CE, 2|4 }, /* Vert line for VBLANK stop */
 #if 0
     { "SPRHSTRT", 0xdff1D0 }, /* UHRES sprite vertical start */
     { "SPRHSTOP", 0xdff1D2 }, /* UHRES sprite vertical stop */
@@ -376,11 +376,11 @@ struct customData custd[] =
     { "HHPOSW",   0xdff1D8 }, /* DUAL mode hires H beam counter write */
     { "HHPOSR",   0xdff1DA }, /* DUAL mode hires H beam counter read */
 #endif
-    { "BEAMCON0", 0xdff1DC, 2 }, /* Beam counter control register (SHRES,UHRES,PAL) */
-    { "HSSTRT",   0xdff1DE, 2 }, /* Horizontal sync start (VARHSY) */
-    { "VSSTRT",   0xdff1E0, 2 }, /* Vertical sync start (VARVSY) */
-    { "HCENTER",  0xdff1E2, 2 }, /* Horizontal pos for vsync on interlace */
-    { "DIWHIGH",  0xdff1E4, 2 }, /* Display window upper bits for start/stop */
+    { "BEAMCON0", 0xdff1DC, 2|4 }, /* Beam counter control register (SHRES,UHRES,PAL) */
+    { "HSSTRT",   0xdff1DE, 2|4 }, /* Horizontal sync start (VARHSY) */
+    { "VSSTRT",   0xdff1E0, 2|4 }, /* Vertical sync start (VARVSY) */
+    { "HCENTER",  0xdff1E2, 2|4 }, /* Horizontal pos for vsync on interlace */
+    { "DIWHIGH",  0xdff1E4, 2|4 }, /* Display window upper bits for start/stop */
 #if 0
     { "BPLHMOD",  0xdff1E6 }, /* UHRES bit plane modulo */
     { "SPRHPTH",  0xdff1E8 }, /* UHRES sprite pointer (high 5 bits) */
@@ -394,7 +394,7 @@ struct customData custd[] =
     { "RESERVED", 0xdff1F8 }, /* Reserved (forever i guess!) */
     { "RESERVED", 0xdff1Fa }, /* Reserved (forever i guess!) */
 #endif
-    { "FMODE",    0xdff1FC, 2 }, /* Fetch mode register */
+    { "FMODE",    0xdff1FC, 2|8 }, /* Fetch mode register */
 #if 0
     { "NO-OP(NULL)", 0xdff1FE },        /*   Can also indicate last 2 or 3 refresh
 					    cycles or the restart of the COPPER after lockup.*/

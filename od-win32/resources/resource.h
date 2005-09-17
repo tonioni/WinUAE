@@ -164,7 +164,10 @@
 #define IDS_PRI_LOW                     187
 #define IDI_FOLDER                      188
 #define IDS_OLDRTGLIBRARY               188
+#define IDS_DEFAULT_AF2005              189
 #define IDI_DISPLAY                     190
+#define IDS_DEFAULT_AF                  190
+#define IDS_DEFAULT_WINUAE              191
 #define IDI_ROOT                        192
 #define IDI_ICON2                       194
 #define IDI_MEMORY                      194
