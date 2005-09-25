@@ -395,10 +395,16 @@ uae_s32 ShowEA (void *f, uae_u16 opcode, int reg, amodes mode, wordsizes size, c
 	sprintf (buffer,"-(A%d)", reg);
 	break;
      case Ad16:
-	disp16 = get_iword_1 (m68kpc_offset); m68kpc_offset += 2;
-	addr = m68k_areg(regs,reg) + (uae_s16)disp16;
-	sprintf (buffer,"(A%d,$%04x) == $%08lx", reg, disp16 & 0xffff,
-					(unsigned long)addr);
+	{
+	    char offtxt[80];
+	    disp16 = get_iword_1 (m68kpc_offset); m68kpc_offset += 2;
+	    if (disp16 < 0)
+		sprintf (offtxt, "-$%04x", -disp16);
+	    else
+		sprintf (offtxt, "$%04x", disp16);
+	    addr = m68k_areg(regs,reg) + disp16;
+	    sprintf (buffer,"(A%d,%s) == $%08lx", reg, offtxt, (unsigned long)addr);
+	}
 	break;
      case Ad8r:
 	dp = get_iword_1 (m68kpc_offset); m68kpc_offset += 2;

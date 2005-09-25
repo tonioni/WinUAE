@@ -1288,7 +1288,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 	    *mfm = 256 * *data + *(data + 1);
 	}
 #if 0 && defined DISK_DEBUG
-	write_log ("rawtrack %d\n", tr);
+	write_log ("rawtrack %d image offset=%x\n", tr, ti->offs);
 #endif
     }
     drv->buffered_side = side;

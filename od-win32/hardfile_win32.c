@@ -12,6 +12,7 @@
 #include "filesys.h"
 #include "blkdev.h"
 #include "win32gui.h"
+#include "zfile.h"
 
 #define hfd_log write_log
 
@@ -38,6 +39,9 @@ struct uae_driveinfo {
     uae_u64 offset;
     int bytespersector;
 };
+
+#define HDF_HANDLE_WIN32 1
+#define HDF_HANDLE_ZFILE 2
 
 #define CACHE_SIZE 16384
 #define CACHE_FLUSH_TIME 5
@@ -138,6 +142,8 @@ int isharddrive (char *name)
     return -1;
 }
 
+static char *hdz[] = { "hdz", "zip", "rar", "7z", NULL };
+
 int hdf_open (struct hardfiledata *hfd, char *name)
 {
     HANDLE h = INVALID_HANDLE_VALUE;
@@ -181,8 +187,18 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 		    return 0;
 		}
 	    }
+	    hfd->handle_valid = HDF_HANDLE_WIN32;
 	}
     } else {
+	int zmode = 0;
+        char *ext = strrchr (name, '.');
+	if (ext != NULL) {
+	    ext++;
+	    for (i = 0; hdz[i]; i++) {
+		if (!stricmp (ext, hdz[i]))
+		    zmode = 1;
+	    }
+	}
 	h = CreateFile (name, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), hfd->readonly ? FILE_SHARE_READ : 0, NULL,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
         hfd->handle = h;
@@ -191,7 +207,7 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	    if ((i > 0 && (name[i - 1] == '/' || name[i - 1] == '\\')) || i == 0) {
 		strcpy (hfd->vendor_id, "UAE");
 		strncpy (hfd->product_id, name + i, 15);
-		strcpy (hfd->product_rev, "0.2");
+		strcpy (hfd->product_rev, "0.3");
 		break;
 	    }
 	    i--;
@@ -211,14 +227,27 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	    }
 	    low &= ~(hfd->blocksize - 1);
 	    hfd->size = hfd->size2 = ((uae_u64)high << 32) | low;
+	    hfd->handle_valid = HDF_HANDLE_WIN32;
+	    if (hfd->size < 64 * 1024 * 1024 && zmode) {
+		write_log ("HDF '%s' re-opened in zfile-mode\n", name);
+		CloseHandle (h);
+		hfd->handle = h = zfile_fopen(name, hfd->readonly ? "rb" : "r+b");
+		if (!h) {
+		    hdf_close (hfd);
+		    return 0;
+		}
+		zfile_fseek (h, 0, SEEK_END);
+		hfd->size = hfd->size2 = zfile_ftell (h);
+		zfile_fseek (h, 0, SEEK_SET);
+		hfd->handle_valid = HDF_HANDLE_ZFILE;
+	    }
 	} else {
 	    write_log ("HDF '%s' failed to open. error = %d\n", name, GetLastError ());
 	}
     }
     hfd->handle = h;
     if (hfd->handle != INVALID_HANDLE_VALUE) {
-	hfd->handle_valid = 1;
-	hfd_log ("HDF '%s' opened succesfully, handle=%p\n", name, hfd->handle);
+	hfd_log ("HDF '%s' opened succesfully, handle=%p, mode=%d\n", name, hfd->handle, hfd->handle_valid);
 	return 1;
     }
     hdf_close (hfd);
@@ -231,8 +260,12 @@ void hdf_close (struct hardfiledata *hfd)
 	return;
     hfd_log ("close handle=%p\n", hfd->handle);
     hfd->flags = 0;
-    if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE)
-	CloseHandle (hfd->handle);
+    if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
+	if (hfd->handle_valid == HDF_HANDLE_WIN32)
+	    CloseHandle (hfd->handle);
+	else if(hfd->handle_valid == HDF_HANDLE_ZFILE)
+	    zfile_fclose (hfd->handle);
+    }
     hfd->handle = 0;
     hfd->handle_valid = 0;
     if (hfd->cache)
@@ -241,22 +274,30 @@ void hdf_close (struct hardfiledata *hfd)
     hfd->cache_valid = 0;
 }
 
-int hdf_dup (struct hardfiledata *hfd, void *src)
+int hdf_dup (struct hardfiledata *dhfd, struct hardfiledata *shfd)
 {
-    HANDLE duphandle;
-    if (src == 0 || src == INVALID_HANDLE_VALUE)
+    if (!shfd->handle_valid)
 	return 0;
-    if (!DuplicateHandle (GetCurrentProcess(), src, GetCurrentProcess() , &duphandle, 0, FALSE, DUPLICATE_SAME_ACCESS))
-	return 0;
-    hfd->handle = duphandle;
-    hfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
-    hfd->cache_valid = 0;
-    hfd->handle_valid = 1;
-    if (!hfd->cache) {
-	hdf_close (hfd);
+    if (shfd->handle_valid == HDF_HANDLE_WIN32) {
+        HANDLE duphandle;
+	if (!DuplicateHandle (GetCurrentProcess(), shfd->handle, GetCurrentProcess() , &duphandle, 0, FALSE, DUPLICATE_SAME_ACCESS))
+	    return 0;
+	dhfd->handle = duphandle;
+	dhfd->handle_valid = HDF_HANDLE_WIN32;
+    } else if (shfd->handle_valid == HDF_HANDLE_ZFILE) {
+	struct zfile *zf;
+	zf = zfile_dup (shfd->handle);
+	if (!zf)
+	    return 0;
+	dhfd->handle = zf;
+	dhfd->handle_valid = HDF_HANDLE_ZFILE;
+    }
+    dhfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    dhfd->cache_valid = 0;
+    if (!dhfd->cache) {
+	hdf_close (dhfd);
 	return 0;
     }
-    hfd_log ("dup handle %p->%p\n", src, duphandle);
     return 1;
 }
 
@@ -281,10 +322,14 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04.4X = %04.4X)\n", offset, hfd->blocksize, offset & (hfd->blocksize - 1));
 	abort ();
     }
-    high = (DWORD)(offset >> 32);
-    ret = SetFilePointer (hfd->handle, (DWORD)offset, &high, FILE_BEGIN);
-    if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
-	return -1;
+    if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+        high = (DWORD)(offset >> 32);
+	ret = SetFilePointer (hfd->handle, (DWORD)offset, &high, FILE_BEGIN);
+	if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+	    return -1;
+    } else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
+	zfile_fseek (hfd->handle, (long)offset, SEEK_SET);
+    }
     return 0;
 }
 
@@ -297,18 +342,22 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	gui_message ("hd: memory corruption detected in poscheck");
 	abort ();
     }
-    high = 0;
-    ret = SetFilePointer (hfd->handle, 0, &high, FILE_CURRENT);
-    err = GetLastError ();
-    if (ret == INVALID_FILE_SIZE && err != NO_ERROR) {
-	gui_message ("hd: poscheck failed. seek failure, error %d", err);
-	abort ();
+    if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+	high = 0;
+	ret = SetFilePointer (hfd->handle, 0, &high, FILE_CURRENT);
+	err = GetLastError ();
+	if (ret == INVALID_FILE_SIZE && err != NO_ERROR) {
+	    gui_message ("hd: poscheck failed. seek failure, error %d", err);
+	    abort ();
+	}
+        pos = ((uae_u64)high) << 32 | ret;
+    } else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
+	pos = zfile_ftell (hfd->handle);
     }
     if (len < 0) {
 	gui_message ("hd: poscheck failed, negative length! (%d)", len);
 	abort ();
     }
-    pos = ((uae_u64)high) << 32 | ret;
     if (pos < hfd->offset) {
 	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)", pos, hfd->offset);
 	abort ();
@@ -378,7 +427,10 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	hfd->cache_offset = hfd->offset + hfd->size - CACHE_SIZE;
     hdf_seek (hfd, hfd->cache_offset);
     poscheck (hfd, CACHE_SIZE);
-    ReadFile (hfd->handle, hfd->cache, CACHE_SIZE, &outlen, NULL);
+    if (hfd->handle_valid == HDF_HANDLE_WIN32)
+	ReadFile (hfd->handle, hfd->cache, CACHE_SIZE, &outlen, NULL);
+    else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
+	outlen = zfile_fread (hfd->cache, 1, CACHE_SIZE, hfd->handle);
     hfd->cache_valid = 0;
     if (outlen != CACHE_SIZE)
 	return 0;
@@ -396,11 +448,16 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     DWORD outlen = 0;
+    if (hfd->readonly)
+	return 0;
     hfd->cache_valid = 0;
     hdf_seek (hfd, offset);
     poscheck (hfd, len);
     memcpy (hfd->cache, buffer, len);
-    WriteFile (hfd->handle, hfd->cache, len, &outlen, NULL);
+    if (hfd->handle_valid == HDF_HANDLE_WIN32)
+	WriteFile (hfd->handle, hfd->cache, len, &outlen, NULL);
+    else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
+	outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle);
     return outlen;
 }
 

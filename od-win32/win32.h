@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 8"
+#define WINUAEBETASTR " Beta 9"
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];

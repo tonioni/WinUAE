@@ -256,7 +256,9 @@ extern void init_shm(void);
 
 struct romdata {
     char *name;
-    int version, revision;
+    int ver, rev;
+    int subver, subrev;
+    char *model;
     uae_u32 crc32;
     uae_u32 size;
     int id;
@@ -265,11 +267,17 @@ struct romdata {
     int type;
 };
 
+struct romlist {
+    char *path;
+    struct romdata *rd;
+};
+
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
 extern struct romdata *getarcadiarombyname (char *name);
+extern struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all);
 extern void getromname (struct romdata*, char*);
 extern struct romdata *getromdatabyname (char*);
 extern void romlist_add (char *path, struct romdata *rd);
@@ -277,4 +285,5 @@ extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);
 
 extern uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size);
+extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size);
 extern void free_keyfile (uae_u8 *key);

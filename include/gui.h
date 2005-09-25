@@ -45,6 +45,7 @@ extern struct gui_info gui_data;
 extern void gui_update_gfx (void);
 
 void notify_user (int msg);
+void notify_user_parms (int msg, const char *parms, ...);
 int translate_message (int msg, char *out);
 typedef enum {
     NUMSG_NEEDEXT2, NUMSG_NOROM, NUMSG_NOROMKEY,

@@ -1259,6 +1259,14 @@ ROM SPACE
 
 	Usually saving ROM contents is not good idea.
 
+ACTION REPLAY
+
+	"ACTR"
+
+	Model (1,2,3)		4
+	path to rom image
+	RAM space		(depends on model)
+	ROM CRC                 4
 
 END
 	hunk "END " ends, remember hunk size 8!

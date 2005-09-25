@@ -764,12 +764,17 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	did->axismappings[i] = -1;
 	did->buttonmappings[i] = -1;
     }
-    len = strlen (lpddi->tszInstanceName) + 3 + 1;
-    did->connection = DIDC_DX;
-    did->name = malloc (len);
-    strcpy (did->name, lpddi->tszInstanceName);
+    if (lpddi->tszInstanceName) {
+	len = strlen (lpddi->tszInstanceName) + 5 + 1;
+	did->name = malloc (len);
+	strcpy (did->name, lpddi->tszInstanceName);
+    } else {
+	did->name = malloc (100);
+	sprintf(did->name, "[no name]");
+    }
     did->guid = lpddi->guidInstance;
     did->sortname = my_strdup (did->name);
+    did->connection = DIDC_DX;
 
     if (!memcmp (&did->guid, &GUID_SysKeyboard, sizeof (GUID)) || !memcmp (&did->guid, &GUID_SysMouse, sizeof (GUID))) {
 	did->priority = 2;
@@ -793,15 +798,19 @@ static int di_do_init (void)
 
     hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL); 
     if (FAILED(hr)) {
-	gui_message ("Failed to initialize DirectInput!");
 	write_log ("DirectInput8Create failed, %s\n", DXError (hr));
+	gui_message ("Failed to initialize DirectInput!");
 	return 0;
     }
-
+    write_log("DirectInput enumeration..\n");
     IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+    write_log("RawInput enumeration..\n");
     initialize_rawinput();
+    write_log("Windowsmouse initialization..\n");
     initialize_windowsmouse();
+    write_log("Catweasel joymouse initialization..\n");
     initialize_catweasel();
+    write_log("end\n");
 
     sortdd (di_joystick, num_joystick, DID_JOYSTICK);
     sortdd (di_mouse, num_mouse, DID_MOUSE);

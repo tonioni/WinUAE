@@ -438,7 +438,7 @@ static void dup_mountinfo (struct uaedev_mount_info *mip, struct uaedev_mount_in
 	if (uip->rootdir)
 	    uip->rootdir = my_strdup (uip->rootdir);
 	if (uip->hf.handle)
-	    hdf_dup (&uip->hf, uip->hf.handle);
+	    hdf_dup (&uip->hf, &uip->hf);
     }
 }
 

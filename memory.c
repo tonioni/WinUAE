@@ -53,11 +53,6 @@ static long chip_filepos;
 static long bogo_filepos;
 static long rom_filepos;
 
-struct romlist {
-    char *path;
-    struct romdata *rd;
-};
-
 static struct romlist *rl;
 static int romlist_cnt;
 
@@ -93,64 +88,142 @@ void romlist_clear (void)
 }
 
 static struct romdata roms[] = {
-    { "Cloanto Amiga Forever ROM key", 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
+    { "Cloanto Amiga Forever ROM key", 0, 0, 0, 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
 
-    { "Kickstart v1.0 (A1000)(NTSC)", 0, 0, 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(NTSC)", 31, 34, 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(PAL)", 31, 34, 0xec86dae2, 262144, 3, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A1000)", 33, 166, 0x9ed783d0, 262144, 4, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A500,A1000,A2000)", 33, 180, 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A500,A1000,A2000)", 34, 5, 0xc4f0f55f, 262144, 6, 60, 0, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A3000)", 34, 5, 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.0 (A1000)(NTSC)", 1, 0, 1, 0, "A1000\0", 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(NTSC)", 1, 1, 31, 34, "A1000\0", 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.1 (A1000)(PAL)", 1, 1, 31, 34, "A1000\0", 0xec86dae2, 262144, 3, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A1000)", 1, 2, 33, 166, "A1000\0", 0x9ed783d0, 262144, 4, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.2 (A500,A1000,A2000)", 1, 2, 33, 180, "A500\0A1000\0A2000\0", 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A500,A1000,A2000)", 1, 3, 34, 5, "A500\0A1000\0A2000\0", 0xc4f0f55f, 262144, 6, 60, 0, ROMTYPE_KICK },
+    { "Kickstart v1.3 (A3000)", 1, 3, 34, 5, "A3000\0", 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v2.04 (A500+)", 37, 175, 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600)", 37, 299, 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 37, 300, 0x64466c2a, 524288, 9, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 37, 350, 0x43b0df7b, 524288, 10, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.04 (A500+)", 2, 4, 37, 175, "A500+\0", 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600)", 2, 5, 37, 299, "A600\0", 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 2, 5, 37, 300, "A600HD\0A600\0", 0x64466c2a, 524288, 9, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v2.05 (A600HD)", 2, 5, 37, 350, "A600HD\0A600\0", 0x43b0df7b, 524288, 10, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v3.0 (A1200)", 39, 106, 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v3.0 (A4000)", 39, 106, 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)", 40, 70, 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A500,A600,A2000)", 40, 63, 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A1200)", 40, 68, 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)(Cloanto)", 40, 68, 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)", 40, 68, 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000T)", 40, 70, 0x75932c3a, 524288, 17, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A1200)", 3, 0, 39, 106, "A1200\0", 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v3.0 (A4000)", 3, 0, 39, 106, "A4000\0", 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)", 3, 1, 40, 70, "A4000\0", 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A500,A600,A2000)", 3, 1, 40, 63, "A500\0A600\0A2000\0", 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A1200)", 3, 1, 40, 68, "A1200\0", 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)(Cloanto)", 3, 1, 40, 68, "A4000\0", 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000)", 3, 1, 40, 68, "A4000\0", 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
+    { "Kickstart v3.1 (A4000T)", 3, 1, 40, 70, "A4000T\0", 0x75932c3a, 524288, 17, 2, 0, ROMTYPE_KICK },
 
-    { "CD32 Kickstart v3.1", 40, 60, 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
-    { "CD32 Extended", 40, 60, 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
+    { "CD32 Kickstart v3.1", 3, 1, 40, 60, "CD32\0", 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
+    { "CD32 Extended", 3, 1, 40, 60, "CD32\0", 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
 
-    { "CDTV Extended v1.00", 0, 0, 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.30", 0, 0, 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.07", 0, 0, 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV Extended v1.00", 1, 0, 1, 0, "CDTV\0", 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV Extended v2.30", 2, 30, 2, 30, "CDTV\0", 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV Extended v2.07", 2, 7, 2, 7, "CDTV\0", 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
 
-    { "A1000 Bootstrap", 0, 0, 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
-    { "A1000 Bootstrap", 0, 0, 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
+    { "A1000 Bootstrap", 0, 0, 0, 0, "A1000\0", 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
+    { "A1000 Bootstrap", 0, 0, 0, 0, "A1000\0", 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
 
-    { "Action Replay Mk I v1.50", 0, 0, 0xd4ce0675, 65536, 25, 0, 0, ROMTYPE_AR },
-    { "Action Replay Mk II v2.05", 0, 0, 0x1287301f , 131072, 26, 0, 0, ROMTYPE_AR },
-    { "Action Replay Mk II v2.12", 0, 0, 0x804d0361 , 131072, 27, 0, 0, ROMTYPE_AR },
-    { "Action Replay Mk II v2.14", 0, 0, 0x49650e4f, 131072, 28, 0, 0, ROMTYPE_AR },
-    { "Action Replay Mk III v3.09", 0, 0, 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
-    { "Action Replay Mk III v3.17", 0, 0, 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk I v1.50", 1, 50, 1, 50, "AR\0", 0xd4ce0675, 65536, 25, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.05", 2, 5, 2, 5, "AR\0", 0x1287301f , 131072, 26, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.12", 2, 12, 2, 12, "AR\0", 0x804d0361 , 131072, 27, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk II v2.14", 2, 14, 2, 14, "AR\0", 0x49650e4f, 131072, 28, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
+    { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
 
-    { "SportTime Table Hockey\0ar_airh", 0, 0, 0, 0, 33, 0, 0, ROMTYPE_ARCADIA },
-    { "SportTime Bowling\0ar_bowl", 0, 0, 0, 0, 34, 0, 0, ROMTYPE_ARCADIA },
-    { "World Darts\0ar_dart", 0, 0, 0, 0, 35, 0, 0, ROMTYPE_ARCADIA },
-    { "Magic Johnson's Fast Break\0ar_fast", 0, 0, 0, 0, 36, 0, 0, ROMTYPE_ARCADIA },
-    { "Leader Board Golf\0ar_ldrb", 0, 0, 0, 0, 37, 0, 0, ROMTYPE_ARCADIA },
-    { "Leader Board Golf (alt)\0ar_ldrba", 0, 0, 0, 0, 38, 0, 0, ROMTYPE_ARCADIA },
-    { "Ninja Mission\0ar_ninj", 0, 0, 0, 0, 39, 0, 0, ROMTYPE_ARCADIA },
-    { "Road Wars\0ar_rdwr", 0, 0, 0, 0, 40, 0, 0, ROMTYPE_ARCADIA },
-    { "Sidewinder\0ar_sdwr", 0, 0, 0, 0, 41, 0, 0, ROMTYPE_ARCADIA },
-    { "Cool Spot\0ar_spot", 0, 0, 0, 0, 42, 0, 0, ROMTYPE_ARCADIA },
-    { "Space Ranger\0ar_sprg", 0, 0, 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
-    { "Xenon\0ar_xeon", 0, 0, 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
-    { "World Trophy Soccer\0ar_socc", 0, 0, 0, 0, 45, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia SportTime Table Hockey\0ar_airh", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 33, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia SportTime Bowling\0ar_bowl", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 34, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia World Darts\0ar_dart", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 35, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Magic Johnson's Fast Break\0ar_fast", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 36, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Leader Board Golf\0ar_ldrb", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 37, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Leader Board Golf (alt)\0ar_ldrba", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 38, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Ninja Mission\0ar_ninj", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 39, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Road Wars\0ar_rdwr", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 40, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Sidewinder\0ar_sdwr", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 41, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Cool Spot\0ar_spot", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 42, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Space Ranger\0ar_sprg", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia Xenon\0ar_xeon", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia World Trophy Soccer\0ar_socc", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 45, 0, 0, ROMTYPE_ARCADIA },
 
-    { NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 };
+
+struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all)
+{
+    int i, j, ok, out, max;
+    struct romdata *rd;
+    struct romlist **rdout, *rltmp;
+    void *buf;
+    static struct romlist rlstatic;
+    
+    for (i = 0; roms[i].name; i++);
+    if (all)
+	max = i;
+    else
+	max = romlist_cnt;
+    buf = xmalloc((sizeof (struct romlist*) + sizeof (struct romlist)) * (i + 1));
+    rdout = buf;
+    rltmp = (struct romlist*)((uae_u8*)buf + (i + 1) * sizeof (struct romlist*));
+    out = 0;
+    for (i = 0; i < max; i++) {
+        ok = 0;
+	if (!all)
+	    rd = rl[i].rd;
+	else
+	    rd = &roms[i];
+	if (model && !strcmpi(model, rd->name))
+	    ok = 2;
+	if (rd->ver == ver && (rev < 0 || rd->rev == rev)) {
+	    if (subver >= 0) {
+		if (rd->subver == subver && (subrev < 0 || rd->subrev == subrev) && rd->subver > 0)
+		    ok = 1;
+	    } else {
+		ok = 1;
+	    }
+	}
+	if (!ok)
+	    continue;
+	if (model && ok < 2) {
+	    char *p = rd->model;
+	    ok = 0;
+	    while (*p) {
+		if (!strcmp(rd->model, model)) {
+		    ok = 1;
+		    break;
+		}
+		p = p + strlen(p) + 1;
+	    }
+	}
+	if (!model && rd->type != ROMTYPE_KICK)
+	    ok = 0;
+	if (ok) {
+	    if (all) {
+		rdout[out++] = rltmp;
+		rltmp->path = NULL;
+		rltmp->rd = rd;
+		rltmp++;
+	    } else {
+		rdout[out++] = &rl[i];
+	    }
+	}
+    }
+    if (out == 0) {
+	xfree (rdout);
+	return NULL;
+    }
+    for (i = 0; i < out; i++) {
+	int v1 = rdout[i]->rd->subver * 1000 + rdout[i]->rd->subrev;
+	for (j = i + 1; j < out; j++) {
+	    int v2 = rdout[j]->rd->subver * 1000 + rdout[j]->rd->subrev;
+	    if (v1 < v2) {
+		struct romlist *rltmp = rdout[j];
+		rdout[j] = rdout[i];
+		rdout[i] = rltmp;
+	    }
+	}
+    }
+    rdout[out] = NULL;
+    return rdout;
+}
 
 struct romdata *getarcadiarombyname (char *name)
 {
@@ -183,9 +256,14 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 {
     struct zfile *f;
     uae_u8 *keybuf = 0;
-    int keysize = 0;
+    int keysize;
     char tmp[MAX_PATH], *d;
 
+    keybuf = target_load_keyfile(p, path, size);
+    if (keybuf)
+	return keybuf;
+    
+    keybuf = NULL;
     tmp[0] = 0;
     if (path)
 	strcpy (tmp, path);
@@ -361,11 +439,9 @@ struct romdata *getromdatabyzfile (struct zfile *f)
 void getromname	(struct romdata *rd, char *name)
 {
     name[0] = 0;
-    if (rd->type == ROMTYPE_ARCADIA)
-	strcat (name, "Arcadia ");
     strcat (name, rd->name);
-    if (rd->revision)
-	sprintf (name + strlen (name), " rev %d.%d", rd->version, rd->revision);
+    if (rd->subrev && rd->subrev != rd->rev)
+	sprintf (name + strlen (name), " rev %d.%d", rd->subver, rd->subrev);
     if (rd->size > 0)
 	sprintf (name + strlen (name), " (%dk)", (rd->size + 1023) / 1024);
 }

@@ -1655,6 +1655,34 @@ void logging_cleanup( void )
     debugfile = 0;
 }
 
+typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
+uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep)
+{
+    uae_u8 *keybuf = NULL;
+    HMODULE h;
+    PFN_GetKey pfnGetKey;
+    int size;
+
+    h = WIN32_LoadLibrary ("amigaforever.dll");
+    if (!h)
+	return NULL;
+    pfnGetKey = (PFN_GetKey)GetProcAddress(h, "GetKey");
+    if (pfnGetKey) {
+	size = pfnGetKey(NULL, 0);
+	*sizep = size;
+	if (size > 0) {
+	    keybuf = xmalloc (size);
+	    if (pfnGetKey(keybuf, size) != size) {
+		xfree (keybuf);
+		keybuf = NULL;
+	    }
+	}
+    }
+    FreeLibrary (h);
+    return keybuf;
+}
+
+
 extern char *get_nero_aspi_path(void);
 
 void target_default_options (struct uae_prefs *p, int type)

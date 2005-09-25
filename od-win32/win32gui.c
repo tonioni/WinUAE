@@ -74,6 +74,7 @@
 #define ROM_FORMAT_STRING "(*.rom;*.zip;*.rar;*.7z;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
 #define USS_FORMAT_STRING_RESTORE "(*.uss;*.gz;*.zip)\0*.uss;*.gz;*.zip\0"
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
+#define HDF_FORMAT_STRING "(*.hdf;*.rdf;*.hdz;*.rdz)\0*.hdf;*.rdf;*.hdz;*.rdz\0"
 #define CONFIG_HOST "Host"
 #define CONFIG_HARDWARE "Hardware"
 
@@ -876,7 +877,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString( IDS_SELECTADF, szTitle, MAX_DPATH );
 	WIN32GUI_LoadUIString( IDS_ADF, szFormat, MAX_DPATH );
 	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), DISK_FORMAT_STRING, sizeof( DISK_FORMAT_STRING ) + 1 );
+	memcpy( szFilter + strlen( szFilter ), DISK_FORMAT_STRING, sizeof(DISK_FORMAT_STRING) + 1);
 
 	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "ADF";
@@ -897,7 +898,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString( IDS_SELECTHDF, szTitle, MAX_DPATH );
 	WIN32GUI_LoadUIString( IDS_HDF, szFormat, MAX_DPATH );
 	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), "(*.hdf;*.rdf)\0*.hdf;*.rdf\0", 26 );
+	memcpy( szFilter + strlen( szFilter ),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
 
 	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "HDF";
@@ -5542,7 +5543,7 @@ static void new_filesys (HWND hDlg)
     result = add_filesys_unit (currprefs.mountinfo, current_fsvdlg.device, current_fsvdlg.volume,
 		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
     if (result)
-	MessageBox (hDlg, result, "Bad directory",
+	MessageBox (hDlg, result, result,
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 }
 
@@ -5556,7 +5557,7 @@ static void new_hardfile (HWND hDlg)
 				current_hfdlg.reserved, current_hfdlg.blocksize,
 				current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
     if (result)
-	MessageBox (hDlg, result, "Bad hardfile",
+	MessageBox (hDlg, result, result,
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 }
 
@@ -5568,7 +5569,7 @@ static void new_harddrive (HWND hDlg)
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
 				0, current_hfdlg.blocksize, 0, 0, 0);
     if (result)
-	MessageBox (hDlg, result, "Bad harddrive",
+	MessageBox (hDlg, result, result,
 		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 }
 
@@ -5633,7 +5634,7 @@ static void harddisk_edit (HWND hDlg)
 					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
 					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
 	    if (result)
-		MessageBox (hDlg, result, "Bad hardfile",
+		MessageBox (hDlg, result, result,
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
@@ -5649,7 +5650,7 @@ static void harddisk_edit (HWND hDlg)
 					! current_hfdlg.rw, 0, 0,
 					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
 	    if (result)
-		MessageBox (hDlg, result, "Bad harddrive",
+		MessageBox (hDlg, result, result,
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
@@ -5671,7 +5672,7 @@ static void harddisk_edit (HWND hDlg)
 	    result = set_filesys_unit (currprefs.mountinfo, entry, current_fsvdlg.device, current_fsvdlg.volume,
 					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
 	    if (result)
-		MessageBox (hDlg, result, "Bad hardfile",
+		MessageBox (hDlg, result, result,
 		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
@@ -8449,7 +8450,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     POINT pt;
     RECT r;
     int ret = 0;
-
+    DWORD flags;
+    
     DragQueryPoint (hd, &pt);
     pt.y += GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
     cnt = DragQueryFile (hd, 0xffffffff, NULL, 0);
@@ -8473,6 +8475,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     for (i = 0; i < cnt; i++) {
 	struct zfile *z;
 	DragQueryFile (hd, i, file, sizeof (file));
+        flags = GetFileAttributes(file);
 	z = zfile_fopen (file, "rb");
 	if (z) {
 	    int type = zfile_gettype (z);
@@ -8521,6 +8524,20 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		    } else {
 			strcpy (prefs->romfile, file);
 		    }
+		break;
+		case ZFILE_HDF:
+		{
+		    char *result;
+		    if (currentpage == HARDDISK_ID) {
+			if (flags & FILE_ATTRIBUTE_DIRECTORY) {
+			    result = add_filesys_unit (currprefs.mountinfo, NULL, "XXX", file, 0,
+			        0, 0, 0, 0, 0, NULL, 0);
+			} else {
+			    result = add_filesys_unit (currprefs.mountinfo, NULL, NULL, file, 0,
+			        32, 1, 2, 512, 0, NULL, 0);
+			}
+		    }
+		}
 		break;
 		case ZFILE_NVR:
 		    strcpy (prefs->flashfile, file);
@@ -9099,6 +9116,24 @@ void notify_user (int msg)
     WIN32GUI_LoadUIString (c, tmp, MAX_DPATH);
     gui_message (tmp);
 }
+
+void notify_user_parms (int msg, const char *parms, ...)
+{
+    char msgtxt[MAX_DPATH];
+    char tmp[MAX_DPATH];
+    int c = 0;
+    va_list parms2;
+
+    c = gettranslation (msg);
+    if (c < 0)
+	return;
+    WIN32GUI_LoadUIString (c, tmp, MAX_DPATH);
+    va_start (parms2, parms);
+    vsprintf (msgtxt, tmp, parms2);
+    gui_message (msgtxt);
+    va_end (parms);
+}
+
 
 int translate_message (int msg,	char *out)
 {

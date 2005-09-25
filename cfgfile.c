@@ -238,15 +238,21 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->romfile);
     cfgfile_write (f, "kickstart_rom_file=%s\n", str);
     free (str);
+    if (p->romident[0])
+	cfgfile_write (f, "kickstart_rom=%s\n", p->romident);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->romextfile);
     cfgfile_write (f, "kickstart_ext_rom_file=%s\n", str);
     free (str);
+    if (p->romextident[0])
+	cfgfile_write (f, "kickstart_ext_rom=%s\n", p->romextident);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->flashfile);
     cfgfile_write (f, "flash_file=%s\n", str);
     free (str);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->cartfile);
     cfgfile_write (f, "cart_file=%s\n", str);
     free (str);
+    if (p->cartident[0])
+	cfgfile_write (f, "cart=%s\n", p->cartident);
     cfgfile_write (f, "kickshifter=%s\n", p->kickshifter ? "true" : "false");
 
     p->nr_floppies = 4;
@@ -872,6 +878,73 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     return 0;
 }
 
+static void decode_rom_ident (char *romfile, int maxlen, char *ident)
+{
+    char *p;
+    int ver, rev, subver, subrev, round, i;
+    char model[64], *modelp;
+    struct romlist **rl;
+    char *romtxt;
+
+    if (!ident[0])
+	return;
+    romtxt = malloc (10000);
+    romtxt[0] = 0;
+    for (round = 0; round < 2; round++) {
+	ver = rev = subver = subrev = -1;
+	modelp = NULL;
+	memset (model, 0, sizeof model);
+	p = ident;
+	while (*p) {
+	    char c = *p++;
+	    int *pp1 = NULL, *pp2 = NULL;
+	    if (toupper(c) == 'V' && isdigit(*p)) {
+		pp1 = &ver;
+		pp2 = &rev;
+	    } else if (toupper(c) == 'R' && isdigit(*p)) {
+		pp1 = &subver;
+		pp2 = &subrev;
+	    } else if (!isdigit(c) && c != ' ') {
+		strncpy (model, p - 1, (sizeof model) - 1);
+		p += strlen(model);
+		modelp = model;
+	    }
+	    if (pp1) {
+		*pp1 = atol(p);
+		while (*p != 0 && *p != '.' && *p != ' ')
+		p++;
+		if (*p == '.') {
+		p++;
+		if (pp2)
+			*pp2 = atol(p);
+		}
+	    }
+	    if (*p == 0 || *p == ';') {
+		rl = getrombyident(ver, rev, subver, subrev, modelp, round);
+		if (rl) {
+		    for (i = 0; rl[i]; i++) {
+			if (round) {
+			    char romname[MAX_DPATH];
+			    getromname(rl[i]->rd, romname);
+			    strcat (romtxt, romname);
+			    strcat (romtxt, "\n");
+			} else {
+			    strncpy (romfile, rl[i]->path, maxlen);
+			    goto end;
+			}
+		    }
+		    xfree (rl);
+		}
+	    }
+	}
+    }
+end:
+    if (round && romtxt[0]) {
+	notify_user_parms (NUMSG_ROMNEED, romtxt, romtxt);
+    }
+    xfree(romtxt);
+}
+
 static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *value)
 {
     int tmpval, dummy, i;
@@ -933,14 +1006,23 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_string (option, value, "ghostscript_parameters", p->ghostscript_parameters, sizeof p->ghostscript_parameters))
 	return 1;
 
+    if (cfgfile_string (option, value, "kickstart_rom", p->romident, sizeof p->romident)) {
+	decode_rom_ident (p->romfile, sizeof p->romfile, p->romident);
+	return 1;
+    }
+    if (cfgfile_string (option, value, "kickstart_ext_rom", p->romextident, sizeof p->romextident)) {
+	decode_rom_ident (p->romextfile, sizeof p->romextfile, p->romextident);
+	return 1;
+    }
+    if (cfgfile_string (option, value, "cart", p->cartident, sizeof p->cartident)) {
+	decode_rom_ident (p->cartfile, sizeof p->cartfile, p->cartident);
+	return 1;
+    }
+
     for (i = 0; i < 4; i++) {
 	sprintf (tmpbuf, "floppy%d", i);
-	if (cfgfile_string (option, value, tmpbuf, p->df[i], sizeof p->df[i])) {
-#if 0
-	    strcpy (p->dfxlist[i], p->df[i]);
-#endif
+	if (cfgfile_string (option, value, tmpbuf, p->df[i], sizeof p->df[i]))
 	    return 1;
-	}
     }
 
     if (cfgfile_intval (option, value, "chipmem_size", &dummy, 1)) {

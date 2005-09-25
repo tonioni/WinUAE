@@ -176,7 +176,7 @@ static void CIA_update (void)
 	    if ((ciaacra & 0x48) == 0x40 && ciaasdr_cnt > 0 && --ciaasdr_cnt == 0)
 		asp = 1;
 	    aovfla = 1;
-	    if ((ciaacrb & 0x61) == 0x41) {
+	    if ((ciaacrb & 0x61) == 0x41 || (ciaacrb & 0x61) == 0x61) {
 		if (ciaatb-- == 0)
 		    aovflb = 1;
 	    }
@@ -196,7 +196,7 @@ static void CIA_update (void)
 	    if ((ciabcra & 0x48) == 0x40 && ciabsdr_cnt > 0 && --ciabsdr_cnt == 0)
 		bsp = 1;
 	    bovfla = 1;
-	    if ((ciabcrb & 0x61) == 0x41) {
+	    if ((ciabcrb & 0x61) == 0x41 || (ciabcrb & 0x61) == 0x61) {
 		if (ciabtb-- == 0)
 		    bovflb = 1;
 	    }

@@ -155,6 +155,7 @@
 #include "zfile.h"
 #include "ar.h"
 #include "savestate.h"
+#include "crc32.h"
 
 #define DEBUG
 #ifdef DEBUG
@@ -1610,7 +1611,7 @@ uae_u8 *save_action_replay (int *len, uae_u8 *dstptr)
     strcpy (dst, currprefs.cartfile);
     dst += strlen(dst) + 1;
     memcpy (dst, armemory_ram, arram_size);
-    save_u32 (0);
+    save_u32 (get_crc32 (armemory_rom + 4, arrom_size - 4));
     return dstbak;
 }
 
@@ -1625,13 +1626,13 @@ uae_u8 *restore_action_replay (uae_u8 *src)
     strncpy (changed_prefs.cartfile, src, 255);
     strcpy (currprefs.cartfile, changed_prefs.cartfile);
     src += strlen(src) + 1;
-    crc32 = restore_u32 ();
     action_replay_load ();
     if (armemory_ram) {
 	memcpy (armemory_ram, src, arram_size);
 	memcpy (ar_custom, armemory_ram + 0xf000, 2 * 256);
 	src += arram_size;
     }
+    crc32 = restore_u32 ();
     src += 256;
     return src;
 }

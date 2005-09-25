@@ -1037,7 +1037,7 @@ STATIC_INLINE void flush_display (int fm)
     toscr_nbits = 0;
 }
 
-STATIC_INLINE fetch_start(void)
+STATIC_INLINE fetch_start(int hpoa)
 {
     fetch_state = fetch_started;
 }
@@ -1392,7 +1392,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	if (fetch_state == fetch_was_plane0)
 	    break;
 
-	fetch_start();
+	fetch_start(pos);
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
     }
@@ -1452,7 +1452,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     for (; pos < until; pos++) {
 	if (fetch_state == fetch_was_plane0)
 	    beginning_of_plane_block (pos, fm);
-	fetch_start();
+	fetch_start(pos);
 
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
@@ -1485,7 +1485,7 @@ STATIC_INLINE void decide_fetch (int hpos)
 
 static void start_bpl_dma (int hpos, int hstart)
 {
-    fetch_start();
+    fetch_start(hpos);
     fetch_cycle = 0;
     last_fetch_hpos = hstart;
     out_nbits = 0;

@@ -1119,7 +1119,7 @@ BEGIN
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
     IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nDo you want to save it?"
     IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU or later CPU."
-    IDS_NUMSG_ROMNEED       "You need any following ROM(s)\n\n%s"
+    IDS_NUMSG_ROMNEED       "You need any following ROM(s):\n\n%s\n\nCheck ROM-path in Paths-panel and click ""Rescan ROMs""-button."
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
     IDS_NUMSG_NOCAPS        "This disk image needs the S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_NUMSG_OLDCAPS       "You need updated S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"

@@ -130,6 +130,10 @@ int zfile_gettype (struct zfile *z)
 	    return ZFILE_NVR;
 	if (strcasecmp (ext, "uae") == 0)
 	    return ZFILE_CONFIGURATION;
+	if (strcasecmp (ext, "hdf") == 0)
+	    return ZFILE_HDF;
+	if (strcasecmp (ext, "hdz") == 0)
+	    return ZFILE_HDF;
     }
     memset (buf, 0, sizeof (buf));
     zfile_fread (buf, 8, 1, z);
@@ -261,7 +265,7 @@ static struct zfile *gunzip (struct zfile *z)
     size |= b << 16;
     zfile_fread (&b, 1, 1, z);
     size |= b << 24;
-    if (size < 8 || size > 10000000) /* safety check */
+    if (size < 8 || size > 64 * 1024 * 1024) /* safety check */
 	return z;
     zfile_fseek (z, offset, SEEK_SET);
     z2 = zfile_fopen_empty (name, size);
@@ -696,6 +700,8 @@ static struct zfile *zuncompress (struct zfile *z)
 	     return gunzip (z);
 	if (strcasecmp (ext, "roz") == 0)
 	     return gunzip (z);
+	if (strcasecmp (ext, "hdz") == 0)
+	     return gunzip (z);
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
 #if defined(ARCHIVEACCESS)
@@ -986,6 +992,18 @@ struct zfile *zfile_fopen (const char *name, const char *mode)
 	return 0;
     l = zuncompress (l);
     return l;
+}
+
+struct zfile *zfile_dup (struct zfile *zf)
+{
+    struct zfile *nzf;
+    if (!zf->data)
+	return NULL;
+    nzf = zfile_create();
+    nzf->data = malloc (zf->size);
+    memcpy (nzf->data, zf->data, zf->size);
+    nzf->size = zf->size;
+    return nzf;
 }
 
 int zfile_exists (const char *name)
