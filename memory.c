@@ -498,6 +498,8 @@ static void dummy_bput (uaecptr, uae_u32) REGPARAM;
 static int dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 #define	MAX_ILG 20
+#define NONEXISTINGDATA 0
+//#define NONEXISTINGDATA 0xffffffff
 
 uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
@@ -511,7 +513,7 @@ uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 	}
     }
     if (currprefs.cpu_level >= 2)
-	return 0;
+	return NONEXISTINGDATA;
     return (regs.irc << 16) | regs.irc;
 }
 
@@ -527,7 +529,7 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 	}
     }
     if (currprefs.cpu_level >= 2)
-	return 0;
+	return NONEXISTINGDATA;
     return regs.irc;
 }
 
@@ -543,7 +545,7 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 	}
     }
     if (currprefs.cpu_level >= 2)
-	return 0;
+	return NONEXISTINGDATA;
     return (addr & 1) ? regs.irc : regs.irc >> 8;
 }
 

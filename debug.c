@@ -106,6 +106,7 @@ static char help[] = {
     "  b                     Step to previous state capture position\n"
     "  am <channel mask>     Enable or disable audio channels\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
+    "                        Also enables extended disk logging\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
 
@@ -1254,6 +1255,7 @@ static void disk_debug(char **inptr)
     char parm[10];
     int i;
 
+    disk_debug_logging = 1;
     disk_debug_mode = 0;
     disk_debug_track = -1;
     ignore_ws(inptr);

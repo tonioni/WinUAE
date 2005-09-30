@@ -152,7 +152,7 @@ int is_hardfile (struct uaedev_mount_info *mountinfo, int unit_no)
 
 static void close_filesys_unit (UnitInfo *uip)
 {
-    if (uip->hf.handle != 0)
+    if (uip->hf.handle_valid)
 	hdf_close (&uip->hf);
     if (uip->volname != 0)
 	xfree (uip->volname);
@@ -168,7 +168,7 @@ static void close_filesys_unit (UnitInfo *uip)
     uip->unit_pipe = 0;
     uip->back_pipe = 0;
 
-    uip->hf.handle = 0;
+    uip->hf.handle_valid = 0;
     uip->volname = 0;
     uip->devname = 0;
     uip->rootdir = 0;
@@ -233,7 +233,7 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
     ui->rootdir = 0;
     ui->unit_pipe = 0;
     ui->back_pipe = 0;
-    ui->hf.handle = 0;
+    ui->hf.handle_valid = 0;
     ui->bootpri = 0;
     ui->filesysdir = 0;
     ui->automounted = flags & FILESYS_FLAG_DONOTSAVE;
@@ -263,7 +263,7 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
 	    hdf_open (&ui->hf, rootdir);
 	}
 	ui->hf.readonly = readonly;
-	if (ui->hf.handle == 0)
+	if (ui->hf.handle_valid == 0)
 	    return "Hardfile not found";
 	if ((ui->hf.blocksize & (ui->hf.blocksize - 1)) != 0 || ui->hf.blocksize == 0)
 	    return "Bad blocksize";
@@ -437,7 +437,7 @@ static void dup_mountinfo (struct uaedev_mount_info *mip, struct uaedev_mount_in
 	    uip->devname = my_strdup (uip->devname);
 	if (uip->rootdir)
 	    uip->rootdir = my_strdup (uip->rootdir);
-	if (uip->hf.handle)
+	if (uip->hf.handle_valid)
 	    hdf_dup (&uip->hf, &uip->hf);
     }
 }
@@ -1976,22 +1976,25 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
 {
     struct stat statbuf;
     long days, mins, ticks;
-    int i, n;
+    int i, n, entrytype;
     char *x;
 
     /* No error checks - this had better work. */
     stat (aino->nname, &statbuf);
 
     if (aino->parent == 0) {
+	/* Guru book says ST_ROOT = 1 (root directory, not currently used)
+	 * and some programs really expect 2 from root dir..
+	 */
+	entrytype = 2;
 	x = unit->ui.volname;
-	put_long (info + 4, 1);
-	put_long (info + 120, 1);
     } else {
-	/* AmigaOS docs say these have to contain the same value. */
-	put_long (info + 4, aino->dir ? 2 : -3);
-	put_long (info + 120, aino->dir ? 2 : -3);
+	entrytype = aino->dir ? 2 : -3;
 	x = aino->aname;
     }
+    put_long (info + 4, entrytype);
+    /* AmigaOS docs say these have to contain the same value. */
+    put_long (info + 120, entrytype);
     TRACE(("name=\"%s\"\n", x));
     n = strlen (x);
     if (n > 106)

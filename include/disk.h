@@ -38,6 +38,7 @@ extern void DSKSYNC (int, uae_u16);
 extern void DSKPTL (uae_u16);
 extern void DSKPTH (uae_u16);
 
+extern int disk_debug_logging;
 extern int disk_debug_mode;
 extern int disk_debug_track;
 #define DISK_DEBUG_DMA_READ 1

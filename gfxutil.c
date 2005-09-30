@@ -110,9 +110,9 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
     int i;
 
     for (i = 0; i < 4096; i++) {
-	int r = (i >> 8) << 4;
-	int g = ((i >> 4) & 0xF) << 4;
-	int b = (i & 0xF) << 4;
+	int r = ((i >> 8) << 4) | (i >> 8);
+	int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
+	int b = ((i & 0xf) << 4) | (i & 0x0f);
 	//colormodify (&r, &g, &b);
 	xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
     }
