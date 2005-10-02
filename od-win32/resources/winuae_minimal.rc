@@ -201,20 +201,21 @@ BEGIN
     PUSHBUTTON      "Delete Saveimage",IDC_SAVEIMAGE3,43,110,70,15,NOT WS_VISIBLE
 END
 
-IDD_HARDDISK DIALOGEX 0, 0, 300, 242
+IDD_HARDDISK DIALOGEX 0, 0, 300, 231
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,5,290,185
-    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,196,60,15
-    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,70,196,60,15
-    PUSHBUTTON      "Add Ha&rddrive...",IDC_NEW_HD,135,196,60,15
-    PUSHBUTTON      "Remove",IDC_REMOVE,235,196,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,235,217,60,15
-    CONTROL         "Add PC Drives at Startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,216,105,10,0,HIDC_MAPDRIVES
-    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,229,115,10
-    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,216,115,10
+    CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,182
+    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,186,60,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,70,186,60,15
+    PUSHBUTTON      "Add Ha&rddrive...",IDC_NEW_HD,135,186,60,15
+    PUSHBUTTON      "Remove",IDC_REMOVE,235,186,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,235,207,60,15
+    CONTROL         "Add PC Drives at Startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,205,100,10,0,HIDC_MAPDRIVES
+    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,205,115,10
+    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,216,115,10
+    CONTROL         "Add Network Drives...",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,216,101,10,0,HIDC_MAPDRIVES_NET
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 244
@@ -327,7 +328,7 @@ BEGIN
     CONTROL         "",IDC_CONTRIBUTORS,"RICHEDIT",TCS_HOTTRACK | TCS_VERTICAL | TCS_RAGGEDRIGHT | TCS_OWNERDRAWFIXED | TCS_MULTISELECT | WS_BORDER | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP,4,5,404,206
 END
 
-IDD_ABOUT DIALOGEX 0, 0, 300, 175
+IDD_ABOUT DIALOGEX 0, 0, 300, 191
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
@@ -336,20 +337,21 @@ BEGIN
     PUSHBUTTON      "Contributors",IDC_CONTRIBUTORS,110,55,80,15
     CONTROL         "",IDC_UAEHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,120,80,15
     CONTROL         "",IDC_PICASSOHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,90,80,20
-    CONTROL         "",IDC_AMIGAHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,90,80,15
+    CONTROL         "",IDC_AMIGAHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,109,90,80,20
     CONTROL         "",IDC_WINUAEHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,120,80,15
     CONTROL         "",IDC_AIABHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,120,80,15
     CONTROL         "",IDC_THEROOTS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,145,80,15
     CONTROL         "",IDC_CAPS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,145,80,15
     CONTROL         "",IDC_ABIME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,145,80,15
     CONTROL         "",IDC_CLOANTOHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,90,80,20
+    CONTROL         "",IDC_AMIGASYS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,169,80,15
 END
 
 IDD_MISC1 DIALOGEX 0, 0, 300, 219
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,103
+    GROUPBOX        "Advanced:",IDC_STATIC,8,4,285,110
     CONTROL         "Middle-Mouse-Button --> ALT-TAB",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,19,120,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,34,120,10
     CONTROL         "On-Screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,49,115,10
@@ -358,25 +360,26 @@ BEGIN
     CONTROL         "BSDsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,19,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,34,120,10
     CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,49,120,10
-    CONTROL         "Use ASPI SCSI layer",IDC_ASPI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,64,115,10
     CONTROL         "Syncronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,78,115,10
-    GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,110,85,73
-    COMBOBOX        IDC_KBLED1,22,123,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_KBLED2,22,142,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_KBLED3,22,162,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Logging:",IDC_STATIC,97,110,195,25
-    CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,107,120,72,10,0,HIDC_CREATELOGFILE
-    CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,189,120,80,10
-    GROUPBOX        "State files:",IDC_STATIC,98,137,195,78
-    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,156,49,14
-    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,182,49,14
-    CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,188,155,88,10
-    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,173,86,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_RATE,248,171,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Recording buffer (MB)",IDC_STATE_BUFFERSIZE_TEXT,157,193,83,10,SS_CENTERIMAGE | WS_TABSTOP
-    COMBOBOX        IDC_STATE_BUFFERSIZE,248,191,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Keyboard LEDs:",IDC_STATIC,7,120,85,94
+    COMBOBOX        IDC_KBLED1,22,134,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_KBLED2,22,153,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_KBLED3,22,173,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Logging:",IDC_STATIC,97,120,195,25
+    CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,107,130,72,10,0,HIDC_CREATELOGFILE
+    CONTROL         "Illegal mem accesses",IDC_ILLEGAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,189,130,80,10
+    GROUPBOX        "State files:",IDC_STATIC,98,146,195,69
+    PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,162,49,14
+    PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,106,188,49,14
+    CONTROL         "Enable state recording",IDC_STATE_CAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,188,161,88,10
+    RTEXT           "Recording rate (seconds)",IDC_STATE_RATE_TEXT,157,179,86,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_RATE,248,177,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Recording buffer (MB)",IDC_STATE_BUFFERSIZE_TEXT,157,199,83,10,SS_CENTERIMAGE | WS_TABSTOP
+    COMBOBOX        IDC_STATE_BUFFERSIZE,248,197,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,92,117,10
     CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,92,115,10
+    CONTROL         "USB-mode",IDC_KBLED_USB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,196,64,10
+    COMBOBOX        IDC_SCSIMODE,159,62,104,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 212
@@ -465,11 +468,11 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,63,50,10
     GROUPBOX        "Misc chipset options",IDC_STATIC,168,11,114,82
     CONTROL         "Fast Copper [] Faster but less compatible copper emulation.",IDC_FASTCOPPER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,31,98,10
+                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,176,198,98,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,47,96,10
-    CONTROL         "Cycle exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast CPU recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,64,100,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,30,96,10
+    CONTROL         "Cycle exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,43,100,10
     GROUPBOX        "Collision level",IDC_STATIC,14,97,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,40,113,50,10
@@ -483,6 +486,8 @@ BEGIN
     CONTROL         "Disabled",IDC_CS_SOUND0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,39,167,102,10
     CONTROL         "Emulated",IDC_CS_SOUND1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,39,182,91,10
     CONTROL         "Emulated, 100% accurate",IDC_CS_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,39,197,95,10
+    CONTROL         "Genlock connected [] Allow Kickstart to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,56,100,10
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 233
@@ -626,7 +631,7 @@ BEGIN
     PUSHBUTTON      "Help",IDHELP,366,259,50,14,WS_DISABLED
 END
 
-IDD_PATHS DIALOGEX 0, 0, 300, 221
+IDD_PATHS DIALOGEX 0, 0, 300, 237
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
@@ -648,9 +653,10 @@ BEGIN
     LTEXT           "Saveimage path:",IDC_PATHS_SAVEIMAGEL,14,163,260,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_SAVEIMAGE,14,175,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_SAVEIMAGES,281,175,11,15
-    PUSHBUTTON      "Reset to defaults",IDC_PATHS_DEFAULT,13,199,73,14
-    PUSHBUTTON      "Rescan ROMs",IDC_ROM_RESCAN,97,199,73,14
-    PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,219,199,73,14
+    PUSHBUTTON      "Reset to defaults",IDC_PATHS_DEFAULT,14,199,92,14
+    PUSHBUTTON      "Rescan ROMs",IDC_ROM_RESCAN,14,218,92,14
+    PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,190,217,85,14
+    COMBOBOX        IDC_PATHS_DEFAULTTYPE,112,199,163,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 300, 242
@@ -759,8 +765,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION 1,1,0,0
+ PRODUCTVERSION 1,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -776,12 +782,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.0.0"
+            VALUE "FileVersion", "1.1.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2005 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.0.0"
+            VALUE "ProductVersion", "1.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -806,11 +812,6 @@ IDC_MYHAND              CURSOR                  "H_arrow.cur"
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO 
 BEGIN
-    IDD_HARDDISK, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 241
-    END
-
     IDD_SOUND, DIALOG
     BEGIN
         BOTTOMMARGIN, 243
@@ -825,11 +826,6 @@ BEGIN
     BEGIN
         RIGHTMARGIN, 370
         BOTTOMMARGIN, 212
-    END
-
-    IDD_FILESYS, DIALOG
-    BEGIN
-        RIGHTMARGIN, 229
     END
 
     IDD_INPUT, DIALOG
@@ -869,12 +865,6 @@ BEGIN
     END
 END
 
-/////////////////////////////////////////////////////////////////////////////
-//
-// RT_MANIFEST
-//
-
-1                       RT_MANIFEST             "winuae.exe.manifest"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -996,6 +986,9 @@ BEGIN
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
     IDS_OLDRTGLIBRARY       "Your LIBS:Picasso96/rtg.library (%d.%d) requires updating.\nReplace it with version from ""Amiga Programs""-directory in WinUAE archive.\nNew library fixes graphics problems and increases performance."
+    IDS_DEFAULT_AF2005      "AmigaForever 2005"
+    IDS_DEFAULT_AF          "AmigaForever (old)"
+    IDS_DEFAULT_WINUAE      "WinUAE default"
 END
 
 STRINGTABLE 
@@ -1106,13 +1099,12 @@ BEGIN
     IDS_NUMSG_NOEXTROM      "No extended Kickstart ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No modules or compressed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packer found\n%s\nDo you want to save it?"
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nDo you want to save it?"
     IDS_NUMSG_KS68020       "Your Kickstart requires a 68020 CPU or later CPU."
-    IDS_NUMSG_ROMNEED       "You need any following ROM(s)\n\n%s"
-    IDS_NUMSG_NOZLIB        "Zip and gzip support disabled because zlib1.dll is missing."
+    IDS_NUMSG_ROMNEED       "You need any following ROM(s):\n\n%s\n\nCheck ROM-path in Paths-panel and click ""Rescan ROMs""-button."
     IDS_NUMSG_STATEHD       "WARNING: State saves do not support harddrive emulation. This message does not appear again."
-    IDS_NUMSG_NOCAPS        "This disk image needs the C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
-    IDS_NUMSG_OLDCAPS       "You need updated C.A.P.S. plugin\nwhich is available from\nhttp//www.caps-project.org/download.shtml"
+    IDS_NUMSG_NOCAPS        "This disk image needs the S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"
+    IDS_NUMSG_OLDCAPS       "You need updated S.P.S. plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_IMGCHK_BOOTBLOCKCRCERROR 
                             "Selected disk image is not bootable (bootblock CRC error)"
     IDS_IMGCHK_BOOTBLOCKNO  "Selected disk image is not bootable (no bootblock)"

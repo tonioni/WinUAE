@@ -54,6 +54,7 @@ void init_shm(void)
     uae_u32 add = 0x11000000;
     uae_u32 inc = 0x100000;
     uae_u64 size64, total64;
+    uae_u64 totalphys64;
     MEMORYSTATUS memstats;
 
 #ifdef CPU_64_BIT
@@ -70,6 +71,7 @@ void init_shm(void)
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
 
+    totalphys64 = memstats.dwTotalPhys;
     size64 = 16 * 1024 * 1024;
     total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys;
     while (total64 >= (size64 << 1)
@@ -133,7 +135,7 @@ void init_shm(void)
     while (memstats.dwAvailPageFile + memstats.dwAvailPhys < max_z3fastmem)
 	max_z3fastmem <<= 1;
 
-    write_log("Max Z3FastRAM %dM\n", max_z3fastmem >> 20);
+    write_log("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
 }
 
 

@@ -562,8 +562,13 @@ end:
 int scan_roms (char *pathp)
 {
     char path[MAX_DPATH];
+    int ret;
+    static int recursive;
 
-    int ret = scan_roms_2 (pathp);
+    if (recursive)
+	return 0;
+    recursive++;
+    ret = scan_roms_2 (pathp);
     sprintf (path, "%s..\\shared\\rom\\", start_path_data);
     if (!ret && pathp == NULL) {
 	ret = scan_roms_2 (path);
@@ -572,6 +577,7 @@ int scan_roms (char *pathp)
     }
     read_rom_list ();
     show_rom_list ();
+    recursive--;
     return ret;
 }
 

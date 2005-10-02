@@ -1,5 +1,5 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "1.0"
+!define PRODUCT_VERSION "1.1"
 !define PRODUCT_PUBLISHER "Toni Wilen"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
@@ -81,8 +81,7 @@ Section "WinUAE (required)" secWinUAE_files
   SectionIn 1 2 3 RO
   SetOutPath "$INSTDIR\"
   ;SetOverwrite ifnewer
- ;-- Copy WinUAE and zlib.dll
-  File "${DISTPATH}\zlib1.dll"
+ ;-- Copy WinUAE
   File "${DISTPATH}\winuae.exe"
   SetOutPath "$INSTDIR\Docs"
   File "${DISTPATH}\Docs\Readme.txt"
@@ -203,7 +202,7 @@ SectionEnd
 
 ; Section descriptions
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${secWinUAE_files} "WinUAE (WinUAE.exe, zlib1.dll, readme.txt)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${secWinUAE_files} "WinUAE (WinUAE.exe, readme.txt)"
   !insertmacro MUI_DESCRIPTION_TEXT ${secExConfig} "Example Host-Configurations"
   !insertmacro MUI_DESCRIPTION_TEXT ${secAdditionalFiles} "Additional files (Docs, Amiga programs)"
   !insertmacro MUI_DESCRIPTION_TEXT ${secAmigaprograms} "Amiga programs"
