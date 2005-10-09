@@ -2754,6 +2754,8 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (hWinUAEKey)
 		    RegSetValueEx (hWinUAEKey, "PathMode", 0, REG_SZ, (CONST BYTE *)pathmode, strlen(pathmode) + 1);
 		set_path ("KickstartPath", NULL);
+		if (path_type == 2005)
+		    strcat (start_path_data, "WinUAE\\");
 		set_path ("ConfigurationPath", NULL);
 		set_path ("ScreenshotPath", NULL);
 		set_path ("StatefilePath", NULL);
@@ -3278,43 +3280,43 @@ static void LoadNthString( DWORD value, char *nth, DWORD dwNthMax )
     switch( value )
     {
 	case 1:
-	    WIN32GUI_LoadUIString( IDS_SECOND, nth, dwNthMax );
+	    WIN32GUI_LoadUIString(IDS_SECOND, nth, dwNthMax);
 	break;
 
 	case 2:
-	    WIN32GUI_LoadUIString( IDS_THIRD, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_THIRD, nth, dwNthMax);	
 	break;
 	
 	case 3:
-	    WIN32GUI_LoadUIString( IDS_FOURTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_FOURTH, nth, dwNthMax);	
 	break;
 	
 	case 4:
-	    WIN32GUI_LoadUIString( IDS_FIFTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_FIFTH, nth, dwNthMax);	
 	break;
 	
 	case 5:
-	    WIN32GUI_LoadUIString( IDS_SIXTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_SIXTH, nth, dwNthMax);	
 	break;
 	
 	case 6:
-	    WIN32GUI_LoadUIString( IDS_SEVENTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_SEVENTH, nth, dwNthMax);	
 	break;
 	
 	case 7:
-	    WIN32GUI_LoadUIString( IDS_EIGHTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_EIGHTH, nth, dwNthMax);	
 	break;
 	
 	case 8:
-	    WIN32GUI_LoadUIString( IDS_NINTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_NINTH, nth, dwNthMax);	
 	break;
 	
 	case 9:
-	    WIN32GUI_LoadUIString( IDS_TENTH, nth, dwNthMax );	
+	    WIN32GUI_LoadUIString(IDS_TENTH, nth, dwNthMax);	
 	break;
 	
 	default:
-	    strcpy( nth, "" );
+	    strcpy(nth, "");
     }
 }
 
@@ -3391,9 +3393,9 @@ static int display_mode_index(uae_u32 x, uae_u32 y, uae_u32 d)
 
     i = 0;
     while (DisplayModes[i].depth >= 0) {
-	if( DisplayModes[i].res.width == x &&
+	if (DisplayModes[i].res.width == x &&
 	    DisplayModes[i].res.height == y &&
-	    DisplayModes[i].depth == d )
+	    DisplayModes[i].depth == d)
 	    break;
 	i++;
     }
@@ -3472,6 +3474,7 @@ void init_da (HWND hDlg)
 }
 #endif
 
+static int gui_display_depths[3];
 static void init_display_mode (HWND hDlg)
 {
    int d, d2, index;
@@ -3521,7 +3524,22 @@ static void init_display_mode (HWND hDlg)
     }
 
     if ((index = display_mode_index (workprefs.gfx_width_fs, workprefs.gfx_height_fs, d)) >= 0) {
-	SendDlgItemMessage( hDlg, IDC_RESOLUTION, CB_SETCURSEL, index, 0 );
+	int i, cnt;
+	SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, DisplayModes[index].residx, 0);
+	SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
+	cnt = 0;
+	gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
+	for (i = 0; DisplayModes[i].depth >= 0; i++) {
+	    if (DisplayModes[i].residx == DisplayModes[index].residx) {
+		char tmp[64];
+		sprintf (tmp, "%d", DisplayModes[i].depth * 8);
+		SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
+		if (DisplayModes[i].depth == d)
+		    SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
+		gui_display_depths[cnt] = DisplayModes[i].depth;
+		cnt++;
+	    }
+	}
 	init_frequency_combo (hDlg, index);
     }
 }
@@ -3581,10 +3599,16 @@ static void values_to_displaydlg (HWND hDlg)
 
 static void init_resolution_combo (HWND hDlg)
 {
-    int i = 0;
+    int i = 0, idx = -1;
+    char tmp[64];
+
     SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
     while (DisplayModes[i].depth >= 0) {
-	SendDlgItemMessage( hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)(LPCTSTR)DisplayModes[i].name);
+	if (DisplayModes[i].residx != idx) {
+	    sprintf (tmp, "%dx%d", DisplayModes[i].res.width, DisplayModes[i].res.height);
+	    SendDlgItemMessage( hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    idx = DisplayModes[i].residx;
+	}
 	i++;
     }
 }
@@ -3593,17 +3617,18 @@ static void init_displays_combo (HWND hDlg)
     int i = 0;
     SendDlgItemMessage(hDlg, IDC_DISPLAYSELECT, CB_RESETCONTENT, 0, 0);
     while (Displays[i].name) {
-	SendDlgItemMessage( hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)Displays[i].name);
+	SendDlgItemMessage(hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)Displays[i].name);
 	i++;
     }
     if (workprefs.gfx_display >= i)
 	workprefs.gfx_display = 0;
-    SendDlgItemMessage( hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, workprefs.gfx_display, 0);
+    SendDlgItemMessage(hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, workprefs.gfx_display, 0);
 }
 
 static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     BOOL success = FALSE;
+    int i, j;
     int gfx_width = workprefs.gfx_width_win;
     int gfx_height = workprefs.gfx_height_win;
 
@@ -3666,13 +3691,31 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		init_display_mode (hDlg);
 	    }
 	    return;
-	} else if (LOWORD (wParam) == IDC_RESOLUTION) {
-	    LRESULT posn = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
-	    if (posn == CB_ERR)
+	} else if (LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) {
+	    LRESULT posn1, posn2;
+	    posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
+	    if (posn1 == CB_ERR)
 		return;
-	    workprefs.gfx_width_fs  = DisplayModes[posn].res.width;
-	    workprefs.gfx_height_fs = DisplayModes[posn].res.height;
-	    switch( DisplayModes[posn].depth )
+	    posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
+	    if (posn2 == CB_ERR)
+		return;
+	    for (i = 0; DisplayModes[i].depth >= 0; i++) {
+		if (DisplayModes[i].residx == posn1)
+		    break;
+	    }
+	    if (DisplayModes[i].depth < 0)
+		return;
+	    j = i;
+	    while (DisplayModes[i].residx == posn1) {
+		if (DisplayModes[i].depth == gui_display_depths[posn2])
+		    break;
+		i++;
+	    }
+	    if (DisplayModes[i].residx != posn1)
+		i = j;
+	    workprefs.gfx_width_fs  = DisplayModes[i].res.width;
+	    workprefs.gfx_height_fs = DisplayModes[i].res.height;
+	    switch(DisplayModes[i].depth)
 	    {
 	    case 2:
 		workprefs.color_mode = 2;
@@ -3688,7 +3731,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    /* Set the Int boxes */
 	    SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_width_win, FALSE);
 	    SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_height_win, FALSE);
-	    init_frequency_combo (hDlg, posn);
+	    init_frequency_combo (hDlg, i);
 	} else if (LOWORD (wParam) == IDC_REFRESHRATE) {
 	    LRESULT posn1, posn2;
 	    posn1 = SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_GETCURSEL, 0, 0);
@@ -3735,8 +3778,8 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETRANGE, TRUE, MAKELONG (MIN_REFRESH_RATE, MAX_REFRESH_RATE));
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPAGESIZE, 0, 1);
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (5, 99));
-	init_displays_combo( hDlg );
-	init_resolution_combo( hDlg );
+	init_displays_combo (hDlg);
+	init_resolution_combo (hDlg);
 #if 0
 	init_da (hDlg);
 #endif
@@ -4286,7 +4329,7 @@ static void enable_for_miscdlg (HWND hDlg)
 #endif
 #if !defined (SCSIEMU)
 	EnableWindow (GetDlgItem(hDlg, IDC_SCSIDEVICE), FALSE);
-	EnableWindow (GetDlgItem(hDlg, IDC_ASPI), FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), workprefs.scsi ? TRUE : FALSE);
 #endif
 	if (workprefs.win32_logfile)
 	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), TRUE);
@@ -4295,7 +4338,6 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), workprefs.statecapture ? TRUE : FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), workprefs.statecapture ? TRUE : FALSE);
-	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), workprefs.scsi ? TRUE : FALSE);
     }
 }
 
@@ -4343,29 +4385,15 @@ static void misc_addpri (HWND hDlg, int v, int pri)
     SendDlgItemMessage (hDlg, v, CB_SETCURSEL, pri, 0);
 }
 
-extern char *get_nero_aspi_path(void);
+extern char *get_aspi_path(int);
 
 static void misc_scsi(HWND hDlg)
 {
-    char txt[100];
-    HANDLE al;
-
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
-    strcpy (txt, "(SPTI)");
-    if (os_winnt && os_winnt_admin)
-	strcpy (txt, "SPTI");
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
-    strcpy (txt, "(AdaptecASPI)");
-    al = LoadLibrary("wnaspi32.dll");
-    if (al) {
-	FreeLibrary(al);
-	strcpy (txt, "AdaptecASPI");
-    }
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
-    strcpy (txt, "(NeroASPI)");
-    if (get_nero_aspi_path())
-	strcpy (txt, "NeroASPI");
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((os_winnt && os_winnt_admin) ? "SPTI" : "(SPTI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((os_winnt && os_winnt_admin) ? "SPTI + SCSI SCAN" : "(SPTI + SCSI SCAN)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? "AdaptecASPI" : "(AdaptecASPI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? "NeroASPI" : "(NeroASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
 }
 
@@ -4396,11 +4424,6 @@ static void values_to_miscdlg (HWND hDlg)
 	workprefs.catweasel = 0;
     CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
     CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
-
-    if (!os_winnt || !os_winnt_admin) {
-	EnableWindow( GetDlgItem( hDlg, IDC_ASPI), FALSE );
-	CheckDlgButton( hDlg, IDC_ASPI, BST_CHECKED );
-    }
 
     misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
     misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);

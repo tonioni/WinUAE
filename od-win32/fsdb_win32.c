@@ -696,6 +696,7 @@ int dos_errno (void)
 
      case ERROR_FILE_NOT_FOUND:
      case ERROR_INVALID_DRIVE:
+     case ERROR_INVALID_NAME:
 	return ERROR_OBJECT_NOT_AROUND;
 
      case ERROR_HANDLE_DISK_FULL:

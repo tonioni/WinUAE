@@ -3,7 +3,7 @@
   *
   * WIN32 CDROM/HD low level access code (SPTI)
   *
-  * Copyright 2002 Toni Wilen
+  * Copyright 2002-2005 Toni Wilen
   *
   */
 
@@ -13,6 +13,7 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "options.h"
 
 #ifdef WINDDK
 
@@ -83,7 +84,7 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
 	int lasterror = GetLastError();
 	*err = lasterror;
 	write_log("SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
-	write_log("Error code = %d, LastError=%d\n", swb->spt.ScsiStatus, lasterror);
+	write_log("Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
@@ -396,7 +397,7 @@ int open_scsi_device (int unitnum)
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     di->handle = h;
     if (h == INVALID_HANDLE_VALUE) {
-	write_log ("SPTI: failed to open cd unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
+	write_log ("SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
     } else {
 	uae_u8 inqdata[37] = { 0 };
 	int inqlen;
@@ -415,7 +416,7 @@ int open_scsi_device (int unitnum)
 		dev_info[unitnum].isatapi ? "ATAPI" : "SCSI",
 		dev_info[unitnum].mediainserted ? "CD inserted" : "Drive empty", inqdata + 8);
 	} else {
-	    write_log ("SPTI: unit %d, '%s'\n",
+	    write_log ("SPTI: unit %d, type %d, '%s'\n",
 		unitnum, dev_info[unitnum].type, inqdata + 8);
 	}
 	dev_info[unitnum].name = my_strdup (inqdata + 8);
@@ -670,6 +671,7 @@ static void GetInquiryData(PCTSTR pDevId, DWORD idx)
     write_log ("---------------------------------------------------------\n");
 
     for (Bus = 0; Bus < AdapterInfo->NumberOfBuses; Bus++) {
+	int luncheck = 0;
 	BusData = &AdapterInfo->BusData[Bus];
 	InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + BusData->InquiryDataOffset );
 	for (Luns = 0; Luns < BusData->NumberOfLogicalUnits; Luns++) {
@@ -679,11 +681,11 @@ static void GetInquiryData(PCTSTR pDevId, DWORD idx)
 	    write_log ("   %3d        %d         %d          %d     %s     %d\n",
 		BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId, 
 		InquiryData->Lun, Claimed ? "Yes" : "No ", type);
-	    if (!Claimed) {
+	    if (Claimed == 0 && !luncheck && type != INQ_DASD) {
+		luncheck = 1;
 		sprintf (label, "SCSI(%d):%d:%d:%d:%d", idx, BusData->InitiatorBusId,
 		    InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
-		//adddrive (label, idx, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
-		adddrive (label, idx, 0, 1, 0);
+		adddrive (label, idx, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
 	    }
 	    InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + InquiryData->NextInquiryDataOffset );
 	}   // for Luns
@@ -694,6 +696,7 @@ static void GetInquiryData(PCTSTR pDevId, DWORD idx)
     CloseHandle (hDevice);
 }
 
+#if 0
 static void GetChildDevices(DEVINST DevInst)
 {
     DEVINST         childDevInst;
@@ -760,6 +763,7 @@ static void GetChildDevices(DEVINST DevInst)
     } while (TRUE);
 
 }
+#endif
 
 static BOOL GetRegistryProperty(HDEVINFO DevInfo, DWORD Index, int *first)
 {
@@ -931,10 +935,10 @@ static BOOL GetRegistryProperty(HDEVINFO DevInfo, DWORD Index, int *first)
     }
 
     GetInquiryData ((PCTSTR)&deviceInstanceId, Index);
-
+#if 0
     // Find the children devices
     GetChildDevices (deviceInfoData.DevInst);
-
+#endif
     return TRUE;
 }
 
@@ -1005,10 +1009,8 @@ static const char *scsinames[] = { "Tape", "Scanner", NULL };
 static int rescan(void)
 {
     HDEVINFO hDevInfo;
-    HANDLE h;
     int idx, idx2;
     int first;
-    char tmp[100];
 
     for (idx2 = 0; guids[idx2]; idx2++) {
 	hDevInfo = SetupDiGetClassDevs(
@@ -1022,11 +1024,14 @@ static int rescan(void)
 	    SetupDiDestroyDeviceInfoList(hDevInfo);
 	}
     }
-
+#if 0
     for (idx2 = 0; scsinames[idx2]; idx2++) {
 	int max = 10;
 	for (idx = 0; idx < max; idx++) {
+	    char tmp[100];
+	    HANDLE h;
 	    sprintf (tmp, "\\\\.\\%s%d", scsinames[idx2], idx);
+	    write_log("SPTI: %s\n", tmp);
 	    h = CreateFile(tmp, GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL, OPEN_EXISTING, 0, NULL);
@@ -1038,17 +1043,20 @@ static int rescan(void)
 	    }
 	}
     }
-/*
-    first = 1;
-    hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_SCSIADAPTER, NULL, NULL, DIGCF_PRESENT);
-    if (hDevInfo != INVALID_HANDLE_VALUE) {
-	for (idx = 0; ; idx++) {
-	    if (!GetRegistryProperty(hDevInfo, idx, &first))
-		break;
+#endif
+    if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
+	write_log("SCSI adapter enumeration..\n");
+	first = 1;
+	hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_SCSIADAPTER, NULL, NULL, DIGCF_PRESENT);
+	if (hDevInfo != INVALID_HANDLE_VALUE) {
+	    for (idx = 0; ; idx++) {
+		if (!GetRegistryProperty(hDevInfo, idx, &first))
+		    break;
+	    }
 	}
+	SetupDiDestroyDeviceInfoList(hDevInfo);
+	write_log("SCSI adapter enumeration ends\n");
     }
-    SetupDiDestroyDeviceInfoList(hDevInfo);
-*/
     return 1;
 }
 

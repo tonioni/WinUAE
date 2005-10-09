@@ -66,7 +66,7 @@ extern int cycle_line[];
 static long blit_firstline_cycles;
 static long blit_first_cycle;
 static int blit_last_cycle, blit_dmacount, blit_dmacount2;
-static int blit_linecycles, blit_extracycles;
+static int blit_linecycles, blit_extracycles, blit_nod;
 static int *blit_diag;
 
 static uae_u16 ddat1, ddat2;
@@ -570,7 +570,6 @@ STATIC_INLINE void blitter_nxline(void)
 
 static int blit_last_hpos;
 
-static int blitter_dma_cycles_line, blitter_dma_cycles_line_count;
 static int blitter_cyclecounter;
 static int blitter_hcounter1, blitter_hcounter2;
 static int blitter_vcounter1, blitter_vcounter2;
@@ -952,12 +951,15 @@ static void blit_bltset (int con)
 
     ddat1use = ddat2use = 0;
     blit_dmacount = blit_dmacount2 = 0;
+    blit_nod = 1;
     for (i = 0; i < blit_diag[1]; i++) {
 	int v = blit_diag[2 + i];
 	if (v)
 	    blit_dmacount++;
 	if (v > 0 && v < 4)
 	    blit_dmacount2++;
+	if (v == 4)
+	    blit_nod = 0;
     }
 
     blt_info.blitashift = bltcon0 >> 12;
@@ -1049,13 +1051,11 @@ void do_blitter (int hpos)
 
     blit_maxcyclecounter = 0x7fffffff;
     if (blitter_cycle_exact) {
-	blitter_dma_cycles_line_count = 0;
 	blitter_hcounter1 = blitter_hcounter2 = 0;
 	blitter_vcounter1 = blitter_vcounter2 = 0;
-	if (blit_dmacount2 == blit_dmacount)
+	if (blit_nod)
 	    blitter_vcounter2 = blt_info.vblitsize;
 	blit_linecyclecounter = 0;
-	blitter_dma_cycles_line = blt_info.hblitsize * blit_dmacount2;
 	if (blit_ch == 0)
 	    blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize;
 	return;

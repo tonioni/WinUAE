@@ -1683,7 +1683,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep)
 }
 
 
-extern char *get_nero_aspi_path(void);
+extern char *get_aspi_path(int);
 
 void target_default_options (struct uae_prefs *p, int type)
 {
@@ -1706,7 +1706,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_automount_drives = 0;
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
-	p->win32_uaescsimode = get_nero_aspi_path() ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
+	p->win32_uaescsimode = get_aspi_path(1) ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
     }
     if (type == 1 || type == 0) {
 	p->win32_midioutdev = -2;
@@ -1714,7 +1714,7 @@ void target_default_options (struct uae_prefs *p, int type)
     }
 }
 
-static const char *scsimode[] = { "SPTI", "AdaptecASPI", "NeroASPI", 0 };
+static const char *scsimode[] = { "SPTI", "SPTI+SCSISCAN", "AdaptecASPI", "NeroASPI", 0 };
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
@@ -1797,7 +1797,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_yesno (option, value, "aspi", &v)) {
 	p->win32_uaescsimode = 0;
 	if (v)
-	    p->win32_uaescsimode = get_nero_aspi_path() ? 2 : 1;
+	    p->win32_uaescsimode = get_aspi_path(1) ? 2 : 1;
 	return 1;
     }
 
@@ -2341,40 +2341,44 @@ static void getstartpaths(int start_data)
     }
 
     p = getenv("AMIGAFOREVERDATA");
-    if (start_data == 0 && p ) {
+    if (p) {
 	strcpy (tmp, p);
 	strcpy (start_path_af, p);
 	v = GetFileAttributes(tmp);
 	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-	    if (path_done == 0) {
-		strcpy (start_path_data, start_path_af);
-		strcat (start_path_data, "WinUAE");
-		path_done = 1;
-	    }
-	    start_data = 1;
-	    af_path_2005 = 1;
-	}
-    }
-
-    if (start_data == 0) {
-	BOOL ok = FALSE;
-	if (pSHGetFolderPath)
-	    ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, start_path_data));
-	else if (pSHGetSpecialFolderPath)
-	    ok = pSHGetSpecialFolderPath(NULL, start_path_data, CSIDL_COMMON_DOCUMENTS, 0);
-	if (ok) {
-	    strcpy (start_path_af, start_path_data);
-	    strcat (start_path_af, "\\Amiga Files\\");
-	    strcpy (tmp, start_path_af);
-	    strcat(tmp, "WinUAE");
-	    v = GetFileAttributes(tmp);
-	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+	    if (start_data == 0) {
 		if (path_done == 0) {
 		    strcpy (start_path_data, start_path_af);
 		    strcat (start_path_data, "WinUAE");
 		    path_done = 1;
 		}
 		start_data = 1;
+	    }
+	    af_path_2005 = 1;
+	}
+    }
+
+    {
+	BOOL ok = FALSE;
+	if (pSHGetFolderPath)
+	    ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
+	else if (pSHGetSpecialFolderPath)
+	    ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
+	if (ok) {
+	    strcpy (start_path_af, tmp);
+	    strcat (start_path_af, "\\Amiga Files\\");
+	    strcpy (tmp, start_path_af);
+	    strcat(tmp, "WinUAE");
+	    v = GetFileAttributes(tmp);
+	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+		if (start_data == 0) {
+		    if (path_done == 0) {
+			strcpy (start_path_data, start_path_af);
+			strcat (start_path_data, "WinUAE");
+			path_done = 1;
+		    }
+		    start_data = 1;
+		}
 		af_path_2005 = 1;
 	    }
 	}

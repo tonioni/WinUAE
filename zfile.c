@@ -339,7 +339,7 @@ static struct zfile *dms (struct zfile *z)
 static char *ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
 static char *diskimageextensions[] =
-    { ".adf", ".adz", ".ipf", ".fdi", 0 };
+    { ".adf", ".adz", ".ipf", ".fdi", ".exe", 0 };
 
 static int isdiskimage (char *name)
 {

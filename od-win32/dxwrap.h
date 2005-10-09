@@ -15,6 +15,7 @@ struct PicassoResolution
 {
     struct ScreenResolution res;
     int depth;   /* depth in bytes-per-pixel */
+    int residx;
     int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */
     char name[25];
     /* Bit mask of RGBFF_xxx values.  */
@@ -25,10 +26,11 @@ extern GUID *displayGUID;
 
 #define MAX_DISPLAYS 10
 struct MultiDisplay {
-    int primary, disabled;
+    int primary, disabled, gdi;
     GUID guid;
     char *name;
     struct PicassoResolution *DisplayModes;
+    RECT rect;
 };
 extern struct MultiDisplay Displays[MAX_DISPLAYS];
 

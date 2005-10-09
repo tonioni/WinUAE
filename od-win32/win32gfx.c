@@ -490,10 +490,19 @@ static int resolution_compare (const void *a, const void *b)
 }
 static void sortmodes (void)
 {
-    int	count = 0;
-    while (DisplayModes[count].depth >= 0)
-	count++;
-    qsort (DisplayModes, count, sizeof (struct PicassoResolution), resolution_compare);
+    int	i = 0, idx = -1;
+    int pw = -1, ph = -1;
+    while (DisplayModes[i].depth >= 0)
+	i++;
+    qsort (DisplayModes, i, sizeof (struct PicassoResolution), resolution_compare);
+    for (i = 0; DisplayModes[i].depth >= 0; i++) {
+	if (DisplayModes[i].res.height != ph || DisplayModes[i].res.width != pw) {
+	    ph = DisplayModes[i].res.height;
+	    pw = DisplayModes[i].res.width;
+	    idx++;
+	}
+        DisplayModes[i].residx = idx;
+    }
 }
 
 static void modesList (void)
@@ -533,10 +542,26 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
     return 1;
 }
 
+static BOOL CALLBACK monitorEnumProc(HMONITOR h, HDC hdc, LPRECT rect, LPARAM data)
+{
+    MONITORINFOEX lpmi;
+    int cnt = *((int*)data);
+    if (!Displays[cnt].name)
+	return FALSE;
+    lpmi.cbSize = sizeof (lpmi);
+    GetMonitorInfo(h, (LPMONITORINFO)&lpmi);
+    Displays[cnt].rect = *rect;
+    Displays[cnt].gdi = TRUE;
+    (*((int*)data))++;
+    return TRUE;
+}
+
 void enumeratedisplays (int multi)
 {
     if (multi) {
+	int cnt = 1;
 	DirectDraw_EnumDisplays (displaysCallback);
+	EnumDisplayMonitors(NULL, NULL, monitorEnumProc, (LPARAM)&cnt);
     } else {
 	Displays[0].primary = 1;
 	Displays[0].name = "Display";
@@ -1701,6 +1726,8 @@ static int create_windows (void)
 {
     int fs = currentmode->flags & (DM_W_FULLSCREEN | DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
+    DWORD flags = 0;
+    DWORD style = NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
     HWND hhWnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
 
     if (!fs)  {
@@ -1748,10 +1775,18 @@ static int create_windows (void)
 	    }
 	    break;
 	}
+#if 0
+	if (currprefs.gfx_display > 0) {
+	    rc = Displays[currprefs.gfx_display].rect;
+	    flags |= WS_EX_TOPMOST;
+	    style = WS_POPUP;
+	}
+#endif
+	flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 
-	hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+	hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | flags,
 				"PCsuxRox", "WinUAE",
-				NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+				style,
 				rc.left, rc.top,
 				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
 				hhWnd, NULL, 0, NULL);

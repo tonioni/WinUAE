@@ -46,26 +46,88 @@ struct scsi_info {
 static struct scsi_info si[MAX_TOTAL_DEVICES];
 static int unitcnt;
 
-char *get_nero_aspi_path(void)
+static int getversion(char *name, VS_FIXEDFILEINFO *ver)
 {
-    static char path[MAX_DPATH];
-    HKEY key;
-    DWORD type = REG_SZ;
-    DWORD size = sizeof (path);
+    int ok = FALSE;
+    DWORD  dwVersionHandle, dwFileVersionInfoSize;
+    LPVOID lpFileVersionData = NULL;
 
-    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
-        if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {
-	    HANDLE al;
-	    strcat (path, "\\wnaspi32.dll");
-	    RegCloseKey (key);
-	    al = LoadLibrary(path);
-	    if (al) {
-		FreeLibrary(al);
-		return path;
+    dwFileVersionInfoSize = GetFileVersionInfoSize(name, &dwVersionHandle);
+    if (dwFileVersionInfoSize) {
+	if (lpFileVersionData = calloc(1, dwFileVersionInfoSize)) {
+	    if (GetFileVersionInfo(name, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData)) {
+		VS_FIXEDFILEINFO *vsFileInfo = NULL;
+		UINT uLen;
+		if (VerQueryValue(lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen)) {
+		    if(vsFileInfo) {
+			memcpy (ver, vsFileInfo, sizeof (*ver));
+			ok = TRUE;
+			write_log("%s version %d.%d.%d.%d\n", name,
+			    vsFileInfo->dwFileVersionMS >> 16,
+			    vsFileInfo->dwFileVersionMS & 0xffff,
+			    vsFileInfo->dwFileVersionLS >> 16,
+			    vsFileInfo->dwFileVersionLS & 0xffff);
+		    }
+		}
 	    }
-	    return NULL;
+	    xfree(lpFileVersionData);
 	}
-	RegCloseKey (key);
+    }
+    return ok;
+}
+
+char *get_aspi_path(int neroaspi)
+{
+    static int nero, adaptec;
+    static char path_nero[MAX_DPATH];
+    static char path_adaptec[MAX_DPATH];
+    VS_FIXEDFILEINFO ver;
+
+    switch (neroaspi)
+    {
+	case 1:
+	{
+            HKEY key;
+	    DWORD type = REG_SZ;
+	    DWORD size = sizeof (path_nero);
+	    if (nero > 0)
+		return path_nero;
+	    if (nero < 0)
+		return NULL;
+	    nero = -1;
+	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+		if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path_nero, &size) == ERROR_SUCCESS) {
+		    strcat (path_nero, "\\wnaspi32.dll");
+		    RegCloseKey (key);
+		    if (getversion(path_nero, &ver)) {
+			if (ver.dwFileVersionMS >= 0x20000) {
+			    nero = 1;
+			    return path_nero;
+			}
+		    }
+		    return NULL;
+		}
+	        RegCloseKey (key);
+	    }
+	}
+	return NULL;
+
+	case 0:
+	{
+	    if (adaptec > 0)
+		return path_adaptec;
+	    if (adaptec < 0)
+		return NULL;
+	    adaptec = -1;
+	    strcpy (path_adaptec, "wnaspi32.dll");
+	    if (getversion(path_adaptec, &ver)) {
+		if (ver.dwFileVersionMS >= 0x40000) {
+		    adaptec = 1;
+		    return path_adaptec;
+		}
+	    }
+	}
+	return NULL;
     }
     return NULL;
 }
@@ -105,8 +167,8 @@ static int open_driver (SCSI *scgp)
 
     nero = 0;
     strcpy (path, "WNASPI32");
-    if (currprefs.win32_uaescsimode == 2) {
-	char *p = get_nero_aspi_path();
+    if (currprefs.win32_uaescsimode == UAESCSI_NEROASPI) {
+	char *p = get_aspi_path(1);
 	if (p) {
 	    strcpy (path, p);
 	    nero = 1;

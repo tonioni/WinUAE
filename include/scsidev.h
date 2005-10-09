@@ -5,7 +5,7 @@
   *
   * (c) 1995 Bernd Schmidt (hardfile.c)
   * (c) 1999 Patrick Ohly
-  * (c) 2001-2002 Toni Wilen
+  * (c) 2001-2005 Toni Wilen
   */
 
 uaecptr scsidev_startup (uaecptr resaddr);
@@ -15,3 +15,10 @@ void scsidev_start_threads (void);
 void scsi_do_disk_change (int device_id, int insert);
 
 extern int log_scsi;
+
+#ifdef _WIN32
+#define UAESCSI_SPTI 0
+#define UAESCSI_SPTISCAN 1
+#define UAESCSI_ADAPTECASPI 2
+#define UAESCSI_NEROASPI 3
+#endif

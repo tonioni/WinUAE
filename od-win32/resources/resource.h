@@ -278,6 +278,8 @@
 #define IDC_DISPLAYSELECT               1024
 #define IDC_AUTOCONFIG                  1025
 #define IDC_PRINTERLIST                 1025
+#define IDC_RESOLUTION3                 1025
+#define IDC_RESOLUTIONDEPTH             1025
 #define IDC_CHIPMEM                     1026
 #define IDC_CREATELOGFILE               1026
 #define IDC_PORT0_JOYS                  1026
@@ -629,7 +631,6 @@
 #define IDC_SCSIDEVICE                  1606
 #define IDC_FLASHTEXT2                  1606
 #define IDC_AVIOUTPUT_PAL               1607
-#define IDC_ASPI                        1607
 #define IDC_INPUTTYPE                   1607
 #define IDC_AVIOUTPUT_NTSC              1608
 #define IDC_INPUTSELECTTEXT             1608

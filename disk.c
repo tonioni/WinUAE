@@ -1069,8 +1069,6 @@ static void drive_motor (drive * drv, int off)
 #endif
 	if (disk_debug_logging > 1)
 	    write_log (" ->motor on");
-	if (drv->indexhackmode > 0)
-	    drv->indexhack = 1;
     }
     if (!drv->motoroff && off) {
 	drv->drive_id_scnt = 0; /* Reset id shift reg counter */

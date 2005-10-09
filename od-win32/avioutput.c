@@ -889,7 +889,7 @@ void AVIOutput_Initialize(void)
 
 #include <math.h>
 
-#define ADJUST_SIZE 10
+#define ADJUST_SIZE 20
 #define EXP 1.5
 
 void frame_drawn(void)

@@ -13,6 +13,7 @@
 #include "config.h"
 
 #include "blkdev.h"
+#include "scsidev.h"
 
 static struct device_functions *device_func[2];
 static int ioctl;
@@ -35,7 +36,9 @@ static void install_driver (int flags)
 	device_func[DF_SCSI] = &devicefunc_win32_spti;
 	installed = 1;
     }
-    if (currprefs.win32_uaescsimode >= 1 || !installed) {
+    if (currprefs.win32_uaescsimode == UAESCSI_ADAPTECASPI ||
+	currprefs.win32_uaescsimode == UAESCSI_NEROASPI ||
+	!installed) {
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	device_func[DF_IOCTL] = 0;
     }
