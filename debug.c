@@ -1255,7 +1255,7 @@ static void disk_debug(char **inptr)
     char parm[10];
     int i;
 
-    disk_debug_logging = 1;
+    disk_debug_logging = 2;
     disk_debug_mode = 0;
     disk_debug_track = -1;
     ignore_ws(inptr);

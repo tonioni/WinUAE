@@ -2139,10 +2139,12 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 	    updatetrackspeed (drv, mfmpos);
 	if (dskdmaen != 3) {
 	    tword <<= 1;
-	    if (unformatted (drv))
-		tword |= (rand() & 0x1000) ? 1 : 0;
-	    else
-		tword |= getonebit (drv->bigmfmbuf, mfmpos);
+	    if (!drive_empty (drv)) {
+		if (unformatted (drv))
+		    tword |= (rand() & 0x1000) ? 1 : 0;
+		else
+		    tword |= getonebit (drv->bigmfmbuf, mfmpos);
+	    }
 	    if ((tword & 0xffff) == dsksync)
 		diskevent_flag |= DISK_WORDSYNC;
 	}
@@ -2210,10 +2212,12 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	if (drv->tracktiming[0])
 	    updatetrackspeed (drv, drv->mfmpos);
 	word <<= 1;
-	if (unformatted (drv))
-	    word |= (rand() & 0x1000) ? 1 : 0;
-	else
-	    word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
+        if (!drive_empty (drv)) {
+	    if (unformatted (drv))
+		word |= (rand() & 0x1000) ? 1 : 0;
+	    else
+		word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
+	}
 	//write_log ("%08.8X bo=%d so=%d mfmpos=%d dma=%d\n", (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos,dma_enable);
 	drv->mfmpos++;
 	drv->mfmpos %= drv->tracklen;

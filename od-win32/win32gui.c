@@ -4329,7 +4329,7 @@ static void enable_for_miscdlg (HWND hDlg)
 #endif
 #if !defined (SCSIEMU)
 	EnableWindow (GetDlgItem(hDlg, IDC_SCSIDEVICE), FALSE);
-	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), workprefs.scsi ? TRUE : FALSE);
+	EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
 #endif
 	if (workprefs.win32_logfile)
 	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), TRUE);
@@ -5976,9 +5976,9 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 
 static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
 {
-    int i;
+    int i, j;
     char *s;
-    char tmp[1000];
+    char tmp[MAX_DPATH];
     int nn = workprefs.dfxtype[n] + 1;
 
     if (f_text < 0)
@@ -5987,11 +5987,37 @@ static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
     SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
     i = 0;
     while (s = DISK_history_get (i)) {
+#if 1
+	char tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
+#endif
 	i++;
 	if (strlen (s) == 0)
 	    continue;
+#if 1
+	strcpy (tmppath, s);
+        p = tmppath + strlen(tmppath) - 1;
+	for (j = 0; archive_extensions[j]; j++) {
+	    p2 = strstr (tmppath, archive_extensions[j]);
+	    if (p2) {
+		p = p2;
+		break;
+	    }
+	}
+        while (p > tmppath) {
+	    if (*p == '\\' || *p == '/')
+	        break;
+	    p--;
+	}
+	strcpy (tmpname, p + 1);
+	*++p = 0;
+	if (tmppath[0]) {
+	    strcat (tmpname, " { ");
+	    strcat (tmpname, tmppath);
+	    strcat (tmpname, " }");
+	}
+#endif
 	if (f_text >= 0)
-	    SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)s);
+	    SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
 	if (fkey) {
 	    sprintf (tmp, "Image%02d", i);
 	    RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
@@ -6077,8 +6103,13 @@ static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
     if (val == CB_ERR) {
 	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
     } else {
+	char *p = DISK_history_get (val);
+#if 0
 	val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
 	if (val != CB_ERR && val > 0) {
+#endif
+	if (p) {
+	    strcpy (out, p);
 	    if (out[0]) {
 		/* add to top of list */
 		DISK_history_add (out, -1);

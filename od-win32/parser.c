@@ -765,13 +765,21 @@ int setbaud (long baud)
     return 1;
 }
 
+void initparallel (void)
+{
+    uaecptr a = here (); //this install the ahisound
+    org (RTAREA_BASE + 0xFFC0);
+    calltrap (deftrap (ahi_demux));
+    dw (0x4e75);// rts
+    org (a);
+}
+
 void hsyncstuff(void)
 //only generate Interrupts when 
 //writebuffer is complete flushed
 //check state of lwin rwin
 {
     static int keycheck = 0;
-    static int installahi;
     
 #ifdef AHI
     { //begin ahi_sound
@@ -783,15 +791,6 @@ void hsyncstuff(void)
 		ahi_updatesound (1);
 		count = 0;
 	    }
-	}
-	if (!installahi)
-	{ 
-	    uaecptr a = here (); //this install the ahisound
-	    org (RTAREA_BASE + 0xFFC0);
-	    calltrap (deftrap (ahi_demux));
-	    dw (0x4e75);// rts
-	    org (a);
-	    installahi=1;
 	}
     } //end ahi_sound
 #endif

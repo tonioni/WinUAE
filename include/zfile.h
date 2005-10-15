@@ -39,3 +39,4 @@ extern struct zfile *zfile_dup (struct zfile *f);
 #define ZFILE_STATEFILE 6
 #define ZFILE_NVR 7
 
+extern char *archive_extensions[];

@@ -36,6 +36,8 @@ struct zfile {
 
 static struct zfile *zlist = 0;
 
+char *archive_extensions[] = { "zip", "rar", "7z", NULL };
+
 static struct zfile *zfile_create (void)
 {
     struct zfile *z;

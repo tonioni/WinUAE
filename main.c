@@ -40,6 +40,7 @@
 #include "akiko.h"
 #include "savestate.h"
 #include "filesys.h"
+#include "parallel.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -485,6 +486,9 @@ void reset_all_systems (void)
 #ifdef SCSIEMU
     scsidev_reset ();
     scsidev_start_threads ();
+#endif
+#if defined (PARALLEL_PORT)
+    initparallel ();
 #endif
 }
 
