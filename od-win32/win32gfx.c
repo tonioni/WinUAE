@@ -1196,7 +1196,6 @@ static int get_color (int r, int g, int b, xcolnr * cnp)
 
 void init_colors (void)
 {
-    int i;
     HRESULT ddrval;
 
     if (ncols256 == 0) {
@@ -1256,23 +1255,6 @@ void init_colors (void)
 #ifdef AVIOUTPUT
 	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
-    }
-    
-    switch (gfxvidinfo.pixbytes) 
-    {
-     case 2:
-	for (i = 0; i < 4096; i++)
-	    xcolors[i] = xcolors[i] * 0x00010001;
-	gfxvidinfo.can_double = 1;
-	break;
-     case 1:
-	for (i = 0; i < 4096; i++)
-	    xcolors[i] = xcolors[i] * 0x01010101;
-	gfxvidinfo.can_double = 1;
-	break;
-     default:
-	gfxvidinfo.can_double = 0;
-	break;
     }
 }
 

@@ -72,8 +72,6 @@ struct vidbuf_description
     int maxblocklines; /* Set to 0 if you want calls to flush_line after each drawn line, or the number of
 			* lines that flush_block wants to/can handle (it isn't really useful to use another
 			* value than maxline here). */
-    int can_double; /* Set if the high part of each entry in xcolors contains the same value
-		     * as the low part, so that two pixels can be drawn at once. */
 };
 
 extern struct vidbuf_description gfxvidinfo;

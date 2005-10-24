@@ -681,14 +681,15 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #ifdef PARALLEL_PORT
 	if (isprinter() > 0) {
 	    doprinter (val);
+	    cia_parallelack ();
 	} else if (isprinter() < 0) {
 	    parallel_direct_write_data (val, ciaadrb);
+	    cia_parallelack ();
 #ifdef ARCADIA
 	} else if (arcadia_rom) {
 	    arcadia_parport (1, ciaaprb, ciaadrb);
 #endif
 	}
-	cia_parallelack ();
 #endif
 	break;
     case 2:

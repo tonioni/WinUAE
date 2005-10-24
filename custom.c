@@ -2630,6 +2630,8 @@ STATIC_INLINE void INTENA (uae_u16 v)
 
 void INTREQ_0 (uae_u16 v)
 {
+    if (v & (0x80|0x100|0x200|0x400))
+	audio_update_irq (v);
     setclr (&intreq,v);
     doint ();
 }
@@ -2652,7 +2654,7 @@ static void ADKCON (int hpos, uae_u16 v)
 	update_audio ();
 
     setclr (&adkcon,v);
-    update_adkmasks ();
+    audio_update_adkmasks ();
     DISK_update (hpos);
     if ((v >> 11) & 1)
 	serial_uartbreak ((adkcon >> 11) & 1);
@@ -4465,7 +4467,7 @@ void customreset (void)
 	/* must be called after audio_reset */
 	adkcon = 0;
 	serial_uartbreak (0);
-	update_adkmasks ();
+	audio_update_adkmasks ();
     }
 
     init_sprites ();
@@ -4482,7 +4484,7 @@ void customreset (void)
 	uae_u16 v;
 	uae_u32 vv;
 
-	update_adkmasks ();
+	audio_update_adkmasks ();
 	INTENA (0);
 	INTREQ (0);
 #if 0

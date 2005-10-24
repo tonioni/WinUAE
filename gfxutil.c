@@ -8,6 +8,7 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "options.h"
 #include "custom.h"
 #include "xwin.h"
 
@@ -83,6 +84,26 @@ static unsigned int doAlpha (int alpha, int bits, int shift)
     return (alpha & ((1 << bits) - 1)) << shift;
 }
 
+static int greyscale(int v)
+{
+#if 0
+    double l;
+    double lum = currprefs.gfx_luminance / 5.0;
+    double con = currprefs.gfx_contrast / 10.0;
+
+    l = v;
+    l = l + lum / (256 / 100);
+    l = (l - con) / (256 - 2 * con) * 256;
+    if (l < 0)
+	l = 0;
+    if (l > 255)
+	l = 255;
+    return (int)l;
+#else
+    return v;
+#endif
+}
+
 #if 0
 static void colormodify (int *r, int *g, int *b)
 {
@@ -113,15 +134,17 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	int r = ((i >> 8) << 4) | (i >> 8);
 	int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 	int b = ((i & 0xf) << 4) | (i & 0x0f);
-	//colormodify (&r, &g, &b);
+	r = greyscale (r);
+	g = greyscale (g);
+	b = greyscale (b);
 	xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
     }
 #ifdef AGA
     /* create AGA color tables */
     for(i = 0; i < 256; i++) {
-	xredcolors[i] = doColor (i, rw, rs) | doAlpha (alpha, aw, as);
-	xgreencolors[i] = doColor (i, gw, gs) | doAlpha (alpha, aw, as);
-	xbluecolors[i] = doColor (i, bw, bs) | doAlpha (alpha, aw, as);;
+	xredcolors[i] = greyscale (doColor (i, rw, rs)) | doAlpha (alpha, aw, as);
+	xgreencolors[i] = greyscale (doColor (i, gw, gs)) | doAlpha (alpha, aw, as);
+	xbluecolors[i] = greyscale (doColor (i, bw, bs)) | doAlpha (alpha, aw, as);
     }
 #endif
 }
@@ -140,7 +163,6 @@ void alloc_colors256 (allocfunc_type allocfunc)
     int nb_cols[3]; /* r,g,b */
     int maxcol = newmaxcol == 0 ? 256 : newmaxcol;
     int i,j,k,l;
-
     xcolnr *map;
 
     map = (xcolnr *)malloc (sizeof(xcolnr) * maxcol);

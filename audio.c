@@ -54,6 +54,7 @@ struct audio_channel_data {
     int len, wlen;
     uae_u16 dat, dat2;
     int request_word, request_word_skip;
+    int vpos;
 };
 
 int sampleripper_enabled;
@@ -696,13 +697,13 @@ static int isirq (int nr)
     return INTREQR() & (0x80 << nr);
 }
 
-static void setirq (int nr)
+static void setirq (int nr, int debug)
 {
-    INTREQ (0x8000 | (0x80 << nr));
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("SETIRQ %d %08.8X\n", nr, m68k_getpc());
+	write_log ("SETIRQ %d %08.8X (%d)\n", nr, m68k_getpc(), debug);
 #endif
+    INTREQ (0x8000 | (0x80 << nr));
 }
 
 static void newsample (int nr, sample8_t sample)
@@ -739,6 +740,13 @@ static void state23 (struct audio_channel_data *cdp)
     }
 }
 
+static void zerostate(struct audio_channel_data *cdp)
+{
+    cdp->state = 0;
+    cdp->evtime = MAX_EV;
+    cdp->request_word = 0;
+}
+
 static void audio_handler (int nr, int timed)
 {
     struct audio_channel_data *cdp = audio_channel + nr;
@@ -755,6 +763,7 @@ static void audio_handler (int nr, int timed)
 	    cdp->request_word = 0;
 	    cdp->request_word_skip = 0;
 	    cdp->intreq2 = 0;
+	    cdp->vpos = vpos;
 	    if (cdp->dmaen) {
 		cdp->state = 1;
 		cdp->wlen = cdp->len;
@@ -770,7 +779,7 @@ static void audio_handler (int nr, int timed)
 	    } else if (!cdp->dmaen && cdp->request_word < 0 && !isirq (nr)) {
 		cdp->evtime = 0;
 		cdp->state = 2;
-		setirq (nr);
+		setirq (nr, 0);
 		audio_handler (nr, timed);
 		return;
 	    }
@@ -785,6 +794,8 @@ static void audio_handler (int nr, int timed)
 	    if (cdp->wlen != 1)
 		cdp->wlen = (cdp->wlen - 1) & 0xFFFF;
 	    cdp->request_word = 2;
+	    /* "mysterious" delay for Mission Elevator */
+	    //if (cdp->vpos == vpos)
 	    if (current_hpos () > maxhpos - 20)
 		cdp->request_word_skip = 1;
 	return;
@@ -794,7 +805,7 @@ static void audio_handler (int nr, int timed)
 		cdp->request_word = 2;
 		return;
 	    }
-	    setirq (nr);
+	    setirq (nr, 1);
 	    if (!cdp->dmaen) {
 		cdp->state = 0;
 		cdp->request_word = 0;
@@ -812,9 +823,7 @@ static void audio_handler (int nr, int timed)
 		cdp->per = PERIOD_MAX;
 
 	    if (!cdp->dmaen && isirq (nr) && ((cdp->per <= 30 ) || (evtime == 0 || evtime == MAX_EV || evtime == cdp->per))) {
-		cdp->state = 0;
-		cdp->evtime = MAX_EV;
-		cdp->request_word = 0;
+		zerostate (cdp);
 		return;
 	    }
 
@@ -826,7 +835,7 @@ static void audio_handler (int nr, int timed)
 	    /* Period attachment? */
 	    if (audap) {
 		if (cdp->intreq2 && cdp->dmaen)
-		    setirq (nr);
+		    setirq (nr, 2);
 		cdp->intreq2 = 0;
 		cdp->request_word = 1;
 		cdp->dat = cdp->dat2;
@@ -854,10 +863,10 @@ static void audio_handler (int nr, int timed)
 		if (napnav)
 		    cdp->request_word = 1;
 		if (cdp->intreq2 && napnav)
-		    setirq (nr);
+		    setirq (nr, 3);
 	    } else {
 		if (napnav)
-		    setirq (nr);
+		    setirq (nr, 4);
 	    }
 	    cdp->intreq2 = 0;
 
@@ -1129,7 +1138,7 @@ void AUDxDAT (int nr, uae_u16 v)
 
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dDAT: %04.4X STATE=%d IRQ=%d %p\n", nr,
+	write_log ("AUD%dDAT: %04.4X STATE=%d IRQ=%d %08.8X\n", nr,
 	    v, cdp->state, isirq(nr) ? 1 : 0, m68k_getpc());
 #endif
     update_audio ();
@@ -1150,7 +1159,7 @@ void AUDxLCH (int nr, uae_u16 v)
     audio_channel[nr].lc = (audio_channel[nr].lc & 0xffff) | ((uae_u32)v << 16);
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLCH: %04.4X %p\n", nr, v, m68k_getpc());
+	write_log ("AUD%dLCH: %04.4X %08.8X\n", nr, v, m68k_getpc());
 #endif
 }
 
@@ -1160,7 +1169,7 @@ void AUDxLCL (int nr, uae_u16 v)
     audio_channel[nr].lc = (audio_channel[nr].lc & ~0xffff) | (v & 0xFFFE);
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLCL: %04.4X %p\n", nr, v, m68k_getpc());
+	write_log ("AUD%dLCL: %04.4X %08.8X\n", nr, v, m68k_getpc());
 #endif
 }
 
@@ -1186,7 +1195,7 @@ void AUDxPER (int nr, uae_u16 v)
     audio_channel[nr].per = per;
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dPER: %d %p\n", nr, v, m68k_getpc());
+	write_log ("AUD%dPER: %d %08.8X\n", nr, v, m68k_getpc());
 #endif
 }
 
@@ -1196,7 +1205,7 @@ void AUDxLEN (int nr, uae_u16 v)
     audio_channel[nr].len = v;
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLEN: %d %p\n", nr, v, m68k_getpc());
+	write_log ("AUD%dLEN: %d %08.8X\n", nr, v, m68k_getpc());
 #endif
 }
 
@@ -1210,17 +1219,47 @@ void AUDxVOL (int nr, uae_u16 v)
 #endif
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dVOL: %d %p\n", nr, v2, m68k_getpc());
+	write_log ("AUD%dVOL: %d %08.8X\n", nr, v2, m68k_getpc());
 #endif
 }
 
-void update_adkmasks (void)
+void audio_update_irq (uae_u16 v)
+{
+#ifdef DEBUG_AUDIO
+    uae_u16 v2 = intreq, v3 = intreq;
+    int i;
+    if (v & 0x8000)
+	v2 |= v & 0x7FFF;
+    else
+	v2 &= ~v;
+    v2 &= (0x80 | 0x100 | 0x200 | 0x400);
+    v3 &= (0x80 | 0x100 | 0x200 | 0x400);
+    for (i = 0; i < 4; i++) {
+	if ((1 << i) & DEBUG_CHANNEL_MASK) {
+	    uae_u16 mask = 0x80 << i;
+	    if ((v2 & mask) != (v3 & mask))
+		write_log("AUD%dINTREQ %d->%d %08.8X\n", i, !!(v3 & mask), !!(v2 & mask), m68k_getpc());
+	}
+    }
+#endif
+}
+
+void audio_update_adkmasks (void)
 {
     unsigned long t = adkcon | (adkcon >> 4);
     audio_channel[0].adk_mask = (((t >> 0) & 1) - 1);
     audio_channel[1].adk_mask = (((t >> 1) & 1) - 1);
     audio_channel[2].adk_mask = (((t >> 2) & 1) - 1);
     audio_channel[3].adk_mask = (((t >> 3) & 1) - 1);
+#ifdef DEBUG_AUDIO
+    {
+	static int prevcon = -1;
+	if ((prevcon & 0xff) != (adkcon & 0xff)) {
+	    write_log("ADKCON=%02.2x %08.8X\n", adkcon & 0xff, m68k_getpc());
+	    prevcon = adkcon;
+	}
+    }
+#endif
 }
 
 int init_audio (void)

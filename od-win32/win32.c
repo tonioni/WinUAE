@@ -2014,11 +2014,11 @@ static int checkversion (char *vs)
     return 1;
 }
 
-static void WIN32_HandleRegistryStuff( void )
+static void WIN32_HandleRegistryStuff(void)
 {
     RGBFTYPE colortype = RGBFB_NONE;
     DWORD dwType = REG_DWORD;
-    DWORD dwDisplayInfoSize = sizeof( colortype );
+    DWORD dwDisplayInfoSize = sizeof(colortype);
     DWORD size;
     DWORD disposition;
     char path[MAX_DPATH] = "";
@@ -2057,7 +2057,7 @@ static void WIN32_HandleRegistryStuff( void )
 			      KEY_WRITE | KEY_READ, NULL, &hWinUAEKeyLocal, &disposition) == ERROR_SUCCESS))
 	{
 	    /* Set our (default) sub-key to BE the "WinUAE" command for editing a configuration */
-	    sprintf(path, "%sWinUAE.exe -f \"%%1\" -s use_gui=yes", start_path_data);
+	    sprintf(path, "%sWinUAE.exe -f \"%%1\" -s use_gui=yes", start_path_exe);
 	    RegSetValueEx(hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen(path) + 1);
 	    RegCloseKey(hWinUAEKeyLocal);
 	}
@@ -2066,7 +2066,7 @@ static void WIN32_HandleRegistryStuff( void )
 			      KEY_WRITE | KEY_READ, NULL, &hWinUAEKeyLocal, &disposition) == ERROR_SUCCESS))
 	{
 	    /* Set our (default) sub-key to BE the "WinUAE" command for launching a configuration */
-	    sprintf(path, "%sWinUAE.exe -f \"%%1\"", start_path_data);
+	    sprintf(path, "%sWinUAE.exe -f \"%%1\"", start_path_exe);
 	    RegSetValueEx(hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen( path ) + 1);
 	    RegCloseKey(hWinUAEKeyLocal);
 	}
@@ -2101,6 +2101,8 @@ static void WIN32_HandleRegistryStuff( void )
 	if (RegQueryValueEx (hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
 	    if (checkversion (version))
 		RegSetValueEx (hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1);
+	} else {
+	    RegSetValueEx (hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1);
 	}
 	size = sizeof (version);
 	dwType = REG_SZ;

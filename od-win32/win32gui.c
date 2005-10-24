@@ -3412,19 +3412,19 @@ static int *getp_da (void)
     int *p = 0;
     switch (da_mode_selected)
     {
-	case 0:
+	case 3:
 	p = &workprefs.gfx_hue;
 	break;
-	case 1:
+	case 4:
 	p = &workprefs.gfx_saturation;
 	break;
-	case 2:
+	case 0:
 	p = &workprefs.gfx_luminance;
 	break;
-	case 3:
+	case 1:
 	p = &workprefs.gfx_contrast;
 	break;
-	case 4:
+	case 2:
 	p = &workprefs.gfx_gamma;
 	break;
     }
@@ -3443,26 +3443,30 @@ static void handle_da (HWND hDlg)
     if (v == *p)
 	return;
     *p = v;
+#if 0
     currprefs.gfx_hue = workprefs.gfx_hue;
     currprefs.gfx_saturation = workprefs.gfx_saturation;
+    currprefs.gfx_gamma = workprefs.gfx_gamma;
+#endif
     currprefs.gfx_luminance = workprefs.gfx_luminance;
     currprefs.gfx_contrast = workprefs.gfx_contrast;
-    currprefs.gfx_gamma = workprefs.gfx_gamma;
     init_colors ();
-    reset_drawing ();
-    redraw_frame ();
     updatedisplayarea ();
+    WIN32GFX_WindowMove ();
+    init_custom();
 }
 
 void init_da (HWND hDlg)
 {
     int *p;
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Hue");
-    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Saturation");
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Luminance");
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Contrast");
+#if 0
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Gamma");
+    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Hue");
+    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Saturation");
+#endif
     if (da_mode_selected == CB_ERR)
 	da_mode_selected = 0;
     SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_SETCURSEL, da_mode_selected, 0);
@@ -3777,7 +3781,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPAGESIZE, 0, 1);
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETRANGE, TRUE, MAKELONG (MIN_REFRESH_RATE, MAX_REFRESH_RATE));
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (5, 99));
+	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (1, 99));
 	init_displays_combo (hDlg);
 	init_resolution_combo (hDlg);
 #if 0
@@ -5987,13 +5991,10 @@ static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
     SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
     i = 0;
     while (s = DISK_history_get (i)) {
-#if 1
 	char tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
-#endif
 	i++;
 	if (strlen (s) == 0)
 	    continue;
-#if 1
 	strcpy (tmppath, s);
         p = tmppath + strlen(tmppath) - 1;
 	for (j = 0; archive_extensions[j]; j++) {
@@ -6015,7 +6016,6 @@ static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
 	    strcat (tmpname, tmppath);
 	    strcat (tmpname, " }");
 	}
-#endif
 	if (f_text >= 0)
 	    SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
 	if (fkey) {
@@ -6101,7 +6101,20 @@ static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
     out[0] = 0;
     val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
     if (val == CB_ERR) {
+	char *p1, *p2;
+        char *tmp;
 	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
+	tmp = xmalloc (maxlen + 1);
+        strcpy (tmp, out);
+	p1 = strstr(tmp, " { ");
+	p2 = strstr(tmp, " }");
+	if (p1 && p2 && p2 > p1) {
+	    *p1 = 0;
+	    memset (out, 0, maxlen);
+	    memcpy (out, p1 + 3, p2 - p1 - 3);
+	    strcat (out, tmp);
+	}
+	xfree (tmp);
     } else {
 	char *p = DISK_history_get (val);
 #if 0
