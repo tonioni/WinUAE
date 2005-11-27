@@ -2032,7 +2032,7 @@ static int disk_sync_cycle;
 
 void DISK_handler (void)
 {
-    int i, flag = diskevent_flag;
+    int flag = diskevent_flag;
     eventtab[ev_disk].active = 0;
     DISK_update (disk_sync_cycle);
     if (flag & (DISK_REVOLUTION << 0))
@@ -2049,6 +2049,8 @@ void DISK_handler (void)
     if (flag & DISK_INDEXSYNC) {
 	cia_diskindex ();
 #if 0
+	{   
+	int i;
 	for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 	    drive *drv = &floppy[i];
 	    if (drv->dskready_time) {
@@ -2059,6 +2061,7 @@ void DISK_handler (void)
 			 write_log ("%d: %d\n", i, drv->mfmpos);
 		}
 	    }
+	}
 	}
 #endif
     }

@@ -50,6 +50,7 @@
 #define PROWIZARD /* Pro-Wizard module ripper */
 #define ARCADIA /* Arcadia arcade system */
 #define ARCHIVEACCESS /* ArchiveAccess decompression library */
+#define LOGITECHLCD /* Logitech G15 LCD */
 
 #else
 

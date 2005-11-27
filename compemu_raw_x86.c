@@ -2526,7 +2526,7 @@ static void raw_init_cpu(void)
   c->x86_model = c->x86_mask = 0;	/* So far unknown... */
   c->x86_vendor_id[0] = '\0';		/* Unset */
   c->x86_hwcap = 0;
-  
+
   /* Get vendor name */
   c->x86_vendor_id[12] = '\0';
   cpuid(0x00000000,
@@ -2568,7 +2568,7 @@ static void raw_init_cpu(void)
 	  }
 	}
   }
-	  
+
   /* Canonicalize processor ID */
   switch (c->x86) {
   case 3:
@@ -3049,14 +3049,13 @@ LOWFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fmov_rr,(FW d, FR s))
 
-LOWFUNC(NONE,READ,4,raw_fldcw_m_indexed,(R4 index, IMM base))
+LOWFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
 {
     emit_byte(0xd9);
     emit_byte(0xa8+index);
     emit_long(base);
 }
-LENDFUNC(NONE,READ,4,raw_fldcw_m_indexed,(R4 index, IMM base))
-
+LENDFUNC(NONE,READ,2,raw_fldcw_m_indexed,(R4 index, IMM base))
 
 LOWFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
 {
@@ -3500,29 +3499,33 @@ LOWFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
 
+static uae_u32 pihalf[] = {0x2168c234, 0xc90fdaa2, 0x3fff}; // LSB=0 to get acos(1)=0
 LOWFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
 {
     int ds;
 
     ds=stackpos(s);
     emit_byte(0xd9);
-    emit_byte(0xe8);    /* fld 1.0 */
-    emit_byte(0xd9);
-    emit_byte(0xc1+ds); /* fld x */
+    emit_byte(0xc0+ds); /* fld x */
     emit_byte(0xd8);
     emit_byte(0xc8);    /* fmul x*x */
-    emit_byte(0xd8);
-    emit_byte(0xe9);    /* fsubr 1 - (x^2) */
+    emit_byte(0xd9);
+    emit_byte(0xe8);    /* fld 1.0 */
+    emit_byte(0xde);
+    emit_byte(0xe1);    /* fsubrp 1 - (x^2) */
     emit_byte(0xd9);
     emit_byte(0xfa);    /* fsqrt sqrt(1-(x^2)) */
     emit_byte(0xd9);
-    emit_byte(0xc9);    /* fxch swap with 1.0 */
-    emit_byte(0xd8);
-    emit_byte(0xc2+ds); /* fadd 1 + x */
+    emit_byte(0xc1+ds); /* fld x again */
     emit_byte(0xd9);
-    emit_byte(0xf3);    /* fpatan atan(sqrt(1-(x^2))/(1+x))  & pop */
-    emit_byte(0xd8);
-    emit_byte(0xc0);    /* fadd  2*atan(sqrt(1-(x^2))/(1+x)) */
+    emit_byte(0xc9);    /* fxch swap x with sqrt(1-(x^2))  */
+    emit_byte(0xd9);
+    emit_byte(0xf3);    /* fpatan atan(x/sqrt(1-(x^2))) & pop */
+    emit_byte(0xdb);
+    emit_byte(0x2d);
+    emit_long((uae_u32)&pihalf); /* fld load pi/2 from pihalf */
+    emit_byte(0xde);
+    emit_byte(0xe1);    /* fsubrp pi/2 - asin(x) & pop */
     tos_make(d);        /* store y=acos(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))

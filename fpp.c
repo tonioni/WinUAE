@@ -4,7 +4,8 @@
   * MC68881 emulation
   *
   * Copyright 1996 Herman ten Brugge
-  */
+  * Modified 2005 Peter Keunecke
+   */
 
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 #include <math.h>
@@ -22,6 +23,80 @@
 #include "md-fpp.h"
 #include "savestate.h"
 
+uae_u32 xhex_pi[]    ={0x2168c235, 0xc90fdaa2, 0x4000};
+uae_u32 xhex_exp_1[] ={0xa2bb4a9a, 0xadf85458, 0x4000};
+uae_u32 xhex_l2_e[]  ={0x5c17f0bc, 0xb8aa3b29, 0x3fff};
+uae_u32 xhex_ln_2[]  ={0xd1cf79ac, 0xb17217f7, 0x3ffe};
+uae_u32 xhex_ln_10[] ={0xaaa8ac17, 0x935d8ddd, 0x4000};
+uae_u32 xhex_l10_2[] ={0xfbcff798, 0x9a209a84, 0x3ffd};
+uae_u32 xhex_l10_e[] ={0x37287195, 0xde5bd8a9, 0x3ffd};
+uae_u32 xhex_1e16[]  ={0x04000000, 0x8e1bc9bf, 0x4034};
+uae_u32 xhex_1e32[]  ={0x2b70b59e, 0x9dc5ada8, 0x4069};
+uae_u32 xhex_1e64[]  ={0xffcfa6d5, 0xc2781f49, 0x40d3};
+uae_u32 xhex_1e128[] ={0x80e98ce0, 0x93ba47c9, 0x41a8};
+uae_u32 xhex_1e256[] ={0x9df9de8e, 0xaa7eebfb, 0x4351};
+uae_u32 xhex_1e512[] ={0xa60e91c7, 0xe319a0ae, 0x46a3};
+uae_u32 xhex_1e1024[]={0x81750c17, 0xc9767586, 0x4d48};
+uae_u32 xhex_1e2048[]={0xc53d5de5, 0x9e8b3b5d, 0x5a92};
+uae_u32 xhex_1e4096[]={0x8a20979b, 0xc4605202, 0x7525};
+uae_u32 xhex_inf[]   ={0x00000000, 0x00000000, 0x7fff};
+uae_u32 xhex_nan[]   ={0xffffffff, 0xffffffff, 0x7fff};
+#if USE_LONG_DOUBLE
+static long double *fp_pi     = (long double *)xhex_pi;
+static long double *fp_exp_1  = (long double *)xhex_exp_1;
+static long double *fp_l2_e   = (long double *)xhex_l2_e;
+static long double *fp_ln_2   = (long double *)xhex_ln_2;
+static long double *fp_ln_10  = (long double *)xhex_ln_10;
+static long double *fp_l10_2  = (long double *)xhex_l10_2;
+static long double *fp_l10_e  = (long double *)xhex_l10_e;
+static long double *fp_1e16   = (long double *)xhex_1e16;
+static long double *fp_1e32   = (long double *)xhex_1e32;
+static long double *fp_1e64   = (long double *)xhex_1e64;
+static long double *fp_1e128  = (long double *)xhex_1e128;
+static long double *fp_1e256  = (long double *)xhex_1e256;
+static long double *fp_1e512  = (long double *)xhex_1e512;
+static long double *fp_1e1024 = (long double *)xhex_1e1024;
+static long double *fp_1e2048 = (long double *)xhex_1e2048;
+static long double *fp_1e4096 = (long double *)xhex_1e4096;
+static long double *fp_inf    = (long double *)xhex_inf;
+static long double *fp_nan    = (long double *)xhex_nan;
+#else
+static uae_u32 dhex_pi[]    ={0x54442D18, 0x400921FB};
+static uae_u32 dhex_exp_1[] ={0x8B145769, 0x4005BF0A};
+static uae_u32 dhex_l2_e[]  ={0x652B82FE, 0x3FF71547};
+static uae_u32 dhex_ln_2[]  ={0xFEFA39EF, 0x3FE62E42};
+static uae_u32 dhex_ln_10[] ={0xBBB55516, 0x40026BB1};
+static uae_u32 dhex_l10_2[] ={0x509F79FF, 0x3FD34413};
+static uae_u32 dhex_l10_e[] ={0x1526E50E, 0x3FDBCB7B};
+static uae_u32 dhex_1e16[]  ={0x37E08000, 0x4341C379};
+static uae_u32 dhex_1e32[]  ={0xB5056E17, 0x4693B8B5};
+static uae_u32 dhex_1e64[]  ={0xE93FF9F5, 0x4D384F03};
+static uae_u32 dhex_1e128[] ={0xF9301D32, 0x5A827748};
+static uae_u32 dhex_1e256[] ={0x7F73BF3C, 0x75154FDD};
+static uae_u32 dhex_inf[]   ={0x00000000, 0x7ff00000};
+static uae_u32 dhex_nan[]   ={0xffffffff, 0x7fffffff};
+static double *fp_pi     = (double *)dhex_pi;
+static double *fp_exp_1  = (double *)dhex_exp_1;
+static double *fp_l2_e   = (double *)dhex_l2_e;
+static double *fp_ln_2   = (double *)dhex_ln_2;
+static double *fp_ln_10  = (double *)dhex_ln_10;
+static double *fp_l10_2  = (double *)dhex_l10_2;
+static double *fp_l10_e  = (double *)dhex_l10_e;
+static double *fp_1e16   = (double *)dhex_1e16;
+static double *fp_1e32   = (double *)dhex_1e32;
+static double *fp_1e64   = (double *)dhex_1e64;
+static double *fp_1e128  = (double *)dhex_1e128;
+static double *fp_1e256  = (double *)dhex_1e256;
+static double *fp_1e512  = (double *)dhex_inf;
+static double *fp_1e1024 = (double *)dhex_inf;
+static double *fp_1e2048 = (double *)dhex_inf;
+static double *fp_1e4096 = (double *)dhex_inf;
+static double *fp_inf    = (double *)dhex_inf;
+static double *fp_nan    = (double *)dhex_nan;
+#endif
+double fp_1e8 = 1.0e8;
+float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
+
 #if 1
 
 STATIC_INLINE int isinrom (void)
@@ -37,37 +112,23 @@ STATIC_INLINE int isinrom (void)
 
 #define MAKE_FPSR(r)  regs.fp_result=(r)
 
+static uae_u16 x87_cw_tab[] = {
+  0x137f, 0x1f7f, 0x177f, 0x1b7f,  /* Extended */
+  0x107f, 0x1c7f, 0x147f, 0x187f,  /* Single */
+  0x127f, 0x1e7f, 0x167f, 0x1a7f,  /* Double */
+  0x137f, 0x1f7f, 0x177f, 0x1b7f}; /* undefined */
+  /* Nearest, toZero, Down, Up */
 static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 {
 #if USE_X86_FPUCW
-  int mprec=(m68k_cw>>6)&3;
-  int mround=(m68k_cw>>4)&3;
-  uae_u16 x;
+  uae_u16 x87_cw = x87_cw_tab[(m68k_cw>>4)&0xf];
 
-  int iprec=0;
-  int iround=0;
-
-  switch(mprec) {
-  case 0: /* extend */ iprec=3; break;
-  case 1: /* single */ iprec=0; break;
-  case 2: /* double */ iprec=2; break;
-  case 3: /* undef  */ iprec=3; break;
-  }
-
-  switch(mround) {
-  case 0: /* nearest */ iround=0; break;
-  case 1: /* zero    */ iround=3; break;
-  case 2: /* down    */ iround=1; break;
-  case 3: /* up      */ iround=2; break;
-  }
-
-  x=0x107f + (iprec<<8) + (iround<<10);
 #if defined(X86_MSVC_ASSEMBLY)
   __asm {
-  fldcw x
+    fldcw word ptr x87_cw
   }
 #elif defined(X86_ASSEMBLY)
-  __asm__ ("fldcw %0" : : "m" (*&x));
+  __asm__ ("fldcw %0" : : "m" (*&x87_cw));
 #endif
 #endif
 }
@@ -80,21 +141,18 @@ typedef uae_s32 tointtype;
 
 static __inline__ tointtype toint(fptype src)
 {
-    switch ((regs.fpcr >> 4) & 0x3) {
-    case 0:
-#if USE_X86_FPUCW
-	return (tointtype) (src);
-#else
-	return (tointtype) (src + 0.5);
-#endif
-    case 1:
+  switch ((regs.fpcr >> 4) & 3) {
+    case 0: /* to nearest */
+	if (regs.fpcr & 0xf0) /* if not Extended RN */
+	    return (tointtype)floor (src + 0.5);
+    case 1: /* to zero */
 	return (tointtype) src;
-    case 2:
+    case 2: /* down */
 	return (tointtype)floor (src);
-    case 3:
+    case 3: /* up */
 	return (tointtype)ceil (src);
-    }
-    return (tointtype)src; /* Should never be reached */
+  }
+  return (tointtype)src; /* never reached */
 }
 
 uae_u32 get_fpsr (void)
@@ -123,11 +181,7 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
     regs.fpsr = x;
 
     if (x & 0x01000000) {
-#ifdef NAN
-	regs.fp_result = NAN;
-#else
-	regs.fp_result = pow (1e100, 10) - pow(1e100, 10);  /* Any better way? */
-#endif
+	regs.fp_result = *fp_nan;
     }
     else if (x & 0x04000000)
 	regs.fp_result = 0;
@@ -136,7 +190,6 @@ STATIC_INLINE void set_fpsr (uae_u32 x)
     else
 	regs.fp_result = 1;
 }
-
 
 /* single   : S  8*E 23*F */
 /* double   : S 11*E 52*F */
@@ -1097,78 +1150,77 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	if ((extra & 0xfc00) == 0x5c00) {
 	    switch (extra & 0x7f) {
 	    case 0x00:
-		regs.fp[reg] = 4.0 * atan (1.0);
+		regs.fp[reg] = *fp_pi;
 		break;
 	    case 0x0b:
-		regs.fp[reg] = log10 (2.0);
+		regs.fp[reg] = *fp_l10_2;
 		break;
 	    case 0x0c:
-		regs.fp[reg] = exp (1.0);
+		regs.fp[reg] = *fp_exp_1;
 		break;
 	    case 0x0d:
-		regs.fp[reg] = log (exp (1.0)) / log (2.0);
+		regs.fp[reg] = *fp_l2_e;
 		break;
 	    case 0x0e:
-		regs.fp[reg] = log (exp (1.0)) / log (10.0);
+		regs.fp[reg] = *fp_l10_e;
 		break;
 	    case 0x0f:
 		regs.fp[reg] = 0.0;
 		break;
 	    case 0x30:
-		regs.fp[reg] = log (2.0);
+		regs.fp[reg] = *fp_ln_2;
 		break;
 	    case 0x31:
-		regs.fp[reg] = log (10.0);
+		regs.fp[reg] = *fp_ln_10;
 		break;
 	    case 0x32:
-		regs.fp[reg] = 1.0e0;
+		regs.fp[reg] = (fptype)fp_1e0;
 		break;
 	    case 0x33:
-		regs.fp[reg] = 1.0e1;
+		regs.fp[reg] = (fptype)fp_1e1;
 		break;
 	    case 0x34:
-		regs.fp[reg] = 1.0e2;
+		regs.fp[reg] = (fptype)fp_1e2;
 		break;
 	    case 0x35:
-		regs.fp[reg] = 1.0e4;
+		regs.fp[reg] = (fptype)fp_1e4;
 		break;
 	    case 0x36:
-		regs.fp[reg] = 1.0e8;
+		regs.fp[reg] = (fptype)fp_1e8;
 		break;
 	    case 0x37:
-		regs.fp[reg] = 1.0e16;
+		regs.fp[reg] = *fp_1e16;
 		break;
 	    case 0x38:
-		regs.fp[reg] = 1.0e32;
+		regs.fp[reg] = *fp_1e32;
 		break;
 	    case 0x39:
-		regs.fp[reg] = 1.0e64;
+		regs.fp[reg] = *fp_1e64;
 		break;
 	    case 0x3a:
-		regs.fp[reg] = 1.0e128;
+		regs.fp[reg] = *fp_1e128;
 		break;
 	    case 0x3b:
-		regs.fp[reg] = 1.0e256;
+		regs.fp[reg] = *fp_1e256;
 		break;
-#if 0
 	    case 0x3c:
-		regs.fp[reg] = 1.0e512;
+		regs.fp[reg] = *fp_1e512;
 		break;
 	    case 0x3d:
-		regs.fp[reg] = 1.0e1024;
+		regs.fp[reg] = *fp_1e1024;
 		break;
 	    case 0x3e:
-		regs.fp[reg] = 1.0e2048;
+		regs.fp[reg] = *fp_1e2048;
 		break;
 	    case 0x3f:
-		regs.fp[reg] = 1.0e4096;
+		regs.fp[reg] = *fp_1e4096;
 		break;
-#endif
 	    default:
 		m68k_setpc (m68k_getpc () - 4);
 		op_illg (opcode);
-		break;
+		return;
 	    }
+	    MAKE_FPSR (regs.fp[reg]); /* see Motorola 68k Manual */
 	    return;
 	}
 	if (get_fp_value (opcode, extra, &src) == 0) {
@@ -1177,194 +1229,194 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    return;
 	}
 	switch (extra & 0x7f) {
-	case 0x00:		/* FMOVE */
-	case 0x40:  /* Explicit rounding. This is just a quick fix. Same
-		     * for all other cases that have three choices */
-	case 0x44:
-	    regs.fp[reg] = src;
-	    /* Brian King was here.  <ea> to register needs FPSR updated.
-	     * See page 3-73 in Motorola 68K programmers reference manual.
-	     * %%%FPU */
+	case 0x00: /* FMOVE */
+	case 0x40: /* Explicit rounding. This is just a quick fix. */
+	case 0x44: /* Same for all other cases that have three choices */
+	    regs.fp[reg] = src;        /* Brian King was here. */
+	    /*<ea> to register needs FPSR updated. See Motorola 68K Manual. */
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x01:		/* FINT */
+	case 0x01: /* FINT */
 	    /* need to take the current rounding mode into account */
-	    regs.fp[reg] = (fptype)toint(src);
+#if defined(X86_MSVC_ASSEMBLY)
+            {
+	      fptype tmp_fp;
+
+	      __asm {
+#if USE_LONG_DOUBLE
+		fld  tbyte ptr  src
+		frndint
+		fstp tbyte ptr  tmp_fp
+#else
+		fld  qword ptr  src
+		frndint
+		fstp qword ptr  tmp_fp
+#endif
+	      }
+	      regs.fp[reg] = tmp_fp;
+	    }
+#else /* no X86_MSVC */
+	    switch ((regs.fpcr >> 4) & 3) {
+		case 0: /* to nearest */
+		    regs.fp[reg] = floor (src + 0.5);
+		    break;
+		case 1: /* to zero */
+		    if (src >= 0.0)
+			regs.fp[reg] = floor (src);
+		    else
+			regs.fp[reg] = ceil (src);
+		    break;
+		case 2: /* down */
+		    regs.fp[reg] = floor (src);
+		    break;
+		case 3: /* up */
+		    regs.fp[reg] = ceil (src);
+		    break;
+		default: /* never reached */
+		    regs.fp[reg] = src;
+	    }
+#endif /* X86_MSVC */
 	    break;
-	case 0x02:		/* FSINH */
+	case 0x02: /* FSINH */
 	    regs.fp[reg] = sinh (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x03:		/* FINTRZ */
+	case 0x03: /* FINTRZ */
 	    regs.fp[reg] = (int) src;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x04:		/* FSQRT */
+	case 0x04: /* FSQRT */
 	case 0x41:
 	case 0x45:
 	    regs.fp[reg] = sqrt (src);
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x06:		/* FLOGNP1 */
+	case 0x06: /* FLOGNP1 */
 	    regs.fp[reg] = log (src + 1.0);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x08:		/* FETOXM1 */
+	case 0x08: /* FETOXM1 */
 	    regs.fp[reg] = exp (src) - 1.0;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x09:		/* FTANH */
+	case 0x09: /* FTANH */
 	    regs.fp[reg] = tanh (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x0a:		/* FATAN */
+	case 0x0a: /* FATAN */
 	    regs.fp[reg] = atan (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x0c:		/* FASIN */
+	case 0x0c: /* FASIN */
 	    regs.fp[reg] = asin (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x0d:		/* FATANH */
-#if 1				/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
+	case 0x0d: /* FATANH */
+#if 1	/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
 	    regs.fp[reg] = log ((1 + src) / (1 - src)) / 2;
 #else
 	    regs.fp[reg] = atanh (src);
 #endif
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x0e:		/* FSIN */
+	case 0x0e: /* FSIN */
 	    regs.fp[reg] = sin (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x0f:		/* FTAN */
+	case 0x0f: /* FTAN */
 	    regs.fp[reg] = tan (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x10:		/* FETOX */
+	case 0x10: /* FETOX */
 	    regs.fp[reg] = exp (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x11:		/* FTWOTOX */
+	case 0x11: /* FTWOTOX */
 	    regs.fp[reg] = pow (2.0, src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x12:		/* FTENTOX */
+	case 0x12: /* FTENTOX */
 	    regs.fp[reg] = pow (10.0, src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x14:		/* FLOGN */
+	case 0x14: /* FLOGN */
 	    regs.fp[reg] = log (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x15:		/* FLOG10 */
+	case 0x15: /* FLOG10 */
 	    regs.fp[reg] = log10 (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x16:		/* FLOG2 */
-	    regs.fp[reg] = log (src) / log (2.0);
-	    MAKE_FPSR (regs.fp[reg]);
+	case 0x16: /* FLOG2 */
+	    regs.fp[reg] = *fp_l2_e * log (src);
 	    break;
-	case 0x18:		/* FABS */
+	case 0x18: /* FABS */
 	case 0x58:
 	case 0x5c:
 	    regs.fp[reg] = src < 0 ? -src : src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x19:		/* FCOSH */
+	case 0x19: /* FCOSH */
 	    regs.fp[reg] = cosh (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x1a:		/* FNEG */
+	case 0x1a: /* FNEG */
 	case 0x5a:
 	case 0x5e:
 	    regs.fp[reg] = -src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x1c:		/* FACOS */
+	case 0x1c: /* FACOS */
 	    regs.fp[reg] = acos (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x1d:		/* FCOS */
+	case 0x1d: /* FCOS */
 	    regs.fp[reg] = cos (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x1e:		/* FGETEXP */
-	{
-	    int expon;
-	    frexp (src, &expon);
-	    regs.fp[reg] = (double) (expon - 1);
-	    MAKE_FPSR (regs.fp[reg]);
-	}
-	break;
-	case 0x1f:		/* FGETMAN */
-	{
-	    int expon;
-	    regs.fp[reg] = frexp (src, &expon) * 2.0;
-	    MAKE_FPSR (regs.fp[reg]);
-	}
-	break;
-	case 0x20:		/* FDIV */
+	case 0x1e: /* FGETEXP */
+	    {
+	      int expon;
+	      frexp (src, &expon);
+	      regs.fp[reg] = (double) (expon - 1);
+	    }
+	    break;
+	case 0x1f: /* FGETMAN */
+	    {
+	      int expon;
+	      regs.fp[reg] = frexp (src, &expon) * 2.0;
+	    }
+	    break;
+	case 0x20: /* FDIV */
 	case 0x60:
 	case 0x64:
 	    regs.fp[reg] /= src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x21:		/* FMOD */
+	case 0x21: /* FMOD */
 	    regs.fp[reg] = regs.fp[reg] - (double) ((int) (regs.fp[reg] / src)) * src;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x22:		/* FADD */
+	case 0x22: /* FADD */
 	case 0x62:
 	case 0x66:
 	    regs.fp[reg] += src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x23:		/* FMUL */
+	case 0x23: /* FMUL */
 	case 0x63:
 	case 0x67:
 	    regs.fp[reg] *= src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x24:		/* FSGLDIV */
+	case 0x24: /* FSGLDIV */
 	    regs.fp[reg] /= src;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x25:		/* FREM */
+	case 0x25: /* FREM */
 	    regs.fp[reg] = regs.fp[reg] - (double) ((int) (regs.fp[reg] / src + 0.5)) * src;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x26:		/* FSCALE */
-	    regs.fp[reg] *= exp (log (2.0) * src);
-	    MAKE_FPSR (regs.fp[reg]);
+	case 0x26: /* FSCALE */
+	    regs.fp[reg] *= exp (*fp_ln_2 * (int) src);
 	    break;
-	case 0x27:		/* FSGLMUL */
+	case 0x27: /* FSGLMUL */
 	    regs.fp[reg] *= src;
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x28:		/* FSUB */
+	case 0x28: /* FSUB */
 	case 0x68:
 	case 0x6c:
 	    regs.fp[reg] -= src;
 	    if ((extra & 0x44) == 0x40)
 		fround (reg);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x30:		/* FSINCOS */
+	case 0x30: /* FSINCOS */
 	case 0x31:
 	case 0x32:
 	case 0x33:
@@ -1374,24 +1426,24 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	case 0x37:
 	    regs.fp[extra & 7] = cos (src);
 	    regs.fp[reg] = sin (src);
-	    MAKE_FPSR (regs.fp[reg]);
 	    break;
-	case 0x38:		/* FCMP */
-	{
-	    fptype tmp = regs.fp[reg] - src;
-	    regs.fpsr = 0;
-	    MAKE_FPSR (tmp);
-	}
-	break;
-	case 0x3a:		/* FTST */
+	case 0x38: /* FCMP */
+	    {
+	      fptype tmp = regs.fp[reg] - src;
+	      regs.fpsr = 0;
+	      MAKE_FPSR (tmp);
+	    }
+	    return;
+	case 0x3a: /* FTST */
 	    regs.fpsr = 0;
 	    MAKE_FPSR (src);
-	    break;
+	    return;
 	default:
 	    m68k_setpc (m68k_getpc () - 4);
 	    op_illg (opcode);
-	    break;
+	    return;
 	}
+	MAKE_FPSR (regs.fp[reg]);
 	return;
     }
     m68k_setpc (m68k_getpc () - 4);

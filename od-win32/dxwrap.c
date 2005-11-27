@@ -677,16 +677,14 @@ void ddraw_unlockscr( void )
 int DirectDraw_Start( GUID *guid )
 {
     HRESULT ddrval;
-    DDCAPS_DX7 drivercaps, helcaps;
-
     /* Prepare our DirectDrawState structure */
-    ZeroMemory( &DirectDrawState, sizeof( DirectDrawState ) );
-    ZeroMemory( &drivercaps, sizeof( drivercaps ) );
-    ZeroMemory( &helcaps, sizeof( helcaps ) );
-    drivercaps.dwSize = sizeof( drivercaps );
-    helcaps.dwSize = sizeof( helcaps );
+    ZeroMemory(&DirectDrawState, sizeof(DirectDrawState));
+    ZeroMemory(&drivercaps, sizeof(drivercaps));
+    ZeroMemory(&helcaps, sizeof(helcaps));
+    drivercaps.dwSize = sizeof(drivercaps);
+    helcaps.dwSize = sizeof(helcaps);
 
-    ddrval = DirectDrawCreate( guid, &DirectDrawState.directdraw.ddx, NULL );
+    ddrval = DirectDrawCreate(guid, &DirectDrawState.directdraw.ddx, NULL);
     if (FAILED(ddrval)) {
 	if (guid != NULL)
 	    return 0;
@@ -695,19 +693,18 @@ int DirectDraw_Start( GUID *guid )
 
     DirectDrawState.initialized = TRUE;
 
-    ddrval = IDirectDraw_QueryInterface( DirectDrawState.directdraw.ddx,
+    ddrval = IDirectDraw_QueryInterface(DirectDrawState.directdraw.ddx,
 					 &IID_IDirectDraw7,
-					 (LPVOID *)&DirectDrawState.directdraw.dd );
-    if(FAILED(ddrval))
-    {
+					 (LPVOID *)&DirectDrawState.directdraw.dd);
+    if(FAILED(ddrval)) {
 	gui_message("start_ddraw(): DirectX 7 or newer required");
 	DirectDraw_Release();
 	return 0;
     }
 
-    DirectDraw_GetCaps( &drivercaps, &helcaps );
-    ShowDDCaps( drivercaps, 1 );
-    ShowDDCaps( helcaps, 0 );
+    DirectDraw_GetCaps(&drivercaps, &helcaps);
+    ShowDDCaps(drivercaps, 1);
+    ShowDDCaps(helcaps, 0);
     if (SUCCEEDED(DirectDraw_GetDisplayMode ()))
 	return 1;
     if (guid != NULL) {
@@ -2025,26 +2022,25 @@ HRESULT DirectDraw_GetDC( HDC *hdc, surface_type_e surface )
  *   1999.08.02  Brian King             Creation
  *
  */
-HRESULT DirectDraw_ReleaseDC( HDC hdc, surface_type_e surface )
+HRESULT DirectDraw_ReleaseDC (HDC hdc, surface_type_e surface)
 {
     HRESULT result;
-    if( surface == primary_surface )
-	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.primary.surface, hdc );
+    if (surface == primary_surface)
+	result = IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface, hdc);
     else if (surface == overlay_surface)
-	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.overlay.surface, hdc );
+	result = IDirectDrawSurface7_ReleaseDC(DirectDrawState.overlay.surface, hdc);
     else
-	result = IDirectDrawSurface7_ReleaseDC( DirectDrawState.secondary.surface, hdc );
+	result = IDirectDrawSurface7_ReleaseDC(DirectDrawState.secondary.surface, hdc);
     return result;
 }
 
 extern int display_change_requested;
 
-HRESULT DirectDraw_UpdateOverlay( RECT sr, RECT dr )
+HRESULT DirectDraw_UpdateOverlay(RECT sr, RECT dr)
 {
     HRESULT result = DD_OK;
 
-    if (DirectDrawState.isoverlay && DirectDrawState.overlay.surface)
-    {
+    if (DirectDrawState.isoverlay && DirectDrawState.overlay.surface) {
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNBOUNDARYSRC) && drivercaps.dwAlignBoundarySrc)
 	    sr.left = (sr.left + drivercaps.dwAlignBoundarySrc / 2) & ~(drivercaps.dwAlignBoundarySrc - 1);
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNSIZESRC) && drivercaps.dwAlignSizeSrc)

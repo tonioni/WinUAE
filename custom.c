@@ -10,9 +10,9 @@
 
 //#define CUSTOM_DEBUG
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 0
-#define SPRITE_DEBUG_MAXY 100
-//#define SPRITE_MASK 0
+#define SPRITE_DEBUG_MINY 0x6a
+#define SPRITE_DEBUG_MAXY 0x70
+//#define SPRITE_MASK 128
 #define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8

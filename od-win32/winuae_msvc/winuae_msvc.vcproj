@@ -22,7 +22,7 @@
 			OutputDirectory=".\Debug"
 			IntermediateDirectory=".\Debug"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -84,7 +84,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib zlibstat.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr8.lib shlwapi.lib zlibstat.lib lglcd.lib"
 				ShowProgress="0"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
@@ -127,7 +127,7 @@
 			OutputDirectory="x64\$(ConfigurationName)"
 			IntermediateDirectory="x64\$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -231,7 +231,7 @@
 			OutputDirectory="d:\amiga"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -300,7 +300,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlibstat.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlibstat.lib lglcd.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -352,7 +352,7 @@
 			OutputDirectory="$(SolutionDir)x64\$(ConfigurationName)"
 			IntermediateDirectory="x64\$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -467,6 +467,7 @@
 		</Configuration>
 		<Configuration
 			Name="TestRelease|Win32"
+			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
 			>
 			<Tool
@@ -529,7 +530,7 @@
 			OutputDirectory="$(SolutionDir)x64\$(ConfigurationName)"
 			IntermediateDirectory="x64\$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -701,7 +702,7 @@
 			OutputDirectory="$(SolutionDir)x64\$(ConfigurationName)"
 			IntermediateDirectory="x64\$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -820,7 +821,7 @@
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -924,7 +925,7 @@
 			OutputDirectory="$(SolutionDir)x64\$(ConfigurationName)"
 			IntermediateDirectory="x64\$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="UpgradeFromVC71.vsprops"
+			InheritedPropertySheets="..\..\..\..\..\msvs8\VC\VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
@@ -1239,6 +1240,10 @@
 			</File>
 			<File
 				RelativePath="..\keyboard_win32.c"
+				>
+			</File>
+			<File
+				RelativePath="..\lcd.c"
 				>
 			</File>
 			<File

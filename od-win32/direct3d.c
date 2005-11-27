@@ -20,6 +20,18 @@
 
 #include "direct3d.h"
 
+typedef D3DXMATRIX (CALLBACK* D3DXMATRIXPERSPECTIVEFOVLH)
+    (D3DXMATRIX *pOut,FLOAT fovy,FLOAT Aspect,FLOAT zn,FLOAT zf);
+static D3DXMATRIXPERSPECTIVEFOVLH pD3DXMatrixPerspectiveFovLH;
+typedef HRESULT (CALLBACK* D3DXCREATETEXTURE)
+    (LPDIRECT3DDEVICE9 pDevice,UINT Width,UINT Height,UINT MipLevels,DWORD Usage,
+    D3DFORMAT Format,D3DPOOL Pool,LPDIRECT3DTEXTURE9 *ppTexture);
+static D3DXCREATETEXTURE pD3DXCreateTexture;
+typedef HRESULT (CALLBACK* D3DXCHECKTEXTUREREQUIREMENTS)
+    (LPDIRECT3DDEVICE9 pDevice,UINT *pWidth,UINT *pHeight,UINT *pNumMipLevels,
+    DWORD Usage,D3DFORMAT *pFormat,D3DPOOL Pool);
+static D3DXCHECKTEXTUREREQUIREMENTS pD3DXCheckTextureRequirements;
+
 static int tformat;
 static int d3d_enabled, scanlines_ok;
 static HINSTANCE d3dDLL;
@@ -101,7 +113,7 @@ static int restoredeviceobjects(void)
 
     // Set the projection matrix
     aspect = ((FLOAT)dsdbb.Width) / dsdbb.Height;
-    D3DXMatrixPerspectiveFovLH (&matrix, D3DX_PI/4, aspect, 1.0f, 100.0f);
+    pD3DXMatrixPerspectiveFovLH (&matrix, D3DX_PI/4, aspect, 1.0f, 100.0f);
     hr = IDirect3DDevice9_SetTransform(d3ddev, D3DTS_PROJECTION, &matrix);
 
     // turn off lighting
@@ -129,11 +141,11 @@ static int createtexture (int w, int h)
     UINT hh = h;
     D3DFORMAT format = tformat;
 
-    hr = D3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
+    hr = pD3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
     if (FAILED (hr)) {
 	write_log ("D3DXCheckTextureRequirements failed: %s\n", D3D_ErrorString (hr));
     }
-    hr = D3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &texture);
+    hr = pD3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &texture);
     if (FAILED (hr)) {
 	write_log ("D3DXCreateTexture failed: %s\n", D3D_ErrorString (hr));
     }
@@ -149,12 +161,12 @@ static int createsltexture (void)
     UINT hh = required_sl_texture_h;
     D3DFORMAT format = D3DFMT_A4R4G4B4;
 
-    hr = D3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
+    hr = pD3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
     if (FAILED (hr)) {
 	write_log ("SL D3DXCheckTextureRequirements failed: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
-    hr = D3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &sltexture);
+    hr = pD3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &sltexture);
     if (FAILED (hr)) {
 	write_log ("SL D3DXCreateTexture failed: %s\n", D3D_ErrorString (hr));
 	return 0;
@@ -229,6 +241,8 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     LPDIRECT3D9 (WINAPI *D3DCreate)(UINT);
     D3DDISPLAYMODE mode;
     D3DCAPS9 d3dCaps;
+    char d3dxdlls[100];
+    HINSTANCE d3dxDLL;
 
     d3d_enabled = 0;
     scanlines_ok = 0;
@@ -242,6 +256,16 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
 	return errmsg;
     }
+
+    sprintf (d3dxdlls, "d3dx9_%d.dll", 27);
+    d3dxDLL = LoadLibrary(d3dxdlls);
+    pD3DXMatrixPerspectiveFovLH = (D3DXMATRIXPERSPECTIVEFOVLH)GetProcAddress(
+	d3dxDLL, "D3DXMatrixPerspectiveFovLH");
+    pD3DXCreateTexture = (D3DXCREATETEXTURE)GetProcAddress(
+	d3dxDLL, "D3DXCreateTexture");
+    pD3DXCheckTextureRequirements = (D3DXCHECKTEXTUREREQUIREMENTS)GetProcAddress(
+	d3dxDLL, "D3DXCheckTextureRequirements");
+
     D3DCreate = (LPDIRECT3D9 (WINAPI *)(UINT))
 	GetProcAddress(d3dDLL, "Direct3DCreate9");
     if(D3DCreate == NULL) {

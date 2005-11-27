@@ -63,6 +63,7 @@
 #include "scsidev.h"
 #include "disk.h"
 #include "catweasel.h"
+#include "lcd.h"
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -93,7 +94,7 @@ int toggle_sound;
 int paraport_mask;
 
 HKEY hWinUAEKey = NULL;
-COLORREF g_dwBackgroundColor  = RGB(10, 0, 10);
+COLORREF g_dwBackgroundColor;
 
 static int emulation_paused;
 static int activatemouse = 1;
@@ -1170,8 +1171,10 @@ int WIN32_RegisterClasses( void )
 {
     WNDCLASS wc;
     HDC hDC;
-    
-    hDC = GetDC( NULL );
+    COLORREF black = RGB(0, 0, 0);
+
+    g_dwBackgroundColor = RGB(10, 0, 10);
+    hDC = GetDC (NULL);
     if (GetDeviceCaps (hDC, NUMCOLORS) != -1) 
 	g_dwBackgroundColor = RGB (255, 0, 255);
     ReleaseDC (NULL, hDC);
@@ -1196,7 +1199,7 @@ int WIN32_RegisterClasses( void )
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
     wc.hCursor = LoadCursor (NULL, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
+    wc.hbrBackground = CreateSolidBrush (black);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "PCsuxRox";
     if (!RegisterClass (&wc))
@@ -1707,6 +1710,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
 	p->win32_uaescsimode = get_aspi_path(1) ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
+	p->win32_borderless = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_midioutdev = -2;
@@ -1737,6 +1741,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "midiout_device=%d\n", p->win32_midioutdev );
     cfgfile_target_write (f, "midiin_device=%d\n", p->win32_midiindev );
     cfgfile_target_write (f, "no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
+    cfgfile_target_write (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
     cfgfile_target_write (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_write (f, "soundcard=%d\n", p->win32_soundcard );
     cfgfile_target_write (f, "cpu_idle=%d\n", p->cpu_idle);
@@ -1775,6 +1780,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
 	    || cfgfile_yesno (option, value, "networking", &p->socket_emu)
 	    || cfgfile_yesno (option, value, "no_overlay", &p->win32_no_overlay)
+	    || cfgfile_yesno (option, value, "borderless", &p->win32_borderless)
 	    || cfgfile_yesno (option, value, "inactive_pause", &p->win32_inactive_pause)
 	    || cfgfile_yesno (option, value, "inactive_nosound", &p->win32_inactive_nosound)
 	    || cfgfile_yesno (option, value, "iconified_pause", &p->win32_iconified_pause)
@@ -2400,8 +2406,6 @@ static void getstartpaths(int start_data)
 
 extern void test (void);
 
-
-
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
@@ -2510,9 +2514,15 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #ifdef PARALLEL_PORT
 	paraport_mask = paraport_init ();
 #endif
+#ifdef LOGITECHLCD
+	lcd_open();
+#endif
 	real_main (argc, argv);
     }
 	
+#ifdef LOGITECHLCD
+    lcd_close();
+#endif
     if (mm_timerres && timermode == 0)
 	timeend ();
 #ifdef AVIOUTPUT

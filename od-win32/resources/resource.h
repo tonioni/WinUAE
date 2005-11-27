@@ -5,6 +5,7 @@
 #define IDS_KICKSTART                   1
 #define IDS_DISK                        2
 #define IDS_DISPLAY                     3
+#define IDC_HARDDRIVE_IMAGE             3
 #define IDS_HARDDISK                    4
 #define IDS_FLOPPY                      5
 #define IDS_ABOUT                       6
@@ -226,6 +227,7 @@
 #define IDD_FRONTEND                    249
 #define IDS_SOUND_SWAP_PAULA            249
 #define IDS_SOUND_SWAP_AHI              250
+#define IDD_PROGRESSBAR                 250
 #define IDS_SOUND_SWAP_BOTH             251
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
@@ -255,6 +257,8 @@
 #define IDS_NUMSG_KICKREP               325
 #define IDS_NUMSG_KICKREPNO             326
 #define IDS_NUMSG_NOROM                 327
+#define IDS_HDCLONE_OK                  328
+#define IDS_HDCLONE_FAIL                329
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -315,6 +319,7 @@
 #define IDC_LORES                       1176
 #define IDC_VSYNC                       1177
 #define IDC_AFULLSCREEN                 1178
+#define IDC_LORES_SMOOTHED              1179
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
@@ -649,6 +654,8 @@
 #define IDC_CATWEASEL                   1611
 #define IDC_AVIOUTPUT_FPS_STATIC        1612
 #define IDC_INPUTAMIGA                  1612
+#define IDC_ALWAYSONTOP2                1612
+#define IDC_BORDERLESS                  1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_AVIOUTPUT_AUDIO             1614
@@ -819,6 +826,9 @@
 #define IDC_FE_SCREENSHOT               1702
 #define IDC_PATHS_DEFAULTTYPE           1704
 #define IDC_SCSIMODE                    1705
+#define IDC_PROGRESS1                   1705
+#define IDC_PROGRESSBAR                 1705
+#define IDC_PROGRESSBAR_TEXT            1706
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -837,9 +847,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        249
+#define _APS_NEXT_RESOURCE_VALUE        251
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1705
+#define _APS_NEXT_CONTROL_VALUE         1707
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

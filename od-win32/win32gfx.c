@@ -1033,9 +1033,12 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? 1 : 0;
     c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? 1 : 0;
     c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 1 : 0;
+    c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 1 : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? 1 : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
+    c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
+    c |= currprefs.win32_no_overlay != changed_prefs.win32_no_overlay ? 1 : 0;
     if (display_change_requested || c) 
     {
 	if (!display_change_requested)
@@ -1055,9 +1058,12 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_filter = changed_prefs.gfx_filter;
 	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 	currprefs.gfx_lores = changed_prefs.gfx_lores;
+	currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
+	currprefs.win32_borderless = changed_prefs.win32_borderless;
+	currprefs.win32_no_overlay = changed_prefs.win32_no_overlay;
 	inputdevice_unacquire ();
 	close_windows ();
 	graphics_init ();
@@ -1709,15 +1715,25 @@ static int create_windows (void)
     int fs = currentmode->flags & (DM_W_FULLSCREEN | DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
     DWORD flags = 0;
-    DWORD style = NORMAL_WINDOW_STYLE  | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
     HWND hhWnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
+    int borderless = currprefs.win32_borderless;
+    DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+    int cymenu = GetSystemMetrics (SM_CYMENU);
+    int cyborder = GetSystemMetrics (SM_CYBORDER);
+    int cxborder = GetSystemMetrics(SM_CXBORDER);
+    int gap = 3;
+    int x, y;
+
+    hMainWnd = NULL;
+    x = 2; y = 2;
+    if (borderless)
+	cymenu = cyborder = cxborder = 0;
 
     if (!fs)  {
 	RECT rc;
-	LONG stored_x = 1, stored_y = GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
+	LONG stored_x = 1, stored_y = cymenu + cyborder;
 	DWORD regkeytype;
 	DWORD regkeysize = sizeof (LONG);
-	int cx = GetSystemMetrics(SM_CXBORDER), cy = GetSystemMetrics(SM_CYBORDER);
 	int oldx, oldy;
 	int first = 2;
 
@@ -1728,8 +1744,8 @@ static int create_windows (void)
 	    first--;
 	    if (stored_x < GetSystemMetrics (SM_XVIRTUALSCREEN))
 		stored_x = GetSystemMetrics (SM_XVIRTUALSCREEN);
-	    if (stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics (SM_CYMENU) + cy)
-		stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + GetSystemMetrics (SM_CYMENU) + cy;
+	    if (stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + cymenu + cyborder)
+		stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + cymenu + cyborder;
 
 	    if (stored_x > GetSystemMetrics (SM_CXVIRTUALSCREEN))
 		rc.left = 1;
@@ -1741,12 +1757,12 @@ static int create_windows (void)
 	    else
 		rc.top = stored_y;
 
-	    rc.right = rc.left + 2 + currentmode->current_width + 2;
-	    rc.bottom = rc.top + 2 + currentmode->current_height + 2 + GetSystemMetrics (SM_CYMENU) - 1;
+	    rc.right = rc.left + gap + currentmode->current_width + gap - 2;
+	    rc.bottom = rc.top + gap + currentmode->current_height + gap + cymenu - 1 - 2;
 
 	    oldx = rc.left;
 	    oldy = rc.top;
-	    AdjustWindowRect (&rc, NORMAL_WINDOW_STYLE, FALSE);
+	    AdjustWindowRect (&rc, borderless ? WS_POPUP : style, FALSE);
 	    win_x_diff = rc.left - oldx;
 	    win_y_diff = rc.top - oldy;
 
@@ -1766,32 +1782,34 @@ static int create_windows (void)
 #endif
 	flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 
-	hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | flags,
-				"PCsuxRox", "WinUAE",
-				style,
-				rc.left, rc.top,
-				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-				hhWnd, NULL, 0, NULL);
+	if (!borderless) {
+	    hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | flags,
+		"PCsuxRox", "WinUAE",
+		style,
+		rc.left, rc.top,
+		rc.right - rc.left + 1, rc.bottom - rc.top + 1,
+		hhWnd, NULL, 0, NULL);
 
-	if (! hMainWnd) {
-	    write_log ("main window creation failed\n");
-	    return 0;
+	    if (!hMainWnd) {
+		write_log ("main window creation failed\n");
+		return 0;
+	    }
+	    createstatuswindow ();
+	} else {
+	    x = rc.left;
+	    y = rc.top;
 	}
 
-	createstatuswindow ();
-
     }
-    else
-	hMainWnd = NULL;
 
     hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
-				hMainWnd ? 2 : CW_USEDEFAULT, hMainWnd ? 2 : CW_USEDEFAULT,
+				x, y,
 				currentmode->current_width, currentmode->current_height,
 				hMainWnd ? hMainWnd : hhWnd, NULL, 0, NULL);
 
-    if (! hAmigaWnd) {
+    if (!hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
 	close_hwnds();
 	return 0;
@@ -1802,10 +1820,8 @@ static int create_windows (void)
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);
     }
-    if (hAmigaWnd) {
-	UpdateWindow (hAmigaWnd);
-	ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
-    }
+    UpdateWindow (hAmigaWnd);
+    ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
 
     return 1;
 }
@@ -1825,17 +1841,20 @@ static void setoverlay(void)
 
     GetClientRect (hMainWnd, &dr);
     // adjust the dest-rect to avoid the status-bar
-    if( hStatusWnd )
-    {
+    if (hStatusWnd) {
 	if (GetWindowRect (hStatusWnd, &statusr))
 	    dr.bottom = dr.bottom - ( statusr.bottom - statusr.top );
     }
 
-    ClientToScreen( hMainWnd, &p );
-    dr.left = p.x + 2;
-    dr.top = p.y + 2;
-    dr.right += p.x;
-    dr.bottom += p.y;
+    ClientToScreen(hMainWnd, &p);
+    if (!currprefs.win32_borderless) {
+	p.x += 2;
+	p.y += 2;
+    }
+    dr.left = p.x;
+    dr.top = p.y;
+    dr.right += p.x + 1;
+    dr.bottom += p.y + 1;
     /* overlay's coordinates are relative to monitor's top/left-corner */
     dr.left -= mi.rcMonitor.left;
     dr.top -= mi.rcMonitor.top;
@@ -1847,19 +1866,14 @@ static void setoverlay(void)
 
     sr.left = 0;
     sr.top = 0;
-    sr.right = currentmode->current_width;
-    sr.bottom = currentmode->current_height;
+    sr.right = w;
+    sr.bottom = h;
 
     // Adjust our dst-rect to match the dimensions of our src-rect
     if (dr.right - dr.left > sr.right - sr.left)
 	dr.right = dr.left + sr.right - sr.left;
     if (dr.bottom - dr.top > sr.bottom - sr.top)
 	dr.bottom = dr.top + sr.bottom - sr.top;
-
-    sr.left = 0;
-    sr.top = 0;
-    sr.right = w;
-    sr.bottom = h;
 
     maxwidth = mi.rcMonitor.right - mi.rcMonitor.left;
     if (dr.right > maxwidth) {

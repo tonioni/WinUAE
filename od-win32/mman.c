@@ -132,9 +132,6 @@ void init_shm(void)
 	allocated = 1;
     }
 
-    while (memstats.dwAvailPageFile + memstats.dwAvailPhys < max_z3fastmem)
-	max_z3fastmem <<= 1;
-
     write_log("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
 }
 

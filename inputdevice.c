@@ -43,6 +43,8 @@
 #include "savestate.h"
 #include "arcadia.h"
 
+int inputdevice_logging = 0;
+
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
 #define DIR_UP 4
@@ -1008,7 +1010,8 @@ void inputdevice_do_keyboard (int code, int state)
 	    uae_reset (r);
 	}
 	record_key ((uae_u8)((key << 1) | (key >> 7)));
-	//write_log("Amiga key %02.2X %d\n", key & 0x7f, key >> 7);
+	if (inputdevice_logging > 0)
+	    write_log("Amiga key %02.2X %d\n", key & 0x7f, key >> 7);
 	return;
     }
     inputdevice_add_inputcode (code, state);
@@ -1185,7 +1188,8 @@ int handle_input_event (int nr, int state, int max, int autofire)
     if (nr <= 0)
 	return 0;
     ie = &events[nr];
-    //write_log("'%s' %d %d\n", ie->name, state, max);
+    if (inputdevice_logging > 0)
+	write_log("'%s' %d %d\n", ie->name, state, max);
     if (autofire) {
 	if (state)
 	    queue_input_event (nr, state, max, currprefs.input_autofire_framecnt, 1);
@@ -1722,7 +1726,6 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 		int event = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
 		char *custom = na->custom[j][sublevdir[state == 0 ? 1 : 0][k]];
 		handled |= handle_input_event (event, state, 1, autofire);
-		//write_log ("'%s' %d ('%s') %d\n", na->name, event, events[event].name,  state);
 	    }
 	    return handled;
 	}

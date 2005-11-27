@@ -4502,7 +4502,6 @@ MIDFUNC(2,fmul_rr,(FRW d, FR s))
 }
 MENDFUNC(2,fmul_rr,(FRW d, FR s))
 
-
 /********************************************************************
  * Support functions exposed to gencomp. CREATE time                *
  ********************************************************************/

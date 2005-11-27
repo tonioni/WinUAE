@@ -5,8 +5,5 @@
 #define HIDC_EDITDESCRIPTION            0x8087057e    // IDD_LOADSAVE [English (United States)]
 #define HIDC_EDITNAME                   0x8087057d    // IDD_LOADSAVE [English (United States)]
 #define HIDC_EDITPATH                   0x80870582    // IDD_LOADSAVE [English (United States)]
-#define HIDC_LORES                      0x806c0498    // IDD_DISPLAY [English (United States)]
 #define HIDC_MAPDRIVES                  0x807105e3    // IDD_HARDDISK [English (United States)]
 #define HIDC_MAPDRIVES_NET              0x807105e4    // IDD_HARDDISK [English (United States)]
-#define HIDC_PFULLSCREEN                0x806c04a8    // IDD_DISPLAY [English (United States)]
-#define HIDC_TEST16BIT                  0x806c05e2    // IDD_DISPLAY [English (United States)]

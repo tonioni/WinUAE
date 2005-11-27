@@ -69,6 +69,7 @@
 #include "moduleripper.h"
 #endif
 #include "catweasel.h"
+#include "lcd.h"
 
 #define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe\0"
 #define ROM_FORMAT_STRING "(*.rom;*.zip;*.rar;*.7z;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
@@ -3589,8 +3590,8 @@ static void values_to_displaydlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_AFULLSCREEN, workprefs.gfx_afullscreen);
     CheckDlgButton (hDlg, IDC_PFULLSCREEN, workprefs.gfx_pfullscreen);
     CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
-    CheckDlgButton (hDlg, IDC_LORES, workprefs.gfx_linedbl ? FALSE : TRUE);
     CheckDlgButton (hDlg, IDC_LORES, workprefs.gfx_lores);
+    CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
     CheckDlgButton (hDlg, IDC_VSYNC, workprefs.gfx_vsync);
 
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
@@ -3640,6 +3641,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     workprefs.gfx_afullscreen    = IsDlgButtonChecked (hDlg, IDC_AFULLSCREEN);
 
     workprefs.gfx_lores          = IsDlgButtonChecked (hDlg, IDC_LORES);
+    workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
     workprefs.gfx_correct_aspect = IsDlgButtonChecked (hDlg, IDC_ASPECT);
     workprefs.gfx_linedbl = ( IsDlgButtonChecked( hDlg, IDC_LM_SCANLINES ) ? 2 :
 			      IsDlgButtonChecked( hDlg, IDC_LM_DOUBLED ) ? 1 : 0 );
@@ -4318,7 +4320,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSPEED), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSPEEDPAUSE), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSOUND), TRUE);
-	EnableWindow (GetDlgItem (hDlg, IDC_NOOVERLAY), FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_NOOVERLAY), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SCSIMODE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SCSIDEVICE), FALSE);
@@ -4527,13 +4529,13 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.illegal_mem = IsDlgButtonChecked (hDlg, IDC_ILLEGAL);
 	    break;
 	case IDC_JULIAN:
-	    workprefs.win32_middle_mouse = IsDlgButtonChecked( hDlg, IDC_JULIAN );
+	    workprefs.win32_middle_mouse = IsDlgButtonChecked(hDlg, IDC_JULIAN);
 	    break;
 	case IDC_NOOVERLAY:
-	    workprefs.win32_no_overlay = IsDlgButtonChecked( hDlg, IDC_NOOVERLAY );
+	    workprefs.win32_no_overlay = IsDlgButtonChecked(hDlg, IDC_NOOVERLAY);
 	    break;
 	case IDC_SHOWLEDS:
-	    workprefs.leds_on_screen = IsDlgButtonChecked( hDlg, IDC_SHOWLEDS );
+	    workprefs.leds_on_screen = IsDlgButtonChecked(hDlg, IDC_SHOWLEDS);
 	    break;
 	case IDC_SHOWGUI:
 	    workprefs.start_gui = IsDlgButtonChecked (hDlg, IDC_SHOWGUI);
@@ -5521,18 +5523,24 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
     return FALSE;
 }
 
+extern int harddrive_to_hdf(HWND, struct uae_prefs*, int);
 static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int i, index;
     LRESULT posn;
+    static int oposn;
 
     switch (msg) {
     case WM_INITDIALOG:
+	oposn = -1;
 	hdf_init ();
 	recursive++;
 	CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
 	SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
+	EnableWindow(GetDlgItem(hDlg, IDC_HARDDRIVE_IMAGE), FALSE);
+	EnableWindow(GetDlgItem(hDlg, IDOK), FALSE);
+	EnableWindow(GetDlgItem(hDlg, IDC_RW), FALSE);
 	index = -1;
 	for (i = 0; i < hdf_getnumharddrives(); i++) {
 	    SendDlgItemMessage( hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive(i, 1));
@@ -5547,7 +5555,15 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	if (recursive)
 	    break;
 	recursive++;
-
+	posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+	if (oposn != posn) {
+	    oposn = posn;
+	    if (posn >= 0) {
+		EnableWindow(GetDlgItem(hDlg, IDC_HARDDRIVE_IMAGE), TRUE);
+		EnableWindow(GetDlgItem(hDlg, IDOK), TRUE);
+		EnableWindow(GetDlgItem(hDlg, IDC_RW), TRUE);
+	    }
+	}
 	if (HIWORD (wParam) == BN_CLICKED) {
 	    switch (LOWORD (wParam)) {
 	    case IDOK:
@@ -5556,10 +5572,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	    case IDCANCEL:
 		EndDialog (hDlg, 0);
 		break;
+   	    case IDC_HARDDRIVE_IMAGE:
+		if (posn != CB_ERR)
+		    harddrive_to_hdf(hDlg, &workprefs, posn);
+		break;
 	    }
 	}
-
-	posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
 	    strcpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0));
 	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
@@ -8944,6 +8962,9 @@ void gui_led (int led, int on)
     int pos = -1, j;
 
     indicator_leds (led, on);
+#ifdef LOGITECHLCD
+    lcd_update (led, on);
+#endif
     if (!hStatusWnd)
 	return;
     if (on)

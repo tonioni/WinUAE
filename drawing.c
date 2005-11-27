@@ -97,6 +97,9 @@ static int dblpf_ind1_aga[256], dblpf_ind2_aga[256];
 static uae_u8 spriteagadpfpixels[1];
 static int dblpf_ind1_aga[1], dblpf_ind2_aga[1];
 #endif
+int xredcolor_s, xredcolor_b, xredcolor_m;
+int xgreencolor_s, xgreencolor_b, xgreencolor_m;
+int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 
 struct color_entry colors_for_drawing;
 
@@ -353,23 +356,53 @@ static void pfield_init_linetoscr (void)
     }
 }
 
+static uae_u8 merge_2pixel8(uae_u8 p1, uae_u8 p2)
+{
+    return p1;
+}
+static uae_u16 merge_2pixel16(uae_u16 p1, uae_u16 p2)
+{
+    uae_u16 v = ((((p1 >> xredcolor_s) & xredcolor_m) + ((p2 >> xredcolor_s) & xredcolor_m)) / 2) << xredcolor_s;
+    v |= ((((p1 >> xbluecolor_s) & xbluecolor_m) + ((p2 >> xbluecolor_s) & xbluecolor_m)) / 2) << xbluecolor_s;
+    v |= ((((p1 >> xgreencolor_s) & xgreencolor_m) + ((p2 >> xgreencolor_s) & xgreencolor_m)) / 2) << xgreencolor_s;
+    return v;
+}
+static uae_u32 merge_2pixel32(uae_u32 p1, uae_u32 p2)
+{
+    uae_u32 v = ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
+    v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;
+    v |= ((((p1 >> 0) & 0xff) + ((p2 >> 0) & 0xff)) / 2) << 0;
+    return v;
+}
+
 /* If C++ compilers didn't suck, we'd use templates.  */
 
 #define TYPE uae_u8
+#define PMERGE merge_2pixel8
+
 #define LNAME linetoscr_8
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_8_stretch1
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_8_shrink1
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_8_shrink2
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 0
+#define HMERGE 1
 #include "linetoscr.c"
 
 #ifdef AGA
@@ -377,36 +410,56 @@ static void pfield_init_linetoscr (void)
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_8_stretch1_aga
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_8_shrink1_aga
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_8_shrink2_aga
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 1
+#define HMERGE 1
 #include "linetoscr.c"
 #endif
 
 #undef TYPE
-
+#undef PMERGE
 #define TYPE uae_u16
+#define PMERGE merge_2pixel16
+
 #define LNAME linetoscr_16
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_16_stretch1
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_16_shrink1
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_16_shrink2
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 0
+#define HMERGE 1
 #include "linetoscr.c"
 
 #ifdef AGA
@@ -414,36 +467,56 @@ static void pfield_init_linetoscr (void)
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_16_stretch1_aga
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_16_shrink1_aga
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_16_shrink2_aga
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 1
+#define HMERGE 1
 #include "linetoscr.c"
 #endif
 
 #undef TYPE
-
+#undef PMERGE
 #define TYPE uae_u32
+#define PMERGE merge_2pixel32
+
 #define LNAME linetoscr_32
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_32_stretch1
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 0
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_32_shrink1
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 0
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_32_shrink2
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 0
+#define HMERGE 1
 #include "linetoscr.c"
 
 #ifdef AGA
@@ -451,16 +524,25 @@ static void pfield_init_linetoscr (void)
 #define SRC_INC 1
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_32_stretch1_aga
 #define SRC_INC 1
 #define HDOUBLE 1
 #define AGAC 1
+#define HMERGE 0
 #include "linetoscr.c"
 #define LNAME linetoscr_32_shrink1_aga
 #define SRC_INC 2
 #define HDOUBLE 0
 #define AGAC 1
+#define HMERGE 0
+#include "linetoscr.c"
+#define LNAME linetoscr_32_shrink2_aga
+#define SRC_INC 2
+#define HDOUBLE 0
+#define AGAC 1
+#define HMERGE 1
 #include "linetoscr.c"
 #endif
 
@@ -563,10 +645,18 @@ static void pfield_do_linetoscr (int start, int stop)
 	    case 4: src_pixel = linetoscr_32_stretch1_aga (src_pixel, start, stop); break;
 	    }
 	else if (res_shift < 0)
-	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_shrink1_aga (src_pixel, start, stop); break;
-	    case 2: src_pixel = linetoscr_16_shrink1_aga (src_pixel, start, stop); break;
-	    case 4: src_pixel = linetoscr_32_shrink1_aga (src_pixel, start, stop); break;
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink2_aga (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink2_aga (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2_aga (src_pixel, start, stop); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink1_aga (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1_aga (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1_aga (src_pixel, start, stop); break;
+		}
 	    }
     } else {
 #endif
@@ -583,10 +673,18 @@ static void pfield_do_linetoscr (int start, int stop)
 	    case 4: src_pixel = linetoscr_32_stretch1 (src_pixel, start, stop); break;
 	    }
 	else if (res_shift < 0)
-	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_shrink1 (src_pixel, start, stop); break;
-	    case 2: src_pixel = linetoscr_16_shrink1 (src_pixel, start, stop); break;
-	    case 4: src_pixel = linetoscr_32_shrink1 (src_pixel, start, stop); break;
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink2 (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink2 (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2 (src_pixel, start, stop); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink1 (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1 (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1 (src_pixel, start, stop); break;
+		}
 	    }
 #ifdef AGA
     }

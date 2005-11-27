@@ -819,7 +819,7 @@ int hdf_init (void)
     done = 1;
     num_drives = 0;
 #ifdef WINDDK
-    buffer = VirtualAlloc (NULL, 512, MEM_COMMIT, PAGE_READWRITE);
+    buffer = VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
     if (buffer) {
 	memset (uae_drives, 0, sizeof (uae_drives));
 	num_drives = 0;
@@ -861,7 +861,159 @@ char *hdf_getnameharddrive (int index, int flags)
  	sprintf (name, "%s (%s)", uae_drives[index].device_name, tmp);
 	return name;
     }
+    if (flags & 2)
+	return uae_drives[index].device_path;
     return uae_drives[index].device_name;
 }
 
+
+static int progressdialogreturn;
+static int progressdialogactive;
+
+static INT_PTR CALLBACK ProgressDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch(msg)
+    {
+	case WM_DESTROY:
+	PostQuitMessage (0);
+	progressdialogactive = 0;
+	return TRUE;
+	case WM_CLOSE:
+	DestroyWindow(hDlg);
+	if (progressdialogreturn < 0)
+	    progressdialogreturn = 0;
+	return TRUE;
+	case WM_INITDIALOG:
+	    return TRUE;
+	case WM_COMMAND:
+	    switch (LOWORD(wParam))
+	    {
+		case IDCANCEL:
+		    progressdialogreturn = 0;
+		    DestroyWindow (hDlg);
+		return TRUE;
+	    }
+	break;
+    }
+    return FALSE;
+}
+
+extern HMODULE hUIDLL;
+extern HINSTANCE hInst;
+
+#define COPY_CACHE_SIZE 1024*1024
+int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
+{
+    HANDLE h = INVALID_HANDLE_VALUE, hdst = INVALID_HANDLE_VALUE;
+    void *cache = NULL;
+    DWORD ret, high, low, got, gotdst;
+    uae_u64 size, sizecnt, written;
+    char path[MAX_DPATH], tmp[MAX_DPATH], tmp2[MAX_DPATH];
+    DWORD retcode = 0;
+    HWND hwnd, hwndprogress, hwndprogresstxt;
+    MSG msg;
+    int pct, cnt;
+ 
+    cache = VirtualAlloc (NULL, COPY_CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    if (!cache)
+	goto err;
+    h = CreateFile (uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+	OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING, NULL);
+    if (h == INVALID_HANDLE_VALUE)
+	goto err;
+    size = uae_drives[idx].size;
+    path[0] = 0;
+    DiskSelection (hDlg, IDC_PATH_NAME, 3, p, 0);
+    GetDlgItemText (hDlg, IDC_PATH_NAME, path, MAX_DPATH);
+    if (*path == 0)
+	goto err;
+    hdst = CreateFile (path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
+	CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
+    if (hdst == INVALID_HANDLE_VALUE)
+	goto err;
+    low = (DWORD)size;
+    high = size >> 32;
+    ret = SetFilePointer(hdst, low, &high, FILE_BEGIN);
+    if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+	goto err;
+    if (!SetEndOfFile(hdst))
+	goto err;
+    high = 0;
+    SetFilePointer(hdst, 0, &high, FILE_BEGIN);
+    SetFilePointer(h, 0, &high, FILE_BEGIN);
+    progressdialogreturn = -1;
+    progressdialogactive = 1;
+    hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PROGRESSBAR), hDlg, ProgressDialogProc);
+    if (hwnd == NULL)
+	goto err;
+    hwndprogress = GetDlgItem(hwnd, IDC_PROGRESSBAR);
+    hwndprogresstxt = GetDlgItem(hwnd, IDC_PROGRESSBAR_TEXT);
+    ShowWindow (hwnd, SW_SHOW);
+    pct = 0;
+    cnt = 1000;
+    sizecnt = 0;
+    written = 0;
+    for (;;) {
+	if (progressdialogreturn >= 0)
+    	    break;
+	if (cnt > 0) {
+	    SendMessage(hwndprogress, PBM_SETPOS, (WPARAM)pct, 0);
+	    sprintf (tmp, "%dM / %dM (%d%%)", (int)(written >> 20), (int)(size >> 20), pct);
+	    SendMessage(hwndprogresstxt, WM_SETTEXT, 0, (LPARAM)tmp);
+	    while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+		TranslateMessage (&msg);
+		DispatchMessage (&msg);
+	    }
+	    cnt = 0;
+	}
+	got = gotdst = 0;
+	ReadFile(h, cache, COPY_CACHE_SIZE, &got, NULL);
+	if (got > 0) {
+	    if (written + got > size)
+		got = size - written;
+	    WriteFile(hdst, cache, got, &gotdst, NULL);
+	    written += gotdst;
+	    if (written == size)
+		break;
+	}
+	if (got != COPY_CACHE_SIZE) {
+	    progressdialogreturn = 1;
+	    break;
+	}
+	if (got != gotdst) {
+	    progressdialogreturn = 2;
+	    break;
+	}
+	cnt++;
+	sizecnt += got;
+	pct = (int)(sizecnt * 100 / size);
+    }
+    if (progressdialogactive) {
+	DestroyWindow (hwnd);
+	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+	    TranslateMessage (&msg);
+	    DispatchMessage (&msg);
+	}
+    }
+    if (progressdialogreturn >= 0)
+	goto err;
+    retcode = 1;
+    WIN32GUI_LoadUIString (IDS_HDCLONE_OK, tmp, MAX_DPATH);
+    gui_message (tmp);
+    goto ok;
+
+err:
+    WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
+    sprintf (tmp2, tmp, GetLastError());
+    gui_message (tmp2);
+    
+ok:
+    if (h != INVALID_HANDLE_VALUE)
+	CloseHandle(h);
+    if (cache)
+	VirtualFree(cache, 0, MEM_RELEASE);
+    if (hdst != INVALID_HANDLE_VALUE)
+	CloseHandle(hdst);
+    return retcode;
+}
 

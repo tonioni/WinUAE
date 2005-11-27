@@ -147,6 +147,15 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	xbluecolors[i] = greyscale (doColor (i, bw, bs)) | doAlpha (alpha, aw, as);
     }
 #endif
+    xredcolor_b = rw;
+    xgreencolor_b = gw;
+    xbluecolor_b = bw;
+    xredcolor_s = rs;
+    xgreencolor_s = gs;
+    xbluecolor_s = bs;
+    xredcolor_m = (1 << rw) - 1;
+    xgreencolor_m = (1 << gw) - 1;
+    xbluecolor_m = (1 << bw) - 1;
 }
 
 static int allocated[4096];

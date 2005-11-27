@@ -8,8 +8,8 @@
   */
 
 #define UAEMAJOR 1
-#define UAEMINOR 1
-#define UAESUBREV 1
+#define UAEMINOR 2
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -120,6 +120,7 @@ struct uae_prefs {
     int gfx_refreshrate;
     int gfx_vsync;
     int gfx_lores;
+    int gfx_lores_mode;
     int gfx_linedbl;
     int gfx_correct_aspect;
     int gfx_afullscreen;
@@ -220,6 +221,7 @@ struct uae_prefs {
     int win32_iconified_nosound;
 
     int win32_no_overlay; /* If this is set, we won't try and use any RGB overlays */
+    int win32_borderless;
     int win32_ctrl_F11_is_quit;
     int win32_automount_drives;
     int win32_automount_netdrives;

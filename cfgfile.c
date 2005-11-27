@@ -352,6 +352,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
     cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_vsync ? "true" : "false");
     cfgfile_write (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
+    cfgfile_write (f, "gfx_lores_mode=%s\n", p->gfx_lores_mode ? 1 : 0);
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
     cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
     cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", p->gfx_afullscreen ? "true" : "false");
@@ -677,6 +678,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "filesys_no_fsdb", &p->filesys_no_uaefsdb)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_vsync)
 	|| cfgfile_yesno (option, value, "gfx_lores", &p->gfx_lores)
+	|| cfgfile_yesno (option, value, "gfx_lores_mode", &p->gfx_lores_mode)
 	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
 	|| cfgfile_yesno (option, value, "gfx_fullscreen_amiga", &p->gfx_afullscreen)
 	|| cfgfile_yesno (option, value, "gfx_fullscreen_picasso", &p->gfx_pfullscreen)

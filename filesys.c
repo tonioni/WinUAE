@@ -3871,14 +3871,14 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     int oldversion, oldrevision;
     int newversion, newrevision;
 
-    if (lastblock * hfd->blocksize > hfd->size) {
-	rdbmnt
-	write_log("failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->size);
-	return -2;
-    }
     if (hfd->blocksize == 0) {
 	rdbmnt
 	write_log("failed, blocksize == 0\n");
+	return -1;
+    }
+    if (lastblock * hfd->blocksize > hfd->size) {
+	rdbmnt
+	write_log("failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->size);
 	return -2;
     }
     for (rdblock = 0; rdblock < lastblock; rdblock++) {

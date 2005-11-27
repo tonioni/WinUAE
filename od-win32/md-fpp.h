@@ -3,62 +3,161 @@
   *
   * MC68881 emulation
   *
-  * Conversion routines for hosts with unknown floating point format.
+  * Conversion routines for hosts knowing floating point format.
   *
   * Copyright 1996 Herman ten Brugge
+  * Modified 2005 Peter Keunecke
   */
 
-#ifndef HAVE_to_single
-STATIC_INLINE double to_single (uae_u32 value)
+#if USE_LONG_DOUBLE
+STATIC_INLINE long double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-    double frac;
+    uae_u32 longarray[] = {wrd3,wrd2,((wrd1>>16)&0xffff)}; // little endian
+    register long double *longdoublewords = longarray;
 
-    if ((value & 0x7fffffff) == 0)
-        return (0.0);
-    frac = (double) ((value & 0x7fffff) | 0x800000) / 8388608.0;
-    if (value & 0x80000000)
-        frac = -frac;
-    return (ldexp (frac, ((value >> 23) & 0xff) - 127));
+    return(*longdoublewords);
+}
+#define HAVE_to_exten
+
+STATIC_INLINE void from_exten(long double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+{
+    register uae_u32 *longarray = &src;
+    register uae_u16 *finalword = &src + 8;
+
+    *wrd1 = ((uae_u32)*finalword)<<16;
+    *wrd2 = longarray[1];
+    *wrd3 = longarray[0]; // little endian
+}
+#define HAVE_from_exten
+#endif /* USE_LONG_DOUBLE */
+
+#if defined(X86_MSVC_ASSEMBLY)
+#ifndef HAVE_to_single
+#define HAVE_to_single
+STATIC_INLINE double to_single (uae_u32 longvalue)
+{
+    double floatfake;
+
+    __asm {
+    fld     dword ptr   longvalue;
+    fstp    qword ptr   floatfake;
+    }
+    return(floatfake);
 }
 #endif
 
 #ifndef HAVE_from_single
-STATIC_INLINE uae_u32 from_single (double src)
+#define HAVE_from_single
+STATIC_INLINE uae_u32 from_single (double floatfake)
 {
-    int expon;
-    uae_u32 tmp;
-    double frac;
+    uae_u32 longvalue;
 
-    if (src == 0.0)
-        return 0;
-    if (src < 0) {
-        tmp = 0x80000000;
-        src = -src;
-    } else {
-        tmp = 0;
+    __asm {
+    fld     qword ptr   floatfake;
+    fstp    dword ptr   longvalue;
     }
-    frac = frexp (src, &expon);
-    frac += 0.5 / 16777216.0;
-    if (frac >= 1.0) {
-        frac /= 2.0;
-        expon++;
-    }
-    if (expon <= -127) return 0;
-    if (expon >= 127) expon = 127;
-    return (tmp | (((expon + 127 - 1) & 0xff) << 23) |
-            (((int) (frac * 16777216.0)) & 0x7fffff));
+    return(longvalue);
 }
 #endif
 
 #ifndef HAVE_to_exten
+#define HAVE_to_exten
+STATIC_INLINE double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+{
+    uae_u32 longarray[] = {wrd3,wrd2,((wrd1>>16)&0xffff)}; // little endian
+    double  extenfake;
+
+    __asm {
+    fld     tbyte ptr   longarray;
+    fstp    qword ptr   extenfake;
+    }
+    return(extenfake);
+}
+#endif
+
+#ifndef HAVE_from_exten
+#define HAVE_from_exten
+STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
+{
+    uae_u32 longarray[3], *srcarray = (uae_u32 *)&src;
+
+    __asm {
+    fld     qword ptr   src;
+    fstp    tbyte ptr   longarray;
+    }
+    *wrd1 = (longarray[2] & 0xffff) <<16;
+    *wrd2 =  longarray[1];
+    *wrd3 =  longarray[0]; // little endian
+    if (!srcarray[0] && (srcarray[1]==0x7ff00000 || srcarray[1]==0xfff00000))
+        *wrd2 = 0; // The MSB of the mantissa was set wrongly for infinity, causing a NaN
+}
+#endif
+#endif /* X86_MSVC_ASSEMBLY */
+
+#ifndef HAVE_to_single
+#define HAVE_to_single
+STATIC_INLINE double to_single (uae_u32 value)
+{
+    union {
+    float f;
+    uae_u32 u;
+    } val;
+
+    val.u = value;
+    return val.f;
+}
+#endif
+
+#ifndef HAVE_from_single
+#define HAVE_from_single
+STATIC_INLINE uae_u32 from_single (double src)
+{
+    union {
+    float f;
+    uae_u32 u;
+    } val;
+
+    val.f = (float) src;
+    return val.u;
+}
+#endif
+
+#ifndef HAVE_to_double
+#define HAVE_to_double
+STATIC_INLINE double to_double(uae_u32 wrd1, uae_u32 wrd2)
+{
+    union {
+    double d;
+    uae_u32 u[2];
+    } val;
+
+    val.u[0] = wrd2; // little endian
+    val.u[1] = wrd1;
+    return val.d;
+}
+#endif
+
+#ifndef HAVE_from_double
+#define HAVE_from_double
+STATIC_INLINE void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
+{
+    register uae_u32 *longarray = (uae_u32 *)&src;
+
+    *wrd1 = longarray[1]; // little endian
+    *wrd2 = longarray[0];
+}
+#endif
+
+static double twoto32 = 4294967296.0;
+#ifndef HAVE_to_exten
+#define HAVE_to_exten
 STATIC_INLINE double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
     double frac;
 
     if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0)
         return 0.0;
-    frac = (double) wrd2 / 2147483648.0 +
-        (double) wrd3 / 9223372036854775808.0;
+    frac = ((double)wrd2 + ((double)wrd3 / twoto32)) / 2147483648.0;
     if (wrd1 & 0x80000000)
         frac = -frac;
     return ldexp (frac, ((wrd1 >> 16) & 0x7fff) - 16383);
@@ -66,6 +165,7 @@ STATIC_INLINE double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 #endif
 
 #ifndef HAVE_from_exten
+#define HAVE_from_exten
 STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
 {
     int expon;
@@ -84,58 +184,13 @@ STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u3
         *wrd1 = 0;
     }
     frac = frexp (src, &expon);
-    frac += 0.5 / 18446744073709551616.0;
+    frac += 0.5 / (twoto32 * twoto32);
     if (frac >= 1.0) {
         frac /= 2.0;
         expon++;
     }
     *wrd1 |= (((expon + 16383 - 1) & 0x7fff) << 16);
-    *wrd2 = (uae_u32) (frac * 4294967296.0);
-    *wrd3 = (uae_u32) (frac * 18446744073709551616.0 - *wrd2 * 4294967296.0);
-}
-#endif
-
-#ifndef HAVE_to_double
-STATIC_INLINE double to_double(uae_u32 wrd1, uae_u32 wrd2)
-{
-    double frac;
-
-    if ((wrd1 & 0x7fffffff) == 0 && wrd2 == 0)
-        return 0.0;
-    frac = (double) ((wrd1 & 0xfffff) | 0x100000) / 1048576.0 +
-        (double) wrd2 / 4503599627370496.0;
-    if (wrd1 & 0x80000000)
-        frac = -frac;
-    return ldexp (frac, ((wrd1 >> 20) & 0x7ff) - 1023);
-}
-#endif
-
-#ifndef HAVE_from_double
-STATIC_INLINE void from_double(double src, uae_u32 * wrd1, uae_u32 * wrd2)
-{
-    int expon;
-    int tmp;
-    double frac;
-
-    if (src == 0.0) {
-        *wrd1 = 0;
-        *wrd2 = 0;
-        return;
-    }
-    if (src < 0) {
-        *wrd1 = 0x80000000;
-        src = -src;
-    } else {
-        *wrd1 = 0;
-    }
-    frac = frexp (src, &expon);
-    frac += 0.5 / 9007199254740992.0;
-    if (frac >= 1.0) {
-        frac /= 2.0;
-        expon++;
-    }
-    tmp = (uae_u32) (frac * 2097152.0);
-    *wrd1 |= (((expon + 1023 - 1) & 0x7ff) << 20) | (tmp & 0xfffff);
-    *wrd2 = (uae_u32) (frac * 9007199254740992.0 - tmp * 4294967296.0);
+    *wrd2 = (uae_u32) (frac * twoto32);
+    *wrd3 = (uae_u32) ((frac * twoto32 - *wrd2) * twoto32);
 }
 #endif
