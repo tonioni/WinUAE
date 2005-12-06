@@ -253,7 +253,7 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 	}
 	line[9 + cols * 5] = ' ';
 	line[9 + cols * 5 + 1 + 2 * cols] = 0;
-	console_out (line);
+	console_out ("%s", line);
 	console_out ("\n");
     }
     *nxmem = addr;

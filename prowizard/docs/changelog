@@ -1,9 +1,38 @@
 CHANGE LOG
 ----------
 
-Date format is DDMMYYYY. (from lattest to first)
+#date format is DDMMYYYY. (from lattest to first)
 
-
+02102005        Version 1.60
+	
+	Merged test(),rip() and pack() into one file for all formats. Now in rippers/.
+	Renamed Noise From Heaven #2 to Noise From Heaven. All three musicdisk are packed samely.
+	Removed a few printf() that were hidden here and there :)
+	Trashed all the #ifdef DOS and used a -I in the makefile instead (Thanks Laurent Clevy)
+	
+16052005        Version 1.52
+	
+	Fixed DragPack 2.52 size calculation routine and removed the rebuiling (help !)
+	
+15052005        Version 1.51
+	
+	Added some checks for the file opening.
+	Mostly some cleaning/reshaping.
+	
+11072004        Version 1.50
+	
+	Some cleaning because other project wish to used PW4PC (namely WinUAE)
+	Removed SQ/SP/SF data cruncher due to too many fakes files found.
+	New supported (PTK clones) format :
+	- TMK packer (found in a few Eremation demos)
+	  not sure I'm compliant with Deliplayer on this one :(.
+	New supported (exe/data)format :
+	- DragPack 2.52 - with rebuilding
+	- DragPack 1.00 is on the way (some trouble with the rebuilding)
+	- Speed Packer 3 (Atari ST) (kindly sent by Mike Mee (thx!))
+	- Atomik Packer (Atari ST) (on sheer description sent by Mike Mee (thx!))
+	- Automation Packer 5.* (Atari ST) (on sheer description sent by Mike Mee (thx!))
+	
 24112003        Version 1.50.b3
 	
 	More Double Action v1.0 to be found

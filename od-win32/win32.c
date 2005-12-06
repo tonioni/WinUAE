@@ -1868,6 +1868,14 @@ static void strip_slashes (char *p)
     while (strlen (p) > 0 && (p[strlen (p) - 1] == '\\' || p[strlen (p) - 1] == '/'))
 	p[strlen (p) - 1] = 0;
 }
+static void fixtrailing(char *p)
+{
+    if (strlen(p) == 0)
+	return;
+    if (p[strlen(p) - 1] == '/' || p[strlen(p) - 1] == '\\')
+	return;
+    strcat(p, "\\");
+}
 
 void fetch_path (char *name, char *out, int size)
 {
@@ -1897,7 +1905,7 @@ void fetch_path (char *name, char *out, int size)
 	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
 	    strcpy (out, start_path_data);
     }
-    strncat (out, "\\", size);
+    fixtrailing (out);
 }
 void set_path (char *name, char *path)
 {
@@ -1931,7 +1939,7 @@ void set_path (char *name, char *path)
 	    strcat (tmp, "..\\shared\\rom");
 	}
     }
-    strcat (tmp, "\\");
+    fixtrailing (tmp);
 
     if (hWinUAEKey)
 	RegSetValueEx (hWinUAEKey, name, 0, REG_SZ, (CONST BYTE *)tmp, strlen (tmp) + 1);
@@ -2286,7 +2294,7 @@ static void getstartpaths(int start_data)
     SHGETFOLDERPATH pSHGetFolderPath;
     SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
     char *posn, *p;
-    char tmp[MAX_DPATH], prevpath[MAX_DPATH];
+    char tmp[MAX_DPATH], tmp2[MAX_DPATH], prevpath[MAX_DPATH];
     DWORD v;
     HKEY key;
     DWORD dispo;
@@ -2308,7 +2316,7 @@ static void getstartpaths(int start_data)
     pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
     strcpy (start_path_exe, _pgmptr );
-    if((posn = strrchr (start_path_exe, '\\')))
+   if((posn = strrchr (start_path_exe, '\\')))
 	posn[1] = 0;
 
     strcpy (tmp, start_path_exe);
@@ -2349,9 +2357,11 @@ static void getstartpaths(int start_data)
     }
 
     p = getenv("AMIGAFOREVERDATA");
-    if (p) {
+    if (p && 0) {
 	strcpy (tmp, p);
+	fixtrailing(tmp);
 	strcpy (start_path_af, p);
+	fixtrailing(start_path_af);
 	v = GetFileAttributes(tmp);
 	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
 	    if (start_data == 0) {
@@ -2373,14 +2383,16 @@ static void getstartpaths(int start_data)
 	else if (pSHGetSpecialFolderPath)
 	    ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
 	if (ok) {
-	    strcpy (start_path_af, tmp);
-	    strcat (start_path_af, "\\Amiga Files\\");
-	    strcpy (tmp, start_path_af);
+	    fixtrailing(tmp);
+	    strcpy (tmp2, tmp);
+	    strcat (tmp2, "Amiga Files\\");
+	    strcpy (tmp, tmp2);
 	    strcat(tmp, "WinUAE");
 	    v = GetFileAttributes(tmp);
 	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
 		if (start_data == 0) {
 		    if (path_done == 0) {
+			strcpy (start_path_af, tmp2);
 			strcpy (start_path_data, start_path_af);
 			strcat (start_path_data, "WinUAE");
 			path_done = 1;
@@ -2396,11 +2408,7 @@ static void getstartpaths(int start_data)
     if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0)
 	strcpy(start_path_data, start_path_exe);
 
-    if (strlen(start_path_data) > 0) {
-	p = start_path_data + strlen(start_path_data) - 1;
-	if (p[0] != '\\' && p[0] != '/')
-	    strcat(start_path_data, "\\");
-    }
+    fixtrailing(start_path_data);
 }
 
 
@@ -2514,15 +2522,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #ifdef PARALLEL_PORT
 	paraport_mask = paraport_init ();
 #endif
-#ifdef LOGITECHLCD
-	lcd_open();
-#endif
 	real_main (argc, argv);
     }
 	
-#ifdef LOGITECHLCD
-    lcd_close();
-#endif
     if (mm_timerres && timermode == 0)
 	timeend ();
 #ifdef AVIOUTPUT

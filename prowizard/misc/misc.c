@@ -1,12 +1,7 @@
-#ifdef DOS
-#include "..\include\globals.h"
-#include "..\include\extern.h"
-#endif
+#include "../rippers/globals.h"
+#include "../rippers/extern.h"
 
-#ifdef UNIX
-#include "../include/globals.h"
-#include "../include/extern.h"
-#endif
+extern void write_log (const char *, ...);
 
 /*
  *  at now, when this fonction is called, no global var has been used ...
@@ -24,7 +19,7 @@ void Support_Types ( void )
   types_file = fopen ( _TYPES_FILENAME , "rb" );
   if ( types_file == NULL )
   {
-    printf ( "!!! couldn't find \"%s\" file !. Default extension used.\n"
+    write_log ( "!!! couldn't find \"%s\" file !. Default extension used.\n"
              , _TYPES_FILENAME );
     Support_Types_FileDefault ();
     return;
@@ -43,7 +38,7 @@ void Support_Types ( void )
       continue;
     if ( sizeof ( read_line ) < 2 )
     {
-      printf ( "!!! Damaged \"%s\" file at non-commented line %ld\n"
+      write_log ( "!!! Damaged \"%s\" file at non-commented line %ld\n"
              , _TYPES_FILENAME , PW_i+1 );
       PW_i = 99999l;
       break;
@@ -54,7 +49,7 @@ void Support_Types ( void )
       Extensions[PW_i][cpt] = read_line[cpt];
       cpt += 1;
     }
-    /*printf ( "[%ld]%ld:%s," , PW_i,ftell (types_file),read_line );*/
+    /*write_log ( "[%ld]%ld:%s," , PW_i,ftell (types_file),read_line );*/
     PW_i += 1;
     if ( PW_i == _KNOWN_FORMATS )
       break;
@@ -62,7 +57,7 @@ void Support_Types ( void )
 
   if ( PW_i != _KNOWN_FORMATS )
   {
-    printf ( "!!! Damaged \"%s\" file. Missing up %ld extensions definitions\n"
+    write_log ( "!!! Damaged \"%s\" file. Missing up %ld extensions definitions\n"
              , _TYPES_FILENAME , _KNOWN_FORMATS-(PW_i+1));
     Support_Types_FileDefault ();
     return;
@@ -204,7 +199,12 @@ void Support_Types_FileDefault ( void )
   strcpy ( Extensions[117], "ThePlayer30a" );
   strcpy ( Extensions[118], "ThePlayer22a" );
   strcpy ( Extensions[119], "NoiseFromHeaven" );
-  strcpy ( Extensions[120], "---" );
+  strcpy ( Extensions[120], "TMK" );
+  strcpy ( Extensions[121], "DragPack252" );
+  strcpy ( Extensions[122], "DragPack100" );
+  strcpy ( Extensions[123], "SPv3" );
+  strcpy ( Extensions[124], "AtomikPackerData" );
+  strcpy ( Extensions[125], "---" );
 }
 
 
@@ -218,27 +218,27 @@ void Support_Types_FileDefault ( void )
 void Save_Rip ( char * format_to_save, int FMT_EXT )
 {
   Save_Status = BAD;
-  printf ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
+  write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
   if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
   {
-    printf ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO ( OutName_final, sizeof OutName_final);
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
-  printf ( "  saving in file \"%s\" ... " , OutName_final );
+  write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-  PW_out = mr2_fopen ( OutName_final , "w+b", format_to_save);
+  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save);
   if (!PW_out)
       return;
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
-  printf ( "done\n" );
+  write_log ( "done\n" );
   if ( CONVERT == GOOD )
   {
-    printf ( "  converting to Protracker ... " );
+    write_log ( "  converting to Protracker ... " );
   }
   fflush ( stdout );
   Save_Status = GOOD;
@@ -251,30 +251,32 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
 void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block , Ulong Block_Size )
 {
   Save_Status = BAD;
-  printf ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
+  write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
   if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
   {
-    printf ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO (OutName_final, sizeof OutName_final);
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
-  printf ( "  saving in file \"%s\" ... " , OutName_final );
+  write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-  PW_out = mr2_fopen ( OutName_final , "w+b", format_to_save );
+  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save );
   if (!PW_out)
       return;
   fwrite ( Header_Block , Block_Size  , 1 , PW_out );
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
-  printf ( "done\n" );
+  write_log ( "done\n" );
   if ( CONVERT == GOOD )
   {
-    printf ( "  converting to Protracker ... " );
+    write_log ( "  converting to Protracker ... " );
   }
-  printf ( "  Header of this file was missing and has been rebuilt !\n" );
+  write_log ( "  Header of this file was missing and has been rebuilt !\n" );
+  if ( FMT_EXT == DragPack252)
+    write_log ( "  WARNING !: it's a fake header since in this case !!\n" );
   fflush ( stdout );
   Amiga_EXE_Header = GOOD;
   Save_Status = GOOD;
@@ -309,7 +311,6 @@ void Crap ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
   }
 }
 
-
 /*
  * Special version of Test() for cruncher data (Ice! etc...)
  * only one file and not hundreds ...
@@ -322,7 +323,7 @@ short testSpecialCruncherData ( long Pack_addy , long Unpack_addy )
   /* e.g. addressing of unassigned data */
   if ( ( (long)PW_i + Pack_addy ) > PW_in_size )
   {
-/*printf ( "#0\n" );*/
+/*write_log ( "#0\n" );*/
     return BAD;
   }
 
@@ -339,30 +340,32 @@ short testSpecialCruncherData ( long Pack_addy , long Unpack_addy )
 
   if ( (PW_k <= 2) || (PW_l <= 2) )
   {
-/*printf ( "#1\n" );*/
+/*write_log ( "#1\n" );*/
     return BAD;
   }
 
   if ( PW_l > 0x989680 ) /* 10 mb */
   {
-/*printf ( "#2\n" );*/
+/*write_log ( "#2\n" );*/
     return BAD;
   }
 
   if ( PW_k <= PW_l )
   {
-/*printf ( "#3\n" );*/
+/*write_log ( "#3\n" );*/
     return BAD;
   }
 
   if ( PW_k > 0x989689 )  /* 10 Megs ! */
   {
-/*printf ( "#4\n" );*/
+/*write_log ( "#4\n" );*/
     return BAD;
   }
 
   return GOOD;
 }
+
+
 
 /*
  * Special version of Rip() for cruncher data (Ice! etc...)
@@ -383,7 +386,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
       OutputSize = PW_l + Header_Size;
   }
 
-  /* printf ( "\b\b\b\b\b\b\b\b%s file found at %ld !. its size is : %ld\n" , Packer_Name , PW_Start_Address , OutputSize );*/
+  /* write_log ( "\b\b\b\b\b\b\b\b%s file found at %ld !. its size is : %ld\n" , Packer_Name , PW_Start_Address , OutputSize );*/
   /*  OutName[1] = Extensions[Packer_Extension_Define][0];
   OutName[2] = Extensions[Packer_Extension_Define][1];
   OutName[3] = Extensions[Packer_Extension_Define][2];*/
@@ -398,8 +401,9 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
 
 }
 
+
 /* yet again on Xigh's suggestion. How to handle 'correctly' a file size */
-long GetFileSizeX (char *infile)
+long GetFileSizeX (char * infile)
 {
   long i;
   struct stat *Stat;
@@ -408,4 +412,71 @@ long GetFileSizeX (char *infile)
   i = (long)Stat->st_size;
   free ( Stat );
   return i;
+}
+
+#if 0
+/* Same as fopen() but saves a lot of tests, done only here. */
+/* Done to check if the output file could be created */
+FILE * PW_fopen (char *filename, char *fopenargs)
+{
+  FILE *local_out;
+  local_out = fopen (filename, fopenargs);
+  if (local_out == NULL)
+  {
+    write_log ("!!couldn't create the file \"%s\"!\nexiting...",filename);
+    exit (-1);
+  }
+  return local_out;
+}
+#endif
+FILE * PW_fopen (char *filename, char *fopenargs)
+{
+    return moduleripper_fopen (filename, fopenargs);
+}
+
+/* fills a var with all the pitch for PTK */
+/* doing a function instead of a lot of includes ...*/
+void fillPTKtable (Uchar poss[37][2])
+{
+  poss[0][0]=0x00,  poss[0][1]=0x00;
+
+  poss[1][0]=0x03,  poss[1][1]=0x58;
+  poss[2][0]=0x03,  poss[2][1]=0x28;
+  poss[3][0]=0x02,  poss[3][1]=0xfa;
+  poss[4][0]=0x02,  poss[4][1]=0xd0;
+  poss[5][0]=0x02,  poss[5][1]=0xa6;
+  poss[6][0]=0x02,  poss[6][1]=0x80;   /*  1  */
+  poss[7][0]=0x02,  poss[7][1]=0x5c;
+  poss[8][0]=0x02,  poss[8][1]=0x3a;
+  poss[9][0]=0x02,  poss[9][1]=0x1a;
+  poss[10][0]=0x01,  poss[10][1]=0xfc;
+  poss[11][0]=0x01,  poss[11][1]=0xe0;
+  poss[12][0]=0x01,  poss[12][1]=0xc5;
+
+  poss[13][0]=0x01,  poss[13][1]=0xac;
+  poss[14][0]=0x01,  poss[14][1]=0x94;
+  poss[15][0]=0x01,  poss[15][1]=0x7d;
+  poss[16][0]=0x01,  poss[16][1]=0x68;
+  poss[17][0]=0x01,  poss[17][1]=0x53;
+  poss[18][0]=0x01,  poss[18][1]=0x40;   /*  2  */
+  poss[19][0]=0x01,  poss[19][1]=0x2e;
+  poss[20][0]=0x01,  poss[20][1]=0x1d;
+  poss[21][0]=0x01,  poss[21][1]=0x0d;
+  poss[22][0]=0x00,  poss[22][1]=0xfe;
+  poss[23][0]=0x00,  poss[23][1]=0xf0;
+  poss[24][0]=0x00,  poss[24][1]=0xe2;
+
+  poss[25][0]=0x00,  poss[25][1]=0xd6;
+  poss[26][0]=0x00,  poss[26][1]=0xca;
+  poss[27][0]=0x00,  poss[27][1]=0xbe;
+  poss[28][0]=0x00,  poss[28][1]=0xb4;
+  poss[29][0]=0x00,  poss[29][1]=0xaa;
+  poss[30][0]=0x00,  poss[30][1]=0xa0;   /*  3  */
+  poss[31][0]=0x00,  poss[31][1]=0x97;
+  poss[32][0]=0x00,  poss[32][1]=0x8f;
+  poss[33][0]=0x00,  poss[33][1]=0x87;
+  poss[34][0]=0x00,  poss[34][1]=0x7f;
+  poss[35][0]=0x00,  poss[35][1]=0x78;
+  poss[36][0]=0x00,  poss[36][1]=0x71;
+  return;
 }

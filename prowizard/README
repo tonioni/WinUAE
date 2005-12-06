@@ -8,8 +8,8 @@ Description
 Pro-Wizard-1 (for Peecee) is a multi-ripper for music files. (find the
 list in the known formats below). Also, it extracts various data/exe files
 like S404 data files. Most of the music formats are 100% Protracker compatible.
-The ripped formats are ALL amiga formats ! .. for this version of Pro-Wizard
-anyway :).
+The ripped formats are mainly amiga formats. I'm beginning to add a few
+other from the Atari ST, now.
 
 Note
 ----
@@ -28,8 +28,7 @@ Requirements
 
 prowiz (cmdline tool):
         At this stage, only Linux/FreeBSD are supported.
-	No MS-DOS/WIN* binary in this package anymore.
-	Grab the other packages for other archies.
+	MS-DOS/WIN* binary are compiled by friends when spare time comes up.
 
 Behaviour
 ---------
@@ -37,7 +36,7 @@ Behaviour
 Output, upon finding a known data file, will be 0.extension, 1.extension, etc. .
 These extensions are editable in the file "_types_" (default name). Read the 
 header of this file for specific instructions on how to edit.
-At this stage, I still cant guarantee the program wont crash in certain cases.
+At this stage, I still can't guarantee the program wont crash in certain cases.
 I fixed anything I've found so far, but .. . If you encounter such a case,
 please, send over the data file !.
 
@@ -45,6 +44,16 @@ Motivation
 ----------
 
 "I wanted to do it myself" is the main motivation :).
+
+Compiling
+---------
+
+ A simple 'make' should do the trick.
+ Now, if you want a version that contains only the music files (WinUAE ?),
+edit the 'makefile' and remove the '-DINCLUDEALL'. then 'make simple' will
+compile only the needed files.
+ Sounds like bad work on the makefile, but I wasn't able to make it any
+simplier. Sorry.
 
 Credits
 -------
@@ -54,13 +63,14 @@ Amiga port:
         Sylvain "Asle" Chipaux
         asle@free.fr
 
-Port under *nix:
+Initial port under *nix:
         Michael Doering
         mldoering@gmx.net
 
 And various bug reports:
         look in CREDITS file
 
+There's a web page here : http://asle.free.fr/prowiz
 
 Contact me for any reason. If you think you can help this project to be
 more compatible with different platforms, don't hesitate to contact.

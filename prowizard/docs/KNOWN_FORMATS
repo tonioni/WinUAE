@@ -1,4 +1,4 @@
-Known formats
+Known formats (not updated !)
 -------------
 
  Note: The order is alphabetically arranged with the extensions.
@@ -16,6 +16,10 @@ Known formats
 
 |  EXT  |          NAME OF THE FORMAT        | CPU | DETECTION | SIZE CALC  |
 |=======|====================================|=====|===========|============|
+| (22A) |The Player 2.2A                     |Amiga|   easy    |  some job  |
+|-------|------------------------------------|-----|-----------|------------|
+| (33A) |The Player 3.3A                     |Amiga|   easy    |  some job  |
+|-------|------------------------------------|-----|-----------|------------|
 | (40A) |The Player 4.0A                     |Amiga|   easy    |  some job  |
 |-------|------------------------------------|-----|-----------|------------|
 | (40B) |The Player 4.0B                     |Amiga|   easy    |  some job  |
@@ -129,7 +133,7 @@ Known formats
 | (ZEN) |Zen Packer                          |Amiga| some job  |child's play|
 |-------|------------------------------------|-----|-----------|------------|
 
- * that's 58 formats now :)
+ * that's 60 formats now :)
 
 
  there, now some Synthetic ...
@@ -211,7 +215,7 @@ Known formats
 | (STC) |StoneCracker 4.04/4.01/4.03/3.10 (data)|Amiga|   easy    |Child's play|
 |       |StoneCracker 3.00 (data)               |     |           |            |
 |-------|---------------------------------------|-----|-----------|------------|
-| (STC) |StoneCracker 2.99d/2.99b/3.10 (exe)    |Amiga|   easy    |Child's play|
+| (STC) |StoneCracker 2.99(d/b)/3.10/3.00 (exe) |Amiga|   easy    |Child's play|
 |-------|---------------------------------------|-----|-----------|------------|
 | (SP ) |Syncro Packer 4.6 (exe)                |Amiga|   easy    |Child's play|
 |-------|---------------------------------------|-----|-----------|------------|
@@ -233,6 +237,6 @@ Known formats
 |-------|---------------------------------------|-----|-----------|------------|
 
  * didn't want to do that in the first place ... but there it is and that's
-  about 57 formats recognized now !.
+  about 59 formats recognized now !.
 
 

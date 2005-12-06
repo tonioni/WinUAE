@@ -549,14 +549,6 @@ static void finish_playfield_line (void)
 	thisframe_first_drawn_line = vpos;
     thisframe_last_drawn_line = vpos;
 
-    /* These are for comparison. */
-    thisline_decision.bplcon0 = bplcon0;
-    thisline_decision.bplcon2 = bplcon2;
-#ifdef AGA
-    thisline_decision.bplcon3 = bplcon3;
-    thisline_decision.bplcon4 = bplcon4;
-#endif
-
 #ifdef SMART_UPDATE
     if (line_decisions[next_lineno].plflinelen != thisline_decision.plflinelen
 	|| line_decisions[next_lineno].plfleft != thisline_decision.plfleft
@@ -701,7 +693,7 @@ static uae_u32 fetched_aga1[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res_first, toscr_nr_planes, fetchwidth;
+static int toscr_res, toscr_nr_planes, fetchwidth;
 static int toscr_delay1x, toscr_delay2x, toscr_delay1, toscr_delay2;
 
 /* The number of bits left from the last fetched words.
@@ -1272,7 +1264,6 @@ static void finish_final_fetch (int i, int fm)
     i += flush_plane_data (fm);
     thisline_decision.plfright = i;
     thisline_decision.plflinelen = out_offs;
-    thisline_decision.bplres = toscr_res_first;
     finish_playfield_line ();
 }
 
@@ -1491,7 +1482,7 @@ static void start_bpl_dma (int hpos, int hstart)
     out_nbits = 0;
     out_offs = 0;
     toscr_nbits = 0;
-    toscr_res_first = GET_RES (bplcon0);
+    thisline_decision.bplres = GET_RES (bplcon0);
 
     ddfstate = DIW_waiting_stop;
     compute_toscr_delay (last_fetch_hpos);
@@ -1578,15 +1569,10 @@ STATIC_INLINE void decide_line (int hpos)
  * but the new color has not been entered into the table yet. */
 static void record_color_change (int hpos, int regno, unsigned long value)
 {
-    if (regno == -1 && value) {
-	thisline_decision.ham_seen = 1;
-	if (hpos < HARD_DDF_START)
-	    thisline_decision.ham_at_start = 1;
-    }
-
     /* Early positions don't appear on-screen. */
-    if (nodraw () || vpos < minfirstline || hpos < HARD_DDF_START
-	/*|| currprefs.emul_accuracy == 0*/)
+    if (regno < 0x1000 && nodraw ())
+	return;
+    if (vpos < minfirstline)
 	return;
 
     decide_diw (hpos);
@@ -1604,6 +1590,25 @@ static void record_color_change (int hpos, int regno, unsigned long value)
     curr_color_changes[next_color_change].linepos = hpos;
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
+    if (hpos < HBLANK_OFFSET) {
+	curr_color_changes[next_color_change].linepos = HBLANK_OFFSET;
+	curr_color_changes[next_color_change].regno = regno;
+	curr_color_changes[next_color_change++].value = value;
+    }
+    curr_color_changes[next_color_change].regno = -1;
+}
+
+static void record_register_change (int hpos, int regno, unsigned long value)
+{
+    if (regno == 0x100) {
+	if (value & 0x800)
+	    thisline_decision.ham_seen = 1;
+	if (hpos < HARD_DDF_START || hpos < plfstrt + 0x20) {
+	    thisline_decision.bplcon0 = value;
+	    thisline_decision.bplres = GET_RES (value);
+	}
+    }
+    record_color_change (hpos, regno + 0x1000, value);
 }
 
 typedef int sprbuf_res_t, cclockres_t, hwres_t,	bplres_t;
@@ -2092,8 +2097,8 @@ static void reset_decisions (void)
 {
     if (nodraw ())
 	return;
-    toscr_res_first = 0;
 
+    thisline_decision.bplres = GET_RES (bplcon0);
     thisline_decision.any_hires_sprites = 0;
     thisline_decision.nr_planes = 0;
 
@@ -2136,6 +2141,15 @@ static void reset_decisions (void)
     last_ddf_pix_hpos = -1;
     last_sprite_hpos = -1;
     last_fetch_hpos = -1;
+
+    /* These are for comparison. */
+    thisline_decision.bplcon0 = bplcon0;
+    thisline_decision.bplcon2 = bplcon2;
+#ifdef AGA
+    thisline_decision.bplcon3 = bplcon3;
+    thisline_decision.bplcon4 = bplcon4;
+#endif
+
 
 }
 
@@ -2758,11 +2772,8 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_fetch (hpos);
     decide_blitter (hpos);
 
-    /* HAM change?  */
-    if ((bplcon0 ^ v) & 0x800) {
-	record_color_change (hpos, -1, !! (v & 0x800));
-    }
     bplcon0 = v;
+    record_register_change (hpos, 0x100, v);
 
 #ifdef AGA
     if (currprefs.chipset_mask & CSMASK_AGA) {
@@ -2796,6 +2807,7 @@ STATIC_INLINE void BPLCON2 (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     bplcon2 = v;
+    record_register_change (hpos, 0x104, v);
 }
 
 #ifdef AGA
@@ -2809,6 +2821,7 @@ STATIC_INLINE void BPLCON3 (int hpos, uae_u16 v)
     decide_sprites (hpos);
     bplcon3 = v;
     expand_sprres ();
+    record_register_change (hpos, 0x106, v);
 }
 
 STATIC_INLINE void BPLCON4 (int hpos, uae_u16 v)
@@ -2819,6 +2832,7 @@ STATIC_INLINE void BPLCON4 (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     bplcon4 = v;
+    record_register_change (hpos, 0x10c, v);
 }
 #endif
 
@@ -4252,13 +4266,13 @@ static void hsync_handler (void)
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
-	memset (cycle_line, 0, sizeof(cycle_line));
+	memset (cycle_line, 0, sizeof cycle_line);
 #if 1
 {
 	cycle_line[maxhpos - 1] = CYCLE_REFRESH;
-	cycle_line[2] = CYCLE_REFRESH;
-	cycle_line[4] = CYCLE_REFRESH;
-	cycle_line[6] = CYCLE_REFRESH;
+	cycle_line[1] = CYCLE_REFRESH;
+	cycle_line[5] = CYCLE_REFRESH;
+	cycle_line[7] = CYCLE_REFRESH;
 }
 #else
 {
@@ -5420,7 +5434,7 @@ STATIC_INLINE void sync_copper (int hpos)
 
 STATIC_INLINE decide_fetch_ce (int hpos)
 {
-    if (ddf_change == vpos && vpos < maxvpos)
+    if ((ddf_change == vpos || ddf_change + 1 == vpos) && vpos < maxvpos)
 	decide_fetch (hpos);
 }
 

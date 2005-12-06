@@ -301,6 +301,7 @@ extern int check_prefs_changed_gfx (void);
 extern struct uae_prefs currprefs, changed_prefs;
 
 extern void machdep_init (void);
+extern void machdep_free (void);
 
 /* AIX doesn't think it is Unix. Neither do I. */
 #if defined(_ALL_SOURCE) || defined(_AIX)

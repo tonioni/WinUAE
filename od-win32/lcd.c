@@ -4,33 +4,22 @@
 
 #if defined(LOGITECHLCD)
 
+#include "resource.h"
 #include "gui.h"
 #include "lcd.h"
 
 #include <lglcd.h>
+
+extern HINSTANCE hInst;
 
 static int inited;
 static lgLcdConnectContext cctx;
 static lgLcdDeviceDesc desc;
 static int device;
 static lgLcdBitmapHeader *lbh;
-static uae_u8 *bitmap;
-
-#define TD_NUM_WIDTH 7
-#define TD_NUM_HEIGHT 7
-#define NUMBERS_NUM 16
-#define TD_LED_WIDTH 24
-
-static char *numbers = { /* ugly  0123456789CHD%x */
-"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+++++++++++++++"
-"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x+xxxxxxxxxxxx+"
-"+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x++xxxxxxxxxxxx+"
-"+x+-+x+---+x+-+xxxxx++xxxxx++xxxxx++xxxxx++xxxxx+--++x+-+xxxxx++xxxxx++x+----+xxxx+-+x++x+----+x+++xxxxxxxxxxxx+"
-"+x+++x+---+x+-+x++++++++++x++++++x++++++x++x+++x+--+x+--+x+++x++++++x++x++++-+x++x+-+x++x+---+x+x++xxxxxxxxxxxx+"
-"+xxxxx+---+x+-+xxxxx++xxxxx+----+x++xxxxx++xxxxx+--+x+--+xxxxx++xxxxx++xxxx+-+x++x+-+xxx+---+x++xx+xxxxxxxxxxxx+"
-"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++----------++++++++++++++"
-};
-static char *one = { "x" };
+static uae_u8 *bitmap, *origbitmap;
+static uae_u8 *numbers;
+static int numbers_width = 7, numbers_height = 10;
 
 void lcd_close(void)
 {
@@ -45,6 +34,10 @@ static int lcd_init(void)
 {
     DWORD ret;
     lgLcdOpenContext octx;
+    HBITMAP bmp;
+    BITMAP binfo;
+    HDC dc;
+    int x, y;
 
     ret = lgLcdInit();
     if (ret != ERROR_SUCCESS) {
@@ -71,9 +64,10 @@ static int lcd_init(void)
 	lcd_close();
 	return 0;
     }
-    lbh = xcalloc (1, sizeof (lgLcdBitmapHeader) + desc.Width * desc.Height);
+    lbh = xcalloc (1, sizeof (lgLcdBitmapHeader) + desc.Width * (desc.Height + 20));
     lbh->Format = LGLCD_BMP_FORMAT_160x43x1;
     bitmap = (uae_u8*)lbh + sizeof (lgLcdBitmapHeader);
+    origbitmap = xcalloc (1, desc.Width * desc.Height);
     memset (&octx, 0, sizeof (octx));
     octx.connection = cctx.connection;
     octx.index = 0;
@@ -84,20 +78,54 @@ static int lcd_init(void)
 	return 0;
     }
     device = octx.device;
+
+    bmp = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_LCD160X43));
+    dc = CreateCompatibleDC(NULL);
+    SelectObject(dc, bmp);
+    GetObject (bmp, sizeof (binfo), &binfo);
+    for (y = 0; y < binfo.bmHeight; y++) {
+        for (x = 0; x < binfo.bmWidth; x++) {
+	    bitmap[y * binfo.bmWidth + x] = GetPixel(dc, x, y) == 0 ? 0xff : 0;
+	}
+    }
+    numbers = bitmap + desc.Width * desc.Height;
+    memcpy (origbitmap, bitmap, desc.Width * desc.Height);
+    DeleteDC(dc);
+
     write_log("LCD: Logitech LCD system initialized\n");
     return 1;
+}
+
+static void dorect(int *crd, int inv)
+{
+    int yy, xx;
+    int x = crd[0], y = crd[1], w = crd[2], h = crd[3];
+    for (yy = y; yy < y + h; yy++) {
+	for (xx = x; xx < x + w; xx++) {
+	    uae_u8 b =  origbitmap[yy * desc.Width + xx];
+	    if (inv)
+		b = b == 0 ? 0xff : 0;
+	    bitmap[yy * desc.Width + xx] = b;
+	}
+    }
 }
 
 static void putnumber(int x, int y, int n, int inv)
 {
     int xx, yy;
     uae_u8 *dst, *src;
-    for (yy = 0; yy < TD_NUM_HEIGHT; yy++) {
-	for (xx = 0; xx < TD_NUM_WIDTH; xx++) {
+    if (n == 0)
+	n = 9;
+    else
+	n--;
+    if (n < 0)
+	n = 10;
+    for (yy = 0; yy < numbers_height; yy++) {
+	for (xx = 0; xx < numbers_width; xx++) {
 	    dst = bitmap + (yy + y) * desc.Width + (xx + x);
-	    src = numbers + n * TD_NUM_WIDTH + yy * TD_NUM_WIDTH * NUMBERS_NUM + xx;
+	    src = numbers + n * numbers_width + yy * desc.Width + xx;
 	    *dst = 0;
-	    if (*src == 'x')
+	    if (*src == 0)
 		*dst = 0xff;
 	    if (inv)
 		*dst ^= 0xff;
@@ -107,50 +135,51 @@ static void putnumber(int x, int y, int n, int inv)
 
 static void putnumbers(int x, int y, int num, int inv)
 {
-    putnumber(x, y, num / 10, inv);
-    putnumber(x + TD_NUM_WIDTH, y, num % 10, inv);
+    putnumber(x, y, num < 0 ? num : num / 10, inv);
+    putnumber(x + numbers_width, y, num < 0 ? num : num % 10, inv);
 }
+
+static int coords[] = {
+    53, 2, 13, 10, // CD
+    36, 2, 13, 10, // HD
+    2, 2, 30, 10 // POWER
+};
 
 void lcd_update(int led, int on)
 {
-    int track, x, y, y1, y2;
+    int track, x, y;
 
     if (!inited)
 	return;
 
-    x = 10;
-    y1 = desc.Height - TD_NUM_HEIGHT - 2;
-    y2 = y1 - TD_NUM_HEIGHT - 4;
+    if (led < 0) {
+        lgLcdUpdateBitmap(device, lbh, LGLCD_PRIORITY_IDLE_NO_SHOW);
+	return;
+    }
+
     if (led >= 1 && led <= 4) {
-	x += (led - 1) * TD_LED_WIDTH;
-	y = y1;
+	x = 23 + (led - 1) * 40;
+	y = 17;
         track = gui_data.drive_track[led - 1];
+	if (gui_data.drive_disabled[led - 1])
+	    track = -1;
 	putnumbers(x, y, track, on);
     } else if (led == 0) {
-	y = y2;
-	x += 2 * TD_LED_WIDTH;
-	putnumber(x, y, 14, on);
-	putnumber(x + TD_NUM_WIDTH, y, 15, on);
+	dorect(&coords[4 * 2], on);
     } else if (led == 5) {
-	y = y2;
-	x += 3 * TD_LED_WIDTH;
-	putnumber(x, y, 11, on);
-	putnumber(x + TD_NUM_WIDTH, y, 12, on);
+	dorect(&coords[4 * 1], on);
     } else if (led == 6) {
-	y = y2;
-	x += 4 * TD_LED_WIDTH;
-	putnumber(x, y, 10, on);
-	putnumber(x + TD_NUM_WIDTH, y, 12, on);
+        dorect(&coords[4 * 0], on);
     } else if (led == 7) {
-	y = y2;
-	x += 1 * TD_LED_WIDTH;
+	y = 2;
+	x = 125;
 	putnumbers(x, y, gui_data.fps <= 999 ? gui_data.fps / 10 : 99, 0);
     } else if (led == 8) {
-	y = y2;
-	x += 0 * TD_LED_WIDTH;
+	y = 2;
+	x = 98;
 	putnumbers(x, y, gui_data.idle <= 999 ? gui_data.idle / 10 : 99, 0);
     }
-    lgLcdUpdateBitmap(device, lbh, LGLCD_ASYNC_UPDATE(LGLCD_PRIORITY_NORMAL));
+    lgLcdUpdateBitmap(device, lbh, LGLCD_ASYNC_UPDATE(LGLCD_PRIORITY_NORMAL + 1));
 }
 
 int lcd_open(void)

@@ -4,7 +4,7 @@
 #                                                                             #
 #                                                                             #
 #                                                                             #
-# 1997-2003 (c) Sylvain "asle" Chipaux                                        #
+# 1997-2004 (c) Sylvain "asle" Chipaux                                        #
 #                                                                             #
 ###############################################################################
 #
@@ -16,8 +16,10 @@
 #        lines !. Add as many lines as you want, as long as you begin them
 #        with '#'.
 #         And last, an extension can be from 2 to 32 chars long.
+#	  Also, this file must be is the current directory. If not, the
+#	 default extension will be used.
 #
-# NOTE: at now, there should be 116 extensions.
+# NOTE: at now, there should be 126 extensions.
 #
 ###############################################################################
 #
@@ -384,6 +386,24 @@ ThePlayer22a
 #
 ##120 : Noise from Heaven
 NoiseFromHeaven
+#
+##121 : TMK
+tmk
+#
+##122 : DragPack 2.52
+DragPack252
+#
+##123 : DragPack 1.00
+DragPack100
+#
+##124 : Speed Packer 3 (Atari ST)
+SPv3
+#
+##125 : Atomik Packer (ATOM or ATM3) (Atari ST)
+AtomikPackerData
+#
+##126 : Automation Packer 5.* (Atari ST)
+AutomationPackerData
 #
 ###############################################################################
 ###############################################################################

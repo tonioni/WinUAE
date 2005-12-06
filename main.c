@@ -540,6 +540,7 @@ void do_leave_program (void)
     savestate_free ();
     memory_cleanup ();
     cfgfile_addcfgparam (0);
+    machdep_free ();
 }
 
 void start_program (void)

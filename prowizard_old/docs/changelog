@@ -1,0 +1,339 @@
+CHANGE LOG
+----------
+
+Date format is DDMMYYYY. (from lattest to first)
+
+
+24112003        Version 1.50.b3
+	
+	More Double Action v1.0 to be found
+	_types_ files complete now
+	SKYT debugged (forgot to remove some code)
+	
+23112003        Version 1.50.b2
+
+        Fixed TP1 patternlist handling. Should work with any TP1 now.
+	New supported (PTK clones) format :
+	- Noise From Heaven #2 musicdisk (Iris'2001)
+	- The Player 2.2a (thx to Exotica forum teams)
+	- The Player 3.0a (not really working in fact)
+        New supported (exe/data)format :
+	- StoneCracker 2.99/3.00 - with rebuilding
+	
+23042003        Version 1.50.b1
+
+	Some bugs correction of previous release :(
+	A lot less fake Module Protector/P50a/PP10 should be found
+	Overall PhaPacker (Propacker 1.0) debugging. Should be ok now.
+	FC13/FC14 false test fixed .. all examples should be detected ok now.
+	Various optimizings
+	All RelokIt 1.0 will be ripped.
+	Found a solution for those 00h. Takes nearly no time now :)
+        New supported (PTK clones) formats :
+        - Newtron
+	- GPMO
+	- Polka Packer (Thx Michael Trier for the example !)
+	- GnuPlayer (Thx Kyz for the great description !)
+	- AmBk - Amos Bank (no converting back to Ptk yet)
+	New supported format :
+	- XM
+        New supported (exe/data)formats :
+	- Mega Cruncher Obj EXE packer (old old old :) - with rebuilding
+	- TurboSqueezer 6.1 (1989 !) - no rebuilding !.
+	- StoneCracker 2.99d/2.99b/3.10 - with rebuilding
+	
+09062002        Version 1.49.4 (released on the 7th, mar 2003)
+
+	Some other issues corrected (mem violations ...)
+	Removed the remaining bzero() ... forgot them :(.
+	Amiga port (Crown/Crb's request).
+        New supported (exe/data)formats :
+        - (Ace?) DataCruncher
+
+04052002        Version 1.49.3
+
+	Removed all printf() from rip/*.c to group that in misc/misc.c.
+	Broke the 3 chars limit for extensions of saved files. (thx xigh !)
+
+28122001        Version 1.49.2 (not released)
+
+	Compiling on FreeBSD now, meaning all "hasardous" file reading
+	crashed the prog !. A lot have been corrected (all ?).
+	Removed the counter during search. Couldn't find an "easy"
+	solution :(.
+
+05052001        Version 1.49.1
+
+        More or less standard look-alike doc
+        Replaced bzero() with memset()
+        The Player 4.1a corrected (A cmd signed -> unsigned conversion)
+        Numerous bugfix (mostly to prevent readings outside of file)
+         in ProPacker 2.1, Noisepacker 3, Promizer 0.1.
+        added transco table for sample names in Kefrens Sound Machine modules.
+        New supported (exe/data)formats :
+        - Powerpacker 4.0 Library EXE packer (rare)
+
+20122000        Version 1.49.0
+
+        KRIS depacker/ripper debugged
+        Some useless code removed
+        New supported (synth) formats :
+        - MED (MMD0/MMD1) by Teijo Kinnunen (19??)
+        New supported (exe/data)formats :
+        - Crunchmania Address EXE packer (rather frequent)
+
+01072000        Version 1.48
+
+        New supported (exe/data)formats :
+        - Amnesty Design (1AM) data packer (very rare)
+        - Amnesty Design (2AM) data packer (very rare)
+
+23062000        Version 1.47
+
+        Two new effects added in XANN Packer format.
+        Added another UNIC tracker case ("UNIC" string ..)
+        New supported (exe/data)formats :
+        - BytekillerPro 1.0 - and rebuilding of header (very rare)
+        - HQC Cruncher 2.0 - no rebuild yet (very rare)
+        - Try-It Cruncher 1.01 - with rebuild (very rare)
+          (too few exemple to stick on this ripper ...)
+        New supported (synth) formats :
+        - Future Composer 1.3 (by Supersero / The Superions - 1990 ?)
+        - Future Composer 1.4 (by Supersero / The Superions - 1990)
+
+03042000        Version 1.46
+
+        mainly some small debugging in various tests.
+        all those corrected bugs where pointed out by Thomas Neumann
+        some other are not yet corrected though. I made all the quickies
+        before that hard stuff :).
+
+30111999        Version 1.45.c3
+
+        Finally editable extension are working ... even the last one. I'm
+        working on long extensions now, not only 3 chars.
+        New supported (exe/data)formats :
+        - CRND Data Cruncher (very rare)
+        - =SB= Data Cruncher (very rare)
+        - SF Data Cruncher (rare)
+        - Virtual Dreams (VDCO) Data Cruncher (very rare)
+        - SQ/SP Data Cruncher (missing SA/SC ..)
+        New supported (PTK Clone) formats :
+        - IceTracker 1.0 (IcePic)
+        - Soundtracker 2.6 (Mnemotron / Spreadpoint)
+        More optimizings by removing fopen() funcs. There's but a few
+        formats left to do.
+        Enhanced rebuilding of Time Crunched Binaries (24 last bytes)
+        Debugged Module Protector depacker
+        some internal rewritting ... mostly to speed-up and to
+        shorten more than quite a bit binaries.
+
+06061999        Version 1.44.005
+
+        Major rewritting ... a dozen or so files removed !.
+        Overall bugs corrections (mainly around sizes calculations)
+        A bug in UNIC2 ripper ... some unallocated value :(.
+        Aome debugging in Pha-ripper (still some job)
+        Aome bugs in UNIC1 tester ... stupid bugs, as usual :(.
+        Rrewrote some parts (restructured source code ... less lines)
+        Added another IAM packer (data) case ("ATM5")
+        Added some code to rewrite the header of EXE files with empty and/
+        or no header. Usefull with oldish megademos :). That goes for
+        every supported EXE format. Get the list below.
+        Optimized PTK-depackers by removing the open() and read()
+        functions ... very high speed while depacking now :). done for
+        the following formats (Heh it takes time !!) :
+        - ProRunner v2.0          - SKYT packer         - STIM (Slamtilt) packer
+        - Zen packer              - Xann packer         - Wanton packer
+        - Unic tracker v1/v2      - Tracker packer v3/v2
+        Enhanced detection for the following formats :
+        - Digital Illusion detection (fake DI found)
+        - Startrekker pack (bugged)
+        - Zen packer (crashed the prog sometime)
+        - KRIS tracker (fake KRIS found)
+        - Pha Packer (bugged)
+        - SoundTracker (bugged)
+        - Tracker Packer 3 (bugged)
+        New supported (PTK Clone) formats :
+        - Quadra Composer
+        - The Dark Demon (group name)
+        - Fuchs Tracker (Andreas Fuchs - 1990)
+        New supported (synth) formats :
+        - SoundMonitor v3 (Brian Postma - 1993)
+        - JamCracker / Pro (M. Gemmel - 1989 / Xag of Betrayal - 1990)
+        - BSI Future Composer (Tony Bybell aka Slates of BSI - 1990-1996)
+        - Sound FX 1.3 (Battle Isle) by Christian Haller & Christian A. Weber
+          in 1988. V1.8 is samely copyrighted in 1989.
+        New supported (exe/data)formats :
+        - FIRE (RNC clone) Cruncher (rare)
+        - Max Packer 1.2 (exe rare)
+        - Ice! Cruncher (data ... rare)
+        - arcD Data Cruncher (very rare)
+        - PARA Data Cruncher (very rare)
+        - Propack (RNC) data (Rob Northern Cruncher ... Antic cruncher :)
+          found in a LOT of 88-93 games !.
+        - Double Action 1.0 (exe files) (in some rather old demos !)
+        - Powerpacker 2.3 / 3.0 / 4.0 (exe files)
+        - ByteKiller 2.0 / 3.0 (exe files)
+        - Tetrapack 1.02 (exe files)
+        - Master Cruncher 3.0 addr (exe files)
+        - Mega Cruncher 1.0/1.2 (exe files ... extremly old :)
+        - Spike Cruncher (exe files ... rare)
+        - StoneCracker 2.70 (exe files ... rare)
+        - StoneCracker 3.00 (data)
+        - Syncro Packer 4.6 (exe files ... rare)
+        - TNM Cruncher 1.1 (exe files ... rare)
+        - Super Cruncher 2.7 (exe files ... extremly rare)
+        - AMOS PowerPacker Bank "PPbk" (data)
+        - RelokIt 1.0 (exe files ... rare)
+        Following formats wont be supported :
+        - TPWM Cruncher (Battle Isle - Blue Byte) - Unrippable
+        - Powerpacker 2.0 (PP20) data - Unrippable
+        - StoneCracker 4.04/3.10 (exe file) bcoz it contains a S404 data
+        - Propack RNC (exe files) (RNC data inside)
+        - IAM packer 1.0 too (exe files) (ICE! or ATM5 data inside)
+
+26021999        Version 1.43 (not released)
+
+        Module Protector and Heatseeker detections enhanced
+        (very look alike formats ..)
+        Fake ProPacker 3.0 were found ... corrected.
+        Fake UNIC tracker were found ... corrected.
+        Bad PP20 localisation corrected
+        Removed "converting to ptk" msg when ripping S404 files :)
+        Bug in Phapacker depacker corrected (still some job in there !)
+        Rewrote 20% of Promizer 1.8a depacker ... some problems with
+        the pattern list.
+        Many fake soundtracker were found ... removed a lot !.
+        Fake "damaged _TYPES_ file" error message corrected.
+        New filename when saving. alphabetical letters proved to be not
+        enough for some productions ... so, now, it's numbers !. (max:99999999)
+        good job to code that coz my sources were a bit shitty :)
+        New supported (EXE) format :
+        - Tetrapack 2.2/2.1 (Exe-files, not music file)
+        - Crunchmania / Crunchmania Normal (packed data files)
+        - Defjam Cruncher 3.2 / 3.2 pro (Exe-files)
+        - Stonecracker 4.01 / 4.03 / 3.10 (data)
+        - Byte Killer 1.3 (Exe-files)
+        - XPK-ed files (any format since it's all the same to get the size :)
+        - Imploder (data)
+
+13061998        Version 1.42 (not released)
+
+        Protracker detection bug corrected
+        New supported format :
+        - SoundTracker (15 samples)
+
+20051998        Version 1.41 (20/05/98)
+        Save names not incrementing first letter when
+        ripping "not to be converted files" bug corrected
+        (e.g. PTK,BP,STC,StarTK)
+        New supported format :
+        - STIM (Slamtilt)
+
+22021998        Version 1.40
+
+        SIGSEGV error corrected (bad compiler option).
+        Digital Illusion detection bug corrected.
+        Game Music Creator detection bug corrected.
+        NoisePacker v1 detection bug corrected.
+        ProPacker v1 detection bug corrected.
+        UNIC tracker 2 detection bug corrected.
+        XANN packer detection bug corrected (Grrrr).
+        New depackers added  (all in fact :) :
+        - AC1D packer
+        - Digital Illusion
+        - Eureka packer
+        - FC-M packer
+        - Fuzzac packer
+        - Game Music Creator
+        - Heatseeker mc1.0
+        - Hornet packer
+        - Kris tracker (chip tracker)
+        - Kefrens Sound Machine
+        - Module Protector
+        - Noiserunner
+        - NoisePacker v1,v2 & v3
+        - The Player 4.0A,4.0B,4.1A,5.0A,6.0A & 6.1A
+        - PhaPacker
+        - Promizer 0.1,1.0c,1.8a,2.0,4.0
+        - Power Music
+        - ProPacker 1.0,2.1,3.0
+        - ProRunner v1,v2
+        - SKYT packer
+        - StarTrekker pack
+        - Tracker packer v1,v2,v3
+        - UNIC tracker v1,v2
+        - Wanton packer
+        - XANN packer
+        - ZEN packer
+
+15021998        Version 1.31 (not released)
+
+        Enhanced tests for GMC modules.
+        Enhanced tests for Digital Illusion modules.
+        Enhanced tests for Eureka Packer modules.
+        Enhanced tests for UNIC 1/2 tracker modules.
+        P50A samples can be delta !!!. Argh (corrected).
+        P60A with packed samples cant be ripped for I dont know
+        how to calculate the packed sample sizes.
+        some P50A and P60A where not found bcoz of a lame test.
+        New supported formats :
+        - StarTrekker
+        - StoneCracker v4.04 Data (not a music file !!!)
+        - The Player 6.1A (yep !)
+
+21011998        Version 1.3 (not released)
+
+        Complete rewrite of the package.
+        Enhanced tests for the XANN packer ... again (*SIGH*)
+        Added some sort of counter to display where we are in the file.
+        Somehow, it's useless but it tells the user the prog did not hang :),
+        the bad news is that it slows down a bit the prog :( ... and it's
+        ugly !. I'll try to do better sometime later.
+        New supported formats :
+        - Fuzzac packer
+        - Game Music Creator
+        - Heatseeker mc1.0
+        - Kefrens Sound Machine
+        - Noiserunner
+        - NoisePacker v1
+        - NoisePacker v2
+        - NoisePacker v3
+        - Promizer 4.0
+        - ProPacker v1.0
+        - The Player v4.0A
+        - The Player v4.0B
+        - The Player v4.1A
+        - The Player v5.0A
+        - The Player v6.0A
+        - Tracker Packer v1
+        - Tracker Packer v2
+        - Tracker Packer v3
+        - Zen Packer
+
+12111997        Version 1.2 (not released)
+
+        New supported formats :
+        - UNIC tracker v1
+        - UNIC tracker v2
+        - Protracker (forgot it :).
+
+11111997        Version 1.1 (not released)
+
+        SoundMon size calculation bug corrected (synth smp ..)
+        Enhanced tests for the XANN packer.
+        Added the possibility to edit the default extensions.
+        New supported formats :
+        - AC1D packer
+        - Digital Illusion
+        - Eureka packer
+        - Module protector
+        - Pha packer
+        - Promizer v0.1
+        - ProPacker v2.1
+        - ProPacker v3.0
+        - StarTrekker pack
+
+09111997        Version 1.0 (09/11/97)
+        First version (not released).

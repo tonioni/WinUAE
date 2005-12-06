@@ -1,0 +1,20 @@
+Installation
+------------
+
+This program does not need any special installation process.
+
+Pro-Wizard-1 (unix) uses DMalloc. You can dl FreeBSD version here :
+http://prdownloads.sourceforge.net/dmalloc/
+For Linux, try http://dmalloc.com
+
+Prowiz.exe (dos) should be compiled with Cygwin32 GCC compiler.
+It'll require the file CYGWIN1.DLL. It should be put somewhere in the PATH 
+(if not present already).
+latest version can be found at:
+ftp://ftp.uni-erlangen.de/pub/pc/gnuwin32/cygwin/mirrors/cygnus/latest/cygwin/
+or on their Web site
+http://www.cygwin.com
+
+Pro-Wizard-1 (amiga) binary is for 68020 chipsets. Compiling the amiga
+version requires at least 8Mb Chip, GCC 2.97.3, ixemul lib and a hell
+of a lot of time :). It was compiled under UAE on FreeBSD.

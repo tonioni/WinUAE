@@ -793,7 +793,7 @@ static void decode_ham (int pix, int stoppos)
 #endif
 		ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
 
-	    ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
+	    ham_linebuf[ham_decode_pixel++] = 0; //ham_lastcolor;
 	}
 #ifdef AGA
     } else if (currprefs.chipset_mask & CSMASK_AGA) {
@@ -1386,6 +1386,69 @@ static void adjust_drawing_colors (int ctable, int need_full)
     }
 }
 
+/* We only save hardware registers during the hardware frame. Now, when
+ * drawing the frame, we expand the data into a slightly more useful
+ * form. */
+static void pfield_expand_dp_bplcon (void)
+{
+    bplres = dp_for_drawing->bplres;
+    bplplanecnt = dp_for_drawing->nr_planes;
+    bplham = dp_for_drawing->ham_seen;
+
+    if (bplres > 0)
+	can_use_lores = 0;
+    if (currprefs.chipset_mask & CSMASK_AGA) {
+	/* The KILLEHB bit exists in ECS, but is apparently meant for Genlock
+	 * stuff, and it's set by some demos (e.g. Andromeda Seven Seas) */
+	bplehb = ((dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200));
+    } else {
+	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000;
+    }
+    plf1pri = dp_for_drawing->bplcon2 & 7;
+    plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
+    plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
+    plf_sprite_mask |= (0xFFFF << (4 * plf1pri)) & 0xFFFF;
+    bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
+    bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
+#ifdef AGA
+    bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
+    sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
+    sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
+
+    brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
+    /* FIXME: we must update top and bottom borders when BRDBLANK changes */
+    brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
+    if (brdblank)
+	brdsprt = 0;
+#endif
+}
+static void pfield_expand_dp_bplcon2(int regno, int v)
+{
+    regno -= 0x1000;
+    switch (regno)
+    {
+        case 0x100:
+        dp_for_drawing->bplcon0 = v;
+        dp_for_drawing->bplres = GET_RES(v);
+        dp_for_drawing->nr_planes = GET_PLANES(v);
+	dp_for_drawing->ham_seen = !! (v & 0x800);
+        break;
+        case 0x104:
+        dp_for_drawing->bplcon2 = v;
+        break;
+#ifdef AGA
+	case 0x106:
+        dp_for_drawing->bplcon3 = v;
+        break;
+        case 0x108:
+        dp_for_drawing->bplcon4 = v;
+        break;
+#endif
+    }
+    pfield_expand_dp_bplcon();
+    res_shift = lores_shift - bplres;
+}
+
 STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_func worker_pfield)
 {
     int i;
@@ -1425,9 +1488,9 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 	    lastpos = nextpos_in_range;
 	}
 	if (i != dip_for_drawing->last_color_change) {
-	    if (regno == -1)
-		bplham = value;
-	    else {
+	    if (regno >= 0x1000) {
+		pfield_expand_dp_bplcon2(regno, value);
+	    } else {
 		color_reg_set (&colors_for_drawing, regno, value);
 		colors_for_drawing.acolors[regno] = getxcolor (value);
 	    }
@@ -1437,41 +1500,29 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
     }
 }
 
-/* We only save hardware registers during the hardware frame. Now, when
- * drawing the frame, we expand the data into a slightly more useful
- * form. */
-static void pfield_expand_dp_bplcon (void)
+/* move color changes in horizontal cycles 0 to HBLANK_OFFSET to previous line
+ * cycles 0 to HBLANK_OFFSET must be visible in right border
+ */
+static void mungedip(int lineno)
 {
-    bplres = dp_for_drawing->bplres;
-    bplplanecnt = dp_for_drawing->nr_planes;
-    bplham = dp_for_drawing->ham_at_start;
-
-    if (bplres > 0)
-	can_use_lores = 0;
-    if (currprefs.chipset_mask & CSMASK_AGA) {
-	/* The KILLEHB bit exists in ECS, but is apparently meant for Genlock
-	 * stuff, and it's set by some demos (e.g. Andromeda Seven Seas) */
-	bplehb = ((dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200));
-    } else {
-	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000;
+    int i = dip_for_drawing->last_color_change;
+    struct draw_info *dip_for_drawing_next = curr_drawinfo + (lineno + 1);
+    if (dip_for_drawing_next->first_color_change == 0)
+	dip_for_drawing_next = curr_drawinfo + (lineno + 2);
+    while (i < dip_for_drawing_next->last_color_change) {
+	int regno = curr_color_changes[i].regno;
+	int hpos = curr_color_changes[i].linepos;
+	if (regno < 0)
+	    break;
+	if (hpos >= HBLANK_OFFSET)
+	    break;
+	curr_color_changes[i].linepos += maxhpos + 2;
+	dip_for_drawing->last_color_change++;
+	dip_for_drawing->nr_color_changes++;
+	dip_for_drawing_next->first_color_change++;
+	dip_for_drawing_next->nr_color_changes--;
+	i++;
     }
-    plf1pri = dp_for_drawing->bplcon2 & 7;
-    plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
-    plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
-    plf_sprite_mask |= (0xFFFF << (4 * plf1pri)) & 0xFFFF;
-    bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
-    bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
-#ifdef AGA
-    bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
-    sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
-    sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
-
-    brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
-    /* FIXME: we must update top and bottom borders when BRDBLANK changes */
-    brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
-    if (brdblank)
-	brdsprt = 0;
-#endif
 }
 
 enum double_how {
@@ -1489,6 +1540,7 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
     dp_for_drawing = line_decisions + lineno;
     dip_for_drawing = curr_drawinfo + lineno;
+    mungedip(lineno);
     switch (linestate[lineno]) {
     case LINE_REMEMBERED_AS_PREVIOUS:
 	if (!warned)

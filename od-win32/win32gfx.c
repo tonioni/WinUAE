@@ -43,6 +43,7 @@
 #include "avioutput.h"
 #include "gfxfilter.h"
 #include "parser.h"
+#include "lcd.h"
 
 #define AMIGA_WIDTH_MAX 736
 #define AMIGA_HEIGHT_MAX 568
@@ -1609,6 +1610,16 @@ void machdep_init (void)
     picasso_on = 0;
     screen_is_picasso = 0;
     memset (currentmode, 0, sizeof (*currentmode));
+#ifdef LOGITECHLCD
+    lcd_open();
+#endif
+}
+
+void machdep_free (void)
+{
+#ifdef LOGITECHLCD
+    lcd_close();
+#endif
 }
 
 int graphics_init (void)

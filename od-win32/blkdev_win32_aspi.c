@@ -121,7 +121,7 @@ char *get_aspi_path(int neroaspi)
 	    adaptec = -1;
 	    strcpy (path_adaptec, "wnaspi32.dll");
 	    if (getversion(path_adaptec, &ver)) {
-		if (ver.dwFileVersionMS >= 0x40000) {
+		if (ver.dwFileVersionMS >= 0x40000 || ver.dwFileVersionMS < 0x10000) {
 		    adaptec = 1;
 		    return path_adaptec;
 		}

@@ -20,6 +20,8 @@
 /* According to the HRM, pixel data spends a couple of cycles somewhere in the chips
    before it appears on-screen.  */
 #define DIW_DDF_OFFSET 9
+/* this many cycles starting from hpos=0 are visible on right border */
+#define HBLANK_OFFSET 4
 
 /* We ignore that many lores pixels at the start of the display. These are
  * invisible anyway due to hardware DDF limits. */

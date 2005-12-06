@@ -282,12 +282,12 @@ static int open_audio_ds (int size)
     if (DSCaps.dwFlags & DSCAPS_CONTINUOUSRATE) {
 	int minfreq = DSCaps.dwMinSecondarySampleRate;
 	int maxfreq = DSCaps.dwMaxSecondarySampleRate;
-	if (minfreq > freq) {
+	if (minfreq > freq && freq < 22050) {
 	    freq = minfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
 	    write_log("SOUND: minimum supported frequency: %d\n", minfreq);
 	}
-	if (maxfreq < freq) {
+	if (maxfreq < freq && freq > 44100) {
 	    freq = maxfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
 	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);

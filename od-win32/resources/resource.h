@@ -229,6 +229,8 @@
 #define IDS_SOUND_SWAP_AHI              250
 #define IDD_PROGRESSBAR                 250
 #define IDS_SOUND_SWAP_BOTH             251
+#define IDB_BITMAP1                     252
+#define IDB_LCD160X43                   252
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -847,7 +849,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        251
+#define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40021
 #define _APS_NEXT_CONTROL_VALUE         1707
 #define _APS_NEXT_SYMED_VALUE           101
