@@ -43,6 +43,7 @@ static int memwatch_enabled, memwatch_triggered;
 int debugging;
 int exception_debugging;
 int debug_copper;
+int debug_sprite_mask = 0xff;
 static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
@@ -1363,6 +1364,11 @@ static void debug_1 (void)
 	case 's':
 	    if (*inptr == 'c') {
 		screenshot (1, 1);
+	    } else if (*inptr == 'm') {
+		next_char(&inptr);
+		if (more_params(&inptr))
+		    debug_sprite_mask = readint(&inptr);
+		console_out("sprite mask: %02.2X\n", debug_sprite_mask);
 	    } else {
 		searchmem (&inptr);
 	    }

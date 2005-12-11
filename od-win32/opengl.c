@@ -459,7 +459,7 @@ void OGL_resize (int width, int height)
 
 static void OGL_dorender (int newtex)
 {
-    float x1, y1, x2, y2;
+    float x1, y1, x2, y2, tx, ty;
     uae_u8 *data = gfxvidinfo.bufmem;
     int fx, fy, xm, ym;
 
@@ -483,10 +483,12 @@ static void OGL_dorender (int newtex)
     glMatrixMode (GL_MODELVIEW);
     glLoadIdentity ();
 
-    x1 = (float)(w_width * currprefs.gfx_filter_horiz_offset / 100.0);
-    y1 = (float)(w_height * currprefs.gfx_filter_vert_offset / 100.0);
-    x2 = x1 + (float)((required_texture_size * w_width / t_width) * (currprefs.gfx_filter_horiz_zoom + 100) / 100.0);
-    y2 = y1 + (float)((required_texture_size * w_height / t_height) * (currprefs.gfx_filter_vert_zoom + 100)/ 100.0);
+    tx = x1 = (float)(w_width * currprefs.gfx_filter_horiz_offset / 100.0);
+    ty = y1 = (float)(w_height * currprefs.gfx_filter_vert_offset / 100.0);
+    x2 = x1 + (float)((required_texture_size * w_width / t_width) * ((currprefs.gfx_filter_horiz_zoom_mult * (currprefs.gfx_filter_horiz_zoom + 100)) / (100.0 * 1000.0)));
+    y2 = y1 + (float)((required_texture_size * w_height / t_height) * ((currprefs.gfx_filter_vert_zoom_mult * (currprefs.gfx_filter_vert_zoom + 100)) / (100.0 * 1000.0)));
+    x1 += (x2 - tx) / 2;
+    y1 += (y2 - ty) / 2;
     x1 -= fx; y1 -= fy;
     x2 += 2 * fx; y2 += 2 * fy;
 

@@ -108,7 +108,7 @@ typedef struct {
   double val;
   uae_u8 status;
   uae_u8 realreg;
-  uae_u8 realind;  
+  uae_u8 realind;
   uae_u8 needflush;
 } freg_status;
 
@@ -207,6 +207,7 @@ extern bigstate live;
 extern int touchcnt;
 
 
+#define IMMS uae_s32
 #define IMM uae_u32
 #define R1  uae_u32
 #define R2  uae_u32
@@ -226,11 +227,11 @@ extern int touchcnt;
 #define FRW  uae_u32
 
 #define MIDFUNC(nargs,func,args) void func args
-#define MENDFUNC(nargs,func,args) 
+#define MENDFUNC(nargs,func,args)
 #define COMPCALL(func) func
 
 #define LOWFUNC(flags,mem,nargs,func,args) static __inline__ void func args
-#define LENDFUNC(flags,mem,nargs,func,args) 
+#define LENDFUNC(flags,mem,nargs,func,args)
 
 #if USE_OPTIMIZER
 #define REGALLOC_O 2
@@ -414,11 +415,15 @@ DECLARE(fmov_loge_2(FW r));
 DECLARE(fmov_1(FW r));
 DECLARE(fmov_0(FW r));
 DECLARE(fmov_rm(FW r, MEMR m));
+DECLARE(fmov_mr(MEMW m, FR r));
 DECLARE(fmovi_rm(FW r, MEMR m));
 DECLARE(fmovi_mr(MEMW m, FR r));
 DECLARE(fmovs_rm(FW r, MEMR m));
 DECLARE(fmovs_mr(MEMW m, FR r));
-DECLARE(fmov_mr(MEMW m, FR r));
+DECLARE(fmovl_ri(FW r, IMMS i));
+DECLARE(fmovs_ri(FW r, IMM i));
+DECLARE(fmov_ri(FW r, IMM i1, IMM i2));
+DECLARE(fmov_ext_ri(FW r, IMM i1, IMM i2, IMM i3));
 DECLARE(fmov_ext_mr(MEMW m, FR r));
 DECLARE(fmov_ext_rm(FW r, MEMR m));
 DECLARE(fmov_rr(FW d, FR s));
@@ -505,7 +510,7 @@ typedef struct blockinfo_t {
     cpuop_func* handler_to_use;
     /* The direct handler does not check for the correct address */
 
-    cpuop_func* handler; 
+    cpuop_func* handler;
     cpuop_func* direct_handler;
 
     cpuop_func* direct_pen;
@@ -513,22 +518,22 @@ typedef struct blockinfo_t {
 
     uae_u8* nexthandler;
     uae_u8* pc_p;
-    
-    uae_u32 c1;     
+
+    uae_u32 c1;
     uae_u32 c2;
     uae_u32 len;
 
     struct blockinfo_t* next_same_cl;
-    struct blockinfo_t** prev_same_cl_p;  
+    struct blockinfo_t** prev_same_cl_p;
     struct blockinfo_t* next;
-    struct blockinfo_t** prev_p; 
+    struct blockinfo_t** prev_p;
 
-    uae_u32 min_pcp; 
-    uae_u8 optlevel;  
-    uae_u8 needed_flags;  
-    uae_u8 status;  
+    uae_u32 min_pcp;
+    uae_u8 optlevel;
+    uae_u8 needed_flags;
+    uae_u8 status;
     uae_u8 havestate;
-    
+
     dependency  dep[2];  /* Holds things we depend on */
     dependency* deplist; /* List of things that depend on this */
     smallstate  env;

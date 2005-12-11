@@ -4,7 +4,7 @@
   * Custom chip emulation
   *
   * (c) 1995 Bernd Schmidt, Alessandro Bissacco
-  * (c) 2002 - 2003 Toni Wilen
+  * (c) 2002 - 2005 Toni Wilen
   */
 
 //#define BLITTER_DEBUG

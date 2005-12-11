@@ -207,7 +207,7 @@ int coord_native_to_amiga_x (int x)
 {
     x += visible_left_border;
     x <<= (1 - lores_shift);
-    return x + 2*DISPLAY_LEFT_SHIFT - 2*DIW_DDF_OFFSET;
+    return x + 2 * DISPLAY_LEFT_SHIFT - 2 * DIW_DDF_OFFSET;
 }
 
 int coord_native_to_amiga_y (int y)
@@ -1721,7 +1721,7 @@ static void center_image (void)
 	    visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
 	else
 	    visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
-	visible_left_border &= ~1;
+	visible_left_border &= ~((1 << lores_shift) - 1);
 
 	/* Would the old value be good enough? If so, leave it as it is if we want to
 	 * be clever. */

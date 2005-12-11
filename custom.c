@@ -12,8 +12,6 @@
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0x6a
 #define SPRITE_DEBUG_MAXY 0x70
-//#define SPRITE_MASK 128
-#define SPRITE_MASK (1|2|4|8|16|32|64|128)
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
@@ -1937,10 +1935,9 @@ static void decide_sprites (int hpos)
 	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 	int j, bestp;
 
-#if (SPRITE_MASK) != 255
-	if (!((SPRITE_MASK) & (1 << i)))
+	if (!((debug_sprite_mask) & (1 << i)))
 	    continue;
-#endif
+
 	if (! spr[i].armed || sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
 	    continue;
 	if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
@@ -4274,15 +4271,16 @@ static void hsync_handler (void)
 	cycle_line[5] = CYCLE_REFRESH;
 	cycle_line[7] = CYCLE_REFRESH;
 }
-#else
+#endif
+#if 0
 {
 	int i;
 	for (i = 12; i < 0x16; i += 2)
 	    cycle_line[i] = CYCLE_NOCPU;
-	cycle_line[4] = CYCLE_REFRESH;
-	cycle_line[6] = CYCLE_REFRESH;
-	cycle_line[8] = CYCLE_REFRESH;
-	cycle_line[10] = CYCLE_REFRESH;
+	//cycle_line[4] = CYCLE_REFRESH;
+	//cycle_line[6] = CYCLE_REFRESH;
+	//cycle_line[8] = CYCLE_REFRESH;
+	//cycle_line[10] = CYCLE_REFRESH;
 }
 #endif
     }

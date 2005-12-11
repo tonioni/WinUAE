@@ -109,12 +109,12 @@ void S2X_render (void)
     sptr = gfxvidinfo.bufmem;
     endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
 
-    v = currprefs.gfx_filter_horiz_offset;
+    v = currprefs.gfx_filter_horiz_offset / 10;
     v += (dst_width / scale - amiga_width) / 8;
     sptr += -v * (amiga_depth / 8) * 4;
     aw -= -v * 4;
 
-    v = currprefs.gfx_filter_vert_offset;
+    v = currprefs.gfx_filter_vert_offset / 10;
     v += (dst_height / scale - amiga_height) / 8;
     sptr += -v * gfxvidinfo.rowbytes * 4;
     ah -= -v * 4;
@@ -129,11 +129,17 @@ void S2X_render (void)
     if (aw < 16)
 	return;
 
-    if (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom) {
-	sr.left = currprefs.gfx_filter_horiz_zoom * 2;
-	sr.top = currprefs.gfx_filter_vert_zoom * 2;
-	sr.right = dst_width - currprefs.gfx_filter_horiz_zoom * 2;
-	sr.bottom = dst_height - currprefs.gfx_filter_vert_zoom * 2;
+    if (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom ||
+	    currprefs.gfx_filter_horiz_zoom_mult != 1000 ||
+	    currprefs.gfx_filter_vert_zoom_mult != 1000) {
+	int wz = dst_width * currprefs.gfx_filter_horiz_zoom_mult / 1000;
+	int hz = dst_height * currprefs.gfx_filter_vert_zoom_mult / 1000;
+	wz += currprefs.gfx_filter_horiz_zoom / 4;
+	hz += currprefs.gfx_filter_vert_zoom / 4;
+	sr.left = (dst_width - wz) / 2;
+	sr.top = (dst_height - hz) / 2;
+	sr.right = sr.left + wz;
+	sr.bottom = sr.top + hz;
 	dr.left = dr.top = 0;
 	dr.right = dst_width;
 	dr.bottom = dst_height;
@@ -145,9 +151,9 @@ void S2X_render (void)
 	    dr.left = -sr.left;
 	    sr.left = 0;
 	}
-	if (sr.right > dst_width) {
+	if (sr.right - sr.left > dst_width) {
 	    dr.right = dst_width - (sr.right - dst_width);
-	    sr.right = dst_width;
+	    sr.right = sr.left + dst_width;
 	}
 	if (sr.top >= sr.bottom) {
 	    sr.top = dst_height / 2 - 1;
@@ -157,9 +163,9 @@ void S2X_render (void)
 	    dr.top = -sr.top;
 	    sr.top = 0;
 	}
-	if (sr.bottom > dst_height) {
+	if (sr.bottom - sr.top > dst_height) {
 	    dr.bottom = dst_height - (sr.bottom - dst_height);
-	    sr.bottom = dst_height;
+	    sr.bottom = sr.top + dst_height;
 	}
 
 	if (tempsurf && sr.left != 0 || sr.top != 0 || sr.right != dst_width || sr.bottom != dst_height ||
@@ -255,7 +261,7 @@ void S2X_render (void)
 	if (amiga_depth == dst_depth) {
 	    int y;
 	    for (y = 0; y < dst_height; y++) {
-		if (sptr < endsptr)
+		if (sptr < endsptr && sptr >= gfxvidinfo.bufmem)
 		    memcpy (dptr, sptr, dst_width * dst_depth / 8);
 		else
 		    memset (dptr, 0, dst_width * dst_depth / 8);

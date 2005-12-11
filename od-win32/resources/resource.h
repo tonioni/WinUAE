@@ -695,6 +695,7 @@
 #define IDC_OPENGLSLR                   1625
 #define IDC_FILTERSLR                   1625
 #define IDC_OPENGLSLV                   1626
+#define IDC_FILTERHZMULT                1626
 #define IDC_OPENGLBITS                  1627
 #define IDC_OPENGLMODE                  1627
 #define IDC_FILTERMODE                  1627
@@ -717,6 +718,8 @@
 #define IDC_FILTERPRESETDELETE          1634
 #define IDC_HARDDRIVE                   1635
 #define IDC_INACTIVE_PRI                1635
+#define IDC_FILTERSLR3                  1635
+#define IDC_FILTERVZMULT                1635
 #define IDC_SOUNDPRIMARY                1636
 #define IDC_MINIMIZED_PRI               1636
 #define IDC_VOLUME_BOOTPRI_TEXT         1637

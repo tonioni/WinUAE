@@ -72,8 +72,10 @@ typedef char flagtype;
 
 #if USE_LONG_DOUBLE
 typedef long double fptype;
+#define LDPTR tbyte ptr
 #else
 typedef double fptype;
+#define LDPTR qword ptr
 #endif
 #endif
 

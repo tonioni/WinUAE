@@ -14,6 +14,7 @@
 extern int debugging;
 extern int exception_debugging;
 extern int debug_copper;
+extern int debug_sprite_mask;
 
 extern void debug(void);
 extern void activate_debugger(void);

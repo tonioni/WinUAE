@@ -139,6 +139,7 @@ static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic"
 static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
 static const char *soundfiltermode[] = { "off", "emulated", "on", 0 };
+static const char *loresmode[] = { "normal", "filtered", 0 };
 #ifdef GFXFILTER
 static const char *filtermode1[] = { "no_16", "bilinear_16", "no_32", "bilinear_32", 0 };
 static const char *filtermode2[] = { "0x", "1x", "2x", "3x", "4x", 0 };
@@ -352,7 +353,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
     cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_vsync ? "true" : "false");
     cfgfile_write (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
-    cfgfile_write (f, "gfx_lores_mode=%s\n", p->gfx_lores_mode ? 1 : 0);
+    cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
     cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
     cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", p->gfx_afullscreen ? "true" : "false");
@@ -390,6 +391,8 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     cfgfile_write (f, "gfx_filter_vert_zoom=%d\n", p->gfx_filter_vert_zoom);
     cfgfile_write (f, "gfx_filter_horiz_zoom=%d\n", p->gfx_filter_horiz_zoom);
+    cfgfile_write (f, "gfx_filter_vert_zoom_mult=%d\n", p->gfx_filter_vert_zoom_mult);
+    cfgfile_write (f, "gfx_filter_horiz_zoom_mult=%d\n", p->gfx_filter_horiz_zoom_mult);
     cfgfile_write (f, "gfx_filter_vert_offset=%d\n", p->gfx_filter_vert_offset);
     cfgfile_write (f, "gfx_filter_horiz_offset=%d\n", p->gfx_filter_horiz_offset);
     cfgfile_write (f, "gfx_filter_scanlines=%d\n", p->gfx_filter_scanlines);
@@ -647,6 +650,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 #ifdef GFXFILTER
 	|| cfgfile_intval (option, value, "gfx_filter_vert_zoom", &p->gfx_filter_vert_zoom, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_horiz_zoom", &p->gfx_filter_horiz_zoom, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_vert_zoom_mult", &p->gfx_filter_vert_zoom_mult, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_horiz_zoom_mult", &p->gfx_filter_horiz_zoom_mult, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_vert_offset", &p->gfx_filter_vert_offset, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_horiz_offset", &p->gfx_filter_horiz_offset, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlines", &p->gfx_filter_scanlines, 1)
@@ -678,7 +683,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "filesys_no_fsdb", &p->filesys_no_uaefsdb)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_vsync)
 	|| cfgfile_yesno (option, value, "gfx_lores", &p->gfx_lores)
-	|| cfgfile_yesno (option, value, "gfx_lores_mode", &p->gfx_lores_mode)
 	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
 	|| cfgfile_yesno (option, value, "gfx_fullscreen_amiga", &p->gfx_afullscreen)
 	|| cfgfile_yesno (option, value, "gfx_fullscreen_picasso", &p->gfx_pfullscreen)
@@ -694,6 +698,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
+	|| cfgfile_strval (option, value, "gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode1, 1)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode2, 0)
 	|| cfgfile_strval (option, value, "gfx_center_horizontal", &p->gfx_xcenter, centermode1, 1)
@@ -2390,6 +2395,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->filesys_custom_uaefsdb = 1;
 
     p->gfx_filter = 0;
+    p->gfx_filter_horiz_zoom_mult = 1000;
+    p->gfx_filter_vert_zoom_mult = 1000;
     p->gfx_filter_filtermode = 1;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
 

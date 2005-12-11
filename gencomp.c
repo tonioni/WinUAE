@@ -1785,7 +1785,7 @@ gen_opcode (unsigned long int opcode)
 	comprintf("\tcomp_pc_p=(void*)get_const(PC_P);\n");
 	break;
      case i_Bcc:
-	comprintf("\tuae_u32 v,v1,v2;\n");
+	comprintf("\tuae_u32 v1,v2;\n");
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0);
 	/* That source is an immediate, so we can clobber it with abandon */
 	switch(curi->size) {
@@ -1899,7 +1899,7 @@ gen_opcode (unsigned long int opcode)
 	    comprintf("\tsub_w_ri(src,1);\n");
 	    comprintf("\t end_needflags();\n");
 	    start_brace();
-	    comprintf("\tuae_u32 v2,v;\n"
+	    comprintf("\tuae_u32 v2;\n"
 		      "\tuae_u32 v1=get_const(PC_P);\n");
 	    comprintf("\tv2=get_const(offs);\n"
 		      "\tregister_branch(v1,v2,3);\n");
@@ -3057,7 +3057,11 @@ generate_func (int noflags)
 		 "#define PART_6 1\n"
 		 "#define PART_7 1\n"
 		 "#define PART_8 1\n"
-		 "#endif\n\n");
+		 "#endif\n\n"
+		 "extern void setzflg_l();\n"
+		 "extern void comp_fpp_opp();\n"
+		 "extern void comp_fscc_opp();\n"
+		 "extern void comp_fbcc_opp();\n\n");
 
 	rp = 0;
 	for (j = 1; j <= 8; ++j)

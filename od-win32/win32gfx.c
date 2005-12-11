@@ -114,6 +114,7 @@ static struct winuae_modes wmodes[] =
     },
     {
 	1, "Fullscreen",
+//	DM_OVERLAY | DM_W_FULLSCREEN | DM_DX_DIRECT | DM_DDRAW,
 	DM_DX_FULLSCREEN | DM_DX_DIRECT | DM_DDRAW,
 	DM_DX_FULLSCREEN | DM_DX_DIRECT | DM_DDRAW | DM_PICASSO96
     },
@@ -338,11 +339,6 @@ static int set_ddraw (void)
 	    write_log( "set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
 	}
-#if 0
-    } else if (wfullscreen) {
-	if (!do_changedisplaysettings (width, height, bits, currentmode->frequency))
-	    goto oops2;
-#endif
     }
 
     if (dd) {
@@ -528,6 +524,7 @@ static void modesList (void)
 BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, HMONITOR hm)
 {
     struct MultiDisplay *md = Displays;
+    MONITORINFOEX lpmi;
 
     while (md->name) {
 	if (md - Displays >= MAX_DISPLAYS)
@@ -535,10 +532,15 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 	md++;
     }
     md->name = my_strdup (desc);
-    if (guid == 0)
+    if (guid == 0) {
+	POINT pt = { 0, 0 };
 	md->primary = 1;
-    else
+        lpmi.cbSize = sizeof (lpmi);
+	GetMonitorInfo(MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&lpmi);
+	md->rect = lpmi.rcMonitor;
+    } else {
 	memcpy (&md->guid,  guid, sizeof (GUID));
+    }
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     return 1;
 }
@@ -1723,7 +1725,8 @@ static void createstatuswindow (void)
 
 static int create_windows (void)
 {
-    int fs = currentmode->flags & (DM_W_FULLSCREEN | DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
+    int dxfs = currentmode->flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
+    int fsw = currentmode->flags & (DM_W_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
     DWORD flags = 0;
     HWND hhWnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
@@ -1740,7 +1743,7 @@ static int create_windows (void)
     if (borderless)
 	cymenu = cyborder = cxborder = 0;
 
-    if (!fs)  {
+    if (!dxfs)  {
 	RECT rc;
 	LONG stored_x = 1, stored_y = cymenu + cyborder;
 	DWORD regkeytype;
@@ -1748,8 +1751,8 @@ static int create_windows (void)
 	int oldx, oldy;
 	int first = 2;
 
-	RegQueryValueEx( hWinUAEKey, "xPos", 0, &regkeytype, (LPBYTE)&stored_x, &regkeysize );
-	RegQueryValueEx( hWinUAEKey, "yPos", 0, &regkeytype, (LPBYTE)&stored_y, &regkeysize );
+	RegQueryValueEx(hWinUAEKey, "xPos", 0, &regkeytype, (LPBYTE)&stored_x, &regkeysize);
+	RegQueryValueEx(hWinUAEKey, "yPos", 0, &regkeytype, (LPBYTE)&stored_y, &regkeysize);
 
 	while (first) {
 	    first--;
@@ -1784,13 +1787,15 @@ static int create_windows (void)
 	    }
 	    break;
 	}
-#if 0
-	if (currprefs.gfx_display > 0) {
+
+	if (fsw) {
 	    rc = Displays[currprefs.gfx_display].rect;
 	    flags |= WS_EX_TOPMOST;
 	    style = WS_POPUP;
+	    currentmode->current_width = rc.right - rc.left;
+	    currentmode->current_height = rc.bottom - rc.top;
 	}
-#endif
+
 	flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 
 	if (!borderless) {
@@ -1805,7 +1810,8 @@ static int create_windows (void)
 		write_log ("main window creation failed\n");
 		return 0;
 	    }
-	    createstatuswindow ();
+	    if (!(currentmode->flags & DM_W_FULLSCREEN))
+		createstatuswindow ();
 	} else {
 	    x = rc.left;
 	    y = rc.top;
@@ -1813,7 +1819,7 @@ static int create_windows (void)
 
     }
 
-    hAmigaWnd = CreateWindowEx (fs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+    hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
 				x, y,

@@ -684,11 +684,15 @@ static void m(void)
 }
 
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
-void gui_display( int shortcut )
+void gui_display(int shortcut)
 {
+    static int here;
     int flipflop = 0;
     HRESULT hr;
 
+    if (here)
+	return;
+    here++;
     screenshot_prepare();
 #ifdef D3D
     D3D_guimode (TRUE);
@@ -767,6 +771,7 @@ void gui_display( int shortcut )
     DX_SetPalette (0, 256);
 #endif
     screenshot_free();
+    here--;
 }
 
 static void prefs_to_gui (struct uae_prefs *p)
@@ -4408,62 +4413,73 @@ static void values_to_miscdlg (HWND hDlg)
     char txt[100];
     int cw;
 
-    CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
-    CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
-    CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
-    CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
-    CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
-    CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
-    CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
-    CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
-    CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
-    CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
-    CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
-    CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
-    CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
-    CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
-    CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
-    CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
-    cw = catweasel_detect();
-    EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
-    if (!cw && workprefs.catweasel < 100)
-	workprefs.catweasel = 0;
-    CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
-    CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
+    if (currentpage == MISC1_ID) {
 
-    misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
-    misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
-    misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
+	CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
+	CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
+	CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
+	CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
+	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
+	CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
+	CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
+	CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
+	CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
+	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
+	CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
+	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
+	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
+	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
+	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
+	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+	cw = catweasel_detect();
+	EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
+	if (!cw && workprefs.catweasel < 100)
+	    workprefs.catweasel = 0;
+	CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
+	CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
-    misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_priority);
-    misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
-    misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
+	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
+	misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
+	misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
 
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"1");
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"5");
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"10");
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"20");
-    SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"30");
-    sprintf (txt, "%d", workprefs.statecapturerate / 50);
-    SendDlgItemMessage( hDlg, IDC_STATE_RATE, WM_SETTEXT, 0, (LPARAM)txt); 
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"1");
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"5");
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"10");
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"20");
+	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"30");
+	sprintf (txt, "%d", workprefs.statecapturerate / 50);
+	SendDlgItemMessage( hDlg, IDC_STATE_RATE, WM_SETTEXT, 0, (LPARAM)txt); 
 
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"5");
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"10");
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"20");
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"50");
-    SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"100");
-    sprintf (txt, "%d", workprefs.statecapturebuffersize / (1024 * 1024));
-    SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt); 
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"5");
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"10");
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"20");
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"50");
+	SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)"100");
+	sprintf (txt, "%d", workprefs.statecapturebuffersize / (1024 * 1024));
+	SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt); 
 
-    misc_scsi(hDlg);
+	misc_scsi(hDlg);
+
+    } else if (currentpage == MISC2_ID) {
+
+	misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_priority);
+	misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
+	misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
+
+    }
 }
 
 static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char txt[100];
     int v;
+    static int recursive;
+    
+    if (recursive)
+	return FALSE;
+    recursive++;
 
     switch (msg) 
     {
@@ -4471,6 +4487,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_USER:
 	values_to_miscdlg (hDlg);
 	enable_for_miscdlg (hDlg);
+	recursive--;
 	return TRUE;
 
     case WM_COMMAND:
@@ -4585,16 +4602,18 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.win32_kbledmode = IsDlgButtonChecked (hDlg, IDC_KBLED_USB) ? 1 : 0;
 	    break;
 	}
+	recursive--;
 	return TRUE;
     }
+    recursive--;
     return FALSE;
 }
 
 static INT_PTR CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    currentpage = MISC1_ID;
     if (msg == WM_INITDIALOG) {
 	pages[MISC1_ID] = hDlg;
-	currentpage = MISC1_ID;
 	values_to_miscdlg (hDlg);
 	enable_for_miscdlg (hDlg);
 	return TRUE;
@@ -4604,9 +4623,9 @@ static INT_PTR CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    currentpage = MISC2_ID;
     if (msg == WM_INITDIALOG) {
 	pages[MISC2_ID] = hDlg;
-	currentpage = MISC2_ID;
 	values_to_miscdlg (hDlg);
 	enable_for_miscdlg (hDlg);
 	return TRUE;
@@ -7497,6 +7516,8 @@ static void enable_for_hw3ddlg (HWND hDlg)
     CheckDlgButton( hDlg, IDC_FILTERENABLE, v );
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZ), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZ), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZMULT), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZMULT), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERHO), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERVO), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERSLR), vv2);
@@ -7522,6 +7543,8 @@ static void makefilter(char *s, int x, int flags)
 	strcat (s, " (32bit)");
 }
 
+static char *filtermultnames[] = { "1", "2", "4", "6", "8", NULL };
+static int filtermults[] = { 1000, 500, 250, 167, 125 };
 static void values_to_hw3ddlg (HWND hDlg)
 {
     char txt[100], tmp[100];
@@ -7529,18 +7552,18 @@ static void values_to_hw3ddlg (HWND hDlg)
     struct uae_filter *uf;
     HKEY fkey;
 
-    SendDlgItemMessage( hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (-99, +99) );
-    SendDlgItemMessage( hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-50, +50) );
-    SendDlgItemMessage( hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1 );
-    SendDlgItemMessage( hDlg, IDC_FILTERSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
-    SendDlgItemMessage( hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 10 );
-    SendDlgItemMessage( hDlg, IDC_FILTERSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +100) );
-    SendDlgItemMessage( hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 10 );
+    SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
+    SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
+    SendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
+    SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
+    SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
+    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
+    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 10);
 
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
     uf = &uaefilters[0];
@@ -7573,7 +7596,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	}
 	i++;
     }
-    SendDlgItemMessage( hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0 );
+    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
     if (uf->x[0]) {
@@ -7603,6 +7626,21 @@ static void values_to_hw3ddlg (HWND hDlg)
     if (workprefs.gfx_filter_filtermode >= modenum)
 	workprefs.gfx_filter_filtermode = 0;
     SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
+
+    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
+    for (i = 0; filtermultnames[i]; i++) {
+        SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+        SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+    }
+    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_SETCURSEL, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_SETCURSEL, 0, 0);
+    for (i = 0; filtermultnames[i]; i++) {
+	if (filtermults[i] == workprefs.gfx_filter_horiz_zoom_mult)
+            SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_SETCURSEL, i, 0);
+	if (filtermults[i] == workprefs.gfx_filter_vert_zoom_mult)
+            SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_SETCURSEL, i, 0);
+    }
 
     SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_RESETCONTENT, 0, 0L);
     i = j = 0;
@@ -7691,9 +7729,10 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	ok = 1;
     
     if (wParam == IDC_FILTERPRESETSAVE) {
-	sprintf (tmp2, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+	sprintf (tmp2, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
 	    p->gfx_filter, p->gfx_filter_filtermode,
 	    p->gfx_filter_vert_zoom, p->gfx_filter_horiz_zoom,
+	    p->gfx_filter_vert_zoom_mult, p->gfx_filter_horiz_zoom_mult,
 	    p->gfx_filter_vert_offset, p->gfx_filter_horiz_offset,
 	    p->gfx_filter_scanlines, p->gfx_filter_scanlinelevel, p->gfx_filter_scanlineratio,
 	    p->gfx_lores, p->gfx_linedbl, p->gfx_correct_aspect,
@@ -7726,6 +7765,10 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	    p->gfx_filter_vert_zoom = atol (s);
 	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
 	    p->gfx_filter_horiz_zoom = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_vert_zoom_mult = atol (s);
+	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
+	    p->gfx_filter_horiz_zoom_mult = atol (s);
 	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
 	    p->gfx_filter_vert_offset = atol (s);
 	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
@@ -7777,6 +7820,14 @@ static void filter_handle (HWND hDlg)
     }
     enable_for_hw3ddlg (hDlg);
     updatedisplayarea ();
+}
+
+static int getfiltermult(HWND hDlg, DWORD dlg)
+{
+    int v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
+    if (v == CB_ERR)
+	return 1000;
+    return filtermults[v];
 }
 
 static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7838,6 +7889,13 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		    case IDC_FILTERFILTER:
 		    filter_handle (hDlg);
 		    break;
+		    case IDC_FILTERHZMULT:
+		    case IDC_FILTERVZMULT:
+		    currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = getfiltermult(hDlg, IDC_FILTERHZMULT);
+		    currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = getfiltermult(hDlg, IDC_FILTERVZMULT);
+		    updatedisplayarea ();
+		    WIN32GFX_WindowMove ();
+		    break;
 		}
 	    }
 	    break;
@@ -7845,12 +7903,12 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	recursive--;
 	break;
     case WM_HSCROLL:
-	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERHZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERVZ ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERHO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERVO ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERSL ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = (int)SendMessage( GetDlgItem( hDlg, IDC_FILTERSL2 ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERHZ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVZ), TBM_GETPOS, 0, 0 );
+	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERSL), TBM_GETPOS, 0, 0);
+	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERSL2), TBM_GETPOS, 0, 0);
 	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);

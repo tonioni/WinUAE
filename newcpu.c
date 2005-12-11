@@ -2549,8 +2549,8 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
     MakeSR ();
     save_u32 (!regs.s ? regs.regs[15] : regs.usp);	/* USP */
     save_u32 (regs.s ? regs.regs[15] : regs.isp);	/* ISP */
-    save_u16 (regs.sr);				/* SR/CCR */
-    save_u32 (regs.stopped ? CPUMODE_HALT : 0);	/* flags */
+    save_u16 (regs.sr);					/* SR/CCR */
+    save_u32 (regs.stopped ? CPUMODE_HALT : 0);		/* flags */
     if(model >= 68010) {
 	save_u32 (regs.dfc);				/* DFC */
 	save_u32 (regs.sfc);				/* SFC */

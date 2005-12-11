@@ -13,7 +13,7 @@
 STATIC_INLINE long double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
     uae_u32 longarray[] = {wrd3,wrd2,((wrd1>>16)&0xffff)}; // little endian
-    register long double *longdoublewords = longarray;
+    register long double *longdoublewords = (long double *)longarray;
 
     return(*longdoublewords);
 }
@@ -21,8 +21,8 @@ STATIC_INLINE long double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 
 STATIC_INLINE void from_exten(long double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u32 * wrd3)
 {
-    register uae_u32 *longarray = &src;
-    register uae_u16 *finalword = &src + 8;
+    register uae_u32 *longarray = (uae_u32 *)&src;
+    register uae_u16 *finalword = (uae_u16 *)(&src + 8);
 
     *wrd1 = ((uae_u32)*finalword)<<16;
     *wrd2 = longarray[1];

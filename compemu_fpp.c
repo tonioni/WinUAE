@@ -26,10 +26,7 @@
 
 #define MAKE_FPSR(r) do { fmov_rr(FP_RESULT,r); } while (0)
 
-#define delay   //nop() ;nop() /* Who tried this with the JIT ? */
-#define delay2  //nop() ;nop() /* the delays will have to emit( ;-) */
-
-uae_s32 temp_fp[3];  /* To convert between FP/integer */
+uae_s32 temp_fp[] = {0,0,0};  /* To convert between FP and <ea> */
 
 /* 128 words, indexed through the low byte of the 68k fpu control word */
 static uae_u16 x86_fpucw[]={
@@ -57,266 +54,229 @@ static uae_u16 x86_fpucw[]={
 /* return register number, or -1 for failure */
 STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra)
 {
-    uaecptr tmppc;
-    uae_u16 tmp;
-    int size;
-    int mode;
-    int reg;
-    double* src;
-    uae_u32 ad = 0;
     static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
     static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
+    int reg = opcode & 7;
+    int mode = (opcode >> 3) & 7;
+    int size = (extra >> 10) & 7;
 
-    if ((extra & 0x4000) == 0) {
-	return (extra >> 10) & 7;
-    }
+    if (!(extra & 0x4000)) /* R/M=0, from FPx to FPy */
+	return size; /* size is the source register FPx */
+    if (size == 3) /* packed decimal is not supported on 68040 */
+	return -1;
+    if (size == 7) /* this size is not defined */
+	return -1;
 
-    mode = (opcode >> 3) & 7;
-    reg = opcode & 7;
-    size = (extra >> 10) & 7;
     switch (mode) {
-     case 0:
+     case 0: /* Dn */
 	switch (size) {
-	 case 6:
-	    sign_extend_8_rr(S1,reg);
-	    mov_l_mr((uae_u32)temp_fp,S1);
-	    delay2;
-	    fmovi_rm(FS1,(uae_u32)temp_fp);
-	    return FS1;
-	 case 4:
-	    sign_extend_16_rr(S1,reg);
-	    mov_l_mr((uae_u32)temp_fp,S1);
-	    delay2;
-	    fmovi_rm(FS1,(uae_u32)temp_fp);
-	    return FS1;
-	 case 0:
+	 case 0: /* Long */
 	    mov_l_mr((uae_u32)temp_fp,reg);
-	    delay2;
 	    fmovi_rm(FS1,(uae_u32)temp_fp);
 	    return FS1;
-	 case 1:
+	 case 1: /* Single */
 	    mov_l_mr((uae_u32)temp_fp,reg);
-	    delay2;
 	    fmovs_rm(FS1,(uae_u32)temp_fp);
 	    return FS1;
+	 case 4: /* Word */
+	    sign_extend_16_rr(S1,reg);
+	    mov_l_mr((uae_u32)temp_fp,S1);
+	    fmovi_rm(FS1,(uae_u32)temp_fp);
+	    return FS1;
+	 case 6: /* Byte */
+	    sign_extend_8_rr(S1,reg);
+	    mov_l_mr((uae_u32)temp_fp,S1);
+	    fmovi_rm(FS1,(uae_u32)temp_fp);
+	    return FS1;
 	 default:
 	    return -1;
 	}
-	return -1; /* Should be unreachable */
-     case 1:
-	return -1; /* Genuine invalid instruction */
-     default:
-	break;
-    }
-    /* OK, we *will* have to load something from an address. Let's make
-       sure we know how to handle that, or quit early --- i.e. *before*
-       we do any postincrement/predecrement that we may regret */
-
-    switch (size) {
-     case 3:
+     case 1: /* An,  invalid mode */
 	return -1;
-     case 0:
-     case 1:
-     case 2:
-     case 4:
-     case 5:
-     case 6:
+     case 2: /* (An) */
+	mov_l_rr(S1,reg+8);
 	break;
-     default:
-	return -1;
-    }
-
-    switch (mode) {
-     case 2:
-	ad=S1;  /* We will change it, anyway ;-) */
-	mov_l_rr(ad,reg+8);
-	break;
-     case 3:
-	ad=S1;
-	mov_l_rr(ad,reg+8);
+     case 3: /* (An)+ */
+	mov_l_rr(S1,reg+8);
 	lea_l_brr(reg+8,reg+8,(reg == 7?sz2[size]:sz1[size]));
 	break;
-     case 4:
-	ad=S1;
-
+     case 4: /* -(An) */
 	lea_l_brr(reg+8,reg+8,-(reg == 7?sz2[size]:sz1[size]));
-	mov_l_rr(ad,reg+8);
+	mov_l_rr(S1,reg+8);
 	break;
-     case 5:
-     {
-	 uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	 ad=S1;
-	 mov_l_rr(ad,reg+8);
-	 lea_l_brr(ad,ad,off);
-	 break;
-     }
-     case 6:
-     {
+     case 5: /* (d16,An)  */
+      {
+	uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
+	mov_l_rr(S1,reg+8);
+	lea_l_brr(S1,S1,off);
+	break;
+      }
+     case 6: /* (d8,An,Xn) or (bd,An,Xn) or ([bd,An,Xn],od) or ([bd,An],Xn,od) */
+      {
 	uae_u32 dp=comp_get_iword((m68k_pc_offset+=2)-2);
-	ad=S1;
-	calc_disp_ea_020(reg+8,dp,ad,S2);
+	calc_disp_ea_020(reg+8,dp,S1,S2);
 	break;
-     }
+      }
      case 7:
 	switch (reg) {
-	 case 0:
-	 {
+	 case 0: /* (xxx).W */
+	  {
 	     uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	     ad=S1;
-	     mov_l_ri(ad,off);
+	     mov_l_ri(S1,off);
 	     break;
-	 }
-	 case 1:
-	 {
+	  }
+	 case 1: /* (xxx).L */
+	  {
 	     uae_u32 off=comp_get_ilong((m68k_pc_offset+=4)-4);
-	     ad=S1;
-	     mov_l_ri(ad,off);
+	     mov_l_ri(S1,off);
 	     break;
-	 }
-	 case 2:
-	 {
+	  }
+	 case 2: /* (d16,PC) */
+	  {
 	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
+			m68k_pc_offset;
 	     uae_s32 PC16off =(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	     ad=S1;
-	     mov_l_ri(ad,address+PC16off);
+	     mov_l_ri(S1,address+PC16off);
 	     break;
-	 }
-	 case 3:
-	    return -1;
-	    tmppc = m68k_getpc ();
-	    tmp = next_iword ();
-	    ad = get_disp_ea_020 (tmppc, tmp);
-	    break;
-	 case 4:
-	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
-	     ad=S1;
-	     if (size == 6)
-		 address++;
-	     mov_l_ri(ad,address);
-	     m68k_pc_offset+=sz2[size];
-	     break;
-	 }
-	 default:
+	  }
+	 case 3: /* (d8,PC,Xn) or (bd,PC,Xn) or ([bd,PC,Xn],od) or ([bd,PC],Xn,od) */
+	     return -1; /* rarely used, fallback to non-JIT */
+	 case 4: /* # < data >; Constants should be converted just once by the JIT */
+	    m68k_pc_offset+=sz2[size];
+	    switch (size) {
+		case 0:
+		  {
+		    uae_s32 li = comp_get_ilong(m68k_pc_offset-4);
+		    float si = (float) li;
+
+		    if (li == (int) si) {
+			//write_log ("converted immediate LONG constant to SINGLE\n");
+			fmovs_ri(FS1,*(uae_u32 *)&si);
+			return FS1;
+		    }
+		    //write_log ("immediate LONG constant\n");
+		    fmovl_ri(FS1,li);
+		    return FS1;
+		  }
+		case 1:
+		    //write_log ("immediate SINGLE constant\n");
+		    fmovs_ri(FS1,comp_get_ilong(m68k_pc_offset-4));
+		    return FS1;
+		case 2:
+		    //write_log ("immediate LONG DOUBLE constant\n");
+		    fmov_ext_ri(FS1,comp_get_ilong(m68k_pc_offset-4),
+				  comp_get_ilong(m68k_pc_offset-8),
+				(comp_get_ilong(m68k_pc_offset-12)>>16)&0xffff);
+		    return FS1;
+		case 4:
+		  {
+		    float si = (float)(uae_s16)comp_get_iword(m68k_pc_offset-2);
+
+		    //write_log ("converted immediate WORD constant to SINGLE\n");
+		    fmovs_ri(FS1,*(uae_u32 *)&si);
+		    return FS1;
+		  }
+		case 5:
+		 {
+		    uae_u32 longarray[] = {comp_get_ilong(m68k_pc_offset-4),
+					   comp_get_ilong(m68k_pc_offset-8)};
+		    float si = (float)*(double *)longarray;
+
+		    if (*(double *)longarray == (double)si) {
+			//write_log ("SPEED GAIN: converted a DOUBLE constant to SINGLE\n");
+			fmovs_ri(FS1,*(uae_u32 *)&si);
+			return FS1;
+		    }
+		    //write_log ("immediate DOUBLE constant\n");
+		    fmov_ri(FS1,longarray[0],longarray[1]);
+		    return FS1;
+		 }
+		case 6:
+		  {
+		    float si = (float)(uae_s8)comp_get_ibyte(m68k_pc_offset-2);
+
+		    //write_log ("immediate BYTE constant converted to SINGLE\n");
+		    fmovs_ri(FS1,*(uae_u32 *)&si);
+		    return FS1;
+		  }
+		default: /* never reached */
+		    return -1;
+	    }
+	 default: /* never reached */
 	    return -1;
 	}
     }
 
     switch (size) {
-     case 0:
-	readlong(ad,S2,S3);
+     case 0: /* Long */
+	readlong(S1,S2,S3);
 	mov_l_mr((uae_u32)temp_fp,S2);
-	delay2;
 	fmovi_rm(FS1,(uae_u32)temp_fp);
-	break;
-     case 1:
-	readlong(ad,S2,S3);
+	return FS1;
+     case 1: /* Single */
+	readlong(S1,S2,S3);
 	mov_l_mr((uae_u32)temp_fp,S2);
-	delay2;
 	fmovs_rm(FS1,(uae_u32)temp_fp);
-	break;
-     case 2:
-	readword(ad,S2,S3);
+	return FS1;
+     case 2: /* Long Double */
+	readword(S1,S2,S3);
 	mov_w_mr(((uae_u32)temp_fp)+8,S2);
-	add_l_ri(ad,4);
-	readlong(ad,S2,S3);
+	add_l_ri(S1,4);
+	readlong(S1,S2,S3);
 	mov_l_mr((uae_u32)(temp_fp)+4,S2);
-	add_l_ri(ad,4);
-	readlong(ad,S2,S3);
+	add_l_ri(S1,4);
+	readlong(S1,S2,S3);
 	mov_l_mr((uae_u32)(temp_fp),S2);
-	delay2;
 	fmov_ext_rm(FS1,(uae_u32)(temp_fp));
-	break;
-     case 3:
-	return -1; /* Some silly "packed" stuff */
-     case 4:
-	readword(ad,S2,S3);
+	return FS1;
+     case 4: /* Word */
+	readword(S1,S2,S3);
 	sign_extend_16_rr(S2,S2);
 	mov_l_mr((uae_u32)temp_fp,S2);
-	delay2;
 	fmovi_rm(FS1,(uae_u32)temp_fp);
-	break;
-     case 5:
-	readlong(ad,S2,S3);
+	return FS1;
+     case 5: /* Double */
+	readlong(S1,S2,S3);
 	mov_l_mr(((uae_u32)temp_fp)+4,S2);
-	add_l_ri(ad,4);
-	readlong(ad,S2,S3);
+	add_l_ri(S1,4);
+	readlong(S1,S2,S3);
 	mov_l_mr((uae_u32)(temp_fp),S2);
-	delay2;
 	fmov_rm(FS1,(uae_u32)(temp_fp));
-	break;
-     case 6:
-	readbyte(ad,S2,S3);
+	return FS1;
+     case 6: /* Byte */
+	readbyte(S1,S2,S3);
 	sign_extend_8_rr(S2,S2);
 	mov_l_mr((uae_u32)temp_fp,S2);
-	delay2;
 	fmovi_rm(FS1,(uae_u32)temp_fp);
-	break;
+	return FS1;
      default:
 	return -1;
     }
-    return FS1;
+    return -1;
 }
 
 /* return of -1 means failure, >=0 means OK */
 STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
 {
-    uae_u16 tmp;
-    uaecptr tmppc;
-    int size;
-    int mode;
-    int reg;
-    uae_u32 ad;
     static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
     static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
+    int reg = opcode & 7;
+    int mode = (opcode >> 3) & 7;
+    int size = (extra >> 10) & 7;
 
-    if ((extra & 0x4000) == 0) {
-	fmov_rr((extra>>10)&7,val);
+    if (!(extra & 0x4000)) { /* R/M=0, from FPx to FPy */
+	fmov_rr(size,val);
 	return 0;
     }
+    if (size == 3) /* packed decimal is not supported on 68040 */
+	return -1;
+    if (size == 7) /* this size is not defined */
+	return -1;
 
-    mode = (opcode >> 3) & 7;
-    reg = opcode & 7;
-    size = (extra >> 10) & 7;
-    ad = -1;
     switch (mode) {
-     case 0:
+     case 0: /* Dn */
 	switch (size) {
-	 case 6: /* FMOVE.B FPx, reg */
-#if USE_X86_FPUCW
-	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
-		mov_l_ri(S1,0x10); /* use extended round to zero mode */
-		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		fmovi_mr((uae_u32)temp_fp,val);
-		mov_b_rm(reg,(uae_u32)temp_fp);
-		mov_l_rm(S1,(uae_u32)&regs.fpcr);
-		and_l_ri(S1,0xf0); /* restore control word */
-		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		return 0;
-	    }
-#endif
-	    fmovi_mr((uae_u32)temp_fp,val);
-	    mov_b_rm(reg,(uae_u32)temp_fp);
-	    return 0;
-	 case 4: /* FMOVE.W FPx, reg */
-#if USE_X86_FPUCW
-	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
-		mov_l_ri(S1,0x10); /* use extended round to zero mode */
-		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		fmovi_mr((uae_u32)temp_fp,val);
-		mov_w_rm(reg,(uae_u32)temp_fp);
-		mov_l_rm(S1,(uae_u32)&regs.fpcr);
-		and_l_ri(S1,0xf0); /* restore control word */
-		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		return 0;
-	    }
-#endif
-	    fmovi_mr((uae_u32)temp_fp,val);
-	    mov_w_rm(reg,(uae_u32)temp_fp);
-	    return 0;
-	 case 0: /* FMOVE.L FPx, reg */
+	 case 0: /* FMOVE.L FPx, Dn */
 #if USE_X86_FPUCW
 	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
 		mov_l_ri(S1,0x10); /* use extended round to zero mode */
@@ -332,172 +292,143 @@ STATIC_INLINE int put_fp_value (int val, uae_u32 opcode, uae_u16 extra)
 	    fmovi_mr((uae_u32)temp_fp,val);
 	    mov_l_rm(reg,(uae_u32)temp_fp);
 	    return 0;
-	 case 1:
+	 case 1: /* FMOVE.S FPx, Dn */
 	    fmovs_mr((uae_u32)temp_fp,val);
 	    mov_l_rm(reg,(uae_u32)temp_fp);
+	    return 0;
+	 case 4: /* FMOVE.W FPx, Dn */
+#if USE_X86_FPUCW
+	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
+		mov_l_ri(S1,0x10); /* use extended round to zero mode */
+		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
+		fmovi_mr((uae_u32)temp_fp,val);
+		mov_w_rm(reg,(uae_u32)temp_fp);
+		mov_l_rm(S1,(uae_u32)&regs.fpcr);
+		and_l_ri(S1,0xf0); /* restore control word */
+		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
+		return 0;
+	    }
+#endif
+	    fmovi_mr((uae_u32)temp_fp,val);
+	    mov_w_rm(reg,(uae_u32)temp_fp);
+	    return 0;
+	 case 6: /* FMOVE.B FPx, Dn */
+#if USE_X86_FPUCW
+	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
+		mov_l_ri(S1,0x10); /* use extended round to zero mode */
+		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
+		fmovi_mr((uae_u32)temp_fp,val);
+		mov_b_rm(reg,(uae_u32)temp_fp);
+		mov_l_rm(S1,(uae_u32)&regs.fpcr);
+		and_l_ri(S1,0xf0); /* restore control word */
+		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
+		return 0;
+	    }
+#endif
+	    fmovi_mr((uae_u32)temp_fp,val);
+	    mov_b_rm(reg,(uae_u32)temp_fp);
 	    return 0;
 	 default:
 	    return -1;
 	}
-     case 1:
-	return -1; /* genuine invalid instruction */
-     default: break;
-    }
-
-    /* Let's make sure we get out *before* doing something silly if
-       we can't handle the size */
-    switch (size) {
-     case 0:
-     case 4:
-     case 5:
-     case 6:
-     case 2:
-     case 1:
-	break;
-     case 3:
-     default:
+     case 1: /* An, invalid mode */
 	return -1;
-    }
-
-    switch (mode) {
-     case 2:
-	ad=S1;
-	mov_l_rr(ad,reg+8);
+     case 2: /* (An) */
+	mov_l_rr(S1,reg+8);
 	break;
-     case 3:
-	ad=S1;
-	mov_l_rr(ad,reg+8);
+     case 3: /* (An)+ */
+	mov_l_rr(S1,reg+8);
 	lea_l_brr(reg+8,reg+8,(reg == 7?sz2[size]:sz1[size]));
 	break;
-     case 4:
-	ad=S1;
+     case 4: /* -(An) */
 	lea_l_brr(reg+8,reg+8,-(reg == 7?sz2[size]:sz1[size]));
-	mov_l_rr(ad,reg+8);
+	mov_l_rr(S1,reg+8);
 	break;
-     case 5:
-     {
-	 uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	 ad=S1;
-	 mov_l_rr(ad,reg+8);
-	 add_l_ri(ad,off);
-	 break;
-     }
-     case 6:
-     {
+     case 5: /* (d16,An) */
+      {
+	uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
+	mov_l_rr(S1,reg+8);
+	add_l_ri(S1,off);
+	break;
+      }
+     case 6: /* (d8,An,Xn) or (bd,An,Xn) or ([bd,An,Xn],od) or ([bd,An],Xn,od) */
+      {
 	uae_u32 dp=comp_get_iword((m68k_pc_offset+=2)-2);
-	ad=S1;
-	calc_disp_ea_020(reg+8,dp,ad,S2);
+	calc_disp_ea_020(reg+8,dp,S1,S2);
 	break;
-     }
+      }
      case 7:
 	switch (reg) {
-	 case 0:
-	 {
+	 case 0: /* (xxx).W */
+	  {
 	     uae_u32 off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	     ad=S1;
-	     mov_l_ri(ad,off);
+	     mov_l_ri(S1,off);
 	     break;
-	 }
-	 case 1:
-	 {
+	  }
+	 case 1: /* (xxx).L */
+	  {
 	     uae_u32 off=comp_get_ilong((m68k_pc_offset+=4)-4);
-	     ad=S1;
-	     mov_l_ri(ad,off);
+	     mov_l_ri(S1,off);
 	     break;
-	 }
-	 case 2:
-	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
-	     uae_s32 PC16off =(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-	     ad=S1;
-	     mov_l_ri(ad,address+PC16off);
-	     break;
-	 }
-	 case 3:
-	    return -1;
-	    tmppc = m68k_getpc ();
-	    tmp = next_iword ();
-	    ad = get_disp_ea_020 (tmppc, tmp);
-	    break;
-	 case 4:
-	 {
-	     uae_u32 address=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+
-		 m68k_pc_offset;
-	     ad=S1;
-	     mov_l_ri(ad,address);
-	     m68k_pc_offset+=sz2[size];
-	     break;
-	 }
-	 default:
+	  }
+	 default: /* All other modes are not allowed for FPx to <ea> */
+	    write_log ("JIT FMOVE FPx,<EA> Mode is not allowed %04x %04x\n",opcode,extra);
 	    return -1;
 	}
     }
     switch (size) {
-     case 0:
+     case 0: /* Long */
 	fmovi_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writelong_clobber(ad,S2,S3);
-	break;
-     case 1:
+	writelong_clobber(S1,S2,S3);
+	return 0;
+     case 1: /* Single */
 	fmovs_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writelong_clobber(ad,S2,S3);
-	break;
-     case 2:
+	writelong_clobber(S1,S2,S3);
+	return 0;
+     case 2:/* Long Double */
 	fmov_ext_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_w_rm(S2,(uae_u32)temp_fp+8);
-	writeword_clobber(ad,S2,S3);
-	add_l_ri(ad,4);
+	writeword_clobber(S1,S2,S3);
+	add_l_ri(S1,4);
 	mov_l_rm(S2,(uae_u32)temp_fp+4);
-	writelong_clobber(ad,S2,S3);
-	add_l_ri(ad,4);
+	writelong_clobber(S1,S2,S3);
+	add_l_ri(S1,4);
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writelong_clobber(ad,S2,S3);
-	break;
-     case 3: return -1; /* Packed */
-
-     case 4:
+	writelong_clobber(S1,S2,S3);
+	return 0;
+     case 4: /* Word */
 	fmovi_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writeword_clobber(ad,S2,S3);
-	break;
-     case 5:
+	writeword_clobber(S1,S2,S3);
+	return 0;
+     case 5: /* Double */
 	fmov_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_l_rm(S2,(uae_u32)temp_fp+4);
-	writelong_clobber(ad,S2,S3);
-	add_l_ri(ad,4);
+	writelong_clobber(S1,S2,S3);
+	add_l_ri(S1,4);
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writelong_clobber(ad,S2,S3);
-	break;
-     case 6:
+	writelong_clobber(S1,S2,S3);
+	return 0;
+     case 6: /* Byte */
 	fmovi_mr((uae_u32)temp_fp,val);
-	delay;
 	mov_l_rm(S2,(uae_u32)temp_fp);
-	writebyte(ad,S2,S3);
-	break;
+	writebyte(S1,S2,S3);
+	return 0;
      default:
 	return -1;
     }
-    return 0;
+    return -1;
 }
 
 /* return -1 for failure, or register number for success */
-STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
+STATIC_INLINE int get_fp_ad (uae_u32 opcode)
 {
-    uae_u16 tmp;
-    uaecptr tmppc;
-    int mode;
-    int reg;
     uae_s32 off;
+    int mode = (opcode >> 3) & 7;
+    int reg = opcode & 7;
 
-    mode = (opcode >> 3) & 7;
-    reg = opcode & 7;
     switch (mode) {
      case 0:
      case 1:
@@ -507,17 +438,13 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
      case 4:
 	mov_l_rr(S1,8+reg);
 	return S1;
-	*ad = m68k_areg (regs, reg);
-	break;
      case 5:
 	off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
-
 	mov_l_rr(S1,8+reg);
 	add_l_ri(S1,off);
 	return S1;
      case 6:
 	return -1;
-	break;
      case 7:
 	switch (reg) {
 	 case 0:
@@ -528,17 +455,6 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 	    off=comp_get_ilong((m68k_pc_offset+=4)-4);
 	    mov_l_ri(S1,off);
 	    return S1;
-	 case 2:
-	    return -1;
-	    *ad = m68k_getpc ();
-	    *ad += (uae_s32) (uae_s16) next_iword ();
-	    break;
-	 case 3:
-	    return -1;
-	    tmppc = m68k_getpc ();
-	    tmp = next_iword ();
-	    *ad = get_disp_ea_020 (tmppc, tmp);
-	    break;
 	 default:
 	    return -1;
 	}
@@ -550,11 +466,6 @@ void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra)
 {
     FAIL(1);
     return;
-
-    if (!currprefs.compfpu) {
-	FAIL(1);
-	return;
-    }
 }
 
 void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
@@ -613,22 +524,21 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
      case 15: mov_l_rr(S4,S1); break;
     }
 
-    if ((opcode & 0x38) == 0) {
+    if (!(opcode & 0x38))
 	mov_b_rr(reg,S4);
-    } else {
+    else {
 	abort();
-	if (get_fp_ad (opcode, &ad) == 0) {
+	if (!get_fp_ad (opcode)) {
 	    m68k_setpc (m68k_getpc () - 4);
 	    op_illg (opcode);
-	} else
+	}
+	else
 	    put_byte (ad, cc ? 0xff : 0x00);
     }
 }
 
 void comp_ftrapcc_opp (uae_u32 opcode, uaecptr oldpc)
 {
-    int cc;
-
     FAIL(1);
     return;
 }
@@ -638,10 +548,7 @@ extern unsigned long foink3, oink;
 void comp_fbcc_opp (uae_u32 opcode)
 {
     uae_u32 start_68k_offset=m68k_pc_offset;
-    uae_u32 off;
-    uae_u32 v1;
-    uae_u32 v2;
-    uae_u32 nh;
+    uae_u32 off, v1, v2;
     int cc;
 
     if (!currprefs.compfpu) {
@@ -653,7 +560,7 @@ void comp_fbcc_opp (uae_u32 opcode)
 	FAIL(1);
 	return;
     }
-    if ((opcode&0x40)==0) {
+    if (!(opcode&0x40)) {
 	off=(uae_s32)(uae_s16)comp_get_iword((m68k_pc_offset+=2)-2);
     }
     else {
@@ -800,7 +707,7 @@ void comp_fsave_opp (uae_u32 opcode)
     printf ("fsave_opp at %08lx\n", m68k_getpc ());
     fflush (stdout);
 #endif
-    if (get_fp_ad (opcode, &ad) == 0) {
+    if (!get_fp_ad (opcode)) {
 	m68k_setpc (m68k_getpc () - 2);
 	op_illg (opcode);
 	return;
@@ -860,7 +767,7 @@ void comp_frestore_opp (uae_u32 opcode)
     printf ("frestore_opp at %08lx\n", m68k_getpc ());
     fflush (stdout);
 #endif
-    if (get_fp_ad (opcode, &ad) == 0) {
+    if (!get_fp_ad (opcode)) {
 	m68k_setpc (m68k_getpc () - 2);
 	op_illg (opcode);
 	return;
@@ -871,8 +778,8 @@ void comp_frestore_opp (uae_u32 opcode)
 	    /* @@@ This may be wrong.  */
 	    ad -= 4;
 	    d = get_long (ad);
-	    if ((d & 0xff000000) != 0) { /* Not a NULL frame? */
-		if ((d & 0x00ff0000) == 0) { /* IDLE */
+	    if (d & 0xff000000) { /* Not a NULL frame? */
+		if (!(d & 0x00ff0000)) { /* IDLE */
 		} else if ((d & 0x00ff0000) == 0x00300000) { /* UNIMP */
 		    ad -= 44;
 		} else if ((d & 0x00ff0000) == 0x00600000) { /* BUSY */
@@ -882,8 +789,8 @@ void comp_frestore_opp (uae_u32 opcode)
 	} else {
 	    d = get_long (ad);
 	    ad += 4;
-	    if ((d & 0xff000000) != 0) { /* Not a NULL frame? */
-		if ((d & 0x00ff0000) == 0) { /* IDLE */
+	    if (d & 0xff000000) { /* Not a NULL frame? */
+		if (!(d & 0x00ff0000)) { /* IDLE */
 		} else if ((d & 0x00ff0000) == 0x00300000) { /* UNIMP */
 		    ad += 44;
 		} else if ((d & 0x00ff0000) == 0x00600000) { /* BUSY */
@@ -895,7 +802,7 @@ void comp_frestore_opp (uae_u32 opcode)
 	if (incr < 0) {
 	    ad -= 4;
 	    d = get_long (ad);
-	    if ((d & 0xff000000) != 0) {
+	    if (d & 0xff000000) {
 		if ((d & 0x00ff0000) == 0x00180000)
 		    ad -= 6 * 4;
 		else if ((d & 0x00ff0000) == 0x00380000)
@@ -906,7 +813,7 @@ void comp_frestore_opp (uae_u32 opcode)
 	} else {
 	    d = get_long (ad);
 	    ad += 4;
-	    if ((d & 0xff000000) != 0) {
+	    if (d & 0xff000000) {
 		if ((d & 0x00ff0000) == 0x00180000)
 		    ad += 6 * 4;
 		else if ((d & 0x00ff0000) == 0x00380000)
@@ -922,10 +829,10 @@ void comp_frestore_opp (uae_u32 opcode)
 	m68k_areg (regs, opcode & 7) = ad;
 }
 
-extern uae_u32 *xhex_pi, *xhex_exp_1, *xhex_l2_e, *xhex_ln_2, *xhex_ln_10;
-extern uae_u32 *xhex_l10_2, *xhex_l10_e, *xhex_1e16, *xhex_1e32, *xhex_1e64;
-extern uae_u32 *xhex_1e128, *xhex_1e256, *xhex_1e512, *xhex_1e1024;
-extern uae_u32 *xhex_1e2048, *xhex_1e4096;
+extern uae_u32 xhex_pi, xhex_exp_1, xhex_l2_e, xhex_ln_2, xhex_ln_10;
+extern uae_u32 xhex_l10_2, xhex_l10_e, xhex_1e16, xhex_1e32, xhex_1e64;
+extern uae_u32 xhex_1e128, xhex_1e256, xhex_1e512, xhex_1e1024;
+extern uae_u32 xhex_1e2048, xhex_1e4096;
 extern double fp_1e8;
 extern float  fp_1e1, fp_1e2, fp_1e4;
 
@@ -938,9 +845,9 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	FAIL(1);
 	return;
     }
-    switch ((extra >> 13) & 0x7) {
+    switch ((extra >> 13) & 7) {
      case 3: /* 2nd most common */
-	if (put_fp_value ((extra >> 7)&7 , opcode, extra) < 0) {
+	if (put_fp_value ((extra >> 7) & 7, opcode, extra) < 0) {
 	    FAIL(1);
 	    return;
 	}
@@ -948,7 +855,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
      case 6:
      case 7:
 	{
-	    uae_u32 ad, list = 0;
+	    uae_u32 list = 0;
 	    int incr = 0;
 	    if (extra & 0x2000) {
 		int ad;
@@ -963,7 +870,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 default:
 		    FAIL(1); return;
 		}
-		ad=get_fp_ad (opcode, &ad);
+		ad=get_fp_ad (opcode);
 		if (ad<0) {
 		    FAIL(1);
 #if 0
@@ -986,10 +893,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		   abort();
 		}
 		while (list) {
-		    uae_u32 wrd1, wrd2, wrd3;
 		    if (incr < 0) { /* Predecrement */
 			fmov_ext_mr((uae_u32)temp_fp,fpp_movem_index2[list]);
-			delay;
 			sub_l_ri(ad,4);
 			mov_l_rm(S2,(uae_u32)temp_fp);
 			writelong_clobber(ad,S2,S3);
@@ -1001,7 +906,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			writeword_clobber(ad,S2,S3);
 		    } else { /* postinc */
 			fmov_ext_mr((uae_u32)temp_fp,fpp_movem_index2[list]);
-			delay;
 			mov_w_rm(S2,(uae_u32)temp_fp+8);
 			writeword_clobber(ad,S2,S3);
 			add_l_ri(ad,4);
@@ -1031,7 +935,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 default:
 		    FAIL(1); return;
 		}
-		ad=get_fp_ad (opcode, &ad);
+		ad=get_fp_ad (opcode);
 		if (ad<0) {
 		    FAIL(1);
 #if 0
@@ -1055,7 +959,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 
 		while (list) {
-		    uae_u32 wrd1, wrd2, wrd3;
 		    if (incr < 0) {
 			sub_l_ri(ad,4);
 			readlong(ad,S2,S3);
@@ -1066,7 +969,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			sub_l_ri(ad,4);
 			readword(ad,S2,S3);
 			mov_w_mr(((uae_u32)temp_fp)+8,S2);
-			delay2;
 			fmov_ext_rm(fpp_movem_index2[list],(uae_u32)(temp_fp));
 		    } else {
 			readword(ad,S2,S3);
@@ -1078,7 +980,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			readlong(ad,S2,S3);
 			mov_l_mr((uae_u32)(temp_fp),S2);
 			add_l_ri(ad,4);
-			delay2;
 			fmov_ext_rm(fpp_movem_index1[list],(uae_u32)(temp_fp));
 		    }
 		    list = fpp_movem_next[list];
@@ -1171,13 +1072,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		fmov_log10_2(dreg);
 		break;
 	     case 0x0c:
-		fmov_ext_rm(dreg,&xhex_exp_1);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_exp_1);
 		break;
 	     case 0x0d:
 		fmov_log2_e(dreg);
 		break;
 	     case 0x0e:
-		fmov_ext_rm(dreg,&xhex_l10_e);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_l10_e);
 		break;
 	     case 0x0f:
 		fmov_0(dreg);
@@ -1186,49 +1087,49 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		fmov_loge_2(dreg);
 		break;
 	     case 0x31:
-		fmov_ext_rm(dreg,&xhex_ln_10);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_ln_10);
 		break;
 	     case 0x32:
 		fmov_1(dreg);
 		break;
 	     case 0x33:
-		fmovs_rm(dreg,&fp_1e1);
+		fmovs_rm(dreg,(uae_u32)&fp_1e1);
 		break;
 	     case 0x34:
-		fmovs_rm(dreg,&fp_1e2);
+		fmovs_rm(dreg,(uae_u32)&fp_1e2);
 		break;
 	     case 0x35:
-		fmovs_rm(dreg,&fp_1e4);
+		fmovs_rm(dreg,(uae_u32)&fp_1e4);
 		break;
 	     case 0x36:
-		fmov_rm(dreg,&fp_1e8);
+		fmov_rm(dreg,(uae_u32)&fp_1e8);
 		break;
 	     case 0x37:
-		fmov_ext_rm(dreg,&xhex_1e16);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e16);
 		break;
 	     case 0x38:
-		fmov_ext_rm(dreg,&xhex_1e32);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e32);
 		break;
 	     case 0x39:
-		fmov_ext_rm(dreg,&xhex_1e64);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e64);
 		break;
 	     case 0x3a:
-		fmov_ext_rm(dreg,&xhex_1e128);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e128);
 		break;
 	     case 0x3b:
-		fmov_ext_rm(dreg,&xhex_1e256);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e256);
 		break;
 	     case 0x3c:
-		fmov_ext_rm(dreg,&xhex_1e512);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e512);
 		break;
 	     case 0x3d:
-		fmov_ext_rm(dreg,&xhex_1e1024);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e1024);
 		break;
 	     case 0x3e:
-		fmov_ext_rm(dreg,&xhex_1e2048);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e2048);
 		break;
 	     case 0x3f:
-		fmov_ext_rm(dreg,&xhex_1e4096);
+		fmov_ext_rm(dreg,(uae_u32)&xhex_1e4096);
 		break;
 	     default:
 		FAIL(1);
@@ -1261,10 +1162,10 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    /* If we have control over the CW, we can do this */
 	    dont_care_fflags();
 	    if ((sreg=get_fp_value(opcode,extra)) < 0) {FAIL(1);return;}
-	    if ((regs.fpcr & 0x30) == 0x10) /* maybe unsafe, because this test is done */
+	    if ((regs.fpcr & 0xf0) == 0x10) /* maybe unsafe, because this test is done */
 		frndint_rr(dreg,sreg); /* during the JIT compilation and not at runtime */
 	    else {
-		mov_l_ri(S1,(regs.fpcr & 0xC0) | 0x10); /* use round to zero */
+		mov_l_ri(S1,0x10); /* extended round to zero */
 		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
 		frndint_rr(dreg,sreg);
 		mov_l_rm(S1,(uae_u32)&regs.fpcr);

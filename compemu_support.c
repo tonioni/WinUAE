@@ -1035,7 +1035,6 @@ static void mov_nregs(int d, int s)
 
 static __inline__ void make_exclusive(int r, int size, int spec)
 {
-    int clobber;
     reg_status oldstate;
     int rr=live.state[r].realreg;
     int nr;
@@ -1112,7 +1111,6 @@ static __inline__ void add_offset(int r, uae_u32 off)
 
 static __inline__ void remove_offset(int r, int spec)
 {
-    reg_status oldstate;
     int rr;
 
     if (isconst(r))
@@ -4099,6 +4097,38 @@ MIDFUNC(2,fmovs_mr,(MEMW m, FR r))
 }
 MENDFUNC(2,fmovs_mr,(MEMW m, FR r))
 
+MIDFUNC(2,fmovl_ri,(FW r, IMMS i))
+{
+    r=f_writereg(r);
+    raw_fmovl_ri(r,i);
+    f_unlock(r);
+}
+MENDFUNC(2,fmovl_ri,(FW r, IMMS i))
+
+MIDFUNC(2,fmovs_ri,(FW r, IMM i))
+{
+    r=f_writereg(r);
+    raw_fmovs_ri(r,i);
+    f_unlock(r);
+}
+MENDFUNC(2,fmovs_ri,(FW r, IMM i))
+
+MIDFUNC(3,fmov_ri,(FW r, IMM i1, IMM i2))
+{
+    r=f_writereg(r);
+    raw_fmov_ri(r,i1,i2);
+    f_unlock(r);
+}
+MENDFUNC(3,fmov_ri,(FW r, IMM i1, IMM i2))
+
+MIDFUNC(4,fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
+{
+    r=f_writereg(r);
+    raw_fmov_ext_ri(r,i1,i2,i3);
+    f_unlock(r);
+}
+MENDFUNC(4,fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
+
 MIDFUNC(2,fmov_ext_mr,(MEMW m, FR r))
 {
     r=f_readreg(r);
@@ -4542,7 +4572,7 @@ void sync_m68k_pc(void)
  ********************************************************************/
 
 uae_u32 scratch[VREGS];
-fptype  fscratch[VFREGS];
+fptype fscratch[VFREGS];
 
 void init_comp(void)
 {
@@ -4844,7 +4874,7 @@ static __inline__ void match_states(smallstate* s)
 /* Only do this if you really mean it! The next call should be to init!*/
 void flush(int save_regs)
 {
-    int fi,i;
+    int i;
 
     log_flush();
     flush_flags(); /* low level */
@@ -4898,7 +4928,7 @@ void flush(int save_regs)
 
 static void flush_keepflags(void)
 {
-    int fi,i;
+    int i;
 
     for (i=0;i<VFREGS;i++) {
 	if (live.fate[i].needflush==NF_SCRATCH ||
@@ -5759,8 +5789,6 @@ static void prepare_block(blockinfo* bi)
 
 void compemu_reset(void)
 {
-    int i;
-
     set_cache_state(0);
 }
 
@@ -5902,7 +5930,6 @@ void build_comp(void)
 
 static void flush_icache_hard(int n)
 {
-    uae_u32 i;
     blockinfo* bi;
 
     hard_flush_count++;
@@ -5937,7 +5964,6 @@ static void flush_icache_hard(int n)
 
 void flush_icache(int n)
 {
-    uae_u32 i;
     blockinfo* bi;
     blockinfo* bi2;
 

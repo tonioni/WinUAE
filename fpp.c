@@ -287,19 +287,17 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
 {
     uaecptr tmppc;
     uae_u16 tmp;
-    int size;
-    int mode;
-    int reg;
+    int size, mode, reg;
     uae_u32 ad = 0;
     static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
     static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
-    if ((extra & 0x4000) == 0) {
+    if (!(extra & 0x4000)) {
 	*src = regs.fp[(extra >> 10) & 7];
 	return 1;
     }
-    mode = (opcode >> 3) & 7;
     reg = opcode & 7;
+    mode = (opcode >> 3) & 7;
     size = (extra >> 10) & 7;
     switch (mode) {
     case 0:
@@ -353,6 +351,7 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
 	    break;
 	case 3:
 	    tmppc = m68k_getpc ();
+	    write_log ("####### tpmpc %08lx\n", tmppc);
 	    tmp = next_iword ();
 	    ad = get_disp_ea_020 (tmppc, tmp);
 	    break;
@@ -417,9 +416,7 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra)
 {
     uae_u16 tmp;
     uaecptr tmppc;
-    int size;
-    int mode;
-    int reg;
+    int size, mode, reg;
     uae_u32 ad;
     static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
     static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
@@ -428,15 +425,14 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra)
     if (!isinrom ())
 	write_log ("PUTFP: %f %04.4X %04.4X\n", value, opcode, extra);
 #endif
-    if ((extra & 0x4000) == 0) {
+    if (!(extra & 0x4000)) {
 	regs.fp[(extra >> 10) & 7] = value;
 	return 1;
     }
-    mode = (opcode >> 3) & 7;
     reg = opcode & 7;
+    mode = (opcode >> 3) & 7;
     size = (extra >> 10) & 7;
     ad = -1;
-
     switch (mode) {
     case 0:
 	switch (size) {
@@ -1244,15 +1240,9 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	      fptype tmp_fp;
 
 	      __asm {
-#if USE_LONG_DOUBLE
-		fld  tbyte ptr  src
+		fld  LDPTR src
 		frndint
-		fstp tbyte ptr  tmp_fp
-#else
-		fld  qword ptr  src
-		frndint
-		fstp qword ptr  tmp_fp
-#endif
+		fstp LDPTR tmp_fp
 	      }
 	      regs.fp[reg] = tmp_fp;
 	    }

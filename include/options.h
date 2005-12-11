@@ -134,6 +134,7 @@ struct uae_prefs {
     int gfx_filter_scanlineratio;
     int gfx_filter_scanlinelevel;
     int gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
+    int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
     int gfx_filter_horiz_offset, gfx_filter_vert_offset;
     int gfx_filter_filtermode;
     int color_mode;

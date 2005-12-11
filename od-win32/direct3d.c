@@ -426,10 +426,12 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
 {
     int xm, ym;
     int fx, fy;
-    float x, y, sx, sy;
+    float x, y, sx, sy, tx, ty;
+    double mx, my;
 
     xm = currprefs.gfx_lores ? 2 : 1;
     ym = currprefs.gfx_linedbl ? 1 : 2;
+#if 0
     if (window_w >= 1024)
 	xm *= 2;
     else if (window_w < 500)
@@ -438,12 +440,18 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
 	ym *= 2;
     else if (window_h < 350)
 	ym /= 2;
+#endif
     fx = (tin_w * xm - window_w) / 2;
     fy = (tin_h * ym - window_h) / 2;
-    x = (float)(window_w * currprefs.gfx_filter_horiz_offset / 100.0);
-    y = (float)(window_h * currprefs.gfx_filter_vert_offset / 100.0);
-    sx = x + (float)(twidth * window_w / tin_w) * ((currprefs.gfx_filter_horiz_zoom + 100) / 100.0);
-    sy = y + (float)(theight * window_h / tin_h) * ((currprefs.gfx_filter_vert_zoom + 100) / 100.0);
+
+    mx = (currprefs.gfx_filter_horiz_zoom_mult * (currprefs.gfx_filter_horiz_zoom + 100)) / (100.0 * 1000.0);
+    my = (currprefs.gfx_filter_vert_zoom_mult * (currprefs.gfx_filter_vert_zoom + 100)) / (100.0 * 1000.0);
+
+    tx = x = (float)((window_w * currprefs.gfx_filter_horiz_offset / 100.0) * mx);
+    ty = y = (float)((window_h * currprefs.gfx_filter_vert_offset / 100.0) * my);
+    sx = x + (float)((twidth * window_w / tin_w) * mx);
+    sy = y + (float)((theight * window_h / tin_h) * my);
+
     x -= fx; y -= fy;
     sx += 2 * fx; sy += 2 * fy;
     *xp = x; *yp = y;

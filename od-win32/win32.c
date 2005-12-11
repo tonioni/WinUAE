@@ -2179,13 +2179,13 @@ static int dxdetect (void)
 #if !defined(WIN64)
     /* believe or not but this is MS supported way of detecting DX8+ */
     HMODULE h = LoadLibrary("D3D8.DLL");
-    char szWrongDXVersion[ MAX_DPATH ];
+    char szWrongDXVersion[MAX_DPATH];
     if (h) {
 	FreeLibrary (h);
 	return 1;
     }
-    WIN32GUI_LoadUIString( IDS_WRONGDXVERSION, szWrongDXVersion, MAX_DPATH );
-    pre_gui_message( szWrongDXVersion );
+    WIN32GUI_LoadUIString(IDS_WRONGDXVERSION, szWrongDXVersion, MAX_DPATH);
+    pre_gui_message(szWrongDXVersion);
     return 0;
 #else
     return 1;
@@ -2205,49 +2205,49 @@ static int isadminpriv (void)
     int isadmin = 0;
    
     // Open a handle to the access token for the calling process.
-    if (!OpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &hToken )) {
-	write_log ( "OpenProcessToken Error %u\n", GetLastError() );
+    if (!OpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+	write_log ("OpenProcessToken Error %u\n", GetLastError());
 	return FALSE;
     }
 
     // Call GetTokenInformation to get the buffer size.
     if(!GetTokenInformation(hToken, TokenGroups, NULL, dwSize, &dwSize)) {
 	dwResult = GetLastError();
-	if( dwResult != ERROR_INSUFFICIENT_BUFFER ) {
-	    write_log( "GetTokenInformation Error %u\n", dwResult );
+	if(dwResult != ERROR_INSUFFICIENT_BUFFER) {
+	    write_log("GetTokenInformation Error %u\n", dwResult);
 	    return FALSE;
 	}
     }
 
     // Allocate the buffer.
-    pGroupInfo = (PTOKEN_GROUPS) GlobalAlloc( GPTR, dwSize );
+    pGroupInfo = (PTOKEN_GROUPS)GlobalAlloc(GPTR, dwSize);
 
     // Call GetTokenInformation again to get the group information.
-    if(! GetTokenInformation(hToken, TokenGroups, pGroupInfo, dwSize, &dwSize ) ) {
-	write_log ( "GetTokenInformation Error %u\n", GetLastError() );
+    if(!GetTokenInformation(hToken, TokenGroups, pGroupInfo, dwSize, &dwSize)) {
+	write_log ("GetTokenInformation Error %u\n", GetLastError());
 	return FALSE;
     }
 
     // Create a SID for the BUILTIN\Administrators group.
-    if(! AllocateAndInitializeSid( &SIDAuth, 2,
+    if(!AllocateAndInitializeSid(&SIDAuth, 2,
 		 SECURITY_BUILTIN_DOMAIN_RID,
 		 DOMAIN_ALIAS_RID_ADMINS,
 		 0, 0, 0, 0, 0, 0,
-		 &pSID) ) {
+		 &pSID)) {
 	write_log( "AllocateAndInitializeSid Error %u\n", GetLastError() );
 	return FALSE;
    }
 
     // Loop through the group SIDs looking for the administrator SID.
-    for(i=0; i<pGroupInfo->GroupCount; i++) {
-	if ( EqualSid(pSID, pGroupInfo->Groups[i].Sid) )
+    for(i = 0; i < pGroupInfo->GroupCount; i++) {
+	if (EqualSid(pSID, pGroupInfo->Groups[i].Sid))
 	    isadmin = 1;
     }
     
     if (pSID)
 	FreeSid(pSID);
-    if ( pGroupInfo )
-	GlobalFree( pGroupInfo );
+    if (pGroupInfo)
+	GlobalFree(pGroupInfo);
     return isadmin;
 }
 
@@ -2357,7 +2357,7 @@ static void getstartpaths(int start_data)
     }
 
     p = getenv("AMIGAFOREVERDATA");
-    if (p && 0) {
+    if (p) {
 	strcpy (tmp, p);
 	fixtrailing(tmp);
 	strcpy (start_path_af, p);

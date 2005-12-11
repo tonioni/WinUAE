@@ -1860,7 +1860,6 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
     int size=4;
     int dir=-1;
     int len=0;
-    int j;
 
     if( n_except != STATUS_ACCESS_VIOLATION || !canbang)
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -2136,6 +2135,8 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #if 0
     if (i)
     {
+	int j;
+
 	for (j=0;j<10;j++) {
 	    write_log("JIT: instruction byte %2d is 0x%02x\n",j,i[j]);
 	}
@@ -2942,6 +2943,68 @@ LOWFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 }
 LENDFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 
+LOWFUNC(NONE,READ,2,raw_fmovl_ri,(FW r, IMMS i))
+{
+    emit_byte(0x68);
+    emit_long(i);    /* push immediate32 onto [esp] */
+    emit_byte(0xdb);
+    emit_byte(0x04);
+    emit_byte(0x24); /* fild load m32int from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x04); /* add +4 to esp */
+    tos_make(r);
+}
+LENDFUNC(NONE,READ,2,raw_fmovl_ri,(FW r, IMMS i))
+
+LOWFUNC(NONE,READ,2,raw_fmovs_ri,(FW r, IMM i))
+{
+    emit_byte(0x68);
+    emit_long(i);    /* push immediate32 onto [esp] */
+    emit_byte(0xd9);
+    emit_byte(0x04);
+    emit_byte(0x24); /* fld load m32real from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x04); /* add +4 to esp */
+    tos_make(r);
+}
+LENDFUNC(NONE,READ,2,raw_fmovs_ri,(FW r, IMM i))
+
+LOWFUNC(NONE,READ,3,raw_fmov_ri,(FW r, IMM i1, IMM i2))
+{
+    emit_byte(0x68);
+    emit_long(i2);   /* push immediate32 onto [esp] */
+    emit_byte(0x68);
+    emit_long(i1);   /* push immediate32 onto [esp] */
+    emit_byte(0xdd);
+    emit_byte(0x04);
+    emit_byte(0x24); /* fld load m64real from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x08); /* add +8 to esp */
+    tos_make(r);
+}
+LENDFUNC(NONE,READ,3,raw_fmov_ri,(FW r, IMM i1, IMM i2))
+
+LOWFUNC(NONE,READ,4,raw_fmov_ext_ri,(FW r, IMM i1, IMM i2, IMM i3))
+{
+    emit_byte(0x68);
+    emit_long(i3);   /* push immediate32 onto [esp] */
+    emit_byte(0x68);
+    emit_long(i2);   /* push immediate32 onto [esp] */
+    emit_byte(0x68);
+    emit_long(i1);   /* push immediate32 onto [esp] */
+    emit_byte(0xdb);
+    emit_byte(0x2c);
+    emit_byte(0x24); /* fld load m80real from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x0c); /* add +12 to esp */
+    tos_make(r);
+}
+LENDFUNC(NONE,READ,4,raw_fmov_ext_ri,(FW r, IMM i1, IMM i2, IMMi3))
+
 LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 {
     int rs;
@@ -2961,8 +3024,6 @@ LENDFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 
 LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr_drop,(MEMW m, FR r))
 {
-    int rs;
-
     make_tos(r);
     emit_byte(0xdb);  /* store and pop it */
     emit_byte(0x3d);
@@ -3996,7 +4057,6 @@ LOWFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 
-
 LOWFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
 {
     make_tos(r);
@@ -4017,17 +4077,17 @@ static __inline__ void raw_fflags_into_flags(int r)
     emit_byte(0xd9);
     emit_byte(0xc9+p); /* swap top two around */
     if (have_cmov) {
-	    // gb-- fucomi is for P6 cores only, not K6-2 then...
-    emit_byte(0xdb);
-    emit_byte(0xe9+p); /* fucomi them */
+	// gb-- fucomi is for P6 cores only, not K6-2 then...
+	emit_byte(0xdb);
+	emit_byte(0xe9+p); /* fucomi them */
     }
     else {
-	    emit_byte(0xdd);
-	    emit_byte(0xe1+p); /* fucom them */
-	    emit_byte(0x9b);
-	    emit_byte(0xdf);
-	    emit_byte(0xe0); /* fstsw ax */
-	    raw_sahf(0); /* sahf */
+	emit_byte(0xdd);
+	emit_byte(0xe1+p); /* fucom them */
+	emit_byte(0x9b);
+	emit_byte(0xdf);
+	emit_byte(0xe0); /* fstsw ax */
+	raw_sahf(0); /* sahf */
     }
     emit_byte(0xdd);
     emit_byte(0xd9+p);  /* store value back, and get rid of 0 */
