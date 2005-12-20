@@ -459,22 +459,31 @@ void OGL_resize (int width, int height)
 
 static void OGL_dorender (int newtex)
 {
-    float x1, y1, x2, y2, tx, ty;
     uae_u8 *data = gfxvidinfo.bufmem;
-    int fx, fy, xm, ym;
+    float x1, y1, x2, y2, tx, ty;
+    double mx, my, fx, fy, xm, ym;
 
     xm = currprefs.gfx_lores ? 2 : 1;
     ym = currprefs.gfx_linedbl ? 1 : 2;
-    if (w_width >= 1024)
-	xm *= 2;
-    else if (w_width < 500)
-	xm /= 2;
-    if (w_height >= 960)
-	ym *= 2;
-    else if (w_height < 350)
-	ym /= 2;
-    fx = (t_width * xm - w_width) / 2;
-    fy = (t_height * ym - w_height) / 2;
+
+    fx = (required_texture_size * w_width / t_width) / 2.0;
+    fy = (required_texture_size * w_height / t_height) / 2.0;
+
+    tx = fx / ((currprefs.gfx_filter_horiz_zoom_mult + currprefs.gfx_filter_horiz_zoom / 4.0) / 1000.0);
+    ty = fy / ((currprefs.gfx_filter_vert_zoom_mult + currprefs.gfx_filter_vert_zoom / 4.0) / 1000.0);
+
+    mx = (currprefs.gfx_filter_horiz_offset / 1000.0) * fx;
+    my = (currprefs.gfx_filter_vert_offset / 1000.0) * fy;
+
+    x1 = -tx;
+    y1 = -ty;
+    x2 = tx;
+    y2 = ty;
+    x1 += fx + mx;
+    y1 += fy + my;
+    x2 += tx + mx;
+    y2 += ty + my;
+
 
 #ifdef FSAA
     glEnable (GL_MULTISAMPLE_ARB);
@@ -482,15 +491,6 @@ static void OGL_dorender (int newtex)
     glClear (GL_COLOR_BUFFER_BIT);
     glMatrixMode (GL_MODELVIEW);
     glLoadIdentity ();
-
-    tx = x1 = (float)(w_width * currprefs.gfx_filter_horiz_offset / 100.0);
-    ty = y1 = (float)(w_height * currprefs.gfx_filter_vert_offset / 100.0);
-    x2 = x1 + (float)((required_texture_size * w_width / t_width) * ((currprefs.gfx_filter_horiz_zoom_mult * (currprefs.gfx_filter_horiz_zoom + 100)) / (100.0 * 1000.0)));
-    y2 = y1 + (float)((required_texture_size * w_height / t_height) * ((currprefs.gfx_filter_vert_zoom_mult * (currprefs.gfx_filter_vert_zoom + 100)) / (100.0 * 1000.0)));
-    x1 += (x2 - tx) / 2;
-    y1 += (y2 - ty) / 2;
-    x1 -= fx; y1 -= fy;
-    x2 += 2 * fx; y2 += 2 * fy;
 
     glBindTexture (GL_TEXTURE_2D, tex[0]);
     if (newtex)

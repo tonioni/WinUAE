@@ -15,7 +15,7 @@
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
-#define SPEEDUP
+//#define SPEEDUP
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -184,7 +184,7 @@ static int last_sprite_point, nr_armed;
 static int sprite_width, sprres, sprite_buffer_res;
 
 #ifdef CPUEMU_6
-int cycle_line[256];
+uae_u8 cycle_line[256];
 #endif
 
 static uae_u32 bpl1dat;
@@ -248,7 +248,7 @@ struct copper {
     /* The current instruction words.  */
     unsigned int i1, i2;
     unsigned int saved_i1, saved_i2;
-    enum copper_states state;
+    enum copper_states state, state_prev;
     /* Instruction pointer.  */
     uaecptr ip, saved_ip;
     int hpos, vpos;
@@ -2438,12 +2438,13 @@ static void VPOSW (uae_u16 v)
 
 STATIC_INLINE uae_u16 VHPOSR (void)
 {
-    uae_u16 v = GETVPOS() << 8;
+    uae_u16 vp = GETVPOS();
     uae_u16 hp = GETHPOS();
-    v |= hp;
+    vp <<= 8;
+    vp |= hp;
     if (currprefs.cpu_level >= 2)
 	hsyncdelay();
-    return v;
+    return vp;
 }
 
 STATIC_INLINE void COP1LCH (uae_u16 v) { cop1lc = (cop1lc & 0xffff) | ((uae_u32)v << 16); }
@@ -2462,6 +2463,8 @@ static void COPJMP (int num)
 
     unset_special (SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
+    if (!oldstrobe)
+	cop_state.state_prev = cop_state.state;
     cop_state.state = COP_read1;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
@@ -2471,8 +2474,8 @@ static void COPJMP (int num)
     if (dmaen (DMA_COPPER)) {
 	copper_enabled_thisline = 1;
 	set_special (SPCFLAG_COPPER);
-    } else if (oldstrobe > 0 && oldstrobe != num) {
-	/* dma disabled and accessing both COPxJMPs -> copper stops! */
+    } else if (oldstrobe > 0 && oldstrobe != num && cop_state.state_prev == COP_wait) {
+	/* dma disabled, copper idle and accessing both COPxJMPs -> copper stops! */
 	cop_state.state = COP_stop;
     }
 }
@@ -3706,7 +3709,8 @@ void blitter_done_notify (void)
 
     cop_state.hpos = current_hpos () & ~1;
     cop_state.vpos = vpos;
-    cop_state.state = COP_wait;
+    /* apparently there is small delay until copper wakes up.. */
+    cop_state.state = COP_wait_in2;
     compute_spcflag_copper ();
 }
 
@@ -3891,7 +3895,7 @@ static void do_sprites (int hpos)
 
 #ifndef CUSTOM_SIMPLE
     maxspr = hpos;
-    minspr = last_sprite_hpos;
+    minspr = last_sprite_hpos + 1;
 
     if (minspr >= SPR0_HPOS + MAX_SPRITES * 4 || maxspr < SPR0_HPOS)
 	return;
@@ -3901,7 +3905,7 @@ static void do_sprites (int hpos)
     if (minspr < SPR0_HPOS)
 	minspr = SPR0_HPOS;
 
-    for (i = minspr; i < maxspr; i++) {
+    for (i = minspr; i <= maxspr; i++) {
 	int cycle = -1;
 	int num = (i - SPR0_HPOS) / 4;
 	switch ((i - SPR0_HPOS) & 3)
@@ -4264,25 +4268,10 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
-#if 1
-{
-	cycle_line[maxhpos - 1] = CYCLE_REFRESH;
 	cycle_line[1] = CYCLE_REFRESH;
+	cycle_line[3] = CYCLE_REFRESH;
 	cycle_line[5] = CYCLE_REFRESH;
 	cycle_line[7] = CYCLE_REFRESH;
-}
-#endif
-#if 0
-{
-	int i;
-	for (i = 12; i < 0x16; i += 2)
-	    cycle_line[i] = CYCLE_NOCPU;
-	//cycle_line[4] = CYCLE_REFRESH;
-	//cycle_line[6] = CYCLE_REFRESH;
-	//cycle_line[8] = CYCLE_REFRESH;
-	//cycle_line[10] = CYCLE_REFRESH;
-}
-#endif
     }
 #endif
     if ((currprefs.chipset_mask & CSMASK_AGA) || (!currprefs.chipset_mask & CSMASK_ECS_AGNUS))

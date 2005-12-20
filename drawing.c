@@ -793,7 +793,7 @@ static void decode_ham (int pix, int stoppos)
 #endif
 		ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
 
-	    ham_linebuf[ham_decode_pixel++] = 0; //ham_lastcolor;
+	    ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
 	}
 #ifdef AGA
     } else if (currprefs.chipset_mask & CSMASK_AGA) {

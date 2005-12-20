@@ -2012,13 +2012,15 @@ static void gen_opcode (unsigned long int opcode)
 	fill_prefetch_next();
 	start_brace ();
 	printf ("\tuae_u32 newv = (uae_s32)(uae_s16)dst * (uae_s32)(uae_s16)src;\n");
-	if (using_ce)
+	if (using_ce) {
 	    printf ("\tint cycles = 36 * %d, bits;\n", CYCLE_UNIT / 2);
+	    printf ("\tuae_u32 usrc;\n");
+	}
 	genflags (flag_logical, sz_long, "newv", "", "");
 	if (using_ce) {
-	    printf ("\tsrc <<= 1;\n");
-	    printf ("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n");
-	    printf ("\t\tif ((src & 3) == 1 || (src & 3) == 2) cycles += 2 * %d;\n", CYCLE_UNIT / 2);
+	    printf ("\tusrc = ((uae_u32)src) << 1;\n");
+	    printf ("\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n");
+	    printf ("\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) cycles += 2 * %d;\n", CYCLE_UNIT / 2);
 	    addcycles3 ("\t");
 	}
 	genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");

@@ -522,7 +522,7 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (currprefs.illegal_mem) {
+    if (currprefs.illegal_mem && addr < 0xf00000) {
 	if (illegal_count < MAX_ILG) {
 	    illegal_count++;
 	    write_log ("Illegal wget at %08lx PC=%x\n", addr, m68k_getpc());

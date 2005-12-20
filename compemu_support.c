@@ -126,7 +126,7 @@ static uae_u8 *popallspace;
 
 uae_u32 m68k_pc_offset;
 
-/* Some arithmetic ooperations can be optimized away if the operands
+/* Some arithmetic operations can be optimized away if the operands
    are known to be constant. But that's only a good idea when the
    side effects they would have on the flags are not important. This
    variable indicates whether we need the side effects or not
@@ -915,7 +915,7 @@ static  int alloc_reg_hinted(int r, int size, int willclobber, int hint)
 	    raw_zero_extend_16_rr(rr,rr);
 	    raw_zero_extend_16_rr(bestreg,bestreg);
 	    raw_bswap_32(bestreg);
-	    raw_lea_l_brr_indexed(rr,rr,bestreg,1,0);
+	    raw_lea_l_rr_indexed(rr,rr,bestreg);
 	    live.state[r].validsize=4;
 	    live.nat[rr].touched=touchcnt++;
 	    return rr;
@@ -2199,8 +2199,6 @@ MIDFUNC(2,shrl_b_rr,(RW1 d, R1 r))
 }
 MENDFUNC(2,shrl_b_rr,(RW1 d, R1 r))
 
-
-
 MIDFUNC(2,shll_l_ri,(RW4 r, IMM i))
 {
     if (!i && !needflags)
@@ -2368,7 +2366,6 @@ MIDFUNC(2,shra_b_rr,(RW1 d, R1 r))
 }
 MENDFUNC(2,shra_b_rr,(RW1 d, R1 r))
 
-
 MIDFUNC(2,setcc,(W1 d, IMM cc))
 {
     CLOBBER_SETCC;
@@ -2478,17 +2475,6 @@ MIDFUNC(2,mul_64_32,(RW4 d, RW4 s))
 }
 MENDFUNC(2,mul_64_32,(RW4 d, RW4 s))
 
-MIDFUNC(2,mul_32_32,(RW4 d, R4 s))
-{
-    CLOBBER_MUL;
-    s=readreg(s,4);
-    d=rmw(d,4,4);
-    raw_mul_32_32(d,s);
-    unlock(s);
-    unlock(d);
-}
-MENDFUNC(2,mul_32_32,(RW4 d, R4 s))
-
 MIDFUNC(2,sign_extend_16_rr,(W4 d, R2 s))
 {
     int isrmw;
@@ -2550,7 +2536,6 @@ MIDFUNC(2,sign_extend_8_rr,(W4 d, R1 s))
     }
 }
 MENDFUNC(2,sign_extend_8_rr,(W4 d, R1 s))
-
 
 MIDFUNC(2,zero_extend_16_rr,(W4 d, R2 s))
 {
@@ -2649,52 +2634,50 @@ MIDFUNC(2,mov_w_rr,(W2 d, R2 s))
 }
 MENDFUNC(2,mov_w_rr,(W2 d, R2 s))
 
-
-MIDFUNC(4,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
+MIDFUNC(3,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index))
 {
     CLOBBER_MOV;
     baser=readreg(baser,4);
     index=readreg(index,4);
     d=writereg(d,4);
 
-    raw_mov_l_rrm_indexed(d,baser,index,factor);
+    raw_mov_l_rrm_indexed(d,baser,index);
     unlock(d);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index, IMM factor))
+MENDFUNC(3,mov_l_rrm_indexed,(W4 d,R4 baser, R4 index))
 
-MIDFUNC(4,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
+MIDFUNC(3,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
 {
     CLOBBER_MOV;
     baser=readreg(baser,4);
     index=readreg(index,4);
     d=writereg(d,2);
 
-    raw_mov_w_rrm_indexed(d,baser,index,factor);
+    raw_mov_w_rrm_indexed(d,baser,index);
     unlock(d);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
+MENDFUNC(3,mov_w_rrm_indexed,(W2 d, R4 baser, R4 index))
 
-MIDFUNC(4,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
+MIDFUNC(3,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
 {
     CLOBBER_MOV;
     baser=readreg(baser,4);
     index=readreg(index,4);
     d=writereg(d,1);
 
-    raw_mov_b_rrm_indexed(d,baser,index,factor);
+    raw_mov_b_rrm_indexed(d,baser,index);
 
     unlock(d);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
+MENDFUNC(3,mov_b_rrm_indexed,(W1 d, R4 baser, R4 index))
 
-
-MIDFUNC(4,mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
+MIDFUNC(3,mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
 {
     CLOBBER_MOV;
     baser=readreg(baser,4);
@@ -2704,185 +2687,61 @@ MIDFUNC(4,mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
     Dif (baser==s || index==s)
 	abort();
 
-
-    raw_mov_l_mrr_indexed(baser,index,factor,s);
+    raw_mov_l_mrr_indexed(baser,index,s);
     unlock(s);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_l_mrr_indexed,(R4 baser, R4 index, IMM factor, R4 s))
+MENDFUNC(3,mov_l_mrr_indexed,(R4 baser, R4 index, R4 s))
 
-MIDFUNC(4,mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
+MIDFUNC(3,mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
 {
     CLOBBER_MOV;
     baser=readreg(baser,4);
     index=readreg(index,4);
     s=readreg(s,2);
 
-    raw_mov_w_mrr_indexed(baser,index,factor,s);
+    raw_mov_w_mrr_indexed(baser,index,s);
     unlock(s);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_w_mrr_indexed,(R4 baser, R4 index, IMM factor, R2 s))
+MENDFUNC(3,mov_w_mrr_indexed,(R4 baser, R4 index, R2 s))
 
-MIDFUNC(4,mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
+MIDFUNC(3,mov_b_mrr_indexed,(R4 baser, R4 index, R1 s))
 {
     CLOBBER_MOV;
     s=readreg(s,1);
     baser=readreg(baser,4);
     index=readreg(index,4);
 
-    raw_mov_b_mrr_indexed(baser,index,factor,s);
+    raw_mov_b_mrr_indexed(baser,index,s);
     unlock(s);
     unlock(baser);
     unlock(index);
 }
-MENDFUNC(4,mov_b_mrr_indexed,(R4 baser, R4 index, IMM factor, R1 s))
+MENDFUNC(3,mov_b_mrr_indexed,(R4 baser, R4 index, R1 s))
 
-
-MIDFUNC(5,mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    s=readreg(s,4);
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-
-    raw_mov_l_bmrr_indexed(base,baser,index,factor,s);
-    unlock(s);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R4 s))
-
-MIDFUNC(5,mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    s=readreg(s,2);
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-
-    raw_mov_w_bmrr_indexed(base,baser,index,factor,s);
-    unlock(s);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R2 s))
-
-MIDFUNC(5,mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    s=readreg(s,1);
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-
-    raw_mov_b_bmrr_indexed(base,baser,index,factor,s);
-    unlock(s);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
-
-
-
-/* Read a long from base+baser+factor*index */
-MIDFUNC(5,mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-    d=writereg(d,4);
-    raw_mov_l_brrm_indexed(d,base,baser,index,factor);
-    unlock(d);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
-
-
-MIDFUNC(5,mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    remove_offset(d,-1);
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-    d=writereg(d,2);
-    raw_mov_w_brrm_indexed(d,base,baser,index,factor);
-    unlock(d);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, IMM factor))
-
-
-MIDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
-{
-    int basereg=baser;
-    int indexreg=index;
-
-    CLOBBER_MOV;
-    remove_offset(d,-1);
-    baser=readreg_offset(baser,4);
-    index=readreg_offset(index,4);
-    base+=get_offset(basereg);
-    base+=factor*get_offset(indexreg);
-    d=writereg(d,1);
-    raw_mov_b_brrm_indexed(d,base,baser,index,factor);
-    unlock(d);
-    unlock(baser);
-    unlock(index);
-}
-MENDFUNC(5,mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, IMM factor))
-
-/* Read a long from base+factor*index */
-MIDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
+/* Read a long from base+4*index */
+MIDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, R4 index))
 {
     int indexreg=index;
 
     if (isconst(index)) {
-	COMPCALL(mov_l_rm)(d,base+factor*live.state[index].val);
+	COMPCALL(mov_l_rm)(d,base+4*live.state[index].val);
 	return;
     }
 
     CLOBBER_MOV;
     index=readreg_offset(index,4);
-    base+=get_offset(indexreg)*factor;
+    base+=get_offset(indexreg)*4;
     d=writereg(d,4);
 
-    raw_mov_l_rm_indexed(d,base,index,factor);
+    raw_mov_l_rm_indexed(d,base,index);
     unlock(index);
     unlock(d);
 }
-MENDFUNC(4,mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
-
+MENDFUNC(3,mov_l_rm_indexed,(W4 d, IMM base, R4 index))
 
 /* read the long at the address contained in s+offset and store in d */
 MIDFUNC(3,mov_l_rR,(W4 d, R4 s, IMM offset))
@@ -3127,10 +2986,6 @@ MENDFUNC(3,lea_l_brr,(W4 d, R4 s, IMM offset))
 
 MIDFUNC(5,lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
 {
-    if (!offset) {
-	COMPCALL(lea_l_rr_indexed)(d,s,index,factor);
-	return;
-    }
     CLOBBER_LEA;
     s=readreg(s,4);
     index=readreg(index,4);
@@ -3142,20 +2997,6 @@ MIDFUNC(5,lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
     unlock(s);
 }
 MENDFUNC(5,lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM offset))
-
-MIDFUNC(4,lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
-{
-    CLOBBER_LEA;
-    s=readreg(s,4);
-    index=readreg(index,4);
-    d=writereg(d,4);
-
-    raw_lea_l_rr_indexed(d,s,index,factor);
-    unlock(d);
-    unlock(index);
-    unlock(s);
-}
-MENDFUNC(4,lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 
 /* write d to the long at the address contained in s+offset */
 MIDFUNC(3,mov_l_bRr,(R4 d, R4 s, IMM offset))
@@ -3451,7 +3292,6 @@ MIDFUNC(2,test_b_rr,(R1 d, R1 s))
     unlock(s);
 }
 MENDFUNC(2,test_b_rr,(R1 d, R1 s))
-
 
 MIDFUNC(2,and_l_ri,(RW4 d, IMM i))
 {
@@ -3984,7 +3824,6 @@ MIDFUNC(5,call_r_02,(R4 r, R4 in1, R4 in2, IMM isize1, IMM isize2))
 #endif
 }
 MENDFUNC(5,call_r_02,(R4 r, R4 in1, R4 in2, IMM isize1, IMM isize2))
-
 
 MIDFUNC(1,forget_about,(W4 r))
 {
@@ -4633,7 +4472,6 @@ void init_comp(void)
 	    live.fate[i].mem=(uae_u32*)(fscratch+i);
     }
 
-
     for (i=0;i<N_REGS;i++) {
 	live.nat[i].touched=0;
 	live.nat[i].nholds=0;
@@ -4663,7 +4501,6 @@ void init_comp(void)
 
     raw_fp_init();
 }
-
 
 static void vinton(int i, uae_s8* vton, int depth)
 {
@@ -5056,7 +4893,6 @@ void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond)
     branch_cc=cond;
 }
 
-
 static uae_u32 get_handler_address(uae_u32 addr)
 {
     uae_u32 cl=cacheline(addr);
@@ -5110,27 +4946,28 @@ static void writemem_real(int address, int source, int offset, int size, int tmp
 #endif
 
     mov_l_rr(f,address);
-    shrl_l_ri(f,16);   /* The index into the baseaddr table */
-    mov_l_rm_indexed(f,(uae_u32)(baseaddr),f,4);
+    shrl_l_ri(f,16);  /* The index into the baseaddr table */
+    mov_l_rm_indexed(f,(uae_u32)(baseaddr),f);
 
-    if (address==source && size>1) { /* IBrowse does this! */
-	add_l(f,address); /* f now has the final address */
-	switch(size) {
-	 case 2: bswap_16(source); mov_w_Rr(f,source,0); bswap_16(source); break;
-	 case 4: bswap_32(source); mov_l_Rr(f,source,0); bswap_32(source); break;
+    if (address==source) { /* IBrowse does this! */
+        if (size > 1) {
+	    add_l(f,address); /* f now holds the final address */
+	    switch (size) {
+		case 2: bswap_16(source); mov_w_Rr(f,source,0);
+			bswap_16(source); return;
+		case 4: bswap_32(source); mov_l_Rr(f,source,0);
+			bswap_32(source); return;
+	    }
 	}
     }
-    else {
-	/* f now holds the offset */
-	switch(size) {
-	 case 1: mov_b_mrr_indexed(address,f,1,source); break;
-	 case 2: bswap_16(source); mov_w_mrr_indexed(address,f,1,source); bswap_16(source); break;
-	 case 4: bswap_32(source); mov_l_mrr_indexed(address,f,1,source); bswap_32(source); break;
-	}
+    switch (size) { /* f now holds the offset */
+	case 1: mov_b_mrr_indexed(address,f,source); break;
+	case 2: bswap_16(source); mov_w_mrr_indexed(address,f,source);
+		bswap_16(source); break;	   /* base, index, source */
+	case 4: bswap_32(source); mov_l_mrr_indexed(address,f,source);
+		bswap_32(source); break;
     }
 }
-
-
 
 static __inline__ void writemem(int address, int source, int offset, int size, int tmp)
 {
@@ -5138,14 +4975,13 @@ static __inline__ void writemem(int address, int source, int offset, int size, i
 
     mov_l_rr(f,address);
     shrl_l_ri(f,16);   /* The index into the mem bank table */
-    mov_l_rm_indexed(f,(uae_u32)mem_banks,f,4);
+    mov_l_rm_indexed(f,(uae_u32)mem_banks,f);
     /* Now f holds a pointer to the actual membank */
     mov_l_rR(f,f,offset);
     /* Now f holds the address of the b/w/lput function */
     call_r_02(f,address,source,4,size);
     forget_about(tmp);
 }
-
 
 void writebyte(int address, int source, int tmp)
 {
@@ -5247,13 +5083,13 @@ static void readmem_real(int address, int dest, int offset, int size, int tmp)
 
     mov_l_rr(f,address);
     shrl_l_ri(f,16);   /* The index into the baseaddr table */
-    mov_l_rm_indexed(f,(uae_u32)baseaddr,f,4);
+    mov_l_rm_indexed(f,(uae_u32)baseaddr,f);
     /* f now holds the offset */
 
     switch(size) {
-     case 1: mov_b_rrm_indexed(dest,address,f,1); break;
-     case 2: mov_w_rrm_indexed(dest,address,f,1); bswap_16(dest); break;
-     case 4: mov_l_rrm_indexed(dest,address,f,1); bswap_32(dest); break;
+     case 1: mov_b_rrm_indexed(dest,address,f); break;
+     case 2: mov_w_rrm_indexed(dest,address,f); bswap_16(dest); break;
+     case 4: mov_l_rrm_indexed(dest,address,f); bswap_32(dest); break;
     }
     forget_about(tmp);
 }
@@ -5266,7 +5102,7 @@ static __inline__ void readmem(int address, int dest, int offset, int size, int 
 
     mov_l_rr(f,address);
     shrl_l_ri(f,16);   /* The index into the mem bank table */
-    mov_l_rm_indexed(f,(uae_u32)mem_banks,f,4);
+    mov_l_rm_indexed(f,(uae_u32)mem_banks,f);
     /* Now f holds a pointer to the actual membank */
     mov_l_rR(f,f,offset);
     /* Now f holds the address of the b/w/lget function */
@@ -5349,7 +5185,7 @@ static __inline__ void get_n_addr_real(int address, int dest, int tmp)
     mov_l_rr(f,address);
     mov_l_rr(dest,address); // gb-- nop if dest==address
     shrl_l_ri(f,16);
-    mov_l_rm_indexed(f, (uae_u32)baseaddr, f, 4);
+    mov_l_rm_indexed(f,(uae_u32)baseaddr,f);
     add_l(dest,f);
     forget_about(tmp);
 }
@@ -5382,16 +5218,14 @@ void get_n_addr_jmp(int address, int dest, int tmp)
 	f=dest;
     mov_l_rr(f,address);
     shrl_l_ri(f,16);   /* The index into the baseaddr bank table */
-    mov_l_rm_indexed(dest,(uae_u32)baseaddr,f,4);
+    mov_l_rm_indexed(dest,(uae_u32)baseaddr,f);
     add_l(dest,address);
     and_l_ri (dest, ~1);
     forget_about(tmp);
 #endif
 }
 
-
-/* base is a register, but dp is an actual value.
-   target is a register, as is tmp */
+/* base, target and tmp are registers, but dp is the actual opcode extension word */
 void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
 {
     int reg = (dp >> 12) & 15;
@@ -5449,10 +5283,10 @@ void calc_disp_ea_020(int base, uae_u32 dp, int target, int tmp)
     else { /* 68000 version */
 	if ((dp & 0x800) == 0) { /* Sign extend */
 	    sign_extend_16_rr(target,reg);
-	    lea_l_brr_indexed(target,base,target,1<<regd_shift,(uae_s32)((uae_s8)dp));
+	    lea_l_brr_indexed(target,base,target,regd_shift,(uae_s32)(uae_s8)dp);
 	}
 	else {
-	    lea_l_brr_indexed(target,base,reg,1<<regd_shift,(uae_s32)((uae_s8)dp));
+	    lea_l_brr_indexed(target,base,reg,regd_shift,(uae_s32)(uae_s8)dp);
 	}
     }
     forget_about(tmp);
@@ -6195,12 +6029,11 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 #if USE_NORMAL_CALLING_CONVENTION
 		    raw_inc_sp(4);
 #endif
-		    if (needed_flags) {
-			//raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode+65536);
-		    }
-		    else {
-			//raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode);
-		    }
+		    /*if (needed_flags)
+			raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode+65536);
+		    else
+			raw_mov_l_mi((uae_u32)&foink3,(uae_u32)opcode);
+		     */
 
 		    if (i<blocklen-1) {
 			uae_s8* branchadd;
@@ -6318,7 +6151,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		    raw_and_l_ri(r,TAGMASK);
 		    raw_mov_l_ri(r2,(uae_u32)popall_do_nothing);
 		    raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
-		    raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,4,9);
+		    raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,9);
 		    raw_jmp_r(r2);
 		}
 		else if (was_comp && isconst(PC_P)) {
@@ -6350,7 +6183,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 		    raw_and_l_ri(r,TAGMASK);
 		    raw_mov_l_ri(r2,(uae_u32)popall_do_nothing);
 		    raw_sub_l_mi((uae_u32)&countdown,scaled_cycles(totcycles));
-		    raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,4,9);
+		    raw_cmov_l_rm_indexed(r2,(uae_u32)cache_tags,r,9);
 		    raw_jmp_r(r2);
 		}
 	    }

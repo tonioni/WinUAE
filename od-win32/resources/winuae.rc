@@ -37,21 +37,21 @@ EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "System ROM Settings",-1,5,0,290,74
-    RTEXT           "Main ROM File:",IDC_ROMTEXT,10,15,75,10
+    RTEXT           "Main ROM file:",IDC_ROMTEXT,10,15,75,10
     COMBOBOX        IDC_ROMFILE,89,12,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_KICKCHOOSER,280,10,10,15
-    RTEXT           "Extended ROM File:",IDC_ROMFILE2TEXT,10,35,75,10
+    RTEXT           "Extended ROM file:",IDC_ROMFILE2TEXT,10,35,75,10
     COMBOBOX        IDC_ROMFILE2,89,31,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_ROMCHOOSER2,280,30,10,15
-    CONTROL         "MapROM emulation [] Creates BlizKick-compatible memory area.",IDC_MAPROM,
+    CONTROL         "MapROM emulation [] Creates a BlizKick-compatible memory area.",IDC_MAPROM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,95,54,82,10
     CONTROL         "ShapeShifter support [] Patches the system ROM for ShapeShifter compatibility.",IDC_KICKSHIFTER,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,54,80,10
     GROUPBOX        "Miscellaneous",-1,5,76,290,57
-    RTEXT           "Cartridge ROM File:",IDC_FLASHTEXT2,8,93,75,10
+    RTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,8,93,75,10
     COMBOBOX        IDC_CARTFILE,89,90,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_CARTCHOOSER,280,90,10,15
-    RTEXT           "Flash RAM File:",IDC_FLASHTEXT,8,112,75,10
+    RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,112,75,10
     EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
 END
@@ -87,7 +87,7 @@ BEGIN
     COMBOBOX        IDC_DA_MODE,35,183,58,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,99,179,101,20
     PUSHBUTTON      "Detect Pixel Format",IDC_TEST16BIT,210,181,73,14
-    LTEXT           "FPS Adj.:",IDC_REFRESH2TEXT,17,149,30,8
+    LTEXT           "FPS adj.:",IDC_REFRESH2TEXT,17,149,30,8
     CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,47,144,127,20
     EDITTEXT        IDC_RATE2TEXT,178,148,26,12,ES_CENTER | ES_READONLY
     COMBOBOX        IDC_RESOLUTIONDEPTH,112,27,32,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -131,7 +131,7 @@ BEGIN
     CONTROL         "68040",IDC_CPU6,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,10,108,66,10
     CONTROL         "More compatible [] Emulate 68000's prefetch registers. More compatible but slower.",IDC_COMPATIBLE,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,130,70,10
-    CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of CPU emulation. Requires 68020 or 68040 CPU.",IDC_JITENABLE,
+    CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or 68040 CPU.",IDC_JITENABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,145,64,10
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,90,5,205,86
     CONTROL         "Fastest possible, but maintain chipset timing",IDC_CS_HOST,
@@ -192,8 +192,8 @@ BEGIN
     PUSHBUTTON      "...",IDC_DF3,287,109,10,15
     GROUPBOX        "New Floppy Disk Image",IDC_SETTINGSTEXT,5,183,289,35
     COMBOBOX        IDC_FLOPPYTYPE,16,196,51,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Create standard disk [] Creates a standard 880 KB ADF disk image.",IDC_CREATE,76,196,97,15
-    PUSHBUTTON      "Create custom disk [] Creates a low level (MFM) ADF disk image (about 2MB). Useful for programs that use non-standard disk formats (for example some save disks or DOS-formatted floppies)",IDC_CREATE_RAW,183,196,101,15
+    PUSHBUTTON      "Create Standard Disk [] Creates a standard 880 KB ADF disk image.",IDC_CREATE,76,196,97,15
+    PUSHBUTTON      "Create Custom Disk [] Creates a low level (MFM) ADF disk image (about 2MB). Useful for programs that use non-standard disk formats (for example some save disks or DOS-formatted floppies)",IDC_CREATE_RAW,183,196,101,15
     GROUPBOX        "Floppy Drive Emulation Speed",IDC_SETTINGSTEXT2,5,144,289,35
     CONTROL         "",IDC_FLOPPYSPD,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,32,152,116,20
     EDITTEXT        IDC_FLOPPYSPDTEXT,169,155,107,12,ES_CENTER | ES_READONLY
@@ -209,9 +209,9 @@ EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,182
-    PUSHBUTTON      "Add &directory...",IDC_NEW_FS,5,186,60,15
-    PUSHBUTTON      "Add &hardfile...",IDC_NEW_HF,70,186,60,15
-    PUSHBUTTON      "Add ha&rd drive...",IDC_NEW_HD,135,186,60,15
+    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,186,60,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,70,186,60,15
+    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,135,186,60,15
     PUSHBUTTON      "Remove",IDC_REMOVE,235,186,60,15
     PUSHBUTTON      "&Properties",IDC_EDIT,235,207,60,15
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,205,100,10,0,HIDC_MAPDRIVES
@@ -234,7 +234,7 @@ BEGIN
     GROUPBOX        "Volume",IDC_STATIC,131,30,164,31
     CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,137,38,105,20
     EDITTEXT        IDC_SOUNDVOLUME2,247,41,40,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "Sound buffer size",IDC_STATIC,132,67,164,31
+    GROUPBOX        "Sound Buffer Size",IDC_STATIC,132,67,164,31
     CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,138,75,106,19
     EDITTEXT        IDC_SOUNDBUFFERMEM,248,78,40,12,ES_CENTER | ES_READONLY
     GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,6,101,290,60
@@ -277,14 +277,14 @@ BEGIN
     CONTROL         "Ignore link",IDC_CONFIGNOLINK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,146,206,48,10
     EDITTEXT        IDC_EDITPATH,199,161,49,15,ES_AUTOHSCROLL | WS_DISABLED,0,HIDC_EDITPATH
     CONTROL         "Autoload",IDC_CONFIGAUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,253,163,42,10
-    GROUPBOX        "Additional information",IDC_STATIC,199,179,96,38,BS_LEFT
+    GROUPBOX        "Additional Information",IDC_STATIC,199,179,96,38,BS_LEFT
     PUSHBUTTON      "View",IDC_VIEWINFO,210,195,35,15
     PUSHBUTTON      "Set",IDC_SETINFO,250,195,35,15
     PUSHBUTTON      "Load",IDC_QUICKLOAD,5,225,40,15
     PUSHBUTTON      "Save",IDC_QUICKSAVE,50,225,40,15
-    PUSHBUTTON      "Load from...",IDC_LOAD,125,225,45,15
-    PUSHBUTTON      "Save as...",IDC_SAVE,175,225,40,15
+    PUSHBUTTON      "Load From...",IDC_LOAD,125,225,45,15
     PUSHBUTTON      "Delete",IDC_DELETE,255,225,40,15
+    PUSHBUTTON      "Save As...",IDC_SAVE,175,225,40,15
 END
 
 IDD_PORTS DIALOGEX 0, 0, 300, 222
@@ -297,7 +297,7 @@ BEGIN
     PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,220,14,58,12
     CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,11,33,78,12
     CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,93,33,100,12
-    RTEXT           "Autoflush timeout [] Time in seconds after pending print job is automatically flushed.",IDC_PRINTERAUTOFLUSHTXT,202,32,57,15,SS_NOTIFY | SS_CENTERIMAGE
+    RTEXT           "Autoflush timeout [] Time in seconds after a pending print job is automatically flushed.",IDC_PRINTERAUTOFLUSHTXT,202,32,57,15,SS_NOTIFY | SS_CENTERIMAGE
     EDITTEXT        IDC_PRINTERAUTOFLUSH,263,33,25,12,ES_NUMBER
     RTEXT           "Ghostscript extra parameters:",IDC_STATIC,12,49,91,15,SS_CENTERIMAGE
     EDITTEXT        IDC_PS_PARAMS,120,50,169,12,ES_AUTOHSCROLL
@@ -346,7 +346,8 @@ BEGIN
     CONTROL         "",IDC_CAPS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,200,145,80,15
     CONTROL         "",IDC_ABIME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,145,80,15
     CONTROL         "",IDC_CLOANTOHOME,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,20,90,80,20
-    CONTROL         "",IDC_AMIGASYS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,110,169,80,15
+    CONTROL         "",IDC_AMIGASYS,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,63,169,80,15
+    CONTROL         "",IDC_AMIKIT,"RICHEDIT",TCS_SCROLLOPPOSITE | TCS_RAGGEDRIGHT | TCS_MULTISELECT | WS_DISABLED,157,169,80,15
 END
 
 IDD_MISC1 DIALOGEX 0, 0, 300, 219
@@ -443,7 +444,7 @@ END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
 STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
-CAPTION "Info Settings"
+CAPTION "Additional Information Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     RTEXT           "Path:",-1,5,20,24,15,SS_CENTERIMAGE
@@ -458,11 +459,11 @@ STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "Chipset",IDC_STATIC,14,11,145,82
-    CONTROL         "OCS [] Original Amiga chipset. A1000 and most A500s.",IDC_OCS,
+    CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,38,31,51,10
-    CONTROL         "ECS Agnus [] Enhanced Chipset (ECS Agnus chip only). Later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
+    CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). Later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,38,47,55,10
-    CONTROL         "Full ECS [] Full ECS Chipset (ECS Agnus and ECS Denise chips). A500+, A600, A3000.",IDC_ECS,
+    CONTROL         "Full ECS [] Full ECS chipset (ECS Agnus and ECS Denise chips). A500+, A600 and A3000.",IDC_ECS,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,38,63,52,10
     CONTROL         "AGA [] Advanced Graphics Architecture chipset. A1200, A4000 and CD32.",IDC_AGA,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,101,31,51,10
@@ -678,7 +679,7 @@ BEGIN
     RTEXT           "Best compatibility",IDC_STATIC,13,70,67,10,SS_CENTERIMAGE
     CONTROL         "",IDC_QUICKSTART_COMPATIBILITY,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,65,115,21
     RTEXT           "Low compatibility",IDC_STATIC,215,70,63,10,SS_CENTERIMAGE
-    GROUPBOX        "Host configuration",IDC_QUICKSTART_HOST,3,91,294,33
+    GROUPBOX        "Host Configuration",IDC_QUICKSTART_HOST,3,91,294,33
     RTEXT           "Configuration:",IDC_STATIC,5,105,55,10,SS_CENTERIMAGE
     COMBOBOX        IDC_QUICKSTART_HOSTCONFIG,65,103,225,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Emulated Floppy Drives",IDC_QUICKSTART_DF,3,126,294,84
@@ -818,8 +819,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,1,0
- PRODUCTVERSION 1,1,1,0
+ FILEVERSION 1,2,0,0
+ PRODUCTVERSION 1,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -835,12 +836,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.1.1"
+            VALUE "FileVersion", "1.2"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2005 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.1.1"
+            VALUE "ProductVersion", "1.2"
         END
     END
     BLOCK "VarFileInfo"
@@ -1071,7 +1072,7 @@ BEGIN
     IDS_AVIOUTPUT_NOCODEC   "no codec selected"
     IDS_DISK_IMAGENAME      "Disk image"
     IDS_DISK_DRIVENAME      "Drive"
-    IDS_AGA8BIT             "AGA emulation requires a 16 bit or higher display depth\nSwitching from 8-bit to 16-bit"
+    IDS_AGA8BIT             "AGA emulation requires a 16-bit or higher display depth.\nSwitching from 8-bit to 16-bit."
     IDS_UNSUPPORTEDSCREENMODE 
                             "The selected screen mode can't be displayed in a window, because %s\nSwitching to full-screen display."
     IDS_UNSUPPORTEDSCREENMODE_1 
@@ -1081,9 +1082,9 @@ END
 STRINGTABLE 
 BEGIN
     IDS_UNSUPPORTEDSCREENMODE_2 
-                            "the desktop is running in 8 bit color depth, which WinUAE can't use in windowed mode."
+                            "the desktop is running in 8-bit color depth, which WinUAE can't use in windowed mode."
     IDS_UNSUPPORTEDSCREENMODE_3 
-                            "the desktop is too small for the specified window size"
+                            "the desktop is too small for the specified window size."
     IDS_UNSUPPORTEDSCREENMODE_4 
                             "you selected an RTG (Picasso96) display with a color depth different from that of the desktop and an overlay was unavailable."
     IDS_FLOPPYTYPE35DD      "3.5"" DD"
@@ -1095,7 +1096,7 @@ BEGIN
     IDS_TREEVIEW_HOST       "Host"
     IDS_TREEVIEW_MISC       "Miscellaneous"
     IDS_TREEVIEW_SETTINGS   "Settings"
-    IDS_WINUAETITLE_MMB     "[Mouse active - press ALT+TAB or middle-button to cancel]"
+    IDS_WINUAETITLE_MMB     "[Mouse active - press ALT+TAB or middle mouse button to cancel]"
     IDS_WINUAETITLE_NORMAL  "[Mouse active - press ALT+TAB to cancel]"
     IDS_STARTEMULATION      "Start"
     IDS_TREEVIEW_ABOUT      "About"
@@ -1103,12 +1104,12 @@ END
 
 STRINGTABLE 
 BEGIN
-    IDS_NOHARDDRIVES        "No Amiga formatted or completely empty harddrives detected."
+    IDS_NOHARDDRIVES        "No hard disks detected that were either empty or RDB-partitioned."
     IDS_DEFAULT_HOST        "Default Configuration"
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FastFileSystem, SmartFilesystem, etc.)"
-    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = fire)\nKeyboard Layout B (Cursor keys, right CTRL and ALT = fire)\nKeyboard Layout C (T=up B=down F=left H=right, left ALT = fire)\nX-Arcade (Left)\nX-Arcade (Right)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (T=Up B=Down F=Left H=Right, Left ALT = Fire)\nX-Arcade (Left)\nX-Arcade (Right)"
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"
@@ -1128,20 +1129,20 @@ END
 STRINGTABLE 
 BEGIN
     IDS_NUMSG_NOEXTROM      "No extended ROM found."
-    IDS_NUMSG_MODRIP_NOTFOUND "No modules or compressed data found."
+    IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nDo you want to save it?"
-    IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 CPU or higher CPU."
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nWould you like to save it?"
+    IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
-    IDS_NUMSG_STATEHD       "WARNING: State saves do not support hard drive emulation. This message does not appear again."
-    IDS_NUMSG_NOCAPS        "This disk image needs the SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
+    IDS_NUMSG_STATEHD       "WARNING: State saves do not support hard drive emulation. This message will not appear again."
+    IDS_NUMSG_NOCAPS        "Selected disk image needs the SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_NUMSG_OLDCAPS       "You need an updated SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_IMGCHK_BOOTBLOCKCRCERROR 
-                            "Selected floppy disk image is not bootable (boot block checksum error)"
-    IDS_IMGCHK_BOOTBLOCKNO  "Selected floppy disk image is not bootable (no boot block)"
-    IDS_IMGCHK_DAMAGED      "Selected floppy disk image is damaged or unformatted"
-    IDS_IMGCHK_KS2          "Selected floppy disk image requires a 2.04 or later system ROM.\nThe configuration has been updated."
-    IDS_IMGCHK_KS3          "Selected floppy disk image requires a 3.0 or later system ROM.\nThe configuration has been updated."
+                            "The selected floppy disk image is not bootable (boot block checksum error)"
+    IDS_IMGCHK_BOOTBLOCKNO  "The selected floppy disk image is not bootable (no boot block)"
+    IDS_IMGCHK_DAMAGED      "The selected floppy disk image is damaged or unformatted"
+    IDS_IMGCHK_KS2          "The selected floppy disk image requires a 2.04 or later system ROM.\nThe configuration has been updated."
+    IDS_IMGCHK_KS3          "The selected floppy disk image requires a 3.0 or later system ROM.\nThe configuration has been updated."
     IDS_ROMSCANEND          "Scan of ROMs finished"
 END
 
@@ -1153,9 +1154,9 @@ BEGIN
                             "Warning: The safety test has been disabled, and non-empty hard disks were detected.\n\nHard disks marked with 'HD_*_' are not empty."
     IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68EC020 or higher CPU."
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
-    IDS_NUMSG_KICKREP       "You need to have a floppy disk image file in DF0 to use the system ROM replacement."
-    IDS_NUMSG_KICKREPNO     "The floppy disk image file in DF0: is not compatible with the system ROM replacement functionality."
-    IDS_NUMSG_NOROM         "Could not load Kickstart ROM, trying Kickstart replacement."
+    IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
+    IDS_NUMSG_KICKREPNO     "The floppy disk (image file) in DF0: is not compatible with the system ROM replacement functionality."
+    IDS_NUMSG_NOROM         "Could not load Kickstart ROM, trying system ROM replacement."
     IDS_HDCLONE_OK          "Hard drive image file created succesfully."
     IDS_HDCLONE_FAIL        "Hard drive image file creation failed, error code %d."
 END

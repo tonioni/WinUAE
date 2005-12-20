@@ -312,6 +312,8 @@
 #define IDC_CAPS                        1077
 #define IDC_ABIME                       1078
 #define IDC_AMIGASYS                    1079
+#define IDC_AMIGASYS2                   1080
+#define IDC_AMIKIT                      1080
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092
 #define IDC_CONTRIBUTORS                1124

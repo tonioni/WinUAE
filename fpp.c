@@ -351,7 +351,6 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
 	    break;
 	case 3:
 	    tmppc = m68k_getpc ();
-	    write_log ("####### tpmpc %08lx\n", tmppc);
 	    tmp = next_iword ();
 	    ad = get_disp_ea_020 (tmppc, tmp);
 	    break;
@@ -1272,7 +1271,10 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    regs.fp[reg] = sinh (src);
 	    break;
 	case 0x03: /* FINTRZ */
-	    regs.fp[reg] = (int) src;
+	    if (src >= 0.0)
+		regs.fp[reg] = floor (src);
+	    else
+		regs.fp[reg] = ceil (src);
 	    break;
 	case 0x04: /* FSQRT */
 	case 0x41:
@@ -1298,7 +1300,7 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    break;
 	case 0x0d: /* FATANH */
 #if 1	/* The BeBox doesn't have atanh, and it isn't in the HPUX libm either */
-	    regs.fp[reg] = log ((1 + src) / (1 - src)) / 2;
+	    regs.fp[reg] = 0.5 * log ((1 + src) / (1 - src));
 #else
 	    regs.fp[reg] = atanh (src);
 #endif
@@ -1371,7 +1373,14 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 		fround (reg);
 	    break;
 	case 0x21: /* FMOD */
-	    regs.fp[reg] = regs.fp[reg] - (double) ((int) (regs.fp[reg] / src)) * src;
+	    {
+	      fptype divi = regs.fp[reg] / src;
+
+	      if (divi >= 0.0)
+		regs.fp[reg] -= src * floor (divi);
+	      else
+		regs.fp[reg] -= src * ceil (divi);
+	    }
 	    break;
 	case 0x22: /* FADD */
 	case 0x62:
@@ -1391,10 +1400,14 @@ void fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    regs.fp[reg] /= src;
 	    break;
 	case 0x25: /* FREM */
-	    regs.fp[reg] = regs.fp[reg] - (double) ((int) (regs.fp[reg] / src + 0.5)) * src;
+	    regs.fp[reg] -= src * floor ((regs.fp[reg] / src) + 0.5);
 	    break;
 	case 0x26: /* FSCALE */
+#ifdef ldexp
+	    regs.fp[reg] = ldexp (regs.fp[reg], (int) src);
+#else
 	    regs.fp[reg] *= exp (*fp_ln_2 * (int) src);
+#endif
 	    break;
 	case 0x27: /* FSGLMUL */
 	    regs.fp[reg] *= src;

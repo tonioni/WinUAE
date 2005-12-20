@@ -60,7 +60,7 @@ static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown;
 static int blit_linecyclecounter, blit_misscyclecounter;
 
 #ifdef CPUEMU_6
-extern int cycle_line[];
+extern uae_u8 cycle_line[];
 #endif
 
 static long blit_firstline_cycles;
@@ -170,7 +170,7 @@ static int blit_cycle_diagram_fill[][10] =
 
 /*
 
-    line draw takes 4 cycles (two 2-cycle blits combined)
+    line draw takes 4 cycles (-X-X)
     it also have real idle cycles and only 2 dma fetches
     (read from C, write to D, but see below)
 
@@ -186,7 +186,7 @@ static int blit_cycle_diagram_fill[][10] =
 
 static int blit_cycle_diagram_line[] =
 {
-    0, 4, 3,5,4,5  /* guessed */
+    0, 4, 0,3,0,4, 0,0,0,0,0,0,0,0,0,0  /* guessed */
 };
 
 static int blit_cycle_diagram_finald[] =
@@ -258,7 +258,7 @@ STATIC_INLINE int canblit (int hpos)
 	return 0;
     if (cycle_line[hpos] == 0)
 	return 1;
-    if (cycle_line[hpos] & (CYCLE_REFRESH | CYCLE_SPRITE | CYCLE_MISC))
+    if (cycle_line[hpos] & CYCLE_REFRESH)
 	return -1;
     return 0;
 }
@@ -526,6 +526,10 @@ static void blitter_line(void)
 	blitahold = 0;
     blitonedot = 1;
     blt_info.bltddat = blit_func(blitahold, blitbhold, blitchold, bltcon0 & 0xFF);
+}
+
+static void blitter_line_proc(void)
+{
     if (!blitsign){
 	if (bltcon0 & 0x800)
 	    bltapt += (uae_s16)blt_info.bltamod;
@@ -581,35 +585,31 @@ static void decide_blitter_line (int hpos)
 	while (blit_last_hpos < hpos) {
 	    int c = channel_state (blit_cyclecounter);
 	    for (;;) {
-
-		if (c == 5) {
-		    blit_cyclecounter++;
-		    break;
+		if (c) {
+		    if (!canblit(blit_last_hpos))
+			break;
 		}
-#if 1
-		if (c && canblit(blit_last_hpos) <= 0)
-		    break;
-#endif
-#if 1
-		if (c != 0)
-		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
-#endif
 		blit_cyclecounter++;
-		if (c == 4) {
-		    /* believe it or not but try Cardamon or Cardamom without this.. */
-		    if (ddat1use)
-			bltdpt = bltcpt;
+		if (c == 3) {
 		    blitter_read();
-		    blitter_line();
-		    blitter_write();
-		    blitter_nxline();
+		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+		} else if (c == 4) {
+		    if (ddat1use) {
+			bltdpt = bltcpt;
+		    }
 		    ddat1use = 1;
+		    blitter_line();
+		    blitter_line_proc();
+		    blitter_nxline();
+		    blitter_write();
+		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
 		    if (blt_info.vblitsize == 0) {
-			blitter_done();
-			return;
+			bltdpt = bltcpt;
+		        blitter_done();
+		        return;
 		    }
 		}
-		break;
+	        break;
 	    }
 	    blit_last_hpos++;
 	}
@@ -628,6 +628,7 @@ static void actually_do_blit(void)
 	do {
 	    blitter_read();
 	    blitter_line();
+	    blitter_line_proc();
 	    blitter_write();
 	    bltdpt = bltcpt;
 	    blitter_nxline();

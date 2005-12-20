@@ -2485,6 +2485,7 @@ static urlinfo urls[] =
     {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
     {IDC_CAPS, FALSE, "SPS", "http://www.softpres.org/"},
     {IDC_AMIGASYS, FALSE, "AmigaSYS", "http://amigasys.fw.hu/"},
+    {IDC_AMIKIT, FALSE, "AmiKit", "http://amikit.amiga.sk/"},
     { -1, FALSE, NULL, NULL }
 };
 
