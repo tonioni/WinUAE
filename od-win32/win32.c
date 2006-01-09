@@ -919,7 +919,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			num -= 6;
 			if (nm->code == NM_RCLICK) {
 			    disk_eject (num);
-			} else {
+			} else if (changed_prefs.dfxtype[num] >= 0) {
 			    DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
 			    disk_insert (num, changed_prefs.df[num]);
 			}
@@ -1640,7 +1640,7 @@ void logging_init( void )
 	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 	SystemInfo.dwNumberOfProcessors);
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-	       "\n(c) 1998-2005 Toni Wilen      - Win32 port, core code updates."
+	       "\n(c) 1998-2006 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 	       "\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 	       "\n(c) 2000-2001 Bernd Meyer     - JIT engine."

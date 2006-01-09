@@ -3078,28 +3078,38 @@ LOWFUNC(NONE,NONE,3,raw_fsincos_rr,(FW d, FW c, FR s))
 {
     int ds;
 
+    if (s==d) {
+	//write_log ("FSINCOS src = dest\n");
+	make_tos(s);
+	emit_byte(0xd9);
+	emit_byte(0xfb); /* fsincos sin(x) push cos(x) */
+	tos_make(c);     /* store cos(x) to c */
+	return;
+    }
+
     ds=stackpos(s);
     emit_byte(0xd9);
     emit_byte(0xc0+ds);  /* fld x */
     emit_byte(0xd9);
     emit_byte(0xfb);     /* fsincos sin(x) push cos(x) */
-    if ((live.spos[c]<0)&&(live.spos[d]<0)) {
-	live.tos++;
-	live.spos[d]=live.tos;
-	live.onstack[live.tos]=d; /* sin(x) comes first */
-	live.tos++;
-	live.spos[c]=live.tos;
-	live.onstack[live.tos]=c;
-	return;          /* occupy both regs directly */
-    }
     if (live.spos[c]<0) {
-	emit_byte(0xd9);
-	emit_byte(0xc9); /* fxch swap cos(x) with sin(x) */
-	emit_byte(0xdd); /* store sin(x) to d & pop */
-	emit_byte(0xd8+(live.tos+2)-live.spos[d]);
-	live.tos++;      /* occupy a reg for cos(x) here */
-	live.spos[c]=live.tos;
-	live.onstack[live.tos]=c;
+	if (live.spos[d]<0) { /* occupy both regs directly */
+	    live.tos++;
+	    live.spos[d]=live.tos;
+	    live.onstack[live.tos]=d; /* sin(x) comes first */
+	    live.tos++;
+	    live.spos[c]=live.tos;
+	    live.onstack[live.tos]=c;
+	}
+	else {
+	    emit_byte(0xd9);
+	    emit_byte(0xc9); /* fxch swap cos(x) with sin(x) */
+	    emit_byte(0xdd); /* store sin(x) to d & pop */
+	    emit_byte(0xd8+(live.tos+2)-live.spos[d]);
+	    live.tos++;      /* occupy a reg for cos(x) here */
+	    live.spos[c]=live.tos;
+	    live.onstack[live.tos]=c;
+	}
     }
     else {
 	emit_byte(0xdd); /* store cos(x) to c & pop */
@@ -3149,7 +3159,7 @@ LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
     emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
     emit_byte(0xd8);
     emit_byte(0x05);
-    emit_long((uae_u32)&one);  /* fadd (2^frac(x))-1 + 1 */
+    emit_long((uae_u32)&one); /* fadd (2^frac(x))-1 + 1 */
     emit_byte(0xd9);
     emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x) */
     emit_byte(0xdd);
@@ -3162,9 +3172,13 @@ LOWFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xea);    /* fldl2e log2(e) */
     emit_byte(0xd8);
@@ -3186,7 +3200,8 @@ LOWFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
     emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(e)) */
     emit_byte(0xdd);
     emit_byte(0xd9);    /* fstp copy & pop */
-    tos_make(d);        /* store y=e^x */
+    if (s!=d)
+	tos_make(d);    /* store y=e^x */
 }
 LENDFUNC(NONE,NONE,2,raw_fetox_rr,(FW d, FR s))
 
@@ -3194,9 +3209,13 @@ LOWFUNC(NONE,NONE,2,raw_fetoxM1_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xea);    /* fldl2e log2(e) */
     emit_byte(0xd8);
@@ -3215,7 +3234,8 @@ LOWFUNC(NONE,NONE,2,raw_fetoxM1_rr,(FW d, FR s))
     emit_byte(0xfd);    /* fscale ((2^frac(x))-1)*2^int(x*log2(e)) */
     emit_byte(0xdd);
     emit_byte(0xd9);    /* fstp copy & pop */
-    tos_make(d);        /* store y=(e^x)-1 */
+    if (s!=d)
+	tos_make(d);    /* store y=(e^x)-1 */
 }
 LENDFUNC(NONE,NONE,2,raw_fetoxM1_rr,(FW d, FR s))
 
@@ -3223,9 +3243,13 @@ LOWFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xe9);    /* fldl2t log2(10) */
     emit_byte(0xd8);
@@ -3247,7 +3271,8 @@ LOWFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
     emit_byte(0xfd);    /* fscale (2^frac(x))*2^int(x*log2(10)) */
     emit_byte(0xdd);
     emit_byte(0xd9);    /* fstp copy & pop */
-    tos_make(d);        /* store y=10^x */
+    if (s!=d)
+	tos_make(d);    /* store y=10^x */
 }
 LENDFUNC(NONE,NONE,2,raw_ftentox_rr,(FW d, FR s))
 
@@ -3255,16 +3280,21 @@ LOWFUNC(NONE,NONE,2,raw_flog2_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xe8);    /* fld1 1 */
     emit_byte(0xd9);
     emit_byte(0xc9);    /* fxch swap 1 with x */
     emit_byte(0xd9);
     emit_byte(0xf1);    /* fyl2x 1*log2(x) */
-    tos_make(d);        /* store y=log2(x) */
+    if (s!=d)
+	tos_make(d);    /* store y=log2(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_flog2_rr,(FW d, FR s))
 
@@ -3272,16 +3302,21 @@ LOWFUNC(NONE,NONE,2,raw_flogN_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xed);    /* fldln2 logN(2) */
     emit_byte(0xd9);
     emit_byte(0xc9);    /* fxch swap logN(2) with x */
     emit_byte(0xd9);
     emit_byte(0xf1);    /* fyl2x logN(2)*log2(x) */
-    tos_make(d);        /* store y=logN(x) */
+    if (s!=d)
+	tos_make(d);    /* store y=logN(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_flogN_rr,(FW d, FR s))
 
@@ -3289,16 +3324,21 @@ LOWFUNC(NONE,NONE,2,raw_flogNP1_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xed);    /* fldln2 logN(2) */
     emit_byte(0xd9);
     emit_byte(0xc9);    /* fxch swap logN(2) with x */
     emit_byte(0xd9);
     emit_byte(0xf9);    /* fyl2xp1 logN(2)*log2(x+1) */
-    tos_make(d);        /* store y=logN(x+1) */
+    if (s!=d)
+	tos_make(d);    /* store y=logN(x+1) */
 }
 LENDFUNC(NONE,NONE,2,raw_flogNP1_rr,(FW d, FR s))
 
@@ -3306,16 +3346,21 @@ LOWFUNC(NONE,NONE,2,raw_flog10_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xec);    /* fldlg2 log10(2) */
     emit_byte(0xd9);
     emit_byte(0xc9);    /* fxch swap log10(2) with x */
     emit_byte(0xd9);
     emit_byte(0xf1);    /* fyl2x log10(2)*log2(x) */
-    tos_make(d);        /* store y=log10(x) */
+    if (s!=d)
+	tos_make(d);    /* store y=log10(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_flog10_rr,(FW d, FR s))
 
@@ -3379,14 +3424,19 @@ LOWFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))
 {
     int ds;
 
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds); /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xe8);    /* fld 1.0 */
     emit_byte(0xd9);
     emit_byte(0xf3);    /* fpatan atan(x)/1  & pop*/
-    tos_make(d);        /* store y=atan(x) */
+    if (s!=d)
+	tos_make(d);    /* store y=atan(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))
 
@@ -3430,9 +3480,13 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
     int ds,tr;
 
     tr=live.onstack[live.tos+3];
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds);  /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xea);     /* fldl2e log2(e) */
     emit_byte(0xd8);
@@ -3511,7 +3565,8 @@ LOWFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
     emit_byte(0xfd);     /* fscale ((e^x)-(e^-x))/2 */
     emit_byte(0xdd);
     emit_byte(0xd9);     /* fstp copy & pop */
-    tos_make(d);         /* store y=sinh(x) */
+    if (s!=d)
+	tos_make(d);     /* store y=sinh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fsinh_rr,(FW d, FR s))
 
@@ -3520,9 +3575,13 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
     int ds,tr;
 
     tr=live.onstack[live.tos+3];
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds);  /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xea);     /* fldl2e log2(e) */
     emit_byte(0xd8);
@@ -3597,7 +3656,8 @@ LOWFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
     emit_byte(0xfd);     /* fscale ((e^x)+(e^-x))/2 */
     emit_byte(0xdd);
     emit_byte(0xd9);     /* fstp copy & pop */
-    tos_make(d);         /* store y=cosh(x) */
+    if (s!=d)
+	tos_make(d);     /* store y=cosh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_fcosh_rr,(FW d, FR s))
 
@@ -3606,9 +3666,13 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
     int ds,tr;
 
     tr=live.onstack[live.tos+3];
-    ds=stackpos(s);
-    emit_byte(0xd9);
-    emit_byte(0xc0+ds);  /* fld x */
+    if (s==d)
+	make_tos(s);
+    else {
+	ds=stackpos(s);
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld x */
+    }
     emit_byte(0xd9);
     emit_byte(0xea);     /* fldl2e log2(e) */
     emit_byte(0xd8);
@@ -3683,7 +3747,8 @@ LOWFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 	emit_byte(0xde);
 	emit_byte(0xf1); /* fdivrp ((e^x)-(e^-x))/((e^x)+(e^-x)) */
     }
-    tos_make(d);         /* store y=tanh(x) */
+    if (s!=d)
+	tos_make(d);     /* store y=tanh(x) */
 }
 LENDFUNC(NONE,NONE,2,raw_ftanh_rr,(FW d, FR s))
 

@@ -450,20 +450,23 @@ int my_mkdir (const char *name)
 
 static int recycle (const char *name)
 {
-    SHFILEOPSTRUCT fos;
-    /* name must be terminated by \0\0 */
-    char *p = xcalloc (strlen (name) + 2, 1);
-    int v;
+    if (currprefs.win32_norecyclebin) {
+	return DeleteFile(name) ? 0 : -1;
+    } else {
+        SHFILEOPSTRUCT fos;
+	/* name must be terminated by \0\0 */
+	char *p = xcalloc (strlen (name) + 2, 1);
+	int v;
     
-    strcpy (p, name);
-    memset (&fos, 0, sizeof (fos));
-    fos.wFunc = FO_DELETE;
-    fos.pFrom = p;
-    fos.fFlags = (currprefs.win32_norecyclebin ? 0 : FOF_ALLOWUNDO) |
-	FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
-    v = SHFileOperation (&fos);
-    xfree (p);
-    return v ? -1 : 0;
+	strcpy (p, name);
+	memset (&fos, 0, sizeof (fos));
+	fos.wFunc = FO_DELETE;
+	fos.pFrom = p;
+	fos.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
+	v = SHFileOperation (&fos);
+	xfree (p);
+	return v ? -1 : 0;
+    }
 }
 
 int my_rmdir (const char *name)
@@ -704,6 +707,8 @@ int dos_errno (void)
 
      case ERROR_SHARING_VIOLATION:
      case ERROR_BUSY:
+     /* SHFileOperation() returns this if file can't be deleted!?! */
+     case ERROR_INVALID_HANDLE:
 	return ERROR_OBJECT_IN_USE;
 
      case ERROR_CURRENT_DIRECTORY:

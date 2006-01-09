@@ -933,7 +933,7 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
 	    v >>= offs * 2;
 	    v &= 15;
 #if SPRITE_DEBUG > 0
-	    v |= 1 | 4;
+	    v ^= 8;
 #endif
 
 	    if (has_attach && (stbuf[pos] & (3 << offs))) {

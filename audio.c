@@ -25,6 +25,7 @@
 #include "driveclick.h"
 #include "zfile.h"
 #include "uae.h"
+#include "gui.h"
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -285,6 +286,62 @@ static int saved_ptr;
 #define	MIXED_STEREO_MAX 32
 static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
 
+static double l_output[3], r_output[3];
+static double f_36, f_33, f_135;
+
+/* Amiga has two separate filtering circuits per channel, a static RC filter
+ * on A500 and the LED filter. This code emulates both.
+ * 
+ * The Amiga filtering circuitry depends on Amiga model. Older Amigas seem
+ * to have a 6 dB/oct RC filter with cutoff frequency such that the -6 dB
+ * point for filter is reached at 6 kHz, while newer Amigas have no filtering.
+ *
+ * The LED filter is complicated, and we are modelling it with a pair of
+ * RC filters, the other providing a highboost. The LED starts to cut
+ * into signal somewhere around 5-6 kHz, and there's some kind of highboost
+ * in effect above 12 kHz. Better measurements are required.
+ *
+ * The current filtering should be accurate to 2 dB with the filter on,
+ * and to 1 dB with the filter off.
+*/
+
+static int filter(int data, double *output)
+{
+    double s, o;
+
+    data = (uae_s16)data;
+
+    if (currprefs.sound_freq != 44100)
+	return data;
+
+    if (currprefs.sound_filter == FILTER_SOUND_ON_A500 ||
+	(currprefs.sound_filter == FILTER_SOUND_EMUL && !(currprefs.chipset_mask & CSMASK_AGA))
+    ) {
+	s = 0.36 * data;
+	s += 0.64 * output[2];
+	output[2] = s;
+    } else {
+	output[2] = data;
+    }
+    /* output[0] is output[2] through lowpass */
+    s  = 0.33 * output[2];
+    s += 0.67 * output[0];
+    output[0] = s;
+    /* output[1] is output[2] with slight highboost */
+    s  = 1.35 * output[0];
+    s -= 0.35 * output[1];
+    output[1] = s;
+    if (gui_data.powerled)
+	o = output[2];
+    else
+	o = output[1] * 0.98; /* to avoid overruns */
+    if (o > 32767)
+	o = 32767;
+    else if (o < -32768)
+	o = -32768;
+    return (int)o;
+}
+
 STATIC_INLINE void put_sound_word_right (uae_u32 w)
 {
     if (mixed_on) {
@@ -338,7 +395,7 @@ void sample16_handler (void)
     {
 	uae_u32 data = SBASEVAL16(2) + data0;
 	FINISH_DATA (data, 16, 2);
-	PUT_SOUND_WORD (data);
+	PUT_SOUND_WORD_MONO (data);
     }
     check_sound_buffers ();
 }
@@ -389,7 +446,7 @@ void sample16i_rh_handler (void)
     {
 	uae_u32 data = SBASEVAL16(2) + data0;
 	FINISH_DATA (data, 16, 2);
-	PUT_SOUND_WORD (data);
+	PUT_SOUND_WORD_MONO (data);
     }
     check_sound_buffers ();
 }
@@ -460,7 +517,7 @@ void sample16i_crux_handler (void)
     {
 	uae_u32 data = SBASEVAL16(2) + data0;
 	FINISH_DATA (data, 16, 2);
-	PUT_SOUND_WORD (data);
+	PUT_SOUND_WORD_MONO (data);
     }
     check_sound_buffers ();
 }
@@ -892,6 +949,8 @@ void audio_reset (void)
     ahi_close_sound ();
 #endif
     reset_sound ();
+    memset(l_output, 0, sizeof l_output);
+    memset(r_output, 0, sizeof r_output);
     if (savestate_state != STATE_RESTORE) {
 	for (i = 0; i < 4; i++) {
 	    cdp = &audio_channel[i];

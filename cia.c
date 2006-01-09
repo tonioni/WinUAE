@@ -759,7 +759,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    ciaaalarm = (ciaaalarm & ~0xff00) | (val << 8);
 	} else {
 	    ciaatod = (ciaatod & ~0xff00) | (val << 8);
-	    ciaatodon = 0;
+	    //ciaatodon = 0;
 	}
 	break;
     case 10:
@@ -901,7 +901,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 	    ciabalarm = (ciabalarm & ~0xff00) | (val << 8);
 	} else {
 	    ciabtod = (ciabtod & ~0xff00) | (val << 8);
-	    ciabtodon = 0;
+	    //ciabtodon = 0;
 	}
 	break;
     case 10:

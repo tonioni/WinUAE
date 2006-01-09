@@ -182,7 +182,7 @@
 #define IDS_SOUND_INTERPOL_CRUX         205
 #define IDS_SOUND_FILTER_OFF            206
 #define IDS_SOUND_FILTER_EMULATED       207
-#define IDS_SOUND_FILTER_ON             208
+#define IDS_SOUND_FILTER_ON_A500        208
 #define IDS_INPUT_COMPATIBILITY         209
 #define IDS_INPUT_CUSTOM                210
 #define IDS_INPUT_COPY_DEFAULT          211
@@ -231,6 +231,8 @@
 #define IDS_SOUND_SWAP_BOTH             251
 #define IDB_BITMAP1                     252
 #define IDB_LCD160X43                   252
+#define IDS_SOUND_FILTER_ON_AGA         252
+#define IDS_SOUND_FILTER_ON             253
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -312,7 +314,6 @@
 #define IDC_CAPS                        1077
 #define IDC_ABIME                       1078
 #define IDC_AMIGASYS                    1079
-#define IDC_AMIGASYS2                   1080
 #define IDC_AMIKIT                      1080
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092

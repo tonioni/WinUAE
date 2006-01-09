@@ -461,10 +461,10 @@ static void OGL_dorender (int newtex)
 {
     uae_u8 *data = gfxvidinfo.bufmem;
     float x1, y1, x2, y2, tx, ty;
-    double mx, my, fx, fy, xm, ym;
+    double mx, my, fx, fy, fx2, fy2, xm, ym;
 
     xm = currprefs.gfx_lores ? 2 : 1;
-    ym = currprefs.gfx_linedbl ? 1 : 2;
+    ym = currprefs.gfx_linedbl ? 2 : 1;
 
     fx = (required_texture_size * w_width / t_width) / 2.0;
     fy = (required_texture_size * w_height / t_height) / 2.0;
@@ -483,7 +483,6 @@ static void OGL_dorender (int newtex)
     y1 += fy + my;
     x2 += tx + mx;
     y2 += ty + my;
-
 
 #ifdef FSAA
     glEnable (GL_MULTISAMPLE_ARB);

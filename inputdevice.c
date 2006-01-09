@@ -699,8 +699,6 @@ static uae_u8 parconvert (uae_u8 v, int jd, int shift)
     return v;
 }
 
-
-
 /* io-pins floating: dir=1 -> return data, dir=0 -> always return 1 */
 uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
 {
@@ -717,8 +715,8 @@ uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
 	case 1:
 	v = ((pra & dra) | (dra ^ 0xff)) & 0x7;
 	if (parport_joystick_enabled) {
-	    if (getbuttonstate (2, 0)) v &= ~1;
-	    if (getbuttonstate (3, 0)) v &= ~4;
+	    if (getbuttonstate (2, 0)) v &= ~4;
+	    if (getbuttonstate (3, 0)) v &= ~1;
 	}
 	return v;
 	default:
@@ -784,7 +782,8 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
 
 	if (mouse_port[i]) {
-	    /* mouse has pull-up resistors in button lines */
+	    /* official Commodore mouse has pull-up resistors in button lines
+	     * NOTE: 3rd party mice may not have pullups! */
 	    if (!(potgo_value & p5dir))
 		potgor |= p5dat;
 	    if (!(potgo_value & p9dir))
@@ -814,7 +813,6 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 		potgor &= ~p9dat; /* shift at zero == return zero */
 	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 		potgor &= ~p9dat;
-	    //write_log ("%d:%04.4X %08.8X\n", cd32_shifter[i], potgor, m68k_getpc());
 	} else {
 	    if (getbuttonstate (i, JOYBUTTON_3))
 		potgor &= ~p5dat;

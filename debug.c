@@ -106,6 +106,7 @@ static char help[] = {
     "  h,?                   Show this help page\n"
     "  b                     Step to previous state capture position\n"
     "  am <channel mask>     Enable or disable audio channels\n"
+    "  sm <sprite mask>      Enable or disable sprites\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "                        Also enables extended disk logging\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"

@@ -231,7 +231,8 @@ static int initialize_catweasel(void)
 }
 
 
-#define RDP_MOUSE "\\??\\Root#RDP_MOU#"
+#define RDP_MOUSE1 "\\??\\Root#RDP_MOU#"
+#define RDP_MOUSE2 "\\\\?\\Root#RDP_MOU#"
 
 static int initialize_rawinput (void)
 {
@@ -279,7 +280,9 @@ static int initialize_rawinput (void)
 	vtmp = bufsize;
 	pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp);
 
-	if (!memcmp (RDP_MOUSE, buf, strlen (RDP_MOUSE)))
+	if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+	    continue;
+	if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
 	    continue;
 	if (type == RIM_TYPEMOUSE)
 	    rnum_mouse++;
@@ -300,7 +303,9 @@ static int initialize_rawinput (void)
 	    pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp);
 
 	    if (did == di_mouse) {
-		if (!memcmp (RDP_MOUSE, buf, strlen (RDP_MOUSE)))
+		if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+		    continue;
+		if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
 		    continue;
 		if (rnum_mouse < 2)
 		    continue;

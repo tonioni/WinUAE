@@ -15,7 +15,7 @@
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
-//#define SPEEDUP
+#define SPEEDUP
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -125,6 +125,7 @@ static int lof_changed = 0;
  * worth the trouble..
  */
 static int vpos_previous, hpos_previous;
+static int vpos_lpen, hpos_lpen;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -1585,6 +1586,8 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	return;
     }
 #endif
+    if (regno < 0)
+	write_log("%d\n", regno);
     curr_color_changes[next_color_change].linepos = hpos;
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
@@ -2399,11 +2402,11 @@ STATIC_INLINE uae_u16 ADKCONR (void)
 
 STATIC_INLINE GETVPOS(void)
 {
-    return ((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos;
+    return vpos_lpen > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
 }
 STATIC_INLINE GETHPOS(void)
 {
-    return ((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ();
+    return vpos_lpen > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
 }
 
 STATIC_INLINE uae_u16 VPOSR (void)
@@ -4264,6 +4267,10 @@ static void hsync_handler (void)
 	ciahsync = 0;
     }
 
+    /* reset light pen latch */
+    if (vpos == sprite_vblank_endline)
+	vpos_lpen = -1;
+
 #ifdef CPUEMU_6
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
@@ -4293,8 +4300,11 @@ static void hsync_handler (void)
        goes haywire with the VPOSW register, it can cause us to miss this,
        with vpos going into the thousands (and all the nasty consequences
        this has).  */
-
     if (++vpos >= (maxvpos + (lof == 0 ? 0 : 1))) {
+	if (bplcon0 & 8) {
+	    vpos_lpen = vpos - 1;
+	    hpos_lpen = maxhpos;
+	}
 	vpos = 0;
 	vsync_handler ();
     }
@@ -4462,6 +4472,7 @@ void customreset (void)
     new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
     hack_vpos = 0;
     init_hz ();
+    vpos_lpen = -1;
 
     audio_reset ();
     if (savestate_state != STATE_RESTORE) {

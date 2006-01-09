@@ -138,7 +138,7 @@ static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
 static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
-static const char *soundfiltermode[] = { "off", "emulated", "on", 0 };
+static const char *soundfiltermode[] = { "off", "emulated", "on", "on_aga", 0 };
 static const char *loresmode[] = { "normal", "filtered", 0 };
 #ifdef GFXFILTER
 static const char *filtermode1[] = { "no_16", "bilinear_16", "no_32", "bilinear_32", 0 };
@@ -2326,7 +2326,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
     p->sound_interpol = 0;
-    p->sound_filter = 1;
+    p->sound_filter = FILTER_SOUND_OFF;
 
     p->comptrustbyte = 0;
     p->comptrustword = 0;
@@ -2467,7 +2467,7 @@ static void buildin_default_prefs_68020 (struct uae_prefs *p)
 
 static void buildin_default_host_prefs (struct uae_prefs *p)
 {
-    p->sound_filter = 1;
+    p->sound_filter = FILTER_SOUND_OFF;
     p->sound_stereo = 1;
     p->sound_stereo_separation = 7;
     p->sound_mixed_stereo = 0;
@@ -2570,7 +2570,7 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[2] = -1;
     p->chipset_mask = 0;
     p->bogomem_size = 0;
-    p->sound_filter = 2;
+    p->sound_filter = FILTER_SOUND_ON_A500;
     if (config == 1)
 	p->chipmem_size = 0x40000;
     set_68000_compa (p, compa);

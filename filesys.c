@@ -2941,6 +2941,55 @@ action_set_file_size (Unit *unit, dpacket packet)
     PUT_PCK_RES2 (packet, 0);
 }
 
+static int relock_do(Unit *unit, a_inode *a1)
+{
+    Key *k1, *knext;
+    int wehavekeys = 0;
+
+    for (k1 = unit->keys; k1; k1 = knext) {
+        knext = k1->next;
+        if (k1->aino == a1 && k1->fd) {
+	    wehavekeys++;
+	    my_close (k1->fd);
+	    write_log ("handle %p freed\n", k1->fd);
+	}
+    }
+    return wehavekeys;
+}
+
+static void relock_re(Unit *unit, a_inode *a1, a_inode *a2, int failed)
+{
+    Key *k1, *knext;
+
+    for (k1 = unit->keys; k1; k1 = knext) {
+        knext = k1->next;
+        if (k1->aino == a1 && k1->fd) {
+	    int mode = (k1->dosmode & A_FIBF_READ) == 0 ? O_WRONLY : (k1->dosmode & A_FIBF_WRITE) == 0 ? O_RDONLY : O_RDWR;
+	    mode |= O_BINARY;
+	    if (failed) {
+	        /* rename still failed, restore fd */
+	        k1->fd = my_open (a1->nname, mode);
+	        write_log ("restoring old handle '%s' %d\n", a1->nname, k1->dosmode);
+	    } else {
+	        /* transfer fd to new name */
+		if (a2) {
+		    k1->aino = a2;
+		    k1->fd = my_open (a2->nname, mode);
+		    write_log ("restoring new handle '%s' %d\n", a2->nname, k1->dosmode);
+		} else {
+		    write_log ("no new handle, deleting old lock(s).\n");
+		}
+	    }
+	    if (k1->fd == NULL) {
+		write_log ("relocking failed '%s' -> '%s'\n", a1->nname, a2->nname);
+		free_key (unit, k1);
+	    } else {
+	        my_lseek (k1->fd, k1->file_pos, SEEK_SET);
+	    }
+	}
+    }
+}
+
 static void
 action_delete_object (Unit *unit, dpacket packet)
 {
@@ -3064,7 +3113,7 @@ action_rename_object (Unit *unit, dpacket packet)
     /* rename always fails if file is open for writing */
     for (k1 = unit->keys; k1; k1 = knext) {
 	knext = k1->next;
-	if (k1->aino == a1 && k1->fd >= 0 && k1->createmode == 2) {
+	if (k1->aino == a1 && k1->fd && k1->createmode == 2) {
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, ERROR_OBJECT_IN_USE);
 	    return;
@@ -3101,39 +3150,11 @@ action_rename_object (Unit *unit, dpacket packet)
 	int ret = -1;
 	/* maybe we have open file handles that caused failure? */
 	write_log ("rename '%s' -> '%s' failed, trying relocking..\n", a1->nname, a2->nname);
-	for (k1 = unit->keys; k1; k1 = knext) {
-	    knext = k1->next;
-	    if (k1->aino == a1 && k1->fd >= 0) {
-		wehavekeys++;
-		my_close (k1->fd);
-		write_log ("handle %d freed\n", k1->fd);
-	    }
-	}
+	wehavekeys = relock_do(unit, a1);
 	/* try again... */
 	ret = my_rename (a1->nname, a2->nname);
-	for (k1 = unit->keys; k1; k1 = knext) {
-	    knext = k1->next;
-	    if (k1->aino == a1 && k1->fd >= 0) {
-		int mode = (k1->dosmode & A_FIBF_READ) == 0 ? O_WRONLY : (k1->dosmode & A_FIBF_WRITE) == 0 ? O_RDONLY : O_RDWR;
-		mode |= O_BINARY;
-		if (ret == -1) {
-		    /* rename still failed, restore fd */
-		    k1->fd = my_open (a1->nname, mode);
-		    write_log ("restoring old handle '%s' %d\n", a1->nname, k1->dosmode);
-		} else {
-		    /* transfer fd to new name */
-		    k1->aino = a2;
-		    k1->fd = my_open (a2->nname, mode);
-		    write_log ("restoring new handle '%s' %d\n", a2->nname, k1->dosmode);
-		}
-		if (k1->fd == NULL) {
-		    write_log ("relocking failed '%s' -> '%s'\n", a1->nname, a2->nname);
-		    free_key (unit, k1);
-		} else {
-		    my_lseek (k1->fd, k1->file_pos, SEEK_SET);
-		}
-	    }
-	}
+	/* restore locks */
+	relock_re(unit, a1, a2, ret == -1 ? 1 : 0);
 	if (ret == -1) {
 	    delete_aino (unit, a2);
 	    PUT_PCK_RES1 (packet, DOS_FALSE);

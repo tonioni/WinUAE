@@ -433,6 +433,11 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
     tx = fx / ((currprefs.gfx_filter_horiz_zoom_mult + currprefs.gfx_filter_horiz_zoom / 4) / 1000.0);
     ty = fy / ((currprefs.gfx_filter_vert_zoom_mult + currprefs.gfx_filter_vert_zoom / 4) / 1000.0);
 
+    if (currprefs.gfx_lores)
+	tx /= 2;
+    if (!currprefs.gfx_linedbl)
+	ty /= 2;
+
     mx = (currprefs.gfx_filter_horiz_offset / 1000.0) * fx;
     my = (currprefs.gfx_filter_vert_offset / 1000.0) * fy;
 
