@@ -320,8 +320,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (ctrlpressed ()) {
 		code = AKS_TOGGLEFULLSCREEN;
 	    } else if (shiftpressed () || specialpressed ()) {
-		disablecapture ();
-		code = AKS_ENTERDEBUGGER;
+		if (!isfullscreen()) {
+		    disablecapture ();
+		    code = AKS_ENTERDEBUGGER;
+		}
 	    } else {
 		code = AKS_ENTERGUI;
 	    }

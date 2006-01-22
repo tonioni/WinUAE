@@ -1264,233 +1264,108 @@ int WIN32_InitHtmlHelp( void )
     return result;
 }
 
+struct winuae_lang langs[] =
+{
+    { LANG_AFRIKAANS, "Afrikaans" },
+    { LANG_ARABIC, "Arabic" },
+    { LANG_ARMENIAN, "Armenian" },
+    { LANG_ASSAMESE, "Assamese" },
+    { LANG_AZERI, "Azeri" },
+    { LANG_BASQUE, "Basque" },
+    { LANG_BELARUSIAN, "Belarusian" },
+    { LANG_BENGALI, "Bengali" },
+    { LANG_BULGARIAN, "Bulgarian" },
+    { LANG_CATALAN, "Catalan" },
+    { LANG_CHINESE, "Chinese" },
+    { LANG_CROATIAN, "Croatian" },
+    { LANG_CZECH, "Czech" },
+    { LANG_DANISH, "Danish" },
+    { LANG_DUTCH, "Dutch" },
+    { LANG_ESTONIAN, "Estoanian" },
+    { LANG_FAEROESE, "Faeroese" },
+    { LANG_FARSI, "Farsi" },
+    { LANG_FINNISH, "Finnish" },
+    { LANG_FRENCH, "French" },
+    { LANG_GEORGIAN, "Georgian" },
+    { LANG_GERMAN, "German" },
+    { LANG_GREEK, "Greek" },
+    { LANG_GUJARATI, "Gujarati" },
+    { LANG_HEBREW, "Hebrew" },
+    { LANG_HINDI, "Hindi" },
+    { LANG_HUNGARIAN, "Hungarian" },
+    { LANG_ICELANDIC, "Icelandic" },
+    { LANG_INDONESIAN, "Indonesian" },
+    { LANG_ITALIAN, "Italian" },
+    { LANG_JAPANESE, "Japanese" },
+    { LANG_KANNADA, "Kannada" },
+    { LANG_KASHMIRI, "Kashmiri" },
+    { LANG_KAZAK, "Kazak" },
+    { LANG_KONKANI, "Konkani" },
+    { LANG_KOREAN, "Korean" },
+    { LANG_LATVIAN, "Latvian" },
+    { LANG_LITHUANIAN, "Lithuanian" },
+    { LANG_MACEDONIAN, "Macedonian" },
+    { LANG_MALAY, "Malay" },
+    { LANG_MALAYALAM, "Malayalam" },
+    { LANG_MANIPURI, "Manipuri" },
+    { LANG_MARATHI, "Marathi" },
+    { LANG_NEPALI, "Nepali" },
+    { LANG_NORWEGIAN, "Norwegian" },
+    { LANG_ORIYA, "Oriya" },
+    { LANG_POLISH, "Polish" },
+    { LANG_PORTUGUESE, "Portuguese" },
+    { LANG_PUNJABI, "Punjabi" },
+    { LANG_ROMANIAN, "Romanian" },
+    { LANG_RUSSIAN, "Russian" },
+    { LANG_SANSKRIT, "Sanskrit" },
+    { LANG_SINDHI, "Sindhi" },
+    { LANG_SLOVAK, "Slovak" },
+    { LANG_SLOVENIAN, "Slovenian" },
+    { LANG_SPANISH, "Spanish" },
+    { LANG_SWAHILI, "Swahili" },
+    { LANG_SWEDISH, "Swedish" },
+    { LANG_TAMIL, "Tamil" },
+    { LANG_TATAR, "Tatar" },
+    { LANG_TELUGU, "Telugu" },
+    { LANG_THAI, "Thai" },
+    { LANG_TURKISH, "Turkish" },
+    { LANG_UKRAINIAN, "Ukrainian" },
+    { LANG_UZBEK, "Uzbek" },
+    { LANG_VIETNAMESE, "Vietnamese" },
+    { LANG_ENGLISH, "default" },
+    { 0x400, "guidll.dll"},
+    { 0, NULL }
+};
+static char *getlanguagename(DWORD id)
+{
+    int i;
+    for (i = 0; langs[i].name; i++) {
+	if (langs[i].id == id)
+	    return langs[i].name;
+    }
+    return NULL;
+}
+
 typedef LANGID (CALLBACK* PGETUSERDEFAULTUILANGUAGE)(void);
 static PGETUSERDEFAULTUILANGUAGE pGetUserDefaultUILanguage;
 
-static HMODULE LoadGUI( void )
+HMODULE language_load(WORD language)
 {
     HMODULE result = NULL;
-    LPCTSTR dllname = NULL;
     char dllbuf[MAX_DPATH];
-    LANGID language;
+    char *dllname;
 
-    /* new user-specific Windows ME/2K/XP method to get UI language */
-    pGetUserDefaultUILanguage = (PGETUSERDEFAULTUILANGUAGE)GetProcAddress(
-	GetModuleHandle("kernel32.dll"), "GetUserDefaultUILanguage");
-    language = GetUserDefaultLangID();
-    if (pGetUserDefaultUILanguage)
-	language = pGetUserDefaultUILanguage();
-    language &= 0x3ff; // low 9-bits form the primary-language ID
-
-    switch( language )
-    {
-    case LANG_AFRIKAANS:
-	dllname = "Afrikaans";
-	break;
-    case LANG_ARABIC:
-	dllname = "Arabic";
-	break;
-    case LANG_ARMENIAN:
-	dllname = "Armenian";
-	break;
-    case LANG_ASSAMESE:
-	dllname = "Assamese";
-	break;
-    case LANG_AZERI:
-	dllname = "Azeri";
-	break;
-    case LANG_BASQUE:
-	dllname = "Basque";
-	break;
-    case LANG_BELARUSIAN:
-	dllname = "Belarusian";
-	break;
-    case LANG_BENGALI:
-	dllname = "Bengali";
-	break;
-    case LANG_BULGARIAN:
-	dllname = "Bulgarian";
-	break;
-    case LANG_CATALAN:
-	dllname = "Catalan";
-	break;
-    case LANG_CHINESE:
-	dllname = "Chinese";
-	break;
-    case LANG_CROATIAN:
-	dllname = "CroatianSerbian";
-	break;
-    case LANG_CZECH:
-	dllname = "Czech";
-	break;
-    case LANG_DANISH:
-	dllname = "Danish";
-	break;
-    case LANG_DUTCH:
-	dllname = "Dutch";
-	break;
-    case LANG_ESTONIAN:
-	dllname = "Estonian";
-	break;
-    case LANG_FAEROESE:
-	dllname = "Faeroese";
-	break;
-    case LANG_FARSI:
-	dllname = "Farsi";
-	break;
-    case LANG_FINNISH:
-	dllname = "Finnish";
-	break;
-    case LANG_FRENCH:
-	dllname = "French";
-	break;
-    case LANG_GEORGIAN:
-	dllname = "Georgian";
-	break;
-    case LANG_GERMAN:
-	dllname = "German";
-	break;
-    case LANG_GREEK:
-	dllname = "Greek";
-	break;
-    case LANG_GUJARATI:
-	dllname = "Gujarati";
-	break;
-    case LANG_HEBREW:
-	dllname = "Hebrew";
-	break;
-    case LANG_HINDI:
-	dllname = "Hindi";
-	break;
-    case LANG_HUNGARIAN:
-	dllname = "Hungarian";
-	break;
-    case LANG_ICELANDIC:
-	dllname = "Icelandic";
-	break;
-    case LANG_INDONESIAN:
-	dllname = "Indonesian";
-	break;
-    case LANG_ITALIAN:
-	dllname = "Italian";
-	break;
-    case LANG_JAPANESE:
-	dllname = "Japanese";
-	break;
-    case LANG_KANNADA:
-	dllname = "Kannada";
-	break;
-    case LANG_KASHMIRI:
-	dllname = "Kashmiri";
-	break;
-    case LANG_KAZAK:
-	dllname = "Kazak";
-	break;
-    case LANG_KONKANI:
-	dllname = "Konkani";
-	break;
-    case LANG_KOREAN:
-	dllname = "Korean";
-	break;
-    case LANG_LATVIAN:
-	dllname = "Latvian";
-	break;
-    case LANG_LITHUANIAN:
-	dllname = "Lithuanian";
-	break;
-    case LANG_MACEDONIAN:
-	dllname = "Macedonian";
-	break;
-    case LANG_MALAY:
-	dllname = "Malay";
-	break;
-    case LANG_MALAYALAM:
-	dllname = "Malayalam";
-	break;
-    case LANG_MANIPURI:
-	dllname = "Manipuri";
-	break;
-    case LANG_MARATHI:
-	dllname = "Marathi";
-	break;
-    case LANG_NEPALI:
-	dllname = "Nepali";
-	break;
-    case LANG_NORWEGIAN:
-	dllname = "Norwegian";
-	break;
-    case LANG_ORIYA:
-	dllname = "Oriya";
-	break;
-    case LANG_POLISH:
-	dllname = "Polish";
-	break;
-    case LANG_PORTUGUESE:
-	dllname = "Portuguese";
-	break;
-    case LANG_PUNJABI:
-	dllname = "Punjabi";
-	break;
-    case LANG_ROMANIAN:
-	dllname = "Romanian";
-	break;
-    case LANG_RUSSIAN:
-	dllname = "Russian";
-	break;
-    case LANG_SANSKRIT:
-	dllname = "Sanskrit";
-	break;
-    case LANG_SINDHI:
-	dllname = "Sindhi";
-	break;
-    case LANG_SLOVAK:
-	dllname = "Slovak";
-	break;
-    case LANG_SLOVENIAN:
-	dllname = "Slovenian";
-	break;
-    case LANG_SPANISH:
-	dllname = "Spanish";
-	break;
-    case LANG_SWAHILI:
-	dllname = "Swahili";
-	break;
-    case LANG_SWEDISH:
-	dllname = "Swedish";
-	break;
-    case LANG_TAMIL:
-	dllname = "Tamil";
-	break;
-    case LANG_TATAR:
-	dllname = "Tatar";
-	break;
-    case LANG_TELUGU:
-	dllname = "Telugu";
-	break;
-    case LANG_THAI:
-	dllname = "Thai";
-	break;
-    case LANG_TURKISH:
-	dllname = "Turkish";
-	break;
-    case LANG_UKRAINIAN:
-	dllname = "Ukrainian";
-	break;
-    case LANG_URDU:
-	dllname = "Urdu";
-	break;
-    case LANG_UZBEK:
-	dllname = "Uzbek";
-	break;
-    case LANG_VIETNAMESE:
-	dllname = "Vietnamese";
-	break;
-    case 0x400:
-	dllname = "guidll.dll";
-	break;
+    if (language <= 0) {
+        /* new user-specific Windows ME/2K/XP method to get UI language */
+	pGetUserDefaultUILanguage = (PGETUSERDEFAULTUILANGUAGE)GetProcAddress(
+	    GetModuleHandle("kernel32.dll"), "GetUserDefaultUILanguage");
+	language = GetUserDefaultLangID();
+	if (pGetUserDefaultUILanguage)
+	    language = pGetUserDefaultUILanguage();
+	language &= 0x3ff; // low 9-bits form the primary-language ID
     }
-
-    if( dllname )
+    dllname = getlanguagename (language);
+    if (dllname)
     {
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;
 	LPVOID lpFileVersionData = NULL;
@@ -1502,7 +1377,7 @@ static HMODULE LoadGUI( void )
 	else
 	    sprintf (dllbuf, "%sWinUAE_%s.dll", start_path_exe, dllname);
 	result = WIN32_LoadLibrary (dllbuf);
-	if( result) 
+	if (result) 
 	{
 	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle);
 	    if (dwFileVersionInfoSize)
@@ -1516,7 +1391,7 @@ static HMODULE LoadGUI( void )
 			fail = 0;
 			if (VerQueryValue(lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen))
 			{
-			    if( vsFileInfo &&
+			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
 				&& HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)
@@ -1535,15 +1410,16 @@ static HMODULE LoadGUI( void )
 		}
 	    }
 	}
-	if (fail)
-	    write_log ("Translation DLL '%s' failed to load, error %d\n", dllbuf, GetLastError ());
-	if( result && !success )
-	{
-	    FreeLibrary( result );
+	if (fail) {
+	    DWORD err = GetLastError();
+	    if (err != 126)
+		write_log ("Translation DLL '%s' failed to load, error %d\n", dllbuf, GetLastError ());
+	}
+	if (result && !success) {
+	    FreeLibrary(result);
 	    result = NULL;
 	}
     }
-
     return result;
 }
 
@@ -1566,8 +1442,20 @@ static void pritransla (void)
     }
 }
 
-/* try to load COMDLG32 and DDRAW, initialize csDraw */
-int WIN32_InitLibraries( void )
+static void WIN32_InitLang(void)
+{
+    WORD langid = -1;
+    if (hWinUAEKey) {
+	DWORD regkeytype;
+	DWORD regkeysize = sizeof(langid);
+        RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
+    }
+    hUIDLL = language_load(langid);
+    pritransla ();
+}
+
+ /* try to load COMDLG32 and DDRAW, initialize csDraw */
+static int WIN32_InitLibraries( void )
 {
     int result = 1;
     /* Determine our processor speed and capabilities */
@@ -1579,9 +1467,6 @@ int WIN32_InitLibraries( void )
     
     hRichEdit = LoadLibrary ("RICHED32.DLL");
     
-    hUIDLL = LoadGUI();
-    pritransla ();
-
     return result;
 }
 
@@ -2413,6 +2298,7 @@ static void getstartpaths(int start_data)
 
 
 extern void test (void);
+extern int screenshotmode;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2466,6 +2352,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-scsilog")) log_scsi = 1;
 	if (!strcmp (arg, "-nomultidisplay")) multi_display = 0;
 	if (!strcmp (arg, "-legacypaths")) start_data = -1;
+	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
 	    strcpy(start_path_data, argv[i + 1]);
 	    start_data = 1;
@@ -2512,6 +2399,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 		default_freq = 60;
 	}
 	WIN32_HandleRegistryStuff();
+	WIN32_InitLang();
 	WIN32_InitHtmlHelp();
 	DirectDraw_Release();
 	betamessage ();

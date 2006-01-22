@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 5"
+#define WINUAEBETASTR " Beta 6"
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];
@@ -102,5 +102,12 @@ HMODULE WIN32_LoadLibrary (const char *);
 extern int screenshot_prepare(void);
 extern void screenshot_free(void);
 
+struct winuae_lang
+{
+    WORD id;
+    char *name;
+};
+extern struct winuae_lang langs[];
+extern HMODULE language_load(WORD language);
 
 #endif

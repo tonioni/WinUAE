@@ -837,6 +837,8 @@
 #define IDC_PROGRESS1                   1705
 #define IDC_PROGRESSBAR                 1705
 #define IDC_PROGRESSBAR_TEXT            1706
+#define IDC_SCSIMODE2                   1706
+#define IDC_LANGUAGE                    1706
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

@@ -23,7 +23,7 @@
 #include "compemu.h"
 
 #if defined(JIT)
-uae_u32 temp_fp[] = {0,0,0}, save_fp[3];  /* To convert between FP and <EA> */
+uae_u32 temp_fp[] = {0,0,0};  /* To convert between FP and <EA> */
 
 /* 128 words, indexed through the low byte of the 68k fpu control word */
 static uae_u16 x86_fpucw[]={
@@ -1171,26 +1171,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    case 0x23: /* FMUL */
 		fmul_rr(dreg,sreg);
 		break;
-	    case 0x24: /* FSGLDIV */
+	    case 0x24: /* FSGLDIV  is not exactly the same as FSDIV, */
+		/* because both operands should be SINGLE precision, too */
+	    case 0x60: /* FSDIV */
+		fdiv_rr(dreg,sreg);
 #if USE_X86_FPUCW
-		if ((regs.fpcr & 0xC0) == 0x40) { /* if SINGLE precision */
-		    fdiv_rr(dreg,sreg);
+		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
-		}
 #endif
-		if (!source) /* don't scratch, save sreg first */
-		    fmov_ext_mr((uae_u32)save_fp,sreg);
-		if (prec != 1) {
-		    fmovs_mr((uae_u32)temp_fp,sreg);
-		    fmovs_rm(sreg,(uae_u32)temp_fp);
-		}
 		fmovs_mr((uae_u32)temp_fp,dreg);
 		fmovs_rm(dreg,(uae_u32)temp_fp);
-		fdiv_rr(dreg,sreg); /* Both have to be SINGLE */
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
-		if (!source) /* restore sreg */
-		    fmov_ext_rm(sreg,(uae_u32)save_fp);
 		break;
 	    case 0x25: /* FREM */
 		frem1_rr(dreg,sreg);
@@ -1198,26 +1188,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    case 0x26: /* FSCALE */
 		fscale_rr(dreg,sreg);
 		break;
-	    case 0x27: /* FSGLMUL */
+	    case 0x27: /* FSGLMUL is not exactly the same as FSMUL, */
+		/* because both operands should be SINGLE precision, too */
+	    case 0x63: /* FSMUL */
+		fmul_rr(dreg,sreg);
 #if USE_X86_FPUCW
-		if ((regs.fpcr & 0xC0) == 0x40) { /* if SINGLE precision */
-		    fmul_rr(dreg,sreg);
+		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
-		}
 #endif
-		if (!source) /* dont scratch, save sreg first */
-		    fmov_ext_mr((uae_u32)save_fp,sreg);
-		if (prec != 1) {
-		    fmovs_mr((uae_u32)temp_fp,sreg);
-		    fmovs_rm(sreg,(uae_u32)temp_fp);
-		}
 		fmovs_mr((uae_u32)temp_fp,dreg);
 		fmovs_rm(dreg,(uae_u32)temp_fp);
-		fmul_rr(dreg,sreg); /* Both have to be SINGLE */
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
-		if (!source) /* restore sreg */
-		    fmov_ext_rm(sreg,(uae_u32)save_fp);
 		break;
 	    case 0x28: /* FSUB */
 		fsub_rr(dreg,sreg);
@@ -1317,26 +1297,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		    fmov_rm(dreg,(uae_u32)temp_fp);
 		}
 		break;
-	    case 0x60: /* FSDIV */
-		fdiv_rr(dreg,sreg);
-#if USE_X86_FPUCW
-		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
-		    break;
-#endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
-		break;
 	    case 0x62: /* FSADD */
 		fadd_rr(dreg,sreg);
-#if USE_X86_FPUCW
-		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
-		    break;
-#endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
-		break;
-	    case 0x63: /* FSMUL */
-		fmul_rr(dreg,sreg);
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;

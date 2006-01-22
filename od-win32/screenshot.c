@@ -1,3 +1,6 @@
+
+#define PNG_SCREENSHOTS 1
+
 #include <windows.h>
 #include <ddraw.h>
 
@@ -13,6 +16,10 @@
 #include "win32gfx.h"
 #include "direct3d.h"
 #include "opengl.h"
+
+#include "png.h"
+
+int screenshotmode = PNG_SCREENSHOTS;
 
 static void namesplit (char *s)
 {
@@ -145,95 +152,145 @@ oops:
     return 0;
 }
 
+#if PNG_SCREENSHOTS > 0
+
+static void pngtest_blah(png_structp png_ptr, png_const_charp message)
+{
+   char *name = "unknown";
+   if (png_ptr != NULL && png_ptr->error_ptr != NULL)
+      name = png_ptr->error_ptr;
+   write_log ("%s: libpng warning: %s\n", name, message);
+}
+
+static int savepng(FILE *fp)
+{
+    png_structp png_ptr;
+    png_infop info_ptr;
+    png_bytep *row_pointers;
+    int h = bi.bmiHeader.biHeight;
+    int w = bi.bmiHeader.biWidth;
+    int i;
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, pngtest_blah, pngtest_blah, pngtest_blah);
+    if (!png_ptr)
+       return 0;
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr) {
+       png_destroy_write_struct(&png_ptr, NULL);
+       return 0;
+    }
+    if (setjmp(png_jmpbuf(png_ptr))) {
+       png_destroy_write_struct(&png_ptr, &info_ptr);
+       return 0;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_filter(png_ptr, 0, PNG_FILTER_NONE); 
+    png_set_IHDR(png_ptr, info_ptr,
+	w, h, 8, PNG_COLOR_TYPE_RGB,
+	PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    row_pointers = xmalloc (h * sizeof(png_bytep*));
+    for (i = 0; i < h; i++) {
+	int j = h - i - 1;
+	row_pointers[i] = (uae_u8*)lpvBits + j * 3 * ((w + 3) & ~3);
+    }
+    png_set_rows(png_ptr, info_ptr, row_pointers);
+    png_write_png(png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    return 1;
+}
+#endif
+
+static int savebmp(FILE *fp)
+{
+    BITMAPFILEHEADER bfh;
+    // write the file header, bitmap information and pixel data
+    bfh.bfType = 19778;
+    bfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + bi.bmiHeader.biSizeImage;
+    bfh.bfReserved1 = 0;
+    bfh.bfReserved2 = 0;
+    bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    if(fwrite(&bfh, 1, sizeof(BITMAPFILEHEADER), fp) < sizeof(BITMAPFILEHEADER))
+	return 0; // failed to write bitmap file header
+    if(fwrite(&bi, 1, sizeof(BITMAPINFOHEADER), fp) < sizeof(BITMAPINFOHEADER))
+	return 0; // failed to write bitmap infomation header
+    if(fwrite(lpvBits, 1, bi.bmiHeader.biSizeImage, fp) < bi.bmiHeader.biSizeImage)
+	return 0; // failed to write the bitmap
+    return 1;
+}
 
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
 void screenshot(int mode, int doprepare)
 {
-	static int recursive;
-	FILE *fp = NULL;
+    static int recursive;
+    FILE *fp = NULL;
 	
-	HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
-	HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
+    HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
+    HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
 
-	if(recursive)
-		return;
+    if(recursive)
+    	return;
 	
-	recursive++;
+    recursive++;
 
-	if (!screenshot_prepared || doprepare) {
-	    if (!screenshot_prepare())
-		goto oops;
-	}
+    if (!screenshot_prepared || doprepare) {
+        if (!screenshot_prepare())
+	    goto oops;
+    }
 
-	if (mode == 0) {
-	    toclipboard (&bi, lpvBits);
-	} else {
-		char filename[MAX_DPATH];
-		char extension[] = "bmp";
-		char path[MAX_DPATH];
-		char name[MAX_DPATH];
-		char underline[] = "_";
-		int number = 0;
+    if (mode == 0) {
+        toclipboard (&bi, lpvBits);
+    } else {
+        char filename[MAX_DPATH];
+        char path[MAX_DPATH];
+        char name[MAX_DPATH];
+        char underline[] = "_";
+        int number = 0;
 		
-		fetch_path ("ScreenshotPath", path, sizeof (path));
-		CreateDirectory (path, NULL);
-		name[0] = 0;
-		if (currprefs.dfxtype[0] >= 0)
-		    strcpy (name, currprefs.df[0]);
-		if (!name[0])
-		    underline[0] = 0;
-		namesplit (name);
+    	fetch_path ("ScreenshotPath", path, sizeof (path));
+	CreateDirectory (path, NULL);
+	name[0] = 0;
+	if (currprefs.dfxtype[0] >= 0)
+	    strcpy (name, currprefs.df[0]);
+	if (!name[0])
+	    underline[0] = 0;
+	namesplit (name);
 		
-		while(++number < 1000) // limit 999 iterations / screenshots
-		{
-			sprintf(filename, "%s%s%s%03d.%s", path, name, underline, number, extension);
-			
-			if((fp = fopen(filename, "r")) == NULL) // does file not exist?
-			{
-				BITMAPFILEHEADER bfh;
-				
-				if((fp = fopen(filename, "wb")) == NULL)
-					goto oops; // error
-				
-				// write the file header, bitmap information and pixel data
-				bfh.bfType = 19778;
-				bfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + bi.bmiHeader.biSizeImage;
-				bfh.bfReserved1 = 0;
-				bfh.bfReserved2 = 0;
-				bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-				
-				if(fwrite(&bfh, 1, sizeof(BITMAPFILEHEADER), fp) < sizeof(BITMAPFILEHEADER))
-					goto oops; // failed to write bitmap file header
-				
-				if(fwrite(&bi, 1, sizeof(BITMAPINFOHEADER), fp) < sizeof(BITMAPINFOHEADER))
-					goto oops; // failed to write bitmap infomation header
-				
-				if(fwrite(lpvBits, 1, bi.bmiHeader.biSizeImage, fp) < bi.bmiHeader.biSizeImage)
-					goto oops; // failed to write the bitmap
-				
-				fclose(fp);
-				
-				write_log("Screenshot saved as \"%s\"\n", filename);
-				
-				break;
-			}
-			
-			fclose(fp);
-			fp = NULL;
-		}
+	while(++number < 1000) // limit 999 iterations / screenshots
+	{
+	    sprintf(filename, "%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? "png" : "bmp");
+	    if((fp = fopen(filename, "rb")) == NULL) // does file not exist?
+	    {
+		int ok = 0;
+		if((fp = fopen(filename, "wb")) == NULL)
+		    goto oops; // error
+#if PNG_SCREENSHOTS > 0
+		if (screenshotmode)
+		    ok = savepng (fp);
+		else
+#endif
+		    ok = savebmp (fp);
+		fclose(fp);
+		fp = NULL;
+		if (!ok)
+		    goto oops;
+		write_log("Screenshot saved as \"%s\"\n", filename);
+		break;
+	    }
+	    fclose (fp);
+	    fp = NULL;
 	}
+    }
 	
 oops:
-	if(fp)
-		fclose(fp);
+    if(fp)
+        fclose(fp);
 	
-	if (doprepare)
-	    screenshot_free();
+    if (doprepare)
+        screenshot_free();
 
-	recursive--;
-
-	return;
+    recursive--;
 }
 

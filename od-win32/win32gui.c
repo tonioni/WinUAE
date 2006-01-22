@@ -80,6 +80,7 @@
 #define CONFIG_HARDWARE "Hardware"
 
 static int allow_quit;
+static int restart_requested;
 static int full_property_sheet = 1;
 static struct uae_prefs *pguiprefs;
 struct uae_prefs workprefs;
@@ -4315,7 +4316,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void enable_for_miscdlg (HWND hDlg)
 {
-    if( !full_property_sheet )
+    if(!full_property_sheet)
     {
 	EnableWindow (GetDlgItem (hDlg, IDC_JULIAN), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_CTRLF11), TRUE);
@@ -4335,6 +4336,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_CAPTURE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_LANGUAGE), FALSE);
     } else {
 #if !defined (BSDSOCKET)
 	EnableWindow (GetDlgItem(hDlg, IDC_SOCKETS), FALSE);
@@ -4409,6 +4411,64 @@ static void misc_scsi(HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
 }
 
+static void misc_lang(HWND hDlg)
+{
+    int i, idx = 0, cnt = 0;
+    WORD langid = -1;
+
+    if (hWinUAEKey) {
+	DWORD regkeytype;
+	DWORD regkeysize = sizeof(langid);
+        RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
+    }
+    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"Autodetect");
+    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"English (build-in)");
+    if (langid == 0)
+	idx = 1;
+    cnt = 2;
+    for (i = 0; langs[i].name; i++) {
+	HMODULE hm = language_load (langs[i].id);
+	if (hm) {
+	    FreeLibrary (hm);
+	    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)langs[i].name);
+	    if (langs[i].id == langid)
+		idx = cnt;
+	    cnt++;
+	}
+    }
+    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_SETCURSEL, idx, 0);
+}
+static void misc_setlang(int v)
+{
+    int i;
+    WORD langid = 0;
+    v-=2;
+    if (v >= 0) {
+	for (i = 0; langs[i].name; i++) {
+	    HMODULE hm = language_load (langs[i].id);
+	    if (hm) {
+		FreeLibrary(hm);
+		if (v == 0) {
+		    langid = langs[i].id;
+		    break;
+		}
+		v--;
+	    }
+	}
+    }
+    if (v == -2)
+	langid = -1;
+    if (hWinUAEKey)
+	RegSetValueEx (hWinUAEKey, "Language", 0, REG_DWORD, (CONST BYTE *)&langid, sizeof(langid));
+    FreeLibrary(hUIDLL);
+    hUIDLL = NULL;
+    if (langid >= 0)
+	hUIDLL = language_load(langid);
+    restart_requested = 1;
+    exit_gui(0);
+}
+
 static void values_to_miscdlg (HWND hDlg)
 {
     char txt[100];
@@ -4462,6 +4522,7 @@ static void values_to_miscdlg (HWND hDlg)
 	SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt); 
 
 	misc_scsi(hDlg);
+	misc_lang(hDlg);
 
     } else if (currentpage == MISC2_ID) {
 
@@ -4517,6 +4578,13 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    v = SendDlgItemMessage(hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR)
 			workprefs.win32_uaescsimode = v;
+		    break;
+		    case IDC_LANGUAGE:
+		    if (HIWORD (wParam) == CBN_SELENDOK) {
+			v = SendDlgItemMessage(hDlg, IDC_LANGUAGE, CB_GETCURSEL, 0, 0L);
+			if (v != CB_ERR)
+			    misc_setlang(v);
+		    }
 		    break;
 		}
 	    }
@@ -7548,7 +7616,7 @@ static void makefilter(char *s, int x, int flags)
 	strcat (s, " (32bit)");
 }
 
-static char *filtermultnames[] = { "1", "2", "4", "6", "8", NULL };
+static char *filtermultnames[] = { "1x", "2x", "4x", "6x", "8x", NULL };
 static int filtermults[] = { 1000, 500, 250, 167, 125 };
 static void values_to_hw3ddlg (HWND hDlg)
 {
@@ -8940,7 +9008,12 @@ int gui_init (void)
     int ret;
     
     read_rom_list();
-    ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow());
+    for (;;) {
+	ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow());
+	if (!restart_requested)
+	    break;
+	restart_requested = 0;
+    }
     if (ret > 0) {
 #ifdef AVIOUTPUT
 	AVIOutput_Begin ();
