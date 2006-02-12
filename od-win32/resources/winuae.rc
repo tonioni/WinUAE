@@ -920,7 +920,7 @@ BEGIN
     IDS_DISK                "Disk swapper"
     IDS_DISPLAY             "Display"
     IDS_HARDDISK            "Hard drives"
-    IDS_FLOPPY              "Disk drives"
+    IDS_FLOPPY              "Floppy drives"
     IDS_ABOUT               "About"
     IDS_LOADSAVE            "Configurations"
     IDS_AVIOUTPUT           "Output"

@@ -162,7 +162,7 @@ static struct uae_input_device_kbr_default keytrans[] = {
 
     { DIK_HOME, INPUTEVENT_KEY_70 },
     { DIK_END, INPUTEVENT_KEY_71 },
-    { DIK_SYSRQ, INPUTEVENT_KEY_6E },
+//    { DIK_SYSRQ, INPUTEVENT_KEY_6E },
 //    { DIK_F12, INPUTEVENT_KEY_6F },
     { DIK_INSERT, INPUTEVENT_KEY_47 },
     { DIK_PRIOR, INPUTEVENT_KEY_48 },

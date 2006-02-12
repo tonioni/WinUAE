@@ -99,6 +99,7 @@ struct uae_prefs {
     int compfpu;
     int comp_midopt;
     int comp_lowopt;
+    int fpu_strict;
 
     int comp_hardflush;
     int comp_constjump;

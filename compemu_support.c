@@ -3936,6 +3936,22 @@ MIDFUNC(2,fmovs_mr,(MEMW m, FR r))
 }
 MENDFUNC(2,fmovs_mr,(MEMW m, FR r))
 
+MIDFUNC(1,fcuts_r,(FRW r))
+{
+    r=f_rmw(r);
+    raw_fcuts_r(r);
+    f_unlock(r);
+}
+MENDFUNC(1,fcuts_r,(FRW r))
+
+MIDFUNC(1,fcut_r,(FRW r))
+{
+    r=f_rmw(r);
+    raw_fcut_r(r);
+    f_unlock(r);
+}
+MENDFUNC(1,fcut_r,(FRW r))
+
 MIDFUNC(2,fmovl_ri,(FW r, IMMS i))
 {
     r=f_writereg(r);

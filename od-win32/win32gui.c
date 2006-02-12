@@ -4322,8 +4322,6 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem (hDlg, IDC_CTRLF11), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SOCKETS), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SHOWGUI), FALSE);
-	EnableWindow (GetDlgItem (hDlg, IDC_CREATELOGFILE), FALSE);
-	EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSPEED), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSPEEDPAUSE), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_NOSOUND), TRUE);
@@ -4345,10 +4343,6 @@ static void enable_for_miscdlg (HWND hDlg)
 	EnableWindow (GetDlgItem(hDlg, IDC_SCSIDEVICE), FALSE);
 	EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
 #endif
-	if (workprefs.win32_logfile)
-	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), TRUE);
-	else
-	    EnableWindow (GetDlgItem (hDlg, IDC_ILLEGAL), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_DOSAVESTATE), FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_RATE), workprefs.statecapture ? TRUE : FALSE);
 	EnableWindow (GetDlgItem (hDlg, IDC_STATE_BUFFERSIZE), workprefs.statecapture ? TRUE : FALSE);
@@ -4594,7 +4588,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    misc_getpri (hDlg, IDC_MINIMIZED_PRIORITY, &workprefs.win32_iconified_priority);
 	}
 
-	switch( wParam )
+	switch(wParam)
 	{
 	case IDC_DOSAVESTATE:
 	    if (DiskSelection(hDlg, wParam, 9, &workprefs, 0)) 
@@ -4628,7 +4622,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_CREATELOGFILE:
 	    workprefs.win32_logfile = IsDlgButtonChecked (hDlg, IDC_CREATELOGFILE);
-	    enable_for_miscdlg( hDlg );
+	    enable_for_miscdlg(hDlg);
 	    break;
 	case IDC_INACTIVE_NOSOUND:
 	    if (!IsDlgButtonChecked (hDlg, IDC_INACTIVE_NOSOUND))
@@ -7589,8 +7583,8 @@ static void enable_for_hw3ddlg (HWND hDlg)
     CheckDlgButton( hDlg, IDC_FILTERENABLE, v );
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZ), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZ), v);
-    EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZMULT), v);
-    EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZMULT), v);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERHZMULT), vv && !vv2);
+    EnableWindow (GetDlgItem (hDlg, IDC_FILTERVZMULT), vv && !vv2);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERHO), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERVO), v);
     EnableWindow (GetDlgItem (hDlg, IDC_FILTERSLR), vv2);

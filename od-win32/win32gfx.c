@@ -1096,6 +1096,18 @@ int check_prefs_changed_gfx (void)
 	return 1;
     }
 
+    if (currprefs.win32_norecyclebin != changed_prefs.win32_norecyclebin) {
+	currprefs.win32_norecyclebin = changed_prefs.win32_norecyclebin;
+    }
+
+    if (currprefs.win32_logfile != changed_prefs.win32_logfile) {
+	currprefs.win32_logfile = changed_prefs.win32_logfile;
+	if (currprefs.win32_logfile)
+	    logging_open(0, 1);
+	else
+	    logging_cleanup();
+    }
+
     if (currprefs.leds_on_screen != changed_prefs.leds_on_screen ||
 	currprefs.keyboard_leds[0] != changed_prefs.keyboard_leds[0] ||
 	currprefs.keyboard_leds[1] != changed_prefs.keyboard_leds[1] ||

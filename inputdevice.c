@@ -44,6 +44,7 @@
 #include "arcadia.h"
 
 int inputdevice_logging = 0;
+static int potgo_logging = 0;
 
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
@@ -893,7 +894,8 @@ void POTGO (uae_u16 v)
 {
     int i;
 
-    //write_log ("W:%d: %04.4X %p\n", vpos, v, m68k_getpc());
+    if (potgo_logging)
+	write_log ("W:%d: %04.4X %p\n", vpos, v, m68k_getpc());
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log ("POTGO %04.4X %s\n", v, debuginfo(0));
@@ -929,7 +931,8 @@ uae_u16 POTGOR (void)
     if (notinrom ())
 	write_log ("POTGOR %04.4X %s\n", v, debuginfo(0));
 #endif
-    //write_log("R:%d:%04.4X %d %p\n", vpos, v, cd32_shifter[1], m68k_getpc());
+    if (potgo_logging)
+	write_log("R:%d:%04.4X %d %p\n", vpos, v, cd32_shifter[1], m68k_getpc());
     return v;
 }
 

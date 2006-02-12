@@ -21,8 +21,8 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
-#define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 6"
+#define WINUAEBETA 0
+#define WINUAEBETASTR " "
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];
@@ -109,5 +109,8 @@ struct winuae_lang
 };
 extern struct winuae_lang langs[];
 extern HMODULE language_load(WORD language);
+
+extern void logging_open(int,int);
+extern void logging_cleanup(void);
 
 #endif

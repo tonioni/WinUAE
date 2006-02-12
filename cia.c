@@ -774,14 +774,12 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	CIA_update ();
 	ciaasdr = val;
 	if (ciaacra & 0x40) {
-	    if (!kback && (ciaacra & 0x41) == 0x41)
-		ciaasdr_cnt = 8 * 2;
 	    kback = 1;
 	} else {
 	    ciaasdr_cnt = 0;
-	    if ((ciaacra & 0x41) == 0x41)
-		ciaasdr_cnt = 8 * 2;
 	}
+	if ((ciaacra & 0x41) == 0x41 && ciaasdr_cnt == 0)
+	    ciaasdr_cnt = 8 * 2;
 	CIA_calctimers ();
 	break;
     case 13:
@@ -915,10 +913,10 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
     case 12:
 	CIA_update ();
 	ciabsdr = val;
-	if ((ciabcra & 0x41) == 0x41)
-	    ciabsdr_cnt = 8 * 2;
 	if ((ciabcra & 0x40) == 0)
 	    ciabsdr_cnt = 0;
+	if ((ciabcra & 0x41) == 0x41 && ciabsdr_cnt == 0)
+	    ciabsdr_cnt = 8 * 2;
 	CIA_calctimers ();
 	break;
     case 13:

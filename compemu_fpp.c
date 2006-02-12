@@ -1175,12 +1175,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		/* because both operands should be SINGLE precision, too */
 	    case 0x60: /* FSDIV */
 		fdiv_rr(dreg,sreg);
+		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
+		    break;
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
 #endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
+		fcuts_r(dreg);
 		break;
 	    case 0x25: /* FREM */
 		frem1_rr(dreg,sreg);
@@ -1192,12 +1193,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		/* because both operands should be SINGLE precision, too */
 	    case 0x63: /* FSMUL */
 		fmul_rr(dreg,sreg);
+		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
+		    break;
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
 #endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
+		fcuts_r(dreg);
 		break;
 	    case 0x28: /* FSUB */
 		fsub_rr(dreg,sreg);
@@ -1223,7 +1225,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		fmov_rr(FP_RESULT,sreg);
 		return;
 	    case 0x40: /* FSMOVE */
-		if (prec == 1) {
+		if (prec == 1 || !currprefs.fpu_strict) {
 		    if (sreg != dreg) /* no <EA> */
 			fmov_rr(dreg,sreg);
 		} else {
@@ -1233,15 +1235,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		break;
 	    case 0x41: /* FSSQRT */
 		fsqrt_rr(dreg,sreg);
+		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
+		    break;
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
 #endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
+		fcuts_r(dreg);
 		break;
 	    case 0x44: /* FDMOVE */
-		if (prec) {
+		if (prec || !currprefs.fpu_strict) {
 		    if (sreg != dreg) /* no <EA> */
 		        fmov_rr(dreg,sreg);
 		} else {
@@ -1250,6 +1253,10 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 		break;
 	    case 0x45: /* FDSQRT */
+		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */
+		    fsqrt_rr(dreg,sreg);
+		    break;
+		}
 #if USE_X86_FPUCW
 		if (regs.fpcr & 0xC0) { /* if we don't have EXTENDED precision */
 		    if ((regs.fpcr & 0xC0) == 0x80) /* if we have DOUBLE */
@@ -1266,47 +1273,43 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 #endif		/* in case of EXTENDED precision, just reduce the result to DOUBLE */
 		fsqrt_rr(dreg,sreg);
-		fmov_mr((uae_u32)temp_fp,dreg);
-		fmov_rm(dreg,(uae_u32)temp_fp);
+		fcut_r(dreg);
 		break;
 	    case 0x58: /* FSABS */
 		fabs_rr(dreg,sreg);
-		if (prec != 1) {
-		    fmovs_mr((uae_u32)temp_fp,dreg);
-		    fmovs_rm(dreg,(uae_u32)temp_fp);
-		}
+		if (prec != 1 && currprefs.fpu_strict)
+		    fcuts_r(dreg);
 		break;
 	    case 0x5a: /* FSNEG */
 		fneg_rr(dreg,sreg);
-		if (prec != 1) {
-		    fmovs_mr((uae_u32)temp_fp,dreg);
-		    fmovs_rm(dreg,(uae_u32)temp_fp);
-		}
+		if (prec != 1 && currprefs.fpu_strict)
+		    fcuts_r(dreg);
 		break;
 	    case 0x5c: /* FDABS */
 		fabs_rr(dreg,sreg);
-		if (!prec) {
-		    fmov_mr((uae_u32)temp_fp,dreg);
-		    fmov_rm(dreg,(uae_u32)temp_fp);
-		}
+		if (!prec && currprefs.fpu_strict)
+		    fcut_r(dreg);
 		break;
 	    case 0x5e: /* FDNEG */
 		fneg_rr(dreg,sreg);
-		if (!prec) {
-		    fmov_mr((uae_u32)temp_fp,dreg);
-		    fmov_rm(dreg,(uae_u32)temp_fp);
-		}
+		if (!prec && currprefs.fpu_strict)
+		    fcut_r(dreg);
 		break;
 	    case 0x62: /* FSADD */
 		fadd_rr(dreg,sreg);
+		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
+		    break;
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
 #endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
+		fcuts_r(dreg);
 		break;
 	    case 0x64: /* FDDIV */
+		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */
+		    fdiv_rr(dreg,sreg);
+		    break;
+		}
 #if USE_X86_FPUCW
 		if (regs.fpcr & 0xC0) { /* if we don't have EXTENDED precision */
 		    if ((regs.fpcr & 0xC0) == 0x80) /* if we have DOUBLE */
@@ -1323,10 +1326,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 #endif		/* in case of EXTENDED precision, just reduce the result to DOUBLE */
 		fdiv_rr(dreg,sreg);
-		fmov_mr((uae_u32)temp_fp,dreg);
-		fmov_rm(dreg,(uae_u32)temp_fp);
+		fcut_r(dreg);
 		break;
 	    case 0x66: /* FDADD */
+		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */
+		    fadd_rr(dreg,sreg);
+		    break;
+		}
 #if USE_X86_FPUCW
 		if (regs.fpcr & 0xC0) { /* if we don't have EXTENDED precision */
 		    if ((regs.fpcr & 0xC0) == 0x80) /* if we have DOUBLE */
@@ -1343,10 +1349,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 #endif		/* in case of EXTENDED precision, just reduce the result to DOUBLE */
 		fadd_rr(dreg,sreg);
-		fmov_mr((uae_u32)temp_fp,dreg);
-		fmov_rm(dreg,(uae_u32)temp_fp);
+		fcut_r(dreg);
 		break;
 	    case 0x67: /* FDMUL */
+		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */
+		    fmul_rr(dreg,sreg);
+		    break;
+		}
 #if USE_X86_FPUCW
 		if (regs.fpcr & 0xC0) { /* if we don't have EXTENDED precision */
 		    if ((regs.fpcr & 0xC0) == 0x80) /* if we have DOUBLE */
@@ -1363,19 +1372,23 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 #endif		/* in case of EXTENDED precision, just reduce the result to DOUBLE */
 		fmul_rr(dreg,sreg);
-		fmov_mr((uae_u32)temp_fp,dreg);
-		fmov_rm(dreg,(uae_u32)temp_fp);
+		fcut_r(dreg);
 		break;
 	    case 0x68: /* FSSUB */
 		fsub_rr(dreg,sreg);
+		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
+		    break;
 #if USE_X86_FPUCW
 		if ((regs.fpcr & 0xC0) == 0x40) /* if SINGLE precision */
 		    break;
 #endif
-		fmovs_mr((uae_u32)temp_fp,dreg);
-		fmovs_rm(dreg,(uae_u32)temp_fp);
+		fcuts_r(dreg);
 		break;
 	    case 0x6c: /* FDSUB */
+		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */
+		    fsub_rr(dreg,sreg);
+		    break;
+		}
 #if USE_X86_FPUCW
 		if (regs.fpcr & 0xC0) { /* if we don't have EXTENDED precision */
 		    if ((regs.fpcr & 0xC0) == 0x80) /* if we have DOUBLE */
@@ -1392,8 +1405,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 #endif		/* in case of EXTENDED precision, just reduce the result to DOUBLE */
 		fsub_rr(dreg,sreg);
-		fmov_mr((uae_u32)temp_fp,dreg);
-		fmov_rm(dreg,(uae_u32)temp_fp);
+		fcut_r(dreg);
 		break;
 	    default:
 		FAIL(1);

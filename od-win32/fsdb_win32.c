@@ -451,7 +451,10 @@ int my_mkdir (const char *name)
 static int recycle (const char *name)
 {
     if (currprefs.win32_norecyclebin) {
-	return DeleteFile(name) ? 0 : -1;
+	DWORD dirattr = GetFileAttributes (name);
+	if (dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY))
+	    return RemoveDirectory (name) ? 0 : -1;
+    	return DeleteFile(name) ? 0 : -1;
     } else {
         SHFILEOPSTRUCT fos;
 	/* name must be terminated by \0\0 */

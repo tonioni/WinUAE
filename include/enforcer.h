@@ -4,4 +4,6 @@
 int enforcer_enable(int);
 int enforcer_disable(void);
 
+extern int enforcermode;
+
 #endif

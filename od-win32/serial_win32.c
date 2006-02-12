@@ -233,6 +233,15 @@ void SERDAT (uae_u16 w)
     }
 #endif
     
+    if (serper == 372) {
+	extern int enforcermode;
+	if (enforcermode & 2) {
+	    write_log ("%c", dochar (w));
+	    if (w == 266)
+		write_log("\n");
+	}
+    }
+
     data_in_serdat = 1;
     if (!data_in_sershift)
 	checksend (1);

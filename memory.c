@@ -308,6 +308,7 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
 	    }
 	}
     }
+    keysize = 0;
     if (f) {
 	write_log("ROM.key loaded '%s'\n", tmp);
 	zfile_fseek (f, 0, SEEK_END);

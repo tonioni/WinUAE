@@ -1488,11 +1488,27 @@ void toggle_mousegrab (void)
 {
 }
 
-void logging_init( void )
+void logging_open(int bootlog, int append)
+{
+    char debugfilename[MAX_DPATH];
+
+    debugfilename[0] = 0;
+#ifndef	SINGLEFILE
+    if (currprefs.win32_logfile)
+	sprintf (debugfilename, "%swinuaelog.txt", start_path_data);
+    if (bootlog)
+	sprintf (debugfilename, "%swinuaebootlog.txt", start_path_data);
+    if (debugfilename[0]) {
+	if (!debugfile)
+	    debugfile = fopen (debugfilename, append ? "a" : "wt");
+    }
+#endif
+}
+
+void logging_init(void)
 {
     static int started;
     static int first;
-    char debugfilename[MAX_DPATH];
 
     if (first > 1) {
 	write_log ("** RESTART **\n");
@@ -1503,17 +1519,7 @@ void logging_init( void )
 	    fclose (debugfile);
 	debugfile = 0;
     }
-#ifndef	SINGLEFILE
-    if (currprefs.win32_logfile) {
-	sprintf (debugfilename, "%swinuaelog.txt", start_path_data);
-	if (!debugfile)
-	    debugfile = fopen (debugfilename, "wt");
-    } else if (!first) {
-	sprintf (debugfilename, "%swinuaebootlog.txt", start_path_data);
-	if (!debugfile)
-	    debugfile = fopen (debugfilename, "wt");
-    }
-#endif
+    logging_open(first ? 0 : 1, 0);
     first++;
     write_log ("%s (%s %d.%d %s%s%s)", VersionStr, os_winnt ? "NT" : "W9X/ME",
 	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,

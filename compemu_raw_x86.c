@@ -2727,6 +2727,42 @@ LOWFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 }
 LENDFUNC(NONE,WRITE,2,raw_fmovs_mr,(MEMW m, FR r))
 
+LOWFUNC(NONE,NONE,1,raw_fcuts_r,(FRW r))
+{
+    make_tos(r);     /* TOS = r */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0xfc); /* add -4 to esp */
+    emit_byte(0xd9);
+    emit_byte(0x1c);
+    emit_byte(0x24); /* fstp store r as SINGLE to [esp] and pop */
+    emit_byte(0xd9);
+    emit_byte(0x04);
+    emit_byte(0x24); /* fld load r as SINGLE from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x04); /* add +4 to esp */
+}
+LENDFUNC(NONE,NONE,1,raw_fcuts_r,(FRW r))
+
+LOWFUNC(NONE,NONE,1,raw_fcut_r,(FRW r))
+{
+    make_tos(r);     /* TOS = r */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0xf8); /* add -8 to esp */
+    emit_byte(0xdd);
+    emit_byte(0x1c);
+    emit_byte(0x24); /* fstp store r as DOUBLE to [esp] and pop */
+    emit_byte(0xdd);
+    emit_byte(0x04);
+    emit_byte(0x24); /* fld load r as DOUBLE from [esp] */
+    emit_byte(0x83);
+    emit_byte(0xc4);
+    emit_byte(0x08); /* add +8 to esp */
+}
+LENDFUNC(NONE,NONE,1,raw_fcut_r,(FRW r))
+
 LOWFUNC(NONE,READ,2,raw_fmovl_ri,(FW r, IMMS i))
 {
     emit_byte(0x68);

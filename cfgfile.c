@@ -306,6 +306,7 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "comp_flushmode=%s\n", flushmode[p->comp_hardflush]);
     cfgfile_write (f, "compforcesettings=%s\n", p->compforcesettings ? "true" : "false");
     cfgfile_write (f, "compfpu=%s\n", p->compfpu ? "true" : "false");
+    cfgfile_write (f, "fpu_strict=%s\n", p->fpu_strict ? "true" : "false");
     cfgfile_write (f, "comp_midopt=%s\n", p->comp_midopt ? "true" : "false");
     cfgfile_write (f, "comp_lowopt=%s\n", p->comp_lowopt ? "true" : "false");
     cfgfile_write (f, "avoid_cmov=%s\n", p->avoid_cmov ? "true" : "false" );
@@ -977,6 +978,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "comp_oldsegv", &p->comp_oldsegv)
 	|| cfgfile_yesno (option, value, "compforcesettings", &p->compforcesettings)
 	|| cfgfile_yesno (option, value, "compfpu", &p->compfpu)
+	|| cfgfile_yesno (option, value, "fpu_strict", &p->fpu_strict)
 	|| cfgfile_yesno (option, value, "comp_midopt", &p->comp_midopt)
 	|| cfgfile_yesno (option, value, "comp_lowopt", &p->comp_lowopt)
 	|| cfgfile_yesno (option, value, "scsi", &p->scsi))
@@ -2337,6 +2339,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->comp_constjump = 1;
     p->comp_oldsegv = 0;
     p->compfpu = 1;
+    p->fpu_strict = 0;
     p->compforcesettings = 0;
     p->cachesize = 0;
     p->avoid_cmov = 0;
