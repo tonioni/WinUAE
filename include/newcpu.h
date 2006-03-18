@@ -237,8 +237,6 @@ STATIC_INLINE void m68k_setstopped (int stop)
 extern uae_u32 get_disp_ea_020 (uae_u32 base, uae_u32 dp);
 extern uae_u32 get_disp_ea_000 (uae_u32 base, uae_u32 dp);
 
-extern uae_s32 ShowEA (void *, uae_u16 opcode, int reg, amodes mode, wordsizes size, char *buf);
-
 extern void MakeSR (void);
 extern void MakeFromSR (void);
 extern void Exception (int, uaecptr);
@@ -253,6 +251,7 @@ extern void init_m68k_full (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (void *, uaecptr *);
 extern void m68k_disasm (void *, uaecptr, uaecptr *, int);
+extern void m68k_disasm_ea (void *, uaecptr, uaecptr *, int, uaecptr *, uaecptr *);
 extern void sm68k_disasm(char *, char *, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (void);
 extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);

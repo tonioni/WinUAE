@@ -1976,7 +1976,8 @@ static void draw_status_line (int line)
 	} else if (led == 8) {
 	    int idle = (gui_data.idle + 5) / 10;
 	    pos = 0;
-	    on_rgb = 0x000;
+	    on = framecnt;
+	    on_rgb = 0xc00;
 	    off_rgb = 0x000;
 	    num1 = idle / 100;
 	    num2 = (idle - num1 * 100) / 10;

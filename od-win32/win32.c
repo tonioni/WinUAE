@@ -1475,10 +1475,6 @@ int debuggable (void)
     return 0;
 }
 
-int needmousehack (void)
-{
-    return 1;
-}
 int mousehack_allowed (void)
 {
     return dinput_winmouse () > 0 && dinput_winmousemode ();
@@ -1814,6 +1810,8 @@ void set_path (char *name, char *path)
 	    strcat (tmp, "Savestates");
 	if (!strcmp (name, "SaveimagePath"))
 	    strcat (tmp, "SaveImages");
+	if (!strcmp (name, "InputPath"))
+	    strcat (tmp, "Inputrecordings");
     } else {
 	strcpy (tmp, path);
     }
@@ -1991,6 +1989,7 @@ static void WIN32_HandleRegistryStuff(void)
 	initpath ("StatefilePath", start_path_data);
 	initpath ("SaveimagePath", start_path_data);
 	initpath ("VideoPath", start_path_data);
+	initpath ("InputPath", start_path_data);
 	if (disposition == REG_CREATED_NEW_KEY)
 	{
 	    /* Create and initialize all our sub-keys to the default values */
@@ -2052,6 +2051,8 @@ static void WIN32_HandleRegistryStuff(void)
     strcat (path, "Hardware");
     CreateDirectory (path, NULL);
     fetch_path ("StatefilePath", path, sizeof (path));
+    CreateDirectory (path, NULL);
+    fetch_path ("InputPath", path, sizeof (path));
     CreateDirectory (path, NULL);
     strcat (path, "default.uss");
     strcpy (savestate_fname, path);

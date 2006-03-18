@@ -534,58 +534,101 @@ static int copper_debugger (char **c)
     return 0;
 }
 
-/* cheat-search by Holger Jakob */
+#define MAX_CHEAT_VIEW 100
+/* cheat-search by Toni Wilen (originally by Holger Jakob) */
 static void cheatsearch (char **c)
 {
-    uae_u8 *p = get_real_address (0);
-    static uae_u32 *vlist = NULL;
-    uae_u32 ptr;
-    uae_u32 val = 0;
-    uae_u32 type = 0; /* not yet */
-    uae_u32 count = 0;
-    uae_u32 fcount = 0;
-    uae_u32 full = 0;
+    static uae_u8 *vlist;
+    static int listsize;
+    static int first = 1;
+    static int size = 1;
+    uae_u32 p, val, memcnt, prevmemcnt;
+    int i, count, vcnt, memsize;
+
+    memsize = allocated_chipmem + allocated_bogomem + allocated_fastmem;
 
     ignore_ws (c);
-    val = readhex (c);
-    if (vlist == NULL) {
-	vlist = malloc (256*4);
-	if (vlist != 0) {
-	    for (count = 0; count<255; count++)
-		vlist[count] = 0;
-	    count = 0;
-	    for (ptr = 0; ptr < allocated_chipmem - 40; ptr += 2, p += 2) {
-		if (ptr >= 0x438 && p[3] == (val & 0xff)
-		    && p[2] == (val >> 8 & 0xff)
-		    && p[1] == (val >> 16 & 0xff)
-		    && p[0] == (val >> 24 & 0xff))
-		{
-		    if (count < 255) {
-			vlist[count++]=ptr;
-			console_out ("%08x: %x%x%x%x\n",ptr,p[0],p[1],p[2],p[3]);
-		    } else
-			full = 1;
-		}
-	    }
-	    console_out ("Found %d possible addresses with %d\n",count,val);
-	    console_out ("Now continue with 'g' and use 'C' with a different value\n");
-	}
-    } else {
-	for (count = 0; count<255; count++) {
-	    if (p[vlist[count]+3] == (val & 0xff)
-		&& p[vlist[count]+2] == (val>>8 & 0xff)
-		&& p[vlist[count]+1] == (val>>16 & 0xff)
-		&& p[vlist[count]] == (val>>24 & 0xff))
-	    {
-		fcount++;
-		console_out ("%08x: %x%x%x%x\n", vlist[count], p[vlist[count]],
-			p[vlist[count]+1], p[vlist[count]+2], p[vlist[count]+3]);
-	    }
-	}
-	console_out ("%d hits of %d found\n",fcount,val);
-	free (vlist);
-	vlist = NULL;
+    if (!more_params(c)) {
+	first = 1;
+    	console_out("search reset\n");
+	xfree (vlist);
+	listsize = memsize;
+	vlist = xcalloc (listsize >> 3, 1);
+	return;
     }
+    val = readhex (c);
+    if (first) {
+	ignore_ws (c);
+	if (val > 255)
+	    size = 2;
+	if (val > 65535)
+	    size = 3;
+	if (val > 16777215)
+	    size = 4;
+	if (more_params(c))
+	    size = readint(c);
+    }
+    if (size > 4)
+	size = 4;
+    if (size < 1)
+	size = 1;
+
+    if (vlist == NULL) {
+	listsize = memsize;
+	vlist = xcalloc (listsize >> 3, 1);
+    }
+
+    count = 0;
+    vcnt = 0;
+
+    for (prevmemcnt = memcnt = 0; memcnt < memsize - size && memcnt < listsize; memcnt++) {
+	p = memcnt;
+	if (memcnt >= allocated_chipmem + allocated_bogomem && memcnt < allocated_chipmem + allocated_bogomem + allocated_fastmem)
+	    p = 0x200000 + memcnt - (allocated_chipmem + allocated_bogomem);
+	if (memcnt >= allocated_chipmem && memcnt < allocated_chipmem + allocated_bogomem)
+	    p = 0xc00000 + memcnt - (allocated_chipmem);
+
+	for (i = 0; i < size; i++) {
+	    if (get_byte(p + i) != val >> ((size - i - 1) << 8))
+		break;
+	}
+	if (i == size) {
+	    int voffset = memcnt >> 3;
+	    int vmask = 1 << (memcnt & 7);
+	    if (!first) {
+		while (prevmemcnt < memcnt) {
+		    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
+		    prevmemcnt++;
+		}
+		if (vlist[voffset] & vmask) {
+		    count++;
+		    if (vcnt < MAX_CHEAT_VIEW) {
+		        console_out ("%08x ", p);
+			vcnt++;
+		        if (!(vcnt % 8))
+			    console_out("\n");
+		    }
+		} else {
+		    vlist[voffset] &= ~vmask;
+		}
+		prevmemcnt = memcnt + 1;
+	    } else {
+		vlist[voffset] |= vmask;
+		count++;
+	    }
+	}
+    }
+    if (!first) {
+	while (prevmemcnt < memcnt) {
+	    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
+	    prevmemcnt++;
+	}
+    }
+    if (!first && (vcnt % 8))
+	console_out ("\n");
+    console_out ("Found %d possible addresses with 0x%x (%u) (%d bytes)\n", count, val, val, size);
+    console_out ("Now continue with 'g' and use 'C' with a different value\n");
+    first = 0;
 }
 
 #define BREAKPOINT_TOTAL 8
@@ -812,38 +855,38 @@ static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 
 static void deinitialize_memwatch (void)
 {
-    int i;
+    int i, as;
     addrbank *a1, *a2;
 
     if (!memwatch_enabled)
 	return;
-    for (i = 0; i < 256; i++) {
+    as = currprefs.address_space_24 ? 256 : 65536;
+    for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i];
 	a2 = mem_banks[i];
 	memcpy (a2, a1, sizeof (addrbank));
-	free (a1);
+	xfree (a1);
     }
-    free (debug_mem_banks);
+    xfree (debug_mem_banks);
     debug_mem_banks = 0;
     memwatch_enabled = 0;
-    free (illgdebug);
+    xfree (illgdebug);
     illgdebug = 0;
 }
 
 static int initialize_memwatch (void)
 {
-    int i;
+    int i, as;
     addrbank *a1, *a2;
 
-    if (!currprefs.address_space_24)
-	return 0;
-    debug_mem_banks = xmalloc (sizeof (addrbank*) * 256);
-    for (i = 0; i < 256; i++) {
+    as = currprefs.address_space_24 ? 256 : 65536;
+    debug_mem_banks = xmalloc (sizeof (addrbank*) * as);
+    for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i] = xmalloc (sizeof (addrbank));
 	a2 = mem_banks[i];
 	memcpy (a1, a2, sizeof (addrbank));
     }
-    for (i = 0; i < 256; i++) {
+    for (i = 0; i < as; i++) {
 	a2 = mem_banks[i];
 	a2->bget = debug_bget;
 	a2->wget = debug_wget;
@@ -1283,6 +1326,45 @@ end:
 	disk_debug_track);
 }
 
+static uae_u32 memory_counter(int reset)
+{
+    static uae_u32 p;
+    if (reset) {
+	p = 0xffffffff;
+	return 0;
+    }
+    p++;
+    if (p == allocated_chipmem)
+	p = 0x200000;
+    if (p == allocated_fastmem + 0x200000)
+	p = 0xc00000;
+    if (p == allocated_bogomem + 0xc00000)
+	p = 0xffffffff;
+    return p;
+}
+
+static void find_ea (char **inptr)
+{
+    uae_u32 ea, sea, dea, start, end;
+    int i;
+
+    start = 0;
+    end = allocated_chipmem;
+    ea = readhex (inptr);
+    if (more_params(inptr))
+	start = readhex (inptr);
+    if (more_params(inptr))
+	end = readhex (inptr);
+    memory_counter(1);
+    while ((i = memory_counter(0)) != 0xffffffff) {
+	sea = 0xffffffff;
+	dea = 0xffffffff;
+	m68k_disasm_ea (NULL, i, NULL, 1, &sea, &dea);
+	if (ea == sea || ea == dea)
+	    m68k_disasm (stdout, i, NULL, 1);
+    }
+}
+
 static void m68k_modify (char **inptr)
 {
     uae_u32 v;
@@ -1411,8 +1493,13 @@ static void debug_1 (void)
 	    return;
 
 	case 'f':
-	    if (instruction_breakpoint (&inptr))
-		return;
+	    if (inptr[0] == 'a') {
+		next_char(&inptr);
+		find_ea (&inptr);
+	    } else {
+		if (instruction_breakpoint (&inptr))
+		    return;
+	    }
 	    break;
 
 	case 'q': uae_quit();
@@ -1671,3 +1758,111 @@ const char *debuginfo (int mode)
     return txt;
 }
 */
+
+struct snooperdata {
+    uae_u32 flags;
+    uae_u32 addr;
+    uae_u32 len;
+    uae_u32 p_addr;
+};
+
+static struct snooperdata *snoop;
+static uae_u32 snooper_callback;
+
+#define SNOOPER_READ (1 << 0)
+#define SNOOPER_WRITE (1 << 1)
+
+void snooper_trigger(uaecptr trapaddr)
+{
+    uae_u32 currpc = m68k_getpc ();
+    int sv = regs.s, i;
+    struct snooperdata *sd = snoop;
+
+    while (sd->flags != 0xffffffff) {
+	if (trapaddr >= sd->addr && trapaddr < sd->addr + sd->len)
+	    break;
+    }
+    if (sd->flags == 0xffffffff)
+	return;
+
+    MakeSR();
+    if (!regs.s) {
+	regs.usp = m68k_areg(regs, 7);
+	if (currprefs.cpu_level >= 2)
+	    m68k_areg(regs, 7) = regs.m ? regs.msp : regs.isp;
+	else
+	    m68k_areg(regs, 7) = regs.isp;
+	regs.s = 1;
+    }
+
+    m68k_areg(regs, 7) -= 4;
+    put_word (m68k_areg(regs, 7), 0);
+    for (i = 0 ; i < 8; i++) {
+        m68k_areg(regs, 7) -= 4;
+        put_long (m68k_areg(regs, 7), m68k_dreg(regs, i));
+    }
+    for (i = 0 ; i < 8; i++) {
+        m68k_areg(regs, 7) -= 4;
+        put_long (m68k_areg(regs, 7), m68k_areg(regs, i));
+    }
+
+    m68k_areg(regs, 7) -= 4;
+    put_long (m68k_areg(regs, 7), sd->p_addr);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), 0);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), 0);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), 0);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), 0x0140 | (sv ? 6 : 2)); /* SSW */
+    m68k_areg(regs, 7) -= 4;
+    put_long (m68k_areg(regs, 7), trapaddr);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), 0x7008);
+
+    m68k_areg(regs, 7) -= 4;
+    put_long (m68k_areg(regs, 7), currpc);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), regs.sr);
+    m68k_setpc(snooper_callback);
+
+    set_special(SPCFLAG_END_COMPILE);
+    fill_prefetch_slow ();
+}
+
+int snooper(uaecptr p)
+{
+    uaecptr p2;
+    int size;
+    struct snooperdata *snptr;
+    
+    if (!p) {
+	xfree (snoop);
+	snoop = 0;
+	return 1;
+    }
+    if (!initialize_memwatch())
+	return 0;
+    snooper_callback = get_long (p);
+    p += 4;
+
+    size = 1;
+    p2 = p;
+    while (get_long (p2) != 0xffffffff) {
+	p2 += 12;
+	size++;
+    }
+    snoop = xmalloc (sizeof (struct snooperdata) * size);
+    snptr = snoop;
+    for (;;) {
+	snptr->flags = get_long (p);
+	if (snptr->flags == 0xffffffff)
+	    break;
+	snptr->addr = get_long (p + 4);
+	snptr->len = get_long (p + 8);
+	snptr->p_addr = p;
+	p += 12;
+    }
+    return 1;
+}

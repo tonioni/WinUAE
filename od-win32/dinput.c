@@ -397,7 +397,7 @@ static void initialize_windowsmouse (void)
 	num_mouse++;
 	name = (i == 0) ? "Windows mouse" : "Mousehack mouse";
 	did->connection = DIDC_WIN;
-	did->name = my_strdup (i ? "Mousehack mouse" : "Windows mouse");
+	did->name = my_strdup (i ? "Mousehack mouse  (Required for tablets)" : "Windows mouse");
 	did->sortname = my_strdup (i ? "Windowsmouse2" : "Windowsmouse1");
 	did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
 	if (did->buttons < 3)
@@ -1658,10 +1658,6 @@ static void read_joystick (void)
 
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	struct didata *did = &di_joystick[i];
-	if (currprefs.input_selected_setting == 0) {
-	    if (jsem_isjoy (0, &currprefs) != i && jsem_isjoy (1, &currprefs) != i)
-		continue;
-	}
 	if (!did->acquired)
 	    continue;
 	if (did->connection == DIDC_CAT) {
@@ -1725,31 +1721,6 @@ static void read_joystick (void)
 	}
 	IDirectInputDevice8_Poll (lpdi);
     }
-#if 0
-    {
-	static uae_u8 odir, obut;
-	uae_u8 dir, dir2, but;
-	if (catweasel_read_joystick (&dir, &but)) {
-	    if ((but & 0x80) != (obut & 0x80))
-		handle_input_event (INPUTEVENT_JOY1_FIRE_BUTTON, !(but & 0x80), 1, 0);
-	    if ((but & 0x40) != (obut & 0x40))
-		handle_input_event (INPUTEVENT_JOY2_FIRE_BUTTON, !(but & 0x40), 1, 0);
-	    dir2 = odir;
-	    odir = dir;
-	    obut = but;
-	    if ((dir & 15) != (dir2 & 15)) {
-		handle_input_event (INPUTEVENT_JOY2_HORIZ, !(dir & 1) ? 1 : !(dir & 2) ? -1 : 0, 1, 0);
-		handle_input_event (INPUTEVENT_JOY2_VERT, !(dir & 4) ? 1 : !(dir & 8) ? -1 : 0, 1, 0);
-	    }
-	    dir >>= 4;
-	    dir2 >>= 4;
-	    if ((dir & 15) != (dir2 & 15)) {
-		handle_input_event (INPUTEVENT_JOY1_HORIZ, !(dir & 1) ? 1 : !(dir & 2) ? -1 : 0, 1, 0);
-		handle_input_event (INPUTEVENT_JOY1_VERT, !(dir & 4) ? 1 : !(dir & 8) ? -1 : 0, 1, 0);
-	    }
-	}
-    }
-#endif
 }
 
 static int init_joystick (void)

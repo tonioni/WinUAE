@@ -369,7 +369,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		    num += 10;
 		if (ctrlpressed ()) {
 		    swapperdrive = num;
-		    if (num > 3)
+		    if (swapperdrive > 3)
 			swapperdrive = 0;
 		} else {
 		    int i;

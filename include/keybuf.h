@@ -10,6 +10,7 @@
 extern int get_next_key (void);
 extern int keys_available (void);
 extern void record_key (int);
+extern void record_key_direct (int);
 extern void keybuf_init (void);
 extern void joystick_setting_changed (void);
 extern int getcapslockstate (void);

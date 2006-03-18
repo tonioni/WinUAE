@@ -2001,8 +2001,8 @@ static BOOL doInit (void)
 		fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 #ifdef PICASSO96
 	} else if (screen_is_picasso && !currprefs.gfx_pfullscreen &&
-		  ( picasso_vidinfo.selected_rgbformat != RGBFB_CHUNKY ) &&
-		  ( picasso_vidinfo.selected_rgbformat != colortype ) &&
+		  (picasso_vidinfo.selected_rgbformat != RGBFB_CHUNKY) &&
+		  (picasso_vidinfo.selected_rgbformat != colortype) &&
 		    !(currentmode->flags & DM_OVERLAY) )
 	{
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_4;
@@ -2010,8 +2010,8 @@ static BOOL doInit (void)
 	}
 	if (fs_warning >= 0 && !isfullscreen ()) {
 	    char szMessage[MAX_DPATH], szMessage2[MAX_DPATH];
-	    WIN32GUI_LoadUIString( IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH );
-	    WIN32GUI_LoadUIString( fs_warning, szMessage2, MAX_DPATH );
+	    WIN32GUI_LoadUIString(IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH);
+	    WIN32GUI_LoadUIString(fs_warning, szMessage2, MAX_DPATH);
 	    // Temporarily drop the DirectDraw stuff
 	    DirectDraw_Release();
 	    sprintf (tmpstr, szMessage, szMessage2);

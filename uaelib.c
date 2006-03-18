@@ -417,6 +417,9 @@ static uae_u32 uaelib_demux (void)
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
      case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);
      case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
+#ifdef DEBUGGER
+     case 84: return snooper (ARG0);
+#endif
     }
     return 0;
 }

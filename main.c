@@ -124,8 +124,8 @@ void fixup_prefs (struct uae_prefs *p)
 	|| p->chipmem_size < 0x40000
 	|| p->chipmem_size > 0x800000)
     {
+	write_log ("Unsupported chipmem size %x!\n", p->chipmem_size);
 	p->chipmem_size = 0x200000;
-	write_log ("Unsupported chipmem size!\n");
 	err = 1;
     }
     if (p->chipmem_size > 0x80000)
@@ -134,14 +134,13 @@ void fixup_prefs (struct uae_prefs *p)
     if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
 	|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
     {
-	p->fastmem_size = 0;
-	write_log ("Unsupported fastmem size!\n");
+	write_log ("Unsupported fastmem size %x!\n", p->fastmem_size);
 	err = 1;
     }
     if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
 	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > 0x8000000)))
     {
-	write_log ("Unsupported graphics card memory size %lx!\n", p->gfxmem_size);
+	write_log ("Unsupported graphics card memory size %x!\n", p->gfxmem_size);
 	p->gfxmem_size = 0;
 	err = 1;
     }

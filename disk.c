@@ -42,6 +42,7 @@
 #include "caps/caps_win32.h"
 #endif
 #include "crc32.h"
+#include "inputdevice.h"
 
 /* support HD floppies */
 #define FLOPPY_DRIVE_HD
@@ -1524,6 +1525,11 @@ static void drive_eject (drive * drv)
     drive_settype_id(drv); /* Back to 35 DD */
     if (disk_debug_logging > 0)
         write_log ("eject drive %d\n", drv - &floppy[0]);
+    if (input_recording > 0) {
+	inprec_rstart (INPREC_DISKREMOVE, 1);
+	inprec_ru8 (drv - floppy);
+	inprec_rend ();
+    }
 }
 
 /* We use this function if we have no Kickstart ROM.
@@ -1537,13 +1543,15 @@ void DISK_ersatz_read (int tr, int sec, uaecptr dest)
 
 /* type: 0=regular, 1=ext2adf */
 /* adftype: 0=DD,1=HD,2=525SD */
-void disk_creatediskfile (char *name, int type, drive_type adftype)
+void disk_creatediskfile (char *name, int type, drive_type adftype, char *disk_name)
 {
     struct zfile *f;
     int i, l, file_size, tracks, track_len;
     char *chunk = NULL;
     uae_u8 tmp[3*4];
-    char *disk_name = "empty";
+
+    if (disk_name == NULL || strlen(disk_name) == 0)
+	disk_name = "empty";
 
     if (type == 1)
 	tracks = 2 * 83;
@@ -1674,7 +1682,7 @@ int disk_setwriteprotect (int num, const char *name, int protect)
     name2 = DISK_get_saveimagepath (name);
 
     if (needwritefile && zf2 == 0)
-	disk_creatediskfile (name2, 1, drvtype);
+	disk_creatediskfile (name2, 1, drvtype, NULL);
     zfile_fclose (zf2);
     if (protect && iswritefileempty (name)) {
 	for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
@@ -1741,10 +1749,14 @@ char *DISK_history_get (int idx)
     return dfxhistory[idx];
 }
 
-void disk_insert (int num, const char *name)
+static void disk_insert_2 (int num, const char *name, int forced)
 {
     drive *drv = floppy + num;
 
+    if (forced) {
+	drive_insert (drv, &currprefs, num, name);
+	return;
+    }
     if (!strcmp (currprefs.df[num], name))
 	return;
     strcpy (drv->newname, name);
@@ -1762,6 +1774,15 @@ void disk_insert (int num, const char *name)
     } else {
 	setdskchangetime (drv, 1);
     }
+}
+
+void disk_insert (int num, const char *name)
+{
+    disk_insert_2 (num, name, 0);
+}
+void disk_insert_force (int num, const char *name)
+{
+    disk_insert_2 (num, name, 1);
 }
 
 void DISK_check_change (void)

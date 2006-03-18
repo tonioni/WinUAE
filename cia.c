@@ -81,6 +81,8 @@ static unsigned int ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_cnt;
 static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
 static int kbstate, kback, ciaasdr_unread;
+static unsigned int sleepyhead = 0;
+
 #ifdef TOD_HACK
 static int tod_hack, tod_hack_delay;
 #endif
@@ -331,15 +333,13 @@ static void ciaa_checkalarm (void)
 
 void CIA_hsync_handler (void)
 {
-    static unsigned int keytime = 0, sleepyhead = 0;
-
     if (ciabtodon) {
 	ciabtod++;
 	ciabtod &= 0xFFFFFF;
 	ciab_checkalarm ();
     }
 
-    if (keys_available() && kback && (ciaacra & 0x40) == 0 && (++keytime & 15) == 0) {
+    if (keys_available() && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
 	/*
 	 * This hack lets one possible ciaaicr cycle go by without any key
 	 * being read, for every cycle in which a key is pulled out of the
@@ -942,6 +942,11 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 	CIA_calctimers ();
 	break;
     }
+}
+
+void CIA_inprec_prepare(void)
+{
+    sleepyhead = 0;
 }
 
 void CIA_reset (void)

@@ -17,7 +17,6 @@
 #include "sounddep/sound.h"
 #include "zfile.h"
 #include "events.h"
-
 #include "driveclick.h"
 
 static struct drvsample drvs[4][DS_END];
@@ -25,7 +24,7 @@ static int freq = 44100;
 
 static int drv_starting[4], drv_spinning[4], drv_has_spun[4], drv_has_disk[4];
 
-static int click_initialized;
+static int click_initialized, wave_initialized;
 #define DS_SHIFT 10
 static int sample_step;
 
@@ -137,6 +136,7 @@ void driveclick_init(void)
     int v, vv, i, j;
     char tmp[MAX_DPATH];
 
+    driveclick_fdrawcmd_detect();
     driveclick_free ();
     vv = 0;
     for (i = 0; i < 4; i++) {
@@ -147,11 +147,22 @@ void driveclick_init(void)
 	if (currprefs.dfxclick[i]) {
 	    if (currprefs.dfxclick[i] > 0) {
 		v = 0;
-		if (driveclick_loadresource (drvs[i], currprefs.dfxclick[i]))
-		    v = 3;
-		for (j = 0; j < CLICK_TRACKS; j++)
-		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
+		switch(currprefs.dfxclick[i])
+		{
+		    case 1:
+		    if (driveclick_loadresource (drvs[i], currprefs.dfxclick[i]))
+			v = 3;
+		    for (j = 0; j < CLICK_TRACKS; j++)
+			drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
+		    wave_initialized = 1;
+		    break;
+		    default:
+		    if (driveclick_fdrawcmd_open(currprefs.dfxclick[i] - 2))
+			v = 1;
+		    break;
+		}
 	    } else if (currprefs.dfxclick[i] == -1) {
+	        wave_initialized = 1;
 		for (j = 0; j < CLICK_TRACKS; j++)
 		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 		sprintf (tmp, "%suae_data%cdrive_click_%s",
@@ -195,6 +206,8 @@ void driveclick_init(void)
 void driveclick_reset (void)
 {
     xfree (clickbuffer);
+    if (!wave_initialized)
+	return;
     clickbuffer = xmalloc (sndbufsize);
     sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
@@ -203,6 +216,8 @@ void driveclick_free (void)
 {
     int i, j;
 
+    driveclick_fdrawcmd_close(0);
+    driveclick_fdrawcmd_close(1);
     for (i = 0; i < 4; i++) {
 	for (j = 0; j < DS_END; j++)
 	    freesample (&drvs[i][j]);
@@ -211,6 +226,7 @@ void driveclick_free (void)
     xfree (clickbuffer);
     clickbuffer = 0;
     click_initialized = 0;
+    wave_initialized = 0;
 }
 
 STATIC_INLINE uae_s16 getsample(void)
@@ -291,7 +307,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 {
     int i;
 
-    if (!click_initialized)
+    if (!wave_initialized)
 	return;
     mix();
     clickcnt = 0;
@@ -313,6 +329,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 void driveclick_click (int drive, int cyl)
 {
     static int prevcyl[4];
+
     if (!click_initialized)
 	return;
     if (!currprefs.dfxclick[drive])
@@ -320,6 +337,10 @@ void driveclick_click (int drive, int cyl)
     if (prevcyl[drive] == 0 && cyl == 0) // "noclick" check
 	return;
     prevcyl[drive] = cyl;
+    if (!wave_initialized) {
+	driveclick_fdrawcmd_seek (currprefs.dfxclick[drive] - 2, cyl);
+	return;
+    }
     mix();
     drvs[drive][DS_CLICK].pos = drvs[drive][DS_CLICK].indexes[cyl] << DS_SHIFT;
     drvs[drive][DS_CLICK].len = (drvs[drive][DS_CLICK].indexes[cyl] + (drvs[drive][DS_CLICK].lengths[cyl] / 2)) << DS_SHIFT;
@@ -329,8 +350,14 @@ void driveclick_motor (int drive, int running)
 {
     if (!click_initialized)
 	return;
+    if (!wave_initialized)
+	return;
     if (!currprefs.dfxclick[drive])
 	return;
+    if (!wave_initialized) {
+	driveclick_fdrawcmd_motor (currprefs.dfxclick[drive] - 2, running);
+	return;
+    }
     mix();
     if (running == 0) {
 	drv_starting[drive] = 0;
@@ -351,6 +378,8 @@ void driveclick_motor (int drive, int running)
 void driveclick_insert (int drive, int eject)
 {
     if (!click_initialized)
+	return;
+    if (!wave_initialized)
 	return;
     if (!currprefs.dfxclick[drive])
 	return;

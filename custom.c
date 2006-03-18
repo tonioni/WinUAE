@@ -4076,7 +4076,7 @@ static void fpscounter (void)
     timeframes++;
     if ((timeframes & 31) == 0) {
 	double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctime * 32.0));
-	int fps = frametime2 == 0 ? 0 : syncbase * 32 / (frametime2 / 10);
+	int fps = frametime2 == 0 ? 0 : (syncbase * 32) / (frametime2 / 10);
 	if (fps > 9999)
 	    fps = 9999;
 	if (idle < 0)
@@ -4362,11 +4362,29 @@ static void hsync_handler (void)
     cop_state.hpos = 0;
     cop_state.last_write = 0;
     compute_spcflag_copper ();
-    inputdevice_hsync ();
     serial_hsynchandler ();
 #ifdef CUSTOM_SIMPLE
     do_sprites (0);
 #endif
+
+    while (input_recording < 0 && inprec_pstart(INPREC_KEY)) {
+	record_key_direct (inprec_pu8());
+	inprec_pend();
+    }
+    while (input_recording < 0 && inprec_pstart(INPREC_DISKREMOVE)) {
+	disk_eject (inprec_pu8());
+	inprec_pend();
+    }
+    while (input_recording < 0 && inprec_pstart(INPREC_DISKINSERT)) {
+	int drv = inprec_pu8();
+	inprec_pstr (currprefs.df[drv]);
+	strcpy (changed_prefs.df[drv], currprefs.df[drv]);
+	disk_insert_force (drv, currprefs.df[drv]);
+	inprec_pend();
+    }
+    inputdevice_hsync ();
+
+    hsync_counter++;
     //copper_check (2);
 }
 
@@ -4403,6 +4421,7 @@ void customreset (void)
     int zero = 0;
 
     write_log ("reset at %x\n", m68k_getpc());
+    hsync_counter = 0;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
 	if ((currprefs.chipset_mask & CSMASK_AGA) == 0) {
@@ -4598,6 +4617,12 @@ static void gen_custom_tables (void)
     }
 }
 
+/* mousehack is now in "filesys boot rom" */
+static uae_u32 mousehack_helper_old (void)
+{
+    return 0;
+}
+
 void custom_init (void)
 {
 
@@ -4616,7 +4641,7 @@ void custom_init (void)
 	pos = here ();
 
 	org (RTAREA_BASE+0xFF70);
-	calltrap (deftrap (mousehack_helper));
+	calltrap (deftrap (mousehack_helper_old));
 	dw (RTS);
 
 	org (RTAREA_BASE+0xFFA0);

@@ -42,3 +42,9 @@ extern uae_s16 *decodewav (uae_u8 *s, int *len);
 #define DS_NAME_START "drive_start_"
 #define DS_NAME_SNATCH "drive_snatch_"
 
+extern int driveclick_fdrawcmd_open(int);
+extern void driveclick_fdrawcmd_close(int);
+extern void driveclick_fdrawcmd_detect(void);
+extern void driveclick_fdrawcmd_seek(int, int);
+extern void driveclick_fdrawcmd_motor(int, int);
+extern int driveclick_pcdrivemask, driveclick_pcdrivenum;

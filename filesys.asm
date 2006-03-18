@@ -9,6 +9,8 @@
 ; Removed absolute RT_AREA references
 ; 2002.08.06 RDB automount/autoboot support (Toni Wilen)
 ; 2002.09.11 KS1.3 RDB support (TW)
+; 200?.??.?? Picasso96 vblank hack (TW)
+; 2006.03.04 Mousehack code integrated (TW)
 
 AllocMem = -198
 FreeMem = -210
@@ -42,6 +44,7 @@ start:
 	dc.l setup_exter-start
 
 	dc.l p96vsyncfix1-start
+	dc.l mousehack_x-start
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -103,6 +106,37 @@ FSIN_units_ok:
 	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
 
+;	move.w #$FF80,d0
+;	bsr.w getrtbase
+;	jsr (a0)
+;	jsr -$0078(a6) ; Disable
+;	lea 322(a6),a0 ; MemHeader
+;FSIN_scanchip:
+;	move.l (a0),a0	; first MemList
+;	tst.l (a0)
+;	beq.s FSIN_scandone
+;	move.w 14(a0),d1 ; attributes
+;	and #2,d1 ; MEMF_CHIP?
+;	beq.s FSIN_scanchip
+;	sub.l 24(a0),d0 ; did KS detect all chip?
+;	bmi.s FSIN_scandone
+;	beq.s FSIN_scandone
+;	; add the missing piece
+;	add.l d0,24(a0) ; mh_Upper
+;	add.l d0,28(a0) ; mh_Free
+;	add.l d0,62(a6) ; MaxLocMem
+;	; we still need to update last node's free space
+;	move.l 16(a0),a0 ; mh_First
+;FSIN_chiploop2
+;	tst.l (a0)
+;	beq.s FSIN_chiploop
+;	move.l (a0),a0
+;	bra.s FSIN_chiploop2
+;FSIN_chiploop:
+;	add.l d0,4(a0)
+;FSIN_scandone:
+;	jsr -$007e(a6) ; Enable
+
 	; add >2MB chip RAM to memory list
 	move.w #$FF80,d0
 	bsr.w getrtbase
@@ -115,7 +149,7 @@ FSIN_units_ok:
 	beq.b FSIN_chip_done
 	moveq.l #0,d4
 	move.l d4,a1
-	jsr -618(a6)
+	jsr -618(a6) ; AddMemList
 FSIN_chip_done
 
 	movem.l (sp)+,d0-d7/a0-a6
@@ -548,7 +582,8 @@ filesys_mainloop:
 	; 8: second thread's lock chain
 	; 12: dummy message
 	; 32: the volume (80+44+1 bytes)
-	move.l #80+44+1+20+12,d0
+	; 157: mousehack started-flag
+	move.l #80+44+1+20+12+1,d0
 	move.l #$10001,d1 ; MEMF_PUBLIC | MEMF_CLEAR
 	jsr AllocMem(a6)
 	move.l d0,a3
@@ -570,6 +605,8 @@ filesys_mainloop:
 	bsr.w getrtbase
 	moveq.l #0,d0
 	jsr (a0)
+	
+	bsr.w mousehack_init
 	bra.w FSML_Reply
 
 	; We abuse some of the fields of the message we get. Offset 0 is
@@ -581,6 +618,7 @@ filesys_mainloop:
 	; processing by now, so it's safe to reply to it.
 
 FSML_loop:
+	bsr.w mousehack_init
 	move.l a5,a0
 	jsr -384(a6) ; WaitPort
 	move.l a5,a0
@@ -743,6 +781,8 @@ getrtbase:
 	add.l d0,a0
 	rts
 
+	;p96 stuff
+
 p96flag	dc.w 0
 p96vsyncfix1
 	cmp.l #34,8(sp) ; picasso_WaitVerticalSync?
@@ -757,18 +797,259 @@ p96vsyncfix1
 	jsr -$12c(a6) ; SetTaskPri
 	lea p96flag(pc),a0
 	move.w (a0),d1
-p962	cmp.w (a0),d1
+p962 cmp.w (a0),d1
 	beq.s p962
 	move.l a2,a1
 	jsr -$12c(a6) ; SetTaskPri
 	moveq #1,d1
 	movem.l (sp)+,d0-d1/a0-a2/a6
 	addq.l #4,sp ; return directly to caller
-p961	rts
+p961 rts
 
 
+; mouse hack
+
+newlist:
+	move.l a0,(a0)
+	addq.l #4,(a0)
+	clr.l 4(a0)
+	move.l a0,8(a0)
+	rts
+
+createport:
+	movem.l d2/a2/a6,-(sp)
+	move.l 4,a6
+	moveq #-1,d0
+	jsr -$014a(a6) ;AllocSignal
+	sub.l a0,a0
+	move.l d0,d2
+	bmi.s .f
+	moveq #34,d0
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	sub.l a0,a0
+	move.l d0,a2
+	tst.l d0
+	beq.s .f
+	move.b #4,8(a2) ;NT_MSGPORT
+	move.b d2,15(a2)
+	sub.l a1,a1
+	jsr -$0126(a6) ;FindTask
+	move.l d0,16(a2)
+	lea 20(a2),a0
+	bsr.w newlist
+	move.l a2,a0
+.f	move.l a0,d0
+	movem.l (sp)+,d2/a2/a6
+	rts
+
+createio:
+	movem.l d2/a2/a6,-(sp)
+	move.l 4,a6
+	tst.l d0
+	beq.s .f
+	move.l d0,a2
+	moveq #48,d2
+	move.l d2,d0
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	move.l d0,a0
+	move.b #10,8(a0) ;NT_MESSAGE
+	move.l d2,18(a0)
+	move.l a2,14(a0)
+.f	movem.l (sp)+,d2/a2/a6
+	rts
+
+createtask:
+	movem.l d2/d3/a2/a3/a6,-(sp)
+	move.l 4,a6
+	move.l a0,d2
+	move.l a1,d3
+	move.l #92+2048,d0
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq .f
+	move.l d0,a2
+	move.b #1,8(a2) ;NT_TASK
+	move.l d2,10(a2)
+	lea 92(a2),a3
+	move.l a3,58(a2)
+	lea 2048(a3),a3
+	move.l a3,62(a2)
+	move.l a3,54(a2)
+	move.l a2,a1
+	move.l d3,a2
+	sub.l a3,a3
+	jsr -$011a(a6) ;AddTask
+.f	movem.l (sp)+,d2/d3/a2/a3/a6
+	rts
+
+mousehack_e: dc.w 0
+mousehack_x: dc.w 0
+mousehack_y: dc.w 0
+
+MH_INT = 0
+MH_FOO = (MH_INT+22)
+MH_IEV = (MH_FOO+16)
+MH_IO = (MH_IEV+22)
+MH_TM = (MH_IO+4)
+MH_END = (MH_TM+4)
+
+mousehack_init:
+	move.l a0,-(sp)
+	tst.b 157(a3)
+	bne.s .no
+	lea mousehack_e(pc),a0
+	tst.w (a0)
+	beq.s .no
+	lea mhname(pc),a0
+	lea mousehack_task(pc),a1
+	bsr createtask
+	st 157(a3)
+.no	move.l (sp)+,a0
+	rts
+
+mousehack_task:
+	move.l 4,a6
+
+	moveq #-1,d0
+	jsr -$014a(a6) ;AllocSignal
+	moveq #0,d2
+	bset d0,d2
+
+	sub.l a1,a1
+	jsr -$0126(a6) ;FindTask
+	move.l d0,a4
+	
+	moveq #20,d0
+	move.l a2,a1
+	jsr -$012c(a6) ;SetTaskPri
+
+	moveq #0,d0
+	lea intlibname(pc),a1
+	jsr -$0228(a6)
+	move.l d0,d7
+
+	moveq #0,d0
+	move.w #MH_END,d0
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	move.l d0,a5
+
+	bsr.w createport
+	bsr.w createio
+	move.l d0,MH_IO(a5)
+	beq .f
+	move.l d0,a1
+	lea inp_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	jsr -$01bc(a6) ;OpenDevice
+	tst.l d0
+	bne .f
+
+	bsr.w createport
+	bsr.w createio
+	move.l d0,MH_TM(a5)
+	beq .f
+	move.l d0,a1
+	lea tim_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	jsr -$01bc(a6) ;OpenDevice	
+	tst.l d0
+	bne .f
+
+	lea MH_FOO(a5),a3
+	move.l a4,12(a3);task
+	move.l d2,8(a3) ;sigmask
+	moveq #-1,d0
+	move.l d0,(a3)	;mx
+	move.l d0,4(a3)	;my
+
+	lea MH_INT(a5),a1
+	move.b #2,8(a1) ;NT_INTERRUPT
+	move.b #5,9(a1) ;priority
+	lea mhname(pc),a0
+	move.l a0,10(a1)
+	lea mousehackint(pc),a0
+	move.l a0,18(a1)
+	move.l a3,14(a1)
+	moveq #5,d0 ;INTB_VERTB
+	jsr -$00a8(a6)
+	bra.s mhloop
+.f	rts
+
+mhloop
+	move.l d2,d0
+	jsr -$013e(a6) ;Wait
+	
+	move.l MH_IO(a5),a1
+	lea MH_IEV(a5),a2
+	move.w #11,28(a1) ;IND_WRITEEVENT
+	move.l #22,36(a1) ;sizeof(struct InputEvent)
+	move.l a2,40(a1)
+	move.b #1,30(a1) ;IOF_QUICK
+
+	move.b #4,4(a2) ;IECLASS_POINTERPOS
+	clr.b 5(a2) ;ie_SubClass
+	clr.w 6(a2) ;ie_Code
+	clr.w 8(a2) ;ie_Qualifier
+
+	move.l d7,a0 ;intbase
+
+	move.l MH_FOO+0(a5),d0
+	move.w 34+14(a0),d1
+	add.w d1,d1
+	sub.w d1,d0
+	move.w d0,10(a2)
+
+	move.l MH_FOO+4(a5),d0
+	move.w 34+12(a0),d1
+	add.w d1,d1
+	sub.w d1,d0
+	ext.l d0
+	move.w d0,12(a2)
+
+	move.l MH_TM(a5),a1
+	move.w #10,28(a1) ;TR_GETSYSTIME
+	move.b #1,30(a1) ;IOF_QUICK
+	jsr -$01c8(a6) ;DoIO
+	move.l MH_TM(a5),a1
+	move.l 32(a1),14(a2)
+	move.l 36(a1),18(a2)
+
+	move.l MH_IO(a5),a1
+	jsr -$01c8(a6) ;DoIO
+	
+	bra.w mhloop
+
+mousehackint:
+	move.w mousehack_x(pc),d0
+	ext.l d0
+	move.w mousehack_y(pc),d1
+	ext.l d1
+	cmp.l (a1),d0
+	bne .l1
+	cmp.l 4(a1),d1
+	beq .l2
+.l1 move.l d1,4(a1)
+	move.l d0,(a1)
+	move.l 8(a1),d0
+	move.l 12(a1),a1
+	move.l 4.w,a6
+	jsr -$0144(a6) ; Signal
+.l2 lea $dff000,a0
+	moveq #0,d0
+	rts
+
+inp_dev: dc.b 'input.device',0
+tim_dev: dc.b 'timer.device',0
+mhname: dc.b 'UAE mouse hack',0
 exter_name: dc.b 'UAE filesystem',0
 doslibname: dc.b 'dos.library',0
+intlibname: dc.b 'intuition.library',0
 explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
 	END

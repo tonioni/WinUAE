@@ -22,6 +22,7 @@ extern int notinrom (void);
 extern const char *debuginfo(int);
 extern void record_copper (uaecptr addr, int hpos, int vpos);
 extern void record_copper_reset(void);
+extern int snooper(uaecptr);
 
 #else
 

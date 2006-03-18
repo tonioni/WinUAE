@@ -2361,6 +2361,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->optcount[5] = 0;
     }
     p->gfx_framerate = 1;
+    p->gfx_autoframerate = 50;
     p->gfx_width_fs = 800;
     p->gfx_height_fs = 600;
     p->gfx_width_win = 720;

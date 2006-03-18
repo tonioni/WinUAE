@@ -54,16 +54,17 @@ int get_next_key (void)
 static void do_fake (int nr)
 {
     int *fake = fakestate[nr];
-
-    nr = compatibility_device[nr];
-    setjoystickstate (nr, 0, fake[1] ? -100 : (fake[2] ? 100 : 0), 100);
-    setjoystickstate (nr, 1, fake[0] ? -100 : (fake[3] ? 100 : 0), 100);
-    setjoybuttonstate (nr, 0, fake[4]);
-    setjoybuttonstate (nr, 1, fake[5]);
-    setjoybuttonstate (nr, 2, fake[6]);
+    do_fake_joystick(nr, fake);
 }
 
 void record_key (int kc)
+{
+    if (input_recording < 0)
+	return;
+    record_key_direct (kc);
+}
+
+void record_key_direct (int kc)
 {
     int fs = 0;
     int kpb_next = kpb_first + 1;
@@ -169,6 +170,12 @@ void record_key (int kc)
 	    if (k != k2)
 		kc = (k2 << 1) | (b ? 0 : 1);
 	}
+    }
+
+    if (input_recording > 0) {
+	inprec_rstart(INPREC_KEY, 1);
+	inprec_ru8(kc);
+	inprec_rend();
     }
 
     keybuf[kpb_first] = kc;

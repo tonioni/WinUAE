@@ -1,7 +1,7 @@
-cd e:\projects\winuae_bak
+cd d:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-copy /s e:\projects\winuae\src\*.* e:\projects\winuae_bak\bak\
+copy /s d:\projects\winuae\src\*.* d:\projects\winuae_bak\bak\
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
 
@@ -56,18 +56,6 @@ rm -rf x64
 rm -rf _UpgradeReport_Files
 cd ..
 
-cd miniuae
-rm -f winuae_msvc.plg
-rm -f winuae_msvc.ncb
-rm -rf debug
-rm -rf release
-cd ..
-
-cd winuae_nogui
-rm -rf debug
-rm -rf release
-cd ..
-
 cd soundcheck
 rm -rf debug
 rm -rf release
@@ -86,8 +74,8 @@ cd ..
 
 zip -9 -r winuaesrc *
 
-copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
-move winuaesrc.zip d:\amiga
-cd e:\projects\winuae\src\od-win32
+copy winuaesrc.zip f:\amiga\winuaepackets\winuaesrc%1.zip
+move winuaesrc.zip f:\amiga
+cd d:\projects\winuae\src\od-win32
 zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb
-move winuaedebug%1.zip d:\amiga\winuaepackets\
+move winuaedebug%1.zip f:\amiga\winuaepackets\

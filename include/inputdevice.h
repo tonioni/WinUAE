@@ -85,9 +85,7 @@ enum mousestate { mousehack_unknown, mousehack_normal, mousehack_dontcare, mouse
 
 extern void mousehack_set (enum mousestate);
 extern int mousehack_get (void);
-extern uae_u32 mousehack_helper (void);
 extern void mousehack_handle (int sprctl, int sprpos);
-extern int needmousehack (void);
 extern void togglemouse (void);
 extern int mousehack_alive (void);
 extern int mousehack_allowed (void);
@@ -149,10 +147,33 @@ extern void inputdevice_handle_inputcode (void);
 #define JSEM_ISXARCADE2(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 4)
 #define JSEM_LASTKBD 5
 #define JSEM_ISANYKBD(port,p) (jsem_iskbdjoy(port,p) >= JSEM_KBDLAYOUT && jsem_iskbdjoy(port,p) < JSEM_KBDLAYOUT + JSEM_LASTKBD)
-extern int compatibility_device[2];
 
 extern int jsem_isjoy (int port, struct uae_prefs *p);
 extern int jsem_ismouse (int port, struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, struct uae_prefs *p);
+extern void do_fake_joystick(int nr, int *fake);
 
 extern int inputdevice_uaelib (char*, char*);
+
+#define INPREC_JOYPORT 1
+#define INPREC_JOYBUTTON 2
+#define INPREC_KEY 3
+#define INPREC_DISKINSERT 4
+#define INPREC_DISKREMOVE 5
+#define INPREC_END 0xff
+
+extern int input_recording;
+extern void inprec_close(void);
+extern int inprec_open(char*, int);
+extern void inprec_rend(void);
+extern void inprec_rstart(uae_u8, uae_u8);
+extern void inprec_ru8(uae_u8);
+extern void inprec_ru16(uae_u16);
+extern void inprec_ru32(uae_u32);
+extern void inprec_rstr(char*);
+extern int inprec_pstart(uae_u8);
+extern void inprec_pend(void);
+extern uae_u8 inprec_pu8(void);
+extern uae_u16 inprec_pu16(void);
+extern uae_u32 inprec_pu32(void);
+extern int inprec_pstr(char*);
