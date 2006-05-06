@@ -62,6 +62,7 @@ extern uae_u8 *save_custom_agacolors (int *len, uae_u8 *);
 
 extern uae_u8 *restore_blitter (uae_u8 *src);
 extern uae_u8 *save_blitter (int *len, uae_u8 *);
+extern void restore_blitter_finish (void);
 
 extern uae_u8 *restore_audio (int, uae_u8 *);
 extern uae_u8 *save_audio (int, int *, uae_u8 *);

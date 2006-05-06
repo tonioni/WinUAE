@@ -313,7 +313,7 @@ void fsdb_dir_writeback (a_inode *dir)
 
     f = get_fsdb (dir, "r+b");
     if (f == 0) {
-	if ((currprefs.filesys_custom_uaefsdb  && (dir->volflags & MYVOLUMEINFO_STREAMS)) ||currprefs.filesys_no_uaefsdb) {
+	if ((currprefs.filesys_custom_uaefsdb  && (dir->volflags & MYVOLUMEINFO_STREAMS)) || currprefs.filesys_no_uaefsdb) {
 	    for (aino = dir->child; aino; aino = aino->sibling) {
 		aino->dirty = 0;
 		aino->has_dbentry = 0;

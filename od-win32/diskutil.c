@@ -1,3 +1,4 @@
+// adfread by Toni Wilen <twilen@winuae.net>
 
 #include <stdio.h>
 #include <string.h>
@@ -131,7 +132,7 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 		do {
 			while (*mbuf++ != 0x4489) {
 				if (mbuf >= mend) {
-					printf("* unexpected end of data, sectors left %d\n", 11 - secwritten);
+					printf("* unexpected end of data\n");
 					return 1;
 				}
 			}
@@ -144,7 +145,7 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 
 		trackoffs = (id & 0xff00) >> 8;
 		if (trackoffs > 10) {
-			printf("* corrupt sector number %d, sectors complete %d\n", trackoffs, secwritten);
+			printf("* corrupt sector number %d\n", trackoffs);
 			goto next;
 		}
 		chksum = odd ^ even;
@@ -155,7 +156,7 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 
 			dlong = (odd << 1) | even;
 			if (dlong) {
-				printf("* sector %d header crc error, sectors complete %d\n", trackoffs, secwritten);
+				printf("* sector %d header crc error\n", trackoffs);
 				goto next;
 			}
 			chksum ^= odd ^ even;
@@ -164,7 +165,7 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 		odd = getmfmlong (mbuf);
 		even = getmfmlong (mbuf + 2);
 		mbuf += 4;
-		if (((odd << 1) | even) != chksum || ((id & 0x00ff0000) >> 16) != track) return 3;
+		if (((odd << 1) | even) != chksum || ((id & 0x00ff0000) >> 16) != (ULONG)track) return 3;
 		odd = getmfmlong (mbuf);
 		even = getmfmlong (mbuf + 2);
 		mbuf += 4;
@@ -183,7 +184,7 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 		}
 		mbuf += 256;
 		if (chksum) {
-			printf("* sector %d data crc error, sectors complete %d\n", trackoffs, secwritten);
+			printf("* sector %d data crc error\n", trackoffs);
 			goto next;
 		}
 		sectable[trackoffs] = 1;

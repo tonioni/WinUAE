@@ -30,7 +30,7 @@
 
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
-extern int lores_factor, lores_shift, sprite_width;
+extern int lores_factor, lores_shift, sprite_width, interlace_seen;
 
 STATIC_INLINE int coord_hw_to_window_x (int x)
 {

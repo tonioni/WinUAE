@@ -34,9 +34,9 @@ static __inline__ void check_sound_buffers (void)
 #define PUT_SOUND_BYTE(b) do { *(uae_u8 *)sndbufpt = b; sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 1); } while (0)
 #define PUT_SOUND_WORD(b) do { *(uae_u16 *)sndbufpt = b; sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 2); } while (0)
 #define PUT_SOUND_BYTE_LEFT(b) PUT_SOUND_BYTE(b)
-#define PUT_SOUND_WORD_LEFT(b) do { if (currprefs.sound_filter) b = filter (b, l_output); PUT_SOUND_WORD(b); } while (0)
+#define PUT_SOUND_WORD_LEFT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[0]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_BYTE_RIGHT(b) PUT_SOUND_BYTE(b)
-#define PUT_SOUND_WORD_RIGHT(b) do { if (currprefs.sound_filter) b = filter (b, r_output); PUT_SOUND_WORD(b); } while (0)
+#define PUT_SOUND_WORD_RIGHT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[1]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_WORD_MONO(b) PUT_SOUND_WORD_LEFT(b)
 #define SOUND16_BASE_VAL 0
 #define SOUND8_BASE_VAL 128
@@ -49,8 +49,10 @@ static __inline__ void check_sound_buffers (void)
 
 #define FILTER_SOUND_OFF 0
 #define FILTER_SOUND_EMUL 1
-#define FILTER_SOUND_ON_A500 2
-#define FILTER_SOUND_ON_A1200 3
+#define FILTER_SOUND_ON 2
+
+#define FILTER_SOUND_TYPE_A500 0
+#define FILTER_SOUND_TYPE_A1200 1
 
 #ifdef AHI
 #include "ahidsound.h"

@@ -155,6 +155,7 @@ static int fmode;
 unsigned int beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
+static int interlace_started;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -2056,7 +2057,7 @@ static void finish_decisions (void)
     dip = curr_drawinfo + next_lineno;
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
-    changed = thisline_changed;
+    changed = thisline_changed + interlace_started;
 
     if (thisline_decision.plfleft != -1)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
@@ -2769,6 +2770,9 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	vpos_previous = vpos;
 	hpos_previous = hpos;
     }
+
+    if ((v & 4) && !interlace_seen)
+	interlace_started = 2;
 
     ddf_change = vpos;
     decide_line (hpos);
@@ -3978,6 +3982,8 @@ static void init_hardware_frame (void)
     diwstate = DIW_waiting_start;
     hdiwstate = DIW_waiting_start;
     ddfstate = DIW_waiting_start;
+    if (interlace_started > 0)
+	interlace_started--;
 }
 
 void init_hardware_for_drawing_frame (void)
@@ -4275,7 +4281,7 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
-	cycle_line[1] = CYCLE_REFRESH;
+	cycle_line[9] = CYCLE_REFRESH;
 	cycle_line[3] = CYCLE_REFRESH;
 	cycle_line[5] = CYCLE_REFRESH;
 	cycle_line[7] = CYCLE_REFRESH;
@@ -4331,7 +4337,7 @@ static void hsync_handler (void)
     }
 #endif
 
-    if ((bplcon0 & 4) && currprefs.gfx_linedbl)
+    if (bplcon0 & 4)
 	notice_interlace_seen ();
 
     if (!nodraw ()) {

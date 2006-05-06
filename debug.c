@@ -1683,7 +1683,7 @@ void debug (void)
 		    if ((pc < 0xe00000 || pc >= 0x1000000) && opcode != 0x4ef9)
 			bp = 1;
 		} else if (skipaddr_start == 0xffffffff && skipaddr_doskip > 0) {
-			bp = 1;
+		    bp = 1;
 		} else if (skipaddr_end != 0xffffffff) {
 		    if (pc >= skipaddr_start && pc < skipaddr_end)
 			bp = 1;

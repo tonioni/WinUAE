@@ -4,6 +4,7 @@
   avioutput.c
   
   Copyright(c) 2001 - 2002; §ane
+  2005-2006; Toni Wilen
 
 */
 
@@ -49,7 +50,7 @@ static double StreamSizeAudioExpected;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 
-int avioutput_width = 320, avioutput_height = 256, avioutput_bits = 24;
+int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0;
 
@@ -135,14 +136,6 @@ void AVIOutput_ReleaseAudio(void)
 
 void AVIOutput_ReleaseVideo(void)
 {
-	if(pcompvars)
-	{
-		ICClose(pcompvars->hic); // <sane> did we inadvertently open it?
-		ICCompressorFree(pcompvars);
-		free(pcompvars);
-		pcompvars = NULL;
-	}
-
 	if(lpbi)
 	{
 		free(lpbi);
@@ -156,17 +149,17 @@ void AVIOutput_ReleaseVideo(void)
 	}
 }
 
-LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
+static int AVIOutput_AllocateAudio(void)
 {
-	DWORD wfxMaxFmtSize;
 	MMRESULT err;
+	DWORD wfxMaxFmtSize;
 
 	AVIOutput_ReleaseAudio();
 
 	if((err = acmMetrics(NULL, ACM_METRIC_MAX_SIZE_FORMAT, &wfxMaxFmtSize)))
 	{
 		gui_message("acmMetrics() FAILED (%X)\n", err);
-		return NULL;
+		return 0;
 	}
 
 	// set the source format
@@ -179,7 +172,7 @@ LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
 	wfxSrc.cbSize = 0;
 
 	if(!(pwfxDst = (LPWAVEFORMATEX) malloc(wfxMaxFmtSize)))
-		return NULL;
+		return 0;
 
 	// set the initial destination format to match source
 	memset(pwfxDst, 0, wfxMaxFmtSize);
@@ -190,7 +183,6 @@ LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
 
 	acmopt.cbStruct = sizeof(ACMFORMATCHOOSE);
 	acmopt.fdwStyle = ACMFORMATCHOOSE_STYLEF_ENABLEHOOK | ACMFORMATCHOOSE_STYLEF_INITTOWFXSTRUCT;
-	acmopt.hwndOwner = hwnd;
 
 	acmopt.pwfx = pwfxDst;
 	acmopt.cbwfx = wfxMaxFmtSize;
@@ -209,7 +201,16 @@ LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
 	//ACM_FORMATENUMF_SUGGEST // with this flag set, only MP3 320kbps is displayed, which is closest to the source format
 
 	acmopt.pwfxEnum = &wfxSrc;
+	return 1;
+}
 
+LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
+{
+
+	if (!AVIOutput_AllocateAudio())
+	    return NULL;
+
+	acmopt.hwndOwner = hwnd;
 	acmopt.pfnHook = acmFilterChooseHookProc;
 
 	switch(acmFormatChoose(&acmopt))
@@ -249,18 +250,22 @@ LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd)
 	return NULL;
 }
 
-LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd)
+static int AVIOutput_AllocateVideo(void)
 {
-	ICINFO icinfo = { 0 };
-
 	AVIOutput_ReleaseVideo();
 
-	avioutput_width = workprefs.gfx_width;
-	avioutput_height = workprefs.gfx_height;
-	avioutput_bits = workprefs.color_mode == 2 ? 16 : workprefs.color_mode > 2 ? 32 : 8;
+	avioutput_width = WIN32GFX_GetWidth();
+	avioutput_height = WIN32GFX_GetHeight();
+	avioutput_bits = WIN32GFX_GetDepth(0);
+
+	if (!avioutput_width || !avioutput_height || !avioutput_bits) {
+	    avioutput_width = 320;
+	    avioutput_height = 256;
+	    avioutput_bits = 24;
+	}
 
 	if(!(lpbi = (LPBITMAPINFOHEADER) malloc(sizeof(BITMAPINFOHEADER) + (((avioutput_bits <= 8) ? 1 << avioutput_bits : 0) * sizeof(RGBQUAD)))))
-		return NULL;
+		return 0;
 
 	lpbi->biSize = sizeof(BITMAPINFOHEADER);
 	lpbi->biWidth = avioutput_width;
@@ -274,11 +279,15 @@ LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd)
 	lpbi->biClrUsed = (lpbi->biBitCount <= 8) ? 1 << lpbi->biBitCount : 0;
 	lpbi->biClrImportant = 0;
 
-	if(!(pcompvars = (PCOMPVARS) malloc(sizeof(COMPVARS))))
-		return NULL;
+	return 1;
+}
 
-	memset(pcompvars, 0, sizeof(COMPVARS));
-	pcompvars->cbSize = sizeof(COMPVARS);
+LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd)
+{
+	ICINFO icinfo = { 0 };
+
+	if (!AVIOutput_AllocateVideo())
+	    return NULL;
 
 	// we really should check first to see if the user has a particular compressor installed before we set one
 	// we could set one but we will leave it up to the operating system and the set priority levels for the compressors
@@ -302,7 +311,7 @@ LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd)
 		{
 			static char string[128];
 			
-			if(WideCharToMultiByte(CP_ACP, 0, icinfo.szDescription, -1, string, 128, NULL, NULL) != 0)
+			if(WideCharToMultiByte(CP_ACP, 0, icinfo.szDescription, -1, string, sizeof string, NULL, NULL) != 0)
 				return string;
 		}
 	}
@@ -483,27 +492,24 @@ void AVIOutput_RGBinfo(int rb, int gb, int bb, int rs, int gs, int bs)
 }
 
 #if defined (GFXFILTER)
-extern int bufmem_width, bufmem_height;
 extern uae_u8 *bufmem_ptr;
 
 static int getFromBuffer(LPBITMAPINFO lpbi)
 {
-    int w, h, x, y;
+    int x, y;
     uae_u8 *src;
     uae_u8 *dst = lpVideo;
 
     src = bufmem_ptr;
     if (!src)
 	return 0;
-    w = bufmem_width;
-    h = bufmem_height;
-    dst += avioutput_width * gfxvidinfo.pixbytes * avioutput_height;
+    dst += avioutput_width * avioutput_bits / 8 * avioutput_height;
     for (y = 0; y < (gfxvidinfo.height > avioutput_height ? avioutput_height : gfxvidinfo.height); y++) {
-	dst -= avioutput_width * gfxvidinfo.pixbytes;
+	dst -= avioutput_width * avioutput_bits / 8;
 	for (x = 0; x < (gfxvidinfo.width > avioutput_width ? avioutput_width : gfxvidinfo.width); x++) {
-	    if (gfxvidinfo.pixbytes == 1) {
+	    if (avioutput_bits == 8) {
 		dst[x] = src[x];
-	    } else if (gfxvidinfo.pixbytes == 2) {
+	    } else if (avioutput_bits == 16) {
 		uae_u16 v = ((uae_u16*)src)[x];
 		uae_u16 v2 = v;
 		if (rgb_type) {
@@ -512,7 +518,7 @@ static int getFromBuffer(LPBITMAPINFO lpbi)
 		    v2 |= (v >> 1) & (31 << 10);
 		}
 		((uae_u16*)dst)[x] = v2;
-	    } else if (gfxvidinfo.pixbytes == 4) {
+	    } else if (avioutput_bits == 32) {
 		uae_u32 v = ((uae_u32*)src)[x];
 		((uae_u32*)dst)[x] = v;
 	    }
@@ -748,6 +754,8 @@ void AVIOutput_Begin(void)
 	
 	if(avioutput_audio)
 	{
+		if (!AVIOutput_AllocateAudio())
+		    goto error;
 		memset(&avistreaminfo, 0, sizeof(AVISTREAMINFO));
 		avistreaminfo.fccType = streamtypeAUDIO;
 		avistreaminfo.fccHandler = 0; // This member is not used for audio streams.
@@ -790,7 +798,9 @@ void AVIOutput_Begin(void)
 
 	if(avioutput_video)
 	{
-		if(!(lpVideo = malloc(lpbi->biSizeImage)))
+		if (!AVIOutput_AllocateVideo())
+		    goto error;
+		if(!(lpVideo = calloc(lpbi->biSizeImage, 1)))
 		{
 			goto error;
 		}
@@ -874,12 +884,26 @@ void AVIOutput_Release(void)
 		avioutput_init = 0;
 	}
 
+	if(pcompvars)
+	{
+		ICClose(pcompvars->hic); // <sane> did we inadvertently open it?
+		ICCompressorFree(pcompvars);
+		free(pcompvars);
+		pcompvars = NULL;
+	}
+
 	DeleteCriticalSection(&AVIOutput_CriticalSection);
 }
 
 void AVIOutput_Initialize(void)
 {
 	InitializeCriticalSection(&AVIOutput_CriticalSection);
+
+	pcompvars = (PCOMPVARS) malloc(sizeof(COMPVARS));
+	if (!pcompvars)
+	    return;
+	memset(pcompvars, 0, sizeof(COMPVARS));
+	pcompvars->cbSize = sizeof(COMPVARS);
 
 	if(!avioutput_init)
 	{

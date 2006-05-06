@@ -350,8 +350,6 @@ void driveclick_motor (int drive, int running)
 {
     if (!click_initialized)
 	return;
-    if (!wave_initialized)
-	return;
     if (!currprefs.dfxclick[drive])
 	return;
     if (!wave_initialized) {
@@ -392,6 +390,7 @@ void driveclick_check_prefs (void)
 {
     int i;
 
+    driveclick_fdrawcmd_vsync();
     if (currprefs.dfxclickvolume != changed_prefs.dfxclickvolume ||
 	currprefs.dfxclick[0] != changed_prefs.dfxclick[0] ||
 	currprefs.dfxclick[1] != changed_prefs.dfxclick[1] ||

@@ -3,7 +3,7 @@
   *
   * joystick/mouse emulation
   *
-  * Copyright 2001, 2002 Toni Wilen
+  * Copyright 2001-2006 Toni Wilen
   *
   * new fetures:
   * - very configurable (and very complex to configure :)
@@ -126,6 +126,7 @@ static uae_u16 oldjoy[2];
 int inprec_open(char *fname, int record)
 {
     uae_u32 t = (uae_u32)time(0);
+    int i;
 
     inprec_close();
     inprec_zf = zfile_fopen(fname, record > 0 ? "wb" : "rb");
@@ -147,7 +148,9 @@ int inprec_open(char *fname, int record)
 	}
 	inprec_pu32();
 	srand(inprec_pu32());
-	inprec_pu32();
+	i = inprec_pu32();
+	while (i-- > 0)
+	    inprec_pu8();
 	inprec_p = inprec_plastptr;
 	oldbuttons[0] = oldbuttons[1] = oldbuttons[2] = oldbuttons[3] = 0;
 	oldjoy[0] = oldjoy[1] = 0;
@@ -159,7 +162,7 @@ int inprec_open(char *fname, int record)
 	inprec_ru8(UAEMINOR);
 	inprec_ru8(UAESUBREV);
 	inprec_ru32(t);
-	inprec_ru32(0);
+	inprec_ru32(0); // extra header size
     } else {
 	return 0;
     }
@@ -175,7 +178,8 @@ void inprec_close(void)
 	return;
     if (inprec_buffer && input_recording > 0) {
 	hsync_counter++;
-	inprec_rstart(INPREC_END, 0);
+	inprec_rstart(INPREC_END);
+	inprec_rend();
 	hsync_counter--;
 	zfile_fwrite (inprec_buffer, inprec_p - inprec_buffer, 1, inprec_zf);
 	inprec_p = inprec_buffer;
@@ -190,10 +194,6 @@ void inprec_close(void)
    
 void inprec_ru8(uae_u8 v)
 {
-    if (inprec_p >= inprec_buffer + inprec_size) {
-	zfile_fwrite (inprec_buffer, inprec_size, 1, inprec_zf);
-	inprec_p = inprec_buffer;
-    }
     *inprec_p++= v;
 }
 void inprec_ru16(uae_u16 v)
@@ -206,7 +206,7 @@ void inprec_ru32(uae_u32 v)
     inprec_ru16((uae_u16)(v >> 16));
     inprec_ru16((uae_u16)v);
 }
-void inprec_rstr(char *s)
+void inprec_rstr(const char *s)
 {
     while(*s) {
 	inprec_ru8(*s);
@@ -214,16 +214,22 @@ void inprec_rstr(char *s)
     }
     inprec_ru8(0);
 }
-void inprec_rstart(uae_u8 type, uae_u8 size)
+void inprec_rstart(uae_u8 type)
 {
-    write_log("INPREC: %08.8X: %d (%d)\n", hsync_counter, type, size);
+    write_log("INPREC: %08.8X: %d\n", hsync_counter, type);
     inprec_ru32(hsync_counter);
     inprec_ru8(0);
-    inprec_ru8(size);
+    inprec_plast = inprec_p;
+    inprec_ru8(0xff);
     inprec_ru8(type);
 }
 void inprec_rend(void)
 {
+    *inprec_plast = inprec_p - (inprec_plast + 2);
+    if (inprec_p >= inprec_buffer + inprec_size - 256) {
+	zfile_fwrite (inprec_buffer, inprec_p - inprec_buffer, 1, inprec_zf);
+	inprec_p = inprec_buffer;
+    }
 }
 
 int inprec_pstart(uae_u8 type)
@@ -780,7 +786,7 @@ int getbuttonstate (int joy, int button)
     v = (joybutton[joy] & (1 << button)) ? 1 : 0;
     if (input_recording > 0 && ((joybutton[joy] ^ oldbuttons[joy]) & (1 << button))) {
 	oldbuttons[joy] = joybutton[joy];
-	inprec_rstart(INPREC_JOYBUTTON, 3);
+	inprec_rstart(INPREC_JOYBUTTON);
 	inprec_ru8(joy);
 	inprec_ru8(button);
 	inprec_ru8(v);
@@ -893,7 +899,7 @@ int getjoystate (int joy)
 #endif
     if (input_recording > 0 && oldjoy[joy] != v) {
 	oldjoy[joy] = v;
-	inprec_rstart(INPREC_JOYPORT, 2);
+	inprec_rstart(INPREC_JOYPORT);
 	inprec_ru16(v);
 	inprec_rend();
     } else if (input_recording < 0) {

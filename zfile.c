@@ -20,6 +20,8 @@
 #include "dms/pfile.h"
 #include "gui.h"
 #include "crc32.h"
+#include "fsdb.h"
+
 #include <zlib.h>
 
 struct zfile {
@@ -1019,6 +1021,8 @@ int zfile_exists (const char *name)
     f = openzip (fname, 0);
     if (!f) {
 	manglefilename(fname, name);
+	if (!my_existsfile(fname))
+	    return 0;
 	f = fopen(fname,"rb");
     }
     if (!f)

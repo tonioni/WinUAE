@@ -28,6 +28,7 @@ extern void sample16i_rh_handler (void);
 extern void sample16i_crux_handler (void);
 extern void sample8_handler (void);
 extern void sample16s_handler (void);
+extern void sample16si_anti_handler (void);
 extern void sample16ss_handler (void);
 extern void sample16si_rh_handler (void);
 extern void sample16si_crux_handler (void);

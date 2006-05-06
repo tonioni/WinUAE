@@ -321,6 +321,16 @@ int fsdb_set_file_attrs (a_inode *aino)
     return 0;
 }
 
+/* return supported combination */
+int fsdb_mode_supported (const a_inode *aino)
+{
+    int mask = aino->amigaos_mode;
+    if (fsdb_mode_representable_p (aino))
+        return mask;
+    mask &= ~(A_FIBF_SCRIPT | A_FIBF_DELETE | A_FIBF_WRITE);
+    return mask;
+}
+
 /* Return nonzero if we can represent the amigaos_mode of AINO within the
  * native FS.  Return zero if that is not possible.  */
 int fsdb_mode_representable_p (const a_inode *aino)
@@ -565,7 +575,6 @@ void my_close (void *d)
 {
     struct my_opens *mos = d;
     CloseHandle (mos->h);
-    //write_log ("closehandle %x\n", mos->h);
     xfree (mos);
 }
 
@@ -592,19 +601,29 @@ unsigned int my_write (void *d, void *b, unsigned int size)
     return written;
 }
 
+static DWORD GetFileAttributesSafe(const char *name)
+{
+    DWORD attr, last;
+
+    last = SetErrorMode (SEM_FAILCRITICALERRORS);
+    attr = GetFileAttributes (name);
+    SetErrorMode (last);
+    return attr;
+}
+
 int my_existsfile (const char *name)
 {
-    HANDLE h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ,
-	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (h == INVALID_HANDLE_VALUE)
+    DWORD attr = GetFileAttributesSafe (name);
+    if (attr == INVALID_FILE_ATTRIBUTES)
 	return 0;
-    CloseHandle (h);
-    return 1;
+    if (!(attr & FILE_ATTRIBUTE_DIRECTORY))
+	return 1;
+    return 0;
 }
 
 int my_existsdir (const char *name)
 {
-    DWORD attr = GetFileAttributes (name);
+    DWORD attr = GetFileAttributesSafe (name);
     if (attr == INVALID_FILE_ATTRIBUTES)
 	return 0;
     if (attr & FILE_ATTRIBUTE_DIRECTORY)
@@ -625,7 +644,7 @@ void *my_open (const char *name, int flags)
     mos = xmalloc (sizeof (struct my_opens));
     if (!mos)
 	return NULL;
-    attr = GetFileAttributes (name);
+    attr = GetFileAttributesSafe (name);
     if (flags & O_TRUNC)
 	CreationDisposition = CREATE_ALWAYS;
     else if (flags & O_CREAT)
@@ -732,15 +751,13 @@ typedef BOOL (CALLBACK* GETVOLUMEPATHNAME)
 
 int my_getvolumeinfo (char *root)
 {
-    DWORD last, v, err;
+    DWORD v, err;
     int ret = 0;
     GETVOLUMEPATHNAME pGetVolumePathName;
     char volume[MAX_DPATH];
 
-    last = SetErrorMode (SEM_FAILCRITICALERRORS);
-    v = GetFileAttributes (root);
+    v = GetFileAttributesSafe (root);
     err = GetLastError ();
-    SetErrorMode (last);
     if (v == INVALID_FILE_ATTRIBUTES)
 	return -1;
     if (!(v & FILE_ATTRIBUTE_DIRECTORY))

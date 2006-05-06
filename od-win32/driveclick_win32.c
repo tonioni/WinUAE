@@ -25,6 +25,16 @@ int driveclick_pcdrivenum, driveclick_pcdrivemask;
 #define DC_PIPE_SIZE 100
 static smp_comm_pipe dc_pipe[DC_PIPE_SIZE];
 static HANDLE h[2] = { INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE };
+static int motors[2];
+
+static int CmdMotor (HANDLE h_, BYTE motor_)
+{
+    DWORD dwRet;
+    if (h == INVALID_HANDLE_VALUE)
+	return 0;
+    return !!DeviceIoControl(h_, motor_ ? IOCTL_FD_MOTOR_ON : IOCTL_FD_MOTOR_OFF,
+	NULL, 0, NULL, 0, &dwRet, NULL);
+}
 
 static int CmdSeek (HANDLE h_, BYTE cyl_)
 {
@@ -52,9 +62,33 @@ static int SetDataRate (HANDLE h_, BYTE bDataRate_)
     return !!DeviceIoControl(h_, IOCTL_FD_SET_DATA_RATE, &bDataRate_, sizeof(bDataRate_), NULL, 0, &dwRet, NULL);
 }
 
+static int SetMotorDelay (HANDLE h_, BYTE delay_)
+{
+    DWORD dwRet;
+    if (h == INVALID_HANDLE_VALUE)
+	return 0;
+    return !!DeviceIoControl(h_, IOCTL_FD_SET_MOTOR_TIMEOUT, &delay_, sizeof(delay_), NULL, 0, &dwRet, NULL);
+}
+
 void driveclick_fdrawcmd_seek(int drive, int cyl)
 {
     write_comm_pipe_int (dc_pipe, (drive << 8) | cyl, 1);
+}
+void driveclick_fdrawcmd_motor (int drive, int running)
+{
+    write_comm_pipe_int (dc_pipe, 0x8000 | (drive << 8) | (running ? 1 : 0), 1);
+}
+
+void driveclick_fdrawcmd_vsync(void)
+{
+    int i;
+    for (i = 0; i < 2; i++) {
+	if (motors[i] > 0) {
+	    motors[i]--;
+	    if (motors[i] == 0)
+		CmdMotor(h[i], 0);
+	}
+    }
 }
 
 static void *driveclick_thread (void *v)
@@ -64,9 +98,17 @@ static void *driveclick_thread (void *v)
 	int v = read_comm_pipe_int_blocking (dc_pipe);
 	if (v < 0)
 	    break;
-	drive = v >> 8;
-	cyl = v & 255;
-        CmdSeek(h[drive], cyl);
+	drive = (v >> 8) & 3;
+	if (v & 0x8000) {
+	    int motor = v & 1;
+	    motors[drive] = motor ? -1 : 0;
+	    CmdMotor(h[drive], motor);
+	} else {
+	    cyl = v & 255;
+	    if (motors[drive] == 0)
+		motors[drive] = 100;
+	    CmdSeek(h[drive], cyl);
+	}
     }
     return NULL;
 }
@@ -78,8 +120,11 @@ static int driveclick_fdrawcmd_init(int drive)
 
     if (h[drive] == INVALID_HANDLE_VALUE)
 	return 0;
+    motors[drive] = 0;
     SetDataRate(h[drive], 3);
     CmdSpecify(h[drive], 0xd, 0xf, 0x1, 0);
+    SetMotorDelay(h[drive], 0);
+    CmdMotor(h[drive], 0);
     if (thread_ok)
 	return 1;
     thread_ok = 1;
@@ -88,15 +133,12 @@ static int driveclick_fdrawcmd_init(int drive)
     return 1;
 }
 
-void driveclick_fdrawcmd_motor (int drive, int running)
-{
-}
-
 void driveclick_fdrawcmd_close(int drive)
 {
     if (h[drive] != INVALID_HANDLE_VALUE)
 	CloseHandle(h[drive]);
     h[drive] = INVALID_HANDLE_VALUE;
+    motors[drive] = 0;
 }
 
 int driveclick_fdrawcmd_open(int drive)
@@ -105,7 +147,7 @@ int driveclick_fdrawcmd_open(int drive)
 
     driveclick_fdrawcmd_close(drive);
     sprintf (s, "\\\\.\\fdraw%d", drive);
-    h[drive] = CreateFile(s, GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    h[drive] = CreateFile(s, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (h[drive] == INVALID_HANDLE_VALUE)
 	return 0;
     driveclick_fdrawcmd_init(drive);

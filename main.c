@@ -96,24 +96,22 @@ void discard_prefs (struct uae_prefs *p, int type)
 #endif
 }
 
+static void fixup_prefs_dim2 (struct wh *wh)
+{
+    if (wh->width < 320)
+	wh->width = 320;
+    if (wh->height < 200)
+	wh->height = 200;
+    if (wh->width > 1280)
+	wh->width = 1280;
+    wh->width += 7;
+    wh->width &= ~7;
+}
+
 void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
-    if (prefs->gfx_width_fs < 320)
-	prefs->gfx_width_fs = 320;
-    if (prefs->gfx_height_fs < 200)
-	prefs->gfx_height_fs = 200;
-    if (prefs->gfx_height_fs > 1280)
-	prefs->gfx_height_fs = 1280;
-    prefs->gfx_width_fs += 7; /* X86.S wants multiples of 4 bytes, might be 8 in the future. */
-    prefs->gfx_width_fs &= ~7;
-    if (prefs->gfx_width_win < 320)
-	prefs->gfx_width_win = 320;
-    if (prefs->gfx_height_win < 200)
-	prefs->gfx_height_win = 200;
-    if (prefs->gfx_height_win > 1280)
-	prefs->gfx_height_win = 1280;
-    prefs->gfx_width_win += 7; /* X86.S wants multiples of 4 bytes, might be 8 in the future. */
-    prefs->gfx_width_win &= ~7;
+    fixup_prefs_dim2(&prefs->gfx_size_fs);
+    fixup_prefs_dim2(&prefs->gfx_size_win);
 }
 
 void fixup_prefs (struct uae_prefs *p)

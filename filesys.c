@@ -207,6 +207,14 @@ char *get_filesys_unit (struct uaedev_mount_info *mountinfo, int nr,
     return 0;
 }
 
+static void stripsemicolon(char *s)
+{
+    if (!s)
+	return;
+    while(strlen(s) > 0 && s[strlen(s) - 1] == ':')
+	s[strlen(s) - 1] = 0;
+}
+
 static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
 				 char *devname, char *volname, char *rootdir, int readonly,
 				 int secspertrack, int surfaces, int reserved,
@@ -241,6 +249,7 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
     if (volname != 0) {
 	int flags;
 	ui->volname = my_strdup (volname);
+	stripsemicolon(ui->volname);
 	flags = my_getvolumeinfo (rootdir);
 	if (flags < 0) {
 	    sprintf (errmsg, "directory '%s' not found", rootdir);
@@ -279,6 +288,7 @@ static char *set_filesys_unit_1 (struct uaedev_mount_info *mountinfo, int nr,
     ui->reset_state = FS_STARTUP;
     ui->rootdir = my_strdup (rootdir);
     ui->devname = my_strdup (devname);
+    stripsemicolon(ui->devname);
     if (filesysdir)
 	ui->filesysdir = my_strdup (filesysdir);
     ui->readonly = readonly;
@@ -683,6 +693,15 @@ find_unit (uaecptr port)
 	    break;
 
     return u;
+}
+
+static int fsdb_cando (Unit *unit)
+{
+    if (currprefs.filesys_custom_uaefsdb  && (unit->volflags & MYVOLUMEINFO_STREAMS))
+	return 1;
+    if (!currprefs.filesys_no_uaefsdb)
+	return 1;
+    return 0;
 }
 
 static void prepare_for_open (char *name)
@@ -1977,6 +1996,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     struct stat statbuf;
     long days, mins, ticks;
     int i, n, entrytype;
+    int fsdb_can = fsdb_cando (unit);
     char *x;
 
     /* No error checks - this had better work. */
@@ -2006,7 +2026,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     while (i < 108)
 	put_byte (info + i, 0), i++;
 
-    put_long (info + 116, aino->amigaos_mode);
+    put_long (info + 116, fsdb_can ? aino->amigaos_mode : fsdb_mode_supported(aino));
     put_long (info + 124, statbuf.st_size);
 #ifdef HAVE_ST_BLOCKS
     put_long (info + 128, statbuf.st_blocks);
@@ -2017,7 +2037,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     put_long (info + 132, days);
     put_long (info + 136, mins);
     put_long (info + 140, ticks);
-    if (aino->comment == 0)
+    if (aino->comment == 0 || !fsdb_can)
 	put_long (info + 144, 0);
     else {
 	TRACE(("comment=\"%s\"\n", aino->comment));
@@ -2621,6 +2641,8 @@ action_set_protect (Unit *unit, dpacket packet)
     }
 
     a->amigaos_mode = mask;
+    if (fsdb_cando (unit))
+	a->amigaos_mode = fsdb_mode_supported (a);
     err = fsdb_set_file_attrs (a);
     if (err != 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -2637,7 +2659,7 @@ static void action_set_comment (Unit * unit, dpacket packet)
     uaecptr lock = GET_PCK_ARG2 (packet) << 2;
     uaecptr name = GET_PCK_ARG3 (packet) << 2;
     uaecptr comment = GET_PCK_ARG4 (packet) << 2;
-    char *commented;
+    char *commented = NULL;
     a_inode *a;
     uae_u32 err;
 
@@ -2647,8 +2669,10 @@ static void action_set_comment (Unit * unit, dpacket packet)
 	return;
     }
 
-    commented = bstr (unit, comment);
-    commented = strlen (commented) > 0 ? my_strdup (commented) : 0;
+    if (fsdb_cando (unit)) {
+        commented = bstr (unit, comment);
+	commented = strlen (commented) > 0 ? my_strdup (commented) : NULL;
+    }
     TRACE (("ACTION_SET_COMMENT(0x%lx,\"%s\")\n", lock, commented));
 
     a = find_aino (unit, lock, bstr (unit, name), &err);

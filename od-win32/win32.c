@@ -64,6 +64,7 @@
 #include "disk.h"
 #include "catweasel.h"
 #include "lcd.h"
+#include "uaeipc.h"
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -1143,11 +1144,13 @@ void handle_events (void)
 	inputdevicefunc_joystick.read();
 	inputdevice_handle_inputcode ();
 	check_prefs_changed_gfx ();
+	while (checkIPC(&currprefs));
     }
     while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 	TranslateMessage (&msg);
 	DispatchMessage (&msg);
     }
+    while (checkIPC(&currprefs));
     if (was_paused) {
 	init_sound ();
 #ifdef AHI
@@ -1254,7 +1257,11 @@ int WIN32_CleanupLibraries( void )
 /* HtmlHelp Initialization - optional component */
 int WIN32_InitHtmlHelp( void )
 {
+    char *chm = "WinUAE.chm";
     int result = 0;
+    sprintf(help_file, "%s%s", start_path_data, chm);
+    if (!zfile_exists (help_file))
+	sprintf(help_file, "%s%s", start_path_exe, chm);
     if (zfile_exists (help_file)) {
 	if (hHtmlHelp = LoadLibrary("HHCTRL.OCX")) {
 	    pHtmlHelp = (HWND(WINAPI *)(HWND, LPCSTR, UINT, LPDWORD))GetProcAddress(hHtmlHelp, "HtmlHelpA");
@@ -1799,7 +1806,10 @@ void set_path (char *name, char *path)
     char tmp[MAX_DPATH];
 
     if (!path) {
-	strcpy (tmp, start_path_data);
+	if (!strcmp (start_path_data, start_path_exe))
+	    strcpy (tmp, ".\\");
+	else
+	    strcpy (tmp, start_path_data);
 	if (!strcmp (name, "KickstartPath"))
 	    strcat (tmp, "Roms");
 	if (!strcmp (name, "ConfigurationPath"))
@@ -1818,8 +1828,12 @@ void set_path (char *name, char *path)
     strip_slashes (tmp);
     if (!strcmp (name, "KickstartPath")) {
 	DWORD v = GetFileAttributes (tmp);
-	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
-	    strcpy (tmp, start_path_data);
+	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY)) {
+	    if (!strcmp (start_path_data, start_path_exe))
+		strcpy (tmp, ".\\");
+	    else
+		strcpy (tmp, start_path_data);
+	}
 	if (af_path_2005) {
 	    strcpy (tmp, start_path_af);
 	    strcat (tmp, "System\\rom");
@@ -2303,7 +2317,6 @@ static void getstartpaths(int start_data)
     fixtrailing(start_path_data);
 }
 
-
 extern void test (void);
 extern int screenshotmode;
 
@@ -2371,7 +2384,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argv[0] = 0;
 #endif
     getstartpaths(start_data);
-    sprintf(help_file, "%sWinUAE.chm", start_path_data);
     sprintf(VersionStr, "WinUAE %d.%d.%d%s (%d-bit)",
 	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "",
 	#if defined(WIN64)
@@ -2417,9 +2429,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #ifdef PARALLEL_PORT
 	paraport_mask = paraport_init ();
 #endif
+	createIPC();
 	real_main (argc, argv);
     }
-	
+
+    closeIPC();
+    write_disk_history ();
     if (mm_timerres && timermode == 0)
 	timeend ();
 #ifdef AVIOUTPUT
@@ -2434,9 +2449,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #endif
     WIN32_CleanupLibraries();
     _fcloseall();
-    if( hWinUAEKey )
-	RegCloseKey( hWinUAEKey );
-    CloseHandle( hMutex );
+    if(hWinUAEKey)
+	RegCloseKey(hWinUAEKey);
+    CloseHandle(hMutex);
 #ifdef _DEBUG
     // show memory leaks
     //_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );

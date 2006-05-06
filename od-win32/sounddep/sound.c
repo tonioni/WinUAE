@@ -179,7 +179,7 @@ static int calibrate (void)
 {
     int len = 1000;
     int pos, lastpos, tpos, expected, diff;
-    int mult = currprefs.sound_stereo ? 4 : 2;
+    int mult = (currprefs.sound_stereo == 2) ? 8 : (currprefs.sound_stereo ? 4 : 2);
     double qv, pct;
 
     if (!QueryPerformanceFrequency(&qpf)) {
@@ -598,7 +598,7 @@ static void filtercheck (uae_s16 *sndbuffer, int len)
     static double cold[4];
     double old0, old1, v;
     
-    if (gui_data.powerled || currprefs.sound_filter == FILTER_SOUND_ON_A500 || currprefs.sound_filter == FILTER_SOUND_ON_A1200) {
+    if (gui_data.powerled || currprefs.sound_filter == FILTER_SOUND_ON) {
 	if (ch == 1) {
 	    old0 = cold[0];
 	    for (i = 0; i < len; i++) {

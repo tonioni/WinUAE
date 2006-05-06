@@ -1619,6 +1619,8 @@ static void gen_opcode (unsigned long int opcode)
     case i_RESET:
 	fill_prefetch_next ();
 	printf ("\tcpureset();\n");
+	if (using_prefetch)
+	    printf ("\tregs.irc = get_iword(4);\n");
 	break;
     case i_NOP:
 	fill_prefetch_next ();

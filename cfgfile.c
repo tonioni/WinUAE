@@ -29,8 +29,6 @@
 #include "filesys.h"
 #include "fsdb.h"
 
-#define CONFIG_BLEN 2560
-
 static int config_newfilesystem;
 static struct strlist *temp_lines;
 
@@ -133,12 +131,13 @@ static const char *soundmode2[] = { "none", "interrupts", "good", "best", 0 };
 static const char *centermode1[] = { "none", "simple", "smart", 0 };
 static const char *centermode2[] = { "false", "true", "smart", 0 };
 static const char *stereomode[] = { "mono", "stereo", "4ch", "mixed", 0 };
-static const char *interpolmode[] = { "none", "rh", "crux", 0 };
+static const char *interpolmode[] = { "none", "anti", "sinc", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
 static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
-static const char *soundfiltermode[] = { "off", "emulated", "on", "on_aga", 0 };
+static const char *soundfiltermode1[] = { "off", "emulated", "on", 0 };
+static const char *soundfiltermode2[] = { "standard", "enhanced", 0 };
 static const char *loresmode[] = { "normal", "filtered", 0 };
 #ifdef GFXFILTER
 static const char *filtermode1[] = { "no_16", "bilinear_16", "no_32", "bilinear_32", 0 };
@@ -208,7 +207,7 @@ void cfgfile_target_write (struct zfile *f, char *format,...)
     va_end (parms);
 }
 
-static void save_options (struct zfile *f, struct uae_prefs *p, int type)
+void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
     struct strlist *sl;
     char *str;
@@ -292,7 +291,8 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
     cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
     cfgfile_write (f, "sound_adjust=%d\n", p->sound_adjust);
-    cfgfile_write (f, "sound_filter=%s\n", soundfiltermode[p->sound_filter]);
+    cfgfile_write (f, "sound_filter=%s\n", soundfiltermode1[p->sound_filter]);
+    cfgfile_write (f, "sound_filter_type=%s\n", soundfiltermode2[p->sound_filter_type]);
     cfgfile_write (f, "sound_volume=%d\n", p->sound_volume);
 
     cfgfile_write (f, "comp_trustbyte=%s\n", compmode[p->comptrustbyte]);
@@ -345,13 +345,14 @@ static void save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     cfgfile_write (f, "gfx_display=%d\n", p->gfx_display);
     cfgfile_write (f, "gfx_framerate=%d\n", p->gfx_framerate);
-    cfgfile_write (f, "gfx_width=%d\n", p->gfx_width_win); /* compatibility with old versions */
-    cfgfile_write (f, "gfx_height=%d\n", p->gfx_height_win); /* compatibility with old versions */
-    cfgfile_write (f, "gfx_width_windowed=%d\n", p->gfx_width_win);
-    cfgfile_write (f, "gfx_height_windowed=%d\n", p->gfx_height_win);
-    cfgfile_write (f, "gfx_width_fullscreen=%d\n", p->gfx_width_fs);
-    cfgfile_write (f, "gfx_height_fullscreen=%d\n", p->gfx_height_fs);
+    cfgfile_write (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
+    cfgfile_write (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
+    cfgfile_write (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
+    cfgfile_write (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
+    cfgfile_write (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
+    cfgfile_write (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
     cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
+    cfgfile_write (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
     cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_vsync ? "true" : "false");
     cfgfile_write (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
     cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
@@ -642,11 +643,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 
 	|| cfgfile_intval (option, value, "gfx_display", &p->gfx_display, 1)
 	|| cfgfile_intval (option, value, "gfx_framerate", &p->gfx_framerate, 1)
-	|| cfgfile_intval (option, value, "gfx_width_windowed", &p->gfx_width_win, 1)
-	|| cfgfile_intval (option, value, "gfx_height_windowed", &p->gfx_height_win, 1)
-	|| cfgfile_intval (option, value, "gfx_width_fullscreen", &p->gfx_width_fs, 1)
-	|| cfgfile_intval (option, value, "gfx_height_fullscreen", &p->gfx_height_fs, 1)
+	|| cfgfile_intval (option, value, "gfx_width_windowed", &p->gfx_size_win.width, 1)
+	|| cfgfile_intval (option, value, "gfx_height_windowed", &p->gfx_size_win.height, 1)
+	|| cfgfile_intval (option, value, "gfx_width_fullscreen", &p->gfx_size_fs.width, 1)
+	|| cfgfile_intval (option, value, "gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
 	|| cfgfile_intval (option, value, "gfx_refreshrate", &p->gfx_refreshrate, 1)
+	|| cfgfile_intval (option, value, "gfx_autoresolution", &p->gfx_autoresolution, 1)
 
 #ifdef GFXFILTER
 	|| cfgfile_intval (option, value, "gfx_filter_vert_zoom", &p->gfx_filter_vert_zoom, 1)
@@ -695,7 +697,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_strval (option, value, "sound_output", &p->produce_sound, soundmode1, 1)
 	|| cfgfile_strval (option, value, "sound_output", &p->produce_sound, soundmode2, 0)
 	|| cfgfile_strval (option, value, "sound_interpol", &p->sound_interpol, interpolmode, 0)
-	|| cfgfile_strval (option, value, "sound_filter", &p->sound_filter, soundfiltermode, 0)
+	|| cfgfile_strval (option, value, "sound_filter", &p->sound_filter, soundfiltermode1, 0)
+	|| cfgfile_strval (option, value, "sound_filter_type", &p->sound_filter, soundfiltermode2, 0)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
@@ -759,10 +762,29 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 #endif
 
     if (strcmp (option, "gfx_width") == 0 || strcmp (option, "gfx_height") == 0) {
-	cfgfile_intval (option, value, "gfx_width", &p->gfx_width_win, 1);
-	cfgfile_intval (option, value, "gfx_height", &p->gfx_height_win, 1);
-	p->gfx_width_fs = p->gfx_width_win;
-	p->gfx_height_fs = p->gfx_height_win;
+	cfgfile_intval (option, value, "gfx_width", &p->gfx_size_win.width, 1);
+	cfgfile_intval (option, value, "gfx_height", &p->gfx_size_win.height, 1);
+	p->gfx_size_fs.width = p->gfx_size_win.width;
+	p->gfx_size_fs.height = p->gfx_size_win.height;
+	return 1;
+    }
+
+    if (strcmp (option, "gfx_fullscreen_multi") == 0 || strcmp (option, "gfx_windowed_multi") == 0) {
+	char tmp[256], *tmpp, *tmpp2;
+	struct wh *wh = p->gfx_size_win_xtra;
+	if (strcmp (option, "gfx_fullscreen_multi") == 0)
+	    wh = p->gfx_size_fs_xtra;
+	sprintf (tmp, ",%s,", value);
+	tmpp2 = tmp;
+	for (i = 0; i < 4; i++) {
+	    tmpp = strchr (tmpp2, ',');
+	    tmpp++;
+	    wh[i].width = atol (tmpp);
+	    while (*tmpp != ',' && *tmpp != 'x')
+		tmpp++;
+	    wh[i].height = atol (tmpp + 1);
+	    tmpp2 = tmpp;
+	}
 	return 1;
     }
 
@@ -1241,7 +1263,7 @@ int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int ty
     return 0;
 }
 
-static int separate_line (char *line, char *line1b, char *line2b)
+static int cfgfile_separate_line (char *line, char *line1b, char *line2b)
 {
     char *line1, *line2;
     int i;
@@ -1324,7 +1346,7 @@ void cfgfile_parse_line (struct uae_prefs *p, char *line, int type)
 {
     char line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
 
-    if (!separate_line (line, line1b, line2b))
+    if (!cfgfile_separate_line (line, line1b, line2b))
 	return;
     cfgfile_parse_separated_line (p, line1b, line2b, type);
     return;
@@ -1404,9 +1426,9 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 	while (len > 0 && strcspn (line + len - 1, "\t \r\n") == 0)
 	    line[--len] = '\0';
 	if (strlen (line) > 0) {
-	    if (line[0] == '#')
+	    if (line[0] == '#' || line[0] == ';')
 		continue;
-	    if (!separate_line (line, line1b, line2b))
+	    if (!cfgfile_separate_line (line, line1b, line2b))
 		continue;
 	    type1 = type2 = 0;
 	    if (cfgfile_yesno (line1b, line2b, "config_hardware", &type1) ||
@@ -1507,7 +1529,7 @@ int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
 
     if (!type)
 	type = CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST;
-    save_options (fh, p, type);
+    cfgfile_save_options (fh, p, type);
     zfile_fclose (fh);
     return 1;
 }
@@ -1530,6 +1552,14 @@ int cfgfile_get_description (const char *filename, char *description, char *host
     }
     free (p);
     return result;
+}
+
+int cfgfile_configuration_change(int v)
+{
+    static int mode;
+    if (v >= 0)
+	mode = v;
+    return mode;
 }
 
 void cfgfile_show_usage (void)
@@ -1558,8 +1588,8 @@ static void parse_gfx_specs (struct uae_prefs *p, char *spec)
 	goto argh;
     *x1++ = 0; *x2++ = 0;
 
-    p->gfx_width_win = p->gfx_width_fs = atoi (x0);
-    p->gfx_height_win = p->gfx_height_fs = atoi (x1);
+    p->gfx_size_win.width = p->gfx_size_fs.width = atoi (x0);
+    p->gfx_size_win.height = p->gfx_size_fs.height = atoi (x1);
     p->gfx_lores = strchr (x2, 'l') != 0;
     p->gfx_xcenter = strchr (x2, 'x') != 0 ? 1 : strchr (x2, 'X') != 0 ? 2 : 0;
     p->gfx_ycenter = strchr (x2, 'y') != 0 ? 1 : strchr (x2, 'Y') != 0 ? 2 : 0;
@@ -1907,7 +1937,7 @@ void cfgfile_addcfgparam (char *line)
 	temp_lines = 0;
 	return;
     }
-    if (!separate_line (line, line1b, line2b))
+    if (!cfgfile_separate_line (line, line1b, line2b))
 	return;
     u = xcalloc (sizeof (struct strlist), 1);
     u->option = my_strdup(line1b);
@@ -1927,13 +1957,13 @@ static int getconfigstoreline (struct zfile *z, char *option, char *value)
 	    return 0;
 	tmp[idx++] = b;
 	tmp[idx] = 0;
-	if (b == '\n')
+	if (b == '\n' || b == 0)
 	    break;
     }
-    return separate_line (tmp, option, value);
+    return cfgfile_separate_line (tmp, option, value);
 }
 
-int cfgfile_handle_custom_event (char *custom, int mode)
+static int cfgfile_handle_custom_event (char *custom, int mode)
 {
     char option[CONFIG_BLEN], value[CONFIG_BLEN];
     char option2[CONFIG_BLEN], value2[CONFIG_BLEN];
@@ -1944,7 +1974,7 @@ int cfgfile_handle_custom_event (char *custom, int mode)
     if (!mode) {
 	uae_u8 zero = 0;
 	configstore = zfile_fopen_empty ("configstore", 50000);
-	save_options (configstore, &currprefs, 0);
+	cfgfile_save_options (configstore, &currprefs, 0);
 	zfile_fwrite (&zero, 1, 1, configstore);
     }
 
@@ -1965,7 +1995,7 @@ int cfgfile_handle_custom_event (char *custom, int mode)
 		    nextp++;
 	    }
 	}
-	if (separate_line (p, option, value)) {
+	if (cfgfile_separate_line (p, option, value)) {
 	    cnt++;
 	    if (mode) {
 		cfgfile_parse_option (&changed_prefs, option, value, 0);
@@ -2043,7 +2073,8 @@ int cmdlineparser (char *s, char *outp[], int max)
 }
 
 #define UAELIB_MAX_PARSE 100
-uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize)
+
+uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae_u32 outsize)
 {
     char *p;
     char *argc[UAELIB_MAX_PARSE];
@@ -2106,8 +2137,8 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 			if (p) {
 			    for (i = 0; i < outsize - 1; i++) {
 				uae_u8 b = *++p;
-				put_byte (out + i, b);
-				put_byte (out + i + 1, 0);
+				out[i] = b;
+				out[i + 1] = 0;
 				if (!b)
 				    break;
 			    }
@@ -2133,8 +2164,8 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 		err = 0;
 	    if (b == '\n')
 		b = 0;
-	    put_byte (out + i, b);
-	    put_byte (out + i + 1, 0);
+	    out[i] = b;
+	    out[i + 1] = 0;
 	    if (!b)
 		break;
 	}
@@ -2143,16 +2174,7 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 
     if (size > 10000)
 	return 10;
-    p = xmalloc (size + 1);
-    if (!p)
-	return 10;
-    for (i = 0; i < size; i++) {
-	p[i] = get_byte (parms + i);
-	if (p[i] == 10 || p[i] == 13 || p[i] == 0)
-	    break;
-    }
-    p[i] = 0;
-    argv = cmdlineparser (p, argc, UAELIB_MAX_PARSE);
+    argv = cmdlineparser (parms, argc, UAELIB_MAX_PARSE);
 
     if (argv <= 1 && index == 0xffffffff) {
 	zfile_fclose (configstore);
@@ -2166,7 +2188,7 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 	    goto end;
 	}
 	zfile_fseek (configstore, 0, SEEK_SET);
-	save_options (configstore, &currprefs, 0);
+	cfgfile_save_options (configstore, &currprefs, 0);
 	zfile_fwrite (&zero, 1, 1, configstore);
 	zfile_fseek (configstore, 0, SEEK_SET);
 	err = 0xffffffff;
@@ -2193,6 +2215,45 @@ end:
     return err;
 }
 
+uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize)
+{
+    char *p, *parms_p = NULL, *out_p = NULL;
+    int i, ret;
+
+    put_byte (out, 0);
+    parms_p = xmalloc (size + 1);
+    if (!parms_p) {
+	ret = 10;
+	goto end;
+    }
+    out_p = xmalloc (outsize + 1);
+    if (!out_p) {
+	ret = 10;
+	goto end;
+    }
+    p = parms_p;
+    for (i = 0; i < size; i++) {
+	p[i] = get_byte (parms + i);
+	if (p[i] == 10 || p[i] == 13 || p[i] == 0)
+	    break;
+    }
+    p[i] = 0;
+    out_p[0] = 0;
+    ret = cfgfile_modify (index, parms_p, size, out_p, outsize);
+    p = out_p;
+    for (i = 0; i < outsize - 1; i++) {
+	uae_u8 b = *p++;
+	put_byte (out + i, b);
+	put_byte (out + i + 1, 0);
+	if (!b)
+	    break;
+    }
+end:
+    xfree (out_p);
+    xfree (parms_p);
+    return ret;
+}
+    
 uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
 {
     char tmp[CONFIG_BLEN];
@@ -2291,6 +2352,7 @@ static void default_prefs_mini (struct uae_prefs *p, int type)
 
 void default_prefs (struct uae_prefs *p, int type)
 {
+    int i;
     int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
 
     memset (p, 0, sizeof (*p));
@@ -2327,8 +2389,9 @@ void default_prefs (struct uae_prefs *p, int type)
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
-    p->sound_interpol = 0;
-    p->sound_filter = FILTER_SOUND_OFF;
+    p->sound_interpol = 1;
+    p->sound_filter = FILTER_SOUND_EMUL;
+    p->sound_filter_type = 0;
 
     p->comptrustbyte = 0;
     p->comptrustword = 0;
@@ -2348,24 +2411,28 @@ void default_prefs (struct uae_prefs *p, int type)
     p->comp_midopt = 0;
     p->comp_lowopt = 0;
     p->override_dga_address = 0;
-    {
-	int i;
-	for (i = 0;i < 10; i++)
-	    p->optcount[i] = -1;
-	p->optcount[0] = 4;	/* How often a block has to be executed before it
-				 * is translated */
-	p->optcount[1] = 0;	/* How often to use the naive translation */
-	p->optcount[2] = 0;
-	p->optcount[3] = 0;
-	p->optcount[4] = 0;
-	p->optcount[5] = 0;
-    }
+
+    for (i = 0;i < 10; i++)
+	p->optcount[i] = -1;
+    p->optcount[0] = 4;	/* How often a block has to be executed before it is translated */
+    p->optcount[1] = 0;	/* How often to use the naive translation */
+    p->optcount[2] = 0;
+    p->optcount[3] = 0;
+    p->optcount[4] = 0;
+    p->optcount[5] = 0;
+
     p->gfx_framerate = 1;
     p->gfx_autoframerate = 50;
-    p->gfx_width_fs = 800;
-    p->gfx_height_fs = 600;
-    p->gfx_width_win = 720;
-    p->gfx_height_win = 568;
+    p->gfx_size_fs.width = 800;
+    p->gfx_size_fs.height = 600;
+    p->gfx_size_win.width = 720;
+    p->gfx_size_win.height = 568;
+    for (i = 0; i < 4; i++) {
+	p->gfx_size_fs_xtra[i].width = 0;
+	p->gfx_size_fs_xtra[i].height = 0;
+	p->gfx_size_win_xtra[i].width = 0;
+	p->gfx_size_win_xtra[i].height = 0;
+    }
     p->gfx_lores = 0;
     p->gfx_linedbl = 1;
     p->gfx_afullscreen = 0;
@@ -2574,7 +2641,7 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[2] = -1;
     p->chipset_mask = 0;
     p->bogomem_size = 0;
-    p->sound_filter = FILTER_SOUND_ON_A500;
+    p->sound_filter = FILTER_SOUND_ON;
     if (config == 1)
 	p->chipmem_size = 0x40000;
     set_68000_compa (p, compa);
@@ -2781,9 +2848,8 @@ int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 	v = bip_cdtv (p, config, compa, romcheck);
 	break;
 	case 7:
-	v = bip_a500 (p, 3, compa, romcheck);
+	v = bip_a500 (p, 4, compa, romcheck);
 	p->nr_floppies = 0;
-	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->dfxtype[0] = -1;
 	p->dfxtype[1] = -1;
 	break;

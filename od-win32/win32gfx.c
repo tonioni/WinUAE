@@ -89,6 +89,7 @@ GUID *displayGUID;
 static struct winuae_currentmode currentmodestruct;
 static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
+int window_led_drives, window_led_drives_end;
 extern int console_logging;
 
 #define SM_WINDOW 0
@@ -991,8 +992,8 @@ static int open_windows (void)
 		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
 	    } else {
 #endif
-		currentmode->current_width = currprefs.gfx_width;
-		currentmode->current_height = currprefs.gfx_height;
+		currentmode->current_width = currprefs.gfx_size.width;
+		currentmode->current_height = currprefs.gfx_size.height;
 		currentmode->current_depth = (currprefs.color_mode == 0 ? 8
 				: currprefs.color_mode == 1 ? 15
 				: currprefs.color_mode == 2 ? 16
@@ -1021,62 +1022,75 @@ int check_prefs_changed_gfx (void)
 {
     int c = 0;
 
-    if (normal_display_change_starting  > 0 && normal_display_change_starting < 4)
-	normal_display_change_starting--;
+    c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? (1|8) : 0;
+    c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? (1|8) : 0;
+    c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? (2|8) : 0;
+    c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? (2|8) : 0;
+    c |= currprefs.color_mode != changed_prefs.color_mode ? (1|8) : 0;
+    c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? (2|8) : 0;
+    c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
+    c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? (2|4|8) : 0;
+    c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? (1|4|8) : 0;
+    c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (1|8) : 0;
 
-    c |= currprefs.gfx_width_fs != changed_prefs.gfx_width_fs ? 1 : 0;
-    c |= currprefs.gfx_height_fs != changed_prefs.gfx_height_fs ? 1 : 0;
-    c |= currprefs.gfx_width_win != changed_prefs.gfx_width_win ? 2 : 0;
-    c |= currprefs.gfx_height_win != changed_prefs.gfx_height_win ? 2 : 0;
-    c |= currprefs.color_mode != changed_prefs.color_mode ? 1 : 0;
-    c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? 2 : 0;
-    c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? 2 : 0;
-    c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? 2 : 0;
-    c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 1 : 0;
-    c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? 1 : 0;
-    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? 1 : 0;
+    c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (1|8) : 0;
+    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (1|8) : 0;
+    c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
+    c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
+
     c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 1 : 0;
-    c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 1 : 0;
+    c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? 1 : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
     c |= currprefs.win32_no_overlay != changed_prefs.win32_no_overlay ? 1 : 0;
+
     if (display_change_requested || c) 
     {
+	cfgfile_configuration_change(1);
 	if (!display_change_requested)
 	    normal_display_change_starting = 4;
 	display_change_requested = 0;
 	fixup_prefs_dimensions (&changed_prefs);
-	currprefs.gfx_width_win = changed_prefs.gfx_width_win;
-	currprefs.gfx_height_win = changed_prefs.gfx_height_win;
-	currprefs.gfx_width_fs = changed_prefs.gfx_width_fs;
-	currprefs.gfx_height_fs = changed_prefs.gfx_height_fs;
+	currprefs.gfx_size_fs.width = changed_prefs.gfx_size_fs.width;
+	currprefs.gfx_size_fs.height = changed_prefs.gfx_size_fs.height;
+	currprefs.gfx_size_win.width = changed_prefs.gfx_size_win.width;
+	currprefs.gfx_size_win.height = changed_prefs.gfx_size_win.height;
 	currprefs.color_mode = changed_prefs.color_mode;
 	currprefs.gfx_afullscreen = changed_prefs.gfx_afullscreen;
 	currprefs.gfx_pfullscreen = changed_prefs.gfx_pfullscreen;
 	updatewinfsmode (&currprefs);
 	currprefs.gfx_vsync = changed_prefs.gfx_vsync;
 	currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
+	currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
+
 	currprefs.gfx_filter = changed_prefs.gfx_filter;
 	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
-	currprefs.gfx_lores = changed_prefs.gfx_lores;
+	currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;
+	currprefs.gfx_filter_vert_zoom_mult = changed_prefs.gfx_filter_vert_zoom_mult;
+
 	currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
+	currprefs.gfx_lores = changed_prefs.gfx_lores;
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 	currprefs.win32_borderless = changed_prefs.win32_borderless;
 	currprefs.win32_no_overlay = changed_prefs.win32_no_overlay;
-	inputdevice_unacquire ();
-	close_windows ();
-	graphics_init ();
-#ifdef PICASSO96
-	DX_SetPalette (0, 256);
-#endif
-	init_custom ();
-	pause_sound ();
-	resume_sound ();
-	inputdevice_acquire ();
+
+	if (c & 8) {
+	    inputdevice_unacquire ();
+	    close_windows ();
+	    graphics_init ();
+	}
+        init_custom ();
+	if (c & 4) {
+	    pause_sound ();
+	    resume_sound ();
+	}
+	if (c & 8) {
+	    inputdevice_acquire ();
+	}
 	return 1;
     }
 
@@ -1727,6 +1741,8 @@ static void createstatuswindow (void)
 	lpParts[7] = lpParts[6] + drive_width;
 	lpParts[8] = lpParts[7] + drive_width;
 	lpParts[9] = lpParts[8] + drive_width;
+	window_led_drives = lpParts[5];
+	window_led_drives_end = lpParts[9];
 
 	/* Create the parts */
 	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM) num_parts, (LPARAM) lpParts);
@@ -1750,6 +1766,8 @@ static int create_windows (void)
     int gap = 3;
     int x, y;
 
+    window_led_drives = 0;
+    window_led_drives_end = 0;
     hMainWnd = NULL;
     x = 2; y = 2;
     if (borderless)
@@ -2275,11 +2293,9 @@ void updatewinfsmode (struct uae_prefs *p)
 
     fixup_prefs_dimensions (p);
     if (p->gfx_afullscreen) {
-	p->gfx_width = p->gfx_width_fs;
-	p->gfx_height = p->gfx_height_fs;
+	p->gfx_size = p->gfx_size_fs;
     } else {
-	p->gfx_width = p->gfx_width_win;
-	p->gfx_height = p->gfx_height_win;
+	p->gfx_size = p->gfx_size_win;
     }
     displayGUID = NULL;
     i = 0;

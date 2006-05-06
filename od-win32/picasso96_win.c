@@ -1908,6 +1908,7 @@ uae_u32 picasso_SetGC (void)
     
     P96TRACE(("SetGC(%d,%d,%d,%d)\n", picasso96_state.Width, picasso96_state.Height, picasso96_state.GC_Depth, border ));
     set_gc_called = 1;
+    picasso96_state.HostAddress = NULL;
     init_picasso_screen ();
     init_hz_p96 ();
     return 1;

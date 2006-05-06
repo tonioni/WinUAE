@@ -38,6 +38,7 @@ static void install_driver (int flags)
     }
     if (currprefs.win32_uaescsimode == UAESCSI_ADAPTECASPI ||
 	currprefs.win32_uaescsimode == UAESCSI_NEROASPI ||
+	currprefs.win32_uaescsimode == UAESCSI_FROGASPI ||
 	!installed) {
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	device_func[DF_IOCTL] = 0;

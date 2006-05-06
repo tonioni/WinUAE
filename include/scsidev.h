@@ -21,4 +21,5 @@ extern int log_scsi;
 #define UAESCSI_SPTISCAN 1
 #define UAESCSI_ADAPTECASPI 2
 #define UAESCSI_NEROASPI 3
+#define UAESCSI_FROGASPI 4
 #endif

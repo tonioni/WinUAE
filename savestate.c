@@ -460,6 +460,7 @@ void restore_state (char *filename)
 		       name, len, end - chunk);
 	xfree (chunk);
     }
+    restore_blitter_finish();
     return;
 
     error:
@@ -590,12 +591,12 @@ void save_state (char *filename, char *description)
     save_chunk (f, dst, len, "DISK", 0);
     xfree (dst);
 
-    dst = save_custom (&len, 0, 0);
-    save_chunk (f, dst, len, "CHIP", 0);
-    xfree (dst);
-
     dst = save_blitter (&len, 0);
     save_chunk (f, dst, len, "BLIT", 0);
+    xfree (dst);
+
+    dst = save_custom (&len, 0, 0);
+    save_chunk (f, dst, len, "CHIP", 0);
     xfree (dst);
 
     dst = save_custom_agacolors (&len, 0);

@@ -45,6 +45,12 @@ struct uae_input_device {
 
 #define CONFIG_TYPE_HARDWARE 1
 #define CONFIG_TYPE_HOST 2
+#define CONFIG_BLEN 2560
+
+struct wh {
+    int width;
+    int height;
+};
 
 struct uae_prefs {
 
@@ -86,6 +92,7 @@ struct uae_prefs {
     int sound_interpol;
     int sound_adjust;
     int sound_filter;
+    int sound_filter_type;
     int sound_volume;
     int sound_stereo_swap_paula;
     int sound_stereo_swap_ahi;
@@ -115,9 +122,12 @@ struct uae_prefs {
 
     int gfx_display;
     int gfx_framerate, gfx_autoframerate;
-    int gfx_width_win, gfx_height_win;
-    int gfx_width_fs, gfx_height_fs;
-    int gfx_width, gfx_height;
+    struct wh gfx_size_win;
+    struct wh gfx_size_fs;
+    struct wh gfx_size;
+    struct wh gfx_size_win_xtra[4];
+    struct wh gfx_size_fs_xtra[4];
+    int gfx_autoresolution;
     int gfx_refreshrate;
     int gfx_vsync;
     int gfx_lores;
@@ -278,6 +288,7 @@ extern int target_parse_option (struct uae_prefs *, char *option, char *value);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type, int isdefault);
+extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
 extern int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink);
 extern int cfgfile_save (struct uae_prefs *, const char *filename, int);
@@ -287,11 +298,11 @@ extern int cfgfile_get_description (const char *filename, char *description, cha
 extern void cfgfile_show_usage (void);
 extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
+extern uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (char *);
 extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 extern int cmdlineparser (char *s, char *outp[], int max);
-extern int cfgfile_handle_custom_event (char *custom, int mode);
-
+extern int cfgfile_configuration_change(int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
 

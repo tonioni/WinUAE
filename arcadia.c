@@ -43,28 +43,34 @@ struct arcadiarom *arcadia_rom;
 static char arcadia_path[MAX_DPATH];
 
 static struct arcadiarom roms[]	= {
-    { "ar_airh.zip", "scpa211", "airh_", 1, 5, 0, 2, 4, 7, 6, 1, 3, 0x98f564 },
-    { "ar_bowl.zip", "scpa211", "bowl_", 1, 7, 6, 0, 1, 2, 3, 4, 5, 0x98f564 },
-    { "ar_dart.zip", "scpa211", "dart_", 1, 4, 0, 7, 6, 3, 1, 2, 5, 0x98f564 },
-    { "ar_fast.zip", "scpav3_0.1", "fastv28.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
-    { "ar_ldrb.zip", "scpa211", "lbg240", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x98f564 },
-    { "ar_ldrba.zip", "scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6, 0x98f564 },
-    { "ar_ninj.zip", "scpa211", "ninj_", 1, 1, 6, 5, 7, 4, 2, 0, 3, 0x98f564 },
-    { "ar_rdwr.zip", "scpa211", "rdwr_", 1, 3, 1, 6, 4, 0, 5, 2, 7, 0x98f564 },
+    { "ar_airh.zip", "scpa211", "airh_", 1, 5, 0, 2, 4, 7, 6, 1, 3 },
+    { "ar_bowl.zip", "scpa211", "bowl_", 1, 7, 6, 0, 1, 2, 3, 4, 5 },
+    { "ar_dart.zip", "scpa211", "dart_", 1, 4, 0, 7, 6, 3, 1, 2, 5 },
+    { "ar_fast.zip", "scpav3_0.1", "fastv28.", 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { "ar_ldrb.zip", "scpa211", "lbg240", 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { "ar_ldrba.zip", "scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6 },
+    { "ar_ninj.zip", "scpa211", "ninj_", 1, 1, 6, 5, 7, 4, 2, 0, 3 },
+    { "ar_rdwr.zip", "scpa211", "rdwr_", 1, 3, 1, 6, 4, 0, 5, 2, 7 },
 
-    { "ar_socc.zip", "scpav3_0.1", "socc30.", 2, 0, 7, 1, 6, 5, 4, 3, 2, 0x9902bc  },
+    { "ar_socc.zip", "scpav3_0.1", "socc30.", 2, 0, 7, 1, 6, 5, 4, 3, 2 },
 
-    { "ar_sdwr.zip", "scpa211", "sdwr_", 1, 6, 3, 4, 5, 2, 1, 0, 7, 0x98f564 },
-    { "ar_spot.zip", "scpav3_0.1", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0, 0x9902bc },
-    { "ar_sprg.zip", "scpa211", "sprg_", 1, 4, 7, 3, 0, 6, 5, 2, 1, 0x98f564 },
-    { "ar_xeon.zip", "scpa211", "xeon_", 1, 3, 1, 2, 4, 0, 5, 6, 7, 0x98f564 },
+    { "ar_sdwr.zip", "scpa211", "sdwr_", 1, 6, 3, 4, 5, 2, 1, 0, 7 },
+    { "ar_spot.zip", "scpav3_0.1", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { "ar_sprg.zip", "scpa211", "sprg_", 1, 4, 7, 3, 0, 6, 5, 2, 1 },
+    { "ar_xeon.zip", "scpa211", "xeon_", 1, 3, 1, 2, 4, 0, 5, 6, 7 },
     { NULL, NULL, NULL }
 };
 
-static uae_u8 *arbmemory;
+static uae_u8 *arbmemory, *arbbmemory;
+static int boot_read;
+
 #define	arb_start 0x800000
 #define	arb_mask 0x1fffff
 #define	allocated_arbmemory 0x200000
+
+#define arbb_start 0xf00000
+#define	arbb_mask 0x7ffff
+#define	allocated_arbbmemory 0x80000
 
 #define	nvram_offset 0x1fc000
 #define	bios_offset 0x180000
@@ -211,54 +217,46 @@ static void decrypt_roms (struct arcadiarom *rom)
 	arbmemory[1] = 0xfc;
 }
 
-uae_u32	REGPARAM2 aab_bget (uaecptr addr)
+static uae_u32 REGPARAM2 arbb_lget (uaecptr addr)
 {
-    return 0;
+    uae_u32 *m;
+
+    addr -= arbb_start & arbb_mask;
+    addr &= arbb_mask;
+    m = (uae_u32 *)(arbbmemory + addr);
+    return do_get_mem_long (m);
+}
+static uae_u32 REGPARAM2 arbb_wget (uaecptr addr)
+{
+    uae_u16 *m;
+
+    addr -= arbb_start & arbb_mask;
+    addr &= arbb_mask;
+    m = (uae_u16 *)(arbbmemory + addr);
+    return do_get_mem_word (m);
+}
+static uae_u32 REGPARAM2 arbb_bget (uaecptr addr)
+{
+    addr -= arbb_start & arbb_mask;
+    addr &= arbb_mask;
+    return arbbmemory[addr];
 }
 
-static uae_u32 REGPARAM2 aab_wget (uaecptr addr)
+static void REGPARAM2 arbb_lput (uaecptr addr, uae_u32 l)
 {
-    uae_u32 v;
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-    v = (aab_bget (addr) << 8) | aab_bget (addr + 1);
-    return v;
 }
 
-static uae_u32 REGPARAM2 aab_lget (uaecptr addr)
+static void REGPARAM2 arbb_wput (uaecptr addr, uae_u32 w)
 {
-    uae_u32 v;
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-    v = (aab_bget (addr) << 24) | (aab_bget (addr + 1) << 16) |
-	(aab_bget (addr + 2) << 8) | (aab_bget (addr + 3));
-    return v;
 }
 
-static void REGPARAM2 aab_lput (uaecptr addr, uae_u32 l)
+static void REGPARAM2 arbb_bput (uaecptr addr, uae_u32 b)
 {
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
-}
-static void REGPARAM2 aab_wput (uaecptr addr, uae_u32 w)
-{
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
-}
-static void REGPARAM2 aab_bput (uaecptr addr, uae_u32 b)
-{
-#ifdef JIT
-    special_mem |= S_WRITE;
-#endif
 }
 
-addrbank arcadia_autoconfig_bank = {
-    aab_lget, aab_wget, aab_bget,
-    aab_lput, aab_wput, aab_bput,
+static addrbank arcadia_boot_bank = {
+    arbb_lget, arbb_wget, arbb_bget,
+    arbb_lput, arbb_wput, arbb_bput,
     default_xlate, default_check, NULL
 };
 
@@ -271,7 +269,7 @@ static uae_u32 REGPARAM2 arb_lget (uaecptr addr)
     m = (uae_u32 *)(arbmemory + addr);
     return do_get_mem_long (m);
 }
-uae_u32 REGPARAM2 arb_wget (uaecptr addr)
+static uae_u32 REGPARAM2 arb_wget (uaecptr addr)
 {
     uae_u16 *m;
 
@@ -280,14 +278,14 @@ uae_u32 REGPARAM2 arb_wget (uaecptr addr)
     m = (uae_u16 *)(arbmemory + addr);
     return do_get_mem_word (m);
 }
-uae_u32 REGPARAM2 arb_bget (uaecptr addr)
+static uae_u32 REGPARAM2 arb_bget (uaecptr addr)
 {
     addr -= arb_start & arb_mask;
     addr &= arb_mask;
     return arbmemory[addr];
 }
 
-void REGPARAM2 arb_lput (uaecptr addr, uae_u32 l)
+static void REGPARAM2 arb_lput (uaecptr addr, uae_u32 l)
 {
     uae_u32 *m;
 
@@ -300,7 +298,7 @@ void REGPARAM2 arb_lput (uaecptr addr, uae_u32 l)
     }
 }
 
-void REGPARAM2 arb_wput (uaecptr addr, uae_u32 w)
+static void REGPARAM2 arb_wput (uaecptr addr, uae_u32 w)
 {
     uae_u16 *m;
 
@@ -313,7 +311,7 @@ void REGPARAM2 arb_wput (uaecptr addr, uae_u32 w)
     }
 }
 
-void REGPARAM2 arb_bput (uaecptr addr, uae_u32 b)
+static void REGPARAM2 arb_bput (uaecptr addr, uae_u32 b)
 {
     addr -= arb_start & arb_mask;
     addr &= arb_mask;
@@ -323,21 +321,7 @@ void REGPARAM2 arb_bput (uaecptr addr, uae_u32 b)
     }
 }
 
-int REGPARAM2 arb_check (uaecptr addr, uae_u32 size)
-{
-    addr -= arb_start & arb_mask;
-    addr &= arb_mask;
-    return (addr + size) <= allocated_arbmemory;
-}
-
-uae_u8 REGPARAM2 *arb_xlate (uaecptr addr)
-{
-    addr -= arb_start & arb_mask;
-    addr &= arb_mask;
-    return arbmemory + addr;
-}
-
-addrbank arcadia_rom_bank = {
+static addrbank arcadia_rom_bank = {
     arb_lget, arb_wget, arb_bget,
     arb_lput, arb_wput, arb_bput,
     default_xlate, default_check, NULL
@@ -386,6 +370,7 @@ int arcadia_map_banks (void)
     if (!arcadia_rom)
 	return 0;
     arbmemory = xmalloc (allocated_arbmemory);
+    arbbmemory = arbmemory + bios_offset;
     memset (arbmemory, 0, allocated_arbmemory);
     if (!load_roms (arcadia_path, arcadia_rom)) {
 	arcadia_unmap ();
@@ -395,6 +380,8 @@ int arcadia_map_banks (void)
     nvram_read ();
     map_banks (&arcadia_rom_bank, arb_start >> 16,
 	allocated_arbmemory >> 16, 0);
+    map_banks (&arcadia_boot_bank, 0xf0,
+	8, 0);
     return 1;
 }
 

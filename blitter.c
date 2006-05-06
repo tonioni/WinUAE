@@ -1155,27 +1155,38 @@ uae_u8 *restore_blitter (uae_u8 *src)
     uae_u32 flags = restore_u32();
 
     bltstate = (flags & 1) ? BLT_init : BLT_done;
+    if (flags & 2) {
+	write_log ("blitter was force-finished when this statefile was saved\n");
+	write_log ("contact the author if restored program freezes\n");
+    }
+    return src;
+}
+
+void restore_blitter_finish(void)
+{
     if (bltstate == BLT_init) {
 	write_log ("blitter was started but DMA was inactive during save\n");
 	do_blitter (0);
     }
-    return src;
 }
 
 uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
+    int forced;
 
+    forced = 0;
     if (bltstate != BLT_done && bltstate != BLT_init) {
-	write_log ("blitter was running, forcing immediate finish\n");
+	write_log ("blitter is active, forcing immediate finish\n");
 	 /* blitter is active just now but we don't have blitter state support yet */
 	blitter_force_finish ();
+	forced = 2;
     }
     if (dstptr)
 	dstbak = dst = dstptr;
     else
 	dstbak = dst = malloc (16);
-    save_u32((bltstate != BLT_done) ? 0 : 1);
+    save_u32(((bltstate != BLT_done) ? 0 : 1) | forced);
     *len = dst - dstbak;
     return dstbak;
 

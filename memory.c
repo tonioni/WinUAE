@@ -2300,6 +2300,8 @@ uae_u8 *restore_rom (uae_u8 *src)
 	}
     }
     src += strlen (src) + 1;
+    if (zfile_exists(src))
+	strncpy (changed_prefs.romfile, src, 255);
     src += strlen (src) + 1;
     return src;
 }

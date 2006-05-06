@@ -173,7 +173,7 @@ void record_key_direct (int kc)
     }
 
     if (input_recording > 0) {
-	inprec_rstart(INPREC_KEY, 1);
+	inprec_rstart(INPREC_KEY);
 	inprec_ru8(kc);
 	inprec_rend();
     }

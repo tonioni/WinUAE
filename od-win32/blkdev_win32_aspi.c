@@ -46,7 +46,7 @@ struct scsi_info {
 static struct scsi_info si[MAX_TOTAL_DEVICES];
 static int unitcnt;
 
-static int getversion(char *name, VS_FIXEDFILEINFO *ver)
+static int getversion(const char *name, VS_FIXEDFILEINFO *ver)
 {
     int ok = FALSE;
     DWORD  dwVersionHandle, dwFileVersionInfoSize;
@@ -76,16 +76,27 @@ static int getversion(char *name, VS_FIXEDFILEINFO *ver)
     return ok;
 }
 
-char *get_aspi_path(int neroaspi)
+const char *get_aspi_path(int aspitype)
 {
-    static int nero, adaptec;
+    static int nero, adaptec, frog;
     static char path_nero[MAX_DPATH];
     static char path_adaptec[MAX_DPATH];
+    static const char *path_frog = "FrogAspi.dll";
     VS_FIXEDFILEINFO ver;
 
-    switch (neroaspi)
+    switch (aspitype)
     {
-	case 1:
+	case 2: // Frog
+	if (frog > 0)
+	    return path_frog;
+	if (frog < 0)
+	    return NULL;
+	frog = -1;
+        if (getversion(path_frog, &ver))
+	    frog = 1;
+	return path_frog;
+
+	case 1: // Nero
 	{
             HKEY key;
 	    DWORD type = REG_SZ;
@@ -97,7 +108,9 @@ char *get_aspi_path(int neroaspi)
 	    nero = -1;
 	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
 		if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path_nero, &size) == ERROR_SUCCESS) {
-		    strcat (path_nero, "\\wnaspi32.dll");
+		    if (path_nero[strlen(path_nero) - 1] != '\\')
+			strcat (path_nero, "\\");
+		    strcat (path_nero, "wnaspi32.dll");
 		    RegCloseKey (key);
 		    if (getversion(path_nero, &ver)) {
 			if (ver.dwFileVersionMS >= 0x20000) {
@@ -112,7 +125,7 @@ char *get_aspi_path(int neroaspi)
 	}
 	return NULL;
 
-	case 0:
+	case 0: // Adaptec
 	{
 	    if (adaptec > 0)
 		return path_adaptec;
@@ -157,7 +170,7 @@ static int open_driver (SCSI *scgp)
     BYTE HACount;
     BYTE ASPIStatus;
     int i;
-    int nero;
+    int nero, frog;
 
     /*
      * Check if ASPI library is already loaded yet
@@ -165,13 +178,19 @@ static int open_driver (SCSI *scgp)
     if (AspiLoaded == TRUE)
 	return TRUE;
 
-    nero = 0;
+    nero = frog = 0;
     strcpy (path, "WNASPI32");
     if (currprefs.win32_uaescsimode == UAESCSI_NEROASPI) {
-	char *p = get_aspi_path(1);
+	const char *p = get_aspi_path(1);
 	if (p) {
 	    strcpy (path, p);
 	    nero = 1;
+	}
+    } else if (currprefs.win32_uaescsimode == UAESCSI_FROGASPI) {
+	const char *p = get_aspi_path(2);
+	if (p) {
+	    strcpy (path, p);
+	    frog = 1;
 	}
     }
     /*
@@ -179,8 +198,8 @@ static int open_driver (SCSI *scgp)
      */
     write_log ("ASPI: driver location '%s'\n", path);
     hAspiLib = LoadLibrary(path);
-    if (hAspiLib == NULL && nero) {
-	write_log ("ASPI: NERO ASPI failed to load, falling back to default\n");
+    if (hAspiLib == NULL && (nero || frog)) {
+	write_log ("ASPI: NERO/FROG ASPI failed to load, falling back to default\n");
 	hAspiLib = LoadLibrary("WNASPI32");
     }
 

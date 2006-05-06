@@ -185,7 +185,7 @@
 #define IDS_SOUND_INTERPOL_CRUX         205
 #define IDS_SOUND_FILTER_OFF            206
 #define IDS_SOUND_FILTER_EMULATED       207
-#define IDS_SOUND_FILTER_ON_A500        208
+#define IDS_SOUND_FILTER_EMULATED_E     208
 #define IDS_INPUT_COMPATIBILITY         209
 #define IDS_INPUT_CUSTOM                210
 #define IDS_INPUT_COPY_DEFAULT          211
@@ -236,6 +236,7 @@
 #define IDB_LCD160X43                   252
 #define IDS_SOUND_FILTER_ON_AGA         252
 #define IDS_SOUND_FILTER_ON             253
+#define IDS_SOUND_FILTER_ON_A500        253
 #define IDS_DRIVESOUND_PC_FLOPPY        254
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
@@ -848,6 +849,7 @@
 #define IDC_SCSIMODE2                   1706
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
+#define IDC_FILTERAUTORES               1708
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -868,7 +870,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1708
+#define _APS_NEXT_CONTROL_VALUE         1709
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
