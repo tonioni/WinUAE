@@ -347,6 +347,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_framerate=%d\n", p->gfx_framerate);
     cfgfile_write (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
     cfgfile_write (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
+    cfgfile_write (f, "gfx_top_windowed=%d\n", p->gfx_size_win.x);
+    cfgfile_write (f, "gfx_left_windowed=%d\n", p->gfx_size_win.y);
     cfgfile_write (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
     cfgfile_write (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
     cfgfile_write (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
@@ -645,6 +647,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_framerate", &p->gfx_framerate, 1)
 	|| cfgfile_intval (option, value, "gfx_width_windowed", &p->gfx_size_win.width, 1)
 	|| cfgfile_intval (option, value, "gfx_height_windowed", &p->gfx_size_win.height, 1)
+	|| cfgfile_intval (option, value, "gfx_top_windowed", &p->gfx_size_win.x, 1)
+	|| cfgfile_intval (option, value, "gfx_left_windowed", &p->gfx_size_win.y, 1)
 	|| cfgfile_intval (option, value, "gfx_width_fullscreen", &p->gfx_size_fs.width, 1)
 	|| cfgfile_intval (option, value, "gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
 	|| cfgfile_intval (option, value, "gfx_refreshrate", &p->gfx_refreshrate, 1)

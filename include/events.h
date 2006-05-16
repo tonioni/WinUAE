@@ -50,4 +50,9 @@ extern struct ev eventtab[ev_max];
 #include "events_normal.h"
 #endif
 
+STATIC_INLINE int current_hpos (void)
+{
+    return (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
+}
+
 #endif

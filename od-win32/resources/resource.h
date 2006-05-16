@@ -811,6 +811,8 @@
 #define IDC_QUICKSTART_COMPATIBILITY    1676
 #define IDC_PATHS_AVIOUTPUTS            1676
 #define IDC_QUICKSTART_CONFIG           1677
+#define IDC_RESETREGISTRY2              1677
+#define IDC_RESETDISKHISTORY            1677
 #define IDC_DF0Q                        1678
 #define IDC_DF0QQ                       1678
 #define IDC_DF1Q                        1679

@@ -82,6 +82,18 @@ static int read_uaefsdb (const char *dir, const char *name, uae_u8 *fsdb)
     return 0;
 }
 
+static int delete_uaefsdb (const char *dir)
+{
+    char *p;
+    int ret;
+
+    p = make_uaefsdbpath (dir, NULL);
+    ret = DeleteFile(p);
+    write_log("delete FSDB stream '%s' = %d\n", p, ret);
+    xfree (p);
+    return ret;
+}
+
 static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 {
     char *p;
@@ -174,6 +186,12 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
     aino->has_dbentry = 0;
     aino->dirty = 0;
     aino->db_offset = 0;
+    if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
+	write_log("xGetFileAttributes('%s') failed! error=%d, aino=%p\n",
+	    aino->nname, GetLastError(), aino);
+	return aino;
+    }
+    aino->dir = (mode & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
     return aino;
 }
 
@@ -268,7 +286,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
     aino->amigaos_mode = A_FIBF_EXECUTE | A_FIBF_READ;
     if (!(FILE_ATTRIBUTE_ARCHIVE & mode))
 	aino->amigaos_mode |= A_FIBF_ARCHIVE;
-    if (! (FILE_ATTRIBUTE_READONLY & mode))
+    if (!(FILE_ATTRIBUTE_READONLY & mode))
 	aino->amigaos_mode |= A_FIBF_WRITE | A_FIBF_DELETE;
     if (FILE_ATTRIBUTE_SYSTEM & mode)
 	aino->amigaos_mode |= A_FIBF_PURE;
@@ -276,13 +294,25 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 	aino->amigaos_mode |= A_FIBF_HIDDEN;
     aino->amigaos_mode = filesys_parse_mask(aino->amigaos_mode);
     aino->amigaos_mode |= oldamode & A_FIBF_SCRIPT;
-    if (reset) {
-	if (base->volflags & MYVOLUMEINFO_STREAMS) {
-	    create_uaefsdb (aino, fsdb, mode);
-	    write_uaefsdb (aino->nname, fsdb);
-	}
+    if (reset && (base->volflags & MYVOLUMEINFO_STREAMS)) {
+	create_uaefsdb (aino, fsdb, mode);
+	write_uaefsdb (aino->nname, fsdb);
     }
     return 1;
+}
+
+static int needs_fsdb (a_inode *aino)
+{
+    const char *nn_begin;
+
+    if (aino->deleted)
+	return 0;
+
+    if (!fsdb_mode_representable_p (aino) || aino->comment != 0)
+	return 1;
+
+    nn_begin = nname_begin (aino->nname);
+    return strcmp (nn_begin, aino->aname) != 0;
 }
 
 int fsdb_set_file_attrs (a_inode *aino)
@@ -315,8 +345,12 @@ int fsdb_set_file_attrs (a_inode *aino)
 
     aino->dirty = 1;
     if (aino->volflags & MYVOLUMEINFO_STREAMS) {
-	create_uaefsdb (aino, fsdb, mode);
-	write_uaefsdb (aino->nname, fsdb);
+	if (needs_fsdb(aino)) {
+	    create_uaefsdb (aino, fsdb, mode);
+	    write_uaefsdb (aino->nname, fsdb);
+	} else {
+	    delete_uaefsdb (aino->nname);
+	}
     }
     return 0;
 }
@@ -662,14 +696,17 @@ void *my_open (const char *name, int flags)
 	SetFileAttributes (name, FILE_ATTRIBUTE_NORMAL);
     h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
     if (h == INVALID_HANDLE_VALUE) {
-	if (GetLastError () == ERROR_ACCESS_DENIED && (DesiredAccess & GENERIC_WRITE)) {
+	DWORD err = GetLastError();
+	if (err == ERROR_ACCESS_DENIED && (DesiredAccess & GENERIC_WRITE)) {
 	    DesiredAccess &= ~GENERIC_WRITE;
 	    h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+	    if (h == INVALID_HANDLE_VALUE)
+		err = GetLastError();
 	}
 	if (h == INVALID_HANDLE_VALUE) {
-	    write_log ("failed to open '%s' %x %x\n", name, DesiredAccess, CreationDisposition);
+	    write_log ("failed to open '%s' %x %x err=%d\n", name, DesiredAccess, CreationDisposition, err);
 	    xfree (mos);
-	    mos = 0;
+	    mos = NULL;
 	    goto err;
 	}
     }

@@ -591,6 +591,7 @@ static void channelswap(uae_s16 *sndbuffer, int len)
     }
 }
 
+#if 0
 static void filtercheck (uae_s16 *sndbuffer, int len)
 {
     int ch = currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1);
@@ -626,13 +627,16 @@ static void filtercheck (uae_s16 *sndbuffer, int len)
 	}
     }
 }
+#endif
 
 void finish_sound_buffer (void)
 {
     if (turbo_emulation)
 	return;
+#if 0 /* done completely in audio.c now */
     if (currprefs.sound_filter && currprefs.sound_freq != 44100)
         filtercheck((uae_s16*)sndbuffer, sndbufsize / 2);
+#endif
     if (currprefs.sound_stereo == 1 && currprefs.sound_stereo_swap_paula)
         channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
 #ifdef DRIVESOUND

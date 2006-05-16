@@ -132,6 +132,81 @@ struct ToolTipHWNDS {
 };
 static struct ToolTipHWNDS ToolTipHWNDS2[MAX_IMAGETOOLTIPS + 1];
 
+void write_disk_history (void)
+{
+    int i, j;
+    char tmp[16];
+    HKEY fkey;
+
+    if (!hWinUAEKey)
+	return;
+    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
+	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    if (fkey == NULL)
+	return;
+    j = 1;
+    for (i = 0; i <= MAX_PREVIOUS_FLOPPIES; i++) {
+	char *s = DISK_history_get(i);
+	if (s == 0 || strlen(s) == 0)
+	    continue;
+	sprintf (tmp, "Image%02d", j);
+	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
+	j++;
+   }
+    while (j <= MAX_PREVIOUS_FLOPPIES) {
+	char *s = "";
+	sprintf (tmp, "Image%02d", j);
+	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
+	j++;
+    }
+    RegCloseKey(fkey);
+}
+
+void reset_disk_history (void)
+{
+    int i;
+
+    for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++)
+	DISK_history_add (NULL, i);
+    write_disk_history();
+}
+
+HKEY read_disk_history (void)
+{
+    static int regread;
+    char tmp2[1000];
+    DWORD size2;
+    int idx, idx2;
+    HKEY fkey;
+    char tmp[1000];
+    DWORD size;
+
+    if (!hWinUAEKey)
+	return NULL;
+    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
+	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    if (fkey == NULL || regread)
+	return fkey;
+
+    idx = 0;
+    for (;;) {
+	int err;
+	size = sizeof (tmp);
+	size2 = sizeof (tmp2);
+	err = RegEnumValue (fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
+	if (err != ERROR_SUCCESS)
+	    break;
+	if (strlen (tmp) == 7) {
+	    idx2 = atol (tmp + 5) - 1;
+	    if (idx2 >= 0)
+		DISK_history_add (tmp2, idx2);
+	}
+	idx++;
+    }
+    regread = 1;
+    return fkey;
+}
+
 void exit_gui (int ok)
 {
     if (!gui_active)
@@ -774,6 +849,7 @@ void gui_display(int shortcut)
     DX_SetPalette (0, 256);
 #endif
     screenshot_free();
+    write_disk_history();
     here--;
 }
 
@@ -2813,6 +2889,9 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_RESETREGISTRY:
 	    resetregistry ();
 	    break;
+	    case IDC_RESETDISKHISTORY:
+	    reset_disk_history ();
+	    break;
 	}
 	recursive--;
     }
@@ -4510,10 +4589,6 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
 	CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
 	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
-	CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
-	CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
-	CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
-	CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
 	CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
@@ -4555,6 +4630,10 @@ static void values_to_miscdlg (HWND hDlg)
 
     } else if (currentpage == MISC2_ID) {
 
+	CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
+	CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
+	CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
+	CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
 	misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_priority);
 	misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
 	misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
@@ -6075,72 +6154,6 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 }
 
 #endif
-
-void write_disk_history (void)
-{
-    int i, j;
-    char tmp[16];
-    HKEY fkey;
-
-    if (!hWinUAEKey)
-	return;
-    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-    if (fkey == NULL)
-	return;
-    j = 1;
-    for (i = 0; i < 100; i++) {
-	char *s = DISK_history_get(i);
-	if (s == 0 || strlen(s) == 0)
-	    continue;
-	sprintf (tmp, "Image%02d", j);
-	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
-	j++;
-   }
-    while (j < 100) {
-	char *s = "";
-	sprintf (tmp, "Image%02d", j);
-	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
-	j++;
-    }
-    RegCloseKey(fkey);
-}
-
-HKEY read_disk_history (void)
-{
-    static int regread;
-    char tmp2[1000];
-    DWORD size2;
-    int idx, idx2;
-    HKEY fkey;
-    char tmp[1000];
-    DWORD size;
-
-    if (!hWinUAEKey)
-	return NULL;
-    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-    if (fkey == NULL || regread)
-	return fkey;
-
-    idx = 0;
-    for (;;) {
-	int err;
-	size = sizeof (tmp);
-	size2 = sizeof (tmp2);
-	err = RegEnumValue (fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
-	if (err != ERROR_SUCCESS)
-	    break;
-	if (strlen (tmp) == 7) {
-	    idx2 = atol (tmp + 5) - 1;
-	    if (idx2 >= 0)
-		DISK_history_add (tmp2, idx2);
-	}
-	idx++;
-    }
-    regread = 1;
-    return fkey;
-}
 
 static void out_floppyspeed (HWND hDlg)
 {

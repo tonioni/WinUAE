@@ -39,6 +39,7 @@ extern char *restore_string_func (uae_u8 **);
 /* save, restore and initialize routines for Amiga's subsystems */
 
 extern uae_u8 *restore_cpu (uae_u8 *);
+extern void restore_cpu_finish (void);
 extern uae_u8 *save_cpu (int *, uae_u8 *);
 
 extern uae_u8 *restore_fpu (uae_u8 *);

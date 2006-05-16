@@ -2275,7 +2275,6 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 		| (create == 2 ? O_TRUNC : 0));
 
     fd = my_open (aino->nname, openmode | O_BINARY);
-
     if (fd == NULL) {
 	if (aino_created)
 	    delete_aino (unit, aino);
@@ -2283,12 +2282,16 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	PUT_PCK_RES2 (packet, dos_errno ());
 	return;
     }
+
     k = new_key (unit);
     k->fd = fd;
     k->aino = aino;
     k->dosmode = mode;
     k->createmode = create;
     k->notifyactive = create ? 1 : 0;
+
+    if (create)
+        fsdb_set_file_attrs (aino);
 
     put_long (fh+36, k->uniq);
     if (create == 2)
@@ -2879,6 +2882,7 @@ action_create_dir (Unit *unit, dpacket packet)
 	return;
     }
     aino->shlock = 1;
+    fsdb_set_file_attrs (aino);
     de_recycle_aino (unit, aino);
     notify_check (unit, aino);
     updatedirtime (aino, 0);
@@ -3205,6 +3209,7 @@ action_rename_object (Unit *unit, dpacket packet)
     if (a2->parent)
 	fsdb_dir_writeback (a2->parent);
     updatedirtime (a2, 1);
+    fsdb_set_file_attrs (a2);
     if (a2->elock > 0 || a2->shlock > 0 || wehavekeys > 0)
 	de_recycle_aino (unit, a2);
     PUT_PCK_RES1 (packet, DOS_TRUE);

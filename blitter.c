@@ -1078,6 +1078,8 @@ void maybe_blit (int hpos, int hack)
 
     if (bltstate == BLT_done)
 	return;
+    if (savestate_state)
+	return;
 
     if (!warned && dmaen (DMA_BLITTER)) {
 #ifndef BLITTER_DEBUG

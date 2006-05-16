@@ -1470,10 +1470,11 @@ static int kickstart_checksum (uae_u8 *mem, int size)
     return 0;
 }
 
+static char *kickstring = "exec.library";
 int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom)
 {
     unsigned char buffer[20];
-    int i, cr = 0;
+    int i, j, cr = 0;
 
     if (cloanto_rom)
 	*cloanto_rom = 0;
@@ -1513,7 +1514,14 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	i = 524288;
 	dochecksum = 0;
     }
-    if (dochecksum && i >= 262144)
+    for (j = 0; j < 256 && i >= 262144; j++) {
+	if (!memcmp (kickmemory + j, kickstring, strlen (kickstring) + 1))
+	    break;
+    }
+    if (j == 256 || i < 262144)
+	dochecksum = 0;
+
+    if (dochecksum)
 	kickstart_checksum (mem, size);
     return i;
 }

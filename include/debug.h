@@ -23,6 +23,7 @@ extern const char *debuginfo(int);
 extern void record_copper (uaecptr addr, int hpos, int vpos);
 extern void record_copper_reset(void);
 extern int snooper(uaecptr);
+extern void dump_aga_custom (void);
 
 #else
 

@@ -443,8 +443,8 @@ void setmouseactive (int active)
 		    ClipCursor (&amigawin_rect);
 		}
 		mousecapture = 1;
+		setcursor (-1, -1);
 	    }
-	    setcursor (-1, -1);
 	}
 	inputdevice_acquire ();
     }
@@ -596,6 +596,8 @@ static void handleXbutton (WPARAM wParam, int updown)
 	setmousebuttonstate (dinput_winmouse(), num, updown);
 }
 
+#define MSGDEBUG 0
+
 static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
@@ -603,6 +605,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     int mx, my, v;
     static int mm;
     static int minimized;
+
+#if MSGDEBUG
+    write_log ("AWP: %x %d\n", hWnd, message);
+#endif
 
     if (ignore_messages_all)
 	return DefWindowProc (hWnd, message, wParam, lParam);
@@ -612,10 +618,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     switch (message)
     {
+    case WM_SETCURSOR:
+    return TRUE;
     case WM_SIZE:
     {
-#if 0
-	write_log ("WM_SIZE %d %d\n", wParam, minimized);
+#if MSGDEBUG
+	write_log ("WM_SIZE %x %d %d\n", hWnd, wParam, minimized);
 #endif
 	if (isfullscreen ()) {
 	    v = minimized;
@@ -644,8 +652,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     }
 	    
     case WM_ACTIVATE:
-#if 0
-	write_log ("WM_ACTIVE %d %d %d\n", HIWORD (wParam), LOWORD (wParam), minimized);
+#if MSGDEBUG
+	write_log ("WM_ACTIVE %x %d %d %d\n", hWnd, HIWORD (wParam), LOWORD (wParam), minimized);
 #endif
 	if (!isfullscreen ()) {
 	    minimized = HIWORD (wParam);
@@ -668,8 +676,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	break;
 
     case WM_ACTIVATEAPP:
-#if 0
-	write_log ("WM_ACTIVATEAPP %d %d\n", wParam, minimized);
+#if MSGDEBUG
+	write_log ("WM_ACTIVATEAPP %x %d %d\n", hWnd, wParam, minimized);
 #endif
 	activateapp = wParam;
 	if (!wParam) {
@@ -799,6 +807,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     case WM_WINDOWPOSCHANGED:
 	GetWindowRect (hWnd, &amigawin_rect);
+	if (!isfullscreen()) {
+	    currprefs.gfx_size_win.x = amigawin_rect.left;
+	    currprefs.gfx_size_win.y = amigawin_rect.top;
+	}
     break;
 
     case WM_MOUSEMOVE:
@@ -1011,6 +1023,10 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     RECT rc;
     HDC hDC;
 
+#if MSGDEBUG
+    write_log ("MWP: %x %d\n", hWnd, message);
+#endif
+
     switch (message)
     {
      case WM_MOUSEMOVE:
@@ -1064,7 +1080,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
      case WM_WINDOWPOSCHANGED:
 	WIN32GFX_WindowMove();
-	if( hAmigaWnd && GetWindowRect(hAmigaWnd, &amigawin_rect)) {
+	if (hAmigaWnd && GetWindowRect(hAmigaWnd, &amigawin_rect)) {
 	    if (in_sizemove > 0)
 		break;
 
@@ -1072,17 +1088,19 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		static int store_xy;
 		RECT rc2;
 		if (GetWindowRect(hMainWnd, &rc2)) {
+		    DWORD left = rc2.left - win_x_diff;
+	    	    DWORD top = rc2.top - win_y_diff;
 		    if (amigawin_rect.left & 3) {
-			MoveWindow (hMainWnd, rc2.left+ 4 - amigawin_rect.left % 4, rc2.top,
+			MoveWindow (hMainWnd, rc2.left + 4 - amigawin_rect.left % 4, rc2.top,
 				    rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
 
 		    }
 		    if (hWinUAEKey && store_xy++) {
-			DWORD left = rc2.left - win_x_diff;
-			DWORD top = rc2.top - win_y_diff;
 			RegSetValueEx(hWinUAEKey, "xPos", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
 			RegSetValueEx(hWinUAEKey, "yPos", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
 		    }
+		    currprefs.gfx_size_win.x = left;
+		    currprefs.gfx_size_win.y = top;
 		}
 		return 0;
 	    }
@@ -1159,7 +1177,6 @@ void handle_events (void)
 	emulation_paused = 0;
 	manual_painting_needed--;
     }
-
 }
 
 /* We're not a console-app anymore! */

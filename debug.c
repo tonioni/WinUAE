@@ -261,10 +261,15 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
     *nxmem = addr;
 }
 
-static void dump_custom_regs (void)
+static void dump_custom_regs (int aga)
 {
     int len, i, j, end;
     uae_u8 *p1, *p2, *p3, *p4;
+
+    if (aga) {
+	dump_aga_custom();
+	return;
+    }
 
     p1 = p2 = save_custom (&len, 0, 1);
     p1 += 4; // skip chipset type
@@ -1434,7 +1439,7 @@ static void debug_1 (void)
 		addr = readhex (&inptr);
 	    dump_vectors (addr);
 	break;
-	case 'e': dump_custom_regs (); break;
+	case 'e': dump_custom_regs (tolower(*inptr) == 'a'); break;
 	case 'r': if (more_params(&inptr))
 		    m68k_modify (&inptr);
 		  else

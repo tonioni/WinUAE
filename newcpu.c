@@ -2545,9 +2545,13 @@ uae_u8 *restore_cpu (uae_u8 *src)
     write_log ("CPU %d%s%03d, PC=%08.8X\n",
 	model / 1000, flags & 1 ? "EC" : "", model % 1000, regs.pc);
 
+    return src;
+}
+
+void restore_cpu_finish(void)
+{
     init_m68k_full ();
     m68k_setpc (regs.pc);
-    return src;
 }
 
 static int cpumodel[] = { 68000, 68010, 68020, 68020, 68040, 68060 };

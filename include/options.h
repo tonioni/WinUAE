@@ -48,8 +48,8 @@ struct uae_input_device {
 #define CONFIG_BLEN 2560
 
 struct wh {
-    int width;
-    int height;
+    int x, y;
+    int width, height;
 };
 
 struct uae_prefs {

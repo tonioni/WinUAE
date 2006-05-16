@@ -383,11 +383,6 @@ static void hsyncdelay(void)
 #endif
 }
 
-STATIC_INLINE int current_hpos (void)
-{
-    return (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
-}
-
 STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
 {
     if (!chipmem_bank.check (plpt, bytecount)) {
@@ -2057,6 +2052,7 @@ static void finish_decisions (void)
     dip = curr_drawinfo + next_lineno;
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
+    dp->valid = 0;
     changed = thisline_changed + interlace_started;
 
     if (thisline_decision.plfleft != -1)
@@ -2088,6 +2084,7 @@ static void finish_decisions (void)
     if (changed) {
 	thisline_changed = 1;
 	*dp = thisline_decision;
+	dp->valid = 1;
     } else
 	/* The only one that may differ: */
 	dp->ctable = thisline_decision.ctable;
@@ -3225,6 +3222,25 @@ static uae_u16 CLXDAT (void)
 }
 
 #ifdef AGA
+
+void dump_aga_custom (void)
+{
+    int c1, c2, c3, c4;
+    uae_u32 rgb1, rgb2, rgb3, rgb4;
+
+    for (c1 = 0; c1 < 64; c1++) {
+	c2 = c1 + 64;
+	c3 = c2 + 64;
+	c4 = c3 + 64;
+	rgb1 = current_colors.acolors[c1];
+	rgb2 = current_colors.acolors[c2];
+	rgb3 = current_colors.acolors[c3];
+	rgb4 = current_colors.acolors[c4];
+	console_out("%3d %06.6X %3d %06.6X %3d %06.6X %3d %06.6X\n",
+	    c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
+    }
+}
+
 static uae_u16 COLOR_READ (int num)
 {
     int cr, cg, cb, colreg;

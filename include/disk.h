@@ -46,3 +46,5 @@ extern int disk_debug_track;
 #define DISK_DEBUG_DMA_WRITE 2
 #define DISK_DEBUG_PIO 4
 
+#define MAX_PREVIOUS_FLOPPIES 99
+

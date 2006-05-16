@@ -1558,20 +1558,13 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	return;
 
     case LINE_AS_PREVIOUS:
-	if (linestate[lineno - 1] == LINE_DONE)
-	    /* this was missing. we must not update this line if previous
-	     * line was LINE_DONE. Previously this line would have been
-	     * drawn as a border (plfleft was -1..) which resulted in
-	     * "scanline"-looking display in parts of interlaced screens.
-	     * This was really old bug..
-	     * (example: Pinball Illusions' score panel in hires)
-	     */
-	    return;
 	dp_for_drawing--;
 	dip_for_drawing--;
+	linestate[lineno] = LINE_DONE_AS_PREVIOUS;
+	if (!dp_for_drawing->valid)
+	    return;
 	if (dp_for_drawing->plfleft == -1)
 	    border = 1;
-	linestate[lineno] = LINE_DONE_AS_PREVIOUS;
 	break;
 
     case LINE_DONE_AS_PREVIOUS:
@@ -2025,10 +2018,8 @@ static void draw_status_line (int line)
 	    num1 = idle / 100;
 	    num2 = (idle - num1 * 100) / 10;
 	    num3 = idle % 10;
-	    num4 = 13;
-	    am = 4;
-	    if (num1 == 0)
-		am = 3;
+	    num4 = num1 == 0 ? 13 : -1;
+	    am = 3;
 	}
 
 	c = xcolors[on ? on_rgb : off_rgb];
@@ -2157,10 +2148,11 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
     last_redraw_point++;
     if (lof_changed || ! interlace_seen || last_redraw_point >= 2 || long_frame) {
 	last_redraw_point = 0;
-	interlace_seen = 0;
 
 	if (framecnt == 0)
 	    finish_drawing_frame ();
+
+	interlace_seen = 0;
 
 	/* At this point, we have finished both the hardware and the
 	 * drawing frame. Essentially, we are outside of all loops and

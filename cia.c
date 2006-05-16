@@ -32,6 +32,7 @@
 #include "akiko.h"
 #include "debug.h"
 #include "arcadia.h"
+#include "audio.h"
 
 //#define CIA_DEBUG_R
 //#define CIA_DEBUG_W
@@ -72,8 +73,6 @@ static int ciaatlatch, ciabtlatch;
 static int oldled, oldovl;
 
 unsigned int ciabpra;
-
-unsigned int gui_ledstate;
 
 static unsigned long ciaala, ciaalb, ciabla, ciablb;
 static int ciaatodon, ciabtodon;
@@ -433,10 +432,8 @@ static void bfe001_change (void)
     if ((v & 2) != oldled) {
 	int led = (v & 2) ? 0 : 1;
 	oldled = v & 2;
-	gui_led (0, led);
-	gui_ledstate &= ~1;
 	gui_data.powerled = led;
-	gui_ledstate |= led;
+	led_filter_audio();
     }
     if ((v & 1) != oldovl) {
 	oldovl = v & 1;

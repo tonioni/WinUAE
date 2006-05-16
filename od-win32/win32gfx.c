@@ -1026,6 +1026,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? (1|8) : 0;
     c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? (2|8) : 0;
     c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? (2|8) : 0;
+    c |= currprefs.gfx_size_win.x != changed_prefs.gfx_size_win.x ? 16 : 0;
+    c |= currprefs.gfx_size_win.y != changed_prefs.gfx_size_win.y ? 16 : 0;
     c |= currprefs.color_mode != changed_prefs.color_mode ? (1|8) : 0;
     c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? (2|8) : 0;
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
@@ -1041,7 +1043,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 1 : 0;
     c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 1 : 0;
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
-    c |= currprefs.gfx_display != changed_prefs.gfx_display ? 1 : 0;
+    c |= currprefs.gfx_display != changed_prefs.gfx_display ? (1|4|8) : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
     c |= currprefs.win32_no_overlay != changed_prefs.win32_no_overlay ? 1 : 0;
@@ -1057,6 +1059,8 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_size_fs.height = changed_prefs.gfx_size_fs.height;
 	currprefs.gfx_size_win.width = changed_prefs.gfx_size_win.width;
 	currprefs.gfx_size_win.height = changed_prefs.gfx_size_win.height;
+	currprefs.gfx_size_win.x = changed_prefs.gfx_size_win.x;
+	currprefs.gfx_size_win.y = changed_prefs.gfx_size_win.y;
 	currprefs.color_mode = changed_prefs.color_mode;
 	currprefs.gfx_afullscreen = changed_prefs.gfx_afullscreen;
 	currprefs.gfx_pfullscreen = changed_prefs.gfx_pfullscreen;

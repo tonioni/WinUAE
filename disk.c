@@ -182,7 +182,6 @@ int disk_debug_track = -1;
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
-#define MAX_PREVIOUS_FLOPPIES 99
 static char dfxhistory[MAX_PREVIOUS_FLOPPIES][MAX_DPATH];
 
 static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};
@@ -591,9 +590,6 @@ static void update_drive_gui (int num)
     gui_data.drive_track[num] = drv->cyl;
     gui_data.drive_side = side;
     gui_data.drive_writing[num] = writ;
-    gui_ledstate &= ~(2 << num);
-    if (drv->state)
-	gui_ledstate |= 2 << num;
     gui_led (num + 1, gui_data.drive_motor[num]);
 }
 
@@ -1943,6 +1939,12 @@ int DISK_history_add (const char *name, int idx)
 {
     int i;
 
+    if (idx >= MAX_PREVIOUS_FLOPPIES)
+	return 0;
+    if (name == NULL) {
+	dfxhistory[idx][0] = 0;
+	return 1;
+    }
     if (name[0] == 0)
 	return 0;
     if (!zfile_exists (name))

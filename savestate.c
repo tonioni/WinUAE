@@ -479,6 +479,7 @@ void savestate_restore_finish (void)
     zfile_fclose (savestate_file);
     savestate_file = 0;
     savestate_state = 0;
+    restore_cpu_finish();
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */

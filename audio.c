@@ -8,7 +8,7 @@
   * Copyright 1996 Manfred Thole
   * Copyright 2006 Toni Wilen
   *
-  * new filter algorithm and "anti" interpolator by Antti S. Lankila
+  * new filter algorithm and anti&sinc interpolators by Antti S. Lankila
   *
   */
 
@@ -247,11 +247,6 @@ static void do_samplerip(struct audio_channel_data *adp)
     audio_sampleripper(0);
 }
 
-STATIC_INLINE int current_hpos (void)
-{
-    return (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
-}
-
 static struct audio_channel_data audio_channel[4];
 int sound_available = 0;
 static int sound_table[64][256];
@@ -303,17 +298,24 @@ static int saved_ptr;
 #define	MIXED_STEREO_MAX 32
 static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
 static int led_filter_forced, sound_use_filter;
-static int sinc_on;
+static int sinc_on, led_filter_on;
+
+/* denormals are very small floating point numbers that force FPUs into slow
+   mode. All lowpass filters using floats are suspectible to denormals unless
+   a small offset is added to avoid very small floating point numbers. */
+#define DENORMAL_OFFSET (1E-10)
 
 static struct filter_state {
     float rc1, rc2, rc3, rc4, rc5;
 } sound_filter_state[2];
 
+static float a500e_filter1_a0;
+static float a500e_filter2_a0;
+static float filter_a0; /* a500 and a1200 use the same */
+
 enum {
   FILTER_MODEL_A500 = 1,
-  FILTER_MODEL_A1200,
-  FILTER_MODEL_A500E,
-  FILTER_MODEL_A1200E
+  FILTER_MODEL_A1200
 };
 
 /* Amiga has two separate filtering circuits per channel, a static RC filter
@@ -339,38 +341,36 @@ static int filter(int input, struct filter_state *fs)
 
     input = (uae_s16)input;
 
-    if (currprefs.sound_freq != 44100)
-	return input;
     if (sound_use_filter == 0)
 	return input;
 
     switch (sound_use_filter) {
         
-    case FILTER_MODEL_A500E:
-	fs->rc1 = 0.52 * input   + 0.48 * fs->rc1;
-	fs->rc2 = 0.92 * fs->rc1 + 0.08 * fs->rc2;
+    case FILTER_MODEL_A500: 
+	fs->rc1 = a500e_filter1_a0 * input + (1 - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET;
+	fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1-a500e_filter2_a0) * fs->rc2;
 	normal_output = fs->rc2;
 
-	fs->rc3 = 0.48 * normal_output + 0.52 * fs->rc3;
-	fs->rc4 = 0.48 * fs->rc3       + 0.52 * fs->rc4;
-	fs->rc5 = 0.48 * fs->rc4       + 0.52 * fs->rc5;
+	fs->rc3 = filter_a0 * normal_output + (1 - filter_a0) * fs->rc3;
+	fs->rc4 = filter_a0 * fs->rc3       + (1 - filter_a0) * fs->rc4;
+	fs->rc5 = filter_a0 * fs->rc4       + (1 - filter_a0) * fs->rc5;
 
 	led_output = fs->rc5;
         break;
         
-    case FILTER_MODEL_A1200E:
+    case FILTER_MODEL_A1200:
         normal_output = input;
 
-        fs->rc2 = 0.48 * normal_output + 0.52 * fs->rc2;
-        fs->rc3 = 0.48 * fs->rc2       + 0.52 * fs->rc3;
-        fs->rc4 = 0.48 * fs->rc3       + 0.52 * fs->rc4;
+        fs->rc2 = filter_a0 * normal_output + (1 - filter_a0) * fs->rc2 + DENORMAL_OFFSET;
+        fs->rc3 = filter_a0 * fs->rc2       + (1 - filter_a0) * fs->rc3;
+        fs->rc4 = filter_a0 * fs->rc3       + (1 - filter_a0) * fs->rc4;
 
         led_output = fs->rc4;
         break;
 
     }
 
-    if (led_filter_forced > 0 || (gui_data.powerled && led_filter_forced >= 0))
+    if (led_filter_on) 
 	o = led_output;
     else
 	o = normal_output;
@@ -416,7 +416,7 @@ STATIC_INLINE void put_sound_word_left (uae_u32	w)
 
 #define	DO_CHANNEL(v, c) do { (v) &= audio_channel[c].adk_mask; data += v; } while (0);
 
-static void anti_prehandler(unsigned long best_evtime)
+static void anti_sinc_prehandler(unsigned long best_evtime)
 {
     int i, j;
 
@@ -429,7 +429,7 @@ static void anti_prehandler(unsigned long best_evtime)
 	    /* if the output state changes, put the new state into the pipeline.
              * the first term is to prevent queue overflow when player routines use
              * low period values like 16 that produce ultrasonic sounds. */
-	    if (acd->sinc_queue[0].age > SINC_QUEUE_MAX_AGE/SINC_QUEUE_LENGTH+1
+	    if (acd->sinc_queue[0].age > SINC_QUEUE_MAX_AGE / SINC_QUEUE_LENGTH + 1
                     && acd->sinc_queue[0].output != output) {
 		acd->sinc_queue_length += 1;
 		if (acd->sinc_queue_length > SINC_QUEUE_LENGTH) {
@@ -445,9 +445,9 @@ static void anti_prehandler(unsigned long best_evtime)
 	    /* age the sinc queue and truncate it when necessary */
 	    for (j = 0; j < SINC_QUEUE_LENGTH; j += 1) {
 		acd->sinc_queue[j].age += best_evtime;
-		if (acd->sinc_queue[j].age > SINC_QUEUE_MAX_AGE-1) {
-                    acd->sinc_queue[j].age = SINC_QUEUE_MAX_AGE-1;
-		    acd->sinc_queue_length = j+1;
+		if (acd->sinc_queue[j].age > SINC_QUEUE_MAX_AGE - 1) {
+                    acd->sinc_queue[j].age = SINC_QUEUE_MAX_AGE - 1;
+		    acd->sinc_queue_length = j + 1;
 		    break;
 		}
 	    }
@@ -1165,47 +1165,68 @@ STATIC_INLINE int sound_prefs_changed (void)
 	    || changed_prefs.sound_filter_type != currprefs.sound_filter_type);
 }
 
+/* This computes the 1st order low-pass filter term b0.
+ * The a1 term is 1.0 - b0. The center frequency marks the -3 dB point. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+static float rc_calculate_a0(int sample_rate, int cutoff_freq)
+{
+    float omega;
+    /* The BLT correction formula below blows up if the cutoff is above nyquist. */
+    if (cutoff_freq >= sample_rate / 2)
+        return 1.0;
+
+    omega = 2 * M_PI * cutoff_freq / sample_rate;
+    /* Compensate for the bilinear transformation. This allows us to specify the
+     * stop frequency more exactly, but the filter becomes less steep further
+     * from stopband. */
+    omega = tan(omega / 2) * 2;
+    return 1 / (1 + 1 / omega);
+}
+
 void check_prefs_changed_audio (void)
 {
 #ifdef DRIVESOUND
     driveclick_check_prefs ();
 #endif
-    if (sound_available && sound_prefs_changed ()) {
-	close_sound ();
+    if (!sound_available || !sound_prefs_changed ())
+	return;
+    close_sound ();
 #ifdef AVIOUTPUT
-	AVIOutput_Restart ();
+    AVIOutput_Restart ();
 #endif
 
-	currprefs.produce_sound = changed_prefs.produce_sound;
-	currprefs.win32_soundcard = changed_prefs.win32_soundcard;
-	currprefs.sound_stereo = changed_prefs.sound_stereo;
-	currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
-	currprefs.sound_mixed_stereo = changed_prefs.sound_mixed_stereo;
-	currprefs.sound_adjust = changed_prefs.sound_adjust;
-	currprefs.sound_interpol = changed_prefs.sound_interpol;
-	currprefs.sound_freq = changed_prefs.sound_freq;
-	currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
-	currprefs.sound_filter = changed_prefs.sound_filter;
-	currprefs.sound_filter_type = changed_prefs.sound_filter_type;
-	currprefs.sound_volume = changed_prefs.sound_volume;
-	currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
-	currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
-	if (currprefs.produce_sound >= 2) {
-	    if (!init_audio ()) {
-		if (! sound_available) {
-		    write_log ("Sound is not supported.\n");
-		} else {
-		    write_log ("Sorry, can't initialize sound.\n");
-		    currprefs.produce_sound = 0;
-		    /* So we don't do this every frame */
-		    changed_prefs.produce_sound = 0;
-		}
+    currprefs.produce_sound = changed_prefs.produce_sound;
+    currprefs.win32_soundcard = changed_prefs.win32_soundcard;
+    currprefs.sound_stereo = changed_prefs.sound_stereo;
+    currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
+    currprefs.sound_mixed_stereo = changed_prefs.sound_mixed_stereo;
+    currprefs.sound_adjust = changed_prefs.sound_adjust;
+    currprefs.sound_interpol = changed_prefs.sound_interpol;
+    currprefs.sound_freq = changed_prefs.sound_freq;
+    currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
+    currprefs.sound_filter = changed_prefs.sound_filter;
+    currprefs.sound_filter_type = changed_prefs.sound_filter_type;
+    currprefs.sound_volume = changed_prefs.sound_volume;
+    currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
+    currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
+    if (currprefs.produce_sound >= 2) {
+        if (!init_audio ()) {
+	    if (! sound_available) {
+	        write_log ("Sound is not supported.\n");
+	    } else {
+	        write_log ("Sorry, can't initialize sound.\n");
+	        currprefs.produce_sound = 0;
+	        /* So we don't do this every frame */
+	        changed_prefs.produce_sound = 0;
 	    }
 	}
-	last_cycles = get_cycles () - 1;
-	next_sample_evtime = scaled_sample_evtime;
-	compute_vsynctime ();
     }
+    last_cycles = get_cycles () - 1;
+    next_sample_evtime = scaled_sample_evtime;
+    compute_vsynctime ();
+
     mixed_mul1 = MIXED_STEREO_MAX / 2 - ((currprefs.sound_stereo_separation * 3) / 2);
     mixed_mul2 = MIXED_STEREO_MAX / 2 + ((currprefs.sound_stereo_separation * 3) / 2);
     mixed_stereo_size = currprefs.sound_mixed_stereo > 0 ? (1 << (currprefs.sound_mixed_stereo - 1)) - 1 : 0;
@@ -1219,10 +1240,14 @@ void check_prefs_changed_audio (void)
 	if (currprefs.sound_filter == FILTER_SOUND_EMUL)
 	    led_filter_forced = 0;
 	if (currprefs.sound_filter_type == FILTER_SOUND_TYPE_A500)
-	    sound_use_filter = FILTER_MODEL_A500E;
+	    sound_use_filter = FILTER_MODEL_A500;
 	else if (currprefs.sound_filter_type == FILTER_SOUND_TYPE_A1200)
-	    sound_use_filter = FILTER_MODEL_A1200E;
+	    sound_use_filter = FILTER_MODEL_A1200;
     }
+    a500e_filter1_a0 = rc_calculate_a0(currprefs.sound_freq, 6200);
+    a500e_filter2_a0 = rc_calculate_a0(currprefs.sound_freq, 20000);
+    filter_a0 = rc_calculate_a0(currprefs.sound_freq, 7000);
+    led_filter_audio();
 
     /* Select the right interpolation method.  */
     sample_prehandler = NULL;
@@ -1251,7 +1276,7 @@ void check_prefs_changed_audio (void)
     if (sample_handler == sample16si_sinc_handler || sample_handler == sample16i_sinc_handler)
 	sinc_on = 1;
     if (sample_handler == sample16si_anti_handler || sample_handler == sample16i_anti_handler || sinc_on)
-	sample_prehandler = anti_prehandler;
+	sample_prehandler = anti_sinc_prehandler;
 
     if (currprefs.produce_sound == 0) {
 	eventtab[ev_audio].active = 0;
@@ -1526,6 +1551,15 @@ void audio_update_adkmasks (void)
 int init_audio (void)
 {
     return init_sound ();
+}
+
+
+void led_filter_audio (void)
+{
+    led_filter_on = 0;
+    if (led_filter_forced > 0 || (gui_data.powerled && led_filter_forced >= 0))
+	led_filter_on = 1;
+    gui_led (0, gui_data.powerled);
 }
 
 uae_u8 *restore_audio (int i, uae_u8 *src)
