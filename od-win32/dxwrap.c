@@ -982,14 +982,16 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
     DWORD dwDDSColor;
     DWORD flags = DDPF_RGB;
 
+    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
+    ddpfOverlayFormat.dwSize = sizeof(ddpfOverlayFormat);
+    ZeroMemory( &ddsd, sizeof(ddsd) );
+
     if( bOverlayAvailable )
     {
 	write_log( "CreateOverlaySurface being called with %d-bits!\n", bits );
 	if( bits == 16 )
 	{
 	    // Set the overlay format to 16 bit RGB 5:6:5
-	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
-	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 16;
 	    ddpfOverlayFormat.dwRBitMask    = 0xF800; 
@@ -999,8 +1001,6 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 	else if( bits == 32 )
 	{
 	    // Set the overlay format to 32 bit ARGB 8:8:8:8
-	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
-	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 32;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00FF0000; 
@@ -1010,8 +1010,6 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 	else if( bits == 8 )
 	{
 	    // Set the overlay format to 8 bit palette
-	    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
-	    ddpfOverlayFormat.dwSize        = sizeof(ddpfOverlayFormat);
 	    ddpfOverlayFormat.dwFlags       = flags | DDPF_PALETTEINDEXED8;
 	    ddpfOverlayFormat.dwRGBBitCount = 8;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00000000; 
@@ -1025,7 +1023,6 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 	}
     
 	// Setup the overlay surface's attributes in the surface descriptor
-	ZeroMemory( &ddsd, sizeof(ddsd) );
 	ddsd.dwSize            = sizeof(ddsd);
 	ddsd.dwFlags           = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
 	ddsd.ddsCaps.dwCaps    = DDSCAPS_OVERLAY | DDSCAPS_VIDEOMEMORY;
@@ -2049,7 +2046,7 @@ HRESULT DirectDraw_UpdateOverlay(RECT sr, RECT dr)
 	    dr.left = (dr.left + drivercaps.dwAlignBoundaryDest / 2) & ~(drivercaps.dwAlignBoundaryDest - 1);    
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNSIZEDEST) && drivercaps.dwAlignSizeDest)
 	    dr.right = dr.left + (dr.right - dr.left) & ~(drivercaps.dwAlignSizeDest - 1);
-	result = IDirectDrawSurface7_UpdateOverlay( DirectDrawState.overlay.surface, &sr, DirectDrawState.primary.surface, &dr, overlayflags, &overlayfx);
+	result = IDirectDrawSurface7_UpdateOverlay(DirectDrawState.overlay.surface, &sr, DirectDrawState.primary.surface, &dr, overlayflags, &overlayfx);
 	
     }
     if (FAILED(result)) {

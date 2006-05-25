@@ -115,7 +115,7 @@ extern struct regstruct
     uae_u8 panic;
     uae_u32 panic_pc, panic_addr;
 
-} regs, lastint_regs;
+} regs, lastint_regs, mmu_backup_regs;
 
 typedef struct {
   uae_u16* location;
@@ -141,6 +141,7 @@ STATIC_INLINE uae_u32 munge24(uae_u32 x)
 
 extern unsigned long irqcycles[15];
 extern int irqdelay[15];
+extern int mmu_enabled, mmu_triggered;
 
 STATIC_INLINE void set_special (uae_u32 x)
 {

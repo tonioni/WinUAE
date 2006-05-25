@@ -91,6 +91,7 @@ static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
 int window_led_drives, window_led_drives_end;
 extern int console_logging;
+int b0rken_ati_overlay;
 
 #define SM_WINDOW 0
 #define SM_WINDOW_OVERLAY 1
@@ -543,6 +544,11 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 	memcpy (&md->guid,  guid, sizeof (GUID));
     }
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
+    if ((strstr(desc, "X1900") || strstr(desc, "X1800") || strstr(desc, "X1600")) && !b0rken_ati_overlay) {
+	b0rken_ati_overlay = 1;
+	write_log ("** Radeon X1x00 series display card detected, enabling overlay workaround.\n");
+	write_log ("** (blank display with Catalyst 6.1 and newer). Use -disableowr to disable workaround.\n");
+    }
     return 1;
 }
 
@@ -601,7 +607,7 @@ void sortdisplays (void)
 		int w = DirectDraw_CurrentWidth ();
 		int h = DirectDraw_CurrentHeight ();
 		int b = DirectDraw_GetSurfaceBitCount ();
-		write_log ("W=%d H=%d B=%d\n", w, h, b);
+		write_log ("Desktop: W=%d H=%d B=%d\n", w, h, b);
 		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES , modesCallback);
 		//dhack();
 		sortmodes ();
@@ -778,6 +784,84 @@ int WIN32GFX_AdjustScreenmode(uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbi
     return index;
 }
 
+void setoverlay(int quick)
+{
+    static RECT sr, dr;
+    RECT statusr;
+    POINT p = {0,0};
+    int maxwidth, maxheight, w, h;
+    HMONITOR hm;
+    MONITORINFO mi;
+
+    if (quick) {
+	if (!(currentmode->flags & DM_OVERLAY) || b0rken_ati_overlay <= 0)
+	    return;
+	goto end;
+    }
+
+    hm = MonitorFromWindow (hMainWnd, MONITOR_DEFAULTTONEAREST);
+    mi.cbSize = sizeof (mi);
+    if (!GetMonitorInfo (hm, &mi))
+	return;
+
+    GetClientRect (hMainWnd, &dr);
+    // adjust the dest-rect to avoid the status-bar
+    if (hStatusWnd) {
+	if (GetWindowRect (hStatusWnd, &statusr))
+	    dr.bottom = dr.bottom - ( statusr.bottom - statusr.top );
+    }
+
+    ClientToScreen(hMainWnd, &p);
+    if (!currprefs.win32_borderless) {
+	p.x += 2;
+	p.y += 2;
+    }
+    dr.left = p.x;
+    dr.top = p.y;
+    dr.right += p.x + 1;
+    dr.bottom += p.y + 1;
+    /* overlay's coordinates are relative to monitor's top/left-corner */
+    dr.left -= mi.rcMonitor.left;
+    dr.top -= mi.rcMonitor.top;
+    dr.right -= mi.rcMonitor.left;
+    dr.bottom -= mi.rcMonitor.top;
+
+    w = currentmode->current_width;
+    h = currentmode->current_height;
+
+    sr.left = 0;
+    sr.top = 0;
+    sr.right = w;
+    sr.bottom = h;
+
+    // Adjust our dst-rect to match the dimensions of our src-rect
+    if (dr.right - dr.left > sr.right - sr.left)
+	dr.right = dr.left + sr.right - sr.left;
+    if (dr.bottom - dr.top > sr.bottom - sr.top)
+	dr.bottom = dr.top + sr.bottom - sr.top;
+
+    maxwidth = mi.rcMonitor.right - mi.rcMonitor.left;
+    if (dr.right > maxwidth) {
+	sr.right = w - (dr.right - maxwidth);
+	dr.right = maxwidth;
+    }
+    maxheight = mi.rcMonitor.bottom - mi.rcMonitor.top;
+    if (dr.bottom > maxheight) {
+	sr.bottom = h - (dr.bottom - maxheight);
+	dr.bottom = maxheight;
+    }
+    if (dr.left < 0) {
+	sr.left = -dr.left;
+	dr.left = 0;
+    }
+    if (dr.top < 0) {
+	sr.top = -dr.top;
+	dr.top = 0;
+    }
+end:
+    DirectDraw_UpdateOverlay(sr, dr);
+}
+
 // This function is only called for full-screen Amiga screen-modes, and simply flips
 // the front and back buffers. Additionally, because the emulation is not always drawing
 // complete frames, we also need to update the back-buffer with the new contents we just
@@ -835,18 +919,19 @@ void flush_screen (int a, int b)
 #ifdef GFXFILTER
     } else if (currentmode->flags & DM_SWSCALE) {
 	S2X_render ();
-	if( currentmode->flags & DM_DX_FULLSCREEN )
+	if(currentmode->flags & DM_DX_FULLSCREEN )
 	    DX_Flip ();
 	else if (DirectDraw_GetLockableType() != overlay_surface)
 	    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
 #endif
     } else if ((currentmode->flags & DM_DDRAW) && DirectDraw_GetLockableType() == secondary_surface ) {
 	if (currentmode->flags & DM_DX_FULLSCREEN) {
-	    if( turbo_emulation || DX_Flip() == 0 )
+	    if(turbo_emulation || DX_Flip() == 0)
 		DX_Blit (0, a, 0, a, currentmode->current_width, b - a + 1, BLIT_SRC);
 	} else if(DirectDraw_GetLockableType() != overlay_surface)
 	    DX_Blit (0, a, 0, a, currentmode->current_width, b - a + 1, BLIT_SRC);
     }
+    setoverlay(1);
 }
 
 static uae_u8 *ddraw_dolock (void)
@@ -912,23 +997,19 @@ uae_u8 *gfx_lock_picasso (void)
 void gfx_unlock_picasso (void)
 {
     DirectDraw_SurfaceUnlock();
-    if( p96_double_buffer_needs_flushing )
-    {
+    if (p96_double_buffer_needs_flushing) {
 	/* Here, our flush_block() will deal with a offscreen-plain (back-buffer) to visible-surface (front-buffer) */
-	if( DirectDraw_GetLockableType() == secondary_surface )
-	{
+	if (DirectDraw_GetLockableType() == secondary_surface) {
 	    BOOL relock = FALSE;
-	    if( DirectDraw_IsLocked() )
-	    {
+	    if (DirectDraw_IsLocked()) {
 		relock = TRUE;
 		unlockscr();
 	    }
-	    DX_Blit( 0, p96_double_buffer_first, 
+	    DX_Blit (0, p96_double_buffer_first, 
 		     0, p96_double_buffer_first, 
 		     currentmode->current_width, p96_double_buffer_last - p96_double_buffer_first + 1, 
-		     BLIT_SRC );
-	    if( relock )
-	    {
+		     BLIT_SRC);
+	    if (relock) {
 		lockscr();
 	    }
 	}
@@ -1046,7 +1127,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (1|4|8) : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
-    c |= currprefs.win32_no_overlay != changed_prefs.win32_no_overlay ? 1 : 0;
+    c |= currprefs.win32_no_overlay != changed_prefs.win32_no_overlay ? 2 : 0;
 
     if (display_change_requested || c) 
     {
@@ -1082,8 +1163,8 @@ int check_prefs_changed_gfx (void)
 	currprefs.win32_borderless = changed_prefs.win32_borderless;
 	currprefs.win32_no_overlay = changed_prefs.win32_no_overlay;
 
-	if (c & 8) {
-	    inputdevice_unacquire ();
+        inputdevice_unacquire ();
+	if (c & 2) {
 	    close_windows ();
 	    graphics_init ();
 	}
@@ -1092,9 +1173,7 @@ int check_prefs_changed_gfx (void)
 	    pause_sound ();
 	    resume_sound ();
 	}
-	if (c & 8) {
-	    inputdevice_acquire ();
-	}
+        inputdevice_acquire ();
 	return 1;
     }
 
@@ -1877,76 +1956,6 @@ static int create_windows (void)
     return 1;
 }
 
-static void setoverlay(void)
-{
-    RECT sr, dr, statusr;
-    POINT p = {0,0};
-    int maxwidth, maxheight, w, h;
-    HMONITOR hm;
-    MONITORINFO mi;
-
-    hm = MonitorFromWindow (hMainWnd, MONITOR_DEFAULTTONEAREST);
-    mi.cbSize = sizeof (mi);
-    if (!GetMonitorInfo (hm, &mi))
-	return;
-
-    GetClientRect (hMainWnd, &dr);
-    // adjust the dest-rect to avoid the status-bar
-    if (hStatusWnd) {
-	if (GetWindowRect (hStatusWnd, &statusr))
-	    dr.bottom = dr.bottom - ( statusr.bottom - statusr.top );
-    }
-
-    ClientToScreen(hMainWnd, &p);
-    if (!currprefs.win32_borderless) {
-	p.x += 2;
-	p.y += 2;
-    }
-    dr.left = p.x;
-    dr.top = p.y;
-    dr.right += p.x + 1;
-    dr.bottom += p.y + 1;
-    /* overlay's coordinates are relative to monitor's top/left-corner */
-    dr.left -= mi.rcMonitor.left;
-    dr.top -= mi.rcMonitor.top;
-    dr.right -= mi.rcMonitor.left;
-    dr.bottom -= mi.rcMonitor.top;
-
-    w = currentmode->current_width;
-    h = currentmode->current_height;
-
-    sr.left = 0;
-    sr.top = 0;
-    sr.right = w;
-    sr.bottom = h;
-
-    // Adjust our dst-rect to match the dimensions of our src-rect
-    if (dr.right - dr.left > sr.right - sr.left)
-	dr.right = dr.left + sr.right - sr.left;
-    if (dr.bottom - dr.top > sr.bottom - sr.top)
-	dr.bottom = dr.top + sr.bottom - sr.top;
-
-    maxwidth = mi.rcMonitor.right - mi.rcMonitor.left;
-    if (dr.right > maxwidth) {
-	sr.right = w - (dr.right - maxwidth);
-	dr.right = maxwidth;
-    }
-    maxheight = mi.rcMonitor.bottom - mi.rcMonitor.top;
-    if (dr.bottom > maxheight) {
-	sr.bottom = h - (dr.bottom - maxheight);
-	dr.bottom = maxheight;
-    }
-    if (dr.left < 0) {
-	sr.left = -dr.left;
-	dr.left = 0;
-    }
-    if (dr.top < 0) {
-	sr.top = -dr.top;
-	dr.top = 0;
-    }
-    DirectDraw_UpdateOverlay(sr, dr);
-}
-
 static void updatemodes (void)
 {
     if (screen_is_picasso) {
@@ -2153,7 +2162,7 @@ static BOOL doInit (void)
     init_colors ();
 
     if (currentmode->flags & DM_OVERLAY)
-	setoverlay ();
+	setoverlay (0);
 
 #if defined (GFXFILTER)
     if (currentmode->flags & DM_SWSCALE) {
@@ -2244,7 +2253,7 @@ int WIN32GFX_SetPalette( void )
 void WIN32GFX_WindowMove ( void	)
 {
     if (currentmode->flags & DM_OVERLAY)
-	setoverlay();
+	setoverlay(0);
 }
 
 void updatedisplayarea (void)

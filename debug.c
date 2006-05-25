@@ -61,6 +61,7 @@ void activate_debugger (void)
     debugger_active = 1;
     set_special (SPCFLAG_BRK);
     debugging = 1;
+    mmu_triggered = 0;
 }
 
 int firsthist = 0;
@@ -644,6 +645,7 @@ struct breakpoint_node {
 static struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
 static addrbank **debug_mem_banks;
+static addrbank *debug_mem_area;
 #define MEMWATCH_TOTAL 4
 struct memwatch_node {
     uaecptr addr;
@@ -753,7 +755,7 @@ static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
 
 static int debug_mem_off (uaecptr addr)
 {
-    return (munge24 (addr) >> 16) & 0xff;
+    return munge24 (addr) >> 16;
 }
 
 static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
@@ -807,6 +809,51 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
     }
 }
 
+static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v);
+
+static uae_u32 REGPARAM mmu_lget (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v = 0;
+    if (!mmu_hit(addr, 4, 0, &v))
+        v = debug_mem_banks[off]->lget(addr);
+    return v;
+}
+static uae_u32 REGPARAM mmu_wget (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v = 0;
+    if (!mmu_hit(addr, 2, 0, &v))
+        v = debug_mem_banks[off]->wget(addr);
+    return v;
+}
+static uae_u32 REGPARAM mmu_bget (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v = 0;
+    if (!mmu_hit(addr, 1, 0, &v))
+        v = debug_mem_banks[off]->bget(addr);
+    return v;
+}
+static void REGPARAM2 mmu_lput (uaecptr addr, uae_u32 v)
+{
+    int off = debug_mem_off (addr);
+    if (!mmu_hit(addr, 4, 1, &v))
+	debug_mem_banks[off]->lput(addr, v);
+}
+static void REGPARAM2 mmu_wput (uaecptr addr, uae_u32 v)
+{
+    int off = debug_mem_off (addr);
+    if (!mmu_hit(addr, 2, 1, &v))
+	debug_mem_banks[off]->wput(addr, v);
+}
+static void REGPARAM2 mmu_bput (uaecptr addr, uae_u32 v)
+{
+    int off = debug_mem_off (addr);
+    if (!mmu_hit(addr, 1, 1, &v))
+	debug_mem_banks[off]->bput(addr, v);
+}
+
 static uae_u32 REGPARAM debug_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
@@ -849,6 +896,7 @@ static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
     memwatch_func (addr, 1, 1, v);
     debug_mem_banks[off]->bput(addr, v);
 }
+
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->check (addr, size);
@@ -863,47 +911,53 @@ static void deinitialize_memwatch (void)
     int i, as;
     addrbank *a1, *a2;
 
-    if (!memwatch_enabled)
+    if (!memwatch_enabled && !mmu_enabled)
 	return;
     as = currprefs.address_space_24 ? 256 : 65536;
     for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i];
 	a2 = mem_banks[i];
 	memcpy (a2, a1, sizeof (addrbank));
-	xfree (a1);
     }
     xfree (debug_mem_banks);
     debug_mem_banks = 0;
+    xfree (debug_mem_area);
+    debug_mem_area = 0;
     memwatch_enabled = 0;
+    mmu_enabled = 0;
     xfree (illgdebug);
     illgdebug = 0;
 }
 
-static int initialize_memwatch (void)
+static void initialize_memwatch (int mode)
 {
     int i, as;
     addrbank *a1, *a2;
 
+    deinitialize_memwatch();
     as = currprefs.address_space_24 ? 256 : 65536;
     debug_mem_banks = xmalloc (sizeof (addrbank*) * as);
+    debug_mem_area = xmalloc (sizeof (addrbank) * as);
     for (i = 0; i < as; i++) {
-	a1 = debug_mem_banks[i] = xmalloc (sizeof (addrbank));
+	a1 = debug_mem_banks[i] = debug_mem_area + i;
 	a2 = mem_banks[i];
 	memcpy (a1, a2, sizeof (addrbank));
     }
     for (i = 0; i < as; i++) {
 	a2 = mem_banks[i];
-	a2->bget = debug_bget;
-	a2->wget = debug_wget;
-	a2->lget = debug_lget;
-	a2->bput = debug_bput;
-	a2->wput = debug_wput;
-	a2->lput = debug_lput;
+	a2->bget = mode ? mmu_bget : debug_bget;
+	a2->wget = mode ? mmu_wget : debug_wget;
+	a2->lget = mode ? mmu_lget : debug_lget;
+	a2->bput = mode ? mmu_bput : debug_bput;
+	a2->wput = mode ? mmu_wput : debug_wput;
+	a2->lput = mode ? mmu_lput : debug_lput;
 	a2->check = debug_check;
 	a2->xlateaddr = debug_xlate;
     }
-    memwatch_enabled = 1;
-    return 1;
+    if (mode)
+	mmu_enabled = 1;
+    else
+	memwatch_enabled = 1;
 }
 
 static void memwatch_dump (int num)
@@ -934,10 +988,7 @@ static void memwatch (char **c)
     char nc;
 
     if (!memwatch_enabled) {
-	if (!initialize_memwatch ()) {
-	    console_out ("Memwatch breakpoints require 24-bit address space\n");
-	    return;
-	}
+	initialize_memwatch (0);
 	console_out ("Memwatch breakpoints enabled\n");
     }
 
@@ -1764,33 +1815,48 @@ const char *debuginfo (int mode)
 }
 */
 
-struct snooperdata {
+static int mmu_logging;
+
+#define MMU_PAGE_SHIFT 16
+
+struct mmudata {
     uae_u32 flags;
     uae_u32 addr;
     uae_u32 len;
+    uae_u32 remap;
     uae_u32 p_addr;
 };
 
-static struct snooperdata *snoop;
-static uae_u32 snooper_callback;
+static struct mmudata *mmubanks;
+static uae_u32 mmu_callback, mmu_regs;
+static uae_u32 mmu_fault_bank_addr, mmu_fault_addr;
+static int mmu_fault_size, mmu_fault_rw;
+static int mmu_slots;
+static struct regstruct mmur;
 
-#define SNOOPER_READ (1 << 0)
-#define SNOOPER_WRITE (1 << 1)
+struct mmunode {
+    struct mmudata *mmubank;
+    struct mmunode *next;
+};
+static struct mmunode **mmunl;
 
-void snooper_trigger(uaecptr trapaddr)
+#define MMU_READ_U (1 << 0)
+#define MMU_WRITE_U (1 << 1)
+#define MMU_READ_S (1 << 2)
+#define MMU_WRITE_S (1 << 3)
+#define MMU_MAP_READ_U (1 << 4)
+#define MMU_MAP_WRITE_U (1 << 5)
+#define MMU_MAP_READ_S (1 << 6)
+#define MMU_MAP_WRITE_S (1 << 7)
+
+void mmu_do_hit(void)
 {
-    uae_u32 currpc = m68k_getpc ();
-    int sv = regs.s, i;
-    struct snooperdata *sd = snoop;
+    int i;
+    uae_u32 pc;
 
-    while (sd->flags != 0xffffffff) {
-	if (trapaddr >= sd->addr && trapaddr < sd->addr + sd->len)
-	    break;
-    }
-    if (sd->flags == 0xffffffff)
-	return;
-
-    MakeSR();
+    mmu_triggered = 0;
+    pc = m68k_getpc();
+    regs.intmask = 7;
     if (!regs.s) {
 	regs.usp = m68k_areg(regs, 7);
 	if (currprefs.cpu_level >= 2)
@@ -1799,75 +1865,278 @@ void snooper_trigger(uaecptr trapaddr)
 	    m68k_areg(regs, 7) = regs.isp;
 	regs.s = 1;
     }
-
-    m68k_areg(regs, 7) -= 4;
-    put_word (m68k_areg(regs, 7), 0);
-    for (i = 0 ; i < 8; i++) {
-        m68k_areg(regs, 7) -= 4;
-        put_long (m68k_areg(regs, 7), m68k_dreg(regs, i));
-    }
-    for (i = 0 ; i < 8; i++) {
-        m68k_areg(regs, 7) -= 4;
-        put_long (m68k_areg(regs, 7), m68k_areg(regs, i));
-    }
-
-    m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), sd->p_addr);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), 0);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), 0);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), 0);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), 0x0140 | (sv ? 6 : 2)); /* SSW */
-    m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), trapaddr);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), 0x7008);
-
-    m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), currpc);
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), regs.sr);
-    m68k_setpc(snooper_callback);
-
+    MakeSR();
+    m68k_setpc(mmu_callback);
     set_special(SPCFLAG_END_COMPILE);
     fill_prefetch_slow ();
+
+    if (currprefs.cpu_level > 0) {
+	for (i = 0 ; i < 9; i++) {
+	    m68k_areg(regs, 7) -= 4;
+	    put_long (m68k_areg(regs, 7), 0);
+	}
+	m68k_areg(regs, 7) -= 4;
+	put_long (m68k_areg(regs, 7), mmu_fault_addr);
+	m68k_areg(regs, 7) -= 2;
+	put_word (m68k_areg(regs, 7), 0); /* WB1S */
+	m68k_areg(regs, 7) -= 2;
+	put_word (m68k_areg(regs, 7), 0); /* WB2S */
+	m68k_areg(regs, 7) -= 2;
+	put_word (m68k_areg(regs, 7), 0); /* WB3S */
+	m68k_areg(regs, 7) -= 2;
+	put_word (m68k_areg(regs, 7),
+	    (mmu_fault_rw ? 0 : 0x100) | (mmu_fault_size << 5)); /* SSW */
+	m68k_areg(regs, 7) -= 4;
+	put_long (m68k_areg(regs, 7), mmu_fault_bank_addr);
+	m68k_areg(regs, 7) -= 2;
+	put_word (m68k_areg(regs, 7), 0x7002);
+    }
+    m68k_areg(regs, 7) -= 4;
+    put_long (m68k_areg(regs, 7), pc);
+    m68k_areg(regs, 7) -= 2;
+    put_word (m68k_areg(regs, 7), mmur.sr);
 }
 
-int snooper(uaecptr p)
+static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, uae_u32 v)
 {
-    uaecptr p2;
-    int size;
-    struct snooperdata *snptr;
+    uae_u32 p, pc;
+    int i;
+
+    mmur = regs;
+    pc = m68k_getpc();
+    if (mmu_logging)
+	write_log ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rw, v, pc);
+
+    p = mmu_regs;
+    for (i = 0; i < 16; i++) {
+	put_long (p, regs.regs[i]);
+	p += 4;
+    }
+    put_long (p, pc); p += 4;
+    put_long (p, regs.usp); p += 4;
+    put_long (p, regs.isp); p += 4;
+    put_long (p, regs.msp); p += 4;
+    put_word (p, regs.sr); p += 2;
+    put_word (p, (size << 1) | (rw ? 1 : 0)); /* size and rw */ p += 2;
+    put_long (p, addr); /* fault address */ p += 4;
+    put_long (p, md->p_addr); /* bank address */ p += 4;
+    mmu_fault_addr = addr;
+    mmu_fault_bank_addr = md->p_addr;
+    mmu_fault_size = size;
+    mmu_fault_rw = rw;
+    mmu_triggered = 1;
+}
+
+static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v)
+{
+    int s, trig;
+    uae_u32 flags;
+    struct mmudata *md;
+    struct mmunode *mn;
+
+    if (mmu_triggered)
+	return 1;
+
+    mn = mmunl[addr >> MMU_PAGE_SHIFT];
+    if (mn == NULL)
+	return 0;
     
-    if (!p) {
-	xfree (snoop);
-	snoop = 0;
+    s = regs.s;
+    while (mn) {
+	md = mn->mmubank;
+	if (addr >= md->addr && addr < md->addr + md->len) {
+	    flags = md->flags;
+	    if (flags & (MMU_MAP_READ_U | MMU_MAP_WRITE_U | MMU_MAP_READ_S | MMU_MAP_WRITE_S)) {
+		trig = 0;
+		if (!s && (flags & MMU_MAP_READ_U) && !rw)
+		    trig = 1;
+		if (!s && (flags & MMU_MAP_WRITE_U) && rw)
+		    trig = 1;
+		if (s && (flags & MMU_MAP_READ_S) && !rw)
+		    trig = 1;
+		if (s && (flags & MMU_MAP_WRITE_S) && rw)
+		    trig = 1;
+		if (trig) {
+		    uaecptr maddr = md->remap + (addr - md->addr);
+		    if (maddr == addr) /* infinite mmu hit loop? no thanks.. */
+			return 1;
+		    if (mmu_logging)
+			write_log ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rw);
+		    if (rw) {
+			switch (size)
+			{
+			    case 4:
+			    put_long(maddr, *v);
+			    break;
+			    case 2:
+			    put_word(maddr, *v);
+			    break;
+			    case 1:
+			    put_byte(maddr, *v);
+			    break;
+			}
+		    } else {
+			switch (size)
+			{
+			    case 4:
+			    *v = get_long(maddr);
+			    break;
+			    case 2:
+			    *v = get_word(maddr);
+			    break;
+			    case 1:
+			    *v = get_byte(maddr);
+			    break;
+			}
+		    }
+		    return 1;
+		}
+	    }
+	    if (flags & (MMU_READ_U | MMU_WRITE_U | MMU_READ_S | MMU_WRITE_S)) {
+		trig = 0;
+		if (!s && (flags & MMU_READ_U) && !rw)
+		    trig = 1;
+		if (!s && (flags & MMU_WRITE_U) && rw)
+		    trig = 1;
+		if (s && (flags & MMU_READ_S) && !rw)
+		    trig = 1;
+		if (s && (flags & MMU_WRITE_S) && rw)
+		    trig = 1;
+		if (trig) {
+		    mmu_do_hit_pre (md, addr, size, rw, *v);
+		    return 1;
+		}
+	    }
+	}
+	mn = mn->next;
+    }
+    return 0;
+}
+
+static void mmu_free_node(struct mmunode *mn)
+{
+    if (!mn)
+	return;
+    mmu_free_node(mn->next);
+    xfree(mn);
+}
+
+static void mmu_free(void)
+{
+    struct mmunode *mn;
+    int i;
+
+    for (i = 0; i < mmu_slots; i++) {
+	mn = mmunl[i];
+	mmu_free_node(mn);
+    }
+    xfree(mmunl);
+    mmunl = NULL;
+    xfree (mmubanks);
+    mmubanks = NULL;
+}
+
+static int getmmubank(struct mmudata *snptr, uaecptr p)
+{
+    snptr->flags = get_long (p);
+    if (snptr->flags == 0xffffffff)
+        return 1;
+    snptr->addr = get_long (p + 4);
+    snptr->len = get_long (p + 8);
+    snptr->remap = get_long (p + 12);
+    snptr->p_addr = p;
+    return 0;
+}
+
+int mmu_init(int mode, uaecptr parm, uaecptr parm2)
+{
+    uaecptr p, p2;
+    int size;
+    struct mmudata *snptr;
+    struct mmunode *mn;
+    static int wasjit;
+
+    if (currprefs.cachesize) {
+	wasjit = currprefs.cachesize;
+	changed_prefs.cachesize = 0;
+	write_log ("MMU: JIT disabled\n");
+    }
+
+    if (mode == 0) {
+	if (mmu_enabled) {
+	    mmu_free();
+	    deinitialize_memwatch();
+	    write_log ("MMU: disabled\n");
+	    changed_prefs.cachesize = wasjit;
+	}
+	mmu_logging = 0;
 	return 1;
     }
-    if (!initialize_memwatch())
+
+    p = parm;
+    if (get_long (p) != 1) {
+	write_log ("MMU: version mismatch %d <> %d\n", get_long (p), 1);
 	return 0;
-    snooper_callback = get_long (p);
+    }
+    p += 4;
+    mmu_logging = get_long (p) & 1;
+    p += 4;
+    mmu_callback = get_long (p);
+    p += 4;
+    mmu_regs = get_long (p);
     p += 4;
 
+    if (mode == 2) {
+	int off;
+	uaecptr addr = get_long (parm2 + 4);
+	if (!mmu_enabled)
+	    return 0;
+	off = addr >> MMU_PAGE_SHIFT;
+	mn = mmunl[off];
+	while (mn) {
+	    if (mn->mmubank->p_addr == parm2) {
+		getmmubank(mn->mmubank, parm2);
+		if (mmu_logging)
+		    write_log ("MMU: bank update %08.8X: %08.8X - %08.8X %08.8X\n",
+			mn->mmubank->flags, mn->mmubank->addr, mn->mmubank->len + mn->mmubank->addr,
+			mn->mmubank->remap);
+	    }
+	    mn = mn->next;
+	}
+	return 1;
+    }
+
+    mmu_slots = 1 << ((currprefs.address_space_24 ? 24 : 32) - MMU_PAGE_SHIFT);
+    mmunl = xcalloc (sizeof (struct mmunode*) * mmu_slots, 1);
     size = 1;
-    p2 = p;
+    p2 = get_long (p);
     while (get_long (p2) != 0xffffffff) {
-	p2 += 12;
+	p2 += 16;
 	size++;
     }
-    snoop = xmalloc (sizeof (struct snooperdata) * size);
-    snptr = snoop;
+    p = get_long (p);
+    snptr = mmubanks = xmalloc (sizeof (struct mmudata) * size);
     for (;;) {
-	snptr->flags = get_long (p);
-	if (snptr->flags == 0xffffffff)
+	int off;
+	if (getmmubank(snptr, p))
 	    break;
-	snptr->addr = get_long (p + 4);
-	snptr->len = get_long (p + 8);
-	snptr->p_addr = p;
-	p += 12;
+	p += 16;
+	off = snptr->addr >> MMU_PAGE_SHIFT;
+	if (mmunl[off] == NULL) {
+	    mn = mmunl[off] = xcalloc (sizeof (struct mmunode), 1); 
+	} else {
+	    mn = mmunl[off];
+	    while (mn->next)
+		mn = mn->next;
+	    mn = mn->next = xcalloc (sizeof (struct mmunode), 1);
+	}
+	mn->mmubank = snptr;
+	snptr++;
     }
+
+    initialize_memwatch(1);
+    write_log ("MMU: enabled, %d banks, CB=%08.8X, %d*%d\n",
+	size - 1, mmu_callback, mmu_slots, 1 << MMU_PAGE_SHIFT);
+    set_special (SPCFLAG_BRK);
     return 1;
 }

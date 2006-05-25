@@ -589,17 +589,17 @@ BEGIN
     CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,26,168,63,10
 END
 
-IDD_HARDDRIVE DIALOGEX 0, 0, 300, 66
+IDD_HARDDRIVE DIALOGEX 0, 0, 380, 66
 STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Harddrive Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Hard drive:",-1,7,11,35,10
-    COMBOBOX        IDC_HARDDRIVE,49,9,246,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,185,33,50,10
-    DEFPUSHBUTTON   "Add hard drive",IDOK,116,30,57,14
-    PUSHBUTTON      "Cancel",IDCANCEL,241,30,54,14
-    DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,9,30,95,14
+    COMBOBOX        IDC_HARDDRIVE,49,9,325,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,245,33,50,10
+    DEFPUSHBUTTON   "Add hard drive",IDOK,176,30,57,14
+    PUSHBUTTON      "Cancel",IDCANCEL,321,30,54,14
+    DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,49,30,95,14
     EDITTEXT        IDC_PATH_NAME,89,49,169,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
 END
 
@@ -1138,6 +1138,7 @@ BEGIN
     IDS_SOUND_FILTER_ON_AGA "Always on (A500)"
     IDS_SOUND_FILTER_ON_A500 "Always on (A1200)"
     IDS_DRIVESOUND_PC_FLOPPY "PC floppy drive %c"
+    IDS_FLOPPYTYPE35DDESCOM "3.5"" ESCOM"
 END
 
 STRINGTABLE 
@@ -1180,7 +1181,7 @@ BEGIN
     IDS_NUMSG_KICKREPNO     "The floppy disk (image file) in DF0: is not compatible with the system ROM replacement functionality."
     IDS_NUMSG_NOROM         "Could not load Kickstart ROM, trying system ROM replacement."
     IDS_HDCLONE_OK          "Hard drive image file created succesfully."
-    IDS_HDCLONE_FAIL        "Hard drive image file creation failed, error code %d."
+    IDS_HDCLONE_FAIL        "Hard drive image file creation failed.\nError code %d:%d."
 END
 
 STRINGTABLE 

@@ -988,6 +988,7 @@ void picasso_handle_vsync (void)
 	    }
 	}
     }
+    setoverlay(1);
 }
 
 static int set_panning_called = 0;

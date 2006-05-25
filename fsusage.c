@@ -51,34 +51,40 @@ static long adjust_blocks (long blocks, int fromsize, int tosize)
 #include <windows.h>
 int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
 {
-    char buf2[1024];
-    DWORD SectorsPerCluster;
-    DWORD BytesPerSector;
-    DWORD NumberOfFreeClusters;
-    DWORD TotalNumberOfClusters;
+    char buf2[MAX_DPATH];
+    ULARGE_INTEGER FreeBytesAvailable, TotalNumberOfBytes, TotalNumberOfFreeBytes;
 
-    GetFullPathName (path, sizeof buf2, buf2, NULL);
-
-    buf2[3] = 0;
-
-    if (!GetDiskFreeSpace (buf2, &SectorsPerCluster, &BytesPerSector,
-			   &NumberOfFreeClusters, &TotalNumberOfClusters))
-    {
-	/* lasterror = GetLastError ();*/
+    if (!GetFullPathName (path, sizeof buf2, buf2, NULL)) {
+	write_log("GetFullPathName() failed err=%d\n", GetLastError());
 	return -1;
     }
 
-    /* HACK ALERT! WinNT returns 0 in TotalNumberOfClusters for an audio-CD, which calls the GURU! */
-    if( ( TotalNumberOfClusters == 0 ) &&
-	( GetDriveType( buf2 ) == DRIVE_CDROM ) )
-    {
-	TotalNumberOfClusters = 327680;
+    if (!memcmp (buf2, "\\\\", 2)) {
+	char *p;
+	strcat(buf2, "\\");
+	p = strchr(buf2 + 2, '\\');
+	if (!p)
+	    return -1;
+	p = strchr(p + 1, '\\');
+	if (!p)
+	    return -1;
+	p[1] = 0;
+    } else {
+	buf2[3] = 0;
     }
 
-    BytesPerSector *= SectorsPerCluster;
-    fsp->fsu_blocks = adjust_blocks (TotalNumberOfClusters, BytesPerSector, 512);
-    fsp->fsu_bavail = adjust_blocks (NumberOfFreeClusters, BytesPerSector, 512);
+    if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes))
+    {
+	write_log("GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
+	return -1;
+    }
 
+    fsp->fsu_blocks = (1 << 31) - 1;
+    fsp->fsu_bavail = (1 << 31) - 1;
+    if (TotalNumberOfBytes.QuadPart / 1024 < (1 << 31))
+	fsp->fsu_blocks = TotalNumberOfBytes.QuadPart / 1024;
+    if (FreeBytesAvailable.QuadPart / 1024 < (1 << 31))
+	fsp->fsu_bavail = FreeBytesAvailable.QuadPart / 1024;
     return 0;
 }
 

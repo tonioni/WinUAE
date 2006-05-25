@@ -53,6 +53,7 @@ static int last_writeaccess_for_exception_3;
 static int last_instructionaccess_for_exception_3;
 unsigned long irqcycles[15];
 int irqdelay[15];
+int mmu_enabled, mmu_triggered;
 
 int areg_byteinc[] = { 1,1,1,1,1,1,1,2 };
 int imm8_table[] = { 8,1,2,3,4,5,6,7 };
@@ -357,7 +358,7 @@ void init_m68k_full (void)
     init_m68k ();
 }
 
-struct regstruct regs, lastint_regs;
+struct regstruct regs, lastint_regs, mmu_backup_regs;
 static struct regstruct regs_backup[16];
 static int backup_pointer = 0;
 static long int m68kpc_offset;
@@ -2144,6 +2145,26 @@ static void m68k_run_2 (void)
     }
 }
 
+/* "MMU" 68k  */
+static void m68k_run_mmu (void)
+{
+    for (;;) {
+	int cycles;
+	uae_u32 opcode = get_iword (0);
+	mmu_backup_regs = regs;
+	cycles = (*cpufunctbl[opcode])(opcode);
+	cycles &= cycles_mask;
+	cycles |= cycles_val;
+	if (mmu_triggered)
+	    mmu_do_hit();
+	do_cycles (cycles);
+	if (regs.spcflags) {
+	    if (do_specialties (cycles))
+		return;
+	}
+    }
+}
+
 #endif
 
 #ifdef X86_ASSEMBLY
@@ -2239,10 +2260,14 @@ void m68k_go (int may_quit)
 		    currprefs.cpu_level == 0 && currprefs.cpu_compatible ? m68k_run_1 :
 		    currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2);
 #else
-	m68k_run1 (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0 ? m68k_run_1_ce :
+	if (mmu_enabled && !currprefs.cachesize) {
+	    m68k_run1 (m68k_run_mmu);
+	} else {
+	    m68k_run1 (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0 ? m68k_run_1_ce :
 		   currprefs.cpu_compatible > 0 && currprefs.cpu_level == 0 ? m68k_run_1 :
 		   currprefs.cpu_level >= 2 && currprefs.cachesize ? m68k_run_2a :
 		   currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2);
+	}
 #endif
     }
     in_m68k_go--;

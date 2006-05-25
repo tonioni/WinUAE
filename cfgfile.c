@@ -2797,13 +2797,14 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[8];
 
-    roms[0] = 16;
-    roms[1] = 31;
-    roms[2] = 15;
-    roms[3] = 14;
-    roms[4] = 12;
-    roms[5] = 11;
-    roms[6] = -1;
+    roms[0] = 46;
+    roms[1] = 16;
+    roms[2] = 31;
+    roms[3] = 15;
+    roms[4] = 14;
+    roms[5] = 12;
+    roms[6] = 11;
+    roms[7] = -1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x400000;
     p->z3fastmem_size = 8 * 1024 * 1024;

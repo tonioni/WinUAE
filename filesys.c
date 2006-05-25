@@ -695,6 +695,7 @@ find_unit (uaecptr port)
     return u;
 }
 
+/* flags and comments supported? */
 static int fsdb_cando (Unit *unit)
 {
     if (currprefs.filesys_custom_uaefsdb  && (unit->volflags & MYVOLUMEINFO_STREAMS))
@@ -1439,9 +1440,6 @@ do_info (Unit *unit, dpacket packet, uaecptr info)
 	PUT_PCK_RES2 (packet, dos_errno ());
 	return;
     }
-
-    fsu.fsu_blocks >>= 1;
-    fsu.fsu_bavail >>= 1;
     put_long (info, 0); /* errors */
     put_long (info + 4, unit->unit); /* unit number */
     put_long (info + 8, unit->ui.readonly ? 80 : 82); /* state  */
@@ -2644,7 +2642,7 @@ action_set_protect (Unit *unit, dpacket packet)
     }
 
     a->amigaos_mode = mask;
-    if (fsdb_cando (unit))
+    if (!fsdb_cando (unit))
 	a->amigaos_mode = fsdb_mode_supported (a);
     err = fsdb_set_file_attrs (a);
     if (err != 0) {

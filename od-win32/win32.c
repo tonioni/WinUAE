@@ -1559,7 +1559,7 @@ void logging_init(void)
 	       "\nPress F12 to show the Settings Dialog (GUI), Alt-F4 to quit."
 	       "\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 	       "\n");
-    write_log ("EXE: '%s'\nDATA: '%s'\n", start_path_exe, start_path_data);
+    write_log ("EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
 }
 
 void logging_cleanup( void )
@@ -2335,7 +2335,7 @@ static void getstartpaths(int start_data)
 }
 
 extern void test (void);
-extern int screenshotmode;
+extern int screenshotmode, b0rken_ati_overlay;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2383,6 +2383,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-disableharddrivesafetycheck")) harddrive_dangerous = 0x1234dead;
 	if (!strcmp (arg, "-noaspifiltering")) aspi_allow_all = 1;
 #endif
+	if (!strcmp (arg, "-disableowr")) b0rken_ati_overlay = -1;
+	if (!strcmp (arg, "-enableowr")) b0rken_ati_overlay = 1;
 	if (!strcmp (arg, "-nordtsc")) no_rdtsc = 1;
 	if (!strcmp (arg, "-forcerdtsc")) no_rdtsc = -1;
 	if (!strcmp (arg, "-norawinput")) no_rawinput = 1;

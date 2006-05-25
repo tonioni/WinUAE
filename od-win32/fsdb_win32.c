@@ -89,7 +89,7 @@ static int delete_uaefsdb (const char *dir)
 
     p = make_uaefsdbpath (dir, NULL);
     ret = DeleteFile(p);
-    write_log("delete FSDB stream '%s' = %d\n", p, ret);
+    //write_log("delete FSDB stream '%s' = %d\n", p, ret);
     xfree (p);
     return ret;
 }

@@ -858,7 +858,7 @@ char *hdf_getnameharddrive (int index, int flags)
 	        sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
 	    else
 	        sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
- 	sprintf (name, "%s (%s)", uae_drives[index].device_name, tmp);
+ 	sprintf (name, "[%s] %s", tmp, uae_drives[index].device_name);
 	return name;
     }
     if (flags & 2)
@@ -906,8 +906,9 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 {
     HANDLE h = INVALID_HANDLE_VALUE, hdst = INVALID_HANDLE_VALUE;
     void *cache = NULL;
-    DWORD ret, high, low, got, gotdst;
+    DWORD ret, got, gotdst, get;
     uae_u64 size, sizecnt, written;
+    LARGE_INTEGER li;
     char path[MAX_DPATH], tmp[MAX_DPATH], tmp2[MAX_DPATH];
     DWORD retcode = 0;
     HWND hwnd, hwndprogress, hwndprogresstxt;
@@ -931,16 +932,16 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 	CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
     if (hdst == INVALID_HANDLE_VALUE)
 	goto err;
-    low = (DWORD)size;
-    high = size >> 32;
-    ret = SetFilePointer(hdst, low, &high, FILE_BEGIN);
+    li.QuadPart = size;
+    ret = SetFilePointer(hdst, li.LowPart, &li.HighPart, FILE_BEGIN);
     if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
 	goto err;
     if (!SetEndOfFile(hdst))
 	goto err;
-    high = 0;
-    SetFilePointer(hdst, 0, &high, FILE_BEGIN);
-    SetFilePointer(h, 0, &high, FILE_BEGIN);
+    li.QuadPart = 0;
+    SetFilePointer(hdst, 0, &li.HighPart, FILE_BEGIN);
+    li.QuadPart = 0;
+    SetFilePointer(h, 0, &li.HighPart, FILE_BEGIN);
     progressdialogreturn = -1;
     progressdialogactive = 1;
     hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PROGRESSBAR), hDlg, ProgressDialogProc);
@@ -967,11 +968,32 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 	    cnt = 0;
 	}
 	got = gotdst = 0;
-	ReadFile(h, cache, COPY_CACHE_SIZE, &got, NULL);
+	li.QuadPart = sizecnt;
+	if (SetFilePointer(h, li.LowPart, &li.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+	    DWORD err = GetLastError();
+	    if (err != NO_ERROR) {
+		progressdialogreturn = 3;
+		break;
+	    }
+	}
+	get = COPY_CACHE_SIZE;
+	if (sizecnt + get > size)
+	    get = size - sizecnt;
+	if (!ReadFile(h, cache, get, &got, NULL)) {
+	    progressdialogreturn = 4;
+	    break;
+	}
+	if (get != got) {
+	    progressdialogreturn = 5;
+	    break;
+	}
 	if (got > 0) {
 	    if (written + got > size)
 		got = size - written;
-	    WriteFile(hdst, cache, got, &gotdst, NULL);
+	    if (!WriteFile(hdst, cache, got, &gotdst, NULL))  {
+		progressdialogreturn = 5;
+		break;
+	    }
 	    written += gotdst;
 	    if (written == size)
 		break;
@@ -1004,7 +1026,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 
 err:
     WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
-    sprintf (tmp2, tmp, GetLastError());
+    sprintf (tmp2, tmp, progressdialogreturn, GetLastError());
     gui_message (tmp2);
     
 ok:

@@ -44,10 +44,13 @@
 #include "crc32.h"
 #include "inputdevice.h"
 
+static int longwritemode = 0;
+
 /* support HD floppies */
 #define FLOPPY_DRIVE_HD
 /* writable track length with normal 2us bitcell/300RPM motor (PAL) */
 #define FLOPPY_WRITE_LEN (currprefs.ntscmode ? (12798 / 2) : (12668 / 2)) /* 12667 PAL, 12797 NTSC */
+#define FLOPPY_WRITE_MAXLEN 0x3800
 /* This works out to 350 */
 #define FLOPPY_GAP_LEN (FLOPPY_WRITE_LEN - 11 * 544)
 /* (cycles/bitcell) << 8, normal = ((2us/280ns)<<8) = ~1830 */
@@ -89,7 +92,7 @@ static uae_u8 writebuffer[544 * 11 * DDHDMULT];
 #define MAX_DISK_WORDS_PER_LINE 50 /* depends on floppy_speed */
 static uae_u32 dma_tab[MAX_DISK_WORDS_PER_LINE + 1];
 #endif
-static int dskdmaen, dsklength, dsklen;
+static int dskdmaen, dsklength, dsklength2, dsklen;
 static uae_u16 dskbytr_val;
 static uae_u32 dskpt;
 static int dma_enable, bitoffset, syncoffset;
@@ -503,6 +506,7 @@ static void drive_settype_id(drive *drv)
 	drv->drive_id = DRIVE_ID_35DD;
 #endif
 	break;
+	case DRV_35_DD_ESCOM:
 	case DRV_35_DD:
 	default:
 	drv->drive_id = DRIVE_ID_35DD;
@@ -1681,7 +1685,7 @@ static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid
     len = (tracklen + 7) / 8;
     if (len > ti->len) {
 	write_log ("disk raw write: image file's track %d is too small (%d < %d)!\n", ti->track, ti->len, len);
-	return 0;
+	len = ti->len;
     }
     diskfile_update (diskfile, ti, tracklen, TRACK_RAW);
     for (i = 0; i < ti->len / 2; i++) {
@@ -1697,7 +1701,7 @@ static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid
 
 static void drive_write_data (drive * drv)
 {
-    int ret;
+    int ret = -1;
     static int warned;
 
     if (drive_writeprotected (drv)) {
@@ -1705,9 +1709,10 @@ static void drive_write_data (drive * drv)
 	drv->buffered_side = 2;
 	return;
     }
-    if (drv->writediskfile)
-	drive_write_ext2 (drv->bigmfmbuf, drv->writediskfile, &drv->writetrackdata[drv->cyl * 2 + side], drv->tracklen);
-
+    if (drv->writediskfile) {
+	drive_write_ext2 (drv->bigmfmbuf, drv->writediskfile, &drv->writetrackdata[drv->cyl * 2 + side],
+	    longwritemode ? dsklength2 * 8 : drv->tracklen);
+    }
     switch (drv->filetype) {
     case ADF_NORMAL:
 	if (drive_write_adf_amigados (drv)) {
@@ -1719,10 +1724,12 @@ static void drive_write_data (drive * drv)
     case ADF_EXT1:
 	break;
     case ADF_EXT2:
-	ret = drive_write_adf_amigados (drv);
+	if (!longwritemode)
+	    ret = drive_write_adf_amigados (drv);
 	if (ret) {
 	    write_log("not an amigados track %d (error %d), writing as raw track\n", drv->cyl * 2 + side, ret);
-	    drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side], drv->tracklen);
+	    drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
+		longwritemode ? dsklength2 * 8 : drv->tracklen);
 	}
 	return;
     case ADF_IPF:
@@ -2179,12 +2186,12 @@ uae_u8 DISK_status (void)
 			st &= ~0x20;
 #endif
 		} else {
-		    if (drv->dskready && !drv->indexhack)
+		    if (drv->dskready && !drv->indexhack && currprefs.dfxtype[dr] != DRV_35_DD_ESCOM)
 			st &= ~0x20;
 		}
 	    } else {
 		/* report drive ID */
-		if (drv->idbit)
+		if (drv->idbit && currprefs.dfxtype[dr] != DRV_35_DD_ESCOM)
 		    st &= ~0x20;
 #if 0
 		if (dr == 0 && currprefs.dfxtype[dr] == DRV_35_DD &&
@@ -2256,6 +2263,7 @@ void dumpdisk (void)
 static void disk_dmafinished (void)
 {
     INTREQ (0x8002);
+    longwritemode = 0;
     dskdmaen = 0;
     if (disk_debug_logging > 0) {
 	int dr, mfmpos = -1;
@@ -2609,7 +2617,7 @@ static void DISK_start (void)
 	    trackid *ti = drv->trackdata + tr;
 
 	    if (dskdmaen == 3) {
-		drv->tracklen = FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
+		drv->tracklen = longwritemode ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
 		drv->trackspeed = get_floppy_speed ();
 		drv->skipoffset = -1;
 		updatemfmpos (drv);
@@ -2716,7 +2724,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	}
     }
     dsklen = v;
-    dsklength = dsklen & 0x3fff;
+    dsklength2 = dsklength = dsklen & 0x3fff;
     if (dsklength == 1)
 	dsklength = 0;
 
@@ -2852,6 +2860,13 @@ void DSKSYNC (int hpos, uae_u16 v)
 void DSKDAT (uae_u16 v)
 {
     static int count = 0;
+#if 0
+    if (dsklen == 0x8000) {
+	if (v == 1)
+	    longwritemode = 1;
+	return;
+    }
+#endif
     if (count < 5) {
 	count++;
 	write_log ("%04.4X written to DSKDAT. Not good. PC=%08.8X", v, m68k_getpc());

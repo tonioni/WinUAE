@@ -238,6 +238,7 @@
 #define IDS_SOUND_FILTER_ON             253
 #define IDS_SOUND_FILTER_ON_A500        253
 #define IDS_DRIVESOUND_PC_FLOPPY        254
+#define IDS_FLOPPYTYPE35DDESCOM         255
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -811,7 +812,6 @@
 #define IDC_QUICKSTART_COMPATIBILITY    1676
 #define IDC_PATHS_AVIOUTPUTS            1676
 #define IDC_QUICKSTART_CONFIG           1677
-#define IDC_RESETREGISTRY2              1677
 #define IDC_RESETDISKHISTORY            1677
 #define IDC_DF0Q                        1678
 #define IDC_DF0QQ                       1678
