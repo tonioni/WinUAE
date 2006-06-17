@@ -12,6 +12,7 @@ typedef int (*zfile_callback)(struct zfile*, void*);
 
 extern struct zfile *zfile_fopen (const char *, const char *);
 extern struct zfile *zfile_fopen_empty (const char *name, int size);
+extern struct zfile *zfile_fopen_data (const char *name, int size, uae_u8 *data);
 extern int zfile_exists (const char *name);
 extern void zfile_fclose (struct zfile *);
 extern int zfile_fseek (struct zfile *z, long offset, int mode);
@@ -29,6 +30,7 @@ extern int zfile_zopen (const char *name, zfile_callback zc, void *user);
 extern char *zfile_getname (struct zfile *f);
 extern uae_u32 zfile_crc32 (struct zfile *f);
 extern struct zfile *zfile_dup (struct zfile *f);
+extern struct zfile *zfile_gunzip (struct zfile *z);
 
 #define ZFILE_UNKNOWN 0
 #define ZFILE_CONFIGURATION 1

@@ -1103,13 +1103,13 @@ int check_prefs_changed_gfx (void)
 {
     int c = 0;
 
-    c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? (1|8) : 0;
-    c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? (1|8) : 0;
+    c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? (2|8) : 0;
+    c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? (2|8) : 0;
     c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? (2|8) : 0;
     c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? (2|8) : 0;
     c |= currprefs.gfx_size_win.x != changed_prefs.gfx_size_win.x ? 16 : 0;
     c |= currprefs.gfx_size_win.y != changed_prefs.gfx_size_win.y ? 16 : 0;
-    c |= currprefs.color_mode != changed_prefs.color_mode ? (1|8) : 0;
+    c |= currprefs.color_mode != changed_prefs.color_mode ? (2|8) : 0;
     c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? (2|8) : 0;
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
     c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? (2|4|8) : 0;

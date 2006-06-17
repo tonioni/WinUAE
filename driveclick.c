@@ -281,7 +281,7 @@ static int clickcnt;
 
 static void mix (void)
 {
-    int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (currprefs.sound_stereo ? 4 : 2);
+    int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (currprefs.sound_stereo == 3) ? 8 : (currprefs.sound_stereo ? 4 : 2);
 
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {

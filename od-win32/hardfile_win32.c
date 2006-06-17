@@ -147,6 +147,7 @@ static char *hdz[] = { "hdz", "zip", "rar", "7z", NULL };
 int hdf_open (struct hardfiledata *hfd, char *name)
 {
     HANDLE h = INVALID_HANDLE_VALUE;
+    DWORD flags;
     int i;
     struct uae_driveinfo *udi;
 
@@ -164,8 +165,8 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	if (i >= 0) {
 	    udi = &uae_drives[i];
 	    hfd->flags = 1;
-	    h = CreateFile (udi->device_path, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING, NULL);
+	    flags =  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+	    h = CreateFile (udi->device_path, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, flags, NULL);
 	    hfd->handle = h;
 	    if (h == INVALID_HANDLE_VALUE) {
 		hdf_close (hfd);
@@ -397,18 +398,95 @@ void hfd_flush_cache (struct hardfiledata *hfd, int now)
 }
 #endif
 
-#if 0
-int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+#if 0 // not yet production ready
+
+static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int len, int dowrite)
 {
-    DWORD outlen = 0;
+    DWORD outlen = 0, outlen2;
+    uae_u8 *buffer = bufferp;
+    int soff, size, mask, bs;
+
+    bs = hfd->blocksize;
+    mask = hfd->blocksize - 1;
     hfd->cache_valid = 0;
-    hdf_seek (hfd, offset);
-    poscheck (hfd, len);
-    ReadFile (hfd->handle, hfd->cache, len, &outlen, NULL);
-    memcpy (buffer, hfd->cache, len);
+    if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
+	if (dowrite)
+	    outlen = zfile_fwrite (buffer, len, 1, hfd->handle);
+	else
+	    outlen = zfile_fread (buffer, len, 1, hfd->handle);
+    } else {
+	soff = offset & mask;
+	if (soff > 0) { /* offset not aligned to blocksize */
+	    size = bs - soff;
+	    if (size > len)
+		size = len;
+	    hdf_seek (hfd, offset & ~mask);
+	    poscheck (hfd, len);
+	    if (dowrite)
+		WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
+	    else
+		ReadFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
+	    if (outlen2 != hfd->blocksize)
+		goto end;
+	    outlen += size;
+	    memcpy (buffer, hfd->cache + soff,  size);
+	    buffer += size;
+	    offset += size;
+	    len -= size;
+	}
+	while (len >= bs) { /* aligned access */
+	    hdf_seek (hfd, offset);
+	    poscheck (hfd, len);
+	    size = len & ~mask;
+	    if (size > CACHE_SIZE)
+		size = CACHE_SIZE;
+	    if (dowrite) {
+		WriteFile (hfd->handle, hfd->cache, size, &outlen2, NULL);
+	    } else {
+		int coff = isincache(hfd, offset, size);
+		if (coff >= 0) {
+		    memcpy (buffer, hfd->cache + coff, size);
+		    outlen2 = size;
+		} else {
+  		    ReadFile (hfd->handle, hfd->cache, size, &outlen2, NULL);
+		    if (outlen2 == size)
+			memcpy (buffer, hfd->cache, size);
+		}
+	    }
+	    if (outlen2 != size)
+		goto end;
+	    outlen += outlen2;
+	    buffer += size;
+	    offset += size;
+	    len -= size;
+	}
+	if (len > 0) { /* len > 0 && len < bs */
+	    hdf_seek (hfd, offset);
+	    poscheck (hfd, len);
+	    if (dowrite)
+		WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
+	    else
+		ReadFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
+	    if (outlen2 != bs)
+		goto end;
+	    outlen += len;
+	    memcpy (buffer, hfd->cache, len);
+	}
+    }
+end:
     return outlen;
 }
-#endif
+
+int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    return hdf_rw (hfd, buffer, offset, len, 0);
+}
+int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    return hdf_rw (hfd, buffer, offset, len, 1);
+}
+
+#else
 
 int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
@@ -460,6 +538,7 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle);
     return outlen;
 }
+#endif
 
 #ifdef WINDDK
 

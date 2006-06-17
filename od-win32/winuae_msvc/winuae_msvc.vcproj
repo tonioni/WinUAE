@@ -1452,6 +1452,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\gayle.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\gfxlib.c"
 				>
 			</File>

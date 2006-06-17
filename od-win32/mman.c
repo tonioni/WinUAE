@@ -279,6 +279,11 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    shmids[shmid].attached=result;
 	    return result;
 	}
+	if(!strcmp(shmids[shmid].name,"hrtmon"))
+	{
+	    shmaddr=natmem_offset+0x00800000;
+	    got = TRUE;
+	}
 }
 #endif
     

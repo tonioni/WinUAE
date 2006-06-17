@@ -54,7 +54,6 @@ uae_u16 *sndbufpt;
 int sndbufsize;
 
 static int max_sndbufsize, snd_configsize, dsoundbuf;
-static double filter_mul1, filter_mul2;
 
 static uae_sem_t sound_sem, sound_init_sem;
 
@@ -179,7 +178,7 @@ static int calibrate (void)
 {
     int len = 1000;
     int pos, lastpos, tpos, expected, diff;
-    int mult = (currprefs.sound_stereo == 2) ? 8 : (currprefs.sound_stereo ? 4 : 2);
+    int mult = (currprefs.sound_stereo == 3) ? 8 : (currprefs.sound_stereo ? 4 : 2);
     double qv, pct;
 
     if (!QueryPerformanceFrequency(&qpf)) {
@@ -252,7 +251,7 @@ static int open_audio_ds (int size)
     int freq = currprefs.sound_freq;
     
     enumerate_sound_devices (0);
-    if (currprefs.sound_stereo == 2) {
+    if (currprefs.sound_stereo == 3) {
 	size <<= 3;
     } else {
 	size <<= 1;
@@ -293,8 +292,6 @@ static int open_audio_ds (int size)
 	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     }
-    filter_mul1 = exp (-FILTER_FREQUENCY / freq);
-    filter_mul2 = 1 - filter_mul1;
     
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
@@ -314,7 +311,7 @@ static int open_audio_ds (int size)
     }
 
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
-    wavfmt.nChannels = (currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    wavfmt.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
     wavfmt.nSamplesPerSec = freq;
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
@@ -360,14 +357,14 @@ static int open_audio_ds (int size)
     clearbuffer ();
 
     init_sound_table16 ();
-    if (currprefs.sound_stereo == 2)
+    if (currprefs.sound_stereo == 3)
 	sample_handler = sample16ss_handler;
     else
 	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
 
     write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
 	sound_devices[currprefs.win32_soundcard],
-	currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1),
+	currprefs.sound_stereo,
 	16, freq, max_sndbufsize, snd_configsize);
     obtainedfreq = currprefs.sound_freq;
 
@@ -591,53 +588,11 @@ static void channelswap(uae_s16 *sndbuffer, int len)
     }
 }
 
-#if 0
-static void filtercheck (uae_s16 *sndbuffer, int len)
-{
-    int ch = currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1);
-    int i;
-    static double cold[4];
-    double old0, old1, v;
-    
-    if (gui_data.powerled || currprefs.sound_filter == FILTER_SOUND_ON) {
-	if (ch == 1) {
-	    old0 = cold[0];
-	    for (i = 0; i < len; i++) {
-		v = old0 = old0 * filter_mul1 + filter_mul2 * sndbuffer[i];
-		if (v < -32768) v = -32768;
-		if (v > 32767) v = 32767;
-		sndbuffer[i] = (uae_s16)v;
-	    }
-	    cold[0] = old0;
-	} else {
-	    old0 = cold[0];
-	    old1 = cold[1];
-	    for (i = 0; i < len; i += 2) {
-		v = old0 = old0 * filter_mul1 + filter_mul2 * sndbuffer[i];
-		if (v < -32768) v = -32768;
-		if (v > 32767) v = 32767;
-		sndbuffer[i] = (uae_s16)v;
-		v = old1 = old1 * filter_mul1 + filter_mul2 * sndbuffer[i + 1];
-		if (v < -32768) v = -32768;
-		if (v > 32767) v = 32767;
-		sndbuffer[i + 1] = (uae_s16)v;
-	    }
-	    cold[0] = old0;
-	    cold[1] = old1;
-	}
-    }
-}
-#endif
-
 void finish_sound_buffer (void)
 {
     if (turbo_emulation)
 	return;
-#if 0 /* done completely in audio.c now */
-    if (currprefs.sound_filter && currprefs.sound_freq != 44100)
-        filtercheck((uae_s16*)sndbuffer, sndbufsize / 2);
-#endif
-    if (currprefs.sound_stereo == 1 && currprefs.sound_stereo_swap_paula)
+    if (ISSTEREO(currprefs) && currprefs.sound_stereo_swap_paula)
         channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
 #ifdef DRIVESOUND
     driveclick_mix ((uae_s16*)sndbuffer, sndbufsize / 2);

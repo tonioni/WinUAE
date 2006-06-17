@@ -612,7 +612,7 @@ static void writewavheader (uae_u32 size)
     uae_u16 tw;
     uae_u32 tl;
     int bits = 16;
-    int channels = currprefs.sound_stereo == 2 ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    int channels = currprefs.sound_stereo == 3 ? 4 : (currprefs.sound_stereo ? 2 : 1);
 
     fseek (wavfile, 0, SEEK_SET);
     fwrite ("RIFF", 1, 4, wavfile);
@@ -914,7 +914,7 @@ void AVIOutput_Initialize(void)
 
 #include <math.h>
 
-#define ADJUST_SIZE 20
+#define ADJUST_SIZE 50
 #define EXP 1.5
 
 void frame_drawn(void)

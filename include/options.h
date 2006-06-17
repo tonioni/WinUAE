@@ -179,6 +179,7 @@ struct uae_prefs {
     char flashfile[MAX_DPATH];
     char cartfile[MAX_DPATH];
     char cartident[256];
+    int cart_internal;
     char pci_devices[256];
     char prtname[256];
     char sername[256];

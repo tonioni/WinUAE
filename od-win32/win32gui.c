@@ -4306,6 +4306,10 @@ static void values_from_kickstartdlg (HWND hDlg)
     getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile));
     getromfile (hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile));
     getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile));
+    if (workprefs.cartfile[0])
+	workprefs.cart_internal = 0;
+    EnableWindow(GetDlgItem(hDlg, IDC_HRTMON), workprefs.cartfile[0] ? FALSE : TRUE);
+    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal ? TRUE : FALSE);
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -4326,10 +4330,10 @@ static void values_to_kickstartdlg (HWND hDlg)
 	    RegCloseKey (fkey);
     }
 
-    SetDlgItemText( hDlg, IDC_FLASHFILE, workprefs.flashfile );
-    CheckDlgButton( hDlg, IDC_KICKSHIFTER, workprefs.kickshifter );
-    CheckDlgButton( hDlg, IDC_MAPROM, workprefs.maprom );
-
+    SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
+    CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
+    CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
+    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -4337,25 +4341,27 @@ static void init_kickstart (HWND hDlg)
     HKEY fkey;
 
 #if !defined(AUTOCONFIG)
-    EnableWindow( GetDlgItem( hDlg, IDC_MAPROM), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_MAPROM), FALSE);
 #endif
 #if !defined (CDTV) && !defined (CD32)
-    EnableWindow( GetDlgItem( hDlg, IDC_FLASHFILE), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_ROMFILE2), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_FLASHFILE), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_ROMFILE2), FALSE);
 #endif
 #if !defined (ACTION_REPLAY)
-    EnableWindow( GetDlgItem( hDlg, IDC_CARTFILE), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_CARTFILE), FALSE);
 #endif
 #if defined (UAE_MINI)
-    EnableWindow( GetDlgItem( hDlg, IDC_KICKSHIFTER), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_ROMCHOOSER2), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_CARTCHOOSER), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_FLASHCHOOSER), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_KICKSHIFTER), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_ROMCHOOSER2), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_CARTCHOOSER), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
     if (RegOpenKeyEx (hWinUAEKey , "DetectedROMs", 0, KEY_READ, &fkey) != ERROR_SUCCESS)
 	scan_roms (workprefs.path_rom);
     if (fkey)
 	RegCloseKey (fkey);
+    EnableWindow(GetDlgItem(hDlg, IDC_HRTMON), full_property_sheet);
+
 }
 
 static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4413,11 +4419,16 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	    break;
 
 	case IDC_KICKSHIFTER:
-	    workprefs.kickshifter = IsDlgButtonChecked( hDlg, IDC_KICKSHIFTER );
+	    workprefs.kickshifter = IsDlgButtonChecked(hDlg, IDC_KICKSHIFTER);
 	    break;
 
 	case IDC_MAPROM:
-	    workprefs.maprom = IsDlgButtonChecked( hDlg, IDC_MAPROM ) ? 0xe00000 : 0;
+	    workprefs.maprom = IsDlgButtonChecked(hDlg, IDC_MAPROM) ? 0xe00000 : 0;
+	    break;
+
+	case IDC_HRTMON:
+	    workprefs.cart_internal = IsDlgButtonChecked(hDlg, IDC_HRTMON) ? 1 : 0;
+	    EnableWindow(GetDlgItem(hDlg, IDC_CARTFILE), workprefs.cart_internal ? FALSE : TRUE);
 	    break;
 	
 	}
@@ -5077,11 +5088,11 @@ static void enable_for_sounddlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_FREQUENCY), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDFREQ), workprefs.produce_sound ? TRUE : FALSE);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREO), workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDINTERPOLATION), workprefs.sound_stereo < 2 && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDINTERPOLATION), workprefs.sound_stereo < 3 && workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDVOLUME2), workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), workprefs.sound_stereo == 1 && workprefs.produce_sound);
-    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), workprefs.sound_stereo == 1 && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOSEP), ISSTEREO(workprefs) && workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSTEREOMIX), ISSTEREO(workprefs) && workprefs.produce_sound);
 
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERMEM), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), workprefs.produce_sound);
@@ -5226,6 +5237,8 @@ static void values_to_sounddlg (HWND hDlg)
     WIN32GUI_LoadUIString (IDS_SOUND_MONO, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_STEREO, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_SOUND_STEREO2, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_4CHANNEL, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
@@ -5487,10 +5500,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	break;
 
      case WM_HSCROLL:
-	workprefs.sound_maxbsiz = 2048 << SendMessage( GetDlgItem( hDlg, IDC_SOUNDBUFFERRAM ), TBM_GETPOS, 0, 0 );
-	workprefs.sound_adjust = SendMessage( GetDlgItem( hDlg, IDC_SOUNDADJUST ), TBM_GETPOS, 0, 0 );
-	workprefs.sound_volume = 100 - SendMessage( GetDlgItem( hDlg, IDC_SOUNDVOLUME ), TBM_GETPOS, 0, 0 );
-	workprefs.dfxclickvolume = 100 - SendMessage( GetDlgItem( hDlg, IDC_SOUNDDRIVEVOLUME ), TBM_GETPOS, 0, 0 );
+	workprefs.sound_maxbsiz = 2048 << SendMessage(GetDlgItem(hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
+	workprefs.sound_adjust = SendMessage(GetDlgItem(hDlg, IDC_SOUNDADJUST), TBM_GETPOS, 0, 0);
+	workprefs.sound_volume = 100 - SendMessage(GetDlgItem(hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
+	workprefs.dfxclickvolume = 100 - SendMessage(GetDlgItem(hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 	update_soundgui (hDlg);
 	break;
     }

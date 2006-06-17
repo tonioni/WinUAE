@@ -25,6 +25,11 @@ extern void sound_volume (int);
 
 static __inline__ void check_sound_buffers (void)
 {
+    if (currprefs.sound_stereo == 2) {
+	((uae_u16*)sndbufpt)[0] = ((uae_u16*)sndbufpt)[-2];
+	((uae_u16*)sndbufpt)[1] = ((uae_u16*)sndbufpt)[-1];
+	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 4);
+    }
     if ((char *)sndbufpt - (char *)sndbuffer >= sndbufsize) {
 	finish_sound_buffer ();
 	sndbufpt = sndbuffer;
@@ -53,6 +58,8 @@ static __inline__ void check_sound_buffers (void)
 
 #define FILTER_SOUND_TYPE_A500 0
 #define FILTER_SOUND_TYPE_A1200 1
+
+#define ISSTEREO(p) (p.sound_stereo == 1 || p.sound_stereo == 2)
 
 #ifdef AHI
 #include "ahidsound.h"

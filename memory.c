@@ -129,6 +129,7 @@ static struct romdata roms[] = {
     { "Action Replay Mk II v2.14", 2, 14, 2, 14, "AR\0", 0x49650e4f, 131072, 28, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
+    { "Action Replay 1200", 0, 0, 0, 0, "AR\0", 0x8d760101, 262144, 47, 0, 0, ROMTYPE_AR },
 
     { "Arcadia SportTime Table Hockey\0ar_airh", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 33, 0, 0, ROMTYPE_ARCADIA },
     { "Arcadia SportTime Bowling\0ar_bowl", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 34, 0, 0, ROMTYPE_ARCADIA },
@@ -2035,7 +2036,6 @@ void memory_reset (void)
     custom_start = 0xC0;
     map_banks (&custom_bank, custom_start, 0xE0 - custom_start, 0);
     map_banks (&cia_bank, 0xA0, 32, 0);
-    map_banks (&clock_bank, 0xDC, 1, 0);
 
     /* map "nothing" to 0x200000 - 0xa00000 */
     bnk = allocated_chipmem >> 16;
@@ -2050,6 +2050,10 @@ void memory_reset (void)
 	    t = 0x1C;
 	map_banks (&bogomem_bank, 0xC0, t, allocated_bogomem);
     }
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	map_banks (&gayle_bank, 0xD8, 7, 0);
+    map_banks (&clock_bank, 0xDC, 1, 0);
+
 #ifdef AUTOCONFIG
     if (a3000memory != 0)
 	map_banks (&a3000mem_bank, a3000mem_start >> 16, allocated_a3000mem >> 16,
@@ -2123,11 +2127,10 @@ void memory_reset (void)
     if (!arcadia_rom) {
 #endif
     action_replay_memory_reset();
+    #ifndef ACTION_REPLAY_HIDE_CARTRIDGE
     #ifdef ACTION_REPLAY_HRTMON
     hrtmon_map_banks();
     #endif
-
-    #ifndef ACTION_REPLAY_HIDE_CARTRIDGES
     #ifdef ACTION_REPLAY
     action_replay_map_banks();
     #endif
@@ -2165,10 +2168,9 @@ void memory_init (void)
 #ifdef ACTION_REPLAY
     action_replay_load();
     action_replay_init(1);
-
-    #ifdef ACTION_REPLAY_HRTM
+#ifdef ACTION_REPLAY_HRTMON
     hrtmon_load(1);
-    #endif
+#endif
 #endif
 
     init_mem_banks ();

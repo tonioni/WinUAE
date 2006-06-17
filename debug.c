@@ -1828,7 +1828,7 @@ struct mmudata {
 };
 
 static struct mmudata *mmubanks;
-static uae_u32 mmu_callback, mmu_regs;
+static uae_u32 mmu_struct, mmu_callback, mmu_regs;
 static uae_u32 mmu_fault_bank_addr, mmu_fault_addr;
 static int mmu_fault_size, mmu_fault_rw;
 static int mmu_slots;
@@ -1852,11 +1852,16 @@ static struct mmunode **mmunl;
 void mmu_do_hit(void)
 {
     int i;
+    uaecptr p;
     uae_u32 pc;
 
     mmu_triggered = 0;
     pc = m68k_getpc();
+    p = mmu_regs + 18 * 4;
+    put_long (p, pc);
+    regs = mmu_backup_regs;
     regs.intmask = 7;
+    regs.t0 = regs.t1 = 0;
     if (!regs.s) {
 	regs.usp = m68k_areg(regs, 7);
 	if (currprefs.cpu_level >= 2)
@@ -1867,7 +1872,6 @@ void mmu_do_hit(void)
     }
     MakeSR();
     m68k_setpc(mmu_callback);
-    set_special(SPCFLAG_END_COMPILE);
     fill_prefetch_slow ();
 
     if (currprefs.cpu_level > 0) {
@@ -1892,9 +1896,11 @@ void mmu_do_hit(void)
 	put_word (m68k_areg(regs, 7), 0x7002);
     }
     m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), pc);
+    put_long (m68k_areg(regs, 7), get_long (p - 4));
     m68k_areg(regs, 7) -= 2;
     put_word (m68k_areg(regs, 7), mmur.sr);
+
+    set_special(SPCFLAG_END_COMPILE);
 }
 
 static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, uae_u32 v)
@@ -1908,11 +1914,13 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, 
 	write_log ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rw, v, pc);
 
     p = mmu_regs;
+    put_long (p, 0); p += 4;
     for (i = 0; i < 16; i++) {
 	put_long (p, regs.regs[i]);
 	p += 4;
     }
     put_long (p, pc); p += 4;
+    put_long (p, 0); p += 4;
     put_long (p, regs.usp); p += 4;
     put_long (p, regs.isp); p += 4;
     put_long (p, regs.msp); p += 4;
@@ -1920,6 +1928,7 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, 
     put_word (p, (size << 1) | (rw ? 1 : 0)); /* size and rw */ p += 2;
     put_long (p, addr); /* fault address */ p += 4;
     put_long (p, md->p_addr); /* bank address */ p += 4;
+    put_long (p, v); p += 4;
     mmu_fault_addr = addr;
     mmu_fault_bank_addr = md->p_addr;
     mmu_fault_size = size;
@@ -2050,7 +2059,7 @@ static int getmmubank(struct mmudata *snptr, uaecptr p)
 
 int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 {
-    uaecptr p, p2;
+    uaecptr p, p2, banks;
     int size;
     struct mmudata *snptr;
     struct mmunode *mn;
@@ -2060,6 +2069,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	wasjit = currprefs.cachesize;
 	changed_prefs.cachesize = 0;
 	write_log ("MMU: JIT disabled\n");
+	check_prefs_changed_comp();
     }
 
     if (mode == 0) {
@@ -2073,7 +2083,14 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	return 1;
     }
 
+    if (mode == 1) {
+	if (!mmu_enabled)
+	    return 0xffffffff;
+	return mmu_struct;
+    }
+
     p = parm;
+    mmu_struct = p;
     if (get_long (p) != 1) {
 	write_log ("MMU: version mismatch %d <> %d\n", get_long (p), 1);
 	return 0;
@@ -2086,7 +2103,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     mmu_regs = get_long (p);
     p += 4;
 
-    if (mode == 2) {
+    if (mode == 3) {
 	int off;
 	uaecptr addr = get_long (parm2 + 4);
 	if (!mmu_enabled)
@@ -2114,7 +2131,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	p2 += 16;
 	size++;
     }
-    p = get_long (p);
+    p = banks = get_long (p);
     snptr = mmubanks = xmalloc (sizeof (struct mmudata) * size);
     for (;;) {
 	int off;
@@ -2135,8 +2152,8 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     }
 
     initialize_memwatch(1);
-    write_log ("MMU: enabled, %d banks, CB=%08.8X, %d*%d\n",
-	size - 1, mmu_callback, mmu_slots, 1 << MMU_PAGE_SHIFT);
+    write_log ("MMU: enabled, %d banks, CB=%08.8X S=%08.8X BNK=%08.8X SF=%08.8X, %d*%d\n",
+	size - 1, mmu_callback, parm, banks, mmu_regs, mmu_slots, 1 << MMU_PAGE_SHIFT);
     set_special (SPCFLAG_BRK);
     return 1;
 }

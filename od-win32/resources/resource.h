@@ -239,6 +239,7 @@
 #define IDS_SOUND_FILTER_ON_A500        253
 #define IDS_DRIVESOUND_PC_FLOPPY        254
 #define IDS_FLOPPYTYPE35DDESCOM         255
+#define IDS_SOUND_STEREO2               256
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -661,6 +662,8 @@
 #define IDC_AVIOUTPUT_FILETEXT          1610
 #define IDC_INPUTDEVICETEXT             1610
 #define IDC_ALWAYSONTOP                 1610
+#define IDC_MAPROM2                     1610
+#define IDC_HRTMON                      1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611

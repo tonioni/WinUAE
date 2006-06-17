@@ -29,7 +29,6 @@
 extern uae_u8* compiled_code;
 #include "compemu.h"
 #include <signal.h>
-extern void vec(int x, struct siginfo* si, struct sigcontext* sc);
 int oink=0;
 /* For faster cycles handling */
 signed long pissoff=0;
@@ -1660,12 +1659,15 @@ static int do_specialties (int cycles)
     if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && hrtmon_flag != ACTION_REPLAY_INACTIVE) {
 	int isinhrt = (m68k_getpc() >= hrtmem_start && m68k_getpc() < hrtmem_start + hrtmem_size);
 	/* exit from HRTMon? */
-	if(hrtmon_flag == ACTION_REPLAY_HIDE && !isinhrt) hrtmon_hide();
+	if(hrtmon_flag == ACTION_REPLAY_ACTIVE && !isinhrt)
+	    hrtmon_hide();
 	/* HRTMon breakpoint? (not via IRQ7) */
-	if(hrtmon_flag == ACTION_REPLAY_IDLE && isinhrt) hrtmon_breakenter();
-	if(hrtmon_flag == ACTION_REPLAY_ACTIVE && isinhrt) hrtmon_flag = ACTION_REPLAY_HIDE;
-	if(hrtmon_flag == ACTION_REPLAY_ACTIVATE) hrtmon_enter();
-	if(!(regs.spcflags & ~SPCFLAG_ACTION_REPLAY)) return 0;
+	if(hrtmon_flag == ACTION_REPLAY_IDLE && isinhrt)
+	    hrtmon_breakenter();
+	if(hrtmon_flag == ACTION_REPLAY_ACTIVATE)
+	    hrtmon_enter();
+	if(!(regs.spcflags & ~SPCFLAG_ACTION_REPLAY))
+	    return 0;
     }
     #endif
     if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE )

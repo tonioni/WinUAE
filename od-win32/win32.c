@@ -2083,10 +2083,10 @@ static void WIN32_HandleRegistryStuff(void)
     CreateDirectory (path, NULL);
     fetch_path ("StatefilePath", path, sizeof (path));
     CreateDirectory (path, NULL);
-    fetch_path ("InputPath", path, sizeof (path));
-    CreateDirectory (path, NULL);
     strcat (path, "default.uss");
     strcpy (savestate_fname, path);
+    fetch_path ("InputPath", path, sizeof (path));
+    CreateDirectory (path, NULL);
     fkey = read_disk_history ();
     if (fkey)
 	RegCloseKey (fkey);

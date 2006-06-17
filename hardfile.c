@@ -107,6 +107,29 @@ static int rl (uae_u8 *p)
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
 
+#if 0 // not yet production ready
+
+static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offset, uae_u64 len)
+{
+    addrbank *bank_data = &get_mem_bank (dataptr);
+    gui_hd_led (1);
+    hf_log2 ("cmd_read: %p %04.4x-%08.8x %08.8x\n", dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)len);
+    if (!bank_data || !bank_data->check (dataptr, len))
+	return 0;
+    return hdf_read (hfd, bank_data->xlateaddr (dataptr), offset, len);
+}
+static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offset, uae_u64 len)
+{
+    addrbank *bank_data = &get_mem_bank (dataptr);
+    gui_hd_led (1);
+    hf_log2 ("cmd_write: %p %04.4x-%08.8x %08.8x\n", dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)len);
+    if (!bank_data || !bank_data->check (dataptr, len))
+	return 0;
+    return hdf_write (hfd, bank_data->xlateaddr (dataptr), offset, len);
+}
+
+#else
+
 static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offset, uae_u64 len)
 {
     uae_u64 got = 0;
@@ -129,7 +152,6 @@ static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offs
     }
     return got;
 }
-
 static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offset, uae_u64 len)
 {
     uae_u64 got = 0;
@@ -152,6 +174,8 @@ static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 off
     }
     return got;
 }
+
+#endif
 
 static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
 {

@@ -130,7 +130,7 @@ static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 }
 static const char *soundmode2[] = { "none", "interrupts", "good", "best", 0 };
 static const char *centermode1[] = { "none", "simple", "smart", 0 };
 static const char *centermode2[] = { "false", "true", "smart", 0 };
-static const char *stereomode[] = { "mono", "stereo", "4ch", "mixed", 0 };
+static const char *stereomode[] = { "mono", "stereo", "clonedstereo", "4ch", "mixed", 0 };
 static const char *interpolmode[] = { "none", "anti", "sinc", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
@@ -143,6 +143,7 @@ static const char *loresmode[] = { "normal", "filtered", 0 };
 static const char *filtermode1[] = { "no_16", "bilinear_16", "no_32", "bilinear_32", 0 };
 static const char *filtermode2[] = { "0x", "1x", "2x", "3x", "4x", 0 };
 #endif
+static const char *cartsmode[] = { "none", "hrtmon", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -253,6 +254,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     free (str);
     if (p->cartident[0])
 	cfgfile_write (f, "cart=%s\n", p->cartident);
+    cfgfile_write (f, "cart_internal=%s\n", cartsmode[p->cart_internal]);
     cfgfile_write (f, "kickshifter=%s\n", p->kickshifter ? "true" : "false");
 
     p->nr_floppies = 4;
@@ -840,7 +842,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_strval (option, value, "sound_channels", &p->sound_stereo, stereomode, 1)) {
-	if (p->sound_stereo == 3) { /* "mixed stereo" compatibility hack */
+	if (p->sound_stereo == 4) { /* "mixed stereo" compatibility hack */
 	    p->sound_stereo = 1;
 	    p->sound_mixed_stereo = 5;
 	    p->sound_stereo_separation = 7;
@@ -1041,6 +1043,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_string (option, value, "ghostscript_parameters", p->ghostscript_parameters, sizeof p->ghostscript_parameters))
 	return 1;
 
+    if (cfgfile_strval (option, value, "cart_internal", &p->cart_internal, cartsmode, 0))
+	return 1;
     if (cfgfile_string (option, value, "kickstart_rom", p->romident, sizeof p->romident)) {
 	decode_rom_ident (p->romfile, sizeof p->romfile, p->romident);
 	return 1;
@@ -2468,6 +2472,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->maprom = 0;
     p->filesys_no_uaefsdb = 0;
     p->filesys_custom_uaefsdb = 1;
+    p->cart_internal = 1;
 
     p->gfx_filter = 0;
     p->gfx_filter_horiz_zoom_mult = 1000;
@@ -2822,6 +2827,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->cpu_idle = 150;
     p->scsi = 1;
     p->socket_emu = 1;
+    p->cart_internal = 0;
     return configure_rom (p, roms, romcheck);
 }
 

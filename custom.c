@@ -4760,14 +4760,6 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
  {
     uae_u32 v;
     sync_copper_with_cpu (current_hpos (), 1);
-    if (currprefs.cpu_level >= 2) {
-	if(addr >= 0xde0000 && addr <= 0xdeffff) {
-	    return 0x7f7f;
-	}
-	if(addr >= 0xdd0000 && addr <= 0xddffff) {
-	    return 0xffff;
-	}
-    }
     v = custom_wget_1 (addr, 0);
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_COMMON

@@ -2725,8 +2725,6 @@ void DSKLEN (uae_u16 v, int hpos)
     }
     dsklen = v;
     dsklength2 = dsklength = dsklen & 0x3fff;
-    if (dsklength == 1)
-	dsklength = 0;
 
     if (dskdmaen == 0)
 	return;
@@ -2734,9 +2732,16 @@ void DSKLEN (uae_u16 v, int hpos)
     if ((v & 0x4000) && (prev & 0x4000)) {
 	if (dsklength == 0)
 	    return;
+	if (dsklength == 1) {
+	    disk_dmafinished();
+	    return;
+	}
 	dskdmaen = 3;
 	DISK_start ();
     }
+
+    if (dsklength == 1)
+	dsklength = 0;
 
     if (((disk_debug_mode & DISK_DEBUG_DMA_READ) && dskdmaen == 2) ||
 	((disk_debug_mode & DISK_DEBUG_DMA_WRITE) && dskdmaen == 3))
