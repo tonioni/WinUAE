@@ -11,7 +11,7 @@ static volatile int threadmode_out;
 
 static DWORD WINAPI readroutine(void *parm)
 {
-    char buf[4000];
+    char buf[20000];
     DWORD ret, avail;
 
     for (;;) {

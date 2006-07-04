@@ -257,7 +257,7 @@ static void REGPARAM2 arbb_bput (uaecptr addr, uae_u32 b)
 static addrbank arcadia_boot_bank = {
     arbb_lget, arbb_wget, arbb_bget,
     arbb_lput, arbb_wput, arbb_bput,
-    default_xlate, default_check, NULL
+    default_xlate, default_check, NULL, "Arcadia BIOS"
 };
 
 static uae_u32 REGPARAM2 arb_lget (uaecptr addr)
@@ -324,7 +324,7 @@ static void REGPARAM2 arb_bput (uaecptr addr, uae_u32 b)
 static addrbank arcadia_rom_bank = {
     arb_lget, arb_wget, arb_bget,
     arb_lput, arb_wput, arb_bput,
-    default_xlate, default_check, NULL
+    default_xlate, default_check, NULL, "Arcadia Game ROM"
 };
 
 int is_arcadia_rom (char *path)

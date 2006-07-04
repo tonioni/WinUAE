@@ -67,3 +67,5 @@ extern void hrtmon_map_banks(void);
 extern uae_u32 hrtmem_start, hrtmem_size;
 
 extern uae_u8 ar_custom[2*256];
+
+extern int hrtmon_lang;

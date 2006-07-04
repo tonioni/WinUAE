@@ -289,7 +289,7 @@ static uae_u8 REGPARAM2 *hrtmem_xlate (uaecptr addr)
 static addrbank hrtmem_bank = {
     hrtmem_lget, hrtmem_wget, hrtmem_bget,
     hrtmem_lput, hrtmem_wput, hrtmem_bput,
-    hrtmem_xlate, hrtmem_check, NULL
+    hrtmem_xlate, hrtmem_check, NULL, "HRTMon memory"
 };
 
 static void copyfromamiga(uae_u8 *dst,uaecptr src,int len)
@@ -691,12 +691,12 @@ static uae_u8 REGPARAM2 *arrom_xlate (uaecptr addr)
 static addrbank arrom_bank = {
     arrom_lget, arrom_wget, arrom_bget,
     arrom_lput, arrom_wput, arrom_bput,
-    arrom_xlate, arrom_check, NULL
+    arrom_xlate, arrom_check, NULL, "Action Replay ROM"
 };
 static addrbank arram_bank = {
     arram_lget, arram_wget, arram_bget,
     arram_lput, arram_wput, arram_bput,
-    arram_xlate, arram_check, NULL
+    arram_xlate, arram_check, NULL, "Action Replay RAM"
 };
 
 static void action_replay_unmap_banks()
@@ -964,7 +964,7 @@ void hrtmon_hide(void)
     hrtmon_flag = ACTION_REPLAY_IDLE;
     cartridge_exit();
     unset_special (SPCFLAG_ACTION_REPLAY);
-    write_log ("HRTMON: Exit\n");
+    //write_log ("HRTMON: Exit\n");
 }
 
 void hrtmon_breakenter(void)
@@ -1404,7 +1404,7 @@ void action_replay_cleanup()
     if (armemory_ram)
 	free (armemory_ram);
     if (hrtmemory)
-	free (hrtmemory);
+	mapped_free (hrtmemory);
 
     armemory_rom = 0;
     armemory_ram = 0;
@@ -1423,6 +1423,8 @@ void action_replay_cleanup()
 #include "hrtmon_rom.c"
 #endif
 
+int hrtmon_lang = 0;
+
 static void hrtmon_configure(void)
 {
     HRTCFG *cfg = (HRTCFG*)hrtmemory;
@@ -1435,6 +1437,7 @@ static void hrtmon_configure(void)
     cfg->novbr = TRUE;
     cfg->hexmode = TRUE;
     cfg->entered = 0;
+    cfg->key = hrtmon_lang;
     do_put_mem_long(&cfg->max_chip, currprefs.chipmem_size);
 }
 

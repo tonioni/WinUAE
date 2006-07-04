@@ -308,9 +308,13 @@ if (dwEvt>1 ){calcsound=0;return;}
     ahisndbufpt = (int*)ahisndbuffer;
  
     IDirectSoundBuffer_Unlock(lpDSB2, dwData1,dwBytes1,dwData2, dwBytes2); 
-    oldpos = i;
-    //oldpos=oldpos+(amigablksize*4);
-    //if (oldpos >= ahisndbufsize)oldpos=0; 
+    oldpos += amigablksize * 4;
+    if (oldpos >= ahisndbufsize)
+	oldpos -= ahisndbufsize;
+    if (oldpos != i) {
+	INTREQ(0xa000);
+	intcount = 1;
+    }
 }
 
 

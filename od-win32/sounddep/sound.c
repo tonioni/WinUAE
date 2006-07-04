@@ -27,6 +27,7 @@
 #include "win32.h"
 #include "savestate.h"
 #include "driveclick.h"
+#include "audio.h"
 
 #include <windows.h>
 #include <mmsystem.h>

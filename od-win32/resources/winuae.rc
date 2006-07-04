@@ -1037,7 +1037,7 @@ BEGIN
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
     IDS_OLDRTGLIBRARY       "The installed LIBS:Picasso96/rtg.library (%d.%d) file needs to be updated.\nA newer version is included in the ""Amiga Programs"" directory of the WinUAE distribution archive.\nThe new library fixes graphics problems and increases performance."
-    IDS_DEFAULT_AF2005      "Amiga Forever 2005"
+    IDS_DEFAULT_AF2005      "Amiga Forever"
     IDS_DEFAULT_AF          "Amiga Forever (old)"
     IDS_DEFAULT_WINUAE      "WinUAE default"
 END

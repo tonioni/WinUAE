@@ -65,6 +65,8 @@
 #include "catweasel.h"
 #include "lcd.h"
 #include "uaeipc.h"
+#include "ar.h"
+#include "audio.h"
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -507,7 +509,7 @@ static void winuae_active (HWND hWnd, int minimized)
 #ifdef AHI
     ahi_open_sound ();
 #endif
-    init_sound ();
+    set_audio ();
     if (WIN32GFX_IsPicassoScreen ())
 	WIN32GFX_EnablePicasso();
     getcapslock ();
@@ -534,7 +536,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
 #ifdef AHI
     ahi_close_sound ();
 #endif
-    init_sound ();
+    set_audio ();
 #ifdef AHI
     ahi_open_sound ();
 #endif
@@ -1170,7 +1172,7 @@ void handle_events (void)
     }
     while (checkIPC(&currprefs));
     if (was_paused) {
-	init_sound ();
+	set_audio ();
 #ifdef AHI
 	ahi_open_sound ();
 #endif
@@ -1388,6 +1390,10 @@ HMODULE language_load(WORD language)
 	    language = pGetUserDefaultUILanguage();
 	language &= 0x3ff; // low 9-bits form the primary-language ID
     }
+    if (language == LANG_GERMAN)
+	hrtmon_lang = 2;
+    if (language == LANG_FRENCH)
+	hrtmon_lang = 3;
     dllname = getlanguagename (language);
     if (dllname)
     {

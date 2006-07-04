@@ -190,7 +190,7 @@ static void expamem_bput (uaecptr, uae_u32) REGPARAM;
 addrbank expamem_bank = {
     expamem_lget, expamem_wget, expamem_bget,
     expamem_lput, expamem_wput, expamem_bput,
-    default_xlate, default_check, NULL
+    default_xlate, default_check, NULL, "Autoconfig"
 };
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
@@ -408,7 +408,7 @@ static uae_u8 REGPARAM2 *fastmem_xlate (uaecptr addr)
 addrbank fastmem_bank = {
     fastmem_lget, fastmem_wget, fastmem_bget,
     fastmem_lput, fastmem_wput, fastmem_bput,
-    fastmem_xlate, fastmem_check, NULL
+    fastmem_xlate, fastmem_check, NULL, "Fast memory"
 };
 
 
@@ -499,7 +499,7 @@ static uae_u8 REGPARAM2 *catweasel_xlate (uaecptr addr)
 static addrbank catweasel_bank = {
     catweasel_lget, catweasel_wget, catweasel_bget,
     catweasel_lput, catweasel_wput, catweasel_bput,
-    catweasel_xlate, catweasel_check, NULL
+    catweasel_xlate, catweasel_check, NULL, "Catweasel"
 };
 
 static void expamem_map_catweasel (void)
@@ -621,7 +621,7 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 static addrbank filesys_bank = {
     filesys_lget, filesys_wget, filesys_bget,
     filesys_lput, filesys_wput, filesys_bput,
-    default_xlate, default_check, NULL
+    default_xlate, default_check, NULL, "Filesystem Autoconfig Area"
 };
 
 /*
@@ -709,7 +709,7 @@ static uae_u8 REGPARAM2 *z3fastmem_xlate (uaecptr addr)
 addrbank z3fastmem_bank = {
     z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
     z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
-    z3fastmem_xlate, z3fastmem_check, NULL
+    z3fastmem_xlate, z3fastmem_check, NULL, "ZorroIII Fast RAM"
 };
 
 /* Z3-based UAEGFX-card */
@@ -829,18 +829,18 @@ static void expamem_init_filesys (void)
 
 static void expamem_map_z3fastmem (void)
 {
-	int z3fs = ((expamem_hi | (expamem_lo >> 4)) << 16);
+    int z3fs = ((expamem_hi | (expamem_lo >> 4)) << 16);
 
-	if (z3fastmem_start != z3fs) {
-		write_log("WARNING: Z3FAST mapping changed from $%lx to $%lx\n", z3fastmem_start, z3fs);
-		map_banks(&dummy_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
-			allocated_z3fastmem);
-		z3fastmem_start = z3fs;
-	    map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
-	       allocated_z3fastmem);
-	}
+    if (z3fastmem_start != z3fs) {
+    	write_log("WARNING: Z3FAST mapping changed from $%lx to $%lx\n", z3fastmem_start, z3fs);
+	map_banks(&dummy_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
+	    allocated_z3fastmem);
+	z3fastmem_start = z3fs;
+	map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
+	    allocated_z3fastmem);
+    }
     write_log ("Fastmem (32bit): mapped @$%lx: %d MB Zorro III fast memory \n",
-	       z3fastmem_start, allocated_z3fastmem / 0x100000);
+       z3fastmem_start, allocated_z3fastmem / 0x100000);
 }
 
 static void expamem_init_z3fastmem (void)
@@ -996,18 +996,18 @@ static void allocate_expamem (void)
 	if (allocated_fastmem > 0) {
 	    restore_ram (fast_filepos, fastmemory);
 	    map_banks (&fastmem_bank, fastmem_start >> 16, currprefs.fastmem_size >> 16,
-		       allocated_fastmem);
+		allocated_fastmem);
 	}
 	if (allocated_z3fastmem > 0) {
 	    restore_ram (z3_filepos, z3fastmem);
 	    map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
-		       allocated_z3fastmem);
+		allocated_z3fastmem);
 	}
 #if defined(PICASSO96)
 	if (allocated_gfxmem > 0 && gfxmem_start > 0) {
 	    restore_ram (p96_filepos, gfxmemory);
 	    map_banks (&gfxmem_bank, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
-		       allocated_gfxmem);
+		allocated_gfxmem);
 	}
 #endif
     }

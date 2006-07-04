@@ -1516,10 +1516,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\sinctable.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\uaeexe.c"
 				>
 			</File>

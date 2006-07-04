@@ -90,38 +90,38 @@ void romlist_clear (void)
 static struct romdata roms[] = {
     { "Cloanto Amiga Forever ROM key", 0, 0, 0, 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
 
-    { "Kickstart v1.0 (A1000)(NTSC)", 1, 0, 1, 0, "A1000\0", 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(NTSC)", 1, 1, 31, 34, "A1000\0", 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.1 (A1000)(PAL)", 1, 1, 31, 34, "A1000\0", 0xec86dae2, 262144, 3, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A1000)", 1, 2, 33, 166, "A1000\0", 0x9ed783d0, 262144, 4, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.2 (A500,A1000,A2000)", 1, 2, 33, 180, "A500\0A1000\0A2000\0", 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A500,A1000,A2000)", 1, 3, 34, 5, "A500\0A1000\0A2000\0", 0xc4f0f55f, 262144, 6, 60, 0, ROMTYPE_KICK },
-    { "Kickstart v1.3 (A3000)", 1, 3, 34, 5, "A3000\0", 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
+    { "v1.0 (A1000)(NTSC)", 1, 0, 1, 0, "A1000\0", 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
+    { "v1.1 (A1000)(NTSC)", 1, 1, 31, 34, "A1000\0", 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
+    { "v1.1 (A1000)(PAL)", 1, 1, 31, 34, "A1000\0", 0xec86dae2, 262144, 3, 0, 0, ROMTYPE_KICK },
+    { "v1.2 (A1000)", 1, 2, 33, 166, "A1000\0", 0x9ed783d0, 262144, 4, 0, 0, ROMTYPE_KICK },
+    { "v1.2 (A500,A1000,A2000)", 1, 2, 33, 180, "A500\0A1000\0A2000\0", 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
+    { "v1.3 (A500,A1000,A2000)", 1, 3, 34, 5, "A500\0A1000\0A2000\0", 0xc4f0f55f, 262144, 6, 60, 0, ROMTYPE_KICK },
+    { "v1.3 (A3000)", 1, 3, 34, 5, "A3000\0", 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v2.04 (A500+)", 2, 4, 37, 175, "A500+\0", 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600)", 2, 5, 37, 299, "A600\0", 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 2, 5, 37, 300, "A600HD\0A600\0", 0x64466c2a, 524288, 9, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v2.05 (A600HD)", 2, 5, 37, 350, "A600HD\0A600\0", 0x43b0df7b, 524288, 10, 0, 0, ROMTYPE_KICK },
+    { "v2.04 (A500+)", 2, 4, 37, 175, "A500+\0", 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
+    { "v2.05 (A600)", 2, 5, 37, 299, "A600\0", 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
+    { "v2.05 (A600HD)", 2, 5, 37, 300, "A600HD\0A600\0", 0x64466c2a, 524288, 9, 0, 0, ROMTYPE_KICK },
+    { "v2.05 (A600HD)", 2, 5, 37, 350, "A600HD\0A600\0", 0x43b0df7b, 524288, 10, 0, 0, ROMTYPE_KICK },
 
-    { "Kickstart v3.0 (A1200)", 3, 0, 39, 106, "A1200\0", 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v3.0 (A4000)", 3, 0, 39, 106, "A4000\0", 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)", 3, 1, 40, 70, "A4000\0", 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A500,A600,A2000)", 3, 1, 40, 63, "A500\0A600\0A2000\0", 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A1200)", 3, 1, 40, 68, "A1200\0", 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)(Cloanto)", 3, 1, 40, 68, "A4000\0", 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000)", 3, 1, 40, 68, "A4000\0", 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.1 (A4000T)", 3, 1, 40, 70, "A4000T\0", 0x75932c3a, 524288, 17, 2, 0, ROMTYPE_KICK },
-    { "Kickstart v3.X (A4000)(Cloanto)", 3, 10, 45, 57, "A4000\0", 0x08b69382, 524288, 46, 2, 0, ROMTYPE_KICK },
+    { "v3.0 (A1200)", 3, 0, 39, 106, "A1200\0", 0x6c9b07d2, 524288, 11, 0, 0, ROMTYPE_KICK },
+    { "v3.0 (A4000)", 3, 0, 39, 106, "A4000\0", 0x9e6ac152, 524288, 12, 2, 0, ROMTYPE_KICK },
+    { "v3.1 (A4000)", 3, 1, 40, 70, "A4000\0", 0x2b4566f1, 524288, 13, 2, 0, ROMTYPE_KICK },
+    { "v3.1 (A500,A600,A2000)", 3, 1, 40, 63, "A500\0A600\0A2000\0", 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
+    { "v3.1 (A1200)", 3, 1, 40, 68, "A1200\0", 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
+    { "v3.1 (A4000)(Cloanto)", 3, 1, 40, 68, "A4000\0", 0x43b6dd22, 524288, 31, 2, 1, ROMTYPE_KICK },
+    { "v3.1 (A4000)", 3, 1, 40, 68, "A4000\0", 0xd6bae334, 524288, 16, 2, 0, ROMTYPE_KICK },
+    { "v3.1 (A4000T)", 3, 1, 40, 70, "A4000T\0", 0x75932c3a, 524288, 17, 2, 0, ROMTYPE_KICK },
+    { "v3.X (A4000)(Cloanto)", 3, 10, 45, 57, "A4000\0", 0x08b69382, 524288, 46, 2, 0, ROMTYPE_KICK },
 
-    { "CD32 Kickstart v3.1", 3, 1, 40, 60, "CD32\0", 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
-    { "CD32 Extended", 3, 1, 40, 60, "CD32\0", 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
+    { "CD32 v3.1", 3, 1, 40, 60, "CD32\0", 0x1e62d4a5, 524288, 18, 1, 0, ROMTYPE_KICKCD32 },
+    { "CD32 extended", 3, 1, 40, 60, "CD32\0", 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
 
-    { "CDTV Extended v1.00", 1, 0, 1, 0, "CDTV\0", 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.30", 2, 30, 2, 30, "CDTV\0", 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
-    { "CDTV Extended v2.07", 2, 7, 2, 7, "CDTV\0", 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV extended v1.00", 1, 0, 1, 0, "CDTV\0", 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV extended v2.30", 2, 30, 2, 30, "CDTV\0", 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV extended v2.07", 2, 7, 2, 7, "CDTV\0", 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
 
-    { "A1000 Bootstrap", 0, 0, 0, 0, "A1000\0", 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
-    { "A1000 Bootstrap", 0, 0, 0, 0, "A1000\0", 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
+    { "A1000 bootstrap", 0, 0, 0, 0, "A1000\0", 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
+    { "A1000 bootstrap", 0, 0, 0, 0, "A1000\0", 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
 
     { "Action Replay Mk I v1.50", 1, 50, 1, 50, "AR\0", 0xd4ce0675, 65536, 25, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk II v2.05", 2, 5, 2, 5, "AR\0", 0x1287301f , 131072, 26, 0, 0, ROMTYPE_AR },
@@ -1391,67 +1391,67 @@ uae_u8 REGPARAM2 *default_xlate (uaecptr a)
 addrbank dummy_bank = {
     dummy_lget, dummy_wget, dummy_bget,
     dummy_lput, dummy_wput, dummy_bput,
-    default_xlate, dummy_check, NULL
+    default_xlate, dummy_check, NULL, NULL
 };
 
 #ifdef AUTOCONFIG
 addrbank mbres_bank = {
     mbres_lget, mbres_wget, mbres_bget,
     mbres_lput, mbres_wput, mbres_bput,
-    default_xlate, mbres_check, NULL
+    default_xlate, mbres_check, NULL, "MBRES"
 };
 #endif
 
 addrbank chipmem_bank = {
     chipmem_lget, chipmem_wget, chipmem_bget,
     chipmem_lput, chipmem_wput, chipmem_bput,
-    chipmem_xlate, chipmem_check, NULL
+    chipmem_xlate, chipmem_check, NULL, "Chip memory"
 };
 
 addrbank chipmem_agnus_bank = {
     chipmem_agnus_lget, chipmem_agnus_wget, chipmem_agnus_bget,
     chipmem_agnus_lput, chipmem_agnus_wput, chipmem_agnus_bput,
-    chipmem_xlate, chipmem_check, NULL
+    chipmem_xlate, chipmem_check, NULL, "Chip memory"
 };
 
 #ifdef AGA
 addrbank chipmem_bank_ce2 = {
     chipmem_lget_ce2, chipmem_wget_ce2, chipmem_bget_ce2,
     chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
-    chipmem_xlate, chipmem_check, NULL
+    chipmem_xlate, chipmem_check, NULL, "Chip memory"
 };
 #endif
 
 addrbank bogomem_bank = {
     bogomem_lget, bogomem_wget, bogomem_bget,
     bogomem_lput, bogomem_wput, bogomem_bput,
-    bogomem_xlate, bogomem_check, NULL
+    bogomem_xlate, bogomem_check, NULL, "Slow memory"
 };
 
 #ifdef AUTOCONFIG
 addrbank a3000mem_bank = {
     a3000mem_lget, a3000mem_wget, a3000mem_bget,
     a3000mem_lput, a3000mem_wput, a3000mem_bput,
-    a3000mem_xlate, a3000mem_check, NULL
+    a3000mem_xlate, a3000mem_check, NULL, "A3000 memory"
 };
 #endif
 
 addrbank kickmem_bank = {
     kickmem_lget, kickmem_wget, kickmem_bget,
     kickmem_lput, kickmem_wput, kickmem_bput,
-    kickmem_xlate, kickmem_check, NULL
+    kickmem_xlate, kickmem_check, NULL, "Kickstart ROM"
 };
 
 addrbank kickram_bank = {
     kickmem_lget, kickmem_wget, kickmem_bget,
     kickmem2_lput, kickmem2_wput, kickmem2_bput,
-    kickmem_xlate, kickmem_check, NULL
+    kickmem_xlate, kickmem_check, NULL, "Kickstart Shadow RAM"
 };
 
 addrbank extendedkickmem_bank = {
     extendedkickmem_lget, extendedkickmem_wget, extendedkickmem_bget,
     extendedkickmem_lput, extendedkickmem_wput, extendedkickmem_bput,
-    extendedkickmem_xlate, extendedkickmem_check, NULL
+    extendedkickmem_xlate, extendedkickmem_check, NULL, "Extended Kickstart ROM"
 };
 
 static int kickstart_checksum (uae_u8 *mem, int size)

@@ -205,7 +205,6 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	
 #ifdef NATMEM_OFFSET
     unsigned int size=shmids[shmid].size;
-    extern uae_u32 allocated_z3fastmem;
     if(shmids[shmid].attached )
 	return shmids[shmid].attached;
     if ((uae_u8*)shmaddr<natmem_offset){

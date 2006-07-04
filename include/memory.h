@@ -76,6 +76,7 @@ typedef struct {
        ourselves. This holds the memory address where the start of memory is
        for this particular bank. */
     uae_u8 *baseaddr;
+    char *name;
 } addrbank;
 
 extern uae_u8 *filesysory;

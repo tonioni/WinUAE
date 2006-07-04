@@ -15,7 +15,7 @@
 
 static HANDLE *hipc = INVALID_HANDLE_VALUE, *olevent = INVALID_HANDLE_VALUE;
 static OVERLAPPED ol;
-#define IPC_BUFFER_SIZE 4096
+#define IPC_BUFFER_SIZE 16384
 static uae_u8 buffer[IPC_BUFFER_SIZE], outbuf[IPC_BUFFER_SIZE];
 static int connected, readpending, writepending;
 
@@ -68,7 +68,7 @@ static int listenIPC(void)
 	    return 0;
 	}
     } else if (err != ERROR_IO_PENDING) {
-        write_log ("IPC: ConnectNamedPipe failed, err=%d\n", GetLastError());
+        write_log ("IPC: ConnectNamedPipe failed, err=%d\n", err);
 	closeIPC();
 	return 0;
     }
@@ -84,6 +84,11 @@ static void disconnectIPC(void)
 	    write_log ("IPC: DisconnectNamedPipe failed, err=%d\n", GetLastError());
 	connected = FALSE;
     }
+}
+
+static void resetIPC(void)
+{
+    disconnectIPC();
     listenIPC();
 }
 
@@ -102,17 +107,35 @@ void closeIPC(void)
 
 int createIPC(void)
 {
+    char tmpname[100];
+    int cnt = 0;
+
     connected = FALSE;
     readpending = FALSE;
     writepending = FALSE;
     olevent = INVALID_HANDLE_VALUE;
-    hipc = CreateNamedPipe("\\\\.\\pipe\\WinUAE",
-	PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
-	PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
-	1, IPC_BUFFER_SIZE, IPC_BUFFER_SIZE,
-	NMPWAIT_USE_DEFAULT_WAIT, NULL);
-    if (hipc == INVALID_HANDLE_VALUE)
-	return 0;
+    while (cnt < 10) {
+	strcpy (tmpname, "\\\\.\\pipe\\WinUAE");
+	if (cnt > 0) {
+	    char *p = tmpname + strlen (tmpname);
+	    sprintf(p, "_%d", cnt);
+	}
+	hipc = CreateNamedPipe(tmpname,
+	    PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+	    PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+	    1, IPC_BUFFER_SIZE, IPC_BUFFER_SIZE,
+	    NMPWAIT_USE_DEFAULT_WAIT, NULL);
+	if (hipc == INVALID_HANDLE_VALUE) {
+	    DWORD err = GetLastError();
+	    if (err == ERROR_ALREADY_EXISTS || err == ERROR_PIPE_BUSY) {
+		cnt++;
+		continue;
+	    }
+	    return 0;
+	}
+	break;
+    }
+    write_log ("IPC: Named Pipe '%s' open\n", tmpname);
     olevent = CreateEvent(NULL, TRUE, TRUE, NULL);
     return listenIPC();
 }
@@ -154,7 +177,7 @@ int checkIPC(struct uae_prefs *p)
 	err = GetLastError();
 	if (!ok && err != ERROR_IO_PENDING) {
 	    write_log ("IPC: WriteFile() err=%d\n", err);
-	    disconnectIPC();
+	    resetIPC();
 	    return 0;
 	}
 	writepending = TRUE;
@@ -167,7 +190,7 @@ int checkIPC(struct uae_prefs *p)
 	    if (err == ERROR_IO_INCOMPLETE)
 		return 0;
 	    write_log ("IPC: GetOverlappedResult error %d\n", err);
-	    disconnectIPC();
+	    resetIPC();
 	    return 0;
 	}
 	if (!connected) {
@@ -195,7 +218,7 @@ int checkIPC(struct uae_prefs *p)
 	    } else {
 		write_log ("IPC: ReadFile() err=%d\n", err);
 	    }
-	    disconnectIPC();
+	    resetIPC();
 	    return 0;
 	}
     }
@@ -208,7 +231,7 @@ int checkIPC(struct uae_prefs *p)
     err = GetLastError();
     if (!ok && err != ERROR_IO_PENDING) {
 	write_log ("IPC: WriteFile() err=%d\n", err);
-	disconnectIPC();
+        resetIPC();
 	return 0;
     }
     writepending = TRUE;

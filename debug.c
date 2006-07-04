@@ -81,12 +81,14 @@ static char help[] = {
     "  z                     Step through one instruction - useful for JSR, DBRA etc\n"
     "  f                     Step forward until PC in RAM (\"boot block finder\")\n"
     "  f <address>           Add/remove breakpoint\n"
+    "  fa <address> [<start>] [<end>]\n"
+    "                        Find effective address <address>\n"
     "  fi                    Step forward until PC points to RTS/RTD or RTE\n"
     "  fi <opcode>           Step forward until PC points to <opcode>\n"
     "  fl                    List breakpoints\n"
     "  fd                    Remove all breakpoints\n"
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
-    "  e [<addr>]            Dump contents of all custom registers\n"
+    "  e                     Dump contents of all custom registers\n"
     "  i [<addr>]            Dump contents of interrupt and trap vectors\n"
     "  o <0-2|addr> [<lines>]View memory as Copper instructions\n"
     "  od                    Enable/disable Copper vpos/hpos tracing\n"
@@ -110,6 +112,7 @@ static char help[] = {
     "  sm <sprite mask>      Enable or disable sprites\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "                        Also enables extended disk logging\n"
+    "  dm                    Dump current address space map\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
 
@@ -1093,6 +1096,25 @@ static void writeintomem (char **c)
     console_out ("Wrote %x (%u) at %08x.%c\n", val, val, addr, cc);
 }
 
+static void memory_map_dump (void)
+{
+    int i, j, max;
+
+    max = currprefs.address_space_24 ? 256 : 65536;
+    j = 0;
+    for (i = 0; i < max - 1; i++) {
+	addrbank *a1 = mem_banks[i];
+        addrbank *a2 = mem_banks[i + 1];
+	if (a1 != a2) {
+	    char *name = a1->name;
+	    if (name == NULL)
+		name = "<none>";
+	    write_log("%08.8X %6dK %s\n", j << 16, (i - j + 1) << (16 - 10), name);
+	    j = i + 1;
+	}
+    }
+}
+
 static void show_exec_tasks (void)
 {
     uaecptr execbase = get_long (4);
@@ -1517,6 +1539,8 @@ static void debug_1 (void)
 	    if (*inptr == 'i') {
 		next_char(&inptr);
 		disk_debug(&inptr);
+	    }  else if(*inptr == 'm') {
+		memory_map_dump();
 	    } else {
 		uae_u32 daddr;
 		int count;

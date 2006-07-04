@@ -797,7 +797,23 @@ static int mediacheck (int unitnum)
     uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
     if (si[unitnum].handle == 0)
 	return 0;
-    return execscsicmd_out (unitnum, cmd, sizeof(cmd)) ? 1 : 0;
+    return execscsicmd_out(unitnum, cmd, sizeof(cmd)) ? 1 : 0;
+}
+
+static int mediacheck_full (int unitnum, struct device_info *di)
+{
+    uae_u8 cmd[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+    int ok, outlen;
+    uae_u8 *p = si[unitnum].buf;
+
+    di->bytespersector = 2048;
+    di->cylinders = 1;
+    ok = execscsicmd_in(unitnum, cmd, sizeof cmd, &outlen) ? 1 : 0;
+    if (!ok || outlen < 8)
+	return 0;
+    di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
+    di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    return 1;
 }
 
 static int open_scsi_device (int unitnum)
@@ -917,13 +933,17 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->bus = si[unitnum].scsibus;
     di->target = si[unitnum].target;
     di->lun = si[unitnum].lun;
+    mediacheck (unitnum);
     di->media_inserted = mediacheck (unitnum);
-    di->write_protected = 1;
-    di->bytespersector = 2048;
-    di->cylinders = 1;
     di->type = si[unitnum].type;
+    di->write_protected = di->type == INQ_ROMD ? 1 : 0;
+    mediacheck_full (unitnum, di);
     di->id = unitnum + 1;
     di->label = my_strdup (si[unitnum].label);
+    if (log_scsi) {
+	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
+	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);
+    }
     return di;
 }
 

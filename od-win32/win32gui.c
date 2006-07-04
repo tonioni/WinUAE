@@ -2585,7 +2585,7 @@ static urlinfo urls[] =
     {IDC_CLOANTOHOME, FALSE, "Cloanto's Amiga Forever", "http://www.amigaforever.com/"},
     {IDC_AMIGAHOME, FALSE, "Amiga Inc.", "http://www.amiga.com"},
     {IDC_PICASSOHOME, FALSE, "Picasso96 Home Page", "http://www.picasso96.cogito.de/"}, 
-    {IDC_UAEHOME, FALSE, "UAE Home Page", "http://www.freiburg.linux.de/~uae/"},
+    {IDC_UAEHOME, FALSE, "UAE Home Page", "http://uae.coresystems.de/"},
     {IDC_WINUAEHOME, FALSE, "WinUAE Home Page", "http://www.winuae.net/"},
     {IDC_AIABHOME, FALSE, "AIAB", "http://www.amigainabox.co.uk/"},
     {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
@@ -3322,10 +3322,8 @@ static void init_aboutdlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
     SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
-    for( i = 0; urls[i].id >= 0; i++ )
-    {
-	SetupRichText( hDlg, &urls[i] );
-    }
+    for(i = 0; urls[i].id >= 0; i++)
+	SetupRichText(hDlg, &urls[i]);
 }
 
 static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

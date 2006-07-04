@@ -762,6 +762,7 @@ int dos_errno (void)
 	return ERROR_OBJECT_NOT_AROUND;
 
      case ERROR_HANDLE_DISK_FULL:
+     case ERROR_DISK_FULL:
 	return ERROR_DISK_IS_FULL;
 
      case ERROR_SHARING_VIOLATION:
