@@ -4,22 +4,14 @@
  * (c) 2000-2006 Toni Wilen <twilen@arabuusimiehet.com>
  * (c) 2003 Mark Cox <markcox@email.com>
  *
- * Toni's unofficial UAE patches are located at:
- * http://www.arabuusimiehet.com/twilen/uae/
- *
- * HRTMon:
- *
- * HRTMon support is tested with version 2.25 + patch.
- * More information about HRTMon can be found from
- * http://dumbo.cryogen.ch/hrtmon/
- *
- *
- * Action Replay 1200:
+ * Action Replay 1200 (basically old version of HRTMon):
  *
  * 256k ROM at 0x800000
  *  64k RAM at 0x880000
  * status register at 0x8c0000 (bit 3 = freeze button, bit 4 = hide)
  * custom register writes stored at 0x88f000
+ * CIA-A at 0x88e000
+ * CIA-B at 0x88d000
  * freeze button = bus error + rom mapped at 0x0
  *
  * 14.06.2006 first implementation
@@ -184,6 +176,7 @@
 					  /* AR3: The action replay is activated by a breakpoint. */
 
 uae_u8 ar_custom[2*256];
+uae_u8 ar_ciaa[16], ar_ciab[16];
 
 int hrtmon_flag = ACTION_REPLAY_INACTIVE;
 static int ar1200;
@@ -192,7 +185,7 @@ static uae_u8 *hrtmemory = 0;
 static uae_u8 *armemory_rom = 0, *armemory_ram = 0;
 
 static uae_u32 hrtmem_mask;
-static uae_u8 *hrtmon_custom;
+static uae_u8 *hrtmon_custom, *hrtmon_ciaa, *hrtmon_ciab;
 uae_u32 hrtmem_start, hrtmem_size;
 
 static void hrtmon_unmap_banks(void);
@@ -703,16 +696,18 @@ static void action_replay_unmap_banks()
 {
     if(!armemory_rom)
 	return;
-
+    if (armodel == 1) {
+	action_replay_map_banks();
+	return;
+    }
     map_banks (&dummy_bank, arrom_start >> 16 , arrom_size >> 16, 0);
     map_banks (&dummy_bank, arram_start >> 16 , arram_size >> 16, 0);
 }
 
-void action_replay_map_banks()
+static void action_replay_map_banks()
 {
     if(!armemory_rom)
 	return;
-
     map_banks (&arrom_bank, arrom_start >> 16, arrom_size >> 16, 0);
     map_banks (&arram_bank, arram_start >> 16, arram_size >> 16, 0);
 }
@@ -791,11 +786,18 @@ typedef struct {
 static void hrtmon_go (void)
 {
     uaecptr old;
+    int i;
    
     cartridge_enter();
     hrtmon_flag = ACTION_REPLAY_ACTIVE;
     set_special (SPCFLAG_ACTION_REPLAY);
     memcpy (hrtmon_custom, ar_custom, 2 * 256);
+    for (i = 0; i < 16; i++) {
+	if (hrtmon_ciaa)
+	    hrtmon_ciaa[i * 256 + 1] = ar_ciaa[i];
+	if (hrtmon_ciab)
+	    hrtmon_ciab[i * 256 + 0] = ar_ciab[i];
+    }
     if (ar1200) {
         old = get_long((uaecptr)(regs.vbr + 0x8));
 	put_word (hrtmem_start + 0xc0000, 4);
@@ -821,7 +823,8 @@ void hrtmon_enter (void)
 
 void action_replay_enter(void)
 {
-    if (!armemory_rom) return;
+    if (!armemory_rom)
+	return;
     if (armodel == 1) {
 	write_log("AR1: Enter PC:%p\n", m68k_getpc());
 	action_replay_go1 (7);
@@ -867,7 +870,7 @@ void check_prefs_changed_carts(int in_memory_reset)
 	    action_replay_init(1);
 	    #endif
 	    #ifdef ACTION_REPLAY_HRTMON
-	    hrtmon_load(1);
+	    hrtmon_load();
 	    #endif
 	}
     }
@@ -875,28 +878,35 @@ void check_prefs_changed_carts(int in_memory_reset)
 
 void action_replay_reset(void)
 {
-    if (action_replay_flag == ACTION_REPLAY_INACTIVE)
-	return;
-    write_log_debug("action_replay_reset()\n");
-
-    if (savestate_state == STATE_RESTORE) {
-	if (regs.pc >= arrom_start && regs.pc <= arrom_start + arrom_size) {
-	    action_replay_flag = ACTION_REPLAY_ACTIVE;
-	    hide_cart (0);
-	} else {
-	    action_replay_flag = ACTION_REPLAY_IDLE;
-	    hide_cart (1);
+    if (hrtmemory) {
+	if (savestate_state == STATE_RESTORE) {
+	    if (m68k_getpc() >= hrtmem_start && m68k_getpc() <= hrtmem_start + hrtmem_size)
+		hrtmon_map_banks();
+	    else
+		hrtmon_unmap_banks();
 	}
-	return;
-    }
-
-    if (armodel == 1) {
-	/* We need to mark it as active here, because the kickstart rom jumps directly into it. */
-	action_replay_flag = ACTION_REPLAY_ACTIVE;
     } else {
-	write_log_debug("Setting flag to ACTION_REPLAY_WAITRESET\n");
-	write_log_debug("armode == %d\n", armode);
-	action_replay_flag = ACTION_REPLAY_WAITRESET;
+	if (action_replay_flag == ACTION_REPLAY_INACTIVE)
+	    return;
+
+	if (savestate_state == STATE_RESTORE) {
+	    if (m68k_getpc() >= arrom_start && m68k_getpc() <= arrom_start + arrom_size) {
+		action_replay_flag = ACTION_REPLAY_ACTIVE;
+		hide_cart (0);
+	    } else {
+		action_replay_flag = ACTION_REPLAY_IDLE;
+		hide_cart (1);
+	    }
+	    return;
+	}
+        if (armodel == 1) {
+	    /* We need to mark it as active here, because the kickstart rom jumps directly into it. */
+	    action_replay_flag = ACTION_REPLAY_ACTIVE;
+	} else {
+	    write_log_debug("Setting flag to ACTION_REPLAY_WAITRESET\n");
+	    write_log_debug("armode == %d\n", armode);
+	    action_replay_flag = ACTION_REPLAY_WAITRESET;
+	}
     }
 }
 
@@ -904,10 +914,14 @@ void action_replay_ciaread(void)
 {
     if (armodel < 2)
 	return;
-    if (action_replay_flag != ACTION_REPLAY_IDLE) return;
-    if (action_replay_flag == ACTION_REPLAY_INACTIVE) return;
-    if (armode < 2) /* If there are no active breakpoints*/ return;
-    if (m68k_getpc() >= 0x200) return;
+    if (action_replay_flag != ACTION_REPLAY_IDLE)
+	return;
+    if (action_replay_flag == ACTION_REPLAY_INACTIVE)
+	return;
+    if (armode < 2) /* If there are no active breakpoints*/
+	return;
+    if (m68k_getpc() >= 0x200)
+	return;
     action_replay_flag = ACTION_REPLAY_ACTIVATE;
     set_special (SPCFLAG_ACTION_REPLAY);
 }
@@ -923,7 +937,7 @@ int action_replay_freeze(void)
 	    armode = ARMODE_FREEZE;
 	}
 	return 1;
-    } else if(hrtmon_flag == ACTION_REPLAY_IDLE) {
+    } else {
 	hrtmon_flag = ACTION_REPLAY_ACTIVATE;
 	set_special (SPCFLAG_ACTION_REPLAY);
 	return 1;
@@ -933,12 +947,10 @@ int action_replay_freeze(void)
 
 void action_replay_chipwrite(void)
 {
-    if (action_replay_flag != ACTION_REPLAY_INACTIVE)
-	return;
-    if (armodel > 1) {
+    if (armodel == 2 || armodel == 3) {
 	action_replay_flag = ACTION_REPLAY_DORESET;
 	set_special (SPCFLAG_ACTION_REPLAY);
-    } else {
+    } else if (armodel == 1) {
 	/* copy 0x60 addr info to level 7 */
 	/* This is to emulate the 0x60 interrupt. */
 	copyfromamiga (artemp, regs.vbr + 0x60, 4);
@@ -959,7 +971,7 @@ void action_replay_hide(void)
 void hrtmon_hide(void)
 {
     HRTCFG *cfg = (HRTCFG*)hrtmemory;
-    if (cfg->entered)
+    if (!ar1200 && cfg->entered)
 	return;
     hrtmon_flag = ACTION_REPLAY_IDLE;
     cartridge_exit();
@@ -1441,7 +1453,7 @@ static void hrtmon_configure(void)
     do_put_mem_long(&cfg->max_chip, currprefs.chipmem_size);
 }
 
-int hrtmon_load(int activate)
+int hrtmon_load(void)
 {
     struct zfile *f;
     uae_u32 header[4];
@@ -1453,6 +1465,7 @@ int hrtmon_load(int activate)
       return 0;
 
     armodel = 0;
+    hrtmem_start = 0xa00000;
     if (!currprefs.cart_internal) {
 	if (strlen(currprefs.cartfile) == 0)
 	    return 0;
@@ -1465,6 +1478,7 @@ int hrtmon_load(int activate)
 	if (!memcmp (header, "ATZ!", 4)) {
 	    ar1200 = 1;
 	    armodel = 1200;
+	    hrtmem_start = 0x800000;
 	} else if (!memcmp (header, "HRT!", 4)) {
 	    ar1200 = 0;
 	} else {
@@ -1472,10 +1486,8 @@ int hrtmon_load(int activate)
 	    return 0;
 	}
     }
-
     hrtmem_size = 0x100000;
     hrtmem_mask = hrtmem_size - 1;
-    hrtmem_start = 0x800000;
     hrtmemory = mapped_malloc (hrtmem_size, "hrtmon");
     memset (hrtmemory, 0xff, 0x80000);
     if (currprefs.cart_internal) {
@@ -1493,6 +1505,8 @@ int hrtmon_load(int activate)
     hrtmem_bank.baseaddr = hrtmemory;
     hrtmon_flag = ACTION_REPLAY_IDLE;
     hrtmon_custom = hrtmemory + 0x08f000;
+    hrtmon_ciaa = hrtmemory + 0x08e000;
+    hrtmon_ciab = hrtmemory + 0x08d000;
     write_log("%s installed at %08.8X\n", ar1200 ? "AR1200" : "HRTMON", hrtmem_start);
     return 1;
 }
@@ -1518,7 +1532,7 @@ char arVersionString[AR_VER_STR_LEN+1];
 
 /* This function extracts the version info for AR2 and AR3. */
 
-void action_replay_version()
+void action_replay_version(void)
 {
     char* tmp;
     int iArVersionMajor = -1 ;
@@ -1601,23 +1615,96 @@ void action_replay_memory_reset(void)
     hrtmon_configure();
 }
 
+uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)
+{
+    uae_u8 *dstbak,*dst;
+
+    if (!hrtmemory)
+	return 0;
+    if (dstptr)
+	dstbak = dst = dstptr;
+    else
+	dstbak = dst = malloc (hrtmem_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
+    save_u8 (0);
+    save_u8 (0);
+    save_u32 (0);
+    strcpy (dst, currprefs.cartfile);
+    dst += strlen(dst) + 1;
+    save_u32 (0);
+    save_u32 (hrtmem_size);
+    memcpy (dst, hrtmemory, hrtmem_size);
+    dst += hrtmem_size;
+    save_u32 (sizeof ar_custom);
+    memcpy (dst, ar_custom, sizeof ar_custom);
+    dst += sizeof ar_custom;
+    save_u32 (sizeof ar_ciaa);
+    memcpy (dst, ar_ciaa, sizeof ar_ciaa);
+    dst += sizeof ar_ciaa;
+    save_u32 (sizeof ar_ciab);
+    memcpy (dst, ar_ciab, sizeof ar_ciab);
+    dst += sizeof ar_ciab;
+    *len = dst - dstbak;
+    return dstbak;
+}
+
+uae_u8 *restore_hrtmon (uae_u8 *src)
+{
+    action_replay_unload (1);
+    restore_u8 ();
+    restore_u8 ();
+    restore_u32 ();
+    strncpy (changed_prefs.cartfile, src, 255);
+    strcpy (currprefs.cartfile, changed_prefs.cartfile);
+    src += strlen(src) + 1;
+    hrtmon_load ();
+    if (restore_u32() != 0)
+	return src;
+    if (restore_u32() != hrtmem_size)
+	return src;
+    if (hrtmemory)
+	memcpy (hrtmemory, src, hrtmem_size);
+    src += hrtmem_size;
+    restore_u32();
+    memcpy (ar_custom, src, sizeof ar_custom);
+    src += sizeof ar_custom;
+    restore_u32();
+    memcpy (ar_ciaa, src, sizeof ar_ciaa);
+    src += sizeof ar_ciaa;
+    restore_u32();
+    memcpy (ar_ciab, src, sizeof ar_ciab);
+    src += sizeof ar_ciab;
+    return src;
+}
+
 uae_u8 *save_action_replay (int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
 
-    *len = 1;
     if (!armemory_ram || !armemory_rom || !armodel)
 	return 0;
-    *len = 1 + strlen(currprefs.cartfile) + 1 + arram_size + 256;
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (*len);
+	dstbak = dst = malloc (arram_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
+    save_u8 (0);
     save_u8 (armodel);
+    save_u32 (get_crc32 (armemory_rom + 4, arrom_size - 4));
     strcpy (dst, currprefs.cartfile);
     dst += strlen(dst) + 1;
+    save_u32 (arrom_size);
+    save_u32 (arram_size);
     memcpy (dst, armemory_ram, arram_size);
-    save_u32 (get_crc32 (armemory_rom + 4, arrom_size - 4));
+    dst += arram_size;
+    save_u32 (sizeof ar_custom);
+    memcpy (dst, ar_custom, sizeof ar_custom);
+    dst += sizeof ar_custom;
+    save_u32 (sizeof ar_ciaa);
+    memcpy (dst, ar_ciaa, sizeof ar_ciaa);
+    dst += sizeof ar_ciaa;
+    save_u32 (sizeof ar_ciab);
+    memcpy (dst, ar_ciab, sizeof ar_ciab);
+    dst += sizeof ar_ciab;
+    *len = dst - dstbak;
     return dstbak;
 }
 
@@ -1626,20 +1713,29 @@ uae_u8 *restore_action_replay (uae_u8 *src)
     uae_u32 crc32;
 
     action_replay_unload (1);
+    restore_u8 ();
     armodel = restore_u8 ();
     if (!armodel)
 	return src;
+    crc32 = restore_u32 ();
     strncpy (changed_prefs.cartfile, src, 255);
     strcpy (currprefs.cartfile, changed_prefs.cartfile);
     src += strlen(src) + 1;
     action_replay_load ();
-    if (armemory_ram) {
+    if (restore_u32() != arrom_size)
+	return src;
+    if (restore_u32() != arram_size)
+	return src;
+    if (armemory_ram)
 	memcpy (armemory_ram, src, arram_size);
-	memcpy (ar_custom, armemory_ram + 0xf000, 2 * 256);
-	src += arram_size;
-    }
-    crc32 = restore_u32 ();
-    src += 256;
+    src += arram_size;
+    restore_u32();
+    memcpy (ar_custom, src, sizeof ar_custom);
+    src += sizeof ar_custom;
+    restore_u32();
+    src += sizeof ar_ciaa;
+    restore_u32();
+    src += sizeof ar_ciab;
     return src;
 }
 

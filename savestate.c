@@ -448,6 +448,8 @@ void restore_state (char *filename)
 #ifdef ACTION_REPLAY
 	else if (!strcmp (name, "ACTR"))
 	    end = restore_action_replay (chunk);
+	else if (!strcmp (name, "HRTM"))
+	    end = restore_hrtmon (chunk);
 #endif
 #ifdef FILESYS
 	else if (!strcmp (name, "FSYS"))
@@ -649,6 +651,8 @@ void save_state (char *filename, char *description)
 #ifdef ACTION_REPLAY
     dst = save_action_replay (&len, 0);
     save_chunk (f, dst, len, "ACTR", 0);
+    dst = save_hrtmon (&len, 0);
+    save_chunk (f, dst, len, "HRTM", 0);
 #endif
 #ifdef FILESYS
     for (i = 0; i < nr_units (currprefs.mountinfo); i++) {

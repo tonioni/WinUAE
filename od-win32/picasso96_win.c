@@ -670,11 +670,13 @@ static void do_blit( struct RenderInfo *ri, int Bpp,
     uae_u8 *dstp, *srcp;
     int orig_height = height;
 
-    if( picasso96_state.BigAssBitmap && can_do_blit){
+    if(picasso96_state.BigAssBitmap && can_do_blit){
 	srcx=dstx;
 	srcy=dsty;
 	can_do_blit=0;
     } //hack to use cpu rotines for scrolling in big Screens
+    if (picasso96_state.XOffset < 0)
+	can_do_blit = 0;
     
     dstx=dstx-picasso96_state.XOffset;
     dsty=dsty-picasso96_state.YOffset;

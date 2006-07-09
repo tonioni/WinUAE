@@ -802,17 +802,23 @@ static int mediacheck (int unitnum)
 
 static int mediacheck_full (int unitnum, struct device_info *di)
 {
-    uae_u8 cmd[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+    uae_u8 cmd1[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+    uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
     int ok, outlen;
     uae_u8 *p = si[unitnum].buf;
 
     di->bytespersector = 2048;
     di->cylinders = 1;
-    ok = execscsicmd_in(unitnum, cmd, sizeof cmd, &outlen) ? 1 : 0;
-    if (!ok || outlen < 8)
-	return 0;
-    di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-    di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    di->write_protected = 1;
+    ok = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen) ? 1 : 0;
+    if (ok) {
+        di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
+	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    }
+    ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
+    if (ok) {
+	di->write_protected = (p[3]& 0x80) ? 1 : 0;
+    }
     return 1;
 }
 
@@ -933,10 +939,8 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->bus = si[unitnum].scsibus;
     di->target = si[unitnum].target;
     di->lun = si[unitnum].lun;
-    mediacheck (unitnum);
     di->media_inserted = mediacheck (unitnum);
     di->type = si[unitnum].type;
-    di->write_protected = di->type == INQ_ROMD ? 1 : 0;
     mediacheck_full (unitnum, di);
     di->id = unitnum + 1;
     di->label = my_strdup (si[unitnum].label);
@@ -968,8 +972,15 @@ static int check_isatapi (int unitnum)
     return si[unitnum].isatapi;
 }
 
+static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info *dsi)
+{
+    dsi->buffer = si[unitnum].buf;
+    dsi->bufsize = DEVICE_SCSI_BUFSIZE;
+    return dsi;
+}
+
 struct device_functions devicefunc_win32_aspi = {
     open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
     execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-    0, 0, 0, 0, 0, 0, 0, check_isatapi
+    0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info
 };

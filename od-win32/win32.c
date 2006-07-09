@@ -1442,7 +1442,7 @@ HMODULE language_load(WORD language)
 	}
 	if (fail) {
 	    DWORD err = GetLastError();
-	    if (err != 126)
+	    if (err != ERROR_MOD_NOT_FOUND && err != ERROR_DLL_NOT_FOUND)
 		write_log ("Translation DLL '%s' failed to load, error %d\n", dllbuf, GetLastError ());
 	}
 	if (result && !success) {
@@ -2582,11 +2582,6 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 		efix (&ctx->Edx, p, ps, &got);
 		efix (&ctx->Esi, p, ps, &got);
 		efix (&ctx->Edi, p, ps, &got);
-#if 0
-		gui_message ("Experimental access violation trap code activated\n"
-		    "Trying to prevent WinUAE crash.\nFix %s (68KPC=%08.8X HOSTADDR=%p)\n",
-			got ? "ok" : "failed", m68k_getpc(), p);
-#endif
 		write_log ("Access violation! (68KPC=%08.8X HOSTADDR=%p)\n", m68k_getpc(), p);
 		if (got == 0) {
 		    write_log ("failed to find and fix the problem (%p). crashing..\n", p);
@@ -2610,11 +2605,11 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 	HMODULE dll = NULL;
 	struct tm when;
 	__time64_t now;
-	
-	_time64(&now);
-	when = *_localtime64(&now);
-	if (GetModuleFileName(NULL, path, MAX_DPATH)) {
+
+	if (os_winnt && GetModuleFileName(NULL, path, MAX_DPATH)) {
 	    char *slash = strrchr (path, '\\');
+	    _time64(&now);
+	    when = *_localtime64(&now);
 	    strcpy (path2, path);
 	    if (slash) {
 		strcpy (slash + 1, "DBGHELP.DLL");

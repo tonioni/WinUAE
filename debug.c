@@ -1098,19 +1098,22 @@ static void writeintomem (char **c)
 
 static void memory_map_dump (void)
 {
-    int i, j, max;
+    int i, j, k, max;
+    addrbank *a1 = mem_banks[0];
 
     max = currprefs.address_space_24 ? 256 : 65536;
     j = 0;
-    for (i = 0; i < max - 1; i++) {
-	addrbank *a1 = mem_banks[i];
-        addrbank *a2 = mem_banks[i + 1];
+    for (i = 0; i < max + 1; i++) {
+	addrbank *a2 = NULL;
+	if (i < max)
+	    a2 = mem_banks[i];
 	if (a1 != a2) {
 	    char *name = a1->name;
 	    if (name == NULL)
 		name = "<none>";
-	    write_log("%08.8X %6dK %s\n", j << 16, (i - j + 1) << (16 - 10), name);
-	    j = i + 1;
+	    write_log("%08.8X %6dK %s\n", j << 16, (i - j) << (16 - 10), name);
+	    j = i;
+	    a1 = a2;
 	}
     }
 }

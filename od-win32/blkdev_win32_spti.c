@@ -54,11 +54,11 @@ struct dev_info_spti {
     int type;
     int bus, path, target, lun;
     int scanmode;
+    uae_u8 *scsibuf;
 };
 
 static uae_sem_t scgp_sem;
 static struct dev_info_spti dev_info[MAX_TOTAL_DEVICES];
-static uae_u8 *scsibuf;
 
 static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
 {
@@ -226,14 +226,14 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 
 static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 {
-    int v = execscsicmd (unitnum, data, len, scsibuf, DEVICE_SCSI_BUFSIZE);
+    int v = execscsicmd (unitnum, data, len, dev_info[unitnum].scsibuf, DEVICE_SCSI_BUFSIZE);
     if (v < 0)
 	return 0;
     if (v == 0)
 	return 0;
     if (outlen)
 	*outlen = v;
-    return scsibuf;
+    return dev_info[unitnum].scsibuf;
 }
 
 static int total_devices;
@@ -253,13 +253,15 @@ static void free_scsi_device(int dev)
     xfree(dev_info[dev].name);
     xfree(dev_info[dev].drvpath);
     xfree(dev_info[dev].inquirydata);
+    VirtualFree (dev_info[dev].scsibuf, 0, MEM_RELEASE);
     dev_info[dev].name = NULL;
     dev_info[dev].drvpath = NULL;
     dev_info[dev].inquirydata = NULL;
+    dev_info[dev].scsibuf = NULL;
     memset(&dev_info[dev], 0, sizeof (struct dev_info_spti));
 }
 
-int rescan(void);
+static int rescan(void);
 static int open_scsi_bus (int flags)
 {
     int i;
@@ -270,8 +272,6 @@ static int open_scsi_bus (int flags)
 	memset (&dev_info[i], 0, sizeof (struct dev_info_spti));
 	dev_info[i].handle = INVALID_HANDLE_VALUE;
     }
-    if (!scsibuf)
-	scsibuf = VirtualAlloc (NULL, DEVICE_SCSI_BUFSIZE, MEM_COMMIT, PAGE_READWRITE);
     rescan();
     return total_devices;
 }
@@ -279,8 +279,6 @@ static int open_scsi_bus (int flags)
 static void close_scsi_bus (void)
 {
     int i;
-    VirtualFree (scsibuf, 0, MEM_RELEASE);
-    scsibuf = 0;
     for (i = 0; i < total_devices; i++)
 	free_scsi_device(i);
 }
@@ -326,19 +324,26 @@ static int mediacheck (int unitnum)
 
 static int mediacheck_full (int unitnum, struct device_info *di)
 {
-    uae_u8 cmd[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+    uae_u8 cmd1[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+    uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
     char p[10];
     int ok;
 
     di->bytespersector = 2048;
     di->cylinders = 1;
-    ok = execscsicmd(unitnum, cmd, sizeof cmd, p, sizeof p) >= 0 ? 1 : 0;
-    if (!ok)
-	return 0;
-    di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-    di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    di->write_protected = 1;
+    ok = execscsicmd(unitnum, cmd1, sizeof cmd1, p, sizeof p) >= 0 ? 1 : 0;
+    if (ok) {
+	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
+	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+    }
+    ok = execscsicmd(unitnum, cmd2, sizeof cmd2, p, sizeof p) >= 0 ? 1 : 0;
+    if (ok) {
+	di->write_protected = (p[3]& 0x80) ? 1 : 0;
+    }
     return 1;
 }
+
 int open_scsi_device (int unitnum)
 {
     HANDLE h;
@@ -356,6 +361,8 @@ int open_scsi_device (int unitnum)
     } else {
         dev = my_strdup(di->drvpath);
     }
+    if (!di->scsibuf)
+	di->scsibuf = VirtualAlloc (NULL, DEVICE_SCSI_BUFSIZE, MEM_COMMIT, PAGE_READWRITE);
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     di->handle = h;
     if (h == INVALID_HANDLE_VALUE) {
@@ -442,9 +449,8 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->target = unitnum;
     di->lun = 0;
     di->media_inserted = mediacheck (unitnum);
-    di->write_protected = di->type == INQ_ROMD ? 1 : 0;
-    mediacheck_full (unitnum, di);
     di->write_protected = 1;
+    mediacheck_full (unitnum, di);
     di->type = dev_info[unitnum].type;
     di->id = unitnum + 1;
     if (log_scsi) {
@@ -475,10 +481,17 @@ static int check_isatapi (int unitnum)
     return dev_info[unitnum].isatapi;
 }
 
+static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info *dsi)
+{
+    dsi->buffer = dev_info[unitnum].scsibuf;
+    dsi->bufsize = DEVICE_SCSI_BUFSIZE;
+    return dsi;
+}
+
 struct device_functions devicefunc_win32_spti = {
     open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
     execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-    0, 0, 0, 0, 0, 0, 0, check_isatapi
+    0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info
 };
 
 static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)

@@ -42,11 +42,17 @@ struct device_info {
     char *label;
 };
 
+struct device_scsi_info {
+    uae_u8 *buffer;
+    int bufsize;
+};
+
 typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
 typedef int (*open_device_func)(int);
 typedef void (*close_device_func)(int);
 typedef struct device_info* (*info_device_func)(int, struct device_info*);
+typedef struct device_scsi_info* (*scsiinfo_func)(int, struct device_scsi_info*);
 typedef uae_u8* (*execscsicmd_out_func)(int, uae_u8*, int);
 typedef uae_u8* (*execscsicmd_in_func)(int, uae_u8*, int, int*);
 typedef int (*execscsicmd_direct_func)(int, uaecptr);
@@ -80,6 +86,8 @@ struct device_functions {
 
     isatapi_func isatapi;
 
+    scsiinfo_func scsiinfo;
+
     
 };
 
@@ -89,13 +97,15 @@ extern int device_func_init(int flags);
 extern int sys_command_open (int mode, int unitnum);
 extern void sys_command_close (int mode, int unitnum);
 extern struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di);
-extern void sys_command_pause (int mode, int unitnum, int paused);
-extern void sys_command_stop (int mode, int unitnum);
-extern int sys_command_play (int mode, int unitnum, uae_u32 startmsf, uae_u32 endmsf, int);
-extern uae_u8 *sys_command_qcode (int mode, int unitnum);
-extern uae_u8 *sys_command_toc (int mode, int unitnum);
-extern uae_u8 *sys_command_read (int mode, int unitnum, int offset);
-extern int sys_command_write (int mode, int unitnum, int offset, uae_u8 *data);
+extern struct device_scsi_info *sys_command_scsiinfo (int mode, int unitnum, struct device_scsi_info *di);
+extern void sys_command_cd_pause (int mode, int unitnum, int paused);
+extern void sys_command_cd_stop (int mode, int unitnum);
+extern int sys_command_cd_play (int mode, int unitnum, uae_u32 startmsf, uae_u32 endmsf, int);
+extern uae_u8 *sys_command_cd_qcode (int mode, int unitnum);
+extern uae_u8 *sys_command_cd_toc (int mode, int unitnum);
+extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);
+extern uae_u8 *sys_command_read (int mode, int unitnum, int offset, int length);
+extern uae_u8 *sys_command_write (int mode, int unitnum, int offset, int length);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
 
 void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);

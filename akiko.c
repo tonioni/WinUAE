@@ -404,9 +404,9 @@ static void cdaudiostop	(void)
     cdrom_paused = 0;
     if (unitnum < 0)
 	return;
-    sys_command_pause (DF_IOCTL, unitnum, 0);
-    sys_command_stop (DF_IOCTL, unitnum);
-    sys_command_pause (DF_IOCTL, unitnum, 1);
+    sys_command_cd_pause (DF_IOCTL, unitnum, 0);
+    sys_command_cd_stop (DF_IOCTL, unitnum);
+    sys_command_cd_pause (DF_IOCTL, unitnum, 1);
 }
 
 static uae_u32 last_play_end;
@@ -416,7 +416,7 @@ static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int	scan)
 	endmsf = last_play_end;
     else
 	last_play_end = endmsf;
-    return sys_command_play (DF_IOCTL, unitnum,startmsf, endmsf, scan);
+    return sys_command_cd_play (DF_IOCTL, unitnum,startmsf, endmsf, scan);
 }
 
 
@@ -429,7 +429,7 @@ static int cd_qcode (uae_u8 *d)
     if (d)
 	memset (d, 0, 11);
     last_play_pos = 0;
-    buf = sys_command_qcode (DF_IOCTL, unitnum);
+    buf = sys_command_cd_qcode (DF_IOCTL, unitnum);
     if (!buf)
 	return 0;
     as = buf[1];
@@ -480,7 +480,7 @@ static int cdrom_toc (void)
 
     cdrom_toc_counter = -1;
     cdrom_toc_entries = 0;
-    buf = sys_command_toc (DF_IOCTL, unitnum);
+    buf = sys_command_cd_toc (DF_IOCTL, unitnum);
     if (!buf)
 	return 1;
     i = (buf[0] << 8) | (buf[1] << 0);
@@ -532,7 +532,7 @@ static int sys_cddev_open (void)
 		    first = unitnum;
 		if (!cdrom_toc ()) {
 		    if (cdrom_data_end > 0) {
-			uae_u8 *p = sys_command_read (DF_IOCTL, unitnum, 16);
+			uae_u8 *p = sys_command_cd_read (DF_IOCTL, unitnum, 16);
 			if (p) {
 			    if (!memcmp (p + 8, "CDTV", 4) || !memcmp (p + 8, "CD32", 4)) {
 				write_log ("CD32 or CDTV\n");
@@ -669,7 +669,7 @@ static int cdrom_command_pause (void)
 	return 2;
     if (cdrom_paused)
 	return 2;
-    sys_command_pause (DF_IOCTL, unitnum,1);
+    sys_command_cd_pause (DF_IOCTL, unitnum,1);
     cdrom_paused = 1;
     return 2;
 }
@@ -684,7 +684,7 @@ static int cdrom_command_unpause (void)
     if (!cdrom_playing)
 	return 2;
     cdrom_paused = 0;
-    sys_command_pause (DF_IOCTL, unitnum,0);
+    sys_command_cd_pause (DF_IOCTL, unitnum,0);
     return 2;
 }
 
@@ -979,7 +979,7 @@ static void *akiko_thread (void	*null)
 	    while (offset < SECTOR_BUFFER_SIZE) {
 		p = 0;
 		if (sector < cdrom_data_end)
-		    p = sys_command_read (DF_IOCTL, unitnum, sector);
+		    p = sys_command_cd_read (DF_IOCTL, unitnum, sector);
 		if (p)
 		    memcpy (sector_buffer_2 + offset * 2048, p, 2048);
 		sector_buffer_info_2[offset] = p ? 3 : 0;
@@ -1442,18 +1442,18 @@ uae_u8 *restore_akiko(uae_u8 *src)
     if (cdrom_toc_counter == 255)
 	cdrom_toc_counter = -1;
     if (cdrom_playing)
-	sys_command_play (DF_IOCTL, unitnum, last_play_pos, last_play_end, 0);
+	sys_command_cd_play (DF_IOCTL, unitnum, last_play_pos, last_play_end, 0);
 
     return src;
 }
 void akiko_entergui (void)
 {
     if (cdrom_playing)
-	sys_command_pause (DF_IOCTL, unitnum, 1);
+	sys_command_cd_pause (DF_IOCTL, unitnum, 1);
 }
 void akiko_exitgui (void)
 {
     if (cdrom_playing)
-	sys_command_pause (DF_IOCTL, unitnum, 0);
+	sys_command_cd_pause (DF_IOCTL, unitnum, 0);
 }
 

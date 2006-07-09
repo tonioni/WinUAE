@@ -25,14 +25,22 @@ DD0000 to DDFFFF		64 KB RESERVED for DMA controller
 DE0000 to DEFFFF		64 KB Not Used
 */
 
+#define GAYLE_LOG 0
+
 static int ide_read (uaecptr addr, int size)
 {
-    //write_log ("IDE_READ %08.8X\n", addr);
+    addr &= 0xffff;
+    if (GAYLE_LOG)
+	write_log ("IDE_READ %08.8X\n", addr);
+    if (addr == 0x201c) // AR1200 IDE detection hack
+	return 0;
     return 0xffff;
 }
 static void ide_write (uaecptr addr, int val, int size)
 {
-    //write_log ("IDE_WRITE %08.8X=%08.8X (%d)\n", addr, val, size);
+    addr &= 0xffff;
+    if (GAYLE_LOG)
+	write_log ("IDE_WRITE %08.8X=%08.8X (%d)\n", addr, val, size);
 }
 
 static int gayle_read (uaecptr addr, int size)
@@ -40,7 +48,8 @@ static int gayle_read (uaecptr addr, int size)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    //write_log ("GAYLE_READ %08.8X PC=%08.8X\n", addr, m68k_getpc());
+    if (GAYLE_LOG)
+	write_log ("GAYLE_READ %08.8X PC=%08.8X\n", addr, m68k_getpc());
     addr &= 0xfffff;
     if(addr >= 0xa0000 && addr <= 0xaffff)
 	return ide_read(addr, size);
@@ -55,7 +64,8 @@ static void gayle_write (uaecptr addr, int val, int size)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    //write_log ("GAYLE_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, m68k_getpc());
+    if (GAYLE_LOG)
+	write_log ("GAYLE_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, m68k_getpc());
     addr &= 0x3ffff;
     if(addr >= 0xa0000 && addr <= 0xaffff)
 	ide_write(addr, val, size);

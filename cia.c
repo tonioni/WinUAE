@@ -659,6 +659,9 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #ifdef CIA_DEBUG_W
     write_log("W_CIAA: bfe%x01 %02.2X %08.8X\n", addr, val, m68k_getpc());
 #endif
+#ifdef ACTION_REPLAY
+    ar_ciaa[addr & 0xf] = val;
+#endif
     switch (addr & 0xf) {
     case 0:
 #ifdef DONGLE_DEBUG
@@ -810,6 +813,9 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 {
 #ifdef CIA_DEBUG_W
     write_log("W_CIAB: bfd%x00 %02.2X %08.8X\n", addr, val, m68k_getpc());
+#endif
+#ifdef ACTION_REPLAY
+    ar_ciab[addr & 0xf] = val;
 #endif
     switch (addr & 0xf) {
     case 0:

@@ -501,10 +501,10 @@ static void show_rom_list (void)
     /* A500 */
     p2 = strchr (p1, '\n');
     if (!p2) goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, " Kickstart 1.2:");
+    *p2++= 0; strcat (p, p1); strcat (p, " Boot ROM v1.2:");
     roms[0] = 5; roms[1] = 4; roms[2] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    strcat (p, p1); strcat (p, " Kickstart 1.3:");
+    strcat (p, p1); strcat (p, " Boot ROM v1.3:");
     roms[0] = 6; roms[1] = 32; roms[2] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
     p1 = p2;

@@ -394,7 +394,7 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 	write_log ("asyncronous request=%08.8X aborted, error=%d\n", request, errcode);
 }
 
-static int command_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
 {
     uae_u8 *temp;
     int len, sector;
@@ -404,8 +404,9 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, int offs
     sector = offset / dev->di.bytespersector;
     *io_actual = 0;
     while (length > 0) {
-	temp = sys_command_read (mode, dev->unitnum, sector);
-	if (!temp) return 20;
+	temp = sys_command_cd_read (mode, dev->unitnum, sector);
+	if (!temp)
+	    return 20;
 	if (startoffset > 0) {
 	    len = dev->di.bytespersector - startoffset;
 	    if (len > length) len = length;
@@ -449,7 +450,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     switch (command)
     {
 	case CMD_READ:
-	io_error = command_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	break;
 	case CMD_WRITE:
 	case CMD_FORMAT:

@@ -101,6 +101,8 @@ extern uae_u8 *save_rom (int, int *, uae_u8 *);
 
 extern uae_u8 *restore_action_replay (uae_u8 *);
 extern uae_u8 *save_action_replay (int *, uae_u8 *);
+extern uae_u8 *restore_hrtmon (uae_u8 *);
+extern uae_u8 *save_hrtmon (int *, uae_u8 *);
 
 extern void savestate_initsave (char *filename, int docompress);
 extern void save_state (char *filename, char *description);

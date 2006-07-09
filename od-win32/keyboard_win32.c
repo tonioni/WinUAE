@@ -449,11 +449,15 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    break;
 	}
     }
+
     if (code) {
 	inputdevice_add_inputcode (code, 1);
 	return;
     }
+
     if (scancode == specialkeycode())
+	return;
+    if (specialpressed())
 	return;
 
     if (scancode == DIK_CAPITAL) {

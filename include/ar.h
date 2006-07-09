@@ -60,12 +60,12 @@ extern void hrtmon_breakenter (void);
 extern void hrtmon_ciaread (void);
 extern void hrtmon_hide (void);
 extern void hrtmon_reset (void);
-extern int hrtmon_load (int);
+extern int hrtmon_load (void);
 extern void hrtmon_map_banks(void);
 
 /*extern uae_u8 *hrtmemory;*/
 extern uae_u32 hrtmem_start, hrtmem_size;
 
-extern uae_u8 ar_custom[2*256];
+extern uae_u8 ar_custom[2*256], ar_ciaa[16], ar_ciab[16];
 
 extern int hrtmon_lang;

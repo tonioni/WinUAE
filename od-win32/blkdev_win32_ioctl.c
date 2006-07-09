@@ -453,7 +453,7 @@ struct device_functions devicefunc_win32_ioctl = {
     open_bus, close_bus, open_device, close_device, info_device,
     0, 0, 0,
     ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_qcode,
-    ioctl_command_toc, ioctl_command_read, ioctl_command_write
+    ioctl_command_toc, ioctl_command_read, ioctl_command_write, 0
 };
 
 #endif
