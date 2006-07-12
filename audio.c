@@ -318,7 +318,8 @@ static float a500e_filter2_a0;
 static float filter_a0; /* a500 and a1200 use the same */
 
 enum {
-  FILTER_MODEL_A500 = 1,
+  FILTER_NONE = 0,
+  FILTER_MODEL_A500,
   FILTER_MODEL_A1200
 };
 
@@ -344,9 +345,10 @@ static int filter(int input, struct filter_state *fs)
     float normal_output, led_output;
 
     input = (uae_s16)input;
-
     switch (sound_use_filter) {
-        
+    
+    case FILTER_NONE:
+	return input;
     case FILTER_MODEL_A500: 
 	fs->rc1 = a500e_filter1_a0 * input + (1 - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET;
 	fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1-a500e_filter2_a0) * fs->rc2;
@@ -496,14 +498,19 @@ STATIC_INLINE void samplexx_sinc_handler (int *datasp)
     winsinc = winsinc_integral[n];
 
     for (i = 0; i < 4; i += 1) {
-        int j;
+        int j, v;
         struct audio_channel_data *acd = &audio_channel[i];
         /* The sum rings with harmonic components up to infinity... */
 	int sum = acd->output_state << 17;
         /* ...but we cancel them through mixing in BLEPs instead */
         for (j = 0; j < acd->sinc_queue_length; j += 1)
             sum -= winsinc[acd->sinc_queue[j].age] * acd->sinc_queue[j].output;
-        datasp[i] = sum >> 17;
+        v = sum >> 17;
+	if (v > 32767)
+	    v = 32767;
+	else if (v < -32768)
+	    v = -32768;
+	datasp[i] = v;
     }
 }
 
@@ -513,10 +520,6 @@ static void sample16i_sinc_handler (void)
     
     samplexx_sinc_handler (datas);
     data1 = datas[0] + datas[3] + datas[1] + datas[2];
-    if (data1 > 32767)
-	data1 = 32767;
-    else if (data1 < -32768)
-	data1 = -32768;
     FINISH_DATA (data1, 16, 2);
     PUT_SOUND_WORD_MONO (data1);
     check_sound_buffers ();
@@ -730,15 +733,7 @@ static void sample16si_sinc_handler (void)
 
     samplexx_sinc_handler (datas);
     data1 = datas[0] + datas[3];
-    if (data1 > 32767)
-	data1 = 32767;
-    else if (data1 < -32768)
-	data1 = -32768;
     data2 = datas[1] + datas[2];
-    if (data2 > 32767)
-	data2 = 32767;
-    else if (data2 < -32768)
-	data2 = -32768;
     FINISH_DATA (data1, 16, 1);
     put_sound_word_left (data1);
     FINISH_DATA (data2, 16, 1);
@@ -1360,7 +1355,7 @@ void update_audio (void)
 	if (currprefs.produce_sound > 1) {
 	    next_sample_evtime -= best_evtime;
 	    if (sample_prehandler)
-		sample_prehandler(best_evtime);
+		sample_prehandler(best_evtime / CYCLE_UNIT);
 	    if (next_sample_evtime == 0) {
 		next_sample_evtime = scaled_sample_evtime;
 		(*sample_handler) ();

@@ -1465,7 +1465,7 @@ int hrtmon_load(void)
       return 0;
 
     armodel = 0;
-    hrtmem_start = 0xa00000;
+    hrtmem_start = 0xa10000;
     if (!currprefs.cart_internal) {
 	if (strlen(currprefs.cartfile) == 0)
 	    return 0;
@@ -1488,7 +1488,7 @@ int hrtmon_load(void)
     }
     hrtmem_size = 0x100000;
     hrtmem_mask = hrtmem_size - 1;
-    hrtmemory = mapped_malloc (hrtmem_size, "hrtmon");
+    hrtmemory = mapped_malloc (hrtmem_size, ar1200 ? "arhrtmon" : "hrtmon");
     memset (hrtmemory, 0xff, 0x80000);
     if (currprefs.cart_internal) {
 	#ifdef ACTION_REPLAY_HRTMON

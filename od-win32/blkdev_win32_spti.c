@@ -332,6 +332,8 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     di->bytespersector = 2048;
     di->cylinders = 1;
     di->write_protected = 1;
+    if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
+	return 0;
     ok = execscsicmd(unitnum, cmd1, sizeof cmd1, p, sizeof p) >= 0 ? 1 : 0;
     if (ok) {
 	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];

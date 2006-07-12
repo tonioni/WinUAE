@@ -1395,8 +1395,7 @@ HMODULE language_load(WORD language)
     if (language == LANG_FRENCH)
 	hrtmon_lang = 3;
     dllname = getlanguagename (language);
-    if (dllname)
-    {
+    if (dllname) {
 	DWORD  dwVersionHandle, dwFileVersionInfoSize;
 	LPVOID lpFileVersionData = NULL;
 	BOOL   success = FALSE;
@@ -2723,7 +2722,7 @@ static void LLError(const char *s)
 {
     DWORD err = GetLastError();
 
-    if (err == ERROR_MOD_NOT_FOUND)
+    if (err == ERROR_MOD_NOT_FOUND || err == ERROR_DLL_NOT_FOUND)
 	return;
     write_log("%s failed to open %d\n", s, err);
 }
