@@ -31,7 +31,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // Dialog
 //
 
-IDD_KICKSTART DIALOGEX 0, 0, 300, 138
+IDD_KICKSTART DIALOGEX 0, 0, 300, 176
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
@@ -54,6 +54,9 @@ BEGIN
     RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,112,75,10
     EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
+    GROUPBOX        "HRTMon Settings",-1,5,136,290,31
+    CONTROL         "Enable HRTMon [] HRTMon is monitor/debugger similar to Action Replay series, default activation key is Page Up.",IDC_HRTMON,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,89,148,75,10
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 300, 202
@@ -81,9 +84,9 @@ BEGIN
     CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,16,45,10
     CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,32,39,10
     GROUPBOX        "Line Mode",IDC_LINEMODE,222,73,61,73
-    CONTROL         "Normal",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,233,89,38,10
-    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,233,105,41,10
-    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,233,121,40,10
+    CONTROL         "Normal",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,231,89,44,10
+    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,105,45,10
+    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,121,46,10
     COMBOBOX        IDC_DA_MODE,35,183,58,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | NOT WS_VISIBLE | WS_TABSTOP,99,179,101,20
     PUSHBUTTON      "Detect Pixel Format",IDC_TEST16BIT,210,181,73,14
@@ -130,9 +133,9 @@ BEGIN
     CONTROL         "68020 + FPU",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,10,93,64,10
     CONTROL         "68040",IDC_CPU6,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,10,108,66,10
     CONTROL         "More compatible [] Emulate 68000's prefetch registers. More compatible but slower.",IDC_COMPATIBLE,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,130,70,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,126,73,10
     CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or 68040 CPU.",IDC_JITENABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,145,64,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,149,73,10
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,90,5,205,86
     CONTROL         "Fastest possible, but maintain chipset timing",IDC_CS_HOST,
                     "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,95,18,195,10
@@ -156,9 +159,11 @@ BEGIN
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,230,128,34,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,230,142,45,10
     CONTROL         "After RTG",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,230,155,64,10
+    CONTROL         "More accurate FPU [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,137,73,10
 END
 
-IDD_FLOPPY DIALOGEX 0, 0, 300, 224
+IDD_FLOPPY DIALOGEX 0, 0, 300, 240
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
@@ -190,9 +195,9 @@ BEGIN
     CONTROL         "",IDC_DF3WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,238,111,9,15
     PUSHBUTTON      "Eject",IDC_EJECT3,253,110,30,15
     PUSHBUTTON      "...",IDC_DF3,287,109,10,15
-    GROUPBOX        "New Floppy Disk Image",IDC_SETTINGSTEXT,5,183,289,35
+    GROUPBOX        "New Floppy Disk Image",IDC_SETTINGSTEXT,5,183,289,49
     COMBOBOX        IDC_FLOPPYTYPE,16,196,51,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Create Standard Disk [] Creates a standard 880 KB ADF disk image.",IDC_CREATE,76,196,97,15
+    PUSHBUTTON      "Create Standard Disk [] Creates a standard 880 or 1760 KB ADF disk image.",IDC_CREATE,76,196,97,15
     PUSHBUTTON      "Create Custom Disk [] Creates a low level (MFM) ADF disk image (about 2MB). Useful for programs that use non-standard disk formats (for example some save disks or DOS-formatted floppies)",IDC_CREATE_RAW,183,196,101,15
     GROUPBOX        "Floppy Drive Emulation Speed",IDC_SETTINGSTEXT2,5,144,289,35
     CONTROL         "",IDC_FLOPPYSPD,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,32,152,116,20
@@ -201,6 +206,8 @@ BEGIN
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE1,43,40,70,15,NOT WS_VISIBLE
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE2,43,75,70,15,NOT WS_VISIBLE
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE3,43,110,70,15,NOT WS_VISIBLE
+    EDITTEXT        IDC_CREATE_NAME,75,215,98,13,ES_AUTOHSCROLL
+    RTEXT           "Disk label:",IDC_STATIC,14,216,52,10,SS_CENTERIMAGE
 END
 
 IDD_HARDDISK DIALOGEX 0, 0, 300, 231
@@ -260,7 +267,7 @@ BEGIN
     EDITTEXT        IDC_SOUNDADJUSTNUM,124,224,40,12,ES_CENTER | ES_READONLY
     PUSHBUTTON      "Calibrate",IDC_SOUNDCALIBRATE,183,223,40,14
     COMBOBOX        IDC_SOUNDSWAP,73,144,62,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Swap channels:",IDC_SOUNDSWAPTXT,82,135,50,8,SS_CENTERIMAGE
+    LTEXT           "Swap channels:",IDC_SOUNDSWAPTXT,74,135,50,8,SS_CENTERIMAGE
 END
 
 IDD_LOADSAVE DIALOGEX 0, 0, 302, 241
@@ -363,7 +370,7 @@ BEGIN
     CONTROL         "bsdsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,15,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,29,120,10
     CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,43,120,10
-    CONTROL         "Syncronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,70,115,10
+    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,159,70,115,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,125,85,94
     COMBOBOX        IDC_KBLED1,22,139,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED2,22,158,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -495,29 +502,32 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,174,56,100,10
 END
 
-IDD_AVIOUTPUT DIALOGEX 0, 0, 197, 233
+IDD_AVIOUTPUT DIALOGEX 0, 0, 288, 193
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Output Properties",IDC_STATIC,5,8,184,96
-    EDITTEXT        IDC_AVIOUTPUT_FILETEXT,26,21,120,12,ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER,WS_EX_CLIENTEDGE
-    PUSHBUTTON      "...",IDC_AVIOUTPUT_FILE,148,21,19,12
-    CONTROL         "Audio",IDC_AVIOUTPUT_AUDIO,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,26,36,32,11
-    CONTROL         "",IDC_AVIOUTPUT_AUDIO_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,60,36,107,11
-    CONTROL         "Video",IDC_AVIOUTPUT_VIDEO,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,26,50,32,11
-    CONTROL         "",IDC_AVIOUTPUT_VIDEO_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,60,50,107,11
+    GROUPBOX        "Output Properties",IDC_STATIC,5,8,274,97
+    EDITTEXT        IDC_AVIOUTPUT_FILETEXT,15,21,226,12,ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER,WS_EX_CLIENTEDGE
+    PUSHBUTTON      "...",IDC_AVIOUTPUT_FILE,249,20,19,12
+    CONTROL         "Audio",IDC_AVIOUTPUT_AUDIO,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,15,36,32,11
+    CONTROL         "",IDC_AVIOUTPUT_AUDIO_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,59,36,209,11
+    CONTROL         "Video",IDC_AVIOUTPUT_VIDEO,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | BS_FLAT | WS_TABSTOP,15,50,32,11
+    CONTROL         "",IDC_AVIOUTPUT_VIDEO_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | SS_SUNKEN | WS_GROUP,59,50,209,11
     CONTROL         "Disable frame rate limit while recording",IDC_AVIOUTPUT_FRAMELIMITER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,28,68,142,10
-    CONTROL         "AVI output enabled",IDC_AVIOUTPUT_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,26,83,142,14
-    GROUPBOX        "Playback Rate",IDC_STATIC,5,107,184,50
-    CONTROL         "PAL",IDC_AVIOUTPUT_PAL,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,24,121,66,12
-    CONTROL         "NTSC",IDC_AVIOUTPUT_NTSC,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,102,121,66,12
-    CONTROL         "Slider1",IDC_AVIOUTPUT_FPS,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP,21,137,120,11
-    LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,148,138,23,8
-    PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,15,176,85,14
-    GROUPBOX        "Ripper",IDC_STATIC,5,160,184,63
-    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,112,176,69,14,WS_DISABLED
-    CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,15,198,84,14
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,68,136,10
+    CONTROL         "AVI output enabled",IDC_AVIOUTPUT_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,15,83,108,14
+    CONTROL         "PAL",IDC_AVIOUTPUT_PAL,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,133,83,66,14
+    CONTROL         "NTSC",IDC_AVIOUTPUT_NTSC,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,204,83,66,14
+    CONTROL         "Slider1",IDC_AVIOUTPUT_FPS,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP,156,68,97,11
+    LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,255,68,19,8
+    PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,16,124,76,14
+    GROUPBOX        "Ripper",IDC_STATIC,5,110,275,38
+    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,100,124,76,14,WS_DISABLED
+    CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,192,124,77,14
+    GROUPBOX        "Input Recorder",IDC_STATIC,5,152,275,33
+    CONTROL         "Record",IDC_INPREC_RECORD,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,191,164,77,14
+    CONTROL         "Playback",IDC_INPREC_PLAY,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,16,165,77,14
+    CONTROL         "Alt. playback mode",IDC_INPREC_PLAYMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,103,167,78,10
 END
 
 IDD_INPUT DIALOGEX 0, 0, 300, 242
@@ -545,11 +555,11 @@ BEGIN
     PUSHBUTTON      "Swap 1<>2",IDC_INPUTSWAP,249,226,45,14
 END
 
-IDD_FILTER DIALOGEX 0, 0, 296, 216
+IDD_FILTER DIALOGEX 0, 0, 296, 224
 STYLE DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Filter Settings",-1,0,0,294,174
+    GROUPBOX        "Filter Settings",-1,0,0,294,186
     CONTROL         "Enable",IDC_FILTERENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,26,17,38,10
     COMBOBOX        IDC_FILTERMODE,67,15,56,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERFILTER,128,15,65,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -572,26 +582,27 @@ BEGIN
     COMBOBOX        IDC_FILTERSLR,56,146,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Slider1",IDC_FILTERSL2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,94,146,157,19
     EDITTEXT        IDC_FILTERSL2V,253,151,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "Presets",-1,0,176,296,36
-    COMBOBOX        IDC_FILTERPRESETS,8,190,119,150,CBS_DROPDOWN | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Load",IDC_FILTERPRESETLOAD,132,189,47,14
-    PUSHBUTTON      "Save",IDC_FILTERPRESETSAVE,184,189,47,14
-    PUSHBUTTON      "Delete",IDC_FILTERPRESETDELETE,236,189,47,14
+    GROUPBOX        "Presets",-1,0,187,296,36
+    COMBOBOX        IDC_FILTERPRESETS,8,201,119,150,CBS_DROPDOWN | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Load",IDC_FILTERPRESETLOAD,132,200,47,14
+    PUSHBUTTON      "Save",IDC_FILTERPRESETSAVE,184,200,47,14
+    PUSHBUTTON      "Delete",IDC_FILTERPRESETDELETE,236,200,47,14
     COMBOBOX        IDC_FILTERHZMULT,77,43,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERVZMULT,77,63,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,26,168,63,10
 END
 
-IDD_HARDDRIVE DIALOGEX 0, 0, 300, 66
+IDD_HARDDRIVE DIALOGEX 0, 0, 380, 66
 STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Harddrive Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Hard drive:",-1,7,11,35,10
-    COMBOBOX        IDC_HARDDRIVE,49,9,246,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,185,33,50,10
-    DEFPUSHBUTTON   "Add hard drive",IDOK,116,30,57,14
-    PUSHBUTTON      "Cancel",IDCANCEL,241,30,54,14
-    DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,9,30,95,14
+    COMBOBOX        IDC_HARDDRIVE,49,9,325,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,245,33,50,10
+    DEFPUSHBUTTON   "Add hard drive",IDOK,176,30,57,14
+    PUSHBUTTON      "Cancel",IDCANCEL,321,30,54,14
+    DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,49,30,95,14
     EDITTEXT        IDC_PATH_NAME,89,49,169,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
 END
 
@@ -664,8 +675,9 @@ BEGIN
     PUSHBUTTON      "...",IDC_PATHS_SAVEIMAGES,281,175,11,15
     PUSHBUTTON      "Reset to defaults",IDC_PATHS_DEFAULT,14,199,92,14
     PUSHBUTTON      "Rescan ROMs",IDC_ROM_RESCAN,14,218,92,14
-    PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,190,217,85,14
+    PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,112,218,77,14
     COMBOBOX        IDC_PATHS_DEFAULTTYPE,112,199,163,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Clear disk history",IDC_RESETDISKHISTORY,198,218,77,14
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 300, 242
@@ -826,8 +838,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,0
- PRODUCTVERSION 1,2,0,0
+ FILEVERSION 1,3,0,0
+ PRODUCTVERSION 1,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -843,12 +855,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.2"
+            VALUE "FileVersion", "1.3"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2006 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.2"
+            VALUE "ProductVersion", "1.3"
         END
     END
     BLOCK "VarFileInfo"
@@ -889,6 +901,7 @@ BEGIN
     END
 END
 
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // String Table
@@ -900,7 +913,7 @@ BEGIN
     IDS_DISK                "Disk swapper"
     IDS_DISPLAY             "Display"
     IDS_HARDDISK            "Hard drives"
-    IDS_FLOPPY              "Disk drives"
+    IDS_FLOPPY              "Floppy drives"
     IDS_ABOUT               "About"
     IDS_LOADSAVE            "Configurations"
     IDS_AVIOUTPUT           "Output"
@@ -1006,7 +1019,7 @@ BEGIN
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
     IDS_OLDRTGLIBRARY       "The installed LIBS:Picasso96/rtg.library (%d.%d) file needs to be updated.\nA newer version is included in the ""Amiga Programs"" directory of the WinUAE distribution archive.\nThe new library fixes graphics problems and increases performance."
-    IDS_DEFAULT_AF2005      "Amiga Forever 2005"
+    IDS_DEFAULT_AF2005      "Amiga Forever"
     IDS_DEFAULT_AF          "Amiga Forever (old)"
     IDS_DEFAULT_WINUAE      "WinUAE default"
 END
@@ -1021,7 +1034,7 @@ BEGIN
     IDS_DELETECONFIGCONFIRMATION 
                             "Are you sure you want to Delete this configuration?\n"
     IDS_DELETECONFIGTITLE   "Confirm Delete"
-    IDS_GFXCARDCHECK        "WinUAE will now determine your graphic-card's 16-bit pixel format.\nYour screen will go black for two seconds, with a resolution of 640x480 @ 60Hz.\nThis procedure is necessary to properly display your Amiga software on 16-bit\ndisplay-modes, and should be done whenever you run WinUAE for the first time, or\ninstall a new graphics-card in your PC.  Proceed with this test?\n"
+    IDS_GFXCARDCHECK        "WinUAE will now determine the 16-bit pixel format of your graphics card. Your\nscreen will go black for two seconds, with a resolution of 640x480 @ 60Hz. This\nprocedure is required for best rendering of the emulation environment on 16-bit\ndisplay-modes, and should be done whenever you run WinUAE for the first time, or\ninstall a new graphics card in your PC. Proceed with this test?"
     IDS_GFXCARDTITLE        "Pixel format detection"
     IDS_MUSTSELECTPATH      "You must select a path!"
     IDS_SETTINGSERROR       "Settings error"
@@ -1034,6 +1047,9 @@ END
 
 STRINGTABLE 
 BEGIN
+    IDS_INP                 "WinUAE Input Recording"
+    IDS_RESTOREINP          "Playback a WinUAE input recording"
+    IDS_SAVEINP             "Record a WinUAE input recording"
     IDS_SOUND_MONO          "Mono"
     IDS_SOUND_MIXED         "Mixed"
     IDS_SOUND_STEREO        "Stereo"
@@ -1041,12 +1057,12 @@ BEGIN
     IDS_SOUND_INTERPOL_RH   "RH"
     IDS_SOUND_INTERPOL_CRUX "Crux"
     IDS_SOUND_FILTER_OFF    "Always off"
-    IDS_SOUND_FILTER_EMULATED "Emulated"
+    IDS_SOUND_FILTER_EMULATED "Emulated (A500)"
 END
 
 STRINGTABLE 
 BEGIN
-    IDS_SOUND_FILTER_ON_A500 "Always on (pre-AGA)"
+    IDS_SOUND_FILTER_EMULATED_E "Emulated (A1200)"
     IDS_INPUT_COMPATIBILITY "Compatibility mode"
     IDS_INPUT_CUSTOM        "Configuration #%d"
     IDS_INPUT_COPY_DEFAULT  "Default"
@@ -1103,8 +1119,10 @@ BEGIN
     IDS_SOUND_SWAP_PAULA    "Paula only"
     IDS_SOUND_SWAP_AHI      "AHI only"
     IDS_SOUND_SWAP_BOTH     "Both"
-    IDS_SOUND_FILTER_ON_AGA "Always on (AGA)"
-    IDS_SOUND_FILTER_ON     "Always on"
+    IDS_SOUND_FILTER_ON_AGA "Always on (A500)"
+    IDS_SOUND_FILTER_ON_A500 "Always on (A1200)"
+    IDS_DRIVESOUND_PC_FLOPPY "PC floppy drive %c"
+    IDS_FLOPPYTYPE35DDESCOM "3.5"" ESCOM"
 END
 
 STRINGTABLE 
@@ -1145,27 +1163,32 @@ BEGIN
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
     IDS_NUMSG_KICKREPNO     "The floppy disk (image file) in DF0: is not compatible with the system ROM replacement functionality."
-    IDS_NUMSG_NOROM         "Could not load Kickstart ROM, trying system ROM replacement."
+    IDS_NUMSG_NOROM         "Could not load system ROM, trying system ROM replacement."
     IDS_HDCLONE_OK          "Hard drive image file created succesfully."
-    IDS_HDCLONE_FAIL        "Hard drive image file creation failed, error code %d."
+    IDS_HDCLONE_FAIL        "Hard drive image file creation failed.\nError code %d:%d."
 END
 
 STRINGTABLE 
 BEGIN
-    IDS_QS_MODELS           "Amiga 500 / Amiga 2000\nAmiga 500+\nAmiga 600\nAmiga 1000\nAmiga 1200\nCD32\nCDTV (CDROM emulation not yet working)\nArcadia Multi Select system\nExpanded UAE example configuration"
-    IDS_QS_MODEL_A500       "KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow (most common)\nThis configuration is capable of running most games and demos ever produced for the first Amiga line. Only few exceptions need different configuration. Oldest Amiga games tend to be incompatible with this configuration.\nKS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow\nLater hardware revision of Amiga 500. Nearly 100% compatible with previous configuration.\nKS 1.3, ECS Agnus, 1.0M Chip\nFew newer games and demos require this configuration.\nKS 1.3, OCS Agnus, 0.5M Chip\nVery old (~1987 and older) games and demos may require this configuration.\nKS 1.2, OCS Agnus, 0.5M Chip\nThe first Amiga 500 produced had this configuration. Some very old programs only work correctly with this configuration. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD.\nKS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow\nThis configuration adds expansion memory to the first Amiga 500 ever produced. Try this if your game do not work with newer configurations but works with the previous one. It could add some features to the game and faster game loading. NOTE: This configuration cannot boot the Amiga OS installed on an emulated HD."
-    IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nA500+ is basically an Amiga 500 with ECS Agnus,  1MB of Chip RAM and Kickstart 2.0 ROM. Many Amiga 500 games and demos won't work properly on an Amiga 500+.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
-    IDS_QS_MODEL_A600       "Basic non-expanded configuration\nA600 is basically smaller Amiga 500+ with updated Kickstart 2.0 ROM.\n2M Chip RAM expanded configuration\n\n4M Fast RAM expanded configuration\n"
-    IDS_QS_MODEL_A1000      "0.5M Chip\nThe Amiga 1000 was the first Amiga ever produced, configuration is basically an OCS A500. You should never use this configuration unless you are nostalgic and you want to hear short special A1000 boot tune\n256K Chip\nUnexpanded Amiga 1000. All later A1000 models were sold with 256K RAM expansion build-in."
-    IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4M Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
-    IDS_QS_MODEL_CD32       "CD32\nCD32 was one the first 32-bit consoles on the market. It is basically an A1200 with build-in CDROM. Insert your CD32 or CDTV CDROM into a free CDROM drive before starting emulation."
-    IDS_QS_MODEL_CDTV       "CDTV\nCDTV was Commodore`s first attempt at making a CD-ROM equipped computer. It is an 1MB ECS Amiga 500 in a black box that looks like a CD player."
+    IDS_QS_MODELS           "A500/A2000\nA500+\nA600\nA1000\nA1200\nCD32\nCDTV (CD-ROM emulation not yet working)\nArcadia Multi Select system\nExpanded WinUAE example configuration"
+    IDS_QS_MODEL_A500       "1.3 ROM, OCS, 512 KB Chip + 512 KB Slow RAM (most common)\nThis configuration is capable of running most games and demos produced for first-generation hardware. Only few exceptions need a different configuration (e.g. the oldest games tend to be incompatible with this configuration).\n1.3 ROM, ECS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nLater hardware revision of the A500. Nearly 100% compatible with the previous configuration.\n1.3 ROM, ECS Agnus, 1 MB Chip RAM\nFew newer games and demos require this configuration.\n1.3 ROM, OCS Agnus, 512 KB Chip RAM\nVery old (e.g. pre-1988) games and demos may require this configuration.\n1.2 ROM, OCS Agnus, 512 KB Chip RAM\nAs available for the A1000, and installed on the first A500 and A2000 series. Some very old programs only work correctly with this configuration. Note: This system ROM version can only boot from floppy disk (no hard disk boot support).\n1.2 ROM, OCS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nThis configuration adds expansion memory to the first A500 produced. Try this if your game does not work with newer configurations, but works with the previous one. It could add some features to the game, including faster loading times. Note: This system ROM version can only boot from floppy disk (no hard disk boot support)."
+    IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nThe A500+ adds an ECS Agnus chip, 1 MB of Chip RAM and a 2.0 ROM to the A500. Many A500 games and demos don't work properly on an A500+.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
+    IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
+    IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n256 KB Chip RAM\nUnexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
+    IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
+    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation."
+    IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset."
 END
 
 STRINGTABLE 
 BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
-    IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an Amiga 500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to """"Cartridge ROM File"""" in ROM-panel."""
+    IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an A500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_SOUND_STEREO2       "Cloned Stereo"
 END
 
 #endif    // English (U.S.) resources
