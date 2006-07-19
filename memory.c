@@ -504,18 +504,34 @@ static int dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 #define NONEXISTINGDATA 0
 //#define NONEXISTINGDATA 0xffffffff
 
+static void dummylog(int rw, uaecptr addr, int size, uae_u32 val)
+{
+    if (illegal_count >= MAX_ILG)
+	return;
+    /* ignore Zorro3 expansion space */
+    if (addr >= 0xff000000 && addr <= 0xff000200)
+	return;
+    /* extended rom */
+    if (addr >= 0xf00000 && addr <= 0xf7ffff)
+	return;
+    if (MAX_ILG >= 0)
+	illegal_count++;
+    if (rw) {
+	write_log ("Illegal %cput at %08lx=%08lx PC=%x\n",
+	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, val, m68k_getpc());
+    } else {
+	write_log ("Illegal %cget at %08lx PC=%x\n",
+	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, m68k_getpc());
+    }
+}
+
 uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal lget at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+    if (currprefs.illegal_mem)
+	dummylog(0, addr, 4, 0);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return (regs.irc << 16) | regs.irc;
@@ -526,13 +542,8 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (currprefs.illegal_mem && addr < 0xf00000) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal wget at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+    if (currprefs.illegal_mem)
+	dummylog(0, addr, 2, 0);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return regs.irc;
@@ -543,13 +554,8 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal bget at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+    if (currprefs.illegal_mem)
+	dummylog(0, addr, 1, 0);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return (addr & 1) ? regs.irc : regs.irc >> 8;
@@ -560,39 +566,24 @@ void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-   if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal lput at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+   if (currprefs.illegal_mem)
+       dummylog(1, addr, 4, l);
 }
 void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal wput at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+   if (currprefs.illegal_mem)
+       dummylog(1, addr, 2, w);
 }
 void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal bput at %08lx PC=%x\n", addr, m68k_getpc());
-	}
-    }
+   if (currprefs.illegal_mem)
+       dummylog(1, addr, 1, b);
 }
 
 int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
@@ -2055,9 +2046,11 @@ void memory_reset (void)
 	int t = allocated_bogomem >> 16;
 	if (t > 0x1C)
 	    t = 0x1C;
+	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level > 1))
+	    t = 0x10;
 	map_banks (&bogomem_bank, 0xC0, t, allocated_bogomem);
     }
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level > 1)
 	map_banks (&gayle_bank, 0xD8, 7, 0);
     map_banks (&clock_bank, 0xDC, 1, 0);
 

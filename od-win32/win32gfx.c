@@ -320,7 +320,7 @@ static int set_ddraw (void)
     dd = (currentmode->flags & DM_DDRAW) ? TRUE : FALSE;
     overlay = (currentmode->flags & DM_OVERLAY) ? TRUE : FALSE;
 
-    ddrval = DirectDraw_SetCooperativeLevel( hAmigaWnd, dxfullscreen);
+    ddrval = DirectDraw_SetCooperativeLevel(hAmigaWnd, dxfullscreen);
     if (FAILED(ddrval))
 	goto oops;
 
@@ -420,13 +420,15 @@ static void dhack(void)
 }
 */
 
-static HRESULT CALLBACK modesCallback( LPDDSURFACEDESC2 modeDesc, LPVOID context )
+static HRESULT CALLBACK modesCallback(LPDDSURFACEDESC2 modeDesc, LPVOID context)
 {
     RGBFTYPE colortype;
     int i, j, ct, depth;
 
-    colortype = DirectDraw_GetSurfacePixelFormat( modeDesc );
+    colortype = DirectDraw_GetSurfacePixelFormat(modeDesc);
     if (colortype == RGBFB_NONE || colortype == RGBFB_R8G8B8 || colortype == RGBFB_B8G8R8 )
+	return DDENUMRET_OK;
+    if (modeDesc->dwWidth > 2048 || modeDesc->dwHeight > 2048)
 	return DDENUMRET_OK;
     ct = 1 << colortype;
     depth = 0;
@@ -1114,10 +1116,10 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
     c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? (2|4|8) : 0;
     c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? (2|4|8) : 0;
-    c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (1|8) : 0;
+    c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
 
-    c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (1|8) : 0;
-    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (1|8) : 0;
+    c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
+    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
     c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
     c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
 
@@ -1132,8 +1134,8 @@ int check_prefs_changed_gfx (void)
     if (display_change_requested || c) 
     {
 	cfgfile_configuration_change(1);
-	if (!display_change_requested)
-	    normal_display_change_starting = 4;
+	if (display_change_requested)
+	    c |= 2;
 	display_change_requested = 0;
 	fixup_prefs_dimensions (&changed_prefs);
 	currprefs.gfx_size_fs.width = changed_prefs.gfx_size_fs.width;
@@ -2278,11 +2280,11 @@ void updatedisplayarea (void)
 #if defined (GFXFILTER)
 	if (currentmode->flags & DM_SWSCALE) {
 	    S2X_refresh ();
-	    if( !isfullscreen() ) {
+	    if(!isfullscreen()) {
 		if(DirectDraw_GetLockableType() != overlay_surface)
-		    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
+		    DX_Blit(0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC);
 	    } else {
-		DirectDraw_Blt( primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL );
+		DirectDraw_Blt(primary_surface, NULL, secondary_surface, NULL, DDBLT_WAIT, NULL);
 	    }
 	}
 	    else

@@ -264,7 +264,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	{
 	    shmaddr=natmem_offset+0x00C00000;
 	    got = TRUE;
-	    size+=32;
+	    if (currprefs.bogomem_size <= 0x100000)
+		size+=32;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys"))
 	{

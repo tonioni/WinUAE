@@ -131,10 +131,15 @@ static void io_log (char *msg, uaecptr request)
 	    get_long (request + 32), get_byte (request + 31));
 }
 
-void memcpyha (uae_u32 dst, char *src, int size)
+void memcpyha (uaecptr dst, uae_u8 *src, int size)
 {
     while (size--)
 	put_byte (dst++, *src++);
+}
+void memcpyah (uae_u8 *dst, uaecptr src, int size)
+{
+    while (size--)
+	*dst = get_byte (src++);
 }
 
 static struct devstruct *getdevstruct (int unit)
@@ -394,6 +399,48 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 	write_log ("asyncronous request=%08.8X aborted, error=%d\n", request, errcode);
 }
 
+static int command_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+{
+    int blocksize = dev->di.bytespersector;
+    uae_u8 *temp;
+    
+    length /= blocksize;
+    offset /= blocksize;
+    while (length > 0) {
+	temp = sys_command_read (mode, dev->unitnum, offset);
+	if (!temp)
+	    return 20;
+	memcpyha (data, temp, blocksize);
+	data += blocksize;
+	offset++;
+	length--;
+    }
+    return 0;
+}
+static int command_write (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+{
+    int blocksize = dev->di.bytespersector;
+    struct device_scsi_info dsi;
+    
+    if (!sys_command_scsi_info(mode, dev->unitnum, &dsi))
+	return 20;
+    length /= blocksize;
+    offset /= blocksize;
+    while (length > 0) {
+	int err;
+	memcpyah (dsi.buffer, data, blocksize);
+	err = sys_command_write (mode, dev->unitnum, offset);
+	if (!err)
+	    return 20;
+	if (err < 0)
+	    return 28; // write protected
+	data += blocksize;
+	offset++;
+	length--;
+    }
+    return 0;
+}
+
 static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
 {
     uae_u8 *temp;
@@ -440,6 +487,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     uae_u32 io_offset = get_long (request + 44); // 0x2c
     uae_u32 io_error = 0;
     int async = 0;
+    int bmask = dev->di.bytespersector - 1;
     struct device_info di;
     struct priv_devstruct *pdev = getpdevstruct (request);
 
@@ -450,11 +498,30 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     switch (command)
     {
 	case CMD_READ:
-	io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	if ((io_offset & bmask) || (io_length & bmask))
+	    goto bad_command;
+	if (dev->drivetype == INQ_ROMD)
+	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	else
+	    io_error = command_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	break;
 	case CMD_WRITE:
+	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
+	    io_error = 28; /* writeprotect */
+	} else if ((io_offset & bmask) || (io_length & bmask)) {
+	    goto bad_command;
+	} else {
+	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	}
+	break;
 	case CMD_FORMAT:
-	io_error = 28; /* writeprotect */
+	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
+	    io_error = 28; /* writeprotect */
+	} else if ((io_offset & bmask) || (io_length & bmask)) {
+	    goto bad_command;
+	} else {
+	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	}
 	break;
 	case CMD_UPDATE:
 	case CMD_CLEAR:
@@ -499,6 +566,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	default:
 	io_error = -3;
+	break;
+	bad_command:
+	io_error = -5; /* IOERR_BADADDRESS */
 	break;
     }
     put_long (request + 32, io_actual);

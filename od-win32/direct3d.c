@@ -235,7 +235,6 @@ static void createscanlines (int force)
     }
 }
 
-
 const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 {
     HRESULT ret;
@@ -243,11 +242,15 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     LPDIRECT3D9 (WINAPI *D3DCreate)(UINT);
     D3DDISPLAYMODE mode;
     D3DCAPS9 d3dCaps;
+    int adapter;
 #if 0
     char d3dxdlls[100];
     HINSTANCE d3dxDLL;
 #endif
 
+    adapter = currprefs.gfx_display - 1;
+    if (adapter < 0)
+	adapter = 0;
     d3d_enabled = 0;
     scanlines_ok = 0;
     if (currprefs.gfx_filter != UAE_FILTER_DIRECT3D) {
@@ -285,8 +288,8 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    IDirect3D9_GetAdapterDisplayMode(d3d, D3DADAPTER_DEFAULT, &mode);
-    IDirect3D9_GetDeviceCaps(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps);
+    IDirect3D9_GetAdapterDisplayMode(d3d, adapter, &mode);
+    IDirect3D9_GetDeviceCaps(d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps);
 
     memset (&dpp, 0, sizeof (dpp));
     dpp.Windowed = currprefs.gfx_afullscreen ? FALSE : TRUE;
@@ -311,7 +314,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	}    
     }
 
-    ret = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, ahwnd,
+    ret = IDirect3D9_CreateDevice(d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
 	D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &d3ddev);
     if(FAILED(ret)) {
 	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));

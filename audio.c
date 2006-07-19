@@ -1216,15 +1216,15 @@ void check_prefs_changed_audio (void)
 #endif
     if (!sound_available || !sound_prefs_changed ())
 	return;
+#ifdef AVIOUTPUT
+    AVIOutput_Restart ();
+#endif
     set_audio();
 }
 
 void set_audio(void)
 {
     close_sound ();
-#ifdef AVIOUTPUT
-    AVIOutput_Restart ();
-#endif
     currprefs.produce_sound = changed_prefs.produce_sound;
     currprefs.win32_soundcard = changed_prefs.win32_soundcard;
     currprefs.sound_stereo = changed_prefs.sound_stereo;

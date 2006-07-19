@@ -29,7 +29,10 @@ struct dev_info_ioctl {
     char devname[30];
     int mediainserted;
     int type;
+    int blocksize;
 };
+
+#define IOCTL_DATA_BUFFER 4096
 
 static UINT errormode;
 
@@ -54,7 +57,7 @@ static int win32_error (int unitnum, const char *format,...)
     char buf[1000];
     DWORD err = GetLastError();
 
-    if (err == 34) {
+    if (err == ERROR_WRONG_DISK) {
 	write_log ("IOCTL: media change, re-opening device\n");
 	close_device (unitnum);
 	if (!open_device (unitnum))
@@ -178,7 +181,7 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
     return ciw32[unitnum].tempbuffer;
 }
 
-static uae_u8 *ioctl_command_read (int unitnum, int sector)
+static int ioctl_command_readwrite (int unitnum, int sector, int write)
 {
     DWORD dtotal;
     int cnt = 3;
@@ -186,7 +189,7 @@ static uae_u8 *ioctl_command_read (int unitnum, int sector)
     while (cnt-- > 0) {
 	gui_cd_led (1);
 	seterrormode ();
-	if (SetFilePointer (ciw32[unitnum].h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+	if (SetFilePointer (ciw32[unitnum].h, sector * ciw32[unitnum].blocksize, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
 	    reseterrormode ();
 	    if (win32_error (unitnum, "SetFilePointer") < 0)
 		continue;
@@ -198,22 +201,41 @@ static uae_u8 *ioctl_command_read (int unitnum, int sector)
     cnt = 3;
     while (cnt-- > 0) {
 	gui_cd_led (1);
-	if (!ReadFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, 2048, &dtotal, 0)) {
-	    reseterrormode ();
-	    if (win32_error (unitnum, "ReadFile") < 0)
-		continue;
-	    return 0;
+	if (write) {
+	    if (!WriteFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, ciw32[unitnum].blocksize, &dtotal, 0)) {
+		int err;
+		reseterrormode ();
+		err = win32_error (unitnum, "WriteFile");
+		if (err < 0)
+		    continue;
+		if (err == ERROR_WRITE_PROTECT)
+		    return -1;
+		return 0;
+	    }
+	} else {
+	    if (!ReadFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, ciw32[unitnum].blocksize, &dtotal, 0)) {
+		reseterrormode ();
+		if (win32_error (unitnum, "ReadFile") < 0)
+		    continue;
+		return 0;
+	    }
 	}
 	reseterrormode ();
 	gui_cd_led (1);
 	break;
     }
-    return ciw32[unitnum].tempbuffer;
+    return 1;
 }
 
-static int ioctl_command_write (int unitnum, int sector, uae_u8 *data)
+static int ioctl_command_write (int unitnum, int sector)
 {
-    return 0;
+    return ioctl_command_readwrite (unitnum, sector, 1);
+}
+static uae_u8 *ioctl_command_read (int unitnum, int sector)
+{
+    if (ioctl_command_readwrite (unitnum, sector, 0) > 0)
+	return ciw32[unitnum].tempbuffer;
+    return NULL;
 }
 
 static int fetch_geometry (int unitnum, struct device_info *di)
@@ -313,7 +335,7 @@ static int sys_cddev_open (int unitnum)
     DWORD flags;
 
     /* buffer must be page aligned for device access */
-    ciw->tempbuffer = VirtualAlloc (NULL, 4096, MEM_COMMIT, PAGE_READWRITE);
+    ciw->tempbuffer = VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
     if (!ciw->tempbuffer) {
 	write_log ("IOCTL: failed to allocate buffer");
 	return 1;
@@ -409,6 +431,7 @@ static int open_bus (int flags)
 		    write_log ("IOCTL: drive %c: = unit %d\n", drive, total_devices);
 		ciw32[total_devices].drvletter = drive;
 		ciw32[total_devices].type = dt;
+		ciw32[total_devices].blocksize = 2048;
 		sprintf (ciw32[total_devices].devname,"\\\\.\\%c:", drive);
 		total_devices++;
 	    }
@@ -426,9 +449,12 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->target = 0;
     di->lun = 0;
     di->media_inserted = 0;
-    if (fetch_geometry (unitnum, di)) // || ioctl_command_toc (unitnum))
+    di->bytespersector = 2048;
+    if (fetch_geometry (unitnum, di)) { // || ioctl_command_toc (unitnum))
 	di->media_inserted = 1;
-    di->write_protected = 1;
+	ciw32[unitnum].blocksize = di->bytespersector;
+    }
+    di->write_protected = ciw32[unitnum].type == DRIVE_CDROM ? 1 : 0;
     di->type = ciw32[unitnum].type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
     di->id = ciw32[unitnum].drvletter;
     di->label = xmalloc(16);
@@ -449,11 +475,18 @@ void win32_ioctl_media_change (char driveletter, int insert)
     }
 }
 
+static struct device_scsi_info *ioctl_scsi_info (int unitnum, struct device_scsi_info *dsi)
+{
+    dsi->buffer = ciw32[unitnum].tempbuffer;
+    dsi->bufsize = IOCTL_DATA_BUFFER;
+    return dsi;
+}
+
 struct device_functions devicefunc_win32_ioctl = {
     open_bus, close_bus, open_device, close_device, info_device,
     0, 0, 0,
     ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_qcode,
-    ioctl_command_toc, ioctl_command_read, ioctl_command_write, 0
+    ioctl_command_toc, ioctl_command_read, ioctl_command_write, 0, ioctl_scsi_info
 };
 
 #endif

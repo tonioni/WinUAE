@@ -897,6 +897,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 	drv->num_tracks = 160;
 	drv->num_secs = 11;
 
+	zfile_fseek (drv->diskfile, 8, SEEK_SET);
 	for (i = 0; i < 160; i++) {
 	    tid = &drv->trackdata[i];
 	    zfile_fread (buffer, 4, 1, drv->diskfile);

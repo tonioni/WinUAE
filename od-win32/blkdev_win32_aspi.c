@@ -736,6 +736,7 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
     int v;
 
     uae_sem_wait (&scgp_sem);
+    memset(scgp->scmd, 0, sizeof(struct scg_cmd));
     scgp->scmd->cdb_len = len;
     memcpy (scgp->scmd->cdb.cmd_cdb, data, len);
     scgp->scmd->addr = 0;
@@ -744,6 +745,7 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
     scgp->addr.target = si[unitnum].target;
     scgp->addr.lun = si[unitnum].lun;
     scgp->scmd->timeout = 80 * 60;
+    scgp->scmd->sense_len = CCS_SENSE_LEN;
     aspi_led (unitnum);
     v = scsicmd (scgp);
     aspi_led (unitnum);
@@ -759,6 +761,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
     int v;
 
     uae_sem_wait (&scgp_sem);
+    memset(scgp->scmd, 0, sizeof(struct scg_cmd));
     scgp->scmd->cdb_len = len;
     memcpy (scgp->scmd->cdb.cmd_cdb, data, len);
     scgp->scmd->addr = si[unitnum].buf;
@@ -767,6 +770,8 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
     scgp->addr.target = si[unitnum].target;
     scgp->addr.lun = si[unitnum].lun;
     scgp->scmd->timeout = 80 * 60;
+    scgp->scmd->flags = SCG_RECV_DATA;
+    scgp->scmd->sense_len = CCS_SENSE_LEN;
     aspi_led (unitnum);
     v = scsicmd (scgp);
     aspi_led (unitnum);

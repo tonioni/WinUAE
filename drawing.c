@@ -2280,7 +2280,7 @@ void reset_drawing (void)
 
     init_drawing_frame ();
 
-    flush_clear_screen ();
+    //flush_clear_screen ();
     notice_screen_contents_lost ();
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
 }

@@ -11,6 +11,7 @@
 ; 2002.09.11 KS1.3 RDB support (TW)
 ; 200?.??.?? Picasso96 vblank hack (TW)
 ; 2006.03.04 Mousehack code integrated (TW)
+; 2006.18.07 FileSystem.resource find routine access fault fixed (TW)
 
 AllocMem = -198
 FreeMem = -210
@@ -390,11 +391,12 @@ re1	move.w #$f00,$dff180
 fsres
 	movem.l d1/a0-a2/a6,-(sp)
 	move.l 4.w,a6
-	lea $150(a6),a0
+	lea $150(a6),a0 ;ResourceList
+	move.l (a0),a0 ;lh_Head
 fsres3
-	tst.l (a0)
+	tst.l (a0) ;end of list?
 	beq.s fsres1
-	move.l 10(a0),a1
+	move.l 10(a0),a1 ;name
 	lea fsresname(pc),a2
 fsres5
 	move.b (a1)+,d0

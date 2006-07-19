@@ -102,8 +102,10 @@ static void fixup_prefs_dim2 (struct wh *wh)
 	wh->width = 320;
     if (wh->height < 200)
 	wh->height = 200;
-    if (wh->width > 1280)
-	wh->width = 1280;
+    if (wh->width > 2048)
+	wh->width = 2048;
+    if (wh->height > 2048)
+	wh->height = 2048;
     wh->width += 7;
     wh->width &= ~7;
 }
@@ -162,6 +164,10 @@ void fixup_prefs (struct uae_prefs *p)
 	p->bogomem_size = 0;
 	write_log ("Unsupported bogomem size!\n");
 	err = 1;
+    }
+    if (p->bogomem_size > 0x100000 && ((p->chipset_mask & CSMASK_AGA) || p->cpu_level >= 2)) {
+	p->bogomem_size = 0x100000;
+	write_log ("Possible Gayle bogomem conflict fixed\n");
     }
 
     if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {

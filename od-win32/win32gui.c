@@ -8179,14 +8179,13 @@ static void values_from_avioutputdlg(HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
 }
 
-static char aviout_videoc[200], aviout_audioc[200];
-
 static void enable_for_avioutputdlg(HWND hDlg)
 {
+    char tmp[1000];
 #if defined (PROWIZARD)
-    EnableWindow( GetDlgItem( hDlg, IDC_PROWIZARD ), TRUE );
+    EnableWindow(GetDlgItem(hDlg, IDC_PROWIZARD), TRUE);
     if (full_property_sheet)
-        EnableWindow( GetDlgItem( hDlg, IDC_PROWIZARD ), FALSE );
+        EnableWindow(GetDlgItem(hDlg, IDC_PROWIZARD), FALSE);
 #endif
 
     EnableWindow(GetDlgItem(hDlg, IDC_SCREENSHOT), full_property_sheet ? FALSE : TRUE);
@@ -8205,18 +8204,26 @@ static void enable_for_avioutputdlg(HWND hDlg)
 	EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO), TRUE);
 	EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), TRUE);
     }
-	
+
+    if (avioutput_audio == AVIAUDIO_WAV) {
+       strcpy (tmp, "Wave (internal)");
+    } else {
+	avioutput_audio = AVIOutput_GetAudioCodec(tmp, sizeof tmp);
+    }
     if(!avioutput_audio) {
 	CheckDlgButton(hDlg, IDC_AVIOUTPUT_AUDIO, BST_UNCHECKED);
-	WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, aviout_audioc, sizeof (aviout_audioc));
+	WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, tmp, sizeof tmp);
     }
-    SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), aviout_audioc);
+    SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), tmp);
 	
+    if (avioutput_audio != AVIAUDIO_WAV)
+	avioutput_video = AVIOutput_GetVideoCodec(tmp, sizeof tmp);
     if(!avioutput_video) {
 	CheckDlgButton(hDlg, IDC_AVIOUTPUT_VIDEO, BST_UNCHECKED);
-	WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, aviout_videoc, sizeof (aviout_videoc));
+	WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, tmp, sizeof tmp);
     }
-    SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), aviout_videoc);
+    SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), tmp);
+
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_ACTIVATED), (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
     EnableWindow(GetDlgItem(hDlg, IDC_INPREC_RECORD), input_recording >= 0);
@@ -8228,53 +8235,54 @@ static void enable_for_avioutputdlg(HWND hDlg)
 
 static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	static int recursive = 0;
+    static int recursive = 0;
+    char tmp[1000];
 	
-	switch(msg)
-	{
+    switch(msg)
+    {
 	case WM_INITDIALOG:
-		pages[AVIOUTPUT_ID] = hDlg;
-		currentpage = AVIOUTPUT_ID;
-		enable_for_avioutputdlg(hDlg);
-		SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETRANGE, TRUE, MAKELONG(1, VBLANK_HZ_NTSC));
-		SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
-		SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
-		if (!avioutput_filename[0]) {
-		    fetch_path ("VideoPath", avioutput_filename, sizeof (avioutput_filename));
-		    strcat (avioutput_filename, "output.avi");
-		}
+	    pages[AVIOUTPUT_ID] = hDlg;
+	    currentpage = AVIOUTPUT_ID;
+	    enable_for_avioutputdlg(hDlg);
+	    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETRANGE, TRUE, MAKELONG(1, VBLANK_HZ_NTSC));
+	    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
+	    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+	    if (!avioutput_filename[0]) {
+	        fetch_path ("VideoPath", avioutput_filename, sizeof (avioutput_filename));
+	        strcat (avioutput_filename, "output.avi");
+	    }
 		
 	case WM_USER:
-		recursive++;
+	    recursive++;
 		
-		values_to_avioutputdlg(hDlg);
-		enable_for_avioutputdlg(hDlg);
+	    values_to_avioutputdlg(hDlg);
+	    enable_for_avioutputdlg(hDlg);
 		
-		recursive--;
-		return TRUE;
+	    recursive--;
+	return TRUE;
 		
 	case WM_HSCROLL:
-		{
-			recursive++;
+	{
+	    recursive++;
 			
-			values_from_avioutputdlg(hDlg, msg, wParam, lParam);
-			values_to_avioutputdlg(hDlg);
-			enable_for_avioutputdlg(hDlg);
+	    values_from_avioutputdlg(hDlg, msg, wParam, lParam);
+	    values_to_avioutputdlg(hDlg);
+	    enable_for_avioutputdlg(hDlg);
 			
-			recursive--;
+	    recursive--;
 			
-			return TRUE;
-		}
-		
+	    return TRUE;
+	}
 		
 	case WM_COMMAND:
-		if(recursive > 0)
-			break;
+
+	    if(recursive > 0)
+	    	break;
 		
-		recursive++;
+	    recursive++;
 		
-		switch(wParam)
-		{
+	    switch(wParam)
+	    {
 
 		case IDC_INPREC_PLAYMODE:
 		break;
@@ -8306,116 +8314,93 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 		    if (!avioutput_requested)
 			AVIOutput_End ();
-		    break;
+		break;
 
 		case IDC_SCREENSHOT:
-			screenshot(1, 0);
-			break;
+		    screenshot(1, 0);
+		break;
 			
 		case IDC_AVIOUTPUT_PAL:
-			SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
-			SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
-			break;
+		    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
+		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+		break;
 			
 		case IDC_AVIOUTPUT_NTSC:
-			SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_NTSC);
-			SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
-			break;
+		    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_NTSC);
+		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+		break;
 			
 		case IDC_AVIOUTPUT_AUDIO:
-			{
-				if (avioutput_enabled)
-				    AVIOutput_End ();
-				if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_AUDIO) == BST_CHECKED)
-				{
-					LPSTR string;
-					
-					aviout_audioc[0] = 0;
-					if(string = AVIOutput_ChooseAudioCodec(hDlg))
-					{
-						avioutput_audio = AVIAUDIO_AVI;
-						strcpy (aviout_audioc, string);
-						SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), string);
-					}
-					else
-						avioutput_audio = 0;
-				}
-				else
-					avioutput_audio = 0;
-				
-				break;
-			}
+		{
+		    if (avioutput_enabled)
+		        AVIOutput_End ();
+		    if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_AUDIO) == BST_CHECKED) {
+			avioutput_audio = AVIOutput_ChooseAudioCodec(hDlg, tmp, sizeof tmp);
+			enable_for_avioutputdlg(hDlg);
+		    } else {
+			avioutput_audio = 0;
+		    }	
+		    break;
+		}
 			
 		case IDC_AVIOUTPUT_VIDEO:
-			{
-				if (avioutput_enabled)
-				    AVIOutput_End ();
-				if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_VIDEO) == BST_CHECKED)
-				{
-					LPSTR string;
-					aviout_videoc[0] = 0;
-					if(string = AVIOutput_ChooseVideoCodec(hDlg))
-					{
-						avioutput_video = 1;
-						strcpy (aviout_videoc, string);
-						SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), string);
-						if (avioutput_audio == AVIAUDIO_WAV) {
-						    avioutput_audio = 0;
-						    aviout_audioc[0] = 0;
-						}
-					}
-					else
-						avioutput_video = 0;
-				}
-				else
-					avioutput_video = 0;
-				
-				break;
-			}
+		{
+		    if (avioutput_enabled)
+		        AVIOutput_End ();
+		    if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_VIDEO) == BST_CHECKED) {
+			avioutput_video = AVIOutput_ChooseVideoCodec(hDlg, tmp, sizeof tmp);
+		        if (avioutput_audio = AVIAUDIO_WAV)
+			    avioutput_audio = 0;
+			enable_for_avioutputdlg(hDlg);
+		    } else {
+			avioutput_video = 0;
+		    }
+		    enable_for_avioutputdlg(hDlg);
+		    break;
+		}
 			
 		case IDC_AVIOUTPUT_FILE:
-			{
-				OPENFILENAME ofn;
+		{
+		    OPENFILENAME ofn;
 				
-				ZeroMemory(&ofn, sizeof(OPENFILENAME));
-				ofn.lStructSize = sizeof(OPENFILENAME);
-				ofn.hwndOwner = hDlg;
-				ofn.hInstance = hInst;
-				ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-				ofn.lpstrCustomFilter = NULL;
-				ofn.nMaxCustFilter = 0;
-				ofn.nFilterIndex = 0;
-				ofn.lpstrFile = avioutput_filename;
-				ofn.nMaxFile = MAX_DPATH;
-				ofn.lpstrFileTitle = NULL;
-				ofn.nMaxFileTitle = 0;
-				ofn.lpstrInitialDir = NULL;
-				ofn.lpfnHook = NULL;
-				ofn.lpTemplateName = NULL;
-				ofn.lCustData = 0;
-				ofn.lpstrFilter = "Video Clip (*.avi)\0*.avi\0Wave Sound (*.wav)\0";
+		    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+		    ofn.lStructSize = sizeof(OPENFILENAME);
+		    ofn.hwndOwner = hDlg;
+		    ofn.hInstance = hInst;
+		    ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+		    ofn.lpstrCustomFilter = NULL;
+		    ofn.nMaxCustFilter = 0;
+		    ofn.nFilterIndex = 0;
+		    ofn.lpstrFile = avioutput_filename;
+		    ofn.nMaxFile = MAX_DPATH;
+		    ofn.lpstrFileTitle = NULL;
+		    ofn.nMaxFileTitle = 0;
+		    ofn.lpstrInitialDir = NULL;
+		    ofn.lpfnHook = NULL;
+		    ofn.lpTemplateName = NULL;
+		    ofn.lCustData = 0;
+		    ofn.lpstrFilter = "Video Clip (*.avi)\0*.avi\0Wave Sound (*.wav)\0";
 				
-				if(!GetSaveFileName(&ofn))
-					break;
-				if (ofn.nFilterIndex == 2) {
-				    avioutput_audio = AVIAUDIO_WAV;
-				    avioutput_video = 0;
-				    aviout_videoc[0] = 0;
-				    strcpy (aviout_audioc, "Wave (internal)");
-				    if (strlen (avioutput_filename) > 4 && !stricmp (avioutput_filename + strlen (avioutput_filename) - 4, ".avi"))
-					strcpy (avioutput_filename + strlen (avioutput_filename) - 4, ".wav");
-				}
-				break;
-			}
+		    if(!GetSaveFileName(&ofn))
+			break;
+		    if (ofn.nFilterIndex == 2) {
+		        avioutput_audio = AVIAUDIO_WAV;
+		        avioutput_video = 0;
+		        if (strlen (avioutput_filename) > 4 && !stricmp (avioutput_filename + strlen (avioutput_filename) - 4, ".avi"))
+			    strcpy (avioutput_filename + strlen (avioutput_filename) - 4, ".wav");
+		    }
+		    break;
 		}
 		
-		values_from_avioutputdlg(hDlg, msg, wParam, lParam);
-		values_to_avioutputdlg(hDlg);
-		enable_for_avioutputdlg(hDlg);
+	    }
+	
+	    values_from_avioutputdlg(hDlg, msg, wParam, lParam);
+	    values_to_avioutputdlg(hDlg);
+	    enable_for_avioutputdlg(hDlg);
 		
-		recursive--;
-		
-		return TRUE;
+	    recursive--;
+	
+	    return TRUE;
 	}
 	return FALSE;
 }

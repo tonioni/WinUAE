@@ -63,7 +63,7 @@ typedef int (*play_func)(int, uae_u32, uae_u32, int);
 typedef uae_u8* (*qcode_func)(int);
 typedef uae_u8* (*toc_func)(int);
 typedef uae_u8* (*read_func)(int, int);
-typedef int (*write_func)(int, int, uae_u8*);
+typedef int (*write_func)(int, int);
 typedef int (*isatapi_func)(int);
 
 struct device_functions {
@@ -97,15 +97,15 @@ extern int device_func_init(int flags);
 extern int sys_command_open (int mode, int unitnum);
 extern void sys_command_close (int mode, int unitnum);
 extern struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di);
-extern struct device_scsi_info *sys_command_scsiinfo (int mode, int unitnum, struct device_scsi_info *di);
+extern struct device_scsi_info *sys_command_scsi_info (int mode, int unitnum, struct device_scsi_info *di);
 extern void sys_command_cd_pause (int mode, int unitnum, int paused);
 extern void sys_command_cd_stop (int mode, int unitnum);
 extern int sys_command_cd_play (int mode, int unitnum, uae_u32 startmsf, uae_u32 endmsf, int);
 extern uae_u8 *sys_command_cd_qcode (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_toc (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);
-extern uae_u8 *sys_command_read (int mode, int unitnum, int offset, int length);
-extern uae_u8 *sys_command_write (int mode, int unitnum, int offset, int length);
+extern uae_u8 *sys_command_read (int mode, int unitnum, int offset);
+extern int sys_command_write (int mode, int unitnum, int offset);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
 
 void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);

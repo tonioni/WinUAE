@@ -15,8 +15,10 @@ extern char avioutput_filename[MAX_DPATH];
 
 extern void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize);
 extern void AVIOutput_WriteVideo(void);
-extern LPSTR AVIOutput_ChooseAudioCodec(HWND hwnd);
-extern LPSTR AVIOutput_ChooseVideoCodec(HWND hwnd);
+extern int AVIOutput_ChooseAudioCodec(HWND hwnd,char*,int);
+extern int AVIOutput_GetAudioCodec(char*,int);
+extern int AVIOutput_ChooseVideoCodec(HWND hwnd,char*,int);
+extern int AVIOutput_GetVideoCodec(char*,int);
 extern void AVIOutput_Restart(void);
 extern void AVIOutput_End(void);
 extern void AVIOutput_Begin(void);

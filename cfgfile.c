@@ -704,7 +704,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "sound_output", &p->produce_sound, soundmode2, 0)
 	|| cfgfile_strval (option, value, "sound_interpol", &p->sound_interpol, interpolmode, 0)
 	|| cfgfile_strval (option, value, "sound_filter", &p->sound_filter, soundfiltermode1, 0)
-	|| cfgfile_strval (option, value, "sound_filter_type", &p->sound_filter, soundfiltermode2, 0)
+	|| cfgfile_strval (option, value, "sound_filter_type", &p->sound_filter_type, soundfiltermode2, 0)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
@@ -987,13 +987,19 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     char *section = 0;
     char tmpbuf[CONFIG_BLEN];
 
+    if (cfgfile_yesno (option, value, "cpu_cycle_exact", &p->cpu_cycle_exact)
+	|| cfgfile_yesno (option, value, "blitter_cycle_exact", &p->blitter_cycle_exact)) {
+	if (p->cpu_level > 1 && p->cachesize > 0)
+	    p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
+	/* we don't want cycle-exact in 68020/40+JIT modes */
+	return 1;
+    }
+
     if (cfgfile_yesno (option, value, "immediate_blits", &p->immediate_blits)
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
 	|| cfgfile_yesno (option, value, "genlock", &p->genlock)
 	|| cfgfile_yesno (option, value, "cpu_compatible", &p->cpu_compatible)
-	|| cfgfile_yesno (option, value, "cpu_cycle_exact", &p->cpu_cycle_exact)
-	|| cfgfile_yesno (option, value, "blitter_cycle_exact", &p->blitter_cycle_exact)
 	|| cfgfile_yesno (option, value, "cpu_24bit_addressing", &p->address_space_24)
 	|| cfgfile_yesno (option, value, "parallel_on_demand", &p->parallel_demand)
 	|| cfgfile_yesno (option, value, "parallel_postscript_emulation", &p->parallel_postscript_emulation)

@@ -25,7 +25,55 @@ DD0000 to DDFFFF		64 KB RESERVED for DMA controller
 DE0000 to DEFFFF		64 KB Not Used
 */
 
+/* Gayle definitions from Linux driver */
+
+/*
+ *  Bases of the IDE interfaces
+ */
+#define GAYLE_BASE_4000 0xdd2020    /* A4000/A4000T */
+#define GAYLE_BASE_1200 0xda0000    /* A1200/A600 and E-Matrix 530 */
+/*
+ *  Offsets from one of the above bases
+ */
+#define GAYLE_DATA      0x00
+#define GAYLE_ERROR     0x06	    /* see err-bits */
+#define GAYLE_NSECTOR   0x0a	    /* nr of sectors to read/write */
+#define GAYLE_SECTOR    0x0e	    /* starting sector */
+#define GAYLE_LCYL      0x12	    /* starting cylinder */
+#define GAYLE_HCYL      0x16	    /* high byte of starting cyl */
+#define GAYLE_SELECT    0x1a	    /* 101dhhhh , d=drive, hhhh=head */
+#define GAYLE_STATUS    0x1e	    /* see status-bits */
+#define GAYLE_CONTROL   0x101a
+/*
+ *  These are at different offsets from the base
+ */
+#define GAYLE_IRQ_4000  0x3020    /* MSB = 1, Harddisk is source of */
+#define GAYLE_IRQ_1200  0x9000    /* interrupt */
+
+/* GAYLE_IRQ bit def */
+#define GAYLE_IRQ_IDE	0x80
+#define GAYLE_IRQ_CCDET	0x40
+#define GAYLE_IRQ_BVD1	0x20
+#define GAYLE_IRQ_SC	0x20
+#define GAYLE_IRQ_BVD2	0x10
+#define GAYLE_IRQ_DA	0x10
+#define GAYLE_IRQ_WR	0x08
+#define GAYLE_IRQ_BSY	0x04
+#define GAYLE_IRQ_IRQ	0x04
+#define GAYLE_IRQ_IDEACK1 0x02
+#define GAYLE_IRQ_IDEACK0 0x01
+
 #define GAYLE_LOG 0
+
+static int gayle_type = -1; // 0=A600/A1200 1=A4000
+static uae_u8 gayle_irq;
+
+static void ide_interrupt(void)
+{
+    gayle_irq |= GAYLE_IRQ_IDE;
+    INTREQ (0x8000 | 0x0008);
+}
+
 
 static int ide_read (uaecptr addr, int size)
 {
@@ -34,13 +82,62 @@ static int ide_read (uaecptr addr, int size)
 	write_log ("IDE_READ %08.8X\n", addr);
     if (addr == 0x201c) // AR1200 IDE detection hack
 	return 0;
+    if (gayle_type < 0)
+	return 0xffff;
+    if (addr == GAYLE_IRQ_4000) {
+	if (gayle_type) {
+	    uae_u8 v = gayle_irq;
+	    gayle_irq = 0;
+	    return v;
+	}
+	return 0;
+    } else if (addr == GAYLE_IRQ_1200) {
+	if (!gayle_type)
+	    return gayle_irq;
+	return 0;
+    }
+    if (gayle_type && (addr & 0x2020) == 0x2020)
+	addr &= ~0x2020;
+    switch (addr)
+    {
+	case GAYLE_DATA:
+	case GAYLE_ERROR:
+	case GAYLE_NSECTOR:
+	case GAYLE_SECTOR:
+	case GAYLE_LCYL:
+	case GAYLE_HCYL:
+	case GAYLE_SELECT:
+	case GAYLE_STATUS:
+	break;
+    }
     return 0xffff;
 }
+
 static void ide_write (uaecptr addr, int val, int size)
 {
     addr &= 0xffff;
     if (GAYLE_LOG)
 	write_log ("IDE_WRITE %08.8X=%08.8X (%d)\n", addr, val, size);
+    if (gayle_type < 0)
+	return;
+    if (addr == GAYLE_IRQ_1200 && !gayle_type) {
+	gayle_irq &= val;
+	return;
+    }
+    if (gayle_type && (addr & 0x2020) == 0x2020)
+	addr &= ~0x2020;
+    switch (addr)
+    {
+	case GAYLE_DATA:
+	case GAYLE_ERROR:
+	case GAYLE_NSECTOR:
+	case GAYLE_SECTOR:
+	case GAYLE_LCYL:
+	case GAYLE_HCYL:
+	case GAYLE_SELECT:
+	case GAYLE_STATUS:
+	break;
+    }
 }
 
 static int gayle_read (uaecptr addr, int size)

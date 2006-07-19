@@ -605,13 +605,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     PAINTSTRUCT ps;
     HDC hDC;
     int mx, my, v;
-    static int mm;
-    static int minimized;
+    static int mm, minimized, recursive, ignoremousemove;
 
-#if MSGDEBUG
+#if MSGDEBUG > 1
     write_log ("AWP: %x %d\n", hWnd, message);
 #endif
-
     if (ignore_messages_all)
 	return DefWindowProc (hWnd, message, wParam, lParam);
 
@@ -621,9 +619,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     switch (message)
     {
     case WM_SETCURSOR:
-    return TRUE;
+	return TRUE;
     case WM_SIZE:
     {
+	if (recursive)
+	    return 0;
+	recursive++;
 #if MSGDEBUG
 	write_log ("WM_SIZE %x %d %d\n", hWnd, wParam, minimized);
 #endif
@@ -649,13 +650,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		    winuae_active (hWnd, minimized);
 		}
 	    }
-	    return 0;
 	}
+	recursive--;
+	return 0;
     }
-	    
+    break;    
     case WM_ACTIVATE:
+	if (recursive)
+	    return 0;
+	recursive++;
 #if MSGDEBUG
-	write_log ("WM_ACTIVE %x %d %d %d\n", hWnd, HIWORD (wParam), LOWORD (wParam), minimized);
+	write_log ("WM_ACTIVATE %x %d %d %d\n", hWnd, HIWORD (wParam), LOWORD (wParam), minimized);
 #endif
 	if (!isfullscreen ()) {
 	    minimized = HIWORD (wParam);
@@ -664,7 +669,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    } else {
 		winuae_inactive (hWnd, minimized);
 	    }
-	    return 0;
 	} else {
 	    if (LOWORD (wParam) == WA_INACTIVE) {
 		minimized = HIWORD (wParam);
@@ -672,32 +676,38 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    } else {
 		if (!minimized)
 		    winuae_active (hWnd, minimized);
+		if (is3dmode() && normal_display_change_starting == 0)
+		    normal_display_change_starting = 1;
 	    }
-	    return 0;
 	}
-	break;
+	recursive--;
+        return 0;
 
     case WM_ACTIVATEAPP:
+    {
+	if (recursive)
+	    return 0;
+	recursive++;
 #if MSGDEBUG
 	write_log ("WM_ACTIVATEAPP %x %d %d\n", hWnd, wParam, minimized);
 #endif
 	activateapp = wParam;
 	if (!wParam) {
 	    setmouseactive (0);
-	    if (normal_display_change_starting == 0)
-		normal_display_change_starting = 4;
+	    normal_display_change_starting = 0;
 	} else {
 	    if (minimized)
 		minimized = 0;
 	    winuae_active (hWnd, minimized);
-	    if (normal_display_change_starting) {
-		if (isfullscreen () && is3dmode () && normal_display_change_starting == 4)
-		    WIN32GFX_DisplayChangeRequested ();
-		normal_display_change_starting--;
+	    if (is3dmode () && normal_display_change_starting == 1) {
+		WIN32GFX_DisplayChangeRequested ();
+		normal_display_change_starting = -1;
 	    }
 	}
 	manual_palette_refresh_needed = 1;
-    return 0;
+	recursive--;
+        return 0;
+    }
 
     case WM_PALETTECHANGED:
 	if ((HWND)wParam != hWnd)
@@ -816,6 +826,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     break;
 
     case WM_MOUSEMOVE:
+    {
+	if (normal_display_change_starting)
+	    return 0;
 	mx = (signed short) LOWORD (lParam);
 	my = (signed short) HIWORD (lParam);
 	if (dinput_winmouse () >= 0) {
@@ -839,6 +852,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
 	if (mouseactive)
 	    setcursor (LOWORD (lParam), HIWORD (lParam));
+    }
     return 0;
 
     case WM_MOVING:
@@ -1025,7 +1039,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     RECT rc;
     HDC hDC;
 
-#if MSGDEBUG
+#if MSGDEBUG > 1
     write_log ("MWP: %x %d\n", hWnd, message);
 #endif
 
@@ -1165,6 +1179,8 @@ void handle_events (void)
 	inputdevice_handle_inputcode ();
 	check_prefs_changed_gfx ();
 	while (checkIPC(&currprefs));
+	if (quit_program)
+	    break;
     }
     while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 	TranslateMessage (&msg);
@@ -1406,25 +1422,19 @@ HMODULE language_load(WORD language)
 	else
 	    sprintf (dllbuf, "%sWinUAE_%s.dll", start_path_exe, dllname);
 	result = WIN32_LoadLibrary (dllbuf);
-	if (result) 
-	{
+	if (result)  {
 	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle);
-	    if (dwFileVersionInfoSize)
-	    {
-		if (lpFileVersionData = calloc(1, dwFileVersionInfoSize))
-		{
-		    if (GetFileVersionInfo(dllbuf, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData))
-		    {
+	    if (dwFileVersionInfoSize) {
+		if (lpFileVersionData = calloc(1, dwFileVersionInfoSize)) {
+		    if (GetFileVersionInfo(dllbuf, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData)) {
 			VS_FIXEDFILEINFO *vsFileInfo = NULL;
 			UINT uLen;
 			fail = 0;
-			if (VerQueryValue(lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen))
-			{
+			if (VerQueryValue(lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen)) {
 			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-				&& HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)
-			    {
+				/* && HIWORD(vsFileInfo->dwProductVersionLS) <= UAESUBREV */ ) {
 				success = TRUE;
 				write_log ("Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {

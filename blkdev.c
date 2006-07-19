@@ -184,36 +184,34 @@ uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset)
     return device_func[DF_IOCTL]->read (unitnum, offset);
 }
 
-/* read block(s) */
-uae_u8 *sys_command_read (int mode, int unitnum, int offset, int length)
+/* read block */
+uae_u8 *sys_command_read (int mode, int unitnum, int offset)
 {
     if (mode == DF_SCSI || !ioctl) {
-	uae_u8 cmd[10] = { 0x28, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	uae_u8 cmd[10] = { 0x28, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
 	cmd[2] = (uae_u8)(offset >> 24);
 	cmd[3] = (uae_u8)(offset >> 16);
 	cmd[4] = (uae_u8)(offset >> 8);
 	cmd[5] = (uae_u8)(offset >> 0);
-	cmd[7] = (uae_u8)(length >> 8);
-	cmd[8] = (uae_u8)(length >> 0);
 	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
     }
     return device_func[DF_IOCTL]->read (unitnum, offset);
 }
 
-/* write block(s) */
-uae_u8 *sys_command_write (int mode, int unitnum, int offset, int length)
+/* write block */
+int sys_command_write (int mode, int unitnum, int offset)
 {
     if (mode == DF_SCSI || !ioctl) {
-	uae_u8 cmd[10] = { 0x2a, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	uae_u8 cmd[10] = { 0x2a, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
 	cmd[2] = (uae_u8)(offset >> 24);
 	cmd[3] = (uae_u8)(offset >> 16);
 	cmd[4] = (uae_u8)(offset >> 8);
 	cmd[5] = (uae_u8)(offset >> 0);
-	cmd[7] = (uae_u8)(length >> 8);
-	cmd[8] = (uae_u8)(length >> 0);
-	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
+	if (device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0))
+	    return -1;
+	return 0;
     }
-    return device_func[DF_IOCTL]->read (unitnum, offset);
+    return device_func[DF_IOCTL]->write (unitnum, offset);
 }
 
 struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di)

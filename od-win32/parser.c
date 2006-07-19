@@ -332,8 +332,9 @@ int load_ghostscript (void)
 		    if (RegOpenKeyEx (key, tmp1, 0, KEY_ALL_ACCESS, &key2) == ERROR_SUCCESS) {
 			DWORD type = REG_SZ;
 			DWORD size = sizeof (path);
-			if (RegQueryValueEx (key2, "GS_DLL", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS)
+			if (RegQueryValueEx (key2, "GS_DLL", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {
 			    gsdll = LoadLibrary (path);
+			}
 			RegCloseKey (key2);
 			if (gsdll)
 			    break;
@@ -349,10 +350,12 @@ int load_ghostscript (void)
     ptr_gsapi_revision = (GSAPI_REVISION)GetProcAddress (gsdll, "gsapi_revision");
     if (!ptr_gsapi_revision) {
 	unload_ghostscript ();
+	write_log("incompatible gsdll32.dll! (1)\n");
 	return -1;
     }
     if (ptr_gsapi_revision(&r, sizeof(r))) {
 	unload_ghostscript ();
+	write_log("incompatible gsdll32.dll! (2)\n");
 	return -2;
     }
     ptr_gsapi_new_instance = (GSAPI_NEW_INSTANCE)GetProcAddress (gsdll, "gsapi_new_instance");
@@ -367,6 +370,7 @@ int load_ghostscript (void)
 	!ptr_gsapi_run_string_begin || !ptr_gsapi_run_string_continue || !ptr_gsapi_run_string_end ||
 	!ptr_gsapi_init_with_args) {
 	unload_ghostscript ();
+	write_log("incompatible gsdll32.dll! (3)\n");
 	return -3;
     }
     write_log ("gsdll32.dll: %s rev %d initialized\n", r.product, r.revision);

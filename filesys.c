@@ -1376,7 +1376,7 @@ static uae_u32 startup_handler (void)
     if (i == current_mountinfo.num_units
 	|| !my_existsdir (current_mountinfo.ui[i].rootdir))
     {
-	write_log ("Failed attempt to mount device\n", devname);
+	write_log ("Failed attempt to mount device '%s'\n", devname);
 	put_long (pkt + dp_Res1, DOS_FALSE);
 	put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
 	return 1;
@@ -3573,6 +3573,7 @@ static void init_filesys_diagentry (void)
     do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
     do_put_mem_long ((uae_u32 *)(filesysory + 0x210c), current_mountinfo.num_units);
     native2amiga_startup();
+    //cartridge_init();
 }
 
 void filesys_start_threads (void)

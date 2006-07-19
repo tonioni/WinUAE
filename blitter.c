@@ -646,18 +646,26 @@ static void actually_do_blit(void)
 
 void blitter_handler(void)
 {
+    static int blitter_stuck;
     if (!dmaen(DMA_BLITTER)) {
-	eventtab[ev_blitter].active = 1;
-	eventtab[ev_blitter].oldcycles = get_cycles ();
-	eventtab[ev_blitter].evtime = 10 * CYCLE_UNIT + get_cycles (); /* wait a little */
-	return; /* gotta come back later. */
+        eventtab[ev_blitter].active = 1;
+        eventtab[ev_blitter].oldcycles = get_cycles ();
+        eventtab[ev_blitter].evtime = 10 * CYCLE_UNIT + get_cycles (); /* wait a little */
+	blitter_stuck++;
+	if (blitter_stuck < 20000 || !currprefs.immediate_blits)
+	    return; /* gotta come back later. */
+	/* "free" blitter in immediate mode if it has been "stuck" ~3 frames
+	 * fixes some JIT game incompatibilities
+	 */
+	write_log("Blitter force-unstuck!\n");
     }
-    if (blit_slowdown > 0) {
-	eventtab[ev_blitter].active = 1;
-	eventtab[ev_blitter].oldcycles = get_cycles ();
-	eventtab[ev_blitter].evtime = blit_slowdown * CYCLE_UNIT + get_cycles ();
-	blit_slowdown = -1;
-	return;
+    blitter_stuck = 0;
+    if (blit_slowdown > 0 && !currprefs.immediate_blits) {
+        eventtab[ev_blitter].active = 1;
+        eventtab[ev_blitter].oldcycles = get_cycles ();
+        eventtab[ev_blitter].evtime = blit_slowdown * CYCLE_UNIT + get_cycles ();
+        blit_slowdown = -1;
+        return;
     }
 #ifdef BLITTER_DEBUG
     if (!blitter_dontdo)
@@ -1029,10 +1037,10 @@ void do_blitter (int hpos)
     if (1) {
 	if (oldstate != BLT_done)
 	    write_log ("blitter was already active!\n");
-	write_log("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02.2X n=%d pc=%p l=%d dma=%d\n",
+	write_log("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02.2X n=%d pc=%p l=%d dma=%04.4X\n",
 	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, cycles, blit_ch,
 	    blitdesc ? 1 : 0, blitfill,
-	    dmaen(DMA_BLITPRI) ? 1 : 0, m68k_getpc(), blitline, dmaen(DMA_BLITTER));
+	    dmaen(DMA_BLITPRI) ? 1 : 0, m68k_getpc(), blitline, dmacon);
 	blitter_dump ();
     }
 #endif

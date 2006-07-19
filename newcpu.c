@@ -1601,10 +1601,10 @@ void mmu_op(uae_u32 opcode, uae_u16 extra)
     if ((opcode & 0xFE0) == 0x0500) {
 	/* PFLUSH */
 	mmusr = 0;
-	write_log ("PFLUSH @$%lx\n", m68k_getpc());
+	//write_log ("PFLUSH @$%lx\n", m68k_getpc());
     } else if ((opcode & 0x0FD8) == 0x548) {
 	/* PTEST */
-	write_log ("PTEST @$%lx\n", m68k_getpc());
+	//write_log ("PTEST @$%lx\n", m68k_getpc());
     } else
 	op_illg (opcode);
 }
