@@ -3387,7 +3387,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_GENLOCK), full_property_sheet);
     EnableWindow (GetDlgItem (hDlg, IDC_BLITIMM), enable);
     if (enable == FALSE) {
-	workprefs.fast_copper = 0;
 	workprefs.immediate_blits = 0;
 	CheckDlgButton (hDlg, IDC_FASTCOPPER, FALSE);
 	CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
@@ -3991,7 +3990,6 @@ static void values_to_chipsetdlg (HWND hDlg)
     }
     CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
     CheckDlgButton (hDlg, IDC_GENLOCK, workprefs.genlock);
-    CheckDlgButton (hDlg, IDC_FASTCOPPER, workprefs.fast_copper);
     CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
     CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
     CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
@@ -4008,7 +4006,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     BOOL success = FALSE;
     int n, snd;
 
-    workprefs.fast_copper = IsDlgButtonChecked (hDlg, IDC_FASTCOPPER);
     workprefs.genlock = IsDlgButtonChecked (hDlg, IDC_FASTCOPPER);
     workprefs.immediate_blits = IsDlgButtonChecked (hDlg, IDC_BLITIMM);
     n = IsDlgButtonChecked (hDlg, IDC_CYCLEEXACT) ? 1 : 0;
@@ -4020,7 +4017,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.m68k_speed = 0;
 	    }
 	    workprefs.immediate_blits = 0;
-	    workprefs.fast_copper = 0;
 	    workprefs.gfx_framerate = 1;
 	}
     }
@@ -6227,7 +6223,7 @@ static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
     if (f_text < 0)
 	return;
     SendDlgItemMessage(hDlg, f_text, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]); 
+    SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]);
     i = 0;
     while (s = DISK_history_get (i)) {
 	char tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
@@ -6372,7 +6368,7 @@ static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
 static void getfloppyname (HWND hDlg, int n)
 {
     int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
-    char tmp[1000];
+    char tmp[MAX_DPATH];
 
     if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp))) {
 	disk_insert (n, tmp);
@@ -8132,36 +8128,36 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 #ifdef AVIOUTPUT
 static void values_to_avioutputdlg(HWND hDlg)
 {
-	char tmpstr[256];
+    char tmpstr[256];
 	
-	updatewinfsmode (&workprefs);
-	SetDlgItemText(hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename);
+    updatewinfsmode (&workprefs);
+    SetDlgItemText(hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename);
 	
-	sprintf(tmpstr, "%d fps", avioutput_fps);
-	SendMessage(GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
+    sprintf(tmpstr, "%d fps", avioutput_fps);
+    SendMessage(GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
 	
-	sprintf(tmpstr, "Actual: %d x %d", workprefs.gfx_size.width, workprefs.gfx_size.height);
-	SendMessage(GetDlgItem(hDlg, IDC_AVIOUTPUT_DIMENSIONS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
+    sprintf(tmpstr, "Actual: %d x %d", workprefs.gfx_size.width, workprefs.gfx_size.height);
+    SendMessage(GetDlgItem(hDlg, IDC_AVIOUTPUT_DIMENSIONS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
 	
-	switch(avioutput_fps)
-	{
+    switch(avioutput_fps)
+    {
 	case VBLANK_HZ_PAL:
-		CheckRadioButton(hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_PAL);
-		break;
+	    CheckRadioButton(hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_PAL);
+	break;
 		
 	case VBLANK_HZ_NTSC:
-		CheckRadioButton(hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_NTSC);
-		break;
+	    CheckRadioButton(hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_NTSC);
+	break;
 		
 	default:
-		CheckDlgButton(hDlg, IDC_AVIOUTPUT_PAL, BST_UNCHECKED);
-		CheckDlgButton(hDlg, IDC_AVIOUTPUT_NTSC, BST_UNCHECKED);
-		break;
-	}
+	    CheckDlgButton(hDlg, IDC_AVIOUTPUT_PAL, BST_UNCHECKED);
+	    CheckDlgButton(hDlg, IDC_AVIOUTPUT_NTSC, BST_UNCHECKED);
+	break;
+    }
 	
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -8176,7 +8172,6 @@ static void values_from_avioutputdlg(HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    avioutput_fps = (int)tmp;
 	    AVIOutput_Restart ();
 	}
-	avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
 }
 
 static void enable_for_avioutputdlg(HWND hDlg)
@@ -8194,7 +8189,6 @@ static void enable_for_avioutputdlg(HWND hDlg)
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_NTSC), TRUE);
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS), TRUE);
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_FILE), TRUE);
-    CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 		
     if(workprefs.produce_sound < 2) {
 	EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_AUDIO), FALSE);
@@ -8224,6 +8218,8 @@ static void enable_for_avioutputdlg(HWND hDlg)
     }
     SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), tmp);
 
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_ACTIVATED), (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
     EnableWindow(GetDlgItem(hDlg, IDC_INPREC_RECORD), input_recording >= 0);
@@ -8243,9 +8239,10 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 	case WM_INITDIALOG:
 	    pages[AVIOUTPUT_ID] = hDlg;
 	    currentpage = AVIOUTPUT_ID;
+	    AVIOutput_GetSettings();
 	    enable_for_avioutputdlg(hDlg);
 	    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETRANGE, TRUE, MAKELONG(1, VBLANK_HZ_NTSC));
-	    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
+	    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, avioutput_fps);
 	    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 	    if (!avioutput_filename[0]) {
 	        fetch_path ("VideoPath", avioutput_filename, sizeof (avioutput_filename));
@@ -8254,23 +8251,18 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		
 	case WM_USER:
 	    recursive++;
-		
 	    values_to_avioutputdlg(hDlg);
 	    enable_for_avioutputdlg(hDlg);
-		
 	    recursive--;
 	return TRUE;
 		
 	case WM_HSCROLL:
 	{
 	    recursive++;
-			
 	    values_from_avioutputdlg(hDlg, msg, wParam, lParam);
 	    values_to_avioutputdlg(hDlg);
 	    enable_for_avioutputdlg(hDlg);
-			
 	    recursive--;
-			
 	    return TRUE;
 	}
 		
@@ -8283,6 +8275,11 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		
 	    switch(wParam)
 	    {
+
+		case IDC_AVIOUTPUT_FRAMELIMITER:
+		    avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
+		    AVIOutput_SetSettings();
+		break;
 
 		case IDC_INPREC_PLAYMODE:
 		break;
@@ -8414,6 +8411,7 @@ struct GUIPAGE {
     const char *help;
     HACCEL accel;
     int fullpanel;
+    int tmpl;
 };
 
 static int GetPanelRect (HWND hDlg, RECT *r)
@@ -8481,13 +8479,63 @@ static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam
     return CallWindowProc (ToolTipHWNDS2[i].proc, hwnd, message, wParam, lParam);
 }
 
+static int ignorewindows[] = {
+    IDD_FLOPPY, IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, IDC_CREATE_NAME,
+    -1,
+    IDD_QUICKSTART, IDC_DF0TEXTQ, IDC_DF1TEXTQ, IDC_QUICKSTART_HOSTCONFIG,
+    -1,
+    IDD_AVIOUTPUT, IDC_AVIOUTPUT_FILETEXT, IDC_AVIOUTPUT_VIDEO_STATIC, IDC_AVIOUTPUT_AUDIO_STATIC,
+    -1,
+    IDD_DISK, IDC_DISKTEXT, IDC_DISKLIST,
+    -1,
+    IDD_DISPLAY, IDC_DISPLAYSELECT,
+    -1,
+    IDD_FILTER, IDC_FILTERPRESETS,
+    -1,
+    IDD_HARDDISK, IDC_VOLUMELIST,
+    -1,
+    IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
+    -1,
+    IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE,
+    -1,
+    IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
+    -1,
+    IDD_MISC1, IDC_LANGUAGE,
+    -1,
+    IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE,
+    -1,
+    IDD_PORTS, IDC_PRINTERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
+    -1,
+    IDD_SOUND, IDC_SOUNDCARDLIST, IDC_SOUNDDRIVESELECT,
+    -1,
+    0
+};
+
 static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 {
+    int i;
     TOOLINFO ti;
     char tmp[MAX_DPATH];
     char *p;
     LRESULT v;
 
+    if (GetParent(hwnd) != panelDlg)
+	return 1;
+    i = 0;
+    while (ignorewindows[i]) {
+	if (ignorewindows[i] == (int)lParam) {
+	    int dlgid = GetDlgCtrlID(hwnd);
+	    i++;
+	    while (ignorewindows[i] > 0) {
+		if (dlgid == ignorewindows[i])
+		    return 1;
+		i++;
+	    }
+	    break;
+	} else {
+	    while (ignorewindows[i++] > 0);
+	}
+    }
     tmp[0] = 0;
     SendMessage (hwnd, WM_GETTEXT, (WPARAM)sizeof (tmp), (LPARAM)tmp);
     p = strchr (tmp, '[');
@@ -8658,7 +8706,7 @@ static HWND updatePanel (HWND hDlg, int id)
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
     SendMessage(ToolTipHWND, TTM_SETMAXTIPWIDTH, 0, 400);
 
-    EnumChildWindows (panelDlg, &childenumproc, (LPARAM)NULL);
+    EnumChildWindows (panelDlg, &childenumproc, (LPARAM)ppage[currentpage].tmpl);
     SendMessage (panelDlg, WM_NULL, 0, 0);
 
     hAccelTable = ppage[currentpage].accel;
@@ -8869,6 +8917,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			    }
 			}
 		    } else {
+			DISK_history_add (file, -1);
 			strcpy (workprefs.df[drv], file);
 		        strcpy (changed_prefs.df[drv], workprefs.df[drv]);
 			drv++;
@@ -9045,6 +9094,7 @@ static int init_page (int tmpl, int icon, int title,
     ppage[id].help = help;
     ppage[id].idx = id;
     ppage[id].accel = NULL;
+    ppage[id].tmpl = tmpl;
     if (!accels)
 	accels = EmptyAccel;
     while (accels[++i].key);

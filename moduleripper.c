@@ -44,12 +44,16 @@ void moduleripper (void)
     size = currprefs.chipmem_size;
     size += currprefs.fastmem_size;
     size += currprefs.bogomem_size;
+    size += currprefs.z3fastmem_size;
     buf = p = xmalloc (size);
     memcpy (p, chipmemory, currprefs.chipmem_size);
     p += currprefs.chipmem_size;
-    mc (p, 0x200000, currprefs.fastmem_size);
+    mc (p, fastmem_start, currprefs.fastmem_size);
     p += currprefs.fastmem_size;
-    mc (p, 0xc00000, currprefs.bogomem_size);
+    mc (p, bogomem_start, currprefs.bogomem_size);
+    p += currprefs.bogomem_size;
+    mc (p, z3fastmem_start, currprefs.z3fastmem_size);
+    p += currprefs.z3fastmem_size;
 
     got = 0;
     canceled = 0;

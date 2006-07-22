@@ -5435,7 +5435,6 @@ void check_prefs_changed_custom (void)
     }
     currprefs.immediate_blits = changed_prefs.immediate_blits;
     currprefs.collision_level = changed_prefs.collision_level;
-    currprefs.fast_copper = changed_prefs.fast_copper;
 
     if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 	currprefs.gfx_vsync != changed_prefs.gfx_vsync ||

@@ -9,7 +9,8 @@
 extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_requested;
 
 extern int avioutput_width, avioutput_height, avioutput_bits;
-extern int avioutput_fps, avioutput_framelimiter;
+extern int avioutput_fps;
+extern DWORD avioutput_framelimiter;
 
 extern char avioutput_filename[MAX_DPATH];
 
@@ -25,6 +26,8 @@ extern void AVIOutput_Begin(void);
 extern void AVIOutput_Release(void);
 extern void AVIOutput_Initialize(void);
 extern void AVIOutput_RGBinfo(int,int,int,int,int,int);
+extern void AVIOutput_GetSettings(void);
+extern void AVIOutput_SetSettings(void);
 
 #define AVIAUDIO_AVI 1
 #define AVIAUDIO_WAV 2

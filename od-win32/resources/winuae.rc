@@ -479,8 +479,6 @@ BEGIN
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,63,50,10
     GROUPBOX        "Options",IDC_STATIC,168,11,114,82
-    CONTROL         "Fast Copper [] Faster but less compatible copper emulation.",IDC_FASTCOPPER,
-                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,176,198,98,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,30,96,10
     CONTROL         "Cycle-exact CPU and Blitter [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,

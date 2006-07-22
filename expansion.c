@@ -338,7 +338,7 @@ static void fastmem_bput (uaecptr, uae_u32) REGPARAM;
 static int fastmem_check (uaecptr addr, uae_u32 size) REGPARAM;
 static uae_u8 *fastmem_xlate (uaecptr addr) REGPARAM;
 
-static uae_u32 fastmem_start; /* Determined by the OS */
+uaecptr fastmem_start; /* Determined by the OS */
 static uae_u8 *fastmemory;
 
 uae_u32 REGPARAM2 fastmem_lget (uaecptr addr)
@@ -639,7 +639,7 @@ static void z3fastmem_bput (uaecptr, uae_u32) REGPARAM;
 static int z3fastmem_check (uaecptr addr, uae_u32 size) REGPARAM;
 static uae_u8 *z3fastmem_xlate (uaecptr addr) REGPARAM;
 
-static uae_u32 z3fastmem_start; /* Determined by the OS */
+uaecptr z3fastmem_start; /* Determined by the OS */
 static uae_u8 *z3fastmem;
 
 uae_u32 REGPARAM2 z3fastmem_lget (uaecptr addr)

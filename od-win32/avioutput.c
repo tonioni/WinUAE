@@ -53,7 +53,7 @@ int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 
 int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
-int avioutput_framelimiter = 0;
+DWORD avioutput_framelimiter = 0;
 
 char avioutput_filename[MAX_DPATH];
 static char avioutput_filename_tmp[MAX_DPATH];
@@ -100,6 +100,39 @@ static HKEY openavikey(void)
     RegCreateKeyEx(hWinUAEKey , "AVConfiguration", 0, NULL, REG_OPTION_NON_VOLATILE,
 	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     return fkey;
+}
+
+static void storesettings(HKEY avikey)
+{
+    RegSetValueEx(avikey, "FrameLimiter", 0, REG_DWORD, (BYTE*)&avioutput_framelimiter, sizeof(DWORD));
+    RegSetValueEx(avikey, "FPS", 0, REG_DWORD, (BYTE*)&avioutput_fps, sizeof(DWORD));
+}
+static void getsettings(HKEY avikey)
+{
+    DWORD val;
+    DWORD ss = sizeof (DWORD);
+    if (RegQueryValueEx(avikey, "FrameLimiter", 0, NULL, (BYTE*)&val, &ss) == ERROR_SUCCESS)
+	avioutput_framelimiter = val;
+    ss = sizeof (DWORD);
+    if (RegQueryValueEx(avikey, "FPS", 0, NULL, (BYTE*)&val, &ss) == ERROR_SUCCESS)
+	avioutput_fps = val;
+}
+
+void AVIOutput_GetSettings(void)
+{
+    HKEY avikey = openavikey();
+    if (avikey) {
+	getsettings(avikey);
+	RegCloseKey(avikey);
+    }
+}
+void AVIOutput_SetSettings(void)
+{
+    HKEY avikey = openavikey();
+    if (avikey) {
+	storesettings(avikey);
+	RegCloseKey(avikey);
+    }
 }
 
 static UINT CALLBACK acmFilterChooseHookProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -238,6 +271,7 @@ static int AVIOutput_GetAudioFromRegistry(WAVEFORMATEX *wft)
     avikey = openavikey();
     if (!avikey)
 	return 0;
+    getsettings(avikey);
     if (wft) {
 	if (RegQueryValueEx(avikey, "AudioConfigurationVars", 0, NULL, NULL, &ss) == ERROR_SUCCESS) {
 	    if (ss <= sizeof(WAVEFORMATEX) + wft->cbSize) {
@@ -293,6 +327,7 @@ int AVIOutput_ChooseAudioCodec(HWND hwnd, char *s, int len)
 	    avikey = openavikey();
 	    if (avikey) {
 		RegSetValueEx(avikey, "AudioConfigurationVars", 0, REG_BINARY, (BYTE*)pwfxDst, pwfxDst->cbSize + sizeof(WAVEFORMATEX));
+		storesettings(avikey);
 		RegCloseKey(avikey);
 	    }
 	    return 1;
@@ -384,6 +419,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry(COMPVARS *pcv)
     avikey = openavikey();
     if (!avikey)
 	return 0;
+    getsettings(avikey);
     if (pcv) {
 	ss = pcv->cbSize;
 	pcv->hic = 0;
@@ -487,6 +523,7 @@ int AVIOutput_ChooseVideoCodec(HWND hwnd, char *s, int len)
 	if (avikey) {
 	    RegSetValueEx(avikey, "VideoConfigurationState", 0, REG_BINARY, state, ss);
 	    RegSetValueEx(avikey, "VideoConfigurationVars", 0, REG_BINARY, (BYTE*)pcompvars, pcompvars->cbSize);
+	    storesettings(avikey);
 	    RegCloseKey(avikey);
 	}
 	xfree (state);

@@ -50,6 +50,8 @@ extern void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v);
 #define bogomem_start 0x00C00000
 #define a3000mem_start 0x07000000
 #define kickmem_start 0x00F80000
+extern uaecptr z3fastmem_start;
+extern uaecptr fastmem_start;
 
 extern int ersatzkickfile;
 extern int cloanto_rom;

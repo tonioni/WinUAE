@@ -4,6 +4,7 @@
   * Debugger
   *
   * (c) 1995 Bernd Schmidt
+  * (c) 2006 Toni Wilen
   *
   */
 
@@ -98,6 +99,8 @@ static char help[] = {
     "  O <plane> <offset>    Offset a bitplane\n"
     "  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions\n"
     "  C <value>             Search for values like energy or lifes in games\n"
+    "  Cl                    List currently found trainer addresses\n"
+    "  D                     Deep trainer\n"
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/RW> [<value>]\n"
     "                        Add/remove memory watchpoints\n"
@@ -216,30 +219,64 @@ static int next_string (char **c, char *out, int max, int forceupper)
     return strlen (out);
 }
 
-static uae_u32 nextaddr (uae_u32 addr)
+static uae_u32 lastaddr (void)
+{
+    if (currprefs.z3fastmem_size)
+        return z3fastmem_start + currprefs.fastmem_size;
+    if (currprefs.bogomem_size)
+        return bogomem_start + currprefs.bogomem_size;
+    if (currprefs.fastmem_size)
+        return fastmem_start + currprefs.fastmem_size;
+    return currprefs.chipmem_size;
+}
+
+static uaecptr nextaddr (uaecptr addr, uaecptr *end)
 {
     if (addr == 0xffffffff) {
-	if (currprefs.bogomem_size)
-	    return 0xc00000 + currprefs.bogomem_size;
-	if (currprefs.fastmem_size)
-	    return 0x200000 + currprefs.fastmem_size;
-	return currprefs.chipmem_size;
+	if (end)
+	    *end = currprefs.chipmem_size;
+	return 0;
     }
+    addr++;
     if (addr == currprefs.chipmem_size) {
-	if (currprefs.fastmem_size)
-	    return 0x200000;
-	else if (currprefs.bogomem_size)
-	    return 0xc00000;
+	if (currprefs.fastmem_size) {
+	    if (end)
+		*end = fastmem_start + currprefs.fastmem_size;
+	    return fastmem_start;
+	} else if (currprefs.bogomem_size) {
+	    if (end)
+		*end = bogomem_start + currprefs.bogomem_size;
+	    return bogomem_start;
+	} else if (currprefs.z3fastmem_size) {
+	    if (end)
+		*end = z3fastmem_start + currprefs.z3fastmem_size;
+	    return z3fastmem_start;
+	}
 	return 0xffffffff;
     }
-    if (addr == 0x200000 + currprefs.fastmem_size) {
-	if (currprefs.bogomem_size)
-	    return 0xc00000;
+    if (addr == fastmem_start + currprefs.fastmem_size) {
+	if (currprefs.bogomem_size) {
+	    if (end)
+		*end = fastmem_start + currprefs.bogomem_size;
+	    return bogomem_start;
+	} else if (currprefs.z3fastmem_size) {
+	    if (end)
+		*end = z3fastmem_start + currprefs.z3fastmem_size;
+	    return z3fastmem_start;
+	}
 	return 0xffffffff;
     }
-    if (addr == 0xc00000 + currprefs.bogomem_size)
+    if (addr == bogomem_start + currprefs.bogomem_size) {
+	if (currprefs.z3fastmem_size) {
+	    if (end)
+		*end = z3fastmem_start + currprefs.z3fastmem_size;
+	    return z3fastmem_start;
+	}
 	return 0xffffffff;
-    return addr + 1;
+    }
+    if (addr == z3fastmem_start + currprefs.z3fastmem_size)
+	return 0xffffffff;
+    return addr;
 }
 
 static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
@@ -544,6 +581,124 @@ static int copper_debugger (char **c)
 }
 
 #define MAX_CHEAT_VIEW 100
+struct trainerstruct {
+    uaecptr addr;
+    int size;
+};
+
+static struct trainerstruct *trainerdata;
+static int totaltrainers;
+
+static void clearcheater(void)
+{
+    if (!trainerdata)
+        trainerdata = xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
+    memset(trainerdata, 0, sizeof (struct trainerstruct) * MAX_CHEAT_VIEW);
+    totaltrainers = 0;
+}
+static int addcheater(uaecptr addr, int size)
+{
+    if (totaltrainers >= MAX_CHEAT_VIEW)
+	return 0;
+    trainerdata[totaltrainers].addr = addr;
+    trainerdata[totaltrainers].size = size;
+    totaltrainers++;
+    return 1;
+}
+static void listcheater(int mode)
+{
+    int i, skip;
+
+    if (!trainerdata)
+	return;
+    if (mode)
+	skip = 6;
+    else
+	skip = 8;
+    for(i = 0; i < totaltrainers; i++) {
+	struct trainerstruct *ts = &trainerdata[i];
+	uae_u8 b = get_byte(ts->addr);
+	if (mode)
+	    console_out("%08.8X=%2.2X ", ts->addr, b, b);
+	else
+	    console_out("%08.8X ", ts->addr);
+	if ((i % skip) == skip)
+	    console_out("\n");
+    }
+}
+
+static void deepcheatsearch (char v)
+{
+    static int first = 1;
+    static uae_u8 *memtmp;
+    static int memsize, memsize2;
+    uae_u8 *p1, *p2;
+    uaecptr addr, end;
+    int i, wasmodified;
+    int addrcnt, cnt;
+
+    if (!memtmp || v == 'S') {
+	first = 1;
+	xfree(memtmp);
+	memsize = 0;
+        addr = 0xffffffff;
+	while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+	    memsize += end - addr;
+	    addr = end - 1;
+	}
+	memsize2 = (memsize + 7) / 8;
+	memtmp = xmalloc (memsize + memsize2);
+	if (!memtmp)
+	    return;
+	memset (memtmp + memsize, 0xff, memsize2);
+	p1 = memtmp;
+	addr = 0xffffffff;
+	while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
+	    for (i = addr; i < end; i++)
+		*p1++ = get_byte (i);
+	    addr = end - 1;
+	}
+	console_out("deep trainer first pass complete.\n");
+	return;
+    }
+    wasmodified = v == 'X' ? 0 : 1;
+    p1 = memtmp;
+    p2 = memtmp + memsize;
+    addrcnt = 0;
+    cnt = 0;
+    addr = 0xffffffff;
+    while ((addr = nextaddr(addr, NULL)) != 0xffffffff) {
+	uae_u8 b = get_byte (addr);
+	int addroff = addrcnt >> 3;
+	int addrmask = 1 << (addrcnt & 7);
+	if (p2[addroff] & addrmask) {
+	    if ((wasmodified && b == *p1) || (!wasmodified && b != *p1))
+		p2[addroff] &= ~addrmask;
+	    else
+		cnt++;
+	}
+	*p1++ = b;
+	addrcnt++;
+    }
+    console_out ("%d addresses found\n", cnt);
+    if (cnt <= MAX_CHEAT_VIEW) {
+	clearcheater();
+	cnt = 0;
+	addrcnt = 0;
+	while ((addr = nextaddr(addr, NULL)) != 0xffffffff) {
+	    int addroff = addrcnt >> 3;
+	    int addrmask = 1 << (addrcnt & 7);
+	    if (p2[addroff] & addrmask)
+		addcheater(addr, 1);
+	    addrcnt++;
+	    cnt++;
+	}
+	listcheater(1);
+    } else {
+	console_out("Now continue with 'g' and use 'D' again after you have lost another life\n");
+    }
+}
+
 /* cheat-search by Toni Wilen (originally by Holger Jakob) */
 static void cheatsearch (char **c)
 {
@@ -551,11 +706,21 @@ static void cheatsearch (char **c)
     static int listsize;
     static int first = 1;
     static int size = 1;
-    uae_u32 p, val, memcnt, prevmemcnt;
+    uae_u32 val, memcnt, prevmemcnt;
     int i, count, vcnt, memsize;
+    uaecptr addr, end;
 
-    memsize = allocated_chipmem + allocated_bogomem + allocated_fastmem;
+    memsize = 0;
+    addr = 0xffffffff;
+    while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+	memsize += end - addr;
+	addr = end - 1;
+    }
 
+    if (toupper(**c) == 'L') {
+	listcheater(1);
+	return;
+    }
     ignore_ws (c);
     if (!more_params(c)) {
 	first = 1;
@@ -565,7 +730,7 @@ static void cheatsearch (char **c)
 	vlist = xcalloc (listsize >> 3, 1);
 	return;
     }
-    val = readhex (c);
+    val = readint (c);
     if (first) {
 	ignore_ws (c);
 	if (val > 255)
@@ -590,51 +755,45 @@ static void cheatsearch (char **c)
     count = 0;
     vcnt = 0;
 
-    for (prevmemcnt = memcnt = 0; memcnt < memsize - size && memcnt < listsize; memcnt++) {
-	p = memcnt;
-	if (memcnt >= allocated_chipmem + allocated_bogomem && memcnt < allocated_chipmem + allocated_bogomem + allocated_fastmem)
-	    p = 0x200000 + memcnt - (allocated_chipmem + allocated_bogomem);
-	if (memcnt >= allocated_chipmem && memcnt < allocated_chipmem + allocated_bogomem)
-	    p = 0xc00000 + memcnt - (allocated_chipmem);
-
-	for (i = 0; i < size; i++) {
-	    if (get_byte(p + i) != val >> ((size - i - 1) << 8))
-		break;
-	}
-	if (i == size) {
-	    int voffset = memcnt >> 3;
-	    int vmask = 1 << (memcnt & 7);
-	    if (!first) {
-		while (prevmemcnt < memcnt) {
-		    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
-		    prevmemcnt++;
-		}
-		if (vlist[voffset] & vmask) {
-		    count++;
-		    if (vcnt < MAX_CHEAT_VIEW) {
-		        console_out ("%08x ", p);
-			vcnt++;
-		        if (!(vcnt % 8))
-			    console_out("\n");
+    clearcheater();
+    addr = 0xffffffff;
+    prevmemcnt = memcnt = 0;
+    while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
+	if (addr + size < end) {
+	    for (i = 0; i < size; i++) {
+		if (get_byte(addr + i) != val >> ((size - i - 1) << 8))
+		    break;
+	    }
+	    if (i == size) {
+		int voffset = memcnt >> 3;
+		int vmask = 1 << (memcnt & 7);
+		if (!first) {
+		    while (prevmemcnt < memcnt) {
+			vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
+			prevmemcnt++;
 		    }
+		    if (vlist[voffset] & vmask) {
+			count++;
+			addcheater(addr, size);
+		    } else {
+			vlist[voffset] &= ~vmask;
+		    }
+		    prevmemcnt = memcnt + 1;
 		} else {
-		    vlist[voffset] &= ~vmask;
+		    vlist[voffset] |= vmask;
+		    count++;
 		}
-		prevmemcnt = memcnt + 1;
-	    } else {
-		vlist[voffset] |= vmask;
-		count++;
 	    }
 	}
+	memcnt++;
     }
     if (!first) {
 	while (prevmemcnt < memcnt) {
 	    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
 	    prevmemcnt++;
 	}
+	listcheater(0);
     }
-    if (!first && (vcnt % 8))
-	console_out ("\n");
     console_out ("Found %d possible addresses with 0x%x (%u) (%d bytes)\n", count, val, val, size);
     console_out ("Now continue with 'g' and use 'C' with a different value\n");
     first = 0;
@@ -1098,7 +1257,7 @@ static void writeintomem (char **c)
 
 static void memory_map_dump (void)
 {
-    int i, j, k, max;
+    int i, j, max;
     addrbank *a1 = mem_banks[0];
 
     max = currprefs.address_space_24 ? 256 : 65536;
@@ -1324,14 +1483,14 @@ static void searchmem (char **cc)
 	return;
     ignore_ws (cc);
     addr = 0;
-    endaddr = nextaddr (0xffffffff);
+    endaddr = lastaddr ();
     if (more_params (cc)) {
 	addr = readhex (cc);
 	if (more_params (cc))
 	    endaddr = readhex (cc);
     }
     console_out ("Searching from %08x to %08x..\n", addr, endaddr);
-    while (addr < endaddr && addr != 0xffffffff) {
+    while ((addr = nextaddr (addr, NULL)) != 0xffffffff) {
 	for (i = 0; i < sslen; i++) {
 	    uae_u8 b = get_byte (addr + i);
 	    if (stringmode) {
@@ -1350,7 +1509,6 @@ static void searchmem (char **cc)
 		break;
 	    }
 	}
-	addr = nextaddr (addr);
     }
     if (!got)
 	console_out ("nothing found");
@@ -1407,42 +1565,30 @@ end:
 	disk_debug_track);
 }
 
-static uae_u32 memory_counter(int reset)
-{
-    static uae_u32 p;
-    if (reset) {
-	p = 0xffffffff;
-	return 0;
-    }
-    p++;
-    if (p == allocated_chipmem)
-	p = 0x200000;
-    if (p == allocated_fastmem + 0x200000)
-	p = 0xc00000;
-    if (p == allocated_bogomem + 0xc00000)
-	p = 0xffffffff;
-    return p;
-}
-
 static void find_ea (char **inptr)
 {
-    uae_u32 ea, sea, dea, start, end;
-    int i;
+    uae_u32 ea, sea, dea;
+    uaecptr addr, end, endbank;
 
-    start = 0;
-    end = allocated_chipmem;
+    addr = 0;
+    end = lastaddr();
     ea = readhex (inptr);
-    if (more_params(inptr))
-	start = readhex (inptr);
-    if (more_params(inptr))
-	end = readhex (inptr);
-    memory_counter(1);
-    while ((i = memory_counter(0)) != 0xffffffff) {
-	sea = 0xffffffff;
-	dea = 0xffffffff;
-	m68k_disasm_ea (NULL, i, NULL, 1, &sea, &dea);
-	if (ea == sea || ea == dea)
-	    m68k_disasm (stdout, i, NULL, 1);
+    if (more_params(inptr)) {
+	addr = readhex (inptr);
+	if (more_params(inptr))
+	    end = readhex (inptr);
+    }
+    console_out("Searching from %08.8X to %08.8X\n", addr, end);
+    while((addr = nextaddr(addr, &endbank)) != 0xffffffff) {
+	if (addr == end)
+	    break;
+	if ((addr & 1) == 0 && addr + 6 <= endbank) {
+	    sea = 0xffffffff;
+	    dea = 0xffffffff;
+	    m68k_disasm_ea (NULL, addr, NULL, 1, &sea, &dea);
+	    if (ea == sea || ea == dea)
+		m68k_disasm (stdout, addr, NULL, 1);
+	}
     }
 }
 
@@ -1521,6 +1667,7 @@ static void debug_1 (void)
 		  else
 		    m68k_dumpstate (stdout, &nextpc);
 	break;
+	case 'D': deepcheatsearch (toupper(*inptr)); break;
 	case 'C': cheatsearch (&inptr); break;
 	case 'W': writeintomem (&inptr); break;
 	case 'w': memwatch (&inptr); break;
@@ -1819,6 +1966,7 @@ void debug (void)
     }
     if (do_skip) {
 	set_special (SPCFLAG_BRK);
+	unset_special (SPCFLAG_STOP);
 	debugging = 1;
     }
     resume_sound ();

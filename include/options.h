@@ -159,7 +159,6 @@ struct uae_prefs {
     int leds_on_screen;
     int keyboard_leds[3];
     int keyboard_leds_in_use;
-    int fast_copper;
     int scsi;
     int uaeserial;
     int catweasel;

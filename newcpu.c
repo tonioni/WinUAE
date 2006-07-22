@@ -1670,8 +1670,7 @@ static int do_specialties (int cycles)
 	    return 0;
     }
     #endif
-    if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE )
-    {
+    if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE ) {
 	/*if(action_replay_flag == ACTION_REPLAY_ACTIVE && !is_ar_pc_in_rom())*/
 	/*	write_log("PC:%p\n",m68k_getpc());*/
 
@@ -2257,6 +2256,8 @@ void m68k_go (int may_quit)
 	    }
 	}
 
+	if (regs.spcflags & SPCFLAG_STOP)
+	    do_specialties (0);
 #ifndef JIT
 	m68k_run1 (currprefs.cpu_level == 0 && currprefs.cpu_cycle_exact ? m68k_run_1_ce :
 		    currprefs.cpu_level == 0 && currprefs.cpu_compatible ? m68k_run_1 :
