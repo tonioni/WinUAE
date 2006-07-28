@@ -2757,10 +2757,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
 	if (numtypes > 1) {
 	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
-	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
+	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), SW_SHOW);
 	} else {
 	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), FALSE);
-	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), FALSE);
+	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), SW_HIDE);
 	}
 	values_to_pathsdialog (hDlg);
 	recursive--;
@@ -4536,7 +4536,7 @@ static void misc_lang(HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"Autodetect");
-    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"English (build-in)");
+    SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"English (built-in)");
     if (langid == 0)
 	idx = 1;
     cnt = 2;
@@ -8037,6 +8037,9 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     switch (msg) 
     {
     case WM_INITDIALOG:
+#if !WINUAEBETA
+	ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
+#endif
 	pages[HW3D_ID] = hDlg;
 	currentpage = HW3D_ID;
 	enable_for_hw3ddlg (hDlg);
@@ -8685,10 +8688,10 @@ static HWND updatePanel (HWND hDlg, int id)
 	SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
 	    SWP_NOSIZE | SWP_NOOWNERZORDER);
     }
-    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME), FALSE);
-    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel);
-    ShowWindow(GetDlgItem(hDlg, IDC_PANELTREE), !fullpanel);
-    ShowWindow (panelDlg, TRUE);
+    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME), SW_HIDE);
+    ShowWindow(GetDlgItem(hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hDlg, IDC_PANELTREE), !fullpanel ? SW_SHOW : SW_HIDE);
+    ShowWindow (panelDlg, SW_SHOW);
     EnableWindow (GetDlgItem (hDlg, IDHELP), pHtmlHelp && ppage[currentpage].help ? TRUE : FALSE);
 
     ToolTipHWND = CreateWindowEx (WS_EX_TOPMOST,

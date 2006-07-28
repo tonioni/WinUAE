@@ -925,7 +925,7 @@ mousehack_task:
 	move.l d0,a4
 	
 	moveq #20,d0
-	move.l a2,a1
+	move.l a4,a1
 	jsr -$012c(a6) ;SetTaskPri
 
 	moveq #0,d0

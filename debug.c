@@ -898,17 +898,17 @@ static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
 	    illg_debug_check (ad, rw, size, val);
 	} else if ((mask & 3) == 3) {
 	    if (rw)
-		write_log ("RW: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+		console_out ("RW: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
 	    else
-		write_log ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+		console_out ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	} else if ((mask & 1) && rw) {
-	    write_log ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+	    console_out ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	} else if ((mask & 2) && !rw) {
-	    write_log ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	    console_out ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	}
@@ -1173,7 +1173,7 @@ static void memwatch (char **c)
 		uae_u32 len = 1;
 		if (more_params (c))
 		    len = readhex (c);
-		write_log ("cleared logging addresses %08.8X - %08.8X\n", addr, addr + len);
+		console_out ("cleared logging addresses %08.8X - %08.8X\n", addr, addr + len);
 		while (len > 0) {
 		    addr &= 0xffffff;
 		    illgdebug[addr] = 0;
@@ -1270,7 +1270,7 @@ static void memory_map_dump (void)
 	    char *name = a1->name;
 	    if (name == NULL)
 		name = "<none>";
-	    write_log("%08.8X %6dK %s\n", j << 16, (i - j) << (16 - 10), name);
+	    console_out("%08.8X %6dK %s\n", j << 16, (i - j) << (16 - 10), name);
 	    j = i;
 	    a1 = a2;
 	}
@@ -1925,7 +1925,7 @@ void debug (void)
 	    }
 	}
     } else {
-	write_log ("Memwatch %d: break at %08.8X.%c %c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
+	console_out ("Memwatch %d: break at %08.8X.%c %c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
 	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'), mwhit.rw ? 'W' : 'R', mwhit.val);
 	memwatch_triggered = 0;
     }
@@ -2086,7 +2086,7 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, 
     mmur = regs;
     pc = m68k_getpc();
     if (mmu_logging)
-	write_log ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rw, v, pc);
+	console_out ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rw, v, pc);
 
     p = mmu_regs;
     put_long (p, 0); p += 4;
@@ -2145,7 +2145,7 @@ static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v)
 		    if (maddr == addr) /* infinite mmu hit loop? no thanks.. */
 			return 1;
 		    if (mmu_logging)
-			write_log ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rw);
+			console_out ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rw);
 		    if (rw) {
 			switch (size)
 			{
@@ -2243,7 +2243,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     if (currprefs.cachesize) {
 	wasjit = currprefs.cachesize;
 	changed_prefs.cachesize = 0;
-	write_log ("MMU: JIT disabled\n");
+	console_out ("MMU: JIT disabled\n");
 	check_prefs_changed_comp();
     }
 
@@ -2251,7 +2251,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	if (mmu_enabled) {
 	    mmu_free();
 	    deinitialize_memwatch();
-	    write_log ("MMU: disabled\n");
+	    console_out ("MMU: disabled\n");
 	    changed_prefs.cachesize = wasjit;
 	}
 	mmu_logging = 0;
@@ -2267,7 +2267,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     p = parm;
     mmu_struct = p;
     if (get_long (p) != 1) {
-	write_log ("MMU: version mismatch %d <> %d\n", get_long (p), 1);
+	console_out ("MMU: version mismatch %d <> %d\n", get_long (p), 1);
 	return 0;
     }
     p += 4;
@@ -2289,7 +2289,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	    if (mn->mmubank->p_addr == parm2) {
 		getmmubank(mn->mmubank, parm2);
 		if (mmu_logging)
-		    write_log ("MMU: bank update %08.8X: %08.8X - %08.8X %08.8X\n",
+		    console_out ("MMU: bank update %08.8X: %08.8X - %08.8X %08.8X\n",
 			mn->mmubank->flags, mn->mmubank->addr, mn->mmubank->len + mn->mmubank->addr,
 			mn->mmubank->remap);
 	    }
@@ -2327,7 +2327,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     }
 
     initialize_memwatch(1);
-    write_log ("MMU: enabled, %d banks, CB=%08.8X S=%08.8X BNK=%08.8X SF=%08.8X, %d*%d\n",
+    console_out ("MMU: enabled, %d banks, CB=%08.8X S=%08.8X BNK=%08.8X SF=%08.8X, %d*%d\n",
 	size - 1, mmu_callback, parm, banks, mmu_regs, mmu_slots, 1 << MMU_PAGE_SHIFT);
     set_special (SPCFLAG_BRK);
     return 1;

@@ -1003,13 +1003,13 @@ void CIA_reset (void)
 
 void dumpcia (void)
 {
-    write_log ("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    console_out ("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 	   ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaata, ciaala, ciaatb, ciaalb);
-    write_log ("TOD %06x ALARM %06x %c%c\n",
+    console_out ("TOD %06x ALARM %06x %c%c\n",
 	ciaatod, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S');
-    write_log ("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    console_out ("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 	   ciabcra, ciabcrb, ciaaicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
-    write_log ("TOD %06x ALARM %06x %c%c\n",
+    console_out ("TOD %06x ALARM %06x %c%c\n",
 	ciabtod, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S');
 }
 

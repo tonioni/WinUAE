@@ -2256,8 +2256,12 @@ void m68k_go (int may_quit)
 	    }
 	}
 
-	if (regs.spcflags & SPCFLAG_STOP)
+	if (regs.spcflags) {
+	    uae_u32 of = regs.spcflags;
+	    regs.spcflags &= ~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	    do_specialties (0);
+	    regs.spcflags |= of & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+	}
 #ifndef JIT
 	m68k_run1 (currprefs.cpu_level == 0 && currprefs.cpu_cycle_exact ? m68k_run_1_ce :
 		    currprefs.cpu_level == 0 && currprefs.cpu_compatible ? m68k_run_1 :
@@ -2466,9 +2470,10 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     if (regs.s && regs.m == 0) regs.isp = m68k_areg(regs, 7);
     f_out (f, "USP=%08lx ISP=%08lx MSP=%08lx VBR=%08lx\n",
 	regs.usp,regs.isp,regs.msp,regs.vbr);
-    f_out (f, "T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IMASK=%d\n",
+    f_out (f, "T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IMASK=%d STP=%d\n",
 	regs.t1, regs.t0, regs.s, regs.m,
-	GET_XFLG, GET_NFLG, GET_ZFLG, GET_VFLG, GET_CFLG, regs.intmask);
+	GET_XFLG, GET_NFLG, GET_ZFLG, GET_VFLG, GET_CFLG,
+	regs.intmask, regs.stopped);
 #ifdef FPUEMU
     if (currprefs.cpu_level >= 2) {
 	uae_u32 fpsr;

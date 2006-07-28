@@ -2244,21 +2244,21 @@ void dumpdisk (void)
     for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 	drive *drv = &floppy[i];
 	if (!(disabled & (1 << i))) {
-	    write_log ("Drive %d: motor %s cylinder %2d sel %s %s mfmpos %d/%d\n",
+	    console_out ("Drive %d: motor %s cylinder %2d sel %s %s mfmpos %d/%d\n",
 		i, drv->motoroff ? "off" : " on", drv->cyl, (selected & (1 << i)) ? "no" : "yes",
 		drive_writeprotected(drv) ? "ro" : "rw", drv->mfmpos, drv->tracklen);
 	    w = word;
 	    for (j = 0; j < 15; j++) {
-		write_log ("%04.4X ", w);
+		console_out ("%04.4X ", w);
 		for (k = 0; k < 16; k++) {
 		    w <<= 1;
 		    w |= getonebit (drv->bigmfmbuf, drv->mfmpos + j * 16 + k);
 		}
 	    }
-	    write_log ("\n");
+	    console_out ("\n");
 	}
     }
-    write_log ("side %d, dma %d, bitoffset %d, word %04.4X, dskbytr %04.4X adkcon %04.4X dsksync %04.4X\n", side, dskdmaen, bitoffset, word, dskbytr_val, adkcon, dsksync);
+    console_out ("side %d, dma %d, bitoffset %d, word %04.4X, dskbytr %04.4X adkcon %04.4X dsksync %04.4X\n", side, dskdmaen, bitoffset, word, dskbytr_val, adkcon, dsksync);
 }
 
 static void disk_dmafinished (void)

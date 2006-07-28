@@ -808,7 +808,6 @@ static int mediacheck (int unitnum)
 static int mediacheck_full (int unitnum, struct device_info *di)
 {
     uae_u8 cmd1[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
-    uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
     int ok, outlen;
     uae_u8 *p = si[unitnum].buf;
 
@@ -822,9 +821,12 @@ static int mediacheck_full (int unitnum, struct device_info *di)
         di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
 	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
     }
-    ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
-    if (ok) {
-	di->write_protected = (p[3]& 0x80) ? 1 : 0;
+    if (di->type == INQ_DASD) {
+        uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
+        ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
+	if (ok) {
+	    di->write_protected = (p[3]& 0x80) ? 1 : 0;
+	}
     }
     return 1;
 }

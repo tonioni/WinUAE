@@ -79,7 +79,7 @@ Confirmed blitter ínformation by Toni Wilen
 
 1=BLTCON0 channel mask
 2=total cycles per blitted word
-3=steals all cycles if BLTNASTY=1 (always if A-channel is enabled. this is illogical..)
+[3=steals all cycles if BLTNASTY=1 (always if A-channel is enabled. this is illogical..)]
 4=total cycles per blitted word in fillmode
 5=cycle diagram (first cycle)
 6=main cycle diagram (ABCD=channels,-=idle cycle,x=idle cycle but bus allocated)
@@ -87,13 +87,13 @@ Confirmed blitter ínformation by Toni Wilen
 1 234 5    6
 
 F 4*4*ABC- ABCD
-E 4*4*ABC- ABCx
+E 4*4*ABC- ABC-
 D 3*4 AB-  ABD
-C 3*4 AB-  ABx
+C 3*4 AB-  AB-
 B 3*3*AC-  ACD
-A 3*3*AC-  ACx
+A 3*3*AC-  AC-
 9 2*3 A-   AD
-8 2*3 A-   Ax
+8 2*3 A-   A-
 7 4 4 -BC- -BCD
 6 4 4 -BC- -BC-
 5 3 4 -B-  -BD
@@ -110,7 +110,8 @@ NOTES: (BLTNASTY=1)
   Can someone explain this? Why does idle cycles need bus cycles?
 - Fill mode may add one extra real idle cycle.(depends on channel mask)
 - All blits with channel A enabled use all available bus cycles
-  (stops CPU accesses to Agnus bus if BLTNASTY=1)
+  (stops CPU accesses to Agnus bus if BLTNASTY=1) WTF? I did another test
+  and this can't be true... Maybe I am becoming crazy..
 - idle cycles (no A-channel enabled) are not "used" by blitter, they are freely
   available for CPU.
 
@@ -136,13 +137,13 @@ static int blit_cycle_diagram[][10] =
     { 2, 3, 0,2,4, 2,0 },	/* 5 */
     { 0, 4, 0,2,3,0 },		/* 6 */
     { 3, 4, 0,2,3,4, 2,3,0 },	/* 7 */
-    { 0, 2, 1,-1 },		/* 8 */
+    { 0, 2, 1,0 },		/* 8 */
     { 2, 2, 1,4, 1,0 },		/* 9 */
-    { 0, 3, 1,3,-1 },		/* A */
+    { 0, 3, 1,3,0 },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
-    { 2, 3, 1,2,-1, 1,2 },	/* C */
+    { 2, 3, 1,2,0, 1,2 },	/* C */
     { 3, 3, 1,2,4, 1,2,0 },	/* D */
-    { 0, 4, 1,2,3,-1 },		/* E */
+    { 0, 4, 1,2,3,0 },		/* E */
     { 4, 4, 1,2,3,4, 1,2,3,0 }	/* F */
 };
 
@@ -158,13 +159,13 @@ static int blit_cycle_diagram_fill[][10] =
     { 3, 4, 0,2,5,4, 2,0,0 },	/* 5 */
     { 0, 4, 2,3,5,0 },		/* 6 */
     { 3, 4, 2,3,5,4, 2,3,0 },	/* 7 */
-    { 0, 3, 1,5,-1 },		/* 8 */
+    { 0, 3, 1,5,0 },		/* 8 */
     { 2, 3, 1,5,4, 1,0},	/* 9 */
     { 0, 3, 1,3,5, },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
-    { 2, 4, 1,2,5,-1, 1,2 },	/* C */
+    { 2, 4, 1,2,5,0, 1,2 },	/* C */
     { 3, 4, 1,2,5,4, 1,2,0 },	/* D */
-    { 0, 4, 1,2,3,-1 },		/* E */
+    { 0, 4, 1,2,3,0 },		/* E */
     { 4, 4, 1,2,3,4, 1,2,3,0 }	/* F */
 };
 
