@@ -53,7 +53,7 @@ int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 
 int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
-DWORD avioutput_framelimiter = 0;
+DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
 
 char avioutput_filename[MAX_DPATH];
 static char avioutput_filename_tmp[MAX_DPATH];
@@ -105,14 +105,20 @@ static HKEY openavikey(void)
 static void storesettings(HKEY avikey)
 {
     RegSetValueEx(avikey, "FrameLimiter", 0, REG_DWORD, (BYTE*)&avioutput_framelimiter, sizeof(DWORD));
+    RegSetValueEx(avikey, "NoSoundOutput", 0, REG_DWORD, (BYTE*)&avioutput_nosoundoutput, sizeof(DWORD));
     RegSetValueEx(avikey, "FPS", 0, REG_DWORD, (BYTE*)&avioutput_fps, sizeof(DWORD));
 }
 static void getsettings(HKEY avikey)
 {
     DWORD val;
     DWORD ss = sizeof (DWORD);
+    if (RegQueryValueEx(avikey, "NoSoundOutput", 0, NULL, (BYTE*)&val, &ss) == ERROR_SUCCESS)
+	avioutput_nosoundoutput = val;
+    ss = sizeof (DWORD);
     if (RegQueryValueEx(avikey, "FrameLimiter", 0, NULL, (BYTE*)&val, &ss) == ERROR_SUCCESS)
 	avioutput_framelimiter = val;
+    if (!avioutput_framelimiter)
+	avioutput_nosoundoutput = 1;
     ss = sizeof (DWORD);
     if (RegQueryValueEx(avikey, "FPS", 0, NULL, (BYTE*)&val, &ss) == ERROR_SUCCESS)
 	avioutput_fps = val;

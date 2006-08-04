@@ -10,7 +10,7 @@ extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_reques
 
 extern int avioutput_width, avioutput_height, avioutput_bits;
 extern int avioutput_fps;
-extern DWORD avioutput_framelimiter;
+extern DWORD avioutput_framelimiter, avioutput_nosoundoutput;
 
 extern char avioutput_filename[MAX_DPATH];
 

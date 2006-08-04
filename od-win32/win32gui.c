@@ -5098,10 +5098,9 @@ static void enable_for_sounddlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVESELECT), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), workprefs.produce_sound);
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME2), workprefs.produce_sound);
-
     EnableWindow (GetDlgItem (hDlg, IDC_AUDIOSYNC), workprefs.produce_sound);
- 
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDFILTER), workprefs.produce_sound);
+    EnableWindow (GetDlgItem (hDlg, IDC_SOUNDSWAP), workprefs.produce_sound);
 
     EnableWindow (GetDlgItem (hDlg, IDC_SOUNDCALIBRATE), workprefs.produce_sound && full_property_sheet);
 }
@@ -8159,6 +8158,7 @@ static void values_to_avioutputdlg(HWND hDlg)
     }
 	
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_nosoundoutput ? TRUE : FALSE);
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
@@ -8221,7 +8221,11 @@ static void enable_for_avioutputdlg(HWND hDlg)
     }
     SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), tmp);
 
+    EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT), avioutput_framelimiter ? TRUE : FALSE);
+    if (!avioutput_framelimiter)
+	avioutput_nosoundoutput = 1;
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
 
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_ACTIVATED), (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
@@ -8281,6 +8285,10 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 		case IDC_AVIOUTPUT_FRAMELIMITER:
 		    avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
+		    AVIOutput_SetSettings();
+		break;
+		case IDC_AVIOUTPUT_NOSOUNDOUTPUT:
+		    avioutput_nosoundoutput = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT) ? 1 : 0;
 		    AVIOutput_SetSettings();
 		break;
 

@@ -466,7 +466,7 @@ static void sinc_prehandler(unsigned long best_evtime)
          * write data into sinc queue for mixing in the BLEP */
         if (acd->output_state != output) {
             if (acd->sinc_queue_length > SINC_QUEUE_LENGTH - 1) {
-                write_log("warning: sinc queue truncated. Last age: %d.\n", acd->sinc_queue[SINC_QUEUE_LENGTH-1].age);
+                //write_log("warning: sinc queue truncated. Last age: %d.\n", acd->sinc_queue[SINC_QUEUE_LENGTH-1].age);
                 acd->sinc_queue_length = SINC_QUEUE_LENGTH - 1;
             }
             /* make room for new and add the new value */

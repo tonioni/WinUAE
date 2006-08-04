@@ -1148,31 +1148,30 @@ static uae_u8 mfmencodetable[16] = {
     0x4a, 0x49, 0x44, 0x45, 0x52, 0x51, 0x54, 0x55
 };
 
-static uae_u16 *mfmcoder(uae_u8 *s, uae_u16 *mfm, int len)
-{
-    static int prev;
 
-    if (!s) {
-	prev = len;
-	return NULL;
-    }
-    while (len-- > 0) {
-	uae_u16 db;
-	uae_u8 b1, b2;
-	uae_u8 b = *s++;
-	b1 = b;
-	b2 = b >> 4;
-	b1 &= 15;
-	db = (mfmencodetable[b2] << 8) | mfmencodetable[b1];
-	db = db | ((db & (256 | 64)) ? 0 : 128);
-	if (!prev && !(db & 0x4000))
-	    db |= 0x8000;
-	prev = db & 1;
-	*mfm++ = db;
-    }
-    return mfm;
+static uae_u16 dos_encode_byte(uae_u8 byte)
+{           
+    uae_u8 b2, b1;        
+    uae_u16 word;
+
+    b1 = byte;
+    b2 = b1 >> 4;
+    b1 &= 15;
+    word = mfmencodetable[b2] <<8 | mfmencodetable[b1];
+    return (word | ((word & (256 | 64)) ? 0 : 128));
 }
 
+static uae_u16 *mfmcoder(uae_u8 *src, uae_u16 *dest, int len) 
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+	*dest = dos_encode_byte(*src++);
+	*dest |= ((dest[-1] & 1)||(*dest & 0x4000)) ? 0: 0x8000;            
+	dest++;
+    }
+    return dest;
+}
 
 static void decode_pcdos (drive *drv)
 {
@@ -1183,8 +1182,8 @@ static void decode_pcdos (drive *drv)
     uae_u16 crc16;
     trackid *ti = drv->trackdata + tr;
 
-    mfmcoder (NULL, NULL, 0);
     mfm2 = drv->bigmfmbuf;
+    *mfm2++ = 0x9254;
     memset (secbuf, 0x4e, 80); // 94
     memset (secbuf + 80, 0x00, 12); // 12
     secbuf[92] = 0xc2;
@@ -1220,8 +1219,8 @@ static void decode_pcdos (drive *drv)
 	crc16 = get_crc16(secbuf + 56, 3 + 1 + 512);
 	secbuf[60 + 512] = crc16 >> 8;
 	secbuf[61 + 512] = crc16 & 0xff;
-	memset(secbuf + 512 + 62, 0x4e, 80 / drv->ddhd);
-	dstmfmbuf = mfmcoder(secbuf, mfm2, 60 + 512 + 2 + 80 / drv->ddhd);
+	memset(secbuf + 512 + 62, 0x4e, 76 / drv->ddhd);
+	dstmfmbuf = mfmcoder(secbuf, mfm2, 60 + 512 + 2 + 76 / drv->ddhd);
 	mfm2[12] = 0x4489;
 	mfm2[13] = 0x4489;
 	mfm2[14] = 0x4489;
@@ -1229,6 +1228,8 @@ static void decode_pcdos (drive *drv)
 	mfm2[57] = 0x4489;
 	mfm2[58] = 0x4489;
     }
+    for (i = 0; i < 200; i++)
+        *dstmfmbuf++ = 0x9254;
     drv->skipoffset = 0;
     drv->tracklen = (dstmfmbuf - drv->bigmfmbuf) * 16;
     if (disk_debug_logging > 0)

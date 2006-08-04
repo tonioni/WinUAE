@@ -38,8 +38,6 @@
 #define ADJUST_SIZE 10
 #define EXP 1.3
 
-#define FILTER_FREQUENCY 7000.0
-
 //#define SOUND_DEBUG
 
 static int obtainedfreq;
@@ -601,7 +599,7 @@ void finish_sound_buffer (void)
 #ifdef AVIOUTPUT
     if (avioutput_audio)
         AVIOutput_WriteAudio ((uae_u8*)sndbuffer, sndbufsize);
-    if (avioutput_enabled && !avioutput_framelimiter)
+    if (avioutput_enabled && (!avioutput_framelimiter || avioutput_nosoundoutput))
 	return;
 #endif
     if (!have_sound)
