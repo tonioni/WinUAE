@@ -333,7 +333,7 @@ void restore_state (char *filename)
 {
     struct zfile *f;
     uae_u8 *chunk,*end;
-    char name[5], prevchunk[5];
+    char name[5];
     long len, totallen;
     long filepos;
 
@@ -355,12 +355,9 @@ void restore_state (char *filename)
     changed_prefs.chipmem_size = 0;
     changed_prefs.fastmem_size = 0;
     savestate_state = STATE_RESTORE;
-    prevchunk[0] = 0;
     for (;;) {
+	name[0] = 0;
 	chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
-	if (!strcmp (name, prevchunk))
-	    break;
-	strcpy (prevchunk, name);
 	write_log ("Chunk '%s' size %d (%d)\n", name, len, totallen);
 	if (!strcmp (name, "END "))
 	    break;

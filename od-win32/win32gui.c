@@ -399,10 +399,14 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
     zfile_fseek (f, 0, SEEK_SET);
-    if (size > 600000)
+    if (size > 1760 * 512) /* don't skip KICK disks */
 	return 0;
     zfile_fread (buffer, 1, 11, f);
-    if (!memcmp (buffer, "AMIROMTYPE1", 11)) {
+    if (!memcmp (buffer, "KICK", 4)) {
+	zfile_fseek (f, 512, SEEK_SET);
+	if (size > 262144)
+	    size = 262144;
+    } else if (!memcmp (buffer, "AMIROMTYPE1", 11)) {
 	cl = 1;
 	if (keybuf == 0)
 	    cl = -1;

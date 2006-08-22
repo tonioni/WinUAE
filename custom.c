@@ -4573,7 +4573,6 @@ void customreset (void)
 	CLXCON2 (clxcon2);
 	calcdiw ();
 	write_log ("State restored\n");
-	dumpcustom ();
 	for (i = 0; i < 8; i++)
 	    nr_armed += spr[i].armed != 0;
 	if (! currprefs.produce_sound) {

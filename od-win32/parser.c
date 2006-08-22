@@ -817,7 +817,7 @@ void hsyncstuff(void)
 	}
 	keycheck = 0;
     }
-    if (currprefs.parallel_autoflush_time) {
+    if (currprefs.parallel_autoflush_time && !currprefs.parallel_postscript_detection) {
 	parflush++;
 	if (parflush / ((currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) >= currprefs.parallel_autoflush_time * 50) {
 	    flushprinter ();

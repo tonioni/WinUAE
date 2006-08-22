@@ -25,6 +25,7 @@
 #include "threaddep/thread.h"
 #include "akiko.h"
 #include "gui.h"
+#include "crc32.h"
 
 #define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 0
@@ -343,6 +344,7 @@ static uae_u8 cdrom_command;
 #define	MAX_TOC_ENTRIES 103 /* tracks 1-99, A0,A1 and A2 */
 static int cdrom_toc_entries;
 static int cdrom_toc_counter;
+static uae_u32 cdrom_toc_crc;
 static uae_u8 cdrom_toc_buffer[MAX_TOC_ENTRIES*13];
 
 static int cdrom_disk, cdrom_paused, cdrom_playing;
@@ -436,7 +438,7 @@ static int cd_qcode (uae_u8 *d)
     if (as != 0x11 && as != 0x12 && as != 0x13 && as != 0x15) /* audio status ok? */
 	return 0;
     s = buf + 4;
-    last_play_pos = (s[9] << 16) | (s[10] << 8) | (s[11] << 0);
+    last_play_pos = (s[5] << 16) | (s[6] << 8) | (s[7] << 0);
     if (!d)
 	return 0;
     /* ??? */
@@ -505,13 +507,14 @@ static int cdrom_toc (void)
 	if (s[3] == 0xa2)
 	    cdrom_leadout = msf2lsn ((s[8] << 16) | (s[9] << 8) | (s[10] << 0));
     }
+    cdrom_toc_entries = i;
+    cdrom_toc_crc = get_crc32(cdrom_toc_buffer, cdrom_toc_entries * 13);
     if (datatrack) {
 	if (secondtrack)
 	    cdrom_data_end = secondtrack;
 	else
 	    cdrom_data_end = cdrom_leadout;
     }
-    cdrom_toc_entries = i;
     return 0;
 }
 
@@ -967,7 +970,8 @@ static void *akiko_thread (void	*null)
 	uae_sem_wait (&akiko_sem);
 	sector = cdrom_current_sector;
 	for (i = 0; i < SECTOR_BUFFER_SIZE; i++) {
-	    if (sector_buffer_info_1[i] == 0xff) break;
+	    if (sector_buffer_info_1[i] == 0xff)
+		break;
 	}
 	if (cdrom_data_end > 0 && sector >= 0 && (sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
 	    memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
@@ -1335,10 +1339,10 @@ int akiko_init (void)
 	    patchrom ();
 	}
     }
+    uae_sem_init (&akiko_sem, 0, 1);
     if (!savestate_state) {
 	cdrom_playing = cdrom_paused = 0;
 	cdrom_data_offset = -1;
-	uae_sem_init (&akiko_sem, 0, 1);
     }
     if (cdromok && !akiko_thread_running) {
 	akiko_thread_running = 1;
@@ -1382,12 +1386,19 @@ uae_u8 *save_akiko(int *len)
     save_u8 ((uae_u8)akiko_read_offset);
     save_u8 ((uae_u8)akiko_write_offset);
 
-    save_u32 ((cdrom_playing ? 1 : 0) | (cdrom_paused ? 2 : 0));
+    save_u32 ((cdrom_playing ? 1 : 0) | (cdrom_paused ? 2 : 0) | (cdrom_disk ? 4 : 0));
     if (cdrom_playing)
 	cd_qcode (0);
     save_u32 (last_play_pos);
     save_u32 (last_play_end);
     save_u8 ((uae_u8)cdrom_toc_counter);
+
+    save_u8 (cdrom_speed);
+    save_u8 (cdrom_current_sector);
+
+    save_u32 (cdrom_toc_crc);
+    save_u8 (cdrom_toc_entries);
+    save_u32 (cdrom_leadout);
 
     *len = dst - dstbak;
     return dstbak;
@@ -1428,7 +1439,6 @@ uae_u8 *restore_akiko(uae_u8 *src)
 	akiko_buffer[i] = restore_u32 ();
     akiko_read_offset = restore_u8 ();
     akiko_write_offset = restore_u8 ();
-    akiko_c2p_do ();
 
     cdrom_playing = cdrom_paused = 0;
     v = restore_u32 ();
@@ -1436,16 +1446,33 @@ uae_u8 *restore_akiko(uae_u8 *src)
 	cdrom_playing = 1;
     if (v & 2)
 	cdrom_paused = 1;
+
     last_play_pos = restore_u32 ();
     last_play_end = restore_u32 ();
-    cdrom_toc_counter = restore_u8 ();
-    if (cdrom_toc_counter == 255)
-	cdrom_toc_counter = -1;
-    if (cdrom_playing)
-	sys_command_cd_play (DF_IOCTL, unitnum, last_play_pos, last_play_end, 0);
+    cdrom_toc_counter = (uae_s8)restore_u8 ();
+    cdrom_speed = restore_u8 ();
+    cdrom_current_sector = (uae_s8)restore_u8 ();
+
+    restore_u32();
+    restore_u8();
+    restore_u32();
 
     return src;
 }
+
+void restore_akiko_finish(void)
+{
+    if (!cd32_enabled)
+	return;
+    akiko_c2p_do ();
+    sys_command_cd_pause (DF_IOCTL, unitnum, 0);
+    sys_command_cd_stop (DF_IOCTL, unitnum);
+    sys_command_cd_pause (DF_IOCTL, unitnum, 1);
+    if (cdrom_playing)
+	sys_command_cd_play (DF_IOCTL, unitnum, last_play_pos, last_play_end, 0);
+}
+
+
 void akiko_entergui (void)
 {
     if (cdrom_playing)

@@ -260,7 +260,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	 case 0x44:
 	    if (expamem_type() == zorroIII) {
 		// +Bernd Roesch
-		value = value - 0x3000;  // maps to 0x10000000
+		value = (value - 0x4000) + (z3fastmem_start >> 16); /* hack address */
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		// -Bernd Roesch
@@ -877,7 +877,7 @@ static void expamem_init_z3fastmem (void)
 
     expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 
-    z3fastmem_start = 0x10000000;
+    z3fastmem_start = currprefs.z3fastmem_start;
 
     map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
 	allocated_z3fastmem);

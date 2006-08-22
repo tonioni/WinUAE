@@ -1755,7 +1755,6 @@ int graphics_setup (void)
 void graphics_leave (void)
 {
     close_windows ();
-    dumpcustom ();
 }
 
 uae_u32 OSDEP_minimize_uae( void )

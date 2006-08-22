@@ -187,6 +187,7 @@ static uae_u8 *armemory_rom = 0, *armemory_ram = 0;
 static uae_u32 hrtmem_mask;
 static uae_u8 *hrtmon_custom, *hrtmon_ciaa, *hrtmon_ciab;
 uae_u32 hrtmem_start, hrtmem_size;
+static int triggered_once;
 
 static void hrtmon_unmap_banks(void);
 
@@ -282,7 +283,7 @@ static uae_u8 REGPARAM2 *hrtmem_xlate (uaecptr addr)
 static addrbank hrtmem_bank = {
     hrtmem_lget, hrtmem_wget, hrtmem_bget,
     hrtmem_lput, hrtmem_wput, hrtmem_bput,
-    hrtmem_xlate, hrtmem_check, NULL, "HRTMon memory"
+    hrtmem_xlate, hrtmem_check, NULL, "HRTMon memory",
 };
 
 static void copyfromamiga(uae_u8 *dst,uaecptr src,int len)
@@ -684,12 +685,12 @@ static uae_u8 REGPARAM2 *arrom_xlate (uaecptr addr)
 static addrbank arrom_bank = {
     arrom_lget, arrom_wget, arrom_bget,
     arrom_lput, arrom_wput, arrom_bput,
-    arrom_xlate, arrom_check, NULL, "Action Replay ROM"
+    arrom_xlate, arrom_check, NULL, "Action Replay ROM",
 };
 static addrbank arram_bank = {
     arram_lget, arram_wget, arram_bget,
     arram_lput, arram_wput, arram_bput,
-    arram_xlate, arram_check, NULL, "Action Replay RAM"
+    arram_xlate, arram_check, NULL, "Action Replay RAM",
 };
 
 static void action_replay_unmap_banks()
@@ -789,6 +790,7 @@ static void hrtmon_go (void)
     uaecptr old;
     int i;
    
+    triggered_once = 1;
     cartridge_enter();
     hrtmon_flag = ACTION_REPLAY_ACTIVE;
     set_special (SPCFLAG_ACTION_REPLAY);
@@ -834,6 +836,7 @@ void action_replay_enter(void)
 {
     if (!armemory_rom)
 	return;
+    triggered_once = 1;
     if (armodel == 1) {
 	write_log("AR1: Enter PC:%p\n", m68k_getpc());
 	action_replay_go1 (7);
@@ -1305,7 +1308,7 @@ int action_replay_unload(int in_memory_reset)
 		"ACTION_REPLAY_HIDE",
 	};
 
-	write_log_debug("Action Replay State:(%s) Hrtmon State:(%s)\n", state[action_replay_flag+3],state[hrtmon_flag+3] );
+	write_log_debug("Action Replay State:(%s)\nHrtmon State:(%s)\n", state[action_replay_flag+3],state[hrtmon_flag+3] );
 	
 	if ( armemory_rom && armodel == 1 )
 	{
@@ -1460,8 +1463,9 @@ static void hrtmon_configure(void)
     cfg->novbr = TRUE;
     cfg->hexmode = TRUE;
     cfg->entered = 0;
-    cfg->key = hrtmon_lang;
+    cfg->keyboard = hrtmon_lang;
     do_put_mem_long(&cfg->max_chip, currprefs.chipmem_size);
+    do_put_mem_long(&cfg->mon_size, 0x800000);
 }
 
 int hrtmon_load(void)
@@ -1475,6 +1479,7 @@ int hrtmon_load(void)
     if (hrtmemory)
       return 0;
 
+    triggered_once = 0;
     armodel = 0;
     hrtmem_start = 0xa10000;
     if (!currprefs.cart_internal) {
@@ -1631,6 +1636,8 @@ uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)
     uae_u8 *dstbak,*dst;
 
     if (!hrtmemory)
+	return 0;
+    if (!triggered_once)
 	return 0;
     if (dstptr)
 	dstbak = dst = dstptr;

@@ -1479,19 +1479,10 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		    delta = state;
 		}
 		mouse_delta[joy][ie->data] += delta;
-	    } else if (ie->type & 32) {
+
+	    } else if (ie->type & 32) { /* button mouse emulation vertical */
+
 		int speed = currprefs.input_joymouse_speed;
-
-		/* button mouse emulation */
-		if (state && (ie->data & DIR_LEFT)) {
-		    mouse_delta[joy][0] = -speed;
-		    mouse_deltanoreset[joy][0] = 1;
-		} else if (state && (ie->data & DIR_RIGHT)) {
-		    mouse_delta[joy][0] = speed;
-		    mouse_deltanoreset[joy][0] = 1;
-		} else
-		    mouse_deltanoreset[joy][0] = 0;
-
 		if (state && (ie->data & DIR_UP)) {
 		    mouse_delta[joy][1] = -speed;
 		    mouse_deltanoreset[joy][1] = 1;
@@ -1501,7 +1492,19 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		} else
 		    mouse_deltanoreset[joy][1] = 0;
 
-	    } else if (ie->type & 64) { /* analog (paddle) */
+	    } else if (ie->type & 64) { /* button mouse emulation horizontal */
+
+		int speed = currprefs.input_joymouse_speed;
+		if (state && (ie->data & DIR_LEFT)) {
+		    mouse_delta[joy][0] = -speed;
+		    mouse_deltanoreset[joy][0] = 1;
+		} else if (state && (ie->data & DIR_RIGHT)) {
+		    mouse_delta[joy][0] = speed;
+		    mouse_deltanoreset[joy][0] = 1;
+		} else
+		    mouse_deltanoreset[joy][0] = 0;
+
+	    } else if (ie->type & 128) { /* analog (paddle) */
 		int deadzone = currprefs.input_joymouse_deadzone * max / 100;
 		if (max) {
 		    if (state < deadzone && state > -deadzone) {

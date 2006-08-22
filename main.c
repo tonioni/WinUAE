@@ -151,6 +151,10 @@ void fixup_prefs (struct uae_prefs *p)
 	write_log ("Unsupported Zorro III fastmem size!\n");
 	err = 1;
     }
+    p->z3fastmem_start &= ~0xffff;
+    if (p->z3fastmem_start < 0x1000000)
+	p->z3fastmem_start = 0x1000000;
+
     if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0)) {
 	p->z3fastmem_size = p->gfxmem_size = 0;
 	write_log ("Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"

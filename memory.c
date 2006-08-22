@@ -1474,7 +1474,8 @@ static char *kickstring = "exec.library";
 int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom)
 {
     unsigned char buffer[20];
-    int i, j, cr = 0;
+    int i, j;
+    int cr = 0, kickdisk = 0;
 
     if (cloanto_rom)
 	*cloanto_rom = 0;
@@ -1484,7 +1485,10 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	zfile_fseek (f, 0, SEEK_SET);
     }
     i = zfile_fread (buffer, 1, 11, f);
-    if (strncmp ((char *)buffer, "AMIROMTYPE1", 11) != 0) {
+    if (!memcmp(buffer, "KICK", 4)) {
+	zfile_fseek (f, 512, SEEK_SET);
+	kickdisk = 1;
+    } else if (strncmp ((char *)buffer, "AMIROMTYPE1", 11) != 0) {
 	zfile_fseek (f, 0, SEEK_SET);
     } else {
 	cr = 1;
@@ -1494,6 +1498,8 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	*cloanto_rom = cr;
 
     i = zfile_fread (mem, 1, size, f);
+    if (kickdisk && i > 262144)
+	i = 262144;
     zfile_fclose (f);
     if ((i != 8192 && i != 65536) && i != 131072 && i != 262144 && i != 524288) {
 	notify_user (NUMSG_KSROMREADERROR);
@@ -2288,23 +2294,40 @@ void restore_bram (int len, long filepos)
 
 uae_u8 *restore_rom (uae_u8 *src)
 {
-    uae_u32 crc32;
+    uae_u32 crc32, mem_start, mem_size, mem_type, version;
     int i;
 
-    restore_u32 ();
-    restore_u32 ();
-    restore_u32 ();
-    restore_u32 ();
+    mem_start = restore_u32 ();
+    mem_size = restore_u32 ();
+    mem_type = restore_u32 ();
+    version = restore_u32 ();
     crc32 = restore_u32 ();
     for (i = 0; i < romlist_cnt; i++) {
 	if (rl[i].rd->crc32 == crc32 && crc32) {
-	    strncpy (changed_prefs.romfile, rl[i].path, 255);
+	    switch (mem_type)
+	    {
+		case 0:
+		strncpy (changed_prefs.romfile, rl[i].path, 255);
+		break;
+		case 1:
+		strncpy (changed_prefs.romextfile, rl[i].path, 255);
+		break;
+	    }
 	    break;
 	}
     }
     src += strlen (src) + 1;
-    if (zfile_exists(src))
-	strncpy (changed_prefs.romfile, src, 255);
+    if (zfile_exists(src)) {
+	switch (mem_type)
+	{
+	    case 0:
+	    strncpy (changed_prefs.romfile, src, 255);
+	    break;
+	    case 1:
+	    strncpy (changed_prefs.romextfile, src, 255);
+	    break;
+	}
+    }
     src += strlen (src) + 1;
     return src;
 }
@@ -2314,18 +2337,24 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     static int count;
     uae_u8 *dst, *dstbak;
     uae_u8 *mem_real_start;
-    int mem_start, mem_size, mem_type, i, saverom;
+    uae_u32 version;
+    char *path;
+    int mem_start, mem_size, mem_type, saverom;
+    int i;
+    char tmpname[1000];
 
+    version = 0;
     saverom = 0;
     if (first)
 	count = 0;
     for (;;) {
 	mem_type = count;
 	switch (count) {
-	case 0:		/* Kickstart ROM */
+	case 0: /* Kickstart ROM */
 	    mem_start = 0xf80000;
 	    mem_real_start = kickmemory;
 	    mem_size = kickmem_size;
+	    path = currprefs.romfile;
 	    /* 256KB or 512KB ROM? */
 	    for (i = 0; i < mem_size / 2 - 4; i++) {
 		if (longget (i + mem_start) != longget (i + mem_start + mem_size / 2))
@@ -2335,7 +2364,17 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 		mem_size /= 2;
 		mem_start += 262144;
 	    }
-	    mem_type = 0;
+	    version = longget (mem_start + 12); /* version+revision */
+	    sprintf (tmpname, "Kickstart %d.%d", wordget (mem_start + 12), wordget (mem_start + 14));
+	    break;
+	case 1: /* Extended ROM */
+	    if (!extendedkickmem_size)
+		break;
+	    mem_start = extendedkickmem_start;
+	    mem_real_start = extendedkickmemory;
+	    mem_size = extendedkickmem_size;
+	    path = currprefs.romextfile;
+	    sprintf (tmpname, "CD32 Extended");
 	    break;
 	default:
 	    return 0;
@@ -2351,11 +2390,11 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     save_u32 (mem_start);
     save_u32 (mem_size);
     save_u32 (mem_type);
-    save_u32 (longget (mem_start + 12));	/* version+revision */
-    save_u32 (get_crc32 (kickmemory, mem_size));
-    sprintf (dst, "Kickstart %d.%d", wordget (mem_start + 12), wordget (mem_start + 14));
+    save_u32 (version);
+    save_u32 (get_crc32 (mem_real_start, mem_size));
+    strcpy (dst, tmpname);
     dst += strlen (dst) + 1;
-    strcpy (dst, currprefs.romfile);/* rom image name */
+    strcpy (dst, path);/* rom image name */
     dst += strlen(dst) + 1;
     if (saverom) {
 	for (i = 0; i < mem_size; i++)

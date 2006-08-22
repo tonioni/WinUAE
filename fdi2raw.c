@@ -41,10 +41,10 @@
 //#include "types.h"
 
 #include "fdi2raw.h"
+#include "crc32.h"
 
 #undef DEBUG
 #define VERBOSE
-#undef VERBOSE
 
 #include <assert.h>
 
@@ -139,6 +139,7 @@ struct fdi {
 	int bit_rate;
 	int disk_type;
 	int write_protect;
+	int reversed_side;
 	int err;
 	uae_u8 header[2048];
 	int track_offsets[MAX_TRACKS];
@@ -1923,7 +1924,7 @@ static int decode_lowlevel_track (FDI *fdi, int track, struct fdi_cache *cache)
 		idxp[i] = sum;
 	}
 	len = totalavg / 100000;
-	outlog("totalavg=%u index=%d (%d) maxidx=%d weakbits=%d len=%d\n",
+	debuglog("totalavg=%u index=%d (%d) maxidx=%d weakbits=%d len=%d\n",
 		totalavg, indexoffset, maxidx, weakbits, len);
 	cache->avgp = avgp;
 	cache->idxp = idxp;
@@ -2024,9 +2025,19 @@ FDI *fdi2raw_header(struct zfile *f)
 		fdi_free(fdi);
 		return NULL;
 	}
-	if ((fdi->header[140] != 1 && fdi->header[140] != 2) || fdi->header[141] != 0) {
+	if (fdi->header[140] != 1 && fdi->header[140] != 2) {
 		fdi_free(fdi);
 		return NULL;
+	}
+
+	if (fdi->header[140] * 256 + fdi->header[141] >= 2 * 256 + 1) {
+		uae_u32 crc = get_crc32(fdi->header, 508);
+		uae_u32 crc2 = (fdi->header[508] << 24) | (fdi->header[509] << 16) | (fdi->header[510] << 8) | fdi->header[511];
+		if (crc != crc2) {
+			outlog("FDI: header checksum error\n");
+			fdi_free(fdi);
+			return NULL;
+		}
 	}
 
 	fdi->mfmsync_buffer = fdi_malloc (MAX_MFM_SYNC_BUFFER * sizeof(int));
@@ -2042,8 +2053,9 @@ FDI *fdi2raw_header(struct zfile *f)
 	fdi->disk_type = fdi->header[145];
 	fdi->rotation_speed = fdi->header[146] + 128;
 	fdi->write_protect = fdi->header[147] & 1;
+	fdi->reversed_side = (fdi->header[147] & 4) ? 1 : 0;
 	outlog ("FDI version %d.%d\n", fdi->header[140], fdi->header[141]);
-	outlog ("last_track=%d rotation_speed=%d\n",fdi->last_track,fdi->rotation_speed);
+	outlog ("last_track=%d rotation_speed=%d\n", fdi->last_track, fdi->rotation_speed);
 
 	offset = 512;
 	i = fdi->last_track;
@@ -2072,7 +2084,7 @@ FDI *fdi2raw_header(struct zfile *f)
 }
 
 
-int fdi2raw_loadrevolution_2 (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int track, int *tracklength, int *indexoffsetp, int *multirev, int mfm)
+static int fdi2raw_loadrevolution_2 (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int track, int *tracklength, int *indexoffsetp, int *multirev, int mfm)
 {
 	struct fdi_cache *cache = &fdi->cache[track];
 	int len, i, idx;
@@ -2083,7 +2095,7 @@ int fdi2raw_loadrevolution_2 (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, i
 		cache->avgp, cache->minp, cache->maxp, cache->idxp,
 		cache->maxidx, &idx, cache->pulses, mfm);
 	//fdi2_gcr_decode (fdi, totalavg, avgp, minp, maxp, idxp, idx_off1, idx_off2, idx_off3, maxidx, pulses);
-	outlog("track %d: nbits=%d avg len=%.2f weakbits=%d idx=%d\n",
+	debuglog("track %d: nbits=%d avg len=%.2f weakbits=%d idx=%d\n",
 		track, bitoffset, (double)cache->totalavg / bitoffset, cache->weakbits, cache->indexoffset);
 	len = fdi->out;
 	if (cache->weakbits >= 10 && multirev)
@@ -2102,6 +2114,7 @@ int fdi2raw_loadrevolution_2 (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, i
 
 int fdi2raw_loadrevolution (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int track, int *tracklength, int mfm)
 {
+	track ^= fdi->reversed_side;
 	return fdi2raw_loadrevolution_2 (fdi, mfmbuf, tracktiming, track, tracklength, 0, 0, mfm);
 }
 
@@ -2111,6 +2124,7 @@ int fdi2raw_loadtrack (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int trac
 	int outlen, i, indexoffset = 0;
 	struct fdi_cache *cache = &fdi->cache[track];
 
+	track ^= fdi->reversed_side;
 	if (cache->lowlevel)
 		return fdi2raw_loadrevolution_2 (fdi, mfmbuf, tracktiming, track, tracklength, indexoffsetp, multirev, mfm);
 
@@ -2136,7 +2150,7 @@ int fdi2raw_loadtrack (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int trac
 	else
 		fdi->bit_rate = 250;
 
-	outlog ("track %d: srclen: %d track_type: %02.2X, bitrate: %d\n",
+	debuglog ("track %d: srclen: %d track_type: %02.2X, bitrate: %d\n",
 		fdi->current_track, fdi->track_src_len, fdi->track_type, fdi->bit_rate);
 
 	if ((fdi->track_type & 0xc0) == 0x80) {
