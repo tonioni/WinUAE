@@ -823,6 +823,7 @@ Return Value:
         struct uae_driveinfo *udi2 = udi;
         int nonzeropart = 0;
         int gotpart = 0;
+	int safepart = 0;
 	write_log ("%d MBR partitions found\n", dli->PartitionCount);
 	for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 	    PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
@@ -847,6 +848,7 @@ Return Value:
 		sprintf (udi->device_name, "HD_P#%d_%s", pi->PartitionNumber, orgname);
 		udi++;
 		(*index2)++;
+		safepart = 1;
 	    }
 	    gotpart = 1;
 	}
@@ -854,9 +856,8 @@ Return Value:
 	    write_log ("empty MBR partition table detected, checking for RDB\n");
 	} else if (!gotpart) {
 	    write_log ("non-empty MBR partition table detected, doing RDB check anyway\n");
-	} else if (harddrive_dangerous != 0x1234dead) {
-	    ret = 1;
-	    goto end;
+	} else if (safepart) {
+	    goto amipartfound; /* ugly but bleh.. */
 	}
     } else {
 	write_log ("no MBR partition table detected, checking for RDB\n");
@@ -867,8 +868,7 @@ Return Value:
 	ret = 1;
 	goto end;
     }
-
-    write_log ("device accepted, start=%I64d, size=%I64d, block=%d\n", udi->offset, udi->size, udi->bytespersector);
+amipartfound:
     if (i > 1)
 	sprintf (udi->device_name, "HD_*_%s", orgname);
     else

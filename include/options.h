@@ -89,6 +89,7 @@ struct uae_prefs {
     int sound_bits;
     int sound_freq;
     int sound_maxbsiz;
+    int sound_latency;
     int sound_interpol;
     int sound_adjust;
     int sound_filter;
@@ -191,6 +192,7 @@ struct uae_prefs {
     int cpu_level;
     int cpu_compatible;
     int address_space_24;
+    int picasso96_nocustom;
 
     uae_u32 z3fastmem_size;
     uae_u32 z3fastmem_start;

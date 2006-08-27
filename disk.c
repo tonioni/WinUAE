@@ -83,10 +83,14 @@ static uae_u8 writebuffer[544 * 11 * DDHDMULT];
 
 #define DISK_INDEXSYNC 1
 #define DISK_WORDSYNC 2
-#define DISK_REVOLUTION 4 /* 4,8,16,32 */
+#define DISK_MOTORDELAY 4
+#define DISK_REVOLUTION 8 /* 8,16,32,64 */
 
 #define DSKREADY_TIME 4
 #define DSKREADY_DOWN_TIME 10
+
+static int diskevent_flag;
+static int disk_sync_cycle;
 
 #if 0
 #define MAX_DISK_WORDS_PER_LINE 50 /* depends on floppy_speed */
@@ -137,6 +141,7 @@ typedef struct {
     int buffered_cyl, buffered_side;
     int cyl;
     int motoroff;
+    int motordelay; /* dskrdy needs some clock cycles before it changes after switching off motor */
     int state;
     int wrprot;
     uae_u16 bigmfmbuf[0x4000 * DDHDMULT];
@@ -1109,6 +1114,14 @@ static void drive_motor (drive * drv, int off)
 #endif
 	if (disk_debug_logging > 1)
 	    write_log (" ->motor off");
+	if (currprefs.cpu_level <= 1) {
+	    drv->motordelay = 1;
+	    diskevent_flag = DISK_MOTORDELAY;
+	    eventtab[ev_disk].oldcycles = get_cycles ();
+	    eventtab[ev_disk].evtime = get_cycles () + 30 * CYCLE_UNIT;
+	    eventtab[ev_disk].active = 1;
+	    events_schedule ();
+	}
     }
     drv->motoroff = off;
     if (drv->motoroff) {
@@ -2195,11 +2208,12 @@ uae_u8 DISK_status (void)
 		/* report drive ID */
 		if (drv->idbit && currprefs.dfxtype[dr] != DRV_35_DD_ESCOM)
 		    st &= ~0x20;
-#if 0
-		if (dr == 0 && currprefs.dfxtype[dr] == DRV_35_DD &&
-		    drv->motoroff && drv->motorcycle + CYCLE_UNIT * 1 > get_cycles())
-		    st &= ~0x20, write_log("x %d\n", get_cycles());
-#endif
+		/* dskrdy needs some cycles after switching the motor off.. (Pro Tennis Tour) */
+		if (drv->motordelay) {
+		    write_log ("MOTORDELAY! %x\n", m68k_getpc());
+		    st &= ~0x20;
+		    drv->motordelay = 0;
+		}
 	    }
 	    if (drive_track0 (drv))
 		st &= ~0x10;
@@ -2296,9 +2310,6 @@ static void fetchnextrevolution (drive *drv)
     }
 }
 
-static int diskevent_flag;
-static int disk_sync_cycle;
-
 void DISK_handler (void)
 {
     int flag = diskevent_flag;
@@ -2312,11 +2323,11 @@ void DISK_handler (void)
 	fetchnextrevolution (&floppy[2]);
     if (flag & (DISK_REVOLUTION << 3))
 	fetchnextrevolution (&floppy[3]);
-    if (flag & DISK_WORDSYNC) {
+    if (flag & DISK_WORDSYNC)
 	INTREQ (0x8000 | 0x1000);
-    }
-    if (flag & DISK_INDEXSYNC) {
+    if (flag & DISK_INDEXSYNC)
 	cia_diskindex ();
+    floppy[0].motordelay = floppy[1].motordelay = floppy[2].motordelay = floppy[3].motordelay = 0;
 #if 0
 	{   
 	int i;
@@ -2333,7 +2344,6 @@ void DISK_handler (void)
 	}
 	}
 #endif
-    }
 }
 
 static void disk_doupdate_write (drive * drv, int floppybits)

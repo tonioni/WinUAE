@@ -42,6 +42,15 @@
 
 int audio_channel_mask = 15;
 
+STATIC_INLINE int isaudio(void)
+{
+    if (!currprefs.produce_sound)
+	return 0;
+    if (currprefs.picasso96_nocustom && picasso_on)
+	return 0;
+    return 1;
+}
+
 static int debugchannel (int ch)
 {
     if ((1 << ch) & DEBUG_CHANNEL_MASK) return 1;
@@ -1320,7 +1329,9 @@ void update_audio (void)
 {
     unsigned long int n_cycles;
 
-    if (currprefs.produce_sound == 0 || savestate_state == STATE_RESTORE)
+    if (!isaudio())
+	return;
+    if (savestate_state == STATE_RESTORE)
 	return;
 
     n_cycles = get_cycles () - last_cycles;
@@ -1389,7 +1400,7 @@ void audio_hsync (int dmaaction)
 {
     int nr, handle;
 
-    if (currprefs.produce_sound == 0)
+    if (!isaudio())
 	return;
 
     update_audio ();
@@ -1504,7 +1515,7 @@ void AUDxPER (int nr, uae_u16 v)
 
    if (audio_channel[nr].per == PERIOD_MAX - 1 && per != PERIOD_MAX - 1) {
 	audio_channel[nr].evtime = CYCLE_UNIT;
-	if (currprefs.produce_sound > 0) {
+	if (isaudio()) {
 	    schedule_audio ();
 	    events_schedule ();
 	}

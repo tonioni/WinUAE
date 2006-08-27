@@ -982,42 +982,34 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
     DWORD dwDDSColor;
     DWORD flags = DDPF_RGB;
 
-    ZeroMemory( &ddpfOverlayFormat, sizeof(ddpfOverlayFormat) );
+    ZeroMemory(&ddpfOverlayFormat, sizeof(ddpfOverlayFormat));
     ddpfOverlayFormat.dwSize = sizeof(ddpfOverlayFormat);
-    ZeroMemory( &ddsd, sizeof(ddsd) );
+    ZeroMemory(&ddsd, sizeof(ddsd));
 
-    if( bOverlayAvailable )
-    {
+    if (bOverlayAvailable) {
 	write_log( "CreateOverlaySurface being called with %d-bits!\n", bits );
-	if( bits == 16 )
-	{
+	if(bits == 16) {
 	    // Set the overlay format to 16 bit RGB 5:6:5
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 16;
 	    ddpfOverlayFormat.dwRBitMask    = 0xF800; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x07E0;
 	    ddpfOverlayFormat.dwBBitMask    = 0x001F; 
-	}
-	else if( bits == 32 )
-	{
+	} else if(bits == 32) {
 	    // Set the overlay format to 32 bit ARGB 8:8:8:8
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 32;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00FF0000; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x0000FF00;
 	    ddpfOverlayFormat.dwBBitMask    = 0x000000FF; 
-	}
-	else if( bits == 8 )
-	{
+	} else if(bits == 8) {
 	    // Set the overlay format to 8 bit palette
 	    ddpfOverlayFormat.dwFlags       = flags | DDPF_PALETTEINDEXED8;
 	    ddpfOverlayFormat.dwRGBBitCount = 8;
 	    ddpfOverlayFormat.dwRBitMask    = 0x00000000; 
 	    ddpfOverlayFormat.dwGBitMask    = 0x00000000;
 	    ddpfOverlayFormat.dwBBitMask    = 0x00000000; 
-	}
-	else
-	{
+	} else {
 	    // We don't handle this case...
 	    return DDERR_INVALIDPIXELFORMAT;
 	}
@@ -1030,7 +1022,7 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 	ddsd.dwHeight          = height;
 	ddsd.ddpfPixelFormat   = ddpfOverlayFormat;
 
-	ZeroMemory(&overlayfx,sizeof(overlayfx));
+	ZeroMemory(&overlayfx, sizeof(overlayfx));
 	overlayfx.dwSize = sizeof(overlayfx);
 	overlayflags = DDOVER_SHOW | DDOVER_DDFX | DDOVER_KEYDESTOVERRIDE;
 
@@ -1040,17 +1032,12 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 
 	// Attempt to create the surface with theses settings
 	ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, &ddsd, &DirectDrawState.overlay.surface, NULL);
-	if(SUCCEEDED(ddrval))
-	{
+	if(SUCCEEDED(ddrval)) {
 	    DirectDrawState.isoverlay = 1;
-	}
-	else
-	{
+	} else {
 	    DirectDrawState.isoverlay = 0;
 	}
-    }
-    else
-    {
+    } else {
 	write_log( "CreateOverlaySurface being called, but no overlay support with this card...!\n" );
     }
     return ddrval;
@@ -1105,7 +1092,7 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 	clearsurface (primary_surface);
     } else {
 	// We're not full-screen, so you cannot create a flipping pair...
-	ZeroMemory( &DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
+	ZeroMemory(&DirectDrawState.primary.desc, sizeof(DDSURFACEDESC2));
 	DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
 	DirectDrawState.primary.desc.dwFlags = DDSD_CAPS;
 	DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
@@ -1115,11 +1102,9 @@ HRESULT DirectDraw_CreateSurface( int width, int height )
 					    NULL);
     }
 
-    if(FAILED(ddrval))
-    {
+    if(FAILED(ddrval)) {
 	goto out;
-    }
-    else
+    } else
     {
 	write_log( "DDRAW: Primary %ssurface created in video-memory\n", DirectDrawState.flipping != single_buffer ? "flipping " : "" );
     }
@@ -1484,7 +1469,7 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat( LPDDSURFACEDESC2 surface )
     surf_flags = surface->dwFlags;
     pfp = &surface->ddpfPixelFormat;
 
-    if( ( surf_flags & DDSD_PIXELFORMAT ) == 0x0 )
+    if((surf_flags & DDSD_PIXELFORMAT) == 0x0)
 	return RGBFB_NONE;
 
     if ((pfp->dwFlags & DDPF_RGB) == 0)

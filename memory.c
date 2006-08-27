@@ -2349,6 +2349,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 	count = 0;
     for (;;) {
 	mem_type = count;
+	mem_size = 0;
 	switch (count) {
 	case 0: /* Kickstart ROM */
 	    mem_start = 0xf80000;
@@ -2374,7 +2375,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 	    mem_real_start = extendedkickmemory;
 	    mem_size = extendedkickmem_size;
 	    path = currprefs.romextfile;
-	    sprintf (tmpname, "CD32 Extended");
+	    sprintf (tmpname, "Extended");
 	    break;
 	default:
 	    return 0;

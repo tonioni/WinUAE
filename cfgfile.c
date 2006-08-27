@@ -291,6 +291,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
+    cfgfile_write (f, "sound_latency=%d\n", p->sound_latency);
     cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
     cfgfile_write (f, "sound_adjust=%d\n", p->sound_adjust);
     cfgfile_write (f, "sound_filter=%s\n", soundfiltermode1[p->sound_filter]);
@@ -442,6 +443,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "cpu_compatible=%s\n", p->cpu_compatible ? "true" : "false");
     cfgfile_write (f, "cpu_cycle_exact=%s\n", p->cpu_cycle_exact ? "true" : "false");
     cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
+    cfgfile_write (f, "rtg_nocustom=%s\n", p->picasso96_nocustom ? "true" : "false");
 
     cfgfile_write (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
     if (p->catweasel >= 100)
@@ -636,7 +638,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	}
     }
 
-    if (cfgfile_intval (option, value, "sound_max_buff", &p->sound_maxbsiz, 1)
+    if (cfgfile_intval (option, value, "sound_frequency", &p->sound_freq, 1)) {
+	/* backwards compatibility */
+	p->sound_latency = 1000 * (p->sound_maxbsiz >> 1) / p->sound_freq;
+	return 1;
+    }
+
+    if (cfgfile_intval (option, value, "sound_latency", &p->sound_latency, 1)
+	|| cfgfile_intval (option, value, "sound_max_buff", &p->sound_maxbsiz, 1)
 	|| cfgfile_intval (option, value, "sound_bits", &p->sound_bits, 1)
 	|| cfgfile_intval (option, value, "state_replay_rate", &p->statecapturerate, 1)
 	|| cfgfile_intval (option, value, "state_replay_buffer", &p->statecapturebuffersize, 1)
@@ -1016,6 +1025,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "fpu_strict", &p->fpu_strict)
 	|| cfgfile_yesno (option, value, "comp_midopt", &p->comp_midopt)
 	|| cfgfile_yesno (option, value, "comp_lowopt", &p->comp_lowopt)
+	|| cfgfile_yesno (option, value, "rtg_nocustom", &p->picasso96_nocustom)
 	|| cfgfile_yesno (option, value, "scsi", &p->scsi))
 	return 1;
     if (cfgfile_intval (option, value, "cachesize", &p->cachesize, 1)
@@ -2405,6 +2415,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
+    p->sound_latency = 100;
     p->sound_interpol = 1;
     p->sound_filter = FILTER_SOUND_EMUL;
     p->sound_filter_type = 0;
@@ -2480,6 +2491,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->maprom = 0;
     p->filesys_no_uaefsdb = 0;
     p->filesys_custom_uaefsdb = 1;
+    p->picasso96_nocustom = 0;
     p->cart_internal = 1;
 
     p->gfx_filter = 0;
@@ -2837,6 +2849,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->scsi = 1;
     p->socket_emu = 1;
     p->cart_internal = 0;
+    p->picasso96_nocustom = 1;
     return configure_rom (p, roms, romcheck);
 }
 
