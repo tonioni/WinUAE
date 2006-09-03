@@ -7,8 +7,6 @@
  * Copyright 1998-1999 Brian King - added MIDI output support
  */
 
-//#define PS_PRINT_DUMP
-
 #include "config.h"
 #include "sysconfig.h"
 #include <windows.h>
@@ -56,7 +54,7 @@ static DWORD  dwJob;
 extern HWND hAmigaWnd;
 static int prtopen;
 extern void flushpixels(void);
-void DoSomeWeirdPrintingStuff( char val );
+void DoSomeWeirdPrintingStuff(char val);
 static int uartbreak;
 static int parflush;
 
@@ -65,9 +63,8 @@ static volatile int prt_running;
 static volatile int prt_started;
 static smp_comm_pipe prt_requests;
 
-#ifdef PS_PRINT_DUMP
+int postscript_print_debugging = 0;
 static struct zfile *prtdump;
-#endif
 
 static int psmode = 0;
 static HMODULE gsdll;
@@ -133,10 +130,20 @@ static int openprinter_ps (void)
     for (gsargc = 0; gsargv[gsargc]; gsargc++);
     for (i = 0; i < gsargc; i++)
 	tmpparms[gsargc2++] = gsargv[i];
-    sprintf (tmp, "-sOutputFile=%%printer%%%s", currprefs.prtname);
-    tmpparms[gsargc2++] = tmp;
+    if (currprefs.prtname[0]) {
+	sprintf (tmp, "-sOutputFile=%%printer%%%s", currprefs.prtname);
+	tmpparms[gsargc2++] = tmp;
+    }
+    if (postscript_print_debugging) {
+	for(i = 0; i < gsargc2; i++)
+	    write_log("GSPARM%d: '%s'\n", i, tmpparms[i]);
+    }
     __try {
-	ptr_gsapi_init_with_args (gsinstance, gsargc2, tmpparms);
+	int rc = ptr_gsapi_init_with_args (gsinstance, gsargc2, tmpparms);
+	if (rc != 0) {
+	    write_log("GS failed, returncode %d\n", rc);
+	    return 0;
+	}
 	ptr_gsapi_run_string_begin (gsinstance, 0, &gs_exitcode);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
 	write_log("GS crashed\n");
@@ -198,10 +205,9 @@ static void flushprtbuf (void)
     if (!prtbufbytes)
 	return;
 
-#ifdef PS_PRINT_DUMP
-    if (prtdump)
+    if (postscript_print_debugging && prtdump)
 	zfile_fwrite (prtbuf, prtbufbytes, 1, prtdump);
-#endif
+
     if (currprefs.parallel_postscript_emulation) {
 	if (psmode) {
 	    uae_u8 *p;
@@ -248,10 +254,12 @@ static void DoSomeWeirdPrintingStuff (char val)
 	    prtbufbytes = 1;
 	    flushprtbuf ();
 	    write_log ("PostScript end detected..\n");
-#ifdef PS_PRINT_DUMP
-	    zfile_fclose (prtdump);
-	    prtdump = NULL;
-#endif
+
+	    if (postscript_print_debugging) {
+		zfile_fclose (prtdump);
+		prtdump = NULL;
+	    }
+
 	    if (currprefs.parallel_postscript_emulation) {
 		prt_started = 0;
 		if (uae_start_thread (prt_thread, psbuffer, &prt_tid)) {
@@ -266,9 +274,10 @@ static void DoSomeWeirdPrintingStuff (char val)
 	    freepsbuffers ();
 	    return;
 	} else if (!psmode && !stricmp (prev, "%!PS")) {
-#ifdef PS_PRINT_DUMP
-	    prtdump = zfile_fopen ("psdump.dat", "wb");
-#endif
+	    
+	    if (postscript_print_debugging)
+		prtdump = zfile_fopen ("psdump.dat", "wb");
+
 	    psmode = 1;
 	    psbuffer = malloc (sizeof (uae_u8*));
 	    psbuffer[0] = 0;
@@ -314,7 +323,8 @@ int load_ghostscript (void)
 
     if (gsdll)
 	return 1;
-    gsdll = WIN32_LoadLibrary ("gsdll32.dll");
+    strcpy(path, "gsdll32.dll");
+    gsdll = WIN32_LoadLibrary (path);
     if (!gsdll) {
 	if (GetEnvironmentVariable ("GS_DLL", path, sizeof (path)))
 	    gsdll = LoadLibrary (path);
@@ -350,12 +360,12 @@ int load_ghostscript (void)
     ptr_gsapi_revision = (GSAPI_REVISION)GetProcAddress (gsdll, "gsapi_revision");
     if (!ptr_gsapi_revision) {
 	unload_ghostscript ();
-	write_log("incompatible gsdll32.dll! (1)\n");
+	write_log("incompatible %s! (1)\n", path);
 	return -1;
     }
     if (ptr_gsapi_revision(&r, sizeof(r))) {
 	unload_ghostscript ();
-	write_log("incompatible gsdll32.dll! (2)\n");
+	write_log("incompatible %s! (2)\n", path);
 	return -2;
     }
     ptr_gsapi_new_instance = (GSAPI_NEW_INSTANCE)GetProcAddress (gsdll, "gsapi_new_instance");
@@ -370,10 +380,10 @@ int load_ghostscript (void)
 	!ptr_gsapi_run_string_begin || !ptr_gsapi_run_string_continue || !ptr_gsapi_run_string_end ||
 	!ptr_gsapi_init_with_args) {
 	unload_ghostscript ();
-	write_log("incompatible gsdll32.dll! (3)\n");
+	write_log("incompatible %s! (3)\n", path);
 	return -3;
     }
-    write_log ("gsdll32.dll: %s rev %d initialized\n", r.product, r.revision);
+    write_log ("%s: %s rev %d initialized\n", path, r.product, r.revision);
     return 1;
 }
 

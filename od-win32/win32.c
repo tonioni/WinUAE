@@ -2350,7 +2350,7 @@ static void getstartpaths(int start_data)
 }
 
 extern void test (void);
-extern int screenshotmode, b0rken_ati_overlay;
+extern int screenshotmode, b0rken_ati_overlay,postscript_print_debugging;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2407,6 +2407,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-nomultidisplay")) multi_display = 0;
 	if (!strcmp (arg, "-legacypaths")) start_data = -1;
 	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
+	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
 	    strcpy(start_path_data, argv[i + 1]);
 	    start_data = 1;

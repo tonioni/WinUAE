@@ -1,5 +1,5 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "1.3.0"
+!define PRODUCT_VERSION "1.3.2"
 !define PRODUCT_PUBLISHER "Toni Wilen"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
