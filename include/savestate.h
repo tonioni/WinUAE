@@ -83,12 +83,12 @@ extern uae_u8 *save_keyboard (int *);
 extern uae_u8 *restore_filesys (uae_u8 *src);
 extern uae_u8 *save_filesys (int num, int *len);
 
-extern void restore_cram (int, long);
-extern void restore_bram (int, long);
-extern void restore_fram (int, long);
-extern void restore_zram (int, long);
-extern void restore_pram (int, long);
-extern void restore_ram (long, uae_u8*);
+extern void restore_cram (int, size_t);
+extern void restore_bram (int, size_t);
+extern void restore_fram (int, size_t);
+extern void restore_zram (int, size_t);
+extern void restore_pram (int, size_t);
+extern void restore_ram (size_t, uae_u8*);
 
 extern uae_u8 *save_cram (int *);
 extern uae_u8 *save_bram (int *);

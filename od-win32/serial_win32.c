@@ -11,7 +11,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
  
-#include "config.h"
 #include "options.h"
 #include "uae.h"
 #include "memory.h"
@@ -58,7 +57,7 @@ void SERPER (uae_u16 w)
 
     if (w & 0x8000) {
         if (!warned) {
-            write_log( "SERIAL: program uses 9bit mode PC=%x\n", m68k_getpc() );
+            write_log("SERIAL: program uses 9bit mode PC=%x\n", M68K_GETPC);
 	    warned++;
         }
         ninebit = 1;
@@ -82,7 +81,7 @@ void SERPER (uae_u16 w)
 	serial_period_hsyncs = 1;
     serial_period_hsync_counter = 0;
 
-    write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d PC=%x\n", w, baud, serial_period_hsyncs, m68k_getpc());
+    write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d PC=%x\n", w, baud, serial_period_hsyncs, M68K_GETPC);
 
     if (ninebit)
 	baud *= 2;

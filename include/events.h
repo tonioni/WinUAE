@@ -19,7 +19,7 @@
 extern volatile frame_time_t vsynctime, vsyncmintime;
 extern void reset_frame_rate_hack (void);
 extern int rpt_available;
-extern unsigned long syncbase;
+extern frame_time_t syncbase;
 
 extern void compute_vsynctime (void);
 extern void init_eventtab (void);

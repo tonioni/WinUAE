@@ -12,16 +12,13 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "threaddep/thread.h"
 #include "options.h"
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
-#include "disk.h"
 #include "autoconf.h"
-#include "filesys.h"
-#include "execlib.h"
+#include "traps.h"
 #include "native2amiga.h"
 
 smp_comm_pipe native2amiga_pending;
@@ -46,7 +43,7 @@ void native2amiga_startup (void)
 
 #ifdef SUPPORT_THREADS
 
-void uae_Cause(uaecptr interrupt)
+void uae_Cause (uaecptr interrupt)
 {
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 3, 0);
@@ -55,7 +52,7 @@ void uae_Cause(uaecptr interrupt)
     uae_sem_post (&n2asem);
 }
 
-void uae_ReplyMsg(uaecptr msg)
+void uae_ReplyMsg (uaecptr msg)
 {
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 2, 0);
@@ -64,7 +61,7 @@ void uae_ReplyMsg(uaecptr msg)
     uae_sem_post (&n2asem);
 }
 
-void uae_PutMsg(uaecptr port, uaecptr msg)
+void uae_PutMsg (uaecptr port, uaecptr msg)
 {
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 1, 0);
@@ -74,7 +71,7 @@ void uae_PutMsg(uaecptr port, uaecptr msg)
     uae_sem_post (&n2asem);
 }
 
-void uae_Signal(uaecptr task, uae_u32 mask)
+void uae_Signal (uaecptr task, uae_u32 mask)
 {
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 0, 0);
@@ -84,7 +81,7 @@ void uae_Signal(uaecptr task, uae_u32 mask)
     uae_sem_post (&n2asem);
 }
 
-void uae_NotificationHack(uaecptr port, uaecptr nr)
+void uae_NotificationHack (uaecptr port, uaecptr nr)
 {
     uae_sem_wait (&n2asem);
     write_comm_pipe_int (&native2amiga_pending, 4, 0);
@@ -96,23 +93,23 @@ void uae_NotificationHack(uaecptr port, uaecptr nr)
 
 #endif
 
-void uae_NewList(uaecptr list)
+void uae_NewList (uaecptr list)
 {
     put_long (list, list + 4);
     put_long (list + 4, 0);
     put_long (list + 8, list);
 }
 
-uaecptr uae_AllocMem (uae_u32 size, uae_u32 flags)
+uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags)
 {
-    m68k_dreg (regs, 0) = size;
-    m68k_dreg (regs, 1) = flags;
-    return CallLib (get_long (4), -198); /* AllocMem */
+    m68k_dreg (&context->regs, 0) = size;
+    m68k_dreg (&context->regs, 1) = flags;
+    return CallLib (context, get_long (4), -198); /* AllocMem */
 }
 
-void uae_FreeMem (uaecptr memory, uae_u32 size)
+void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size)
 {
-    m68k_dreg (regs, 0) = size;
-    m68k_areg (regs, 1) = memory;
-    CallLib (get_long (4), -0xD2); /* FreeMem */
+    m68k_dreg (&context->regs, 0) = size;
+    m68k_areg (&context->regs, 1) = memory;
+    CallLib (context, get_long (4), -0xD2); /* FreeMem */
 }

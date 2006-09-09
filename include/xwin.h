@@ -6,7 +6,7 @@
   * Copyright 1995-1997 Bernd Schmidt
   */
 
-typedef long int xcolnr;
+typedef uae_u32 xcolnr;
 
 typedef int (*allocfunc_type)(int, int, int, xcolnr *);
 
@@ -35,11 +35,11 @@ extern void screenshot (int,int);
 
 extern int bits_in_mask (unsigned long mask);
 extern int mask_shift (unsigned long mask);
-extern unsigned long doMask (int p, int bits, int shift);
-extern unsigned long doMask256 (int p, int bits, int shift);
+extern unsigned int doMask (int p, int bits, int shift);
+extern unsigned int doMask256 (int p, int bits, int shift);
 extern void setup_maxcol (int);
 extern void alloc_colors256 (int (*)(int, int, int, xcolnr *));
-extern void alloc_colors64k (int, int, int, int, int, int, int, int, int);
+extern void alloc_colors64k (int, int, int, int, int, int, int, int, int, int);
 extern void setup_greydither (int bits, allocfunc_type allocfunc);
 extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
 extern void setup_dither (int bits, allocfunc_type allocfunc);
@@ -47,6 +47,14 @@ extern void DitherLine (uae_u8 *l, uae_u16 *r4g4b4, int x, int y, uae_s16 len, i
 
 struct vidbuf_description
 {
+    /* Function implemented by graphics driver */
+    void (*flush_line)         (struct vidbuf_description *gfxinfo, int line_no);
+    void (*flush_block)        (struct vidbuf_description *gfxinfo, int first_line, int end_line);
+    void (*flush_screen)       (struct vidbuf_description *gfxinfo, int first_line, int end_line);
+    void (*flush_clear_screen) (struct vidbuf_description *gfxinfo);
+    int  (*lockscr)            (struct vidbuf_description *gfxinfo);
+    void (*unlockscr)          (struct vidbuf_description *gfxinfo);
+
     /* The graphics code has a choice whether it wants to use a large buffer
      * for the whole display, or only a small buffer for a single line.
      * If you use a large buffer:

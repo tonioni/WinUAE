@@ -13,7 +13,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "uae.h"
 #include "threaddep/thread.h"
 #include "options.h"
@@ -22,6 +21,7 @@
 #include "events.h"
 #include "newcpu.h"
 #include "autoconf.h"
+#include "traps.h"
 #include "execlib.h"
 #include "native2amiga.h"
 #include "blkdev.h"
@@ -200,9 +200,9 @@ static void dev_close_3 (struct devstruct *dev, struct priv_devstruct *pdev)
     }
 }
 
-static uae_u32 dev_close_2 (void)
+static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (regs, 1);
+    uae_u32 request = m68k_areg (&context->regs, 1);
     struct priv_devstruct *pdev = getpdevstruct (request);
     struct devstruct *dev;
 
@@ -215,17 +215,17 @@ static uae_u32 dev_close_2 (void)
 	return 0;
     dev_close_3 (dev, pdev);
     put_long (request + 24, 0);
-    put_word (m68k_areg(regs, 6) + 32, get_word (m68k_areg(regs, 6) + 32) - 1);
+    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) - 1);
     return 0;
 }
 
-static uae_u32 dev_close (void)
+static uae_u32 REGPARAM2 dev_close (TrapContext *context)
 {
-    return dev_close_2 ();
+    return dev_close_2 (context);
 }
-static uae_u32 diskdev_close (void)
+static uae_u32 REGPARAM2 diskdev_close (TrapContext *context)
 {
-    return dev_close_2 ();
+    return dev_close_2 (context);
 }
 
 static int openfail (uaecptr ioreq, int error)
@@ -235,11 +235,11 @@ static int openfail (uaecptr ioreq, int error)
     return (uae_u32)-1;
 }
 
-static uae_u32 dev_open_2 (int type)
+static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 {
-    uaecptr ioreq = m68k_areg(regs, 1);
-    uae_u32 unit = m68k_dreg (regs, 0);
-    uae_u32 flags = m68k_dreg (regs, 1);
+    uaecptr ioreq = m68k_areg (&context->regs, 1);
+    uae_u32 unit = m68k_dreg (&context->regs, 0);
+    uae_u32 flags = m68k_dreg (&context->regs, 1);
     struct devstruct *dev = getdevstruct (unit);
     struct priv_devstruct *pdev = 0;
     int i;
@@ -280,26 +280,26 @@ static uae_u32 dev_open_2 (int type)
     }
     dev->opencnt++;
 
-    put_word (m68k_areg(regs, 6) + 32, get_word (m68k_areg(regs, 6) + 32) + 1);
+    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
 }
 
-static uae_u32 dev_open (void)
+static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 {
-    return dev_open_2 (UAEDEV_SCSI_ID);
+    return dev_open_2 (context, UAEDEV_SCSI_ID);
 }
-static uae_u32 diskdev_open (void)
+static uae_u32 REGPARAM2 diskdev_open (TrapContext *context)
 {
-    return dev_open_2 (UAEDEV_DISK_ID);
+    return dev_open_2 (context, UAEDEV_DISK_ID);
 }
 
-static uae_u32 dev_expunge (void)
+static uae_u32 REGPARAM2 dev_expunge (TrapContext *context)
 {
     return 0;
 }
-static uae_u32 diskdev_expunge (void)
+static uae_u32 REGPARAM2 diskdev_expunge (TrapContext *context)
 {
     return 0;
 }
@@ -599,9 +599,9 @@ static int dev_canquick (struct devstruct *dev, uaecptr request)
     return dev_can_quick (command);
 }
 
-static uae_u32 dev_beginio (void)
+static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg(regs, 1);
+    uae_u32 request = m68k_areg (&context->regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
     struct priv_devstruct *pdev = getpdevstruct (request);
@@ -629,7 +629,7 @@ static void *dev_thread (void *devs)
 {
     struct devstruct *dev = devs;
 
-    set_thread_priority (2);
+    uae_set_thread_priority (2);
     dev->thread_running = 1;
     uae_sem_post (&dev->sync_sem);
     for (;;) {
@@ -653,26 +653,26 @@ static void *dev_thread (void *devs)
     return 0;
 }
 
-static uae_u32 dev_init_2 (int type)
+static uae_u32 REGPARAM2 dev_init_2 (TrapContext *context, int type)
 {
-    uae_u32 base = m68k_dreg (regs,0);
+    uae_u32 base = m68k_dreg (&context->regs,0);
     if (log_scsi)
 	write_log ("%s init\n", getdevname (type));
     return base;
 }
 
-static uae_u32 dev_init (void)
+static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 {
-    return dev_init_2 (UAEDEV_SCSI_ID);
+    return dev_init_2 (context, UAEDEV_SCSI_ID);
 }
-static uae_u32 diskdev_init (void)
+static uae_u32 REGPARAM2 diskdev_init (TrapContext *context)
 {
-    return dev_init_2 (UAEDEV_DISK_ID);
+    return dev_init_2 (context, UAEDEV_DISK_ID);
 }
 
-static uae_u32 dev_abortio (void)
+static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg(regs, 1);
+    uae_u32 request = m68k_areg (&context->regs, 1);
     struct priv_devstruct *pdev = getpdevstruct (request);
     struct devstruct *dev;
 
@@ -906,19 +906,19 @@ void scsidev_install (void)
 
     /* initcode */
     initcode = here ();
-    calltrap (deftrap (dev_init)); dw (RTS);
+    calltrap (deftrap (diskdev_init)); dw (RTS);
 
     /* Open */
     openfunc = here ();
-    calltrap (deftrap (dev_open)); dw (RTS);
+    calltrap (deftrap (diskdev_open)); dw (RTS);
 
     /* Close */
     closefunc = here ();
-    calltrap (deftrap (dev_close)); dw (RTS);
+    calltrap (deftrap (diskdev_close)); dw (RTS);
 
     /* Expunge */
     expungefunc = here ();
-    calltrap (deftrap (dev_expunge)); dw (RTS);
+    calltrap (deftrap (diskdev_expunge)); dw (RTS);
 
     /* BeginIO */
     beginiofunc = here ();

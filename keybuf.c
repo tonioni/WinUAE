@@ -16,7 +16,6 @@
 #include "sysdeps.h"
 #include <assert.h>
 
-#include "config.h"
 #include "options.h"
 #include "keybuf.h"
 #include "keyboard.h"
@@ -26,7 +25,10 @@
 
 static int fakestate[2][7] = { {0},{0} };
 
-static int *fs_np, *fs_ck, *fs_se, *fs_xa1, *fs_xa2;
+static int *fs_np, *fs_ck, *fs_se;
+#ifdef ARCADIA
+static int *fs_xa1, *fs_xa2;
+#endif
 
 /* Not static so the DOS code can mess with them */
 int kpb_first, kpb_last;
@@ -101,14 +103,15 @@ void record_key_direct (int kc)
     }
     if (fs_se != 0) {
 	switch (k) {
-	case AK_T: fs = 1; fs_se[0] = b; break;
-	case AK_F: fs = 1; fs_se[1] = b; break;
-	case AK_H: fs = 1; fs_se[2] = b; break;
-	case AK_B: fs = 1; fs_se[3] = b; break;
+	case AK_W: fs = 1; fs_se[0] = b; break;
+	case AK_A: fs = 1; fs_se[1] = b; break;
+	case AK_D: fs = 1; fs_se[2] = b; break;
+	case AK_S: fs = 1; fs_se[3] = b; break;
 	case AK_LALT: fs = 1; fs_se[4] = b; break;
 	case AK_LSH: fs = 1; fs_se[5] = b; break;
 	}
     }
+#ifdef ARCADIA
     if (fs_xa1 != 0) {
 	switch (k) {
 	case AK_NP8: fs = 1; fs_xa1[0] = b; break;
@@ -131,7 +134,7 @@ void record_key_direct (int kc)
 	case AK_Q: fs = 1; fs_xa2[6] = b; break;
 	}
     }
-
+#endif
     if (fs && currprefs.input_selected_setting == 0) {
 	if (JSEM_ISANYKBD (0, &currprefs))
 	    do_fake (0);
@@ -143,6 +146,7 @@ void record_key_direct (int kc)
 	    kc ^= AK_RCTRL << 1;
 	    kc ^= AK_CTRL << 1;
 	}
+#ifdef ARCADIA
 	if (fs_xa1 || fs_xa2) {
 	    int k2 = k;
 	    if (k == AK_1)
@@ -170,6 +174,7 @@ void record_key_direct (int kc)
 	    if (k != k2)
 		kc = (k2 << 1) | (b ? 0 : 1);
 	}
+#endif
     }
 
     if (input_recording > 0) {
@@ -184,7 +189,10 @@ void record_key_direct (int kc)
 
 void joystick_setting_changed (void)
 {
-    fs_np = fs_ck = fs_se = fs_xa1 = fs_xa2 = 0;
+    fs_np = fs_ck = fs_se;
+#ifdef ARCADIA 
+    fs_xa1 = fs_xa2 = 0;
+#endif
 
     if (JSEM_ISNUMPAD (0, &currprefs))
 	fs_np = fakestate[0];
@@ -201,6 +209,7 @@ void joystick_setting_changed (void)
     else if (JSEM_ISSOMEWHEREELSE (1, &currprefs))
 	fs_se = fakestate[1];
 
+#ifdef ARCADIA 
     if (JSEM_ISXARCADE1 (0, &currprefs))
 	fs_xa1 = fakestate[0];
     else if (JSEM_ISXARCADE1 (1, &currprefs))
@@ -210,7 +219,7 @@ void joystick_setting_changed (void)
 	fs_xa2 = fakestate[0];
     else if (JSEM_ISXARCADE2 (1, &currprefs))
 	fs_xa2 = fakestate[1];
-
+#endif
  }
 
 void keybuf_init (void)
@@ -219,6 +228,7 @@ void keybuf_init (void)
     inputdevice_updateconfig (&currprefs);
 }
 
+#ifdef SAVESTATE
 
 uae_u8 *save_keyboard (int *len)
 {
@@ -236,3 +246,5 @@ uae_u8 *restore_keyboard (uae_u8 *src)
     restore_u32 ();
     return src;
 }
+
+#endif /* SAVESTATE */

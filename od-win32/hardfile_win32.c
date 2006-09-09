@@ -7,7 +7,6 @@
 #include <shellapi.h>
 #include "resource.h"
 
-#include "config.h"
 #include "threaddep/thread.h"
 #include "filesys.h"
 #include "blkdev.h"
@@ -398,7 +397,7 @@ void hfd_flush_cache (struct hardfiledata *hfd, int now)
 }
 #endif
 
-#if 0 // not yet production ready
+#if 0
 
 static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int len, int dowrite)
 {
@@ -488,7 +487,7 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 
 #else
 
-int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     DWORD outlen = 0;
     int coffset;
@@ -523,7 +522,24 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
     return 0;
 }
 
-int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    int got = 0;
+    uae_u8 *p = buffer;
+    while (len > 0) {
+	int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
+	int ret = hdf_read_2(hfd, p, offset, maxlen);
+	got += ret;
+	if (ret != maxlen)
+	    return got;
+	offset += maxlen;
+	p += maxlen;
+	len -= maxlen;
+    }
+    return got;
+}
+
+static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     DWORD outlen = 0;
     if (hfd->readonly)
@@ -538,6 +554,24 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle);
     return outlen;
 }
+
+int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    int got = 0;
+    uae_u8 *p = buffer;
+    while (len > 0) {
+	int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
+	int ret = hdf_write_2(hfd, p, offset, maxlen);
+	got += ret;
+	if (ret != maxlen)
+	    return got;
+	offset += maxlen;
+	p += maxlen;
+	len -= maxlen;
+    }
+    return got;
+}
+
 #endif
 
 #ifdef WINDDK
@@ -599,9 +633,9 @@ Return Value:
                 &interfaceData          // Device Interface Data
                 );
 
-    if ( status == FALSE ) {
+    if (status == FALSE) {
         errorCode = GetLastError();
-        if ( errorCode != ERROR_NO_MORE_ITEMS ) {
+        if (errorCode != ERROR_NO_MORE_ITEMS) {
             write_log ("SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
         }
 	ret = 0;
@@ -627,9 +661,9 @@ Return Value:
     // pass a bigger buffer to get the detail data
     //
 
-    if ( status == FALSE ) {
+    if (status == FALSE) {
         errorCode = GetLastError();
-        if ( errorCode != ERROR_INSUFFICIENT_BUFFER ) {
+        if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
             write_log("SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
 	    ret = 0;
 	    goto end;
@@ -726,7 +760,7 @@ Return Value:
                         sizeof (outBuf),                      
                         &returnedLength,
                         NULL);
-        if ( !status ) {
+        if (!status) {
             write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", GetLastError());
 	    ret = 1;
 	    goto end;
@@ -738,24 +772,24 @@ Return Value:
 	    write_log ("not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
 	    goto end;
 	}
-        if ( devDesc->VendorIdOffset && p[devDesc->VendorIdOffset] ) {
+        if (devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
             j = 0;
-            for ( i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++ )
+            for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	        udi->vendor_id[j++] = p[i];
         }
-        if ( devDesc->ProductIdOffset && p[devDesc->ProductIdOffset] ) {
+        if (devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
             j = 0;
-            for ( i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++ )
+            for (i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	        udi->product_id[j++] = p[i];
         }
-        if ( devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset] ) {
+        if (devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
 	    j = 0;
-	    for ( i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++ )
+	    for (i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	        udi->product_rev[j++] = p[i];
         }
-        if ( devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset] ) {
+        if (devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
 	    j = 0;
-	    for ( i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++ )
+	    for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	        udi->product_serial[j++] = p[i];
         }
 	if (udi->vendor_id[0])

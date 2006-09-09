@@ -7,7 +7,6 @@
  * Copyright 1997-2000 Brian King
  */
 
-#include "config.h"
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -24,6 +23,8 @@
 #include "memory.h"
 #include "custom.h"
 #include "events.h"
+#include "newcpu.h"
+#include "traps.h"
 #include "xwin.h"
 #include "keyboard.h"
 #include "drawing.h"
@@ -1368,7 +1369,7 @@ void init_colors (void)
 		}
 	    }
 	}
-	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha);
+	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 #ifdef GFXFILTER
 	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
 #endif

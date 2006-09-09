@@ -12,7 +12,6 @@
 
 #ifdef WINDDK
 
-#include "config.h"
 #include "uae.h"
 #include "threaddep/thread.h"
 #include "blkdev.h"

@@ -12,7 +12,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "zfile.h"
 #include "unzip.h"
@@ -340,9 +339,9 @@ static struct zfile *dms (struct zfile *z)
 }
 #endif
 
-static char *ignoreextensions[] =
+static const char *ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
-static char *diskimageextensions[] =
+static const char *diskimageextensions[] =
     { ".adf", ".adz", ".ipf", ".fdi", ".exe", 0 };
 
 static int isdiskimage (char *name)
@@ -658,9 +657,9 @@ static struct zfile *unzip (struct zfile *z)
     return z;
 }
 
-static char *plugins_7z[] = { "7z", "rar", "zip", NULL };
-static char *plugins_7z_x[] = { "7z", "Rar!", "MK" };
-static int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP };
+static const char *plugins_7z[] = { "7z", "rar", "zip", NULL };
+static const char *plugins_7z_x[] = { "7z", "Rar!", "MK" };
+static const int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP };
 
 static int iszip (struct zfile *z)
 {

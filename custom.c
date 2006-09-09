@@ -23,9 +23,7 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "config.h"
 #include "options.h"
-#include "threaddep/thread.h"
 #include "uae.h"
 #include "gensound.h"
 #include "sounddep/sound.h"
@@ -43,12 +41,15 @@
 #include "serial.h"
 #include "osemu.h"
 #include "autoconf.h"
+#include "traps.h"
 #include "gui.h"
 #include "picasso96.h"
 #include "drawing.h"
 #include "savestate.h"
 #include "ar.h"
+#ifdef AVIOUTPUT
 #include "avioutput.h"
+#endif
 #include "debug.h"
 #include "akiko.h"
 #if defined(ENFORCER)
@@ -143,7 +144,7 @@ static uae_u32 sprclx[16], clxmask[16];
  * Hardware registers of all sorts.
  */
 
-static int custom_wput_1 (int, uaecptr, uae_u32, int) REGPARAM;
+static int REGPARAM3 custom_wput_1 (int, uaecptr, uae_u32, int) REGPARAM;
 
 static uae_u16 cregs[256];
 
@@ -157,7 +158,7 @@ int maxhpos = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip;
-unsigned long syncbase;
+frame_time_t syncbase;
 static int fmode;
 unsigned int beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
@@ -583,15 +584,15 @@ static int fetchstart, fetchstart_shift, fetchstart_mask;
 static int fm_maxplane, fm_maxplane_shift;
 
 /* The corresponding values, by fetchmode and display resolution.  */
-static int fetchunits[] = { 8,8,8,0, 16,8,8,0, 32,16,8,0 };
-static int fetchstarts[] = { 3,2,1,0, 4,3,2,0, 5,4,3,0 };
-static int fm_maxplanes[] = { 3,2,1,0, 3,3,2,0, 3,3,3,0 };
+static const int fetchunits[] = { 8,8,8,0, 16,8,8,0, 32,16,8,0 };
+static const int fetchstarts[] = { 3,2,1,0, 4,3,2,0, 5,4,3,0 };
+static const int fm_maxplanes[] = { 3,2,1,0, 3,3,2,0, 3,3,3,0 };
 
 static int cycle_diagram_table[3][3][9][32];
 static int cycle_diagram_free_cycles[3][3][9];
 static int cycle_diagram_total_cycles[3][3][9];
 static int *curr_diagram;
-static int cycle_sequences[3 * 8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,4,6,2,7,3,5,1 };
+static const int cycle_sequences[3 * 8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,4,6,2,7,3,5,1 };
 
 static void debug_cycle_diagram(void)
 {
@@ -621,7 +622,7 @@ static void create_cycle_diagram_table(void)
 {
     int fm, res, cycle, planes, rplanes, v;
     int fetch_start, max_planes, freecycles;
-    int *cycle_sequence;
+    const int *cycle_sequence;
 
     for (fm = 0; fm <= 2; fm++) {
 	for (res = 0; res <= 2; res++) {
@@ -1589,8 +1590,6 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	return;
     }
 #endif
-    if (regno < 0)
-	write_log("%d\n", regno);
     curr_color_changes[next_color_change].linepos = hpos;
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
@@ -2127,7 +2126,6 @@ static void reset_decisions (void)
     curr_drawinfo[next_lineno].first_sprite_entry = next_sprite_entry;
     next_sprite_forced = 1;
 
-    /* memset(sprite_last_drawn_at, 0, sizeof sprite_last_drawn_at); */
     last_sprite_point = 0;
     fetch_state = fetch_not_started;
     passed_plfstop = 0;
@@ -2154,8 +2152,6 @@ static void reset_decisions (void)
     thisline_decision.bplcon3 = bplcon3;
     thisline_decision.bplcon4 = bplcon4;
 #endif
-
-
 }
 
 static int isvsync (void)
@@ -2202,7 +2198,7 @@ static void dumpsync (void)
     if (cnt < 0)
 	return;
     cnt--;
-    write_log ("BEAMCON0 = %04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
+    write_log ("BEAMCON0=%04.4X VTOTAL=%04.4X HTOTAL=%04.4X\n", new_beamcon0, vtotal, htotal);
     write_log ("HSSTOP=%04.4X HBSTRT=%04.4X HBSTOP=%04.4X\n", hsstop, hbstrt, hbstop);
     write_log ("VSSTOP=%04.4X VBSTRT=%04.4X VBSTOP=%04.4X\n", vsstop, vbstrt, vbstop);
     write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
@@ -2349,18 +2345,18 @@ void init_custom (void)
 
 static int timehack_alive = 0;
 
-static uae_u32 timehack_helper (void)
+static uae_u32 REGPARAM2 timehack_helper (TrapContext *context)
 {
 #ifdef HAVE_GETTIMEOFDAY
     struct timeval tv;
-    if (m68k_dreg (regs, 0) == 0)
+    if (m68k_dreg (&context->regs, 0) == 0)
 	return timehack_alive;
 
     timehack_alive = 10;
 
     gettimeofday (&tv, NULL);
-    put_long (m68k_areg (regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
-    put_long (m68k_areg (regs, 0) + 4, tv.tv_usec);
+    put_long (m68k_areg (&context->regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
+    put_long (m68k_areg (&context->regs, 0) + 4, tv.tv_usec);
     return 0;
 #else
     return 2;
@@ -2386,10 +2382,6 @@ STATIC_INLINE uae_u16 DMACONR (void)
     decide_blitter (current_hpos ());
     v = dmacon | (bltstate == BLT_done ? 0 : 0x4000)
 	    | (blt_info.blitzero ? 0x2000 : 0);
-#if 0
-    if (!dmaen (DMA_BLITTER))
-	v &= ~0x4000;
-#endif
     return v;
 }
 STATIC_INLINE uae_u16 INTENAR (void)
@@ -2405,11 +2397,11 @@ STATIC_INLINE uae_u16 ADKCONR (void)
     return adkcon;
 }
 
-STATIC_INLINE GETVPOS(void)
+STATIC_INLINE int GETVPOS(void)
 {
     return vpos_lpen > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
 }
-STATIC_INLINE GETHPOS(void)
+STATIC_INLINE int GETHPOS(void)
 {
     return vpos_lpen > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
 }
@@ -2471,7 +2463,7 @@ static void COPJMP (int num)
     if (was_active)
 	events_schedule ();
 
-    unset_special (SPCFLAG_COPPER);
+    unset_special (&regs, SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
     if (!oldstrobe)
 	cop_state.state_prev = cop_state.state;
@@ -2483,7 +2475,7 @@ static void COPJMP (int num)
 
     if (dmaen (DMA_COPPER)) {
 	copper_enabled_thisline = 1;
-	set_special (SPCFLAG_COPPER);
+	set_special (&regs, SPCFLAG_COPPER);
     } else if (oldstrobe > 0 && oldstrobe != num && cop_state.state_prev == COP_wait) {
 	/* dma disabled, copper idle and accessing both COPxJMPs -> copper stops! */
 	cop_state.state = COP_stop;
@@ -2521,7 +2513,7 @@ static void DMACON (int hpos, uae_u16 v)
 	    compute_spcflag_copper ();
 	} else if (!newcop) {
 	    copper_enabled_thisline = 0;
-	    unset_special (SPCFLAG_COPPER);
+	    unset_special (&regs, SPCFLAG_COPPER);
 	}
     }
     if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done) {
@@ -2530,13 +2522,13 @@ static void DMACON (int hpos, uae_u16 v)
 	    count = 1;
 	    write_log ("warning: program is doing blitpri hacks.\n");
 	}
-	set_special (SPCFLAG_BLTNASTY);
+	set_special (&regs, SPCFLAG_BLTNASTY);
 	decide_blitter (hpos);
     }
     if (dmaen (DMA_BLITTER) && bltstate == BLT_init)
 	bltstate = BLT_work;
     if ((dmacon & (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) != (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) {
-	unset_special (SPCFLAG_BLTNASTY);
+	unset_special (&regs, SPCFLAG_BLTNASTY);
 	decide_blitter (hpos);
     }
     if (changed & (DMA_MASTER | 0x0f))
@@ -2560,7 +2552,7 @@ static int intlev_2 (void)
     int i;
 
     if (!(imask && (intena & 0x4000))) {
-	unset_special (SPCFLAG_INT);
+	unset_special (&regs, SPCFLAG_INT);
 	return -1;
     }
     for (i = 14; i >= 0; i--) {
@@ -2613,7 +2605,7 @@ int intlev (void)
 #endif
 	il = intlev_2 ();
 	if (il >= 0 && il <= regs.intmask)
-	    unset_special (SPCFLAG_INT);
+	    unset_special (&regs, SPCFLAG_INT);
 #ifdef JIT
     }
 #endif
@@ -2625,7 +2617,7 @@ static void doint (void)
     int i;
     uae_u16 imask;
 
-    set_special (SPCFLAG_INT);
+    set_special (&regs, SPCFLAG_INT);
 #ifdef JIT
     if (currprefs.cachesize)
 	return;
@@ -2876,17 +2868,6 @@ STATIC_INLINE void BPL1DAT (int hpos, uae_u16 v)
 
     maybe_first_bpl1dat (hpos);
 }
-
-#if 0
-/* We could do as well without those... */
-STATIC_INLINE void BPL2DAT (uae_u16 v) { bpl2dat = v; }
-STATIC_INLINE void BPL3DAT (uae_u16 v) { bpl3dat = v; }
-STATIC_INLINE void BPL4DAT (uae_u16 v) { bpl4dat = v; }
-STATIC_INLINE void BPL5DAT (uae_u16 v) { bpl5dat = v; }
-STATIC_INLINE void BPL6DAT (uae_u16 v) { bpl6dat = v; }
-STATIC_INLINE void BPL7DAT (uae_u16 v) { bpl7dat = v; }
-STATIC_INLINE void BPL8DAT (uae_u16 v) { bpl8dat = v; }
-#endif
 
 static void DIWSTRT (int hpos, uae_u16 v)
 {
@@ -3209,7 +3190,6 @@ static void CLXCON (uae_u16 v)
     clxcon = v;
     clxcon_bpl_enable = (v >> 6) & 63;
     clxcon_bpl_match = v & 63;
-    //write_log("CLXCON: %04.4X PC=%x\n", v, m68k_getpc());
 }
 
 static void CLXCON2 (uae_u16 v)
@@ -3219,13 +3199,11 @@ static void CLXCON2 (uae_u16 v)
     clxcon2 = v;
     clxcon_bpl_enable |= v & (0x40|0x80);
     clxcon_bpl_match |= (v & (0x01|0x02)) << 6;
-    //write_log("CLXCON2: %04.4X\n", v);
 }
 
 static uae_u16 CLXDAT (void)
 {
     uae_u16 v = clxdat | 0x8000;
-    //write_log("%d:CLXDAT %04.4X PC=%x\n", vpos, v, m68k_getpc());
     clxdat = 0;
     return v;
 }
@@ -3386,7 +3364,7 @@ static int test_copper_dangerous (unsigned int address)
     if ((address & 0x1fe) < (copcon & 2 ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
 	cop_state.state = COP_stop;
 	copper_enabled_thisline = 0;
-	unset_special (SPCFLAG_COPPER);
+	unset_special (&regs, SPCFLAG_COPPER);
 	return 1;
     }
     return 0;
@@ -3396,8 +3374,10 @@ static void perform_copper_write (int old_hpos)
 {
     unsigned int address = cop_state.saved_i1 & 0x1FE;
 
+#ifdef DEBUGGER
     if (debug_copper)
 	record_copper (cop_state.saved_ip - 4, old_hpos, vpos);
+#endif
 
     if (test_copper_dangerous (address))
 	return;
@@ -3624,12 +3604,12 @@ static void update_copper (int until_hpos)
 	    if (cop_state.saved_i1 == 0xFFFF && cop_state.saved_i2 == 0xFFFE) {
 		cop_state.state = COP_stop;
 		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
+		unset_special (&regs, SPCFLAG_COPPER);
 		goto out;
 	    }
 	    if (vp < cop_state.vcmp) {
 		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
+		unset_special (&regs, SPCFLAG_COPPER);
 		goto out;
 	    }
 
@@ -3650,12 +3630,14 @@ static void update_copper (int until_hpos)
 		/* We need to wait for the blitter.  */
 		cop_state.state = COP_bltwait;
 		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
+		unset_special (&regs, SPCFLAG_COPPER);
 		goto out;
 	    }
 
+#ifdef DEBUGGER
 	    if (debug_copper)
 		record_copper (cop_state.ip - 4, old_hpos, vpos);
+#endif
 
 	    cop_state.state = COP_read1;
 	    break;
@@ -3695,8 +3677,10 @@ static void update_copper (int until_hpos)
 		test_copper_dangerous (chipmem_agnus_wget(cop_state.ip));
 	    }
 
+#ifdef DEBUGGER
 	    if (debug_copper)
 		record_copper (cop_state.ip - 4, old_hpos, vpos);
+#endif
 
 	    break;
 	}
@@ -3712,7 +3696,7 @@ static void update_copper (int until_hpos)
 static void compute_spcflag_copper (void)
 {
     copper_enabled_thisline = 0;
-    unset_special (SPCFLAG_COPPER);
+    unset_special (&regs, SPCFLAG_COPPER);
     if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_bltwait || nocustom())
 	return;
 
@@ -3725,13 +3709,13 @@ static void compute_spcflag_copper (void)
     copper_enabled_thisline = 1;
 
     if (! eventtab[ev_copper].active)
-	set_special (SPCFLAG_COPPER);
+	set_special (&regs, SPCFLAG_COPPER);
 }
 
 static void copper_handler (void)
 {
     /* This will take effect immediately, within the same cycle.  */
-    set_special (SPCFLAG_COPPER);
+    set_special (&regs, SPCFLAG_COPPER);
 
     if (! copper_enabled_thisline)
 	uae_abort ("copper_handler");
@@ -3768,7 +3752,7 @@ STATIC_INLINE void sync_copper_with_cpu (int hpos, int do_schedule)
 	eventtab[ev_copper].active = 0;
 	if (do_schedule)
 	    events_schedule ();
-	set_special (SPCFLAG_COPPER);
+	set_special (&regs, SPCFLAG_COPPER);
     }
     if (copper_enabled_thisline)
 	update_copper (hpos);
@@ -3973,34 +3957,59 @@ static void init_sprites (void)
     memset (sprctl, 0, sizeof sprctl);
 }
 
+/*
+ * On systems without virtual memory or with low memory, we allocate the
+ * sprite_entries and color_changes tables dynamically rather than having
+ * them declared static. We don't initially allocate at their maximum sizes;
+ * we start the tables off small and grow them as required.
+ *
+ * This function expands the tables if necessary.
+ */
 static void adjust_array_sizes (void)
 {
 #ifdef OS_WITHOUT_MEMORY_MANAGEMENT
     if (delta_sprite_entry) {
-	void *p1,*p2;
-	int mcc = max_sprite_entry + 50 + delta_sprite_entry;
+	void *p1;
+	void *p2;
+	int   mcc = max_sprite_entry + 50 + delta_sprite_entry;
+
 	delta_sprite_entry = 0;
+
 	p1 = realloc (sprite_entries[0], mcc * sizeof (struct sprite_entry));
 	p2 = realloc (sprite_entries[1], mcc * sizeof (struct sprite_entry));
-	if (p1) sprite_entries[0] = p1;
-	if (p2) sprite_entries[1] = p2;
+
 	if (p1 && p2) {
-	    write_log ("new max_sprite_entry=%d\n",mcc);
+	    sprite_entries[0] = p1;
+	    sprite_entries[1] = p2;
+
+	    memset (&sprite_entries[0][max_sprite_entry], (mcc - max_sprite_entry) * sizeof(struct sprite_entry), 0);
+	    memset (&sprite_entries[1][max_sprite_entry], (mcc - max_sprite_entry) * sizeof(struct sprite_entry), 0);
+
+	    write_log ("New max_sprite_entry=%d\n", mcc);
+
 	    max_sprite_entry = mcc;
-	}
+	} else
+	    write_log ("WARNING: Failed to enlarge sprite_entries table\n");
     }
     if (delta_color_change) {
-	void *p1,*p2;
-	int mcc = max_color_change + 200 + delta_color_change;
+	void *p1;
+	void *p2;
+	int   mcc = max_color_change + 200 + delta_color_change;
+
 	delta_color_change = 0;
+
 	p1 = realloc (color_changes[0], mcc * sizeof (struct color_change));
 	p2 = realloc (color_changes[1], mcc * sizeof (struct color_change));
-	if (p1) color_changes[0] = p1;
-	if (p2) color_changes[1] = p2;
+
 	if (p1 && p2) {
-	    write_log ("new max_color_change=%d\n",mcc);
+	    color_changes[0] = p1;
+	    color_changes[1] = p2;
+
+	    write_log ("New max_color_change=%d\n", mcc);
+
 	    max_color_change = mcc;
-	}
+	} else
+	    write_log ("WARNING: Failed to enlarge color_changes table\n");
     }
 #endif
 }
@@ -4018,8 +4027,6 @@ static void init_hardware_frame (void)
 
 void init_hardware_for_drawing_frame (void)
 {
-    adjust_array_sizes ();
-
     /* Avoid this code in the first frame after a customreset.  */
     if (prev_sprite_entries) {
 	int first_pixel = prev_sprite_entries[0].first_pixel;
@@ -4033,6 +4040,8 @@ void init_hardware_for_drawing_frame (void)
     next_sprite_entry = 0;
     next_color_entry = 0;
     remembered_color_entry = -1;
+
+    adjust_array_sizes ();
 
     prev_sprite_entries = sprite_entries[current_change_set];
     curr_sprite_entries = sprite_entries[current_change_set ^ 1];
@@ -4067,7 +4076,7 @@ static int rpt_vsync (void)
 static void framewait (void)
 {
     frame_time_t curr_time;
-    int start;
+    frame_time_t start;
 
     for (;;) {
 	double v = rpt_vsync () / (syncbase / 1000.0);
@@ -4085,7 +4094,7 @@ static void framewait (void)
     idletime += read_processor_time() - start;
 }
 
-static int frametime2;
+static frame_time_t frametime2;
 
 void fpscounter_reset (void)
 {
@@ -4098,7 +4107,7 @@ void fpscounter_reset (void)
 
 static void fpscounter (void)
 {
-    int now, last;
+    frame_time_t now, last;
 
     now = read_processor_time ();
     last = now - lastframetime;
@@ -4228,8 +4237,6 @@ static __inline__ int trigger_frh(int v)
     return (v & (N_LINES - 1)) == 0;
 }
 
-extern int gonebad;
-
 static long int diff32(frame_time_t x, frame_time_t y)
 {
     return (long int)(x-y);
@@ -4249,7 +4256,6 @@ static void frh_handler(void)
 	/* Allow this to be one frame's worth of cycles out */
 	while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
 	    vsyncmintime += vsynctime * N_LINES / maxvpos;
-	    gonebad++;
 	    if (turbo_emulation)
 		break;
 	}
@@ -4460,7 +4466,7 @@ void customreset (void)
     int i;
     int zero = 0;
 
-    write_log ("reset at %x\n", m68k_getpc());
+    write_log ("reset at %x\n", m68k_getpc(&regs));
     hsync_counter = 0;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
@@ -4506,7 +4512,7 @@ void customreset (void)
 #ifdef JIT
     compemu_reset ();
 #endif
-    unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
+    unset_special (&regs, ~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
     vpos = 0;
 
@@ -4519,7 +4525,7 @@ void customreset (void)
     sprite_entries[1][0].first_pixel = MAX_SPR_PIXELS;
     sprite_entries[0][1].first_pixel = 0;
     sprite_entries[1][1].first_pixel = MAX_SPR_PIXELS;
-    memset (spixels, 0, sizeof spixels);
+    memset (spixels, 0, 2 * MAX_SPR_PIXELS * sizeof *spixels);
     memset (&spixstate, 0, sizeof spixstate);
 
     bltstate = BLT_done;
@@ -4656,22 +4662,49 @@ static void gen_custom_tables (void)
 }
 
 /* mousehack is now in "filesys boot rom" */
-static uae_u32 mousehack_helper_old (void)
+static uae_u32 REGPARAM2 mousehack_helper_old (struct TrapContext *ctx)
 {
     return 0;
 }
 
-void custom_init (void)
+static int allocate_sprite_tables (void)
 {
-
 #ifdef OS_WITHOUT_MEMORY_MANAGEMENT
     int num;
 
-    for (num = 0; num < 2; num++) {
-	sprite_entries[num] = xmalloc (max_sprite_entry * sizeof (struct sprite_entry));
-	color_changes[num] = xmalloc (max_color_change * sizeof (struct color_change));
+    delta_sprite_entry = 0;
+    delta_color_change = 0;
+
+    if (!sprite_entries[0]) {
+        max_sprite_entry = DEFAULT_MAX_SPRITE_ENTRY;
+        max_color_change = DEFAULT_MAX_COLOR_CHANGE;
+
+	for (num = 0; num < 2; num++) {
+	    sprite_entries[num] = xmalloc (max_sprite_entry * sizeof (struct sprite_entry));
+	    color_changes[num] = xmalloc (max_color_change * sizeof (struct color_change));
+
+	    if (sprite_entries[num] && color_changes[num]) {
+		memset (sprite_entries[num], 0, max_sprite_entry * sizeof (struct sprite_entry));
+		memset (color_changes[num], 0, max_color_change * sizeof (struct color_change));
+	    } else
+	    	return 0;
+	}
+    }
+
+    if (!spixels) {
+	spixels = xmalloc (2 * MAX_SPR_PIXELS * sizeof *spixels);
+	if (!spixels)
+	    return 0;
     }
 #endif
+    return 1;
+}
+
+int custom_init (void)
+{
+
+    if (!allocate_sprite_tables())
+	return 0;
 
 #ifdef AUTOCONFIG
     {
@@ -4696,18 +4729,20 @@ void custom_init (void)
     drawing_init ();
 
     create_cycle_diagram_table ();
+
+    return 1;
 }
 
 /* Custom chip memory bank */
 
-static uae_u32 custom_lget (uaecptr) REGPARAM;
-static uae_u32 custom_wget (uaecptr) REGPARAM;
-static uae_u32 custom_bget (uaecptr) REGPARAM;
-static uae_u32 custom_lgeti (uaecptr) REGPARAM;
-static uae_u32 custom_wgeti (uaecptr) REGPARAM;
-static void custom_lput (uaecptr, uae_u32) REGPARAM;
-static void custom_wput (uaecptr, uae_u32) REGPARAM;
-static void custom_bput (uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 custom_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 custom_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 custom_bget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 custom_lgeti (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 custom_wgeti (uaecptr) REGPARAM;
+static void REGPARAM3 custom_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 custom_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 custom_bput (uaecptr, uae_u32) REGPARAM;
 
 addrbank custom_bank = {
     custom_lget, custom_wget, custom_bget,
@@ -4949,15 +4984,6 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 #endif
 
      case 0x110: BPL1DAT (hpos, value); break;
-#if 0 /* no point */
-     case 0x112: BPL2DAT (value); break;
-     case 0x114: BPL3DAT (value); break;
-     case 0x116: BPL4DAT (value); break;
-     case 0x118: BPL5DAT (value); break;
-     case 0x11A: BPL6DAT (value); break;
-     case 0x11C: BPL7DAT (value); break;
-     case 0x11E: BPL8DAT (value); break;
-#endif
 
      case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
      case 0x18C: case 0x18E: case 0x190: case 0x192: case 0x194: case 0x196:
@@ -5054,8 +5080,8 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 #endif
     custom_wput (addr & ~1, rval);
     if (warned < 10) {
-	if (m68k_getpc() < 0xe00000 || m68k_getpc() >= 0x10000000) {
-	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, m68k_getpc());
+	if (m68k_getpc(&regs) < 0xe00000 || m68k_getpc(&regs) >= 0x10000000) {
+	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, m68k_getpc(&regs));
 	    warned++;
 	}
     }
@@ -5069,6 +5095,8 @@ static void REGPARAM2 custom_lput(uaecptr addr, uae_u32 value)
     custom_wput (addr & 0xfffe, value >> 16);
     custom_wput ((addr + 2) & 0xfffe, (uae_u16)value);
 }
+
+#ifdef SAVESTATE
 
 void custom_prepare_savestate (void)
 {
@@ -5214,6 +5242,10 @@ uae_u8 *restore_custom (uae_u8 *src)
 
     return src;
 }
+
+#endif /* SAVESTATE */
+
+#if defined SAVESTATE || defined DEBUGGER
 
 #define SB save_u8
 #define SW save_u16
@@ -5371,6 +5403,10 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     return dstbak;
 }
 
+#endif /* SAVESTATE || DEBUGGER */
+
+#ifdef SAVESTATE
+
 uae_u8 *restore_custom_agacolors (uae_u8 *src)
 {
     int i;
@@ -5444,6 +5480,8 @@ uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
     return dstbak;
 }
 
+#endif /* SAVESTATE */
+
 void check_prefs_changed_custom (void)
 {
     currprefs.gfx_framerate = changed_prefs.gfx_framerate;
@@ -5467,12 +5505,14 @@ void check_prefs_changed_custom (void)
 	}
 	init_custom ();
     }
+#ifdef GFXFILTER
     currprefs.gfx_filter_horiz_zoom = changed_prefs.gfx_filter_horiz_zoom;
     currprefs.gfx_filter_vert_zoom = changed_prefs.gfx_filter_vert_zoom;
     currprefs.gfx_filter_horiz_offset = changed_prefs.gfx_filter_horiz_offset;
     currprefs.gfx_filter_vert_offset = changed_prefs.gfx_filter_vert_offset;
     currprefs.gfx_filter_scanlines = changed_prefs.gfx_filter_scanlines;
     currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
+#endif
 }
 
 #ifdef CPUEMU_6

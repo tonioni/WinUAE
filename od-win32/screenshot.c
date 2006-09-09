@@ -10,7 +10,6 @@
 #include "sysdeps.h"
 #include "options.h"
 #include "custom.h"
-#include "picasso96.h"
 #include "dxwrap.h"
 #include "win32.h"
 #include "win32gfx.h"

@@ -1,6 +1,6 @@
 
 #pragma warning (disable : 4761)
-#pragma warning (disable: 4996)
+#pragma warning (disable : 4996)
 
 #define DIRECTINPUT_VERSION  0x0800
 #define DIRECT3D_VERSION 0x0900
@@ -9,7 +9,6 @@
 
 #define DRIVESOUND
 #define GFXFILTER
-#define CAN_DO_STACK_MAGIC
 #define X86_MSVC_ASSEMBLY
 
 #ifndef UAE_MINI
@@ -19,10 +18,8 @@
 #define UAE_FILESYS_THREADS
 #define AUTOCONFIG /* autoconfig support, fast ram, harddrives etc.. */
 #define JIT /* JIT compiler support */
-#undef USE_SDL
 #define NATMEM_OFFSET natmem_offset
-#define CAN_DO_STACK_MAGIC
-#define USE_NORMAL_CALLING_CONVENTION 1
+#define USE_NORMAL_CALLING_CONVENTION 0
 #define USE_X86_FPUCW 1
 #define WINDDK /* Windows DDK available, keyboard leds and harddrive support */
 #define CATWEASEL /* Catweasel MK2/3 support */
@@ -31,8 +28,8 @@
 #define AGA /* AGA chipset emulation */
 #define CD32 /* CD32 emulation */
 #define CDTV /* CDTV emulation */
-#define D3D /* D3D display support */
-#define OPENGL /* OpenGL display support */
+#define D3D /* D3D display filter support */
+#define OPENGL /* OpenGL display filter support */
 #define PARALLEL_PORT /* parallel port emulation */
 #define PARALLEL_DIRECT /* direct parallel port emulation */
 #define SERIAL_PORT /* serial port emulation */
@@ -45,12 +42,13 @@
 #define PICASSO96 /* Picasso96 display card emulation */
 #define BSDSOCKET /* bsdsocket.library emulation */
 #define CAPS /* CAPS-image support */
-#define FDI2RAW /* FDI 1.0 and 2.0 image support */
+#define FDI2RAW /* FDI 1.0 and 2.x image support */
 #define AVIOUTPUT /* Avioutput support */
 #define PROWIZARD /* Pro-Wizard module ripper */
 #define ARCADIA /* Arcadia arcade system */
 #define ARCHIVEACCESS /* ArchiveAccess decompression library */
 #define LOGITECHLCD /* Logitech G15 LCD */
+#define SAVESTATE /* State file support */
 
 #else
 
@@ -86,6 +84,9 @@
 #undef X86_MSVC_ASSEMBLY
 #define X64_MSVC_ASSEMBLY
 #define CPU_64_BIT
+#define SIZEOF_VOID_P 8
+#else
+#define SIZEOF_VOID_P 4
 #endif
 
 #if !defined(AHI)

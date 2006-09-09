@@ -6,15 +6,6 @@
   * (c) 1995 Bernd Schmidt
   */
 
-#if 0
-struct bltinfo {
-    int blitzero;
-    int blitashift,blitbshift,blitdownashift,blitdownbshift;
-    uae_u32 bltadat, bltbdat, bltcdat,bltddat,bltahold,bltbhold,bltafwm,bltalwm;
-    int vblitsize,hblitsize;
-    int bltamod,bltbmod,bltcmod,bltdmod;
-};
-#else
 struct bltinfo {
     int blitzero;
     int blitashift,blitbshift,blitdownashift,blitdownbshift;
@@ -22,7 +13,7 @@ struct bltinfo {
     int vblitsize,hblitsize;
     int bltamod,bltbmod,bltcmod,bltdmod;
 };
-#endif
+
 extern enum blitter_states {
     BLT_done, BLT_init, BLT_read, BLT_work, BLT_write, BLT_next
 } bltstate;
@@ -50,8 +41,8 @@ typedef void blitter_func(uaecptr, uaecptr, uaecptr, uaecptr, struct bltinfo *);
 
 #define BLITTER_MAX_WORDS 2048
 
-extern blitter_func *blitfunc_dofast[256];
-extern blitter_func *blitfunc_dofast_desc[256];
+extern blitter_func * const blitfunc_dofast[256];
+extern blitter_func * const blitfunc_dofast_desc[256];
 extern uae_u32 blit_masktable[BLITTER_MAX_WORDS];
 
 #define BLIT_MODE_IMMEDIATE -1

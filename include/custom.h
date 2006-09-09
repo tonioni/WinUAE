@@ -6,6 +6,8 @@
   * (c) 1995 Bernd Schmidt
   */
 
+#include "machdep/rpt.h"
+
 /* These are the masks that are ORed together in the chipset_mask option.
  * If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
 #define CSMASK_ECS_AGNUS 1
@@ -14,7 +16,7 @@
 
 uae_u32 get_copper_address(int copno);
 
-extern void custom_init (void);
+extern int custom_init (void);
 extern void customreset (void);
 extern int intlev (void);
 extern void dumpcustom (void);
@@ -101,7 +103,7 @@ extern uae_u16 INTREQR (void);
 
 extern int maxhpos, maxvpos, minfirstline, vblank_endline, numscrlines;
 extern int vblank_hz, fake_vblank_hz, vblank_skip;
-extern unsigned long syncbase;
+extern frame_time_t syncbase;
 #define NUMSCRLINES (maxvpos+1-minfirstline+1)
 
 #define DMA_AUD0      0x0001

@@ -8,7 +8,6 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-#include "options.h"
 #include "custom.h"
 #include "xwin.h"
 
@@ -28,7 +27,7 @@ static uae_u8 dither[4][4] =
 };
 
 
-unsigned long doMask (int p, int bits, int shift)
+unsigned int doMask (int p, int bits, int shift)
 {
     /* scale to 0..255, shift to align msb with mask, and apply mask */
     unsigned long val = p << 24;
@@ -60,7 +59,7 @@ int mask_shift (unsigned long mask)
     return n;
 }
 
-unsigned long doMask256 (int p, int bits, int shift)
+unsigned int doMask256 (int p, int bits, int shift)
 {
     /* p is a value from 0 to 255 (Amiga color value)
      * shift to align msb with mask, and apply mask */
@@ -126,8 +125,9 @@ static void colormodify (int *r, int *g, int *b)
 }
 #endif
 
-void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha)
+void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
 {
+    int bpp = rw + gw + bw + aw;
     int i;
 
     for (i = 0; i < 4096; i++) {
@@ -138,6 +138,17 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	g = greyscale (g);
 	b = greyscale (b);
 	xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
+        if (byte_swap) {
+	    if (bpp <= 16)
+		xcolors[i] = bswap_16 (xcolors[i]);
+	    else
+		xcolors[i] = bswap_32 (xcolors[i]);
+	}
+        if (bpp <= 16) {
+	    /* Fill upper 16 bits of each colour value
+	     * with a copy of the colour. */
+	    xcolors[i] |= xcolors[i] * 0x00010001;
+	}
     }
 #ifdef AGA
     /* create AGA color tables */
@@ -146,6 +157,25 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	xgreencolors[i] = greyscale (doColor (i, gw, gs)) | doAlpha (alpha, aw, as);
 	xbluecolors[i] = greyscale (doColor (i, bw, bs)) | doAlpha (alpha, aw, as);
     }
+    if (byte_swap) {
+	if (bpp <= 16) {
+	    xredcolors  [i] = bswap_16 (xredcolors[i]);
+	    xgreencolors[i] = bswap_16 (xgreencolors[i]);
+	    xbluecolors [i] = bswap_16 (xbluecolors[i]);
+	} else {
+	    xredcolors  [i] = bswap_32 (xredcolors[i]);
+	    xgreencolors[i] = bswap_32 (xgreencolors[i]);
+	    xbluecolors [i] = bswap_32 (xbluecolors[i]);
+	}
+    }
+    if (bpp <= 16) {
+        /* Fill upper 16 bits of each colour value with
+         * a copy of the colour. */
+        xredcolors  [i] = xredcolors  [i] * 0x00010001;
+        xgreencolors[i] = xgreencolors[i] * 0x00010001;
+        xbluecolors [i] = xbluecolors [i] * 0x00010001;
+    }
+
 #endif
     xredcolor_b = rw;
     xgreencolor_b = gw;
@@ -158,7 +188,6 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
     xbluecolor_m = (1 << bw) - 1;
 }
 
-static int allocated[4096];
 static int color_diff[4096];
 static int newmaxcol = 0;
 
@@ -303,7 +332,7 @@ void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc)
     xcolnr *map;
 
     for (i = 0; i < 4096; i++)
-	xcolors[i] = i;
+	xcolors[i] = i << 16 | i;
 
     map = (xcolnr *)malloc (sizeof(xcolnr) * maxcol);
     if (!map) {
@@ -376,7 +405,7 @@ void setup_dither (int bits, allocfunc_type allocfunc)
     }
 
     for (i = 0; i < 4096; i++)
-	xcolors[i] = i;
+	xcolors[i] = i << 16 | i;
 
     /*
      * compute #cols per components

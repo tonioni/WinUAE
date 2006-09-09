@@ -7,20 +7,15 @@
  * Copyright 1998-1999 Brian King - added MIDI output support
  */
 
-#include "config.h"
 #include "sysconfig.h"
 #include <windows.h>
 #include <winspool.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#ifdef _MSC_VER
 #include <mmsystem.h>
 #include <ddraw.h>
 #include <commctrl.h>
 #include <commdlg.h>
-#else
-#include "winstuff.h"
-#endif
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -34,6 +29,8 @@
 #include "include/memory.h"
 #include "custom.h"
 #include "autoconf.h"
+#include "newcpu.h"
+#include "traps.h"
 #include "od-win32/win32gui.h"
 #include "od-win32/parser.h"
 #include "od-win32/midi.h"

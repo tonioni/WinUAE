@@ -12,7 +12,6 @@
 #ifdef DRIVESOUND
 
 #include "uae.h"
-#include "config.h"
 #include "options.h"
 #include "sounddep/sound.h"
 #include "zfile.h"

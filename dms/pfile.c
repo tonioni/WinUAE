@@ -36,17 +36,20 @@
 
 
 static USHORT Process_Track(struct zfile *, struct zfile *, UCHAR *, UCHAR *, USHORT, USHORT, USHORT);
-static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR);
+static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR, USHORT, USHORT, USHORT);
 static void printbandiz(UCHAR *, USHORT);
-static void dms_decrypt(UCHAR *, USHORT);
 
+static int passfound, passretries;
 
 static char modes[7][7]={"NOCOMP","SIMPLE","QUICK ","MEDIUM","DEEP  ","HEAVY1","HEAVY2"};
 static USHORT PWDCRC;
 
 UCHAR *text;
 
-
+static void log_error(int track)
+{
+    write_log ("DMS: Ignored error on track %d!\n", track);
+}
 
 USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
 	USHORT from, to, geninfo, c_version, cmode, hcrc, disktype, pv, ret;
@@ -55,6 +58,8 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	time_t date;
 
 
+	passfound = 0;
+	passretries = 2;
 	b1 = (UCHAR *)calloc((size_t)TRACK_BUFFER_LEN,1);
 	if (!b1) return ERR_NOMEMORY;
 	b2 = (UCHAR *)calloc((size_t)TRACK_BUFFER_LEN,1);
@@ -195,8 +200,8 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		write_log(" ------  -------  -------  ------  ----  ----  ---- -----\n");
 	}
 
-	if (((cmd==CMD_UNPACK) || (cmd==CMD_SHOWBANNER)) && (geninfo & 2) && (!pwd))
-		return ERR_NOPASSWD;
+//	if (((cmd==CMD_UNPACK) || (cmd==CMD_SHOWBANNER)) && (geninfo & 2) && (!pwd))
+//		return ERR_NOPASSWD;
 
 	ret=NO_PROBLEM;
 
@@ -232,7 +237,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 
 static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, USHORT pwd){
-	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l, r;
+	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l;
 	UCHAR cmode, flags;
 
 
@@ -279,48 +284,28 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if (zfile_fread(b1,1,(size_t)pklen1,fi) != pklen1) return ERR_SREAD;
 
-	if (CreateCRC(b1,(ULONG)pklen1) != dcrc) return ERR_TDCRC;
-
+	if (CreateCRC(b1,(ULONG)pklen1) != dcrc) {
+	    log_error (number);
+	    //return ERR_TDCRC;
+	}
 	/*  track 80 is FILEID.DIZ, track 0xffff (-1) is Banner  */
 	/*  and track 0 with 1024 bytes only is a fake boot block with more advertising */
 	/*  FILE_ID.DIZ is never encrypted  */
 
-	if (pwd && (number!=80)) dms_decrypt(b1,pklen1);
+	//if (pwd && (number!=80)) dms_decrypt(b1,pklen1);
 
 	if ((cmd == CMD_UNPACK) && (number<80) && (unpklen>2048)) {
-		r = Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags);
-		if (r != NO_PROBLEM)
-			if (pwd)
-				return ERR_BADPASSWD;
-			else
-				return r;
-		if (usum != Calc_CheckSum(b2,(ULONG)unpklen))
-			if (pwd)
-				return ERR_BADPASSWD;
-			else
-				return ERR_CSUM;
+		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
 		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen) return ERR_CANTWRITE;
 	}
 
 	if ((cmd == CMD_SHOWBANNER) && (number == 0xffff)){
-		r = Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags);
-		if (r != NO_PROBLEM)
-			if (pwd)
-				return ERR_BADPASSWD;
-			else
-				return r;
-		if (usum != Calc_CheckSum(b2,(ULONG)unpklen))
-			if (pwd)
-				return ERR_BADPASSWD;
-			else
-				return ERR_CSUM;
+		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
 		printbandiz(b2,unpklen);
 	}
 
 	if ((cmd == CMD_SHOWDIZ) && (number == 80)) {
-		r = Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags);
-		if (r != NO_PROBLEM) return r;
-		if (usum != Calc_CheckSum(b2,(ULONG)unpklen)) return ERR_CSUM;
+		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
 		printbandiz(b2,unpklen);
 	}
 
@@ -330,7 +315,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 
 
-static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, UCHAR cmode, UCHAR flags){
+static USHORT Unpack_Track_2(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, UCHAR cmode, UCHAR flags){
 	switch (cmode){
 		case 0:
 			/*   No Compression   */
@@ -384,22 +369,78 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 
 }
 
-
 /*  DMS uses a lame encryption  */
-static void dms_decrypt(UCHAR *p, USHORT len){
+static void dms_decrypt(UCHAR *p, USHORT len, UCHAR *src){
 	USHORT t;
 
 	while (len--){
-		t = (USHORT) *p;
-		*p++ ^= (UCHAR)PWDCRC;
+		t = (USHORT) *src++;
+		*p++ = t ^ (UCHAR)PWDCRC;
 		PWDCRC = (USHORT)((PWDCRC >> 1) + t);
 	}
 }
 
+static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, UCHAR cmode, UCHAR flags, USHORT number, USHORT pklen1, USHORT usum1)
+{
+    USHORT r, err = NO_PROBLEM, prevpass;
+    static USHORT pass;
+    int maybeencrypted;
+    int pwrounds;
+    UCHAR *tmp;
+
+    if (passfound) {
+	if (number != 80)
+	    dms_decrypt(b1, pklen1, b1);
+	r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);
+	if (r == NO_PROBLEM) {
+	    if (usum1 == Calc_CheckSum(b2,(ULONG)unpklen))
+		return NO_PROBLEM;
+	}
+	log_error(number);
+	if (passretries <= 0)
+	    return ERR_CSUM;
+    }
+
+    passretries--;
+    pwrounds = 0;
+    maybeencrypted = 0;
+    tmp = malloc (pklen1);
+    memcpy (tmp, b1, pklen1);
+    for (;;) {
+	r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);
+	if (r == NO_PROBLEM) {
+	    if (usum1 == Calc_CheckSum(b2,(ULONG)unpklen)) {
+		passfound = maybeencrypted;
+		if (passfound)
+		    write_log("DMS: decryption key = 0x%04.4X\n", pass);
+		err = NO_PROBLEM;
+		pass = prevpass;
+		break;
+	    }
+	}
+	if (number == 80) {
+	    err = ERR_CSUM;
+	    break;
+	}
+	maybeencrypted = 1;
+	prevpass = pass;
+	PWDCRC = pass;
+	pass++;
+	dms_decrypt(b1, pklen1, tmp);
+	pwrounds++;
+	if (pwrounds == 65536) {
+	    err = ERR_CSUM;
+	    passfound = 0;
+	    break;
+	}
+    }
+    free (tmp);
+    return err;
+}
 
 
 static void printbandiz(UCHAR *m, USHORT len){
-	UCHAR *i,*j;
+    UCHAR *i,*j;
 
 	i=j=m;
 	while (i<m+len) {
@@ -410,7 +451,6 @@ static void printbandiz(UCHAR *m, USHORT len){
 		}
 		i++;
 	}
-
 }
 
 

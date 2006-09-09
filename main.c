@@ -10,7 +10,6 @@
 #include "sysdeps.h"
 #include <assert.h>
 
-#include "config.h"
 #include "options.h"
 #include "threaddep/thread.h"
 #include "uae.h"
@@ -30,8 +29,8 @@
 #include "gui.h"
 #include "zfile.h"
 #include "autoconf.h"
+#include "traps.h"
 #include "osemu.h"
-#include "osdep/exectasks.h"
 #include "picasso96.h"
 #include "bsdsocket.h"
 #include "uaeexe.h"
@@ -685,8 +684,8 @@ static void real_main2 (int argc, char **argv)
     }
 
     }
-#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined( NO_WIN32_EXCEPTION_HANDLER )
-    __except( EvalException( GetExceptionInformation(), GetExceptionCode() ) )
+#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined(NO_WIN32_EXCEPTION_HANDLER)
+    __except(EvalException(GetExceptionInformation(), GetExceptionCode()))
     {
 	// EvalException does the good stuff...
     }

@@ -60,7 +60,3 @@ static __inline__ void check_sound_buffers (void)
 #define FILTER_SOUND_TYPE_A1200 1
 
 #define ISSTEREO(p) (p.sound_stereo == 1 || p.sound_stereo == 2)
-
-#ifdef AHI
-#include "ahidsound.h"
-#endif

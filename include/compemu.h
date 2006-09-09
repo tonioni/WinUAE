@@ -58,7 +58,6 @@ extern void init_comp(void);
 extern void flush(int save_regs);
 extern void small_flush(int save_regs);
 extern void set_target(uae_u8* t);
-extern uae_u8* get_target(void);
 extern void freescratch(void);
 extern void build_comp(void);
 extern void set_cache_state(int enabled);
@@ -69,7 +68,6 @@ extern void flush_icache(int n);
 #endif
 extern void alloc_cache(void);
 extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
-extern void lopt_emit_all(void);
 extern int check_for_cache_miss(void);
 
 
@@ -119,9 +117,10 @@ typedef struct {
     uae_u8 is_addx;
     uae_u8 is_const_jump;
 } op_properties;
+
 extern op_properties prop[65536];
 
-static __inline__ int end_block(uae_u16 opcode)
+STATIC_INLINE int end_block(uae_u16 opcode)
 {
     return prop[opcode].is_jump ||
 	(prop[opcode].is_const_jump && !currprefs.comp_constjump);
@@ -230,7 +229,7 @@ extern int touchcnt;
 #define MENDFUNC(nargs,func,args)
 #define COMPCALL(func) func
 
-#define LOWFUNC(flags,mem,nargs,func,args) static __inline__ void func args
+#define LOWFUNC(flags,mem,nargs,func,args) STATIC_INLINE void func args
 #define LENDFUNC(flags,mem,nargs,func,args)
 
 #if USE_OPTIMIZER
@@ -334,8 +333,8 @@ DECLARE(lea_l_brr_indexed(W4 d, R4 s, R4 index, IMM factor, IMM offset));
 DECLARE(mov_l_bRr(R4 d, R4 s, IMM offset));
 DECLARE(mov_w_bRr(R4 d, R2 s, IMM offset));
 DECLARE(mov_b_bRr(R4 d, R1 s, IMM offset));
-DECLARE(bswap_32(RW4 r));
-DECLARE(bswap_16(RW2 r));
+DECLARE(gen_bswap_32(RW4 r));
+DECLARE(gen_bswap_16(RW2 r));
 DECLARE(mov_l_rr(W4 d, R4 s));
 DECLARE(mov_l_mr(IMM d, R4 s));
 DECLARE(mov_w_mr(IMM d, R2 s));
@@ -547,3 +546,10 @@ void execute_normal(void);
 void exec_nostats(void);
 void do_nothing(void);
 
+void comp_fdbcc_opp (uae_u32 opcode, uae_u16 extra);
+void comp_fscc_opp (uae_u32 opcode, uae_u16 extra);
+void comp_ftrapcc_opp (uae_u32 opcode, uaecptr oldpc);
+void comp_fbcc_opp (uae_u32 opcode);
+void comp_fsave_opp (uae_u32 opcode);
+void comp_frestore_opp (uae_u32 opcode);
+void comp_fpp_opp (uae_u32 opcode, uae_u16 extra);

@@ -11,7 +11,6 @@
 #define DI_DEBUG
 //#define DI_DEBUG2
 
-#include "config.h"
 #include "sysconfig.h"
 
 #include <stdlib.h>

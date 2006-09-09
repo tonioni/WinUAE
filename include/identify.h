@@ -27,8 +27,8 @@ struct customData
  8: AGA only
 */
 
-extern struct mem_labels mem_labels[];
-extern struct mem_labels int_labels[];
-extern struct mem_labels trap_labels[];
-extern struct customData custd[];
+extern const struct mem_labels mem_labels[];
+extern const struct mem_labels int_labels[];
+extern const struct mem_labels trap_labels[];
+extern const struct customData custd[];
 

@@ -4,7 +4,6 @@
 
 #ifdef GFXFILTER
 
-#include "config.h"
 #include "options.h"
 #include "xwin.h"
 #include "dxwrap.h"

@@ -4,7 +4,6 @@
 
 #ifdef CATWEASEL
 
-#include "config.h"
 #include "options.h"
 #include "memory.h"
 #include "ioport.h"

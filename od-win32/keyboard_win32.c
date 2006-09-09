@@ -9,7 +9,6 @@
  * (c) 2002 Toni Wilen
  */
 
-#include "config.h"
 #include "sysconfig.h"
 
 #include <assert.h>
@@ -35,7 +34,6 @@
 #include "win32.h"
 #include "debug.h"
 #include "ar.h"
-#include "ahidsound.h"
 #include "savestate.h"
 #include "sound.h"
 #include "akiko.h"

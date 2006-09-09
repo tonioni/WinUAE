@@ -47,7 +47,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "memory.h"
 #include "zfile.h"
@@ -171,13 +170,13 @@ char *restore_string_func (uae_u8 **dstp)
 
 /* read and write IFF-style hunks */
 
-static void save_chunk (struct zfile *f, uae_u8 *chunk, long len, char *name, int compress)
+static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, char *name, int compress)
 {
     uae_u8 tmp[8], *dst;
     uae_u8 zero[4]= { 0, 0, 0, 0 };
     uae_u32 flags;
     size_t pos;
-    long chunklen, len2;
+    size_t chunklen, len2;
 
     if (!chunk)
 	return;
@@ -232,11 +231,11 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, long len, char *name, in
     write_log ("Chunk '%s' chunk size %d (%d)\n", name, chunklen, len);
 }
 
-static uae_u8 *restore_chunk (struct zfile *f, char *name, long *len, long *totallen, long *filepos)
+static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *totallen, size_t *filepos)
 {
     uae_u8 tmp[4], dummy[4], *mem, *src;
     uae_u32 flags;
-    long len2;
+    size_t len2;
 
     *totallen = 0;
     /* chunk name */
@@ -289,7 +288,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, long *len, long *tota
     return mem;
 }
 
-void restore_ram (long filepos, uae_u8 *memory)
+void restore_ram (size_t filepos, uae_u8 *memory)
 {
     uae_u8 tmp[8];
     uae_u8 *src = tmp;
@@ -334,8 +333,8 @@ void restore_state (char *filename)
     struct zfile *f;
     uae_u8 *chunk,*end;
     char name[5];
-    long len, totallen;
-    long filepos;
+    size_t len, totallen;
+    size_t filepos;
 
     chunk = 0;
     f = zfile_fopen (filename, "rb");

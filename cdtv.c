@@ -12,7 +12,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "uae.h"
 #include "memory.h"
@@ -21,12 +20,12 @@
 #include "debug.h"
 #include "cdtv.h"
 
-static uae_u32 dmac_lget (uaecptr) REGPARAM;
-static uae_u32 dmac_wget (uaecptr) REGPARAM;
-static uae_u32 dmac_bget (uaecptr) REGPARAM;
-static void dmac_lput (uaecptr, uae_u32) REGPARAM;
-static void dmac_wput (uaecptr, uae_u32) REGPARAM;
-static void dmac_bput (uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 dmac_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 dmac_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 dmac_bget (uaecptr) REGPARAM;
+static void REGPARAM3 dmac_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 dmac_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 dmac_bput (uaecptr, uae_u32) REGPARAM;
 
 static uae_u8 dmacmemory[0x100];
 static uae_u8 wd[0x1f];
@@ -96,7 +95,7 @@ uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
     v = (dmac_bget2 (addr) << 24) | (dmac_bget2 (addr + 1) << 16) |
 	(dmac_bget2 (addr + 2) << 8) | (dmac_bget2 (addr + 3));
 #ifdef CDTV_DEBUG
-    write_log ("dmac_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, m68k_getpc());
+    write_log ("dmac_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -109,7 +108,7 @@ uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
 #endif
     v = (dmac_bget2 (addr) << 8) | dmac_bget2 (addr + 1);
 #ifdef CDTV_DEBUG
-    write_log ("dmac_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, m68k_getpc());
+    write_log ("dmac_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -122,7 +121,7 @@ uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
 #endif
     v = dmac_bget2 (addr);
 #ifdef CDTV_DEBUG
-    write_log ("dmac_bget %08.8X=%02.2X PC=%08.8X\n", addr, v, m68k_getpc());
+    write_log ("dmac_bget %08.8X=%02.2X PC=%08.8X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -186,7 +185,7 @@ static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
     special_mem |= S_WRITE;
 #endif
 #ifdef CDTV_DEBUG
-    write_log ("dmac_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, m68k_getpc());
+    write_log ("dmac_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, M68K_GETPC);
 #endif
     dmac_bput2 (addr, l >> 24);
     dmac_bput2 (addr + 1, l >> 16);
@@ -200,7 +199,7 @@ static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
     special_mem |= S_WRITE;
 #endif
 #ifdef CDTV_DEBUG
-    write_log ("dmac_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, m68k_getpc());
+    write_log ("dmac_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, M68K_GETPC);
 #endif
     dmac_bput2 (addr, w >> 8);
     dmac_bput2 (addr + 1, w);
@@ -212,7 +211,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
     special_mem |= S_WRITE;
 #endif
 #ifdef CDTV_DEBUG
-    write_log ("dmac_bput %08.8X=%02.2X PC=%08.8X\n", addr, b & 255, m68k_getpc());
+    write_log ("dmac_bput %08.8X=%02.2X PC=%08.8X\n", addr, b & 255, M68K_GETPC);
 #endif
     dmac_bput2 (addr, b);
 }

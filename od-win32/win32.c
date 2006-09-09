@@ -10,7 +10,6 @@
 /* Uncomment this line if you want the logs time-stamped */
 /* #define TIMESTAMP_LOGS */
 
-#include "config.h"
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -38,13 +37,15 @@
 #include "memory.h"
 #include "custom.h"
 #include "events.h"
+#include "newcpu.h"
+#include "traps.h"
 #include "xwin.h"
 #include "keyboard.h"
 #include "inputdevice.h"
 #include "keybuf.h"
 #include "drawing.h"
 #include "dxwrap.h"
-#include "picasso96.h"
+#include "picasso96_win.h"
 #include "bsdsocket.h"
 #include "win32.h"
 #include "win32gfx.h"
@@ -52,7 +53,6 @@
 #include "resource.h"
 #include "autoconf.h"
 #include "gui.h"
-#include "newcpu.h"
 #include "sys/mman.h"
 #include "avioutput.h"
 #include "ahidsound.h"
@@ -2583,7 +2583,7 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 	    if ((p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32))
 		|| (p >= (void*)prevpc && p < (void*)(prevpc + 32))) {
 		int got = 0;
-		uaecptr opc = m68k_getpc();
+		uaecptr opc = m68k_getpc(&regs);
 		void *ps = get_real_address (0);
 		m68k_dumpstate (0, 0);
 		efix (&ctx->Eax, p, ps, &got);
@@ -2592,12 +2592,12 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
 		efix (&ctx->Edx, p, ps, &got);
 		efix (&ctx->Esi, p, ps, &got);
 		efix (&ctx->Edi, p, ps, &got);
-		write_log ("Access violation! (68KPC=%08.8X HOSTADDR=%p)\n", m68k_getpc(), p);
+		write_log ("Access violation! (68KPC=%08.8X HOSTADDR=%p)\n", M68K_GETPC, p);
 		if (got == 0) {
 		    write_log ("failed to find and fix the problem (%p). crashing..\n", p);
 		} else {
 		    void *ppc = regs.pc_p;
-		    m68k_setpc (0);
+		    m68k_setpc (&regs, 0);
 		    if (ppc != regs.pc_p) {
 			prevpc = (uae_u8*)ppc;
 		    }
@@ -2798,14 +2798,10 @@ end:
     return m;
 }
 
-uae_u8 *win32_stackbase; 
-
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     HANDLE thread;
     DWORD_PTR oldaff;
-
-    win32_stackbase = _alloca(32768 * 32);
 
     thread = GetCurrentThread();
     oldaff = SetThreadAffinityMask(thread, 1); 

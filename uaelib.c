@@ -14,15 +14,14 @@
 #include <assert.h>
 #include <string.h>
 
-#include "config.h"
 #include "options.h"
-#include "threaddep/thread.h"
 #include "uae.h"
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
 #include "xwin.h"
 #include "autoconf.h"
+#include "traps.h"
 #include "disk.h"
 #include "debug.h"
 #include "gensound.h"
@@ -130,14 +129,14 @@ static uae_u32 emulib_ChangeLanguage (uae_u32 which)
  * Changes chip memory size
  *  (reboots)
  */
-static uae_u32 emulib_ChgCMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgCMemSize (struct regstruct *regs, uae_u32 memsize)
 {
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x200000) {
 	memsize = 0x200000;
 	write_log ("Unsupported chipmem size!\n");
     }
-    m68k_dreg(regs, 0) = 0;
+    m68k_dreg (regs, 0) = 0;
 
     currprefs.chipmem_size = memsize;
     uae_reset(0);
@@ -148,7 +147,7 @@ static uae_u32 emulib_ChgCMemSize (uae_u32 memsize)
  * Changes slow memory size
  *  (reboots)
  */
-static uae_u32 emulib_ChgSMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgSMemSize (struct regstruct *regs, uae_u32 memsize)
 {
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x180000 && memsize != 0x1C0000) {
@@ -156,7 +155,7 @@ static uae_u32 emulib_ChgSMemSize (uae_u32 memsize)
 	write_log ("Unsupported bogomem size!\n");
     }
 
-    m68k_dreg(regs, 0) = 0;
+    m68k_dreg (regs, 0) = 0;
     currprefs.bogomem_size = memsize;
     uae_reset (0);
     return 1;
@@ -166,14 +165,14 @@ static uae_u32 emulib_ChgSMemSize (uae_u32 memsize)
  * Changes fast memory size
  *  (reboots)
  */
-static uae_u32 emulib_ChgFMemSize (uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgFMemSize (struct regstruct *regs, uae_u32 memsize)
 {
     if (memsize != 0x100000 && memsize != 0x200000 &&
 	memsize != 0x400000 && memsize != 0x800000) {
 	memsize = 0;
 	write_log ("Unsupported fastmem size!\n");
     }
-    m68k_dreg(regs, 0) = 0;
+    m68k_dreg (regs, 0) = 0;
     currprefs.fastmem_size = memsize;
     uae_reset (0);
     return 0;
@@ -281,8 +280,12 @@ static uae_u32 emulib_GetDisk (uae_u32 drive, uaecptr name)
  */
 static uae_u32 emulib_Debug (void)
 {
+#ifdef DEBUGGER
     activate_debugger ();
     return 1;
+#else
+    return 0;
+#endif
 }
 
 /* We simply find the first "text" hunk, get the offset of its actual code segment (20 bytes away)
@@ -309,29 +312,29 @@ static uae_u32 FindFunctionInObject (uae_u8 *objectptr)
     return 0;
 }
 
-#define	CREATE_NATIVE_FUNC_PTR uae_u32 (* native_func)(	uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
+#define CREATE_NATIVE_FUNC_PTR uae_u32 (* native_func)( uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
 						 uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32)
-#define	SET_NATIVE_FUNC(x) native_func = (uae_u32 (*)(uae_u32, uae_u32,	uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,	uae_u32, uae_u32, uae_u32))(x)
-#define	CALL_NATIVE_FUNC( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 ) if(native_func) native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 )
+#define SET_NATIVE_FUNC(x) native_func = (uae_u32 (*)(uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32))(x)
+#define CALL_NATIVE_FUNC( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 ) if(native_func) native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 )
 /* A0 - Contains a ptr to the native .obj data.  This ptr is Amiga-based. */
-/*	We simply find the first function in this .obj data, and execute it. */
-static uae_u32 emulib_ExecuteNativeCode (void)
+/*      We simply find the first function in this .obj data, and execute it. */
+static uae_u32 REGPARAM2 emulib_ExecuteNativeCode (struct regstruct *regs)
 {
 #if 0
-    uaecptr object_AAM = m68k_areg( regs, 0 );
-    uae_u32 d1 = m68k_dreg( regs, 1 );
-    uae_u32 d2 = m68k_dreg( regs, 2 );
-    uae_u32 d3 = m68k_dreg( regs, 3 );
-    uae_u32 d4 = m68k_dreg( regs, 4 );
-    uae_u32 d5 = m68k_dreg( regs, 5 );
-    uae_u32 d6 = m68k_dreg( regs, 6 );
-    uae_u32 d7 = m68k_dreg( regs, 7 );
-    uae_u32 a1 = m68k_areg( regs, 1 );
-    uae_u32 a2 = m68k_areg( regs, 2 );
-    uae_u32 a3 = m68k_areg( regs, 3 );
-    uae_u32 a4 = m68k_areg( regs, 4 );
-    uae_u32 a5 = m68k_areg( regs, 5 );
-    uae_u32 a6 = m68k_areg( regs, 6 );
+    uaecptr object_AAM = m68k_areg (regs, 0);
+    uae_u32 d1 = m68k_dreg (regs, 1);
+    uae_u32 d2 = m68k_dreg (regs, 2);
+    uae_u32 d3 = m68k_dreg (regs, 3);
+    uae_u32 d4 = m68k_dreg (regs, 4);
+    uae_u32 d5 = m68k_dreg (regs, 5);
+    uae_u32 d6 = m68k_dreg (regs, 6);
+    uae_u32 d7 = m68k_dreg (regs, 7);
+    uae_u32 a1 = m68k_areg (regs, 1);
+    uae_u32 a2 = m68k_areg (regs, 2);
+    uae_u32 a3 = m68k_areg (regs, 3);
+    uae_u32 a4 = m68k_areg (regs, 4);
+    uae_u32 a5 = m68k_areg (regs, 5);
+    uae_u32 a6 = m68k_areg (regs, 6);
 
     uae_u8* object_UAM = NULL;
     CREATE_NATIVE_FUNC_PTR;
@@ -351,17 +354,17 @@ static uae_u32 emulib_ExecuteNativeCode (void)
 
 static uae_u32 emulib_Minimize (void)
 {
-    return OSDEP_minimize_uae();
+    return 0; // OSDEP_minimize_uae();
 }
 
-static uae_u32 uaelib_demux (void)
+static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 {
-#define ARG0 (get_long (m68k_areg (regs, 7) + 4))
-#define ARG1 (get_long (m68k_areg (regs, 7) + 8))
-#define ARG2 (get_long (m68k_areg (regs, 7) + 12))
-#define ARG3 (get_long (m68k_areg (regs, 7) + 16))
-#define ARG4 (get_long (m68k_areg (regs, 7) + 20))
-#define ARG5 (get_long (m68k_areg (regs, 7) + 24))
+#define ARG0 (get_long (m68k_areg (&context->regs, 7) + 4))
+#define ARG1 (get_long (m68k_areg (&context->regs, 7) + 8))
+#define ARG2 (get_long (m68k_areg (&context->regs, 7) + 12))
+#define ARG3 (get_long (m68k_areg (&context->regs, 7) + 16))
+#define ARG4 (get_long (m68k_areg (&context->regs, 7) + 20))
+#define ARG5 (get_long (m68k_areg (&context->regs, 7) + 24))
 
     switch (ARG0) {
      case 0: return emulib_GetVersion ();
@@ -373,9 +376,9 @@ static uae_u32 uaelib_demux (void)
      case 6: return emulib_EnableSound (ARG1);
      case 7: return emulib_EnableJoystick (ARG1);
      case 8: return emulib_SetFrameRate (ARG1);
-     case 9: return emulib_ChgCMemSize (ARG1);
-     case 10: return emulib_ChgSMemSize (ARG1);
-     case 11: return emulib_ChgFMemSize (ARG1);
+     case 9: return emulib_ChgCMemSize (&context->regs, ARG1);
+     case 10: return emulib_ChgSMemSize (&context->regs, ARG1);
+     case 11: return emulib_ChgFMemSize (&context->regs, ARG1);
      case 12: return emulib_ChangeLanguage (ARG1);
 	/* The next call brings bad luck */
      case 13: return emulib_ExitEmu ();
@@ -383,35 +386,35 @@ static uae_u32 uaelib_demux (void)
      case 15: return emulib_Debug ();
 
 #ifdef PICASSO96
-     case 16: return picasso_FindCard ();
-     case 17: return picasso_FillRect ();
-     case 18: return picasso_SetSwitch ();
-     case 19: return picasso_SetColorArray ();
-     case 20: return picasso_SetDAC ();
-     case 21: return picasso_SetGC ();
-     case 22: return picasso_SetPanning ();
-     case 23: return picasso_CalculateBytesPerRow ();
-     case 24: return picasso_BlitPlanar2Chunky ();
-     case 25: return picasso_BlitRect ();
-     case 26: return picasso_SetDisplay ();
-     case 27: return picasso_BlitTemplate ();
-     case 28: return picasso_BlitRectNoMaskComplete ();
-     case 29: return picasso_InitCard ();
-     case 30: return picasso_BlitPattern ();
-     case 31: return picasso_InvertRect ();
-     case 32: return picasso_BlitPlanar2Direct ();
+     case 16: return picasso_FindCard (&context->regs);
+     case 17: return picasso_FillRect (&context->regs);
+     case 18: return picasso_SetSwitch (&context->regs);
+     case 19: return picasso_SetColorArray (&context->regs);
+     case 20: return picasso_SetDAC (&context->regs);
+     case 21: return picasso_SetGC (&context->regs);
+     case 22: return picasso_SetPanning (&context->regs);
+     case 23: return picasso_CalculateBytesPerRow (&context->regs);
+     case 24: return picasso_BlitPlanar2Chunky (&context->regs);
+     case 25: return picasso_BlitRect (&context->regs);
+     case 26: return picasso_SetDisplay (&context->regs);
+     case 27: return picasso_BlitTemplate (&context->regs);
+     case 28: return picasso_BlitRectNoMaskComplete (&context->regs);
+     case 29: return picasso_InitCard (&context->regs);
+     case 30: return picasso_BlitPattern (&context->regs);
+     case 31: return picasso_InvertRect (&context->regs);
+     case 32: return picasso_BlitPlanar2Direct (&context->regs);
      /* case 34: return picasso_WaitVerticalSync (); handled in asm-code */
      case 35: return allocated_gfxmem ? 1 : 0;
 #ifdef HARDWARE_SPRITE_EMULATION
-     case 36: return picasso_SetSprite ();
-     case 37: return picasso_SetSpritePosition ();
-     case 38: return picasso_SetSpriteImage ();
-     case 39: return picasso_SetSpriteColor ();
+     case 36: return picasso_SetSprite (&context->regs);
+     case 37: return picasso_SetSpritePosition (&context->regs);
+     case 38: return picasso_SetSpriteImage (&context->regs);
+     case 39: return picasso_SetSpriteColor (&context->regs);
 #endif
-     case 40: return picasso_DrawLine ();
+     case 40: return picasso_DrawLine (&context->regs);
 #endif
      case 68: return emulib_Minimize ();
-     case 69: return emulib_ExecuteNativeCode ();
+     case 69: return emulib_ExecuteNativeCode (&context->regs);
 
      case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
@@ -432,10 +435,12 @@ void emulib_install (void)
     uaecptr a = here ();
     currprefs.mmkeyboard = 0;
     org (RTAREA_BASE + 0xFF60);
+#if 0
     dw (0x4eb9);
     dw ((RTAREA_BASE >> 16) | get_word(RTAREA_BASE + 36));
     dw (get_word(RTAREA_BASE + 38) + 12);
-    calltrap (deftrap (uaelib_demux));
+#endif
+    calltrap (define_trap (uaelib_demux, 0, ""));
     dw (RTS);
     org (a);
 }

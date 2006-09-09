@@ -12,9 +12,7 @@
 #include "sysdeps.h"
 #include <assert.h>
 
-#include "config.h"
 #include "options.h"
-#include "threaddep/thread.h"
 #include "events.h"
 #include "memory.h"
 #include "custom.h"
@@ -1015,12 +1013,12 @@ void dumpcia (void)
 
 /* CIA memory access */
 
-static uae_u32 cia_lget (uaecptr) REGPARAM;
-static uae_u32 cia_wget (uaecptr) REGPARAM;
-static uae_u32 cia_bget (uaecptr) REGPARAM;
-static void cia_lput (uaecptr, uae_u32) REGPARAM;
-static void cia_wput (uaecptr, uae_u32) REGPARAM;
-static void cia_bput (uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 cia_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 cia_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 cia_bget (uaecptr) REGPARAM;
+static void REGPARAM3 cia_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 cia_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 cia_bput (uaecptr, uae_u32) REGPARAM;
 
 addrbank cia_bank = {
     cia_lget, cia_wget, cia_bget,
@@ -1029,19 +1027,9 @@ addrbank cia_bank = {
 };
 
 
-#ifdef CD32
-extern uae_u32 akiko_lget (uaecptr addr);
-extern uae_u32 akiko_wget (uaecptr addr);
-extern uae_u32 akiko_bget (uaecptr addr);
-extern void akiko_bput (uaecptr addr, uae_u32 value);
-extern void akiko_wput (uaecptr addr, uae_u32 value);
-extern void akiko_lput (uaecptr addr, uae_u32 value);
-#endif
-
 /* e-clock is 10 CPU cycles, 6 cycles low, 4 high
  * data transfer happens during 4 high cycles
  */
-
 #define ECLOCK_DATA_CYCLE 4
 
 static void cia_wait_pre (void)
@@ -1095,7 +1083,7 @@ uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
 	    v = (addr & 1) ? regs.irc : regs.irc >> 8;
 	if (warned > 0) {
-	    write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, m68k_getpc());
+	    write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, m68k_getpc(&regs));
 	    warned--;
 	}
 	break;
@@ -1133,7 +1121,7 @@ uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
 	    v = regs.irc;
 	if (warned > 0) {
-	    write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, m68k_getpc());
+	    write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, m68k_getpc(&regs));
 	    warned--;
 	}
 	break;
@@ -1270,12 +1258,12 @@ static uae_u8 cdtv_battram_read (int addr)
 
 /* battclock memory access */
 
-static uae_u32 clock_lget (uaecptr) REGPARAM;
-static uae_u32 clock_wget (uaecptr) REGPARAM;
-static uae_u32 clock_bget (uaecptr) REGPARAM;
-static void clock_lput (uaecptr, uae_u32) REGPARAM;
-static void clock_wput (uaecptr, uae_u32) REGPARAM;
-static void clock_bput (uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 clock_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 clock_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 clock_bget (uaecptr) REGPARAM;
+static void REGPARAM3 clock_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 clock_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 clock_bput (uaecptr, uae_u32) REGPARAM;
 
 addrbank clock_bank = {
     clock_lget, clock_wget, clock_bget,
@@ -1356,6 +1344,8 @@ void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
     case 0x3f: clock_control_f = value; break;
     }
 }
+
+#ifdef SAVESTATE
 
 /* CIA-A and CIA-B save/restore code */
 
@@ -1501,3 +1491,5 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
     *len = dst - dstbak;
     return dstbak;
 }
+
+#endif /* SAVESTATE */

@@ -7,7 +7,7 @@
 #include "sysconfig.h" 
 #include "sysdeps.h"
 #include "sys/mman.h"
-#include "include/memory.h"
+#include "memory.h"
 #include "options.h"
 #include "autoconf.h"
 #include "win32.h"
@@ -23,13 +23,6 @@ uae_u32 max_allowed_mman = 2048;
 #else
 uae_u32 max_allowed_mman = 512;
 #endif
-
-static uae_u8 stackmagic64asm[] = {
-    0x48,0x8b,0x44,0x24,0x28,	// mov rax,qword ptr [rsp+28h] 
-    0x49,0x8b,0xe1,		// mov rsp,r9 
-    0xff,0xd0			// call rax
-};
-uae_u8 *stack_magic_amd64_asm_executable;
 
 void cache_free(void *cache)
 {
@@ -56,13 +49,6 @@ void init_shm(void)
     uae_u64 size64, total64;
     uae_u64 totalphys64;
     MEMORYSTATUS memstats;
-
-#ifdef CPU_64_BIT
-    if (!stack_magic_amd64_asm_executable) {
-	stack_magic_amd64_asm_executable = cache_alloc(sizeof stackmagic64asm);
-	memcpy(stack_magic_amd64_asm_executable, stackmagic64asm, sizeof stackmagic64asm);
-    }
-#endif
 
     if (natmem_offset && os_winnt)
 	VirtualFree(natmem_offset, 0, MEM_RELEASE);
@@ -139,25 +125,18 @@ void init_shm(void)
 void mapped_free(uae_u8 *mem)
 {
     shmpiece *x = shm_start;
-    while( x )
-    {
+    while(x) {
 	if( mem == x->native_address )
 	    shmdt( x->native_address);
 	x = x->next;
     }
     x = shm_start;
-    while( x )
-    {
+    while(x) {
 	struct shmid_ds blah;
-	if( mem == x->native_address )
-	{
-	    if( shmctl( x->id, IPC_STAT, &blah ) == 0 )
-	    {
-		shmctl( x->id, IPC_RMID, &blah );
-	    }
-	    else
-	    {
-		//free( x->native_address );
+	if (mem == x->native_address) {
+	    if (shmctl(x->id, IPC_STAT, &blah) == 0) {
+		shmctl(x->id, IPC_RMID, &blah);
+	    } else {
 		VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_RESET : (MEM_DECOMMIT | MEM_RELEASE));
 	    }
 	}
@@ -169,10 +148,8 @@ static key_t get_next_shmkey( void )
 {
     key_t result = -1;
     int i;
-    for( i = 0; i < MAX_SHMID; i++ )
-    {
-	if( shmids[i].key == -1 )
-	{
+    for (i = 0; i < MAX_SHMID; i++) {
+	if( shmids[i].key == -1) {
 	    shmids[i].key = i;
 	    result = i;
 	    break;
@@ -184,8 +161,7 @@ static key_t get_next_shmkey( void )
 STATIC_INLINE key_t find_shmkey( key_t key )
 {
     int result = -1;
-    if( shmids[key].key == key )
-    {
+    if(shmids[key].key == key) {
 	result = key;
     }
     return result;
@@ -194,7 +170,6 @@ STATIC_INLINE key_t find_shmkey( key_t key )
 int mprotect(void *addr, size_t len, int prot)
 {
     int result = 0;
-  
     return result;
 }
 
@@ -207,38 +182,32 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
     unsigned int size=shmids[shmid].size;
     if(shmids[shmid].attached )
 	return shmids[shmid].attached;
-    if ((uae_u8*)shmaddr<natmem_offset){
-	if(!strcmp(shmids[shmid].name,"chip"))
-	{
+    if ((uae_u8*)shmaddr<natmem_offset) {
+	if(!strcmp(shmids[shmid].name,"chip")) {
 	    shmaddr=natmem_offset;
 	    got = TRUE;
 //	    if(!currprefs.fastmem_size)
 //		size+=32;
 	}
-	if(!strcmp(shmids[shmid].name,"kick"))
-	{
+	if(!strcmp(shmids[shmid].name,"kick")) {
 	    shmaddr=natmem_offset+0xf80000;
 	    got = TRUE;
 	    size+=32;
 	}
-	if(!strcmp(shmids[shmid].name,"rom_e0"))
-	{
+	if(!strcmp(shmids[shmid].name,"rom_e0")) {
 	    shmaddr=natmem_offset+0xe00000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"rom_f0"))
-	{
+	if(!strcmp(shmids[shmid].name,"rom_f0")) {
 	    shmaddr=natmem_offset+0xf00000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"rtarea"))
-	{
+	if(!strcmp(shmids[shmid].name,"rtarea")) {
 	    shmaddr=natmem_offset+RTAREA_BASE;
 	    got = TRUE;
 	    size+=32;
 	}
-	if(!strcmp(shmids[shmid].name,"fast"))
-	{
+	if(!strcmp(shmids[shmid].name,"fast")) {
 	    shmaddr=natmem_offset+0x200000;
 	    got = TRUE;
 	    size+=32;
@@ -251,8 +220,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		gfxoffs=allocated_z3fastmem;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"gfx"))
-	{
+	if(!strcmp(shmids[shmid].name,"gfx")) {
 	    shmaddr=natmem_offset+currprefs.z3fastmem_start+gfxoffs;
 	    got = TRUE;
 	    size+=32;
@@ -260,32 +228,27 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    shmids[shmid].attached=result;
 	    return result;
 	}
-	if(!strcmp(shmids[shmid].name,"bogo"))
-	{
+	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
 	    got = TRUE;
 	    if (currprefs.bogomem_size <= 0x100000)
 		size+=32;
 	}
-	if(!strcmp(shmids[shmid].name,"filesys"))
-	{
+	if(!strcmp(shmids[shmid].name,"filesys")) {
 	    result=natmem_offset+0x10000;
 	    shmids[shmid].attached=result;
 	    return result;
 	}
-	if(!strcmp(shmids[shmid].name,"arcadia"))
-	{
+	if(!strcmp(shmids[shmid].name,"arcadia")) {
 	    result=natmem_offset+0x10000;
 	    shmids[shmid].attached=result;
 	    return result;
 	}
-	if(!strcmp(shmids[shmid].name,"hrtmon"))
-	{
+	if(!strcmp(shmids[shmid].name,"hrtmon")) {
 	    shmaddr=natmem_offset+0x00a10000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"arhrtmon"))
-	{
+	if(!strcmp(shmids[shmid].name,"arhrtmon")) {
 	    shmaddr=natmem_offset+0x00800000;
 	    got = TRUE;
 	}
@@ -324,18 +287,12 @@ int shmget(key_t key, size_t size, int shmflg, char *name)
 {
     int result = -1;
 
-    if( ( key == IPC_PRIVATE ) ||
-	( ( shmflg & IPC_CREAT ) && ( find_shmkey( key ) == -1) ) )
-    {
-	write_log( "shmget of size %d (%dk) for %s\n", size, size >> 10, name );
-	if( ( result = get_next_shmkey() ) != -1 )
-	{
-	    //blah = VirtualAlloc( 0, size,MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+    if((key == IPC_PRIVATE) || ((shmflg & IPC_CREAT) && (find_shmkey(key) == -1))) {
+	write_log ("shmget of size %d (%dk) for %s\n", size, size >> 10, name);
+	if ((result = get_next_shmkey()) != -1) {
 	    shmids[result].size = size;
-	    strcpy( shmids[result].name, name );
-	}
-	else
-        {
+	    strcpy(shmids[result].name, name);
+	} else {
 	    result = -1;
 	}
     }
@@ -346,9 +303,8 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 {
     int result = -1;
 
-    if( ( find_shmkey( shmid ) != -1 ) && buf )
-    {
-	switch( cmd )
+    if ((find_shmkey(shmid) != -1) && buf) {
+	switch(cmd)
 	{
 	    case IPC_STAT:
 		*buf = shmids[shmid];
@@ -367,25 +323,18 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 
 int isinf( double x )
 {
-#ifdef _MSC_VER
     const int nClass = _fpclass(x);
     int result;
-    if (nClass == _FPCLASS_NINF || nClass == _FPCLASS_PINF)  result = 1;
-	else
-    result = 0;
-#else
-    int result = 0;
-#endif
+    if (nClass == _FPCLASS_NINF || nClass == _FPCLASS_PINF)
+	result = 1;
+    else
+	result = 0;
     return result;
 }
 
-int isnan( double x )
+int isnan(double x)
 {
-#ifdef _MSC_VER
     int result = _isnan(x);
-#else
-    int result = 0;
-#endif
     return result;
 }
 

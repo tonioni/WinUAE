@@ -46,21 +46,21 @@ static int enforcer_hit = 0; /* set to 1 if displaying the hit */
 #define ENFORCER_BUF_SIZE 4096
 static char enforcer_buf[ENFORCER_BUF_SIZE];
 
-uae_u32 REGPARAM2 (*saved_chipmem_lget) (uaecptr addr);
-uae_u32 REGPARAM2 (*saved_chipmem_wget) (uaecptr addr);
-uae_u32 REGPARAM2 (*saved_chipmem_bget) (uaecptr addr);
-void REGPARAM2  (*saved_chipmem_lput) (uaecptr addr, uae_u32 l);
-void REGPARAM2  (*saved_chipmem_wput) (uaecptr addr, uae_u32 w);
-void REGPARAM2  (*saved_chipmem_bput) (uaecptr addr, uae_u32 b);
-int REGPARAM2 (*saved_chipmem_check) (uaecptr addr, uae_u32 size);
-uae_u8 * REGPARAM2 (*saved_chipmem_xlate) (uaecptr addr);
-uae_u32 REGPARAM2 (*saved_dummy_lget) (uaecptr addr);
-uae_u32 REGPARAM2 (*saved_dummy_wget) (uaecptr addr);
-uae_u32 REGPARAM2 (*saved_dummy_bget) (uaecptr addr);
-void REGPARAM2 (*saved_dummy_lput) (uaecptr addr, uae_u32 l);
-void REGPARAM2 (*saved_dummy_wput) (uaecptr addr, uae_u32 w);
-void REGPARAM2 (*saved_dummy_bput) (uaecptr addr, uae_u32 b);
-int REGPARAM2 (*saved_dummy_check) (uaecptr addr, uae_u32 size);
+uae_u32 (REGPARAM3 *saved_chipmem_lget) (uaecptr addr);
+uae_u32 (REGPARAM3 *saved_chipmem_wget) (uaecptr addr);
+uae_u32 (REGPARAM3 *saved_chipmem_bget) (uaecptr addr);
+void (REGPARAM3 *saved_chipmem_lput) (uaecptr addr, uae_u32 l);
+void (REGPARAM3 *saved_chipmem_wput) (uaecptr addr, uae_u32 w);
+void (REGPARAM3 *saved_chipmem_bput) (uaecptr addr, uae_u32 b);
+int (REGPARAM3 *saved_chipmem_check) (uaecptr addr, uae_u32 size);
+uae_u8 *(REGPARAM3 *saved_chipmem_xlate) (uaecptr addr);
+uae_u32 (REGPARAM3 *saved_dummy_lget) (uaecptr addr);
+uae_u32 (REGPARAM3 *saved_dummy_wget) (uaecptr addr);
+uae_u32 (REGPARAM3 *saved_dummy_bget) (uaecptr addr);
+void (REGPARAM3 *saved_dummy_lput) (uaecptr addr, uae_u32 l);
+void (REGPARAM3 *saved_dummy_wput) (uaecptr addr, uae_u32 w);
+void (REGPARAM3 *saved_dummy_bput) (uaecptr addr, uae_u32 b);
+int (REGPARAM3 *saved_dummy_check) (uaecptr addr, uae_u32 size);
 
 /*************************************************************
  Returns the first node entry of an exec list or 0 if
@@ -217,18 +217,18 @@ static void enforcer_display_hit(const char *addressmode, uae_u32 pc, uaecptr ad
 
 	/* Data registers */
 	sprintf(enforcer_buf_ptr,"Data: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-		m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2), m68k_dreg (regs, 3),
-		m68k_dreg (regs, 4), m68k_dreg (regs, 5), m68k_dreg (regs, 6), m68k_dreg (regs, 7));
+		m68k_dreg (&regs, 0), m68k_dreg (&regs, 1), m68k_dreg (&regs, 2), m68k_dreg (&regs, 3),
+		m68k_dreg (&regs, 4), m68k_dreg (&regs, 5), m68k_dreg (&regs, 6), m68k_dreg (&regs, 7));
 	enforcer_buf_ptr += strlen(enforcer_buf_ptr);
 
 	/* Address registers */
 	sprintf(enforcer_buf_ptr,"Addr: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-		m68k_areg (regs, 0), m68k_areg (regs, 1), m68k_areg (regs, 2), m68k_areg (regs, 3),
-		m68k_areg (regs, 4), m68k_areg (regs, 5), m68k_areg (regs, 6), m68k_areg (regs, 7));
+		m68k_areg (&regs, 0), m68k_areg (&regs, 1), m68k_areg (&regs, 2), m68k_areg (&regs, 3),
+		m68k_areg (&regs, 4), m68k_areg (&regs, 5), m68k_areg (&regs, 6), m68k_areg (&regs, 7));
 	enforcer_buf_ptr += strlen(enforcer_buf_ptr);
 
 	/* Stack */
-	a7 = m68k_areg(regs,7);
+	a7 = m68k_areg(&regs,7);
 	for (i = 0; i < 8 * STACKLINES; i++)
 	{
 		a7 -= 4;
@@ -245,7 +245,7 @@ static void enforcer_display_hit(const char *addressmode, uae_u32 pc, uaecptr ad
 	}
 
 	/* Segtracker output */
-	a7 = m68k_areg(regs,7);
+	a7 = m68k_areg(&regs,7);
 	if (get_long(a7-4) != pc)
 	{
 		if (enforcer_decode_hunk_and_offset(buf,pc))
@@ -388,7 +388,7 @@ uae_u32 REGPARAM2 chipmem_lget2 (uaecptr addr)
 		enforcer_display_hit("LONG READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 			{
-			set_special (SPCFLAG_TRAP);
+			set_special (&regs, SPCFLAG_TRAP);
 			}
 		}
     return do_get_mem_long (m);
@@ -407,7 +407,7 @@ uae_u32 REGPARAM2 chipmem_wget2(uaecptr addr)
 		enforcer_display_hit("WORD READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 			{
-			set_special (SPCFLAG_TRAP);
+			set_special (&regs, SPCFLAG_TRAP);
 			}
 	}
     return do_get_mem_word (m);
@@ -423,7 +423,7 @@ uae_u32 REGPARAM2 chipmem_bget2 (uaecptr addr)
 		enforcer_display_hit("BYTE READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 		if (enforcermode & 1)
 		{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 		}
 	}
 
@@ -443,7 +443,7 @@ void REGPARAM2 chipmem_lput2 (uaecptr addr, uae_u32 l)
 		enforcer_display_hit("LONG WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 		if (enforcermode & 1)
 		{
-		if ( addr!=0x100 ) set_special (SPCFLAG_TRAP);
+		if ( addr!=0x100 ) set_special (&regs, SPCFLAG_TRAP);
 		}
 	}
     do_put_mem_long (m, l);
@@ -462,7 +462,7 @@ void REGPARAM2 chipmem_wput2 (uaecptr addr, uae_u32 w)
 		enforcer_display_hit("WORD WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 	{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 	}
 	}
     do_put_mem_word (m, w);
@@ -478,7 +478,7 @@ void REGPARAM2 chipmem_bput2 (uaecptr addr, uae_u32 b)
 		enforcer_display_hit("BYTE WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 			if (enforcermode & 1)
 			{
-			set_special (SPCFLAG_TRAP);
+			set_special (&regs, SPCFLAG_TRAP);
 			}
 	}
     chipmemory[addr] = b;
@@ -504,7 +504,7 @@ uae_u32 REGPARAM2 dummy_lget2 (uaecptr addr)
 	enforcer_display_hit("LONG READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET), addr);
 	if (enforcermode & 1)
 	{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 		return 0;
 	}
 	return 0xbadedeef;
@@ -533,7 +533,7 @@ uae_u32 REGPARAM2 dummy_wget2 (uaecptr addr)
 	enforcer_display_hit("WORD READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 	{
-			set_special (SPCFLAG_TRAP);
+			set_special (&regs, SPCFLAG_TRAP);
 			return 0;
 	}
 	return 0xbadf;
@@ -545,7 +545,7 @@ uae_u32	REGPARAM2 dummy_bget2 (uaecptr addr)
 	enforcer_display_hit("BYTE READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 	{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 		return 0;
 	}
 	return 0xbadedeef;
@@ -557,7 +557,7 @@ void REGPARAM2 dummy_lput2 (uaecptr addr, uae_u32 l)
 	enforcer_display_hit("LONG WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
     if (enforcermode & 1)
 	{
-	    set_special (SPCFLAG_TRAP);
+	    set_special (&regs, SPCFLAG_TRAP);
 		return;
 	}
 }
@@ -568,7 +568,7 @@ void REGPARAM2 dummy_wput2 (uaecptr addr, uae_u32 w)
 	enforcer_display_hit("WORD WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
     if (enforcermode & 1)
 	{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 		return;
 	}
 }
@@ -579,7 +579,7 @@ void REGPARAM2 dummy_bput2 (uaecptr addr, uae_u32 b)
 	enforcer_display_hit("BYTE WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
 	{
-		set_special (SPCFLAG_TRAP);
+		set_special (&regs, SPCFLAG_TRAP);
 		return;
 	}
 }

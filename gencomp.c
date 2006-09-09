@@ -725,12 +725,12 @@ genmovemel (uae_u16 opcode)
     switch(table68k[opcode].size) {
      case sz_long:
 	comprintf("\t\t\tmov_l_rR(i,native,offset);\n"
-		  "\t\t\tbswap_32(i);\n"
+		  "\t\t\tgen_bswap_32(i);\n"
 		  "\t\t\toffset+=4;\n");
 	break;
      case sz_word:
 	comprintf("\t\t\tmov_w_rR(i,native,offset);\n"
-		  "\t\t\tbswap_16(i);\n"
+		  "\t\t\tgen_bswap_16(i);\n"
 		  "\t\t\tsign_extend_16_rr(i,i);\n"
 		  "\t\t\toffset+=2;\n");
 	break;
@@ -796,13 +796,13 @@ genmovemle (uae_u16 opcode)
 	switch(table68k[opcode].size) {
 	 case sz_long:
 	    comprintf("\t\t\tmov_l_rr(tmp,i);\n"
-		      "\t\t\tbswap_32(tmp);\n"
+		      "\t\t\tgen_bswap_32(tmp);\n"
 		      "\t\t\tmov_l_Rr(native,tmp,offset);\n"
 		      "\t\t\toffset+=4;\n");
 	    break;
 	 case sz_word:
 	    comprintf("\t\t\tmov_l_rr(tmp,i);\n"
-		      "\t\t\tbswap_16(tmp);\n"
+		      "\t\t\tgen_bswap_16(tmp);\n"
 		      "\t\t\tmov_w_Rr(native,tmp,offset);\n"
 		      "\t\t\toffset+=2;\n");
 	    break;
@@ -815,14 +815,14 @@ genmovemle (uae_u16 opcode)
 	 case sz_long:
 	    comprintf("\t\t\toffset-=4;\n"
 		      "\t\t\tmov_l_rr(tmp,15-i);\n"
-		      "\t\t\tbswap_32(tmp);\n"
+		      "\t\t\tgen_bswap_32(tmp);\n"
 		      "\t\t\tmov_l_Rr(native,tmp,offset);\n"
 		      );
 	    break;
 	 case sz_word:
 	    comprintf("\t\t\toffset-=2;\n"
 		      "\t\t\tmov_l_rr(tmp,15-i);\n"
-		      "\t\t\tbswap_16(tmp);\n"
+		      "\t\t\tgen_bswap_16(tmp);\n"
 		      "\t\t\tmov_w_Rr(native,tmp,offset);\n"
 		      );
 	    break;
@@ -2865,7 +2865,6 @@ generate_includes (FILE * f)
     fprintf (f, "#include \"sysconfig.h\"\n");
     fprintf (f, "#if defined(JIT)\n");
     fprintf (f, "#include \"sysdeps.h\"\n");
-    fprintf (f, "#include \"config.h\"\n");
     fprintf (f, "#include \"options.h\"\n");
     fprintf (f, "#include \"memory.h\"\n");
     fprintf (f, "#include \"custom.h\"\n");
@@ -3010,11 +3009,11 @@ generate_one_opcode (int rp, int noflags)
 	} else {
 	    if (noflags) {
 		fprintf (stblfile, "{ op_%lx_%d_comp_nf, %ld, 0x%08x }, /* %s */\n", opcode, postfix, opcode, flags, lookuptab[i].name);
-		fprintf (headerfile, "extern cpuop_func op_%lx_%d_comp_nf;\n", opcode, postfix);
+		fprintf (headerfile, "extern compop_func op_%lx_%d_comp_nf;\n", opcode, postfix);
 		printf ("unsigned long REGPARAM2 op_%lx_%d_comp_nf(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 	    } else {
 		fprintf (stblfile, "{ op_%lx_%d_comp_ff, %ld, 0x%08x }, /* %s */\n", opcode, postfix, opcode, flags, lookuptab[i].name);
-		fprintf (headerfile, "extern cpuop_func op_%lx_%d_comp_ff;\n", opcode, postfix);
+		fprintf (headerfile, "extern compop_func op_%lx_%d_comp_ff;\n", opcode, postfix);
 		printf ("unsigned long REGPARAM2 op_%lx_%d_comp_ff(uae_u32 opcode) /* %s */\n{\n", opcode, postfix, lookuptab[i].name);
 	    }
 	    com_flush();
@@ -3037,9 +3036,9 @@ generate_func (int noflags)
 	postfix = i;
 
 	if (noflags)
-	    fprintf (stblfile, "struct cputbl op_smalltbl_%d_comp_nf[] = {\n", postfix);
+	    fprintf (stblfile, "const struct comptbl op_smalltbl_%d_comp_nf[] = {\n", postfix);
 	else
-	    fprintf (stblfile, "struct cputbl op_smalltbl_%d_comp_ff[] = {\n", postfix);
+	    fprintf (stblfile, "const struct comptbl op_smalltbl_%d_comp_ff[] = {\n", postfix);
 
 
 	/* sam: this is for people with low memory (eg. me :)) */

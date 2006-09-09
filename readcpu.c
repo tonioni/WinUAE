@@ -141,7 +141,7 @@ struct mnemolookup lookuptab[] = {
     { i_ILLG, "" },
 };
 
-struct instr *table68k = 0;
+struct instr *table68k;
 
 static int specialcase (uae_u16 opcode, int cpu_lev)
 {
@@ -183,7 +183,7 @@ static amodes mode_from_str (const char	*str)
     return 0;
 }
 
-static amodes mode_from_mr (int mode, int reg)
+STATIC_INLINE amodes mode_from_mr (int mode, int reg)
 {
     switch (mode) {
      case 0: return Dreg;
@@ -706,7 +706,7 @@ static void build_insn (int insn)
       endofline:
 	/* now, we have a match */
 	if (table68k[opc].mnemo != i_ILLG)
-	    printf ("Double match: %x: %s\n", opc, opcstr);
+	    ;//write_log ("Double match: %x: %s\n", opc, opcstr);
 	if (find == -1) {
 	    for (find = 0;; find++) {
 		if (strcmp(mnemonic, lookuptab[find].name) == 0) {

@@ -13,7 +13,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "memory.h"
 #include "custom.h"
@@ -26,7 +25,7 @@
 uae_u32 temp_fp[] = {0,0,0};  /* To convert between FP and <EA> */
 
 /* 128 words, indexed through the low byte of the 68k fpu control word */
-static uae_u16 x86_fpucw[]={
+static const uae_u16 x86_fpucw[]={
     0x137f, 0x137f, 0x137f, 0x137f, 0x137f, 0x137f, 0x137f, 0x137f, /* E-RN */
     0x1f7f, 0x1f7f, 0x1f7f, 0x1f7f, 0x1f7f, 0x1f7f, 0x1f7f, 0x1f7f, /* E-RZ */
     0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, /* E-RD */
@@ -47,8 +46,8 @@ static uae_u16 x86_fpucw[]={
     0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, 0x177f, /* ?-RD */
     0x1b7f, 0x1b7f, 0x1b7f, 0x1b7f, 0x1b7f, 0x1b7f, 0x1b7f, 0x1b7f  /* ?-RU */
 };
-static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
-static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
+static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
+static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
 /* return the required floating point precision or -1 for failure, 0=E, 1=S, 2=D */
 STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
@@ -458,10 +457,8 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
     }
 
 #if DEBUG_FPP
-    printf ("fscc_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    write_log ("JIT: fscc_opp at %08lx\n", M68K_GETPC);
 #endif
-
 
     if (extra&0x20) {  /* only cc from 00 to 1f are defined */
 	FAIL(1);
@@ -507,8 +504,8 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
     else {
 	abort();
 	if (!comp_fp_adr (opcode)) {
-	    m68k_setpc (m68k_getpc () - 4);
-	    op_illg (opcode);
+	    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
+	    op_illg (opcode, &regs);
 	}
 	else
 	    put_byte (ad, cc ? 0xff : 0x00);
@@ -682,12 +679,11 @@ void comp_fsave_opp (uae_u32 opcode)
     }
 
 #if DEBUG_FPP
-    printf ("fsave_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    write_log ("JIT: fsave_opp at %08lx\n", M68K_GETPC);
 #endif
     if (!comp_fp_adr (opcode)) {
-	m68k_setpc (m68k_getpc () - 2);
-	op_illg (opcode);
+	m68k_setpc (&regs, m68k_getpc (&regs) - 2);
+	op_illg (opcode, &regs);
 	return;
     }
 
@@ -722,9 +718,9 @@ void comp_fsave_opp (uae_u32 opcode)
 	}
     }
     if ((opcode & 0x38) == 0x18)
-	m68k_areg (regs, opcode & 7) = ad;
+	m68k_areg (&regs, opcode & 7) = ad;
     if ((opcode & 0x38) == 0x20)
-	m68k_areg (regs, opcode & 7) = ad;
+	m68k_areg (&regs, opcode & 7) = ad;
 }
 
 void comp_frestore_opp (uae_u32 opcode)
@@ -742,12 +738,11 @@ void comp_frestore_opp (uae_u32 opcode)
     }
 
 #if DEBUG_FPP
-    printf ("frestore_opp at %08lx\n", m68k_getpc ());
-    fflush (stdout);
+    write_log ("frestore_opp at %08lx\n", M68K_GETPC);
 #endif
     if (!comp_fp_adr (opcode)) {
-	m68k_setpc (m68k_getpc () - 2);
-	op_illg (opcode);
+	m68k_setpc (&regs, m68k_getpc (&regs) - 2);
+	op_illg (opcode, &regs);
 	return;
     }
     if (currprefs.cpu_level >= 4) {
@@ -802,9 +797,9 @@ void comp_frestore_opp (uae_u32 opcode)
 	}
     }
     if ((opcode & 0x38) == 0x18)
-	m68k_areg (regs, opcode & 7) = ad;
+	m68k_areg (&regs, opcode & 7) = ad;
     if ((opcode & 0x38) == 0x20)
-	m68k_areg (regs, opcode & 7) = ad;
+	m68k_areg (&regs, opcode & 7) = ad;
 }
 
 extern uae_u32 xhex_pi, xhex_exp_1, xhex_l2_e, xhex_ln_2, xhex_ln_10;

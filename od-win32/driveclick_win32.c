@@ -12,7 +12,6 @@
 #ifdef DRIVESOUND
 
 #include "uae.h"
-#include "config.h"
 #include "options.h"
 #include "driveclick.h"
 #include "threaddep/thread.h"

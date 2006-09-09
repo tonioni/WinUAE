@@ -12,7 +12,6 @@
 #ifdef PROWIZARD
 
 #include "uae.h"
-#include "config.h"
 #include "options.h"
 #include "memory.h"
 #include "autoconf.h"

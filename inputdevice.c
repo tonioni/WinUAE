@@ -21,7 +21,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "keyboard.h"
 #include "inputdevice.h"
@@ -55,8 +54,8 @@ static int potgo_logging = 0;
 #define DIR_DOWN 8
 
 struct inputevent {
-    char *confname;
-    char *name;
+    const char *confname;
+    const char *name;
     int allow_mask;
     int type;
     int unit;
@@ -1147,7 +1146,7 @@ void POTGO (uae_u16 v)
     int i;
 
     if (potgo_logging)
-	write_log ("W:%d: %04.4X %p\n", vpos, v, m68k_getpc());
+	write_log ("W:%d: %04.4X %p\n", vpos, v, M68K_GETPC);
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log ("POTGO %04.4X %s\n", v, debuginfo(0));
@@ -1184,7 +1183,7 @@ uae_u16 POTGOR (void)
 	write_log ("POTGOR %04.4X %s\n", v, debuginfo(0));
 #endif
     if (potgo_logging)
-	write_log("R:%d:%04.4X %d %p\n", vpos, v, cd32_shifter[1], m68k_getpc());
+	write_log("R:%d:%04.4X %d %p\n", vpos, v, cd32_shifter[1], M68K_GETPC);
     return v;
 }
 

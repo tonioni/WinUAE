@@ -10,6 +10,7 @@
 extern void serial_init(void);
 extern void serial_exit(void);
 extern void serial_dtr_off(void);
+extern void serial_dtr_on (void);
 
 extern uae_u16 SERDATR(void);
 extern int   SERDATS(void);

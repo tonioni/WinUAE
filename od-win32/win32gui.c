@@ -27,7 +27,6 @@
 #include <ddraw.h>
 #include <shobjidl.h>
 
-#include "config.h"
 #include "resource.h"
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -37,6 +36,7 @@
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
+#include "traps.h"
 #include "disk.h"
 #include "uae.h"
 #include "threaddep/thread.h"
@@ -4010,7 +4010,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     BOOL success = FALSE;
     int n, snd;
 
-    workprefs.genlock = IsDlgButtonChecked (hDlg, IDC_FASTCOPPER);
+    workprefs.genlock = IsDlgButtonChecked (hDlg, IDC_GENLOCK);
     workprefs.immediate_blits = IsDlgButtonChecked (hDlg, IDC_BLITIMM);
     n = IsDlgButtonChecked (hDlg, IDC_CYCLEEXACT) ? 1 : 0;
     if (workprefs.cpu_cycle_exact != n) {
@@ -9054,7 +9054,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    switch (LOWORD(wParam))
 	    {
 		case IDC_RESETAMIGA:
-		    uae_reset (0);
+		    uae_reset (1);
 		    SendMessage (hDlg, WM_COMMAND, IDOK, 0);
 		    return TRUE;
 		case IDC_QUITEMU:

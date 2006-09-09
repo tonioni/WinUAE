@@ -11,11 +11,17 @@
 #define EBX 3
 
 /* The register in which subroutines return an integer return value */
-#define REG_RESULT 0
+#define REG_RESULT EAX
 
 /* The registers subroutines take their first and second argument in */
-#define REG_PAR1 0
-#define REG_PAR2 2
+#ifdef _WIN32
+/* MSVC __fastcall registers are ECX and EDX */
+#define REG_PAR1 ECX
+#define REG_PAR2 EDX
+#else
+#define REG_PAR1 EAX
+#define REG_PAR2 EDX
+#endif
 
 /* Three registers that are not used for any of the above */
 #define REG_NOPAR1 6
@@ -85,17 +91,17 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 
 #include "compemu_optimizer_x86.c"
 
-static uae_u16 swap16(uae_u16 x)
+STATIC_INLINE uae_u16 swap16(uae_u16 x)
 {
     return ((x&0xff00)>>8)|((x&0x00ff)<<8);
 }
 
-static uae_u32 swap32(uae_u32 x)
+STATIC_INLINE uae_u32 swap32(uae_u32 x)
 {
     return ((x&0xff00)<<8)|((x&0x00ff)<<24)|((x&0xff0000)>>8)|((x&0xff000000)>>24);
 }
 
-static __inline__ int isbyte(uae_s32 x)
+STATIC_INLINE int isbyte(uae_s32 x)
 {
     return (x>=-128 && x<=127);
 }
@@ -575,7 +581,7 @@ LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
     if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	printf("Bad register in IMUL: d=%d, s=%d\n",d,s);
+	write_log("JIT: Bad register in IMUL: d=%d, s=%d\n",d,s);
 	abort();
     }
 #endif
@@ -588,7 +594,7 @@ LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
     if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	printf("Bad register in MUL: d=%d, s=%d\n",d,s);
+	write_log("JIT: Bad register in MUL: d=%d, s=%d\n",d,s);
 	abort();
     }
 #endif
@@ -1397,21 +1403,21 @@ LENDFUNC(WRITE,READ,0,raw_popfl,(void))
  * Unoptimizable stuff --- jump                                          *
  *************************************************************************/
 
-static __inline__ void raw_call_r(R4 r)
+STATIC_INLINE void raw_call_r(R4 r)
 {
     lopt_emit_all();
     emit_byte(0xff);
     emit_byte(0xd0+r);
 }
 
-static __inline__ void raw_jmp_r(R4 r)
+STATIC_INLINE void raw_jmp_r(R4 r)
 {
     lopt_emit_all();
     emit_byte(0xff);
     emit_byte(0xe0+r);
 }
 
-static __inline__ void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
+STATIC_INLINE void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
 {
     int sib;
 
@@ -1429,7 +1435,7 @@ static __inline__ void raw_jmp_m_indexed(uae_u32 base, uae_u32 r, uae_u32 m)
     emit_long(base);
 }
 
-static __inline__ void raw_jmp_m(uae_u32 base)
+STATIC_INLINE void raw_jmp_m(uae_u32 base)
 {
     lopt_emit_all();
     emit_byte(0xff);
@@ -1437,21 +1443,21 @@ static __inline__ void raw_jmp_m(uae_u32 base)
     emit_long(base);
 }
 
-static __inline__ void raw_call(uae_u32 t)
+STATIC_INLINE void raw_call(uae_u32 t)
 {
     lopt_emit_all();
     emit_byte(0xe8);
     emit_long(t-(uae_u32)target-4);
 }
 
-static __inline__ void raw_jmp(uae_u32 t)
+STATIC_INLINE void raw_jmp(uae_u32 t)
 {
     lopt_emit_all();
     emit_byte(0xe9);
     emit_long(t-(uae_u32)target-4);
 }
 
-static __inline__ void raw_jl(uae_u32 t)
+STATIC_INLINE void raw_jl(uae_u32 t)
 {
     lopt_emit_all();
     emit_byte(0x0f);
@@ -1459,7 +1465,7 @@ static __inline__ void raw_jl(uae_u32 t)
     emit_long(t-(uae_u32)target-4);
 }
 
-static __inline__ void raw_jz(uae_u32 t)
+STATIC_INLINE void raw_jz(uae_u32 t)
 {
     lopt_emit_all();
     emit_byte(0x0f);
@@ -1467,7 +1473,7 @@ static __inline__ void raw_jz(uae_u32 t)
     emit_long(t-(uae_u32)target-4);
 }
 
-static __inline__ void raw_jnz(uae_u32 t)
+STATIC_INLINE void raw_jnz(uae_u32 t)
 {
     lopt_emit_all();
     emit_byte(0x0f);
@@ -1475,51 +1481,51 @@ static __inline__ void raw_jnz(uae_u32 t)
     emit_long(t-(uae_u32)target-4);
 }
 
-static __inline__ void raw_jnz_l_oponly(void)
+STATIC_INLINE void raw_jnz_l_oponly(void)
 {
     lopt_emit_all();
     emit_byte(0x0f);
     emit_byte(0x85);
 }
 
-static __inline__ void raw_jcc_l_oponly(int cc)
+STATIC_INLINE void raw_jcc_l_oponly(int cc)
 {
     lopt_emit_all();
     emit_byte(0x0f);
     emit_byte(0x80+cc);
 }
 
-static __inline__ void raw_jnz_b_oponly(void)
+STATIC_INLINE void raw_jnz_b_oponly(void)
 {
     lopt_emit_all();
     emit_byte(0x75);
 }
 
-static __inline__ void raw_jz_b_oponly(void)
+STATIC_INLINE void raw_jz_b_oponly(void)
 {
     lopt_emit_all();
     emit_byte(0x74);
 }
 
-static __inline__ void raw_jmp_l_oponly(void)
+STATIC_INLINE void raw_jmp_l_oponly(void)
 {
     lopt_emit_all();
     emit_byte(0xe9);
 }
 
-static __inline__ void raw_jmp_b_oponly(void)
+STATIC_INLINE void raw_jmp_b_oponly(void)
 {
     lopt_emit_all();
     emit_byte(0xeb);
 }
 
-static __inline__ void raw_ret(void)
+STATIC_INLINE void raw_ret(void)
 {
     lopt_emit_all();
     emit_byte(0xc3);
 }
 
-static __inline__ void raw_nop(void)
+STATIC_INLINE void raw_nop(void)
 {
     lopt_emit_all();
     emit_byte(0x90);
@@ -1533,7 +1539,7 @@ static __inline__ void raw_nop(void)
 
 #define FLAG_NREG1 0  /* Set to -1 if any register will do */
 
-static __inline__ void raw_flags_to_reg(int r)
+STATIC_INLINE void raw_flags_to_reg(int r)
 {
   raw_lahf(0);  /* Most flags in AH */
   //raw_setcc(r,0); /* V flag in AL */
@@ -1555,7 +1561,7 @@ static __inline__ void raw_flags_to_reg(int r)
 }
 
 #define FLAG_NREG2 0  /* Set to -1 if any register will do */
-static __inline__ void raw_reg_to_flags(int r)
+STATIC_INLINE void raw_reg_to_flags(int r)
 {
   raw_cmp_b_ri(r,-127); /* set V */
   raw_sahf(0);
@@ -1563,7 +1569,7 @@ static __inline__ void raw_reg_to_flags(int r)
 
 /* Apparently, there are enough instructions between flag store and
    flag reload to avoid the partial memory stall */
-static __inline__ void raw_load_flagreg(uae_u32 target, uae_u32 r)
+STATIC_INLINE void raw_load_flagreg(uae_u32 target, uae_u32 r)
 {
 #if 1
     raw_mov_l_rm(target,(uae_u32)live.state[r].mem);
@@ -1573,12 +1579,10 @@ static __inline__ void raw_load_flagreg(uae_u32 target, uae_u32 r)
 #endif
 }
 
-/* FLAGX is byte sized, and we *do* write it at that size */
-static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
+/* FLAGX is word-sized */
+STATIC_INLINE void raw_load_flagx(uae_u32 target, uae_u32 r)
 {
-    if (live.nat[target].canbyte)
-	raw_mov_b_rm(target,(uae_u32)live.state[r].mem);
-    else if (live.nat[target].canword)
+    if (live.nat[target].canword)
 	raw_mov_w_rm(target,(uae_u32)live.state[r].mem);
     else
 	raw_mov_l_rm(target,(uae_u32)live.state[r].mem);
@@ -1586,7 +1590,7 @@ static __inline__ void raw_load_flagx(uae_u32 target, uae_u32 r)
 
 #define NATIVE_FLAG_Z 0x40
 #define NATIVE_CC_EQ  4
-static __inline__ void raw_flags_set_zero(int f, int r, int t)
+STATIC_INLINE void raw_flags_set_zero(int f, int r, int t)
 {
     // FIXME: this is really suboptimal
     raw_pushfl();
@@ -1601,7 +1605,7 @@ static __inline__ void raw_flags_set_zero(int f, int r, int t)
     raw_popfl();
 }
 
-static __inline__ void raw_inc_sp(int off)
+STATIC_INLINE void raw_inc_sp(int off)
 {
     raw_add_l_ri(4,off);
 }
@@ -1745,7 +1749,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
     if (r!=-1) {
 	void* pr=NULL;
 #ifdef JIT_DEBUG
-	write_log("register was %d, direction was %d, size was %d\n",r,dir,size);
+	write_log("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
 #endif
 
 	switch(r) {
@@ -1791,7 +1795,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
+			write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 #endif
 		if (dir==SIG_READ) {
@@ -1811,7 +1815,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    }
 		}
 #ifdef JIT_DEBUG
-		write_log("Handled one access!\n");
+		write_log("JIT: Handled one access!\n");
 #endif
 		fflush(stdout);
 		segvcount++;
@@ -1827,7 +1831,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
+		    write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 #endif
 
@@ -1838,8 +1842,8 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		emit_long((uae_u32)veccode-(uae_u32)target-4);
 #ifdef JIT_DEBUG
 
-		write_log("Create jump to %p\n",veccode);
-		write_log("Handled one access!\n");
+		write_log("JIT: Create jump to %p\n",veccode);
+		write_log("JIT: Handled one access!\n");
 #endif
 		segvcount++;
 
@@ -1875,7 +1879,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
-		    write_log("deleted trigger (%p<%p<%p) %p\n",
+		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
 			bi->handler,
 			i,
 			bi->nexthandler,
@@ -1883,7 +1887,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #endif
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(0);
+		    set_special(&regs, 0);
 		    return EXCEPTION_CONTINUE_EXECUTION;
 		}
 		bi=bi->next;
@@ -1896,7 +1900,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
-		    write_log("deleted trigger (%p<%p<%p) %p\n",
+		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
 			bi->handler,
 			i,
 			bi->nexthandler,
@@ -1904,13 +1908,13 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #endif
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(0);
+		    set_special(&regs, 0);
 		    return EXCEPTION_CONTINUE_EXECUTION;
 		}
 		bi=bi->next;
 	    }
 #ifdef JIT_DEBUG
-	    write_log("Huh? Could not find trigger!\n");
+	    write_log("JIT: Huh? Could not find trigger!\n");
 #endif
 	    return EXCEPTION_CONTINUE_EXECUTION;
 	}
@@ -1942,11 +1946,11 @@ static void vec(int x, struct sigcontext sc)
     int len=0;
     int j;
 
-    write_log("fault address is %08x at %08x\n",sc.cr2,sc.eip);
+    write_log("JIT: fault address is %08x at %08x\n",sc.cr2,sc.eip);
     if (!canbang)
-	write_log("Not happy! Canbang is 0 in SIGSEGV handler!\n");
+	write_log("JIT: Not happy! Canbang is 0 in SIGSEGV handler!\n");
     if (in_handler)
-	write_log("Argh --- Am already in a handler. Shouldn't happen!\n");
+	write_log("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
 
     if (canbang && i>=compiled_code && i<=current_compile_p) {
 	if (*i==0x66) {
@@ -2021,7 +2025,7 @@ static void vec(int x, struct sigcontext sc)
 
     if (r!=-1) {
 	void* pr=NULL;
-	write_log("register was %d, direction was %d, size was %d\n",r,dir,size);
+	write_log("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
 
 	switch(r) {
 	 case 0: pr=&(sc.eax); break;
@@ -2048,7 +2052,7 @@ static void vec(int x, struct sigcontext sc)
 
 	    if ((addr>=0x10000000 && addr<0x40000000) ||
 		(addr>=0x50000000)) {
-		write_log("Suspicious address in %x SEGV handler.\n",addr);
+		write_log("JIT: Suspicious address in %x SEGV handler.\n",addr);
 	    }
 	    if (dir==SIG_READ) {
 		switch(size) {
@@ -2066,7 +2070,7 @@ static void vec(int x, struct sigcontext sc)
 		 default: abort();
 		}
 	    }
-	    write_log("Handled one access!\n");
+	    write_log("JIT: Handled one access!\n");
 	    fflush(stdout);
 	    segvcount++;
 	    sc.eip+=len;
@@ -2080,7 +2084,7 @@ static void vec(int x, struct sigcontext sc)
 
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-		    write_log("Suspicious address 0x%x in SEGV handler.\n",addr);
+		    write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 
 		target=(uae_u8*)sc.eip;
@@ -2088,10 +2092,9 @@ static void vec(int x, struct sigcontext sc)
 		    vecbuf[i]=target[i];
 		emit_byte(0xe9);
 		emit_long((uae_u32)veccode-(uae_u32)target-4);
-		write_log("Create jump to %p\n",veccode);
+		write_log("JIT: Create jump to %p\n",veccode);
 
-		write_log("Handled one access!\n");
-		fflush(stdout);
+		write_log("JIT: Handled one access!\n");
 		segvcount++;
 
 		target=veccode;
@@ -2125,14 +2128,14 @@ static void vec(int x, struct sigcontext sc)
 		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
-		    write_log("deleted trigger (%p<%p<%p) %p\n",
+		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
 			      bi->handler,
 			      i,
 			      bi->nexthandler,
 			      bi->pc_p);
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(0);
+		    set_special(&regs, 0);
 		    return;
 		}
 		bi=bi->next;
@@ -2144,25 +2147,25 @@ static void vec(int x, struct sigcontext sc)
 		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
-		    write_log("deleted trigger (%p<%p<%p) %p\n",
+		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
 			      bi->handler,
 			      i,
 			      bi->nexthandler,
 			      bi->pc_p);
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(0);
+		    set_special(&regs, 0);
 		    return;
 		}
 		bi=bi->next;
 	    }
-	    write_log("Huh? Could not find trigger!\n");
+	    write_log("JIT: Huh? Could not find trigger!\n");
 	    return;
 	}
     }
-    write_log("Can't handle access!\n");
+    write_log("JIT: Can't handle access!\n");
     for (j=0;j<10;j++) {
-	write_log("instruction byte %2d is %02x\n",j,i[j]);
+	write_log("JIT: instruction byte %2d is %02x\n",j,i[j]);
     }
 #if 0
     write_log("Please send the above info (starting at \"fault address\") to\n"
@@ -2290,7 +2293,7 @@ static void cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 
   raw_ret();
   set_target(tmp);
 
-  ((cpuop_func*)cpuid_space)(0);
+  ((compop_func*)cpuid_space)(0);
   if (eax != NULL) *eax = s_eax;
   if (ebx != NULL) *ebx = s_ebx;
   if (ecx != NULL) *ecx = s_ecx;
@@ -2560,7 +2563,7 @@ static void raw_init_cpu(void)
  *************************************************************************/
 
 
-static __inline__ void raw_fp_init(void)
+STATIC_INLINE void raw_fp_init(void)
 {
     int i;
 
@@ -2569,7 +2572,7 @@ static __inline__ void raw_fp_init(void)
     live.tos=-1;  /* Stack is empty */
 }
 
-static __inline__ void raw_fp_cleanup_drop(void)
+STATIC_INLINE void raw_fp_cleanup_drop(void)
 {
 #if 0
     /* using FINIT instead of popping all the entries.
@@ -2595,7 +2598,7 @@ static __inline__ void raw_fp_cleanup_drop(void)
     raw_fp_init();
 }
 
-static __inline__ void make_tos(int r)
+STATIC_INLINE void make_tos(int r)
 {
     int p,q;
 
@@ -2621,12 +2624,12 @@ static __inline__ void make_tos(int r)
     live.spos[q]=p;
 }
 
-static __inline__ int stackpos(int r)
+STATIC_INLINE int stackpos(int r)
 {
     if (live.spos[r]<0)
 	abort();
     if (live.tos<live.spos[r]) {
-	printf("Looking for spos for fnreg %d\n",r);
+	write_log("JIT: Looking for spos for fnreg %d\n",r);
 	abort();
     }
     return live.tos-live.spos[r];
@@ -2636,7 +2639,7 @@ static __inline__ int stackpos(int r)
    an argument, because I would expect all arguments to be on the stack already, won't they?
    Thus, usereg(s) is always useless and also for every FRW d it's too late here now. PeterK
 */
-static __inline__ void usereg(int r)
+STATIC_INLINE void usereg(int r)
 {
 
     if (live.spos[r]<0) {
@@ -2647,7 +2650,7 @@ static __inline__ void usereg(int r)
 
 /* This is called with one FP value in a reg *above* tos,
    which it will pop off the stack if necessary */
-static __inline__ void tos_make(int r)
+STATIC_INLINE void tos_make(int r)
 {
     if (live.spos[r]<0) {
 	live.tos++;
@@ -3950,7 +3953,7 @@ LOWFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
 }
 LENDFUNC(NONE,NONE,1,raw_ftst_r,(FR r))
 
-static __inline__ void raw_fflags_into_flags(int r)
+STATIC_INLINE void raw_fflags_into_flags(int r)
 {
     int p;
 

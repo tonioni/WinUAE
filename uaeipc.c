@@ -1,5 +1,4 @@
 
-#include "config.h"
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -145,16 +144,17 @@ void *geteventhandleIPC(void)
     return olevent;
 }
 
-static int isout;
-static char outmsg[IPC_BUFFER_SIZE];
+#define MAX_OUTMESSAGES 30
+static char *outmsg[MAX_OUTMESSAGES];
+static int outmessages;
 
 int sendIPC(char *msg)
 {
     if (hipc == INVALID_HANDLE_VALUE)
 	return 0;
-    if (isout)
+    if (outmessages >= MAX_OUTMESSAGES)
 	return 0;
-    strcpy (outmsg, msg);
+    outmsg[outmessages++] = my_strdup (msg);
     if (!readpending && !writepending)
 	SetEvent (olevent);
     return 1;
@@ -169,11 +169,11 @@ int checkIPC(struct uae_prefs *p)
 	return 0;
     if (WaitForSingleObject(olevent, 0) != WAIT_OBJECT_0)
 	return 0;
-    if (!readpending && !writepending && isout) {
-	isout = 0;
+    if (!readpending && !writepending && outmessages > 0) {
 	memset (&ol, 0, sizeof ol);
 	ol.hEvent = olevent;
-	ok = WriteFile(hipc, outmsg, strlen (outmsg) + 1, &ret, &ol);
+	ok = WriteFile(hipc, outmsg[outmessages], strlen (outmsg[outmessages]) + 1, &ret, &ol);
+	xfree(outmsg[outmessages--]);
 	err = GetLastError();
 	if (!ok && err != ERROR_IO_PENDING) {
 	    write_log ("IPC: WriteFile() err=%d\n", err);

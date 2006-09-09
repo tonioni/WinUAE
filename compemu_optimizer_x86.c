@@ -90,10 +90,10 @@
 #undef LENDFUNC
 
 #define LOWFUNC(flags,mem,nargs,func,args) \
-  static __inline__ void do_##func args
+  STATIC_INLINE void do_##func args
 
 #define LENDFUNC(flags,mem,nargs,func,args) \
-  static __inline__ void func args \
+  STATIC_INLINE void func args \
   { \
   if (LDECISION) { \
     lopt_op##nargs##args do_##func, mem, flags); \
@@ -116,17 +116,17 @@ typedef struct lopt_inst_rec {
 static lopt_inst linst[MAXLOPTINST];
 static int lopt_index=0;
 
-static __inline__ int argsize(int type)
+STATIC_INLINE int argsize(int type)
 {
     return type&SIZEMASK;
 }
 
-static __inline__ int reads_mem(int i) {
+STATIC_INLINE int reads_mem(int i) {
     return linst[i].mem & READ;
 }
 
 
-static __inline__ int access_reg(int i, int r, int mode)
+STATIC_INLINE int access_reg(int i, int r, int mode)
 {
     int k;
     for (k=0;k<linst[i].nargs;k++)
@@ -137,40 +137,40 @@ static __inline__ int access_reg(int i, int r, int mode)
     return 0;
 }
 
-static __inline__ int writes_reg(int i, int r)
+STATIC_INLINE_ int writes_reg(int i, int r)
 {
     return access_reg(i,r,WRITE);
 }
 
-static __inline__ int reads_reg(int i, int r)
+STATIC_INLINE int reads_reg(int i, int r)
 {
     return access_reg(i,r,READ);
 }
 
-static __inline__ int uses_reg(int i, int r)
+STATIC_INLINE int uses_reg(int i, int r)
 {
     return access_reg(i,r,RMW);
 }
 
 
-static __inline__ int writes_mem(int i) {
+STATIC_INLINE int writes_mem(int i) {
     return linst[i].mem & WRITE;
 }
 
-static __inline__ int uses_mem(int i)
+STATIC_INLINE int uses_mem(int i)
 {
     return linst[i].mem & RMW;
 }
 
-static __inline__ int reads_flags(int i) {
+STATIC_INLINE int reads_flags(int i) {
     return linst[i].flags & READ;
 }
 
-static __inline__ int writes_flags(int i) {
+STATIC_INLINE int writes_flags(int i) {
     return linst[i].flags & WRITE;
 }
 
-static __inline__ int uses_flags(int i)
+STATIC_INLINE int uses_flags(int i)
 {
     return linst[i].flags & RMW;
 }
@@ -180,7 +180,7 @@ static void do_raw_fflags_save(void);
 
 
 /* Whether i depends on j */
-static __inline__ int depends_on(int i, int j)
+STATIC_INLINE int depends_on(int i, int j)
 {
     int n;
 
@@ -233,7 +233,7 @@ static __inline__ int depends_on(int i, int j)
 
 static void do_raw_mov_l_rm(W4 d, MEMR s);
 
-static __inline__ void low_peephole(void)
+STATIC_INLINE void low_peephole(void)
 {
     int i;
 
@@ -298,14 +298,14 @@ static void lopt_emit_all(void)
     inemit=0;
 }
 
-static __inline__ void low_advance(void)
+STATIC_INLINE void low_advance(void)
 {
   lopt_index++;
   if (lopt_index==MAXLOPTINST)
     lopt_emit_all();
 }
 
-static __inline__ void lopt_store_op0(void* lfuncptr, uae_u32 lmem,
+STATIC_INLINE void lopt_store_op0(void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
   linst[lopt_index].func=lfuncptr;
@@ -315,7 +315,7 @@ static __inline__ void lopt_store_op0(void* lfuncptr, uae_u32 lmem,
   low_advance();
 }
 
-static __inline__ void lopt_store_op1(uae_u8 t1, uae_u32 a1,
+STATIC_INLINE void lopt_store_op1(uae_u8 t1, uae_u32 a1,
 				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
 {
@@ -328,7 +328,7 @@ static __inline__ void lopt_store_op1(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void lopt_store_op2(uae_u8 t1, uae_u32 a1,
+STATIC_INLINE void lopt_store_op2(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      void* lfuncptr, uae_u32 lmem,
 				      uae_u32 lflags)
@@ -344,7 +344,7 @@ static __inline__ void lopt_store_op2(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void lopt_store_op3(uae_u8 t1, uae_u32 a1,
+STATIC_INLINE void lopt_store_op3(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      uae_u8 t3, uae_u32 a3,
 				      void* lfuncptr, uae_u32 lmem,
@@ -363,7 +363,7 @@ static __inline__ void lopt_store_op3(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void lopt_store_op4(uae_u8 t1, uae_u32 a1,
+STATIC_INLINE void lopt_store_op4(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      uae_u8 t3, uae_u32 a3,
 				      uae_u8 t4, uae_u32 a4,
@@ -385,7 +385,7 @@ static __inline__ void lopt_store_op4(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void lopt_store_op5(uae_u8 t1, uae_u32 a1,
+STATIC_INLINE void lopt_store_op5(uae_u8 t1, uae_u32 a1,
 				      uae_u8 t2, uae_u32 a2,
 				      uae_u8 t3, uae_u32 a3,
 				      uae_u8 t4, uae_u32 a4,
@@ -410,12 +410,12 @@ static __inline__ void lopt_store_op5(uae_u8 t1, uae_u32 a1,
   low_advance();
 }
 
-static __inline__ void empty_low_optimizer(void)
+STATIC_INLINE void empty_low_optimizer(void)
 {
   lopt_emit_all();
 }
 
 #else
-static __inline__ void lopt_emit_all(void) {}
-static __inline__ void empty_low_optimizer(void) {}
+#define lopt_emit_all()
+#define empty_low_optimizer()
 #endif

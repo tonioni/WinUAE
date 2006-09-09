@@ -18,29 +18,36 @@ del compstbl.c
 del cpuemu_0.c
 del cpuemu_5.c
 del cpuemu_6.c
+del linetoscr.c
 
 cd od-win32
 
+cd genlinetoscr_msvc
+rm -f genlinetoscr.exe
+rm -rf debug
+rm -rf release
+cd ..
+
 cd build68k_msvc
-rm -f build68k.exe build68k_msvc.plg
+rm -f build68k.exe
 rm -rf debug
 rm -rf release
 cd ..
 
 cd genblitter_msvc
-rm -f genblitter.exe genblitter_msvc.plg
+rm -f genblitter.exe 
 rm -rf debug
 rm -rf release
 cd ..
 
 cd gencomp_msvc
-rm -f gencomp.exe gencomp_msvc.plg
+rm -f gencomp.exe
 rm -rf debug
 rm -rf release
 cd ..
 
 cd gencpu_msvc
-rm -f gencpu.exe gencpu_msvc.plg
+rm -f gencpu.exe
 rm -rf debug
 rm -rf release
 cd ..

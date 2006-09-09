@@ -27,7 +27,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "threaddep/thread.h"
 #include "options.h"
 #include "uae.h"
@@ -37,6 +36,7 @@
 #include "newcpu.h"
 #include "filesys.h"
 #include "autoconf.h"
+#include "traps.h"
 #include "fsusage.h"
 #include "native2amiga.h"
 #include "scsidev.h"
@@ -53,6 +53,8 @@
 #define TRACE(x)
 #define DUMPLOCK(u,x)
 #endif
+
+static uae_sem_t test_sem;
 
 static void aino_test (a_inode *aino)
 {
@@ -140,6 +142,8 @@ int nr_units (struct uaedev_mount_info *mountinfo)
 
 int is_hardfile (struct uaedev_mount_info *mountinfo, int unit_no)
 {
+    if (!mountinfo)
+	mountinfo = &current_mountinfo;
     if (mountinfo->ui[unit_no].volname)
 	return FILESYS_VIRTUAL;
     if (mountinfo->ui[unit_no].hf.secspertrack == 0) {
@@ -631,7 +635,7 @@ typedef uae_u8 *dpacket;
 static char *char1 (uaecptr addr)
 {
     static char buf[1024];
-    int i = 0;
+    unsigned int i = 0;
     do {
 	buf[i] = get_byte(addr);
 	addr++;
@@ -1305,7 +1309,7 @@ static Unit *startup_create_unit (UnitInfo *uinfo)
     uinfo->self = unit;
 
     unit->volume = 0;
-    unit->port = m68k_areg (regs, 5);
+    unit->port = m68k_areg (&regs, 5);
     unit->unit = unit_num++;
 
     startup_update_unit (unit, uinfo);
@@ -1344,14 +1348,14 @@ static Unit *startup_create_unit (UnitInfo *uinfo)
     return unit;
 }
 
-static uae_u32 startup_handler (void)
+static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 {
     /* Just got the startup packet. It's in A4. DosBase is in A2,
      * our allocated volume structure is in D6, A5 is a pointer to
      * our port. */
-    uaecptr rootnode = get_long (m68k_areg (regs, 2) + 34);
+    uaecptr rootnode = get_long (m68k_areg (&context->regs, 2) + 34);
     uaecptr dos_info = get_long (rootnode + 24) << 2;
-    uaecptr pkt = m68k_dreg (regs, 3);
+    uaecptr pkt = m68k_dreg (&context->regs, 3);
     uaecptr arg2 = get_long (pkt + dp_Arg2);
     int i, namelen;
     char* devname = bstr1 (get_long (pkt + dp_Arg1) << 2);
@@ -1391,16 +1395,16 @@ static uae_u32 startup_handler (void)
 
     /* fill in our process in the device node */
     put_long ((get_long (pkt + dp_Arg3) << 2) + 8, unit->port);
-    unit->dosbase = m68k_areg (regs, 2);
+    unit->dosbase = m68k_areg (&context->regs, 2);
 
     /* make new volume */
-    unit->volume = m68k_areg (regs, 3) + 32;
+    unit->volume = m68k_areg (&context->regs, 3) + 32;
 #ifdef UAE_FILESYS_THREADS
-    unit->locklist = m68k_areg (regs, 3) + 8;
+    unit->locklist = m68k_areg (&context->regs, 3) + 8;
 #else
-    unit->locklist = m68k_areg (regs, 3);
+    unit->locklist = m68k_areg (&context->regs, 3);
 #endif
-    unit->dummy_message = m68k_areg (regs, 3) + 12;
+    unit->dummy_message = m68k_areg (&context->regs, 3) + 12;
 
     put_long (unit->dummy_message + 10, 0);
 
@@ -2487,7 +2491,7 @@ action_read (Unit *unit, dpacket packet)
 	}
     } else {
 	char *buf;
-	unsigned long old, filesize;
+	off_t old, filesize;
 
 	write_log ("unixfs warning: Bad pointer passed for read: %08x, size %d\n", addr, size);
 	/* ugh this is inefficient but easy */
@@ -3267,13 +3271,13 @@ action_flush (Unit *unit, dpacket packet)
  * know whether AmigaOS takes care of that, but this does. */
 static uae_sem_t singlethread_int_sem;
 
-static uae_u32 exter_int_helper (void)
+static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 {
     UnitInfo *uip = current_mountinfo.ui;
     uaecptr port;
     static int unit_no;
 
-    switch (m68k_dreg (regs, 0)) {
+    switch (m68k_dreg (&context->regs, 0)) {
      case 0:
 	/* Determine whether a given EXTER interrupt is for us. */
 	if (uae_int_requested) {
@@ -3298,8 +3302,8 @@ static uae_u32 exter_int_helper (void)
 	 */
 #ifdef UAE_FILESYS_THREADS
 	{
-	    Unit *unit = find_unit (m68k_areg (regs, 5));
-	    uaecptr msg = m68k_areg (regs, 4);
+	    Unit *unit = find_unit (m68k_areg (&context->regs, 5));
+	    uaecptr msg = m68k_areg (&context->regs, 4);
 	    unit->cmds_complete = unit->cmds_acked;
 	    while (comm_pipe_has_data (unit->ui.back_pipe)) {
 		uaecptr locks, lockend;
@@ -3314,9 +3318,9 @@ static uae_u32 exter_int_helper (void)
 		    lockend = get_long (lockend);
 		    cnt++;
 		}
-		TRACE(("%d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
-		put_long (lockend, get_long (m68k_areg (regs, 3)));
-		put_long (m68k_areg (regs, 3), locks);
+		TRACE(("%d %x %x %x\n", cnt, locks, lockend, m68k_areg (&context->regs, 3)));
+		put_long (lockend, get_long (m68k_areg (&context->regs, 3)));
+		put_long (m68k_areg (&context->regs, 3), locks);
 	    }
 	}
 #else
@@ -3340,26 +3344,26 @@ static uae_u32 exter_int_helper (void)
 	    int cmd = read_comm_pipe_int_blocking (&native2amiga_pending);
 	    switch (cmd) {
 	     case 0: /* Signal() */
-		m68k_areg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
-		m68k_dreg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_dreg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
 		return 2;
 
 	     case 1: /* PutMsg() */
-		m68k_areg (regs, 0) = read_comm_pipe_u32_blocking (&native2amiga_pending);
-		m68k_areg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 0) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
 		return 1;
 
 	     case 2: /* ReplyMsg() */
-		m68k_areg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
 		return 3;
 
 	     case 3: /* Cause() */
-		m68k_areg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
 		return 4;
 
 	     case 4: /* NotifyHack() */
-		m68k_areg (regs, 0) = read_comm_pipe_u32_blocking (&native2amiga_pending);
-		m68k_areg (regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 0) = read_comm_pipe_u32_blocking (&native2amiga_pending);
+		m68k_areg (&context->regs, 1) = read_comm_pipe_u32_blocking (&native2amiga_pending);
 		return 5;
 
 	     default:
@@ -3386,8 +3390,8 @@ static uae_u32 exter_int_helper (void)
 	uip[unit_no].self->cmds_acked = uip[unit_no].self->cmds_sent;
 	port = uip[unit_no].self->port;
 	if (port) {
-	    m68k_areg (regs, 0) = port;
-	    m68k_areg (regs, 1) = find_unit (port)->dummy_message;
+	    m68k_areg (&context->regs, 0) = port;
+	    m68k_areg (&context->regs, 1) = find_unit (port)->dummy_message;
 	    unit_no++;
 	    return 1;
 	}
@@ -3466,7 +3470,7 @@ static void *filesys_thread (void *unit_v)
 {
     UnitInfo *ui = (UnitInfo *)unit_v;
 
-    set_thread_priority (2);
+    uae_set_thread_priority (2);
     for (;;) {
 	uae_u8 *pck;
 	uae_u8 *msg;
@@ -3503,35 +3507,30 @@ static void *filesys_thread (void *unit_v)
 	if (get_long (ui->self->locklist) != 0)
 	    write_comm_pipe_int (ui->back_pipe, (int)(get_long (ui->self->locklist)), 0);
 	put_long (ui->self->locklist, 0);
+
     }
     return 0;
 }
 #endif
 
 /* Talk about spaghetti code... */
-static uae_u32 filesys_handler (void)
+static uae_u32 REGPARAM2 filesys_handler (TrapContext *context)
 {
-    Unit *unit = find_unit (m68k_areg (regs, 5));
-    uaecptr packet_addr = m68k_dreg (regs, 3);
-    uaecptr message_addr = m68k_areg (regs, 4);
+    Unit *unit = find_unit (m68k_areg (&context->regs, 5));
+    uaecptr packet_addr = m68k_dreg (&context->regs, 3);
+    uaecptr message_addr = m68k_areg (&context->regs, 4);
     uae_u8 *pck;
     uae_u8 *msg;
     if (! valid_address (packet_addr, 36) || ! valid_address (message_addr, 14)) {
-	write_log ("Bad address passed for packet.\n");
+	write_log ("FILESYS: Bad address %x/%x passed for packet.\n", packet_addr, message_addr);
 	goto error2;
     }
     pck = get_real_address (packet_addr);
     msg = get_real_address (message_addr);
 
-#if 0
-    if (unit->reset_state == FS_GO_DOWN)
-	/* You might as well queue it, if you live long enough */
-	return 1;
-#endif
-
     do_put_mem_long ((uae_u32 *)(msg + 4), -1);
     if (!unit || !unit->volume) {
-	write_log ("Filesystem was not initialized.\n");
+	write_log ("FILESYS: was not initialized.\n");
 	goto error;
     }
 #ifdef UAE_FILESYS_THREADS
@@ -3540,8 +3539,8 @@ static uae_u32 filesys_handler (void)
 	if (!unit->ui.unit_pipe)
 	    goto error;
 	/* Get two more locks and hand them over to the other thread. */
-	morelocks = get_long (m68k_areg (regs, 3));
-	put_long (m68k_areg (regs, 3), get_long (get_long (morelocks)));
+	morelocks = get_long (m68k_areg (&context->regs, 3));
+	put_long (m68k_areg (&context->regs, 3), get_long (get_long (morelocks)));
 	put_long (get_long (morelocks), 0);
 
 	/* The packet wasn't processed yet. */
@@ -3693,18 +3692,19 @@ static uaecptr uaeresource_startup (uaecptr resaddr)
 }
 */
 
-static uae_u32 filesys_diagentry (void)
+static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 {
-    uaecptr resaddr = m68k_areg (regs, 2) + 0x10;
+    uaecptr resaddr = m68k_areg (&context->regs, 2) + 0x10;
     uaecptr start = resaddr;
     uaecptr residents, tmp;
 
     TRACE (("filesystem: diagentry called\n"));
 
-    filesys_configdev = m68k_areg (regs, 3);
+    filesys_configdev = m68k_areg (&context->regs, 3);
     init_filesys_diagentry ();
 
     uae_sem_init (&singlethread_int_sem, 0, 1);
+    uae_sem_init (&test_sem, 0, 1);
     if (ROM_hardfile_resid != 0) {
 	/* Build a struct Resident. This will set up and initialize
 	 * the uae.device */
@@ -3755,7 +3755,7 @@ static uae_u32 filesys_diagentry (void)
     put_word (resaddr + 14, 0x7001); /* moveq.l #1,d0 */
     put_word (resaddr + 16, RTS);
 
-    m68k_areg (regs, 0) = residents;
+    m68k_areg (&context->regs, 0) = residents;
     return 1;
 }
 
@@ -3767,15 +3767,15 @@ static uae_u32 filesys_diagentry (void)
 #define PP_EXPLIB 412
 #define PP_FSHDSTART 416
 
-static uae_u32 filesys_dev_bootfilesys (void)
+static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
 {
-    uaecptr devicenode = m68k_areg (regs, 3);
-    uaecptr parmpacket = m68k_areg (regs, 1);
+    uaecptr devicenode = m68k_areg (&context->regs, 3);
+    uaecptr parmpacket = m68k_areg (&context->regs, 1);
     uaecptr fsres = get_long (parmpacket + PP_FSRES);
     uaecptr fsnode;
     uae_u32 dostype, dostype2;
     UnitInfo *uip = current_mountinfo.ui;
-    int no = m68k_dreg (regs, 6);
+    int no = m68k_dreg (&context->regs, 6);
     int unit_no = no & 65535;
     int type = is_hardfile (&current_mountinfo, unit_no);
 
@@ -3799,15 +3799,15 @@ static uae_u32 filesys_dev_bootfilesys (void)
 
 /* Remember a pointer AmigaOS gave us so we can later use it to identify
  * which unit a given startup message belongs to.  */
-static uae_u32 filesys_dev_remember (void)
+static uae_u32 REGPARAM2 filesys_dev_remember (TrapContext *context)
 {
-    int no = m68k_dreg (regs, 6);
+    int no = m68k_dreg (&context->regs, 6);
     int unit_no = no & 65535;
     int sub_no = no >> 16;
     UnitInfo *uip = &current_mountinfo.ui[unit_no];
     int i;
-    uaecptr devicenode = m68k_areg (regs, 3);
-    uaecptr parmpacket = m68k_areg (regs, 1);
+    uaecptr devicenode = m68k_areg (&context->regs, 3);
+    uaecptr parmpacket = m68k_areg (&context->regs, 1);
 
     /* copy filesystem loaded from RDB */
     if (get_long (parmpacket + PP_FSPTR)) {
@@ -3817,7 +3817,7 @@ static uae_u32 filesys_dev_remember (void)
 	uip->rdb_filesysstore = 0;
 	uip->rdb_filesyssize = 0;
     }
-    if (m68k_dreg (regs, 3) >= 0)
+    if (m68k_dreg (&context->regs, 3) >= 0)
 	uip->startup = get_long (devicenode + 28);
     return devicenode;
 }
@@ -3994,7 +3994,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     }
 
     if (!(flags & 1)) /* not bootable */
-	m68k_dreg (regs, 7) = 0;
+	m68k_dreg (&regs, 7) = 0;
 
     buf[37 + buf[36]] = 0; /* zero terminate BSTR */
     uip->rdb_devname_amiga[partnum] = ds (device_dupfix (get_long (parmpacket + PP_EXPLIB), buf + 37));
@@ -4181,14 +4181,14 @@ static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecpt
 }
 
 /* Fill in per-unit fields of a parampacket */
-static uae_u32 filesys_dev_storeinfo (void)
+static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 {
     UnitInfo *uip = current_mountinfo.ui;
-    int no = m68k_dreg (regs, 6);
+    int no = m68k_dreg (&context->regs, 6);
     int unit_no = no & 65535;
     int sub_no = no >> 16;
     int type = is_hardfile (&current_mountinfo, unit_no);
-    uaecptr parmpacket = m68k_areg (regs, 0);
+    uaecptr parmpacket = m68k_areg (&context->regs, 0);
 
     if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
 	/* RDB hardfile */
@@ -4238,34 +4238,34 @@ void filesys_install (void)
     fsdevname = ds ("uae.device"); /* does not really exist */
 
     ROM_filesys_diagentry = here();
-    calltrap (deftrap(filesys_diagentry));
+    calltrap (deftrap2(filesys_diagentry, 0, "filesys_diagentry"));
     dw(0x4ED0); /* JMP (a0) - jump to code that inits Residents */
 
     loop = here ();
 
     org (RTAREA_BASE + 0xFF18);
-    calltrap (deftrap (filesys_dev_bootfilesys));
+    calltrap (deftrap2 (filesys_dev_bootfilesys, 0, "filesys_dev_bootfilesys"));
     dw (RTS);
 
     /* Special trap for the assembly make_dev routine */
     org (RTAREA_BASE + 0xFF20);
-    calltrap (deftrap (filesys_dev_remember));
+    calltrap (deftrap2 (filesys_dev_remember, 0, "filesys_dev_remember"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF28);
-    calltrap (deftrap (filesys_dev_storeinfo));
+    calltrap (deftrap2 (filesys_dev_storeinfo, 0, "filesys_dev_storeinfo"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF30);
-    calltrap (deftrap (filesys_handler));
+    calltrap (deftrap2 (filesys_handler, 0, "filesys_handler"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF40);
-    calltrap (deftrap (startup_handler));
+    calltrap (deftrap2 (startup_handler, 0, "startup_handler"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF50);
-    calltrap (deftrap (exter_int_helper));
+    calltrap (deftrap2 (exter_int_helper, 0, "exter_int_helper"));
     dw (RTS);
 
     org (loop);

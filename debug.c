@@ -14,9 +14,7 @@
 #include <ctype.h>
 #include <signal.h>
 
-#include "config.h"
 #include "options.h"
-#include "threaddep/thread.h"
 #include "uae.h"
 #include "memory.h"
 #include "custom.h"
@@ -25,7 +23,6 @@
 #include "debug.h"
 #include "cia.h"
 #include "xwin.h"
-#include "gui.h"
 #include "identify.h"
 #include "sound.h"
 #include "disk.h"
@@ -60,7 +57,7 @@ void activate_debugger (void)
     if (debugger_active)
 	return;
     debugger_active = 1;
-    set_special (SPCFLAG_BRK);
+    set_special (&regs, SPCFLAG_BRK);
     debugging = 1;
     mmu_triggered = 0;
 }
@@ -68,7 +65,6 @@ void activate_debugger (void)
 int firsthist = 0;
 int lasthist = 0;
 static struct regstruct history[MAX_HIST];
-static struct flag_struct historyf[MAX_HIST];
 
 static char help[] = {
     "          HELP for UAE Debugger\n"
@@ -102,7 +98,7 @@ static char help[] = {
     "  Cl                    List currently found trainer addresses\n"
     "  D                     Deep trainer\n"
     "  W <address> <value>   Write into Amiga memory\n"
-    "  w <num> <address> <length> <R/W/RW> [<value>]\n"
+    "  w <num> <address> <length> <R/W/RW/F> [<value>]\n"
     "                        Add/remove memory watchpoints\n"
     "  wd                    Enable illegal access logger\n"
     "  S <file> <addr> <n>   Save a block of Amiga memory\n"
@@ -128,7 +124,8 @@ static void debug_help (void)
 
 static void ignore_ws (char **c)
 {
-    while (**c && isspace(**c)) (*c)++;
+    while (**c && isspace(**c))
+	(*c)++;
 }
 
 static uae_u32 readint (char **c);
@@ -817,6 +814,7 @@ struct memwatch_node {
     int val_enabled;
     uae_u32 modval;
     int modval_written;
+    int frozen;
 };
 static struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
@@ -881,7 +879,7 @@ static void illg_debug_check (uaecptr addr, int rw, int size, uae_u32 val)
 static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
 {
     uae_u8 mask;
-    uae_u32 pc = m68k_getpc ();
+    uae_u32 pc = m68k_getpc (&regs);
     char rws = rw ? 'W' : 'R';
     int i;
 
@@ -920,7 +918,7 @@ static int debug_mem_off (uaecptr addr)
     return munge24 (addr) >> 16;
 }
 
-static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
+static int memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 {
     int i, brk;
 
@@ -928,14 +926,15 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 	illg_debug_do (addr, rw, size, val);
     addr = munge24 (addr);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
-	uaecptr addr2 = mwnodes[i].addr;
-	uaecptr addr3 = addr2 + mwnodes[i].size;
-	int rw2 = mwnodes[i].rw;
+	struct memwatch_node *m = &mwnodes[i];
+	uaecptr addr2 = m->addr;
+	uaecptr addr3 = addr2 + m->size;
+	int rw2 = m->rw;
 
 	brk = 0;
-	if (mwnodes[i].size == 0)
+	if (m->size == 0)
 	    continue;
-	if (mwnodes[i].val_enabled && mwnodes[i].val != val)
+	if (m->val_enabled && m->val != val)
 	    continue;
 	if (rw != rw2 && rw2 < 2)
 	    continue;
@@ -945,18 +944,20 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 	    brk = 1;
 	if (!brk && size == 4 && ((addr + 2 >= addr2 && addr + 2 < addr3) || (addr + 3 >= addr2 && addr + 3 < addr3)))
 	    brk = 1;
-	if (brk && mwnodes[i].modval_written) {
+	if (brk && m->modval_written) {
 	    if (!rw) {
 		brk = 0;
-	    } else if (mwnodes[i].modval_written == 1) {
-		mwnodes[i].modval_written = 2;
-		mwnodes[i].modval = val;
+	    } else if (m->modval_written == 1) {
+		m->modval_written = 2;
+		m->modval = val;
 		brk = 0;
-	    } else if (mwnodes[i].modval == val) {
+	    } else if (m->modval == val) {
 		brk = 0;
 	    }
 	}
 	if (brk) {
+	    if (m->frozen)
+		return 0;
 	    mwhit.addr = addr;
 	    mwhit.rw = rw;
 	    mwhit.size = size;
@@ -965,15 +966,16 @@ static void memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 		mwhit.val = val;
 	    memwatch_triggered = i + 1;
 	    debugging = 1;
-	    set_special (SPCFLAG_BRK);
-	    break;
+	    set_special (&regs, SPCFLAG_BRK);
+	    return 1;
 	}
     }
+    return 1;
 }
 
 static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v);
 
-static uae_u32 REGPARAM mmu_lget (uaecptr addr)
+static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
@@ -981,7 +983,7 @@ static uae_u32 REGPARAM mmu_lget (uaecptr addr)
         v = debug_mem_banks[off]->lget(addr);
     return v;
 }
-static uae_u32 REGPARAM mmu_wget (uaecptr addr)
+static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
@@ -989,7 +991,7 @@ static uae_u32 REGPARAM mmu_wget (uaecptr addr)
         v = debug_mem_banks[off]->wget(addr);
     return v;
 }
-static uae_u32 REGPARAM mmu_bget (uaecptr addr)
+static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
@@ -1016,7 +1018,7 @@ static void REGPARAM2 mmu_bput (uaecptr addr, uae_u32 v)
 	debug_mem_banks[off]->bput(addr, v);
 }
 
-static uae_u32 REGPARAM debug_lget (uaecptr addr)
+static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
@@ -1043,20 +1045,20 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    memwatch_func (addr, 1, 4, v);
-    debug_mem_banks[off]->lput(addr, v);
+    if (memwatch_func (addr, 1, 4, v))
+	debug_mem_banks[off]->lput(addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    memwatch_func (addr, 1, 2, v);
-    debug_mem_banks[off]->wput(addr, v);
+    if (memwatch_func (addr, 1, 2, v))
+	debug_mem_banks[off]->wput(addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    memwatch_func (addr, 1, 1, v);
-    debug_mem_banks[off]->bput(addr, v);
+    if (memwatch_func (addr, 1, 1, v))
+	debug_mem_banks[off]->bput(addr, v);
 }
 
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
@@ -1133,7 +1135,7 @@ static void memwatch_dump (int num)
 		continue;
 	    console_out ("%d: %08.8X - %08.8X (%d) %s",
 		i, mwn->addr, mwn->addr + (mwn->size - 1), mwn->size,
-		mwn->rw == 0 ? "R" : (mwn->rw == 1 ? "W" : "RW"));
+		mwn->frozen ? "F" : (mwn->rw == 0 ? "R" : (mwn->rw == 1 ? "W" : "RW")));
 	    if (mwn->val_enabled)
 		console_out (" =%X", mwn->val);
 	    if (mwn->modval_written)
@@ -1205,6 +1207,7 @@ static void memwatch (char **c)
     mwn->size = 1;
     mwn->rw = 2;
     mwn->val_enabled = 0;
+    mwn->frozen = 0;
     mwn->modval_written = 0;
     ignore_ws (c);
     if (more_params (c)) {
@@ -1212,7 +1215,9 @@ static void memwatch (char **c)
 	ignore_ws (c);
 	if (more_params (c)) {
 	    char nc = toupper (next_char (c));
-	    if (nc == 'W')
+	    if (nc == 'F')
+		mwn->frozen = 1;
+	    else if (nc == 'W')
 		mwn->rw = 1;
 	    else if (nc == 'R' && toupper(**c) != 'W')
 		mwn->rw = 0;
@@ -1620,19 +1625,19 @@ static void m68k_modify (char **inptr)
 	regs.vbr = v;
     else if (!strcmp (parm, "USP")) {
 	regs.usp = v;
-	MakeFromSR ();
+	MakeFromSR (&regs);
     } else if (!strcmp (parm, "ISP")) {
 	regs.isp = v;
-	MakeFromSR ();
+	MakeFromSR (&regs);
     } else if (!strcmp (parm, "MSP")) {
 	regs.msp = v;
-	MakeFromSR ();
+	MakeFromSR (&regs);
     } else if (!strcmp (parm, "SR")) {
 	regs.sr = v;
-	MakeFromSR ();
+	MakeFromSR (&regs);
     } else if (!strcmp (parm, "CCR")) {
 	regs.sr = (regs.sr & ~15) | (v & 15);
-	MakeFromSR ();
+	MakeFromSR (&regs);
     }
 }
 
@@ -1712,7 +1717,7 @@ static void debug_1 (void)
 		skipaddr_doskip = readint (&inptr);
 	    if (skipaddr_doskip <= 0 || skipaddr_doskip > 10000)
 		skipaddr_doskip = 1;
-	    set_special (SPCFLAG_BRK);
+	    set_special (&regs, SPCFLAG_BRK);
 	    exception_debugging = 1;
 	    return;
 	case 'z':
@@ -1739,8 +1744,8 @@ static void debug_1 (void)
 
 	case 'g':
 	    if (more_params (&inptr)) {
-		m68k_setpc (readhex (&inptr));
-		fill_prefetch_slow ();
+		m68k_setpc (&regs, readhex (&inptr));
+		fill_prefetch_slow (&regs);
 	    }
 	    debugger_active = 0;
 	    debugging = 0;
@@ -1750,9 +1755,8 @@ static void debug_1 (void)
 	case 'H':
 	{
 	    int count, temp, badly;
-	    uae_u32 oldpc = m68k_getpc();
+	    uae_u32 oldpc = m68k_getpc(&regs);
 	    struct regstruct save_regs = regs;
-	    struct flag_struct save_flags = regflags;
 
 	    badly = 0;
 	    if (inptr[0] == 'H') {
@@ -1775,8 +1779,7 @@ static void debug_1 (void)
 	    }
 	    while (temp != lasthist) {
 		regs = history[temp];
-		regflags = historyf[temp];
-		m68k_setpc(history[temp].pc);
+		m68k_setpc(&regs, history[temp].pc);
 		if (badly) {
 		    m68k_dumpstate(stdout, NULL);
 		} else {
@@ -1786,8 +1789,7 @@ static void debug_1 (void)
 		    temp = 0;
 	    }
 	    regs = save_regs;
-	    regflags = save_flags;
-	    m68k_setpc(oldpc);
+	    m68k_setpc(&regs, oldpc);
 	}
 	break;
 	case 'm':
@@ -1847,8 +1849,7 @@ static void debug_1 (void)
 static void addhistory(void)
 {
     history[lasthist] = regs;
-    history[lasthist].pc = m68k_getpc();
-    historyf[lasthist] = regflags;
+    history[lasthist].pc = m68k_getpc(&regs);
     if (++lasthist == MAX_HIST)
 	lasthist = 0;
     if (lasthist == firsthist) {
@@ -1887,7 +1888,7 @@ void debug (void)
 
     if (!memwatch_triggered) {
 	if (do_skip) {
-	    uae_u32 pc = munge24 (m68k_getpc());
+	    uae_u32 pc = munge24 (m68k_getpc(&regs));
 	    uae_u16 opcode = (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
 	    int bp = 0;
 
@@ -1920,7 +1921,7 @@ void debug (void)
 		}
 	    }
 	    if (!bp) {
-		set_special (SPCFLAG_BRK);
+		set_special (&regs, SPCFLAG_BRK);
 		return;
 	    }
 	}
@@ -1932,7 +1933,7 @@ void debug (void)
     if (skipaddr_doskip > 0) {
 	skipaddr_doskip--;
 	if (skipaddr_doskip > 0) {
-	    set_special (SPCFLAG_BRK);
+	    set_special (&regs, SPCFLAG_BRK);
 	    return;
 	}
     }
@@ -1965,8 +1966,8 @@ void debug (void)
 	    do_skip = 1;
     }
     if (do_skip) {
-	set_special (SPCFLAG_BRK);
-	unset_special (SPCFLAG_STOP);
+	set_special (&regs, SPCFLAG_BRK);
+	unset_special (&regs, SPCFLAG_STOP);
 	debugging = 1;
     }
     resume_sound ();
@@ -1975,7 +1976,7 @@ void debug (void)
 
 int notinrom (void)
 {
-    if (munge24 (m68k_getpc()) < 0xe0000)
+    if (munge24 (m68k_getpc(&regs)) < 0xe0000)
 	return 1;
     return 0;
 }
@@ -2019,10 +2020,15 @@ static struct mmunode **mmunl;
 #define MMU_WRITE_U (1 << 1)
 #define MMU_READ_S (1 << 2)
 #define MMU_WRITE_S (1 << 3)
-#define MMU_MAP_READ_U (1 << 4)
-#define MMU_MAP_WRITE_U (1 << 5)
-#define MMU_MAP_READ_S (1 << 6)
-#define MMU_MAP_WRITE_S (1 << 7)
+#define MMU_READI_U (1 << 4)
+#define MMU_READI_S (1 << 5)
+
+#define MMU_MAP_READ_U (1 << 8)
+#define MMU_MAP_WRITE_U (1 << 9)
+#define MMU_MAP_READ_S (1 << 10)
+#define MMU_MAP_WRITE_S (1 << 11)
+#define MMU_MAP_READI_U (1 << 12)
+#define MMU_MAP_READI_S (1 << 13)
 
 void mmu_do_hit(void)
 {
@@ -2031,62 +2037,62 @@ void mmu_do_hit(void)
     uae_u32 pc;
 
     mmu_triggered = 0;
-    pc = m68k_getpc();
+    pc = m68k_getpc(&regs);
     p = mmu_regs + 18 * 4;
     put_long (p, pc);
     regs = mmu_backup_regs;
     regs.intmask = 7;
     regs.t0 = regs.t1 = 0;
     if (!regs.s) {
-	regs.usp = m68k_areg(regs, 7);
+	regs.usp = m68k_areg(&regs, 7);
 	if (currprefs.cpu_level >= 2)
-	    m68k_areg(regs, 7) = regs.m ? regs.msp : regs.isp;
+	    m68k_areg(&regs, 7) = regs.m ? regs.msp : regs.isp;
 	else
-	    m68k_areg(regs, 7) = regs.isp;
+	    m68k_areg(&regs, 7) = regs.isp;
 	regs.s = 1;
     }
-    MakeSR();
-    m68k_setpc(mmu_callback);
-    fill_prefetch_slow ();
+    MakeSR (&regs);
+    m68k_setpc (&regs, mmu_callback);
+    fill_prefetch_slow (&regs);
 
     if (currprefs.cpu_level > 0) {
 	for (i = 0 ; i < 9; i++) {
-	    m68k_areg(regs, 7) -= 4;
-	    put_long (m68k_areg(regs, 7), 0);
+	    m68k_areg(&regs, 7) -= 4;
+	    put_long (m68k_areg(&regs, 7), 0);
 	}
-	m68k_areg(regs, 7) -= 4;
-	put_long (m68k_areg(regs, 7), mmu_fault_addr);
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), 0); /* WB1S */
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), 0); /* WB2S */
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), 0); /* WB3S */
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7),
+	m68k_areg(&regs, 7) -= 4;
+	put_long (m68k_areg(&regs, 7), mmu_fault_addr);
+	m68k_areg(&regs, 7) -= 2;
+	put_word (m68k_areg(&regs, 7), 0); /* WB1S */
+	m68k_areg(&regs, 7) -= 2;
+	put_word (m68k_areg(&regs, 7), 0); /* WB2S */
+	m68k_areg(&regs, 7) -= 2;
+	put_word (m68k_areg(&regs, 7), 0); /* WB3S */
+	m68k_areg(&regs, 7) -= 2;
+	put_word (m68k_areg(&regs, 7),
 	    (mmu_fault_rw ? 0 : 0x100) | (mmu_fault_size << 5)); /* SSW */
-	m68k_areg(regs, 7) -= 4;
-	put_long (m68k_areg(regs, 7), mmu_fault_bank_addr);
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), 0x7002);
+	m68k_areg(&regs, 7) -= 4;
+	put_long (m68k_areg(&regs, 7), mmu_fault_bank_addr);
+	m68k_areg(&regs, 7) -= 2;
+	put_word (m68k_areg(&regs, 7), 0x7002);
     }
-    m68k_areg(regs, 7) -= 4;
-    put_long (m68k_areg(regs, 7), get_long (p - 4));
-    m68k_areg(regs, 7) -= 2;
-    put_word (m68k_areg(regs, 7), mmur.sr);
+    m68k_areg(&regs, 7) -= 4;
+    put_long (m68k_areg(&regs, 7), get_long (p - 4));
+    m68k_areg(&regs, 7) -= 2;
+    put_word (m68k_areg(&regs, 7), mmur.sr);
 
-    set_special(SPCFLAG_END_COMPILE);
+    set_special(&regs, SPCFLAG_END_COMPILE);
 }
 
-static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, uae_u32 v)
+static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rwi, uae_u32 v)
 {
     uae_u32 p, pc;
     int i;
 
     mmur = regs;
-    pc = m68k_getpc();
+    pc = m68k_getpc(&regs);
     if (mmu_logging)
-	console_out ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rw, v, pc);
+	console_out ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rwi, v, pc);
 
     p = mmu_regs;
     put_long (p, 0); p += 4;
@@ -2100,18 +2106,18 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rw, 
     put_long (p, regs.isp); p += 4;
     put_long (p, regs.msp); p += 4;
     put_word (p, regs.sr); p += 2;
-    put_word (p, (size << 1) | (rw ? 1 : 0)); /* size and rw */ p += 2;
+    put_word (p, (size << 1) | ((rwi & 2) ? 1 : 0)); /* size and rw */ p += 2;
     put_long (p, addr); /* fault address */ p += 4;
     put_long (p, md->p_addr); /* bank address */ p += 4;
     put_long (p, v); p += 4;
     mmu_fault_addr = addr;
     mmu_fault_bank_addr = md->p_addr;
     mmu_fault_size = size;
-    mmu_fault_rw = rw;
+    mmu_fault_rw = rwi;
     mmu_triggered = 1;
 }
 
-static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v)
+static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v)
 {
     int s, trig;
     uae_u32 flags;
@@ -2130,23 +2136,27 @@ static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v)
 	md = mn->mmubank;
 	if (addr >= md->addr && addr < md->addr + md->len) {
 	    flags = md->flags;
-	    if (flags & (MMU_MAP_READ_U | MMU_MAP_WRITE_U | MMU_MAP_READ_S | MMU_MAP_WRITE_S)) {
+	    if (flags & (MMU_MAP_READ_U | MMU_MAP_WRITE_U | MMU_MAP_READ_S | MMU_MAP_WRITE_S | MMU_MAP_READI_U | MMU_MAP_READI_S)) {
 		trig = 0;
-		if (!s && (flags & MMU_MAP_READ_U) && !rw)
+		if (!s && (flags & MMU_MAP_READ_U) && (rwi & 1))
 		    trig = 1;
-		if (!s && (flags & MMU_MAP_WRITE_U) && rw)
+		if (!s && (flags & MMU_MAP_WRITE_U) && (rwi & 2))
 		    trig = 1;
-		if (s && (flags & MMU_MAP_READ_S) && !rw)
+		if (s && (flags & MMU_MAP_READ_S) && (rwi & 1))
 		    trig = 1;
-		if (s && (flags & MMU_MAP_WRITE_S) && rw)
+		if (s && (flags & MMU_MAP_WRITE_S) && (rwi & 2))
+		    trig = 1;
+		if (!s && (flags & MMU_MAP_READI_U) && (rwi & 4))
+		    trig = 1;
+		if (s && (flags & MMU_MAP_READI_S) && (rwi & 4))
 		    trig = 1;
 		if (trig) {
 		    uaecptr maddr = md->remap + (addr - md->addr);
 		    if (maddr == addr) /* infinite mmu hit loop? no thanks.. */
 			return 1;
 		    if (mmu_logging)
-			console_out ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rw);
-		    if (rw) {
+			console_out ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rwi);
+		    if ((rwi & 2)) {
 			switch (size)
 			{
 			    case 4:
@@ -2176,18 +2186,22 @@ static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v)
 		    return 1;
 		}
 	    }
-	    if (flags & (MMU_READ_U | MMU_WRITE_U | MMU_READ_S | MMU_WRITE_S)) {
+	    if (flags & (MMU_READ_U | MMU_WRITE_U | MMU_READ_S | MMU_WRITE_S | MMU_READI_U | MMU_READI_S)) {
 		trig = 0;
-		if (!s && (flags & MMU_READ_U) && !rw)
+		if (!s && (flags & MMU_READ_U) && (rwi & 1))
 		    trig = 1;
-		if (!s && (flags & MMU_WRITE_U) && rw)
+		if (!s && (flags & MMU_WRITE_U) && (rwi & 2))
 		    trig = 1;
-		if (s && (flags & MMU_READ_S) && !rw)
+		if (s && (flags & MMU_READ_S) && (rwi & 1))
 		    trig = 1;
-		if (s && (flags & MMU_WRITE_S) && rw)
+		if (s && (flags & MMU_WRITE_S) && (rwi & 2))
+		    trig = 1;
+		if (!s && (flags & MMU_READI_U) && (rwi & 4))
+		    trig = 1;
+		if (s && (flags & MMU_READI_S) && (rwi & 4))
 		    trig = 1;
 		if (trig) {
-		    mmu_do_hit_pre (md, addr, size, rw, *v);
+		    mmu_do_hit_pre (md, addr, size, rwi, *v);
 		    return 1;
 		}
 	    }
@@ -2329,6 +2343,6 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     initialize_memwatch(1);
     console_out ("MMU: enabled, %d banks, CB=%08.8X S=%08.8X BNK=%08.8X SF=%08.8X, %d*%d\n",
 	size - 1, mmu_callback, parm, banks, mmu_regs, mmu_slots, 1 << MMU_PAGE_SHIFT);
-    set_special (SPCFLAG_BRK);
+    set_special (&regs, SPCFLAG_BRK);
     return 1;
 }

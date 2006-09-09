@@ -1130,10 +1130,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\support.c"
-				>
-			</File>
-			<File
 				RelativePath="..\win32.c"
 				>
 			</File>
@@ -1513,6 +1509,10 @@
 			</File>
 			<File
 				RelativePath="..\..\scsiemul.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\traps.c"
 				>
 			</File>
 			<File

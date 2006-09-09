@@ -16,17 +16,12 @@
  *   2002.05.xx  1.2    Bernd Roesch    - sysex in/MTC/Song Position pointer add
  */ 
 
-#include "config.h"
 #include "sysconfig.h"
 #include <windows.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#ifdef _MSC_VER
 #include <mmsystem.h>
 #include <ddraw.h>
-#else
-#include "winstuff.h"
-#endif
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>

@@ -6,11 +6,6 @@
  * Copyright 1999 Brian King, under GNU Public License
  *
  */
-#ifndef _MSC_VER
-#define INITGUID
-#endif
-
-#include "config.h"
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -19,14 +14,10 @@
 #include <windows.h>
 #include <sys/timeb.h>
 
-#ifdef _MSC_VER
 #include <mmsystem.h>
 #include <ddraw.h>
 #include <dsound.h>
 #include <dxerr8.h>
-#else
-#include "winstuff.h"
-#endif
 
 #include "sysdeps.h"
 #include "options.h"

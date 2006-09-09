@@ -15,44 +15,31 @@
 
 #if defined(AHI)
 
-#ifdef __GNUC__
-#define INITGUID
-#endif 
+#include <ctype.h>
+#include <assert.h>
+
 #include <windows.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <mmsystem.h>
 #include <dsound.h>
 #include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <io.h>
-#include "winspool.h"
-#include "sysdeps.h"
 
-#include "config.h"
+#include "sysdeps.h"
 #include "options.h"
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
-#include "gensound.h"
 #include "newcpu.h"
-#include "threaddep/thread.h"
-#include <ctype.h>
-#include <assert.h>
+#include "traps.h"
 #include "od-win32/win32.h"
-#include "gui.h"
 #include "picasso96_win.h"
 #include "sounddep/sound.h"
-#include "od-win32/ahidsound.h"
-#include "vfw.h"
 #include "dxwrap.h"
 #include "win32.h"
 #include "win32gfx.h"
-#include "inputdevice.h"
-#include "avioutput.h"
 #include "parser.h"
 #include "enforcer.h"
+#include "ahidsound.h"
 
 static long samples,playchannel,intcount,norec;
 int ahi_on;
@@ -107,23 +94,23 @@ static struct winuae *a6;
 #define SET_NATIVE_FUNC2(x) native_func = (uae_u32 (*)(uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,uae_u32,uae_u32))(x)
 #define CALL_NATIVE_FUNC2( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7) if(native_func) return native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7,regs_ )
 
-static uae_u32 emulib_ExecuteNativeCode2 (void)
+static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 { 
-    uae_u8* object_UAM = (uae_u8*) m68k_areg( regs, 0 );
-    uae_u32 d1 = m68k_dreg( regs, 1 );
-    uae_u32 d2 = m68k_dreg( regs, 2 );
-    uae_u32 d3 = m68k_dreg( regs, 3 );
-    uae_u32 d4 = m68k_dreg( regs, 4 );
-    uae_u32 d5 = m68k_dreg( regs, 5 );
-    uae_u32 d6 = m68k_dreg( regs, 6 );
-    uae_u32 d7 = m68k_dreg( regs, 7 );
-    uae_u32 a1 = m68k_areg( regs, 1 );
-    uae_u32 a2 = m68k_areg( regs, 2 );
-    uae_u32 a3 = m68k_areg( regs, 3 );
-    uae_u32 a4 = m68k_areg( regs, 4 );
-    uae_u32 a5 = m68k_areg( regs, 5 );
-    uae_u32 a7 = m68k_areg( regs, 7 );
-    uae_u32 regs_ = (uae_u32)&regs;
+    uae_u8* object_UAM = (uae_u8*) m68k_areg(&context->regs, 0);
+    uae_u32 d1 = m68k_dreg(&context->regs, 1);
+    uae_u32 d2 = m68k_dreg(&context->regs, 2);
+    uae_u32 d3 = m68k_dreg(&context->regs, 3);
+    uae_u32 d4 = m68k_dreg(&context->regs, 4);
+    uae_u32 d5 = m68k_dreg(&context->regs, 5);
+    uae_u32 d6 = m68k_dreg(&context->regs, 6);
+    uae_u32 d7 = m68k_dreg(&context->regs, 7);
+    uae_u32 a1 = m68k_areg(&context->regs, 1);
+    uae_u32 a2 = m68k_areg(&context->regs, 2);
+    uae_u32 a3 = m68k_areg(&context->regs, 3);
+    uae_u32 a4 = m68k_areg(&context->regs, 4);
+    uae_u32 a5 = m68k_areg(&context->regs, 5);
+    uae_u32 a7 = m68k_areg(&context->regs, 7);
+    uae_u32 regs_ = (uae_u32)&context->regs;
     CREATE_NATIVE_FUNC_PTR2;
     uaevar.z3offset = (uae_u32)(get_real_address (0x10000000) - 0x10000000);
     uaevar.amigawnd = hAmigaWnd;
@@ -503,7 +490,7 @@ static void *bswap_buffer = NULL;
 static uae_u32 bswap_buffer_size = 0;
 static double syncdivisor;
 
-uae_u32 ahi_demux (void)
+uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 {
 //use the extern int (6 #13)  
 // d0 0=opensound      d1=unit d2=samplerate d3=blksize ret: sound frequency
@@ -538,7 +525,7 @@ uae_u32 ahi_demux (void)
 // d0=108 free swap array
 // d0=200 ahitweak		 d1=offset for dsound position pointer
 
-    int opcode = m68k_dreg (regs, 0);
+    int opcode = m68k_dreg (&context->regs, 0);
     switch (opcode)
     {
 	int i,slen,t,todo,byte1,byte2;
@@ -552,17 +539,17 @@ uae_u32 ahi_demux (void)
 	    cap_pos = 0;
 	    sound_bits_ahi = 16;
 	    sound_channels_ahi = 2;
-	    sound_freq_ahi = m68k_dreg (regs, 2);
-	    amigablksize = m68k_dreg (regs, 3);
+	    sound_freq_ahi = m68k_dreg (&context->regs, 2);
+	    amigablksize = m68k_dreg (&context->regs, 3);
 	    sound_freq_ahi = ahi_open_sound();
 	    uaevar.changenum--;
 	return sound_freq_ahi;
 	case 6: /* new open function */
 	    cap_pos = 0;
-	    sound_freq_ahi = m68k_dreg (regs, 2);
-	    amigablksize = m68k_dreg (regs, 3);
-	    sound_channels_ahi = m68k_dreg (regs, 4);
-	    sound_bits_ahi = m68k_dreg (regs, 5);
+	    sound_freq_ahi = m68k_dreg (&context->regs, 2);
+	    amigablksize = m68k_dreg (&context->regs, 3);
+	    sound_channels_ahi = m68k_dreg (&context->regs, 4);
+	    sound_bits_ahi = m68k_dreg (&context->regs, 5);
 	    sound_freq_ahi = ahi_open_sound();
 	    uaevar.changenum--;
 	return sound_freq_ahi;
@@ -574,7 +561,7 @@ uae_u32 ahi_demux (void)
 
 	case 2:
 	{
-	    uaecptr addr = m68k_areg (regs, 0);
+	    uaecptr addr = m68k_areg (&context->regs, 0);
 	    for (i = 0; i < amigablksize * 4; i += 4)
 		*ahisndbufpt++ = get_long(addr + i);
 	    ahi_finish_sound_buffer();
@@ -609,7 +596,7 @@ uae_u32 ahi_demux (void)
 	    } else {
 		cap_pos = 0;
 	    }  
-	    addr = m68k_areg (regs, 0);
+	    addr = m68k_areg (&context->regs, 0);
 	    sndbufrecpt = (unsigned int*)pos1;
 	    t=t/4;
 	    for (i = 0; i < t; i++) {
@@ -647,13 +634,13 @@ uae_u32 ahi_demux (void)
 
 	case 11:
 	    for (i = 0; i < clipsize; i++)
-		put_byte(m68k_areg (regs, 0) + i,clipdat[i]);
+		put_byte(m68k_areg (&context->regs, 0) + i,clipdat[i]);
 	    CloseClipboard();
 	return 0;
 
 	case 12:
 	{
-	    uae_u8 *addr = get_real_address (m68k_areg (regs, 0));
+	    uae_u8 *addr = get_real_address (m68k_areg (&context->regs, 0));
 	    if (OpenClipboard (0)) {
 		EmptyClipboard();
 		slen = strlen(addr);
@@ -679,15 +666,15 @@ uae_u32 ahi_demux (void)
 	    extern uae_u16 vtotal;
 	    extern unsigned int new_beamcon0;
 	    p96hack_vpos2 = 0;
-	    if (m68k_dreg (regs, 1) > 0)
-	    p96hack_vpos2 = 15625 / m68k_dreg (regs, 1);
+	    if (m68k_dreg (&context->regs, 1) > 0)
+	    p96hack_vpos2 = 15625 / m68k_dreg (&context->regs, 1);
 	    p96refresh_active=1;
 	    picasso_refresh (0);
 	} //end for higher P96 mouse draw rate
 	return 0;
 
 	case 20:
-	return enforcer_enable(m68k_dreg (regs, 1));
+	return enforcer_enable(m68k_dreg (&context->regs, 1));
 
 	case 21:
 	return enforcer_disable();
@@ -702,7 +689,7 @@ uae_u32 ahi_demux (void)
 	{
 	    char *dllname;
 	    uae_u32 result;
-	    dllname = ( char *) m68k_areg (regs, 0);
+	    dllname = ( char *) m68k_areg (&context->regs, 0);
 	    dllname = (char *)get_real_address ((uae_u32)dllname);
 	    result=(uae_u32) LoadLibrary(dllname);
 	    write_log("%s windows dll/alib loaded at %d (0 mean failure)\n",dllname,result); 
@@ -714,8 +701,8 @@ uae_u32 ahi_demux (void)
 	{
 	    HMODULE m;
 	    char *funcname;
-	    m = (HMODULE) m68k_dreg (regs, 1);
-	    funcname = (char *)m68k_areg (regs, 0);
+	    m = (HMODULE) m68k_dreg (&context->regs, 1);
+	    funcname = (char *)m68k_areg (&context->regs, 0);
 	    funcname = (char *)get_real_address ((uae_u32)funcname);
 	return (uae_u32) GetProcAddress(m,funcname);
 	}
@@ -726,7 +713,7 @@ uae_u32 ahi_demux (void)
 	    unsigned long rate1;
 	    double v;
 	    rate1 = read_processor_time(); 
-	    ret = emulib_ExecuteNativeCode2 ();
+	    ret = emulib_ExecuteNativeCode2 (context);
 	    rate1 = read_processor_time() - rate1;
 	    v = syncdivisor * rate1;
 	    if (v > 0) {
@@ -740,7 +727,7 @@ uae_u32 ahi_demux (void)
 	case 103:	//close dll
 	{
 	    HMODULE libaddr;
-	    libaddr = (HMODULE) m68k_dreg (regs, 1);
+	    libaddr = (HMODULE) m68k_dreg (&context->regs, 1);
 	    FreeLibrary(libaddr);
 	    return 0;
 	}
@@ -762,8 +749,8 @@ uae_u32 ahi_demux (void)
 		    //a0 = start address
 		    //d1 = number of 16bit vars
 		    //returns address of new array
-	    src = m68k_areg(regs, 0);
-	    num_vars = m68k_dreg(regs, 1);
+	    src = m68k_areg(&context->regs, 0);
+	    num_vars = m68k_dreg(&context->regs, 1);
 
 	    if (bswap_buffer_size < num_vars * 2) {
 		bswap_buffer_size = (num_vars + 1024) * 2;
@@ -825,8 +812,8 @@ uae_u32 ahi_demux (void)
 		    //a0 = start address
 		    //d1 = number of 32bit vars
 		    //returns address of new array
-	    src = m68k_areg(regs, 0);
-	    num_vars = m68k_dreg(regs, 1);
+	    src = m68k_areg(&context->regs, 0);
+	    num_vars = m68k_dreg(&context->regs, 1);
 	    if (bswap_buffer_size < num_vars * 4) {
 		bswap_buffer_size = (num_vars + 16384) * 4;
 		free(bswap_buffer);
@@ -882,8 +869,8 @@ uae_u32 ahi_demux (void)
 #endif
 
 	case 200:
-	    ahitweak = m68k_dreg (regs, 1);
-	    ahi_pollrate = m68k_dreg (regs, 2);
+	    ahitweak = m68k_dreg (&context->regs, 1);
+	    ahi_pollrate = m68k_dreg (&context->regs, 2);
 	    if (ahi_pollrate < 10)
 		ahi_pollrate = 10;
 	    if (ahi_pollrate > 60)

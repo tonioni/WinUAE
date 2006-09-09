@@ -13,7 +13,7 @@
 #include "memory.h"
 #include "identify.h"
 
-struct mem_labels int_labels[] =
+const struct mem_labels int_labels[] =
 {
     { "Reset:SSP",  0x0000 },
     { "EXECBASE",   0x0004 },
@@ -39,7 +39,7 @@ struct mem_labels int_labels[] =
     { 0, 0 }
 };
 
-struct mem_labels trap_labels[] =
+const struct mem_labels trap_labels[] =
 {
     { "TRAP 00",    0x0080 },
     { "TRAP 01",    0x0084 },
@@ -60,7 +60,7 @@ struct mem_labels trap_labels[] =
     { 0, 0 }
 };
 
-struct mem_labels mem_labels[] =
+const struct mem_labels mem_labels[] =
 {
     { "CIAB PRA",   0xBFD000 },
     { "CIAB PRB",   0xBFD100 },
@@ -114,7 +114,7 @@ struct mem_labels mem_labels[] =
 /* This table was generated from the list of AGA chip names in
  * AGA.guide available on aminet. It could well have errors in it. */
 
-struct customData custd[] =
+const struct customData custd[] =
 {
 #if 0
     { "BLTDDAT",  0xdff000 }, /* Blitter dest. early read (dummy address) */

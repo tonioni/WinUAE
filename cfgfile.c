@@ -12,9 +12,7 @@
 
 #include <ctype.h>
 
-#include "config.h"
 #include "options.h"
-#include "threaddep/thread.h"
 #include "uae.h"
 #include "autoconf.h"
 #include "events.h"
@@ -39,7 +37,7 @@ struct cfg_lines
     const char *config_label, *config_help;
 };
 
-static struct cfg_lines opttable[] =
+static const struct cfg_lines opttable[] =
 {
     {"help", "Prints this help" },
     {"config_description", "" },
@@ -2230,7 +2228,7 @@ uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae
 		    break;
 		}
 	    }
-	    set_special (SPCFLAG_BRK);
+	    set_special (&regs, SPCFLAG_BRK);
 	    i++;
 	}
     }

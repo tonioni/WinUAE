@@ -29,7 +29,6 @@
 
 #include <assert.h>
 
-#include "config.h"
 #include "options.h"
 #include "threaddep/thread.h"
 #include "memory.h"
@@ -38,7 +37,6 @@
 #include "xwin.h"
 #include "autoconf.h"
 #include "osemu.h"
-#include "osdep/exectasks.h"
 
 #ifdef USE_EXECLIB
 

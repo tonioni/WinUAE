@@ -16,6 +16,6 @@ struct uae_xcmd {
 #define UAEEXE_NOMEM       2
 
 extern void uaeexe_install(void);
-extern int  uaeexe(char *cmd);
+extern int  uaeexe(const char *cmd);
 
 

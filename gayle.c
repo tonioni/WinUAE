@@ -146,7 +146,7 @@ static int gayle_read (uaecptr addr, int size)
     special_mem |= S_READ;
 #endif
     if (GAYLE_LOG)
-	write_log ("GAYLE_READ %08.8X PC=%08.8X\n", addr, m68k_getpc());
+	write_log ("GAYLE_READ %08.8X PC=%08.8X\n", addr, M68K_GETPC);
     addr &= 0xfffff;
     if(addr >= 0xa0000 && addr <= 0xaffff)
 	return ide_read(addr, size);
@@ -162,7 +162,7 @@ static void gayle_write (uaecptr addr, int val, int size)
     special_mem |= S_WRITE;
 #endif
     if (GAYLE_LOG)
-	write_log ("GAYLE_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, m68k_getpc());
+	write_log ("GAYLE_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, M68K_GETPC);
     addr &= 0x3ffff;
     if(addr >= 0xa0000 && addr <= 0xaffff)
 	ide_write(addr, val, size);
@@ -170,12 +170,12 @@ static void gayle_write (uaecptr addr, int val, int size)
 	ide_write(addr, val, size);
 }
 
-static uae_u32 gayle_lget (uaecptr) REGPARAM;
-static uae_u32 gayle_wget (uaecptr) REGPARAM;
-static uae_u32 gayle_bget (uaecptr) REGPARAM;
-static void gayle_lput (uaecptr, uae_u32) REGPARAM;
-static void gayle_wput (uaecptr, uae_u32) REGPARAM;
-static void gayle_bput (uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 gayle_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_bget (uaecptr) REGPARAM;
+static void REGPARAM3 gayle_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_bput (uaecptr, uae_u32) REGPARAM;
 
 addrbank gayle_bank = {
     gayle_lget, gayle_wget, gayle_bget,

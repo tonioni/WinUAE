@@ -295,6 +295,11 @@ extern void gettimeofday( struct timeval *tv, void *blah );
 #define FILEFLAG_SCRIPT  0x20
 #define FILEFLAG_PURE    0x40
 
+#ifdef REGPARAM2
+#undef REGPARAM2
+#endif
+#define REGPARAM2 __fastcall
+#define REGPARAM3 __fastcall
 #define REGPARAM
 
 #include <io.h>
@@ -497,3 +502,26 @@ extern void logging_init(void);
  * Best to leave this as it is.
  */
 #define CPU_EMU_SIZE 0
+
+/*
+ * Byte-swapping functions
+ */
+
+/* Try to use system bswap_16/bswap_32 functions. */
+#if defined HAVE_BSWAP_16 && defined HAVE_BSWAP_32
+# include <byteswap.h>
+#  ifdef HAVE_BYTESWAP_H
+#  include <byteswap.h>
+# endif
+#else
+/* Else, if using SDL, try SDL's endian functions. */
+# ifdef USE_SDL
+#  include <SDL_endian.h>
+#  define bswap_16(x) SDL_Swap16(x)
+#  define bswap_32(x) SDL_Swap32(x)
+# else
+/* Otherwise, we'll roll our own. */
+#  define bswap_16(x) (((x) >> 8) | (((x) & 0xFF) << 8))
+#  define bswap_32(x) (((x) << 24) | (((x) << 8) & 0x00FF0000) | (((x) >> 8) & 0x0000FF00) | ((x) >> 24))
+# endif
+#endif

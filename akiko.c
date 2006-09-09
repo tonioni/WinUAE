@@ -14,9 +14,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
-#include "uae.h"
 #include "memory.h"
 #include "events.h"
 #include "savestate.h"
@@ -945,7 +943,6 @@ void AKIKO_hsync_handler (void)
 	    gui_cd_led (1);
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
-	framecounter = 1000000 / (74 * 75 * cdrom_speed);
 	cdrom_status1 |= CDSTATUS_FRAME;
     }
     akiko_internal ();
@@ -1007,11 +1004,11 @@ static void *akiko_thread (void	*null)
     return 0;
 }
 
-static uae_u8 akiko_get_long (uae_u32 v, int offset)
+STATIC_INLINE uae_u8 akiko_get_long (uae_u32 v, int offset)
 {
     return v >> ((3 - offset) * 8);
 }
-static void akiko_put_long (uae_u32 *p,	int offset, int	v)
+STATIC_INLINE void akiko_put_long (uae_u32 *p, int offset, int v)
 {
     *p &= ~(0xff << ((3 - offset) * 8));
     *p |= v << ((3 - offset) * 8);
@@ -1110,12 +1107,12 @@ uae_u32 akiko_bget2 (uaecptr addr, int msg)
     return v;
 }
 
-uae_u32 akiko_bget (uaecptr addr)
+uae_u32 REGPARAM2 akiko_bget (uaecptr addr)
 {
     return akiko_bget2 (addr, 1);
 }
 
-uae_u32 akiko_wget (uaecptr addr)
+uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
 {
     uae_u16 v;
     addr &= 0xffff;
@@ -1126,7 +1123,7 @@ uae_u32 akiko_wget (uaecptr addr)
     return v;
 }
 
-uae_u32 akiko_lget (uaecptr addr)
+uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
 {
     uae_u32 v;
 
@@ -1232,12 +1229,12 @@ void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
     uae_sem_post (&akiko_sem);
 }
 
-void akiko_bput (uaecptr addr, uae_u32 v)
+void REGPARAM2 akiko_bput (uaecptr addr, uae_u32 v)
 {
     akiko_bput2 (addr, v, 1);
 }
 
-void akiko_wput (uaecptr addr, uae_u32 v)
+void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
 {
     addr &= 0xfff;
     if((addr < 0x30 && AKIKO_DEBUG_IO))
@@ -1246,7 +1243,7 @@ void akiko_wput (uaecptr addr, uae_u32 v)
     akiko_bput2 (addr + 0, v >> 8, 0);
 }
 
-void akiko_lput (uaecptr addr, uae_u32 v)
+void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
 {
     addr &= 0xffff;
     if(addr < 0x30 && AKIKO_DEBUG_IO)
@@ -1350,6 +1347,8 @@ int akiko_init (void)
     }
     return 1;
 }
+
+#ifdef SAVESTATE
 
 uae_u8 *save_akiko(int *len)
 {
@@ -1472,6 +1471,7 @@ void restore_akiko_finish(void)
 	sys_command_cd_play (DF_IOCTL, unitnum, last_play_pos, last_play_end, 0);
 }
 
+#endif
 
 void akiko_entergui (void)
 {

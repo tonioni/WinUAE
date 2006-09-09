@@ -12,7 +12,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "memory.h"
 #include "events.h"
@@ -20,7 +19,6 @@
 #include "gensound.h"
 #include "sounddep/sound.h"
 #include "threaddep/thread.h"
-#include "ahidsound.h"
 #include "avioutput.h"
 #include "gui.h"
 #include "dxwrap.h"

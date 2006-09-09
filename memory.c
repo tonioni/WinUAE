@@ -9,7 +9,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
 #include "options.h"
 #include "uae.h"
 #include "memory.h"
@@ -49,9 +48,9 @@ uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
 uae_u32 max_z3fastmem = 512 * 1024 * 1024;
 #endif
 
-static long chip_filepos;
-static long bogo_filepos;
-static long rom_filepos;
+static size_t chip_filepos;
+static size_t bogo_filepos;
+static size_t rom_filepos;
 
 static struct romlist *rl;
 static int romlist_cnt;
@@ -492,13 +491,13 @@ uae_u32 kickmem_mask, extendedkickmem_mask, bogomem_mask, a3000mem_mask;
 static int illegal_count;
 /* A dummy bank that only contains zeros */
 
-static uae_u32 dummy_lget (uaecptr) REGPARAM;
-static uae_u32 dummy_wget (uaecptr) REGPARAM;
-static uae_u32 dummy_bget (uaecptr) REGPARAM;
-static void dummy_lput (uaecptr, uae_u32) REGPARAM;
-static void dummy_wput (uaecptr, uae_u32) REGPARAM;
-static void dummy_bput (uaecptr, uae_u32) REGPARAM;
-static int dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u32 REGPARAM3 dummy_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 dummy_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 dummy_bget (uaecptr) REGPARAM;
+static void REGPARAM3 dummy_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 dummy_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 dummy_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 #define	MAX_ILG 200
 #define NONEXISTINGDATA 0
@@ -518,10 +517,10 @@ static void dummylog(int rw, uaecptr addr, int size, uae_u32 val)
 	illegal_count++;
     if (rw) {
 	write_log ("Illegal %cput at %08lx=%08lx PC=%x\n",
-	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, val, m68k_getpc());
+	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, val, M68K_GETPC);
     } else {
 	write_log ("Illegal %cget at %08lx PC=%x\n",
-	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, m68k_getpc());
+	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, M68K_GETPC);
     }
 }
 
@@ -595,7 +594,7 @@ int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
 	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
 	    if (MAX_ILG >= 0)
 		illegal_count++;
-	    write_log ("Illegal check at %08lx PC=%x\n", addr, m68k_getpc());
+	    write_log ("Illegal check at %08lx PC=%x\n", addr, M68K_GETPC);
 	}
     }
 
@@ -605,13 +604,13 @@ int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
 #ifdef AUTOCONFIG
 
 /* A3000 "motherboard resources" bank. */
-static uae_u32 mbres_lget (uaecptr) REGPARAM;
-static uae_u32 mbres_wget (uaecptr) REGPARAM;
-static uae_u32 mbres_bget (uaecptr) REGPARAM;
-static void mbres_lput (uaecptr, uae_u32) REGPARAM;
-static void mbres_wput (uaecptr, uae_u32) REGPARAM;
-static void mbres_bput (uaecptr, uae_u32) REGPARAM;
-static int mbres_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u32 REGPARAM3 mbres_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbres_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbres_bget (uaecptr) REGPARAM;
+static void REGPARAM3 mbres_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbres_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbres_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 mbres_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 static int mbres_val = 0;
 
@@ -690,8 +689,8 @@ int REGPARAM2 mbres_check (uaecptr addr, uae_u32 size)
 
 uae_u8 *chipmemory;
 
-static int chipmem_check (uaecptr addr, uae_u32 size) REGPARAM;
-static uae_u8 *chipmem_xlate (uaecptr addr) REGPARAM;
+static int REGPARAM3 chipmem_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u8 *REGPARAM3 chipmem_xlate (uaecptr addr) REGPARAM;
 
 #ifdef AGA
 
@@ -903,7 +902,7 @@ int REGPARAM2 chipmem_check (uaecptr addr, uae_u32 size)
     return (addr + size) <= allocated_chipmem;
 }
 
-uae_u8 REGPARAM2 *chipmem_xlate (uaecptr addr)
+uae_u8 *REGPARAM2 chipmem_xlate (uaecptr addr)
 {
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
@@ -914,14 +913,14 @@ uae_u8 REGPARAM2 *chipmem_xlate (uaecptr addr)
 
 static uae_u8 *bogomemory;
 
-static uae_u32 bogomem_lget (uaecptr) REGPARAM;
-static uae_u32 bogomem_wget (uaecptr) REGPARAM;
-static uae_u32 bogomem_bget (uaecptr) REGPARAM;
-static void bogomem_lput (uaecptr, uae_u32) REGPARAM;
-static void bogomem_wput (uaecptr, uae_u32) REGPARAM;
-static void bogomem_bput (uaecptr, uae_u32) REGPARAM;
-static int bogomem_check (uaecptr addr, uae_u32 size) REGPARAM;
-static uae_u8 *bogomem_xlate (uaecptr addr) REGPARAM;
+static uae_u32 REGPARAM3 bogomem_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 bogomem_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 bogomem_bget (uaecptr) REGPARAM;
+static void REGPARAM3 bogomem_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 bogomem_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 bogomem_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 bogomem_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u8 *REGPARAM3 bogomem_xlate (uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 bogomem_lget (uaecptr addr)
 {
@@ -980,7 +979,7 @@ int REGPARAM2 bogomem_check (uaecptr addr, uae_u32 size)
     return (addr + size) <= allocated_bogomem;
 }
 
-uae_u8 REGPARAM2 *bogomem_xlate (uaecptr addr)
+uae_u8 *REGPARAM2 bogomem_xlate (uaecptr addr)
 {
     addr -= bogomem_start & bogomem_mask;
     addr &= bogomem_mask;
@@ -993,14 +992,14 @@ uae_u8 REGPARAM2 *bogomem_xlate (uaecptr addr)
 
 static uae_u8 *a3000memory;
 
-static uae_u32 a3000mem_lget (uaecptr) REGPARAM;
-static uae_u32 a3000mem_wget (uaecptr) REGPARAM;
-static uae_u32 a3000mem_bget (uaecptr) REGPARAM;
-static void a3000mem_lput (uaecptr, uae_u32) REGPARAM;
-static void a3000mem_wput (uaecptr, uae_u32) REGPARAM;
-static void a3000mem_bput (uaecptr, uae_u32) REGPARAM;
-static int a3000mem_check (uaecptr addr, uae_u32 size) REGPARAM;
-static uae_u8 *a3000mem_xlate (uaecptr addr) REGPARAM;
+static uae_u32 REGPARAM3 a3000mem_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 a3000mem_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 a3000mem_bget (uaecptr) REGPARAM;
+static void REGPARAM3 a3000mem_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 a3000mem_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 a3000mem_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 a3000mem_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u8 *REGPARAM3 a3000mem_xlate (uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 a3000mem_lget (uaecptr addr)
 {
@@ -1059,7 +1058,7 @@ int REGPARAM2 a3000mem_check (uaecptr addr, uae_u32 size)
     return (addr + size) <= allocated_a3000mem;
 }
 
-uae_u8 REGPARAM2 *a3000mem_xlate (uaecptr addr)
+uae_u8 *REGPARAM2 a3000mem_xlate (uaecptr addr)
 {
     addr -= a3000mem_start & a3000mem_mask;
     addr &= a3000mem_mask;
@@ -1105,14 +1104,14 @@ void a1000_reset (void)
     a1000_handle_kickstart (1);
 }
 
-static uae_u32 kickmem_lget (uaecptr) REGPARAM;
-static uae_u32 kickmem_wget (uaecptr) REGPARAM;
-static uae_u32 kickmem_bget (uaecptr) REGPARAM;
-static void kickmem_lput (uaecptr, uae_u32) REGPARAM;
-static void kickmem_wput (uaecptr, uae_u32) REGPARAM;
-static void kickmem_bput (uaecptr, uae_u32) REGPARAM;
-static int kickmem_check (uaecptr addr, uae_u32 size) REGPARAM;
-static uae_u8 *kickmem_xlate (uaecptr addr) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_bget (uaecptr) REGPARAM;
+static void REGPARAM3 kickmem_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 kickmem_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 kickmem_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 kickmem_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u8 *REGPARAM3 kickmem_xlate (uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 kickmem_lget (uaecptr addr)
 {
@@ -1235,7 +1234,7 @@ int REGPARAM2 kickmem_check (uaecptr addr, uae_u32 size)
     return (addr + size) <= kickmem_size;
 }
 
-uae_u8 REGPARAM2 *kickmem_xlate (uaecptr addr)
+uae_u8 *REGPARAM2 kickmem_xlate (uaecptr addr)
 {
     addr -= kickmem_start & kickmem_mask;
     addr &= kickmem_mask;
@@ -1262,14 +1261,14 @@ static int extromtype (void)
     return 0;
 }
 
-static uae_u32 extendedkickmem_lget (uaecptr) REGPARAM;
-static uae_u32 extendedkickmem_wget (uaecptr) REGPARAM;
-static uae_u32 extendedkickmem_bget (uaecptr) REGPARAM;
-static void extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
-static void extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
-static void extendedkickmem_bput (uaecptr, uae_u32) REGPARAM;
-static int extendedkickmem_check (uaecptr addr, uae_u32 size) REGPARAM;
-static uae_u8 *extendedkickmem_xlate (uaecptr addr) REGPARAM;
+static uae_u32 REGPARAM3 extendedkickmem_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 extendedkickmem_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 extendedkickmem_bget (uaecptr) REGPARAM;
+static void REGPARAM3 extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 extendedkickmem_bput (uaecptr, uae_u32) REGPARAM;
+static int REGPARAM3 extendedkickmem_check (uaecptr addr, uae_u32 size) REGPARAM;
+static uae_u8 *REGPARAM3 extendedkickmem_xlate (uaecptr addr) REGPARAM;
 
 uae_u32 REGPARAM2 extendedkickmem_lget (uaecptr addr)
 {
@@ -1330,7 +1329,7 @@ int REGPARAM2 extendedkickmem_check (uaecptr addr, uae_u32 size)
     return (addr + size) <= extendedkickmem_size;
 }
 
-uae_u8 REGPARAM2 *extendedkickmem_xlate (uaecptr addr)
+uae_u8 *REGPARAM2 extendedkickmem_xlate (uaecptr addr)
 {
     addr -= extendedkickmem_start & extendedkickmem_mask;
     addr &= extendedkickmem_mask;
@@ -1346,7 +1345,7 @@ int REGPARAM2 default_check (uaecptr a, uae_u32 b)
 
 static int be_cnt;
 
-uae_u8 REGPARAM2 *default_xlate (uaecptr a)
+uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 {
     if (quit_program == 0) {
 	/* do this only in 68010+ mode, there are some tricky A500 programs.. */
@@ -1357,8 +1356,8 @@ uae_u8 REGPARAM2 *default_xlate (uaecptr a)
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;
-		uaecptr a3 = m68k_getpc() - 32;
-		write_log ("Your Amiga program just did something terribly stupid %p PC=%p\n", a, m68k_getpc());
+		uaecptr a3 = m68k_getpc(&regs) - 32;
+		write_log ("Your Amiga program just did something terribly stupid %p PC=%p\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
 		    write_log ("%08.8X ", i >= 5 ? a3 : a2);
@@ -1375,9 +1374,9 @@ uae_u8 REGPARAM2 *default_xlate (uaecptr a)
 		be_cnt = 0;
 	    } else {
 		regs.panic = 1;
-		regs.panic_pc = m68k_getpc ();
+		regs.panic_pc = m68k_getpc (&regs);
 		regs.panic_addr = a;
-		set_special (SPCFLAG_BRK);
+		set_special (&regs, SPCFLAG_BRK);
 	    }
 	}
     }
@@ -1967,7 +1966,7 @@ void map_overlay (int chip)
     else
 	map_banks (&kickmem_bank, 0, i, 0x80000);
     if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND)
-	m68k_setpc(m68k_getpc());
+	m68k_setpc(&regs, m68k_getpc(&regs));
 }
 
 void memory_reset (void)
@@ -2265,6 +2264,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
     }
 }
 
+#ifdef SAVESTATE
 
 /* memory save/restore code */
 
@@ -2280,13 +2280,13 @@ uae_u8 *save_bram (int *len)
     return bogomemory;
 }
 
-void restore_cram (int len, long filepos)
+void restore_cram (int len, size_t filepos)
 {
     chip_filepos = filepos;
     changed_prefs.chipmem_size = len;
 }
 
-void restore_bram (int len, long filepos)
+void restore_bram (int len, size_t filepos)
 {
     bogo_filepos = filepos;
     changed_prefs.bogomem_size = len;
@@ -2404,3 +2404,5 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     *len = dst - dstbak;
     return dstbak;
 }
+
+#endif /* SAVESTATE */

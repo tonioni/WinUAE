@@ -75,9 +75,14 @@ struct color_entry {
 
 #ifdef AGA
 /* convert 24 bit AGA Amiga RGB to native color */
-/* warning: ugly and works with little-endian cpu's only */
-#define CONVERT_RGB(c) \
+/* warning: this is still ugly, but now works with either byte order */
+#ifdef WORDS_BIGENDIAN
+# define CONVERT_RGB(c) \
+    ( xbluecolors[((uae_u8*)(&c))[3]] | xgreencolors[((uae_u8*)(&c))[2]] | xredcolors[((uae_u8*)(&c))[1]] )
+#else
+# define CONVERT_RGB(c) \
     ( xbluecolors[((uae_u8*)(&c))[0]] | xgreencolors[((uae_u8*)(&c))[1]] | xredcolors[((uae_u8*)(&c))[2]] )
+#endif
 #else
 #define CONVERT_RGB(c) 0
 #endif
@@ -146,7 +151,7 @@ STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *s
 struct color_change {
     int linepos;
     int regno;
-    unsigned long value;
+    unsigned int value;
 };
 
 /* 440 rather than 880, since sprites are always lores.  */
@@ -175,7 +180,12 @@ union sps_union {
     uae_u32 words[2 * MAX_SPR_PIXELS / 4];
 };
 extern union sps_union spixstate;
+
+#ifdef OS_WITHOUT_MEMORY_MANAGEMENT
+extern uae_u16 *spixels;
+#else
 extern uae_u16 spixels[MAX_SPR_PIXELS * 2];
+#endif
 
 /* Way too much... */
 #define MAX_REG_CHANGE ((MAXVPOS + 1) * 2 * MAXHPOS)

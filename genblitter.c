@@ -37,7 +37,6 @@ static void generate_func(void)
     unsigned int i;
     printf("#include \"sysconfig.h\"\n");
     printf("#include \"sysdeps.h\"\n");
-    printf("#include \"config.h\"\n");
     printf("#include \"options.h\"\n");
     printf("#include \"custom.h\"\n");
     printf("#include \"memory.h\"\n");
@@ -209,13 +208,12 @@ static void generate_table(void)
     unsigned int i;
     printf("#include \"sysconfig.h\"\n");
     printf("#include \"sysdeps.h\"\n");
-    printf("#include \"config.h\"\n");
     printf("#include \"options.h\"\n");
     printf("#include \"custom.h\"\n");
     printf("#include \"memory.h\"\n");
     printf("#include \"blitter.h\"\n");
     printf("#include \"blitfunc.h\"\n\n");
-    printf("blitter_func *blitfunc_dofast[256] = {\n");
+    printf("blitter_func * const blitfunc_dofast[256] = {\n");
     for (i = 0; i < 256; i++) {
 	if (index < sizeof(blttbl) && i == blttbl[index]) {
 	    printf("blitdofast_%x",i);
@@ -228,7 +226,7 @@ static void generate_table(void)
     printf("};\n\n");
 
     index = 0;
-    printf("blitter_func *blitfunc_dofast_desc[256] = {\n");
+    printf("blitter_func * const blitfunc_dofast_desc[256] = {\n");
     for (i = 0; i < 256; i++) {
 	if (index < sizeof(blttbl) && i == blttbl[index]) {
 	    printf("blitdofast_desc_%x",i);

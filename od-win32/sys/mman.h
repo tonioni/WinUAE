@@ -22,7 +22,7 @@ struct shmid_ds {
     key_t  key;
     size_t size;
     void  *addr;
-    char   name[ MAX_PATH ];
+    char   name[MAX_PATH];
     void   *attached;
 };
 
@@ -33,8 +33,8 @@ int shmget (key_t key, size_t size, int shmflg, char*);
 int shmctl (int shmid, int cmd, struct shmid_ds *buf);
 void init_shm (void);
 
-int isinf( double x );
-int isnan( double x );
+int isinf(double x);
+int isnan(double x);
 
 #define PROT_READ  0x01
 #define PROT_WRITE 0x02
@@ -44,4 +44,5 @@ int isnan( double x );
 #define IPC_RMID    0x02
 #define IPC_CREAT   0x04
 #define IPC_STAT    0x08
+
 #endif

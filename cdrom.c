@@ -1,8 +1,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "config.h"
-
 /* CDROM MODE 1 EDC/ECC code (from Reed-Solomon library by Heiko Eissfeldt) */
 
 /*****************************************************************/
@@ -25,7 +23,7 @@
 /*                                                               */
 /*****************************************************************/
 
-static uae_u32 EDC_crctable[256] =
+static const uae_u32 EDC_crctable[256] =
 {
  0x00000000L, 0x90910101L, 0x91210201L, 0x01B00300L,
  0x92410401L, 0x02D00500L, 0x03600600L, 0x93F10701L,

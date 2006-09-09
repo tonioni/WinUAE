@@ -31,8 +31,8 @@ void uae_NewList(uaecptr list);
  * function has to be setup with deftrap2() and
  * TRAPFLAG_EXTRA_STACK and stack magic is required.
  */
-uaecptr uae_AllocMem (uae_u32 size, uae_u32 flags);
-void uae_FreeMem (uaecptr memory, uae_u32 size);
+uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags);
+void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size);
 
 
 /*
@@ -55,9 +55,9 @@ void native2amiga_startup (void);
 extern smp_comm_pipe native2amiga_pending;
 #endif
 
-STATIC_INLINE do_uae_int_requested(void)
+STATIC_INLINE void do_uae_int_requested (void)
 {
-	uae_int_requested = 1;
-	set_uae_int_flag ();
-	INTREQ (0x8000 | 0x0008);
+    uae_int_requested = 1;
+    set_uae_int_flag ();
+    INTREQ (0x8000 | 0x0008);
 }
