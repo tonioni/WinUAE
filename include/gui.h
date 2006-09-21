@@ -33,11 +33,11 @@ struct gui_info
     uae_u8 drive_side;		    /* floppy side */
     uae_u8 hd;			    /* harddrive */
     uae_u8 cd;			    /* CD */
-    int fps, idle;
+    int fps, idle, sndbuf;
     char df[4][256];		    /* inserted image */
     uae_u32 crc32[4];		    /* crc32 of image */
 };
-#define NUM_LEDS (1 + 1 + 1 + 1 + 1 + 4)
+#define NUM_LEDS (1 + 1 + 1 + 1 + 1 + 1 + 4)
 
 extern struct gui_info gui_data;
 

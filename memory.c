@@ -88,6 +88,7 @@ void romlist_clear (void)
 
 static struct romdata roms[] = {
     { "Cloanto Amiga Forever ROM key", 0, 0, 0, 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
+    { "Cloanto Amiga Forever 2006 ROM key", 0, 0, 0, 0, 0, 0xb01c4b56, 750, 48, 0, 1, ROMTYPE_KEY },
 
     { "KS ROM v1.0 (A1000)(NTSC)", 1, 0, 1, 0, "A1000\0", 0x299790ff, 262144, 1, 0, 0, ROMTYPE_KICK },
     { "KS ROM v1.1 (A1000)(NTSC)", 1, 1, 31, 34, "A1000\0", 0xd060572a, 262144, 2, 0, 0, ROMTYPE_KICK },
@@ -272,10 +273,17 @@ uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size)
     f = zfile_fopen (tmp, "rb");
     {
 	if (!f) {
-	    struct romdata *rd = getromdatabyid (0);
-	    char *s = romlist_get (rd);
-	    if (s)
-		f = zfile_fopen (s, "rb");
+	    struct romdata *rd;
+	    char *s;
+
+	    rd = getromdatabyid (48);
+	    if (!rd)
+		rd = getromdatabyid (0);
+	    s = romlist_get (rd);
+	    if (s) {
+		strcpy (tmp, s);
+		f = zfile_fopen (tmp, "rb");
+	    }
 	    if (!f) {
 		strcpy (tmp, p->path_rom);
 		strcat (tmp, "rom.key");

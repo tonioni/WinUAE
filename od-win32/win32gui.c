@@ -602,7 +602,6 @@ static int scan_roms_2 (char *pathp)
 	fetch_path ("KickstartPath", path, sizeof (path));
     else
 	strcpy (path, pathp);
-    keybuf = load_keyfile (&workprefs, path, &keysize);
     strcpy (buf, path);
     strcat (buf, "*.*");
     if (!hWinUAEKey)
@@ -612,6 +611,7 @@ static int scan_roms_2 (char *pathp)
 	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     if (fkey == NULL)
 	goto end;
+    keybuf = load_keyfile (&workprefs, path, &keysize);
     ret = 0;
     for (;;) {
 	handle = FindFirstFile (buf, &find_data);
@@ -628,9 +628,9 @@ static int scan_roms_2 (char *pathp)
 		break;
 	    }
 	}
-	if (!keybuf && ret) { /* did previous scan detect keyfile? */
+	if (!keybuf) { /* did previous scan detect keyfile? */
 	    keybuf = load_keyfile (&workprefs, path, &keysize);
-	    if (keybuf) /* ok, maybe we now find more roms.. */
+	    if (keybuf) /* ok, maybe we can now find more roms.. */
 		continue;
 	}
 	break;
@@ -775,6 +775,7 @@ void gui_display(int shortcut)
     if (here)
 	return;
     here++;
+    gui_active++;
     screenshot_prepare();
 #ifdef D3D
     D3D_guimode (TRUE);
@@ -854,6 +855,7 @@ void gui_display(int shortcut)
 #endif
     screenshot_free();
     write_disk_history();
+    gui_active--;
     here--;
 }
 
@@ -9126,7 +9128,7 @@ static int GetSettings (int all_options, HWND hwnd)
     int psresult;
     HWND dhwnd;
 
-    gui_active = 1;
+    gui_active++;
 
     full_property_sheet = all_options;
     allow_quit = all_options;
@@ -9219,7 +9221,7 @@ static int GetSettings (int all_options, HWND hwnd)
 
     qs_request_reset = 0;
     full_property_sheet = 0;
-    gui_active = 0;
+    gui_active--;
     return psresult;
 }
 
@@ -9307,6 +9309,7 @@ void gui_fps (int fps, int idle)
     gui_data.idle = idle;
     gui_led (7, 0);
     gui_led (8, 0);
+    gui_led (9, 0);
 }
 
 void gui_led (int led, int on)
@@ -9329,7 +9332,7 @@ void gui_led (int led, int on)
 	type = 0;
     tt = NULL;
     if (led >= 1 && led <= 4) {
-	pos = 5 + (led - 1);
+	pos = 6 + (led - 1);
 	ptr = drive_text + pos * 16;
 	if (gui_data.drive_disabled[led - 1])
 	    strcpy (ptr, "");
@@ -9349,22 +9352,26 @@ void gui_led (int led, int on)
 	if (strlen (p + j) > 0)
 	    sprintf (tt, "%s (CRC=%08.8X)", p + j, gui_data.crc32[led - 1]);
     } else if (led == 0) {
-	pos = 2;
+	pos = 3;
 	ptr = strcpy (drive_text + pos * 16, "Power");
     } else if (led == 5) {
-	pos = 3;
+	pos = 4;
 	ptr = strcpy (drive_text + pos * 16, "HD");
     } else if (led == 6) {
-	pos = 4;
+	pos = 5;
 	ptr = strcpy (drive_text + pos * 16, "CD");
     } else if (led == 7) {
-	pos = 1;
+	pos = 2;
 	ptr = drive_text + pos * 16;
 	sprintf(ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
     } else if (led == 8) {
-	pos = 0;
+	pos = 1;
 	ptr = drive_text + pos * 16;
 	sprintf(ptr, "CPU: %.0f%%", (double)((gui_data.idle) / 10.0));
+    } else if (led == 9) {
+	pos = 0;
+	ptr = drive_text + pos * 16;
+	sprintf(ptr, "SND: %.0f%%", (double)((gui_data.sndbuf) / 10.0));
     }
     if (pos >= 0) {
 	PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM) ((pos + 1) | type), (LPARAM) ptr);

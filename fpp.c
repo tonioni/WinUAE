@@ -8,6 +8,7 @@
    */
 
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
+
 #include <math.h>
 
 #include "sysconfig.h"
@@ -21,6 +22,13 @@
 #include "ersatz.h"
 #include "md-fpp.h"
 #include "savestate.h"
+
+#define DEBUG_FPP 0
+
+STATIC_INLINE int isinrom (void)
+{
+    return (munge24 (m68k_getpc (&regs)) & 0xFFF80000) == 0xF80000;
+}
 
 static uae_u32 xhex_pi[]    ={0x2168c235, 0xc90fdaa2, 0x4000};
 uae_u32 xhex_exp_1[] ={0xa2bb4a9a, 0xadf85458, 0x4000};
@@ -95,15 +103,6 @@ static double *fp_nan    = (double *)dhex_nan;
 #endif
 double fp_1e8 = 1.0e8;
 float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
-
-#if 1
-
-STATIC_INLINE int isinrom (void)
-{
-    return (munge24 (m68k_getpc (&regs)) & 0xFFF80000) == 0xF80000;
-}
-
-#define DEBUG_FPP 0
 
 #define FFLAG_Z	    0x4000
 #define FFLAG_N	    0x0100
@@ -692,7 +691,7 @@ void fdbcc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fdbcc_opp at %08lx\n", m68k_getpc ());
+	write_log ("fdbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
     if (cc == -1) {
@@ -715,7 +714,7 @@ void fscc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fscc_opp at %08lx\n", m68k_getpc ());
+	write_log ("fscc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
     if (cc == -1) {
@@ -738,7 +737,7 @@ void ftrapcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("ftrapcc_opp at %08lx\n", m68k_getpc ());
+	write_log ("ftrapcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
     if (cc == -1) {
@@ -755,7 +754,7 @@ void fbcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extra
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fbcc_opp at %08lx\n", m68k_getpc ());
+	write_log ("fbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
     if (cc == -1) {
@@ -779,7 +778,7 @@ void fsave_opp (uae_u32 opcode, struct regstruct *regs)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fsave_opp at %08lx\n", m68k_getpc ());
+	write_log ("fsave_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (get_fp_ad (opcode, &ad) == 0) {
 	m68k_setpc (regs, m68k_getpc (regs) - 2);
@@ -787,6 +786,18 @@ void fsave_opp (uae_u32 opcode, struct regstruct *regs)
 	return;
     }
 
+#if 0
+    if (currprefs.cpu_level >= 6) {
+	/* 6 byte 68060 IDLE frame.  */
+	if (incr < 0) {
+	    ad -= 6;
+	    put_long (ad, 0x00006000);
+	} else {
+	    put_long (ad, 0x00006000);
+	    ad += 6;
+	}
+    } else
+#endif
     if (currprefs.cpu_level >= 4) {
 	/* 4 byte 68040 IDLE frame.  */
 	if (incr < 0) {
@@ -831,13 +842,24 @@ void frestore_opp (uae_u32 opcode, struct regstruct *regs)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("frestore_opp at %08lx\n", m68k_getpc ());
+	write_log ("frestore_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (get_fp_ad (opcode, &ad) == 0) {
 	m68k_setpc (regs, m68k_getpc (regs) - 2);
 	op_illg (opcode, regs);
 	return;
     }
+#if 0
+    if (currprefs.cpu_level >= 6) {
+	/* 68060 */
+        d = get_long (ad);
+	if (incr < 0) {
+	    ad -= 6;
+	    d = get_long (ad);
+	} else
+	    ad += 6;
+    } else
+#endif
     if (currprefs.cpu_level >= 4) {
 	/* 68040 */
 	if (incr < 0) {
@@ -907,7 +929,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc () - 4);
+	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc (regs) - 4);
 #endif
     switch ((extra >> 13) & 0x7) {
     case 3:
@@ -1451,8 +1473,6 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     m68k_setpc (regs, m68k_getpc (regs) - 4);
     op_illg (opcode, regs);
 }
-
-#endif
 
 uae_u8 *restore_fpu (uae_u8 *src)
 {

@@ -34,6 +34,8 @@ static int using_exception_3;
 static int using_ce;
 static int cpu_level;
 
+static int optimized_flags;
+
 #define GF_APDI 1
 #define GF_AD8R 2
 #define GF_PC8R 4
@@ -390,16 +392,15 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	if (getv == 1)
 	    switch (size) {
 	    case sz_byte:
-#if defined(AMIGA) && !defined(WARPUP)
-		/* sam: I don't know why gcc.2.7.2.1 produces a code worse */
-		/* if it is not done like that: */
-		printf ("\tuae_s8 %s = ((uae_u8*)&m68k_dreg(regs, %s))[3];\n", name, reg);
+#ifdef USE_DUBIOUS_BIGENDIAN_OPTIMIZATION
+		/* This causes the target compiler to generate better code on few systems */
+		printf ("\tuae_s8 %s = ((uae_u8*)&m68k_dreg (regs, %s))[3];\n", name, reg);
 #else
-		printf ("\tuae_s8 %s = m68k_dreg(regs, %s);\n", name, reg);
+		printf ("\tuae_s8 %s = m68k_dreg (regs, %s);\n", name, reg);
 #endif
 		break;
 	    case sz_word:
-#if defined(AMIGA) && !defined(WARPUP)
+#ifdef USE_DUBIOUS_BIGENDIAN_OPTIMIZATION
 		printf ("\tuae_s16 %s = ((uae_s16*)&m68k_dreg(regs, %s))[1];\n", name, reg);
 #else
 		printf ("\tuae_s16 %s = m68k_dreg(regs, %s);\n", name, reg);
@@ -971,7 +972,7 @@ static void genflags_normal (flagtypes type, wordsizes size, char *value, char *
 	printf ("\tSET_VFLG (&regs->ccrflags, (flgs ^ flgo) & (flgn ^ flgo));\n");
 	break;
      case flag_zn:
-	printf ("\tSET_ZFLG (&regs->ccrflags, GET_ZFLG (&regs->ccrflags) & (%s == 0));\n", vstr);
+	printf ("\tSET_ZFLG (&regs->ccrflags, GET_ZFLG (&(regs->ccrflags)) & (%s == 0));\n", vstr);
 	printf ("\tSET_NFLG (&regs->ccrflags, %s < 0);\n", vstr);
 	break;
      case flag_add:
@@ -1012,7 +1013,7 @@ static void genflags (flagtypes type, wordsizes size, char *value, char *src, ch
     /* Temporarily deleted 68k/ARM flag optimizations.  I'd prefer to have
        them in the appropriate m68k.h files and use just one copy of this
        code here.  The API can be changed if necessary.  */
-#ifdef OPTIMIZED_FLAGS
+    if (optimized_flags) {
     switch (type) {
      case flag_add:
      case flag_sub:
@@ -1029,57 +1030,57 @@ static void genflags (flagtypes type, wordsizes size, char *value, char *src, ch
      case flag_logical_noclobber:
 	printf ("\t{uae_u32 oldcznv = GET_CZNV & ~(FLAGVAL_Z | FLAGVAL_N);\n");
 	if (strcmp (value, "0") == 0) {
-	    printf ("\tSET_CZNV (olcznv | FLAGVAL_Z);\n");
+	    printf ("\tSET_CZNV (&regs->ccrflags, olcznv | FLAGVAL_Z);\n");
 	} else {
 	    switch (size) {
-	     case sz_byte: printf ("\toptflag_testb ((uae_s8)(%s));\n", value); break;
-	     case sz_word: printf ("\toptflag_testw ((uae_s16)(%s));\n", value); break;
-	     case sz_long: printf ("\toptflag_testl ((uae_s32)(%s));\n", value); break;
+	     case sz_byte: printf ("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
+	     case sz_word: printf ("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
+	     case sz_long: printf ("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
 	    }
-	    printf ("\tIOR_CZNV (oldcznv);\n");
+	    printf ("\tIOR_CZNV (&regs->ccrflags, oldcznv);\n");
 	}
 	printf ("\t}\n");
 	return;
      case flag_logical:
 	if (strcmp (value, "0") == 0) {
-	    printf ("\tSET_CZNV (FLAGVAL_Z);\n");
+	    printf ("\tSET_CZNV (&regs->ccrflags, FLAGVAL_Z);\n");
 	} else {
 	    switch (size) {
-	     case sz_byte: printf ("\toptflag_testb ((uae_s8)(%s));\n", value); break;
-	     case sz_word: printf ("\toptflag_testw ((uae_s16)(%s));\n", value); break;
-	     case sz_long: printf ("\toptflag_testl ((uae_s32)(%s));\n", value); break;
+	     case sz_byte: printf ("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
+	     case sz_word: printf ("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
+	     case sz_long: printf ("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
 	    }
 	}
 	return;
 
      case flag_add:
 	switch (size) {
-	 case sz_byte: printf ("\toptflag_addb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-	 case sz_word: printf ("\toptflag_addw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-	 case sz_long: printf ("\toptflag_addl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+	 case sz_byte: printf ("\toptflag_addb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+	 case sz_word: printf ("\toptflag_addw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+	 case sz_long: printf ("\toptflag_addl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 	}
 	return;
 
      case flag_sub:
 	switch (size) {
-	 case sz_byte: printf ("\toptflag_subb (%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-	 case sz_word: printf ("\toptflag_subw (%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-	 case sz_long: printf ("\toptflag_subl (%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+	 case sz_byte: printf ("\toptflag_subb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+	 case sz_word: printf ("\toptflag_subw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+	 case sz_long: printf ("\toptflag_subl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 	}
 	return;
 
      case flag_cmp:
 	switch (size) {
-	 case sz_byte: printf ("\toptflag_cmpb ((uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
-	 case sz_word: printf ("\toptflag_cmpw ((uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
-	 case sz_long: printf ("\toptflag_cmpl ((uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
+	 case sz_byte: printf ("\toptflag_cmpb (regs, (uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
+	 case sz_word: printf ("\toptflag_cmpw (regs, (uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
+	 case sz_long: printf ("\toptflag_cmpl (regs, (uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
 	}
 	return;
 
      default:
 	break;
     }
-#endif
+    }
 
     genflags_normal (type, size, value, src, dst);
 }
@@ -1932,7 +1933,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\t\tSET_VFLG (&regs->ccrflags, 1);\n");
 #ifdef UNDEF68020
 	if (cpu_level >= 2)
-	    printf ("\t\t\tif (currprefs.cpu_level == 0 || dst < 0) SET_NFLG (1);\n");
+	    printf ("\t\t\tif (currprefs.cpu_level == 0 || dst < 0) SET_NFLG (&regs, 1);\n");
 	else /* ??? some 68000 revisions may not set NFLG when overflow happens.. */
 #endif
 	    printf ("\t\t\tSET_NFLG (&regs->ccrflags, 1);\n");
@@ -1974,7 +1975,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\t\t\tSET_VFLG (&regs->ccrflags, 1);\n");
 #ifdef UNDEF68020
 	if (cpu_level > 0)
-	    printf ("\t\t\tif (currprefs.cpu_level == 0) SET_NFLG (1);\n");
+	    printf ("\t\t\tif (currprefs.cpu_level == 0) SET_NFLG (&regs, 1);\n");
 	else
 #endif
 	    printf ("\t\t\tSET_NFLG (&regs->ccrflags, 1);\n");

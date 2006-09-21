@@ -289,10 +289,11 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     ti2d_type = -1;
     if (depth == 15 || depth == 16) {
 	if (!packed_pixels) {
-	    gui_message (
-		"OPENGL: can't use 15/16 bit screen depths because EXT_packed_pixels extension was not found.\n"
-		"Falling back to 32-bit mode");
-	    depth = 32;
+	    gui_message(
+		"OPENGL: can't use 15/16 bit screen depths because EXT_packed_pixels\n"
+		"extension was not found. Falling back to 32-bit mode");
+	    OGL_free();
+	    return OGL_init(ahwnd, w_w, w_h, t_w, t_h, 32);
 	}   
 	ti2d_internalformat = GL_RGB5_A1;
         ti2d_format = GL_RGBA;

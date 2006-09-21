@@ -562,6 +562,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    io_error = sys_command_scsi_direct (dev->unitnum, sdd);
 	    if (log_scsi)
 		write_log ("scsidev: did io: sdd %p request %p error %d\n", sdd, request, get_byte (request + 31));
+	} else {
+	    io_error = -3;
 	}
 	break;
 	default:
@@ -906,19 +908,19 @@ void scsidev_install (void)
 
     /* initcode */
     initcode = here ();
-    calltrap (deftrap (diskdev_init)); dw (RTS);
+    calltrap (deftrap (dev_init)); dw (RTS);
 
     /* Open */
     openfunc = here ();
-    calltrap (deftrap (diskdev_open)); dw (RTS);
+    calltrap (deftrap (dev_open)); dw (RTS);
 
     /* Close */
     closefunc = here ();
-    calltrap (deftrap (diskdev_close)); dw (RTS);
+    calltrap (deftrap (dev_close)); dw (RTS);
 
     /* Expunge */
     expungefunc = here ();
-    calltrap (deftrap (diskdev_expunge)); dw (RTS);
+    calltrap (deftrap (dev_expunge)); dw (RTS);
 
     /* BeginIO */
     beginiofunc = here ();

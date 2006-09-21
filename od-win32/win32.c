@@ -532,14 +532,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
     write_log ("WinUAE now inactive via WM_ACTIVATE\n");
     wait_keyrelease ();
     setmouseactive (0);
-    close_sound ();
-#ifdef AHI
-    ahi_close_sound ();
-#endif
-    set_audio ();
-#ifdef AHI
-    ahi_open_sound ();
-#endif
     pri = &priorities[currprefs.win32_inactive_priority];
     if (!quit_program) {
 	if (minimized) {
@@ -573,6 +565,16 @@ static void winuae_inactive (HWND hWnd, int minimized)
     setpriority (pri);
 #ifdef FILESYS
     filesys_flush_cache ();
+#endif
+    close_sound ();
+#ifdef AHI
+    ahi_close_sound ();
+#endif
+     if (gui_active)
+	return;
+    set_audio ();
+#ifdef AHI
+    ahi_open_sound ();
 #endif
 }
 
@@ -2350,7 +2352,7 @@ static void getstartpaths(int start_data)
 }
 
 extern void test (void);
-extern int screenshotmode, b0rken_ati_overlay,postscript_print_debugging;
+extern int screenshotmode, b0rken_ati_overlay,postscript_print_debugging,sound_debug;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2408,6 +2410,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-legacypaths")) start_data = -1;
 	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
 	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
+	if (!strcmp (arg, "-sounddebug")) sound_debug = 1;
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
 	    strcpy(start_path_data, argv[i + 1]);
 	    start_data = 1;

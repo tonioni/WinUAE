@@ -1747,18 +1747,18 @@ static int td_pos = (TD_RIGHT|TD_BOTTOM);
 
 #define TD_TOTAL_HEIGHT (TD_PADY * 2 + TD_NUM_HEIGHT)
 
-#define NUMBERS_NUM 14
+#define NUMBERS_NUM 16
 
 #define TD_BORDER 0x333
 
-static const char *numbers = { /* ugly  0123456789CHD% */
-"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+"
-"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x"
-"+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x+"
-"+x+-+x+---+x+-+xxxxx++xxxxx++xxxxx++xxxxx++xxxxx+--++x+-+xxxxx++xxxxx++x+----+xxxx+-+x++x+----+x+-"
-"+x+++x+---+x+-+x++++++++++x++++++x++++++x++x+++x+--+x+--+x+++x++++++x++x++++-+x++x+-+x++x+---+x+x+"
-"+xxxxx+---+x+-+xxxxx++xxxxx+----+x++xxxxx++xxxxx+--+x+--+xxxxx++xxxxx++xxxx+-+x++x+-+xxx+---+x++xx"
-"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++----------"
+static const char *numbers = { /* ugly  0123456789CHD%+- */
+"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+--------------"
+"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x---+----------"
+"+x+++x+--++x+-+++++x++++++x++x+++x++x++++++x++++++++++x++x+++x++x+++x++x++++-+x++x+-+x++x+--+x++x+--+x+----+++--"
+"+x+-+x+---+x+-+xxxxx++xxxxx++xxxxx++xxxxx++xxxxx+--++x+-+xxxxx++xxxxx++x+----+xxxx+-+x++x+----+x+--+xxx+--+xxx+-"
+"+x+++x+---+x+-+x++++++++++x++++++x++++++x++x+++x+--+x+--+x+++x++++++x++x++++-+x++x+-+x++x+---+x+x+--+x+----+++--"
+"+xxxxx+---+x+-+xxxxx++xxxxx+----+x++xxxxx++xxxxx+--+x+--+xxxxx++xxxxx++xxxx+-+x++x+-+xxx+---+x++xx--------------"
+"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------"
 };
 
 STATIC_INLINE void putpixel (int x, xcolnr c8)
@@ -1821,7 +1821,7 @@ static void draw_status_line (int line)
 	if (led >= 1 && led <= 4) {
 	    int pled = led - 1;
 	    int track = gui_data.drive_track[pled];
-	    pos = 5 + pled;
+	    pos = 6 + pled;
 	    on_rgb = 0x0c0;
 	    off_rgb = 0x030;
 	    if (!gui_data.drive_disabled[pled]) {
@@ -1834,12 +1834,12 @@ static void draw_status_line (int line)
 	    }
 	    side = gui_data.drive_side;
 	} else if (led == 0) {
-	    pos = 2;
+	    pos = 3;
 	    on = gui_data.powerled;
 	    on_rgb = 0xc00;
 	    off_rgb = 0x300;
 	} else if (led == 5) {
-	    pos = 4;
+	    pos = 5;
 	    on = gui_data.cd;
 	    on_rgb = 0x00c;
 	    off_rgb = 0x003;
@@ -1847,7 +1847,7 @@ static void draw_status_line (int line)
 	    num2 = 10;
 	    num3 = 12;
 	} else if (led == 6) {
-	    pos = 3;
+	    pos = 4;
 	    on = gui_data.hd;
 	    on_rgb = on == 2 ? 0xc00 : 0x00c;
 	    off_rgb = 0x003;
@@ -1856,7 +1856,7 @@ static void draw_status_line (int line)
 	    num3 = 12;
 	} else if (led == 7) {
 	    int fps = (gui_data.fps + 5) / 10;
-	    pos = 1;
+	    pos = 2;
 	    on_rgb = 0x000;
 	    off_rgb = 0x000;
 	    num1 = fps / 100;
@@ -1867,7 +1867,7 @@ static void draw_status_line (int line)
 		am = 2;
 	} else if (led == 8) {
 	    int idle = (gui_data.idle + 5) / 10;
-	    pos = 0;
+	    pos = 1;
 	    on = framecnt;
 	    on_rgb = 0xc00;
 	    off_rgb = 0x000;
@@ -1876,8 +1876,19 @@ static void draw_status_line (int line)
 	    num3 = idle % 10;
 	    num4 = num1 == 0 ? 13 : -1;
 	    am = 3;
+	} else if (led == 9) {
+	    int snd = abs(gui_data.sndbuf + 5) / 10;
+	    if (snd > 99)
+		snd = 99;
+	    pos = 0;
+	    on = framecnt;
+	    on_rgb = 0xc00;
+	    off_rgb = 0x000;
+	    num1 = gui_data.sndbuf < 0 ? 15 : 14;
+	    num2 = snd / 10;
+	    num3 = snd % 10;
+	    am = 3;
 	}
-
 	c = xcolors[on ? on_rgb : off_rgb];
 	if (y == 0 || y == TD_TOTAL_HEIGHT - 1)
 	    c = xcolors[TD_BORDER];

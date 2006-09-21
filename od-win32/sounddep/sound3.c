@@ -30,29 +30,28 @@
 #include <windows.h>
 #include <mmsystem.h>
 #include <dsound.h>
+#include <process.h>
 
 #include <math.h>
 
-#define ADJUST_SIZE 20
+#define ADJUST_SIZE 10
 #define EXP 1.3
 
-int sound_debug;
+static int sndbuffer_slot_size = 4000;
+static int sndbuffer_slot_num = 16;
+
+//#define SOUND_DEBUG
 
 static int obtainedfreq;
 static int have_sound;
 static int paused;
 static int mute;
 
-#define SND_MAX_BUFFER2 262144
-#define SND_MAX_BUFFER 512
+static int sndbuffer_size;
 
-uae_u16 sndbuffer[SND_MAX_BUFFER];
+uae_u16 sndbuffer[262144];
 uae_u16 *sndbufpt;
 int sndbufsize;
-
-static int max_sndbufsize, snd_configsize, dsoundbuf;
-static int snd_writeoffset, snd_maxoffset, snd_totalmaxoffset;
-static int waiting_for_buffer;
 
 static uae_sem_t sound_sem, sound_init_sem;
 
@@ -65,8 +64,6 @@ static int num_sound_devices;
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER lpDSBprimary;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
-
-static DWORD writepos;
 
 int setup_sound (void)
 {
@@ -88,52 +85,65 @@ void update_sound (int freq)
 	    else
 		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_PAL * MAXVPOS_PAL * freq * CYCLE_UNIT + obtainedfreq - 1) / obtainedfreq;
 	} else {
-	    scaled_sample_evtime_orig = (unsigned long)(312.0 * 50 * CYCLE_UNIT / (obtainedfreq  / 227.0));
+	    scaled_sample_evtime_orig = (unsigned long)(312.0 * 50 * CYCLE_UNIT / (obtainedfreq  / 227.5));
 	}
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
 }
 
+static int prevplayslot, writeslot, writeoffset;
+uae_sem_t audiosem;
+
 static void clearbuffer (void)
 {
     void *buffer;
     DWORD size;
+    HRESULT hr;
 
-    HRESULT hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
+    uae_sem_wait(&audiosem);
+    prevplayslot = 0;
+    writeslot = sndbuffer_slot_num / 3 + 2;
+    memset (sndbuffer, 0, sndbuffer_size);
+    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, sndbuffer_size, &buffer, &size, NULL, NULL, 0);
     if (hr == DSERR_BUFFERLOST) {
 	IDirectSoundBuffer_Restore (lpDSBsecondary);
-	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
+	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, sndbuffer_size, &buffer, &size, NULL, NULL, 0);
     }
     if (FAILED(hr)) {
 	write_log ("SOUND: failed to Lock sound buffer (clear): %s\n", DXError (hr));
+        uae_sem_post(&audiosem);
 	return;
     }
     memset (buffer, 0, size);
     IDirectSoundBuffer_Unlock (lpDSBsecondary, buffer, size, NULL, 0);
-    memset (sndbuffer, 0, sizeof (sndbuffer));
+    uae_sem_post(&audiosem);
 }
 
 static void pause_audio_ds (void)
 {
-    waiting_for_buffer = 0;
     IDirectSoundBuffer_Stop (lpDSBsecondary);
-    IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
     clearbuffer ();
 }
 
 static void resume_audio_ds (void)
 {
+    HRESULT hr;
+    
     paused = 0;
     clearbuffer ();
-    waiting_for_buffer = 1;
+    hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
+    hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
+    if (FAILED(hr))
+	write_log ("SOUND: play failed: %s\n", DXError (hr));
 }
 
 static int restore (DWORD hr)
 {
     if (hr != DSERR_BUFFERLOST)
 	return 0;
-    if (sound_debug)
-	write_log ("sound buffer lost\n");
+#ifdef SOUND_DEBUG
+    write_log ("sound buffer lost\n");
+#endif
     hr = IDirectSoundBuffer_Restore (lpDSBsecondary);
     if (FAILED(hr)) {
 	write_log ("SOUND: restore failed %s\n", DXError (hr));
@@ -175,7 +185,6 @@ static int calibrate (void)
     int pos, lastpos, tpos, expected, diff;
     int mult = (currprefs.sound_stereo == 3) ? 8 : (currprefs.sound_stereo ? 4 : 2);
     double qv, pct;
-    HRESULT hr;
 
     if (!QueryPerformanceFrequency(&qpf)) {
 	write_log ("SOUND: no QPF, can't calibrate\n");
@@ -184,9 +193,6 @@ static int calibrate (void)
     pos = 1000;
     pause_audio_ds ();
     resume_audio_ds ();
-    hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
-    if (FAILED(hr)) 
-	return 100 * 10;
     while (pos >= 1000)
         pos = getpos();
     while (pos < 1000)
@@ -197,7 +203,7 @@ static int calibrate (void)
     do {
 	pos = getpos();
 	if (pos < lastpos) {
-	    tpos += dsoundbuf - lastpos + pos;
+	    tpos += sndbuffer_size - lastpos + pos;
 	} else {
 	    tpos += pos - lastpos;
 	}
@@ -210,22 +216,6 @@ static int calibrate (void)
     pct = tpos * 100.0 / expected;
     write_log ("SOUND: calibration: %d %d (%d %.2f%%)\n", tpos, expected, diff, pct);
     return (int)(pct * 10);
-}
-
-static void close_audio_ds (void)
-{
-    waiting_for_buffer = 0;
-    if (lpDSBsecondary)
-	IDirectSound_Release (lpDSBsecondary);
-    if (lpDSBprimary)
-	IDirectSound_Release (lpDSBprimary);
-    lpDSBsecondary = 0;
-    lpDSBprimary = 0;
-    if (lpDS) {
-	IDirectSound_Release (lpDS);
-	write_log ("SOUND: DirectSound driver freed\n");
-    }
-    lpDS = 0;
 }
 
 extern HWND hMainWnd;
@@ -242,8 +232,264 @@ static void setvolume (void)
         write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 }
 
+static volatile int notificationthread_mode;
+static HANDLE notifyevent, notifyevent2;
+
+static unsigned __stdcall notifythread(void *data)
+{
+    notificationthread_mode = 2;
+    write_log("SOUND: notificationthread running\n");
+    while (notificationthread_mode == 2) {
+	HRESULT hr;
+	DWORD status, playpos, safepos;
+	int slot, cnt, incoming, usedslot;
+	void *b1, *b2;
+	DWORD s1, s2;
+	double skipmode;
+
+	WaitForSingleObject(notifyevent, INFINITE);
+	if (!have_sound)
+	    continue;
+
+	uae_sem_wait (&audiosem);
+	hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
+	if (FAILED(hr)) {
+	    write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
+	    goto nreset;
+	}
+	if (status & DSBSTATUS_BUFFERLOST) {
+	    write_log ("SOUND: buffer lost\n");
+	    restore (DSERR_BUFFERLOST);
+	    goto nreset;
+	}
+	if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
+	    write_log ("SOUND: status = %08.8X\n", status);
+	    restore (DSERR_BUFFERLOST);
+	    goto nreset;
+	}
+	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
+	if (FAILED(hr)) {
+	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
+	    restore (hr);
+	    goto nreset;
+	}
+	slot = playpos / sndbuffer_slot_size;
+
+	usedslot = prevplayslot;
+	while (slot != prevplayslot) {
+	    if (writeslot == prevplayslot) {
+		write_log ("UF: missed\n");
+		writeslot = prevplayslot + 1;
+		writeslot %= sndbuffer_slot_num;
+		writeoffset = 0;
+	    }
+	    prevplayslot++;
+	    prevplayslot %= sndbuffer_slot_num;
+	}
+
+	incoming = (uae_u8*)sndbufpt - (uae_u8*)sndbuffer;
+	//write_log ("%d.%d.%d.%d ", playslot, slot, writeslot, incoming);
+	//write_log ("%d ", incoming);
+
+	// handle possible buffer underflow
+	if (slot == writeslot) {
+	    writeslot++;
+	    writeslot %= sndbuffer_slot_num;
+	    if (incoming <= sndbuffer_slot_size) {
+		write_log ("UF: skipped\n");
+		writeslot++;
+		writeslot %= sndbuffer_slot_num;
+		writeoffset = 0;
+	    } else if (incoming < sndbuffer_slot_size + (sndbuffer_slot_size - writeoffset)) {
+		write_log ("UF: miniskip\n");
+		writeoffset = sndbuffer_slot_size - (incoming - sndbuffer_slot_size);
+	    }
+	}
+
+	// copy new data if available
+	if (incoming > 0) {
+	    IDirectSoundBuffer_Lock (lpDSBsecondary, writeslot * sndbuffer_slot_size + writeoffset, incoming,
+		&b1, &s1, &b2, &s2, 0);
+	    memcpy (b1, sndbuffer, s1);
+	    if (b2)
+		memcpy (b2, (uae_u8*)sndbuffer + s1, s2);
+	    IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
+	    writeslot += (writeoffset + incoming) / sndbuffer_slot_size;
+	    writeslot %= sndbuffer_slot_num;
+	    writeoffset = (writeoffset + incoming) % sndbuffer_slot_size;
+	}
+
+	// clear already played slot(s)
+	cnt = (usedslot >= slot ? sndbuffer_slot_num - usedslot + slot : slot - usedslot) - 1;
+	if (0 && cnt > 0) {
+	    IDirectSoundBuffer_Lock (lpDSBsecondary, usedslot * sndbuffer_slot_size, cnt * sndbuffer_slot_size,
+	        &b1, &s1, &b2, &s2, 0);
+	    if (FAILED(hr)) {
+	        write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), usedslot, cnt);
+	        goto nreset;
+	    }
+	    memset (b1, 0, s1);
+	    if (b2)
+	        memset (b2, 0, s2);
+	    IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
+	}
+
+	cnt = (writeslot > slot ? sndbuffer_slot_num - writeslot + slot : slot - writeslot) - 1;
+	write_log ("%d ", cnt);
+	if (cnt <= 0)
+	    cnt = 0;
+	sndbufsize = cnt * sndbuffer_slot_size;
+	sndbufpt = sndbuffer;
+	uae_sem_post(&audiosem);
+	SetEvent(notifyevent2);
+        //sound_setadjust (-50);
+	continue;
+nreset:
+	write_log ("SOUND: reset\n");
+	sndbufpt = sndbuffer;
+	sndbufsize = sndbuffer_size;
+	clearbuffer();
+	uae_sem_post(&audiosem);
+	SetEvent(notifyevent2);
+	continue;
+    }
+    write_log("SOUND: notificationthread exiting\n");
+    notificationthread_mode = 4;
+    return 0;
+}
+
+#if 0
+
+    DWORD playpos, safepos, status;
+    HRESULT hr;
+    void *b1, *b2;
+    DWORD s1, s2;
+    int diff;
+    int counter = 1000;
+    double vdiff, m, skipmode;
+
+    hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
+    if (FAILED(hr)) {
+	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
+	return;
+    }
+    if (status & DSBSTATUS_BUFFERLOST) {
+	write_log ("SOUND: buffer lost\n");
+	restore (DSERR_BUFFERLOST);
+	return;
+    }
+    if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
+	write_log ("SOUND: status = %08.8X\n", status);
+	restore (DSERR_BUFFERLOST);
+	return;
+    }
+    for (;;) {
+	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
+	if (FAILED(hr)) {
+	    restore (hr);
+	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
+	    return;
+	}
+
+	if (savestate_state)
+	    return;
+
+	if (writepos >= playpos)
+	    diff = writepos - playpos;
+	else
+	    diff = dsoundbuf - playpos + writepos;
+
+	if (diff >= max_sndbufsize) {
+	    writepos = safepos + snd_configsize;
+	    if (writepos >= dsoundbuf)
+		writepos -= dsoundbuf;
+	    diff = snd_configsize;
+	    break;
+	}
+
+	if (diff > max_sndbufsize * 6 / 8) {
+	    sleep_millis_busy (1);
+	    counter--;
+	    if (counter < 0) {
+		write_log ("SOUND: sound system got stuck!?\n");
+		restore (DSERR_BUFFERLOST);
+		return;
+	    }
+	    continue;
+	}
+	break;
+    }
+
+    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
+    if (restore (hr))
+	return;
+    if (FAILED(hr)) {
+	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
+        return;
+    }
+    memcpy (b1, sndbuffer, sndbufsize >= s1 ? s1 : sndbufsize);
+    if (b2)
+        memcpy (b2, (uae_u8*)sndbuffer + s1, sndbufsize - s1);
+    IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
+
+    vdiff = diff - snd_configsize;
+    m = 100.0 * vdiff / max_sndbufsize;
+    skipmode = pow (m < 0 ? -m : m, EXP)/ 10.0;
+
+    if (m < 0) skipmode = -skipmode;
+    if (skipmode < -ADJUST_SIZE) skipmode = -ADJUST_SIZE;
+    if (skipmode > ADJUST_SIZE) skipmode = ADJUST_SIZE;
+
+#ifdef SOUND_DEBUG
+    if (!(timeframes % 10)) {
+	write_log ("b=%5d,%5d,%5d,%5d diff=%5d vdiff=%5.0f vdiff2=%5d skip=%+02.1f\n",
+	    sndbufsize, snd_configsize, max_sndbufsize, dsoundbuf, diff, vdiff, diff - snd_configsize, skipmode);
+    }
+#endif
+
+    writepos += sndbufsize;
+    if (writepos >= dsoundbuf)
+	writepos -= dsoundbuf;
+
+    sound_setadjust (skipmode);
+}
+
+#endif
+
+static void close_audio_ds (void)
+{
+    uae_sem_wait (&audiosem);
+    if (notificationthread_mode == 2) {
+	notificationthread_mode = 3;
+	SetEvent(notifyevent);
+	while (notificationthread_mode == 3)
+	    Sleep(10);
+	notificationthread_mode = 0;
+    }
+    if (notifyevent)
+	CloseHandle(notifyevent);
+    notifyevent = NULL;
+    if (notifyevent2)
+	CloseHandle(notifyevent2);
+    notifyevent2 = NULL;
+
+    if (lpDSBsecondary)
+	IDirectSound_Release (lpDSBsecondary);
+    if (lpDSBprimary)
+	IDirectSound_Release (lpDSBprimary);
+    lpDSBsecondary = 0;
+    lpDSBprimary = 0;
+    if (lpDS) {
+	IDirectSound_Release (lpDS);
+	write_log ("SOUND: DirectSound driver freed\n");
+    }
+    lpDS = 0;
+    uae_sem_post (&audiosem);
+}
+
 static int open_audio_ds (int size)
 {
+    int i;
     HRESULT hr;
     DSBUFFERDESC sound_buffer;
     DSCAPS DSCaps;
@@ -251,6 +497,10 @@ static int open_audio_ds (int size)
     WAVEFORMATEX wavfmt;
     int freq = currprefs.sound_freq;
     LPDIRECTSOUNDBUFFER pdsb;
+    DSBPOSITIONNOTIFY *dsbpn;
+    LPDIRECTSOUNDNOTIFY8 lpDsNotify;
+    HANDLE thread;
+    unsigned ttid;
     
     enumerate_sound_devices (0);
     if (currprefs.sound_stereo == 3) {
@@ -260,10 +510,8 @@ static int open_audio_ds (int size)
 	if (currprefs.sound_stereo)
 	    size <<= 1;
     }
-    snd_configsize = size;
-    sndbufsize = size / 32;
-    if (sndbufsize > SND_MAX_BUFFER)
-        sndbufsize = SND_MAX_BUFFER;
+    sndbuffer_size = sndbuffer_slot_size * sndbuffer_slot_num;
+    sndbufsize = sndbuffer_size;
 
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
     if (FAILED(hr))  {
@@ -320,30 +568,15 @@ static int open_audio_ds (int size)
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * freq;
     wavfmt.cbSize = 0;
 
-    max_sndbufsize = size * 3;
-    if (max_sndbufsize > SND_MAX_BUFFER2)
-        max_sndbufsize = SND_MAX_BUFFER2;
-    dsoundbuf = max_sndbufsize * 2;
-
     hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
     if (FAILED(hr)) {
         write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
         goto error;
     }
-    if (dsoundbuf < DSBSIZE_MIN)
-        dsoundbuf = DSBSIZE_MIN;
-    if (dsoundbuf > DSBSIZE_MAX)
-        dsoundbuf = DSBSIZE_MAX;
-    if (max_sndbufsize > dsoundbuf)
-        max_sndbufsize = dsoundbuf;
-
-    snd_writeoffset = max_sndbufsize * 3 / 4;
-    snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset = max_sndbufsize + (dsoundbuf - max_sndbufsize) / 2;
 
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
-    sound_buffer.dwBufferBytes = dsoundbuf;
+    sound_buffer.dwBufferBytes = sndbuffer_size;
     sound_buffer.lpwfxFormat = &wavfmt;
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
     sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPOSITIONNOTIFY;
@@ -355,7 +588,7 @@ static int open_audio_ds (int size)
     }
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
-        write_log ("SOUND: Primary QueryInterface() failure: %s\n", DXError (hr));
+        write_log ("SOUND: QueryInterface(DirectSoundBuffer8) failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release(pdsb);
@@ -365,18 +598,45 @@ static int open_audio_ds (int size)
         write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
         goto error;
     }
+
+    hr = IDirectSound_QueryInterface(lpDSBsecondary, &IID_IDirectSoundNotify8, (LPVOID*)&lpDsNotify);
+    if (FAILED(hr)) {
+	write_log ("SOUND: QueryInterface(DirectSoundNotify8) failed: %s\n", DXError (hr));
+	goto error;
+    }
+    uae_sem_init(&audiosem, 0, 1);
+    notifyevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    notifyevent2 = CreateEvent(NULL, FALSE, FALSE, NULL);
+    dsbpn = xmalloc (sizeof (DSBPOSITIONNOTIFY) * sndbuffer_slot_num);
+    for (i = 0; i < sndbuffer_slot_num; i++) {
+	dsbpn[i].dwOffset = i * sndbuffer_slot_size;
+	dsbpn[i].hEventNotify = notifyevent;
+    }
+    IDirectSoundNotify_SetNotificationPositions(lpDsNotify, sndbuffer_slot_num, dsbpn);
+    IDirectSound_Release(lpDsNotify);
+
+    notificationthread_mode = 1;
+    thread = (HANDLE)_beginthreadex(NULL, 0, notifythread, NULL, 0, &ttid);
+    if (thread == NULL) {
+	write_log(" SOUND: NotificationThread failed to start: %d\n", GetLastError());
+	goto error;
+    }
+    SetThreadPriority (thread, THREAD_PRIORITY_HIGHEST);
+    SetThreadPriority (thread, THREAD_PRIORITY_TIME_CRITICAL);
+
     setvolume ();
     clearbuffer ();
+
     init_sound_table16 ();
     if (currprefs.sound_stereo == 3)
 	sample_handler = sample16ss_handler;
     else
 	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
 
-    write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
+    write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d*%d=%d\n",
 	sound_devices[currprefs.win32_soundcard],
 	currprefs.sound_stereo,
-	16, freq, max_sndbufsize, snd_configsize);
+	16, freq, sndbuffer_slot_num, sndbuffer_slot_size, sndbuffer_size);
     obtainedfreq = currprefs.sound_freq;
 
     return 1;
@@ -421,9 +681,9 @@ void close_sound (void)
 {
     if (! have_sound)
 	return;
+    have_sound = 0;
     pause_sound ();
     close_audio_ds ();
-    have_sound = 0;
 }
 
 int init_sound (void)
@@ -489,143 +749,22 @@ void sound_setadjust (double v)
 	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     } else {
-	vsynctime = vsynctime_orig * mult / 1000.0;
+	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
 }
 
 static void finish_sound_buffer_ds (void)
 {
-    DWORD playpos, safepos, status;
-    HRESULT hr;
-    void *b1, *b2;
-    DWORD s1, s2;
-    int diff;
-    int counter = 1000;
-    double vdiff, m, skipmode;
-
-    if (!waiting_for_buffer)
-	return;
-    if (waiting_for_buffer == 1) {
-        int safedist;
-	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
-	if (FAILED(hr)) {
-	    write_log ("SOUND: Play failed: %s\n", DXError (hr));
-	    restore (DSERR_BUFFERLOST);
-	    waiting_for_buffer = 0;
-	    return;
-	}
-	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safedist);
-	if (FAILED(hr)) {
-	    write_log ("SOUND: 1st GetCurrentPosition failed: %s\n", DXError (hr));
-	    restore (DSERR_BUFFERLOST);
-	    waiting_for_buffer = 0;
-	    return;
-	}
-	safedist -= playpos;
-	if (safedist < 0)
-	    safedist += dsoundbuf;
-	safedist += sndbufsize;
-	snd_totalmaxoffset += safedist;
-	snd_maxoffset += safedist;
-	snd_writeoffset += safedist;
-	writepos = snd_writeoffset + safedist;
-	waiting_for_buffer = -1;
-	write_log("SOUND: safedist=%d snd_total=%d snd_max=%d snd_write=%d\n",
-	    safedist, snd_totalmaxoffset, snd_maxoffset, snd_writeoffset);
-    }
-
-    hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
-    if (FAILED(hr)) {
-	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
-	return;
-    }
-    if (status & DSBSTATUS_BUFFERLOST) {
-	write_log ("SOUND: buffer lost\n");
-	restore (DSERR_BUFFERLOST);
-	return;
-    }
-    if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
-	write_log ("SOUND: status = %08.8X\n", status);
-	restore (DSERR_BUFFERLOST);
-	return;
-    }
+    uae_sem_post(&audiosem);
+    ResetEvent(notifyevent2);
     for (;;) {
-	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
-	if (FAILED(hr)) {
-	    restore (hr);
-	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
-	    return;
-	}
-
-	if (savestate_state)
-	    return;
-
-	if (writepos >= playpos)
-	    diff = writepos - playpos;
-	else
-	    diff = dsoundbuf - playpos + writepos;
-
-	if (diff >= snd_totalmaxoffset) {
-	    writepos = safepos + snd_writeoffset;
-	    if (writepos >= dsoundbuf)
-		writepos -= dsoundbuf;
-	    diff = snd_writeoffset;
+	SetEvent(notifyevent);
+	WaitForSingleObject(notifyevent2, INFINITE);
+	if (sndbufpt == sndbuffer && sndbufsize > 0)
 	    break;
-	}
-
-	if (diff > snd_maxoffset) {
-	    sleep_millis(1);
-	    counter--;
-	    if (counter < 0) {
-		write_log ("SOUND: sound system got stuck!?\n");
-		restore (DSERR_BUFFERLOST);
-		return;
-	    }
-	    continue;
-	}
-	break;
     }
-
-    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
-    if (restore (hr))
-	return;
-    if (FAILED(hr)) {
-	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
-        return;
-    }
-    memcpy (b1, sndbuffer, s1);
-    if (b2)
-        memcpy (b2, (uae_u8*)sndbuffer + s1, s2);
-    IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
-
-    vdiff = diff - snd_writeoffset;
-    m = 100.0 * vdiff / max_sndbufsize;
-    skipmode = pow (m < 0 ? -m : m, EXP) / 2.0;
-
-    if (m < 0)
-	skipmode = -skipmode;
-    if (skipmode < -ADJUST_SIZE)
-	skipmode = -ADJUST_SIZE;
-    if (skipmode > ADJUST_SIZE)
-	skipmode = ADJUST_SIZE;
-
-    if (sound_debug) {
-	static int tfprev;
-	if (tfprev != timeframes && !(timeframes % 10)) {
-	    write_log ("b=%5d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
-		sndbufsize, snd_configsize, max_sndbufsize, dsoundbuf, diff, vdiff, skipmode);
-	}
-	tfprev = timeframes;
-    }
-
-    writepos += sndbufsize;
-    if (writepos >= dsoundbuf)
-	writepos -= dsoundbuf;
-
-    sound_setadjust (skipmode);
-
-    gui_data.sndbuf = vdiff * 1000 / snd_maxoffset;
+    uae_sem_wait(&audiosem);
 }
 
 static void channelswap(uae_s16 *sndbuffer, int len)

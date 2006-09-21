@@ -452,7 +452,7 @@ static void kbrlabel (char *s)
 static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae_input_device *kbr)
 {
     char tmp1[200], tmp2[200], tmp3[200], *p;
-    int i, j, k, event, skip;
+    int i, j, k, evt, skip;
 
     if (!keyboard_default)
 	return;
@@ -483,8 +483,8 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	p[0] = 0;
 	for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 	    char *custom = kbr->custom[i][j];
-	    event = kbr->eventid[i][j];
-	    if (custom == NULL && event <= 0) {
+	    evt = kbr->eventid[i][j];
+	    if (custom == NULL && evt <= 0) {
 		for (k = j + 1; k < MAX_INPUT_SUB_EVENT; k++) {
 		    if (kbr->eventid[i][k] > 0) break;
 		}
@@ -497,8 +497,8 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	    }
 	    if (custom)
 		sprintf (p, "'%s'.%d", custom, kbr->flags[i][j]);
-	    else if (event > 0)
-		sprintf (p, "%s.%d", events[event].confname, kbr->flags[i][j]);
+	    else if (evt > 0)
+		sprintf (p, "%s.%d", events[evt].confname, kbr->flags[i][j]);
 	    else
 		strcat (p, "NULL");
 	    p += strlen(p);
@@ -506,7 +506,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	sprintf (tmp3, "%d", kbr->extra[i][0]);
 	kbrlabel (tmp3);
 	sprintf (tmp1, "keyboard.%d.button.%s", devnum, tmp3);
-	cfgfile_write (f, "input.%d.%s=%s\n", idnum, tmp1, tmp2);
+	cfgfile_write (f, "input.%d.%s=%s\n", idnum, tmp1, tmp2[0] ? tmp2 : "NULL");
 	i++;
     }
 }
@@ -689,8 +689,13 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	    }
 	}
 	flags = getnum (&p);
-	if (custom == NULL && ie->name == NULL)
+	if (custom == NULL && ie->name == NULL) {
+	    if (!strcmp(p2,"NULL")) {
+		id->eventid[keynum][subnum] = 0;
+		id->flags[keynum][subnum] = 0;
+	    }
 	    continue;
+	}
 	if (joystick < 0) {
 	    if (!(ie->allow_mask & AM_K))
 		continue;

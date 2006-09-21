@@ -80,7 +80,6 @@ static DWORD getattr(const char *name, LPFILETIME lpft, size_t *size)
         fd.dwFileAttributes = GetFileAttributes(name);
         return fd.dwFileAttributes;
     }
-
     FindClose(hFind);
 
     if (lpft)
@@ -122,7 +121,7 @@ int posixemu_chmod(const char *name, int mode)
     return -1;
 }
 
-static void tmToSystemTime( struct tm *tmtime, LPSYSTEMTIME systime )
+static void tmToSystemTime(struct tm *tmtime, LPSYSTEMTIME systime)
 {
     if (tmtime == NULL) {
         GetSystemTime (systime);
@@ -143,14 +142,14 @@ static int setfiletime(const char *name, unsigned int days, int minute, int tick
     FILETIME LocalFileTime, FileTime;
     HANDLE hFile;
     int success;
-    if ((hFile = CreateFile(name, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE) {
+    if ((hFile = CreateFile(name, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
 	return 0;
-    }
 
     *(__int64 *)&LocalFileTime = (((__int64)(377*365+91+days)*(__int64)1440+(__int64)minute)*(__int64)(60*50)+(__int64)tick)*(__int64)200000;
     
     if (tolocal) {
-	if (!LocalFileTimeToFileTime(&LocalFileTime,&FileTime)) FileTime = LocalFileTime;
+	if (!LocalFileTimeToFileTime(&LocalFileTime,&FileTime))
+	    FileTime = LocalFileTime;
     } else {
 	FileTime = LocalFileTime;
     }
@@ -181,7 +180,6 @@ int posixemu_utime( const char *name, struct utimbuf *ttime )
 	return result;
 }
 
-/* pthread Win32 emulation */
 void uae_sem_init (uae_sem_t * event, int manual_reset, int initial_state)
 {
     if(*event) {
@@ -211,9 +209,8 @@ int uae_sem_trywait (uae_sem_t * event)
 
 void uae_sem_destroy (uae_sem_t * event)
 {
-    if( *event )
-    {
-	CloseHandle( *event );
+    if(*event) {
+	CloseHandle(*event);
 	*event = NULL;
     }
 }

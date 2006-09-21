@@ -36,6 +36,7 @@
 #include "traps.h"
 #include "ahidsound.h"
 #endif
+#include "threaddep/thread.h"
 
 #include <math.h>
 

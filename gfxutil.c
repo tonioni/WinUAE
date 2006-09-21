@@ -74,7 +74,10 @@ unsigned int doMask256 (int p, int bits, int shift)
 static unsigned int doColor (int i, int bits, int shift)
 {
     int shift2;
-    if(bits >= 8) shift2 = 0; else shift2 = 8 - bits;
+    if(bits >= 8)
+	shift2 = 0;
+    else
+	shift2 = 8 - bits;
     return (i >> shift2) << shift;
 }
 
@@ -156,24 +159,24 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	xredcolors[i] = greyscale (doColor (i, rw, rs)) | doAlpha (alpha, aw, as);
 	xgreencolors[i] = greyscale (doColor (i, gw, gs)) | doAlpha (alpha, aw, as);
 	xbluecolors[i] = greyscale (doColor (i, bw, bs)) | doAlpha (alpha, aw, as);
-    }
-    if (byte_swap) {
-	if (bpp <= 16) {
-	    xredcolors  [i] = bswap_16 (xredcolors[i]);
-	    xgreencolors[i] = bswap_16 (xgreencolors[i]);
-	    xbluecolors [i] = bswap_16 (xbluecolors[i]);
-	} else {
-	    xredcolors  [i] = bswap_32 (xredcolors[i]);
-	    xgreencolors[i] = bswap_32 (xgreencolors[i]);
-	    xbluecolors [i] = bswap_32 (xbluecolors[i]);
+	if (byte_swap) {
+	    if (bpp <= 16) {
+		xredcolors  [i] = bswap_16 (xredcolors[i]);
+		xgreencolors[i] = bswap_16 (xgreencolors[i]);
+		xbluecolors [i] = bswap_16 (xbluecolors[i]);
+	    } else {
+		xredcolors  [i] = bswap_32 (xredcolors[i]);
+		xgreencolors[i] = bswap_32 (xgreencolors[i]);
+		xbluecolors [i] = bswap_32 (xbluecolors[i]);
+	    }
 	}
-    }
-    if (bpp <= 16) {
-        /* Fill upper 16 bits of each colour value with
-         * a copy of the colour. */
-        xredcolors  [i] = xredcolors  [i] * 0x00010001;
-        xgreencolors[i] = xgreencolors[i] * 0x00010001;
-        xbluecolors [i] = xbluecolors [i] * 0x00010001;
+	if (bpp <= 16) {
+	    /* Fill upper 16 bits of each colour value with
+	     * a copy of the colour. */
+	    xredcolors  [i] = xredcolors  [i] * 0x00010001;
+	    xgreencolors[i] = xgreencolors[i] * 0x00010001;
+	    xbluecolors [i] = xbluecolors [i] * 0x00010001;
+	}
     }
 
 #endif

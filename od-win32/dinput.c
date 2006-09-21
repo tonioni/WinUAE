@@ -268,8 +268,8 @@ static int initialize_rawinput (void)
 
     gotnum = pGetRawInputDeviceList(ridl, &num, sizeof (RAWINPUTDEVICELIST));
     if (gotnum <= 0) {
-	write_log ("RAWINPUT didn't find any devices");
-	goto error;
+	write_log ("RAWINPUT didn't find any devices\n");
+	goto error2;
     }
     write_log ("RAWINPUT: found %d devices\n", gotnum);
     rnum_raw = rnum_mouse = rnum_kb = 0;
@@ -376,8 +376,9 @@ static int initialize_rawinput (void)
 	rawinput_available = 1;
     return 1;
 
-    error:
+error:
     write_log ("RAWINPUT not available or failed to initialize\n");
+error2:
     free (ridl);
     free (buf);
     return 0;

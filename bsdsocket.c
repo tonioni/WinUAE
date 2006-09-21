@@ -793,8 +793,63 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 /* ReleaseCopyOfSocket(fd, id)(d0/d1) */
 static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 {
-    write_log ("bsdsocket: UNSUPPORTED: ReleaseCopyOfSocket()\n");
-    return 0;
+   struct socketbase *sb = get_socketbase (context);
+   int sd;
+   long id;
+   SOCKET_TYPE s;
+   int i;
+   uae_u32 flags;
+
+   sd = m68k_dreg (&context->regs, 0);
+   id = m68k_dreg (&context->regs, 1);
+
+   sd++;
+   TRACE (("ReleaseSocket(%d,%d) -> ", sd, id));
+
+   s = getsock (sb, sd);
+
+    if (s != -1) {
+	flags = sb->ftable[sd - 1];
+
+	if (flags & REP_ALL) {
+	    write_log ("bsdsocket: ERROR: ReleaseCopyOfSocket() is not supported for sockets with async event notification enabled!\n");
+	    return -1;
+	}
+	if (id == UNIQUE_ID) {
+	    for (;;) {
+		if (sockpoolindex (curruniqid) == -1)
+		    break;
+		curruniqid += 129;
+		if ((unsigned long) (curruniqid + 1) < 65536)
+		    curruniqid += 65537;
+	    }
+	    id = curruniqid;
+	} else if (id < 0 && id > 65535) {
+	    if (sockpoolindex (id) != -1) {
+		TRACE (("[unique ID already exists]\n"));
+		return -1;
+	    }
+	}
+	i = sockpoolindex (-1);
+
+	if (i == -1) {
+	    TRACE (("-1\n"));
+	    write_log (("bsdsocket: ERROR: Global socket pool overflow\n"));
+	    return -1;
+	}
+	sockpoolids[i] = id;
+	sockpoolsocks[i] = s;
+	sockpoolflags[i] = flags;
+
+	TRACE (("id %d s 0x%x\n", id,s));
+
+    } else {
+
+	TRACE (("[invalid socket descriptor]\n"));
+	return -1;
+    }
+
+    return id;
 }
 
 /* Errno()() */

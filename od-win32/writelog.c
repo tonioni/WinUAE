@@ -160,14 +160,14 @@ void f_out (void *f, const char *format, ...)
 {
     int count;
     DWORD numwritten;
-    char buffer[ WRITE_LOG_BUF_SIZE ];
+    char buffer[WRITE_LOG_BUF_SIZE];
     va_list parms;
     va_start (parms, format);
 
     if (f == NULL)
 	return;
-    count = _vsnprintf( buffer, WRITE_LOG_BUF_SIZE-1, format, parms );
-    openconsole();
-    WriteConsole(stdoutput,buffer,strlen(buffer),&numwritten,0);
+    count = _vsnprintf (buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
+    openconsole ();
+    WriteConsole(stdoutput, buffer, strlen(buffer), &numwritten,0);
     va_end (parms);
 }

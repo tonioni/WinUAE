@@ -310,6 +310,15 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     int code = 0;
     static int swapperdrive = 0;
 
+    extern int last_n, last_n2;
+    extern void blehint(void);
+    if (newstate && scancode == DIK_F1)
+	write_log("%d %d\n", last_n, last_n2);
+    if (newstate && scancode == DIK_F2) {
+	blehint();
+	write_log("INT\n");
+    }
+
     //write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
     if (newstate) {
 	switch (scancode)

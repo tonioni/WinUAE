@@ -612,7 +612,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	    put_long (dataptr + 20, tracksec);
 	    put_long (dataptr + 24, 0); /* bufmemtype */
 	    put_byte (dataptr + 28, 0); /* type = DG_DIRECT_ACCESS */
-	    put_long (dataptr + 29, 0); /* flags */
+	    put_byte (dataptr + 29, 0); /* flags */
 	}
 	break;
 

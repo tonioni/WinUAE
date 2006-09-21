@@ -1789,8 +1789,8 @@ static void createstatuswindow (void)
     RECT rc;
     HLOCAL hloc;
     LPINT lpParts;
-    int drive_width, hd_width, cd_width, power_width, fps_width, idle_width;
-    int num_parts = 10;
+    int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width;
+    int num_parts = 11;
     double scaleX, scaleY;
 
     hStatusWnd = CreateWindowEx(
@@ -1809,6 +1809,7 @@ static void createstatuswindow (void)
     power_width = (int)(42 * scaleX);
     fps_width = (int)(64 * scaleX);
     idle_width = (int)(64 * scaleX);
+    snd_width = (int)(64 * scaleX);
     GetClientRect (hMainWnd, &rc);
     /* Allocate an array for holding the right edge coordinates. */
     hloc = LocalAlloc (LHND, sizeof (int) * num_parts);
@@ -1816,18 +1817,19 @@ static void createstatuswindow (void)
 	lpParts = LocalLock (hloc);
 	/* Calculate the right edge coordinate for each part, and copy the coords
 	 * to the array.  */
-	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - 2;
-	lpParts[1] = lpParts[0] + idle_width;
-	lpParts[2] = lpParts[1] + fps_width;
-	lpParts[3] = lpParts[2] + power_width;
-	lpParts[4] = lpParts[3] + cd_width;
-	lpParts[5] = lpParts[4] + hd_width;
-	lpParts[6] = lpParts[5] + drive_width;
+	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - 2;
+	lpParts[1] = lpParts[0] + snd_width;
+	lpParts[2] = lpParts[1] + idle_width;
+	lpParts[3] = lpParts[2] + fps_width;
+	lpParts[4] = lpParts[3] + power_width;
+	lpParts[5] = lpParts[4] + cd_width;
+	lpParts[6] = lpParts[5] + hd_width;
 	lpParts[7] = lpParts[6] + drive_width;
 	lpParts[8] = lpParts[7] + drive_width;
 	lpParts[9] = lpParts[8] + drive_width;
-	window_led_drives = lpParts[5];
-	window_led_drives_end = lpParts[9];
+	lpParts[10] = lpParts[9] + drive_width;
+	window_led_drives = lpParts[6];
+	window_led_drives_end = lpParts[10];
 
 	/* Create the parts */
 	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM) num_parts, (LPARAM) lpParts);

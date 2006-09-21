@@ -50,9 +50,7 @@ static struct arcadiarom roms[]	= {
     { "ar_ldrba.zip", "scpa211", "ldrb_", 1, 2, 3, 4, 1, 0, 7, 5, 6 },
     { "ar_ninj.zip", "scpa211", "ninj_", 1, 1, 6, 5, 7, 4, 2, 0, 3 },
     { "ar_rdwr.zip", "scpa211", "rdwr_", 1, 3, 1, 6, 4, 0, 5, 2, 7 },
-
     { "ar_socc.zip", "scpav3_0.1", "socc30.", 2, 0, 7, 1, 6, 5, 4, 3, 2 },
-
     { "ar_sdwr.zip", "scpa211", "sdwr_", 1, 6, 3, 4, 5, 2, 1, 0, 7 },
     { "ar_spot.zip", "scpav3_0.1", "spotv2.", 0, 7, 6, 5, 4, 3, 2, 1, 0 },
     { "ar_sprg.zip", "scpa211", "sprg_", 1, 4, 7, 3, 0, 6, 5, 2, 1 },

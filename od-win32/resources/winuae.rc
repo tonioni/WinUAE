@@ -1131,7 +1131,7 @@ BEGIN
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FastFileSystem, SmartFilesystem, etc.)"
-    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (T=Up B=Down F=Left H=Right, Left ALT = Fire)\nX-Arcade (Left)\nX-Arcade (Right)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)\nX-Arcade (Left)\nX-Arcade (Right)"
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"

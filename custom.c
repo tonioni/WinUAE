@@ -4108,6 +4108,7 @@ void fpscounter_reset (void)
 static void fpscounter (void)
 {
     frame_time_t now, last;
+    int mcnt = 10;
 
     now = read_processor_time ();
     last = now - lastframetime;
@@ -4119,9 +4120,9 @@ static void fpscounter (void)
     frametime += last;
     frametime2 += last;
     timeframes++;
-    if ((timeframes & 31) == 0) {
-	double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctime * 32.0));
-	int fps = frametime2 == 0 ? 0 : (syncbase * 32) / (frametime2 / 10);
+    if ((timeframes % mcnt) == 0) {
+	double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctime * mcnt));
+	int fps = frametime2 == 0 ? 0 : (syncbase * mcnt) / (frametime2 / 10);
 	if (fps > 9999)
 	    fps = 9999;
 	if (idle < 0)

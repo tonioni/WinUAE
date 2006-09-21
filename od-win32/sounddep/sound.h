@@ -23,7 +23,7 @@ extern int drivesound_init (void);
 extern void drivesound_free (void);
 extern void sound_volume (int);
 
-static __inline__ void check_sound_buffers (void)
+STATIC_INLINE void check_sound_buffers (void)
 {
     if (currprefs.sound_stereo == 2) {
 	((uae_u16*)sndbufpt)[0] = ((uae_u16*)sndbufpt)[-2];

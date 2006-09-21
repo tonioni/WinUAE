@@ -3267,6 +3267,12 @@ action_flush (Unit *unit, dpacket packet)
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
+int last_n, last_n2;
+void blehint(void)
+{
+    do_uae_int_requested();
+}
+
 /* We don't want multiple interrupts to be active at the same time. I don't
  * know whether AmigaOS takes care of that, but this does. */
 static uae_sem_t singlethread_int_sem;
@@ -3275,9 +3281,13 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 {
     UnitInfo *uip = current_mountinfo.ui;
     uaecptr port;
+    int n = m68k_dreg (&context->regs, 0);
     static int unit_no;
 
-    switch (m68k_dreg (&context->regs, 0)) {
+    last_n = n;
+    last_n2 = -1;
+
+    switch (n) {
      case 0:
 	/* Determine whether a given EXTER interrupt is for us. */
 	if (uae_int_requested) {
@@ -3301,7 +3311,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 	 * in this switch statement which are called from the interrupt handler.
 	 */
 #ifdef UAE_FILESYS_THREADS
-	{
+	 {
 	    Unit *unit = find_unit (m68k_areg (&context->regs, 5));
 	    uaecptr msg = m68k_areg (&context->regs, 4);
 	    unit->cmds_complete = unit->cmds_acked;
@@ -3396,6 +3406,9 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 	    return 1;
 	}
 	break;
+     case 3:
+	 uae_sem_wait (&singlethread_int_sem);
+	 break;
      case 4:
 	/* Exit the interrupt, and release the single-threading lock. */
 	uae_sem_post (&singlethread_int_sem);
