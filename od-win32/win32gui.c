@@ -5251,7 +5251,8 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_SWAP_BOTH, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_ADDSTRING, 0, (LPARAM)txt);
-    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_SETCURSEL, workprefs.sound_stereo_swap_paula + workprefs.sound_stereo_swap_ahi * 2, 0);
+    SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_SETCURSEL,
+	workprefs.sound_stereo_swap_paula + workprefs.sound_stereo_swap_ahi * 2, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOSEP, CB_RESETCONTENT, 0, 0);
     for (i = 10; i >= 0; i--) {
@@ -9309,7 +9310,7 @@ void gui_fps (int fps, int idle)
     gui_data.idle = idle;
     gui_led (7, 0);
     gui_led (8, 0);
-    gui_led (9, 0);
+    gui_led (9, gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0);
 }
 
 void gui_led (int led, int on)
@@ -9326,10 +9327,6 @@ void gui_led (int led, int on)
 #endif
     if (!hStatusWnd)
 	return;
-    if (on)
-	type = SBT_POPOUT;
-    else
-	type = 0;
     tt = NULL;
     if (led >= 1 && led <= 4) {
 	pos = 6 + (led - 1);
@@ -9371,8 +9368,17 @@ void gui_led (int led, int on)
     } else if (led == 9) {
 	pos = 0;
 	ptr = drive_text + pos * 16;
-	sprintf(ptr, "SND: %.0f%%", (double)((gui_data.sndbuf) / 10.0));
+	if (gui_data.sndbuf_status < 3) {
+	    sprintf(ptr, "SND: %.0f%%", (double)((gui_data.sndbuf) / 10.0));
+	} else {
+	    ptr[0] = 0;
+	    on = 0;
+	}
     }
+    if (on)
+	type = SBT_POPOUT;
+    else
+	type = 0;
     if (pos >= 0) {
 	PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM) ((pos + 1) | type), (LPARAM) ptr);
 	if (tt != NULL)

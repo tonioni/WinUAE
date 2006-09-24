@@ -292,6 +292,9 @@ Section Uninstall
   RMDir "$INSTDIR\SaveImages"
   RMDir "$INSTDIR\SaveStates"
   RMDir "$INSTDIR\ScreenShots"
+  RMDir "$INSTDIR\InputRecordings"
+  RMDir "$INSTDIR\plugins\codecs"
+  RMDir "$INSTDIR\plugins"
 
   RMDir "$SMPROGRAMS\WinUAE"
   RMDir "$INSTDIR\"

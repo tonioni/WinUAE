@@ -1564,7 +1564,7 @@ void logging_init(void)
     write_log (" %s %X.%X %d",
 	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? "32-bit x86" :
 	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64 ? "IA64" :
-	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? "AMD64" : "Unknown",
+	SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? "64-bit" : "Unknown",
 	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 	SystemInfo.dwNumberOfProcessors);
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
@@ -2807,12 +2807,12 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     DWORD_PTR oldaff;
 
     thread = GetCurrentThread();
-    oldaff = SetThreadAffinityMask(thread, 1); 
+    //oldaff = SetThreadAffinityMask(thread, 1); 
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
-    SetThreadAffinityMask(thread, oldaff);
+    //SetThreadAffinityMask(thread, oldaff);
     return FALSE;
 }
 

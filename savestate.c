@@ -235,7 +235,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *
 {
     uae_u8 tmp[4], dummy[4], *mem, *src;
     uae_u32 flags;
-    size_t len2;
+    int len2;
 
     *totallen = 0;
     /* chunk name */

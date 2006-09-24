@@ -925,7 +925,7 @@ void flush_screen (int a, int b)
 	if(currentmode->flags & DM_DX_FULLSCREEN )
 	    DX_Flip ();
 	else if (DirectDraw_GetLockableType() != overlay_surface)
-	    DX_Blit( 0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC );
+	    DX_Blit (0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC);
 #endif
     } else if ((currentmode->flags & DM_DDRAW) && DirectDraw_GetLockableType() == secondary_surface ) {
 	if (currentmode->flags & DM_DX_FULLSCREEN) {

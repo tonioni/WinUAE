@@ -1881,12 +1881,20 @@ static void draw_status_line (int line)
 	    if (snd > 99)
 		snd = 99;
 	    pos = 0;
-	    on = framecnt;
-	    on_rgb = 0xc00;
+	    on = gui_data.sndbuf_status;
+	    if (on < 3) {
+		num1 = gui_data.sndbuf < 0 ? 15 : 14;
+		num2 = snd / 10;
+		num3 = snd % 10;
+	    }
+	    on_rgb = 0x000;
+	    if (on < 0)
+		on_rgb = 0xc00; // underflow
+	    else if (on == 2)
+		on_rgb = 0xcc0; // really big overflow
+	    else if (on == 1)
+		on_rgb = 0x00c; // "normal" overflow
 	    off_rgb = 0x000;
-	    num1 = gui_data.sndbuf < 0 ? 15 : 14;
-	    num2 = snd / 10;
-	    num3 = snd % 10;
 	    am = 3;
 	}
 	c = xcolors[on ? on_rgb : off_rgb];

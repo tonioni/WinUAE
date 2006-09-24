@@ -320,7 +320,7 @@ static int open_audio_ds (int size)
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * freq;
     wavfmt.cbSize = 0;
 
-    max_sndbufsize = size * 3;
+    max_sndbufsize = size * 4;
     if (max_sndbufsize > SND_MAX_BUFFER2)
         max_sndbufsize = SND_MAX_BUFFER2;
     dsoundbuf = max_sndbufsize * 2;
@@ -424,6 +424,7 @@ void close_sound (void)
     pause_sound ();
     close_audio_ds ();
     have_sound = 0;
+    gui_data.sndbuf = 0;
 }
 
 int init_sound (void)
@@ -494,6 +495,25 @@ void sound_setadjust (double v)
     }
 }
 
+#define SND_STATUSCNT 10
+
+static int safedist;
+
+void restart_sound_buffer(void)
+{
+    DWORD playpos, safed;
+    HRESULT hr;
+
+    if (waiting_for_buffer != -1)
+	return;
+    hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
+    if (FAILED(hr))
+	return;
+    writepos = snd_writeoffset + safedist + playpos;
+    if (writepos >= dsoundbuf)
+        writepos -= dsoundbuf;
+}
+
 static void finish_sound_buffer_ds (void)
 {
     DWORD playpos, safepos, status;
@@ -503,11 +523,20 @@ static void finish_sound_buffer_ds (void)
     int diff;
     int counter = 1000;
     double vdiff, m, skipmode;
+    static int statuscnt;
+
+    if (statuscnt > 0) {
+	statuscnt--;
+	if (statuscnt == 0)
+	    gui_data.sndbuf_status = 0;
+    }
 
     if (!waiting_for_buffer)
 	return;
+    if (savestate_state)
+        return;
+
     if (waiting_for_buffer == 1) {
-        int safedist;
 	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
 	if (FAILED(hr)) {
 	    write_log ("SOUND: Play failed: %s\n", DXError (hr));
@@ -529,8 +558,8 @@ static void finish_sound_buffer_ds (void)
 	snd_totalmaxoffset += safedist;
 	snd_maxoffset += safedist;
 	snd_writeoffset += safedist;
-	writepos = snd_writeoffset + safedist;
 	waiting_for_buffer = -1;
+	restart_sound_buffer();
 	write_log("SOUND: safedist=%d snd_total=%d snd_max=%d snd_write=%d\n",
 	    safedist, snd_totalmaxoffset, snd_maxoffset, snd_writeoffset);
     }
@@ -558,15 +587,30 @@ static void finish_sound_buffer_ds (void)
 	    return;
 	}
 
-	if (savestate_state)
-	    return;
-
 	if (writepos >= playpos)
 	    diff = writepos - playpos;
 	else
 	    diff = dsoundbuf - playpos + writepos;
 
-	if (diff >= snd_totalmaxoffset) {
+	if (diff < safedist) {
+	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, safedist, &b1, &s1, &b2, &s2, 0);
+	    if (SUCCEEDED(hr)) {
+		memset (b1, 0, s1);
+		if (b2)
+		    memset (b2, 0, s2);
+		IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
+	    }
+	    gui_data.sndbuf_status = -1;
+	    statuscnt = SND_STATUSCNT;
+	    writepos += safedist;
+	    if (writepos >= dsoundbuf)
+		writepos -= dsoundbuf;
+	    break;
+	}
+
+	if (diff > snd_totalmaxoffset) {
+	    gui_data.sndbuf_status = 2;
+	    statuscnt = SND_STATUSCNT;
 	    writepos = safepos + snd_writeoffset;
 	    if (writepos >= dsoundbuf)
 		writepos -= dsoundbuf;
@@ -575,6 +619,8 @@ static void finish_sound_buffer_ds (void)
 	}
 
 	if (diff > snd_maxoffset) {
+	    gui_data.sndbuf_status = 1;
+	    statuscnt = SND_STATUSCNT;
 	    sleep_millis(1);
 	    counter--;
 	    if (counter < 0) {

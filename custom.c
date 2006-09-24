@@ -4185,7 +4185,6 @@ static void vsync_handler (void)
 
 #ifdef PICASSO96
     /* And now let's update the Picasso palette, if required */
-    DX_SetPalette_vsync();
     if (picasso_on)
 	picasso_handle_vsync ();
 #endif
@@ -4282,7 +4281,6 @@ static void hsync_handler (void)
 
     if (!nocustom()) {
 	sync_copper_with_cpu (maxhpos, 0);
-        //copper_check (1);
         finish_decisions ();
 	if (thisline_decision.plfleft != -1) {
 	    if (currprefs.collision_level > 1)

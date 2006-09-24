@@ -11,6 +11,7 @@ extern uae_u16 sndbuffer[];
 extern uae_u16 *sndbufpt;
 extern int sndbufsize;
 extern void finish_sound_buffer (void);
+extern void restart_sound_buffer (void);
 extern int init_sound (void);
 extern void close_sound (void);
 extern int setup_sound (void);
@@ -34,6 +35,12 @@ STATIC_INLINE void check_sound_buffers (void)
 	finish_sound_buffer ();
 	sndbufpt = sndbuffer;
     }
+}
+
+STATIC_INLINE void clear_sound_buffers (void)
+{
+    memset (sndbuffer, 0, sndbufsize);
+    sndbufpt = sndbuffer;
 }
 
 #define PUT_SOUND_BYTE(b) do { *(uae_u8 *)sndbufpt = b; sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 1); } while (0)
