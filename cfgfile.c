@@ -148,7 +148,7 @@ static const char *obsolete[] = {
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
-    "kickstart_key_file", "fast_copper",
+    "kickstart_key_file", "fast_copper", "sound_adjust",
     0
 };
 
@@ -286,15 +286,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
     cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
     cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo >= 0 ? p->sound_mixed_stereo : 0);
-
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
     cfgfile_write (f, "sound_latency=%d\n", p->sound_latency);
     cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
-    cfgfile_write (f, "sound_adjust=%d\n", p->sound_adjust);
     cfgfile_write (f, "sound_filter=%s\n", soundfiltermode1[p->sound_filter]);
     cfgfile_write (f, "sound_filter_type=%s\n", soundfiltermode2[p->sound_filter_type]);
     cfgfile_write (f, "sound_volume=%d\n", p->sound_volume);
+    cfgfile_write (f, "sound_auto=%s\n", p->sound_auto ? "yes" : "no");
 
     cfgfile_write (f, "comp_trustbyte=%s\n", compmode[p->comptrustbyte]);
     cfgfile_write (f, "comp_trustword=%s\n", compmode[p->comptrustword]);
@@ -648,7 +647,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "state_replay_rate", &p->statecapturerate, 1)
 	|| cfgfile_intval (option, value, "state_replay_buffer", &p->statecapturebuffersize, 1)
 	|| cfgfile_intval (option, value, "sound_frequency", &p->sound_freq, 1)
-	|| cfgfile_intval (option, value, "sound_adjust", &p->sound_adjust, 1)
 	|| cfgfile_intval (option, value, "sound_volume", &p->sound_volume, 1)
 	|| cfgfile_intval (option, value, "sound_stereo_separation", &p->sound_stereo_separation, 1)
 	|| cfgfile_intval (option, value, "sound_stereo_mixing_delay", &p->sound_mixed_stereo, 1)
@@ -692,6 +690,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	    return 1;
 
 	if (cfgfile_yesno (option, value, "use_debugger", &p->start_debugger)
+	|| cfgfile_yesno (option, value, "sound_auto", &p->sound_auto)
 	|| cfgfile_yesno (option, value, "state_replay", &p->statecapture)
 	|| cfgfile_yesno (option, value, "avoid_cmov", &p->avoid_cmov)
 	|| cfgfile_yesno (option, value, "avoid_dga", &p->avoid_dga)
@@ -2417,6 +2416,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->sound_interpol = 1;
     p->sound_filter = FILTER_SOUND_EMUL;
     p->sound_filter_type = 0;
+    p->sound_auto = 1;
 
     p->comptrustbyte = 0;
     p->comptrustword = 0;

@@ -43,15 +43,15 @@ static int have_sound;
 static int paused;
 static int mute;
 
-#define SND_MAX_BUFFER2 262144
-#define SND_MAX_BUFFER 512
+#define SND_MAX_BUFFER2 524288
+#define SND_MAX_BUFFER 8192
 
 uae_u16 sndbuffer[SND_MAX_BUFFER];
 uae_u16 *sndbufpt;
 int sndbufsize;
 
 static int max_sndbufsize, snd_configsize, dsoundbuf;
-static int snd_writeoffset, snd_maxoffset, snd_totalmaxoffset;
+static int snd_writeoffset, snd_maxoffset, snd_totalmaxoffset_uf, snd_totalmaxoffset_of;
 static int waiting_for_buffer;
 
 static uae_sem_t sound_sem, sound_init_sem;
@@ -94,7 +94,7 @@ void update_sound (int freq)
     }
 }
 
-static void clearbuffer (void)
+static void cleardsbuffer (void)
 {
     void *buffer;
     DWORD size;
@@ -110,7 +110,6 @@ static void clearbuffer (void)
     }
     memset (buffer, 0, size);
     IDirectSoundBuffer_Unlock (lpDSBsecondary, buffer, size, NULL, 0);
-    memset (sndbuffer, 0, sizeof (sndbuffer));
 }
 
 static void pause_audio_ds (void)
@@ -118,13 +117,13 @@ static void pause_audio_ds (void)
     waiting_for_buffer = 0;
     IDirectSoundBuffer_Stop (lpDSBsecondary);
     IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
-    clearbuffer ();
+    cleardsbuffer ();
 }
 
 static void resume_audio_ds (void)
 {
     paused = 0;
-    clearbuffer ();
+    cleardsbuffer ();
     waiting_for_buffer = 1;
 }
 
@@ -167,49 +166,6 @@ static int getpos (void)
 	return -1;
     }
     return playpos;
-}
-
-static int calibrate (void)
-{
-    int len = 1000;
-    int pos, lastpos, tpos, expected, diff;
-    int mult = (currprefs.sound_stereo == 3) ? 8 : (currprefs.sound_stereo ? 4 : 2);
-    double qv, pct;
-    HRESULT hr;
-
-    if (!QueryPerformanceFrequency(&qpf)) {
-	write_log ("SOUND: no QPF, can't calibrate\n");
-	return 100 * 10;
-    }
-    pos = 1000;
-    pause_audio_ds ();
-    resume_audio_ds ();
-    hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
-    if (FAILED(hr)) 
-	return 100 * 10;
-    while (pos >= 1000)
-        pos = getpos();
-    while (pos < 1000)
-        pos = getpos();
-    lastpos = getpos();
-    storeqpf ();
-    tpos = 0;
-    do {
-	pos = getpos();
-	if (pos < lastpos) {
-	    tpos += dsoundbuf - lastpos + pos;
-	} else {
-	    tpos += pos - lastpos;
-	}
-	lastpos = pos;
-        qv = getqpf();
-    } while (qv < len);
-    expected = (int)(len / 1000.0 * currprefs.sound_freq);
-    tpos /= mult;
-    diff = tpos - expected;
-    pct = tpos * 100.0 / expected;
-    write_log ("SOUND: calibration: %d %d (%d %.2f%%)\n", tpos, expected, diff, pct);
-    return (int)(pct * 10);
 }
 
 static void close_audio_ds (void)
@@ -339,7 +295,8 @@ static int open_audio_ds (int size)
 
     snd_writeoffset = max_sndbufsize * 3 / 4;
     snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset = max_sndbufsize + (dsoundbuf - max_sndbufsize) / 2;
+    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) / 3;
+    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
 
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
@@ -366,7 +323,7 @@ static int open_audio_ds (int size)
         goto error;
     }
     setvolume ();
-    clearbuffer ();
+    cleardsbuffer ();
     init_sound_table16 ();
     if (currprefs.sound_stereo == 3)
 	sample_handler = sample16ss_handler;
@@ -447,7 +404,7 @@ void pause_sound (void)
     if (!have_sound)
 	return;
     pause_audio_ds ();
-    clearbuffer();
+    cleardsbuffer();
 }
 
 void resume_sound (void)
@@ -456,7 +413,7 @@ void resume_sound (void)
 	return;
     if (!have_sound)
 	return;
-    clearbuffer ();
+    cleardsbuffer ();
     resume_audio_ds ();
 }
 
@@ -464,7 +421,7 @@ void reset_sound (void)
 {
     if (!have_sound)
 	return;
-    clearbuffer ();
+    cleardsbuffer ();
 }
 
 #ifdef JIT
@@ -482,7 +439,7 @@ void sound_setadjust (double v)
 {
     double mult;
 
-    mult = (1000.0 + currprefs.sound_adjust + v);
+    mult = (1000.0 + v);
     if ((currprefs.gfx_vsync && currprefs.gfx_afullscreen) || (avioutput_audio && !compiled_code)) {
 	vsynctime = vsynctime_orig;
 	scaled_sample_evtime = (long)(((double)scaled_sample_evtime_orig) * mult / 1000.0);
@@ -514,6 +471,8 @@ void restart_sound_buffer(void)
         writepos -= dsoundbuf;
 }
 
+#define cf(x) if ((x) >= dsoundbuf) (x) -= dsoundbuf;
+
 static void finish_sound_buffer_ds (void)
 {
     DWORD playpos, safepos, status;
@@ -530,6 +489,8 @@ static void finish_sound_buffer_ds (void)
 	if (statuscnt == 0)
 	    gui_data.sndbuf_status = 0;
     }
+    if (gui_data.sndbuf_status == 3)
+	gui_data.sndbuf_status = 0;
 
     if (!waiting_for_buffer)
 	return;
@@ -552,16 +513,22 @@ static void finish_sound_buffer_ds (void)
 	    return;
 	}
 	safedist -= playpos;
+	safedist += sndbufsize;
 	if (safedist < 0)
 	    safedist += dsoundbuf;
-	safedist += sndbufsize;
-	snd_totalmaxoffset += safedist;
+	cf(safedist);
+	snd_totalmaxoffset_uf += safedist;
+	cf (snd_totalmaxoffset_uf);
+	snd_totalmaxoffset_of += safedist;
+	cf (snd_totalmaxoffset_of);
 	snd_maxoffset += safedist;
+	cf (snd_maxoffset);
 	snd_writeoffset += safedist;
+	cf (snd_writeoffset);
 	waiting_for_buffer = -1;
 	restart_sound_buffer();
-	write_log("SOUND: safedist=%d snd_total=%d snd_max=%d snd_write=%d\n",
-	    safedist, snd_totalmaxoffset, snd_maxoffset, snd_writeoffset);
+	write_log("SOUND: safe=%d w=%d max=%d tof=%d tuf=%d\n",
+	    safedist, snd_writeoffset, snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
     }
 
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
@@ -592,7 +559,7 @@ static void finish_sound_buffer_ds (void)
 	else
 	    diff = dsoundbuf - playpos + writepos;
 
-	if (diff < safedist) {
+	if (diff < safedist || diff > snd_totalmaxoffset_uf) {
 	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, safedist, &b1, &s1, &b2, &s2, 0);
 	    if (SUCCEEDED(hr)) {
 		memset (b1, 0, s1);
@@ -603,17 +570,15 @@ static void finish_sound_buffer_ds (void)
 	    gui_data.sndbuf_status = -1;
 	    statuscnt = SND_STATUSCNT;
 	    writepos += safedist;
-	    if (writepos >= dsoundbuf)
-		writepos -= dsoundbuf;
+	    cf(writepos);
 	    break;
 	}
 
-	if (diff > snd_totalmaxoffset) {
+	if (diff > snd_totalmaxoffset_of) {
 	    gui_data.sndbuf_status = 2;
 	    statuscnt = SND_STATUSCNT;
 	    writepos = safepos + snd_writeoffset;
-	    if (writepos >= dsoundbuf)
-		writepos -= dsoundbuf;
+	    cf(writepos);
 	    diff = snd_writeoffset;
 	    break;
 	}
@@ -666,10 +631,10 @@ static void finish_sound_buffer_ds (void)
     }
 
     writepos += sndbufsize;
-    if (writepos >= dsoundbuf)
-	writepos -= dsoundbuf;
+    cf(writepos);
 
-    sound_setadjust (skipmode);
+    if (!avioutput_audio)
+	sound_setadjust (skipmode);
 
     gui_data.sndbuf = vdiff * 1000 / snd_maxoffset;
 }
@@ -727,26 +692,6 @@ char **enumerate_sound_devices (int *total)
     if (num_sound_devices)
 	return sound_devices;
     return 0;
-}
-
-int sound_calibrate (HWND hwnd, struct uae_prefs *p)
-{
-    HWND old = hMainWnd;
-    int pct = 100 * 10;
-
-    hMainWnd = hwnd;
-    currprefs.sound_freq = p->sound_freq;
-    currprefs.sound_stereo = p->sound_stereo;
-    if (open_sound ()) {
-        SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-	pct = calibrate ();
-        SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_NORMAL);
-	close_sound ();
-    }
-    if (pct > 995 && pct < 1005)
-	pct = 1000;
-    hMainWnd = old;
-    return pct;
 }
 
 void sound_volume (int dir)

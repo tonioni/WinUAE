@@ -1656,26 +1656,26 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     put_long (amigamemptr + PSSO_ModeInfo_PixelClock, dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
 }
 
-static int AssignModeID( int i, int count )
+static int AssignModeID(int i, int count)
 {
     int result;
-    if( DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 200 )
+    if(DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 200)
 	result = 0x50001000;
-    else  if( DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 240 )
+    else  if(DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 240)
 	result = 0x50011000;
-    else if( DisplayModes[i].res.width == 640 && DisplayModes[i].res.height == 400 )
+    else if(DisplayModes[i].res.width == 640 && DisplayModes[i].res.height == 400)
 	result = 0x50021000;
-    else if( DisplayModes[i].res.width == 640 && DisplayModes[i].res.height == 480 )
+    else if(DisplayModes[i].res.width == 640 && DisplayModes[i].res.height == 480)
 	result = 0x50031000;
-    else if( DisplayModes[i].res.width == 800 && DisplayModes[i].res.height == 600 )
+    else if(DisplayModes[i].res.width == 800 && DisplayModes[i].res.height == 600)
 	result = 0x50041000;
-    else if( DisplayModes[i].res.width == 1024 && DisplayModes[i].res.height == 768 )
+    else if(DisplayModes[i].res.width == 1024 && DisplayModes[i].res.height == 768)
 	result = 0x50051000;
-    else if( DisplayModes[i].res.width == 1152 && DisplayModes[i].res.height == 864 )
+    else if(DisplayModes[i].res.width == 1152 && DisplayModes[i].res.height == 864)
 	result = 0x50061000;
-    else if( DisplayModes[i].res.width == 1280 && DisplayModes[i].res.height == 1024 )
+    else if(DisplayModes[i].res.width == 1280 && DisplayModes[i].res.height == 1024)
 	result = 0x50071000;
-    else if( DisplayModes[i].res.width == 1600 && DisplayModes[i].res.height == 1280 )
+    else if(DisplayModes[i].res.width == 1600 && DisplayModes[i].res.height == 1280)
 	result = 0x50081000;
     else
 	result = 0x50091000 + count * 0x10000;
@@ -1728,7 +1728,7 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
     while (DisplayModes[i].depth >= 0) {    
 	int j = i;
 	/* Add a LibResolution structure to the ResolutionsList MinList in our BoardInfo */
-	res.DisplayID = AssignModeID( i, LibResolutionStructureCount );
+	res.DisplayID = AssignModeID(i, LibResolutionStructureCount);
 	res.BoardInfo = AmigaBoardInfo;
 	res.Width = DisplayModes[i].res.width;
 	res.Height = DisplayModes[i].res.height;
@@ -1745,8 +1745,8 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
 	    /* Handle this display mode's depth */
 	    
 	    /* New: Only add the modes when there is enough P96 RTG memory to hold the bitmap */
-	    if( ( allocated_gfxmem - 32768 ) >
-		( DisplayModes[i].res.width * DisplayModes[i].res.height * DisplayModes[i].depth ) )
+	    if((allocated_gfxmem - 32768) >
+		(DisplayModes[i].res.width * DisplayModes[i].res.height * DisplayModes[i].depth))
 	    {
 		amigamemptr = gfxmem_start + allocated_gfxmem - (PSSO_ModeInfo_sizeof * ModeInfoStructureCount++);
 		FillBoardInfo(amigamemptr, &res, &DisplayModes[i]);

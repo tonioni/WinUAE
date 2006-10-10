@@ -71,6 +71,7 @@
 #include "catweasel.h"
 #include "lcd.h"
 #include "uaeipc.h"
+#include "crc32.h"
 
 #define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe;*.ima\0"
 #define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
@@ -399,8 +400,10 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
     zfile_fseek (f, 0, SEEK_SET);
-    if (size > 1760 * 512) /* don't skip KICK disks */
+    if (size > 1760 * 512)  {/* don't skip KICK disks */
+	write_log ("'%s': too big %d, ignored\n", zfile_getname(f), size);
 	return 0;
+    }
     zfile_fread (buffer, 1, 11, f);
     if (!memcmp (buffer, "KICK", 4)) {
 	zfile_fseek (f, 512, SEEK_SET);
@@ -424,6 +427,9 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
     }
     if (!cl)
 	rd = getromdatabydata (rombuf, size);
+    if (!rd)
+	write_log ("'%s' %d, unknown CRC32 %04.4x\n",
+	    zfile_getname(f), size, get_crc32(rombuf, size));
     free (rombuf);
     return rd;
 }
@@ -1700,7 +1706,6 @@ static int disk_swap (int entry, int mode)
     if ((drv = disk_in_drive (entry)) >= 0) {
 	if (mode < 0) {
 	    workprefs.df[drv][0] = 0;
-	    disk_eject (drv);
 	    return 1;
 	}
 
@@ -1709,7 +1714,6 @@ static int disk_swap (int entry, int mode)
 	    disk_insert (drv, workprefs.df[drv]);
 	} else {
 	    workprefs.df[drv][0] = 0;
-	    disk_eject (drv);
 	}
 	if (drvs[0] < 0 || drvs[1] < 0 || drvs[2] < 0 || drvs[3] < 0) {
 	    drv++;
@@ -5170,23 +5174,15 @@ static void update_soundgui (HWND hDlg)
     char txt[20];
 
     bufsize = exact_log2 (workprefs.sound_maxbsiz / 1024);
-    sprintf (txt, "%d (%dms)", bufsize, 1000 * (workprefs.sound_maxbsiz >> 1) / workprefs.sound_freq );
+    sprintf (txt, "%d (%dms)",
+	bufsize, ((1000 * (workprefs.sound_maxbsiz >> 1) / workprefs.sound_freq) + 30) / 10 * 10);
     SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
-    if (workprefs.sound_adjust < -100)
-	workprefs.sound_adjust = -100;
-    if (workprefs.sound_adjust > 30)
-	workprefs.sound_adjust = 30;
-    SendDlgItemMessage( hDlg, IDC_SOUNDADJUST, TBM_SETPOS, TRUE, workprefs.sound_adjust );
-   
-    sprintf (txt, "%.1f%%", workprefs.sound_adjust / 10.0);
-    SetDlgItemText (hDlg, IDC_SOUNDADJUSTNUM, txt);
-
-    SendDlgItemMessage( hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume );
+    SendDlgItemMessage( hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
     sprintf (txt, "%d%%", 100 - workprefs.sound_volume);
     SetDlgItemText (hDlg, IDC_SOUNDVOLUME2, txt);
 
-    SendDlgItemMessage( hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume );
+    SendDlgItemMessage( hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
     sprintf (txt, "%d%%", 100 - workprefs.dfxclickvolume);
     SetDlgItemText (hDlg, IDC_SOUNDDRIVEVOLUME2, txt);
 }
@@ -5267,7 +5263,8 @@ static void values_to_sounddlg (HWND hDlg)
 	sprintf (txt, "%d", i + 1);
 	SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_ADDSTRING, 0, (LPARAM)txt);
     }
-    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_SETCURSEL, workprefs.sound_mixed_stereo > 0 ? workprefs.sound_mixed_stereo : 0, 0);
+    SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_SETCURSEL,
+	workprefs.sound_mixed_stereo > 0 ? workprefs.sound_mixed_stereo : 0, 0);
     
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_SOUND_INTERPOL_DISABLED, txt, sizeof (txt));
@@ -5289,7 +5286,7 @@ static void values_to_sounddlg (HWND hDlg)
 	i++;
     }
     sprintf (txt, "%d", workprefs.sound_freq);
-    SendDlgItemMessage( hDlg, IDC_SOUNDFREQ, WM_SETTEXT, 0, (LPARAM)txt); 
+    SendDlgItemMessage(hDlg, IDC_SOUNDFREQ, WM_SETTEXT, 0, (LPARAM)txt); 
 
     switch (workprefs.produce_sound) {
      case 0: which_button = IDC_SOUND0; break;
@@ -5297,17 +5294,19 @@ static void values_to_sounddlg (HWND hDlg)
      case 2: which_button = IDC_SOUND2; break;
      case 3: which_button = IDC_SOUND3; break;
     }
-    CheckRadioButton( hDlg, IDC_SOUND0, IDC_SOUND3, which_button );
+    CheckRadioButton(hDlg, IDC_SOUND0, IDC_SOUND3, which_button);
+
+    CheckDlgButton(hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
 
     workprefs.sound_maxbsiz = 1 << exact_log2 (workprefs.sound_maxbsiz);
     if (workprefs.sound_maxbsiz < 2048)
 	workprefs.sound_maxbsiz = 2048;
-    SendDlgItemMessage( hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, exact_log2 (workprefs.sound_maxbsiz / 2048));
+    SendDlgItemMessage(hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, exact_log2 (workprefs.sound_maxbsiz / 2048));
 
-    SendDlgItemMessage( hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
-    SendDlgItemMessage( hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
+    SendDlgItemMessage(hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
+    SendDlgItemMessage(hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
 
-    SendDlgItemMessage( hDlg, IDC_SOUNDCARDLIST, CB_SETCURSEL, workprefs.win32_soundcard, 0 );
+    SendDlgItemMessage(hDlg, IDC_SOUNDCARDLIST, CB_SETCURSEL, workprefs.win32_soundcard, 0);
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
     if (idx < 0)
@@ -5315,7 +5314,7 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDDRIVE, CB_RESETCONTENT, 0, 0);
     for (i = 0; i < 4; i++) {
 	sprintf (txt, "DF%d:", i);
-	SendDlgItemMessage( hDlg, IDC_SOUNDDRIVE, CB_ADDSTRING, 0, (LPARAM)txt);
+	SendDlgItemMessage(hDlg, IDC_SOUNDDRIVE, CB_ADDSTRING, 0, (LPARAM)txt);
     }
     SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_SETCURSEL, idx, 0);
     SendDlgItemMessage(hDlg, IDC_SOUNDDRIVESELECT, CB_RESETCONTENT, 0, 0);
@@ -5378,6 +5377,9 @@ static void values_from_sounddlg (HWND hDlg)
     workprefs.produce_sound = (IsDlgButtonChecked (hDlg, IDC_SOUND0) ? 0
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND1) ? 1
 			       : IsDlgButtonChecked (hDlg, IDC_SOUND2) ? 2 : 3);
+
+    workprefs.sound_auto = IsDlgButtonChecked (hDlg, IDC_SOUND_AUTO) ? 1 : 0;
+
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);
     if (idx != CB_ERR)
 	workprefs.sound_stereo = idx;
@@ -5487,11 +5489,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if (LOWORD (wParam) == IDC_SOUNDCALIBRATE) {
-	    int pct = sound_calibrate (hDlg, &workprefs);
-	    workprefs.sound_adjust = (pct - 1000);
-	    update_soundgui (hDlg);
-	} else if(LOWORD (wParam) == IDC_SOUNDDRIVE) {
+	if(LOWORD (wParam) == IDC_SOUNDDRIVE) {
 	    values_to_sounddlg (hDlg);
 	}
 	values_from_sounddlg (hDlg);
@@ -5501,7 +5499,6 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
      case WM_HSCROLL:
 	workprefs.sound_maxbsiz = 2048 << SendMessage(GetDlgItem(hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
-	workprefs.sound_adjust = SendMessage(GetDlgItem(hDlg, IDC_SOUNDADJUST), TBM_GETPOS, 0, 0);
 	workprefs.sound_volume = 100 - SendMessage(GetDlgItem(hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
 	workprefs.dfxclickvolume = 100 - SendMessage(GetDlgItem(hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 	update_soundgui (hDlg);
@@ -6541,7 +6538,6 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    break;
 	case IDC_EJECT0:
 	case IDC_EJECT0Q:
-	    disk_eject(0);
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, "");
 	    SetDlgItemText (hDlg, IDC_DF0TEXTQ, "");
 	    workprefs.df[0][0] = 0;
@@ -6549,20 +6545,17 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    break;
 	case IDC_EJECT1:
 	case IDC_EJECT1Q:
-	    disk_eject(1);
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, "");
 	    SetDlgItemText (hDlg, IDC_DF1TEXTQ, "");
 	    workprefs.df[1][0] = 0;
 	    addfloppytype (hDlg, 1);
 	    break;
 	case IDC_EJECT2:
-	    disk_eject(2);
 	    SetDlgItemText (hDlg, IDC_DF2TEXT, "");
 	    workprefs.df[2][0] = 0;
 	    addfloppytype (hDlg, 2);
 	    break;
 	case IDC_EJECT3:
-	    disk_eject(3);
 	    SetDlgItemText (hDlg, IDC_DF3TEXT, "");
 	    workprefs.df[3][0] = 0;
 	    addfloppytype (hDlg, 3);
@@ -6745,10 +6738,8 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		int i;
 		if (workprefs.dfxtype[drv] >= 0 && entry >= 0) {
 		    for (i = 0; i < 4; i++) {
-			if (!strcmp (workprefs.df[i], workprefs.dfxlist[entry])) {
+			if (!strcmp (workprefs.df[i], workprefs.dfxlist[entry]))
 			    workprefs.df[i][0] = 0;
-			    disk_eject (i);
-			}
 		    }
 		    strcpy (workprefs.df[drv], workprefs.dfxlist[entry]);
 		    disk_insert (drv, workprefs.df[drv]);
@@ -6763,7 +6754,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    case 10208:
 	    {
 		int drv = LOWORD (wParam) - 10201;
-		disk_eject (drv);
+		workprefs.df[drv][0] = 0;
 		InitializeListView (hDlg);
 		swapperhili (hDlg, entry);
 	    }
@@ -9371,7 +9362,7 @@ void gui_led (int led, int on)
 	if (gui_data.sndbuf_status < 3) {
 	    sprintf(ptr, "SND: %.0f%%", (double)((gui_data.sndbuf) / 10.0));
 	} else {
-	    ptr[0] = 0;
+	    strcpy (ptr, "SND: -");
 	    on = 0;
 	}
     }

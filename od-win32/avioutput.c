@@ -923,7 +923,9 @@ void AVIOutput_Begin(void)
     if (!avioutput_requested)
         return;
 
+    changed_prefs.sound_auto = currprefs.sound_auto = 0;
     reset_sound ();
+
     if (avioutput_audio == AVIAUDIO_WAV) {
         ext1 = ".wav"; ext2 = ".avi";
     } else {

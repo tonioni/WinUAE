@@ -395,10 +395,9 @@ const struct customData custd[] =
     { "RESERVED", 0xdff1Fa }, /* Reserved (forever i guess!) */
 #endif
     { "FMODE",    0xdff1FC, 2|8 }, /* Fetch mode register */
-#if 0
-    { "NO-OP(NULL)", 0xdff1FE },        /*   Can also indicate last 2 or 3 refresh
+    { "NO-OP(NULL)", 0xdff1FE },   /*   Can also indicate last 2 or 3 refresh
 					    cycles or the restart of the COPPER after lockup.*/
-#endif
+    { NULL }
 };
 
 #endif

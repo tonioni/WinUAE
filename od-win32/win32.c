@@ -2807,12 +2807,12 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     DWORD_PTR oldaff;
 
     thread = GetCurrentThread();
-    //oldaff = SetThreadAffinityMask(thread, 1); 
+    oldaff = SetThreadAffinityMask(thread, 1); 
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
-    //SetThreadAffinityMask(thread, oldaff);
+    SetThreadAffinityMask(thread, oldaff);
     return FALSE;
 }
 

@@ -235,6 +235,6 @@ int uae_start_thread (void *(*f)(void *), void *arg, uae_thread_id *tid)
 void uae_set_thread_priority (int pri)
 {
     /* workaround for filesystem emulation freeze with some dual core systems */
-    //SetThreadAffinityMask(GetCurrentThread(), 1); 
+    SetThreadAffinityMask(GetCurrentThread(), 1); 
 }
 

@@ -91,12 +91,12 @@ struct uae_prefs {
     int sound_maxbsiz;
     int sound_latency;
     int sound_interpol;
-    int sound_adjust;
     int sound_filter;
     int sound_filter_type;
     int sound_volume;
     int sound_stereo_swap_paula;
     int sound_stereo_swap_ahi;
+    int sound_auto;
 
     int comptrustbyte;
     int comptrustword;

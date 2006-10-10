@@ -3219,11 +3219,11 @@ void dump_aga_custom (void)
 	c2 = c1 + 64;
 	c3 = c2 + 64;
 	c4 = c3 + 64;
-	rgb1 = current_colors.acolors[c1];
-	rgb2 = current_colors.acolors[c2];
-	rgb3 = current_colors.acolors[c3];
-	rgb4 = current_colors.acolors[c4];
-	console_out("%3d %06.6X %3d %06.6X %3d %06.6X %3d %06.6X\n",
+	rgb1 = current_colors.color_regs_aga[c1];
+	rgb2 = current_colors.color_regs_aga[c2];
+	rgb3 = current_colors.color_regs_aga[c3];
+	rgb4 = current_colors.color_regs_aga[c4];
+	console_out("%3d %08.8X %3d %08.8X %3d %08.8X %3d %08.8X\n",
 	    c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
     }
 }

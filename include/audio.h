@@ -32,6 +32,7 @@ extern void audio_update_irq (uae_u16);
 extern void update_sound (int freq);
 extern void led_filter_audio (void);
 extern void set_audio(void);
+extern int audio_activate(void);
 
 extern void audio_sampleripper(int);
 extern int sampleripper_enabled;

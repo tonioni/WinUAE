@@ -941,19 +941,22 @@ static int audio_work_to_do;
 
 static void audio_deactivate(void)
 {
-    write_log ("Audio stopped\n");
+    if (!currprefs.sound_auto)
+	return;
     gui_data.sndbuf_status = 3;
     gui_data.sndbuf = 0;
     clear_sound_buffers();
 }
 
-STATIC_INLINE void audio_active(void)
+int audio_activate(void)
 {
+    int ret = 0;
     if (!audio_work_to_do) {
-	write_log ("Audio started\n");
 	restart_sound_buffer();
+	ret = 1;
     }
-    audio_work_to_do = 2 * maxvpos * 50;
+    audio_work_to_do = 4 * maxvpos * 50;
+    return ret;
 }
 STATIC_INLINE int is_audio_active(void)
 {
@@ -1044,7 +1047,7 @@ static void audio_handler (int nr, int timed)
     int napnav = (!audav && !audap) || audav;
     int evtime = cdp->evtime;
 
-    audio_active();
+    audio_activate();
     cdp->evtime = MAX_EV;
     switch (cdp->state)
     {
@@ -1218,7 +1221,7 @@ STATIC_INLINE int sound_prefs_changed (void)
 	    || changed_prefs.sound_mixed_stereo != currprefs.sound_mixed_stereo
 	    || changed_prefs.sound_maxbsiz != currprefs.sound_maxbsiz
 	    || changed_prefs.sound_freq != currprefs.sound_freq
-	    || changed_prefs.sound_adjust != currprefs.sound_adjust
+	    || changed_prefs.sound_auto != currprefs.sound_auto
 	    || changed_prefs.sound_interpol != currprefs.sound_interpol
 	    || changed_prefs.sound_volume != currprefs.sound_volume
 	    || changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
@@ -1257,7 +1260,9 @@ void check_prefs_changed_audio (void)
 #ifdef AVIOUTPUT
     AVIOutput_Restart ();
 #endif
+    clear_sound_buffers();
     set_audio();
+    audio_activate();
 }
 
 void set_audio(void)
@@ -1268,7 +1273,7 @@ void set_audio(void)
     currprefs.sound_stereo = changed_prefs.sound_stereo;
     currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
     currprefs.sound_mixed_stereo = changed_prefs.sound_mixed_stereo;
-    currprefs.sound_adjust = changed_prefs.sound_adjust;
+    currprefs.sound_auto = changed_prefs.sound_auto;
     currprefs.sound_interpol = changed_prefs.sound_interpol;
     currprefs.sound_freq = changed_prefs.sound_freq;
     currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
@@ -1433,13 +1438,13 @@ void audio_hsync (int dmaaction)
     int nr, handle;
     static int old_dma;
 
-    if (old_dma != (dmacon & (DMA_MASTER | 15))) {
-	old_dma = dmacon & (DMA_MASTER | 15);
-	audio_active();
-    }
-
     if (!isaudio())
 	return;
+
+    if (old_dma != (dmacon & (DMA_MASTER | 15))) {
+	old_dma = dmacon & (DMA_MASTER | 15);
+	audio_activate();
+    }
 
     if (audio_work_to_do > 0) {
 	audio_work_to_do--;
@@ -1517,7 +1522,7 @@ void AUDxDAT (int nr, uae_u16 v)
 	write_log ("AUD%dDAT: %04.4X STATE=%d IRQ=%d %08.8X\n", nr,
 	    v, cdp->state, isirq(nr) ? 1 : 0, M68K_GETPC);
 #endif
-    audio_active();
+    audio_activate();
     update_audio ();
     cdp->dat2 = v;
     cdp->request_word = -1;
@@ -1532,7 +1537,7 @@ void AUDxDAT (int nr, uae_u16 v)
 
 void AUDxLCH (int nr, uae_u16 v)
 {
-    audio_active();
+    audio_activate();
     update_audio ();
     audio_channel[nr].lc = (audio_channel[nr].lc & 0xffff) | ((uae_u32)v << 16);
 #ifdef DEBUG_AUDIO
@@ -1543,7 +1548,7 @@ void AUDxLCH (int nr, uae_u16 v)
 
 void AUDxLCL (int nr, uae_u16 v)
 {
-    audio_active();
+    audio_activate();
     update_audio ();
     audio_channel[nr].lc = (audio_channel[nr].lc & ~0xffff) | (v & 0xFFFE);
 #ifdef DEBUG_AUDIO
@@ -1555,9 +1560,9 @@ void AUDxLCL (int nr, uae_u16 v)
 void AUDxPER (int nr, uae_u16 v)
 {
     unsigned long per = v * CYCLE_UNIT;
-    update_audio ();
 
-    audio_active();
+    audio_activate();
+    update_audio ();
     if (per == 0)
 	per = PERIOD_MAX - 1;
 
@@ -1581,6 +1586,7 @@ void AUDxPER (int nr, uae_u16 v)
 
 void AUDxLEN (int nr, uae_u16 v)
 {
+    audio_activate();
     update_audio ();
     audio_channel[nr].len = v;
 #ifdef DEBUG_AUDIO
@@ -1592,7 +1598,8 @@ void AUDxLEN (int nr, uae_u16 v)
 void AUDxVOL (int nr, uae_u16 v)
 {
     int v2 = v & 64 ? 63 : v & 63;
-    audio_active();
+
+    audio_activate();
     update_audio ();
     audio_channel[nr].vol = v2;
 #ifndef	MULTIPLICATION_PROFITABLE
@@ -1635,7 +1642,7 @@ void audio_update_adkmasks (void)
     audio_channel[2].adk_mask = (((t >> 2) & 1) - 1);
     audio_channel[3].adk_mask = (((t >> 3) & 1) - 1);
     if ((prevcon & 0xff) != (adkcon & 0xff)) {
-	audio_active();
+	audio_activate();
 #ifdef DEBUG_AUDIO
         write_log("ADKCON=%02.2x %08.8X\n", adkcon & 0xff, M68K_GETPC);
 #endif

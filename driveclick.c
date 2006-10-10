@@ -17,6 +17,7 @@
 #include "zfile.h"
 #include "events.h"
 #include "driveclick.h"
+#include "audio.h"
 
 static struct drvsample drvs[4][DS_END];
 static int freq = 44100;
@@ -228,6 +229,18 @@ void driveclick_free (void)
     wave_initialized = 0;
 }
 
+static int driveclick_active(void)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+	if (currprefs.dfxclick[i]) {
+	    if (drv_spinning[i] || drv_starting[i])
+		return 1;
+	}
+    }
+    return 0;
+}
+
 STATIC_INLINE uae_s16 getsample(void)
 {
     uae_s32 smp = 0;
@@ -325,6 +338,12 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
     }
 }
 
+static void dr_audio_activate(void)
+{
+    if (audio_activate())
+	clickcnt = 0;
+}
+
 void driveclick_click (int drive, int cyl)
 {
     static int prevcyl[4];
@@ -335,6 +354,7 @@ void driveclick_click (int drive, int cyl)
 	return;
     if (prevcyl[drive] == 0 && cyl == 0) // "noclick" check
 	return;
+    dr_audio_activate();
     prevcyl[drive] = cyl;
     if (!wave_initialized) {
 	driveclick_fdrawcmd_seek (currprefs.dfxclick[drive] - 2, cyl);
@@ -361,6 +381,7 @@ void driveclick_motor (int drive, int running)
 	drv_spinning[drive] = 0;
     } else {
 	if (drv_spinning[drive] == 0) {
+	    dr_audio_activate();
 	    drv_starting[drive] = 1;
 	    drv_spinning[drive] = 1;
 	    if (drv_has_disk[drive] && drv_has_spun[drive] == 0 && drvs[drive][DS_SNATCH].pos >= drvs[drive][DS_SNATCH].len)
@@ -382,6 +403,8 @@ void driveclick_insert (int drive, int eject)
 	return;
     if (eject)
 	drv_has_spun[drive] = 0;
+    if (drv_has_disk[drive] == 0 && !eject)
+	dr_audio_activate();
     drv_has_disk[drive] = !eject;
 }
 
@@ -390,6 +413,8 @@ void driveclick_check_prefs (void)
     int i;
 
     driveclick_fdrawcmd_vsync();
+    if (driveclick_active())
+	dr_audio_activate();
     if (currprefs.dfxclickvolume != changed_prefs.dfxclickvolume ||
 	currprefs.dfxclick[0] != changed_prefs.dfxclick[0] ||
 	currprefs.dfxclick[1] != changed_prefs.dfxclick[1] ||

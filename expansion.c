@@ -883,8 +883,6 @@ static void expamem_init_z3fastmem (void)
 
     expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 
-    z3fastmem_start = currprefs.z3fastmem_start;
-
     map_banks (&z3fastmem_bank, z3fastmem_start >> 16, currprefs.z3fastmem_size >> 16,
 	allocated_z3fastmem);
 
@@ -1089,6 +1087,7 @@ void expamem_reset (void)
 	card_map[cardno++] = expamem_map_clear;
     }
 
+    z3fastmem_start = currprefs.z3fastmem_start;
     (*card_init[0]) ();
 }
 

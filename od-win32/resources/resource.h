@@ -857,6 +857,7 @@
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
 #define IDC_FILTERAUTORES               1708
+#define IDC_SOUND_AUTO                  1709
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -877,7 +878,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1709
+#define _APS_NEXT_CONTROL_VALUE         1710
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -2059,11 +2059,11 @@ void memory_reset (void)
 	int t = allocated_bogomem >> 16;
 	if (t > 0x1C)
 	    t = 0x1C;
-	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level > 1))
+	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level >= 2))
 	    t = 0x10;
-	map_banks (&bogomem_bank, 0xC0, t, allocated_bogomem);
+	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
-    if ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level > 1)
+    if ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level >= 2)
 	map_banks (&gayle_bank, 0xD8, 7, 0);
     map_banks (&clock_bank, 0xDC, 1, 0);
 
@@ -2227,11 +2227,8 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	realsize = size << 16;
 
     if ((size << 16) < realsize) {
-	//write_log ("Please report to bmeyer@cs.monash.edu.au, and mention:\n");
-	write_log ("Broken mapping, size=%x, realsize=%x\n", size, realsize);
-	write_log ("Start is %x\n", start);
-	write_log ("Reducing memory sizes, especially chipmem, may fix this problem\n");
-	abort ();
+	gui_message ("Broken mapping, size=%x, realsize=%x\nStart is %x\n",
+	    size, realsize, start);
     }
 
 #ifndef ADDRESS_SPACE_24BIT
