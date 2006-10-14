@@ -31,6 +31,7 @@ extern char *zfile_getname (struct zfile *f);
 extern uae_u32 zfile_crc32 (struct zfile *f);
 extern struct zfile *zfile_dup (struct zfile *f);
 extern struct zfile *zfile_gunzip (struct zfile *z);
+extern int zfile_isdiskimage (const char *name);
 
 #define ZFILE_UNKNOWN 0
 #define ZFILE_CONFIGURATION 1
@@ -41,4 +42,6 @@ extern struct zfile *zfile_gunzip (struct zfile *z);
 #define ZFILE_STATEFILE 6
 #define ZFILE_NVR 7
 
-extern char *archive_extensions[];
+extern const char *uae_archive_extensions[];
+extern const char *uae_ignoreextensions[];
+extern const char *uae_diskimageextensions[];

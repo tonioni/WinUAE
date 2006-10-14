@@ -73,9 +73,9 @@
 #include "uaeipc.h"
 #include "crc32.h"
 
-#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.rar;*.7z;*.exe;*.ima\0"
-#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.zip;*.rar;*.7z;*.roz\0"
-#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;*.zip;*.rar;*.7z\0"
+#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.7z;*.rar;*.exe;*.ima\0"
+#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.zip;*.roz;*.7z;*.rar\0"
+#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;*.zip;*.7z;*.rar\0"
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING "(*.hdf;*.rdf;*.hdz;*.rdz)\0*.hdf;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING "(*.inp)\0*.inp\0"
@@ -384,13 +384,11 @@ static HWND cachedlist = NULL;
 static char szNone[ MAX_DPATH ] = "None";
 
 struct romscandata {
-    uae_u8 *keybuf;
-    int keysize;
     HKEY fkey;
     int got;
 };
 
-static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int keysize)
+static struct romdata *scan_single_rom_2 (struct zfile *f)
 {
     uae_u8 buffer[20] = { 0 };
     uae_u8 *rombuf;
@@ -411,8 +409,6 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
 	    size = 262144;
     } else if (!memcmp (buffer, "AMIROMTYPE1", 11)) {
 	cl = 1;
-	if (keybuf == 0)
-	    cl = -1;
 	size -= 11;
     } else {
 	zfile_fseek (f, 0, SEEK_SET);
@@ -422,8 +418,8 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
 	return 0;
     zfile_fread (rombuf, 1, size, f);
     if (cl > 0) {
-	decode_cloanto_rom_do (rombuf, size, size, keybuf, keysize);
-	cl = 0;
+	if (decode_cloanto_rom_do (rombuf, size, size))
+	    cl = 0;
     }
     if (!cl)
 	rd = getromdatabydata (rombuf, size);
@@ -434,12 +430,12 @@ static struct romdata *scan_single_rom_2 (struct zfile *f, uae_u8 *keybuf, int k
     return rd;
 }
 
-static struct romdata *scan_single_rom (char *path, uae_u8 *keybuf, int keysize)
+static struct romdata *scan_single_rom (char *path)
 {
     struct zfile *z = zfile_fopen (path, "rb");
     if (!z)
 	return 0;
-    return scan_single_rom_2 (z, keybuf, keysize);
+    return scan_single_rom_2 (z);
 }
 
 static void addrom (HKEY fkey, struct romdata *rd, char *name)
@@ -451,7 +447,7 @@ static void addrom (HKEY fkey, struct romdata *rd, char *name)
 
 static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
 {
-    struct romdata *rd = scan_single_rom_2 (f, rsd->keybuf, rsd->keysize);
+    struct romdata *rd = scan_single_rom_2 (f);
     if (rd) {
 	addrom (rsd->fkey, rd, zfile_getname (f));
 	rsd->got = 1;
@@ -459,9 +455,9 @@ static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
     return 1;
 }
 
-static int scan_rom (char *path, HKEY fkey, uae_u8 *keybuf, int keysize)
+static int scan_rom (char *path, HKEY fkey)
 {
-    struct romscandata rsd = { keybuf, keysize, fkey, 0 };
+    struct romscandata rsd = { fkey, 0 };
     struct romdata *rd;
 
     rd = getarcadiarombyname (path);
@@ -600,9 +596,8 @@ static int scan_roms_2 (char *pathp)
     char buf[MAX_DPATH], path[MAX_DPATH];
     WIN32_FIND_DATA find_data;
     HANDLE handle;
-    uae_u8 *keybuf;
-    int keysize;
     int ret;
+    int keys;
     
     if (!pathp)
 	fetch_path ("KickstartPath", path, sizeof (path));
@@ -612,12 +607,12 @@ static int scan_roms_2 (char *pathp)
     strcat (buf, "*.*");
     if (!hWinUAEKey)
 	goto end;
+    keys = get_keyring();
     SHDeleteKey (hWinUAEKey, "DetectedROMs");
     RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
 	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     if (fkey == NULL)
 	goto end;
-    keybuf = load_keyfile (&workprefs, path, &keysize);
     ret = 0;
     for (;;) {
 	handle = FindFirstFile (buf, &find_data);
@@ -627,24 +622,22 @@ static int scan_roms_2 (char *pathp)
 	    char tmppath[MAX_DPATH];
 	    strcpy (tmppath, path);
 	    strcat (tmppath, find_data.cFileName);
-	    if (find_data.nFileSizeLow < 10000000 && scan_rom (tmppath, fkey, keybuf, keysize))
+	    if (find_data.nFileSizeLow < 10000000 && scan_rom (tmppath, fkey))
 		ret = 1;
 	    if (FindNextFile (handle, &find_data) == 0) {
 		FindClose (handle);
 		break;
 	    }
 	}
-	if (!keybuf) { /* did previous scan detect keyfile? */
-	    keybuf = load_keyfile (&workprefs, path, &keysize);
-	    if (keybuf) /* ok, maybe we can now find more roms.. */
-		continue;
+	if (get_keyring() > keys) { /* more keys detected in previous scan? */
+	    keys = get_keyring();
+	    continue;
 	}
 	break;
     }
 end:
     if (fkey)
 	RegCloseKey (fkey);
-    free_keyfile (keybuf);
     return ret;
 }
 
@@ -2785,6 +2778,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_PATHS_ROMS:
 	    fetch_path ("KickstartPath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
+	        load_keyring(&workprefs, NULL);
 		if (tmp[strlen (tmp) - 1] != '\\')
 		    strcat (tmp, "\\");
 		if (!scan_roms (tmp)) 
@@ -4001,6 +3995,7 @@ static void values_to_chipsetdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
     CheckDlgButton (hDlg, IDC_GENLOCK, workprefs.genlock);
     CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
+    CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
     CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
     CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
     switch (workprefs.produce_sound) {
@@ -4018,6 +4013,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
     workprefs.genlock = IsDlgButtonChecked (hDlg, IDC_GENLOCK);
     workprefs.immediate_blits = IsDlgButtonChecked (hDlg, IDC_BLITIMM);
+    workprefs.picasso96_nocustom = IsDlgButtonChecked (hDlg, IDC_FASTERRTG);
     n = IsDlgButtonChecked (hDlg, IDC_CYCLEEXACT) ? 1 : 0;
     if (workprefs.cpu_cycle_exact != n) {
 	workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
@@ -4238,7 +4234,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
     return FALSE;
 }
 
-static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, uae_u8 *keybuf, int keysize, int type)
+static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, int type)
 {
     int idx, idx2;
     char tmp[MAX_DPATH];
@@ -4246,7 +4242,7 @@ static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, uae_u8 *keyb
     char seltmp[MAX_DPATH];
     struct romdata *rdx;
 
-    rdx = scan_single_rom (path, keybuf, keysize);
+    rdx = scan_single_rom (path);
     SendDlgItemMessage(hDlg, d, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)"");
     idx = 0;
@@ -4319,17 +4315,14 @@ static void values_from_kickstartdlg (HWND hDlg)
 static void values_to_kickstartdlg (HWND hDlg)
 {
     HKEY fkey;
-    uae_u8 *keybuf;
-    int keysize;
 
     if (hWinUAEKey) {
 	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
 	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-	keybuf = load_keyfile (&workprefs, NULL, &keysize);
-	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, keybuf, keysize, ROMTYPE_KICK | ROMTYPE_KICKCD32);
-	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, keybuf, keysize, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, keybuf, keysize, ROMTYPE_AR | ROMTYPE_ARCADIA);
-	free_keyfile (keybuf);
+	load_keyring(&workprefs, NULL);
+	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
+	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_ARCADIA);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -4611,6 +4604,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+	CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
 	cw = catweasel_detect();
 	EnableWindow (GetDlgItem (hDlg, IDC_CATWEASEL), cw);
 	if (!cw && workprefs.catweasel < 100)
@@ -4752,6 +4746,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	case IDC_CREATELOGFILE:
 	    workprefs.win32_logfile = IsDlgButtonChecked (hDlg, IDC_CREATELOGFILE);
 	    enable_for_miscdlg(hDlg);
+	    break;
+	case IDC_POWERSAVE:
+	    workprefs.win32_powersavedisabled = IsDlgButtonChecked (hDlg, IDC_POWERSAVE);
 	    break;
 	case IDC_INACTIVE_NOSOUND:
 	    if (!IsDlgButtonChecked (hDlg, IDC_INACTIVE_NOSOUND))
@@ -6235,8 +6232,8 @@ static void addfloppyhistory (HWND hDlg, HKEY fkey, int n, int f_text)
 	i++;
 	strcpy (tmppath, s);
         p = tmppath + strlen(tmppath) - 1;
-	for (j = 0; archive_extensions[j]; j++) {
-	    p2 = strstr (tmppath, archive_extensions[j]);
+	for (j = 0; uae_archive_extensions[j]; j++) {
+	    p2 = strstr (tmppath, uae_archive_extensions[j]);
 	    if (p2) {
 		p = p2;
 		break;

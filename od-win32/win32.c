@@ -915,7 +915,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return TRUE;
 
     case WM_SYSCOMMAND:
-	if (!manual_painting_needed && focus) {
+	if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled) {
 	    switch (wParam) // Check System Calls
 	    {
 		case SC_SCREENSAVE: // Screensaver Trying To Start?
@@ -1587,16 +1587,18 @@ void logging_cleanup( void )
 }
 
 typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
-uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep)
+uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *name)
 {
     uae_u8 *keybuf = NULL;
     HMODULE h;
     PFN_GetKey pfnGetKey;
     int size;
+    char *libname = "amigaforever.dll";
 
-    h = WIN32_LoadLibrary ("amigaforever.dll");
+    h = WIN32_LoadLibrary (libname);
     if (!h)
 	return NULL;
+    GetModuleFileName(h, name, MAX_DPATH);
     pfnGetKey = (PFN_GetKey)GetProcAddress(h, "GetKey");
     if (pfnGetKey) {
 	size = pfnGetKey(NULL, 0);
@@ -1639,6 +1641,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_kbledmode = 0;
 	p->win32_uaescsimode = get_aspi_path(1) ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
 	p->win32_borderless = 0;
+	p->win32_powersavedisabled = 1;
     }
     if (type == 1 || type == 0) {
 	p->win32_midioutdev = -2;
@@ -1678,6 +1681,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
     cfgfile_target_write (f, "specialkey=0x%x\n", p->win32_specialkey);
     cfgfile_target_write (f, "kbledmode=%d\n", p->win32_kbledmode);
+    cfgfile_target_write (f, "powersavedisabled=%s\n", p->win32_powersavedisabled ? "true" : "false");
 
 }
 
@@ -1723,6 +1727,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)
 	    || cfgfile_yesno (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_yesno (option, value, "always_on_top", &p->win32_alwaysontop)
+	    || cfgfile_yesno (option, value, "powersavedisabled", &p->win32_powersavedisabled)
 	    || cfgfile_intval (option, value, "specialkey", &p->win32_specialkey, 1)
 	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
 	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
@@ -1908,8 +1913,10 @@ void read_rom_list (void)
 	KEY_READ | KEY_WRITE, NULL, &fkey, &disp);
     if (fkey == NULL)
 	return;
-    if (disp == REG_CREATED_NEW_KEY || forceroms)
+    if (disp == REG_CREATED_NEW_KEY || forceroms) {
+	load_keyring (NULL, NULL);
 	scan_roms (NULL);
+    }
     forceroms = 0;
     idx = 0;
     for (;;) {
@@ -2108,6 +2115,7 @@ static void WIN32_HandleRegistryStuff(void)
     if (fkey)
 	RegCloseKey (fkey);
     read_rom_list ();
+    load_keyring(NULL, NULL);
 }
 
 static void betamessage (void)

@@ -373,6 +373,7 @@
 #define IDC_CPUIDLE                     1220
 #define IDC_GENLOCK                     1220
 #define IDC_COMPATIBLE_FPU              1221
+#define IDC_FASTERRTG                   1221
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_8BIT                        1230
 #define IDC_16BIT                       1231
@@ -671,6 +672,7 @@
 #define IDC_INPUTAMIGA                  1612
 #define IDC_ALWAYSONTOP2                1612
 #define IDC_BORDERLESS                  1612
+#define IDC_POWERSAVE                   1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_AVIOUTPUT_AUDIO             1614

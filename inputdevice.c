@@ -879,6 +879,8 @@ int getjoystate (int joy)
     int left = 0, right = 0, top = 0, bot = 0;
     uae_u16 v = 0;
 
+    if (inputdevice_logging > 2)
+	write_log("JOY%dDAT %x\n", joy, m68k_getpc(&regs));
     readinput ();
     if (joydir[joy] & DIR_LEFT)
 	left = 1;
@@ -1455,6 +1457,15 @@ int handle_input_event (int nr, int state, int max, int autofire)
     }
     switch (ie->unit)
     {
+	case 5: /* lightpen/gun */
+	{
+	    int delta = state * currprefs.input_mouse_speed / 100;
+	    if (ie->data)
+		lightpen_y += delta;
+	    else
+		lightpen_x += delta;
+	}
+	break;
 	case 1: /* ->JOY1 */
 	case 2: /* ->JOY2 */
 	case 3: /* ->Parallel port joystick adapter port #1 */

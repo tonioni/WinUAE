@@ -176,6 +176,7 @@ STATIC_INLINE int GET_RES (uae_u16 con0)
 
 extern void fpscounter_reset (void);
 extern unsigned long idletime;
+extern int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy;
 
 struct customhack {
     uae_u16 v;

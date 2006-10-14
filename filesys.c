@@ -4032,7 +4032,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     err = 2;
 
     /* load custom filesystems if needed */
-    if (!legalrdbblock (uip, fileblock))
+    if (fileblock == -1 || !legalrdbblock (uip, fileblock))
 	goto error;
     fsres = get_long (parmpacket + PP_FSRES);
     if (!fsres) {
@@ -4041,6 +4041,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     }
 
     for (;;) {
+	if (fileblock == -1)
+	    goto error;
 	if (!legalrdbblock (uip, fileblock)) {
 	    err = -1;
 	    goto error;

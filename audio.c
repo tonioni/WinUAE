@@ -50,8 +50,6 @@ STATIC_INLINE int isaudio(void)
 {
     if (!currprefs.produce_sound)
 	return 0;
-    if (currprefs.picasso96_nocustom && picasso_on)
-	return 0;
     return 1;
 }
 

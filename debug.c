@@ -805,7 +805,7 @@ static struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
 static addrbank **debug_mem_banks;
 static addrbank *debug_mem_area;
-#define MEMWATCH_TOTAL 4
+#define MEMWATCH_TOTAL 8
 struct memwatch_node {
     uaecptr addr;
     int size;

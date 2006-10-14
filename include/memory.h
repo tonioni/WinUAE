@@ -294,7 +294,7 @@ extern void mapped_free (uae_u8 *);
 extern void clearexec (void);
 extern void mapkick (void);
 extern int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom);
-extern void decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size, uae_u8 *key, int keysize);
+extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 extern void init_shm(void);
 
 #define ROMTYPE_KICK 1
@@ -335,6 +335,7 @@ extern void romlist_add (char *path, struct romdata *rd);
 extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);
 
-extern uae_u8 *load_keyfile (struct uae_prefs *p, char *path, int *size);
-extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size);
-extern void free_keyfile (uae_u8 *key);
+extern int load_keyring (struct uae_prefs *p, char *path);
+extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size, char *name);
+extern void free_keyring (void);
+extern int get_keyring (void);

@@ -232,7 +232,6 @@ void fixup_prefs (struct uae_prefs *p)
 	p->cachesize = 0;
 	err = 1;
     }
-
     if (p->cpu_level < 2 && p->z3fastmem_size > 0) {
 	write_log ("Z3 fast memory can't be used with a 68000/68010 emulation. It\n"
 		 "requires a 68020 emulation. Turning off Z3 fast memory.\n");

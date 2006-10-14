@@ -2033,6 +2033,50 @@
 				</File>
 			</Filter>
 		</Filter>
+		<Filter
+			Name="7z"
+			>
+			<File
+				RelativePath="..\..\7z\7zAlloc.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zBuffer.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zCrc.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zDecode.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zExtract.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zHeader.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zIn.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zItem.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\7zMethodID.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\7z\LzmaDecode.c"
+				>
+			</File>
+		</Filter>
 		<File
 			RelativePath="..\resources\drive_click.wav"
 			>

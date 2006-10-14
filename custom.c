@@ -133,7 +133,8 @@ static int lof_changed = 0;
  * worth the trouble..
  */
 static int vpos_previous, hpos_previous;
-static int vpos_lpen, hpos_lpen;
+static int vpos_lpen, hpos_lpen, lightpen_triggered;
+int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -2399,11 +2400,11 @@ STATIC_INLINE uae_u16 ADKCONR (void)
 
 STATIC_INLINE int GETVPOS(void)
 {
-    return vpos_lpen > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
+    return lightpen_triggered > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
 }
 STATIC_INLINE int GETHPOS(void)
 {
-    return vpos_lpen > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
+    return lightpen_triggered > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
 }
 
 STATIC_INLINE uae_u16 VPOSR (void)
@@ -2418,7 +2419,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 	vp &= 1;
     vp = vp | lof | csbit;
 #if 0
-    write_log ("vposr %x at %x\n", vp, m68k_getpc());
+    write_log ("vposr %x at %x\n", vp, m68k_getpc(&regs));
 #endif
     if (currprefs.cpu_level >= 2)
 	hsyncdelay();
@@ -2427,7 +2428,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 static void VPOSW (uae_u16 v)
 {
 #if 0
-    write_log ("vposw %x at %x\n", v, m68k_getpc());
+    write_log ("vposw %x at %x\n", v, m68k_getpc(&regs));
 #endif
     if (lof != (v & 0x8000))
 	lof_changed = 1;
@@ -2447,6 +2448,38 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     return vp;
 }
 
+static void perform_copper_write (int old_hpos);
+static void immediate_copper (int num)
+{
+    cop_state.state = COP_stop;
+    if (!dmaen (DMA_COPPER))
+	return;
+    cop_state.vpos = vpos;
+    cop_state.hpos = current_hpos () & ~1;
+    cop_state.ip = num == 1 ? cop1lc : cop2lc;
+    for (;;) {
+	cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
+	cop_state.i2 = chipmem_agnus_wget (cop_state.ip + 2);
+	cop_state.ip += 4;
+	if (!(cop_state.i1 & 1)) { // move
+	    cop_state.i1 &= 0x1ff;
+	    if (cop_state.i1 == 0x88) {
+	        cop_state.ip = cop1lc;
+		continue;
+	    }
+	    if (cop_state.i1 == 0x8a) {
+	        cop_state.ip = cop2lc;
+		continue;
+	    }
+	    perform_copper_write (0);
+	} else { // wait or skip
+	    if (cop_state.i1 >= 0xffdf && cop_state.i2 == 0xfffe)
+		return;
+	}
+    }
+
+}
+
 STATIC_INLINE void COP1LCH (uae_u16 v) { cop1lc = (cop1lc & 0xffff) | ((uae_u32)v << 16); }
 STATIC_INLINE void COP1LCL (uae_u16 v) { cop1lc = (cop1lc & ~0xffff) | (v & 0xfffe); }
 STATIC_INLINE void COP2LCH (uae_u16 v) { cop2lc = (cop2lc & 0xffff) | ((uae_u32)v << 16); }
@@ -2458,8 +2491,10 @@ static void COPJMP (int num)
     int oldstrobe = cop_state.strobe;
 
     eventtab[ev_copper].active = 0;
-    if (nocustom())
+    if (nocustom()) {
+	immediate_copper (num);
 	return;
+    }
     if (was_active)
 	events_schedule ();
 
@@ -3392,7 +3427,7 @@ static void perform_copper_write (int old_hpos)
 	cop_state.last_write = cop_state.saved_i1;
 	cop_state.last_write_hpos = old_hpos;
 	old_hpos++;
-	if (cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
+	if (!nocustom() && cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
 	    //write_log ("%d:%d %04.4X:%04.4X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
 	    do_sprites (old_hpos);
 	}
@@ -4291,7 +4326,13 @@ static void hsync_handler (void)
 	hsync_record_line_state (next_lineno, nextline_how, thisline_changed);
 	/* reset light pen latch */
 	if (vpos == sprite_vblank_endline)
-	    vpos_lpen = -1;
+	    lightpen_triggered = 0;
+        if (lightpen_cx > 0 && (bplcon0 & 8) && !lightpen_triggered && lightpen_cy == vpos) {
+	    vpos_lpen = vpos;
+	    hpos_lpen = lightpen_cx;
+	    lightpen_triggered = 1;
+	}
+
 #ifdef CD32
 	AKIKO_hsync_handler ();
 #endif
@@ -4326,16 +4367,16 @@ static void hsync_handler (void)
     else
 	last_custom_value = 0xffff;
 
+    if (currprefs.produce_sound)
+        audio_hsync (1);
+
     if (!nocustom()) {
 	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop)
 	    blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
 		cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
 		cycle_diagram_free_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)]);
 
-	if (currprefs.produce_sound)
-	    audio_hsync (1);
-
-	    hardware_line_completed (next_lineno);
+	hardware_line_completed (next_lineno);
     }
 
     /* In theory only an equality test is needed here - but if a program
@@ -4343,9 +4384,10 @@ static void hsync_handler (void)
        with vpos going into the thousands (and all the nasty consequences
        this has).  */
     if (++vpos >= (maxvpos + (lof == 0 ? 0 : 1))) {
-	if (bplcon0 & 8) {
+	if ((bplcon0 & 8) && !lightpen_triggered) {
 	    vpos_lpen = vpos - 1;
 	    hpos_lpen = maxhpos;
+	    lightpen_triggered = 1;
 	}
 	vpos = 0;
 	vsync_handler ();
@@ -4467,6 +4509,8 @@ void customreset (void)
 
     write_log ("reset at %x\n", m68k_getpc(&regs));
     hsync_counter = 0;
+    lightpen_x = lightpen_y = lightpen_triggered = 0;
+    lightpen_cx = lightpen_cy = -1;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
 	if ((currprefs.chipset_mask & CSMASK_AGA) == 0) {

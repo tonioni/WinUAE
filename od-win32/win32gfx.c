@@ -1286,8 +1286,10 @@ int check_prefs_changed_gfx (void)
 #endif
     }
 
-    if (currprefs.win32_automount_drives != changed_prefs.win32_automount_drives) {
+    if (currprefs.win32_automount_drives != changed_prefs.win32_automount_drives ||
+	currprefs.win32_powersavedisabled != changed_prefs.win32_powersavedisabled) {
 	currprefs.win32_automount_drives = changed_prefs.win32_automount_drives;
+	currprefs.win32_powersavedisabled = changed_prefs.win32_powersavedisabled;
     }
     return 0;
 }

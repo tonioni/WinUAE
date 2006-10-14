@@ -2489,7 +2489,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->maprom = 0;
     p->filesys_no_uaefsdb = 0;
     p->filesys_custom_uaefsdb = 1;
-    p->picasso96_nocustom = 0;
+    p->picasso96_nocustom = 1;
     p->cart_internal = 1;
 
     p->gfx_filter = 0;
