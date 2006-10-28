@@ -169,12 +169,8 @@ void Depack_SoundFX13 ( void )
     return;
 
   in = fopen ( (char *)OutName_final , "r+b" ); /* +b is safe bcoz OutName's just been saved */
-  if (!in)
-    return;
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* title */
   Whatever = (Uchar *) malloc ( 20 );

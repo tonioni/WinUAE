@@ -5,17 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if 0
-#include <sys/param.h>
-#endif
+//#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 /*#include <gtk/gtk.h>*/
 #ifdef DOS
 #include <winsock.h>
-#endif
-#ifdef DMALLOC
-#include "dmalloc.h"
 #endif
 
 
@@ -31,7 +26,7 @@ __inline Ulong htonl (Ulong v)
 }
 #endif
 
-#define _KNOWN_FORMATS      126
+#define _KNOWN_FORMATS      130
 #define _TYPES_FILENAME     "_types_"
 #define _TYPES_LINE_LENGHT  256
 #define MINIMAL_FILE_LENGHT 64
@@ -174,4 +169,9 @@ enum
   SpeedPacker3Data,
   AtomikPackerData,
   AutomationPackerData,
+  /*  TreasurePattern,*/
+  SGTPacker,
+  GNUPacker12,
+  CrunchmaniaSimple,
+  dmu,
 };

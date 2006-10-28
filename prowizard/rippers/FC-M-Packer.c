@@ -81,8 +81,6 @@ void Depack_FC_M ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* bypass "FC-M" ID */
   /* bypass what looks like the version number .. */

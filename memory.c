@@ -1960,12 +1960,6 @@ static void init_mem_banks (void)
 #endif
 }
 
-void clearexec (void)
-{
-    if (chipmemory)
-	memset (chipmemory + 4, 0,  4);
-}
-
 static void allocate_memory (void)
 {
     if (allocated_chipmem != currprefs.chipmem_size) {
@@ -1983,7 +1977,7 @@ static void allocate_memory (void)
 	    write_log ("Fatal error: out of memory for chipmem.\n");
 	    allocated_chipmem = 0;
 	} else {
-	    clearexec ();
+	    memory_hardreset();
 	    if (memsize != allocated_chipmem)
 		memset (chipmemory + allocated_chipmem, 0xff, memsize - allocated_chipmem);
 	}
@@ -2009,7 +2003,7 @@ static void allocate_memory (void)
 		allocated_bogomem = 0;
 	    }
 	}
-	clearexec ();
+	memory_hardreset();
     }
 #ifdef AUTOCONFIG
     if (allocated_a3000mem != currprefs.a3000mem_size) {
@@ -2027,7 +2021,7 @@ static void allocate_memory (void)
 		allocated_a3000mem = 0;
 	    }
 	}
-	clearexec ();
+	memory_hardreset();
     }
 #endif
     if (savestate_state == STATE_RESTORE) {
@@ -2083,7 +2077,7 @@ void memory_reset (void)
 	memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 	memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
 	if (savestate_state != STATE_RESTORE)
-	    clearexec ();
+	    memory_hardreset();
 	xfree (extendedkickmemory);
 	extendedkickmemory = 0;
 	extendedkickmem_size = 0;
@@ -2292,6 +2286,15 @@ void memory_cleanup (void)
     #ifdef ARCADIA
     arcadia_unmap ();
     #endif
+}
+
+void memory_hardreset(void)
+{
+    if (chipmemory)
+	memset (chipmemory, 0, allocated_chipmem);
+    if (bogomemory)
+	memset (bogomemory, 0, allocated_bogomem);
+    expansion_clear();
 }
 
 void map_banks (addrbank *bank, int start, int size, int realsize)

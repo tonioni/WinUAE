@@ -1717,11 +1717,13 @@ void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, ua
 	}
 	if (nfds == 0) {
 		// No sockets to check, only wait for signals
-		m68k_dreg(&context->regs,0) = wssigs;
-		sigs = CallLib(context, get_long(4),-0x13e); // Wait()
+		if (wssigs != 0) {
+			m68k_dreg(&context->regs, 0) = wssigs;
+			sigs = CallLib(context, get_long(4),-0x13e); // Wait()
 
-		put_long(sigmp,sigs & wssigs);
-
+			put_long(sigmp, sigs & wssigs);
+			}
+	
 		if (readfds)
 			fd_zero(readfds,nfds);
 		if (writefds)

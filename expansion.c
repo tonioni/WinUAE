@@ -956,7 +956,7 @@ static void allocate_expamem (void)
 		allocated_fastmem = 0;
 	    }
 	}
-	clearexec ();
+	memory_hardreset();
     }
     if (allocated_z3fastmem != currprefs.z3fastmem_size) {
 	if (z3fastmem)
@@ -973,7 +973,7 @@ static void allocate_expamem (void)
 		allocated_z3fastmem = 0;
 	    }
 	}
-	clearexec ();
+	memory_hardreset();
     }
 #ifdef PICASSO96
     if (allocated_gfxmem != currprefs.gfxmem_size) {
@@ -991,7 +991,7 @@ static void allocate_expamem (void)
 		allocated_gfxmem = 0;
 	    }
 	}
-	clearexec ();
+	memory_hardreset();
     }
 #endif
 
@@ -1153,6 +1153,16 @@ void expansion_cleanup (void)
 #ifdef CATWEASEL
     catweasel_free ();
 #endif
+}
+
+void expansion_clear(void)
+{
+    if (fastmemory)
+	memset (fastmemory, 0, allocated_fastmem);
+    if (z3fastmem)
+	memset (z3fastmem, 0, allocated_z3fastmem);
+    if (gfxmemory)
+	memset (gfxmemory, 0, allocated_gfxmem);
 }
 
 #ifdef SAVESTATE

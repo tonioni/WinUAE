@@ -79,8 +79,6 @@ void Depack_PRUN1 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* read and write whole header */
   fwrite ( &in_data[Where] , 950 , 1 , out );

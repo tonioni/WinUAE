@@ -86,15 +86,15 @@ Confirmed blitter ínformation by Toni Wilen
 F 4*4*ABC- ABCD
 E 4*4*ABC- ABC-
 D 3*4 AB-  ABD
-C 3*4 AB-  AB-
+C 3*3 AB-  AB-
 B 3*3*AC-  ACD
-A 3*3*AC-  AC-
+A 2*2*AC   AC
 9 2*3 A-   AD
-8 2*3 A-   A-
+8 2*2 A-   A-
 7 4 4 -BC- -BCD
 6 4 4 -BC- -BC-
 5 3 4 -B-  -BD
-4 3 4 -B-  -B-
+4 3 3 -B-  -B-
 3 3 3 -C-  -CD
 2 3 3 -C-  -C-
 1 2 3 -D   -D
@@ -136,7 +136,7 @@ static const int blit_cycle_diagram[][10] =
     { 3, 4, 0,2,3,4, 2,3,0 },	/* 7 */
     { 0, 2, 1,0 },		/* 8 */
     { 2, 2, 1,4, 1,0 },		/* 9 */
-    { 0, 3, 1,3,0 },		/* A */
+    { 0, 2, 1,3 },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
     { 2, 3, 1,2,0, 1,2 },	/* C */
     { 3, 3, 1,2,4, 1,2,0 },	/* D */
@@ -152,15 +152,15 @@ static const int blit_cycle_diagram_fill[][10] =
     { 0, 3, 3,5,4 },		/* 1 */
     { 0, 3, 0,3,0 },		/* 2 */
     { 2, 3, 3,5,4, 3,0 },	/* 3 */
-    { 0, 4, 0,2,5,0 },		/* 4 */
+    { 0, 3, 0,2,5 },		/* 4 */
     { 3, 4, 0,2,5,4, 2,0,0 },	/* 5 */
     { 0, 4, 2,3,5,0 },		/* 6 */
     { 3, 4, 2,3,5,4, 2,3,0 },	/* 7 */
-    { 0, 3, 1,5,0 },		/* 8 */
+    { 0, 2, 1,5 },		/* 8 */
     { 2, 3, 1,5,4, 1,0},	/* 9 */
-    { 0, 3, 1,3,5, },		/* A */
+    { 0, 2, 1,3 },		/* A */
     { 3, 3, 1,3,4, 1,3,0 },	/* B */
-    { 2, 4, 1,2,5,0, 1,2 },	/* C */
+    { 2, 3, 1,2,5, 1,2 },	/* C */
     { 3, 4, 1,2,5,4, 1,2,0 },	/* D */
     { 0, 4, 1,2,3,0 },		/* E */
     { 4, 4, 1,2,3,4, 1,2,3,0 }	/* F */
@@ -1041,7 +1041,7 @@ void do_blitter (int hpos)
 	write_log("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02.2X n=%d pc=%p l=%d dma=%04.4X\n",
 	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, cycles, blit_ch,
 	    blitdesc ? 1 : 0, blitfill,
-	    dmaen(DMA_BLITPRI) ? 1 : 0, m68k_getpc(), blitline, dmacon);
+	    dmaen(DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);
 	blitter_dump ();
     }
 #endif

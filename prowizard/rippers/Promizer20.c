@@ -99,8 +99,6 @@ void Depack_PM20 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
   /*info = fopen ( "info", "w+b");*/
 
   BZERO ( Pats_Address , 128*4 );

@@ -4039,16 +4039,34 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	write_log ("FileSystem.resource not found, this shouldn't happen!\n");
 	goto error;
     }
+    fsnode = get_long (fsres + 18);
+    while (get_long (fsnode)) {
+	if (get_long (fsnode + 14) == dostype)
+	    break;
+	fsnode = get_long (fsnode);
+    }
+    oldversion = oldrevision = -1;
+    if (get_long (fsnode)) {
+	oldversion = get_word (fsnode + 18);
+	oldrevision = get_word (fsnode + 20);
+    } else {
+	fsnode = 0;
+    }
 
     for (;;) {
-	if (fileblock == -1)
+	if (fileblock == -1) {
+	    if (!fsnode)
+		write_log ("RDB: required FS %08.8X not in FileSystem.resource or in RDB\n", dostype);
 	    goto error;
+	}
 	if (!legalrdbblock (uip, fileblock)) {
+	    write_log("RDB: corrupt FSHD pointer %d\n", fileblock);
 	    err = -1;
 	    goto error;
 	}
 	hdf_read (hfd, buf, fileblock * hfd->blocksize, readblocksize);
 	if (!rdb_checksum ("FSHD", buf, fileblock)) {
+	    write_log("RDB: checksum error in FSHD block %d\n", fileblock);
 	    err = -1;
 	    goto error;
 	}
@@ -4056,25 +4074,15 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	if ((dostype >> 8) == (rl (buf + 32) >> 8))
 	    break;
     }
-
-    fsnode = get_long (fsres + 18);
-    while (get_long (fsnode)) {
-	if (get_long (fsnode + 14) == dostype)
-	    break;
-	fsnode = get_long (fsnode);
-    }
-
-    oldversion = oldrevision = -1;
     newversion = (buf[36] << 8) | buf[37];
     newrevision = (buf[38] << 8) | buf[39];
+
     write_log ("RDB: RDB filesystem %08.8X version %d.%d\n", dostype, newversion, newrevision);
-    if (get_long (fsnode)) {
-	oldversion = get_word (fsnode + 18);
-	oldrevision = get_word (fsnode + 20);
+    if (fsnode) {
 	write_log ("RDB: %08.8X in FileSystem.resouce version %d.%d\n", dostype, oldversion, oldrevision);
     }
     if (newversion * 65536 + newrevision <= oldversion * 65536 + oldrevision && oldversion >= 0) {
-	write_log ("RDB: fs in FileSystem.resource is newer or same, ignoring RDB filesystem\n");
+	write_log ("RDB: FS in FileSystem.resource is newer or same, ignoring RDB filesystem\n");
 	goto error;
     }
 

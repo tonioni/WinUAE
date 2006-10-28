@@ -102,8 +102,6 @@ void Depack_GnuPlayer ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
   /*info = fopen ( "info", "w+b" );*/
 
   /* read and write title */
@@ -306,10 +304,10 @@ void Depack_GnuPlayer ( void )
     {
       samp = (in_data[Where]>>4)&0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k++] = (Whatever[k-1] + samp);
+      Whatever[k] = (Whatever[k-1] + samp); k++;
       samp = in_data[Where] & 0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k++] = (Whatever[k-1] + samp);
+      Whatever[k] = (Whatever[k-1] + samp); k++;
       Where += 1;
     }
     Where -= 1;

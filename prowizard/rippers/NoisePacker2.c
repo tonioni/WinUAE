@@ -212,8 +212,6 @@ void Depack_Noisepacker2 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* read number of sample */
   Nbr_Smp = ((in_data[Where]<<4)&0xf0) | ((in_data[Where+1]>>4)&0x0f);

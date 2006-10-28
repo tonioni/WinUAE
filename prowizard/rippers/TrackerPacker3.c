@@ -211,8 +211,6 @@ void Depack_TP3 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* title */
   Where += 8;

@@ -22,7 +22,7 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
 #define WINUAEBETA 1
-#define WINUAEBETASTR " Beta 5"
+#define WINUAEBETASTR " Beta 7"
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];
@@ -56,7 +56,7 @@ extern int sound_available;
 extern int framecnt;
 extern char prtname[];
 extern char VersionStr[256];
-extern int os_winnt, os_winnt_admin;
+extern int os_winnt, os_winnt_admin, os_64bit;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart;

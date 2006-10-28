@@ -561,7 +561,7 @@ static struct zfile *arcacc_unpack (struct zfile *z, int type)
 		    }
 		}
 	    }
-	    if (type == 7) {
+	    if (type == ArchiveFormat7Zip) {
 		if (fi.CompressedFileSize)
 		    skipsize = 0;
 		skipsize += (int)fi.UncompressedFileSize;

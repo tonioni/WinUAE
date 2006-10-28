@@ -1,27 +1,14 @@
 /*
  * Pro-Wizard_1.c
  *
- * 1997-2005 (c) Sylvain "Asle" Chipaux
+ * 1997-2006 (c) Sylvain "Asle" Chipaux
  *
 */
 
-#ifdef DOS
-#include "include\globals.h"
-#include "include\extern.h"
-#include "include\vars.h"
-#endif
-
-
-#ifdef UNIX
 #include "rippers/globals.h"
 #include "rippers/extern.h"
 #include "rippers/vars.h"
-#if 0
-#include "include/globals.h"
-#include "include/extern.h"
-#include "include/vars.h"
-#endif
-#endif
+
 
 #if 0
 int main ( int ac , char **av )
@@ -29,12 +16,11 @@ int main ( int ac , char **av )
 int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 #endif
 {
-  Support_Types ();
+  Support_Types_FileDefault ();
   in_data = in_data_p;
   PW_in_size = PW_in_size_p;
-
 #if 0
-  printf ( "\n\n-<([ Pro-Wizard v1.6 ])>-\n\n" );
+  printf ( "\n\n-<([ Pro-Wizard v1.61a ])>-\n\n" );
 
   if ( ac != 2 )
   {
@@ -55,7 +41,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   /*printf ( "%x,%x,%x\n" , Extensions[70][0], Extensions[70][1], Extensions[70][2] );*/
 
   /* get input file size */
-  PW_in_size = GetFileSizeX (av[1]);
+  PW_in_size = PWGetFileSize (av[1]);
   fseek ( PW_in , 0 , 0 ); /* probably useless */
   printf ( "input file size : %ld\n" , PW_in_size );
   if ( PW_in_size < MINIMAL_FILE_LENGHT )
@@ -79,7 +65,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   /********************************************************************/
   /**************************   SEARCH   ******************************/
   /********************************************************************/
-  for ( (long)PW_i=0 ; (long)PW_i<(PW_in_size-MINIMAL_FILE_LENGHT) ; (long)PW_i+=1 )
+  for ( PW_i=0 ; PW_i<(PW_in_size-MINIMAL_FILE_LENGHT) ; PW_i+=1 )
   {
     /* display where we are every 10 Kbytes */
     /*    if ( (PW_i%10240) == 0 )*/
@@ -115,7 +101,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 	}
       }
 
-      /* first, let's take care of the formats with 'ID' value < 0x40 */
+      /* first, let's take care of the formats with 'ID' value <= 0x40 */
       /* "!PM!" : ID of Power Music */
       if ( (in_data[PW_i]   == '!') &&
            (in_data[PW_i+1] == 'P') &&
@@ -129,6 +115,19 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           continue;
         }
       }
+      /* Treasure Patterns ?*/
+      /* 0x4000 : ID of Treasure Patterns ? not sure */
+      /*
+      if ( (in_data[PW_i]   == 0x00) )
+      {
+        if ( testTreasure() != BAD )
+        {
+          Rip_Treasure ();
+          Depack_Treasure ();
+          continue;
+        }
+      }
+      */
 #ifdef INCLUDEALL
       /* StoneCracker 2.92 data (ex-$08090A08 data cruncher) */
       if ( (in_data[PW_i]   == 0x08) &&
@@ -287,6 +286,15 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         continue;
       }
 
+      /* SGTPacker */
+      /*
+      if ( testSGT() != BAD )
+      {
+        Rip_SGT ();
+        Depack_SGT ();
+        continue;
+      }
+      */
       /* eureka packer */
       if ( testEUREKA() != BAD )
       {
@@ -764,8 +772,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+3] == 0x8C) &&
              (in_data[PW_i+4] == 0x4B) &&
              (in_data[PW_i+5] == 0xF9) &&
-             (in_data[PW_i+6] == 0x00) &&
-             ((in_data[PW_i+7] == 0xDF)||(in_data[PW_i+7] == 0x03)) )
+             (in_data[PW_i+6] == 0x00))
         {
           if ( testDefjam32() == BAD )
             break;
@@ -930,11 +937,27 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0xD1 ) &&
              (in_data[PW_i+15] == 0xC1 ) )
         {
-          if ( testMegaCruncher12() != BAD )
-          {
-            Rip_MegaCruncher ();
+          if ( testMegaCruncher12() == BAD )
+	    break;
+	  Rip_MegaCruncher ();
+	  break;
+        }
+
+        /* Double Action v1.0 */
+        if ( (in_data[PW_i+1]  == 0xF9 ) &&
+             (in_data[PW_i+2]  == 0x00 ) &&
+             (in_data[PW_i+3]  == 0xDF ) &&
+             (in_data[PW_i+137]== 0xAB ) &&
+             (in_data[PW_i+138]== 0xD1 ) &&
+             (in_data[PW_i+139]== 0xC0 ) &&
+             (in_data[PW_i+140]== 0xD3 ) &&
+             (in_data[PW_i+141]== 0xC0 ) &&
+             (in_data[PW_i+142]== 0x23 ) &&
+             (in_data[PW_i+143]== 0x20 ) )
+        {
+          if ( testDoubleAction10() == BAD )
             break;
-          }
+          Rip_DoubleAction10 ();
           break;
         }
 #endif
@@ -1176,6 +1199,52 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           continue;
         }
 
+        /* Crunchmania Address (another)*/
+        if ((in_data[PW_i+1] == 0xe7) &&
+           (in_data[PW_i+14] == 0x20) &&
+           (in_data[PW_i+15] == 0x4C) &&
+           (in_data[PW_i+16] == 0x47) &&
+           (in_data[PW_i+17] == 0xFA) &&
+           (in_data[PW_i+18] == 0x00) &&
+           (in_data[PW_i+19] == 0x0C) &&
+           (in_data[PW_i+24] == 0x51) &&
+           (in_data[PW_i+25] == 0xCF) &&
+           (in_data[PW_i+26] == 0xFF) &&
+           (in_data[PW_i+27] == 0xFC) &&
+           (in_data[PW_i+28] == 0x4E) &&
+           (in_data[PW_i+29] == 0xD0) &&
+           (in_data[PW_i+30] == 0x43) &&
+           (in_data[PW_i+31] == 0xF9) )
+        {
+          if ( testcrunchmaniaAddr() == BAD )
+            break;
+          Rip_CrunchmaniaAddr ();
+          continue;
+        }
+
+        /* Crunchmania Simple */
+        if ((in_data[PW_i+1] == 0xE7) &&
+	    (in_data[PW_i+2] == 0xFF) &&
+	    (in_data[PW_i+3] == 0xFF) &&
+	    (in_data[PW_i+4] == 0x45) &&
+	    (in_data[PW_i+5] == 0xFA) &&
+	    (in_data[PW_i+6] == 0x01) &&
+	    (in_data[PW_i+7] == 0x66) &&
+	    (in_data[PW_i+8] == 0x22) &&
+	    (in_data[PW_i+9] == 0x1A) &&
+	    (in_data[PW_i+10] == 0x24) &&
+	    (in_data[PW_i+11] == 0x1A) &&
+	    (in_data[PW_i+12] == 0x22) &&
+	    (in_data[PW_i+13] == 0x4A) &&
+	    (in_data[PW_i+14] == 0x28) &&
+	    (in_data[PW_i+15] == 0x7A) )
+	{
+          if ( testcrunchmaniaSimple() == BAD )
+            break;
+          Rip_CrunchmaniaSimple();
+          continue;
+        }
+
         /* RelokIt 1.0 */
         if ( (in_data[PW_i+1]  == 0xE7) &&
              (in_data[PW_i+2]  == 0xFF) &&
@@ -1279,6 +1348,28 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testDragpack100() == BAD )
             break;
           Rip_Dragpack100 ();
+          break;
+        }
+        /* GNU Packer 1.2 */
+        if ( (in_data[PW_i+1]  == 0xE7) &&
+             (in_data[PW_i+2]  == 0xFF) &&
+             (in_data[PW_i+3]  == 0xFE) &&
+             (in_data[PW_i+4]  == 0x4B) &&
+             (in_data[PW_i+5]  == 0xFA) &&
+             (in_data[PW_i+6]  == 0x02) &&
+             (in_data[PW_i+7]  == 0x32) &&
+             (in_data[PW_i+8]  == 0x4D) &&
+             (in_data[PW_i+9]  == 0xFA) &&
+             (in_data[PW_i+10] == 0x02) &&
+             (in_data[PW_i+11] == 0x46) &&
+             (in_data[PW_i+12] == 0x20) &&
+             (in_data[PW_i+13] == 0x6D) &&
+             (in_data[PW_i+14] == 0x00) &&
+             (in_data[PW_i+15] == 0x0C) )
+        {
+          if ( testGNUPacker12() == BAD )
+            break;
+          Rip_GNUPacker12 ();
           break;
         }
 #endif
@@ -1963,6 +2054,18 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
             break;
           }
         }
+	/* Mugician */
+        if ( ( in_data[PW_i+1] == 'G' ) &&
+             ( in_data[PW_i+2] == 'I' ) &&
+             ( in_data[PW_i+3] == 'C' ) )
+        {
+          /*  */
+          if ( testMUGICIAN() != BAD )
+          {
+            Rip_MUGICIAN ();
+            break;
+          }
+        }
         break;
 
       case 'V': /* "V.2" */
@@ -2239,20 +2342,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 #endif
 	break;
 
-      case 0xA9:
-#ifdef INCLUDEALL
-        /* Double Action v1.0 */
-        if ( (in_data[PW_i+1] == ' ') &&
-             (in_data[PW_i+2] == 'B') )
-        {
-          if ( testDoubleAction10() == BAD )
-            break;
-          Rip_DoubleAction10 ();
-          break;
-        }
-#endif
-        break;
-
       case 0xAC:
           /* AC1D packer ?!? */
         if ( in_data[PW_i+1] == 0x1D )
@@ -2285,6 +2374,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 
     } /* end of switch */
   }
+
 #if 0
   free ( in_data );
   printf ( "\n" );

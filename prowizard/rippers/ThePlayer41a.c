@@ -150,8 +150,6 @@ void Depack_P41A ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* read check ID */
   Where += 4;

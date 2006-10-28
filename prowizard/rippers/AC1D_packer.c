@@ -97,8 +97,6 @@ void Depack_AC1D ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   memset (Pattern_Addresses , 0 , 128*4);
   BZERO (Pattern_Sizes , 128*4);

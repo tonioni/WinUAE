@@ -1,36 +1,26 @@
-/* testTP2() */
-/* Rip_TP2() */
-/* Depack_TP2() */
+/* test() */
 
-
-/*
- * bug correction in the lqst test ...
- *  (Thomas Neumann again ...)
-*/
 
 #include "globals.h"
 #include "extern.h"
 
 
-short testTP2 ( void )
+short testTreasure ( void )
 {
-  if ( (in_data[PW_i+4] != '_') ||
-       (in_data[PW_i+5] != 'T') ||
-       (in_data[PW_i+6] != 'P') ||
-       (in_data[PW_i+7] != '2') )
-  {
-    /*printf ( "#1 Start: %ld\n" , PW_i );*/
-    return BAD;
-  }
 
   PW_Start_Address = PW_i;
 
-  /* number of sample */
+  if (in_data[PW_Start_Address+1] > 0x40 ) // more than 64 patterns ?
+  {
+    return BAD;
+  }
+  /* A FAIRE !!!!! */
+  /* sample size ? */
   PW_l = ( (in_data[PW_Start_Address+28]*256)+
 	   in_data[PW_Start_Address+29] );
   if ( (((PW_l/8)*8) != PW_l) || (PW_l == 0) )
   {
-    /*printf ( "#2 Start: %ld\n" , PW_Start_Address );*/
+/*printf ( "#2 Start: %ld\n" , PW_Start_Address );*/
     return BAD;
   }
   PW_l /= 8;
@@ -41,7 +31,7 @@ short testTP2 ( void )
   {
     if ( in_data[PW_Start_Address+30+PW_k*8] > 0x0f )
     {
-      /*printf ( "#3 Start: %ld\n" , PW_Start_Address );*/
+/*printf ( "#3 Start: %ld\n" , PW_Start_Address );*/
       return BAD;
     }
   }
@@ -51,7 +41,7 @@ short testTP2 ( void )
   {
     if ( in_data[PW_Start_Address+31+PW_k*8] > 0x40 )
     {
-      /*printf ( "#4 Start: %ld\n" , PW_Start_Address );*/
+/*printf ( "#4 Start: %ld\n" , PW_Start_Address );*/
       return BAD;
     }
   }
@@ -60,8 +50,11 @@ short testTP2 ( void )
   PW_WholeSampleSize = 0;
   for ( PW_k=0 ; PW_k<PW_l ; PW_k++ )
   {
+    /* size */
     PW_j = (in_data[PW_Start_Address+PW_k*8+32]*256)+in_data[PW_Start_Address+PW_k*8+33];
+    /* loop start */
     PW_m = (in_data[PW_Start_Address+PW_k*8+34]*256)+in_data[PW_Start_Address+PW_k*8+35];
+    /* loop size */
     PW_n = (in_data[PW_Start_Address+PW_k*8+36]*256)+in_data[PW_Start_Address+PW_k*8+37];
     PW_j *= 2;
     PW_m *= 2;
@@ -70,24 +63,24 @@ short testTP2 ( void )
          (PW_m > 0xFFFF) ||
          (PW_n > 0xFFFF) )
     {
-      /*printf ( "#5 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#5 Start:%ld\n" , PW_Start_Address );*/
       return BAD;
     }
     if ( (PW_m + PW_n) > (PW_j+2) )
     {
-      /*printf ( "#5,1 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#5,1 Start:%ld\n" , PW_Start_Address );*/
       return BAD;
     }
-    if ( (PW_m != 0) && (PW_n <= 2) )
+    if ( (PW_m != 0) && (PW_n == 0) )
     {
-      /*printf ( "#5,2 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#5,2 Start:%ld\n" , PW_Start_Address );*/
       return BAD;
     }
     PW_WholeSampleSize += PW_j;
   }
   if ( PW_WholeSampleSize <= 4 )
   {
-    /*printf ( "#5,3 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#5,3 Start:%ld\n" , PW_Start_Address );*/
     return BAD;
   }
 
@@ -95,7 +88,7 @@ short testTP2 ( void )
   PW_j = in_data[PW_Start_Address+PW_l*8+31];
   if ( (PW_j==0) || (PW_j>128) )
   {
-    /*printf ( "#6 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#6 Start:%ld\n" , PW_Start_Address );*/
     return BAD;
   }
 
@@ -108,7 +101,7 @@ short testTP2 ( void )
 
 
 
-void Rip_TP2 ( void )
+void Rip_TP3 ( void )
 {
   /* PW_j is the size of the pattern list */
   /* PW_l is the number of sample */
@@ -170,10 +163,13 @@ void Rip_TP2 ( void )
   }
 /*printf ( "\nsize of the last track : %ld\n" , PW_l );*/
 
-  OutputSize += PW_WholeSampleSize + PW_l;
+  OutputSize += PW_l + 2;  /* +2 for $0000 at the end .. */
+  if ( ((OutputSize/2)*2) != OutputSize )
+    OutputSize += 1;
+  OutputSize += PW_WholeSampleSize;
 
   CONVERT = GOOD;
-  Save_Rip ( "Tracker Packer v2 module", TP2 );
+  Save_Rip ( "Tracker Packer v3 module", TP3 );
   
   if ( Save_Status == GOOD )
     PW_i += (OutputSize - 1); /* 0 could be enough */
@@ -182,34 +178,32 @@ void Rip_TP2 ( void )
 
 
 /*
- *   TrackerPacker_v2.c   1998 (c) Asle / ReDoX
+ *   TrackerPacker_v3.c   1998 (c) Asle / ReDoX
  *
- * Converts TP2 packed MODs back to PTK MODs
+ * Converts TP3 packed MODs back to PTK MODs
  ********************************************************
  * 13 april 1999 : Update
  *   - no more open() of input file ... so no more fread() !.
  *     It speeds-up the process quite a bit :).
  *
- * 28 Nov 1999 : Update
- *   - Speed and Size Optmizings.
+ * 28 November 1999 : Update
+ *   - Some Optimizing for Speed and for Size.
 */
 
-void Depack_TP2 ( void )
+void Depack_TP3 ( void )
 {
   Uchar c1=0x00,c2=0x00,c3=0x00;
   Uchar poss[37][2];
-  Uchar Pats_Numbers[128];
   Uchar *Whatever;
   Uchar Note,Smp,Fx,FxVal;
   Uchar PatMax=0x00;
-  Uchar PatPos;
   long Track_Address[128][4];
   long i=0,j=0,k;
   long Start_Pat_Address=999999l;
   long Whole_Sample_Size=0;
   long Max_Track_Address=0;
   long Where=PW_Start_Address;   /* main pointer to prevent fread() */
-  FILE *out;/*,*info;*/
+  FILE *out;
 
   fillPTKtable(poss);
 
@@ -217,11 +211,9 @@ void Depack_TP2 ( void )
     return;
 
   BZERO ( Track_Address , 128*4*4 );
-  BZERO ( Pats_Numbers , 128 );
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  /*info = fopen ( "info", "w+b");*/
 
   /* title */
   Where += 8;
@@ -229,11 +221,12 @@ void Depack_TP2 ( void )
   Where += 20;
 
   /* number of sample */
-  j = ((in_data[Where]*256)+in_data[Where+1])/8;
+  j = (in_data[Where]*256)+in_data[Where+1];
   Where += 2;
+  j /= 8;
   /*printf ( "number of sample : %ld\n" , j );*/
 
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (Uchar *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   for ( i=0 ; i<j ; i++ )
   {
@@ -261,27 +254,27 @@ void Depack_TP2 ( void )
   /*printf ( "Whole sample size : %ld\n" , Whole_Sample_Size );*/
 
   /* read size of pattern table */
-  PatPos = in_data[Where+1];
-  Where += 2;
-  fwrite ( &PatPos , 1 , 1 , out );
+  Where += 1;
+  Whatever[256] = in_data[Where++]; /* PatPos*/
+  fwrite ( &Whatever[256] , 1 , 1 , out );
 
   /* ntk byte */
-  c1 = 0x7f;
-  fwrite ( &c1 , 1 , 1 , out );
+  Whatever[0] = 0x7f;
+  fwrite ( &Whatever[0] , 1 , 1 , out );
 
-  for ( i=0 ; i<PatPos ; i++ )
+  for ( i=0 ; i<Whatever[256] ; i++ )
   {
-    Pats_Numbers[i] = ((in_data[Where]*256)+in_data[Where+1])/8;
+    Whatever[i] = ((in_data[Where]*256)+in_data[Where+1])/8;
     Where += 2;
-    if ( Pats_Numbers[i] > PatMax )
-      PatMax = Pats_Numbers[i];
-    /*fprintf ( info , "%3ld: %d\n" , i,Pats_Numbers[i] );*/
+    if ( Whatever[i] > PatMax )
+      PatMax = Whatever[i];
+/*fprintf ( info , "%3ld: %ld\n" , i,Pats_Address[i] );*/
   }
 
   /* read tracks addresses */
   /* bypass 4 bytes or not ?!? */
   /* Here, I choose not :) */
-  /*fprintf ( info , "track addresses :\n" );*/
+/*fprintf ( info , "track addresses :\n" );*/
   for ( i=0 ; i<=PatMax ; i++ )
   {
     for ( j=0 ; j<4 ; j++ )
@@ -290,14 +283,15 @@ void Depack_TP2 ( void )
       Where += 2;
       if ( Track_Address[i][j] > Max_Track_Address )
         Max_Track_Address = Track_Address[i][j];
-      /*fprintf ( info , "%6ld, " , Track_Address[i][j] );*/
+/*fprintf ( info , "%6ld, " , Track_Address[i][j] );*/
     }
+/*fprintf ( info , "  (%x)\n" , Max_Track_Address );*/
   }
-  /*fprintf ( info , "  (%x)\n" , Max_Track_Address );fflush(info);*/
+
   /*printf ( "Highest pattern number : %d\n" , PatMax );*/
 
   /* write pattern list */
-  fwrite ( Pats_Numbers , 128 , 1 , out );
+  fwrite ( Whatever , 128 , 1 , out );
 
 
   /* ID string */
@@ -309,13 +303,13 @@ void Depack_TP2 ( void )
 
   Start_Pat_Address = Where + 2;
   /*printf ( "address of the first pattern : %ld\n" , Start_Pat_Address );*/
-  /*fprintf ( info , "address of the first pattern : %x\n" , Start_Pat_Address );*/
+/*fprintf ( info , "address of the first pattern : %x\n" , Start_Pat_Address );*/
 
   /* pattern datas */
   /*printf ( "converting pattern data " );*/
   for ( i=0 ; i<=PatMax ; i++ )
   {
-    /*fprintf ( info , "\npattern %ld:\n\n" , i );*/
+/*fprintf ( info , "\npattern %ld:\n\n" , i );*/
     BZERO ( Whatever , 1024 );
     for ( j=0 ; j<4 ; j++ )
     {
@@ -336,7 +330,7 @@ void Depack_TP2 ( void )
         {
           c2 = in_data[Where++];
 /*fprintf ( info , "%2x ,\n" , c2 );*/
-          Fx    = (c1>>2)&0x0f;
+          Fx    = (c1>>1)&0x0f;
           FxVal = c2;
           if ( (Fx==0x05) || (Fx==0x06) || (Fx==0x0A) )
           {
@@ -354,15 +348,18 @@ void Depack_TP2 ( void )
 
         c2 = in_data[Where++];
 /*fprintf ( info , "%2x, " , c2 );*/
-        Smp   = ((c2>>4)&0x0f) | ((c1<<4)&0x10);
-        Note  = c1&0xFE;
+        Smp   = ((c2>>4)&0x0f) | ((c1>>2)&0x10);
+        if ( (c1&0x40) == 0x40 )
+          Note = 0x7f-c1;
+        else
+          Note  = c1&0x3F;
         Fx    = c2&0x0F;
         if ( Fx == 0x00 )
         {
 /*fprintf ( info , " <--- No FX !!\n" );*/
           Whatever[k*16+j*4] = Smp&0xf0;
-          Whatever[k*16+j*4]   |= poss[(Note/2)][0];
-          Whatever[k*16+j*4+1]  = poss[(Note/2)][1];
+          Whatever[k*16+j*4]   |= poss[Note][0];
+          Whatever[k*16+j*4+1]  = poss[Note][1];
           Whatever[k*16+j*4+2]  = (Smp<<4)&0xf0;
           Whatever[k*16+j*4+2] |= Fx;
           continue;
@@ -381,15 +378,15 @@ void Depack_TP2 ( void )
         }
 
         Whatever[k*16+j*4] = Smp&0xf0;
-        Whatever[k*16+j*4]   |= poss[(Note/2)][0];
-        Whatever[k*16+j*4+1]  = poss[(Note/2)][1];
+        Whatever[k*16+j*4]   |= poss[Note][0];
+        Whatever[k*16+j*4+1]  = poss[Note][1];
         Whatever[k*16+j*4+2]  = (Smp<<4)&0xf0;
         Whatever[k*16+j*4+2] |= Fx;
         Whatever[k*16+j*4+3]  = FxVal;
       }
       if ( Where > Max_Track_Address )
         Max_Track_Address = Where;
-      /*printf ( "%6ld, " , Max_Track_Address );*/
+/*fprintf ( info , "%6ld, " , Max_Track_Address );*/
     }
     fwrite ( Whatever , 1024 , 1 , out );
     /*printf ( "." );*/
@@ -400,15 +397,14 @@ void Depack_TP2 ( void )
   /*printf ( "sample data address : %ld\n" , Max_Track_Address );*/
 
   /* Sample data */
+  if ( ((Max_Track_Address/2)*2) != Max_Track_Address )
+    Max_Track_Address += 1;
   fwrite ( &in_data[Max_Track_Address] , Whole_Sample_Size , 1 , out );
 
-
-  Crap ( " Tracker Packer 2 " , BAD , BAD , out );
-
+  Crap ( " Tracker Packer 3 " , BAD , BAD , out );
 
   fflush ( out );
   fclose ( out );
-  /*fclose ( info );*/
 
   printf ( "done\n" );
   return; /* useless ... but */

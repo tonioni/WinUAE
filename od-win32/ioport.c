@@ -13,6 +13,19 @@ typedef int bool;
 #include <windows.h>
 #include "win32.h"
 
+// TVicPORT
+typedef BOOL (_stdcall* OPENTVICPORT)(void);
+static OPENTVICPORT pOpenTVicPort;
+typedef void (_stdcall* CLOSETVICPORT)(void);
+static CLOSETVICPORT pCloseTVicPort;
+typedef BOOL (_stdcall* ISDRIVEROPENED)(void);
+static ISDRIVEROPENED pIsDriverOpened;
+typedef UCHAR (_stdcall* READPORT)(USHORT);
+static READPORT pReadPort;
+typedef UCHAR (_stdcall* WRITEPORT)(USHORT,UCHAR);
+static WRITEPORT pWritePort;
+
+// WINIO
 typedef bool (_stdcall* INITIALIZEWINIO)(void);
 static INITIALIZEWINIO pInitializeWinIo;
 typedef void (_stdcall* SHUTDOWNWINIO)(void);
@@ -21,9 +34,11 @@ typedef bool (_stdcall* GETPORTVAL)(WORD,PDWORD,BYTE);
 static GETPORTVAL pGetPortVal;
 typedef bool (_stdcall* SETPORTVAL)(WORD,DWORD,BYTE);
 static SETPORTVAL pSetPortVal;
+
 static HMODULE ioh;
 
 #ifndef IOPORT_EMU
+#include <TVicPort.h>
 #include <WinIo.h>
 #endif
 
@@ -34,6 +49,33 @@ int ioport_init (void)
     if (initialized)
 	return 1;
 #ifndef IOPORT_EMU
+    ioh = WIN32_LoadLibrary ("tvicport.dll");
+    if (ioh) {
+	for (;;) {
+	    pOpenTVicPort = (OPENTVICPORT)GetProcAddress (ioh, "OpenTVicPort");
+	    pCloseTVicPort = (CLOSETVICPORT)GetProcAddress (ioh, "CloseTVicPort");
+	    pIsDriverOpened = (ISDRIVEROPENED)GetProcAddress (ioh, "IsDriverOpened");
+	    pReadPort = (READPORT)GetProcAddress (ioh, "ReadPort");
+	    pWritePort = (WRITEPORT)GetProcAddress (ioh, "WritePort");
+	    if (!pOpenTVicPort || !pCloseTVicPort || !pIsDriverOpened || !pReadPort || !pWritePort) {
+		io_log("incompatible tvicport.dll\n");
+		break;
+	    }
+	    if (!pOpenTVicPort()) {
+		io_log("tvicport.dll failed to initialize\n");
+		break;
+	    }
+	    if (!pIsDriverOpened()) {
+		io_log("tvicport.dll failed to initialized!\n");
+		pCloseTVicPort();
+		break;
+	    }
+	    initialized = 1;
+	    io_log ("tvicport.dll initialized");
+	    return 1;
+	}
+    }
+    FreeLibrary(ioh);
     ioh = WIN32_LoadLibrary ("winio.dll");
     if (!ioh)
 	return 0;
@@ -47,7 +89,7 @@ int ioport_init (void)
 	return 0;
     }
     __try {
-	initialized = pInitializeWinIo();
+	initialized = pInitializeWinIo() ? 2 : 0;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
 	initialized = 0;
     }
@@ -61,11 +103,12 @@ int ioport_init (void)
 void ioport_free (void)
 {
 #ifndef IOPORT_EMU
-    if (initialized) {
+    if (initialized == 1)
+	pCloseTVicPort();
+    if (initialized == 2)
 	pShutdownWinIo();
+    if (initialized)
 	FreeLibrary (ioh);
-	io_log ("io freed\n");
-    }
 #endif
     initialized = 0;
 }
@@ -74,7 +117,10 @@ uae_u8 ioport_read (int port)
 {
     DWORD v = 0;
 #ifndef IOPORT_EMU
-    pGetPortVal (port, &v, 1);
+    if (initialized == 1)
+	v = pReadPort (port);
+    else if (initialized == 2)
+	pGetPortVal (port, &v, 1);
 #endif
     io_log ("ioport_read %04.4X returned %02.2X\n", port, v);
     return (uae_u8)v;
@@ -83,7 +129,10 @@ uae_u8 ioport_read (int port)
 void ioport_write (int port, uae_u8 v)
 {
 #ifndef IOPORT_EMU
-    pSetPortVal (port, v, 1);
+    if (initialized == 1)
+	pWritePort (port, v);
+    else if (initialized == 2)
+	pSetPortVal (port, v, 1);
 #endif
     io_log ("ioport_write %04.4X %02.2X\n", port, v);
 }

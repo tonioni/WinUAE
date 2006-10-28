@@ -11,10 +11,8 @@
 
 #ifdef PROWIZARD
 
-#include "uae.h"
 #include "options.h"
 #include "memory.h"
-#include "autoconf.h"
 #include "moduleripper.h"
 #include "gui.h"
 
@@ -45,6 +43,8 @@ void moduleripper (void)
     size += currprefs.bogomem_size;
     size += currprefs.z3fastmem_size;
     buf = p = xmalloc (size);
+    if (!buf)
+	return;
     memcpy (p, chipmemory, currprefs.chipmem_size);
     p += currprefs.chipmem_size;
     mc (p, fastmem_start, currprefs.fastmem_size);
@@ -69,7 +69,7 @@ void moduleripper (void)
 	notify_user (NUMSG_MODRIP_NOTFOUND);
     else if (!canceled)
 	notify_user (NUMSG_MODRIP_FINISHED);
-    free (buf);
+    xfree (buf);
 }
 
 FILE *moduleripper_fopen (const char *name, const char *mode)

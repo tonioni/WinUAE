@@ -133,8 +133,6 @@ void Depack_Polka ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* takes care of header */
   fwrite ( &in_data[Where], 20, 1, out );

@@ -27,6 +27,7 @@ typedef struct catweasel_drive {
 
 typedef struct catweasel_contr {
     int type;                      /* see CATWEASEL_TYPE_* defines below */
+    int direct_type;
     int iobase;                    /* 0 = not present (factory default is 0x320) */
     void (*msdelay)(int ms);       /* microseconds delay routine, provided by host program */
     catweasel_drive drives[2];     /* at most two drives on each controller */

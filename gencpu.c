@@ -616,12 +616,10 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 {
     genamode2 (mode, reg, size, name, getv, movem, flags, 0);
 }
-/*
 static void genamode_e3 (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags, int e3fudge)
 {
     genamode2 (mode, reg, size, name, getv, movem, flags, e3fudge);
 }
-*/
 
 static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, char *to, int store_dir)
 {
@@ -1512,7 +1510,8 @@ static void gen_opcode (unsigned long int opcode)
 	    int prefetch_done = 0;
 	    int dualprefetch = curi->dmode == absl && (curi->smode != Dreg && curi->smode != Areg && curi->smode != imm);
 	    genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-	    genamode (curi->dmode, "dstreg", curi->size, "dst", 2, 0, 1 | (dualprefetch ? GF_NOREFILL : 0));
+	    /* MOVE.L dx,(ax) exception3 PC points to next instruction. hackhackhack */
+	    genamode_e3 (curi->dmode, "dstreg", curi->size, "dst", 2, 0, 1 | (dualprefetch ? GF_NOREFILL : 0), curi->smode == Dreg && curi->dmode == Aind ? 2 : 0);
 	    if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 		printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
 	    if (curi->dmode == Apdi) {

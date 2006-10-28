@@ -7,6 +7,7 @@ extern void write_log (const char *, ...);
  *  at now, when this fonction is called, no global var has been used ...
  * and can be here :). (save for the input file pointer ...)
 */
+#if 0
 void Support_Types ( void )
 {
   long types_file_size, cpt;
@@ -26,7 +27,7 @@ void Support_Types ( void )
   }
 
   /* get "_TYPES_" size */
-  types_file_size = GetFileSizeX ( _TYPES_FILENAME );
+  types_file_size = PWGetFileSize ( _TYPES_FILENAME );
   fseek ( types_file , 0 , 0 ); /* just to be sure. put the fp back at the beginning */
 
   PW_i = 0;  /* will inc up to _KNOWN_FORMATS */
@@ -65,6 +66,7 @@ void Support_Types ( void )
 
   fclose ( types_file );
 }
+#endif
 
 /*Uchar *XighExtensions[_KNOWN_FORMATS+1];*/
 
@@ -204,10 +206,14 @@ void Support_Types_FileDefault ( void )
   strcpy ( Extensions[122], "DragPack100" );
   strcpy ( Extensions[123], "SPv3" );
   strcpy ( Extensions[124], "AtomikPackerData" );
-  strcpy ( Extensions[125], "---" );
+  strcpy ( Extensions[125], "AutomationPackerData" );
+  //  strcpy ( Extensions[125], "TreasurePattern" );
+  strcpy ( Extensions[126], "SGTPacker" );
+  strcpy ( Extensions[127], "GNUPacker12" );
+  strcpy ( Extensions[128], "CrunchmaniaSimple" );
+  strcpy ( Extensions[129], "dmu" );
+  strcpy ( Extensions[130], "---" );
 }
-
-
 
 
 /*

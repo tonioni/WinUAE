@@ -27,7 +27,7 @@ short testTetrapack_2_2 ( void )
 	 (in_data[PW_Start_Address+33] != 0xF4 ) )
     {
       /* should be enough :))) */
-      printf ( "#2 Start:%ld\n" , PW_Start_Address );
+      /*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
       return BAD;
     }
   }

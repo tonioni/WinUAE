@@ -1488,10 +1488,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\moduleripper.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\native2amiga.c"
 				>
 			</File>
@@ -1617,6 +1613,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\moduleripper.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\prowizard\prowiz.c"
 				>
 			</File>
@@ -1657,6 +1657,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\Crunchmania-Address.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\Crunchmania-Simple.c"
 					>
 				</File>
 				<File
@@ -1720,6 +1724,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\prowizard\rippers\GNUPacker12.c"
+					>
+				</File>
+				<File
 					RelativePath="..\..\prowizard\rippers\GnuPlayer.c"
 					>
 				</File>
@@ -1773,6 +1781,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\ModuleProtector.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\Mugician.c"
 					>
 				</File>
 				<File
@@ -1868,11 +1880,19 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\prowizard\rippers\ptktable.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\prowizard\rippers\QuadraComposer.c"
 					>
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\RelokIt10.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\SGT-Packer.c"
 					>
 				</File>
 				<File

@@ -74,6 +74,7 @@ static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 
 int useqpc = 0; /* Set to TRUE to use the QueryPerformanceCounter() function instead of rdtsc() */
+int qpcdivisor = 0;
 int cpu_mmx = 0;
 static int no_rdtsc;
 
@@ -192,6 +193,49 @@ static void dummythread (void *dummy)
     while (!dummythread_die);
 }
 
+
+STATIC_INLINE frame_time_t read_processor_time_qpc (void)
+{
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    if (qpcdivisor == 0)
+	return (frame_time_t)(counter.LowPart);
+    return (frame_time_t)(counter.QuadPart >> qpcdivisor);
+}
+
+frame_time_t read_processor_time (void)
+{
+    frame_time_t foo;
+
+    if (useqpc) /* No RDTSC or RDTSC is not stable */
+	return read_processor_time_qpc();
+
+#if defined(X86_MSVC_ASSEMBLY)
+    {
+	frame_time_t bar;
+	__asm
+	{
+	    rdtsc
+	    mov foo, eax
+	    mov bar, edx
+	}
+	/* very high speed CPU's RDTSC might overflow without this.. */
+	foo >>= 6;
+	foo |= bar << 26;
+    }
+#else
+    foo = 0;
+#endif
+#ifdef HIBERNATE_TEST
+    if (rpt_skip_trigger) {
+	foo += rpt_skip_trigger;
+	rpt_skip_trigger = 0;
+    }
+#endif
+    return foo;
+}
+
+
 static uae_u64 win32_read_processor_time (void)
 {
 #if defined(X86_MSVC_ASSEMBLY)
@@ -253,15 +297,17 @@ static int figure_processor_speed (void)
 
     if (QueryPerformanceFrequency(&freq)) {
 	qpc_avail = 1;
-	write_log("CLOCKFREQ: QPF %.2fMHz\n", freq.QuadPart / 1000000.0);
 	qpfrate = freq.QuadPart;
-	 /* we don't want 32-bit overflow */
-	if (qpfrate > 100000000) {
-	    qpfrate >>= 6;
+	 /* we don't want 32-bit overflow, limit to 100MHz */
+	qpcdivisor = 0;
+	while (qpfrate > 100000000) {
+	    qpfrate >>= 1;
+	    qpcdivisor++;
 	    qpc_avail = -1;
 	}
+	write_log("CLOCKFREQ: QPF %.2fMHz (DIV=%d)\n", freq.QuadPart / 1000000.0, 1 << qpcdivisor);
 	if (SystemInfo.dwNumberOfProcessors > 1)
-	    rpt_available = 0; /* RDTSC is weird in SMP-systems */
+	    rpt_available = 0; /* RDTSC can be weird in SMP-systems */
     } else {
 	write_log("CLOCKREQ: QPF not supported\n");
     }
@@ -273,7 +319,7 @@ static int figure_processor_speed (void)
 
     init_mmtimer();
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-    sleep_millis (100);
+    sleep_millis (50);
     dummythread_die = -1;
 
     if (qpc_avail || rpt_available)  {
@@ -285,7 +331,7 @@ static int figure_processor_speed (void)
 	    clockrateidle = (win32_read_processor_time() - clockrateidle) * 2;
 	    dummythread_die = 0;
 	    _beginthread(&dummythread, 0, 0);
-	    sleep_millis (100);
+	    sleep_millis (50);
 	    clockrate = win32_read_processor_time();
 	    sleep_millis (500);
 	    clockrate = (win32_read_processor_time() - clockrate) * 2;
@@ -358,13 +404,13 @@ static int figure_processor_speed (void)
 	limit = 2.5;
 	if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
 	    timermode = 0;
-	    sleep_resolution = (int)(ratea1 * clockrate1000 / (ratecnt * 1000000));
+	    sleep_resolution = (int)((1000 * ratea1) / (clockrate1000 * ratecnt));
 	    timebegin ();
-	    write_log ("Using MultiMedia timers (resolution < %.1fms)\n", limit);
+	    write_log ("Using MultiMedia timers (resolution < %.1fms) SR=%d\n", limit, sleep_resolution);
 	} else if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
 	    timermode = 1;
-	    sleep_resolution = (int)(ratea2 * clockrate1000 / (ratecnt * 1000000));
-	    write_log ("Using Sleep() (resolution < %.1fms)\n", limit);
+	    sleep_resolution = (int)((1000 * ratea2) / (clockrate1000 * ratecnt));
+	    write_log ("Using Sleep() (resolution < %.1fms) SR=%d\n", limit, sleep_resolution);
 	} else {
 	    timermode = -1; /* both timers are bad, fall back to busy-wait */
 	    write_log ("falling back to busy-loop waiting (timer resolution > %.1fms)\n", limit);
@@ -1518,6 +1564,8 @@ int debuggable (void)
 
 int mousehack_allowed (void)
 {
+    if (nr_units (currprefs.mountinfo) == 0)
+	return 0;
     return dinput_winmouse () > 0 && dinput_winmousemode ();
 }
 
@@ -2140,7 +2188,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin;
+int os_winnt, os_winnt_admin, os_64bit;
 
 static int isadminpriv (void) 
 {
@@ -2206,6 +2254,7 @@ static int osdetect (void)
 {
     os_winnt = 0;
     os_winnt_admin = 0;
+    os_64bit = 0;
 
     pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(
 	GetModuleHandle("kernel32.dll"), "GetNativeSystemInfo");
@@ -2225,6 +2274,8 @@ static int osdetect (void)
 	}
 	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
 	    os_winnt = 1;
+	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
+	    os_64bit = 1;
     }
 
     if (!os_winnt) {
@@ -2360,7 +2411,8 @@ static void getstartpaths(int start_data)
 }
 
 extern void test (void);
-extern int screenshotmode, b0rken_ati_overlay,postscript_print_debugging,sound_debug;
+extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug;
+extern int force_direct_catweasel;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2419,6 +2471,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
 	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
 	if (!strcmp (arg, "-sounddebug")) sound_debug = 1;
+	if (!strcmp (arg, "-directcatweasel")) force_direct_catweasel = 1;
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
 	    strcpy(start_path_data, argv[i + 1]);
 	    start_data = 1;

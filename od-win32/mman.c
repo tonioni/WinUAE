@@ -65,8 +65,8 @@ void init_shm(void)
 	    size64 <<= 1;
     if (size64 > max_allowed_mman * 1024 * 1024)
 	size64 = max_allowed_mman * 1024 * 1024;
-    if (size64 > 0x20000000)
-	size64 = 0x20000000;
+    if (size64 > 0x40000000)
+	size64 = 0x40000000;
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
     size = max_z3fastmem = (uae_u32)size64;

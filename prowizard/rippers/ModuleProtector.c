@@ -264,8 +264,6 @@ void Depack_MP ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   Whatever = (Uchar *) malloc (64);
   BZERO ( Whatever , 64 );

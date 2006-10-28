@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -9,6 +11,7 @@
 #include "ioport.h"
 #include "catweasel.h"
 #include "uae.h"
+#include "zfile.h"
 
 #include <catweasl_usr.h>
 
@@ -100,6 +103,7 @@ static uae_u8 get_buttons(void)
 
 int catweasel_read_mouse(int port, int *dx, int *dy, int *buttons)
 {
+    return 0;
     if (!cwc.can_mouse)
 	return 0;
     *dx = mouse_x[port];
@@ -286,6 +290,188 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
     //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
 }
 
+#include "core.cw4.c"
+
+static int cw_config_done(void)
+{
+    return ioport_read (cwc.iobase + 7) & 4;
+}
+static int cw_fpga_ready(void)
+{
+    return ioport_read (cwc.iobase + 7) & 8;
+}
+static void cw_resetFPGA(void)
+{
+    ioport_write (cwc.iobase + 2, 227);
+    ioport_write (cwc.iobase + 3, 0);
+    sleep_millis (10);
+    ioport_write (cwc.iobase + 3, 65);
+}
+
+int catweasel4_configure(void)
+{
+    struct zfile *f;
+
+    ioport_write (cwc.iobase, 241);
+    ioport_write (cwc.iobase + 1, 0);
+    ioport_write (cwc.iobase + 2, 227);
+    ioport_write (cwc.iobase + 3, 65);
+    ioport_write (cwc.iobase + 4, 0);
+    ioport_write (cwc.iobase + 5, 0);
+    ioport_write (cwc.iobase + 0x29, 0);
+    ioport_write (cwc.iobase + 0x2b, 0);
+
+    if (cw_config_done()) {
+	write_log ("CW: FPGA already configured, skipping core upload\n");
+	goto ok;
+    }
+    cw_resetFPGA();
+    sleep_millis(10);
+    if (cw_config_done()) {
+	write_log ("CW: FPGA failed to reset!\n");
+	return 0;
+    }
+    f = zfile_fopen("core.cw4", "rb");
+    if (!f) {
+	f = zfile_fopen_data ("core.cw4.gz", core_len, core);
+	f = zfile_gunzip (f);
+    }
+    write_log ("CW: starting core upload, this will take few seconds\n");
+    for (;;) {
+	uae_u8 b;
+	if (zfile_fread (&b, 1, 1, f) != 1)
+	    break;
+	ioport_write (cwc.iobase + 3, (b & 1) ? 67 : 65);
+	while (!cw_fpga_ready());
+	ioport_write (cwc.iobase + 192, b);
+    }
+    if (!cw_config_done()) {
+	write_log ("CW: FPGA didn't accept the core!\n");
+	cw_resetFPGA();
+	return 0;
+    }
+    sleep_millis(10);
+    write_log ("CW: core uploaded successfully\n");
+ok:
+    return 1;
+}
+
+#include <setupapi.h>
+#include <cfgmgr32.h>
+
+#define PCI_CW_MK3 "PCI\\VEN_E159&DEV_0001&SUBSYS_00021212"
+#define PCI_CW_MK4 "PCI\\VEN_E159&DEV_0001&SUBSYS_00035213"
+#define PCI_CW_MK4_BUG "PCI\\VEN_E159&DEV_0001&SUBSYS_00025213"
+
+extern int os_64bit;
+int force_direct_catweasel;
+static int direct_detect(void)
+{
+    HDEVINFO devs;
+    SP_DEVINFO_LIST_DETAIL_DATA devInfoListDetail;
+    SP_DEVINFO_DATA devInfo;
+    int devIndex;
+    int cw = 0;
+
+    if (!os_64bit && !force_direct_catweasel)
+	return 0;
+    devs = SetupDiGetClassDevsEx(NULL, NULL, NULL, DIGCF_ALLCLASSES | DIGCF_PRESENT, NULL, NULL, NULL);
+    if (devs == INVALID_HANDLE_VALUE)
+	return 0;
+    devInfoListDetail.cbSize = sizeof(devInfoListDetail);
+    if(SetupDiGetDeviceInfoListDetail(devs,&devInfoListDetail)) {
+        devInfo.cbSize = sizeof(devInfo);
+	for(devIndex=0;SetupDiEnumDeviceInfo(devs,devIndex,&devInfo);devIndex++) {
+	    TCHAR devID[MAX_DEVICE_ID_LEN];
+	    if(CM_Get_Device_ID_Ex(devInfo.DevInst,devID,MAX_DEVICE_ID_LEN,0,devInfoListDetail.RemoteMachineHandle)!=CR_SUCCESS)
+		devID[0] = TEXT('\0');
+	    if (!memcmp (devID, PCI_CW_MK3, strlen (PCI_CW_MK3))) {
+		if (cw > 3)
+		    break;
+		cw = 3;
+	    }
+	    if (!memcmp (devID, PCI_CW_MK4, strlen (PCI_CW_MK4)) ||
+		!memcmp (devID, PCI_CW_MK4_BUG, strlen (PCI_CW_MK4_BUG)))
+		cw = 4;
+	    if (cw) {
+		SP_DEVINFO_LIST_DETAIL_DATA devInfoListDetail;
+		ULONG status = 0;
+		ULONG problem = 0;
+		LOG_CONF config = 0;
+		BOOL haveConfig = FALSE;
+		ULONG dataSize;
+		PBYTE resDesData;
+	        RES_DES prevResDes, resDes;
+	        RESOURCEID resId = ResType_IO;
+
+		devInfoListDetail.cbSize = sizeof(devInfoListDetail);
+		if((!SetupDiGetDeviceInfoListDetail(devs,&devInfoListDetail)) ||
+			(CM_Get_DevNode_Status_Ex(&status,&problem,devInfo.DevInst,0,devInfoListDetail.RemoteMachineHandle)!=CR_SUCCESS))
+		    break;
+		if(!(status & DN_HAS_PROBLEM)) {
+		    if (CM_Get_First_Log_Conf_Ex(&config,
+						 devInfo.DevInst,
+						 ALLOC_LOG_CONF,
+						 devInfoListDetail.RemoteMachineHandle) == CR_SUCCESS) {
+			haveConfig = TRUE;
+		    }
+		}
+		if(!haveConfig) {
+		    if (CM_Get_First_Log_Conf_Ex(&config,
+						 devInfo.DevInst,
+						 FORCED_LOG_CONF,
+						 devInfoListDetail.RemoteMachineHandle) == CR_SUCCESS) {
+			haveConfig = TRUE;
+		    }
+		}
+		if(!haveConfig) {
+		    if(!(status & DN_HAS_PROBLEM) || (problem != CM_PROB_HARDWARE_DISABLED)) {
+			if (CM_Get_First_Log_Conf_Ex(&config,
+						     devInfo.DevInst,
+						     BOOT_LOG_CONF,
+						     devInfoListDetail.RemoteMachineHandle) == CR_SUCCESS) {
+			    haveConfig = TRUE;
+			}
+		    }
+		}
+		if(!haveConfig)
+		    break;
+		prevResDes = (RES_DES)config;
+		resDes = 0;
+		while(CM_Get_Next_Res_Des_Ex(&resDes,prevResDes,ResType_IO,&resId,0,NULL)==CR_SUCCESS) {
+		    if(prevResDes != config)
+			CM_Free_Res_Des_Handle(prevResDes);
+		    prevResDes = resDes;
+		    if(CM_Get_Res_Des_Data_Size_Ex(&dataSize,resDes,0,NULL)!=CR_SUCCESS)
+			continue;
+		    resDesData = malloc (dataSize);
+		    if(!resDesData)
+			continue;
+		    if(CM_Get_Res_Des_Data_Ex(resDes,resDesData,dataSize,0,NULL)!=CR_SUCCESS) {
+			free (resDesData);
+			continue;
+		    }
+		    if (resId == ResType_IO) {
+			PIO_RESOURCE pIoData = (PIO_RESOURCE)resDesData;
+			if(pIoData->IO_Header.IOD_Alloc_End-pIoData->IO_Header.IOD_Alloc_Base+1) {
+			    write_log("CW: PCI SCAN: CWMK%d @%I64X - %I64X\n", cw,
+				pIoData->IO_Header.IOD_Alloc_Base,pIoData->IO_Header.IOD_Alloc_End);
+			    cwc.iobase = (int)pIoData->IO_Header.IOD_Alloc_Base;
+			    cwc.direct_type = cw;
+			}
+		    }
+		    free (resDesData);
+		}
+	        if(prevResDes != config)
+		    CM_Free_Res_Des_Handle(prevResDes);
+	        CM_Free_Log_Conf_Handle(config);
+	    }
+	}
+    }
+    SetupDiDestroyDeviceInfoList(devs);
+    return cw;
+}
+
 int catweasel_init(void)
 {
     char name[32], tmp[1000];
@@ -295,6 +481,7 @@ int catweasel_init(void)
 
     if (cwc.type)
 	return 1;
+    catweasel_detect();
 
     if (currprefs.catweasel >= 100) {
 	cwc.type = currprefs.catweasel >= 0x400 ? 3 : 1;
@@ -302,7 +489,9 @@ int catweasel_init(void)
 	if (!ioport_init())
 	    goto fail;
 	strcpy(name, "[DIRECT]");
+
     } else {
+
 	for (i = 0; i < 4; i++) {
 	    if (currprefs.catweasel > 0)
 		i = currprefs.catweasel;
@@ -313,9 +502,32 @@ int catweasel_init(void)
 		break;
 	}
 	if (handle == INVALID_HANDLE_VALUE) {
-	    write_log ("CW: No Catweasel detected\n");
-	    goto fail;
+	    strcpy(name, "[DIRECT]");
+	    if (ioport_init()) {
+		if (cwc.direct_type == 4) {
+		    if (catweasel4_configure()) {
+			cwc.type = 4;
+			cwc.can_joy = 2;
+			cwc.can_sid = 2;
+			cwc.can_kb = 1;
+			cwc.can_mouse = 2;
+		    }
+		} else if (cwc.direct_type == 3) {
+		    cwc.type = 3;
+		    cwc.can_joy = 1;
+		    cwc.can_sid = 1;
+		    cwc.can_kb = 1;
+		    cwc.can_mouse = 0;
+		}
+	    }
+	    if (cwc.type == 0) {
+		write_log ("CW: No Catweasel detected\n");
+		goto fail;
+	    }
 	}
+    }
+
+    if (!cwc.direct_type) {
 	if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
 	    write_log ("CW: CW_GET_VERSION failed %d\n", GetLastError());
 	    goto fail;
@@ -343,11 +555,12 @@ int catweasel_init(void)
 	if (cwc.type == CATWEASEL_TYPE_MK4 && cwc.can_sid)
 	    cwc.can_sid = 2;
     }
+
     if (cwc.type == CATWEASEL_TYPE_MK4) {
 	if (cwc.can_mouse) {
 	    int i;
 	    catweasel_do_bput(3, 0x81);
-	    catweasel_do_bput(0xd0, 0); // amiga mouse
+	    catweasel_do_bput(0xd0, 4|8); // amiga mouse + pullups
 	    // clear mouse counters
 	    for (i = 0; i < 2; i++) {
 		catweasel_do_bput(0xc4 + i * 8, 0);
@@ -382,6 +595,8 @@ fail:
 
 void catweasel_free (void)
 {
+    if (cwc.type == 4)
+	catweasel_do_bput(3, 0x61); // enable floppy passthrough
     if (handle != INVALID_HANDLE_VALUE)
 	CloseHandle (handle);
     handle = INVALID_HANDLE_VALUE;
@@ -397,20 +612,28 @@ int catweasel_detect (void)
 {
     char name[32];
     int i;
+    static int detected;
 
-    if (handle != INVALID_HANDLE_VALUE)
-	return TRUE;
+    if (detected)
+	return detected < 0 ? 0 : 1;
+
+    detected = -1;
     for (i = 0; i < 4; i++) {
 	sprintf (name, "\\\\.\\CAT%u_F0", i);
 	handle = CreateFile (name, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (handle != INVALID_HANDLE_VALUE)
+	if (handle != INVALID_HANDLE_VALUE) {
+	    CloseHandle (handle);
 	    break;
+	}
     }
-    if (handle == INVALID_HANDLE_VALUE)
-	return FALSE;
-    CloseHandle (handle);
-    handle = INVALID_HANDLE_VALUE;
+    if (handle == INVALID_HANDLE_VALUE) {
+	if (direct_detect()) {
+	    detected = 1;
+	    return TRUE;
+	}
+    }
+    detected = 1;
     return TRUE;
 }
 

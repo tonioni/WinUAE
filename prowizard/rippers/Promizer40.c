@@ -122,12 +122,8 @@ void Depack_PM40 ( void )
   fillPTKtable(poss);
 
   in = fopen ( (char *)OutName_final , "r+b" ); /* +b is safe bcoz OutName's just been saved */
-  if (!in)
-    return;
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   BZERO ( Pats_Numbers , 128 );
   BZERO ( Pats_Numbers_tmp , 128 );

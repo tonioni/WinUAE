@@ -2659,7 +2659,7 @@ static void doint (void)
 #endif
     imask = intreq & intena;
     if (imask && (intena & 0x4000)) {
-	for (i = 0; i < 14; i++) {
+	for (i = 0; i < 15; i++) {
 	    if ((imask & (1 << i)) && irqdelay[i] == 0) {
 		irqdelay[i] = 1;
 		irqcycles[i] = get_cycles ();
@@ -2673,7 +2673,7 @@ STATIC_INLINE void INTENA (uae_u16 v)
     setclr (&intena,v);
 #if 0
     if (v & 0x40)
-	write_log("INTENA %04.4X (%04.4X) %p\n", intena, v, m68k_getpc());
+	write_log("INTENA %04.4X (%04.4X) %p\n", intena, v, M68K_GETPC);
 #endif
     if (v & 0x8000)
 	doint ();
@@ -2681,22 +2681,29 @@ STATIC_INLINE void INTENA (uae_u16 v)
 
 void INTREQ_0 (uae_u16 v)
 {
+    int i;
     if (v & (0x80|0x100|0x200|0x400))
 	audio_update_irq (v);
-    setclr (&intreq,v);
+    setclr (&intreq, v);
+    if (!(v & 0x8000)) {
+	for (i = 0; i < 15; i++) {
+	    if (v & (1 << i))
+		irqdelay[i] = 0;
+	}
+    }
     doint ();
 }
 
 void INTREQ (uae_u16 v)
 {
+#if 0
+    if ((v & (0xc000)) == 0xc000)
+	write_log("%d INTREQ %04.4X (%04.4X) %x %x %x\n",
+	    vpos, intreq, v, M68K_GETPC, cop1lc, cop2lc);
+#endif
     INTREQ_0 (v);
     serial_check_irq ();
     rethink_cias ();
-#if 0
-    if (0 || (v & (0x8010)) == 0x8010)
-	write_log("%d INTREQ %04.4X (%04.4X) %x %x %x\n",
-	    vpos, intreq, v, m68k_getpc(), cop1lc, cop2lc);
-#endif
 }
 
 static void ADKCON (int hpos, uae_u16 v)
@@ -4121,9 +4128,8 @@ static void framewait (void)
     }
     curr_time = start = read_processor_time();
     if (!isvsync()) {
-	do {
-	    curr_time = read_processor_time ();
-	} while (rpt_vsync () < 0);
+	while (rpt_vsync () < 0);
+        curr_time = read_processor_time ();
     }
     vsyncmintime = curr_time + vsynctime;
     idletime += read_processor_time() - start;
@@ -4667,7 +4673,7 @@ void dumpcustom (void)
 	    (unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
     console_out ("BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
     if (timeframes) {
-	console_out ("Average frame time: %f ms [frames: %d time: %d]\n",
+	console_out ("Average frame time: %.2f ms [frames: %d time: %d]\n",
 		    (double)frametime / timeframes, timeframes, frametime);
 	if (total_skipped)
 	    console_out ("Skipped frames: %d\n", total_skipped);

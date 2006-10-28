@@ -1566,6 +1566,8 @@ void AUDxPER (int nr, uae_u16 v)
 
     if (per < maxhpos * CYCLE_UNIT / 2 && currprefs.produce_sound < 3)
 	per = maxhpos * CYCLE_UNIT / 2;
+    else if (per < 4 * CYCLE_UNIT)
+	per = 4 * CYCLE_UNIT;
 
    if (audio_channel[nr].per == PERIOD_MAX - 1 && per != PERIOD_MAX - 1) {
 	audio_channel[nr].evtime = CYCLE_UNIT;

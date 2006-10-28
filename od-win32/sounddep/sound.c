@@ -33,10 +33,10 @@
 
 #include <math.h>
 
-#define ADJUST_SIZE 20
-#define EXP 1.3
+#define ADJUST_SIZE 100
+#define EXP 1.9
 
-int sound_debug;
+int sound_debug = 0;
 
 static int obtainedfreq;
 static int have_sound;

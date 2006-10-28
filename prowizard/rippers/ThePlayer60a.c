@@ -476,8 +476,6 @@ void Depack_P60A ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* read sample data address */
   Sample_Data_Address = (in_data[Where]*256)+in_data[Where+1];

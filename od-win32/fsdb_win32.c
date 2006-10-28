@@ -331,7 +331,7 @@ int fsdb_set_file_attrs (a_inode *aino)
     /* windows dirs go where no dir has gone before...  */
     if (! aino->dir) {
 	mode = 0;
-	if ((tmpmask & (A_FIBF_READ | A_FIBF_DELETE)) == 0)
+	if ((tmpmask & (A_FIBF_WRITE | A_FIBF_DELETE)) == 0)
 	    mode |= FILE_ATTRIBUTE_READONLY;
 	if (!(tmpmask & A_FIBF_ARCHIVE))
 	    mode |= FILE_ATTRIBUTE_ARCHIVE;
@@ -368,21 +368,20 @@ int fsdb_mode_supported (const a_inode *aino)
  * native FS.  Return zero if that is not possible.  */
 int fsdb_mode_representable_p (const a_inode *aino)
 {
-    int mask = aino->amigaos_mode;
-    int m1;
+    int mask = aino->amigaos_mode ^ 15;
 
     if (aino->dir)
 	return aino->amigaos_mode == 0;
 
-    /* S set, or E or R clear, means we can't handle it.  */
-    if (mask & (A_FIBF_SCRIPT | A_FIBF_EXECUTE | A_FIBF_READ))
-	return 0;
-    m1 = A_FIBF_DELETE | A_FIBF_WRITE;
-    /* If it's rwed, we are OK... */
-    if ((mask & m1) == 0)
+    if (mask == 15) /* ---RWED == OK */
 	return 1;
-    /* We can also represent r-e-, by setting the host's readonly flag.  */
-    if ((mask & m1) == m1)
+    if (!(mask & A_FIBF_EXECUTE)) /* not executable */
+	return 0;
+    if (!(mask & A_FIBF_READ)) /* not readable */
+	return 0;
+    if (mask & A_FIBF_SCRIPT) /* script */
+	return 0;
+    if ((mask & 15) == (A_FIBF_READ | A_FIBF_EXECUTE)) /* ----R-E- == ReadOnly */
 	return 1;
     return 0;
 }

@@ -187,8 +187,6 @@ void Depack_PP10 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* write title */
   Whatever = (Uchar *) malloc (1024);

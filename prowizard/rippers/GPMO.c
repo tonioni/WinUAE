@@ -145,8 +145,6 @@ void Depack_GPMO ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* get whole sample size and patch vols (/2)*/
   for ( i=0 ; i<31 ; i++ )

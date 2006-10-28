@@ -371,7 +371,7 @@ static HWND cachedlist = NULL;
 #define MAX_Z3_MEM 10
 #endif
 #define MIN_P96_MEM 0
-#define MAX_P96_MEM 6
+#define MAX_P96_MEM 7
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
 #define MIN_CACHE_SIZE 0
@@ -1418,7 +1418,7 @@ static int msi_chip[] = { 1, 2, 3, 4, 5, 6 };
 static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
 static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16 };
-static int msi_gfx[] = { 0, 3, 4, 5, 6,7,8};
+static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10 };
 
 static int CalculateHardfileSize (HWND hDlg)
 {
@@ -4174,6 +4174,8 @@ static void values_to_memorydlg (HWND hDlg)
      case 0x00800000: mem_size = 4; break;
      case 0x01000000: mem_size = 5; break;
      case 0x02000000: mem_size = 6; break;
+     case 0x04000000: mem_size = 7; break;
+     case 0x08000000: mem_size = 8; break;
     }
     SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);

@@ -576,6 +576,7 @@ void enumeratedisplays (int multi)
 	DirectDraw_EnumDisplays (displaysCallback);
 	EnumDisplayMonitors(NULL, NULL, monitorEnumProc, (LPARAM)&cnt);
     } else {
+	write_log ("Multimonitor detection disabled\n");
 	Displays[0].primary = 1;
 	Displays[0].name = "Display";
 	Displays[0].disabled = 0;

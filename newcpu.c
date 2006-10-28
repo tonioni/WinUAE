@@ -2142,8 +2142,8 @@ void m68k_go (int may_quit)
 	    customreset ();
 	    m68k_reset ();
 	    if (hardreset) {
-		memset (chipmemory, 0, allocated_chipmem);
-		write_log ("chipmem cleared\n");
+		memory_hardreset();
+		write_log ("hardreset, memory cleared\n");
 	    }
 #ifdef SAVESTATE
 	    /* We may have been restoring state, but we're done now.  */

@@ -174,8 +174,6 @@ void Depack_ZEN ( void )
   BZERO ( Pattern_Address_Real , 128*4);
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
-  if (!out)
-    return;
 
   /* read pattern table address */
   Pattern_Table_Address = (in_data[Where]*256*256*256)+
