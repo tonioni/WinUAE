@@ -212,7 +212,8 @@ static void disk_checksum(uae_u8 *p, uae_u8 *c)
 {
     uae_u32 cs = 0;
     int i;
-    for (i = 0; i < FS_FLOPPY_BLOCKSIZE; i+= 4) cs += (p[i] << 24) | (p[i+1] << 16) | (p[i+2] << 8) | (p[i+3] << 0);
+    for (i = 0; i < FS_FLOPPY_BLOCKSIZE; i+= 4)
+	cs += (p[i] << 24) | (p[i+1] << 16) | (p[i+2] << 8) | (p[i+3] << 0);
     cs = -cs;
     c[0] = cs >> 24; c[1] = cs >> 16; c[2] = cs >> 8; c[3] = cs >> 0;
 }
@@ -572,8 +573,8 @@ static void reset_drive(int i)
     drv->buffered_side = -1;
     gui_led (i + 1, 0);
     drive_settype_id (drv);
-    if (strlen (drv->newname) > 0)
-	strcpy (currprefs.df[i], drv->newname);
+    strcpy (currprefs.df[i], changed_prefs.df[i]);
+    drv->newname[0] = 0;
     if (!drive_insert (drv, &currprefs, i, currprefs.df[i]))
 	disk_eject (i);
 }
@@ -582,7 +583,7 @@ static void reset_drive(int i)
 static void update_drive_gui (int num)
 {
     drive *drv = floppy + num;
-    int writ = dskdmaen == 3 && drv->state ? 1 : 0;
+    int writ = dskdmaen == 3 && drv->state && !(selected & (1 << num));
 
     if (drv->state == gui_data.drive_motor[num]
 	&& drv->cyl == gui_data.drive_track[num]

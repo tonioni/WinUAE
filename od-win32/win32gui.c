@@ -8848,8 +8848,13 @@ static void centerWindow (HWND hDlg)
     pt2.x = x + 16;
     pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
     if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
-	x = 16;
-	y = 16;
+	if (isfullscreen()) {
+	    x = 0;
+	    y = 0;
+	} else {
+	    x = 16;
+	    y = 16;
+	}
     }
     SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }

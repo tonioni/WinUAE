@@ -2121,16 +2121,21 @@ static void populate_directory (Unit *unit, a_inode *base)
 
 static void do_examine (Unit *unit, dpacket packet, ExamineKey *ek, uaecptr info)
 {
-    if (ek->curr_file == 0)
-	goto no_more_entries;
-
-    get_fileinfo (unit, packet, info, ek->curr_file);
-    ek->curr_file = ek->curr_file->sibling;
-    TRACE (("curr_file set to %p %s\n", ek->curr_file,
+    for (;;) {
+	char *name;
+	if (ek->curr_file == 0)
+	    break;
+	name = ek->curr_file->nname;
+	get_fileinfo (unit, packet, info, ek->curr_file);
+        ek->curr_file = ek->curr_file->sibling;
+	if (!fsdb_exists(name)) {
+	    TRACE (("%s orphaned", name));
+	    continue;
+	}
+	TRACE (("curr_file set to %p %s\n", ek->curr_file,
 	    ek->curr_file ? ek->curr_file->aname : "NULL"));
-    return;
-
-  no_more_entries:
+	return;
+    }
     TRACE(("no more entries\n"));
     free_exkey (unit, ek);
     PUT_PCK_RES1 (packet, DOS_FALSE);

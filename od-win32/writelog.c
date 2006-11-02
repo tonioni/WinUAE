@@ -12,6 +12,7 @@
 
 static int consoleopen = 0;
 static HANDLE stdinput,stdoutput;
+static int bootlogmode;
 
 FILE *debugfile = NULL;
 int console_logging;
@@ -22,7 +23,8 @@ int console_logging;
 
 static void openconsole(void)
 {
-    if(consoleopen) return;
+    if(consoleopen)
+	return;
     AllocConsole();
     stdinput = GetStdHandle(STD_INPUT_HANDLE);
     stdoutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -49,8 +51,7 @@ int console_get (char *out, int maxlen)
 
     *out = 0;
     totallen=0;
-    while(maxlen>0) 
-    {
+    while(maxlen>0) {
 	ReadConsole(stdinput,out,1,&len,0);
 	if(*out == 13)
 	    break;
@@ -77,6 +78,8 @@ static char *writets(void)
     static char lastts[100];
     char curts[100];
 
+    if (bootlogmode)
+	return NULL;
     _ftime(&tb);
     t = localtime(&tb.time);
     strftime(curts, sizeof curts, "%Y-%m-%d %H:%M:%S\n", t);
@@ -111,12 +114,12 @@ void write_dlog (const char *format, ...)
     ts = writets();
     if (SHOW_CONSOLE || console_logging) {
 	openconsole();
-	if (lfdetected)
+	if (lfdetected && ts)
 	    WriteConsole(stdoutput, ts, strlen(ts), &numwritten,0);
 	WriteConsole(stdoutput, buffer, strlen(buffer), &numwritten,0);
     }
     if (debugfile) {
-	if (lfdetected)
+	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, buffer);
 	fflush(debugfile);
@@ -138,14 +141,14 @@ void write_log (const char *format, ...)
     ts = writets();
     if (SHOW_CONSOLE || console_logging) {
 	openconsole();
-	if (lfdetected)
+	if (lfdetected && ts)
 	    WriteConsole(stdoutput, ts, strlen(ts), &numwritten,0);
 	tmp = WriteConsole(stdoutput, buffer, strlen(buffer), &numwritten, 0);
 	if (!tmp)
 	    tmp = GetLastError();
     }
     if (debugfile) {
-	if (lfdetected)
+	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, buffer);
 	fflush(debugfile);
@@ -170,4 +173,18 @@ void f_out (void *f, const char *format, ...)
     openconsole ();
     WriteConsole(stdoutput, buffer, strlen(buffer), &numwritten,0);
     va_end (parms);
+}
+
+void *log_open(const char *name, int append, int bootlog)
+{
+    FILE *f;
+    
+    f = fopen(name, append ? "a" : "wt");
+    bootlogmode = bootlog;
+    return f;
+}
+
+void log_close(void *f)
+{
+    fclose(f);
 }

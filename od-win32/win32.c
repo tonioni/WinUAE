@@ -305,8 +305,9 @@ static int figure_processor_speed (void)
 	    qpcdivisor++;
 	    qpc_avail = -1;
 	}
-	write_log("CLOCKFREQ: QPF %.2fMHz (DIV=%d)\n", freq.QuadPart / 1000000.0, 1 << qpcdivisor);
-	if (SystemInfo.dwNumberOfProcessors > 1)
+	write_log("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
+	    qpfrate / 1000000.0, 1 << qpcdivisor);
+	if (SystemInfo.dwNumberOfProcessors > 1 && no_rdtsc >= 0)
 	    rpt_available = 0; /* RDTSC can be weird in SMP-systems */
     } else {
 	write_log("CLOCKREQ: QPF not supported\n");
@@ -1585,7 +1586,7 @@ void logging_open(int bootlog, int append)
 	sprintf (debugfilename, "%swinuaebootlog.txt", start_path_data);
     if (debugfilename[0]) {
 	if (!debugfile)
-	    debugfile = fopen (debugfilename, append ? "a" : "wt");
+	    debugfile = log_open (debugfilename, append, bootlog);
     }
 #endif
 }
@@ -1601,7 +1602,7 @@ void logging_init(void)
     }
     if (first == 1) {
 	if (debugfile)
-	    fclose (debugfile);
+	    log_close (debugfile);
 	debugfile = 0;
     }
     logging_open(first ? 0 : 1, 0);

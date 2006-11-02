@@ -1160,7 +1160,7 @@ void expansion_clear(void)
     if (fastmemory)
 	memset (fastmemory, 0, allocated_fastmem);
     if (z3fastmem)
-	memset (z3fastmem, 0, allocated_z3fastmem);
+	memset (z3fastmem, 0, allocated_z3fastmem > 0x800000 ? 0x800000 : allocated_z3fastmem);
     if (gfxmemory)
 	memset (gfxmemory, 0, allocated_gfxmem);
 }

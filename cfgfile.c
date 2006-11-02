@@ -1526,7 +1526,6 @@ int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int igno
 end:
     recursive--;
     fixup_prefs (p);
-    write_log ("%s\n", p->romfile);
     return v;
 }
 

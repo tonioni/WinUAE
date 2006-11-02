@@ -90,7 +90,8 @@ void zfile_fclose (struct zfile *f)
 	pl = l;
 	l = l->next;
     }
-    if (l) nxt = l->next;
+    if (l)
+	nxt = l->next;
     zfile_free (f);
     if (l == 0)
 	return;
@@ -711,10 +712,57 @@ static struct zfile *un7z (struct zfile *z)
     return z;
 }
 
-#if 0
 /* copy and paste job? you are only imagining it! */
 static struct zfile *rarunpackzf; /* stupid unrar.dll */
 #include <unrar.h>
+typedef HANDLE (_stdcall* RAROPENARCHIVE)(struct RAROpenArchiveData*);
+static RAROPENARCHIVE pRAROpenArchive;
+typedef int (_stdcall* RARREADHEADEREX)(HANDLE,struct RARHeaderDataEx*);
+static RARREADHEADEREX pRARReadHeaderEx;
+typedef int (_stdcall* RARPROCESSFILE)(HANDLE,int,char*,char *);
+static RARPROCESSFILE pRARProcessFile;
+typedef int (_stdcall* RARCLOSEARCHIVE)(HANDLE);
+static RARCLOSEARCHIVE pRARCloseArchive;
+typedef void (_stdcall* RARSETCALLBACK)(HANDLE,UNRARCALLBACK,LONG);
+static RARSETCALLBACK pRARSetCallback;
+typedef int (_stdcall* RARGETDLLVERSION)(void);
+static RARGETDLLVERSION pRARGetDllVersion;
+
+static int rar_resetf(struct zfile *z)
+{
+    z->f = fopen (z->name, "rb");
+    if (!z->f) {
+        zfile_fclose (z);
+        return 0;
+    }
+    return 1;
+}
+
+static int canrar(void)
+{
+    static int israr;
+    HMODULE rarlib;
+
+    if (israr == 0) {
+	israr = -1;
+	rarlib = WIN32_LoadLibrary("unrar.dll");
+	if (rarlib) {
+	    pRAROpenArchive = (RAROPENARCHIVE)GetProcAddress (rarlib, "RAROpenArchive");
+	    pRARReadHeaderEx = (RARREADHEADEREX)GetProcAddress (rarlib, "RARReadHeaderEx");
+	    pRARProcessFile = (RARPROCESSFILE)GetProcAddress (rarlib, "RARProcessFile");
+	    pRARCloseArchive = (RARCLOSEARCHIVE)GetProcAddress (rarlib, "RARCloseArchive");
+	    pRARSetCallback = (RARSETCALLBACK)GetProcAddress (rarlib, "RARSetCallback");
+	    pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
+	    if (pRAROpenArchive && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
+		israr = 1;
+		write_log ("unrar.dll version %08.8X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
+
+	    }
+	}
+    }
+    return israr < 0 ? 0 : 1;
+}
+
 static int CALLBACK RARCallbackProc(UINT msg,LONG UserData,LONG P1,LONG P2)
 {
     if (msg == UCM_PROCESSDATA) {
@@ -726,28 +774,39 @@ static int CALLBACK RARCallbackProc(UINT msg,LONG UserData,LONG P1,LONG P2)
 static struct zfile *unrar (struct zfile *z)
 {
     HANDLE hArcData;
-    int RHCode,PFCode;
     static int first = 1;
     char tmphist[MAX_DPATH];
     struct zfile *zf;
-    int zipcnt = 0;
+    int zipcnt;
     int we_have_file = 0;
 
-    struct RARHeaderData HeaderData;	
-    struct RAROpenArchiveDataEx OpenArchiveData;
+    struct RARHeaderDataEx HeaderData;	
+    struct RAROpenArchiveData OpenArchiveData;
+
+    if (!canrar())
+	return arcacc_unpack (z, ArchiveFormatRAR);
 
     if (z->data)
-	return z; /* wtf? stupid unrar.dll only accept filename as an input.. */
+	 /* wtf? stupid unrar.dll only accept filename as an input.. */
+	return arcacc_unpack (z, ArchiveFormatRAR);
+    fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
+    z->f = NULL;
     zf = 0;
     memset(&OpenArchiveData,0,sizeof(OpenArchiveData));
     OpenArchiveData.ArcName=z->name;
     OpenArchiveData.OpenMode=RAR_OM_EXTRACT;
-    hArcData=RAROpenArchiveEx(&OpenArchiveData);
-    if (OpenArchiveData.OpenResult!=0)
-	return z;
-    RARSetCallback(hArcData,RARCallbackProc,0);
-    while ((RHCode=RARReadHeader(hArcData,&HeaderData))==0) {
+    hArcData=pRAROpenArchive(&OpenArchiveData);
+    if (OpenArchiveData.OpenResult!=0) {
+	if (!rar_resetf(z))
+	    return NULL;
+	return arcacc_unpack (z, ArchiveFormatRAR);
+    }
+    pRARSetCallback(hArcData,RARCallbackProc,0);
+    tmphist[0] = 0;
+    zipcnt = 0;
+    while (pRARReadHeaderEx(hArcData,&HeaderData)==0) {
 	int select = 0;
+	int needskip = 1;
 	char *name = HeaderData.FileName;
 	zipcnt++;
 	if (zfile_is_ignore_ext(name))
@@ -774,7 +833,8 @@ static struct zfile *unrar (struct zfile *z)
 	if (select && !we_have_file && HeaderData.UnpSize > 0) {
 	    zf = zfile_fopen_empty (name, HeaderData.UnpSize);
 	    rarunpackzf = zf;
-	    if (zf && (PFCode=RARProcessFile(hArcData,RAR_EXTRACT,NULL,NULL)) != 0) {
+	    if (zf && pRARProcessFile(hArcData,RAR_EXTRACT,NULL,NULL) == 0) {
+		needskip = 0;
 		if (select < 0 || zfile_gettype(zf))
 		    we_have_file = 1;
 		if (!we_have_file) {
@@ -783,16 +843,21 @@ static struct zfile *unrar (struct zfile *z)
 		}
 	    }
 	}
+	if (needskip)
+	    pRARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
     }
-    RARCloseArchive(hArcData);
+    pRARCloseArchive(hArcData);
     if (zf) {
 	zfile_fclose (z);
 	z = zf;
 	zfile_fseek (z, 0, SEEK_SET);
+    } else {
+	/* bleh continues, reopen the closed archive.. */
+	if (!rar_resetf(z)) 
+	    z = NULL;
     }
     return z;
 }
-#endif
 
 static struct zfile *unzip (struct zfile *z)
 {
@@ -891,9 +956,11 @@ static int iszip (struct zfile *z)
     zfile_fread (header, sizeof (header), 1, z);
     zfile_fseek (z, 0, SEEK_SET);
     if (!strcasecmp (ext, ".zip") && header[0] == 'P' && header[1] == 'K')
-	return -1;
+	return ArchiveFormatZIP;
     if (!strcasecmp (ext, ".7z") && header[0] == '7' && header[1] == 'z')
-	return -2;
+	return ArchiveFormat7Zip;
+    if (!strcasecmp (ext, ".rar") && header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
+	return ArchiveFormatRAR;
 #if defined(ARCHIVEACCESS)
     for (i = 0; plugins_7z[i]; i++) {
 	if (plugins_7z_x[i] && !strcasecmp (ext + 1, plugins_7z[i]) &&
@@ -927,6 +994,8 @@ static struct zfile *zuncompress (struct zfile *z)
 	     return zfile_gunzip (z);
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
+	if (strcasecmp (ext, "rar") == 0)
+	    return unrar (z);
 #if defined(ARCHIVEACCESS)
 	for (i = 0; plugins_7z[i]; i++) {
 	    if (strcasecmp (ext, plugins_7z[i]) == 0)
@@ -944,6 +1013,8 @@ static struct zfile *zuncompress (struct zfile *z)
 	    return zfile_gunzip (z);
 	if (header[0] == 'P' && header[1] == 'K')
 	    return unzip (z);
+	if (header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
+	    return unrar (z);
 	if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
 	    return dms (z);
     }
@@ -1118,6 +1189,55 @@ static int scan_arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, i
     return 1;
 }
 
+// rar scan
+static int scan_rar (struct zfile *z, zfile_callback zc, void *user)
+{
+    HANDLE hArcData;
+    struct RARHeaderDataEx HeaderData;	
+    struct RAROpenArchiveData OpenArchiveData;
+
+    if (!canrar())
+	return scan_arcacc_zunzip (z, zc, user, ArchiveFormatRAR);
+    if (z->data)
+	return scan_arcacc_zunzip (z, zc, user, ArchiveFormatRAR);
+    fclose (z->f);
+    z->f = NULL;
+    memset(&OpenArchiveData,0,sizeof(OpenArchiveData));
+    OpenArchiveData.ArcName=z->name;
+    OpenArchiveData.OpenMode=RAR_OM_EXTRACT;
+    hArcData=pRAROpenArchive(&OpenArchiveData);
+    if (OpenArchiveData.OpenResult!=0) {
+	rar_resetf(z);
+	return 0;
+    }
+    pRARSetCallback(hArcData,RARCallbackProc,0);
+    while (pRARReadHeaderEx(hArcData,&HeaderData)==0) {
+	int needskip = 1;
+	char *name = HeaderData.FileName;
+	if (HeaderData.UnpSize > 0) {
+	    struct zfile *zf = zfile_fopen_empty (name, HeaderData.UnpSize);
+	    rarunpackzf = zf;
+	    if (zf && pRARProcessFile(hArcData,RAR_EXTRACT,NULL,NULL) == 0) {
+		needskip = 0;
+		zfile_fseek (zf, 0, SEEK_SET);
+		if (!zc (zf, user)) {
+		    pRARCloseArchive(hArcData);
+		    zfile_fclose (zf);
+		    rar_resetf (z);
+		    return 0;
+		}
+	    }
+	    zfile_fclose (zf);
+	}
+	if (needskip)
+	    pRARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
+    }
+    pRARCloseArchive(hArcData);
+    if (!rar_resetf (z))
+	return 0;
+    return 1;
+}
+
 /* zip (zlib) scanning */
 static int scan_zunzip (struct zfile *z, zfile_callback zc, void *user)
 {
@@ -1246,10 +1366,12 @@ int zfile_zopen (const char *name, zfile_callback zc, void *user)
     ztype = iszip (l);
     if (ztype == 0)
 	zc (l, user);
-    else if (ztype == -1)
+    else if (ztype == ArchiveFormatZIP)
 	scan_zunzip (l, zc, user);
-    else if (ztype == -2)
+    else if (ztype == ArchiveFormat7Zip)
 	scan_7z (l, zc, user);
+    else if (ztype == ArchiveFormatRAR)
+	scan_rar (l, zc, user);
     else
 	scan_arcacc_zunzip (l, zc, user, ztype);
     zfile_fclose (l);

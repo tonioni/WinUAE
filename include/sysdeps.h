@@ -460,6 +460,9 @@ extern void gui_message (const char *,...);
 extern int gui_message_multibutton (int flags, const char *format,...);
 #define write_log_err write_log
 extern void logging_init(void);
+extern void *log_open(const char *name, int append, int bootlog);
+extern void log_close(void *f);
+
 
 #ifndef O_BINARY
 #define O_BINARY 0
