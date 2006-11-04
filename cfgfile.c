@@ -294,6 +294,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_filter_type=%s\n", soundfiltermode2[p->sound_filter_type]);
     cfgfile_write (f, "sound_volume=%d\n", p->sound_volume);
     cfgfile_write (f, "sound_auto=%s\n", p->sound_auto ? "yes" : "no");
+    cfgfile_write (f, "sound_stereo_swap_paula=%s\n", p->sound_stereo_swap_paula ? "yes" : "no");
+    cfgfile_write (f, "sound_stereo_swap_ahi=%s\n", p->sound_stereo_swap_ahi ? "yes" : "no");
 
     cfgfile_write (f, "comp_trustbyte=%s\n", compmode[p->comptrustbyte]);
     cfgfile_write (f, "comp_trustword=%s\n", compmode[p->comptrustword]);
@@ -691,6 +693,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 
 	if (cfgfile_yesno (option, value, "use_debugger", &p->start_debugger)
 	|| cfgfile_yesno (option, value, "sound_auto", &p->sound_auto)
+	|| cfgfile_yesno (option, value, "sound_stereo_swap_paula", &p->sound_stereo_swap_paula)
+	|| cfgfile_yesno (option, value, "sound_stereo_swap_ahi", &p->sound_stereo_swap_ahi)
 	|| cfgfile_yesno (option, value, "state_replay", &p->statecapture)
 	|| cfgfile_yesno (option, value, "avoid_cmov", &p->avoid_cmov)
 	|| cfgfile_yesno (option, value, "avoid_dga", &p->avoid_dga)

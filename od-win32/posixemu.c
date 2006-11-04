@@ -232,9 +232,11 @@ int uae_start_thread (void *(*f)(void *), void *arg, uae_thread_id *tid)
     return result;
 }
 
+int cpu_affinity = 1;
+
 void uae_set_thread_priority (int pri)
 {
     /* workaround for filesystem emulation freeze with some dual core systems */
-    SetThreadAffinityMask(GetCurrentThread(), 1); 
+    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity); 
 }
 

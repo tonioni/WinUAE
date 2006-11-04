@@ -1,0 +1,3631 @@
+
+- CPU emulation changes needed for some new future features, will
+  explain later, not yet finished.. breakage possible.
+- debugger memwatch points can now detect between opcode fetch
+  and data fetch, 68000-only currently. (see above)
+
+Final 1.3.3
+
+- sound stereo channel swap setting was not saved to config..
+- added "affinity <value>" -command line parameter, sets CPU affinity
+  bit mask (1=first CPU only, default. 2 = second CPU only, 4 = third,
+  3 = CPU 1 + 2 etc.. 0 = original startup affinity value)
+
+Beta 8: (RC1, GUI DLL included)
+
+- unrar.dll supported, rar-archives do not need archiveaccess.dll
+  + rar support files anymore (archiveaccess support not removed)
+  Note that unrar.dll is stupid, it only allows filename as an
+  input archive (instead of memory pointer) which means rar archives
+  inside archives can't be unpacked without archiveaccess.
+- clear only first 8MB of Z3 RAM during hard reset (full clear of
+  Z3 RAM can cause swapping if low on physical RAM)
+- remove possible orphaned files (files that have been deleted from
+  Windows side) from directory filesystem's cache (BR)
+- disk eject and reset from GUI ignored the eject (broke in b4)
+- floppy leds write status color works properly
+- GUI in 640x480 fullscreen was incorrectly centered in some cases
+- removed timestamps from winuaebootlog.txt
+
+Beta 7:
+
+- CIA TOD does not "re-latch" if it has already been latched
+  (A1200 confirmed)
+- CIA TOD hardware bug emulated, TODMED counts .. 1D 1E 1F
+  10 20 21 22.. (1F->10->20 is only couple of cycles but it
+  will trigger alarm comparison, not visible to normal programs
+  that read TODHI first and TODLOW last)
+  (A500, A1200, CD32 confirmed)
+- hard reset zeroes all memory types (previously cleared only
+  chip memory)
+- time base calculation does not overflow even if future PCs
+  have 10GHz+ timer resolution :)
+- bsdsocket waitselect fix, fixes Remote Desktop (SR)
+- filesystem Windows file flag handling fixes (detection if Windows
+  flags support current Amiga-side flag combination or if uaefsdb
+  is needed has been broken for a long time..)
+  List of supported flags/flag combinations: (x = no care)
+  H = Windows Hidden flag
+  P = Windows System flag
+  A = Windows Archive flag
+  S set = not supported, FSDB required
+  E or R not set = FSDB required
+  xxxxR-E- = Windows Read Only flag
+  ----RWED = default, no Windows flags set
+  other combinations = FSDB required  
+- some incorrect blitter cycle sequences corrected,
+  fixes Twintris in non-immediate blitter modes.
+
+Beta 6:
+
+- ProWizard updated to 1.61
+- added logging if required filesystem is missing (not in RDB and in
+  FileSystem.resource)
+- RTG RAM max size increased to 64MB (64 and 128 have always been
+  possible via manual configuration file editing, 128 not in GUI
+  because it may cause problems if combined with 512MB Z3)
+- "mousehack mouse" crashed without HD emulation (=no UAE "boot rom")
+- increased sound "resync" range again
+- "100% accurate"-sound mode tweak, no more huge cpu usage in some
+  games that "misuse" AUDxPER-register.
+  (for example Paradroid 90, Rambo III..)
+- TVicPort direct io support added (includes also 64-bit Windows
+  support which is missing from winio, winio support not removed)
+  http://www.entechtaiwan.com/dev/port/index.shtm
+- CWMK4 direct io support + latest FPGA core built-in. CWMK4 now
+  works under 64-bit Windows (yeah, very hackish way but it really
+  does work..)
+  PCI IO address is automatically detected (also supports MK3),
+  Windows 2000 or newer only. Direct IO & PCI scan is only used if
+  Windows driver is not installed and running under 64-bit Windows
+  (no CW drivers) or -directcatweasel command line parameter is used.
+  Direct IO is never used if Windows driver is present.
+- Zoom! (SPS version) exception 3 hack (exception3 return address
+  is not defined by Motorola, another "problem" when emulating
+  microcoded CPU..)
+
+Beta 5:
+
+- built-in 7zip decompression (there is now official, easy to use
+  license compatible C-only support library. Old C++/COM library
+  was completely unusable.. built-in rar still missing due to
+  license incompatibility)
+- rom.key system rewrite, old and new (AF2006) rom keys supported
+  simultaneously
+- RDB HDF partition mount failed if correct filesystem was in ROM
+  but RDB contains one or more not needed filesystems  
+- Lightpen/gun emulation (available in input-panel, mouse-only)
+  Enforcer and Orbital Destroyer confirmed working
+  NOTE: random cursor trails possible. not tested in hires or
+  laced modes.
+  NOTE2: Trojan phazer fire button is joystick 2 left!
+  (and Orbital Destroyer crashes if normal fire is pressed..)
+- Faster RTG (picasso96_nocustom) added to GUI
+- Faster RTG does not disable audio anymore (use automatic
+  sound stop/start system instead). Also copper moves are now
+  emulated instantly (all waits are simply ignored, shouldn't matter
+  in RTG modes, copper is used basically only for setting hidden
+  refresh rates for Paula audio frequency hacks etc..)
+  Enabled by default now, should not cause any issues anymore.
+- added misc-panel checkbox for allowing Windows screen/powersavers
+  while WinUAE is active (previously powersaving features were
+  always disabled)
+
+Beta 4:
+
+- rom scanner lists nondetected roms (with CRC32) in log
+- improved sound underflow detection
+- better approximation of sound delay values in GUI
+  (includes hidden delay caused by DirectSound)
+- sound led didn't always light when sound emulation was
+  re-enabled
+- sound autostart/stop config option (enabled by default)
+- removed latency slider, new sound system should adjust
+  automatically
+- disable sound autostop if recording is enabled
+- only use recording-mode sound auto-adjust while recording
+  previously used both..
+- RTG RAM enabled without Z3 RAM crash fix (broke in 1.3.2)
+- debugger ea lists real AGA color registers instead of
+  host RGB values..
+- fixed debugger e-command random crashing
+- remove some obsolete MSVC 2002 and older project files
+- floppy sound didn't restart autostopped audio
+- GUI disk eject-button is delayed until exiting emulation
+  (fixes "instant disk swap" bug if clicking eject and then
+  immediately selecting new image)
+
+Beta 3:
+
+- more sound tweaks, added warning "led" colors to sound buffer
+  status. red = underflow (very bad), blue = nearing overflow
+  situation (sound lag will get larger but no sound quality
+  problems), yellow = overflow prevention triggered (still no
+  sound problems but emulation will lose CPU power)
+- buffer is filled with empty sample data if underflow happens,
+  prevents buffer wraparound and few seconds of totally out of
+  sync sound
+- new feature: (could be broken feature..) stop audio emulation
+  if sound hardware has been idle for 2 seconds. emulation restarts
+  immediately when any audio related register is accessed (even
+  if it causes no sound like setting volume to zero during boot
+  process by Kickstart ROM)
+  Stopped = no paula audio or resampling and mixing, host sound
+  hardware is still playing empty buffer to prevent any possible
+  sound glitches during starting/stopping
+- point of sound buffer led is to make sound problem debugging
+  easier
+
+Beta 2:
+
+- ReleaseCopyOfSocket() bsdsocket.library implemented,
+  fixes AmiVNC (SR)
+- input-panel: key mapped to <none> reverted back to its default
+  mapping after saving and loading the configuration
+- hardfile TD_GETGEOMETRY caused one byte memory overflow
+  (long write to DriveGeometry.flags instead of byte..)
+- uaescsi.device cleanup breakage fix (direct scsi didn't work etc..)
+- HD_SCSICMD now returns error (unimplemented command) instead of
+  not doing anything and returning success if SCSI-support is not
+  available
+- ROM scanner can now detect AF2006 rom.key even if it has been
+  renamed, also some other ROM scanner tweaks
+- partial sound handling rewrite, some tweaking still needed
+  make sure lag adjustment is zeroed before testing!
+- added sound buffer status "led", -30 to 30 is ok (the closer to
+  zero the better) bigger values most likely cause sound issues.
+  value jumping to very high or small value for few seconds after
+  reset/resolution change/state file load/etc is normal
+- increased "led" update rate
+- "vertical scanline"-effect in 16-bit AGA modes fixed
+- version changed to 1.3.3, no 1.4 until E-UAE merges and
+  sound system updates are tested in public
+
+Beta 1:
+
+- merged portable stack magic replacement from E-UAE
+- merged 68k regs-struct optimizations from E-UAE
+- merged genlinetoscr from E-UAE + implemented filtered lores support
+  (filtered lores now also includes "special" modes like HAM, EHB etc)
+- other random E-UAE source cleanups ect merging (part 1/x)
+- MSVC version of REGPARAM (__fastcall) enabled and
+  USE_NORMAL_CALLING_CONVENTION disabled.
+- breakage and performance increase possible, see above :)
+- HDF/real HD access optimizations, removed one unneeded temporary
+  buffering layer.
+- replaced mostly unusable TFHB keyboard layout with "standard" WASD.
+- Reset-button in GUI forces hard-reset now
+- ignore DMS CRC errors while unpacking instead of aborting the
+  process, for example previously harmless error in track 1 created
+  completely unusable image even if all other tracks were 100% ok
+- encrypted DMS files are transparently decrypted (16-bit
+  "encryption key" can be brute-forced quickly..)
+- GUI genlock connected-checkbox was broken
+- audio emulation tweak, previously audio.device AbortIO() and then
+  CMD_WRITE could have caused lost audio interrupt
+- memory watchpoint F option added, "freezes" (ignores writes)
+  selected address range
+
+1.3.2
+
+Beta 2:
+
+- Mouse Up/Down and Left/Right input destinations can now work
+  simultaneously (diagonal movement) Really works now.
+- Amithlon partition detection should now work without need to
+  disable safety checks
+- avioutput audio recording in cloned stereo mode created incorrect
+  audio (2 channel instead of 4 and 1/2 the pitch, proper way
+  would be to change 4 channels back to 2, maybe later..)
+- dskrdy-delay added, apparently there is very small delay before
+  dskrdy changes state after switching motor off.
+  (fixes Pro Tennis Tour's stupid loader)
+
+Beta 1:
+
+- don't open debug console when restoring state or when quitting..
+- ignore printer autoflush timeout if Postscript detection is enabled
+  (autoflush during Postscript parsing will quietly abort the print
+  process..)
+- Mouse Up/Down and Left/Right input destinations can now work
+  simultaneously (diagonal movement)
+- extended ROM statefile support
+- CD32 statefiles supported. CD32 configuration must be set
+  before loading the statefile. (will be fixed in future)
+- don't save hrtmon to statefile if it has not been activated at
+  least once (=hrtmon data has been modified and needs to be saved)
+- FDI 2.1 format support, header checksum supported
+- HRTMon DE/F keyboard layout autodetection really works now
+- HRTMon WHDLoad commands don't cause WHDLoad stack error message
+  anymore (for example wq)
+- A1000 Kickstart disk image can be used as a ROM image file, also
+  supported by ROM scanner
+- Z3Fast start address can be set in configuration file. Don't touch
+  it if you don't know what you are doing!
+
+
+1.3.1
+
+Beta 3:
+
+- blitter timing updates. Maybe I am becoming crazy or something
+  but I did another test and enabling A-channel does not "anymore"
+  steal all bus cycles like I thought it did previously.. Or maybe
+  it does in specific situations only. Anyway, Hostages insta-kill
+  fixed again. broken since 1.1b4..
+- more SPTI and ASPI tweaks
+- bad access fault fixed in mousehack replacement code (could cause
+  random crashes etc..)
+  
+Beta 2:
+
+- drag'n'dropping disk images now adds them to disk history list
+- drag'n'dropped floppy panel disk image file names were truncated
+  if name included "]["-string
+- removed "force ECS Agnus if chip ram > 512k"-fix. It is too
+  restricting when trying fun configurations, should not be needed
+  because of quickstart configuration. At least I hope so..
+- avioutput framerate limit and fps stored in registry
+- HRTMon colors replaced with "Action Replay colors". (B&W looked too
+  boring... configurable in future)
+- debugger "unstopped" the CPU if CPU was in stopped state when
+  activating the debugger.
+- debugger trainer code cleanups, z3fast added to trainers and
+  prowizard
+- "deep trainer" (idea stolen from Action Replay III) added to
+  debugger. GUI for trainers will be added in future, with memory
+  location "freeze"-option. Cl = list found trainer addresses
+
+  Ds = start deep trainer (or plain D if this is the first time),
+  continue game and lose live (or time or whatever), D = rescans
+  memory and removes all addresses that have not changed since last
+  scan. Repeat until correct location is found. (may take many many
+  times..) Dx = rescans memory and removes all addresses that HAVE
+  CHANGED since last scan.
+
+Beta 1:
+
+- uaescsi.device CMD_WRITE/CMD_FORMAT commands implemented (not just
+  returning write protected anymore), CMD_READ also works with non-CD
+  devices. Testing needed, I don't have any zip drives or similar..
+- force bogoram size to 1MB if >1MB bogoram and AGA enabled
+  configuration is loaded. (fixes crash if JIT is enabled)
+  Gayle IO space conflicts with >1MB bogo. In reality this is totally
+  bogus configuration because there are no real AGA machines with
+  bogo (slow) ram...
+- fixed original extended adf (Factor 5 disk images) decoding error,
+  broke somewhere during 1.3 betas..
+- ASPI tweaks (may or may not help with some random issues)
+- disable cycle-exact if 68020/68040+JIT configuration is loaded
+  (not supported configuration and has already caused too many
+  useless bug reports because it can cause weird problems..)
+- map Gayle memory bank if 68020+ (A4000 KS will freeze without
+  something in Gayle space)
+- 1280 display width limitation changed to 2048 (real current
+  maximum) Previously selecting >1280xYYYY resolution would change
+  to 1280xYYYY and cause weird errors.. Also unsupported >2048
+  resolutions are not listed in resolution list anymore.
+- HRTMon updated to 2.30
+- "blitter unstuck" hack (if blitter is stuck for more than 3 frames
+  due to blitter DMA being disabled, it will be forced to finish.
+  Only enabled in immediate blitter-mode. Compatibility hack for
+  some JIT game problems, for example SlamTilt Pinball)
+- sound filter configuration load bug
+- mostly harmless access fault fixed in "boot rom"
+  FileSystem.resource list scanner
+- "log illegal memory access"-option does not anymore log Z3
+  expansion area (0xff0000xx) and extended rom area (0x00f00000)
+- WHDLoad HRTMon detection works now (NOTE: hrtmon must be activated
+  manually at least once before it works. WIP)
+- avioutput recording incorrectly split the avi when focus was lost
+- avioutput codec configuration stored in registry
+- first avioutput recorded frame is not blank anymore
+- window close button and GUI quit-button didn't work if emulation
+  was paused
+- changing filters didn't reset graphics subsystem properly
+- D3D filter problems fixed, again and again.. (I hope..)
+
+1.3
+
+Beta 8: (second RC)
+
+- ASPI crash fixed
+- W9x/ME language dll error log spam really fixed
+- hrtmon moved to 0x00a10000 (w9x/me conflict really fixed)
+- uade "Sinc" interpolator fixed 
+
+Beta 7: (RC, beta removed from about-panel)
+
+- Action Replay state save/restore should finally work, HRTMon state
+  file support added. Old AR state files are not compatible anymore!
+- A1200 Action Replay CIA snooping added, previously exiting AR
+  caused totally corrupt data written back to CIA registers
+- don't map "filesystem boot rom" if no hard drives are enabled
+  ("ROM" was visible even in basic A500-mode at 0xf00000) (b6 update)
+- Quickstart CDTV description bug fixed
+- preparing for uaescsi.device non-CD trackdisk support
+  (will be fully implemented after 1.3 is out)
+- drivesound (non PC-drive) crash fixed
+- Picasso96 graphics crap fixed if P96 window was smaller than full
+  P96 display window (BR)
+- ROM names changed to "KS ROM xxx" (less confusing, I hope..)
+- some key events were passed to emulation while END-key was kept
+  pressed
+- don't fill log with language DLL load errors if running W9x/ME
+  (for some reason W9X/ME returns ERROR_DLL_NOT_FOUND but 2000/XP
+  returns ERROR_MOD_NOT_FOUND)
+- don't try to create crash dump under W9X/ME, it won't work.
+- dm-debugger command fix (last bank was missed)
+- hrtmon moved to 0x00a00000 (no more conflicts with 8MB fast RAM)
+
+Beta 6:
+
+- HRTMon 68000 bug fixed (tried to read non-existing stack frame type
+  when CPU was 68000 causing crash while freezing if freezed program
+  was running in supervisor mode)
+- Set German/French HRTMon keyboard layout automatically
+- dm debugger memory space dump command added
+- AHI updates (BR)
+- updated to latest uaede filters ('sinc' is currently broken)
+- changing interpolation setting on the fly sometimes didn't work
+  correctly
+- updated uae home page url in about-panel (when did it change?)
+- shutting down WinUAE caused infinite recursion and stack overflow
+  when there was already another WinUAE's named pipe open
+- Paths-panel info changes: "Amiga Forever 2005" -> "Amiga Forever"
+  (2005, 2006 and future releases should use same directory format)
+- GUI: removed all (?) visible Commodore trademarks (if they even
+  exists today) like "Kickstart". Stupid yeah but you never know..
+- some directory filesystem disk full errors were not converted to
+  proper AmigaOS error code
+
+Beta 5:
+
+- "cloned stereo" mode added to sound panel (4 channel mode that
+  mirrors front channels to rear channels)
+- Action Replay A1200 cartridge support
+- HRTMon 2.29 "cartridgefied" and is now WinUAE build-in
+  (should even work in JIT and Picasso96 modes)
+- fixed incorrect numpad key shortcut statefile default path
+- added separate Gayle address bank, needed for future IDE controller
+  hardfile emulation (A600/A1200/A4000 compatible) Will be implemented
+  after 1.3 is out (I read ATA-1 spec yesterday and it was surprisingly
+  simple. All "intelligence" is inside the drive, Gayle basically only
+  works as an address decoder)
+
+Beta 4:
+
+- replaced directory harddrive size check code with >2G compatible
+  code (but it may not help much because of Amiga-side software
+  size calculation overflow bugs)
+- UNC directory harddrives (\\server\share) work now properly
+  (previously ACTION_INFO returned error, for example Shell command
+  "info" ignored the drive)
+- harddrive hdf creator compatibility updates
+- wider harddrive selector window, swapped name and size
+- directory harddrive protection flag bug (beta 2)
+- overlay workaround for broken ATI X1x00-series card drivers
+  (blank RGB overlay since Catalyst 6.1) -enableowr force-enables,
+  -disableowr force-disables.
+- 3.5" "ESCOM" floppy drive type added (Some newer A1200s came with
+  modified PC drives that don't support DSKRDY-signal) Useless?!
+- RTE stack frame 7 added (needed when/if MMU emulation happens..)
+ 
+Beta 3:
+
+- Check ROM checksum only if ROM looks like a regular Kickstart ROM
+  Currently searches for "exec.library" in the first 256 bytes of ROM.
+- interlace-bug fix tweaking (and i am still not happy with the fix)
+- uade filter update, 44100Hz-only restriction is gone. Removed old
+  filter emulation code. UADE filter/interpolation improvements by
+  Antti S. Lankila
+- state restore fix, some 68010+ CPU state files required loading of
+  statefile twice (first load would cause Amiga-side crash because
+  of trying to access not yet mapped memory)
+- extended debugger e-command, ea = list AGA color registers
+- added timestamps to log files (both real world and frames+vhpos)
+- changing fpu_strict on the fly works
+- D3D fullscreen freeze fixed (btw, December 2004 DXSDK is the last
+  SDK with statically linked d9dx library)
+- priority-panel pause emulation/disable sound output checkboxes
+  were always shown as unticked
+- directories with "illegal" characters work now in NTFS stream
+  -style directory filesystems (previously for example directory
+  named "blah>" would have changed back to real Windows-side
+  directory named "__uae___blah" after reboot)
+- only create stream fsdb -file if file/directory has illegal
+  name, unsupported protection flags or comment set, also delete
+  the stream-file if file does not have illegal attributes anymore
+- clear disk history -button added to paths-panel
+- CPU% >99% is shown without %-sign in onscreen leds because of
+  not enough space
+
+Beta 2:
+
+- motor on/off state added to PC floppy drive sound emulation
+  (fdrawcmd.sys >= 1.0.1.9, not yet released)
+  NOTE: due to another stupid PC hardware limitation, motor must
+  always be switched on while seeking (even if emulated motor
+  is not switched on)
+- MSDOS DD (720k) and HD (1440k) disk images supported
+  (PC0: works fine but PCTask or Transformer won't accept DOS
+  images for some unknown reason)
+- possible Picasso96 screen switch crash workaround
+- disk image drag'n'drop to main window fixed
+- disk image drag'n'drop to status bar df0-df3 "leds" added
+- input recording disk image change support added
+- Both "exe" and "data" path will be used when looking for Help
+  file (WinUAE.chm). Previously only "data" path was used.
+- selecting from disk history (rarely) selected wrong entry
+- "simple" gfx option changes on the fly don't force whole gfx
+  system reset anymore (close & open screen)
+- No more "No disk in drive x"-dialogs if disk history had paths
+  pointing to removed removable drives (for example USB sticks)
+- NeroASPI-path had extra \-character (Maybe only if Nero 7 is
+  installed?)
+- don't cache comment or unsupported protection flags internally if
+  drive does not support UAEFSDB or NTFS streams (setting comment and
+  immediately using Examine() returned saved comment even if it was
+  not possible to store comments or flags to disk)
+- paths-panel "WinUAE default"-setting uses relative paths. Only
+  if "data" and "exe" paths are identical
+- fixed AVIOutput crashes and incorrect display positioning in some
+  situations
+- 68000 RESET-instruction prefetch update (needed by proper Arcadia
+  boot sequence, fixes ancient PC emulator Transformer)
+- Arcadia emulation update from MAME 0.105u3. Uses now correct
+  boot method which works with Kickstart 1.2 (old one needed KS 1.3)
+  Fixes Sidewinder graphics errors (game requires KS 1.2)
+- sound filter adjustments, separated filter on/emulated/off state
+  from filter type. now uses uade filters by default (only if
+  44100Hz frequency is selected, this limitation will be fixed
+  in future by uade filter author)
+- added "anti" and "sinc" interpolators from uade and set "anti"
+  as a default. (note: "sinc" needs much more CPU time than other
+  interpolators)
+- strip ending :'s from device and volume names (seen some bug
+  reports about missing harddrives because of illegal names)
+- frogaspi.dll support added (http://www.frogaspi.org/)
+  FrogASPI is free ASPI library (frogaspi.dll worked with older
+  WinUAE versions but only if it was renamed to wnaspi32.dll)
+- blitter state save fix. should fix random frozen emulation after
+  restoring. (note: error happens while saving, old damaged statefiles
+  won't be automatically fixed)
+- "scanline"-effect in changed parts of display while in interlace
+  mode bug finally fixed! (for example Pinball Illusions' score panel
+  in hires mode)
+- very experimental automatic lores/doubling switching added.
+  Enable any filter that allows 1x/2x-checkboxes and tick "autoscale"
+  at the bottom of filter panel.
+  
+  Now lores and doubling is automatically changed on the fly.
+  - lores/nonlace: lores enabled, doubling disabled, horizontal
+    and vertical filter multiplier set to 2x
+  - hires/nonlace: lores disabled, doubling disabled, horizontal
+    filter multipler 1x, vertical 2x
+  - etc..
+  - mixed hires and lores forces hires-mode (lores disabled)
+  
+  So whats the point? Filter 1x/2x scaling is free (display card's
+  blitter does it). lores/doubling scaling uses CPU. Most games and
+  demos use lores but many have hires title screen etc -> free speed
+  boost without quality loss (in theory..)
+  
+  Whats the catch? It is currently quite useless.
+  - graphics subsystem needs to be reinitialized every time
+    (=windowed mode recommended now..)
+  - scaling is broken (blurring)
+  - sound is restarted
+  
+  "autoscale"-checkbox will be removed in non-beta releases
+  (but it will be available by manually editing config files)
+
+- first implementation of uae-configuration-style control software
+  that works outside of emulation (using named pipe \\.\pipe\WinUAE)
+  
+  currently working commands:
+
+  - "CFG <config_entry> <config_value> [<another_entry>=<value>] .."
+    change configuration on the fly
+  - "CFG config_entry" return value of <config_entry>
+  - "CFG beginning_of_config_entry*" return all config entries that
+    beging with "begining_of_config_entry"
+  - "EVT event event_value [more events]" send input event
+    (inputevents.def in source archive, "KEY_A 1", "SPC_QUIT 1"..)
+  
+  return string is status code (http-style 3 digit status) +
+  message-specific extra status.
+
+  NOTE: Named pipes require Windows 2000 or newer. WIP.
+  TODO: automatic notifications when configuration changes and more
+  
+  ipctester.exe (in separate archive) can be used to experiment with
+  this feature.
+  
+
+Beta 1:
+
+- improved C (trainer) debug command. Multiple searches supported
+  (life counter = 3, "C 3", die, "C 2", more than one result?
+  die again, "C 1" etc..) C without parameters resets the search.
+  byte,word,3 byte,long integers supported. value < 256 = byte,
+  value < 65536 = word etc.. "C <value> <size>" can be used to
+  force type of value. (1-4). Added slow and fast memory support.
+- fpu_strict config option added to GUI
+- added Action Replay "fa <addr> [<saddr>] [<eaddr>]"-command to
+  debugger
+- started implementing "Input recorder". Only keyboard, joystick,
+  mouse events supported. Don't try to change disk images.
+  Record/playback buttons added to Output-panel.
+  "Alt. playback mode" = more compatible but less accuracy.
+  (debugging option currently) May not be too reliable yet. WIP.
+  Please test and report. Usage: start recording, boot emulation
+  or start recording and load state file. Same for playback.  
+- build-in mousehack. MH code is now automatically started if
+  "mousehack mouse" is selected from ports-panel, mousehack-Amiga
+  side program is not needed anymore. MH C-code converted to asm
+  and moved to filesys "boot rom". (filesys.asm)
+- added disk label text box to "create standard adf"-option
+  ("custom" adfs are unformatted)
+- and finally the best new feature ever: drive sounds from PC floppy
+  drive!... (requires driver from http://simonowen.com/fdrawcmd/)
+
+1.2
+
+Final: (official release date in 3-6 days)
+
+- fpu_strict=yes/no config option added. yes = more accurate
+  but slower. No GUI option yet.
+- winuaelog.txt logging can be enabled or disabled on the fly
+- another CIA keyboard handshake update. Previous update broke
+  some intros with extremely weird keyboard routines..
+- removed default mapping of PC PrintScreen key to Amiga key code
+  0x6e (no special key should be visible to Amiga-side by default)
+- winuaeenforcer update (BR)
+- small tweak to "writing to BPLxPTL while bitplane DMA was
+  accessing it at the same time" (unnamed intro by the Senses)
+- it was not possible to delete directories in directory filesystem
+  if recycle bin-setting was disabled. (broke in 5 and stupid me)
+- windows recyclebin setting is on the fly adjustable
+- OGL and D3D filters replaced with original versions, 1x-8x
+  select boxes will be implemented later..
+
+Beta 6:
+
+- png screenshots (use "-screenshotbmp" command line parameter
+  to force bmp screenshots. This will be removed in future.)
+- FSGLMUL and FSGLDIV slowdown fix (PK)
+- language selection added to misc-panel (user-specific, stored
+  in registry, not in configuration file)
+- disabled SHIFT+F12 debugger shortcut in fullscreen modes
+- "final" translation dll included, no more changes to GUI.
+- D3D/OGL scaling still broken... (so boring thing..)
+
+Beta 5:
+
+- fixed swapped parallel port joystick adapter firebuttons
+- more FPU precision/rounding and other updates (Peter Keunecke)
+- added improved sound filter code from uade (regular versions only,
+  not "E"-versions) NOTE: only available when frequency is 44100Hz
+- implemented internal light pen hardware (BPLCON0 bit 3 and VPOSR
+  work now properly), mostly useless because there is no cursor or
+  trigger yet..
+- clicking on disabled drive's trackdisplay slot in windowed mode
+  does not open disk dialog anymore
+- switching adf read/write-status does not leave stale file locks
+  open anymore
+- apparently CIA TOD only stops when writing to TODHI and restarts
+  when writing to TODLOW. Writing to TODMID does not stop it.
+  (demo Harmony by Haujobb)
+
+Beta 4:
+
+- sprite DMA cycles are not anymore available for blitter or CPU
+  in ce-mode (game Detonator, probably others too)
+- some small ce-mode tweaks
+- tweaked Sci-fi COPJMP-update, Thai Boxing works again.
+  Copper stops (until next frame) only in following condition:
+  - Copper DMA is disabled
+  - Copper was waiting when DMA was disabled (this was missing)
+  - both COPJMP1 and COPJMP2 were accessed while DMA is disabled
+  -> Copper does not restart after DMA is re-enabled
+- cycle-exact blitter line draw timing updates
+- HAM enabled but only 4 bit planes enabled fixed (broke in B2)
+- misc JIT cleanups (Peter Keunecke)
+- D3D/OpenGL "works" now. Need some positioning fixes in
+  lores/non-doubled modes.
+- added AmiKit to about-panel
+
+  I found something interesting about DMA slot allocation, the
+  diagram in HRM is correct but there is 5 cycle offset.
+  I used simple program that read DFF007 in tight loop (68060 A1200)
+  and counted available horizontal positions. 4, 6, 8 and 10 is
+  always unavailable (memory refresh). 18 = audio channel 0, 20, 22,
+  24 channels 1-3. 26, 28 sprite 0, etc.. This leaves 12, 14 and 16
+  for disk DMA (didn't bother to test because slots fit perfectly)
+  Questions: Which one is the "real" value and which one is "fake"
+  and why? Whats the reason for this unexplained delay? This does not
+  affect DMA timing in UAE but CPU reads from DFF007 are not 100%
+  correct. (this probably only affects really stupid wait routines)
+  I will later use this same method to confirm copper's cycle usage.
+
+Beta 3:
+
+- doubleclicking on power-"led" in windowed mode opened multiple
+  (broken) GUI windows
+- display filter size and position formulas modified. old presets
+  are not compatible. (D3D/OpenGL not yet updated, don't use)
+- CIA-A keyboard handshake update, found another game (Wicked) that
+  has "interesting" key handshaking code
+- configuration save crash (B1, "Filtered Lores"-config entry was
+  broken)
+- display was shifted by one pixel to right if horizontal centering
+  in lores-mode was enabled
+- another priority-panel "Above Normal"-bug fixed..
+- another FPU update from Peter Keunecke
+- missed B1 changelog entry: overlay-checkbox is on the fly
+  configurable
+
+Beta 2:
+
+- Logitech G15 LCD support complete (gfx by Jani Wilen)
+- D3D filter works again
+- ProWizard module ripper updated to latest version
+- ignore MinSecondarySampleRate and MaxSecondarySampleRate when
+  selected sample rate is 22050 <= x <= 44100 (found broken
+  driver that reports 48000 as a min and max frequency..)
+- more Amiga Forever 2005 path updates (incorrect paths if trailing
+  / was missing from AMIGAFOREVERDATA-environment variable and in some
+  situations ROM-path was incorrect)
+- %-character fixed in debugger's memory dump
+- sprite priorities and HAM change in mid horizontal line supported.
+  Fixes Bubba'n'Stix second level background and Cover Girl Strip Poker
+  title screen. May also fix demos/games with single incorrect horizontal
+  line(s). Disposable Hero titlescreen is not fixed yet but looks slightly
+  better.
+- rare CE-mode bitplane/copper timing error (demo Green Surprise by Scoopex)
+- horizontal cycles 0 to 3 (about) are visible in right border (for some
+  reason horizontal blanking does not start at cycle 0), until now color
+  changes were delayed until next horizontal line. Fixes wrong right
+  border color in Leander, T-Racer, Unreal etc..
+
+Beta 1:
+
+- updated to final MSVC 2005
+- sound in 4 channel mode created broken 2-channel wave-files
+- added hdf creator to "add harddisk" panel, creates 1:1 hdf-image from
+  selected Amiga formatted harddrive.
+- harddisk check (RDB detect) crashed if drive's blocksize was >512.
+  (does >512 physical block size block devices even exist?)
+- FPU emulation update, rounding errors fixed, bad generation of NaNs,
+  some missing constansts added. (Peter Keunecke, Bernd Roesch)
+- JIT ACOS FPU bug really fixed (Peter Keunecke)
+- switching from OCS to ECS or vice versa on the fly didn't reset
+  "Arcadia Xenon"-fix correctly. Reboot is still needed to reset it.
+- new horizontal shrinking mode, "Filtered lores" in GUI. New pixel is
+  now average of two pixels instead of dropping every other pixel.
+  Fixes incorrect colors in programs that use superhires tricks
+  (for example Virtual Karting, demo Rest-2 by Codebusters) Also
+  affects hires-screens if lores-checkbox is ticked. Does not work
+  in 8-bit host mode.
+- Logitech G15 keyboard LCD display support. WIP.
+- overlay windowed window size was incorrect by 1 pixel
+- GUI string update. WIP. (M.C. Battilana, TW)
+- D3D filter is broken and crashes. Trying to fix another case of
+  DLL hell.. (d3dx9_xx.dll)
+
+1.1.1
+
+Beta 3:
+
+- don't set CIA-A FLAG-interrupt bit when program writes to parallel
+  port without connected printer. Fixes Gauntlet III.
+- editing filename or path from history list works again
+- fps adjustment in display panel goes to 1 fps now (was 5)
+- .uae extension in registry pointed to <data path>\WinUAE.exe, not
+  <path to executable\WinUAE.exe. Caused only problems if -datapath
+  command line parameter was used.
+
+Beta 2:
+
+- SPTI SCSI SCAN mode finally works properly. Also duplicate devices
+  are now automatically removed.
+  Big thanks to Frank Busse for testing, Cloanto for help and donating
+  some SCSI stuff. and tiny thanks to me for bothering with
+  installation of old SCSI stuff to my test PC, filling my small room
+  with another PC, SCSI devices (old scanner I borrowed from work is
+  huge and heavy) and wasting lots of time with testing and cursing bad
+  documentation..
+  This really took much longer than I originally thought. Only SCSI GUI
+  panel to do and then SCSI subsystem is more or less finished.
+- fixed yet another disk emulation bug. Reading from empty disk drive
+  returned random data. "No disk in drive"-status was detected as
+  drive with unformatted tracks. (Reading unformatted tracks must
+  return random bits) Fixes Xybots. Bug was probably introduced after
+  "Typhoon Thompson"-fix was implemented
+- disk history select boxes' path separated from filename and moved to
+  right side. Now filename is always visible even if path is very long.
+  Yes, I know, it does not look too good but I didn't find any non-MFC
+  custom multicolumn combo-box examples..
+
+Beta 1:
+
+- fixed incorrect AF2005 paths after clicking "reset to defaults"
+- blitter could freeze in ce-mode if D-channel was not enabled
+- separated GUI fullscreen resolution and depth selection
+- do ASPI check only once and cache the results, check version
+  of aspi dlls before enabling, nero aspi must be >=2 and adaptec
+  aspi must be >= 4. No more bluescreens/crashes under W9x/me if
+  using Windows build-in wnaspi32.dll crap.
+- "floppy drive speed" and "new disk image" swapped in disk-panel
+- extremely stupid bug in disk emulation fixed (broke in b10,
+  may have caused disk detection problems with some games)
+- SPTI-mode improved, re-enabled SCSI device scan ("SPTI + SCSI SCAN"
+  in GUI. Separate option because driver bugs may cause problems..)
+  SCSI scanners and tape drives should now work even without installed
+  Windows driver. Note that WinUAE may detect SCSI devices twice in
+  this mode (one from regular SPTI enumeration and the another from
+  SCSI scan)
+
+1.1
+
+Beta 10: FINAL
+
+- hardfile config loading bug if hardfile was missing
+  (broke some versions ago)
+- filesystem Examine(<root dir>) should return 2 (ST_USERDIR)
+  instead of 1 (ST_ROOT) ST_ROOT isn't used. OFS, FFS and SFS
+  also return ST_USERDIR. (and Guru Book says ST_ROOT isn't used)
+  This fixes some (buggy?) file checking routines.
+- fixed really stupid diskrdy-signal bug (broke in 0990b6..)
+
+Beta 9:
+
+- added "non-path" Kickstart ROM mode in config files.
+  (useful for frontend-type programs etc..)
+  Syntax:
+  kickstart_rom=v<ver>[.<rev>] [r<subver>.<subrev>] [<model>]
+  Only <ver> is mandatory. Model must be specified if requested
+  ROM file is not a regular Kickstart ROM.
+  Examples:
+  v1.3 (select any autodetected 1.3)
+  v1.2 r33.166 (must be KS1.2 revision 33.166)
+  v1.2 A500 (KS1.2 rev 33.180)
+  v2.05 A600HD (KS 2.05, rev 37.350 or 37.300)
+  v3.1 r40.68 A1200 (KS 3.1 rev 40.68 A1200)
+  v3.1 r40.68 (KS 3.1 rev 40.68, both A1200 or A4000 version allowed)
+  v3.1;v3.0 (any revision of KS 3.1 or 3.0)
+  v3 A1200 (A1200 KS 3.1 or 3.0)
+  v2 AR (any Action Replay v2)
+  Multiple matches: highest available version is selected
+  Extended ROM config item: kickstart_ext_rom=
+  Cartridge ROM config item: cart=
+  Arcadia ROMs:
+  cart=Arcadia <name>, for example cart=Arcadia Xenon
+- CIA INMODE=3 normally equals INMODE=2 (CIA serial port clock pin
+  is normally high while idle) Fixes game Warp
+- "bad hardfile"-messages replaced with something slightly better
+  (can't be translated yet)
+- added support for amigaforever.dll (optional rom.key alternative)
+- compressed hardfiles supported. current restrictions:
+  - max 100M (whole hardfile will be kept uncompressed in memory)
+  - all written data will be lost after reseting or exiting WinUAE
+  - hardfile filename extension must be hdz,zip,rar or 7z
+- hardfiles can be dragndropped to harddisk-panel
+- statefiles with Action Replay work again (broke in 0.9.90)
+- OCS/ECS Amiga colorspace translation to native color space was
+  not completely correct (I guess since the beginning..) for example
+  0xfff was translated to 0xf0f0f0, not 0xffffff (basically this makes
+  OCS/ECS modes slightly brighter)
+
+Beta 8:
+
+- ACTION_COPY_DIR_FH fix (it was totally broken..)
+- Disk Swapper: right button doubleclick in "Disk image"-column:
+  removes disk in disk swapper panel. right button singleclick in
+  "Drive"-column: remove disk in drive
+- CAPS -> SPS renaming here and there..
+
+Beta 7:
+
+- modifying directory's protect or comment changed its modification
+  time. Previous update failed to handle directories properly.
+  (CreateFile() to dir needs FILE_FLAG_BACKUP_SEMANTICS flag. urgh.)
+- tweaked "Bubba'n'Stix / Battle Squadron sprite update". It broke
+  Elfmania's scoreboard. Now all 3 games run without gfx bugs.
+- JIT-checkbox remembers previous JIT cache size
+- improved switching from cycle-exact mode to non-cycle-exact (or
+  vice versa). Previously switching modes may have resulted in frozen
+  emulated software (missing blitter finished flag/interrupt)
+- simple copper debugger implemented. Breakpoint, trace and vpos/hpos
+  of executed copper commands (vpos/hpos-feature was already
+  implemented but it needed to be activated in compile-time)
+  New commands:
+  - ob <addr> = breakpoint (not 100% exact yet)
+  - ot = single step
+  - o0 = disassemble from current address 
+- Arcadia World Trophy Soccer (MAME 0.99u8, ar_socc.zip) supported
+- "desktop smaller than windowed window"-check was incorrect
+- SPTI direct SCSI-adapter enumeration disabled until code has been
+  fully tested (currently it is mostly useless)
+
+Beta 6:
+
+- tweak to undocumented "switching bitplane DMA on during DDF"-feature
+  (Death Trap flashing score board. Semi-broken copperlist again..)
+- SPTI CDROM support was broken in b5
+- Priority panel's active priority was broken in b5
+- sprite update updated. Fixes CD32 "key" in nvram screen. (0992b4)
+  OCS/ECS: sprite is attached if odd or even sprite's SPRxCTL bit 7
+  is set. AGA: odd sprite SPRxCTL bit 7 only.
+
+Beta 5:
+
+- some 68000 prefetch special case tweaks 
+- some cycle-exact blitter tweaks
+- replaced ASPI-checkbox with select box (SPTI, AdaptecASPI, NeroASPI)
+- updated to latest zlib
+- SCSI tape drives and scanners are not filtered anymore in ASPI-mode
+  (-noaspifiltering parameter is not needed anymore)
+- another SPTI-mode non-CDROM support improvement (not finished yet)
+- delay possible forced rom scan until GUI is opened
+- replaced "delayoffset" tables with proper(?) algorithm. (Loons Docs)
+- added "none" to joystick/mouse selectbox
+- improved Amiga Forever 2005 path handling
+- added AF2005/AF/WinUAE default paths -select box. Only visible if
+  user has more than one installation (for example AF 2005 and plain
+  WinUAE)
+- directory filesystem ACTION_COPY_DIR_FH (DosPacket) implemented
+  (AmigaDOS function DupLockFromFH()) No idea why this one was missed..
+- added address-parameter to debugger i-command (overrides VBR)
+- updated and cleaned "disable bitplane dma if planes > maxplanes".
+  It isn't that simple. OCS/ECS, lores and planes set to 7 -> number
+  of planes is 4. DMA gets disabled only if number of planes is larger
+  than available DMA slots, for example OCS/ECS hires and > 4 planes.
+  (demo Spanish Rose by Creed)
+- fixed buggy COPJMP fix in 1.0b6. Broke for example Obliterator intro.
+
+Beta 4:
+
+- blitter blockmode update, this time I did lots of testing with real
+  Amiga. Results are quite interesting.. (more notes in blitter.c)
+  fixes: many demos with flickering or partially clipped objects
+- last line was missing in programmed interlaced display modes
+- DIVU/DIVS division by zero exception return address fix
+  (broke in b1, reorganized code too much..)
+- set JIT have_rat_stall (broken in b1 CPU detection code update)
+- native code slowdown workaround (BR)
+
+Beta 3:
+
+- fixed incorrect paths if running WinUAE from network drive
+- Paths-panel "Reset to defaults" forces reload of configuration file
+  directory
+- AHI works again (broken in b2)
+- don't call init_hz() every frame if interlaced programmed display
+  mode is enabled (for example interlaced Euro36)
+- screen vertical starting position properly calculated in programmed
+  modes (horizontal pos is much more complex, later or never..)
+- many programmed mode registers were saved as zeros to statefile
+  (also debugger e-command showed wrong contents)
+- updated to latest archiveaccess.dll. Library is used to support rar
+  and 7z archives. I'd prefer internal support but it seems rar's
+  license prevents it and (at least last time I checked) 7z-support
+  routines were unreadable mess..
+
+Beta 2:
+
+- "genlock connected" GUI option added. Please continue reading before
+  saying I am crazy :)
+  Kickstart's genlock detection code always detected genlock due to not
+  emulated ERSY-bit in BPLCON0. Normally it does not really matter but
+  most non-video frequency compatible monitor drivers don't load if
+  genlock is connected. (and currently most of them work very strangely
+  because not all programmable sync registers are used to calculate the
+  position of screen) GUI option is basically only for backwards
+  compatibility.
+- Fast Copper removed (Bernd#1) It is too broken..
+- removed now useless mod ripper from debugger
+- added more missing unused keycodes to inputevents.def, updated CDTV
+  CD player keycodes
+- MMKeyboard support added (http://www.geit.de/eng_mmkeyboard.html) (BR)
+- AHI recording memory leak (BR)
+- special WinUAE qualifier key (END) is now configurable (currently
+  the only way is to manually edit the keycode in config file, config
+  entry is called win32.specialkey)
+- transparent "led status bar"
+- in windowed mode window height (Amiga display area's height) was not
+  correct in some cases (for example 200 was changed to 208)
+- "Add PC Drives at Startup"-option adds only local drives, added
+  separate checkbox for network drives
+- default to MultiMediaTimers instead of Sleep() if both have good enough
+  time resolution (previously defaulted to Sleep())
+- AmigaSYS added to About-box
+- CD32 mode enabled: map CD32 buttons to compatibility-mode joystick
+- Keyboard led mode-configuration option added (can't be autodetected
+  properly)
+- zlib statically linked (90kb is nothing..), zlib1.dll is not needed
+  anymore
+- merged CPU detection code from BasiliskII JIT (64-bit updates coming
+  later)
+- added non-CDROM SCSI device support to SPTI-mode. May not work
+  because I don't have any real SCSI devices.. Check the log between
+  "Scan starts..." and "finished." and send reports.
+  NOTE: Order of CDROMs (if you have more than one) may change because
+  drive letters aren't used anymore. SCSI GUI-panel will be implemented
+  later..
+
+Beta 1:
+
+- zipped encrypted roms didn't always decrypt properly
+- rom/disk image maximum allowed path size increased
+- improved catweasel mouse/joystick support (separate input devices
+  instead of hardcoded input layout) NOTE: MK3 can't read joystick
+  buttons 2 and 3 without installed SID-chip. Catweasel is now always
+  enabled if detected. Checkbox in misc-panel is only used to enable
+  Catweasel ZorroII-card emulation (floppy access)
+  NOTE2: right and middle mouse button may not work on every Amiga
+  mice. This will be fixed in future Catweasel core update.
+- ACOS FPU fix (fixes broken particles in "Fake Electronic Lightshow"
+  by Ephidrena, broke in previous FPU update) (Peter Keunecke)
+- left click don't capture mouse anymore if GUI is active
+- Picasso96 graphics problem introduced in 1.0
+- lots of 64-bit compilation errors fixes (non-JIT version already
+  works, also it is possible to have max 2G of Z3Fast in 64-bit
+  version.. pointless but fun..)
+- more stable on the fly configuration loading
+- added exact 68000 DIVU and DIVS cycle usage algorithm (ce-mode only)
+- stackmagic is 64-bit compatible (argh, that took ages to fix..)
+- replaced inline assembly stackmagic-space allocation with _alloca()
+  (compatible with both 32 and 64-bit compilers)
+- bsdsocket emulation 64-bit fix (may have caused breakage, bsdsock.c
+  did have some quite "interesting" code that needed complete rewrite...)
+
+Not yet 64-bit compatible:
+
+- JIT (Basilisk II have 64-bit compatible JIT)
+- native code support
+- inline asm helper functions in ahidsound.c (inline assembly is not
+  allowed in 64-bit mode..) First task is to add C-versions and add
+  64-bit assembler versions later if really needed.
+- not all external libraries or devices are available in 64-bit yet
+  (Catweasel drivers, CAPSImg.dll, ArchiveAccess.dll, gsdll32.dll)
+  64-bit zlib.dll is included.
+- asm-optimized filters default to C-code in 64-bit mode (which means
+  scale2x etc.. are probably slower in 64-bit)
+
+1.0 (06.06.2005)
+
+Beta 10: (final)
+
+- FSINCOS-FPU instruction with identical destination registers
+  fix (Peter Keunecke)
+- fixed graphics corruption (shifted bitplane) if BPLxPTL was
+  written and bitplane DMA accessed it exactly at the same time.
+  Fixes intros "3v Demo" by Cave and "New Year Demo" by Phoenix
+
+Beta 9:
+
+- changing write protection status of command-line inserted disks
+  failed to reinsert the disk properly
+- added optimized JIT FPU trigonometric functions (Peter Keunecke)
+- added directory filesystem speed up-patch (BR+me)
+
+Beta 8:
+
+- SPTI SCSI-mode sense-key handling fix. Some systems failed to
+  detect media ("Drive empty" in log) Bug since the beginning..
+- recompiled with MSVS 2005B2. Faster? Slower? Unstable?
+  (experimental 64-bit versions coming after 1.0 is out)
+- Windows 98/ME(?) SHGetFolder-error fixed
+- catweasel direct io is back (there is no new drivers for MK1)
+  Direct io is enabled if catweasel-config option is larger or
+  equal than 100
+- default translation dll included
+
+Beta 7:
+
+- debugger 'H'-command fixed and improved.
+  H=disassembly only, HH=disassembly+full cpu state. Command
+  only works while debugger is active (for example one or more
+  breakpoints are enabled)
+- GUI's screenshot option does not capture the GUI anymore
+  (happened in D3D/OpenGL and non-overlayed modes)
+- added test for installed rtg.library version
+  (it seems too many users don't know about updated library)
+- X-Arcade layout tooltip re-added
+- .uae-extension is stored to user-specific registry if user
+  is running in non-admin account (NT-based Windows only)
+- audio reverse stereo option added
+- [development PC updated to 64-bit Windows XP. I'll try first
+  64-bit build (without JIT) when free MSVS 2005 Beta 2 arrives]
+
+Beta 6:
+
+- active priority was not set until window lost and reacquired focus
+- winuaenforcer updated. "winuaeenforcer 1" cause all illegal
+  adress read or write from 0-$100 or unused amigamem an illegal
+  adress Exception 3. (BR)
+- b5 only worked on Windows XP (nobody is using 98/ME or 2K anymore?)
+- implemented undocumented COPJMP-feature (game Sci-fi)
+- Marvin's Marvellous Adventure works again in JIT-mode
+- disk read/write debugging option (see debugger help)
+- added sample ripper (in output-panel) Samples are dumped to
+  screenshots-directory. Duplicates are ignored automatically.
+- "save as wav" statefile option (for easy manual sample hunting)
+
+Beta 5:
+
+- fixed possible crash while restoring saved state (broken in b1)
+- proper natmem-allocation update (W2K/XP only)
+- fixed "Couldn't load Kickstart"-message while loading older
+  statefiles (b1)
+- Tenebra (AGA demo) "face"-part partial fix (missing 3d-object
+  is now visible) Top and bottom parts of face are still missing
+- added Windows CPU info (32/64-bit and revision levels) to
+  winuaebootlog.txt
+
+Beta 4:
+
+- disk step rate limit improved. For example Music disk Extemporized
+  by Digital (and some other Digital products) do two very quick
+  steps that must not be ignored. It is really far too quick but it
+  still works.. (but most likely some drives don't like it..)
+  And of course there ARE demos that do very very quick steps that
+  must be ignored..
+- Battle Squadron hiscore-sprite update, 3rd letter of player's
+  name was not visible in hiscore-screen, also fixes Bubba'n'Stix's
+  jumpy background mountains.
+- compatibility filesystem and hardfile -config entries are back
+  (not sure why or when they disappeared..)
+- added filesystem "no recyclebin"-option to harddrive-panel
+- "Catweasel"-checkbox is now disabled if CW driver or card is not
+  detected
+- Catweasel MK3 Windows driver support fixed and confirmed working
+  (Can anyone with MK1 test?) 
+- ASPI-mode now automatically uses Nero ASPI if Nero Burning ROM is
+  installed (Demo or full version) Nero ASPI has much better
+  compatibility than Adaptec's crap... Detected ASPI is shown in log
+- joystick/mouse selection GUI changed again (tooltips not fixed yet)
+- rare load crash fixed
+- fullscreen mode resolution reset when using resolutions where y > x
+- loading preset filter didn't update the screen
+
+Beta 3:
+
+- changing Amiga-specific protection flags or comment changed also
+  file's modification date. (broke in 0.9.92 FS update) 
+- simple config file backup, config file is renamed to
+  "configuration.backup" before it is overwritten or deleted
+- Windows 9x/ME didn't like new natmem-allocation system,
+  so now only NT-based Windows' use new system
+- Picasso96's autoconfig config area RAM size was always 8M when
+  configured size was 8M or larger.. (bug since the beginning..)
+- enforcer bug fix (BR)
+- removed filesystem automatic read-only check, apparently it is
+  impossible to detect read/write status of network drives
+  (and 100% sure detection of networked drives is also too complex..)
+
+Beta 2:
+
+- DMA accesses to upper 512kb of chip RAM with only 512k chip RAM
+  and 1MB Agnus installed don't map to low 512kb like CPU accesses do.
+  Fixes Arcadia SideWinder (game bug, bogus blitter d-channel address)
+- added AmigaForever ROM path autodetection to ROM scanner
+- added workaround for AMOS filesystem emulation incompatibility
+  (infinite loop in filesystem code) Reason for freeze unknown,
+  proper fix unknown.. (filesystem emulation is confusing..)
+- compatible with Arcadia MAME 0.90u4 ROM update
+- "Kickstart v1.2 (A1000)" was not detected because of wrong CRC32..
+- joystick axis/buttons were marked non-mappable to mousebuttons,
+  fixed
+- natmem-area allocation changed slightly (allocation is still buggy
+  because there is race condition that can cause allocation to
+  fail in some rare cases but fixing this properly isn't so simple)
+- SPC_INCREASE_REFRESHRARE -> SPC_INCREASE_REFRESHRATE...
+- adjusting keyboard leds and then entering to any panel except
+  priority panel reset all priority values to "Above Normal" (and
+  I thought this was 100% fixed some releases ago..)
+- fixed Picasso96 freeze/crash/bogus refreshrates if display-panel
+  "parenthesized" refresh rate was selected.
+- relative kickstart/floppy/hdf paths work properly again
+- misc disk swapper-panel updates
+- enforcer update (BR)
+- keyboard layout C: both numpad 5 and 2 is mapped to down
+- bsdsocket update (SR) (don't open connection dialog if
+  requested address is localhost)
+- Catweasel support now requires Windows driver (no more direct port
+  access) New official Windows driver will be released very soon.
+  Added Catweasel enable-checkbox to misc-panel
+
+Beta 1:
+
+- bsdsocket emulation could crash in some cases (SR)
+- exception 3 update in 0.9.90b6 was buggy, broke Shinobi, Double
+  Dragon 2 and probably others..
+- Arcadia arcade system emulation (MAME 0.90 Arcadia roms supported)
+  Configuration: basic A500 setting (KS1.3, 0.5M Chip etc..)
+  Point "Cartridge ROM File" to Arcadia ROM file (ar_????.zip)
+  Start emulation.
+  Default key shortcuts: F2 = diagnostics menu,
+  1 = start 1 player game, 2 = 2 player game, 5 = coin slot 1,
+  6 = coin slot 2 (configurable in input-panel)
+- audio channels were swapped (no idea when or if they ever have been
+  correct..)
+- Picasso96 DOpus 4.12-problem fix (BR)
+- debugger improvements:
+  - r sr xx = change status register
+  - r ccr xx = change condition codes (low 5 bits of SR only)
+  - r usp/isp/msp xx = change stack pointers
+  - r vbr xx = change VBR
+  - sc = screenshot
+- filesystem configuration (mountinfo) data handling rewrite. This
+  should finally fix random crashes when reloading new config (or
+  changing quickstart model settings) on the fly. Note that changed
+  harddrive settings are only activated after reset instead of
+  immediately (which usually resulted in confused AmigaOS..)
+- switching from catweasel-enabled to non-cw-enabled configuration
+  on the fly caused crash (I forgot to reset catweasel options..)
+- added history list/text edit box to disk swapper
+
+
+0.9.92
+
+Beta 8: (final. official release date: tuesday/wednesday)
+
+- setting number of bitplanes (BPLCON0) larger than max supported
+  caused incorrect blitter and copper timing. Fixes intro
+  "First Anniversary" by "Lazy Bones"
+- refresh is now forced to every frame if cycle-exact is enabled
+
+Beta 7:
+
+- fixed AHI bug introduced in b6
+- fixed AVIOutput bug that lost every other frame when recording
+  interlaced screen modes and linedoubling was enabled
+- HD size detection improved. In some cases larger harddrives'
+  detected size was slightly smaller than real size. This was due
+  to using "wrong" Windows size-detection IOCTL, unfortunately the
+  better one is Windows XP/Windows Server 2003-only routine...
+  (IOCTL_DISK_GET_DRIVE_GEOMETRY and IOCTL_DISK_GET_LENGTH_INFO)
+- Picasso96 optimization (Bernd Roesch)
+
+Beta 6:
+
+- fixes memory corruption/crash if using >1024 pixels wide 32bit
+  chipset display mode without filters
+- changed default active priority from "Above normal" to "Normal"
+  (yeah, I changed my mind, again..)
+- fixed beta 4 and 5 disk insert problems
+- added windowed mode "Always on top"-checkbox to misc-panel
+- WinUAE now uses multiuser-aware Windows language settings for
+  selecting GUI translation DLL instead of using old-style system
+  default setting
+- replaced really weird and incorrect AddTail()-function in
+  picasso96.c with correct version (20 lines of code -> 4 lines..)
+- non-ce-mode blitter timing bug fixed (broken in 0823b2..)
+- ce-mode slowdown introduced in b4 optimized
+
+Beta 5:
+
+- Quickstart disk insert fixed (broke in b4 multiselect support)
+- X-Arcade updated mappings
+- internal drive click sound fixed (broke in b4)
+- last swapper position was unavailable (and b4 again)
+- some printing tweaks
+- image tool tip support (currently only used for X-Arcade keyboard
+  layout, image and mappings by Pierre Astruc)
+- compiled with updated zlib headers and library (1.2.2)
+- onscreen floppy and HD leds flash red while writing
+- window close-button is now working if "Use CTRL+F11 to quit"
+  is enabled
+- fixed random disk read errors when writing and immediately reading
+  same track back in non-turbo mode (broke in 0.8.26 or so, fixes
+  SuperDuper formatting, also probably fixes some save disk formatting
+  problems)
+
+Beta 4:
+
+- cycle-exact copper/bitplane fix (may cause some slowdown, sorry..)
+- improved drive click emulation, requires big external sample file
+  Samples maybe compressed and included inside winuae.exe in future.
+  (James Bagg)
+- fixed drive click GUI external sample detection
+- another sprite emulation update (intro "Da blue mouse" by Vectra)
+  Sprite attachment must be active if sprite's attachment-bit is
+  set, even if odd sprite pair is not "armed"
+- added soft and hard reset input-targets
+- fixed sprite problem introduced in beta 3
+- added keycodes to keyboard input source list
+- added configurable print job flush timer
+  0 = disabled, >0 = automatically close printer handle after
+  parallel port has been idle x seconds (workaround for
+  Windows 2000/XP never ending print jobs)
+- fps adjustment GUI support added
+- fixed really stupid mistake, input-panel autofire always said
+  "yes", even if autofire wasn't enabled. I guess this happened
+  when yes/no was added to translation.
+- bsdsocket update, fixes Newsrog (SR)
+- X-Arcade build-in keyboard layouts added (tooltips still missing)
+- disk-image dialog multiselect support
+  (Quickstart, Disk Drives and Disk Swapper)
+
+Beta 3:
+
+- and another incorrect "SWIV-fix" side-effect fixed
+  (intro "Inspiration Is None" by Anarchy)
+- GUI window close button or ALT-F4 fixed
+- config-load command line parameters now load hardware and host-
+  configurations properly
+- CIA PBON/TOGGLE-bits emulated (fixes really weird copy protection)
+- last 4 scanlines were invisible in filtered modes
+- "Pause emulation" when inactive paused immediately after emulation
+  was started, clear CPU% and FPS when entering pause-mode, more
+  logical GUI operation with "Pause emulation" and "Disable sound
+  output" -checkboxes.
+- sprite tweaks, Superfrog intro bees, SuperStardust AGA tunnel section
+  and Kefrens Pharaos Fantasy -intro's scroller (Superfrog and
+  SuperStardust updates are quite logical but Kefrens fix looks slightly
+  illogical which means something may break..)
+- copper/blitter timing tweaks
+
+Beta 2:
+
+- demo Nivel by Banal Projects works properly again
+  (demo triggered "SWIV-fix")
+- archiveaccess multiarchive support (only 7z, rar and zip currently
+  enabled) Archiveaccess + 7z plugins are in separate archive
+  (experimental, may be removed if better solution is found)
+- all DLLs from WinUAE's directory can be moved to directory called
+  "plugins"
+- PostScript detection corrupted PostScript data if start marker was
+  %!PS<something here> instead of %!PS<linefeed>
+- hardfile creation improved. Create-button is only enabled if size
+  is set, added dostype selection. It is now easy to create regular
+  non-RDB SFS-hardfiles, simply create SFS-hardfile, point
+  FileSystem-path to SmartFilesystem-filesystem handler and use
+  SFSFormat to format it
+- postscript settings can be changed on the fly
+- serial port direct-setting can be changed on the fly
+- fixed incorrect initialization of user-defined drive sounds
+- reset GUI's coordinates to top-left of desktop if original location
+  is not visible on any monitor
+- disk image bootable check didn't ignore non-zero sector headers
+  (for example Second Samurai ipf-image was rejected)
+- screenshot-files are now named <name of image in df0>_xxx.bmp
+  (or xxx.bmp if df0: is empty)
+
+Beta 1:
+
+- generic GUI custom key shortcut support added
+- disk swapper GUI panel key shortcuts added:
+  cursor up/down = move cursor
+  SHIFT + cursor up/down = move cursor & selected disk image
+  cursor right = change drive (DF0->DF1->DF2->DF3->DF0)
+  return = select image
+  del = remove image
+  CTRL + 1-4 = change drive (direct)
+  ALT + number = jump to line 1-10
+  SHIFT + ALT + number = jump to line 11 - 20
+- harddisk key short cuts added
+  (cursor up/down and shift, enter and delete)
+- implemented generic GUI mouse listview drag'n'drop
+- disk swapper and harddrives up/down arrow-images removed (looked
+  quite ugly with Windows XP styles..), replaced with drag'n'drop
+- automatically map developer/beta KS ROMs at 0x200000
+  (if chipram size <= 0x200000 and fast ram is not enabled)
+- cycle-exact plus frameskip enabled does not affect internal timing
+  anymore (but frameskip in ce-mode isn't as fast in older versions)
+- speed (refresh rate) adjustment implemented in non-vsync modes.
+  no gui-support yet but END+SHIFT+numpad -/+ can be used to
+  increase/decrease speed
+- graphics corruption in NakuDemo by Vision-X fixed (demo is OCS-only)
+- updated AHI driver, fixes record bug when ahi_minbufflen was set
+  to any other value than default 2. (Bernd Roesch)
+- Stardust (non-AGA) starwars-scroller ce-mode blitter bug fix
+- non-JIT fastest possible/CPUvsChipset-option fixed
+- remove harddrives when setting quickstart configuration
+- entering quickstart for the first time used default host-settings,
+  not (possible) user-selected host-settings configuration file
+- CompaVsCPU-slider was sometimes reset to leftmost position
+- experimental non-GUI disk swapper shortcuts added,
+  END+1-0 (not numeric keypad) = insert image from swapper slot 1-10
+  END+SHIFT+1-0 = insert image from swapper slot 11-20
+  END+CTRL+1-4 = select drive
+  What about preferred drive selection in GUI for all slots?
+- regular HDF TD_GETGEOMETRY now returns user-entered HDF parameters
+  instead of "guessed" values
+- filesystem bug fix (0.9.90/0.9.91), files with Windows System or
+  Hidden -flag set didn't open properly in all cases. (another
+  Windows feature..)
+
+- filesystem protection flag, comment and Windows illegal character
+  handling update, UAEFSDB-information is now stored in file's named
+  stream called "_UAEFSDB.___". (=works 100% transparently, no more
+  separate UAEFSDB-files) New mode is only used if current directory
+  has no old __UAEFSDB_-file and filesystem is NTFS.
+  
+  *** TESTING IS NEEDED! ***
+  
+  Information about NTFS streams:
+  http://www.winnetmag.com/Articles/Print.cfm?ArticleID=15900
+  http://patriot.net/~carvdawg/docs/dark_side.html
+  http://msdn.microsoft.com/library/default.asp?url=/library/en-us/dnfiles/html/ntfs5.asp
+
+- "flush print job" button works now properly
+- PostScript printer emulation. It is now possible to print
+  directly from WinUAE to any Windows-supported printer.
+  (except if program does not use printer.device and it doesn't have
+  build-in PostScript-support)
+
+  1: install Ghostscript (http://www.cs.wisc.edu/~ghost/)
+  2: tick "PostScript printer emulation" in WinUAE settings
+  (grayed out checkbox = no Ghostscript gsdll32.dll detected)
+  3: boot to Workbench and select PostScript printer driver
+  4: print normally
+  (thanks to Borg No. One for inspiration and testing)
+
+
+0.9.91
+
+Beta 3:
+
+- priority level and systray menu translation dll support fixed
+- translation DLL load problems fixed
+- disable quickstart-mode if using -f or -config= -command
+  line parameters
+- bsdsocket update, fixes ~2 second pause on some systems and
+  added internet connection off-line check (Stephen Riedelbeck)
+
+Beta 2:
+
+0.9.91 will be released next weekend (or so) because of dangerous
+filesystem bug (files can be truncated to zero, originally, for
+some reason, I didn't think it was that dangerous problem..)
+No new features except possible quick bug fixes to do.
+
+- added right alt = firebutton to keyboard layout B (right ctrl is
+  kept for compatibility) Many laptops don't have right ctrl nor
+  numpad.. (was in b1 but changelog entry was missed)
+- CPU idle calculation update (based on Bernd Roesch's idea) you may
+  need to readjust your CPU Idle-setting
+- ALT-TAB updates (again..) Direct3D+GUI enabled ALT-TAB seems to
+  work now (or not)
+- Picasso96 screen is properly refreshed when GUI is active (except
+  in fullscreen mode but I don't know to fix it without overwriting
+  the GUI window..)
+- non-existing paths automatically defaults to WinUAE's directory
+- uae-configuration fixes and changes. for example:
+  "uae-configuration cpu*" lists all config entries that start
+  with "cpu"
+- fixed Picasso96 CTRL-ALT-DEL to login screen and ESC -> black screen
+- one more open file filesystem bug fix
+- and another blitter non-ce/non-immediate speed fix (it didn't really
+  do anything since beta 13.. PPHammer and Spindizzy Worlds work again
+  without flashing)
+
+Beta 1
+
+- directory hardfile: added more commands that flash hd led
+- some improvements to JIT crash preventer
+- missing translation strings added (priority levels, compatible
+  and turbo -floppy speeds, yes/no in input autofire and harddrive
+  emulation read-only status)
+- updated Overkill AGA fix (Alien Breed II AGA scrolling)
+- filesystem fixes. Read-only files didn't open, some error codes
+  were wrong and opening file in readwrite-mode truncated it
+- BorderBlank-bit is in ECS-Denise and newer chipsets (was AGA-only)
+- loading config didn't set correct stereo separation variables
+  if separation was set but delay wasn't. fixed.
+- Latest SFS changelog says "ACTION_ADD_NOTIFY now returns
+  ERROR_BAD_NUMBER if the notification is neither a NRF_SEND_MESSAGE
+  nor a NRF_SEND_SIGNAL notification." Filesystem emulation does
+  the same thing now.
+- added uae-configuration Amiga-side program, it is basically very
+  extended uae-control. It has 3 modes:
+  1: without parameters it outputs all current configuration settings
+  2: with single parameter it outputs value of config entry
+  example: "uae-configuration cpu_type" -> "68040"
+  3: with two (or more) parameters it can change configuration and
+  send input events on the fly.
+  examples: "uae-configuration cachesize 0" (disable JIT) or
+  "gfx_vsync true gfx_refreshrate 50" (enable vsync and set refresh
+  rate to 50) "SPC_ENTERGUI 1" (open GUI), "KEY_A 1 KEY_A 0" (press
+  and release A-key) etc.. Check inputevents.def (in source archive)
+  for all supported events.
+  Return codes: 0 = ok, 5 = config name not found, 10 = other error,
+  20 = not supported (too old UAE)
+- automatic rom-scan check improved, no more forced scanning if user
+  run older WinUAE versions without rom-scan support
+
+
+Final 0.9.90:
+
+- floppy speed was never initialized to 100% in quickstart-mode
+- default.uae ignored paths-panel configurations-path
+- in some circumstances regular configuration was saved to
+  hardware or host configuration directory
+- enabling/disabling lores on the fly didn't always reset all
+  internal variables correctly resulting in weird display
+
+RC1:
+
+- back2roots URL updated (was ancient http://back2roots.emuunlim.com/),
+  abime.net URL added
+- fixed uninitialized variable that may have caused problems in
+  4-channel sound mode
+- possible crash bug in beta13's blitter update fixed
+- game-port panel joystick compatibility with older config files fixed
+  (why is kbd1 = first keyboard layout but joy0 = first joystick?)
+
+Beta 13:
+
+- changed quickstart uae-config's floppy speed to turbo
+- MOVEC control register 0x804 was incorrectly marked as 68040-only,
+  but it really is 68020+. It seems I broke this in some 0.8.22 version
+  without anyone noticing it.. (fixes AIBB crash in 68020-mode)
+- directory filesystem deleted files/directories are now moved to
+  Windows Recycle Bin (if RB is not disabled)
+- release all inputdevices when entering debugger (and acquire them
+  again after exiting) Fixes keyboard freeze on some Windows 2000
+  systems
+- last entry in Ports-panel mouse/joystick-selectbox was unselectable
+- middle mouse button didn't work, stupid typo in b12's input cleanup
+- removed "Windows mouse" mousewheel and number of buttons limits, there
+  are programs that can send for example faked middle button messages
+  even if real mouse has only 2 buttons etc..
+- "Windows mouse" middle button = ALT-TAB fix
+- disable quickstart media-check if quickstart-checkbox is not checked
+- yet another active/inactive/minimized-fix
+- added image+crc tooltip to df0-df3 windowed mode "leds"
+  btw, for some reason SB_SETTEXT's SBT_POPOUT-mode don't do anything if
+  non-classic skin in Windows XP is selected. (which means "leds" don't
+  move "up" or "down") Any ideas?
+- left click on status bar df0-df3 = insert disk, right click = eject,
+  left click on power = gui, right click = reset. Left and right button
+  doubleclicks are still free if someone needs more functions :)
+- blitter non-ce/non-immediate approximate slowdown due to bitplane dma
+  -code changed
+- add support for other german keyboard layouts
+
+Beta 12:
+
+- "Syncronize clock"-feature is back, fixed random turbo clock
+- gameport configuration defaults fixed
+- added "4 Channel" audio mode (=feed all 4 Amiga channels directly
+  to DirectSound device without 4->2 software mixing, was earlier only
+  available with "-dsaudiomix" command line parameter)
+- "Crux"-interpolation with stereo separation enabled fixed
+  (readjustment of stereo separation GUI-settings are needed)
+- show message if there is no Kickstart ROM selected and Kickstart
+  replacement fails to run disk image in df0: (previous versions
+  simply returned to GUI without saying anything..)
+- "Could not load Kickstart ROM"-message readded (not sure why or when
+  it disappeared..)
+- kickstart replacement wasn't enabled if no Kickstart ROM was
+  selected, but it worked if selected ROM couldn't be loaded.. fixed.
+- input device renaming must be of course after sorting, not before..
+- Added "Amiga 2000" to Amiga 500 model-title
+- mousehack-support changed, mousehack-mode is only enabled when
+  Amiga-side mousehack-program is running and new special
+  "Mousehack mouse" is selected. Autoselecting mousehack-mode would
+  have caused too many unsolvable problems. Without mousehack-program
+  mousehack-mode works just like "Windows mouse"
+- mousehack works in fullscreen mode. (=tablets work in fullscreen)
+- quickstart only autosets configuration when "start in quickstart-mode"
+  -checkbox is checked. "Set Configuration"-button can be used to
+  set the config when checkbox is not checked.
+- dragndrop rom type detection
+- cd32-pad emulation improved, should be nearly perfect now,
+  also default joystick/joypad cd32-button mappings changed
+  (removed useless "firebutton") (CD32 pad info from schematic at:
+  http://home.t-online.de/home/malibann/cd32gamepad/cd32gamepad.html)
+- cd32 cdrom drive is now always redetected after every reset
+- keyboard layout A/B/C compatibility with older versions fixed
+  (check and resave your configs)
+- changed default windowed resolution to 720x568
+
+Beta 11: hopefully only bugs fixes left..
+
+- improved game controller/mouse selection in "Game & IO-ports",
+  even multimouse is now possible without need to use input-panel
+  (but don't forget OS limits: 98/ME = two USB mice required,
+  2000 = no multimouse support, XP = no mouse limits)
+- changed naming of input devices with identical names
+  (first is named "xxx [1]", second "xxx [2]" etc..)
+- removed some REALLY obsolete win32-specific filesystem filename
+  mangling functions. (for example ~ in file names didn't work)
+  Testing needed!
+- Action Replay freeze-key (page up) was unavailable for configuration
+  even if Action Replay was not enabled, fixed. Again.
+- USB keyboard led-support (may not work in all cases yet)
+- more ALT-TAB fixes (this is so stupid, for example Direct3D-
+  fullscreen mode sends minimized information differently than other
+  regular DirectDraw fullscreen modes..)
+- added "Windows Mouse" buttons 4 and 5, detect the real number of
+  "Windows Mouse" buttons and wheel. NOTE: non-DirectInput maximum
+  number of supported buttons is 5 (Windows 2000/XP) or 3 (9x/ME)
+- added default mapping of mouse buttons 4 and 5 to ALT+CURSOR LEFT
+  and ALT+CURSOR RIGHT (back and forward)
+- it is now possible to dragndrop disk image(s) directly to any drive's
+  path-string box
+
+Beta 10b:
+
+- "automatic" jump back to fullscreen after ALT-TAB fixed, I think..
+- changed TD_GETGEOMETRY slightly, use CHS-values from RDB if RDB
+  is detected, only "invent" the values if RDB is not detected.
+- paths-panel manual path editing fixed
+- flash ram manual editing fixed
+
+Beta 10: lots of small things..
+
+- Action Replay 2 and 3 ROM first 4 byte tweak, dumping the ROM under
+  UAE (pointless?) results now exactly the same dump as on real A500
+- debugger tracing commands didn't work in ROM
+- added automatic KS patcher that disables A4000T ROM's
+  "NCR scsi.device" -> A4000T ROM is back and working. (A4000T NCR
+  scsi.device expects correct scsi hardware -> no hardware -> confused
+  driver -> infinite loop..) Maybe pointless too but...
+- some A500<>A1000<>CDTV<>CD32 on the fly switching bugs fixed
+- 68020/68EC020-KS check didn't work correctly if
+  shapeshifter-patch was enabled, fixed
+- fixed possible crash when ALT-TABing from filtered fullscreen mode
+- crash when saving new config and no old config file has been selected
+- fixed corrupt logical disk format when creating standard 3.5"HD ADF
+  (this has been broken since the beginning..)
+- added TD_GETGEOMETRY (very rarely needed) support to uaehf.device
+- optimized stereo separation/mixing algorithm, fixed incorrect config
+  file entry name ("sound_stereo_mixing" -> "sound_stereo_mixing_delay")
+- added missing KS 37.299 ROM in A600-ROM scan check
+- don't touch WinUAE version number in registry if it is newer than
+  current
+- Quickstart "Host Configuration"-checkbox didn't remember previously
+  selected configuration.
+- added some example host configurations (800x600 and 640x480
+  fullscreen and one windowed). I plan to add these and maybe some
+  other (suggestions?) host-configurations with release version.
+  (it will be optional component in installer)
+- added configuration link selector and probably confusing
+  ignore-checkbox to config panel (ignore = don't load linked config,
+  load instead host config from regular config file or from user-forced
+  file in Host-panel)
+- fullscreen mode always used no-taskbarbutton-mode. fixed.
+- automatically default to ASPI if uaescsi.device is enabled and
+  OS is Windows9x or if user has no admin privileges
+- don't crash if DirectInput fails to initialize (Why does
+  DirectInput8Create() fail with "unspecified error" when running
+  WinUAE under different user using Windows XP "Run as..."-feature?)
+- use SetPriorityClass() under 2000/XP instead of SetThreadPriority()
+  (now Task Manager shows same priority settings as WinUAE GUI)
+
+Beta 9:
+
+- replaced "mixed stereo" with stereo separation adjustment and made
+  mixed stereo delay buffer size adjustable, original mixed stereo
+  buffer size was 5. (don't ask about mixed stereo delay buffer, I
+  have no idea whats the point :) (Idea from xtc)
+- quickstart-mode reset button fix
+- CDTV Extended 2.7 is back, 2.3 renamed to 2.30
+- A4000T KS 3.1 removed (apparantly it is not compatible with UAE)
+- improved Kickstart CPU compatibility check
+- added misc-checkbox for hiding Windows Taskbar-button
+  (that was much easier said than done..)
+- windowed mode DFx,Power,etc.. "leds" now support non-96DPI modes
+- added more hardfile/harddisk error logging (non-blocksize aligned
+  or out of bounds accesses)
+- added mostly useless 1.8M BogoRAM selection (there were A500 2M
+  expansions but 0.2M was lost "under" custom chip address space)
+- included translation DLL for testing (but note that this won't be
+  the final version)
+
+Beta 8:
+
+- added missing A500+ and A600 ROM scan messages
+- model info, ROM scan messages are now translatable
+- removed yellow "!" from message-dialogs
+- possible fix for ancient "black bar at right border when
+  centering is enabled and screen width is large enough"-bug
+- remove floppies from disabled drives in quickstart-mode
+- quickstart disk history was duplicated when selecting new image
+  and image change caused configuration update.
+- "config_hardware_path" and "config_host_path" config entries added
+  They can be used to link two config files. I am not yet sure how to
+  add GUI support for saving linked config files..
+- replaced RDB filesystem relocator's 68020+ only instructions with
+  68000-compatible instructions (oops..)
+- added model info to Kickstart ROM information
+- removed hack/beta KS 3.1 40.70 (0x917100a0, hack/beta) and CDTV
+  Extended 2.7 (not confirmed), added A4000T KS 3.1 40.70 (0x75932c3a)
+  (Kickstart info by Rodney Hester)
+
+Beta 7:
+
+- fixed beta 6 quickstart problems
+- added A500Plus and A600-entries (A500P with KS 37.175 and A600 with
+  37.350/37.300) and CDTV (with warning)
+  Yes, I changed my mind again :)
+- added very expanded example configuration to quickstart-page
+
+Beta 6:
+
+- better 68000 exception 3 (address error) return address
+  calculation (fixes yet another copy protection)
+- cycle-exact mode timing fixes (broke in 0826b1.. caused some
+  (many?) copylock-protected images to fail, also Dynamic Hires images
+  look much better now but it is not yet perfect.
+- removed some unneeded code from ce-mode cpu
+- removed compiler.c and compiler.h. No idea when this was last
+  used (or maybe it was never really used?)
+- added volume level value to sound panel
+- keyboard led select boxes worked strangely, fixed
+- more 68000 DIVU/DIVS undefined flags defined :)
+- added more RDB parsing messages to log
+- Overkill AGA graphics fix. WARNING: may cause graphics
+  problem (shifted image) in other AGA games/demos.
+  Keep your eyes open!
+- don't check quickstart disk image bootable-status anymore after
+  emulator has been started
+- new (not yet released) caps library required
+- force ROM rescan if WinUAE version info in registry is older
+  than current version
+- bootblock crc check added to quickstart insert-disk check
+- german keyboard #-key hack fix (Bernd Roesch)
+- disable chipset speed settings if 68000 and cycle-exact enabled
+- quickstart and paths icons added (Jani Wilen)
+- wider harddrive-dialogs
+- added "enable RDB-mode"-button to hardfile dialog
+  (it only clears sectors, surfaces and reserved-fields)
+- dialog should really appear correctly in fullscreen mode
+- added CRC32-tooltip to quickstart DF0-select box arrow.
+  (why? bug reports without enough info to confirm used image..)
+
+
+Beta 5:
+
+- dragndrop didn't close filehandles (left files that were not
+  possible to delete or rename until WinUAE was exited)
+- save state key shortcuts fixed (broke in beta 2, I think)
+- added tooltip support to every control in GUI (this is quite
+  stupid: All dialog strings with "[]" in them is split to two pieces.
+  Dialog string is replaced with leftmost piece and tooltip is added
+  with rightmost piece. Stupid but this does not need any extra resources,
+  is automatic and it is easy for translators)
+- example tooltips added to keyboard A, B and C-checkboxes
+- more tooltips to cpu, disk and chipset tab. Help needed, I am not going
+  to write any more myself..
+- configuration tooltip fixed
+- replaced tooltips with balloon tooltips
+- disk history weirdness fixed (randomly changing disks etc..)
+- added message if "Add harddrive" does not detect any drives
+- updated NT-based Windows' admin privilege-check
+- removed ECS Denise-selection. OCS Agnus + ECS Denise was never used
+  (probably does not even work on real Amigas)
+- update last used config file name when saving config
+- more common notifications/error messages can be translated
+- added message that appears only once when saving to standard adf and
+  saved track is not standard AmigaDOS format.
+
+Beta 4:
+
+- return back to GUI if Kickstart ROM is missing and Kickstart
+  replacement fails (do we even need this anymore?)
+- don't add nonexisting files to disk history
+- added saveimage delete-button to disk-panel (only visible when there
+  is saveimage present for selected image)
+- added -diskswapper=image1.adf,image2.adf,...-command line parameter
+- startup-zlib-dialog-crash fixed
+- improved rom scanner, now Kickstart ROMs/keyfile are detected even
+  if all roms are stored in single zip...
+- stupid disk writing bug fixed, causes some crappy disk routines to
+  save corrupted data, for example SWOS. (was introduced in 0.8.26)
+- paraport direct parallel port support improved
+  (busy signal was inverted, printing works now)
+- mapped AmigaDOS H-flag to Windows hidden-flag. This leaves S-flag
+  but there are no Windows flags left..
+- moved "no uaefsdb"-checkbox to harddisk-panel
+- added scaling support to all software filters
+- testing tooltips in model selection area (texts by G. Chillemi and me)
+  Good or bad idea?
+- added OCS A500 0.5M+0.5M configuration on top of list. Apparantly
+  OCS A500 is the most common Amiga 500 (except here in Finland or
+  something)
+  
+Beta 3:
+
+- hardware/host-settings should now really work..
+- filter presets added
+- "clear registry" really removes all new keys now
+- changed default joystick to keyboard layout B
+- set default sound filter to emulated
+- filter presets (saves filter settings plus lores, doubling,
+  correct aspect and centering settings from display page)
+- added avioutput path to paths-page
+
+Beta 2:
+
+- added missing Cloanto KS 1.3 and 3.1 CRCs
+- Reset-button was enabled when inserting disk even if
+  emulator was not yet started
+- less ROM-check messages
+- disable serial options if no serial port selected
+- removed A500+/A600-configs (not much use here)
+- removed CDTV config (not much point until CDROM works)
+- don't load quickstart-page's config when entering quickstart
+  page for the first time if quickstart-mode is not enabled
+- don't disable Start-button
+- clear disk image paths when in quickstart mode (=don't load
+  floppies from default.uae)
+- added second drive, only enabled when RAM size is 1MB or
+  larger.
+- quickstart reset handling improved
+- obsolete rom.key-GUI option removed
+- hardware/host configurations save/load/delete fixed
+- added simple JIT on/off switch (only sets cache to zero
+  or max and it does not remember old value)
+
+Beta 1:
+
+I have been thinking of bumping version number to 1.0 in next
+release. Emulation seems to be good enough, GUI looks ok
+and now finally there is long-awaited "quickstart"-mode for
+"normal" emulator users.
+
+I really request comments about Quickstart-mode GUI. One or
+two drives? Build-in configs are ok? ROM-messages are ok?
+
+It is possible I have gone really too far this time..
+
+- more support for small devices, debugger can be disabled
+  by editing sysconfig.h
+- dialogs don't appear behind the screen in fullscreen modes
+- warn only once when saving state with harddisk(s) enabled
+- chip ID-register (VPOSR upper byte) never reported ECS Agnus
+  (broke in 0.8.26)
+- TST.x Ax, TST.x (d16,PC), TST.x (d8,PC,Xn), CMP.x #x,(d16,PC)
+  and CMP.x #x,(d8,PC,Xn) are 68020+ only. There are probably
+  more to fix.. (some 68000/68010-instructions don't support
+  all addressing modes)
+- SMBFS, FAT95, AmigaNCP map Windows System-flag to AmigaDOS Pure-flag,
+  so do it also in UAE filesystem emulation, also archive bit was
+  inverted
+- configuration file scanner didn't work correctly if directory
+  was deeper than 1 level, fixed, also added limit to 3 levels
+- added CRC32 ROM-detection (only common official ROMs supported)
+- show selected ROM's name instead of filename in ROM-page if
+  selected ROM is in CRC32-list
+- all detected ROMs are added to ROM-filename selectbox
+- statefile ROM CRC32 is used to select correct ROM when loading state
+- ROM path is scanned when starting WinUAE for the first time,
+  ROM path is changed or Rescan ROMs-button is clicked
+- added Paths-page
+- added QuickStart-page (for users that only want to run floppy based
+  programs without need to know anything about configuration)
+- rom.key-path is basically obsolete now, WinUAE automatically tries
+  all possible locations for rom.key. (current dir, rom-path etc..)
+  Any reasons for not removing the rom.key-path from GUI?
+- switching from A1000/CD32/CDTV mode to normal-mode and back works
+  now correctly
+- changed default configuration to regular Amiga 500-config, also
+  some other default config tweaks
+- in quickstart-page inserted disk image's bootblock is checked
+  - no bootblock/wrong checksum = don't accept image
+  - OFS bootblock -> continue
+  - FFS/FFS+INT bootblock -> autoselect KS2.04 config (if previous
+    config was < KS 2.04)
+  - FFS+DIRCACHE bootblock -> autoselect KS3.0 config (if previous
+    config was < KS 3.0)
+- "Clear registry"-button in paths-page can be used to remove
+  all new WinUAE registry entries, for easier beta testing
+- added hardware/host-specific configurations, autoload checkbox =
+  automatically load selected hardware/host-only config after "regular"
+  config
+
+TODO:
+
+- new icons
+
+btw, is there are any problems using names like "Amiga" or "Kickstart"?
+
+0.8.27
+
+Beta 4: (final?)
+
+- AVIOutput tweaks (enable-button is disabled until codec(s)
+  are selected, don't clear selected codec(s) after recording
+  is stopped, no more clicks in recorded sound while alt-tabbing
+  and more)
+- COPJMP-delay was 2 cycles too short, fixes 2000AD-intro
+  (properly this time!) and Total Triple Trouble-intro's missing
+  characters (sprites)
+- debugger: added illegal access logger (any memory access to
+  non-existing memory or "non-official" custom chip/cia address is
+  logged) enable with "wd"-command, delete addresses with "wd x y"
+  where x = start address y = length of range.
+- A1000 boot rom works again (b1)
+- some centering tweaks
+
+Beta 3:
+
+- don't exit if using 68020+ Kickstart ROM without 68020 CPU
+- fixed rare null filter crash
+- full collision setting fixed. Game called "Rotor" does
+  require working CLXDAT collision bit 0 (="full collision")
+  This is the first known program that needs full collision!
+- 68000 CLR.L/NEG.L/NEGL.X/NOT.L data access order finally fixed
+  (read first word, read second word, write second word, write
+  first word) This is important because there are some demos
+  that do CLR.L $DFF088..
+- contents of zipped files in disk history-list had extra space
+  in the beginning of filename. fixed. (b1)
+
+Beta 2:
+
+- added correct return value in 68000+more compatible/ce-mode when
+  accessing CIA-address space without selecting any CIA (both
+  CIA selection address bits 12 and 13 set) rtclock, buggy
+  A1000 "Insider"-memory expansion's real-time clock setting
+  utility program works now without crashing.
+- state saves were saved in random point instead of at the
+  beginning of vblank. (broke somewhere during 0.8.22 or so)
+- debugger 'am'-command fixed
+- removed disk swapper auto disk insert when loading config.
+  It wasn't too good idea. (disk in swapper position 1, eject disk,
+  save config and load config -> disk is back in df0..)
+- vertical/horizontal centering fixed! (or at least it is much
+  improved) Does not fix bar in right side of screen if using too
+  large resolution
+- MIDI does not require selected serial port anymore
+- "exter_int_helper: unknown native action" is confirmed fixed
+  (bug has been there since native2amiga.c was originally created..)
+- re-added SPCFLAG_DOINT, JIT seems to have too weird timing to
+  work without it in some cases.. Non-JIT modes still use new and
+  more compatible method.
+- fixed crash in CDTV-mode (broke in 0826B1)
+- D3D and OpenGL mode fullscreen ALT-TAB fixed
+- harddisk "bad blocksize" error (broke in b1)
+- typing to disk image text boxes was ignored, fixed
+- bug in kickstart loader fixed (b1, 256K ROMs only)
+
+Beta 1:
+
+- loading empty config/directory crashes (broke in beta 4)
+- ports-page's joystick/mouse radiobuttons were not initialized
+- added some source configuration options for low memory devices
+- config file scanner ignored extension of files and scanned
+  ALL files in configurations-directory, even binary files..
+- GUI works with non-96 DPI font settings (arg, only bug was
+  different font in "panel"-dialog than "page"-dialogs..) 
+- removed "Highest" priority setting. It was mostly useless and
+  slightly dangerous too.
+- added check for too small hardfiles (zero or smaller than block
+  size), also block size set to zero is not anymore allowed.
+  (no more "tried to seek out of bounds! (FFFFFFFFFFFFC000 >= 0)"
+  error message)
+- JIT got confused and crashed if CPU setting was modified or
+  JIT-enabled state file was loaded
+- OpenGL fullscreen mode now uses DirectDraw to change screen's
+  resolution instead of ChangeDisplayMode(). ALT-TAB works now
+  properly.
+- added missing semaphore-protection to native2amiga.c
+  (fixes random "exter_int_helper: unknown native action xxx"
+  errors and freezes when using for example uaescsi.device
+  and hardfile(s) at the same time) NOT CONFIRMED YET
+- interrupt delay in JIT mode reintroduced with much smaller
+  and safe delay. (AB 3D II works again)
+- new rtg.library, 20-30 times faster pixel read function in
+  32-bit Picasso96 modes. Used in alphablending. (Bernd Roesch)
+- fixed forever repeating "...because desktop is too small for
+  the specified window size.."
+- only add images inside zip to history if there are more than
+  one image
+- saving config: add ".uae"-extension to config file name if
+  missing
+- buffer overflow in drive click code fixed
+
+0826
+
+Beta 6:
+
+- enter disk swapper for the first time, press up, first image
+  disappears, fixed.
+- ancient MIDI-IN freeze bug finally fixed
+- module ripper's dialog boxes appeared "behind" WinUAE's screen
+  in fullscreen modes
+- disk image history list: move selected item to top of list
+- move ripper to output-page (path etc.. improvements won't be
+  implemented until 0.8.26 has been released)
+- entering and exiting gui didn't restore 8-bit Picasso96-palette
+  if opening GUI didn't force drop to desktop
+- use GUI's real size (Windows XP styles can make it bigger than
+  default) instead of hardcoded 640x480 when determining if GUI
+  fits to current fullscreen mode
+- more FDI2 updates
+- added workaround to "turbo speed"-problem in non-ce modes
+  (for example Battle Squadron cracktro by Freestyle)
+- END+Fx-disk change shortcuts didn't add image to history list,
+  fixed
+- disabled interrupt delays in JIT-mode. That was not too good
+  idea.. (crashed some programs)
+- configuration "save as"-button used wrong path, fixed
+
+Beta 5:
+
+- "... Switching to full-screen display."-messages didn't work
+  and crashed the emulator.. (oops)
+- don't show paths in disk swapper-page
+- disk swapper crash fixed (stupid bug, missing "break;" oops*2)
+- loading config file copies inserted disk images in disk drives
+  to disk swapper and also fills empty drives from disk swapper
+  automatically.
+- reload configuration file list after loading new config and
+  emulation has already been started
+- don't restart immediately if loading new config and show gui
+  is not ticked and emulation has already been started
+- fixed debugger memwatch point command's parsing of 'rw'
+- cycle exact blitter/cpu-timing was broken since beta 1..
+  (Robotics Life and others again..) I tried to store 0x100 to
+  8-bit buffer.. (and oops^2)
+- Pro Wizard module ripper included! (http://asle.free.fr/prowiz/)
+  Supports over 50 packed tracker formats, automatically converts
+  them back to standard Protracker format.
+- enabling warp-mode (END+PAUSE) does not freeze the emulator in
+  JIT-modes anymore
+- moved multirevolution (= copy protections that use weak bits)
+  code from common disk emulation to disk image-specific code
+- improved FDI2 decoding (Vincent Joguin)
+
+Beta 4:
+
+- made debugger t and z -commands log all exceptions
+- state save/restore added to input-tab
+- dropped configuration file separation. maybe in next release,
+  will need much more design time..
+- FPU emulation bug fix. Fxxx.B #yy,FPz-style commands used wrong
+  address (high byte instead of low byte) to fetch immediate value.
+  It seems this has always been broken..
+- configuration load/save page now remembers last selected config
+  file
+- m68k shift instructions timing improved in cycle-exact mode
+
+Beta 3:
+
+  NOTE: ignore the "Type"-select box in configuration page. It will
+  change in next beta. Comments are not accepted :)
+
+- caps bitcell timed track + saveimage crash fixed
+- made GUI slightly smaller and improved child-dialog positioning
+- updates systray icon if explorer restarts
+- dropping config file to gui or window restarts emulation immediately
+  if "Show GUI on startup"-checkbox in new config file is unchecked
+- undocumented filesys_no_uaefsdb-config option added to GUI
+  (prevents creation of new UAEFSDB-files which means all comments,
+  protection flags not supported by host filesystem are lost, also it
+  prevents creation of file names with "illegal" characters inside
+  of emulation)
+- "Knin Peaks" disk emulation fix broke software that set DSKLEN = 0
+  (usually used by some copy protections) Fixed.
+- store windowed GUI position in registry. GUI in fullscreen is
+  always centered.
+- JSR-instruction's prefetch fixed (protection code in original
+  Datastorm)
+- Windows XP styles supported
+- 68000 exception processing stack pushes are now executed in
+  exactly the same order as real 68000 does them (ce-mode only)
+- D-channel only blit with ALWM or AFWM != 0xffff fixed
+  (ce-mode only, Elfmania loading screen)
+- caches configuration file list, reload only when saving
+  or deleting.
+- refresh rates in parenthesis don't anymore get reset to default
+  (parenthesis = display driver does not support selected rate
+  but it still may be available if some tweaking program is in use)
+- added supported refresh rates to winuaebootlog.txt
+- debugger breakpoints and memwatch points work now even if address
+  register's high 8 bits contain crap and UAE is emulating 24-bit
+  address space (copy protections..)
+- implemented more correct interrupt delays and removed now obsolete
+  SPCFLAG_DOINT, also (temporarily?) added experimental 68020+
+  interrupt "fix" which may not be safe..
+- POTGO fix (even "simple" io-port handling is complex in Amiga..)
+  fixes for example The Band's Human Killing Machine trainer
+- audio emulation tweaks. noise in Warhead and Hammerfist, 100 most
+  remembered C64 tunes freeze and most importantly, without breaking
+  Mission Elevator :)
+- compressed state file Action Replay bug fix (but AR statefile
+  support isn't too stable)
+- added missing address error exception check in exception handler
+  (and another copy protection works..)
+
+Beta 2:
+
+- full drag'n'drop support, config files/disk images/state files/roms
+  supported.
+- entering gui from smaller than 640x480 fullscreen mode fixed
+
+Beta 1:
+
+- GUI update! I am expecting lots of suggestions..
+- Configuration Load/Save-page updated, directory support addded
+- replaced floppy text box with select box, works as a combined disk
+  image text box and history list (30 last used images, also
+  automatically lists images inside zips) History list is stored in
+  registry.
+- added Disks-page for quick disk swapping (work in progress)
+- systray icon and menu
+- new icons (Jani Wilen)
+
+- scsi logging improved and moved to non-host specific code
+- AmiTradeCenter (ftp-client) bsdsocket emulation compatibility fix (SR)
+- gethostname() CTRL-C-signal fix (SR)
+- added debugger audio channel enable/disable command
+  (am <channel mask>)
+- Final (...) sprite-bitplane collision fix (Aunt Arctic Adventure)
+- IRQ level 7 didn't wake CPU up from possible STOP-state
+- END+PAUSE warp-mode sets frameskip temporarily to 10 (2-8x speedup)
+  except in cycle-exact mode (ce-mode's timing needs zero frameskip)
+- added Quit emulator -option to input source list
+- MODE SENSE/SELECT 6<>10 translation bug fix, 4 last data bytes were
+  replaced with random data (usually zeros) Was not noticed because
+  most programs use larger buffer than required.
+- cause bus error exception (and logs current CPU state) if program
+  jumps to non-existing memory and CPU is 68020+. ("Your Amiga program
+  just did something terribly stupid")
+- added exception handler that tries to trap instruction opcode
+  accesses. You see small dialog box explaining the situation. it
+  will be removed in release version. This usually happens when memory
+  gets corrupted and program flow "falls" off the end of memory bank.
+  These two fixes should prevent most 68020 and/or JIT WinUAE crashes
+  without any perfomance loss.
+- CE-mode 68000 instruction tweaks here and there
+  (I found out that you can use special blitter mode to "log" data bus..
+  More fixes later)
+- JIT is confirmed compatible with Windows XP SP2's data execution
+  prevention (missed three smaller buffers in previous DEP fix)
+- crash automatically creates minidump file to WinUAE's directory
+  (winuae_yyyymmdd_hhmmss.dmp) Minidumps helps debugging the crash.
+  Zip and send the file if I request it.
+- RTS/RTD/RTE return address exception 3 fix
+- Picasso96 WaitForVSync fixed, demo "Fake Electronic Lightshow" by
+  Ephidrena is now usable in RTG-mode.
+  Windowed mode = Virtual vsync. Uses frame rate from gui, default = 60
+  Fullscreen = Virtual vsync. Uses fullscreen mode's refresh rate.
+  Fullscreen + Vsync = real vsync.
+  btw, before someone asks after checking the sources: update is
+  "hidden" in filesys.asm..
+- zipped statefiles and zipped dms files work again
+- ancient 8-bit Picasso96-mode palette problem solved
+- don't crash if emulated harddisk is removed while emulation is
+  running
+- disk emulation fix (Knin Peaks by Reality)
+- cycle-exact single channel blit speed fix (very undocumented
+  feature..)
+  fixes slowdown in demos Revival and How 2 Skin a Cat.
+
+0.8.25:
+
+- even more improved AVIOutput. Added enable/disable button, entering GUI
+  does not stop the recording anymore. Picasso96 modes supported.
+  (config file support will be added in future version)
+- cycle exact blitter B-channel handling fix (Arte)
+- drivesound: don't play "snatch"-sound if drive is empty
+- "2000AD"-fix removed, it isn't really right either, later...
+
+Beta 3: (final?)
+
+- added uaescsi.device logging, enable it with -scsilog command line parameter
+- Windows XP multimouse really works now
+- added uaescsi.device ATAPI INQUIRY and MODE SENSE/SELECT 6<>10 translation code,
+  fixes IDE CDROM compatibility problems with PlayCD and probably others too.
+  (thanks to Oliver Kastl) TEST THIS!
+- added frame limit -checkbox to avioutput page. checked = disable frame limit
+  and don't output sound, unchecked = frame limit enabled and sound output enabled.
+  (maybe somebody wants to record and play the game at the same time..)
+
+Beta 2:
+
+- drive sound sample rate conversion code was total crap..
+- calcdiw() vpos >= minfirstline-check re-commented, correct place is in decide_line()
+  (corrupted some regular Workbench native screen modes)
+- display/resolution enumeration code updates
+- desktop size check corrected
+- increased supported input devices from 4 to 6
+- some small directinput cleanups
+- bsdsocket emulation update. CNet's SMTPd works now. (Stephan Riedelbeck)
+- don't use bitcell timing buffer when writing to disk..
+- avioutput is now much faster (on some display cards it was already fast but
+  on others it was very slow, about max 5fps..)
+  Display data is fetched directly from UAE's internal buffer instead of using
+  slow reading from display RAM if any display filter is enabled (except D3D or OGL)
+  Also display size and depth config options were removed, now you get exactly
+  the same display as you see. (I didn't want to add complex display depth
+  conversion code when you can easily do the same by changing WinUAE's display
+  settings..)
+
+Beta 1:
+
+- "Windows mouse" doubleclicking fixed
+- drive sound volume was not saved to config file
+- right border is not clipped anymore even if program uses max overscan. Finally..
+  (Settlers, Pinball Illusions etc..) NOTE: screen position has changed a little.
+- filter display buffer width increased to 736, old 708 was too small for max overscan.
+  (noted here because it can also affect screen position slightly in filter-modes)
+- fixed display corruption in programs that update DDFSTRT just when display
+  starts. Fixes Mystic Tunes by Vertical, Bierkrug-tro by TEK, Forgotten Realms
+  Slideshow '90 by Fraxion and probably much more..)
+- "more compatible" now enables very basic prefetch emulation in non-JIT
+  68010-68040 CPU models. (very rarely needed, I currently know only 2 programs)
+- multimonitor code didn't ignore disabled displays, caused DX errors when
+  WinUAE started.
+- input code didn't check max number of detected devices, having more than 4
+  mice, joysticks or keyboards in input tab crashed WinUAE.
+- don't start bitplane dma until vpos >= minfirstline (comparison was commented
+  out for some reason) Fixes old demo Back in bizness by 2000AD
+- RTG-RAM start address was not saved to statefile, restoring it caused RTG
+  RAM being mapped over chip RAM.. (not really problem because full Picasso96
+  state is not supported yet)
+
+
+0.8.24
+
+Beta 3:
+
+- drive sound was mixing (empty) sounds even if all drive sounds were disabled
+- added "Windows mouse" to input-tab. It has exactly the same "feeling" as WinUAE's
+  mouse before directinput-input code was implemented.
+- fixed stupid debugger bug, remove breakpoint-command didn't check if breakpoint was already removed..
+- "saveimages" were limited to "parent"-image's max number of tracks (for example writing
+  to track 80 was ignored if parent image was standard 80 track (0-79) adf)
+- lores-checkbox is back, it wasn't as useless as I originally thought..
+- debugger 't'-command can now be used to step more than 1 instruction (t <number>)
+- cycle-exact BLITPRI timing fix (Robotics Life, probably others too..)
+- improved 68k MUL and DIV -instruction timing in ce-mode
+- improved FDI 2.0 support
+
+Beta 2:
+
+- more debugger updates, search-command s <"string">/<hexvalues> [<addr]> [<length>]
+  bl lists all stored "state recorder" states
+- F12 now works even if all keyboard(s) are disabled in input-tab..
+- added volume-slider to sound-tab, added volume up/down/mute shortcuts
+  (end+numpad minus, end+numpad plus and mute = end+numpad star, also mapped to "multimedia" keys)
+- hide single raw mouse, having two identical mice is too confusing I think.
+- moved some hardcoded GUI-strings to resource
+- power/led/etc led initialization fixed (editing the GUI before starting the emulation didn't
+  update all necessary variables, editing on the fly worked fine)
+- display frequency-setting affects now Picasso96-modes (no more default refresh rate)
+- drive sound emulation :) (James Bagg, me)
+  You can also use external samples if you put files called drive_click_xxx.wav,
+  drive_spin_xxx.wav, drive_startup_xxx.wav and drive_snatch_xxx.wav (xxx = whatever you want,
+  "click" is the only mandatory sample) to directory called <winuae path>\uae_data\ (better suggestions?)
+- fullscreen multimonitor support
+- better multimonitor compatibility (use correct display limits instead of primary display
+  limits when positioning WinUAE's main window, non-primary screen overlay mode works etc..)
+- "state recorder" is now mostly working. It takes automatic state saves every x seconds to its internal
+  buffer (size is also configurable). "Rewind"-key can be configured in input-tab or also END+numpad /
+  can be used. (This feature may not be in next official release)
+
+Beta 1:
+
+- don't ignore frame skip setting when capturing AVI
+- implemented "memory state recorder" (don't ask about it yet..)
+- bsdsocket updates from Stephan Riedelbeck
+  fixes TCP device TCP:<port>, Apache and maybe other programs too.
+- Windows XP multi-mouse support and DirectInput mouse-handling updates
+  Windows XP-only: Input-tab now lists regular DirectInput-mouse and
+  one or more "raw" mouse.
+  Windows 9x/ME: only USB-mice can be handled separately, PS/2 mouse is always
+  only connected to "supermouse" (DirectInput system default mouse that combines all
+  separate mouse events, marked with '*' in input-tab)
+  -> two USB mice are required for two mouse games under 9x/ME
+  and finally, Windows 2000 does not have any support for multiple mice,
+  all you get is single "supermouse".
+  Big note: currently you need to disable default-mouse first if you want any
+  events from non-default mouse.
+- fixed JIT default settings without loading any configuration
+  (log was filling with JIT error messages..)
+- cleaned up Kickstart ROM loader part of memory.c
+- saving compressed state file without zlib1.dll didn't correctly fall back to non-compressed mode
+  (created corrupted statefiles with completely empty memory chunks..)
+- crash after 4th or 5th state save finally fixed (very embarrassing mistake..)
+- fixed crash when Picasso96 was enabled and graphics filter GUI was accessed
+- FDI 2.0 support (not complete yet)
+- lots of debugger improvements (much more useful now..)
+ - f-command extended:
+    f without parameters = break when PC not in ROM and current instruction is not
+    0x4ef9 (don't break when executing library jump tables) Great for finding start
+    address of bootblock.
+    f i = break when PC points to RTS/RTR/RTE-instruction
+    f i <opcode> = break when PC points to instruction opcode <opcode>
+    f <addr> = add/remove new breakpoint (max 8)
+    fd = remove all breakpoints
+    f <addr1> <addr2> = break when <addr1> <= PC <= <addr2>
+ - W-command's value-parameter can be decimal 12345 or hexadecimal (0x12345 or $12345)
+    write size is byte if val < 256, word if 255 > val < 65536 and long if val > 65535.
+    (previous version's write size was always long and was limited to chip ram)
+ - memwatch break points added, w <0-3> <address> <length> <r/w/rw> [<value>]
+    break when address space between address and address + length is accessed and
+    if accessed value = <value> R = break only on reads, W = writes, RW = both
+ - i-command: interrups and traps combined, VBR supported
+ - custom register dump -command added (e), dumps the contents of all existing registers
+   between 0xdff000-0xdf1ff.
+ - CIA dump-output slightly modified, added TOD stopped status-flag
+ - exiting debugger automatically creates "memory state" and b-command can be used
+   to "rewind" (again, don't ask and don't try yet..)
+
+0823
+
+- small AUDxDAT fix (The Pawn's music was broken again..)
+
+Beta 4:
+
+- sprite emulation fix, broke in b1 (Hybris bullets/score)
+- JIT cache is now allocated with PAGE_EXECUTE-flag (=JIT compiled code is allowed to run)
+  Future Windows versions may not enable PAGE_EXECUTE by default due to security reasons.
+- merged first source patch from Richard Drummond (http://www.rcdrummond.net/uae/)
+- "figure_pixel_formats" possible infinite loop fixed
+- zip/gzip support requires now new zlib1.dll instead of old zlib.dll
+- forced blitter finish when saving state didn't work correctly in ce-mode (yeah, again..)
+  (could cause infinite loop and freeze when saving)
+
+Beta 3:
+
+- non-ce blitter speed was wrong (broke in b1)
+- MAPROM-emulation checkbox fixed and moved to ROM-tab
+- problems with keyboard leds and priorities fixed
+- slightly changed filter GUI (support for future 3x/4x filters)
+- increased the range of filter size/position adjustments
+- fixed bug that causes randomly lost characters received from serial port
+- delay simultaneous disk inserts
+- more commands (pause, turbo, irq7 etc..) added to input-tab
+- scale is halved when in D3D/OGL-mode and resolution is smaller than 450*350
+- clock sync option removed from GUI (causes too many problems)
+- screenshot system freeze fixed (Windows9x/ME only)
+
+Beta 2:
+
+- don't complain about AGA requiring 16 bit if selected screen mode is 8-bit Picasso96-mode
+- blitter emulation updates for very buggy programs that starts blitter before updating
+  BLTCON0 and BLTCON1.. (old Psygnosis games) Was partially broken in R9. This fix was already
+  included in B1 but I forgot to add changelog entry.
+- fixed bug in blitter update that broke textured line mode
+- uaescsi.device unit numbers always start from 0 (0 = first CDROM, 1 = possible second
+  and finally other SCSI devices if available) Unit 0 is reserved for CDROM, first available
+  unit number will be 1 if PC has no CDROM(s) but other supported SCSI devices.
+  This makes CD filesystem installation more user friendlier.
+- AHI emulation improvements (Bernd Roesch)
+- state saving happens immediately after selecting state file name (woohoo..)
+- complain if HD emulation is enabled when saving state
+- added some unused keycodes to input-tab
+- forced blitter finish when saving state didn't work correctly in ce-mode
+  resulting in slightly corrupted state files.
+- fixed very stupid mistake in CIA parallel port read routine, fixes parallel port
+  joystick adapter, was broken in r8b4.
+- Picasso96 faster solid window moving (Bernd Roesch)
+- bcc.b was 2 cycles too fast in ce-mode (probably does not fix anything..)
+- SPTI-CDROM didn't use shared mode, fixes media change detection problems
+- added MAPROM-like feature (jumper on Blizzard's accelerator cards that map Kickstart
+  ROM space to RAM) Enable-checkbox in misc-tab, uaelib function 80 returns mapped memory area.
+  (0 = no support, 0xffffffff = not enabled, other = mapped RAM address, currently hardcoded
+  to 0xe00000) Thanks to BlizKick's author for adding support
+
+Beta 1:
+
+- cpu usage meter implemented, results may be surprising...
+  (note that in "fastest possible" it always shows 100%+ except when
+  idle-mode is enabled and cpu is executing STOP-instruction)
+- more undocumented features found, switching bitplane DMA on during DDF can have
+  (at least) 3 different results:
+  1: OCS only: nothing happens, bitplane fetches don't restart until next line
+  (only this condition was emulated in older versions)
+  2: ECS/AGA: fetches start normally if DMA was disabled outside of DDF or during
+  current line (Sixth Sense Investigation's buggy copper list requires this..)
+  3: ECS/AGA: display processing goes to "DDFSTOP passed"-condition immediately
+  if DMA was disabled inside of DDF during any previous line
+- add missing ".avi" automatically to avioutput filename
+- overlay state was not reset when changing display modes, caused
+  "The selected screen mode can't be <blahblah>"-message and forced
+  unnecessary fullscreen mode.
+- Page Up-key is available for user configuration if Action Replay is not enabled
+- AWeb/IBrowse bsdsocket.library possible connection freeze/slowdown fix
+  (Stephan Riedelbeck)
+- switching from 68000 to 68020+ JIT-mode works and also fixed crash if switching
+  from 68000+CE-mode to JIT-mode
+- added hack that syncs CIA-TOD to host system's time. No need to run restoretime
+  hack anymore. Checkbox in misc-tab. (hack = may cause compatibility problems)
+- misc-tab split. Priority options moved to "Priority"-tab, added separate priority
+  setting for active, inactive and minimized WinUAE.
+- don't zero LOF-bit when executing customreset(), fixes original Shinobi
+- bsdsocket SBTC_SIGIOMASK support, fixes Jabberwocky. Thread priority updates.
+  (Stephan Riedelbeck)
+- enforcer-style debugging improved (Bernd Roesch, Sebastian Bauer)
+- restoring state didn't update floppy drive type correctly, fixed
+- sometimes Amiga left mouse button got stuck when WinUAE lost focus, fixed
+
+R9:
+
+Beta 4:
+
+- fullscreen height was incorrectly initialized when loading "old" config files
+- avioutput width and height are correctly initialized
+- null filter centering fixed (null is 1x, not 2x..)
+- moving GUI over fullscreen software filter mode didn't refresh screen
+- it is now possible to disable creation of UAEFSDB-files by adding
+  unofficial config entry "filesys_no_fsdb=true" to config file
+- automatic AVIOutput AVI split before file size goes over 2G
+- GUI disappearing "behind" the screen in fullscreen mode fixed
+- fixed "bug" (removed one consistency check..) in unzip code, some zip files
+  didn't uncompress. Either unzip code I use is buggy or zip file is slightly
+  broken (but winzip nor winrar didn't complain)
+- AVIOutput sound and video sync problems fixed
+- don't stop AVIOuput recording when entering END+Fx-disk change dialog
+- "AGA 16-bit"-message box was incorrectly shown in windowed mode
+- "saveimage"-floppy write support was again broken.. (it was possible to make
+  zipped files write-enabled but writing to "saveimage" was still ignored..)
+
+Beta 3:
+
+- software filters fixed in windowed non-overlay mode
+  Only Scale2X and Null support 32-bit, filter defaults to null if unsupported
+  filter is selected. (wrong filter is better than black screen..)
+- crash with sound disabled fixed
+- another bsdsocket connection fix
+- separated width and height for fullscreen and windowed modes
+- hide lores-checkbox, lores is now automatically enabled if doubling is disabled
+  (But maybe there was/is reason for separate horizontal and vertical doubling?)
+- removed lots of compilation warnings
+- replaced IOCTL_GET_GEOMETRY with more compatible IOCTL_CDROM_GET_GEOMETRY,
+  properly fixes Windows 2000 CD32 CD detection.
+- disable "Add Harddrive"-button if Windows is not NT-based
+
+Beta 2:
+
+- immediate blitter works again
+- return 0xffffffff again when CPU >= 68020 and reading non-existing memory
+- uncompressed RAM dump added to state save dialog
+- loading config that mounts floppy drive don't anymore cause
+  "no disk in drive A:"-dialog
+- bsdsocket.library updates (Stephan Riedelbeck)
+  - accept(socket, 0, 0) works, fixes IRCD
+  - gethostbyname (Windows 9x only) could freeze for couple of seconds
+  - reset socket error after gethostbyname, fixes AmyGate
+  - connection failures on some systems
+- scale2x, supereagle, 2xsai and super2xsai 2x filters integrated
+  (all except scale2x borrowed from ScummVM project)
+  filter configuration changed again, null filter added (=filter that
+  does nothing but allows vertical and horizontal position adjustment)
+  Currently only supports 16-bit modes (automatically forces 16-bit)
+- added message and force 16-bit if 8-bit and AGA is enabled
+- SPTI CDROM eject/insert media detection fix
+- it seems IOCTL_DISK_GET_DRIVE_GEOMETRY is only supported on Windows XP,
+  added workaround that fixes CD32 emulation in non-ASPI mode on Windows 2000
+
+Beta 1:
+
+- fixed (I hope) compiler optimization bug, at least ROXL.W didn't set N-flag correctly
+  maybe other rarely used instructions also had problems
+  (broke CAPS Rick Dangerous 2 protection code)
+- NTSC-mode vsync sound fixed
+- don't crash in CD32 mode if both ASPI and SPTI are not available
+- added CAPS-support (and CE-support) to mini-version due to popular request.
+  I hope this does not cause any unnecessary slowdown. Executable is now
+  2x bigger because of included "more compatible" and "ce"-cpu emulators.
+- implemented 100% (I think..) exact blitter block-mode cycle diagram in ce-mode
+  (minus possible bugs..) All tested "100+ bob" -routines work now without flashing.
+  line mode cycle diagram is still not completely known.
+- small ASPI CDROM media detection code change (may or may not help..)
+- simplify audio emulation if 68020 or better selected. New code is "too" correct
+  and causes timing problems if custom register/chip ram access is really too fast
+  (fixes TBL's Tint-demo's music)
+- sound calibration-button (may not be in final release)
+- ticking/unticking 68000 "more compatible" checkbox on the fly now reconfigures the cpu
+  emulator correctly, emulated program should not crash anymore.
+- replaced "run at higher priority" with priority selection select box
+- don't write obsolete config entries from old config file when saving
+- D3D AVI capture works again (D3D AVI support code was mysteriously disappeared..)
+- more audio changes again, old "Mission Elevator"-fix still wasn't correct enough
+  (broke some music players) Audio state machine transitions from 1 to 5 seem to have
+  unexplained delay(s). I think ME is the only game that requires this (and only because
+  of stupid bug in ME's sound effect code..)
+- SPTI CDROM media detection fixed (never noticed it because enabling debug-logging
+  "fixed" the bug..)
+- SPTI/ASPI CDROM possible crash fixed (both CD ROM fixes needed before I managed
+  to install OS 3.9 without problems)
+
+- R8
+
+Beta 6:
+
+- blitter always used exclusive fill mode, caused single pixel gap between
+  filled polygons if program used inclusive mode (for example The Pink Circle by Arcane)
+  I broke it accidentally some releases ago, I think...
+- optimized Picasso96 blitter emulation (Bernd Roesch)
+- always compress "quick" state files
+- startup config file description scan crash fixed (needed more than 100 or so config files..)
+- size of display resolution table was too small
+- mapped "AppMenu"-key to right Amiga key
+
+Beta 5:
+
+- display width is now forced divisible by 8 when adjusting width on the fly
+- miniwinuae and regular winuae display mode list is now sorted identically
+- cpu speed calculation overflowed if cpu frequency was >~2.8GHz (latest P4 CPUs)
+  caused huge slowdown
+- JIT CPU nop's removed
+- clear execbase when reseting if memory size (any memory) was adjusted
+- don't mount non-existing virtual directories (prevents red screen reset loop)
+- updated AHI support (Bernd Roesch)
+- F6-state shortcut removed, replaced with END + <numeric keypad number> (restore)
+  and CTRL or SHIFT + END + <numeric keypad number> (save)
+  zero or period = currently selected statefile (includes period because my keyboard
+  ignores simultaneous CTRL/SHIFT + END + 0..)
+  1 - 9 = currently selected statefile + "_" + <number> added to end of file but
+  before extension.
+- force full screen update after loading state file
+- disable beta 4's "Fighting Soccer fix" if CPU >= 68020. I think there are too
+  many bad sound routines that fail with "too" fast CPU or custom chipset access speed.
+- fixed (I hope..) rare filesys crash when rebooting (introduced in beta 2)
+
+Beta 4:
+
+- wav-output created slightly incorrect wave files and frequency was not updated correctly
+- GUI CPU JIT-page update, enable JIT checkboxes only if "Force Settings"-checkbox is ticked
+- AR2/3 ROM bank size fixed
+- CD32 audio CD play/stop/pause commands changed slightly, may fix some ASPI problems
+- Picasso96 windowed<>fullscreen switch and reseting while in Picasso96 mode fixed
+  (broken in beta 2)
+- audio emulation fix, AUDxLEN is copied to backup register when DMA is enabled but
+  AUDxPT when first DMA fetch happens. (fixes "Fighting Soccer" referee speech)
+- D3D/OpenGL automatic doubling if selected resolution is "too large"
+- free old harddrives before loading new config
+- CIA-A TOD rate was about 11% too fast (broke in R7B1)
+
+Beta 3:
+
+- joystick keyboard layout B and C 2nd firebutton mapping
+  (Right and left shift) was wrong and caused crashes.
+- CD32 media change detection works properly (again..)
+- bsdsocket.library emulation works again (stupid merge error by me..)
+- prevent badly crashing programs setting very crazy vblank frequencies
+- pause CD32 cd audio when GUI is active
+- decreased the rate of HD-led flickering because there are keyboards that
+  are really slow in changing led state
+- fixed 57600 to 56000 serial bitrate rounding
+
+Beta 2:
+
+- fixed extended ADF HD floppy support
+- DirectX version check fixed, only D3D support requires DX9
+- selected 3D-mode was not saved correctly to config file, fixed
+- About-tab is back.. (broken in B1)
+- call fixup_prefs_dimensions() after loading config
+- POTGO/POTGOR emulation improved, more compatible CD32 pad emulation
+- Picasso96 display mode id strings fixed (broken in B1)
+- SCSI emulation was accidentally disabled in B1
+- added Direct3D screenshot support
+- removed Output-tab from mini-version
+- compiler updated to Visual Studio Net 2003
+- "intelligent" CD detection in CD32 mode
+- lores, correct aspect and linedoubling can be changed on the fly
+- added wav-sound output support to Output-tab (select "*.wav" from "Save As Type:"-select box)
+- virtual directory harddisk mapped to read-only directory (for example network share)
+  is forced read-only
+- it is (finally?) possible to return back to GUI and/or load new configuration.
+  "Load" and "Load from"-buttons are now always enabled, new "Exit"-button can be
+  used to return back to GUI (with old configuration intact)
+  WARNING: expect bugs and memory leaks..
+- bsdsocket.library emulation updates (Stephan Riedelbeck)
+- changed mini-version's default config to basic A500
+
+
+Beta 1:
+
+- source tree is now  more configurable. sysconfig.h contains defines that can be used
+  to enable or disable emulation features like JIT, AGA, autoconfig, harddisks, drop
+  all CPU features except 68000 etc..
+  I hope this helps porting (Win)UAE to slower devices like some PDAs etc..
+- win32_displaymode and PicassoResolution -structures merged
+- DirectDraw fullscreen mode flags fix (Sane)
+- added workaround for buggy sound drivers (ISA SB16, maybe others) that return zero as
+  minimum and maximum allowed sample rate...
+- fast copper was always disabled. oops..
+- another "last_custom_value" tweak, fixes Sonic - Irrepressible intro in ECS-mode
+- non-DMA audio mode properly emulated, fixes Mortville Manor's and Maupiti Island's speech
+- ext2-adfs' write-protection check fixed
+- Direct3D filtering and scaling implemented. Should be faster because D3D allows
+  direct rendering to texture's memory space. Note, DX9 required due to stupid MS
+  decision: opening child windows (F12-GUI etc..) while in D3D fullscreen mode is not
+  supported by DX8 API (Window simply disappears "behind" the screen..)
+  Unfortunately I get weird smearing effect when moving the GUI window (display driver bug?)
+- display resolution and depth can be changed on the fly
+- D3D/OpenGL mode image adjustments changed, size sliders at 0/0 = 1:1 display ratio
+- joypad problems fixed, bug affected some pads that have "point-of-view hat"-style
+  direction controller
+- fixed rare filesystem crash when copying files to directory in virtual harddisk's root
+- END+F6 = load from last selected state file, SHIFT+END+F6 = save to last selected state file
+- game Barney and Freddy Mouse by Kingsoft needs CLXDAT bit 15 set ("not used" says HRM but
+  always set on my A500 and A1200)
+- exiting GUI with Cancel or ESC cancels state save/restore request
+- Freespace demo JIT FPU bug fix (Bernd Roesch)
+- FPU rounding bug fix (Bernd Roesch)
+- fast copper state saved to config file (I don't see any other way to fix graphics bugs on
+  some games that fast copper causes)
+- CD32 joypad emulation works again (oops, has been broken quite a long time..),
+  default CD32 keyboard joypad mapping fixed, default joypad config added
+
+
+R7 (30.05.2003)
+
+Beta 5:
+
+- zipped ipf-image support (new CAPS plugin required). No official multidisk support yet.
+  (unofficially you can add "/<name of file>" or "\<name of file>" to the end of path,
+  for example "c:\caps\PinballFantasies.zip\PinballFantasies_CourseDisk1.ipf")
+  new CAPS plugin only for beta testers included.
+- "KickShifter" ROM checksum recalculation was wrong, fixes red screen with some Kickstart versions
+- bsdsocket Windows 2000/XP AmTelnet SSH freeze fixed (Stephen Riedelbeck)
+- new AHI driver, fix for wrong maxsamplesize, includes separate patch for DigiBooster Pro 
+  slowdown (Bernd Roesch)
+
+Beta 4:
+
+- "SWIV-fix" wasn't working if lores-mode was ticked, fixed
+- "sprites outside playfield"-fix is now working in lores mode, also fixes black bar that appeared
+  when running programs that use hires or shres mode, BRDSPRT was enabled and mouse pointer was
+  moved near right border
+- fixed broken "ShapeShifter" Kickstart patch code, replaced with generic patcher
+  (KS 3.0+ use separate code path for 68040+ which was not patched and KS 2.04 patch was just wrong)
+- "fake RDB" filesystem updates, multiple non-RDB custom filesystems works now properly
+- GUI filesystem selection crash bug fixed
+- beta 3 keyboard input update wasn't complete (loading new config was using old incompatible code)
+- selected sound sample rate wasn't updated correctly if sound driver didn't support selected rate
+- rewritten and cleaned display refresh rate selection code
+- more weird undocumented blitter line mode features emulated:
+  - after first pixel, C-channel's address is copied to D-channel.
+    (first pixel is written to address pointed by D-channel, all following pixels are written to
+    C-channel's address) Fixes Frantic's Cardamom and Cardamon demos.
+  - BLTAPT stays unchanged if A channel is disabled. I found this useless feature when running
+    tests on my A1200, probably never really used..
+- "collision detection does NOT change when you select either single- or dual-playfield mode"
+  says HRM. BZZZT, WRONG! Sprite to playfield collision detection should be correct (?) now.
+  Fixes Inferior and Sub Rally (I call it "Suck Rally" for obvious reasons..)
+- sprite DMA start raster line in NTSC mode fixed. This was surprising, first visible line in
+  PAL is 28, NTSC 27. But first possible PAL sprite DMA position is 25, NTSC start is line 20.
+  I was expecting smaller difference. Tested on my PAL A1200 in NTSC-mode.
+
+Beta 3:
+
+- horiz centering bug fixed (could cause crashes)
+- trace-mode fix. fixes CAPS Defenders of Earth trace-vector-decoder protection routine.
+- POTGOR emulation fixed (Sound of Silents -music disk ugly right mouse button test code..
+  here is snippet: cmp.w #$0100,$dff016; bne right_button_not_pushed; ...)
+- sectors, surfaces and reserved are automatically zeroed if selected hardfile contains RDB
+- multiple keyboards supported, config save crash/non-working keyboard fixed when MS SideWinder
+  Virtual Keyboard driver is installed.
+- MOVEC-instruction fix, register 3 is 68040 only, it is not supported by 68020 (ancient bug, fixes
+  Aladdin AGA and Banshee AGA in 68020 mode. CPU detection code detected MMU due to bug..)
+- SWIV scoreboard graphics bug fixed (was caused by very weird undocumented OCS/ECS-only hardware feature)
+- input point-of-view hat controller support
+- small audio hardware reset fix
+
+Beta 2:
+
+- 68020+ instruction bcc.l was broken in 68000/68010 mode when cycle-exact mode was implemented
+  (is really useless version of bcc.b when run under 68000/68010), fixes Paradox cracked Nitro
+- harddisk partition detection updates. It seems Windows sometimes lies about drive's partition table
+  (drive really only contains RDB partitions but Windows still thinks there are some empty
+  MBR partitions..)
+- improved Action Replay state file support
+- new misc-page layout, added "Run at higher priority"-checkbox to misc page (sets process priority to higher
+  than normal when WinUAE is active, helps skips and jumps caused by background processes)
+- sound frequency GUI updated, allowed frequency range is now from 8000 to 48000 (max 96000 if sound card supports it)
+- some experimental and buggy copper code from beta 1 removed..
+- audio filter emulation (formula from
+  http://groups.google.com/groups?q=g:thl3970091855d&dq=&hl=en&lr=&ie=UTF-8&oe=UTF-8&selm=5sntr1%243ki%241%40nef.ens.fr)
+- button/key mapped to mouse direction wasn't working correctly, fixed
+- another bsdsocket fix (Stephen Riedelbeck)
+
+Beta 1
+
+- audio emulation fixes (fixes Mission Elevator again, this time proper fix)
+- removed obsolete code (I think so..) when bitplane count during the raster line was
+  decreased (single line of crap between playing area and scoreboard on Mission Elevator)
+- Rainbow Island works again (broke in beta 4)
+- serial port settings can be changed on the fly
+- changing printer on the fly works
+- printer didn't work if also serial port was enabled
+- added serial port "direct"-checkbox, forces 115200 bit rate, lowers latency,
+  needed by some serial linked games (Lotus 2) when connecting two PCs running WinUAE
+- partial Action Replay state file support
+- bsd socketfix for Ping Traceroute UDP Ping (Stephan Riedelbeck) 
+  If you can test diropus Magellan with FTP Lister so please test,if this work as before.
+  Try to connect to de.aminet.net dir aminet/new with anon on
+  If you get no error 22 report from diropus for 5 trys all work ok 
+- replaced uae_int with level 2 interrupt (was level 6), fixes buggy HD installable
+  demos/games that disable level 6 interrupt. Using level 2 is more compatible
+  because A1200/A4000 IDE-controller and A590/A2091 use level 2 interrupt.
+  Also fixed bug that added uae_int handler twice. Set priority of interrupt to 20 (A1200 IDE uses it)
+  Fixes game Old Timer and demo Captured Dreams by The Black Lotus (and probably much more..)
+- CIA OVL-bit is ignored in AGA Amigas
+- proper emulation of POTxDAT counters, analog joystick support in input-tab
+- blitter in linedraw mode is weird, D-channel can be disabled without any effect on drawn line, enabling
+  C-channel is enough. (undocumented feature, fixes Great Fun #16 packdisk)
+- added hack that fixes buggy demos that read accidentally from write-only or non-existing custom
+  registers and expect sane return values. Fixes Captured Dreams, Industrial Fudge, Codetrash.
+- changed sprite-attach handling, even sprite attach-bit must not be ignored because setting it
+  does something interesting.. and thats another undocumented feature, fixes Elfmania scoreboard
+- DDFSTOP >= 0xe4 effect DOES NOT happen on OCS chipset, only on ECS and AGA... (fixes Sargon History -megademo)
+- copper WAIT-wakeup state may not need free cycle, fixes Full Contact but I am not sure if this is correct fix..
+- palette wasn't updated properly when entering and exiting the gui in fullscreen 8-bit Picasso96 mode
+- new application icon (Michael Battilana)
+
+
+R6 (19.04.2003)
+
+Beta 6 (final?)
+
+- disabling fast ram (or any expansion ram) and reseting the Amiga doesn't crash anymore
+- do not reset when selected CPU is 68000 + compatible or cycle-exact and when program counter
+  goes to no man's land (fixes demo Purple by Warfalcons, uses very bad and tricky protection..)
+- right CTRL can be used to reset Amiga (RCTRL + INSERT + HOME or RCTRL + Windows keys)
+- 68020+ word moves from non-word aligned custom registers fixed (for example move.w $dff005,d0 uuargh..)
+  (fixes 4k AGA intro, Fuck the Pc! by Anorganic/Promise!) 
+- DDFSTOP >= 0xe4 effect also happens on OCS and ECS chipsets, don't know why I missed that..
+  (fixes Wind It Up Megamix 93)
+- added DirectX 8 test
+- full DIWHIGH save/restore support added
+- OCS Agnus ignores DDFSTRT/DDFSTOP bit 1, this fixes Eliminator/Double Dragon 2 properly
+  without stupid hacks. (Yes, both games are OCS only, tested on OCS and ECS A500 and A1000)
+- default chipset changed to ECS Agnus and selecting >0.5M chip ram automatically enables ECS Agnus
+  more compatible and less (hopefully..) complaints about programs that suddenly fail under OCS chipset..
+
+Beta 5
+
+- fixed stupid ASPI bug (bug introduced in B4)
+- fixed ce-mode blitter freeze in Picasso96 modes
+- fixed crash in Picasso96 mode if OpenGL was enabled (I think so, it didn't crash here..)
+- pause-mode (END+PAUSE) fixed (bug introduced in B4)
+- simplified and improved disk wordsync and indexsync emulation (fixes Quadlite's "El Egg Tronic Quarts" -slideshow)
+- CIA-A LED and OVL bit fix (wasn't proper enough last time..)
+- input-tab disable-checkbox implemented, unticked = selected input device is disabled completely
+- added Amiga joystick port swap button to input-tab and other input fixes
+- AGA dualplayfield color fix, this confirms that BPLCON4 is used normally in DPF mode
+  (fixes Tube Warriors bottom of screen, one wrong colored horizontal line still remains)
+- 9-bit mode serial port hack implemented. PC hardware don't support 9-bit mode (1 start, 9 data and 1 stop bits)
+  but this hack transparently doubles the baud rate and sends/receives two characters when using 9-bit mode.
+  Only works if two PCs running WinUAE are connected, PC - Amiga connection naturally can't work.
+  Serial linked games should now work (Stunt Car Racer and Lotus 2 tested and confirmed working)
+- added support for weird AGA only -feature, if DDFSTOP is >= 0xe4 (= can't be never reached), display DMA
+  always starts at 0x18 (DDFSTRT is ignored). This also confirms that position 0x18 is first possible bitplane
+  DMA slot. (fixes CCCP-demo and Hellfire cractro graphics garbage)
+- ECS/AGA SPRxCTL bits 5 and 6 emulated (vertical start and stop bit 9) (fixes The Dark Demon - Burning Spears demo)
+- chipset type can be changed on the fly
+
+Beta 4
+
+- blitter slowdown code fix
+- CD32 pad buttons work properly again
+- CPU idle checkbox replaced with a slider (was already in B3 but forgot to include changelog entry)
+  note that slider works now differently than in B3:
+  Slider fully left = disabled, every step to right increases the number of idle-calls. Quick way to find
+  good position: boot to WB, move slider right step by step until FPS drops below 50fps then move the
+  slider back left two steps. (setting depends on host CPU speed, there is no good default value, yet)
+- CPU idle is always disabled in A500-speed mode (only caused trouble)
+- increased the size of DirectInput buffers, no more lost input events when moving mouse very quickly
+  and/or using high mouse refreshrates.
+- copper SKIP-instruction fix (fixes TEK's Rampage -demo partially, later part still crashes)
+- uncompressed statefiles can be created by selecting "uncompressed" from "save as type"-select box
+- CIA TOD fix (ALRM-interrupt is disabled when TOD is stopped, fixes Entity, which by the way has
+  very buggy level 2 interrupt handler..)
+- fixed bsdsocket bug that caused hangups when transferring ftp data with diropus (Stephan Riedelbeck)
+
+Beta 3
+
+- AGA BRDBLANK-bit partially supported. Fixes Aladdin AGA. NOTE: running utilities
+  that toggle BRDBLANK-bit doesn't update top and bottom border correctly yet.
+- better (?) Pentium 4 JIT fixes merged from latest BasiliskII JIT (Bernd Roesch)
+- added PAL and NTSC -strings to 50/100 and 60/120 vsync frequencies
+- random sound popping fixed (workaround was to enter and exit the GUI)
+- fixed freezing if RDTSC's contents suddenly jumped very far, this usually happens
+  when returning from hibernate-mode or waiting for a long time in GUI before returning.
+  (Bernd Roesch & me)
+- more display updates, fixes Wild Streets (and hopefully doesn't break anything..)
+- fixed bug in CDTV battery backed RAM emulation (newer CDTV extended ROMs don't freeze anymore)
+- turbo-floppy mode supports writing (earlier versions only "turboed" reading)
+- fixed writing to multiple floppies simultaneously
+  (for example SuperDuper with multiple destination drives selected)
+- proper CIA OVL bit emulation (fixes very tricky CAPS Double Dragon 2 protection code)
+
+Beta 2
+
+- more audio tweaks, Liverpool works again
+- implemented Picasso96 RAM state file support, added "hooks" for saving/restoring full state
+- ADKCON UARTBRK-bit really works now (was commented out in beta 1)
+- display emulation update, fixes Eliminator and Double Dragon 2 graphics corruption.
+- major disk emulation bug fixed, could cause frozen write operation and disk corruption..
+- compressed statefile support. Statefile's RAM contents are automatically compressed when saving.
+  also added support for loading (g)zipped statefiles.
+- GPF bug fixed when program counter was pointing to random address in 32-bit space in 24-bit mode
+  Fixes "more compatible"-mode only, non-compatible still crashes (not easy to fix without
+  performance problems or big changes), ce-mode already worked without crashing.
+- fixed bug in saveimage-support, compressed disk images can now be write-enabled.
+- implemented very simple code that approximates the number of cycles that bitplane DMA steals from the blitter.
+  Now it is possible to run some games/demos without graphics glitches in non-cycle exact mode
+  (for example PP Hammer and Spindizzy Worlds)
+- screenshots are saved to <winuae directory>\ScreenShots -directory
+- more CIA serial port emulation updates
+- fixed crash when creating empty CD32 NVRAM image file
+
+Beta 1
+
+- input configuration autofire settings weren't saved properly
+- Terrorpods background graphics fixed
+  (Game writes to BLTCON1, BLTAFWM and BLTALWM after writing to BLTSIZE..)
+- disable Windows screensaver when WinUAE is active and GUI is not visible
+- disable middle mouse button events when "Middle Mouse-Button -> ALT-TAB" is enabled.
+  (caused stuck middle mouse button because release event never arrived..)
+- fixed crash when zlib.dll was missing and (g)zipped image was selected
+- changing floppy image and clicking "Reset Amiga"-button booted from old image
+- added hackish support for AGA only feature that allows sprites outside display window,
+  fixes Banshee AGA scoreboard and AB3D background graphics, will cause small (?)
+  performance loss only when program uses this feature.
+- fixed ancient blitter bug, writing to address 0 was ignored. Fixes CAPS Guy Spy and Dragon's Lair.
+- small "delayoffset" fix, fixes Skeleton Krew's jumpy scrolling
+- floppies-tab floppy drive type/disable/enabled state select boxes didn't update internal state correctly
+- DSKREADY-signal fix. DSKREADY is only low when motor is running full speed and disk is in drive.
+  (confirmed with my real A1200 and 2 external drives, drive always turns motor off if floppy is ejected)
+  Pango (and probably others too) use this signal to detect disk changes..
+- another audio bug fix, caused missing samples/noise with some music players
+- partially rewritten serial code, emulated Amiga's DTR,RTS,CD,CTS and DSR lines are
+  directly "connected" to PC serial port pins, ADKCON UARTBRK-bit supported, SERDATR status bits
+  and serial interrupts are (nearly) properly timed. Configurable hardware CTS/RTS handshaking.
+  Of course PC hardware have some limitations: DTR and RTS are output only and
+  CD, CTS and DSR are input only. WARNING: may not be 100% bug free yet..
+
+R5: (28.02.2003)
+
+Beta 8 (final?)
+
+- GUI problems in fullscreen mode fixed
+- audio bug fixed, fixes Impossible Mission II
+- another last minute change: (I really can't stop adding new features..)
+  added HDF filesystem selection GUI. Simply select path to Amiga
+  filesystem driver (FastFileSystem from WB1.3:L when booting HDF's
+  under KS 1.3, SmartFileSystem if you want to boot SFS formatted HDF
+  etc..) No more playing with roms-directory and hexadecimal names.
+
+Beta 7 (Release candidate, expected release date 27-28/2):
+
+- Murder/Crack Down audio hack-fix removed. (not needed anymore).
+  This must mean my audio emulation updates are correct :)
+  Fixes Terrorpods.
+- extended adf2 support fix (loading of non-RAW tracks failed)
+- implemented input-tab GUI support for 1-4 input events/input source
+- Windows 9x crash fixed
+- reverted back to beta 5 serial port code, there is no time to
+  fix all bugs now in new code. Later..
+
+Beta 6:
+
+- audio quality should be "perfect" again
+- sound-"resync" code re-enabled, vsync should be 100% smooth again
+  (was accidentally disabled in beta 5)
+- disabled floppy drive's motor state is cleared when restoring state
+  (no more disabled drives and green leds)
+- improved fake-RDB-filesystem loader, it is now possible to autoboot/mount
+  custom filesystem formatted regular HDF-files. (SFS, PFS etc..)
+  Requires filesystem driver in WinUAE's roms-directory, named filesystem's
+  "dostype in hexadecimal.fs". For example SFS's dostype is 0x53465300, file must
+  be named 53465300.fs (I know, not very logical but that was too easy to implement..)
+- some serial port compatibility "fixes", serial port support may not work...
+
+Beta 5:
+
+- sound quality fixed (I think so..)
+- removed debug code that disabled "fast copper"
+- enabled very experimental 4 channel DirectSound audio code.
+  Amiga's 4 separate audio channels are directly fed to DirectSound
+  instead of using UAE's software mixing.
+  NOTE: currently 4+ speaker systems get strange results: each Amiga
+  channel goes to separate speaker.. (1 goes to front left, 2 goes
+  to front right, 3 goes to rear left and 4 goes to rear right..)
+  Not tested with 2 speaker systems..
+  Enable with "-dsaudiomix" -command line parameter.
+  I'll try to fix the speaker problem if this is useful feature (= increases
+  performance noticeably compared to software mixing)
+- sound interpolation-checkbox fixed and added support for both modes
+  (btw, are interpolation modes broken or why do they sound so bad?)
+- Amiga program p96refresh let you choose higher mousepointer refreshrates in P96
+  p96refresh <frequency 50-200> (Bernd Roesch)
+- native interface added to allow executing windows DLL from 68k side (Bernd Roesch)
+
+Beta 4:
+
+- fixed Competitor PC joystick interface compatibility problem
+- fixed CAPS image crash when reading non-existing tracks
+- track >79 compatibility fix (Pinball Hazard)
+- added OS version to winuaebootlog.txt
+- floppy speed slider GUI update fix
+- copper COPJMP fix (CAPS Wreckers)
+- audio updates and hack that fixes Murder, Crack Down and Liverpool
+  AUDxDAT should now work correctly
+  (rewrote audio state machine emulation. Yeah, I know I shouldn't do
+  these kind of near-last minute changes but... Complain loudly if sound
+  works badly)
+- keyboard led update, update led state only max once/frame,
+  only change selected leds' state
+- resetting or reinserting disk image didn't always release old image
+- changing floppy drive type or enabling/disabling floppy drives
+  works properly when emulation is active
+
+Beta 3:
+
+- OpenGL <15 bit depth check should only be done when using fullscreen mode
+- more CIA keyboard emulation fixes (CAPS R101)
+- CPU status register emulation fix, bits 14 (T0) and 12 (M) are 68020+ bits
+  and must always be zeroed in 68000 mode. (CAPS Toki copy protection code)
+- new extended adf2's contains free space for 83 tracks (was 80)
+- added disk write-protection support GUI. moved drive disable-checkboxes to
+  drive-type box. This is quite complex internally..
+  - images that support writing (regular and ext2 adf)
+    - checked = read-only flag set
+    - unchecked = read-only flag removed
+  - read-only images (caps,fdi,ext adf,compressed images):
+    - checked:
+      - save-image exists and is not empty: save-image's read-only flag is set
+      - save-image exists and is still empty: delete save image
+      - no save-image: do nothing
+    - unchecked:
+      - save-image exists: remove read-only flag
+      - no save-image: create empty saveimage
+  - save images are always created in <winuae root>/SaveImages -directory
+    (because selected "parent" image may be located in read-only media)
+  - changing writeprotection state causes automatic disk re-insert
+    (eject,2s delay,insert)
+- state files are now saved to <winuae root>/SaveStates (was Configurations..)
+- keyboard LED GUI (misc-page)
+- AGA SHRES sprite bug fix (fixes Super Skidmarks hires-mode cars)
+- restoring 68020+ state and CPU speed is set to A500 -> change to fastest possible
+- filter END+<any key> key releases
+
+Beta 2.1:
+
+- non-blocksize aligned HDFs work again
+- keyboard led code improved and fixed
+  configuration file line is now: "keyboard_leds=xxx:yyy,xxx:yyy,xxx:yyy"
+  where xxx = "capslock", "numlock" or "scrolllock" and
+  yyy = df0,df1,df2,df3,power,hd or cd
+  (example: "keyboard_leds=scrolllock:power,capslock:df0")
+
+Beta 2:
+
+- renamed save-images to "<name of original image>_save.adf", original extension is removed
+  (for example: Example.ipf -> Example_save.adf) Makes names more logical when this feature
+  is used with regular adf-files.
+- hardfile/harddrive cache bug fix (SFS formatted hardfiles/harddrives work again)
+- Action Replay improvements (Mark Cox)
+- it wasn't possible to set input-tab's default mappings to none, fixed
+- fixed too small config file description buffer in WinUAE GUI code
+- configurable keyboard leds (DF0,DF1,DF2,DF3,POWER,HD and CD)
+  No GUI yet. Add "keyboard_leds=xxx,xxx,xx" to config file.
+  (num lock, caps lock, scroll lock) xxx = none,DF0,DF1 etc..
+  Need Windows9x testing (W9x uses very different way of controlling leds than W2K/XP)
+- primary sound buffer option removed and disabled. It is not needed anymore and usually
+  only caused strange slowdown problems.
+- DirectInput devices were allocated multiple times and never freed
+- middle mousebutton in fullscreen mode minimizes WinUAE if
+  "Middle-Mouse-Button -> ALT-TAB" is ticked.
+- OpenGL-mode is disabled if display depth is lower than 15
+- Because Windows DDK can't be downloaded anymore from microsoft.com, I added define to
+  sysconfig.h (WINDDK) that can be used to disable compilation of features that need
+  DDK includes (Windows 2K/XP CDROM, harddrive support and keyboard leds)
+- improved programmable horizontal and vertical timing support. Setting 31KHz native
+  mode under Picasso96 display modes (for example writing "setenv picasso96/amigavideo 31khz")
+  works mostly but audio isn't too good yet..
+- yet another Pentium4 JIT fix, Pagestream crashes without it (Bernd Roesch)
+
+
+Beta 1:
+
+- restoring state with sound disabled caused crash if state was saved with sound, fixed
+- fixed mouse problems in Space Crusade, Billy the Kid and more..
+- another fast ram state restore fix
+- writing to ext2 images was unstable, fixed
+- FPU state save support
+- floppy drives' disk change flag wasn't reset when state was restored, fixed
+- "save disk image"-support. All writes to images that don't support writing go to separate
+  extended adf2-image and reads from already written tracks come from ext2-image instead of
+  "main" image. This is especially needed by some future CAPS-images. (There are games that
+  want to write to the original disk, for example Pinball Dreams highscores but we can't and
+  don't want to modify original images)
+  "save image" must be currently created manually by clicking "create custom image" (disk-tab),
+  image's name must be <name of original image>.adf (for example, Example.ipf -> Example.ipf.adf)
+  Image is write-enabled only if save-image exists and is not read-only.
+  Any suggestions for GUI?
+- 68000 cpu returns the contents of prefetch register when reading from address that does
+  not exist. (for example reads from 0x200000 without real fast ram)
+- CIA serial port emulation updates. Fixes Back to the Future 2's keyboard freeze.
+  (fixes probably other games' keyboard problems too)
+- another "last_custom_value"-update, fixes more slowram detection crashes (Commando etc..)
+- another bsdsocket emulation fix (Stephen Riedelbeck)
+- added configurable device name and boot priority for volumes and hardfiles
+- "more compatible" 68000-mode accidentally used some cycle-exact-only functions
+- CD32 media change detection fixed (only worked in 0821R1..)
+- CD32 pads are now enabled even in non-cd32 mode if configured in input-tab
+
+
+---
+R4
+
+Beta 3:
+
+- switching between windowed and fullscreen disabled sound
+  (does not happen with some sound drivers), fixed
+- Caps lock fixed (again..)
+- build-in DMS support. Will be removed if someone complains..
+  (Xdms.exe is really too limited..)
+- CTRL-AMIGA-AMIGA-ALT hard-reset works again
+- Debugger's S-command used non-binary mode to save files, fixed
+- DENISEID-register last_custom fix (fixes Alien Breed - Tower Assault)
+- added support for 1.5MB bogoRAM expansion
+- another ACTION_RENAME-bug fixed. Rename created new unneeded
+  __uaefsdb-entry if only filename's case changed
+  (for example: "rename file.txt file.TXT")
+
+Beta 2:
+
+- sound timing always defaulted back to PAL when WinUAE lost or gained focus, fixed.
+- Voyage by Razor1991 really works but only randomly
+  (requires cycle-exact mode and might need multiple tries, more improved ce-mode needed..)
+- CAPS-format support added.
+  Needs CAPSImg.dll from CAPS. Not yet available for public.
+  Send your questions about Caps directly to http://www.caps-project.org/
+  I don't answer any Caps-specific questions.
+- use QueryPerformanceCounter() instead of RDTSC if CPU throttling is detected.
+  Fixes slowdown problems on laptops, also old processors without RDTSC should run WinUAE again
+  without crashing.
+- ALT-TAB keyboard fix
+- joystick layout B fire fixed (broke in B1)
+- joystick configuration bug fix (sometimes joystick didn't work..)
+- Picasso96 framebuffer access speedup (Bernd Roesch)
+
+Beta 1:
+
+- improved FPS-counter, added FPS-counter led.
+- added blitter fill-mode cycle diagram. Enabling fill mode adds DMA channel C to
+  cycle diagram even if it is disabled in BLTCON0. Fixes "Reflect - Sound Vision"
+- Catweasel MK3 Amiga keyboard and joystick ports support and Z2-board emulation implemented
+- emulate serial port transmit interrupts even if serial port is disabled
+  I don't think we can expect users to enable serial emulation to run some games
+  that don't even have serial-link option. (Dragon's Lair 2, Moonwalker etc..)
+- removed exclusive mouse-mode, mouse handling should be now more compatible.
+- faster Picasso96 color fades (Bernd Roesch)
+- CD-led is now lit when CD32 audio track is playing
+- RDB filesystem loader compatibility fix, SmartFileSystem 1.58 doesn't crash anymore
+- filesystem: _UAEFSDB.___ handling fixes, also deletes "ghost"-entries automatically
+  (files/directories that are deleted outside of emulation)
+- filesystem: ACTION_RENAME fixes. Old name's opened locks and filehandles are transferred
+  to new name, filehandles are temporarily closed during rename (under AmigaDOS it is
+  possible to rename files that are open) Fixed some "ghost"-UAEFSDB entry-bugs.
+- filesystem: added notification support (ACTION_ADD_NOTIFY, ACTION_REMOVE_NOTIFY)
+- filesystem: added code that updates parent directory's modification time when file is
+  created, written, deleted or renamed. (NTFS does all except rename, FAT apparently never
+  updates parent directory's modification time)
+  Fixes Directory Opus and DosControl automatic directory list refresh when using FAT
+- log messages that arrive before emulation starts are written to winuaebootlog.txt
+- uaescsi.device reset crash fixed (happened only under Win9x)
+- custom chip "last_custom_value"-update. Fixes Lotus 3 (and probably some other programs')
+  slow ram detection.
+- CIA and MOVEM M->R cycle usage fixes (Voyage - Razor1991 works now, first boot only...)
+- allocate bigger MIDI sysex buffer to prevent overflows (Bernd Roesch)
+- disabled mostly useless JIT-log messages (can be enabled by defining JIT_DEBUG and recompiling)
+- PAUSE-key = pause emulation. PAUSE+END = full speed emulation (sound is turned off)
+
+Mouse code is mix between old and new WinUAE mouse code. It probably have some bugs..
+
+Filesystem compatibility should be much better now. Could someone test programs that have refused
+to install/run under older UAE filesystem versions?
+
+
+---
+
+RC:
+
+- floppy drive leds light correctly (stupid bug)
+- small CIA fix (reading $BFE001 returns correct power led state)
+- Input-tab keyboard configuration works again (why didn't nobody notice?)
+
+Beta 3:
+
+- all hardfiles/harddrives described in default.uae were never freed making them unavailable
+  if other configuration was loaded and it used same hardfiles as default.uae. fixed.
+- mouse counter overflow limit works again (moving mouse very fast made mouse jump around under
+  KS 1.3 and some mouse controlled games)
+- Amithlon partition detection failed if drive had >6 partitions. fixed.
+  (Partition table buffer was too small...)
+- non-Amiga formatted or non-empty harddrive safety test can be disabled with
+  "-disableharddrivesafetytest" command-line parameter. WinUAE also shows warning
+  messages if "dangerous" harddrives are detected and test is disabled
+
+Beta 2:
+
+- A500-speed slowdown problems fixed (*)
+- "The selected screen mode can't be displayed in a window, because.." now correctly
+  forces fullscreen mode instead of repeating the message forever..
+- initial Amiga viewport position fixed
+
+(*) My new Asus A7N8X Deluxe Gold (nForce2) -mainboard arrived today and suprise, suprise,
+WinUAE's fps decreased to about 40fps. I finally managed to debug this problem!
+It appears calling timeBeginPeriod() and timeEndPeriod() too many times/frame
+caused big slowdown. I still don't understand why it only affects some systems..
+(probably it depends on drivers because I didn't reinstall OS)
+
+Beta 1b:
+
+- removed debugging code that disabled RDB custom filesystem
+
+Beta 1:
+
+- Ports-tab crash fixed (printer detection bug)
+- some joysticks had joystick axis in wrong order (for example Y before X etc..)
+- only first joystick worked in input-tab
+- plus other joystick bugs fixed
+- WinUAE window position in registry is now correct
+- hard drive configuration save fix (some harddrive ID's had trailing spaces)
+- fixed stuck keys when switching between WinUAE and Windows
+- sprite fix (flashing garbage in Pinball Dreams)
+- added Harddisk and CD-leds that flash during HD/CD access
+- thread priority tweaks
+- Windows 95 setupapi.dll error fixed
+
+R2:
+
+Beta 7:
+
+- screenshot changes, PrintScreen -> Windows clipboard
+  (now works even in overlay-mode) and PrintScreen + END
+  -> screenshot file (was F11)
+- more disk emulation updates ("The Deep" works again)
+- bsdsocket changes. Fixes Win98 dialing, TCP-device
+  and Amygate (Stephan Riedelbeck)
+
+Beta 6:
+
+- primary sound buffer checkbox can be changed on the fly
+- floppy buffer overflow fixed
+- RDB filesystem bug fix
+  caused memory corruption if RDB contained non-automountable partition(s)
+- ALT-TAB didn't always release mouse capture
+- DirectInput device enumeration fixed
+- blitter nasty-mode bug fixed (Obliterator and TerrorPods intro graphics corruption)
+- Amiga Catweasel ZorroII-board emulation. (ISA-Catweasel supported)
+  Device is detected but reading is unreliable due to timing problems either in
+  isacatweasel.device or timer.device in JIT mode. No GUI config, to enable emulation
+  add "catweasel_io=xxx" to config file. WinIo.dll, WinIo.sys (2K/XP) and
+  WinIo.VXD (W9x) from http://www.internals.com/utilities/winio.zip required.
+  Download Amiga driver from http://www.jschoenfeld.de/ support page
+  (ISACatweasel.device for Amithlon)
+  New Catweasel MK3 (PCI-version) support will be implemented in future.
+  Experimental. Bug reports are probably ignored because this won't be part of
+  "official" 0.8.22R2 feature list..
+- network printers are listed in ports-tab
+- tries to prevent frozen mouse if WinUAE crashes
+- Kickstart replacement is now correctly enabled if kick rom was not selected
+- disk emulation updates
+  fixes for Megalomania, Knightmare, Supaplex etc.. ultra slow loading speed,
+  more compatible with some copy protections
+- Action Replay support fixed
+
+Beta 5:
+
+- ignore mouse events when WinUAE is not in focus
+- disk emulation track length/motor speed fix (István Fabian)
+- filesystem "ghost"-file fix
+  (but we still have one bug left in ACTION_RENAME that isn't so easy to fix)
+- F10 and ALT-keys don't freeze the emulation anymore
+- Capital Punishment graphics fix
+- Picasso96 COMP-drawing mode don't work correctly in >8bit modes, added
+  workaround. (found by Bernd Roesch)
+- fixed buggy gfx_opengl_mode and gfx_opengl_bits -configuration entry handling
+  (caused duplicate entries)
+
+Beta 4:
+
+- mouse fixes and speed multiplier added to input-tab (100=1x,200=2x,50=1/2x etc..)
+- caps lock fixed
+- cpu idle changes (still need much better algorithm, later..)
+- replaced Sleep() with multimedia timers (much better timer accurary)
+  this fix might improve sound with small buffer sizes
+- switch from fullscreen/no-vsync to vsync crash fixed (this was a very old bug)
+- another old config file compatibility fix
+
+Beta 3:
+
+- keyboard layout "B" firebutton fixed
+- startup "detect 16-bit" crash fixed
+- copper cycle diagram fix (Chaos Engine AGA/CD32 horizontal line)
+- screenshot button was always disabled
+
+Beta 2:
+
+- GUI's hardfile/harddrive size fixed (fractional part was always zero)
+- "Use Primary DirectSound buffer"-checkbox fixed
+- input-tab's joystick/mouse/keyboard axis/button/key names are now queried from DirectInput
+- all keyboard's special keys are also configurable in input-tab
+- DirectInput fixes (joysticks work etc..)
+- direct harddrive access fixed, >512 byte reads/writes are now working properly.
+  (caused "not a dos disk" errors if filesystem block size was > 512)
+- added 1024 and 2048 physical blocksize support to direct harddrive access code
+- RDB code renames duplicate device names (DH0: -> DH0_0: etc..)
+- german keyboard layout "hack" fixed (Bernd Roesch)
+- improved keyboard configuration, old keyboard configs are not compatible anymore
+- "Pentium 4 JIT"-fix enabled in release build
+- state load fixes (replacing KS don't clear chip RAM anymore, another CPU type fix)
+  Loading 68020/AGA states files with A500 config should now replace configuration
+  correctly (finally..)
+
+Beta 1.1:
+
+- >4G hardfiles really work now
+- cpu idle fixed
+
+Beta 1:
+
+- disk emulation fix (High density floppy images in non-"turbo" mode were read too slowly causing
+  read errors)
+- removed bad disk emulation optimization (froze some custom loaders)
+- implemented disk drive type configuration. I had to do this because it is not possible
+  to emulate real DD and HD drives 100% correctly automatically and I also wanted to add
+  ancient&useless 5.25 drive (A1010) support too :)
+- automatically disable "turbo"-floppy speed if using non-standard ADF images
+- implemented Kickstart 1.3 hardfile support and some RDB filesystem compatibility bug fixes
+  (regular KS1.3 hardfile autoboot/mount requires FastFileSystem from WB1.3:L in roms-directory)
+- hardfile code rewritten with full 64-bit support ("unlimited" size)
+  supports both TD64 and NSD -style 64-bit access.
+  Windows 2000 or XP and NTFS filesystem required (Both W9x and FAT32 are
+  limited to max 2G files)
+  WARNING: some Amiga disk utilities fail to understand >2G partitions and could
+  corrupt big hardfiles! OS3.5+ recommended!
+  Only drives that don't contain recognised PC partition table and are either empty or
+  contain RDB are available in selection dialog (safety feature)
+  Amithlon partition support (partition type 0x76) implemented. NOT TESTED YET!
+  WARNING: Bugs could cause lost data! Every read and write access to Amithlon partition
+  is tested against partition bounds but better safe than sorry..
+- uaehf.device is now threaded (read/write requests are run in background)
+- fixed uaehf.device crash with older HDToolBox versions
+- removed sectors, surfaces and reserved from harddisk tab
+  (IMHO they only need to be in hardfile configuration dialog)
+- added missing CPU idle configuration entry
+- CPU idle code changes
+- added cycle exact configuration entry
+- increased directory filesystem emulation cache
+  (workaround to randomly disappearing flags/comments)
+- CPU model is restored correctly when restoring save state file
+- DirectInput keyboard, mouse and joystick interface
+  - shift-keys don't get stuck anymore in Pinball Dreams etc..
+  - Uses DirectInput's MS supported way of disabling all special keys, only ALT-TAB and
+    CTRL-ALT-DEL are left enabled.
+  - Uses DirectInput exclusive mouse mode to hide Windows mouse pointer instead of
+    old version's "interesting" hack...
+  - WARNING: expect to find bugs
+  - NOTE: mouse speed might be different because DirectInput reads directly from
+    mouse driver. (no acceleration etc..)
+- mouse input-configuration changed (separated horiz and vertical axis and mouse
+  wheel is now third axis)
+- "disable Windows keys"-checkbox removed. Windows keys are now always disabled.
+  (I added disable checkbox because wkeykill.dll was unsupported hack and could have
+  caused problems in some situations) Complain if there is need to not disable
+  Windows keys.
+- some old config file compatibility fixes
+- "compatible" cpu mode checkbox was ignored
+  (This was the reason why 0822R1 needed cycle-exact mode to run C64 tune disk)
+- 68000 RESET-instruction's prefetch emulation fixed
+- CIA overlay-bit fix (regs.pc_p and regs.pc_oldp wasn't updated)
+- added Kickstart ROM path to state files (only used when restoring if file exists)
+
+0.8.22R1:
+
+Beta 5:
+
+- RDB custom filesystem fixes
+- make "regular" hardfiles invisible to HDToolbox
+- fix CD32 pad emulation in compatibility mode
+
+Beta 4:
+
+- small sound changes: AHI sound disabled when resetting the Amiga, DirectSound is freed
+  when WinUAE is minimized and "Disable sound output" is ticked.
+- input-tab autofire rate fixed
+- fixed fast memory state save bug
+- joystick compatibility mode fixes
+- another uaescsi.device compatibility fix
+
+Beta 3:
+
+- AVIOutput fix (editing parameters didn't work until emulation was started)
+- centering works again (broke in beta 2)
+- more uaescsi.device compatibility fixes (all Amiga CD filesystems should now work properly)
+- CD32 pad emulation fixes
+- fixed crash when "ejecting" broken zipped adf-files
+- bsdsocket fixes (Stephan Riedelbeck)
+- exception 3 handling fixed (was broken by JIT fix ages ago..)
+- improved RDB filesystem relocator (fixes PFS3 and others)
+- screenshot key shortcut mapped to F11
+- multiple sound card support (original GUI code by Brian King)
+- fixed programs that use POTxDAT to read second fire button (was broken ages ago)
+
+Beta 2:
+
+- UAE 0.8.22 merge, bumped version number (most changes were already included in R4)
+- switching cycle-exact off does not freeze the emulator anymore (but Amiga still freezes..)
+- Action Replay 1 support (breakpoints don't work)
+- writing to hardfiles work again
+- CPU emulator fix: CHK-instruction's exception return address was wrong (Days of Thunder)
+- AVIOutput update (Sane)
+- floppy speed slider GUI fixed
+- disk emulation initialization fix (fixes A1000 boot failure in non-"turbo" mode)
+- CPU idle checkbox works after emulation has been started
+- keyboard fix (some key presses were missed when pressing multiple keys)
+- sound changes: (yet again...)
+  - vsync enabled and/or JIT enabled: adjustment active (like older versions)
+  - vsync disabled and JIT disabled: UAE 0.8.22 sound timing (adjustment disabled)
+  (JIT will have HUGE slowdown and vsync skips if UAE 0.8.22-style timing is enabled)
+  - uses DirectSound primary buffer if possible (SDL does this too)
+  - depending on sound card, small buffers (1 and 2) might work very badly..
+- uaehf.device scsi emulator fixes
+- changed "create hardfile"-dialog's hardfile size to megabytes and added 2GB limit
+  (limit will be removed after uaehf.device supports 64-bit addressing)
+- uaescsi.device reboot crash fixed
+- full RDB harddisk image support (automount, custom filesystems etc..)
+
+Beta 1: (too many changes, expect breakage..)
+
+- unoptimized near cycle-exact cpu and blitter emulation implemented (checkbox in misc-tab)
+  Fixes most programs that expect correct cpu and blitter speed (PP Hammer, many demos etc..)
+  WARNING: requires at least 50%+ more cpu power than "regular" mode.
+  Athlon XP/Pentium IV + DDR/RAMBUS RAM highly recommended!
+  WARNING2: Frameskip must be set to 1
+  WARNING3: very experimental, timing is quite far from perfection
+  Complain loudly if "regular" mode is slower. (It shouldn't be but you never know..)
+- yet another 68000 prefetch emulation rewrite (fixes "100 most remembered C64 games" and more..)
+- OpenGL scanline brightness slider added
+- yet another disk emulation update
+  (more compatible, stupid extended adf bug fixed that caused format/verify errors)
+- interlace mode vsync fixed (no more 2x speed)
+- added support for compressed kickstart rom-images
+- encrypted A1000 boot rom support added
+- 64kb A1000 boot rom supported (A1000 boot rom size is really 64kb even if only first 8kb is used..)
+- 256kb chip RAM support added (first A1000s come with 256kb chip RAM as standard, expandable to 512kb)
+- dms files inside zip -crash fixed
+  (xdms.exe that does not add .dms extension to source file's name needed for correct decompression support)
+- fixed com-port warning (start emulation, press F12, select input-tab)
+- sprite-playfield collision fix (fixes Inferior but may break something else.. Testing needed!)
+- display garbage fix (Nightbreed Interactive Movie, some demos)
+- input device support updates
+  defaults added to mouse and joysticks, mouse didn't always work correctly,
+  autofire works now properly, supports max 4 input targets/input source
+  (currently only available by manually editing configuration files,
+  example: input.1.mouse.0.button.0=JOY1_FIRE_BUTTON.0,JOY2_FIRE_BUTTON.0)
+- another experimental cpu idle hack (detects when Kickstart executes STOP-instruction)
+  lowers host CPU usage near zero when emulated system is idle.
+- added cpu idle checkbox to GUI CPU-page
+- new AHI code and driver (Bernd Roesch)
+- Amiga <> Windows clipboard support, see winuaeclip.txt for more information (Bernd Roesch)
+- added device io (CMD_READ, CMD_CHANGESTATE etc..) support to uaescsi.device
+  no need to enable direct-scsi anymore, also media change detection
+  (ADDCHANGEINT/REMCHANGEINT) is emulated properly. This means uaescsi.device emulation should
+  now work properly with all available cd file systems without special mountlist flags.
+- fixed bug in state save restore code, sometimes restored floppy drive track was incorrect
+- added wkeykill.dll support. Kills all normal Windows key combinations (except some keys don't
+  work properly on WXP, for example LWin+L, hopefully this can be fixed later..)
+  Unfortunately it is not possible to integrate Windows key kill code to WinUAE because it seems
+  it is only possible to kill Windows key events properly from a separate dll..
+- Amiga-"viewport" is now centered correctly, no more clipped window borders
+- FPU emulator's precision was poor, fixed (cause: wrong compiler optimization parameters)
+- filesystem bug fix (hopefully fixes bug that causes random files appearing as directories)
+- on the fly switching between OpenGL and DirectDraw mode
+- on the fly switching between vsync and non-vsync mode
+- DirectSound sound code is back with auto-adjust. Better or worse than old code?
+  (I replaced SDL audio because it is now confirmed that SDL audio has strange lag
+  problems with some systems. I might include both, depends on test results..)
+- audio emulation fix (Mission Elevator)
+  also some AUDxDAT fixes (fixes random CD32 boot tune noise)
+- build-in screenshot function (original code by Sane)
+  supports all modes: DirectDraw, DirectDraw Overlay, OpenGL and Picasso96
+  current shortcut key: END+F6 (Suggestions?)
+- set active WinUAE process priority level higher, improves smoothness
+  makes Windows' responsiveness worse but I hope it isn't too bad..
+- decreased trackdisplay leds' brightness slightly
+- writing to kickstart rom memory area crashed the system if JIT was enabled
+- floppy speed slider (I know I shouldn't put it back but I got too many requests..)
+- second filesystem bug fix: situations where file read length was very big were not handled correctly
+- third filesystem bug fix: CON.something, AUX.something etc. are not valid Windows filenames
+- added simple "scsi emulator" to uaehf.device. It is now possible to edit full harddisk images with hdtoolbox
+  ("hdtoolbox uaehf.device". Sectors, surfaces and reserved can be set to zero)
+  not very useful feature because booting/automounting does not work yet...
+
+R4:
+
+- EXPERIMENTAL: added configurable input device (mouse, joystick, keyboard) support
+- EXPERIMENTAL: added OpenGL mode (for best results set lores and disable line-doubling)
+- printer support fixed (Bernd Roesch)
+- MIDI updates (Bernd Roesch, Alfred J. Faust)
+- custom chipset updates (Superfrog,Exile,Apocalypse,Rainbow Islands,Torvak the Warrior etc..)
+- CPU idle patch (no more 100% CPU usage)
+- HOME + F5 opens state restore dialog and SHIFT + HOME + F5 opens state save dialog
+- vsync updates (50/60/100/120 frequencies are now always selectable. Useful for Powerstrip users)
+- AVIoutput improvements (can be started later, stops when re-entering GUI)
+- Picasso96 updates. Mouse trails are now 100% fixed (Bernd Roesch)
+- refresh rate selection only affects Amiga display modes, Picasso96 always use default refresh rate
+- "16-bit mode detect" crash fixed
+- removed useless 8/16-bit sound selection. Sound output is now always 16-bit
+- sound lag compensation slider reimplemented. (if you have bad sound, move slider left until sound gets better)
+- build-in gzip and zip support (autoselects first adf-image or Amiga executable if zip contains multiple files)
+- executable to adf support, just "insert" Amiga executable in to floppy drive
+- improved external decompression support (xdms.exe)
+- configuration save option is now available even after emulation has been started
+- HD floppy image support in disk-tab
+
+Beta 8:
+
+- OpenGL vsync is now correctly disabled in windowed mode
+- frequency selector config load/save fixed
+- fixed lost key release(s) when switching between Picasso96 and native modes
+- fullscreen OpenGL mode mouse problems fixed
+- avioutput OpenGL mode support added
+
+Beta 7:
+
+- refresh rate selection now shows 50/60/100/120Hz properly
+- non-OpenGL scanlines-selection gets disabled after emulation is started
+- DF1-DF3 and HD floppies work again
+- vsync fix
+- JIT exception 3 fix (Bernd Roesch)
+- OpenGL "returning from GUI in fullscreen mode" freeze fixed
+- exiting WinUAE stops CD32 CD audio
+- sound buffer 7 in stereo mode fixed
+- disk emulation update (fixes SuperDuper)
+- sound gui changes
+- MIDI sysex support (Bernd Roesch, Alfred J. Faust)
+
+Beta 6:
+
+- Picasso96->OpenGL mode switch crash fixed
+- added OpenGL texture color depth and filtering mode selection
+- centering and non-OpenGL scanlines are not available if OpenGL mode is enabled
+- MIDI ports can be changed on the fly (Bernd Roesch, me)
+- Create Standard/Custom floppy-buttons can also be used to create HD floppies
+- level 6 interrupt handling fix (Marvin's Marvellous Adventure AGA)
+- CPU exception 3 fix (Shinobi)
+- disk updates (more correct DSKRDY/floppy device ID handling) (S.T.A.G)
+- *.zip added to disk image selector
+- Caps Lock and misc keyboard fixes (new input device mode only)
+- return random bits if program is trying to read track past image's end (Typhoon Thompson)
+- yet another sprite emulation rewrite. Report immediately if you notice missing/flashing/corrupt etc sprites!
+- scanlines fixed in OpenGL AGA mode
+
+Beta 5:
+
+- joystick/mouse -> keyboard mapping fixed
+- keyboard -> Amiga joystick/mouse/keyboard configuration implemented (US keyboard layout only)
+- another copper skip fix (fixes Rainbow Islands)
+- CPU idle patch
+- MIDI fixes (Bernd Roesch, Alfred J. Faust)
+
+Beta 4:
+
+- better Superfrog/Exile etc.. border fix (old version caused display problems with some demos)
+- new input device configuration is finally working
+  TODO:
+  - more intuitive GUI (Help needed)
+  - add international key names
+  - implement multiple mouse support
+    Unfortunately it seems DirectInput don't support multiple mouse on W2K/XP.
+    http://www.angelfire.com/retro/u_rebelscum/faqs.html#win2000limit
+    (confirmed with two USB mouse on WXP)
+  - PC keyboard -> Amiga mouse/joystick/keyboard mapping editor
+- OpenGL tweaks (scaling changed, 0,0,0,0 = centered screen. Added default-button)
+- misc-tab changes (disabled state save-button if emulator is not started, reset and quit-buttons are always visible)
+- GUI remembers last used property page (tab)
+- two executables, one compiled with MSVC 7 (MSVS.net) and the other with MSVC 6.
+
+Beta 3:
+
+- HOME + F5 opens state restore dialog and SHIFT + HOME + F5 opens state save dialog
+- experimental OpenGL support
+  internal window size is always 752*600 (376*300 if lores is enabled and linedoubling is off)
+  image size configuration
+  scanline emulation (transparency and size)
+  requires 1024 * 1024 or larger supported texture size (won't work with old cards)
+- AVIoutput improvements (can be started later, stops when re-entering GUI, vsync-waits ignored)
+- Picasso96/native mode switching should be working again (was broken in beta 1 and 2)
+- Superfrog, Exile etc.. left border bug fixed
+- adz support fixed
+- CIA alarm update (fixes Torvak the Warrior's music)
+
+Beta 2:
+
+- build-in gzip and zip support (autoselects first adf-image or Amiga executable if zip contains multiple files)
+- executable to adf support, just "insert" Amiga executable in to floppy drive
+- improved external decompression support (currently only xdms.exe),
+  temporary files are loaded back in to memory and deleted immediately after decompression.
+- 50/60/100/120Hz frequencies are now always selectable. I think this allows vsync-support with display drivers
+  that don't support frequency selection but support custom resolutions (for example with PowerStrip)
+- Picasso96 Drawstudio fix (Bernd Roesch)
+- removed 8/16-bit sound selection from gui. Sound is now always 16-bit.
+- sound adjust slider reimplemented. (fully automatic sound adjust seems to be impossible..)
+  sound code is still autoadjusting but with very limited adjustment range
+  (allows 100% smooth vsync at least on my pc..)
+
+  adjustment instructions: move slider left until sound doesn't crackle anymore (no more sound buffer underflows)
+  adjustment position isn't very important except if you want vsync without random skips.
+
+Beta 1:
+
+- fixed right border garbage (CD32 bootscreens and other programs)
+- "16-bit mode detect" does not crash anymore if registry keys are not found
+- vsync updates, vsync can be enabled or disabled during the emulation
+- Picasso96 JIT memory mapping update (Bernd Roesch)
+- Refresh rate selection only affects Amiga display modes, Picasso96 always uses default refresh rate
+- CIA changes
+
+R3:
+
+Beta 3:
+
+- missing gui-tabs fixed (was broken in beta 2) (me)
+- serial port update (Bernd Roesch)
+- cycle exact bitplane modulo emulation (fixes Lemmings 3 AGA) (me, Bernd Schmidt)
+  I think this patch is finally bug free. Report immediately if you see display corruption!
+- modified delayoffset hack (fixes Mindriot-demo) (me)
+
+Beta 2:
+
+- AGA mode EHB fix (Superfrog title screen) (me)
+- hardfile sectorsperblock fix (Reorg works again) (from WinUAE 0817)
+- CIA update (better compatibility with some weird programs) (me)
+- PC joystick in both joystick ports works again (was broken in every 0821 release) (me)
+- icon fixed (no more random pixels) (me)
+- Picasso96 overlay mode is working again (was broken in beta 1) (me)
+- Shapeshifter-checkbox fixed (from WinUAE 0817)
+- JIT shift-instruction fix (from Basilisk JIT)
+
+Beta 1: (VSync test beta)
+
+- joystick keyboard emulation do not anymore create normal key presses
+- sprite update (no more flashing bees in Superfrog)
+- CIA update (fixes Powermonger, thanks to István Fábián)
+- VSync and separate refresh rate selection added
+  I had to implement this because I got too many requests :)
+- requires DirectX 7 or newer (was DX5 or newer)
+- Picasso96 and other misc updates (Bernd Roesch)
+
+to do: input device configuration GUI
+
+R2:
+
+Beta 6:
+
+- sprite emulation changes (me)
+
+Beta 5:
+
+- WBStartup filesystem fix (Bernd#1)
+- FDI-image support re-merged (me)
+
+Beta 4:
+
+- fix SPTI/ASPI detection code (me)
+- ASPI and SPTI CD32 media change detection implemented (me)
+- JIT timing fix, filesystem access speed should be normal again (Bernd#3,me)
+- shift/ctrl/alt+Fxx key combinations fixed (was broken in beta 3)
+- CD32 pad button emulation fix (me)
+  Fixes stuck red button on some Team 17 games (Superfrog and Alien Breed 2, maybe more)
+- fixed missing CD32 audio if all floppy drives are disabled (me)
+- bsdsocket fix (Stephan Riedelbeck)
+- added ASPI/SPTI SCSI layer selection (me)
+  Currently only ASPI supports non-CDROM devices (except harddisks due to security reasons)
+- ASPI and SPTI code swaps SCSI bus and target if all units' target and lun is zero (me)
+  Only affects IDE devices (ASPI sets every IDE device to different "SCSI"-bus causing strange
+  uaescsi.device unit numbers)
+
+Beta 3:
+
+- fixed nasty and very old memory overwrite bug in keyboard_win32.c (me)
+- SPTI uaescsi.device emulation works again (me)
+- uaescsi.device ignored io error return codes, fixed. (stupid me)
+- added CD32 media eject/insert support, Windows 2000/XP only (me)
+- added missing #define USE_X86_FPUCW 1 (Bernd#3)
+- serial port fix (Bernd#3,me)
+
+Beta 2:
+
+- this time really fixed max sound buffer crash (me)
+- added Bernd#1's vsynctime "fix"
+- JIT FPU fix (Bernd#3)
+- filesystem A-flag handling was reversed (Stephan Riedelbeck)
+- filesystem fixes (Bernd#1,me)
+- blitter timing bug fix (stupid me, yet again)
+- removed useless refresh rate from display mode selection box
+- fixed crash if RTG was enabled and Z3 memory size was 8MB (Bernd#3)
+- noticed problems with uaescsi.device SPTI support, uses ASPI until problem is solved.
+- added more uaescsi.device logging (drive names and unit numbers)
+
+Beta 1:
+
+- filesystem fix (Bernd#1) Fixes at least some problems. Testing needed!
+  (Bernd: I only merged your first patch, second file order "fix" is not enabled)
+- if JIT is disabled, disable "force settings" too (me)
+- joystick 2 fixed (me)
+- AR "freeze"-button was pressed when exiting GUI, fixed (me)
+- memory leak and small bsdsocket fix (Stephan Riedelbeck)
+- clear extended rom and cartridge rom configuration entries when loading new config (me)
+- pressing F12 and then later pressing shift doesn't start debugger anymore (me)
+- sprite fix (me)
+- Windows 2000/XP CDROM detection fix (CD32 and uaescsi.device)
+- re-enabled full-row-select option (config load/save and hard drives -tabs)
+- sound changes. Does this fix crashes and/or bad sound?
+- copper fix (Bernd #1)
+- CTRL-AMIGA-AMIGA-ALT resets and clears chipmemory (removes all reset proof programs)
+
+Beta 6:
+
+- rare keyboard freeze fixed (caused by fault AR3 keyboard hack)
+- blitter nasty fix
+
+Beta 5:
+
+- added missing Bernd#3's serial port update
+- Battle Squadron sprite fix (me)
+- copper fix (Bernd#1)
+- filesys seek fix (Bernd#3)
+- joystick gui fix
+- added hack that tries to prevent notebook cpu throttling when calculating cpu speed (Bernd#3,me)
+- zlib.dll support merged from 0817R3 (me)
+- another stupid blitter cycle diagram bug fixed (me)
+
+Beta 4:
+
+- scsi.device config file fix (me)
+- sound buffer gui changes (me)
+- sound fix (Bernd#1)
+- win32 specific thread code replaced with SDL threads (me)
+- big sprite state machine update (me)
+- disk images are replaced correctly when restoring state (me)
+- filesys seek fix (Bernd#3)
+- fixed broken fps counter after returning from gui (me)
+- fix stupid blitter cycle diagram bug (stupid me)
+
+Beta 3: 
+
+- another bsdsocket fix (Bernd Roesch)
+- midi in/out selection boxes added (me)
+- filesys fix (Bernd Schmidt)
+- Action Replay 2/3 support, freeze button = PageUp (me)
+- serial/parallel port updates (Bernd Roesch)
+- VPOSW refreshrate hack support added (me)
+- copper timing updates
+- some missed fixes from 0.8.21
+
+Beta 2:
+
+- maximun screen height increased (600 -> 1280)
+- uaelib updates
+- middle button = alt-tab fixed
+- added track display enable/disable button
+- better blitter patch
+- AviOutput sound capture added
+- >2MB Chip works again
+- Z3RAM can be larger than 64MB
+- default.uae fixed
+- missing call to bsdsocket.library initialization added
+- "Add PC drives" fixed (CDROM drives are ignored)
+  I think it is better to use uaescsi.device to access removable (CDROM) drives. Any comments?
+
+Beta 1:
+
+- full CD32 emulation
+- uaescsi.device Win32 port
+- blitter "fix" (fixes Desert Dream freeze and Hostages insta-kill)
+- input device rewrite (no config file save/load and gui yet, not very useful now..)
+- Sane's AviOutput (no sound support yet due to changes in 0820 Win32 audio code)
+- JIT + some fixes (I decided to drop "JIT"-part from the name)

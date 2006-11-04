@@ -2,6 +2,7 @@ cd d:\projects\winuae_bak
 rm -rf bak
 mkdir bak
 copy /s d:\projects\winuae\src\*.* d:\projects\winuae_bak\bak\
+copy f:\amiga\text\winuaechangelog.txt d:\projects\winuae_bak\bak\od-win32
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
 
@@ -21,6 +22,16 @@ del cpuemu_6.c
 del linetoscr.c
 
 cd od-win32
+
+cd ipctester
+rm -rf debug
+rm -rf release
+cd ..
+
+cd spsutil
+rm -rf debug
+rm -rf release
+cd ..
 
 cd genlinetoscr_msvc
 rm -f genlinetoscr.exe

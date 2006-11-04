@@ -2413,7 +2413,9 @@ static void getstartpaths(int start_data)
 
 extern void test (void);
 extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug;
-extern int force_direct_catweasel;
+extern int force_direct_catweasel, cpu_affinity;
+
+static int original_affinity;
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
@@ -2473,6 +2475,13 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
 	if (!strcmp (arg, "-sounddebug")) sound_debug = 1;
 	if (!strcmp (arg, "-directcatweasel")) force_direct_catweasel = 1;
+	if (!strcmp (arg, "-affinity") && i + 1 < argc) {
+	    cpu_affinity = atol (argv[i + 1]);
+	    if (cpu_affinity == 0)
+		cpu_affinity = original_affinity;
+	    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
+	    i++;
+	}
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
 	    strcpy(start_path_data, argv[i + 1]);
 	    start_data = 1;
@@ -2512,7 +2521,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	devmode.dmSize = sizeof(DEVMODE);
 	if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
 	    default_freq = devmode.dmDisplayFrequency;
-	    if( default_freq >= 70 )
+	    if(default_freq >= 70)
 		default_freq = 70;
 	    else
 		default_freq = 60;
@@ -2866,15 +2875,14 @@ end:
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     HANDLE thread;
-    DWORD_PTR oldaff;
 
     thread = GetCurrentThread();
-    oldaff = SetThreadAffinityMask(thread, 1); 
+    original_affinity = SetThreadAffinityMask(thread, 1); 
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
-    SetThreadAffinityMask(thread, oldaff);
+    SetThreadAffinityMask(thread, original_affinity);
     return FALSE;
 }
 
