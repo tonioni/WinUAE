@@ -64,6 +64,7 @@ extern uae_u16 kickstart_version;
 
 extern uae_u8* baseaddr[];
 
+enum { ABFLAG_UNK = 0, ABFLAG_RAM, ABFLAG_ROM, ABFLAG_ROMIN, ABFLAG_IO, ABFLAG_NONE };
 typedef struct {
     /* These ones should be self-explanatory... */
     mem_get_func lget, wget, bget;
@@ -84,6 +85,9 @@ typedef struct {
        for this particular bank. */
     uae_u8 *baseaddr;
     char *name;
+    /* for instruction opcode/operand fetches */
+    mem_get_func lgeti, wgeti;
+    int flags;
 } addrbank;
 
 extern uae_u8 *filesysory;
@@ -116,6 +120,9 @@ extern int address_space_24;
 
 extern int REGPARAM3 default_check(uaecptr addr, uae_u32 size) REGPARAM;
 extern uae_u8 *REGPARAM3 default_xlate(uaecptr addr) REGPARAM;
+/* 680x0 opcode fetches */
+extern uae_u32 REGPARAM3 dummy_lgeti (uaecptr addr) REGPARAM;
+extern uae_u32 REGPARAM3 dummy_wgeti (uaecptr addr) REGPARAM;
 
 #define bankindex(addr) (((uaecptr)(addr)) >> 16)
 
@@ -149,6 +156,8 @@ extern void memory_hardreset (void);
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))
 #define wordget(addr) (call_mem_get_func(get_mem_bank(addr).wget, addr))
 #define byteget(addr) (call_mem_get_func(get_mem_bank(addr).bget, addr))
+#define longgeti(addr) (call_mem_get_func(get_mem_bank(addr).lgeti, addr))
+#define wordgeti(addr) (call_mem_get_func(get_mem_bank(addr).wgeti, addr))
 #define longput(addr,l) (call_mem_put_func(get_mem_bank(addr).lput, addr, l))
 #define wordput(addr,w) (call_mem_put_func(get_mem_bank(addr).wput, addr, w))
 #define byteput(addr,b) (call_mem_put_func(get_mem_bank(addr).bput, addr, b))
@@ -164,6 +173,14 @@ STATIC_INLINE uae_u32 get_word(uaecptr addr)
 STATIC_INLINE uae_u32 get_byte(uaecptr addr)
 {
     return byteget(addr);
+}
+STATIC_INLINE uae_u32 get_longi(uaecptr addr)
+{
+    return longgeti(addr);
+}
+STATIC_INLINE uae_u32 get_wordi(uaecptr addr)
+{
+    return wordgeti(addr);
 }
 
 /*

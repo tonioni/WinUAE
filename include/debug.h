@@ -25,7 +25,7 @@ extern void record_copper_reset(void);
 extern int mmu_init(int,uaecptr,uaecptr);
 extern void mmu_do_hit(void);
 extern void dump_aga_custom (void);
-
+extern void memory_map_dump (void);
 #else
 
 STATIC_INLINE void activate_debugger (void) { };

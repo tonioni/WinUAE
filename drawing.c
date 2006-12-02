@@ -209,6 +209,8 @@ STATIC_INLINE void count_frame (void)
     framecnt++;
     if (framecnt >= currprefs.gfx_framerate)
 	framecnt = 0;
+    if (inhibit_frame)
+        framecnt = 1;
 }
 
 int coord_native_to_amiga_x (int x)
@@ -2163,9 +2165,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	check_prefs_changed_custom ();
 	check_prefs_changed_cpu ();
 
-	if (inhibit_frame != 0)
-	    framecnt = 1;
-
 	if (framecnt == 0)
 	    init_drawing_frame ();
     } else {
@@ -2281,7 +2280,6 @@ void reset_drawing (void)
 
     init_drawing_frame ();
 
-    //flush_clear_screen ();
     notice_screen_contents_lost ();
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
     lightpen_y1 = lightpen_y2 = -1;

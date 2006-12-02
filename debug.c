@@ -30,6 +30,7 @@
 #include "autoconf.h"
 #include "akiko.h"
 #include "inputdevice.h"
+#include "crc32.h"
 
 static int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -42,6 +43,7 @@ int debugging;
 int exception_debugging;
 int debug_copper;
 int debug_sprite_mask = 0xff;
+
 static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
@@ -85,7 +87,7 @@ static char help[] = {
     "  fl                    List breakpoints\n"
     "  fd                    Remove all breakpoints\n"
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
-    "  e                     Dump contents of all custom registers\n"
+    "  e                     Dump contents of all custom registers, ea = AGA colors\n"
     "  i [<addr>]            Dump contents of interrupt and trap vectors\n"
     "  o <0-2|addr> [<lines>]View memory as Copper instructions\n"
     "  od                    Enable/disable Copper vpos/hpos tracing\n"
@@ -98,7 +100,7 @@ static char help[] = {
     "  Cl                    List currently found trainer addresses\n"
     "  D                     Deep trainer\n"
     "  W <address> <value>   Write into Amiga memory\n"
-    "  w <num> <address> <length> <R/W/RW/F> [<value>]\n"
+    "  w <num> <address> <length> <R/W/I/F> [<value>] (read/write/opcode/freeze)\n"
     "                        Add/remove memory watchpoints\n"
     "  wd                    Enable illegal access logger\n"
     "  S <file> <addr> <n>   Save a block of Amiga memory\n"
@@ -809,7 +811,7 @@ static addrbank *debug_mem_area;
 struct memwatch_node {
     uaecptr addr;
     int size;
-    int rw;
+    int rwi;
     uae_u32 val;
     int val_enabled;
     uae_u32 modval;
@@ -871,42 +873,41 @@ static void illg_init (void)
 }
 
 /* add special custom register check here */
-static void illg_debug_check (uaecptr addr, int rw, int size, uae_u32 val)
+static void illg_debug_check (uaecptr addr, int rwi, int size, uae_u32 val)
 {
     return;
 }
 
-static void illg_debug_do (uaecptr addr, int rw, int size, uae_u32 val)
+static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
 {
     uae_u8 mask;
     uae_u32 pc = m68k_getpc (&regs);
-    char rws = rw ? 'W' : 'R';
     int i;
 
     for (i = size - 1; i >= 0; i--) {
 	uae_u8 v = val >> (i * 8);
 	uae_u32 ad = addr + i;
 	if (ad >= 0x1000000)
-	    mask = 3;
+	    mask = 7;
 	else
 	    mask = illgdebug[ad];
 	if (!mask)
 	    continue;
 	if (mask & 0x80) {
-	    illg_debug_check (ad, rw, size, val);
+	    illg_debug_check (ad, rwi, size, val);
 	} else if ((mask & 3) == 3) {
-	    if (rw)
-		console_out ("RW: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
-	    else
-		console_out ("RW: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	    if (rwi & 2)
+		console_out ("W: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
+	    else if (rwi & 1)
+		console_out ("R: %08.8X    PC=%08.8X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
-	} else if ((mask & 1) && rw) {
-	    console_out ("RO: %08.8X=%02.2X %c PC=%08.8X\n", ad, v, rws, pc);
+	} else if ((mask & 1) && (rwi & 1)) {
+	    console_out ("RO: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
-	} else if ((mask & 2) && !rw) {
-	    console_out ("WO: %08.8X    %c PC=%08.8X\n", ad, rws, pc);
+	} else if ((mask & 2) && (rwi & 2)) {
+	    console_out ("WO: %08.8X    PC=%08.8X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	}
@@ -918,25 +919,106 @@ static int debug_mem_off (uaecptr addr)
     return munge24 (addr) >> 16;
 }
 
-static int memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
+struct smc_item {
+    uae_u32 addr;
+    uae_u8 cnt;
+};
+
+static int smc_size;
+static struct smc_item *smc_table;
+
+static void smc_reset(void)
+{
+    int i;
+    if (!smc_table)
+	return;
+    for (i = 0; i < smc_size; i++) {
+	smc_table[i].addr = 0xffffffff;
+	smc_table[i].cnt = 0;
+    }
+}
+
+static void smc_detect_init(void)
+{
+    xfree(smc_table);
+    smc_table = NULL;
+    smc_size = 1 << 24;
+    if (currprefs.z3fastmem_size)
+	smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+    smc_size += 4;
+    smc_table = xmalloc (smc_size * sizeof (struct smc_item));
+    smc_reset();
+    console_out("SMCD enabled\n");
+}
+
+#define SMC_MAXHITS 8
+static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
+{
+    int i, hitcnt;
+    uaecptr hitaddr, hitpc;
+
+    if (!smc_table)
+	return;
+    if (addr >= smc_size)
+	return;
+    if (rwi == 2) {
+	for (i = 0; i < size; i++) {
+	    if (smc_table[addr + i].cnt < SMC_MAXHITS) {
+		smc_table[addr + i].addr = m68k_getpc(&regs);
+	    }
+	}
+	return;
+    }
+    hitpc = smc_table[addr].addr;
+    if (hitpc == 0xffffffff)
+	return;
+    hitaddr = addr;
+    hitcnt = 0;
+    while (addr < smc_size && smc_table[addr].addr != 0xffffffff) {
+	smc_table[addr++].addr = 0xffffffff;
+	hitcnt++;
+    }
+    if ((hitpc & 0xFFF80000) == 0xF80000)
+	return;
+    if (currprefs.cpu_level == 0 && currprefs.cpu_compatible) {
+	/* ignore single-word unconditional jump instructions
+	 * (instruction prefetch from PC+2 can cause false positives) */
+	if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 4e77)
+	    return; /* RTS, RTD, RTE, RTR */
+	if ((regs.irc & 0xff00) == 0x6000 && (regs.irc & 0x00ff) != 0 && (regs.irc & 0x00ff) != 0xff)
+	    return; /* BRA.B */
+    }
+    if (hitcnt < 100) {
+        smc_table[hitaddr].cnt++;
+	console_out("SMC at %08.8X - %08.8X (%d) from %08.8X\n",
+	    hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
+	if (smc_table[hitaddr].cnt >= SMC_MAXHITS)
+	    console_out("* hit count >= %d, future hits ignored\n", SMC_MAXHITS);
+    }
+}
+
+static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 {
     int i, brk;
+    uae_u32 val = *valp;
 
     if (illgdebug)
-	illg_debug_do (addr, rw, size, val);
+	illg_debug_do (addr, rwi, size, val);
     addr = munge24 (addr);
+    if (smc_table && (rwi >= 2))
+	smc_detector(addr, rwi, size, valp);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	struct memwatch_node *m = &mwnodes[i];
 	uaecptr addr2 = m->addr;
 	uaecptr addr3 = addr2 + m->size;
-	int rw2 = m->rw;
+	int rwi2 = m->rwi;
 
 	brk = 0;
 	if (m->size == 0)
 	    continue;
-	if (m->val_enabled && m->val != val)
+	if (!m->frozen && m->val_enabled && m->val != val)
 	    continue;
-	if (rw != rw2 && rw2 < 2)
+	if (!(rwi & rwi2))
 	    continue;
 	if (addr >= addr2 && addr < addr3)
 	    brk = 1;
@@ -945,7 +1027,7 @@ static int memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 	if (!brk && size == 4 && ((addr + 2 >= addr2 && addr + 2 < addr3) || (addr + 3 >= addr2 && addr + 3 < addr3)))
 	    brk = 1;
 	if (brk && m->modval_written) {
-	    if (!rw) {
+	    if (!rwi) {
 		brk = 0;
 	    } else if (m->modval_written == 1) {
 		m->modval_written = 2;
@@ -956,13 +1038,16 @@ static int memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
 	    }
 	}
 	if (brk) {
-	    if (m->frozen)
+	    if (m->frozen) {
+		if (m->val_enabled)
+		    *valp = m->val;
 		return 0;
+	    }
 	    mwhit.addr = addr;
-	    mwhit.rw = rw;
+	    mwhit.rwi = rwi;
 	    mwhit.size = size;
 	    mwhit.val = 0;
-	    if (mwhit.rw)
+	    if (mwhit.rwi & 2)
 		mwhit.val = val;
 	    memwatch_triggered = i + 1;
 	    debugging = 1;
@@ -973,7 +1058,7 @@ static int memwatch_func (uaecptr addr, int rw, int size, uae_u32 val)
     return 1;
 }
 
-static int mmu_hit (uaecptr addr, int size, int rw, uae_u32 *v);
+static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v);
 
 static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
 {
@@ -1023,15 +1108,32 @@ static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v;
     v = debug_mem_banks[off]->lget(addr);
-    memwatch_func (addr, 0, 4, v);
+    memwatch_func (addr, 1, 4, &v);
     return v;
 }
+static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v = 0;
+    if (!mmu_hit(addr, 4, 4, &v))
+        v = debug_mem_banks[off]->lgeti(addr);
+    return v;
+}
+static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v = 0;
+    if (!mmu_hit(addr, 2, 4, &v))
+        v = debug_mem_banks[off]->wgeti(addr);
+    return v;
+}
+
 static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
     v = debug_mem_banks[off]->wget(addr);
-    memwatch_func (addr, 0, 2, v);
+    memwatch_func (addr, 1, 2, &v);
     return v;
 }
 static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
@@ -1039,25 +1141,41 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v;
     v = debug_mem_banks[off]->bget(addr);
-    memwatch_func (addr, 0, 1, v);
+    memwatch_func (addr, 1, 1, &v);
+    return v;
+}
+static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v;
+    v = debug_mem_banks[off]->lgeti(addr);
+    memwatch_func (addr, 4, 4, &v);
+    return v;
+}
+static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
+{
+    int off = debug_mem_off (addr);
+    uae_u32 v;
+    v = debug_mem_banks[off]->wgeti(addr);
+    memwatch_func (addr, 4, 2, &v);
     return v;
 }
 static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (memwatch_func (addr, 1, 4, v))
+    if (memwatch_func (addr, 2, 4, &v))
 	debug_mem_banks[off]->lput(addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (memwatch_func (addr, 1, 2, v))
+    if (memwatch_func (addr, 2, 2, &v))
 	debug_mem_banks[off]->wput(addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (memwatch_func (addr, 1, 1, v))
+    if (memwatch_func (addr, 2, 1, &v))
 	debug_mem_banks[off]->bput(addr, v);
 }
 
@@ -1117,6 +1235,8 @@ static void initialize_memwatch (int mode)
 	a2->lput = mode ? mmu_lput : debug_lput;
 	a2->check = debug_check;
 	a2->xlateaddr = debug_xlate;
+	a2->wgeti = mode ? mmu_wgeti : debug_wgeti;
+	a2->lgeti = mode ? mmu_lgeti : debug_lgeti;
     }
     if (mode)
 	mmu_enabled = 1;
@@ -1133,9 +1253,11 @@ static void memwatch_dump (int num)
 	    mwn = &mwnodes[i];
 	    if (mwn->size == 0)
 		continue;
-	    console_out ("%d: %08.8X - %08.8X (%d) %s",
+	    console_out ("%d: %08.8X - %08.8X (%d) %c%c%c",
 		i, mwn->addr, mwn->addr + (mwn->size - 1), mwn->size,
-		mwn->frozen ? "F" : (mwn->rw == 0 ? "R" : (mwn->rw == 1 ? "W" : "RW")));
+		(mwn->rwi & 1) ? 'R' : ' ', (mwn->rwi & 2) ? 'W' : ' ', (mwn->rwi & 4) ? 'I' : ' ');
+	    if (mwn->frozen)
+		console_out ("F");
 	    if (mwn->val_enabled)
 		console_out (" =%X", mwn->val);
 	    if (mwn->modval_written)
@@ -1205,7 +1327,7 @@ static void memwatch (char **c)
     }
     mwn->addr = readhex (c);
     mwn->size = 1;
-    mwn->rw = 2;
+    mwn->rwi = 7;
     mwn->val_enabled = 0;
     mwn->frozen = 0;
     mwn->modval_written = 0;
@@ -1214,15 +1336,24 @@ static void memwatch (char **c)
 	mwn->size = readhex (c);
 	ignore_ws (c);
 	if (more_params (c)) {
-	    char nc = toupper (next_char (c));
-	    if (nc == 'F')
-		mwn->frozen = 1;
-	    else if (nc == 'W')
-		mwn->rw = 1;
-	    else if (nc == 'R' && toupper(**c) != 'W')
-		mwn->rw = 0;
-	    else if (nc == 'R' && toupper(**c) == 'W')
-		next_char (c);
+	    for (;;) {
+		char ncc = peek_next_char(c);
+		char nc = toupper (next_char (c));
+		if (mwn->rwi == 7)
+		    mwn->rwi = 0;
+		if (nc == 'F')
+		    mwn->frozen = 1;
+		if (nc == 'W')
+		    mwn->rwi |= 2;
+		if (nc == 'I')
+		    mwn->rwi |= 4;
+		if (nc == 'R')
+		    mwn->rwi |= 1;
+		if (ncc == ' ')
+		    break;
+		if (!more_params(c))
+		    break;
+	    }
 	    ignore_ws (c);
 	    if (more_params (c)) {
 		if (toupper(**c) == 'M') {
@@ -1260,11 +1391,21 @@ static void writeintomem (char **c)
     console_out ("Wrote %x (%u) at %08x.%c\n", val, val, addr, cc);
 }
 
-static void memory_map_dump (void)
+static uae_u8 *dump_xlate(uae_u32 addr)
 {
-    int i, j, max;
-    addrbank *a1 = mem_banks[0];
+    if (!mem_banks[addr >> 16]->check(addr, 1))
+	return NULL;
+    return mem_banks[addr >> 16]->xlateaddr(addr);
+}
 
+static void memory_map_dump_2 (int log)
+{
+    int i, j, max, im;
+    addrbank *a1 = mem_banks[0];
+    char txt[256];
+
+    im = currprefs.illegal_mem;
+    currprefs.illegal_mem = 0;
     max = currprefs.address_space_24 ? 256 : 65536;
     j = 0;
     for (i = 0; i < max + 1; i++) {
@@ -1272,14 +1413,59 @@ static void memory_map_dump (void)
 	if (i < max)
 	    a2 = mem_banks[i];
 	if (a1 != a2) {
-	    char *name = a1->name;
+	    int k, mirrored, size;
+	    uae_u8 *caddr;
+	    char *name;
+	    char tmp[MAX_DPATH];
+	    
+	    name = a1->name;
 	    if (name == NULL)
 		name = "<none>";
-	    console_out("%08.8X %6dK %s\n", j << 16, (i - j) << (16 - 10), name);
+	    
+	    k = j;
+	    caddr = dump_xlate(k << 16);
+	    mirrored = caddr ? 1 : 0;
+	    k++;
+	    while (k < i && caddr) {
+		if (dump_xlate(k << 16) == caddr)
+		    mirrored++;
+		k++;
+	    }
+	    size = (i - j) << (16 - 10);
+	    sprintf (txt, "%08.8X %7dK/%d = %7dK %s", j << 16, size, mirrored, mirrored ? size / mirrored : size, name);
+
+	    tmp[0] = 0;
+	    if (a1->flags == ABFLAG_ROM && mirrored) {
+		char *p = txt + strlen(txt);
+		uae_u32 crc = get_crc32(a1->xlateaddr(j << 16), (size * 1024) / mirrored);
+		struct romdata *rd = getromdatabycrc(crc);
+		sprintf(p, " (%08.8X)", crc);
+		if (rd) {
+		    tmp[0] = '=';
+		    getromname(rd, tmp + 1);
+		    strcat(tmp,"\n");
+		}
+	    }
+	    strcat(txt,"\n");
+	    if (log)
+		write_log (txt);
+	    else
+		console_out(txt);
+	    if (tmp[0]) {
+		if (log)
+		    write_log (tmp);
+		else
+		    console_out(tmp);
+	    }
 	    j = i;
 	    a1 = a2;
 	}
     }
+    currprefs.illegal_mem = im;
+}
+void memory_map_dump (void)
+{
+    memory_map_dump_2 (1);
 }
 
 static void show_exec_tasks (void)
@@ -1681,10 +1867,19 @@ static void debug_1 (void)
 	    if (*inptr == 'c') {
 		screenshot (1, 1);
 	    } else if (*inptr == 'm') {
-		next_char(&inptr);
-		if (more_params(&inptr))
-		    debug_sprite_mask = readint(&inptr);
-		console_out("sprite mask: %02.2X\n", debug_sprite_mask);
+		if (*(inptr + 1) == 'c') {
+		    if (!memwatch_enabled)
+			initialize_memwatch(0);
+		    if (!smc_table)
+			smc_detect_init();
+		    else
+			smc_reset();
+		} else {
+		    next_char(&inptr);
+		    if (more_params(&inptr))
+			debug_sprite_mask = readint(&inptr);
+		    console_out("sprite mask: %02.2X\n", debug_sprite_mask);
+		}
 	    } else {
 		searchmem (&inptr);
 	    }
@@ -1695,7 +1890,7 @@ static void debug_1 (void)
 		next_char(&inptr);
 		disk_debug(&inptr);
 	    }  else if(*inptr == 'm') {
-		memory_map_dump();
+		memory_map_dump_2(0);
 	    } else {
 		uae_u32 daddr;
 		int count;
@@ -1926,8 +2121,10 @@ void debug (void)
 	    }
 	}
     } else {
-	console_out ("Memwatch %d: break at %08.8X.%c %c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
-	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'), mwhit.rw ? 'W' : 'R', mwhit.val);
+	console_out ("Memwatch %d: break at %08.8X.%c %c%c%c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
+	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
+	    (mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
+	    mwhit.val);
 	memwatch_triggered = 0;
     }
     if (skipaddr_doskip > 0) {

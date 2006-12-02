@@ -310,6 +310,9 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     int code = 0;
     static int swapperdrive = 0;
 
+    if (scancode == specialkeycode())
+	return;
+
     //write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
     if (newstate) {
 	switch (scancode)
@@ -453,8 +456,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	return;
     }
 
-    if (scancode == specialkeycode())
-	return;
     if (specialpressed())
 	return;
 

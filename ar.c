@@ -283,6 +283,7 @@ static addrbank hrtmem_bank = {
     hrtmem_lget, hrtmem_wget, hrtmem_bget,
     hrtmem_lput, hrtmem_wput, hrtmem_bput,
     hrtmem_xlate, hrtmem_check, NULL, "HRTMon memory",
+    hrtmem_lget, hrtmem_wget, ABFLAG_RAM
 };
 
 static void copyfromamiga(uae_u8 *dst,uaecptr src,int len)
@@ -685,11 +686,13 @@ static addrbank arrom_bank = {
     arrom_lget, arrom_wget, arrom_bget,
     arrom_lput, arrom_wput, arrom_bput,
     arrom_xlate, arrom_check, NULL, "Action Replay ROM",
+    arrom_lget, arrom_wget, ABFLAG_ROM
 };
 static addrbank arram_bank = {
     arram_lget, arram_wget, arram_bget,
     arram_lput, arram_wput, arram_bput,
     arram_xlate, arram_check, NULL, "Action Replay RAM",
+    arram_lget, arram_wget, ABFLAG_RAM
 };
 
 static void action_replay_unmap_banks()

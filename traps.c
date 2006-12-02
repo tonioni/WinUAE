@@ -415,6 +415,9 @@ static uae_u32 REGPARAM2 exit_trap_handler (struct regstruct *regs)
     if (context->trap_has_retval)
 	m68k_dreg (regs, 0) = context->trap_retval;
 
+#ifdef _WIN32
+    CloseHandle(context->thread);
+#endif
     uae_sem_destroy (&context->switch_to_trap_sem);
     uae_sem_destroy (&context->switch_to_emu_sem);
 

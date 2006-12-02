@@ -299,15 +299,7 @@
 				RelativePath="..\..\build68k.c"
 				>
 			</File>
-			<File
-				RelativePath=".\build68k.rc"
-				>
-			</File>
 		</Filter>
-		<File
-			RelativePath=".\resource.h"
-			>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

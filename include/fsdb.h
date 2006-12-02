@@ -114,7 +114,7 @@ STATIC_INLINE int same_aname (const char *an1, const char *an2)
 extern int fsdb_name_invalid (const char *n);
 extern int fsdb_fill_file_attrs (a_inode *, a_inode *);
 extern int fsdb_set_file_attrs (a_inode *);
-extern int fsdb_mode_representable_p (const a_inode *);
+extern int fsdb_mode_representable_p (const a_inode *, int);
 extern int fsdb_mode_supported (const a_inode *);
 extern char *fsdb_create_unique_nname (a_inode *base, const char *);
 

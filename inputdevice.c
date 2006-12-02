@@ -118,6 +118,7 @@ static struct zfile *inprec_zf;
 static int inprec_size;
 int input_recording = 0;
 static uae_u8 *inprec_plast, *inprec_plastptr;
+static int inprec_div;
 
 static uae_u32 oldbuttons[4];
 static uae_u16 oldjoy[2];
@@ -132,6 +133,7 @@ int inprec_open(char *fname, int record)
     if (inprec_zf == NULL)
 	return 0;
     inprec_size = 10000;
+    inprec_div = 1;
     if (record < 0) {
 	uae_u32 id;
 	zfile_fseek (inprec_zf, 0, SEEK_END);
@@ -146,13 +148,15 @@ int inprec_open(char *fname, int record)
 	    return 0;
 	}
 	inprec_pu32();
-	srand(inprec_pu32());
+	t = inprec_pu32();
 	i = inprec_pu32();
 	while (i-- > 0)
 	    inprec_pu8();
 	inprec_p = inprec_plastptr;
 	oldbuttons[0] = oldbuttons[1] = oldbuttons[2] = oldbuttons[3] = 0;
 	oldjoy[0] = oldjoy[1] = 0;
+	if (record < -1)
+	    inprec_div = maxvpos;
     } else if (record > 0) {
 	inprec_buffer = inprec_p = xmalloc (inprec_size);
 	inprec_ru32('UAE\0');
@@ -166,6 +170,7 @@ int inprec_open(char *fname, int record)
 	return 0;
     }
     input_recording = record;
+    srand(t);
     CIA_inprec_prepare();
     write_log ("inprec initialized '%s', mode=%d\n", fname, input_recording);
     return 1;
@@ -235,6 +240,8 @@ int inprec_pstart(uae_u8 type)
 {
     uae_u8 *p = inprec_p;
     uae_u32 hc = hsync_counter;
+    static uae_u8 *lastp;
+    uae_u32 hc_orig, hc2_orig;
 
     if (savestate_state)
 	return 0;
@@ -242,20 +249,29 @@ int inprec_pstart(uae_u8 type)
 	inprec_close();
 	return 0;
     }
-    if (input_recording < -1) {
-	hc /= maxvpos;
-	hc *= maxvpos;
-    }
+    hc_orig = hc;
+    hc /= inprec_div;
+    hc *= inprec_div;
     for (;;) {
 	uae_u32 hc2 = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
-	if (input_recording < -1) {
-	    hc2 /= maxvpos;
-	    hc2 *= maxvpos;
+	if (p > lastp) {
+	    write_log("INPREC: Next %08.8x (%08.8x=%d): %d (%d)\n", hc2, hc, hc2 - hc, p[5 + 1], p[5]);
+	    lastp = p;
 	}
-	if (hc2 != hc)
+	hc2_orig = hc2;
+	hc2 /= inprec_div;
+	hc2 *= inprec_div;
+	if (hc > hc2) {
+	    write_log("INPREC: %08.8x > %08.8x: %d (%d) missed!\n", hc, hc2, p[5 + 1], p[5]);
+	    inprec_close();
+	    return 0;
+	}
+	if (hc2 != hc) {
+    	    lastp = p;
 	    break;
+	}
 	if (p[5 + 1] == type) {
-	    write_log("INPREC: %08.8x: %d (%d)\n", hc, type, p[5]);
+	    write_log("INPREC: %08.8x: %d (%d) (%+d)\n", hc, type, p[5], hc_orig - hc2_orig);
 	    inprec_plast = p;
 	    inprec_plastptr = p + 5 + 2;
 	    return 1;
@@ -275,16 +291,12 @@ void inprec_pend(void)
     inprec_plast[5 + 1] = 0;
     inprec_plast = NULL;
     inprec_plastptr = NULL;
-    if (input_recording < -1) {
-	hc /= maxvpos;
-	hc *= maxvpos;
-    }
+    hc /= inprec_div;
+    hc *= inprec_div;
     for (;;) {
 	uae_u32 hc2 = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
-	if (input_recording < -1) {
-	    hc2 /= maxvpos;
-	    hc2 *= maxvpos;
-	}
+	hc2 /= inprec_div;
+	hc2 *= inprec_div;
 	if (hc2 != hc)
 	    break;
 	if (p[5 + 1] != 0)
@@ -789,7 +801,9 @@ int getbuttonstate (int joy, int button)
 
     v = (joybutton[joy] & (1 << button)) ? 1 : 0;
     if (input_recording > 0 && ((joybutton[joy] ^ oldbuttons[joy]) & (1 << button))) {
-	oldbuttons[joy] = joybutton[joy];
+	oldbuttons[joy] &= ~(1 << button);
+	if (v)
+	    oldbuttons[joy] |= 1 << button;
 	inprec_rstart(INPREC_JOYBUTTON);
 	inprec_ru8(joy);
 	inprec_ru8(button);
@@ -1585,7 +1599,7 @@ void inputdevice_vsync (void)
 	}
     }
     mouseupdate (100);
-    inputdelay = rand () % (maxvpos - 1);
+    inputdelay = uaerand () % (maxvpos - 1);
     idev[IDTYPE_MOUSE].read ();
     input_read = 1;
     input_vpos = 0;

@@ -37,6 +37,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "zfile.h"
+#include "uae.h"
 /* ELSE */
 //#include "types.h"
 
@@ -1474,7 +1475,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			if (i >= pulses)
 				i = 0;
 			indx = idx[i];
-			if (rand() <= (indx * RAND_MAX) / maxidx) {
+			if (uaerand() <= (indx * RAND_MAX) / maxidx) {
 				pulse += avgp[i] - ref_pulse;
 				if (indx >= maxidx)
 					ref_pulse = 0;
@@ -1624,7 +1625,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 					max_pulse = avg_pulse + (avgp[nexti] - minp[nexti]);
 				if (min_pulse < ref_pulse)
 					min_pulse = ref_pulse;
-				randval = rand();
+				randval = uaerand();
 				if (randval < (RAND_MAX / 2)) {
 					if (randval > (RAND_MAX / 4)) {
 						if (randval <= (3 * RAND_MAX / 8))
@@ -1655,11 +1656,11 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				ref_pulse = 0;
 				if (i == eodat)
 					outstep++;
-			} else if (rand() <= ((idx[i] * RAND_MAX) / maxidx)) {
+			} else if (uaerand() <= ((idx[i] * RAND_MAX) / maxidx)) {
 				avg_pulse = avgp[i];
 				min_pulse = minp[i];
 				max_pulse = maxp[i];
-				randval = rand();
+				randval = uaerand();
 				if (randval < (RAND_MAX / 2)) {
 					if (randval > (RAND_MAX / 4)) {
 						if (randval <= (3 * RAND_MAX / 8))

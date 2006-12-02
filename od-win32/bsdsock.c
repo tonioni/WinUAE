@@ -43,13 +43,8 @@ static int hWndSelector = 0; /* Set this to zero to get hSockWnd */
 static CRITICAL_SECTION csSigQueueLock;
 
 static DWORD threadid;
-#ifdef __GNUC__
-#define THREAD(func,arg) CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)func,(LPVOID)arg,0,&threadid)
-#define THREADEND()
-#else
 #define THREAD(func,arg) (HANDLE)_beginthreadex(NULL, 0, func, arg, 0, &threadid)
 #define THREADEND(result) _endthreadex(result)
-#endif
 
 #define SETERRNO bsdsocklib_seterrno(sb, WSAGetLastError() - WSABASEERR)
 #define SETHERRNO bsdsocklib_setherrno(sb, WSAGetLastError() - WSABASEERR)
@@ -103,8 +98,8 @@ static HANDLE hSockReq, hSockReqHandled;
 static unsigned int __stdcall sock_thread(void *);
 
 static CRITICAL_SECTION SockThreadCS;
-#define PREPARE_THREAD EnterCriticalSection( &SockThreadCS )
-#define TRIGGER_THREAD { SetEvent( hSockReq ); WaitForSingleObject( hSockReqHandled, INFINITE ); LeaveCriticalSection( &SockThreadCS ); }
+#define PREPARE_THREAD EnterCriticalSection(&SockThreadCS)
+#define TRIGGER_THREAD { SetEvent(hSockReq); WaitForSingleObject(hSockReqHandled, INFINITE); LeaveCriticalSection(&SockThreadCS); }
 
 #define SOCKVER_MAJOR 2
 #define SOCKVER_MINOR 2
@@ -128,21 +123,21 @@ static void bsdsetpriority (HANDLE thread)
 	SetThreadPriority(thread, pri);
 }
 
-static int mySockStartup( void )
+static int mySockStartup(void)
 {
 	int result = 0;
 	SOCKET dummy;
 	DWORD lasterror;
 
-	if (WSAStartup(MAKEWORD( SOCKVER_MAJOR, SOCKVER_MINOR ), &wsbData)) {
+	if (WSAStartup(MAKEWORD(SOCKVER_MAJOR, SOCKVER_MINOR), &wsbData)) {
 	    lasterror = WSAGetLastError();
 
-	    if( lasterror == WSAVERNOTSUPPORTED ) {
-			char szMessage[ MAX_DPATH ];
-			WIN32GUI_LoadUIString( IDS_WSOCK2NEEDED, szMessage, MAX_DPATH );
-					gui_message( szMessage );
+	    if(lasterror == WSAVERNOTSUPPORTED) {
+			char szMessage[MAX_DPATH];
+			WIN32GUI_LoadUIString(IDS_WSOCK2NEEDED, szMessage, MAX_DPATH);
+					gui_message(szMessage);
 	    } else
-			write_log( "BSDSOCK: ERROR - Unable to initialize Windows socket layer! Error code: %d\n", lasterror );
+			write_log("BSDSOCK: ERROR - Unable to initialize Windows socket layer! Error code: %d\n", lasterror);
 	    return 0;
 	}
 
@@ -153,15 +148,15 @@ static int mySockStartup( void )
 
 		return 0;
 	} else {
-		write_log( "BSDSOCK: using %s\n", wsbData.szDescription );
+		write_log("BSDSOCK: using %s\n", wsbData.szDescription);
 		// make sure WSP/NSPStartup gets called from within the regular stack
 		// (Windows 95/98 need this)
 		if((dummy = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) != INVALID_SOCKET)  {
 			closesocket(dummy);
 			result = 1;
 		} else {
-			write_log( "BSDSOCK: ERROR - WSPStartup/NSPStartup failed! Error code: %d\n",
-				WSAGetLastError() );
+			write_log("BSDSOCK: ERROR - WSPStartup/NSPStartup failed! Error code: %d\n",
+				WSAGetLastError());
 			result = 0;
 		}
 	}
@@ -175,16 +170,16 @@ int init_socket_layer(void)
 {
     int result = 0;
 
-    if(currprefs.socket_emu) {
+    if (currprefs.socket_emu) {
 		if((result = mySockStartup())) {
 			InitializeCriticalSection(&csSigQueueLock);
 
 			if(hSockThread == NULL) {
 				WNDCLASS wc;    // Set up an invisible window and dummy wndproc
 				
-				InitializeCriticalSection( &SockThreadCS );
-				hSockReq = CreateEvent( NULL, FALSE, FALSE, NULL );
-				hSockReqHandled = CreateEvent( NULL, FALSE, FALSE, NULL );
+				InitializeCriticalSection(&SockThreadCS);
+				hSockReq = CreateEvent(NULL, FALSE, FALSE, NULL);
+				hSockReqHandled = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 				wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW;
 				wc.lpfnWndProc = SocketWindowProc;
@@ -197,7 +192,7 @@ int init_socket_layer(void)
 				wc.lpszMenuName = 0;
 				wc.lpszClassName = "SocketFun";
 				if(RegisterClass(&wc)) {
-					hSockWnd = CreateWindowEx ( 0,
+					hSockWnd = CreateWindowEx (0,
 						"SocketFun", "WinUAE Socket Window",
 						WS_POPUP,
 						0, 0,
@@ -216,7 +211,7 @@ int init_socket_layer(void)
 void deinit_socket_layer(void)
 {
 	int i;
-	if(currprefs.socket_emu) {
+	if (currprefs.socket_emu) {
 		WSACleanup();
 		if(socket_layer_initialized) {
 			DeleteCriticalSection(&csSigQueueLock);
@@ -288,8 +283,7 @@ void host_closesocketquick(SOCKET s)
 {
 	BOOL true = 1;
 
-	if( s )
-	{
+	if(s) {
 	    setsockopt(s,SOL_SOCKET,SO_DONTLINGER,(char *)&true,sizeof(true));
 	    shutdown(s,1);
 	    closesocket(s);
@@ -304,11 +298,10 @@ void host_sbcleanup(SB)
 
 	if (sb->hEvent != NULL) CloseHandle(sb->hEvent);
 	
-	for (i = sb->dtablesize; i--; )
-	{
+	for (i = sb->dtablesize; i--; ) {
 		if (sb->dtable[i] != INVALID_SOCKET) host_closesocketquick(sb->dtable[i]);
 		
-		if (sb->mtable[i]) asyncsb[(sb->mtable[i]-0xb000)/2] = NULL;
+		if (sb->mtable[i]) asyncsb[(sb->mtable[i] - 0xb000) / 2] = NULL;
 	}
 
 	shutdown(sb->sockAbort,1);
@@ -319,10 +312,10 @@ void host_sbcleanup(SB)
 
 void host_sbreset(void)
 {
-	memset(asyncsb,0,sizeof asyncsb);
-	memset(asyncsock,0,sizeof asyncsock);
-	memset(asyncsd,0,sizeof asyncsd);
-	memset(threadargsw,0,sizeof threadargsw);
+	memset(asyncsb, 0, sizeof asyncsb);
+	memset(asyncsock, 0, sizeof asyncsock);
+	memset(asyncsd, 0, sizeof asyncsd);
+	memset(threadargsw, 0, sizeof threadargsw);
 }
 
 void sockmsg(unsigned int msg, WPARAM wParam, LPARAM lParam)
@@ -340,11 +333,11 @@ void sockmsg(unsigned int msg, WPARAM wParam, LPARAM lParam)
 		if ((SOCKET)wParam != asyncsock[index])
 		{
 			// cancel socket event
-			WSAAsyncSelect((SOCKET)wParam,hWndSelector ? hAmigaWnd : hSockWnd,0,0);
+			WSAAsyncSelect((SOCKET)wParam, hWndSelector ? hAmigaWnd : hSockWnd, 0, 0);
 			return;
 		}
 
-		sdi = asyncsd[index]-1;
+		sdi = asyncsd[index] - 1;
 
 		// asynchronous socket event?
 		if (sb && !(sb->ftable[sdi] & SF_BLOCKINGINPROGRESS) && sb->mtable[sdi])

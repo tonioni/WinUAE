@@ -103,7 +103,6 @@ static uae_u8 get_buttons(void)
 
 int catweasel_read_mouse(int port, int *dx, int *dy, int *buttons)
 {
-    return 0;
     if (!cwc.can_mouse)
 	return 0;
     *dx = mouse_x[port];
@@ -308,9 +307,22 @@ static void cw_resetFPGA(void)
     ioport_write (cwc.iobase + 3, 65);
 }
 
-int catweasel4_configure(void)
+static int catweasel3_configure(void)
+{
+    ioport_write (cwc.iobase, 241);
+    ioport_write (cwc.iobase + 1, 0);
+    ioport_write (cwc.iobase + 2, 0);
+    ioport_write (cwc.iobase + 4, 0);
+    ioport_write (cwc.iobase + 5, 0);
+    ioport_write (cwc.iobase + 0x29, 0);
+    ioport_write (cwc.iobase + 0x2b, 0);
+    return 1;
+}
+
+static int catweasel4_configure(void)
 {
     struct zfile *f;
+    time_t t;
 
     ioport_write (cwc.iobase, 241);
     ioport_write (cwc.iobase + 1, 0);
@@ -320,10 +332,11 @@ int catweasel4_configure(void)
     ioport_write (cwc.iobase + 5, 0);
     ioport_write (cwc.iobase + 0x29, 0);
     ioport_write (cwc.iobase + 0x2b, 0);
+    sleep_millis(10);
 
     if (cw_config_done()) {
 	write_log ("CW: FPGA already configured, skipping core upload\n");
-	goto ok;
+	return 1;
     }
     cw_resetFPGA();
     sleep_millis(10);
@@ -337,12 +350,19 @@ int catweasel4_configure(void)
 	f = zfile_gunzip (f);
     }
     write_log ("CW: starting core upload, this will take few seconds\n");
+    t = time(NULL) + 10; // give up if upload takes more than 10s
     for (;;) {
 	uae_u8 b;
 	if (zfile_fread (&b, 1, 1, f) != 1)
 	    break;
 	ioport_write (cwc.iobase + 3, (b & 1) ? 67 : 65);
-	while (!cw_fpga_ready());
+	while (!cw_fpga_ready()) {
+	    if (time(NULL) >= t) {
+		write_log ("CW: FPGA core upload got stuck!?\n");
+		cw_resetFPGA();
+		return 0;
+	    }
+	}
 	ioport_write (cwc.iobase + 192, b);
     }
     if (!cw_config_done()) {
@@ -352,7 +372,6 @@ int catweasel4_configure(void)
     }
     sleep_millis(10);
     write_log ("CW: core uploaded successfully\n");
-ok:
     return 1;
 }
 
@@ -363,7 +382,7 @@ ok:
 #define PCI_CW_MK4 "PCI\\VEN_E159&DEV_0001&SUBSYS_00035213"
 #define PCI_CW_MK4_BUG "PCI\\VEN_E159&DEV_0001&SUBSYS_00025213"
 
-extern int os_64bit;
+extern int os_winnt;
 int force_direct_catweasel;
 static int direct_detect(void)
 {
@@ -373,7 +392,7 @@ static int direct_detect(void)
     int devIndex;
     int cw = 0;
 
-    if (!os_64bit && !force_direct_catweasel)
+    if (!os_winnt)
 	return 0;
     devs = SetupDiGetClassDevsEx(NULL, NULL, NULL, DIGCF_ALLCLASSES | DIGCF_PRESENT, NULL, NULL, NULL);
     if (devs == INVALID_HANDLE_VALUE)
@@ -469,6 +488,10 @@ static int direct_detect(void)
 	}
     }
     SetupDiDestroyDeviceInfoList(devs);
+    if (cw) {
+	if (!ioport_init ())
+	    cw = 0;
+    }
     return cw;
 }
 
@@ -478,17 +501,19 @@ int catweasel_init(void)
     int i, len;
     uae_u8 buffer[10000];
     uae_u32 model, base;
+    int detect = 0;
 
     if (cwc.type)
 	return 1;
-    catweasel_detect();
 
-    if (currprefs.catweasel >= 100) {
-	cwc.type = currprefs.catweasel >= 0x400 ? 3 : 1;
-	cwc.iobase = currprefs.catweasel;
-	if (!ioport_init())
-	    goto fail;
-	strcpy(name, "[DIRECT]");
+    if (force_direct_catweasel >= 100) {
+
+        cwc.iobase = force_direct_catweasel & 0xffff;
+	if (force_direct_catweasel > 0xffff) {
+	    cwc.direct_type = force_direct_catweasel >> 16;
+	} else {
+	    cwc.direct_type = force_direct_catweasel >= 0x400 ? 3 : 1;
+	}
 
     } else {
 
@@ -501,29 +526,30 @@ int catweasel_init(void)
 	    if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
 		break;
 	}
-	if (handle == INVALID_HANDLE_VALUE) {
-	    strcpy(name, "[DIRECT]");
-	    if (ioport_init()) {
-		if (cwc.direct_type == 4) {
-		    if (catweasel4_configure()) {
-			cwc.type = 4;
-			cwc.can_joy = 2;
-			cwc.can_sid = 2;
-			cwc.can_kb = 1;
-			cwc.can_mouse = 2;
-		    }
-		} else if (cwc.direct_type == 3) {
-		    cwc.type = 3;
-		    cwc.can_joy = 1;
-		    cwc.can_sid = 1;
-		    cwc.can_kb = 1;
-		    cwc.can_mouse = 0;
-		}
+	if (handle == INVALID_HANDLE_VALUE)
+	    catweasel_detect();
+    }
+
+    if (handle == INVALID_HANDLE_VALUE) {
+        strcpy(name, "[DIRECT]");
+	if (cwc.direct_type && ioport_init()) {
+	    if (cwc.direct_type == 4 && catweasel4_configure()) {
+		cwc.type = 4;
+		cwc.can_joy = 2;
+		cwc.can_sid = 2;
+		cwc.can_kb = 1;
+		cwc.can_mouse = 2;
+	    } else if (cwc.direct_type == 3 && catweasel3_configure()) {
+		cwc.type = 3;
+		cwc.can_joy = 1;
+		cwc.can_sid = 1;
+		cwc.can_kb = 1;
+		cwc.can_mouse = 0;
 	    }
-	    if (cwc.type == 0) {
-		write_log ("CW: No Catweasel detected\n");
-		goto fail;
-	    }
+	}
+	if (cwc.type == 0) {
+	    write_log ("CW: No Catweasel detected\n");
+	    goto fail;
 	}
     }
 
@@ -624,17 +650,23 @@ int catweasel_detect (void)
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (handle != INVALID_HANDLE_VALUE) {
 	    CloseHandle (handle);
-	    break;
+	    write_log("CW: Windows driver device detected '%s'\n", name);
+	    detected = 1;
+	    return TRUE;
 	}
     }
     if (handle == INVALID_HANDLE_VALUE) {
+	if (force_direct_catweasel >= 100) {
+	    if (ioport_init()) 
+		return TRUE;
+	    return FALSE;
+	}
 	if (direct_detect()) {
 	    detected = 1;
 	    return TRUE;
 	}
     }
-    detected = 1;
-    return TRUE;
+    return FALSE;
 }
 
 #define outb(v,port) catweasel_do_bput(port,v)

@@ -162,6 +162,7 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	hdf_init ();
 	i = isharddrive (name);
 	if (i >= 0) {
+	    DWORD r;
 	    udi = &uae_drives[i];
 	    hfd->flags = 1;
 	    flags =  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
@@ -171,6 +172,8 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 		hdf_close (hfd);
 		return 0;
 	    }
+	    if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
+		write_log("FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError());
 	    strncpy (hfd->vendor_id, udi->vendor_id, 8);
 	    strncpy (hfd->product_id, udi->product_id, 16);
 	    strncpy (hfd->product_rev, udi->product_rev, 4);

@@ -59,6 +59,10 @@ char warning_buffer[256];
 
 char optionsfile[256];
 
+int uaerand(void)
+{
+    return rand();
+}
 /* If you want to pipe printer output to a file, put something like
  * "cat >>printerfile.tmp" above.
  * The printer support was only tested with the driver "PostScript" on

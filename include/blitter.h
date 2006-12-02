@@ -30,7 +30,7 @@ extern void maybe_blit (int, int);
 extern void reset_blit (int);
 extern int blitnasty (void);
 extern int blitnnasty (int);
-extern void blitter_handler (void);
+extern void blitter_handler (uae_u32);
 extern void build_blitfilltable (void);
 extern void do_blitter (int);
 extern void decide_blitter (int hpos);

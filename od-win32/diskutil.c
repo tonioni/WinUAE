@@ -118,16 +118,22 @@ static ULONG getmfmlong (UWORD * mbuf)
 
 static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffer, UBYTE *writebuffer_ok, int track)
 {
-	int i, secwritten = 0;
+	int i;
 	ULONG odd, even, chksum, id, dlong;
 	UBYTE *secdata;
 	UBYTE secbuf[544];
-	char sectable[11];
 
-	memset (sectable, 0, sizeof (sectable));
 	mend -= (4 + 16 + 8 + 512);
-	while (secwritten < 11) {
+	for (;;) {
 		int trackoffs;
+
+	/* all sectors complete? */
+		for (i = 0; i < 11; i++) {
+			if (!writebuffer_ok[i])
+				break;
+		}
+		if (i == 11)
+			return 0;
 
 		do {
 			while (*mbuf++ != 0x4489) {
@@ -148,6 +154,10 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 			printf("* corrupt sector number %d\n", trackoffs);
 			goto next;
 		}
+		/* this sector is already ok? */
+		if (writebuffer_ok[trackoffs])
+			goto next;
+
 		chksum = odd ^ even;
 		for (i = 0; i < 4; i++) {
 			odd = getmfmlong (mbuf);
@@ -187,16 +197,12 @@ static int drive_write_adf_amigados (UWORD *mbuf, UWORD *mend, UBYTE *writebuffe
 			printf("* sector %d data crc error\n", trackoffs);
 			goto next;
 		}
-		sectable[trackoffs] = 1;
-		secwritten++;
 		memcpy (writebuffer + trackoffs * 512, secbuf + 32, 512);
-		writebuffer_ok[trackoffs] = 1;
+		writebuffer_ok[trackoffs] = 0xff;
 		continue;
 next:
 		mbuf += 8;
 	}
-    if (secwritten == 0 || secwritten < 0) return 5;
-	return 0;
 }
 
 /* search and align to 0x4489 WORDSYNC markers */

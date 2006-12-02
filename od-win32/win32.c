@@ -16,7 +16,7 @@
 #include <stdarg.h>
 #include <signal.h>
 
-#define _WIN32_WINNT 0x501 /* XButtons */
+#define _WIN32_WINNT 0x600 /* XButtons + MOUSEHWHEEL */
 
 #include <windows.h>
 #include <commctrl.h>
@@ -88,6 +88,7 @@ static int TaskbarRestartOk;
 static int forceroms;
 
 char VersionStr[256];
+char BetaStr[64];
 
 int in_sizemove;
 int manual_painting_needed;
@@ -298,9 +299,9 @@ static int figure_processor_speed (void)
     if (QueryPerformanceFrequency(&freq)) {
 	qpc_avail = 1;
 	qpfrate = freq.QuadPart;
-	 /* we don't want 32-bit overflow, limit to 100MHz */
+	 /* limit to 10MHz */
 	qpcdivisor = 0;
-	while (qpfrate > 100000000) {
+	while (qpfrate > 10000000) {
 	    qpfrate >>= 1;
 	    qpcdivisor++;
 	    qpc_avail = -1;
@@ -454,7 +455,7 @@ void setmouseactive (int active)
 {
     int oldactive = mouseactive;
     static int mousecapture, showcursor;
-    char txt[100], txt2[110];
+    char txt[400], txt2[200];
 
     if (active > 0 && mousehack_allowed () && mousehack_alive ()) {
 	if (!isfullscreen ())
@@ -464,10 +465,15 @@ void setmouseactive (int active)
 
     mouseactive = active;
     strcpy (txt, "WinUAE");
+    txt2[0] = 0;
     if (mouseactive > 0) {
 	focus = 1;
 	WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
 	    txt2, sizeof (txt2));
+    }
+    if (WINUAEBETA > 0)
+	strcat (txt, BetaStr);
+    if (txt2[0]) {
 	strcat (txt, " - ");
 	strcat (txt, txt2);
     }
@@ -824,6 +830,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	if (dinput_winmouse () >= 0)
 	    setmousestate (dinput_winmouse(), 2, ((short)HIWORD(wParam)), 0);
     return 0;
+    case WM_MOUSEHWHEEL:
+	if (dinput_winmouse () >= 0)
+	    setmousestate (dinput_winmouse(), 3, ((short)HIWORD(wParam)), 0);
+    return 0;
 
     case WM_PAINT:
     {
@@ -993,15 +1003,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		{
 		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam; 
 		    int num = (int)lpnm->dwItemSpec;
-		    if (num >= 6 && num <= 9) {
-			num -= 6;
+		    if (num >= 7 && num <= 10) {
+			num -= 7;
 			if (nm->code == NM_RCLICK) {
 			    disk_eject (num);
 			} else if (changed_prefs.dfxtype[num] >= 0) {
 			    DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
 			    disk_insert (num, changed_prefs.df[num]);
 			}
-		    } else if (num == 3) {
+		    } else if (num == 4) {
 			if (nm->code == NM_CLICK)
 			    gui_display (-1);
 			else
@@ -1676,7 +1686,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_iconified_pause = 1;
 	p->win32_inactive_nosound = 0;
 	p->win32_inactive_pause = 0;
-	p->win32_no_overlay = 0;
+	p->win32_no_overlay = os_vista ? 1 : 0;
 	p->win32_ctrl_F11_is_quit = 0;
 	p->win32_soundcard = 0;
 	p->win32_active_priority = 1;
@@ -2094,8 +2104,7 @@ static void WIN32_HandleRegistryStuff(void)
 	initpath ("SaveimagePath", start_path_data);
 	initpath ("VideoPath", start_path_data);
 	initpath ("InputPath", start_path_data);
-	if (disposition == REG_CREATED_NEW_KEY)
-	{
+	if (disposition == REG_CREATED_NEW_KEY) {
 	    /* Create and initialize all our sub-keys to the default values */
 	    colortype = 0;
 	    RegSetValueEx(hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
@@ -2167,8 +2176,87 @@ static void WIN32_HandleRegistryStuff(void)
     load_keyring(NULL, NULL);
 }
 
-static void betamessage (void)
+static char *BETAMESSAGE = {
+    "This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors."
+};
+
+static int betamessage (void)
 {
+#ifdef WINUAEPUBLICBETA
+    int showmsg = TRUE;
+    HANDLE h = INVALID_HANDLE_VALUE;
+    ULONGLONG regft64;
+    ULARGE_INTEGER ft64;
+    ULARGE_INTEGER sft64;
+    struct tm *t;
+    __int64 ltime;
+    DWORD dwType, size, data;
+
+    ft64.QuadPart = 0;
+    for (;;) {
+	FILETIME ft, sft;
+	SYSTEMTIME st;
+	char tmp1[MAX_DPATH];
+
+	if (!hWinUAEKey)
+	    break;
+        if (GetModuleFileName(NULL, tmp1, sizeof tmp1) == 0)
+	    break;
+	h = CreateFile(tmp1, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+	    break;
+	if (GetFileTime(h, &ft, NULL, NULL) == 0)
+	    break;
+	ft64.LowPart = ft.dwLowDateTime;
+	ft64.HighPart = ft.dwHighDateTime;
+	dwType = REG_QWORD;
+	size = sizeof regft64;
+	if (RegQueryValueEx(hWinUAEKey, "BetaToken", 0, &dwType, (LPBYTE)&regft64, &size) != ERROR_SUCCESS)
+	    break;
+	GetSystemTime(&st);
+	SystemTimeToFileTime(&st, &sft);
+	sft64.LowPart = sft.dwLowDateTime;
+	sft64.HighPart = sft.dwHighDateTime;
+	if (ft64.QuadPart == regft64)
+	    showmsg = FALSE;
+	/* complain again in 7 days */
+	if (sft64.QuadPart > regft64 + (ULONGLONG)1000000000 * 60 * 60 * 24 * 7)
+	    showmsg = TRUE;
+	break;
+    }
+    if (h != INVALID_HANDLE_VALUE)
+	CloseHandle(h);
+    if (showmsg) {
+	int r;
+	char title[MAX_DPATH];
+
+	dwType = REG_DWORD;
+	size = sizeof data;
+	if (hWinUAEKey && RegQueryValueEx(hWinUAEKey, "Beta_Just_Shut_Up", 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
+	    if (data == 68000) {
+		write_log("I was told to shut up :(\n");
+		return 1;
+	    }
+	}
+
+	_time64(&ltime);
+	t = _gmtime64 (&ltime);
+	/* "expire" in 1 month */
+	if (MAKEBD(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday) > WINUAEDATE + 100)
+	    pre_gui_message("This beta build of WinUAE is obsolete.\nPlease download newer version.");
+
+	strcpy (title, "WinUAE Public Beta Disclaimer");
+	strcat (title, BetaStr);
+	r = MessageBox (NULL, BETAMESSAGE, title, MB_OKCANCEL | MB_TASKMODAL | MB_SETFOREGROUND | MB_ICONWARNING | MB_DEFBUTTON2);
+	if (r == IDABORT || r == IDCANCEL)
+	    return 0;
+	if (ft64.QuadPart > 0) {
+	    regft64 = ft64.QuadPart;
+	    RegSetValueEx(hWinUAEKey, "BetaToken", 0, REG_QWORD, (LPBYTE)&regft64, sizeof regft64);
+	}
+    }
+#endif
+    return 1;
 }
 
 static int dxdetect (void)
@@ -2189,7 +2277,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin, os_64bit;
+int os_winnt, os_winnt_admin, os_64bit, os_vista;
 
 static int isadminpriv (void) 
 {
@@ -2255,6 +2343,7 @@ static int osdetect (void)
 {
     os_winnt = 0;
     os_winnt_admin = 0;
+    os_vista = 0;
     os_64bit = 0;
 
     pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(
@@ -2275,6 +2364,8 @@ static int osdetect (void)
 	}
 	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
 	    os_winnt = 1;
+	if (osVersion.dwMajorVersion >= 6)
+	    os_vista = 1;
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 	    os_64bit = 1;
     }
@@ -2417,6 +2508,30 @@ extern int force_direct_catweasel, cpu_affinity;
 
 static int original_affinity;
 
+static int getval(char *s)
+{
+    int base = 10;
+    int v;
+    char *endptr;
+
+    if (s[0] == '0' && s[1] == 'x')
+	s += 2, base = 16;
+    v = strtol (s, &endptr, base);
+    if (*endptr != '\0' || *s == '\0')
+	return 0;
+    return v;
+}
+
+static void makeverstr(char *s)
+{
+#if WINUAEBETA > 0
+    sprintf(BetaStr, " (%sBeta %d, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? "Public " : "", WINUAEBETA,
+	GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+#endif
+    sprintf(s, "WinUAE %d.%d.%d%s",
+	UAEMAJOR, UAEMINOR, UAESUBREV, BetaStr);
+}
+
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		    int nCmdShow)
 {
@@ -2450,11 +2565,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     AVIOutput_Initialize();
 #endif
 
-#ifdef __MINGW32__
-    argc = _argc; argv = _argv;
-#else
     argc = __argc; argv = __argv;
-#endif
     for (i = 1; i < argc; i++) {
 	char *arg = argv[i];
 	if (!strcmp (arg, "-log")) console_logging = 1;
@@ -2474,18 +2585,20 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
 	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
 	if (!strcmp (arg, "-sounddebug")) sound_debug = 1;
-	if (!strcmp (arg, "-directcatweasel")) force_direct_catweasel = 1;
+	if (!strcmp (arg, "-directcatweasel")) {
+	    force_direct_catweasel = 1;
+	    if (i + 1 < argc)
+		force_direct_catweasel = getval (argv[++i]);
+	}
 	if (!strcmp (arg, "-affinity") && i + 1 < argc) {
-	    cpu_affinity = atol (argv[i + 1]);
+	    cpu_affinity = getval (argv[++i]);
 	    if (cpu_affinity == 0)
 		cpu_affinity = original_affinity;
 	    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
-	    i++;
 	}
 	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
-	    strcpy(start_path_data, argv[i + 1]);
+	    strcpy(start_path_data, argv[++i]);
 	    start_data = 1;
-	    i++;
 	}
     }
 #if 0
@@ -2493,20 +2606,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argv[0] = 0;
 #endif
     getstartpaths(start_data);
-    sprintf(VersionStr, "WinUAE %d.%d.%d%s (%d-bit)",
-	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA ? WINUAEBETASTR : "",
-	#if defined(WIN64)
-	64
-	#else
-	32
-	#endif
-    );
+    makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);
 
     logging_init ();
 
-    if(WIN32_RegisterClasses() && WIN32_InitLibraries() && DirectDraw_Start(NULL))
-    {
+    if(WIN32_RegisterClasses() && WIN32_InitLibraries() && DirectDraw_Start(NULL)) {
 	DEVMODE devmode;
 	DWORD i = 0;
 
@@ -2530,16 +2635,17 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	WIN32_InitLang();
 	WIN32_InitHtmlHelp();
 	DirectDraw_Release();
-	betamessage ();
-	keyboard_settrans ();
+	if (betamessage ()) {
+	    keyboard_settrans ();
 #ifdef CATWEASEL
-	catweasel_init();
+	    catweasel_init();
 #endif
 #ifdef PARALLEL_PORT
-	paraport_mask = paraport_init ();
+	    paraport_mask = paraport_init ();
 #endif
-	createIPC();
-	real_main (argc, argv);
+	    createIPC();
+	    real_main (argc, argv);
+	}
     }
 
     closeIPC();
@@ -2872,12 +2978,22 @@ end:
     return m;
 }
 
+typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
+#define MSGFLT_ADD 1
+
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     HANDLE thread;
 
     thread = GetCurrentThread();
     original_affinity = SetThreadAffinityMask(thread, 1); 
+#if 0
+    CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
+    pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
+	GetModuleHandle("user32.dll"), "ChangeWindowMessageFilter");
+    if (pChangeWindowMessageFilter)
+	pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
+#endif
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {

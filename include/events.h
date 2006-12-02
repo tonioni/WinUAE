@@ -28,21 +28,41 @@ extern void do_cycles_ce (long cycles);
 extern unsigned long currcycle, nextevent, is_lastline;
 extern unsigned long sample_evtime;
 typedef void (*evfunc)(void);
+typedef void (*evfunc2)(uae_u32);
+
+typedef unsigned long int evt;
 
 struct ev
 {
     int active;
-    unsigned long int evtime, oldcycles;
+    evt evtime, oldcycles;
     evfunc handler;
 };
 
+struct ev2
+{
+    int active;
+    evt evtime;
+    uae_u32 data;
+    evfunc2 handler;
+};
+
 enum {
-    ev_hsync, ev_copper, ev_audio, ev_cia, ev_blitter, ev_disk,
+    ev_hsync, ev_audio, ev_cia, ev_misc,
     ev_max
 };
 
-extern struct ev eventtab[ev_max];
+enum {
+    ev2_blitter, ev2_disk, ev2_misc,
+    ev2_max = 8
+};
 
+extern struct ev eventtab[ev_max];
+extern struct ev2 eventtab2[ev2_max];
+
+extern void event2_newevent(int, evt);
+extern void event2_newevent2(evt, uae_u32, evfunc2);
+extern void event2_remevent(int);
 
 #ifdef JIT
 #include "events_jit.h"

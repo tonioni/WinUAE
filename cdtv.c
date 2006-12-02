@@ -224,6 +224,7 @@ void dmac_init (void)
 addrbank dmac_bank = {
     dmac_lget, dmac_wget, dmac_bget,
     dmac_lput, dmac_wput, dmac_bput,
-    default_xlate, default_check, NULL, "DMAC"
+    default_xlate, default_check, NULL, "DMAC",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 

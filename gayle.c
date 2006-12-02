@@ -180,7 +180,8 @@ static void REGPARAM3 gayle_bput (uaecptr, uae_u32) REGPARAM;
 addrbank gayle_bank = {
     gayle_lget, gayle_wget, gayle_bget,
     gayle_lput, gayle_wput, gayle_bput,
-    default_xlate, default_check, NULL, "Gayle"
+    default_xlate, default_check, NULL, "Gayle",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 uae_u32 REGPARAM2 gayle_lget (uaecptr addr)

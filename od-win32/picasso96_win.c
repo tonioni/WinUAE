@@ -3784,7 +3784,8 @@ static uae_u8 *REGPARAM2 gfxmem_xlate (uaecptr addr)
 addrbank gfxmem_bank = {
     gfxmem_lget, gfxmem_wget, gfxmem_bget,
     gfxmem_lput, gfxmem_wput, gfxmem_bput,
-    gfxmem_xlate, gfxmem_check, NULL
+    gfxmem_xlate, gfxmem_check, NULL, "RTG RAM",
+    dummy_lgeti, dummy_wgeti, ABFLAG_RAM
 };
 
 /* Call this function first, near the beginning of code flow

@@ -1,4 +1,4 @@
- /*
+/*
   * UAE - The Un*x Amiga Emulator
   *
   * MC68000 emulation
@@ -29,11 +29,10 @@
 extern uae_u8* compiled_code;
 #include "compemu.h"
 #include <signal.h>
-int oink=0;
 /* For faster cycles handling */
-signed long pissoff=0;
+signed long pissoff = 0;
 /* Counter for missed vsyncmintime deadlines */
-int gonebad=0;
+int gonebad = 0;
 #else
 /* Need to have these somewhere */
 static void build_comp(void) {}
@@ -53,6 +52,7 @@ static int last_instructionaccess_for_exception_3;
 unsigned long irqcycles[15];
 int irqdelay[15];
 int mmu_enabled, mmu_triggered;
+int cpu_cycles;
 
 const int areg_byteinc[] = { 1,1,1,1,1,1,1,2 };
 const int imm8_table[] = { 8,1,2,3,4,5,6,7 };
@@ -810,7 +810,7 @@ void REGPARAM2 MakeFromSR (struct regstruct *regs)
 	}
     }
 
-    set_special (regs, SPCFLAG_INT);
+    doint();
     if (regs->t1 || regs->t0)
 	set_special (regs, SPCFLAG_TRACE);
     else
@@ -1099,7 +1099,7 @@ STATIC_INLINE void do_interrupt(int nr, struct regstruct *regs)
     Exception (nr + 24, regs, 0);
 
     regs->intmask = nr;
-    set_special (regs, SPCFLAG_INT);
+    doint();
 }
 
 void Interrupt (int nr)
@@ -1718,6 +1718,7 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 
     if (regs->spcflags & SPCFLAG_DOTRACE)
 	Exception (9, regs, last_trace_ad);
+	
     if (regs->spcflags & SPCFLAG_TRAP) {
 	unset_special (regs, SPCFLAG_TRAP);
 	Exception (3, regs, 0);
@@ -1729,10 +1730,7 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	    do_copper ();
 	if (regs->spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
 	    int intr = intlev ();
-#ifdef JIT
-	    if (currprefs.cachesize)
-		unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
-#endif
+	    unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
 	    if (intr != -1 && intr > regs->intmask)
 		Interrupt (intr);
 	}
@@ -1766,30 +1764,16 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
     if (regs->spcflags & SPCFLAG_TRACE)
 	do_trace ();
 
-    /* interrupt takes at least 2 cycles (maybe 4) to reach the CPU and
-     * there are programs that require this delay (which is not too surprising..)
-     */
-#ifdef JIT
-    if ((regs->spcflags & SPCFLAG_DOINT)
-	|| (!currprefs.cachesize && (regs->spcflags & SPCFLAG_INT))) {
-#else
     if (regs->spcflags & SPCFLAG_INT) {
-#endif
 	int intr = intlev ();
-#ifdef JIT
-	if (currprefs.cachesize)
-	    unset_special (regs, SPCFLAG_DOINT);
-#endif
+        unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
 	if (intr != -1 && intr > regs->intmask)
 	    do_interrupt (intr, regs);
     }
-
-#ifdef JIT
-    if ((regs->spcflags & SPCFLAG_INT) && currprefs.cachesize) {
-	unset_special (regs, SPCFLAG_INT);
-	set_special (regs, SPCFLAG_DOINT);
+    if (regs->spcflags & SPCFLAG_DOINT) {
+        unset_special (regs, SPCFLAG_DOINT);
+        set_special (regs, SPCFLAG_INT);
     }
-#endif
 
     if ((regs->spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 	unset_special (regs, SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
@@ -1798,7 +1782,14 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
     return 0;
 }
 
-static uae_u32 pcs[1000];
+void doint (void)
+{
+    if (currprefs.cpu_compatible)
+	set_special (&regs, SPCFLAG_INT);
+    else
+	set_special (&regs, SPCFLAG_DOINT);
+}
+//static uae_u32 pcs[1000];
 
 
 #ifndef CPUEMU_5
@@ -1812,12 +1803,12 @@ static void m68k_run_1 (void)
 /* It's really sad to have two almost identical functions for this, but we
    do it all for performance... :(
    This version emulates 68000's prefetch "cache" */
+int cpu_cycles;
 static void m68k_run_1 (void)
 {
     struct regstruct *r = &regs;
 
     for (;;) {
-	int cycles;
 	uae_u32 opcode = r->ir;
 
 	count_instr (opcode);
@@ -1832,14 +1823,12 @@ static void m68k_run_1 (void)
 	    //write_log("%08.8X-%04.4X ",pc, opcode);
 	}
 #endif
-
-	cycles = (*cpufunctbl[opcode])(opcode, r);
-
-	cycles &= cycles_mask;
-	cycles |= cycles_val;
-	do_cycles (cycles);
+	do_cycles (cpu_cycles);
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, r);
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
 	if (r->spcflags) {
-	    if (do_specialties (cycles, r))
+	    if (do_specialties (cpu_cycles, r))
 		return;
 	}
 	if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_level == 0))
@@ -1889,17 +1878,17 @@ void do_nothing(void)
 void exec_nostats(void)
 {
     struct regstruct *r = &regs;
-    int new_cycles;
 
     for (;;)
     {
 	uae_u16 opcode = get_iword(r, 0);
 
-	new_cycles = (*cpufunctbl[opcode])(opcode, r);
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, r);
 
-	new_cycles &= cycles_mask;
-	new_cycles |= cycles_val;
-	do_cycles (new_cycles);
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
+
+	do_cycles (cpu_cycles);
 
 	if (end_block(opcode) || r->spcflags)
 	    return; /* We will deal with the spcflags in the caller */
@@ -1913,7 +1902,6 @@ void execute_normal(void)
     struct regstruct *r = &regs;
     int blocklen;
     cpu_history pc_hist[MAXRUN];
-    int new_cycles;
     int total_cycles;
 
     if (check_for_cache_miss())
@@ -1930,12 +1918,12 @@ void execute_normal(void)
 	special_mem = DISTRUST_CONSISTENT_MEM;
 	pc_hist[blocklen].location = (uae_u16*)r->pc_p;
 
-	new_cycles = (*cpufunctbl[opcode])(opcode, r);
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, r);
 
-	new_cycles &= cycles_mask;
-	new_cycles |= cycles_val;
-	do_cycles (new_cycles);
-	total_cycles += new_cycles;
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
+	do_cycles (cpu_cycles);
+	total_cycles += cpu_cycles;
 	pc_hist[blocklen].specmem = special_mem;
 	blocklen++;
 	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags) {
@@ -2029,28 +2017,29 @@ static void m68k_run_2p (void)
     struct regstruct *r = &regs;
 
     prefetch_pc = m68k_getpc (r);
-    prefetch = get_long (prefetch_pc);
+    prefetch = get_longi (prefetch_pc);
     for (;;) {
-	int cycles;
 	uae_u32 opcode;
 	uae_u32 pc = m68k_getpc (r);
+
+	do_cycles (cpu_cycles);
+
 	if (pc == prefetch_pc)
 	    opcode = prefetch >> 16;
 	else if (pc == prefetch_pc + 2)
 	    opcode = prefetch & 0xffff;
 	else
-	    opcode = get_word (pc);
+	    opcode = get_wordi (pc);
 
 	count_instr (opcode);
 
 	prefetch_pc = m68k_getpc (r) + 2;
-	prefetch = get_long (prefetch_pc);
-	cycles = (*cpufunctbl[opcode])(opcode, r);
-	cycles &= cycles_mask;
-	cycles |= cycles_val;
-	do_cycles (cycles);
+	prefetch = get_longi (prefetch_pc);
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, r);
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
 	if (r->spcflags) {
-	    if (do_specialties (cycles, r))
+	    if (do_specialties (cpu_cycles, r))
 		return;
 	}
     }
@@ -2062,17 +2051,15 @@ static void m68k_run_2 (void)
    struct regstruct *r = &regs;
 
    for (;;) {
-	int cycles;
 	uae_u32 opcode = get_iword (r, 0);
 	count_instr (opcode);
 
-	cycles = (*cpufunctbl[opcode])(opcode, r);
-
-	cycles &= cycles_mask;
-	cycles |= cycles_val;
-	do_cycles (cycles);
+	do_cycles (cpu_cycles);
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, r);
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
 	if (r->spcflags) {
-	    if (do_specialties (cycles, r))
+	    if (do_specialties (cpu_cycles, r))
 		return;
 	}
     }
@@ -2082,17 +2069,16 @@ static void m68k_run_2 (void)
 static void m68k_run_mmu (void)
 {
    for (;;) {
-	int cycles;
 	uae_u32 opcode = get_iword (&regs, 0);
+	do_cycles (cpu_cycles);
 	mmu_backup_regs = regs;
-	cycles = (*cpufunctbl[opcode])(opcode, &regs);
-	cycles &= cycles_mask;
-	cycles |= cycles_val;
+	cpu_cycles = (*cpufunctbl[opcode])(opcode, &regs);
+	cpu_cycles &= cycles_mask;
+	cpu_cycles |= cycles_val;
 	if (mmu_triggered)
 	    mmu_do_hit();
-	do_cycles (cycles);
 	if (regs.spcflags) {
-	    if (do_specialties (cycles, &regs))
+	    if (do_specialties (cpu_cycles, &regs))
 		return;
 	}
     }
@@ -2182,12 +2168,14 @@ void m68k_go (int may_quit)
 	    }
 	}
 
+#if 0 /* what was the meaning of this? this breaks trace emulation if debugger is used */
 	if (regs.spcflags) {
 	    uae_u32 of = regs.spcflags;
 	    regs.spcflags &= ~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	    do_specialties (0, &regs);
 	    regs.spcflags |= of & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	}
+#endif
 #ifndef JIT
 	run_func = currprefs.cpu_level == 0 && currprefs.cpu_cycle_exact ? m68k_run_1_ce :
 		    currprefs.cpu_level == 0 && currprefs.cpu_compatible ? m68k_run_1 :

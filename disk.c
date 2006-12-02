@@ -79,8 +79,7 @@ static uae_u8 writebuffer[544 * 11 * DDHDMULT];
 
 #define DISK_INDEXSYNC 1
 #define DISK_WORDSYNC 2
-#define DISK_MOTORDELAY 4
-#define DISK_REVOLUTION 8 /* 8,16,32,64 */
+#define DISK_REVOLUTION 4 /* 8,16,32,64 */
 
 #define DSKREADY_TIME 4
 #define DSKREADY_DOWN_TIME 10
@@ -976,7 +975,9 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     openwritefile (drv, 0);
     drive_settype_id(drv); /* Set DD or HD drive */
     drive_fill_bigbuf (drv, 1);
-    drv->mfmpos = (rand () | (rand () << 16)) % drv->tracklen;
+    drv->mfmpos = uaerand ();
+    drv->mfmpos |= (uaerand () << 16);
+    drv->mfmpos %= drv->tracklen;
     drv->prevtracklen = 0;
 #ifdef DRIVESOUND
     driveclick_insert (drv - floppy, 0);
@@ -986,10 +987,10 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 
 static void rand_shifter (drive *drv)
 {
-    int r = ((rand () >> 4) & 7) + 1;
+    int r = ((uaerand () >> 4) & 7) + 1;
     while (r-- > 0) {
 	word <<= 1;
-	word |= (rand () & 0x1000) ? 1 : 0;
+	word |= (uaerand () & 0x1000) ? 1 : 0;
 	bitoffset++;
 	bitoffset &= 15;
     }
@@ -1090,6 +1091,11 @@ static int drive_running (drive * drv)
     return !drv->motoroff;
 }
 
+static void motordelay_func(uae_u32 v)
+{
+    floppy[v].motordelay = 0;
+}
+
 static void drive_motor (drive * drv, int off)
 {
     if (drv->motoroff && !off) {
@@ -1114,11 +1120,7 @@ static void drive_motor (drive * drv, int off)
 	    write_log (" ->motor off");
 	if (currprefs.cpu_level <= 1) {
 	    drv->motordelay = 1;
-	    diskevent_flag = DISK_MOTORDELAY;
-	    eventtab[ev_disk].oldcycles = get_cycles ();
-	    eventtab[ev_disk].evtime = get_cycles () + 30 * CYCLE_UNIT;
-	    eventtab[ev_disk].active = 1;
-	    events_schedule ();
+	    event2_newevent2(30, drv - floppy, motordelay_func);
 	}
     }
     drv->motoroff = off;
@@ -2308,10 +2310,11 @@ static void fetchnextrevolution (drive *drv)
     }
 }
 
-void DISK_handler (void)
+void DISK_handler (uae_u32 data)
 {
     int flag = diskevent_flag;
-    eventtab[ev_disk].active = 0;
+
+    event2_remevent(ev2_disk);
     DISK_update (disk_sync_cycle);
     if (flag & (DISK_REVOLUTION << 0))
 	fetchnextrevolution (&floppy[0]);
@@ -2325,7 +2328,6 @@ void DISK_handler (void)
 	INTREQ (0x8000 | 0x1000);
     if (flag & DISK_INDEXSYNC)
 	cia_diskindex ();
-    floppy[0].motordelay = floppy[1].motordelay = floppy[2].motordelay = floppy[3].motordelay = 0;
 #if 0
 	{   
 	int i;
@@ -2425,7 +2427,7 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 	    tword <<= 1;
 	    if (!drive_empty (drv)) {
 		if (unformatted (drv))
-		    tword |= (rand() & 0x1000) ? 1 : 0;
+		    tword |= (uaerand() & 0x1000) ? 1 : 0;
 		else
 		    tword |= getonebit (drv->bigmfmbuf, mfmpos);
 	    }
@@ -2459,10 +2461,7 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 	updatetrackspeed (drv, drv->mfmpos);
     if (diskevent_flag) {
 	disk_sync_cycle = startcycle >> 8;
-	eventtab[ev_disk].oldcycles = get_cycles ();
-	eventtab[ev_disk].evtime = get_cycles () + startcycle - firstcycle;
-	eventtab[ev_disk].active = 1;
-	events_schedule ();
+        event2_newevent(ev2_disk, startcycle - firstcycle);
     }
 }
 
@@ -2498,7 +2497,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	word <<= 1;
         if (!drive_empty (drv)) {
 	    if (unformatted (drv))
-		word |= (rand() & 0x1000) ? 1 : 0;
+		word |= (uaerand() & 0x1000) ? 1 : 0;
 	    else
 		word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
 	}
@@ -2670,7 +2669,7 @@ void DISK_update (int tohpos)
     int cycles = (tohpos << 8) - disk_hpos;
     int startcycle = disk_hpos;
 
-    disk_jitter = ((rand () >> 4) & 3) + 1;
+    disk_jitter = ((uaerand () >> 4) & 3) + 1;
     if (disk_jitter > 2)
 	disk_jitter = 1;
     if (cycles <= 0)

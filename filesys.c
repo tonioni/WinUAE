@@ -2314,13 +2314,13 @@ action_lock_from_fh (Unit *unit, dpacket packet)
 {
     uaecptr out;
     Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
-    write_log("lock_from_fh %x\n", k);
+    //write_log("lock_from_fh %x\n", k);
     if (k == 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	return;
     }
     out = action_dup_lock_2 (unit, packet, make_lock (unit, k->aino->uniq, -2));
-    write_log("=%x\n", out);
+    //write_log("=%x\n", out);
 }
 
 static void
@@ -3995,6 +3995,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    err = -2;
 	    goto error;
 	}
+	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, partblock * hfd->blocksize, readblocksize);
 	if (!rdb_checksum ("PART", buf, partblock)) {
 	    err = -2;
@@ -4069,6 +4070,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    err = -1;
 	    goto error;
 	}
+	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, fileblock * hfd->blocksize, readblocksize);
 	if (!rdb_checksum ("FSHD", buf, fileblock)) {
 	    write_log("RDB: checksum error in FSHD block %d\n", fileblock);
@@ -4099,12 +4101,16 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     lsegblock = rl (buf + 72);
     i = 0;
     for (;;) {
+	int pb = lsegblock;
 	if (!legalrdbblock (uip, lsegblock))
 	    goto error;
+	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, lsegblock * hfd->blocksize, readblocksize);
 	if (!rdb_checksum ("LSEG", buf, lsegblock))
 	    goto error;
 	lsegblock = rl (buf + 16);
+	if (lsegblock == pb)
+	    goto error;
 	memcpy (fsmem + i * (blocksize - 20), buf + 20, blocksize - 20);
 	i++;
 	if (lsegblock == -1)

@@ -539,6 +539,8 @@ struct romdata *getromdatabyzfile (struct zfile *f)
 void getromname	(struct romdata *rd, char *name)
 {
     name[0] = 0;
+    if (!rd)
+	return;
     strcat (name, rd->name);
     if (rd->subrev && rd->subrev != rd->rev)
 	sprintf (name + strlen (name), " rev %d.%d", rd->subver, rd->subrev);
@@ -601,7 +603,7 @@ static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 #define NONEXISTINGDATA 0
 //#define NONEXISTINGDATA 0xffffffff
 
-static void dummylog(int rw, uaecptr addr, int size, uae_u32 val)
+static void dummylog(int rw, uaecptr addr, int size, uae_u32 val, int ins)
 {
     if (illegal_count >= MAX_ILG)
 	return;
@@ -613,7 +615,10 @@ static void dummylog(int rw, uaecptr addr, int size, uae_u32 val)
 	return;
     if (MAX_ILG >= 0)
 	illegal_count++;
-    if (rw) {
+    if (ins) {
+	write_log ("WARNING: Illegal opcode %cget at %08lx PC=%x\n",
+	    size == 2 ? 'w' : 'l', addr, M68K_GETPC);
+    } else if (rw) {
 	write_log ("Illegal %cput at %08lx=%08lx PC=%x\n",
 	    size == 1 ? 'b' : size == 2 ? 'w' : 'l', addr, val, M68K_GETPC);
     } else {
@@ -628,7 +633,18 @@ uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 4, 0);
+	dummylog(0, addr, 4, 0, 0);
+    if (currprefs.cpu_level >= 2)
+	return NONEXISTINGDATA;
+    return (regs.irc << 16) | regs.irc;
+}
+uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    if (currprefs.illegal_mem)
+	dummylog(0, addr, 4, 0, 1);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return (regs.irc << 16) | regs.irc;
@@ -640,7 +656,18 @@ uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 2, 0);
+	dummylog(0, addr, 2, 0, 0);
+    if (currprefs.cpu_level >= 2)
+	return NONEXISTINGDATA;
+    return regs.irc;
+}
+uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    if (currprefs.illegal_mem)
+	dummylog(0, addr, 2, 0, 1);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return regs.irc;
@@ -652,7 +679,7 @@ uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 1, 0);
+	dummylog(0, addr, 1, 0, 0);
     if (currprefs.cpu_level >= 2)
 	return NONEXISTINGDATA;
     return (addr & 1) ? regs.irc : regs.irc >> 8;
@@ -664,7 +691,7 @@ void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 4, l);
+       dummylog(1, addr, 4, l, 0);
 }
 void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
@@ -672,7 +699,7 @@ void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 2, w);
+       dummylog(1, addr, 2, w, 0);
 }
 void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
@@ -680,7 +707,7 @@ void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 1, b);
+       dummylog(1, addr, 1, b, 0);
 }
 
 int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
@@ -1486,67 +1513,77 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 addrbank dummy_bank = {
     dummy_lget, dummy_wget, dummy_bget,
     dummy_lput, dummy_wput, dummy_bput,
-    default_xlate, dummy_check, NULL, NULL
+    default_xlate, dummy_check, NULL, NULL,
+    dummy_lgeti, dummy_wgeti, ABFLAG_NONE
 };
 
 #ifdef AUTOCONFIG
 addrbank mbres_bank = {
     mbres_lget, mbres_wget, mbres_bget,
     mbres_lput, mbres_wput, mbres_bput,
-    default_xlate, mbres_check, NULL, "MBRES"
+    default_xlate, mbres_check, NULL, "MBRES",
+    dummy_lgeti, dummy_wgeti, ABFLAG_RAM
 };
 #endif
 
 addrbank chipmem_bank = {
     chipmem_lget, chipmem_wget, chipmem_bget,
     chipmem_lput, chipmem_wput, chipmem_bput,
-    chipmem_xlate, chipmem_check, NULL, "Chip memory"
+    chipmem_xlate, chipmem_check, NULL, "Chip memory",
+    chipmem_lget, chipmem_wget, ABFLAG_RAM
 };
 
 addrbank chipmem_agnus_bank = {
     chipmem_agnus_lget, chipmem_agnus_wget, chipmem_agnus_bget,
     chipmem_agnus_lput, chipmem_agnus_wput, chipmem_agnus_bput,
-    chipmem_xlate, chipmem_check, NULL, "Chip memory"
+    chipmem_xlate, chipmem_check, NULL, "Chip memory",
+    chipmem_agnus_lget, chipmem_agnus_wget, ABFLAG_RAM
 };
 
 #ifdef AGA
 addrbank chipmem_bank_ce2 = {
     chipmem_lget_ce2, chipmem_wget_ce2, chipmem_bget_ce2,
     chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
-    chipmem_xlate, chipmem_check, NULL, "Chip memory"
+    chipmem_xlate, chipmem_check, NULL, "Chip memory",
+    chipmem_lget_ce2, chipmem_wget_ce2, ABFLAG_RAM
 };
 #endif
 
 addrbank bogomem_bank = {
     bogomem_lget, bogomem_wget, bogomem_bget,
     bogomem_lput, bogomem_wput, bogomem_bput,
-    bogomem_xlate, bogomem_check, NULL, "Slow memory"
+    bogomem_xlate, bogomem_check, NULL, "Slow memory",
+    bogomem_lget, bogomem_wget, ABFLAG_RAM
 };
 
 #ifdef AUTOCONFIG
 addrbank a3000mem_bank = {
     a3000mem_lget, a3000mem_wget, a3000mem_bget,
     a3000mem_lput, a3000mem_wput, a3000mem_bput,
-    a3000mem_xlate, a3000mem_check, NULL, "A3000 memory"
+    a3000mem_xlate, a3000mem_check, NULL, "A3000 memory",
+    a3000mem_lget, a3000mem_wget, ABFLAG_RAM
 };
 #endif
 
 addrbank kickmem_bank = {
     kickmem_lget, kickmem_wget, kickmem_bget,
     kickmem_lput, kickmem_wput, kickmem_bput,
-    kickmem_xlate, kickmem_check, NULL, "Kickstart ROM"
+    kickmem_xlate, kickmem_check, NULL, "Kickstart ROM",
+    kickmem_lget, kickmem_wget, ABFLAG_ROM
 };
 
 addrbank kickram_bank = {
     kickmem_lget, kickmem_wget, kickmem_bget,
     kickmem2_lput, kickmem2_wput, kickmem2_bput,
-    kickmem_xlate, kickmem_check, NULL, "Kickstart Shadow RAM"
+    kickmem_xlate, kickmem_check, NULL, "Kickstart Shadow RAM",
+    kickmem_lget, kickmem_wget, ABFLAG_UNK
 };
 
 addrbank extendedkickmem_bank = {
     extendedkickmem_lget, extendedkickmem_wget, extendedkickmem_bget,
     extendedkickmem_lput, extendedkickmem_wput, extendedkickmem_bput,
-    extendedkickmem_xlate, extendedkickmem_check, NULL, "Extended Kickstart ROM"
+    extendedkickmem_xlate, extendedkickmem_check, NULL, "Extended Kickstart ROM",
+    extendedkickmem_lget, extendedkickmem_wget, ABFLAG_ROM
 };
 
 static int kickstart_checksum (uae_u8 *mem, int size)
@@ -1611,12 +1648,12 @@ int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int 
 	dochecksum = 0;
     }
     for (j = 0; j < 256 && i >= 262144; j++) {
-	if (!memcmp (kickmemory + j, kickstring, strlen (kickstring) + 1))
+	if (!memcmp (mem + j, kickstring, strlen (kickstring) + 1))
 	    break;
     }
+
     if (j == 256 || i < 262144)
 	dochecksum = 0;
-
     if (dochecksum)
 	kickstart_checksum (mem, size);
     return i;

@@ -220,24 +220,20 @@ SOCKET_TYPE getsock (SB, int sd)
     if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
 	TRACE (("Invalid Socket Descriptor (%d)\n", sd));
 	bsdsocklib_seterrno (sb, 38); /* ENOTSOCK */
-
 	return -1;
     }
-	if (sb->dtable[sd -1] == INVALID_SOCKET)
-		{
-		struct socketbase *sb1,*nsb;
-		// Fix for Newsrog (All Tasks of Newsrog using the same dtable)
-	    for (sb1 = socketbases; sb1; sb1 = nsb) 
-			{
-			if (strcmp(get_real_address (get_long (sb1->ownertask + 10)),get_real_address (get_long (sb->ownertask + 10))) == 0)
-				{ // Task with same name already exists -> use same dtable 
-				if (sb1->dtable[sd-1] != INVALID_SOCKET)
-					return sb1->dtable[sd-1];
-				}
-	
-			nsb = sb1->next;
-			}
-		}
+    if (sb->dtable[sd - 1] == INVALID_SOCKET) {
+	struct socketbase *sb1,*nsb;
+	// Fix for Newsrog (All Tasks of Newsrog using the same dtable)
+	for (sb1 = socketbases; sb1; sb1 = nsb) {
+	    if (strcmp(get_real_address (get_long (sb1->ownertask + 10)), get_real_address (get_long (sb->ownertask + 10))) == 0) {
+		// Task with same name already exists -> use same dtable 
+	    	if (sb1->dtable[sd - 1] != INVALID_SOCKET)
+		    return sb1->dtable[sd - 1];
+	    }
+	    nsb = sb1->next;
+	}
+    }
     return sb->dtable[sd - 1];
 }
 
@@ -268,7 +264,7 @@ void addtosigqueue (SB, int events)
 
     unlocksigqueue ();
 
-    INTREQ (0xA000);
+    INTREQ (0x8000 | 0x2000);
 }
 
 static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
@@ -1199,23 +1195,17 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 			TRACE (("ERRNOSTRPTR),invalid"));
 		    } else {
 			unsigned long ulTmp;
-			if (currtag & 0x8000)
-				{ /* SBTM_GETREF */
-				ulTmp = get_long(currval);
-				}
-			else
-				{ /* SBTM_GETVAL */
-				ulTmp = currval;
-				}
+			if (currtag & 0x8000) { /* SBTM_GETREF */
+			    ulTmp = get_long(currval);
+			} else { /* SBTM_GETVAL */
+			    ulTmp = currval;
+			}
 			TRACE (("ERRNOSTRPTR),%d", ulTmp));
-			if (ulTmp < number_sys_error)
-				{ 
-				tagcopy (currtag, currval, tagptr, &errnotextptrs[ulTmp]);
-				}
-			else
-				{
-				tagcopy (currtag, currval, tagptr, &strErrptr);
-				}
+			if (ulTmp < number_sys_error) { 
+			    tagcopy (currtag, currval, tagptr, &errnotextptrs[ulTmp]);
+			} else {
+			    tagcopy (currtag, currval, tagptr, &strErrptr);
+			}
 		    }
 		    break;
 		 case SBTC_HERRNOSTRPTR:
@@ -1223,23 +1213,17 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 			TRACE (("HERRNOSTRPTR),invalid"));
 		    } else {
 			unsigned long ulTmp;
-			if (currtag & 0x8000)
-				{ /* SBTM_GETREF */
-				ulTmp = get_long(currval);
-				}
-			else
-				{ /* SBTM_GETVAL */
-				ulTmp = currval;
-				}
+			if (currtag & 0x8000) { /* SBTM_GETREF */
+			    ulTmp = get_long(currval);
+			} else { /* SBTM_GETVAL */
+			    ulTmp = currval;
+			}
 			TRACE (("HERRNOSTRPTR),%d", ulTmp));
-			if (ulTmp < number_host_error)
-				{
-				tagcopy (currtag, currval, tagptr, &herrnotextptrs[ulTmp]);
-				}
-			else
-				{
-				tagcopy (currtag, currval, tagptr, &strErrptr);
-				}
+			if (ulTmp < number_host_error) {
+			    tagcopy (currtag, currval, tagptr, &herrnotextptrs[ulTmp]);
+			} else {
+			    tagcopy (currtag, currval, tagptr, &strErrptr);
+			}
 		    }
 		    break;
 		 case SBTC_ERRNOBYTEPTR:

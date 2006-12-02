@@ -322,7 +322,7 @@ static int checkalarm (unsigned long tod, unsigned long alarm, int inc)
 	return 0;
     /* emulate buggy TODMED counter.
      * it counts: .. 29 2A 2B 2C 2D 2E 2F 20 30 31 32 ..
-     * (0F->00->10 only takes couple of cycles but it will trigger alarm..
+     * (2F->20->30 only takes couple of cycles but it will trigger alarm..
      */
     if (tod & 0x000fff)
 	return 0;
@@ -1037,6 +1037,8 @@ void dumpcia (void)
 static uae_u32 REGPARAM3 cia_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 cia_wget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 cia_bget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 cia_lgeti (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 cia_wgeti (uaecptr) REGPARAM;
 static void REGPARAM3 cia_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 cia_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 cia_bput (uaecptr, uae_u32) REGPARAM;
@@ -1044,7 +1046,8 @@ static void REGPARAM3 cia_bput (uaecptr, uae_u32) REGPARAM;
 addrbank cia_bank = {
     cia_lget, cia_wget, cia_bget,
     cia_lput, cia_wput, cia_bput,
-    default_xlate, default_check, NULL, "CIA"
+    default_xlate, default_check, NULL, "CIA",
+    cia_lgeti, cia_wgeti, ABFLAG_IO
 };
 
 
@@ -1165,6 +1168,19 @@ uae_u32 REGPARAM2 cia_lget (uaecptr addr)
     v = cia_wget (addr) << 16;
     v |= cia_wget (addr + 2);
     return v;
+}
+
+static uae_u32 REGPARAM2 cia_wgeti (uaecptr addr)
+{
+    if (currprefs.cpu_level >= 2)
+	return dummy_wgeti(addr);
+    return cia_wget(addr);
+}
+static uae_u32 REGPARAM2 cia_lgeti (uaecptr addr)
+{
+    if (currprefs.cpu_level >= 2)
+	return dummy_lgeti(addr);
+    return cia_lget(addr);
 }
 
 void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
@@ -1289,7 +1305,8 @@ static void REGPARAM3 clock_bput (uaecptr, uae_u32) REGPARAM;
 addrbank clock_bank = {
     clock_lget, clock_wget, clock_bget,
     clock_lput, clock_wput, clock_bput,
-    default_xlate, default_check, NULL, "Battery backed up clock"
+    default_xlate, default_check, NULL, "Battery backed up clock",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 uae_u32 REGPARAM2 clock_lget (uaecptr addr)

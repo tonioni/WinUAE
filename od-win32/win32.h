@@ -10,6 +10,15 @@
 #ifndef __WIN32_H__
 #define __WIN32_H__
 
+#define MAKEBD(x,y,z) ((((x) - 2000) * 10000 + (y)) * 100 + (z))
+#define GETBDY(x) ((x) / 1000000 + 2000)
+#define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
+#define GETBDD(x) ((x) % 100)
+
+#define WINUAEBETA 2
+#define WINUAEPUBLICBETA 1
+#define WINUAEDATE MAKEBD(2006, 12, 2)
+
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU )
 
@@ -21,8 +30,6 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
-#define WINUAEBETA 0
-#define WINUAEBETASTR ""
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];
@@ -56,7 +63,8 @@ extern int sound_available;
 extern int framecnt;
 extern char prtname[];
 extern char VersionStr[256];
-extern int os_winnt, os_winnt_admin, os_64bit;
+extern char BetaStr[64];
+extern int os_winnt, os_winnt_admin, os_64bit, os_vista;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart;

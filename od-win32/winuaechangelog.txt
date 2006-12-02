@@ -1,8 +1,69 @@
 
-- CPU emulation changes needed for some new future features, will
-  explain later, not yet finished.. breakage possible.
+Beta 2:
+
+- fixed possible crash when input recording stops (introduced in b1)
+- log memory map after reset and also after autoconfig
+- log loaded KS ROM information in memory map dump
+- fixed boot crash (some CPU/KS combinations only)
+- bug in new event handler fixed (symptom was random really slow
+  non-ce/non-immediate blitter)
+- interrupt priorities are correct again (broke in b1) Some tweaks.
+- filesystem flag emulation updates (again) Protection flags on FAT
+  volumes should now work properly in non-UAEFSDB mode.
+- filesystem directory protection flags supported (on FAT volumes)
+  Very old comment says: "Unix dirs behave differently than AmigaOS
+  ones. windows dirs go where no dir has gone before..." Perhaps
+  Windows 95 had some issues? Hope I didn't miss something..
+
+Beta 1:
+
+- dms files inside archives automatically added to disk history
+- Windows98/ME direct MK4 catweasel support. Need command line
+  parameter "-directcatweasel 0xyzzzz". y = CW model (3 or 4,
+  3 is default), zzzz is io address in hexadecimal. (simple, quick
+  workaround if someone really wants to use MK3/4 under 98/ME for
+  some unknown reason) IO address in configuration file is obsoleted
+  (was never compatible with CW joystick or mouse port detection)
+- Catweasel MK4 mouse support fixed (broke in 1.3.3)
+- Catweasel direct mode automatically enabled if Windows is 2000
+  or newer, IO library is installed and CW driver is not installed
+  (previously was automatically enabled only if OS was 64-bit)
+- compiler updated to beta SP1. I am very anti-"don't fix it if it
+  is not broken" person but I think you must already know it :)
+- updated to latest Windows SDK
+- winuaeclipboard crash fix (BR)
+- finally replaced really ugly interrupt delay hack with more
+  cleaner and accurate method (fixes Fun School 4)
+- made non-ce "more compatible" CPU emulators' main loop more
+  compatible with programs requiring delayed interrups
+- windowed mode "leds" had incorrect mouse click positions
+- debugger memwatch "freeze" option now also accepts memory values
+- added separate memory bank function for 680x0 opcode fetches
 - debugger memwatch points can now detect between opcode fetch
-  and data fetch, 68000-only currently. (see above)
+  and data fetch, 68000-only currently.
+- basic self modifying code (SMC) detection implemented in
+  debugger (smc-command) Works in 68000-mode only.
+- Windows Vista rawinput crash fix (weird change in vista..)
+- avioutput sound sync errors fixed (broke in 1.3.3)
+- avioutput video codec type registry saving improved
+- fixed CPU emulation condition code bug caused by compiler bug or
+  undefined C behaviour (not sure yet..) Affected some copy
+  protections. Introduced in E-UAE merge.
+- added horizontal mouse wheel input-panel support (hwheel support
+  added in Windows Vista, not tested)
+- add single "fake" button entry if joystick driver reports zero
+  buttons (PPJoy in two-player mode, no idea if this helps)
+- cleaned up AHI emulation, initialize and start recording only
+  when requested for the first time
+- disk image dragndrop caused instant disk swap instead of delayed
+  swap (eject, wait 1.5s, insert new disk)
+- fixed Windows only bug in new stack magic replacement code, both
+  bsdsocket and AHI leaked Windows handles (SR)
+- less aggressive sound adjustment
+- horizontally scrolling list view selection fix (for example input
+  panel with wide enough key name could have made autofire selection
+  impossible)
+- inputrecording reliability increased (but it still loses sync)
 
 Final 1.3.3
 

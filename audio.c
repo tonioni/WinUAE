@@ -1444,7 +1444,7 @@ void audio_hsync (int dmaaction)
 	audio_activate();
     }
 
-    if (audio_work_to_do > 0) {
+    if (audio_work_to_do > 0 && currprefs.sound_auto) {
 	audio_work_to_do--;
 	if (audio_work_to_do == 0)
 	    audio_deactivate();

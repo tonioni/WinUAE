@@ -42,11 +42,11 @@ struct flag_struct {
 #define FLAGVAL_V	(1 << FLAGBIT_V)
 #define FLAGVAL_X	(1 << FLAGBIT_X)
 
-#define SET_ZFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_Z) | (((y) & 1) << FLAGBIT_Z))
-#define SET_CFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_C) | (((y) & 1) << FLAGBIT_C))
-#define SET_VFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_V) | (((y) & 1) << FLAGBIT_V))
-#define SET_NFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_N) | (((y) & 1) << FLAGBIT_N))
-#define SET_XFLG(flags, y)	((flags)->x    = (y) << FLAGBIT_X)
+#define SET_ZFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_Z) | (((y) ? 1 : 0) << FLAGBIT_Z))
+#define SET_CFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_C) | (((y) ? 1 : 0) << FLAGBIT_C))
+#define SET_VFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_V) | (((y) ? 1 : 0) << FLAGBIT_V))
+#define SET_NFLG(flags, y)	((flags)->cznv = ((flags)->cznv & ~FLAGVAL_N) | (((y) ? 1 : 0) << FLAGBIT_N))
+#define SET_XFLG(flags, y)	((flags)->x    = ((y) ? 1 : 0) << FLAGBIT_X)
 
 #define GET_ZFLG(flags)		(((flags)->cznv >> FLAGBIT_Z) & 1)
 #define GET_CFLG(flags)		(((flags)->cznv >> FLAGBIT_C) & 1)

@@ -160,6 +160,8 @@ extern int inputdevice_uaelib (char*, char*);
 #define INPREC_KEY 3
 #define INPREC_DISKINSERT 4
 #define INPREC_DISKREMOVE 5
+#define INPREC_VSYNC 6
+#define INPREC_CIAVSYNC 7
 #define INPREC_END 0xff
 
 extern int input_recording;

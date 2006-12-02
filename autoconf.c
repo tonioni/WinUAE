@@ -40,7 +40,8 @@ static uae_u8 *REGPARAM3 rtarea_xlate (uaecptr) REGPARAM;
 addrbank rtarea_bank = {
     rtarea_lget, rtarea_wget, rtarea_bget,
     rtarea_lput, rtarea_wput, rtarea_bput,
-    rtarea_xlate, default_check, NULL, "UAE Boot ROM"
+    rtarea_xlate, default_check, NULL, "UAE Boot ROM",
+    rtarea_lget, rtarea_wget, ABFLAG_ROMIN
 };
 
 uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)

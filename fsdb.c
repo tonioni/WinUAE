@@ -243,7 +243,7 @@ static int needs_dbentry (a_inode *aino)
     if (aino->deleted)
 	return 0;
 
-    if (! fsdb_mode_representable_p (aino) || aino->comment != 0)
+    if (! fsdb_mode_representable_p (aino, aino->amigaos_mode) || aino->comment != 0)
 	return 1;
 
     nn_begin = nname_begin (aino->nname);

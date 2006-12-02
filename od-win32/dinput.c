@@ -233,6 +233,15 @@ static int initialize_catweasel(void)
 #define RDP_MOUSE1 "\\??\\Root#RDP_MOU#"
 #define RDP_MOUSE2 "\\\\?\\Root#RDP_MOU#"
 
+static int rdpmouse(char *buf)
+{
+    if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+        return 1;
+    if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
+        return 1;
+    return 0;
+}
+
 static int initialize_rawinput (void)
 {
     RAWINPUTDEVICELIST *ridl = 0;
@@ -263,9 +272,10 @@ static int initialize_rawinput (void)
 
     ridl = malloc (sizeof(RAWINPUTDEVICELIST) * num);
     memset (ridl, 0, sizeof (RAWINPUTDEVICELIST) * num);
-    bufsize = 1000;
+    bufsize = 10000;
     buf = malloc (bufsize);
 
+    register_rawinput();
     gotnum = pGetRawInputDeviceList(ridl, &num, sizeof (RAWINPUTDEVICELIST));
     if (gotnum <= 0) {
 	write_log ("RAWINPUT didn't find any devices\n");
@@ -276,12 +286,14 @@ static int initialize_rawinput (void)
     for (i = 0; i < gotnum; i++) {
 	int type = ridl[i].dwType;
 	HANDLE h = ridl[i].hDevice;
-	vtmp = bufsize;
-	pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp);
 
-	if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+	if (pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == 1)
 	    continue;
-	if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
+	if (vtmp >= bufsize)
+	    continue;
+	if (pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp) == -1)
+	    continue;
+	if (rdpmouse(buf))
 	    continue;
 	if (type == RIM_TYPEMOUSE)
 	    rnum_mouse++;
@@ -298,15 +310,17 @@ static int initialize_rawinput (void)
 	    PRID_DEVICE_INFO rdi;
 	    int v, j;
 
-	    vtmp = bufsize;
-	    pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp);
+	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == -1)
+		continue;
+	    if (vtmp >= bufsize)
+		continue;
+	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp) == -1)
+		continue;
 
 	    if (did == di_mouse) {
-		if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+		if (rdpmouse(buf))
 		    continue;
-		if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
-		    continue;
-		if (rnum_mouse < 2)
+		if (rnum_mouse < 2 && !os_vista)
 		    continue;
 		if (num_mouse >= MAX_INPUT_DEVICES - 1) /* leave space for Windows mouse */
 		    continue;
@@ -335,14 +349,18 @@ static int initialize_rawinput (void)
 	    write_log ("%p %s: ", h, type == RIM_TYPEMOUSE ? "mouse" : "keyboard");
 	    did->sortname = my_strdup (buf);
 	    write_log ("'%s'\n", buf);
-	    vtmp = bufsize;
 	    rdi = (PRID_DEVICE_INFO)buf;
 	    rdi->cbSize = sizeof (RID_DEVICE_INFO);
-	    pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf, &vtmp);
+	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
+		continue;
+	    if (vtmp >= bufsize)
+		continue;
+	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf, &vtmp) == -1)
+		continue;
 	    if (type == RIM_TYPEMOUSE) {
 		PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
-		write_log ("id=%d buttons=%d rate=%d", 
-		    rdim->dwId, rdim->dwNumberOfButtons, rdim->dwSampleRate);
+		write_log ("id=%d buttons=%d hw=%d rate=%d\n", 
+		    rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
 		did->buttons = rdim->dwNumberOfButtons;
 		did->axles = 3;
 		did->axistype[0] = 1;
@@ -354,6 +372,12 @@ static int initialize_rawinput (void)
 		did->axistype[2] = 1;
 		did->axissort[2] = 2;
 		did->axisname[2] = my_strdup ("Wheel");
+		if (rdim->fHasHorizontalWheel) {
+		    did->axistype[3] = 1;
+		    did->axissort[3] = 3;
+		    did->axisname[3] = my_strdup ("HWheel");
+		    did->axles++;
+		}
 		for (j = 0; j < did->buttons; j++) {
 		    did->buttonsort[j] = j;
 		    sprintf (tmp, "Button %d", j + 1);
@@ -366,7 +390,6 @@ static int initialize_rawinput (void)
 		    rdik->dwType, rdik->dwSubType, rdik->dwKeyboardMode,
 		    rdik->dwNumberOfFunctionKeys, rdik->dwNumberOfIndicators, rdik->dwNumberOfKeysTotal);
 	    }
-	    write_log("\n");
 	}
     }
 
@@ -406,7 +429,7 @@ static void initialize_windowsmouse (void)
 	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
 	if (did->buttons > 3 && !os_winnt)
 	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
-	did->axles = 3;
+	did->axles = os_vista ? 4 : 3;
 	did->axistype[0] = 1;
 	did->axissort[0] = 0;
 	did->axisname[0] = my_strdup ("X-Axis");
@@ -417,6 +440,11 @@ static void initialize_windowsmouse (void)
 	    did->axistype[2] = 1;
 	    did->axissort[2] = 2;
 	    did->axisname[2] = my_strdup ("Wheel");
+	}
+	if (did->axles > 3) {
+	    did->axistype[3] = 1;
+	    did->axissort[3] = 3;
+	    did->axisname[3] = my_strdup ("HWheel");
 	}
 	for (j = 0; j < did->buttons; j++) {
 	    did->buttonsort[j] = j;
@@ -598,6 +626,17 @@ static void sortdd (struct didata *dd, int num, int type)
 
 }
 
+static void fixbuttons (struct didata *did)
+{
+    if (did->buttons > 0)
+	return;
+    write_log("'%s' has no buttons, adding single default button\n", did->name);
+    did->buttonmappings[0] = DIJOFS_BUTTON(0);
+    did->buttonsort[0] = 0;
+    did->buttonname[0] = my_strdup("Button");
+    did->buttons++;
+}
+
 static void sortobjects (struct didata *did, int *mappings, int *sort, char **names, int *types, int num)
 {
     int i, j, tmpi;
@@ -698,6 +737,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	}
 	did->axles += 2;
     }
+
     if (pdidoi->dwType & DIDFT_BUTTON) {
 	if (did->buttons >= MAX_MAPPINGS)
 	    return DIENUM_CONTINUE;
@@ -713,6 +753,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	}
 	did->buttons++;
     }
+
     return DIENUM_CONTINUE;
 }
 
@@ -918,6 +959,7 @@ static int init_mouse (void)
 	    if (hr == DI_OK) {
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIMouse); 
 		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
+		fixbuttons (did);
 		sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		did->lpdi = lpdi;
@@ -1015,14 +1057,15 @@ static void read_mouse (void)
 	    continue;
 	if (did->connection == DIDC_CAT) {
 	    int cx, cy, cbuttons;
-	    catweasel_read_mouse(did->catweasel, &cx, &cy, &cbuttons);
-	    if (cx)
-		setmousestate(i, 0, cx, 0);
-	    if (cy)
-		setmousestate(i, 1, cy, 0);
-	    setmousebuttonstate(i, 0, cbuttons & 8);
-	    setmousebuttonstate(i, 1, cbuttons & 4);
-	    setmousebuttonstate(i, 2, cbuttons & 2);
+	    if (catweasel_read_mouse(did->catweasel, &cx, &cy, &cbuttons)) {
+		if (cx)
+		    setmousestate(i, 0, cx, 0);
+		if (cy)
+		    setmousestate(i, 1, cy, 0);
+		setmousebuttonstate(i, 0, cbuttons & 8);
+		setmousebuttonstate(i, 1, cbuttons & 4);
+		setmousebuttonstate(i, 2, cbuttons & 2);
+	    }
 	    continue;
 	}
 	if (!lpdi || did->connection != DIDC_DX)
@@ -1145,9 +1188,12 @@ static uae_u32 get_leds (void)
 	    &InputBuffer, DataLength, &OutputBuffer, DataLength, &ReturnedLength, NULL))
 	    return 0;
 	led = 0;
-	if (OutputBuffer.LedFlags & KEYBOARD_NUM_LOCK_ON) led |= KBLED_NUMLOCK;
-	if (OutputBuffer.LedFlags & KEYBOARD_CAPS_LOCK_ON) led |= KBLED_CAPSLOCK;
-	if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON) led |= KBLED_SCROLLLOCK;
+	if (OutputBuffer.LedFlags & KEYBOARD_NUM_LOCK_ON)
+	    led |= KBLED_NUMLOCK;
+	if (OutputBuffer.LedFlags & KEYBOARD_CAPS_LOCK_ON)
+	    led |= KBLED_CAPSLOCK;
+	if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON) led
+	    |= KBLED_SCROLLLOCK;
 #endif
     }
     return led;
@@ -1662,14 +1708,15 @@ static void read_joystick (void)
 	    continue;
 	if (did->connection == DIDC_CAT) {
 	    uae_u8 cdir, cbuttons;
-	    catweasel_read_joystick(&cdir, &cbuttons);
-	    cdir >>= did->catweasel * 4;
-	    cbuttons >>= did->catweasel * 4;
-	    setjoystickstate(i, 0, !(cdir & 1) ? 1 : !(cdir & 2) ? -1 : 0, 0);
-	    setjoystickstate(i, 1, !(cdir & 4) ? 1 : !(cdir & 8) ? -1 : 0, 0);
-	    setjoybuttonstate(i, 0, cbuttons & 8);
-	    setjoybuttonstate(i, 1, cbuttons & 4);
-	    setjoybuttonstate(i, 2, cbuttons & 2);
+	    if (catweasel_read_joystick(&cdir, &cbuttons)) {
+		cdir >>= did->catweasel * 4;
+		cbuttons >>= did->catweasel * 4;
+		setjoystickstate(i, 0, !(cdir & 1) ? 1 : !(cdir & 2) ? -1 : 0, 0);
+		setjoystickstate(i, 1, !(cdir & 4) ? 1 : !(cdir & 8) ? -1 : 0, 0);
+		setjoybuttonstate(i, 0, cbuttons & 8);
+		setjoybuttonstate(i, 1, cbuttons & 4);
+		setjoybuttonstate(i, 2, cbuttons & 2);
+	    }
 	    continue;
 	}
 	lpdi = did->lpdi;
@@ -1743,6 +1790,7 @@ static int init_joystick (void)
 		if (hr == DI_OK) {
 		    did->lpdi = lpdi;
 		    IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
+		    fixbuttons (did);
 		    sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		    sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		}

@@ -31,10 +31,98 @@
 
 static int log_serial = 1;
 
+#define CMD_INVALID	0
+#define CMD_RESET	1
+#define CMD_READ	2
+#define CMD_WRITE	3
+#define CMD_UPDATE	4
+#define CMD_CLEAR	5
+#define CMD_STOP	6
+#define CMD_START	7
+#define CMD_FLUSH	8
+#define SDCMD_QUERY	9
+#define SDCMD_BREAK	10
+#define SDCMD_SETPARAMS	11
+
+#define SerErr_DevBusy	       1
+#define SerErr_BaudMismatch    2
+#define SerErr_BufErr	       4
+#define SerErr_InvParam        5
+#define SerErr_LineErr	       6
+#define SerErr_ParityErr       9
+#define SerErr_TimerErr       11
+#define SerErr_BufOverflow    12
+#define SerErr_NoDSR	      13
+#define SerErr_DetectedBreak  15
+
+#define SERB_XDISABLED	7	/* io_SerFlags xOn-xOff feature disabled bit */
+#define SERF_XDISABLED	(1<<7)	/*    "     xOn-xOff feature disabled mask */
+#define	SERB_EOFMODE	6	/*    "     EOF mode enabled bit */
+#define	SERF_EOFMODE	(1<<6)	/*    "     EOF mode enabled mask */
+#define	SERB_SHARED	5	/*    "     non-exclusive access bit */
+#define	SERF_SHARED	(1<<5)	/*    "     non-exclusive access mask */
+#define SERB_RAD_BOOGIE 4	/*    "     high-speed mode active bit */
+#define SERF_RAD_BOOGIE (1<<4)	/*    "     high-speed mode active mask */
+#define	SERB_QUEUEDBRK	3	/*    "     queue this Break ioRqst */
+#define	SERF_QUEUEDBRK	(1<<3)	/*    "     queue this Break ioRqst */
+#define	SERB_7WIRE	2	/*    "     RS232 7-wire protocol */
+#define	SERF_7WIRE	(1<<2)	/*    "     RS232 7-wire protocol */
+#define	SERB_PARTY_ODD	1	/*    "     parity feature enabled bit */
+#define	SERF_PARTY_ODD	(1<<1)	/*    "     parity feature enabled mask */
+#define	SERB_PARTY_ON	0	/*    "     parity-enabled bit */
+#define	SERF_PARTY_ON	(1<<0)	/*    "     parity-enabled mask */
+
+#define	IO_STATB_XOFFREAD 12	   /* io_Status receive currently xOFF'ed bit */
+#define	IO_STATF_XOFFREAD (1<<12)  /*	 "     receive currently xOFF'ed mask */
+#define	IO_STATB_XOFFWRITE 11	   /*	 "     transmit currently xOFF'ed bit */
+#define	IO_STATF_XOFFWRITE (1<<11) /*	 "     transmit currently xOFF'ed mask */
+#define	IO_STATB_READBREAK 10	   /*	 "     break was latest input bit */
+#define	IO_STATF_READBREAK (1<<10) /*	 "     break was latest input mask */
+#define	IO_STATB_WROTEBREAK 9	   /*	 "     break was latest output bit */
+#define	IO_STATF_WROTEBREAK (1<<9) /*	 "     break was latest output mask */
+#define	IO_STATB_OVERRUN 8	   /*	 "     status word RBF overrun bit */
+#define	IO_STATF_OVERRUN (1<<8)	   /*	 "     status word RBF overrun mask */
+
+#define io_CtlChar	0x30    /* ULONG control char's (order = xON,xOFF,INQ,ACK) */
+#define io_RBufLen	0x34	/* ULONG length in bytes of serial port's read buffer */
+#define io_ExtFlags	0x38	/* ULONG additional serial flags (see bitdefs below) */
+#define io_Baud		0x3c	/* ULONG baud rate requested (true baud) */
+#define io_BrkTime	0x40	/* ULONG duration of break signal in MICROseconds */
+#define io_TermArray0	0x44	/* ULONG termination character array */
+#define io_TermArray1	0x48	/* ULONG termination character array */
+#define io_ReadLen	0x4c	/* UBYTE bits per read character (# of bits) */
+#define io_WriteLen	0x4d	/* UBYTE bits per write character (# of bits) */
+#define io_StopBits	0x4e	/* UBYTE stopbits for read (# of bits) */
+#define io_SerFlags	0x4f	/* UBYTE see SerFlags bit definitions below  */
+#define io_Status	0x50	/* UWORD */
+
+/* status of serial port, as follows:
+*		   BIT	ACTIVE	FUNCTION
+*		    0	 ---	reserved
+*		    1	 ---	reserved
+*		    2	 high	Connected to parallel "select" on the A1000.
+*				Connected to both the parallel "select" and
+*				serial "ring indicator" pins on the A500
+*				& A2000.  Take care when making cables.
+*		    3	 low	Data Set Ready
+*		    4	 low	Clear To Send
+*		    5	 low	Carrier Detect
+*		    6	 low	Ready To Send
+*		    7	 low	Data Terminal Ready
+*		    8	 high	read overrun
+*		    9	 high	break sent
+*		   10	 high	break received
+*		   11	 high	transmit x-OFFed
+*		   12	 high	receive x-OFFed
+*		13-15		reserved
+*/
+
+
 struct devstruct {
     int unit;
     char *name;
-    int opencnt;
+    int uniq;
+    int exclusive;
     volatile uaecptr d_request[MAX_ASYNC_REQUESTS];
     volatile int d_request_type[MAX_ASYNC_REQUESTS];
     volatile uae_u32 d_request_data[MAX_ASYNC_REQUESTS];
@@ -45,19 +133,9 @@ struct devstruct {
     uae_sem_t sync_sem;
 };
 
-struct priv_devstruct {
-    int inuse;
-    int unit;
-    int mode;
-    int scsi;
-    int ioctl;
-    int noscsi;
-    int type;
-    int flags; /* OpenDevice() */
-};
+static int uniq;
 
 static struct devstruct devst[MAX_TOTAL_DEVICES];
-static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 
 static uae_sem_t change_sem;
 
@@ -80,30 +158,19 @@ static void memcpyha (uae_u32 dst, char *src, int size)
 	put_byte (dst++, *src++);
 }
 
-static struct devstruct *getdevstruct (int unit)
+static struct devstruct *getdevstruct (int uniq)
 {
     int i;
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (unit >= 0 && devst[i].unit == unit) return &devst[i];
+	if (devst[i].uniq == uniq)
+	    return &devst[i];
     }
     return 0;
-}
-
-static struct priv_devstruct *getpdevstruct (uaecptr request)
-{
-    int i = get_long (request + 24);
-    if (i < 0 || i >= MAX_OPEN_DEVICES || pdevst[i].inuse == 0) {
-	write_log ("serial.device: corrupt iorequest %08.8X %d\n", request, i);
-	return 0;
-    }
-    return &pdevst[i];
 }
 
 static void *dev_thread (void *devs);
 static int start_thread (struct devstruct *dev)
 {
-    if (dev->thread_running)
-        return 1;
     init_comm_pipe (&dev->requests, 100, 1);
     uae_sem_init (&dev->sync_sem, 0, 0);
     uae_start_thread (dev_thread, dev, &dev->tid);
@@ -111,30 +178,24 @@ static int start_thread (struct devstruct *dev)
     return dev->thread_running;
 }
 
-static void dev_close_3 (struct devstruct *dev, struct priv_devstruct *pdev)
+static void dev_close_3 (struct devstruct *dev)
 {
-    if (!dev->opencnt) return;
-    dev->opencnt--;
-    if (!dev->opencnt) {
-	pdev->inuse = 0;
-        write_comm_pipe_u32 (&dev->requests, 0, 1);
-    }
+    dev->unit = -1;
+    xfree(dev->name);
+    write_comm_pipe_u32 (&dev->requests, 0, 1);
 }
 
 static uae_u32 dev_close_2 (void)
 {
     uae_u32 request = m68k_areg (regs, 1);
-    struct priv_devstruct *pdev = getpdevstruct (request);
     struct devstruct *dev;
 
-    if (!pdev)
-	return 0;
-    dev = getdevstruct (pdev->unit);
+    dev = getdevstruct (pdev->uniq);
     if (log_serial)
-	write_log ("%s:%d close, req=%08.8X\n", getdevname (pdev->type), pdev->unit, request);
+	write_log ("%s:%d close, req=%08.8X\n", dev->name, dev->unit, request);
     if (!dev)
 	return 0;
-    dev_close_3 (dev, pdev);
+    dev_close_3 (dev);
     put_long (request + 24, 0);
     put_word (m68k_areg(regs, 6) + 32, get_word (m68k_areg(regs, 6) + 32) - 1);
     return 0;
@@ -161,35 +222,30 @@ static uae_u32 dev_open_2 (int type)
     uaecptr ioreq = m68k_areg(regs, 1);
     uae_u32 unit = m68k_dreg (regs, 0);
     uae_u32 flags = m68k_dreg (regs, 1);
-    struct devstruct *dev = getdevstruct (unit);
-    struct priv_devstruct *pdev = 0;
+    struct devstruct *dev;
     int i;
+    char devname[256];
 
     if (log_serial)
 	write_log ("opening %s:%d ioreq=%08.8X\n", getdevname (type), unit, ioreq);
-    if (!dev)
-	return openfail (ioreq, 32); /* badunitnum */
-    if (!dev->opencnt) {
-        for (i = 0; i < MAX_OPEN_DEVICES; i++) {
-	    pdev = &pdevst[i];
-	    if (pdev->inuse == 0) break;
-	}
-        pdev->type = type;
-        pdev->unit = unit;
-	pdev->flags = flags;
-	pdev->inuse = 1;
-        put_long (ioreq + 24, pdev - pdevst);
-	start_thread (dev);
-    } else {
-        for (i = 0; i < MAX_OPEN_DEVICES; i++) {
-	    pdev = &pdevst[i];
-	    if (pdev->inuse && pdev->unit == unit) break;
-	}
-	if (i == MAX_OPEN_DEVICES)
-	    return openfail (ioreq, -1);
-        put_long (ioreq + 24, pdev - pdevst);
+    sprintf(devname,"COM%d", unit);
+    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	if (devst[i].unit == unit && devst[i].exclusive)
+	    return openfail (ioreq, -6); /* busy */
     }
-    dev->opencnt++;
+    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	if (devst[i].unit == -1)
+	    break;
+    }
+    dev = &devst[i];
+    if (i == MAX_TOTAL_DEVICES)
+	return openfail (ioreq, 32); /* badunitnum */
+    dev->unit = unit;
+    dev->name = my_strdup (devname);
+    dev->uniq = ++uniq;
+    dev->exclusive = (get_word(ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
+    put_long (ioreq + 24, i);
+    start_thread (dev);
 
     put_word (m68k_areg(regs, 6) + 32, get_word (m68k_areg(regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
@@ -206,16 +262,13 @@ static uae_u32 dev_expunge (void)
 {
     return 0;
 }
-static uae_u32 diskdev_expunge (void)
-{
-    return 0;
-}
 
 static int is_async_request (struct devstruct *dev, uaecptr request)
 {
     int i = 0;
     while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == request) return 1;
+	if (dev->d_request[i] == request)
+	    return 1;
 	i++;
     }
     return 0;
@@ -295,14 +348,29 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     uae_u32 io_offset = get_long (request + 44); // 0x2c
     uae_u32 io_error = 0;
     int async = 0;
-    struct priv_devstruct *pdev = getpdevstruct (request);
+    struct devstruct *dev = getdevstruct (get_long(request + 24));
 
-    if (!pdev)
+    if (!dev)
 	return 0;
     command = get_word (request+28);
 
     switch (command)
     {
+	case SDCMD_QUERY:
+	break;
+	case SDCMD_SETPARAMS:
+	break;
+	case CMD_WRITE:
+	break;
+	case CMD_READ:
+	break;
+	case SDCMD_BREAK;
+	case CMD_FLUSH;
+	case CMD_START:
+	case CMD_STOP:
+	case CMD_CLEAR:
+	case CMD_RESET:
+	break;
 	default:
 	io_error = -3;
 	break;
@@ -335,18 +403,17 @@ static uae_u32 dev_beginio (void)
     uae_u32 request = m68k_areg(regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
-    struct priv_devstruct *pdev = getpdevstruct (request);
-    struct devstruct *dev = getdevstruct (pdev->unit);
+    struct devstruct *dev = getdevstruct (get_long(request + 24));
 
     put_byte (request+8, NT_MESSAGE);
-    if (!dev || !pdev) {
+    if (!dev) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
     put_byte (request+31, 0);
     if ((flags & 1) && dev_canquick (dev, request)) {
 	if (dev_do_io (dev, request))
-	    write_log ("device %s command %d bug with IO_QUICK\n", getdevname (pdev->type), command);
+	    write_log ("device %s:%d command %d bug with IO_QUICK\n", dev->name, dev->unit, command);
 	return get_byte (request + 31);
     } else {
         add_async_request (dev, request, ASYNC_REQUEST_TEMP, 0);
@@ -400,37 +467,18 @@ static uae_u32 dev_init (void)
 static uae_u32 dev_abortio (void)
 {
     uae_u32 request = m68k_areg(regs, 1);
-    struct priv_devstruct *pdev = getpdevstruct (request);
-    struct devstruct *dev;
+    struct devstruct *dev = getdevstruct (get_long(request + 24));
 
-    if (!pdev) {
-	put_byte (request + 31, 32);
-	return get_byte (request + 31);
-    }
-    dev = getdevstruct (pdev->unit);
     if (!dev) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
     put_byte (request + 31, -2);
     if (log_serial)
-	write_log ("abortio %s unit=%d, request=%08.8X\n", getdevname (pdev->type), pdev->unit, request);
+	write_log ("abortio %s:%d, request=%08.8X\n", dev->name, dev->unit, request);
     abort_async (dev, request, -2, 0);
     return 0;
 }
-
-struct uaeserial_info {
-    char *name;
-    int num;
-};
-
-static struct uaeserial_info devices[] = {
-    { "COM1", 1 },
-    { "COM2", 2 },
-    { "COM3", 3 },
-    { "COM4", 4 },
-    { NULL }
-};
 
 static void dev_reset (void)
 {
@@ -450,14 +498,6 @@ static void dev_reset (void)
 	free (dev->name);
 	memset (dev, 0, sizeof (struct devstruct));
 	dev->unit = -1;
-    }
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	dev = &devst[i];
-	uaedev = &devices[i];
-	if (!dev->name)
-	    break;
-	dev->unit = uaedev->num;
-	dev->name = strdup (uaedev->name);
     }
 }
 

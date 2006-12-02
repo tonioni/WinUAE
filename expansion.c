@@ -22,6 +22,7 @@
 #include "zfile.h"
 #include "catweasel.h"
 #include "cdtv.h"
+#include "debug.h"
 
 #define MAX_EXPANSION_BOARDS 8
 
@@ -167,7 +168,6 @@ static void expamem_map_clear (void)
 {
     write_log ("expamem_map_clear() got called. Shouldn't happen.\n");
 }
-
 static void expamem_init_clear (void)
 {
     memset (expamem, 0xff, sizeof expamem);
@@ -176,6 +176,13 @@ static void expamem_init_clear2 (void)
 {
     expamem_init_clear();
     ecard = MAX_EXPANSION_BOARDS - 1;
+}
+
+static void expamem_init_last (void)
+{
+    write_log("Memory map after autoconfig:\n");
+    memory_map_dump();
+    expamem_init_clear();
 }
 
 static uae_u32 REGPARAM3 expamem_lget (uaecptr) REGPARAM;
@@ -188,7 +195,8 @@ static void REGPARAM3 expamem_bput (uaecptr, uae_u32) REGPARAM;
 addrbank expamem_bank = {
     expamem_lget, expamem_wget, expamem_bget,
     expamem_lput, expamem_wput, expamem_bput,
-    default_xlate, default_check, NULL, "Autoconfig"
+    default_xlate, default_check, NULL, "Autoconfig",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
@@ -406,7 +414,8 @@ static uae_u8 *REGPARAM2 fastmem_xlate (uaecptr addr)
 addrbank fastmem_bank = {
     fastmem_lget, fastmem_wget, fastmem_bget,
     fastmem_lput, fastmem_wput, fastmem_bput,
-    fastmem_xlate, fastmem_check, NULL, "Fast memory"
+    fastmem_xlate, fastmem_check, NULL, "Fast memory",
+    fastmem_lget, fastmem_wget, ABFLAG_RAM
 };
 
 
@@ -484,7 +493,6 @@ static void REGPARAM2 catweasel_bput (uaecptr addr, uae_u32 b)
 
 static int REGPARAM2 catweasel_check (uaecptr addr, uae_u32 size)
 {
-    write_log ("catweasel_check @%08.8X size %08.8X\n", addr, size);
     return 0;
 }
 
@@ -497,7 +505,8 @@ static uae_u8 *REGPARAM2 catweasel_xlate (uaecptr addr)
 static addrbank catweasel_bank = {
     catweasel_lget, catweasel_wget, catweasel_bget,
     catweasel_lput, catweasel_wput, catweasel_bput,
-    catweasel_xlate, catweasel_check, NULL, "Catweasel"
+    catweasel_xlate, catweasel_check, NULL, "Catweasel",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 static void expamem_map_catweasel (void)
@@ -621,7 +630,8 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 static addrbank filesys_bank = {
     filesys_lget, filesys_wget, filesys_bget,
     filesys_lput, filesys_wput, filesys_bput,
-    default_xlate, default_check, NULL, "Filesystem Autoconfig Area"
+    default_xlate, default_check, NULL, "Filesystem Autoconfig Area",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 #endif /* FILESYS */
@@ -711,7 +721,8 @@ static uae_u8 *REGPARAM2 z3fastmem_xlate (uaecptr addr)
 addrbank z3fastmem_bank = {
     z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
     z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
-    z3fastmem_xlate, z3fastmem_check, NULL, "ZorroIII Fast RAM"
+    z3fastmem_xlate, z3fastmem_check, NULL, "ZorroIII Fast RAM",
+    z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM
 };
 
 /* Z3-based UAEGFX-card */
@@ -897,7 +908,7 @@ static void expamem_map_gfxcard (void)
 {
     gfxmem_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
     map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
-    write_log ("UAEGFX-card: mapped @$%lx \n", gfxmem_start);
+    write_log ("UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
 static void expamem_init_gfxcard (void)
@@ -1082,6 +1093,10 @@ void expamem_reset (void)
 	card_map[cardno++] = expamem_map_catweasel;
     }
 #endif
+    if (cardno > 0 && cardno < MAX_EXPANSION_BOARDS) {
+	card_init[cardno] = expamem_init_last;
+	card_map[cardno++] = expamem_map_clear;
+    }
     while (cardno < MAX_EXPANSION_BOARDS) {
 	card_init[cardno] = expamem_init_clear;
 	card_map[cardno++] = expamem_map_clear;

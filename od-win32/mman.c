@@ -56,10 +56,23 @@ void init_shm(void)
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
-
     totalphys64 = memstats.dwTotalPhys;
-    size64 = 16 * 1024 * 1024;
     total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys;
+    if (os_winnt) {
+	typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
+	GLOBALMEMORYSTATUSEX pGlobalMemoryStatusEx;
+	MEMORYSTATUSEX memstatsex;
+	pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress(GetModuleHandle("kernel32.dll"), "GlobalMemoryStatusEx");
+	if (pGlobalMemoryStatusEx) {
+	    memstatsex.dwLength = sizeof (MEMORYSTATUSEX);
+	    if (pGlobalMemoryStatusEx(&memstatsex)) {
+		totalphys64 = memstatsex.ullTotalPhys;
+		total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
+	    }
+	}
+    }
+
+    size64 = 16 * 1024 * 1024;
     while (total64 >= (size64 << 1)
 	&& size64 != ((uae_u64)2048) * 1024 * 1024)
 	    size64 <<= 1;

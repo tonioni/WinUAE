@@ -33,8 +33,8 @@
 
 #include <math.h>
 
-#define ADJUST_SIZE 100
-#define EXP 1.9
+#define ADJUST_SIZE 30
+#define EXP 2.1
 
 int sound_debug = 0;
 
@@ -293,7 +293,7 @@ static int open_audio_ds (int size)
     if (max_sndbufsize > dsoundbuf)
         max_sndbufsize = dsoundbuf;
 
-    snd_writeoffset = max_sndbufsize * 3 / 4;
+    snd_writeoffset = max_sndbufsize * 5 / 8;
     snd_maxoffset = max_sndbufsize;
     snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) / 3;
     snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
@@ -332,7 +332,7 @@ static int open_audio_ds (int size)
 
     write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
 	sound_devices[currprefs.win32_soundcard],
-	currprefs.sound_stereo,
+	wavfmt.nChannels,
 	16, freq, max_sndbufsize, snd_configsize);
     obtainedfreq = currprefs.sound_freq;
 
@@ -475,6 +475,7 @@ void restart_sound_buffer(void)
 
 static void finish_sound_buffer_ds (void)
 {
+    static int tfprev;
     DWORD playpos, safepos, status;
     HRESULT hr;
     void *b1, *b2;
@@ -513,6 +514,8 @@ static void finish_sound_buffer_ds (void)
 	    return;
 	}
 	safedist -= playpos;
+	if (safedist < 64)
+	    safedist = 64;
 	safedist += sndbufsize;
 	if (safedist < 0)
 	    safedist += dsoundbuf;
@@ -527,8 +530,11 @@ static void finish_sound_buffer_ds (void)
 	cf (snd_writeoffset);
 	waiting_for_buffer = -1;
 	restart_sound_buffer();
-	write_log("SOUND: safe=%d w=%d max=%d tof=%d tuf=%d\n",
-	    safedist, snd_writeoffset, snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
+	write_log("SOUND: safe=%d bs=%d w=%d max=%d tof=%d tuf=%d\n",
+	    safedist - sndbufsize, sndbufsize, snd_writeoffset,
+	    snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
+	tfprev = timeframes + 10;
+	tfprev = (tfprev / 10) * 10;
     }
 
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
@@ -577,8 +583,7 @@ static void finish_sound_buffer_ds (void)
 	if (diff > snd_totalmaxoffset_of) {
 	    gui_data.sndbuf_status = 2;
 	    statuscnt = SND_STATUSCNT;
-	    writepos = safepos + snd_writeoffset;
-	    cf(writepos);
+	    restart_sound_buffer();
 	    diff = snd_writeoffset;
 	    break;
 	}
@@ -612,7 +617,7 @@ static void finish_sound_buffer_ds (void)
 
     vdiff = diff - snd_writeoffset;
     m = 100.0 * vdiff / max_sndbufsize;
-    skipmode = pow (m < 0 ? -m : m, EXP) / 2.0;
+    skipmode = pow (m < 0 ? -m : m, EXP) / 2;
 
     if (m < 0)
 	skipmode = -skipmode;
@@ -621,22 +626,18 @@ static void finish_sound_buffer_ds (void)
     if (skipmode > ADJUST_SIZE)
 	skipmode = ADJUST_SIZE;
 
-    if (sound_debug) {
-	static int tfprev;
-	if (tfprev != timeframes && !(timeframes % 10)) {
-	    write_log ("b=%5d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
+    if (tfprev != timeframes) {
+	if (sound_debug && !(tfprev % 10))
+	    write_log ("b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
 		sndbufsize, snd_configsize, max_sndbufsize, dsoundbuf, diff, vdiff, skipmode);
-	}
 	tfprev = timeframes;
+        if (!avioutput_audio)
+	    sound_setadjust (skipmode);
+        gui_data.sndbuf = vdiff * 1000 / (snd_maxoffset - snd_writeoffset);
     }
 
     writepos += sndbufsize;
     cf(writepos);
-
-    if (!avioutput_audio)
-	sound_setadjust (skipmode);
-
-    gui_data.sndbuf = vdiff * 1000 / snd_maxoffset;
 }
 
 static void channelswap(uae_s16 *sndbuffer, int len)

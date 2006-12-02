@@ -47,7 +47,7 @@ static int partcnt;
 static int first_frame = 1;
 
 static unsigned int StreamSizeAudio; // audio write position
-static double StreamSizeAudioExpected;
+static unsigned int StreamSizeAudioExpected;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 
@@ -409,10 +409,13 @@ static int AVIOutput_AllocateVideo(void)
     return 1;
 }
 
+static int compressorallocated;
 static void AVIOutput_FreeCOMPVARS(COMPVARS *pcv)
 {
     ICClose(pcv->hic);
-    ICCompressorFree(pcv);
+    if (compressorallocated)
+	ICCompressorFree(pcv);
+    compressorallocated = FALSE;
     pcv->hic = NULL;
 }
 
@@ -513,10 +516,13 @@ int AVIOutput_ChooseVideoCodec(HWND hwnd, char *s, int len)
 	int ss;
 	uae_u8 *state;
 
+	compressorallocated = TRUE;
 	ss = ICGetState(pcompvars->hic, NULL, 0);
 	if (ss > 0) {
+	    DWORD err;
 	    state = xmalloc (ss);
-	    if (ICGetState(pcompvars->hic, state, ss) != ICERR_OK) {
+	    err = ICGetState(pcompvars->hic, state, ss);
+	    if (err < 0) {
 		ss = 0;
 		xfree(state);
 	    }
@@ -1115,12 +1121,13 @@ void AVIOutput_Initialize(void)
 
 #include <math.h>
 
-#define ADJUST_SIZE 50
+#define ADJUST_SIZE 100
 #define EXP 1.5
 
 void frame_drawn(void)
 {
     double diff, skipmode;
+    int idiff;
 
     if (!avioutput_video || !avioutput_enabled)
 	return;
@@ -1132,16 +1139,24 @@ void frame_drawn(void)
 
     AVIOutput_WriteVideo();
 
-    if (avioutput_audio && (frame_count % avioutput_fps) == 0) {
-	StreamSizeAudioExpected += currprefs.sound_freq;
-	diff = (StreamSizeAudio - StreamSizeAudioExpected) / sndbufsize;
-	skipmode = pow (diff < 0 ? -diff : diff, EXP);
-	if (diff < 0) skipmode = -skipmode;
-	if (skipmode < -ADJUST_SIZE) skipmode = -ADJUST_SIZE;
-	if (skipmode > ADJUST_SIZE) skipmode = ADJUST_SIZE;
-	sound_setadjust (skipmode);
-	write_log("AVIOutput: diff=%.2f skip=%.2f\n", diff, skipmode);
-    }
+    if (!avioutput_audio || (frame_count % avioutput_fps))
+	return;
+
+    StreamSizeAudioExpected += currprefs.sound_freq;
+    idiff = StreamSizeAudio - StreamSizeAudioExpected;
+    diff = idiff / 100.0;
+    skipmode = pow (diff < 0 ? -diff : diff, EXP);
+    if (idiff < 0)
+	skipmode = -skipmode;
+    if (skipmode < -ADJUST_SIZE)
+	skipmode = -ADJUST_SIZE;
+    if (skipmode > ADJUST_SIZE)
+	skipmode = ADJUST_SIZE;
+
+    sound_setadjust (skipmode);
+
+    write_log("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
+	StreamSizeAudio, StreamSizeAudioExpected, idiff);
 }
 
 

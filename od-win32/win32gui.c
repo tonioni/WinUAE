@@ -932,7 +932,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     int next;
     int filterindex = 0;
 
-    char szTitle[MAX_DPATH];
+    char szTitle[MAX_DPATH] = { 0 };
     char szFormat[MAX_DPATH];
     char szFilter[MAX_DPATH] = { 0 };
     
@@ -981,7 +981,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), DISK_FORMAT_STRING, sizeof(DISK_FORMAT_STRING) + 1);
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -991,7 +990,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), "(*.adf)\0*.adf\0", 15 );
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1002,7 +1000,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "HDF";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1013,7 +1010,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), "(*.uae)\0*.uae\0", 15 );
 
-	openFileName.lpstrTitle  = szTitle;
 	openFileName.lpstrDefExt = "UAE";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1023,7 +1019,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "ROM";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1033,7 +1028,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), "(*.key)\0*.key\0", 15 );
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "KEY";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1044,7 +1038,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrDefExt = "INP";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1084,7 +1077,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    all = 0;
 	    filterindex = statefile_previousfilter;
 	}
-	openFileName.lpstrTitle  = szTitle;
 	openFileName.lpstrDefExt = "USS";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1094,7 +1086,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	sprintf( szFilter, "%s ", szFormat );
 	memcpy( szFilter + strlen( szFilter ), "(*.nvr)\0*.nvr\0", 15 );
 
-	openFileName.lpstrTitle  = szTitle;
 	openFileName.lpstrDefExt = "NVR";
 	openFileName.lpstrFilter = szFilter;
 	break;
@@ -1102,14 +1093,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     default:
 	WIN32GUI_LoadUIString( IDS_SELECTINFO, szTitle, MAX_DPATH );
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	break;
     case 12:
 	WIN32GUI_LoadUIString( IDS_SELECTFS, szTitle, MAX_DPATH );
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	openFileName.lpstrInitialDir = path_out;
@@ -1117,7 +1106,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     case 13:
 	WIN32GUI_LoadUIString( IDS_SELECTINFO, szTitle, MAX_DPATH );
 
-	openFileName.lpstrTitle = szTitle;
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	openFileName.lpstrInitialDir = path_out;
@@ -1146,6 +1134,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     openFileName.lpfnHook = NULL;
     openFileName.lpTemplateName = NULL;
     openFileName.lCustData = 0;
+    openFileName.lpstrTitle = szTitle;
+
     if (multi)
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
@@ -1260,7 +1250,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    strcpy (workprefs.cartfile, full_path);
 	    break;
 	case IDC_INPREC_PLAY:
-	    inprec_open(full_path, IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_AUDIO) == BST_CHECKED ? -2 : -1);
+	    inprec_open(full_path, IsDlgButtonChecked(hDlg, IDC_INPREC_PLAYMODE) == BST_CHECKED ? -1 : -2);
 	    break;
 	case IDC_INPREC_RECORD:
 	    inprec_open(full_path, 1);
@@ -1805,36 +1795,36 @@ void InitializeListView (HWND hDlg)
     if (hDlg == pages[HARDDISK_ID]) {
 	listview_num_columns = HARDDISK_COLUMNS;
 	lv_type = LV_HARDDISK;
-	WIN32GUI_LoadUIString( IDS_DEVICE, column_heading[0], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_VOLUME, column_heading[1], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_PATH, column_heading[2], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_RW, column_heading[3], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_BLOCKSIZE, column_heading[4], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_HFDSIZE, column_heading[5], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_BOOTPRI, column_heading[6], MAX_COLUMN_HEADING_WIDTH );
-	list = GetDlgItem( hDlg, IDC_VOLUMELIST );
+	WIN32GUI_LoadUIString(IDS_DEVICE, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_VOLUME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_PATH, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_RW, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_BLOCKSIZE, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_HFDSIZE, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_BOOTPRI, column_heading[6], MAX_COLUMN_HEADING_WIDTH);
+	list = GetDlgItem(hDlg, IDC_VOLUMELIST);
     } else if (hDlg == pages[INPUT_ID]) {
 	listview_num_columns = INPUT_COLUMNS;
 	lv_type = LV_INPUT;
-	WIN32GUI_LoadUIString( IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH );
+	WIN32GUI_LoadUIString(IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 	strcpy (column_heading[3], "#");
-	list = GetDlgItem( hDlg, IDC_INPUTLIST );
+	list = GetDlgItem(hDlg, IDC_INPUTLIST);
     } else {
 	listview_num_columns = DISK_COLUMNS;
 	lv_type = LV_DISK;
 	strcpy (column_heading[0], "#");
-	WIN32GUI_LoadUIString( IDS_DISK_IMAGENAME, column_heading[1], MAX_COLUMN_HEADING_WIDTH );
-	WIN32GUI_LoadUIString( IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH );
+	WIN32GUI_LoadUIString(IDS_DISK_IMAGENAME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 	list = GetDlgItem (hDlg, IDC_DISK);
     }
     cachedlist = list;
 
-    ListView_DeleteAllItems( list );
+    ListView_DeleteAllItems(list);
 
-    for( i = 0; i < listview_num_columns; i++ )
-	listview_column_width[i] = ListView_GetStringWidth( list, column_heading[i] ) + 15;
+    for(i = 0; i < listview_num_columns; i++)
+	listview_column_width[i] = ListView_GetStringWidth(list, column_heading[i]) + 15;
 
     // If there are no columns, then insert some
     lvcolumn.mask = LVCF_WIDTH;
@@ -1899,13 +1889,13 @@ void InitializeListView (HWND hDlg)
 	    if (drv >= 0)
 		sprintf (tmp, "DF%d:", drv);
 	    ListView_SetItemText (list, result, 2, tmp);
-	    width = ListView_GetStringWidth( list, lvstruct.pszText ) + 15;
+	    width = ListView_GetStringWidth(list, lvstruct.pszText) + 15;
 	    if (width > listview_column_width[0])
 		listview_column_width[ 0 ] = width;
 	    entry++;
 	}
 	listview_column_width[0] = 30;
-	listview_column_width[1] = 354;
+	listview_column_width[1] = 336;
 	listview_column_width[2] = 50;
 
     }
@@ -2040,11 +2030,13 @@ static int listview_find_selected (HWND list)
 static int listview_entry_from_click (HWND list, int *column)
 {
     POINT point;
+    POINTS p;
     DWORD pos = GetMessagePos ();
     int items, entry;
 
-    point.x = LOWORD (pos);
-    point.y = HIWORD (pos);
+    p = MAKEPOINTS (pos);
+    point.x = p.x;
+    point.y = p.y;
     ScreenToClient (list, &point);
     entry = ListView_GetTopIndex (list);
     items = entry + ListView_GetCountPerPage (list);
@@ -2056,19 +2048,24 @@ static int listview_entry_from_click (HWND list, int *column)
 	/* Get the bounding rectangle of an item. If the mouse
 	 * location is within the bounding rectangle of the item,
 	 * you know you have found the item that was being clicked.  */
-	ListView_GetItemRect (list, entry, &rect, LVIR_BOUNDS);
-	if (PtInRect (&rect, point)) {
-	    int i, x = 0;
-	    UINT flag = LVIS_SELECTED | LVIS_FOCUSED;
-	    ListView_SetItemState (list, entry, flag, flag);
-	    for (i = 0; i < listview_num_columns && column; i++) {
-		if (x < point.x && x + listview_column_width[i] > point.x) {
-		    *column = i;
-		    break;
+	if (ListView_GetItemRect (list, entry, &rect, LVIR_BOUNDS)) {
+	    if (PtInRect (&rect, point)) {
+		POINT ppt;
+		int i, x;
+		UINT flag = LVIS_SELECTED | LVIS_FOCUSED;
+
+		ListView_GetItemPosition(list, entry, &ppt);
+		x = ppt.x;
+		ListView_SetItemState (list, entry, flag, flag);
+		for (i = 0; i < listview_num_columns && column; i++) {
+		    if (x < point.x && x + listview_column_width[i] > point.x) {
+			*column = i;
+			break;
+		    }
+		    x += listview_column_width[i];
 		}
-		x += listview_column_width[i];
+		return entry;
 	    }
-	    return entry;
 	}
 	entry++;
     }
@@ -4617,6 +4614,7 @@ static void values_to_miscdlg (HWND hDlg)
 	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 	misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
 	misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
+	CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
 
 	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)"1");
@@ -6592,10 +6590,6 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	break;
     }
 
-    strcpy (changed_prefs.df[0], workprefs.df[0]);
-    strcpy (changed_prefs.df[1], workprefs.df[1]);
-    strcpy (changed_prefs.df[2], workprefs.df[2]);
-    strcpy (changed_prefs.df[3], workprefs.df[3]);
     return FALSE;
 }
 
@@ -7495,21 +7489,21 @@ static void values_from_inputdlg (HWND hDlg)
     BOOL success;
     LRESULT item;
 
-    v  = GetDlgItemInt( hDlg, IDC_INPUTDEADZONE, &success, FALSE );
+    v  = GetDlgItemInt(hDlg, IDC_INPUTDEADZONE, &success, FALSE);
     if (success) {
 	currprefs.input_joystick_deadzone = workprefs.input_joystick_deadzone = v;
 	currprefs.input_joystick_deadzone = workprefs.input_joymouse_deadzone = v;
     }
-    v  = GetDlgItemInt( hDlg, IDC_INPUTAUTOFIRERATE, &success, FALSE );
+    v  = GetDlgItemInt(hDlg, IDC_INPUTAUTOFIRERATE, &success, FALSE);
     if (success)
 	currprefs.input_autofire_framecnt = workprefs.input_autofire_framecnt = v;
-    v  = GetDlgItemInt( hDlg, IDC_INPUTSPEEDD, &success, FALSE );
+    v  = GetDlgItemInt(hDlg, IDC_INPUTSPEEDD, &success, FALSE);
     if (success)
 	currprefs.input_joymouse_speed = workprefs.input_joymouse_speed = v;
-    v  = GetDlgItemInt( hDlg, IDC_INPUTSPEEDA, &success, FALSE );
+    v  = GetDlgItemInt(hDlg, IDC_INPUTSPEEDA, &success, FALSE);
     if (success)
 	currprefs.input_joymouse_multiplier = workprefs.input_joymouse_multiplier = v;
-    v  = GetDlgItemInt( hDlg, IDC_INPUTSPEEDM, &success, FALSE );
+    v  = GetDlgItemInt(hDlg, IDC_INPUTSPEEDM, &success, FALSE);
     if (success)
 	currprefs.input_mouse_speed = workprefs.input_mouse_speed = v;
 
@@ -7581,14 +7575,14 @@ static void input_copy (HWND hDlg)
 
 static void input_toggleautofire (void)
 {
-    int af, flags, event;
+    int af, flags, evt;
     char name[256];
     char custom[MAX_DPATH];
     if (input_selected_device < 0 || input_selected_widget < 0)
 	return;
-    event = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+    evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
 	&flags, name, custom, input_selected_sub_num);
-    if (event <= 0)
+    if (evt <= 0)
 	return;
     af = (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 0 : 1;
     inputdevice_set_mapping (input_selected_device, input_selected_widget,
@@ -8932,7 +8926,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		    } else {
 			DISK_history_add (file, -1);
 			strcpy (workprefs.df[drv], file);
-		        strcpy (changed_prefs.df[drv], workprefs.df[drv]);
+			disk_insert (drv, workprefs.df[drv]);
 			drv++;
 			if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
 			    drv = 0;
@@ -9175,11 +9169,18 @@ static int GetSettings (int all_options, HWND hwnd)
 
     dialogreturn = -1;
     hAccelTable = NULL;
+    DragAcceptFiles(hwnd, TRUE);
     dhwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PANEL), hwnd, DialogProc);
     psresult = 0;
     if (dhwnd != NULL) {
 	MSG msg;
 	DWORD v;
+	char tmp[MAX_DPATH];
+
+	if (WINUAEBETA > 0 && GetWindowText (dhwnd, tmp, sizeof (tmp)) > 0) {
+	    strcat (tmp, BetaStr);
+	    SetWindowText (dhwnd, tmp);
+	}
 	ShowWindow (dhwnd, SW_SHOW);
 	for (;;) {
 	    HANDLE IPChandle;
@@ -9364,7 +9365,7 @@ void gui_led (int led, int on)
 	pos = 0;
 	ptr = drive_text + pos * 16;
 	if (gui_data.sndbuf_status < 3) {
-	    sprintf(ptr, "SND: %.0f%%", (double)((gui_data.sndbuf) / 10.0));
+	    sprintf(ptr, "SND: %+.0f%%", (double)((gui_data.sndbuf) / 10.0));
 	} else {
 	    strcpy (ptr, "SND: -");
 	    on = 0;
@@ -9524,6 +9525,7 @@ void pre_gui_message (const char *format,...)
 	write_log("\n");
 
     WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
+    strcat (szTitle, BetaStr);
     MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND );
 
 }

@@ -307,7 +307,7 @@ static int needs_fsdb (a_inode *aino)
     if (aino->deleted)
 	return 0;
 
-    if (!fsdb_mode_representable_p (aino) || aino->comment != 0)
+    if (!fsdb_mode_representable_p (aino, aino->amigaos_mode) || aino->comment != 0)
 	return 1;
 
     nn_begin = nname_begin (aino->nname);
@@ -327,9 +327,7 @@ int fsdb_set_file_attrs (a_inode *aino)
 	return ERROR_OBJECT_NOT_AROUND;
     mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
 
-    /* Unix dirs behave differently than AmigaOS ones.  */
-    /* windows dirs go where no dir has gone before...  */
-    if (! aino->dir) {
+    if (1 || ! aino->dir) {
 	mode = 0;
 	if ((tmpmask & (A_FIBF_WRITE | A_FIBF_DELETE)) == 0)
 	    mode |= FILE_ATTRIBUTE_READONLY;
@@ -358,30 +356,40 @@ int fsdb_set_file_attrs (a_inode *aino)
 int fsdb_mode_supported (const a_inode *aino)
 {
     int mask = aino->amigaos_mode;
-    if (fsdb_mode_representable_p (aino))
+    if (0 && aino->dir)
+	return 0;
+    if (fsdb_mode_representable_p (aino, mask))
         return mask;
-    mask &= ~(A_FIBF_SCRIPT | A_FIBF_DELETE | A_FIBF_WRITE);
-    return mask;
+    mask &= ~(A_FIBF_SCRIPT | A_FIBF_READ | A_FIBF_EXECUTE);
+    if (fsdb_mode_representable_p (aino, mask))
+        return mask;
+    mask &= ~A_FIBF_WRITE;
+    if (fsdb_mode_representable_p (aino, mask))
+        return mask;
+    mask &= ~A_FIBF_DELETE;
+    if (fsdb_mode_representable_p (aino, mask))
+        return mask;
+    return 0;
 }
 
 /* Return nonzero if we can represent the amigaos_mode of AINO within the
  * native FS.  Return zero if that is not possible.  */
-int fsdb_mode_representable_p (const a_inode *aino)
+int fsdb_mode_representable_p (const a_inode *aino, int amigaos_mode)
 {
-    int mask = aino->amigaos_mode ^ 15;
+    int mask = amigaos_mode ^ 15;
 
-    if (aino->dir)
-	return aino->amigaos_mode == 0;
+    if (0 && aino->dir)
+	return amigaos_mode == 0;
 
-    if (mask == 15) /* ---RWED == OK */
+    if (mask & A_FIBF_SCRIPT) /* script */
+	return 0;
+    if ((mask & 15) == 15) /* xxxxRWED == OK */
 	return 1;
     if (!(mask & A_FIBF_EXECUTE)) /* not executable */
 	return 0;
     if (!(mask & A_FIBF_READ)) /* not readable */
 	return 0;
-    if (mask & A_FIBF_SCRIPT) /* script */
-	return 0;
-    if ((mask & 15) == (A_FIBF_READ | A_FIBF_EXECUTE)) /* ----R-E- == ReadOnly */
+    if ((mask & 15) == (A_FIBF_READ | A_FIBF_EXECUTE)) /* ----RxEx == ReadOnly */
 	return 1;
     return 0;
 }

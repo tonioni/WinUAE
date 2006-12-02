@@ -29,7 +29,7 @@
 static FILE *headerfile;
 static FILE *stblfile;
 
-static int using_prefetch;
+static int using_prefetch, using_indirect;
 static int using_exception_3;
 static int using_ce;
 static int cpu_level;
@@ -212,6 +212,9 @@ static void gen_nextilong (char *type, char *name, int norefill)
 		printf ("\t%s %s = get_long_prefetch (regs, %d);\n", type, name, r + 2);
 		insn_n_cycles += 8;
 	    }
+	} else if (using_indirect) {
+	    insn_n_cycles += 8;
+	    printf ("\t%s %s = get_ilongi (%d);\n", type, name, r);
 	} else {
 	    insn_n_cycles += 8;
 	    printf ("\t%s %s = get_ilong (regs, %d);\n", type, name, r);
@@ -238,6 +241,9 @@ static const char *gen_nextiword (int norefill)
 		sprintf (buffer, "get_word_prefetch (regs, %d)", r + 2);
 		insn_n_cycles += 4;
 	    }
+	} else if (using_indirect) {
+	    sprintf (buffer, "get_iwordi(%d)", r);
+	    insn_n_cycles += 4;
 	} else {
 	    sprintf (buffer, "get_iword (regs, %d)", r);
 	    insn_n_cycles += 4;
@@ -266,6 +272,9 @@ static const char *gen_nextibyte (int norefill)
 		sprintf (buffer, "(uae_u8)get_word_prefetch (regs, %d)", r + 2);
 		insn_n_cycles += 4;
 	    }
+	} else if (using_indirect)  {
+	    sprintf (buffer, "get_ibytei (%d)", r);
+	    insn_n_cycles += 4;
 	} else {
 	    sprintf (buffer, "get_ibyte (regs, %d)", r);
 	    insn_n_cycles += 4;
@@ -1701,6 +1710,8 @@ static void gen_opcode (unsigned long int opcode)
     case i_RTS:
 	if (using_ce)
 	    printf ("\tm68k_do_rts_ce(regs);\n");
+	else if (using_indirect)
+	    printf ("\tm68k_do_rtsi(regs);\n");
 	else
 	    printf ("\tm68k_do_rts(regs);\n");
 	m68k_pc_offset = 0;
@@ -1777,6 +1788,8 @@ static void gen_opcode (unsigned long int opcode)
 	addcycles (2);
 	if (using_ce)
 	    printf ("\tm68k_do_bsr_ce (regs, m68k_getpc(regs) + %d, s);\n", m68k_pc_offset);
+	else if (using_indirect)
+	    printf ("\tm68k_do_bsri (regs, m68k_getpc(regs) + %d, s);\n", m68k_pc_offset);
 	else
 	    printf ("\tm68k_do_bsr (regs, m68k_getpc(regs) + %d, s);\n", m68k_pc_offset);
 	m68k_pc_offset = 0;
@@ -3158,6 +3171,7 @@ int main (int argc, char **argv)
     generate_includes (stblfile);
 
     using_prefetch = 0;
+    using_indirect = 0;
     using_exception_3 = 1;
     using_ce = 0;
 

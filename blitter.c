@@ -267,7 +267,7 @@ static void blitter_done (void)
     bltstate = BLT_done;
     blitter_done_notify ();
     INTREQ(0x8040);
-    eventtab[ev_blitter].active = 0;
+    event2_remevent(ev2_blitter);
     unset_special (&regs, SPCFLAG_BLTNASTY);
 #ifdef BLITTER_DEBUG
     write_log ("vpos=%d, cycles %d, missed %d, total %d\n",
@@ -642,13 +642,12 @@ static void actually_do_blit(void)
     }
 }
 
-void blitter_handler(void)
+void blitter_handler(uae_u32 data)
 {
     static int blitter_stuck;
+
     if (!dmaen(DMA_BLITTER)) {
-        eventtab[ev_blitter].active = 1;
-        eventtab[ev_blitter].oldcycles = get_cycles ();
-        eventtab[ev_blitter].evtime = 10 * CYCLE_UNIT + get_cycles (); /* wait a little */
+	event2_newevent (ev2_blitter, 10);
 	blitter_stuck++;
 	if (blitter_stuck < 20000 || !currprefs.immediate_blits)
 	    return; /* gotta come back later. */
@@ -659,9 +658,7 @@ void blitter_handler(void)
     }
     blitter_stuck = 0;
     if (blit_slowdown > 0 && !currprefs.immediate_blits) {
-        eventtab[ev_blitter].active = 1;
-        eventtab[ev_blitter].oldcycles = get_cycles ();
-        eventtab[ev_blitter].evtime = blit_slowdown * CYCLE_UNIT + get_cycles ();
+	event2_newevent (ev2_blitter, blit_slowdown);
         blit_slowdown = -1;
         return;
     }
@@ -957,7 +954,7 @@ static void blit_bltset (int con)
 	blit_diag = blitfill ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];
     }
     if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-	write_log("warning: BLTCON1 DOFF-bit set\n");
+	write_log("warning: ECS BLTCON1 DOFF-bit set\n");
 
     ddat1use = ddat2use = 0;
     blit_dmacount = blit_dmacount2 = 0;
@@ -994,8 +991,10 @@ void reset_blit (int bltcon)
 {
     if (bltstate == BLT_done)
 	return;
-    if (bltcon)
-	blit_bltset (bltcon);
+    if (bltcon) {
+	if (bltstate != BLT_work)
+	    blit_bltset (bltcon);
+    }
     blit_modset ();
 }
 
@@ -1019,7 +1018,8 @@ void do_blitter (int hpos)
     blit_last_hpos = hpos;
     blit_cyclecounter = 0;
 
-    reset_blit (1|2);
+    blit_bltset (1|2);
+    blit_modset ();
 
     if (blitline) {
 	blitsing = bltcon1 & 0x2;
@@ -1029,7 +1029,7 @@ void do_blitter (int hpos)
 	blitonedot = 0;
 	cycles = blt_info.vblitsize;
     } else {
-	blit_firstline_cycles = blit_first_cycle + blit_diag[1] * blt_info.hblitsize * CYCLE_UNIT;
+	blit_firstline_cycles = blit_first_cycle + (blit_diag[1] * blt_info.hblitsize + cpu_cycles) * CYCLE_UNIT;
 	cycles = blt_info.vblitsize * blt_info.hblitsize;
     }
 
@@ -1074,12 +1074,8 @@ void do_blitter (int hpos)
     if (currprefs.immediate_blits)
 	cycles = 1;
 
-    eventtab[ev_blitter].active = 1;
-    eventtab[ev_blitter].oldcycles = get_cycles ();
-    eventtab[ev_blitter].evtime = cycles * blit_diag[1] * CYCLE_UNIT + get_cycles ();
-    events_schedule();
+    event2_newevent(ev2_blitter, cycles * blit_diag[1]);
 }
-
 
 void maybe_blit (int hpos, int hack)
 {
@@ -1104,15 +1100,13 @@ void maybe_blit (int hpos, int hack)
 	goto end;
     }
 
-    if (!eventtab[ev_blitter].active)
-	write_log ("FOO!!?\n");
     if (hack == 1 && get_cycles() < blit_firstline_cycles)
 	goto end;
 
-    blitter_handler ();
+    blitter_handler (0);
 end:;
 #ifdef BLITTER_DEBUG
-	blitter_delayed_debug = 1;
+    blitter_delayed_debug = 1;
 #endif
 }
 

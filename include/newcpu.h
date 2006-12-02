@@ -151,6 +151,7 @@ STATIC_INLINE uae_u32 munge24(uae_u32 x)
 extern unsigned long irqcycles[15];
 extern int irqdelay[15];
 extern int mmu_enabled, mmu_triggered;
+extern int cpu_cycles;
 
 STATIC_INLINE void set_special (struct regstruct *regs, uae_u32 x)
 {
@@ -183,9 +184,25 @@ STATIC_INLINE uaecptr m68k_getpc_p (struct regstruct *regs, uae_u8 *p)
     return regs->pc + ((char *)p - (char *)regs->pc_oldp);
 }
 
+STATIC_INLINE void m68k_setpci(struct regstruct *regs, uaecptr newpc)
+{
+    regs->pc = newpc;
+}
+STATIC_INLINE uaecptr m68k_getpci(struct regstruct *regs)
+{
+    return regs->pc;
+}
+STATIC_INLINE void m68k_incpci(struct regstruct *regs, int o)
+{
+    regs->pc += o;
+}
+
 #define get_ibyte(regs, o) do_get_mem_byte((uae_u8 *)((regs)->pc_p + (o) + 1))
 #define get_iword(regs, o) do_get_mem_word((uae_u16 *)((regs)->pc_p + (o)))
 #define get_ilong(regs, o) do_get_mem_long((uae_u32 *)((regs)->pc_p + (o)))
+
+#define get_iwordi(o) get_wordi(o)
+#define get_ilongi(o) get_longi(o)
 
 #define m68k_incpc(regs, o) ((regs)->pc_p += (o))
 
@@ -204,10 +221,22 @@ STATIC_INLINE uae_u32 next_iword (struct regstruct *regs)
     m68k_incpc (regs, 2);
     return r;
 }
+STATIC_INLINE uae_u32 next_iwordi (struct regstruct *regs)
+{
+    uae_u32 r = get_iwordi (m68k_getpci(regs));
+    m68k_incpc (regs, 2);
+    return r;
+}
 
 STATIC_INLINE uae_u32 next_ilong (struct regstruct *regs)
 {
     uae_u32 r = get_ilong (regs, 0);
+    m68k_incpc (regs, 4);
+    return r;
+}
+STATIC_INLINE uae_u32 next_ilongi (struct regstruct *regs)
+{
+    uae_u32 r = get_ilongi (m68k_getpci(regs));
     m68k_incpc (regs, 4);
     return r;
 }
@@ -217,12 +246,23 @@ STATIC_INLINE void m68k_do_rts(struct regstruct *regs)
     m68k_setpc(regs, get_long(m68k_areg(regs, 7)));
     m68k_areg(regs, 7) += 4;
 }
+STATIC_INLINE void m68k_do_rtsi(struct regstruct *regs)
+{
+    m68k_setpci(regs, get_long(m68k_areg(regs, 7)));
+    m68k_areg(regs, 7) += 4;
+}
 
 STATIC_INLINE void m68k_do_bsr(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
 {
     m68k_areg(regs, 7) -= 4;
     put_long(m68k_areg(regs, 7), oldpc);
     m68k_incpc(regs, offset);
+}
+STATIC_INLINE void m68k_do_bsri(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
+{
+    m68k_areg(regs, 7) -= 4;
+    put_long(m68k_areg(regs, 7), oldpc);
+    m68k_incpci(regs, offset);
 }
 
 STATIC_INLINE void m68k_do_jsr(struct regstruct *regs, uaecptr oldpc, uaecptr dest)
@@ -242,6 +282,7 @@ STATIC_INLINE void m68k_setstopped (struct regstruct *regs, int stop)
 }
 
 extern uae_u32 REGPARAM3 get_disp_ea_020 (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
+extern uae_u32 REGPARAM3 get_disp_ea_020i (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_000 (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
 extern void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
 extern void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt);
@@ -250,6 +291,7 @@ extern void REGPARAM3 MakeSR (struct regstruct *regs) REGPARAM;
 extern void REGPARAM3 MakeFromSR (struct regstruct *regs) REGPARAM;
 extern void REGPARAM3 Exception (int, struct regstruct *regs, uaecptr) REGPARAM;
 extern void Interrupt (int nr);
+extern void doint (void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);

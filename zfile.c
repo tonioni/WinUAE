@@ -343,7 +343,7 @@ static struct zfile *dms (struct zfile *z)
 const char *uae_ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
 const char *uae_diskimageextensions[] =
-    { ".adf", ".adz", ".ipf", ".fdi", ".exe", 0 };
+    { ".adf", ".adz", ".ipf", ".fdi", ".exe", ".dms", 0 };
 
 
 int zfile_is_ignore_ext(const char *name)

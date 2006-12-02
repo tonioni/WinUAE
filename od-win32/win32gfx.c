@@ -549,8 +549,10 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     if ((strstr(desc, "X1900") || strstr(desc, "X1800") || strstr(desc, "X1600")) && !b0rken_ati_overlay) {
 	b0rken_ati_overlay = 1;
-	write_log ("** Radeon X1x00 series display card detected, enabling overlay workaround.\n");
-	write_log ("** (blank display with Catalyst 6.1 and newer). Use -disableowr to disable workaround.\n");
+	if (!os_vista) {
+	    write_log ("** Radeon X1x00 series display card detected, enabling overlay workaround.\n");
+	    write_log ("** (blank display with Catalyst 6.1 and newer). Use -disableowr to disable workaround.\n");
+	}
     }
     return 1;
 }
