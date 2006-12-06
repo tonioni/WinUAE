@@ -587,6 +587,8 @@
 #define IDC_T7                          1557
 #define IDC_PSPRINTERDETECT             1557
 #define IDC_T8                          1558
+#define IDC_SHARED2                     1558
+#define IDC_UAESERIAL                   1558
 #define IDC_T9                          1559
 #define IDC_T10                         1560
 #define IDC_T11                         1561

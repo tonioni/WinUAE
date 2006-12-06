@@ -1523,6 +1523,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\uaeserial.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\unzip.c"
 				>
 			</File>

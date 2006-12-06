@@ -280,6 +280,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "serial_hardware_ctsrts=%s\n", p->serial_hwctsrts ? "true" : "false");
     cfgfile_write (f, "serial_direct=%s\n", p->serial_direct ? "true" : "false");
     cfgfile_write (f, "scsi=%s\n", p->scsi ? "true" : "false");
+    cfgfile_write (f, "uaeserial=%s\n", p->uaeserial ? "true" : "false");
 
     cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
@@ -1027,6 +1028,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "comp_midopt", &p->comp_midopt)
 	|| cfgfile_yesno (option, value, "comp_lowopt", &p->comp_lowopt)
 	|| cfgfile_yesno (option, value, "rtg_nocustom", &p->picasso96_nocustom)
+	|| cfgfile_yesno (option, value, "uaeserial", &p->uaeserial)
 	|| cfgfile_yesno (option, value, "scsi", &p->scsi))
 	return 1;
     if (cfgfile_intval (option, value, "cachesize", &p->cachesize, 1)
@@ -2486,6 +2488,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->keyboard_leds_in_use = 0;
     p->keyboard_leds[0] = p->keyboard_leds[1] = p->keyboard_leds[2] = 0;
     p->scsi = 0;
+    p->uaeserial = 0;
     p->cpu_idle = 0;
     p->catweasel = 0;
     p->tod_hack = 0;
@@ -2600,6 +2603,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->collision_level = 2;
     p->produce_sound = 3;
     p->scsi = 0;
+    p->uaeserial = 0;
     p->cpu_idle = 0;
     p->catweasel = 0;
     p->tod_hack = 0;
@@ -2848,6 +2852,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->floppy_speed = 0;
     p->cpu_idle = 150;
     p->scsi = 1;
+    p->uaeserial = 1;
     p->socket_emu = 1;
     p->cart_internal = 0;
     p->picasso96_nocustom = 1;

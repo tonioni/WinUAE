@@ -956,7 +956,6 @@ static void blit_bltset (int con)
     if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	write_log("warning: ECS BLTCON1 DOFF-bit set\n");
 
-    ddat1use = ddat2use = 0;
     blit_dmacount = blit_dmacount2 = 0;
     blit_nod = 1;
     for (i = 0; i < blit_diag[1]; i++) {
@@ -991,10 +990,8 @@ void reset_blit (int bltcon)
 {
     if (bltstate == BLT_done)
 	return;
-    if (bltcon) {
-	if (bltstate != BLT_work)
-	    blit_bltset (bltcon);
-    }
+    if (bltcon)
+        blit_bltset (bltcon);
     blit_modset ();
 }
 
@@ -1020,6 +1017,7 @@ void do_blitter (int hpos)
 
     blit_bltset (1|2);
     blit_modset ();
+    ddat1use = ddat2use = 0;
 
     if (blitline) {
 	blitsing = bltcon1 & 0x2;

@@ -2503,7 +2503,7 @@ static void getstartpaths(int start_data)
 }
 
 extern void test (void);
-extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug;
+extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug, log_uaeserial;
 extern int force_direct_catweasel, cpu_affinity;
 
 static int original_affinity;
@@ -2580,6 +2580,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (!strcmp (arg, "-forcerdtsc")) no_rdtsc = -1;
 	if (!strcmp (arg, "-norawinput")) no_rawinput = 1;
 	if (!strcmp (arg, "-scsilog")) log_scsi = 1;
+	if (!strcmp (arg, "-seriallog")) log_uaeserial = 1;
 	if (!strcmp (arg, "-nomultidisplay")) multi_display = 0;
 	if (!strcmp (arg, "-legacypaths")) start_data = -1;
 	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;

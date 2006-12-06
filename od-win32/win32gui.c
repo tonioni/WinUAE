@@ -6873,29 +6873,31 @@ static void enable_for_portsdlg( HWND hDlg )
     v = workprefs.input_selected_setting > 0 ? FALSE : TRUE;
     EnableWindow (GetDlgItem (hDlg, IDC_SWAP), v);
 #if !defined (SERIAL_PORT)
-    EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_SHARED), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_SER_CTSRTS), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_SERIAL_DIRECT), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_SERIAL), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_MIDIOUTLIST), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_SHARED), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_SER_CTSRTS), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_SERIAL_DIRECT), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_SERIAL), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_UAESERIAL), FALSE);
 #else
     v = workprefs.use_serial ? TRUE : FALSE;
-    EnableWindow( GetDlgItem( hDlg, IDC_SHARED), v);
-    EnableWindow( GetDlgItem( hDlg, IDC_SER_CTSRTS), v);
-    EnableWindow( GetDlgItem( hDlg, IDC_SERIAL_DIRECT), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_SHARED), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_SER_CTSRTS), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_SERIAL_DIRECT), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_UAESERIAL), full_property_sheet);
 #endif
 #if !defined (PARALLEL_PORT)
-    EnableWindow( GetDlgItem( hDlg, IDC_PRINTERLIST), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_FLUSHPRINTER), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PSPRINTER), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PS_PARAMS), FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PRINTER_AUTOFLUSH), FALSE );
+    EnableWindow(GetDlgItem(hDlg, IDC_PRINTERLIST), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_FLUSHPRINTER), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PSPRINTER), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PS_PARAMS), FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PRINTER_AUTOFLUSH), FALSE);
 #else
-    EnableWindow( GetDlgItem( hDlg, IDC_FLUSHPRINTER), isprinteropen () ? TRUE : FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PSPRINTER), full_property_sheet && ghostscript_available ? TRUE : FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PSPRINTERDETECT), full_property_sheet ? TRUE : FALSE );
-    EnableWindow( GetDlgItem( hDlg, IDC_PS_PARAMS), full_property_sheet && ghostscript_available );
+    EnableWindow(GetDlgItem(hDlg, IDC_FLUSHPRINTER), isprinteropen () ? TRUE : FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PSPRINTER), full_property_sheet && ghostscript_available ? TRUE : FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PSPRINTERDETECT), full_property_sheet ? TRUE : FALSE);
+    EnableWindow(GetDlgItem(hDlg, IDC_PS_PARAMS), full_property_sheet && ghostscript_available);
 #endif
 }
 
@@ -7090,6 +7092,9 @@ static void values_from_portsdlg (HWND hDlg)
 	    strcpy(workprefs.sername, "none");
 	break;
     }
+    workprefs.uaeserial = 0;
+    if (IsDlgButtonChecked (hDlg, IDC_UAESERIAL))
+	workprefs.uaeserial = 1;
     workprefs.serial_demand = 0;
     if (IsDlgButtonChecked (hDlg, IDC_SHARED))
 	workprefs.serial_demand = 1;
@@ -7137,30 +7142,28 @@ static void values_to_portsdlg (HWND hDlg)
 	    result = 0;
 	}
     }
-    SetDlgItemInt( hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE );
-    CheckDlgButton( hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation );
-    CheckDlgButton( hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection );
-    SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
+    SetDlgItemInt(hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
+    CheckDlgButton(hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation);
+    CheckDlgButton(hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection);
+    SetDlgItemText(hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
     
-    SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0 );
-    SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0 );
+    SendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0);
+    SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0);
     if (!bNoMidiIn && workprefs.win32_midiindev >= 0)
-	SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev, 0 );
+	SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev, 0);
     else
-	SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0 );
-    EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
+	SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0);
+    EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
     
-    CheckDlgButton( hDlg, IDC_SHARED, workprefs.serial_demand );
-    CheckDlgButton( hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts );
-    CheckDlgButton( hDlg, IDC_SERIAL_DIRECT, workprefs.serial_direct );
+    CheckDlgButton(hDlg, IDC_UAESERIAL, workprefs.uaeserial);
+    CheckDlgButton(hDlg, IDC_SHARED, workprefs.serial_demand);
+    CheckDlgButton(hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts);
+    CheckDlgButton(hDlg, IDC_SERIAL_DIRECT, workprefs.serial_direct);
     
-    if( strcasecmp( workprefs.sername, "none") == 0 ) 
-    {
+    if(strcasecmp(workprefs.sername, "none") == 0)  {
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, 0, 0L);
 	workprefs.use_serial = 0;
-    }
-    else
-    {
+    } else {
 	int t = (workprefs.sername[0] == '\0' ? 0 : workprefs.sername[3] - '0');
 	int i;
 	LRESULT result = -1;
@@ -7170,23 +7173,20 @@ static void values_to_portsdlg (HWND hDlg)
 		break;
 	    }
 	}
-	if( result < 0 )
-	{
+	if(result < 0) {
 	    if (t > 0) {
 		// Warn the user that their COM-port selection is not valid on this machine
-		char szMessage[ MAX_DPATH ];
-		WIN32GUI_LoadUIString( IDS_INVALIDCOMPORT, szMessage, MAX_DPATH );
+		char szMessage[MAX_DPATH];
+		WIN32GUI_LoadUIString(IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
 		pre_gui_message (szMessage);
 
 		// Select "none" as the COM-port
-		SendDlgItemMessage( hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L );		
+		SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);		
 	    }
 	    // Disable the chosen serial-port selection
 	    strcpy( workprefs.sername, "none" );
 	    workprefs.use_serial = 0;
-	}
-	else
-	{
+	} else {
 	    workprefs.use_serial = 1;
 	}
     }
@@ -8440,7 +8440,7 @@ static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam
     PAINTSTRUCT ps;
     HBITMAP bm;
     BITMAP binfo;
-    HDC hdc, memdc;
+    HDC memdc;
     int w, h, i;
 
     for (i = 0; ToolTipHWNDS2[i].hwnd; i++) {
@@ -8452,6 +8452,19 @@ static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam
 
     switch (message)
     {
+	case WM_WINDOWPOSCHANGED:
+	bm = LoadBitmap (hInst, MAKEINTRESOURCE (ToolTipHWNDS2[i].imageid));
+	GetObject (bm, sizeof (binfo), &binfo);
+	w = binfo.bmWidth;
+	h = binfo.bmHeight;
+	GetWindowRect (hwnd, &r1);
+	GetCursorPos (&p1);
+	r1.right = r1.left + w;
+	r1.bottom = r1.top + h;
+	MoveWindow (hwnd, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, TRUE);
+	DeleteObject (bm);
+	return 0;
+
 	case WM_PAINT:
 	bm = LoadBitmap (hInst, MAKEINTRESOURCE (ToolTipHWNDS2[i].imageid));
 	GetObject (bm, sizeof (binfo), &binfo);
@@ -8461,18 +8474,16 @@ static LRESULT FAR PASCAL ToolTipWndProc (HWND hwnd, UINT message, WPARAM wParam
 	GetCursorPos (&p1);
 	r1.right = r1.left + w;
 	r1.bottom = r1.top + h;
+	BeginPaint (hwnd, &ps);
+	memdc = CreateCompatibleDC (ps.hdc);
+	SelectObject (memdc, bm);
 	ShowWindow (hwnd, SW_SHOWNA);
 	MoveWindow (hwnd, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, TRUE);
-	hdc = GetDC (hwnd);
-	memdc = CreateCompatibleDC (hdc);
-	SelectObject (memdc, bm);
-	BeginPaint (hwnd, &ps);
 	SetBkMode (ps.hdc, TRANSPARENT);
-	BitBlt (hdc, 0, 0, w, h, memdc, 0, 0, SRCCOPY);
+	BitBlt (ps.hdc, 0, 0, w, h, memdc, 0, 0, SRCCOPY);
 	DeleteObject (bm);
 	EndPaint (hwnd, &ps);
 	DeleteDC (memdc);
-	ReleaseDC (hwnd, hdc);
 	return FALSE;
 	case WM_PRINT:
 	PostMessage (hwnd, WM_PAINT, 0, 0);

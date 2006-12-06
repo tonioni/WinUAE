@@ -1,4 +1,22 @@
 
+Beta 3:
+
+- uaeserial.device implemented, serial.device-like device that maps
+  unit numbers directly to host's COMx-ports (unit 1 = COM1, 2 = COM2
+  etc..) Supports most serial.device features (No xOn/xOff support)
+  Bugs possible. Tested using Term and Nokia E70 via bluetooth serial
+  connection :)
+- page down is now properly configurable in input-panel (previously
+  was internally always mapped to freeze button)
+- GUI AHI sound volume adjustment support (previously was Paula only)
+- disk emulation event handler error fixed, broke most custom loaders
+  (bug introduced in b1)
+- X-Arcade GUI tooltip compatibility update, in some cases only tiny
+  piece of upper left corner was visible. (Vista only?)
+- more blitter tweaks, try to be compatible with broken programs that
+  write to blitter registers while previous blit has not yet finished.
+- some DirectSound tweaks
+  
 Beta 2:
 
 - fixed possible crash when input recording stops (introduced in b1)

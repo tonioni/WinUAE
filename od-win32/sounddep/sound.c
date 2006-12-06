@@ -185,7 +185,7 @@ static void close_audio_ds (void)
 }
 
 extern HWND hMainWnd;
-
+extern void setvolume_ahi(LONG);
 static void setvolume (void)
 {
     HRESULT hr;
@@ -196,6 +196,7 @@ static void setvolume (void)
     hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
     if (FAILED(hr))
         write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+    setvolume_ahi (vol);
 }
 
 static int open_audio_ds (int size)
@@ -268,24 +269,25 @@ static int open_audio_ds (int size)
 	goto error;
     }
 
+    hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
+    if (FAILED(hr)) {
+        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
+        goto error;
+    }
+
+    memset (&wavfmt, 0, sizeof (WAVEFORMATEX));
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
     wavfmt.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
     wavfmt.nSamplesPerSec = freq;
     wavfmt.wBitsPerSample = 16;
     wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * freq;
-    wavfmt.cbSize = 0;
 
     max_sndbufsize = size * 4;
     if (max_sndbufsize > SND_MAX_BUFFER2)
         max_sndbufsize = SND_MAX_BUFFER2;
     dsoundbuf = max_sndbufsize * 2;
 
-    hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
-    if (FAILED(hr)) {
-        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
-        goto error;
-    }
     if (dsoundbuf < DSBSIZE_MIN)
         dsoundbuf = DSBSIZE_MIN;
     if (dsoundbuf > DSBSIZE_MAX)
@@ -303,7 +305,8 @@ static int open_audio_ds (int size)
     sound_buffer.dwBufferBytes = dsoundbuf;
     sound_buffer.lpwfxFormat = &wavfmt;
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
-    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPOSITIONNOTIFY;
+    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPOSITIONNOTIFY | DSBCAPS_LOCSOFTWARE;
+    sound_buffer.guid3DAlgorithm = GUID_NULL;
 
     hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
     if (FAILED(hr)) {

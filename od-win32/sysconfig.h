@@ -34,6 +34,7 @@
 #define PARALLEL_DIRECT /* direct parallel port emulation */
 #define SERIAL_PORT /* serial port emulation */
 #define SCSIEMU /* uaescsi.device emulation */
+#define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
 #define CPUEMU_0 /* generic 680x0 emulation */
 #define CPUEMU_5 /* 68000+prefetch emulation */

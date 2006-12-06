@@ -40,6 +40,7 @@
 #include "fsusage.h"
 #include "native2amiga.h"
 #include "scsidev.h"
+#include "uaeserial.h"
 #include "fsdb.h"
 #include "zfile.h"
 #include "gui.h"
@@ -3747,8 +3748,12 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
      * diag entry. */
 
     //resaddr = uaeresource_startup(resaddr);
-    resaddr = scsidev_startup(resaddr);
-
+#ifdef SCSIEMU
+    resaddr = scsidev_startup (resaddr);
+#endif
+#ifdef UAESERIAL
+    resaddr = uaeserialdev_startup (resaddr);
+#endif
     /* scan for Residents and return pointer to array of them */
     residents = resaddr;
     while (tmp < residents && tmp > start) {

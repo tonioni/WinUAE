@@ -301,6 +301,16 @@ static int ahi_init_record_win32 (void)
     return 1;
 }
 
+void setvolume_ahi (LONG vol)
+{
+    HRESULT hr;
+    if (!lpDS2)
+	return;
+    hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
+    if (FAILED(hr))
+        write_log ("AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+}
+
 static int ahi_init_sound_win32 (void)
 {
     HRESULT hr;
@@ -355,19 +365,16 @@ static int ahi_init_sound_win32 (void)
     }
     sound_buffer.dwBufferBytes = ahisndbufsize;
     sound_buffer.lpwfxFormat = &wavfmt;
-    sound_buffer.dwFlags = DSBCAPS_CTRLFREQUENCY | DSBCAPS_CTRLVOLUME /*| DSBCAPS_CTRLPOSITIONNOTIFY */
-	| DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS | DSBCAPS_STATIC ;
+    sound_buffer.dwFlags = DSBCAPS_CTRLFREQUENCY | DSBCAPS_CTRLVOLUME
+	| DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS | DSBCAPS_LOCSOFTWARE;
+    sound_buffer.guid3DAlgorithm = GUID_NULL;
     hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSB2, NULL);
     if (FAILED(hr)) {
 	write_log("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
     }
 
-    hr = IDirectSoundBuffer_SetVolume (lpDSB2, 0);
-    if (FAILED(hr)) {
-	write_log("AHI: SetVolume() 2 failure: %s\n", DXError(hr));
-	return 0;
-    }
+    setvolume_ahi (0);
 
     hr = IDirectSoundBuffer_GetFormat(lpDSBprimary2,&wavfmt,500,0);
     if(FAILED(hr)) {

@@ -36,6 +36,7 @@
 #include "uaeexe.h"
 #include "native2amiga.h"
 #include "scsidev.h"
+#include "uaeserial.h"
 #include "akiko.h"
 #include "savestate.h"
 #include "filesys.h"
@@ -310,6 +311,9 @@ void fixup_prefs (struct uae_prefs *p)
     p->scsi = 0;
     p->win32_aspi = 0;
 #endif
+#if !defined (UAESERIAL)
+    p->uaeserial = 0;
+#endif
 #if defined(CPUEMU_6)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
@@ -487,6 +491,10 @@ void reset_all_systems (void)
     scsidev_reset ();
     scsidev_start_threads ();
 #endif
+#ifdef UAESERIAL
+    uaeserialdev_reset ();
+    uaeserialdev_start_threads ();
+#endif
 #if defined (PARALLEL_PORT)
     initparallel ();
 #endif
@@ -629,6 +637,9 @@ static void real_main2 (int argc, char **argv)
     savestate_init ();
 #ifdef SCSIEMU
     scsidev_install ();
+#endif
+#ifdef UAESERIAL
+    uaeserialdev_install ();
 #endif
 #ifdef AUTOCONFIG
     /* Install resident module to get 8MB chipmem, if requested */

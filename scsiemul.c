@@ -648,7 +648,7 @@ static void *dev_thread (void *devs)
 	    uae_ReplyMsg (request);
 	} else {
 	    if (log_scsi)
-		write_log ("async request %08.8X\n", request);
+		write_log ("%s:%d async request %08.8X\n", getdevname(0), dev->unitnum, request);
 	}
 	uae_sem_post (&change_sem);
     }

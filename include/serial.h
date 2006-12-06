@@ -28,3 +28,16 @@ extern void serial_flush_buffer(void);
 
 extern void serial_hsynchandler (void);
 extern void serial_check_irq (void);
+
+extern int uaeser_getdatalenght (void);
+extern int uaeser_getbytespending (void*);
+extern int uaeser_open (void*, void*, int);
+extern void uaeser_close (void*);
+extern int uaeser_read (void*, uae_u8 *data, uae_u32 len);
+extern int uaeser_write (void*, uae_u8 *data, uae_u32 len);
+extern int uaeser_query (void*, uae_u16 *status, uae_u32 *pending);
+extern int uaeser_setparams (void*, int baud, int rbuffer, int bits, int sbits, int rtscts, int parity);
+extern int uaeser_break (void*, int brklen);
+extern void uaeser_signal (void*, int source);
+extern void uaeser_trigger (void*);
+extern void uaeser_clearbuffers (void*);

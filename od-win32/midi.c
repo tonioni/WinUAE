@@ -54,8 +54,8 @@ extern int serdev;
 static HMIDIIN inHandle;
 static MIDIHDR midiin[MIDI_INBUFFERS];
 
-static char *inbuffer[ MIDI_INBUFFERS ] = { 0, 0} ;
-static long inbufferlength[ MIDI_INBUFFERS ] = { 0,0};
+static char *inbuffer[MIDI_INBUFFERS] = { 0, 0} ;
+static long inbufferlength[MIDI_INBUFFERS] = { 0,0};
 
 static int in_allocated = 0;
 
@@ -63,10 +63,10 @@ static int in_allocated = 0;
 
 static MidiOutStatus out_status;
 static HMIDIOUT outHandle;
-static MIDIHDR midiout[ MIDI_BUFFERS ];
+static MIDIHDR midiout[MIDI_BUFFERS];
 
-static char *outbuffer[ MIDI_BUFFERS ] = { 0, 0} ;
-static long outbufferlength[ MIDI_BUFFERS ] = { 0,0 };
+static char *outbuffer[MIDI_BUFFERS] = { 0, 0 };
+static long outbufferlength[MIDI_BUFFERS] = { 0, 0 };
 static int outbufferselect = 0;
 static int out_allocated = 0;
 static volatile exitin = 0;
@@ -88,11 +88,10 @@ static CRITICAL_SECTION cs_proc;
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static char MidiOutErrorMsg[ 256 ];
-static char *getmidiouterr( int err )
+static char *getmidiouterr(char *txt, int err)
 {
-    midiOutGetErrorText( err, MidiOutErrorMsg, 256 );
-    return MidiOutErrorMsg;
+    midiOutGetErrorText(err, txt, MAX_DPATH);
+    return txt;
 }
 
 /*
@@ -111,35 +110,27 @@ static char *getmidiouterr( int err )
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static int MidiOut_Alloc( void )
+static int MidiOut_Alloc(void)
 {
     int i;
 
-    if( !out_allocated ) 
-    {
-	for( i = 0; i < MIDI_BUFFERS; i++ ) 
-	{
-	    if( !outbuffer[ i ] ) 
-	    {
-		outbuffer[ i ] = (char *)xmalloc( BUFFLEN );
-		if( outbuffer[ i ] )
-		{
-		    outbufferlength[ i ] = BUFFLEN;
+    if(!out_allocated) {
+	for(i = 0; i < MIDI_BUFFERS; i++) {
+	    if(!outbuffer[i]) {
+		outbuffer[i] = (char*)xmalloc(BUFFLEN);
+		if(outbuffer[i]) {
+		    outbufferlength[i] = BUFFLEN;
 		    out_allocated++;
-		}
-		else
-		{
-		    outbufferlength[ i ] = 0;
+		} else {
+		    outbufferlength[i] = 0;
 		}
 	    }
 	}
 	outbufferselect = 0;
+    } else {
+	write_log("MIDI: ERROR - MidiOutAlloc() called twice?\n");
     }
-    else
-    {
-	write_log( "MIDI: ERROR - MidiOutAlloc() called twice?\n" );
-    }
-    return( out_allocated );
+    return out_allocated;
 }
 
 /*
@@ -157,18 +148,15 @@ static int MidiOut_Alloc( void )
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static void MidiOut_Free( void )
+static void MidiOut_Free(void)
 {
     int i;
 
-    for( i = 0; i < out_allocated; i++ )
-    {
-	if( outbuffer[ i ] ) 
-		{
-	    //out_allocated--;
-	    free( outbuffer[i] );
-	    outbufferlength[ i ] = 0;
-	    outbuffer[ i ] = NULL;
+    for(i = 0; i < out_allocated; i++) {
+	if(outbuffer[i])  {
+	    free(outbuffer[i]);
+	    outbufferlength[i] = 0;
+	    outbuffer[i] = NULL;
 	}
     }
     outbufferselect = 0;
@@ -194,9 +182,10 @@ static void MidiOut_Free( void )
  *   1999.08.02  1.0    Brian King             - Creation
  *
  */
-static int MidiOut_PrepareHeader( LPMIDIHDR out, LPSTR data, DWORD length )
+static int MidiOut_PrepareHeader(LPMIDIHDR out, LPSTR data, DWORD length)
 {
     int result = 1;
+    char err[MAX_DPATH];
 
     out->lpData = data;
     out->dwBufferLength = length;
@@ -204,9 +193,8 @@ static int MidiOut_PrepareHeader( LPMIDIHDR out, LPSTR data, DWORD length )
     out->dwUser = 0;
     out->dwFlags = 0;
 
-    if( ( result = midiOutPrepareHeader( outHandle, out, sizeof( MIDIHDR ) ) ) )
-    {
-	write_log( "MIDI: error %s / %d\n", getmidiouterr(result), result );
+    if((result = midiOutPrepareHeader(outHandle, out, sizeof( MIDIHDR)))) {
+	write_log( "MIDI: error %s / %d\n", getmidiouterr(err, result), result);
 	result = 0;
     }
     return result;
@@ -232,11 +220,10 @@ static int MidiOut_PrepareHeader( LPMIDIHDR out, LPSTR data, DWORD length )
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static char MidiInErrorMsg[ 256 ];
-static char *getmidiinerr( int err )
+static char *getmidiinerr(char *txt, int err)
 {
-    midiInGetErrorText( err, MidiInErrorMsg, 256 );
-    return MidiInErrorMsg;
+    midiInGetErrorText(err, txt, MAX_DPATH);
+    return txt;
 }
 
 /*
@@ -255,34 +242,26 @@ static char *getmidiinerr( int err )
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static int MidiIn_Alloc( void )
+static int MidiIn_Alloc(void)
 {
     int i;
 
-    if( !in_allocated ) 
-    {
-	for( i = 0; i < MIDI_INBUFFERS; i++ ) 
-	{
-	    if( !inbuffer[ i ] ) 
-			{
-		inbuffer[ i ] = (char *)xmalloc( INBUFFLEN );
-		if( inbuffer[ i ] )
-		{
-		    inbufferlength[ i ] = INBUFFLEN;
+    if(!in_allocated)  {
+	for(i = 0; i < MIDI_INBUFFERS; i++)  {
+	    if(!inbuffer[i]) {
+		inbuffer[i] = (char*)xmalloc(INBUFFLEN);
+		if(inbuffer[i]) {
+		    inbufferlength[i] = INBUFFLEN;
 		    in_allocated++;
-		}
-		else
-		{
-		    inbufferlength[ i ] = 0;
+		} else {
+		    inbufferlength[i] = 0;
 		}
 	    }
 	}
+    } else {
+	write_log("MIDI: ERROR - MidiInAlloc() called twice?\n");
     }
-    else
-    {
-	write_log( "MIDI: ERROR - MidiInAlloc() called twice?\n" );
-    }
-    return( in_allocated );
+    return in_allocated;
 }
 
 /*
@@ -304,18 +283,16 @@ static void MidiIn_Free( void )
 {
     int i;
 
-    for( i = 0; i < in_allocated; i++ )
-    {
-	if( inbuffer[ i ] ) 
-	{
+    for( i = 0; i < in_allocated; i++ ) {
+	if(inbuffer[i]) {
 	    //in_allocated--;
-	    free( inbuffer[i] );
-	    inbufferlength[ i ] = 0;
-	    inbuffer[ i ] = NULL;
+	    free(inbuffer[i]);
+	    inbufferlength[i] = 0;
+	    inbuffer[i] = NULL;
 	}
     }
-	in_allocated = 0;
-	only_one_time = 0;
+    in_allocated = 0;
+    only_one_time = 0;
 }
 
 static unsigned char plen[128] = { 
@@ -349,138 +326,87 @@ static unsigned char plen[128] = {
  *   1999.08.02  1.0    Brian King             - Creation
  *
  */
-int Midi_Parse( midi_direction_e direction, BYTE *dataptr )
+int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 {
     int result = 0;
     static unsigned short bufferindex;
     static char *bufferpoint = 0;
 
-    if( direction == midi_output )
-    {
+    if(direction == midi_output) {
 	BYTE data = *dataptr;
-	DBGOUT_MIDI_BYTE( data );
-	if( data >= 0x80 )
-	{
-	    if( data >= MIDI_CLOCK )
-	    {
-		switch( data )
+	DBGOUT_MIDI_BYTE(data);
+	if(data >= 0x80) {
+	    if(data >= MIDI_CLOCK) {
+		switch(data)
 		{
-		    case MIDI_CLOCK:
-					
+		    case MIDI_CLOCK:			
 			TRACE(( "MIDI: MIDI_CLOCK\n" ));
 		    break;
-		    case MIDI_START:
-						
+		    case MIDI_START:			
 			TRACE(( "MIDI: MIDI_START\n" ));
 		    break;
-		    case MIDI_CONTINUE:
-					
+		    case MIDI_CONTINUE:	
 			TRACE(( "MIDI: MIDI_CONTINUE\n" ));
 		    break;
-		    case MIDI_STOP:
-						
+		    case MIDI_STOP:		
 			TRACE(( "MIDI: MIDI_STOP\n" ));
 		    break;
 		    default:
-
 		    break;
 		}
-	    }
-			/*
-	    else if( data == MIDI_MTC )
-	    {
-		out_status.timecode = 1;
-	    }
-			*/
-	    else if( out_status.sysex )
-	    {
-		if( out_allocated )
-		{
-		    bufferpoint[ bufferindex++ ] = (char)MIDI_EOX;
-		    if( bufferindex >= BUFFLEN )
+	    } else if(out_status.sysex) {
+		if(out_allocated) {
+		    bufferpoint[bufferindex++] = (char)MIDI_EOX;
+		    if(bufferindex >= BUFFLEN)
 			bufferindex = BUFFLEN - 1;
 		    out_status.status = MIDI_SYSX;
 		    // Flush this buffer using midiOutLongMsg
-		    MidiOut_PrepareHeader( &midiout[ outbufferselect ], bufferpoint, bufferindex );
-		    midiOutLongMsg( outHandle, &midiout[ outbufferselect ], sizeof( MIDIHDR ) );
-
+		    MidiOut_PrepareHeader(&midiout[ outbufferselect ], bufferpoint, bufferindex);
+		    midiOutLongMsg(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
 		    outbufferselect = !outbufferselect;
-		    bufferpoint = outbuffer[ outbufferselect ];
-		    midiOutUnprepareHeader( outHandle, &midiout[ outbufferselect ], sizeof( MIDIHDR ) );
+		    bufferpoint = outbuffer[outbufferselect];
+		    midiOutUnprepareHeader(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
 		}
 		out_status.sysex = 0; // turn off MIDI_SYSX mode
 		out_status.unknown = 1; // now in an unknown state
-		if( data == MIDI_EOX )
+		if(data == MIDI_EOX)
 		    return 0;
 	    }
 	    out_status.status = data;
-	    out_status.length = plen[ data & 0x7F ];
+	    out_status.length = plen[data & 0x7F];
 	    out_status.posn = 0;
 	    out_status.unknown = 0;
-	    if( data == MIDI_SYSX )
-	    {
+	    if(data == MIDI_SYSX) {
 		out_status.sysex = 1; // turn on MIDI_SYSX mode
-		if( out_allocated )
-		{
+		if(out_allocated) {
 		    bufferindex = 0;
-		    bufferpoint = outbuffer[ outbufferselect ];
-		    bufferpoint[ bufferindex++ ] = (char)MIDI_SYSX;
+		    bufferpoint = outbuffer[outbufferselect];
+		    bufferpoint[bufferindex++] = (char)MIDI_SYSX;
 		}
 		return 0;
 	    }
-	} // data & 0x80
-/*		
-	else if( out_status.timecode )
-	{
-	    out_status.timecode = 0;
-	    out_status.status = MIDI_MTC;
-	    out_status.byte1 = data;
-	    // process MIDI_MTC msg
-	    write_log( "MIDI OUT: MIDI_MTC message\n" );
-	    return 0;
-	}*/
-	else if( out_status.sysex )
-	{
-	    if( out_allocated )
-	    {
-		bufferpoint[ bufferindex++ ] = data;
-		if( bufferindex >= BUFFLEN )
+	} else if(out_status.sysex) {
+	    if(out_allocated) {
+		bufferpoint[bufferindex++] = data;
+		if(bufferindex >= BUFFLEN)
 		    bufferindex = BUFFLEN - 1;
 	    }
 	    return 0;
-	}
-	else if( out_status.unknown )
-	{
+	} else if(out_status.unknown) {
 	    return 0;
-	}
-	else if( ++out_status.posn == 1 )
-	{
+	} else if(++out_status.posn == 1) {
 	    out_status.byte1 = data;
-	}
-	else
-	{
+	} else {
 	    out_status.byte2 = data;
 	}
-	if( out_status.posn >= out_status.length )
-	{
+	if(out_status.posn >= out_status.length) {
+	    DWORD shortMsg;
 	    out_status.posn = 0;
-	   /* if( out_status.status == MIDI_SONGPP )
-	    {
-		// Handle this by doing a process-midi-clock ??
-		write_log( "MIDI OUT: MIDI_SONGPP message\n" );
-		return 0;
-	    }
-	    else*/
-	    {
-		// flush the packet using midiOutShortMessage
-		DWORD shortMsg = MAKELONG( MAKEWORD( out_status.status, out_status.byte1 ), MAKEWORD( out_status.byte2, 0 ) );
-		midiOutShortMsg( outHandle, shortMsg );
-				
-	    }
+	    // flush the packet using midiOutShortMessage
+	    shortMsg = MAKELONG(MAKEWORD(out_status.status, out_status.byte1), MAKEWORD(out_status.byte2, 0));
+	    midiOutShortMsg(outHandle, shortMsg);
 	}
-    }
-    else // handle input-data
-    {
+    } else { // handle input-data
 	
     }
     return result;
@@ -498,35 +424,35 @@ int Midi_Parse( midi_direction_e direction, BYTE *dataptr )
 static unsigned char midibuf[BUFFLEN];
 static long midi_inptr = 0, midi_inlast = 0;
 
-static void  add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
+static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 {
-	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
-	    return;
-	}
-	midibuf[midi_inlast++] = (uae_u8)w;
+    if(midi_inlast >= BUFFLEN - 10) {
+        TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
+        return;
+    }
+    midibuf[midi_inlast++] = (uae_u8)w;
 }
-static void  add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
+static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
-	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
-	    return;
-	}
-	midibuf[midi_inlast++] = (uae_u8)w;
-	w = w>>8;
-	midibuf[midi_inlast++] = (uae_u8)w;
+    if(midi_inlast >= BUFFLEN - 10) {
+        TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
+        return;
+    }
+    midibuf[midi_inlast++] = (uae_u8)w;
+    w = w >> 8;
+    midibuf[midi_inlast++] = (uae_u8)w;
 }
-static void  add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
+static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
-	if(midi_inlast >= BUFFLEN - 10) {
-	    TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
-	    return;
-	}
-	midibuf[midi_inlast++] = (uae_u8)w;
-	w = w>>8;
-	midibuf[midi_inlast++] = (uae_u8)w;
-	w = w>>8;
-	midibuf[midi_inlast++] = (uae_u8)w;
+    if(midi_inlast >= BUFFLEN - 10) {
+        TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
+        return;
+    }
+    midibuf[midi_inlast++] = (uae_u8)w;
+    w = w >> 8;
+    midibuf[midi_inlast++] = (uae_u8)w;
+    w = w >> 8;
+    midibuf[midi_inlast++] = (uae_u8)w;
 }
 
 int ismidibyte(void)
@@ -542,29 +468,20 @@ LONG getmidibyte(void) //return midibyte or -1 if none
     LONG rv;
 
     EnterCriticalSection (&cs_proc);
-    if (overflow == 1)
-    {
-	char szMessage[ MAX_DPATH ];
-	WIN32GUI_LoadUIString(IDS_MIDIOVERFLOW, szMessage, MAX_DPATH );
-	gui_message( szMessage );
+    if (overflow == 1) {
+	char szMessage[MAX_DPATH];
+	WIN32GUI_LoadUIString(IDS_MIDIOVERFLOW, szMessage, MAX_DPATH);
+	gui_message(szMessage);
 	overflow = 0;
     }
     TRACE(("getmidibyte(%02.2X)\n", midibuf[midi_inptr]));
-    if (midibuf[midi_inptr] >= 0xf0) // only check for free buffers if status sysex 
-    {
-	for (i = 0;i < MIDI_INBUFFERS;i++)
-	{
-	    if (midiin[i].dwFlags==(MHDR_DONE|MHDR_PREPARED)){
+    if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex 
+	for (i = 0;i < MIDI_INBUFFERS;i++) {
+	    if (midiin[i].dwFlags == (MHDR_DONE|MHDR_PREPARED)) {
 		 // add a buffer if one is free
-		/*  midiInUnprepareHeader( inHandle,&midiin[i], sizeof(MIDIHDR));
-		  midiin[i].dwBufferLength = INBUFFLEN-1;
-		  midiin[i].dwBytesRecorded = INBUFFLEN-1;
-		  midiin[i].dwUser = 0;
-		  midiin[i].dwFlags = 0;
-		  midiInPrepareHeader(inHandle,&midiin[i], sizeof(MIDIHDR));*/
-		  LeaveCriticalSection(&cs_proc);
-		  midiInAddBuffer(inHandle,&midiin[i],sizeof(MIDIHDR));
-		  EnterCriticalSection(&cs_proc);
+		LeaveCriticalSection(&cs_proc);
+		midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
+		EnterCriticalSection(&cs_proc);
 	    }	
 	}
     }
@@ -579,107 +496,99 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 
 static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,DWORD_PTR dwParam1,DWORD_PTR dwParam2)
 {
-	EnterCriticalSection (&cs_proc);
-	if(wMsg == MIM_ERROR)
-	{
-		TRACE(("MIDI Data Lost\n"));
+    EnterCriticalSection (&cs_proc);
+    if(wMsg == MIM_ERROR) {
+        TRACE(("MIDI Data Lost\n"));
+    }
+    if(wMsg == MIM_LONGDATA) {
+        LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
+        static long synum;
+        TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
+        if (exitin == 1)
+	    goto end; //for safeness midi want close
+	if ((midi_inlast + midiin->dwBytesRecorded) >= (BUFFLEN-6)) {
+	    overflow = 1;
+	    TRACE(("MIDI overflow1\n"));
+	    //for safeness if buffer too full (should not occur)
+	    goto end;
 	}
-	if(wMsg == MIM_LONGDATA)
-	{
-		LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
-		static long synum;
-		TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
-		if (exitin == 1) goto end;    //for safeness midi want close
-		if ((midi_inlast + midiin->dwBytesRecorded) >= (BUFFLEN-6))
-		{
-			overflow = 1;
-			TRACE(("MIDI overflow1\n"));
-			//for safeness if buffer too full (should not occur)
-			goto end;
-		}
-
-		if (midiin->dwBufferLength == midiin->dwBytesRecorded)
-		{
-		//for safeness if buffer too full (should not occur)
-			overflow = 1;
-			TRACE(("MIDI overflow2\n"));
-			goto end;
-		}
-
-		memcpy(&midibuf[midi_inlast], midiin->lpData, midiin->dwBytesRecorded);
-		midi_inlast = midi_inlast + midiin->dwBytesRecorded;
-
-
+	if (midiin->dwBufferLength == midiin->dwBytesRecorded) {
+	    //for safeness if buffer too full (should not occur)
+	    overflow = 1;
+	    TRACE(("MIDI overflow2\n"));
+	    goto end;
 	}
+	memcpy(&midibuf[midi_inlast], midiin->lpData, midiin->dwBytesRecorded);
+	midi_inlast = midi_inlast + midiin->dwBytesRecorded;
+    }
 
-	if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA)
-	{
-		BYTE state = (BYTE)dwParam1;
-		TRACE(("%s %08.8X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
-		if(state == 254) goto end;
-		if(state < 0xf0) state = state & 0xf0;
-		//else {add1byte(state); goto end;}
-		switch (state)
-		{	
-			case 0x80: //Note OFF
-			add3byte(dwParam1);
-			break;
-			case 0x90: // Note On
-			add3byte(dwParam1);
-			break;
-			case 0xa0: // Poly Press
-			add3byte(dwParam1);
-			break;
-			case 0xb0: //CTRL Change
-			add3byte(dwParam1);
-			break;
-			case 0xc0:  //ProgramChange
-			add2byte(dwParam1);
-			break;
-			case 0xd0:   //ChanPress
-			add2byte(dwParam1);
-			break;
-			case 0xe0:   //PitchBend
-			add3byte(dwParam1);
-			break;
-    //System Common Messages
-			case 0xf1:   //QuarterFrame-message ... MIDI_Time_Code
-			add2byte(dwParam1);
-			break;
-			case 0xf2:   //Song Position
-			add3byte(dwParam1);
-			break;
-			case 0xf3:   //Song Select
-			add2byte(dwParam1);
-			break;
-			case 0xf6:   //Tune Request
-			add3byte(dwParam1);
-			break;
-//System Real Time Messages
-			case 0xf8:   //MIDI-Clock
-			add1byte((char)dwParam1);
-			break;
-			case 0xfa:   //Start
-			add1byte((char)dwParam1);
-			break;
-			case 0xfb:   //Continue
-			add1byte((char)dwParam1);
-			break;
-			case 0xfc:   //Stop
-			add1byte((char)dwParam1);
-			break;
-			case 0xfe:   //Active Sense (selden used)
-			add1byte((char)dwParam1);
-			break;
-			case 0xff:   //Reset (selden used)
-			add2byte(dwParam1);
-			break;
-
-		}
+    if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA) {
+        BYTE state = (BYTE)dwParam1;
+	TRACE(("%s %08.8X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
+	if(state == 254)
+	    goto end;
+	if(state < 0xf0)
+	    state = state & 0xf0;
+	switch (state)
+	{	
+	    case 0x80: //Note OFF
+	    add3byte(dwParam1);
+	    break;
+	    case 0x90: // Note On
+	    add3byte(dwParam1);
+	    break;
+	    case 0xa0: // Poly Press
+	    add3byte(dwParam1);
+	    break;
+	    case 0xb0: //CTRL Change
+	    add3byte(dwParam1);
+	    break;
+	    case 0xc0:  //ProgramChange
+	    add2byte(dwParam1);
+	    break;
+	    case 0xd0:   //ChanPress
+	    add2byte(dwParam1);
+	    break;
+	    case 0xe0:   //PitchBend
+	    add3byte(dwParam1);
+	    break;
+	    //System Common Messages
+	    case 0xf1:   //QuarterFrame-message ... MIDI_Time_Code
+	    add2byte(dwParam1);
+	    break;
+	    case 0xf2:   //Song Position
+	    add3byte(dwParam1);
+	    break;
+	    case 0xf3:   //Song Select
+	    add2byte(dwParam1);
+	    break;
+	    case 0xf6:   //Tune Request
+	    add3byte(dwParam1);
+	    break;
+	    //System Real Time Messages
+	    case 0xf8:   //MIDI-Clock
+	    add1byte((char)dwParam1);
+	    break;
+	    case 0xfa:   //Start
+	    add1byte((char)dwParam1);
+	    break;
+	    case 0xfb:   //Continue
+	    add1byte((char)dwParam1);
+	    break;
+	    case 0xfc:   //Stop
+	    add1byte((char)dwParam1);
+	    break;
+	    case 0xfe:   //Active Sense (selden used)
+	    add1byte((char)dwParam1);
+	    break;
+	    case 0xff:   //Reset (selden used)
+	    add2byte(dwParam1);
+	    break;
 	}
+    }
 end:
-	LeaveCriticalSection(&cs_proc);
-  }
+    LeaveCriticalSection(&cs_proc);
+ }
 /*
  * FUNCTION:   Midi_Open
  *
@@ -696,65 +605,50 @@ end:
  *   1999.08.02  1.0    Brian King             - Creation
  *
  */
-int Midi_Open( void )
+int Midi_Open(void)
 {
-    unsigned long result = 0,i;
+    unsigned long result = 0, i;
+    char err[MAX_DPATH];
     
-    if( ( result = midiOutOpen( &outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL ) ) )
-    {
-	write_log( "MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(result), result, currprefs.win32_midioutdev );
+    if((result = midiOutOpen(&outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL))) {
+	write_log("MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 	result = 0;
-    }
-    else
-    {
+    } else {
 	InitializeCriticalSection(&cs_proc);
 	// We don't need input for output...
-	if( ( currprefs.win32_midiindev >= 0 ) && 
-	    ( result = midiInOpen( &inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS) ) )
-	{
-	    write_log( "MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(result), result, currprefs.win32_midiindev );
-	}
-	else
-	{
-		
-		midi_in_ready = TRUE;
+	if((currprefs.win32_midiindev >= 0) && 
+	    (result = midiInOpen( &inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
+	    write_log( "MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
+	} else {
+	    midi_in_ready = TRUE;
 	    result=midiInStart(inHandle);
 	}
 	
-	if( MidiOut_Alloc() )
-	{
-	    if( midi_in_ready )
-	    {
-			if( !MidiIn_Alloc() )
-			{
-		    midiInClose( inHandle );
+	if(MidiOut_Alloc()) {
+	    if(midi_in_ready) {
+		if(!MidiIn_Alloc()) {
+		    midiInClose(inHandle);
 		    midi_in_ready = FALSE; 
-			}
-			else
-			{
-			  for (i=0;i<MIDI_INBUFFERS;i++)
-			  {
-			  midiin[i].lpData = inbuffer[i];
-			  midiin[i].dwBufferLength = INBUFFLEN-1;
-			  midiin[i].dwBytesRecorded = INBUFFLEN-1;
-			  midiin[i].dwUser = 0;
-			  midiin[i].dwFlags = 0;
-			  result=midiInPrepareHeader(inHandle,&midiin[i], sizeof(MIDIHDR));
-			  result=midiInAddBuffer(inHandle,&midiin[i],sizeof(MIDIHDR));
-			  }
-							}
+		} else {
+		    for (i = 0;i < MIDI_INBUFFERS; i++) {
+			midiin[i].lpData = inbuffer[i];
+			midiin[i].dwBufferLength = INBUFFLEN - 1;
+			midiin[i].dwBytesRecorded = INBUFFLEN - 1;
+			midiin[i].dwUser = 0;
+			midiin[i].dwFlags = 0;
+			result=midiInPrepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
+			result=midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
+		    }
 		}
-		midi_ready = TRUE;
+	    }
+	    midi_ready = TRUE;
 	    result = 1;
 	    serdev = 1;
-	}
-	else
-	{
-	    midiOutClose( outHandle );
-	    if( midi_in_ready )
-	    {
-		midiInClose( inHandle );
-		midi_in_ready = FALSE;
+	} else {
+	    midiOutClose(outHandle);
+	    if(midi_in_ready) {
+	        midiInClose(inHandle);
+	        midi_in_ready = FALSE;
 	    }
 	    result = 0;
 	    DeleteCriticalSection(&cs_proc);
@@ -778,47 +672,32 @@ int Midi_Open( void )
  *   1999.08.02  1.0    Brian King             - Creation
  *
  */
-void Midi_Close( void )
+void Midi_Close(void)
 {
     int i;
-    if( midi_ready )
-    {
+    if(midi_ready) {
 	midiOutReset(outHandle);
-	for( i = 0; i < MIDI_BUFFERS; i++ )
-	{
-	    while( MIDIERR_STILLPLAYING == midiOutUnprepareHeader( outHandle, &midiout[i], sizeof(MIDIHDR) ) )
-		{
-		Sleep(100);
+	for(i = 0; i < MIDI_BUFFERS; i++) {
+	    while(MIDIERR_STILLPLAYING == midiOutUnprepareHeader(outHandle, &midiout[i], sizeof(MIDIHDR))) {
+		Sleep(10);
 	    }
 	}
-		MidiOut_Free();
-	midiOutClose( outHandle );
+	MidiOut_Free();
+	midiOutClose(outHandle);
 
-	if( midi_in_ready )
-	{
-	    
-		
-		//while( MIDIERR_STILLPLAYING == midiInUnprepareHeader( inHandle, &midiin, sizeof(MIDIHDR)) )
-		exitin=1;//for safeness sure no callback come now
-		midiInReset(inHandle);
-		  for (i=0;i<MIDI_INBUFFERS;i++)
-		  {
-	      midiInUnprepareHeader( inHandle,&midiin[i], sizeof(MIDIHDR));
-		  }
+	if(midi_in_ready) {
+	    exitin = 1; //for safeness sure no callback come now
+	    midiInReset(inHandle);
+	    for (i = 0; i < MIDI_INBUFFERS; i++) {
+		midiInUnprepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
+	    }
 	    MidiIn_Free();
-	    midiInClose( inHandle );
+	    midiInClose(inHandle);
 	    midi_in_ready = FALSE;
-		exitin = 0;
+	    exitin = 0;
 	}
 	midi_ready = FALSE;
-	{
-	    //Bernd Roesch:
-	    //need for camd Midi Stuff(it close midi and reopen it but serial.c think the baudrate
-	    //is the same and do not open midi), so setting serper to different value helps
-	    extern  uae_u16 serper;
-	    serper = 0x30;
-	}
-	write_log( "MIDI: closed.\n" );
+	write_log("MIDI: closed.\n");
 	DeleteCriticalSection(&cs_proc);
     }
 }
