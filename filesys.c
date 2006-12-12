@@ -3874,7 +3874,7 @@ int rdb_checksum (char *id, uae_u8 *p, int block)
     sum = -sum;
     if (sum) {
 	write_log ("RDB: block %d ('%s') checksum error\n", block, id);
-	return 1;
+	return 0;
     }
     return 1;
 }
@@ -3915,10 +3915,10 @@ static char *device_dupfix (uaecptr expbase, char *devname)
     return strdup (newname);
 }
 
-static void dump_partinfo (char *name, int num, uaecptr pp)
+static void dump_partinfo (char *name, int num, uaecptr pp, int partblock)
 {
     uae_u32 dostype = get_long (pp + 80);
-    write_log ("RDB: '%s' dostype=%08.8X\n", name, dostype);
+    write_log ("RDB: '%s' dostype=%08.8X. PartBlock=%d\n", name, dostype, partblock);
     write_log ("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n",
 	get_long (pp + 20) * 4, get_long (pp + 28), get_long (pp + 32));
     write_log ("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d\n",
@@ -3993,9 +3993,18 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     hfd->sectors = rl (bufrdb + 68);
     hfd->heads = rl (bufrdb + 72);
     fileblock = rl (bufrdb + 32);
-    partblock = rl (bufrdb + 28);
+
+    if (partnum == 0) {
+	write_log("RDB: RDSK detected at %d, FSHD=%d, C=%d S=%d H=%d\n",
+	    rdblock, fileblock, hfd->cylinders, hfd->sectors, hfd->heads);
+    }
+
     buf = xmalloc (readblocksize);
     for (i = 0; i <= partnum; i++) {
+	if (i == 0)
+	    partblock = rl (bufrdb + 28);
+	else
+	    partblock = rl (buf + 4 * 4);
 	if (!legalrdbblock (uip, partblock)) {
 	    err = -2;
 	    goto error;
@@ -4006,7 +4015,6 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    err = -2;
 	    goto error;
 	}
-	partblock = rl (buf + 4 * 4);
     }
 
     rdbmnt
@@ -4028,7 +4036,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     put_long (parmpacket + 12, 0); /* Device flags */
     for (i = 0; i < PP_MAXSIZE; i++)
 	put_byte (parmpacket + 16 + i, buf[128 + i]);
-    dump_partinfo (buf + 37, uip->devno, parmpacket);
+    dump_partinfo (buf + 37, uip->devno, parmpacket, partblock);
     dostype = get_long (parmpacket + 80);
 
     if (dostype == 0) {
@@ -4072,14 +4080,12 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 	if (!legalrdbblock (uip, fileblock)) {
 	    write_log("RDB: corrupt FSHD pointer %d\n", fileblock);
-	    err = -1;
 	    goto error;
 	}
 	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, fileblock * hfd->blocksize, readblocksize);
 	if (!rdb_checksum ("FSHD", buf, fileblock)) {
 	    write_log("RDB: checksum error in FSHD block %d\n", fileblock);
-	    err = -1;
 	    goto error;
 	}
 	fileblock = rl (buf + 16);

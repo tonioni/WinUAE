@@ -418,19 +418,19 @@ void openprinter( void )
 	    DocInfo.pOutputFile = NULL;
 	    DocInfo.pDatatype = "RAW";
 	    // Inform the spooler the document is beginning.
-	    if( (dwJob = StartDocPrinter( hPrt, 1, (LPSTR)&DocInfo )) == 0 ) {
-		ClosePrinter( hPrt );
+	    if( (dwJob = StartDocPrinter(hPrt, 1, (LPSTR)&DocInfo)) == 0) {
+		ClosePrinter(hPrt );
 		hPrt = INVALID_HANDLE_VALUE;
-	    } else if( StartPagePrinter( hPrt ) ) {
+	    } else if(StartPagePrinter(hPrt)) {
 		prtopen = 1;
 	    }
 	} else {
 	    hPrt = INVALID_HANDLE_VALUE; // Stupid bug in Win32, where OpenPrinter fails, but hPrt ends up being zero
 	}
     }
-    if( hPrt != INVALID_HANDLE_VALUE ) {
+    if (hPrt != INVALID_HANDLE_VALUE) {
 	write_log( "PRINTER: Opening printer \"%s\" with handle 0x%x.\n", currprefs.prtname, hPrt );
-    } else if( *currprefs.prtname ) {
+    } else if (*currprefs.prtname) {
 	write_log( "PRINTER: ERROR - Couldn't open printer \"%s\" for output.\n", currprefs.prtname );
     }
 }
@@ -486,7 +486,7 @@ struct uaeserialdatawin32
     HANDLE hCom;
     HANDLE evtr, evtw, evtt, evtwce;
     OVERLAPPED olr, olw, olwce;
-    int readactive, writeactive;
+    int writeactive;
     void *readdata, *writedata;
     volatile int threadactive;
     uae_thread_id tid;
@@ -597,11 +597,11 @@ static void *uaeser_trap_thread (void *arg)
     sd->threadactive = 1;
     uae_sem_post (&sd->sync_sem);
     startwce(sd, &evtmask);
-    while (sd->threadactive) {
+    while (sd->threadactive == 1) {
 	int sigmask = 0;
 	uae_sem_wait (&sd->change_sem);
 	if (WaitForSingleObject(sd->evtwce, 0) == WAIT_OBJECT_0) {
-	    if ((evtmask & EV_RXCHAR) && !sd->readactive)
+	    if (evtmask & EV_RXCHAR)
 		sigmask |= 1;
 	    if ((evtmask & EV_TXEMPTY) && !sd->writeactive)
 		sigmask |= 2;
@@ -610,14 +610,6 @@ static void *uaeser_trap_thread (void *arg)
 	cnt = 0;
 	handles[cnt++] = sd->evtt;
 	handles[cnt++] = sd->evtwce;
-	if (sd->readactive) {
-	    if (GetOverlappedResult (sd->hCom, &sd->olr, &actual, FALSE)) {
-		sd->readactive = 0;
-		sigmask |= 1;
-	    } else {
-		handles[cnt++] = sd->evtr;
-	    }
-	}
 	if (sd->writeactive) {
 	    if (GetOverlappedResult (sd->hCom, &sd->olw, &actual, FALSE)) {
 		sd->writeactive = 0;
@@ -627,11 +619,8 @@ static void *uaeser_trap_thread (void *arg)
 	    }
 	}
 	if (!sd->writeactive)
-	    sigmask |= 1;
-	if (!sd->readactive)
 	    sigmask |= 2;
-	if (sigmask)
-	    uaeser_signal (sd->user, sigmask);
+	uaeser_signal (sd->user, sigmask | 1);
 	uae_sem_post (&sd->change_sem);
 	WaitForMultipleObjects(cnt, handles, FALSE, INFINITE);
     }
@@ -662,12 +651,18 @@ int uaeser_write (struct uaeserialdatawin32 *sd, uae_u8 *data, uae_u32 len)
 int uaeser_read (struct uaeserialdatawin32 *sd, uae_u8 *data, uae_u32 len)
 {
     int ret = 1;
+    DWORD err;
+    COMSTAT ComStat;
+
+    if (!ClearCommError (sd->hCom, &err, &ComStat))
+        return 0;
+    if (len > ComStat.cbInQue)
+	return 0;
     if (!ReadFile (sd->hCom, data, len, NULL, &sd->olr)) {
-	sd->readactive = 1;
-	if (GetLastError() != ERROR_IO_PENDING) {
+	if (GetLastError() == ERROR_IO_PENDING)
+	    WaitForSingleObject(sd->evtr, INFINITE);
+	else
 	    ret = 0;
-	    sd->readactive = 0;
-	}
     }
     SetEvent (sd->evtt);
     return ret;
@@ -722,6 +717,13 @@ end:
 
 void uaeser_close (struct uaeserialdatawin32 *sd)
 {
+    if (sd->threadactive) {
+        sd->threadactive = -1;
+        SetEvent (sd->evtt);
+        while (sd->threadactive)
+	    Sleep(10);
+	CloseHandle (sd->evtt);
+    }
     if (sd->hCom)
 	CloseHandle(sd->hCom);
     if (sd->evtr)
@@ -730,15 +732,6 @@ void uaeser_close (struct uaeserialdatawin32 *sd)
 	CloseHandle(sd->evtw);
     if (sd->evtwce)
 	CloseHandle(sd->evtwce);
-    if (sd->evtt) {
-	if (sd->threadactive) {
-	    sd->threadactive = 0;
-	    SetEvent (sd->evtt);
-	    while (sd->threadactive)
-		Sleep(10);
-	}
-	CloseHandle (sd->evtt);
-    }
     uaeser_initdata (sd, sd->user);
 }
 

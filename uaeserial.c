@@ -3,14 +3,13 @@
   *
   * uaeserial.device
   *
-  * Copyright 2004 Toni Wilen
+  * Copyright 2004/2006 Toni Wilen
   *
   */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "uae.h"
 #include "threaddep/thread.h"
 #include "options.h"
 #include "memory.h"
@@ -155,12 +154,6 @@ static void io_log (char *msg, uaecptr request)
 	    get_long (request + 32), get_byte (request + 31));
 }
 
-static void memcpyha (uae_u32 dst, char *src, int size)
-{
-    while (size--)
-	put_byte (dst++, *src++);
-}
-
 static struct devstruct *getdevstruct (int uniq)
 {
     int i;
@@ -183,8 +176,8 @@ static int start_thread (struct devstruct *dev)
 
 static void dev_close_3 (struct devstruct *dev)
 {
-    dev->unit = -1;
     uaeser_close (dev->sysdata);
+    dev->unit = -1;
     xfree (dev->sysdata);
     write_comm_pipe_u32 (&dev->requests, 0, 1);
 }
@@ -213,7 +206,7 @@ static int setparams(struct devstruct *dev, uaecptr req)
     rbuffer = get_long (req + io_RBufLen);
     v = get_long (req + io_ExtFlags);
     if (v) {
-	write_log ("UAESER: io_ExtFlags=%d, not supported\n", v);
+	write_log ("UAESER: io_ExtFlags=%08.8x, not supported\n", v);
 	return 5;
     }
     baud = get_long (req + io_Baud);
@@ -238,7 +231,8 @@ static int setparams(struct devstruct *dev, uaecptr req)
 	write_log ("UAESER: Read=%d, Write=%d, Stop=%d, not supported\n", rbits, wbits, sbits);
 	return 5;
     }
-    write_log ("UAESER: BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PARITY=%d\n",
+    write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PARITY=%d\n",
+	getdevname(), dev->unit, 
 	baud, rbuffer, rbits, sbits, rtscts, parity);
     v = uaeser_setparams (dev->sysdata, baud, rbuffer, rbits, sbits, rtscts, parity);
     if (!v)
@@ -403,21 +397,21 @@ void uaeser_signal (struct devstruct *dev, int sigmask)
 	    uae_u32 io_error = 0, io_actual = 0;
 	    uae_u8 *addr;
 	    int io_done = 0;
-	    int v;
 
 	    switch (command)
 	    {
 		case CMD_READ:
 		if (sigmask & 1) {
-		    if (uaeser_query (dev->sysdata, NULL, &v)) {
-			if (v >= io_length) {
-			    io_error = -5;
-			    addr = memmap(io_data, io_length);
-			    if (addr && uaeser_read (dev->sysdata, addr, io_length))
-				io_error = 0;
+		    addr = memmap(io_data, io_length);
+		    if (addr) {
+			if (uaeser_read (dev->sysdata, addr, io_length)) {
+			    io_error = 0;
 			    io_actual = io_length;
 			    io_done = 1;
 			}
+		    } else {
+			io_error = -6;
+			io_done = 1;
 		    }
 		}
 		break;

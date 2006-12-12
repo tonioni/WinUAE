@@ -1574,7 +1574,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 
     if ((opcode & 0xF000) == 0xF000) {
 	if (warned < 20) {
-	    write_log ("B-Trap %x at %x (%p)\n", opcode, m68k_getpc (regs) + m68kpc_offset, regs->pc_p);
+	    write_log ("B-Trap %x at %x (%p)\n", opcode, pc, regs->pc_p);
 	    warned++;
 	}
 	Exception(0xB, regs, 0);
@@ -1587,6 +1587,10 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 	    m68k_handle_trap (opcode & 0xFFF, regs);
 	}
 #endif
+	if (warned < 20) {
+	    write_log ("A-Trap %x at %x (%p)\n", opcode, pc, regs->pc_p);
+	    warned++;
+	}
 	Exception(0xA, regs, 0);
 	return 4;
     }

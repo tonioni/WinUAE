@@ -62,9 +62,15 @@ static char *sound_devices[MAX_SOUND_DEVICES];
 GUID sound_device_guid[MAX_SOUND_DEVICES];
 static int num_sound_devices;
 
-static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER lpDSBprimary;
+
+#ifdef USE_DS8
+static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
+#else
+static LPDIRECTSOUND lpDS;
+static LPDIRECTSOUNDBUFFER lpDSBsecondary;
+#endif
 
 static DWORD writepos;
 
@@ -222,11 +228,22 @@ static int open_audio_ds (int size)
     if (sndbufsize > SND_MAX_BUFFER)
         sndbufsize = SND_MAX_BUFFER;
 
+#ifdef USE_DS8
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
+#else
+    hr = DirectSoundCreate (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
+#endif
     if (FAILED(hr))  {
         write_log ("SOUND: DirectSoundCreate() failure: %s\n", DXError (hr));
         return 0;
     }
+
+    hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
+    if (FAILED(hr)) {
+        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
+        goto error;
+    }
+
     memset (&DSCaps, 0, sizeof (DSCaps));
     DSCaps.dwSize = sizeof (DSCaps);
     hr = IDirectSound_GetCaps (lpDS, &DSCaps);
@@ -254,7 +271,7 @@ static int open_audio_ds (int size)
     
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
-    sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_GETCURRENTPOSITION2;
+    sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER;
     hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &lpDSBprimary, NULL);
     if (FAILED(hr))  {
         write_log ("SOUND: Primary CreateSoundBuffer() failure: %s\n", DXError (hr));
@@ -269,19 +286,19 @@ static int open_audio_ds (int size)
 	goto error;
     }
 
-    hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
-    if (FAILED(hr)) {
-        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
-        goto error;
-    }
-
     memset (&wavfmt, 0, sizeof (WAVEFORMATEX));
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
     wavfmt.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
     wavfmt.nSamplesPerSec = freq;
     wavfmt.wBitsPerSample = 16;
-    wavfmt.nBlockAlign = 16 / 8 * wavfmt.nChannels;
-    wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * freq;
+    wavfmt.nBlockAlign = wavfmt.wBitsPerSample / 8 * wavfmt.nChannels;
+    wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * wavfmt.nSamplesPerSec;
+
+    hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt);
+    if (FAILED(hr))  {
+        write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
+        goto error;
+    }
 
     max_sndbufsize = size * 4;
     if (max_sndbufsize > SND_MAX_BUFFER2)
@@ -305,7 +322,7 @@ static int open_audio_ds (int size)
     sound_buffer.dwBufferBytes = dsoundbuf;
     sound_buffer.lpwfxFormat = &wavfmt;
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
-    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPOSITIONNOTIFY | DSBCAPS_LOCSOFTWARE;
+    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_STATIC;
     sound_buffer.guid3DAlgorithm = GUID_NULL;
 
     hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
@@ -313,18 +330,18 @@ static int open_audio_ds (int size)
         write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
         goto error;
     }
+#ifdef USE_DS8
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
         write_log ("SOUND: Primary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release(pdsb);
+#else
+    lpDSBsecondary = pdsb;
+    pdsb = NULL;
+#endif
 
-    hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt);
-    if (FAILED(hr))  {
-        write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
-        goto error;
-    }
     setvolume ();
     cleardsbuffer ();
     init_sound_table16 ();
@@ -459,6 +476,8 @@ void sound_setadjust (double v)
 
 static int safedist;
 
+#define cf(x) if ((x) >= dsoundbuf) (x) -= dsoundbuf;
+
 void restart_sound_buffer(void)
 {
     DWORD playpos, safed;
@@ -469,12 +488,9 @@ void restart_sound_buffer(void)
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
     if (FAILED(hr))
 	return;
-    writepos = snd_writeoffset + safedist + playpos;
-    if (writepos >= dsoundbuf)
-        writepos -= dsoundbuf;
+    writepos = playpos + snd_writeoffset;
+    cf (writepos);
 }
-
-#define cf(x) if ((x) >= dsoundbuf) (x) -= dsoundbuf;
 
 static void finish_sound_buffer_ds (void)
 {

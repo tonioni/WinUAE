@@ -1,4 +1,13 @@
 
+Beta 4:
+
+- uaeserial.device tweaks
+- added more logging to RDB parser
+- 1G Z3 fast RAM allowed (only if NT-based Windows and >=2G RAM)
+- do not reopen DirectSound when losing/gaining focus
+- reverted DirectSound initialization to pre-1.3.3 version, perhaps
+  it helps with VIA AC97 pitch change issue..
+
 Beta 3:
 
 - uaeserial.device implemented, serial.device-like device that maps
@@ -16,7 +25,7 @@ Beta 3:
 - more blitter tweaks, try to be compatible with broken programs that
   write to blitter registers while previous blit has not yet finished.
 - some DirectSound tweaks
-  
+
 Beta 2:
 
 - fixed possible crash when input recording stops (introduced in b1)

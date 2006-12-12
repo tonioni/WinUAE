@@ -318,8 +318,6 @@ void fixup_prefs (struct uae_prefs *p)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
 #endif
-    if (err)
-	write_log ("Please use \"uae -h\" to get usage information.\n");
 }
 
 int quit_program = 0;

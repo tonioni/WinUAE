@@ -365,11 +365,7 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#if defined(WIN64)
-#define MAX_Z3_MEM 12
-#else
-#define MAX_Z3_MEM 10
-#endif
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) <= 512 ? 10 : ((max_z3fastmem >> 20) == 1024) ? 11 : 12)
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM 7
 #define MIN_M68K_PRIORITY 1

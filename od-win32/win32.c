@@ -107,6 +107,7 @@ int ignore_messages_all;
 int pause_emulation;
 
 static int didmousepos;
+static int sound_closed;
 int mouseactive, focus;
 
 static int mm_timerres;
@@ -514,7 +515,6 @@ static int avioutput_video = 0;
 void setpriority (struct threadpriorities *pri)
 {
     int err;
-    write_log ("changing priority to %s\n", pri->name);
     if (os_winnt)
 	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
     else
@@ -539,7 +539,6 @@ static void winuae_active (HWND hWnd, int minimized)
 	timeend();  
 
     focus = 1;
-    write_log ("WinUAE now active via WM_ACTIVATE\n");
     pri = &priorities[currprefs.win32_inactive_priority];
 #ifndef	_DEBUG
     if (!minimized)
@@ -555,6 +554,14 @@ static void winuae_active (HWND hWnd, int minimized)
     if (emulation_paused > 0)
 	emulation_paused = -1;
     ShowWindow (hWnd, SW_RESTORE);
+    if (sound_closed) {
+#ifdef AHI
+	ahi_open_sound ();
+#endif
+	set_audio ();
+	sound_closed = 0;
+    }
+#if 0
 #ifdef AHI
     ahi_close_sound ();
 #endif
@@ -563,6 +570,7 @@ static void winuae_active (HWND hWnd, int minimized)
     ahi_open_sound ();
 #endif
     set_audio ();
+#endif
     if (WIN32GFX_IsPicassoScreen ())
 	WIN32GFX_EnablePicasso();
     getcapslock ();
@@ -582,7 +590,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
     if (minimized)
 	exit_gui (0);
     focus = 0;
-    write_log ("WinUAE now inactive via WM_ACTIVATE\n");
     wait_keyrelease ();
     setmouseactive (0);
     pri = &priorities[currprefs.win32_inactive_priority];
@@ -595,6 +602,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     #ifdef AHI
 		ahi_close_sound ();
     #endif
+		sound_closed = 1;
 	    }
 	    if (!avioutput_video) {
 		set_inhibit_frame (IHF_WINDOWHIDDEN);
@@ -605,12 +613,14 @@ static void winuae_inactive (HWND hWnd, int minimized)
 		ahi_close_sound ();
     #endif
 		emulation_paused = 1;
+		sound_closed = 1;
 	    }
 	} else {
 	    if (currprefs.win32_inactive_nosound) {
 		close_sound ();
     #ifdef AHI
 		ahi_close_sound ();
+		sound_closed = 1;
     #endif
 	    }
 	}
@@ -619,15 +629,17 @@ static void winuae_inactive (HWND hWnd, int minimized)
 #ifdef FILESYS
     filesys_flush_cache ();
 #endif
+#if 0
     close_sound ();
 #ifdef AHI
     ahi_close_sound ();
 #endif
-     if (gui_active)
+    if (gui_active)
 	return;
     set_audio ();
 #ifdef AHI
     ahi_open_sound ();
+#endif
 #endif
 }
 
@@ -639,9 +651,11 @@ void minimizewindow (void)
 void disablecapture (void)
 {
     setmouseactive (0);
+#if 0
     close_sound ();
 #ifdef AHI
     ahi_close_sound ();
+#endif
 #endif
 }
 

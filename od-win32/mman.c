@@ -19,9 +19,9 @@ static uae_u32 gfxoffs;
 
 uae_u8 *natmem_offset = NULL;
 #ifdef CPU_64_BIT
-uae_u32 max_allowed_mman = 2048;
+static uae_u32 max_allowed_mman = 2048;
 #else
-uae_u32 max_allowed_mman = 512;
+static uae_u32 max_allowed_mman = 512;
 #endif
 
 void cache_free(void *cache)
@@ -70,6 +70,8 @@ void init_shm(void)
 		total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
 	    }
 	}
+	if (totalphys64 >= (uae_u64)1800 * 1024 * 1024 && max_allowed_mman < 1024)
+	    max_allowed_mman = 1024;
     }
 
     size64 = 16 * 1024 * 1024;
