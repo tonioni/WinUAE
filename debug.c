@@ -1413,7 +1413,8 @@ static void memory_map_dump_2 (int log)
 	if (i < max)
 	    a2 = mem_banks[i];
 	if (a1 != a2) {
-	    int k, mirrored, size;
+	    int k, mirrored, size, size_out;
+	    char size_ext;
 	    uae_u8 *caddr;
 	    char *name;
 	    char tmp[MAX_DPATH];
@@ -1432,7 +1433,14 @@ static void memory_map_dump_2 (int log)
 		k++;
 	    }
 	    size = (i - j) << (16 - 10);
-	    sprintf (txt, "%08.8X %7dK/%d = %7dK %s", j << 16, size, mirrored, mirrored ? size / mirrored : size, name);
+	    size_out = size;
+	    size_ext = 'K';
+	    if (j >= 256) {
+		size_out /= 1024;
+		size_ext = 'M';
+	    }
+	    sprintf (txt, "%08.8X %7d%c/%d = %7d%c %s", j << 16, size_out, size_ext,
+		mirrored, mirrored ? size_out / mirrored : size_out, size_ext, name);
 
 	    tmp[0] = 0;
 	    if (a1->flags == ABFLAG_ROM && mirrored) {

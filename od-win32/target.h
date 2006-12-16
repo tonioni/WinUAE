@@ -21,5 +21,3 @@
 
 #define OPTIONSFILENAME "default.uae"
 
-#define DEFPRTNAME "none"
-#define DEFSERNAME "none"

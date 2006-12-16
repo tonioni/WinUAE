@@ -82,6 +82,8 @@
 #define CONFIG_HOST "Host"
 #define CONFIG_HARDWARE "Hardware"
 
+static char szNone[MAX_DPATH];
+
 static int allow_quit;
 static int restart_requested;
 static int full_property_sheet = 1;
@@ -376,8 +378,6 @@ static HWND cachedlist = NULL;
 #define MAX_REFRESH_RATE 10
 #define MIN_SOUND_MEM 0
 #define MAX_SOUND_MEM 6
-
-static char szNone[ MAX_DPATH ] = "None";
 
 struct romscandata {
     HKEY fkey;
@@ -5333,7 +5333,7 @@ static void values_to_sounddlg (HWND hDlg)
     }
     if (workprefs.dfxclick[idx] < 0) {
 	p = drivesounds;
-	i = DS_BUILD_IN_SOUNDS + driveclick_pcdrivenum + 1;
+	i = DS_BUILD_IN_SOUNDS + 2 + 1;
 	while (p && p[0]) {
 	    if (!strcmpi (p, workprefs.dfxclickexternal[idx])) {
 		SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, i, 0);
@@ -5422,8 +5422,8 @@ static void values_from_sounddlg (HWND hDlg)
     if (idx >= 0) {
 	LRESULT res = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_GETCURSEL, 0, 0);
 	if (res >= 0) {
-	    if (res > DS_BUILD_IN_SOUNDS + driveclick_pcdrivenum) {
-		int j = res - (DS_BUILD_IN_SOUNDS + driveclick_pcdrivenum + 1);
+	    if (res > DS_BUILD_IN_SOUNDS + 2) {
+		int j = res - (DS_BUILD_IN_SOUNDS + 2 + 1);
 		char *p = drivesounds;
 		while (j-- > 0)
 		    p += strlen (p) + 1;
@@ -6878,9 +6878,9 @@ static void enable_for_portsdlg( HWND hDlg )
     EnableWindow(GetDlgItem(hDlg, IDC_UAESERIAL), FALSE);
 #else
     v = workprefs.use_serial ? TRUE : FALSE;
-    EnableWindow(GetDlgItem(hDlg, IDC_SHARED), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_SER_SHARED), v);
     EnableWindow(GetDlgItem(hDlg, IDC_SER_CTSRTS), v);
-    EnableWindow(GetDlgItem(hDlg, IDC_SERIAL_DIRECT), v);
+    EnableWindow(GetDlgItem(hDlg, IDC_SER_DIRECT), v);
     EnableWindow(GetDlgItem(hDlg, IDC_UAESERIAL), full_property_sheet);
 #endif
 #if !defined (PARALLEL_PORT)
@@ -7025,8 +7025,7 @@ static void values_from_portsdlg (HWND hDlg)
     }
 
     item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
-    if(item != CB_ERR)
-    {
+    if(item != CB_ERR) {
 	int got = 0;
 	strcpy (tmp, workprefs.prtname);
 	if (item > 0) {
@@ -7048,7 +7047,7 @@ static void values_from_portsdlg (HWND hDlg)
 	    }
 	}
 	if (!got)
-	    strcpy( workprefs.prtname, "none" );
+	    workprefs.prtname[0] = 0;
 #ifdef PARALLEL_PORT
 	if (strcmp (workprefs.prtname, tmp))
 	    closeprinter ();
@@ -7058,48 +7057,35 @@ static void values_from_portsdlg (HWND hDlg)
     workprefs.win32_midioutdev = SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0);
     workprefs.win32_midioutdev -= 2;
 
-    if( bNoMidiIn )
-    {
+    if( bNoMidiIn) {
 	workprefs.win32_midiindev = -1;
-    }
-    else
-    {
+    } else {
 	workprefs.win32_midiindev = SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0);
     }
-    EnableWindow(GetDlgItem( hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
+    EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
     item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
-    switch( item ) 
-    {
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-	    workprefs.use_serial = 1;
-	    strcpy (workprefs.sername, comports[item - 1]);
-	break;
-
-	default:
-	    workprefs.use_serial = 0;
-	    strcpy(workprefs.sername, "none");
-	break;
+    if (item != CB_ERR) {
+        workprefs.use_serial = 1;
+        strcpy (workprefs.sername, comports[item - 1]);
+    } else {
+        workprefs.use_serial = 0;
+        workprefs.sername[0] = 0;
     }
-    workprefs.uaeserial = 0;
-    if (IsDlgButtonChecked (hDlg, IDC_UAESERIAL))
-	workprefs.uaeserial = 1;
     workprefs.serial_demand = 0;
-    if (IsDlgButtonChecked (hDlg, IDC_SHARED))
+    if (IsDlgButtonChecked (hDlg, IDC_SER_SHARED))
 	workprefs.serial_demand = 1;
     workprefs.serial_hwctsrts = 0;
     if (IsDlgButtonChecked (hDlg, IDC_SER_CTSRTS))
 	workprefs.serial_hwctsrts = 1;
     workprefs.serial_direct = 0;
-    if (IsDlgButtonChecked (hDlg, IDC_SERIAL_DIRECT))
+    if (IsDlgButtonChecked (hDlg, IDC_SER_DIRECT))
 	workprefs.serial_direct = 1;
+
+    workprefs.uaeserial = 0;
+    if (IsDlgButtonChecked (hDlg, IDC_UAESERIAL))
+	workprefs.uaeserial = 1;
+
     GetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters, sizeof workprefs.ghostscript_parameters);
     v  = GetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, &success, FALSE);
     if (success)
@@ -7111,11 +7097,10 @@ static void values_to_portsdlg (HWND hDlg)
 {
     LRESULT result = 0;
 
-    if( strcmp (workprefs.prtname, "none"))
-    {
+    if(workprefs.prtname[0]) {
 	int i, got = 1;
 	char tmp[10];
-	result = SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_FINDSTRINGEXACT, -1, (LPARAM)workprefs.prtname );
+	result = SendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_FINDSTRINGEXACT, -1, (LPARAM)workprefs.prtname);
 	for (i = 0; i < 4; i++) {
 	    sprintf (tmp, "LPT%d", i + 1);
 	    if (!strcmp (tmp, workprefs.prtname)) {
@@ -7125,16 +7110,13 @@ static void values_to_portsdlg (HWND hDlg)
 		break;
 	    }
 	}
-	if( result < 0 || got == 0)
-	{
+	if(result < 0 || got == 0) {
 	    // Warn the user that their printer-port selection is not valid on this machine
-	    char szMessage[ MAX_DPATH ];
-	    WIN32GUI_LoadUIString( IDS_INVALIDPRTPORT, szMessage, MAX_DPATH );
-	    pre_gui_message (szMessage);
-	    
+	    char szMessage[MAX_DPATH];
+	    WIN32GUI_LoadUIString(IDS_INVALIDPRTPORT, szMessage, MAX_DPATH);
+	    pre_gui_message (szMessage);    
 	    // Disable the invalid parallel-port selection
-	    strcpy( workprefs.prtname, "none" );
-
+	    workprefs.prtname[0] = 0;
 	    result = 0;
 	}
     }
@@ -7152,15 +7134,14 @@ static void values_to_portsdlg (HWND hDlg)
     EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST ), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
     
     CheckDlgButton(hDlg, IDC_UAESERIAL, workprefs.uaeserial);
-    CheckDlgButton(hDlg, IDC_SHARED, workprefs.serial_demand);
+    CheckDlgButton(hDlg, IDC_SER_SHARED, workprefs.serial_demand);
     CheckDlgButton(hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts);
-    CheckDlgButton(hDlg, IDC_SERIAL_DIRECT, workprefs.serial_direct);
+    CheckDlgButton(hDlg, IDC_SER_DIRECT, workprefs.serial_direct);
     
-    if(strcasecmp(workprefs.sername, "none") == 0)  {
+    if(!workprefs.sername[0])  {
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, 0, 0L);
 	workprefs.use_serial = 0;
     } else {
-	int t = (workprefs.sername[0] == '\0' ? 0 : workprefs.sername[3] - '0');
 	int i;
 	LRESULT result = -1;
 	for (i = 0; i < MAX_SERIALS; i++) {
@@ -7169,18 +7150,15 @@ static void values_to_portsdlg (HWND hDlg)
 		break;
 	    }
 	}
-	if(result < 0) {
-	    if (t > 0) {
-		// Warn the user that their COM-port selection is not valid on this machine
-		char szMessage[MAX_DPATH];
-		WIN32GUI_LoadUIString(IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
-		pre_gui_message (szMessage);
-
-		// Select "none" as the COM-port
-		SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);		
-	    }
+	if(result < 0 && workprefs.sername[0]) {
+	    // Warn the user that their COM-port selection is not valid on this machine
+	    char szMessage[MAX_DPATH];
+	    WIN32GUI_LoadUIString(IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
+	    pre_gui_message (szMessage);
+	    // Select "none" as the COM-port
+	    SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);		
 	    // Disable the chosen serial-port selection
-	    strcpy( workprefs.sername, "none" );
+	    workprefs.sername[0] = 0;
 	    workprefs.use_serial = 0;
 	} else {
 	    workprefs.use_serial = 1;
@@ -7210,28 +7188,27 @@ static void init_portsdlg( HWND hDlg )
 
     joy0previous = joy1previous = -1;
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
-    SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone );
+    SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);
     portcnt = 0;
-    for( port = 0; port < MAX_SERIALS; port++ )
-    {
-	sprintf( comports[portcnt], "COM%d", port );
-	if( GetDefaultCommConfig( comports[portcnt], &cc, &size ) )
-	{
-	    SendDlgItemMessage( hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[portcnt++] );
+    for(port = 0; port < MAX_SERIALS; port++) {
+	sprintf(comports[portcnt], "COM%d", port);
+	if(GetDefaultCommConfig(comports[portcnt], &cc, &size)) {
+	    SendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[portcnt++]);
 	}
+	write_log("%d:%d\n",port, GetLastError());
     }
 
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
-    SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone );
-    if( !pInfo ) {
+    SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+    if(!pInfo) {
 	int flags = PRINTER_ENUM_LOCAL | (os_winnt ? PRINTER_ENUM_CONNECTIONS : 0);
 	DWORD needed = 0;
-	EnumPrinters( flags, NULL, 1, (LPBYTE)pInfo, 0, &needed, &dwEnumeratedPrinters );
+	EnumPrinters(flags, NULL, 1, (LPBYTE)pInfo, 0, &needed, &dwEnumeratedPrinters);
 	if (needed > 0) {
 	    DWORD size = needed;
 	    pInfo = calloc(1, size);
 	    dwEnumeratedPrinters = 0;
-	    EnumPrinters( flags, NULL, 1, (LPBYTE)pInfo, size, &needed, &dwEnumeratedPrinters );
+	    EnumPrinters(flags, NULL, 1, (LPBYTE)pInfo, size, &needed, &dwEnumeratedPrinters);
 	}
 	if (dwEnumeratedPrinters == 0) {
 	    free (pInfo);
@@ -7239,10 +7216,10 @@ static void init_portsdlg( HWND hDlg )
 	}
     }
     if (pInfo) {
-	for( port = 0; port < (int)dwEnumeratedPrinters; port++ )
-	    SendDlgItemMessage( hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)pInfo[port].pName );
+	for(port = 0; port < (int)dwEnumeratedPrinters; port++)
+	    SendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)pInfo[port].pName);
     } else {
-	EnableWindow( GetDlgItem( hDlg, IDC_PRINTERLIST ), FALSE );
+	EnableWindow(GetDlgItem(hDlg, IDC_PRINTERLIST), FALSE);
     }
     if (paraport_mask) {
 	int mask = paraport_mask;
@@ -7258,42 +7235,30 @@ static void init_portsdlg( HWND hDlg )
 	}
     }
 
-    SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L );
-    SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone );
-    if( ( numdevs = midiOutGetNumDevs() ) == 0 )
-    {
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), FALSE );
-    }
-    else
-    {
-	char szMidiOut[ MAX_DPATH ];
-	WIN32GUI_LoadUIString( IDS_DEFAULTMIDIOUT, szMidiOut, MAX_DPATH );
-	SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szMidiOut );
+    SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+    if((numdevs = midiOutGetNumDevs()) == 0) {
+	EnableWindow(GetDlgItem(hDlg, IDC_MIDIOUTLIST), FALSE);
+    } else {
+	char szMidiOut[MAX_DPATH];
+	WIN32GUI_LoadUIString(IDS_DEFAULTMIDIOUT, szMidiOut, MAX_DPATH);
+	SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szMidiOut);
 
-	for( port = 0; port < numdevs; port++ )
-	{
-	    if( midiOutGetDevCaps( port, &midiOutCaps, sizeof( midiOutCaps ) ) == MMSYSERR_NOERROR )
-	    {
-		SendDlgItemMessage( hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midiOutCaps.szPname );
-	    }
+	for(port = 0; port < numdevs; port++) {
+	    if(midiOutGetDevCaps(port, &midiOutCaps, sizeof(midiOutCaps)) == MMSYSERR_NOERROR)
+		SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midiOutCaps.szPname);
 	}
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIOUTLIST ), TRUE );
+	EnableWindow(GetDlgItem(hDlg, IDC_MIDIOUTLIST), TRUE);
     }
 
-    SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L );
-    if( ( numdevs = midiInGetNumDevs() ) == 0 )
-    {
-	EnableWindow( GetDlgItem( hDlg, IDC_MIDIINLIST ), FALSE );
+    SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L);
+    if((numdevs = midiInGetNumDevs()) == 0) {
+	EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST), FALSE);
 	bNoMidiIn = TRUE;
-    }
-    else
-    {
-	for( port = 0; port < numdevs; port++ )
-	{
-	    if( midiInGetDevCaps( port, &midiInCaps, sizeof( midiInCaps ) ) == MMSYSERR_NOERROR )
-	    {
-		SendDlgItemMessage( hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)midiInCaps.szPname );
-	    }
+    } else {
+	for(port = 0; port < numdevs; port++) {
+	    if(midiInGetDevCaps(port, &midiInCaps, sizeof(midiInCaps)) == MMSYSERR_NOERROR)
+		SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)midiInCaps.szPname);
 	}
     }
 }
@@ -9133,7 +9098,6 @@ static int GetSettings (int all_options, HWND hwnd)
     default_prefs (&workprefs, 0);
 
     WIN32GUI_LoadUIString (IDS_NONE, szNone, MAX_DPATH);
-
     prefs_to_gui (&changed_prefs);
 
     if (!init_called) {

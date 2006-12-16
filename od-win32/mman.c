@@ -70,8 +70,6 @@ void init_shm(void)
 		total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
 	    }
 	}
-	if (totalphys64 >= (uae_u64)1800 * 1024 * 1024 && max_allowed_mman < 1024)
-	    max_allowed_mman = 1024;
     }
 
     size64 = 16 * 1024 * 1024;

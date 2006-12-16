@@ -1592,14 +1592,17 @@ void inputdevice_vsync (void)
 	if (iq->framecnt > 0) {
 	    iq->framecnt--;
 	    if (iq->framecnt == 0) {
-		if (iq->state) iq->state = 0; else iq->state = iq->storedstate;
+		if (iq->state)
+		    iq->state = 0;
+		else
+		    iq->state = iq->storedstate;
 		handle_input_event (iq->event, iq->state, iq->max, 0);
 		iq->framecnt = iq->nextframecnt;
 	    }
 	}
     }
     mouseupdate (100);
-    inputdelay = uaerand () % (maxvpos - 1);
+    inputdelay = uaerand () % (maxvpos == 0 ? 1 : maxvpos - 1);
     idev[IDTYPE_MOUSE].read ();
     input_read = 1;
     input_vpos = 0;

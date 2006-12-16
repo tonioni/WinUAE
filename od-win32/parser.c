@@ -298,7 +298,7 @@ static void DoSomeWeirdPrintingStuff (char val)
 
 int isprinter (void)
 {
-    if (!strcasecmp(currprefs.prtname,"none"))
+    if (!currprefs.prtname[0])
 	return 0;
     if (!memcmp(currprefs.prtname,"LPT", 3)) {
 	paraport_open (currprefs.prtname);
@@ -404,7 +404,7 @@ void openprinter( void )
     static int first;
     
     closeprinter ();
-    if (!strcasecmp(currprefs.prtname,"none"))
+    if (!currprefs.prtname[0])
 	return;
 
     if (currprefs.parallel_postscript_emulation) {
@@ -755,7 +755,7 @@ int openser (char *sername)
 
     sprintf (buf, "\\.\\\\%s", sername);
 
-   if (!(writeevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
+    if (!(writeevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
 	write_log ("SERIAL: Failed to create event!\n");
 	return 0;
     }

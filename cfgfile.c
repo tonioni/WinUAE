@@ -2518,8 +2518,8 @@ void default_prefs (struct uae_prefs *p, int type)
     strcpy (p->path_floppy, "./");
     strcpy (p->path_hardfile, "./");
 
-    strcpy (p->prtname, DEFPRTNAME);
-    strcpy (p->sername, DEFSERNAME);
+    p->prtname[0] = 0;
+    p->sername[0] = 0;
 
     p->cpu_level = 0;
     p->m68k_speed = 0;
@@ -2621,8 +2621,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
     strcpy (p->romextfile, "");
     strcpy (p->flashfile, "");
     strcpy (p->cartfile, "");
-    strcpy (p->prtname, DEFPRTNAME);
-    strcpy (p->sername, DEFSERNAME);
+    p->prtname[0] = 0;
+    p->sername[0] = 0;
     target_default_options (p, 1);
 }
 

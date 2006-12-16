@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "gensound.h"
 #include "picasso96.h"
+#include "filesys.h"
 
 /*
  * Returns UAE Version
@@ -357,6 +358,26 @@ static uae_u32 emulib_Minimize (void)
     return 0; // OSDEP_minimize_uae();
 }
 
+static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
+{
+    char tmp[MAX_DPATH];
+    int v, i;
+
+    if (mode)
+	return -1;
+    /* receive native path from lock
+     * p1 = dos.library:Lock, p2 = buffer, p3 = max buffer size 
+     */
+    v = get_native_path (p1, tmp);
+    if (v)
+	return v;
+    for (i = 0; i <= strlen(tmp) && i < p3 - 1; i++) {
+        put_byte (p2 + i, tmp[i]);
+        put_byte (p2 + i + 1, 0);
+    }
+    return 0;
+}
+
 static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 {
 #define ARG0 (get_long (m68k_areg (&context->regs, 7) + 4))
@@ -423,6 +444,7 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 #ifdef DEBUGGER
      case 84: return mmu_init (ARG1, ARG2, ARG3);
 #endif
+     case 85: return native_dos_op (ARG1, ARG2, ARG3, ARG4);
     }
     return 0;
 }

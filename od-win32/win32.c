@@ -1730,7 +1730,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
     cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
     cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
-    cfgfile_target_write (f, "serial_port=%s\n", p->use_serial ? p->sername : "none" );
+    cfgfile_target_write (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
     cfgfile_target_write (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
 
     cfgfile_target_write (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
@@ -1796,8 +1796,6 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_intval (option, value, "midiout_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, "midiin_device", &p->win32_midiindev, 1)
 	    || cfgfile_intval (option, value, "soundcard", &p->win32_soundcard, 1)
-	    || cfgfile_string (option, value, "serial_port", &p->sername[0], 256)
-	    || cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)
 	    || cfgfile_yesno (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_yesno (option, value, "always_on_top", &p->win32_alwaysontop)
 	    || cfgfile_yesno (option, value, "powersavedisabled", &p->win32_powersavedisabled)
@@ -1834,10 +1832,21 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	return 1;
     }
 
-    if (p->sername[0] == 'n')
-	p->use_serial = 0;
-    else
-	p->use_serial = 1;
+    if (cfgfile_string (option, value, "serial_port", &p->sername[0], 256)) {
+	if (!strcmp(p->sername, "none"))
+	    p->sername[0] = 0;
+	if (p->sername[0])
+	    p->use_serial = 1;
+	else
+	    p->use_serial = 0;
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, "parallel_port", &p->prtname[0], 256)) {
+	if (!strcmp(p->prtname, "none"))
+	    p->prtname[0] = 0;
+	return 1;
+    }
 
     i = 0;
     while (obsolete[i]) {
@@ -3002,6 +3011,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
     thread = GetCurrentThread();
     original_affinity = SetThreadAffinityMask(thread, 1); 
+    SetThreadAffinityMask(thread, original_affinity);
 #if 0
     CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
     pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(

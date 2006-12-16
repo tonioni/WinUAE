@@ -59,5 +59,4 @@ STATIC_INLINE void do_uae_int_requested (void)
 {
     uae_int_requested = 1;
     set_uae_int_flag ();
-    INTREQ (0x8000 | 0x0008);
 }

@@ -57,3 +57,4 @@ extern int hdf_getnumharddrives (void);
 extern char *hdf_getnameharddrive (int index, int flags);
 extern int hdf_init (void);
 extern int isspecialdrive(const char *name);
+extern int get_native_path(uae_u32 lock, char *out);

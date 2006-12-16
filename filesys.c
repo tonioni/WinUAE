@@ -2060,6 +2060,22 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
+int get_native_path(uae_u32 lock, char *out)
+{
+    int i = 0;
+    for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	if (current_mountinfo.ui[i].self) {
+	    uae_u32 err;
+	    a_inode *a = lookup_aino (current_mountinfo.ui[i].self, get_long ((lock << 2) + 4));
+	    if (a) {
+		strcpy (out, a->nname);
+		return 0;
+	    }
+	}
+    }
+    return -1;
+}
+
 static void action_examine_object (Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG1 (packet) << 2;

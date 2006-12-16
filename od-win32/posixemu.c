@@ -237,6 +237,6 @@ int cpu_affinity = 1;
 void uae_set_thread_priority (int pri)
 {
     /* workaround for filesystem emulation freeze with some dual core systems */
-    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity); 
+    //SetThreadAffinityMask(GetCurrentThread(), cpu_affinity); 
 }
 

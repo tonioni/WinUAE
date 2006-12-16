@@ -19,7 +19,7 @@
 #include <windows.h>
 #include "fdrawcmd.h"
 
-int driveclick_pcdrivenum, driveclick_pcdrivemask;
+int driveclick_pcdrivemask;
 
 #define DC_PIPE_SIZE 100
 static smp_comm_pipe dc_pipe[DC_PIPE_SIZE];
@@ -159,15 +159,11 @@ void driveclick_fdrawcmd_detect(void)
     if (detected)
 	return;
     detected = 1;
-    if (driveclick_fdrawcmd_open(0)) {
+    if (driveclick_fdrawcmd_open(0))
 	driveclick_pcdrivemask |= 1;
-	driveclick_pcdrivenum++;
-    }
     driveclick_fdrawcmd_close(0);
-    if (driveclick_fdrawcmd_open(1)) {
+    if (driveclick_fdrawcmd_open(1))
 	driveclick_pcdrivemask |= 2;
-	driveclick_pcdrivenum++;
-    }
     driveclick_fdrawcmd_close(1);
 }
 

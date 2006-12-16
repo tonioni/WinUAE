@@ -70,7 +70,7 @@ void uae_abort (const char *format,...)
     char buffer[1000];
 
     va_start (parms, format);
-    _vsnprintf( buffer, sizeof (buffer) -1, format, parms );
+    _vsnprintf(buffer, sizeof (buffer) - 1, format, parms );
     va_end (parms);
     if (nomore) {
 	write_log(buffer);
@@ -3400,15 +3400,12 @@ static void dump_copper (char *error, int until_hpos)
 {
     static int warned = 10;
 
-    if (warned < 0)
-	return;
-    warned--;
     write_log("%s: vpos=%d until_hpos=%d\n",
 	error, vpos, until_hpos);
     write_log("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04.4X ci2=%04.4X\n",
 	cop_state.vcmp,cop_state.hcmp,cop_state.hpos,cop_state.vpos,cop_state.saved_i1,cop_state.saved_i2);
-    write_log("cstate=%d ip=%08.8X\n",
-	cop_state.state,cop_state.ip);
+    write_log("cstate=%d ip=%x SPCFLAGS=%x\n",
+	cop_state.state, cop_state.ip, regs.spcflags);
 }
 
 static void update_copper (int until_hpos)
@@ -3420,8 +3417,10 @@ static void update_copper (int until_hpos)
 	return;
  
     if (cop_state.state == COP_wait && vp < cop_state.vcmp) {
-	dump_copper ("error2",until_hpos);
+	dump_copper ("error2", until_hpos);
 	copper_enabled_thisline = 0;
+	cop_state.state = COP_stop;
+	unset_special(&regs, SPCFLAG_COPPER);
 	return;
     }
 

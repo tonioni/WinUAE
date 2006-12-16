@@ -968,7 +968,7 @@ void host_connect(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 na
 				}
 			}
 		} else
-			write_log("BSDSOCK: WARNING - Excessive namelen (%d) in connect()!\n",namelen);
+			write_log("BSDSOCK: WARNING - Excessive namelen (%d) in connect()!\n", namelen);
     }
     TRACE(("%d\n",sb->sb_errno));
 }
@@ -994,7 +994,7 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 		realpt = get_real_address(msg);
 		
 		if (to) {
-			if (tolen > sizeof buf) write_log("BSDSOCK: WARNING - Target address in sendto() too large (%d)!\n",tolen);
+			if (tolen > sizeof buf) write_log("BSDSOCK: WARNING - Target address in sendto() too large (%d)!\n", tolen);
 			else {
 				memcpy(buf,get_real_address(to),tolen);
 				// some Amiga software sets this field to bogus values
@@ -1255,7 +1255,7 @@ void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 opt
 
     if (s != INVALID_SOCKET) {
 		if (len > sizeof buf) {
-			write_log("BSDSOCK: WARNING - Excessive optlen in setsockopt() (%d)\n",len);
+			write_log("BSDSOCK: WARNING - Excessive optlen in setsockopt() (%d)\n", len);
 			len = sizeof buf;
 		}	
 		if (level == IPPROTO_IP && optname == 2) { // IP_HDRINCL emulated by icmp.dll
@@ -1264,14 +1264,14 @@ void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 opt
 			}
 		if (level == SOL_SOCKET && optname == SO_LINGER) {
 			((LINGER *)buf)->l_onoff = get_long(optval);
-			((LINGER *)buf)->l_linger = get_long(optval+4);
+			((LINGER *)buf)->l_linger = get_long(optval + 4);
 		} else {
 			if (len == 4)
 				*(long *)buf = get_long(optval);
 			else if (len == 2)
 				*(short *)buf = get_word(optval);
 			else
-				write_log("BSDSOCK: ERROR - Unknown optlen (%d) in setsockopt(%d,%d)\n",level,optname);
+				write_log("BSDSOCK: ERROR - Unknown optlen (%d) in setsockopt(%d,%d)\n", len, level, optname);
 		}
 
 		// handle SO_EVENTMASK
@@ -1333,7 +1333,7 @@ uae_u32 host_getsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 
 				else if (len == 2)
 					put_word(optval,*(short *)buf);
 				else
-					write_log("BSDSOCK: ERROR - Unknown optlen (%d) in setsockopt(%d,%d)\n",level,optname);
+					write_log("BSDSOCK: ERROR - Unknown optlen (%d) in setsockopt(%d,%d)\n", len, level, optname);
 			}
 
 //			put_long(optlen,len); // some programs pass the	actual length instead of a pointer to the length, so...
@@ -1464,7 +1464,7 @@ uae_u32 host_IoctlSocket(TrapContext *context, SB, uae_u32 sd, uae_u32 request, 
 				success = -1;
 				break;
 			default:
-				write_log("BSDSOCK: WARNING - Unknown IoctlSocket request: 0x%08lx\n",request);
+				write_log("BSDSOCK: WARNING - Unknown IoctlSocket request: 0x%08lx\n", request);
 				bsdsocklib_seterrno(sb,22); // EINVAL
 				break;
 		}
@@ -1551,7 +1551,7 @@ static void makesocktable(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win, i
 	}
 
 	if (nfds > sb->dtablesize) {
-		write_log("BSDSOCK: ERROR - select()ing more sockets (%d) than socket descriptors available (%d)!\n",nfds,sb->dtablesize);
+		write_log("BSDSOCK: ERROR - select()ing more sockets (%d) than socket descriptors available (%d)!\n", nfds, sb->dtablesize);
 		nfds = sb->dtablesize;
 	}
 
@@ -1573,7 +1573,7 @@ static void makesocktable(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win, i
 					fd_set_win->fd_array[fd_set_win->fd_count++] = s;
 
 					if (fd_set_win->fd_count >= FD_SETSIZE) {
-						write_log("BSDSOCK: ERROR - select()ing more sockets (%d) than the hard-coded fd_set limit (%d) - please report\n",nfds,FD_SETSIZE);
+						write_log("BSDSOCK: ERROR - select()ing more sockets (%d) than the hard-coded fd_set limit (%d) - please report\n", nfds, FD_SETSIZE);
 						return;
 					}
 				}
@@ -1817,7 +1817,7 @@ void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, ua
 */
 		if (sb->needAbort) {
 			if ((newsock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) == INVALID_SOCKET)
-				write_log("BSDSOCK: ERROR - Cannot create socket: %d\n",WSAGetLastError());
+				write_log("BSDSOCK: ERROR - Cannot create socket: %d\n", WSAGetLastError());
 			shutdown(sb->sockAbort,1);
 			if (newsock != sb->sockAbort) {
 				shutdown(sb->sockAbort,1);
@@ -2340,7 +2340,7 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 				bsd->gt->hGetThreads[i] = THREAD(thread_get, &i);
 				if (bsd->gt->hGetEvents[i] == NULL || bsd->gt->hGetThreads[i] == NULL) {
 					bsd->gt->hGetThreads[i] = 0;
-					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",GetLastError());
+					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n", GetLastError());
 					bsdsocklib_seterrno(sb, 12); // ENOMEM
 					sb->resultval = -1;
 					return;
@@ -2392,7 +2392,7 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 		sb->servent = uae_AllocMem(context, size, 0);
 
 		if (!sb->servent) {
-			write_log("BSDSOCK: WARNING - getservby%s() ran out of Amiga memory (couldn't allocate %ld bytes)\n",type ? "port" : "name",size);
+			write_log("BSDSOCK: WARNING - getservby%s() ran out of Amiga memory (couldn't allocate %ld bytes)\n", type ? "port" : "name", size);
 			bsdsocklib_seterrno(sb, 12); // ENOMEM
 			return;
 		}

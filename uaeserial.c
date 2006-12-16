@@ -120,6 +120,7 @@ struct asyncreq {
 };
 
 struct devstruct {
+    int open;
     int unit;
     int uniq;
     int exclusive;
@@ -131,7 +132,6 @@ struct devstruct {
     int thread_running;
     uae_sem_t sync_sem;
 
-    int brk;
     void *sysdata;
 };
 
@@ -177,7 +177,7 @@ static int start_thread (struct devstruct *dev)
 static void dev_close_3 (struct devstruct *dev)
 {
     uaeser_close (dev->sysdata);
-    dev->unit = -1;
+    dev->open = 0;
     xfree (dev->sysdata);
     write_comm_pipe_u32 (&dev->requests, 0, 1);
 }
@@ -210,7 +210,6 @@ static int setparams(struct devstruct *dev, uaecptr req)
 	return 5;
     }
     baud = get_long (req + io_Baud);
-    dev->brk = get_long (req + io_BrkTime);
     v = get_byte (req + io_SerFlags);
     if (v & SERF_EOFMODE) {
 	write_log ("UAESER: SERF_EOFMODE not supported\n");
@@ -260,7 +259,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	    return openfail (ioreq, -6); /* busy */
     }
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (devst[i].unit == -1)
+	if (!devst[i].open)
 	    break;
     }
     dev = &devst[i];
@@ -272,6 +271,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	return openfail (ioreq, 32); /* badunitnum */
     }
     dev->unit = unit;
+    dev->open = 1;
     dev->uniq = ++uniq;
     dev->exclusive = (get_word(ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
     put_long (ioreq + 24, dev->uniq);
@@ -400,6 +400,12 @@ void uaeser_signal (struct devstruct *dev, int sigmask)
 
 	    switch (command)
 	    {
+		case SDCMD_BREAK:
+		if (ar == dev->ar) {
+		    uaeser_break (dev->sysdata,  get_long (request + io_BrkTime));
+		    io_done = 1;
+		}
+		break;
 		case CMD_READ:
 		if (sigmask & 1) {
 		    addr = memmap(io_data, io_length);
@@ -496,7 +502,11 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	async = 1;
 	break;
 	case SDCMD_BREAK:
-	uaeser_break (dev->sysdata, dev->brk);
+	if (get_byte (request + io_SerFlags) & SERF_QUEUEDBRK) {
+	    async = 1;
+	} else {
+	    uaeser_break (dev->sysdata,  get_long (request + io_BrkTime));
+	}
 	break;
 	case CMD_CLEAR:
 	uaeser_clearbuffers(dev->sysdata);
@@ -604,12 +614,13 @@ static void dev_reset (void)
 
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	dev = &devst[i];
-	if (dev->unit >= 0) {
+	if (dev->open) {
 	    while (dev->ar)
 		abort_async (dev, dev->ar->request);
+	    dev_close_3 (dev);
+	    uae_sem_wait (&dev->sync_sem);
 	}
 	memset (dev, 0, sizeof (struct devstruct));
-	dev->unit = -1;
     }
 }
 
@@ -619,18 +630,10 @@ static uaecptr ROM_uaeserialdev_resname = 0,
 
 uaecptr uaeserialdev_startup (uaecptr resaddr)
 {
-    int i;
-    struct devstruct *dev;
-
     if (!currprefs.uaeserial)
 	return resaddr;
     if (log_uaeserial)
 	write_log ("uaeserialdev_startup(0x%x)\n", resaddr);
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	dev = &devst[i];
-	dev->unit = -1;
-	dev->brk = 250000;
-    }
     /* Build a struct Resident. This will set up and initialize
      * the serial.device */
     put_word(resaddr + 0x0, 0x4AFC);
