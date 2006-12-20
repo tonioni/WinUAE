@@ -583,6 +583,7 @@ int uaeser_setparams (struct uaeserialdatawin32 *sd, int baud, int rbuffer, int 
 
 static void startwce(struct uaeserialdatawin32 *sd, DWORD *evtmask)
 {
+    SetEvent(sd->evtwce);
     WaitCommEvent(sd->hCom, evtmask, &sd->olwce);
 }
 
@@ -737,7 +738,7 @@ void uaeser_close (struct uaeserialdatawin32 *sd)
 
 static HANDLE hCom = INVALID_HANDLE_VALUE;
 static DCB dcb;
-static HANDLE writeevent;
+static HANDLE writeevent, readevent;
 #define SERIAL_WRITE_BUFFER 100
 #define SERIAL_READ_BUFFER 100
 static uae_u8 outputbuffer[SERIAL_WRITE_BUFFER];
@@ -745,7 +746,7 @@ static uae_u8 outputbufferout[SERIAL_WRITE_BUFFER];
 static uae_u8 inputbuffer[SERIAL_READ_BUFFER];
 static int datainoutput;
 static int dataininput, dataininputcnt;
-static OVERLAPPED writeol;
+static OVERLAPPED writeol, readol;
 static writepending;
 
 int openser (char *sername)
@@ -755,68 +756,81 @@ int openser (char *sername)
 
     sprintf (buf, "\\.\\\\%s", sername);
 
+    if (!(readevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
+	write_log ("SERIAL: Failed to create r event!\n");
+	return 0;
+    }
+    readol.hEvent = readevent;
+
     if (!(writeevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
-	write_log ("SERIAL: Failed to create event!\n");
+	write_log ("SERIAL: Failed to create w event!\n");
 	return 0;
     }
     SetEvent (writeevent);
     writeol.hEvent = writeevent;
+
     uartbreak = 0;
-    if ((hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE,
+
+    hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
 			    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
-			    NULL)) != INVALID_HANDLE_VALUE) {
-	SetCommMask (hCom, EV_RXFLAG);
-	SetupComm (hCom, 65536,128);
-	PurgeComm (hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
-	CommTimeOuts.ReadIntervalTimeout = 0xFFFFFFFF;
-	CommTimeOuts.ReadTotalTimeoutMultiplier = 0;
-	CommTimeOuts.ReadTotalTimeoutConstant = 0;
-	CommTimeOuts.WriteTotalTimeoutMultiplier = 0;
-	CommTimeOuts.WriteTotalTimeoutConstant = 0;
-	SetCommTimeouts (hCom, &CommTimeOuts);
-
-        dcb.DCBlength = sizeof (DCB);
-	GetCommState (hCom, &dcb);
-
-	dcb.BaudRate = 9600;
-	dcb.ByteSize = 8;
-	dcb.Parity = NOPARITY;
-	dcb.StopBits = ONESTOPBIT;
-
-	dcb.fDsrSensitivity = FALSE;
-	dcb.fOutxDsrFlow = FALSE;
-	dcb.fDtrControl = DTR_CONTROL_DISABLE;
-   
-	if (currprefs.serial_hwctsrts) {
-	    dcb.fOutxCtsFlow = TRUE;
-	    dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
-	} else {
-	    dcb.fRtsControl = RTS_CONTROL_DISABLE;
-	    dcb.fOutxCtsFlow = FALSE;
-	}   
-
-	dcb.fTXContinueOnXoff = FALSE;
-	dcb.fOutX = FALSE;
-	dcb.fInX = FALSE;
-
-	dcb.fErrorChar = FALSE;
-	dcb.fNull = FALSE;
-	dcb.fAbortOnError = FALSE;
-	
-	dcb.XoffLim = 512;
-	dcb.XonLim = 2048;
-
-	if (SetCommState (hCom, &dcb)) {
-	    write_log ("SERIAL: Using %s CTS/RTS=%d\n", sername, currprefs.serial_hwctsrts);
-	    return 1;
-	}
-	write_log ("SERIAL: serial driver didn't accept new parameters\n");
-	CloseHandle (hCom);
-	hCom = INVALID_HANDLE_VALUE;
+			    NULL);
+    if (hCom == INVALID_HANDLE_VALUE) {
+	write_log ("SERIAL: failed to open '%s' err=%d\n", buf, GetLastError());
+	closeser();
+	return 0;
     }
+
+    SetCommMask (hCom, EV_RXFLAG);
+    SetupComm (hCom, 65536,128);
+    PurgeComm (hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
+    CommTimeOuts.ReadIntervalTimeout = 0xFFFFFFFF;
+    CommTimeOuts.ReadTotalTimeoutMultiplier = 0;
+    CommTimeOuts.ReadTotalTimeoutConstant = 0;
+    CommTimeOuts.WriteTotalTimeoutMultiplier = 0;
+    CommTimeOuts.WriteTotalTimeoutConstant = 0;
+    SetCommTimeouts (hCom, &CommTimeOuts);
+
+    dcb.DCBlength = sizeof (DCB);
+    GetCommState (hCom, &dcb);
+
+    dcb.BaudRate = 9600;
+    dcb.ByteSize = 8;
+    dcb.Parity = NOPARITY;
+    dcb.StopBits = ONESTOPBIT;
+
+    dcb.fDsrSensitivity = FALSE;
+    dcb.fOutxDsrFlow = FALSE;
+    dcb.fDtrControl = DTR_CONTROL_DISABLE;
+   
+    if (currprefs.serial_hwctsrts) {
+        dcb.fOutxCtsFlow = TRUE;
+        dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
+    } else {
+        dcb.fRtsControl = RTS_CONTROL_DISABLE;
+        dcb.fOutxCtsFlow = FALSE;
+    }   
+
+    dcb.fTXContinueOnXoff = FALSE;
+    dcb.fOutX = FALSE;
+    dcb.fInX = FALSE;
+
+    dcb.fErrorChar = FALSE;
+    dcb.fNull = FALSE;
+    dcb.fAbortOnError = FALSE;
+	
+    dcb.XoffLim = 512;
+    dcb.XonLim = 2048;
+
+    if (SetCommState (hCom, &dcb)) {
+        write_log ("SERIAL: Using %s CTS/RTS=%d\n", sername, currprefs.serial_hwctsrts);
+        return 1;
+    }
+
+    write_log ("SERIAL: serial driver didn't accept new parameters\n");
+    closeser();
     return 0;
 }
 
@@ -836,6 +850,9 @@ void closeser (void)
     if(writeevent)
 	CloseHandle(writeevent);
     writeevent = 0;
+    if(readevent)
+	CloseHandle(readevent);
+    readevent = 0;
     uartbreak = 0;
 }
 
@@ -930,13 +947,17 @@ int readser (int *buffer)
 		int len = ComStat.cbInQue;
 		if (len > sizeof (inputbuffer))
 		    len = sizeof (inputbuffer);
-		if (ReadFile (hCom, inputbuffer, len, &actual, NULL))  {
-		    dataininput = actual;
-		    dataininputcnt = 0;
-		    if (actual == 0)
+		if (!ReadFile (hCom, inputbuffer, len, &actual, &readol))  {
+		    if (GetLastError() == ERROR_IO_PENDING)
+			WaitForSingleObject(&readol, INFINITE);
+		    else
 			return 0;
-		    return readser (buffer);
 		}
+		dataininput = actual;
+		dataininputcnt = 0;
+		if (actual == 0)
+		    return 0;
+		return readser (buffer);
 	    }
 	}
     }

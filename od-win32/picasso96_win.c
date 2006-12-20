@@ -1656,8 +1656,73 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     put_long (amigamemptr + PSSO_ModeInfo_PixelClock, dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
 }
 
-static int AssignModeID(int i, int count)
+struct modeids {
+    int width, height;
+    int id;
+};
+static struct modeids mi[] =
 {
+/* "original" modes */
+
+    320, 200, 0,
+    320, 240, 1,
+    640, 400, 2,
+    640, 480, 3,
+    800, 600, 4,
+   1024, 768, 5,
+   1152, 864, 6,
+   1280,1024, 7,
+   1600,1280, 8,
+
+/* new modes */
+
+    704, 480, 129,
+    704, 576, 130,
+    720, 480, 131,
+    720, 576, 132,
+    768, 483, 133,
+    768, 576, 134,
+    800, 480, 135,
+    848, 480, 136,
+    854, 480, 137,
+    948, 576, 138,
+   1024, 576, 139,
+   1152, 768, 140,
+   1152, 864, 141,
+   1280, 720, 142,
+   1280, 768, 143,
+   1280, 800, 144,
+   1280, 854, 145,
+   1280, 960, 146,
+   1366, 768, 147,
+   1440, 900, 148,
+   1440, 960, 149,
+   1600,1200, 150,
+   1680,1050, 151,
+   1920,1080, 152,
+   1920,1200, 153,
+   2048,1152, 154,
+   2048,1536, 155,
+   2560,1600, 156,
+   2560,2048, 157,
+
+   -1,-1,0
+};
+
+static int AssignModeID(int dm, int count, int *unkcnt)
+{
+    int i, w, h;
+
+    w = DisplayModes[dm].res.width;
+    h = DisplayModes[dm].res.height;
+    for (i = 0; mi[i].width > 0; i++) {
+	if (w == mi[i].width && h == mi[i].height)
+	    return 0x50001000 | (mi[i].id << 16);
+    }
+    (*unkcnt)++;
+    write_log("P96: Non-unique mode %dx%d\n", w, h);
+    return 0x5F000000 + (*unkcnt) * 0x10000;
+#if 0
     int result;
     if(DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 200)
 	result = 0x50001000;
@@ -1678,8 +1743,9 @@ static int AssignModeID(int i, int count)
     else if(DisplayModes[i].res.width == 1600 && DisplayModes[i].res.height == 1280)
 	result = 0x50081000;
     else
-	result = 0x50091000 + count * 0x10000;
+	result = 0x50090000 + count * 0x10000;
     return result;
+#endif
 }
 
 /****************************************
@@ -1701,8 +1767,9 @@ static int AssignModeID(int i, int count)
 uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
 {
     struct LibResolution res;
-    int i;
     int ModeInfoStructureCount = 1, LibResolutionStructureCount = 0;
+    int i, unkcnt;
+
     uaecptr amigamemptr = 0;
     uaecptr AmigaBoardInfo = m68k_areg (regs, 2);
     put_word (AmigaBoardInfo + PSSO_BoardInfo_BitsPerCannon, DX_BitsPerCannon());
@@ -1725,10 +1792,11 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 8, alphacolour.height);
     
     i = 0;
+    unkcnt = 0;
     while (DisplayModes[i].depth >= 0) {    
 	int j = i;
 	/* Add a LibResolution structure to the ResolutionsList MinList in our BoardInfo */
-	res.DisplayID = AssignModeID(i, LibResolutionStructureCount);
+	res.DisplayID = AssignModeID(i, LibResolutionStructureCount, &unkcnt);
 	res.BoardInfo = AmigaBoardInfo;
 	res.Width = DisplayModes[i].res.width;
 	res.Height = DisplayModes[i].res.height;

@@ -607,8 +607,6 @@ typedef struct _unit {
 
     /* Keys */
     struct key *keys;
-    uae_u32 key_uniq;
-    uae_u32 a_uniq;
 
     a_inode rootnode;
     unsigned long aino_cache_size;
@@ -621,6 +619,8 @@ typedef struct _unit {
     int volflags;
 
 } Unit;
+
+static uae_u32 a_uniq, key_uniq;
 
 typedef uae_u8 *dpacket;
 #define PUT_PCK_RES1(p,v) do { do_put_mem_long ((uae_u32 *)((p) + dp_Res1), (v)); } while (0)
@@ -1062,8 +1062,8 @@ static char *get_aname (Unit *unit, a_inode *base, char *rel)
 
 static void init_child_aino (Unit *unit, a_inode *base, a_inode *aino)
 {
-    aino->uniq = ++unit->a_uniq;
-    if (unit->a_uniq == 0xFFFFFFFF) {
+    aino->uniq = ++a_uniq;
+    if (a_uniq == 0xFFFFFFFF) {
 	write_log ("Running out of a_inodes (prepare for big trouble)!\n");
     }
     aino->shlock = 0;
@@ -1326,7 +1326,6 @@ static Unit *startup_create_unit (UnitInfo *uinfo)
     unit->total_locked_ainos = 0;
     unit->next_exkey = 1;
     unit->keys = 0;
-    unit->a_uniq = unit->key_uniq = 0;
 
     unit->rootnode.aname = uinfo->volname;
     unit->rootnode.nname = uinfo->rootdir;
@@ -1515,7 +1514,7 @@ static Key *lookup_key (Unit *unit, uae_u32 uniq)
 static Key *new_key (Unit *unit)
 {
     Key *k = (Key *) xmalloc(sizeof(Key));
-    k->uniq = ++unit->key_uniq;
+    k->uniq = ++key_uniq;
     k->fd = NULL;
     k->file_pos = 0;
     k->next = unit->keys;
@@ -2065,7 +2064,6 @@ int get_native_path(uae_u32 lock, char *out)
     int i = 0;
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	if (current_mountinfo.ui[i].self) {
-	    uae_u32 err;
 	    a_inode *a = lookup_aino (current_mountinfo.ui[i].self, get_long ((lock << 2) + 4));
 	    if (a) {
 		strcpy (out, a->nname);
@@ -3289,12 +3287,6 @@ action_flush (Unit *unit, dpacket packet)
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
-int last_n, last_n2;
-void blehint(void)
-{
-    do_uae_int_requested();
-}
-
 /* We don't want multiple interrupts to be active at the same time. I don't
  * know whether AmigaOS takes care of that, but this does. */
 static uae_sem_t singlethread_int_sem;
@@ -3305,9 +3297,6 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
     uaecptr port;
     int n = m68k_dreg (&context->regs, 0);
     static int unit_no;
-
-    last_n = n;
-    last_n2 = -1;
 
     switch (n) {
      case 0:
@@ -3661,6 +3650,8 @@ void filesys_reset (void)
     }
     unit_num = 0;
     units = 0;
+    key_uniq = 0;
+    a_uniq = 0;
 }
 
 static void free_all_ainos (Unit *u, a_inode *parent)
@@ -4350,8 +4341,8 @@ static uae_u8 *restore_filesys_virtual (UnitInfo *ui, uae_u8 *src)
     Unit *u = startup_create_unit (ui);
     int cnt;
 
-    u->a_uniq = restore_u64 ();
-    u->key_uniq = restore_u64 ();
+    a_uniq = restore_u64 ();
+    key_uniq = restore_u64 ();
     u->dosbase = restore_u32 ();
     u->volume = restore_u32 ();
     u->port = restore_u32 ();
@@ -4377,8 +4368,8 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
     Key *k;
     int cnt;
 
-    save_u64 (u->a_uniq);
-    save_u64 (u->key_uniq);
+    save_u64 (a_uniq);
+    save_u64 (key_uniq);
     save_u32 (u->dosbase);
     save_u32 (u->volume);
     save_u32 (u->port);

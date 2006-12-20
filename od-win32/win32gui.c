@@ -7065,7 +7065,7 @@ static void values_from_portsdlg (HWND hDlg)
     EnableWindow(GetDlgItem(hDlg, IDC_MIDIINLIST), workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
     item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
-    if (item != CB_ERR) {
+    if (item != CB_ERR && item > 0) {
         workprefs.use_serial = 1;
         strcpy (workprefs.sername, comports[item - 1]);
     } else {
@@ -7187,6 +7187,7 @@ static void init_portsdlg( HWND hDlg )
     }
 
     joy0previous = joy1previous = -1;
+
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);
     portcnt = 0;
@@ -7195,7 +7196,6 @@ static void init_portsdlg( HWND hDlg )
 	if(GetDefaultCommConfig(comports[portcnt], &cc, &size)) {
 	    SendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[portcnt++]);
 	}
-	write_log("%d:%d\n",port, GetLastError());
     }
 
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);

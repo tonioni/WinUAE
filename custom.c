@@ -2479,10 +2479,11 @@ static void immediate_copper (int num)
 	    perform_copper_write (0);
 	} else { // wait or skip
 	    if (cop_state.i1 >= 0xffdf && cop_state.i2 == 0xfffe)
-		return;
+		break;
 	}
     }
-
+    cop_state.state = COP_stop;
+    unset_special (&regs, SPCFLAG_COPPER);
 }
 
 STATIC_INLINE void COP1LCH (uae_u16 v) { cop1lc = (cop1lc & 0xffff) | ((uae_u32)v << 16); }
@@ -2490,14 +2491,11 @@ STATIC_INLINE void COP1LCL (uae_u16 v) { cop1lc = (cop1lc & ~0xffff) | (v & 0xff
 STATIC_INLINE void COP2LCH (uae_u16 v) { cop2lc = (cop2lc & 0xffff) | ((uae_u32)v << 16); }
 STATIC_INLINE void COP2LCL (uae_u16 v) { cop2lc = (cop2lc & ~0xffff) | (v & 0xfffe); }
 
+static void compute_spcflag_copper (void);
+
 static void COPJMP (int num)
 {
     int oldstrobe = cop_state.strobe;
-
-    if (nocustom()) {
-	immediate_copper (num);
-	return;
-    }
 
     unset_special (&regs, SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
@@ -2509,9 +2507,13 @@ static void COPJMP (int num)
     copper_enabled_thisline = 0;
     cop_state.strobe = num;
 
+    if (nocustom()) {
+	immediate_copper (num);
+	return;
+    }
+
     if (dmaen (DMA_COPPER)) {
-	copper_enabled_thisline = 1;
-	set_special (&regs, SPCFLAG_COPPER);
+	compute_spcflag_copper ();
     } else if (oldstrobe > 0 && oldstrobe != num && cop_state.state_prev == COP_wait) {
 	/* dma disabled, copper idle and accessing both COPxJMPs -> copper stops! */
 	cop_state.state = COP_stop;
@@ -2523,7 +2525,6 @@ STATIC_INLINE void COPCON (uae_u16 a)
     copcon = a;
 }
 
-static void compute_spcflag_copper (void);
 static void DMACON (int hpos, uae_u16 v)
 {
     int oldcop, newcop;
@@ -3398,8 +3399,6 @@ static int isagnus[]= {
 
 static void dump_copper (char *error, int until_hpos)
 {
-    static int warned = 10;
-
     write_log("%s: vpos=%d until_hpos=%d\n",
 	error, vpos, until_hpos);
     write_log("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04.4X ci2=%04.4X\n",
@@ -3669,14 +3668,6 @@ static void compute_spcflag_copper (void)
     }
     copper_enabled_thisline = 1;
     set_special (&regs, SPCFLAG_COPPER);
-}
-
-static void copper_handler (void)
-{
-    /* This will take effect immediately, within the same cycle.  */
-    set_special (&regs, SPCFLAG_COPPER);
-    if (! copper_enabled_thisline)
-	uae_abort ("copper_handler");
 }
 
 void blitter_done_notify (void)
@@ -4389,12 +4380,21 @@ static void hsync_handler (void)
 	next_lineno = lineno;
 	reset_decisions ();
     }
-
+#if 1
 #ifdef FILESYS
     if (uae_int_requested) {
 	set_uae_int_flag ();
 	INTREQ (0x8000 | 0x0008);
     }
+#endif
+#if 1
+    {
+    extern volatile int bsd_int_requested;
+    if (bsd_int_requested) {
+	INTREQ (0x8000 | 0x2000);
+    }
+    }
+#endif
 #endif
 
     /* See if there's a chance of a copper wait ending this line.  */

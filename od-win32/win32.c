@@ -2199,9 +2199,11 @@ static void WIN32_HandleRegistryStuff(void)
     load_keyring(NULL, NULL);
 }
 
+#ifdef WINUAEPUBLICBETA
 static char *BETAMESSAGE = {
     "This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors."
 };
+#endif
 
 static int betamessage (void)
 {
@@ -2527,7 +2529,7 @@ static void getstartpaths(int start_data)
 
 extern void test (void);
 extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug, log_uaeserial;
-extern int force_direct_catweasel, cpu_affinity;
+extern int force_direct_catweasel, cpu_affinity, max_allowed_mman;
 
 static int original_affinity;
 
@@ -2555,15 +2557,121 @@ static void makeverstr(char *s)
 	UAEMAJOR, UAEMINOR, UAESUBREV, BetaStr);
 }
 
-static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
-		    int nCmdShow)
+static int multi_display = 1;
+static int start_data = 0;
+
+static int process_arg(char **xargv)
+{
+    int i, argc, xargc;
+    char **argv;
+
+    xargc = 0;
+    argc = __argc; argv = __argv;
+    xargv[xargc++] = my_strdup(argv[0]);
+    for (i = 1; i < argc; i++) {
+	char *arg = argv[i];
+	if (!strcmp (arg, "-log")) {
+	    console_logging = 1;
+	    continue;
+	}
+#ifdef FILESYS
+	if (!strcmp (arg, "-rdbdump")) {
+	    do_rdbdump = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-disableharddrivesafetycheck")) {
+	    harddrive_dangerous = 0x1234dead;
+	    continue;
+	}
+	if (!strcmp (arg, "-noaspifiltering")) {
+	    aspi_allow_all = 1;
+	    continue;
+	}
+#endif
+	if (!strcmp (arg, "-disableowr")) {
+	    b0rken_ati_overlay = -1;
+	    continue;
+	}
+	if (!strcmp (arg, "-enableowr")) {
+	    b0rken_ati_overlay = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-nordtsc")) {
+	    no_rdtsc = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-forcerdtsc")) {
+	    no_rdtsc = -1;
+	    continue;
+	}
+	if (!strcmp (arg, "-norawinput")) {
+	    no_rawinput = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-scsilog")) {
+	    log_scsi = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-seriallog")) {
+	    log_uaeserial = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-nomultidisplay")) {
+	    multi_display = 0;
+	    continue;
+	}
+	if (!strcmp (arg, "-legacypaths")) {
+	    start_data = -1;
+	    continue;
+	}
+	if (!strcmp (arg, "-screenshotbmp")) {
+	    screenshotmode = 0;
+	    continue;
+	}
+	if (!strcmp (arg, "-psprintdebug")) {
+	    postscript_print_debugging = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-sounddebug")) {
+	    sound_debug = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-directcatweasel")) {
+	    force_direct_catweasel = 1;
+	    if (i + 1 < argc)
+		force_direct_catweasel = getval (argv[++i]);
+	    continue;
+	}
+	if (!strcmp (arg, "-affinity") && i + 1 < argc) {
+	    cpu_affinity = getval (argv[++i]);
+	    if (cpu_affinity == 0)
+		cpu_affinity = original_affinity;
+	    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
+	    continue;
+	}
+	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
+	    strcpy(start_path_data, argv[++i]);
+	    start_data = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-maxmem") && i + 1 < argc) {
+	    max_allowed_mman = getval (argv[++i]);
+	    continue;
+	}
+	xargv[xargc++] = my_strdup(arg);
+    }
+#if 0
+    argv = 0;
+    argv[0] = 0;
+#endif
+    return xargc;
+}
+
+static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     HANDLE hMutex;
     char **argv;
-    int argc;
-    int i;
-    int multi_display = 1;
-    int start_data = 0;
+    int argc, i;
 
 #ifdef _DEBUG
     {
@@ -2588,47 +2696,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     AVIOutput_Initialize();
 #endif
 
-    argc = __argc; argv = __argv;
-    for (i = 1; i < argc; i++) {
-	char *arg = argv[i];
-	if (!strcmp (arg, "-log")) console_logging = 1;
-#ifdef FILESYS
-	if (!strcmp (arg, "-rdbdump")) do_rdbdump = 1;
-	if (!strcmp (arg, "-disableharddrivesafetycheck")) harddrive_dangerous = 0x1234dead;
-	if (!strcmp (arg, "-noaspifiltering")) aspi_allow_all = 1;
-#endif
-	if (!strcmp (arg, "-disableowr")) b0rken_ati_overlay = -1;
-	if (!strcmp (arg, "-enableowr")) b0rken_ati_overlay = 1;
-	if (!strcmp (arg, "-nordtsc")) no_rdtsc = 1;
-	if (!strcmp (arg, "-forcerdtsc")) no_rdtsc = -1;
-	if (!strcmp (arg, "-norawinput")) no_rawinput = 1;
-	if (!strcmp (arg, "-scsilog")) log_scsi = 1;
-	if (!strcmp (arg, "-seriallog")) log_uaeserial = 1;
-	if (!strcmp (arg, "-nomultidisplay")) multi_display = 0;
-	if (!strcmp (arg, "-legacypaths")) start_data = -1;
-	if (!strcmp (arg, "-screenshotbmp")) screenshotmode = 0;
-	if (!strcmp (arg, "-psprintdebug")) postscript_print_debugging = 1;
-	if (!strcmp (arg, "-sounddebug")) sound_debug = 1;
-	if (!strcmp (arg, "-directcatweasel")) {
-	    force_direct_catweasel = 1;
-	    if (i + 1 < argc)
-		force_direct_catweasel = getval (argv[++i]);
-	}
-	if (!strcmp (arg, "-affinity") && i + 1 < argc) {
-	    cpu_affinity = getval (argv[++i]);
-	    if (cpu_affinity == 0)
-		cpu_affinity = original_affinity;
-	    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
-	}
-	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
-	    strcpy(start_path_data, argv[++i]);
-	    start_data = 1;
-	}
-    }
-#if 0
-    argv = 0;
-    argv[0] = 0;
-#endif
+    argv = xcalloc (sizeof (char*),  __argc);
+    argc = process_arg(argv);
+
     getstartpaths(start_data);
     makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);
@@ -2695,9 +2765,13 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     // show memory leaks
     //_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
+    for (i = 0; i < argc; i++)
+	free (argv[i]);
+    free(argv);
     return FALSE;
 }
 
+#if 0
 int execute_command (char *cmd)
 {
     STARTUPINFO si;
@@ -2713,6 +2787,7 @@ int execute_command (char *cmd)
     }
     return 0;
 }
+#endif
 
 #include "driveclick.h"
 static int drvsampleres[] = {

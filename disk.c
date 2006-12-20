@@ -2278,7 +2278,7 @@ void dumpdisk (void)
 
 static void disk_dmafinished (void)
 {
-    INTREQ (0x8002);
+    INTREQ (0x8000 | 0x0002);
     longwritemode = 0;
     dskdmaen = 0;
     if (disk_debug_logging > 0) {
@@ -2841,7 +2841,7 @@ void DSKLEN (uae_u16 v, int hpos)
 		    pos += 16;
 		    pos %= drv->tracklen;
 		}
-		INTREQ (0x9000);
+		INTREQ (0x8000 | 0x1000);
 		done = 1;
 
 	    } else if (dskdmaen == 3) { /* TURBO write */

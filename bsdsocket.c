@@ -245,6 +245,8 @@ void releasesock (SB, int sd)
 /* @@@ TODO: ensure proper interlocking */
 struct socketbase *sbsigqueue;
 
+volatile int bsd_int_requested;
+
 void addtosigqueue (SB, int events)
 {
     locksigqueue ();
@@ -260,17 +262,20 @@ void addtosigqueue (SB, int events)
     }
     sb->dosignal = 1;
 
+    bsd_int_requested = 1;
+
     unlocksigqueue ();
 
-    INTREQ (0x8000 | 0x2000);
+    //INTREQ (0x8000 | 0x2000);
 }
 
 static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 {
     SB;
 
+    locksigqueue ();
+
     if (sbsigqueue != NULL) {
-	locksigqueue ();
 
 	for (sb = sbsigqueue; sb; sb = sb->nextsig) {
 	    if (sb->dosignal == 1) {
@@ -278,17 +283,18 @@ static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 		m68k_areg (&context->regs, 1) = sb->ownertask;
 		m68k_dreg (&context->regs, 0) = sb->sigstosend;
 		CallLib (context, get_long (4), -0x144); /* Signal() */
-
-		regs = sbved_regs;
-
+		context->regs = sbved_regs;
 		sb->sigstosend = 0;
 	    }
 	    sb->dosignal = 0;
 	}
 
 	sbsigqueue = NULL;
-	unlocksigqueue ();
     }
+
+    bsd_int_requested = 0;
+    unlocksigqueue ();
+
     return 0;
 }
 

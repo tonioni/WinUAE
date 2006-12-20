@@ -322,7 +322,7 @@ static int open_audio_ds (int size)
     sound_buffer.dwBufferBytes = dsoundbuf;
     sound_buffer.lpwfxFormat = &wavfmt;
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
-    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_STATIC;
+    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_LOCSOFTWARE;
     sound_buffer.guid3DAlgorithm = GUID_NULL;
 
     hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
@@ -559,6 +559,7 @@ static void finish_sound_buffer_ds (void)
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
     if (FAILED(hr)) {
 	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
+	restore (DSERR_BUFFERLOST);
 	return;
     }
     if (status & DSBSTATUS_BUFFERLOST) {

@@ -19,9 +19,9 @@ static uae_u32 gfxoffs;
 
 uae_u8 *natmem_offset = NULL;
 #ifdef CPU_64_BIT
-static uae_u32 max_allowed_mman = 2048;
+int max_allowed_mman = 2048;
 #else
-static uae_u32 max_allowed_mman = 512;
+int max_allowed_mman = 512;
 #endif
 
 void cache_free(void *cache)
@@ -78,8 +78,8 @@ void init_shm(void)
 	    size64 <<= 1;
     if (size64 > max_allowed_mman * 1024 * 1024)
 	size64 = max_allowed_mman * 1024 * 1024;
-    if (size64 > 0x40000000)
-	size64 = 0x40000000;
+    if (size64 > 0x80000000)
+	size64 = 0x80000000;
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
     size = max_z3fastmem = (uae_u32)size64;
