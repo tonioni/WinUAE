@@ -274,6 +274,7 @@ static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
     SB;
 
     locksigqueue ();
+    bsd_int_requested = 0;
 
     if (sbsigqueue != NULL) {
 
@@ -292,7 +293,6 @@ static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 	sbsigqueue = NULL;
     }
 
-    bsd_int_requested = 0;
     unlocksigqueue ();
 
     return 0;

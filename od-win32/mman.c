@@ -98,6 +98,7 @@ void init_shm(void)
 	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (blah)
 	    break;
+	write_log("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
 	size >>= 1;
 	if (size < 0x10000000) {
 	    write_log("NATMEM: No special area could be allocated (2)!\n");

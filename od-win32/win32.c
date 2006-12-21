@@ -2529,9 +2529,10 @@ static void getstartpaths(int start_data)
 
 extern void test (void);
 extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug, log_uaeserial;
-extern int force_direct_catweasel, cpu_affinity, max_allowed_mman;
+extern int force_direct_catweasel, max_allowed_mman;
 
-static int original_affinity;
+extern DWORD_PTR cpu_affinity;
+static DWORD_PTR original_affinity;
 
 static int getval(char *s)
 {

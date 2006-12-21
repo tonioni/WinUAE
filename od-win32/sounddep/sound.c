@@ -36,6 +36,9 @@
 #define ADJUST_SIZE 30
 #define EXP 2.1
 
+#define ADJUST_VSSIZE 10
+#define EXPVS 1.3
+
 int sound_debug = 0;
 
 static int obtainedfreq;
@@ -80,6 +83,11 @@ int setup_sound (void)
     return 1;
 }
 
+static int isvsync(void)
+{
+    return (currprefs.gfx_vsync && currprefs.gfx_afullscreen) ? 1 : 0;
+}
+
 int scaled_sample_evtime_orig;
 static int lastfreq;
 void update_sound (int freq)
@@ -88,7 +96,7 @@ void update_sound (int freq)
     	freq = lastfreq;
     lastfreq = freq;
     if (have_sound) {
-	if ((currprefs.gfx_vsync && currprefs.gfx_afullscreen) || currprefs.chipset_refreshrate) {
+	if (isvsync() || currprefs.chipset_refreshrate) {
 	    if (currprefs.ntscmode)
 		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_NTSC * MAXVPOS_NTSC * freq * CYCLE_UNIT + obtainedfreq - 1) / obtainedfreq;
 	    else
@@ -309,12 +317,13 @@ static int open_audio_ds (int size)
         dsoundbuf = DSBSIZE_MIN;
     if (dsoundbuf > DSBSIZE_MAX)
         dsoundbuf = DSBSIZE_MAX;
-    if (max_sndbufsize > dsoundbuf)
-        max_sndbufsize = dsoundbuf;
+
+    if (max_sndbufsize * 2 > dsoundbuf)
+        max_sndbufsize = dsoundbuf / 2;
 
     snd_writeoffset = max_sndbufsize * 5 / 8;
     snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) / 3;
+    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 1 / 3;
     snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
 
     memset (&sound_buffer, 0, sizeof (sound_buffer));
@@ -467,7 +476,7 @@ void sound_setadjust (double v)
 	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     } else {
-	vsynctime = vsynctime_orig * mult / 1000.0;
+	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
 }
@@ -637,14 +646,28 @@ static void finish_sound_buffer_ds (void)
 
     vdiff = diff - snd_writeoffset;
     m = 100.0 * vdiff / max_sndbufsize;
-    skipmode = pow (m < 0 ? -m : m, EXP) / 2;
 
-    if (m < 0)
-	skipmode = -skipmode;
-    if (skipmode < -ADJUST_SIZE)
-	skipmode = -ADJUST_SIZE;
-    if (skipmode > ADJUST_SIZE)
-	skipmode = ADJUST_SIZE;
+    if (isvsync()) {
+
+	skipmode = pow (m < 0 ? -m : m, EXP) / 10;
+	if (m < 0)
+	    skipmode = -skipmode;
+	if (skipmode < -ADJUST_VSSIZE)
+	    skipmode = -ADJUST_VSSIZE;
+	if (skipmode > ADJUST_VSSIZE)
+	    skipmode = ADJUST_VSSIZE;
+
+    } else {
+
+	skipmode = pow (m < 0 ? -m : m, EXP) / 2;
+	if (m < 0)
+	    skipmode = -skipmode;
+	if (skipmode < -ADJUST_SIZE)
+	    skipmode = -ADJUST_SIZE;
+	if (skipmode > ADJUST_SIZE)
+	    skipmode = ADJUST_SIZE;
+
+    }
 
     if (tfprev != timeframes) {
 	if (sound_debug && !(tfprev % 10))

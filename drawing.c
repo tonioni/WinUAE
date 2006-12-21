@@ -146,6 +146,7 @@ static void xlinecheck (int start, int end)
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
 static uae_u8 *row_map[MAX_VIDHEIGHT + 1];
+static uae_u8 row_tmp[MAX_PIXELS_PER_LINE * 32 / 8];
 static int max_drawn_amiga_line;
 
 /* line_draw_funcs: pfield_do_linetoscr, pfield_do_fill_line, decode_ham */
@@ -1088,6 +1089,8 @@ void init_row_map (void)
 	abort ();
     }
     j = 0;
+    for (i = 0; i < MAX_VIDHEIGHT + 1; i++)
+	row_map[i] = row_tmp;
     for (i = 0; i < gfxvidinfo.height + 1; i++, j += gfxvidinfo.rowbytes)
 	row_map[i] = gfxvidinfo.bufmem + j;
 }
@@ -2094,6 +2097,7 @@ STATIC_INLINE void check_picasso (void)
 
     notice_screen_contents_lost ();
     notice_new_xcolors ();
+    count_frame ();
 #endif
 }
 

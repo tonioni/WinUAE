@@ -765,7 +765,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlib.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib"
 				OutputFile="d:\amiga\winuae64.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -775,8 +775,6 @@
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release64/winuae.pdb"
 				SubSystem="2"
-				StackReserveSize="2621440"
-				StackCommitSize="2621440"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"

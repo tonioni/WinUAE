@@ -367,7 +367,7 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#define MAX_Z3_MEM ((max_z3fastmem >> 20) <= 512 ? 10 : ((max_z3fastmem >> 20) == 1024) ? 11 : 12)
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12)
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM 7
 #define MIN_M68K_PRIORITY 1
@@ -7974,7 +7974,7 @@ static void filter_handle (HWND hDlg)
 
 static int getfiltermult(HWND hDlg, DWORD dlg)
 {
-    int v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
+    LRESULT v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
     if (v == CB_ERR)
 	return 1000;
     return filtermults[v];

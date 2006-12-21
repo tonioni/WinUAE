@@ -889,7 +889,7 @@ static int DX_Flip(void)
     }
 #endif
     result = DirectDraw_Flip(0);
-    if( result )
+    if (result)
     {
 //	result = DirectDraw_BltFast(primary_surface, 0, 0, secondary_surface, NULL);
 //	result = DirectDraw_BltFast(primary_surface, 0, 0, tertiary_surface, NULL);

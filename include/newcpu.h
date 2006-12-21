@@ -175,13 +175,13 @@ STATIC_INLINE void m68k_setpc (struct regstruct *regs, uaecptr newpc)
 
 STATIC_INLINE uaecptr m68k_getpc (struct regstruct *regs)
 {
-    return regs->pc + ((char *)regs->pc_p - (char *)regs->pc_oldp);
+    return (uaecptr)(regs->pc + ((char *)regs->pc_p - (char *)regs->pc_oldp));
 }
 #define M68K_GETPC m68k_getpc(&regs)
 
 STATIC_INLINE uaecptr m68k_getpc_p (struct regstruct *regs, uae_u8 *p)
 {
-    return regs->pc + ((char *)p - (char *)regs->pc_oldp);
+    return (uaecptr)(regs->pc + ((char *)p - (char *)regs->pc_oldp));
 }
 
 STATIC_INLINE void m68k_setpci(struct regstruct *regs, uaecptr newpc)

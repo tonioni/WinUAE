@@ -4383,7 +4383,6 @@ static void hsync_handler (void)
 #if 1
 #ifdef FILESYS
     if (uae_int_requested) {
-	set_uae_int_flag ();
 	INTREQ (0x8000 | 0x0008);
     }
 #endif

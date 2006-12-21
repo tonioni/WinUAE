@@ -1,20 +1,27 @@
 
 Beta 5:
 
-- added -maxmem command line parameter, "-maxmem 1536" enables
-  1G Z3Fast support. (32-bit max) Note: not default because it
-  can cause weird side-effects and is not compatible with all Windows
-  versions.
 - remove winuae-specific command line parameters before passing
   them to configuration parser.
 - internal serial and parallel port selection updates
   (partially in b4 + fixes in b5)
+- Paula serial port emulation fixed (broke in b4)
+- more uaeserial.device tweaks
 - defined more Picasso96 modeIDs, now most PC display modes have
   unique ID (updating display card/drivers, moving between PCs
   does not anymore cause mysterious mode changes)
-  NOTE: you may need to reset your Picasso96 display mode if your
-  current mode was not defined in previous WinUAE versions.
-- serial port emulation fixed (broke in b4)
+  NOTE: you may need to reset your Picasso96 display mode if you
+  used mode other than 640x480, 800x600, 1024x768, 1280x1024 or
+  1600x1200.
+- fixed another random Picasso96<>native switching crash
+- added -maxmem command line parameter, "-maxmem 1024" enables 1G
+  Z3Fast support. (32-bit max) Note: can cause random side-effects
+  depending on total memory and/or Windows version.. Large RTG RAM
+  sizes require larger maxmem parameter (but values over ~1060 may
+  not work, check winuaebootlog.txt). Pointless but fun option :)
+- vsync mode sound pitch shifting fixed. Pitch can still shift
+  slightly in some cases.
+- bsdsocket stability fix
 
 Beta 4:
 

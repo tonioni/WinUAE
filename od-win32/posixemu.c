@@ -34,6 +34,7 @@ void gettimeofday (struct timeval *tv, void *blah)
 {
 #if 1
     struct timeb time;
+
     ftime (&time);
 
     tv->tv_sec = time.time;
@@ -56,7 +57,7 @@ void gettimeofday (struct timeval *tv, void *blah)
 #define secs_per_day (24 * 60 * 60)
 #define diff ((8 * 365 + 2) * secs_per_day)
 
-static void get_time(time_t t, long* days, long* mins, long* ticks)
+static void get_time(time_t t, long *days, long *mins, long *ticks)
 {
     /* time_t is secs since 1-1-1970 */
     /* days since 1-1-1978 */
@@ -163,7 +164,8 @@ static int setfiletime(const char *name, unsigned int days, int minute, int tick
 int posixemu_utime( const char *name, struct utimbuf *ttime )
 {
     int result = -1, tolocal;
-    long days, mins, ticks, actime;
+    long days, mins, ticks;
+    time_t actime;
 
     if (!ttime) {
 	actime = time (NULL);
@@ -232,7 +234,7 @@ int uae_start_thread (void *(*f)(void *), void *arg, uae_thread_id *tid)
     return result;
 }
 
-int cpu_affinity = 1;
+DWORD_PTR cpu_affinity = 1;
 
 void uae_set_thread_priority (int pri)
 {

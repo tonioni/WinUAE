@@ -1267,24 +1267,24 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	      regs->fp[reg] = tmp_fp;
 	    }
 #else /* no X86_MSVC */
-	    switch ((regs.fpcr >> 4) & 3) {
+	    switch ((regs->fpcr >> 4) & 3) {
 		case 0: /* to nearest */
-		    regs.fp[reg] = floor (src + 0.5);
+		    regs->fp[reg] = floor (src + 0.5);
 		    break;
 		case 1: /* to zero */
 		    if (src >= 0.0)
-			regs.fp[reg] = floor (src);
+			regs->fp[reg] = floor (src);
 		    else
-			regs.fp[reg] = ceil (src);
+			regs->fp[reg] = ceil (src);
 		    break;
 		case 2: /* down */
-		    regs.fp[reg] = floor (src);
+		    regs->fp[reg] = floor (src);
 		    break;
 		case 3: /* up */
-		    regs.fp[reg] = ceil (src);
+		    regs->fp[reg] = ceil (src);
 		    break;
 		default: /* never reached */
-		    regs.fp[reg] = src;
+		    regs->fp[reg] = src;
 	    }
 #endif /* X86_MSVC */
 	    break;

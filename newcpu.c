@@ -1901,6 +1901,8 @@ void exec_nostats(void)
 
 static int triggered;
 
+extern volatile int bsd_int_requested;
+
 void execute_normal(void)
 {
     struct regstruct *r = &regs;
@@ -1930,7 +1932,7 @@ void execute_normal(void)
 	total_cycles += cpu_cycles;
 	pc_hist[blocklen].specmem = special_mem;
 	blocklen++;
-	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags) {
+	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested || bsd_int_requested) {
 	    compile_block(pc_hist,blocklen,total_cycles);
 	    return; /* We will deal with the spcflags in the caller */
 	}
@@ -1946,6 +1948,14 @@ static void m68k_run_2a (void)
     for (;;) {
 	((compiled_handler*)(pushall_call_handler))();
 	/* Whenever we return from that, we should check spcflags */
+	if (uae_int_requested) {
+	    intreq |= 0x0008;
+	    set_special (&regs, SPCFLAG_INT);
+	}
+	if (bsd_int_requested) {
+	    intreq |= 0x2000;
+	    set_special (&regs, SPCFLAG_INT);
+	}
 	if (regs.spcflags) {
 	    if (do_specialties (0, &regs)) {
 		return;
