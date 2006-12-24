@@ -66,6 +66,7 @@ struct bsdsockdata {
 };
 
 static struct bsdsockdata *bsd;
+static int threadindextable[MAX_GET_THREADS];
 
 static unsigned int __stdcall sock_thread(void *);
 
@@ -137,12 +138,14 @@ static void bsdsetpriority (HANDLE thread)
 
 static int mySockStartup(void)
 {
-	int result = 0;
+	int result = 0, i;
 	SOCKET dummy;
 	DWORD lasterror;
 
 	if (!bsd) {
 		bsd = calloc (sizeof (struct bsdsockdata), 1);
+		for (i = 0; i < MAX_GET_THREADS; i++)
+		    threadindextable[i] = i;
 	}
 	if (WSAStartup(MAKEWORD(SOCKVER_MAJOR, SOCKVER_MINOR), &bsd->wsbData)) {
 	    lasterror = WSAGetLastError();
@@ -1883,7 +1886,7 @@ uae_u32 host_inet_addr(uae_u32 cp)
 }
 
 int isfullscreen (void);
-BOOL CheckOnline(SB)
+static BOOL CheckOnline(SB)
 {
 	DWORD dwFlags;
 	BOOL bReturn = TRUE;
@@ -1905,7 +1908,7 @@ BOOL CheckOnline(SB)
 
 static unsigned int __stdcall thread_get(void *indexp)
 {
-    uae_u32 index = *((uae_u32*)indexp);
+    int index = *((int*)indexp);
     unsigned int result = 0;
     struct threadargs *args;
     uae_u32 name;
@@ -2080,7 +2083,7 @@ void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 name
 	    for (i = 0; i < MAX_GET_THREADS; i++) {
 			if (bsd->hGetThreads[i] == NULL) {
 				bsd->hGetEvents[i] = CreateEvent(NULL,FALSE,FALSE,NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &i);
+				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
 				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
 					bsd->hGetThreads[i] = NULL;
 					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",

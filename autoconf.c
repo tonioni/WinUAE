@@ -44,13 +44,13 @@ addrbank rtarea_bank = {
     rtarea_lget, rtarea_wget, ABFLAG_ROMIN
 };
 
-uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)
+static uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)
 {
     addr &= 0xFFFF;
     return rtarea + addr;
 }
 
-uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
+static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
@@ -59,7 +59,7 @@ uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
     return (uae_u32)(rtarea_wget (addr) << 16) + rtarea_wget (addr+2);
 }
 
-uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
+static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
@@ -68,7 +68,7 @@ uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
     return (rtarea[addr]<<8) + rtarea[addr+1];
 }
 
-uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
+static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
@@ -77,21 +77,21 @@ uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
     return rtarea[addr];
 }
 
-void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
 }
 
-void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
 }
 
-void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;

@@ -21,6 +21,8 @@
 #include "autoconf.h"
 #include "traps.h"
 #include "bsdsocket.h"
+#include "threaddep/thread.h"
+#include "native2amiga.h"
 
 #ifdef BSDSOCKET
 
@@ -243,19 +245,22 @@ void releasesock (SB, int sd)
 
 /* Signal queue */
 /* @@@ TODO: ensure proper interlocking */
+#if 0
 struct socketbase *sbsigqueue;
-
 volatile int bsd_int_requested;
+#endif
 
 void addtosigqueue (SB, int events)
 {
+    uae_u32 ot, sts;
+
     locksigqueue ();
 
     if (events)
 	sb->sigstosend |= sb->eventsigs;
     else
 	sb->sigstosend |= ((uae_u32) 1) << sb->signal;
-
+#if 0
     if (!sb->dosignal) {
 	sb->nextsig = sbsigqueue;
 	sbsigqueue = sb;
@@ -263,12 +268,22 @@ void addtosigqueue (SB, int events)
     sb->dosignal = 1;
 
     bsd_int_requested = 1;
+#endif
+
+    ot = sb->ownertask;
+    sts = sb->sigstosend;
+
+    sb->sigstosend = 0;
 
     unlocksigqueue ();
+
+    if (sts)
+	uae_Signal(ot, sts);
 
     //INTREQ (0x8000 | 0x2000);
 }
 
+#if 0
 static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 {
     SB;
@@ -297,12 +312,13 @@ static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 
     return 0;
 }
+#endif
 
 void waitsig (TrapContext *context, SB)
 {
     long sigs;
     m68k_dreg (&context->regs, 0) = (((uae_u32) 1) << sb->signal) | sb->eintrsigs;
-    if ((sigs = CallLib (context, get_long (4), -0x13e)) & sb->eintrsigs) {
+    if ((sigs = CallLib (context, get_long (4), -0x13e)) & sb->eintrsigs) { /* Wait */
 	sockabort (sb); 
 	bsdsocklib_seterrno (sb, 4); /* EINTR */
 
@@ -318,11 +334,12 @@ void waitsig (TrapContext *context, SB)
 
 void cancelsig (TrapContext *context, SB)
 {
+#if 0
     locksigqueue ();
     if (sb->dosignal)
 	sb->dosignal = 2;
     unlocksigqueue ();
-
+#endif
     m68k_dreg (&context->regs, 0) = 0;
     m68k_dreg (&context->regs, 1) = ((uae_u32) 1) << sb->signal;
     CallLib (context, get_long (4), -0x132); /* SetSignal() */
@@ -425,6 +442,7 @@ static void free_socketbase (TrapContext *context)
 	    }
 	}
 
+#if 0
 	if (sb == sbsigqueue)
 	    sbsigqueue = sb->next;
 	else {
@@ -435,6 +453,7 @@ static void free_socketbase (TrapContext *context)
 		}
 	    }
 	}
+#endif
 
 	unlocksigqueue ();
 
@@ -1357,12 +1376,14 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 
     strErrptr = addstr (&tmp1, strErr);
 
+#if 0
     /* @@@ someone please implement a proper interrupt handler setup here :) */
     tmp1 = here ();
     calltrap (deftrap2 (bsdsock_int_handler, TRAPFLAG_EXTRA_STACK | TRAPFLAG_NO_RETVAL, "bsdsock_int_handler"));
     dw (0x4ef9);
     dl (get_long (context->regs.vbr + 0x78));
     put_long (context->regs.vbr + 0x78, tmp1);
+#endif
 
     m68k_dreg (&context->regs, 0) = 1;
     return 0;
@@ -1390,7 +1411,9 @@ void bsdlib_reset (void)
     }
 
     socketbases = NULL;
+#if 0
     sbsigqueue = NULL;
+#endif
 
     for (i = 0; i < SOCKPOOLSIZE; i++) {
 	if (sockdata->sockpoolids[i] != UNIQUE_ID) {

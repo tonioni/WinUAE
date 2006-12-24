@@ -802,10 +802,10 @@ void comp_frestore_opp (uae_u32 opcode)
 	m68k_areg (&regs, opcode & 7) = ad;
 }
 
-extern uae_u32 xhex_pi, xhex_exp_1, xhex_l2_e, xhex_ln_2, xhex_ln_10;
-extern uae_u32 xhex_l10_2, xhex_l10_e, xhex_1e16, xhex_1e32, xhex_1e64;
-extern uae_u32 xhex_1e128, xhex_1e256, xhex_1e512, xhex_1e1024;
-extern uae_u32 xhex_1e2048, xhex_1e4096;
+extern uae_u32 xhex_pi[], xhex_exp_1[], xhex_l2_e[], xhex_ln_2[], xhex_ln_10[];
+extern uae_u32 xhex_l10_2[], xhex_l10_e[], xhex_1e16[], xhex_1e32[], xhex_1e64[];
+extern uae_u32 xhex_1e128[], xhex_1e256[], xhex_1e512[], xhex_1e1024[];
+extern uae_u32 xhex_1e2048[], xhex_1e4096[];
 extern double fp_1e8;
 extern float  fp_1e1, fp_1e2, fp_1e4;
 

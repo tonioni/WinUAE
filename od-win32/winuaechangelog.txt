@@ -1,4 +1,15 @@
 
+Beta 6: (RC)
+
+- serial port "friendly" names listed in serial port selection,
+  also detects virtual (for example bluetooth) serial ports.
+  Windows 2000+ only. W9X/ME shows normal "legacy" names.
+- more bsdsocket stability fixes
+- 1M ROM image support (upper half maps to regular KS space,
+  lower half to 0xe00000) Apparently A600/A1200/A4000 does the
+  same with 2x512K EPROMs
+- compiler optimization settings changed for release build
+
 Beta 5:
 
 - remove winuae-specific command line parameters before passing

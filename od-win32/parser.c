@@ -21,6 +21,8 @@
 #include <sys/stat.h>
 #include <io.h>
 
+#include <setupapi.h>
+
 #include "sysdeps.h"
 #include "options.h"
 #include "gensound.h"
@@ -751,10 +753,7 @@ static writepending;
 
 int openser (char *sername)
 {
-    char buf[32];
     COMMTIMEOUTS CommTimeOuts;
-
-    sprintf (buf, "\\.\\\\%s", sername);
 
     if (!(readevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
 	write_log ("SERIAL: Failed to create r event!\n");
@@ -771,14 +770,14 @@ int openser (char *sername)
 
     uartbreak = 0;
 
-    hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE,
+    hCom = CreateFile (sername, GENERIC_READ | GENERIC_WRITE,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
 			    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
 			    NULL);
     if (hCom == INVALID_HANDLE_VALUE) {
-	write_log ("SERIAL: failed to open '%s' err=%d\n", buf, GetLastError());
+	write_log ("SERIAL: failed to open '%s' err=%d\n", sername, GetLastError());
 	closeser();
 	return 0;
     }
@@ -841,7 +840,7 @@ void closeser (void)
 	hCom = INVALID_HANDLE_VALUE;
     }
     if (midi_ready) {
-	extern int serper;
+	extern uae_u16 serper;
 	Midi_Close();
 	//need for camd Midi Stuff(it close midi and reopen it but serial.c think the baudrate
 	//is the same and do not open midi), so setting serper to different value helps
@@ -1096,4 +1095,129 @@ void hsyncstuff(void)
 	}
     }
 #endif
+}
+
+static int enumserialports_2(void)
+{
+    // Create a device information set that will be the container for 
+    // the device interfaces.
+    HDEVINFO hDevInfo = INVALID_HANDLE_VALUE;
+    SP_DEVICE_INTERFACE_DETAIL_DATA *pDetData = NULL;
+    BOOL bOk = TRUE;
+    SP_DEVICE_INTERFACE_DATA ifcData;
+    DWORD dwDetDataSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA) + 256;
+    DWORD ii;
+    int cnt = 0;
+
+    hDevInfo = SetupDiGetClassDevs(&GUID_CLASS_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if(hDevInfo == INVALID_HANDLE_VALUE)
+        return 0;
+    // Enumerate the serial ports
+    pDetData = xmalloc (dwDetDataSize);
+    // This is required, according to the documentation. Yes,
+    // it's weird.
+    ifcData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+    pDetData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
+    for (ii = 0; bOk; ii++) {
+        bOk = SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_CLASS_COMPORT, ii, &ifcData);
+        if (bOk) {
+	    // Got a device. Get the details.
+	    SP_DEVINFO_DATA devdata = {sizeof(SP_DEVINFO_DATA)};
+	    bOk = SetupDiGetDeviceInterfaceDetail(hDevInfo,
+	    	&ifcData, pDetData, dwDetDataSize, NULL, &devdata);
+	    if (bOk) {
+	        // Got a path to the device. Try to get some more info.
+	        TCHAR fname[256];
+	        TCHAR desc[256];
+	        BOOL bSuccess = SetupDiGetDeviceRegistryProperty(
+		    hDevInfo, &devdata, SPDRP_FRIENDLYNAME, NULL,
+		    (PBYTE)fname, sizeof(fname), NULL);
+		bSuccess = bSuccess && SetupDiGetDeviceRegistryProperty(
+		    hDevInfo, &devdata, SPDRP_DEVICEDESC, NULL,
+		    (PBYTE)desc, sizeof(desc), NULL);
+		if (bSuccess && cnt < MAX_SERIAL_PORTS) {
+		    char *p;
+		    comports[cnt].dev = my_strdup (pDetData->DevicePath);
+		    comports[cnt].name = my_strdup (fname);
+		    p = strstr(fname,"(COM");
+		    if (p && (p[5] == ')' || p[6] == ')')) {
+			comports[cnt].cfgname = xmalloc (100);
+			if (isdigit(p[5]))
+			    sprintf(comports[cnt].cfgname, "COM%c%c", p[4], p[5]);
+			else
+			    sprintf(comports[cnt].cfgname, "COM%c", p[4]);
+		    } else {
+			comports[cnt].cfgname = my_strdup (pDetData->DevicePath);
+		    }
+		    write_log("SERPORT: '%s' = '%s' = '%s'\n", comports[cnt].name, comports[cnt].cfgname, comports[cnt].dev);
+		    cnt++;
+		}
+	    } else {
+	        write_log("SetupDiGetDeviceInterfaceDetail failed, err=%d", GetLastError());
+	        goto end;
+	    }
+	} else {
+	    DWORD err = GetLastError();
+	    if (err != ERROR_NO_MORE_ITEMS) {
+		write_log("SetupDiEnumDeviceInterfaces failed, err=%d", err);
+		goto end;
+	    }
+	}
+    }
+end:
+    xfree(pDetData);
+    if (hDevInfo != INVALID_HANDLE_VALUE)
+	SetupDiDestroyDeviceInfoList(hDevInfo);
+    return cnt;
+}
+
+int enumserialports(void)
+{
+    int port, cnt;
+    char name[256];
+    COMMCONFIG cc;
+    DWORD size = sizeof(COMMCONFIG);
+
+    write_log("Serial port enumeration..\n");
+    if (os_winnt) {
+	cnt = enumserialports_2();
+    } else {
+	cnt = 0;
+	for(port = 0; port < MAX_SERIAL_PORTS; port++) {
+	    sprintf(name, "COM%d", port);
+	    if(GetDefaultCommConfig(name, &cc, &size)) {
+		if (cnt < MAX_SERIAL_PORTS) {
+		    comports[cnt].dev = xmalloc(100);
+		    sprintf(comports[cnt].dev, "\\.\\\\%s", name);
+		    comports[cnt].cfgname = my_strdup (name);
+		    comports[cnt].name = my_strdup (name);
+		    write_log("SERPORT: '%s' = '%s'\n", comports[cnt].name, comports[cnt].dev);
+		    cnt++;
+		}
+	    }
+	}
+    }
+    write_log("Serial port enumeration end\n");
+    return cnt;
+}
+
+void sernametodev(char *sername)
+{
+    int i;
+    for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+	if (!strcmp(sername, comports[i].cfgname)) {
+	    strcpy (sername, comports[i].dev);
+	    return;
+	}
+    }
+}
+void serdevtoname(char *sername)
+{
+    int i;
+    for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+	if (!strcmp(sername, comports[i].dev)) {
+	    strcpy (sername, comports[i].cfgname);
+	    return;
+	}
+    }
 }

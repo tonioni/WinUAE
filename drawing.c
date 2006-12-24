@@ -1049,7 +1049,7 @@ static void NOINLINE pfield_doline_n8 (uae_u32 *data, int count) { pfield_doline
 static void pfield_doline (int lineno)
 {
     int wordcount = dp_for_drawing->plflinelen;
-    uae_u32 *data = pixdata.apixels_l + MAX_PIXELS_PER_LINE/4;
+    uae_u32 *data = pixdata.apixels_l + MAX_PIXELS_PER_LINE / 4;
 
 #ifdef SMART_UPDATE
 #define DATA_POINTER(n) (line_data[lineno] + (n)*MAX_WORDS_PER_LINE*2)

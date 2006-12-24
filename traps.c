@@ -75,7 +75,7 @@ static struct Trap  traps[MAX_TRAPS];
 static unsigned int trap_count;
 
 
-static const int trace_traps = 1;
+static const int trace_traps = 0;
 
 
 static void trap_HandleExtendedTrap (TrapHandler, int has_retval);

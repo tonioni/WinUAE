@@ -394,7 +394,7 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
     zfile_fseek (f, 0, SEEK_SET);
-    if (size > 1760 * 512)  {/* don't skip KICK disks */
+    if (size > 524288 * 2)  {/* don't skip KICK disks or 1M ROMs */
 	write_log ("'%s': too big %d, ignored\n", zfile_getname(f), size);
 	return 0;
     }
@@ -6855,8 +6855,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 static PRINTER_INFO_1 *pInfo = NULL;
 static DWORD dwEnumeratedPrinters = 0;
 #define MAX_PRINTERS 10
-#define MAX_SERIALS 8
-static char comports[MAX_SERIALS][8];
+struct serialportinfo comports[MAX_SERIAL_PORTS];
 static int ghostscript_available;
 
 static int joy0previous, joy1previous;
@@ -7067,7 +7066,7 @@ static void values_from_portsdlg (HWND hDlg)
     item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
     if (item != CB_ERR && item > 0) {
         workprefs.use_serial = 1;
-        strcpy (workprefs.sername, comports[item - 1]);
+	strcpy (workprefs.sername, comports[item - 1].dev);
     } else {
         workprefs.use_serial = 0;
         workprefs.sername[0] = 0;
@@ -7144,8 +7143,8 @@ static void values_to_portsdlg (HWND hDlg)
     } else {
 	int i;
 	LRESULT result = -1;
-	for (i = 0; i < MAX_SERIALS; i++) {
-	    if (!strcmp (comports[i], workprefs.sername)) {
+	for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+	    if (!strcmp (comports[i].dev, workprefs.sername)) {
 		result = SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L);
 		break;
 	    }
@@ -7169,9 +7168,7 @@ static void values_to_portsdlg (HWND hDlg)
 static void init_portsdlg( HWND hDlg )
 {
     static int first;
-    int port, portcnt, numdevs;
-    COMMCONFIG cc;
-    DWORD size = sizeof(COMMCONFIG);
+    int port, numdevs;
     MIDIOUTCAPS midiOutCaps;
     MIDIINCAPS midiInCaps;
 
@@ -7190,12 +7187,8 @@ static void init_portsdlg( HWND hDlg )
 
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);
-    portcnt = 0;
-    for(port = 0; port < MAX_SERIALS; port++) {
-	sprintf(comports[portcnt], "COM%d", port);
-	if(GetDefaultCommConfig(comports[portcnt], &cc, &size)) {
-	    SendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[portcnt++]);
-	}
+    for (port = 0; port < MAX_SERIAL_PORTS && comports[port].name; port++) {
+        SendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port].name);
     }
 
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
@@ -8110,7 +8103,7 @@ static void values_to_avioutputdlg(HWND hDlg)
     }
 	
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
-    CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_nosoundoutput ? TRUE : FALSE);
+    CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
@@ -8174,6 +8167,7 @@ static void enable_for_avioutputdlg(HWND hDlg)
     SetWindowText(GetDlgItem(hDlg, IDC_AVIOUTPUT_VIDEO_STATIC), tmp);
 
     EnableWindow(GetDlgItem(hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT), avioutput_framelimiter ? TRUE : FALSE);
+
     if (!avioutput_framelimiter)
 	avioutput_nosoundoutput = 1;
     CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);

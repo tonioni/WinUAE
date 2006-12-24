@@ -1581,12 +1581,6 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 	return 4;
     }
     if ((opcode & 0xF000) == 0xA000) {
-#ifdef AUTOCONFIG
-	if (inrt) {
-	    /* Calltrap. */
-	    m68k_handle_trap (opcode & 0xFFF, regs);
-	}
-#endif
 	if (warned < 20) {
 	    write_log ("A-Trap %x at %x (%p)\n", opcode, pc, regs->pc_p);
 	    warned++;
@@ -1932,7 +1926,7 @@ void execute_normal(void)
 	total_cycles += cpu_cycles;
 	pc_hist[blocklen].specmem = special_mem;
 	blocklen++;
-	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested || bsd_int_requested) {
+	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) { // || bsd_int_requested) {
 	    compile_block(pc_hist,blocklen,total_cycles);
 	    return; /* We will deal with the spcflags in the caller */
 	}
@@ -1952,10 +1946,12 @@ static void m68k_run_2a (void)
 	    intreq |= 0x0008;
 	    set_special (&regs, SPCFLAG_INT);
 	}
+#if 0
 	if (bsd_int_requested) {
 	    intreq |= 0x2000;
 	    set_special (&regs, SPCFLAG_INT);
 	}
+#endif
 	if (regs.spcflags) {
 	    if (do_specialties (0, &regs)) {
 		return;

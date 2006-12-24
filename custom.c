@@ -2457,12 +2457,12 @@ static void perform_copper_write (int old_hpos);
 static void immediate_copper (int num)
 {
     cop_state.state = COP_stop;
-    if (!dmaen (DMA_COPPER))
-	return;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
     cop_state.ip = num == 1 ? cop1lc : cop2lc;
     for (;;) {
+	if (!dmaen(DMA_COPPER))
+	    break;
 	cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
 	cop_state.i2 = chipmem_agnus_wget (cop_state.ip + 2);
 	cop_state.ip += 4;
@@ -2477,7 +2477,7 @@ static void immediate_copper (int num)
 		continue;
 	    }
 	    perform_copper_write (0);
-	} else { // wait or skip
+	} else { // wait or skip, simply ignore them
 	    if (cop_state.i1 >= 0xffdf && cop_state.i2 == 0xfffe)
 		break;
 	}
@@ -4386,7 +4386,7 @@ static void hsync_handler (void)
 	INTREQ (0x8000 | 0x0008);
     }
 #endif
-#if 1
+#if 0
     {
     extern volatile int bsd_int_requested;
     if (bsd_int_requested) {
@@ -4426,23 +4426,6 @@ static void hsync_handler (void)
     hsync_counter++;
     //copper_check (2);
 }
-
-#if 0
-    unsigned long int mintime = ~0L;
-    for (i = 0; i < ev_max; i++) {
-	if (eventtab[i].active) {
-	    unsigned long int eventtime = eventtab[i].evtime - currcycle;
-#ifdef EVENT_DEBUG
-	    if (eventtime == 0) {
-		write_log("event %d bug\n",i);
-	    }
-#endif
-	    if (eventtime < mintime)
-		mintime = eventtime;
-	}
-    }
-    nextevent = currcycle + mintime;
-#endif
 
 static void MISC_handler(void)
 {
@@ -5186,8 +5169,8 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 #endif
     custom_wput (addr & ~1, rval);
     if (warned < 10) {
-	if (m68k_getpc(&regs) < 0xe00000 || m68k_getpc(&regs) >= 0x10000000) {
-	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, m68k_getpc(&regs));
+	if (M68K_GETPC < 0xe00000 || M68K_GETPC >= 0x10000000) {
+	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, M68K_GETPC);
 	    warned++;
 	}
     }

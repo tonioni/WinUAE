@@ -1730,7 +1730,9 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
     cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
     cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
+    serdevtoname(p->sername);
     cfgfile_target_write (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
+    sernametodev(p->sername);
     cfgfile_target_write (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
 
     cfgfile_target_write (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
@@ -1833,8 +1835,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_string (option, value, "serial_port", &p->sername[0], 256)) {
-	if (!strcmp(p->sername, "none"))
-	    p->sername[0] = 0;
+	sernametodev(p->sername);
 	if (p->sername[0])
 	    p->use_serial = 1;
 	else
@@ -2716,7 +2717,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	write_log ("Sorting devices and modes..\n");
 	sortdisplays ();
 	write_log ("done\n");
-	    
+
 	memset (&devmode, 0, sizeof(devmode));
 	devmode.dmSize = sizeof(DEVMODE);
 	if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
@@ -2739,6 +2740,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	    paraport_mask = paraport_init ();
 #endif
 	    createIPC();
+	    enumserialports();
 	    real_main (argc, argv);
 	}
     }

@@ -32,3 +32,17 @@ void serialuartbreak (int);
 
 extern void unload_ghostscript (void);
 extern int load_ghostscript (void);
+
+#define MAX_SERIAL_PORTS 8
+struct serialportinfo
+{
+    char *dev;
+    char *cfgname;
+    char *name;
+};
+extern struct serialportinfo comports[MAX_SERIAL_PORTS];
+
+extern int enumserialports(void);
+extern void sernametodev(char*);
+extern void serdevtoname(char*);
+
