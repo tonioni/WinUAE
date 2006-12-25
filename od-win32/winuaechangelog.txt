@@ -1,4 +1,20 @@
 
+Beta 7: (RC2)
+
+- AGA sprites outside display window emulated when sprite is above or
+  below the display window. Previously they were only visible when
+  it was on left or right side of display window.
+  (fixes Spheris Legacy missing status graphics)
+- clear garbage at the bottom of screen for example when switching from
+  doubled to non-doubled 
+- serial port set to none in config file didn't work properly
+- cloned stereo and 4 channel sound mode uses proper initialization
+  (according to MSDN WAVEFORMATEXTENSIBLE is required if >2 channels but
+  for some reason "incorrect" way also worked previously..)
+- mask unused DIWHIGH bits, could have caused narrow image appearing on
+  screen when loading statefile with diwhigh having highest bit set and
+  ECS Agnus or AGA enabled.
+
 Beta 6: (RC)
 
 - serial port "friendly" names listed in serial port selection,

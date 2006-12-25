@@ -233,14 +233,14 @@ int main(int argc, char *argv[])
 	DWORD ver;
 
 	if (argc < 2) {
-	    printf("adfread.exe <name of new disk image>\n");
+	    printf("adfread 1.1\nUsage: adfread.exe <name of new disk image>\n");
 	    return 0;
 	}
 
 	ver = checkversion();
 	if (!ver)
 		return 0;
-	printf ("fdrawcmd.sys %x detected\n", ver);
+	printf ("adfread 1.1: fdrawcmd.sys %x detected\n", ver);
 	trackbuffer = VirtualAlloc(NULL, TRACK_SIZE * 2, MEM_COMMIT, PAGE_READWRITE);
 	if (opendevice()) {
 		readloop(argv[1]);

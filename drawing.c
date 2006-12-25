@@ -60,7 +60,7 @@ static int res_shift;
 
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
-static int can_use_lores = 0, frame_res, frame_res_lace;
+static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
    that playfield 1 has the priority, dbplpf_*2 are used if playfield 2 has
@@ -1091,7 +1091,7 @@ void init_row_map (void)
     j = 0;
     for (i = 0; i < MAX_VIDHEIGHT + 1; i++)
 	row_map[i] = row_tmp;
-    for (i = 0; i < gfxvidinfo.height + 1; i++, j += gfxvidinfo.rowbytes)
+    for (i = 0; i < gfxvidinfo.height; i++, j += gfxvidinfo.rowbytes)
 	row_map[i] = gfxvidinfo.bufmem + j;
 }
 
@@ -1110,8 +1110,8 @@ static void init_aspect_maps (void)
 	free (amiga2aspect_line_map);
 
     /* At least for this array the +1 is necessary. */
-    amiga2aspect_line_map = (int *)malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
-    native2amiga_line_map = (int *)malloc (sizeof (int) * gfxvidinfo.height);
+    amiga2aspect_line_map = malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
+    native2amiga_line_map = malloc (sizeof (int) * gfxvidinfo.height);
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
@@ -1394,7 +1394,7 @@ enum double_how {
     dh_emerg
 };
 
-STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
+static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 {
     static int warned = 0;
     int border = 0;
@@ -1509,6 +1509,7 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	}
 
 	do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);
+
 	if (dh == dh_emerg)
 	    memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
 
@@ -1524,10 +1525,20 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	    currprefs.gfx_lores = 0;
 
     } else if (border == 1) {
+	int dosprites = 0;
 
 	adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
-	if (dip_for_drawing->nr_color_changes == 0) {
+#ifdef AGA /* this makes things complex.. */
+	if (brdsprt && (currprefs.chipset_mask & CSMASK_AGA) && dip_for_drawing->nr_sprites > 0) {
+	    dosprites = 1;
+	    pfield_expand_dp_bplcon ();
+	    pfield_init_linetoscr ();
+	    memset (pixdata.apixels + MAX_PIXELS_PER_LINE, brdblank ? 0 : colors_for_drawing.acolors[0], MAX_PIXELS_PER_LINE);
+	}
+#endif
+
+	if (!dosprites && dip_for_drawing->nr_color_changes == 0) {
 	    fill_line ();
 	    do_flush_line (gfx_ypos);
 
@@ -1543,10 +1554,22 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	    return;
 	}
 
-	playfield_start = visible_right_border;
-	playfield_end = visible_right_border;
 
-	do_color_changes (pfield_do_fill_line, pfield_do_fill_line);
+	if (dosprites) {
+
+	    int i;
+	    for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
+		draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
+	    }
+	    do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);
+
+	} else {
+
+	    playfield_start = visible_right_border;
+	    playfield_end = visible_right_border;
+	    do_color_changes (pfield_do_fill_line, pfield_do_fill_line);
+
+	}
 
 	if (dh == dh_emerg)
 	    memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
@@ -1557,8 +1580,6 @@ STATIC_INLINE void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 		memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
 	    else if (dh == dh_buf)
 		memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.pixbytes * gfxvidinfo.width);
-	    /* If dh == dh_line, do_flush_line will re-use the rendered line
-	     * from linemem.  */
 	    do_flush_line (follow_ypos);
 	}
 
@@ -1577,6 +1598,7 @@ static void center_image (void)
 {
     int prev_x_adjust = visible_left_border;
     int prev_y_adjust = thisframe_y_adjust;
+    int tmp;
 
     if (currprefs.gfx_xcenter) {
 	int w = gfxvidinfo.width;
@@ -1630,7 +1652,13 @@ static void center_image (void)
 	    thisframe_y_adjust = minfirstline;
     }
     thisframe_y_adjust_real = thisframe_y_adjust << (currprefs.gfx_linedbl ? 1 : 0);
-    max_ypos_thisframe = (maxvpos - thisframe_y_adjust) << (currprefs.gfx_linedbl ? 1 : 0);
+    tmp = (maxvpos - thisframe_y_adjust) << (currprefs.gfx_linedbl ? 1 : 0);
+    if (tmp != max_ypos_thisframe) {
+	last_max_ypos = tmp;
+	if (last_max_ypos < 0)
+	    last_max_ypos = 0;
+    }
+    max_ypos_thisframe = tmp;
 
     /* @@@ interlace_seen used to be (bplcon0 & 4), but this is probably
      * better.  */
@@ -2001,8 +2029,6 @@ static void lightpen_update (void)
     if (lightpen_cy >= maxvpos)
 	lightpen_cy = maxvpos - 1;
 
-    //write_log("%d x %d  %d x %d\n", lightpen_x, lightpen_y, lightpen_cx, lightpen_cy);
-
     for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
         int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
         if (line >= 0 || line < max_ypos_thisframe) {
@@ -2047,6 +2073,17 @@ void finish_drawing_frame (void)
 
 	pfield_draw_line (line, where, amiga2aspect_line_map[i1 + 1]);
     }
+
+    /* clear possible old garbage at the bottom if emulated area become smaller */
+    while (last_max_ypos <  gfxvidinfo.height) {
+	xlinebuffer = gfxvidinfo.linemem;
+	if (xlinebuffer == 0)
+	    xlinebuffer = row_map[last_max_ypos];
+	memset (xlinebuffer, brdblank ? 0 : colors_for_drawing.acolors[0], gfxvidinfo.width * gfxvidinfo.pixbytes);
+	do_flush_line (last_max_ypos);
+	last_max_ypos++;
+    }
+
     if (currprefs.leds_on_screen) {
 	for (i = 0; i < TD_TOTAL_HEIGHT; i++) {
 	    int line = gfxvidinfo.height - TD_TOTAL_HEIGHT + i;
@@ -2054,8 +2091,10 @@ void finish_drawing_frame (void)
 	    do_flush_line (line);
 	}
     }
+
     if (lightpen_x > 0 || lightpen_y > 0)
 	lightpen_update ();
+
     do_flush_screen (first_drawn_line, last_drawn_line);
 }
 

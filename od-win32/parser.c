@@ -1204,13 +1204,16 @@ int enumserialports(void)
 void sernametodev(char *sername)
 {
     int i;
+
     for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
 	if (!strcmp(sername, comports[i].cfgname)) {
 	    strcpy (sername, comports[i].dev);
 	    return;
 	}
     }
+    sername[0] = 0;
 }
+
 void serdevtoname(char *sername)
 {
     int i;
@@ -1220,4 +1223,5 @@ void serdevtoname(char *sername)
 	    return;
 	}
     }
+    sername[0] = 0;
 }

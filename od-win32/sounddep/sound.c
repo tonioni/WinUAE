@@ -29,7 +29,10 @@
 
 #include <windows.h>
 #include <mmsystem.h>
+#include <mmreg.h>
 #include <dsound.h>
+#include <ks.h>
+#include <ksmedia.h>
 
 #include <math.h>
 
@@ -67,6 +70,7 @@ static int num_sound_devices;
 
 static LPDIRECTSOUNDBUFFER lpDSBprimary;
 
+#define USE_DS8
 #ifdef USE_DS8
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
@@ -213,13 +217,16 @@ static void setvolume (void)
     setvolume_ahi (vol);
 }
 
+const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
+{0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
+
 static int open_audio_ds (int size)
 {
     HRESULT hr;
     DSBUFFERDESC sound_buffer;
     DSCAPS DSCaps;
     DSBCAPS DSBCaps;
-    WAVEFORMATEX wavfmt;
+    WAVEFORMATEXTENSIBLE wavfmt;
     int freq = currprefs.sound_freq;
     LPDIRECTSOUNDBUFFER pdsb;
     
@@ -235,6 +242,42 @@ static int open_audio_ds (int size)
     sndbufsize = size / 32;
     if (sndbufsize > SND_MAX_BUFFER)
         sndbufsize = SND_MAX_BUFFER;
+
+    max_sndbufsize = size * 4;
+    if (max_sndbufsize > SND_MAX_BUFFER2)
+        max_sndbufsize = SND_MAX_BUFFER2;
+    dsoundbuf = max_sndbufsize * 2;
+
+    if (dsoundbuf < DSBSIZE_MIN)
+        dsoundbuf = DSBSIZE_MIN;
+    if (dsoundbuf > DSBSIZE_MAX)
+        dsoundbuf = DSBSIZE_MAX;
+
+    if (max_sndbufsize * 2 > dsoundbuf)
+        max_sndbufsize = dsoundbuf / 2;
+
+    snd_writeoffset = max_sndbufsize * 5 / 8;
+    snd_maxoffset = max_sndbufsize;
+    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 1 / 3;
+    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
+
+    memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
+    wavfmt.Format.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    wavfmt.Format.wFormatTag = wavfmt.Format.nChannels > 2 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
+    wavfmt.Format.nSamplesPerSec = freq;
+    wavfmt.Format.wBitsPerSample = 16;
+    wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
+    wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
+    if (wavfmt.Format.nChannels > 2) {
+	wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
+	wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+	wavfmt.Samples.wValidBitsPerSample = 16;
+	wavfmt.dwChannelMask = KSAUDIO_SPEAKER_QUAD;
+    }
+
+    write_log ("SOUND: '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
+	sound_devices[currprefs.win32_soundcard],
+	wavfmt.Format.nChannels, 16, freq, max_sndbufsize, snd_configsize);
 
 #ifdef USE_DS8
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
@@ -294,42 +337,16 @@ static int open_audio_ds (int size)
 	goto error;
     }
 
-    memset (&wavfmt, 0, sizeof (WAVEFORMATEX));
-    wavfmt.wFormatTag = WAVE_FORMAT_PCM;
-    wavfmt.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
-    wavfmt.nSamplesPerSec = freq;
-    wavfmt.wBitsPerSample = 16;
-    wavfmt.nBlockAlign = wavfmt.wBitsPerSample / 8 * wavfmt.nChannels;
-    wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * wavfmt.nSamplesPerSec;
-
-    hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt);
+    hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt.Format);
     if (FAILED(hr))  {
         write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
         goto error;
     }
 
-    max_sndbufsize = size * 4;
-    if (max_sndbufsize > SND_MAX_BUFFER2)
-        max_sndbufsize = SND_MAX_BUFFER2;
-    dsoundbuf = max_sndbufsize * 2;
-
-    if (dsoundbuf < DSBSIZE_MIN)
-        dsoundbuf = DSBSIZE_MIN;
-    if (dsoundbuf > DSBSIZE_MAX)
-        dsoundbuf = DSBSIZE_MAX;
-
-    if (max_sndbufsize * 2 > dsoundbuf)
-        max_sndbufsize = dsoundbuf / 2;
-
-    snd_writeoffset = max_sndbufsize * 5 / 8;
-    snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 1 / 3;
-    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
-
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
     sound_buffer.dwBufferBytes = dsoundbuf;
-    sound_buffer.lpwfxFormat = &wavfmt;
+    sound_buffer.lpwfxFormat = &wavfmt.Format;
     sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
     sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_LOCSOFTWARE;
     sound_buffer.guid3DAlgorithm = GUID_NULL;
@@ -359,10 +376,6 @@ static int open_audio_ds (int size)
     else
 	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
 
-    write_log ("DS driver '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
-	sound_devices[currprefs.win32_soundcard],
-	wavfmt.nChannels,
-	16, freq, max_sndbufsize, snd_configsize);
     obtainedfreq = currprefs.sound_freq;
 
     return 1;

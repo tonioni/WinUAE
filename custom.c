@@ -2261,6 +2261,8 @@ void init_hz (void)
 	minfirstline = vsstop;
 	if (minfirstline < 2)
 	    minfirstline = 2;
+	if (minfirstline >= maxvpos)
+	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	dumpsync();
 	ciavsyncmode = 1;
@@ -2867,8 +2869,9 @@ static void DIWSTOP (int hpos, uae_u16 v)
 
 static void DIWHIGH (int hpos, uae_u16 v)
 {
-    if (! (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+    if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	return;
+    v &= ~(0x8000 | 0x4000 | 0x0080 | 0x0040);
     if (diwhigh_written && diwhigh == v)
 	return;
     decide_line (hpos);
@@ -4574,6 +4577,9 @@ void customreset (void)
 	bplcon4 = 0x11; /* Get AGA chipset into ECS compatibility mode */
 	bplcon3 = 0xC00;
 
+	diwhigh = 0;
+	diwhigh_written = 0;
+
 	FMODE (0);
 	CLXCON (0);
     }
@@ -5318,8 +5324,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     vsstrt = RW;		/* 1E0 VSSTT  */
     hcenter = RW;		/* 1E2 HCENTER */
     diwhigh = RW;		/* 1E4 DIWHIGH */
-    if (diwhigh & 0x8000)
-	diwhigh_written = 1;
+    diwhigh_written = (diwhigh & 0x8000) ? 1 : 0;
     diwhigh &= 0x7fff;
     RW;				/* 1E6 ? */
     RW;				/* 1E8 ? */
