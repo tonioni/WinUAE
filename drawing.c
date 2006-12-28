@@ -193,7 +193,7 @@ static int bplehb, bplham, bpldualpf, bpldualpfpri, bpldualpf2of, bplplanecnt, b
 static int plf1pri, plf2pri;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
-static int brdsprt, brdblank;
+static int brdsprt, brdblank, brdblank_changed;
 
 int picasso_requested_on;
 int picasso_on;
@@ -1252,6 +1252,8 @@ static void adjust_drawing_colors (int ctable, int need_full)
  * form. */
 static void pfield_expand_dp_bplcon (void)
 {
+    int brdblank_2;
+
     bplres = dp_for_drawing->bplres;
     bplplanecnt = dp_for_drawing->nr_planes;
     bplham = dp_for_drawing->ham_seen;
@@ -1273,16 +1275,15 @@ static void pfield_expand_dp_bplcon (void)
     plf_sprite_mask |= (0xFFFF << (4 * plf1pri)) & 0xFFFF;
     bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
     bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
+    brdblank_2 = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
+    if (brdblank_2 != brdblank)
+	brdblank_changed = 1;
+    brdblank = brdblank_2;
 #ifdef AGA
     bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
     sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
     sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
-
-    brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
-    /* FIXME: we must update top and bottom borders when BRDBLANK changes */
-    brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
-    if (brdblank)
-	brdsprt = 0;
+    brdsprt = !brdblank && (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
 #endif
 }
 static void pfield_expand_dp_bplcon2(int regno, int v)
@@ -1922,9 +1923,9 @@ static void draw_status_line (int line)
 	    }
 	    on_rgb = 0x000;
 	    if (on < 0)
-		on_rgb = 0xc00; // underflow
+		on_rgb = 0xcc0; // underflow
 	    else if (on == 2)
-		on_rgb = 0xcc0; // really big overflow
+		on_rgb = 0xc00; // really big overflow
 	    else if (on == 1)
 		on_rgb = 0x00c; // "normal" overflow
 	    off_rgb = 0x000;
@@ -2076,11 +2077,15 @@ void finish_drawing_frame (void)
 
     /* clear possible old garbage at the bottom if emulated area become smaller */
     while (last_max_ypos <  gfxvidinfo.height) {
+	xcolnr tmp = colors_for_drawing.acolors[0];
+	colors_for_drawing.acolors[0] = getxcolor (0);
 	xlinebuffer = gfxvidinfo.linemem;
 	if (xlinebuffer == 0)
 	    xlinebuffer = row_map[last_max_ypos];
-	memset (xlinebuffer, brdblank ? 0 : colors_for_drawing.acolors[0], gfxvidinfo.width * gfxvidinfo.pixbytes);
+	xlinebuffer -= linetoscr_x_adjust_bytes;
+	fill_line ();
 	do_flush_line (last_max_ypos);
+	colors_for_drawing.acolors[0] = tmp;
 	last_max_ypos++;
     }
 
@@ -2096,6 +2101,13 @@ void finish_drawing_frame (void)
 	lightpen_update ();
 
     do_flush_screen (first_drawn_line, last_drawn_line);
+
+    if (brdblank_changed) {
+	last_max_ypos = max_ypos_thisframe;
+	last_redraw_point = 10;
+	notice_screen_contents_lost();
+	brdblank_changed = 0;
+    }
 }
 
 void hardware_line_completed (int lineno)

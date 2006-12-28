@@ -937,6 +937,27 @@ void sample16si_rh_handler (void)
 
 static int audio_work_to_do;
 
+static void zerostate(struct audio_channel_data *cdp)
+{
+    cdp->state = 0;
+    cdp->evtime = MAX_EV;
+    cdp->request_word = 0;
+}
+
+static void audio_event_reset(void)
+{
+    int i;
+
+    last_cycles = get_cycles () - 1;
+    next_sample_evtime = scaled_sample_evtime;
+    for (i = 0; i < 4; i++) {
+	struct audio_channel_data *cdp = audio_channel + i;
+        zerostate(cdp);
+    }
+    schedule_audio ();
+    events_schedule ();
+}
+	
 static void audio_deactivate(void)
 {
     if (!currprefs.sound_auto)
@@ -944,14 +965,17 @@ static void audio_deactivate(void)
     gui_data.sndbuf_status = 3;
     gui_data.sndbuf = 0;
     clear_sound_buffers();
+    audio_event_reset();
 }
 
 int audio_activate(void)
 {
     int ret = 0;
+ 
     if (!audio_work_to_do) {
 	restart_sound_buffer();
 	ret = 1;
+	audio_event_reset();
     }
     audio_work_to_do = 4 * maxvpos * 50;
     return ret;
@@ -1027,13 +1051,6 @@ static void state23 (struct audio_channel_data *cdp)
     } else {
 	cdp->wlen = (cdp->wlen - 1) & 0xFFFF;
     }
-}
-
-static void zerostate(struct audio_channel_data *cdp)
-{
-    cdp->state = 0;
-    cdp->evtime = MAX_EV;
-    cdp->request_word = 0;
 }
 
 static void audio_handler (int nr, int timed)
@@ -1292,7 +1309,6 @@ void set_audio(void)
 	    }
 	}
     }
-    last_cycles = get_cycles () - 1;
     next_sample_evtime = scaled_sample_evtime;
     compute_vsynctime ();
 
@@ -1350,6 +1366,8 @@ void set_audio(void)
     } else if (sample_handler == sample16si_anti_handler || sample_handler == sample16i_anti_handler) {
 	sample_prehandler = anti_prehandler;
     }
+
+    audio_event_reset();
 
     if (currprefs.produce_sound == 0) {
 	eventtab[ev_audio].active = 0;

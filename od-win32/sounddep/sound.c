@@ -258,8 +258,8 @@ static int open_audio_ds (int size)
 
     snd_writeoffset = max_sndbufsize * 5 / 8;
     snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 1 / 3;
-    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 2 / 3;
+    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 3 / 9;
+    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 7 / 9;
 
     memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
     wavfmt.Format.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
@@ -608,7 +608,7 @@ static void finish_sound_buffer_ds (void)
 	    diff = dsoundbuf - playpos + writepos;
 
 	if (diff < safedist || diff > snd_totalmaxoffset_uf) {
-	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, safedist, &b1, &s1, &b2, &s2, 0);
+	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
 	    if (SUCCEEDED(hr)) {
 		memset (b1, 0, s1);
 		if (b2)
@@ -617,9 +617,9 @@ static void finish_sound_buffer_ds (void)
 	    }
 	    gui_data.sndbuf_status = -1;
 	    statuscnt = SND_STATUSCNT;
-	    writepos += safedist;
+	    writepos += sndbufsize;
 	    cf(writepos);
-	    break;
+	    continue;
 	}
 
 	if (diff > snd_totalmaxoffset_of) {
@@ -627,6 +627,7 @@ static void finish_sound_buffer_ds (void)
 	    statuscnt = SND_STATUSCNT;
 	    restart_sound_buffer();
 	    diff = snd_writeoffset;
+	    write_log("SOUND: overflow (%d %d)\n", diff, snd_totalmaxoffset_of);
 	    break;
 	}
 

@@ -1,4 +1,11 @@
 
+Beta 8: (RC3, really final?)
+
+- random sound automatic restart delay fixed
+- sound underflow handling improved
+- JIT NATMEM VirtalFree() incorrect parameters fixed (MS Application
+  Verifier report)
+
 Beta 7: (RC2)
 
 - AGA sprites outside display window emulated when sprite is above or
@@ -12,8 +19,10 @@ Beta 7: (RC2)
   (according to MSDN WAVEFORMATEXTENSIBLE is required if >2 channels but
   for some reason "incorrect" way also worked previously..)
 - mask unused DIWHIGH bits, could have caused narrow image appearing on
-  screen when loading statefile with diwhigh having highest bit set and
+  screen when loading statefile with DIWHIGH having highest bit set and
   ECS Agnus or AGA enabled.
+- border blanking feature (ECS/AGA BPLCON3 BRDRBLNK-bit) now also
+  updates top and bottom borders
 
 Beta 6: (RC)
 

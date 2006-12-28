@@ -2861,7 +2861,7 @@ static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPoint
     if (ec == EXCEPTION_ACCESS_VIOLATION && !er->ExceptionFlags &&
 	er->NumberParameters >= 2 && !er->ExceptionInformation[0] && regs.pc_p) {
 	    void *p = (void*)er->ExceptionInformation[1];
-	    write_log ("%p %p %p\n", p, regs.pc_p, prevpc);
+	    write_log ("ExceptionFilter Trap: %p %p %p\n", p, regs.pc_p, prevpc);
 	    if ((p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32))
 		|| (p >= (void*)prevpc && p < (void*)(prevpc + 32))) {
 		int got = 0;

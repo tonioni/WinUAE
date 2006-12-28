@@ -151,7 +151,7 @@ void mapped_free(uae_u8 *mem)
 	    if (shmctl(x->id, IPC_STAT, &blah) == 0) {
 		shmctl(x->id, IPC_RMID, &blah);
 	    } else {
-		VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_RESET : (MEM_DECOMMIT | MEM_RELEASE));
+		VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
 	    }
 	}
 	x = x->next;
@@ -273,7 +273,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	got = FALSE;
 	if (got == FALSE) {
 	    if (shmaddr)
-		VirtualFree(shmaddr, 0, os_winnt ? MEM_RESET : MEM_RELEASE);
+		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
 	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT),
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {

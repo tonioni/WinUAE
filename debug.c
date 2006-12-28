@@ -1373,15 +1373,26 @@ static void writeintomem (char **c)
     uae_u32 addr = 0;
     uae_u32 val = 0;
     char cc;
+    int len = 1;
 
     ignore_ws(c);
     addr = readhex (c);
     ignore_ws(c);
     val = readhex (c);
-    if (val > 0xffff) {
+    if (val > 0xffff)
+	len = 4;
+    else if (val > 0xff)
+	len = 2;
+    else
+	len = 1;
+    if (more_params(c)) {
+	ignore_ws(c);
+	len = readint (c);
+    }
+    if (len == 4) {
 	put_long (addr, val);
 	cc = 'L';
-    } else if (val > 0xff) {
+    } else if (len == 2) {
 	put_word (addr, val);
 	cc = 'W';
     } else {
