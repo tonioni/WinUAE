@@ -893,8 +893,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_WINDOWPOSCHANGED:
 	GetWindowRect (hWnd, &amigawin_rect);
 	if (!isfullscreen()) {
-	    currprefs.gfx_size_win.x = amigawin_rect.left;
-	    currprefs.gfx_size_win.y = amigawin_rect.top;
+	    changed_prefs.gfx_size_win.x = amigawin_rect.left;
+	    changed_prefs.gfx_size_win.y = amigawin_rect.top;
 	}
     break;
 
@@ -1188,8 +1188,8 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			RegSetValueEx(hWinUAEKey, "xPos", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
 			RegSetValueEx(hWinUAEKey, "yPos", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
 		    }
-		    currprefs.gfx_size_win.x = left;
-		    currprefs.gfx_size_win.y = top;
+		    changed_prefs.gfx_size_win.x = left;
+		    changed_prefs.gfx_size_win.y = top;
 		}
 		return 0;
 	    }

@@ -1,4 +1,8 @@
 
+Beta 9:
+
+- interrupt timing tweak (Gravity Force in ce-mode)
+
 Beta 8: (RC3, really final?)
 
 - random sound automatic restart delay fixed

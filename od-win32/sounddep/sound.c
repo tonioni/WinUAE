@@ -510,7 +510,9 @@ void restart_sound_buffer(void)
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
     if (FAILED(hr))
 	return;
-    writepos = playpos + snd_writeoffset;
+    writepos = playpos + snd_writeoffset - 2 * sndbufsize;
+    if (writepos < 0)
+	writepos += dsoundbuf;
     cf (writepos);
 }
 
@@ -608,6 +610,7 @@ static void finish_sound_buffer_ds (void)
 	    diff = dsoundbuf - playpos + writepos;
 
 	if (diff < safedist || diff > snd_totalmaxoffset_uf) {
+#if 0
 	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
 	    if (SUCCEEDED(hr)) {
 		memset (b1, 0, s1);
@@ -615,11 +618,15 @@ static void finish_sound_buffer_ds (void)
 		    memset (b2, 0, s2);
 		IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
 	    }
+#endif
 	    gui_data.sndbuf_status = -1;
 	    statuscnt = SND_STATUSCNT;
+	    if (diff > snd_totalmaxoffset_uf)
+		writepos += dsoundbuf - diff;
 	    writepos += sndbufsize;
 	    cf(writepos);
-	    continue;
+	    diff = safedist;
+	    break;
 	}
 
 	if (diff > snd_totalmaxoffset_of) {
@@ -627,7 +634,7 @@ static void finish_sound_buffer_ds (void)
 	    statuscnt = SND_STATUSCNT;
 	    restart_sound_buffer();
 	    diff = snd_writeoffset;
-	    write_log("SOUND: overflow (%d %d)\n", diff, snd_totalmaxoffset_of);
+	    write_log("SOUND: underflow (%d %d)\n", diff, snd_totalmaxoffset_of);
 	    break;
 	}
 

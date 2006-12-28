@@ -2634,12 +2634,20 @@ static void INTREQ_f(uae_u32 data)
     rethink_cias ();
 }
 
+static void INTREQ_d (uae_u16 v, int d)
+{
+    if (!currprefs.cpu_compatible || v == 0)
+	INTREQ_f(v);
+    else
+	event2_newevent2(d, v, INTREQ_f);
+}
+
 void INTREQ (uae_u16 v)
 {
     if (!currprefs.cpu_compatible)
 	INTREQ_f(v);
     else
-	event2_newevent2(6, v, INTREQ_f);
+	INTREQ_d(v, 6);
 }
 
 static void ADKCON (int hpos, uae_u16 v)
@@ -4122,7 +4130,7 @@ static void vsync_handler (void)
 
     handle_events ();
 
-    INTREQ (0x8020);
+    INTREQ_d (0x8000 | 0x0020, 2);
     if (bplcon0 & 4)
 	lof ^= 0x8000;
 
@@ -4383,20 +4391,11 @@ static void hsync_handler (void)
 	next_lineno = lineno;
 	reset_decisions ();
     }
-#if 1
+
 #ifdef FILESYS
     if (uae_int_requested) {
 	INTREQ (0x8000 | 0x0008);
     }
-#endif
-#if 0
-    {
-    extern volatile int bsd_int_requested;
-    if (bsd_int_requested) {
-	INTREQ (0x8000 | 0x2000);
-    }
-    }
-#endif
 #endif
 
     /* See if there's a chance of a copper wait ending this line.  */
@@ -4643,8 +4642,8 @@ void customreset (void)
 	uae_u32 vv;
 
 	audio_update_adkmasks ();
-	INTENA (0);
-	INTREQ (0);
+	INTENA_f (0);
+	INTREQ_f (0);
 #if 0
 	DMACON (0, 0);
 #endif

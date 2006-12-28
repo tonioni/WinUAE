@@ -1113,8 +1113,10 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? (2|8) : 0;
     c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? (2|8) : 0;
     c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? (2|8) : 0;
+#if 0
     c |= currprefs.gfx_size_win.x != changed_prefs.gfx_size_win.x ? 16 : 0;
     c |= currprefs.gfx_size_win.y != changed_prefs.gfx_size_win.y ? 16 : 0;
+#endif
     c |= currprefs.color_mode != changed_prefs.color_mode ? (2|8) : 0;
     c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? (2|8) : 0;
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
