@@ -5,6 +5,7 @@ Beta 9:
 - CPU Idle tweak (slightly less aggressive)
 - file dialogs work again in Windows9X/ME.. Apparently
   nobody is using 9x anymore, I like it :)
+- sound problems really fixed now
 
 Beta 8: (RC3, really final?)
 

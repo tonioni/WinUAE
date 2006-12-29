@@ -509,7 +509,7 @@ void restart_sound_buffer(void)
 	write_log("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError(hr));
 	return;
     }
-    writepos = playpos + snd_writeoffset - sndbufsize;
+    writepos = playpos + snd_writeoffset;
     if (writepos < 0)
 	writepos += dsoundbuf;
     cf (writepos);
@@ -574,6 +574,7 @@ static void finish_sound_buffer_ds (void)
 	if (safedist < 64)
 	    safedist = 64;
 	cf(safedist);
+#if 0
 	snd_totalmaxoffset_uf += safedist;
 	cf (snd_totalmaxoffset_uf);
 	snd_totalmaxoffset_of += safedist;
@@ -582,6 +583,7 @@ static void finish_sound_buffer_ds (void)
 	cf (snd_maxoffset);
 	snd_writeoffset += safedist;
 	cf (snd_writeoffset);
+#endif
 	waiting_for_buffer = -1;
 	restart_sound_buffer();
 	write_log("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
@@ -620,7 +622,7 @@ static void finish_sound_buffer_ds (void)
 	else
 	    diff = dsoundbuf - playpos + writepos;
 
-	if (diff < safedist || diff > snd_totalmaxoffset_uf) {
+	if (diff < sndbufsize || diff > snd_totalmaxoffset_uf) {
 #if 0
 	    hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
 	    if (SUCCEEDED(hr)) {
