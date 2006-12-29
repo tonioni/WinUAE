@@ -367,7 +367,7 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12)
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 9 : ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12))
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM 7
 #define MIN_M68K_PRIORITY 1
@@ -966,7 +966,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	
     }
 
-    openFileName.lStructSize = sizeof (OPENFILENAME);
+    openFileName.lStructSize = os_winnt ? sizeof (OPENFILENAME) : OPENFILENAME_SIZE_VERSION_400;
     openFileName.hwndOwner = hDlg;
     openFileName.hInstance = hInst;
     
@@ -1136,10 +1136,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
 	if (!(result = GetSaveFileName (&openFileName)))
-	    write_log ("GetSaveFileName() failed.\n");
+	    write_log ("GetSaveFileName() failed, err=%d.\n", GetLastError());
     } else {
 	if (!(result = GetOpenFileName (&openFileName)))
-	    write_log ("GetOpenFileName() failed.\n");
+	    write_log ("GetOpenFileName() failed, err=%d.\n", GetLastError());
     }
     memcpy (full_path2, full_path, sizeof (full_path));
     next = 0;

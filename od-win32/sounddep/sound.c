@@ -132,9 +132,15 @@ static void cleardsbuffer (void)
 
 static void pause_audio_ds (void)
 {
+    HRESULT hr;
+
     waiting_for_buffer = 0;
-    IDirectSoundBuffer_Stop (lpDSBsecondary);
-    IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
+    hr = IDirectSoundBuffer_Stop (lpDSBsecondary);
+    if (FAILED(hr))
+	write_log("SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
+    hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
+    if (FAILED(hr))
+	write_log("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError(hr));
     cleardsbuffer ();
 }
 
@@ -150,7 +156,7 @@ static int restore (DWORD hr)
     if (hr != DSERR_BUFFERLOST)
 	return 0;
     if (sound_debug)
-	write_log ("sound buffer lost\n");
+	write_log ("SOUND: sound buffer lost\n");
     hr = IDirectSoundBuffer_Restore (lpDSBsecondary);
     if (FAILED(hr)) {
 	write_log ("SOUND: restore failed %s\n", DXError (hr));
@@ -171,19 +177,6 @@ static double getqpf (void)
     LARGE_INTEGER qpfc2;
     QueryPerformanceCounter(&qpfc2);
     return (qpfc2.QuadPart - qpfc.QuadPart) / (qpf.QuadPart / 1000.0);
-}
-
-static int getpos (void)
-{
-    DWORD playpos, safepos;
-    HRESULT hr;
-
-    hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
-    if (FAILED(hr)) {
-	write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
-	return -1;
-    }
-    return playpos;
 }
 
 static void close_audio_ds (void)
@@ -216,9 +209,16 @@ static void setvolume (void)
         write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
     setvolume_ahi (vol);
 }
-
+static void recalc_offsets(void)
+{
+    snd_writeoffset = max_sndbufsize * 5 / 8;
+    snd_maxoffset = max_sndbufsize;
+    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 3 / 9;
+    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 7 / 9;
+}
+	
 const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
-{0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
+    {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
 
 static int open_audio_ds (int size)
 {
@@ -256,10 +256,7 @@ static int open_audio_ds (int size)
     if (max_sndbufsize * 2 > dsoundbuf)
         max_sndbufsize = dsoundbuf / 2;
 
-    snd_writeoffset = max_sndbufsize * 5 / 8;
-    snd_maxoffset = max_sndbufsize;
-    snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 3 / 9;
-    snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 7 / 9;
+    recalc_offsets();
 
     memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
     wavfmt.Format.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
@@ -508,9 +505,11 @@ void restart_sound_buffer(void)
     if (waiting_for_buffer != -1)
 	return;
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+	write_log("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError(hr));
 	return;
-    writepos = playpos + snd_writeoffset - 2 * sndbufsize;
+    }
+    writepos = playpos + snd_writeoffset - sndbufsize;
     if (writepos < 0)
 	writepos += dsoundbuf;
     cf (writepos);
@@ -524,7 +523,7 @@ static void finish_sound_buffer_ds (void)
     void *b1, *b2;
     DWORD s1, s2;
     int diff;
-    int counter = 1000;
+    int counter;
     double vdiff, m, skipmode;
     static int statuscnt;
 
@@ -549,19 +548,31 @@ static void finish_sound_buffer_ds (void)
 	    waiting_for_buffer = 0;
 	    return;
 	}
-	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safedist);
+	hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
 	if (FAILED(hr)) {
-	    write_log ("SOUND: 1st GetCurrentPosition failed: %s\n", DXError (hr));
+	    write_log ("SOUND: 1st SetCurrentPosition failed: %s\n", DXError (hr));
 	    restore (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
 	}
+	/* there are crappy drivers that return PLAYCURSOR = WRITECURSOR = 0 without this.. */
+	counter = 5000;
+	for (;;) {
+	    hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safedist);
+	    if (playpos > 0)
+		break;
+	    sleep_millis(1);
+	    counter--;
+	    if (counter < 0) {
+		write_log("SOUND: stuck?!?!\n");
+		break;
+	    }
+	}
+	write_log("SOUND: %d = (%d - %d)\n", safedist - playpos, safedist, playpos);
+	recalc_offsets();
 	safedist -= playpos;
 	if (safedist < 64)
 	    safedist = 64;
-	safedist += sndbufsize;
-	if (safedist < 0)
-	    safedist += dsoundbuf;
 	cf(safedist);
 	snd_totalmaxoffset_uf += safedist;
 	cf (snd_totalmaxoffset_uf);
@@ -573,13 +584,14 @@ static void finish_sound_buffer_ds (void)
 	cf (snd_writeoffset);
 	waiting_for_buffer = -1;
 	restart_sound_buffer();
-	write_log("SOUND: safe=%d bs=%d w=%d max=%d tof=%d tuf=%d\n",
-	    safedist - sndbufsize, sndbufsize, snd_writeoffset,
+	write_log("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
+	    sndbufsize, snd_writeoffset,
 	    snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
 	tfprev = timeframes + 10;
 	tfprev = (tfprev / 10) * 10;
     }
 
+    counter = 5000;
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
     if (FAILED(hr)) {
 	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
@@ -603,7 +615,6 @@ static void finish_sound_buffer_ds (void)
 	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
 	}
-
 	if (writepos >= playpos)
 	    diff = writepos - playpos;
 	else

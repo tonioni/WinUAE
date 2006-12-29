@@ -2698,12 +2698,15 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     AVIOutput_Initialize();
 #endif
 
-    argv = xcalloc (sizeof (char*),  __argc);
-    argc = process_arg(argv);
-
     getstartpaths(start_data);
     makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);
+
+    if (!os_winnt && max_allowed_mman > 256)
+	max_allowed_mman = 256;
+
+    argv = xcalloc (sizeof (char*),  __argc);
+    argc = process_arg(argv);
 
     logging_init ();
 

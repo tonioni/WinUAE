@@ -1651,7 +1651,7 @@ static void do_trace (void)
     }
 }
 
-#define IDLETIME (currprefs.cpu_idle * sleep_resolution / 1000)
+#define IDLETIME (currprefs.cpu_idle * sleep_resolution / 700)
 
 STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 {

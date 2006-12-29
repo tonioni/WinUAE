@@ -2,6 +2,9 @@
 Beta 9:
 
 - interrupt timing tweak (Gravity Force in ce-mode)
+- CPU Idle tweak (slightly less aggressive)
+- file dialogs work again in Windows9X/ME.. Apparently
+  nobody is using 9x anymore, I like it :)
 
 Beta 8: (RC3, really final?)
 
