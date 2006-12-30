@@ -68,7 +68,9 @@ static char *sound_devices[MAX_SOUND_DEVICES];
 GUID sound_device_guid[MAX_SOUND_DEVICES];
 static int num_sound_devices;
 
+#ifdef USE_PRIMARY_BUFFER
 static LPDIRECTSOUNDBUFFER lpDSBprimary;
+#endif
 
 #define USE_DS8
 #ifdef USE_DS8
@@ -184,10 +186,12 @@ static void close_audio_ds (void)
     waiting_for_buffer = 0;
     if (lpDSBsecondary)
 	IDirectSound_Release (lpDSBsecondary);
+    lpDSBsecondary = 0;
+#ifdef USE_PRIMARY_BUFFER
     if (lpDSBprimary)
 	IDirectSound_Release (lpDSBprimary);
-    lpDSBsecondary = 0;
     lpDSBprimary = 0;
+#endif
     if (lpDS) {
 	IDirectSound_Release (lpDS);
 	write_log ("SOUND: DirectSound driver freed\n");
@@ -209,6 +213,7 @@ static void setvolume (void)
         write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
     setvolume_ahi (vol);
 }
+
 static void recalc_offsets(void)
 {
     snd_writeoffset = max_sndbufsize * 5 / 8;
@@ -225,17 +230,21 @@ static int open_audio_ds (int size)
     HRESULT hr;
     DSBUFFERDESC sound_buffer;
     DSCAPS DSCaps;
+#ifdef USE_PRIMARY_BUFFER
     DSBCAPS DSBCaps;
+#endif
     WAVEFORMATEXTENSIBLE wavfmt;
-    int freq = currprefs.sound_freq;
     LPDIRECTSOUNDBUFFER pdsb;
-    
+    int freq = currprefs.sound_freq;
+    int ch = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    int round;
+
     enumerate_sound_devices (0);
-    if (currprefs.sound_stereo == 3) {
+    if (ch == 4) {
 	size <<= 3;
     } else {
 	size <<= 1;
-	if (currprefs.sound_stereo)
+	if (ch == 2)
 	    size <<= 1;
     }
     snd_configsize = size;
@@ -257,24 +266,6 @@ static int open_audio_ds (int size)
         max_sndbufsize = dsoundbuf / 2;
 
     recalc_offsets();
-
-    memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
-    wavfmt.Format.nChannels = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
-    wavfmt.Format.wFormatTag = wavfmt.Format.nChannels > 2 ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
-    wavfmt.Format.nSamplesPerSec = freq;
-    wavfmt.Format.wBitsPerSample = 16;
-    wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
-    wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
-    if (wavfmt.Format.nChannels > 2) {
-	wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
-	wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-	wavfmt.Samples.wValidBitsPerSample = 16;
-	wavfmt.dwChannelMask = KSAUDIO_SPEAKER_QUAD;
-    }
-
-    write_log ("SOUND: '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
-	sound_devices[currprefs.win32_soundcard],
-	wavfmt.Format.nChannels, 16, freq, max_sndbufsize, snd_configsize);
 
 #ifdef USE_DS8
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
@@ -316,7 +307,8 @@ static int open_audio_ds (int size)
 	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     }
-    
+
+#if 0
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
     sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER;
@@ -339,24 +331,57 @@ static int open_audio_ds (int size)
         write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
         goto error;
     }
+#endif
 
-    memset (&sound_buffer, 0, sizeof (sound_buffer));
-    sound_buffer.dwSize = sizeof (sound_buffer);
-    sound_buffer.dwBufferBytes = dsoundbuf;
-    sound_buffer.lpwfxFormat = &wavfmt.Format;
-    sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
-    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_LOCSOFTWARE;
-    sound_buffer.guid3DAlgorithm = GUID_NULL;
+    round = 0;
+    for (;;) {
+	int extend = round > 0 && ch > 2;
 
-    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
-    if (FAILED(hr)) {
-        write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
-        goto error;
+	memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
+	wavfmt.Format.nChannels = ch;
+	wavfmt.Format.wFormatTag = extend ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
+	wavfmt.Format.nSamplesPerSec = freq;
+	wavfmt.Format.wBitsPerSample = 16;
+	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
+	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
+	if (extend) {
+	    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
+	    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+	    wavfmt.Samples.wValidBitsPerSample = 16;
+	    wavfmt.dwChannelMask = round == 1 ? SPEAKER_ALL : KSAUDIO_SPEAKER_QUAD;
+	}
+
+	write_log ("SOUND: %s:%d '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
+	    extend ? "EXT" : "PCM", round,
+	    sound_devices[currprefs.win32_soundcard],
+	    wavfmt.Format.nChannels, 16, freq, max_sndbufsize, snd_configsize);
+
+	memset (&sound_buffer, 0, sizeof (sound_buffer));
+	sound_buffer.dwSize = sizeof (sound_buffer);
+	sound_buffer.dwBufferBytes = dsoundbuf;
+	sound_buffer.lpwfxFormat = &wavfmt.Format;
+	sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
+	sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_LOCSOFTWARE;
+	sound_buffer.guid3DAlgorithm = GUID_NULL;
+
+	hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
+	if (FAILED(hr)) {
+	    write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
+	    if (ch <= 2)
+		goto error;
+	    if (round < 3) {
+		round++;
+		continue;
+	    }
+	    goto error;
+	}
+	break;
     }
+
 #ifdef USE_DS8
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
-        write_log ("SOUND: Primary QueryInterface() failure: %s\n", DXError (hr));
+        write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release(pdsb);
@@ -747,7 +772,7 @@ void finish_sound_buffer (void)
     finish_sound_buffer_ds ();
 }
 
-static BOOL CALLBACK DSEnumProc(LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName,  LPVOID lpContext)
+static BOOL CALLBACK DSEnumProc(LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
 {
     int i = num_sound_devices;
     if (i == MAX_SOUND_DEVICES)

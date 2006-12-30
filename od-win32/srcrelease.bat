@@ -89,6 +89,12 @@ cd resourcedll
 rm -rf debug
 rm -rf release
 cd ..
+
+cd fdrawcmd
+rm -rf debug
+rm -rf release
+cd ..
+
 cd ..
 
 zip -9 -r winuaesrc *

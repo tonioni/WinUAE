@@ -2200,7 +2200,7 @@ static void WIN32_HandleRegistryStuff(void)
     load_keyring(NULL, NULL);
 }
 
-#ifdef WINUAEPUBLICBETA
+#if WINUAEPUBLICBETA > 0
 static char *BETAMESSAGE = {
     "This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors."
 };
@@ -2208,7 +2208,7 @@ static char *BETAMESSAGE = {
 
 static int betamessage (void)
 {
-#ifdef WINUAEPUBLICBETA
+#if WINUAEPUBLICBETA > 0
     int showmsg = TRUE;
     HANDLE h = INVALID_HANDLE_VALUE;
     ULONGLONG regft64;
@@ -2554,9 +2554,12 @@ static void makeverstr(char *s)
 #if WINUAEBETA > 0
     sprintf(BetaStr, " (%sBeta %d, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? "Public " : "", WINUAEBETA,
 	GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
-#endif
     sprintf(s, "WinUAE %d.%d.%d%s",
 	UAEMAJOR, UAEMINOR, UAESUBREV, BetaStr);
+#else
+    sprintf(s, "WinUAE %d.%d.%d (%d.%02d.%02d)",
+	UAEMAJOR, UAEMINOR, UAESUBREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+#endif
 }
 
 static int multi_display = 1;

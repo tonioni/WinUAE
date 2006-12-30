@@ -2724,7 +2724,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	recursive++;
 	pages[PATHS_ID] = hDlg;
 	currentpage = PATHS_ID;
-#if !WINUAEBETA
+#if WINUAEBETA == 0
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 #endif
 	numtypes = 0;
@@ -7981,7 +7981,7 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     switch (msg) 
     {
     case WM_INITDIALOG:
-#if !WINUAEBETA
+#if WINUAEBETA == 0
 	ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
 #endif
 	pages[HW3D_ID] = hDlg;
