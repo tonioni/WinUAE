@@ -15,7 +15,6 @@
 #if defined(NATMEM_OFFSET)
 
 static struct shmid_ds shmids[MAX_SHMID];
-static uae_u32 gfxoffs;
 
 uae_u8 *natmem_offset = NULL;
 #ifdef CPU_64_BIT
@@ -85,7 +84,6 @@ void init_shm(void)
     size = max_z3fastmem = (uae_u32)size64;
 
     canbang = 0;
-    gfxoffs = 0;
     shm_start = 0;
     for (i = 0; i < MAX_SHMID; i++) {
 	shmids[i].attached = 0;
@@ -140,19 +138,16 @@ void mapped_free(uae_u8 *mem)
 {
     shmpiece *x = shm_start;
     while(x) {
-	if( mem == x->native_address )
-	    shmdt( x->native_address);
+	if(mem == x->native_address)
+	    shmdt(x->native_address);
 	x = x->next;
     }
     x = shm_start;
     while(x) {
 	struct shmid_ds blah;
 	if (mem == x->native_address) {
-	    if (shmctl(x->id, IPC_STAT, &blah) == 0) {
+	    if (shmctl(x->id, IPC_STAT, &blah) == 0)
 		shmctl(x->id, IPC_RMID, &blah);
-	    } else {
-		VirtualFree((LPVOID)mem, 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-	    }
 	}
 	x = x->next;
     }
@@ -194,14 +189,12 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	
 #ifdef NATMEM_OFFSET
     unsigned int size=shmids[shmid].size;
-    if(shmids[shmid].attached )
+    if(shmids[shmid].attached)
 	return shmids[shmid].attached;
     if ((uae_u8*)shmaddr<natmem_offset) {
 	if(!strcmp(shmids[shmid].name,"chip")) {
 	    shmaddr=natmem_offset;
 	    got = TRUE;
-//	    if(!currprefs.fastmem_size)
-//		size+=32;
 	}
 	if(!strcmp(shmids[shmid].name,"kick")) {
 	    shmaddr=natmem_offset+0xf80000;
@@ -226,21 +219,26 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	    size+=32;
 	}
+	if(!strcmp(shmids[shmid].name,"ramsey_low")) {
+	    shmaddr=natmem_offset + a3000lmem_start;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"ramsey_high")) {
+	    shmaddr=natmem_offset + a3000hmem_start;
+	    got = TRUE;
+	}
 	if(!strcmp(shmids[shmid].name,"z3")) {
 	    shmaddr=natmem_offset+currprefs.z3fastmem_start;
-	    if (allocated_z3fastmem<0x1000000)
-		gfxoffs=0x1000000;
-	    else
-		gfxoffs=allocated_z3fastmem;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"gfx")) {
-	    shmaddr=natmem_offset+currprefs.z3fastmem_start+gfxoffs;
+	    shmaddr=natmem_offset+currprefs.z3fastmem_start+currprefs.z3fastmem_size;
 	    got = TRUE;
-	    size+=32;
+#if 0
 	    result=malloc(size);
 	    shmids[shmid].attached=result;
 	    return result;
+#endif
 	}
 	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
@@ -278,11 +276,14 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {
 		result = (void*)-1;
-		write_log ("VirtualAlloc %p-%p %x (%dk) failed %d\n", shmaddr, (uae_u8*)shmaddr + size,
+		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
+		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 		    size, size >> 10, GetLastError());
 	    } else {
 		shmids[shmid].attached = result; 
-		write_log ("VirtualAlloc %p-%p %x (%dk) ok\n", shmaddr, (uae_u8*)shmaddr + size, size, size >> 10);
+		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok\n",
+		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
+		    size, size >> 10);
 	    }
 	} else {
 	    shmids[shmid].attached = shmaddr;
@@ -325,9 +326,12 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 		result = 0;
 	    break;
 	    case IPC_RMID:
+		VirtualFree(shmids[shmid].attached, os_winnt ? shmids[shmid].size : 0,
+		    os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
 		shmids[shmid].key = -1;
 		shmids[shmid].name[0] = '\0';
 		shmids[shmid].size = 0;
+		shmids[shmid].attached = 0;
 		result = 0;
 	    break;
 	}

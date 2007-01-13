@@ -1292,7 +1292,10 @@ int check_prefs_changed_gfx (void)
     }
 
     if (currprefs.win32_automount_drives != changed_prefs.win32_automount_drives ||
+	currprefs.win32_outsidemouse != changed_prefs.win32_outsidemouse ||
 	currprefs.win32_powersavedisabled != changed_prefs.win32_powersavedisabled) {
+
+	currprefs.win32_outsidemouse = changed_prefs.win32_outsidemouse;
 	currprefs.win32_automount_drives = changed_prefs.win32_automount_drives;
 	currprefs.win32_powersavedisabled = changed_prefs.win32_powersavedisabled;
     }

@@ -28,6 +28,7 @@
 #include "ar.h"
 #include "parallel.h"
 #include "akiko.h"
+#include "cdtv.h"
 #include "debug.h"
 #include "arcadia.h"
 #include "audio.h"
@@ -39,24 +40,6 @@
 #define TOD_HACK
 
 #define DIV10 (10 * CYCLE_UNIT / 2) /* Yes, a bad identifier. */
-
-/* battclock stuff */
-#define RTC_D_ADJ      8
-#define RTC_D_IRQ      4
-#define RTC_D_BUSY     2
-#define RTC_D_HOLD     1
-#define RTC_E_t1       8
-#define RTC_E_t0       4
-#define RTC_E_INTR     2
-#define RTC_E_MASK     1
-#define RTC_F_TEST     8
-#define RTC_F_24_12    4
-#define RTC_F_STOP     2
-#define RTC_F_RSET     1
-
-static unsigned int clock_control_d = RTC_D_ADJ + RTC_D_HOLD;
-static unsigned int clock_control_e = 0;
-static unsigned int clock_control_f = RTC_F_24_12;
 
 static unsigned int ciaaicr, ciaaimask, ciabicr, ciabimask;
 static unsigned int ciaacra, ciaacrb, ciabcra, ciabcrb;
@@ -1012,11 +995,9 @@ void CIA_reset (void)
 	DISK_select (ciabprb);
     }
 #ifdef CD32
-    if (cd32_enabled) {
-	akiko_reset ();
-	if (!akiko_init ())
-	    cd32_enabled = 0;
-    }
+    akiko_reset ();
+    if (!akiko_init ())
+        currprefs.cs_cd32cd = changed_prefs.cs_cd32cd = 0;
 #endif
 }
 
@@ -1086,10 +1067,6 @@ uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END)
-	return akiko_bget (addr);
-#endif
     cia_wait_pre ();
     v = 0xff;
     switch ((addr >> 12) & 3)
@@ -1124,10 +1101,6 @@ uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END)
-	return akiko_wget (addr);
-#endif
     cia_wait_pre ();
     v = 0xffff;
     switch ((addr >> 12) & 3)
@@ -1161,10 +1134,6 @@ uae_u32 REGPARAM2 cia_lget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END)
-	return akiko_lget (addr);
-#endif
     v = cia_wget (addr) << 16;
     v |= cia_wget (addr + 2);
     return v;
@@ -1190,12 +1159,6 @@ void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END) {
-	akiko_bput (addr, value);
-	return;
-    }
-#endif
     cia_wait_pre ();
     if ((addr & 0x2000) == 0)
 	WriteCIAB (r, value);
@@ -1214,12 +1177,6 @@ void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END) {
-	akiko_wput (addr, value);
-	return;
-    }
-#endif
     cia_wait_pre ();
     if ((addr & 0x2000) == 0)
 	WriteCIAB (r, value >> 8);
@@ -1237,61 +1194,9 @@ void REGPARAM2 cia_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-#ifdef CD32
-    if (cd32_enabled && addr >= AKIKO_BASE && addr < AKIKO_BASE_END) {
-	akiko_lput (addr, value);
-	return;
-    }
-#endif
     cia_wput (addr, value >> 16);
     cia_wput (addr + 2, value & 0xffff);
 }
-
-#ifdef CDTV
-/* CDTV batterybacked RAM emulation */
-
-static uae_u8 cdtv_battram[4096];
-#define CDTV_NVRAM_MASK 4095
-#define CDTV_NVRAM_SIZE 2048
-int cdtv_enabled;
-
-static void cdtv_battram_reset (void)
-{
-    struct zfile *f = zfile_fopen (currprefs.flashfile,"rb");
-    if (!f)
-	return;
-    zfile_fread (cdtv_battram, CDTV_NVRAM_SIZE,1 ,f);
-    zfile_fclose (f);
-}
-
-static void cdtv_battram_write (int addr, int v)
-{
-    struct zfile *f;
-    int offset = addr & CDTV_NVRAM_MASK;
-    if (offset >= CDTV_NVRAM_SIZE)
-	return;
-    if (cdtv_battram[offset] == v)
-	return;
-    cdtv_battram[offset] = v;
-    f = zfile_fopen (currprefs.flashfile,"rb+");
-    if (!f)
-	return;
-    zfile_fseek (f, offset, SEEK_SET);
-    zfile_fwrite (cdtv_battram + offset, 1, 1, f);
-    zfile_fclose (f);
-}
-
-static uae_u8 cdtv_battram_read (int addr)
-{
-    uae_u8 v;
-    int offset;
-    offset = addr & CDTV_NVRAM_MASK;
-    if (offset >= CDTV_NVRAM_SIZE)
-	return 0;
-    v = cdtv_battram[offset];
-    return v;
-}
-#endif
 
 /* battclock memory access */
 
@@ -1309,6 +1214,27 @@ addrbank clock_bank = {
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
+static unsigned int clock_control_d;
+static unsigned int clock_control_e;
+static unsigned int clock_control_f;
+
+static uae_u8 rtc_memory[13], rtc_alarm[13];
+
+void rtc_hardreset(void)
+{
+    if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	clock_control_d = 0x1;
+	clock_control_e = 0;
+	clock_control_f = 0x4; /* 24/12 */
+    } else if (currprefs.cs_rtc == 2) { /* RF5C01A */
+	clock_control_d = 0x4; /* Timer EN */
+	clock_control_e = 0;
+	clock_control_f = 0;
+	memset (rtc_memory, 0, 13);
+	memset (rtc_alarm, 0, 13);
+    }
+}
+
 uae_u32 REGPARAM2 clock_lget (uaecptr addr)
 {
     return (clock_wget (addr) << 16) | clock_wget (addr + 2);
@@ -1324,31 +1250,63 @@ uae_u32 REGPARAM2 clock_bget (uaecptr addr)
     time_t t = time(0);
     struct tm *ct;
 
-#ifdef CDTV
-    if (cdtv_enabled && addr >= 0xdc8000)
-	return cdtv_battram_read (addr);
-#endif
-    ct = localtime (&t);
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    switch (addr & 0x3f) {
-    case 0x03: return ct->tm_sec % 10;
-    case 0x07: return ct->tm_sec / 10;
-    case 0x0b: return ct->tm_min % 10;
-    case 0x0f: return ct->tm_min / 10;
-    case 0x13: return ct->tm_hour % 10;
-    case 0x17: return ct->tm_hour / 10;
-    case 0x1b: return ct->tm_mday % 10;
-    case 0x1f: return ct->tm_mday / 10;
-    case 0x23: return (ct->tm_mon+1) % 10;
-    case 0x27: return (ct->tm_mon+1) / 10;
-    case 0x2b: return ct->tm_year % 10;
-    case 0x2f: return ct->tm_year / 10;
-    case 0x33: return ct->tm_wday;  /*Hack by -=SR=- */
-    case 0x37: return clock_control_d;
-    case 0x3b: return clock_control_e;
-    case 0x3f: return clock_control_f;
+    t += currprefs.cs_rtc_adjust;
+#ifdef CDTV
+    if (currprefs.cs_cdtvram && addr >= 0xdc8000)
+	return cdtv_battram_read (addr);
+#endif
+    ct = localtime (&t);
+    addr &= 0x3f;
+    if ((addr & 3) != 3)
+	return 0;
+    addr >>= 2;
+    if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	switch (addr) {
+	    case 0x0: return ct->tm_sec % 10;
+	    case 0x1: return ct->tm_sec / 10;
+	    case 0x2: return ct->tm_min % 10;
+	    case 0x3: return ct->tm_min / 10;
+	    case 0x4: return ct->tm_hour % 10;
+	    case 0x5: return ct->tm_hour / 10;
+	    case 0x6: return ct->tm_mday % 10;
+	    case 0x7: return ct->tm_mday / 10;
+	    case 0x8: return (ct->tm_mon + 1) % 10;
+	    case 0x9: return (ct->tm_mon + 1) / 10;
+	    case 0xA: return ct->tm_year % 10;
+	    case 0xB: return ct->tm_year / 10;
+	    case 0xC: return ct->tm_wday;
+	    case 0xD: return clock_control_d;
+	    case 0xE: return clock_control_e;
+	    case 0xF: return clock_control_f;
+	}
+    } else if (currprefs.cs_rtc == 2) { /* RF5C01A */
+	int bank = clock_control_d & 3;
+        /* memory access */
+	if (bank >= 2 && addr < 0x0d)
+	    return (rtc_memory[addr] >> ((bank == 2) ? 0 : 4)) & 0x0f;
+	/* alarm */
+	if (bank == 1 && addr < 0x0d)
+	    return rtc_alarm[addr];
+	switch (addr) {
+	    case 0x0: return ct->tm_sec % 10;
+	    case 0x1: return ct->tm_sec / 10;
+	    case 0x2: return ct->tm_min % 10;
+	    case 0x3: return ct->tm_min / 10;
+	    case 0x4: return ct->tm_hour % 10;
+	    case 0x5: return ct->tm_hour / 10;
+	    case 0x6: return ct->tm_wday;
+	    case 0x7: return ct->tm_mday % 10;
+	    case 0x8: return ct->tm_mday / 10;
+	    case 0x9: return (ct->tm_mon+1) % 10;
+	    case 0xA: return (ct->tm_mon+1) / 10;
+	    case 0xB: return ct->tm_year % 10;
+	    case 0xC: return ct->tm_year / 10;
+	    case 0xD: return clock_control_d;
+	    /* E and F = write-only */
+	}
     }
     return 0;
 }
@@ -1371,16 +1329,51 @@ void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
     special_mem |= S_WRITE;
 #endif
 #ifdef CDTV
-    if (cdtv_enabled && addr >= 0xdc8000) {
+    if (currprefs.cs_cdtvram && addr >= 0xdc8000) {
 	cdtv_battram_write (addr, value);
 	return;
     }
 #endif
-    switch (addr & 0x3f) {
-    case 0x37: clock_control_d = value; break;
-    case 0x3b: clock_control_e = value; break;
-    case 0x3f: clock_control_f = value; break;
+    addr &= 0x3f;
+    if ((addr & 3) != 3)
+	return;
+    addr >>= 2;
+    value &= 0x0f;
+    if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	switch (addr)
+	{
+	    case 0xD: clock_control_d = value & (1|8); break;
+	    case 0xE: clock_control_e = value; break;
+	    case 0xF: clock_control_f = value; break;
+	}
+    } else if (currprefs.cs_rtc == 2) { /* RF5C01A */
+	int bank = clock_control_d & 3;
+        /* memory access */
+	if (bank >= 2 && addr < 0x0d) {
+	    rtc_memory[addr] &= ((bank == 2) ? 0xf0 : 0x0f);
+	    rtc_memory[addr] |= value << ((bank == 2) ? 0 : 4);
+	    return;
+	}
+	/* alarm */
+	if (bank == 1 && addr < 0x0d) {
+	    rtc_alarm[addr] = value;
+	    rtc_alarm[0] = rtc_alarm[1] = rtc_alarm[9] = rtc_alarm[12] = 0;
+	    rtc_alarm[3] &= ~0x8;
+	    rtc_alarm[5] &= ~0xc;
+	    rtc_alarm[6] &= ~0x8;
+	    rtc_alarm[8] &= ~0xc;
+	    rtc_alarm[10] &= ~0xe;
+	    rtc_alarm[11] &= ~0xc;
+	    return;
+	}
+	switch (addr)
+	{
+	    case 0xD: clock_control_d = value; break;
+	    case 0xE: clock_control_e = value; break;
+	    case 0xF: clock_control_f = value; break;
+	}
     }
+
 }
 
 #ifdef SAVESTATE

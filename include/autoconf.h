@@ -36,28 +36,22 @@ extern uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 extern uaecptr ROM_hardfile_init;
 extern uaecptr filesys_initcode;
 
-extern int nr_units (struct uaedev_mount_info *mountinfo);
-extern int is_hardfile (struct uaedev_mount_info *mountinfo, int unit_no);
-extern char *set_filesys_unit (struct uaedev_mount_info *mountinfo, int,
-			       char *devname, char *volname, char *rootdir, int readonly,
-			       int secs, int surfaces, int reserved,
-			       int blocksize, int bootpri, char *filesysdir, int flags);
-extern char *add_filesys_unit (struct uaedev_mount_info *mountinfo,
-			       char *devname, char *volname, char *rootdir, int readonly,
-			       int secs, int surfaces, int reserved,
-			       int blocksize, int bootpri, char *filesysdir, int flags);
-extern char *get_filesys_unit (struct uaedev_mount_info *mountinfo, int nr,
-			       char **devname, char **volame, char **rootdir, int *readonly,
-			       int *secspertrack, int *surfaces, int *reserved,
-			       int *cylinders, uae_u64 *size, int *blocksize, int *bootpri, char **filesysdir, int *flags);
-extern int kill_filesys_unit (struct uaedev_mount_info *mountinfo, int);
-extern int move_filesys_unit (struct uaedev_mount_info *mountinfo, int nr, int to);
-extern int sprintf_filesys_unit (struct uaedev_mount_info *mountinfo, char *buffer, int num);
-extern void write_filesys_config (struct uae_prefs *p, struct uaedev_mount_info *mountinfo, const char *unexpanded,
-				  const char *defaultpath, struct zfile *f);
+extern int is_hardfile (int unit_no);
+extern int nr_units (void);
 
-extern void dup_mountinfo (struct uaedev_mount_info *,  struct uaedev_mount_info *);
-extern void free_mountinfo (struct uaedev_mount_info *);
+struct mountedinfo
+{
+    uae_u64 size;
+    int ismounted;
+    int nrcyls;
+};
+
+extern int add_filesys_unitconfig (struct uae_prefs *p, int index, char *error);
+extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo*);
+extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
+extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
+
+extern int sprintf_filesys_unit (char *buffer, int num);
 
 extern void filesys_reset (void);
 extern void filesys_cleanup (void);

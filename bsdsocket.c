@@ -245,14 +245,16 @@ void releasesock (SB, int sd)
 
 /* Signal queue */
 /* @@@ TODO: ensure proper interlocking */
-#if 0
+#if 1
 struct socketbase *sbsigqueue;
 volatile int bsd_int_requested;
 #endif
 
 void addtosigqueue (SB, int events)
 {
+#if 0
     uae_u32 ot, sts;
+#endif
 
     locksigqueue ();
 
@@ -260,7 +262,7 @@ void addtosigqueue (SB, int events)
 	sb->sigstosend |= sb->eventsigs;
     else
 	sb->sigstosend |= ((uae_u32) 1) << sb->signal;
-#if 0
+#if 1
     if (!sb->dosignal) {
 	sb->nextsig = sbsigqueue;
 	sbsigqueue = sb;
@@ -268,7 +270,10 @@ void addtosigqueue (SB, int events)
     sb->dosignal = 1;
 
     bsd_int_requested = 1;
-#endif
+
+    unlocksigqueue ();
+
+#else
 
     ot = sb->ownertask;
     sts = sb->sigstosend;
@@ -279,11 +284,36 @@ void addtosigqueue (SB, int events)
 
     if (sts)
 	uae_Signal(ot, sts);
+#endif
 
-    //INTREQ (0x8000 | 0x2000);
 }
 
-#if 0
+#if 1
+void bsdsock_fake_int_handler(void)
+{
+    locksigqueue ();
+
+    bsd_int_requested = 0;
+
+    if (sbsigqueue != NULL) {
+        SB;
+
+	for (sb = sbsigqueue; sb; sb = sb->nextsig) {
+	    if (sb->dosignal == 1) {
+		uae_Signal(sb->ownertask, sb->sigstosend);
+		sb->sigstosend = 0;
+	    }
+	    sb->dosignal = 0;
+	}
+
+	sbsigqueue = NULL;
+    }
+
+    unlocksigqueue ();
+}
+
+#else
+
 static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
 {
     SB;
@@ -334,7 +364,7 @@ void waitsig (TrapContext *context, SB)
 
 void cancelsig (TrapContext *context, SB)
 {
-#if 0
+#if 1
     locksigqueue ();
     if (sb->dosignal)
 	sb->dosignal = 2;
@@ -442,7 +472,7 @@ static void free_socketbase (TrapContext *context)
 	    }
 	}
 
-#if 0
+#if 1
 	if (sb == sbsigqueue)
 	    sbsigqueue = sb->next;
 	else {
@@ -1411,7 +1441,7 @@ void bsdlib_reset (void)
     }
 
     socketbases = NULL;
-#if 0
+#if 1
     sbsigqueue = NULL;
 #endif
 

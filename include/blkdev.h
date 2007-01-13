@@ -65,6 +65,7 @@ typedef uae_u8* (*toc_func)(int);
 typedef uae_u8* (*read_func)(int, int);
 typedef int (*write_func)(int, int);
 typedef int (*isatapi_func)(int);
+typedef int (*ismedia_func)(int);
 
 struct device_functions {
     open_bus_func openbus;
@@ -88,6 +89,7 @@ struct device_functions {
 
     scsiinfo_func scsiinfo;
 
+    ismedia_func ismedia;
     
 };
 
@@ -107,6 +109,7 @@ extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);
 extern uae_u8 *sys_command_read (int mode, int unitnum, int offset);
 extern int sys_command_write (int mode, int unitnum, int offset);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
+extern int sys_command_ismedia (int mode, int unitnum);
 
 void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);
 void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *data, int *datalen, int parm);

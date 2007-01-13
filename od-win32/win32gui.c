@@ -9,6 +9,8 @@
 
 #define FRONTEND 0
 
+#define _WIN32_WINNT 0x600
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -63,6 +65,7 @@
 #include "opengl.h"
 #include "direct3d.h"
 #include "akiko.h"
+#include "cdtv.h"
 #include "gfxfilter.h"
 #include "driveclick.h"
 #ifdef PROWIZARD
@@ -121,7 +124,7 @@ void WIN32GUI_LoadUIString( DWORD id, char *string, DWORD dwStringLen )
 static int C_PAGES;
 #define MAX_C_PAGES 30
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
-    DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
+    DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, CHIPSET2_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
     HARDDISK_ID = -1, PORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
     PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, FRONTEND_ID = -1;
 static HWND pages[MAX_C_PAGES];
@@ -370,6 +373,9 @@ static HWND cachedlist = NULL;
 #define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 9 : ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12))
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM 7
+#define MIN_MB_MEM 0
+#define MAX_MB_MEM 7
+
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
 #define MIN_CACHE_SIZE 0
@@ -705,7 +711,10 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
     strcpy (fname, filename);
     if (!zfile_exists (fname)) {
 	fetch_configurationpath (fname, sizeof (fname));
-	strcat (fname, filename);
+	if (memcmp(fname, filename, strlen(fname)))
+	    strcat (fname, filename);
+	else
+	    strcpy (fname, filename);
     }
 
     if (isdefault)
@@ -716,9 +725,6 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
     }
     if (type == 0 || type == 1) {
 	discard_prefs (p, 0);
-#ifdef FILESYS
-	free_mountinfo (currprefs.mountinfo);
-#endif
     }
     type2 = type;
     if (type == 0)
@@ -778,6 +784,9 @@ void gui_display(int shortcut)
 #ifdef CD32
     akiko_entergui ();
 #endif
+#ifdef CDTV
+    cdtv_entergui ();
+#endif
     inputdevice_unacquire ();
     clearallkeys ();
 #ifdef AHI
@@ -807,7 +816,7 @@ void gui_display(int shortcut)
 	int ret;
 	if (flipflop)
 	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
-	ret = GetSettings (0, flipflop ? (currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow()) : hAmigaWnd);
+	ret = GetSettings (0, flipflop ? (currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL) : hAmigaWnd);
 	if (flipflop > 0)
 	    ShowWindow (hAmigaWnd, SW_RESTORE);
 	if (!ret) {
@@ -835,6 +844,9 @@ void gui_display(int shortcut)
 #ifdef CD32
     akiko_exitgui ();
 #endif
+#ifdef CDTV
+    cdtv_exitgui ();
+#endif
     if (flipflop >= 0)
 	setmouseactive (1);
 #ifdef D3D
@@ -857,6 +869,10 @@ void gui_display(int shortcut)
 static void prefs_to_gui (struct uae_prefs *p)
 {
     workprefs = *p;
+    /* filesys hack */
+    workprefs.mountitems = currprefs.mountitems;
+    memcpy(&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
+
     updatewinfsmode (&workprefs);
 #if 0
 #ifdef _DEBUG
@@ -870,6 +886,10 @@ static void gui_to_prefs (void)
 {
     /* Always copy our prefs to changed_prefs, ... */
     changed_prefs = workprefs;
+    /* filesys hack */
+    currprefs.mountitems = changed_prefs.mountitems;
+    memcpy(&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
+
     updatewinfsmode (&changed_prefs);
 }
 
@@ -1758,7 +1778,7 @@ static int clicked_entry = -1;
 
 #define LOADSAVE_COLUMNS 2
 #define INPUT_COLUMNS 4
-#define HARDDISK_COLUMNS 7
+#define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
 #define MAX_COLUMN_HEADING_WIDTH 20
 
@@ -1777,12 +1797,12 @@ void InitializeListView (HWND hDlg)
     LV_ITEM lvstruct;
     LV_COLUMN lvcolumn;
     RECT rect;
-    char column_heading[ HARDDISK_COLUMNS ][ MAX_COLUMN_HEADING_WIDTH ];
+    char column_heading[HARDDISK_COLUMNS][MAX_COLUMN_HEADING_WIDTH];
     char blocksize_str[6] = "";
     char readwrite_str[10] = "";
     char size_str[32] = "";
-    char volname_str[ MAX_DPATH ] = "";
-    char devname_str[ MAX_DPATH ] = "";
+    char volname_str[MAX_DPATH] = "";
+    char devname_str[MAX_DPATH] = "";
     char bootpri_str[6] = "";
     int width = 0;
     int items = 0, result = 0, i, j, entry = 0, temp = 0;
@@ -1791,13 +1811,14 @@ void InitializeListView (HWND hDlg)
     if (hDlg == pages[HARDDISK_ID]) {
 	listview_num_columns = HARDDISK_COLUMNS;
 	lv_type = LV_HARDDISK;
-	WIN32GUI_LoadUIString(IDS_DEVICE, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_VOLUME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_PATH, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_RW, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_BLOCKSIZE, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_HFDSIZE, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
-	WIN32GUI_LoadUIString(IDS_BOOTPRI, column_heading[6], MAX_COLUMN_HEADING_WIDTH);
+	strcpy (column_heading[0], "*");
+	WIN32GUI_LoadUIString(IDS_DEVICE, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_VOLUME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_PATH, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_RW, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_BLOCKSIZE, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_HFDSIZE, column_heading[6], MAX_COLUMN_HEADING_WIDTH);
+	WIN32GUI_LoadUIString(IDS_BOOTPRI, column_heading[7], MAX_COLUMN_HEADING_WIDTH);
 	list = GetDlgItem(hDlg, IDC_VOLUMELIST);
     } else if (hDlg == pages[INPUT_ID]) {
 	listview_num_columns = INPUT_COLUMNS;
@@ -1898,117 +1919,118 @@ void InitializeListView (HWND hDlg)
     else if (lv_type == LV_HARDDISK)
     {
 #ifdef FILESYS
-	for( i = 0; i < nr_units( currprefs.mountinfo ); i++ )
+	for(i = 0; i < workprefs.mountitems; i++)
 	{
-	    int secspertrack, surfaces, reserved, blocksize, bootpri;
-	    uae_u64 size;
-	    int cylinders, readonly, type;
-	    char *volname, *devname, *rootdir;
-	    char *failure;
+	    struct uaedev_config_info *uci = &workprefs.mountconfig[i];
+	    int nosize = 0, type;
+	    struct mountedinfo mi;
 
-	    failure = get_filesys_unit (currprefs.mountinfo, i,
-					&devname, &volname, &rootdir, &readonly,
-					&secspertrack, &surfaces, &reserved,
-					&cylinders, &size, &blocksize, &bootpri, 0, 0);
-	    type = is_hardfile (currprefs.mountinfo, i);
-	    
-	    if (size >= 1024 * 1024 * 1024)
-		sprintf (size_str, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
+	    type = get_filesys_unitconfig (&workprefs, i, &mi);
+	    if (type < 0) {
+		type = uci->volname[0] ? FILESYS_VIRTUAL : FILESYS_HARDFILE;
+		nosize = 1;
+	    }
+
+	    if (nosize)
+		strcpy (size_str, "n/a");
+	    else if (mi.size >= 1024 * 1024 * 1024)
+		sprintf (size_str, "%.1fG", ((double)(uae_u32)(mi.size / (1024 * 1024))) / 1024.0);
 	    else
-		sprintf (size_str, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
+		sprintf (size_str, "%.1fM", ((double)(uae_u32)(mi.size / (1024))) / 1024.0);
+
 	    if (type == FILESYS_HARDFILE) {
-		sprintf (blocksize_str, "%d", blocksize);
-		strcpy (devname_str, devname);
+		sprintf (blocksize_str, "%d", uci->blocksize);
+		strcpy (devname_str, uci->devname);
 		strcpy (volname_str, "n/a");
-		sprintf (bootpri_str, "%d", bootpri);
+		sprintf (bootpri_str, "%d", uci->bootpri);
 	    } else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
-		sprintf (blocksize_str, "%d", blocksize);
+		sprintf (blocksize_str, "%d", uci->blocksize);
 		strcpy (devname_str, "n/a");
 		strcpy (volname_str, "n/a");
 		strcpy (bootpri_str, "n/a");
 	    } else {
 		strcpy (blocksize_str, "n/a");
-		strcpy (devname_str, devname);
-		strcpy (volname_str, volname);
+		strcpy (devname_str, uci->devname);
+		strcpy (volname_str, uci->volname);
 		strcpy (size_str, "n/a");
-		sprintf (bootpri_str, "%d", bootpri);
+		sprintf (bootpri_str, "%d", uci->bootpri);
 	    }
-	    if (readonly)
+	    if (uci->readonly)
 		WIN32GUI_LoadUIString (IDS_NO, readwrite_str, sizeof (readwrite_str));
 	    else
 		WIN32GUI_LoadUIString (IDS_YES, readwrite_str, sizeof (readwrite_str));
 
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-	    lvstruct.pszText  = devname_str;
+	    lvstruct.pszText  = mi.ismounted ? "*" : " ";
 	    lvstruct.lParam   = 0;
 	    lvstruct.iItem    = i;
 	    lvstruct.iSubItem = 0;
 	    result = ListView_InsertItem (list, &lvstruct);
 	    if (result != -1) {
-		width = ListView_GetStringWidth( list, devname_str) + 15;
-		if( width > listview_column_width[0] )
-		    listview_column_width[0] = width;
 
-		ListView_SetItemText( list, result, 1, volname_str );
-		width = ListView_GetStringWidth( list, volname_str ) + 15;
-		if( width > listview_column_width[ 1 ] )
-		    listview_column_width[ 1 ] = width;
+		listview_column_width[0] = 15;
 
-		listview_column_width [ 2 ] = 150;
-		ListView_SetItemText( list, result, 2, rootdir );
-		width = ListView_GetStringWidth( list, rootdir ) + 15;
-		if( width > listview_column_width[ 2 ] )
-		    listview_column_width[ 2 ] = width;
+		width = ListView_GetStringWidth(list, devname_str) + 10;
+		ListView_SetItemText(list, result, 1, devname_str);
+		if(width > listview_column_width[1])
+		    listview_column_width[1] = width;
 
-		ListView_SetItemText( list, result, 3, readwrite_str );
-		width = ListView_GetStringWidth( list, readwrite_str ) + 15;
-		if( width > listview_column_width[ 3 ] )
-		    listview_column_width[ 3 ] = width;
+		ListView_SetItemText(list, result, 1, volname_str);
+		width = ListView_GetStringWidth(list, volname_str) + 10;
+		if(width > listview_column_width[2])
+		    listview_column_width[2] = width;
 
-		ListView_SetItemText( list, result, 4, blocksize_str );
-		width = ListView_GetStringWidth( list, blocksize_str ) + 15;
-		if( width > listview_column_width[ 4 ] )
-		    listview_column_width[ 4 ] = width;
+		listview_column_width [3] = 150;
+		ListView_SetItemText(list, result, 3, uci->rootdir);
+		width = ListView_GetStringWidth(list, uci->rootdir) + 10;
+		if(width > listview_column_width[3])
+		    listview_column_width[3] = width;
 
-		ListView_SetItemText( list, result, 5, size_str );
-		width = ListView_GetStringWidth( list, size_str ) + 15;
-		if( width > listview_column_width[ 5 ] )
-		    listview_column_width[ 5 ] = width;
+		ListView_SetItemText(list, result, 4, readwrite_str);
+		width = ListView_GetStringWidth(list, readwrite_str) + 10;
+		if(width > listview_column_width[4])
+		    listview_column_width[4] = width;
 
-		ListView_SetItemText( list, result, 6, bootpri_str );
-		width = ListView_GetStringWidth( list, bootpri_str ) + 15;
-		if( width > listview_column_width[ 6 ] )
-		    listview_column_width[ 6 ] = width;
+		ListView_SetItemText(list, result, 5, blocksize_str);
+		width = ListView_GetStringWidth(list, blocksize_str) + 10;
+		if(width > listview_column_width[5])
+		    listview_column_width[5] = width;
+
+		ListView_SetItemText(list, result, 6, size_str);
+		width = ListView_GetStringWidth(list, size_str) + 10;
+		if(width > listview_column_width[6])
+		    listview_column_width[6] = width;
+
+		ListView_SetItemText(list, result, 7, bootpri_str);
+		width = ListView_GetStringWidth(list, bootpri_str) + 10;
+		if(width > listview_column_width[7] )
+		    listview_column_width[7] = width;
 	    }
 	}
 #endif
     }
 
-    if( result != -1 )
-    {
-	if( GetWindowRect( list, &rect ) )
-	{
-	    ScreenToClient( hDlg, (LPPOINT)&rect );
-	    ScreenToClient( hDlg, (LPPOINT)&rect.right );
-	    if( listview_num_columns == 2 )
-	    {
-		if( ( temp = rect.right - rect.left - listview_column_width[ 0 ] - 4 ) > listview_column_width[1] )
+    if(result != -1) {
+	if(GetWindowRect(list, &rect)) {
+	    ScreenToClient(hDlg, (LPPOINT)&rect);
+	    ScreenToClient(hDlg, (LPPOINT)&rect.right);
+	    if(listview_num_columns == 2) {
+		if((temp = rect.right - rect.left - listview_column_width[0] - 4) > listview_column_width[1])
 		    listview_column_width[1] = temp;
 	    }
 	}
 
 	// Adjust our column widths so that we can see the contents...
-	for( i = 0; i < listview_num_columns; i++ )
-	{
-	    ListView_SetColumnWidth( list, i, listview_column_width[i] );
+	for(i = 0; i < listview_num_columns; i++) {
+	    ListView_SetColumnWidth(list, i, listview_column_width[i]);
 	}
 
 	// Turn on full-row-select option
-	ListView_SetExtendedListViewStyle( list, LVS_EX_FULLROWSELECT );
+	ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT);
 
 	// Redraw the items in the list...
-	items = ListView_GetItemCount( list );
-	ListView_RedrawItems( list, 0, items );
+	items = ListView_GetItemCount(list);
+	ListView_RedrawItems(list, 0, items);
     }
 }
 
@@ -3388,51 +3410,15 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_FASTCOPPER, FALSE);
 	CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
     }
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_EXT), workprefs.cs_compatible ? TRUE : FALSE);
 }
 
+static DWORD idnth[] = { IDS_SECOND, IDS_THIRD, IDS_FOURTH, IDS_FIFTH, IDS_SIXTH, IDS_SEVENTH, IDS_EIGHTH, IDS_NINTH, IDS_TENTH, -1 };
 static void LoadNthString( DWORD value, char *nth, DWORD dwNthMax )
 {
-    switch( value )
-    {
-	case 1:
-	    WIN32GUI_LoadUIString(IDS_SECOND, nth, dwNthMax);
-	break;
-
-	case 2:
-	    WIN32GUI_LoadUIString(IDS_THIRD, nth, dwNthMax);	
-	break;
-	
-	case 3:
-	    WIN32GUI_LoadUIString(IDS_FOURTH, nth, dwNthMax);	
-	break;
-	
-	case 4:
-	    WIN32GUI_LoadUIString(IDS_FIFTH, nth, dwNthMax);	
-	break;
-	
-	case 5:
-	    WIN32GUI_LoadUIString(IDS_SIXTH, nth, dwNthMax);	
-	break;
-	
-	case 6:
-	    WIN32GUI_LoadUIString(IDS_SEVENTH, nth, dwNthMax);	
-	break;
-	
-	case 7:
-	    WIN32GUI_LoadUIString(IDS_EIGHTH, nth, dwNthMax);	
-	break;
-	
-	case 8:
-	    WIN32GUI_LoadUIString(IDS_NINTH, nth, dwNthMax);	
-	break;
-	
-	case 9:
-	    WIN32GUI_LoadUIString(IDS_TENTH, nth, dwNthMax);	
-	break;
-	
-	default:
-	    strcpy(nth, "");
-    }
+    nth[0] = 0;
+    if (value >= 1 && value <= 9)
+	WIN32GUI_LoadUIString(idnth[value - 1], nth, dwNthMax);
 }
 
 static int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -3611,11 +3597,9 @@ static void init_display_mode (HWND hDlg)
 	break;
     }
 
-    if (workprefs.gfx_afullscreen)
-    {
+    if (workprefs.gfx_afullscreen) {
 	d2 = d;
-	if ((index = WIN32GFX_AdjustScreenmode(&workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0)
-	{
+	if ((index = WIN32GFX_AdjustScreenmode(&workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
 	    switch (d2)
 	    {
 	    case 15:
@@ -3636,9 +3620,7 @@ static void init_display_mode (HWND hDlg)
 		break;
 	    }
 	}
-    }
-    else
-    {
+    } else {
 	d = d / 8;
     }
 
@@ -3687,20 +3669,18 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, v);
     WIN32GUI_LoadUIString( IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH );
     LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
-    if( FormatMessage( FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-		       buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0 )
+    if(FormatMessage( FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+		       buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
     {
 	DWORD dwLastError = GetLastError();
 	sprintf (buffer, "Every %s Frame", nth[v - 1]);
-	SetDlgItemText( hDlg, IDC_RATETEXT, buffer );
-    }
-    else
-    {
-	SetDlgItemText( hDlg, IDC_RATETEXT, string );
-	LocalFree( string );
+	SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
+    } else {
+	SetDlgItemText( hDlg, IDC_RATETEXT, string);
+	LocalFree(string);
     }
 
-    CheckRadioButton( hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_linedbl );
+    CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_linedbl);
     CheckDlgButton (hDlg, IDC_AFULLSCREEN, workprefs.gfx_afullscreen);
     CheckDlgButton (hDlg, IDC_PFULLSCREEN, workprefs.gfx_pfullscreen);
     CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
@@ -3786,10 +3766,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	}
 	sprintf (buffer, "%d", workprefs.chipset_refreshrate);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
-	workprefs.gfx_size_win.width  = GetDlgItemInt( hDlg, IDC_XSIZE, &success, FALSE );
+	workprefs.gfx_size_win.width  = GetDlgItemInt(hDlg, IDC_XSIZE, &success, FALSE);
 	if(!success)
 	    workprefs.gfx_size_win.width = 800;
-	workprefs.gfx_size_win.height = GetDlgItemInt( hDlg, IDC_YSIZE, &success, FALSE );
+	workprefs.gfx_size_win.height = GetDlgItemInt(hDlg, IDC_YSIZE, &success, FALSE);
 	if(!success)
 	    workprefs.gfx_size_win.height = 600;
     }
@@ -3916,32 +3896,26 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if( ( wParam == IDC_TEST16BIT ) && DirectDraw_Start(NULL) )
-	{
-	    if( RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, KEY_WRITE | KEY_READ, &hPixelFormatKey ) == ERROR_SUCCESS )
-	    {
-		char szMessage[ 4096 ];
+	if((wParam == IDC_TEST16BIT) && DirectDraw_Start(NULL)) {
+	    if(RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, KEY_WRITE | KEY_READ, &hPixelFormatKey) == ERROR_SUCCESS) {
+		char szMessage[4096];
 		char szTitle[ MAX_DPATH ];
-		WIN32GUI_LoadUIString( IDS_GFXCARDCHECK, szMessage, 4096 );
-		WIN32GUI_LoadUIString( IDS_GFXCARDTITLE, szTitle, MAX_DPATH );
+		WIN32GUI_LoadUIString(IDS_GFXCARDCHECK, szMessage, 4096);
+		WIN32GUI_LoadUIString(IDS_GFXCARDTITLE, szTitle, MAX_DPATH);
 		    
-		if( MessageBox( NULL, szMessage, szTitle, 
-				MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES )
-		{
+		if(MessageBox(NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND) == IDYES) {
 		    colortype = WIN32GFX_FigurePixelFormats(0);
-		    RegSetValueEx( hPixelFormatKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
+		    RegSetValueEx(hPixelFormatKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
 		}
-		RegCloseKey( hPixelFormatKey );
+		RegCloseKey(hPixelFormatKey);
 	    }
 	    DirectDraw_Release();
-	}
-	else
-	{
+	} else {
 #if 0
 	    handle_da (hDlg);
 #endif
 	    values_from_displaydlg (hDlg, msg, wParam, lParam);
-	    enable_for_displaydlg( hDlg );
+	    enable_for_displaydlg (hDlg);
 	}
 	recursive--;
 	break;
@@ -3967,22 +3941,22 @@ static void values_to_chipsetdlg (HWND hDlg)
     switch(workprefs.chipset_mask)
     {
     case 0:
-	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+0 );
+	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 0);
 	break;
     case CSMASK_ECS_AGNUS:
-	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+1 );
+	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 1);
 	break;
 #if 0
     case CSMASK_ECS_DENISE:
-	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+2 );
+	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 2);
 	break;
 #endif
     case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE:
-	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+3 );
+	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 3);
 	break;
     case CSMASK_AGA:
     case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA:
-	CheckRadioButton( hDlg, IDC_OCS, IDC_AGA, IDC_OCS+4 );
+	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 4);
 	break;
     }
     CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
@@ -3996,7 +3970,23 @@ static void values_to_chipsetdlg (HWND hDlg)
      case 1: case 2: which_button = IDC_CS_SOUND1; break;
      default: which_button = IDC_CS_SOUND2; break;
     }
-    CheckRadioButton( hDlg, IDC_CS_SOUND0, IDC_CS_SOUND2, which_button );
+    CheckRadioButton (hDlg, IDC_CS_SOUND0, IDC_CS_SOUND2, which_button);
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"Generic");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"CDTV");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"CD32");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A500");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A500+");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A600");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A1000");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A1200");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A2000");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A3000");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A3000T");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A4000");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)"A4000T");
+    SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
 }
 
 static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4046,6 +4036,11 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	else if (workprefs.produce_sound >= 2)
 	    workprefs.produce_sound = 2;
     }
+    n = SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_GETCURSEL, 0, 0); 
+    if (n != CB_ERR) {
+	workprefs.cs_compatible = n;
+	build_in_chipset_prefs (&workprefs);
+    }
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4080,6 +4075,206 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
     return FALSE;
 }
 
+static void values_to_chipsetdlg2 (HWND hDlg)
+{
+    char txt[32];
+    uae_u32 rev;
+
+    switch(workprefs.cs_ciaatod)
+    {
+	case 0:
+	CheckRadioButton(hDlg, IDC_CS_CIAA_TOD1, IDC_CS_CIAA_TOD3, IDC_CS_CIAA_TOD1);
+	break;
+	case 1:
+	CheckRadioButton(hDlg, IDC_CS_CIAA_TOD1, IDC_CS_CIAA_TOD3, IDC_CS_CIAA_TOD2);
+	break;
+	case 2:
+	CheckRadioButton(hDlg, IDC_CS_CIAA_TOD1, IDC_CS_CIAA_TOD3, IDC_CS_CIAA_TOD3);
+	break;
+    }
+    switch(workprefs.cs_rtc)
+    {
+	case 0:
+	CheckRadioButton(hDlg, IDC_CS_RTC1, IDC_CS_RTC3, IDC_CS_RTC1);
+	break;
+	case 1:
+	CheckRadioButton(hDlg, IDC_CS_RTC1, IDC_CS_RTC3, IDC_CS_RTC2);
+	break;
+	case 2:
+	CheckRadioButton(hDlg, IDC_CS_RTC1, IDC_CS_RTC3, IDC_CS_RTC3);
+	break;
+    }
+    CheckDlgButton (hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible);
+    CheckDlgButton (hDlg, IDC_CS_KSMIRROR, workprefs.cs_ksmirror);
+    CheckDlgButton (hDlg, IDC_CS_DF0IDHW, workprefs.cs_df0idhw);
+    CheckDlgButton (hDlg, IDC_CS_CD32CD, workprefs.cs_cd32cd);
+    CheckDlgButton (hDlg, IDC_CS_CD32C2P, workprefs.cs_cd32c2p);
+    CheckDlgButton (hDlg, IDC_CS_CD32NVRAM, workprefs.cs_cd32nvram);
+    CheckDlgButton (hDlg, IDC_CS_CDTVCD, workprefs.cs_cdtvcd);
+    CheckDlgButton (hDlg, IDC_CS_CDTVRAM, workprefs.cs_cdtvram);
+    CheckDlgButton (hDlg, IDC_CS_CDTVRAMEXP, workprefs.cs_cdtvcard);
+    CheckDlgButton (hDlg, IDC_CS_A1000RAM, workprefs.cs_a1000ram);
+    CheckDlgButton (hDlg, IDC_CS_RAMSEY, workprefs.cs_ramseyrev >= 0);
+    CheckDlgButton (hDlg, IDC_CS_FATGARY, workprefs.cs_fatgaryrev >= 0);
+    CheckDlgButton (hDlg, IDC_CS_AGNUS, workprefs.cs_agnusrev >= 0);
+    CheckDlgButton (hDlg, IDC_CS_DENISE, workprefs.cs_deniserev >= 0);
+    CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac >= 0);
+    CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
+    CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
+    txt[0] = 0;
+    sprintf (txt, "%d", workprefs.cs_rtc_adjust);
+    SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
+    txt[0] = 0;
+    if (workprefs.cs_fatgaryrev >= 0)
+	sprintf (txt, "%02.2X", workprefs.cs_fatgaryrev);
+    SetDlgItemText(hDlg, IDC_CS_FATGARYREV, txt);
+    txt[0] = 0;
+    if (workprefs.cs_ramseyrev >= 0)
+	sprintf (txt, "%02.2X", workprefs.cs_ramseyrev);
+    SetDlgItemText(hDlg, IDC_CS_RAMSEYREV, txt);
+    txt[0] = 0;
+    if (workprefs.cs_agnusrev >= 0) {
+	rev = workprefs.cs_agnusrev;
+        sprintf (txt, "%02.2X", rev);
+    } else if (workprefs.cs_compatible) {
+	rev = 0;
+	if (workprefs.ntscmode)
+	    rev |= 0x10;
+	rev |= (workprefs.chipset_mask & CSMASK_AGA) ? 0x23 : 0;
+	rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
+	if (workprefs.chipmem_size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	    rev |= 0x21;
+	sprintf (txt, "%02.2X", rev);
+    }
+    SetDlgItemText(hDlg, IDC_CS_AGNUSREV, txt);
+    txt[0] = 0;
+    if (workprefs.cs_deniserev >= 0) {
+	rev = workprefs.cs_deniserev;
+        sprintf (txt, "%01.1X", rev);
+    } else if (workprefs.cs_compatible) {
+	rev = 0xf;
+	if (workprefs.chipset_mask & CSMASK_ECS_DENISE)
+	    rev = 0xc;
+	if (workprefs.chipset_mask & CSMASK_AGA)
+	    rev = 0x8;
+        sprintf (txt, "%01.1X", rev);
+    }
+    SetDlgItemText(hDlg, IDC_CS_DENISEREV, txt);
+}
+
+static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    char txt[32], *p;
+    int v;
+
+    workprefs.cs_compatible = IsDlgButtonChecked (hDlg, IDC_CS_COMPATIBLE);
+    workprefs.cs_ksmirror = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR);
+    workprefs.cs_df0idhw = IsDlgButtonChecked (hDlg, IDC_CS_DF0IDHW);
+    workprefs.cs_cd32cd = IsDlgButtonChecked (hDlg, IDC_CS_CD32CD);
+    workprefs.cs_cd32c2p = IsDlgButtonChecked (hDlg, IDC_CS_CD32C2P);
+    workprefs.cs_cd32nvram = IsDlgButtonChecked (hDlg, IDC_CS_CD32NVRAM);
+    workprefs.cs_cdtvcd = IsDlgButtonChecked (hDlg, IDC_CS_CDTVCD);
+    workprefs.cs_cdtvram = IsDlgButtonChecked (hDlg, IDC_CS_CDTVRAM);
+    workprefs.cs_cdtvcard = IsDlgButtonChecked (hDlg, IDC_CS_CDTVRAMEXP) ? 512 : 0;
+    workprefs.cs_a1000ram = IsDlgButtonChecked (hDlg, IDC_CS_A1000RAM);
+    workprefs.cs_ramseyrev = IsDlgButtonChecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
+    workprefs.cs_fatgaryrev = IsDlgButtonChecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
+    workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC) ? 0x00 : -1;
+    workprefs.cs_ide = (IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : 0) | (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
+    workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
+	: (IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
+    workprefs.cs_rtc = IsDlgButtonChecked (hDlg, IDC_CS_RTC1) ? 0
+	: (IsDlgButtonChecked (hDlg, IDC_CS_RTC2) ? 1 : 2);
+
+    if (workprefs.cs_rtc) {
+	txt[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_CS_RTCADJUST, WM_GETTEXT, (WPARAM)sizeof(txt), (LPARAM)txt);
+	workprefs.cs_rtc_adjust = atol(txt);
+    }
+    if (workprefs.cs_fatgaryrev >= 0) {
+	txt[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_CS_FATGARYREV, WM_GETTEXT, (WPARAM)sizeof(txt), (LPARAM)txt);
+	v = strtol (txt, &p, 16);
+	if (v >= 0 && v <= 255)
+	    workprefs.cs_fatgaryrev = v;
+    }
+    if (workprefs.cs_ramseyrev >= 0) {
+	txt[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_CS_RAMSEYREV, WM_GETTEXT, (WPARAM)sizeof(txt), (LPARAM)txt);
+	v = strtol (txt, &p, 16);
+	if (v >= 0 && v <= 255)
+	    workprefs.cs_ramseyrev = v;
+    }
+    if (workprefs.cs_agnusrev >= 0) {
+	txt[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_CS_AGNUSREV, WM_GETTEXT, (WPARAM)sizeof(txt), (LPARAM)txt);
+	v = strtol (txt, &p, 16);
+	if (v >= 0 && v <= 255)
+	    workprefs.cs_agnusrev = v;
+    }
+    if (workprefs.cs_deniserev >= 0) {
+	txt[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_CS_DENISEREV, WM_GETTEXT, (WPARAM)sizeof(txt), (LPARAM)txt);
+	v = strtol (txt, &p, 16);
+	if (v >= 0 && v <= 15)
+	    workprefs.cs_deniserev = v;
+    }
+
+}
+
+static void enable_for_chipsetdlg2 (HWND hDlg)
+{
+    int e = workprefs.cs_compatible ? FALSE : TRUE;
+
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_FATGARY), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_RAMSEY), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_AGNUS), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_DENISE), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_FATGARYREV), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_RAMSEYREV), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_AGNUSREV), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_DENISEREV), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_IDE1), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_IDE2), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_DMAC), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CD32CD), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CD32NVRAM), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CD32C2P), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CDTVCD), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CDTVRAM), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_CDTVRAMEXP), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_KSMIRROR), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_A1000RAM), e);
+    EnableWindow (GetDlgItem (hDlg, IDC_CS_DF0IDHW), e);
+}
+
+static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    static int recursive = 0;
+
+    switch (msg) {
+    case WM_INITDIALOG:
+	pages[CHIPSET2_ID] = hDlg;
+	currentpage = CHIPSET2_ID;
+    case WM_USER:
+	recursive++;
+	values_to_chipsetdlg2 (hDlg);
+	enable_for_chipsetdlg2 (hDlg);
+	recursive--;
+	break;
+    case WM_HSCROLL:
+    case WM_COMMAND:
+	if (recursive > 0)
+	    break;
+	recursive++;
+	values_from_chipsetdlg2 (hDlg, msg, wParam, lParam);
+	enable_for_chipsetdlg2 (hDlg);
+	recursive--;
+	break;
+    }
+    return FALSE;
+}
+
 static void enable_for_memorydlg (HWND hDlg)
 {
     int z3 = ! workprefs.address_space_24;
@@ -4098,6 +4293,10 @@ static void enable_for_memorydlg (HWND hDlg)
     EnableWindow (GetDlgItem (hDlg, IDC_GFXCARDTEXT), z3);
     EnableWindow (GetDlgItem (hDlg, IDC_P96RAM), z3);
     EnableWindow (GetDlgItem (hDlg, IDC_P96MEM), z3);
+    EnableWindow (GetDlgItem (hDlg, IDC_MBRAM1), z3);
+    EnableWindow (GetDlgItem (hDlg, IDC_MBMEM1), z3);
+    EnableWindow (GetDlgItem (hDlg, IDC_MBRAM2), z3);
+    EnableWindow (GetDlgItem (hDlg, IDC_MBMEM2), z3);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -4172,14 +4371,40 @@ static void values_to_memorydlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
+
+    mem_size = 0;
+    switch (workprefs.mbresmem_low_size) {
+     case 0x00000000: mem_size = 0; break;
+     case 0x00100000: mem_size = 1; break;
+     case 0x00200000: mem_size = 2; break;
+     case 0x00400000: mem_size = 3; break;
+     case 0x00800000: mem_size = 4; break;
+     case 0x01000000: mem_size = 5; break;
+     case 0x02000000: mem_size = 6; break;
+     case 0x04000000: mem_size = 7; break;
+    }
+    SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETPOS, TRUE, mem_size);
+    SetDlgItemText (hDlg, IDC_MBRAM1, memsize_names[msi_gfx[mem_size]]);
+
+    mem_size = 0;
+    switch (workprefs.mbresmem_high_size) {
+     case 0x00000000: mem_size = 0; break;
+     case 0x00100000: mem_size = 1; break;
+     case 0x00200000: mem_size = 2; break;
+     case 0x00400000: mem_size = 3; break;
+     case 0x00800000: mem_size = 4; break;
+     case 0x01000000: mem_size = 5; break;
+     case 0x02000000: mem_size = 6; break;
+     case 0x04000000: mem_size = 7; break;
+    }
+    SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
+    SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
 }
 
 static void fix_values_memorydlg (void)
 {
     if (workprefs.chipmem_size > 0x200000)
 	workprefs.fastmem_size = 0;
-    if (workprefs.chipmem_size > 0x80000)
-	workprefs.chipset_mask |= CSMASK_ECS_AGNUS;
 }
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4197,6 +4422,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
 	SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
+	SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
 
     case WM_USER:
 	recursive++;
@@ -4212,6 +4439,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
 	workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
 	workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
+	workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
+	workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
 	fix_values_memorydlg ();
 	values_to_memorydlg (hDlg);
 	enable_for_memorydlg (hDlg);
@@ -4432,8 +4661,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void enable_for_miscdlg (HWND hDlg)
 {
-    if(!full_property_sheet)
-    {
+    if (!full_property_sheet) {
 	EnableWindow (GetDlgItem (hDlg, IDC_JULIAN), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_CTRLF11), TRUE);
 	EnableWindow (GetDlgItem (hDlg, IDC_SOCKETS), FALSE);
@@ -4606,6 +4834,7 @@ static void values_to_miscdlg (HWND hDlg)
 	    workprefs.catweasel = 0;
 	CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
+	CheckDlgButton (hDlg, IDC_MOUSETRICK, workprefs.win32_outsidemouse);
 
 	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 	misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
@@ -4777,6 +5006,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	case IDC_CATWEASEL:
 	    workprefs.catweasel = IsDlgButtonChecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
 	    break;
+	case IDC_MOUSETRICK:
+	    workprefs.win32_outsidemouse = IsDlgButtonChecked (hDlg, IDC_MOUSETRICK) ? -1 : 0;
+	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
 	    break;
@@ -4901,25 +5133,24 @@ static void values_to_cpudlg (HWND hDlg)
     CheckRadioButton (hDlg, IDC_CPU0, IDC_CPU6, cpu_ids[workprefs.cpu_level * 2 + !workprefs.address_space_24]);
 
     if (workprefs.m68k_speed == -1)
-	CheckRadioButton( hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_HOST );
+	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_HOST);
     else if (workprefs.m68k_speed == 0)
-	CheckRadioButton( hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_68000 );
+	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_68000);
     else
-	CheckRadioButton( hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_ADJUSTABLE );
+	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_ADJUSTABLE);
 
-    cpu_based_enable = ( workprefs.cpu_level >= 2 ) &&
-		       ( workprefs.address_space_24 == 0 );
+    cpu_based_enable = (workprefs.cpu_level >= 2) && (workprefs.address_space_24 == 0);
 
-    enable = cpu_based_enable && ( workprefs.cachesize );
+    enable = cpu_based_enable && workprefs.cachesize;
 
 #ifdef JIT
-    if( enable ) {
-	if( !canbang ) {
+    if(enable) {
+	if(!canbang) {
 	    workprefs.compforcesettings = TRUE;
 	    workprefs.comptrustbyte = 1;
 	    workprefs.comptrustword = 1;
 	    workprefs.comptrustlong = 1;
-	    workprefs.comptrustnaddr= 1;
+	    workprefs.comptrustnaddr = 1;
 	}
     } else {
 #endif
@@ -4928,25 +5159,25 @@ static void values_to_cpudlg (HWND hDlg)
     }
 #endif
 
-    if( !workprefs.compforcesettings ) {
+    if(!workprefs.compforcesettings) {
 	workprefs.comptrustbyte = 0;
 	workprefs.comptrustword = 0;
 	workprefs.comptrustlong = 0;
 	workprefs.comptrustnaddr= 0;
     }
 
-    CheckRadioButton( hDlg, IDC_TRUST0, IDC_TRUST2, trust_ids[ workprefs.comptrustbyte ] );
+    CheckRadioButton(hDlg, IDC_TRUST0, IDC_TRUST2, trust_ids[ workprefs.comptrustbyte]);
 
-    SendDlgItemMessage( hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024 );
-    sprintf( cache, "%d MB", workprefs.cachesize / 1024 );
+    SendDlgItemMessage(hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
+    sprintf(cache, "%d MB", workprefs.cachesize / 1024 );
     SetDlgItemText( hDlg, IDC_CACHETEXT, cache );
 
-    CheckDlgButton( hDlg, IDC_FORCE, workprefs.compforcesettings );
-    CheckDlgButton( hDlg, IDC_NOFLAGS, workprefs.compnf );
-    CheckDlgButton( hDlg, IDC_JITFPU, workprefs.compfpu );
-    CheckDlgButton( hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush );
-    CheckDlgButton( hDlg, IDC_CONSTJUMP, workprefs.comp_constjump );
-    CheckDlgButton( hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
+    CheckDlgButton(hDlg, IDC_FORCE, workprefs.compforcesettings);
+    CheckDlgButton(hDlg, IDC_NOFLAGS, workprefs.compnf);
+    CheckDlgButton(hDlg, IDC_JITFPU, workprefs.compfpu);
+    CheckDlgButton(hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
+    CheckDlgButton(hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
+    CheckDlgButton(hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
 }
 
 static void values_from_cpudlg (HWND hDlg)
@@ -5264,10 +5495,8 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)txt);
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)"Anti");
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)"Sinc");
-    WIN32GUI_LoadUIString (IDS_SOUND_INTERPOL_RH, txt, sizeof (txt));
-    SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)txt);
-    WIN32GUI_LoadUIString (IDS_SOUND_INTERPOL_CRUX, txt, sizeof (txt));
-    SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)"RH");
+    SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_ADDSTRING, 0, (LPARAM)"Crux");
     SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_SETCURSEL, workprefs.sound_interpol, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDFREQ, CB_RESETCONTENT, 0, 0);
@@ -5576,25 +5805,25 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		}
 		break;
 	     case IDOK:
-		    if( strlen( current_fsvdlg.rootdir ) == 0 ) 
+		    if(strlen(current_fsvdlg.rootdir) == 0) 
 		    {
-			char szMessage[ MAX_DPATH ];
-			char szTitle[ MAX_DPATH ];
-			WIN32GUI_LoadUIString( IDS_MUSTSELECTPATH, szMessage, MAX_DPATH );
-			WIN32GUI_LoadUIString( IDS_SETTINGSERROR, szTitle, MAX_DPATH );
+			char szMessage[MAX_DPATH];
+			char szTitle[MAX_DPATH];
+			WIN32GUI_LoadUIString(IDS_MUSTSELECTPATH, szMessage, MAX_DPATH);
+			WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
 
-			MessageBox( hDlg, szMessage, szTitle,
+			MessageBox(hDlg, szMessage, szTitle,
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 			break;
 		    }
-		    if( strlen( current_fsvdlg.volume ) == 0 )
+		    if(strlen(current_fsvdlg.volume) == 0)
 		    {
-			char szMessage[ MAX_DPATH ];
-			char szTitle[ MAX_DPATH ];
-			WIN32GUI_LoadUIString( IDS_MUSTSELECTNAME, szMessage, MAX_DPATH );
-			WIN32GUI_LoadUIString( IDS_SETTINGSERROR, szTitle, MAX_DPATH );
+			char szMessage[MAX_DPATH];
+			char szTitle[MAX_DPATH];
+			WIN32GUI_LoadUIString(IDS_MUSTSELECTNAME, szMessage, MAX_DPATH);
+			WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
 
-			MessageBox( hDlg, szMessage, szTitle,
+			MessageBox(hDlg, szMessage, szTitle,
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 			break;
 		    }
@@ -5622,11 +5851,11 @@ static void sethardfile (HWND hDlg)
     SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename);
     SetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename);
     SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename);
-    SetDlgItemInt( hDlg, IDC_SECTORS, current_hfdlg.sectors, FALSE);
-    SetDlgItemInt( hDlg, IDC_HEADS, current_hfdlg.surfaces, FALSE);
-    SetDlgItemInt( hDlg, IDC_RESERVED, current_hfdlg.reserved, FALSE);
-    SetDlgItemInt( hDlg, IDC_BLOCKSIZE, current_hfdlg.blocksize, FALSE);
-    SetDlgItemInt( hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri, TRUE);
+    SetDlgItemInt (hDlg, IDC_SECTORS, current_hfdlg.sectors, FALSE);
+    SetDlgItemInt (hDlg, IDC_HEADS, current_hfdlg.surfaces, FALSE);
+    SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.reserved, FALSE);
+    SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.blocksize, FALSE);
+    SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri, TRUE);
     CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
     EnableWindow (GetDlgItem (hDlg, IDC_HDF_RDB),
 	!(current_hfdlg.sectors == 0 && current_hfdlg.surfaces == 0 && current_hfdlg.reserved == 0));
@@ -5839,39 +6068,31 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 
 static void new_filesys (HWND hDlg)
 {
-    const char *result;
+    int result;
 
-    result = add_filesys_unit (currprefs.mountinfo, current_fsvdlg.device, current_fsvdlg.volume,
+    result = add_filesys_config (&workprefs, -1, current_fsvdlg.device, current_fsvdlg.volume,
 		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
-    if (result)
-	MessageBox (hDlg, result, result,
-		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+
 }
 
 static void new_hardfile (HWND hDlg)
 {
-    const char *result;
+    int result;
 
-    result = add_filesys_unit (currprefs.mountinfo, current_hfdlg.devicename, 0,
+    result = add_filesys_config (&workprefs, -1, current_hfdlg.devicename, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
 				current_hfdlg.reserved, current_hfdlg.blocksize,
 				current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
-    if (result)
-	MessageBox (hDlg, result, result,
-		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 }
 
 static void new_harddrive (HWND hDlg)
 {
-    const char *result;
+    int result;
 
-    result = add_filesys_unit (currprefs.mountinfo, 0, 0,
+    result = add_filesys_config (&workprefs, -1, 0, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
 				0, current_hfdlg.blocksize, 0, 0, 0);
-    if (result)
-	MessageBox (hDlg, result, result,
-		    MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 }
 
 static void harddisk_remove (HWND hDlg)
@@ -5879,7 +6100,7 @@ static void harddisk_remove (HWND hDlg)
     int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
     if (entry < 0)
 	return;
-    kill_filesys_unit (currprefs.mountinfo, entry);
+    kill_filesys_unitconfig (&workprefs, entry);
 }
 
 static void harddisk_move (HWND hDlg, int up)
@@ -5887,94 +6108,79 @@ static void harddisk_move (HWND hDlg, int up)
     int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
     if (entry < 0)
 	return;
-    move_filesys_unit (currprefs.mountinfo, entry, up ? entry - 1 : entry + 1);
+    move_filesys_unitconfig (&workprefs, entry, up ? entry - 1 : entry + 1);
 }
 
 static void harddisk_edit (HWND hDlg)
 {
     int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
-    char *volname, *devname, *rootdir, *filesys;
-    int secspertrack, surfaces, cylinders, reserved, blocksize, readonly, type, bootpri;
-    uae_u64 size;
-    const char *failure;
+    int type;
+    struct uaedev_config_info *uci;
+    struct mountedinfo mi;
 
-    if (entry < 0)
+    if (entry < 0 || entry >= workprefs.mountitems)
 	return;
-    
-    failure = get_filesys_unit (currprefs.mountinfo, entry, &devname, &volname, &rootdir, &readonly,
-			    &secspertrack, &surfaces, &reserved, &cylinders, &size,
-			    &blocksize, &bootpri, &filesys, 0);
+    uci = &workprefs.mountconfig[entry];
 
-    type = is_hardfile( currprefs.mountinfo, entry );
-    if( type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB )
+    type = get_filesys_unitconfig (&workprefs, entry, &mi);
+
+    if(type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
     {
-	current_hfdlg.sectors = secspertrack;
-	current_hfdlg.surfaces = surfaces;
-	current_hfdlg.reserved = reserved;
-	current_hfdlg.cylinders = cylinders;
-	current_hfdlg.blocksize = blocksize;
+	current_hfdlg.sectors = uci->sectors;
+	current_hfdlg.surfaces = uci->surfaces;
+	current_hfdlg.reserved = uci->reserved;
+	current_hfdlg.cylinders = mi.nrcyls;
+	current_hfdlg.blocksize = uci->blocksize;
 
-	strncpy (current_hfdlg.filename, rootdir, (sizeof current_hfdlg.filename) - 1);
+	strncpy (current_hfdlg.filename, uci->rootdir, (sizeof current_hfdlg.filename) - 1);
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';
 	current_hfdlg.fsfilename[0] = 0;
-	if (filesys) {
-	    strncpy (current_hfdlg.fsfilename, filesys, (sizeof current_hfdlg.fsfilename) - 1);
+	if (uci->filesys) {
+	    strncpy (current_hfdlg.fsfilename, uci->filesys, (sizeof current_hfdlg.fsfilename) - 1);
 	    current_hfdlg.fsfilename[(sizeof current_hfdlg.fsfilename) - 1] = '\0';
 	}
 	current_fsvdlg.device[0] = 0;
-	if (devname) {
-	    strncpy (current_hfdlg.devicename, devname, (sizeof current_hfdlg.devicename) - 1);
+	if (uci->devname) {
+	    strncpy (current_hfdlg.devicename, uci->devname, (sizeof current_hfdlg.devicename) - 1);
 	    current_hfdlg.devicename[(sizeof current_hfdlg.devicename) - 1] = '\0';
 	}
-	current_hfdlg.rw = !readonly;
-	current_hfdlg.bootpri = bootpri;
+	current_hfdlg.rw = !uci->readonly;
+	current_hfdlg.bootpri = uci->bootpri;
 	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDFILE), hDlg, HardfileSettingsProc)) 
 	{
-	    const char *result;
-	    result = set_filesys_unit (currprefs.mountinfo, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
+	    int result = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
 					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
-	    if (result)
-		MessageBox (hDlg, result, result,
-		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
     else if (type == FILESYS_HARDDRIVE) /* harddisk */
     {
-	current_hfdlg.rw = !readonly;
-	strncpy (current_hfdlg.filename, rootdir, (sizeof current_hfdlg.filename) - 1);
+	current_hfdlg.rw = !uci->readonly;
+	strncpy (current_hfdlg.filename, uci->rootdir, (sizeof current_hfdlg.filename) - 1);
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';
-	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDDRIVE), hDlg, HarddriveSettingsProc)) 
+	if (DialogBox(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDDRIVE), hDlg, HarddriveSettingsProc)) 
 	{
-	    const char *result;
-	    result = set_filesys_unit (currprefs.mountinfo, entry, 0, 0, current_hfdlg.filename,
+	    int result = add_filesys_config (&workprefs, entry, 0, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, 0, 0,
 					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
-	    if (result)
-		MessageBox (hDlg, result, result,
-		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
     else /* Filesystem */
     {
-	strncpy (current_fsvdlg.rootdir, rootdir, (sizeof current_fsvdlg.rootdir) - 1);
+	strncpy (current_fsvdlg.rootdir, uci->rootdir, (sizeof current_fsvdlg.rootdir) - 1);
 	current_fsvdlg.rootdir[(sizeof current_fsvdlg.rootdir) - 1] = '\0';
-	strncpy (current_fsvdlg.volume, volname, (sizeof current_fsvdlg.volume) - 1);
+	strncpy (current_fsvdlg.volume, uci->volname, (sizeof current_fsvdlg.volume) - 1);
 	current_fsvdlg.volume[(sizeof current_fsvdlg.volume) - 1] = '\0';
 	current_fsvdlg.device[0] = 0;
-	if (devname) {
-	    strncpy (current_fsvdlg.device, devname, (sizeof current_fsvdlg.device) - 1);
+	if (uci->devname) {
+	    strncpy (current_fsvdlg.device, uci->devname, (sizeof current_fsvdlg.device) - 1);
 	    current_fsvdlg.device[(sizeof current_fsvdlg.device) - 1] = '\0';
 	}
-	current_fsvdlg.rw = !readonly;
-	current_fsvdlg.bootpri = bootpri;
+	current_fsvdlg.rw = !uci->readonly;
+	current_fsvdlg.bootpri = uci->bootpri;
 	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_FILESYS), hDlg, VolumeSettingsProc)) {
-	    const char *result;
-	    result = set_filesys_unit (currprefs.mountinfo, entry, current_fsvdlg.device, current_fsvdlg.volume,
+	    int result = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
 					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
-	    if (result)
-		MessageBox (hDlg, result, result,
-		MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	}
     }
 }
@@ -6117,7 +6323,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
     {
 	int *draggeditems, item;
 	if ((item = drag_end (hDlg, cachedlist, lParam, &draggeditems)) >= 0) {
-	    move_filesys_unit (currprefs.mountinfo, draggeditems[0], item);
+	    move_filesys_unitconfig (&workprefs, draggeditems[0], item);
 	    InitializeListView (hDlg);
 	    clicked_entry = item;
 	    hilitehd ();
@@ -8753,6 +8959,7 @@ static void createTreeView (HWND hDlg, int currentpage)
     p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HARDWARE, root, LOADSAVE_ID, CONFIG_TYPE_HARDWARE);
     CN(CPU_ID);
     CN(CHIPSET_ID);
+    CN(CHIPSET2_ID);
     CN(KICKSTART_ID);
     CN(MEMORY_ID);
     CN(FLOPPY_ID);
@@ -8916,13 +9123,12 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		break;
 		case ZFILE_HDF:
 		{
-		    char *result;
 		    if (currentpage == HARDDISK_ID) {
 			if (flags & FILE_ATTRIBUTE_DIRECTORY) {
-			    result = add_filesys_unit (currprefs.mountinfo, NULL, "XXX", file, 0,
+			    add_filesys_config (&workprefs, -1, NULL, "XXX", file, 0,
 			        0, 0, 0, 0, 0, NULL, 0);
 			} else {
-			    result = add_filesys_unit (currprefs.mountinfo, NULL, NULL, file, 0,
+			    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
 			        32, 1, 2, 512, 0, NULL, 0);
 			}
 		    }
@@ -8999,10 +9205,14 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		return FALSE;
 		case TVN_SELCHANGED:
 		{
+		    int cp;
 		    LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
-		    currentpage = (int)(tv->itemNew.lParam & 0xffff);
-		    configtypepanel = configtype = (int)(tv->itemNew.lParam >> 16);
-		    updatePanel (hDlg, currentpage);
+		    cp = (int)(tv->itemNew.lParam & 0xffff);
+		    if (cp != currentpage) {
+			currentpage = cp;
+			configtypepanel = configtype = (int)(tv->itemNew.lParam >> 16);
+			updatePanel (hDlg, currentpage);
+		    }
 		    return TRUE;
 		}
 		break;
@@ -9104,6 +9314,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	HW3D_ID = init_page (IDD_FILTER, IDI_DISPLAY, IDS_FILTER, hw3dDlgProc, NULL, "gui/filter.htm");
 #endif
 	CHIPSET_ID = init_page (IDD_CHIPSET, IDI_CPU, IDS_CHIPSET, ChipsetDlgProc, NULL, "gui/chipset.htm");
+	CHIPSET2_ID = init_page (IDD_CHIPSET2, IDI_CPU, IDS_CHIPSET2, ChipsetDlgProc2, NULL, "gui/chipset.htm");
 	SOUND_ID = init_page (IDD_SOUND, IDI_SOUND, IDS_SOUND, SoundDlgProc, NULL, "gui/sound.htm");
 	FLOPPY_ID = init_page (IDD_FLOPPY, IDI_FLOPPY, IDS_FLOPPY, FloppyDlgProc, NULL, "gui/floppies.htm");
 	DISK_ID = init_page (IDD_DISK, IDI_FLOPPY, IDS_DISK, SwapperDlgProc, SwapperAccel, "gui/disk.htm");
@@ -9153,6 +9364,8 @@ static int GetSettings (int all_options, HWND hwnd)
 	    if (IPChandle != INVALID_HANDLE_VALUE) {
 		MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
 		while (checkIPC(&workprefs));
+	    } else {
+		WaitMessage();
 	    }
 	    while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
 		if (dialogreturn >= 0)
@@ -9193,7 +9406,7 @@ int gui_init (void)
     
     read_rom_list();
     for (;;) {
-	ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : GetDesktopWindow());
+	ret = GetSettings(1, currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL);
 	if (!restart_requested)
 	    break;
 	restart_requested = 0;

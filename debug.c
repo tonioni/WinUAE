@@ -867,7 +867,7 @@ static void illg_init (void)
     if (cloanto_rom)
 	memset (illgdebug + 0xe00000, 1, 512 * 1024);
 #ifdef FILESYS
-    if (nr_units (currprefs.mountinfo) > 0) /* filesys "rom" */
+    if (uae_boot_rom) /* filesys "rom" */
 	memset (illgdebug + RTAREA_BASE, 1, 0x10000);
 #endif
 }
@@ -2172,7 +2172,7 @@ void debug (void)
     debug_1 ();
     if (!debug_rewind && !currprefs.cachesize
 #ifdef FILESYS
-	&& nr_units (currprefs.mountinfo) == 0
+	&& nr_units () == 0
 #endif
 	) {
 	savestate_capture (1);

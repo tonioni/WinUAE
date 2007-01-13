@@ -13,6 +13,8 @@
 static int consoleopen = 0;
 static HANDLE stdinput,stdoutput;
 static int bootlogmode;
+static CRITICAL_SECTION cs;
+static int cs_init;
 
 FILE *debugfile = NULL;
 int console_logging;
@@ -107,8 +109,12 @@ void write_dlog (const char *format, ...)
     DWORD numwritten;
     char buffer[WRITE_LOG_BUF_SIZE];
     char *ts;
-
     va_list parms;
+
+    if (!SHOW_CONSOLE && !console_logging && !debugfile)
+	return;
+
+    EnterCriticalSection(&cs);
     va_start (parms, format);
     count = _vsnprintf(buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
     ts = writets();
@@ -128,14 +134,20 @@ void write_dlog (const char *format, ...)
     if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
+    LeaveCriticalSection(&cs);
 }
+
 void write_log (const char *format, ...)
 {
     int count, tmp;
     DWORD numwritten;
     char buffer[WRITE_LOG_BUF_SIZE], *ts;
-
     va_list parms;
+
+    if (!SHOW_CONSOLE && !console_logging && !debugfile)
+	return;
+
+    EnterCriticalSection(&cs);
     va_start(parms, format);
     count = _vsnprintf(buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
     ts = writets();
@@ -157,6 +169,7 @@ void write_log (const char *format, ...)
     if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
+    LeaveCriticalSection(&cs);
 }
 
 void f_out (void *f, const char *format, ...)
@@ -181,6 +194,9 @@ void *log_open(const char *name, int append, int bootlog)
     
     f = fopen(name, append ? "a" : "wt");
     bootlogmode = bootlog;
+    if (!cs_init)
+	InitializeCriticalSection(&cs);
+    cs_init = 1;
     return f;
 }
 

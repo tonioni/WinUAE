@@ -385,6 +385,8 @@ uae_u8 serial_readstatus(uae_u8 dir)
 
 uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 {
+    static int logcnt = 10;
+
 #ifdef SERIAL_PORT
     if (((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
 	if (newstate & 0x80)
@@ -418,10 +420,16 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
         write_log ("SERIAL: warning, program tries to use DSR as an output!\n");
 #endif
 
-    if (((newstate ^ oldserbits) & 0x40) && !(dir & 0x40))
-        write_log ("SERIAL: warning, program tries to use RTS as an input!\n");
-    if (((newstate ^ oldserbits) & 0x80) && !(dir & 0x80))
-        write_log ("SERIAL: warning, program tries to use DTR as an input!\n");
+    if (logcnt > 0) {
+	if (((newstate ^ oldserbits) & 0x40) && !(dir & 0x40)) {
+	    write_log ("SERIAL: warning, program tries to use RTS as an input! PC=%x\n", M68K_GETPC);
+	    logcnt--;
+	}
+	if (((newstate ^ oldserbits) & 0x80) && !(dir & 0x80)) {
+	    write_log ("SERIAL: warning, program tries to use DTR as an input! PC=%x\n", M68K_GETPC);
+	    logcnt--;
+	}
+    }
 
 #endif
 

@@ -189,7 +189,7 @@ void record_key_direct (int kc)
 
 void joystick_setting_changed (void)
 {
-    fs_np = fs_ck = fs_se;
+    fs_np = fs_ck = fs_se = 0;
 #ifdef ARCADIA 
     fs_xa1 = fs_xa2 = 0;
 #endif

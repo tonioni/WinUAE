@@ -8,14 +8,12 @@
   */
 
 #define UAEMAJOR 1
-#define UAEMINOR 3
-#define UAESUBREV 4
+#define UAEMINOR 4
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
 extern long int version;
-
-struct uaedev_mount_info;
 
 struct strlist {
     struct strlist *next;
@@ -50,6 +48,21 @@ struct uae_input_device {
 struct wh {
     int x, y;
     int width, height;
+};
+
+#define MOUNT_CONFIG_SIZE 30
+struct uaedev_config_info {
+    char devname[MAX_DPATH];
+    char volname[MAX_DPATH];
+    char rootdir[MAX_DPATH];
+    int readonly;
+    int bootpri;
+    char filesys[MAX_DPATH];
+    int surfaces;
+    int sectors;
+    int reserved;
+    int blocksize;
+    int configoffset;
 };
 
 struct uae_prefs {
@@ -170,6 +183,28 @@ struct uae_prefs {
     int tod_hack;
     uae_u32 maprom;
 
+    int cs_compatible;
+    int cs_ciaatod;
+    int cs_rtc;
+    int cs_rtc_adjust;
+    int cs_rtc_adjust_mode;
+    int cs_ksmirror;
+    int cs_cd32cd;
+    int cs_cd32c2p;
+    int cs_cd32nvram;
+    int cs_cdtvcd;
+    int cs_cdtvram;
+    int cs_cdtvcard;
+    int cs_ide;
+    int cs_pcmcia;
+    int cs_a1000ram;
+    int cs_fatgaryrev;
+    int cs_ramseyrev;
+    int cs_agnusrev;
+    int cs_deniserev;
+    int cs_mbdmac;
+    int cs_df0idhw;
+
     char df[4][MAX_DPATH];
     char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
     char romfile[MAX_DPATH];
@@ -199,7 +234,8 @@ struct uae_prefs {
     uae_u32 fastmem_size;
     uae_u32 chipmem_size;
     uae_u32 bogomem_size;
-    uae_u32 a3000mem_size;
+    uae_u32 mbresmem_low_size;
+    uae_u32 mbresmem_high_size;
     uae_u32 gfxmem_size;
 
     int kickshifter;
@@ -207,7 +243,8 @@ struct uae_prefs {
     int filesys_custom_uaefsdb;
     int mmkeyboard;
 
-    struct uaedev_mount_info *mountinfo;
+    int mountitems;
+    struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
 
     int nr_floppies;
     int dfxtype[4];
@@ -227,6 +264,7 @@ struct uae_prefs {
     int win32_notaskbarbutton;
     int win32_alwaysontop;
     int win32_powersavedisabled;
+    int win32_outsidemouse;
 
     int win32_active_priority;
     int win32_inactive_priority;
@@ -276,6 +314,10 @@ extern void save_options (struct zfile *, struct uae_prefs *, int);
 extern void cfgfile_write (struct zfile *, char *format,...);
 extern void cfgfile_target_write (struct zfile *, char *format,...);
 extern void cfgfile_backup (const char *path);
+extern int add_filesys_config (struct uae_prefs *p, int index,
+			char *devname, char *volname, char *rootdir, int readonly,
+			int secspertrack, int surfaces, int reserved,
+			int blocksize, int bootpri, char *filesysdir, int flags);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
@@ -305,6 +347,7 @@ extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size,
 extern uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae_u32 outsize);
 extern void cfgfile_addcfgparam (char *);
 extern int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
+extern int build_in_chipset_prefs (struct uae_prefs *p);
 extern int cmdlineparser (char *s, char *outp[], int max);
 extern int cfgfile_configuration_change(int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);

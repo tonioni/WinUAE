@@ -88,6 +88,9 @@ extern void restore_bram (int, size_t);
 extern void restore_fram (int, size_t);
 extern void restore_zram (int, size_t);
 extern void restore_pram (int, size_t);
+extern void restore_a3000lram (int, size_t);
+extern void restore_a3000hram (int, size_t);
+
 extern void restore_ram (size_t, uae_u8*);
 
 extern uae_u8 *save_cram (int *);
@@ -95,6 +98,8 @@ extern uae_u8 *save_bram (int *);
 extern uae_u8 *save_fram (int *);
 extern uae_u8 *save_zram (int *);
 extern uae_u8 *save_pram (int *);
+extern uae_u8 *save_a3000lram (int *);
+extern uae_u8 *save_a3000hram (int *);
 
 extern uae_u8 *restore_rom (uae_u8 *);
 extern uae_u8 *save_rom (int, int *, uae_u8 *);

@@ -38,8 +38,6 @@ struct hardfiledata {
 #define FILESYS_HARDFILE_RDB 2
 #define FILESYS_HARDDRIVE 3
 
-#define FILESYS_FLAG_DONOTSAVE 1
-
 #define MAX_FILESYSTEM_UNITS 30
 
 struct uaedev_mount_info;

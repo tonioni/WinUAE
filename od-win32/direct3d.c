@@ -19,19 +19,7 @@
 
 #include "direct3d.h"
 
-#if 0
-typedef D3DXMATRIX (CALLBACK* D3DXMATRIXPERSPECTIVEFOVLH)
-    (D3DXMATRIX *pOut,FLOAT fovy,FLOAT Aspect,FLOAT zn,FLOAT zf);
-static D3DXMATRIXPERSPECTIVEFOVLH pD3DXMatrixPerspectiveFovLH;
-typedef HRESULT (CALLBACK* D3DXCREATETEXTURE)
-    (LPDIRECT3DDEVICE9 pDevice,UINT Width,UINT Height,UINT MipLevels,DWORD Usage,
-    D3DFORMAT Format,D3DPOOL Pool,LPDIRECT3DTEXTURE9 *ppTexture);
-static D3DXCREATETEXTURE pD3DXCreateTexture;
-typedef HRESULT (CALLBACK* D3DXCHECKTEXTUREREQUIREMENTS)
-    (LPDIRECT3DDEVICE9 pDevice,UINT *pWidth,UINT *pHeight,UINT *pNumMipLevels,
-    DWORD Usage,D3DFORMAT *pFormat,D3DPOOL Pool);
-static D3DXCHECKTEXTUREREQUIREMENTS pD3DXCheckTextureRequirements;
-#endif
+#define USAGE (D3DCREATE_SOFTWARE_VERTEXPROCESSING)
 
 static int tformat;
 static int d3d_enabled, scanlines_ok;
@@ -62,6 +50,25 @@ static char *D3D_ErrorString (HRESULT dival)
 	HRESULT_CODE(dival),
 	D3D_ErrorText (dival));
     return dierr;
+}
+
+static D3DXMATRIX* xD3DXMatrixPerspectiveFovLH(D3DXMATRIX *pOut, FLOAT fovy, FLOAT Aspect, FLOAT zn, FLOAT zf)
+{
+    double xscale, yscale, sine, dz;
+    memset(pOut, 0, sizeof(D3DXMATRIX));
+    fovy /= 2;
+    sine = sin(fovy);
+    dz = zf - zn;
+    if (sine == 0 || dz == 0 || Aspect == 0)
+        return pOut;
+    yscale = cos(fovy) / sine;
+    xscale = yscale / Aspect;
+    pOut->_11 = xscale;
+    pOut->_22 = yscale;
+    pOut->_33 = zf / dz;
+    pOut->_34 = 1;
+    pOut->_43 = -zn * zf / dz;
+    return pOut;
 }
 
 void D3D_free (void)
@@ -114,7 +121,7 @@ static int restoredeviceobjects(void)
 
     // Set the projection matrix
     aspect = ((FLOAT)dsdbb.Width) / dsdbb.Height;
-    D3DXMatrixPerspectiveFovLH (&matrix, D3DX_PI/4, aspect, 1.0f, 100.0f);
+    xD3DXMatrixPerspectiveFovLH (&matrix, D3DX_PI/4, aspect, 1.0f, 100.0f);
     hr = IDirect3DDevice9_SetTransform(d3ddev, D3DTS_PROJECTION, &matrix);
 
     // turn off lighting
@@ -135,21 +142,55 @@ static int restoredeviceobjects(void)
     return 1;
 }
 
+static LPDIRECT3DTEXTURE9 createtext(int *ww, int *hh, D3DFORMAT format)
+{
+    LPDIRECT3DTEXTURE9 t;
+    HRESULT hr;
+    int w = *ww;
+    int h = *hh;
+
+    if (w < 256)
+	w = 256;
+    else if (w < 512)
+	w = 512;
+    else if (w < 1024)
+	w = 1024;
+    else if (w < 2048)
+	w = 2048;
+    else
+	w = 4096;
+
+    if (h < 256)
+	h = 256;
+    else if (h < 512)
+	h = 512;
+    else if (h < 1024)
+	h = 1024;
+    else if (h < 2048)
+	h = 2048;
+    else
+	h = 4096;
+
+    hr = IDirect3DDevice9_CreateTexture(d3ddev, w, h, 1, 0, format, D3DPOOL_MANAGED, &t, NULL);
+    if (FAILED (hr)) {
+	write_log ("DIDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
+	return 0;
+    }
+
+    *ww = w;
+    *hh = h;
+    return t;
+}
+
+
 static int createtexture (int w, int h)
 {
-    HRESULT hr;
     UINT ww = w;
     UINT hh = h;
-    D3DFORMAT format = tformat;
 
-    hr = D3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
-    if (FAILED (hr)) {
-	write_log ("D3DXCheckTextureRequirements failed: %s\n", D3D_ErrorString (hr));
-    }
-    hr = D3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &texture);
-    if (FAILED (hr)) {
-	write_log ("D3DXCreateTexture failed: %s\n", D3D_ErrorString (hr));
-    }
+    texture = createtext(&ww, &hh, tformat);
+    if (!texture)
+	return 0;
     twidth = ww;
     theight = hh;
     write_log ("D3D: %d*%d texture allocated, bits per pixel %d\n", ww, hh, t_depth);
@@ -157,21 +198,12 @@ static int createtexture (int w, int h)
 }
 static int createsltexture (void)
 {
-    HRESULT hr;
     UINT ww = required_sl_texture_w;
     UINT hh = required_sl_texture_h;
-    D3DFORMAT format = D3DFMT_A4R4G4B4;
 
-    hr = D3DXCheckTextureRequirements(d3ddev, &ww, &hh, NULL, 0, &format, D3DPOOL_MANAGED);
-    if (FAILED (hr)) {
-	write_log ("SL D3DXCheckTextureRequirements failed: %s\n", D3D_ErrorString (hr));
+    sltexture = createtext(&ww, &hh, D3DFMT_A4R4G4B4);
+    if (!sltexture)
 	return 0;
-    }
-    hr = D3DXCreateTexture(d3ddev, ww, hh, 0, 0, format, D3DPOOL_MANAGED, &sltexture);
-    if (FAILED (hr)) {
-	write_log ("SL D3DXCreateTexture failed: %s\n", D3D_ErrorString (hr));
-	return 0;
-    }
     required_sl_texture_w = ww;
     required_sl_texture_h = hh;
     write_log ("D3D: SL %d*%d texture allocated\n", ww, hh);
@@ -242,10 +274,6 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     D3DDISPLAYMODE mode;
     D3DCAPS9 d3dCaps;
     int adapter;
-#if 0
-    char d3dxdlls[100];
-    HINSTANCE d3dxDLL;
-#endif
 
     adapter = currprefs.gfx_display - 1;
     if (adapter < 0)
@@ -263,16 +291,6 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-#if 0
-    sprintf (d3dxdlls, "d3dx9_%d.dll", 27);
-    d3dxDLL = LoadLibrary(d3dxdlls);
-    pD3DXMatrixPerspectiveFovLH = (D3DXMATRIXPERSPECTIVEFOVLH)GetProcAddress(
-	d3dxDLL, "D3DXMatrixPerspectiveFovLH");
-    pD3DXCreateTexture = (D3DXCREATETEXTURE)GetProcAddress(
-	d3dxDLL, "D3DXCreateTexture");
-    pD3DXCheckTextureRequirements = (D3DXCHECKTEXTUREREQUIREMENTS)GetProcAddress(
-	d3dxDLL, "D3DXCheckTextureRequirements");
-#endif
     D3DCreate = (LPDIRECT3D9 (WINAPI *)(UINT))
 	GetProcAddress(d3dDLL, "Direct3DCreate9");
     if(D3DCreate == NULL) {
@@ -314,7 +332,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     }
 
     ret = IDirect3D9_CreateDevice(d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
-	D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &d3ddev);
+	USAGE, &dpp, &d3ddev);
     if(FAILED(ret)) {
 	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));
 	D3D_free ();

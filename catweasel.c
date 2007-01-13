@@ -598,7 +598,7 @@ int catweasel_init(void)
     if (cwc.can_joy)
 	catweasel_do_bput(0xcc, 0); // joystick buttons = input
 
-    catweasel_init_controller(&cwc);
+    //catweasel_init_controller(&cwc);
     sprintf(tmp, "CW: Catweasel MK%d @%p (%s) enabled.",
 	cwc.type, (uae_u8*)cwc.iobase, name);
     if (cwc.can_sid) {
@@ -668,6 +668,8 @@ int catweasel_detect (void)
     }
     return FALSE;
 }
+
+#if 0
 
 #define outb(v,port) catweasel_do_bput(port,v)
 #define inb(port) catweasel_do_bget(port)
@@ -1340,4 +1342,4 @@ int catweasel_read(catweasel_drive *d, int side, int clock, int rawmode)
 
 #endif
 
-
+#endif

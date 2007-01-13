@@ -1,4 +1,119 @@
 
+Beta 1: Lots of scary options. Do not touch!
+
+- added new misc configuration options "(handled in previous versions)"
+  - RTC type (none, MSM6242B or RF5C01A) + adjustment in seconds
+    (always enabled, MSM6242B but no 26x4bit memory implemented
+    and was initialized as RF5C01A... Looks like previous developer(s)
+    didn't know there was two different clock chips, neither did I
+    until few days ago.. Basically 68020+ Amigas have RF5C01A)
+  - CIA-A TOD clock source, vblank/50hz/60hz (always vblank except
+    50Hz/60Hz in programmed modes, another hack was here)
+  - built-in IDE A600+A1200 or A4000. Not really doing much yet.
+    (something that prevented IDE detection delay)
+  - A1000 Boot "ROM" on/off (enabled when 8k/64k ROM was used)
+  - DF0: ID hardware on/off (no ID if DF0: was 35DD)
+  - A3000/A4000 "motherboard resources", RAMSEY and/or Fat GARY
+    (0xDE000x, 0 = TOENB, 1 = TIMEOUT and 2 = COLDREBOOT registers)
+  - KS ROM mirror at 0xe00000-0xe7ffff (Cloanto ROM selected)
+  - CD32 CDROM on/off (when 512k extended ROM was selected)
+  - CD32 C2P on/off (when 512k extended ROM was selected)
+  - CD32 NVRAM on/off (when 512k extended ROM was selected)
+  - CDTV CDROM on/off (did not exist)
+  - CDTV NVRAM on/off (when 256k extended ROM was selected)
+  - CDTV SRAM (64k only, not saved) Card on/off (not implemented)
+
+  Why? Because there are small differences between different Amiga
+  models and even revisions and every possible model must be
+  configurable for emulation.. (like more real A4000 configuration)
+  Also can remove some ugly hacks (like the IDE hack) with proper
+  emulation.
+  
+  I REPEAT: Do not touch Adv.Chipset panel if you aren't sure about
+  what you are doing! :)
+
+  NOTE: A4000 KS ROMs (Cloanto 3.x ROMs = A4000 ROM) _REQUIRE_ RAMSEY
+  or they will freeze at boot. WinUAE will automatically enable RAMSEY
+  and GARY if recognised A4000 ROM is selected, also default "Generic"
+  Amiga setting is most compatible with old configurations.
+
+  NOTE2: CD32 and CDTV configurations require now CD32 or CDTV setting
+  in chipset-panel (Quickstart mode does this automatically). Previously
+  CD32/CDTV mode was enabled depending on size of extended ROM but that
+  is not a good idea anymore.
+
+- Amiga model specific chipset extra settings added, available only if
+  "compatible settings" is enabled in "Adv. Chipset" panel
+- Akiko moved to separate memory bank (was in CIA bank previously, no
+  functional changes)
+- Configurable motherboard resources memory bank added (includes Fat
+  Gary DE0000, DE0001, DE0002 and RAMSEY DE0003 and DE0043)
+- RAMSEY revision configurable
+- Fat Gary revision configurable (AFAIK this does not exist in existing
+  chips but was planned in future. But Scout detects this so...)
+- 2 x RAMSEY (A3000/A4000 memory controller chip) controlled 32-bit MB
+  Fast RAM configuration added. ROM support for detection needed.
+  - First max 64MB "bank" ends at 0x08000000 (A3000/A4000 ROM needed)
+  - Second max 64MB "bank" from 0x08000000 (as above plus any 3.1+ ROM)
+  In theory there is space for max 96MB but UAE memory system does not
+  like non-power of 2 memory areas. Can be used with RTG and Z3 RAM.
+- Configurable DDxxxx (A3000/A4000 SCSI) DMAC memory bank added (not
+  yet doing anything)
+- CDTV emulation support! (thanks to Mark Knibbs for debugging CDTV
+  ROMs two years ago)
+  - data and audio tracks supported
+  - CDXL animations work better than in CD32 emulation
+  - CD audio volume control not supported
+  - multithreaded, no emulation pauses because of possible slow CD
+    access or CD spin up/down. May not be fully stable yet.
+  - 1x drive speed emulation
+  - 2MB chip enabled in CDTV Quickstart because DF0: is always
+    detected (even without drive) and apparently some games need all
+    available memory. KS 1.x always uses DF0: and I am not sure how
+    CDTV ROM should disable it (or does it do it? CDTV don't have
+    built-in floppy drive)
+  - starting data CD read without aborting previous CD audio
+    freezes (for example DOTC), cdtv device driver keeps waiting
+    for some signal that does not appear. (returning error status
+    will fix this but it also breaks Xenon II, hopefully proper
+    fix is found soon..)
+- do not draw onscreen leds ofscreen (left border in narrow modes)
+- "Magic" mouse option added (wip) System friendly screens + windowed
+  mode only. There is still offset in position when using native
+  screen.
+- disk read DMA without any selected drives will finish normally
+  (would have frozen emulated program in previous versions)
+- "Faster RTG" "instant copper" does not freeze even if copper list
+  has infinite loop.
+- removed A2000 from A500/A2000 quickstart setting, they aren't
+  100% same hardware (A2000 has DF0: ID hardware and CIA-A TOD clock
+  is powersupply tick by default)
+- IOCTL (used by CD32/CDTV emulation) CD access digital CD audio
+  work in Vista (previously total silence when using Daemon Tools
+  or no sound cable between CD drive and sound card)
+  Ugly detail: it closes CreateFile() handle and opens MCI handle
+  when CD audio calls are needed (and back to CreateFile() when
+  accessing data)
+- Current open GUI config panel was initialized, destroyed and
+  initialized again when entering GUI and emulation was running.
+- selecing keyboard layout C and then selecting any other keyboard
+  layout didn't disable layout C.
+- Quickstart disk swap delayed insert fixed again
+- D3D does not depend on D3DX library anymore (no more need for
+  dec 2004 DX SDK to prevent d3dx9_xx.dll dependancy)
+- harddisk configuration handling completely rewritten. Configuration
+  data and mount data are now separate, configuration data is copied
+  to mount data only when starting or reseting the emulation.
+  Also failed mounting won't delete the configuration data.
+  No more disappearing configuration entries if paths have changed
+  or USB device is not inserted or error messages when adjusting
+  configuration settings when emulation is already running.
+  First column shows if the device is currently mounted
+- sound filter/interpolation etc was not initialized until GUI panel
+  was visited
+
+1.3.4 (30.12.2006)
+
 Beta 9:
 
 - interrupt timing tweak (Gravity Force in ce-mode)

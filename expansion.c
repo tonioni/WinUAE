@@ -125,6 +125,7 @@ uaecptr ROM_filesys_resname, ROM_filesys_resid;
 uaecptr ROM_filesys_diagentry;
 uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 uaecptr ROM_hardfile_init;
+int uae_boot_rom;
 
 /* ********************************************************** */
 
@@ -132,6 +133,8 @@ static void (*card_init[MAX_EXPANSION_BOARDS]) (void);
 static void (*card_map[MAX_EXPANSION_BOARDS]) (void);
 
 static int ecard;
+
+static uae_u16 uae_id;
 
 /* ********************************************************** */
 
@@ -733,7 +736,7 @@ uae_u32 gfxmem_start;
 static void expamem_map_fastcard (void)
 {
     fastmem_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
-    map_banks (&fastmem_bank, fastmem_start >> 16, allocated_fastmem >> 16, allocated_fastmem);
+    map_banks (&fastmem_bank, fastmem_start >> 16, allocated_fastmem >> 16, 0);
     write_log ("Fastcard: mapped @$%lx: %dMB fast memory\n", fastmem_start, allocated_fastmem >> 20);
 }
 
@@ -753,8 +756,8 @@ static void expamem_init_fastcard (void)
 
     expamem_write (0x04, 1);
 
-    expamem_write (0x10, hackers_id >> 8);
-    expamem_write (0x14, hackers_id & 0xff);
+    expamem_write (0x10, uae_id >> 8);
+    expamem_write (0x14, uae_id & 0xff);
 
     expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
     expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
@@ -804,8 +807,8 @@ static void expamem_init_filesys (void)
     expamem_write (0x08, no_shutup);
 
     expamem_write (0x04, 2);
-    expamem_write (0x10, hackers_id >> 8);
-    expamem_write (0x14, hackers_id & 0xff);
+    expamem_write (0x10, uae_id >> 8);
+    expamem_write (0x14, uae_id & 0xff);
 
     expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
     expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
@@ -875,8 +878,8 @@ static void expamem_init_z3fastmem (void)
 
     expamem_write (0x04, 3);
 
-    expamem_write (0x10, hackers_id >> 8);
-    expamem_write (0x14, hackers_id & 0xff);
+    expamem_write (0x10, uae_id >> 8);
+    expamem_write (0x14, uae_id & 0xff);
 
     expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
     expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
@@ -901,7 +904,7 @@ static void expamem_init_z3fastmem (void)
 static void expamem_map_gfxcard (void)
 {
     gfxmem_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
-    map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
+    map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, 0);
     write_log ("UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
@@ -922,8 +925,8 @@ static void expamem_init_gfxcard (void)
     expamem_write (0x08, no_shutup | force_z3 | (allocated_gfxmem > 0x800000 ? ext_size : Z3_MEM_AUTO));
     expamem_write (0x04, 96);
 
-    expamem_write (0x10, hackers_id >> 8);
-    expamem_write (0x14, hackers_id & 0xff);
+    expamem_write (0x10, uae_id >> 8);
+    expamem_write (0x14, uae_id & 0xff);
 
     expamem_write (0x18, 0x00); /* ser.no. Byte 0 */
     expamem_write (0x1c, 0x00); /* ser.no. Byte 1 */
@@ -1026,24 +1029,18 @@ static void allocate_expamem (void)
 #endif /* SAVESTATE */
 }
 
-extern int cdtv_enabled;
-
 void expamem_reset (void)
 {
     int do_mount = 1;
     int cardno = 0;
     ecard = 0;
 
+    uae_id = hackers_id;
+
     allocate_expamem ();
 
-#ifdef CDTV
-#if 0
-    if (cdtv_enabled) {
-	map_banks (&dmac_bank, DMAC_START >> 16, 0x10000 >> 16, 0x10000);
+    if (currprefs.cs_cdtvcd)
 	dmac_init ();
-    }
-#endif
-#endif
 
     /* check if Kickstart version is below 1.3 */
     if (! ersatzkickfile && kickstart_version
@@ -1058,7 +1055,7 @@ void expamem_reset (void)
     }
 #ifdef FILESYS
     /* No need for filesystem stuff if there aren't any mounted.  */
-    if (nr_units (currprefs.mountinfo) == 0)
+    if (nr_units() == 0)
 	do_mount = 0;
 #endif
     if (fastmemory != NULL) {

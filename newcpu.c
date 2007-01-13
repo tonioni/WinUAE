@@ -24,6 +24,8 @@
 #include "savestate.h"
 #include "blitter.h"
 #include "ar.h"
+#include "gayle.h"
+#include "cia.h"
 
 #ifdef JIT
 extern uae_u8* compiled_code;
@@ -1790,6 +1792,78 @@ void doint (void)
 //static uae_u32 pcs[1000];
 
 
+#define DEBUG_CD32IO
+#ifdef DEBUG_CD32IO
+
+static uae_u32 cd32nextpc, cd32request;
+
+static void out_cd32io2(void)
+{
+    uae_u32 request = cd32request;
+    //write_log ("ACTUAL=%d ERROR=%d\n", get_long (request + 32), get_byte (request + 31));
+    cd32nextpc = 0;
+    cd32request = 0;
+}
+
+static void out_cd32io (uae_u32 pc)
+{
+    char out[100];
+    int ioreq = 0;
+    uae_u32 request = m68k_areg (&regs, 1);
+
+    if (pc == cd32nextpc) {
+	out_cd32io2();
+	return;
+    }
+    out[0] = 0;
+    switch (pc)
+    {
+	case 0xe57cc0:
+	case 0xf04c34:
+	sprintf (out, "opendevice");
+	break;
+	case 0xe57ce6:
+	case 0xf04c56:
+	sprintf (out, "closedevice");
+	break;
+	case 0xe57e44:
+	case 0xf04f2c:
+	sprintf (out, "beginio");
+	ioreq = 1;
+	break;
+	case 0xe57ef2:
+	case 0xf0500e:
+	sprintf (out, "abortio");
+	ioreq = -1;
+	break;
+    }
+    if (out[0] == 0)
+	return;
+    if (cd32request)
+	write_log ("old request still not returned!\n");
+    cd32request = request;
+    cd32nextpc = get_long(m68k_areg (&regs, 7));
+    write_log("%s A1=%08.8X\n", out, request);
+    if (ioreq) {
+	static int cnt = 26;
+	int cmd = get_word (request + 28);
+#if 0
+	if (cmd == 2) {
+	    cnt--;
+	    if (cnt == 0)
+		activate_debugger();
+	}
+#endif
+	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d\n",
+	    cmd, get_long(request + 40),
+	    get_long(request + 36), get_long(request + 44));
+    }
+    if (ioreq < 0)
+	;//activate_debugger();
+}
+
+#endif
+
 #ifndef CPUEMU_5
 
 static void m68k_run_1 (void)
@@ -1810,6 +1884,8 @@ static void m68k_run_1 (void)
 	uae_u32 opcode = r->ir;
 
 	count_instr (opcode);
+
+	//out_cd32io(m68k_getpc(&regs));
 
 #if 0
 	int pc = m68k_getpc();
@@ -1946,12 +2022,6 @@ static void m68k_run_2a (void)
 	    intreq |= 0x0008;
 	    set_special (&regs, SPCFLAG_INT);
 	}
-#if 0
-	if (bsd_int_requested) {
-	    intreq |= 0x2000;
-	    set_special (&regs, SPCFLAG_INT);
-	}
-#endif
 	if (regs.spcflags) {
 	    if (do_specialties (0, &regs)) {
 		return;
@@ -1969,57 +2039,6 @@ static void m68k_run_2 (void)
 
 #else
 
-//#define DEBUG_CD32IO
-#ifdef DEBUG_CD32IO
-
-static uae_u32 cd32nextpc, cd32request;
-
-static void out_cd32io2(void)
-{
-    uae_u32 request = cd32request;
-    write_log ("ACTUAL=%d ERROR=%d\n", get_long (request + 32), get_byte (request + 31));
-    cd32nextpc = 0;
-    cd32request = 0;
-}
-
-static void out_cd32io (uae_u32 pc)
-{
-    char out[100];
-    int ioreq = 0;
-    uae_u32 request = m68k_areg (regs, 1);
-
-    out[0] = 0;
-    switch (pc)
-	{
-	case 0xe57cc0:
-	sprintf (out, "opendevice");
-	break;
-	case 0xe57ce6:
-	sprintf (out, "closedevice");
-	break;
-	case 0xe57e44:
-	sprintf (out, "beginio");
-	ioreq = 1;
-	break;
-	case 0xe57ef2:
-	sprintf (out, "abortio");
-	ioreq = 1;
-	break;
-    }
-    if (out[0] == 0)
-	return;
-    if (cd32request)
-	write_log ("old request still not returned!\n");
-    cd32request = request;
-    cd32nextpc = get_long(m68k_areg (regs, 7));
-    write_log("%s A1=%08.8X\n", out, request);
-    if (ioreq) {
-	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d\n",
-	get_word(request + 28),get_long(request + 40),get_long(request + 36),get_long(request + 44));
-    }
-}
-#endif
-
 /* emulate simple prefetch  */
 static void m68k_run_2p (void)
 {
@@ -2031,6 +2050,8 @@ static void m68k_run_2p (void)
     for (;;) {
 	uae_u32 opcode;
 	uae_u32 pc = m68k_getpc (r);
+
+	out_cd32io(m68k_getpc(&regs));
 
 	do_cycles (cpu_cycles);
 
@@ -2109,6 +2130,8 @@ static void exception2_handle (uaecptr addr, uaecptr fault)
 
 void m68k_go (int may_quit)
 {
+    int hardboot = 1;
+
     if (in_m68k_go || !may_quit) {
 	write_log ("Bug! m68k_go is not reentrant.\n");
 	abort ();
@@ -2121,10 +2144,12 @@ void m68k_go (int may_quit)
     for (;;) {
 	void (*run_func)(void);
 	if (quit_program > 0) {
-	    int hardreset = quit_program == 3 ? 1 : 0;
+	    int hardreset = (quit_program == 3 ? 1 : 0) | hardboot;
 	    if (quit_program == 1)
 		break;
+
 	    quit_program = 0;
+	    hardboot = 0;
 #ifdef SAVESTATE
 	    if (savestate_state == STATE_RESTORE)
 		restore_state (savestate_fname);
@@ -2135,7 +2160,10 @@ void m68k_go (int may_quit)
 	     * fastram state restore breaks
 	     */
 	    reset_all_systems ();
+	    gayle_reset (hardreset);
 	    customreset ();
+	    if (hardreset)
+		rtc_hardreset();
 	    m68k_reset ();
 	    if (hardreset) {
 		memory_hardreset();

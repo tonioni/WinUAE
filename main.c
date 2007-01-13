@@ -96,7 +96,6 @@ void discard_prefs (struct uae_prefs *p, int type)
     }
 #ifdef FILESYS
     filesys_cleanup ();
-    free_mountinfo (p->mountinfo);
 #endif
 }
 
@@ -124,6 +123,7 @@ void fixup_prefs (struct uae_prefs *p)
 {
     int err = 0;
 
+    build_in_chipset_prefs (p);
     if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
 	|| p->chipmem_size < 0x40000
 	|| p->chipmem_size > 0x800000)
@@ -169,16 +169,24 @@ void fixup_prefs (struct uae_prefs *p)
 	write_log ("Unsupported bogomem size!\n");
 	err = 1;
     }
-    if (p->bogomem_size > 0x100000 && ((p->chipset_mask & CSMASK_AGA) || p->cpu_level >= 2)) {
+    if (p->bogomem_size > 0x100000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
 	p->bogomem_size = 0x100000;
 	write_log ("Possible Gayle bogomem conflict fixed\n");
     }
-
     if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {
 	write_log ("You can't use fastmem and more than 2MB chip at the same time!\n");
 	p->fastmem_size = 0;
 	err = 1;
     }
+    if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
+	p->mbresmem_low_size = 0;
+	write_log ("Unsupported A3000 MB RAM size\n");
+    }
+    if (p->mbresmem_high_size > 0x04000000 || (p->mbresmem_high_size & 0xfffff)) {
+	p->mbresmem_high_size = 0;
+	write_log ("Unsupported Motherboard RAM size\n");
+    }
+
 #if 0
     if (p->m68k_speed < -1 || p->m68k_speed > 20) {
 	write_log ("Bad value for -w parameter: must be -1, 0, or within 1..20.\n");
@@ -279,7 +287,16 @@ void fixup_prefs (struct uae_prefs *p)
     }
     if (p->parallel_postscript_emulation)
 	p->parallel_postscript_detection = 1;
-
+    if (p->cs_compatible) {
+	p->cs_fatgaryrev = p->cs_ramseyrev = p->cs_mbdmac = -1;
+	p->cs_ide = 0;
+	if (p->cpu_level >= 2) {
+	    p->cs_fatgaryrev = 0;
+	    p->cs_ide = -1;
+	    p->cs_ramseyrev = 0x0f;
+	    p->cs_mbdmac = 0;
+	}
+    }
     fixup_prefs_dimensions (p);
 
 #ifdef CPU_68000_ONLY
@@ -402,9 +419,6 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
-#ifdef FILESYS
-	    free_mountinfo (currprefs.mountinfo);
-#endif
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */
@@ -412,9 +426,6 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 == argc) {
 		write_log ("Missing argument for '-f' option.\n");
 	    } else {
-#ifdef FILESYS
-		free_mountinfo (currprefs.mountinfo);
-#endif
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
 	} else if (strcmp (argv[i], "-s") == 0) {
@@ -476,12 +487,14 @@ void reset_all_systems (void)
 {
     init_eventtab ();
 
+#ifdef FILESYS
+    filesys_reset ();
+#endif
     memory_reset ();
 #if defined(BSDSOCKET)
     bsdlib_reset ();
 #endif
 #ifdef FILESYS
-    filesys_reset ();
     filesys_start_threads ();
     hardfile_reset ();
 #endif
@@ -572,9 +585,6 @@ static void real_main2 (int argc, char **argv)
 #endif
 
     if (restart_config[0]) {
-#ifdef FILESYS
-	free_mountinfo (currprefs.mountinfo);
-#endif
 	default_prefs (&currprefs, 0);
 	fixup_prefs (&currprefs);
     }
@@ -631,6 +641,8 @@ static void real_main2 (int argc, char **argv)
 		       a config using the cmd-line.  This case handles loads through the GUI. */
     fixup_prefs (&currprefs);
     changed_prefs = currprefs;
+    /* force sound settings change */
+    currprefs.produce_sound = 0;
 
     savestate_init ();
 #ifdef SCSIEMU
@@ -649,12 +661,12 @@ static void real_main2 (int argc, char **argv)
 #ifdef AUTOCONFIG
     expansion_init ();
 #endif
-    memory_init ();
-    memory_reset ();
-
 #ifdef FILESYS
     filesys_install ();
 #endif
+    memory_init ();
+    memory_reset ();
+
 #ifdef AUTOCONFIG
     gfxlib_install ();
 #if defined(BSDSOCKET)
@@ -705,8 +717,6 @@ static void real_main2 (int argc, char **argv)
 
 void real_main (int argc, char **argv)
 {
-    free_mountinfo (&options_mountinfo);
-    currprefs.mountinfo = changed_prefs.mountinfo = &options_mountinfo;
     restart_program = 1;
     fetch_configurationpath (restart_config, sizeof (restart_config));
     strcat (restart_config, OPTIONSFILENAME);

@@ -1,7 +1,7 @@
  /*
   * UAE - The Un*x Amiga Emulator
   *
-  * Gayle memory bank
+  * Gayle (and motherboard resources) memory bank
   *
   * (c) 2006 Toni Wilen
   */
@@ -9,9 +9,12 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include "options.h"
+
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
+#include "gayle.h"
 
 /*
 D80000 to D8FFFF		64 KB SPARE chip select
@@ -22,7 +25,7 @@ DA8000 to DAFFFF		32 KB Credit Card and IDE configregisters
 DB0000 to DBFFFF		64 KB Not used(reserved for external IDE)
 * DC0000 to DCFFFF		64 KB Real Time Clock(RTC)
 DD0000 to DDFFFF		64 KB RESERVED for DMA controller
-DE0000 to DEFFFF		64 KB Not Used
+DE0000 to DEFFFF		64 KB Motherboard resources
 */
 
 /* Gayle definitions from Linux driver */
@@ -65,7 +68,6 @@ DE0000 to DEFFFF		64 KB Not Used
 
 #define GAYLE_LOG 0
 
-static int gayle_type = -1; // 0=A600/A1200 1=A4000
 static uae_u8 gayle_irq;
 
 static void ide_interrupt(void)
@@ -74,7 +76,6 @@ static void ide_interrupt(void)
     INTREQ (0x8000 | 0x0008);
 }
 
-
 static int ide_read (uaecptr addr, int size)
 {
     addr &= 0xffff;
@@ -82,21 +83,21 @@ static int ide_read (uaecptr addr, int size)
 	write_log ("IDE_READ %08.8X\n", addr);
     if (addr == 0x201c) // AR1200 IDE detection hack
 	return 0;
-    if (gayle_type < 0)
+    if (currprefs.cs_ide <= 0)
 	return 0xffff;
     if (addr == GAYLE_IRQ_4000) {
-	if (gayle_type) {
+	if (currprefs.cs_ide == 2) {
 	    uae_u8 v = gayle_irq;
 	    gayle_irq = 0;
 	    return v;
 	}
 	return 0;
     } else if (addr == GAYLE_IRQ_1200) {
-	if (!gayle_type)
+	if (currprefs.cs_ide == 1)
 	    return gayle_irq;
 	return 0;
     }
-    if (gayle_type && (addr & 0x2020) == 0x2020)
+    if (currprefs.cs_ide == 2 && (addr & 0x2020) == 0x2020)
 	addr &= ~0x2020;
     switch (addr)
     {
@@ -113,18 +114,18 @@ static int ide_read (uaecptr addr, int size)
     return 0xffff;
 }
 
-static void ide_write (uaecptr addr, int val, int size)
+static void ide_write (uaecptr addr, uae_u32 val, int size)
 {
     addr &= 0xffff;
     if (GAYLE_LOG)
 	write_log ("IDE_WRITE %08.8X=%08.8X (%d)\n", addr, val, size);
-    if (gayle_type < 0)
+    if (currprefs.cs_ide <= 0)
 	return;
-    if (addr == GAYLE_IRQ_1200 && !gayle_type) {
+    if (addr == GAYLE_IRQ_1200 && currprefs.cs_ide == 1) {
 	gayle_irq &= val;
 	return;
     }
-    if (gayle_type && (addr & 0x2020) == 0x2020)
+    if (currprefs.cs_ide == 2 && (addr & 0x2020) == 0x2020)
 	addr &= ~0x2020;
     switch (addr)
     {
@@ -152,8 +153,6 @@ static int gayle_read (uaecptr addr, int size)
 	return ide_read(addr, size);
     else if(addr >= 0xd0000 && addr <= 0xdffff)
 	return ide_read(addr, size);
-    else if(addr >= 0xe0000 && addr <= 0xeffff)
-        return 0x7f7f;
     return 0;
 }
 static void gayle_write (uaecptr addr, int val, int size)
@@ -212,4 +211,173 @@ void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 {
     gayle_write (addr, value, 1);
+}
+
+static uae_u8 ramsey_config;
+static int gary_coldboot, gary_toenb, gary_timeout;
+static int garyidoffset;
+
+static void mbres_write (uaecptr addr, uae_u32 val, int size)
+{
+    addr &= 0xffff;
+
+    if (GAYLE_LOG)
+	write_log ("MBRES_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, M68K_GETPC);
+    if (addr == 0x1002)
+	garyidoffset = -1;
+    if (addr == 0x03)
+	ramsey_config = val;
+    if (addr == 0x02)
+	gary_coldboot = (val & 0x80) ? 1 : 0;
+    if (addr == 0x01)
+	gary_toenb = (val & 0x80) ? 1 : 0;
+    if (addr == 0x00)
+	gary_timeout = (val & 0x80) ? 1 : 0;
+}
+
+static uae_u32 mbres_read (uaecptr addr, int size)
+{
+    addr &= 0xffff;
+
+    if (GAYLE_LOG)
+	write_log ("MBRES_READ %08.8X\n", addr);
+
+    /* Gary ID (I don't think this exists in real chips..) */
+    if (addr == 0x1002 && currprefs.cs_fatgaryrev >= 0) {
+	garyidoffset++;
+	garyidoffset &= 7;
+	return (currprefs.cs_fatgaryrev << garyidoffset) & 0x80;
+    }
+    if (addr == 0x43) { /* RAMSEY revision */
+	if (currprefs.cs_ramseyrev >= 0)
+	    return currprefs.cs_ramseyrev;
+    }
+    if (addr == 0x03) { /* RAMSEY config */
+	if (currprefs.cs_ramseyrev >= 0)
+	    return ramsey_config;
+    }
+    if (addr == 0x02) { /* coldreboot flag */
+	if (currprefs.cs_fatgaryrev >= 0)
+	    return gary_coldboot ? 0x80 : 0x00;
+    }
+    if (addr == 0x01) { /* toenb flag */
+	if (currprefs.cs_fatgaryrev >= 0)
+	    return gary_toenb ? 0x80 : 0x00;
+    }
+    if (addr == 0x00) { /* timeout flag */
+	if (currprefs.cs_fatgaryrev >= 0)
+	    return gary_timeout ? 0x80 : 0x00;
+    }
+    return 0;
+}
+
+static uae_u32 REGPARAM3 mbres_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbres_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbres_bget (uaecptr) REGPARAM;
+static void REGPARAM3 mbres_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbres_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbres_bput (uaecptr, uae_u32) REGPARAM;
+
+uae_u32 REGPARAM2 mbres_lget (uaecptr addr)
+{
+    addr &= 0xFFFF;
+    return (uae_u32)(mbres_wget (addr) << 16) + mbres_wget (addr + 2);
+}
+uae_u32 REGPARAM2 mbres_wget (uaecptr addr)
+{
+    return mbres_read (addr, 2);
+}
+uae_u32 REGPARAM2 mbres_bget (uaecptr addr)
+{
+    return mbres_read (addr, 1);
+}
+
+void REGPARAM2 mbres_lput (uaecptr addr, uae_u32 value)
+{
+    mbres_wput (addr, value >> 16);
+    mbres_wput (addr + 2, value & 0xffff);
+}
+
+void REGPARAM2 mbres_wput (uaecptr addr, uae_u32 value)
+{
+    mbres_write (addr, value, 2);
+}
+
+void REGPARAM2 mbres_bput (uaecptr addr, uae_u32 value)
+{
+    mbres_write (addr, value, 1);
+}
+
+addrbank mbres_bank = {
+    mbres_lget, mbres_wget, mbres_bget,
+    mbres_lput, mbres_wput, mbres_bput,
+    default_xlate, default_check, NULL, "Motherboard Resources",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+static void mbdmac_write (uae_u32 addr, uae_u32 val, int size)
+{
+    if (GAYLE_LOG)
+	write_log ("DMAC_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, M68K_GETPC);
+}
+
+static uae_u32 mbdmac_read (uae_u32 addr, int size)
+{
+    if (GAYLE_LOG)
+	write_log ("DMAC_READ %08.8X\n", addr);
+    return 0xff;
+}
+
+static uae_u32 REGPARAM3 mbdmac_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbdmac_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 mbdmac_bget (uaecptr) REGPARAM;
+static void REGPARAM3 mbdmac_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbdmac_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 mbdmac_bput (uaecptr, uae_u32) REGPARAM;
+
+uae_u32 REGPARAM2 mbdmac_lget (uaecptr addr)
+{
+    addr &= 0xFFFF;
+    return (uae_u32)(mbdmac_wget (addr) << 16) + mbdmac_wget (addr + 2);
+}
+uae_u32 REGPARAM2 mbdmac_wget (uaecptr addr)
+{
+    return mbdmac_read (addr, 2);
+}
+uae_u32 REGPARAM2 mbdmac_bget (uaecptr addr)
+{
+    return mbdmac_read (addr, 1);
+}
+
+void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 value)
+{
+    mbdmac_wput (addr, value >> 16);
+    mbdmac_wput (addr + 2, value & 0xffff);
+}
+
+void REGPARAM2 mbdmac_wput (uaecptr addr, uae_u32 value)
+{
+    mbdmac_write (addr, value, 2);
+}
+
+void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 value)
+{
+    mbdmac_write (addr, value, 1);
+}
+
+addrbank mbdmac_bank = {
+    mbdmac_lget, mbdmac_wget, mbdmac_bget,
+    mbdmac_lput, mbdmac_wput, mbdmac_bput,
+    default_xlate, default_check, NULL, "DMAC",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+void gayle_reset (int hardreset)
+{
+    if (hardreset) {
+	ramsey_config = 0;
+	gary_coldboot = 1;
+	gary_timeout = 0;
+	gary_toenb = 0;
+    }
 }

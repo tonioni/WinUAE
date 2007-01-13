@@ -40,6 +40,8 @@
 #include "crc32.h"
 #include "inputdevice.h"
 
+#undef CATWEASEL
+
 static int longwritemode = 0;
 
 /* support HD floppies */
@@ -483,6 +485,7 @@ static char *drive_id_name(drive *drv)
     case DRIVE_ID_35HD : return "3.5HD";
     case DRIVE_ID_525SD: return "5.25SD";
     case DRIVE_ID_35DD : return "3.5DD";
+    case DRIVE_ID_NONE : return "NONE";
     }
     return "UNKNOWN";
 }
@@ -515,6 +518,9 @@ static void drive_settype_id(drive *drv)
 	break;
 	case DRV_525_SD:
 	drv->drive_id = DRIVE_ID_525SD;
+	break;
+	case DRV_NONE:
+	drv->drive_id = DRIVE_ID_NONE;
 	break;
     }
 #ifdef DEBUG_DRIVE_ID
@@ -2131,15 +2137,13 @@ void DISK_select (uae_u8 data)
 	    write_log (" side %d ", (data & 0x04) ? 1 : 0);
     }
 
-    selected |= disabled;
-
     if (step != step_pulse) {
 	if (disk_debug_logging > 1)
 	    write_log (" dskstep %d ", step_pulse);
 	step = step_pulse;
 	if (step && !savestate_state) {
 	    for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
-		if (!(selected & (1 << dr))) {
+		if (!((selected | disabled) & (1 << dr))) {
 		    drive_step (floppy + dr);
 		    if (floppy[dr].indexhackmode > 1 && (data & 0x80))
 			floppy[dr].indexhack = 1;
@@ -2156,20 +2160,18 @@ void DISK_select (uae_u8 data)
 		drv->drive_id_scnt++;
 		drv->drive_id_scnt &= 31;
 		drv->idbit = (drv->drive_id & (1L << (31 - drv->drive_id_scnt))) ? 1 : 0;
-		if ((prevdata & 0x80) == 0 || (data & 0x80) == 0) {
-		    /* motor off: if motor bit = 0 in prevdata or data -> turn motor on */
-		    drive_motor (drv, 0);
-		} else if (prevdata & 0x80) {
-		    /* motor on: if motor bit = 1 in prevdata only (motor flag state in data has no effect)
-			-> turn motor off */
-		    drive_motor (drv, 1);
+		if (!(disabled & (1 << dr))) {
+		    if ((prevdata & 0x80) == 0 || (data & 0x80) == 0) {
+			/* motor off: if motor bit = 0 in prevdata or data -> turn motor on */
+			drive_motor (drv, 0);
+		    } else if (prevdata & 0x80) {
+			/* motor on: if motor bit = 1 in prevdata only (motor flag state in data has no effect)
+			    -> turn motor off */
+			drive_motor (drv, 1);
+		    }
 		}
-		if (currprefs.dfxtype[dr] == DRV_35_DD) {
-		    if (dr == 0) /* A500/A2000 internal drive always returns 0 */
-			drv->idbit = 0;
-		    else /* regular external DD drive always returns 1 */
-			drv->idbit = 1;
-		}
+		if (!currprefs.cs_df0idhw && dr == 0)
+		    drv->idbit = 0;
 #ifdef DEBUG_DRIVE_ID
 		write_log("DISK_status: sel %d id %s (%08.8X) [0x%08lx, bit #%02d: %d]\n",
 		    dr, drive_id_name(drv), drv->drive_id, drv->drive_id << drv->drive_id_scnt, 31 - drv->drive_id_scnt, drv->idbit);
@@ -2177,6 +2179,7 @@ void DISK_select (uae_u8 data)
 	    }
 	}
     }
+
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	floppy[dr].state = (!(selected & (1 << dr))) | !floppy[dr].motoroff;
 	update_drive_gui (dr);
@@ -2193,7 +2196,7 @@ uae_u8 DISK_status (void)
 
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = floppy + dr;
-	if (!(selected & (1 << dr))) {
+	if (!((selected | disabled) & (1 << dr))) {
 	    if (drive_running (drv)) {
 		if (drv->catweasel) {
 #ifdef CATWEASEL
@@ -2227,6 +2230,9 @@ uae_u8 DISK_status (void)
 	    } else if (drv->dskchange && currprefs.dfxtype[dr] != DRV_525_SD) {
 		st &= ~4;
 	    }
+	} else if (!(selected & (1 << dr))) {
+	    if (drv->idbit)
+		st &= ~0x20;
 	}
     }
     return st;
@@ -2469,6 +2475,31 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 extern uae_u8 cycle_line[256];
 #endif
 
+static void disk_doupdate_read_nothing (int floppybits)
+{
+    int j = 0, k = 1, l = 0;
+
+    while (floppybits >= get_floppy_speed()) {
+	word <<= 1;
+	if (bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
+	    if (dsklength > 0) {
+		put_word (dskpt, word);
+		dskpt += 2;
+	    }
+	    dsklength--;
+	    if (dsklength <= 0)
+		disk_dmafinished ();
+	}
+	if ((bitoffset & 7) == 7) {
+	    dskbytr_val = word & 0xff;
+	    dskbytr_val |= 0x8000;
+	}
+	bitoffset++;
+	bitoffset &= 15;
+	floppybits -= get_floppy_speed();
+    }
+}
+
 static void disk_doupdate_read (drive * drv, int floppybits)
 {
     int j = 0, k = 1, l = 0;
@@ -2668,6 +2699,7 @@ void DISK_update (int tohpos)
     int dr;
     int cycles = (tohpos << 8) - disk_hpos;
     int startcycle = disk_hpos;
+    int didread;
 
     disk_jitter = ((uaerand () >> 4) & 3) + 1;
     if (disk_jitter > 2)
@@ -2697,6 +2729,7 @@ void DISK_update (int tohpos)
 	drive_fill_bigbuf (drv, 0);
 	drv->mfmpos %= drv->tracklen;
     }
+    didread = 0;
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
 	if (drv->motoroff)
@@ -2709,13 +2742,20 @@ void DISK_update (int tohpos)
 	    disk_doupdate_read (drv, drv->floppybitcounter);
 	disk_doupdate_predict (drv, disk_hpos);
 	drv->floppybitcounter %= drv->trackspeed;
+	didread = 1;
 	break;
     }
+     /* no floppy selected but read dma */
+    if (!didread && dskdmaen == 2) {
+	disk_doupdate_read_nothing (cycles);
+    }
+
 }
 
 void DSKLEN (uae_u16 v, int hpos)
 {
     int dr, prev = dsklen;
+    int noselected = 0;
 
     DISK_update (hpos);
     if ((v & 0x8000) && (dsklen & 0x8000)) {
@@ -2769,23 +2809,24 @@ void DSKLEN (uae_u16 v, int hpos)
 	}
     }
 
-    if (disk_debug_logging > 0) {
-	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
-	    drive *drv = &floppy[dr];
-	    if (drv->motoroff)
-		continue;
-	    if ((selected & (1 << dr)) == 0)
-		break;
-	}
-	if (dr == 4) {
-	    write_log ("disk %s DMA started but no drive selected!\n",
-	       dskdmaen == 3 ? "write" : "read");
-	} else {
+    for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+        drive *drv = &floppy[dr];
+        if (drv->motoroff)
+	    continue;
+	if ((selected & (1 << dr)) == 0)
+	    break;
+    }
+    if (dr == 4) {
+        write_log ("disk %s DMA started but no drive selected!\n",
+           dskdmaen == 3 ? "write" : "read");
+	noselected = 1;
+    } else {
+	if (disk_debug_logging > 0) {
 	    write_log ("disk %s DMA started, drv=%x track %d mfmpos %d\n",
-		dskdmaen == 3 ? "write" : "read", selected ^ 15,
+    		dskdmaen == 3 ? "write" : "read", selected ^ 15,
 		floppy[dr].cyl * 2 + side, floppy[dr].mfmpos);
+	    disk_dma_debugmsg();
 	}
-        disk_dma_debugmsg();
     }
 
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++)
@@ -2794,6 +2835,7 @@ void DSKLEN (uae_u16 v, int hpos)
     /* Try to make floppy access from Kickstart faster.  */
     if (dskdmaen != 2 && dskdmaen != 3)
 	return;
+
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
 	if (selected & (1 << dr))
@@ -2855,6 +2897,15 @@ void DSKLEN (uae_u16 v, int hpos)
 		done = 1;
 	    }
 	}
+	if (!done && noselected) {
+	    while (dsklength-- > 0) {
+	        put_word (dskpt, 0);
+	        dskpt += 2;
+	    }
+	    INTREQ (0x8000 | 0x1000);
+	    done = 1;
+	}
+
 	if (done) {
 	    linecounter = 2;
 	    dskdmaen = 0;
@@ -2948,6 +2999,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
     int ret, i;
     drive *drv = &floppy[num];
     uae_u32 dos, crc, crc2;
+    int wasdelayed = drv->dskchange_time;
 
     ret = 0;
     drv->cyl = 0;
@@ -2976,8 +3028,10 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	crc += v;
     }
     crc ^= 0xffffffff;
-    if (crc != crc2)
-	return 3;
+    if (crc != crc2) {
+	ret = 3;
+	goto end;
+    }
     if (dos == 0x444f5300)
 	ret = 10;
     else if (dos == 0x444f5301 || dos == 0x444f5302 || dos == 0x444f5303)
@@ -2988,6 +3042,12 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	ret = 4;
 end:
     drive_image_free (drv);
+    if (wasdelayed > 1) {
+	drive_eject (drv);
+	currprefs.df[num][0] = 0;
+	drv->dskchange_time = wasdelayed;
+	disk_insert (num, drv->newname);
+    }
     return ret;
 }
 

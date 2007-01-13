@@ -68,18 +68,8 @@ static char *sound_devices[MAX_SOUND_DEVICES];
 GUID sound_device_guid[MAX_SOUND_DEVICES];
 static int num_sound_devices;
 
-#ifdef USE_PRIMARY_BUFFER
-static LPDIRECTSOUNDBUFFER lpDSBprimary;
-#endif
-
-#define USE_DS8
-#ifdef USE_DS8
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
-#else
-static LPDIRECTSOUND lpDS;
-static LPDIRECTSOUNDBUFFER lpDSBsecondary;
-#endif
 
 static DWORD writepos;
 
@@ -230,9 +220,6 @@ static int open_audio_ds (int size)
     HRESULT hr;
     DSBUFFERDESC sound_buffer;
     DSCAPS DSCaps;
-#ifdef USE_PRIMARY_BUFFER
-    DSBCAPS DSBCaps;
-#endif
     WAVEFORMATEXTENSIBLE wavfmt;
     LPDIRECTSOUNDBUFFER pdsb;
     int freq = currprefs.sound_freq;
@@ -267,13 +254,9 @@ static int open_audio_ds (int size)
 
     recalc_offsets();
 
-#ifdef USE_DS8
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
-#else
-    hr = DirectSoundCreate (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
-#endif
     if (FAILED(hr))  {
-        write_log ("SOUND: DirectSoundCreate() failure: %s\n", DXError (hr));
+        write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
         return 0;
     }
 
@@ -308,31 +291,6 @@ static int open_audio_ds (int size)
 	}
     }
 
-#if 0
-    memset (&sound_buffer, 0, sizeof (sound_buffer));
-    sound_buffer.dwSize = sizeof (sound_buffer);
-    sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER;
-    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &lpDSBprimary, NULL);
-    if (FAILED(hr))  {
-        write_log ("SOUND: Primary CreateSoundBuffer() failure: %s\n", DXError (hr));
-	goto error;
-    }
-
-    memset(&DSBCaps, 0, sizeof(DSBCaps));
-    DSBCaps.dwSize = sizeof(DSBCaps);
-    hr = IDirectSoundBuffer_GetCaps(lpDSBprimary, &DSBCaps);
-    if (FAILED(hr)) {
-	write_log ("SOUND: Primary GetCaps() failure: %s\n",  DXError (hr));
-	goto error;
-    }
-
-    hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt.Format);
-    if (FAILED(hr))  {
-        write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
-        goto error;
-    }
-#endif
-
     round = 0;
     for (;;) {
 	int extend = round > 0 && ch > 2;
@@ -348,7 +306,7 @@ static int open_audio_ds (int size)
 	    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
 	    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
 	    wavfmt.Samples.wValidBitsPerSample = 16;
-	    wavfmt.dwChannelMask = round == 1 ? SPEAKER_ALL : KSAUDIO_SPEAKER_QUAD;
+	    wavfmt.dwChannelMask = round == 1 ? KSAUDIO_SPEAKER_QUAD : SPEAKER_ALL;
 	}
 
 	write_log ("SOUND: %s:%d '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
@@ -378,17 +336,12 @@ static int open_audio_ds (int size)
 	break;
     }
 
-#ifdef USE_DS8
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
         write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release(pdsb);
-#else
-    lpDSBsecondary = pdsb;
-    pdsb = NULL;
-#endif
 
     setvolume ();
     cleardsbuffer ();

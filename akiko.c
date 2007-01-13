@@ -66,7 +66,11 @@ static int state = I2C_WAIT;
 
 static void nvram_write	(int offset, int len)
 {
-    struct zfile *f = zfile_fopen (currprefs.flashfile, "rb+");
+    struct zfile *f;
+
+    if (!currprefs.cs_cd32nvram)
+	return;
+    f = zfile_fopen (currprefs.flashfile, "rb+");
     if (!f) {
 	f = zfile_fopen (currprefs.flashfile, "wb");
 	if (!f) return;
@@ -81,6 +85,8 @@ static void nvram_read (void)
 {
     struct zfile *f;
 
+    if (!currprefs.cs_cd32nvram)
+	return;
     f = zfile_fopen (currprefs.flashfile, "rb");
     memset (cd32_nvram, 0, NVRAM_SIZE);
     if (!f) return;
@@ -620,18 +626,15 @@ static int cdrom_command_something (void)
 
 static int cdrom_command_media_status (void)
 {
-    struct device_info di;
-
     cdrom_result_buffer[0] = 10;
-    cdrom_result_buffer[1] = sys_command_info (DF_IOCTL, unitnum, &di)->media_inserted ?  1 : 0;
+    cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum);
     return 2;
 }
 
 /* check if cd drive door is open or closed */
 static int cdrom_command_door_status (void)
 {
-    struct device_info di;
-    if (unitnum >= 0 && !sys_command_info (DF_IOCTL, unitnum, &di)->media_inserted) {
+    if (unitnum >= 0 && !sys_command_ismedia (DF_IOCTL, unitnum)) {
 	cdrom_result_buffer[1] = 0x80;
 	cdrom_disk = 0;
     } else {
@@ -887,7 +890,6 @@ static void akiko_handler (void)
 {
     static int mediacheckcnt;
     static int lastmediastate = -1;
-    struct device_info di;
 
     if (unitnum < 0)
 	return;
@@ -900,7 +902,7 @@ static void akiko_handler (void)
     if (mediacheckcnt > 0)
 	mediacheckcnt--;
     if (mediacheckcnt == 0) {
-	int media = sys_command_info (DF_IOCTL, unitnum, &di)->media_inserted;
+	int media = sys_command_ismedia (DF_IOCTL, unitnum);
 	mediacheckcnt = 312 * 50 * 2;
 	if (media != lastmediastate) {
 	    write_log ("media changed = %d\n", media);
@@ -921,6 +923,8 @@ static void akiko_handler (void)
 
 static void akiko_internal (void)
 {
+    if (!currprefs.cs_cd32cd)
+	return;
     cdrom_run_command ();
     if (cdrom_command_active > 0) {
 	cdrom_command_active--;
@@ -929,13 +933,11 @@ static void akiko_internal (void)
     }
 }
 
-extern int cd32_enabled;
-
 void AKIKO_hsync_handler (void)
 {
     static int framecounter;
 
-    if (!cd32_enabled)
+    if (!currprefs.cs_cd32cd)
 	return;
     framecounter--;
     if (framecounter <= 0) {
@@ -1014,7 +1016,16 @@ STATIC_INLINE void akiko_put_long (uae_u32 *p, int offset, int v)
     *p |= v << ((3 - offset) * 8);
 }
 
-uae_u32 akiko_bget2 (uaecptr addr, int msg)
+static uae_u32 REGPARAM3 akiko_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 akiko_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 akiko_bget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 akiko_lgeti (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 akiko_wgeti (uaecptr) REGPARAM;
+static void REGPARAM3 akiko_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 akiko_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 akiko_bput (uaecptr, uae_u32) REGPARAM;
+
+static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 {
     uae_u8 v;
 
@@ -1031,68 +1042,74 @@ uae_u32 akiko_bget2 (uaecptr addr, int msg)
 	v = 0xFE;
 	break;
 
-	/* CDROM control */
-	case 0x04:
-	case 0x05:
-	case 0x06:
-	case 0x07:
-	v = akiko_get_long (cdrom_status1, addr - 0x04);
-	break;
-	case 0x08:
-	case 0x09:
-	case 0x0a:
-	case 0x0b:
-	v = akiko_get_long (cdrom_status2, addr - 0x08);
-	break;
-	case 0x10:
-	case 0x11:
-	case 0x12:
-	case 0x13:
-	v = akiko_get_long (cdrom_address1, addr - 0x10);
-	break;
-	case 0x14:
-	case 0x15:
-	case 0x16:
-	case 0x17:
-	v = akiko_get_long (cdrom_address2, addr - 0x14);
-	break;
-	case 0x18:
-	v = cdrom_status3;
-	break;
-	case 0x19:
-	v = cdrom_command_offset_complete;
-	break;
-	case 0x1a:
-	v = cdrom_result_complete;
-	break;
-	case 0x1f:
-	v = cdrom_result_last_pos;
-	break;
-	case 0x20:
-	case 0x21:
-	v = akiko_get_long (cdrom_readmask_r, addr - 0x20 + 2);
-	break;
-	case 0x24:
-	case 0x25:
-	case 0x26:
-	case 0x27:
-	v = akiko_get_long (cdrom_longmask, addr - 0x24);
-	break;
+	if (currprefs.cs_cd32cd) {
+	    /* CDROM control */
+	    case 0x04:
+	    case 0x05:
+	    case 0x06:
+	    case 0x07:
+	    v = akiko_get_long (cdrom_status1, addr - 0x04);
+	    break;
+	    case 0x08:
+	    case 0x09:
+	    case 0x0a:
+	    case 0x0b:
+	    v = akiko_get_long (cdrom_status2, addr - 0x08);
+	    break;
+	    case 0x10:
+	    case 0x11:
+	    case 0x12:
+	    case 0x13:
+	    v = akiko_get_long (cdrom_address1, addr - 0x10);
+	    break;
+	    case 0x14:
+	    case 0x15:
+	    case 0x16:
+	    case 0x17:
+	    v = akiko_get_long (cdrom_address2, addr - 0x14);
+	    break;
+	    case 0x18:
+	    v = cdrom_status3;
+	    break;
+	    case 0x19:
+	    v = cdrom_command_offset_complete;
+	    break;
+	    case 0x1a:
+	    v = cdrom_result_complete;
+	    break;
+	    case 0x1f:
+	    v = cdrom_result_last_pos;
+	    break;
+	    case 0x20:
+	    case 0x21:
+	    v = akiko_get_long (cdrom_readmask_r, addr - 0x20 + 2);
+	    break;
+	    case 0x24:
+	    case 0x25:
+	    case 0x26:
+	    case 0x27:
+	    v = akiko_get_long (cdrom_longmask, addr - 0x24);
+	    break;
+	} else if (addr < 0x30) {
+	    break;
+	}
 
-	/* NVRAM */
-	case 0x30:
-	case 0x31:
-	case 0x32:
-	case 0x33:
-	v =  akiko_nvram_read (addr - 0x30);
-	break;
+        /* NVRAM */
+        case 0x30:
+        case 0x31:
+        case 0x32:
+        case 0x33:
+	if (currprefs.cs_cd32nvram)
+            v =  akiko_nvram_read (addr - 0x30);
+        break;
 
 	/* C2P */
 	case 0x38:
 	case 0x39:
-	case 0x3a:
+    	case 0x3a:
 	case 0x3b:
-	v = akiko_c2p_read (addr - 0x38);
+	if (currprefs.cs_cd32c2p)
+	    v = akiko_c2p_read (addr - 0x38);
 	break;
 
 	default:
@@ -1107,14 +1124,20 @@ uae_u32 akiko_bget2 (uaecptr addr, int msg)
     return v;
 }
 
-uae_u32 REGPARAM2 akiko_bget (uaecptr addr)
+static uae_u32 REGPARAM2 akiko_bget (uaecptr addr)
 {
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
     return akiko_bget2 (addr, 1);
 }
 
-uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
+static uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
 {
     uae_u16 v;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
     addr &= 0xffff;
     v = akiko_bget2 (addr + 1, 0);
     v |= akiko_bget2 (addr + 0, 0) << 8;
@@ -1123,10 +1146,13 @@ uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
+static uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
 {
     uae_u32 v;
 
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
     addr &= 0xffff;
     v = akiko_bget2 (addr + 3, 0);
     v |= akiko_bget2 (addr + 2, 0) << 8;
@@ -1137,7 +1163,7 @@ uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
     return v;
 }
 
-void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
+static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 {
     uae_u32 tmp;
 
@@ -1148,78 +1174,84 @@ void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
     uae_sem_wait (&akiko_sem);
     switch (addr)
     {
-	case 0x04:
-	case 0x05:
-	case 0x06:
-	case 0x07:
-	akiko_put_long (&cdrom_status1, addr - 0x04, v);
-	break;
-	case 0x08:
-	case 0x09:
-	case 0x0a:
-	case 0x0b:
-	akiko_put_long (&cdrom_status2, addr - 0x08, v);
-	if (addr == 8)
-	    cdrom_status1 &= cdrom_status2;
-	break;
-	case 0x10:
-	case 0x11:
-	case 0x12:
-	case 0x13:
-	akiko_put_long (&cdrom_address1, addr - 0x10, v);
-	break;
-	case 0x14:
-	case 0x15:
-	case 0x16:
-	case 0x17:
-	akiko_put_long (&cdrom_address2, addr - 0x14, v);
-	break;
-	case 0x18:
-	cdrom_status3 = v;
-	break;
-	case 0x19:
-	cdrom_command_offset_complete = v;
-	break;
-	case 0x1a:
-	cdrom_result_complete = v;
-	break;
-	case 0x1d:
-	cdrom_command_offset_todo = v;
-	break;
-	case 0x1f:
-	cdrom_result_last_pos = v;
-	break;
-	case 0x20:
-	cdrom_readmask_w |= (v << 8);
-	cdrom_readmask_r &= 0x00ff;
-	break;
-	case 0x21:
-	cdrom_readmask_w |= (v << 0);
-	cdrom_readmask_r &= 0xff00;
-	break;
-	case 0x24:
-	case 0x25:
-	case 0x26:
-	case 0x27:
-	tmp = cdrom_longmask;
-	akiko_put_long (&cdrom_longmask, addr - 0x24, v);
-	if ((cdrom_longmask & 0x04000000) && !(tmp & 0x04000000))
-	    cdrom_sector_counter = 0;
+	if (currprefs.cs_cd32cd) {
+	    case 0x04:
+	    case 0x05:
+	    case 0x06:
+	    case 0x07:
+	    akiko_put_long (&cdrom_status1, addr - 0x04, v);
+	    break;
+	    case 0x08:
+	    case 0x09:
+	    case 0x0a:
+	    case 0x0b:
+	    akiko_put_long (&cdrom_status2, addr - 0x08, v);
+	    if (addr == 8)
+		cdrom_status1 &= cdrom_status2;
+	    break;
+	    case 0x10:
+	    case 0x11:
+	    case 0x12:
+	    case 0x13:
+	    akiko_put_long (&cdrom_address1, addr - 0x10, v);
+	    break;
+	    case 0x14:
+	    case 0x15:
+	    case 0x16:
+	    case 0x17:
+	    akiko_put_long (&cdrom_address2, addr - 0x14, v);
+	    break;
+	    case 0x18:
+	    cdrom_status3 = v;
+	    break;
+	    case 0x19:
+	    cdrom_command_offset_complete = v;
+	    break;
+	    case 0x1a:
+	    cdrom_result_complete = v;
+	    break;
+	    case 0x1d:
+	    cdrom_command_offset_todo = v;
+	    break;
+	    case 0x1f:
+	    cdrom_result_last_pos = v;
+	    break;
+	    case 0x20:
+	    cdrom_readmask_w |= (v << 8);
+	    cdrom_readmask_r &= 0x00ff;
+	    break;
+	    case 0x21:
+	    cdrom_readmask_w |= (v << 0);
+	    cdrom_readmask_r &= 0xff00;
+	    break;
+	    case 0x24:
+	    case 0x25:
+	    case 0x26:
+	    case 0x27:
+	    tmp = cdrom_longmask;
+	    akiko_put_long (&cdrom_longmask, addr - 0x24, v);
+	    if ((cdrom_longmask & 0x04000000) && !(tmp & 0x04000000))
+		cdrom_sector_counter = 0;
+	    break;
+	} else if (addr < 0x30) {
+	    break;
+	}
+
+        case 0x30:
+        case 0x31:
+        case 0x32:
+        case 0x33:
+	    if (currprefs.cs_cd32nvram)
+		akiko_nvram_write (addr - 0x30, v);
 	break;
 
-	case 0x30:
-	case 0x31:
-	case 0x32:
-	case 0x33:
-	akiko_nvram_write (addr - 0x30, v);
-	break;
-
-	case 0x38:
-	case 0x39:
-	case 0x3a:
-	case 0x3b:
-	akiko_c2p_write (addr - 0x38, v);
-	break;
+        case 0x38:
+        case 0x39:
+        case 0x3a:
+        case 0x3b:
+	    if (currprefs.cs_cd32c2p)
+		akiko_c2p_write (addr - 0x38, v);
+        break;
 
 	default:
 	write_log ("akiko_bput: unknown address %08.8X\n", addr);
@@ -1229,13 +1261,19 @@ void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
     uae_sem_post (&akiko_sem);
 }
 
-void REGPARAM2 akiko_bput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 akiko_bput (uaecptr addr, uae_u32 v)
 {
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
     akiko_bput2 (addr, v, 1);
 }
 
-void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
 {
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
     addr &= 0xfff;
     if((addr < 0x30 && AKIKO_DEBUG_IO))
 	write_log("akiko_wput %08.8X: %08.8X=%04.4X\n", m68k_getpc(), addr, v & 0xffff);
@@ -1243,8 +1281,11 @@ void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
     akiko_bput2 (addr + 0, v >> 8, 0);
 }
 
-void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
+static void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
 {
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
     addr &= 0xffff;
     if(addr < 0x30 && AKIKO_DEBUG_IO)
 	write_log("akiko_lput %08.8X: %08.8X=%08.8X\n", m68k_getpc(), addr, v);
@@ -1253,6 +1294,13 @@ void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
     akiko_bput2 (addr + 1, (v >> 16) & 0xff, 0);
     akiko_bput2 (addr + 0, (v >> 24) & 0xff, 0);
 }
+
+addrbank akiko_bank = {
+    akiko_lget, akiko_wget, akiko_bget,
+    akiko_lput, akiko_wput, akiko_bput,
+    default_xlate, default_check, NULL, "Akiko",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
 
 static uae_thread_id akiko_tid;
 
@@ -1319,7 +1367,7 @@ void akiko_free (void)
 
 int akiko_init (void)
 {
-    if (cdromok == 0) {
+    if (currprefs.cs_cd32cd && cdromok == 0) {
 	unitnum = -1;
 	if (!device_func_init(DEVICE_TYPE_ANY)) {
 	    write_log ("no CDROM support\n");
@@ -1461,7 +1509,7 @@ uae_u8 *restore_akiko(uae_u8 *src)
 
 void restore_akiko_finish(void)
 {
-    if (!cd32_enabled)
+    if (!currprefs.cs_cd32cd)
 	return;
     akiko_c2p_do ();
     sys_command_cd_pause (DF_IOCTL, unitnum, 0);

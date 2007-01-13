@@ -367,6 +367,10 @@ static void pfield_init_linetoscr (void)
     }
 }
 
+void drawing_adjust_mousepos(int *xp, int *yp)
+{
+}
+
 static uae_u8 merge_2pixel8(uae_u8 p1, uae_u8 p2)
 {
     return p1;
@@ -1797,6 +1801,9 @@ static const char *numbers = { /* ugly  0123456789CHD%+- */
 
 STATIC_INLINE void putpixel (int x, xcolnr c8)
 {
+    if (x <= 0)
+	return;
+
     switch(gfxvidinfo.pixbytes)
     {
     case 1:

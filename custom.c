@@ -52,6 +52,7 @@
 #endif
 #include "debug.h"
 #include "akiko.h"
+#include "cdtv.h"
 #if defined(ENFORCER)
 #include "enforcer.h"
 #endif
@@ -229,6 +230,7 @@ enum diw_states
 
 int plffirstline, plflastline;
 int plfstrt, plfstop;
+static int first_bpl_vpos;
 static int last_diw_pix_hpos, last_ddf_pix_hpos;
 static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
@@ -1483,6 +1485,8 @@ STATIC_INLINE void decide_fetch (int hpos)
 
 static void start_bpl_dma (int hpos, int hstart)
 {
+    if (first_bpl_vpos < 0)
+	first_bpl_vpos = vpos;
     fetch_start(hpos);
     fetch_cycle = 0;
     last_fetch_hpos = hstart;
@@ -2223,7 +2227,6 @@ void init_hz (void)
 	changed_prefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
     }
 
-    ciavsyncmode = 0;
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
     if (hack_vpos > 0) {
@@ -2265,7 +2268,6 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	dumpsync();
-	ciavsyncmode = 1;
     }
     /* limit to sane values */
     if (vblank_hz < 10)
@@ -2376,6 +2378,8 @@ static uae_u32 REGPARAM2 timehack_helper (TrapContext *context)
   */
 STATIC_INLINE uae_u16 DENISEID (void)
 {
+    if (currprefs.cs_deniserev >= 0)
+	return currprefs.cs_deniserev;
 #ifdef AGA
     if (currprefs.chipset_mask & CSMASK_AGA)
 	return 0xF8;
@@ -2416,12 +2420,22 @@ STATIC_INLINE int GETHPOS(void)
 
 STATIC_INLINE uae_u16 VPOSR (void)
 {
-    unsigned int csbit = currprefs.ntscmode ? 0x1000 : 0;
+    unsigned int csbit = 0;
     int vp = (GETVPOS() >> 8) & 7;
+
+    if (currprefs.cs_agnusrev >= 0) {
+	csbit |= currprefs.cs_agnusrev << 8;
+    } else {
+	if (currprefs.ntscmode)
+	    csbit |= 0x1000;
 #ifdef AGA
-    csbit |= (currprefs.chipset_mask & CSMASK_AGA) ? 0x2300 : 0;
+	csbit |= (currprefs.chipset_mask & CSMASK_AGA) ? 0x2300 : 0;
 #endif
-    csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
+	csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
+	if (currprefs.chipmem_size > 1024 * 1024 && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	    csbit |= 0x2100;
+    }
+
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	vp &= 1;
     vp = vp | lof | csbit;
@@ -2458,13 +2472,19 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 static void perform_copper_write (int old_hpos);
 static void immediate_copper (int num)
 {
+    int pos = 0;
+
     cop_state.state = COP_stop;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
     cop_state.ip = num == 1 ? cop1lc : cop2lc;
-    for (;;) {
+ 
+    while (pos < (maxvpos << 5)) {
 	if (!dmaen(DMA_COPPER))
 	    break;
+	if (cop_state.ip >= currprefs.chipmem_size)
+	    break;
+	pos++;
 	cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
 	cop_state.i2 = chipmem_agnus_wget (cop_state.ip + 2);
 	cop_state.ip += 4;
@@ -2479,7 +2499,9 @@ static void immediate_copper (int num)
 		continue;
 	    }
 	    perform_copper_write (0);
-	} else { // wait or skip, simply ignore them
+	} else { // wait or skip
+	    if ((cop_state.i1 >> 8) > ((pos >> 5) & 0xff))
+		pos = (((pos >> 5) & 0x100) | ((cop_state.i1 >> 8)) << 5) | ((cop_state.i1 & 0xff) >> 3);
 	    if (cop_state.i1 >= 0xffdf && cop_state.i2 == 0xfffe)
 		break;
 	}
@@ -3968,6 +3990,7 @@ static void adjust_array_sizes (void)
 
 static void init_hardware_frame (void)
 {
+    first_bpl_vpos = -1;
     next_lineno = 0;
     nextline_how = nln_normal;
     diwstate = DIW_waiting_start;
@@ -4171,11 +4194,11 @@ static void vsync_handler (void)
 
     COPJMP (1);
 
-    init_hardware_frame ();
-
     if (timehack_alive > 0)
 	timehack_alive--;
     inputdevice_vsync ();
+
+    init_hardware_frame ();
 }
 
 #ifdef JIT
@@ -4271,6 +4294,9 @@ static void hsync_handler (void)
 #ifdef CD32
 	AKIKO_hsync_handler ();
 #endif
+#ifdef CDTV
+	CDTV_hsync_handler ();
+#endif
 #ifdef CPUEMU_6
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	    decide_blitter (hpos);
@@ -4286,19 +4312,19 @@ static void hsync_handler (void)
     eventtab[ev_hsync].evtime += get_cycles () - eventtab[ev_hsync].oldcycles;
     eventtab[ev_hsync].oldcycles = get_cycles ();
     CIA_hsync_handler ();
+    if (currprefs.cs_ciaatod > 0) {
+	static int cia_hsync;
+	cia_hsync -= 256;
+	if (cia_hsync <= 0) {
+	    CIA_vsync_prehandler();
+	    cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
+	}
+    }
+
 
 #ifdef PICASSO96
     picasso_handle_hsync ();
 #endif
-
-    if (ciavsyncmode) {
-	static int ciahsync;
-	ciahsync++;
-	if (ciahsync >= (currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL) * MAXHPOS_PAL / maxhpos) { /* not so perfect.. */
-	    CIA_vsync_prehandler ();
-	    ciahsync = 0;
-	}
-    }
 
     if ((currprefs.chipset_mask & CSMASK_AGA) || (!currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	last_custom_value = uaerand ();
@@ -4345,7 +4371,7 @@ static void hsync_handler (void)
 	}
 #endif
 	vsync_counter++;
-	if (!ciavsyncmode)
+	if (currprefs.cs_ciaatod == 0)
 	    CIA_vsync_prehandler();
     }
 
@@ -4397,6 +4423,13 @@ static void hsync_handler (void)
 	INTREQ (0x8000 | 0x0008);
     }
 #endif
+
+    {
+        extern void bsdsock_fake_int_handler(void);
+	extern int bsd_int_requested;
+	if (bsd_int_requested)
+	    bsdsock_fake_int_handler();
+    }
 
     /* See if there's a chance of a copper wait ending this line.  */
     cop_state.hpos = 0;

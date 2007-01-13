@@ -23,6 +23,7 @@
 #define IDS_PATHS                       17
 #define IDS_QUICKSTART                  18
 #define IDS_FRONTEND                    19
+#define IDS_CHIPSET2                    20
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -109,6 +110,7 @@
 #define IDD_CHIPSET                     154
 #define IDS_MUSTSELECTNAME              155
 #define IDI_MOVE_UP                     155
+#define IDD_CHIPSET2                    155
 #define IDS_MUSTSELECTFILE              156
 #define IDI_MOVE_DOWN                   156
 #define IDS_FAILEDHARDFILECREATION      157
@@ -301,7 +303,9 @@
 #define IDC_FASTMEM                     1027
 #define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
+#define IDC_MBMEM1                      1028
 #define IDC_SLOWMEM                     1030
+#define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
 #define IDC_FASTTEXT                    1043
@@ -311,6 +315,8 @@
 #define IDC_Z3TEXT                      1047
 #define IDC_Z3FASTRAM                   1048
 #define IDC_Z3FASTMEM                   1049
+#define IDC_MBRAM1                      1050
+#define IDC_MBRAM2                      1051
 #define IDC_UAEHOME                     1070
 #define IDC_PICASSOHOME                 1071
 #define IDC_AMIGAHOME                   1072
@@ -641,6 +647,7 @@
 #define IDC_POWERSAVE                   1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
+#define IDC_MOUSETRICK                  1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614
 #define IDC_AVIOUTPUT_VIDEO_CODEC       1615
@@ -826,6 +833,41 @@
 #define IDC_CREATE_NAME                 1707
 #define IDC_FILTERAUTORES               1708
 #define IDC_SOUND_AUTO                  1709
+#define IDC_CS_RTC                      1710
+#define IDC_CS_CIAA_TOD1                1711
+#define IDC_CS_CIAA_TOD2                1712
+#define IDC_CS_EXT                      1712
+#define IDC_CS_CIAA_TOD3                1713
+#define IDC_CS_COMPATIBLE               1714
+#define IDC_CS_RAMSEYREV                1715
+#define IDC_CS_KSMIRROR                 1716
+#define IDC_CS_CD32CD                   1717
+#define IDC_CS_CD32C2P                  1718
+#define IDC_CS_CD32NVRAM                1719
+#define IDC_CS_CDTVCD                   1720
+#define IDC_CS_CDTVRAM                  1721
+#define IDC_CS_IDE1                     1722
+#define IDC_CS_IDE2                     1723
+#define IDC_CS_IDE3                     1724
+#define IDC_CS_A1000RAM                 1724
+#define IDC_CS_RAMSEY                   1725
+#define IDC_CS_GARY                     1726
+#define IDC_CS_FATGARY                  1726
+#define IDC_CS_DMAC                     1727
+#define IDC_CS_RTCADJUST                1728
+#define IDC_CS_RAMSEYREV3               1729
+#define IDC_CS_FATGARYREV               1729
+#define IDC_CS_CDTVRAMEXP               1730
+#define IDC_CS_RTC1                     1731
+#define IDC_CS_RTC2                     1732
+#define IDC_CS_RTC3                     1733
+#define IDC_CS_IDE4                     1734
+#define IDC_CS_DF0IDHW                  1734
+#define IDC_CS_AGNUS                    1735
+#define IDC_CS_AGNUSREV                 1736
+#define IDC_CS_DENISE                   1737
+#define IDC_CS_AGNUSREV2                1738
+#define IDC_CS_DENISEREV                1738
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -846,7 +888,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1710
+#define _APS_NEXT_CONTROL_VALUE         1716
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

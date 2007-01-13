@@ -6,7 +6,7 @@
   * (c) 1995 Bernd Schmidt
   */
 
-typedef enum { DRV_35_DD, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM } drive_type;
+typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM } drive_type;
 
 extern void DISK_init (void);
 extern void DISK_free (void);

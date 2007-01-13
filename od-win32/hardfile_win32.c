@@ -150,6 +150,7 @@ int hdf_open (struct hardfiledata *hfd, char *name)
     int i;
     struct uae_driveinfo *udi;
 
+    hfd->flags = 0;
     hdf_close (hfd);
     hfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
     hfd->cache_valid = 0;
@@ -262,7 +263,6 @@ void hdf_close (struct hardfiledata *hfd)
     if (!hfd->handle_valid)
 	return;
     hfd_log ("close handle=%p\n", hfd->handle);
-    hfd->flags = 0;
     if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
 	if (hfd->handle_valid == HDF_HANDLE_WIN32)
 	    CloseHandle (hfd->handle);

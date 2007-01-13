@@ -43,6 +43,7 @@ extern uae_u32 allocated_bogomem;
 extern uae_u32 allocated_gfxmem;
 extern uae_u32 allocated_z3fastmem, max_z3fastmem;
 extern uae_u32 allocated_a3000mem;
+extern uae_u32 allocated_cardmem;
 
 extern uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode);
 extern uae_u32 wait_cpu_cycle_read_cycles (uaecptr addr, int mode, int *cycles);
@@ -53,14 +54,16 @@ extern void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v);
 
 #define chipmem_start 0x00000000
 #define bogomem_start 0x00C00000
-#define a3000mem_start 0x07000000
+#define cardmem_start 0x00E00000
 #define kickmem_start 0x00F80000
 extern uaecptr z3fastmem_start;
 extern uaecptr fastmem_start;
+extern uaecptr a3000lmem_start, a3000hmem_start;
 
 extern int ersatzkickfile;
 extern int cloanto_rom;
 extern uae_u16 kickstart_version;
+extern int uae_boot_rom;
 
 extern uae_u8* baseaddr[];
 
@@ -105,6 +108,10 @@ extern addrbank expamem_bank;
 extern addrbank fastmem_bank;
 extern addrbank gfxmem_bank;
 extern addrbank gayle_bank;
+extern addrbank mbres_bank;
+extern addrbank akiko_bank;
+extern addrbank mbdmac_bank;
+extern addrbank cardmem_bank;
 
 extern void rtarea_init (void);
 extern void rtarea_setup (void);

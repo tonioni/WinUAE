@@ -353,6 +353,8 @@ void restore_state (char *filename)
     changed_prefs.bogomem_size = 0;
     changed_prefs.chipmem_size = 0;
     changed_prefs.fastmem_size = 0;
+    changed_prefs.mbresmem_low_size = 0;
+    changed_prefs.mbresmem_high_size = 0;
     savestate_state = STATE_RESTORE;
     for (;;) {
 	name[0] = 0;
@@ -365,6 +367,12 @@ void restore_state (char *filename)
 	    continue;
 	} else if (!strcmp (name, "BRAM")) {
 	    restore_bram (totallen, filepos);
+	    continue;
+	} else if (!strcmp (name, "A3K1")) {
+	    restore_a3000lram (totallen, filepos);
+	    continue;
+	} else if (!strcmp (name, "A3K2")) {
+	    restore_a3000hram (totallen, filepos);
 	    continue;
 #ifdef AUTOCONFIG
 	} else if (!strcmp (name, "FRAM")) {
@@ -497,6 +505,10 @@ static void save_rams (struct zfile *f, int comp)
     save_chunk (f, dst, len, "CRAM", comp);
     dst = save_bram (&len);
     save_chunk (f, dst, len, "BRAM", comp);
+    dst = save_a3000lram (&len);
+    save_chunk (f, dst, len, "A3K1", comp);
+    dst = save_a3000hram (&len);
+    save_chunk (f, dst, len, "A3K2", comp);
 #ifdef AUTOCONFIG
     dst = save_fram (&len);
     save_chunk (f, dst, len, "FRAM", comp);
@@ -525,7 +537,7 @@ void save_state (char *filename, char *description)
     static int warned;
 
 #ifdef FILESYS
-    if (nr_units (currprefs.mountinfo) && !warned) {
+    if (nr_units () && !warned) {
 	warned = 1;
 	notify_user (NUMSG_STATEHD);
     }
@@ -651,7 +663,7 @@ void save_state (char *filename, char *description)
     save_chunk (f, dst, len, "HRTM", 0);
 #endif
 #ifdef FILESYS
-    for (i = 0; i < nr_units (currprefs.mountinfo); i++) {
+    for (i = 0; i < nr_units (); i++) {
 	dst = save_filesys (i, &len);
 	if (dst) {
 	    save_chunk (f, dst, len, "FSYS", 0);
@@ -830,7 +842,7 @@ void savestate_capture (int force)
     struct staterecord *st, *stn;
 
 #ifdef FILESYS
-    if (nr_units (currprefs.mountinfo))
+    if (nr_units ())
 	return;
 #endif
     if (!replaybuffer)

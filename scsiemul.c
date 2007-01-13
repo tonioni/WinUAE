@@ -13,7 +13,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "uae.h"
 #include "threaddep/thread.h"
 #include "options.h"
 #include "memory.h"
@@ -127,7 +126,8 @@ static void io_log (char *msg, uaecptr request)
 {
     if (log_scsi)
 	write_log ("%s: %08X %d %08.8X %d %d io_actual=%d io_error=%d\n",
-	    msg, request,get_word(request + 28),get_long(request + 40),get_long(request + 36),get_long(request + 44),
+	    msg, request, get_word(request + 28), get_long(request + 40),
+	    get_long(request + 36), get_long(request + 44),
 	    get_long (request + 32), get_byte (request + 31));
 }
 

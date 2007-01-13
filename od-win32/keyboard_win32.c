@@ -259,6 +259,45 @@ static int handlearcadia (int scancode, int state)
 
 #endif
 
+#ifdef CDTV
+
+static int handlecdtv (int scancode, int state)
+{
+    int e = 0;
+    switch (scancode)
+    {
+        case DIK_UP:
+        if (specialpressed())
+	    e = INPUTEVENT_KEY_CDTV_PLAYPAUSE;
+	break;
+	case DIK_DOWN:
+	if (specialpressed())
+	    e = INPUTEVENT_KEY_CDTV_STOP;
+	break;
+	case DIK_LEFT:
+	if (specialpressed()) {
+	    if (shiftpressed())
+		e = INPUTEVENT_KEY_CDTV_REW;
+	    else
+		e = INPUTEVENT_KEY_CDTV_PREV;
+	}
+	break;
+	case DIK_RIGHT:
+	if (specialpressed()) {
+	    if (shiftpressed())
+		e = INPUTEVENT_KEY_CDTV_FF;
+	    else
+		e = INPUTEVENT_KEY_CDTV_NEXT;
+	}
+	break;
+    }
+    if (!e)
+	return 0;
+    handle_input_event (e, state, 1, 0);
+    return 1;
+}
+#endif
+
 #ifdef CD32
 
 static int handlecd32 (int scancode, int state)
@@ -442,6 +481,9 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (specialpressed ())
 		code = AKS_STATEREWIND;
 	    break;
+	    case DIK_ESCAPE:
+	    bleh();
+	    break;
 	}
     }
 
@@ -450,10 +492,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	return;
     }
 
-    if (specialpressed())
-	return;
-
-    if (scancode == DIK_CAPITAL) {
+    if (!specialpressed() && scancode == DIK_CAPITAL) {
 	if (!newstate)
 	    return;
 	capslockstate = capslockstate ? 0 : 1;
@@ -465,11 +504,18 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (handlecd32 (scancode, newstate))
 	    return;
 #endif
+#ifdef CDTV
+	if (handlecdtv (scancode, newstate))
+	    return;
+#endif
 #ifdef ARCADIA
 	if (handlearcadia (scancode, newstate))
 	    return;
 #endif
     }
+    if (specialpressed())
+	return;
+
     inputdevice_translatekeycode (keyboard, scancode, newstate);
 }
 
