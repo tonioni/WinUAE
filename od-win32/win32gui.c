@@ -7902,17 +7902,17 @@ static void values_to_hw3ddlg (HWND hDlg)
     HKEY fkey;
 
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
-    SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
-    SendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
-    SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
-    SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
-    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
-    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 10);
+    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 1);
 
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
     uf = &uaefilters[0];
@@ -9097,7 +9097,6 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			    }
 			}
 		    } else {
-			DISK_history_add (file, -1);
 			strcpy (workprefs.df[drv], file);
 			disk_insert (drv, workprefs.df[drv]);
 			drv++;
@@ -9648,7 +9647,7 @@ int gui_message_multibutton (int flags, const char *format,...)
 void gui_message (const char *format,...)
 {
     char msg[2048];
-    char szTitle[ MAX_DPATH ];
+    char szTitle[MAX_DPATH];
     va_list parms;
     int flipflop = 0;
     int fullscreen = 0;
@@ -9657,7 +9656,7 @@ void gui_message (const char *format,...)
     HWND hwnd;
 
     va_start (parms, format);
-    vsprintf( msg, format, parms );
+    vsprintf(msg, format, parms);
     va_end (parms);
     if (full_property_sheet) {
 	pre_gui_message (msg);
@@ -9668,7 +9667,7 @@ void gui_message (const char *format,...)
     if (flipflop)
 	ShowWindow (hAmigaWnd, SW_MINIMIZE);
 
-    write_log( msg );
+    write_log(msg);
     if (msg[strlen(msg)-1]!='\n')
 	write_log("\n");
 
@@ -9696,15 +9695,15 @@ void pre_gui_message (const char *format,...)
     va_list parms;
 
     va_start (parms, format);
-    vsprintf( msg, format, parms );
+    vsprintf (msg, format, parms);
     va_end (parms);
-    write_log( msg );
+    write_log (msg);
     if (msg[strlen(msg)-1]!='\n')
 	write_log("\n");
 
     WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
     strcat (szTitle, BetaStr);
-    MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND );
+    MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
 
 }
 

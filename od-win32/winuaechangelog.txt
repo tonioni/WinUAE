@@ -1,4 +1,16 @@
 
+Beta 2:
+
+- filter zoom and position is not restricted to coordinates divisible
+  by 4 pixels anymore
+- datapath command line parameter fixed (broke in 1.3.4b9)
+- enumerate only known DirectInput devices types (keyboards, pointers
+  and game controllers), apparently there are some broken DI compatible
+  "unknown" devices that crash DirectInput's internal enumeration code..
+- "magic mouse" related freezes fixed
+- dragndrop disk insert fixed (again..)
+- added more Picasso96 modes to "unique" mode list
+
 Beta 1: Lots of scary options. Do not touch!
 
 - added new misc configuration options "(handled in previous versions)"

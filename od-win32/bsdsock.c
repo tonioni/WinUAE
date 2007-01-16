@@ -37,6 +37,24 @@
 
 static int hWndSelector = 0; /* Set this to zero to get hSockWnd */
 
+struct threadargs {
+    struct socketbase *sb;
+    uae_u32 args1;
+    uae_u32 args2;
+    int args3;
+    long args4;
+    char *args5;
+};
+
+struct threadargsw {
+	struct socketbase *sb;
+	uae_u32 nfds;
+	uae_u32 readfds;
+	uae_u32 writefds;
+	uae_u32 exceptfds;
+	uae_u32 timeout;
+};
+
 #define MAX_SELECT_THREADS 64
 #define MAX_GET_THREADS 64
 
@@ -92,24 +110,6 @@ extern HWND hAmigaWnd;
 static LRESULT CALLBACK SocketWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 static int PASCAL WSAEventSelect(SOCKET,HANDLE,long);
-
-struct threadargs {
-    struct socketbase *sb;
-    uae_u32 args1;
-    uae_u32 args2;
-    int args3;
-    long args4;
-    char *args5;
-};
-
-struct threadargsw {
-	struct socketbase *sb;
-	uae_u32 nfds;
-	uae_u32 readfds;
-	uae_u32 writefds;
-	uae_u32 exceptfds;
-	uae_u32 timeout;
-};
 
 #define PREPARE_THREAD EnterCriticalSection(&bsd->SockThreadCS)
 #define TRIGGER_THREAD { SetEvent(bsd->hSockReq); WaitForSingleObject(bsd->hSockReqHandled, INFINITE); LeaveCriticalSection(&bsd->SockThreadCS); }
@@ -414,8 +414,8 @@ static void sockmsg(unsigned int msg, WPARAM wParam, LPARAM lParam)
 static unsigned	int allocasyncmsg(SB,uae_u32 sd,SOCKET s)
 {
 	int i;
+
 	locksigqueue();
-	
 	for (i = bsd->asyncindex + 1; i != bsd->asyncindex; i++) {
 		if (i >= MAXPENDINGASYNC)
 			i = 0;
@@ -850,7 +850,7 @@ static LRESULT CALLBACK SocketWindowProc(HWND hwnd, UINT message, WPARAM wParam,
 
 
 
-static unsigned int __stdcall sock_thread(void *blah)
+static unsigned int sock_thread2(void *blah)
 {
 	unsigned int result = 0;
 	HANDLE WaitHandle;
@@ -872,7 +872,7 @@ static unsigned int __stdcall sock_thread(void *blah)
 			if(bsd->hSockReq) {
 				DWORD wait;
 				WaitHandle = bsd->hSockReq;
-				wait = MsgWaitForMultipleObjects (1, &WaitHandle, FALSE,INFINITE, QS_POSTMESSAGE);
+				wait = MsgWaitForMultipleObjects (1, &WaitHandle, FALSE, INFINITE, QS_POSTMESSAGE);
 				if (wait == WAIT_OBJECT_0) {
 					if(HandleStuff()) // See if its time to quit...
 						break;
@@ -892,6 +892,14 @@ static unsigned int __stdcall sock_thread(void *blah)
 	return result;
 }
 
+static unsigned int __stdcall sock_thread(void *p)
+{
+    __try {
+	return sock_thread2 (p);
+    } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    }
+    return 0;
+}
 
 void host_connect(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 namelen)
 {
@@ -1166,7 +1174,7 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
 
 		    TRIGGER_THREAD;
 		    if (sb->resultval == -1) {
-				if (sb->sb_errno == WSAEWOULDBLOCK-WSABASEERR && sb->ftable[sd-1] & SF_BLOCKING)
+				if (sb->sb_errno == WSAEWOULDBLOCK - WSABASEERR && sb->ftable[sd-1] & SF_BLOCKING)
 			{
 		    if (sb->mtable[sd-1] || (wMsg = allocasyncmsg(sb,sd,s)) != 0) {
 				if (sb->mtable[sd-1] == 0) {
@@ -1607,9 +1615,9 @@ static void fd_zero(uae_u32 fdset, uae_u32 nfds)
 }
 
 // This seems to be the only way of implementing a cancelable WinSock2 select() call... sigh.
-static unsigned int __stdcall thread_WaitSelect(void *indexp)
+static unsigned int thread_WaitSelect2(void *indexp)
 {
-    uae_u32 index = *((uae_u32*)indexp);
+    int index = *((int*)indexp);
     unsigned int result = 0;
     long nfds;
     uae_u32 readfds, writefds, exceptfds;
@@ -1624,7 +1632,7 @@ static unsigned int __stdcall thread_WaitSelect(void *indexp)
 	    WaitForSingleObject(bsd->hEvents[index], INFINITE);
 
 	    if ((args = bsd->threadargsw[index]) != NULL) {
-			sb = args->sb;
+		    sb = args->sb;
 		    nfds = args->nfds;
 		    readfds = args->readfds;
 		    writefds = args->writefds;
@@ -1632,11 +1640,11 @@ static unsigned int __stdcall thread_WaitSelect(void *indexp)
 		    timeout = args->timeout;
 	    
 		    // construct descriptor tables
-		    makesocktable(sb,readfds,&readsocks,nfds,sb->sockAbort);
+		    makesocktable(sb, readfds, &readsocks, nfds, sb->sockAbort);
 		    if (writefds)
-				makesocktable(sb,writefds,&writesocks,nfds,INVALID_SOCKET);
+				makesocktable(sb, writefds, &writesocks, nfds, INVALID_SOCKET);
 		    if (exceptfds)
-				makesocktable(sb,exceptfds,&exceptsocks,nfds,INVALID_SOCKET);
+				makesocktable(sb, exceptfds, &exceptsocks, nfds, INVALID_SOCKET);
 	    
 		    if (timeout) {
 			    tv.tv_sec = get_long(timeout);
@@ -1646,16 +1654,16 @@ static unsigned int __stdcall thread_WaitSelect(void *indexp)
 	    
 		    TRACE(("-> "));
 	    
-		    sb->resultval = select(nfds+1,&readsocks,writefds ? &writesocks : NULL,
-					exceptfds ? &exceptsocks : NULL,timeout ? &tv : 0);
+		    sb->resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,
+					exceptfds ? &exceptsocks : NULL, timeout ? &tv : 0);
 			if (sb->resultval == SOCKET_ERROR) { 
 				// select was stopped by sb->sockAbort
 				if (readsocks.fd_count > 1) {
-					makesocktable(sb,readfds,&readsocks,nfds,INVALID_SOCKET);
+					makesocktable(sb, readfds, &readsocks, nfds, INVALID_SOCKET);
 					tv.tv_sec = 0;
 					tv.tv_usec = 10000;
 					// Check for 10ms if data is available
-					sb->resultval = select(nfds+1,&readsocks,writefds ? &writesocks : NULL,exceptfds ? &exceptsocks : NULL,&tv);
+					sb->resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,exceptfds ? &exceptsocks : NULL,&tv);
 					if (sb->resultval == 0) { // Now timeout -> really no data available
 						if (GetLastError() != 0) {
 							sb->resultval = SOCKET_ERROR;
@@ -1697,6 +1705,15 @@ static unsigned int __stdcall thread_WaitSelect(void *indexp)
     }
     THREADEND(result);
     return result;
+}
+
+static unsigned int __stdcall thread_WaitSelect(void *p)
+{
+    __try {
+	return thread_WaitSelect2 (p);
+    } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    }
+    return 0;
 }
 
 void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, uae_u32 writefds, uae_u32 exceptfds, uae_u32 timeout, uae_u32 sigmp)
@@ -1766,7 +1783,7 @@ void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, ua
 	    for (i = 0; i < MAX_SELECT_THREADS; i++) {
 			if (!bsd->hThreads[i]) {
 				bsd->hEvents[i] = CreateEvent(NULL,FALSE,FALSE,NULL);
-				bsd->hThreads[i] = THREAD(thread_WaitSelect, &i);
+				bsd->hThreads[i] = THREAD(thread_WaitSelect, &threadindextable[i]);
 				if (bsd->hEvents[i] == NULL || bsd->hThreads[i] == NULL) {
 					bsd->hThreads[i] = 0;
 					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",
@@ -1776,7 +1793,7 @@ void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, ua
 					return;
 				}
 				// this should improve responsiveness
-				SetThreadPriority(bsd->hThreads[i], THREAD_PRIORITY_TIME_CRITICAL);
+				SetThreadPriority(bsd->hThreads[i], THREAD_PRIORITY_ABOVE_NORMAL);
 				break;
 			}
 	    }
@@ -1906,7 +1923,7 @@ static BOOL CheckOnline(SB)
 	return bReturn;
 }
 
-static unsigned int __stdcall thread_get(void *indexp)
+static unsigned int thread_get2(void *indexp)
 {
     int index = *((int*)indexp);
     unsigned int result = 0;
@@ -1935,7 +1952,7 @@ static unsigned int __stdcall thread_get(void *indexp)
 				buf = args->args5;
 				name_rp = get_real_address(name);
 
-				if (strchr(name_rp,'.') == 0 || CheckOnline(sb) == TRUE) {
+				if (strchr(name_rp, '.') == 0 || CheckOnline(sb) == TRUE) {
 					// Local Address or Internet Online ?
 					if (addrtype == -1) {
 						host = gethostbyname(name_rp);
@@ -2021,6 +2038,15 @@ static unsigned int __stdcall thread_get(void *indexp)
     }
     THREADEND(result);
     return result;
+}
+
+static unsigned int __stdcall thread_get(void *p)
+{
+    __try {
+	return thread_get2 (p);
+    } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    }
+    return 0;
 }
 
 void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 namelen, long addrtype)
@@ -2206,7 +2232,7 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 	    for (i = 0; i < MAX_GET_THREADS; i++) {
 			if (!bsd->hGetThreads[i]) {
 				bsd->hEvents[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &i);
+				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
 				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
 					bsd->hGetThreads[i] = 0;
 					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n", GetLastError());
@@ -2331,7 +2357,7 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 	    for (i = 0; i < MAX_GET_THREADS; i++) {
 			if (!bsd->hGetThreads[i]) {
 				bsd->hGetEvents[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &i);
+				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
 				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
 					bsd->hGetThreads[i] = 0;
 					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n", GetLastError());

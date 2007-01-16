@@ -91,7 +91,7 @@ static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode;
 static int normalkb, superkb, rawkb;
 
-int no_rawinput;
+int no_rawinput, dinput_enum_all;
 
 int dinput_winmouse (void)
 {
@@ -848,8 +848,17 @@ static int di_do_init (void)
 	gui_message ("Failed to initialize DirectInput!");
 	return 0;
     }
-    write_log("DirectInput enumeration..\n");
-    IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+    if (dinput_enum_all) {
+	write_log("DirectInput enumeration..\n");
+	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+    } else {
+	write_log("DirectInput enumeration.. Keyboards..\n");
+	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+	write_log("DirectInput enumeration.. Pointing devices..\n");
+	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+	write_log("DirectInput enumeration.. Game controllers..\n");
+	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_GAMECTRL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+    }
     write_log("RawInput enumeration..\n");
     initialize_rawinput();
     write_log("Windowsmouse initialization..\n");

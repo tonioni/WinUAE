@@ -2700,6 +2700,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	return 0;
     if (!dxdetect())
 	return 0;
+    if (!os_winnt && max_allowed_mman > 256)
+	max_allowed_mman = 256;
 
     hInst = hInstance;
     hMutex = CreateMutex( NULL, FALSE, "WinUAE Instantiated" ); // To tell the installer we're running
@@ -2707,15 +2709,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     AVIOutput_Initialize();
 #endif
 
+    argv = xcalloc (sizeof (char*),  __argc);
+    argc = process_arg(argv);
+
     getstartpaths(start_data);
     makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);
-
-    if (!os_winnt && max_allowed_mman > 256)
-	max_allowed_mman = 256;
-
-    argv = xcalloc (sizeof (char*),  __argc);
-    argc = process_arg(argv);
 
     logging_init ();
 
@@ -2836,7 +2835,7 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
 
 #if defined(WIN64)
 
-static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+static LONG WINAPI WIN32_ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
     write_log("EVALEXCEPTION!\n");
     return EXCEPTION_EXECUTE_HANDLER;
@@ -2862,7 +2861,7 @@ static void efix (DWORD *regp, void *p, void *ps, int *got)
     }
 }
 
-static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec)
 {
     static uae_u8 *prevpc;
     LONG lRet = EXCEPTION_CONTINUE_SEARCH;
@@ -3111,7 +3110,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 #endif
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
-    } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
     SetThreadAffinityMask(thread, original_affinity);
     return FALSE;

@@ -121,4 +121,5 @@ extern HMODULE language_load(WORD language);
 extern void logging_open(int,int);
 extern void logging_cleanup(void);
 
+extern LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
 #endif

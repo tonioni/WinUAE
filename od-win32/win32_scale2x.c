@@ -108,20 +108,20 @@ void S2X_render (void)
     sptr = gfxvidinfo.bufmem;
     endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
 
-    v = currprefs.gfx_filter_horiz_offset / 10;
+    v = currprefs.gfx_filter_horiz_offset;
     v += (dst_width / scale - amiga_width) / 8;
-    sptr += -v * (amiga_depth / 8) * 4;
-    aw -= -v * 4;
+    sptr += (int)(-v * 4.0 / 10.0) * (amiga_depth / 8);
+    aw -= (int)(-v * 4.0 / 10);
 
-    v = currprefs.gfx_filter_vert_offset / 10;
+    v = currprefs.gfx_filter_vert_offset;
     v += (dst_height / scale - amiga_height) / 8;
-    sptr += -v * gfxvidinfo.rowbytes * 4;
-    ah -= -v * 4;
+    sptr += (int)(-v * 4.0 / 10.0) * gfxvidinfo.rowbytes;
+    ah -= (int)(-v * 4.0 / 10);
 
     if (aw * scale > dst_width)
-        aw = (dst_width / scale) & ~3;
+        aw = dst_width / scale;
     if (ah * scale > dst_height)
-        ah = (dst_height / scale) & ~3;
+        ah = dst_height / scale;
 
     if (ah < 16)
 	return;

@@ -745,21 +745,32 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 
 static int ievent_alive = 0;
 static int lastmx, lastmy;
+static uae_u32 magicmouse_ibase = 0;
 
 static uaecptr get_intuitionbase(void)
 {
     uaecptr v = get_long(4);
     addrbank *b = &get_mem_bank(v);
 
-    if (!b || !b->check(v, 128) || b->flags != ABFLAG_RAM)
+    if (!b || !b->check(v, 400) || b->flags != ABFLAG_RAM)
 	return 0;
     v += 378; // liblist
-    while ((v = get_long(v))) {
-	uae_u32 v2 = get_long(v + 10); // name
+    while (v = get_long(v)) {
+	uae_u32 v2;
 	uae_u8 *p;
+	b = &get_mem_bank(v);
+	if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM) {
+	    magicmouse_ibase = 0xffffffff;
+	    return 0;
+	}
+	v2 = get_long(v + 10); // name
 	b = &get_mem_bank(v2);
-	if (!b || !b->check (v2, 20))
-	    continue;
+	if (!b || !b->check (v2, 20)) {
+	    magicmouse_ibase = 0xffffffff;
+	    return 0;
+	}
+	if (b->flags != ABFLAG_ROM)
+	    return 0;
 	p = b->xlateaddr(v2);
 	if (!strcmp(p, "intuition.library"))
 	    return v;
@@ -802,6 +813,7 @@ void setamigamouse(int x, int y)
 
 extern void setmouseactivexy(int,int,int);
 extern void drawing_adjust_mousepos(int*,int*);
+
 static void mouseedge(void)
 {
     int x, y, dir;
@@ -809,14 +821,17 @@ static void mouseedge(void)
     static int melast_x, melast_y;
     static int isnonzero;
 
-    if (!currprefs.win32_outsidemouse)
+    if (!currprefs.win32_outsidemouse || magicmouse_ibase == 0xffffffff)
 	return;
     dir = 0;
     if (!mouseedge_time) {
 	isnonzero = 0;
 	goto end;
     }
-    ib = get_intuitionbase();
+    if (magicmouse_ibase == 0)
+	ib = get_intuitionbase();
+    else
+	ib = magicmouse_ibase;
     if (!ib)
 	return;
     x = get_word(ib + 70);
@@ -1768,6 +1783,7 @@ void inputdevice_vsync (void)
 void inputdevice_reset (void)
 {
     ievent_alive = 0;
+    magicmouse_ibase = 0;
 }
 
 static int switchdevice(struct uae_input_device *id, int num)

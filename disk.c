@@ -2060,7 +2060,7 @@ void DISK_check_change (void)
 	    currprefs.dfxtype[i] = changed_prefs.dfxtype[i];
 	    reset_drive (i);
 	}
-	if (strcmp (currprefs.df[i], changed_prefs.df[i]))
+	if (drv->dskchange_time == 0 && strcmp (currprefs.df[i], changed_prefs.df[i]))
 	    disk_insert (i, changed_prefs.df[i]);
 	gui_unlock ();
 	if (drv->dskready_down_time > 0)
