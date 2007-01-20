@@ -373,7 +373,7 @@ static int start_thread (int unit)
     memset (hfpd, 0, sizeof (struct hardfileprivdata));
     init_comm_pipe (&hfpd->requests, 100, 1);
     uae_sem_init (&hfpd->sync_sem, 0, 0);
-    uae_start_thread (hardfile_thread, hfpd, &hfpd->tid);
+    uae_start_thread ("hardfile", hardfile_thread, hfpd, &hfpd->tid);
     uae_sem_wait (&hfpd->sync_sem);
     return hfpd->thread_running;
 }

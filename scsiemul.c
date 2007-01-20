@@ -131,17 +131,6 @@ static void io_log (char *msg, uaecptr request)
 	    get_long (request + 32), get_byte (request + 31));
 }
 
-void memcpyha (uaecptr dst, uae_u8 *src, int size)
-{
-    while (size--)
-	put_byte (dst++, *src++);
-}
-void memcpyah (uae_u8 *dst, uaecptr src, int size)
-{
-    while (size--)
-	*dst = get_byte (src++);
-}
-
 static struct devstruct *getdevstruct (int unit)
 {
     int i;
@@ -181,7 +170,7 @@ static int start_thread (struct devstruct *dev)
 	return 1;
     init_comm_pipe (&dev->requests, 100, 1);
     uae_sem_init (&dev->sync_sem, 0, 0);
-    uae_start_thread (dev_thread, dev, &dev->tid);
+    uae_start_thread ("uaescsi", dev_thread, dev, &dev->tid);
     uae_sem_wait (&dev->sync_sem);
     return dev->thread_running;
 }
@@ -410,7 +399,7 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, int offs
 	temp = sys_command_read (mode, dev->unitnum, offset);
 	if (!temp)
 	    return 20;
-	memcpyha (data, temp, blocksize);
+	memcpyha_safe (data, temp, blocksize);
 	data += blocksize;
 	offset++;
 	length--;
@@ -428,7 +417,7 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, int off
     offset /= blocksize;
     while (length > 0) {
 	int err;
-	memcpyah (dsi.buffer, data, blocksize);
+	memcpyah_safe (dsi.buffer, data, blocksize);
 	err = sys_command_write (mode, dev->unitnum, offset);
 	if (!err)
 	    return 20;
@@ -457,19 +446,19 @@ static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, int o
 	if (startoffset > 0) {
 	    len = dev->di.bytespersector - startoffset;
 	    if (len > length) len = length;
-	    memcpyha (data, temp + startoffset, len);
+	    memcpyha_safe (data, temp + startoffset, len);
 	    length -= len;
 	    data += len;
 	    startoffset = 0;
 	    *io_actual += len;
 	} else if (length >= dev->di.bytespersector) {
 	    len = dev->di.bytespersector;
-	    memcpyha (data, temp, len);
+	    memcpyha_safe (data, temp, len);
 	    length -= len;
 	    data += len;
 	    *io_actual += len;
 	} else {
-	    memcpyha (data, temp, length);
+	    memcpyha_safe (data, temp, length);
 	    *io_actual += length;
 	    length = 0;
 	}

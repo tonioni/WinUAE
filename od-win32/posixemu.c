@@ -28,6 +28,7 @@
 #include "posixemu.h"
 #include "threaddep/thread.h"
 #include "filesys.h"
+#include "win32.h"
 
 /* Our Win32 implementation of this function */
 void gettimeofday (struct timeval *tv, void *blah)
@@ -219,19 +220,50 @@ void uae_sem_destroy (uae_sem_t * event)
 
 typedef unsigned (__stdcall *BEGINTHREADEX_FUNCPTR)(void *);
 
-int uae_start_thread (void *(*f)(void *), void *arg, uae_thread_id *tid)
+struct thparms
+{
+    void *(*f)(void*);
+    void *arg;
+};
+
+static unsigned __stdcall thread_init(void *f)
+{
+    struct thparms *thp = f;
+    void *(*fp)(void*) = thp->f;
+    void *arg = thp->arg;
+
+    xfree(f);
+    __try {
+	fp(arg);
+    } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    }
+    return 0;
+}
+
+int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
 {
     HANDLE hThread;
     int result = 1;
     unsigned foo;
+    struct thparms *thp;
 
-    hThread = (HANDLE)_beginthreadex(NULL, 0, (BEGINTHREADEX_FUNCPTR)f, arg, 0, &foo);
+    if (name)
+	write_log("Thread '%s' started\n", name);
+    thp = malloc (sizeof (struct thparms));
+    thp->f = f;
+    thp->arg = arg;
+    hThread = (HANDLE)_beginthreadex(NULL, 0, thread_init, thp, 0, &foo);
     *tid = hThread;
     if (hThread)
         SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
     else
         result = 0;
     return result;
+}
+
+int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
+{
+    return uae_start_thread(NULL, f, arg, tid);
 }
 
 DWORD_PTR cpu_affinity = 1;

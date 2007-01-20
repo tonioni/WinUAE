@@ -1653,7 +1653,8 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     put_byte (amigamemptr + PSSO_ModeInfo_first_union, 98);
     put_byte (amigamemptr + PSSO_ModeInfo_second_union, 14);
     
-    put_long (amigamemptr + PSSO_ModeInfo_PixelClock, dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
+    put_long (amigamemptr + PSSO_ModeInfo_PixelClock,
+	dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
 }
 
 struct modeids {
@@ -1707,13 +1708,14 @@ static struct modeids mi[] =
    2560,2048, 157,
     400, 300, 158,
     512, 384, 159,
-   1360, 768, 160,
-   1360,1024, 161,
-   1400,1050, 162,
-   1792,1344, 163,
-   1800,1440, 164,
-   1856,1392, 165,
-   1920,1440, 166,
+    640, 432, 160,
+   1360, 768, 161,
+   1360,1024, 162,
+   1400,1050, 163,
+   1792,1344, 164,
+   1800,1440, 165,
+   1856,1392, 166,
+   1920,1440, 167,
 
    -1,-1,0
 };
@@ -1726,11 +1728,11 @@ static int AssignModeID(int dm, int count, int *unkcnt)
     h = DisplayModes[dm].res.height;
     for (i = 0; mi[i].width > 0; i++) {
 	if (w == mi[i].width && h == mi[i].height)
-	    return 0x50001000 | (mi[i].id << 16);
+	    return 0x50001000 | (mi[i].id * 0x10000);
     }
     (*unkcnt)++;
     write_log("P96: Non-unique mode %dx%d\n", w, h);
-    return 0x5F000000 + (*unkcnt) * 0x10000;
+    return 0x51000000 - (*unkcnt) * 0x10000;
 #if 0
     int result;
     if(DisplayModes[i].res.width == 320 && DisplayModes[i].res.height == 200)
@@ -1941,19 +1943,17 @@ uae_u32 REGPARAM2 picasso_SetDAC (struct regstruct *regs)
 
 static void init_picasso_screen( void )
 {
-    if( set_panning_called )
-    {
+    if(set_panning_called) {
 	picasso96_state.Extent = picasso96_state.Address + ( picasso96_state.BytesPerRow * picasso96_state.VirtualHeight );
     }
-    if (set_gc_called)
-    {	
+    if (set_gc_called) {
 	gfx_set_picasso_modeinfo (picasso96_state.Width, picasso96_state.Height,
 	    picasso96_state.GC_Depth, picasso96_state.RGBFormat);
     }
-    if( ( picasso_vidinfo.width == picasso96_state.Width ) &&
-	( picasso_vidinfo.height == picasso96_state.Height ) &&
-	( picasso_vidinfo.depth == (picasso96_state.GC_Depth >> 3) ) &&
-	( picasso_vidinfo.selected_rgbformat == picasso96_state.RGBFormat) ) 
+    if((picasso_vidinfo.width == picasso96_state.Width) &&
+	(picasso_vidinfo.height == picasso96_state.Height) &&
+	(picasso_vidinfo.depth == (picasso96_state.GC_Depth >> 3)) &&
+	(picasso_vidinfo.selected_rgbformat == picasso96_state.RGBFormat)) 
     {
 	DX_SetPalette (0, 256);
 	picasso_refresh (1); 

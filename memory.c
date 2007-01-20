@@ -585,6 +585,16 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 }
 #endif
 
+int addr_valid(char *txt, uaecptr addr, uae_u32 len)
+{
+    addrbank *ab = &get_mem_bank(addr);
+    if (ab == 0 || ab->flags != ABFLAG_RAM || addr < 0x100 || len < 0 || len > 16777215 || !valid_address(addr, len)) {
+    	write_log("corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
+	return 0;
+    }
+    return 1;
+}
+
 uae_u32	chipmem_mask, chipmem_full_mask;
 uae_u32 kickmem_mask, extendedkickmem_mask, bogomem_mask;
 uae_u32 a3000lmem_mask, a3000hmem_mask, cardmem_mask;
@@ -2224,7 +2234,7 @@ void memory_reset (void)
 		}
 		if (rd->cloanto)
 		    cloanto_rom = 1;
-		if (rd->cpu & 4) { /* A4000 ROM = need some mb resources */
+		if ((rd->cpu & 4) && currprefs.cs_compatible) { /* A4000 ROM = need some mb resources */
 		    if (currprefs.cs_ramseyrev < 0) 
 			changed_prefs.cs_ramseyrev = currprefs.cs_ramseyrev = 0x0f;
 		    changed_prefs.cs_fatgaryrev = currprefs.cs_fatgaryrev = 0;
@@ -2299,13 +2309,6 @@ void memory_reset (void)
     /* Map the chipmem into all of the lower 8MB */
     map_overlay (1);
 
-#ifdef CDTV
-    cdtv_enabled = 0;
-#endif
-#ifdef CD32
-    cd32_enabled = 0;
-#endif
-
     switch (extendedkickmem_type)
     {
 
@@ -2319,13 +2322,11 @@ void memory_reset (void)
 	//extendedkickmemory[0x61a3] = 0x00;
 	//extendedkickmemory[0x61a4] = 0x01;
 	//extendedkickmemory[0x61a5] = 0x1a;
-	cdtv_enabled = 1;
 	break;
 #endif
 #ifdef CD32
     case EXTENDED_ROM_CD32:
 	map_banks (&extendedkickmem_bank, 0xE0, 8, 0);
-	cd32_enabled = 1;
 	break;
 #endif
     }
@@ -2660,3 +2661,54 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 }
 
 #endif /* SAVESTATE */
+
+/* memory helpers */
+
+void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size)
+{
+    if (!addr_valid("memcpyha", dst, size))
+	return;
+    while (size--)
+	put_byte (dst++, *src++);
+}
+void memcpyha (uaecptr dst, const uae_u8 *src, int size)
+{
+    while (size--)
+	put_byte (dst++, *src++);
+}
+void memcpyah_safe (uae_u8 *dst, uaecptr src, int size)
+{
+    if (!addr_valid("memcpyah", src, size))
+	return;
+    while (size--)
+	*dst++ = get_byte(src++);
+}
+void memcpyah (uae_u8 *dst, uaecptr src, int size)
+{
+    while (size--)
+	*dst++ = get_byte(src++);
+}
+char *strcpyah_safe (char *dst, uaecptr src)
+{
+    char *res = dst;
+    uae_u8 b;
+    do {
+	if (!addr_valid("strcpyah", src, 1))
+	    return res;
+	b = get_byte(src++);
+	*dst++ = b;
+    } while (b);
+    return res;
+}
+uaecptr strcpyha_safe (uaecptr dst, const char *src)
+{
+    uaecptr res = dst;
+    uae_u8 b;
+    do {
+	if (!addr_valid("strcpyha", dst, 1))
+	    return res;
+	b = *src++;
+	put_byte (dst++, b);
+    } while (b);
+    return res;
+}

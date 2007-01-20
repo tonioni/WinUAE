@@ -272,6 +272,8 @@ STATIC_INLINE int valid_address(uaecptr addr, uae_u32 size)
     return get_mem_bank(addr).check(addr, size);
 }
 
+extern int addr_valid(char*,uaecptr,uae_u32);
+
 /* For faster access in custom chip emulation.  */
 extern uae_u32 REGPARAM3 chipmem_lget (uaecptr) REGPARAM;
 extern uae_u32 REGPARAM3 chipmem_wget (uaecptr) REGPARAM;
@@ -364,3 +366,11 @@ extern int load_keyring (struct uae_prefs *p, char *path);
 extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size, char *name);
 extern void free_keyring (void);
 extern int get_keyring (void);
+
+uaecptr strcpyha_safe (uaecptr dst, const char *src);
+extern char *strcpyah_safe (char *dst, uaecptr src);
+void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
+void memcpyha (uaecptr dst, const uae_u8 *src, int size);
+void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);
+void memcpyah (uae_u8 *dst, uaecptr src, int size);
+

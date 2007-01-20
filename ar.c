@@ -1460,7 +1460,7 @@ static void hrtmon_configure(void)
     cfg->col1h = 0x0f; cfg->col1l = 0xff;
     cfg->a1200 = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
     cfg->aga = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
-    cfg->cd32 = cd32_enabled;
+    cfg->cd32 = currprefs.cs_cd32cd ? 1 : 0;
     cfg->screenmode = currprefs.ntscmode;
     cfg->novbr = TRUE;
     cfg->hexmode = TRUE;

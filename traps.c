@@ -262,7 +262,7 @@ static void trap_HandleExtendedTrap (TrapHandler handler_func, int has_retval)
 	context->saved_regs = regs; /* Copy of regs to be restored when trap is done */
 
 	/* Start thread to handle new trap context. */
-	uae_start_thread (trap_thread, (void *)context, &context->thread);
+	uae_start_thread_fast (trap_thread, (void *)context, &context->thread);
 
 	/* Switch to trap context to begin execution of
 	 * trap handler function.

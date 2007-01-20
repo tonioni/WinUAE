@@ -1,7 +1,6 @@
 
 #ifdef CDTV
 
-extern int cdtv_enabled;
 extern addrbank dmac_bank;
 
 extern void dmac_init (void);

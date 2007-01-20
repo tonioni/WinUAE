@@ -40,6 +40,12 @@ int catweasel_ismouse(void)
     return cwc.can_mouse;
 }
 
+static int hsync_requested;
+static void hsync_request(void)
+{
+    hsync_requested = 10;
+};
+
 static void sid_write(uae_u8 reg, uae_u8 val, int sidnum)
 {
     if (sidnum >= cwc.can_sid)
@@ -67,6 +73,7 @@ static uae_u8 get_buttons(void)
     b = 0;
     if (cwc.type < CATWEASEL_TYPE_MK3)
 	return b;
+    hsync_request();
     b2 = catweasel_do_bget(0xc8) & (0x80 | 0x40);
     if (!(b2 & 0x80))
 	b |= 0x80;
@@ -105,6 +112,7 @@ int catweasel_read_mouse(int port, int *dx, int *dy, int *buttons)
 {
     if (!cwc.can_mouse)
 	return 0;
+    hsync_request();
     *dx = mouse_x[port];
     mouse_x[port] = 0;
     *dy = mouse_y[port];
@@ -184,6 +192,9 @@ void catweasel_hsync (void)
 	catweasel_do_bput(0xd0, 0);
 	handshake = 0;
     }
+    if (hsync_requested < 0)
+	return;
+    hsync_requested--;
     if (cwc.type == CATWEASEL_TYPE_MK3 && cwc.sid[0]) {
 	uae_u8 b;
 	cwmk3buttonsync--;
@@ -235,6 +246,7 @@ int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons)
 {
     if (!cwc.can_joy)
 	return 0;
+    hsync_request();
     *dir = catweasel_do_bget(0xc0);
     *buttons = get_buttons();
     return 1;
@@ -245,6 +257,8 @@ int catweasel_read_keyboard (uae_u8 *keycode)
     uae_u8 v;
 
     if (!cwc.can_kb)
+	return 0;
+    if (!currprefs.catweasel)
 	return 0;
     v = catweasel_do_bget (0xd4);
     if (!(v & 0x80))
@@ -265,10 +279,12 @@ uae_u32	catweasel_do_bget (uaecptr addr)
     if (addr >= 0x100)
 	return 0;
     buf1[0] = (uae_u8)addr;
-    if (handle != INVALID_HANDLE_VALUE)
-	DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0);
-    else
+    if (handle != INVALID_HANDLE_VALUE) {
+	if (!DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0))
+	    write_log("catweasel_do_bget fail err=%d\n", GetLastError());
+    } else {
 	buf2[0] = ioport_read (cwc.iobase + addr);
+    }
     //write_log ("G %02.2X %02.2X %d\n", buf1[0], buf2[0], did_read);
     return buf2[0];
 }
@@ -282,10 +298,12 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
 	return;
     buf[0] = (uae_u8)addr;
     buf[1] = b;
-    if (handle != INVALID_HANDLE_VALUE)
-	DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0);
-    else
+    if (handle != INVALID_HANDLE_VALUE) {
+	if (!DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0))
+	    write_log("catweasel_do_bput fail err=%d\n", GetLastError());
+    } else {
 	ioport_write (cwc.iobase + addr, b);
+    }
     //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
 }
 
@@ -495,6 +513,8 @@ static int direct_detect(void)
     return cw;
 }
 
+static int detected;
+
 int catweasel_init(void)
 {
     char name[32], tmp[1000];
@@ -611,6 +631,7 @@ int catweasel_init(void)
 	}
     }
     write_log("%s\n", tmp);
+    detected = 1;
 
     return 1;
 fail:
@@ -638,7 +659,7 @@ int catweasel_detect (void)
 {
     char name[32];
     int i;
-    static int detected;
+    HANDLE h;
 
     if (detected)
 	return detected < 0 ? 0 : 1;
@@ -646,16 +667,16 @@ int catweasel_detect (void)
     detected = -1;
     for (i = 0; i < 4; i++) {
 	sprintf (name, "\\\\.\\CAT%u_F0", i);
-	handle = CreateFile (name, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
+	h = CreateFile (name, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (handle != INVALID_HANDLE_VALUE) {
-	    CloseHandle (handle);
+	if (h != INVALID_HANDLE_VALUE) {
+	    CloseHandle (h);
 	    write_log("CW: Windows driver device detected '%s'\n", name);
 	    detected = 1;
 	    return TRUE;
 	}
     }
-    if (handle == INVALID_HANDLE_VALUE) {
+    if (h == INVALID_HANDLE_VALUE) {
 	if (force_direct_catweasel >= 100) {
 	    if (ioport_init()) 
 		return TRUE;

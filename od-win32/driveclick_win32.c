@@ -128,7 +128,7 @@ static int driveclick_fdrawcmd_init(int drive)
 	return 1;
     thread_ok = 1;
     init_comm_pipe (dc_pipe, DC_PIPE_SIZE, 3);
-    uae_start_thread(driveclick_thread, NULL, &tid);
+    uae_start_thread("fdrawcmd_win32", driveclick_thread, NULL, &tid);
     return 1;
 }
 
@@ -140,7 +140,7 @@ void driveclick_fdrawcmd_close(int drive)
     motors[drive] = 0;
 }
 
-int driveclick_fdrawcmd_open(int drive)
+static int driveclick_fdrawcmd_open_2(int drive)
 {
     char s[32];
 
@@ -148,6 +148,13 @@ int driveclick_fdrawcmd_open(int drive)
     sprintf (s, "\\\\.\\fdraw%d", drive);
     h[drive] = CreateFile(s, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (h[drive] == INVALID_HANDLE_VALUE)
+	return 0;
+    return 1;
+}
+
+int driveclick_fdrawcmd_open(int drive)
+{
+    if (!driveclick_fdrawcmd_open_2(drive))
 	return 0;
     driveclick_fdrawcmd_init(drive);
     return 1;
@@ -159,10 +166,10 @@ void driveclick_fdrawcmd_detect(void)
     if (detected)
 	return;
     detected = 1;
-    if (driveclick_fdrawcmd_open(0))
+    if (driveclick_fdrawcmd_open_2(0))
 	driveclick_pcdrivemask |= 1;
     driveclick_fdrawcmd_close(0);
-    if (driveclick_fdrawcmd_open(1))
+    if (driveclick_fdrawcmd_open_2(1))
 	driveclick_pcdrivemask |= 2;
     driveclick_fdrawcmd_close(1);
 }

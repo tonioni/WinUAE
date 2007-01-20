@@ -3589,7 +3589,7 @@ void filesys_start_threads (void)
 	    ui->back_pipe = (smp_comm_pipe *)xmalloc (sizeof (smp_comm_pipe));
 	    init_comm_pipe (uip[i].unit_pipe, 100, 3);
 	    init_comm_pipe (uip[i].back_pipe, 100, 1);
-	    uae_start_thread (filesys_thread, (void *)(uip + i), &uip[i].tid);
+	    uae_start_thread ("filesys", filesys_thread, (void *)(uip + i), &uip[i].tid);
 	}
 #endif
 	if (savestate_state == STATE_RESTORE)

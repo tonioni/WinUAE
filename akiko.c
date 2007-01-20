@@ -29,8 +29,6 @@
 #define AKIKO_DEBUG_IO 0
 #define AKIKO_DEBUG_IO_CMD 0
 
-int cd32_enabled;
-
 static int m68k_getpc(void) { return 0;	}
 
 /*
@@ -1391,7 +1389,7 @@ int akiko_init (void)
     }
     if (cdromok && !akiko_thread_running) {
 	akiko_thread_running = 1;
-	uae_start_thread (akiko_thread, 0, &akiko_tid);
+	uae_start_thread ("akiko", akiko_thread, 0, &akiko_tid);
     }
     return 1;
 }

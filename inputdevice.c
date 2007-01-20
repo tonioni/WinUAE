@@ -1904,10 +1904,6 @@ static int ismouse (int ei)
     return 0;
 }
 
-#ifdef CD32
-extern int cd32_enabled;
-#endif
-
 static void scanevents(struct uae_prefs *p)
 {
     int i, j, k, ei;
@@ -2044,7 +2040,7 @@ static void compatibility_mode (struct uae_prefs *prefs)
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY2_2ND_BUTTON;
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY2_3RD_BUTTON;
 #ifdef CD32
-	if (cd32_enabled)
+	if (currprefs.cs_cd32cd)
 	    setcd32 (joy, 1);
 #endif
 	joysticks[joy].enabled = 1;
@@ -2080,7 +2076,7 @@ static void compatibility_mode (struct uae_prefs *prefs)
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY2_2ND_BUTTON;
 	joysticks[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY2_3RD_BUTTON;
 #ifdef CD32
-	if (cd32_enabled)
+	if (currprefs.cs_cd32cd)
 	    setcd32 (joy, 1);
 #endif
 	joysticks[joy].enabled = 1;
@@ -2139,7 +2135,7 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
     scanevents (prefs);
 
 #ifdef CD32
-    if (currprefs.input_selected_setting == 0 && cd32_enabled)
+    if (currprefs.input_selected_setting == 0 && currprefs.cs_cd32cd)
 	cd32_pad_enabled[1] = 1;
 #endif
 
@@ -2814,6 +2810,10 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	    id->flags[ID_AXIS_OFFSET + axis][i]);
     id2->states[axis] = state;
 }
+int getjoystickstate(int joy)
+{
+    return joysticks[joy].enabled;
+}
 
 void setmousestate (int mouse, int axis, int data, int isabs)
 {
@@ -2852,6 +2852,10 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
     mousehack_helper();
+}
+int getmousestate(int joy)
+{
+    return mice[joy].enabled;
 }
 
 void warpmode (int mode)

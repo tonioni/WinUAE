@@ -1637,9 +1637,9 @@ void logging_init(void)
     fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress(GetModuleHandle("kernel32"),"IsWow64Process");
     if (fnIsWow64Process)
 	fnIsWow64Process(GetCurrentProcess(), &wow64);
-    write_log ("%s (%s %d.%d %s%s%s)", VersionStr, os_winnt ? "NT" : "W9X/ME",
+    write_log ("%s (%s %d.%d %s%s[%d])", VersionStr, os_winnt ? "NT" : "W9X/ME",
 	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
-	strlen(osVersion.szCSDVersion) > 0 ? " " : "", os_winnt_admin ? "Admin" : "");
+	strlen(osVersion.szCSDVersion) > 0 ? " " : "", os_winnt_admin);
     write_log (" %d-bit %X.%X %d", wow64 ? 64 : 32,
 	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 	SystemInfo.dwNumberOfProcessors);
@@ -2369,10 +2369,12 @@ static int isadminpriv (void)
 }
 
 typedef void (CALLBACK* PGETNATIVESYSTEMINFO)(LPSYSTEM_INFO);
-static PGETNATIVESYSTEMINFO pGetNativeSystemInfo;
+typedef BOOL (CALLBACK* PISUSERANADMIN)(VOID);
 
 static int osdetect (void)
 {
+    PGETNATIVESYSTEMINFO pGetNativeSystemInfo;
+    PISUSERANADMIN pIsUserAnAdmin;
     os_winnt = 0;
     os_winnt_admin = 0;
     os_vista = 0;
@@ -2380,6 +2382,9 @@ static int osdetect (void)
 
     pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(
 	GetModuleHandle("kernel32.dll"), "GetNativeSystemInfo");
+    pIsUserAnAdmin = (PISUSERANADMIN)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "IsUserAnAdmin");
+
     GetSystemInfo(&SystemInfo);
     if (pGetNativeSystemInfo)
 	pGetNativeSystemInfo(&SystemInfo);
@@ -2401,11 +2406,14 @@ static int osdetect (void)
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 	    os_64bit = 1;
     }
-
-    if (!os_winnt) {
+    if (!os_winnt)
 	return 1;
-    }
     os_winnt_admin = isadminpriv ();
+    if (os_winnt_admin && pIsUserAnAdmin) {
+	if (pIsUserAnAdmin())
+	    os_winnt_admin++;
+    }
+
     return 1;
 }
 

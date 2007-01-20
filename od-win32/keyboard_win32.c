@@ -303,7 +303,7 @@ static int handlecdtv (int scancode, int state)
 static int handlecd32 (int scancode, int state)
 {
     int e = 0;
-    if (!cd32_enabled)
+    if (!currprefs.cs_cd32cd)
 	return 0;
     switch (scancode)
     {

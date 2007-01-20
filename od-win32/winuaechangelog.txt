@@ -10,6 +10,16 @@ Beta 2:
 - "magic mouse" related freezes fixed
 - dragndrop disk insert fixed (again..)
 - added more Picasso96 modes to "unique" mode list
+- possible fix for some missing Picasso96 display modes
+- added Amiga-side pointer validation to bsdsocket (smaller chance for
+  crashing if Amiga-side program passes garbage to bsdsocket)
+- added safe host<>Amiga memcpy/strcpy helper functions to memory.c
+- Aminetradio bsdsocket freeze fix (broke in 1340b6)
+- do not "fix" configuration when advanced chipset compatible checkbox
+  is not checked and using A4000 rom.
+- Windows driver Catweasel-mode works again
+- only access CW registers if CW mouse/joystick is selected, read
+  keyboard port only if CW checkbox is enabled
 
 Beta 1: Lots of scary options. Do not touch!
 

@@ -48,11 +48,9 @@ static volatile int dmac_dma;
 
 static volatile int activate_stch, cdrom_command_done;
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
-static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error;
+static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished;
 
 static volatile int cdtv_hsync, dma_wait, dma_finished;
-
-int cdtv_enabled;
 
 static void do_stch(void);
 
@@ -262,6 +260,7 @@ static int cdrom_info(uae_u8 *out)
     out[2] = size >> 16;
     out[3] = size >> 8;
     out[4] = size >> 0; 
+    cd_finished = 1;
     return 5;
 }
 
@@ -291,6 +290,7 @@ static int read_toc(int track, int msflsn, uae_u8 *out)
 	    out[5] = (msflsn ? msf : lsn) >> 16;
 	    out[6] = (msflsn ? msf : lsn) >> 8;
 	    out[7] = (msflsn ? msf : lsn) >> 0;
+	    cd_finished = 1;
 	    return 8;
 	}
     }
@@ -336,6 +336,7 @@ static void cdrom_command_thread(uae_u8 b)
 	case 0x01: /* seek */
 	if (cdrom_command_cnt_in == 7) {
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0x02: /* read */
@@ -348,12 +349,14 @@ static void cdrom_command_thread(uae_u8 b)
 	if (cdrom_command_cnt_in == 7) {
 	    cd_motor = 1;
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0x05: /* motor off */
 	if (cdrom_command_cnt_in == 7) {
 	    cd_motor = 0;
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0x09: /* play (lsn) */
@@ -370,7 +373,8 @@ static void cdrom_command_thread(uae_u8 b)
         case 0x81:
         if (cdrom_command_cnt_in == 1) {
 	    uae_u8 flag = 1 << 0;
-	    flag |= 1 << 3;
+	    if (cd_finished)
+		flag |= 1 << 3;
 	    if (cd_playing)
 		flag |= 1 << 2;
 	    if (cd_error)
@@ -381,6 +385,7 @@ static void cdrom_command_thread(uae_u8 b)
 		flag |= 1 << 6;
 	    cdrom_command_output[0] = flag;
 	    cdrom_command_accepted(1, s, &cdrom_command_cnt_in);
+	    cd_finished = 0;
 	}
 	break;
 	case 0x82:
@@ -389,11 +394,13 @@ static void cdrom_command_thread(uae_u8 b)
 		cdrom_command_output[2] |= 1 << 4;
 	    cd_error = 0;
 	    cdrom_command_accepted(6, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0x84:
 	if (cdrom_command_cnt_in == 7) {
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0x87: /* subq */
@@ -415,11 +422,13 @@ static void cdrom_command_thread(uae_u8 b)
 	if (cdrom_command_cnt_in == 7) {
 	    pause_audio (s[1] == 0x00 ? 1 : 0);
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	case 0xa3: /* front panel */
 	if (cdrom_command_cnt_in == 7) {
 	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
 	}
 	break;
 	default:
@@ -468,6 +477,7 @@ static void dma_do_thread(void)
     }
     dmac_dma = 0;
     dma_finished = 1;
+    cd_finished = 1;
 }
     
 static void *dev_thread (void *p)
@@ -492,6 +502,7 @@ static void *dev_thread (void *p)
 		    cd_media = ismedia();
 		    get_toc();
 		    activate_stch = 1;
+		    cd_error = 1;
 		}
 	    }
 	    break;
@@ -570,12 +581,6 @@ static void tp_bput (int addr, uae_u8 v)
     enable = (tp_b >> 1) & 1;
     xaen = (tp_b >> 2) & 1;
     dten = (tp_b >> 3) & 1;
-#if 0
-    if (cmd == 1 && enable == 1 && cdrom_command_size_out && cdrom_command_cnt_out < cdrom_command_size_out) {
-	sten = 0;
-	tp_check_interrupts();
-    }
-#endif
 }
 
 static uae_u8 tp_bget(int addr)
@@ -709,6 +714,7 @@ static void cdtv_reset (void)
     cd_motor = 0;
     cd_media = 0;
     cd_error = 0;
+    cd_finished = 0;
     stch = 0;
 }
 
@@ -930,6 +936,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 	map_banks (&dummy_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	write_log ("CDTV DMAC AUTOCONFIG SHUT-UP!\n");
 	configured = 1;
+	return;
     }
     if (!configured)
 	return;
@@ -1097,7 +1104,7 @@ void dmac_init (void)
     if (!thread_alive) {
         uae_thread_id tid;
 	init_comm_pipe (&requests, 100, 1);
-	uae_start_thread (dev_thread, NULL, &tid);
+	uae_start_thread ("cdtv", dev_thread, NULL, &tid);
     }
 
     configured = 0;

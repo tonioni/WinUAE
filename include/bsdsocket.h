@@ -124,8 +124,6 @@ extern uae_u32 addstr (uae_u32 *, const char *);
 extern uae_u32 addmem (uae_u32 *, const char *, int len);
 
 extern char *strncpyah (char *, uae_u32, int);
-extern char *strcpyah (char *, uae_u32);
-extern uae_u32 strcpyha (uae_u32, const char *);
 extern uae_u32 strncpyha (uae_u32, const char *, int);
 
 #define SB struct socketbase *sb

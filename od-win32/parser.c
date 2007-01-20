@@ -262,7 +262,7 @@ static void DoSomeWeirdPrintingStuff (char val)
 
 	    if (currprefs.parallel_postscript_emulation) {
 		prt_started = 0;
-		if (uae_start_thread (prt_thread, psbuffer, &prt_tid)) {
+		if (uae_start_thread ("postscript", prt_thread, psbuffer, &prt_tid)) {
 		    while (!prt_started)
 			Sleep (5);
 		    psbuffers = 0;
@@ -700,7 +700,7 @@ int uaeser_open (struct uaeserialdatawin32 *sd, void *user, int unit)
     }
     uae_sem_init (&sd->sync_sem, 0, 0);
     uae_sem_init (&sd->change_sem, 0, 1);
-    uae_start_thread (uaeser_trap_thread, sd, &sd->tid);
+    uae_start_thread ("uaeserial_win32", uaeser_trap_thread, sd, &sd->tid);
     uae_sem_wait (&sd->sync_sem);
 
     CommTimeOuts.ReadIntervalTimeout = 0;

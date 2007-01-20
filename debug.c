@@ -823,7 +823,6 @@ static struct memwatch_node mwhit;
 
 static uae_u8 *illgdebug;
 static int illgdebug_break;
-extern int cdtv_enabled, cd32_enabled;
 
 static void illg_init (void)
 {
@@ -853,18 +852,18 @@ static void illg_init (void)
     memset (illgdebug + 0xf80000, 1, 512 * 1024); /* KS ROM */
     memset (illgdebug + 0xdc0000, 0, 0x3f); /* clock */
 #ifdef CDTV
-    if (cdtv_enabled) {
-	memset (illgdebug + 0xf00000, 1, 256 * 1024); /* CDTV ext ROM */
+    if (currprefs.cs_cdtvram) {
 	memset (illgdebug + 0xdc8000, 0, 4096); /* CDTV batt RAM */
+	memset (illgdebug + 0xf00000, 1, 256 * 1024); /* CDTV ext ROM */
     }
 #endif
 #ifdef CD32
-    if (cd32_enabled) {
+    if (currprefs.cs_cd32cd) {
 	memset (illgdebug + AKIKO_BASE, 0, AKIKO_BASE_END - AKIKO_BASE);
 	memset (illgdebug + 0xe00000, 1, 512 * 1024); /* CD32 ext ROM */
     }
 #endif
-    if (cloanto_rom)
+    if (currprefs.cs_ksmirror)
 	memset (illgdebug + 0xe00000, 1, 512 * 1024);
 #ifdef FILESYS
     if (uae_boot_rom) /* filesys "rom" */
@@ -1701,6 +1700,8 @@ static void searchmem (char **cc)
     }
     console_out ("Searching from %08x to %08x..\n", addr, endaddr);
     while ((addr = nextaddr (addr, NULL)) != 0xffffffff) {
+	if (addr == endaddr)
+	    break;
 	for (i = 0; i < sslen; i++) {
 	    uae_u8 b = get_byte (addr + i);
 	    if (stringmode) {
