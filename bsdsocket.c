@@ -1487,13 +1487,14 @@ void bsdlib_install (void)
     uae_u32 func_place, data_place, init_place;
     int i;
 
-    if (!sockdata)
+    if (!sockdata) {
 	sockdata = xcalloc (sizeof (struct sockd), 1);
+        for (i = 0; i < SOCKPOOLSIZE; i++)
+	    sockdata->sockpoolids[i] = UNIQUE_ID;
+    }
+
     if (!init_socket_layer ())
 	return;
-
-    for (i = 0; i < SOCKPOOLSIZE; i++)
-	sockdata->sockpoolids[i] = UNIQUE_ID;
 
     resname = ds ("bsdsocket.library");
     resid = ds ("UAE bsdsocket.library 4.1");

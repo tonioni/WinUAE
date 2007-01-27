@@ -67,6 +67,8 @@
 #include "uaeipc.h"
 #include "ar.h"
 #include "audio.h"
+#include "akiko.h"
+#include "cdtv.h"
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -438,6 +440,34 @@ static void setcursor(int oldx, int oldy)
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
+void resumepaused(void)
+{
+    resume_sound ();
+#ifdef AHI
+    ahi_open_sound ();
+#endif
+#ifdef CD32
+    akiko_exitgui ();
+#endif
+#ifdef CDTV
+    cdtv_exitgui ();
+#endif
+}
+
+void setpaused(void)
+{
+    pause_sound ();
+#ifdef AHI
+    ahi_close_sound ();
+#endif
+#ifdef CD32
+    akiko_entergui ();
+#endif
+#ifdef CDTV
+    cdtv_entergui ();
+#endif
+}
+
 static WPARAM activateapp;
 
 static void checkpause (void)
@@ -445,10 +475,7 @@ static void checkpause (void)
     if (activateapp)
 	return;
     if (currprefs.win32_inactive_pause) {
-	close_sound ();
-    #ifdef AHI
-	ahi_close_sound ();
-    #endif
+	setpaused ();
 	emulation_paused = 1;
     }
 }
@@ -553,10 +580,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	emulation_paused = -1;
     ShowWindow (hWnd, SW_RESTORE);
     if (sound_closed) {
-#ifdef AHI
-	ahi_open_sound ();
-#endif
-	set_audio ();
+	resumepaused();
 	sound_closed = 0;
     }
     if (WIN32GFX_IsPicassoScreen ())
@@ -586,30 +610,22 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	    inputdevice_unacquire ();
 	    pri = &priorities[currprefs.win32_iconified_priority];
 	    if (currprefs.win32_iconified_nosound) {
-		close_sound ();
-    #ifdef AHI
-		ahi_close_sound ();
-    #endif
+		setpaused();
 		sound_closed = 1;
 	    }
 	    if (!avioutput_video) {
 		set_inhibit_frame (IHF_WINDOWHIDDEN);
 	    }
 	    if (currprefs.win32_iconified_pause) {
-		close_sound ();
-    #ifdef AHI
-		ahi_close_sound ();
-    #endif
+		if (!sound_closed)
+		    setpaused();
 		emulation_paused = 1;
 		sound_closed = 1;
 	    }
 	} else {
 	    if (currprefs.win32_inactive_nosound) {
-		close_sound ();
-    #ifdef AHI
-		ahi_close_sound ();
+		setpaused();
 		sound_closed = 1;
-    #endif
 	    }
 	}
     }
@@ -1234,10 +1250,7 @@ void handle_events (void)
 
     while (emulation_paused > 0 || pause_emulation) {
 	if ((emulation_paused > 0 || pause_emulation) && was_paused == 0) {
-	    close_sound ();
-#ifdef AHI
-	    ahi_close_sound ();
-#endif
+	    setpaused();
 	    was_paused = 1;
 	    manual_painting_needed++;
 	    gui_fps (0, 0);
@@ -1262,11 +1275,9 @@ void handle_events (void)
     }
     while (checkIPC(&currprefs));
     if (was_paused) {
-	set_audio ();
-#ifdef AHI
-	ahi_open_sound ();
-#endif
+	resumepaused();
 	emulation_paused = 0;
+	sound_closed = 0;
 	manual_painting_needed--;
     }
 }

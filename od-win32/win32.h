@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 2
+#define WINUAEBETA 3
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 1, 20)
+#define WINUAEDATE MAKEBD(2007, 1, 27)
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
@@ -39,12 +39,12 @@ extern void clearallkeys(void);
 extern int getcapslock (void);
 
 void releasecapture (void);
-int WIN32_RegisterClasses( void );
-int WIN32_InitHtmlHelp( void );
-int WIN32_InitLibraries( void );
-int WIN32_CleanupLibraries( void );
-void WIN32_MouseDefaults( int, int );
-void WIN32_HandleRegistryStuff( void );
+int WIN32_RegisterClasses(void);
+int WIN32_InitHtmlHelp(void);
+int WIN32_InitLibraries(void);
+int WIN32_CleanupLibraries(void);
+void WIN32_MouseDefaults(int, int);
+void WIN32_HandleRegistryStuff(void);
 extern void setup_brkhandler (void);
 extern void remove_brkhandler (void);
 extern void disablecapture (void);
@@ -53,6 +53,9 @@ extern void fullscreentoggle (void);
 extern void setmouseactive (int active);
 extern void minimizewindow (void);
 extern uae_u32 OSDEP_minimize_uae(void);
+
+extern void resumepaused(void);
+extern void setpaused(void);
 
 void finishjob (void);
 void updatedisplayarea (void);

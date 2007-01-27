@@ -1792,7 +1792,7 @@ void doint (void)
 //static uae_u32 pcs[1000];
 
 
-#define DEBUG_CD32IO
+//#define DEBUG_CD32IO
 #ifdef DEBUG_CD32IO
 
 static uae_u32 cd32nextpc, cd32request;
@@ -1885,7 +1885,9 @@ static void m68k_run_1 (void)
 
 	count_instr (opcode);
 
-	//out_cd32io(m68k_getpc(&regs));
+#ifdef DEBUG_CD32IO
+	out_cd32io(m68k_getpc(&regs));
+#endif
 
 #if 0
 	int pc = m68k_getpc();
@@ -2051,7 +2053,9 @@ static void m68k_run_2p (void)
 	uae_u32 opcode;
 	uae_u32 pc = m68k_getpc (r);
 
+#ifdef DEBUG_CD32IO
 	out_cd32io(m68k_getpc(&regs));
+#endif
 
 	do_cycles (cpu_cycles);
 

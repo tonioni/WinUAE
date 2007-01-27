@@ -222,7 +222,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 	char *str;
 
 	str = cfgfile_subst_path (default_path, unexpanded, uci->rootdir);
-	if (uci->volname != 0) {
+	if (uci->volname[0] != 0) {
 	    sprintf (tmp, "filesystem2=%s,%s:%s:%s,%d\n", uci->readonly ? "ro" : "rw",
 		uci->devname ? uci->devname : "", uci->volname, str, uci->bootpri);
 	    zfile_fputs (f, tmp);
@@ -1771,10 +1771,10 @@ static void parse_sound_spec (struct uae_prefs *p, char *spec)
     }
     p->produce_sound = atoi (x0);
     if (x1) {
-	p->sound_stereo_separation = 16;
+	p->sound_stereo_separation = 0;
 	if (*x1 == 'S') {
 	    p->sound_stereo = 1;
-	    p->sound_stereo_separation = 10;
+	    p->sound_stereo_separation = 7;
 	} else if (*x1 == 's')
 	    p->sound_stereo = 1;
 	else
@@ -2740,6 +2740,9 @@ static void buildin_default_prefs (struct uae_prefs *p)
     strcpy (p->cartfile, "");
     p->prtname[0] = 0;
     p->sername[0] = 0;
+
+    p->mountitems = 0;
+
     target_default_options (p, 1);
 }
 

@@ -17,6 +17,7 @@
 #include "blkdev.h"
 #include "scsidev.h"
 #include "gui.h"
+#include "win32.h"
 
 #include <devioctl.h>
 #include <ntddcdrm.h>
@@ -40,7 +41,7 @@ struct dev_info_ioctl {
 
 #define IOCTL_DATA_BUFFER 4096
 
-static int MCICDA = 1;
+static int MCICDA;
 
 static struct dev_info_ioctl ciw32[MAX_TOTAL_DEVICES];
 
@@ -62,7 +63,7 @@ static void mcierr(char *str, DWORD err)
     if (err == MMSYSERR_NOERROR)
 	return;
     if (mciGetErrorString(err, es, sizeof es))
-	write_log("MCIErr: %s: '%s'\n", str, es);
+	write_log("MCIErr: %s: %d = '%s'\n", str, err, es);
 }
 
 static int win32_error (int unitnum, const char *format,...)
@@ -85,7 +86,7 @@ static int win32_error (int unitnum, const char *format,...)
 	NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 	(LPTSTR)&lpMsgBuf, 0, NULL);
     if (log_scsi)
-	write_log ("IOCTL: unit=%d %s,%d: %s ", unitnum, buf, err, (char*)lpMsgBuf);
+	write_log ("IOCTL: unit=%d %s,%d: %s\n", unitnum, buf, err, (char*)lpMsgBuf);
     va_end(arglist);
     return err;
 }
@@ -95,7 +96,11 @@ static int close_createfile(int unitnum)
     struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
     if (ciw->h != INVALID_HANDLE_VALUE) {
+	if (log_scsi)
+	    write_log("IOCTL: IOCTL close\n");
 	CloseHandle(ciw->h);
+	if (log_scsi)
+	    write_log("IOCTL: IOCTL close completed\n");
 	ciw->h = INVALID_HANDLE_VALUE;
 	return 1;
     }
@@ -109,8 +114,12 @@ static int close_mci(int unitnum)
 
     ciw->playend = -1;
     if (ciw->mciid) {
+	if (log_scsi)
+	    write_log("IOCTL: MCI close\n");
 	mcierr("MCI_STOP", mciSendCommand(ciw->mciid, MCI_STOP, MCI_WAIT, (DWORD_PTR)&gp));
 	mcierr("MCI_CLOSE", mciSendCommand(ciw->mciid, MCI_CLOSE, MCI_WAIT, (DWORD_PTR)&gp));
+	if (log_scsi)
+	    write_log("IOCTL: MCI close completed\n");
         ciw->mciid = 0;
 	return 1;
     }
@@ -121,34 +130,41 @@ static int open_createfile(int unitnum)
 {
     struct dev_info_ioctl *ciw = &ciw32[unitnum];
     int closed = 0;
-    int cnt = 10;
+    int cnt = 50;
     DWORD flags;
 
     if (ciw->h != INVALID_HANDLE_VALUE)
 	return 1;
     closed = close_mci(unitnum);
+    if (log_scsi)
+	write_log("IOCTL: opening IOCTL %s\n", ciw->devname);
     for (;;) {
 	flags = GENERIC_READ;
-	ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	ciw->h = CreateFile(ciw->devname, flags, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (ciw->h == INVALID_HANDLE_VALUE) {
-	    flags |= GENERIC_WRITE;
 	    ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	    if (ciw->h == INVALID_HANDLE_VALUE) {
-		DWORD err = GetLastError();
-		if (err == ERROR_SHARING_VIOLATION) {
-		    if (cnt > 0) {
-			Sleep(10);
-			continue;
+		flags |= GENERIC_WRITE;
+		ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (ciw->h == INVALID_HANDLE_VALUE) {
+		    DWORD err = GetLastError();
+		    if (err == ERROR_SHARING_VIOLATION) {
+			if (closed && cnt > 0) {
+			    cnt--;
+			    Sleep(10);
+			    continue;
+			}
 		    }
-		    cnt--;
+		    if (closed)
+			write_log("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
+		    return 0;
 		}
-		if (closed)
-		    write_log("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
-	        return 0;
 	    }
 	}
 	break;
     }
+    if (log_scsi)
+        write_log("IOCTL: IOCTL open completed\n");
     return 1;
 }
 
@@ -165,6 +181,8 @@ static int open_mci(int unitnum)
 	return 1;
     ciw->playend = -1;
     closed = close_createfile(unitnum);
+    if (log_scsi)
+	write_log("IOCTL: MCI opening %c:\n", ciw->drvletter);
     memset (&mciOpen, 0, sizeof(mciOpen));
     mciOpen.lpstrDeviceType = (LPSTR)MCI_DEVTYPE_CD_AUDIO;
     sprintf(elname,"%c:", ciw->drvletter);
@@ -179,6 +197,8 @@ static int open_mci(int unitnum)
 	    mcierr("MCI_OPEN", err);
 	return 0;
     }
+    if (log_scsi)
+        write_log("IOCTL: MCI open completed\n");
     return 1;
 }
 
@@ -683,6 +703,7 @@ static int open_bus (int flags)
 	memset (&ciw32[i], 0, sizeof (struct dev_info_ioctl));
 	ciw32[i].h = INVALID_HANDLE_VALUE;
     }
+    MCICDA = 1;//os_vista ? 1 : 0;
     total_devices = 0;
     dwDriveMask = GetLogicalDrives();
     if (log_scsi)

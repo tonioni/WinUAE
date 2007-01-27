@@ -216,10 +216,10 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	mi->ismounted = 1;
     }
     mi->size = ui->hf.size;
-    mi->nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.size / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
+    mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.size / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
     if (ui->volname)
 	return FILESYS_VIRTUAL;
-    if (ui->hf.secspertrack == 0) {
+    if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
 	if (ui->hf.flags & 1)
 	    return FILESYS_HARDDRIVE;
 	return FILESYS_HARDFILE_RDB;

@@ -1,4 +1,23 @@
 
+Beta 3:
+
+- remove harddrives loaded from default.uae in quickstart-mode
+- wrong device/volumename in harddisk panel (visual error only)
+- S<something> in command line parameters set illegal stereo
+  separation value in some cases
+- hardfile configuration handling bugs fixed
+- disk history list wrong item selection fixed (really old bug,
+  select second entry from disk history then select first entry
+  from other drive's disk history)
+- sinc interpolator update from uaede 2.04
+- CDTV CD audio play end position status change detection improved
+- application icon updated (also includes 256x256 Vista-style icon)
+- CD access freeze when CD was already open in another program, also
+  tries shared access mode first before falling back to exclusive
+  mode
+- emulation paused mode sound start/stop issues fixed
+
+
 Beta 2:
 
 - filter zoom and position is not restricted to coordinates divisible
