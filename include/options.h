@@ -55,6 +55,7 @@ struct uaedev_config_info {
     char devname[MAX_DPATH];
     char volname[MAX_DPATH];
     char rootdir[MAX_DPATH];
+    int ishdf;
     int readonly;
     int bootpri;
     char filesys[MAX_DPATH];

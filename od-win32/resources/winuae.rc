@@ -3,8 +3,17 @@
 #include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
 #include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
@@ -214,10 +223,10 @@ BEGIN
     PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,135,186,60,15
     PUSHBUTTON      "Remove",IDC_REMOVE,235,186,60,15
     PUSHBUTTON      "&Properties",IDC_EDIT,235,207,60,15
-    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,205,100,10,0
+    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,205,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,205,115,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,216,115,10
-    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,216,101,10,0
+    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,216,101,10
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 231
@@ -268,11 +277,11 @@ BEGIN
     RTEXT           "Name:",IDC_STATIC,0,161,40,15,SS_CENTERIMAGE
     EDITTEXT        IDC_EDITNAME,44,162,150,13,ES_AUTOHSCROLL
     RTEXT           "Description:",IDC_STATIC,4,183,37,15,SS_CENTERIMAGE
-    EDITTEXT        IDC_EDITDESCRIPTION,44,183,150,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_EDITDESCRIPTION,44,183,150,13,ES_AUTOHSCROLL
     RTEXT           "Link:",IDC_STATIC,0,204,40,15,SS_CENTERIMAGE
     COMBOBOX        IDC_CONFIGLINK,44,205,97,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Ignore link",IDC_CONFIGNOLINK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,146,206,48,10
-    EDITTEXT        IDC_EDITPATH,199,161,49,15,ES_AUTOHSCROLL | WS_DISABLED,0
+    EDITTEXT        IDC_EDITPATH,199,161,49,15,ES_AUTOHSCROLL | WS_DISABLED
     CONTROL         "Autoload",IDC_CONFIGAUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,253,163,42,10
     GROUPBOX        "Additional Information",IDC_STATIC,199,179,96,38,BS_LEFT
     PUSHBUTTON      "View",IDC_VIEWINFO,210,195,35,15
@@ -367,7 +376,7 @@ BEGIN
     COMBOBOX        IDC_KBLED2,22,173,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED3,22,193,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Logging",IDC_STATIC,97,140,195,25
-    CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,107,151,72,10,0
+    CONTROL         "Create log file",IDC_CREATELOGFILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,107,151,72,10
     CONTROL         "Illegal memory accesses",IDC_ILLEGAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,189,151,95,10
     GROUPBOX        "State Files",IDC_STATIC,98,165,195,69
     PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,105,182,49,14
@@ -506,32 +515,32 @@ BEGIN
     CONTROL         "None",IDC_CS_RTC1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,22,49,55,10
     CONTROL         "MSM6242B",IDC_CS_RTC2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,91,49,52,10
     CONTROL         "RF5C01A",IDC_CS_RTC3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,160,49,46,10
-    EDITTEXT        IDC_CS_RTCADJUST,218,47,64,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_CS_RTCADJUST,218,47,64,13,ES_AUTOHSCROLL
     GROUPBOX        "CIA-A TOD Clock Source",IDC_STATIC,12,69,275,29
     CONTROL         "Vertical Sync",IDC_CS_CIAA_TOD1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,25,81,63,10
     CONTROL         "Power Supply 50Hz",IDC_CS_CIAA_TOD2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,95,81,85,10
-    CONTROL         "Power Supply 60Hz",IDC_CS_CIAA_TOD3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,192,81,91,10
+    CONTROL         "Power Supply 60Hz",IDC_CS_CIAA_TOD3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,192,81,88,10
     CONTROL         "Boot ROM Mirror",IDC_CS_KSMIRROR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,128,80,10
-    CONTROL         "A1000 Boot RAM/ROM",IDC_CS_A1000RAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,128,96,10
+    CONTROL         "A1000 Boot RAM/ROM",IDC_CS_A1000RAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,128,86,10
     CONTROL         "CD32 CD",IDC_CS_CD32CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,141,76,10
     CONTROL         "CD32 C2P",IDC_CS_CD32C2P,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,141,85,10
     CONTROL         "CD32 NVRAM",IDC_CS_CD32NVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,141,84,10
-    CONTROL         "CDTV CD Controller",IDC_CS_CDTVCD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,154,79,10
-    CONTROL         "CDTV SRAM",IDC_CS_CDTVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,153,90,10
+    CONTROL         "CDTV CD",IDC_CS_CDTVCD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,154,47,10
+    CONTROL         "CDTV SRAM",IDC_CS_CDTVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,153,85,10
     CONTROL         "CDTV SRAM Expansion",IDC_CS_CDTVRAMEXP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,153,90,10
     CONTROL         "A600/A1200 IDE",IDC_CS_IDE1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,166,79,10
     CONTROL         "A4000 IDE",IDC_CS_IDE2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,102,166,84,10
     CONTROL         "Ramsey revision:",IDC_CS_RAMSEY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,201,71,10
-    EDITTEXT        IDC_CS_RAMSEYREV,94,199,45,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_CS_RAMSEYREV,94,199,45,13,ES_AUTOHSCROLL
     CONTROL         "Fat Gary revision:",IDC_CS_FATGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,214,71,10
-    EDITTEXT        IDC_CS_FATGARYREV,94,213,45,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_CS_FATGARYREV,94,213,45,13,ES_AUTOHSCROLL
     CONTROL         "Motherboard Super DMAC",IDC_CS_DMAC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,227,118,10
     CONTROL         "Compatible Settings",IDC_CS_COMPATIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,21,234,10
-    CONTROL         "DF0: ID Hardware",IDC_CS_DF0IDHW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,128,95,10
+    CONTROL         "DF0: ID Hardware",IDC_CS_DF0IDHW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,128,92,10
     CONTROL         "Agnus/Alice revision:",IDC_CS_AGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,201,81,10
-    EDITTEXT        IDC_CS_AGNUSREV,235,199,45,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_CS_AGNUSREV,235,199,45,13,ES_AUTOHSCROLL
     CONTROL         "Denise/Lisa revision:",IDC_CS_DENISE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,214,81,10
-    EDITTEXT        IDC_CS_DENISEREV,235,213,45,13,ES_AUTOHSCROLL,0
+    EDITTEXT        IDC_CS_DENISEREV,235,213,45,13,ES_AUTOHSCROLL
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 288, 203
@@ -766,6 +775,7 @@ BEGIN
     CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",WS_BORDER | 0x1,7,19,215,14
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1159,7 +1169,7 @@ BEGIN
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n256 KB Chip RAM\nUnexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
     IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation."
-    IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset."
+    IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\n64KB SRAM card expanded CDTV\n"
 END
 
 STRINGTABLE 
@@ -1177,13 +1187,44 @@ END
 /////////////////////////////////////////////////////////////////////////////
 
 
+/////////////////////////////////////////////////////////////////////////////
+// Finnish resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_FIN)
+#ifdef _WIN32
+LANGUAGE LANG_FINNISH, SUBLANG_DEFAULT
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.\0"
+END
+
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Finnish resources
+/////////////////////////////////////////////////////////////////////////////
+
+
 
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
 
 
 /////////////////////////////////////////////////////////////////////////////

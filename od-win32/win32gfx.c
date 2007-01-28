@@ -2150,13 +2150,13 @@ static BOOL doInit (void)
 	    goto oops;
 	flags = DirectDraw_GetPixelFormatFlags();
 	DirectDraw_SurfaceUnlock();
-	if (flags  & (DDPF_RGB | DDPF_PALETTEINDEXED8 | DDPF_RGBTOYUV )) {
-	    write_log( "%s mode (bits: %d, pixbytes: %d)\n", currentmode->flags & DM_DX_FULLSCREEN ? "Full screen" : "Window",
-		   DirectDraw_GetSurfaceBitCount(), currentmode->current_depth >> 3 );
+	if (flags  & (DDPF_RGB | DDPF_PALETTEINDEXED8 | DDPF_RGBTOYUV)) {
+	    write_log("%s mode (bits: %d, pixbytes: %d)\n", currentmode->flags & DM_DX_FULLSCREEN ? "Full screen" : "Window",
+		   DirectDraw_GetSurfaceBitCount(), currentmode->current_depth >> 3);
 	} else {
 	    char szMessage[MAX_DPATH];
 	    WIN32GUI_LoadUIString (IDS_UNSUPPORTEDPIXELFORMAT, szMessage, MAX_DPATH);
-	    gui_message( szMessage);
+	    gui_message(szMessage);
 	    goto oops;
 	}
     } else if (!(currentmode->flags & DM_SWSCALE)) {

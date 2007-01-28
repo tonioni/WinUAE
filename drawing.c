@@ -128,21 +128,6 @@ union sps_union spixstate;
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
 
 uae_u8 *xlinebuffer;
-#ifdef XLINECHECK
-char *xlinebuffer_start, *xlinebuffer_end;
-static void xlinecheck (int start, int end)
-{
-    char *xstart = xlinebuffer + start * gfxvidinfo.pixbytes;
-    char *xend = xlinebuffer + end * gfxvidinfo.pixbytes;
-    if (xstart < xlinebuffer_start || xstart > xlinebuffer_end ||
-	xend < xlinebuffer_start || xend > xlinebuffer_end)
-	    write_log ("*** %dx%d (%dx%dx%d) %p %p %p\n",
-		start, end, gfxvidinfo.width, gfxvidinfo.height, gfxvidinfo.pixbytes,
-		xlinebuffer, xlinebuffer_start, xlinebuffer_end);
-}
-#else
-#define xlinecheck
-#endif
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
 static uae_u8 *row_map[MAX_VIDHEIGHT + 1];
@@ -204,6 +189,45 @@ int inhibit_frame;
 int framecnt = 0;
 static int frame_redraw_necessary;
 static int picasso_redraw_necessary;
+
+#ifdef XLINECHECK
+static void xlinecheck (unsigned int start, unsigned int end)
+{
+    unsigned int xstart = (unsigned int)xlinebuffer + start * gfxvidinfo.pixbytes;
+    unsigned int xend = (unsigned int)xlinebuffer + end * gfxvidinfo.pixbytes;
+    unsigned int end1 = (unsigned int)gfxvidinfo.bufmem + gfxvidinfo.rowbytes * gfxvidinfo.height;
+    int min = linetoscr_x_adjust_bytes / gfxvidinfo.pixbytes;
+    int ok = 1;
+
+    if (xstart >= gfxvidinfo.emergmem && xstart < gfxvidinfo.emergmem + 4096 * gfxvidinfo.pixbytes &&
+	xend >= gfxvidinfo.emergmem && xend < gfxvidinfo.emergmem + 4096 * gfxvidinfo.pixbytes)
+	return;
+
+    if (xstart < (unsigned int)gfxvidinfo.bufmem || xend < (unsigned int)gfxvidinfo.bufmem)
+	ok = 0;
+    if (xend > end1 || xstart >= end1)
+	ok = 0;
+    xstart -= (unsigned int)gfxvidinfo.bufmem;
+    xend -= (unsigned int)gfxvidinfo.bufmem;
+    if ((xstart % gfxvidinfo.rowbytes) >= gfxvidinfo.width * gfxvidinfo.pixbytes)
+	ok = 0;
+    if ((xend % gfxvidinfo.rowbytes) >= gfxvidinfo.width * gfxvidinfo.pixbytes)
+	ok = 0;
+    if (xstart >= xend)
+	ok = 0;
+    if (xend - xstart > gfxvidinfo.width * gfxvidinfo.pixbytes)
+	ok = 0;
+
+    if (!ok) {
+	    write_log ("*** %d-%d (%dx%dx%d %d) %p\n",
+		start - min, end - min, gfxvidinfo.width, gfxvidinfo.height,
+		gfxvidinfo.pixbytes, gfxvidinfo.rowbytes,
+		xlinebuffer);
+    }
+}
+#else
+#define xlinecheck
+#endif
 
 STATIC_INLINE void count_frame (void)
 {
@@ -501,6 +525,7 @@ static int linetoscr_double_offset;
 
 static void pfield_do_linetoscr (int start, int stop)
 {
+    xlinecheck(start, stop);
 #ifdef AGA
     if (currprefs.chipset_mask & CSMASK_AGA) {
 	if (res_shift == 0)
@@ -1093,7 +1118,7 @@ void init_row_map (void)
 	abort ();
     }
     j = 0;
-    for (i = 0; i < MAX_VIDHEIGHT + 1; i++)
+    for (i = gfxvidinfo.height; i < MAX_VIDHEIGHT + 1; i++)
 	row_map[i] = row_tmp;
     for (i = 0; i < gfxvidinfo.height; i++, j += gfxvidinfo.rowbytes)
 	row_map[i] = gfxvidinfo.bufmem + j;
@@ -1218,6 +1243,7 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
        Should be corrected.
        (sjo 26.9.99) */
 
+    xlinecheck(start, stop);
     if (gfxvidinfo.maxblocklines != 0 && first_block_line != NO_BLOCK) {
 	flush_block (first_block_line, last_block_line);
     }
@@ -1460,10 +1486,6 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	xlinebuffer = gfxvidinfo.emergmem, dh = dh_emerg;
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[gfx_ypos], dh = dh_buf;
-#ifdef XLINECHECK
-    xlinebuffer_start =  xlinebuffer;
-    xlinebuffer_end = xlinebuffer + gfxvidinfo.width * gfxvidinfo.pixbytes;
-#endif
     xlinebuffer -= linetoscr_x_adjust_bytes;
 
     if (border == 0) {

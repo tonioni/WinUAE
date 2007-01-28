@@ -131,19 +131,23 @@ static struct romdata roms[] = {
     { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
     { "Action Replay 1200", 0, 0, 0, 0, "AR\0", 0x8d760101, 262144, 47, 0, 0, ROMTYPE_AR },
 
-    { "Arcadia SportTime Table Hockey\0ar_airh", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 33, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia SportTime Bowling\0ar_bowl", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 34, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia World Darts\0ar_dart", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 35, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Magic Johnson's Fast Break\0ar_fast", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 36, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Leader Board Golf\0ar_ldrb", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 37, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Leader Board Golf (alt)\0ar_ldrba", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 38, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Ninja Mission\0ar_ninj", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 39, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Road Wars\0ar_rdwr", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 40, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Sidewinder\0ar_sdwr", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 41, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Cool Spot\0ar_spot", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 42, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Space Ranger\0ar_sprg", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 43, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia Xenon\0ar_xeon", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 44, 0, 0, ROMTYPE_ARCADIA },
-    { "Arcadia World Trophy Soccer\0ar_socc", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 45, 0, 0, ROMTYPE_ARCADIA },
+    { "Arcadia OnePlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 49, 0, 0, ROMTYPE_ARCADIABIOS },
+    { "Arcadia TenPlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 50, 0, 0, ROMTYPE_ARCADIABIOS },
+    { "Arcadia OnePlay 3.00", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 51, 0, 0, ROMTYPE_ARCADIABIOS },
+
+    { "Arcadia SportTime Table Hockey", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 33, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia SportTime Bowling", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 34, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia World Darts", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 35, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Magic Johnson's Fast Break", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 36, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Leader Board Golf", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 37, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Leader Board Golf (alt)", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 38, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Ninja Mission", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 39, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Road Wars", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 40, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Sidewinder", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 41, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Spot", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 42, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Space Ranger", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 43, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia Xenon", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 44, 0, 0, ROMTYPE_ARCADIAGAME },
+    { "Arcadia World Trophy Soccer", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 45, 0, 0, ROMTYPE_ARCADIAGAME },
 
     { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
@@ -231,7 +235,7 @@ struct romdata *getarcadiarombyname (char *name)
 {
     int i;
     for (i = 0; roms[i].name; i++) {
-	if (roms[i].type == ROMTYPE_ARCADIA) {
+	if (roms[i].type == ROMTYPE_ARCADIAGAME || roms[i].type == ROMTYPE_ARCADIAGAME) {
 	    char *p = roms[i].name;
 	    p = p + strlen (p) + 1;
 	    if (strlen (name) >= strlen (p) + 4) {
@@ -243,6 +247,34 @@ struct romdata *getarcadiarombyname (char *name)
     }
     return NULL;
 }
+
+struct romlist **getarcadiaroms(void)
+{
+    int i, out, max;
+    void *buf;
+    struct romlist **rdout, *rltmp;
+
+    max = 0;
+    for (i = 0; roms[i].name; i++) {
+	if (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME)
+	    max++;
+    }
+    buf = xmalloc((sizeof (struct romlist*) + sizeof (struct romlist)) * (max + 1));
+    rdout = buf;
+    rltmp = (struct romlist*)((uae_u8*)buf + (max + 1) * sizeof (struct romlist*));
+    out = 0;
+    for (i = 0; roms[i].name; i++) {
+	if (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME) {
+	    rdout[out++] = rltmp;
+	    rltmp->path = NULL;
+	    rltmp->rd = &roms[i];
+	    rltmp++;
+	}
+    }
+    rdout[out] = NULL;
+    return rdout;
+}
+
 
 static int kickstart_checksum_do (uae_u8 *mem, int size)
 {
@@ -1384,6 +1416,7 @@ static int extendedkickmem_type;
 #define EXTENDED_ROM_CD32 1
 #define EXTENDED_ROM_CDTV 2
 #define EXTENDED_ROM_KS 3
+#define EXTENDED_ROM_ARCADIA 4
 
 static uae_u32 REGPARAM3 extendedkickmem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 extendedkickmem_wget (uaecptr) REGPARAM;
@@ -1674,6 +1707,10 @@ static int load_extendedkickstart (void)
 
     if (strlen(currprefs.romextfile) == 0)
 	return 0;
+    if (is_arcadia_rom(currprefs.romextfile) == ARCADIA_BIOS) {
+	extendedkickmem_type = EXTENDED_ROM_ARCADIA;
+	return 0;
+    }
     f = zfile_fopen (currprefs.romextfile, "rb");
     if (!f) {
 	notify_user (NUMSG_NOEXTROM);
@@ -2335,19 +2372,25 @@ void memory_reset (void)
         map_banks (&kickmem_bank, 0xE0, 8, 0);
 
 #ifdef ARCADIA
-    is_arcadia_rom (currprefs.cartfile);
-    if (arcadia_rom) {
-	if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0) {
-	    memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
-	    arcadia_unmap ();
+    if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
+	if (strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0) {
+	    memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
+	 }
+	if (is_arcadia_rom (currprefs.cartfile) == ARCADIA_GAME) {
+	    if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0) {
+		memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
+	    }
 	}
+        arcadia_unmap ();
+	is_arcadia_rom (currprefs.romextfile);
+	is_arcadia_rom (currprefs.cartfile);
 	arcadia_map_banks ();
     }
 #endif
 
 #ifdef ACTION_REPLAY
 #ifdef ARCADIA
-    if (!arcadia_rom) {
+    if (!arcadia_bios) {
 #endif
     action_replay_memory_reset();
 #ifdef ARCADIA
@@ -2405,8 +2448,10 @@ void memory_cleanup (void)
 	xfree (a1000_bootrom);
     if (chipmemory)
 	mapped_free (chipmemory);
-    if (cardmemory)
+    if (cardmemory) {
+	cdtv_savecardmem (cardmemory, allocated_cardmem);
 	mapped_free (cardmemory);
+    }
 
     bogomemory = 0;
     kickmemory = 0;

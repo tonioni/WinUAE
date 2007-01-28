@@ -43,7 +43,6 @@ struct hardfiledata {
 struct uaedev_mount_info;
 extern struct uaedev_mount_info options_mountinfo;
 
-extern void filesys_init (void);
 extern struct hardfiledata *get_hardfile_data (int nr);
 #define FILESYS_MAX_BLOCKSIZE 2048
 extern int hdf_open (struct hardfiledata *hfd, char *name);

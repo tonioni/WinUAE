@@ -86,8 +86,7 @@ static int get_volume_name( struct uaedev_mount_info *mtinf, char *volumepath, c
     return result;
 }
 
-/* New function to actually handle add_filesys_unit() calls at start-up, as well as mount-all drives flag */
-void filesys_init( void )
+static void filesys_addexternals(void)
 {
     int drive, drivetype;
     UINT errormode = SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX );

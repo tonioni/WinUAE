@@ -1,4 +1,16 @@
 
+Beta 4:
+
+- separate Arcadia bios and game rom selection
+  (rom rescan required) Idea and original patch by Karsten Bock
+- "Add PC drives at startup"/"Include network drives" fixed
+- cd32/cdtv/arcadia flashfile set to <datapath>\<mode>.nvr
+  in quickstart modes
+- CDTV 64kb sram card quickstart mode added, saved to flashfile with
+  CDTV internal sram (tested with Sim City CDTV)
+- harddisk panel fixes and updates. Non-existing hardfiles and
+  directories are marked with "X".
+
 Beta 3:
 
 - remove harddrives loaded from default.uae in quickstart-mode

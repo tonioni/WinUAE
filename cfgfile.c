@@ -222,7 +222,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 	char *str;
 
 	str = cfgfile_subst_path (default_path, unexpanded, uci->rootdir);
-	if (uci->volname[0] != 0) {
+	if (!uci->ishdf) {
 	    sprintf (tmp, "filesystem2=%s,%s:%s:%s,%d\n", uci->readonly ? "ro" : "rw",
 		uci->devname ? uci->devname : "", uci->volname, str, uci->bootpri);
 	    zfile_fputs (f, tmp);
@@ -1071,6 +1071,7 @@ int add_filesys_config (struct uae_prefs *p, int index,
 	uci = &p->mountconfig[index];
     if (!uci)
 	return 0;
+    uci->ishdf = volname == NULL ? 1 : 0;
     strcpy (uci->devname, devname ? devname : "");
     strcpy (uci->volname, volname ? volname : "");
     strcpy (uci->rootdir, rootdir ? rootdir : "");
@@ -1847,7 +1848,7 @@ static void parse_filesys_spec (struct uae_prefs *p, int readonly, char *spec)
 	}
 #endif
 #ifdef FILESYS
-	add_filesys_config (p, -1, 0, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0);
+	add_filesys_config (p, -1, NULL, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0);
 #endif
     } else {
 	write_log ("Usage: [-m | -M] VOLNAME:mount_point\n");
@@ -1876,7 +1877,7 @@ static void parse_hardfile_spec (struct uae_prefs *p, char *spec)
 	goto argh;
     *x4++ = '\0';
 #ifdef FILESYS
-    add_filesys_config (p, -1, 0, 0, x4, 0, atoi (x0), atoi (x1), atoi (x2), atoi (x3), 0, 0, 0);
+    add_filesys_config (p, -1, NULL, NULL, x4, 0, atoi (x0), atoi (x1), atoi (x2), atoi (x3), 0, 0, 0);
 #endif
     free (x0);
     return;
@@ -2456,6 +2457,7 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
 	break;
 	case ROMTYPE_EXTCD32:
 	case ROMTYPE_EXTCDTV:
+	case ROMTYPE_ARCADIABIOS:
 	strcpy (p->romextfile, path);
 	break;
     }
@@ -2834,6 +2836,8 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
     set_68000_compa (p, compa);
     p->cs_compatible = 2;
     build_in_chipset_prefs (p);
+    fetch_datapath (p->flashfile, sizeof (p->flashfile));
+    strcat(p->flashfile, "cdtv.nvr");
     return 1;
 }
 
@@ -2856,6 +2860,8 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
     set_68020_compa (p, compa);
     p->cs_compatible = 3;
     build_in_chipset_prefs (p);
+    fetch_datapath (p->flashfile, sizeof (p->flashfile));
+    strcat(p->flashfile, "cd32.nvr");
     return 1;
 }
 
@@ -3008,6 +3014,35 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     return configure_rom (p, roms, romcheck);
 }
 
+ static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck)
+ {
+    int roms[4];
+ 
+    p->bogomem_size = 0;
+    p->chipset_mask = 0;
+    p->cs_rtc = 0;
+    p->nr_floppies = 0;
+    p->dfxtype[0] = DRV_NONE;
+    p->dfxtype[1] = DRV_NONE;
+    set_68000_compa (p, compa);
+    p->cs_compatible = 4;
+    build_in_chipset_prefs (p);
+    fetch_datapath (p->flashfile, sizeof (p->flashfile));
+    strcat(p->flashfile, "arcadia.nvr");
+    roms[0] = 5;
+    roms[1] = 4;
+    roms[2] = -1;
+    if (!configure_rom (p, roms, romcheck))
+	return 0;
+    roms[0] = 49;
+    roms[1] = 50;
+    roms[2] = 51;
+    roms[3] = -1;
+    if (!configure_rom (p, roms, romcheck))
+	return 0;
+    return 1;
+}
+
 int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {
     int v = 0, i;
@@ -3036,10 +3071,7 @@ int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 	v = bip_cdtv (p, config, compa, romcheck);
 	break;
 	case 7:
-	v = bip_a500 (p, 4, compa, romcheck);
-	p->nr_floppies = 0;
-	p->dfxtype[0] = DRV_NONE;
-	p->dfxtype[1] = DRV_NONE;
+	v = bip_arcadia (p, config , compa, romcheck);
 	break;
 	case 10:
 	v = bip_super (p, config, compa, romcheck);

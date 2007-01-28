@@ -203,7 +203,9 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
     memset(&uitmp, 0, sizeof uitmp);
     if (!ui) {
 	ui = &uitmp;
-        if (uci->volname[0]) {
+	if (!uci->ishdf) {
+	    if (my_getvolumeinfo (uci->rootdir) < 0)
+		return -1;
 	    return FILESYS_VIRTUAL;
 	} else {
 	    ui->hf.readonly = 1;
@@ -217,7 +219,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
     }
     mi->size = ui->hf.size;
     mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.size / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
-    if (ui->volname)
+    if (!uci->ishdf)
 	return FILESYS_VIRTUAL;
     if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
 	if (ui->hf.flags & 1)
@@ -396,6 +398,7 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
     return 1;
 }
 
+static void filesys_addexternals(void);
 static void initialize_mountinfo(void)
 {
     int i;
@@ -411,6 +414,7 @@ static void initialize_mountinfo(void)
 	if (idx >= 0)
 	    uci->configoffset = idx;
     }
+    filesys_addexternals();
 }
 
 

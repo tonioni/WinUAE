@@ -1774,7 +1774,7 @@ void inputdevice_vsync (void)
     if (ievent_alive > 0)
 	ievent_alive--;
 #ifdef ARCADIA
-    if (arcadia_rom)
+    if (arcadia_bios)
 	arcadia_vsync ();
 #endif
     mouseedge();

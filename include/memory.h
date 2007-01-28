@@ -330,7 +330,8 @@ extern void init_shm(void);
 #define ROMTYPE_EXTCDTV 8
 #define ROMTYPE_AR 16
 #define ROMTYPE_KEY 32
-#define ROMTYPE_ARCADIA 64
+#define ROMTYPE_ARCADIABIOS 64
+#define ROMTYPE_ARCADIAGAME 128
 
 struct romdata {
     char *name;
@@ -354,6 +355,7 @@ extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
+extern struct romlist **getarcadiaroms (void);
 extern struct romdata *getarcadiarombyname (char *name);
 extern struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all);
 extern void getromname (struct romdata*, char*);

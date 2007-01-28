@@ -1895,6 +1895,10 @@ void fetch_screenshotpath (char *out, int size)
 {
     fetch_path ("ScreenshotPath", out, size);
 }
+void fetch_datapath (char *out, int size)
+{
+    fetch_path (NULL, out, size);
+}
 
 static void strip_slashes (char *p)
 {
@@ -1915,6 +1919,8 @@ void fetch_path (char *name, char *out, int size)
     int size2 = size;
 
     strcpy (out, start_path_data);
+    if (!name)
+	return;
     if (!strcmp (name, "FloppyPath"))
 	strcat (out, "..\\shared\\adf\\");
     if (!strcmp (name, "hdfPath"))

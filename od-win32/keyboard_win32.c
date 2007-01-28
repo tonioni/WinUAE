@@ -231,7 +231,7 @@ int getcapslock (void)
 static int handlearcadia (int scancode, int state)
 {
     int e = 0;
-    if (!arcadia_rom)
+    if (!arcadia_bios)
 	return 0;
     switch (scancode)
     {

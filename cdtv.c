@@ -191,14 +191,13 @@ static int ismedia(void)
 
 static void do_play(void)
 {
-    sleep_millis(100);
     sys_command_cd_pause (DF_IOCTL, unitnum, 0);
     cd_audio_status = AUDIO_STATUS_PLAY_ERROR;
     if (sys_command_cd_play (DF_IOCTL, unitnum, lsn2msf(play_start), lsn2msf(play_end), 0)) {
 	cd_audio_status = AUDIO_STATUS_IN_PROGRESS;
 	cd_playing = 1;
     }
-    do_stch();
+    activate_stch = 1;
 }
 
 static int play_cdtrack (uae_u8 *p)
@@ -228,7 +227,7 @@ static int play_cdtrack (uae_u8 *p)
     play_start = msf2lsn(start);
     write_log("PLAY CD AUDIO from %d-%d, %06.6X (%d) to %06.6X (%d)\n",
 	track_start, track_end, start, msf2lsn(start), end, msf2lsn(end));
-    do_play();
+    play_state = 1;
     return 0;
 }
 
@@ -262,7 +261,7 @@ static int play_cd(uae_u8 *p)
     play_start = msf2lsn(start);
     write_log("PLAY CD AUDIO from %06.6X (%d) to %06.6X (%d)\n",
 	start, msf2lsn(start), end, msf2lsn(end));
-    do_play();
+    play_state = 1;
     return 0;
 }
 
@@ -291,6 +290,7 @@ static int cdrom_subq(uae_u8 *out, int msflsn)
     out[10] = (msflsn ? trackposmsf : trackposlsn) >> 8;
     out[11] = (msflsn ? trackposmsf : trackposlsn) >> 0;
     out[12] = 0;
+
     return 13;
 }
 
@@ -727,20 +727,19 @@ void CDTV_hsync_handler(void)
     if (cdtv_hsync < 312 * 50 / 75 && cdtv_hsync >= 0)
 	return;
     cdtv_hsync = 0;
-/*
+
     if (play_state == 1) {
 	play_state = 2;
-	play_statewait = 20;
-	cd_playing = 0;
+	cd_playing = 1;
+	activate_stch = 1;
+	play_statewait = 5;
     } else if (play_statewait > 0) {
 	play_statewait--;
     } else if (play_state == 2) {
         write_comm_pipe_u32 (&requests, 0x0110, 1);
-	cd_playing = 1;
-	do_stch();
 	play_state = 0;
     }
-*/
+
     if (cd_isready > 0) {
 	cd_isready--;
 	if (!cd_isready)
@@ -758,10 +757,10 @@ void CDTV_hsync_handler(void)
     subqcnt--;
     if (subqcnt < 0) {
         write_comm_pipe_u32 (&requests, 0x0101, 1);
-	if (activate_stch)
-	    do_stch();
 	subqcnt = 75;
     }
+    if (activate_stch)
+        do_stch();
 }
 
 static void do_stch(void)
@@ -777,10 +776,12 @@ static void do_stch(void)
 
 void bleh(void)
 {
+#if 0
     cd_playing = cd_finished = cd_motor = cd_media = 1;
     cd_isready = 0;
     cd_playing = 0;
     do_stch();
+#endif
 }
 
 static void cdtv_reset (void)
@@ -1112,7 +1113,7 @@ void cdtv_exitgui (void)
 
 /* CDTV batterybacked RAM emulation */
 #define CDTV_NVRAM_MASK 16383
-#define CDTV_NVRAM_SIZE 16384
+#define CDTV_NVRAM_SIZE 32768
 static uae_u8 cdtv_battram[CDTV_NVRAM_SIZE];
 
 void cdtv_loadcardmem(uae_u8 *p, int size)
@@ -1128,12 +1129,25 @@ void cdtv_loadcardmem(uae_u8 *p, int size)
     zfile_fclose (f);
 }
 
-static void cdtv_battram_reset (void)
+void cdtv_savecardmem(uae_u8 *p, int size)
 {
     struct zfile *f;
 
+    f = zfile_fopen (currprefs.flashfile, "rb+");
+    if (!f)
+	return;
+    zfile_fseek (f, CDTV_NVRAM_SIZE, SEEK_SET);
+    zfile_fwrite (p, size, 1, f);
+    zfile_fclose (f);
+}
+
+static void cdtv_battram_reset (void)
+{
+    struct zfile *f;
+    int v;
+
     memset (cdtv_battram, 0, CDTV_NVRAM_SIZE);
-    f = zfile_fopen (currprefs.flashfile, "rb");
+    f = zfile_fopen (currprefs.flashfile, "rb+");
     if (!f) {
         f = zfile_fopen (currprefs.flashfile, "wb");
 	if (f) {
@@ -1142,7 +1156,9 @@ static void cdtv_battram_reset (void)
 	}
 	return;
     }
-    zfile_fread (cdtv_battram, CDTV_NVRAM_SIZE, 1, f);
+    v = zfile_fread (cdtv_battram, 1, CDTV_NVRAM_SIZE, f);
+    if (v < CDTV_NVRAM_SIZE)
+	zfile_fwrite (cdtv_battram + v, 1, CDTV_NVRAM_SIZE - v, f);
     zfile_fclose (f);
 }
 

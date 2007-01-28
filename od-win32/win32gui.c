@@ -50,6 +50,7 @@
 #include "zfile.h"
 #include "parallel.h"
 #include "audio.h"
+#include "arcadia.h"
 
 #include "dxwrap.h"
 #include "win32.h"
@@ -444,17 +445,29 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 
 static struct romdata *scan_single_rom (char *path)
 {
-    struct zfile *z = zfile_fopen (path, "rb");
+    struct zfile *z;
+    char tmp[MAX_DPATH];
+    struct romdata *rd;
+
+    strcpy (tmp, path);
+    rd = scan_arcadia_rom (tmp, 0);
+    if (rd)
+        return rd;
+    z = zfile_fopen (path, "rb");
     if (!z)
 	return 0;
     return scan_single_rom_2 (z);
 }
 
-static void addrom (HKEY fkey, struct romdata *rd, char *name)
+static int addrom (HKEY fkey, struct romdata *rd, char *name)
 {
     char tmp[MAX_DPATH];
     sprintf (tmp, "ROM%02d", rd->id);
-    RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)name, strlen (name) + 1);
+    if (RegQueryValueEx (fkey, tmp, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
+	return 0;
+    if (RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)name, strlen (name) + 1) != ERROR_SUCCESS)
+	return 0;
+    return 1;
 }
 
 static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
@@ -471,13 +484,19 @@ static int scan_rom (char *path, HKEY fkey)
 {
     struct romscandata rsd = { fkey, 0 };
     struct romdata *rd;
+    int cnt = 0;
 
-    rd = getarcadiarombyname (path);
-    if (rd) {
-	addrom (fkey, rd, path);
-	return 1;
+    for (;;) {
+	char tmp[MAX_DPATH];
+	strcpy (tmp, path);
+	rd = scan_arcadia_rom (tmp, cnt++);
+	if (rd) {
+	    if (!addrom (fkey, rd, tmp))
+		return 1;
+	    continue;
+	}
+	break;
     }
-
     zfile_zopen (path, scan_rom_2, &rsd);
     return rsd.got;
 }
@@ -1919,7 +1938,7 @@ void InitializeListView (HWND hDlg)
 
 	    type = get_filesys_unitconfig (&workprefs, i, &mi);
 	    if (type < 0) {
-		type = uci->volname[0] ? FILESYS_VIRTUAL : FILESYS_HARDFILE;
+		type = uci->ishdf ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
 		nosize = 1;
 	    }
 
@@ -1953,7 +1972,7 @@ void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_YES, readwrite_str, sizeof (readwrite_str));
 
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-	    lvstruct.pszText  = mi.ismounted ? "*" : " ";
+	    lvstruct.pszText  = nosize ? "X" : (mi.ismounted ? "*" : " ");
 	    lvstruct.lParam   = 0;
 	    lvstruct.iItem    = i;
 	    lvstruct.iSubItem = 0;
@@ -4170,7 +4189,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     workprefs.cs_cd32nvram = IsDlgButtonChecked (hDlg, IDC_CS_CD32NVRAM);
     workprefs.cs_cdtvcd = IsDlgButtonChecked (hDlg, IDC_CS_CDTVCD);
     workprefs.cs_cdtvram = IsDlgButtonChecked (hDlg, IDC_CS_CDTVRAM);
-    workprefs.cs_cdtvcard = IsDlgButtonChecked (hDlg, IDC_CS_CDTVRAMEXP) ? 512 : 0;
+    workprefs.cs_cdtvcard = IsDlgButtonChecked (hDlg, IDC_CS_CDTVRAMEXP) ? 64 : 0;
     workprefs.cs_a1000ram = IsDlgButtonChecked (hDlg, IDC_CS_A1000RAM);
     workprefs.cs_ramseyrev = IsDlgButtonChecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
     workprefs.cs_fatgaryrev = IsDlgButtonChecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
@@ -4540,8 +4559,8 @@ static void values_to_kickstartdlg (HWND hDlg)
 	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
 	load_keyring(&workprefs, NULL);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
-	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_ARCADIA);
+	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_ARCADIAGAME);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -6118,6 +6137,8 @@ static void harddisk_edit (HWND hDlg)
     uci = &workprefs.mountconfig[entry];
 
     type = get_filesys_unitconfig (&workprefs, entry, &mi);
+    if (type < 0)
+	type = uci->ishdf ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
 
     if(type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
     {
@@ -6654,7 +6675,6 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35dd);
 	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35hd);
 	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft525sd);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
 	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_SETCURSEL, 0, 0);
 	for (i = 0; i < 4; i++) {
 	    int f_type = floppybuttons[i][3];

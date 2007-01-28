@@ -13,6 +13,7 @@ void cdtv_battram_write (int addr, int v);
 uae_u8 cdtv_battram_read (int addr);
 
 extern void cdtv_loadcardmem(uae_u8*, int);
+extern void cdtv_savecardmem(uae_u8*, int);
 
 #endif
 

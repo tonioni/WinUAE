@@ -482,7 +482,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    parallel_direct_read_data (&v);
 	    tmp = v;
 #ifdef ARCADIA
-	} else if (arcadia_rom) {
+	} else if (arcadia_bios) {
 	    tmp = arcadia_parport (0, ciaaprb, ciaadrb);
 #endif
 	} else {
@@ -690,7 +690,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    parallel_direct_write_data (val, ciaadrb);
 	    cia_parallelack ();
 #ifdef ARCADIA
-	} else if (arcadia_rom) {
+	} else if (arcadia_bios) {
 	    arcadia_parport (1, ciaaprb, ciaadrb);
 #endif
 	}
@@ -709,7 +709,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    write_log ("BFE301 W %02.2X %s\n", val, debuginfo(0));
 #endif
 #ifdef ARCADIA
-	if (arcadia_rom)
+	if (arcadia_bios)
 	    arcadia_parport (1, ciaaprb, ciaadrb);
 #endif
 	break;

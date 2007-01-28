@@ -693,11 +693,6 @@ static void real_main2 (int argc, char **argv)
 	if (currprefs.start_debugger && debuggable ())
 	    activate_debugger ();
 
-#ifdef WIN32
-#ifdef FILESYS
-	filesys_init (); /* New function, to do 'add_filesys_unit()' calls at start-up */
-#endif
-#endif
 	if (sound_available && currprefs.produce_sound > 1 && ! init_audio ()) {
 	    write_log ("Sound driver unavailable: Sound output disabled\n");
 	    currprefs.produce_sound = 0;
