@@ -96,7 +96,7 @@
 #define force_z3	0x10 /* *MUST* be set if card is Z3 */
 #define ext_size	0x20 /* Use extended size table for bits 0-2 of er_Type */
 #define no_shutup	0x40 /* Card cannot receive Shut_up_forever */
-#define care_addr	0x80 /* Adress HAS to be $200000-$9fffff */
+#define care_addr	0x80 /* Z2=Adress HAS to be $200000-$9fffff Z3=1->mem,0=io */
 
 /* ********************************************************** */
 /* 40-42 */
@@ -268,8 +268,14 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 	switch (addr & 0xff) {
 	 case 0x44:
 	    if (expamem_type() == zorroIII) {
-		// +Bernd Roesch
-		value = (value - 0x4000) + (z3fastmem_start >> 16); /* hack address (TW) */
+		// +Bernd Roesch & Toni Wilen
+		if (expamem[0] & add_memory) {
+		    // Z3 RAM expansion
+		    value = z3fastmem_start >> 16;
+		} else {
+		    // Z3 P96 RAM
+		    value = (z3fastmem_start + (currprefs.z3fastmem_size + 0xffffff) & ~0xffffff) >> 16;
+		}
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		// -Bernd Roesch
@@ -874,7 +880,7 @@ static void expamem_init_z3fastmem (void)
     expamem_init_clear();
     expamem_write (0x00, add_memory | zorroIII | code);
 
-    expamem_write (0x08, no_shutup | force_z3 | (allocated_z3fastmem > 0x800000 ? ext_size : Z3_MEM_AUTO));
+    expamem_write (0x08, care_addr | no_shutup | force_z3 | (allocated_z3fastmem > 0x800000 ? ext_size : Z3_MEM_AUTO));
 
     expamem_write (0x04, 3);
 
@@ -905,6 +911,10 @@ static void expamem_map_gfxcard (void)
 {
     gfxmem_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
     map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, 0);
+#if 0
+    if (allocated_gfxmem < 0x1000000)
+	map_banks (&gfxmem_bank, (gfxmem_start + allocated_gfxmem) >> 16, (0x1000000 - allocated_gfxmem) >> 16, 0);
+#endif
     write_log ("UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
@@ -917,12 +927,20 @@ static void expamem_init_gfxcard (void)
 	: allocated_gfxmem == 0x1000000 ? Z2_MEM_16MB
 	: allocated_gfxmem == 0x2000000 ? Z2_MEM_32MB
 	: allocated_gfxmem == 0x4000000 ? Z2_MEM_64MB
-	: Z2_MEM_128MB);
+	: allocated_gfxmem == 0x8000000 ? Z2_MEM_128MB
+	: allocated_gfxmem == 0x10000000 ? Z2_MEM_256MB
+	: allocated_gfxmem == 0x20000000 ? Z2_MEM_512MB
+	: Z2_MEM_1GB);
+    int subsize = (allocated_gfxmem == 0x100000 ? Z3_MEM_1MB
+	: allocated_gfxmem == 0x200000 ? Z3_MEM_2MB
+	: allocated_gfxmem == 0x400000 ? Z3_MEM_4MB
+	: allocated_gfxmem == 0x800000 ? Z3_MEM_8MB
+	: 0);
 
     expamem_init_clear();
     expamem_write (0x00, zorroIII | code);
 
-    expamem_write (0x08, no_shutup | force_z3 | (allocated_gfxmem > 0x800000 ? ext_size : Z3_MEM_AUTO));
+    expamem_write (0x08, care_addr | no_shutup | force_z3 | ext_size | subsize);
     expamem_write (0x04, 96);
 
     expamem_write (0x10, uae_id >> 8);
@@ -1005,6 +1023,7 @@ static void allocate_expamem (void)
 
     z3fastmem_bank.baseaddr = z3fastmem;
     fastmem_bank.baseaddr = fastmemory;
+    gfxmem_bank.baseaddr = gfxmemory;
 
 #ifdef SAVESTATE
     if (savestate_state == STATE_RESTORE) {

@@ -1729,7 +1729,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_uaescsimode = get_aspi_path(1) ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
-	p->win32_outsidemouse = 1;
+	p->win32_outsidemouse = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_midioutdev = -2;

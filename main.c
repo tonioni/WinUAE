@@ -419,6 +419,7 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 < argc)
 		i++;
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
+	    currprefs.mountitems = 0;
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */
@@ -426,6 +427,7 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 == argc) {
 		write_log ("Missing argument for '-f' option.\n");
 	    } else {
+	        currprefs.mountitems = 0;
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
 	} else if (strcmp (argv[i], "-s") == 0) {

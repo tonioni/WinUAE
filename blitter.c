@@ -516,7 +516,7 @@ STATIC_INLINE void blitter_line_incy(void)
 
 static void blitter_line(void)
 {
-    uae_u16 blitahold = blinea >> blinea_shift;
+    uae_u16 blitahold = (blinea & blt_info.bltafwm) >> blinea_shift;
     uae_u16 blitbhold = blineb & 1 ? 0xFFFF : 0;
     uae_u16 blitchold = blt_info.bltcdat;
 

@@ -293,6 +293,7 @@ static int open_audio_ds (int size)
 
     round = 0;
     for (;;) {
+	char *extname = NULL;
 	int extend = round > 0 && ch > 2;
 
 	memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
@@ -300,17 +301,19 @@ static int open_audio_ds (int size)
 	wavfmt.Format.wFormatTag = extend ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
 	wavfmt.Format.nSamplesPerSec = freq;
 	wavfmt.Format.wBitsPerSample = 16;
-	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
-	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 	if (extend) {
+	    DWORD ksmode = round == 1 ? KSAUDIO_SPEAKER_QUAD : (round == 2 ? KSAUDIO_SPEAKER_SURROUND  : SPEAKER_ALL);
+	    extname = round == 1 ? "QUAD" : (round == 2 ? "SUR" : "ALL");
 	    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
 	    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
 	    wavfmt.Samples.wValidBitsPerSample = 16;
-	    wavfmt.dwChannelMask = round == 1 ? KSAUDIO_SPEAKER_QUAD : SPEAKER_ALL;
+	    wavfmt.dwChannelMask = ksmode;
 	}
+	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
+	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
-	write_log ("SOUND: %s:%d '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
-	    extend ? "EXT" : "PCM", round,
+	write_log ("SOUND: %d:%s '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
+	    round, extend ? extname : "PCM",
 	    sound_devices[currprefs.win32_soundcard],
 	    wavfmt.Format.nChannels, 16, freq, max_sndbufsize, snd_configsize);
 
@@ -327,7 +330,7 @@ static int open_audio_ds (int size)
 	    write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
 	    if (ch <= 2)
 		goto error;
-	    if (round < 3) {
+	    if (round < 4) {
 		round++;
 		continue;
 	    }

@@ -167,7 +167,10 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	    udi = &uae_drives[i];
 	    hfd->flags = 1;
 	    flags =  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
-	    h = CreateFile (udi->device_path, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, flags, NULL);
+	    h = CreateFile (udi->device_path,
+		GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE),
+		FILE_SHARE_READ | (hfd->readonly ? 0 : FILE_SHARE_WRITE),
+		NULL, OPEN_EXISTING, flags, NULL);
 	    hfd->handle = h;
 	    if (h == INVALID_HANDLE_VALUE) {
 		hdf_close (hfd);
@@ -1034,7 +1037,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
     cache = VirtualAlloc (NULL, COPY_CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
     if (!cache)
 	goto err;
-    h = CreateFile (uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    h = CreateFile (uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ, NULL,
 	OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING, NULL);
     if (h == INVALID_HANDLE_VALUE)
 	goto err;
@@ -1044,7 +1047,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
     GetDlgItemText (hDlg, IDC_PATH_NAME, path, MAX_DPATH);
     if (*path == 0)
 	goto err;
-    hdst = CreateFile (path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
+    hdst = CreateFile (path, GENERIC_WRITE, 0, NULL,
 	CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
     if (hdst == INVALID_HANDLE_VALUE)
 	goto err;

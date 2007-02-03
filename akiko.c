@@ -365,6 +365,7 @@ static uae_u8 *sector_buffer_info_1, *sector_buffer_info_2;
 
 static int unitnum = -1;
 static int cdromok = 0;
+static int cd_hunt;
 
 
 static uae_u8 frombcd (uae_u8 v)
@@ -576,6 +577,8 @@ static int sys_cddev_open (void)
 	sys_command_close (DF_IOCTL, unitnum);
 	return 1;
     }
+    if (!sys_command_ismedia(DF_IOCTL, unitnum, 0))
+	cd_hunt = 1;
     write_log ("using drive %s (unit %d, media %d)\n", di2->label, unitnum, di2->media_inserted);
     /* make sure CD audio is not playing */
     cdaudiostop ();
@@ -625,14 +628,14 @@ static int cdrom_command_something (void)
 static int cdrom_command_media_status (void)
 {
     cdrom_result_buffer[0] = 10;
-    cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum);
+    cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0);
     return 2;
 }
 
 /* check if cd drive door is open or closed */
 static int cdrom_command_door_status (void)
 {
-    if (unitnum >= 0 && !sys_command_ismedia (DF_IOCTL, unitnum)) {
+    if (unitnum >= 0 && !sys_command_ismedia (DF_IOCTL, unitnum, 0)) {
 	cdrom_result_buffer[1] = 0x80;
 	cdrom_disk = 0;
     } else {
@@ -900,12 +903,14 @@ static void akiko_handler (void)
     if (mediacheckcnt > 0)
 	mediacheckcnt--;
     if (mediacheckcnt == 0) {
-	int media = sys_command_ismedia (DF_IOCTL, unitnum);
+	int media = sys_command_ismedia (DF_IOCTL, unitnum, 0);
 	mediacheckcnt = 312 * 50 * 2;
 	if (media != lastmediastate) {
 	    write_log ("media changed = %d\n", media);
 	    lastmediastate = cdrom_disk = media;
 	    cdrom_return_data (cdrom_command_media_status ());
+	    if (!media)
+		cd_hunt = 1;
 	    cdrom_toc ();
 	     /* do not remove! first try may fail */
 	    cdrom_toc ();
@@ -931,12 +936,44 @@ static void akiko_internal (void)
     }
 }
 
+static void do_hunt(void)
+{
+    int i;
+    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	if (sys_command_ismedia(DF_IOCTL, i, 1) > 0)
+	    break;
+    }
+    if (i == MAX_TOTAL_DEVICES)
+	return;
+    if (unitnum >= 0) {
+	cdaudiostop();
+	sys_command_close(DF_IOCTL, unitnum);
+    }
+    if (sys_command_open(DF_IOCTL, i) > 0) {
+	unitnum = i;
+	cd_hunt = 0;
+	write_log("CD32: autodetected unit %d\n", unitnum);
+    } else {
+	unitnum = -1;
+    }
+}
+
 void AKIKO_hsync_handler (void)
 {
     static int framecounter;
 
     if (!currprefs.cs_cd32cd)
 	return;
+
+    if (cd_hunt) {
+	static int huntcnt;
+	if (huntcnt <= 0) {
+	    do_hunt();
+	    huntcnt = 312 * 50 * 2;
+	}
+	huntcnt--;
+    }
+
     framecounter--;
     if (framecounter <= 0) {
 	if (cdrom_playing || cdrom_toc_counter > 0)

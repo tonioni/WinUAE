@@ -1,4 +1,25 @@
 
+Beta 5:
+
+- CD32/CDTV emulation now autodetects all CD (all drives) changes on
+  the fly. Previously drive was only autodetected once when emulation
+  started.
+- blitter linedraw update, PD game Tanx (not same game as Tanx in HOL,
+  ID=5409) uses really "interesting" way for drawing vertical lines,
+  it sets ADAT=FFFF and BLTAFWM=8000.
+- remove agnus/denise revision settings. Will be replaced with more
+  flexible configuration later (perhaps select box with real chip
+  identification strings, current system couldn't support for example
+  oldest Denise without EHB and Agnus with buggy blitter wait bit)
+- another possible bsdsocket thread timing bug fix
+- running p96refresh automatically forces power supply cia-a tod to
+  prevent clock running faster
+- mapping of RTG RAM adjusted (locate immediately after end of Z3 RAM
+  and align to 16M border), fix board size (previously <16M was
+  reported incorrectly in Scout)
+- Arcadia added to ROM scan message (but only if Arcadia bios rom(s)
+  detected, Arcadia: unavailable would only confuse users..)
+
 Beta 4:
 
 - separate Arcadia bios and game rom selection

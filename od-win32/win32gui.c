@@ -537,7 +537,8 @@ static void show_rom_list (void)
 
     /* A500 */
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, " Boot ROM v1.2:");
     roms[0] = 5; roms[1] = 4; roms[2] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
@@ -548,7 +549,8 @@ static void show_rom_list (void)
    
     /* A500+ */
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 7; roms[1] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
@@ -556,7 +558,8 @@ static void show_rom_list (void)
 
     /* A600 */
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 8; roms[1] = 9; roms[2] = 10; roms[3] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
@@ -564,7 +567,8 @@ static void show_rom_list (void)
 
     /* A1000 */
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 23; roms[1] = 24; roms[2] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
@@ -572,7 +576,8 @@ static void show_rom_list (void)
 
     /* A1200 */
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 11; roms[1] = 31; roms[2] = 15; roms[3] = -1;
     if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
@@ -581,7 +586,8 @@ static void show_rom_list (void)
     /* CD32 */
     ok = 0;
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 18; roms[1] = -1;
     if (listrom (roms)) {
@@ -595,7 +601,8 @@ static void show_rom_list (void)
     /* CDTV */
     ok = 0;
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
+    if (!p2)
+	goto end;
     *p2++= 0; strcat (p, p1); strcat (p, ": ");
     roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
     if (listrom (roms)) {
@@ -606,15 +613,23 @@ static void show_rom_list (void)
     if (ok) strcat (p, avail); else strcat (p, unavail);
     p1 = p2;
 
-#if 0
     /* Arcadia */
+    ok = 0;
     p2 = strchr (p1, '\n');
-    if (!p2) goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 5; roms[1] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
+    if (!p2)
+	goto end;
+    *p2++= 0;
+    roms[0] = 49; roms[1] = 50; roms[2] = 51; roms[3] = -1;
+    if (listrom (roms)) {
+	roms[0] = 5; roms[1] = 4; roms[2] = -1;
+	if (listrom (roms))
+	    ok = 1;
+    }
+    if (ok) {
+	strcat (p, p1); strcat (p, ": ");
+	strcat (p, avail);
+    }
     p1 = p2;
-#endif
 
     pre_gui_message (p);
 end:
@@ -4260,6 +4275,13 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_KSMIRROR, e);
     ew (hDlg, IDC_CS_A1000RAM, e);
     ew (hDlg, IDC_CS_DF0IDHW, e);
+    ew (hDlg, IDC_CS_CIAA_TOD1, e);
+    ew (hDlg, IDC_CS_CIAA_TOD2, e);
+    ew (hDlg, IDC_CS_CIAA_TOD3, e);
+    ew (hDlg, IDC_CS_RTC1, e);
+    ew (hDlg, IDC_CS_RTC2, e);
+    ew (hDlg, IDC_CS_RTC3, e);
+    ew (hDlg, IDC_CS_RTCADJUST, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -9189,6 +9211,15 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		    savestate_state = STATE_DORESTORE;
 		    strcpy (savestate_fname, file);
 		    ret = 1;
+		break;
+		default:
+		rd = scan_arcadia_rom (file, 0);
+		if (rd) {
+		    if (rd->type == ROMTYPE_ARCADIABIOS)
+			strcpy (prefs->romextfile, file);
+		    else if (rd->type == ROMTYPE_ARCADIAGAME)
+			strcpy (prefs->cartfile, file);
+		}
 		break;
 	    }
 	}

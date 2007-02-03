@@ -68,14 +68,14 @@ struct bsdsockdata {
 	DWORD threadid;
 	WSADATA wsbData;
 
-	HANDLE hGetThreads[MAX_GET_THREADS];
-	struct threadargs *threadGetargs[MAX_GET_THREADS];
-	int threadGetargs_inuse[MAX_GET_THREADS];
-	HANDLE hGetEvents[MAX_GET_THREADS];
+	volatile HANDLE hGetThreads[MAX_GET_THREADS];
+	volatile struct threadargs *threadGetargs[MAX_GET_THREADS];
+	volatile int threadGetargs_inuse[MAX_GET_THREADS];
+	volatile HANDLE hGetEvents[MAX_GET_THREADS];
 
-	HANDLE hThreads[MAX_SELECT_THREADS];
-	struct threadargsw *threadargsw[MAX_SELECT_THREADS];
-	HANDLE hEvents[MAX_SELECT_THREADS];
+	volatile HANDLE hThreads[MAX_SELECT_THREADS];
+	volatile struct threadargsw *threadargsw[MAX_SELECT_THREADS];
+	volatile HANDLE hEvents[MAX_SELECT_THREADS];
 
 	struct socketbase *asyncsb[MAXPENDINGASYNC];
 	SOCKET asyncsock[MAXPENDINGASYNC];
@@ -1650,7 +1650,7 @@ static unsigned int thread_WaitSelect2(void *indexp)
     uae_u32 timeout;
     struct fd_set readsocks, writesocks, exceptsocks;
     struct timeval tv;
-    struct threadargsw *args;
+    volatile struct threadargsw *args;
 
     SB;
 
@@ -1955,7 +1955,8 @@ static unsigned int thread_get2(void *indexp)
 {
     int index = *((int*)indexp);
     unsigned int result = 0;
-    struct threadargs *args;
+    volatile struct threadargs *argsp;
+	struct threadargs margs, *args;
     uae_u32 name;
     uae_u32 namelen;
     long addrtype;
@@ -1964,13 +1965,16 @@ static unsigned int thread_get2(void *indexp)
     SB;
 
     for (;;) {
-	    WaitForSingleObject(bsd->hGetEvents[index], INFINITE);
+		WaitForSingleObject(bsd->hGetEvents[index], INFINITE);
 		if (bsd->threadGetargs_inuse[index] == -1) {
 			bsd->threadGetargs_inuse[index] = 0;
 			bsd->threadGetargs[index] = NULL;
 		}
-	    if ((args = bsd->threadGetargs[index]) != NULL) {
+		if ((argsp = bsd->threadGetargs[index]) != NULL) {
+			margs = *argsp;
+			args = &margs;
 			sb = args->sb;
+
 			if (args->args1 == 0) {
 				// gethostbyname or gethostbyaddr
 				struct hostent *host;
@@ -2001,8 +2005,7 @@ static unsigned int thread_get2(void *indexp)
 						}
 					}
 				}
-			}
-			if (args->args1 == 1) {
+			} else if (args->args1 == 1) {
 				// getprotobyname
 				struct protoent  *proto;
 
@@ -2022,8 +2025,7 @@ static unsigned int thread_get2(void *indexp)
 						memcpy(buf, proto, sizeof(struct protoent));
 					}
 				}
-			}
-			if (args->args1 == 2) {
+			} else if (args->args1 == 2) {
 				// getservbyport and getservbyname
 				uae_u32 nameport;
 				uae_u32 proto;
@@ -2084,6 +2086,60 @@ static unsigned int __stdcall thread_get(void *p)
     return 0;
 }
 
+static int run_get_thread(TrapContext *context, SB, volatile struct threadargs *args)
+{
+	int i;
+
+	for (i = 0; i < MAX_GET_THREADS; i++)  {
+		if (bsd->threadGetargs_inuse[i] == -1) {
+			bsd->threadGetargs_inuse[i] = 0;
+			bsd->threadGetargs[i] = NULL;
+		}
+		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i])
+			break;
+	}
+
+	if (i >= MAX_GET_THREADS) {
+	    for (i = 0; i < MAX_GET_THREADS; i++) {
+			if (bsd->hGetThreads[i] == NULL) {
+				bsd->hGetEvents[i] = CreateEvent(NULL,FALSE,FALSE,NULL);
+				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
+				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
+					bsd->hGetThreads[i] = NULL;
+					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",
+						GetLastError());
+					bsdsocklib_seterrno(sb, 12); // ENOMEM
+					sb->resultval = -1;
+					return 0;
+				}
+				break;
+			}
+	    }
+	}
+	
+	if (i >= MAX_GET_THREADS) {
+		write_log("BSDSOCK: ERROR - Too many gethostbyname()s\n");
+		bsdsocklib_seterrno(sb, 12); // ENOMEM
+		sb->resultval = -1;
+		return 0;
+	} else {
+		bsdsetpriority (bsd->hGetThreads[i]);
+		bsd->threadGetargs[i] = args;
+		bsd->threadGetargs_inuse[i] = 1;
+		SetEvent(bsd->hGetEvents[i]);
+	}
+
+	sb->eintr = 0;
+	while (bsd->threadGetargs_inuse[i] != 0 && sb->eintr == 0) {	
+		WAITSIGNAL;
+		if (sb->eintr == 1)
+			bsd->threadGetargs_inuse[i] = -1;
+	}
+	CANCELSIGNAL;
+
+	return 1;
+}
+
 void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 namelen, long addrtype)
 {
 	HOSTENT *h;
@@ -2132,51 +2188,8 @@ void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 name
 	args.args4 = addrtype;
 	args.args5 = buf;
 
-	for (i = 0; i < MAX_GET_THREADS; i++)  {
-		if (bsd->threadGetargs_inuse[i] == -1) {
-			bsd->threadGetargs_inuse[i] = 0;
-			bsd->threadGetargs[i] = NULL;
-		}
-		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i])
-			break;
-	}
-
-	if (i >= MAX_GET_THREADS) {
-	    for (i = 0; i < MAX_GET_THREADS; i++) {
-			if (bsd->hGetThreads[i] == NULL) {
-				bsd->hGetEvents[i] = CreateEvent(NULL,FALSE,FALSE,NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
-				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
-					bsd->hGetThreads[i] = NULL;
-					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",
-						GetLastError());
-					bsdsocklib_seterrno(sb, 12); // ENOMEM
-					sb->resultval = -1;
-					return;
-				}
-				break;
-			}
-	    }
-	}
-	
-	if (i >= MAX_GET_THREADS)
-		write_log("BSDSOCK: ERROR - Too many gethostbyname()s\n");
-	else {
-		bsdsetpriority (bsd->hGetThreads[i]);
-		bsd->threadGetargs[i] = &args;
-		bsd->threadGetargs_inuse[i] = 1;
-
-		SetEvent(bsd->hGetEvents[i]);
-	}
-
-	sb->eintr = 0;
-	while (bsd->threadGetargs_inuse[i] != 0 && sb->eintr == 0) {	
-		WAITSIGNAL;
-		if (sb->eintr == 1)
-			bsd->threadGetargs_inuse[i] = -1;
-	}
-
-	CANCELSIGNAL;
+	if (!run_get_thread(context, sb, &args))
+		return;
 
 	if (!sb->sb_errno) {
 kludge:
@@ -2185,15 +2198,15 @@ kludge:
 		// compute total size of hostent
 		size = 28;
 		if (h->h_name != NULL)
-			size += strlen(h->h_name)+1;
+			size += strlen(h->h_name) + 1;
 
 		if (h->h_aliases != NULL)
 			while (h->h_aliases[numaliases])
-				size += strlen(h->h_aliases[numaliases++])+5;
+				size += strlen(h->h_aliases[numaliases++]) + 5;
 
 		if (h->h_addr_list != NULL) {
 			while (h->h_addr_list[numaddr]) numaddr++;
-			size += numaddr*(h->h_length+4);
+			size += numaddr*(h->h_length + 4);
 		}
 
 		if (sb->hostent) {
@@ -2206,34 +2219,34 @@ kludge:
 			write_log("BSDSOCK: WARNING - gethostby%s() ran out of Amiga memory "
 				"(couldn't allocate %ld bytes) while returning result of lookup for '%s'\n",
 				addrtype == -1 ? "name" : "addr", size, name_rp);
-			bsdsocklib_seterrno(sb,12); // ENOMEM
+			bsdsocklib_seterrno(sb, 12); // ENOMEM
 			return;
 		}
 		
 		sb->hostentsize = size;
 		
-		aptr = sb->hostent+28+numaliases*4+numaddr*4;
+		aptr = sb->hostent + 28 + numaliases * 4 + numaddr * 4;
 	
 		// transfer hostent to Amiga memory
-		put_long(sb->hostent+4,sb->hostent+20);
-		put_long(sb->hostent+8,h->h_addrtype);
-		put_long(sb->hostent+12,h->h_length);
-		put_long(sb->hostent+16,sb->hostent+24+numaliases*4);
+		put_long(sb->hostent + 4, sb->hostent + 20);
+		put_long(sb->hostent + 8, h->h_addrtype);
+		put_long(sb->hostent + 12, h->h_length);
+		put_long(sb->hostent + 16, sb->hostent + 24 + numaliases * 4);
 		
 		for (i = 0; i < numaliases; i++)
-			put_long(sb->hostent+20+i*4,addstr(&aptr,h->h_aliases[i]));
-		put_long(sb->hostent+20+numaliases*4,0);
+			put_long(sb->hostent + 20 + i * 4, addstr(&aptr, h->h_aliases[i]));
+		put_long(sb->hostent + 20 + numaliases * 4, 0);
 		for (i = 0; i < numaddr; i++)
-			put_long(sb->hostent+24+(numaliases+i)*4,addmem(&aptr,h->h_addr_list[i],h->h_length));
-		put_long(sb->hostent+24+numaliases*4+numaddr*4,0);
-		put_long(sb->hostent,aptr);
-		addstr(&aptr,h->h_name);
+			put_long(sb->hostent + 24 + (numaliases + i) * 4, addmem(&aptr, h->h_addr_list[i], h->h_length));
+		put_long(sb->hostent + 24 + numaliases * 4 + numaddr * 4, 0);
+		put_long(sb->hostent, aptr);
+		addstr(&aptr, h->h_name);
 
-		TRACE(("OK (%s)\n",h->h_name));
-		bsdsocklib_seterrno(sb,0);
+		TRACE(("OK (%s)\n", h->h_name));
+		bsdsocklib_seterrno(sb, 0);
 
 	} else {
-		TRACE(("failed (%d/%d)\n",sb->sb_errno,sb->sb_herrno));
+		TRACE(("failed (%d/%d)\n", sb->sb_errno, sb->sb_herrno));
 	}
 
 }
@@ -2259,50 +2272,8 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 	args.args2 = name;
 	args.args5 = buf;
 
-	for (i = 0; i < MAX_GET_THREADS; i++)  {
-		if (bsd->threadGetargs_inuse[i] == -1) {
-			bsd->threadGetargs_inuse[i] = 0;
-			bsd->threadGetargs[i] = NULL;
-		}
-		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i]) break;
-	}
-	if (i >= MAX_GET_THREADS) {
-	    for (i = 0; i < MAX_GET_THREADS; i++) {
-			if (!bsd->hGetThreads[i]) {
-				bsd->hEvents[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
-				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
-					bsd->hGetThreads[i] = 0;
-					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n", GetLastError());
-					bsdsocklib_seterrno(sb, 12); // ENOMEM
-					sb->resultval = -1;
-					return;
-				}
-				break;
-			}
-	    }
-	}
-	
-	if (i >= MAX_GET_THREADS)
-		write_log("BSDSOCK: ERROR - Too many getprotobyname()s\n");
-	else {
-		bsdsetpriority (bsd->hGetThreads[i]);
-
-		bsd->threadGetargs[i] = &args;
-		bsd->threadGetargs_inuse[i] = 1;
-
-		SetEvent(bsd->hGetEvents[i]);
-	}
-
-	sb->eintr = 0;
-	while (bsd->threadGetargs_inuse[i] != 0 && sb->eintr == 0)  {	
-		WAITSIGNAL;
-		if (sb->eintr == 1)
-			bsd->threadGetargs_inuse[i] = -1;
-	}
-
-	CANCELSIGNAL;
-
+	if (!run_get_thread(context, sb, &args))
+		return;
 
 	if (!sb->sb_errno) {
 		p = (PROTOENT *)buf;
@@ -2387,50 +2358,8 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 	args.args4 = type;
 	args.args5 = buf;
 
-	for (i = 0; i < MAX_GET_THREADS; i++)  {
-		if (bsd->threadGetargs_inuse[i] == -1) {
-			bsd->threadGetargs_inuse[i] = 0;
-			bsd->threadGetargs[i] = NULL;
-		}
-		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i]) break;
-	}
-	if (i >= MAX_GET_THREADS) {
-	    for (i = 0; i < MAX_GET_THREADS; i++) {
-			if (!bsd->hGetThreads[i]) {
-				bsd->hGetEvents[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
-				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
-					bsd->hGetThreads[i] = 0;
-					write_log("BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n", GetLastError());
-					bsdsocklib_seterrno(sb, 12); // ENOMEM
-					sb->resultval = -1;
-					return;
-				}
-			    
-				break;
-			}
-	    }
-	}
-	
-	if (i >= MAX_GET_THREADS)
-		write_log("BSDSOCK: ERROR - Too many getprotobyname()s\n");
-	else {
-		bsdsetpriority (bsd->hGetThreads[i]);
-
-		bsd->threadGetargs[i] = &args;
-		bsd->threadGetargs_inuse[i] = 1;
-
-		SetEvent(bsd->hGetEvents[i]);
-	}
-
-	sb->eintr = 0;
-	while (bsd->threadGetargs_inuse[i] != 0 && sb->eintr == 0) {	
-		WAITSIGNAL;
-		if (sb->eintr == 1)
-			bsd->threadGetargs_inuse[i] = -1;
-	}
-
-	CANCELSIGNAL;
+	if (!run_get_thread(context, sb, &args))
+		return;
 
 	if (!sb->sb_errno) {
 		s = (SERVENT *)buf;

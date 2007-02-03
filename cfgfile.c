@@ -2729,7 +2729,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->cs_deniserev = -1;
     p->cs_mbdmac = -1;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
-    p->cs_cdtvcd = p->cs_cdtvram = 0;
+    p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_ide = 0;
     p->cs_pcmcia = 0;
     p->cs_ksmirror = 0;
@@ -3088,6 +3088,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 {
     if (!p->cs_compatible)
 	return 1;
+
     p->cs_a1000ram = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = 0;
@@ -3101,6 +3102,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
     p->cs_ksmirror = 0;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
+
     switch (p->cs_compatible)
     {
 	case  1: // generic
@@ -3114,7 +3116,6 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	case  2: // CDTV
 	    p->cs_rtc = 1;
 	    p->cs_cdtvcd = p->cs_cdtvram = 1;
-	    p->cs_ciaatod = 0;
 	    p->cs_df0idhw = 0;
 	break;
 	case  3: // CD32

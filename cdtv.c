@@ -55,7 +55,7 @@ static volatile int dmac_dma;
 
 static volatile int activate_stch, cdrom_command_done, play_state, play_statewait;
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
-static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready;
+static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready, cd_hunt;
 
 static volatile int cdtv_hsync, dma_wait, dma_finished;
 
@@ -186,7 +186,7 @@ static int ismedia(void)
 {
     if (unitnum < 0)
 	return 0;
-    return sys_command_ismedia (DF_IOCTL, unitnum);
+    return sys_command_ismedia (DF_IOCTL, unitnum, 0);
 }
 
 static void do_play(void)
@@ -555,6 +555,8 @@ static void *dev_thread (void *p)
 		    get_toc();
 		    activate_stch = 1;
 		    cd_error = 1;
+		    if (!cd_media)
+			cd_hunt = 1;
 		}
 	    }
 	    break;
@@ -698,6 +700,28 @@ static void dmac_start_dma(void)
     write_comm_pipe_u32 (&requests, 0x100, 1);
 }
 
+static void do_hunt(void)
+{
+    int i;
+    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	if (sys_command_ismedia(DF_IOCTL, i, 1) > 0)
+	    break;
+    }
+    if (i == MAX_TOTAL_DEVICES)
+	return;
+    if (unitnum >= 0) {
+	cdaudiostop();
+	sys_command_close(DF_IOCTL, unitnum);
+    }
+    if (sys_command_open(DF_IOCTL, i) > 0) {
+	unitnum = i;
+	cd_hunt = 0;
+	write_log("CDTV: autodetected unit %d\n", unitnum);
+    } else {
+	unitnum = -1;
+    }
+}
+
 void CDTV_hsync_handler(void)
 {
     static int subqcnt;
@@ -758,6 +782,8 @@ void CDTV_hsync_handler(void)
     if (subqcnt < 0) {
         write_comm_pipe_u32 (&requests, 0x0101, 1);
 	subqcnt = 75;
+	if (cd_hunt)
+	    do_hunt();
     }
     if (activate_stch)
         do_stch();
@@ -1073,6 +1099,8 @@ static void open_unit(void)
     if (unitnum >= 0) {
 	sys_command_open (DF_IOCTL, unitnum);
 	cd_media = ismedia();
+	if (!cd_media)
+	    cd_hunt = 1;
 	if (!get_toc())
 	    cd_media = 0;
 	cdaudiostop();

@@ -2370,6 +2370,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\resources\resource"
+			>
+		</File>
+		<File
 			RelativePath="..\resources\resource.h"
 			>
 		</File>

@@ -2373,14 +2373,10 @@ void memory_reset (void)
 
 #ifdef ARCADIA
     if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
-	if (strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0) {
+	if (strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
 	    memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
-	 }
-	if (is_arcadia_rom (currprefs.cartfile) == ARCADIA_GAME) {
-	    if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0) {
-		memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
-	    }
-	}
+	if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0)
+	    memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
         arcadia_unmap ();
 	is_arcadia_rom (currprefs.romextfile);
 	is_arcadia_rom (currprefs.cartfile);

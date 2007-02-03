@@ -468,6 +468,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write)
     cnt = 3;
     while (cnt-- > 0) {
 	gui_cd_led (1);
+	seterrormode (unitnum);
 	if (write) {
 	    if (!WriteFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, ciw32[unitnum].blocksize, &dtotal, 0)) {
 		int err;
@@ -712,7 +713,7 @@ static int open_bus (int flags)
     for( drive = 'C'; drive <= 'Z'; drive++) {
 	if (dwDriveMask & 1) {
 	    int dt;
-	    sprintf( tmp, "%c:\\", drive );
+	    sprintf(tmp, "%c:\\", drive);
 	    dt = GetDriveType (tmp);
 	    if (log_scsi)
 		write_log ("IOCTL: drive %c type %d\n", drive, dt);
@@ -731,10 +732,14 @@ static int open_bus (int flags)
     return total_devices;
 }
 
-static int ioctl_ismedia (int unitnum)
+static int ioctl_ismedia (int unitnum, int quick)
 {
     if (!unitcheck (unitnum))
 	return 0;
+    if (quick) {
+        struct dev_info_ioctl *ciw = &ciw32[unitnum];
+	return ciw->mediainserted;
+    } 
     return ismedia(unitnum);
 }
 

@@ -228,11 +228,11 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"z3")) {
-	    shmaddr=natmem_offset+currprefs.z3fastmem_start;
+	    shmaddr=natmem_offset + currprefs.z3fastmem_start;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"gfx")) {
-	    shmaddr=natmem_offset+currprefs.z3fastmem_start+currprefs.z3fastmem_size;
+	    shmaddr=natmem_offset + currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
 	    got = TRUE;
 #if 0
 	    result=malloc(size);
