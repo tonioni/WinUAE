@@ -830,8 +830,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MBUTTONDOWN:
     case WM_MBUTTONDBLCLK:
 	if (currprefs.win32_middle_mouse) {
+#ifndef _DEBUG
 	    if (isfullscreen ())
 		minimizewindow ();
+#endif
 	    if (mouseactive)
 		setmouseactive(0);
 	} else {

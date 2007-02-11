@@ -408,7 +408,7 @@ DECLARE(fmov_0(FW r));
 DECLARE(fmov_rm(FW r, MEMR m));
 DECLARE(fmov_mr(MEMW m, FR r));
 DECLARE(fmovi_rm(FW r, MEMR m));
-DECLARE(fmovi_mr(MEMW m, FR r));
+DECLARE(fmovi_mrb(MEMW m, FR r, double *bounds));
 DECLARE(fmovs_rm(FW r, MEMR m));
 DECLARE(fmovs_mr(MEMW m, FR r));
 DECLARE(fcuts_r(FRW r));

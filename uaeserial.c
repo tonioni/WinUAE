@@ -198,10 +198,26 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
     return 0;
 }
 
+static void resetparams(struct devstruct *dev, uaecptr req)
+{
+    put_long(req + io_CtlChar, 0x00001311);
+    put_long(req + io_RBufLen, 8192);
+    put_long(req + io_ExtFlags, 0);
+    put_long(req + io_Baud, 9600);
+    put_long(req + io_BrkTime, 250000);
+    put_long(req + io_TermArray0, 0);
+    put_long(req + io_TermArray1, 0);
+    put_byte(req + io_ReadLen, 8);
+    put_byte(req + io_WriteLen, 8);
+    put_byte(req + io_StopBits, 1);
+    put_byte(req + io_SerFlags, get_byte(req + io_SerFlags) & (SERF_XDISABLED | SERF_SHARED | SERF_7WIRE));
+    put_word(req + io_Status, 0);
+}
+
 static int setparams(struct devstruct *dev, uaecptr req)
 {
     int v;
-    int rbuffer, baud, rbits, wbits, sbits, rtscts, parity;
+    int rbuffer, baud, rbits, wbits, sbits, rtscts, parity, xonxoff;
     
     rbuffer = get_long (req + io_RBufLen);
     v = get_long (req + io_ExtFlags);
@@ -215,9 +231,9 @@ static int setparams(struct devstruct *dev, uaecptr req)
 	write_log ("UAESER: SERF_EOFMODE not supported\n");
 	return 5;
     }
-    if (!(v & SERF_XDISABLED)) {
-	write_log ("UAESER: xOn/xOff not supported\n");
-	return 5;
+    xonxoff = (v & SERF_XDISABLED) ? 0 : 1;
+    if (xonxoff) {
+	xonxoff |= (get_long (req + io_CtlChar) << 8) & 0x00ffff00;
     }
     rtscts = (v & SERF_7WIRE) ? 1 : 0;
     parity = 0;
@@ -230,13 +246,16 @@ static int setparams(struct devstruct *dev, uaecptr req)
 	write_log ("UAESER: Read=%d, Write=%d, Stop=%d, not supported\n", rbits, wbits, sbits);
 	return 5;
     }
-    write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PARITY=%d\n",
+    write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06.6X\n",
 	getdevname(), dev->unit, 
-	baud, rbuffer, rbits, sbits, rtscts, parity);
-    v = uaeser_setparams (dev->sysdata, baud, rbuffer, rbits, sbits, rtscts, parity);
-    if (!v)
+	baud, rbuffer, rbits, sbits, rtscts, parity, xonxoff);
+    v = uaeser_setparams (dev->sysdata, baud, rbuffer,
+	rbits, sbits, rtscts, parity, xonxoff);
+    if (v) {
 	write_log("->failed\n");
-    return v;
+	return v;
+    }
+    return 0;
 }
 
 static int openfail (uaecptr ioreq, int error)
@@ -275,6 +294,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     dev->uniq = ++uniq;
     dev->exclusive = (get_word(ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
     put_long (ioreq + 24, dev->uniq);
+    resetparams (dev, ioreq);
     setparams (dev, ioreq);
     if (log_uaeserial)
 	write_log ("%s:%d open ioreq=%08.8X\n", getdevname(), unit, ioreq);

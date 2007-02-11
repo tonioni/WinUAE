@@ -234,11 +234,6 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"gfx")) {
 	    shmaddr=natmem_offset + currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
 	    got = TRUE;
-#if 0
-	    result=malloc(size);
-	    shmids[shmid].attached=result;
-	    return result;
-#endif
 	}
 	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
@@ -339,7 +334,7 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
     return result;
 }
 
-int isinf( double x )
+int isinf(double x)
 {
     const int nClass = _fpclass(x);
     int result;

@@ -656,6 +656,13 @@ static void dummylog(int rw, uaecptr addr, int size, uae_u32 val, int ins)
     /* extended rom */
     if (addr >= 0xf00000 && addr <= 0xf7ffff)
 	return;
+    /* motherbord ram */
+    if (addr >= 0x08000000 && addr <= 0x08000007)
+	return;
+    if (addr >= 0x07f00000 && addr <= 0x07f00007)
+	return;
+    if (addr >= 0x07f7fff0 && addr <= 0x07ffffff)
+	return;
     if (MAX_ILG >= 0)
 	illegal_count++;
     if (ins) {
@@ -1677,7 +1684,7 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     }
     if (currprefs.cs_a1000ram) {
 	int off = 0;
-	a1000_bootrom = xmalloc (262144);
+	a1000_bootrom = xcalloc (262144, 1);
 	while (off + i < 262144) {
 	    memcpy (a1000_bootrom + off, kickmemory, i);
 	    off += i;
@@ -2218,14 +2225,17 @@ void map_overlay (int chip)
 
 void memory_reset (void)
 {
-    int custom_start, bnk;
+    int bnk;
 
     be_cnt = 0;
     currprefs.chipmem_size = changed_prefs.chipmem_size;
     currprefs.bogomem_size = changed_prefs.bogomem_size;
     currprefs.mbresmem_low_size = changed_prefs.mbresmem_low_size;
     currprefs.mbresmem_high_size = changed_prefs.mbresmem_high_size;
+    currprefs.cs_ksmirror = changed_prefs.cs_ksmirror;
+    currprefs.cs_cdtvram = changed_prefs.cs_cdtvram;
     currprefs.cs_cdtvcard = changed_prefs.cs_cdtvcard;
+    currprefs.cs_a1000ram = changed_prefs.cs_a1000ram;
 
     init_mem_banks ();
     allocate_memory ();
@@ -2285,15 +2295,18 @@ void memory_reset (void)
     if (cloanto_rom)
 	currprefs.maprom = changed_prefs.maprom = 0;
 
-    custom_start = 0xC0;
-    map_banks (&custom_bank, custom_start, 0xE0 - custom_start, 0);
+    map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
     map_banks (&cia_bank, 0xA0, 32, 0);
+    if (!currprefs.cs_a1000ram)
+	map_banks (&dummy_bank, 0xD8, 6, 0); /* D80000 - DDFFFF not mapped (A1000 = custom chips) */
 
-    /* map "nothing" to 0x200000 - 0xa00000 */
+    /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if AGA) */
     bnk = allocated_chipmem >> 16;
     if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 	bnk = 0x20 + (currprefs.fastmem_size >> 16);
-    map_banks (&dummy_bank, bnk, 0xA0 - bnk, 0);
+    map_banks (&dummy_bank, bnk, (currprefs.chipset_mask & CSMASK_AGA ? 0xBF : 0xA0) - bnk, 0);
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
 
     if (bogomemory != 0) {
 	int t = allocated_bogomem >> 16;
@@ -2370,7 +2383,10 @@ void memory_reset (void)
     
     if ((cloanto_rom || currprefs.cs_ksmirror) && !currprefs.maprom && !extendedkickmem_type)
         map_banks (&kickmem_bank, 0xE0, 8, 0);
-
+    if (currprefs.cs_ksmirror == 2) { /* unexpanded A1200 also maps ROM here.. */
+        map_banks (&kickmem_bank, 0xA8, 8, 0);
+        map_banks (&kickmem_bank, 0xB0, 8, 0);
+    }
 #ifdef ARCADIA
     if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
 	if (strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0)

@@ -36,7 +36,7 @@ extern void uaeser_close (void*);
 extern int uaeser_read (void*, uae_u8 *data, uae_u32 len);
 extern int uaeser_write (void*, uae_u8 *data, uae_u32 len);
 extern int uaeser_query (void*, uae_u16 *status, uae_u32 *pending);
-extern int uaeser_setparams (void*, int baud, int rbuffer, int bits, int sbits, int rtscts, int parity);
+extern int uaeser_setparams (void*, int baud, int rbuffer, int bits, int sbits, int rtscts, int parity, uae_u32 xonxoff);
 extern int uaeser_break (void*, int brklen);
 extern void uaeser_signal (void*, int source);
 extern void uaeser_trigger (void*);

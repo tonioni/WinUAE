@@ -13,20 +13,18 @@
 #include "dxwrap.h"
 
 #ifdef _DEBUG
-void PICASSO96_Lock2( char *filename, int linenum );
-#define PICASSO96_Lock() PICASSO96_Lock2( __FILE__, __LINE__ )
+void PICASSO96_Lock2(char *filename, int linenum);
+#define PICASSO96_Lock() PICASSO96_Lock2(__FILE__, __LINE__)
 
-void PICASSO96_Unlock2( char *filename, int linenum );
-#define PICASSO96_Unlock() PICASSO96_Unlock2( __FILE__, __LINE__ )
+void PICASSO96_Unlock2(char *filename, int linenum);
+#define PICASSO96_Unlock() PICASSO96_Unlock2(__FILE__, __LINE__)
 #endif
 
 /* Define this if you provide the proper sprite functions */
 //#define HARDWARE_SPRITE_EMULATION
 
-//#include "newcpu.h"
-
-#define PIC_READ (S_READ|S_WRITE)
-#define PIC_WRITE (S_READ|S_WRITE)
+#define PIC_READ (S_READ)
+#define PIC_WRITE (S_WRITE)
 
 #define NOSIGNAL 0xFFFFFFFF
 
@@ -514,19 +512,15 @@ extern int uaegfx_card_found;
 extern struct picasso96_state_struct picasso96_state;
 extern uae_u16 picasso96_pixel_format;
 
-#ifdef _WIN32
-extern unsigned int timer_id;
-#endif
-
 extern int  DX_InvertRect (int X, int Y, int Width, int Height);
 extern void DX_SetPalette (int start, int count);
 extern int  DX_BitsPerCannon (void);
-extern void DX_Invalidate (int first, int last);
-extern int  DX_Flip( void );
-extern int  DX_Blit( int srcx, int srcy, int dstx, int dsty, int w, int h, BLIT_OPCODE opcode );
-extern int  DX_Fill( int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE rgbtype );
-extern uae_u32 DX_ShowCursor( uae_u32 activate );
-extern uae_u32 DX_MoveCursor( uae_u32 x, uae_u32 y );
+extern void DX_Invalidate (int, int, int, int);
+extern int  DX_Flip(void);
+extern int  DX_Blit(int srcx, int srcy, int dstx, int dsty, int w, int h, BLIT_OPCODE opcode);
+extern int  DX_Fill(int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE rgbtype);
+extern uae_u32 DX_ShowCursor(uae_u32 activate);
+extern uae_u32 DX_MoveCursor(uae_u32 x, uae_u32 y);
 extern void picasso_enablescreen (int on);
 extern void picasso_refresh (int);
 extern void picasso_handle_vsync (void);

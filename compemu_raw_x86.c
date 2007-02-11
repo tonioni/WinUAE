@@ -2703,14 +2703,49 @@ LOWFUNC(NONE,READ,2,raw_fmovi_rm,(FW r, MEMR m))
 }
 LENDFUNC(NONE,READ,2,raw_fmovi_rm,(FW r, MEMR m))
 
-LOWFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
+LOWFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 {
-    make_tos(r);
+    /* Clamp value to the given range and convert to integer.
+       ideally, the clamping should be done using two FCMOVs, but
+       this requires two free fp registers, and we can only be sure
+       of having one. Using a jump for the lower bound and an FCMOV
+       for the upper bound, we can do it with one scratch register.
+     */
+
+    int rs;
+    usereg(r);
+    rs = stackpos(r)+1;
+
+    /* Lower bound onto stack */
+    emit_byte(0xdd);
+    emit_byte(0x05);
+    emit_long((uae_u32)&bounds[0]); /* fld double from lower */
+
+    /* Clamp to lower */
     emit_byte(0xdb);
-    emit_byte(0x15);
+    emit_byte(0xf0+rs); /* fcomi lower,r */
+    emit_byte(0x73);
+    emit_byte(12);      /* jae to writeback */
+
+    /* Upper bound onto stack */
+    emit_byte(0xdd);
+    emit_byte(0xd8);	/* fstp st(0) */
+    emit_byte(0xdd);
+    emit_byte(0x05);
+    emit_long((uae_u32)&bounds[1]); /* fld double from upper */
+
+    /* Clamp to upper */
+    emit_byte(0xdb);
+    emit_byte(0xf0+rs); /* fcomi upper,r */
+    emit_byte(0xdb);
+    emit_byte(0xd0+rs); /* fcmovnbe upper,r */
+
+    /* Store to destination */
+    emit_byte(0xdb);
+    emit_byte(0x1d);
     emit_long(m);
 }
-LENDFUNC(NONE,WRITE,2,raw_fmovi_mr,(MEMW m, FR r))
+LENDFUNC(NONE,WRITE,3,raw_fmovi_mrb,(MEMW m, FR r, double *bounds))
 
 LOWFUNC(NONE,READ,2,raw_fmovs_rm,(FW r, MEMR m))
 {

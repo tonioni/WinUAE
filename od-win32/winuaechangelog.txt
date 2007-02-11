@@ -1,4 +1,34 @@
 
+Beta 6:
+
+- FPU emulation floating point to integer conversion fixed, previously
+  for example float -> byte conversion simply truncated to byte instead
+  of clamping it to -128 or 127 if original value can't fit in a byte.
+  Same problem was with words and longs. (Aske Christensen)
+- uaeserial.device compatibility fixes
+- A500 D80000-DDFFFF area is unmapped (except possible RTC at DC0000)
+  higher end models can have other MB devices here
+- A1000 is most likely the only Amiga model that has custom chips
+  mapped at D80000-DDFFFF
+- RTC access is now exactly same as in real A500 (if more compatible
+  setting enabled)
+- AGA end of fast (or chip if no fast) to BBFFFF is not mapped, same
+  with C00000 to D7FFFF. (Need more testing)
+  Mapping changes may help with some buggy programs that poke illegal
+  addresses.
+- My A1200 seems to have KS ROM mapped at 0xA80000-B7FFFF. But with
+  Blizzard 1260 installed it is replaced with 64kb "bank" of RAM from
+  card's expansion RAM.. It seems all "unmapped" areas map to
+  Blizzard's expansion RAM. Quite interesting effect.. (not emulated)
+- serial port detection update. For some reason not all serial ports
+  (at least some USB types) can't be detected by enumerating
+  GUID_CLASS_COMPORT class. (and this was supposed to be the proper
+  way to do it..)
+- do not log KS motherboard RAM probe (less useless spam when booting)
+- Picasso96 graphics corruption introduced in previous betas should
+  be fixed (also other changes, can be faster or slower in some cases,
+  also there is possibility something else broke..)
+
 Beta 5:
 
 - CD32/CDTV emulation now autodetects all CD (all drives) changes on

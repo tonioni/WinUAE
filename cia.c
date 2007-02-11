@@ -1260,8 +1260,12 @@ uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 #endif
     ct = localtime (&t);
     addr &= 0x3f;
-    if ((addr & 3) != 3)
-	return 0;
+    if ((addr & 3) == 2 || (addr & 3) == 0) {
+	int v = 0;
+	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	    v = regs.irc >> 8;
+	return v;
+    }
     addr >>= 2;
     if (currprefs.cs_rtc == 1) { /* MSM6242B */
 	switch (addr) {

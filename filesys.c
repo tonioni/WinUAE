@@ -2669,7 +2669,14 @@ static void action_set_comment (Unit * unit, dpacket packet)
 
     if (fsdb_cando (unit)) {
         commented = bstr (unit, comment);
-	commented = strlen (commented) > 0 ? my_strdup (commented) : NULL;
+	if (strlen (commented) > 0) {
+	    char *p = commented;
+	    commented = xmalloc (81);
+	    strncpy (commented, p, 80);
+	    commented[80] = 0;
+	} else {
+	    commented = NULL;
+	}
     }
     TRACE (("ACTION_SET_COMMENT(0x%lx,\"%s\")\n", lock, commented));
 

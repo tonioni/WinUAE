@@ -3926,13 +3926,13 @@ MIDFUNC(2,fmovi_rm,(FW r, MEMR m))
 }
 MENDFUNC(2,fmovi_rm,(FW r, MEMR m))
 
-MIDFUNC(2,fmovi_mr,(MEMW m, FR r))
+MIDFUNC(3,fmovi_mrb,(MEMW m, FR r, double *bounds))
 {
     r=f_readreg(r);
-    raw_fmovi_mr(m,r);
+    raw_fmovi_mrb(m,r,bounds);
     f_unlock(r);
 }
-MENDFUNC(2,fmovi_mr,(MEMW m, FR r))
+MENDFUNC(3,fmovi_mrb,(MEMW m, FR r, double *bounds))
 
 MIDFUNC(2,fmovs_rm,(FW r, MEMR m))
 {

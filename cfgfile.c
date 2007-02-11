@@ -146,7 +146,8 @@ static const char *cartsmode[] = { "none", "hrtmon", 0 };
 static const char *idemode[] = { "none", "a600/a1200", "a4000", 0 };
 static const char *rtctype[] = { "none", "MSM6242B", "RP5C01A", 0 };
 static const char *ciaatodmode[] = { "vblank", "50hz", "60hz", 0 };
-static const char *cscompa[] = { "-", "Generic", "CDTV", "CD32", "A500", "A500+", "A600", "A1000", "A1200", "A2000", "A4000" };
+static const char *ksmirrortype[] = { "none", "e0", "a8+e0", 0 };
+static const char *cscompa[] = { "-", "Generic", "CDTV", "CD32", "A500", "A500+", "A600", "A1000", "A1200", "A2000", "A4000", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -470,7 +471,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "ciaatod=%s\n", ciaatodmode[p->cs_ciaatod]);
     cfgfile_write (f, "rtc=%s\n", rtctype[p->cs_rtc]);
     //cfgfile_write (f, "chipset_rtc_adjust=%d\n", p->cs_rtc_adjust);
-    cfgfile_write (f, "ksmirror=%s\n", p->cs_ksmirror ? "true" : "false");
+    cfgfile_write (f, "ksmirror=%s\n", ksmirrortype[p->cs_ksmirror]);
     cfgfile_write (f, "cd32cd=%s\n", p->cs_cd32cd ? "true" : "false");
     cfgfile_write (f, "cd32c2p=%s\n", p->cs_cd32c2p ? "true" : "false");
     cfgfile_write (f, "cd32nvram=%s\n", p->cs_cd32nvram ? "true" : "false");
@@ -1104,7 +1105,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 
     if (cfgfile_yesno (option, value, "immediate_blits", &p->immediate_blits)
 
-	|| cfgfile_yesno (option, value, "ksmirror", &p->cs_ksmirror)
 	|| cfgfile_yesno (option, value, "cd32cd", &p->cs_cd32cd)
 	|| cfgfile_yesno (option, value, "cd32c2p", &p->cs_cd32c2p)
 	|| cfgfile_yesno (option, value, "cd32nvram", &p->cs_cd32nvram)
@@ -1162,6 +1162,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     if (cfgfile_strval (option, value, "comp_trustbyte", &p->comptrustbyte, compmode, 0)
 	|| cfgfile_strval (option, value, "chipset_compatible", &p->cs_compatible, cscompa, 0)
 	|| cfgfile_strval (option, value, "rtc", &p->cs_rtc, rtctype, 0)
+	|| cfgfile_strval (option, value, "ksmirror", &p->cs_ksmirror, ksmirrortype, 0)
 	|| cfgfile_strval (option, value, "ciaatod", &p->cs_ciaatod, ciaatodmode, 0)
 	|| cfgfile_strval (option, value, "ide", &p->cs_ide, idemode, 0)
 	|| cfgfile_strval (option, value, "comp_trustword", &p->comptrustword, compmode, 0)
@@ -2732,7 +2733,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_ide = 0;
     p->cs_pcmcia = 0;
-    p->cs_ksmirror = 0;
+    p->cs_ksmirror = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
 
@@ -3099,7 +3100,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
     p->cs_agnusrev = -1;
     p->cs_mbdmac = -1;
     p->cs_pcmcia = 0;
-    p->cs_ksmirror = 0;
+    p->cs_ksmirror = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
 
@@ -3111,35 +3112,36 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_ide = -1;
 	    p->cs_mbdmac = 1;
 	    p->cs_ramseyrev = 0x0f;
-	    p->cs_ksmirror = 1;
 	break;
 	case  2: // CDTV
 	    p->cs_rtc = 1;
 	    p->cs_cdtvcd = p->cs_cdtvram = 1;
 	    p->cs_df0idhw = 0;
+	    p->cs_ksmirror = 0;
 	break;
 	case  3: // CD32
 	    p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
+	    p->cs_ksmirror = 0;
 	break;
 	case  4: // A500
 	    p->cs_df0idhw = 0;
 	break;
 	case  5: // A500+
-	    p->cs_ksmirror = 1;
 	break;
 	case  6: // A600
-	    p->cs_ksmirror = 1;
 	    p->cs_ide = 1;
 	    p->cs_pcmcia = 1;
 	break;
 	case  7: // A1000
 	    p->cs_a1000ram = 1;
 	    p->cs_ciaatod = p->ntscmode ? 2 : 1;
+	    p->cs_ksmirror = 0;
+	    p->cs_rtc = 0;
 	break;
 	case  8: // A1200
 	    p->cs_ide = 1;
 	    p->cs_pcmcia = 1;
-	    p->cs_ksmirror = 1;
+	    p->cs_ksmirror = 2;
 	break;
 	case  9: // A2000
 	    p->cs_rtc = 1;
@@ -3166,7 +3168,6 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_ramseyrev = 0x0f;
 	    p->cs_ide = 2;
 	    p->cs_mbdmac = 1;
-	    p->cs_ksmirror = 1;
 	break;
 	case 13: // A4000T
 	    p->cs_rtc = 2;
@@ -3174,7 +3175,6 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_ramseyrev = 0x0f;
 	    p->cs_ide = 2;
 	    p->cs_mbdmac = 1;
-	    p->cs_ksmirror = 1;
 	break;
     }
     return 1;

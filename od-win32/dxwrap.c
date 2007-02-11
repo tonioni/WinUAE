@@ -1535,7 +1535,7 @@ DWORD DirectDraw_CurrentRefreshRate(void)
  *   1999.08.02  Brian King             Creation
  *
  */
-static int DirectDraw_BltFastStub4(LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD y, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect )
+static int DirectDraw_BltFastStub4(LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD y, LPDIRECTDRAWSURFACE7 srcsurf, LPRECT srcrect)
 {
     int result = 0;
     HRESULT ddrval;

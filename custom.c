@@ -5626,6 +5626,21 @@ void check_prefs_changed_custom (void)
     currprefs.immediate_blits = changed_prefs.immediate_blits;
     currprefs.collision_level = changed_prefs.collision_level;
 
+    currprefs.cs_ciaatod = changed_prefs.cs_ciaatod;
+    currprefs.cs_rtc = changed_prefs.cs_rtc;
+    currprefs.cs_cd32cd = changed_prefs.cs_cd32cd;
+    currprefs.cs_cd32c2p = changed_prefs.cs_cd32c2p;
+    currprefs.cs_cd32nvram = changed_prefs.cs_cd32nvram;
+    currprefs.cs_cdtvcd = changed_prefs.cs_cdtvcd;
+    currprefs.cs_ide = changed_prefs.cs_ide;
+    currprefs.cs_pcmcia = changed_prefs.cs_pcmcia;
+    currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev;
+    currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev;
+    currprefs.cs_agnusrev = changed_prefs.cs_agnusrev;
+    currprefs.cs_deniserev = changed_prefs.cs_deniserev;
+    currprefs.cs_mbdmac = changed_prefs.cs_mbdmac;
+    currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
+
     if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 	currprefs.gfx_vsync != changed_prefs.gfx_vsync ||
 	currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||

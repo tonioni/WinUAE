@@ -137,12 +137,26 @@ typedef uae_s64 tointtype;
 typedef uae_s32 tointtype;
 #endif
 
-static __inline__ tointtype toint(fptype src)
+STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
 {
-  switch ((regs.fpcr >> 4) & 3) {
+    if (src < minval)
+	src = minval;
+    if (src > maxval)
+	src = maxval;
+#if defined(X86_MSVC_ASSEMBLY)
+    {
+	fptype tmp_fp;
+	__asm {
+	    fld  LDPTR src
+	    frndint
+	    fstp LDPTR tmp_fp
+	}
+	return (tointtype)tmp_fp;
+    }
+#else /* no X86_MSVC */
+    switch ((regs.fpcr >> 4) & 3) {
     case 0: /* to nearest */
-	if (regs.fpcr & 0xf0) /* if not Extended RN */
-	    return (tointtype)floor (src + 0.5);
+	return (tointtype)floor (src + 0.5);
     case 1: /* to zero */
 	return (tointtype) src;
     case 2: /* down */
@@ -150,7 +164,7 @@ static __inline__ tointtype toint(fptype src)
     case 3: /* up */
 	return (tointtype)ceil (src);
   }
-  return (tointtype)src; /* never reached */
+#endif
 }
 
 uae_u32 get_fpsr (void)
@@ -434,15 +448,15 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
     case 0:
 	switch (size) {
 	case 6:
-	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value) & 0xff)
+	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -128.0, 127.0) & 0xff)
 		| (m68k_dreg (regs, reg) & ~0xff)));
 	    break;
 	case 4:
-	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value) & 0xffff)
+	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -32768.0, 327676.0) & 0xffff)
 	    | (m68k_dreg (regs, reg) & ~0xffff)));
 	    break;
 	case 0:
-	    m68k_dreg (regs, reg) = (uae_u32)toint(value);
+	    m68k_dreg (regs, reg) = (uae_u32)toint(value, -2147483648.0, 2147483647.0);
 	    break;
 	case 1:
 	    m68k_dreg (regs, reg) = from_single (value);
@@ -497,7 +511,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
     }
     switch (size) {
     case 0:
-	put_long (ad, (uae_u32)toint(value));
+	put_long (ad, (uae_u32)toint(value, -2147483648.0, 2147483647.0));
 	break;
     case 1:
 	put_long (ad, from_single (value));
@@ -525,7 +539,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 	}
 	break;
     case 4:
-	put_word (ad, (uae_s16) toint(value));
+	put_word (ad, (uae_s16) toint(value, -32768.0, 32767.0));
 	break;
     case 5:{
 	    uae_u32 wrd1, wrd2;
@@ -536,7 +550,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 	}
 	break;
     case 6:
-	put_byte (ad, (uae_s8)toint(value));
+	put_byte (ad, (uae_s8)toint(value, -128.0, 127.0));
 	break;
     default:
 	return 0;

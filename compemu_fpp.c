@@ -49,6 +49,16 @@ static const uae_u16 x86_fpucw[]={
 static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
 static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
+static const struct {
+	double b[2];
+	double w[2];
+	double l[2];
+} clamp_bounds = {
+	{ -128.0, 127.0 },
+	{ -32768.0, 32767.0 },
+	{ -2147483648.0, 2147483647.0 }
+};
+
 /* return the required floating point precision or -1 for failure, 0=E, 1=S, 2=D */
 STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 {
@@ -260,11 +270,11 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
      case 0: /* Dn */
 	switch (size) {
 	 case 0: /* FMOVE.L FPx, Dn */
-#if USE_X86_FPUCW
+#if USE_X86_FPUCW && 0
 	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
 		mov_l_ri(S1,0x10); /* use extended round to zero mode */
 		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		fmovi_mr((uae_u32)temp_fp,sreg);
+		fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.l);
 		mov_l_rm(reg,(uae_u32)temp_fp);
 		mov_l_rm(S1,(uae_u32)&regs.fpcr);
 		and_l_ri(S1,0xf0); /* restore control word */
@@ -272,7 +282,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 		return 0;
 	    }
 #endif
-	    fmovi_mr((uae_u32)temp_fp,sreg);
+	    fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.l);
 	    mov_l_rm(reg,(uae_u32)temp_fp);
 	    return 0;
 	 case 1: /* FMOVE.S FPx, Dn */
@@ -280,11 +290,11 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 	    mov_l_rm(reg,(uae_u32)temp_fp);
 	    return 0;
 	 case 4: /* FMOVE.W FPx, Dn */
-#if USE_X86_FPUCW
+#if USE_X86_FPUCW && 0
 	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
 		mov_l_ri(S1,0x10); /* use extended round to zero mode */
 		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		fmovi_mr((uae_u32)temp_fp,sreg);
+		fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.w);
 		mov_w_rm(reg,(uae_u32)temp_fp);
 		mov_l_rm(S1,(uae_u32)&regs.fpcr);
 		and_l_ri(S1,0xf0); /* restore control word */
@@ -292,15 +302,15 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 		return 0;
 	    }
 #endif
-	    fmovi_mr((uae_u32)temp_fp,sreg);
+	    fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.w);
 	    mov_w_rm(reg,(uae_u32)temp_fp);
 	    return 0;
 	 case 6: /* FMOVE.B FPx, Dn */
-#if USE_X86_FPUCW
+#if USE_X86_FPUCW && 0
 	    if (!(regs.fpcr & 0xf0)) { /* if extended round to nearest */
 		mov_l_ri(S1,0x10); /* use extended round to zero mode */
 		fldcw_m_indexed(S1,(uae_u32)x86_fpucw);
-		fmovi_mr((uae_u32)temp_fp,sreg);
+		fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.b);
 		mov_b_rm(reg,(uae_u32)temp_fp);
 		mov_l_rm(S1,(uae_u32)&regs.fpcr);
 		and_l_ri(S1,0xf0); /* restore control word */
@@ -308,7 +318,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 		return 0;
 	    }
 #endif
-	    fmovi_mr((uae_u32)temp_fp,sreg);
+	    fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.b);
 	    mov_b_rm(reg,(uae_u32)temp_fp);
 	    return 0;
 	 default:
@@ -361,7 +371,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
     }
     switch (size) {
      case 0: /* Long */
-	fmovi_mr((uae_u32)temp_fp,sreg);
+	fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.l);
 	mov_l_rm(S2,(uae_u32)temp_fp);
 	writelong_clobber(S1,S2,S3);
 	return 0;
@@ -382,7 +392,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 	writelong_clobber(S1,S2,S3);
 	return 0;
      case 4: /* Word */
-	fmovi_mr((uae_u32)temp_fp,sreg);
+	fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.w);
 	mov_l_rm(S2,(uae_u32)temp_fp);
 	writeword_clobber(S1,S2,S3);
 	return 0;
@@ -395,7 +405,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 	writelong_clobber(S1,S2,S3);
 	return 0;
      case 6: /* Byte */
-	fmovi_mr((uae_u32)temp_fp,sreg);
+	fmovi_mrb((uae_u32)temp_fp,sreg, clamp_bounds.b);
 	mov_l_rm(S2,(uae_u32)temp_fp);
 	writebyte(S1,S2,S3);
 	return 0;
@@ -1063,7 +1073,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		break;
 	    case 0x03: /* FINTRZ */
 #if USE_X86_FPUCW /* if we have control over the CW, we can do this */
-		if ((regs.fpcr & 0xf0) == 0x10) /* maybe unsafe, because this test is done */
+		if (0 && (regs.fpcr & 0xf0) == 0x10) /* maybe unsafe, because this test is done */
 		    frndint_rr(dreg,sreg); /* during the JIT compilation and not at runtime */
 		else {
 		    mov_l_ri(S1,0x10); /* extended round to zero */

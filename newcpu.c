@@ -962,6 +962,9 @@ static void Exception_normal (int nr, struct regstruct *regs, uaecptr oldpc)
     exception_debug (nr);
     MakeSR(regs);
 
+    if (nr == 3)
+	activate_debugger();
+
     if (!regs->s) {
 	regs->usp = m68k_areg(regs, 7);
 	if (currprefs.cpu_level >= 2)
