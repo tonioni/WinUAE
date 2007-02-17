@@ -1,4 +1,12 @@
 
+Beta 7: (possible bug fixes and small tweaks left)
+
+- Picasso96 graphics problems really fixed
+- adjusting GUI sound settings on the fly does not anymore cause
+  random sound issues after returning back to emulation (like
+  missing channel(s) for few moments etc..)
+- Action Replay 1, ver 1.0 added to ROM scanner identication list
+
 Beta 6:
 
 - FPU emulation floating point to integer conversion fixed, previously

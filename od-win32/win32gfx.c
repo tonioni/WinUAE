@@ -997,10 +997,44 @@ uae_u8 *gfx_lock_picasso (void)
     return p;
 }
 
+#define DX_INV 0
+
+#if DX_INV == 0
+
+/* For the DX_Invalidate() and gfx_unlock_picasso() functions */
+static int p96_double_buffer_first, p96_double_buffer_last, p96_double_buffer_needs_flushing = 0;
+
+void gfx_unlock_picasso (void)
+{
+    DirectDraw_SurfaceUnlock();
+    if (p96_double_buffer_needs_flushing) {
+	/* Here, our flush_block() will deal with a offscreen-plain (back-buffer) to visible-surface (front-buffer) */
+	if (DirectDraw_GetLockableType() == secondary_surface) {
+	    BOOL relock = FALSE;
+	    if (DirectDraw_IsLocked()) {
+		relock = TRUE;
+		unlockscr();
+	    }
+	    DX_Blit (0, p96_double_buffer_first, 
+		     0, p96_double_buffer_first, 
+		     currentmode->current_width, p96_double_buffer_last - p96_double_buffer_first + 1, 
+		     BLIT_SRC);
+	    if (relock) {
+		lockscr();
+	    }
+	}
+	p96_double_buffer_needs_flushing = 0;
+    }
+}
+
+#else
+
 void gfx_unlock_picasso (void)
 {
     DirectDraw_SurfaceUnlock();
 }
+
+#endif
 
 static void close_hwnds( void )
 {
@@ -1415,14 +1449,67 @@ void DX_SetPalette (int start, int count)
     }
 }
 
+#if DX_INV == 0
+
 void DX_Invalidate (int x, int y, int width, int height)
 {
+    int last;
+    
+    if (y < 0 || height < 0) {
+	y = 0;
+	height = picasso_vidinfo.height;
+    }
+    last = y + height - 1;
+    p96_double_buffer_first = y;
+    p96_double_buffer_last  = last;
+    p96_double_buffer_needs_flushing = 1;
+}
+
+#else
+
+static void flashbox(int dstx, int dsty, int width, int height)
+{
+    int i;
+    HRESULT hr;
+    RECT dstrect;
+    RECT srcrect;
+    DDBLTFX ddbltfx;
+    memset(&ddbltfx, 0, sizeof(ddbltfx));
+    ddbltfx.dwFillColor = 0x550055;
+    ddbltfx.dwSize = sizeof(ddbltfx);
+
+    /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
+     * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
+    SetRect(&srcrect, dstx, dsty, dstx+width, dsty+height);
+
+    /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
+    SetRect(&dstrect, dstx, dsty, dstx+width, dsty+height);
+    if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_OVERLAY)))
+	OffsetRect(&dstrect, amigawin_rect.left, amigawin_rect.top);
+
+    /* Render our fill to the visible (primary) surface */
+    for (i = 0; i < 5; i++) {
+	hr = DirectDraw_Blt(primary_surface, &dstrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
+	ddbltfx.dwFillColor = (i & 1) ? 0x550055 : 0xfffff00;
+    }
+
+}
+
+void DX_Invalidate (int x, int y, int width, int height)
+{
+    if (x < 0) {
+	x = 0;
+	y = 0;
+	width = currentmode->current_width;
+	height = currentmode->current_height;
+    }
     if (DirectDraw_GetLockableType() == secondary_surface) {
         BOOL relock = FALSE;
         if (DirectDraw_IsLocked()) {
 	    relock = TRUE;
 	    unlockscr();
 	}
+	flashbox (x, y, width, height);
 	DX_Blit (x, y, x, y, width, height, BLIT_SRC);
 	if (relock) {
 	    lockscr();
@@ -1430,6 +1517,7 @@ void DX_Invalidate (int x, int y, int width, int height)
     }
 }
 
+#endif
 #endif
 
 int DX_BitsPerCannon (void)

@@ -81,7 +81,7 @@ static void rdbdump (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
     cnt++;
 }
 
-static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
+static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize, int dowarn)
 {
     int i, j, blocks = 63, empty = 1;
     DWORD outlen, high;
@@ -120,7 +120,8 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	write_log ("hd accepted (empty)\n");
 	return 1;
     }
-    gui_message_id (IDS_HARDDRIVESAFETYWARNING);
+    if (dowarn)
+	gui_message_id (IDS_HARDDRIVESAFETYWARNING);
     return 2;
 }
 
@@ -189,10 +190,11 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	    }
 	    hfd->blocksize = udi->bytespersector;
 	    if (hfd->offset == 0) {
-		if (!safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize)) {
+		if (!safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize, hfd->warned ? 0 : 1)) {
 		    hdf_close (hfd);
 		    return 0;
 		}
+		hfd->warned = 1;
 	    }
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
 	}
@@ -884,7 +886,7 @@ Return Value:
 	    udi->offset = udi->offset2 = pi->StartingOffset.QuadPart;
 	    udi->size = udi->size2 = pi->PartitionLength.QuadPart;
 	    write_log ("used\n");
-	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector)) {
+	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector, 1)) {
 		sprintf (udi->device_name, "HD_P#%d_%s", pi->PartitionNumber, orgname);
 		udi++;
 		(*index2)++;
@@ -903,7 +905,7 @@ Return Value:
 	write_log ("no MBR partition table detected, checking for RDB\n");
     }
 
-    i = safetycheck (hDevice, 0, buffer, dg.BytesPerSector);
+    i = safetycheck (hDevice, 0, buffer, dg.BytesPerSector, 1);
     if (!i) {
 	ret = 1;
 	goto end;

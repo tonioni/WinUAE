@@ -16,12 +16,17 @@
 
 static struct shmid_ds shmids[MAX_SHMID];
 
+extern int p96mode;
+
 uae_u8 *natmem_offset = NULL;
 #ifdef CPU_64_BIT
 int max_allowed_mman = 2048;
 #else
 int max_allowed_mman = 512;
 #endif
+
+static uae_u8 *p96mem_offset;
+static uae_u8 *p96fakeram;
 
 void cache_free(void *cache)
 {
@@ -105,6 +110,13 @@ void init_shm(void)
     }
     if (os_winnt) {
 	natmem_offset = blah;
+	if (p96mode) {
+	    p96mem_offset = VirtualAlloc(natmem_offset + size + add, 128 * 1024 * 1024, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
+	    if (!p96mem_offset) {
+		write_log("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
+		p96mode = 0;
+	    }
+	}
     } else {
 	VirtualFree(blah, 0, MEM_RELEASE);
 	while (address < (LPBYTE)0xa0000000) {
@@ -153,7 +165,7 @@ void mapped_free(uae_u8 *mem)
     }
 }
 
-static key_t get_next_shmkey( void )
+static key_t get_next_shmkey(void)
 {
     key_t result = -1;
     int i;
@@ -167,7 +179,7 @@ static key_t get_next_shmkey( void )
     return result;
 }
 
-STATIC_INLINE key_t find_shmkey( key_t key )
+STATIC_INLINE key_t find_shmkey(key_t key)
 {
     int result = -1;
     if(shmids[key].key == key) {
@@ -232,8 +244,18 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"gfx")) {
-	    shmaddr=natmem_offset + currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
 	    got = TRUE;
+	    if (p96mode) {
+		p96ram_start = p96mem_offset - natmem_offset;
+		shmaddr = natmem_offset + p96ram_start;
+	    } else {
+		p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
+		xfree(p96fakeram);
+		result = p96fakeram = xcalloc (size + 4096, 1);
+		shmids[shmid].attached = result;
+		return result;
+	    }
 	}
 	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
@@ -267,7 +289,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if (got == FALSE) {
 	    if (shmaddr)
 		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT),
+	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96mode ? MEM_WRITE_WATCH : 0)),
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {
 		result = (void*)-1;

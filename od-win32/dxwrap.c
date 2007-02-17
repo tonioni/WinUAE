@@ -313,7 +313,7 @@ int DirectDraw_SurfaceLock(surface_type_e surface_type)
     if (surface_type == lockable_surface)
 	surface_type = DirectDraw_GetLockableType();
 
-    switch( surface_type )
+    switch(surface_type)
     {
 	case primary_surface:
 	    DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);

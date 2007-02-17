@@ -343,14 +343,14 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 /*    write_log_debug("ARSTATUS armode:%d, Reading %d from address %p, PC=%p\n", armode, armemory_rom[addr], addr, m68k_getpc()); */
 /*	}	 */
 
-    if (armodel == 1 ) /* With AR1. It is always a read. Actually, it is a strobe on exit of the AR.
+    if (armodel == 1) /* With AR1. It is always a read. Actually, it is a strobe on exit of the AR.
 			  * but, it is also read during the checksum routine. */
     {
-	if ( addr < 2)
+	if (addr < 2)
 	{
-	    if ( is_ar_pc_in_rom() )
+	    if (is_ar_pc_in_rom())
 	    {
-		if ( ar_wait_pop )
+		if (ar_wait_pop)
 		{
 		    action_replay_flag = ACTION_REPLAY_WAIT_PC;
 /*		    write_log_debug("SP %p\n", m68k_areg(regs,7));  */
@@ -378,7 +378,7 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
     }
 
 #ifdef ACTION_REPLAY_HIDE_CARTRIDGE
-    if (addr >= 8 )
+    if (addr >= 8)
 	return armemory_rom[addr];
 
     if (action_replay_flag != ACTION_REPLAY_ACTIVE)
@@ -550,6 +550,9 @@ void REGPARAM2 arram_lput (uaecptr addr, uae_u32 l)
 {
     uae_u32 *m;
 
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
     addr -= arram_start;
     addr &= arram_mask;
     m = (uae_u32 *)(armemory_ram + addr);
@@ -585,6 +588,9 @@ void REGPARAM2 arram_wput (uaecptr addr, uae_u32 w)
 
 void REGPARAM2 arram_bput (uaecptr addr, uae_u32 b)
 {
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
     addr -= arram_start;
     addr &= arram_mask;
     armemory_ram[addr] = b;
@@ -987,8 +993,8 @@ void hrtmon_hide(void)
     HRTCFG *cfg = (HRTCFG*)hrtmemory;
     if (!ar1200 && cfg->entered)
 	return;
-    hrtmon_flag = ACTION_REPLAY_IDLE;
     cartridge_exit();
+    hrtmon_flag = ACTION_REPLAY_IDLE;
     unset_special (&regs, SPCFLAG_ACTION_REPLAY);
     //write_log ("HRTMON: Exit\n");
 }
@@ -1043,89 +1049,88 @@ static void action_replay_patch(void)
  * Else, it returns the calculated checksum.
  * Note: Will be wrong if the checksum is zero, but i'll take my chances on that not happenning ;)
  */
-static uae_u32 action_replay_calculate_checksum()
+static uae_u32 action_replay_calculate_checksum(void)
 {
-	uae_u32* checksum_end;
-	uae_u32* checksum_start;
-	uae_u8   checksum_start_offset[] = {0, 0, 4, 0x7c};
-	uae_u32 checksum = 0;
-	uae_u32 stored_checksum;
+    uae_u32* checksum_end;
+    uae_u32* checksum_start;
+    uae_u8   checksum_start_offset[] = { 0, 0, 4, 0x7c };
+    uae_u32 checksum = 0;
+    uae_u32 stored_checksum;
 
-	/* All models: The checksum is calculated right upto the long checksum in the rom.
-	 * AR1: The checksum starts at offset 0.
-	 * AR1: The checksum is the last non-zero long in the rom.
-	 * AR2: The checksum starts at offset 4.
-	 * AR2: The checksum is the last Long in the rom.
-	 * AR3: The checksum starts at offset 0x7c.
-	 * AR3: The checksum is the last Long in the rom.
-	 *
-   * Checksums: (This is a good way to compare roms. I have two with different md5sums,
-	 * but the same checksum, so the difference must be in the first four bytes.)
-	 * 3.17 0xf009bfc9
-	 * 3.09 0xd34d04a7
-	 * 2.14 0xad839d36
-	 * 2.14 0xad839d36
-	 * 1.15 0xee12116
+    /* All models: The checksum is calculated right upto the long checksum in the rom.
+     * AR1: The checksum starts at offset 0.
+     * AR1: The checksum is the last non-zero long in the rom.
+     * AR2: The checksum starts at offset 4.
+     * AR2: The checksum is the last Long in the rom.
+     * AR3: The checksum starts at offset 0x7c.
+     * AR3: The checksum is the last Long in the rom.
+     *
+     * Checksums: (This is a good way to compare roms. I have two with different md5sums,
+     * but the same checksum, so the difference must be in the first four bytes.)
+     * 3.17 0xf009bfc9
+     * 3.09 0xd34d04a7
+     * 2.14 0xad839d36
+     * 2.14 0xad839d36
+     * 1.15 0xee12116
    */
 
-	if (!armemory_rom)
-	    return 0; /* If there is no rom then i guess the checksum is ok */
+    if (!armemory_rom)
+        return 0; /* If there is no rom then i guess the checksum is ok */
 
-	checksum_start = (uae_u32*)&armemory_rom[checksum_start_offset[armodel]];
-	checksum_end = (uae_u32*)&armemory_rom[ar_rom_file_size];
+    checksum_start = (uae_u32*)&armemory_rom[checksum_start_offset[armodel]];
+    checksum_end = (uae_u32*)&armemory_rom[ar_rom_file_size];
 
-	/* Search for first non-zero Long starting from the end of the rom. */
-	/* Assume long alignment, (will always be true for AR2 and AR3 and the AR1 rom i've got). */
-	/* If anyone finds an AR1 rom with a word-aligned checksum, then this code will have to be modified. */ 
-	while (! *(--checksum_end) );
+    /* Search for first non-zero Long starting from the end of the rom. */
+    /* Assume long alignment, (will always be true for AR2 and AR3 and the AR1 rom i've got). */
+    /* If anyone finds an AR1 rom with a word-aligned checksum, then this code will have to be modified. */ 
+    while (! *(--checksum_end));
 
-	if ( armodel == 1)
+    if (armodel == 1)
+    {
+	uae_u16* rom_ptr_word;
+	uae_s16  sign_extended_word;
+
+	rom_ptr_word = (uae_u16*)checksum_start;
+	while (rom_ptr_word != (uae_u16*)checksum_end)
 	{
-		uae_u16* rom_ptr_word;
-		uae_s16  sign_extended_word;
-
-		rom_ptr_word = (uae_u16*)checksum_start;
-		while ( rom_ptr_word != (uae_u16*)checksum_end )
-		{
-				sign_extended_word = (uae_s16)do_get_mem_word (rom_ptr_word);
-				/* When the word is cast on the following line, it will get sign-extended. */
-				checksum += (uae_u32)sign_extended_word;
-				rom_ptr_word++;
-		}
+	    sign_extended_word = (uae_s16)do_get_mem_word (rom_ptr_word);
+	    /* When the word is cast on the following line, it will get sign-extended. */
+	    checksum += (uae_u32)sign_extended_word;
+	    rom_ptr_word++;
 	}
-	else
+    }
+    else
+    {
+	uae_u32* rom_ptr_long;
+	rom_ptr_long = checksum_start;
+	while (rom_ptr_long != checksum_end)
 	{
-		uae_u32* rom_ptr_long;
-
-		rom_ptr_long = checksum_start;
-		while ( rom_ptr_long != checksum_end )
-		{
-			checksum += do_get_mem_long (rom_ptr_long);
-			rom_ptr_long++;
-		}
+	    checksum += do_get_mem_long (rom_ptr_long);
+	    rom_ptr_long++;
 	}
+    }
 
-	stored_checksum = do_get_mem_long(checksum_end); 
+    stored_checksum = do_get_mem_long(checksum_end); 
 
-	return checksum == stored_checksum ? 0 : checksum;
+    return checksum == stored_checksum ? 0 : checksum;
 }
 
 /* Returns 0 on error. */
 static uae_u8* get_checksum_location()
 {
-	uae_u32* checksum_end;
+    uae_u32* checksum_end;
 
-	/* See action_replay_calculate_checksum() for checksum info. */
+    /* See action_replay_calculate_checksum() for checksum info. */
 
-	if (!armemory_rom)
-		return 0;
+    if (!armemory_rom)
+	return 0;
 
-	checksum_end = (uae_u32*)&armemory_rom[ar_rom_file_size];
+    checksum_end = (uae_u32*)&armemory_rom[ar_rom_file_size];
 
-	/* Search for first non-zero Long starting from the end of the rom. */
-	while (! *(--checksum_end) );
+    /* Search for first non-zero Long starting from the end of the rom. */
+    while (! *(--checksum_end));
 
-	return (uae_u8*)checksum_end;
+    return (uae_u8*)checksum_end;
 }
 
 
@@ -1133,16 +1138,16 @@ static uae_u8* get_checksum_location()
 /* Useful if you want to patch the rom.*/
 static void action_replay_fixup_checksum(uae_u32 new_checksum)
 {
-	uae_u32* checksum = (uae_u32*)get_checksum_location();
-	if ( checksum )
-	{
-		do_put_mem_long(checksum, new_checksum);
-	}
-	else
-	{
-		write_log("Unable to locate Checksum in ROM.\n");
-	}
-	return;
+    uae_u32* checksum = (uae_u32*)get_checksum_location();
+    if (checksum)
+    {
+    	do_put_mem_long(checksum, new_checksum);
+    }
+    else
+    {
+    	write_log("Unable to locate Checksum in ROM.\n");
+    }
+    return;
 }
 
 /* Longword search on word boundary
@@ -1151,18 +1156,16 @@ static void action_replay_fixup_checksum(uae_u32 new_checksum)
  */
 static uae_u8* find_absolute_long(uae_u8* start_addr, uae_u8* end_addr, uae_u32 search_value)
 {
-	uae_u8* addr;
+    uae_u8* addr;
 
-	for ( addr = start_addr; addr < end_addr; )
-	{
-		if ( do_get_mem_long((uae_u32*)addr) == search_value )
-		{
-/*			write_log_debug("Found %p at offset %p.\n", search_value, addr - start_addr);*/
-			return addr;
-		}
-		addr+=2;
+    for (addr = start_addr; addr < end_addr;) {
+	if (do_get_mem_long((uae_u32*)addr) == search_value) {
+/*	    write_log_debug("Found %p at offset %p.\n", search_value, addr - start_addr);*/
+	    return addr;
 	}
-	return 0;
+	addr += 2;
+    }
+    return 0;
 }
 
 /* word search on word boundary
@@ -1173,18 +1176,16 @@ static uae_u8* find_absolute_long(uae_u8* start_addr, uae_u8* end_addr, uae_u32 
  */
 static uae_u8* find_relative_word(uae_u8* start_addr, uae_u8* end_addr, uae_u16 search_addr)
 {
-	uae_u8* addr;
+    uae_u8* addr;
 
-	for ( addr = start_addr; addr < end_addr; )
-	{
-		if ( do_get_mem_word((uae_u16*)addr) == (uae_u16)(search_addr - (uae_u16)(addr-start_addr)) )
-		{
-/*			write_log_debug("Found %p at offset %p.\n", search_addr, addr - start_addr);*/
-			return addr;
-		}
-		addr+=2;
+    for (addr = start_addr; addr < end_addr;) {
+	if (do_get_mem_word((uae_u16*)addr) == (uae_u16)(search_addr - (uae_u16)(addr - start_addr))) {
+/*	    write_log_debug("Found %p at offset %p.\n", search_addr, addr - start_addr);*/
+	    return addr;
 	}
-	return 0;
+	addr += 2;
+    }
+    return 0;
 }
 
 /* Disable rom test */
@@ -1193,7 +1194,7 @@ static uae_u8* find_relative_word(uae_u8* start_addr, uae_u8* end_addr, uae_u16 
  * and only disables it if the surounding bytes are what it expects.
  */
 
-static void disable_rom_test()
+static void disable_rom_test(void)
 {
     uae_u8* addr;
 
@@ -1212,36 +1213,31 @@ static void disable_rom_test()
  * 40EC96 41F9 0041 FFFC lea (0x41fffc),a0
  */
 
-	if ( armodel == 1)
-	{
-	  uae_u16 search_value_rel = end_addr - start_addr;
-		addr = find_relative_word(start_addr, end_addr, search_value_rel);
+    if (armodel == 1) {
+	uae_u16 search_value_rel = end_addr - start_addr;
+	addr = find_relative_word(start_addr, end_addr, search_value_rel);
 
-		if ( addr )
-		{
-			if ( do_get_mem_word((uae_u16*)(addr-6)) == 0x6100 && /* bsr.w */
-					 do_get_mem_word((uae_u16*)(addr-2)) == 0x41fa )  /* lea relative */
-			{
-				write_log("Patching to disable ROM TEST.\n");
-				do_put_mem_word((uae_u16*)(addr-6), 0x4e75); /* rts */
-			}
-		}
+	if (addr) {
+	    if (do_get_mem_word((uae_u16*)(addr-6)) == 0x6100 && /* bsr.w */
+		 do_get_mem_word((uae_u16*)(addr-2)) == 0x41fa)  /* lea relative */
+	    {
+		write_log("Patching to disable ROM TEST.\n");
+		do_put_mem_word((uae_u16*)(addr-6), 0x4e75); /* rts */
+	    }
 	}
-	else
-	{
-	  uae_u32 search_value_abs = arrom_start + end_addr - start_addr;
-		addr = find_absolute_long(start_addr, end_addr, search_value_abs);
+    } else {
+	uae_u32 search_value_abs = arrom_start + end_addr - start_addr;
+	addr = find_absolute_long(start_addr, end_addr, search_value_abs);
 
-		if ( addr )
-		{
-			if ( do_get_mem_word((uae_u16*)(addr-6)) == 0x6100 && /* bsr.w */
-					 do_get_mem_word((uae_u16*)(addr-2)) == 0x41f9 )  /* lea absolute */
-			{
-				write_log("Patching to disable ROM TEST.\n");
-				do_put_mem_word((uae_u16*)(addr-6), 0x4e75); /* rts */
-			}
-		}
+	if (addr) {
+	    if (do_get_mem_word((uae_u16*)(addr-6)) == 0x6100 && /* bsr.w */
+		do_get_mem_word((uae_u16*)(addr-2)) == 0x41f9)  /* lea absolute */
+	    {
+		write_log("Patching to disable ROM TEST.\n");
+		do_put_mem_word((uae_u16*)(addr-6), 0x4e75); /* rts */
+	    }
 	}
+    }
 }
 
 /* After we have calculated the checksum, and verified the rom is ok,
@@ -1254,14 +1250,10 @@ static void action_replay_checksum_info(void)
 {
     if (!armemory_rom)
 	return;
-    if ( action_replay_calculate_checksum() == 0 )
-    {
+    if (action_replay_calculate_checksum() == 0)
 	write_log("Action Replay Checksum is OK.\n");
-    }
     else
-    {
 	write_log("Action Replay Checksum is INVALID.\n");
-    }
     disable_rom_test();
 }
 
@@ -1297,52 +1289,46 @@ static void action_replay_unsetbanks (void)
 /* param to allow us to unload the cart. Currently we know it is safe if we are doing a reset to unload it.*/
 int action_replay_unload(int in_memory_reset)
 {
-	char* state[] =
-	{
-		"ACTION_REPLAY_WAIT_PC", 
-		"ACTION_REPLAY_INACTIVE",
-		"ACTION_REPLAY_WAITRESET",
-		"0",
-		"ACTION_REPLAY_IDLE",
-		"ACTION_REPLAY_ACTIVATE",
-		"ACTION_REPLAY_ACTIVE",
-		"ACTION_REPLAY_DORESET",
-		"ACTION_REPLAY_HIDE",
-	};
+    char* state[] =
+    {
+    	"ACTION_REPLAY_WAIT_PC", 
+	"ACTION_REPLAY_INACTIVE",
+	"ACTION_REPLAY_WAITRESET",
+	"0",
+	"ACTION_REPLAY_IDLE",
+	"ACTION_REPLAY_ACTIVATE",
+	"ACTION_REPLAY_ACTIVE",
+	"ACTION_REPLAY_DORESET",
+	"ACTION_REPLAY_HIDE",
+    };
 
-	write_log_debug("Action Replay State:(%s)\nHrtmon State:(%s)\n", state[action_replay_flag+3],state[hrtmon_flag+3] );
+    write_log_debug("Action Replay State:(%s)\nHrtmon State:(%s)\n", state[action_replay_flag+3],state[hrtmon_flag+3]);
 	
-	if ( armemory_rom && armodel == 1 )
-	{
-		if ( is_ar_pc_in_ram() || is_ar_pc_in_rom() || action_replay_flag == ACTION_REPLAY_WAIT_PC )
-		{
-			write_log("Can't Unload Action Replay 1. It is Active.\n");
-			return 0;
-		}
+    if (armemory_rom && armodel == 1) {
+	if (is_ar_pc_in_ram() || is_ar_pc_in_rom() || action_replay_flag == ACTION_REPLAY_WAIT_PC) {
+	    write_log("Can't Unload Action Replay 1. It is Active.\n");
+	    return 0;
 	}
-	else
-	{
-		if ( action_replay_flag != ACTION_REPLAY_IDLE && action_replay_flag != ACTION_REPLAY_INACTIVE )
-		{
-			write_log("Can't Unload Action Replay. It is Active.\n");
-			return 0; /* Don't unload it whilst it's active, or it will crash the amiga if not the emulator */
-		}
-		if ( hrtmon_flag != ACTION_REPLAY_IDLE && hrtmon_flag != ACTION_REPLAY_INACTIVE )
-		{
-			write_log("Can't Unload Hrtmon. It is Active.\n");
-			return 0; /* Don't unload it whilst it's active, or it will crash the amiga if not the emulator */
-		}
+    } else {
+    	if (action_replay_flag != ACTION_REPLAY_IDLE && action_replay_flag != ACTION_REPLAY_INACTIVE) {
+	    write_log("Can't Unload Action Replay. It is Active.\n");
+	    return 0; /* Don't unload it whilst it's active, or it will crash the amiga if not the emulator */
 	}
+	if (hrtmon_flag != ACTION_REPLAY_IDLE && hrtmon_flag != ACTION_REPLAY_INACTIVE) {
+	    write_log("Can't Unload Hrtmon. It is Active.\n");
+	    return 0; /* Don't unload it whilst it's active, or it will crash the amiga if not the emulator */
+	}
+    }
 
-	unset_special(&regs, SPCFLAG_ACTION_REPLAY); /* This shouldn't be necessary here, but just in case. */
-	action_replay_flag = ACTION_REPLAY_INACTIVE;
-	hrtmon_flag = ACTION_REPLAY_INACTIVE;
-	action_replay_unsetbanks();
-	action_replay_unmap_banks();
-	hrtmon_unmap_banks();
-	/* Make sure you unmap everything before you call action_replay_cleanup() */
-	action_replay_cleanup();
-	return 1;
+    unset_special(&regs, SPCFLAG_ACTION_REPLAY); /* This shouldn't be necessary here, but just in case. */
+    action_replay_flag = ACTION_REPLAY_INACTIVE;
+    hrtmon_flag = ACTION_REPLAY_INACTIVE;
+    action_replay_unsetbanks();
+    action_replay_unmap_banks();
+    hrtmon_unmap_banks();
+    /* Make sure you unmap everything before you call action_replay_cleanup() */
+    action_replay_cleanup();
+    return 1;
 }
 
 
@@ -1355,8 +1341,7 @@ int action_replay_load(void)
     action_replay_flag = ACTION_REPLAY_INACTIVE;
     write_log_debug("Entered action_replay_load()\n");
     /* Don't load a rom if one is already loaded. Use action_replay_unload() first. */
-    if (armemory_rom || hrtmemory)
-    {
+    if (armemory_rom || hrtmemory) {
 	write_log("action_replay_load() ROM already loaded.\n");
 	return 0;
     }
@@ -1562,7 +1547,7 @@ void action_replay_version(void)
     if (!armemory_rom)
 	return;
 
-    if ( armodel == 1 )
+    if (armodel == 1)
 	    return; /* no support yet. */
 
     /* Extract Version string */
@@ -1605,7 +1590,7 @@ void action_replay_version(void)
 	}
     }
 
-    if ( iArVersionMajor > 0 )
+    if (iArVersionMajor > 0)
     {
 	write_log("Version of cart is '%d.%.02d', date is '%s'\n", iArVersionMajor, iArVersionMinor, sArDate);
     }

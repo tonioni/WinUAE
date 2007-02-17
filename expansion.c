@@ -274,7 +274,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		    value = z3fastmem_start >> 16;
 		} else {
 		    // Z3 P96 RAM
-		    value = (z3fastmem_start + (currprefs.z3fastmem_size + 0xffffff) & ~0xffffff) >> 16;
+		    value = p96ram_start >> 16;
 		}
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
@@ -907,10 +907,16 @@ static void expamem_init_z3fastmem (void)
  *  Fake Graphics Card (ZORRO III) - BDK
  */
 
+uaecptr p96ram_start;
+int p96mode = 0;
+
 static void expamem_map_gfxcard (void)
 {
     gfxmem_start = (expamem_hi | (expamem_lo >> 4)) << 16;
-    map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, 0);
+    if (p96mode)
+	map_banks (&gfxmem_bankx, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
+    else
+	map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
     write_log ("UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
@@ -1019,7 +1025,8 @@ static void allocate_expamem (void)
 
     z3fastmem_bank.baseaddr = z3fastmem;
     fastmem_bank.baseaddr = fastmemory;
-    gfxmem_bank.baseaddr = gfxmemory;
+    gfxmem_bank.baseaddr = NULL;
+    gfxmem_bankx.baseaddr = gfxmemory;
 
 #ifdef SAVESTATE
     if (savestate_state == STATE_RESTORE) {
@@ -1036,8 +1043,12 @@ static void allocate_expamem (void)
 #ifdef PICASSO96
 	if (allocated_gfxmem > 0 && gfxmem_start > 0) {
 	    restore_ram (p96_filepos, gfxmemory);
-	    map_banks (&gfxmem_bank, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
-		allocated_gfxmem);
+	    if (p96mode)
+		map_banks (&gfxmem_bankx, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
+		    allocated_gfxmem);
+	    else
+		map_banks (&gfxmem_bank, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
+		    allocated_gfxmem);
 	}
 #endif
     }
@@ -1140,12 +1151,12 @@ void expansion_init (void)
     allocate_expamem ();
 
 #ifdef FILESYS
-    filesysory = (uae_u8 *) mapped_malloc (0x10000, "filesys");
+    filesysory = mapped_malloc (0x10000, "filesys");
     if (!filesysory) {
 	write_log ("virtual memory exhausted (filesysory)!\n");
 	exit (0);
     }
-    filesys_bank.baseaddr = (uae_u8*)filesysory;
+    filesys_bank.baseaddr = filesysory;
 #endif
 }
 

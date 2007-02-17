@@ -55,7 +55,8 @@ STATIC_INLINE int isaudio(void)
 
 static int debugchannel (int ch)
 {
-    if ((1 << ch) & DEBUG_CHANNEL_MASK) return 1;
+    if ((1 << ch) & DEBUG_CHANNEL_MASK)
+	return 1;
     return 0;
 }
 
@@ -1310,6 +1311,7 @@ void set_audio(void)
 	}
     }
     next_sample_evtime = scaled_sample_evtime;
+    last_cycles = get_cycles () - 1;
     compute_vsynctime ();
 
     mixed_mul1 = MIXED_STEREO_MAX / 2 - ((currprefs.sound_stereo_separation * 3) / 2);
@@ -1367,7 +1369,7 @@ void set_audio(void)
 	sample_prehandler = anti_prehandler;
     }
 
-    audio_event_reset();
+    audio_activate ();
 
     if (currprefs.produce_sound == 0) {
 	eventtab[ev_audio].active = 0;
@@ -1585,6 +1587,7 @@ void AUDxPER (int nr, uae_u16 v)
     if (per < maxhpos * CYCLE_UNIT / 2 && currprefs.produce_sound < 3)
 	per = maxhpos * CYCLE_UNIT / 2;
     else if (per < 4 * CYCLE_UNIT)
+	 /* smaller value would cause extremely high cpu usage */
 	per = 4 * CYCLE_UNIT;
 
    if (audio_channel[nr].per == PERIOD_MAX - 1 && per != PERIOD_MAX - 1) {

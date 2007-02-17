@@ -31,6 +31,7 @@ struct hardfiledata {
     unsigned int heads;
     uae_u64 size2;
     uae_u64 offset2;
+    int warned;
 };
 
 #define FILESYS_VIRTUAL 0

@@ -946,12 +946,14 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc (regs) - 4);
 #endif
     switch ((extra >> 13) & 0x7) {
+
     case 3:
 	if (put_fp_value (regs, regs->fp[(extra >> 7) & 7], opcode, extra) == 0) {
 	    m68k_setpc (regs, m68k_getpc (regs) - 4);
 	    op_illg (opcode, regs);
 	}
 	return;
+
     case 4:
     case 5:
 	if ((opcode & 0x38) == 0) {
@@ -1066,6 +1068,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		m68k_areg (regs, opcode & 7) = ad - 12;
 	}
 	return;
+
     case 6:
     case 7:
     {
@@ -1174,6 +1177,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	}
     }
     return;
+
     case 0:
     case 2: /* Extremely common */
 	reg = (extra >> 7) & 7;
@@ -1258,7 +1262,9 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    op_illg (opcode, regs);
 	    return;
 	}
+
 	switch (extra & 0x7f) {
+
 	case 0x00: /* FMOVE */
 	case 0x40: /* Explicit rounding. This is just a quick fix. */
 	case 0x44: /* Same for all other cases that have three choices */

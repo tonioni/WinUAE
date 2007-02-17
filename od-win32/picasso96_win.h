@@ -473,6 +473,7 @@ struct picasso96_state_struct
     // support NO direct access all the time to gfx Card
     // everytime windows can remove your surface from card so the mainrender place
     // must be in memory
+    long		XYOffset;
 };
 
 extern void InitPicasso96 (void);

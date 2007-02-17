@@ -9736,12 +9736,13 @@ void gui_message (const char *format,...)
 	ShowWindow (hAmigaWnd, SW_MINIMIZE);
 
     write_log(msg);
-    if (msg[strlen(msg)-1]!='\n')
+    if (msg[strlen(msg) - 1] != '\n')
 	write_log("\n");
 
     WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
 
-    MessageBox (hwnd, msg, szTitle, flags);
+    if (!MessageBox (hwnd, msg, szTitle, flags))
+	write_log("MessageBox(%s) failed, err=%d\n", msg, GetLastError());
 
     if (flipflop)
 	ShowWindow (hAmigaWnd, SW_RESTORE);
