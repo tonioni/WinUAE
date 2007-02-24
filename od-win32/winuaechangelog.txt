@@ -1,4 +1,13 @@
 
+Beta 8: (RC 1)
+
+- uaehf.device unit >=30 crash fixed
+- CDTV CD audio will be stopped when exiting/reseting
+- correct CDTV CD number of tracks returned in ASPI-mode
+- re-added and fixed special case handling for 68k reset-instruction
+  when more compatible CPU setting is not enabled
+- filesystem ACTION_COPY_DIR_FH packet memory (lock) leak fixed
+
 Beta 7: (possible bug fixes and small tweaks left)
 
 - Picasso96 graphics problems really fixed

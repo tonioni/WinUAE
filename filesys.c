@@ -441,7 +441,7 @@ void free_mountinfo (void)
 struct hardfiledata *get_hardfile_data (int nr)
 {
     UnitInfo *uip = mountinfo.ui;
-    if (nr < 0 || uip[nr].open == 0 || uip[nr].volname != 0)
+    if (nr < 0 || nr >= MAX_FILESYSTEM_UNITS || uip[nr].open == 0 || uip[nr].volname != 0)
 	return 0;
     return &uip[nr].hf;
 }
@@ -1805,18 +1805,12 @@ static void action_free_lock (Unit *unit, dpacket packet)
 }
 
 static uaecptr
-action_dup_lock_2 (Unit *unit, dpacket packet, uaecptr lock)
+action_dup_lock_2 (Unit *unit, dpacket packet, uae_u32 uniq)
 {
     uaecptr out;
     a_inode *a;
-    TRACE(("ACTION_DUP_LOCK(0x%lx)\n", lock));
-    DUMPLOCK(unit, lock);
 
-    if (!lock) {
-	PUT_PCK_RES1 (packet, 0);
-	return 0;
-    }
-    a = lookup_aino (unit, get_long (lock + 4));
+    a = lookup_aino (unit, uniq);
     if (a == 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
@@ -1841,12 +1835,31 @@ static void
 action_dup_lock (Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG1 (packet) << 2;
-    action_dup_lock_2 (unit, packet, lock);
+    TRACE(("ACTION_DUP_LOCK(0x%lx)\n", lock));
+    if (!lock) {
+	PUT_PCK_RES1 (packet, 0);
+	return;
+    }
+    action_dup_lock_2 (unit, packet, get_long(lock + 4));
+}
+
+
+static void
+action_lock_from_fh (Unit *unit, dpacket packet)
+{
+    uaecptr out;
+    Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
+    TRACE(("ACTION_COPY_DIR_FH(0x%lx)\n", GET_PCK_ARG1 (packet)));
+    if (k == 0) {
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	return;
+    }
+    out = action_dup_lock_2 (unit, packet, k->aino->uniq);
 }
 
 /* convert time_t to/from AmigaDOS time */
-const int secs_per_day = 24 * 60 * 60;
-const int diff = (8 * 365 + 2) * (24 * 60 * 60);
+static const int secs_per_day = 24 * 60 * 60;
+static const int diff = (8 * 365 + 2) * (24 * 60 * 60);
 
 static void
 get_time (time_t t, long* days, long* mins, long* ticks)
@@ -2288,27 +2301,13 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
     if (create)
         fsdb_set_file_attrs (aino);
 
-    put_long (fh+36, k->uniq);
+    put_long (fh + 36, k->uniq);
     if (create == 2)
 	aino->elock = 1;
     else
 	aino->shlock++;
     de_recycle_aino (unit, aino);
     PUT_PCK_RES1 (packet, DOS_TRUE);
-}
-
-static void
-action_lock_from_fh (Unit *unit, dpacket packet)
-{
-    uaecptr out;
-    Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
-    //write_log("lock_from_fh %x\n", k);
-    if (k == 0) {
-	PUT_PCK_RES1 (packet, DOS_FALSE);
-	return;
-    }
-    out = action_dup_lock_2 (unit, packet, make_lock (unit, k->aino->uniq, -2));
-    //write_log("=%x\n", out);
 }
 
 static void
@@ -2322,7 +2321,7 @@ action_fh_from_lock (Unit *unit, dpacket packet)
     mode_t openmode;
     int mode;
 
-    TRACE(("ACTION_FH_FROM_LOCK(0x%lx,0x%lx)\n",fh,lock));
+    TRACE(("ACTION_FH_FROM_LOCK(0x%lx,0x%lx)\n", fh, lock));
     DUMPLOCK(unit,lock);
 
     if (!lock) {

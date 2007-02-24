@@ -113,7 +113,7 @@ static int close_mci(int unitnum)
     MCI_GENERIC_PARMS gp = { 0 };
 
     ciw->playend = -1;
-    if (ciw->mciid) {
+    if (ciw->mciid > 0) {
 	if (log_scsi)
 	    write_log("IOCTL: MCI close\n");
 	mcierr("MCI_STOP", mciSendCommand(ciw->mciid, MCI_STOP, MCI_WAIT, (DWORD_PTR)&gp));

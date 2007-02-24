@@ -65,7 +65,7 @@ int p96hsync_counter, palette_changed;
 #endif
 #define LOCK_UNLOCK_MADNESS //need for 7 times faster linedraw
 #define PIXEL_LOCK    //and scrollable screens
-#define MAXFLUSHPIXEL 3200 //pixel draw in a lock
+#define MAXFLUSHPIXEL 2000 //pixel draw in a lock
 static void flushpixels(void);
 #ifdef P96TRACING_ENABLED
 #define P96TRACE(x) do { write_log x; } while(0)

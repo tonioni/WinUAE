@@ -1545,7 +1545,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 	    }
 	}
     }
-    return kickmem_xlate (0); /* So we don't crash. */
+    return kickmem_xlate (2); /* So we don't crash. */
 }
 
 /* Address banks */

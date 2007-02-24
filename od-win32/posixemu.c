@@ -247,17 +247,19 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     unsigned foo;
     struct thparms *thp;
 
-    if (name)
-	write_log("Thread '%s' started\n", name);
     thp = malloc (sizeof (struct thparms));
     thp->f = f;
     thp->arg = arg;
     hThread = (HANDLE)_beginthreadex(NULL, 0, thread_init, thp, 0, &foo);
     *tid = hThread;
-    if (hThread)
+    if (hThread) {
         SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
-    else
+	if (name)
+	    write_log("Thread '%s' started (%d)\n", name, foo);
+    } else {
         result = 0;
+	write_log("Thread '%s' failed to start!?\n", name ? name : "<unknown>");
+    }
     return result;
 }
 

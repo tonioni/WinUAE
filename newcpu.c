@@ -962,9 +962,6 @@ static void Exception_normal (int nr, struct regstruct *regs, uaecptr oldpc)
     exception_debug (nr);
     MakeSR(regs);
 
-    if (nr == 3)
-	activate_debugger();
-
     if (!regs->s) {
 	regs->usp = m68k_areg(regs, 7);
 	if (currprefs.cpu_level >= 2)
@@ -2630,24 +2627,42 @@ void exception2 (uaecptr addr, uaecptr fault)
 
 void cpureset (void)
 {
-    customreset ();
-#if 0
+    uaecptr pc;
+    uaecptr ksboot = 0xf80002 - 2; /* -2 = RESET hasn't increased PC yet */
     uae_u16 ins;
-    if (currprefs.cpu_level == 0 && (currprefs.cpu_compatible || currprefs.cpu_cycle_exact)) {
-	customreset ();
+
+    if (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) {
+        customreset ();
 	return;
     }
-    ins = get_word (m68k_getpc(&regs) + 2);
+    pc = m68k_getpc(&regs);
+    if (pc >= currprefs.chipmem_size) {
+	addrbank *b = &get_mem_bank(pc);
+	if (b->check(pc, 2 + 2)) {
+	    /* We have memory, hope for the best.. */
+	    customreset ();
+	    return;
+	}
+	write_log("M68K RESET PC=%x, rebooting..\n", pc);
+	customreset ();
+	m68k_setpc (&regs, ksboot);
+	return;
+    }
+    /* panic, RAM is going to disappear under PC */
+    ins = get_word (pc + 2);
     if ((ins & ~7) == 0x4ed0) {
 	int reg = ins & 7;
 	uae_u32 addr = m68k_areg (&regs, reg);
-	write_log ("reset/jmp (ax) combination emulated\n");
+	write_log ("reset/jmp (ax) combination emulated -> %x\n", addr);
 	customreset ();
 	if (addr < 0x80000)
 	    addr += 0xf80000;
-	m68k_setpc (&regs, addr);
+	m68k_setpc (&regs, addr - 2);
+	return;
     }
-#endif
+    write_log("M68K RESET PC=%x, rebooting..\n", pc);
+    customreset ();
+    m68k_setpc (&regs, ksboot);
 }
 
 

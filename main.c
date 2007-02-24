@@ -38,6 +38,7 @@
 #include "scsidev.h"
 #include "uaeserial.h"
 #include "akiko.h"
+#include "cdtv.h"
 #include "savestate.h"
 #include "filesys.h"
 #include "parallel.h"
@@ -543,6 +544,9 @@ void do_leave_program (void)
     dump_counts ();
 #ifdef SERIAL_PORT
     serial_exit ();
+#endif
+#ifdef CDTV
+    cdtv_free ();
 #endif
 #ifdef CD32
     akiko_free ();

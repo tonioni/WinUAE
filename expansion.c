@@ -1066,7 +1066,7 @@ void expamem_reset (void)
     allocate_expamem ();
 
     if (currprefs.cs_cdtvcd)
-	dmac_init ();
+	cdtv_init ();
 
     /* check if Kickstart version is below 1.3 */
     if (! ersatzkickfile && kickstart_version

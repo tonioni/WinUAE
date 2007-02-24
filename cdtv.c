@@ -298,12 +298,17 @@ static int cdrom_info(uae_u8 *out)
 {
     uae_u8 *p;
     uae_u32 size;
+    int i;
 
     if (!ismedia())
 	return -1;
     cd_motor = 1;
     out[0] = cdrom_toc[2];
-    out[1] = cdrom_toc[3];
+    i = (cdrom_toc[0] << 8) | (cdrom_toc[1] << 0);
+    i -= 2 + 11;
+    i /= 11;
+    p = cdrom_toc + 4 + i * 11;
+    out[1] = p[3];
     p = cdrom_toc + 4 + 2 * 11;
     size =  ((p[8] << 16) | (p[9] << 8) | p[10]);
     out[2] = size >> 16;
@@ -535,6 +540,7 @@ static void dma_do_thread(void)
 static void *dev_thread (void *p)
 {
     write_log("CDTV: CD thread started\n");
+    thread_alive = 1;
     for (;;) {
 
 	uae_u32 b = read_comm_pipe_u32_blocking (&requests);
@@ -1053,10 +1059,12 @@ static void open_unit(void)
     int first = -1;
     int cdtvunit = -1, audiounit = -1;
 
-    if (unitnum >= 0)
+    if (unitnum >= 0) {
+	cdaudiostop();
 	sys_command_close (DF_IOCTL, unitnum);
-    cdtv_reset();
+    }
     unitnum = -1;
+    cdtv_reset();
     if (!device_func_init(DEVICE_TYPE_ANY)) {
         write_log ("no CDROM support\n");
         return;
@@ -1219,13 +1227,29 @@ uae_u8 cdtv_battram_read (int addr)
     return v;
 }
 
+void cdtv_free (void)
+{
+    if (thread_alive > 0) {
+	write_comm_pipe_u32 (&requests, 0xffff, 1);
+	while (thread_alive > 0)
+	    sleep_millis(10);
+    }
+    thread_alive = 0;
+    cdaudiostop ();
+    if (unitnum >= 0)
+	sys_command_close(DF_IOCTL, unitnum);
+    unitnum = -1;
+    configured = 0;
+}
 
-void dmac_init (void)
+void cdtv_init (void)
 {
     if (!thread_alive) {
         uae_thread_id tid;
 	init_comm_pipe (&requests, 100, 1);
 	uae_start_thread ("cdtv", dev_thread, NULL, &tid);
+	while (!thread_alive)
+	    sleep_millis(10);
     }
 
     configured = 0;
