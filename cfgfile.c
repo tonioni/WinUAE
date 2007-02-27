@@ -2825,7 +2825,7 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
     if (!configure_rom (p, roms, romcheck))
 	return 0;
     p->bogomem_size = 0;
-    p->chipmem_size = 0x200000;
+    p->chipmem_size = 0x100000;
     p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     p->cs_cdtvcd = p->cs_cdtvram = 1;
     if (config > 0)

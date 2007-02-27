@@ -46,7 +46,6 @@
 #include "autoconf.h"
 
 int inputdevice_logging = 0;
-static int potgo_logging = 0;
 
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
@@ -1056,7 +1055,7 @@ int getjoystate (int joy)
     int left = 0, right = 0, top = 0, bot = 0;
     uae_u16 v = 0;
 
-    if (inputdevice_logging > 2)
+    if (inputdevice_logging & 2)
 	write_log("JOY%dDAT %x\n", joy, m68k_getpc(&regs));
     readinput ();
     if (joydir[joy] & DIR_LEFT)
@@ -1119,7 +1118,8 @@ void JOYTEST (uae_u16 v)
     mouse_frame_y[0] = mouse_y[0];
     mouse_frame_x[1] = mouse_x[1];
     mouse_frame_y[1] = mouse_y[1];
-//    write_log ("%d:%04.4X %p\n",vpos,v,m68k_getpc());
+    if (inputdevice_logging & 2)
+	write_log ("JOYTEST: %04.4X PC=%x\n", v , M68K_GETPC);
 }
 
 static uae_u8 parconvert (uae_u8 v, int jd, int shift)
@@ -1180,7 +1180,8 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 	    but |= 0x40 << i;
 	}
     }
-    //write_log("%02.2X:%02.2X %x\n", dra, but, M68K_GETPC);
+    if (inputdevice_logging & 4)
+	write_log("BFE001: %02.2X:%02.2X %x\n", dra, but, M68K_GETPC);
     return but;
 }
 
@@ -1330,8 +1331,8 @@ void POTGO (uae_u16 v)
 {
     int i;
 
-    if (potgo_logging)
-	write_log ("W:%d: %04.4X %p\n", vpos, v, M68K_GETPC);
+    if (inputdevice_logging & 16)
+	write_log ("POTGO_W: %04.4X %p\n", v, M68K_GETPC);
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log ("POTGO %04.4X %s\n", v, debuginfo(0));
@@ -1367,8 +1368,8 @@ uae_u16 POTGOR (void)
     if (notinrom ())
 	write_log ("POTGOR %04.4X %s\n", v, debuginfo(0));
 #endif
-    if (potgo_logging)
-	write_log("R:%d:%04.4X %d %p\n", vpos, v, cd32_shifter[1], M68K_GETPC);
+    if (inputdevice_logging & 16)
+	write_log("POTGO_R: %04.4X %d %p\n", v, cd32_shifter[1], M68K_GETPC);
     return v;
 }
 
@@ -1447,7 +1448,7 @@ void inputdevice_do_keyboard (int code, int state)
 	    uae_reset (r);
 	}
 	record_key ((uae_u8)((key << 1) | (key >> 7)));
-	if (inputdevice_logging > 0)
+	if (inputdevice_logging & 1)
 	    write_log("Amiga key %02.2X %d\n", key & 0x7f, key >> 7);
 	return;
     }
@@ -1625,7 +1626,7 @@ int handle_input_event (int nr, int state, int max, int autofire)
     if (nr <= 0)
 	return 0;
     ie = &events[nr];
-    if (inputdevice_logging > 0)
+    if (inputdevice_logging & 1)
 	write_log("'%s' %d %d\n", ie->name, state, max);
     if (autofire) {
 	if (state)

@@ -7,8 +7,7 @@
  * Copyright 1997-1999 Brian King
  */
 
-/* Uncomment this line if you want the logs time-stamped */
-/* #define TIMESTAMP_LOGS */
+//#define MEMDEBUG
 
 #include "sysconfig.h"
 
@@ -2717,8 +2716,10 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	//tmp &= 0xffff;
 	tmp |= _CRTDBG_CHECK_ALWAYS_DF;
 	tmp |= _CRTDBG_CHECK_CRT_DF;
-	//tmp |=_CRTDBG_CHECK_EVERY_16_DF;
-	//tmp |= _CRTDBG_DELAY_FREE_MEM_DF;
+#ifdef MEMDEBUG
+	tmp |=_CRTDBG_CHECK_EVERY_16_DF;
+	tmp |= _CRTDBG_DELAY_FREE_MEM_DF;
+#endif
 	_CrtSetDbgFlag(tmp);
     }
 #endif

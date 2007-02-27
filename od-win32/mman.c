@@ -149,6 +149,24 @@ void init_shm(void)
 void mapped_free(uae_u8 *mem)
 {
     shmpiece *x = shm_start;
+
+    if (!p96mode && mem == p96fakeram) {
+	xfree (p96fakeram);
+	p96fakeram = NULL;
+	while(x) {
+	    struct shmid_ds blah;
+	    if (mem == x->native_address) {
+		int shmid = x->id;
+		shmids[shmid].key = -1;
+		shmids[shmid].name[0] = '\0';
+		shmids[shmid].size = 0;
+		shmids[shmid].attached = 0;
+	    }
+	    x = x->next;
+	}
+	return;
+    }
+
     while(x) {
 	if(mem == x->native_address)
 	    shmdt(x->native_address);
@@ -250,6 +268,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		shmaddr = natmem_offset + p96ram_start;
 	    } else {
 		p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+		shmaddr = natmem_offset + p96ram_start;
 		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
 		xfree(p96fakeram);
 		result = p96fakeram = xcalloc (size + 4096, 1);

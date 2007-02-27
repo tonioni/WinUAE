@@ -544,10 +544,9 @@ static void *dev_thread (void *p)
     for (;;) {
 
 	uae_u32 b = read_comm_pipe_u32_blocking (&requests);
-	if (unitnum < 0) {
-	    thread_alive = -1;
-	    return NULL;
-	}
+	if (unitnum < 0)
+	    continue;
+
 	switch (b)
 	{
 	    case 0x100:
@@ -571,6 +570,9 @@ static void *dev_thread (void *p)
 	    break;
 	    case 0x103: // unpause
 	    sys_command_cd_pause (DF_IOCTL, unitnum, 0);
+	    break;
+	    case 0x104: // stop
+	    cdaudiostop();
 	    break;
 	    case 0x110: // do_play!
 	    do_play();
@@ -1059,10 +1061,8 @@ static void open_unit(void)
     int first = -1;
     int cdtvunit = -1, audiounit = -1;
 
-    if (unitnum >= 0) {
-	cdaudiostop();
+    if (unitnum >= 0)
 	sys_command_close (DF_IOCTL, unitnum);
-    }
     unitnum = -1;
     cdtv_reset();
     if (!device_func_init(DEVICE_TYPE_ANY)) {
@@ -1230,6 +1230,7 @@ uae_u8 cdtv_battram_read (int addr)
 void cdtv_free (void)
 {
     if (thread_alive > 0) {
+        write_comm_pipe_u32 (&requests, 0x0104, 1);
 	write_comm_pipe_u32 (&requests, 0xffff, 1);
 	while (thread_alive > 0)
 	    sleep_millis(10);
@@ -1251,6 +1252,8 @@ void cdtv_init (void)
 	while (!thread_alive)
 	    sleep_millis(10);
     }
+    write_comm_pipe_u32 (&requests, 0x0104, 1);
+   
 
     configured = 0;
     tp_a = tp_b = tp_c = tp_ad = tp_bd = tp_cd = 0;

@@ -33,7 +33,6 @@ struct dev_info_ioctl {
     int type;
     int blocksize;
     int mciid;
-    int mcimode;
     CDROM_TOC toc;
     UINT errormode;
     int playend;

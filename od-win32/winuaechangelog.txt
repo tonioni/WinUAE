@@ -1,4 +1,22 @@
 
+Beta 9: (RC 2)
+
+- non-ASPI CDTV CD audio didn't always stop when exiting/reseting
+- added dj [<mask>] command to debugger. Enable joystick/mouse
+  input logging  
+- CDTV quickstart chip ram size set to correct 1M (correct config
+  is more important than workaround for one game)
+- Fixed another filesystem lock leak in ACTION_FH_FROM_LOCK
+  (dos.library/OpenFromLock())
+- do not allow unlocking of non-existing locks in filesystem.
+  Previously it caused random memory corruption and also triggered
+  following (previously unknown) 1.0b2 issue:
+  "added workaround for AMOS filesystem emulation incompatibility
+  (infinite loop in filesystem code) Reason for freeze unknown,
+  proper fix unknown.. (filesystem emulation is confusing..)"
+- external drive sound selection GUI didn't work if fdrawcmd.sys
+  was not installed
+
 Beta 8: (RC 1)
 
 - uaehf.device unit >=30 crash fixed

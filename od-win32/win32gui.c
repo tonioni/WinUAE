@@ -5684,11 +5684,12 @@ static void values_from_sounddlg (HWND hDlg)
     workprefs.sound_stereo_swap_ahi = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 2) ? 1 : 0;
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
-    if (idx >= 0) {
+    if (idx != CB_ERR && idx >= 0) {
 	LRESULT res = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_GETCURSEL, 0, 0);
-	if (res >= 0) {
-	    if (res > DS_BUILD_IN_SOUNDS + 2) {
-		int j = res - (DS_BUILD_IN_SOUNDS + 2 + 1);
+	if (res != CB_ERR && res >= 0) {
+	    int xtra = driveclick_pcdrivemask ? 2 : 0;
+	    if (res > DS_BUILD_IN_SOUNDS + xtra) {
+		int j = res - (DS_BUILD_IN_SOUNDS + xtra + 1);
 		char *p = drivesounds;
 		while (j-- > 0)
 		    p += strlen (p) + 1;

@@ -1739,6 +1739,10 @@ static void free_lock (Unit *unit, uaecptr lock)
 		break;
 	    current = next;
 	}
+	if (!current) {
+	    write_log("tried to unlock non-existing lock %x\n", lock);
+	    return;
+	}
 	put_long (current << 2, get_long (lock));
     }
     lock -= 4;
@@ -1847,14 +1851,13 @@ action_dup_lock (Unit *unit, dpacket packet)
 static void
 action_lock_from_fh (Unit *unit, dpacket packet)
 {
-    uaecptr out;
     Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
     TRACE(("ACTION_COPY_DIR_FH(0x%lx)\n", GET_PCK_ARG1 (packet)));
     if (k == 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	return;
     }
-    out = action_dup_lock_2 (unit, packet, k->aino->uniq);
+    action_dup_lock_2 (unit, packet, k->aino->uniq);
 }
 
 /* convert time_t to/from AmigaDOS time */
@@ -2361,9 +2364,8 @@ action_fh_from_lock (Unit *unit, dpacket packet)
     /* I don't think I need to play with shlock count here, because I'm
        opening from an existing lock ??? */
 
-    /* Is this right?  I don't completely understand how this works.  Do I
-       also need to free_lock() my lock, since nobody else is going to? */
     de_recycle_aino (unit, aino);
+    free_lock (unit, lock); /* lock must be unlocked */
     PUT_PCK_RES1 (packet, DOS_TRUE);
     /* PUT_PCK_RES2 (packet, k->uniq); - this shouldn't be necessary, try without it */
 }

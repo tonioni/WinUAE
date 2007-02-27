@@ -47,6 +47,7 @@ int debug_sprite_mask = 0xff;
 static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
+extern int inputdevice_logging;
 
 static FILE *logfile;
 
@@ -113,6 +114,7 @@ static char help[] = {
     "  sm <sprite mask>      Enable or disable sprites\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "                        Also enables extended disk logging\n"
+    "  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
     "  dm                    Dump current address space map\n"
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
@@ -1909,7 +1911,13 @@ static void debug_1 (void)
 	    if (*inptr == 'i') {
 		next_char(&inptr);
 		disk_debug(&inptr);
-	    }  else if(*inptr == 'm') {
+	    } else if(*inptr == 'j') {
+		inptr++;
+		inputdevice_logging = 1 | 2;
+		if (more_params(&inptr))
+		    inputdevice_logging = readint(&inptr);
+	        console_out("input logging level %d\n", inputdevice_logging);
+	    } else if(*inptr == 'm') {
 		memory_map_dump_2(0);
 	    } else {
 		uae_u32 daddr;
