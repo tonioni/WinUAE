@@ -1,4 +1,14 @@
 
+
+Beta 10:
+
+- in some cases dskready signal was set active even if floppy drive
+  was empty and motor was running
+- yet another undocumented CIA TOD related feature implemented
+  TOD does not latch (by reading TODHI) if CRB ALARM-bit is set.
+  Fixes Batman the Movie (which worked in older versions only
+  by accident..)
+
 Beta 9: (RC 2)
 
 - non-ASPI CDTV CD audio didn't always stop when exiting/reseting

@@ -1013,12 +1013,6 @@ static int drive_empty (drive * drv)
 
 static void drive_step (drive * drv)
 {
-#if 0
-    if (drv->dskready) {
-	drv->dskready = 0;
-	drv->dskready_time = DSKREADY_TIME;
-    }
-#endif
 #ifdef CATWEASEL
     if (drv->catweasel) {
 	int dir = direction ? -1 : 1;
@@ -2065,14 +2059,12 @@ void DISK_check_change (void)
 	gui_unlock ();
 	if (drv->dskready_down_time > 0)
 	    drv->dskready_down_time--;
-#if 1
 	/* emulate drive motor turn on time */
-	if (drv->dskready_time) {
+	if (drv->dskready_time && !drive_empty(drv)) {
 	    drv->dskready_time--;
 	    if (drv->dskready_time == 0)
 		drv->dskready = 1;
 	}
-#endif
 	/* delay until new disk image is inserted */
 	if (drv->dskchange_time) {
 	    drv->dskchange_time--;
@@ -2108,14 +2100,14 @@ void DISK_select (uae_u8 data)
     static uae_u8 prevdata;
     static int step;
 
-    if (disk_debug_logging > 1)
-	write_log ("%08.8X %02.2X %s", M68K_GETPC, data, tobin(data));
-
     lastselected = selected;
     selected = (data >> 3) & 15;
     side = 1 - ((data >> 2) & 1);
     direction = (data >> 1) & 1;
     step_pulse = data & 1;
+
+    if (disk_debug_logging > 1)
+	write_log ("%08.8X %02.2X %s drvmask=%x", M68K_GETPC, data, tobin(data), selected ^ 15);
 
     if ((prevdata & 0x80) != (data & 0x80)) {
 	for (dr = 0; dr < 4; dr++) {
@@ -2822,7 +2814,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	noselected = 1;
     } else {
 	if (disk_debug_logging > 0) {
-	    write_log ("disk %s DMA started, drv=%x track %d mfmpos %d\n",
+	    write_log ("disk %s DMA started, drvmask=%x track %d mfmpos %d\n",
     		dskdmaen == 3 ? "write" : "read", selected ^ 15,
 		floppy[dr].cyl * 2 + side, floppy[dr].mfmpos);
 	    disk_dma_debugmsg();

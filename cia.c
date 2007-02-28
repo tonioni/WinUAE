@@ -33,8 +33,10 @@
 #include "arcadia.h"
 #include "audio.h"
 
-//#define CIA_DEBUG_R
-//#define CIA_DEBUG_W
+//#define CIAA_DEBUG_R
+//#define CIAA_DEBUG_W
+//#define CIAB_DEBUG_R
+//#define CIAB_DEBUG_W
 //#define DONGLE_DEBUG
 
 #define TOD_HACK
@@ -452,7 +454,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 
     compute_passed_time ();
 
-#ifdef CIA_DEBUG_R
+#ifdef CIAA_DEBUG_R
     write_log("R_CIAA: bfe%x01 %08.8X\n", addr, M68K_GETPC);
 #endif
 
@@ -543,7 +545,9 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    return (uae_u8)(ciaatod >> 8);
     case 10:
 	if (!ciaatlatch) { /* only if not already latched. A1200 confirmed. (TW) */
-	    ciaatlatch = 1;
+	    /* no latching if ALARM is set */
+	    if (!(ciaacrb & 0x80))
+		ciaatlatch = 1;
 	    ciaatol = ciaatod;
 	}
 	return (uae_u8)(ciaatol >> 16);
@@ -566,7 +570,8 @@ static uae_u8 ReadCIAB (unsigned int addr)
 {
     unsigned int tmp;
 
-#ifdef CIA_DEBUG_R
+#ifdef CIAB_DEBUG_R
+    if (addr >= 8 && addr <= 10)
     write_log("R_CIAB: bfd%x00 %08.8X\n", addr, M68K_GETPC);
 #endif
 
@@ -641,7 +646,9 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	    return (uae_u8)(ciabtod >> 8);
     case 10:
 	if (!ciabtlatch) {
-	    ciabtlatch = 1;
+	    /* no latching if ALARM is set */
+	    if (!(ciabcrb & 0x80))
+		ciabtlatch = 1;
 	    ciabtol = ciabtod;
 	}
 	return (uae_u8)(ciabtol >> 16);
@@ -660,7 +667,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 
 static void WriteCIAA (uae_u16 addr,uae_u8 val)
 {
-#ifdef CIA_DEBUG_W
+#ifdef CIAA_DEBUG_W
     write_log("W_CIAA: bfe%x01 %02.2X %08.8X\n", addr, val, M68K_GETPC);
 #endif
 #ifdef ACTION_REPLAY
@@ -814,8 +821,9 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 
 static void WriteCIAB (uae_u16 addr,uae_u8 val)
 {
-#ifdef CIA_DEBUG_W
-    write_log("W_CIAB: bfd%x00 %02.2X %08.8X\n", addr, val, M68K_GETPC);
+#ifdef CIAB_DEBUG_W
+    if (addr >= 8 && addr <= 10)
+	write_log("W_CIAB: bfd%x00 %02.2X %08.8X\n", addr, val, M68K_GETPC);
 #endif
 #ifdef ACTION_REPLAY
     ar_ciab[addr & 0xf] = val;
