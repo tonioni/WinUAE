@@ -437,6 +437,11 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
      case 68: return emulib_Minimize ();
      case 69: return emulib_ExecuteNativeCode (&context->regs);
 
+     case 70:
+	 if (valid_address(ARG1, 1))
+	    write_log("DBG: %s\n", get_real_address(ARG1));
+	 return 1; 
+
      case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
      case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);

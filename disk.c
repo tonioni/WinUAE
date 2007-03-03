@@ -2748,6 +2748,7 @@ void DSKLEN (uae_u16 v, int hpos)
 {
     int dr, prev = dsklen;
     int noselected = 0;
+    int motormask;
 
     DISK_update (hpos);
     if ((v & 0x8000) && (dsklen & 0x8000)) {
@@ -2801,16 +2802,18 @@ void DSKLEN (uae_u16 v, int hpos)
 	}
     }
 
+    motormask = 0;
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
         drive *drv = &floppy[dr];
         if (drv->motoroff)
 	    continue;
+	motormask |= 1 << dr;
 	if ((selected & (1 << dr)) == 0)
 	    break;
     }
     if (dr == 4) {
-        write_log ("disk %s DMA started but no drive selected!\n",
-           dskdmaen == 3 ? "write" : "read");
+        write_log ("disk %s DMA started, drvmask=%x motormask=%x\n",
+           dskdmaen == 3 ? "write" : "read", selected ^ 15, motormask);
 	noselected = 1;
     } else {
 	if (disk_debug_logging > 0) {

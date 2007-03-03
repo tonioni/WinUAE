@@ -2832,7 +2832,9 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cs_cdtvcard = 64;
     p->cs_rtc = 1;
     p->nr_floppies = 0;
-    p->dfxtype[0] = DRV_35_DD;
+    p->dfxtype[0] = DRV_NONE;
+    if (config > 0)
+	p->dfxtype[0] = DRV_35_DD;
     p->dfxtype[1] = DRV_NONE;
     set_68000_compa (p, compa);
     p->cs_compatible = 2;
