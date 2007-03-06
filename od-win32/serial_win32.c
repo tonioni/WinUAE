@@ -235,9 +235,9 @@ void SERDAT (uae_u16 w)
     if (serper == 372) {
 	extern int enforcermode;
 	if (enforcermode & 2) {
-	    write_log ("%c", dochar (w));
+	    console_out ("%c", dochar (w));
 	    if (w == 266)
-		write_log("\n");
+		console_out("\n");
 	}
     }
 

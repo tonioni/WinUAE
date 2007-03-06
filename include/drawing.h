@@ -265,7 +265,6 @@ enum nln_how {
 extern void hsync_record_line_state (int lineno, enum nln_how, int changed);
 extern void vsync_handle_redraw (int long_frame, int lof_changed);
 extern void init_hardware_for_drawing_frame (void);
-extern void finish_drawing_frame (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
 extern void notice_interlace_seen (void);

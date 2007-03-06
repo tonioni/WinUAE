@@ -231,6 +231,10 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	    size+=32;
 	}
+	if(!strcmp(shmids[shmid].name,"rom_a8")) {
+	    shmaddr=natmem_offset+0xa80000;
+	    got = TRUE;
+	}
 	if(!strcmp(shmids[shmid].name,"rom_e0")) {
 	    shmaddr=natmem_offset+0xe00000;
 	    got = TRUE;

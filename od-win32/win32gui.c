@@ -4778,12 +4778,12 @@ extern char *get_aspi_path(int);
 static void misc_scsi(HWND hDlg)
 {
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((os_winnt && os_winnt_admin) ? "SPTI" : "(SPTI)"));
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((os_winnt && os_winnt_admin) ? "SPTI + SCSI SCAN" : "(SPTI + SCSI SCAN)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)(os_winnt ? "SPTI" : "(SPTI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)(os_winnt ? "SPTI + SCSI SCAN" : "(SPTI + SCSI SCAN)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? "AdaptecASPI" : "(AdaptecASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? "NeroASPI" : "(NeroASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(2)) ? "FrogASPI" : "(FrogASPI)"));
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode - 1, 0);
 }
 
 static void misc_lang(HWND hDlg)
@@ -4955,7 +4955,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    case IDC_SCSIMODE:
 		    v = SendDlgItemMessage(hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR)
-			workprefs.win32_uaescsimode = v;
+			workprefs.win32_uaescsimode = v + 1;
 		    break;
 		    case IDC_LANGUAGE:
 		    if (HIWORD (wParam) == CBN_SELENDOK) {

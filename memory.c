@@ -1672,7 +1672,7 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     if (kickdisk && i > 262144)
 	i = 262144;
 
-    if (i != 8192 && i != 65536 && i != 131072 && i != 262144 && i != 524288 && i != 524288 * 2) {
+    if (i != 8192 && i != 65536 && i != 131072 && i != 262144 && i != 524288 && i != 524288 * 2 && i != 524288 * 4) {
 	notify_user (NUMSG_KSROMREADERROR);
 	return 0;
     }

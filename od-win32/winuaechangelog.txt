@@ -1,5 +1,17 @@
 
 
+Beta 1:
+
+- default ASPI detection selected (possibly non-existing) AdaptecASPI
+- Quickstart automatically selects working SCSI mode (uses setting from
+  default.uae if available, if not, selects "best" available)
+- 120b1 right border update fixed to work in interlaced modes (Unreal)
+- serial port "compatibility mode" enumeration added in 140b6 didn't
+  check if serial port buffer was already full (>=8 devices detected)
+  Added check and increased size of buffer.
+
+1.4.0
+
 Beta 10 (pre-final):
 
 - in some cases dskready signal was set active even if floppy drive

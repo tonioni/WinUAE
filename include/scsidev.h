@@ -17,9 +17,10 @@ void scsi_do_disk_change (int device_id, int insert);
 extern int log_scsi;
 
 #ifdef _WIN32
-#define UAESCSI_SPTI 0
-#define UAESCSI_SPTISCAN 1
-#define UAESCSI_ADAPTECASPI 2
-#define UAESCSI_NEROASPI 3
-#define UAESCSI_FROGASPI 4
+#define UAESCSI_SPTI 1
+#define UAESCSI_SPTISCAN 2
+#define UAESCSI_ASPI_FIRST 3
+#define UAESCSI_ADAPTECASPI 3
+#define UAESCSI_NEROASPI 4
+#define UAESCSI_FROGASPI 5
 #endif

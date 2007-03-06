@@ -1706,6 +1706,29 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *
 
 extern char *get_aspi_path(int);
 
+static get_aspi(int old)
+{
+    if ((old == UAESCSI_SPTI || old == UAESCSI_SPTISCAN) && os_winnt && os_winnt_admin)
+	return old;
+    if (old == UAESCSI_NEROASPI && get_aspi_path(1))
+	return old;
+    if (old == UAESCSI_FROGASPI && get_aspi_path(2))
+	return old;
+    if (old == UAESCSI_ADAPTECASPI && get_aspi_path(0))
+	return old;
+    if (os_winnt && os_winnt_admin)
+	return UAESCSI_SPTI;
+    else if (get_aspi_path(1))
+	return UAESCSI_NEROASPI;
+    else if (get_aspi_path(2))
+	return UAESCSI_FROGASPI;
+    else if (get_aspi_path(0))
+	return UAESCSI_ADAPTECASPI;
+    else if (os_winnt)
+	return UAESCSI_SPTI;
+    return UAESCSI_ADAPTECASPI;
+}
+
 void target_default_options (struct uae_prefs *p, int type)
 {
     if (type == 2 || type == 0) {
@@ -1727,18 +1750,19 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_automount_drives = 0;
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
-	p->win32_uaescsimode = get_aspi_path(1) ? 2 : ((os_winnt && os_winnt_admin) ? 0 : 1);
+	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
 	p->win32_outsidemouse = 0;
     }
     if (type == 1 || type == 0) {
+	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
 	p->win32_midioutdev = -2;
 	p->win32_midiindev = 0;
     }
 }
 
-static const char *scsimode[] = { "SPTI", "SPTI+SCSISCAN", "AdaptecASPI", "NeroASPI", 0 };
+static const char *scsimode[] = { "none", "SPTI", "SPTI+SCSISCAN", "AdaptecASPI", "NeroASPI", "FrogASPI", 0 };
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
@@ -1827,7 +1851,9 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_yesno (option, value, "aspi", &v)) {
 	p->win32_uaescsimode = 0;
 	if (v)
-	    p->win32_uaescsimode = get_aspi_path(1) ? 2 : 1;
+	    p->win32_uaescsimode = get_aspi(0);
+	if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
+	    p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
 	return 1;
     }
 

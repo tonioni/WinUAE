@@ -1201,34 +1201,17 @@ int enumserialports(void)
 		    break;
 	    }
 	    if (j == cnt) {
+		if (cnt >= MAX_SERIAL_PORTS)
+		    break;
 		comports[j].dev = xmalloc(100);
 		sprintf(comports[cnt].dev, "\\.\\\\%s", name);
 		comports[j].cfgname = my_strdup (name);
 		comports[j].name = my_strdup (name);
-	        write_log("SERPORT: '%s' = '%s' (%s)\n", comports[j].name, comports[j].dev, devname);
+		write_log("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
 		cnt++;
 	    }
 	}
     }
-#if 0
-    {
-	cnt = 0;
-	for(port = 0; port < MAX_SERIAL_PORTS; port++) {
-	    COMMCONFIG cc;
-	    sprintf(name, "COM%d", port);
-	    if(GetDefaultCommConfig(name, &cc, &size)) {
-		if (cnt < MAX_SERIAL_PORTS) {
-		    comports[cnt].dev = xmalloc(100);
-		    sprintf(comports[cnt].dev, "\\.\\\\%s", name);
-		    comports[cnt].cfgname = my_strdup (name);
-		    comports[cnt].name = my_strdup (name);
-		    write_log("SERPORT: '%s' = '%s'\n", comports[cnt].name, comports[cnt].dev);
-		    cnt++;
-		}
-	    }
-	}
-    }
-#endif
     write_log("Serial port enumeration end\n");
     return cnt;
 }

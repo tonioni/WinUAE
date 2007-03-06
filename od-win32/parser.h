@@ -33,7 +33,7 @@ void serialuartbreak (int);
 extern void unload_ghostscript (void);
 extern int load_ghostscript (void);
 
-#define MAX_SERIAL_PORTS 8
+#define MAX_SERIAL_PORTS 32
 struct serialportinfo
 {
     char *dev;

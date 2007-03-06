@@ -1002,7 +1002,9 @@ uae_u8 *gfx_lock_picasso (void)
 #if DX_INV == 0
 
 /* For the DX_Invalidate() and gfx_unlock_picasso() functions */
-static int p96_double_buffer_first, p96_double_buffer_last, p96_double_buffer_needs_flushing = 0;
+static int p96_double_buffer_firstx, p96_double_buffer_lastx;
+static int p96_double_buffer_first, p96_double_buffer_last;
+static int p96_double_buffer_needs_flushing = 0;
 
 void gfx_unlock_picasso (void)
 {
@@ -1015,9 +1017,10 @@ void gfx_unlock_picasso (void)
 		relock = TRUE;
 		unlockscr();
 	    }
-	    DX_Blit (0, p96_double_buffer_first, 
-		     0, p96_double_buffer_first, 
-		     currentmode->current_width, p96_double_buffer_last - p96_double_buffer_first + 1, 
+	    DX_Blit (p96_double_buffer_firstx, p96_double_buffer_first, 
+		     p96_double_buffer_firstx, p96_double_buffer_first, 
+		     p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
+		     p96_double_buffer_last - p96_double_buffer_first + 1, 
 		     BLIT_SRC);
 	    if (relock) {
 		lockscr();
@@ -1453,15 +1456,20 @@ void DX_SetPalette (int start, int count)
 
 void DX_Invalidate (int x, int y, int width, int height)
 {
-    int last;
+    int last, lastx;
     
     if (y < 0 || height < 0) {
 	y = 0;
 	height = picasso_vidinfo.height;
+	x = 0;
+	width = picasso_vidinfo.width;
     }
     last = y + height - 1;
+    lastx = x + width - 1;
     p96_double_buffer_first = y;
     p96_double_buffer_last  = last;
+    p96_double_buffer_firstx = x;
+    p96_double_buffer_lastx = lastx;
     p96_double_buffer_needs_flushing = 1;
 }
 
