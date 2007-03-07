@@ -1486,7 +1486,6 @@ void cfgfile_parse_line (struct uae_prefs *p, char *line, int type)
     if (!cfgfile_separate_line (line, line1b, line2b))
 	return;
     cfgfile_parse_separated_line (p, line1b, line2b, type);
-    return;
 }
 
 static void subst (char *p, char *f, int n)
@@ -2092,6 +2091,7 @@ static int getconfigstoreline (struct zfile *z, char *option, char *value)
     return cfgfile_separate_line (tmp, option, value);
 }
 
+#if 0
 static int cfgfile_handle_custom_event (char *custom, int mode)
 {
     char option[CONFIG_BLEN], value[CONFIG_BLEN];
@@ -2148,7 +2148,7 @@ static int cfgfile_handle_custom_event (char *custom, int mode)
 	return 1;
     return 0;
 }
-
+#endif
 
 int cmdlineparser (char *s, char *outp[], int max)
 {

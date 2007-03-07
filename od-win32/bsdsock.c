@@ -43,7 +43,7 @@ struct threadargs {
     uae_u32 args2;
     int args3;
     long args4;
-    char *args5;
+	char buf[MAXGETHOSTSTRUCT];
 };
 
 struct threadargsw {
@@ -69,7 +69,7 @@ struct bsdsockdata {
 	WSADATA wsbData;
 
 	volatile HANDLE hGetThreads[MAX_GET_THREADS];
-	volatile struct threadargs *threadGetargs[MAX_GET_THREADS];
+	volatile struct threadargs threadGetargs[MAX_GET_THREADS];
 	volatile int threadGetargs_inuse[MAX_GET_THREADS];
 	volatile HANDLE hGetEvents[MAX_GET_THREADS];
 
@@ -1953,35 +1953,33 @@ static BOOL CheckOnline(SB)
 
 static unsigned int thread_get2(void *indexp)
 {
-    int index = *((int*)indexp);
-    unsigned int result = 0;
-    volatile struct threadargs *argsp;
-	struct threadargs margs, *args;
-    uae_u32 name;
-    uae_u32 namelen;
-    long addrtype;
-    char *name_rp;
-    char *buf;
-    SB;
+	int index = *((int*)indexp);
+	unsigned int result = 0;
+	volatile struct threadargs *args;
+	uae_u32 name;
+	uae_u32 namelen;
+	long addrtype;
+	char *name_rp;
+	SB;
 
     for (;;) {
+
 		WaitForSingleObject(bsd->hGetEvents[index], INFINITE);
-		if (bsd->threadGetargs_inuse[index] == -1) {
+
+		if (bsd->threadGetargs_inuse[index] == -1)
 			bsd->threadGetargs_inuse[index] = 0;
-			bsd->threadGetargs[index] = NULL;
-		}
-		if ((argsp = bsd->threadGetargs[index]) != NULL) {
-			margs = *argsp;
-			args = &margs;
+
+		if (bsd->threadGetargs_inuse[index]) {
+			args = &bsd->threadGetargs[index];
 			sb = args->sb;
 
 			if (args->args1 == 0) {
+
 				// gethostbyname or gethostbyaddr
 				struct hostent *host;
 				name = args->args2;
 				namelen = args->args3;
 				addrtype = args->args4;
-				buf = args->args5;
 				name_rp = "";
 				if (addr_valid("thread_get1", name, 1))
 					name_rp = get_real_address(name);
@@ -2001,16 +1999,17 @@ static unsigned int thread_get2(void *indexp)
 							TRACE(("failed (%d) - ", sb->sb_errno));
 						} else {
 							bsdsocklib_seterrno(sb, 0);
-							memcpy(buf, host, sizeof(HOSTENT));
+							memcpy(args->buf, host, sizeof(HOSTENT));
 						}
 					}
 				}
+
 			} else if (args->args1 == 1) {
+
 				// getprotobyname
 				struct protoent  *proto;
 
 				name = args->args2;
-				buf = args->args5;
 				name_rp = "";
 				if (addr_valid("thread_get2", name, 1))
 					name_rp = get_real_address(name);
@@ -2022,10 +2021,12 @@ static unsigned int thread_get2(void *indexp)
 						TRACE(("failed (%d) - ", sb->sb_errno));
 					} else {
 						bsdsocklib_seterrno(sb, 0);
-						memcpy(buf, proto, sizeof(struct protoent));
+						memcpy(args->buf, proto, sizeof(struct protoent));
 					}
 				}
+
 			} else if (args->args1 == 2) {
+
 				// getservbyport and getservbyname
 				uae_u32 nameport;
 				uae_u32 proto;
@@ -2036,7 +2037,6 @@ static unsigned int thread_get2(void *indexp)
 				nameport = args->args2;
 				proto = args->args3;
 				type = args->args4;
-				buf = args->args5;
 	
 				if (proto) {
 					if (addr_valid("thread_get3", proto, 1))
@@ -2058,7 +2058,7 @@ static unsigned int thread_get2(void *indexp)
 						TRACE(("failed (%d) - ", sb->sb_errno));
 					} else {
 						bsdsocklib_seterrno(sb, 0);
-						memcpy(buf, serv, sizeof(struct servent));
+						memcpy(args->buf, serv, sizeof(struct servent));
 					}
 				}
 			}
@@ -2069,7 +2069,6 @@ static unsigned int thread_get2(void *indexp)
 				SETSIGNAL;
 
 		    bsd->threadGetargs_inuse[index] = 0;
-			bsd->threadGetargs[index] = NULL;
 
 		}
     }
@@ -2086,14 +2085,13 @@ static unsigned int __stdcall thread_get(void *p)
     return 0;
 }
 
-static int run_get_thread(TrapContext *context, SB, volatile struct threadargs *args)
+static volatile struct threadargs *run_get_thread(TrapContext *context, SB, struct threadargs *args)
 {
 	int i;
 
 	for (i = 0; i < MAX_GET_THREADS; i++)  {
 		if (bsd->threadGetargs_inuse[i] == -1) {
 			bsd->threadGetargs_inuse[i] = 0;
-			bsd->threadGetargs[i] = NULL;
 		}
 		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i])
 			break;
@@ -2124,7 +2122,7 @@ static int run_get_thread(TrapContext *context, SB, volatile struct threadargs *
 		return 0;
 	} else {
 		bsdsetpriority (bsd->hGetThreads[i]);
-		bsd->threadGetargs[i] = args;
+		memcpy (&bsd->threadGetargs[i], args, sizeof (struct threadargs));
 		bsd->threadGetargs_inuse[i] = 1;
 		SetEvent(bsd->hGetEvents[i]);
 	}
@@ -2137,7 +2135,7 @@ static int run_get_thread(TrapContext *context, SB, volatile struct threadargs *
 	}
 	CANCELSIGNAL;
 
-	return 1;
+	return &bsd->threadGetargs[i];
 }
 
 void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 namelen, long addrtype)
@@ -2148,16 +2146,21 @@ void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 name
 	char *name_rp;
 	int i;
 	struct threadargs args;
+	volatile struct threadargs *argsp;
 	uae_u32 addr;
 	uae_u32 *addr_list[2];
-	char buf[MAXGETHOSTSTRUCT];
+	volatile char *buf;
 	unsigned int wMsg = 0;
 
 //	char on	= 1;
 //	InternetSetOption(0,INTERNET_OPTION_SETTINGS_CHANGED,&on,strlen(&on));
 //  Do not use:	Causes locks with some machines
 
+	memset(&args, 0, sizeof (args));
+	argsp = &args;
+	buf = argsp->buf;
 	name_rp = "";
+
 	if (addr_valid("host_gethostbynameaddr", name, 1))
 		name_rp = get_real_address(name);
 
@@ -2181,15 +2184,16 @@ void host_gethostbynameaddr(TrapContext *context, SB, uae_u32 name, uae_u32 name
 		TRACE(("gethostbyaddr(0x%lx,0x%lx,%ld) -> ",name,namelen,addrtype));
 	}
 
-	args.sb = sb;
-	args.args1 = 0;
-	args.args2 = name;
-	args.args3 = namelen;
-	args.args4 = addrtype;
-	args.args5 = buf;
+	argsp->sb = sb;
+	argsp->args1 = 0;
+	argsp->args2 = name;
+	argsp->args3 = namelen;
+	argsp->args4 = addrtype;
 
-	if (!run_get_thread(context, sb, &args))
+	argsp = run_get_thread(context, sb, &args);
+	if (!argsp)
 		return;
+	buf = argsp->buf;
 
 	if (!sb->sb_errno) {
 kludge:
@@ -2259,7 +2263,7 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 	char *name_rp;
 	int i;
 	struct threadargs args;
-	char buf[MAXGETHOSTSTRUCT];
+	volatile struct threadargs *argsp;
 
 	name_rp = "";
 	if (addr_valid("host_gethostbynameaddr", name, 1))
@@ -2267,16 +2271,18 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 
 	TRACE(("getprotobyname(%s) -> ",name_rp));
 
-	args.sb = sb;
-	args.args1 = 1;
-	args.args2 = name;
-	args.args5 = buf;
+	memset(&args, 0, sizeof (args));
+	argsp = &args;
+	argsp->sb = sb;
+	argsp->args1 = 1;
+	argsp->args2 = name;
 
-	if (!run_get_thread(context, sb, &args))
+	argsp = run_get_thread(context, sb, &args);
+	if (!argsp)
 		return;
 
 	if (!sb->sb_errno) {
-		p = (PROTOENT *)buf;
+		p = (PROTOENT *)argsp->buf;
 
 		// compute total size of protoent
 		size = 16;
@@ -2334,9 +2340,8 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 	uae_u32 aptr;
 	char *name_rp = NULL, *proto_rp = NULL;
 	int i;
-
-	char buf[MAXGETHOSTSTRUCT];
 	struct threadargs args;
+	volatile struct threadargs *argsp;
 
 	if (proto) {
 		if (addr_valid("host_getservbynameport1", proto, 1))
@@ -2351,18 +2356,20 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 		TRACE(("getservbyname(%s,%s) -> ",name_rp,proto_rp ? proto_rp : "NULL"));
 	}
 
-	args.sb = sb;
-	args.args1 = 2;
-	args.args2 = nameport;
-	args.args3 = proto;
-	args.args4 = type;
-	args.args5 = buf;
+	memset(&args, 0, sizeof (args));
+	argsp = &args;
+	argsp->sb = sb;
+	argsp->args1 = 2;
+	argsp->args2 = nameport;
+	argsp->args3 = proto;
+	argsp->args4 = type;
 
-	if (!run_get_thread(context, sb, &args))
+	argsp = run_get_thread(context, sb, &args);
+	if (!argsp)
 		return;
 
 	if (!sb->sb_errno) {
-		s = (SERVENT *)buf;
+		s = (SERVENT *)argsp->buf;
 
 		// compute total size of servent
 		size = 20;

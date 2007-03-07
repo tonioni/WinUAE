@@ -424,7 +424,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *
 	    *p = 0;
 	}
 	if (custom)
-	    sprintf (p, "'%s'.%d", custom, id->flags[i + offset][j]);
+	    sprintf (p, "'%s'.%d", custom, id->flags[i + offset][j] & 0xff);
 	else if (event <= 0)
 	    sprintf (p, "NULL");
 	else
@@ -507,7 +507,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 		*p = 0;
 	    }
 	    if (custom)
-		sprintf (p, "'%s'.%d", custom, kbr->flags[i][j]);
+		sprintf (p, "'%s'.%d", custom, kbr->flags[i][j] & 0xff);
 	    else if (evt > 0)
 		sprintf (p, "%s.%d", events[evt].confname, kbr->flags[i][j]);
 	    else
@@ -701,9 +701,17 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	}
 	flags = getnum (&p);
 	if (custom == NULL && ie->name == NULL) {
-	    if (!strcmp(p2,"NULL")) {
-		id->eventid[keynum][subnum] = 0;
-		id->flags[keynum][subnum] = 0;
+	    if (!strcmp(p2, "NULL")) {
+		if (joystick < 0) {
+		    id->eventid[keynum][subnum] = 0;
+		    id->flags[keynum][subnum] = 0;
+		} else if (button) {
+		    id->eventid[num + ID_BUTTON_OFFSET][subnum] = 0;
+		    id->flags[num + ID_BUTTON_OFFSET][subnum] = 0;
+		} else {
+		    id->eventid[num + ID_AXIS_OFFSET][subnum] = 0;
+		    id->flags[num + ID_AXIS_OFFSET][subnum] = 0;
+		}
 	    }
 	    continue;
 	}
@@ -1457,8 +1465,10 @@ void inputdevice_do_keyboard (int code, int state)
 
 void inputdevice_handle_inputcode (void)
 {
+    static int swapperslot;
     int code = inputcode_pending;
     int state = inputcode_pending_state;
+
     inputcode_pending = 0;
     if (code == 0)
 	return;
@@ -1615,7 +1625,66 @@ void inputdevice_handle_inputcode (void)
 	    changed_prefs.chipset_refreshrate = 900;
     }
     break;
+    case AKS_DISKSWAPPER_NEXT:
+	swapperslot++;
+	if (swapperslot >= MAX_SPARE_DRIVES || currprefs.dfxlist[swapperslot][0] == 0)
+	    swapperslot = 0;
+    break;
+    case AKS_DISKSWAPPER_PREV:
+	swapperslot--;
+	if (swapperslot < 0)
+	    swapperslot = MAX_SPARE_DRIVES - 1;
+	while (swapperslot > 0) {
+	    if (currprefs.dfxlist[swapperslot][0])
+		break;
+	    swapperslot--;
+	}
+    break;
+    case AKS_DISKSWAPPER_INSERT0:
+    case AKS_DISKSWAPPER_INSERT1:
+    case AKS_DISKSWAPPER_INSERT2:
+    case AKS_DISKSWAPPER_INSERT3:
+        strcpy (changed_prefs.df[code - AKS_DISKSWAPPER_INSERT0], currprefs.dfxlist[swapperslot]);
+    break;
+
+    break;
+    case AKS_INPUT_CONFIG_1:
+    case AKS_INPUT_CONFIG_2:
+    case AKS_INPUT_CONFIG_3:
+    case AKS_INPUT_CONFIG_4:
+	changed_prefs.input_selected_setting = currprefs.input_selected_setting = code - AKS_INPUT_CONFIG_1 + 1;
+	inputdevice_updateconfig (&currprefs);
+    break;
     }
+}
+
+int handle_custom_event (char *custom)
+{
+    char *p, *buf, *nextp;
+
+    if (custom == NULL)
+	return 0;
+    p = buf = my_strdup (custom);
+    while (p && *p) {
+        char *p2;
+	if (*p != '\"')
+	    break;
+	p++;
+	p2 = p;
+	while (*p2 != '\"' && *p2 != 0)
+	    p2++;
+	if (*p2 == '\"') {
+	    *p2++ = 0;
+	    nextp = p2 + 1;
+	    while (*nextp == ' ')
+	        nextp++;
+	}
+	write_log("'%s'\n", p);
+	cfgfile_parse_line (&changed_prefs, p, 0);
+	p = nextp;
+    }
+    xfree(buf);
+    return 0;
 }
 
 int handle_input_event (int nr, int state, int max, int autofire)
@@ -1827,13 +1896,38 @@ static int switchdevice(struct uae_input_device *id, int num)
     return 0;
 }
 
+static void process_custom_event (struct uae_input_device *id, int offset, int state)
+{
+    int idx = -1;
+    int custompos = (id->flags[offset][0] >> 15) & 1;
+    char *custom;
+
+    if (state < 0) {
+        idx = 0;
+        custompos = 0;
+    } else {
+        idx = state > 0 ? 0 : 1;
+        if (custompos)
+	    idx += 2;
+	if (state == 0)
+	    custompos ^= 1;
+    }
+    custom = id->custom[offset][idx];
+    if (custom == NULL) {
+        if (idx >= 2)
+	    custom = id->custom[offset][idx - 2];
+    }
+    handle_custom_event (custom);
+    id->flags[offset][0] &= ~0x8000;
+    id->flags[offset][0] |= custompos << 15;
+}
+
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)
 {
-    int event, autofire, i;
+    int evt, autofire, i;
     uae_u32 mask = 1 << button;
     uae_u32 omask = id2->buttonmask & mask;
     uae_u32 nmask = (state ? 1 : 0) << button;
-    char *custom;
 
     if (!id->enabled) {
 	if (state)
@@ -1842,20 +1936,24 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
     }
     if (button >= ID_BUTTON_TOTAL)
 	return;
+
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-	event = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
-	custom = id->custom[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
-	if (event <= 0 && custom == NULL)
-	    continue;
+	evt = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
 	autofire = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 	if (state < 0) {
-	    handle_input_event (event, 1, 1, 0);
-	    queue_input_event (event, 0, 1, 1, 0); /* send release event next frame */
+	    handle_input_event (evt, 1, 1, 0);
+	    queue_input_event (evt, 0, 1, 1, 0); /* send release event next frame */
+	    if (i == 0)
+		process_custom_event (id, ID_BUTTON_OFFSET + button, state);
 	} else {
-	    if ((omask ^ nmask) & mask)
-		handle_input_event (event, state, 1, autofire);
+	    if ((omask ^ nmask) & mask) {
+		handle_input_event (evt, state, 1, autofire);
+		if (i == 0)
+		    process_custom_event (id, ID_BUTTON_OFFSET + button, state);
+	    }
 	}
     }
+
     if ((omask ^ nmask) & mask) {
 	if (state)
 	    id2->buttonmask |= mask;
@@ -2222,10 +2320,10 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 	if (na->extra[j][0] == scancode) {
 	    for (k = 0; k < MAX_INPUT_SUB_EVENT; k++) {/* send key release events in reverse order */
 		int autofire = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
-		int event = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
-		char *custom = na->custom[j][sublevdir[state == 0 ? 1 : 0][k]];
-		handled |= handle_input_event (event, state, 1, autofire);
+		int evt = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
+		handled |= handle_input_event (evt, state, 1, autofire);
 	    }
+	    process_custom_event (na, j, state);
 	    return handled;
 	}
 	j++;
@@ -2362,13 +2460,13 @@ static int put_event_data (struct inputdevice_functions *id, int devnum, int num
 static int is_event_used (struct inputdevice_functions *id, int devnum, int isnum, int isevent)
 {
     struct uae_input_device *uid = get_uid (id, devnum);
-    int num, event, flag, sub;
+    int num, evt, flag, sub;
     char *custom;
 
     for (num = 0; num < id->get_widget_num (devnum); num++) {
 	for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-	    if (get_event_data (id, devnum, num, &event, &custom, &flag, sub) >= 0) {
-		if (event == isevent && isnum != num)
+	    if (get_event_data (id, devnum, num, &evt, &custom, &flag, sub) >= 0) {
+		if (evt == isevent && isnum != num)
 		    return 1;
 	    }
 	}
@@ -2490,7 +2588,8 @@ int inputdevice_iterate (int devnum, int num, char *name, int *af)
 		    ie2++;
 		    continue;
 		}
-		if (ie2->allow_mask & mask) break;
+		if (ie2->allow_mask & mask)
+		    break;
 		ie2++;
 	    }
 	    if (!(ie2->allow_mask & AM_INFO))

@@ -1,14 +1,37 @@
 
+Beta 2:
 
+- better bsdsocket threading fix, should finally fix random crashes.
+- diskswapper input-panel input targets added (next/prev/insert)
+- change input configuration (1-4) input target added
+- custom input targets added, experimental, not in GUI yet, need manual
+  configuration file editing, syntax:
+  <anything>.button.x=<press>,<release>,<secondary press>,<sec. release>
+  press/release = key down/up, joystick button down/up
+  secondary = toggle-mode (first press uses "press" event, second press
+  uses "secondary press", third press is again "press" event etc..)
+  format of single event: '"entry=value"'.0 "unlimited" multiple
+  entry/value pairs supported: '"entry1=value1" "entry2=value2"'.0
+  empty event: NULL.0
+  Examples:
+  - toggle onscreen leds:
+  '"show_leds=false"'.0,NULL.0,'"show_leds=true"'.0
+  - refresh rate = 100 while key/button is kept down:
+  '"chipset_refreshrate=100"'.0,'"chipset_refreshrate=50"'.0
+  NOTES: format can change in future, toggle-mode may be added to regular
+  input event mapping system in future version.
+  BTW: custom input was implemented ages ago but it was not enabled until
+  now... (I forgot it..)
+  
 Beta 1:
 
+- startup crash fixed if serial port enumeration detected more than
+  8 ports. (broke in 140b6 when "compatibility mode" enumeration was
+  added) Also increased max amount of supported serial ports
 - default ASPI detection selected (possibly non-existing) AdaptecASPI
-- Quickstart automatically selects working SCSI mode (uses setting from
-  default.uae if available, if not, selects "best" available)
+- Quickstart now automatically selects working SCSI mode (uses setting
+  from default.uae if available, if not, selects "best" available)
 - 120b1 right border update fixed to work in interlaced modes (Unreal)
-- serial port "compatibility mode" enumeration added in 140b6 didn't
-  check if serial port buffer was already full (>=8 devices detected)
-  Added check and increased size of buffer.
 
 1.4.0
 
