@@ -234,6 +234,7 @@
 #define IDS_SOUND_SWAP_AHI              250
 #define IDD_PROGRESSBAR                 250
 #define IDS_SOUND_SWAP_BOTH             251
+#define IDD_STRINGBOX                   251
 #define IDB_BITMAP1                     252
 #define IDB_LCD160X43                   252
 #define IDS_SOUND_FILTER_ON_AGA         252
@@ -242,6 +243,7 @@
 #define IDS_DRIVESOUND_PC_FLOPPY        254
 #define IDS_FLOPPYTYPE35DDESCOM         255
 #define IDS_SOUND_STEREO2               256
+#define IDS_INPUT_CUSTOMEVENT           257
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -841,7 +843,9 @@
 #define IDC_CS_COMPATIBLE               1714
 #define IDC_CS_RAMSEYREV                1715
 #define IDC_CS_KSMIRROR                 1716
+#define IDC_STRINGBOXEDIT               1716
 #define IDC_CS_CD32CD                   1717
+#define IDC_STRINGBOX_TEXT              1717
 #define IDC_CS_CD32C2P                  1718
 #define IDC_CS_CD32NVRAM                1719
 #define IDC_CS_CDTVCD                   1720
@@ -888,7 +892,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40021
-#define _APS_NEXT_CONTROL_VALUE         1716
+#define _APS_NEXT_CONTROL_VALUE         1718
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

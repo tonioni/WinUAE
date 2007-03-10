@@ -2253,7 +2253,7 @@ void memory_reset (void)
 	memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
 	if (savestate_state != STATE_RESTORE)
 	    memory_hardreset();
-	xfree (extendedkickmemory);
+	mapped_free (extendedkickmemory);
 	extendedkickmemory = 0;
 	extendedkickmem_size = 0;
 	extendedkickmem_type = 0;

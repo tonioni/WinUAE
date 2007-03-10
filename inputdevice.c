@@ -86,6 +86,7 @@ struct inputevent {
 #define AM_AF 32 /* supports autofire */
 #define AM_INFO 64 /* information data for gui */
 #define AM_DUMMY 128 /* placeholder */
+#define AM_CUSTOM 256 /* custom event */
 #define AM_K (AM_KEY|AM_JOY_BUT|AM_MOUSE_BUT|AM_AF) /* generic button/switch */
 
 /* event flags */
@@ -1564,6 +1565,15 @@ void inputdevice_handle_inputcode (void)
     case AKS_VOLMUTE:
 	sound_volume (0);
 	break;
+    case AKS_MVOLDOWN:
+	master_sound_volume (-1);
+	break;
+    case AKS_MVOLUP:
+	master_sound_volume (1);
+	break;
+    case AKS_MVOLMUTE:
+	master_sound_volume (0);
+	break;
     case AKS_QUIT:
 	uae_quit ();
 	break;
@@ -2109,50 +2119,25 @@ static void compatibility_mode (struct uae_prefs *prefs)
     }
 
     if ((joy = jsem_ismouse (0, prefs)) >= 0) {
-	mice[joy].eventid[ID_AXIS_OFFSET + 0][0] = INPUTEVENT_MOUSE1_HORIZ;
-	mice[joy].eventid[ID_AXIS_OFFSET + 1][0] = INPUTEVENT_MOUSE1_VERT;
-	mice[joy].eventid[ID_AXIS_OFFSET + 2][0] = INPUTEVENT_MOUSE1_WHEEL;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY1_FIRE_BUTTON;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY1_2ND_BUTTON;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY1_3RD_BUTTON;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 3][0] = INPUTEVENT_KEY_ALT_LEFT;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 3][1] = INPUTEVENT_KEY_CURSOR_LEFT;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 4][0] = INPUTEVENT_KEY_ALT_LEFT;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 4][1] = INPUTEVENT_KEY_CURSOR_RIGHT;
+	input_get_default_mouse (mice, joy, 0);
 	mice[joy].enabled = 1;
     }
     if ((joy = jsem_ismouse (1, prefs)) >= 0) {
-	mice[joy].eventid[ID_AXIS_OFFSET + 0][0] = INPUTEVENT_MOUSE2_HORIZ;
-	mice[joy].eventid[ID_AXIS_OFFSET + 1][0] = INPUTEVENT_MOUSE2_VERT;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY2_FIRE_BUTTON;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY2_2ND_BUTTON;
-	mice[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY2_3RD_BUTTON;
+	input_get_default_mouse (mice, joy, 1);
 	mice[joy].enabled = 1;
     }
 
     joy = jsem_isjoy (1, prefs);
     if (joy >= 0) {
-	joysticks[joy].eventid[ID_AXIS_OFFSET + 0][0] = INPUTEVENT_JOY2_HORIZ;
-	joysticks[joy].eventid[ID_AXIS_OFFSET + 1][0] = INPUTEVENT_JOY2_VERT;
 	used[joy] = 1;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY2_FIRE_BUTTON;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY2_2ND_BUTTON;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY2_3RD_BUTTON;
-#ifdef CD32
-	if (currprefs.cs_cd32cd)
-	    setcd32 (joy, 1);
-#endif
+	input_get_default_joystick (joysticks, joy, 1);
 	joysticks[joy].enabled = 1;
     }
 
     joy = jsem_isjoy (0, prefs);
     if (joy >= 0) {
 	used[joy] = 1;
-	joysticks[joy].eventid[ID_AXIS_OFFSET + 0][0] = INPUTEVENT_JOY1_HORIZ;
-	joysticks[joy].eventid[ID_AXIS_OFFSET + 1][0] = INPUTEVENT_JOY1_VERT;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 0][0] = INPUTEVENT_JOY1_FIRE_BUTTON;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 1][0] = INPUTEVENT_JOY1_2ND_BUTTON;
-	joysticks[joy].eventid[ID_BUTTON_OFFSET + 2][0] = INPUTEVENT_JOY1_3RD_BUTTON;
+	input_get_default_joystick (joysticks, joy, 0);
 	joysticks[joy].enabled = 1;
     }
 
@@ -2286,7 +2271,7 @@ static void set_kbr_default (struct uae_prefs *p, int index, int num)
 
 void inputdevice_default_prefs (struct uae_prefs *p)
 {
-    int i;
+    int i, j;
 
     inputdevice_init ();
     p->input_joymouse_multiplier = 20;
@@ -2297,8 +2282,12 @@ void inputdevice_default_prefs (struct uae_prefs *p)
     p->input_autofire_framecnt = 10;
     for (i = 0; i <= MAX_INPUT_SETTINGS; i++) {
 	set_kbr_default (p, i, 0);
-	input_get_default_mouse (p->mouse_settings[i]);
-	input_get_default_joystick (p->joystick_settings[i]);
+	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+	    if (input_get_default_mouse (p->mouse_settings[i], j, j & 1))
+		p->mouse_settings[i]->enabled = 1;
+	    if (input_get_default_joystick (p->joystick_settings[i], j, j & 1))
+		p->joystick_settings[i]->enabled = 1;
+	}
     }
 }
 
@@ -2623,7 +2612,7 @@ int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, c
     if (get_event_data (idf, devindex, num, &data, &customp, &flag, sub) < 0)
 	return 0;
     if (customp && custom)
-	sprintf (custom, "\"%s\"", customp);
+	strcpy (custom, customp);
     if (flag & ID_FLAG_AUTOFIRE)
 	flags |= IDEV_MAPPED_AUTOFIRE_SET;
     if (!data)
@@ -2643,6 +2632,7 @@ int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int 
     int eid, data, flag, amask;
     char ename[256];
     int devindex = inputdevice_get_device_index (devnum);
+    char *customp = NULL;
 
     if (uid == 0 || num < 0)
 	return 0;
@@ -2660,7 +2650,7 @@ int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int 
     } else {
 	eid = 0;
     }
-    if (get_event_data (idf, devindex, num, &data, &custom, &flag, sub) < 0)
+    if (get_event_data (idf, devindex, num, &data, &customp, &flag, sub) < 0)
 	return 0;
     if (data >= 0) {
 	amask = events[eid].allow_mask;

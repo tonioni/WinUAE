@@ -1,4 +1,16 @@
 
+Beta 3:
+
+- map POV Hat to joystick up/down and left/right by default
+- added master volume (Windows main volume) control input targets
+  default: END+CTRL+(numpad - and +, * = mute on/off)
+  (without CTRL = WinUAE-only volume control) Also master volume
+  mapped by default to "multimedia" vol down/up/mute keys.
+- custom input targets editable in GUI now (not very intuitive but
+  whole input panel isn't too intuitive. someday..)
+- fixed crash when switching from CD32/CDTV mode to A500 mode
+- input panel input list can be browsed in "compatibility mode"
+
 Beta 2:
 
 - better bsdsocket threading fix, should finally fix random crashes.

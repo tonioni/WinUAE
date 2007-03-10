@@ -154,9 +154,9 @@ static struct uae_input_device_kbr_default keytrans[] = {
     { DIK_SLASH, INPUTEVENT_KEY_DIV },
     { DIK_OEM_102, INPUTEVENT_KEY_30 },
 
-    { DIK_VOLUMEDOWN, INPUTEVENT_SPC_VOLUME_DOWN },
-    { DIK_VOLUMEUP, INPUTEVENT_SPC_VOLUME_UP },
-    { DIK_MUTE, INPUTEVENT_SPC_VOLUME_MUTE },
+    { DIK_VOLUMEDOWN, INPUTEVENT_SPC_MASTER_VOLUME_DOWN },
+    { DIK_VOLUMEUP, INPUTEVENT_SPC_MASTER_VOLUME_UP },
+    { DIK_MUTE, INPUTEVENT_SPC_MASTER_VOLUME_MUTE },
 
     { DIK_HOME, INPUTEVENT_KEY_70 },
     { DIK_END, INPUTEVENT_KEY_71 },
@@ -461,6 +461,8 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_DECREASEREFRESHRATE;
+		else if (ctrlpressed ())
+		    code = AKS_MVOLDOWN;
 		else
 		    code = AKS_VOLDOWN;
 	    }
@@ -469,13 +471,19 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (specialpressed ()) {
 		if (shiftpressed ())
 		    code = AKS_INCREASEREFRESHRATE;
+		else if (ctrlpressed ())
+		    code = AKS_MVOLUP;
 		else
 		    code = AKS_VOLUP;
 	    }
 	    break;
 	    case DIK_NUMPADSTAR:
-	    if (specialpressed ())
-		code = AKS_VOLMUTE;
+	    if (specialpressed ()) {
+		if (ctrlpressed())
+		    code = AKS_MVOLMUTE;
+		else
+		    code = AKS_VOLMUTE;
+	    }
 	    break;
 	    case DIK_NUMPADSLASH:
 	    if (specialpressed ())

@@ -753,6 +753,163 @@ char **enumerate_sound_devices (int *total)
     return 0;
 }
 
+#include <mmdeviceapi.h>
+#include <endpointvolume.h> 
+
+/*
+    Based on
+    http://blogs.msdn.com/larryosterman/archive/2007/03/06/how-do-i-change-the-master-volume-in-windows-vista.aspx
+
+*/
+const static GUID XIID_MMDeviceEnumerator = {0xBCDE0395,0xE52F,0x467C,
+    {0x8E,0x3D,0xC4,0x57,0x92,0x91,0x69,0x2E}};
+const static GUID XIID_IMMDeviceEnumerator = {0xA95664D2,0x9614,0x4F35,
+    {0xA7,0x46,0xDE,0x8D,0xB6,0x36,0x17,0xE6}};
+const static GUID XIID_IAudioEndpointVolume = {0x5CDF2C82, 0x841E,0x4546,
+    {0x97,0x22,0x0C,0xF7,0x40,0x78,0x22,0x9A}};
+
+static int setget_master_volume_vista(int setvolume, int *volume, int *mute)
+{
+    IMMDeviceEnumerator *deviceEnumerator = NULL;
+    IMMDevice *defaultDevice = NULL; 
+    IAudioEndpointVolume *endpointVolume = NULL;
+    HRESULT hr;
+    int ok = 0;
+
+    hr = CoInitialize(NULL);
+    if (FAILED(hr))
+	return 0;
+    hr = CoCreateInstance(&XIID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &XIID_IMMDeviceEnumerator, (LPVOID *)&deviceEnumerator);
+    if (FAILED(hr))
+	return 0;
+    hr = deviceEnumerator->lpVtbl->GetDefaultAudioEndpoint(deviceEnumerator, eRender, eConsole, &defaultDevice);
+    if (SUCCEEDED(hr)) {
+	hr = defaultDevice->lpVtbl->Activate(defaultDevice, &XIID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, NULL, (LPVOID *)&endpointVolume);
+	if (SUCCEEDED(hr)) {
+	    if (setvolume) {
+		if (SUCCEEDED(endpointVolume->lpVtbl->SetMasterVolumeLevelScalar(endpointVolume, (float)(*volume) / (float)65535.0, NULL)))
+		    ok++;
+		if (SUCCEEDED(endpointVolume->lpVtbl->SetMute(endpointVolume, *mute, NULL)))
+		    ok++;
+	    } else {
+		float vol;
+		if (SUCCEEDED(endpointVolume->lpVtbl->GetMasterVolumeLevelScalar(endpointVolume, &vol))) {
+		    ok++;
+		    *volume = vol * 65535.0;
+		}
+		if (SUCCEEDED(endpointVolume->lpVtbl->GetMute(endpointVolume, mute))) {
+		    ok++;
+		}
+	    }
+	    endpointVolume->lpVtbl->Release(endpointVolume); 
+	}
+	defaultDevice->lpVtbl->Release(defaultDevice);
+    }
+    deviceEnumerator->lpVtbl->Release(deviceEnumerator);
+    CoUninitialize();
+    return ok == 2;
+}
+
+static void mcierr(char *str, DWORD err)
+{
+    char es[1000];
+    if (err == MMSYSERR_NOERROR)
+	return;
+    if (mciGetErrorString(err, es, sizeof es))
+	write_log("MCIErr: %s: %d = '%s'\n", str, err, es);
+    else
+	write_log("%s, errcode=%d\n", str, err);
+}
+/* from http://www.codeproject.com/audio/mixerSetControlDetails.asp */
+static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
+{
+    MMRESULT result;
+    HMIXER hMixer;
+    MIXERLINE ml = {0};
+    MIXERLINECONTROLS mlc = {0};
+    MIXERCONTROL mc = {0};
+    MIXERCONTROLDETAILS mcd = {0};
+    MIXERCONTROLDETAILS_UNSIGNED mcdu = {0};
+    MIXERCONTROLDETAILS_BOOLEAN mcb = {0};
+    int ok = 0;
+
+    result = mixerOpen(&hMixer, 0, 0, 0, MIXER_OBJECTF_MIXER);
+    if (result == MMSYSERR_NOERROR) {
+	ml.cbStruct = sizeof(MIXERLINE);
+	ml.dwComponentType = MIXERLINE_COMPONENTTYPE_DST_SPEAKERS;
+	result = mixerGetLineInfo((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
+	if (result == MIXERR_INVALLINE) {
+	    ml.dwComponentType = MIXERLINE_COMPONENTTYPE_DST_DIGITAL;
+	    result = mixerGetLineInfo((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
+	}
+        if (result == MMSYSERR_NOERROR) {
+	    mlc.cbStruct = sizeof(MIXERLINECONTROLS);
+	    mlc.dwLineID = ml.dwLineID;
+	    mlc.dwControlType = MIXERCONTROL_CONTROLTYPE_VOLUME;
+	    mlc.cControls = 1;
+	    mlc.pamxctrl = &mc;
+	    mlc.cbmxctrl = sizeof(MIXERCONTROL);
+	    result = mixerGetLineControls((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
+	    if (result == MMSYSERR_NOERROR) {
+		mcd.cbStruct = sizeof(MIXERCONTROLDETAILS);
+		mcd.hwndOwner = 0;
+		mcd.dwControlID = mc.dwControlID;
+		mcd.paDetails = &mcdu;
+		mcd.cbDetails = sizeof(MIXERCONTROLDETAILS_UNSIGNED);
+		mcd.cChannels = 1;
+		mcdu.dwValue = 0;
+		if (setvolume) {
+		    mcdu.dwValue = *volume;
+		    result = mixerSetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
+		} else {
+		    result = mixerGetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
+		    *volume = mcdu.dwValue;
+		}
+		mlc.dwControlType = MIXERCONTROL_CONTROLTYPE_MUTE;
+		result = mixerGetLineControls((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
+		if (result == MMSYSERR_NOERROR) {
+		    mcd.paDetails = &mcb;
+		    mcd.dwControlID = mc.dwControlID;
+		    mcb.fValue = 0;
+		    mcd.cbDetails = sizeof(MIXERCONTROLDETAILS_BOOLEAN);
+		    if (setvolume) {
+			mcb.fValue    = *mute; 
+			result = mixerSetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
+		    } else {
+			result = mixerGetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
+			*mute = mcb.fValue;
+		    }
+		    if (result == MMSYSERR_NOERROR)
+			ok = 1;
+		} else
+		    mcierr("mixerGetLineControls Mute", result);
+	    } else
+		mcierr("mixerGetLineControls Volume", result);
+	} else
+	    mcierr("mixerGetLineInfo", result);
+	mixerClose(hMixer);
+    } else
+	mcierr("mixerOpen", result);
+    return ok;
+}
+
+static int set_master_volume(int volume, int mute)
+{
+    if (os_vista)
+	return setget_master_volume_vista (1, &volume, &mute);
+    else
+	return setget_master_volume_xp (1, &volume, &mute);
+}
+static int get_master_volume(int *volume, int *mute)
+{
+    *volume = 0;
+    *mute = 0;
+    if (os_vista)
+	return setget_master_volume_vista (0, volume, mute);
+    else
+	return setget_master_volume_xp (0, volume, mute);
+}
+
 void sound_volume (int dir)
 {
     if (dir == 0)
@@ -764,4 +921,20 @@ void sound_volume (int dir)
 	currprefs.sound_volume = 100;
     changed_prefs.sound_volume = currprefs.sound_volume;
     setvolume ();
+}
+void master_sound_volume (int dir)
+{
+    int vol, mute, r;
+
+    r = get_master_volume (&vol, &mute);
+    if (!r)
+	return;
+    if (dir == 0)
+	mute = mute ? 0 : 1;
+    vol += dir * (65536 / 10);
+    if (vol < 0)
+	vol = 0;
+    if (vol > 65535)
+	vol = 65535;
+    set_master_volume (vol, mute);
 }

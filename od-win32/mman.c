@@ -225,33 +225,35 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"chip")) {
 	    shmaddr=natmem_offset;
 	    got = TRUE;
+	    if (currprefs.fastmem_size == 0 || currprefs.chipmem_size < 2 * 1024 * 1024)
+		size += 32;
 	}
 	if(!strcmp(shmids[shmid].name,"kick")) {
-	    shmaddr=natmem_offset+0xf80000;
+	    shmaddr=natmem_offset + 0xf80000;
 	    got = TRUE;
-	    size+=32;
+	    size += 32;
 	}
 	if(!strcmp(shmids[shmid].name,"rom_a8")) {
-	    shmaddr=natmem_offset+0xa80000;
+	    shmaddr=natmem_offset + 0xa80000;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"rom_e0")) {
-	    shmaddr=natmem_offset+0xe00000;
+	    shmaddr=natmem_offset + 0xe00000;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"rom_f0")) {
-	    shmaddr=natmem_offset+0xf00000;
+	    shmaddr=natmem_offset + 0xf00000;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"rtarea")) {
-	    shmaddr=natmem_offset+RTAREA_BASE;
+	    shmaddr=natmem_offset + RTAREA_BASE;
 	    got = TRUE;
-	    size+=32;
+	    size += 32;
 	}
 	if(!strcmp(shmids[shmid].name,"fast")) {
-	    shmaddr=natmem_offset+0x200000;
+	    shmaddr=natmem_offset + 0x200000;
 	    got = TRUE;
-	    size+=32;
+	    size += 32;
 	}
 	if(!strcmp(shmids[shmid].name,"ramsey_low")) {
 	    shmaddr=natmem_offset + a3000lmem_start;
@@ -287,21 +289,21 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		size+=32;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
-	    result=natmem_offset+0x10000;
+	    result=natmem_offset + 0x10000;
 	    shmids[shmid].attached=result;
 	    return result;
 	}
 	if(!strcmp(shmids[shmid].name,"arcadia")) {
-	    result=natmem_offset+0x10000;
+	    result=natmem_offset + 0x10000;
 	    shmids[shmid].attached=result;
 	    return result;
 	}
 	if(!strcmp(shmids[shmid].name,"hrtmon")) {
-	    shmaddr=natmem_offset+0x00a10000;
+	    shmaddr=natmem_offset + 0x00a10000;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"arhrtmon")) {
-	    shmaddr=natmem_offset+0x00800000;
+	    shmaddr=natmem_offset + 0x00800000;
 	    got = TRUE;
 	}
 }

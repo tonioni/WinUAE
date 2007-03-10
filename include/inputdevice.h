@@ -64,8 +64,8 @@ extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
 extern int inputdevice_get_widget_type (int devnum, int num, char *name);
 
-extern void input_get_default_mouse (struct uae_input_device *uid);
-extern void input_get_default_joystick (struct uae_input_device *uid);
+extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port);
+extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port);
 
 #define DEFEVENT(A, B, C, D, E, F) INPUTEVENT_ ## A,
 enum inputevents {

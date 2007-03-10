@@ -2133,7 +2133,7 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	    recursive++;
 	
-	    switch( wParam ) 
+	    switch(wParam) 
 	    {
 		case IDC_SELECTOR:
 		    DiskSelection (hDlg, IDC_PATH_NAME, 8, &workprefs, 0);
@@ -2146,7 +2146,7 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	    }
 	
-	    GetDlgItemText( hDlg, IDC_PATH_NAME, workprefs.info, sizeof workprefs.info );
+	    GetDlgItemText(hDlg, IDC_PATH_NAME, workprefs.info, sizeof workprefs.info);
 	    recursive--;
 	break;
     }
@@ -7598,23 +7598,87 @@ static void values_to_inputdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
 }
 
-static void init_inputdlg_2( HWND hDlg )
+static int stringboxdialogactive;
+static INT_PTR CALLBACK StringBoxDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch(msg)
+    {
+	case WM_DESTROY:
+	PostQuitMessage (0);
+	return TRUE;
+	case WM_CLOSE:
+	DestroyWindow(hDlg);
+	return TRUE;
+	case WM_INITDIALOG:
+	    return TRUE;
+	case WM_COMMAND:
+	    switch (LOWORD(wParam))
+	    {
+		case IDOK:
+		    stringboxdialogactive = -1;
+		    DestroyWindow (hDlg);
+		return TRUE;		    
+		case IDCANCEL:
+		    stringboxdialogactive = 0;
+		    DestroyWindow (hDlg);
+		return TRUE;
+	    }
+	break;
+    }
+    return DefWindowProc(hDlg, msg, wParam, lParam); 
+}
+
+static int askinputcustom(HWND hDlg, char *custom, int maxlen)
+{
+    HWND hwnd;
+    char txt[MAX_DPATH];
+
+    stringboxdialogactive = 1;
+    hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_STRINGBOX), hDlg, StringBoxDialogProc);
+    if (hwnd == NULL)
+	return 0;
+    SendMessage(GetDlgItem(hwnd, IDC_STRINGBOXEDIT), WM_SETTEXT, 0, (LPARAM)custom);
+    SetFocus(GetDlgItem(hwnd, IDC_STRINGBOXEDIT));
+    while (stringboxdialogactive == 1) {
+	MSG msg;
+	int ret;
+	WaitMessage();
+	while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+	    if (ret == -1)
+		break;
+	    if (!IsWindow(hwnd) || !IsDialogMessage(hwnd, &msg)) {
+		TranslateMessage (&msg);
+		DispatchMessage (&msg);
+	    }
+	    SendMessage(GetDlgItem(hwnd, IDC_STRINGBOXEDIT), WM_GETTEXT, sizeof txt, (LPARAM)txt);
+	}
+	if (stringboxdialogactive == -1) {
+	    strcpy (custom, txt);
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+static void init_inputdlg_2(HWND hDlg)
 {
     char name1[256], name2[256];
-    char custom1[MAX_DPATH];
+    char custom1[MAX_DPATH], tmp1[MAX_DPATH];
     int cnt, index, af, aftmp;
 
-    if (input_selected_widget < 0) {
-	EnableWindow( GetDlgItem( hDlg, IDC_INPUTAMIGA), FALSE );
+    if (input_selected_widget < 0 || workprefs.input_selected_setting == 0) {
+	EnableWindow(GetDlgItem(hDlg, IDC_INPUTAMIGA), FALSE);
     } else {
-	EnableWindow( GetDlgItem( hDlg, IDC_INPUTAMIGA), TRUE );
+	EnableWindow(GetDlgItem(hDlg, IDC_INPUTAMIGA), TRUE);
     }
     SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)szNone);
-    index = -1; af = 0;
+    WIN32GUI_LoadUIString (IDS_INPUT_CUSTOMEVENT, tmp1, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
+    index = 0; af = 0;
     if (input_selected_widget >= 0) {
 	inputdevice_get_mapped_name (input_selected_device, input_selected_widget, 0, name1, custom1, input_selected_sub_num);
-	cnt = 1;
+	cnt = 2;
 	while(inputdevice_iterate (input_selected_device, input_selected_widget, name2, &aftmp)) {
 	    free (eventnames[cnt]);
 	    eventnames[cnt] = strdup (name2);
@@ -7625,9 +7689,11 @@ static void init_inputdlg_2( HWND hDlg )
 	    cnt++;
 	    SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)name2);
 	}
+	if (strlen(custom1) > 0)
+	    index = 1;
 	if (index >= 0) {
-	    SendDlgItemMessage( hDlg, IDC_INPUTAMIGA, CB_SETCURSEL, index, 0 );
-	    SendDlgItemMessage( hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0 );
+	    SendDlgItemMessage(hDlg, IDC_INPUTAMIGA, CB_SETCURSEL, index, 0);
+	    SendDlgItemMessage(hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
 	}
     }
 }
@@ -7684,7 +7750,7 @@ static void init_inputdlg( HWND hDlg )
 static void enable_for_inputdlg (HWND hDlg)
 {
     int v = workprefs.input_selected_setting == 0 ? FALSE : TRUE;
-    ew (hDlg, IDC_INPUTLIST, v);
+    ew (hDlg, IDC_INPUTLIST, TRUE);
     ew (hDlg, IDC_INPUTAMIGA, v);
     ew (hDlg, IDC_INPUTAMIGACNT, v);
     ew (hDlg, IDC_INPUTDEADZONE, TRUE);
@@ -7694,13 +7760,28 @@ static void enable_for_inputdlg (HWND hDlg)
     ew (hDlg, IDC_INPUTSPEEDM, TRUE);
     ew (hDlg, IDC_INPUTCOPY, v);
     ew (hDlg, IDC_INPUTCOPYFROM, v);
-    ew (hDlg, IDC_INPUTSWAP, TRUE);
-    ew (hDlg, IDC_INPUTDEVICEDISABLE, workprefs.input_selected_setting == 0 ? FALSE : TRUE);
+    ew (hDlg, IDC_INPUTSWAP, v);
+    ew (hDlg, IDC_INPUTDEVICEDISABLE, v);
 }
 
 static void clearinputlistview (HWND hDlg)
 {
     ListView_DeleteAllItems(GetDlgItem(hDlg, IDC_INPUTLIST));
+}
+
+static void doinputcustom(HWND hDlg, int newcustom)
+{
+    char custom1[MAX_DPATH];
+    int flags;
+    custom1[0] = 0;
+    inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+        &flags, 0, custom1, input_selected_sub_num);
+    if (strlen(custom1) > 0 || newcustom) {
+	if (askinputcustom(hDlg, custom1, sizeof custom1)) {
+	    inputdevice_set_mapping (input_selected_device, input_selected_widget,
+		0, custom1, (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0, input_selected_sub_num);
+	}
+    }
 }
 
 static void values_from_inputdlg (HWND hDlg)
@@ -7727,7 +7808,7 @@ static void values_from_inputdlg (HWND hDlg)
     if (success)
 	currprefs.input_mouse_speed = workprefs.input_mouse_speed = v;
 
-    item = SendDlgItemMessage( hDlg, IDC_INPUTAMIGACNT, CB_GETCURSEL, 0, 0L );
+    item = SendDlgItemMessage(hDlg, IDC_INPUTAMIGACNT, CB_GETCURSEL, 0, 0L);
     if (item != CB_ERR && input_selected_sub_num != item) {
 	input_selected_sub_num = (int)item;
 	doselect = 0;
@@ -7736,7 +7817,7 @@ static void values_from_inputdlg (HWND hDlg)
 	return;
     }
 
-    item = SendDlgItemMessage( hDlg, IDC_INPUTTYPE, CB_GETCURSEL, 0, 0L );
+    item = SendDlgItemMessage(hDlg, IDC_INPUTTYPE, CB_GETCURSEL, 0, 0L);
     if(item != CB_ERR) {
 	if (item != workprefs.input_selected_setting) {
 	    workprefs.input_selected_setting = (int)item;
@@ -7747,7 +7828,7 @@ static void values_from_inputdlg (HWND hDlg)
 	    doselect = 1;
 	}
     }
-    item = SendDlgItemMessage( hDlg, IDC_INPUTDEVICE, CB_GETCURSEL, 0, 0L );
+    item = SendDlgItemMessage(hDlg, IDC_INPUTDEVICE, CB_GETCURSEL, 0, 0L);
     if(item != CB_ERR) {
 	if (item != input_selected_device) {
 	    input_selected_device = (int)item;
@@ -7759,19 +7840,27 @@ static void values_from_inputdlg (HWND hDlg)
 	    doselect = 1;
 	}
     }
-    item = SendDlgItemMessage( hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L );
+    item = SendDlgItemMessage(hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L);
     if(item != CB_ERR) {
+	if (item == 1) {
+	    if (item != input_selected_event)
+		doinputcustom(hDlg, 1);
+	}
 	input_selected_event = (int)item;
 	doselect = 1;
     }
 
     if (doselect && input_selected_device >= 0 && input_selected_event >= 0) {
 	int flags;
+	char custom[MAX_DPATH];
+	custom[0] = 0;
 	inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-	    &flags, 0, NULL, input_selected_sub_num);
+	    &flags, 0, custom, input_selected_sub_num);
+	if (input_selected_event != 1)
+	    custom[0] = 0;
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-	    eventnames[input_selected_event], NULL, (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0,
-	    input_selected_sub_num);
+	    eventnames[input_selected_event], strlen(custom) == 0 ? NULL : custom,
+	    (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0, input_selected_sub_num);
 	update_listview_input (hDlg);
 	inputdevice_updateconfig (&workprefs);
     }
@@ -7786,7 +7875,7 @@ static void input_swap (HWND hDlg)
 static void input_copy (HWND hDlg)
 {
     int dst = workprefs.input_selected_setting;
-    LRESULT src = SendDlgItemMessage( hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L );
+    LRESULT src = SendDlgItemMessage(hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L);
     if (src == CB_ERR)
 	return;
     inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device);
@@ -7880,11 +7969,13 @@ static INT_PTR CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			input_selected_sub_num++;
 			if (input_selected_sub_num >= MAX_INPUT_SUB_EVENT)
 			    input_selected_sub_num = 0;
-			SendDlgItemMessage( hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
+			SendDlgItemMessage(hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
 		    }
 		} else {
 		    input_selected_widget = -1;
 		}
+		if (dblclick)
+		    doinputcustom(hDlg, 0);
 		update_listview_input (hDlg);
 		init_inputdlg_2 (hDlg);
 	    }
@@ -9361,6 +9452,7 @@ static int GetSettings (int all_options, HWND hwnd)
     static int init_called = 0;
     int psresult;
     HWND dhwnd;
+    int first = 0;
 
     gui_active++;
 
@@ -9373,6 +9465,7 @@ static int GetSettings (int all_options, HWND hwnd)
     prefs_to_gui (&changed_prefs);
 
     if (!init_called) {
+	first = 1;
 	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_CONFIGFILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, "gui/configurations.htm");
 	MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, "gui/ram.htm");
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, "gui/rom.htm");
@@ -9414,6 +9507,8 @@ static int GetSettings (int all_options, HWND hwnd)
     dialogreturn = -1;
     hAccelTable = NULL;
     DragAcceptFiles(hwnd, TRUE);
+    if (first)
+	write_log("Entering GUI idle loop\n");
     dhwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PANEL), hwnd, DialogProc);
     psresult = 0;
     if (dhwnd != NULL) {
