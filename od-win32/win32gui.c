@@ -484,7 +484,22 @@ static int scan_rom (char *path, HKEY fkey)
 {
     struct romscandata rsd = { fkey, 0 };
     struct romdata *rd;
-    int cnt = 0;
+    int cnt = 0, i;
+    char *ext = strrchr (path, '.');
+
+    if (!ext)
+	return 0;
+    ext++;
+    for (i = 0; uae_archive_extensions[i]; i++) {
+	if (!stricmp (ext, uae_archive_extensions[i]))
+	    break;
+    }
+    if (!uae_archive_extensions[i]) {
+	if (stricmp (ext, "rom") && stricmp (ext, "adf") && stricmp (ext, "key")) {
+	    write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
+	    return 0;
+	}
+    }
 
     for (;;) {
 	char tmp[MAX_DPATH];
@@ -668,8 +683,10 @@ static int scan_roms_2 (char *pathp)
 	    char tmppath[MAX_DPATH];
 	    strcpy (tmppath, path);
 	    strcat (tmppath, find_data.cFileName);
-	    if (find_data.nFileSizeLow < 10000000 && scan_rom (tmppath, fkey))
-		ret = 1;
+	    if (!(find_data.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY |FILE_ATTRIBUTE_SYSTEM)) && find_data.nFileSizeLow < 10000000) {
+		if (scan_rom (tmppath, fkey))
+		    ret = 1;
+	    }
 	    if (FindNextFile (handle, &find_data) == 0) {
 		FindClose (handle);
 		break;
@@ -1018,57 +1035,57 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     
     switch (flag) {
     case 0:
-	WIN32GUI_LoadUIString( IDS_SELECTADF, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_ADF, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), DISK_FORMAT_STRING, sizeof(DISK_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString(IDS_SELECTADF, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_ADF, szFormat, MAX_DPATH);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), DISK_FORMAT_STRING, sizeof(DISK_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 1:
-	WIN32GUI_LoadUIString( IDS_CHOOSEBLANK, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_ADF, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), "(*.adf)\0*.adf\0", 15 );
+	WIN32GUI_LoadUIString(IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_ADF, szFormat, MAX_DPATH);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), "(*.adf)\0*.adf\0", 15);
 
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 2:
     case 3:
-	WIN32GUI_LoadUIString( IDS_SELECTHDF, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_HDF, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString(IDS_SELECTHDF, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_HDF, szFormat, MAX_DPATH);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "HDF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 4:
     case 5:
-	WIN32GUI_LoadUIString( IDS_SELECTUAE, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_UAE, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), "(*.uae)\0*.uae\0", 15 );
+	WIN32GUI_LoadUIString(IDS_SELECTUAE, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_UAE, szFormat, MAX_DPATH );
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), "(*.uae)\0*.uae\0", 15);
 
 	openFileName.lpstrDefExt = "UAE";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 6:
-	WIN32GUI_LoadUIString( IDS_SELECTROM, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_ROM, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString( IDS_SELECTROM, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString( IDS_ROM, szFormat, MAX_DPATH);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "ROM";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 7:
-	WIN32GUI_LoadUIString( IDS_SELECTKEY, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_KEY, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), "(*.key)\0*.key\0", 15 );
+	WIN32GUI_LoadUIString(IDS_SELECTKEY, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_KEY, szFormat, MAX_DPATH);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), "(*.key)\0*.key\0", 15);
 
 	openFileName.lpstrDefExt = "KEY";
 	openFileName.lpstrFilter = szFilter;
@@ -1077,8 +1094,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     case 16:
 	WIN32GUI_LoadUIString(flag == 15 ? IDS_RESTOREINP : IDS_SAVEINP, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString(IDS_INP, szFormat, MAX_DPATH);
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "INP";
 	openFileName.lpstrFilter = szFilter;
@@ -1087,7 +1104,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     case 10:
 	WIN32GUI_LoadUIString(flag == 10 ? IDS_RESTOREUSS : IDS_SAVEUSS, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString(IDS_USS, szFormat, MAX_DPATH);
-	sprintf( szFilter, "%s ", szFormat );
+	sprintf(szFilter, "%s ", szFormat);
 	if (flag == 10) {
 	    memcpy(szFilter + strlen(szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + 1);
 	    all = 1;
@@ -1123,30 +1140,30 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 11:
-	WIN32GUI_LoadUIString( IDS_SELECTFLASH, szTitle, MAX_DPATH );
-	WIN32GUI_LoadUIString( IDS_FLASH, szFormat, MAX_DPATH );
-	sprintf( szFilter, "%s ", szFormat );
-	memcpy( szFilter + strlen( szFilter ), "(*.nvr)\0*.nvr\0", 15 );
+	WIN32GUI_LoadUIString(IDS_SELECTFLASH, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_FLASH, szFormat, MAX_DPATH );
+	sprintf(szFilter, "%s ", szFormat);
+	memcpy(szFilter + strlen(szFilter), "(*.nvr)\0*.nvr\0", 15);
 
 	openFileName.lpstrDefExt = "NVR";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 8:
     default:
-	WIN32GUI_LoadUIString( IDS_SELECTINFO, szTitle, MAX_DPATH );
+	WIN32GUI_LoadUIString(IDS_SELECTINFO, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	break;
     case 12:
-	WIN32GUI_LoadUIString( IDS_SELECTFS, szTitle, MAX_DPATH );
+	WIN32GUI_LoadUIString(IDS_SELECTFS, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	openFileName.lpstrInitialDir = path_out;
 	break;
     case 13:
-	WIN32GUI_LoadUIString( IDS_SELECTINFO, szTitle, MAX_DPATH );
+	WIN32GUI_LoadUIString(IDS_SELECTINFO, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
@@ -1155,7 +1172,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     }
     if (all) {
 	p = szFilter;
-	while (p[0] != 0 || p[1] !=0 ) p++;
+	while (p[0] != 0 || p[1] !=0) p++;
 	p++;
 	strcpy (p, "All files (*.*)");
 	p += strlen(p) + 1;
@@ -9364,12 +9381,13 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		return FALSE;
 		case TVN_SELCHANGED:
 		{
-		    int cp;
+		    int cp, cf;
 		    LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
 		    cp = (int)(tv->itemNew.lParam & 0xffff);
-		    if (cp != currentpage) {
+		    cf = (int)(tv->itemNew.lParam >> 16);
+		    if (cp != currentpage || cf != configtype) {
 			currentpage = cp;
-			configtypepanel = configtype = (int)(tv->itemNew.lParam >> 16);
+			configtypepanel = configtype = cf;
 			updatePanel (hDlg, currentpage);
 		    }
 		    return TRUE;

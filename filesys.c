@@ -456,6 +456,7 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define dp_Arg2 24
 #define dp_Arg3 28
 #define dp_Arg4 32
+#define dp_Arg5 36
 
 /* result codes */
 #define DOS_TRUE ((unsigned long)-1L)
@@ -603,6 +604,7 @@ typedef uae_u8 *dpacket;
 #define GET_PCK_ARG2(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg2))))
 #define GET_PCK_ARG3(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg3))))
 #define GET_PCK_ARG4(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg4))))
+#define GET_PCK_ARG5(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg5))))
 
 static char *char1 (uaecptr addr)
 {
@@ -2063,6 +2065,18 @@ int get_native_path(uae_u32 lock, char *out)
     return -1;
 }
 
+static int action_examine_all (Unit *unit, dpacket packet)
+{
+    uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+    uaecptr exalldata = GET_PCK_ARG2 (packet);
+    uae_u32 exalldatasize = GET_PCK_ARG3 (packet);
+    uae_u32 type = GET_PCK_ARG4 (packet);
+    uaecptr control = GET_PCK_ARG5 (packet);
+
+    return 0;
+}
+
+
 static void action_examine_object (Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG1 (packet) << 2;
@@ -3454,10 +3468,14 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_ADD_NOTIFY: action_add_notify (unit, pck); break;
      case ACTION_REMOVE_NOTIFY: action_remove_notify (unit, pck); break;
 
-     /* unsupported packets */
+     case ACTION_EXAMINE_ALL:
+	 if (!action_examine_all (unit, pck))
+	     return 0; /* not yet supported */
+     break;
+
+	 /* unsupported packets */
      case ACTION_LOCK_RECORD:
      case ACTION_FREE_RECORD:
-     case ACTION_EXAMINE_ALL:
      case ACTION_MAKE_LINK:
      case ACTION_READ_LINK:
      case ACTION_FORMAT:

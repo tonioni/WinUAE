@@ -2947,7 +2947,8 @@ void picasso_handle_hsync (void)
 	p96hsync--;
     }
     if (p96hsync <= 0) {
-	rtarea[get_long (RTAREA_BASE + 36) + 12 - 1]++;
+	if (uae_boot_rom)
+	    rtarea[get_long (RTAREA_BASE + 36) + 12 - 1]++;
 	p96hsync = p96syncrate;
     }
 }

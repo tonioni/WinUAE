@@ -223,6 +223,7 @@ int paraport_init (void)
 int paraport_open (char *port)
 {
     static char oldport[10];
+    PARAPORT_CYCLE c[1];
 
     if (!para)
 	return 0;
@@ -236,18 +237,24 @@ int paraport_open (char *port)
     }
     strcpy (oldport, port);
     write_log("PARAPORT: port '%s' opened\n", port);
+    memset (c, 0, sizeof (PARAPORT_CYCLE));
+    c[0].MaskControl = PARAPORT_MASK_CONTROL | PARAPORT_MASK_CONTROL_DIRECTION;
+    c[0].Control = PARAPORT_MASK_CONTROL_INIT | PARAPORT_MASK_CONTROL_DIRECTION;
+    if (!pp_executecycle (pport, c, 1)) {
+   	write_log ("PARAPORT: init executeCycle failed\n");
+    }
     return 1;
 }
 
 
 int parallel_direct_write_status (uae_u8 v, uae_u8 dir)
 {
-    PARAPORT_CYCLE c[2];
+    PARAPORT_CYCLE c[1];
     int ok = 1;
 
     if (!pport)
 	return 0;
-    memset (c + 0, 0, sizeof (PARAPORT_CYCLE));
+    memset (c, 0, sizeof (PARAPORT_CYCLE));
     c[0].MaskControl = PARAPORT_MASK_CONTROL_SELECTIN;
     if ((dir & 1)) {
 	write_log ("PARAPORT: BUSY can't be output\n");
@@ -259,7 +266,7 @@ int parallel_direct_write_status (uae_u8 v, uae_u8 dir)
     }
     if ((dir & 4) && !(v & 4))
 	c[0].Control |= PARAPORT_MASK_CONTROL_SELECTIN;
-    if (!pp_executecycle (pport, c, 2)) {
+    if (!pp_executecycle (pport, c, 1)) {
 	write_log ("PARAPORT: write executeCycle failed, CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
 	return 0;
     }
@@ -345,7 +352,6 @@ int parallel_direct_read_data (uae_u8 *v)
     c[0].Control = PARAPORT_MASK_CONTROL_DIRECTION | PARAPORT_MASK_CONTROL_STROBE;
     c[0].RepeatFactor = 1;
     c[1].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
-    c[1].MaskData = 0;
     if (!pp_executecycle (pport, c, 2)) {
 	write_log ("PARAPORT: DATA read executeCycle failed\n");
 	return 0;

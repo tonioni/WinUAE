@@ -1,4 +1,12 @@
 
+Beta 4:
+
+- skip unknown extensions (or files without extension) when scanning
+  for known ROMs (faster scan if non-ROM files in ROM directory)
+- Picasso96 RAM was incorrectly mapped in non-JIT modes
+- paraport parallel port support sets INIT (pin 16) to inactive state
+  (called RESET in Amiga parallel port)
+
 Beta 3:
 
 - map POV Hat to joystick up/down and left/right by default

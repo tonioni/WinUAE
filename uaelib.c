@@ -437,10 +437,7 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
      case 68: return emulib_Minimize ();
      case 69: return emulib_ExecuteNativeCode (&context->regs);
 
-     case 70:
-	 if (valid_address(ARG1, 1))
-	    write_log("DBG: %s\n", get_real_address(ARG1));
-	 return 1; 
+     case 70: return 0; /* RESERVED. Something uses this.. */
 
      case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
      case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
@@ -450,6 +447,10 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
      case 84: return mmu_init (ARG1, ARG2, ARG3);
 #endif
      case 85: return native_dos_op (ARG1, ARG2, ARG3, ARG4);
+     case 86:
+	 if (valid_address(ARG1, 1))
+	    write_log("DBG: %s\n", get_real_address(ARG1));
+	 return 1; 
     }
     return 0;
 }
