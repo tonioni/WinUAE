@@ -777,7 +777,7 @@ static uaecptr get_intuitionbase(void)
 	    magicmouse_ibase = 0xffffffff;
 	    return 0;
 	}
-	if (b->flags != ABFLAG_ROM)
+	if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
 	    return 0;
 	p = b->xlateaddr(v2);
 	if (!strcmp(p, "intuition.library"))
@@ -809,8 +809,7 @@ static void mousehack_setpos(int mousexpos, int mouseypos)
 }
 
 static int mouseedge_x, mouseedge_y, mouseedge_time;
-#define MOUSEEDGE_RANGE 1000
-#define MOUSEEDGE_RANGE_MENU 1000
+#define MOUSEEDGE_RANGE 300
 #define MOUSEEDGE_TIME 2
 
 void setamigamouse(int x, int y)
@@ -865,7 +864,7 @@ static void mouseedge(void)
         melast_x = x;
     }
     if (melast_y == y) {
-	if (mouseedge_y < -MOUSEEDGE_RANGE_MENU) {
+	if (mouseedge_y < -MOUSEEDGE_RANGE) {
 	    mouseedge_y = 0;
 	    dir |= 4;
 	    goto end;

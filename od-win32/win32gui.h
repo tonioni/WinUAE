@@ -19,4 +19,21 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
 HKEY read_disk_history (void);
 void write_disk_history (void);
 
+struct newresource
+{
+    void *resource;
+    HINSTANCE inst;
+    int size;
+    int tmpl;
+    int width, height;
+};
+
+extern struct newresource *scaleresource(struct newresource *res, HWND);
+extern void freescaleresource(struct newresource*);
+extern void scaleresource_setmaxsize(int w, int h);
+extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
+extern INT_PTR CustomDialogBox(int templ, HWND hDlg, DLGPROC proc);
+extern struct newresource *getresource(int tmpl);
+extern struct newresource *resourcefont(struct newresource*, char *font, int size);
+
 #endif

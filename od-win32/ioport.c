@@ -312,7 +312,7 @@ int parallel_direct_read_status (uae_u8 *vp)
 
 int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 {
-    PARAPORT_CYCLE c[2];
+    PARAPORT_CYCLE c[3];
     int ok = 1;
 
     if (!pport)
@@ -321,15 +321,18 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 	write_log ("PARAPORT: unsupported mixed i/o attempted, DATA=%02.2X DIR=%02.2X, ignored\n", v, dir);
 	return 0;
     }
-    memset (c + 0, 0, sizeof (PARAPORT_CYCLE));
-    memset (c + 1, 0, sizeof (PARAPORT_CYCLE));
+    memset (c, 0, 3 * sizeof (PARAPORT_CYCLE));
+
     c[0].Data = v;
     c[0].MaskData = 0xff;
     c[0].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
-    c[0].Control = PARAPORT_MASK_CONTROL_STROBE;
-    c[0].RepeatFactor = 1;
+
     c[1].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
-    if (!pp_executecycle (pport, c, 2)) {
+    c[1].Control = PARAPORT_MASK_CONTROL_STROBE;
+
+    c[2].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
+
+    if (!pp_executecycle (pport, c, 3)) {
 	write_log ("PARAPORT: write executeCycle failed, data=%02.2X\n", v);
 	return 0;
     }
@@ -340,19 +343,23 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 int parallel_direct_read_data (uae_u8 *v)
 {
     static uae_u8 olda, oldb;
-    PARAPORT_CYCLE c[2];
+    PARAPORT_CYCLE c[3];
     int ok = 1;
 
     if (!pport)
 	return 0;
-    memset (c + 0, 0, sizeof (PARAPORT_CYCLE));
-    memset (c + 1, 0, sizeof (PARAPORT_CYCLE));
+    memset (c, 0, 3 * sizeof (PARAPORT_CYCLE));
+
     c[0].MaskData = 0xff;
     c[0].MaskControl = PARAPORT_MASK_CONTROL_DIRECTION | PARAPORT_MASK_CONTROL_STROBE;
-    c[0].Control = PARAPORT_MASK_CONTROL_DIRECTION | PARAPORT_MASK_CONTROL_STROBE;
-    c[0].RepeatFactor = 1;
+    c[0].Control = PARAPORT_MASK_CONTROL_DIRECTION;
+
     c[1].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
-    if (!pp_executecycle (pport, c, 2)) {
+    c[1].Control = PARAPORT_MASK_CONTROL_STROBE;
+
+    c[2].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
+
+    if (!pp_executecycle (pport, c, 3)) {
 	write_log ("PARAPORT: DATA read executeCycle failed\n");
 	return 0;
     }

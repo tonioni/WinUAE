@@ -833,7 +833,7 @@ static struct zfile *unrar (struct zfile *z)
 	if (select && !we_have_file && HeaderData.UnpSize > 0) {
 	    zf = zfile_fopen_empty (name, HeaderData.UnpSize);
 	    rarunpackzf = zf;
-	    if (zf && pRARProcessFile(hArcData,RAR_EXTRACT,NULL,NULL) == 0) {
+	    if (zf && pRARProcessFile(hArcData,RAR_TEST,NULL,NULL) == 0) {
 		needskip = 0;
 		if (select < 0 || zfile_gettype(zf))
 		    we_have_file = 1;

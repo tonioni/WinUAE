@@ -495,7 +495,7 @@ void setmouseactive (int active)
     recapture = 0;
 #if 0
     if (active > 0 && mousehack_allowed () && mousehack_alive ()) {
-	if (!isfullscreen ())
+	if (isfullscreen () <= 0)
 	    return;
     }
 #endif
@@ -588,7 +588,7 @@ static void winuae_active (HWND hWnd, int minimized)
     inputdevice_acquire ();
     wait_keyrelease ();
     inputdevice_acquire ();
-    if (isfullscreen())
+    if (isfullscreen() > 0)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
 
@@ -648,7 +648,7 @@ extern void setamigamouse(int,int);
 void setmouseactivexy(int x, int y, int dir)
 {
     int diff = 8;
-    if (isfullscreen())
+    if (isfullscreen() > 0)
 	return;
     x += amigawin_rect.left;
     y += amigawin_rect.top;
@@ -708,7 +708,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #if MSGDEBUG
 	write_log ("WM_SIZE %x %d %d\n", hWnd, wParam, minimized);
 #endif
-	if (isfullscreen ()) {
+	if (isfullscreen () > 0) {
 	    v = minimized;
 	    switch (wParam)
 	    {
@@ -742,7 +742,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #if MSGDEBUG
 	write_log ("WM_ACTIVATE %x %d %d %d\n", hWnd, HIWORD (wParam), LOWORD (wParam), minimized);
 #endif
-	if (!isfullscreen ()) {
+	if (isfullscreen () <= 0) {
 	    minimized = HIWORD (wParam);
 	    if (LOWORD (wParam) != WA_INACTIVE) {
 		winuae_active (hWnd, minimized);
@@ -805,7 +805,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
-	if (!mouseactive && !isfullscreen() && !gui_active) {
+	if (!mouseactive && isfullscreen() <= 0 && !gui_active) {
 	    setmouseactive (1);
 	}
 	if (dinput_winmouse () >= 0)
@@ -830,7 +830,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MBUTTONDBLCLK:
 	if (currprefs.win32_middle_mouse) {
 #ifndef _DEBUG
-	    if (isfullscreen ())
+	    if (isfullscreen () > 0)
 		minimizewindow ();
 #endif
 	    if (mouseactive)
@@ -905,7 +905,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     case WM_WINDOWPOSCHANGED:
 	GetWindowRect (hWnd, &amigawin_rect);
-	if (!isfullscreen()) {
+	if (isfullscreen() == 0) {
 	    changed_prefs.gfx_size_win.x = amigawin_rect.left;
 	    changed_prefs.gfx_size_win.y = amigawin_rect.top;
 	}
@@ -915,7 +915,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 	mx = (signed short) LOWORD (lParam);
 	my = (signed short) HIWORD (lParam);
-	if (recapture && !isfullscreen()) {
+	if (recapture && isfullscreen() <= 0) {
 	    setmouseactive(1);
 	    setamigamouse(mx, my);
 	    return 0;
@@ -937,7 +937,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		setmousestate (dinput_winmouse (), 0, mx, 0);
 		setmousestate (dinput_winmouse (), 1, my, 0);
 	    }
-	} else if ((!mouseactive && !isfullscreen())) {
+	} else if ((!mouseactive && isfullscreen() <= 0)) {
 	    setmousestate (0, 0, mx, 1);
 	    setmousestate (0, 1, my, 1);
 	}
@@ -1097,19 +1097,19 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		disk_eject (3);
 	    break;
 	    case ID_ST_DF0:
-		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
 		disk_insert (0, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF1:
-		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
 		disk_insert (1, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF2:
-		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
 		disk_insert (2, changed_prefs.df[0]);
 	    break;
 	    case ID_ST_DF3:
-		DiskSelection (isfullscreen() ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
+		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
 		disk_insert (3, changed_prefs.df[0]);
 	    break;
 	}
@@ -1173,7 +1173,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
      case WM_DISPLAYCHANGE:
-	if (!isfullscreen() && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel() )
+	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel() )
 	    WIN32GFX_DisplayChangeRequested();
 	break;
 
@@ -1191,7 +1191,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	    if (in_sizemove > 0)
 		break;
 
-	    if (!isfullscreen() && hAmigaWnd) {
+	    if (isfullscreen() == 0 && hAmigaWnd) {
 		static int store_xy;
 		RECT rc2;
 		if (GetWindowRect(hMainWnd, &rc2)) {
@@ -1203,8 +1203,8 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 		    }
 		    if (hWinUAEKey && store_xy++) {
-			RegSetValueEx(hWinUAEKey, "xPos", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
-			RegSetValueEx(hWinUAEKey, "yPos", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
+			RegSetValueEx(hWinUAEKey, "MainPosX", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
+			RegSetValueEx(hWinUAEKey, "MainPosY", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
 		    }
 		    changed_prefs.gfx_size_win.x = left;
 		    changed_prefs.gfx_size_win.y = top;
@@ -2180,12 +2180,10 @@ static void WIN32_HandleRegistryStuff(void)
 	initpath ("InputPath", start_path_data);
 	if (disposition == REG_CREATED_NEW_KEY) {
 	    /* Create and initialize all our sub-keys to the default values */
-	    colortype = 0;
-	    RegSetValueEx(hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "xPos", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "yPos", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "xPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "yPosGUI", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
+	    RegSetValueEx(hWinUAEKey, "MainPosX", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
+	    RegSetValueEx(hWinUAEKey, "MainPosY", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
+	    RegSetValueEx(hWinUAEKey, "GUIPosX", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
+	    RegSetValueEx(hWinUAEKey, "GUIPosY", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
 	}
 	size = sizeof (version);
 	dwType = REG_SZ;
@@ -2207,28 +2205,11 @@ static void WIN32_HandleRegistryStuff(void)
 		forceroms = 1;
 	}
 	
-	dwType = REG_DWORD;
-	RegQueryValueEx(hWinUAEKey, "DisplayInfo", 0, &dwType, (LPBYTE)&colortype, &dwDisplayInfoSize);
-	if (colortype == 0) /* No color information stored in the registry yet */
-	{
-	    char szMessage[4096];
-	    char szTitle[MAX_DPATH];
-	    WIN32GUI_LoadUIString(IDS_GFXCARDCHECK, szMessage, 4096);
-	    WIN32GUI_LoadUIString(IDS_GFXCARDTITLE, szTitle, MAX_DPATH);
-		    
-	    if(MessageBox(NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND ) == IDYES) {
-		colortype = WIN32GFX_FigurePixelFormats(0);
-		RegSetValueEx( hWinUAEKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof( colortype ) );
-	    }
-	}
-	if (colortype) {
-	    /* Set the 16-bit pixel format for the appropriate modes */
-	    WIN32GFX_FigurePixelFormats(colortype);
-	}
 	size = sizeof (quickstart);
 	dwType = REG_DWORD;
 	RegQueryValueEx(hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &size);
     }
+    reopen_console();
     fetch_path ("ConfigurationPath", path, sizeof (path));
     path[strlen (path) - 1] = 0;
     CreateDirectory (path, NULL);
@@ -2825,6 +2806,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     closeprinter ();
 #endif
     WIN32_CleanupLibraries();
+    close_console();
     _fcloseall();
     if(hWinUAEKey)
 	RegCloseKey(hWinUAEKey);
@@ -2993,7 +2975,7 @@ LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers
 			exinfo.ClientPointers = 0;
 			dump (GetCurrentProcess(), GetCurrentProcessId(), f, MiniDumpNormal, &exinfo, NULL, NULL);
 			CloseHandle (f);
-			if (!isfullscreen ()) {
+			if (isfullscreen () <= 0) {
 			    sprintf (msg, "Crash detected. MiniDump saved as:\n%s\n", path2);
 			    MessageBox( NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
 			}
@@ -3068,7 +3050,7 @@ void systraymenu (HWND hwnd)
 	EnableMenuItem (menu2, drvs[i], currprefs.dfxtype[i] < 0 ? MF_GRAYED : MF_ENABLED);
 	i++;
     }
-    if (!isfullscreen ())
+    if (isfullscreen () <= 0)
 	SetForegroundWindow (hwnd);
     TrackPopupMenu (menu2, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_RIGHTBUTTON,
 	pt.x, pt.y, 0, hwnd, NULL);
@@ -3146,11 +3128,13 @@ end:
     return m;
 }
 
+typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 #define MSGFLT_ADD 1
 
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    SETPROCESSDPIAWARE pSetProcessDPIAware;
     HANDLE thread;
 
     thread = GetCurrentThread();
@@ -3162,6 +3146,11 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     if (pChangeWindowMessageFilter)
 	pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
+    pSetProcessDPIAware = (SETPROCESSDPIAWARE)GetProcAddress(
+	GetModuleHandle("user32.dll"), "SetProcessDPIAware");
+    if (pSetProcessDPIAware)
+	pSetProcessDPIAware();
+
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {

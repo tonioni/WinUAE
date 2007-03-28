@@ -196,6 +196,7 @@ static int createtexture (int w, int h)
     write_log ("D3D: %d*%d texture allocated, bits per pixel %d\n", ww, hh, t_depth);
     return 1;
 }
+
 static int createsltexture (void)
 {
     UINT ww = required_sl_texture_w;
@@ -309,7 +310,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     IDirect3D9_GetDeviceCaps(d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps);
 
     memset (&dpp, 0, sizeof (dpp));
-    dpp.Windowed = currprefs.gfx_afullscreen ? FALSE : TRUE;
+    dpp.Windowed = isfullscreen() <= 0;
     dpp.BackBufferFormat = mode.Format;
     dpp.BackBufferCount = 1;
     dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -318,7 +319,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     dpp.BackBufferHeight = w_h;
     dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
     vsync2 = 0;
-    if (currprefs.gfx_afullscreen) {
+    if (isfullscreen() > 0) {
 	dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate;
 	if (currprefs.gfx_vsync > 0) {
 	    dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;

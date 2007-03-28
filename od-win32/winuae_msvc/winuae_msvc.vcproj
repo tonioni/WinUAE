@@ -1286,6 +1286,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\debug_win32.c"
+				>
+			</File>
+			<File
 				RelativePath="..\dinput.c"
 				>
 			</File>
@@ -1375,6 +1379,10 @@
 			</File>
 			<File
 				RelativePath="..\win32gui.c"
+				>
+			</File>
+			<File
+				RelativePath="..\win32gui_extra.c"
 				>
 			</File>
 			<File
@@ -2375,10 +2383,6 @@
 		</File>
 		<File
 			RelativePath="..\resources\resource.h"
-			>
-		</File>
-		<File
-			RelativePath="..\resources\resource.hm"
 			>
 		</File>
 	</Files>

@@ -452,10 +452,13 @@ extern void write_log (const char *, ...);
 #endif
 extern void write_dlog (const char *, ...);
 
+extern void close_console (void);
+extern void reopen_console (void);
 extern void console_out (const char *, ...);
 extern void console_flush (void);
 extern int console_get (char *, int);
 extern void f_out (void *, const char *, ...);
+extern char* buf_out (char *buffer, int *bufsize, const char *format, ...);
 extern void gui_message (const char *,...);
 extern int gui_message_multibutton (int flags, const char *format,...);
 #define write_log_err write_log

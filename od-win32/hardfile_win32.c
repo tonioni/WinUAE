@@ -32,7 +32,7 @@ struct uae_driveinfo {
     char product_id[128];
     char product_rev[128];
     char product_serial[128];
-    char device_name[256];
+    char device_name[2048];
     char device_path[2048];
     uae_u64 size;
     uae_u64 offset;
@@ -816,6 +816,10 @@ Return Value:
 	    if (udi->device_name[0])
 		strcat (udi->device_name, " ");
 	    strcat (udi->device_name, udi->product_serial);
+	}
+	if (!udi->device_name[0]) {
+	    write_log("empty device id?!?, replacing with device path\n");
+	    strcpy (udi->device_name, udi->device_path);
 	}
 
 	write_log ("device id string: '%s'\n", udi->device_name);

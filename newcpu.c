@@ -1851,7 +1851,7 @@ static void out_cd32io (uae_u32 pc)
 	if (cmd == 2) {
 	    cnt--;
 	    if (cnt == 0)
-		activate_debugger();
+		activate_debugger(1);
 	}
 #endif
 	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d\n",
@@ -2271,11 +2271,13 @@ static const char* ccnames[] =
 { "T ","F ","HI","LS","CC","CS","NE","EQ",
   "VC","VS","PL","MI","GE","LT","GT","LE" };
 
-void m68k_disasm_2 (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode)
+void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode)
 {
     uaecptr newpc = 0;
     m68kpc_offset = addr - m68k_getpc (&regs);
 
+    if (buf)
+        memset(buf, 0, bufsize);
     while (cnt-- > 0) {
 	char instrname[100], *ccpt;
 	int i;
@@ -2293,7 +2295,8 @@ void m68k_disasm_2 (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *se
 	for (lookup = lookuptab;lookup->mnemo != dp->mnemo; lookup++)
 	    ;
 
-	f_out (f, "%08lx ", m68k_getpc (&regs) + m68kpc_offset);
+	buf = buf_out(buf, &bufsize, "%08lX ", m68k_getpc (&regs) + m68kpc_offset);
+
 	m68kpc_offset += 2;
 
 	strcpy (instrname, lookup->name);
@@ -2320,25 +2323,29 @@ void m68k_disasm_2 (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *se
 	}
 
 	for (i = 0; i < (m68kpc_offset - oldpc) / 2; i++) {
-	    f_out (f, "%04x ", get_iword_1 (oldpc + i * 2));
+	    buf = buf_out (buf, &bufsize, "%04x ", get_iword_1 (oldpc + i * 2));
 	}
 	while (i++ < 5)
-	    f_out (f, "     ");
-	f_out (f, instrname);
+	    buf = buf_out (buf, &bufsize, "     ");
+    if (strlen(instrname) > 79) {
+        int i = 0;
+    }
+
+	buf = buf_out (buf, &bufsize, instrname);
 
 	if (ccpt != 0) {
 	    if (deaddr)
 		*deaddr = newpc;
 	    if (cctrue(&regs.ccrflags, dp->cc))
-		f_out (f, " == %08lx (TRUE)", newpc);
+		buf = buf_out (buf, &bufsize, " == %08lX (TRUE)", newpc);
 	    else
-		f_out (f, " == %08lx (FALSE)", newpc);
+		buf = buf_out (buf, &bufsize, " == %08lX (FALSE)", newpc);
 	} else if ((opcode & 0xff00) == 0x6100) { /* BSR */
 	    if (deaddr)
 		*deaddr = newpc;
-	    f_out (f, " == %08lx", newpc);
+	    buf = buf_out (buf, &bufsize, " == %08lX", newpc);
 	}
-	f_out (f, "\n");
+	buf = buf_out (buf, &bufsize, "\n");
     }
     if (nextpc)
 	*nextpc = m68k_getpc (&regs) + m68kpc_offset;
@@ -2346,11 +2353,25 @@ void m68k_disasm_2 (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *se
 
 void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr)
 {
-    m68k_disasm_2 (f, addr, nextpc, cnt, seaddr, deaddr, 1);
+    char *buf;
+
+    buf = malloc((MAX_LINEWIDTH + 1) * cnt);
+    if (!buf)
+        return;
+    m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, seaddr, deaddr, 1);
+    f_out(f, "%s", buf);
+    free(buf);
 }
 void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt)
 {
-    m68k_disasm_2 (f, addr, nextpc, cnt, NULL, NULL, 0);
+    char *buf;
+
+    buf = malloc((MAX_LINEWIDTH + 1) * cnt);
+    if (!buf)
+        return;
+    m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, NULL, NULL, 0);
+    f_out(f, "%s", buf);
+    free(buf);
 }
 
 /*************************************************************

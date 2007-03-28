@@ -200,7 +200,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     hwnd = ahwnd;
     total_textures = 2;
 
-    if (currprefs.gfx_afullscreen && WIN32GFX_GetDepth (TRUE) < 15) {
+    if (isfullscreen() > 0 && WIN32GFX_GetDepth (TRUE) < 15) {
 	strcpy (errmsg, "OPENGL: display depth must be at least 15 bit");
 	return errmsg;
     }
@@ -218,7 +218,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
 	if(!arbMultisampleSupported) {
 	    PixelFormat = ChoosePixelFormat (openglhdc, &pfd);	// Find A Compatible Pixel Format
-	    if (PixelFormat == 0) {					// Did We Find A Compatible Format?
+	    if (PixelFormat == 0) {				// Did We Find A Compatible Format?
 		strcpy (errmsg, "OPENGL: can't find suitable pixelformat");
 		return errmsg;
 	    }
@@ -432,7 +432,7 @@ static void OGL_swapinterval (void)
     doublevsync = 0;
     if (wglSwapIntervalEXT) {
 	int i1, i2;
-	i1 = (currprefs.gfx_vsync > 0 && currprefs.gfx_afullscreen) ? (currprefs.gfx_refreshrate > 85 ? 2 : 1) : 0;
+	i1 = (currprefs.gfx_vsync > 0 && isfullscreen() > 0) ? (currprefs.gfx_refreshrate > 85 ? 2 : 1) : 0;
 	if (turbo_emulation) i1 = 0;
 	wglSwapIntervalEXT (i1);
 	i2 = wglGetSwapIntervalEXT ();

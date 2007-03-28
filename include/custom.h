@@ -101,7 +101,7 @@ extern uae_u16 INTREQR (void);
 #define VBLANK_HZ_PAL 50
 #define VBLANK_HZ_NTSC 60
 
-extern int maxhpos, maxvpos, minfirstline, vblank_endline, numscrlines;
+extern int maxhpos, maxvpos, maxvpos_max, minfirstline, vblank_endline, numscrlines;
 extern int vblank_hz, fake_vblank_hz, vblank_skip;
 extern frame_time_t syncbase;
 #define NUMSCRLINES (maxvpos+1-minfirstline+1)

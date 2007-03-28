@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource."
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -776,6 +776,17 @@ BEGIN
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
+IDD_STRINGBOX DIALOGEX 0, 0, 229, 58
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Enter text..."
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,48,39,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,151,39,50,14
+    EDITTEXT        IDC_STRINGBOXEDIT,7,17,214,14,ES_AUTOHSCROLL | ES_WANTRETURN
+    CTEXT           "Custom input event",IDC_STRINGBOX_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -812,8 +823,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,0,0
- PRODUCTVERSION 1,4,0,0
+ FILEVERSION 1,4,1,0
+ PRODUCTVERSION 1,4,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -829,12 +840,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.4.0"
+            VALUE "FileVersion", "1.4.1"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2007 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.4.0"
+            VALUE "ProductVersion", "1.4.1"
         END
     END
     BLOCK "VarFileInfo"
@@ -874,6 +885,7 @@ BEGIN
         MENUITEM "Quit WinUAE",                 ID_ST_QUIT
     END
 END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1161,6 +1173,7 @@ END
 STRINGTABLE 
 BEGIN
     IDS_SOUND_STEREO2       "Cloned Stereo"
+    IDS_INPUT_CUSTOMEVENT   "<Custom event>"
 END
 
 #endif    // English (U.S.) resources
@@ -1187,14 +1200,10 @@ BEGIN
     "resource.\0"
 END
 
+
 3 TEXTINCLUDE 
 BEGIN
     "\r\0"
-END
-
-2 TEXTINCLUDE 
-BEGIN
-    "#include ""afxres.h""\r\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -1209,7 +1218,8 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

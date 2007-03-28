@@ -147,7 +147,11 @@ static const char *idemode[] = { "none", "a600/a1200", "a4000", 0 };
 static const char *rtctype[] = { "none", "MSM6242B", "RP5C01A", 0 };
 static const char *ciaatodmode[] = { "vblank", "50hz", "60hz", 0 };
 static const char *ksmirrortype[] = { "none", "e0", "a8+e0", 0 };
-static const char *cscompa[] = { "-", "Generic", "CDTV", "CD32", "A500", "A500+", "A600", "A1000", "A1200", "A2000", "A4000", 0 };
+static const char *cscompa[] = {
+    "-", "Generic", "CDTV", "CD32", "A500", "A500+", "A600",
+    "A1000", "A1200", "A2000", "A3000", "A3000T", "A4000", "A4000T", 0
+};
+static const char *fullmodes[] = { "false", "true", "fullwindow", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -404,8 +408,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
     cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
-    cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", p->gfx_afullscreen ? "true" : "false");
-    cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", p->gfx_pfullscreen ? "true" : "false");
+    cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
+    cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
     cfgfile_write (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
     cfgfile_write (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
     cfgfile_write (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
@@ -763,8 +767,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_vsync)
 	|| cfgfile_yesno (option, value, "gfx_lores", &p->gfx_lores)
 	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
-	|| cfgfile_yesno (option, value, "gfx_fullscreen_amiga", &p->gfx_afullscreen)
-	|| cfgfile_yesno (option, value, "gfx_fullscreen_picasso", &p->gfx_pfullscreen)
 	|| cfgfile_yesno (option, value, "show_leds", &p->leds_on_screen)
 	|| cfgfile_yesno (option, value, "synchronize_clock", &p->tod_hack)
 	|| cfgfile_yesno (option, value, "bsdsocket_emu", &p->socket_emu))
@@ -778,6 +780,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
+	|| cfgfile_strval (option, value, "gfx_fullscreen_amiga", &p->gfx_afullscreen, fullmodes, 0)
+	|| cfgfile_strval (option, value, "gfx_fullscreen_picasso", &p->gfx_pfullscreen, fullmodes, 0)
 	|| cfgfile_strval (option, value, "gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode1, 1)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode2, 0)

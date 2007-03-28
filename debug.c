@@ -32,7 +32,7 @@
 #include "inputdevice.h"
 #include "crc32.h"
 
-static int debugger_active;
+int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
 static int skipaddr_doskip;
 static uae_u32 skipins;
@@ -50,6 +50,13 @@ extern int audio_channel_mask;
 extern int inputdevice_logging;
 
 static FILE *logfile;
+
+void deactivate_debugger (void)
+{
+    debugger_active = 0;
+    debugging = 0;
+    exception_debugging = 0;
+}
 
 void activate_debugger (void)
 {
@@ -76,6 +83,7 @@ static char help[] = {
     "  c                     Dump state of the CIA, disk drives and custom registers\n"
     "  r                     Dump state of the CPU\n"
     "  m <address> [<lines>] Memory dump starting at <address>\n"
+    "  m r<register>         Memory dump starting at <register>\n"
     "  d <address> [<lines>] Disassembly starting at <address>\n"
     "  t [instructions]      Step one or more instructions\n"
     "  z                     Step through one instruction - useful for JSR, DBRA etc\n"
@@ -116,10 +124,14 @@ static char help[] = {
     "                        Also enables extended disk logging\n"
     "  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
     "  dm                    Dump current address space map\n"
+#ifdef WIN32
+    "  x                     Close debugger.\n"
+    "  xx                    Switch between console and GUI debugger.\n"
+#endif
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
 
-static void debug_help (void)
+void debug_help (void)
 {
     console_out (help);
 }
@@ -280,27 +292,101 @@ static uaecptr nextaddr (uaecptr addr, uaecptr *end)
     return addr;
 }
 
+int safe_addr(uaecptr addr, int size)
+{
+    addrbank *ab = &get_mem_bank (addr);
+    if (!ab)
+	return 0;
+    if (!ab->check (addr, size))
+	return 0;
+    if (ab->flags == ABFLAG_RAM || ab->flags == ABFLAG_ROM)
+	return 1;
+    return 0;
+}
+
+uaecptr dumpmem2 (uaecptr addr, char *out, int osize)
+{
+    int i, cols = 8;
+    int nonsafe = 0;
+
+    if (osize <= (9 + cols * 5 + 1 + 2 * cols))
+        return addr;
+    sprintf (out, "%08lX ", addr);
+    for (i = 0; i < cols; i++) {
+	uae_u8 b1, b2;
+	b1 = b2 = 0;
+	if (safe_addr(addr, 2)) {
+	    b1 = get_byte (addr + 0);
+	    b2 = get_byte (addr + 1);
+	    sprintf (out + 9 + i * 5, "%02X%02X ", b1, b2);
+	    out[9 + cols * 5 + 1 + i * 2 + 0] = b1 >= 32 && b1 < 127 ? b1 : '.';
+	    out[9 + cols * 5 + 1 + i * 2 + 1] = b2 >= 32 && b2 < 127 ? b2 : '.';
+	} else {
+	    nonsafe++;
+	    strcpy (out + 9 + i * 5, "**** ");
+	    out[9 + cols * 5 + 1 + i * 2 + 0] = '*';
+	    out[9 + cols * 5 + 1 + i * 2 + 1] = '*';
+	}
+        addr += 2;
+    }
+    out[9 + cols * 5] = ' ';
+    out[9 + cols * 5 + 1 + 2 * cols] = 0;
+    if (nonsafe == cols) {
+	addrbank *ab = &get_mem_bank (addr);
+	if (ab->name)
+	    memcpy (out + 9 + 4 + 1, ab->name, strlen (ab->name));
+    }
+    return addr;
+}
+
 static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 {
-    char line[80];
-    int cols = 8;
+    char line[MAX_LINEWIDTH + 1];
     for (;lines--;) {
-	int i;
-	sprintf (line, "%08lx ", addr);
-	for (i = 0; i < cols; i++) {
-	    uae_u8 b1 = get_byte (addr + 0);
-	    uae_u8 b2 = get_byte (addr + 1);
-	    addr += 2;
-	    sprintf (line + 9 + i * 5, "%02x%02x ", b1, b2);
-	    line[9 + cols * 5 + 1 + i * 2 + 0] = b1 >= 32 && b1 < 127 ? b1 : '.';
-	    line[9 + cols * 5 + 1 + i * 2 + 1] = b2 >= 32 && b2 < 127 ? b2 : '.';
-	}
-	line[9 + cols * 5] = ' ';
-	line[9 + cols * 5 + 1 + 2 * cols] = 0;
-	console_out ("%s", line);
+        addr = dumpmem2 (addr, line, sizeof(line));
+        console_out ("%s", line);
 	console_out ("\n");
     }
     *nxmem = addr;
+}
+
+static void dumpmemreg (char **inptr)
+{
+    int i;
+    char *p = *inptr;
+    uaecptr nxmem, addr;
+    char tmp[10];
+
+    addr = 0;
+    i = 0;
+    while (p[i]) {
+	tmp[i] = toupper(p[i]);
+	if (i >= sizeof (tmp) - 1)
+	    break;
+	i++;
+    }
+    tmp[i] = 0;
+    if (!strcmp(tmp, "USP"))
+	addr = regs.usp;
+    if (!strcmp(tmp, "VBR"))
+	addr = regs.vbr;
+    if (!strcmp(tmp, "MSP"))
+	addr = regs.msp;
+    if (!strcmp(tmp, "ISP"))
+	addr = regs.isp;
+    if (!strcmp(tmp, "PC"))
+	addr = regs.pc;
+    if (toupper(p[0]) == 'A' || toupper(p[0]) == 'D') {
+	int reg = 0;
+	if (toupper(p[0]) == 'A')
+	    reg += 8;
+	reg += p[1] - '0';
+	if (reg < 0 || reg > 15)
+	    return;
+	addr = regs.regs[reg];
+    }
+    addr -= 16;
+    dumpmem (addr, &nxmem, 20);
 }
 
 static void dump_custom_regs (int aga)
@@ -795,7 +881,7 @@ static void cheatsearch (char **c)
 	}
 	listcheater(0);
     }
-    console_out ("Found %d possible addresses with 0x%x (%u) (%d bytes)\n", count, val, val, size);
+    console_out ("Found %d possible addresses with 0x%X (%u) (%d bytes)\n", count, val, val, size);
     console_out ("Now continue with 'g' and use 'C' with a different value\n");
     first = 0;
 }
@@ -1400,7 +1486,7 @@ static void writeintomem (char **c)
 	put_byte (addr, val);
 	cc = 'B';
     }
-    console_out ("Wrote %x (%u) at %08x.%c\n", val, val, addr, cc);
+    console_out ("Wrote %X (%u) at %08X.%c\n", val, val, addr, cc);
 }
 
 static uae_u8 *dump_xlate(uae_u32 addr)
@@ -1494,22 +1580,22 @@ static void show_exec_tasks (void)
     uaecptr taskready = get_long (execbase + 406);
     uaecptr taskwait = get_long (execbase + 420);
     uaecptr node, end;
-    console_out ("execbase at 0x%08lx\n", (unsigned long) execbase);
+    console_out ("execbase at 0x%08X\n", (unsigned long) execbase);
     console_out ("Current:\n");
     node = get_long (execbase + 276);
-    console_out ("%08lx: %08lx %s\n", node, 0, get_real_address (get_long (node + 10)));
+    console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
     console_out ("Ready:\n");
     node = get_long (taskready);
     end = get_long (taskready + 4);
     while (node) {
-	console_out ("%08lx: %08lx %s\n", node, 0, get_real_address (get_long (node + 10)));
+	console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
 	node = get_long (node);
     }
     console_out ("Waiting:\n");
     node = get_long (taskwait);
     end = get_long (taskwait + 4);
     while (node) {
-	console_out ("%08lx: %08lx %s\n", node, 0, get_real_address (get_long (node + 10)));
+	console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
 	node = get_long (node);
     }
 }
@@ -1700,7 +1786,7 @@ static void searchmem (char **cc)
 	if (more_params (cc))
 	    endaddr = readhex (cc);
     }
-    console_out ("Searching from %08x to %08x..\n", addr, endaddr);
+    console_out ("Searching from %08X to %08X..\n", addr, endaddr);
     while ((addr = nextaddr (addr, NULL)) != 0xffffffff) {
 	if (addr == endaddr)
 	    break;
@@ -1716,7 +1802,7 @@ static void searchmem (char **cc)
 	}
 	if (i == sslen) {
 	    got++;
-	    console_out (" %08x", addr);
+	    console_out (" %08X", addr);
 	    if (got > 100) {
 		console_out ("\nMore than 100 results, aborting..");
 		break;
@@ -1851,7 +1937,7 @@ static void m68k_modify (char **inptr)
 
 static void debug_1 (void)
 {
-    char input[80];
+    char input[MAX_LINEWIDTH];
     uaecptr nxdis, nxmem, addr;
 
     m68k_dumpstate (stdout, &nextpc);
@@ -1860,9 +1946,12 @@ static void debug_1 (void)
     for (;;) {
 	char cmd, *inptr;
 
+	if (!debugger_active)
+	    return;
+	update_debug_info();
 	console_out (">");
 	console_flush ();
-	if (!console_get (input, 80))
+	if (!console_get (input, MAX_LINEWIDTH))
 	    continue;
 	inptr = input;
 	cmd = next_char (&inptr);
@@ -1960,9 +2049,9 @@ static void debug_1 (void)
 	    }
 	    break;
 
-	case 'q': uae_quit();
-	    debugger_active = 0;
-	    debugging = 0;
+	case 'q':
+	    uae_quit();
+	    deactivate_debugger();
 	    return;
 
 	case 'g':
@@ -1970,10 +2059,18 @@ static void debug_1 (void)
 		m68k_setpc (&regs, readhex (&inptr));
 		fill_prefetch_slow (&regs);
 	    }
-	    debugger_active = 0;
-	    debugging = 0;
-	    exception_debugging = 0;
+	    deactivate_debugger();
 	    return;
+
+	case 'x':
+	    if (toupper(inptr[0]) == 'X') {
+		debugger_change(-1);
+	    } else {
+		deactivate_debugger();
+		close_console();
+		return;
+	    }
+	    break;
 
 	case 'H':
 	{
@@ -2017,11 +2114,19 @@ static void debug_1 (void)
 	break;
 	case 'm':
 	{
-	    uae_u32 maddr; int lines;
-	    if (more_params(&inptr))
-		maddr = readhex(&inptr);
-	    else
+	    uae_u32 maddr;
+	    int lines;
+	    if (more_params(&inptr)) {
+		if (toupper(inptr[0]) == 'R') {
+		    inptr++;
+		    dumpmemreg(&inptr);
+		    break;
+		} else {
+		    maddr = readhex(&inptr);
+		}
+	    } else {
 		maddr = nxmem;
+	    }
 	    if (more_params(&inptr))
 		lines = readhex(&inptr);
 	    else

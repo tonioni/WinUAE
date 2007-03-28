@@ -342,7 +342,6 @@ int AVIOutput_ChooseAudioCodec(HWND hwnd, char *s, int len)
 	case ACMERR_CANCELED:
 	    AVIOutput_GetAudioFromRegistry(NULL);
 	    AVIOutput_ReleaseAudio();
-	    //MessageBox(hwnd, "The user chose the Cancel button or the Close command on the System menu to close the dialog box.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 		
 	case ACMERR_NOTPOSSIBLE:

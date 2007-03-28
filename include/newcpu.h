@@ -286,6 +286,7 @@ extern uae_u32 REGPARAM3 get_disp_ea_020i (struct regstruct *regs, uae_u32 base,
 extern uae_u32 REGPARAM3 get_disp_ea_000 (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
 extern void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
 extern void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt);
+extern void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode);
 
 extern void REGPARAM3 MakeSR (struct regstruct *regs) REGPARAM;
 extern void REGPARAM3 MakeFromSR (struct regstruct *regs) REGPARAM;

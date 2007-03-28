@@ -1,0 +1,208 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
+#include <winspool.h>
+#include <winuser.h>
+#include <mmsystem.h>
+#include <commctrl.h>
+#include <commdlg.h>
+#include <dlgs.h>
+#include <process.h>
+#include <prsht.h>
+#include <richedit.h>
+#include <shellapi.h>
+#include <Shlobj.h>
+#include <shlwapi.h>
+#include <ddraw.h>
+#include <shobjidl.h>
+
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#include "resource.h"
+#include "win32.h"
+#include "win32gui.h"
+
+static int max_w, max_h, mult, pointsize;
+
+typedef struct {
+    WORD dlgVer;
+    WORD signature;
+    DWORD helpID;
+    DWORD exStyle;
+    DWORD style;
+    WORD cDlgItems;
+    short x;
+    short y;
+    short cx;
+    short cy;
+/*
+    sz_Or_Ord menu;
+    sz_Or_Ord windowClass;
+*/
+} DLGTEMPLATEEX;
+
+typedef struct {
+    WORD pointsize;
+    WORD weight;
+    BYTE italic;
+    BYTE charset;
+    WCHAR typeface[0];
+} DLGTEMPLATEEX_END;
+
+typedef struct {
+    DWORD helpID;
+    DWORD exStyle;
+    DWORD style;
+    short x;
+    short y;
+    short cx;
+    short cy;
+    WORD id;
+    WCHAR windowClass[0];
+    /* variable data after this */
+    /* sz_Or_Ord title; */
+    /* WORD extraCount; */
+} DLGITEMTEMPLATEEX;
+
+static wchar_t font_vista[] = L"Segoe UI";
+static wchar_t font_xp[] = L"Tahoma";
+static wchar_t font_old[] = L"MS Sans Serif";
+
+
+static BYTE *skiptext(BYTE *s)
+{
+    if (s[0] == 0xff && s[1] == 0xff) {
+	s += 4;
+	return s;
+    }
+    while (s[0] != 0 || s[1] != 0)
+	s += 2;
+    s += 2;
+    return s;
+}
+
+static BYTE *todword(BYTE *p)
+{
+    while ((LONG_PTR)p & 3)
+        p++;
+    return p;
+}
+
+static void modifytemplate(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id, int mult)
+{
+
+    d->cx = d->cx * mult / 100;
+    d->cy = d->cy * mult / 100;
+}
+
+static void modifytemplatefont(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
+{
+    wchar_t *p = NULL;
+
+    if (os_vista)
+	p = font_vista;
+    else if (os_winnt)
+	p = font_xp;
+    if (p && !wcscmp (d2->typeface, font_old))
+	wcscpy (d2->typeface, p);
+}
+
+static void modifyitem(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id, int mult)
+{
+    dt->cy = dt->cy * mult / 100;
+    dt->cx = dt->cx * mult / 100;
+    dt->y = dt->y * mult / 100;
+    dt->x = dt->x * mult / 100;
+}
+
+static INT_PTR CALLBACK DummyProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch(msg)
+    {
+	case WM_DESTROY:
+	PostQuitMessage (0);
+	return TRUE;
+	case WM_CLOSE:
+	DestroyWindow(hDlg);
+	return TRUE;
+	case WM_INITDIALOG:
+	return TRUE;
+    }
+    return FALSE;
+}
+
+struct newresource *scaleresource(struct newresource *res, HWND parent)
+{
+    DLGTEMPLATEEX *d;
+    DLGTEMPLATEEX_END *d2;
+    DLGITEMTEMPLATEEX *dt;
+    BYTE *p, *p2;
+    int i;
+    struct newresource *ns;
+
+    d = res->resource;
+    d2 = res->resource;
+
+    if (d->dlgVer != 1 || d->signature != 0xffff)
+	return 0;
+    if (!(d->style & (DS_SETFONT | DS_SHELLFONT)))
+	return 0;
+
+    ns = xcalloc (sizeof (struct newresource), 1);
+    ns->inst = res->inst;
+    ns->size = res->size;
+    ns->tmpl = res->tmpl;
+    ns->resource = xmalloc (ns->size);
+    memcpy (ns->resource, res->resource, ns->size);
+
+    d = ns->resource;
+    d2 = ns->resource;
+    p = (BYTE*)d + sizeof (DLGTEMPLATEEX);
+    p = skiptext(p);
+    p = skiptext(p);
+    d2 = (DLGTEMPLATEEX_END*)p;
+    p2 = p;
+    p2 += sizeof (DLGTEMPLATEEX_END);
+    p2 = skiptext(p2);
+    p2 = todword(p2);
+
+    modifytemplatefont(d, d2);
+
+    p += sizeof (DLGTEMPLATEEX_END);
+    p = skiptext(p);
+    p = todword(p);
+
+    if (p != p2)
+	memmove (p, p2, ns->size - (p2 - (BYTE*)ns->resource));
+
+    modifytemplate(d, d2, ns->tmpl, mult);
+
+    for (i = 0; i < d->cDlgItems; i++) {
+	dt = (DLGITEMTEMPLATEEX*)p;
+	modifyitem(d, d2, dt, ns->tmpl, mult);
+	p += sizeof (DLGITEMTEMPLATEEX);
+	p = skiptext(p);
+	p = skiptext(p);
+	p += ((WORD*)p)[0];
+	p += sizeof (WORD);
+	p = todword(p);
+    }
+
+    ns->width = d->cx;
+    ns->height = d->cy;
+    return ns;
+}
+
+void freescaleresource(struct newresource *ns)
+{
+    xfree (ns->resource);
+    xfree (ns);
+}
+
+void scaleresource_setmaxsize(int w, int h)
+{
+    max_w = w;
+    max_h = h;
+    mult = 100;
+}

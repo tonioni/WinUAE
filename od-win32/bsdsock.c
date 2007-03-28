@@ -1943,7 +1943,7 @@ static BOOL CheckOnline(SB)
 			bReturn = FALSE;
 			// No success or aborted
 		}
-		if (isfullscreen()) {
+		if (isfullscreen() > 0) {
 			ShowWindow (hAmigaWnd, SW_RESTORE);
 			SetActiveWindow(hAmigaWnd);
 		}

@@ -495,7 +495,8 @@ static int scan_rom (char *path, HKEY fkey)
 	    break;
     }
     if (!uae_archive_extensions[i]) {
-	if (stricmp (ext, "rom") && stricmp (ext, "adf") && stricmp (ext, "key")) {
+	if (stricmp (ext, "rom") && stricmp (ext, "adf") && stricmp (ext, "key")
+	    && stricmp (ext, "a500") && stricmp (ext, "a1200") && stricmp (ext, "a4000")) {
 	    write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 	    return 0;
 	}
@@ -831,8 +832,8 @@ static void m(void)
 void gui_display(int shortcut)
 {
     static int here;
-    int flipflop = 0;
     HRESULT hr;
+    int w, h;
 
     if (here)
 	return;
@@ -847,18 +848,22 @@ void gui_display(int shortcut)
     clearallkeys ();
     setmouseactive (0);
 
-    if ((!WIN32GFX_IsPicassoScreen() && currprefs.gfx_afullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height))
-#ifdef PICASSO96
-	|| (WIN32GFX_IsPicassoScreen() && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height))
-#endif
-    ) {
-	flipflop = 1;
+    w = h = -1;
+    if (!WIN32GFX_IsPicassoScreen() && currprefs.gfx_afullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
+	w = currprefs.gfx_size.width;
+	h = currprefs.gfx_size.height;
     }
-
+    if (WIN32GFX_IsPicassoScreen() && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
+	w = currprefs.gfx_size.width;
+	h = currprefs.gfx_size.height;
+    }
+    scaleresource_setmaxsize (-1, -1);
+    if (w > 0 && h > 0)
+	scaleresource_setmaxsize (w, h);
     WIN32GFX_ClearPalette();
     manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
-    if (isfullscreen ()) {
+    if (isfullscreen () > 0) {
 	hr = DirectDraw_FlipToGDISurface();
 	if (FAILED(hr))
 	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
@@ -866,11 +871,7 @@ void gui_display(int shortcut)
 
     if (shortcut == -1) {
 	int ret;
-	if (flipflop)
-	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
-	ret = GetSettings (0, flipflop ? (currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL) : hAmigaWnd);
-	if (flipflop > 0)
-	    ShowWindow (hAmigaWnd, SW_RESTORE);
+	ret = GetSettings (0, hAmigaWnd);
 	if (!ret) {
 	    savestate_state = 0;
 	}
@@ -890,8 +891,7 @@ void gui_display(int shortcut)
     inputdevice_config_change_test ();
     clearallkeys ();
     inputdevice_acquire ();
-    if (flipflop >= 0)
-	setmouseactive (1);
+    setmouseactive (1);
 #ifdef D3D
     D3D_guimode (FALSE);
 #endif
@@ -2496,7 +2496,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		}
 	    break;
 	    case IDC_SETINFO:
-		if (DialogBox(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_SETINFO), hDlg, InfoSettingsProc))
+		if (CustomDialogBox(IDD_SETINFO, hDlg, InfoSettingsProc))
 		    EnableWindow( GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0] );
 	    break;
 	    case IDC_CONFIGAUTO:
@@ -2610,19 +2610,17 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
      case WM_INITDIALOG:
 	CharFormat.cbSize = sizeof (CharFormat);
 
-	WIN32GUI_LoadUIString( IDS_CONTRIBUTORS1, szContributors1, MAX_CONTRIBUTORS_LENGTH );
-	WIN32GUI_LoadUIString( IDS_CONTRIBUTORS2, szContributors2, MAX_CONTRIBUTORS_LENGTH );
-	sprintf( szContributors, "%s%s", szContributors1, szContributors2 );
+	WIN32GUI_LoadUIString(IDS_CONTRIBUTORS1, szContributors1, MAX_CONTRIBUTORS_LENGTH);
+	WIN32GUI_LoadUIString(IDS_CONTRIBUTORS2, szContributors2, MAX_CONTRIBUTORS_LENGTH);
+	sprintf(szContributors, "%s%s", szContributors1, szContributors2);
 
 	SetDlgItemText (hDlg, IDC_CONTRIBUTORS, szContributors );
 	SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+	CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
-	strcpy (CharFormat.szFaceName, "Times New Roman");
+	strcpy (CharFormat.szFaceName, os_vista ? "Segoe UI" : (os_winnt ? "Tahoma" : "Times New Roman"));
 	SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
-	/* SendDlgItemMessage(hDlg, IDC_CONTRIBUTORS, EM_SETBKGNDCOLOR,0,GetSysColor( COLOR_3DFACE ) ); */
-
 	return TRUE;
     }
     return FALSE;
@@ -2630,7 +2628,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void DisplayContributors (HWND hDlg)
 {
-    DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_CONTRIBUTORS), hDlg, ContributorsProc);
+    CustomDialogBox(IDD_CONTRIBUTORS, hDlg, ContributorsProc);
 }
 
 typedef struct url_info
@@ -3423,7 +3421,7 @@ static void enable_for_displaydlg (HWND hDlg)
 #ifndef PICASSO96
     rtg = FALSE;
 #endif
-    ew (hDlg, IDC_PFULLSCREEN, rtg);
+    ew (hDlg, IDC_SCREENMODE_RTG, rtg);
     if (!full_property_sheet)  {
 	/* Disable certain controls which are only to be set once at start-up... */
 	ew (hDlg, IDC_TEST16BIT, FALSE);
@@ -3713,10 +3711,10 @@ static void values_to_displaydlg (HWND hDlg)
 
     v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
     SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, v);
-    WIN32GUI_LoadUIString( IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH );
+    WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, sizeof buffer);
     LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
-    if(FormatMessage( FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-		       buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
+    if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+	    buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
     {
 	DWORD dwLastError = GetLastError();
 	sprintf (buffer, "Every %s Frame", nth[v - 1]);
@@ -3727,8 +3725,25 @@ static void values_to_displaydlg (HWND hDlg)
     }
 
     CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_linedbl);
-    CheckDlgButton (hDlg, IDC_AFULLSCREEN, workprefs.gfx_afullscreen);
-    CheckDlgButton (hDlg, IDC_PFULLSCREEN, workprefs.gfx_pfullscreen);
+
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_RESETCONTENT, 0, 0);
+    WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL, workprefs.gfx_afullscreen, 0);
+
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
+    WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL, workprefs.gfx_pfullscreen, 0);
+
     CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
     CheckDlgButton (hDlg, IDC_LORES, workprefs.gfx_lores);
     CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
@@ -3751,7 +3766,7 @@ static void init_resolution_combo (HWND hDlg)
     while (DisplayModes[i].depth >= 0) {
 	if (DisplayModes[i].residx != idx) {
 	    sprintf (tmp, "%dx%d", DisplayModes[i].res.width, DisplayModes[i].res.height);
-	    SendDlgItemMessage( hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    idx = DisplayModes[i].residx;
 	}
 	i++;
@@ -3776,15 +3791,20 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     int i, j;
     int gfx_width = workprefs.gfx_size_win.width;
     int gfx_height = workprefs.gfx_size_win.height;
+    LRESULT posn;
 
-    workprefs.gfx_pfullscreen    = IsDlgButtonChecked (hDlg, IDC_PFULLSCREEN);
-    workprefs.gfx_afullscreen    = IsDlgButtonChecked (hDlg, IDC_AFULLSCREEN);
+    posn = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
+    if (posn != CB_ERR)
+	workprefs.gfx_afullscreen = posn;
+    posn = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
+    if (posn != CB_ERR)
+	workprefs.gfx_pfullscreen = posn;
 
     workprefs.gfx_lores          = IsDlgButtonChecked (hDlg, IDC_LORES);
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
     workprefs.gfx_correct_aspect = IsDlgButtonChecked (hDlg, IDC_ASPECT);
-    workprefs.gfx_linedbl = ( IsDlgButtonChecked( hDlg, IDC_LM_SCANLINES ) ? 2 :
-			      IsDlgButtonChecked( hDlg, IDC_LM_DOUBLED ) ? 1 : 0 );
+    workprefs.gfx_linedbl = (IsDlgButtonChecked(hDlg, IDC_LM_SCANLINES) ? 2 :
+			      IsDlgButtonChecked(hDlg, IDC_LM_DOUBLED) ? 1 : 0);
 
     workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
     workprefs.chipset_refreshrate = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
@@ -3796,19 +3816,19 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	LPSTR blah[1] = { Nth };
 	LPTSTR string = NULL;
 
-	WIN32GUI_LoadUIString( IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH );
-	LoadNthString( workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH );
-	if( FormatMessage( FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			   buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0 )
+	WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH);
+	LoadNthString(workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH);
+	if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+			   buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
 	{
 	    DWORD dwLastError = GetLastError();
 	    sprintf (buffer, "Every %s Frame", nth[workprefs.gfx_framerate - 1]);
-	    SetDlgItemText( hDlg, IDC_RATETEXT, buffer );
+	    SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
 	}
 	else
 	{
-	    SetDlgItemText( hDlg, IDC_RATETEXT, string );
-	    LocalFree( string );
+	    SetDlgItemText(hDlg, IDC_RATETEXT, string);
+	    LocalFree(string);
 	}
 	sprintf (buffer, "%d", workprefs.chipset_refreshrate);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
@@ -3827,7 +3847,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE) 
     {
 	if (LOWORD (wParam) == IDC_DISPLAYSELECT) {
-	    LRESULT posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
+	    posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
 	    if (posn != CB_ERR && posn != workprefs.gfx_display) {
 		if (Displays[posn].disabled)
 		    posn = 0;
@@ -3910,10 +3930,6 @@ static int hw3d_changed;
 static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    HKEY hPixelFormatKey;
-    RGBFTYPE colortype      = RGBFB_NONE;
-    DWORD dwType            = REG_DWORD;
-    DWORD dwDisplayInfoSize = sizeof( colortype );
 
     switch (msg) 
     {
@@ -3942,27 +3958,12 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if((wParam == IDC_TEST16BIT) && DirectDraw_Start(NULL)) {
-	    if(RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, KEY_WRITE | KEY_READ, &hPixelFormatKey) == ERROR_SUCCESS) {
-		char szMessage[4096];
-		char szTitle[MAX_DPATH];
-		WIN32GUI_LoadUIString(IDS_GFXCARDCHECK, szMessage, 4096);
-		WIN32GUI_LoadUIString(IDS_GFXCARDTITLE, szTitle, MAX_DPATH);
-		    
-		if(MessageBox(NULL, szMessage, szTitle, MB_YESNO | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND) == IDYES) {
-		    colortype = WIN32GFX_FigurePixelFormats(0);
-		    RegSetValueEx(hPixelFormatKey, "DisplayInfo", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-		}
-		RegCloseKey(hPixelFormatKey);
-	    }
-	    DirectDraw_Release();
-	} else {
 #if 0
-	    handle_da (hDlg);
+        handle_da (hDlg);
 #endif
-	    values_from_displaydlg (hDlg, msg, wParam, lParam);
-	    enable_for_displaydlg (hDlg);
-	}
+        values_from_displaydlg (hDlg, msg, wParam, lParam);
+        enable_for_displaydlg (hDlg);
+
 	recursive--;
 	break;
 
@@ -6202,7 +6203,7 @@ static void harddisk_edit (HWND hDlg)
 	}
 	current_hfdlg.rw = !uci->readonly;
 	current_hfdlg.bootpri = uci->bootpri;
-	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDFILE), hDlg, HardfileSettingsProc)) 
+	if (CustomDialogBox(IDD_HARDFILE, hDlg, HardfileSettingsProc)) 
 	{
 	    int result = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
@@ -6214,7 +6215,7 @@ static void harddisk_edit (HWND hDlg)
 	current_hfdlg.rw = !uci->readonly;
 	strncpy (current_hfdlg.filename, uci->rootdir, (sizeof current_hfdlg.filename) - 1);
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';
-	if (DialogBox(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDDRIVE), hDlg, HarddriveSettingsProc)) 
+	if (CustomDialogBox(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc)) 
 	{
 	    int result = add_filesys_config (&workprefs, entry, 0, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, 0, 0,
@@ -6234,7 +6235,7 @@ static void harddisk_edit (HWND hDlg)
 	}
 	current_fsvdlg.rw = !uci->readonly;
 	current_fsvdlg.bootpri = uci->bootpri;
-	if (DialogBox( hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_FILESYS), hDlg, VolumeSettingsProc)) {
+	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 	    int result = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
 					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
 	}
@@ -6253,13 +6254,13 @@ static void harddiskdlg_button (HWND hDlg, int button)
     switch (button) {
      case IDC_NEW_FS:
 	current_fsvdlg = empty_fsvdlg;
-	if (DialogBox (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_FILESYS), hDlg, VolumeSettingsProc))
+	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
 	    new_filesys (hDlg);
 	break;
 
      case IDC_NEW_HF:
 	current_hfdlg = empty_hfdlg;
-	if (DialogBox (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDFILE), hDlg, HardfileSettingsProc))
+	if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc))
 	    new_hardfile (hDlg);
 	break;
 
@@ -6270,7 +6271,7 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	    WIN32GUI_LoadUIString (IDS_NOHARDDRIVES, tmp, sizeof (tmp));
 	    gui_message (tmp);
 	} else {
-	    if (DialogBox (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_HARDDRIVE), hDlg, HarddriveSettingsProc))
+	    if (CustomDialogBox (IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
 		new_harddrive (hDlg);
 	}
 	break;
@@ -7651,7 +7652,7 @@ static int askinputcustom(HWND hDlg, char *custom, int maxlen)
     char txt[MAX_DPATH];
 
     stringboxdialogactive = 1;
-    hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_STRINGBOX), hDlg, StringBoxDialogProc);
+    hwnd = CustomCreateDialog (IDD_STRINGBOX, hDlg, StringBoxDialogProc);
     if (hwnd == NULL)
 	return 0;
     SendMessage(GetDlgItem(hwnd, IDC_STRINGBOXEDIT), WM_SETTEXT, 0, (LPARAM)custom);
@@ -8506,6 +8507,7 @@ static void enable_for_avioutputdlg(HWND hDlg)
 #endif
 
     ew (hDlg, IDC_SCREENSHOT, full_property_sheet ? FALSE : TRUE);
+    ew (hDlg, IDC_SAMPLERIPPER_ACTIVATED, full_property_sheet ? FALSE : TRUE);
 
     ew (hDlg, IDC_AVIOUTPUT_PAL, TRUE);
     ew (hDlg, IDC_AVIOUTPUT_NTSC, TRUE);
@@ -8735,14 +8737,16 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 #endif
 
 struct GUIPAGE {
-    PROPSHEETPAGE pp;
+    DLGPROC dlgproc;
+    LPCTSTR title;
+    LPCTSTR icon;
     HTREEITEM tv;
     int himg;
     int idx;
     const char *help;
     HACCEL accel;
     int fullpanel;
-    int tmpl;
+    struct newresource *nres;
 };
 
 static int GetPanelRect (HWND hDlg, RECT *r)
@@ -8968,6 +8972,7 @@ static HWND updatePanel (HWND hDlg, int id)
     RECT r1c, r1w, r2c, r2w, r3c, r3w;
     int w, h, pw, ph, x , y, i;
     int fullpanel;
+    struct newresource *tres;
 
     ew (guiDlg, IDC_RESETAMIGA, full_property_sheet ? FALSE : TRUE);
     ew (guiDlg, IDOK, TRUE);
@@ -8986,15 +8991,14 @@ static HWND updatePanel (HWND hDlg, int id)
     }
     hAccelTable = NULL;
     if (id < 0) {
-	if (!isfullscreen ()) {
+	if (isfullscreen () <= 0) {
 	    RECT r;
-	    LONG left, top;
-	    GetWindowRect (hDlg, &r);
-	    left = r.left;
-	    top = r.top;
-	    if (hWinUAEKey) {
-		RegSetValueEx (hWinUAEKey, "xPosGUI", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "yPosGUI", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
+	    if (GetWindowRect (hDlg, &r) && hWinUAEKey) {
+		LONG left, top;
+		left = r.left;
+		top = r.top;
+		RegSetValueEx (hWinUAEKey, "GUIPosX", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
+		RegSetValueEx (hWinUAEKey, "GUIPosY", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
 	    }
 	}
 	ew (hDlg, IDHELP, FALSE);
@@ -9008,7 +9012,9 @@ static HWND updatePanel (HWND hDlg, int id)
     GetClientRect (hDlg, &r2c);
     gui_width = r2c.right;
     gui_height = r2c.bottom;
-    panelDlg = CreateDialogParam (hUIDLL ? hUIDLL : hInst, ppage[id].pp.pszTemplate, hDlg, ppage[id].pp.pfnDlgProc, id);
+    tres = scaleresource(ppage[id].nres, hDlg);
+    panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
+    freescaleresource(tres);
     GetWindowRect (hDlg, &r3w);
     GetClientRect (panelDlg, &r3c);
     x = r1w.left - r2w.left;
@@ -9048,7 +9054,7 @@ static HWND updatePanel (HWND hDlg, int id)
     SendMessage(ToolTipHWND, TTM_SETDELAYTIME, (WPARAM)TTDT_AUTOPOP, (LPARAM)MAKELONG(20000, 0));
     SendMessage(ToolTipHWND, TTM_SETMAXTIPWIDTH, 0, 400);
 
-    EnumChildWindows (panelDlg, &childenumproc, (LPARAM)ppage[currentpage].tmpl);
+    EnumChildWindows (panelDlg, &childenumproc, (LPARAM)ppage[currentpage].nres->tmpl);
     SendMessage (panelDlg, WM_NULL, 0, 0);
 
     hAccelTable = ppage[currentpage].accel;
@@ -9087,7 +9093,7 @@ static void CreateNode (HWND TVhDlg, int page, HTREEITEM parent)
     is.hInsertAfter = TVI_LAST;
     is.hParent = parent;
     is.itemex.mask = TVIF_TEXT | TVIF_PARAM | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-    is.itemex.pszText = (char*)p->pp.pszTitle;
+    is.itemex.pszText = (char*)p->title;
     is.itemex.lParam = (LPARAM)p->idx;
     is.itemex.iImage = p->himg;
     is.itemex.iSelectedImage = is.itemex.iImage;
@@ -9106,7 +9112,7 @@ static void createTreeView (HWND hDlg, int currentpage)
     if (himl) {
 	HICON icon;
 	for (i = 0; i < C_PAGES; i++) {
-	    icon = LoadIcon (hInst, (LPCSTR)ppage[i].pp.pszIcon);
+	    icon = LoadIcon (hInst, (LPCSTR)ppage[i].icon);
 	    ppage[i].himg = ImageList_AddIcon (himl, icon);
 	}
 	icon = LoadIcon (hInst, MAKEINTRESOURCE (IDI_ROOT));
@@ -9147,6 +9153,8 @@ static void createTreeView (HWND hDlg, int currentpage)
     TreeView_SelectItem (TVhDlg, ppage[currentpage].tv);
 }
 
+static int dialog_x_offset, dialog_y_offset;
+
 static void centerWindow (HWND hDlg)
 {
     RECT rc, rcDlg, rcOwner;
@@ -9156,13 +9164,13 @@ static void centerWindow (HWND hDlg)
 
     if (owner == NULL)
 	owner = GetDesktopWindow();
-    if (!isfullscreen ()) {
+    if (isfullscreen () <= 0) {
 	DWORD regkeytype;
 	DWORD regkeysize = sizeof(LONG);
 	if (hWinUAEKey) {
-	    if (RegQueryValueEx (hWinUAEKey, "xPosGUI", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
+	    if (RegQueryValueEx (hWinUAEKey, "GUIPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
 		x = 0;
-	    if (RegQueryValueEx (hWinUAEKey, "yPosGUI", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
+	    if (RegQueryValueEx (hWinUAEKey, "GUIPosY", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
 		y = 0;
 	} else {
 	    x = y = 0;
@@ -9183,7 +9191,7 @@ static void centerWindow (HWND hDlg)
     pt2.x = x + 16;
     pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
     if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
-	if (isfullscreen()) {
+	if (isfullscreen() > 0) {
 	    x = 0;
 	    y = 0;
 	} else {
@@ -9191,6 +9199,8 @@ static void centerWindow (HWND hDlg)
 	    y = 16;
 	}
     }
+    dialog_x_offset = x;
+    dialog_y_offset = y;
     SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 
@@ -9368,13 +9378,14 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    centerWindow (hDlg);
 	    createTreeView (hDlg, currentpage);
 	    updatePanel (hDlg, currentpage);
-	    return TRUE;
+	return TRUE;
 	case WM_DROPFILES:
 	    if (dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage))
 		SendMessage (hDlg, WM_COMMAND, IDOK, 0);
 	    updatePanel (hDlg, currentpage);
-	    return FALSE;
+	return FALSE;
 	case WM_NOTIFY:
+	{
 	    switch (((LPNMHDR)lParam)->code)
 	    {
 		case TVN_SELCHANGING:
@@ -9395,7 +9406,9 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		break;
 	    }
 	    break;
+	}
 	case WM_COMMAND:
+	{
 	    switch (LOWORD(wParam))
 	    {
 		case IDC_RESETAMIGA:
@@ -9428,7 +9441,8 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		    guiDlg = NULL;
 		    return TRUE;
 	    }
-	break;
+	    break;
+	}
     }
     return FALSE;
 }
@@ -9438,23 +9452,93 @@ static ACCEL EmptyAccel[] = {
     { 0, 0, 0 }
 };
 
+struct newresource *getresource(int tmpl)
+{
+    char rid[10];
+    HRSRC hrsrc;
+    HGLOBAL res;
+    HINSTANCE inst = hUIDLL ? hUIDLL : hInst;
+    void *resdata, *newres;
+    struct newresource *nr;
+    int size;
+
+    sprintf(rid,"#%d", tmpl);
+    hrsrc = FindResource (inst, rid, RT_DIALOG);
+    if (!hrsrc) {
+	inst = hInst;
+	hrsrc = FindResource (inst, rid, RT_DIALOG);
+    }
+    if (!hrsrc)
+	return NULL;
+    res = LoadResource(inst, hrsrc);
+    if (!res)
+	return NULL;
+    resdata = LockResource(res);
+    size = SizeofResource(inst, hrsrc);
+    nr = xcalloc (sizeof (struct newresource), 1);
+    newres = xmalloc (size);
+    memcpy (newres, resdata, size);
+    nr->resource = newres;
+    nr->size = size;
+    nr->tmpl = tmpl;
+    nr->inst = inst;
+    return nr;
+}
+
+INT_PTR CustomDialogBox(int templ, HWND hDlg, DLGPROC proc)
+{
+    struct newresource *res, *r;
+    INT_PTR h = -1;
+
+    res = getresource (templ);
+    if (!res)
+	return h;
+    r = scaleresource (res, hDlg);
+    if (r) {
+	h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
+	freescaleresource (r);
+    }
+    freescaleresource (res);
+    return h;
+}
+
+HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
+{
+    struct newresource *res, *r;
+    HWND h = NULL;
+
+    res = getresource (templ);
+    if (!res)
+	return h;
+    r = scaleresource (res, hDlg);
+    if (r) {
+	h = CreateDialogIndirect (r->inst, r->resource, hDlg, proc);
+	freescaleresource (r);
+    }
+    freescaleresource (res);
+    return h;
+}
+
 static int init_page (int tmpl, int icon, int title,
     INT_PTR (CALLBACK FAR *func) (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam), ACCEL *accels, char *help)
 {
+    LPTSTR lpstrTitle;
     static id = 0;
     int i = -1;
+    struct newresource *res;
 
-    LPTSTR lpstrTitle;
-    ppage[id].pp.pszTemplate = MAKEINTRESOURCE (tmpl);
-    ppage[id].pp.pszIcon = MAKEINTRESOURCE (icon);
+    res = getresource(tmpl);
+    if (!res)
+	return -1;
+    ppage[id].nres = res;
+    ppage[id].icon = MAKEINTRESOURCE (icon);
     lpstrTitle = calloc (1, MAX_DPATH);
     LoadString (hUIDLL, title, lpstrTitle, MAX_DPATH);
-    ppage[id].pp.pszTitle = lpstrTitle;
-    ppage[id].pp.pfnDlgProc = func;
+    ppage[id].title = lpstrTitle;
+    ppage[id].dlgproc = func;
     ppage[id].help = help;
     ppage[id].idx = id;
     ppage[id].accel = NULL;
-    ppage[id].tmpl = tmpl;
     if (!accels)
 	accels = EmptyAccel;
     while (accels[++i].key);
@@ -9465,12 +9549,68 @@ static int init_page (int tmpl, int icon, int title,
     return id - 1;
 }
 
+static RECT dialog_rect;
+
+static void dialogmousemove(HWND hDlg, MSG *msg)
+{
+    int edge2 = 80;
+    int rate = 32;
+    int qual = msg->wParam;
+    int newmx, newmy;
+    static int oldx, oldy, ignorenext;
+    int mx, my;
+
+    mx = (signed short) LOWORD (msg->lParam);
+    my = (signed short) HIWORD (msg->lParam);
+
+    if (!(qual & MK_CONTROL) || ignorenext > 0) {
+	oldx = mx;
+	oldy = my;
+	if (ignorenext > 0)
+	    ignorenext--;
+	return;
+    }
+
+    newmx = mx - oldx;
+    newmy = my - oldy;
+
+    oldx = mx;
+    oldy = my;
+
+    if (newmx < -edge2 || newmy < -edge2 || newmx > edge2 || newmy > edge2) {
+	ignorenext++;
+	return;
+    }
+
+    write_log("%dx%d\n", newmx, newmy);
+
+    dialog_x_offset += newmx;
+    dialog_y_offset += newmy;
+
+    /*
+    if (dialog_x_offset >= dialog_rect.right - WIN32GFX_GetWidth() + edge2)
+	dialog_x_offset = dialog_rect.right - WIN32GFX_GetWidth() + edge2;
+    if (dialog_y_offset >= dialog_rect.bottom - WIN32GFX_GetHeight() + edge2)
+	dialog_y_offset = dialog_rect.bottom - WIN32GFX_GetHeight() + edge2;
+    if (dialog_x_offset < -edge2)
+	dialog_x_offset = -edge2;
+    if (dialog_y_offset < -edge2)
+	dialog_y_offset = -edge2;
+*/
+    SetWindowPos(hDlg, 0, dialog_x_offset, dialog_y_offset, 0, 0,
+	SWP_NOOWNERZORDER | SWP_NOREDRAW | SWP_NOSIZE | SWP_NOACTIVATE | SWP_DEFERERASE);
+    ignorenext++;
+
+}
+
 static int GetSettings (int all_options, HWND hwnd)
 {
     static int init_called = 0;
     int psresult;
     HWND dhwnd;
     int first = 0;
+    static struct newresource *panelresource;
+    struct newresource *tres;
 
     gui_active++;
 
@@ -9484,6 +9624,7 @@ static int GetSettings (int all_options, HWND hwnd)
 
     if (!init_called) {
 	first = 1;
+	panelresource = getresource(IDD_PANEL);
 	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_CONFIGFILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, "gui/configurations.htm");
 	MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, "gui/ram.htm");
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, "gui/rom.htm");
@@ -9527,7 +9668,13 @@ static int GetSettings (int all_options, HWND hwnd)
     DragAcceptFiles(hwnd, TRUE);
     if (first)
 	write_log("Entering GUI idle loop\n");
-    dhwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_PANEL), hwnd, DialogProc);
+    scaleresource_setmaxsize(800, 600);
+    tres = scaleresource(panelresource, hwnd);
+    dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
+    dialog_rect.top = dialog_rect.left = 0;
+    dialog_rect.right = tres->width;
+    dialog_rect.bottom = tres->height;
+    freescaleresource(tres);
     psresult = 0;
     if (dhwnd != NULL) {
 	MSG msg;
@@ -9539,6 +9686,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	    SetWindowText (dhwnd, tmp);
 	}
 	ShowWindow (dhwnd, SW_SHOW);
+	MapDialogRect(dhwnd, &dialog_rect);
 	for (;;) {
 	    HANDLE IPChandle;
 	    IPChandle = geteventhandleIPC();
@@ -9756,7 +9904,7 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
 	return 0;
     }
     *hwnd = hAmigaWnd;
-    if (!isfullscreen ())
+    if (isfullscreen () <= 0)
 	return 0;
     hr = DirectDraw_FlipToGDISurface();
     if (FAILED(hr))

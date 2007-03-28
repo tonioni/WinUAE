@@ -1166,7 +1166,7 @@ static void init_aspect_maps (void)
 
     if (currprefs.gfx_ycenter && !(currprefs.gfx_correct_aspect)) {
 	/* @@@ verify maxvpos vs. MAXVPOS */
-	extra_y_adjust = (gfxvidinfo.height - (maxvpos << (currprefs.gfx_linedbl ? 1 : 0))) >> 1;
+	extra_y_adjust = (gfxvidinfo.height - (maxvpos_max << (currprefs.gfx_linedbl ? 1 : 0))) >> 1;
 	if (extra_y_adjust < 0)
 	    extra_y_adjust = 0;
     }
@@ -1674,13 +1674,13 @@ static void center_image (void)
 		thisframe_y_adjust = prev_y_adjust;
 	}
 	/* Make sure the value makes sense */
-	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos)
-	    thisframe_y_adjust = maxvpos - max_drawn_amiga_line;
+	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_max)
+	    thisframe_y_adjust = maxvpos_max - max_drawn_amiga_line;
 	if (thisframe_y_adjust < minfirstline)
 	    thisframe_y_adjust = minfirstline;
     }
     thisframe_y_adjust_real = thisframe_y_adjust << (currprefs.gfx_linedbl ? 1 : 0);
-    tmp = (maxvpos - thisframe_y_adjust) << (currprefs.gfx_linedbl ? 1 : 0);
+    tmp = (maxvpos_max - thisframe_y_adjust) << (currprefs.gfx_linedbl ? 1 : 0);
     if (tmp != max_ypos_thisframe) {
 	last_max_ypos = tmp;
 	if (last_max_ypos < 0)
@@ -1754,7 +1754,8 @@ static void init_drawing_frame (void)
     if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 	thisframe_last_drawn_line = thisframe_first_drawn_line;
 
-    maxline = currprefs.gfx_linedbl ? (maxvpos + 1) * 2 + 1 : (maxvpos + 1) + 1;
+    maxline = currprefs.gfx_linedbl ? (maxvpos_max + 1) * 2 + 1 : (maxvpos_max + 1) + 1;
+    maxline++;
 #ifdef SMART_UPDATE
     for (i = 0; i < maxline; i++) {
 	switch (linestate[i]) {
@@ -2057,8 +2058,8 @@ static void lightpen_update (void)
 	lightpen_cx -= maxhpos;
     if (lightpen_cy < minfirstline)
 	lightpen_cy = minfirstline;
-    if (lightpen_cy >= maxvpos)
-	lightpen_cy = maxvpos - 1;
+    if (lightpen_cy >= maxvpos_max)
+	lightpen_cy = maxvpos_max - 1;
 
     for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
         int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
@@ -2089,9 +2090,9 @@ void finish_drawing_frame (void)
     return;
 #endif
     for (i = 0; i < max_ypos_thisframe; i++) {
-	int where;
 	int i1 = i + min_ypos_for_screen;
 	int line = i + thisframe_y_adjust_real;
+	int where;
 
 	if (linestate[line] == LINE_UNDECIDED)
 	    break;
@@ -2099,24 +2100,33 @@ void finish_drawing_frame (void)
 	where = amiga2aspect_line_map[i1];
 	if (where >= gfxvidinfo.height)
 	    break;
-	if (where == -1)
+	if (where < 0)
 	    continue;
 
 	pfield_draw_line (line, where, amiga2aspect_line_map[i1 + 1]);
     }
 
     /* clear possible old garbage at the bottom if emulated area become smaller */
-    while (last_max_ypos <  gfxvidinfo.height) {
-	xcolnr tmp = colors_for_drawing.acolors[0];
+    for (i = last_max_ypos; i < gfxvidinfo.height; i++) {
+	int i1 = i + min_ypos_for_screen;
+	int line = i + thisframe_y_adjust_real;
+	int where = amiga2aspect_line_map[i1];
+	xcolnr tmp;
+
+	if (where >= gfxvidinfo.height)
+	    break;
+	if (where < 0)
+	    continue;
+	tmp = colors_for_drawing.acolors[0];
 	colors_for_drawing.acolors[0] = getxcolor (0);
 	xlinebuffer = gfxvidinfo.linemem;
 	if (xlinebuffer == 0)
-	    xlinebuffer = row_map[last_max_ypos];
+	    xlinebuffer = row_map[where];
 	xlinebuffer -= linetoscr_x_adjust_bytes;
 	fill_line ();
-	do_flush_line (last_max_ypos);
+	linestate[line] = LINE_UNDECIDED;
+	do_flush_line (where);
 	colors_for_drawing.acolors[0] = tmp;
-	last_max_ypos++;
     }
 
     if (currprefs.leds_on_screen) {

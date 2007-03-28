@@ -1,4 +1,45 @@
 
+
+Beta 1:
+
+- Chip set extra config load/save missed some models (crash when
+  saving if using missing models)
+- GUI font dynamically switches to "Segoe UI" (Vista) or "Tahoma"
+  (XP or 2000). Old font still in resource file to keep compatibility
+  with older Windows versions. TODO: new GUI tree icons.
+- dynamically modifying resources and resizing dialogs is "fun"...
+- finally removed pixel format detection. It has not been needed for
+  years..
+- merged (and modified) "GUI" debugger by Karsten Bock. WIP.
+  F1-F6: switch between different pages
+  F1 and F2: two work areas
+  F3 and F4: memory viewer
+  F5 and F6: disassembler
+  F3-F6: alt+cursor up/down/left/right modifies current address
+- x closes debugger, xx switches between console and GUI debuggers
+- extended debugger 'm' instruction, 'm r<cpu register>' 
+- direct harddrive support now works with drives that return empty
+  vendor and product id (confirmed: SyQuest removable harddrive)
+- log window position and size stored in registry. (Log window first
+  appearing in default position before jumping to stored position
+  is normal, logging must be initialized before registry handling)
+  Windows 2000 or newer only.
+- GUI/Main window registry entry names changed, positions will reset
+- blitter CE-mode ABC channel combination cycle allocation fixed
+- rar archives left "temporary" files around (stupid unrar.dll..)
+- added combination of fullscreen and windowed mode. If you have two
+  (or more) monitors, load your favorite WB configuration, select
+  non-primary monitor and "full-window" mode to both native and RTG,
+  also make sure "Magic mouse" is enabled, adjust P96 resolution.
+  D3D/OGL filter may also be good idea.
+  Result will be near-seamless Windows/Amiga integration :)
+- "Magic mouse" didn't work with some system patches, also adjusted
+  sensitivity
+- tweaked vblank interrupt delay by 1 cycle (game Feud)
+- refresh rate switching (PAL/NTSC or by poking VPOSW) improved
+
+1.4.1
+
 Beta 4:
 
 - skip unknown extensions (or files without extension) when scanning

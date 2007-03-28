@@ -159,6 +159,7 @@ static uae_u32 cop1lc,cop2lc,copcon;
 
 int maxhpos = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
+int maxvpos_max = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip;
 frame_time_t syncbase;
@@ -2252,6 +2253,7 @@ void init_hz (void)
 	    vblank_hz = VBLANK_HZ_NTSC;
 	    sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 	}
+        maxvpos_max = maxvpos;
     }
     if (beamcon0 & 0x80) {
 	if (vtotal >= MAXVPOS)
@@ -2267,6 +2269,7 @@ void init_hz (void)
 	if (minfirstline >= maxvpos)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
+	maxvpos_max = maxvpos;
 	dumpsync();
     }
     /* limit to sane values */
@@ -2317,21 +2320,6 @@ static void calcdiw (void)
 
     plffirstline = vstrt;
     plflastline = vstop;
-
-#if 0
-    /* This happens far too often. */
-    if (plffirstline < minfirstline_bpl) {
-	write_log ("Warning: Playfield begins before line %d (%d)!\n", minfirstline_bpl, plffirstline);
-    }
-#endif
-
-#if 0 /* this comparison is not needed but previous is.. */
-    if (plflastline > 313) {
-	/* Turrican does this */
-	write_log ("Warning: Playfield out of range!\n");
-	plflastline = 313;
-    }
-#endif
 
     plfstrt = ddfstrt;
     plfstop = ddfstop;
@@ -4153,7 +4141,7 @@ static void vsync_handler (void)
 
     handle_events ();
 
-    INTREQ_d (0x8000 | 0x0020, 2);
+    INTREQ_d (0x8000 | 0x0020, 3);
     if (bplcon0 & 4)
 	lof ^= 0x8000;
 
@@ -4162,8 +4150,6 @@ static void vsync_handler (void)
     if (picasso_on)
 	picasso_handle_vsync ();
 #endif
-
-   vsync_handle_redraw (lof, lof_changed);
 
     if (quit_program > 0) {
 	/* prevent possible infinite loop at wait_cycles().. */
@@ -4184,6 +4170,8 @@ static void vsync_handler (void)
 
     if (debug_copper)
 	record_copper_reset();
+
+    vsync_handle_redraw (lof, lof_changed);
 
     /* For now, let's only allow this to change at vsync time.  It gets too
      * hairy otherwise.  */

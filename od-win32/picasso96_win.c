@@ -2672,7 +2672,7 @@ uae_u32 REGPARAM2 picasso_BlitPattern (struct regstruct *regs)
 				case 1:
 				    {
 					uae_u8 *addr = uae_mem2 + bits;
-					do_put_mem_byte (addr, (uae_u8)(do_get_mem_byte (addr) ^ fgpen));
+					do_put_mem_byte (addr, (uae_u8)(do_get_mem_byte (addr) ^ 0xff));
 				    }
 				    break;
 				case 2:
@@ -2858,7 +2858,7 @@ uae_u32 REGPARAM2 picasso_BlitTemplate (struct regstruct *regs)
 				case 1:
 				    {
 					uae_u8 *addr = uae_mem2 + bits;
-					do_put_mem_byte (addr, (uae_u8)(do_get_mem_byte (addr) ^ fgpen));
+					do_put_mem_byte (addr, (uae_u8)(do_get_mem_byte (addr) ^ 0xff));
 				    }
 				    break;
 				case 2:
@@ -2957,7 +2957,7 @@ void init_hz_p96 (void)
 {
     int rate;
     p96syncrate = maxvpos * vblank_hz;
-    if (isfullscreen ())
+    if (isfullscreen () > 0)
 	rate = DirectDraw_CurrentRefreshRate ();
     else
 	rate = abs (currprefs.gfx_refreshrate);

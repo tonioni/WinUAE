@@ -354,6 +354,7 @@ void uae_reset (int hardreset)
 
 void uae_quit (void)
 {
+    deactivate_debugger();
     if (quit_program != -1)
 	quit_program = -1;
 }

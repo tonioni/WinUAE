@@ -486,7 +486,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	}
 
 	if (focus) {
-	    if (mouseactive || isfullscreen ()) {
+	    if (mouseactive || isfullscreen () > 0) {
 		for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
 		    if (rm->usButtonFlags & (3 << (i * 2)))
 			setmousebuttonstate (num, i, (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0);
@@ -497,7 +497,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 		if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
 		    if (currprefs.win32_middle_mouse) {
-			if (isfullscreen ())
+			if (isfullscreen () > 0)
 			    minimizewindow ();
 			if (mouseactive)
 			    setmouseactive(0);
@@ -1058,7 +1058,7 @@ static void read_mouse (void)
     DWORD elements;
     HRESULT hr;
     int i, j, k;
-    int fs = isfullscreen();
+    int fs = isfullscreen() > 0 ? 1 : 0;
 
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	struct didata *did = &di_mouse[i];
@@ -1116,7 +1116,7 @@ static void read_mouse (void)
 			}
 		    }
 		    if (currprefs.win32_middle_mouse && dimofs == DIMOFS_BUTTON2 && state) {
-			if (isfullscreen ())
+			if (isfullscreen () > 0)
 			    minimizewindow ();
 			if (mouseactive)
 			    setmouseactive(0);
