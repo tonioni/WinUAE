@@ -1076,7 +1076,7 @@ static void audio_handler (int nr, int timed)
 		cdp->state = 1;
 		cdp->wlen = cdp->len;
 		/* there are too many stupid sound routines that fail on "too" fast cpus.. */
-		if (currprefs.cpu_level > 1)
+		if (currprefs.cpu_model >= 68020)
 		    cdp->pt = cdp->lc;
 #ifdef DEBUG_AUDIO
 		if (debugchannel (nr))

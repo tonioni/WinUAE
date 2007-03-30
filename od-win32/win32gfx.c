@@ -2032,6 +2032,8 @@ static void updatemodes (void)
 	currentmode->flags |= DM_SWSCALE;
 	if (currentmode->current_depth < 15)
 	    currentmode->current_depth = 16;
+    } else if (!usedfilter && currentmode->current_depth >= 15) {
+	;//currentmode->flags |= DM_SWSCALE;
     }
 #endif
 }

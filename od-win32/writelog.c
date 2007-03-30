@@ -118,8 +118,11 @@ void reopen_console(void)
 	    rc.top = y;
 	    rc.right = x + w;
 	    rc.bottom = y + h;
-	    if (MonitorFromRect (&rc, MONITOR_DEFAULTTONULL) != NULL)
-	        SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE | SWP_DEFERERASE);
+	    if (MonitorFromRect (&rc, MONITOR_DEFAULTTONULL) != NULL) {
+		SetForegroundWindow(hwnd);
+	        SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE);
+
+	    }
 	}
     }
 }
@@ -174,20 +177,20 @@ int console_get (char *out, int maxlen)
     *out = 0;
     if (consoleopen > 0) {
 	return console_get_gui (out, maxlen);
-    } else {
-	DWORD len,totallen;
+    } else if (consoleopen < 0) {
+	DWORD len, totallen;
 
 	*out = 0;
-	totallen=0;
-	while(maxlen>0) {
-	    ReadConsole(stdinput,out,1,&len,0);
+	totallen = 0;
+	while(maxlen > 0) {
+	    ReadConsole(stdinput, out, 1, &len, 0);
 	    if(*out == 13)
 		break;
 	    out++;
 	    maxlen--;
 	    totallen++;
 	}
-	*out=0;
+	*out = 0;
 	return totallen;
     }
     return 0;

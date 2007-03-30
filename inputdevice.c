@@ -790,9 +790,9 @@ static void mousehack_enable (void)
 {
     if (!uae_boot_rom)
 	return;
-    if (rtarea[get_long (RTAREA_BASE + 40) + 12 - 1])
+    if (rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] == 0xff)
 	return;
-    rtarea[get_long (RTAREA_BASE + 40) + 12 - 1] = 1;
+    rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] = 1;
 }
 
 static void mousehack_setpos(int mousexpos, int mouseypos)

@@ -120,11 +120,53 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
     fixup_prefs_dim2(&prefs->gfx_size_win);
 }
 
+static void fixup_cpu(struct uae_prefs *p)
+{
+    p->cpu_level = 0;
+    switch(p->cpu_model)
+    {
+        case 68000:
+        p->cpu_level = 0;
+	p->address_space_24 = 1;
+	p->fpu_model = 0;
+        break;
+	case 68010:
+	p->cpu_level = 1;
+	p->address_space_24 = 1;
+	p->fpu_model = 0;
+	break;
+	case 68020:
+	p->cpu_level = 2;
+	break;
+	case 68030:
+	p->cpu_level = 3;
+	p->address_space_24 = 0;
+	break;
+	case 68040:
+	p->cpu_level = 5;
+	p->address_space_24 = 0;
+	if (p->fpu_model)
+	    p->fpu_model = 68040;
+	break;
+	case 68060:
+	p->cpu_level = 6;
+	p->address_space_24 = 0;
+	if (p->fpu_model)
+	    p->fpu_model = 68060;
+	break;
+    }
+    if ((p->cpu_level == 2 || p->cpu_level == 3) && p->fpu_model)
+	p->cpu_level = 4;
+}
+
+
 void fixup_prefs (struct uae_prefs *p)
 {
     int err = 0;
 
     build_in_chipset_prefs (p);
+    fixup_cpu(p);
+
     if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
 	|| p->chipmem_size < 0x40000
 	|| p->chipmem_size > 0x800000)
@@ -246,13 +288,13 @@ void fixup_prefs (struct uae_prefs *p)
 	p->cachesize = 0;
 	err = 1;
     }
-    if (p->cpu_level < 2 && p->z3fastmem_size > 0) {
+    if (p->z3fastmem_size > 0 && (p->address_space_24 || p->cpu_model < 68020)) {
 	write_log ("Z3 fast memory can't be used with a 68000/68010 emulation. It\n"
 		 "requires a 68020 emulation. Turning off Z3 fast memory.\n");
 	p->z3fastmem_size = 0;
 	err = 1;
     }
-    if (p->gfxmem_size > 0 && (p->cpu_level < 2 || p->address_space_24)) {
+    if (p->gfxmem_size > 0 && (p->cpu_model < 68020 || p->address_space_24)) {
 	write_log ("Picasso96 can't be used with a 68000/68010 or 68EC020 emulation. It\n"
 		 "requires a 68020 emulation. Turning off Picasso96.\n");
 	p->gfxmem_size = 0;
@@ -291,7 +333,7 @@ void fixup_prefs (struct uae_prefs *p)
     if (p->cs_compatible) {
 	p->cs_fatgaryrev = p->cs_ramseyrev = p->cs_mbdmac = -1;
 	p->cs_ide = 0;
-	if (p->cpu_level >= 2) {
+	if (p->cpu_model >= 68020) {
 	    p->cs_fatgaryrev = 0;
 	    p->cs_ide = -1;
 	    p->cs_ramseyrev = 0x0f;
@@ -301,17 +343,19 @@ void fixup_prefs (struct uae_prefs *p)
     fixup_prefs_dimensions (p);
 
 #ifdef CPU_68000_ONLY
+    p->cpu_model = 68000;
     p->cpu_level = 0;
+    p->fpu_model = 0;
 #endif
 #ifndef CPUEMU_0
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
 #endif
-#if !defined(CPUEMU_5) && !defined (CPUEMU_6)
+#if !defined(CPUEMU_11) && !defined (CPUEMU_12)
     p->cpu_compatible = 0;
     p->address_space_24 = 0;
 #endif
-#if !defined (CPUEMU_6)
+#if !defined (CPUEMU_12)
     p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
 #endif
 #ifndef AGA
@@ -332,7 +376,7 @@ void fixup_prefs (struct uae_prefs *p)
 #if !defined (UAESERIAL)
     p->uaeserial = 0;
 #endif
-#if defined(CPUEMU_6)
+#if defined(CPUEMU_12)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
 #endif
@@ -640,7 +684,7 @@ static void real_main2 (int argc, char **argv)
     }
 
 #ifdef JIT
-    if (!(( currprefs.cpu_level >= 2 ) && ( currprefs.address_space_24 == 0 ) && ( currprefs.cachesize )))
+    if (!((currprefs.cpu_model >= 68020) && (currprefs.address_space_24 == 0) && (currprefs.cachesize)))
 	canbang = 0;
 #endif
 

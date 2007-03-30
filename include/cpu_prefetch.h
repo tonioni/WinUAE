@@ -12,7 +12,7 @@ STATIC_INLINE uae_u32 get_long_prefetch (struct regstruct *regs, int o)
     return v;
 }
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
     if (addr < 0x200000 || (addr >= 0xc00000 && addr < 0xe00000)) {

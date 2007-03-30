@@ -1483,7 +1483,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
     dh = dh_line;
     xlinebuffer = gfxvidinfo.linemem;
     if (xlinebuffer == 0 && do_double
-	&& (border == 0 || (border != 1 && dip_for_drawing->nr_color_changes > 0)))
+	&& (border == 0 || dip_for_drawing->nr_color_changes > 0))
 	xlinebuffer = gfxvidinfo.emergmem, dh = dh_emerg;
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[gfx_ypos], dh = dh_buf;

@@ -137,6 +137,7 @@ struct mnemolookup lookuptab[] = {
     { i_CPUSHA, "CPUSHA" },
     { i_MOVE16, "MOVE16" },
 
+    { i_MMUOP30, "MMUOP30" },
     { i_MMUOP, "MMUOP" },
     { i_ILLG, "" },
 };

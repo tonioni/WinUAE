@@ -1089,7 +1089,7 @@ uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	v = (addr & 1) ? ReadCIAA (r) : 0xff;
 	break;
 	case 3:
-	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
 	    v = (addr & 1) ? regs.irc : regs.irc >> 8;
 	if (warned > 0) {
 	    write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
@@ -1123,7 +1123,7 @@ uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 	v = (0xff << 8) | ReadCIAA (r);
 	break;
 	case 3:
-	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
 	    v = regs.irc;
 	if (warned > 0) {
 	    write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
@@ -1149,13 +1149,13 @@ uae_u32 REGPARAM2 cia_lget (uaecptr addr)
 
 static uae_u32 REGPARAM2 cia_wgeti (uaecptr addr)
 {
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return dummy_wgeti(addr);
     return cia_wget(addr);
 }
 static uae_u32 REGPARAM2 cia_lgeti (uaecptr addr)
 {
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return dummy_lgeti(addr);
     return cia_lget(addr);
 }
@@ -1270,7 +1270,7 @@ uae_u32 REGPARAM2 clock_bget (uaecptr addr)
     addr &= 0x3f;
     if ((addr & 3) == 2 || (addr & 3) == 0) {
 	int v = 0;
-	if (currprefs.cpu_level == 0 && currprefs.cpu_compatible)
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
 	    v = regs.irc >> 8;
 	return v;
     }

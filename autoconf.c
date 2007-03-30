@@ -36,11 +36,12 @@ static void REGPARAM3 rtarea_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 rtarea_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 rtarea_bput (uaecptr, uae_u32) REGPARAM;
 static uae_u8 *REGPARAM3 rtarea_xlate (uaecptr) REGPARAM;
+static int REGPARAM3 rtarea_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 addrbank rtarea_bank = {
     rtarea_lget, rtarea_wget, rtarea_bget,
     rtarea_lput, rtarea_wput, rtarea_bput,
-    rtarea_xlate, default_check, NULL, "UAE Boot ROM",
+    rtarea_xlate, rtarea_check, NULL, "UAE Boot ROM",
     rtarea_lget, rtarea_wget, ABFLAG_ROMIN
 };
 
@@ -48,6 +49,12 @@ static uae_u8 *REGPARAM2 rtarea_xlate (uaecptr addr)
 {
     addr &= 0xFFFF;
     return rtarea + addr;
+}
+
+static int REGPARAM2 rtarea_check (uaecptr addr, uae_u32 size)
+{
+    addr &= 0xFFFF;
+    return (addr + size) <= 0xFFFF;
 }
 
 static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)

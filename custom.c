@@ -198,7 +198,7 @@ static int sprite_last_drawn_at[MAX_SPRITES];
 static int last_sprite_point, nr_armed;
 static int sprite_width, sprres, sprite_buffer_res;
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 uae_u8 cycle_line[256];
 #endif
 
@@ -305,13 +305,13 @@ static int delta_sprite_entry = 0;
 static int max_color_change = 400;
 static int delta_color_change = 0;
 #else
-struct sprite_entry sprite_entries[2][MAX_SPR_PIXELS / 16];
-struct color_change color_changes[2][MAX_REG_CHANGE];
+static struct sprite_entry sprite_entries[2][MAX_SPR_PIXELS / 16];
+static struct color_change color_changes[2][MAX_REG_CHANGE];
 #endif
 
 struct decision line_decisions[2 * (MAXVPOS + 1) + 1];
-struct draw_info line_drawinfo[2][2 * (MAXVPOS + 1) + 1];
-struct color_entry color_tables[2][(MAXVPOS + 1) * 2];
+static struct draw_info line_drawinfo[2][2 * (MAXVPOS + 1) + 1];
+static struct color_entry color_tables[2][(MAXVPOS + 1) * 2];
 
 static int next_sprite_entry = 0;
 static int prev_next_sprite_entry;
@@ -440,9 +440,9 @@ void notice_new_xcolors (void)
 
     docols(&current_colors);
 /*    docols(&colors_for_drawing);*/
-    for (i = 0; i < (MAXVPOS + 1)*2; i++) {
-	docols(color_tables[0]+i);
-	docols(color_tables[1]+i);
+    for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
+	docols(color_tables[0] + i);
+	docols(color_tables[1] + i);
     }
 }
 
@@ -2430,7 +2430,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 #if 0
     write_log ("vposr %x at %x\n", vp, m68k_getpc(&regs));
 #endif
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	hsyncdelay();
     return vp;
 }
@@ -2452,7 +2452,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     uae_u16 hp = GETHPOS();
     vp <<= 8;
     vp |= hp;
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	hsyncdelay();
     return vp;
 }
@@ -3524,7 +3524,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 	    cycle_line[old_hpos] |= CYCLE_COPPER;
 #endif
 	    cop_state.ip += 2;
@@ -3538,7 +3538,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 	    cycle_line[old_hpos] |= CYCLE_COPPER;
 #endif
 	    cop_state.ip += 2;
@@ -3725,7 +3725,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
     uae_u16 data = last_custom_value;
     if (dma) {
 	data = last_custom_value = chipmem_agnus_wget (s->pt);
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 	cycle_line[hpos] |= CYCLE_SPRITE;
 #endif
     }
@@ -4285,7 +4285,7 @@ static void hsync_handler (void)
 #ifdef CDTV
 	CDTV_hsync_handler ();
 #endif
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	    decide_blitter (hpos);
 	    memset (cycle_line, 0, sizeof cycle_line);
@@ -4854,13 +4854,13 @@ addrbank custom_bank = {
 
 static uae_u32 REGPARAM2 custom_wgeti (uaecptr addr)
 {
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return dummy_wgeti(addr);
     return custom_wget(addr);
 }
 static uae_u32 REGPARAM2 custom_lgeti (uaecptr addr)
 {
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return dummy_lgeti(addr);
     return custom_lget(addr);
 }
@@ -5652,7 +5652,7 @@ void check_prefs_changed_custom (void)
 #endif
 }
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 
 STATIC_INLINE void sync_copper (int hpos)
 {

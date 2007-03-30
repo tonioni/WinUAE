@@ -299,7 +299,7 @@ int safe_addr(uaecptr addr, int size)
 	return 0;
     if (!ab->check (addr, size))
 	return 0;
-    if (ab->flags == ABFLAG_RAM || ab->flags == ABFLAG_ROM)
+    if (ab->flags == ABFLAG_RAM || ab->flags == ABFLAG_ROM || ab->flags == ABFLAG_ROMIN)
 	return 1;
     return 0;
 }
@@ -1067,7 +1067,7 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
     }
     if ((hitpc & 0xFFF80000) == 0xF80000)
 	return;
-    if (currprefs.cpu_level == 0 && currprefs.cpu_compatible) {
+    if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 	/* ignore single-word unconditional jump instructions
 	 * (instruction prefetch from PC+2 can cause false positives) */
 	if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 4e77)
@@ -1942,6 +1942,7 @@ static void debug_1 (void)
 
     m68k_dumpstate (stdout, &nextpc);
     nxdis = nextpc; nxmem = 0;
+    debugger_active = 1;
 
     for (;;) {
 	char cmd, *inptr;
@@ -2375,7 +2376,7 @@ void mmu_do_hit(void)
     regs.t0 = regs.t1 = 0;
     if (!regs.s) {
 	regs.usp = m68k_areg(&regs, 7);
-	if (currprefs.cpu_level >= 2)
+	if (currprefs.cpu_model >= 68020)
 	    m68k_areg(&regs, 7) = regs.m ? regs.msp : regs.isp;
 	else
 	    m68k_areg(&regs, 7) = regs.isp;
@@ -2385,7 +2386,7 @@ void mmu_do_hit(void)
     m68k_setpc (&regs, mmu_callback);
     fill_prefetch_slow (&regs);
 
-    if (currprefs.cpu_level > 0) {
+    if (currprefs.cpu_model > 68000) {
 	for (i = 0 ; i < 9; i++) {
 	    m68k_areg(&regs, 7) -= 4;
 	    put_long (m68k_areg(&regs, 7), 0);

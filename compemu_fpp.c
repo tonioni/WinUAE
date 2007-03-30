@@ -676,140 +676,14 @@ x86 conditions
     */
 void comp_fsave_opp (uae_u32 opcode)
 {
-    uae_u32 ad;
-    int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
-    int i;
-
     FAIL(1);
     return;
-
-    if (!currprefs.compfpu) {
-	FAIL(1);
-	return;
-    }
-
-#if DEBUG_FPP
-    write_log ("JIT: fsave_opp at %08lx\n", M68K_GETPC);
-#endif
-    if (!comp_fp_adr (opcode)) {
-	m68k_setpc (&regs, m68k_getpc (&regs) - 2);
-	op_illg (opcode, &regs);
-	return;
-    }
-
-    if (currprefs.cpu_level >= 4) {
-	/* 4 byte 68040 IDLE frame.  */
-	if (incr < 0) {
-	    ad -= 4;
-	    put_long (ad, 0x41000000);
-	} else {
-	    put_long (ad, 0x41000000);
-	    ad += 4;
-	}
-    } else {
-	if (incr < 0) {
-	    ad -= 4;
-	    put_long (ad, 0x70000000);
-	    for (i = 0; i < 5; i++) {
-		ad -= 4;
-		put_long (ad, 0x00000000);
-	    }
-	    ad -= 4;
-	    put_long (ad, 0x1f180000);
-	} else {
-	    put_long (ad, 0x1f180000);
-	    ad += 4;
-	    for (i = 0; i < 5; i++) {
-		put_long (ad, 0x00000000);
-		ad += 4;
-	    }
-	    put_long (ad, 0x70000000);
-	    ad += 4;
-	}
-    }
-    if ((opcode & 0x38) == 0x18)
-	m68k_areg (&regs, opcode & 7) = ad;
-    if ((opcode & 0x38) == 0x20)
-	m68k_areg (&regs, opcode & 7) = ad;
 }
 
 void comp_frestore_opp (uae_u32 opcode)
 {
-    uae_u32 ad;
-    uae_u32 d;
-    int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
-
     FAIL(1);
     return;
-
-    if (!currprefs.compfpu) {
-	FAIL(1);
-	return;
-    }
-
-#if DEBUG_FPP
-    write_log ("frestore_opp at %08lx\n", M68K_GETPC);
-#endif
-    if (!comp_fp_adr (opcode)) {
-	m68k_setpc (&regs, m68k_getpc (&regs) - 2);
-	op_illg (opcode, &regs);
-	return;
-    }
-    if (currprefs.cpu_level >= 4) {
-	/* 68040 */
-	if (incr < 0) {
-	    /* @@@ This may be wrong.  */
-	    ad -= 4;
-	    d = get_long (ad);
-	    if (d & 0xff000000) { /* Not a NULL frame? */
-		if (!(d & 0x00ff0000)) { /* IDLE */
-		} else if ((d & 0x00ff0000) == 0x00300000) { /* UNIMP */
-		    ad -= 44;
-		} else if ((d & 0x00ff0000) == 0x00600000) { /* BUSY */
-		    ad -= 92;
-		}
-	    }
-	} else {
-	    d = get_long (ad);
-	    ad += 4;
-	    if (d & 0xff000000) { /* Not a NULL frame? */
-		if (!(d & 0x00ff0000)) { /* IDLE */
-		} else if ((d & 0x00ff0000) == 0x00300000) { /* UNIMP */
-		    ad += 44;
-		} else if ((d & 0x00ff0000) == 0x00600000) { /* BUSY */
-		    ad += 92;
-		}
-	    }
-	}
-    } else {
-	if (incr < 0) {
-	    ad -= 4;
-	    d = get_long (ad);
-	    if (d & 0xff000000) {
-		if ((d & 0x00ff0000) == 0x00180000)
-		    ad -= 6 * 4;
-		else if ((d & 0x00ff0000) == 0x00380000)
-		    ad -= 14 * 4;
-		else if ((d & 0x00ff0000) == 0x00b40000)
-		    ad -= 45 * 4;
-	    }
-	} else {
-	    d = get_long (ad);
-	    ad += 4;
-	    if (d & 0xff000000) {
-		if ((d & 0x00ff0000) == 0x00180000)
-		    ad += 6 * 4;
-		else if ((d & 0x00ff0000) == 0x00380000)
-		    ad += 14 * 4;
-		else if ((d & 0x00ff0000) == 0x00b40000)
-		    ad += 45 * 4;
-	    }
-	}
-    }
-    if ((opcode & 0x38) == 0x18)
-	m68k_areg (&regs, opcode & 7) = ad;
-    if ((opcode & 0x38) == 0x20)
-	m68k_areg (&regs, opcode & 7) = ad;
 }
 
 extern uae_u32 xhex_pi[], xhex_exp_1[], xhex_l2_e[], xhex_ln_2[], xhex_ln_10[];

@@ -56,7 +56,7 @@ enum blitter_states bltstate;
 static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown;
 static int blit_linecyclecounter, blit_misscyclecounter;
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 extern uae_u8 cycle_line[];
 #endif
 
@@ -568,7 +568,7 @@ STATIC_INLINE void blitter_nxline(void)
     bltstate = BLT_read;
 }
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 
 static int blit_last_hpos;
 
@@ -673,7 +673,7 @@ void blitter_handler(uae_u32 data)
     blitter_done ();
 }
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 
 static uae_u32 preva, prevb;
 STATIC_INLINE uae_u16 blitter_doblit (void)

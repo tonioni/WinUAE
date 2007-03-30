@@ -12,6 +12,7 @@
 ; 200?.??.?? Picasso96 vblank hack (TW)
 ; 2006.03.04 Mousehack code integrated (TW)
 ; 2006.18.07 FileSystem.resource find routine access fault fixed (TW)
+; 2007.03.30 mousehack do not start multiple times anymore (TW)
 
 AllocMem = -198
 FreeMem = -210
@@ -160,7 +161,7 @@ general_ret:
 exter_data:
 exter_server:
 	movem.l a2,-(sp)
-	move.w #$FF50,d0
+	move.w #$FF50,d0 ; exter_int_helper
 	bsr.w getrtbase
 	moveq.l #0,d0
 	jsr (a0)
@@ -169,7 +170,7 @@ exter_server:
 	; This is the hard part - we have to send some messages.
 	move.l 4.w,a6
 EXTS_loop:
-	move.w #$FF50,d0 ;exter_int_helper
+	move.w #$FF50,d0 ; exter_int_helper
 	bsr.w getrtbase
 	moveq.l #2,d0
 	jsr (a0)
@@ -621,8 +622,10 @@ filesys_mainloop:
 
 FSML_loop:
 	bsr.w mousehack_init
+
 	move.l a5,a0
 	jsr -384(a6) ; WaitPort
+
 	move.l a5,a0
 	jsr -372(a6) ; GetMsg
 	move.l d0,a4
@@ -665,7 +668,7 @@ nonotif
 	move.l (a2),a0
 FSML_check_old:
 	move.l a0,d0
-	beq.b FSML_loop
+	beq.w FSML_loop
 	move.l (a0),a1
 	move.l d0,a0
 	; This field may be accessed concurrently by several UAE threads.
@@ -697,7 +700,7 @@ FSML_FromDOS:
 
 FSML_DoCommand:
 	bsr.b LockCheck  ; Make sure there are enough locks for the C code to grab.
-	move.w #$FF30,d0
+	move.w #$FF30,d0 ; filesys_handler
 	bsr.w getrtbase
 	jsr (a0)
 	tst.l d0
@@ -903,12 +906,16 @@ mousehack_init:
 	tst.b 157(a3)
 	bne.s .no
 	lea mousehack_e(pc),a0
-	tst.w (a0)
-	beq.s .no
+	cmp.b #1,(a0)
+	bne.s .no
 	lea mhname(pc),a0
 	lea mousehack_task(pc),a1
 	bsr createtask
 	st 157(a3)
+	;tell native side that mousehack is active
+	move.w #$FF38,d0
+	bsr.w getrtbase
+	jsr (a0)
 .no	move.l (sp)+,a0
 	rts
 

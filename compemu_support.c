@@ -5663,9 +5663,9 @@ void build_comp(void)
     const struct comptbl* nftbl=op_smalltbl_0_comp_nf;
     int count;
 #ifdef NOFLAGS_SUPPORT
-    struct comptbl *nfctbl = (currprefs.cpu_level >= 4 ? op_smalltbl_0_nf
-			     : currprefs.cpu_level == 3 ? op_smalltbl_1_nf
-			     : currprefs.cpu_level == 2 ? op_smalltbl_2_nf
+    struct comptbl *nfctbl = (currprefs.cpu_level >= 5 ? op_smalltbl_0_nf
+			     : currprefs.cpu_level == 4 ? op_smalltbl_1_nf
+			     : (currprefs.cpu_level == 2 || currprefs.cpu_level == 3) ? op_smalltbl_2_nf
 			     : currprefs.cpu_level == 1 ? op_smalltbl_3_nf
 			     : ! currprefs.cpu_compatible ? op_smalltbl_4_nf
 			     : op_smalltbl_5_nf);

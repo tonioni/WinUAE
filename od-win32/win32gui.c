@@ -3319,7 +3319,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	    case IDC_DF1WPQ:
 	    case IDC_EJECT1Q:
 	    case IDC_DF1QQ:
-	    ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
+	    if (currentpage == QUICKSTART_ID)
+		ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 	    break;
 	    case IDC_QUICKSTART_SETCONFIG:
 	    load_quickstart (hDlg, 1);
@@ -3443,7 +3444,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 {
     int enable = workprefs.cpu_cycle_exact ? FALSE : TRUE;
 
-#if !defined (CPUEMU_6)
+#if !defined (CPUEMU_12)
     ew (hDlg, IDC_CYCLEEXACT, FALSE);
 #endif
     ew (hDlg, IDC_FASTCOPPER, enable);
@@ -4048,7 +4049,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     if (workprefs.cpu_cycle_exact != n) {
 	workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
 	if (n) {
-	    if (workprefs.cpu_level == 0) {
+	    if (workprefs.cpu_model == 68000) {
 		workprefs.cpu_compatible = 1;
 		workprefs.m68k_speed = 0;
 	    }
@@ -5104,21 +5105,24 @@ static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     return MiscDlgProc (hDlg, msg, wParam, lParam);
 }
 
-static int cpu_ids[]   = { IDC_CPU0, IDC_CPU0, IDC_CPU1, IDC_CPU1, IDC_CPU2, IDC_CPU4, IDC_CPU3, IDC_CPU5, IDC_CPU6, IDC_CPU6 };
+static int cpu_ids[]   = { IDC_CPU0, IDC_CPU1, IDC_CPU2, IDC_CPU3, IDC_CPU4, IDC_CPU5 };
+static int fpu_ids[]   = { IDC_FPU0, IDC_FPU1, IDC_FPU2, IDC_FPU3 };
 static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST2 };
 
 static void enable_for_cpudlg (HWND hDlg)
 {
     BOOL enable = FALSE, enable2 = FALSE;
     BOOL cpu_based_enable = FALSE;
+    BOOL fpu;
 
     /* These four items only get enabled when adjustable CPU style is enabled */
     ew (hDlg, IDC_SPEED, workprefs.m68k_speed > 0);
-    ew (hDlg, IDC_CS_CPU_TEXT, (!workprefs.cpu_cycle_exact || workprefs.cpu_level > 0) && workprefs.m68k_speed > 0);
-    ew (hDlg, IDC_CS_CHIPSET_TEXT, (!workprefs.cpu_cycle_exact || workprefs.cpu_level > 0) && workprefs.m68k_speed > 0);
-    ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact || workprefs.cpu_level > 0);
-    ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact || workprefs.cpu_level > 0);
-    ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact || workprefs.cpu_level > 0);
+    ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model == 68020);
+    ew (hDlg, IDC_CS_CPU_TEXT, (!workprefs.cpu_cycle_exact || workprefs.cpu_model > 68000) && workprefs.m68k_speed > 0);
+    ew (hDlg, IDC_CS_CHIPSET_TEXT, (!workprefs.cpu_cycle_exact || workprefs.cpu_model > 68000) && workprefs.m68k_speed > 0);
+    ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact || workprefs.cpu_model > 68000);
+    ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact || workprefs.cpu_model > 68000);
+    ew (hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact || workprefs.cpu_model > 68000);
     ew (hDlg, IDC_CPUTEXT, workprefs.m68k_speed > 0 );
     ew (hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
 #if !defined(CPUEMU_0) || defined(CPUEMU_68000_ONLY)
@@ -5127,10 +5131,9 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_CPU3, FALSE);
     ew (hDlg, IDC_CPU4, FALSE);
     ew (hDlg, IDC_CPU5, FALSE);
-    ew (hDlg, IDC_CPU6, FALSE);
 #endif
 
-    cpu_based_enable = workprefs.cpu_level >= 2 &&
+    cpu_based_enable = workprefs.cpu_model >= 68020 &&
 		       workprefs.address_space_24 == 0;
 
     enable = cpu_based_enable && workprefs.cachesize;
@@ -5152,22 +5155,25 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_FORCE, enable);
     ew (hDlg, IDC_JITENABLE, cpu_based_enable);
     ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
-    ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.cpu_level >= 3);
+    ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
+
+    fpu = TRUE;
+    if (workprefs.cpu_model < 68020 || workprefs.cpu_model > 68030)
+	fpu = FALSE;
+    ew (hDlg, IDC_FPU1, fpu);
+    ew (hDlg, IDC_FPU2, fpu);
+    ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 
 #ifdef JIT
-    if( enable )
-    {
-	if(!canbang)
-	{
+    if(enable) {
+	if (!canbang) {
 	    workprefs.compforcesettings = TRUE;
 	    workprefs.comptrustbyte = 1;
 	    workprefs.comptrustword = 1;
 	    workprefs.comptrustlong = 1;
 	    workprefs.comptrustnaddr= 1;
 	}
-    }
-    else
-    {
+    } else {
 	workprefs.cachesize = 0; // Disable JIT
     }
 #endif
@@ -5178,13 +5184,19 @@ static void values_to_cpudlg (HWND hDlg)
     char cache[8] = "";
     BOOL enable = FALSE;
     BOOL cpu_based_enable = FALSE;
+    int cpu;
 
     SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT );
     SetDlgItemInt( hDlg, IDC_CPUTEXT, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT, FALSE );
     CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
+    CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
     CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
     SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
-    CheckRadioButton (hDlg, IDC_CPU0, IDC_CPU6, cpu_ids[workprefs.cpu_level * 2 + !workprefs.address_space_24]);
+    cpu = (workprefs.cpu_model - 68000) / 10;
+    if (cpu >= 5)
+	cpu--;
+    CheckRadioButton (hDlg, IDC_CPU0, IDC_CPU5, cpu_ids[cpu]);
+    CheckRadioButton (hDlg, IDC_FPU0, IDC_FPU3, fpu_ids[workprefs.fpu_model == 0 ? 0 : (workprefs.fpu_model == 68881 ? 1 : (workprefs.fpu_model == 68882 ? 2 : 3))]);
 
     if (workprefs.m68k_speed == -1)
 	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_HOST);
@@ -5193,13 +5205,13 @@ static void values_to_cpudlg (HWND hDlg)
     else
 	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_ADJUSTABLE);
 
-    cpu_based_enable = (workprefs.cpu_level >= 2) && (workprefs.address_space_24 == 0);
+    cpu_based_enable = (workprefs.cpu_model >= 68020) && (workprefs.address_space_24 == 0);
 
     enable = cpu_based_enable && workprefs.cachesize;
 
 #ifdef JIT
     if(enable) {
-	if(!canbang) {
+	if (!canbang) {
 	    workprefs.compforcesettings = TRUE;
 	    workprefs.comptrustbyte = 1;
 	    workprefs.comptrustword = 1;
@@ -5236,53 +5248,68 @@ static void values_to_cpudlg (HWND hDlg)
 
 static void values_from_cpudlg (HWND hDlg)
 {
-    int newcpu, newtrust, oldcache, jitena;
+    int newcpu, newfpu, newtrust, oldcache, jitena;
     static int cachesize_prev;
     
     workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (IsDlgButtonChecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
     workprefs.fpu_strict = IsDlgButtonChecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
+    workprefs.address_space_24 = IsDlgButtonChecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
     workprefs.m68k_speed = IsDlgButtonChecked (hDlg, IDC_CS_HOST) ? -1
 	: IsDlgButtonChecked (hDlg, IDC_CS_68000) ? 0
 	: SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * CYCLE_UNIT;
     
-    newcpu = (IsDlgButtonChecked (hDlg, IDC_CPU0) ? 0
-	: IsDlgButtonChecked (hDlg, IDC_CPU1) ? 1
-	: IsDlgButtonChecked (hDlg, IDC_CPU2) ? 2
-	: IsDlgButtonChecked (hDlg, IDC_CPU3) ? 3
-	: IsDlgButtonChecked (hDlg, IDC_CPU4) ? 4
-	: IsDlgButtonChecked (hDlg, IDC_CPU5) ? 5 : 6);
+    newcpu = IsDlgButtonChecked (hDlg, IDC_CPU0) ? 68000
+	: IsDlgButtonChecked (hDlg, IDC_CPU1) ? 68010
+	: IsDlgButtonChecked (hDlg, IDC_CPU2) ? 68020
+	: IsDlgButtonChecked (hDlg, IDC_CPU3) ? 68030
+	: IsDlgButtonChecked (hDlg, IDC_CPU4) ? 68040
+	: IsDlgButtonChecked (hDlg, IDC_CPU5) ? 68060 : 0;
+    newfpu = IsDlgButtonChecked (hDlg, IDC_FPU0) ? 0
+	: IsDlgButtonChecked (hDlg, IDC_FPU1) ? 1
+	: IsDlgButtonChecked (hDlg, IDC_FPU2) ? 2
+	: IsDlgButtonChecked (hDlg, IDC_FPU3) ? 3 : 0;
+
     /* When switching away from 68000, disable 24 bit addressing.  */
-    switch( newcpu )
+    workprefs.cpu_model = newcpu;
+    switch(newcpu)
     {
-	case 0: // 68000
-	case 1: // 68010
-	case 2: // 68EC020
-	case 3: // 68EC020+FPU
+	case 68000:
+	case 68010:
+	    workprefs.fpu_model = 0;
 	    workprefs.address_space_24 = 1;
-	    workprefs.cpu_level = newcpu;
 	    if (newcpu == 0 && workprefs.cpu_cycle_exact)
 		workprefs.m68k_speed = 0;
 	break;
-
-	case 4: // 68020
-	case 5: // 68020+FPU
-	case 6: // 68040
+	case 68020:
+	    workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
+	break;
+	case 68030:
 	    workprefs.address_space_24 = 0;
-	    workprefs.cpu_level = newcpu - 2;
+	    workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
+	break;
+	case 68040:
+	    workprefs.fpu_model = newfpu ? 68040 : 0;
+	    workprefs.address_space_24 = 0;
+	    if (workprefs.fpu_model)
+		workprefs.fpu_model = 68040;
+	break;
+	case 68060:
+	    workprefs.fpu_model = newfpu ? 68060 : 0;
+	    workprefs.address_space_24 = 0;
 	break;
     }
-    newtrust = (IsDlgButtonChecked( hDlg, IDC_TRUST0 ) ? 0
-	: IsDlgButtonChecked( hDlg, IDC_TRUST1 ) ? 1 : 3 );
+    newtrust = (IsDlgButtonChecked(hDlg, IDC_TRUST0) ? 0
+	: IsDlgButtonChecked(hDlg, IDC_TRUST1) ? 1 : 3);
     workprefs.comptrustbyte = newtrust;
     workprefs.comptrustword = newtrust;
     workprefs.comptrustlong = newtrust;
     workprefs.comptrustnaddr= newtrust;
 
-    workprefs.compforcesettings = IsDlgButtonChecked( hDlg, IDC_FORCE );
-    workprefs.compnf            = IsDlgButtonChecked( hDlg, IDC_NOFLAGS );
-    workprefs.compfpu           = IsDlgButtonChecked( hDlg, IDC_JITFPU );
-    workprefs.comp_hardflush    = IsDlgButtonChecked( hDlg, IDC_HARDFLUSH );
-    workprefs.comp_constjump    = IsDlgButtonChecked( hDlg, IDC_CONSTJUMP );
+    workprefs.compforcesettings = IsDlgButtonChecked(hDlg, IDC_FORCE);
+    workprefs.compnf            = IsDlgButtonChecked(hDlg, IDC_NOFLAGS);
+    workprefs.compfpu           = IsDlgButtonChecked(hDlg, IDC_JITFPU);
+    workprefs.comp_hardflush    = IsDlgButtonChecked(hDlg, IDC_HARDFLUSH);
+    workprefs.comp_constjump    = IsDlgButtonChecked(hDlg, IDC_CONSTJUMP);
 
 #ifdef JIT
     oldcache = workprefs.cachesize;
@@ -5305,7 +5332,6 @@ static void values_from_cpudlg (HWND hDlg)
 
     if (workprefs.cachesize > 0)
 	workprefs.cpu_compatible = 0;
-
     if (pages[KICKSTART_ID])
 	SendMessage(pages[KICKSTART_ID], WM_USER, 0, 0 );
     if (pages[DISPLAY_ID])
@@ -6606,39 +6632,35 @@ static void getfloppytype (HWND hDlg, int n)
 static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
 {
     LRESULT val;
+    char *p1, *p2, *p;
+    char *tmp;
+    int i;
 
     out[0] = 0;
     val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
-    if (val == CB_ERR) {
-	char *p1, *p2;
-        char *tmp;
-	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
-	tmp = xmalloc (maxlen + 1);
-        strcpy (tmp, out);
-	p1 = strstr(tmp, " { ");
-	p2 = strstr(tmp, " }");
-	if (p1 && p2 && p2 > p1) {
-	    *p1 = 0;
-	    memset (out, 0, maxlen);
-	    memcpy (out, p1 + 3, p2 - p1 - 3);
-	    strcat (out, tmp);
-	}
-	xfree (tmp);
-    } else {
-	char *p = DISK_history_get (val);
-#if 0
+    if (val != CB_ERR)
 	val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
-	if (val != CB_ERR && val > 0) {
-#endif
-	if (p) {
-	    strcpy (out, p);
-	    if (out[0]) {
-		/* add to top of list */
-		DISK_history_add (out, -1);
-	    }
-	} else {
-	    out[0] = 0;
+    else
+	SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
+
+    tmp = xmalloc (maxlen + 1);
+    strcpy (tmp, out);
+    p1 = strstr(tmp, " { ");
+    p2 = strstr(tmp, " }");
+    if (p1 && p2 && p2 > p1) {
+        *p1 = 0;
+        memset (out, 0, maxlen);
+        memcpy (out, p1 + 3, p2 - p1 - 3);
+        strcat (out, tmp);
+    }
+    xfree (tmp);
+    i = 0;
+    while ((p = DISK_history_get(i))) {
+	if (!strcmp(p, out)) {
+	    DISK_history_add (out, -1);
+	    break;
 	}
+	i++;
     }
     return out[0] ? 1 : 0;
 }
@@ -6760,7 +6782,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		case IDC_DF1TEXTQ:
 		getfloppyname (hDlg, 1);
 		addfloppytype (hDlg, 1);
-	        addfloppyhistory (hDlg);
+	        //addfloppyhistory (hDlg);
 		break;
 		case IDC_DF2TEXT:
 		getfloppyname (hDlg, 2);

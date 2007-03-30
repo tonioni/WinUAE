@@ -1,5 +1,41 @@
 
+Beta 2:
 
+- 10x+ performance increase during "decrunching" color effects when
+  no filters enabled and bitplanes disabled (background color only)
+- console debugger breakpoints sometimes continued immediately
+- quickstart "random" selection inside archives should be fixed
+- mousehack interrupt do not start multiple times anymore
+- all CPU-specific special registers added to debugger
+- CPU/FPU configuration rewrite.
+  - new FPU options: none/68881/68882/CPU internal
+  - 68030 (EC-version, 030-only MMU instructions are simply ignored)
+  - proper 68060 with FPU support. See NOTEs below!
+  - 68040/68060 without FPU allowed but note that 68060.library does
+  not appear to like non-FPU 68060s..
+  - no FPU+68000/68010 (technically possible but not worth the trouble)
+
+  68060 NOTES: No working Setpatch and 68060.library = NO FPU.
+  68060 has FPU disable bit that all real 68060 accelerators' boot ROM
+  set because KS task switching routine do not understand 68060's
+  FRESTORE/FSAVE frames. Setpatch+68060.library is the fix.
+
+  Real 68060 is also extremely slow without 68060.library because all
+  caches and other speed-up features are not enabled but this is
+  completely irrelevant in emulation.
+
+  You can use "C:CPU" command to check CPU/FPU status:
+  - Incorrect: "System: 68060 (INST: blahblah"
+  - Correct: "System 68060 68882 (INST: blahblah"
+  New setpatch (44.38 confirmed) support 68060.library directly, older
+  versions need dummy 68040.library (less than 1K in size)
+ 
+  NOTE2: FPU emulation emulates all 6888x instructions, even those that
+  were removed from real 68040/060. 
+
+  !!! NOTE3: _EMULATED_ 68040 and 68060 HAVE EQUAL SPEED !!!
+
+  
 Beta 1:
 
 - Chip set extra config load/save missed some models (crash when

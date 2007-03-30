@@ -1118,7 +1118,7 @@ static void drive_motor (drive * drv, int off)
 #endif
 	if (disk_debug_logging > 1)
 	    write_log (" ->motor off");
-	if (currprefs.cpu_level <= 1 && currprefs.m68k_speed == 0) {
+	if (currprefs.cpu_model <= 68010 && currprefs.m68k_speed == 0) {
 	    drv->motordelay = 1;
 	    event2_newevent2(30, drv - floppy, motordelay_func);
 	}

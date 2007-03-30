@@ -4278,6 +4278,13 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
     return type;
 }
 
+static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
+{
+    /* do not allow other fs threads to start another mousehack */
+    rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] = 0xff;
+    return 1;
+}
+
 void filesys_install (void)
 {
     uaecptr loop;
@@ -4310,6 +4317,10 @@ void filesys_install (void)
 
     org (RTAREA_BASE + 0xFF30);
     calltrap (deftrap2 (filesys_handler, 0, "filesys_handler"));
+    dw (RTS);
+
+    org (RTAREA_BASE + 0xFF38);
+    calltrap (deftrap2 (mousehack_done, 0, "mousehack_done"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF40);

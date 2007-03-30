@@ -9,8 +9,8 @@
   *
   */
 
-//#define CDTV_DEBUG
-//#define CDTV_DEBUG_CMD
+#define CDTV_DEBUG
+#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -50,7 +50,8 @@ static volatile int cdtv_command_len;
 static volatile uae_u8 cdtv_command_buf[6];
 static volatile uae_u8 dmac_istr, dmac_cntr;
 static volatile uae_u16 dmac_dawr;
-static volatile uae_u32 dmac_acr, dmac_wtc;
+static volatile uae_u32 dmac_acr;
+static volatile int dmac_wtc;
 static volatile int dmac_dma;
 
 static volatile int activate_stch, cdrom_command_done, play_state, play_statewait;
@@ -508,10 +509,8 @@ static void dma_do_thread(void)
     static int readsector;
     uae_u8 *p = NULL;
 
-#ifdef CDTV_DEBUG
-    write_log("DMAC DMA: sector=%d, cnt=%d, addr=%08.8X, %d\n",
-	cdrom_sector, cdrom_sectors, dmac_acr, dmac_wtc);
-#endif
+    write_log("DMAC DMA: sector=%d, addr=%08.8X, words=%d\n",
+	cdrom_offset / 2048, dmac_acr, dmac_wtc);
     dma_wait += dmac_wtc * 312 * 50 / 75 + 1;
     while (dmac_wtc > 0 && dmac_dma) {
 	if (!p || readsector != (cdrom_offset / 2048)) {

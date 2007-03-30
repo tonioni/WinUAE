@@ -226,6 +226,8 @@ struct uae_prefs {
 
     int m68k_speed;
     int cpu_level;
+    int cpu_model;
+    int fpu_model;
     int cpu_compatible;
     int address_space_24;
     int picasso96_nocustom;

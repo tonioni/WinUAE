@@ -3032,7 +3032,7 @@ generate_func (int noflags)
     using_exception_3 = 0;
     for (i = 0; i < 1; i++) /* We only do one level! */
     {
-	cpu_level = 4 - i;
+	cpu_level = 6 - i;
 	postfix = i;
 
 	if (noflags)

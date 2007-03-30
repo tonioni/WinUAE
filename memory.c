@@ -685,7 +685,7 @@ static uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 #endif
     if (currprefs.illegal_mem)
 	dummylog(0, addr, 4, 0, 0);
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return NONEXISTINGDATA;
     return (regs.irc << 16) | regs.irc;
 }
@@ -696,7 +696,7 @@ uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 #endif
     if (currprefs.illegal_mem)
 	dummylog(0, addr, 4, 0, 1);
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return NONEXISTINGDATA;
     return (regs.irc << 16) | regs.irc;
 }
@@ -708,7 +708,7 @@ static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 #endif
     if (currprefs.illegal_mem)
 	dummylog(0, addr, 2, 0, 0);
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return NONEXISTINGDATA;
     return regs.irc;
 }
@@ -719,7 +719,7 @@ uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
 #endif
     if (currprefs.illegal_mem)
 	dummylog(0, addr, 2, 0, 1);
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return NONEXISTINGDATA;
     return regs.irc;
 }
@@ -731,7 +731,7 @@ static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
 #endif
     if (currprefs.illegal_mem)
 	dummylog(0, addr, 1, 0, 0);
-    if (currprefs.cpu_level >= 2)
+    if (currprefs.cpu_model >= 68020)
 	return NONEXISTINGDATA;
     return (addr & 1) ? regs.irc : regs.irc >> 8;
 }
@@ -1514,7 +1514,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 {
     if (quit_program == 0) {
 	/* do this only in 68010+ mode, there are some tricky A500 programs.. */
-	if (currprefs.cpu_level > 0 || !currprefs.cpu_compatible) {
+	if (currprefs.cpu_model > 68000 || !currprefs.cpu_compatible) {
 #if defined(ENFORCER)
 	    enforcer_disable ();
 #endif
@@ -2213,7 +2213,7 @@ void map_overlay (int chip)
 
     cb = &chipmem_bank;
 #ifdef AGA
-    if (currprefs.cpu_cycle_exact && currprefs.cpu_level >= 2)
+    if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020)
 	cb = &chipmem_bank_ce2;
 #endif
     if (chip)
@@ -2273,10 +2273,10 @@ void memory_reset (void)
 	} else {
 	    struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
 	    if (rd) {
-		if ((rd->cpu & 3) == 1 && changed_prefs.cpu_level < 2) {
+		if ((rd->cpu & 3) == 1 && changed_prefs.cpu_model < 68020) {
 		    notify_user (NUMSG_KS68EC020);
 		    uae_restart (-1, NULL);
-		} else if ((rd->cpu & 3) == 2 && (changed_prefs.cpu_level < 2 || changed_prefs.address_space_24)) {
+		} else if ((rd->cpu & 3) == 2 && (changed_prefs.cpu_model < 68020 || changed_prefs.address_space_24)) {
 		    notify_user (NUMSG_KS68020);
 		    uae_restart (-1, NULL);
 		}
@@ -2313,7 +2313,7 @@ void memory_reset (void)
 	int t = allocated_bogomem >> 16;
 	if (t > 0x1C)
 	    t = 0x1C;
-	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_level >= 2))
+	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_model >= 68020))
 	    t = 0x10;
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }

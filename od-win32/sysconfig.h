@@ -37,8 +37,8 @@
 #define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
 #define CPUEMU_0 /* generic 680x0 emulation */
-#define CPUEMU_5 /* 68000+prefetch emulation */
-#define CPUEMU_6 /* cycle-exact cpu&blitter */
+#define CPUEMU_11 /* 68000+prefetch emulation */
+#define CPUEMU_12 /* cycle-exact cpu&blitter */
 #define ACTION_REPLAY /* Action Replay 1/2/3 support */
 #define PICASSO96 /* Picasso96 display card emulation */
 #define BSDSOCKET /* bsdsocket.library emulation */
@@ -64,8 +64,8 @@
 #define OPENGL
 #endif
 #define CAPS
-#define CPUEMU_6
-#define CPUEMU_5
+#define CPUEMU_12
+#define CPUEMU_11
 
 
 #endif

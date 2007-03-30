@@ -651,7 +651,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
                 hwnd = GetDlgItem(hDlg, IDC_DBG_PREFETCH);
                 EnableWindow(hwnd, FALSE);
             }
-            if (currprefs.cpu_level < 2) {
+            if (currprefs.cpu_model < 68020) {
                 hwnd = GetDlgItem(hDlg, IDC_DBG_FPREG);
                 EnableWindow(hwnd, FALSE);
                 hwnd = GetDlgItem(hDlg, IDC_DBG_FPSR);

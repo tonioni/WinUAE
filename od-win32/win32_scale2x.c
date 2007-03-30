@@ -57,11 +57,13 @@ void S2X_free (void)
 
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 {
-    int flags;
+    int flags = 0;
     HRESULT ddrval;
 
-    flags = usedfilter->x[mult];
-    if (mult) {
+    if (!currprefs.gfx_filter || !usedfilter) {
+	usedfilter = &uaefilters[0];
+	mult = 1;
+    } else if (mult) {
 	if ((ad == 16 && !(flags & UAE_FILTER_MODE_16)) || (ad == 32 && !(flags & UAE_FILTER_MODE_32))) {
 	    usedfilter = &uaefilters[0];
 	    mult = 1;
@@ -108,12 +110,12 @@ void S2X_render (void)
     sptr = gfxvidinfo.bufmem;
     endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
 
-    v = currprefs.gfx_filter_horiz_offset;
+    v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
     v += (dst_width / scale - amiga_width) / 8;
     sptr += (int)(-v * 4.0 / 10.0) * (amiga_depth / 8);
     aw -= (int)(-v * 4.0 / 10);
 
-    v = currprefs.gfx_filter_vert_offset;
+    v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
     v += (dst_height / scale - amiga_height) / 8;
     sptr += (int)(-v * 4.0 / 10.0) * gfxvidinfo.rowbytes;
     ah -= (int)(-v * 4.0 / 10);
@@ -128,9 +130,9 @@ void S2X_render (void)
     if (aw < 16)
 	return;
 
-    if (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom ||
+    if (currprefs.gfx_filter && (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom ||
 	    currprefs.gfx_filter_horiz_zoom_mult != 1000 ||
-	    currprefs.gfx_filter_vert_zoom_mult != 1000) {
+	    currprefs.gfx_filter_vert_zoom_mult != 1000)) {
 	int wz = dst_width * currprefs.gfx_filter_horiz_zoom_mult / 1000;
 	int hz = dst_height * currprefs.gfx_filter_vert_zoom_mult / 1000;
 	wz += currprefs.gfx_filter_horiz_zoom / 4;
@@ -272,7 +274,7 @@ void S2X_render (void)
 
     }
 
-    if (ok == 0) {
+    if (ok == 0 && currprefs.gfx_filter) {
         usedfilter = &uaefilters[0];
         changed_prefs.gfx_filter = usedfilter->type;
     }

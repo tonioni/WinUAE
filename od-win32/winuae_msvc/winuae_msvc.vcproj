@@ -1636,11 +1636,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_5.c"
+				RelativePath="..\..\cpuemu_11.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_6.c"
+				RelativePath="..\..\cpuemu_12.c"
 				>
 			</File>
 			<File

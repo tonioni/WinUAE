@@ -67,7 +67,7 @@ static void read_counts (void)
     if (file) {
 	fscanf (file, "Total: %lu\n", &total);
 	while (fscanf (file, "%lx: %lu %s\n", &opcode, &count, name) == 3) {
-	    opcode_next_clev[nr] = 4;
+	    opcode_next_clev[nr] = 6;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -80,7 +80,7 @@ static void read_counts (void)
 	if (table68k[opcode].handler == -1 && table68k[opcode].mnemo != i_ILLG
 	    && counts[opcode] == 0)
 	{
-	    opcode_next_clev[nr] = 4;
+	    opcode_next_clev[nr] = 6;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -2860,6 +2860,11 @@ static void gen_opcode (unsigned long int opcode)
 	sync_m68k_pc ();
 	printf ("\tmmu_op(opcode, regs, extra);\n");
 	break;
+    case i_MMUOP30:
+	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
+	sync_m68k_pc ();
+	printf ("\tmmu_op30(opcode, regs, extra);\n");
+	break;
     default:
 	abort ();
 	break;
@@ -3176,29 +3181,32 @@ int main (int argc, char **argv)
     using_ce = 0;
 
     postfix2 = -1;
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 13; i++) {
 	postfix = i;
-	if (i == 0 || i == 5 || i == 6) {
+	if (i >= 7 && i < 11)
+	    continue;
+	if (i == 0 || i == 11 || i == 12) {
 	    fprintf (stblfile, "#ifdef CPUEMU_%d\n", postfix);
 	    postfix2 = postfix;
 	    sprintf (fname, "cpuemu_%d.c", postfix);
 	    freopen (fname, "wb", stdout);
 	    generate_includes (stdout);
 	}
-	cpu_level = 4 - i;
-	if (i == 5 || i == 6) {
+	cpu_level = 6 - i;
+	if (i == 11 || i == 12) {
 	    cpu_level = 0;
 	    using_prefetch = 1;
 	    using_exception_3 = 1;
-	    if (i == 6) using_ce = 1;
+	    if (i == 12)
+		using_ce = 1;
 	    for (rp = 0; rp < nr_cpuop_funcs; rp++)
 		opcode_next_clev[rp] = 0;
 	}
-	if (i > 0 && i < 4)
+	if (i > 0 && i < 7)
 	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
 	fprintf (stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d)[] = {\n", postfix);
 	generate_func ();
-	if (i > 0 && i < 4)
+	if (i > 0 && i < 7)
 	    fprintf (stblfile, "#endif /* CPUEMU_68000_ONLY */\n");
 	if (postfix2 >= 0)
 	    fprintf (stblfile, "#endif /* CPUEMU_%d */\n", postfix2);

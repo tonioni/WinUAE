@@ -46,7 +46,8 @@ static const struct cfg_lines opttable[] =
     {"use_gui", "Enable the GUI?  If no, then goes straight to emulator" },
     {"use_debugger", "Enable the debugger?" },
     {"cpu_speed", "can be max, real, or a number between 1 and 20" },
-    {"cpu_type", "Can be 68000, 68010, 68020, 68020/68881" },
+    {"cpu_model", "Can be 68000, 68010, 68020, 68030, 68040, 68060" },
+    {"fpu_model", "Can be 68881, 68882, 68040, 68060" },
     {"cpu_compatible", "yes enables compatibility-mode" },
     {"cpu_24bit_addressing", "must be set to 'no' in order for Z3mem or P96mem to work" },
     {"autoconfig", "yes = add filesystems and extra ram" },
@@ -119,10 +120,6 @@ static const char *csmode[] = { "ocs", "ecs_agnus", "ecs_denise", "ecs", "aga", 
 static const char *linemode1[] = { "none", "double", "scanlines", 0 };
 static const char *linemode2[] = { "n", "d", "s", 0 };
 static const char *speedmode[] = { "max", "real", 0 };
-static const char *cpumode[] = {
-    "68000", "68000", "68010", "68010", "68ec020", "68020", "68ec020/68881", "68020/68881",
-    "68040", "68040", "xxxxx", "xxxxx", "68060", "68060", 0
-};
 static const char *colormode1[] = { "8bit", "15bit", "16bit", "8bit_dither", "4bit_dither", "32bit", 0 };
 static const char *colormode2[] = { "8", "15", "16", "8d", "4d", "32", 0 };
 static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 };
@@ -151,7 +148,8 @@ static const char *cscompa[] = {
     "-", "Generic", "CDTV", "CD32", "A500", "A500+", "A600",
     "A1000", "A1200", "A2000", "A3000", "A3000T", "A4000", "A4000T", 0
 };
-static const char *fullmodes[] = { "false", "true", "fullwindow", 0 };
+/* 3-state boolean! */
+static const char *fullmodes[] = { "false", "true", /* "FILE_NOT_FOUND", */ "fullwindow", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -250,6 +248,24 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
     }
 }
 
+static void write_compatibility_cpu(struct zfile *f, struct uae_prefs *p)
+{
+    char tmp[100];
+    int model;
+
+    model = p->cpu_model;
+    if (model == 68030)
+	model = 68020;
+    if (model == 68060)
+	model = 68040;
+    if (p->address_space_24 && model == 68020)
+	strcpy (tmp, "68ec020");
+    else
+	sprintf(tmp, "%d", model);
+    if (model == 68020 && (p->fpu_model == 68881 || p->fpu_model == 68882)) 
+	strcat(tmp,"/68881");
+    cfgfile_write (f, "cpu_type=%s\n", tmp);
+}
 
 void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
@@ -501,8 +517,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     else
 	cfgfile_write (f, "cpu_speed=%s\n", p->m68k_speed == -1 ? "max" : "real");
 
-    cfgfile_write (f, "cpu_type=%s\n", cpumode[p->cpu_level * 2 + !p->address_space_24]);
+    /* do not reorder start */
+    write_compatibility_cpu(f, p);
+    cfgfile_write (f, "cpu_model=%d\n", p->cpu_model);
+    if (p->fpu_model)
+	cfgfile_write (f, "fpu_model=%d\n", p->fpu_model);
     cfgfile_write (f, "cpu_compatible=%s\n", p->cpu_compatible ? "true" : "false");
+    cfgfile_write (f, "cpu_24bit_addressing=%s\n", p->address_space_24 ? "true" : "false");
+    /* do not reorder end */
     cfgfile_write (f, "cpu_cycle_exact=%s\n", p->cpu_cycle_exact ? "true" : "false");
     cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
     cfgfile_write (f, "rtg_nocustom=%s\n", p->picasso96_nocustom ? "true" : "false");
@@ -1101,7 +1123,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 
     if (cfgfile_yesno (option, value, "cpu_cycle_exact", &p->cpu_cycle_exact)
 	|| cfgfile_yesno (option, value, "blitter_cycle_exact", &p->blitter_cycle_exact)) {
-	if (p->cpu_level > 1 && p->cachesize > 0)
+	if (p->cpu_model >= 68020 && p->cachesize > 0)
 	    p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
 	/* we don't want cycle-exact in 68020/40+JIT modes */
 	return 1;
@@ -1218,11 +1240,48 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
     }
 
-    if (cfgfile_strval (option, value, "cpu_type", &p->cpu_level, cpumode, 0)) {
-	p->address_space_24 = p->cpu_level < 8 && !(p->cpu_level & 1);
-	p->cpu_level >>= 1;
+    if (cfgfile_string (option, value, "fpu_model", tmpbuf, sizeof tmpbuf)) {
+	p->fpu_model = atol(tmpbuf);
 	return 1;
     }
+
+    if (cfgfile_string (option, value, "cpu_model", tmpbuf, sizeof tmpbuf)) {
+	p->cpu_model = atol(tmpbuf);
+	p->fpu_model = 0;
+	return 1;
+    }
+
+    /* old-style CPU configuration */
+    if (cfgfile_string (option, value, "cpu_type", tmpbuf, sizeof tmpbuf)) {
+	p->fpu_model = 0;
+	p->address_space_24 = 0;
+	p->cpu_model = 680000;
+	if (!strcmp(tmpbuf, "68000")) {
+	    p->cpu_model = 68000;
+	} else if (!strcmp(tmpbuf, "68010")) {
+	    p->cpu_model = 68010;
+	} else if (!strcmp(tmpbuf, "68ec020")) {
+	    p->cpu_model = 68020;
+	    p->address_space_24 = 1;
+	} else if (!strcmp(tmpbuf, "68020")) {
+	    p->cpu_model = 68020;
+	} else if (!strcmp(tmpbuf, "68ec020/68881")) {
+	    p->cpu_model = 68020;
+	    p->fpu_model = 68881;
+	    p->address_space_24 = 1;
+	} else if (!strcmp(tmpbuf, "68020/68881")) {
+	    p->cpu_model = 68020;
+	    p->fpu_model = 68881;
+	} else if (!strcmp(tmpbuf, "68040")) {
+	    p->cpu_model = 68040;
+	    p->fpu_model = 68040;
+	} else if (!strcmp(tmpbuf, "68060")) {
+	    p->cpu_model = 68060;
+	    p->fpu_model = 68060;
+	}
+	return 1;
+    }
+
     if (p->config_version < (21 << 16)) {
 	if (cfgfile_strval (option, value, "cpu_speed", &p->m68k_speed, speedmode, 1)
 	    /* Broken earlier versions used to write this out as a string.  */
@@ -1899,21 +1958,21 @@ static void parse_cpu_specs (struct uae_prefs *p, char *spec)
 	return;
     }
 
-    p->cpu_level = *spec++ - '0';
-    p->address_space_24 = p->cpu_level < 2;
+    p->cpu_model = (*spec++) * 10 + 68000;
+    p->address_space_24 = p->cpu_model < 68020;
     p->cpu_compatible = 0;
     while (*spec != '\0') {
 	switch (*spec) {
 	 case 'a':
-	    if (p->cpu_level < 2)
+	    if (p->cpu_model < 68020)
 		write_log ("In 68000/68010 emulation, the address space is always 24 bit.\n");
-	    else if (p->cpu_level >= 4)
+	    else if (p->cpu_model >= 68040)
 		write_log ("In 68040/060 emulation, the address space is always 32 bit.\n");
 	    else
 		p->address_space_24 = 1;
 	    break;
 	 case 'c':
-	    if (p->cpu_level != 0)
+	    if (p->cpu_model != 68000)
 		write_log  ("The more compatible CPU emulation is only available for 68000\n"
 			 "emulation, not for 68010 upwards.\n");
 	    else
@@ -2476,7 +2535,7 @@ static void default_prefs_mini (struct uae_prefs *p, int type)
     p->nr_floppies = 1;
     p->dfxtype[0] = DRV_35_DD;
     p->dfxtype[1] = DRV_NONE;
-    p->cpu_level = 0;
+    p->cpu_model = 68000;
     p->address_space_24 = 1;
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -2631,7 +2690,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->prtname[0] = 0;
     p->sername[0] = 0;
 
-    p->cpu_level = 0;
+    p->fpu_model = 0;
+    p->cpu_model = 68000;
     p->m68k_speed = 0;
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
@@ -2671,7 +2731,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
 static void buildin_default_prefs_68020 (struct uae_prefs *p)
 {
-    p->cpu_level = 2;
+    p->cpu_model = 68020;
+    p->address_space_24 = 1;
     p->cpu_compatible = 1;
     p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA;
     p->chipmem_size = 0x200000;
@@ -2700,7 +2761,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->dfxtype[3] = DRV_NONE;
     p->floppy_speed = 100;
 
-    p->cpu_level = 0;
+    p->fpu_model = 0;
+    p->cpu_model = 68000;
     p->m68k_speed = 0;
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
@@ -2998,7 +3060,8 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->chipmem_size = 0x400000;
     p->z3fastmem_size = 8 * 1024 * 1024;
     p->gfxmem_size = 8 * 1024 * 1024;
-    p->cpu_level = 4;
+    p->cpu_model = 68060;
+    p->fpu_model = 68060;
     p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     p->cpu_compatible = p->address_space_24 = 0;
     p->m68k_speed = -1;

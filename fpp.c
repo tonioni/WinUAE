@@ -25,6 +25,15 @@
 
 #define DEBUG_FPP 0
 
+STATIC_INLINE int isfpu(struct regstruct *regs)
+{
+    if (regs->pcr & 2)
+	return FALSE;
+    if (currprefs.fpu_model <= 0)
+	return FALSE;
+    return TRUE;
+}
+
 STATIC_INLINE int isinrom (void)
 {
     return (munge24 (m68k_getpc (&regs)) & 0xFFF80000) == 0xF80000;
@@ -136,6 +145,24 @@ typedef uae_s64 tointtype;
 #else
 typedef uae_s32 tointtype;
 #endif
+
+static int get_fpu_version(void)
+{
+    int v = 0;
+    switch (currprefs.fpu_model)
+    {
+	case 68881:
+	v = 0x1f;
+	break;
+	case 68882:
+	v = 0x20; /* ??? */
+	break;
+	case 68040:
+	v = 0x41;
+	break;
+    }
+    return v;
+}
 
 STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
 {
@@ -708,7 +735,7 @@ void fdbcc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	write_log ("fdbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
-    if (cc == -1) {
+    if (cc == -1 || !isfpu(regs)) {
 	m68k_setpc (regs, pc - 4);
 	op_illg (opcode, regs);
     } else if (!cc) {
@@ -731,7 +758,7 @@ void fscc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	write_log ("fscc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, extra & 0x3f);
-    if (cc == -1) {
+    if (cc == -1 || !isfpu(regs)) {
 	m68k_setpc (regs, m68k_getpc (regs) - 4);
 	op_illg (opcode, regs);
     } else if ((opcode & 0x38) == 0) {
@@ -754,7 +781,7 @@ void ftrapcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
 	write_log ("ftrapcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
-    if (cc == -1) {
+    if (cc == -1 || !isfpu(regs)) {
 	m68k_setpc (regs, oldpc);
 	op_illg (opcode, regs);
     }
@@ -771,7 +798,7 @@ void fbcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extra
 	write_log ("fbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     cc = fpp_cond (opcode, opcode & 0x3f);
-    if (cc == -1) {
+    if (cc == -1 || !isfpu(regs)) {
 	m68k_setpc (regs, pc);
 	op_illg (opcode, regs);
     } else if (cc) {
@@ -785,56 +812,60 @@ void fsave_opp (uae_u32 opcode, struct regstruct *regs)
 {
     uae_u32 ad;
     int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
-    int fpu_version = 0x18; /* 68881 */
-//    int fpu_version = 0x38; /* 68882 */
+    int fpu_version = get_fpu_version();
     int i;
-
 
 #if DEBUG_FPP
     if (!isinrom ())
 	write_log ("fsave_opp at %08lx\n", m68k_getpc (regs));
 #endif
-    if (get_fp_ad (opcode, &ad) == 0) {
+    if (get_fp_ad (opcode, &ad) == 0 || !isfpu(regs)) {
 	m68k_setpc (regs, m68k_getpc (regs) - 2);
 	op_illg (opcode, regs);
 	return;
     }
 
-#if 0
-    if (currprefs.cpu_level >= 6) {
-	/* 6 byte 68060 IDLE frame.  */
+    if (currprefs.fpu_model == 68060) {
+	/* 12 byte 68060 IDLE frame.  */
 	if (incr < 0) {
-	    ad -= 6;
+	    ad -= 4;
+	    put_long (ad, 0x00000000);
+	    ad -= 4;
+	    put_long (ad, 0x00000000);
+	    ad -= 4;
 	    put_long (ad, 0x00006000);
 	} else {
 	    put_long (ad, 0x00006000);
-	    ad += 6;
+	    ad += 4;
+	    put_long (ad, 0x00000000);
+	    ad += 4;
+	    put_long (ad, 0x00000000);
+	    ad += 4;
 	}
-    } else
-#endif
-    if (currprefs.cpu_level >= 4) {
+    } else if (currprefs.fpu_model == 68040) {
 	/* 4 byte 68040 IDLE frame.  */
 	if (incr < 0) {
 	    ad -= 4;
-	    put_long (ad, 0x41000000);
+	    put_long (ad, fpu_version << 24);
 	} else {
-	    put_long (ad, 0x41000000);
+	    put_long (ad, fpu_version << 24);
 	    ad += 4;
 	}
-    } else {
+    } else { /* 68881/68882 */
+	int idle_size = currprefs.fpu_model == 68882 ? 0x38 : 0x18;
 	if (incr < 0) {
 	    ad -= 4;
 	    put_long (ad, 0x70000000);
-	    for (i = 0; i < 5; i++) {
+	    for (i = 0; i < (idle_size - 1) / 4; i++) {
 		ad -= 4;
 		put_long (ad, 0x00000000);
 	    }
 	    ad -= 4;
-	    put_long (ad, 0x1f000000 | (fpu_version << 16));
+	    put_long (ad, (fpu_version << 24) | (idle_size << 16));
 	} else {
-	    put_long (ad, 0x1f000000 | (fpu_version << 16));
+	    put_long (ad, (fpu_version << 24) | (idle_size << 16));
 	    ad += 4;
-	    for (i = 0; i < 5; i++) {
+	    for (i = 0; i < (idle_size - 1) / 4; i++) {
 		put_long (ad, 0x00000000);
 		ad += 4;
 	    }
@@ -858,23 +889,25 @@ void frestore_opp (uae_u32 opcode, struct regstruct *regs)
     if (!isinrom ())
 	write_log ("frestore_opp at %08lx\n", m68k_getpc (regs));
 #endif
-    if (get_fp_ad (opcode, &ad) == 0) {
+    if (get_fp_ad (opcode, &ad) == 0 || !isfpu(regs)) {
 	m68k_setpc (regs, m68k_getpc (regs) - 2);
 	op_illg (opcode, regs);
 	return;
     }
-#if 0
-    if (currprefs.cpu_level >= 6) {
-	/* 68060 */
-        d = get_long (ad);
+
+    if (currprefs.fpu_model == 68060) {
+	/* all 68060 FPU frames are 12 bytes */
 	if (incr < 0) {
-	    ad -= 6;
+	    ad -= 4;
 	    d = get_long (ad);
-	} else
-	    ad += 6;
-    } else
-#endif
-    if (currprefs.cpu_level >= 4) {
+	    ad -= 8;
+	} else {
+	    d = get_long (ad);
+	    ad += 4;
+	    ad += 8;
+	}
+
+    } else if (currprefs.fpu_model == 68040) {
 	/* 68040 */
 	if (incr < 0) {
 	    /* @@@ This may be wrong.  */
@@ -900,7 +933,7 @@ void frestore_opp (uae_u32 opcode, struct regstruct *regs)
 		}
 	    }
 	}
-    } else {
+    } else { /* 68881/68882 */
 	if (incr < 0) {
 	    ad -= 4;
 	    d = get_long (ad);
@@ -945,6 +978,12 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     if (!isinrom ())
 	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc (regs) - 4);
 #endif
+    if (!isfpu(regs)) {
+        m68k_setpc (regs, m68k_getpc (regs) - 4);
+        op_illg (opcode, regs);
+	return;
+    }
+
     switch ((extra >> 13) & 0x7) {
 
     case 3:
@@ -1496,12 +1535,12 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 uae_u8 *restore_fpu (uae_u8 *src)
 {
-    int model, i;
+    int i;
 
-    model = restore_u32();
+    changed_prefs.fpu_model = currprefs.fpu_model = restore_u32();
     restore_u32 ();
-    if (currprefs.cpu_level == 2) {
-	currprefs.cpu_level++;
+    if (currprefs.cpu_level == 2 || currprefs.cpu_level == 3) {
+	currprefs.cpu_level = 4;
 	init_m68k ();
     }
     changed_prefs.cpu_level = currprefs.cpu_level;
@@ -1520,28 +1559,16 @@ uae_u8 *restore_fpu (uae_u8 *src)
 uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
-    int model,i;
+    int i;
 
     *len = 0;
-    switch (currprefs.cpu_level)
-    {
-	case 3:
-	model = 68881;
-	break;
-	case 4:
-	model = 68040;
-	break;
-	case 6:
-	model = 68060;
-	break;
-	default:
+    if (currprefs.fpu_model == 0)
 	return 0;
-    }
     if (dstptr)
 	dstbak = dst = dstptr;
     else
 	dstbak = dst = malloc(4+4+8*10+4+4+4);
-    save_u32 (model);
+    save_u32 (currprefs.fpu_model);
     save_u32 (0);
     for (i = 0; i < 8; i++) {
 	uae_u32 w1, w2, w3;

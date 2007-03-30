@@ -105,7 +105,7 @@ extern struct regstruct
     flagtype stopped;
     int intmask;
 
-    uae_u32 vbr,sfc,dfc;
+    uae_u32 vbr, sfc, dfc;
 
 #ifdef FPUEMU
     fptype fp[8];
@@ -115,6 +115,7 @@ extern struct regstruct
     uae_u32 fpsr_highbyte;
 #endif
 
+    uae_u32 pcr;
     uae_u32 spcflags;
     uae_u32 kick_mask;
     uae_u32 address_space_mask;
@@ -328,20 +329,24 @@ extern void fill_prefetch_slow (struct regstruct *regs);
 
 #define CPU_OP_NAME(a) op ## a
 
-/* 68040 */
+/* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
-/* 68020 + 68881 */
+/* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
-/* 68020 */
+/* 68020/68030+FPU */
 extern const struct cputbl op_smalltbl_2_ff[];
-/* 68010 */
+/* 68030 */
 extern const struct cputbl op_smalltbl_3_ff[];
-/* 68000 */
+/* 68020 */
 extern const struct cputbl op_smalltbl_4_ff[];
-/* 68000 slow but compatible.  */
+/* 68010 */
 extern const struct cputbl op_smalltbl_5_ff[];
-/* 68000 slow but compatible and cycle-exact.  */
+/* 68000 */
 extern const struct cputbl op_smalltbl_6_ff[];
+/* 68000 slow but compatible.  */
+extern const struct cputbl op_smalltbl_11_ff[];
+/* 68000 slow but compatible and cycle-exact.  */
+extern const struct cputbl op_smalltbl_12_ff[];
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 

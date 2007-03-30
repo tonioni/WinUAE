@@ -368,8 +368,6 @@
 #define IDC_CPU3                        1203
 #define IDC_CPU4                        1204
 #define IDC_CPU5                        1205
-#define IDC_CPU6                        1206
-#define IDC_SPEED                       1207
 #define IDC_CS_HOST                     1209
 #define IDC_CS_68000                    1210
 #define IDC_CS_ADJUSTABLE               1211
@@ -386,6 +384,12 @@
 #define IDC_GENLOCK                     1220
 #define IDC_COMPATIBLE_FPU              1221
 #define IDC_FASTERRTG                   1221
+#define IDC_COMPATIBLE24                1222
+#define IDC_SPEED                       1223
+#define IDC_FPU0                        1224
+#define IDC_FPU1                        1225
+#define IDC_FPU2                        1226
+#define IDC_FPU3                        1227
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_8BIT                        1230
 #define IDC_16BIT                       1231

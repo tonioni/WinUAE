@@ -344,7 +344,6 @@
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
 #define IDC_VSYNC                       1177
-#define IDC_AFULLSCREEN                 1178
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
@@ -359,7 +358,6 @@
 #define IDC_LM_SCANLINES                1191
 #define IDC_INPUTSPEEDM                 1191
 #define IDC_P96RAM                      1192
-#define IDC_PFULLSCREEN                 1192
 #define IDC_P96MEM                      1193
 #define IDC_DA_SLIDER                   1193
 #define IDC_FRAMERATE2                  1194
@@ -370,8 +368,9 @@
 #define IDC_CPU3                        1203
 #define IDC_CPU4                        1204
 #define IDC_CPU5                        1205
-#define IDC_CPU6                        1206
-#define IDC_SPEED                       1207
+#define IDC_FPU1                        1206
+#define IDC_FPU2                        1207
+#define IDC_FPU3                        1208
 #define IDC_CS_HOST                     1209
 #define IDC_CS_68000                    1210
 #define IDC_CS_ADJUSTABLE               1211
@@ -388,6 +387,8 @@
 #define IDC_GENLOCK                     1220
 #define IDC_COMPATIBLE_FPU              1221
 #define IDC_FASTERRTG                   1221
+#define IDC_COMPATIBLE24                1222
+#define IDC_SPEED                       1223
 #define IDC_SOUNDSETTINGS               1229
 #define IDC_8BIT                        1230
 #define IDC_16BIT                       1231
@@ -924,7 +925,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        258
+#define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40026
 #define _APS_NEXT_CONTROL_VALUE         1761
 #define _APS_NEXT_SYMED_VALUE           101

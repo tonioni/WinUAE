@@ -251,7 +251,7 @@ static int LockStub( surface_type_e type )
 	break;
     }
 
-    if( lockcnt )
+    if(lockcnt)
     {
 #ifdef _DEBUG
 	DebugBreak();
@@ -259,9 +259,9 @@ static int LockStub( surface_type_e type )
 	return 1;
     }
 
-    if( type == secondary_surface && DirectDrawState.flipping != single_buffer )
+    if(type == secondary_surface && DirectDrawState.flipping != single_buffer)
     {
-	IDirectDrawSurface7_Restore( DirectDrawState.primary.surface );
+	IDirectDrawSurface7_Restore(DirectDrawState.primary.surface);
     }
 
     while (FAILED(ddrval = IDirectDrawSurface7_Lock(surface, NULL, surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)))
