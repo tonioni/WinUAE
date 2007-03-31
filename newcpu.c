@@ -1653,13 +1653,13 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 }
 
 #ifdef CPUEMU_0
-void mmu_op30(uae_u32 opcode, struct regstruct *regs, int isextra, uae_u16 extra)
+void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isextra, uae_u16 extra)
 {
     if (currprefs.cpu_model != 68030) {
 #ifdef MMUOP_DEBUG
-	write_log("Unknown 68030 MMU OP %04.4X\n", opcode);
+	write_log("Unknown 68030 MMU OP %04.4X PC=%X\n", opcode, m68k_getpc(regs));
 #endif
-	m68k_setpc (regs, m68k_getpc (regs) - isextra ? 4 : 2);
+	m68k_setpc (regs, pc);
 	op_illg (opcode, regs);
 	return;
     }

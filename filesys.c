@@ -4379,6 +4379,7 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
     Key *k;
     int cnt;
 
+    write_log("FSSAVE: '%s'\n", ui->devname);
     save_u64 (a_uniq);
     save_u64 (key_uniq);
     save_u32 (u->dosbase);
@@ -4393,13 +4394,17 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
     for (k = u->keys; k; k = k->next)
 	cnt++;
     save_u32 (cnt);
+    write_log("%d open files\n", cnt);
     for (k = u->keys; k; k = k->next) {
 	save_u64 (k->uniq);
 	save_u32 (k->file_pos);
 	save_u32 (k->createmode);
 	save_u32 (k->dosmode);
 	save_string (k->aino->nname);
+	write_log("'%s' uniq=%d seekpos=%d mode=%d dosmode=%d\n",
+	    k->aino->nname, k->uniq, k->file_pos, k->createmode, k->dosmode);
     }
+    write_log("END\n");
     return dst;
 }
 

@@ -2861,14 +2861,16 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tmmu_op(opcode, regs, extra);\n");
 	break;
     case i_MMUOP30A:
+	printf ("\tuaecptr pc = m68k_getpc (regs);\n");
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tmmu_op30(opcode, regs, 1, extra);\n");
+	printf ("\tmmu_op30(pc, opcode, regs, 1, extra);\n");
 	break;
     case i_MMUOP30B:
+	printf ("\tuaecptr pc = m68k_getpc (regs);\n");
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tmmu_op30(opcode, regs, 0, 0);\n");
+	printf ("\tmmu_op30(pc, opcode, regs, 0, 0);\n");
 	break;
     default:
 	abort ();
