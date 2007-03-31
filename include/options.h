@@ -355,6 +355,7 @@ extern int cmdlineparser (char *s, char *outp[], int max);
 extern int cfgfile_configuration_change(int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
+extern void fixup_cpu (struct uae_prefs *prefs);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

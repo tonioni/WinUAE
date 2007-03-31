@@ -120,7 +120,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
     fixup_prefs_dim2(&prefs->gfx_size_win);
 }
 
-static void fixup_cpu(struct uae_prefs *p)
+void fixup_cpu(struct uae_prefs *p)
 {
     p->cpu_level = 0;
     switch(p->cpu_model)

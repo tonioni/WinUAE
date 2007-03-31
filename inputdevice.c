@@ -1845,7 +1845,7 @@ void inputdevice_vsync (void)
 	}
     }
     mouseupdate (100);
-    inputdelay = uaerand () % (maxvpos == 0 ? 1 : maxvpos - 1);
+    inputdelay = uaerand () % (maxvpos <= 1 ? 1 : maxvpos - 1);
     idev[IDTYPE_MOUSE].read ();
     input_read = 1;
     input_vpos = 0;

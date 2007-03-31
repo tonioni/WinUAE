@@ -975,7 +975,7 @@ BEGIN
     IDS_PORTS               "Game & I/O ports"
     IDS_MISC1               "Misc"
     IDS_MEMORY              "RAM"
-    IDS_CPU                 "CPU"
+    IDS_CPU                 "CPU and FPU"
     IDS_CHIPSET             "Chipset"
     IDS_INPUT               "Input"
     IDS_FILTER              "Filter"

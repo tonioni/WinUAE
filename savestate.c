@@ -10,8 +10,8 @@
 
  /* Features:
   *
-  * - full CPU state (68000/68010/68020)
-  * - FPU
+  * - full CPU state (68000/68010/68020/68030/68040/68060)
+  * - FPU (68881/68882/68040/68060)
   * - full CIA-A and CIA-B state (with all internal registers)
   * - saves all custom registers and audio internal state.
   * - Chip, Bogo, Fast, Z3 and Picasso96 RAM supported
@@ -1064,8 +1064,8 @@ CPU
 
 	 "CPU "
 
-	CPU model               4 (68000,68010 etc..)
-	CPU typeflags           bit 0=EC-model or not
+	CPU model               4 (68000,68010,68020,68030,68040,68060)
+	CPU typeflags           bit 0=EC-model or not, bit 31 = clock rate included
 	D0-D7                   8*4=32
 	A0-A6                   7*4=32
 	PC                      4
@@ -1084,40 +1084,64 @@ CPU
 	68020: all 68010 registers and CAAR,CACR and MSP
 	etc..
 
-	DFC                     4 (010+)
-	SFC                     4 (010+)
-	VBR                     4 (010+)
+	68010+:
 
-	CAAR                    4 (020-030)
-	CACR                    4 (020+)
-	MSP                     4 (020+)
+	DFC                     4
+	SFC                     4
+	VBR                     4
 
-FPU (only if used)
+	68020+:
 
-	"FPU "
+	CAAR                    4
+	CACR                    4
+	MSP                     4
 
-	FPU model               4 (68881/68882/68040)
-	FPU typeflags           4 (keep zero)
+	68030+:
 
-	FP0-FP7                 4+4+2 (80 bits)
-	FPCR                    4
-	FPSR                    4
-	FPIAR                   4
+	AC0                     4
+	AC1                     4
+	ACUSR                   2
+	TT0                     4
+	TT1                     4
 
-MMU (when and if MMU is supported in future..)
-
-	MMU model               4 (68851,68030,68040)
-
-	// 68040 fields
+	68040+:
 
 	ITT0                    4
 	ITT1                    4
 	DTT0                    4
 	DTT1                    4
+	TCR                     4
 	URP                     4
 	SRP                     4
-	MMUSR                   4
-	TC                      2
+
+	68060:
+
+	BUSCR                   4
+	PCR                     4
+
+        All:
+
+	Clock in KHz            4 (only if bit 31 in flags)
+	                        4 (spare, only if bit 31 in flags)
+
+
+FPU (only if used)
+
+	"FPU "
+
+	FPU model               4 (68881/68882/68040/68060)
+	FPU typeflags           4 (bit 31 = clock rate included)
+	FP0-FP7                 4+4+2 (80 bits)
+	FPCR                    4
+	FPSR                    4
+	FPIAR                   4
+
+	Clock in KHz            4 (only if bit 31 in flags)
+	                        4 (spare, only if bit 31 in flags)
+
+MMU (when and if MMU is supported in future..)
+
+	MMU model               4 (68851,68030,68040,68060)
 
 
 CUSTOM CHIPS

@@ -6,6 +6,9 @@
   * (c) 1995 Bernd Schmidt
   */
 
+//#define MOVEC_DEBUG
+//#define MMUOP_DEBUG
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -75,6 +78,7 @@ extern uae_u32 get_fpsr(void);
 
 #define COUNT_INSTRS 0
 #define MC68060_PCR 0x04300100
+#define MC68EC060_PCR 0x04310100
 
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
@@ -245,21 +249,20 @@ static void update_68k_cycles (void)
 
 void check_prefs_changed_cpu (void)
 {
-    if (currprefs.cpu_level != changed_prefs.cpu_level
-	|| currprefs.cpu_model != changed_prefs.cpu_model
+    if (currprefs.cpu_model != changed_prefs.cpu_model
 	|| currprefs.fpu_model != changed_prefs.fpu_model
 	|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 	|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
 
-	if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
-	    fill_prefetch_slow (&regs);
-
+	fixup_cpu (&changed_prefs);
 	currprefs.cpu_level = changed_prefs.cpu_level;
 	currprefs.cpu_model = changed_prefs.cpu_model;
 	currprefs.fpu_model = changed_prefs.fpu_model;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
 	currprefs.blitter_cycle_exact = changed_prefs.cpu_cycle_exact;
+	if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
+	    fill_prefetch_slow (&regs);
 	build_cpufunctbl ();
     }
     if (currprefs.m68k_speed != changed_prefs.m68k_speed) {
@@ -276,6 +279,8 @@ void init_m68k (void)
 {
     int i;
 
+    fixup_cpu (&changed_prefs);
+    fixup_cpu (&currprefs);
     update_68k_cycles ();
 
     for (i = 0 ; i < 256 ; i++) {
@@ -1103,7 +1108,7 @@ void Interrupt (int nr)
     do_interrupt (nr, &regs);
 }
 
-static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tc, mmusr, urp, srp, buscr;
+static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tcr, mmusr, urp, srp, buscr;
 
 #ifndef CPUEMU_68000_ONLY
 
@@ -1123,7 +1128,7 @@ static int movec_illg (int regno)
 	    return 0;
 	return 1;
     } else if (currprefs.cpu_model == 68020) {
-	if (regno == 3) return 1; /* 68040 only */
+	if (regno == 3) return 1; /* 68040/060 only */
 	 /* 4 is >=68040, but 0x804 is in 68020 */
 	 if (regno2 < 4 || regno == 0x804)
 	    return 0;
@@ -1180,12 +1185,16 @@ int m68k_move2c (int regno, uae_u32 *regp)
 #endif
 	}
 	break;
-	case 3: tc = *regp & 0xc000; break;
-	    /* Mask out fields that should be zero.  */
+	 /* 68040/060 only */
+	case 3: tcr = *regp & (currprefs.cpu_model == 68060 ? 0xfffe : 0xc000);
+	break;
+
+	/* no differences between 68040 and 68060 */
 	case 4: itt0 = *regp & 0xffffe364; break;
 	case 5: itt1 = *regp & 0xffffe364; break;
 	case 6: dtt0 = *regp & 0xffffe364; break;
 	case 7: dtt1 = *regp & 0xffffe364; break;
+	/* 68060 only */
 	case 8: buscr = *regp & 0xf0000000; break;
 
 	case 0x800: regs.usp = *regp; break;
@@ -1193,15 +1202,19 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	case 0x802: caar = *regp & 0xfc; break;
 	case 0x803: regs.msp = *regp; if (regs.m == 1) m68k_areg(&regs, 7) = regs.msp; break;
 	case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg(&regs, 7) = regs.isp; break;
+	/* 68040 only */
 	case 0x805: mmusr = *regp; break;
+	/* 68040/060 */
 	case 0x806: urp = *regp; break;
 	case 0x807: srp = *regp; break;
 	case 0x808:
 	{
 	    uae_u32 opcr = regs.pcr;
-	    regs.pcr = (*regp & (0x40 | 2 | 1)) | MC68060_PCR;
+	    regs.pcr &= ~(0x40 | 2 | 1);
+	    regs.pcr |= (*regp) & (0x40 | 2 | 1);
 	    if (((opcr ^ regs.pcr) & 2) == 2) {
 		write_log("68060 FPU state: %s\n", regs.pcr & 2 ? "disabled" : "enabled");
+		/* flush possible already translated FPU instructions */
 		flush_icache(2);
 	    }
 	}
@@ -1227,7 +1240,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	case 0: *regp = regs.sfc; break;
 	case 1: *regp = regs.dfc; break;
 	case 2: *regp = cacr; break;
-	case 3: *regp = tc; break;
+	case 3: *regp = tcr; break;
 	case 4: *regp = itt0; break;
 	case 5: *regp = itt1; break;
 	case 6: *regp = dtt0; break;
@@ -1242,7 +1255,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	case 0x805: *regp = mmusr; break;
 	case 0x806: *regp = urp; break;
 	case 0x807: *regp = srp; break;
-	case 0x808: *regp = MC68060_PCR | regs.pcr; break;
+	case 0x808: *regp = regs.pcr; break;
 
 	default:
 	    op_illg (0x4E7A, &regs);
@@ -1548,13 +1561,15 @@ void m68k_reset (void)
 #endif
     caar = cacr = 0;
     itt0 = itt1 = dtt0 = dtt1 = 0;
-    tc = mmusr = urp = srp = buscr = 0;
+    tcr = mmusr = urp = srp = buscr = 0;
     /* 68060 FPU is not compatible with 68040,
      * 68060 accelerators' boot ROM disables the FPU
      */
-    if (currprefs.cpu_model == 68060)
+    regs.pcr = 0;
+    if (currprefs.cpu_model == 68060) {
+        regs.pcr = currprefs.fpu_model ? MC68060_PCR : MC68EC060_PCR;
 	regs.pcr |= 2;
-
+    }
     fill_prefetch_slow (&regs);
 }
 
@@ -1638,46 +1653,64 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 }
 
 #ifdef CPUEMU_0
-void mmu_op30(uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
+void mmu_op30(uae_u32 opcode, struct regstruct *regs, int isextra, uae_u16 extra)
 {
     if (currprefs.cpu_model != 68030) {
-	m68k_setpc (regs, m68k_getpc (regs) - 2);
+#ifdef MMUOP_DEBUG
+	write_log("Unknown 68030 MMU OP %04.4X\n", opcode);
+#endif
+	m68k_setpc (regs, m68k_getpc (regs) - isextra ? 4 : 2);
 	op_illg (opcode, regs);
 	return;
     }
-    write_log("MMU030: %04.4x\n", opcode);
+    if (isextra)
+	m68k_setpc (regs, m68k_getpc (regs) + 2);
+#ifdef MMUOP_DEBUG
+    write_log("MMU030: %04.4x PC=%x\n", opcode, m68k_getpc(regs));
+#endif
     return;
 }
 
 void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 {
-#ifdef MOVEC_DEBUG
+#ifdef MMUOP_DEBUG
     write_log("mmu_op %04.4x\n", opcode);
 #endif
     if ((opcode & 0xFE0) == 0x0500) {
 	/* PFLUSH */
 	mmusr = 0;
-	//write_log ("PFLUSH @$%lx\n", m68k_getpc());
+#ifdef MMUOP_DEBUG
+	write_log ("PFLUSH @$%lx\n", m68k_getpc(regs));
+#endif
 	return;
     } else if ((opcode & 0x0FD8) == 0x548) {
 	if (currprefs.cpu_model < 68060) { /* PTEST not in 68060 */
 	    /* PTEST */
-	    //write_log ("PTEST @$%lx\n", m68k_getpc());
+#ifdef MMUOP_DEBUG
+	    write_log ("PTEST @$%lx\n", m68k_getpc(regs));
+#endif
 	    return;
 	}
     } else if ((opcode & 0x0FB8) == 0x588) {
 	/* PLPA */
 	if (currprefs.cpu_model == 68060) {
+#ifdef MMUOP_DEBUG
 	    write_log("PLPA\n");
+#endif
 	    return;
 	}
     } else if (opcode == 0xff00 && extra == 0x01c0) {
 	/* LPSTOP */
 	if (currprefs.cpu_model == 68060) {
+#ifdef MMUOP_DEBUG
 	    write_log("LPSTOP\n");
+#endif
 	    return;
 	}
     }
+#ifdef MMUOP_DEBUG
+    write_log("Unknown MMU OP\n");
+#endif
     m68k_setpc (regs, m68k_getpc (regs) - 2);
     op_illg (opcode, regs);
 }
@@ -2515,7 +2548,7 @@ static uae_u32 val_move2c (int regno)
     case 0: return regs.sfc;
     case 1: return regs.dfc;
     case 2: return cacr;
-    case 3: return tc;
+    case 3: return tcr;
     case 4: return itt0;
     case 5: return itt1;
     case 6: return dtt0;
@@ -2529,7 +2562,7 @@ static uae_u32 val_move2c (int regno)
     case 0x805: return mmusr;
     case 0x806: return urp;
     case 0x807: return srp;
-    case 0x808: return regs.pcr | MC68060_PCR;
+    case 0x808: return regs.pcr;
     default: return 0;
     }
 }    
@@ -2645,6 +2678,32 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	if (changed_prefs.m68k_speed == 0)
 	    currprefs.m68k_speed = changed_prefs.m68k_speed = -1;
     }
+    if (model >= 68030) {
+	restore_u32();
+	restore_u32();
+	restore_u16();
+	restore_u32();
+	restore_u32();
+    }
+    if (model >= 68040) {
+	itt0 = restore_u32();
+	itt1 = restore_u32();
+	dtt0 = restore_u32();
+	dtt1 = restore_u32();
+	tcr = restore_u32();
+	urp = restore_u32();
+	srp = restore_u32();
+    }
+    if (model >= 68060) {
+	buscr = restore_u32();
+	regs.pcr = restore_u32();
+    }
+    if (flags & 0x80000000) {
+	int khz = restore_u32();
+	restore_u32();
+	if (khz > 0 && khz < 800000)
+	    currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
+    }
     write_log ("CPU %d%s%03d, PC=%08.8X\n",
 	model / 1000, flags & 1 ? "EC" : "", model % 1000, regs.pc);
 
@@ -2657,21 +2716,20 @@ void restore_cpu_finish(void)
     m68k_setpc (&regs, regs.pc);
 }
 
-static int cpumodel[] = { 68000, 68010, 68020, 68020, 68040, 68060 };
-
 uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
-    int model,i;
+    int model, i, khz;
 
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc(4+4+15*4+4+4+4+4+2+4+4+4+4+4+4+4);
+	dstbak = dst = malloc(1000);
     model = currprefs.cpu_model;
     save_u32 (model);					/* MODEL */
-    save_u32 (currprefs.address_space_24 ? 1 : 0);	/* FLAGS */
-    for(i = 0;i < 15; i++) save_u32 (regs.regs[i]);	/* D0-D7 A0-A6 */
+    save_u32 (0x80000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
+    for(i = 0;i < 15; i++)
+	save_u32 (regs.regs[i]);			/* D0-D7 A0-A6 */
     save_u32 (m68k_getpc (&regs));			/* PC */
     save_u16 (regs.irc);				/* prefetch */
     save_u16 (regs.ir);					/* instruction prefetch */
@@ -2690,6 +2748,34 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (cacr);				/* CACR */
 	save_u32 (regs.msp);				/* MSP */
     }
+    if(model >= 68030) {
+	save_u32 (0);					/* AC0 */
+	save_u32 (0);					/* AC1 */
+	save_u16 (0);					/* ACUSR */
+	save_u32 (0);					/* TT0 */
+	save_u32 (0);					/* TT1 */
+    }
+    if(model >= 68040) {
+	save_u32 (itt0);				/* ITT0 */
+	save_u32 (itt1);				/* ITT1 */
+	save_u32 (dtt0);				/* DTT0 */
+	save_u32 (dtt1);				/* DTT1 */
+	save_u32 (tcr);					/* TCR */
+	save_u32 (urp);					/* URP */
+	save_u32 (srp);					/* SRP */
+    }
+    if(model >= 68060) {
+	save_u32 (buscr);				/* BUSCR */
+	save_u32 (regs.pcr);				/* PCR */
+    }
+    khz = -1;
+    if (currprefs.m68k_speed == 0) {
+	khz = currprefs.ntscmode ? 715909 : 709379;
+	if (currprefs.cpu_model >= 68020)
+	    khz *= 2;
+    }
+    save_u32 (khz); // clock rate in KHz: -1 = fastest possible 
+    save_u32 (0); // spare
     *len = dst - dstbak;
     return dstbak;
 }

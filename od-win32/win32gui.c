@@ -6782,7 +6782,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		case IDC_DF1TEXTQ:
 		getfloppyname (hDlg, 1);
 		addfloppytype (hDlg, 1);
-	        //addfloppyhistory (hDlg);
+	        addfloppyhistory (hDlg);
 		break;
 		case IDC_DF2TEXT:
 		getfloppyname (hDlg, 2);

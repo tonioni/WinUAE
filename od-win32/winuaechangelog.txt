@@ -1,4 +1,23 @@
 
+Beta 3:
+
+- CPU/FPU on the fly change fixes
+- report 68060 EC/LC ID in PCR register when FPU not enabled,
+  68040/60 FPU disabled exception emulated.
+- some 68030 MMU instructions had incorrect instruction length
+  (no, MMU is NOT emulated but MMU instructions are still processed
+  normally instead of reporting illegal instruction because some
+  programs expect MMU and most/all 68EC030's don't report exceptions
+  either, they simply have MMU that does not work 100%)
+- http://aminet.net/util/sys/Mu680x0Libs.lha appears to be free,
+  working replacement for 680x0-libraries. 68030 (didn't work in b2),
+  68040 and 68060 with or without FPU confirmed working.
+- FPU state restore fixed
+- added CPU/FPU frequency to state files (not yet really used except
+  sets A500 speed if stored statefile was A500-speed config)
+- added 68030+ control register statefile support
+- 1340b4 "rare divide by zero error..." really fixed..
+
 Beta 2:
 
 - 10x+ performance increase during "decrunching" color effects when
