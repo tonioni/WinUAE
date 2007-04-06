@@ -56,6 +56,7 @@
 #if defined(ENFORCER)
 #include "enforcer.h"
 #endif
+#include "gayle.h"
 
 STATIC_INLINE int nocustom(void)
 {
@@ -4445,6 +4446,7 @@ static void hsync_handler (void)
     }
 
     inputdevice_hsync ();
+    mbdmac_hsync();
 
     hsync_counter++;
     //copper_check (2);

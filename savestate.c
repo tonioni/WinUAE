@@ -58,6 +58,7 @@
 #include "uae.h"
 #include "gui.h"
 #include "audio.h"
+#include "filesys.h"
 
 int savestate_state = 0;
 
@@ -79,6 +80,42 @@ static int replaybuffersize;
 
 char savestate_fname[MAX_DPATH];
 static struct staterecord staterecords[MAX_STATERECORDS];
+
+static void state_incompatible_warn(void)
+{
+    static int warned;
+    int dowarn = 0;
+    int i;
+
+#ifdef BSDSOCKET
+    if (currprefs.socket_emu)
+	dowarn = 1;
+#endif
+#ifdef UAESERIAL
+    if (currprefs.uaeserial)
+	dowarn = 1;
+#endif
+#ifdef SCSIEMU
+    if (currprefs.scsi)
+	dowarn = 1;
+#endif
+#ifdef CATWEASEL
+    if (currprefs.catweasel)
+	dowarn = 1;
+#endif
+#ifdef FILESYS
+    for(i = 0; i < currprefs.mountitems; i++) {
+        struct mountedinfo mi;
+	int type = get_filesys_unitconfig (&currprefs, i, &mi);
+	if (type != FILESYS_VIRTUAL)
+	    dowarn = 1;
+    }
+#endif
+    if (!warned && dowarn) {
+	warned = 1;
+	notify_user (NUMSG_STATEHD);
+    }
+}
 
 /* functions for reading/writing bytes, shorts and longs in big-endian
  * format independent of host machine's endianess */
@@ -381,6 +418,9 @@ void restore_state (char *filename)
 	} else if (!strcmp (name, "ZRAM")) {
 	    restore_zram (totallen, filepos);
 	    continue;
+	} else if (!strcmp (name, "BORO")) {
+	    restore_bootrom (totallen, filepos);
+	    continue;
 #endif
 #ifdef PICASSO96
 	} else if (!strcmp (name, "PRAM")) {
@@ -458,6 +498,8 @@ void restore_state (char *filename)
 #ifdef FILESYS
 	else if (!strcmp (name, "FSYS"))
 	    end = restore_filesys (chunk);
+	else if (!strcmp (name, "FSYC"))
+	    end = restore_filesys_common (chunk);
 #endif
 	else
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);
@@ -514,18 +556,20 @@ static void save_rams (struct zfile *f, int comp)
     save_chunk (f, dst, len, "FRAM", comp);
     dst = save_zram (&len);
     save_chunk (f, dst, len, "ZRAM", comp);
+    dst = save_bootrom (&len);
+    save_chunk (f, dst, len, "BORO", comp);
 #endif
 #ifdef PICASSO96
+    dst = save_p96 (&len, 0);
+    save_chunk (f, dst, len, "P96 ", 0);
     dst = save_pram (&len);
     save_chunk (f, dst, len, "PRAM", comp);
-    dst = save_p96 (&len, 0);
-    save_chunk (f, dst, len, "P96 ", comp);
 #endif
 }
 
 /* Save all subsystems */
 
-void save_state (char *filename, char *description)
+int save_state (char *filename, char *description)
 {
     uae_u8 header[1000];
     char tmp[100];
@@ -534,20 +578,18 @@ void save_state (char *filename, char *description)
     int len,i;
     char name[5];
     int comp = savestate_docompress;
-    static int warned;
 
-#ifdef FILESYS
-    if (nr_units () && !warned) {
-	warned = 1;
-	notify_user (NUMSG_STATEHD);
+    if (!savestate_specialdump) {
+	state_incompatible_warn();
+	if (!save_filesys_cando()) {
+	    gui_message("Filesystem active. Try again later");
+	    return -1;
+	}
     }
-#endif
-
     custom_prepare_savestate ();
-
     f = zfile_fopen (filename, "w+b");
     if (!f)
-	return;
+	return 0;
     if (savestate_specialdump) {
 	size_t pos;
 	if (savestate_specialdump == 2)
@@ -568,7 +610,7 @@ void save_state (char *filename, char *description)
 	    xfree(tmp);
 	}
 	zfile_fclose (f);
-	return;
+	return 1;
     }
 
     dst = header;
@@ -663,11 +705,15 @@ void save_state (char *filename, char *description)
     save_chunk (f, dst, len, "HRTM", 0);
 #endif
 #ifdef FILESYS
-    for (i = 0; i < nr_units (); i++) {
-	dst = save_filesys (i, &len);
-	if (dst) {
-	    save_chunk (f, dst, len, "FSYS", 0);
-	    xfree (dst);
+    dst = save_filesys_common (&len);
+    if (dst) {
+	save_chunk (f, dst, len, "FSYC", 0);
+	for (i = 0; i < nr_units (); i++) {
+	    dst = save_filesys (i, &len);
+	    if (dst) {
+		save_chunk (f, dst, len, "FSYS", 0);
+		xfree (dst);
+	    }
 	}
     }
 #endif
@@ -677,6 +723,7 @@ void save_state (char *filename, char *description)
     write_log ("Save of '%s' complete\n", filename);
     zfile_fclose (f);
     savestate_state = 0;
+    return 1;
 }
 
 void savestate_quick (int slot, int save)

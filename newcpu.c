@@ -77,7 +77,7 @@ cpuop_func *cpufunctbl[65536];
 extern uae_u32 get_fpsr(void);
 
 #define COUNT_INSTRS 0
-#define MC68060_PCR 0x04300100
+#define MC68060_PCR   0x04300100
 #define MC68EC060_PCR 0x04310100
 
 #if COUNT_INSTRS
@@ -129,6 +129,21 @@ void dump_counts (void)
 {
 }
 #endif
+
+static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tcr, mmusr, urp, srp, buscr;
+
+static void set_cpu_caches(void)
+{
+#ifdef JIT
+    if (currprefs.cpu_model < 68040) {
+	set_cache_state(cacr & 1);
+	if (cacr & 0x08)
+	    flush_icache(1);
+    } else {
+	set_cache_state(cacr & 0x8000);
+    }
+#endif
+}
 
 STATIC_INLINE void count_instr (unsigned int opcode)
 {
@@ -247,6 +262,17 @@ static void update_68k_cycles (void)
     }
 }
 
+static void prefs_changed_cpu (void)
+{
+    fixup_cpu (&changed_prefs);
+    currprefs.cpu_level = changed_prefs.cpu_level;
+    currprefs.cpu_model = changed_prefs.cpu_model;
+    currprefs.fpu_model = changed_prefs.fpu_model;
+    currprefs.cpu_compatible = changed_prefs.cpu_compatible;
+    currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
+    currprefs.blitter_cycle_exact = changed_prefs.cpu_cycle_exact;
+}
+
 void check_prefs_changed_cpu (void)
 {
     if (currprefs.cpu_model != changed_prefs.cpu_model
@@ -254,13 +280,7 @@ void check_prefs_changed_cpu (void)
 	|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 	|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
 
-	fixup_cpu (&changed_prefs);
-	currprefs.cpu_level = changed_prefs.cpu_level;
-	currprefs.cpu_model = changed_prefs.cpu_model;
-	currprefs.fpu_model = changed_prefs.fpu_model;
-	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
-	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
-	currprefs.blitter_cycle_exact = changed_prefs.cpu_cycle_exact;
+	prefs_changed_cpu ();
 	if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
 	    fill_prefetch_slow (&regs);
 	build_cpufunctbl ();
@@ -279,8 +299,7 @@ void init_m68k (void)
 {
     int i;
 
-    fixup_cpu (&changed_prefs);
-    fixup_cpu (&currprefs);
+    prefs_changed_cpu ();
     update_68k_cycles ();
 
     for (i = 0 ; i < 256 ; i++) {
@@ -351,6 +370,7 @@ void init_m68k (void)
     /* We need to check whether NATMEM settings have changed
      * before starting the CPU */
     check_prefs_changed_comp ();
+    set_cpu_caches();
 #endif
 }
 
@@ -1078,7 +1098,7 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 #if 0
     if (1 || nr < 24)
 	write_log ("exception %d %08.8X %08.8X (%04.4X %04.4X)\n",
-	    nr, oldpc, m68k_getpc(), intena, intreq);
+	    nr, oldpc, m68k_getpc(regs), intena, intreq);
 #endif
 #ifdef CPUEMU_12
     if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
@@ -1107,8 +1127,6 @@ void Interrupt (int nr)
 {
     do_interrupt (nr, &regs);
 }
-
-static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tcr, mmusr, urp, srp, buscr;
 
 #ifndef CPUEMU_68000_ONLY
 
@@ -1170,19 +1188,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	    else if (currprefs.cpu_model == 68060)
 		cacr_mask = 0xf880e000;
 	    cacr = *regp & cacr_mask;
-#ifdef JIT
-	    if (currprefs.cpu_model < 68040) {
-		set_cache_state(cacr & 1);
-		if (*regp & 0x08) {
-		    flush_icache(1);
-		}
-	    } else {
-		set_cache_state((cacr & 0x8000) || 0);
-		if (*regp & 0x08) {   /* Just to be on the safe side */
-		    flush_icache(2);
-		}
-	    }
-#endif
+	    set_cpu_caches();
 	}
 	break;
 	 /* 68040/060 only */
@@ -1556,7 +1562,7 @@ void m68k_reset (void)
     regs.vbr = regs.sfc = regs.dfc = 0;
 #ifdef FPUEMU
     regs.fpcr = regs.fpsr = regs.fpiar = 0;
-    regs.fp_result=1;
+    regs.fp_result = 1;
     regs.irc = 0xffff;
 #endif
     caar = cacr = 0;
@@ -1729,17 +1735,17 @@ static void do_trace (void)
 	m68k_setpc (&regs, m68k_getpc (&regs));
 	fill_prefetch_slow (&regs);
 	opcode = get_word (regs.pc);
-	if (opcode == 0x4e72 		/* RTE */
+	if (opcode == 0x4e72 			/* RTE */
 	    || opcode == 0x4e74 		/* RTD */
 	    || opcode == 0x4e75 		/* RTS */
 	    || opcode == 0x4e77 		/* RTR */
 	    || opcode == 0x4e76 		/* TRAPV */
 	    || (opcode & 0xffc0) == 0x4e80 	/* JSR */
 	    || (opcode & 0xffc0) == 0x4ec0 	/* JMP */
-	    || (opcode & 0xff00) == 0x6100  /* BSR */
+	    || (opcode & 0xff00) == 0x6100	/* BSR */
 	    || ((opcode & 0xf000) == 0x6000	/* Bcc */
 		&& cctrue(&regs.ccrflags, (opcode >> 8) & 0xf))
-	    || ((opcode & 0xf0f0) == 0x5050 /* DBcc */
+	    || ((opcode & 0xf0f0) == 0x5050	/* DBcc */
 		&& !cctrue(&regs.ccrflags, (opcode >> 8) & 0xf)
 		&& (uae_s16)m68k_dreg(&regs, opcode & 7) != 0))
 	{
@@ -2105,7 +2111,7 @@ void execute_normal(void)
 	total_cycles += cpu_cycles;
 	pc_hist[blocklen].specmem = special_mem;
 	blocklen++;
-	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) { // || bsd_int_requested) {
+	if (end_block(opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) {
 	    compile_block(pc_hist,blocklen,total_cycles);
 	    return; /* We will deal with the spcflags in the caller */
 	}
@@ -2279,6 +2285,7 @@ void m68k_go (int may_quit)
 	    if (savestate_state == STATE_RESTORE || savestate_state == STATE_REWIND) {
 		map_overlay (1);
 		fill_prefetch_slow (&regs); /* compatibility with old state saves */
+	        memory_map_dump();
 	    }
 	    savestate_restore_finish ();
 #endif
@@ -2714,6 +2721,7 @@ void restore_cpu_finish(void)
 {
     init_m68k ();
     m68k_setpc (&regs, regs.pc);
+    set_cpu_caches();
 }
 
 uae_u8 *save_cpu (int *len, uae_u8 *dstptr)

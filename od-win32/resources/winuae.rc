@@ -155,7 +155,7 @@ BEGIN
     CONTROL         "68060",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,85,66,10
     CONTROL         "More compatible [] Emulate 68000's prefetch registers. More compatible but slower.",IDC_COMPATIBLE,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,114,73,8
-    CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or 68040 CPU.",IDC_JITENABLE,
+    CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or higher CPU.",IDC_JITENABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,127,73,10
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,90,3,205,90
     CONTROL         "Fastest possible, but maintain chipset timing",IDC_CS_HOST,
@@ -172,14 +172,14 @@ BEGIN
     RTEXT           "Cache size:",IDC_CS_CACHE_TEXT,95,113,45,10,SS_CENTERIMAGE | WS_TABSTOP
     CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,140,108,115,20
     EDITTEXT        IDC_CACHETEXT,255,113,30,12,ES_CENTER | ES_READONLY
-    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,141,60,10
-    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,155,60,10
-    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,168,60,10
-    CONTROL         "Force settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,165,141,61,10
-    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,165,155,60,10
-    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,230,141,34,10
-    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,230,155,45,10
-    CONTROL         "After RTG",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,230,168,59,10
+    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,141,63,10
+    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,155,63,10
+    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,168,62,10
+    CONTROL         "Force settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,141,62,10
+    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,155,62,10
+    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,235,141,52,10
+    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,155,52,10
+    CONTROL         "After RTG",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,168,52,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,206,73,10
     GROUPBOX        "FPU",IDC_STATIC,6,144,81,76,BS_LEFT
@@ -1194,9 +1194,9 @@ BEGIN
     IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
     IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nWould you like to save it?"
-    IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 or higher CPU."
+    IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 with 32-bit addressing or 68030 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
-    IDS_NUMSG_STATEHD       "WARNING: State saves do not support hard drive emulation. This message will not appear again."
+    IDS_NUMSG_STATEHD       "WARNING: Current configuration is not compatible with state saves. This message will not appear again."
     IDS_NUMSG_NOCAPS        "Selected disk image needs the SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_NUMSG_OLDCAPS       "You need an updated SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_IMGCHK_BOOTBLOCKCRCERROR 
@@ -1214,7 +1214,7 @@ BEGIN
     IDS_ROM_UNAVAILABLE     "unavailable"
     IDS_HARDDRIVESAFETYWARNING 
                             "Warning: The safety test has been disabled, and non-empty hard disks were detected.\n\nHard disks marked with 'HD_*_' are not empty."
-    IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68EC020 or higher CPU."
+    IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68020 with 24-bit addressing or higher CPU."
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
     IDS_NUMSG_KICKREPNO     "The floppy disk (image file) in DF0: is not compatible with the system ROM replacement functionality."

@@ -2386,10 +2386,12 @@ void drawing_init (void)
 
     uae_sem_init (&gui_sem, 0, 1);
 #ifdef PICASSO96
-    InitPicasso96 ();
-    picasso_on = 0;
-    picasso_requested_on = 0;
-    gfx_set_picasso_state (0);
+    if (savestate_state != STATE_RESTORE) {
+	InitPicasso96 ();
+	picasso_on = 0;
+	picasso_requested_on = 0;
+	gfx_set_picasso_state (0);
+    }
 #endif
     xlinebuffer = gfxvidinfo.bufmem;
     inhibit_frame = 0;

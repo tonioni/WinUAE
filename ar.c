@@ -193,7 +193,7 @@ static void hrtmon_unmap_banks(void);
 void check_prefs_changed_carts(int in_memory_reset);
 int action_replay_unload(int in_memory_reset);
 
-static int stored_picasso_on;
+static int stored_picasso_on = -1;
 
 static void cartridge_enter(void)
 {
@@ -205,7 +205,9 @@ static void cartridge_enter(void)
 static void cartridge_exit(void)
 {
 #ifdef PICASSO96
-    picasso_requested_on = stored_picasso_on;
+    if (stored_picasso_on >= 0)
+	picasso_requested_on = stored_picasso_on;
+    stored_picasso_on = -1;
 #endif
 }
 

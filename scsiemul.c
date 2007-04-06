@@ -596,10 +596,15 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
     struct priv_devstruct *pdev = getpdevstruct (request);
-    struct devstruct *dev = getdevstruct (pdev->unit);
+    struct devstruct *dev;
 
-    put_byte (request+8, NT_MESSAGE);
-    if (!dev || !pdev) {
+    put_byte (request + 8, NT_MESSAGE);
+    if (!pdev) {
+	put_byte (request + 31, 32);
+	return get_byte (request + 31);
+    }
+    dev = getdevstruct (pdev->unit);
+    if (!dev) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }

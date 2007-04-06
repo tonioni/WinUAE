@@ -5249,7 +5249,7 @@ static void values_to_cpudlg (HWND hDlg)
 static void values_from_cpudlg (HWND hDlg)
 {
     int newcpu, newfpu, newtrust, oldcache, jitena;
-    static int cachesize_prev;
+    static int cachesize_prev, comptrust_prev, compforce_prev;
     
     workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (IsDlgButtonChecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
     workprefs.fpu_strict = IsDlgButtonChecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
@@ -5317,11 +5317,19 @@ static void values_from_cpudlg (HWND hDlg)
     workprefs.cachesize = SendMessage(GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
     if (!jitena) {
         cachesize_prev = workprefs.cachesize;
+	comptrust_prev = workprefs.comptrustbyte;
+	compforce_prev = workprefs.compforcesettings;
 	workprefs.cachesize = 0;
     } else if (jitena && !oldcache) {
 	workprefs.cachesize = 8192;
-	if (cachesize_prev)
+	if (cachesize_prev) {
 	    workprefs.cachesize = cachesize_prev;
+	    workprefs.comptrustbyte = comptrust_prev;
+	    workprefs.comptrustword = comptrust_prev;
+	    workprefs.comptrustlong = comptrust_prev;
+	    workprefs.comptrustnaddr = comptrust_prev;
+	    workprefs.compforcesettings = compforce_prev;
+	}
     }
     if (oldcache == 0 && workprefs.cachesize > 0)
 	canbang = 1;

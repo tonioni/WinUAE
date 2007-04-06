@@ -43,6 +43,7 @@
 #include "zfile.h"
 #include "threaddep/thread.h"
 #include "serial.h"
+#include "savestate.h"
 
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>

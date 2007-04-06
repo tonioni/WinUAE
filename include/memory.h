@@ -64,7 +64,7 @@ extern uaecptr a3000lmem_start, a3000hmem_start;
 extern int ersatzkickfile;
 extern int cloanto_rom;
 extern uae_u16 kickstart_version;
-extern int uae_boot_rom;
+extern int uae_boot_rom, uae_boot_rom_size;
 
 extern uae_u8* baseaddr[];
 

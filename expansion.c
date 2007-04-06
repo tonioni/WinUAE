@@ -125,7 +125,7 @@ uaecptr ROM_filesys_resname, ROM_filesys_resid;
 uaecptr ROM_filesys_diagentry;
 uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 uaecptr ROM_hardfile_init;
-int uae_boot_rom;
+int uae_boot_rom, uae_boot_rom_size; /* size = code size only */
 
 /* ********************************************************** */
 
@@ -1247,7 +1247,8 @@ uae_u8 *save_expansion (int *len, uae_u8 *dstptr)
     save_u32 (fastmem_start);
     save_u32 (z3fastmem_start);
     save_u32 (gfxmem_start);
-    *len = 4 + 4 + 4;
+    save_u32 (RTAREA_BASE);
+    *len = 4 + 4 + 4 + 4;
     return dstbak;
 }
 
@@ -1256,6 +1257,7 @@ uae_u8 *restore_expansion (uae_u8 *src)
     fastmem_start = restore_u32 ();
     z3fastmem_start = restore_u32 ();
     gfxmem_start = restore_u32 ();
+    restore_u32();
     return src;
 }
 

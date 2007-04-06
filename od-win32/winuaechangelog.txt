@@ -1,4 +1,44 @@
 
+Beta 4:
+
+- statefiles with autoconfigurable (fast and z3fast) memory wasn't
+  restored properly
+- directory filesystem statefile support.
+- Picasso96 statefile support (not very compatible yet)
+- HDF statefile support. WARNING: HDF _WILL_ get CORRUPTED if you
+  try to restore same HDF statefiles multiple times and there has been
+  one or more writes between restores. Read-only will be forced before
+  official release.
+- JIT slowdown after restore fixed (CPU CACR register instruction cache
+  setting syncronized with JIT cache settings)
+
+  Filesystem statefile information:
+
+  Handling of missing files or directories during restore:
+  - missing root directory: most likely crashes
+  - open file:
+  dummy file with exact same name and size will be created (filled
+  with zeros) to prevent crashes. Of course application using the
+  file most likely fails because it may not contain data it expects
+  but at least FS emulation and AmigaDOS is happy..
+  - open lock:
+  lock is re-created but missing file/directory stays missing. Again,
+  filesystem and AmigaDOS is happy. Application may crash or return
+  weird errors..
+  
+  Always check the log first if there are problems.
+  
+  NOTE: uaescsi, bsdsocket etc.. are not saved. You may be able to
+  restore statefile with unsupported "expansion" devices enabled
+  without crashing (for example restored uaescsi won't crash the
+  emulator but Amiga-side program can get confused.. Tested with
+  AmiKit, no crashes but CD0: stops working)
+  
+  NOTE2: statefile format can and will change in future betas.
+
+  Manual loading of configuration recommended before restoring.
+
+
 Beta 3:
 
 - CPU/FPU on the fly change fixes

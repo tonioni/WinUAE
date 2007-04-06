@@ -144,7 +144,7 @@ static void checkrtglibrary(void)
 }
 
 static uae_u32 p2ctab[256][2];
-static int set_gc_called = 0;
+static int set_gc_called = 0, init_picasso_screen_called = 0;
 //fastscreen
 static uaecptr oldscr = 0;
 #ifdef _DEBUG
@@ -940,10 +940,10 @@ void picasso_handle_vsync (void)
 	palette_changed = 0;
     }
 
-    if (vsyncgfxwrite==1) {
+    if (vsyncgfxwrite == 1) {
 	static long blitcount;
 	vsyncgfxcount++;
-	if (vsyncgfxcount>1) {
+	if (vsyncgfxcount > 1) {
 	    if (picasso_on) {
 		if (picasso96_state.RGBFormat == picasso_vidinfo.rgbformat
 		    || picasso96_state.RGBFormat == RGBFB_CHUNKY) { 
@@ -975,12 +975,13 @@ void picasso_refresh (int call_setpalette)
     struct RenderInfo ri;
     static int beamcon0_before, p96refresh_was;
     
-    if (! picasso_on)return;
+    if (! picasso_on)
+	return;
     {  //for higher P96 mousedraw rate
 	/* HACK */
 	extern uae_u16 vtotal;
 	if (p96hack_vpos2) {
-	    vtotal=p96hack_vpos2;
+	    vtotal = p96hack_vpos2;
 	    beamcon0_before = new_beamcon0;
 	    new_beamcon0 |= 0x80;
 	    p96refresh_active = 1;
@@ -1841,8 +1842,12 @@ uae_u32 REGPARAM2 picasso_SetSwitch (struct regstruct *regs)
     return !flag;
 }
 
+
+static void init_picasso_screen(void);
 void picasso_enablescreen (int on)
 {  
+    if (!init_picasso_screen_called)
+	init_picasso_screen();
     wgfx_linestart = 0xFFFFFFFF;
     picasso_refresh (1);
     write_log ("SetSwitch() from threadid %d - showing %s screen\n", GetCurrentThreadId(), on ? "picasso96": "amiga");
@@ -1907,14 +1912,12 @@ uae_u32 REGPARAM2 picasso_SetDAC (struct regstruct *regs)
 }
 
 
-static void init_picasso_screen( void )
+static void init_picasso_screen(void)
 {
-    if(set_panning_called)
-    {
+    if(set_panning_called) {
 	picasso96_state.Extent = picasso96_state.Address + picasso96_state.BytesPerRow * picasso96_state.VirtualHeight;
     }
-    if (set_gc_called)
-    {	
+    if (set_gc_called) {	
 	gfx_set_picasso_modeinfo (picasso96_state.Width, picasso96_state.Height,
 	    picasso96_state.GC_Depth, picasso96_state.RGBFormat);
     }
@@ -1926,6 +1929,7 @@ static void init_picasso_screen( void )
 	DX_SetPalette (0, 256);
 	picasso_refresh (1); 
     }
+    init_picasso_screen_called = 1;
 }
 
 /*
@@ -1985,12 +1989,23 @@ uae_u32 REGPARAM2 picasso_SetGC (struct regstruct *regs)
   * because SetSwitch() is not called for subsequent Picasso screens.
 */
 
+static void picasso_SetPanningInit(void)
+{
+    picasso96_state.XYOffset = picasso96_state.Address + (picasso96_state.XOffset * picasso96_state.BytesPerPixel)
+	+ (picasso96_state.YOffset * picasso96_state.BytesPerRow);
+    if((picasso96_state.VirtualWidth > picasso96_state.Width) || (picasso96_state.VirtualHeight > picasso96_state.Height))
+	picasso96_state.BigAssBitmap = 1;
+    else
+	picasso96_state.BigAssBitmap = 0;
+    picasso96_state.BytesPerRow = picasso96_state.VirtualWidth * picasso96_state.BytesPerPixel;
+}   
+
 uae_u32 REGPARAM2 picasso_SetPanning (struct regstruct *regs)
 {   
     uae_u16 Width = m68k_dreg (regs, 0);
     uaecptr start_of_screen = m68k_areg (regs, 1);
     uaecptr bi = m68k_areg(regs, 0);
-    uaecptr bmeptr = get_long( bi + PSSO_BoardInfo_BitMapExtra );  /* Get our BoardInfo ptr's BitMapExtra ptr */
+    uaecptr bmeptr = get_long(bi + PSSO_BoardInfo_BitMapExtra);  /* Get our BoardInfo ptr's BitMapExtra ptr */
     uae_u16 bme_width, bme_height;
 
     if(oldscr == 0) {
@@ -2001,24 +2016,18 @@ uae_u32 REGPARAM2 picasso_SetPanning (struct regstruct *regs)
 	oldscr = start_of_screen;
     }
 
-    bme_width = get_word( bmeptr + PSSO_BitMapExtra_Width );
-    bme_height = get_word( bmeptr + PSSO_BitMapExtra_Height );
+    bme_width = get_word(bmeptr + PSSO_BitMapExtra_Width);
+    bme_height = get_word(bmeptr + PSSO_BitMapExtra_Height);
     
     picasso96_state.Address = start_of_screen; /* Amiga-side address */
     picasso96_state.XOffset = (uae_s16)(m68k_dreg (regs, 1) & 0xFFFF);
     picasso96_state.YOffset = (uae_s16)(m68k_dreg (regs, 2) & 0xFFFF);
-    picasso96_state.XYOffset = picasso96_state.Address + (picasso96_state.XOffset * picasso96_state.BytesPerPixel)
-	+ (picasso96_state.YOffset * picasso96_state.BytesPerRow);
     picasso96_state.VirtualWidth = bme_width;
     picasso96_state.VirtualHeight = bme_height;
-    if((bme_width > Width) || (bme_height > picasso96_state.Height))
-	picasso96_state.BigAssBitmap = 1;
-    else
-	picasso96_state.BigAssBitmap = 0;
     picasso96_state.RGBFormat = m68k_dreg (regs, 7);
     picasso96_state.BytesPerPixel = GetBytesPerPixel (picasso96_state.RGBFormat);
-    picasso96_state.BytesPerRow = bme_width * picasso96_state.BytesPerPixel;
-    
+    picasso_SetPanningInit();
+
     set_panning_called = 1;
     P96TRACE(("SetPanning(%d, %d, %d) Start 0x%x, BPR %d Bpp %d RGBF %d\n",
 	Width, picasso96_state.XOffset, picasso96_state.YOffset,
@@ -3812,15 +3821,67 @@ void InitPicasso96 (void)
 
 uae_u8 *restore_p96 (uae_u8 *src)
 {
+    uae_u32 flags;
+    if (restore_u32 () != 1)
+	return src;
+    InitPicasso96();
+    flags = restore_u32();
+    picasso_requested_on = !!(flags & 1);
+    picasso96_state.SwitchState = picasso_requested_on;
+    picasso_on = 0;
+    init_picasso_screen_called = 0;
+    set_gc_called = !!(flags & 2);
+    set_panning_called = !!(flags & 4);
+    changed_prefs.gfxmem_size = restore_u32(); 
+    picasso96_state.Address = restore_u32();
+    picasso96_state.RGBFormat = restore_u32();
+    picasso96_state.Width = restore_u16();
+    picasso96_state.Height = restore_u16();
+    picasso96_state.VirtualWidth = restore_u16();
+    picasso96_state.VirtualHeight = restore_u16();
+    picasso96_state.XOffset = restore_u16();
+    picasso96_state.YOffset = restore_u16();
+    picasso96_state.GC_Depth = restore_u8();
+    picasso96_state.GC_Flags = restore_u8();
+    picasso96_state.BytesPerRow = restore_u16();
+    picasso96_state.BytesPerPixel = restore_u8();
+    picasso96_state.HostAddress = NULL;
+    picasso_SetPanningInit();
+    picasso96_state.Extent = picasso96_state.Address + picasso96_state.BytesPerRow * picasso96_state.VirtualHeight;
+    if (set_gc_called) {
+	init_picasso_screen ();
+	init_hz_p96 ();
+    }
     return src;
 }
 
 uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 {
-    uae_u8 *dstbak,*dst;
+    uae_u8 *dstbak, *dst;
 
-    //dstbak = dst = malloc (16 + 12 + 1 + 1);
-    return 0;
+    if (currprefs.gfxmem_size == 0)
+	return NULL;
+    if (dstptr)
+	dstbak = dst = dstptr;
+    else
+	dstbak = dst = malloc (1000);
+    save_u32 (1);
+    save_u32 ((picasso_on ? 1 : 0) | (set_gc_called ? 2 : 0) | (set_panning_called ? 4 : 0));
+    save_u32 (currprefs.gfxmem_size);
+    save_u32 (picasso96_state.Address);
+    save_u32 (picasso96_state.RGBFormat);
+    save_u16 (picasso96_state.Width);
+    save_u16 (picasso96_state.Height);
+    save_u16 (picasso96_state.VirtualWidth);
+    save_u16 (picasso96_state.VirtualHeight);
+    save_u16 (picasso96_state.XOffset);
+    save_u16 (picasso96_state.YOffset);
+    save_u8 (picasso96_state.GC_Depth);
+    save_u8 (picasso96_state.GC_Flags);
+    save_u16 (picasso96_state.BytesPerRow);
+    save_u8 (picasso96_state.BytesPerPixel);
+    *len = dst - dstbak;
+    return dstbak;
 }
 
 #endif

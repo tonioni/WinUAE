@@ -50,7 +50,7 @@ uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
 uae_u32 max_z3fastmem = 512 * 1024 * 1024;
 #endif
 
-static size_t chip_filepos, bogo_filepos, rom_filepos, a3000lmem_filepos, a3000hmem_filepos;
+static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lmem_filepos, a3000hmem_filepos;
 
 static struct romlist *rl;
 static int romlist_cnt;
@@ -2188,6 +2188,7 @@ static void allocate_memory (void)
 	cdtv_loadcardmem(cardmemory, allocated_cardmem);
     }
     if (savestate_state == STATE_RESTORE) {
+	restore_ram (bootrom_filepos, rtarea);
 	restore_ram (chip_filepos, chipmemory);
 	if (allocated_bogomem > 0)
 	    restore_ram (bogo_filepos, bogomemory);
@@ -2385,8 +2386,10 @@ void memory_reset (void)
     if ((cloanto_rom || currprefs.cs_ksmirror) && !currprefs.maprom && !extendedkickmem_type)
         map_banks (&kickmem_bank, 0xE0, 8, 0);
     if (currprefs.cs_ksmirror == 2) { /* unexpanded A1200 also maps ROM here.. */
-        map_banks (&kickmem_bank, 0xA8, 8, 0);
-        map_banks (&kickmem_bank, 0xB0, 8, 0);
+	if (!currprefs.cart_internal) {
+	    map_banks (&kickmem_bank, 0xA8, 8, 0);
+	    map_banks (&kickmem_bank, 0xB0, 8, 0);
+	}
     }
 #ifdef ARCADIA
     if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
@@ -2484,6 +2487,8 @@ void memory_cleanup (void)
 
 void memory_hardreset(void)
 {
+    if (savestate_state == STATE_RESTORE)
+	return;
     if (chipmemory)
 	memset (chipmemory, 0, allocated_chipmem);
     if (bogomemory)
@@ -2557,6 +2562,14 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 
 /* memory save/restore code */
 
+uae_u8 *save_bootrom(int *len)
+{
+    if (!uae_boot_rom)
+	return 0;
+    *len = uae_boot_rom_size;
+    return rtarea;
+}
+
 uae_u8 *save_cram (int *len)
 {
     *len = allocated_chipmem;
@@ -2579,6 +2592,11 @@ uae_u8 *save_a3000hram (int *len)
 {
     *len = allocated_a3000hmem;
     return a3000hmemory;
+}
+
+void restore_bootrom (int len, size_t filepos)
+{
+    bootrom_filepos = filepos;
 }
 
 void restore_cram (int len, size_t filepos)

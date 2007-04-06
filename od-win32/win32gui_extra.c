@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <Wingdi.h>
 #include <winspool.h>
 #include <winuser.h>
 #include <mmsystem.h>
@@ -65,9 +66,12 @@ typedef struct {
     /* WORD extraCount; */
 } DLGITEMTEMPLATEEX;
 
-static wchar_t font_vista[] = L"Segoe UI";
-static wchar_t font_xp[] = L"Tahoma";
-static wchar_t font_old[] = L"MS Sans Serif";
+static int fontsdetected, font_vista_ok, font_xp_ok;
+static wchar_t wfont_vista[] = L"Segoe UI";
+static wchar_t wfont_xp[] = L"Tahoma";
+static wchar_t wfont_old[] = L"MS Sans Serif";
+static char font_vista[] = "Segoe UI";
+static char font_xp[] = "Tahoma";
 
 
 static BYTE *skiptext(BYTE *s)
@@ -100,11 +104,11 @@ static void modifytemplatefont(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 {
     wchar_t *p = NULL;
 
-    if (os_vista)
-	p = font_vista;
-    else if (os_winnt)
-	p = font_xp;
-    if (p && !wcscmp (d2->typeface, font_old))
+    if (font_vista_ok)
+	p = wfont_vista;
+    else if (font_xp_ok)
+	p = wfont_xp;
+    if (p && !wcscmp (d2->typeface, wfont_old))
 	wcscpy (d2->typeface, p);
 }
 
@@ -200,8 +204,40 @@ void freescaleresource(struct newresource *ns)
     xfree (ns);
 }
 
+static int CALLBACK effproc(const void *elfe, const void *ntme, DWORD type, LPARAM lParam)
+{
+    *(int*)lParam = 1;
+    return 0;
+}
+
+static void detectfonts(void)
+{
+    LOGFONT lf;
+    HDC hdc;
+
+    if (fontsdetected)
+	return;
+    memset(&lf, 0, sizeof lf);
+    hdc = GetDC(NULL);
+    if (hdc) {
+	lf.lfCharSet = DEFAULT_CHARSET;
+	lf.lfPitchAndFamily = FIXED_PITCH | VARIABLE_PITCH | FF_DONTCARE;
+	strcpy(lf.lfFaceName, font_vista);
+	EnumFontFamiliesEx(hdc, &lf, effproc, (LPARAM)&font_vista_ok, 0);
+	strcpy(lf.lfFaceName, font_xp);
+	EnumFontFamiliesEx(hdc, &lf, effproc, (LPARAM)&font_xp_ok, 0);
+	ReleaseDC(NULL, hdc);
+    }
+    if (os_vista)
+	font_vista_ok = 1;
+    if (os_winnt)
+	font_xp_ok = 1;
+    fontsdetected = 1;
+}
+
 void scaleresource_setmaxsize(int w, int h)
 {
+    detectfonts();
     max_w = w;
     max_h = h;
     mult = 100;

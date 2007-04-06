@@ -240,6 +240,7 @@ void rtarea_init (void)
     filesys_install_code ();
 #endif
 
+    uae_boot_rom_size = here() - RTAREA_BASE;
     init_extended_traps();
 }
 

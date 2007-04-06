@@ -86,7 +86,7 @@ struct hardfileprivdata {
     uae_thread_id tid;
     int thread_running;
     uae_sem_t sync_sem;
-    int opencount;
+    uaecptr base;
 };
 
 static uae_sem_t change_sem;
@@ -364,13 +364,14 @@ static void abort_async (struct hardfileprivdata *hfpd, uaecptr request, int err
 }
 
 static void *hardfile_thread (void *devs);
-static int start_thread (int unit)
+static int start_thread (TrapContext *context, int unit)
 {
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     if (hfpd->thread_running)
 	return 1;
     memset (hfpd, 0, sizeof (struct hardfileprivdata));
+    hfpd->base = m68k_areg(&context->regs, 6);
     init_comm_pipe (&hfpd->requests, 100, 1);
     uae_sem_init (&hfpd->sync_sem, 0, 0);
     uae_start_thread ("hardfile", hardfile_thread, hfpd, &hfpd->tid);
@@ -397,9 +398,8 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
     int err = -1;
 
     /* Check unit number */
-    if (unit >= 0 && get_hardfile_data (unit) && start_thread (unit)) {
-	hfpd->opencount++;
-	put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) + 1);
+    if (unit >= 0 && get_hardfile_data (unit) && start_thread (context, unit)) {
+	put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
 	put_long (tmp1 + 24, unit); /* io_Unit */
 	put_byte (tmp1 + 31, 0); /* io_Error */
 	put_byte (tmp1 + 8, 7); /* ln_type = NT_REPLYMSG */
@@ -420,12 +420,11 @@ static uae_u32 REGPARAM2 hardfile_close (TrapContext *context)
     int unit = mangleunit (get_long (request + 24));
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
-    if (!hfpd->opencount)
+    if (!hfpd)
 	return 0;
-    hfpd->opencount--;
-    if (hfpd->opencount == 0)
+    put_word (hfpd->base + 32, get_word (hfpd->base + 32) - 1);
+    if (get_word(hfpd->base + 32) == 0)
 	write_comm_pipe_u32 (&hfpd->requests, 0, 1);
-    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) - 1);
     return 0;
 }
 
@@ -680,7 +679,8 @@ static uae_u32 REGPARAM2 hardfile_abortio (TrapContext *context)
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     hf_log2 ("uaehf.device abortio ");
-    if (!hfd) {
+    start_thread(context, unit);
+    if (!hfd || !hfpd || !hfpd->thread_running) {
 	put_byte (request + 31, 32);
 	hf_log2 ("error\n");
 	return get_byte (request + 31);
@@ -726,7 +726,8 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     put_byte (request + 8, NT_MESSAGE);
-    if (!hfd) {
+    start_thread(context, unit);
+    if (!hfd || !hfpd || !hfpd->thread_running) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
@@ -778,7 +779,7 @@ void hardfile_reset (void)
 
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	 hfpd = &hardfpd[i];
-	if (hfpd->opencount > 0) {
+	if (hfpd->base && get_word(hfpd->base + 32) > 0) {
 	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 		uaecptr request;
 		if ((request = hfpd->d_request[i]))
