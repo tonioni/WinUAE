@@ -807,6 +807,7 @@ void decide_blitter (int hpos)
     if (!blitter_cycle_exact)
 	return;
     if (blitline) {
+        blt_info.got_cycle = 1;
 	decide_blitter_line (hpos);
 	return;
     }
@@ -840,6 +841,7 @@ void decide_blitter (int hpos)
 		    break;
 		}
 
+	        blt_info.got_cycle = 1;
 		if (c < 0) { /* no channel but bus still needs to be allocated.. */
 		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
 		    blit_cyclecounter++;
@@ -1007,6 +1009,7 @@ void do_blitter (int hpos)
     bltstate = BLT_init;
     preva = 0;
     prevb = 0;
+    blt_info.got_cycle = 0;
 
     blit_firstline_cycles = blit_first_cycle = get_cycles ();
     blit_misscyclecounter = 0;
@@ -1069,6 +1072,7 @@ void do_blitter (int hpos)
 	return;
     }
 
+    blt_info.got_cycle = 1;
     if (currprefs.immediate_blits)
 	cycles = 1;
 

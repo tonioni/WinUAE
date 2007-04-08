@@ -2318,15 +2318,20 @@ void memory_reset (void)
 	    t = 0x10;
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
-    if (currprefs.cs_ide)
+    if (currprefs.cs_ide) {
 	map_banks (&gayle_bank, 0xD8, 6, 0);
+	if(currprefs.cs_ide == 1)
+	    map_banks (&gayle2_bank, 0xDD, 2, 0);
+	else if (currprefs.cs_ide == 2)
+	    map_banks (&gayle_bank, 0xDD, 2, 0);
+    }
     if (currprefs.cs_rtc)
 	map_banks (&clock_bank, 0xDC, 1, 0);
     if (currprefs.cs_fatgaryrev >= 0|| currprefs.cs_ramseyrev >= 0)
 	map_banks (&mbres_bank, 0xDE, 1, 0);
     if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
 	map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
-    if (currprefs.cs_mbdmac >= 0)
+    if (currprefs.cs_mbdmac >= 0 && currprefs.cs_ide <= 0)
 	map_banks (&mbdmac_bank, 0xDD, 1, 0);
     if (a3000lmemory != 0)
         map_banks (&a3000lmem_bank, a3000lmem_start >> 16, allocated_a3000lmem >> 16, 0);

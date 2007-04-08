@@ -201,7 +201,7 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
 static void resetparams(struct devstruct *dev, uaecptr req)
 {
     put_long(req + io_CtlChar, 0x00001311);
-    put_long(req + io_RBufLen, 8192);
+    put_long(req + io_RBufLen, 1024);
     put_long(req + io_ExtFlags, 0);
     put_long(req + io_Baud, 9600);
     put_long(req + io_BrkTime, 250000);
@@ -271,7 +271,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     uae_u32 unit = m68k_dreg (&context->regs, 0);
     uae_u32 flags = m68k_dreg (&context->regs, 1);
     struct devstruct *dev;
-    int i;
+    int i, err;
 
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	if (devst[i].unit == unit && devst[i].exclusive)
@@ -295,7 +295,13 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     dev->exclusive = (get_word(ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
     put_long (ioreq + 24, dev->uniq);
     resetparams (dev, ioreq);
-    setparams (dev, ioreq);
+    err = setparams (dev, ioreq);
+    if (err) {
+	uaeser_close (dev->sysdata);
+	dev->open = 0;
+	xfree (dev->sysdata);
+	return openfail (ioreq, err);
+    }
     if (log_uaeserial)
 	write_log ("%s:%d open ioreq=%08.8X\n", getdevname(), unit, ioreq);
     start_thread (dev);

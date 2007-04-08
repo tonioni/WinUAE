@@ -44,6 +44,7 @@
 #include "fsdb.h"
 #include "zfile.h"
 #include "gui.h"
+#include "gayle.h"
 #include "savestate.h"
 
 #define TRACING_ENABLED 0
@@ -107,6 +108,7 @@ typedef struct {
     int readonly; /* disallow write access? */
     int bootpri; /* boot priority */
     int devno;
+    int controller;
 
     struct hardfiledata hf;
 
@@ -216,7 +218,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	    hdf_close (&ui->hf);
 	}
     } else {
-	mi->ismounted = 1;
+	if (!ui->controller || (ui->controller && p->cs_ide))
+	    mi->ismounted = 1;
     }
     mi->size = ui->hf.size;
     mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.size / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
@@ -241,11 +244,13 @@ static void stripsemicolon(char *s)
 static int set_filesys_unit_1 (int nr,
 				 char *devname, char *volname, char *rootdir, int readonly,
 				 int secspertrack, int surfaces, int reserved,
-				 int blocksize, int bootpri, char *filesysdir, int flags)
+				 int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
     UnitInfo *ui;
     int i;
 
+    if (hdc)
+	return -1;
     if (nr < 0) {
 	for (nr = 0; nr < MAX_FILESYSTEM_UNITS; nr++) {
 	    if (!mountinfo.ui[nr].open)
@@ -346,18 +351,18 @@ err:
 static int set_filesys_unit (int nr,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int flags)
+			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
     int ret;
 
     ret = set_filesys_unit_1 (nr, devname, volname, rootdir, readonly,
-	secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, flags);
+	secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, hdc, flags);
     return ret;
 }
 
 static int add_filesys_unit (char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int flags)
+			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
     int ret;
 
@@ -365,7 +370,7 @@ static int add_filesys_unit (char *devname, char *volname, char *rootdir, int re
 	return -1;
 
     ret = set_filesys_unit_1 (-1, devname, volname, rootdir, readonly,
-				 secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, flags);
+				 secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, hdc, flags);
     return ret;
 }
 
@@ -409,11 +414,15 @@ static void initialize_mountinfo(void)
     for (i = 0; i < currprefs.mountitems; i++) {
 	int idx;
 	uci = &currprefs.mountconfig[i];
-	idx = set_filesys_unit_1 (-1, uci->devname, uci->volname, uci->rootdir,
-	    uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
-	    uci->blocksize, uci->bootpri, uci->filesys, 0);
-	if (idx >= 0)
-	    uci->configoffset = idx;
+	if (uci->controller == 0) {
+	    idx = set_filesys_unit_1 (-1, uci->devname, uci->volname, uci->rootdir,
+		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
+		uci->blocksize, uci->bootpri, uci->filesys, 0, 0);
+	    if (idx >= 0)
+		uci->configoffset = idx;
+	} else {
+	    gayle_add_ide_unit (uci->controller - 1, uci->rootdir, uci->blocksize, uci->readonly);
+	}
     }
     filesys_addexternals();
 }
@@ -437,6 +446,7 @@ void free_mountinfo (void)
     int i;
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++)
 	close_filesys_unit (mountinfo.ui + i);
+    gayle_free_ide_units();
 }
 
 struct hardfiledata *get_hardfile_data (int nr)
@@ -4958,7 +4968,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
     int type, devno;
     UnitInfo *ui;
     char *devname = 0, *volname = 0, *rootdir = 0, *filesysdir = 0;
-    int bootpri, readonly;
+    int bootpri, readonly, hdc;
 
     if (restore_u32 () != 2)
 	return src;
@@ -4977,7 +4987,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	src = restore_filesys_hardfile(ui, src);
     if (set_filesys_unit (devno, devname, volname, rootdir, readonly,
 	ui->hf.secspertrack, ui->hf.surfaces, ui->hf.reservedblocks, ui->hf.blocksize,
-	bootpri, filesysdir[0] ? filesysdir : NULL, 0) < 0) {
+	bootpri, filesysdir[0] ? filesysdir : NULL, 0, 0) < 0) {
 	write_log ("filesys '%s' failed to restore\n", rootdir);
 	goto end;
     }

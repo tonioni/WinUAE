@@ -12,6 +12,7 @@ struct bltinfo {
     uae_u16 bltadat, bltbdat, bltcdat,bltddat,bltahold,bltbhold,bltafwm,bltalwm;
     int vblitsize,hblitsize;
     int bltamod,bltbmod,bltcmod,bltdmod;
+    int got_cycle;
 };
 
 extern enum blitter_states {

@@ -109,6 +109,7 @@ extern addrbank expamem_bank;
 extern addrbank fastmem_bank;
 extern addrbank gfxmem_bank, gfxmem_bankx;
 extern addrbank gayle_bank;
+extern addrbank gayle2_bank;
 extern addrbank mbres_bank;
 extern addrbank akiko_bank;
 extern addrbank mbdmac_bank;

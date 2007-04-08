@@ -1,4 +1,48 @@
 
+Beta 5:
+
+- A600/A1200 and A4000 IDE emulation (mount RDB HDF as a IDE drive)
+  - Following IDE harddrive commands emulated (commands that KS ROM
+    require, also IDEFix97 appears to work fine)
+   - Format Track (50, dummy command)
+   - Identify Drive (EC)
+   - Initialize Drive Parameters (91)
+   - Read Sector(s) (20 and 21)
+   - Read Multiple (C4)
+   - Write Sector(s) (30 and 31)
+   - Write Multiple (C5)
+   - Recalibrate (10, dummy command)
+   - Set Multiple Mode (C6)
+   - Set Features (EF, no feature commands supported)
+   
+  - max 2 drives available. "HD Controller"-selection added to GUI.
+  - support statefiles (WARNING: HDF data corruption danger!)
+  - ATAPI (IDE CDROM) emulation not supported (yet?)
+
+  Notes: you can't mix Kickstart versions. A4000 KS has only A4000
+  IDE driver, A600/A1200 KS has only A600/A1200 driver.
+
+  Emulated drive is ancient ATA-1 feature level drive, size limits
+  not tested, PIO-0 speed restrictions not emulated :)
+
+  This also means some defaults have been changed. Real IDE without
+  harddrive installed is now enabled if chipset extra is set to
+  A600/A1200 or A4000. Emulated "IDE wire trick" is enabled if no
+  drives installed to prevent long KS boot delay.
+
+  Interesting note: A600/A1200 and A4000 KS IDE drivers are totally
+  different, for example A4000 uses LBA addressing but A600/A1200
+  uses CHS. I don't see the point when the only hardware differences
+  basically are base IO address and different interrupt register..
+  
+- HRTMon IDE activated if IDE emulation enabled. AR A1200 also works.
+- non-3d filters work again (broke in 1.4.2b2)
+- Agnus/Denise revision settings re-added to advanced chipset
+- added non-EHB A1000 to Quickstart (not yet in advanced chipset),
+  also added blitter busy bug to A1000 QS if cycle-exact enabled.
+  (busy flag not set until blitter gets first bus access cycle)
+
+
 Beta 4:
 
 - statefiles with autoconfigurable (fast and z3fast) memory wasn't

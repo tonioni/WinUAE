@@ -107,7 +107,7 @@ static void state_incompatible_warn(void)
     for(i = 0; i < currprefs.mountitems; i++) {
         struct mountedinfo mi;
 	int type = get_filesys_unitconfig (&currprefs, i, &mi);
-	if (type != FILESYS_VIRTUAL)
+	if (mi.ismounted && type != FILESYS_VIRTUAL && type != FILESYS_HARDFILE && type != FILESYS_HARDFILE_RDB)
 	    dowarn = 1;
     }
 #endif
@@ -501,6 +501,10 @@ void restore_state (char *filename)
 	else if (!strcmp (name, "FSYC"))
 	    end = restore_filesys_common (chunk);
 #endif
+	else if (!strcmp (name, "GAYL"))
+	    end = restore_gayle (chunk);
+	else if (!strcmp (name, "IDE "))
+	    end = restore_ide (chunk);
 	else
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);
 	if (len != end - chunk)
@@ -717,6 +721,18 @@ int save_state (char *filename, char *description)
 	}
     }
 #endif
+    dst = save_gayle(&len);
+    if (dst) {
+        save_chunk (f, dst, len, "GAYL", 0);
+	xfree(dst);
+    }
+    for (i = 0; i < 2; i++) {
+	dst = save_ide (i, &len);
+	if (dst) {
+	    save_chunk (f, dst, len, "IDE ", 0);
+	    xfree(dst);
+	}
+    }
 
     zfile_fwrite ("END ", 1, 4, f);
     zfile_fwrite ("\0\0\0\08", 1, 4, f);

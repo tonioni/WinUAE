@@ -64,6 +64,7 @@ struct uaedev_config_info {
     int reserved;
     int blocksize;
     int configoffset;
+    int controller;
 };
 
 struct uae_prefs {
@@ -320,7 +321,7 @@ extern void cfgfile_backup (const char *path);
 extern int add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int flags);
+			int blocksize, int bootpri, char *filesysdir, int hdc, int flags);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);

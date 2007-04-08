@@ -1981,12 +1981,17 @@ void InitializeListView (HWND hDlg)
 	    else
 		sprintf (size_str, "%.1fM", ((double)(uae_u32)(mi.size / (1024))) / 1024.0);
 
-	    if (type == FILESYS_HARDFILE) {
+	    if (uci->controller) {
+		sprintf (blocksize_str, "%d", uci->blocksize);
+		strcpy (devname_str, uci->controller == 1 ? "*IDE0*" : "*IDE1*");
+		strcpy (volname_str, "n/a");
+		strcpy (bootpri_str, "n/a");
+	    } else if (type == FILESYS_HARDFILE) {
 		sprintf (blocksize_str, "%d", uci->blocksize);
 		strcpy (devname_str, uci->devname);
 		strcpy (volname_str, "n/a");
 		sprintf (bootpri_str, "%d", uci->bootpri);
-	    } else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
+	    } else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE || uci->controller) {
 		sprintf (blocksize_str, "%d", uci->blocksize);
 		strcpy (devname_str, "n/a");
 		strcpy (volname_str, "n/a");
@@ -1998,13 +2003,12 @@ void InitializeListView (HWND hDlg)
 		strcpy (size_str, "n/a");
 		sprintf (bootpri_str, "%d", uci->bootpri);
 	    }
-	    if (uci->readonly)
-		WIN32GUI_LoadUIString (IDS_NO, readwrite_str, sizeof (readwrite_str));
-	    else
-		WIN32GUI_LoadUIString (IDS_YES, readwrite_str, sizeof (readwrite_str));
+	    WIN32GUI_LoadUIString (uci->readonly ? IDS_NO : IDS_YES, readwrite_str, sizeof (readwrite_str));
 
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 	    lvstruct.pszText  = nosize ? "X" : (mi.ismounted ? "*" : " ");
+	    if (uci->controller)
+		lvstruct.pszText = " ";
 	    lvstruct.lParam   = 0;
 	    lvstruct.iItem    = i;
 	    lvstruct.iSubItem = 0;
@@ -4228,7 +4232,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     workprefs.cs_ramseyrev = IsDlgButtonChecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
     workprefs.cs_fatgaryrev = IsDlgButtonChecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
     workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC) ? 0x00 : -1;
-    workprefs.cs_ide = (IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : 0) | (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
+    workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
     workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
 	: (IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
     workprefs.cs_rtc = IsDlgButtonChecked (hDlg, IDC_CS_RTC1) ? 0
@@ -5847,6 +5851,7 @@ struct hfdlg_vals
     int rw;
     int rdb;
     int bootpri;
+    int controller;
 };
 
 static struct hfdlg_vals empty_hfdlg = { "", "", "", "", 32, 2, 1, 0, 512, 1, 0, 0 };
@@ -5860,7 +5865,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
     LPITEMIDLIST browse;
     char szTitle[MAX_DPATH];
 
-    WIN32GUI_LoadUIString( IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH );
+    WIN32GUI_LoadUIString(IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
 
     browse_info.hwndOwner = hDlg;
     browse_info.pidlRoot = NULL;
@@ -5928,11 +5933,16 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume);
 	GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device);
 	current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
-	current_fsvdlg.bootpri = GetDlgItemInt( hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE );
+	current_fsvdlg.bootpri = GetDlgItemInt(hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
 	recursive--;
 	break;
     }
     return FALSE;
+}
+
+STATIC_INLINE int is_hdf_rdb(void)
+{
+    return current_hfdlg.sectors == 0 && current_hfdlg.surfaces == 0 && current_hfdlg.reserved == 0;
 }
 
 static void sethardfile (HWND hDlg)
@@ -5946,8 +5956,8 @@ static void sethardfile (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.blocksize, FALSE);
     SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri, TRUE);
     CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
-    ew (hDlg, IDC_HDF_RDB,
-	!(current_hfdlg.sectors == 0 && current_hfdlg.surfaces == 0 && current_hfdlg.reserved == 0));
+    ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb());
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 }
 
 static void inithardfile (HWND hDlg)
@@ -5956,6 +5966,12 @@ static void inithardfile (HWND hDlg)
 
     ew (hDlg, IDC_HF_DOSTYPE, FALSE);
     ew (hDlg, IDC_HF_CREATE, FALSE);
+    SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"UAE");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE0");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE1");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
+    ew (hDlg, IDC_HDF_CONTROLLER, is_hdf_rdb());
     SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp));
     SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)"OFS/FFS/RDB");
@@ -5994,7 +6010,7 @@ static void hardfile_testrdb (HWND hDlg)
 static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    LRESULT res;
+    LRESULT res, posn;
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -6041,17 +6057,18 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, 0);
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
 		hardfile_testrdb (hDlg);
+		inithardfile(hDlg);
 		break;
 	    case IDC_FILESYS_SELECTOR:
 		DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
 		break;
 	    case IDOK:
-		if( strlen(current_hfdlg.filename) == 0 ) 
+		if(strlen(current_hfdlg.filename) == 0 ) 
 		{
 		    char szMessage[MAX_DPATH];
 		    char szTitle[MAX_DPATH];
-		    WIN32GUI_LoadUIString( IDS_MUSTSELECTFILE, szMessage, MAX_DPATH );
-		    WIN32GUI_LoadUIString( IDS_SETTINGSERROR, szTitle, MAX_DPATH );
+		    WIN32GUI_LoadUIString(IDS_MUSTSELECTFILE, szMessage, MAX_DPATH);
+		    WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
 
 		    MessageBox( hDlg, szMessage, szTitle,
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
@@ -6079,11 +6096,14 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
 	GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename);
 	GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename);
-	current_hfdlg.sectors   = GetDlgItemInt( hDlg, IDC_SECTORS, NULL, FALSE );
-	current_hfdlg.reserved  = GetDlgItemInt( hDlg, IDC_RESERVED, NULL, FALSE );
-	current_hfdlg.surfaces  = GetDlgItemInt( hDlg, IDC_HEADS, NULL, FALSE );
-	current_hfdlg.blocksize = GetDlgItemInt( hDlg, IDC_BLOCKSIZE, NULL, FALSE );
-	current_hfdlg.bootpri = GetDlgItemInt( hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE );
+	current_hfdlg.sectors   = GetDlgItemInt(hDlg, IDC_SECTORS, NULL, FALSE);
+	current_hfdlg.reserved  = GetDlgItemInt(hDlg, IDC_RESERVED, NULL, FALSE);
+	current_hfdlg.surfaces  = GetDlgItemInt(hDlg, IDC_HEADS, NULL, FALSE);
+	current_hfdlg.blocksize = GetDlgItemInt(hDlg, IDC_BLOCKSIZE, NULL, FALSE);
+	current_hfdlg.bootpri = GetDlgItemInt(hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
+	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+	if (posn != CB_ERR)
+	    current_hfdlg.controller = posn;
 	recursive--;
 
 	break;
@@ -6111,8 +6131,9 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	ew (hDlg, IDC_RW, FALSE);
 	index = -1;
 	for (i = 0; i < hdf_getnumharddrives(); i++) {
-	    SendDlgItemMessage( hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive(i, 1));
-	    if (!strcmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0))) index = i;
+	    SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive(i, 1));
+	    if (!strcmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0)))
+		index = i;
 	}
 	if (index >= 0)
 	    SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_SETCURSEL, index, 0);
@@ -6124,7 +6145,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	    break;
 	recursive++;
 	posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
-	if (oposn != posn) {
+	if (oposn != posn && posn != CB_ERR) {
 	    oposn = posn;
 	    if (posn >= 0) {
 		ew (hDlg, IDC_HARDDRIVE_IMAGE, TRUE);
@@ -6160,7 +6181,7 @@ static void new_filesys (HWND hDlg)
     int result;
 
     result = add_filesys_config (&workprefs, -1, current_fsvdlg.device, current_fsvdlg.volume,
-		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
+		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
 
 }
 
@@ -6172,7 +6193,8 @@ static void new_hardfile (HWND hDlg)
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
 				current_hfdlg.reserved, current_hfdlg.blocksize,
-				current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
+				current_hfdlg.bootpri, current_hfdlg.fsfilename,
+				current_hfdlg.controller, 0);
 }
 
 static void new_harddrive (HWND hDlg)
@@ -6181,7 +6203,7 @@ static void new_harddrive (HWND hDlg)
 
     result = add_filesys_config (&workprefs, -1, 0, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
-				0, current_hfdlg.blocksize, 0, 0, 0);
+				0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0);
 }
 
 static void harddisk_remove (HWND hDlg)
@@ -6222,6 +6244,7 @@ static void harddisk_edit (HWND hDlg)
 	current_hfdlg.reserved = uci->reserved;
 	current_hfdlg.cylinders = mi.nrcyls;
 	current_hfdlg.blocksize = uci->blocksize;
+	current_hfdlg.controller = uci->controller;
 
 	strncpy (current_hfdlg.filename, uci->rootdir, (sizeof current_hfdlg.filename) - 1);
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';
@@ -6241,7 +6264,8 @@ static void harddisk_edit (HWND hDlg)
 	{
 	    int result = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
-					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri, current_hfdlg.fsfilename, 0);
+					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri,
+					current_hfdlg.fsfilename, current_hfdlg.controller, 0);
 	}
     }
     else if (type == FILESYS_HARDDRIVE) /* harddisk */
@@ -6253,7 +6277,8 @@ static void harddisk_edit (HWND hDlg)
 	{
 	    int result = add_filesys_config (&workprefs, entry, 0, 0, current_hfdlg.filename,
 					! current_hfdlg.rw, 0, 0,
-					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0, 0);
+					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0,
+					current_hfdlg.controller, 0);
 	}
     }
     else /* Filesystem */
@@ -6271,7 +6296,7 @@ static void harddisk_edit (HWND hDlg)
 	current_fsvdlg.bootpri = uci->bootpri;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 	    int result = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
-					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0);
+					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
 	}
     }
 }
@@ -9333,10 +9358,10 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		    if (currentpage == HARDDISK_ID) {
 			if (flags & FILE_ATTRIBUTE_DIRECTORY) {
 			    add_filesys_config (&workprefs, -1, NULL, "XXX", file, 0,
-			        0, 0, 0, 0, 0, NULL, 0);
+			        0, 0, 0, 0, 0, NULL, 0, 0);
 			} else {
 			    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
-			        32, 1, 2, 512, 0, NULL, 0);
+			        32, 1, 2, 512, 0, NULL, 0, 0);
 			}
 		    }
 		}

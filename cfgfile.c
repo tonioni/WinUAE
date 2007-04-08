@@ -219,6 +219,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 {
     int i;
     char tmp[MAX_DPATH];
+    char *hdcontrollers[] = { "uae", "ide0", "ide1" };
 
     for (i = 0; i < p->mountitems; i++) {
 	struct uaedev_config_info *uci = &p->mountconfig[i];
@@ -233,11 +234,11 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 		uci->volname, str);
 	    zfile_fputs (f, tmp);
 	} else {
-	    sprintf (tmp, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s\n",
+	    sprintf (tmp, "hardfile2=%s,%s:%s,%d,%d,%d,%d,%d,%s,%s\n",
 		     uci->readonly ? "ro" : "rw",
 		     uci->devname ? uci->devname : "", str,
 		     uci->sectors, uci->surfaces, uci->reserved, uci->blocksize,
-		     uci->bootpri, uci->filesys ? uci->filesys : "");
+		     uci->bootpri, uci->filesys ? uci->filesys : "", hdcontrollers[uci->controller]);
 	    zfile_fputs (f, tmp);
 	    sprintf (tmp, "hardfile=%s,%d,%d,%d,%d,%s\n",
 		     uci->readonly ? "ro" : "rw", uci->sectors,
@@ -1090,7 +1091,7 @@ static struct uaedev_config_info *getuci(struct uae_prefs *p)
 int add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int flags) {
+			int blocksize, int bootpri, char *filesysdir, int hdc, int flags) {
     struct uaedev_config_info *uci;
     if (index < 0)
 	uci = getuci(p);
@@ -1109,6 +1110,7 @@ int add_filesys_config (struct uae_prefs *p, int index,
     uci->blocksize = blocksize;
     uci->bootpri = bootpri;
     uci->configoffset = -1;
+    uci->controller = hdc;
     strcpy (uci->filesys, filesysdir ? filesysdir : "");
     if (!uci->devname[0])
 	sprintf(uci->devname,"DH%d", uci - &p->mountconfig[0]);
@@ -1353,7 +1355,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	}
 	str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
 #ifdef FILESYS
-	add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0);
+	add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
 #endif
 	free (str);
 	return 1;
@@ -1363,8 +1365,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     if (strcmp (option, "filesystem2") == 0
 	|| strcmp (option, "hardfile2") == 0)
     {
-	int secs, heads, reserved, bs, ro, bp;
-	char *dname, *aname, *root, *fs;
+	int secs, heads, reserved, bs, ro, bp, hdcv;
+	char *dname, *aname, *root, *fs, *hdc;
 	char *tmpp = strchr (value, ',');
 	char *str;
 
@@ -1380,7 +1382,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	else
 	    goto invalid_fs;
 	secs = 0; heads = 0; reserved = 0; bs = 0; bp = 0;
-	fs = 0;
+	fs = 0; hdc = 0; hdcv = 0;
 
 	value = tmpp;
 	if (strcmp (option, "filesystem2") == 0) {
@@ -1421,13 +1423,21 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	    if (getintval2 (&tmpp, &bp, ',')) {
 		fs = tmpp;
 		tmpp = strchr (tmpp, ',');
-		if (tmpp != 0)
-		    *tmpp = 0;
+		if (tmpp != 0) {
+		    *tmpp++ = 0;
+		    hdc = tmpp;
+		    if(!strcmp(hdc, "ide0"))
+			hdcv = 1;
+		    if(!strcmp(hdc, "ide1"))
+			hdcv = 2;
+		    if (secs > 0 || heads > 0 || reserved > 0)
+			hdcv = 0;
+		}
 	    }
 	}
 	str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
 #ifdef FILESYS
-	add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, 0);
+	add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
 #endif
 	free (str);
 	return 1;
@@ -1911,7 +1921,7 @@ static void parse_filesys_spec (struct uae_prefs *p, int readonly, char *spec)
 	}
 #endif
 #ifdef FILESYS
-	add_filesys_config (p, -1, NULL, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0);
+	add_filesys_config (p, -1, NULL, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0, 0);
 #endif
     } else {
 	write_log ("Usage: [-m | -M] VOLNAME:mount_point\n");
@@ -1940,7 +1950,7 @@ static void parse_hardfile_spec (struct uae_prefs *p, char *spec)
 	goto argh;
     *x4++ = '\0';
 #ifdef FILESYS
-    add_filesys_config (p, -1, NULL, NULL, x4, 0, atoi (x0), atoi (x1), atoi (x2), atoi (x3), 0, 0, 0);
+    add_filesys_config (p, -1, NULL, NULL, x4, 0, atoi (x0), atoi (x1), atoi (x2), atoi (x3), 0, 0, 0, 0);
 #endif
     free (x0);
     return;
@@ -2666,6 +2676,18 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_compatible = 1;
     p->cs_rtc = 2;
     p->cs_df0idhw = 1;
+    p->cs_a1000ram = 0;
+    p->cs_fatgaryrev = -1;
+    p->cs_ramseyrev = -1;
+    p->cs_agnusrev = -1;
+    p->cs_deniserev = -1;
+    p->cs_mbdmac = -1;
+    p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
+    p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
+    p->cs_pcmcia = 0;
+    p->cs_ksmirror = 1;
+    p->cs_ciaatod = 0;
+    p->cs_df0idhw = 1;
 
     p->gfx_filter = 0;
     p->gfx_filter_horiz_zoom_mult = 1000;
@@ -2866,12 +2888,14 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     p->chipset_mask = 0;
     p->bogomem_size = 0;
     p->sound_filter = FILTER_SOUND_ON;
-    if (config == 1)
-	p->chipmem_size = 0x40000;
     set_68000_compa (p, compa);
     p->dfxtype[1] = DRV_NONE;
     p->cs_compatible = 7;
     build_in_chipset_prefs (p);
+    if (config > 0)
+	p->chipset_mask |= CSMASK_NO_EHB;
+    if (config > 1)
+	p->chipmem_size = 0x40000;
     return configure_rom (p, roms, romcheck);
 }
 
@@ -3159,6 +3183,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
     if (!p->cs_compatible)
 	return 1;
 
+    p->chipset_mask &= ~CSMASK_BUGS;
     p->cs_a1000ram = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = 0;
@@ -3206,6 +3231,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_ciaatod = p->ntscmode ? 2 : 1;
 	    p->cs_ksmirror = 0;
 	    p->cs_rtc = 0;
+	    p->chipset_mask |= CSMASK_BLTBUSY_BUG;
 	break;
 	case  8: // A1200
 	    p->cs_ide = 1;

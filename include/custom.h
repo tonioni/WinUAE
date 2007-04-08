@@ -13,6 +13,9 @@
 #define CSMASK_ECS_AGNUS 1
 #define CSMASK_ECS_DENISE 2
 #define CSMASK_AGA 4
+#define CSMASK_BUGS 0x300
+#define CSMASK_NO_EHB 0x100
+#define CSMASK_BLTBUSY_BUG 0x200
 
 uae_u32 get_copper_address(int copno);
 

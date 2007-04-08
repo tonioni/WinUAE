@@ -1297,7 +1297,7 @@ static void pfield_expand_dp_bplcon (void)
 	 * stuff, and it's set by some demos (e.g. Andromeda Seven Seas) */
 	bplehb = ((dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200));
     } else {
-	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000;
+	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(currprefs.chipset_mask & CSMASK_NO_EHB);
     }
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;

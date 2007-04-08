@@ -1455,6 +1455,7 @@ static void hrtmon_configure(void)
     cfg->keyboard = hrtmon_lang;
     do_put_mem_long(&cfg->max_chip, currprefs.chipmem_size);
     do_put_mem_long(&cfg->mon_size, 0x800000);
+    cfg->ide = currprefs.cs_ide ? 1 : 0;
 }
 
 int hrtmon_load(void)

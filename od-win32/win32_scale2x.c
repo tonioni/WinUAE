@@ -64,6 +64,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	usedfilter = &uaefilters[0];
 	mult = 1;
     } else if (mult) {
+	flags = usedfilter->x[mult];
 	if ((ad == 16 && !(flags & UAE_FILTER_MODE_16)) || (ad == 32 && !(flags & UAE_FILTER_MODE_32))) {
 	    usedfilter = &uaefilters[0];
 	    mult = 1;

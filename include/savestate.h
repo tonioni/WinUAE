@@ -86,6 +86,11 @@ extern uae_u8 *restore_filesys_common (uae_u8 *src);
 extern uae_u8 *save_filesys_common (int *len);
 extern int save_filesys_cando(void);
 
+extern uae_u8 *restore_gayle(uae_u8 *src);
+extern uae_u8 *save_gayle (int *len);
+extern uae_u8 *restore_ide (uae_u8 *src);
+extern uae_u8 *save_ide (int num, int *len);
+
 extern void restore_cram (int, size_t);
 extern void restore_bram (int, size_t);
 extern void restore_fram (int, size_t);

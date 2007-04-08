@@ -137,8 +137,10 @@ static void set_cpu_caches(void)
 #ifdef JIT
     if (currprefs.cpu_model < 68040) {
 	set_cache_state(cacr & 1);
-	if (cacr & 0x08)
+	if (cacr & 0x08) {
+	    cacr &= ~0x08;
 	    flush_icache(1);
+	}
     } else {
 	set_cache_state(cacr & 0x8000);
     }
@@ -1180,13 +1182,13 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	{
 	    uae_u32 cacr_mask = 0;
 	    if (currprefs.cpu_model == 68020)
-		cacr_mask = 0x00000003;
+		cacr_mask = 0x0000000f;
 	    else if (currprefs.cpu_model == 68030)
-		cacr_mask = 0x00003313;
+		cacr_mask = 0x00003f1f;
 	    else if (currprefs.cpu_model == 68040)
 		cacr_mask = 0x80008000;
 	    else if (currprefs.cpu_model == 68060)
-		cacr_mask = 0xf880e000;
+		cacr_mask = 0xf8e0e000;
 	    cacr = *regp & cacr_mask;
 	    set_cpu_caches();
 	}
@@ -1245,7 +1247,21 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	switch (regno) {
 	case 0: *regp = regs.sfc; break;
 	case 1: *regp = regs.dfc; break;
-	case 2: *regp = cacr; break;
+	case 2: 
+	{
+	    uae_u32 v = cacr;
+	    uae_u32 cacr_mask = 0;
+	    if (currprefs.cpu_model == 68020)
+		cacr_mask = 0x00000003;
+	    else if (currprefs.cpu_model == 68030)
+		cacr_mask = 0x00003313;
+	    else if (currprefs.cpu_model == 68040)
+		cacr_mask = 0x80008000;
+	    else if (currprefs.cpu_model == 68060)
+		cacr_mask = 0xf880e000;
+	    *regp = v & cacr_mask;
+	}
+	break;
 	case 3: *regp = tcr; break;
 	case 4: *regp = itt0; break;
 	case 5: *regp = itt1; break;

@@ -2077,7 +2077,7 @@ static BOOL doInit (void)
 	}
 
 	//If screen depth is equal to the desired window_depth then no overlay is needed.
-	if (!(currentmode->flags & (DM_OPENGL | DM_D3D)) && DirectDraw_GetSurfaceBitCount() == (unsigned)currentmode->current_depth) {
+	if (!(currentmode->flags & (DM_OPENGL | DM_D3D)) && DirectDraw_GetSurfaceBitCount() == currentmode->current_depth) {
 	    write_log ("ignored overlay because desktop depth == requested depth (%d)\n", currentmode->current_depth);
 	    modefallback (DM_OVERLAY);
 	    updatemodes ();

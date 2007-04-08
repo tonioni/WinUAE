@@ -119,7 +119,7 @@ static void filesys_addexternals(void)
 		else
 		    strcat(volumepath, "..");
 		add_filesys_unit (0, volumename, volumepath,
-		    0, 0, 0, 0, 0, 0, 0, 0);
+		    0, 0, 0, 0, 0, 0, 0, 0, 0);
 	    } /* if drivemask */
 	    dwDriveMask >>= 1;
 	}

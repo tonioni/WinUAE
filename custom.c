@@ -2381,7 +2381,7 @@ STATIC_INLINE uae_u16 DMACONR (void)
 {
     uae_u16 v;
     decide_blitter (current_hpos ());
-    v = dmacon | (bltstate == BLT_done ? 0 : 0x4000)
+    v = dmacon | (bltstate == BLT_done || (bltstate != BLT_done && (currprefs.chipset_mask & CSMASK_BLTBUSY_BUG) && !blt_info.got_cycle) ? 0 : 0x4000)
 	    | (blt_info.blitzero ? 0x2000 : 0);
     return v;
 }
@@ -2413,16 +2413,16 @@ STATIC_INLINE uae_u16 VPOSR (void)
     int vp = (GETVPOS() >> 8) & 7;
 
     if (currprefs.cs_agnusrev >= 0) {
-	csbit |= currprefs.cs_agnusrev << 8;
+	csbit |= currprefs.cs_agnusrev  << 8;
     } else {
-	if (currprefs.ntscmode)
-	    csbit |= 0x1000;
 #ifdef AGA
 	csbit |= (currprefs.chipset_mask & CSMASK_AGA) ? 0x2300 : 0;
 #endif
 	csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
 	if (currprefs.chipmem_size > 1024 * 1024 && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	    csbit |= 0x2100;
+	if (currprefs.ntscmode)
+	    csbit |= 0x1000;
     }
 
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -4612,6 +4612,7 @@ void customreset (void)
     a1000_reset ();
     DISK_reset ();
     CIA_reset ();
+    gayle_reset (0);
 #ifdef JIT
     compemu_reset ();
 #endif

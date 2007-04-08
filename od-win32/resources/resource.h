@@ -519,6 +519,7 @@
 #define IDC_HF_CREATE                   1502
 #define IDC_SOCKETS                     1503
 #define IDC_HF_DOSTYPE                  1503
+#define IDC_HDF_CONTROLLER              1504
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
 #define IDC_TEST16BIT                   1506
