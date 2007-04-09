@@ -5408,11 +5408,11 @@ static void enable_for_sounddlg (HWND hDlg)
     ew (hDlg, IDC_FREQUENCY, workprefs.produce_sound);
     ew (hDlg, IDC_SOUNDFREQ, workprefs.produce_sound ? TRUE : FALSE);
     ew (hDlg, IDC_SOUNDSTEREO, workprefs.produce_sound);
-    ew (hDlg, IDC_SOUNDINTERPOLATION, workprefs.sound_stereo < 3 && workprefs.produce_sound);
+    ew (hDlg, IDC_SOUNDINTERPOLATION, workprefs.produce_sound);
     ew (hDlg, IDC_SOUNDVOLUME, workprefs.produce_sound);
     ew (hDlg, IDC_SOUNDVOLUME2, workprefs.produce_sound);
-    ew (hDlg, IDC_SOUNDSTEREOSEP, ISSTEREO(workprefs) && workprefs.produce_sound);
-    ew (hDlg, IDC_SOUNDSTEREOMIX, ISSTEREO(workprefs) && workprefs.produce_sound);
+    ew (hDlg, IDC_SOUNDSTEREOSEP, workprefs.sound_stereo > 0 && workprefs.produce_sound);
+    ew (hDlg, IDC_SOUNDSTEREOMIX, workprefs.sound_stereo > 0 && workprefs.produce_sound);
 
     ew (hDlg, IDC_SOUNDBUFFERMEM, workprefs.produce_sound);
     ew (hDlg, IDC_SOUNDBUFFERRAM, workprefs.produce_sound);
@@ -5553,6 +5553,8 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_4CHANNEL, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)"Cloned Stereo (4 Channels in 5.1)");
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)"4 Channels in 5.1");
     SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_RESETCONTENT, 0, 0);

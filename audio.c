@@ -21,9 +21,9 @@
 #include "newcpu.h"
 #include "autoconf.h"
 #include "gensound.h"
+#include "audio.h"
 #include "sounddep/sound.h"
 #include "events.h"
-#include "audio.h"
 #include "savestate.h"
 #include "driveclick.h"
 #include "zfile.h"
@@ -280,7 +280,7 @@ void init_sound_table16 (void)
 
     for (i = 0; i < 256; i++)
 	for (j = 0; j < 64; j++)
-	    sound_table[j][i] = j * (uae_s8)i * (currprefs.sound_stereo ? 2 : 1);
+	    sound_table[j][i] = j * (uae_s8)i * get_audio_ismono() ? 1 : 2;
 }
 
 void init_sound_table8 (void)
@@ -289,7 +289,7 @@ void init_sound_table8 (void)
 
     for (i = 0; i < 256; i++)
 	for (j = 0; j < 64; j++)
-	    sound_table[j][i] = (j * (uae_s8)i * (currprefs.sound_stereo ? 2 : 1)) / 256;
+	    sound_table[j][i] = (j * (uae_s8)i * get_audio_ismono() ? 1 : 2) / 256;
 }
 
 #define	MULTIPLICATION_PROFITABLE
@@ -310,7 +310,9 @@ typedef	uae_u8 sample8_t;
 #define	MAX_DELAY_BUFFER 1024
 static uae_u32 right_word_saved[MAX_DELAY_BUFFER];
 static uae_u32 left_word_saved[MAX_DELAY_BUFFER];
-static int saved_ptr;
+static uae_u32 right2_word_saved[MAX_DELAY_BUFFER];
+static uae_u32 left2_word_saved[MAX_DELAY_BUFFER];
+static int saved_ptr, saved_ptr2;
 
 #define	MIXED_STEREO_MAX 32
 static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
@@ -323,7 +325,7 @@ static int led_filter_forced, sound_use_filter, sound_use_filter_sinc, led_filte
 
 static struct filter_state {
     float rc1, rc2, rc3, rc4, rc5;
-} sound_filter_state[2];
+} sound_filter_state[4];
 
 static float a500e_filter1_a0;
 static float a500e_filter2_a0;
@@ -407,7 +409,7 @@ STATIC_INLINE void put_sound_word_right (uae_u32 w)
     PUT_SOUND_WORD_RIGHT (w);
 }
 
-STATIC_INLINE void put_sound_word_left (uae_u32	w)
+STATIC_INLINE void put_sound_word_left (uae_u32 w)
 {
     if (mixed_on) {
 	uae_u32 rold, lold, rnew, lnew, tmp;
@@ -428,6 +430,38 @@ STATIC_INLINE void put_sound_word_left (uae_u32	w)
     }
     PUT_SOUND_WORD_LEFT (w);
 }
+
+STATIC_INLINE void put_sound_word_right2 (uae_u32 w)
+{
+    if (mixed_on) {
+	right2_word_saved[saved_ptr2] = w;
+	return;
+    }
+    PUT_SOUND_WORD_RIGHT2 (w);
+}
+
+STATIC_INLINE void put_sound_word_left2 (uae_u32 w)
+{
+    if (mixed_on) {
+	uae_u32 rold, lold, rnew, lnew, tmp;
+
+	left2_word_saved[saved_ptr2] = w;
+	lnew = w - SOUND16_BASE_VAL;
+	rnew = right2_word_saved[saved_ptr2] - SOUND16_BASE_VAL;
+
+	saved_ptr2 = (saved_ptr2 + 1) & mixed_stereo_size;
+
+	lold = left2_word_saved[saved_ptr2] - SOUND16_BASE_VAL;
+	tmp = (rnew * mixed_mul1 + lold * mixed_mul2) / MIXED_STEREO_MAX;
+	tmp += SOUND16_BASE_VAL;
+	PUT_SOUND_WORD_RIGHT2 (tmp);
+
+	rold = right2_word_saved[saved_ptr2] - SOUND16_BASE_VAL;
+	w = (lnew * mixed_mul1 + rold * mixed_mul2) / MIXED_STEREO_MAX;
+    }
+    PUT_SOUND_WORD_LEFT2 (w);
+}
+
 
 #define	DO_CHANNEL(v, c) do { (v) &= audio_channel[c].adk_mask; data += v; } while (0);
 
@@ -698,6 +732,7 @@ static void sample16i_crux_handler (void)
 }
 
 #ifdef HAVE_STEREO_SUPPORT
+
 void sample16ss_handler (void)
 {
     uae_u32 data0 = audio_channel[0].current_sample;
@@ -714,16 +749,37 @@ void sample16ss_handler (void)
     data2 &= audio_channel[2].adk_mask;
     data3 &= audio_channel[3].adk_mask;
 
-    PUT_SOUND_WORD (data0 << 2);
-    PUT_SOUND_WORD (data1 << 2);
-    PUT_SOUND_WORD (data3 << 2);
-    PUT_SOUND_WORD (data2 << 2);
+    put_sound_word_left (data0 << 2);
+    put_sound_word_right (data1 << 2);
+    if (currprefs.sound_stereo == SND_6CH) {
+	PUT_SOUND_WORD (0);
+	PUT_SOUND_WORD (0);
+    }
+    put_sound_word_left2 (data3 << 2);
+    put_sound_word_right2 (data2 << 2);
 
     check_sound_buffers ();
 }
 
 /* This interpolator examines sample points when Paula switches the output
  * voltage and computes the average of Paula's output */
+
+void sample16ss_anti_handler (void)
+{
+    int datas[4];
+
+    samplexx_anti_handler (datas);
+    put_sound_word_left (datas[0] << 2);
+    put_sound_word_right (datas[1] << 2);
+    if (currprefs.sound_stereo == SND_6CH) {
+	PUT_SOUND_WORD (0);
+	PUT_SOUND_WORD (0);
+    }
+    put_sound_word_left2 (datas[3] << 2);
+    put_sound_word_right2 (datas[2] << 2);
+    check_sound_buffers ();
+}
+
 static void sample16si_anti_handler (void)
 {
     int datas[4], data1, data2;
@@ -738,6 +794,21 @@ static void sample16si_anti_handler (void)
     check_sound_buffers ();
 }
 
+void sample16ss_sinc_handler (void)
+{
+    int datas[4];
+
+    samplexx_sinc_handler (datas);
+    put_sound_word_left (datas[0] << 2);
+    put_sound_word_right (datas[1] << 2);
+    if (currprefs.sound_stereo == SND_6CH) {
+	PUT_SOUND_WORD (0);
+	PUT_SOUND_WORD (0);
+    }
+    put_sound_word_left2 (datas[3] << 2);
+    put_sound_word_right2 (datas[2] << 2);
+    check_sound_buffers ();
+}
 
 static void sample16si_sinc_handler (void)
 {
@@ -1359,13 +1430,22 @@ void set_audio(void)
 			  : currprefs.sound_interpol == 4 ? sample16si_crux_handler
 			  : currprefs.sound_interpol == 2 ? sample16si_sinc_handler
 			  : sample16si_anti_handler);
+    } else if (sample_handler == sample16ss_handler
+	|| sample_handler == sample16ss_sinc_handler
+	|| sample_handler == sample16ss_anti_handler)
+    {
+	sample_handler = (currprefs.sound_interpol == 0 ? sample16ss_handler
+			  : currprefs.sound_interpol == 3 ? sample16ss_handler
+			  : currprefs.sound_interpol == 4 ? sample16ss_handler
+			  : currprefs.sound_interpol == 2 ? sample16ss_sinc_handler
+			  : sample16ss_anti_handler);
     }
     sample_prehandler = NULL;
-    if (sample_handler == sample16si_sinc_handler || sample_handler == sample16i_sinc_handler) {
+    if (sample_handler == sample16si_sinc_handler || sample_handler == sample16i_sinc_handler || sample_handler == sample16ss_sinc_handler) {
 	sample_prehandler = sinc_prehandler;
 	sound_use_filter_sinc = sound_use_filter;
 	sound_use_filter = 0;
-    } else if (sample_handler == sample16si_anti_handler || sample_handler == sample16i_anti_handler) {
+    } else if (sample_handler == sample16si_anti_handler || sample_handler == sample16i_anti_handler || sample_handler == sample16ss_anti_handler) {
 	sample_prehandler = anti_prehandler;
     }
 

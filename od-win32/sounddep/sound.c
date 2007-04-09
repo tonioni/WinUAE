@@ -13,6 +13,7 @@
 #include "sysdeps.h"
 
 #include "options.h"
+#include "audio.h"
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
@@ -25,7 +26,6 @@
 #include "win32.h"
 #include "savestate.h"
 #include "driveclick.h"
-#include "audio.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -211,7 +211,7 @@ static void recalc_offsets(void)
     snd_totalmaxoffset_of = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 3 / 9;
     snd_totalmaxoffset_uf = max_sndbufsize + (dsoundbuf - max_sndbufsize) * 7 / 9;
 }
-	
+
 const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
     {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
 
@@ -223,17 +223,11 @@ static int open_audio_ds (int size)
     WAVEFORMATEXTENSIBLE wavfmt;
     LPDIRECTSOUNDBUFFER pdsb;
     int freq = currprefs.sound_freq;
-    int ch = (currprefs.sound_stereo == 3 || currprefs.sound_stereo == 2) ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    int ch = get_audio_nativechannels();
     int round;
 
     enumerate_sound_devices (0);
-    if (ch == 4) {
-	size <<= 3;
-    } else {
-	size <<= 1;
-	if (ch == 2)
-	    size <<= 1;
-    }
+    size *= ch * 2;
     snd_configsize = size;
     sndbufsize = size / 32;
     if (sndbufsize > SND_MAX_BUFFER)
@@ -302,8 +296,14 @@ static int open_audio_ds (int size)
 	wavfmt.Format.nSamplesPerSec = freq;
 	wavfmt.Format.wBitsPerSample = 16;
 	if (extend) {
-	    DWORD ksmode = round == 1 ? KSAUDIO_SPEAKER_QUAD : (round == 2 ? KSAUDIO_SPEAKER_SURROUND  : SPEAKER_ALL);
-	    extname = round == 1 ? "QUAD" : (round == 2 ? "SUR" : "ALL");
+	    DWORD ksmode;
+	    if (ch == 6) {
+		ksmode = KSAUDIO_SPEAKER_5POINT1;
+		extname = "5.1";
+	    } else {
+		ksmode = round == 1 ? KSAUDIO_SPEAKER_QUAD : (round == 2 ? KSAUDIO_SPEAKER_SURROUND  : SPEAKER_ALL);
+	        extname = round == 1 ? "QUAD" : (round == 2 ? "SUR" : "ALL");
+	    }
 	    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
 	    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
 	    wavfmt.Samples.wValidBitsPerSample = 16;
@@ -349,10 +349,10 @@ static int open_audio_ds (int size)
     setvolume ();
     cleardsbuffer ();
     init_sound_table16 ();
-    if (currprefs.sound_stereo == 3)
+    if (get_audio_amigachannels() == 4)
 	sample_handler = sample16ss_handler;
     else
-	sample_handler = currprefs.sound_stereo ? sample16s_handler : sample16_handler;
+	sample_handler = get_audio_ismono() ? sample16_handler : sample16s_handler;
 
     obtainedfreq = currprefs.sound_freq;
 
@@ -707,13 +707,29 @@ static void channelswap(uae_s16 *sndbuffer, int len)
 	sndbuffer[i + 1] = t;
     }
 }
+static void channelswap6(uae_s16 *sndbuffer, int len)
+{
+    int i;
+    for (i = 0; i < len; i += 6) {
+	uae_s16 t = sndbuffer[i + 0];
+	sndbuffer[i + 0] = sndbuffer[i + 1];
+	sndbuffer[i + 1] = t;
+	t = sndbuffer[i + 4];
+	sndbuffer[i + 4] = sndbuffer[i + 5];
+	sndbuffer[i + 5] = t;
+    }
+}
 
 void finish_sound_buffer (void)
 {
     if (turbo_emulation)
 	return;
-    if (ISSTEREO(currprefs) && currprefs.sound_stereo_swap_paula)
-        channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
+    if (currprefs.sound_stereo_swap_paula) {
+	if (get_audio_nativechannels() == 2 || get_audio_nativechannels() == 4)
+	    channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
+	else if (get_audio_nativechannels() == 6)
+	    channelswap6((uae_s16*)sndbuffer, sndbufsize / 2);
+    }
 #ifdef DRIVESOUND
     driveclick_mix ((uae_s16*)sndbuffer, sndbufsize / 2);
 #endif

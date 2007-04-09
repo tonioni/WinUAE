@@ -31,6 +31,7 @@
 
 #include "sysdeps.h"
 #include "options.h"
+#include "audio.h"
 #include "sound.h"
 #include "uae.h"
 #include "memory.h"
@@ -65,7 +66,6 @@
 #include "lcd.h"
 #include "uaeipc.h"
 #include "ar.h"
-#include "audio.h"
 #include "akiko.h"
 #include "cdtv.h"
 

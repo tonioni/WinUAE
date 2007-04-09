@@ -27,10 +27,14 @@ extern void master_sound_volume (int);
 
 STATIC_INLINE void check_sound_buffers (void)
 {
-    if (currprefs.sound_stereo == 2) {
+    if (currprefs.sound_stereo == SND_4CH_CLONEDSTEREO) {
 	((uae_u16*)sndbufpt)[0] = ((uae_u16*)sndbufpt)[-2];
 	((uae_u16*)sndbufpt)[1] = ((uae_u16*)sndbufpt)[-1];
-	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 4);
+	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 2 * 2);
+    } else if (currprefs.sound_stereo == SND_6CH_CLONEDSTEREO) {
+	((uae_u16*)sndbufpt)[2] = ((uae_u16*)sndbufpt)[-2];
+	((uae_u16*)sndbufpt)[3] = ((uae_u16*)sndbufpt)[-1];
+	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 4 * 2);
     }
     if ((char *)sndbufpt - (char *)sndbuffer >= sndbufsize) {
 	finish_sound_buffer ();
@@ -50,6 +54,9 @@ STATIC_INLINE void clear_sound_buffers (void)
 #define PUT_SOUND_WORD_LEFT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[0]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_BYTE_RIGHT(b) PUT_SOUND_BYTE(b)
 #define PUT_SOUND_WORD_RIGHT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[1]); PUT_SOUND_WORD(b); } while (0)
+#define PUT_SOUND_WORD_LEFT2(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[2]); PUT_SOUND_WORD(b); } while (0)
+#define PUT_SOUND_WORD_RIGHT2(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[3]); PUT_SOUND_WORD(b); } while (0)
+
 #define PUT_SOUND_WORD_MONO(b) PUT_SOUND_WORD_LEFT(b)
 #define SOUND16_BASE_VAL 0
 #define SOUND8_BASE_VAL 128
@@ -67,4 +74,3 @@ STATIC_INLINE void clear_sound_buffers (void)
 #define FILTER_SOUND_TYPE_A500 0
 #define FILTER_SOUND_TYPE_A1200 1
 
-#define ISSTEREO(p) (p.sound_stereo == 1 || p.sound_stereo == 2)

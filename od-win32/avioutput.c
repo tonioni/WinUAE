@@ -19,6 +19,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"
+#include "audio.h"
 #include "custom.h"
 #include "picasso96.h"
 #include "dxwrap.h"
@@ -200,7 +201,7 @@ static int AVIOutput_AllocateAudio(void)
 
     // set the source format
     wfxSrc.wFormatTag = WAVE_FORMAT_PCM;
-    wfxSrc.nChannels = currprefs.sound_stereo == 3 ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    wfxSrc.nChannels = get_audio_nativechannels();
     wfxSrc.nSamplesPerSec = workprefs.sound_freq;
     wfxSrc.nBlockAlign = wfxSrc.nChannels * (workprefs.sound_bits / 8);
     wfxSrc.nAvgBytesPerSec = wfxSrc.nBlockAlign * wfxSrc.nSamplesPerSec;
@@ -834,7 +835,7 @@ static void writewavheader (uae_u32 size)
     uae_u16 tw;
     uae_u32 tl;
     int bits = 16;
-    int channels = currprefs.sound_stereo == 3 ? 4 : (currprefs.sound_stereo ? 2 : 1);
+    int channels = get_audio_nativechannels();
 
     fseek (wavfile, 0, SEEK_SET);
     fwrite ("RIFF", 1, 4, wavfile);

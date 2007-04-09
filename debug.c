@@ -24,6 +24,7 @@
 #include "cia.h"
 #include "xwin.h"
 #include "identify.h"
+#include "audio.h"
 #include "sound.h"
 #include "disk.h"
 #include "savestate.h"

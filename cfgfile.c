@@ -14,6 +14,7 @@
 
 #include "options.h"
 #include "uae.h"
+#include "audio.h"
 #include "autoconf.h"
 #include "events.h"
 #include "custom.h"
@@ -126,7 +127,7 @@ static const char *soundmode1[] = { "none", "interrupts", "normal", "exact", 0 }
 static const char *soundmode2[] = { "none", "interrupts", "good", "best", 0 };
 static const char *centermode1[] = { "none", "simple", "smart", 0 };
 static const char *centermode2[] = { "false", "true", "smart", 0 };
-static const char *stereomode[] = { "mono", "stereo", "clonedstereo", "4ch", "mixed", 0 };
+static const char *stereomode[] = { "mono", "stereo", "clonedstereo", "4ch", "clonedstereo6ch", "6ch", "mixed", 0 };
 static const char *interpolmode[] = { "none", "anti", "sinc", "rh", "crux", 0 };
 static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
@@ -939,8 +940,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_strval (option, value, "sound_channels", &p->sound_stereo, stereomode, 1)) {
-	if (p->sound_stereo == 4) { /* "mixed stereo" compatibility hack */
-	    p->sound_stereo = 1;
+	if (p->sound_stereo == SND_NONE) { /* "mixed stereo" compatibility hack */
+	    p->sound_stereo = SND_STEREO;
 	    p->sound_mixed_stereo = 5;
 	    p->sound_stereo_separation = 7;
 	}
@@ -1847,12 +1848,12 @@ static void parse_sound_spec (struct uae_prefs *p, char *spec)
     if (x1) {
 	p->sound_stereo_separation = 0;
 	if (*x1 == 'S') {
-	    p->sound_stereo = 1;
+	    p->sound_stereo = SND_STEREO;
 	    p->sound_stereo_separation = 7;
 	} else if (*x1 == 's')
-	    p->sound_stereo = 1;
+	    p->sound_stereo = SND_STEREO;
 	else
-	    p->sound_stereo = 0;
+	    p->sound_stereo = SND_MONO;
     }
     if (x2)
 	p->sound_bits = atoi (x2);
@@ -2586,7 +2587,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;
-    p->sound_stereo = 1;
+    p->sound_stereo = SND_STEREO;
     p->sound_stereo_separation = 7;
     p->sound_mixed_stereo = 0;
     p->sound_bits = DEFAULT_SOUND_BITS;
@@ -2766,7 +2767,7 @@ static void buildin_default_host_prefs (struct uae_prefs *p)
 {
 #if 0
     p->sound_filter = FILTER_SOUND_OFF;
-    p->sound_stereo = 1;
+    p->sound_stereo = SND_STEREO;
     p->sound_stereo_separation = 7;
     p->sound_mixed_stereo = 0;
 #endif

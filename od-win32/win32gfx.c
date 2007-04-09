@@ -19,6 +19,7 @@
 
 #include "sysdeps.h"
 #include "options.h"
+#include "audio.h"
 #include "uae.h"
 #include "memory.h"
 #include "custom.h"

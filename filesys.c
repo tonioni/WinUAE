@@ -4968,7 +4968,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
     int type, devno;
     UnitInfo *ui;
     char *devname = 0, *volname = 0, *rootdir = 0, *filesysdir = 0;
-    int bootpri, readonly, hdc;
+    int bootpri, readonly;
 
     if (restore_u32 () != 2)
 	return src;

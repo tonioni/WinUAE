@@ -13,11 +13,11 @@
 
 #include "uae.h"
 #include "options.h"
+#include "audio.h"
 #include "sounddep/sound.h"
 #include "zfile.h"
 #include "events.h"
 #include "driveclick.h"
-#include "audio.h"
 
 static struct drvsample drvs[4][DS_END];
 static int freq = 44100;
@@ -293,7 +293,7 @@ static int clickcnt;
 
 static void mix (void)
 {
-    int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / ((currprefs.sound_stereo == 3) ? 8 : (currprefs.sound_stereo ? 4 : 2));
+    int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (get_audio_nativechannels() * 2);
 
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {
@@ -323,7 +323,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 	return;
     mix();
     clickcnt = 0;
-    if (currprefs.sound_stereo) {
+    if (!get_audio_ismono()) {
 	for (i = 0; i < size / 2; i++) {
 	    uae_s16 s = clickbuffer[i];
 	    sndbuffer[0] = limit(((sndbuffer[0] + s) * 2) / 3);

@@ -184,12 +184,13 @@ static void ide_identify_drive(void)
     ps(10, "68000", 20); /* serial */
     pw(20, 3);
     pw(21, 512);
-    ps(23, "0.1", 8); /* firmware revision */
+    ps(23, "0.2", 8); /* firmware revision */
     ps(27, "UAE-IDE", 40); /* model */
     pw(47, 128); /* max 128 sectors multiple mode */
     pw(48, 1);
     pw(49, (1 << 9) | (1 << 8)); /* LBA and DMA supported */
-    pw(53, 1);
+    pw(51, 240 << 8); /* PIO0 to PIO2 supported */
+    pw(53, 1 | 2);
     pw(54, ide->cyls);
     pw(55, ide->heads);
     pw(56, ide->secspertrack);
@@ -203,15 +204,27 @@ static void ide_identify_drive(void)
     pw(61, totalsecs >> 16);
     pw(62, 0x0f);
     pw(63, 0x0f);
+    pw(64, 0x03); /* PIO3 and PIO4 */
+    pw(65, 120 << 8); /* MDMA2 supported */
+    pw(66, 120 << 8);
+    pw(67, 120 << 8);
+    pw(68, 120 << 8);
+    pw(80, (1 << 1) | (1 << 2) | (1 << 3)); /* ATA-1 to ATA-3 */
+    pw(81, 0x000A); /* ATA revision */
 }
 static void ide_initialize_drive_parameters(void)
 {
     struct ide_hdf *ide = &idedrive[ide_drv];
 
     if (ide->size) {
-	ide->secspertrack = ide_nsector;
+	ide->secspertrack = ide_nsector == 0 ? 256 : ide_nsector;
 	ide->heads = (ide_select & 15) + 1;
 	ide->cyls = (ide->size / 512) / (ide->secspertrack * ide->heads);
+	if (ide->heads * ide->cyls * ide->secspertrack > 16515072) {
+	    ide->cyls = ide->cyls_def;
+	    ide->heads = ide->heads_def;
+	    ide->secspertrack = ide->secspertrack_def;
+	}
     } else {
 	ide_error |= IDE_ERR_ABRT;
 	idedrive[ide_drv].status |= IDE_STATUS_ERR;
@@ -1036,12 +1049,47 @@ void gayle_free_ide_units(void)
     }
 }
 
+void getchs2 (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorspertrack)
+{
+    unsigned int total = (unsigned int)(hfd->size / 512);
+    int i, head , cyl, spt;
+    int sptt[] = { 63, 127, 255, -1 };
+
+    if (total > 16515072) {
+	 /* >8G, CHS=16383/16/63 */
+	*pcyl = 16383;
+	*phead = 16;
+	*psectorspertrack = 63;
+	return;
+    }
+
+    for (i = 0; sptt[i] >= 0; i++) {
+	spt = sptt[i];
+	for (head = 4; head <= 16;head++) {
+	    cyl = total / (head * spt);
+	    if (hfd->size <= 512 * 1024 * 1024) {
+		if (cyl <= 1023)
+		    break;
+	    } else {
+		if (cyl < 16383)
+		    break;
+		if (cyl < 32767 && head >= 5)
+		    break;
+		if (cyl <= 65535)
+		    break;
+	    }
+	}
+	if (head <= 16)
+	    break;
+    }
+    *pcyl = cyl;
+    *phead = head;
+    *psectorspertrack = spt;
+}
+
 int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly)
 {
     struct ide_hdf *ide;
-    uae_u8 bufrdb[512];
-    int i;
-    int cyls, secspertrack, heads, tpt;
 
     if (ch >= 2)
 	return -1;
@@ -1052,18 +1100,7 @@ int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly)
 	return -1;
     ide->path = my_strdup(path);
     write_log("IDE%d initialized ('%s')\n", ch, path);
-    cyls = secspertrack = heads = 0;
-    for (i = 0; i < 64; i++) {
-	memset(bufrdb, 0, 512);
-	hdf_read(&ide->hfd, bufrdb, 0, 512);
-	if (!memcmp(bufrdb, "RDSK", 4)) {
-	    ide->hfd.cylinders = rl (bufrdb + 64);
-	    ide->hfd.sectors = rl (bufrdb + 68);
-	    ide->hfd.heads = rl (bufrdb + 72);
-	    break;
-	}
-    }
-    getchs2(&ide->hfd, &ide->cyls, &tpt, &ide->heads, &ide->secspertrack);
+    getchs2(&ide->hfd, &ide->cyls, &ide->heads, &ide->secspertrack);
     ide->cyls_def = ide->cyls;
     ide->secspertrack_def = ide->secspertrack;
     ide->heads_def = ide->heads;

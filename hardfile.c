@@ -433,7 +433,7 @@ static uae_u32 REGPARAM2 hardfile_expunge (TrapContext *context)
     return 0; /* Simply ignore this one... */
 }
 
-void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
 {
     unsigned int total = (unsigned int)(hfd->size / 1024);
     int heads;

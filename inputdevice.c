@@ -38,6 +38,7 @@
 #include "ar.h"
 #include "gui.h"
 #include "disk.h"
+#include "audio.h"
 #include "sound.h"
 #include "savestate.h"
 #include "arcadia.h"

@@ -37,3 +37,22 @@ extern int audio_activate(void);
 extern void audio_sampleripper(int);
 extern int sampleripper_enabled;
 extern void write_wavheader (struct zfile *wavfile, uae_u32 size, uae_u32 freq);
+
+enum {
+    SND_MONO, SND_STEREO, SND_4CH_CLONEDSTEREO, SND_4CH, SND_6CH_CLONEDSTEREO, SND_6CH, SND_NONE };
+STATIC_INLINE int get_audio_nativechannels(void)
+{
+    int ch[] = { 1, 2, 4, 4, 6, 6, 0 };
+    return ch[currprefs.sound_stereo];
+}
+STATIC_INLINE int get_audio_amigachannels(void)
+{
+    int ch[] = { 1, 2, 2, 4, 2, 4, 0 };
+    return ch[currprefs.sound_stereo];
+}
+STATIC_INLINE int get_audio_ismono(void)
+{
+    if (currprefs.sound_stereo == 0)
+	return 1;
+    return 0;
+}

@@ -1,4 +1,20 @@
 
+Beta 6:
+
+- added 4 channel and cloned stereo in 5.1 native mode. Workaround for
+  non-working 4.0 modes on many sound cards. (5.1 center and lf
+  channels are silent currently)
+- 4ch/6ch mode swap channel, interpolation, filter (anti and sinc only)
+  and stereo separation support added
+- IDE CHS calculation fixed. Max heads is always 16 and max sectors is
+  63 for drives smaller than 8GB. (A600/A1200 crashed or gurued with
+  large HDF images) >8G should also work, current "hardware" max limit
+  is 128G (no LBA48 support) NOTE: CHS value is only imaginary value for
+  compatibility purposes and it has nothing to do with real geometry, it
+  can even change and HD still works fine. Internally it is always
+  translated to LBA.
+- added some ATA-3 bits to identify drive reply
+
 Beta 5:
 
 - A600/A1200 and A4000 IDE emulation (mount RDB HDF as a IDE drive)
@@ -36,6 +52,7 @@ Beta 5:
   basically are base IO address and different interrupt register..
   
 - HRTMon IDE activated if IDE emulation enabled. AR A1200 also works.
+- 68020/68030 + JIT random crashing fixed (b4)
 - non-3d filters work again (broke in 1.4.2b2)
 - Agnus/Denise revision settings re-added to advanced chipset
 - added non-EHB A1000 to Quickstart (not yet in advanced chipset),
