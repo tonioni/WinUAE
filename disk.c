@@ -2878,7 +2878,7 @@ void DSKLEN (uae_u16 v, int hpos)
 		    pos += 16;
 		    pos %= drv->tracklen;
 		}
-		INTREQ (0x8000 | 0x1000);
+		INTREQ_f (0x8000 | 0x1000);
 		done = 1;
 
 	    } else if (dskdmaen == 3) { /* TURBO write */
@@ -2897,7 +2897,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	        put_word (dskpt, 0);
 	        dskpt += 2;
 	    }
-	    INTREQ (0x8000 | 0x1000);
+	    INTREQ_f (0x8000 | 0x1000);
 	    done = 1;
 	}
 

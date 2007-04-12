@@ -196,11 +196,17 @@ static void enforcer_display_hit(const char *addressmode, uae_u32 pc, uaecptr ad
 	char *enforcer_buf_ptr = enforcer_buf;
 	uaecptr bestpc,pospc,nextpc,temppc;
 
-	if (enforcer_hit) return; /* our function itself generated a hit ;), avoid endless loop */
+	if (enforcer_hit)
+	    return; /* our function itself generated a hit ;), avoid endless loop */
+	if (regs.vbr < 0x100 && addr >= 0x0c && addr < 0x78)
+	    return;
+
 	enforcer_hit = 1;
 
-	if (!(sysbase = get_long(4))) return;
-	if (!(this_task = get_long(sysbase + 276))) return;
+	if (!(sysbase = get_long(4)))
+	    goto end;
+	if (!(this_task = get_long(sysbase + 276)))
+	    goto end;
 
 	task_name = get_long(this_task + 10); /* ln_Name */
 	native_task_name = amiga2native(task_name,100);
@@ -370,9 +376,10 @@ static void enforcer_display_hit(const char *addressmode, uae_u32 pc, uaecptr ad
 	console_out(enforcer_buf);
 	write_log(enforcer_buf);
 	sleep_millis (5);
-
-	enforcer_hit = 0;
 	flashscreen = 30;
+
+end:
+	enforcer_hit = 0;
 }
 
 uae_u32 REGPARAM2 chipmem_lget2 (uaecptr addr)

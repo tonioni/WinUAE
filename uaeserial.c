@@ -188,10 +188,10 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
     struct devstruct *dev;
 
     dev = getdevstruct (get_long(request + 24));
-    if (log_uaeserial)
-	write_log ("%s:%d close, req=%x\n", getdevname(), dev->unit, request);
     if (!dev)
 	return 0;
+    if (log_uaeserial)
+	write_log ("%s:%d close, req=%x\n", getdevname(), dev->unit, request);
     dev_close_3 (dev);
     put_long (request + 24, 0);
     put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) - 1);
@@ -274,16 +274,16 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     int i, err;
 
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (devst[i].unit == unit && devst[i].exclusive)
+	if (devst[i].open && devst[i].unit == unit && devst[i].exclusive)
 	    return openfail (ioreq, -6); /* busy */
     }
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	if (!devst[i].open)
 	    break;
     }
-    dev = &devst[i];
     if (i == MAX_TOTAL_DEVICES)
 	return openfail (ioreq, 32); /* badunitnum */
+    dev = &devst[i];
     dev->sysdata = xcalloc (uaeser_getdatalenght(), 1);
     if (!uaeser_open (dev->sysdata, dev, unit)) {
 	xfree (dev->sysdata);

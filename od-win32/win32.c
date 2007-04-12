@@ -2334,7 +2334,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin, os_64bit, os_vista;
+int os_winnt, os_winnt_admin, os_64bit, os_vista, os_winxp;
 
 static int isadminpriv (void) 
 {
@@ -2426,6 +2426,8 @@ static int osdetect (void)
 	}
 	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
 	    os_winnt = 1;
+	if (osVersion.dwMajorVersion > 5 || (osVersion.dwMajorVersion == 5 && osVersion.dwMinorVersion >= 1))
+	    os_winxp = 1;
 	if (osVersion.dwMajorVersion >= 6)
 	    os_vista = 1;
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
@@ -2569,7 +2571,7 @@ static void getstartpaths(int start_data)
 
 extern void test (void);
 extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug, log_uaeserial;
-extern int force_direct_catweasel, max_allowed_mman;
+extern int force_direct_catweasel, max_allowed_mman, sound_mode_skip;
 
 extern DWORD_PTR cpu_affinity;
 static DWORD_PTR original_affinity;
@@ -2686,21 +2688,28 @@ static int process_arg(char **xargv)
 		force_direct_catweasel = getval (argv[++i]);
 	    continue;
 	}
-	if (!strcmp (arg, "-affinity") && i + 1 < argc) {
-	    cpu_affinity = getval (argv[++i]);
-	    if (cpu_affinity == 0)
-		cpu_affinity = original_affinity;
-	    SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
-	    continue;
-	}
-	if (!strcmp (arg, "-datapath") && i + 1 < argc) {
-	    strcpy(start_path_data, argv[++i]);
-	    start_data = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-maxmem") && i + 1 < argc) {
-	    max_allowed_mman = getval (argv[++i]);
-	    continue;
+	if (i + 1 < argc) {
+	    char *np = argv[++i];
+	    if (!strcmp (arg, "-affinity")) {
+		cpu_affinity = getval (np);
+		if (cpu_affinity == 0)
+		    cpu_affinity = original_affinity;
+		SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
+		continue;
+	    }
+	    if (!strcmp (arg, "-datapath")) {
+		strcpy(start_path_data, np);
+		start_data = 1;
+		continue;
+	    }
+	    if (!strcmp (arg, "-maxmem")) {
+		max_allowed_mman = getval (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-soundmodeskip")) {
+		sound_mode_skip = getval (np);
+		continue;
+	    }
 	}
 	xargv[xargc++] = my_strdup(arg);
     }

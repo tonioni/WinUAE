@@ -220,7 +220,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 {
     int i;
     char tmp[MAX_DPATH];
-    char *hdcontrollers[] = { "uae", "ide0", "ide1" };
+    char *hdcontrollers[] = { "uae", "ide0", "ide1", "ide2", "ide3" };
 
     for (i = 0; i < p->mountitems; i++) {
 	struct uaedev_config_info *uci = &p->mountconfig[i];
@@ -468,6 +468,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_filter_scanlines=%d\n", p->gfx_filter_scanlines);
     cfgfile_write (f, "gfx_filter_scanlinelevel=%d\n", p->gfx_filter_scanlinelevel);
     cfgfile_write (f, "gfx_filter_scanlineratio=%d\n", p->gfx_filter_scanlineratio);
+    cfgfile_write (f, "gfx_luminance=%d\n", p->gfx_luminance);
+    cfgfile_write (f, "gfx_contrast=%d\n", p->gfx_contrast);
+    cfgfile_write (f, "gfx_gamma=%d\n", p->gfx_gamma);
 #endif
 
     cfgfile_write (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
@@ -761,6 +764,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlines", &p->gfx_filter_scanlines, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlinelevel", &p->gfx_filter_scanlinelevel, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlineratio", &p->gfx_filter_scanlineratio, 1)
+	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
+	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
+	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
 #endif
 	|| cfgfile_intval (option, value, "floppy0sound", &p->dfxclick[0], 1)
 	|| cfgfile_intval (option, value, "floppy1sound", &p->dfxclick[1], 1)
@@ -1427,10 +1433,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 		if (tmpp != 0) {
 		    *tmpp++ = 0;
 		    hdc = tmpp;
-		    if(!strcmp(hdc, "ide0"))
-			hdcv = 1;
-		    if(!strcmp(hdc, "ide1"))
-			hdcv = 2;
+		    if(strlen(hdc) >= 4 && !memcmp(hdc, "ide", 3)) {
+			hdcv = hdc[3] - '0' + 1;
+			if (hdcv < 1 || hdcv > 4)
+			    hdcv = 0;
+		    }
 		    if (secs > 0 || heads > 0 || reserved > 0)
 			hdcv = 0;
 		}

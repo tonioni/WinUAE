@@ -1,4 +1,23 @@
 
+Beta 7:
+
+- hardfile reset routine randomly read non-existing memory (b4)
+- IDE emulation froze if total read or write transfer was larger
+  than current multimode sector amount
+- added 2 scanline delay before IDE command complete-interrupt is
+  sent. Could cause missed interrupts in compatible 68000-mode and
+  also made emulation sluggish during large reads or writes.
+- HRTMon IDE commands work now in A600 configuration.
+- HD onscreen led write color fixed in IDE mode
+- 4/6 channel modes should really work with Emu10K based cards..
+  (I can always hope..)
+- USP and ISP registers are back in debugger
+- brightness/contrast/gamma setting added to display panel
+  (not working in real time yet)
+- "IDE Splitter" / "4-Way IDE" hardware emulation added. IDEFix or
+  similar driver needed. Enabled if IDE3/IDE4 selected
+- much faster IDE in JIT modes
+
 Beta 6:
 
 - added 4 channel and cloned stereo in 5.1 native mode. Workaround for

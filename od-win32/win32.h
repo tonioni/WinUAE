@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 6
+#define WINUAEBETA 7
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 4, 9)
+#define WINUAEDATE MAKEBD(2007, 4, 12)
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
@@ -67,7 +67,7 @@ extern int framecnt;
 extern char prtname[];
 extern char VersionStr[256];
 extern char BetaStr[64];
-extern int os_winnt, os_winnt_admin, os_64bit, os_vista;
+extern int os_winnt, os_winnt_admin, os_64bit, os_vista, os_winxp;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart;

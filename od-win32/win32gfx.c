@@ -1303,11 +1303,11 @@ void init_colors (void)
 	D3D_getpixelformat (currentmode->current_depth,&red_bits,&green_bits,&blue_bits,&red_shift,&green_shift,&blue_shift,&alpha_bits,&alpha_shift,&alpha);
 #endif
     } else {
-	switch( currentmode->current_depth >> 3)
+	switch(currentmode->current_depth >> 3)
 	{
 	    case 1:
 		memcpy (xcolors, xcol8, sizeof xcolors);
-		ddrval = DirectDraw_SetPaletteEntries( 0, 256, colors256 );
+		ddrval = DirectDraw_SetPaletteEntries(0, 256, colors256);
 		if (FAILED(ddrval))
 		    write_log ("DX_SetPalette() failed with %s/%d\n", DXError (ddrval), ddrval);
 	    break;
@@ -1315,12 +1315,12 @@ void init_colors (void)
 	    case 2:
 	    case 3:
 	    case 4:
-		red_bits = bits_in_mask( DirectDraw_GetPixelFormatBitMask( red_mask ) );
-		green_bits = bits_in_mask( DirectDraw_GetPixelFormatBitMask( green_mask ) );
-		blue_bits = bits_in_mask( DirectDraw_GetPixelFormatBitMask( blue_mask ) );
-		red_shift = mask_shift( DirectDraw_GetPixelFormatBitMask( red_mask ) );
-		green_shift = mask_shift( DirectDraw_GetPixelFormatBitMask( green_mask ) );
-		blue_shift = mask_shift( DirectDraw_GetPixelFormatBitMask( blue_mask ) );
+		red_bits = bits_in_mask(DirectDraw_GetPixelFormatBitMask(red_mask));
+		green_bits = bits_in_mask(DirectDraw_GetPixelFormatBitMask(green_mask));
+		blue_bits = bits_in_mask(DirectDraw_GetPixelFormatBitMask(blue_mask));
+		red_shift = mask_shift(DirectDraw_GetPixelFormatBitMask(red_mask));
+		green_shift = mask_shift(DirectDraw_GetPixelFormatBitMask(green_mask));
+		blue_shift = mask_shift(DirectDraw_GetPixelFormatBitMask(blue_mask));
 		alpha_bits = 0;
 		alpha_shift = 0;
 	    break;
@@ -1339,6 +1339,7 @@ void init_colors (void)
 	    }
 	}
 	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
+	notice_new_xcolors();
 #ifdef GFXFILTER
 	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
 #endif

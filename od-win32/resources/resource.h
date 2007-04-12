@@ -903,6 +903,7 @@
 #define IDC_DBG_MEMDOWNFAST             1758
 #define IDC_DBG_MEMTOPC                 1759
 #define IDC_DBG_MEMUPFAST               1760
+#define IDC_DA_RESET                    1761
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

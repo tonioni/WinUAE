@@ -43,6 +43,7 @@
 #define EXPVS 1.3
 
 int sound_debug = 0;
+int sound_mode_skip = 0;
 
 static int obtainedfreq;
 static int have_sound;
@@ -214,6 +215,82 @@ static void recalc_offsets(void)
 
 const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
     {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
+#define KSAUDIO_SPEAKER_QUAD_SURROUND   (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | \
+                                         SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
+
+struct dsaudiomodes {
+    int ch;
+    DWORD ksmode;
+};
+static struct dsaudiomodes supportedmodes[16];
+
+static void fillsupportedmodes(int freq)
+{
+    DWORD speakerconfig;
+    DSBUFFERDESC sound_buffer;
+    WAVEFORMATEXTENSIBLE wavfmt;
+    LPDIRECTSOUNDBUFFER pdsb;
+    HRESULT hr;
+    int ch, round, mode, i, skip;
+    DWORD rn[4];
+
+    mode = 2;
+    supportedmodes[0].ch = 1;
+    supportedmodes[0].ksmode = 0;
+    supportedmodes[1].ch = 2;
+    supportedmodes[1].ksmode = 0;
+    if (FAILED(IDirectSound8_GetSpeakerConfig(lpDS, &speakerconfig)))
+	speakerconfig = DSSPEAKER_STEREO;
+    
+    memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
+    wavfmt.Format.nSamplesPerSec = freq;
+    wavfmt.Format.wBitsPerSample = 16;
+    wavfmt.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
+    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+    wavfmt.Samples.wValidBitsPerSample = 16;
+    for (ch = 4; ch <= 6; ch+= 2) {
+	wavfmt.Format.nChannels = ch;
+        wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
+        wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
+	if (ch == 6) {
+	    rn[0] = KSAUDIO_SPEAKER_5POINT1;
+	    rn[1] = KSAUDIO_SPEAKER_5POINT1_SURROUND;
+	    rn[2] = 0;
+	} else {
+	    rn[0] = KSAUDIO_SPEAKER_QUAD;
+	    rn[1] = KSAUDIO_SPEAKER_QUAD_SURROUND;
+	    rn[2] = KSAUDIO_SPEAKER_SURROUND;
+	    rn[3] = 0;
+        }
+	skip = sound_mode_skip;
+	for (round = 0; rn[round]; round++) {
+	    if (skip > 0 && rn[round + 1] != 0) {
+		skip--;
+		continue;
+	    }
+	    wavfmt.dwChannelMask = rn[round];
+	    memset (&sound_buffer, 0, sizeof (sound_buffer));
+	    sound_buffer.dwSize = sizeof (sound_buffer);
+	    sound_buffer.dwBufferBytes = dsoundbuf;
+	    sound_buffer.lpwfxFormat = &wavfmt.Format;
+	    sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
+	    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME;
+	    sound_buffer.guid3DAlgorithm = GUID_NULL;
+	    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
+	    if (SUCCEEDED(hr)) {
+		IDirectSound_Release(pdsb);
+		supportedmodes[mode].ksmode = rn[round];
+		supportedmodes[mode].ch = ch;
+		mode++;
+	    }
+	}
+    }
+    write_log("SOUND: %08.8X ", speakerconfig);
+    for (i = 0; i < mode; i++)
+	write_log("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
+    write_log("\n");
+}
 
 static int open_audio_ds (int size)
 {
@@ -285,25 +362,24 @@ static int open_audio_ds (int size)
 	}
     }
 
-    round = 0;
-    for (;;) {
-	char *extname = NULL;
-	int extend = round > 0 && ch > 2;
+    fillsupportedmodes(freq);
 
+    for (round = 0; supportedmodes[round].ch; round++) {
+        DWORD ksmode = 0;
+ 
+	pdsb = NULL;
 	memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
-	wavfmt.Format.nChannels = ch;
-	wavfmt.Format.wFormatTag = extend ? WAVE_FORMAT_EXTENSIBLE : WAVE_FORMAT_PCM;
+        wavfmt.Format.nChannels = ch;
 	wavfmt.Format.nSamplesPerSec = freq;
 	wavfmt.Format.wBitsPerSample = 16;
-	if (extend) {
-	    DWORD ksmode;
-	    if (ch == 6) {
-		ksmode = KSAUDIO_SPEAKER_5POINT1;
-		extname = "5.1";
-	    } else {
-		ksmode = round == 1 ? KSAUDIO_SPEAKER_QUAD : (round == 2 ? KSAUDIO_SPEAKER_SURROUND  : SPEAKER_ALL);
-	        extname = round == 1 ? "QUAD" : (round == 2 ? "SUR" : "ALL");
-	    }
+	if (supportedmodes[round].ch != ch)
+	    continue;
+
+	if (ch <= 2) {
+	    wavfmt.Format.wFormatTag = WAVE_FORMAT_PCM;
+	} else {
+	    wavfmt.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+	    ksmode = supportedmodes[round].ksmode;
 	    wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
 	    wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
 	    wavfmt.Samples.wValidBitsPerSample = 16;
@@ -312,33 +388,35 @@ static int open_audio_ds (int size)
 	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
 	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
-	write_log ("SOUND: %d:%s '%s'/%d/%d bits/%d Hz/buffer %d/dist %d\n",
-	    round, extend ? extname : "PCM",
-	    sound_devices[currprefs.win32_soundcard],
-	    wavfmt.Format.nChannels, 16, freq, max_sndbufsize, snd_configsize);
+	write_log ("SOUND: %08.8X,CH=%d,FREQ=%d '%s' buffer %d, dist %d\n",
+	    ksmode, ch, freq, sound_devices[currprefs.win32_soundcard], max_sndbufsize, snd_configsize);
 
 	memset (&sound_buffer, 0, sizeof (sound_buffer));
 	sound_buffer.dwSize = sizeof (sound_buffer);
 	sound_buffer.dwBufferBytes = dsoundbuf;
 	sound_buffer.lpwfxFormat = &wavfmt.Format;
 	sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
-	sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_LOCSOFTWARE;
+	sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | (ch >= 4 ? DSBCAPS_LOCHARDWARE : DSBCAPS_LOCSOFTWARE);
 	sound_buffer.guid3DAlgorithm = GUID_NULL;
 
 	hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
-	if (FAILED(hr)) {
-	    write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
-	    if (ch <= 2)
-		goto error;
-	    if (round < 4) {
-		round++;
-		continue;
+	if (SUCCEEDED(hr))
+	    break;
+        if (sound_buffer.dwFlags & DSBCAPS_LOCHARDWARE) {
+	    HRESULT hr2 = hr;
+	    sound_buffer.dwFlags &= ~DSBCAPS_LOCHARDWARE;
+	    sound_buffer.dwFlags |=  DSBCAPS_LOCSOFTWARE;
+	    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
+	    if (SUCCEEDED(hr)) {
+	        write_log("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
+		break;
 	    }
-	    goto error;
 	}
-	break;
+	write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
     }
 
+    if (pdsb == NULL)
+	goto error;
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
         write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));

@@ -8,8 +8,11 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "options.h"
 #include "custom.h"
 #include "xwin.h"
+
+#include <math.h>
 
 #define RED	0
 #define GRN	1
@@ -86,26 +89,6 @@ static unsigned int doAlpha (int alpha, int bits, int shift)
     return (alpha & ((1 << bits) - 1)) << shift;
 }
 
-static int greyscale(int v)
-{
-#if 0
-    double l;
-    double lum = currprefs.gfx_luminance / 5.0;
-    double con = currprefs.gfx_contrast / 10.0;
-
-    l = v;
-    l = l + lum / (256 / 100);
-    l = (l - con) / (256 - 2 * con) * 256;
-    if (l < 0)
-	l = 0;
-    if (l > 255)
-	l = 255;
-    return (int)l;
-#else
-    return v;
-#endif
-}
-
 #if 0
 static void colormodify (int *r, int *g, int *b)
 {
@@ -128,18 +111,78 @@ static void colormodify (int *r, int *g, int *b)
 }
 #endif
 
+
+static float video_gamma(float value, float gamma, float bri, float con)
+{
+    double factor;
+    float ret;
+
+    value += bri;
+    value *= con;
+
+    if (value <= 0.0f)
+        return 0.0f;
+
+    factor = pow(255.0f, 1.0f - gamma);
+    ret = (float)(factor * pow(value, gamma));
+
+    if (ret < 0.0f)
+        ret = 0.0f;
+
+    return ret;
+}
+
+static int pal_scanlineshade = 667;
+
+static uae_u32 gamma[256 * 3];
+
+static void video_calc_gammatable(void)
+{
+    int i;
+    float bri, con, gam, scn, v;
+    uae_u32 vi;
+    uae_u32 gamma_fac[256 * 3];
+
+    bri = ((float)(currprefs.gfx_luminance))
+          * (128.0f / 1000.0f);
+    con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
+    gam = ((float)(currprefs.gfx_gamma + 1000   )) / 1000.0f;
+    scn = ((float)(pal_scanlineshade)) / 1000.0f;
+
+    for (i = 0; i < (256 * 3); i++) {
+        v = video_gamma((float)(i - 256), gam, bri, con);
+
+        vi = (uae_u32)v;
+        if (vi > 255)
+            vi = 255;
+    
+	if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
+	    vi = i & 0xff;
+
+        gamma[i] = vi;
+
+        vi = (uae_u32)(v * scn);
+        if (vi > 255)
+            vi = 255;
+        gamma_fac[i] = vi;
+    }
+}
+
+
 void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
 {
     int bpp = rw + gw + bw + aw;
-    int i;
+    int i, j;
 
+    video_calc_gammatable();
+    j = 256;
     for (i = 0; i < 4096; i++) {
 	int r = ((i >> 8) << 4) | (i >> 8);
 	int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 	int b = ((i & 0xf) << 4) | (i & 0x0f);
-	r = greyscale (r);
-	g = greyscale (g);
-	b = greyscale (b);
+	r = gamma[r + j];
+	g = gamma[g + j];
+	b = gamma[b + j];
 	xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
         if (byte_swap) {
 	    if (bpp <= 16)
@@ -156,9 +199,10 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 #ifdef AGA
     /* create AGA color tables */
     for(i = 0; i < 256; i++) {
-	xredcolors[i] = greyscale (doColor (i, rw, rs)) | doAlpha (alpha, aw, as);
-	xgreencolors[i] = greyscale (doColor (i, gw, gs)) | doAlpha (alpha, aw, as);
-	xbluecolors[i] = greyscale (doColor (i, bw, bs)) | doAlpha (alpha, aw, as);
+	j = i + 256;
+	xredcolors[i] = doColor (gamma[j], rw, rs) | doAlpha (alpha, aw, as);
+	xgreencolors[i] = doColor (gamma[j], gw, gs) | doAlpha (alpha, aw, as);
+	xbluecolors[i] = doColor (gamma[j], bw, bs) | doAlpha (alpha, aw, as);
 	if (byte_swap) {
 	    if (bpp <= 16) {
 		xredcolors  [i] = bswap_16 (xredcolors[i]);

@@ -739,7 +739,7 @@ void uaeser_close (struct uaeserialdatawin32 *sd)
 	    Sleep(10);
 	CloseHandle (sd->evtt);
     }
-    if (sd->hCom)
+    if (sd->hCom != INVALID_HANDLE_VALUE)
 	CloseHandle(sd->hCom);
     if (sd->evtr)
 	CloseHandle(sd->evtr);

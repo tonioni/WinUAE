@@ -726,7 +726,7 @@ int save_state (char *filename, char *description)
         save_chunk (f, dst, len, "GAYL", 0);
 	xfree(dst);
     }
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 4; i++) {
 	dst = save_ide (i, &len);
 	if (dst) {
 	    save_chunk (f, dst, len, "IDE ", 0);

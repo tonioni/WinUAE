@@ -1983,7 +1983,7 @@ void InitializeListView (HWND hDlg)
 
 	    if (uci->controller) {
 		sprintf (blocksize_str, "%d", uci->blocksize);
-		strcpy (devname_str, uci->controller == 1 ? "*IDE0*" : "*IDE1*");
+		sprintf (devname_str, "*IDE%d*", uci->controller - 1);
 		strcpy (volname_str, "n/a");
 		strcpy (bootpri_str, "n/a");
 	    } else if (type == FILESYS_HARDFILE) {
@@ -3554,7 +3554,6 @@ static int display_mode_index(uae_u32 x, uae_u32 y, uae_u32 d)
     return i;
 }
 
-#if 0
 static int da_mode_selected;
 
 static int *getp_da (void)
@@ -3562,12 +3561,6 @@ static int *getp_da (void)
     int *p = 0;
     switch (da_mode_selected)
     {
-	case 3:
-	p = &workprefs.gfx_hue;
-	break;
-	case 4:
-	p = &workprefs.gfx_saturation;
-	break;
 	case 0:
 	p = &workprefs.gfx_luminance;
 	break;
@@ -3581,6 +3574,16 @@ static int *getp_da (void)
     return p;
 }
 
+static void update_da(void)
+{
+    currprefs.gfx_gamma = workprefs.gfx_gamma;
+    currprefs.gfx_luminance = workprefs.gfx_luminance;
+    currprefs.gfx_contrast = workprefs.gfx_contrast;
+    init_colors ();
+    init_custom();
+    updatedisplayarea ();
+    WIN32GFX_WindowMove ();
+}
 static void handle_da (HWND hDlg)
 {
     int *p;
@@ -3593,17 +3596,7 @@ static void handle_da (HWND hDlg)
     if (v == *p)
 	return;
     *p = v;
-#if 0
-    currprefs.gfx_hue = workprefs.gfx_hue;
-    currprefs.gfx_saturation = workprefs.gfx_saturation;
-    currprefs.gfx_gamma = workprefs.gfx_gamma;
-#endif
-    currprefs.gfx_luminance = workprefs.gfx_luminance;
-    currprefs.gfx_contrast = workprefs.gfx_contrast;
-    init_colors ();
-    updatedisplayarea ();
-    WIN32GFX_WindowMove ();
-    init_custom();
+    update_da();
 }
 
 void init_da (HWND hDlg)
@@ -3612,11 +3605,7 @@ void init_da (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Luminance");
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Contrast");
-#if 0
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Gamma");
-    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Hue");
-    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Saturation");
-#endif
     if (da_mode_selected == CB_ERR)
 	da_mode_selected = 0;
     SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_SETCURSEL, da_mode_selected, 0);
@@ -3626,7 +3615,6 @@ void init_da (HWND hDlg)
     if (p)
 	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / 10);
 }
-#endif
 
 static int gui_display_depths[3];
 static void init_display_mode (HWND hDlg)
@@ -3757,9 +3745,7 @@ static void values_to_displaydlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
     CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
 
-#if 0
     init_da (hDlg);
-#endif
 }
 
 static void init_resolution_combo (HWND hDlg)
@@ -3918,12 +3904,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.gfx_refreshrate = storedrefreshrates[posn1];
 	    }
 	    values_to_displaydlg (hDlg);
-#if 0
 	} else if (LOWORD (wParam) == IDC_DA_MODE) {
 	    da_mode_selected = SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
 	    init_da (hDlg);
 	    handle_da (hDlg);
-#endif
 	}
     }
 
@@ -3947,9 +3931,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (1, 99));
 	init_displays_combo (hDlg);
 	init_resolution_combo (hDlg);
-#if 0
 	init_da (hDlg);
-#endif
 
     case WM_USER:
 	recursive++;
@@ -3963,12 +3945,18 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	if (recursive > 0)
 	    break;
 	recursive++;
-#if 0
+	if (LOWORD (wParam) == IDC_DA_RESET) {
+	    int *p;
+	    da_mode_selected = SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
+	    p = getp_da();
+	    if (p)
+		*p = 0;
+	    init_da(hDlg);
+	    update_da();
+	}
         handle_da (hDlg);
-#endif
         values_from_displaydlg (hDlg, msg, wParam, lParam);
         enable_for_displaydlg (hDlg);
-
 	recursive--;
 	break;
 
@@ -5972,6 +5960,8 @@ static void inithardfile (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"UAE");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE0");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE1");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE2");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE3");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
     ew (hDlg, IDC_HDF_CONTROLLER, is_hdf_rdb());
     SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);

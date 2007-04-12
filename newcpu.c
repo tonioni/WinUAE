@@ -1215,6 +1215,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	/* 68040/060 */
 	case 0x806: urp = *regp; break;
 	case 0x807: srp = *regp; break;
+	/* 68060 only */
 	case 0x808:
 	{
 	    uae_u32 opcr = regs.pcr;
@@ -2605,7 +2606,8 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     if (regs.s == 0) regs.usp = m68k_areg(&regs, 7);
     if (regs.s && regs.m) regs.msp = m68k_areg(&regs, 7);
     if (regs.s && regs.m == 0) regs.isp = m68k_areg(&regs, 7);
-    j = 0;
+    j = 2;
+    f_out(f, " USP %08.8X  ISP %08.8X", regs.usp, regs.isp);
     for (i = 0; m2cregn[i] >= 0; i++) {
 	if (!movec_illg(m2cregn[i])) {
 	    if (j > 0 && (j % 4) == 0)

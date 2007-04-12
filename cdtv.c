@@ -64,7 +64,7 @@ static void do_stch(void);
 
 static void INT2(void)
 {
-    INTREQ(0x8000 | 0x0008);
+    INTREQ_f(0x8000 | 0x0008);
 }
 
 static int cdrom_command_cnt_out, cdrom_command_size_out;

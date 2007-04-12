@@ -435,12 +435,14 @@ STATIC_INLINE void docols (struct color_entry *colentry)
 #endif
 }
 
+extern struct color_entry colors_for_drawing;
+
 void notice_new_xcolors (void)
 {
     int i;
 
     docols(&current_colors);
-/*    docols(&colors_for_drawing);*/
+    docols(&colors_for_drawing);
     for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
 	docols(color_tables[0] + i);
 	docols(color_tables[1] + i);
@@ -2638,7 +2640,7 @@ void INTREQ_0 (uae_u16 v)
     doint ();
 }
 
-static void INTREQ_f(uae_u32 data)
+void INTREQ_f(uae_u32 data)
 {
     INTREQ_0 (data);
     serial_check_irq ();
