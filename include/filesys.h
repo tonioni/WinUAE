@@ -32,6 +32,8 @@ struct hardfiledata {
     uae_u64 size2;
     uae_u64 offset2;
     int warned;
+    uae_u8 *virtual_rdb;
+    uae_u64 virtual_size;
 };
 
 #define FILESYS_VIRTUAL 0

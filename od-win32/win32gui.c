@@ -2659,24 +2659,24 @@ static urlinfo urls[] =
     { -1, FALSE, NULL, NULL }
 };
 
-static void SetupRichText( HWND hDlg, urlinfo *url )
+static void SetupRichText(HWND hDlg, urlinfo *url)
 {
     CHARFORMAT CharFormat;
     CharFormat.cbSize = sizeof (CharFormat);
 
-    SetDlgItemText( hDlg, url->id, url->display );
-    SendDlgItemMessage( hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat );
+    SetDlgItemText(hDlg, url->id, url->display);
+    SendDlgItemMessage(hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
     CharFormat.dwMask   |= CFM_UNDERLINE | CFM_SIZE | CFM_FACE | CFM_COLOR;
     CharFormat.dwEffects = url->state ? CFE_UNDERLINE : 0;
     CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
-    CharFormat.crTextColor = GetSysColor( COLOR_ACTIVECAPTION );
-    strcpy( CharFormat.szFaceName, "Tahoma" );
-    SendDlgItemMessage( hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat );
-    SendDlgItemMessage( hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor( COLOR_3DFACE ) );
+    CharFormat.crTextColor = GetSysColor(COLOR_ACTIVECAPTION);
+    strcpy(CharFormat.szFaceName, "Tahoma" );
+    SendDlgItemMessage(hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
+    SendDlgItemMessage(hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_3DFACE));
 }
 
-static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
+static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int last_rectangle = -1;
     int i;
@@ -2689,19 +2689,19 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
     for (i = 0; urls[i].id >= 0; i++) 
     {
 	RECT rect;
-	GetWindowRect( GetDlgItem( hDlg, urls[i].id), &rect );
-	ScreenToClient( hDlg, (POINT *) &rect );
-	ScreenToClient( hDlg, (POINT *) &(rect.right) );
-	if( PtInRect( &rect, point ) ) 
+	GetWindowRect(GetDlgItem(hDlg, urls[i].id), &rect);
+	ScreenToClient(hDlg, (POINT*)&rect);
+	ScreenToClient(hDlg, (POINT*)&rect.right);
+	if(PtInRect(&rect, point)) 
 	{
-	    if( msg == WM_LBUTTONDOWN )
+	    if(msg == WM_LBUTTONDOWN)
 	    {
 		ShellExecute (NULL, NULL, urls[i].url , NULL, NULL, SW_SHOWNORMAL);
-		SetCursor( LoadCursor( NULL, MAKEINTRESOURCE(IDC_ARROW) ) );
+		SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
 	    }
 	    else
 	    {
-		if( ( i != last_rectangle ) )
+		if(i != last_rectangle)
 		{
 		    // try and load the system hand (Win2000+)
 		    m_hCursor = LoadCursor(NULL, MAKEINTRESOURCE(IDC_HAND) );
@@ -2710,14 +2710,14 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
 			// retry with our fallback hand
 			m_hCursor = LoadCursor(hInst, MAKEINTRESOURCE(IDC_MYHAND) );
 		    }
-		    SetCursor( m_hCursor );
+		    SetCursor(m_hCursor);
 		    urls[i].state = TRUE;
-		    SetupRichText( hDlg, &urls[i] );
+		    SetupRichText(hDlg, &urls[i]);
 
-		    if( last_rectangle != -1 )
+		    if(last_rectangle != -1)
 		    {
 			urls[last_rectangle].state = FALSE;
-			SetupRichText( hDlg, &urls[last_rectangle] );
+			SetupRichText(hDlg, &urls[last_rectangle]);
 		    }
 		}
 	    }
@@ -2727,11 +2727,11 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam )
 	}
     }
 
-    if( !found && last_rectangle >= 0 )
+    if(!found && last_rectangle >= 0)
     {
-	SetCursor( LoadCursor( NULL, MAKEINTRESOURCE(IDC_ARROW) ) );
+	SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
 	urls[last_rectangle].state = FALSE;
-	SetupRichText( hDlg, &urls[last_rectangle] );
+	SetupRichText(hDlg, &urls[last_rectangle]);
 	last_rectangle = -1;
     }
 }
@@ -2927,7 +2927,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		} else {
 		    strcpy (pathmode, "AF2005");
 		    path_type = 2005;
-		    strcpy (start_path_data, start_path_af);
+		    strcpy (start_path_data, start_path_new);
 		}
 		if (hWinUAEKey)
 		    RegSetValueEx (hWinUAEKey, "PathMode", 0, REG_SZ, (CONST BYTE *)pathmode, strlen(pathmode) + 1);
@@ -3603,7 +3603,7 @@ void init_da (HWND hDlg)
 {
     int *p;
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Luminance");
+    SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Brightness");
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Contrast");
     SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_ADDSTRING, 0, (LPARAM)"Gamma");
     if (da_mode_selected == CB_ERR)
@@ -5963,7 +5963,6 @@ static void inithardfile (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE2");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE3");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
-    ew (hDlg, IDC_HDF_CONTROLLER, is_hdf_rdb());
     SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp));
     SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)"OFS/FFS/RDB");
@@ -8053,12 +8052,12 @@ static INT_PTR CALLBACK InputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 
 static int scanlineratios[] = { 1,1,1,2,1,3, 2,1,2,2,2,3, 3,1,3,2,3,3, 0,0 };
 static int scanlineindexes[100];
-static int filterpreset = 0;
+static int filterpreset_selected = -1, filterpreset_builtin = -1;
 
 static void enable_for_hw3ddlg (HWND hDlg)
 {
     int v = workprefs.gfx_filter ? TRUE : FALSE;
-    int vv = FALSE, vv2 = FALSE;
+    int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
     struct uae_filter *uf;
     int i;
 
@@ -8073,8 +8072,10 @@ static void enable_for_hw3ddlg (HWND hDlg)
     }
     if (v && (uf->x[0] || uf->x[1] || uf->x[2] || uf->x[3] || uf->x[4]))
 	vv = TRUE;
-    if (v && uf->x[0])
+    if (v && (uf->x[0] || uf->yuv))
 	vv2 = TRUE;
+    if (v && (uf->x[0] && !uf->yuv))
+	vv3 = TRUE;
     ew (hDlg, IDC_FILTERENABLE, TRUE);
     ew (hDlg, IDC_FILTERMODE, v);
     CheckDlgButton(hDlg, IDC_FILTERENABLE, v);
@@ -8084,15 +8085,17 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERVZMULT, vv && !vv2);
     ew (hDlg, IDC_FILTERHO, v);
     ew (hDlg, IDC_FILTERVO, v);
-    ew (hDlg, IDC_FILTERSLR, vv2);
-    ew (hDlg, IDC_FILTERSL, vv2);
-    ew (hDlg, IDC_FILTERSL2, vv2);
+    ew (hDlg, IDC_FILTERSLR, vv3);
+    ew (hDlg, IDC_FILTERXL, vv2);
+    ew (hDlg, IDC_FILTERXLV, vv2);
+    ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
     ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
 
-    ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset > 0);
-    ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset > 0);
+    ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
+    ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
+    ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
 }
 
 static void makefilter(char *s, int x, int flags)
@@ -8110,6 +8113,53 @@ static void makefilter(char *s, int x, int flags)
 
 static char *filtermultnames[] = { "1x", "2x", "4x", "6x", "8x", NULL };
 static int filtermults[] = { 1000, 500, 250, 167, 125 };
+struct filterxtra {
+    char *label;
+    int *varw, *varc;
+    int min, max, step;
+};
+static struct filterxtra *filter_extra, *filter_selected;
+
+static struct filterxtra filter_pal_extra[] =
+{
+    "Brightness", &workprefs.gfx_filter_luminance, &currprefs.gfx_filter_luminance, -1000, 1000, 10,
+    "Contrast", &workprefs.gfx_filter_contrast, &currprefs.gfx_filter_contrast, -1000, 1000, 10,
+    "Saturation", &workprefs.gfx_filter_saturation, &currprefs.gfx_filter_saturation, -1000, 1000, 10,
+    "Gamma", &workprefs.gfx_gamma, &currprefs.gfx_gamma, -1000, 1000, 10,
+    "Scanlines", &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 1,
+    "Blurriness", &workprefs.gfx_filter_blur, &currprefs.gfx_filter_blur,0, 2000, 10,
+    "Noise", &workprefs.gfx_filter_noise, &currprefs.gfx_filter_noise,0, 100, 10,
+    NULL
+};
+static struct filterxtra filter_3d_extra[] =
+{
+    "Scanline transparency", &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
+    "Scanline level", &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
+    NULL
+};
+static int *filtervars[] = {
+	&workprefs.gfx_filter, &workprefs.gfx_filter_filtermode,
+	&workprefs.gfx_filter_vert_zoom, &workprefs.gfx_filter_horiz_zoom,
+	&workprefs.gfx_filter_vert_zoom_mult, &workprefs.gfx_filter_horiz_zoom_mult,
+	&workprefs.gfx_filter_vert_offset, &workprefs.gfx_filter_horiz_offset,
+	&workprefs.gfx_filter_scanlines, &workprefs.gfx_filter_scanlinelevel, &workprefs.gfx_filter_scanlineratio,
+	&workprefs.gfx_lores, &workprefs.gfx_linedbl, &workprefs.gfx_correct_aspect,
+	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
+	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
+	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
+	NULL
+    };
+
+struct filterpreset {
+    char *name;
+    int conf[22];
+};
+static struct filterpreset filterpresets[] =
+{
+    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30 },
+    { NULL }
+};
+
 static void values_to_hw3ddlg (HWND hDlg)
 {
     char txt[100], tmp[100];
@@ -8125,10 +8175,6 @@ static void values_to_hw3ddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_FILTERHO, TBM_SETPAGESIZE, 0, 1);
     SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
     SendDlgItemMessage(hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
-    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
-    SendDlgItemMessage(hDlg, IDC_FILTERSL, TBM_SETPAGESIZE, 0, 1);
-    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
-    SendDlgItemMessage(hDlg, IDC_FILTERSL2, TBM_SETPAGESIZE, 0, 1);
 
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
     uf = &uaefilters[0];
@@ -8163,6 +8209,7 @@ static void values_to_hw3ddlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 
+    filter_extra = NULL;
     SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
     if (uf->x[0]) {
 	WIN32GUI_LoadUIString (IDS_3D_NO_FILTER, txt, sizeof (txt));
@@ -8178,6 +8225,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	sprintf (tmp, txt, 32);
 	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
 	modenum = 4;
+	filter_extra = filter_3d_extra;
     } else {
 	modenum = 0;
 	for (i = 1; i <= 4; i++) {
@@ -8187,7 +8235,38 @@ static void values_to_hw3ddlg (HWND hDlg)
 		modenum++;
 	    }
 	}
+	if (uf->yuv) {
+	    filter_extra = filter_pal_extra;
+	}
     }
+    SendDlgItemMessage(hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
+    SendDlgItemMessage(hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, 1);
+    if (filter_extra) {
+	int idx2 = -1;
+	int idx = SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_GETCURSEL, 0, 0L);
+	if (idx == CB_ERR)
+	    idx = -1;
+        SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_RESETCONTENT, 0, 0L);
+	for (i = 0; filter_extra[i].label; i++) {
+	    if (filter_selected == &filter_extra[i] && idx < 0)
+		idx2 = i;
+	    SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_ADDSTRING, 0, (LPARAM)filter_extra[i].label);
+	}
+	if (idx2 >= 0)
+	    filter_selected = &filter_extra[idx2];
+	else if (idx >= 0)
+	    filter_selected = &filter_extra[idx];
+	else
+	    filter_selected = &filter_extra[0];
+	SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_SETCURSEL, filter_selected - &filter_extra[0], 0);
+	SendDlgItemMessage(hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (filter_selected->min, filter_selected->max));
+	SendDlgItemMessage(hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, filter_selected->step);
+	if (filter_selected) {
+	    SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw));
+	    SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw), TRUE);
+	}
+    }
+
     if (workprefs.gfx_filter_filtermode >= modenum)
 	workprefs.gfx_filter_filtermode = 0;
     SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
@@ -8223,6 +8302,11 @@ static void values_to_hw3ddlg (HWND hDlg)
     j = 0;
     SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)"");
+    for (i = 0; filterpresets[i].name; i++) {
+	char tmp[MAX_DPATH];
+	sprintf(tmp, "* %s", filterpresets[i].name);
+	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
+    }
     if (hWinUAEKey) {
 	RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
 	    KEY_READ, NULL, &fkey, NULL);
@@ -8241,7 +8325,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
 		idx++;
 	    }
-	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset, 0);
+	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
 	    RegCloseKey (fkey);
 	}
     }
@@ -8250,14 +8334,10 @@ static void values_to_hw3ddlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
     SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_offset);
     SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_offset);
-    SendDlgItemMessage (hDlg, IDC_FILTERSL, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlines);
-    SendDlgItemMessage (hDlg, IDC_FILTERSL2, TBM_SETPOS, TRUE, workprefs.gfx_filter_scanlinelevel);
     SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
     SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
     SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
     SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
-    SetDlgItemInt (hDlg, IDC_FILTERSLV, workprefs.gfx_filter_scanlines, TRUE);
-    SetDlgItemInt (hDlg, IDC_FILTERSL2V, workprefs.gfx_filter_scanlinelevel, TRUE);
 }
 
 static void values_from_hw3ddlg (HWND hDlg)
@@ -8266,53 +8346,77 @@ static void values_from_hw3ddlg (HWND hDlg)
 
 static void filter_preset (HWND hDlg, WPARAM wParam)
 {
-    int ok, err, load;
+    int ok, err, load, i, builtin, userfilter;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
     DWORD outsize;
-    HKEY fkey;
-    struct uae_prefs *p = &workprefs;
+    HKEY fkey = NULL;
     LRESULT item;
 
     load = 0;
     ok = 0;
-    if (!hWinUAEKey)
-	return;
-    RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-    if (!fkey)
-	return;
+    for (builtin = 0; filterpresets[builtin].name; builtin++);
+    if (hWinUAEKey) {
+	RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    }
     item = SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETCURSEL, 0, 0);
     tmp1[0] = 0;
     if (item != CB_ERR) {
-	filterpreset = (int)item;
+	filterpreset_selected = (int)item;
 	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp1);
     } else {
-	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)item, (LPARAM)tmp1);
+	filterpreset_selected = -1;
+	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)sizeof tmp1, (LPARAM)tmp1);
     }
-    outsize = sizeof (tmp2);
-    if (tmp1[0] && RegQueryValueEx (fkey, tmp1, NULL, NULL, tmp2, &outsize) == ERROR_SUCCESS)
+    userfilter = 0;
+    filterpreset_builtin = -1;
+    if (filterpreset_selected < 0 || filterpreset_selected == 0) {
+	userfilter = -1;
+    } else if (filterpreset_selected > builtin) {
+	userfilter = filterpreset_selected - builtin;
+    } else {
+	filterpreset_builtin = filterpreset_selected - 1;
+    }
+
+    if (filterpreset_builtin < 0) {
+	outsize = sizeof (tmp2);
+	if (tmp1[0] && fkey && RegQueryValueEx (fkey, tmp1, NULL, NULL, tmp2, &outsize) == ERROR_SUCCESS)
+	    ok = 1;
+    } else {
+	char *p = tmp2;
+	for (i = 0; filtervars[i]; i++) {
+	    if (i > 0) {
+		strcat (p, ",");
+		p++;
+	    }
+	    sprintf (p, "%d", filterpresets[filterpreset_builtin].conf[i]);
+	    p += strlen(p);
+	}
 	ok = 1;
-    
-    if (wParam == IDC_FILTERPRESETSAVE) {
-	sprintf (tmp2, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
-	    p->gfx_filter, p->gfx_filter_filtermode,
-	    p->gfx_filter_vert_zoom, p->gfx_filter_horiz_zoom,
-	    p->gfx_filter_vert_zoom_mult, p->gfx_filter_horiz_zoom_mult,
-	    p->gfx_filter_vert_offset, p->gfx_filter_horiz_offset,
-	    p->gfx_filter_scanlines, p->gfx_filter_scanlinelevel, p->gfx_filter_scanlineratio,
-	    p->gfx_lores, p->gfx_linedbl, p->gfx_correct_aspect,
-	    p->gfx_xcenter, p->gfx_ycenter);
+    }
+
+    if (wParam == IDC_FILTERPRESETSAVE && userfilter && fkey) {
+	char *p = tmp2;
+	for (i = 0; filtervars[i]; i++) {
+	    if (i > 0) {
+		strcat (p, ",");
+		p++;
+	    }
+	    sprintf (p, "%d", *(filtervars[i]));
+	    p += strlen(p);
+	}
 	if (ok == 0) {
 	    tmp1[0] = 0;
 	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, WM_GETTEXT, (WPARAM)sizeof (tmp1), (LPARAM)tmp1);
 	    if (tmp1[0] == 0)
 		goto end;
 	}
-	RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)&tmp2, strlen (tmp2) + 1);
+	if (fkey)
+	    RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)&tmp2, strlen (tmp2) + 1);
 	values_to_hw3ddlg (hDlg);
     }
     if (ok) {
-	if (wParam == IDC_FILTERPRESETDELETE) {
+	if (wParam == IDC_FILTERPRESETDELETE && userfilter && fkey) {
 	    err = RegDeleteValue (fkey, tmp1);
 	    values_to_hw3ddlg (hDlg);
 	} else if (wParam == IDC_FILTERPRESETLOAD) {
@@ -8323,41 +8427,19 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	    strcat (s, ",");
 	    t = strchr (s, ',');
 	    *t++ = 0;
-	    p->gfx_filter = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_filtermode = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_vert_zoom = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_horiz_zoom = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_vert_zoom_mult = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_horiz_zoom_mult = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_vert_offset = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_horiz_offset = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_scanlines = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_scanlinelevel = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_filter_scanlineratio = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_lores = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_linedbl = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_correct_aspect = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_xcenter = atol (s);
-	    s = t; t = strchr (s, ','); if (!t) goto end; *t++ = 0;
-	    p->gfx_ycenter = atol (s);
+	    for (i = 0; filtervars[i]; i++) {
+		*(filtervars[i]) = atol(s);
+		s = t;
+		t = strchr (s, ',');
+		if (!t)
+		    break;
+		*t++ = 0;
+	    }
 	}
     }
 end:
-    RegCloseKey (fkey);
+    if (fkey)
+	RegCloseKey (fkey);
     if (load) {
 	values_to_hw3ddlg (hDlg);
 	SendMessage (hDlg, WM_HSCROLL, 0, 0);
@@ -8446,6 +8528,9 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 		switch (LOWORD (wParam))
 		{
+		    case IDC_FILTERXTRA:
+		    values_to_hw3ddlg (hDlg);
+		    break;
 		    case IDC_FILTERPRESETS:
 		    filter_preset (hDlg, LOWORD (wParam));
 		    break;
@@ -8478,14 +8563,25 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVZ), TBM_GETPOS, 0, 0 );
 	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
 	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
-	currprefs.gfx_filter_scanlines = workprefs.gfx_filter_scanlines = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERSL), TBM_GETPOS, 0, 0);
-	currprefs.gfx_filter_scanlinelevel = workprefs.gfx_filter_scanlinelevel = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERSL2), TBM_GETPOS, 0, 0);
+	if (filter_selected) {
+	    int *pw = filter_selected->varw;
+	    int *pc = filter_selected->varc;
+	    int v = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERXL), TBM_GETPOS, 0, 0);
+	    if (v < filter_selected->min)
+		v = filter_selected->min;
+	    if (v > filter_selected->max)
+		v = filter_selected->max;
+	    *pw = v;
+	    *pc = v;
+	    SetDlgItemInt (hDlg, IDC_FILTERXLV, v, TRUE);
+	}
 	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERSLV, workprefs.gfx_filter_scanlines, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERSL2V, workprefs.gfx_filter_scanlinelevel, TRUE);
+	init_colors();
+	notice_new_xcolors();
+	reset_drawing();
 	updatedisplayarea ();
 	WIN32GFX_WindowMove ();
 	break;
@@ -9730,6 +9826,12 @@ static int GetSettings (int all_options, HWND hwnd)
 
 	if (WINUAEBETA > 0 && GetWindowText (dhwnd, tmp, sizeof (tmp)) > 0) {
 	    strcat (tmp, BetaStr);
+#ifdef WINUAEEXTRA
+	    if (strlen(WINUAEEXTRA) > 0) {
+		strcat (tmp, " ");
+		strcat (tmp, WINUAEEXTRA);
+	    }
+#endif
 	    SetWindowText (dhwnd, tmp);
 	}
 	ShowWindow (dhwnd, SW_SHOW);

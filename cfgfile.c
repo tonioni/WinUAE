@@ -1438,8 +1438,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 			if (hdcv < 1 || hdcv > 4)
 			    hdcv = 0;
 		    }
-		    if (secs > 0 || heads > 0 || reserved > 0)
-			hdcv = 0;
 		}
 	    }
 	}

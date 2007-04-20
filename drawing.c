@@ -51,6 +51,8 @@
 #include "savestate.h"
 
 int lores_factor, lores_shift;
+int aga_mode; /* mirror of chipset_mask & CSMASK_AGA */
+int direct_rgb; 
 
 /* The shift factor to apply when converting between Amiga coordinates and window
    coordinates.  Zero if the resolution is the same, positive if window coordinates
@@ -1250,7 +1252,7 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
     unlockscr ();
     if (start <= stop)
 	flush_screen (start, stop);
-    else if (currprefs.gfx_afullscreen && currprefs.gfx_vsync)
+    else if ((currprefs.gfx_afullscreen && currprefs.gfx_vsync) || currprefs.gfx_filter == 8)
 	flush_screen (0, 0); /* vsync mode */
 }
 

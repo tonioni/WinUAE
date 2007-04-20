@@ -15,9 +15,10 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 7
+#define WINUAEBETA 8
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 4, 12)
+#define WINUAEDATE MAKEBD(2007, 4, 20)
+//#define WINUAEEXTRA ""
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
@@ -77,7 +78,7 @@ extern int screen_is_picasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
 extern int af_path_2005, af_path_old, winuae_path;
-extern char start_path_af[MAX_DPATH];
+extern char start_path_af[MAX_DPATH], start_path_new[MAX_DPATH];
 
 extern void sleep_millis (int ms);
 extern void sleep_millis_busy (int ms);

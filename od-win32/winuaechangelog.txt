@@ -1,4 +1,23 @@
 
+Beta 8:
+
+- very long CDTV CD reads don't freeze anymore (overflow in CD
+  speed varible)
+- added "PAL" filter. It is based on Vice C64 PAL filter with some
+  changes like scanlines in 1x-mode and noise. Simulates blurry
+  composite/RF signal. 32bit color depth only. NOTE: filter + AGA
+  enabled = RGB 6:6:6 internal color space only. (compromise between
+  speed+memory usage and image quality)
+- command line parameter was skipped if previous parameter was
+  win32-specific or it needed numeric parameter(s). (b7)
+- IDE partition (non-RDB) hardfile support (no custom filesystem
+  supported yet) NOTE: virtual RDB is read-only, all write attempts
+  to RDB area are silently ignored, no errors returned.
+- non-3D filter improved default centering
+- replaced GUI scanline sliders with more flexible extra parameters
+  settings. Added built-in filter preset support (single PAL filter
+  example currently)
+
 Beta 7:
 
 - hardfile reset routine randomly read non-existing memory (b4)
@@ -10,7 +29,7 @@ Beta 7:
 - HRTMon IDE commands work now in A600 configuration.
 - HD onscreen led write color fixed in IDE mode
 - 4/6 channel modes should really work with Emu10K based cards..
-  (I can always hope..)
+  (I can always hope..) EDIT: It did work!
 - USP and ISP registers are back in debugger
 - brightness/contrast/gamma setting added to display panel
   (not working in real time yet)

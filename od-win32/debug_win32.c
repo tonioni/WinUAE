@@ -816,7 +816,7 @@ int console_get_gui (char *out, int maxlen)
 
     while ((ret = GetMessage(&msg, NULL, 0, 0)) != 0) {
 	if (!debugger_active || ret == -1) {
-	    return 0;
+	    return -1;
 	} else if (!IsWindow(hDbgWnd) || !TranslateAccelerator(hDbgWnd, dbgaccel, &msg) || !IsDialogMessage(hDbgWnd, &msg)) {
 	    TranslateMessage(&msg);
 	    DispatchMessage(&msg);

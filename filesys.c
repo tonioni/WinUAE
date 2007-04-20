@@ -421,7 +421,9 @@ static void initialize_mountinfo(void)
 	    if (idx >= 0)
 		uci->configoffset = idx;
 	} else {
-	    gayle_add_ide_unit (uci->controller - 1, uci->rootdir, uci->blocksize, uci->readonly);
+	    gayle_add_ide_unit (uci->controller - 1, uci->rootdir, uci->blocksize, uci->readonly,
+		uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+		uci->bootpri, uci->filesys);
 	}
     }
     filesys_addexternals();

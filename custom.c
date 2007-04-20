@@ -57,6 +57,7 @@
 #include "enforcer.h"
 #endif
 #include "gayle.h"
+#include "gfxfilter.h"
 
 STATIC_INLINE int nocustom(void)
 {
@@ -420,7 +421,7 @@ STATIC_INLINE void docols (struct color_entry *colentry)
 	    int v = color_reg_get (colentry, i);
 	    if (v < 0 || v > 16777215)
 		continue;
-	    colentry->acolors[i] = CONVERT_RGB (v);
+	    colentry->acolors[i] = getxcolor (v);
 	}
     } else {
 #endif
@@ -428,7 +429,7 @@ STATIC_INLINE void docols (struct color_entry *colentry)
 	    int v = color_reg_get (colentry, i);
 	    if (v < 0 || v > 4095)
 		continue;
-	    colentry->acolors[i] = xcolors[v];
+	    colentry->acolors[i] = getxcolor (v);
 	}
 #ifdef AGA
     }
@@ -2335,9 +2336,15 @@ static void calcdiw (void)
     }
 }
 
+static void update_mirrors(void)
+{
+    aga_mode = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
+    direct_rgb = aga_mode;
+}
 /* display mode changed (lores, doubling etc..), recalculate everything */
 void init_custom (void)
 {
+    update_mirrors();
     create_cycle_diagram_table ();
     reset_drawing ();
     init_hz ();
@@ -3289,7 +3296,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 	record_color_change (hpos, colreg, cval);
 	remembered_color_entry = -1;
 	current_colors.color_regs_aga[colreg] = cval;
-	current_colors.acolors[colreg] = CONVERT_RGB (cval);
+	current_colors.acolors[colreg] = getxcolor (cval);
    } else {
 #endif
 	if (current_colors.color_regs_ecs[num] == v)
@@ -3298,7 +3305,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 	record_color_change (hpos, num, v);
 	remembered_color_entry = -1;
 	current_colors.color_regs_ecs[num] = v;
-	current_colors.acolors[num] = xcolors[v];
+	current_colors.acolors[num] = getxcolor (v);
 #ifdef AGA
     }
 #endif
@@ -4572,16 +4579,17 @@ void customreset (void)
     lightpen_cx = lightpen_cy = -1;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
-	if ((currprefs.chipset_mask & CSMASK_AGA) == 0) {
+	update_mirrors();
+	if (!aga_mode) {
 	    for (i = 0; i < 32; i++) {
 		current_colors.color_regs_ecs[i] = 0;
-		current_colors.acolors[i] = xcolors[0];
+		current_colors.acolors[i] = getxcolor(0);
 	    }
 #ifdef AGA
 	} else {
 	    for (i = 0; i < 256; i++) {
 		current_colors.color_regs_aga[i] = 0;
-		current_colors.acolors[i] = CONVERT_RGB (zero);
+		current_colors.acolors[i] = getxcolor(0);
 	    }
 #endif
 	}
@@ -5243,6 +5251,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     audio_reset ();
 
     changed_prefs.chipset_mask = currprefs.chipset_mask = RL;
+    update_mirrors();
     RW;				/* 000 ? */
     RW;				/* 002 DMACONR */
     RW;				/* 004 VPOSR */

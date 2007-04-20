@@ -2320,10 +2320,12 @@ void memory_reset (void)
     }
     if (currprefs.cs_ide) {
 	map_banks (&gayle_bank, 0xD8, 6, 0);
-	if(currprefs.cs_ide == 1)
+	if(currprefs.cs_ide == 1) {
 	    map_banks (&gayle2_bank, 0xDD, 2, 0);
-	else if (currprefs.cs_ide == 2)
+	    // map_banks (&gayle_attr_bank, 0xA0, 8, 0); only if PCMCIA card inserted */
+	} else if (currprefs.cs_ide == 2) {
 	    map_banks (&gayle_bank, 0xDD, 2, 0);
+	}
     }
     if (currprefs.cs_rtc)
 	map_banks (&clock_bank, 0xDC, 1, 0);

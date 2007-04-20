@@ -490,9 +490,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    if (specialpressed ())
 		code = AKS_STATEREWIND;
 	    break;
-	    case DIK_ESCAPE:
-	    bleh();
-	    break;
 	}
     }
 

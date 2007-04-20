@@ -119,6 +119,7 @@ static HANDLE timehandle;
 char start_path_data[MAX_DPATH];
 char start_path_exe[MAX_DPATH];
 char start_path_af[MAX_DPATH];
+char start_path_new[MAX_DPATH];
 char help_file[MAX_DPATH];
 int af_path_2005, af_path_old, winuae_path;
 
@@ -511,6 +512,12 @@ void setmouseactive (int active)
     }
     if (WINUAEBETA > 0)
 	strcat (txt, BetaStr);
+#ifdef WINUAEEXTRA
+    if (strlen(WINUAEEXTRA) > 0) {
+	strcat (txt, " ");
+	strcat (txt, WINUAEEXTRA);
+    }
+#endif
     if (txt2[0]) {
 	strcat (txt, " - ");
 	strcat (txt, txt2);
@@ -2005,13 +2012,36 @@ void set_path (char *name, char *path)
 		strcpy (tmp, ".\\");
 	    else
 		strcpy (tmp, start_path_data);
+	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
+		char tmp2[MAX_DPATH];
+		strcpy (tmp2, tmp);
+		strcat (tmp2, "rom");
+		if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES) {
+		    strcpy (tmp, tmp2);
+		} else {
+		    strcpy (tmp2, tmp);
+		    strcpy (tmp2, "roms");
+		    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES)
+			strcpy (tmp, tmp2);
+		}
+	    }
 	}
 	if (af_path_2005) {
-	    strcpy (tmp, start_path_af);
-	    strcat (tmp, "System\\rom");
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_af);
+	    strcat (tmp2, "System\\rom");
+	    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES) {
+	        strcpy (tmp, tmp2);
+	    } else {
+		strcpy (tmp, start_path_new);
+		strcat (tmp, "WinUAE\\roms");
+	    }
 	} else if (af_path_old) {
-	    strcpy (tmp, start_path_exe);
-	    strcat (tmp, "..\\shared\\rom");
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_exe);
+	    strcat (tmp2, "..\\shared\\rom");
+	    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES)
+		strcpy (tmp, tmp2);
 	}
     }
     fixtrailing (tmp);
@@ -2546,6 +2576,7 @@ static void getstartpaths(int start_data)
 	    strcat (tmp2, "Amiga Files\\");
 	    strcpy (tmp, tmp2);
 	    strcat(tmp, "WinUAE");
+	    strcpy(start_path_new, tmp2);
 	    v = GetFileAttributes(tmp);
 	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
 		if (start_data == 0) {
@@ -2557,7 +2588,7 @@ static void getstartpaths(int start_data)
 		    }
 		    start_data = 1;
 		}
-		af_path_2005 = 1;
+		af_path_2005 = 2;
 	    }
 	}
     }
@@ -2600,6 +2631,12 @@ static void makeverstr(char *s)
 #else
     sprintf(s, "WinUAE %d.%d.%d (%d.%02d.%02d)",
 	UAEMAJOR, UAEMINOR, UAESUBREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+#endif
+#ifdef WINUAEEXTRA
+    if(strlen(WINUAEEXTRA) > 0) {
+	strcat (s, " ");
+	strcat (s, WINUAEEXTRA);
+    }
 #endif
 }
 
@@ -2689,24 +2726,28 @@ static int process_arg(char **xargv)
 	    continue;
 	}
 	if (i + 1 < argc) {
-	    char *np = argv[++i];
+	    char *np = argv[i + 1];
 	    if (!strcmp (arg, "-affinity")) {
 		cpu_affinity = getval (np);
+		i++;
 		if (cpu_affinity == 0)
 		    cpu_affinity = original_affinity;
 		SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
 		continue;
 	    }
 	    if (!strcmp (arg, "-datapath")) {
+		i++;
 		strcpy(start_path_data, np);
 		start_data = 1;
 		continue;
 	    }
 	    if (!strcmp (arg, "-maxmem")) {
+		i++;
 		max_allowed_mman = getval (np);
 		continue;
 	    }
 	    if (!strcmp (arg, "-soundmodeskip")) {
+		i++;
 		sound_mode_skip = getval (np);
 		continue;
 	    }

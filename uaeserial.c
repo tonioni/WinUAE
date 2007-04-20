@@ -389,7 +389,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 {
     struct asyncreq *ar = get_async_request (dev, request, 1);
     if (!ar) {
-	write_log ("%s:d: abort sync but no request %x found!\n", getdevname(), dev->unit, request);
+	write_log ("%s:%d: abort sync but no request %x found!\n", getdevname(), dev->unit, request);
 	return;
     }
     if (log_uaeserial)

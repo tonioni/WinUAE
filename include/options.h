@@ -154,7 +154,8 @@ struct uae_prefs {
     int gfx_pfullscreen;
     int gfx_xcenter;
     int gfx_ycenter;
-    int gfx_hue, gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
+    int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
+    int color_mode;
 
     int gfx_filter;
     int gfx_filter_scanlines;
@@ -164,7 +165,8 @@ struct uae_prefs {
     int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
     int gfx_filter_horiz_offset, gfx_filter_vert_offset;
     int gfx_filter_filtermode;
-    int color_mode;
+    int gfx_filter_noise, gfx_filter_blur;
+    int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
 
     int immediate_blits;
     unsigned int chipset_mask;

@@ -130,19 +130,17 @@ void dump_counts (void)
 }
 #endif
 
-static uae_u32 caar, cacr, itt0, itt1, dtt0, dtt1, tcr, mmusr, urp, srp, buscr;
-
 static void set_cpu_caches(void)
 {
 #ifdef JIT
     if (currprefs.cpu_model < 68040) {
-	set_cache_state(cacr & 1);
-	if (cacr & 0x08) {
-	    cacr &= ~0x08;
+	set_cache_state(regs.cacr & 1);
+	if (regs.cacr & 0x08) {
+	    regs.cacr &= ~0x08;
 	    flush_icache(1);
 	}
     } else {
-	set_cache_state(cacr & 0x8000);
+	set_cache_state(regs.cacr & 0x8000);
     }
 #endif
 }
@@ -1189,32 +1187,32 @@ int m68k_move2c (int regno, uae_u32 *regp)
 		cacr_mask = 0x80008000;
 	    else if (currprefs.cpu_model == 68060)
 		cacr_mask = 0xf8e0e000;
-	    cacr = *regp & cacr_mask;
+	    regs.cacr = *regp & cacr_mask;
 	    set_cpu_caches();
 	}
 	break;
 	 /* 68040/060 only */
-	case 3: tcr = *regp & (currprefs.cpu_model == 68060 ? 0xfffe : 0xc000);
+	case 3: regs.tcr = *regp & (currprefs.cpu_model == 68060 ? 0xfffe : 0xc000);
 	break;
 
 	/* no differences between 68040 and 68060 */
-	case 4: itt0 = *regp & 0xffffe364; break;
-	case 5: itt1 = *regp & 0xffffe364; break;
-	case 6: dtt0 = *regp & 0xffffe364; break;
-	case 7: dtt1 = *regp & 0xffffe364; break;
+	case 4: regs.itt0 = *regp & 0xffffe364; break;
+	case 5: regs.itt1 = *regp & 0xffffe364; break;
+	case 6: regs.dtt0 = *regp & 0xffffe364; break;
+	case 7: regs.dtt1 = *regp & 0xffffe364; break;
 	/* 68060 only */
-	case 8: buscr = *regp & 0xf0000000; break;
+	case 8: regs.buscr = *regp & 0xf0000000; break;
 
 	case 0x800: regs.usp = *regp; break;
 	case 0x801: regs.vbr = *regp; break;
-	case 0x802: caar = *regp & 0xfc; break;
+	case 0x802: regs.caar = *regp & 0xfc; break;
 	case 0x803: regs.msp = *regp; if (regs.m == 1) m68k_areg(&regs, 7) = regs.msp; break;
 	case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg(&regs, 7) = regs.isp; break;
 	/* 68040 only */
-	case 0x805: mmusr = *regp; break;
+	case 0x805: regs.mmusr = *regp; break;
 	/* 68040/060 */
-	case 0x806: urp = *regp; break;
-	case 0x807: srp = *regp; break;
+	case 0x806: regs.urp = *regp; break;
+	case 0x807: regs.srp = *regp; break;
 	/* 68060 only */
 	case 0x808:
 	{
@@ -1250,7 +1248,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	case 1: *regp = regs.dfc; break;
 	case 2: 
 	{
-	    uae_u32 v = cacr;
+	    uae_u32 v = regs.cacr;
 	    uae_u32 cacr_mask = 0;
 	    if (currprefs.cpu_model == 68020)
 		cacr_mask = 0x00000003;
@@ -1263,21 +1261,21 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	    *regp = v & cacr_mask;
 	}
 	break;
-	case 3: *regp = tcr; break;
-	case 4: *regp = itt0; break;
-	case 5: *regp = itt1; break;
-	case 6: *regp = dtt0; break;
-	case 7: *regp = dtt1; break;
-	case 8: *regp = buscr; break;
+	case 3: *regp = regs.tcr; break;
+	case 4: *regp = regs.itt0; break;
+	case 5: *regp = regs.itt1; break;
+	case 6: *regp = regs.dtt0; break;
+	case 7: *regp = regs.dtt1; break;
+	case 8: *regp = regs.buscr; break;
 
 	case 0x800: *regp = regs.usp; break;
 	case 0x801: *regp = regs.vbr; break;
-	case 0x802: *regp = caar; break;
+	case 0x802: *regp = regs.caar; break;
 	case 0x803: *regp = regs.m == 1 ? m68k_areg(&regs, 7) : regs.msp; break;
 	case 0x804: *regp = regs.m == 0 ? m68k_areg(&regs, 7) : regs.isp; break;
-	case 0x805: *regp = mmusr; break;
-	case 0x806: *regp = urp; break;
-	case 0x807: *regp = srp; break;
+	case 0x805: *regp = regs.mmusr; break;
+	case 0x806: *regp = regs.urp; break;
+	case 0x807: *regp = regs.srp; break;
 	case 0x808: *regp = regs.pcr; break;
 
 	default:
@@ -1582,9 +1580,9 @@ void m68k_reset (void)
     regs.fp_result = 1;
     regs.irc = 0xffff;
 #endif
-    caar = cacr = 0;
-    itt0 = itt1 = dtt0 = dtt1 = 0;
-    tcr = mmusr = urp = srp = buscr = 0;
+    regs.caar = regs.cacr = 0;
+    regs.itt0 = regs.itt1 = regs.dtt0 = regs.dtt1 = 0;
+    regs.tcr = regs.mmusr = regs.urp = regs.srp = regs.buscr = 0;
     /* 68060 FPU is not compatible with 68040,
      * 68060 accelerators' boot ROM disables the FPU
      */
@@ -1701,7 +1699,7 @@ void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 #endif
     if ((opcode & 0xFE0) == 0x0500) {
 	/* PFLUSH */
-	mmusr = 0;
+	regs->mmusr = 0;
 #ifdef MMUOP_DEBUG
 	write_log ("PFLUSH @$%lx\n", m68k_getpc(regs));
 #endif
@@ -2571,21 +2569,21 @@ static uae_u32 val_move2c (int regno)
     switch (regno) {
     case 0: return regs.sfc;
     case 1: return regs.dfc;
-    case 2: return cacr;
-    case 3: return tcr;
-    case 4: return itt0;
-    case 5: return itt1;
-    case 6: return dtt0;
-    case 7: return dtt1;
-    case 8: return buscr;
+    case 2: return regs.cacr;
+    case 3: return regs.tcr;
+    case 4: return regs.itt0;
+    case 5: return regs.itt1;
+    case 6: return regs.dtt0;
+    case 7: return regs.dtt1;
+    case 8: return regs.buscr;
     case 0x800: return regs.usp;
     case 0x801: return regs.vbr;
-    case 0x802: return caar;
+    case 0x802: return regs.caar;
     case 0x803: return regs.msp;
     case 0x804: return regs.isp;
-    case 0x805: return mmusr;
-    case 0x806: return urp;
-    case 0x807: return srp;
+    case 0x805: return regs.mmusr;
+    case 0x806: return regs.urp;
+    case 0x807: return regs.srp;
     case 0x808: return regs.pcr;
     default: return 0;
     }
@@ -2696,8 +2694,8 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	regs.vbr = restore_u32 ();
     }
     if (model >= 68020) {
-	caar = restore_u32 ();
-	cacr = restore_u32 ();
+	regs.caar = restore_u32 ();
+	regs.cacr = restore_u32 ();
 	regs.msp = restore_u32 ();
 	/* A500 speed in 68020 mode isn't too logical.. */
 	if (changed_prefs.m68k_speed == 0)
@@ -2711,16 +2709,16 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	restore_u32();
     }
     if (model >= 68040) {
-	itt0 = restore_u32();
-	itt1 = restore_u32();
-	dtt0 = restore_u32();
-	dtt1 = restore_u32();
-	tcr = restore_u32();
-	urp = restore_u32();
-	srp = restore_u32();
+	regs.itt0 = restore_u32();
+	regs.itt1 = restore_u32();
+	regs.dtt0 = restore_u32();
+	regs.dtt1 = restore_u32();
+	regs.tcr = restore_u32();
+	regs.urp = restore_u32();
+	regs.srp = restore_u32();
     }
     if (model >= 68060) {
-	buscr = restore_u32();
+	regs.buscr = restore_u32();
 	regs.pcr = restore_u32();
     }
     if (flags & 0x80000000) {
@@ -2770,8 +2768,8 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (regs.vbr);				/* VBR */
     }
     if(model >= 68020) {
-	save_u32 (caar);				/* CAAR */
-	save_u32 (cacr);				/* CACR */
+	save_u32 (regs.caar);				/* CAAR */
+	save_u32 (regs.cacr);				/* CACR */
 	save_u32 (regs.msp);				/* MSP */
     }
     if(model >= 68030) {
@@ -2782,16 +2780,16 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (0);					/* TT1 */
     }
     if(model >= 68040) {
-	save_u32 (itt0);				/* ITT0 */
-	save_u32 (itt1);				/* ITT1 */
-	save_u32 (dtt0);				/* DTT0 */
-	save_u32 (dtt1);				/* DTT1 */
-	save_u32 (tcr);					/* TCR */
-	save_u32 (urp);					/* URP */
-	save_u32 (srp);					/* SRP */
+	save_u32 (regs.itt0);				/* ITT0 */
+	save_u32 (regs.itt1);				/* ITT1 */
+	save_u32 (regs.dtt0);				/* DTT0 */
+	save_u32 (regs.dtt1);				/* DTT1 */
+	save_u32 (regs.tcr);				/* TCR */
+	save_u32 (regs.urp);				/* URP */
+	save_u32 (regs.srp);				/* SRP */
     }
     if(model >= 68060) {
-	save_u32 (buscr);				/* BUSCR */
+	save_u32 (regs.buscr);				/* BUSCR */
 	save_u32 (regs.pcr);				/* PCR */
     }
     khz = -1;

@@ -1947,13 +1947,17 @@ static void debug_1 (void)
 
     for (;;) {
 	char cmd, *inptr;
+	int v;
 
 	if (!debugger_active)
 	    return;
 	update_debug_info();
 	console_out (">");
 	console_flush ();
-	if (!console_get (input, MAX_LINEWIDTH))
+	v = console_get (input, MAX_LINEWIDTH);
+	if (v < 0)
+	    return;
+	if (v == 0)
 	    continue;
 	inptr = input;
 	cmd = next_char (&inptr);

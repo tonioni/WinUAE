@@ -35,14 +35,50 @@ DD0000 to DDFFFF		64 KB A3000 DMA controller
 DE0000 to DEFFFF		64 KB Motherboard resources
 */
 
-/* Gayle definitions from Linux driver */
+/* Gayle definitions from Linux drivers */
 
-/*
- *  Bases of the IDE interfaces
- */
+/* PCMCIA stuff */
+
+#define GAYLE_RAM               (0x600000+zTwoBase)
+#define GAYLE_RAMSIZE           (0x400000)
+#define GAYLE_ATTRIBUTE         (0xa00000+zTwoBase)
+#define GAYLE_ATTRIBUTESIZE     (0x020000)
+#define GAYLE_IO                (0xa20000+zTwoBase)     /* 16bit and even 8bit registers */
+#define GAYLE_IOSIZE            (0x010000)
+#define GAYLE_IO_8BITODD        (0xa30000+zTwoBase)     /* odd 8bit registers */
+/* offset for accessing odd IO registers */
+#define GAYLE_ODD               (GAYLE_IO_8BITODD-GAYLE_IO-1)
+
+#define GAYLE_ADDRESS   (0xda8000)      /* gayle main registers base address */
+#define GAYLE_RESET     (0xa40000)      /* write 0x00 to start reset,
+                                           read 1 byte to stop reset */
+/* GAYLE_CARDSTATUS bit def */
+#define GAYLE_CS_CCDET          0x40    /* credit card detect */
+#define GAYLE_CS_BVD1           0x20    /* battery voltage detect 1 */
+#define GAYLE_CS_SC             0x20    /* credit card status change */
+#define GAYLE_CS_BVD2           0x10    /* battery voltage detect 2 */
+#define GAYLE_CS_DA             0x10    /* digital audio */
+#define GAYLE_CS_WR             0x08    /* write enable (1 == enabled) */
+#define GAYLE_CS_BSY            0x04    /* credit card busy */
+#define GAYLE_CS_IRQ            0x04    /* interrupt request */
+
+/* GAYLE_CONFIG bit def
+   (bit 0-1 for program voltage, bit 2-3 for access speed */    
+#define GAYLE_CFG_0V            0x00
+#define GAYLE_CFG_5V            0x01
+#define GAYLE_CFG_12V           0x02
+
+#define GAYLE_CFG_100NS         0x08
+#define GAYLE_CFG_150NS         0x04
+#define GAYLE_CFG_250NS         0x00      
+#define GAYLE_CFG_720NS         0x0c     
+
+/* IDE stuff */
+
+/*  Bases of the IDE interfaces */
 #define GAYLE_BASE_4000 0xdd2020    /* A4000/A4000T */
 #define GAYLE_BASE_1200 0xda0000    /* A1200/A600 and E-Matrix 530 */
-
+/* IDE drive registers */
 #define IDE_DATA	0x00
 #define IDE_ERROR	0x01	    /* see err-bits */
 #define IDE_NSECTOR	0x02	    /* nr of sectors to read/write */
@@ -53,7 +89,6 @@ DE0000 to DEFFFF		64 KB Motherboard resources
 #define IDE_STATUS	0x07	    /* see status-bits */
 #define IDE_DEVCON	0x0406
 #define IDE_DRVADDR	0x0407
-
 /* STATUS bits */
 #define IDE_STATUS_ERR 0x01
 #define IDE_STATUS_IDX 0x02
@@ -1195,6 +1230,106 @@ addrbank mbdmac_bank = {
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
+static uae_u32 gayle_attr_read(uaecptr addr)
+{
+    uae_u8 v = 0;
+    write_log("R: %x %x\n", addr, M68K_GETPC);
+    addr &= 262144 - 1;
+    switch (addr)
+    {
+	case 0:
+	v = 0x91;
+	break;
+	case 2:
+        v = 0x05;
+	break;
+	case 4:
+	v = 0x23;
+	break;
+    }
+    return v;
+}
+static void gayle_attr_write(uaecptr addr, uae_u32 v)
+{
+    write_log("W: %x=%x %x\n", addr, v, M68K_GETPC);
+    addr &= 262144 - 1;
+    if (addr == 0x40000) {
+	if (v)
+	    write_log("GAYLE: Reset active\n");
+	else
+	    write_log("GAYLE: Reset non-active\n");
+    }
+}
+
+static uae_u32 REGPARAM3 gayle_attr_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_attr_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_attr_bget (uaecptr) REGPARAM;
+static void REGPARAM3 gayle_attr_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_attr_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_attr_bput (uaecptr, uae_u32) REGPARAM;
+
+addrbank gayle_attr_bank = {
+    gayle_attr_lget, gayle_attr_wget, gayle_attr_bget,
+    gayle_attr_lput, gayle_attr_wput, gayle_attr_bput,
+    default_xlate, default_check, NULL, "Gayle PCMCIA attribute",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+};
+
+static uae_u32 REGPARAM2 gayle_attr_lget (uaecptr addr)
+{
+    uae_u32 v;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    v = gayle_attr_wget (addr) << 16;
+    v |= gayle_attr_wget (addr + 2);
+    return v;
+}
+static uae_u32 REGPARAM2 gayle_attr_wget (uaecptr addr)
+{
+    uae_u16 v;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    v = gayle_attr_bget (addr) << 8;
+    v |= gayle_attr_bget (addr + 1);
+    return v;
+}
+static uae_u32 REGPARAM2 gayle_attr_bget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return gayle_attr_read (addr);
+}
+
+static void REGPARAM2 gayle_attr_lput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_attr_wput (addr, value >> 16);
+    gayle_attr_wput (addr + 2, value & 0xffff);
+}
+
+static void REGPARAM2 gayle_attr_wput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_attr_bput (addr, value >> 8);
+    gayle_attr_bput (addr + 1, value & 0xff);
+}
+
+static void REGPARAM2 gayle_attr_bput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_attr_write (addr, value);
+}
+
+
 static int rl (uae_u8 *p)
 {
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
@@ -1251,7 +1386,124 @@ void getchs2 (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorspert
     *psectorspertrack = spt;
 }
 
-int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly)
+static void pl(uae_u8 *p, int off, uae_u32 v)
+{
+    p += off * 4;
+    p[0] = v >> 24;
+    p[1] = v >> 16;
+    p[2] = v >> 8;
+    p[3] = v >> 0;
+}
+
+static void rdb_crc(uae_u8 *p)
+{
+    uae_u32 sum;
+    int i, blocksize;
+    
+    sum =0;
+    blocksize = rl (p + 1 * 4);
+    for (i = 0; i < blocksize; i++)
+	sum += rl (p + i * 4);
+    sum = -sum;
+    pl (p, 2, sum);
+}
+
+static void create_virtual_rdb(struct hardfiledata *hfd, uae_u32 dostype, int bootpri, char *filesys)
+{
+    uae_u8 *rdb, *part, *denv;
+    int cyl = hfd->heads * hfd->secspertrack;
+    int cyls = 262144 / (cyl * 512);
+    int size = cyl * cyls * 512;
+
+    rdb = xcalloc (size, 1);
+    hfd->virtual_rdb = rdb;
+    hfd->virtual_size = size;
+    part = rdb + 512;
+    pl(rdb, 0, 0x5244534b);
+    pl(rdb, 1, 64);
+    pl(rdb, 2, 0); // chksum
+    pl(rdb, 3, 0); // hostid
+    pl(rdb, 4, 512); // blockbytes
+    pl(rdb, 5, 0); // flags
+    pl(rdb, 6, -1); // badblock
+    pl(rdb, 7, 1); // part
+    pl(rdb, 8, -1); // fs
+    pl(rdb, 9, -1); // driveinit
+    pl(rdb, 10, -1); // reserved
+    pl(rdb, 11, -1); // reserved
+    pl(rdb, 12, -1); // reserved
+    pl(rdb, 13, -1); // reserved
+    pl(rdb, 14, -1); // reserved
+    pl(rdb, 15, -1); // reserved
+    pl(rdb, 16, hfd->nrcyls);
+    pl(rdb, 17, hfd->secspertrack);
+    pl(rdb, 18, hfd->heads);
+    pl(rdb, 19, 0); // interleave
+    pl(rdb, 20, 0); // park
+    pl(rdb, 21, -1); // res
+    pl(rdb, 22, -1); // res
+    pl(rdb, 23, -1); // res
+    pl(rdb, 24, 0); // writeprecomp
+    pl(rdb, 25, 0); // reducedwrite
+    pl(rdb, 26, 0); // steprate
+    pl(rdb, 27, -1); // res
+    pl(rdb, 28, -1); // res
+    pl(rdb, 29, -1); // res
+    pl(rdb, 30, -1); // res
+    pl(rdb, 31, -1); // res
+    pl(rdb, 32, 0); // rdbblockslo
+    pl(rdb, 33, cyl * cyls); // rdbblockshi
+    pl(rdb, 34, cyls); // locyl
+    pl(rdb, 35, hfd->nrcyls + cyls); // hicyl
+    pl(rdb, 36, cyl); // cylblocks
+    pl(rdb, 37, 0); // autopark
+    pl(rdb, 38, 2); // highrdskblock
+    pl(rdb, 39, -1); // res
+    strcpy (rdb + 40 * 4, hfd->vendor_id);
+    strcpy (rdb + 42 * 4, hfd->product_id);
+    strcpy (rdb + 46 * 4, "UAE");
+    rdb_crc(rdb);
+
+    pl(part, 0, 0x50415254);
+    pl(part, 1, 64);
+    pl(part, 2, 0);
+    pl(part, 3, 0);
+    pl(part, 4, -1);
+    pl(part, 5, 1); // bootable
+    pl(part, 6, -1);
+    pl(part, 7, -1);
+    pl(part, 8, 0); // devflags
+    part[9 * 4] = strlen(hfd->device_name);
+    strcpy (part + 9 * 4 + 1, hfd->device_name);
+
+    denv = part + 128;
+    pl(denv, 0, 80);
+    pl(denv, 1, 512 / 4);
+    pl(denv, 2, 0); // secorg
+    pl(denv, 3, hfd->heads);
+    pl(denv, 4, hfd->blocksize / 512);
+    pl(denv, 5, hfd->secspertrack);
+    pl(denv, 6, hfd->reservedblocks);
+    pl(denv, 7, 0); // prealloc
+    pl(denv, 8, 0); // interleave
+    pl(denv, 9, cyls); // lowcyl
+    pl(denv, 10, hfd->nrcyls + cyls - 1);
+    pl(denv, 11, 50);
+    pl(denv, 12, 0);
+    pl(denv, 13, 0x00ffffff);
+    pl(denv, 14, 0x7ffffffe);
+    pl(denv, 15, bootpri);
+    pl(denv, 16, dostype);
+    rdb_crc(part);
+
+    hfd->size += size;
+    hfd->size2 += size;
+
+}
+
+int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly,
+		       char *devname, int sectors, int surfaces, int reserved,
+		       int bootpri, char *filesys)
 {
     struct ide_hdf *ide;
 
@@ -1264,13 +1516,28 @@ int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly)
     if (!hdf_open(&ide->hfd, path))
 	return -1;
     ide->path = my_strdup(path);
-    write_log("IDE%d initialized ('%s')\n", ch, path);
+    ide->hfd.heads = surfaces;
+    ide->hfd.reservedblocks = reserved;
+    ide->hfd.secspertrack = sectors;
+    if (devname)
+	strcpy (ide->hfd.device_name, devname);
     getchs2(&ide->hfd, &ide->cyls, &ide->heads, &ide->secspertrack);
     ide->cyls_def = ide->cyls;
     ide->secspertrack_def = ide->secspertrack;
     ide->heads_def = ide->heads;
+    if (ide->hfd.heads && ide->hfd.secspertrack) {
+	uae_u8 buf[512] = { 0 };
+        hdf_read(&ide->hfd, buf, 0, 512);
+	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
+	    ide->hfd.nrcyls = (ide->hfd.size / blocksize) / (sectors * surfaces);
+	    create_virtual_rdb(&ide->hfd, rl (buf), bootpri, filesys);
+	    while (ide->hfd.nrcyls * surfaces * sectors > ide->cyls_def * ide->secspertrack_def * ide->heads_def) {
+		ide->cyls_def++;
+	    }
+	}
+    }
     ide->size = ide->hfd.size;
-    write_log("CHS=%d,%d,%d\n", ide->cyls, ide->heads, ide->secspertrack);
+    write_log("IDE%d ('%s'), CHS=%d,%d,%d\n", ch, path, ide->cyls, ide->heads, ide->secspertrack);
     ide->status = 0;
     ide->data_offset = 0;
     ide->data_size = 0;
@@ -1401,7 +1668,7 @@ uae_u8 *restore_ide (uae_u8 *src)
     ide_feat2 = restore_u8();
     ide_error = restore_u8();
     ide_devcon = restore_u8();
-    gayle_add_ide_unit (num, path, blocksize, readonly);
+    gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0);
     xfree(path);
     return src;
 }

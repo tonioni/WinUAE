@@ -10,6 +10,12 @@ extern void S2X_render (void);
 extern void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd);
 extern void S2X_free (void);
 
+extern void PAL_init (void);
+extern void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
+extern void PAL_1x1_AGA_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
+extern void PAL_1x1_16(uae_u32 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
+extern void PAL_1x1_AGA_16(uae_u32 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
+
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned long uint32;
@@ -38,7 +44,8 @@ extern void hq4x_32(unsigned char*, unsigned char*, int, int, int, int, int);
 #define UAE_FILTER_SUPEREAGLE 5
 #define UAE_FILTER_SUPER2XSAI 6
 #define UAE_FILTER_2XSAI 7
-#define UAE_FILTER_HQ 8
+#define UAE_FILTER_PAL 8
+#define UAE_FILTER_HQ 9
 
 #define UAE_FILTER_MODE_16 16
 #define UAE_FILTER_MODE_16_16 16
@@ -50,7 +57,7 @@ extern void hq4x_32(unsigned char*, unsigned char*, int, int, int, int, int);
 
 struct uae_filter
 {
-    int type;
+    int type, yuv;
     char *name, *cfgname;
     int x[5];
 };

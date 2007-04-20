@@ -36,6 +36,7 @@
 #define SCSIEMU /* uaescsi.device emulation */
 #define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
+#define MMUEMU
 #define CPUEMU_0 /* generic 680x0 emulation */
 #define CPUEMU_11 /* 68000+prefetch emulation */
 #define CPUEMU_12 /* cycle-exact cpu&blitter */

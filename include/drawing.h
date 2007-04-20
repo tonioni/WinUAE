@@ -31,6 +31,7 @@
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
 extern int lores_factor, lores_shift, sprite_width, interlace_seen;
+extern int aga_mode, direct_rgb;
 
 STATIC_INLINE int coord_hw_to_window_x (int x)
 {
@@ -90,7 +91,7 @@ struct color_entry {
 STATIC_INLINE xcolnr getxcolor (int c)
 {
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (direct_rgb)
 	return CONVERT_RGB(c);
     else
 #endif
@@ -101,7 +102,7 @@ STATIC_INLINE xcolnr getxcolor (int c)
 STATIC_INLINE int color_reg_get (struct color_entry *ce, int c)
 {
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (aga_mode)
 	return ce->color_regs_aga[c];
     else
 #endif
@@ -110,7 +111,7 @@ STATIC_INLINE int color_reg_get (struct color_entry *ce, int c)
 STATIC_INLINE void color_reg_set (struct color_entry *ce, int c, int v)
 {
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (aga_mode)
 	ce->color_regs_aga[c] = v;
     else
 #endif
@@ -119,7 +120,7 @@ STATIC_INLINE void color_reg_set (struct color_entry *ce, int c, int v)
 STATIC_INLINE int color_reg_cmp (struct color_entry *ce1, struct color_entry *ce2)
 {
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (aga_mode)
 	return memcmp (ce1->color_regs_aga, ce2->color_regs_aga, sizeof (uae_u32) * 256);
     else
 #endif
@@ -129,7 +130,7 @@ STATIC_INLINE int color_reg_cmp (struct color_entry *ce1, struct color_entry *ce
 STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *src)
 {
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (aga_mode)
 	/* copy acolors and color_regs_aga */
 	memcpy (dst->acolors, src->acolors, sizeof(struct color_entry) - sizeof(uae_u16) * 32);
     else

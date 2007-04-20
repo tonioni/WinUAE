@@ -1648,6 +1648,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\cpummu.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\cpustbl.c"
 				>
 			</File>
@@ -2379,6 +2383,10 @@
 		</File>
 		<File
 			RelativePath="..\resources\drive_startup.wav"
+			>
+		</File>
+		<File
+			RelativePath="..\resources\resource"
 			>
 		</File>
 		<File

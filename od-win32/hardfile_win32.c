@@ -155,6 +155,8 @@ int hdf_open (struct hardfiledata *hfd, char *name)
     hdf_close (hfd);
     hfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
     hfd->cache_valid = 0;
+    hfd->virtual_size = 0;
+    hfd->virtual_rdb = NULL;
     if (!hfd->cache) {
 	write_log ("VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError());
 	return 0;
@@ -278,6 +280,9 @@ void hdf_close (struct hardfiledata *hfd)
     hfd->handle_valid = 0;
     if (hfd->cache)
 	VirtualFree (hfd->cache, 0, MEM_RELEASE);
+    xfree(hfd->virtual_rdb);
+    hfd->virtual_rdb = 0;
+    hfd->virtual_size = 0;
     hfd->cache = 0;
     hfd->cache_valid = 0;
 }
@@ -321,7 +326,7 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 	gui_message ("hd: memory corruption detected in seek");
 	abort ();
     }
-    if (offset >= hfd->size) {
+    if (offset >= hfd->size - hfd->virtual_size) {
 	gui_message ("hd: tried to seek out of bounds! (%I64X >= %I64X)\n", offset, hfd->size);
 	abort ();
     }
@@ -370,7 +375,7 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)", pos, hfd->offset);
 	abort ();
     }
-    if (pos >= hfd->offset + hfd->size || pos >= hfd->offset + hfd->size + len) {
+    if (pos >= hfd->offset + hfd->size - hfd->virtual_size || pos >= hfd->offset + hfd->size + len - hfd->virtual_size) {
 	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)", pos, hfd->offset + hfd->size, len);
 	abort ();
     }
@@ -508,8 +513,8 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	return len;
     }
     hfd->cache_offset = offset;
-    if (offset + CACHE_SIZE > hfd->offset + hfd->size)
-	hfd->cache_offset = hfd->offset + hfd->size - CACHE_SIZE;
+    if (offset + CACHE_SIZE > hfd->offset + (hfd->size - hfd->virtual_size))
+	hfd->cache_offset = hfd->offset + (hfd->size - hfd->virtual_size) - CACHE_SIZE;
     hdf_seek (hfd, hfd->cache_offset);
     poscheck (hfd, CACHE_SIZE);
     if (hfd->handle_valid == HDF_HANDLE_WIN32)
@@ -534,6 +539,15 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     int got = 0;
     uae_u8 *p = buffer;
+
+    if (offset < hfd->virtual_size) {
+	uae_u64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
+	if (!hfd->virtual_rdb)
+	    return 0;
+	memcpy (buffer, hfd->virtual_rdb + offset, len2);
+	return len2;
+    }
+    offset -= hfd->virtual_size;
     while (len > 0) {
 	int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
 	int ret = hdf_read_2(hfd, p, offset, maxlen);
@@ -567,6 +581,9 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     int got = 0;
     uae_u8 *p = buffer;
+    if (offset < hfd->virtual_size)
+	return len;
+    offset -= hfd->virtual_size;
     while (len > 0) {
 	int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
 	int ret = hdf_write_2(hfd, p, offset, maxlen);
