@@ -1197,7 +1197,7 @@ BEGIN
     IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nWould you like to save it?"
     IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 with 32-bit addressing or 68030 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
-    IDS_NUMSG_STATEHD       "WARNING: Current configuration is not compatible with state saves. This message will not appear again."
+    IDS_NUMSG_STATEHD       "WARNING: Current configuration is not fully compatible with state saves.\nThis message will not appear again."
     IDS_NUMSG_NOCAPS        "Selected disk image needs the SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_NUMSG_OLDCAPS       "You need an updated SPS plugin\nwhich is available from\nhttp//www.softpres.org/"
     IDS_IMGCHK_BOOTBLOCKCRCERROR 

@@ -713,7 +713,8 @@ static int cdrom_command_multi (void)
 	int cdrom_data_offset_end = msf2lsn (endpos);
 	cdrom_data_offset = msf2lsn (seekpos);
 #if AKIKO_DEBUG_IO_CMD
-	write_log ("READ DATA FROM %06.6X (%d) TO %06.6X (%d) SPEED=%dx\n", seekpos, cdrom_data_offset, endpos, cdrom_data_offset_end, cdrom_speed);
+	write_log ("READ DATA FROM %06.6X (%d) TO %06.6X (%d) SPEED=%dx\n",
+	    seekpos, cdrom_data_offset, endpos, cdrom_data_offset_end, cdrom_speed);
 #endif
 	cdrom_result_buffer[1] |= 0x02;
     } else if (cdrom_command_buffer[10] & 4) { /* play audio */

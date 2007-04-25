@@ -17,8 +17,8 @@ del compemu.c
 del comptbl.h
 del compstbl.c
 del cpuemu_0.c
-del cpuemu_5.c
-del cpuemu_6.c
+del cpuemu_11.c
+del cpuemu_12.c
 del linetoscr.c
 
 cd od-win32

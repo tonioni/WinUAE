@@ -2844,6 +2844,8 @@ gen_opcode (unsigned long int opcode)
 	break;
 
      case i_MMUOP:
+     case i_MMUOP30A:
+     case i_MMUOP30B:
 	isjump;
 	failure;
 	break;

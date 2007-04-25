@@ -1087,9 +1087,19 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
     c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
     c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
+    c |= currprefs.gfx_filter_noise != changed_prefs.gfx_filter_noise ? (1|8) : 0;
+    c |= currprefs.gfx_filter_blur != changed_prefs.gfx_filter_blur ? (1|8) : 0;
+    c |= currprefs.gfx_filter_scanlines != changed_prefs.gfx_filter_scanlines ? (1|8) : 0;
+    c |= currprefs.gfx_filter_scanlinelevel != changed_prefs.gfx_filter_scanlinelevel ? (1|8) : 0;
+    c |= currprefs.gfx_filter_scanlineratio != changed_prefs.gfx_filter_scanlineratio ? (1|8) : 0;
+    c |= currprefs.gfx_filter_luminance != changed_prefs.gfx_filter_luminance ? (1|8) : 0;
+    c |= currprefs.gfx_filter_contrast != changed_prefs.gfx_filter_contrast ? (1|8) : 0;
+    c |= currprefs.gfx_filter_saturation != changed_prefs.gfx_filter_saturation ? (1|8) : 0;
+    c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
+    //c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
-    c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 1 : 0;
-    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 1 : 0;
+    c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 2 : 0;
+    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 2 : 0;
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
@@ -1121,6 +1131,16 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 	currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;
 	currprefs.gfx_filter_vert_zoom_mult = changed_prefs.gfx_filter_vert_zoom_mult;
+	currprefs.gfx_filter_noise = changed_prefs.gfx_filter_noise;
+	currprefs.gfx_filter_blur = changed_prefs.gfx_filter_blur;
+	currprefs.gfx_filter_scanlines = changed_prefs.gfx_filter_scanlines;
+	currprefs.gfx_filter_scanlinelevel = changed_prefs.gfx_filter_scanlinelevel;
+	currprefs.gfx_filter_scanlineratio = changed_prefs.gfx_filter_scanlineratio;
+	currprefs.gfx_filter_luminance = changed_prefs.gfx_filter_luminance;
+	currprefs.gfx_filter_contrast = changed_prefs.gfx_filter_contrast;
+	currprefs.gfx_filter_saturation = changed_prefs.gfx_filter_saturation;
+	currprefs.gfx_filter_gamma = changed_prefs.gfx_filter_gamma;
+	//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
 	currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 	currprefs.gfx_lores = changed_prefs.gfx_lores;

@@ -1055,6 +1055,23 @@ static void allocate_expamem (void)
 #endif /* SAVESTATE */
 }
 
+int need_uae_boot_rom(void)
+{
+    if (nr_units() > 0)
+	return 1;
+    if (currprefs.socket_emu)
+	return 1;
+    if (currprefs.uaeserial)
+	return 1;
+    if (currprefs.scsi)
+	return 1;
+    if (currprefs.win32_outsidemouse)
+	return 1;
+    if (currprefs.gfxmem_size)
+	return 1;
+    return 0;
+}
+
 void expamem_reset (void)
 {
     int do_mount = 1;
@@ -1079,11 +1096,8 @@ void expamem_reset (void)
 	write_log ("Kickstart version is below 1.3!  Disabling autoconfig devices.\n");
 	do_mount = 0;
     }
-#ifdef FILESYS
-    /* No need for filesystem stuff if there aren't any mounted.  */
-    if (nr_units() == 0)
+    if (need_uae_boot_rom() == 0)
 	do_mount = 0;
-#endif
     if (fastmemory != NULL) {
 	card_init[cardno] = expamem_init_fastcard;
 	card_map[cardno++] = expamem_map_fastcard;

@@ -77,8 +77,8 @@ cpuop_func *cpufunctbl[65536];
 extern uae_u32 get_fpsr(void);
 
 #define COUNT_INSTRS 0
-#define MC68060_PCR   0x04300100
-#define MC68EC060_PCR 0x04310100
+#define MC68060_PCR   0x04300000
+#define MC68EC060_PCR 0x04310000
 
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
@@ -698,6 +698,11 @@ static int verify_ea (int reg, amodes mode, wordsizes size, uae_u32 *val)
     return 0;
 }
 #endif
+
+int get_cpu_model(void)
+{
+    return currprefs.cpu_model;
+}
 
 uae_u32 REGPARAM2 get_disp_ea_020 (struct regstruct *regs, uae_u32 base, uae_u32 dp)
 {
@@ -1589,6 +1594,7 @@ void m68k_reset (void)
     regs.pcr = 0;
     if (currprefs.cpu_model == 68060) {
         regs.pcr = currprefs.fpu_model ? MC68060_PCR : MC68EC060_PCR;
+	regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
 	regs.pcr |= 2;
     }
     fill_prefetch_slow (&regs);

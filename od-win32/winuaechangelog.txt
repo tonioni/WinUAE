@@ -1,4 +1,21 @@
 
+Beta 9:
+
+- new PAL filter configuration file support (forgot it in b8)
+- PAL filter now works both in 16 and 32-bit modes. Internal color
+  space is now only R5G6B5, even in 32-bit AGA. Makes things simpler
+  (minus image quality loss) Fix later, not sure..
+- map "UAE Boot ROM" automatically if any "external" expansion is
+  enabled (uaescsi, uaeserial, bsdsocket etc..) Previously it was
+  only mapped if filesystem (directory or hdf) was configured.
+- IDE non-RDB HDF statefile support added
+- filter default centering fixed (I think..)
+- minor FPU updates to very rarely used instructions (from aranym)
+- "cpu060_revision" config entry added ("read-only", not created when
+  saving config), sets 68060 revision field in PCR register (current
+  default is 1)
+
+
 Beta 8:
 
 - very long CDTV CD reads don't freeze anymore (overflow in CD

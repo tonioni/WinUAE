@@ -468,6 +468,13 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_filter_scanlines=%d\n", p->gfx_filter_scanlines);
     cfgfile_write (f, "gfx_filter_scanlinelevel=%d\n", p->gfx_filter_scanlinelevel);
     cfgfile_write (f, "gfx_filter_scanlineratio=%d\n", p->gfx_filter_scanlineratio);
+    cfgfile_write (f, "gfx_filter_luminance=%d\n", p->gfx_filter_luminance);
+    cfgfile_write (f, "gfx_filter_contrast=%d\n", p->gfx_filter_contrast);
+    cfgfile_write (f, "gfx_filter_saturation=%d\n", p->gfx_filter_saturation);
+    cfgfile_write (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
+    cfgfile_write (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
+    cfgfile_write (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
+
     cfgfile_write (f, "gfx_luminance=%d\n", p->gfx_luminance);
     cfgfile_write (f, "gfx_contrast=%d\n", p->gfx_contrast);
     cfgfile_write (f, "gfx_gamma=%d\n", p->gfx_gamma);
@@ -764,6 +771,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlines", &p->gfx_filter_scanlines, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlinelevel", &p->gfx_filter_scanlinelevel, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_scanlineratio", &p->gfx_filter_scanlineratio, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_luminance", &p->gfx_filter_luminance, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_contrast", &p->gfx_filter_contrast, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_saturation", &p->gfx_filter_saturation, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_gamma", &p->gfx_filter_gamma, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_blur", &p->gfx_filter_blur, 1)
+	|| cfgfile_intval (option, value, "gfx_filter_noise", &p->gfx_filter_noise, 1)
 	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
@@ -1172,6 +1185,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
 
     if (cfgfile_intval (option, value, "cachesize", &p->cachesize, 1)
+	|| cfgfile_intval (option, value, "cpu060_revision", &p->cpu060_revision, 1)
+	|| cfgfile_intval (option, value, "fpu_revision", &p->fpu_revision, 1)
 	|| cfgfile_intval (option, value, "cdtvramcard", &p->cs_cdtvcard, 1)
 	|| cfgfile_intval (option, value, "fatgary", &p->cs_fatgaryrev, 1)
 	|| cfgfile_intval (option, value, "ramsey", &p->cs_ramseyrev, 1)
@@ -2720,6 +2735,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->fpu_model = 0;
     p->cpu_model = 68000;
+    p->cpu060_revision = 1;
+    p->fpu_revision = -1;
     p->m68k_speed = 0;
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
@@ -2791,6 +2808,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 
     p->fpu_model = 0;
     p->cpu_model = 68000;
+    p->cpu060_revision = 1;
+    p->fpu_revision = -1;
     p->m68k_speed = 0;
     p->cpu_compatible = 1;
     p->address_space_24 = 1;

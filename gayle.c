@@ -135,6 +135,7 @@ struct ide_hdf
     uae_u8 status;
     int irq_delay;
     int num;
+    int bootpri; // for fake RDB
 };
 
 static struct ide_hdf idedrive[4];
@@ -1512,6 +1513,7 @@ int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly,
     ide = &idedrive[ch];
     ide->hfd.readonly = readonly;
     ide->hfd.blocksize = blocksize;
+    ide->bootpri = bootpri;
     ide->size = 0;
     if (!hdf_open(&ide->hfd, path))
 	return -1;
@@ -1530,7 +1532,7 @@ int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly,
         hdf_read(&ide->hfd, buf, 0, 512);
 	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
 	    ide->hfd.nrcyls = (ide->hfd.size / blocksize) / (sectors * surfaces);
-	    create_virtual_rdb(&ide->hfd, rl (buf), bootpri, filesys);
+	    create_virtual_rdb(&ide->hfd, rl (buf), ide->bootpri, filesys);
 	    while (ide->hfd.nrcyls * surfaces * sectors > ide->cyls_def * ide->secspertrack_def * ide->heads_def) {
 		ide->cyls_def++;
 	    }
@@ -1634,6 +1636,11 @@ uae_u8 *save_ide (int num, int *len)
     save_u8(ide_feat2);
     save_u8(ide_error);
     save_u8(ide_devcon);
+    save_u64(ide->hfd.virtual_size);
+    save_u32(ide->hfd.secspertrack);
+    save_u32(ide->hfd.heads);
+    save_u32(ide->hfd.reservedblocks);
+    save_u32(ide->bootpri);
     *len = dst - dstbak;
     return dstbak;
 }
@@ -1668,7 +1675,16 @@ uae_u8 *restore_ide (uae_u8 *src)
     ide_feat2 = restore_u8();
     ide_error = restore_u8();
     ide_devcon = restore_u8();
-    gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0);
+    ide->hfd.virtual_size = restore_u64();
+    ide->hfd.secspertrack = restore_u32();
+    ide->hfd.heads = restore_u32();
+    ide->hfd.reservedblocks = restore_u32();
+    ide->bootpri = restore_u32();
+    if (ide->hfd.virtual_size)
+	gayle_add_ide_unit (num, path, blocksize, readonly, ide->hfd.device_name,
+	    ide->hfd.secspertrack, ide->hfd.heads, ide->hfd.reservedblocks, ide->bootpri, NULL);
+    else
+        gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0);
     xfree(path);
     return src;
 }

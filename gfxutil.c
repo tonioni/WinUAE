@@ -180,10 +180,18 @@ static uae_u32 get_cr(int r, int g, int b)
     return limit256rb(0.5f*r - 0.418688f*g - 0.081312f*b);
 }
 
-extern uae_s32 tyhrgb[262144];
-extern uae_s32 tylrgb[262144];
-extern uae_s32 tcbrgb[262144];
-extern uae_s32 tcrrgb[262144];
+extern uae_s32 tyhrgb[65536];
+extern uae_s32 tylrgb[65536];
+extern uae_s32 tcbrgb[65536];
+extern uae_s32 tcrrgb[65536];
+extern uae_u32 redc[3 * 256], grec[3 * 256], bluc[3 * 256];
+
+static uae_u32 lowbits(int v, int shift, int lsize)
+{
+    v >>= shift;
+    v &= (1 << lsize) - 1;
+    return v;
+}
 
 void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
 {
@@ -196,27 +204,23 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	int r = ((i >> 8) << 4) | (i >> 8);
 	int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 	int b = ((i & 0xf) << 4) | (i & 0x0f);
-	if (usedfilter && usedfilter->yuv && !(currprefs.chipset_mask & CSMASK_AGA)) {
-	    xcolors[i] = (get_yh(r, g, b) << 24) | (get_yl(r, g, b) << 16) | (get_cb(r, g, b) << 8) | (get_cr(r, g, b) << 0);
-	} else {
-	    r = gamma[r + j];
-	    g = gamma[g + j];
-	    b = gamma[b + j];
-	    xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
-	    if (byte_swap) {
-		if (bpp <= 16)
-		    xcolors[i] = bswap_16 (xcolors[i]);
-		else
-		    xcolors[i] = bswap_32 (xcolors[i]);
-	    }
-	    if (bpp <= 16) {
-		/* Fill upper 16 bits of each colour value
-		 * with a copy of the colour. */
-		xcolors[i] |= xcolors[i] * 0x00010001;
-	    }
+        r = gamma[r + j];
+        g = gamma[g + j];
+        b = gamma[b + j];
+        xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
+        if (byte_swap) {
+	    if (bpp <= 16)
+    	        xcolors[i] = bswap_16 (xcolors[i]);
+	    else
+	        xcolors[i] = bswap_32 (xcolors[i]);
+	}
+	if (bpp <= 16) {
+	    /* Fill upper 16 bits of each colour value
+	     * with a copy of the colour. */
+	    xcolors[i] |= xcolors[i] * 0x00010001;
 	}
     }
-#ifdef AGA
+#if defined(AGA) || defined(GFXFILTER)
     /* create AGA color tables */
     for(i = 0; i < 256; i++) {
 	j = i + 256;
@@ -242,16 +246,63 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	    xbluecolors [i] = xbluecolors [i] * 0x00010001;
 	}
     }
-    /* create AGA RGB 6:6:6 YUV-filter tables */
-    if (usedfilter && usedfilter->yuv && (currprefs.chipset_mask & CSMASK_AGA)) {
-	for (i = 0; i < 262144; i++) {
+    /* copy original color table */
+    for (i = 0; i < 256; i++) {
+        redc[0 * 256 + i] = xredcolors[0];
+        grec[0 * 256 + i] = xgreencolors[0];
+        bluc[0 * 256 + i] = xbluecolors[0];
+        redc[1 * 256 + i] = xredcolors[i];
+        grec[1 * 256 + i] = xgreencolors[i];
+        bluc[1 * 256 + i] = xbluecolors[i];
+        redc[2 * 256 + i] = xredcolors[255];
+        grec[2 * 256 + i] = xgreencolors[255];
+        bluc[2 * 256 + i] = xbluecolors[255];
+    }
+    if (usedfilter && usedfilter->yuv) {
+	/* create internal 5:6:5 color tables */
+        for (i = 0; i < 256; i++) {
+	    j = i + 256;
+	    xredcolors[i] = doColor (gamma[j], 5, 11);
+	    xgreencolors[i] = doColor (gamma[j], 6, 5);
+	    xbluecolors[i] = doColor (gamma[j], 5, 0);
+	    if (bpp <= 16) {
+		/* Fill upper 16 bits of each colour value with
+		 * a copy of the colour. */
+		xredcolors  [i] = xredcolors  [i] * 0x00010001;
+		xgreencolors[i] = xgreencolors[i] * 0x00010001;
+		xbluecolors [i] = xbluecolors [i] * 0x00010001;
+	    }
+	}
+	for (i = 0; i < 4096; i++) {
+	    int r = ((i >> 8) << 4) | (i >> 8);
+	    int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
+	    int b = ((i & 0xf) << 4) | (i & 0x0f);
+	    r = gamma[r + 256];
+	    g = gamma[g + 256];
+	    b = gamma[b + 256];
+	    xcolors[i] = doMask(r, 5, 11) | doMask(g, 6, 5) | doMask(b, 5, 0);
+	    if (byte_swap) {
+		if (bpp <= 16)
+		    xcolors[i] = bswap_16 (xcolors[i]);
+		else
+		    xcolors[i] = bswap_32 (xcolors[i]);
+	    }
+	    if (bpp <= 16) {
+		/* Fill upper 16 bits of each colour value
+		 * with a copy of the colour. */
+		xcolors[i] |= xcolors[i] * 0x00010001;
+	    }
+	}
+
+	/* create RGB 5:6:5 -> YUV tables */
+	for (i = 0; i < 65536; i++) {
     	    uae_u32 r, g, b;
-	    r = ((i >> 12) & 0x3f) <<  2;
-	    r = doColor(gamma[r + 256], rw, 0);
-	    g = ((i >>  6) & 0x3f) <<  2;
-	    g = doColor(gamma[g + 256], gw, 0);
-	    b = ((i >>  0) & 0x3f) <<  2;
-	    b = doColor(gamma[b + 256], bw, 0);
+	    r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
+	    r = gamma[r + 256];
+	    g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);
+	    g = gamma[g + 256];
+	    b = (((i >>  0) & 31) << 3) | lowbits (i,  0, 3);
+	    b = gamma[b + 256];
 	    tyhrgb[i] = get_yh (r, g, b) * 256 * 256;
 	    tylrgb[i] = get_yl (r, g, b) * 256 * 256;
 	    tcbrgb[i] = ((uae_s8)get_cb (r, g, b)) * 256;

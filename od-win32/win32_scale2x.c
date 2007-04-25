@@ -32,7 +32,7 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_2XSAI, 0, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
 
-    { UAE_FILTER_PAL, 1, "PAL", "pal", 0, UAE_FILTER_MODE_32_32, 0, 0, 0 },
+    { UAE_FILTER_PAL, 1, "PAL", "pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
 
     { 0 }
@@ -112,9 +112,14 @@ void S2X_render (void)
     LPDIRECTDRAWSURFACE7 dds;
     DDSURFACEDESC2 desc;
 
-    sptr = gfxvidinfo.bufmem
-	- ((dst_width - amiga_width) / 2) * (amiga_depth / 8)
-	- ((dst_height - amiga_height) / 2) * gfxvidinfo.rowbytes;
+    sptr = gfxvidinfo.bufmem;
+    v = (dst_width - amiga_width) / 2;
+    aw += v;
+    sptr -= v * (amiga_depth / 8);
+    v = (dst_height - amiga_height) / 2;
+    ah += v;
+    sptr -= v * gfxvidinfo.rowbytes;
+
     endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
@@ -264,13 +269,13 @@ void S2X_render (void)
 	    ok = 1;
 	}
 
-    } else if (usedfilter->type == UAE_FILTER_PAL) { /* 32/1X */
+    } else if (usedfilter->type == UAE_FILTER_PAL) { /* 16/32/1X */
 
         if (amiga_depth == 32 && dst_depth == 32) {
-	    if (currprefs.chipset_mask & CSMASK_AGA)
-		PAL_1x1_AGA_32((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
-	    else
-	        PAL_1x1_32((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
+	    PAL_1x1_32((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
+	    ok = 1;
+	} else if (amiga_depth == 16 && dst_depth == 16) {
+	    PAL_1x1_16((uae_u16*)sptr, gfxvidinfo.rowbytes, (uae_u16*)dptr, pitch, aw, ah);
 	    ok = 1;
 	}
 

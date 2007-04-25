@@ -182,6 +182,8 @@ typedef uae_s32 tointtype;
 static int get_fpu_version(void)
 {
     int v = 0;
+    if (currprefs.fpu_revision >= 0)
+	return currprefs.fpu_revision;
     switch (currprefs.fpu_model)
     {
 	case 68881:
@@ -218,7 +220,7 @@ STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
     case 0: /* to nearest */
 	return (tointtype)floor (src + 0.5);
     case 1: /* to zero */
-	return (tointtype) src;
+	return (tointtype)src;
     case 2: /* down */
 	return (tointtype)floor (src);
     case 3: /* up */
@@ -773,9 +775,9 @@ void fdbcc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     } else if (!cc) {
 	int reg = opcode & 0x7;
 
-	m68k_dreg (regs, reg) = ((m68k_dreg (regs, reg) & ~0xffff)
-	    | ((m68k_dreg (regs, reg) - 1) & 0xffff));
-	if ((m68k_dreg (regs, reg) & 0xffff) == 0xffff)
+	m68k_dreg (regs, reg) = ((m68k_dreg (regs, reg) & 0xffff0000)
+	    | (((m68k_dreg (regs, reg) & 0xffff) - 1) & 0xffff));
+	if ((m68k_dreg (regs, reg) & 0xffff) != 0xffff)
 	    m68k_setpc (regs, pc + disp);
     }
 }
@@ -1026,7 +1028,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	if ((opcode & 0x38) == 0) {
 	    if (extra & 0x2000) {
 		if (extra & 0x1000)
-		    m68k_dreg (regs, opcode & 7) = regs->fpcr;
+		    m68k_dreg (regs, opcode & 7) = regs->fpcr & 0xffff;
 		if (extra & 0x0800)
 		    m68k_dreg (regs, opcode & 7) = get_fpsr ();
 		if (extra & 0x0400)
@@ -1044,7 +1046,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	} else if ((opcode & 0x38) == 0x08) {
 	    if (extra & 0x2000) {
 		if (extra & 0x1000)
-		    m68k_areg (regs, opcode & 7) = regs->fpcr;
+		    m68k_areg (regs, opcode & 7) = regs->fpcr & 0xffff;
 		if (extra & 0x0800)
 		    m68k_areg (regs, opcode & 7) = get_fpsr ();
 		if (extra & 0x0400)
@@ -1090,7 +1092,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    }
 	    ad -= incr;
 	    if (extra & 0x1000) {
-		put_long (ad, regs->fpcr);
+		put_long (ad, regs->fpcr & 0xffff);
 		ad += 4;
 	    }
 	    if (extra & 0x0800) {
@@ -1109,13 +1111,23 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	} else {
 	    /* FMOVEM memory->FPP */
 	    uae_u32 ad;
+	    int incr = 0;
 
 	    if (get_fp_ad (opcode, &ad) == 0) {
 		m68k_setpc (regs, m68k_getpc (regs) - 4);
 		op_illg (opcode, regs);
 		return;
 	    }
-	    ad = (opcode & 0x38) == 0x20 ? ad - 12 : ad;
+	    //ad = (opcode & 0x38) == 0x20 ? ad - 12 : ad;
+	    if((opcode & 0x38) == 0x20) {
+	    	if (extra & 0x1000)
+		    incr += 4;
+		if (extra & 0x0800)
+		    incr += 4;
+		if (extra & 0x0400)
+		    incr += 4;
+		ad = ad - incr;
+	    }
 	    if (extra & 0x1000) {
 		regs->fpcr = get_long (ad);
 		native_set_fpucw(regs->fpcr);

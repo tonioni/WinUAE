@@ -790,9 +790,9 @@ static void genmovemle (uae_u16 opcode)
     char putcode[100];
     int size = table68k[opcode].size == sz_long ? 4 : 2;
     if (table68k[opcode].size == sz_long) {
-	strcpy (putcode, "put_long(srca,");
+	strcpy (putcode, "put_long(srca");
     } else {
-	strcpy (putcode, "put_word(srca,");
+	strcpy (putcode, "put_word(srca");
     }
 
     printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
@@ -803,16 +803,21 @@ static void genmovemle (uae_u16 opcode)
     start_brace ();
     if (table68k[opcode].dmode == Apdi) {
 	printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
-	printf ("\twhile (amask) { srca -= %d; %s m68k_areg(regs, movem_index2[amask])); amask = movem_next[amask]; }\n",
-		size, putcode);
-	printf ("\twhile (dmask) { srca -= %d; %s m68k_dreg(regs, movem_index2[dmask])); dmask = movem_next[dmask]; }\n",
-		size, putcode);
+	printf ("\tint type = get_cpu_model() >= 68020;\n");
+	printf ("\twhile (amask) {\n");
+	printf ("\t\tsrca -= %d;\n", size);
+	printf ("\t\tif (type) m68k_areg(regs, dstreg) = srca;\n");
+	printf ("\t\t%s, m68k_areg(regs, movem_index2[amask]));\n", putcode);
+	printf ("\t\tamask = movem_next[amask];\n");
+	printf ("\t}\n");
+	printf ("\twhile (dmask) { srca -= %d; %s, m68k_dreg(regs, movem_index2[dmask])); dmask = movem_next[dmask]; }\n",
+	    size, putcode);
 	printf ("\tm68k_areg(regs, dstreg) = srca;\n");
     } else {
 	printf ("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
-	printf ("\twhile (dmask) { %s m68k_dreg(regs, movem_index1[dmask])); srca += %d; dmask = movem_next[dmask]; }\n",
+	printf ("\twhile (dmask) { %s, m68k_dreg(regs, movem_index1[dmask])); srca += %d; dmask = movem_next[dmask]; }\n",
 		putcode, size);
-	printf ("\twhile (amask) { %s m68k_areg(regs, movem_index1[amask])); srca += %d; amask = movem_next[amask]; }\n",
+	printf ("\twhile (amask) { %s, m68k_areg(regs, movem_index1[amask])); srca += %d; amask = movem_next[amask]; }\n",
 		putcode, size);
     }
 }

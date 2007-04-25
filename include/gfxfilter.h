@@ -12,9 +12,7 @@ extern void S2X_free (void);
 
 extern void PAL_init (void);
 extern void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
-extern void PAL_1x1_AGA_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
-extern void PAL_1x1_16(uae_u32 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
-extern void PAL_1x1_AGA_16(uae_u32 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
+extern void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
