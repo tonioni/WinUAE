@@ -26,6 +26,7 @@
 
 static int max_w, max_h, mult, pointsize;
 
+#include <pshpack2.h>
 typedef struct {
     WORD dlgVer;
     WORD signature;
@@ -40,6 +41,7 @@ typedef struct {
 /*
     sz_Or_Ord menu;
     sz_Or_Ord windowClass;
+    WCHAR title[titleLen];
 */
 } DLGTEMPLATEEX;
 
@@ -60,11 +62,13 @@ typedef struct {
     short cx;
     short cy;
     WORD id;
+    WORD reserved;
     WCHAR windowClass[0];
     /* variable data after this */
     /* sz_Or_Ord title; */
     /* WORD extraCount; */
 } DLGITEMTEMPLATEEX;
+#include <poppack.h>
 
 static int fontsdetected, font_vista_ok, font_xp_ok;
 static wchar_t wfont_vista[] = L"Segoe UI";
@@ -163,6 +167,7 @@ struct newresource *scaleresource(struct newresource *res, HWND parent)
     d = ns->resource;
     d2 = ns->resource;
     p = (BYTE*)d + sizeof (DLGTEMPLATEEX);
+    p = skiptext(p);
     p = skiptext(p);
     p = skiptext(p);
     d2 = (DLGTEMPLATEEX_END*)p;

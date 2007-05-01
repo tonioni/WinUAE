@@ -445,7 +445,44 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
     }
 }
 
-static int ioctl_command_readwrite (int unitnum, int sector, int write)
+int track_mode = -1;
+static int tm[] = { YellowMode2, XAForm2, RawWithC2AndSubCode, RawWithC2, RawWithSubCode };
+static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
+{
+    int cnt = 3;
+    RAW_READ_INFO rri;
+    DWORD len;
+    uae_u8 *p = ciw32[unitnum].tempbuffer;
+
+    if (log_scsi)
+	write_log("rawread unit=%d sector=%d blocksize=%d tm=%d\n", unitnum, sector, size, tm[track_mode]);
+    if (!open_createfile(unitnum))
+	return 0;
+    if (size != 2336 && size != 2352 && size != 2048)
+	return 0;
+    while (cnt-- > 0) {
+	gui_cd_led (1);
+	seterrormode (unitnum);
+	rri.DiskOffset.QuadPart = sector * 2048;
+	rri.SectorCount = 1;
+	rri.TrackMode = tm[track_mode];
+	len = size;
+	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri,
+	    p, IOCTL_DATA_BUFFER, &len, NULL)) {
+	    reseterrormode (unitnum);
+	    if (win32_error (unitnum, "IOCTL_CDROM_RAW_READ") < 0)
+	        continue;
+	    return 0;
+	}
+	reseterrormode (unitnum);
+	break;
+    }
+    if (size == 2352)
+	return p;
+    return p + 16;
+}
+
+static int ioctl_command_readwrite (int unitnum, int sector, int write, int blocksize)
 {
     DWORD dtotal;
     int cnt = 3;
@@ -469,7 +506,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write)
 	gui_cd_led (1);
 	seterrormode (unitnum);
 	if (write) {
-	    if (!WriteFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, ciw32[unitnum].blocksize, &dtotal, 0)) {
+	    if (!WriteFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, blocksize, &dtotal, 0)) {
 		int err;
 		reseterrormode (unitnum);
 		err = win32_error (unitnum, "WriteFile");
@@ -480,7 +517,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write)
 		return 0;
 	    }
 	} else {
-	    if (!ReadFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, ciw32[unitnum].blocksize, &dtotal, 0)) {
+	    if (!ReadFile (ciw32[unitnum].h, ciw32[unitnum].tempbuffer, blocksize, &dtotal, 0)) {
 		reseterrormode (unitnum);
 		if (win32_error (unitnum, "ReadFile") < 0)
 		    continue;
@@ -496,13 +533,23 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write)
 
 static int ioctl_command_write (int unitnum, int sector)
 {
-    return ioctl_command_readwrite (unitnum, sector, 1);
+    return ioctl_command_readwrite (unitnum, sector, 1, ciw32[unitnum].blocksize);
 }
+
 static uae_u8 *ioctl_command_read (int unitnum, int sector)
 {
-    if (ioctl_command_readwrite (unitnum, sector, 0) > 0)
+    if (ioctl_command_readwrite (unitnum, sector, 0, ciw32[unitnum].blocksize) > 0)
 	return ciw32[unitnum].tempbuffer;
     return NULL;
+}
+static uae_u8 *ioctl_command_rawread (int unitnum, int sector, int size)
+{
+    if (track_mode < 0) {
+	if (ioctl_command_readwrite (unitnum, sector, 0, size) > 0)
+	    return ciw32[unitnum].tempbuffer;
+	return NULL;
+    }
+    return ioctl_command_rawread_2 (unitnum, sector, size);
 }
 
 static int fetch_geometry (int unitnum, struct device_info *di)
@@ -787,7 +834,8 @@ struct device_functions devicefunc_win32_ioctl = {
     open_bus, close_bus, open_device, close_device, info_device,
     0, 0, 0,
     ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_qcode,
-    ioctl_command_toc, ioctl_command_read, ioctl_command_write, 0, ioctl_scsi_info, ioctl_ismedia
+    ioctl_command_toc, ioctl_command_read, ioctl_command_rawread, ioctl_command_write,
+    0, ioctl_scsi_info, ioctl_ismedia
 };
 
 #endif

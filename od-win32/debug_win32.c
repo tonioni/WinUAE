@@ -11,12 +11,17 @@
 
 #include <string.h>
 #include <windows.h>
+#include <commctrl.h>
 #include "resource.h"
 #include "options.h"
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
+#include "cia.h"
+#include "disk.h"
 #include "debug.h"
+#include "identify.h"
+#include "savestate.h"
 #include "debug_win32.h"
 #include "win32.h"
 #include "win32gui.h"
@@ -36,10 +41,10 @@ static char linebreak[] = {'\r', '\n', '\0'};
 #define MAXINPUTHIST 50
 #define MAXPAGECONTROLS 5
 #define MAXPAGES 10
+#define CLASSNAMELENGTH 50
 
 static int inputfinished = 0;
 
-static FARPROC OldInputProc, OldMemInputProc;
 static WORD* dlgtmpl;
 static int reopen;
 
@@ -61,6 +66,9 @@ struct debuggerpage {
 static struct debuggerpage dbgpage[MAXPAGES];
 static int currpage, pages;
 static int pagetype;
+
+char *pname[] = { "OUT1", "OUT2", "MEM1", "MEM2", "DASM1", "DASM2", "BRKPTS", "MISC", "CUSTOM" };
+static int pstatuscolor[MAXPAGES];
 
 static void OutputCurrHistNode(HWND hWnd)
 {
@@ -242,16 +250,24 @@ void WriteOutput(const char *out, int len)
     }
 }
 
+static HWND ulbs_hwnd;
+static int ulbs_pos;
 static void UpdateListboxString(HWND hWnd, int pos, char *out, int mark)
 {
     int count;
-    char text[MAX_LINEWIDTH + 1];
+    char text[MAX_LINEWIDTH + 1], *p;
     COLORREF cr;
 
-    if (!IsWindowEnabled(hWnd))
-        return;
+    if (!IsWindowEnabled(hWnd)) {
+        p = strchr(out, ':');
+        if (p)
+            *(p + 1) = '\0';
+    }
     if (strlen(out) > MAX_LINEWIDTH)
         out[MAX_LINEWIDTH] = '\0';
+    p = strchr(out, '\n');
+    if (p)
+        *p = '\0';
     cr = GetSysColor(COLOR_WINDOWTEXT);
     count = SendMessage(hWnd, (UINT) LB_GETCOUNT, 0, 0);
     if (pos < count) {
@@ -263,6 +279,27 @@ static void UpdateListboxString(HWND hWnd, int pos, char *out, int mark)
     }
     SendMessage(hWnd, LB_INSERTSTRING, pos, (LPARAM)out);
     SendMessage(hWnd, LB_SETITEMDATA, pos, cr);
+}
+static void ULBSINIT(HWND hwnd)
+{
+    ulbs_hwnd = hwnd;
+    ulbs_pos = 0;
+}
+static void ULBS(const char *format, ...)
+{
+    char buffer[MAX_LINEWIDTH + 1];
+    va_list parms;
+    va_start(parms, format);
+    _vsnprintf(buffer, MAX_LINEWIDTH, format, parms);
+    UpdateListboxString(ulbs_hwnd, ulbs_pos++, buffer, FALSE);
+}
+static void ULBST(const char *format, ...)
+{
+    char buffer[MAX_LINEWIDTH + 1];
+    va_list parms;
+    va_start(parms, format);
+    _vsnprintf(buffer, MAX_LINEWIDTH, format, parms);
+    UpdateListboxString(ulbs_hwnd, ulbs_pos++, buffer, TRUE);
 }
 
 static int GetLBOutputLines(HWND hWnd)
@@ -280,20 +317,230 @@ static int GetLBOutputLines(HWND hWnd)
     return lines;
 }
 
+static void ShowMiscCPU(HWND hwnd)
+{
+    int line = 0;
+    char out[MAX_LINEWIDTH + 1];
+    int i;
+
+    for (i = 0; m2cregs[i].regno>= 0; i++) {
+	if (!movec_illg(m2cregs[i].regno)) {
+	    sprintf(out, "%-4s %08.8X", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
+	    UpdateListboxString(hwnd, line++, out, TRUE);
+	}
+    }
+}
+
+static int dcustom[] = {
+    0x02, 0x9a, 0x9c, 0x8080, 0x8084, 0x8e, 0x90, 0x92, 0x94,
+    0x100, 0x102, 0x104, 0x106, 0x10c, 0
+};
+static uae_u32 gw(uae_u8 *p, int off)
+{
+    return (p[off] << 8) | p[off + 1];
+}
+static void ShowCustomSmall(HWND hwnd)
+{
+    int len, i, j, cnt;
+    uae_u8 *p1, *p2, *p3, *p4;
+    char out[MAX_LINEWIDTH + 1];
+
+    p1 = p2 = save_custom (&len, 0, 1);
+    p1 += 4; // skip chipset type
+    for (i = 0; i < 4; i++) {
+	p4 = p1 + 0xa0 + i * 16;
+	p3 = save_audio (i, &len, 0);
+	p4[0] = p3[12];
+	p4[1] = p3[13];
+	p4[2] = p3[14];
+	p4[3] = p3[15];
+	p4[4] = p3[4];
+	p4[5] = p3[5];
+	p4[6] = p3[8];
+	p4[7] = p3[9];
+	p4[8] = 0;
+	p4[9] = p3[1];
+	p4[10] = p3[10];
+	p4[11] = p3[11];
+	free (p3);
+    }
+    ULBSINIT(hwnd);
+    cnt = 0;
+    sprintf(out, "CPU %d", currprefs.cpu_model);
+    if (currprefs.fpu_model)
+	sprintf (out + strlen(out), "/%d", currprefs.fpu_model);
+    sprintf(out + strlen(out), " %s", (currprefs.chipset_mask & CSMASK_AGA) ? "AGA" : ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? "ECS" : "OCS"));
+    ULBST(out);
+    ULBST("VPOS     %04.4X (%d)", vpos, vpos);
+    ULBST("HPOS     %04.4X (%d)", current_hpos(), current_hpos());
+    for (i = 0; dcustom[i]; i++) {
+	for (j = 0; custd[j].name; j++) {
+	    if (custd[j].adr == (dcustom[i] & 0x1fe) + 0xdff000) {
+		if (dcustom[i] & 0x8000)
+		    ULBST("%-8s %08.8X", custd[j].name, (gw(p1, dcustom[i] & 0x1fe) << 16) | gw(p1, (dcustom[i] & 0x1fe) + 2));
+		else
+		    ULBST("%-8s %04.4X", custd[j].name, gw(p1, dcustom[i] & 0x1fe));
+		break;
+	    }
+	}
+    }
+    free (p2);
+}
+
+static void ShowMisc(void)
+{
+    int line = 0;
+    HWND hMisc;
+    int len, i;
+    uae_u8 *p, *p2;
+
+    hMisc = GetDlgItem(hDbgWnd, IDC_DBG_MISC);
+    ULBSINIT(hMisc);
+    for (i = 0; i < 2; i++) {
+	p = p2 = save_cia (i, &len, NULL);
+	ULBS("");
+	ULBS("CIA %c:", i == 1 ? 'B' : 'A');
+	ULBS("");
+	ULBS("PRA %02X   PRB %02X", p[0], p[1]);
+	ULBS("DRA %02X   DRB %02X", p[2], p[3]);
+	ULBS("CRA %02X   CRB %02X   ICR %02X   IM %02X",
+	    p[14], p[15], p[13], p[16]);
+	ULBS("TA  %04X (%04X)   TB %04X (%04X)",
+	    (p[5] << 8) | p[4], (p[18] << 8) | p[17],
+	    (p[7] << 8) | p[6], (p[20] << 8) | p[19]);
+	ULBS("TOD %06X (%06X) ALARM %06X %c%c",
+	    (p[10] << 16) | (p[ 9] << 8) | p[ 8],
+	    (p[23] << 16) | (p[22] << 8) | p[21],
+	    (p[26] << 16) | (p[25] << 8) | p[24],
+	    (p[27] & 1) ? 'L' : ' ', (p[27] & 2) ? ' ' : 'S');
+        free(p2);
+    }
+    for (i = 0; i < 4; i++) {
+	p = p2 = save_disk (i, &len, NULL);
+	ULBS("");
+	ULBS("Drive DF%d: (%s)", i, (p[4] & 2) ? "disabled" : "enabled");
+	ULBS("ID %08.8X  Motor %s  Cylinder %2d  MFMPOS %d",
+	    (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3],
+	    (p[4] & 1) ? "On" : "Off",
+	    p[5], (p[8] << 24) | (p[9] << 16) | (p[10] << 8) | p[11]);
+	if (p[16])
+	    ULBS("'%s'", p + 16);
+	else
+	    ULBS("Drive is empty");
+	free(p2);
+    }
+    p = p2 = save_floppy (&len, NULL);
+    ULBS("");
+    ULBS("Disk controller:");
+    ULBS("");
+    ULBS("Shift register: Data=%04.4X Shift=%d. DMA=%d,%d", (p[0] << 8) | p[1], p[2], p[3], p[5]);
+    free (p2);
+}
+
+static void ShowCustom(void)
+{
+    int len, i, j, end;
+    uae_u8 *p1, *p2, *p3, *p4;
+
+    ULBSINIT(GetDlgItem(hDbgWnd, IDC_DBG_CUSTOM));
+    p1 = p2 = save_custom (&len, 0, 1);
+    p1 += 4; // skip chipset type
+    for (i = 0; i < 4; i++) {
+	p4 = p1 + 0xa0 + i * 16;
+	p3 = save_audio (i, &len, 0);
+	p4[0] = p3[12];
+	p4[1] = p3[13];
+	p4[2] = p3[14];
+	p4[3] = p3[15];
+	p4[4] = p3[4];
+	p4[5] = p3[5];
+	p4[6] = p3[8];
+	p4[7] = p3[9];
+	p4[8] = 0;
+	p4[9] = p3[1];
+	p4[10] = p3[10];
+	p4[11] = p3[11];
+	free (p3);
+    }
+    end = 0;
+    while (custd[end].name)
+	end++;
+    end++;
+    end /= 2;
+    for (i = 0; i < end; i++) {
+	uae_u16 v1, v2;
+	int addr1, addr2;
+	j = end + i;
+	addr1 = custd[i].adr & 0x1ff;
+	addr2 = custd[j].adr & 0x1ff;
+	v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
+	v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
+	ULBS("%03.3X %-15s %04.4X    %03.3X %-15s %04.4X",
+	    addr1, custd[i].name, v1,
+	    addr2, custd[j].name, v2);
+    }
+    free (p2);
+}
+
+static void ShowBreakpoints(void)
+{
+    HWND hBrkpts;
+    int i, line = 0, lines_old, got;
+    char outbp[MAX_LINEWIDTH + 1], outw[50];
+
+    hBrkpts = GetDlgItem(hDbgWnd, IDC_DBG_BRKPTS);
+    ULBSINIT(hBrkpts);
+    lines_old = SendMessage(hBrkpts, LB_GETCOUNT, 0, 0);
+    ULBS("");
+    ULBS("Breakpoints:");
+    ULBS("");
+    got = 0;
+    for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+        if (!bpnodes[i].enabled)
+            continue;
+		m68k_disasm_2(outbp, sizeof(outbp), bpnodes[i].addr, NULL, 1, NULL, NULL, 0);
+        ULBS(outbp);
+        got = 1;
+    }
+    if (!got)
+        ULBS("none");
+    ULBS("");
+    ULBS("Memwatch breakpoints:");
+    ULBS("");
+    got = 0;
+    for (i = 0; i < MEMWATCH_TOTAL; i++) {
+        if (mwnodes[i].size == 0)
+            continue;
+	memwatch_dump2(outw, sizeof(outw), i);
+        ULBS(outw);
+        got = 1;
+    }
+    if (!got)
+        ULBS("none");
+    for (i = ulbs_pos; i < lines_old; i++)
+        SendMessage(hBrkpts, LB_DELETESTRING, line, 0);
+}
+
 static void ShowMem(int offset)
 {
     uae_u32 addr;
-    int i;
+    int i, lines_old, lines_new;
     char out[MAX_LINEWIDTH + 1];
     HWND hMemory;
 
     dbgpage[currpage].addr += offset;
     addr = dbgpage[currpage].addr;
     hMemory = GetDlgItem(hDbgWnd, IDC_DBG_MEM);
-    for (i = 0; i < GetLBOutputLines(hMemory); i++) {
+    lines_old = SendMessage(hMemory, LB_GETCOUNT, 0, 0);
+    lines_new = GetLBOutputLines(hMemory);
+    for (i = 0; i < lines_new; i++) {
         addr = dumpmem2(addr, out, sizeof(out));
         UpdateListboxString(hMemory, i, out, FALSE);
     }
+    for (i = lines_new; i < lines_old; i++) {
+        SendMessage(hMemory, LB_DELETESTRING, lines_new, 0);
+    }
+    SendMessage(hMemory, LB_SETTOPINDEX, 0, 0);
 }
 
 static int GetPrevAddr(uae_u32 addr, uae_u32 *prevaddr)
@@ -317,8 +564,8 @@ static int GetPrevAddr(uae_u32 addr, uae_u32 *prevaddr)
 static void ShowDasm(int direction)
 {
     uae_u32 addr = 0, prev;
-    int i;
-    char out[MAX_LINEWIDTH + 1], *p;
+    int i, lines_old, lines_new;
+    char out[MAX_LINEWIDTH + 1];
     HWND hDasm;
 
     hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM);
@@ -342,16 +589,19 @@ static void ShowDasm(int direction)
     if (addr % 2)
         return;
     dbgpage[currpage].addr = addr;
-    for (i = 0; i < GetLBOutputLines(hDasm); i++) {
+    lines_old = SendMessage(hDasm, LB_GETCOUNT, 0, 0);
+    lines_new = GetLBOutputLines(hDasm);
+    for (i = 0; i < lines_new; i++) {
         m68k_disasm_2(out, sizeof(out), addr, &addr, 1, NULL, NULL, 0);
-        p = strchr(out, '\n');
-        if (p)
-            *p = '\0';
         if (addr > dbgpage[currpage].addr)
             UpdateListboxString(hDasm, i, out, FALSE);
         else
             UpdateListboxString(hDasm, i, "", FALSE);
     }
+    for (i = lines_new; i < lines_old; i++) {
+        SendMessage(hDasm, LB_DELETESTRING, lines_new, 0);
+    }
+    SendMessage(hDasm, LB_SETTOPINDEX, 0, 0);
 }
 
 static void SetMemToPC(void)
@@ -371,10 +621,14 @@ static void SetMemToPC(void)
 static void ShowPage(int index, int force)
 {
     int i, id;
+    HWND hwnd;
 
     if (index >= pages || ((index == currpage) && !force))
         return;
     if (currpage >= 0) {
+        pstatuscolor[currpage] = (currpage < 2 && index > 1) ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT;
+        if (index < 2)
+            pstatuscolor[index == 0 ? 1 : 0] = COLOR_GRAYTEXT;
         for (i = 0; i < MAXPAGECONTROLS; i++) {
             if (dbgpage[currpage].ctrl[i]) {
                 id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
@@ -385,13 +639,12 @@ static void ShowPage(int index, int force)
         }
     }
     pagetype = 0;
-    currpage = index;
     for (i = 0; i < MAXPAGECONTROLS; i++) {
         if (dbgpage[index].ctrl[i]) {
             id = GetDlgCtrlID(dbgpage[index].ctrl[i]);
 	    if (id == IDC_DBG_OUTPUT1 || id == IDC_DBG_OUTPUT2) {
                 hOutput = dbgpage[index].ctrl[i];
-	    } else if (id == IDC_DBG_MEM) {
+ 	    } else if (id == IDC_DBG_MEM) {
                 ShowMem(0);
 		pagetype = id;
 	    } else if (id == IDC_DBG_DASM) {
@@ -399,47 +652,93 @@ static void ShowPage(int index, int force)
 		pagetype = id;
 	    } else if (id == IDC_DBG_MEMINPUT) {
                 SetWindowText(dbgpage[index].ctrl[i], dbgpage[index].addrinput);
-	    }
+        } else if (id == IDC_DBG_BRKPTS) {
+            ShowBreakpoints();
+        } else if (id == IDC_DBG_MISC) {
+            ShowMisc();
+        } else if (id == IDC_DBG_CUSTOM) {
+            ShowCustom();
+        }
 	    ShowWindow(dbgpage[index].ctrl[i], SW_SHOW);
         }
     }
+    currpage = index;
+    pstatuscolor[currpage] = COLOR_HIGHLIGHT;
+    hwnd = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
+    RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
 }
 
-static void AddPage(int *iddata) // iddata[0] = idcount!
+static void AddPage(int *iddata)
 {
     int i;
 
     if (pages >= MAXPAGES)
         return;
     memset(&dbgpage[pages], 0, sizeof(struct debuggerpage));
-    for (i = 0; i < iddata[0]; i++) {
-        dbgpage[pages].ctrl[i] = GetDlgItem(hDbgWnd, iddata[i + 1]);
+    for (i = 0; iddata[i] > 0; i++) {
+        dbgpage[pages].ctrl[i] = GetDlgItem(hDbgWnd, iddata[i]);
         ShowWindow(dbgpage[pages].ctrl[i], SW_HIDE);
     }
     pages++;
 }
 
+static int GetTextSize(HWND hWnd, char *text, int width)
+{
+    HDC hdc;
+    TEXTMETRIC tm;
+    HFONT hfont, hfontold;
+    hdc = GetDC(hWnd);
+    hfont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+    hfontold = (HFONT)SelectObject(hdc, hfont);
+    GetTextMetrics(hdc, &tm);
+    SelectObject(hdc, hfontold);
+    ReleaseDC(hWnd, hdc);
+    if (!width)
+        return tm.tmHeight + tm.tmExternalLeading;
+    else if (text)
+        return tm.tmMaxCharWidth * strlen(text);
+    return 0;
+}
+
 static void InitPages(void)
 {
-    int i;
+    int i, parts[MAXPAGES], width, pwidth = 0;
+    HWND hwnd;
 
     int dpage[][MAXPAGECONTROLS + 1] = {
-        { 1, IDC_DBG_OUTPUT1 },
-        { 1, IDC_DBG_OUTPUT2 },
-        { 4, IDC_DBG_MEM, IDC_DBG_MEMINPUT, IDC_DBG_MEMUP, IDC_DBG_MEMDOWN },
-        { 4, IDC_DBG_MEM, IDC_DBG_MEMINPUT, IDC_DBG_MEMUP, IDC_DBG_MEMDOWN },
-        { 5, IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC },
-        { 5, IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC }
+        { IDC_DBG_OUTPUT1, -1 },
+        { IDC_DBG_OUTPUT2, -1 },
+        { IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
+        { IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
+        { IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
+        { IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
+        { IDC_DBG_BRKPTS, -1 },
+        { IDC_DBG_MISC, -1 },
+        { IDC_DBG_CUSTOM, -1 }
     };
 
     pages = 0;
     for (i = 0; i < (sizeof(dpage) / sizeof(dpage[0])); i++)
         AddPage(dpage[i]);
+    memset(parts, 0, MAXPAGES * sizeof(int));
+    width = GetTextSize(hDbgWnd, "12345678", TRUE); // longest pagename + 2
+    for (i = 0; i < pages; i++) {
+        pwidth += width;
+        parts[i] = pwidth;
+    }
+    hwnd = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
+    SendMessage(hwnd, SB_SETPARTS, (WPARAM)pages, (LPARAM)parts);
+    for (i = 0; i < pages; i++) {
+        SendMessage(hwnd, SB_SETTEXT, i | SBT_OWNERDRAW, 0);
+        pstatuscolor[i] = COLOR_GRAYTEXT;
+    }
 }
 
 static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-     switch (message) {
+    WNDPROC oldproc;
+
+    switch (message) {
         case WM_KEYUP:
             switch (wParam) {
                 case VK_RETURN:
@@ -454,7 +753,8 @@ static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
             }
             break;
     }
-    return CallWindowProc((WNDPROC)OldInputProc, hWnd, message, wParam, lParam);
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
 static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -465,6 +765,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
     int ok = 1;
     char addrstr[11];
     uae_u32 addr;
+    WNDPROC oldproc;
 
     switch (message) {
         case WM_CHAR:
@@ -501,7 +802,43 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
             }
             break;
     }
-    return CallWindowProc((WNDPROC)OldMemInputProc, hWnd, message, wParam, lParam);
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
+}
+
+static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    WNDPROC oldproc;
+    HWND hinput;
+
+    switch (message) {
+        case WM_CHAR:
+            hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+            SetFocus(hinput);
+            SendMessage(hinput, WM_CHAR, wParam, lParam);
+            return TRUE;
+    }
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
+}
+
+static LRESULT CALLBACK EditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    WNDPROC oldproc;
+    HWND hinput;
+
+    switch (message) {
+        case WM_CHAR:
+            if (wParam != VK_CANCEL) { // not for Ctrl-C for copying
+                hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+                SetFocus(hinput);
+                SendMessage(hinput, WM_CHAR, wParam, lParam);
+                return TRUE;
+            }
+            break;
+    }
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
 static void moveupdown(int dir)
@@ -546,13 +883,13 @@ static void adjustitem(HWND hwnd, int x, int y, int w, int h)
 
 static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 {
-    int id1y[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM, -1 };
-    int id2y[] = { IDC_DBG_INPUT, IDC_DBG_HELP, -1 };
+    int id1y[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM, IDC_DBG_BRKPTS, IDC_DBG_MISC, IDC_DBG_CUSTOM, -1 };
+    int id2y[] = { IDC_DBG_INPUT, IDC_DBG_HELP, IDC_DBG_STATUS, -1 };
 
     int id1x[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM,
-	IDC_DBG_AMEM, IDC_DBG_PREFETCH, IDC_DBG_INPUT, -1 };
-    int id2x[] = { IDC_DBG_HELP, IDC_DBG_CCR, IDC_DBG_SP_VBR, IDC_DBG_MISC,
-	IDC_DBG_FPREG, IDC_DBG_FPSR, -1 };
+	IDC_DBG_AMEM, IDC_DBG_PREFETCH, IDC_DBG_INPUT, IDC_DBG_STATUS, IDC_DBG_BRKPTS, IDC_DBG_MISC, IDC_DBG_CUSTOM, -1 };
+    int id2x[] = { IDC_DBG_HELP, IDC_DBG_CCR, IDC_DBG_SP_VBR, IDC_DBG_MMISC,
+	IDC_DBG_FPREG, IDC_DBG_FPSR, IDC_DBG_MCUSTOM, IDC_DBG_MISCCPU, -1 };
 
     int dlgid, j;
 
@@ -596,21 +933,60 @@ static void AdjustDialog(HWND hDlg)
     AdjustWindowRect(&r2, WS_POPUP | WS_CAPTION | WS_THICKFRAME, FALSE);
     dlgRect.left -= r2.left;
     dlgRect.top -= r2.top;
-    EnumChildWindows (hDlg, &childenumproc, 0);
+    EnumChildWindows (hDlg, childenumproc, 0);
     dlgRect = r;
+    RedrawWindow(hDlg, 0, 0, RDW_INVALIDATE);
 }
 
+static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
+{
+    int id, enable = TRUE;
+    WNDPROC newproc = NULL, oldproc;
+    char classname[CLASSNAMELENGTH];
+
+    id = GetDlgCtrlID(hWnd);
+    switch (id) {
+        case IDC_DBG_INPUT:
+            newproc = InputProc;
+            SendMessage(hWnd, EM_LIMITTEXT, MAX_LINEWIDTH, 0);
+            break;
+        case IDC_DBG_MEMINPUT:
+            newproc = MemInputProc;
+            SendMessage(hWnd, EM_LIMITTEXT, 8, 0);
+            break;
+        case IDC_DBG_PREFETCH:
+            newproc = ListboxProc;
+            enable = currprefs.cpu_compatible ? TRUE : FALSE;
+            break;
+        case IDC_DBG_FPREG:
+        case IDC_DBG_FPSR:
+            newproc = ListboxProc;
+            enable = currprefs.cpu_model < 68020 ? FALSE : TRUE;
+            break;
+        default:
+            if (GetClassName(hWnd, classname, CLASSNAMELENGTH)) {
+                if (!strcmp(classname, "ListBox"))
+                    newproc = ListboxProc;
+                else if (!strcmp(classname, "Edit"))
+                    newproc = EditProc;
+            }
+            break;
+    }
+    if (newproc) {
+        oldproc = (WNDPROC)SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG_PTR)newproc);
+        SetWindowLongPtr(hWnd, GWL_USERDATA, (LONG_PTR)oldproc);
+    }
+    EnableWindow(hWnd, enable);
+    return TRUE;
+}
 
 static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    int len;
     HWND hwnd;
     DRAWITEMSTRUCT *pdis;
     HDC hdc;
     RECT rc;
     char text[MAX_LINEWIDTH + 1];
-    HFONT hfont, hfontold;
-    TEXTMETRIC tm;
 
     switch (message) {
         case WM_INITDIALOG:
@@ -641,28 +1017,13 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		    SetWindowPos(hDlg, 0, x, y, w, h, SWP_NOOWNERZORDER | SWP_NOREDRAW | SWP_NOACTIVATE | SWP_DEFERERASE);
 	    }
 	    SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon (GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPICON)));
-            hwnd = GetDlgItem(hDlg, IDC_DBG_INPUT);
-            OldInputProc = (FARPROC)SetWindowLong(hwnd, GWL_WNDPROC, (DWORD)InputProc);
-            SendMessage(hwnd, EM_LIMITTEXT, MAX_LINEWIDTH, 0);
-            hwnd = GetDlgItem(hDlg, IDC_DBG_MEMINPUT);
-            OldMemInputProc = (FARPROC)SetWindowLong(hwnd, GWL_WNDPROC, (DWORD)MemInputProc);
-            SendMessage(hwnd, EM_LIMITTEXT, 8, 0);
-            if (!currprefs.cpu_compatible) {
-                hwnd = GetDlgItem(hDlg, IDC_DBG_PREFETCH);
-                EnableWindow(hwnd, FALSE);
-            }
-            if (currprefs.cpu_model < 68020) {
-                hwnd = GetDlgItem(hDlg, IDC_DBG_FPREG);
-                EnableWindow(hwnd, FALSE);
-                hwnd = GetDlgItem(hDlg, IDC_DBG_FPSR);
-                EnableWindow(hwnd, FALSE);
-            }
-            currpage = -1;
-            firsthist = lasthist = currhist = NULL;
-            histcount = 0;
-            inputfinished = 0;
+        EnumChildWindows(hDlg, InitChildWindows, 0);
+        currpage = -1;
+        firsthist = lasthist = currhist = NULL;
+        histcount = 0;
+        inputfinished = 0;
 	    AdjustDialog(hDlg);
-            return TRUE;
+              return TRUE;
 	}
         case WM_CLOSE:
             DestroyWindow(hDlg);
@@ -695,9 +1056,9 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	case WM_EXITSIZEMOVE:
 	{
 	    AdjustDialog(hDlg);
+        ShowPage(currpage, TRUE);
 	    return TRUE;
 	}
-
         case WM_CTLCOLORSTATIC:
             SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
             return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
@@ -712,15 +1073,23 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
                 case IDC_DBG_HELP:
+                {
+                    HWND hinput;
                     WriteOutput(linebreak + 1, 2);
                     debug_help();
+                    hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+                    SetFocus(hinput);
                     return TRUE;
+                }
                 case ID_DBG_PAGE1:
                 case ID_DBG_PAGE2:
                 case ID_DBG_PAGE3:
                 case ID_DBG_PAGE4:
                 case ID_DBG_PAGE5:
                 case ID_DBG_PAGE6:
+                case ID_DBG_PAGE7:
+                case ID_DBG_PAGE8:
+                case ID_DBG_PAGE9:
                     // IDs have to be consecutive and in order of page order for this to work
                     ShowPage(LOWORD(wParam) - ID_DBG_PAGE1, FALSE);
                     return TRUE;
@@ -737,45 +1106,46 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
                     moveupdown(2);
                     return TRUE;
                 case IDC_DBG_MEMTOPC:
+                {
+                    HWND hmeminput;
                     SetMemToPC();
+                    hmeminput = GetDlgItem(hDbgWnd, IDC_DBG_MEMINPUT);
+                    SetFocus(hmeminput);
                     return TRUE;
+                }
             }
             break;
         case WM_MEASUREITEM:
-            hdc = GetDC(hDlg);
-            hfont = (HFONT)SendMessage(hDlg, WM_GETFONT, 0, 0);
-            hfontold = (HFONT)SelectObject(hdc, hfont);
-            GetTextMetrics(hdc, &tm);
-            ((MEASUREITEMSTRUCT*)(lParam))->itemHeight = tm.tmHeight + tm.tmExternalLeading;
-            SelectObject(hdc, hfontold);
-            ReleaseDC(hDlg, hdc);
+            ((MEASUREITEMSTRUCT*)(lParam))->itemHeight = GetTextSize(hDlg, NULL, FALSE);
             return TRUE;
         case WM_DRAWITEM:
             pdis = (DRAWITEMSTRUCT *)lParam;
             hdc = pdis->hDC;
             rc = pdis->rcItem;
             SetBkMode(hdc, TRANSPARENT);
-            if (pdis->itemID < 0) {
-                if (pdis->itemAction & ODA_FOCUS)
-                    DrawFocusRect(hdc, &rc);
-                return TRUE;
-            }
-            memset(text, MAX_LINEWIDTH + 1, 0);
-            len = SendMessage(pdis->hwndItem, LB_GETTEXT, pdis->itemID, (LPARAM)(LPSTR)text);
-            if (!IsWindowEnabled(pdis->hwndItem)) {
-                FillRect(hdc, &rc, GetSysColorBrush(COLOR_3DFACE));
-                SetBkColor(hdc, GetSysColor(COLOR_3DFACE));
+            if (wParam == IDC_DBG_STATUS) {
+                SetTextColor(hdc, GetSysColor(pstatuscolor[pdis->itemID]));
+                DrawText(hdc, pname[pdis->itemID], lstrlen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
             }
             else {
-                FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
-                SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
-            }
-            SetTextColor(hdc, pdis->itemData);
-            if (len > 0)
+                if (pdis->itemID < 0) {
+                    return TRUE;
+                }
+                memset(text, 0, MAX_LINEWIDTH + 1);
+                SendMessage(pdis->hwndItem, LB_GETTEXT, pdis->itemID, (LPARAM)(LPSTR)text);
+                if (!IsWindowEnabled(pdis->hwndItem)) {
+                    FillRect(hdc, &rc, GetSysColorBrush(COLOR_3DFACE));
+                    SetBkColor(hdc, GetSysColor(COLOR_3DFACE));
+                }
+                else {
+                    FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+                    SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
+                }
+                SetTextColor(hdc, pdis->itemData);
                 TextOut(hdc, rc.left, rc.top, text, strlen(text));
-            if ((pdis->itemState) & (ODS_FOCUS))
-               DrawFocusRect(hdc, &rc);
-            return TRUE;
+                return TRUE;
+            }
+            break;
     }
     return FALSE;
 }
@@ -835,6 +1205,7 @@ void update_debug_info(void)
     struct instr *dp;
     struct mnemolookup *lookup1, *lookup2;
     uae_u32 fpsr;
+    char *fpsrflag[] = { "N:   ", "Z:   ", "I:   ", "NAN: " };
 
     if (!hDbgWnd)
         return;
@@ -866,12 +1237,10 @@ void update_debug_info(void)
     UpdateListboxString(hwnd, 0, out, TRUE);
     sprintf(out, "ISP: %08lX", regs.isp);
     UpdateListboxString(hwnd, 1, out, TRUE);
-    sprintf(out, "MSP: %08lX", regs.msp);
-    UpdateListboxString(hwnd, 2, out, TRUE);
-    sprintf(out, "VBR: %08lX", regs.vbr);
-    UpdateListboxString(hwnd, 3, out, TRUE);
 
-    hwnd = GetDlgItem(hDbgWnd, IDC_DBG_MISC);
+    ShowMiscCPU(GetDlgItem(hDbgWnd, IDC_DBG_MISCCPU));
+
+    hwnd = GetDlgItem(hDbgWnd, IDC_DBG_MMISC);
     sprintf(out, "T:     %d%d", regs.t1, regs.t0);
     UpdateListboxString(hwnd, 0, out, TRUE);
     sprintf(out, "S:     %d", regs.s);
@@ -895,6 +1264,8 @@ void update_debug_info(void)
     sprintf(out, "Prefetch: %04X (%s) %04X (%s)", regs.irc, lookup1->name, regs.ir, lookup2->name);
     UpdateListboxString(hwnd, 0, out, TRUE);
 
+    ShowCustomSmall(GetDlgItem(hDbgWnd, IDC_DBG_MCUSTOM));
+
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPREG);
     for (i = 0; i < 8; i++) {
         sprintf(out, "FP%d: %g", i, regs.fp[i]);
@@ -903,10 +1274,9 @@ void update_debug_info(void)
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPSR);
     fpsr = get_fpsr();
-    UpdateListboxString(hwnd, 0, ((fpsr & 0x8000000) != 0) ? "N:   1" : "N:   0", TRUE);
-    UpdateListboxString(hwnd, 1, ((fpsr & 0x4000000) != 0) ? "Z:   1" : "Z:   0", TRUE);
-    UpdateListboxString(hwnd, 2, ((fpsr & 0x2000000) != 0) ? "I:   1" : "I:   0", TRUE);
-    UpdateListboxString(hwnd, 3, ((fpsr & 0x1000000) != 0) ? "NAN: 1" : "NAN: 0", TRUE);
-
+    for (i = 0; i < 4; i++) {
+        sprintf(out, "%s%d", fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
+        UpdateListboxString(hwnd, i, out, TRUE);
+    }
     ShowPage(currpage, TRUE);
 }

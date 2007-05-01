@@ -869,7 +869,7 @@
 #define IDC_DBG_CCR                     1744
 #define IDC_DBG_AMEM                    1745
 #define IDC_DBG_SP_VBR                  1746
-#define IDC_DBG_MISC                    1747
+#define IDC_DBG_MMISC                   1747
 #define IDC_DBG_PC                      1748
 #define IDC_DBG_PREFETCH                1749
 #define IDC_DBG_FPREG                   1750
@@ -884,6 +884,13 @@
 #define IDC_DBG_MEMTOPC                 1759
 #define IDC_DBG_MEMUPFAST               1760
 #define IDC_DA_RESET                    1761
+#define IDC_DBG_STATUS                  1762
+#define IDC_DBG_BRKPTS                  1763
+#define IDC_DBG_MCUSTOM                 1764
+#define IDC_DBG_MISC                    1765
+#define IDC_DBG_CUSTOM                  1766
+#define IDC_DBG_MISCCPU                 1767
+
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -901,6 +908,9 @@
 #define ID_DBG_PAGE4                    40023
 #define ID_DBG_PAGE5                    40024
 #define ID_DBG_PAGE6                    40025
+#define ID_DBG_PAGE7                    40026
+#define ID_DBG_PAGE8                    40027
+#define ID_DBG_PAGE9                    40028
 
 // Next default values for new objects
 // 
@@ -909,8 +919,8 @@
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
-#define _APS_NEXT_COMMAND_VALUE         40026
-#define _APS_NEXT_CONTROL_VALUE         1761
+#define _APS_NEXT_COMMAND_VALUE         40029
+#define _APS_NEXT_CONTROL_VALUE         1768
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

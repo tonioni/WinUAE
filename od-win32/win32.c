@@ -1615,6 +1615,8 @@ int mousehack_allowed (void)
 void toggle_mousegrab (void)
 {
 }
+#define LOG_BOOT "winuaebootlog.txt"
+#define LOG_NORMAL "winuaelog.txt"
 
 void logging_open(int bootlog, int append)
 {
@@ -1623,9 +1625,9 @@ void logging_open(int bootlog, int append)
     debugfilename[0] = 0;
 #ifndef	SINGLEFILE
     if (currprefs.win32_logfile)
-	sprintf (debugfilename, "%swinuaelog.txt", start_path_data);
+	sprintf (debugfilename, "%s%s", start_path_data, LOG_NORMAL);
     if (bootlog)
-	sprintf (debugfilename, "%swinuaebootlog.txt", start_path_data);
+	sprintf (debugfilename, "%s%s", start_path_data, LOG_BOOT);
     if (debugfilename[0]) {
 	if (!debugfile)
 	    debugfile = log_open (debugfilename, append, bootlog);
@@ -1647,6 +1649,8 @@ void logging_init(void)
 	return;
     }
     if (first == 1) {
+	write_log("Log (%s): '%s%s'\n", currprefs.win32_logfile ? "enabled" : "disabled",
+	    start_path_data, LOG_NORMAL);
 	if (debugfile)
 	    log_close (debugfile);
 	debugfile = 0;
@@ -2727,6 +2731,13 @@ static int process_arg(char **xargv)
 	}
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
+
+	    if (!strcmp (arg, "-trackmode")) {
+		extern int track_mode;
+		track_mode = getval (np);
+		i++;
+		continue;
+	    }
 	    if (!strcmp (arg, "-affinity")) {
 		cpu_affinity = getval (np);
 		i++;

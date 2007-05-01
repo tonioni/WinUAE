@@ -63,6 +63,7 @@ typedef int (*play_func)(int, uae_u32, uae_u32, int);
 typedef uae_u8* (*qcode_func)(int);
 typedef uae_u8* (*toc_func)(int);
 typedef uae_u8* (*read_func)(int, int);
+typedef uae_u8* (*rawread_func)(int, int, int);
 typedef int (*write_func)(int, int);
 typedef int (*isatapi_func)(int);
 typedef int (*ismedia_func)(int, int);
@@ -83,6 +84,7 @@ struct device_functions {
     qcode_func qcode;
     toc_func toc;
     read_func read;
+    rawread_func rawread;
     write_func write;
 
     isatapi_func isatapi;
@@ -106,6 +108,7 @@ extern int sys_command_cd_play (int mode, int unitnum, uae_u32 startmsf, uae_u32
 extern uae_u8 *sys_command_cd_qcode (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_toc (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);
+extern uae_u8 *sys_command_cd_rawread (int mode, int unitnum, int offset, int size);
 extern uae_u8 *sys_command_read (int mode, int unitnum, int offset);
 extern int sys_command_write (int mode, int unitnum, int offset);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);

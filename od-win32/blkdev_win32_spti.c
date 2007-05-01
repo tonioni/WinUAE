@@ -496,7 +496,7 @@ static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info 
 struct device_functions devicefunc_win32_spti = {
     open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
     execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-    0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
+    0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
 };
 
 static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)

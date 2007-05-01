@@ -514,7 +514,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 		| (m68k_dreg (regs, reg) & ~0xff)));
 	    break;
 	case 4:
-	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -32768.0, 327676.0) & 0xffff)
+	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -32768.0, 32767.0) & 0xffff)
 	    | (m68k_dreg (regs, reg) & ~0xffff)));
 	    break;
 	case 0:

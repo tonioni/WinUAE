@@ -33,6 +33,29 @@ extern void memory_map_dump (void);
 extern void debug_help (void);
 extern uaecptr dumpmem2 (uaecptr addr, char *out, int osize);
 extern void update_debug_info (void);
+
+#define BREAKPOINT_TOTAL 8
+struct breakpoint_node {
+    uaecptr addr;
+    int enabled;
+};
+extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
+
+#define MEMWATCH_TOTAL 8
+struct memwatch_node {
+    uaecptr addr;
+    int size;
+    int rwi;
+    uae_u32 val;
+    int val_enabled;
+    uae_u32 modval;
+    int modval_written;
+    int frozen;
+};
+extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
+
+extern void memwatch_dump2 (char *buf, int bufsize, int num);
+
 #else
 
 STATIC_INLINE void activate_debugger (void) { };

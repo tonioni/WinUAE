@@ -1135,7 +1135,7 @@ void Interrupt (int nr)
 
 #ifndef CPUEMU_68000_ONLY
 
-static int movec_illg (int regno)
+int movec_illg (int regno)
 {
     int regno2 = regno & 0x7ff;
 
@@ -2566,11 +2566,29 @@ void sm68k_disasm(char *instrname, char *instrcode, uaecptr addr, uaecptr *nextp
 	*nextpc = m68k_getpc (&regs) + m68kpc_offset;
 }
 
-static int m2cregn[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 0x800, 0x801, 0x802, 0x803, 0x804, 0x805, 0x806, 0x807, 0x808, -1 };
-static char *m2cregs[] = { "SFC ", "DFC ", "CACR", "TC  ", "ITT0", "ITT1", "DTT0", "DTT1", "BUSC",
-    "USP ", "VBR ", "CAAR", "MSP ", "ISP ", "MMUS", "URP ", "SRP ", "PCR ", 0 };
+struct cpum2c m2cregs[] = {
+    0, "SFC",
+    1, "DFC",
+    2, "CACR",
+    3, "TC",
+    4, "ITT0",
+    5, "ITT1",
+    6, "DTT0",
+    7, "DTT1",
+    8, "BUSC",
+    0x800, "USP",
+    0x801, "VBR",
+    0x802, "CAAR",
+    0x803, "MSP",
+    0x804, "ISP",
+    0x805, "MMUS",
+    0x806, "URP",
+    0x807, "SRP",
+    0x808, "PCR",
+    -1, NULL
+};
 
-static uae_u32 val_move2c (int regno)
+uae_u32 val_move2c (int regno)
 {
     switch (regno) {
     case 0: return regs.sfc;
@@ -2611,12 +2629,12 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     if (regs.s && regs.m) regs.msp = m68k_areg(&regs, 7);
     if (regs.s && regs.m == 0) regs.isp = m68k_areg(&regs, 7);
     j = 2;
-    f_out(f, " USP %08.8X  ISP %08.8X", regs.usp, regs.isp);
-    for (i = 0; m2cregn[i] >= 0; i++) {
-	if (!movec_illg(m2cregn[i])) {
+    f_out(f, " USP %08.8X  ISP %08.8X ", regs.usp, regs.isp);
+    for (i = 0; m2cregs[i].regno>= 0; i++) {
+	if (!movec_illg(m2cregs[i].regno)) {
 	    if (j > 0 && (j % 4) == 0)
 		f_out(f, "\n");
-	    f_out (f, "%s %08.8X ", m2cregs[i], val_move2c(m2cregn[i]));
+	    f_out (f, "%s %08.8X ", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
 	    j++;
 	}
     }

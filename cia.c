@@ -168,8 +168,8 @@ static void CIA_update (void)
 	ciaata -= ciaclocks;
     }
     if ((ciaacrb & 0x61) == 0x01) {
-	assert ((ciaatb+1) >= ciaclocks);
-	if ((ciaatb+1) == ciaclocks) aovflb = 1;
+	assert ((ciaatb + 1) >= ciaclocks);
+	if ((ciaatb + 1) == ciaclocks) aovflb = 1;
 	ciaatb -= ciaclocks;
     }
 
@@ -188,8 +188,8 @@ static void CIA_update (void)
 	ciabta -= ciaclocks;
     }
     if ((ciabcrb & 0x61) == 0x01) {
-	assert ((ciabtb+1) >= ciaclocks);
-	if ((ciabtb+1) == ciaclocks) bovflb = 1;
+	assert ((ciabtb + 1) >= ciaclocks);
+	if ((ciabtb + 1) == ciaclocks) bovflb = 1;
 	ciabtb -= ciaclocks;
     }
 
@@ -488,15 +488,15 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    tmp = arcadia_parport (0, ciaaprb, ciaadrb);
 #endif
 	} else {
-	    tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
-	}
 #else
-	tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
+	{
+#endif
+	    tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
 #ifdef DONGLE_DEBUG
-	if (notinrom())
-	    write_log ("BFE101 R %02.2X %s\n", tmp, debuginfo(0));
+	    if (notinrom())
+		write_log ("BFE101 R %02.2X %s\n", tmp, debuginfo(0));
 #endif
-#endif
+	}
 	if (ciaacrb & 2) {
 	    int pb7 = 0;
 	    if (ciaacrb & 4)
@@ -1478,7 +1478,7 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
     save_u8 (b);
     t = (num ? ciabta - ciabta_passed : ciaata - ciaata_passed);/* 4 TA */
     save_u16 (t);
-    t = (num ? ciabtb - ciabtb_passed : ciaatb - ciaatb_passed);/* 8 TB */
+    t = (num ? ciabtb - ciabtb_passed : ciaatb - ciaatb_passed);/* 6 TB */
     save_u16 (t);
     b = (num ? ciabtod : ciaatod);			/* 8 TODL */
     save_u8 (b);

@@ -1,4 +1,15 @@
 
+Beta 10:
+
+- CDTV CDROM command 0x09 (play audio cd in lsn mode) fixed, parameters
+  are start sector and number of sectors, not start and end sector..
+- state file load: keep current disk in drive if image's path in state
+  file does not exist. (keeps some programs happy that don't access the
+  disk but start complaining if disk is suddenly ejected)
+- fixed stupid typo in fpu clamping fix (327676 instead of 32767..)
+- CDTV audio cd end position detection didn't always work
+- GUI debugger improvements (Karsten Bock & TW)
+
 Beta 9:
 
 - new PAL filter configuration file support (forgot it in b8)
@@ -9,12 +20,11 @@ Beta 9:
   enabled (uaescsi, uaeserial, bsdsocket etc..) Previously it was
   only mapped if filesystem (directory or hdf) was configured.
 - IDE non-RDB HDF statefile support added
-- filter default centering fixed (I think..)
+- filter default centering fixed (I think..) and other related tweaks
 - minor FPU updates to very rarely used instructions (from aranym)
 - "cpu060_revision" config entry added ("read-only", not created when
   saving config), sets 68060 revision field in PCR register (current
   default is 1)
-
 
 Beta 8:
 

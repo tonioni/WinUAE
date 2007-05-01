@@ -10,7 +10,7 @@
   */
 
 //#define CDTV_DEBUG
-//#define CDTV_DEBUG_CMD
+#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -58,7 +58,7 @@ static volatile int activate_stch, cdrom_command_done, play_state, play_statewai
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
 static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready, cd_hunt;
 
-static volatile int cdtv_hsync, dma_finished;
+static volatile int cdtv_hsync, dma_finished, cdtv_sectorsize;
 static volatile uae_u64 dma_wait;
 
 static void do_stch(void);
@@ -123,10 +123,16 @@ static int get_qcode(void)
     if (!s)
 	return 0;
     memcpy (cdrom_qcode, s, 16);
-    if (cd_playing && s[1] == 0x11) {
-	int end = msf2lsn((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
-	if (end >= play_end) {
-	    sys_command_cd_pause (DF_IOCTL, unitnum, 1);
+    if (cd_playing) {
+	if (s[1] == AUDIO_STATUS_IN_PROGRESS) {
+	    int end = msf2lsn((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
+	    if (end >= play_end - 75) {
+		sys_command_cd_pause (DF_IOCTL, unitnum, 1);
+		cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
+		cd_playing = 0;
+		do_stch();
+	    }
+	} else if (s[1] == AUDIO_STATUS_PLAY_COMPLETE) {
 	    cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
 	    cd_playing = 0;
 	    do_stch();
@@ -172,11 +178,11 @@ static int pause_audio (int pause)
 
 static int read_sectors(int start, int length)
 {
-    write_log("READ DATA sector %d, %d sectors\n", start, length);
+    write_log("READ DATA sector %d, %d sectors (blocksize=%d)\n", start, length, cdtv_sectorsize);
     cdrom_sector = start;
     cdrom_sectors = length;
-    cdrom_offset = start * 2048;
-    cdrom_length = length * 2048;
+    cdrom_offset = start * cdtv_sectorsize;
+    cdrom_length = length * cdtv_sectorsize;
     cd_motor = 1;
     cd_audio_status = AUDIO_STATUS_NOT_SUPPORTED;
     if (cd_playing)
@@ -240,6 +246,8 @@ static int play_cd(uae_u8 *p)
 
     start = (p[1] << 16) | (p[2] << 8) | p[3];
     end = (p[4] << 16) | (p[5] << 8) | p[6];
+    if (p[0] == 0x09) /* end is length in lsn-mode */
+	end += start;
     if (start == 0 && end == 0) {
 	cd_finished = 0;
 	if (cd_playing)
@@ -250,15 +258,16 @@ static int play_cd(uae_u8 *p)
 	cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
 	sys_command_cd_pause (DF_IOCTL, unitnum, 0);
 	sys_command_cd_stop (DF_IOCTL, unitnum);
-	cd_isready = 10;
+	cd_isready = 50;
 	return 0;
     }
-    if (end == 0x00ffffff)
-	end = last_cd_position;
-    if (p[0] == 0x09) {
+    if (p[0] == 0x09) { /* lsn */
 	start = lsn2msf (start);
-	end = lsn2msf (end);
+	if (end < 0x00ffffff)
+	    end = lsn2msf (end);
     }
+    if (end == 0x00ffffff || end > last_cd_position)
+	end = last_cd_position;
     play_end = msf2lsn(end);
     play_start = msf2lsn(start);
     write_log("PLAY CD AUDIO from %06.6X (%d) to %06.6X (%d)\n",
@@ -351,6 +360,16 @@ static int read_toc(int track, int msflsn, uae_u8 *out)
 	}
     }
     return -1;
+}
+
+static int cdrom_modeset(uae_u8 *cmd)
+{
+    cdtv_sectorsize = (cmd[2] << 8) | cmd[3];
+    if (cdtv_sectorsize != 2048 && cdtv_sectorsize != 2336) {
+	write_log("CDTV: tried to set unknown sector size %d\n", cdtv_sectorsize);
+	cdtv_sectorsize = 2048;
+    }
+    return 0;
 }
 
 static void cdrom_command_accepted(int size, uae_u8 *cdrom_command_input, int *cdrom_command_cnt_in)
@@ -458,7 +477,7 @@ static void cdrom_command_thread(uae_u8 b)
 	break;
 	case 0x84:
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted(cdrom_modeset(cdrom_command_input), s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
@@ -505,18 +524,22 @@ static void cdrom_command_thread(uae_u8 b)
 #define ISTR_INT_P (1 << 4)
 #define ISTR_E_INT (1 << 5)
 
+extern uae_u8 *ioctl_command_rawread (int unitnum, int sector);
+
 static void dma_do_thread(void)
 {
     static int readsector;
     uae_u8 *p = NULL;
 
-    //write_log("DMAC DMA: sector=%d, addr=%08.8X, words=%d\n",
-	//cdrom_offset / 2048, dmac_acr, dmac_wtc);
+    write_log("DMAC DMA: sector=%d, addr=%08.8X, words=%d\n", cdrom_offset / cdtv_sectorsize, dmac_acr, dmac_wtc);
     dma_wait += dmac_wtc * (uae_u64)312 * 50 / 75 + 1;
     while (dmac_wtc > 0 && dmac_dma) {
-	if (!p || readsector != (cdrom_offset / 2048)) {
-	    readsector = cdrom_offset / 2048;
-	    p = sys_command_cd_read (DF_IOCTL, unitnum, readsector);
+	if (!p || readsector != (cdrom_offset / cdtv_sectorsize)) {
+	    readsector = cdrom_offset / cdtv_sectorsize;
+	    if (cdtv_sectorsize == 2336)
+		p = sys_command_cd_rawread (DF_IOCTL, unitnum, readsector, cdtv_sectorsize);
+	    else
+		p = sys_command_cd_read (DF_IOCTL, unitnum, readsector);
 	    if (!p) {
 		cd_error = 1;
 		activate_stch = 1;
@@ -525,8 +548,8 @@ static void dma_do_thread(void)
 	    }
 
 	}
-        put_byte (dmac_acr, p[(cdrom_offset % 2048) + 0]);
-        put_byte (dmac_acr + 1, p[(cdrom_offset % 2048) + 1]);
+        put_byte (dmac_acr, p[(cdrom_offset % cdtv_sectorsize) + 0]);
+        put_byte (dmac_acr + 1, p[(cdrom_offset % cdtv_sectorsize) + 1]);
         dmac_wtc--;
         dmac_acr+=2;
         cdrom_length-=2;

@@ -117,15 +117,15 @@ static char help[] = {
     "  s <string>/<values> [<addr>] [<length>]\n"
     "                        Search for string/bytes\n"
     "  T                     Show exec tasks and their PCs\n"
-    "  h,?                   Show this help page\n"
     "  b                     Step to previous state capture position\n"
     "  am <channel mask>     Enable or disable audio channels\n"
     "  sm <sprite mask>      Enable or disable sprites\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
-    "                        Also enables extended disk logging\n"
+    "                        Also enables level 1 disk logging\n"
+    "  did <log level>       Enable disk logging\n"
     "  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
     "  dm                    Dump current address space map\n"
-#ifdef WIN32
+#ifdef _WIN32
     "  x                     Close debugger.\n"
     "  xx                    Switch between console and GUI debugger.\n"
 #endif
@@ -887,27 +887,10 @@ static void cheatsearch (char **c)
     first = 0;
 }
 
-#define BREAKPOINT_TOTAL 8
-struct breakpoint_node {
-    uaecptr addr;
-    int enabled;
-};
-static struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
-
+struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 static addrbank **debug_mem_banks;
 static addrbank *debug_mem_area;
-#define MEMWATCH_TOTAL 8
-struct memwatch_node {
-    uaecptr addr;
-    int size;
-    int rwi;
-    uae_u32 val;
-    int val_enabled;
-    uae_u32 modval;
-    int modval_written;
-    int frozen;
-};
-static struct memwatch_node mwnodes[MEMWATCH_TOTAL];
+struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
 
 static uae_u8 *illgdebug;
@@ -1332,27 +1315,43 @@ static void initialize_memwatch (int mode)
 	memwatch_enabled = 1;
 }
 
-static void memwatch_dump (int num)
+void memwatch_dump2 (char *buf, int bufsize, int num)
 {
     int i;
     struct memwatch_node *mwn;
+
+    if (buf)
+        memset(buf, 0, bufsize);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	if ((num >= 0 && num == i) || (num < 0)) {
 	    mwn = &mwnodes[i];
 	    if (mwn->size == 0)
 		continue;
-	    console_out ("%d: %08.8X - %08.8X (%d) %c%c%c",
+	    buf = buf_out (buf, &bufsize, "%d: %08.8X - %08.8X (%d) %c%c%c",
 		i, mwn->addr, mwn->addr + (mwn->size - 1), mwn->size,
 		(mwn->rwi & 1) ? 'R' : ' ', (mwn->rwi & 2) ? 'W' : ' ', (mwn->rwi & 4) ? 'I' : ' ');
 	    if (mwn->frozen)
-		console_out ("F");
+		buf = buf_out (buf, &bufsize, "F");
 	    if (mwn->val_enabled)
-		console_out (" =%X", mwn->val);
+		buf = buf_out (buf, &bufsize, " =%X", mwn->val);
 	    if (mwn->modval_written)
-		console_out (" =M");
-	    console_out("\n");
+		buf = buf_out (buf, &bufsize, " =M");
+	    buf = buf_out (buf, &bufsize, "\n");
 	}
     }
+}
+
+static void memwatch_dump (int num)
+{
+    char *buf;
+    int multiplier = num < 0 ? MEMWATCH_TOTAL : 1;
+
+    buf = malloc(50 * multiplier);
+    if (!buf)
+        return;
+    memwatch_dump2 (buf, 50 * multiplier, num);
+    f_out(stdout, "%s", buf);
+    free(buf);
 }
 
 static void memwatch (char **c)
@@ -1839,7 +1838,13 @@ static void disk_debug(char **inptr)
     char parm[10];
     int i;
 
-    disk_debug_logging = 2;
+    if (**inptr == 'd') {
+	(*inptr)++;
+	ignore_ws(inptr);
+	disk_debug_logging = readint(inptr);
+	console_out("disk logging level %d\n", disk_debug_logging);
+	return;
+    }
     disk_debug_mode = 0;
     disk_debug_track = -1;
     ignore_ws(inptr);
@@ -1857,6 +1862,8 @@ static void disk_debug(char **inptr)
 	disk_debug_track = readint(inptr);
     if (disk_debug_track < 0 || disk_debug_track > 2 * 83)
 	disk_debug_track = -1;
+    if (disk_debug_logging == 0)
+	disk_debug_logging = 1;
 end:
     console_out("disk breakpoint mode %c%c%c track %d\n",
 	disk_debug_mode & DISK_DEBUG_DMA_READ ? 'R' : '-',
@@ -2182,6 +2189,9 @@ static void debug_1 (void)
 
 static void addhistory(void)
 {
+    uae_u32 pc = m68k_getpc(&regs);
+    if (pc >= 0xf00000 && pc <= 0xffffff)
+	return;
     history[lasthist] = regs;
     history[lasthist].pc = m68k_getpc(&regs);
     if (++lasthist == MAX_HIST)
@@ -2312,20 +2322,19 @@ void debug (void)
 
 int notinrom (void)
 {
-    if (munge24 (m68k_getpc(&regs)) < 0xe0000)
+    if (munge24 (m68k_getpc(&regs)) < 0x00e00000)
 	return 1;
     return 0;
 }
-/*
+
 const char *debuginfo (int mode)
 {
     static char txt[100];
-    uae_u32 pc = m68k_getpc();
+    uae_u32 pc = M68K_GETPC;
     sprintf (txt, "PC=%08.8X INS=%04.4X %04.4X %04.4X",
 	pc, get_word(pc), get_word(pc+2), get_word(pc+4));
     return txt;
 }
-*/
 
 static int mmu_logging;
 

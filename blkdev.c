@@ -16,7 +16,7 @@
 static struct device_functions *device_func[2];
 static int have_ioctl;
 
-#ifdef WIN32
+#ifdef _WIN32
 
 #include "od-win32/win32.h"
 
@@ -181,6 +181,17 @@ uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset)
 	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
     }
     return device_func[DF_IOCTL]->read (unitnum, offset);
+}
+uae_u8 *sys_command_cd_rawread (int mode, int unitnum, int offset, int size)
+{
+    if (mode == DF_SCSI || !have_ioctl) {
+	uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0x10, 0, 0 };
+	cmd[3] = (uae_u8)(offset >> 16);
+	cmd[4] = (uae_u8)(offset >> 8);
+	cmd[5] = (uae_u8)(offset >> 0);
+	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
+    }
+    return device_func[DF_IOCTL]->rawread (unitnum, offset, size);
 }
 
 /* read block */

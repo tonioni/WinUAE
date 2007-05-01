@@ -385,3 +385,11 @@ extern void check_prefs_changed_comp (void);
 #else
 #define flush_icache(X) do {} while (0)
 #endif
+
+extern int movec_illg (int regno);
+extern uae_u32 val_move2c (int regno);
+struct cpum2c {
+    int regno;
+    char *regname;
+};
+extern struct cpum2c m2cregs[];
