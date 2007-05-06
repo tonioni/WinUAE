@@ -207,6 +207,7 @@ struct uae_prefs {
     int cs_agnusrev;
     int cs_deniserev;
     int cs_mbdmac;
+    int cs_a2091;
     int cs_df0idhw;
 
     char df[4][MAX_DPATH];

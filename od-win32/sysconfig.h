@@ -51,6 +51,7 @@
 #define ARCHIVEACCESS /* ArchiveAccess decompression library */
 #define LOGITECHLCD /* Logitech G15 LCD */
 #define SAVESTATE /* State file support */
+#define A2091 /* A590/A2091 SCSI */
 
 #else
 

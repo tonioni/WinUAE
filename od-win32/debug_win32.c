@@ -70,6 +70,8 @@ static int pagetype;
 char *pname[] = { "OUT1", "OUT2", "MEM1", "MEM2", "DASM1", "DASM2", "BRKPTS", "MISC", "CUSTOM" };
 static int pstatuscolor[MAXPAGES];
 
+static int dbgwnd_minx = 800, dbgwnd_miny = 600;
+
 static void OutputCurrHistNode(HWND hWnd)
 {
     int txtlen;
@@ -809,13 +811,72 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     WNDPROC oldproc;
-    HWND hinput;
-
+    HWND hinput, hsbar;
+    RECT rc, r;
+    int i, itemheight, count, height, bottom, width, id;
+    PAINTSTRUCT ps;
+    DRAWITEMSTRUCT dis;
+    HFONT oldfont, font;
+    HDC hdc, compdc;
+    HBITMAP compbmp, oldbmp;
+ 
     switch (message) {
         case WM_CHAR:
             hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
             SetFocus(hinput);
             SendMessage(hinput, WM_CHAR, wParam, lParam);
+            return TRUE;
+        case WM_ERASEBKGND:
+            return TRUE;
+        case WM_SETFOCUS:
+            return TRUE;
+        case WM_PAINT:
+            hdc = BeginPaint(hWnd, &ps);
+            GetClientRect(hWnd, &rc);
+            height = rc.bottom - rc.top;
+            width = rc.right - rc.left;
+            bottom = rc.bottom;
+            itemheight = SendMessage(hWnd, LB_GETITEMHEIGHT, 0, 0);
+            rc.bottom = itemheight;
+            count = SendMessage(hWnd, LB_GETCOUNT, 0, 0);
+            compdc = CreateCompatibleDC(hdc);
+            compbmp = CreateCompatibleBitmap(hdc, width, height);
+            oldbmp = SelectObject(compdc, compbmp);
+            font = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+            oldfont = SelectObject(compdc, font);
+            id = GetDlgCtrlID(hWnd);
+            dis.CtlType = ODT_LISTBOX;
+            dis.CtlID = id;
+            dis.itemAction = 0;
+            dis.itemState = 0;
+            dis.hwndItem = hWnd;
+            dis.hDC = compdc;
+            for (i = 0; i < count && rc.top < height; i++) {
+                dis.itemID = i;
+                dis.rcItem = rc;
+                dis.itemData =  SendMessage(hWnd, LB_GETITEMDATA, i, 0);
+                SendMessage(hDbgWnd, WM_DRAWITEM, id, (LPARAM)&dis);
+                rc.top += itemheight;
+                rc.bottom += itemheight;
+            }
+            rc.bottom = bottom;
+            if (!IsWindowEnabled(hWnd))
+                FillRect(compdc, &rc, GetSysColorBrush(COLOR_3DFACE));
+            else
+                FillRect(compdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+            GetWindowRect(hWnd, &rc);
+            hsbar = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
+            GetWindowRect(hsbar, &r);
+            if (rc.top < r.top) { // not below status bar
+                if (rc.bottom > r.top) // partly visible
+                    height -= rc.bottom - r.top;
+                BitBlt(hdc, 0, 0, width, height, compdc, 0, 0, SRCCOPY);
+            }
+            SelectObject(compdc, oldfont);
+            SelectObject(compdc, oldbmp);
+            DeleteObject(compbmp);
+            DeleteDC(compdc);
+            EndPaint(hWnd, &ps);
             return TRUE;
     }
     oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
@@ -940,9 +1001,11 @@ static void AdjustDialog(HWND hDlg)
 
 static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 {
-    int id, enable = TRUE;
+    int i, id, enable = TRUE, items = 0;
     WNDPROC newproc = NULL, oldproc;
     char classname[CLASSNAMELENGTH];
+    WINDOWINFO pwi;
+    RECT *r;
 
     id = GetDlgCtrlID(hWnd);
     switch (id) {
@@ -962,6 +1025,25 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
         case IDC_DBG_FPSR:
             newproc = ListboxProc;
             enable = currprefs.cpu_model < 68020 ? FALSE : TRUE;
+            break;
+        case IDC_DBG_MISCCPU:
+            if (currprefs.cpu_model == 68000) {
+                items = 4;
+                enable = FALSE;
+            }
+            else {
+                for (i = 0; m2cregs[i].regno>= 0; i++) {
+	                if (!movec_illg(m2cregs[i].regno))
+                        items++;
+                }
+            }
+            pwi.cbSize = sizeof pwi;
+            GetWindowInfo(hWnd, &pwi);
+            r = &pwi.rcClient;
+            r->bottom = r->top + items * GetTextSize(hWnd, NULL, FALSE);
+            AdjustWindowRectEx(r, pwi.dwStyle, FALSE, pwi.dwExStyle);
+            SetWindowPos(hWnd, 0, 0, 0, r->right - r->left, r->bottom - r->top, SWP_NOMOVE | SWP_NOZORDER);
+            newproc = ListboxProc;
             break;
         default:
             if (GetClassName(hWnd, classname, CLASSNAMELENGTH)) {
@@ -995,6 +1077,10 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    LONG x, y, w, h;
 	    DWORD regkeytype;
 	    DWORD regkeysize = sizeof(LONG);
+            RECT rw;
+            GetWindowRect(hDlg, &rw);
+            dbgwnd_minx = rw.right - rw.left;
+            dbgwnd_miny = rw.bottom - rw.top;
 	    GetClientRect(hDlg, &dlgRect);
 	    if (hWinUAEKey) {
 		newpos = 1;
@@ -1017,13 +1103,13 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		    SetWindowPos(hDlg, 0, x, y, w, h, SWP_NOOWNERZORDER | SWP_NOREDRAW | SWP_NOACTIVATE | SWP_DEFERERASE);
 	    }
 	    SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon (GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPICON)));
-        EnumChildWindows(hDlg, InitChildWindows, 0);
-        currpage = -1;
-        firsthist = lasthist = currhist = NULL;
-        histcount = 0;
-        inputfinished = 0;
+	    EnumChildWindows(hDlg, InitChildWindows, 0);
+	    currpage = -1;
+	    firsthist = lasthist = currhist = NULL;
+	    histcount = 0;
+	    inputfinished = 0;
 	    AdjustDialog(hDlg);
-              return TRUE;
+            return TRUE;
 	}
         case WM_CLOSE:
             DestroyWindow(hDlg);
@@ -1049,8 +1135,8 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	case WM_GETMINMAXINFO:
 	{
 	    MINMAXINFO *mmi = (MINMAXINFO*)lParam;
-	    mmi->ptMinTrackSize.x = 640;
-	    mmi->ptMinTrackSize.y = 480;
+	    mmi->ptMinTrackSize.x = dbgwnd_minx;
+	    mmi->ptMinTrackSize.y = dbgwnd_miny;
 	    return TRUE;
 	}
 	case WM_EXITSIZEMOVE:

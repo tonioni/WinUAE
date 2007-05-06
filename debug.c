@@ -1110,8 +1110,16 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	}
 	if (brk) {
 	    if (m->frozen) {
-		if (m->val_enabled)
-		    *valp = m->val;
+		if (m->val_enabled) {
+		    int shift = addr - m->addr;
+		    int max = 0;
+		    if (m->val > 256)
+			max = 1;
+		    if (m->val > 65536)
+			max = 3;
+		    shift &= max;
+		    *valp = m->val >> ((max - shift) * 8);
+		}
 		return 0;
 	    }
 	    mwhit.addr = addr;
@@ -1452,6 +1460,8 @@ static void memwatch (char **c)
 	    }
 	}
     }
+    if (mwn->frozen && mwn->rwi == 0)
+	mwn->rwi = 3;
     memwatch_dump (num);
 }
 

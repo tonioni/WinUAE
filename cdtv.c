@@ -10,7 +10,7 @@
   */
 
 //#define CDTV_DEBUG
-#define CDTV_DEBUG_CMD
+//#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -65,7 +65,8 @@ static void do_stch(void);
 
 static void INT2(void)
 {
-    INTREQ_f(0x8000 | 0x0008);
+    if (!(intreq & 8))
+	INTREQ_f(0x8000 | 0x0008);
 }
 
 static int cdrom_command_cnt_out, cdrom_command_size_out;
@@ -757,7 +758,7 @@ void CDTV_hsync_handler(void)
 {
     static int subqcnt;
 
-    if (!currprefs.cs_cdtvcd)
+    if (!currprefs.cs_cdtvcd || !configured)
 	return;
 
     cdtv_hsync++;
@@ -767,11 +768,12 @@ void CDTV_hsync_handler(void)
     if (dma_wait >= 0 && dma_wait < 1024 && dma_finished) {
         if ((dmac_cntr & (CNTR_INTEN | CNTR_TCEN)) == (CNTR_INTEN | CNTR_TCEN)) {
 	    dmac_istr |= ISTR_INT_P | ISTR_E_INT;
-	    INT2();
 	}
 	dma_finished = 0;
 	cdtv_hsync = -1;
     }
+    if (dmac_istr & ISTR_E_INT)
+	INT2();
 
     if (cdrom_command_done) {
 	cdrom_command_done = 0;
@@ -899,7 +901,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
+static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
 {
     uae_u32 v;
 #ifdef JIT
@@ -914,7 +916,7 @@ uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
+static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
 {
     uae_u32 v;
 #ifdef JIT
@@ -928,7 +930,7 @@ uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
+static uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
 {
     uae_u32 v;
 #ifdef JIT
@@ -1060,17 +1062,18 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
     special_mem |= S_WRITE;
 #endif
     addr &= 65535;
+    b &= 0xff;
     if (addr == 0x48) {
-	map_banks (&dummy_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	map_banks (&dmac_bank, b, 0x10000 >> 16, 0x10000);
 	write_log ("CDTV DMAC autoconfigured at %02.2X0000\n", b & 0xff);
 	configured = 1;
+	expamem_next();
 	return;
     }
     if (addr == 0x4c) {
-	map_banks (&dummy_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	write_log ("CDTV DMAC AUTOCONFIG SHUT-UP!\n");
 	configured = 1;
+	expamem_next();
 	return;
     }
     if (!configured)

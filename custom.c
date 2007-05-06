@@ -58,6 +58,7 @@
 #endif
 #include "gayle.h"
 #include "gfxfilter.h"
+#include "a2091.h"
 
 STATIC_INLINE int nocustom(void)
 {
@@ -2652,6 +2653,9 @@ void INTREQ_f(uae_u32 data)
     INTREQ_0 (data);
     serial_check_irq ();
     rethink_cias ();
+#ifdef A2091
+    rethink_a2091 ();
+#endif
 }
 
 static void INTREQ_d (uae_u16 v, int d)
@@ -4455,7 +4459,7 @@ static void hsync_handler (void)
     }
 
     inputdevice_hsync ();
-    mbdmac_hsync();
+    gayle_hsync();
 
     hsync_counter++;
     //copper_check (2);
@@ -4623,6 +4627,9 @@ void customreset (void)
     DISK_reset ();
     CIA_reset ();
     gayle_reset (0);
+#ifdef A2091
+    a2091_reset ();
+#endif
 #ifdef JIT
     compemu_reset ();
 #endif

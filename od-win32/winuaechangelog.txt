@@ -1,4 +1,20 @@
 
+Beta 11:
+
+- fixed randomly lost CDTV CD transfer finished interrupt in
+  CE-mode
+- fixed windowed mode size check
+- added some preliminary SCSI hardware emulation stuff
+  - A3000, minimal support, KS driver detects SCSI controller
+    with no SCSI devices connected. (SuperDMAC + WD33C93)
+  - A590/A2091, (DMAC + WD33C93), minimal support, boot ROM
+    (tested with rev7) detects controller with no SCSI devices.
+    (check log if for some weird reason you want to test it..)
+  - A4000T NCR53C710, nothing implemented yet (no datasheet)
+- CDTV and A590/A2091 autoconfig chained with UAE autoconfig
+  devices (fast ram, HD etc works in CDTV mode)
+- more GUI debugger updates
+
 Beta 10:
 
 - CDTV CDROM command 0x09 (play audio cd in lsn mode) fixed, parameters

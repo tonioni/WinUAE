@@ -890,6 +890,8 @@
 #define IDC_DBG_MISC                    1765
 #define IDC_DBG_CUSTOM                  1766
 #define IDC_DBG_MISCCPU                 1767
+#define IDC_CS_A2091                    1768
+#define IDC_CS_DMAC2                    1769
 
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
@@ -920,7 +922,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1768
+#define _APS_NEXT_CONTROL_VALUE         1770
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

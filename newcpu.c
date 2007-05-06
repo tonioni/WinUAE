@@ -2629,12 +2629,12 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     if (regs.s && regs.m) regs.msp = m68k_areg(&regs, 7);
     if (regs.s && regs.m == 0) regs.isp = m68k_areg(&regs, 7);
     j = 2;
-    f_out(f, " USP %08.8X  ISP %08.8X ", regs.usp, regs.isp);
+    f_out(f, "USP  %08.8X ISP  %08.8X ", regs.usp, regs.isp);
     for (i = 0; m2cregs[i].regno>= 0; i++) {
 	if (!movec_illg(m2cregs[i].regno)) {
 	    if (j > 0 && (j % 4) == 0)
 		f_out(f, "\n");
-	    f_out (f, "%s %08.8X ", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
+	    f_out (f, "%-4s %08.8X ", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
 	    j++;
 	}
     }

@@ -4158,7 +4158,9 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CS_FATGARY, workprefs.cs_fatgaryrev >= 0);
     CheckDlgButton (hDlg, IDC_CS_AGNUS, workprefs.cs_agnusrev >= 0);
     CheckDlgButton (hDlg, IDC_CS_DENISE, workprefs.cs_deniserev >= 0);
-    CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac >= 0);
+    CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac == 1);
+    CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac == 2);
+    CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.cs_a2091 > 0);
     CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
     CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
     txt[0] = 0;
@@ -4219,7 +4221,10 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     workprefs.cs_a1000ram = IsDlgButtonChecked (hDlg, IDC_CS_A1000RAM);
     workprefs.cs_ramseyrev = IsDlgButtonChecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
     workprefs.cs_fatgaryrev = IsDlgButtonChecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
-    workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC) ? 0x00 : -1;
+    workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC) ? 1 : 0;
+    if (workprefs.cs_mbdmac == 0)
+	workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
+    workprefs.cs_a2091 = IsDlgButtonChecked (hDlg, IDC_CS_A2091) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
     workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
 	: (IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
@@ -4277,6 +4282,10 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_IDE1, e);
     ew (hDlg, IDC_CS_IDE2, e);
     ew (hDlg, IDC_CS_DMAC, e);
+    ew (hDlg, IDC_CS_DMAC2, e);
+#if WINUAEBETA > 0
+    ew (hDlg, IDC_CS_A2091, e);
+#endif
     ew (hDlg, IDC_CS_CD32CD, e);
     ew (hDlg, IDC_CS_CD32NVRAM, e);
     ew (hDlg, IDC_CS_CD32C2P, e);

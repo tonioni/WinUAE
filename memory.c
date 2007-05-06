@@ -1522,7 +1522,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 		int i, j;
 		uaecptr a2 = a - 32;
 		uaecptr a3 = m68k_getpc(&regs) - 32;
-		write_log ("Your Amiga program just did something terribly stupid %p PC=%p\n", a, M68K_GETPC);
+		write_log ("Your Amiga program just did something terribly stupid %08.8X PC=%08.8X\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
 		    write_log ("%08.8X ", i >= 5 ? a3 : a2);
@@ -2287,7 +2287,7 @@ void memory_reset (void)
 		    if (currprefs.cs_ramseyrev < 0) 
 			changed_prefs.cs_ramseyrev = currprefs.cs_ramseyrev = 0x0f;
 		    changed_prefs.cs_fatgaryrev = currprefs.cs_fatgaryrev = 0;
-		    changed_prefs.cs_mbdmac = currprefs.cs_mbdmac = 0;
+		    changed_prefs.cs_mbdmac = currprefs.cs_mbdmac = 2;
 		}
 	    }
 	}
@@ -2333,8 +2333,8 @@ void memory_reset (void)
 	map_banks (&mbres_bank, 0xDE, 1, 0);
     if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
 	map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
-    if (currprefs.cs_mbdmac >= 0 && currprefs.cs_ide <= 0)
-	map_banks (&mbdmac_bank, 0xDD, 1, 0);
+    if (currprefs.cs_mbdmac == 1)
+	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
     if (a3000lmemory != 0)
         map_banks (&a3000lmem_bank, a3000lmem_start >> 16, allocated_a3000lmem >> 16, 0);
     if (a3000hmemory != 0)

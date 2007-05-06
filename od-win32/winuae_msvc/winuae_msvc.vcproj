@@ -1564,6 +1564,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath="..\..\a2091.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\akiko.c"
 				>
 			</File>
@@ -1745,6 +1749,10 @@
 			</File>
 			<File
 				RelativePath="..\..\native2amiga.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\ncr_scsi.c"
 				>
 			</File>
 			<File

@@ -514,6 +514,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "a1000ram=%s\n", p->cs_a1000ram ? "true" : "false");
     cfgfile_write (f, "fatgary=%d\n", p->cs_fatgaryrev);
     cfgfile_write (f, "ramsey=%d\n", p->cs_ramseyrev);
+    cfgfile_write (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
+    cfgfile_write (f, "scsi_a3000=%s\n", p->cs_mbdmac ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
@@ -1159,6 +1161,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "cdtvcd", &p->cs_cdtvcd)
 	|| cfgfile_yesno (option, value, "cdtvram", &p->cs_cdtvram)
 	|| cfgfile_yesno (option, value, "a1000ram", &p->cs_a1000ram)
+	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
+	|| cfgfile_yesno (option, value, "scsi_a3000", &p->cs_mbdmac)
 
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
@@ -2702,7 +2706,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_ramseyrev = -1;
     p->cs_agnusrev = -1;
     p->cs_deniserev = -1;
-    p->cs_mbdmac = -1;
+    p->cs_mbdmac = 0;
+    p->cs_a2091 = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_pcmcia = 0;
@@ -2841,7 +2846,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->cs_ramseyrev = -1;
     p->cs_agnusrev = -1;
     p->cs_deniserev = -1;
-    p->cs_mbdmac = -1;
+    p->cs_mbdmac = 0;
+    p->cs_a2091 = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_ide = 0;
@@ -3217,7 +3223,8 @@ int build_in_chipset_prefs (struct uae_prefs *p)
     p->cs_ramseyrev = -1;
     p->cs_deniserev = -1;
     p->cs_agnusrev = -1;
-    p->cs_mbdmac = -1;
+    p->cs_mbdmac = 0;
+    p->cs_a2091 = 0;
     p->cs_pcmcia = 0;
     p->cs_ksmirror = 1;
     p->cs_ciaatod = 0;
@@ -3287,14 +3294,14 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_fatgaryrev = 0;
 	    p->cs_ramseyrev = 0x0f;
 	    p->cs_ide = 2;
-	    p->cs_mbdmac = 1;
+	    p->cs_mbdmac = 2;
 	break;
 	case 13: // A4000T
 	    p->cs_rtc = 2;
 	    p->cs_fatgaryrev = 0;
 	    p->cs_ramseyrev = 0x0f;
 	    p->cs_ide = 2;
-	    p->cs_mbdmac = 1;
+	    p->cs_mbdmac = 2;
 	break;
     }
     return 1;
