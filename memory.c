@@ -2283,11 +2283,12 @@ void memory_reset (void)
 		}
 		if (rd->cloanto)
 		    cloanto_rom = 1;
-		if ((rd->cpu & 4) && currprefs.cs_compatible) { /* A4000 ROM = need some mb resources */
+		if ((rd->cpu & 4) && currprefs.cs_compatible) { /* A4000 ROM = need ramsey, gary and ide */
 		    if (currprefs.cs_ramseyrev < 0) 
 			changed_prefs.cs_ramseyrev = currprefs.cs_ramseyrev = 0x0f;
 		    changed_prefs.cs_fatgaryrev = currprefs.cs_fatgaryrev = 0;
-		    changed_prefs.cs_mbdmac = currprefs.cs_mbdmac = 2;
+		    if (currprefs.cs_ide != 2)
+			changed_prefs.cs_ide = currprefs.cs_ide = -1;
 		}
 	    }
 	}
@@ -2306,7 +2307,7 @@ void memory_reset (void)
     bnk = allocated_chipmem >> 16;
     if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 	bnk = 0x20 + (currprefs.fastmem_size >> 16);
-    map_banks (&dummy_bank, bnk, (currprefs.chipset_mask & CSMASK_AGA ? 0xBF : 0xA0) - bnk, 0);
+    map_banks (&dummy_bank, bnk, (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_ide == 1) ? 0xBF : 0xA0) - bnk, 0);
     if (currprefs.chipset_mask & CSMASK_AGA)
 	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
 
@@ -2319,12 +2320,17 @@ void memory_reset (void)
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
     if (currprefs.cs_ide) {
-	map_banks (&gayle_bank, 0xD8, 6, 0);
 	if(currprefs.cs_ide == 1) {
+	    map_banks (&gayle_bank, 0xD8, 6, 0);
 	    map_banks (&gayle2_bank, 0xDD, 2, 0);
 	    // map_banks (&gayle_attr_bank, 0xA0, 8, 0); only if PCMCIA card inserted */
-	} else if (currprefs.cs_ide == 2) {
-	    map_banks (&gayle_bank, 0xDD, 2, 0);
+	}
+	if (currprefs.cs_ide == 2 || currprefs.cs_mbdmac == 2) {
+	    map_banks (&gayle_bank, 0xDD, 1, 0);
+	}
+	if (currprefs.cs_ide < 0) {
+	    map_banks (&gayle_bank, 0xD8, 6, 0);
+	    map_banks (&gayle_bank, 0xDD, 1, 0);
 	}
     }
     if (currprefs.cs_rtc)

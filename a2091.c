@@ -11,6 +11,8 @@
 #define A3000_DEBUG 0
 #define WD33C93_DEBUG 1
 
+#define HAVE_DRIVE_ID -1
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -184,11 +186,22 @@ static void set_status(uae_u8 status)
     INT2();
 }
 
+static void wd_cmd_trans_info(void)
+{
+#if WD33C93_DEBUG > 0
+    write_log("%s TRANS_INFO\n", WD33C93);
+#endif
+}
+
 static void wd_cmd_sel(void)
 {
 #if WD33C93_DEBUG > 0
     write_log("%s select, ID=%d\n", WD33C93, wdregs[WD_DESTINATION_ID]);
 #endif
+    if (wdregs[WD_DESTINATION_ID] == HAVE_DRIVE_ID) {
+	set_status(0x10 | 8 | 2);
+	return;
+    }
     set_status(0x42);
 }
 
@@ -200,7 +213,7 @@ static void wd_cmd_abort(void)
     set_status(0x22);
 }
 
-static void putwd(uae_u8 d)
+void wdscsi_put(uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
     write_log("%s REG %02.2X (%d) = %02.2X (%d)\n", WD33C93, sasr, sasr, d, d);
@@ -217,11 +230,27 @@ static void putwd(uae_u8 d)
 	    case WD_CMD_SEL:
 	        wd_cmd_sel();
 	    break;
+	    case WD_CMD_TRANS_INFO:
+		wd_cmd_trans_info();
+	    break;
+	    default:
+		write_log("%s unimplemented/unknown command %02.X\n", WD33C93, d);
+	    break;
 	}
     }
     incsasr();
 }
-static uae_u8 getwd(void)
+
+void wdscsi_sasr(uae_u8 b)
+{
+    sasr = b;
+}
+uae_u8 wdscsi_getauxstatus(void)
+{
+    return auxstatus;
+}
+
+uae_u8 wdscsi_get(void)
 {
     uae_u8 v;
     
@@ -240,8 +269,12 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 
     if (addr < 0x40)
 	return dmacmemory[addr];
-    if (addr >= ROM_OFFSET)
-	return rom[addr & ROM_MASK];
+    if (addr >= ROM_OFFSET) {
+	//write_log("%08x %08x\n", addr, M68K_GETPC);
+	if (rom)
+	    return rom[addr & ROM_MASK];
+	return 0;
+    }
 
     switch (addr)
     {
@@ -254,10 +287,10 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	v = dmac_cntr;
 	break;
 	case 0x91:
-	v = auxstatus;
+	v = wdscsi_getauxstatus();
 	break;
 	case 0x93:
-	v = getwd();
+	v = wdscsi_get();
 	break;
 	/* XT IO */
 	case 0xa1:
@@ -328,10 +361,10 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	dmac_dawr |= b << 0;
 	break;
 	case 0x91:
-	sasr = b;
+	wdscsi_sasr(b);
 	break;
 	case 0x93:
-	putwd(b);
+	wdscsi_put(b);
 	break;
 	case 0xe0:
 	case 0xe1:
@@ -568,7 +601,7 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val)
 	sasr = val;
 	break;
 	case 0x43:
-	putwd(val);
+	wdscsi_put(val);
 	break;
     }
 }
@@ -633,7 +666,7 @@ static uae_u32 mbdmac_read (uae_u32 addr)
 	v = sasr;
 	break;
 	case 0x43:
-	v = getwd();
+	v = wdscsi_get();
 	break;
     }
 #if A3000_DEBUG > 0
@@ -735,18 +768,16 @@ void a2091_init (void)
     ew (0x00, 0xc0 | 0x01 | 0x10);
     /* A590/A2091 hardware id */
     ew (0x04, 0x03);
-    ew (0x08, 0x40);
     /* commodore's manufacturer id */
     ew (0x10, 0x02);
     ew (0x14, 0x02);
     /* rom vector */
     ew (0x28, ROM_VECTOR >> 8);
     ew (0x2c, ROM_VECTOR);
-    /* KS autoconfig handles the rest */
-    map_banks (&dmaca2091_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
     if (!rom) {
 	fetch_datapath (path, sizeof path);
 	strcat (path, "roms\\a2091_rev7.rom");
+	//strcat (path, "roms\\gururom.rom");
 	write_log("A590/A2091 ROM path: '%s'\n", path);
 	z = zfile_fopen(path, "rb");
 	if (z) {
@@ -755,4 +786,5 @@ void a2091_init (void)
 	    zfile_fclose(z);
 	}
     }
+    map_banks (&dmaca2091_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 }

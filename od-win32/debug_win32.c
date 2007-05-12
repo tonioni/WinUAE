@@ -813,7 +813,7 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
     WNDPROC oldproc;
     HWND hinput, hsbar;
     RECT rc, r;
-    int i, itemheight, count, height, bottom, width, id;
+    int i, itemheight, count, height, bottom, width, id, top;
     PAINTSTRUCT ps;
     DRAWITEMSTRUCT dis;
     HFONT oldfont, font;
@@ -851,8 +851,9 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
             dis.itemState = 0;
             dis.hwndItem = hWnd;
             dis.hDC = compdc;
-            for (i = 0; i < count && rc.top < height; i++) {
-                dis.itemID = i;
+	    top = SendMessage(hWnd, LB_GETTOPINDEX, 0, 0);
+	    for (i = top; i < count && rc.top < height; i++) {
+		dis.itemID = i;
                 dis.rcItem = rc;
                 dis.itemData =  SendMessage(hWnd, LB_GETITEMDATA, i, 0);
                 SendMessage(hDbgWnd, WM_DRAWITEM, id, (LPARAM)&dis);

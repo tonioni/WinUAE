@@ -2580,19 +2580,23 @@ static void getstartpaths(int start_data)
 	    strcat (tmp2, "Amiga Files\\");
 	    strcpy (tmp, tmp2);
 	    strcat(tmp, "WinUAE");
+	    CreateDirectory(tmp2, NULL);
+	    CreateDirectory(tmp, NULL);
 	    strcpy(start_path_new, tmp2);
 	    v = GetFileAttributes(tmp);
-	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-		if (start_data == 0) {
-		    if (path_done == 0) {
-			strcpy (start_path_af, tmp2);
-			strcpy (start_path_data, start_path_af);
-			strcat (start_path_data, "WinUAE");
-			path_done = 1;
+	    if (v != INVALID_FILE_ATTRIBUTES) {
+		if (v & FILE_ATTRIBUTE_DIRECTORY) {
+		    if (start_data == 0) {
+			if (path_done == 0) {
+			    strcpy (start_path_af, tmp2);
+			    strcpy (start_path_data, start_path_af);
+			    strcat (start_path_data, "WinUAE");
+			    path_done = 1;
+			}
+			start_data = 1;
 		    }
-		    start_data = 1;
+		    af_path_2005 = 2;
 		}
-		af_path_2005 = 2;
 	    }
 	}
     }

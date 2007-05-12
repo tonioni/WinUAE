@@ -686,7 +686,7 @@ addrbank gayle_bank = {
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
-static int isa4000(uaecptr addr)
+static int isa4000t(uaecptr addr)
 {
     if (currprefs.cs_mbdmac != 2)
 	return 0;
@@ -712,9 +712,9 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (isa4000(addr)) {
+    if (isa4000t(addr)) {
 	addr -= NCR_OFFSET;
-	return (ncr_bget(addr) << 8) | ncr_bget(addr + 1);
+	return (ncr_bget2(addr) << 8) | ncr_bget2(addr + 1);
     }
     ide_reg = get_ide_reg(addr);
     if (ide_reg == IDE_DATA)
@@ -728,9 +728,9 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (isa4000(addr)) {
+    if (isa4000t(addr)) {
 	addr -= NCR_OFFSET;
-	return ncr_bget(addr);
+	return ncr_bget2(addr);
     }
     return gayle_read (addr);
 }
@@ -749,10 +749,10 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    if (isa4000(addr)) {
+    if (isa4000t(addr)) {
 	addr -= NCR_OFFSET;
-	ncr_bput(addr, value >> 8);
-	ncr_bput(addr + 1, value);
+	ncr_bput2(addr, value >> 8);
+	ncr_bput2(addr + 1, value);
 	return;
     }
     ide_reg = get_ide_reg(addr);
@@ -769,9 +769,9 @@ static void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    if (isa4000(addr)) {
+    if (isa4000t(addr)) {
 	addr -= NCR_OFFSET;
-	ncr_bput(addr, value);
+	ncr_bput2(addr, value);
 	return;
     }
     gayle_write (addr, value);
@@ -1342,6 +1342,7 @@ static void initide(void)
     
 void gayle_reset (int hardreset)
 {
+    static char bankname[100];
     initide();
     if (hardreset) {
 	ramsey_config = 0;
@@ -1349,6 +1350,12 @@ void gayle_reset (int hardreset)
 	gary_timeout = 0;
 	gary_toenb = 0;
     }
+    strcpy(bankname, "Gayle (low)");
+    if (currprefs.cs_ide == 2)
+	strcpy(bankname, "A4000 IDE");
+    if (currprefs.cs_mbdmac == 2)
+	strcat(bankname," + NCR53C710 SCSI");
+    gayle_bank.name = bankname;
 }
 
 uae_u8 *restore_gayle(uae_u8 *src)

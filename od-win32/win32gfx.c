@@ -2105,9 +2105,9 @@ static BOOL doInit (void)
 	    updatemodes ();
 	}
     
-	if (colortype == RGBFB_NONE && !(currentmode->flags & DM_OVERLAY)) {
+	if (colortype == RGBFB_NONE) {
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_1;
-	} else if (colortype == RGBFB_CLUT && !(currentmode->flags & DM_OVERLAY)) {
+	} else if (colortype == RGBFB_CLUT && DirectDraw_GetSurfaceBitCount() != 8) {
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_2;
 	} else if (currentmode->current_width >= GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
 	    currentmode->current_height >= GetSystemMetrics(SM_CYVIRTUALSCREEN)) {

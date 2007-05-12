@@ -730,11 +730,13 @@
 #define IDC_AVIOUTPUT_OPTIONS           1649
 #define IDC_STATE_RATE_TEXT             1649
 #define IDC_DISKLISTREMOVE              1649
+#define IDC_DF0QENABLE                  1649
 #define IDC_SOUNDCARD                   1650
 #define IDC_CS_SOUND0                   1650
 #define IDC_UPBM                        1650
 #define IDC_DISKLISTREMOVE2             1650
 #define IDC_DISKLISTINSERT              1650
+#define IDC_DF1QENABLE                  1650
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_CS_SOUND1                   1651
 #define IDC_SOUNDFREQ                   1652

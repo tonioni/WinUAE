@@ -588,8 +588,8 @@ static void do_fillrect(uae_u8 *src, unsigned int x, unsigned int y,
 	int psiz = GetBytesPerPixel (picasso_vidinfo.rgbformat);
 	if (picasso96_state.RGBFormat != RGBFB_CHUNKY)
 	{
-	    write_log ("ERROR - do_fillrect() calling abort 1!\n");
-	    abort ();
+	    write_log ("ERROR - do_fillrect() failure1 (%d)\n", picasso96_state.RGBFormat);
+	    goto out;
 	}
 	
 	while (height-- > 0) 
@@ -606,8 +606,8 @@ static void do_fillrect(uae_u8 *src, unsigned int x, unsigned int y,
 		    *((uae_u32 *)dst + i) = picasso_vidinfo.clut[src[i]];
 		break;
 	    default:
-		write_log ("ERROR - do_fillrect() calling abort 2!\n");
-		abort ();			
+		write_log ("ERROR - do_fillrect() failure2 (%d), psize\n");
+		goto out;
 		break;
 	    }
 	    dst += picasso_vidinfo.rowbytes;

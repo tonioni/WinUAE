@@ -730,11 +730,13 @@
 #define IDC_AVIOUTPUT_OPTIONS           1649
 #define IDC_STATE_RATE_TEXT             1649
 #define IDC_DISKLISTREMOVE              1649
+#define IDC_DF0QENABLE                  1649
 #define IDC_SOUNDCARD                   1650
 #define IDC_CS_SOUND0                   1650
 #define IDC_UPBM                        1650
 #define IDC_DISKLISTREMOVE2             1650
 #define IDC_DISKLISTINSERT              1650
+#define IDC_DF0QENABLE2                 1650
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_CS_SOUND1                   1651
 #define IDC_SOUNDFREQ                   1652
@@ -862,7 +864,6 @@
 #define IDC_CS_AGNUSREV2                1738
 #define IDC_CS_DENISEREV                1738
 #define IDC_DBG_OUTPUT1                 1739
-#define IDC_CS_DMAC2                    1739
 #define IDC_DBG_HELP                    1740
 #define IDC_DBG_INPUT                   1741
 #define IDC_DBG_DREG                    1742
@@ -892,6 +893,7 @@
 #define IDC_DBG_CUSTOM                  1766
 #define IDC_DBG_MISCCPU                 1767
 #define IDC_CS_A2091                    1768
+#define IDC_CS_DMAC2                    1769
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -921,7 +923,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1769
+#define _APS_NEXT_CONTROL_VALUE         1770
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

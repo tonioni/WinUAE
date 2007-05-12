@@ -1,4 +1,11 @@
 
+Beta 12:
+
+- CDTV right button/second firebutton pin state fixed (CDPD IV)
+  (logic high when inactive, not floating like with other models)
+- Quickstart DF0:/DF1: text changed (future improvement), no
+  functional changes yet
+
 Beta 11:
 
 - fixed randomly lost CDTV CD transfer finished interrupt in

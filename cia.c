@@ -1067,7 +1067,7 @@ static void cia_wait_post (void)
     do_cycles (2 * CYCLE_UNIT / 2);
 }
 
-uae_u32 REGPARAM2 cia_bget (uaecptr addr)
+static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 {
     int r = (addr & 0xf00) >> 8;
     uae_u8 v;
@@ -1101,7 +1101,7 @@ uae_u32 REGPARAM2 cia_bget (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 cia_wget (uaecptr addr)
+static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 {
     int r = (addr & 0xf00) >> 8;
     uae_u16 v;
@@ -1136,7 +1136,7 @@ uae_u32 REGPARAM2 cia_wget (uaecptr addr)
     return v;
 }
 
-uae_u32 REGPARAM2 cia_lget (uaecptr addr)
+static uae_u32 REGPARAM2 cia_lget (uaecptr addr)
 {
     uae_u32 v;
 #ifdef JIT
@@ -1160,7 +1160,7 @@ static uae_u32 REGPARAM2 cia_lgeti (uaecptr addr)
     return cia_lget(addr);
 }
 
-void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 {
     int r = (addr & 0xf00) >> 8;
 
@@ -1179,9 +1179,10 @@ void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
     cia_wait_post ();
 }
 
-void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 {
     int r = (addr & 0xf00) >> 8;
+
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
@@ -1197,7 +1198,7 @@ void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
     cia_wait_post ();
 }
 
-void REGPARAM2 cia_lput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 cia_lput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
@@ -1243,17 +1244,17 @@ void rtc_hardreset(void)
     }
 }
 
-uae_u32 REGPARAM2 clock_lget (uaecptr addr)
+static uae_u32 REGPARAM2 clock_lget (uaecptr addr)
 {
     return (clock_wget (addr) << 16) | clock_wget (addr + 2);
 }
 
-uae_u32 REGPARAM2 clock_wget (uaecptr addr)
+static uae_u32 REGPARAM2 clock_wget (uaecptr addr)
 {
     return (clock_bget (addr) << 8) | clock_bget (addr + 1);
 }
 
-uae_u32 REGPARAM2 clock_bget (uaecptr addr)
+static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 {
     time_t t = time(0);
     struct tm *ct;
@@ -1323,19 +1324,19 @@ uae_u32 REGPARAM2 clock_bget (uaecptr addr)
     return 0;
 }
 
-void REGPARAM2 clock_lput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 clock_lput (uaecptr addr, uae_u32 value)
 {
     clock_wput (addr, value >> 16);
     clock_wput (addr + 2, value);
 }
 
-void REGPARAM2 clock_wput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 clock_wput (uaecptr addr, uae_u32 value)
 {
     clock_bput (addr, value >> 8);
     clock_bput (addr + 1, value);
 }
 
-void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;

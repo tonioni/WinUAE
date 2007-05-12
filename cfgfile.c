@@ -514,7 +514,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "a1000ram=%s\n", p->cs_a1000ram ? "true" : "false");
     cfgfile_write (f, "fatgary=%d\n", p->cs_fatgaryrev);
     cfgfile_write (f, "ramsey=%d\n", p->cs_ramseyrev);
+    cfgfile_write (f, "scsi_cdtv=%s\n", p->cs_cdtvscsi ? "true" : "false");
     cfgfile_write (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
+    cfgfile_write (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
     cfgfile_write (f, "scsi_a3000=%s\n", p->cs_mbdmac ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
@@ -1161,6 +1163,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "cdtvcd", &p->cs_cdtvcd)
 	|| cfgfile_yesno (option, value, "cdtvram", &p->cs_cdtvram)
 	|| cfgfile_yesno (option, value, "a1000ram", &p->cs_a1000ram)
+	|| cfgfile_yesno (option, value, "scsi_cdtv", &p->cs_cdtvscsi)
+	|| cfgfile_yesno (option, value, "scsi_a4091", &p->cs_a4091)
 	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
 	|| cfgfile_yesno (option, value, "scsi_a3000", &p->cs_mbdmac)
 
@@ -2708,6 +2712,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_deniserev = -1;
     p->cs_mbdmac = 0;
     p->cs_a2091 = 0;
+    p->cs_a4091 = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_pcmcia = 0;
@@ -2831,6 +2836,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->tod_hack = 0;
     p->maprom = 0;
     p->cachesize = 0;
+    p->socket_emu = 0;
 
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -2848,6 +2854,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->cs_deniserev = -1;
     p->cs_mbdmac = 0;
     p->cs_a2091 = 0;
+    p->cs_a4091 = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_ide = 0;
@@ -3294,7 +3301,7 @@ int build_in_chipset_prefs (struct uae_prefs *p)
 	    p->cs_fatgaryrev = 0;
 	    p->cs_ramseyrev = 0x0f;
 	    p->cs_ide = 2;
-	    p->cs_mbdmac = 2;
+	    p->cs_mbdmac = 0;
 	break;
 	case 13: // A4000T
 	    p->cs_rtc = 2;

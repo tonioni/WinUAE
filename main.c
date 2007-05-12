@@ -43,6 +43,7 @@
 #include "filesys.h"
 #include "parallel.h"
 #include "a2091.h"
+#include "ncr_scsi.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -596,6 +597,9 @@ void do_leave_program (void)
 #endif
 #ifdef A2091
     a2091_free ();
+#endif
+#ifdef NCR
+    ncr_free ();
 #endif
 #ifdef CD32
     akiko_free ();

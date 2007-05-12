@@ -15,8 +15,7 @@
 
 struct uae_filter uaefilters[] =
 {
-    { UAE_FILTER_NULL, 0, "Null filter", "null",
-    { 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 } },
+    { UAE_FILTER_NULL, 0, "Null filter", "null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
     { UAE_FILTER_DIRECT3D, 0, "Direct3D", "direct3d", 1, 0, 0, 0, 0 },
 

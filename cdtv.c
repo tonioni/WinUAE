@@ -26,6 +26,7 @@
 #include "gui.h"
 #include "zfile.h"
 #include "threaddep/thread.h"
+#include "a2091.h"
 
 #define AUDIO_STATUS_NOT_SUPPORTED  0x00
 #define AUDIO_STATUS_IN_PROGRESS    0x11
@@ -525,7 +526,51 @@ static void cdrom_command_thread(uae_u8 b)
 #define ISTR_INT_P (1 << 4)
 #define ISTR_E_INT (1 << 5)
 
-extern uae_u8 *ioctl_command_rawread (int unitnum, int sector);
+static uae_u8 *read_raw(int sector, int size)
+{
+    int osector = sector;
+    static struct zfile *f;
+    static int track;
+    int trackcnt;
+    char fname[MAX_DPATH];
+    static uae_u8 buf[4096];
+    uae_u32 prevlsn = 0;
+    uae_u8 *s = cdrom_toc + 4;
+
+    memset(buf, 0, sizeof buf);
+    trackcnt = 0;
+    for (;;) {
+	uae_u32 msf = (s[8] << 16) | (s[9] << 8) | s[10];
+	uae_u32 lsn = msf2lsn (msf);
+	if (s[3] >= 0xa0) {
+	    s += 11;
+	    continue;
+	}
+	if (sector < lsn - prevlsn)
+	    break;
+	trackcnt++;
+	sector -= lsn - prevlsn;
+	prevlsn = lsn;
+	s += 11;
+    }
+    if (track != trackcnt) {
+	sprintf(fname, "track%d.bin", trackcnt);
+	zfile_fclose(f);
+	f = zfile_fopen(fname, "rb");
+	if (!f)
+	    write_log("failed to open '%s'\n", fname);
+	else
+	    write_log("opened '%s'\n", fname);
+	track = trackcnt;
+    }
+    if (f) {
+	write_log("%dx%d=%d\n", sector, size, sector * size);
+	zfile_fseek (f, sector * size, SEEK_SET);
+	zfile_fread (buf, size, 1, f);
+	return buf;
+    }
+    return sys_command_cd_rawread (DF_IOCTL, unitnum, osector, size);
+}
 
 static void dma_do_thread(void)
 {
@@ -538,7 +583,7 @@ static void dma_do_thread(void)
 	if (!p || readsector != (cdrom_offset / cdtv_sectorsize)) {
 	    readsector = cdrom_offset / cdtv_sectorsize;
 	    if (cdtv_sectorsize == 2336)
-		p = sys_command_cd_rawread (DF_IOCTL, unitnum, readsector, cdtv_sectorsize);
+		p = read_raw (readsector, cdtv_sectorsize);
 	    else
 		p = sys_command_cd_read (DF_IOCTL, unitnum, readsector);
 	    if (!p) {
@@ -873,6 +918,14 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0x43:
 	v = dmac_cntr;
 	break;
+	case 0x91:
+	if (currprefs.cs_cdtvscsi)
+	    v = wdscsi_getauxstatus();
+	break;
+	case 0x93:
+	if (currprefs.cs_cdtvscsi)
+	    v = wdscsi_get();
+	break;
 	case 0xa1:
 	if (cdrom_command_cnt_out < 0) {
 	    cd_error = 1;
@@ -1000,6 +1053,14 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0x8f:
 	dmac_dawr &= 0xff00;
 	dmac_dawr |= b << 0;
+	break;
+	case 0x91:
+        if (currprefs.cs_cdtvscsi)
+	    wdscsi_sasr (b);
+	break;
+	case 0x93:
+	if (currprefs.cs_cdtvscsi)
+	    wdscsi_put (b);
 	break;
  	case 0xa1:
 	cdrom_command(b);

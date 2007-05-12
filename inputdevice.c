@@ -1228,6 +1228,12 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
 	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
 
+	if (currprefs.cs_cdtvcd) {
+	    /* CDTV P9 is not floating */
+	    if (!(potgo_value & p9dir))
+		potgor |= p9dat;
+	}
+
 	if (mouse_port[i]) {
 	    /* official Commodore mouse has pull-up resistors in button lines
 	     * NOTE: 3rd party mice may not have pullups! */
@@ -1236,6 +1242,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	    if (!(potgo_value & p9dir))
 		potgor |= p9dat;
 	}
+
 	if (potgo_hsync < 0) {
 	    /* first 10 or so lines after potgo has started
 	     * forces input-lines to zero

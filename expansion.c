@@ -23,6 +23,7 @@
 #include "catweasel.h"
 #include "cdtv.h"
 #include "a2091.h"
+#include "ncr_scsi.h"
 #include "debug.h"
 
 #define MAX_EXPANSION_BOARDS 8
@@ -1095,6 +1096,10 @@ static void expamem_init_a2091 (void)
 {
     a2091_init();
 }
+static void expamem_init_a4091 (void)
+{
+    ncr_init();
+}
 
 void expamem_reset (void)
 {
@@ -1130,6 +1135,12 @@ void expamem_reset (void)
 #ifdef CDTV
     if (currprefs.cs_cdtvcd) {
 	card_init[cardno] = expamem_init_cdtv;
+	card_map[cardno++] = NULL;
+    }
+#endif
+#ifdef NCR
+    if (currprefs.cs_a4091) {
+	card_init[cardno] = expamem_init_a4091;
 	card_map[cardno++] = NULL;
     }
 #endif

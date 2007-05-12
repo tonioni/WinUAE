@@ -6495,18 +6495,18 @@ static void out_floppyspeed (HWND hDlg)
     SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
-#define BUTTONSPERFLOPPY 6
+#define BUTTONSPERFLOPPY 7
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_SAVEIMAGE0 },
-    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,IDC_SAVEIMAGE1 },
-    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,IDC_SAVEIMAGE2 },
-    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,IDC_SAVEIMAGE3 }
+    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_SAVEIMAGE0,-1 },
+    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,IDC_SAVEIMAGE1,-1 },
+    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,IDC_SAVEIMAGE2,-1 },
+    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,IDC_SAVEIMAGE3,-1 }
 };
 static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,-1 },
-    { IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,-1 },
-    { -1,-1,-1,-1,-1,-1 },
-    { -1,-1,-1,-1,-1,-1 }
+    { IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,-1,IDC_DF0QENABLE },
+    { IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,-1,IDC_DF1QENABLE },
+    { -1,-1,-1,-1,-1,-1,-1 },
+    { -1,-1,-1,-1,-1,-1,-1 }
 };
 
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
@@ -6618,6 +6618,7 @@ static void addfloppytype (HWND hDlg, int n)
     int f_type = floppybuttons[n][3];
     int f_wp = floppybuttons[n][4];
     int f_si = floppybuttons[n][5];
+    int f_enable = floppybuttons[n][6];
 
     if (currentpage == QUICKSTART_ID) {
 	f_text = floppybuttonsq[n][0];
@@ -6626,6 +6627,7 @@ static void addfloppytype (HWND hDlg, int n)
 	f_eject = floppybuttonsq[n][2];
 	f_wp = floppybuttonsq[n][4];
 	f_si = -1;
+	f_enable = floppybuttonsq[n][6];
     }
 
     if (nn <= 0)
@@ -6643,6 +6645,9 @@ static void addfloppytype (HWND hDlg, int n)
 	ew (hDlg, f_eject, TRUE);
     if (f_drive >= 0)
 	ew (hDlg, f_drive, state);
+    if (f_enable >= 0) {
+	ew (hDlg, f_enable, FALSE);
+    }
     chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
     if (f_wp >= 0)
 	CheckDlgButton(hDlg, f_wp, chk);
@@ -8066,7 +8071,7 @@ static int filterpreset_selected = -1, filterpreset_builtin = -1;
 static void enable_for_hw3ddlg (HWND hDlg)
 {
     int v = workprefs.gfx_filter ? TRUE : FALSE;
-    int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
+    int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
     struct uae_filter *uf;
     int i;
 
@@ -8085,13 +8090,15 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	vv2 = TRUE;
     if (v && (uf->x[0] && !uf->yuv))
 	vv3 = TRUE;
+    if (v && uf->x[0])
+	vv4 = TRUE;
     ew (hDlg, IDC_FILTERENABLE, TRUE);
     ew (hDlg, IDC_FILTERMODE, v);
     CheckDlgButton(hDlg, IDC_FILTERENABLE, v);
     ew (hDlg, IDC_FILTERHZ, v);
     ew (hDlg, IDC_FILTERVZ, v);
-    ew (hDlg, IDC_FILTERHZMULT, vv && !vv2);
-    ew (hDlg, IDC_FILTERVZMULT, vv && !vv2);
+    ew (hDlg, IDC_FILTERHZMULT, vv && !vv4);
+    ew (hDlg, IDC_FILTERVZMULT, vv && !vv4);
     ew (hDlg, IDC_FILTERHO, v);
     ew (hDlg, IDC_FILTERVO, v);
     ew (hDlg, IDC_FILTERSLR, vv3);

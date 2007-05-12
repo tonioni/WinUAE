@@ -59,6 +59,7 @@
 #include "gayle.h"
 #include "gfxfilter.h"
 #include "a2091.h"
+#include "ncr_scsi.h"
 
 STATIC_INLINE int nocustom(void)
 {
@@ -4629,6 +4630,9 @@ void customreset (void)
     gayle_reset (0);
 #ifdef A2091
     a2091_reset ();
+#endif
+#ifdef NCR
+    ncr_reset ();
 #endif
 #ifdef JIT
     compemu_reset ();
