@@ -2303,11 +2303,11 @@ void memory_reset (void)
     if (!currprefs.cs_a1000ram)
 	map_banks (&dummy_bank, 0xD8, 6, 0); /* D80000 - DDFFFF not mapped (A1000 = custom chips) */
 
-    /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if AGA) */
+    /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if PCMCIA or AGA) */
     bnk = allocated_chipmem >> 16;
     if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 	bnk = 0x20 + (currprefs.fastmem_size >> 16);
-    map_banks (&dummy_bank, bnk, (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_ide == 1) ? 0xBF : 0xA0) - bnk, 0);
+    map_banks (&dummy_bank, bnk, (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia) ? 0xBF : 0xA0) - bnk, 0);
     if (currprefs.chipset_mask & CSMASK_AGA)
 	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
 
@@ -2399,7 +2399,7 @@ void memory_reset (void)
     if ((cloanto_rom || currprefs.cs_ksmirror) && !currprefs.maprom && !extendedkickmem_type)
         map_banks (&kickmem_bank, 0xE0, 8, 0);
     if (currprefs.cs_ksmirror == 2) { /* unexpanded A1200 also maps ROM here.. */
-	if (!currprefs.cart_internal) {
+	if (currprefs.cart_internal != 1) {
 	    map_banks (&kickmem_bank, 0xA8, 8, 0);
 	    map_banks (&kickmem_bank, 0xB0, 8, 0);
 	}

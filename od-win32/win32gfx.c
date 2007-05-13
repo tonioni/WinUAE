@@ -1593,7 +1593,7 @@ int DX_Fill(int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE r
     SetRect(&srcrect, dstx, dsty, dstx + width, dsty + height);
 
     /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
-    SetRect(&dstrect, dstx, dsty, dstx+width, dsty+height);
+    SetRect(&dstrect, dstx, dsty, dstx + width, dsty + height);
     centerrect(&dstrect);
 
     /* Render our fill to the visible (primary) surface */

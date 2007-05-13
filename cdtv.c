@@ -129,7 +129,6 @@ static int get_qcode(void)
 	if (s[1] == AUDIO_STATUS_IN_PROGRESS) {
 	    int end = msf2lsn((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
 	    if (end >= play_end - 75) {
-		sys_command_cd_pause (DF_IOCTL, unitnum, 1);
 		cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
 		cd_playing = 0;
 		do_stch();

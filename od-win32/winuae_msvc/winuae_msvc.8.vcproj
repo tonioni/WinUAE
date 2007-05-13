@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="8,00"
 	Name="winuae"
 	ProjectGUID="{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}"
 	RootNamespace="winuae"
-	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -52,14 +51,12 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0500"
-				GeneratePreprocessedFile="0"
-				KeepComments="false"
+				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32,_WINDOWS,_WIN32_IE=0x0500,UNIX"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				BufferSecurityCheck="true"
-				RuntimeTypeInfo="false"
+				RuntimeTypeInfo="true"
 				PrecompiledHeaderFile=".\Debug/winuae_msvc.pch"
 				AssemblerListingLocation=".\Debug/"
 				ObjectFile=".\Debug/"
@@ -68,7 +65,7 @@
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				EnablePREfast="false"
 			/>
@@ -98,8 +95,6 @@
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -119,6 +114,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -200,8 +198,6 @@
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -221,6 +217,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -264,7 +263,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500"
+				PreprocessorDefinitions="WINVER=0x0500,WIN32,NDEBUG,_WINDOWS,_WIN32_IE=0x0500,UNIX"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -282,7 +281,7 @@
 				ProgramDataBaseFileName=".\Release/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -316,9 +315,6 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				FixedBaseAddress="1"
-				DataExecutionPrevention="2"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -339,6 +335,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -434,8 +433,6 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -455,6 +452,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -494,8 +494,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -514,6 +512,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -602,8 +603,6 @@
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -623,6 +622,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -663,8 +665,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -683,6 +683,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -776,8 +779,6 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -798,6 +799,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -880,8 +884,6 @@
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -900,6 +902,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -981,8 +986,6 @@
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -1005,6 +1008,9 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -1016,7 +1022,6 @@
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
-			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -1065,7 +1070,7 @@
 				ProgramDataBaseFileName=".\FullRelease/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -1099,8 +1104,6 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="1"
-				RandomizedBaseAddress="2"
-				DataExecutionPrevention="2"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -1121,6 +1124,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -1216,8 +1222,6 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -1237,6 +1241,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"

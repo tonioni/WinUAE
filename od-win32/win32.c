@@ -90,6 +90,7 @@ static int forceroms;
 
 char VersionStr[256];
 char BetaStr[64];
+extern int path_type;
 
 int in_sizemove;
 int manual_painting_needed;
@@ -121,7 +122,7 @@ char start_path_exe[MAX_DPATH];
 char start_path_af[MAX_DPATH];
 char start_path_new[MAX_DPATH];
 char help_file[MAX_DPATH];
-int af_path_2005, af_path_old, winuae_path;
+int af_path_2005, af_path_old;
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 int log_scsi;
@@ -1675,6 +1676,10 @@ void logging_init(void)
 	       "\nPress F12 to show the Settings Dialog (GUI), Alt-F4 to quit."
 	       "\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 	       "\n");
+    if (start_path_af[0])
+	write_log ("AF_OLD: '%s'\n", start_path_af);
+    if (start_path_new[0])
+	write_log ("AF_NEW: '%s'\n", start_path_new);
     write_log ("EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
 }
 
@@ -1838,7 +1843,6 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "map_net_drives", &p->win32_automount_netdrives)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
 	    || cfgfile_yesno (option, value, "networking", &p->socket_emu)
-	    || cfgfile_yesno (option, value, "no_overlay", &p->win32_no_overlay)
 	    || cfgfile_yesno (option, value, "borderless", &p->win32_borderless)
 	    || cfgfile_yesno (option, value, "inactive_pause", &p->win32_inactive_pause)
 	    || cfgfile_yesno (option, value, "inactive_nosound", &p->win32_inactive_nosound)
@@ -1858,6 +1862,11 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
 	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
 
+    if (cfgfile_yesno (option, value, "no_overlay", &p->win32_no_overlay)) {
+	if (os_vista)
+	    p->win32_no_overlay = 1;
+	return 1;
+    }
 
     if (cfgfile_yesno (option, value, "aspi", &v)) {
 	p->win32_uaescsimode = 0;
@@ -1952,6 +1961,32 @@ static void fixtrailing(char *p)
     strcat(p, "\\");
 }
 
+static int isfilesindir(char *p)
+{
+    WIN32_FIND_DATA fd;
+    HANDLE h;
+    char path[MAX_DPATH];
+    int i = 0;
+    DWORD v;
+
+    v = GetFileAttributes(p);
+    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
+	return 0;
+    strcpy (path, p);
+    strcat (path, "\\*.*");
+    h = FindFirstFile(path, &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+        for (i = 0; i < 3; i++) {
+	    if (!FindNextFile (h, &fd))
+	        break;
+        }
+	FindClose(h);
+    }
+    if (i == 3)
+	return 1;
+    return 0;
+}
+
 void fetch_path (char *name, char *out, int size)
 {
     int size2 = size;
@@ -2030,22 +2065,18 @@ void set_path (char *name, char *path)
 		}
 	    }
 	}
-	if (af_path_2005) {
+        if (af_path_2005 && path_type == 2005) {
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_new);
+	    strcat (tmp2, "..\\System\\rom");
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
+	} else if (af_path_old && path_type == 1) {
 	    char tmp2[MAX_DPATH];
 	    strcpy (tmp2, start_path_af);
-	    strcat (tmp2, "System\\rom");
-	    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES) {
-	        strcpy (tmp, tmp2);
-	    } else {
-		strcpy (tmp, start_path_new);
-		strcat (tmp, "WinUAE\\roms");
-	    }
-	} else if (af_path_old) {
-	    char tmp2[MAX_DPATH];
-	    strcpy (tmp2, start_path_exe);
 	    strcat (tmp2, "..\\shared\\rom");
-	    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES)
-		strcpy (tmp, tmp2);
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
 	}
     }
     fixtrailing (tmp);
@@ -2480,7 +2511,6 @@ static int osdetect (void)
 
 typedef HRESULT (CALLBACK* SHGETFOLDERPATH)(HWND,int,HANDLE,DWORD,LPTSTR);
 typedef BOOL (CALLBACK* SHGETSPECIALFOLDERPATH)(HWND,LPTSTR,int,BOOL);
-extern int path_type;
 static void getstartpaths(int start_data)
 {
     SHGETFOLDERPATH pSHGetFolderPath;
@@ -2490,10 +2520,11 @@ static void getstartpaths(int start_data)
     DWORD v;
     HKEY key;
     DWORD dispo;
-    int path_done;
+    char xstart_path_uae[MAX_DPATH], xstart_path_old[MAX_DPATH];
+    char xstart_path_new1[MAX_DPATH], xstart_path_new2[MAX_DPATH];
 
-    path_done = 0;
-    path_type = 2005;
+    path_type = -1;
+    xstart_path_uae[0] = xstart_path_old[0] = xstart_path_new1[0] = xstart_path_new2[0] = 0;
     if (RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
 			  KEY_WRITE | KEY_READ, NULL, &key, &dispo) == ERROR_SUCCESS)
     {
@@ -2503,49 +2534,40 @@ static void getstartpaths(int start_data)
 	    prevpath[0] = 0;
 	RegCloseKey(key);
     }
+    if (!strcmp(prevpath, "WinUAE"))
+	path_type = 0;
+    if (!strcmp(prevpath, "AF"))
+	path_type = 1;
+    if (!strcmp(prevpath, "AF2005"))
+	path_type = 2005;
+
     pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
     pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
     strcpy (start_path_exe, _pgmptr );
-   if((posn = strrchr (start_path_exe, '\\')))
+    if((posn = strrchr (start_path_exe, '\\')))
 	posn[1] = 0;
+
+    strcpy (tmp, start_path_exe);
+    strcat (tmp, "roms");
+    if (isfilesindir(tmp)) {
+        strcpy (xstart_path_uae, start_path_exe);
+    }
+    strcpy (tmp, start_path_exe);
+    strcat (tmp, "configurations");
+    if (isfilesindir(tmp)) {
+        strcpy (xstart_path_uae, start_path_exe);
+    }
 
     strcpy (tmp, start_path_exe);
     strcat (tmp, "..\\shared\\rom\\rom.key");
     v = GetFileAttributes(tmp);
     if (v != INVALID_FILE_ATTRIBUTES) {
 	af_path_old = 1;
-	if (!strcmp (prevpath, "AF")) {
-	    path_done = 1;
-	    path_type = 1;
-	}
-	
-    }
-
-    strcpy (tmp, start_path_exe);
-    strcat (tmp, "roms");
-    v = GetFileAttributes(tmp);
-    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-	WIN32_FIND_DATA fd;
-	HANDLE h;
-	int i;
-	strcat (tmp, "\\*.*");
-	h = FindFirstFile(tmp, &fd);
-	if (h != INVALID_HANDLE_VALUE) {
-	    for (i = 0; i < 3; i++) {
-		if (!FindNextFile (h, &fd))
-		    break;
-	    }
-	    if (i == 3) {
-		winuae_path = 1;
-		if (!strcmp (prevpath, "WinUAE")) {
-		    path_done = 1;
-		    path_type = 0;
-		}
-	    }
-	    FindClose(h);
-	}
+	strcpy (xstart_path_old, start_path_exe);
+	strcat (xstart_path_old, "..\\shared\\");
+	strcpy (start_path_af, xstart_path_old);
     }
 
     p = getenv("AMIGAFOREVERDATA");
@@ -2556,15 +2578,9 @@ static void getstartpaths(int start_data)
 	fixtrailing(start_path_af);
 	v = GetFileAttributes(tmp);
 	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-	    if (start_data == 0) {
-		if (path_done == 0) {
-		    strcpy (start_path_data, start_path_af);
-		    strcat (start_path_data, "WinUAE");
-		    path_done = 1;
-		}
-		start_data = 1;
-	    }
-	    af_path_2005 = 1;
+	    strcpy (xstart_path_new1, start_path_af);
+	    strcat (xstart_path_new1, "WinUAE\\");
+	    af_path_2005 |= 1;
 	}
     }
 
@@ -2582,29 +2598,49 @@ static void getstartpaths(int start_data)
 	    strcat(tmp, "WinUAE");
 	    CreateDirectory(tmp2, NULL);
 	    CreateDirectory(tmp, NULL);
-	    strcpy(start_path_new, tmp2);
 	    v = GetFileAttributes(tmp);
-	    if (v != INVALID_FILE_ATTRIBUTES) {
-		if (v & FILE_ATTRIBUTE_DIRECTORY) {
-		    if (start_data == 0) {
-			if (path_done == 0) {
-			    strcpy (start_path_af, tmp2);
-			    strcpy (start_path_data, start_path_af);
-			    strcat (start_path_data, "WinUAE");
-			    path_done = 1;
-			}
-			start_data = 1;
-		    }
-		    af_path_2005 = 2;
+	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+		strcpy(start_path_new, tmp2);
+		strcat(start_path_new, "WinUAE\\");
+		strcat(tmp, "\\configurations");
+		if (isfilesindir(tmp)) {
+		    strcpy (xstart_path_new2, start_path_new); 
+		    af_path_2005 |= 2;
 		}
 	    }
 	}
     }
 
-    v = GetFileAttributes(start_path_data);
-    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0)
-	strcpy(start_path_data, start_path_exe);
+    if (start_data == 0) {
+	start_data = 1;
+	if (path_type == 0 && xstart_path_uae[0]) {
+	    strcpy(start_path_data, xstart_path_uae);
+	} else if (path_type == 1 && af_path_old && xstart_path_old[0]) {
+	    strcpy(start_path_data, xstart_path_old);
+	} else if (path_type == 2005 && af_path_2005 && xstart_path_new2[0]) {
+	    strcpy (start_path_data, xstart_path_new2);
+	} else if (path_type < 0) {
+	    path_type = 0;
+	    strcpy(start_path_data, xstart_path_uae);
+	    if (af_path_old) {
+		path_type = 1;
+		strcpy(start_path_data, xstart_path_old);
+	    }
+	    if (af_path_2005 & 2) {
+		path_type = 2005;
+		strcpy(start_path_data, xstart_path_new2);
+	    }
+	    if (af_path_2005 & 1) {
+		path_type = 2005;
+		strcpy(start_path_data, xstart_path_new1);
+	    }
+	}
+    }
 
+    v = GetFileAttributes(start_path_data);
+    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0) {
+	strcpy(start_path_data, start_path_exe);
+    }
     fixtrailing(start_path_data);
 }
 
@@ -2634,11 +2670,11 @@ static void makeverstr(char *s)
 #if WINUAEBETA > 0
     sprintf(BetaStr, " (%sBeta %d, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? "Public " : "", WINUAEBETA,
 	GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
-    sprintf(s, "WinUAE %d.%d.%d%s",
-	UAEMAJOR, UAEMINOR, UAESUBREV, BetaStr);
+    sprintf(s, "WinUAE %d.%d.%d%s%s",
+	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
 #else
-    sprintf(s, "WinUAE %d.%d.%d (%d.%02d.%02d)",
-	UAEMAJOR, UAEMINOR, UAESUBREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+    sprintf(s, "WinUAE %d.%d.%d%s (%d.%02d.%02d)",
+	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
 #endif
 #ifdef WINUAEEXTRA
     if(strlen(WINUAEEXTRA) > 0) {

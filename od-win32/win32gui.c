@@ -2791,9 +2791,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	recursive++;
 	pages[PATHS_ID] = hDlg;
 	currentpage = PATHS_ID;
-#if WINUAEBETA == 0
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
-#endif
 	numtypes = 0;
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
 	if (af_path_2005) {
@@ -2810,13 +2808,11 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		selpath = numtypes;
 	    ptypes[numtypes++] = 1;
 	}
-	if (winuae_path || numtypes == 0) {
-	    WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
-	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	    if (path_type == 0)
-		selpath = numtypes;
-	    ptypes[numtypes++] = 0;
-	}
+        WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
+        SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+        if (path_type == 0)
+	    selpath = numtypes;
+	ptypes[numtypes++] = 0;
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
 	if (numtypes > 1) {
 	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
@@ -2911,29 +2907,24 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_PATHS_DEFAULT:	
 	    val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
 	    if (val != CB_ERR && val >= 0 && val < numtypes) {
-		char *p = my_strdup (start_path_data);
-		int pp1 = af_path_2005, pp2 = af_path_old;
 		val = ptypes[val];
 		if (val == 0) {
 		    strcpy (start_path_data, start_path_exe);
-		    af_path_2005 = af_path_old = 0;
 		    path_type = 0;
 		    strcpy (pathmode, "WinUAE");
-		} else if (val == 1) {
-		    strcpy (start_path_data, start_path_exe);
-		    af_path_2005 = 0;
+		} else if (val == 1 && start_path_af[0]) {
+		    strcpy (start_path_data, start_path_af);
 		    strcpy (pathmode, "AF");
 		    path_type = 1;
-		} else {
+		} else if (val == 2005 && start_path_new[0]) {
 		    strcpy (pathmode, "AF2005");
 		    path_type = 2005;
 		    strcpy (start_path_data, start_path_new);
 		}
+		SetCurrentDirectory (start_path_data);
 		if (hWinUAEKey)
 		    RegSetValueEx (hWinUAEKey, "PathMode", 0, REG_SZ, (CONST BYTE *)pathmode, strlen(pathmode) + 1);
 		set_path ("KickstartPath", NULL);
-		if (path_type == 2005)
-		    strcat (start_path_data, "WinUAE\\");
 		set_path ("ConfigurationPath", NULL);
 		set_path ("ScreenshotPath", NULL);
 		set_path ("StatefilePath", NULL);
@@ -2941,10 +2932,6 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		set_path ("VideoPath", NULL);
 		values_to_pathsdialog (hDlg);
 		FreeConfigStore ();
-    		strcpy (start_path_data, p);
-		xfree (p);
-		af_path_2005 = pp1;
-		af_path_old = pp2;
 	    }
 	    break;
 	    case IDC_ROM_RESCAN:
@@ -4161,6 +4148,8 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac == 1);
     CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac == 2);
     CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.cs_a2091 > 0);
+    CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.cs_a4091 > 0);
+    CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia > 0);
     CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
     CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
     txt[0] = 0;
@@ -4225,6 +4214,8 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     if (workprefs.cs_mbdmac == 0)
 	workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
     workprefs.cs_a2091 = IsDlgButtonChecked (hDlg, IDC_CS_A2091) ? 1 : 0;
+    workprefs.cs_a4091 = IsDlgButtonChecked (hDlg, IDC_CS_A4091) ? 1 : 0;
+    workprefs.cs_pcmcia = IsDlgButtonChecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
     workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
 	: (IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
@@ -4283,9 +4274,9 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_IDE2, e);
     ew (hDlg, IDC_CS_DMAC, e);
     ew (hDlg, IDC_CS_DMAC2, e);
-#if WINUAEBETA > 0
     ew (hDlg, IDC_CS_A2091, e);
-#endif
+    ew (hDlg, IDC_CS_A4091, e);
+    ew (hDlg, IDC_CS_PCMCIA, e);
     ew (hDlg, IDC_CS_CD32CD, e);
     ew (hDlg, IDC_CS_CD32NVRAM, e);
     ew (hDlg, IDC_CS_CD32C2P, e);
@@ -4581,6 +4572,8 @@ static void getromfile (HWND hDlg, DWORD d, char *path, int size)
     }
 }
 
+#define CART_SUPERIV "[Action Cartridge Super IV Professional]"
+
 static void values_from_kickstartdlg (HWND hDlg)
 {
     getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile));
@@ -4588,8 +4581,11 @@ static void values_from_kickstartdlg (HWND hDlg)
     getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile));
     if (workprefs.cartfile[0])
 	workprefs.cart_internal = 0;
+    if (!strcmp(workprefs.cartfile, CART_SUPERIV)) {
+	workprefs.cart_internal = 2;
+    }
     ew (hDlg, IDC_HRTMON, workprefs.cartfile[0] ? FALSE : TRUE);
-    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal ? TRUE : FALSE);
+    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1 ? TRUE : FALSE);
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -4603,6 +4599,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
 	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_ARCADIAGAME);
+	//SendDlgItemMessage(hDlg, IDC_CARTFILE, CB_ADDSTRING, 0, (LPARAM)CART_SUPERIV);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -4610,7 +4607,7 @@ static void values_to_kickstartdlg (HWND hDlg)
     SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
     CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
     CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
-    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal);
+    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -4705,7 +4702,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 	case IDC_HRTMON:
 	    workprefs.cart_internal = IsDlgButtonChecked(hDlg, IDC_HRTMON) ? 1 : 0;
-	    ew (hDlg, IDC_CARTFILE, workprefs.cart_internal ? FALSE : TRUE);
+	    ew (hDlg, IDC_CARTFILE, workprefs.cart_internal == 1 ? FALSE : TRUE);
 	    break;
 	
 	}

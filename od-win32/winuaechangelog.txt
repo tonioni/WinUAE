@@ -1,4 +1,14 @@
 
+Beta 1:
+
+- added PCMCIA to advanced chipset. It does not emulate PCMCIA (yet),
+  it only reserves address space and makes CIA bank 64k (0xbf only
+  instead of 0xa0 to 0xbf) Previously only AGA changed CIA bank size.
+- fixed paths defaulting to CSIDL_COMMON_DOCUMENTS even if previous
+  default was something else.
+
+1.4.2
+
 Beta 12:
 
 - CDTV right button/second firebutton pin state fixed (CDPD IV)

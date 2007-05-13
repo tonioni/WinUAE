@@ -306,6 +306,14 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    shmaddr=natmem_offset + 0x00800000;
 	    got = TRUE;
 	}
+	if(!strcmp(shmids[shmid].name,"superiv")) {
+	    shmaddr=natmem_offset + 0x00d00000;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"superiv_2")) {
+	    shmaddr=natmem_offset + 0x00b00000;
+	    got = TRUE;
+	}
 }
 #endif
     

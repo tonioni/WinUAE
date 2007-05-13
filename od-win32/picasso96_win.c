@@ -526,7 +526,7 @@ static void do_fillrect(uae_u8 *src, unsigned int x, unsigned int y,
     uae_u8 *dst;
    
     /* Try OS specific fillrect function here; and return if successful.  Make sure we adjust for
-    * the pen values if we're doing 8-bit display-emulation on a 16-bit or higher screen. */
+     * the pen values if we're doing 8-bit display-emulation on a 16-bit or higher screen. */
 #ifdef PIXEL_LOCK
      flushpixels(); 
 #endif
@@ -541,7 +541,7 @@ static void do_fillrect(uae_u8 *src, unsigned int x, unsigned int y,
 	if(DX_Fill(x, y, width, height, picasso_vidinfo.clut[src[0]], rgbtype))
 	   return;
     }
-   
+
     P96TRACE(("P96_WARNING: do_fillrect() using fall-back routine!\n"));
     
     if(y + height > picasso_vidinfo.height)
@@ -734,8 +734,8 @@ static void do_blit(struct RenderInfo *ri, int Bpp,
 	P96TRACE(("do_blit type-b\n"));
 	if (picasso96_state.RGBFormat != RGBFB_CHUNKY)
 	{
-	    write_log ("ERROR: do_blit() calling abort 1!\n");
-	    abort ();
+	    write_log ("ERROR: do_blit() failure, %d!\n", picasso96_state.RGBFormat);
+	    goto out;
 	}
 	while (height-- > 0) 
 	{
@@ -751,9 +751,8 @@ static void do_blit(struct RenderInfo *ri, int Bpp,
 		    *((uae_u32 *)dstp + i) = picasso_vidinfo.clut[srcp[i]];
 		break;
 	    default:
-		write_log ("ERROR - do_blit() calling abort 2!\n");
-		abort ();
-		break;
+		write_log ("ERROR - do_blit() failure2, %d!\n", psiz);
+		goto out;
 	    }
 	    srcp += ri->BytesPerRow;
 	    dstp += picasso_vidinfo.rowbytes;
@@ -825,8 +824,8 @@ static void wgfx_do_flushline (void)
 	P96TRACE(("flushing type-b\n"));
 	if (picasso96_state.RGBFormat != RGBFB_CHUNKY)
 	{
-	    write_log ("ERROR - wgfx_do_flushline() calling abort 1!\n");
-	    abort ();
+	    write_log ("ERROR - wgfx_do_flushline() failure, %d!\n", picasso96_state.RGBFormat);
+	    goto out;
 	}
 	
 	dstp += wgfx_y * picasso_vidinfo.rowbytes + (wgfx_min - wgfx_linestart) * psiz;
@@ -840,9 +839,8 @@ static void wgfx_do_flushline (void)
 		*((uae_u32 *)dstp + i) = picasso_vidinfo.clut[src[i]];
 	    break;
 	default:
-	    write_log ("ERROR - wgfx_do_flushline() calling abort 2!\n");
-	    abort ();			
-	    break;
+	    write_log ("ERROR - wgfx_do_flushline() failure2, %d!\n", psiz);
+	    goto out;
 	}
     }
     
@@ -2183,12 +2181,12 @@ uae_u32 REGPARAM2 picasso_FillRect (struct regstruct *regs)
 	P96TRACE(("FillRect(%d, %d, %d, %d) Pen 0x%x BPP %d BPR %d Mask 0x%x\n",
 	    X, Y, Width, Height, Pen, Bpp, ri.BytesPerRow, Mask));
     
-	if( Bpp > 1 )
+	if(Bpp > 1)
 	    Mask = 0xFF;
     
 	if (Mask == 0xFF) 
 	{
-	    if((Width == 1) || (Height == 1))
+	    if(Width == 1 || Height == 1)
 	    {
 		int i;
 		uaecptr addr;
@@ -2196,7 +2194,7 @@ uae_u32 REGPARAM2 picasso_FillRect (struct regstruct *regs)
 		{
 		    uae_u32 diff = gfxmem_start - (uae_u32)gfxmemory;
 		    addr = ri.Memory + X * Bpp + Y * ri.BytesPerRow + diff;
-		    if( Width == 1 )
+		    if(Width == 1)
 		    {
 			for(i = 0; i < Height; i++)
 			{
@@ -2232,7 +2230,7 @@ uae_u32 REGPARAM2 picasso_FillRect (struct regstruct *regs)
 		src = ri.Memory + X * Bpp + Y * ri.BytesPerRow;
 		X = X - picasso96_state.XOffset;
 		Y = Y - picasso96_state.YOffset;	    
-		if((int)X < 0){ Width = Width + X; X = 0; }
+		if((int)X < 0) { Width = Width + X; X = 0; }
 		if((int)Width < 1) return 1;
 		if((int)Y < 0) { Height = Height + Y; Y = 0; }
 		if((int)Height < 1) return 1;
