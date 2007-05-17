@@ -180,6 +180,7 @@
 #define IDS_SCREEN_WINDOWED             195
 #define IDS_SCREEN_FULLSCREEN           196
 #define IDS_SCREEN_FULLWINDOW           197
+#define IDS_SCREEN_VSYNC                198
 #define IDS_SOUND_MONO                  200
 #define IDS_SOUND_MIXED                 201
 #define IDI_QUICKSTART                  201
@@ -247,6 +248,7 @@
 #define IDS_FLOPPYTYPE35DDESCOM         255
 #define IDS_SOUND_STEREO2               256
 #define IDS_INPUT_CUSTOMEVENT           257
+#define IDS_DEFAULT_NEWWINUAE           258
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -343,7 +345,6 @@
 #define IDC_BLIT32                      1173
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
-#define IDC_VSYNC                       1177
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
@@ -522,7 +523,6 @@
 #define IDC_HDF_CONTROLLER              1504
 #define IDC_RESETAMIGA                  1504
 #define IDC_QUITEMU                     1505
-#define IDC_TEST16BIT                   1506
 #define IDC_MAPDRIVES                   1507
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508

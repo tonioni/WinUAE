@@ -421,7 +421,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
     cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
     cfgfile_write (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
-    cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_vsync ? "true" : "false");
+    cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
+    cfgfile_write (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
     cfgfile_write (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
     cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
@@ -811,7 +812,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "avoid_vid", &p->avoid_vid)
 	|| cfgfile_yesno (option, value, "log_illegal_mem", &p->illegal_mem)
 	|| cfgfile_yesno (option, value, "filesys_no_fsdb", &p->filesys_no_uaefsdb)
-	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_vsync)
+	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_avsync)
+	|| cfgfile_yesno (option, value, "gfx_vsync_picasso", &p->gfx_pvsync)
 	|| cfgfile_yesno (option, value, "gfx_lores", &p->gfx_lores)
 	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
 	|| cfgfile_yesno (option, value, "show_leds", &p->leds_on_screen)
@@ -2809,9 +2811,10 @@ static void buildin_default_prefs (struct uae_prefs *p)
 {
     buildin_default_host_prefs (p);
 
-    p->nr_floppies = 2;
     p->dfxtype[0] = DRV_35_DD;
-    p->dfxtype[1] = DRV_35_DD;
+    if (p->nr_floppies != 1 && p->nr_floppies != 2)
+	p->nr_floppies = 2;
+    p->dfxtype[1] = p->nr_floppies >= 2 ? DRV_35_DD : DRV_NONE;
     p->dfxtype[2] = DRV_NONE;
     p->dfxtype[3] = DRV_NONE;
     p->floppy_speed = 100;
@@ -3178,6 +3181,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 int build_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
 {
     int v = 0, i;
+
     buildin_default_prefs (p);
     switch (model)
     {

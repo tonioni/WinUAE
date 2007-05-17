@@ -1851,7 +1851,7 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
    The data is recorded either in lores pixels (if ECS), or in hires pixels
    (if AGA).  No support for SHRES sprites.  */
 
-static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl, unsigned int ctlx)
+static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl)
 {
     struct sprite_entry *e = curr_sprite_entries + next_sprite_entry;
     int i;
@@ -1913,7 +1913,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
     /* We have 8 bits per pixel in spixstate, two for every sprite pair.  The
        low order bit records whether the attach bit was set for this pair.  */
-    if ((sprctl[num] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num ^ 1] & 0x80))) {
+    if (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80)))) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
@@ -1982,7 +1982,7 @@ static void decide_sprites (int hpos)
     }
     for (i = 0; i < count; i++) {
 	int nr = nrs[i];
-	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr], sprctl[nr ^ 1]);
+	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr]);
     }
     last_sprite_point = point;
 }
@@ -2171,7 +2171,7 @@ static void reset_decisions (void)
 
 static int isvsync (void)
 {
-    return currprefs.gfx_vsync && currprefs.gfx_afullscreen;
+    return currprefs.gfx_avsync && currprefs.gfx_afullscreen;
 }
 
 int vsynctime_orig;
@@ -2229,7 +2229,7 @@ void init_hz (void)
 	currprefs.chipset_refreshrate = 0;
 	changed_prefs.chipset_refreshrate = 0;
     }
-    if (currprefs.gfx_vsync && currprefs.gfx_afullscreen) {
+    if (currprefs.gfx_avsync && currprefs.gfx_afullscreen) {
 	currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
 	changed_prefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
     }
@@ -5655,11 +5655,13 @@ void check_prefs_changed_custom (void)
     currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
 
     if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
-	currprefs.gfx_vsync != changed_prefs.gfx_vsync ||
+	currprefs.gfx_avsync != changed_prefs.gfx_avsync ||
+	currprefs.gfx_pvsync != changed_prefs.gfx_pvsync ||
 	currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||
 	currprefs.ntscmode != changed_prefs.ntscmode) {
 	currprefs.picasso96_nocustom = changed_prefs.picasso96_nocustom;
-	currprefs.gfx_vsync = changed_prefs.gfx_vsync;
+	currprefs.gfx_avsync = changed_prefs.gfx_avsync;
+	currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
 	if (currprefs.ntscmode != changed_prefs.ntscmode) {
 	    currprefs.ntscmode = changed_prefs.ntscmode;

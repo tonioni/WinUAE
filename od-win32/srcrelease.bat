@@ -65,7 +65,9 @@ cd ..
 
 cd winuae_msvc
 rm -f winuae_msvc.plg
+rm -f winuae_msvc.8.plg
 rm -f winuae_msvc.ncb
+rm -f winuae_msvc.8.ncb
 rm -rf debug
 rm -rf release
 rm -rf debug64

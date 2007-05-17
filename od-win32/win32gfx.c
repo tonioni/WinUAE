@@ -1020,6 +1020,7 @@ static int open_windows (void)
 {
     int ret, i;
 
+    reset_sound();
     in_sizemove = 0;
     updatewinfsmode (&currprefs);
 
@@ -1079,7 +1080,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.color_mode != changed_prefs.color_mode ? (2|8) : 0;
     c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? (2|8) : 0;
     c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? (2|8) : 0;
-    c |= currprefs.gfx_vsync != changed_prefs.gfx_vsync ? (2|4|8) : 0;
+    c |= currprefs.gfx_avsync != changed_prefs.gfx_avsync ? (2|4|8) : 0;
+    c |= currprefs.gfx_pvsync != changed_prefs.gfx_pvsync ? (2|4|8) : 0;
     c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? (2|4|8) : 0;
     c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
 
@@ -1123,7 +1125,8 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_afullscreen = changed_prefs.gfx_afullscreen;
 	currprefs.gfx_pfullscreen = changed_prefs.gfx_pfullscreen;
 	updatewinfsmode (&currprefs);
-	currprefs.gfx_vsync = changed_prefs.gfx_vsync;
+	currprefs.gfx_avsync = changed_prefs.gfx_avsync;
+	currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
 	currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
 	currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 
@@ -1838,6 +1841,7 @@ uae_u32 OSDEP_minimize_uae( void )
 
 void close_windows (void)
 {
+    reset_sound();
 #if defined (GFXFILTER)
     S2X_free ();
 #endif

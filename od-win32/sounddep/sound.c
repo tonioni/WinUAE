@@ -82,7 +82,7 @@ int setup_sound (void)
 
 static int isvsync(void)
 {
-    return (currprefs.gfx_vsync && currprefs.gfx_afullscreen) ? 1 : 0;
+    return (currprefs.gfx_avsync && currprefs.gfx_afullscreen) ? 1 : 0;
 }
 
 int scaled_sample_evtime_orig;
@@ -538,7 +538,7 @@ void sound_setadjust (double v)
     double mult;
 
     mult = (1000.0 + v);
-    if ((currprefs.gfx_vsync && currprefs.gfx_afullscreen) || (avioutput_audio && !compiled_code)) {
+    if ((currprefs.gfx_avsync && currprefs.gfx_afullscreen) || (avioutput_audio && !compiled_code)) {
 	vsynctime = vsynctime_orig;
 	scaled_sample_evtime = (long)(((double)scaled_sample_evtime_orig) * mult / 1000.0);
     } else if (compiled_code || currprefs.m68k_speed != 0) {

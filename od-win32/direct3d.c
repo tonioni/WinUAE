@@ -321,9 +321,9 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     vsync2 = 0;
     if (isfullscreen() > 0) {
 	dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate;
-	if (currprefs.gfx_vsync > 0) {
+	if (currprefs.gfx_avsync > 0) {
 	    dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-	    if (currprefs.gfx_vsync > 85) {
+	    if (currprefs.gfx_avsync > 85) {
 		if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 		    dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 		else

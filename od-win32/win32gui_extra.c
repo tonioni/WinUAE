@@ -227,8 +227,6 @@ static void detectfonts(void)
     if (hdc) {
 	lf.lfCharSet = DEFAULT_CHARSET;
 	lf.lfPitchAndFamily = FIXED_PITCH | VARIABLE_PITCH | FF_DONTCARE;
-	strcpy(lf.lfFaceName, font_vista);
-	EnumFontFamiliesEx(hdc, &lf, effproc, (LPARAM)&font_vista_ok, 0);
 	strcpy(lf.lfFaceName, font_xp);
 	EnumFontFamiliesEx(hdc, &lf, effproc, (LPARAM)&font_xp_ok, 0);
 	ReleaseDC(NULL, hdc);

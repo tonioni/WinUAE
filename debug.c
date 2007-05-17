@@ -114,7 +114,7 @@ static char help[] = {
     "                        Add/remove memory watchpoints\n"
     "  wd                    Enable illegal access logger\n"
     "  S <file> <addr> <n>   Save a block of Amiga memory\n"
-    "  s <string>/<values> [<addr>] [<length>]\n"
+    "  s \"<string>\"/<values> [<addr>] [<length>]\n"
     "                        Search for string/bytes\n"
     "  T                     Show exec tasks and their PCs\n"
     "  b                     Step to previous state capture position\n"
@@ -236,7 +236,11 @@ static int next_string (char **c, char *out, int max, int forceupper)
 static uae_u32 lastaddr (void)
 {
     if (currprefs.z3fastmem_size)
-        return z3fastmem_start + currprefs.fastmem_size;
+        return z3fastmem_start + currprefs.z3fastmem_size;
+    if (currprefs.mbresmem_high_size)
+	return a3000hmem_start + currprefs.mbresmem_high_size;
+    if (currprefs.mbresmem_low_size)
+	return a3000lmem_start + currprefs.mbresmem_low_size;
     if (currprefs.bogomem_size)
         return bogomem_start + currprefs.bogomem_size;
     if (currprefs.fastmem_size)
@@ -244,52 +248,88 @@ static uae_u32 lastaddr (void)
     return currprefs.chipmem_size;
 }
 
+static uaecptr nextaddr2 (uaecptr addr, int *next)
+{
+    uaecptr prev, prevx;
+    int size, sizex;
+
+    *next = 0;
+    if (addr >= lastaddr()) {
+	*next = -1;
+	return 0xffffffff;
+    }
+    prev = currprefs.z3fastmem_start;
+    size = currprefs.z3fastmem_size;
+
+    sizex = size;
+    size = currprefs.mbresmem_high_size;
+    if (size) {
+	prevx = prev;
+	prev = a3000hmem_start;
+	if (addr == prev + size) {
+	    *next = sizex;
+	    return prevx;
+	}
+    }
+    sizex = size;
+    size = currprefs.mbresmem_low_size;
+    if (size) {
+	prevx = prev;
+	prev = a3000lmem_start;
+	if (addr == prev + size) {
+	    *next = sizex;
+	    return prevx;
+	}
+    }
+    sizex = size;
+    size = currprefs.bogomem_size;
+    if (size) {
+	prevx = prev;
+	prev = bogomem_start;
+	if (addr == prev + size) {
+	    *next = sizex;
+	    return prevx;
+	}
+    }
+    sizex = size;
+    size = currprefs.fastmem_size;
+    if (size) {
+	prevx = prev;
+	prev = fastmem_start;
+	if (addr == prev + size) {
+	    *next = sizex;
+	    return prevx;
+	}
+    }
+    sizex = size;
+    size = currprefs.chipmem_size;
+    if (addr == size) {
+	*next = sizex;
+	return prev;
+    }
+    if (addr == 1)
+	*next = size;
+    return addr;
+}
+
 static uaecptr nextaddr (uaecptr addr, uaecptr *end)
 {
+    uaecptr paddr = addr;
+    int next;
     if (addr == 0xffffffff) {
 	if (end)
 	    *end = currprefs.chipmem_size;
 	return 0;
     }
-    addr++;
-    if (addr == currprefs.chipmem_size) {
-	if (currprefs.fastmem_size) {
-	    if (end)
-		*end = fastmem_start + currprefs.fastmem_size;
-	    return fastmem_start;
-	} else if (currprefs.bogomem_size) {
-	    if (end)
-		*end = bogomem_start + currprefs.bogomem_size;
-	    return bogomem_start;
-	} else if (currprefs.z3fastmem_size) {
-	    if (end)
-		*end = z3fastmem_start + currprefs.z3fastmem_size;
-	    return z3fastmem_start;
-	}
-	return 0xffffffff;
+    addr = nextaddr2(addr + 1, &next);
+#if 0
+    if (next && addr != 0xffffffff) {
+	uaecptr xa = addr;
+	if (xa == 1)
+	    xa = 0;
+	console_out("%08X -> %08X (%08X)...\n", xa, xa + next - 1, next);
     }
-    if (addr == fastmem_start + currprefs.fastmem_size) {
-	if (currprefs.bogomem_size) {
-	    if (end)
-		*end = fastmem_start + currprefs.bogomem_size;
-	    return bogomem_start;
-	} else if (currprefs.z3fastmem_size) {
-	    if (end)
-		*end = z3fastmem_start + currprefs.z3fastmem_size;
-	    return z3fastmem_start;
-	}
-	return 0xffffffff;
-    }
-    if (addr == bogomem_start + currprefs.bogomem_size) {
-	if (currprefs.z3fastmem_size) {
-	    if (end)
-		*end = z3fastmem_start + currprefs.z3fastmem_size;
-	    return z3fastmem_start;
-	}
-	return 0xffffffff;
-    }
-    if (addr == z3fastmem_start + currprefs.z3fastmem_size)
-	return 0xffffffff;
+#endif
     return addr;
 }
 

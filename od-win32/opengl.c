@@ -432,8 +432,9 @@ static void OGL_swapinterval (void)
     doublevsync = 0;
     if (wglSwapIntervalEXT) {
 	int i1, i2;
-	i1 = (currprefs.gfx_vsync > 0 && isfullscreen() > 0) ? (currprefs.gfx_refreshrate > 85 ? 2 : 1) : 0;
-	if (turbo_emulation) i1 = 0;
+	i1 = (currprefs.gfx_avsync > 0 && isfullscreen() > 0) ? (currprefs.gfx_refreshrate > 85 ? 2 : 1) : 0;
+	if (turbo_emulation)
+	    i1 = 0;
 	wglSwapIntervalEXT (i1);
 	i2 = wglGetSwapIntervalEXT ();
 	if (i1 == 2 && i2 < i1) /* did display driver support SwapInterval == 2 ? */

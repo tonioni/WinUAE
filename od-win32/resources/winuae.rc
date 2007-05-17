@@ -7,7 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -89,7 +89,6 @@ BEGIN
     COMBOBOX        IDC_REFRESHRATE,145,27,61,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     EDITTEXT        IDC_XSIZE,59,48,35,12,ES_NUMBER
     EDITTEXT        IDC_YSIZE,103,48,35,12,ES_NUMBER
-    CONTROL         "Vertical sync",IDC_VSYNC,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,147,49,57,10
     GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,73,199,125
     CONTROL         "Correct aspect ratio",IDC_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,19,126,92,10
     CONTROL         "Force low resolution",IDC_LORES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,126,89,10
@@ -776,21 +775,21 @@ BEGIN
     RTEXT           "Configuration:",IDC_STATIC,5,105,55,10,SS_CENTERIMAGE
     COMBOBOX        IDC_QUICKSTART_HOSTCONFIG,65,103,225,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Emulated Floppy Drives",IDC_QUICKSTART_DF,3,126,294,84
-    PUSHBUTTON      "Select disk image",IDC_DF0QQ,82,136,98,15
-    RTEXT           "Write-protected",IDC_STATIC,180,139,58,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_DF0WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,245,137,10,15
-    PUSHBUTTON      "Eject",IDC_EJECT0Q,260,136,30,15
+    CONTROL         "Floppy drive DF0:",IDC_DF0QENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,10,136,72,15
+    PUSHBUTTON      "Select disk image",IDC_DF0QQ,85,136,98,15
+    RTEXT           "Write-protected",IDC_STATIC,185,139,56,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF0WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,246,137,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT0Q,261,136,30,15
     COMBOBOX        IDC_DF0TEXTQ,9,154,282,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Select disk image",IDC_DF1QQ,82,172,98,15
-    RTEXT           "Write-protected",IDC_STATIC,180,175,58,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_DF1WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,245,173,10,15
-    PUSHBUTTON      "Eject",IDC_EJECT1Q,260,172,30,15
+    CONTROL         "Floppy drive DF1:",IDC_DF1QENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,172,71,15
+    PUSHBUTTON      "Select disk image",IDC_DF1QQ,85,172,98,15
+    RTEXT           "Write-protected",IDC_STATIC,185,175,55,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_DF1WPQ,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,246,173,10,15
+    PUSHBUTTON      "Eject",IDC_EJECT1Q,261,172,30,15
     COMBOBOX        IDC_DF1TEXTQ,9,190,282,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Set configuration",IDC_QUICKSTART_SETCONFIG,9,219,72,15,NOT WS_VISIBLE
     GROUPBOX        "Mode",IDC_STATIC,190,211,107,27,BS_LEFT
     CONTROL         "Start in Quickstart mode",IDC_QUICKSTARTMODE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,197,222,94,10
-    CONTROL         "Floppy drive DF0:",IDC_DF0QENABLE,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,9,136,66,15
-    CONTROL         "Floppy drive DF1:",IDC_DF1QENABLE,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,9,172,66,15
 END
 
 IDD_FRONTEND DIALOGEX 0, 0, 420, 242
@@ -1092,9 +1091,16 @@ BEGIN
     IDS_PRI_BELOWNORMAL     "Below Normal"
     IDS_PRI_LOW             "Low"
     IDS_OLDRTGLIBRARY       "The installed LIBS:Picasso96/rtg.library (%d.%d) file needs to be updated.\nA newer version is included in the ""Amiga Programs"" directory of the WinUAE distribution archive.\nThe new library fixes graphics problems and increases performance."
-    IDS_DEFAULT_AF2005      "WinUAE default (new) / Amiga Forever"
-    IDS_DEFAULT_AF          "Amiga Forever (old)"
+    IDS_DEFAULT_AF2005      "Amiga Forever 2005+"
+    IDS_DEFAULT_AF          "Amiga Forever"
     IDS_DEFAULT_WINUAE      "WinUAE default (old)"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_SOUND_STEREO2       "Cloned Stereo (4 Channels)"
+    IDS_INPUT_CUSTOMEVENT   "<Custom event>"
+    IDS_DEFAULT_NEWWINUAE   "WinUAE default (new)"
 END
 
 STRINGTABLE 
@@ -1124,6 +1130,7 @@ BEGIN
     IDS_SCREEN_WINDOWED     "Windowed"
     IDS_SCREEN_FULLSCREEN   "Fullscreen"
     IDS_SCREEN_FULLWINDOW   "Full-window"
+    IDS_SCREEN_VSYNC        "VSync"
     IDS_SOUND_MONO          "Mono"
     IDS_SOUND_MIXED         "Mixed"
     IDS_SOUND_STEREO        "Stereo"
@@ -1258,12 +1265,6 @@ BEGIN
     IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an A500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
 END
 
-STRINGTABLE 
-BEGIN
-    IDS_SOUND_STEREO2       "Cloned Stereo (4 Channels)"
-    IDS_INPUT_CUSTOMEVENT   "<Custom event>"
-END
-
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1310,7 +1311,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

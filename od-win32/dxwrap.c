@@ -1653,9 +1653,9 @@ int DirectDraw_Flip(int wait)
     
     start = read_processor_time ();
     if (DirectDrawState.flipping == triple_buffer) {
-	if (!currprefs.gfx_afullscreen && !currprefs.gfx_vsync) {
+	if (!currprefs.gfx_afullscreen && !currprefs.gfx_avsync) {
 	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
-	} else if (currprefs.gfx_vsync) {
+	} else if (currprefs.gfx_avsync) {
 	    if (vblank_skip >= 0) {
 		skip++;
 		if (vblank_skip > skip) {
@@ -1682,7 +1682,7 @@ int DirectDraw_Flip(int wait)
 	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);
 	}
     } else if(DirectDrawState.flipping == double_buffer) {
-	if (!currprefs.gfx_afullscreen && !currprefs.gfx_vsync) {
+	if (!currprefs.gfx_afullscreen && !currprefs.gfx_avsync) {
 	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags | DDFLIP_NOVSYNC);
 	} else {
 	    ddrval = IDirectDrawSurface7_Flip(DirectDrawState.primary.surface, NULL, flags);

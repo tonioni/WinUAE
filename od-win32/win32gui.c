@@ -2794,19 +2794,30 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 	numtypes = 0;
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
-	if (af_path_2005) {
+	if (af_path_2005 & 1) {
 	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF2005, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	    if (path_type == 2005)
+	    if (path_type == PATH_TYPE_NEWAF)
 		selpath = numtypes;
-	    ptypes[numtypes++] = 2005;
+	    ptypes[numtypes++] = PATH_TYPE_NEWAF;
+	    WIN32GUI_LoadUIString(IDS_DEFAULT_NEWWINUAE, tmp, sizeof tmp);
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    if (path_type == PATH_TYPE_NEWWINUAE)
+		selpath = numtypes;
+	    ptypes[numtypes++] = PATH_TYPE_NEWWINUAE;
+	}
+	if (af_path_2005 & 2) {
+	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)"AmigaForeverData");
+	    if (path_type == PATH_TYPE_AMIGAFOREVERDATA)
+		selpath = numtypes;
+	    ptypes[numtypes++] = PATH_TYPE_AMIGAFOREVERDATA;
 	}
 	if (af_path_old) {
 	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	    if (path_type == 1)
+	    if (path_type == PATH_TYPE_OLDAF)
 		selpath = numtypes;
-	    ptypes[numtypes++] = 1;
+	    ptypes[numtypes++] = PATH_TYPE_OLDAF;
 	}
         WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -2908,18 +2919,26 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
 	    if (val != CB_ERR && val >= 0 && val < numtypes) {
 		val = ptypes[val];
-		if (val == 0) {
+		if (val == PATH_TYPE_WINUAE) {
 		    strcpy (start_path_data, start_path_exe);
-		    path_type = 0;
+		    path_type = PATH_TYPE_WINUAE;
 		    strcpy (pathmode, "WinUAE");
-		} else if (val == 1 && start_path_af[0]) {
+		} else if (val == PATH_TYPE_NEWWINUAE && start_path_new1[0]) {
+		    strcpy (start_path_data, start_path_new1);
+		    path_type = PATH_TYPE_NEWWINUAE;
+		    strcpy (pathmode, "WinUAE_2");
+		} else if (val == PATH_TYPE_OLDAF && start_path_af[0]) {
 		    strcpy (start_path_data, start_path_af);
 		    strcpy (pathmode, "AF");
-		    path_type = 1;
-		} else if (val == 2005 && start_path_new[0]) {
+		    path_type = PATH_TYPE_OLDAF;
+		} else if (val == PATH_TYPE_NEWAF && start_path_new1[0]) {
 		    strcpy (pathmode, "AF2005");
-		    path_type = 2005;
-		    strcpy (start_path_data, start_path_new);
+		    path_type = PATH_TYPE_NEWAF;
+		    strcpy (start_path_data, start_path_new1);
+		} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
+		    strcpy (pathmode, "AMIGAFOREVERDATA");
+		    path_type = PATH_TYPE_AMIGAFOREVERDATA;
+		    strcpy (start_path_data, start_path_new1);
 		}
 		SetCurrentDirectory (start_path_data);
 		if (hWinUAEKey)
@@ -2968,7 +2987,7 @@ static struct amigamodels amodels[] = {
     { -1 }
 };
 
-static DWORD quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
+static DWORD quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1, quickstart_floppy = 1;
 static int quickstart_ok, quickstart_ok_floppy;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
@@ -2983,6 +3002,7 @@ static void enable_for_quickstart (HWND hDlg)
 static void load_quickstart (HWND hDlg, int romcheck)
 {
     ew (guiDlg, IDC_RESETAMIGA, FALSE);
+    workprefs.nr_floppies = quickstart_floppy;
     quickstart_ok = build_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
     enable_for_quickstart (hDlg);
     addfloppytype (hDlg, 0);
@@ -3035,6 +3055,8 @@ static void init_quickstartdlg (HWND hDlg)
 	    RegQueryValueEx (hWinUAEKey, "QuickStartConfiguration", 0, &dwType, (LPBYTE)&quickstart_conf, &qssize);
 	    qssize = sizeof (quickstart_compa);
 	    RegQueryValueEx (hWinUAEKey, "QuickStartCompatibility", 0, &dwType, (LPBYTE)&quickstart_compa, &qssize);
+	    qssize = sizeof (quickstart_floppy);
+	    RegQueryValueEx (hWinUAEKey, "QuickStartFloppies", 0, &dwType, (LPBYTE)&quickstart_floppy, &qssize);
 	}
 	if (quickstart) {
 	    workprefs.df[0][0] = 0;
@@ -3310,6 +3332,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	    case IDC_DF1WPQ:
 	    case IDC_EJECT1Q:
 	    case IDC_DF1QQ:
+	    case IDC_DF0QENABLE:
+	    case IDC_DF1QENABLE:
 	    if (currentpage == QUICKSTART_ID)
 		ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 	    break;
@@ -3414,16 +3438,10 @@ static void enable_for_displaydlg (HWND hDlg)
     rtg = FALSE;
 #endif
     ew (hDlg, IDC_SCREENMODE_RTG, rtg);
-    if (!full_property_sheet)  {
-	/* Disable certain controls which are only to be set once at start-up... */
-	ew (hDlg, IDC_TEST16BIT, FALSE);
-    } else {
-	CheckDlgButton(hDlg, IDC_VSYNC, workprefs.gfx_vsync);
-	ew (hDlg, IDC_XCENTER, TRUE);
-	ew (hDlg, IDC_YCENTER, TRUE);
-	ew (hDlg, IDC_LM_SCANLINES, TRUE);
-    }
-    ew (hDlg, IDC_FRAMERATE2, !workprefs.gfx_vsync);
+    ew (hDlg, IDC_XCENTER, TRUE);
+    ew (hDlg, IDC_YCENTER, TRUE);
+    ew (hDlg, IDC_LM_SCANLINES, TRUE);
+    ew (hDlg, IDC_FRAMERATE2, !workprefs.gfx_avsync);
     ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
     ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
     ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
@@ -3669,9 +3687,50 @@ static void init_display_mode (HWND hDlg)
     }
 }
 
+static int display_toselect(int fs, int vsync, int p96)
+{
+    if (p96)
+	return fs *  2 + vsync;
+    if (fs == 2)
+        return 3;
+    if (!vsync)
+	return fs;
+    if (fs == 1 && vsync)
+	return 2;
+    return fs;
+}
+static void display_fromselect(int val, int *fs, int *vsync, int p96)
+{
+    if (val == CB_ERR)
+	return;
+    *fs = 0;
+    *vsync = 0;
+    if (p96) {
+	*fs = val / 2;
+	*vsync = val & 1;
+	return;
+    }
+    switch (val)
+    {
+	case 0:
+	*fs = 0;
+	break;
+	case 1:
+	*fs = 1;
+	break;
+	case 2:
+	*fs = 1;
+	*vsync = 1;
+	break;
+	case 3:
+	*fs = 2;
+	break;
+    }
+}
+
 static void values_to_displaydlg (HWND hDlg)
 {
-    char buffer[MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH];
+    char buffer[MAX_DPATH], buffer2[MAX_DPATH];
     char Nth[MAX_NTH_LENGTH];
     LPSTR blah[1] = { Nth };
     LPTSTR string = NULL;
@@ -3711,23 +3770,32 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
     WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer2, sizeof buffer2);
+    sprintf (buffer + strlen(buffer), " + %s", buffer2);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
     WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
-    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL, workprefs.gfx_afullscreen, 0);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL, display_toselect(workprefs.gfx_afullscreen, workprefs.gfx_avsync, 0), 0);
 
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    sprintf (buffer + strlen(buffer), " + %s", buffer2);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
     WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer2, sizeof buffer2);
+    sprintf (buffer + strlen(buffer), " + %s", buffer2);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
     WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
-    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL, workprefs.gfx_pfullscreen, 0);
+    sprintf (buffer + strlen(buffer), " + %s", buffer2);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+    SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL, display_toselect(workprefs.gfx_pfullscreen, workprefs.gfx_pvsync, 1), 0);
 
     CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
     CheckDlgButton (hDlg, IDC_LORES, workprefs.gfx_lores);
     CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
-    CheckDlgButton (hDlg, IDC_VSYNC, workprefs.gfx_vsync);
 
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
     CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
@@ -3771,12 +3839,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     int gfx_height = workprefs.gfx_size_win.height;
     LRESULT posn;
 
-    posn = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
-    if (posn != CB_ERR)
-	workprefs.gfx_afullscreen = posn;
-    posn = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
-    if (posn != CB_ERR)
-	workprefs.gfx_pfullscreen = posn;
+    display_fromselect(SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0),
+	&workprefs.gfx_afullscreen, &workprefs.gfx_avsync, 0);
+    display_fromselect(SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0),
+	&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
 
     workprefs.gfx_lores          = IsDlgButtonChecked (hDlg, IDC_LORES);
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
@@ -3786,7 +3852,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
     workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
     workprefs.chipset_refreshrate = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
-    workprefs.gfx_vsync = IsDlgButtonChecked (hDlg, IDC_VSYNC);
 
     {
 	char buffer[MAX_FRAMERATE_LENGTH];
@@ -6643,7 +6708,8 @@ static void addfloppytype (HWND hDlg, int n)
     if (f_drive >= 0)
 	ew (hDlg, f_drive, state);
     if (f_enable >= 0) {
-	ew (hDlg, f_enable, FALSE);
+	ew (hDlg, f_enable, n > 0 && workprefs.nr_floppies > 0);
+	CheckDlgButton(hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
     }
     chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
     if (f_wp >= 0)
@@ -6662,6 +6728,25 @@ static void getfloppytype (HWND hDlg, int n)
 	workprefs.dfxtype[n] = (int)val - 1;
 	addfloppytype (hDlg, n);
     }
+}
+static void getfloppytypeq (HWND hDlg, int n)
+{
+    int f_enable = floppybuttonsq[n][6];
+    int chk;
+
+    if (f_enable <= 0 || n == 0)
+	return;
+    chk = IsDlgButtonChecked (hDlg, f_enable) ? 0 : -1;
+    if (chk != workprefs.dfxtype[n]) {
+	workprefs.dfxtype[n] = chk;
+	addfloppytype (hDlg, n);
+    }
+    if (chk == 0)
+	quickstart_floppy = 2;
+    else
+	quickstart_floppy = 1;
+    if (hWinUAEKey)
+	RegSetValueEx (hWinUAEKey, "QuickStartFloppies", 0, REG_DWORD, (CONST BYTE *)&quickstart_floppy, sizeof(quickstart_floppy));
 }
 
 static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
@@ -6845,6 +6930,12 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	}
 	switch (LOWORD (wParam))
 	{
+	case IDC_DF0QENABLE:
+	    getfloppytypeq (hDlg, 0);
+	    break;
+	case IDC_DF1QENABLE:
+	    getfloppytypeq (hDlg, 1);
+    	    break;
 	case IDC_DF0WP:
 	case IDC_DF0WPQ:
 	    floppysetwriteprotect (hDlg, 0, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF0WPQ) : IsDlgButtonChecked (hDlg, IDC_DF0WP));
@@ -9839,12 +9930,10 @@ static int GetSettings (int all_options, HWND hwnd)
 
 	if (WINUAEBETA > 0 && GetWindowText (dhwnd, tmp, sizeof (tmp)) > 0) {
 	    strcat (tmp, BetaStr);
-#ifdef WINUAEEXTRA
 	    if (strlen(WINUAEEXTRA) > 0) {
 		strcat (tmp, " ");
 		strcat (tmp, WINUAEEXTRA);
 	    }
-#endif
 	    SetWindowText (dhwnd, tmp);
 	}
 	ShowWindow (dhwnd, SW_SHOW);

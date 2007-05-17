@@ -2949,7 +2949,7 @@ void picasso_handle_hsync (void)
     
     if (currprefs.gfxmem_size == 0)
 	return;
-    if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_vsync) {
+    if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_pvsync) {
 	if (DirectDraw_GetVerticalBlankStatus ())
 	    p96hsync = 0;
     } else {

@@ -119,8 +119,9 @@ static HANDLE timehandle;
 
 char start_path_data[MAX_DPATH];
 char start_path_exe[MAX_DPATH];
-char start_path_af[MAX_DPATH];
-char start_path_new[MAX_DPATH];
+char start_path_af[MAX_DPATH]; /* OLD AF */
+char start_path_new1[MAX_DPATH]; /* AF2005 */
+char start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
 
@@ -513,12 +514,10 @@ void setmouseactive (int active)
     }
     if (WINUAEBETA > 0)
 	strcat (txt, BetaStr);
-#ifdef WINUAEEXTRA
     if (strlen(WINUAEEXTRA) > 0) {
 	strcat (txt, " ");
 	strcat (txt, WINUAEEXTRA);
     }
-#endif
     if (txt2[0]) {
 	strcat (txt, " - ");
 	strcat (txt, txt2);
@@ -1676,10 +1675,6 @@ void logging_init(void)
 	       "\nPress F12 to show the Settings Dialog (GUI), Alt-F4 to quit."
 	       "\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 	       "\n");
-    if (start_path_af[0])
-	write_log ("AF_OLD: '%s'\n", start_path_af);
-    if (start_path_new[0])
-	write_log ("AF_NEW: '%s'\n", start_path_new);
     write_log ("EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
 }
 
@@ -2065,13 +2060,19 @@ void set_path (char *name, char *path)
 		}
 	    }
 	}
-        if (af_path_2005 && path_type == 2005) {
+	if ((af_path_2005 & 1) && path_type == PATH_TYPE_NEWAF) {
 	    char tmp2[MAX_DPATH];
-	    strcpy (tmp2, start_path_new);
-	    strcat (tmp2, "..\\System\\rom");
+	    strcpy (tmp2, start_path_new1);
+	    strcat (tmp2, "..\\system\\rom");
 	    if (isfilesindir(tmp2))
 	        strcpy (tmp, tmp2);
-	} else if (af_path_old && path_type == 1) {
+	} else if ((af_path_2005 & 2) && path_type == PATH_TYPE_AMIGAFOREVERDATA) {
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_new2);
+	    strcat (tmp2, "system\\rom");
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
+	} else if (af_path_old && path_type == PATH_TYPE_OLDAF) {
 	    char tmp2[MAX_DPATH];
 	    strcpy (tmp2, start_path_af);
 	    strcat (tmp2, "..\\shared\\rom");
@@ -2535,11 +2536,15 @@ static void getstartpaths(int start_data)
 	RegCloseKey(key);
     }
     if (!strcmp(prevpath, "WinUAE"))
-	path_type = 0;
+	path_type = PATH_TYPE_WINUAE;
+    if (!strcmp(prevpath, "WinUAE_2"))
+	path_type = PATH_TYPE_NEWWINUAE;
     if (!strcmp(prevpath, "AF"))
-	path_type = 1;
+	path_type = PATH_TYPE_OLDAF;
     if (!strcmp(prevpath, "AF2005"))
-	path_type = 2005;
+	path_type = PATH_TYPE_NEWAF;
+    if (!strcmp(prevpath, "AMIGAFOREVERDATA"))
+	path_type = PATH_TYPE_AMIGAFOREVERDATA;
 
     pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
@@ -2574,13 +2579,13 @@ static void getstartpaths(int start_data)
     if (p) {
 	strcpy (tmp, p);
 	fixtrailing(tmp);
-	strcpy (start_path_af, p);
+	strcpy (start_path_new2, p);
 	fixtrailing(start_path_af);
 	v = GetFileAttributes(tmp);
 	if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-	    strcpy (xstart_path_new1, start_path_af);
-	    strcat (xstart_path_new1, "WinUAE\\");
-	    af_path_2005 |= 1;
+	    strcpy (xstart_path_new2, start_path_af);
+	    strcat (xstart_path_new2, "WinUAE\\");
+	    af_path_2005 |= 2;
 	}
     }
 
@@ -2600,12 +2605,13 @@ static void getstartpaths(int start_data)
 	    CreateDirectory(tmp, NULL);
 	    v = GetFileAttributes(tmp);
 	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-		strcpy(start_path_new, tmp2);
-		strcat(start_path_new, "WinUAE\\");
+		strcpy(start_path_new1, tmp2);
+		strcat(start_path_new1, "WinUAE\\");
 		strcat(tmp, "\\configurations");
 		if (isfilesindir(tmp)) {
-		    strcpy (xstart_path_new2, start_path_new); 
-		    af_path_2005 |= 2;
+		    strcpy (xstart_path_uae, start_path_exe);
+		    strcpy (xstart_path_new1, start_path_new1); 
+		    af_path_2005 |= 1;
 		}
 	    }
 	}
@@ -2615,24 +2621,31 @@ static void getstartpaths(int start_data)
 	start_data = 1;
 	if (path_type == 0 && xstart_path_uae[0]) {
 	    strcpy(start_path_data, xstart_path_uae);
-	} else if (path_type == 1 && af_path_old && xstart_path_old[0]) {
+	} else if (path_type == PATH_TYPE_OLDAF && af_path_old && xstart_path_old[0]) {
 	    strcpy(start_path_data, xstart_path_old);
-	} else if (path_type == 2005 && af_path_2005 && xstart_path_new2[0]) {
+	} else if ((path_type == PATH_TYPE_NEWAF || path_type == PATH_TYPE_NEWWINUAE) && (af_path_2005 & 1) && xstart_path_new1[0]) {
+	    strcpy (start_path_data, xstart_path_new1);
+	} else if (path_type == PATH_TYPE_AMIGAFOREVERDATA && (af_path_2005 & 2) && xstart_path_new2[0]) {
 	    strcpy (start_path_data, xstart_path_new2);
 	} else if (path_type < 0) {
 	    path_type = 0;
 	    strcpy(start_path_data, xstart_path_uae);
 	    if (af_path_old) {
-		path_type = 1;
+		path_type = PATH_TYPE_OLDAF;
 		strcpy(start_path_data, xstart_path_old);
 	    }
-	    if (af_path_2005 & 2) {
-		path_type = 2005;
-		strcpy(start_path_data, xstart_path_new2);
-	    }
 	    if (af_path_2005 & 1) {
-		path_type = 2005;
+		path_type = PATH_TYPE_NEWAF;
 		strcpy(start_path_data, xstart_path_new1);
+	    }
+	    if (af_path_2005 & 2) {
+		strcpy(tmp, xstart_path_new2);
+		strcat(tmp, "system\\rom");
+		if (isfilesindir(tmp))
+		    path_type = PATH_TYPE_AMIGAFOREVERDATA;
+		else
+		    path_type = PATH_TYPE_NEWWINUAE;
+		strcpy(start_path_data, xstart_path_new2);
 	    }
 	}
     }
@@ -2676,12 +2689,10 @@ static void makeverstr(char *s)
     sprintf(s, "WinUAE %d.%d.%d%s (%d.%02d.%02d)",
 	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
 #endif
-#ifdef WINUAEEXTRA
     if(strlen(WINUAEEXTRA) > 0) {
 	strcat (s, " ");
 	strcat (s, WINUAEEXTRA);
     }
-#endif
 }
 
 static int multi_display = 1;

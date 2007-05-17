@@ -15,11 +15,11 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 0
-#define WINUAEPUBLICBETA 0
-#define WINUAEDATE MAKEBD(2007, 5, 13)
-//#define WINUAEEXTRA ""
-#define WINUAEREV "a"
+#define WINUAEBETA 1
+#define WINUAEPUBLICBETA 1
+#define WINUAEDATE MAKEBD(2007, 5, 17)
+#define WINUAEEXTRA ""
+#define WINUAEREV ""
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
@@ -79,7 +79,12 @@ extern int screen_is_picasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
 extern int af_path_2005, af_path_old;
-extern char start_path_af[MAX_DPATH], start_path_new[MAX_DPATH];
+extern char start_path_af[MAX_DPATH], start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
+#define PATH_TYPE_WINUAE 0
+#define PATH_TYPE_NEWWINUAE 1
+#define PATH_TYPE_OLDAF 2
+#define PATH_TYPE_NEWAF 3
+#define PATH_TYPE_AMIGAFOREVERDATA 4
 
 extern void sleep_millis (int ms);
 extern void sleep_millis_busy (int ms);

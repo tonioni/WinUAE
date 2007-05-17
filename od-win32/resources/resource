@@ -180,6 +180,7 @@
 #define IDS_SCREEN_WINDOWED             195
 #define IDS_SCREEN_FULLSCREEN           196
 #define IDS_SCREEN_FULLWINDOW           197
+#define IDS_SCREEN_FULLSCREENVSYNC      198
 #define IDS_SOUND_MONO                  200
 #define IDS_SOUND_MIXED                 201
 #define IDI_QUICKSTART                  201
@@ -925,7 +926,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1770
+#define _APS_NEXT_CONTROL_VALUE         1771
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

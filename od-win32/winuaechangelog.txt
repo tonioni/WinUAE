@@ -1,6 +1,26 @@
 
 Beta 1:
 
+- use Segoe UI font only if running on Vista
+- separated native and P96 vsync setting, note that P96 vsync has
+  never been "real" vsync but sync to internal refresh rate which isn't
+  usually same as real host refresh rate. Sound problems fixed when P96
+  VSync and 56KHz "audio trick" was enabled.
+- sprite attachment fix, fixes "Great Demo" by "The Tremendous Trio" :)
+- clear sound buffer before reopening window/fullscreen
+- delayed CDTV CD inserted notification (Xenon 2)
+- CDTV CD audio stop command fix (DOTC2, ChaosInAndromeda CD player)
+- added MB RAM support to debugger's search commands
+- Paths-panel improved, added previously "hidden" AMIGAFOREVERDATA
+  environmental variable (if set), and separated AF2005 and "new" WinUAE
+  paths (only difference is default KS ROM path, AF2005 =
+  <root>\..\system\rom, WinUAE is <root>\roms or <root>\rom)
+- Quickstart-panel DF1: disable/enable checkbox added (available only in
+  configurations that have DF0: enabled)
+
+
+1.4.2a
+
 - added PCMCIA to advanced chipset. It does not emulate PCMCIA (yet),
   it only reserves address space and makes CIA bank 64k (0xbf only
   instead of 0xa0 to 0xbf) Previously only AGA changed CIA bank size.

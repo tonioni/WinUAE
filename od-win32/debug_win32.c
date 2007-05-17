@@ -137,6 +137,7 @@ static void AddToHistory(const char *command)
 {
     struct histnode *tmp;
 
+    currhist = NULL;
     if (histcount > 0 && !strcmp(command, lasthist->command))
         return;
     else if (histcount == MAXINPUTHIST) {
