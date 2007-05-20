@@ -1,4 +1,34 @@
 
+Beta 2:
+
+- WD33C93 + (Super)DMAC based SCSI HDF emulation. A590/A2091, A3000 and
+  CDTV with SCSI expansion. Current implementation is very minimal.
+  A590/A2091 Boot ROMs 6.0, 6.6 and 7.0 tested and confirmed working.
+  A3000 random KS ROMs (including "1.4") also confirmed working.
+  CDTV with 1.0 extended ROM freezes during standard WB 1.3
+  startup-sequence (works if run manually..) Newer extended ROMs work
+  without freezes.
+  NOTE: disconnect/reconnect not emulated (yet?), SCSI Message out +
+  Command + Data in/out + Status + Message in phases emulated. Most
+  WD33C93 registers are not emulated. Non-tested drivers (KS versions)
+  most likely won't work yet. Check the log!
+
+- A3000 KS "1.4" added to ROM list (yes, it is beta but it came with
+  some A3000s) Need confirmed official A3000 and A4000(T) information
+  before more A3000/A4000(T) ROMs will be added. (Note A3000 ROMs,
+  not SuperKickstart images!)
+- A590/A2091 6.0, 6.6 and 7.0 added to ROM list. A590/A2091 ROM is
+  automatically selected, manual rom selection is not possible.
+- A590/A2091 Guru ROM added to ROM list (not yet supported, I need
+  A590/A2091 autoconfig er_InitDiagVec value first, Scout shows it)
+- A4091 40.9 (no CRC available yet) and 40.13 ROM added to ROM list.
+  NCR SCSI (A4091 and A4000T) is not yet emulated.
+
+- Action Cartridge Super IV Professional emulated partially, also added
+  support for Super IV "ROM version" (Super IV cartridge does not have
+  any ROM chips, "ROM" is loaded from disk) Loader disk does not work
+  yet! Interface is very different compared to Action Replay series.
+ 
 Beta 1:
 
 - use Segoe UI font only if running on Vista

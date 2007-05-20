@@ -46,6 +46,8 @@
 #include "gui.h"
 #include "gayle.h"
 #include "savestate.h"
+#include "a2091.h"
+#include "cdtv.h"
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -414,16 +416,30 @@ static void initialize_mountinfo(void)
     for (i = 0; i < currprefs.mountitems; i++) {
 	int idx;
 	uci = &currprefs.mountconfig[i];
-	if (uci->controller == 0) {
+	if (uci->controller == HD_CONTROLLER_UAE) {
 	    idx = set_filesys_unit_1 (-1, uci->devname, uci->volname, uci->rootdir,
 		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
 		uci->blocksize, uci->bootpri, uci->filesys, 0, 0);
 	    if (idx >= 0)
 		uci->configoffset = idx;
-	} else {
-	    gayle_add_ide_unit (uci->controller - 1, uci->rootdir, uci->blocksize, uci->readonly,
+	} else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
+	    gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
 		uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 		uci->bootpri, uci->filesys);
+	} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
+	    if (currprefs.cs_mbdmac) {
+		a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+		    uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+		    uci->bootpri, uci->filesys);
+	    } else if (currprefs.cs_a2091) {
+		a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+		    uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+		    uci->bootpri, uci->filesys);
+	    } else if (currprefs.cs_cdtvscsi) {
+		cdtv_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+		    uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+		    uci->bootpri, uci->filesys);
+	    }
 	}
     }
     filesys_addexternals();
@@ -3332,7 +3348,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
     switch (n) {
      case 0:
 	/* Determine whether a given EXTER interrupt is for us. */
-	if (uae_int_requested) {
+	if (uae_int_requested & 1) {
 	    if (uae_sem_trywait (&singlethread_int_sem) != 0)
 		/* Pretend it isn't for us. We might get it again later. */
 		return 0;
@@ -3340,7 +3356,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 	     * That way, we can get too many interrupts, but never not
 	     * enough. */
 	    filesys_in_interrupt++;
-	    uae_int_requested = 0;
+	    uae_int_requested &= ~1;
 	    unit_no = 0;
 	    return 1;
 	}

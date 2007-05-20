@@ -248,7 +248,7 @@ volatile int uae_int_requested = 0;
 
 void set_uae_int_flag (void)
 {
-    rtarea[0xFFFB] = uae_int_requested;
+    rtarea[0xFFFB] = uae_int_requested & 1;
 }
 
 void rtarea_setup (void)

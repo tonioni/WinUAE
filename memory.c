@@ -26,6 +26,7 @@
 #include "akiko.h"
 #include "arcadia.h"
 #include "enforcer.h"
+#include "a2091.h"
 
 int canbang;
 #ifdef JIT
@@ -97,6 +98,7 @@ static struct romdata roms[] = {
     { "KS ROM v1.2 (A500,A1000,A2000)", 1, 2, 33, 180, "A500\0A1000\0A2000\0", 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
     { "KS ROM v1.3 (A500,A1000,A2000)", 1, 3, 34, 5, "A500\0A1000\0A2000\0", 0xc4f0f55f, 262144, 6, 0, 0, ROMTYPE_KICK },
     { "KS ROM v1.3 (A3000)", 1, 3, 34, 5, "A3000\0", 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
+    { "KS ROM v1.4b (A3000)", 1, 4, 36, 16, "A3000\0", 0xbc0ec13f, 524288, 59, 0, 0, ROMTYPE_KICK },
 
     { "KS ROM v2.04 (A500+)", 2, 4, 37, 175, "A500+\0", 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
     { "KS ROM v2.05 (A600)", 2, 5, 37, 299, "A600\0", 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
@@ -131,6 +133,14 @@ static struct romdata roms[] = {
     { "Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
     { "Action Replay 1200", 0, 0, 0, 0, "AR\0", 0x8d760101, 262144, 47, 0, 0, ROMTYPE_AR },
+    { "Action Cartridge Super IV Pro", 4, 3, 4, 3, "SUPERIV\0", 0xe668a0be, 170368, 60, 0, 0, ROMTYPE_SUPERIV },
+
+    { "A590/A2091 Boot ROM", 6, 0, 6, 0, "A2091BOOT\0", 0x8396cf4e, 16384, 53, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 Boot ROM", 6, 6, 6, 6, "A2091BOOT\0", 0x33e00a7a, 16384, 54, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 Boot ROM", 7, 0, 7, 0, "A2091BOOT\0", 0x714a97a2, 16384, 55, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 Guru Boot ROM", 6, 14, 6, 14, "A2091BOOT\0", 0x04e52f93, 32768, 56, 0, 0, ROMTYPE_A2091BOOT },
+    { "A4091 Boot ROM", 40, 9, 40, 9, "A4091BOOT\0", 0x00000000, 32768, 57, 0, 0, ROMTYPE_A4091BOOT },
+    { "A4091 Boot ROM", 40, 13, 40, 13, "A4091BOOT\0", 0x54cb9e85, 32768, 58, 0, 0, ROMTYPE_A4091BOOT },
 
     { "Arcadia OnePlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 49, 0, 0, ROMTYPE_ARCADIABIOS },
     { "Arcadia TenPlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 50, 0, 0, ROMTYPE_ARCADIABIOS },
@@ -579,6 +589,25 @@ void getromname	(struct romdata *rd, char *name)
 	sprintf (name + strlen (name), " rev %d.%d", rd->subver, rd->subrev);
     if (rd->size > 0)
 	sprintf (name + strlen (name), " (%dk)", (rd->size + 1023) / 1024);
+}
+
+struct romlist *getrombyids(int *ids)
+{
+    struct romdata *rd;
+    int i, j;
+
+    i = 0;
+    while (ids[i] >= 0) {
+	rd = getromdatabyid (ids[i]);
+	if (rd) {
+	    for (j = 0; j < romlist_cnt; j++) {
+		if (rl[j].rd == rd)
+		    return &rl[j];
+	    }
+	}
+	i++;
+    }
+    return NULL;
 }
 
 addrbank *mem_banks[MEMORY_BANKS];
@@ -1805,6 +1834,8 @@ static int patch_residents (uae_u8 *kickmemory, int size)
     // "scsi.device", "carddisk.device", "card.resource" };
     uaecptr base = size == 524288 ? 0xf80000 : 0xfc0000;
 
+    if (currprefs.cs_mbdmac == 2)
+	residents[0] = NULL;
     for (i = 0; i < size - 100; i++) {
 	if (kickmemory[i] == 0x4a && kickmemory[i + 1] == 0xfc) {
 	    uaecptr addr;
@@ -2340,7 +2371,8 @@ void memory_reset (void)
     if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
 	map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
     if (currprefs.cs_mbdmac == 1)
-	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
+	a3000scsi_reset();
+
     if (a3000lmemory != 0)
         map_banks (&a3000lmem_bank, a3000lmem_start >> 16, allocated_a3000lmem >> 16, 0);
     if (a3000hmemory != 0)

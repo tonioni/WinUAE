@@ -36,6 +36,33 @@ struct hardfiledata {
     uae_u64 virtual_size;
 };
 
+struct hd_hardfiledata {
+    struct hardfiledata hfd;
+    int bootpri;
+    uae_u64 size;
+    int cyls;
+    int heads;
+    int secspertrack;
+    int cyls_def;
+    int secspertrack_def;
+    int heads_def;
+    char *path;
+    int iso_version, ecma_version, ansi_version;
+};
+
+#define HD_CONTROLLER_UAE 0
+#define HD_CONTROLLER_IDE0 1
+#define HD_CONTROLLER_IDE1 2
+#define HD_CONTROLLER_IDE2 3
+#define HD_CONTROLLER_IDE3 4
+#define HD_CONTROLLER_SCSI0 5
+#define HD_CONTROLLER_SCSI1 6
+#define HD_CONTROLLER_SCSI2 7
+#define HD_CONTROLLER_SCSI3 8
+#define HD_CONTROLLER_SCSI4 9
+#define HD_CONTROLLER_SCSI5 10
+#define HD_CONTROLLER_SCSI6 11
+
 #define FILESYS_VIRTUAL 0
 #define FILESYS_HARDFILE 1
 #define FILESYS_HARDFILE_RDB 2
@@ -58,3 +85,8 @@ extern char *hdf_getnameharddrive (int index, int flags);
 extern int hdf_init (void);
 extern int isspecialdrive(const char *name);
 extern int get_native_path(uae_u32 lock, char *out);
+
+void hdf_hd_close(struct hd_hardfiledata *hfd);
+int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int readonly,
+		       char *devname, int sectors, int surfaces, int reserved,
+		       int bootpri, char *filesys);

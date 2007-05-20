@@ -143,6 +143,9 @@ void ncr_bput2(uaecptr addr, uae_u32 val)
 	return;
     switch (addr)
     {
+	case 0x08:
+	ncrregs[0x22] |= 2;
+	break;
 	case 0x02: // SCNTL1
 	break;
 	case 0x22 : // ISTAT
@@ -164,11 +167,14 @@ uae_u32 ncr_bget2(uaecptr addr)
     v = ncrregs[addr];
     switch (addr)
     {
+	case 0x0c: // SSTAT2
+	v &= ~7;
+	v |= ncrregs[8] & 7;
+	break;
+	case 0x0e: // SSTAT0
+	v |= 0x20;
+	break;
         case 0x22: // ISTAT
-	if (ncrregs[0x02] & 0x08)
-	    v |= 0x02; // SIP
-	if (ncrregs[0x07]) // have ID?
-	    v |= 0x08; // CONNECTED
 	ncrregs[addr] &= 0x40;
 	break;
 	case 0x21: // CTEST8
@@ -275,7 +281,7 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 	return;
     }
     if (addr == 0x4c) {
-	write_log ("A4091 DMAC AUTOCONFIG SHUT-UP!\n");
+	write_log ("A4091 AUTOCONFIG SHUT-UP!\n");
 	configured = 1;
 	expamem_next();
 	return;
@@ -338,7 +344,8 @@ void ncr_reset (void)
 void ncr_init (void)
 {
     struct zfile *z;
-    char path[MAX_DPATH];
+    int roms[3];
+    struct romlist *rl;
 
     configured = 0;
     memset (acmemory, 0xff, 100);
@@ -351,15 +358,22 @@ void ncr_init (void)
     /* rom vector */
     ew (0x28, ROM_VECTOR >> 8);
     ew (0x2c, ROM_VECTOR);
-    if (!rom) {
-	fetch_datapath (path, sizeof path);
-	strcat (path, "roms\\a4091.rom");
-	write_log("A4091 ROM path: '%s'\n", path);
-	z = zfile_fopen(path, "rb");
+
+    roms[0] = 57;
+    roms[1] = 56;
+    roms[2] = -1;
+
+    rl = getrombyids(roms);
+    if (rl) {
+	write_log("A4091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
+	z = zfile_fopen(rl->path, "rb");
 	if (z) {
+	    write_log("loaded\n");
 	    rom = xmalloc (ROM_SIZE);
 	    zfile_fread (rom, ROM_SIZE, 1, z);
 	    zfile_fclose(z);
+	} else {
+	    write_log("failed to load\n");
 	}
     }
     map_banks (&ncr_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);

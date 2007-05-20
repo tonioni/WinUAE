@@ -1770,6 +1770,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\scsi.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\scsiemul.c"
 				>
 			</File>

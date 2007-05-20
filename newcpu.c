@@ -1116,8 +1116,9 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 STATIC_INLINE void do_interrupt(int nr, struct regstruct *regs)
 {
 #if 0
-    if (nr == 4)
-	write_log("irq %d at %x (%04.4X)\n", nr, m68k_getpc(), intena & intreq);
+    if (nr == 2)
+	write_log(".");
+	//write_log("irq %d at %x (%04.4X) ", nr, m68k_getpc(regs), intena & intreq);
 #endif
     regs->stopped = 0;
     unset_special (regs, SPCFLAG_STOP);

@@ -57,6 +57,6 @@ extern smp_comm_pipe native2amiga_pending;
 
 STATIC_INLINE void do_uae_int_requested (void)
 {
-    uae_int_requested = 1;
+    uae_int_requested |= 1;
     set_uae_int_flag ();
 }

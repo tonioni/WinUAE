@@ -220,7 +220,9 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 {
     int i;
     char tmp[MAX_DPATH];
-    char *hdcontrollers[] = { "uae", "ide0", "ide1", "ide2", "ide3" };
+    char *hdcontrollers[] = { "uae",
+	"ide0", "ide1", "ide2", "ide3",
+	"scsi0", "scsi1", "scsi2", "scsi3", "scsi4", "scsi5", "scsi6" };
 
     for (i = 0; i < p->mountitems; i++) {
 	struct uaedev_config_info *uci = &p->mountconfig[i];
@@ -518,7 +520,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "scsi_cdtv=%s\n", p->cs_cdtvscsi ? "true" : "false");
     cfgfile_write (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
     cfgfile_write (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
-    cfgfile_write (f, "scsi_a3000=%s\n", p->cs_mbdmac ? "true" : "false");
+    cfgfile_write (f, "scsi_a3000=%s\n", p->cs_mbdmac == 1 ? "true" : "false");
+    cfgfile_write (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
@@ -1157,6 +1160,16 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
     }
 
+    if (cfgfile_yesno (option, value, "scsi_a3000", &dummy)) {
+	if (dummy)
+	    p->cs_mbdmac = 1;
+	return 1;
+    }
+    if (cfgfile_yesno (option, value, "scsi_a4000t", &dummy)) {
+	if (dummy)
+	    p->cs_mbdmac = 2;
+	return 1;
+    }
     if (cfgfile_yesno (option, value, "immediate_blits", &p->immediate_blits)
 
 	|| cfgfile_yesno (option, value, "cd32cd", &p->cs_cd32cd)
@@ -1168,7 +1181,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "scsi_cdtv", &p->cs_cdtvscsi)
 	|| cfgfile_yesno (option, value, "scsi_a4091", &p->cs_a4091)
 	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
-	|| cfgfile_yesno (option, value, "scsi_a3000", &p->cs_mbdmac)
 
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
@@ -1459,8 +1471,13 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 		    *tmpp++ = 0;
 		    hdc = tmpp;
 		    if(strlen(hdc) >= 4 && !memcmp(hdc, "ide", 3)) {
-			hdcv = hdc[3] - '0' + 1;
-			if (hdcv < 1 || hdcv > 4)
+			hdcv = hdc[3] - '0' + HD_CONTROLLER_IDE0;
+			if (hdcv < HD_CONTROLLER_IDE0 || hdcv > HD_CONTROLLER_IDE3)
+			    hdcv = 0;
+		    }
+		    if(strlen(hdc) >= 5 && !memcmp(hdc, "scsi", 4)) {
+			hdcv = hdc[4] - '0' + HD_CONTROLLER_SCSI0;
+			if (hdcv < HD_CONTROLLER_SCSI0 || hdcv > HD_CONTROLLER_SCSI6)
 			    hdcv = 0;
 		    }
 		}

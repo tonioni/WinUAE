@@ -127,11 +127,7 @@ DE0000 to DEFFFF		64 KB Motherboard resources
 
 struct ide_hdf
 {
-    struct hardfiledata hfd;
-    int cyls, heads, secspertrack;
-    int cyls_def, heads_def, secspertrack_def;
-    uae_u64 size;
-    char *path;
+    struct hd_hardfiledata hdhfd;
 
     uae_u8 secbuf[512 * 256];
     int data_offset;
@@ -141,7 +137,6 @@ struct ide_hdf
     uae_u8 status;
     int irq_delay;
     int num;
-    int bootpri; // for fake RDB
 };
 
 static struct ide_hdf idedrive[4];
@@ -191,7 +186,7 @@ static void ide_interrupt_do(struct ide_hdf *ide)
 static void ide_fail(void)
 {
     ide_error |= IDE_ERR_ABRT;
-    if (ide_drv == 1 && idedrive[ide2 + 1].size == 0)
+    if (ide_drv == 1 && idedrive[ide2 + 1].hdhfd.size == 0)
 	idedrive[ide2].status |= IDE_STATUS_ERR;
     ide->status |= IDE_STATUS_ERR;
     ide_interrupt();
@@ -221,7 +216,7 @@ static void ide_identify_drive(void)
     int v;
     uae_u8 *buf = ide->secbuf;
 
-    if (ide->size == 0) {
+    if (ide->hdhfd.size == 0) {
 	ide_fail();
 	return;
     }
@@ -229,11 +224,11 @@ static void ide_identify_drive(void)
 	write_log("IDE%d identify drive\n", ide->num);
     ide_data_ready(1);
     pw(0, (1 << 10) | (1 << 6) | (1 << 2) | (1 << 3));
-    pw(1, ide->cyls_def);
-    pw(3, ide->heads_def);
-    pw(4, 512 * ide->secspertrack_def);
+    pw(1, ide->hdhfd.cyls_def);
+    pw(3, ide->hdhfd.heads_def);
+    pw(4, 512 * ide->hdhfd.secspertrack_def);
     pw(5, 512);
-    pw(6, ide->secspertrack_def);
+    pw(6, ide->hdhfd.secspertrack_def);
     ps(10, "68000", 20); /* serial */
     pw(20, 3);
     pw(21, 512);
@@ -244,15 +239,15 @@ static void ide_identify_drive(void)
     pw(49, (1 << 9) | (1 << 8)); /* LBA and DMA supported */
     pw(51, 240 << 8); /* PIO0 to PIO2 supported */
     pw(53, 1 | 2);
-    pw(54, ide->cyls);
-    pw(55, ide->heads);
-    pw(56, ide->secspertrack);
-    totalsecs = ide->cyls * ide->heads * ide->secspertrack;
+    pw(54, ide->hdhfd.cyls);
+    pw(55, ide->hdhfd.heads);
+    pw(56, ide->hdhfd.secspertrack);
+    totalsecs = ide->hdhfd.cyls * ide->hdhfd.heads * ide->hdhfd.secspertrack;
     pw(57, totalsecs);
     pw(58, totalsecs >> 16);
     v = idedrive[ide_drv].multiple_mode;
     pw(59, (v > 0 ? 0x100 : 0) | v);
-    totalsecs = ide->size / 512;
+    totalsecs = ide->hdhfd.size / 512;
     pw(60, totalsecs);
     pw(61, totalsecs >> 16);
     pw(62, 0x0f);
@@ -267,21 +262,21 @@ static void ide_identify_drive(void)
 }
 static void ide_initialize_drive_parameters(void)
 {
-    if (ide->size) {
-	ide->secspertrack = ide_nsector == 0 ? 256 : ide_nsector;
-	ide->heads = (ide_select & 15) + 1;
-	ide->cyls = (ide->size / 512) / (ide->secspertrack * ide->heads);
-	if (ide->heads * ide->cyls * ide->secspertrack > 16515072) {
-	    ide->cyls = ide->cyls_def;
-	    ide->heads = ide->heads_def;
-	    ide->secspertrack = ide->secspertrack_def;
+    if (ide->hdhfd.size) {
+	ide->hdhfd.secspertrack = ide_nsector == 0 ? 256 : ide_nsector;
+	ide->hdhfd.heads = (ide_select & 15) + 1;
+	ide->hdhfd.cyls = (ide->hdhfd.size / 512) / (ide->hdhfd.secspertrack * ide->hdhfd.heads);
+	if (ide->hdhfd.heads * ide->hdhfd.cyls * ide->hdhfd.secspertrack > 16515072) {
+	    ide->hdhfd.cyls = ide->hdhfd.cyls_def;
+	    ide->hdhfd.heads = ide->hdhfd.heads_def;
+	    ide->hdhfd.secspertrack = ide->hdhfd.secspertrack_def;
 	}
     } else {
 	ide_error |= IDE_ERR_ABRT;
 	ide->status |= IDE_STATUS_ERR;
     }
     write_log("IDE%d initialize drive parameters, CYL=%d,SPT=%d,HEAD=%d\n",
-	ide->num, ide->cyls, ide->secspertrack, ide->heads);
+	ide->num, ide->hdhfd.cyls, ide->hdhfd.secspertrack, ide->hdhfd.heads);
     ide_interrupt();
 }
 static void ide_set_multiple_mode(void)
@@ -304,7 +299,7 @@ static void get_lbachs(struct ide_hdf *ide, int *lba, int *cyl, int *head, int *
 	*cyl = (ide_hcyl << 8) | ide_lcyl;
 	*head = ide_select & 15;
 	*sec = ide_sector;
-	*lba = (((*cyl) * ide->heads + (*head)) * ide->secspertrack) + (*sec) - 1;
+	*lba = (((*cyl) * ide->hdhfd.heads + (*head)) * ide->hdhfd.secspertrack) + (*sec) - 1;
     }
 }
 static void put_lbachs(struct ide_hdf *ide, int lba, int cyl, int head, int sec, int inc)
@@ -318,11 +313,11 @@ static void put_lbachs(struct ide_hdf *ide, int lba, int cyl, int head, int sec,
 	ide_sector = lba & 0xff;
     } else {
 	sec += inc;
-	while (sec >= ide->secspertrack) {
-	    sec -= ide->secspertrack;
+	while (sec >= ide->hdhfd.secspertrack) {
+	    sec -= ide->hdhfd.secspertrack;
 	    head++;
-	    if (head >= ide->heads) {
-		head -= ide->heads;
+	    if (head >= ide->hdhfd.heads) {
+		head -= ide->hdhfd.heads;
 		cyl++;
 	    }
 	}
@@ -350,14 +345,22 @@ static void ide_read_sectors(int multi)
 	write_log("IDE%d read offset=%d, sectors=%d (%d)\n", ide->num, lba, nsec, ide->multiple_mode);
     if (multi && ide->multiple_mode > nsec)
 	nsec = ide->multiple_mode;
-    if (lba * 512 >= ide->size) {
+    if (lba * 512 >= ide->hdhfd.size) {
 	ide_fail();
 	return;
     }
-    if (nsec * 512 > ide->size - lba * 512)
-	nsec = (ide->size - lba * 512) / 512;
+    if (nsec * 512 > ide->hdhfd.size - lba * 512)
+	nsec = (ide->hdhfd.size - lba * 512) / 512;
     ide_data_ready(nsec);
-    hdf_read (&ide->hfd, ide->secbuf, lba * 512, nsec * 512);
+#if 0
+    {
+	uae_u64 offset = lba * 512;
+	uae_u64 len = nsec * 512;
+	write_log ("cmd_read: %04.4x-%08.8x (%d) %08.8x (%d)\n",
+	    (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / 512), (uae_u32)len, (uae_u32)(len / 512));
+    }
+#endif
+    hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * 512, nsec * 512);
     put_lbachs(ide, lba, cyl, head, sec, nsec);
     ide->data_multi = multi ? ide->multiple_mode : 1;
 }
@@ -372,14 +375,14 @@ static void ide_write_sectors(int multi)
     gui_hd_led (2);
     nsec = ide_nsector == 0 ? 256 : ide_nsector;
     get_lbachs(ide, &lba, &cyl, &head, &sec);
-    if (lba * 512 >= ide->size) {
+    if (lba * 512 >= ide->hdhfd.size) {
 	ide_fail();
 	return;
     }
     if (IDE_LOG > 0)
 	write_log("IDE%d write offset=%d, sectors=%d (%d)\n", ide->num, lba, nsec, ide->multiple_mode);
-    if (nsec * 512 > ide->size - lba * 512)
-	nsec = (ide->size - lba * 512) / 512;
+    if (nsec * 512 > ide->hdhfd.size - lba * 512)
+	nsec = (ide->hdhfd.size - lba * 512) / 512;
     ide_data_ready(nsec);
     ide->data_multi = multi ? ide->multiple_mode : 1;
 }
@@ -427,7 +430,7 @@ static uae_u16 ide_get_data(void)
     if (ide->data_size == 0) {
 	if (IDE_LOG > 0)
 	    write_log("IDE%d DATA read without DRQ!?\n", ide->num);
-	if (ide->size == 0)
+	if (ide->hdhfd.size == 0)
 	    return 0xffff;
 	return 0;
     }
@@ -469,7 +472,7 @@ static void ide_put_data(uae_u16 v)
 	get_lbachs(ide, &lba, &cyl, &head, &sec);
 	if (IDE_LOG > 0)
 	    write_log("IDE%d write finished, %d bytes (%d) written\n", ide->num, ide->data_offset, ide->data_offset / 512);
-	hdf_write(&ide->hfd, ide->secbuf, lba * 512, ide->data_offset);
+	hdf_write(&ide->hdhfd.hfd, ide->secbuf, lba * 512, ide->data_offset);
 	put_lbachs(ide, lba, cyl, head, sec, nsec);
 	irq = 1;
     }
@@ -528,7 +531,7 @@ static uae_u32 ide_read (uaecptr addr)
     }
     ide_reg = get_ide_reg(addr);
     /* Emulated "ide hack". Prevents long KS boot delay if no drives installed */
-    if (idedrive[0].size == 0 && idedrive[2].size == 0)
+    if (idedrive[0].hdhfd.size == 0 && idedrive[2].hdhfd.size == 0)
 	return 0xff;
     switch (ide_reg)
     {
@@ -571,7 +574,7 @@ static uae_u32 ide_read (uaecptr addr)
 	    v = ide_devcon;
 	break;
 	case IDE_STATUS:
-	    if (ide->size == 0) {
+	    if (ide->hdhfd.size == 0) {
 		v = 0;
 		if (ide_error)
 		    v |= IDE_STATUS_ERR;
@@ -1112,164 +1115,9 @@ void gayle_free_ide_units(void)
 
     for (i = 0; i < 4; i++) {
 	struct ide_hdf *ide = &idedrive[i];
-	if (ide->hfd.handle_valid)
-	    hdf_close(&ide->hfd);
-	xfree(ide->path);
+	hdf_hd_close(&ide->hdhfd);
 	memset(ide, 0, sizeof (struct ide_hdf));
     }
-}
-
-void getchs2 (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorspertrack)
-{
-    unsigned int total = (unsigned int)(hfd->size / 512);
-    int i, head , cyl, spt;
-    int sptt[] = { 63, 127, 255, -1 };
-
-    if (total > 16515072) {
-	 /* >8G, CHS=16383/16/63 */
-	*pcyl = 16383;
-	*phead = 16;
-	*psectorspertrack = 63;
-	return;
-    }
-
-    for (i = 0; sptt[i] >= 0; i++) {
-	spt = sptt[i];
-	for (head = 4; head <= 16;head++) {
-	    cyl = total / (head * spt);
-	    if (hfd->size <= 512 * 1024 * 1024) {
-		if (cyl <= 1023)
-		    break;
-	    } else {
-		if (cyl < 16383)
-		    break;
-		if (cyl < 32767 && head >= 5)
-		    break;
-		if (cyl <= 65535)
-		    break;
-	    }
-	}
-	if (head <= 16)
-	    break;
-    }
-    *pcyl = cyl;
-    *phead = head;
-    *psectorspertrack = spt;
-}
-
-static void pl(uae_u8 *p, int off, uae_u32 v)
-{
-    p += off * 4;
-    p[0] = v >> 24;
-    p[1] = v >> 16;
-    p[2] = v >> 8;
-    p[3] = v >> 0;
-}
-
-static void rdb_crc(uae_u8 *p)
-{
-    uae_u32 sum;
-    int i, blocksize;
-    
-    sum =0;
-    blocksize = rl (p + 1 * 4);
-    for (i = 0; i < blocksize; i++)
-	sum += rl (p + i * 4);
-    sum = -sum;
-    pl (p, 2, sum);
-}
-
-static void create_virtual_rdb(struct hardfiledata *hfd, uae_u32 dostype, int bootpri, char *filesys)
-{
-    uae_u8 *rdb, *part, *denv;
-    int cyl = hfd->heads * hfd->secspertrack;
-    int cyls = 262144 / (cyl * 512);
-    int size = cyl * cyls * 512;
-
-    rdb = xcalloc (size, 1);
-    hfd->virtual_rdb = rdb;
-    hfd->virtual_size = size;
-    part = rdb + 512;
-    pl(rdb, 0, 0x5244534b);
-    pl(rdb, 1, 64);
-    pl(rdb, 2, 0); // chksum
-    pl(rdb, 3, 0); // hostid
-    pl(rdb, 4, 512); // blockbytes
-    pl(rdb, 5, 0); // flags
-    pl(rdb, 6, -1); // badblock
-    pl(rdb, 7, 1); // part
-    pl(rdb, 8, -1); // fs
-    pl(rdb, 9, -1); // driveinit
-    pl(rdb, 10, -1); // reserved
-    pl(rdb, 11, -1); // reserved
-    pl(rdb, 12, -1); // reserved
-    pl(rdb, 13, -1); // reserved
-    pl(rdb, 14, -1); // reserved
-    pl(rdb, 15, -1); // reserved
-    pl(rdb, 16, hfd->nrcyls);
-    pl(rdb, 17, hfd->secspertrack);
-    pl(rdb, 18, hfd->heads);
-    pl(rdb, 19, 0); // interleave
-    pl(rdb, 20, 0); // park
-    pl(rdb, 21, -1); // res
-    pl(rdb, 22, -1); // res
-    pl(rdb, 23, -1); // res
-    pl(rdb, 24, 0); // writeprecomp
-    pl(rdb, 25, 0); // reducedwrite
-    pl(rdb, 26, 0); // steprate
-    pl(rdb, 27, -1); // res
-    pl(rdb, 28, -1); // res
-    pl(rdb, 29, -1); // res
-    pl(rdb, 30, -1); // res
-    pl(rdb, 31, -1); // res
-    pl(rdb, 32, 0); // rdbblockslo
-    pl(rdb, 33, cyl * cyls); // rdbblockshi
-    pl(rdb, 34, cyls); // locyl
-    pl(rdb, 35, hfd->nrcyls + cyls); // hicyl
-    pl(rdb, 36, cyl); // cylblocks
-    pl(rdb, 37, 0); // autopark
-    pl(rdb, 38, 2); // highrdskblock
-    pl(rdb, 39, -1); // res
-    strcpy (rdb + 40 * 4, hfd->vendor_id);
-    strcpy (rdb + 42 * 4, hfd->product_id);
-    strcpy (rdb + 46 * 4, "UAE");
-    rdb_crc(rdb);
-
-    pl(part, 0, 0x50415254);
-    pl(part, 1, 64);
-    pl(part, 2, 0);
-    pl(part, 3, 0);
-    pl(part, 4, -1);
-    pl(part, 5, 1); // bootable
-    pl(part, 6, -1);
-    pl(part, 7, -1);
-    pl(part, 8, 0); // devflags
-    part[9 * 4] = strlen(hfd->device_name);
-    strcpy (part + 9 * 4 + 1, hfd->device_name);
-
-    denv = part + 128;
-    pl(denv, 0, 80);
-    pl(denv, 1, 512 / 4);
-    pl(denv, 2, 0); // secorg
-    pl(denv, 3, hfd->heads);
-    pl(denv, 4, hfd->blocksize / 512);
-    pl(denv, 5, hfd->secspertrack);
-    pl(denv, 6, hfd->reservedblocks);
-    pl(denv, 7, 0); // prealloc
-    pl(denv, 8, 0); // interleave
-    pl(denv, 9, cyls); // lowcyl
-    pl(denv, 10, hfd->nrcyls + cyls - 1);
-    pl(denv, 11, 50);
-    pl(denv, 12, 0);
-    pl(denv, 13, 0x00ffffff);
-    pl(denv, 14, 0x7ffffffe);
-    pl(denv, 15, bootpri);
-    pl(denv, 16, dostype);
-    rdb_crc(part);
-
-    hfd->size += size;
-    hfd->size2 += size;
-
 }
 
 int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly,
@@ -1281,35 +1129,9 @@ int gayle_add_ide_unit(int ch, char *path, int blocksize, int readonly,
     if (ch >= 4)
 	return -1;
     ide = &idedrive[ch];
-    ide->hfd.readonly = readonly;
-    ide->hfd.blocksize = blocksize;
-    ide->bootpri = bootpri;
-    ide->size = 0;
-    if (!hdf_open(&ide->hfd, path))
+    if (!hdf_hd_open(&ide->hdhfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return -1;
-    ide->path = my_strdup(path);
-    ide->hfd.heads = surfaces;
-    ide->hfd.reservedblocks = reserved;
-    ide->hfd.secspertrack = sectors;
-    if (devname)
-	strcpy (ide->hfd.device_name, devname);
-    getchs2(&ide->hfd, &ide->cyls, &ide->heads, &ide->secspertrack);
-    ide->cyls_def = ide->cyls;
-    ide->secspertrack_def = ide->secspertrack;
-    ide->heads_def = ide->heads;
-    if (ide->hfd.heads && ide->hfd.secspertrack) {
-	uae_u8 buf[512] = { 0 };
-        hdf_read(&ide->hfd, buf, 0, 512);
-	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
-	    ide->hfd.nrcyls = (ide->hfd.size / blocksize) / (sectors * surfaces);
-	    create_virtual_rdb(&ide->hfd, rl (buf), ide->bootpri, filesys);
-	    while (ide->hfd.nrcyls * surfaces * sectors > ide->cyls_def * ide->secspertrack_def * ide->heads_def) {
-		ide->cyls_def++;
-	    }
-	}
-    }
-    ide->size = ide->hfd.size;
-    write_log("IDE%d ('%s'), CHS=%d,%d,%d\n", ch, path, ide->cyls, ide->heads, ide->secspertrack);
+    write_log("IDE%d ('%s'), CHS=%d,%d,%d\n", ch, path, ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack);
     ide->status = 0;
     ide->data_offset = 0;
     ide->data_size = 0;
@@ -1328,7 +1150,7 @@ static void initide(void)
     ide_lcyl = ide_hcyl = ide_devcon = ide_feat = 0;
     ide_drv = 0;
     ide_splitter = 0;
-    if (idedrive[2].size) {
+    if (idedrive[2].hdhfd.size) {
 	ide_splitter = 1;
 	write_log("IDE splitter enabled\n");
     }
@@ -1388,18 +1210,18 @@ uae_u8 *save_ide (int num, int *len)
 
     if (currprefs.cs_ide <= 0)
 	return NULL;
-    if (ide->size == 0)
+    if (ide->hdhfd.size == 0)
 	return NULL;
     dstbak = dst = malloc (1000);
     save_u32(num);
-    save_u64(ide->size);
-    save_string(ide->path);
-    save_u32(ide->hfd.blocksize);
-    save_u32(ide->hfd.readonly);
+    save_u64(ide->hdhfd.size);
+    save_string(ide->hdhfd.path);
+    save_u32(ide->hdhfd.hfd.blocksize);
+    save_u32(ide->hdhfd.hfd.readonly);
     save_u8(ide->multiple_mode);
-    save_u32(ide->cyls);
-    save_u32(ide->heads);
-    save_u32(ide->secspertrack);
+    save_u32(ide->hdhfd.cyls);
+    save_u32(ide->hdhfd.heads);
+    save_u32(ide->hdhfd.secspertrack);
     save_u8(ide_select);
     save_u8(ide_nsector);
     save_u8(ide_nsector2);
@@ -1413,11 +1235,11 @@ uae_u8 *save_ide (int num, int *len)
     save_u8(ide_feat2);
     save_u8(ide_error);
     save_u8(ide_devcon);
-    save_u64(ide->hfd.virtual_size);
-    save_u32(ide->hfd.secspertrack);
-    save_u32(ide->hfd.heads);
-    save_u32(ide->hfd.reservedblocks);
-    save_u32(ide->bootpri);
+    save_u64(ide->hdhfd.hfd.virtual_size);
+    save_u32(ide->hdhfd.hfd.secspertrack);
+    save_u32(ide->hdhfd.hfd.heads);
+    save_u32(ide->hdhfd.hfd.reservedblocks);
+    save_u32(ide->hdhfd.bootpri);
     *len = dst - dstbak;
     return dstbak;
 }
@@ -1436,9 +1258,9 @@ uae_u8 *restore_ide (uae_u8 *src)
     blocksize = restore_u32();
     readonly = restore_u32();
     ide->multiple_mode = restore_u8();
-    ide->cyls = restore_u32();
-    ide->heads = restore_u32();
-    ide->secspertrack = restore_u32();
+    ide->hdhfd.cyls = restore_u32();
+    ide->hdhfd.heads = restore_u32();
+    ide->hdhfd.secspertrack = restore_u32();
     ide_select = restore_u8();
     ide_nsector = restore_u8();
     ide_sector = restore_u8();
@@ -1452,14 +1274,14 @@ uae_u8 *restore_ide (uae_u8 *src)
     ide_feat2 = restore_u8();
     ide_error = restore_u8();
     ide_devcon = restore_u8();
-    ide->hfd.virtual_size = restore_u64();
-    ide->hfd.secspertrack = restore_u32();
-    ide->hfd.heads = restore_u32();
-    ide->hfd.reservedblocks = restore_u32();
-    ide->bootpri = restore_u32();
-    if (ide->hfd.virtual_size)
-	gayle_add_ide_unit (num, path, blocksize, readonly, ide->hfd.device_name,
-	    ide->hfd.secspertrack, ide->hfd.heads, ide->hfd.reservedblocks, ide->bootpri, NULL);
+    ide->hdhfd.hfd.virtual_size = restore_u64();
+    ide->hdhfd.hfd.secspertrack = restore_u32();
+    ide->hdhfd.hfd.heads = restore_u32();
+    ide->hdhfd.hfd.reservedblocks = restore_u32();
+    ide->hdhfd.bootpri = restore_u32();
+    if (ide->hdhfd.hfd.virtual_size)
+	gayle_add_ide_unit (num, path, blocksize, readonly, ide->hdhfd.hfd.device_name,
+	    ide->hdhfd.hfd.secspertrack, ide->hdhfd.hfd.heads, ide->hdhfd.hfd.reservedblocks, ide->hdhfd.bootpri, NULL);
     else
         gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0);
     xfree(path);

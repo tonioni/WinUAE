@@ -158,8 +158,7 @@ static char *getdevname (int type)
 	case UAEDEV_DISK_ID:
 	return UAEDEV_DISK;
 	default:
-	abort ();
-	return NULL;
+	return "NULL";
     }
 }
 

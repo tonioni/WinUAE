@@ -16,5 +16,11 @@ uae_u8 cdtv_battram_read (int addr);
 extern void cdtv_loadcardmem(uae_u8*, int);
 extern void cdtv_savecardmem(uae_u8*, int);
 
+int cdtv_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
+		       char *devname, int sectors, int surfaces, int reserved,
+		       int bootpri, char *filesys);
+
+extern void cdtv_getdmadata(int *);
+
 #endif
 

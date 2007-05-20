@@ -896,7 +896,7 @@
 #define IDC_CS_A2091                    1768
 #define IDC_CS_DMAC2                    1769
 #define IDC_CS_A4091                    1770
-
+#define IDC_CS_CDTVSCSI                 1771
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -926,7 +926,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        253
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1771
+#define _APS_NEXT_CONTROL_VALUE         1772
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

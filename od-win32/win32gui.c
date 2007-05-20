@@ -534,16 +534,31 @@ static int listrom (int *roms)
 static void show_rom_list (void)
 {
     char *p;
-    int roms[6], ok;
-    char unavail[MAX_DPATH], avail[MAX_DPATH], tmp1[MAX_DPATH];
+    char unavail[MAX_DPATH], avail[MAX_DPATH];
     char *p1, *p2;
-    
+    int *rp;
+    int romtable[] = {
+	5, 4, -1, -1, // A500 1.2
+	6, 32, -1, -1, // A500 1.3
+	7, -1, -1, // A500+
+	8, 9, 10, -1, -1, // A600
+	23, 24, -1, -1, // A1000
+	11, 31, 15, -1, -1, // A1200
+	32, 58, -1, -1, // A3000
+	53, 54, 55, -1, -1, // A2091
+	56, 57, -1, -1, // A4091
+	18, -1, 19, -1, -1, // CD32
+	20, 21, 22, -1, 6, 32, -1, -1, // CDTV
+	49, 50, 51, -1, 5, 4, -1, -1, // ARCADIA
+	46, -1, -1, // highend
+	0, 0, 0
+    };
+
     WIN32GUI_LoadUIString (IDS_ROM_AVAILABLE, avail, sizeof (avail));
     WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail));
     strcat (avail, "\n");
     strcat (unavail, "\n");
-    WIN32GUI_LoadUIString (IDS_QS_MODELS, tmp1, sizeof (tmp1));
-    p1 = tmp1;
+    p1 = "A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0CD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\0";
     
     p = malloc (100000);
     if (!p)
@@ -551,104 +566,29 @@ static void show_rom_list (void)
     WIN32GUI_LoadUIString (IDS_ROMSCANEND, p, 100);
     strcat (p, "\n\n");
 
-    /* A500 */
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, " Boot ROM v1.2:");
-    roms[0] = 5; roms[1] = 4; roms[2] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    strcat (p, p1); strcat (p, " Boot ROM v1.3:");
-    roms[0] = 6; roms[1] = 32; roms[2] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-   
-    /* A500+ */
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 7; roms[1] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* A600 */
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 8; roms[1] = 9; roms[2] = 10; roms[3] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* A1000 */
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 23; roms[1] = 24; roms[2] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* A1200 */
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 11; roms[1] = 31; roms[2] = 15; roms[3] = -1;
-    if (listrom (roms)) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* CD32 */
-    ok = 0;
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 18; roms[1] = -1;
-    if (listrom (roms)) {
-	roms[0] = 19;
-	if (listrom (roms))
-	    ok = 1;
-    }
-    if (ok) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* CDTV */
-    ok = 0;
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0; strcat (p, p1); strcat (p, ": ");
-    roms[0] = 20; roms[1] = 21; roms[2] = 22; roms[3] = -1;
-    if (listrom (roms)) {
-	roms[0] = 6; roms[1] = 32; roms[2] = -1;
-	if (listrom (roms))
-	    ok = 1;
-    }
-    if (ok) strcat (p, avail); else strcat (p, unavail);
-    p1 = p2;
-
-    /* Arcadia */
-    ok = 0;
-    p2 = strchr (p1, '\n');
-    if (!p2)
-	goto end;
-    *p2++= 0;
-    roms[0] = 49; roms[1] = 50; roms[2] = 51; roms[3] = -1;
-    if (listrom (roms)) {
-	roms[0] = 5; roms[1] = 4; roms[2] = -1;
-	if (listrom (roms))
-	    ok = 1;
-    }
-    if (ok) {
+    rp = romtable;
+    while(rp[0]) {
+	int ok = 0;
+	p2 = p1 + strlen(p1) + 1;
+	strcat (p, " ");
 	strcat (p, p1); strcat (p, ": ");
-	strcat (p, avail);
+	if (listrom (rp))
+	    ok = 1;
+        while(*rp++ != -1)
+        rp++;
+        if (*rp != -1) {
+	    ok = 0;
+	    if (listrom (rp))
+	        ok = 1;
+	    while(*rp++ != -1);
+		rp++;
+	}
+	if (ok)
+	    strcat (p, avail); else strcat (p, unavail);
+	p1 = p2;
     }
-    p1 = p2;
 
     pre_gui_message (p);
-end:
     free (p);
 }
 
@@ -1981,9 +1921,14 @@ void InitializeListView (HWND hDlg)
 	    else
 		sprintf (size_str, "%.1fM", ((double)(uae_u32)(mi.size / (1024))) / 1024.0);
 
-	    if (uci->controller) {
+	    if (uci->controller >= HD_CONTROLLER_IDE0 && uci->controller <= HD_CONTROLLER_IDE3) {
 		sprintf (blocksize_str, "%d", uci->blocksize);
-		sprintf (devname_str, "*IDE%d*", uci->controller - 1);
+		sprintf (devname_str, "*IDE%d*", uci->controller - HD_CONTROLLER_IDE0);
+		strcpy (volname_str, "n/a");
+		strcpy (bootpri_str, "n/a");
+	    } else if (uci->controller >= HD_CONTROLLER_SCSI0 && uci->controller <= HD_CONTROLLER_SCSI6) {
+		sprintf (blocksize_str, "%d", uci->blocksize);
+		sprintf (devname_str, "*SCSI%d*", uci->controller - HD_CONTROLLER_SCSI0);
 		strcpy (volname_str, "n/a");
 		strcpy (bootpri_str, "n/a");
 	    } else if (type == FILESYS_HARDFILE) {
@@ -4214,6 +4159,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac == 2);
     CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.cs_a2091 > 0);
     CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.cs_a4091 > 0);
+    CheckDlgButton (hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi > 0);
     CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia > 0);
     CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
     CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
@@ -4280,6 +4226,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
     workprefs.cs_a2091 = IsDlgButtonChecked (hDlg, IDC_CS_A2091) ? 1 : 0;
     workprefs.cs_a4091 = IsDlgButtonChecked (hDlg, IDC_CS_A4091) ? 1 : 0;
+    workprefs.cs_cdtvscsi = IsDlgButtonChecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
     workprefs.cs_pcmcia = IsDlgButtonChecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
     workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
@@ -4341,6 +4288,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_DMAC2, e);
     ew (hDlg, IDC_CS_A2091, e);
     ew (hDlg, IDC_CS_A4091, e);
+    ew (hDlg, IDC_CS_CDTVSCSI, e);
     ew (hDlg, IDC_CS_PCMCIA, e);
     ew (hDlg, IDC_CS_CD32CD, e);
     ew (hDlg, IDC_CS_CD32NVRAM, e);
@@ -4663,8 +4611,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	load_keyring(&workprefs, NULL);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_ARCADIAGAME);
-	//SendDlgItemMessage(hDlg, IDC_CARTFILE, CB_ADDSTRING, 0, (LPARAM)CART_SUPERIV);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_ARCADIAGAME);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -6033,6 +5980,13 @@ static void inithardfile (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE1");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE2");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE3");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI0");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI1");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI2");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI3");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI4");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI5");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI6");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
     SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp));

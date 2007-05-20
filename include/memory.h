@@ -113,7 +113,6 @@ extern addrbank gayle2_bank;
 extern addrbank gayle_attr_bank;
 extern addrbank mbres_bank;
 extern addrbank akiko_bank;
-extern addrbank mbdmac_a3000_bank;
 extern addrbank cardmem_bank;
 
 extern void rtarea_init (void);
@@ -332,10 +331,13 @@ extern void init_shm(void);
 #define ROMTYPE_KICKCD32 2
 #define ROMTYPE_EXTCD32 4
 #define ROMTYPE_EXTCDTV 8
-#define ROMTYPE_AR 16
-#define ROMTYPE_KEY 32
-#define ROMTYPE_ARCADIABIOS 64
-#define ROMTYPE_ARCADIAGAME 128
+#define ROMTYPE_A2091BOOT 16
+#define ROMTYPE_A4091BOOT 32
+#define ROMTYPE_AR 64
+#define ROMTYPE_SUPERIV 128
+#define ROMTYPE_KEY 256
+#define ROMTYPE_ARCADIABIOS 512
+#define ROMTYPE_ARCADIAGAME 1024
 
 struct romdata {
     char *name;
@@ -364,6 +366,7 @@ extern struct romdata *getarcadiarombyname (char *name);
 extern struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all);
 extern void getromname (struct romdata*, char*);
 extern struct romdata *getromdatabyname (char*);
+extern struct romlist *getrombyids(int *ids);
 extern void romlist_add (char *path, struct romdata *rd);
 extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);

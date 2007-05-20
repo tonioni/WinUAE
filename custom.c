@@ -2622,6 +2622,11 @@ int intlev (void)
     return -1;
 }
 
+STATIC_INLINE int use_eventmode(void)
+{
+    return currprefs.cpu_cycle_exact != 0;
+}
+
 static void INTENA_f(uae_u32 data)
 {
     doint();
@@ -2634,7 +2639,7 @@ STATIC_INLINE void INTENA (uae_u16 v)
 	write_log("INTENA %04.4X (%04.4X) %p\n", intena, v, M68K_GETPC);
 #endif
     if (v & 0x8000) {
-	if (!currprefs.cpu_compatible > 0)
+	if (!use_eventmode())
 	    INTENA_f(0);
 	else
 	    event2_newevent2 (6, 0, INTENA_f);
@@ -2661,7 +2666,7 @@ void INTREQ_f(uae_u32 data)
 
 static void INTREQ_d (uae_u16 v, int d)
 {
-    if (!currprefs.cpu_compatible || v == 0)
+    if (!use_eventmode() || v == 0)
 	INTREQ_f(v);
     else
 	event2_newevent2(d, v, INTREQ_f);
@@ -2669,7 +2674,7 @@ static void INTREQ_d (uae_u16 v, int d)
 
 void INTREQ (uae_u16 v)
 {
-    if (!currprefs.cpu_compatible)
+    if (!use_eventmode())
 	INTREQ_f(v);
     else
 	INTREQ_d(v, 6);
@@ -4421,11 +4426,9 @@ static void hsync_handler (void)
 	reset_decisions ();
     }
 
-#ifdef FILESYS
     if (uae_int_requested) {
 	INTREQ (0x8000 | 0x0008);
     }
-#endif
 
     {
         extern void bsdsock_fake_int_handler(void);
@@ -4461,6 +4464,7 @@ static void hsync_handler (void)
 
     inputdevice_hsync ();
     gayle_hsync();
+    scsi_hsync();
 
     hsync_counter++;
     //copper_check (2);
