@@ -45,6 +45,9 @@ int exception_debugging;
 int debug_copper;
 int debug_sprite_mask = 0xff;
 
+static uaecptr processptr;
+static char *processname;
+
 static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
@@ -57,6 +60,9 @@ void deactivate_debugger (void)
     debugger_active = 0;
     debugging = 0;
     exception_debugging = 0;
+    processptr = 0;
+    xfree(processname);
+    processname = NULL;
 }
 
 void activate_debugger (void)
@@ -94,6 +100,7 @@ static char help[] = {
     "                        Find effective address <address>\n"
     "  fi                    Step forward until PC points to RTS/RTD or RTE\n"
     "  fi <opcode>           Step forward until PC points to <opcode>\n"
+    "  fp \"<name>\"/<addr>    Step forward until process <name> or <addr> is active\n"
     "  fl                    List breakpoints\n"
     "  fd                    Remove all breakpoints\n"
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
@@ -108,7 +115,8 @@ static char help[] = {
     "  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions\n"
     "  C <value>             Search for values like energy or lifes in games\n"
     "  Cl                    List currently found trainer addresses\n"
-    "  D                     Deep trainer\n"
+    "  D[idx <[max diff]>]   Deep trainer. i=new value must be larger, d=smaller,\n"
+    "                        x = must be same.\n"
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/I/F> [<value>] (read/write/opcode/freeze)\n"
     "                        Add/remove memory watchpoints\n"
@@ -215,12 +223,19 @@ static int more_params (char **c)
 static int next_string (char **c, char *out, int max, int forceupper)
 {
     char *p = out;
+    int startmarker = 0;
 
+    if (**c == '\"') {
+	startmarker = 1;
+	(*c)++;
+    }
     *p = 0;
     while (**c != 0) {
-	if (**c == 32) {
+	if (**c == '\"' && startmarker)
+	    break;
+	if (**c == 32 && !startmarker) {
 	    ignore_ws (c);
-	    return strlen (out);
+	    break;
 	}
 	*p = next_char (c);
 	if (forceupper)
@@ -253,7 +268,6 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
     uaecptr prev, prevx;
     int size, sizex;
 
-    *next = 0;
     if (addr >= lastaddr()) {
 	*next = -1;
 	return 0xffffffff;
@@ -261,51 +275,52 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
     prev = currprefs.z3fastmem_start;
     size = currprefs.z3fastmem_size;
 
-    sizex = size;
-    size = currprefs.mbresmem_high_size;
-    if (size) {
+    if (currprefs.mbresmem_high_size) {
+	sizex = size;
 	prevx = prev;
+	size = currprefs.mbresmem_high_size;
 	prev = a3000hmem_start;
 	if (addr == prev + size) {
-	    *next = sizex;
+	    *next = prevx + sizex;
 	    return prevx;
 	}
     }
-    sizex = size;
-    size = currprefs.mbresmem_low_size;
-    if (size) {
+    if (currprefs.mbresmem_low_size) {
 	prevx = prev;
+	sizex = size;
+	size = currprefs.mbresmem_low_size;
 	prev = a3000lmem_start;
 	if (addr == prev + size) {
-	    *next = sizex;
+	    *next = prevx + sizex;
 	    return prevx;
 	}
     }
-    sizex = size;
-    size = currprefs.bogomem_size;
-    if (size) {
+    if (currprefs.bogomem_size) {
+	sizex = size;
 	prevx = prev;
+	size = currprefs.bogomem_size;
 	prev = bogomem_start;
 	if (addr == prev + size) {
-	    *next = sizex;
+	    *next = prevx + sizex;
 	    return prevx;
 	}
     }
-    sizex = size;
-    size = currprefs.fastmem_size;
-    if (size) {
+    if (currprefs.fastmem_size) {
+	sizex = size;
 	prevx = prev;
+	size = currprefs.fastmem_size;
 	prev = fastmem_start;
 	if (addr == prev + size) {
-	    *next = sizex;
+	    *next = prevx + sizex;
 	    return prevx;
 	}
     }
     sizex = size;
+    prevx = prev;
     size = currprefs.chipmem_size;
     if (addr == size) {
-	*next = sizex;
-	return prev;
+	*next = prevx + sizex;
+	return prevx;
     }
     if (addr == 1)
 	*next = size;
@@ -321,7 +336,11 @@ static uaecptr nextaddr (uaecptr addr, uaecptr *end)
 	    *end = currprefs.chipmem_size;
 	return 0;
     }
+    if (end)
+	next = *end;
     addr = nextaddr2(addr + 1, &next);
+    if (end)
+	*end = next;
 #if 0
     if (next && addr != 0xffffffff) {
 	uaecptr xa = addr;
@@ -733,7 +752,7 @@ static int addcheater(uaecptr addr, int size)
     totaltrainers++;
     return 1;
 }
-static void listcheater(int mode)
+static void listcheater(int mode, int size)
 {
     int i, skip;
 
@@ -745,9 +764,15 @@ static void listcheater(int mode)
 	skip = 8;
     for(i = 0; i < totaltrainers; i++) {
 	struct trainerstruct *ts = &trainerdata[i];
-	uae_u8 b = get_byte(ts->addr);
+	uae_u16 b;
+	
+	if (size) {
+	    b = get_byte(ts->addr);
+	} else {
+	    b = get_word(ts->addr);
+	}
 	if (mode)
-	    console_out("%08.8X=%2.2X ", ts->addr, b, b);
+	    console_out("%08.8X=%4.4X ", ts->addr, b);
 	else
 	    console_out("%08.8X ", ts->addr);
 	if ((i % skip) == skip)
@@ -755,7 +780,7 @@ static void listcheater(int mode)
     }
 }
 
-static void deepcheatsearch (char v)
+static void deepcheatsearch (char **c)
 {
     static int first = 1;
     static uae_u8 *memtmp;
@@ -763,7 +788,29 @@ static void deepcheatsearch (char v)
     uae_u8 *p1, *p2;
     uaecptr addr, end;
     int i, wasmodified;
+    static int size;
+    static int inconly, deconly, maxdiff;
     int addrcnt, cnt;
+    char v;
+    
+    v = toupper(**c);
+
+    if(!memtmp || v == 'S') {
+	maxdiff = 0x10000;
+	inconly = 0;
+	deconly = 0;
+	size = 1;
+    }
+
+    if (**c)
+	(*c)++;
+    ignore_ws(c);
+    if ((**c) == '1' || (**c) == '2') {
+	size = **c - '0';
+	(*c)++;
+    }
+    if (more_params(c))
+	maxdiff = readint(c);
 
     if (!memtmp || v == 'S') {
 	first = 1;
@@ -789,39 +836,80 @@ static void deepcheatsearch (char v)
 	console_out("deep trainer first pass complete.\n");
 	return;
     }
+    inconly = deconly = 0;
     wasmodified = v == 'X' ? 0 : 1;
+    if (v == 'I')
+	inconly = 1;
+    if (v == 'D')
+	deconly = 1;
     p1 = memtmp;
     p2 = memtmp + memsize;
     addrcnt = 0;
     cnt = 0;
     addr = 0xffffffff;
     while ((addr = nextaddr(addr, NULL)) != 0xffffffff) {
-	uae_u8 b = get_byte (addr);
+	uae_s32 b, b2;
+	int doremove = 0;
 	int addroff = addrcnt >> 3;
-	int addrmask = 1 << (addrcnt & 7);
+	int addrmask ;
+
+	if (size == 1) {
+	    b = (uae_s8)get_byte (addr);
+	    b2 = (uae_s8)p1[addrcnt];
+	    addrmask = 1 << (addrcnt & 7);
+	} else {
+	    b = (uae_s16)get_word (addr);
+	    b2 = (uae_s16)((p1[addrcnt] << 8) | p1[addrcnt + 1]);
+	    addrmask = 3 << (addrcnt & 7);
+	}
+
 	if (p2[addroff] & addrmask) {
-	    if ((wasmodified && b == *p1) || (!wasmodified && b != *p1))
+	    if (wasmodified) {
+		int diff = b - b2;
+		if (b == b2)
+		    doremove = 1;
+		if (abs(diff) > maxdiff)
+		    doremove = 1;
+		if (inconly && diff < 0)
+		    doremove = 1;
+		if (deconly && diff > 0)
+		    doremove = 1;
+	    } else if (!wasmodified && b != b2) {
+		doremove = 1;
+	    }
+	    if (doremove)
 		p2[addroff] &= ~addrmask;
 	    else
 		cnt++;
 	}
-	*p1++ = b;
-	addrcnt++;
+	if (size == 1) {
+	    p1[addrcnt] = b;
+	    addrcnt++;
+	} else {
+	    p1[addrcnt] = b >> 8;
+	    p1[addrcnt + 1] = b >> 0;
+	    addr = nextaddr(addr, NULL);
+	    if (addr == 0xffffffff)
+		break;
+	    addrcnt += 2;
+	}
     }
+
     console_out ("%d addresses found\n", cnt);
     if (cnt <= MAX_CHEAT_VIEW) {
 	clearcheater();
 	cnt = 0;
 	addrcnt = 0;
+	addr = 0xffffffff;
 	while ((addr = nextaddr(addr, NULL)) != 0xffffffff) {
 	    int addroff = addrcnt >> 3;
-	    int addrmask = 1 << (addrcnt & 7);
+	    int addrmask = (size == 1 ? 1 : 3) << (addrcnt & 7);
 	    if (p2[addroff] & addrmask)
-		addcheater(addr, 1);
-	    addrcnt++;
+		addcheater(addr, size);
+	    addrcnt += size;
 	    cnt++;
 	}
-	listcheater(1);
+	listcheater(1, size);
     } else {
 	console_out("Now continue with 'g' and use 'D' again after you have lost another life\n");
     }
@@ -846,7 +934,7 @@ static void cheatsearch (char **c)
     }
 
     if (toupper(**c) == 'L') {
-	listcheater(1);
+	listcheater(1, size);
 	return;
     }
     ignore_ws (c);
@@ -920,7 +1008,7 @@ static void cheatsearch (char **c)
 	    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
 	    prevmemcnt++;
 	}
-	listcheater(0);
+	listcheater(0, size);
     }
     console_out ("Found %d possible addresses with 0x%X (%u) (%d bytes)\n", count, val, val, size);
     console_out ("Now continue with 'g' and use 'C' with a different value\n");
@@ -1624,6 +1712,40 @@ void memory_map_dump (void)
     memory_map_dump_2 (1);
 }
 
+STATIC_INLINE uaecptr BPTR2APTR(uaecptr addr)
+{
+    return addr << 2;
+}
+static char* BSTR2CSTR(uae_u8 *bstr)
+{
+    char *cstr = NULL;
+    cstr = xmalloc(bstr[0] + 1);
+    if (cstr) {
+        memcpy(cstr, bstr + 1, bstr[0]);
+        cstr[bstr[0]] = 0;
+    }
+    return cstr;
+}
+
+static void print_task_info(uaecptr node)
+{
+    int process = get_byte(node + 8) == 13 ? 1 : 0;
+    console_out ("%08X: %08X", node, 0);
+    console_out (process ? " PROCESS '%s'" : " TASK    '%s'\n", get_real_address (get_long (node + 10)));
+    if (process) {
+        uaecptr cli = BPTR2APTR(get_long(node + 172));
+        int tasknum = get_long(node + 140);
+        if (cli && tasknum) {
+            uae_u8 *command_bstr = get_real_address(BPTR2APTR(get_long(cli + 16)));
+            char * command = BSTR2CSTR(command_bstr);;
+            console_out(" [%d, '%s']\n", tasknum, command);
+            xfree(command);
+	} else {
+            console_out ("\n");
+	}
+    }
+}
+
 static void show_exec_tasks (void)
 {
     uaecptr execbase = get_long (4);
@@ -1633,19 +1755,19 @@ static void show_exec_tasks (void)
     console_out ("execbase at 0x%08X\n", (unsigned long) execbase);
     console_out ("Current:\n");
     node = get_long (execbase + 276);
-    console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
+    print_task_info (node);
     console_out ("Ready:\n");
     node = get_long (taskready);
     end = get_long (taskready + 4);
     while (node) {
-	console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
+	print_task_info (node);
 	node = get_long (node);
     }
     console_out ("Waiting:\n");
     node = get_long (taskwait);
     end = get_long (taskwait + 4);
     while (node) {
-	console_out ("%08X: %08X %s\n", node, 0, get_real_address (get_long (node + 10)));
+	print_task_info (node);
 	node = get_long (node);
     }
 }
@@ -1728,6 +1850,25 @@ static int instruction_breakpoint (char **c)
     }
     do_skip = 1;
     skipaddr_doskip = -1;
+    return 1;
+}
+
+static int process_breakpoint(char **c)
+{
+    processptr = 0;
+    xfree(processname);
+    processname = NULL;
+    if (!more_params (c))
+	return 0;
+    if (**c == '\"') {
+	processname = xmalloc(200);
+	next_string(c, processname, 200, 0);
+    } else {
+	processptr = readhex(c);
+    }
+    do_skip = 1;
+    skipaddr_doskip = 1;
+    skipaddr_start = 0;
     return 1;
 }
 
@@ -1925,7 +2066,7 @@ end:
 static void find_ea (char **inptr)
 {
     uae_u32 ea, sea, dea;
-    uaecptr addr, end, endbank;
+    uaecptr addr, end;
 
     addr = 0;
     end = lastaddr();
@@ -1936,10 +2077,8 @@ static void find_ea (char **inptr)
 	    end = readhex (inptr);
     }
     console_out("Searching from %08.8X to %08.8X\n", addr, end);
-    while((addr = nextaddr(addr, &endbank)) != 0xffffffff) {
-	if (addr == end)
-	    break;
-	if ((addr & 1) == 0 && addr + 6 <= endbank) {
+    while((addr = nextaddr(addr, &end)) != 0xffffffff) {
+	if ((addr & 1) == 0 && addr + 6 <= end) {
 	    sea = 0xffffffff;
 	    dea = 0xffffffff;
 	    m68k_disasm_ea (NULL, addr, NULL, 1, &sea, &dea);
@@ -2032,7 +2171,7 @@ static void debug_1 (void)
 		  else
 		    m68k_dumpstate (stdout, &nextpc);
 	break;
-	case 'D': deepcheatsearch (toupper(*inptr)); break;
+	case 'D': deepcheatsearch (&inptr); break;
 	case 'C': cheatsearch (&inptr); break;
 	case 'W': writeintomem (&inptr); break;
 	case 'w': memwatch (&inptr); break;
@@ -2106,6 +2245,10 @@ static void debug_1 (void)
 	    if (inptr[0] == 'a') {
 		next_char(&inptr);
 		find_ea (&inptr);
+	    } else if (inptr[0] == 'p') {
+		inptr++;
+		if (process_breakpoint(&inptr))
+		    return;
 	    } else {
 		if (instruction_breakpoint (&inptr))
 		    return;
@@ -2298,7 +2441,38 @@ void debug (void)
 	    if (skipaddr_doskip) {
 		if (skipaddr_start == pc)
 		    bp = 1;
-		if (skipins != 0xffffffff) {
+		if ((processptr || processname) && !notinrom()) {
+		    uaecptr execbase = get_long (4);
+		    uaecptr activetask = get_long (execbase + 276);
+		    int process = get_byte(activetask + 8) == 13 ? 1 : 0;
+		    char *name = get_real_address(get_long(activetask + 10));
+		    if (process) {
+			uaecptr cli = BPTR2APTR(get_long(activetask + 172));
+			uaecptr seglist = 0;
+			char *command = NULL;
+			if (cli) {
+			    if (processname) {
+				uae_u8 *command_bstr = get_real_address(BPTR2APTR(get_long(cli + 16)));
+				command = BSTR2CSTR(command_bstr);
+			    }
+			    seglist = BPTR2APTR(get_long(cli + 60));
+			} else {
+			    seglist = BPTR2APTR(get_long(activetask + 128));
+			    seglist = BPTR2APTR(get_long(seglist + 12));
+			}
+			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && !stricmp(command, processname))))) {
+			    while (seglist) {
+				uae_u32 size = get_long(seglist - 4) - 4;
+				if (pc >= (seglist + 4) && pc < (seglist + size)) {
+				    bp = 1;
+				    break;
+				}
+				seglist = BPTR2APTR(get_long(seglist));
+			    }
+			}
+			xfree(command);
+		    }
+		} else if (skipins != 0xffffffff) {
 		    if (skipins == 0x10000) {
 			if (opcode == 0x4e75 || opcode == 0x4e73 || opcode == 0x4e77)
 			    bp = 1;
@@ -2343,6 +2517,7 @@ void debug (void)
     skipaddr_doskip = 0;
     exception_debugging = 0;
     debug_rewind = 0;
+    processptr = 0;
 #if 0
     if (!currprefs.statecapture) {
 	changed_prefs.statecapture = currprefs.statecapture = 1;
@@ -2372,7 +2547,8 @@ void debug (void)
 
 int notinrom (void)
 {
-    if (munge24 (m68k_getpc(&regs)) < 0x00e00000)
+    uaecptr pc = munge24(m68k_getpc(&regs));
+    if (pc < 0x00e00000 || pc > 0x00ffffff)
 	return 1;
     return 0;
 }

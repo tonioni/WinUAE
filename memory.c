@@ -87,6 +87,23 @@ void romlist_clear (void)
     romlist_cnt = 0;
 }
 
+struct romdata *getromdatabypath(char *path)
+{
+    int i;
+    for (i = 0; i < romlist_cnt; i++) {
+	struct romdata *rd = rl[i].rd;
+	if (rd->configname && path[0] == ':') {
+	    if (!strcmp(path + 1, rd->configname))
+		return rd;
+	}
+	if (!strcmp(rl[i].path, path))
+	    return rl[i].rd;
+    }
+    return NULL;
+}
+
+#define NEXT_ROM_ID 64
+
 static struct romdata roms[] = {
     { "Cloanto Amiga Forever ROM key", 0, 0, 0, 0, 0, 0x869ae1b1, 2069, 0, 0, 1, ROMTYPE_KEY },
     { "Cloanto Amiga Forever 2006 ROM key", 0, 0, 0, 0, 0, 0xb01c4b56, 750, 48, 0, 1, ROMTYPE_KEY },
@@ -98,7 +115,7 @@ static struct romdata roms[] = {
     { "KS ROM v1.2 (A500,A1000,A2000)", 1, 2, 33, 180, "A500\0A1000\0A2000\0", 0xa6ce1636, 262144, 5, 0, 0, ROMTYPE_KICK },
     { "KS ROM v1.3 (A500,A1000,A2000)", 1, 3, 34, 5, "A500\0A1000\0A2000\0", 0xc4f0f55f, 262144, 6, 0, 0, ROMTYPE_KICK },
     { "KS ROM v1.3 (A3000)", 1, 3, 34, 5, "A3000\0", 0xe0f37258, 262144, 32, 0, 0, ROMTYPE_KICK },
-    { "KS ROM v1.4b (A3000)", 1, 4, 36, 16, "A3000\0", 0xbc0ec13f, 524288, 59, 0, 0, ROMTYPE_KICK },
+    { "KS ROM v1.4 (A3000)", 1, 4, 36, 16, "A3000\0", 0xbc0ec13f, 524288, 59, 3, 0, ROMTYPE_KICK },
 
     { "KS ROM v2.04 (A500+)", 2, 4, 37, 175, "A500+\0", 0xc3bdb240, 524288, 7, 0, 0, ROMTYPE_KICK },
     { "KS ROM v2.05 (A600)", 2, 5, 37, 299, "A600\0", 0x83028fb5, 524288, 8, 0, 0, ROMTYPE_KICK },
@@ -110,6 +127,7 @@ static struct romdata roms[] = {
     { "KS ROM v3.1 (A4000)", 3, 1, 40, 70, "A4000\0", 0x2b4566f1, 524288, 13, 2 | 4, 0, ROMTYPE_KICK },
     { "KS ROM v3.1 (A500,A600,A2000)", 3, 1, 40, 63, "A500\0A600\0A2000\0", 0xfc24ae0d, 524288, 14, 0, 0, ROMTYPE_KICK },
     { "KS ROM v3.1 (A1200)", 3, 1, 40, 68, "A1200\0", 0x1483a091, 524288, 15, 1, 0, ROMTYPE_KICK },
+    { "KS ROM v3.1 (A3000)", 3, 1, 40, 68, "A3000\0", 0xefb239cc, 524288, 61, 2, 0, ROMTYPE_KICK },
     { "KS ROM v3.1 (A4000)(Cloanto)", 3, 1, 40, 68, "A4000\0", 0x43b6dd22, 524288, 31, 2 | 4, 1, ROMTYPE_KICK },
     { "KS ROM v3.1 (A4000)", 3, 1, 40, 68, "A4000\0", 0xd6bae334, 524288, 16, 2 | 4, 0, ROMTYPE_KICK },
     { "KS ROM v3.1 (A4000T)", 3, 1, 40, 70, "A4000T\0", 0x75932c3a, 524288, 17, 2 | 4, 0, ROMTYPE_KICK },
@@ -119,8 +137,8 @@ static struct romdata roms[] = {
     { "CD32 extended ROM", 3, 1, 40, 60, "CD32\0", 0x87746be2, 524288, 19, 1, 0, ROMTYPE_EXTCD32 },
 
     { "CDTV extended ROM v1.00", 1, 0, 1, 0, "CDTV\0", 0x42baa124, 262144, 20, 0, 0, ROMTYPE_EXTCDTV },
-    { "CDTV extended ROM v2.30", 2, 30, 2, 30, "CDTV\0", 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
     { "CDTV extended ROM v2.07", 2, 7, 2, 7, "CDTV\0", 0xceae68d2, 262144, 22, 0, 0, ROMTYPE_EXTCDTV },
+    { "CDTV extended ROM v2.30", 2, 30, 2, 30, "CDTV\0", 0x30b54232, 262144, 21, 0, 0, ROMTYPE_EXTCDTV },
 
     { "A1000 bootstrap ROM", 0, 0, 0, 0, "A1000\0", 0x62f11c04, 8192, 23, 0, 0, ROMTYPE_KICK },
     { "A1000 bootstrap ROM", 0, 0, 0, 0, "A1000\0", 0x0b1ad2d0, 65536, 24, 0, 0, ROMTYPE_KICK },
@@ -133,14 +151,16 @@ static struct romdata roms[] = {
     { "Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 0x0ed9b5aa, 262144, 29, 0, 0, ROMTYPE_AR },
     { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 0xc8a16406, 262144, 30, 0, 0, ROMTYPE_AR },
     { "Action Replay 1200", 0, 0, 0, 0, "AR\0", 0x8d760101, 262144, 47, 0, 0, ROMTYPE_AR },
-    { "Action Cartridge Super IV Pro", 4, 3, 4, 3, "SUPERIV\0", 0xe668a0be, 170368, 60, 0, 0, ROMTYPE_SUPERIV },
+    { "Action Cartridge Super IV Pro (+ROM)", 4, 3, 4, 3, "SUPERIV\0", 0xe668a0be, 170368, 60, 0, 0, ROMTYPE_SUPERIV },
+    { "Action Cartridge Super IV Pro", 0, 0, 0, 0, "SUPERIV\0", 0xffffffff, 0, 62, 0, 0, ROMTYPE_SUPERIV, "SuperIV" },
+    { "HRTMon (built-in)", 0, 0, 0, 0, "HRTMON\0", 0xffffffff, 0, 63, 0, 0, ROMTYPE_HRTMON, "HRTMon" },
 
-    { "A590/A2091 Boot ROM", 6, 0, 6, 0, "A2091BOOT\0", 0x8396cf4e, 16384, 53, 0, 0, ROMTYPE_A2091BOOT },
-    { "A590/A2091 Boot ROM", 6, 6, 6, 6, "A2091BOOT\0", 0x33e00a7a, 16384, 54, 0, 0, ROMTYPE_A2091BOOT },
-    { "A590/A2091 Boot ROM", 7, 0, 7, 0, "A2091BOOT\0", 0x714a97a2, 16384, 55, 0, 0, ROMTYPE_A2091BOOT },
-    { "A590/A2091 Guru Boot ROM", 6, 14, 6, 14, "A2091BOOT\0", 0x04e52f93, 32768, 56, 0, 0, ROMTYPE_A2091BOOT },
-    { "A4091 Boot ROM", 40, 9, 40, 9, "A4091BOOT\0", 0x00000000, 32768, 57, 0, 0, ROMTYPE_A4091BOOT },
-    { "A4091 Boot ROM", 40, 13, 40, 13, "A4091BOOT\0", 0x54cb9e85, 32768, 58, 0, 0, ROMTYPE_A4091BOOT },
+    { "A590/A2091 SCSI boot ROM", 0, 0, 6, 0, "A590\0A2091\0", 0x8396cf4e, 16384, 53, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 SCSI boot ROM", 0, 0, 6, 6, "A590\0A2091\0", 0x33e00a7a, 16384, 54, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 SCSI boot ROM", 0, 0, 7, 0, "A590\0A2091\0", 0x714a97a2, 16384, 55, 0, 0, ROMTYPE_A2091BOOT },
+    { "A590/A2091 SCSI Guru boot ROM", 0, 0, 6, 14, "A590\0A2091\0", 0x04e52f93, 32768, 56, 0, 0, ROMTYPE_A2091BOOT },
+    { "A4091 SCSI boot ROM", 0, 0, 40, 9, "A4091\0", 0x00000000, 32768, 57, 0, 0, ROMTYPE_A4091BOOT },
+    { "A4091 SCSI boot ROM", 0, 0, 40, 13, "A4091\0", 0x54cb9e85, 32768, 58, 0, 0, ROMTYPE_A4091BOOT },
 
     { "Arcadia OnePlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 49, 0, 0, ROMTYPE_ARCADIABIOS },
     { "Arcadia TenPlay 2.11", 0, 0, 0, 0, "ARCADIA\0", 0, 0, 50, 0, 0, ROMTYPE_ARCADIABIOS },
@@ -546,7 +566,7 @@ struct romdata *getromdatabydata (uae_u8 *rom, int size)
     memcpy (rom, tmp, 4);
     i = 0;
     while (roms[i].name) {
-	if (roms[i].crc32) {
+	if (roms[i].crc32 && roms[i].size >= size) {
 	    if (crc32a == roms[i].crc32 || crc32b == roms[i].crc32)
 		return &roms[i];
 	    if (crc32c == roms[i].crc32 && roms[i].type == ROMTYPE_AR)
@@ -585,13 +605,22 @@ void getromname	(struct romdata *rd, char *name)
     if (!rd)
 	return;
     strcat (name, rd->name);
-    if (rd->subrev && rd->subrev != rd->rev)
+    if ((rd->subrev || rd->subver) && rd->subver != rd->ver)
 	sprintf (name + strlen (name), " rev %d.%d", rd->subver, rd->subrev);
     if (rd->size > 0)
 	sprintf (name + strlen (name), " (%dk)", (rd->size + 1023) / 1024);
 }
 
-struct romlist *getrombyids(int *ids)
+struct romlist *getromlistbyromdata(struct romdata *rd)
+{
+    int ids[2];
+    
+    ids[0] = rd->id;
+    ids[1] = 0;
+    return getromlistbyids(ids);
+}
+
+struct romlist *getromlistbyids(int *ids)
 {
     struct romdata *rd;
     int i, j;
@@ -608,6 +637,29 @@ struct romlist *getrombyids(int *ids)
 	i++;
     }
     return NULL;
+}
+
+void romwarning(int *ids)
+{
+    int i, exp;
+    char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    char tmp3[MAX_DPATH];
+
+    exp = 0;
+    tmp2[0] = 0;
+    i = 0;
+    while (ids[i] >= 0) {
+	struct romdata *rd = getromdatabyid (ids[i]);
+	getromname (rd, tmp1);
+	strcat (tmp2, "- ");
+        strcat (tmp2, tmp1);
+        strcat (tmp2, "\n");
+	if (rd->type & (ROMTYPE_A2091BOOT | ROMTYPE_A4091BOOT))
+	    exp++;
+        i++;
+    }
+    translate_message (exp ? NUMSG_EXPROMNEED : NUMSG_ROMNEED, tmp3);
+    gui_message (tmp3, tmp2);
 }
 
 addrbank *mem_banks[MEMORY_BANKS];
@@ -1658,6 +1710,24 @@ addrbank extendedkickmem_bank = {
     extendedkickmem_lget, extendedkickmem_wget, ABFLAG_ROM
 };
 
+#define fkickmem_size 524288
+void a3000_fakekick(int map)
+{
+    static uae_u8 *blop;
+    if (map) {
+	uae_u8 *fkickmemory = a3000lmemory + allocated_a3000lmem - fkickmem_size;
+	if (!blop)
+	    blop = xmalloc (fkickmem_size);
+	memcpy (blop, kickmemory, fkickmem_size);
+	memcpy (kickmemory, fkickmemory, fkickmem_size);
+    } else {
+	if (blop)
+	    memcpy (kickmemory, blop, fkickmem_size);
+	xfree(blop);
+	blop = NULL;
+    }
+}
+
 static int kickstart_checksum (uae_u8 *mem, int size)
 {
     if (!kickstart_checksum_do (mem, size)) {
@@ -2305,7 +2375,10 @@ void memory_reset (void)
 	} else {
 	    struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
 	    if (rd) {
-		if ((rd->cpu & 3) == 1 && changed_prefs.cpu_model < 68020) {
+		if ((rd->cpu & 3) == 3 && changed_prefs.cpu_model != 68030) {
+		    notify_user (NUMSG_KS68030);
+		    uae_restart (-1, NULL);
+		} else if ((rd->cpu & 3) == 1 && changed_prefs.cpu_model < 68020) {
 		    notify_user (NUMSG_KS68EC020);
 		    uae_restart (-1, NULL);
 		} else if ((rd->cpu & 3) == 2 && (changed_prefs.cpu_model < 68020 || changed_prefs.address_space_24)) {
@@ -2431,7 +2504,8 @@ void memory_reset (void)
     if ((cloanto_rom || currprefs.cs_ksmirror) && !currprefs.maprom && !extendedkickmem_type)
         map_banks (&kickmem_bank, 0xE0, 8, 0);
     if (currprefs.cs_ksmirror == 2) { /* unexpanded A1200 also maps ROM here.. */
-	if (currprefs.cart_internal != 1) {
+	struct romdata *rd = getromdatabypath(currprefs.cartfile);
+	if (!rd || rd->id != 63) {
 	    map_banks (&kickmem_bank, 0xA8, 8, 0);
 	    map_banks (&kickmem_bank, 0xB0, 8, 0);
 	}

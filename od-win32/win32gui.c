@@ -437,7 +437,7 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
     if (!cl)
 	rd = getromdatabydata (rombuf, size);
     if (!rd)
-	write_log ("'%s' %d, unknown CRC32 %04.4x\n",
+	write_log ("'%s' %d, unknown CRC32 %08X\n",
 	    zfile_getname(f), size, get_crc32(rombuf, size));
     free (rombuf);
     return rd;
@@ -453,6 +453,9 @@ static struct romdata *scan_single_rom (char *path)
     rd = scan_arcadia_rom (tmp, 0);
     if (rd)
         return rd;
+    rd = getromdatabypath(path);
+    if (rd && rd->crc32 == 0xffffffff)
+	return rd;
     z = zfile_fopen (path, "rb");
     if (!z)
 	return 0;
@@ -461,12 +464,21 @@ static struct romdata *scan_single_rom (char *path)
 
 static int addrom (HKEY fkey, struct romdata *rd, char *name)
 {
-    char tmp[MAX_DPATH];
-    sprintf (tmp, "ROM%02d", rd->id);
-    if (RegQueryValueEx (fkey, tmp, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
+    char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+    sprintf (tmp1, "ROM%03d", rd->id);
+    if (RegQueryValueEx (fkey, tmp1, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
 	return 0;
-    if (RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)name, strlen (name) + 1) != ERROR_SUCCESS)
-	return 0;
+    tmp2[0] = 0;
+    if (name)
+	strcpy (tmp2, name);
+    if (rd->crc32 == 0xffffffff) {
+	if (rd->configname)
+	    sprintf(tmp2, ":%s", rd->configname);
+	else
+	    sprintf(tmp2, ":ROM%03d", rd->id);
+    }
+    if (RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)tmp2, strlen (tmp2) + 1) != ERROR_SUCCESS)
+        return 0;
     return 1;
 }
 
@@ -544,13 +556,14 @@ static void show_rom_list (void)
 	8, 9, 10, -1, -1, // A600
 	23, 24, -1, -1, // A1000
 	11, 31, 15, -1, -1, // A1200
-	32, 58, -1, -1, // A3000
-	53, 54, 55, -1, -1, // A2091
-	56, 57, -1, -1, // A4091
+	61, 32, 59, -1, -1, // A3000
+	16, 46, 31, 13, 12, -1, -1, // A4000
 	18, -1, 19, -1, -1, // CD32
 	20, 21, 22, -1, 6, 32, -1, -1, // CDTV
 	49, 50, 51, -1, 5, 4, -1, -1, // ARCADIA
 	46, -1, -1, // highend
+	53, 54, 55, -1, -1, // A2091
+	56, 57, -1, -1, // A4091
 	0, 0, 0
     };
 
@@ -558,7 +571,7 @@ static void show_rom_list (void)
     WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail));
     strcat (avail, "\n");
     strcat (unavail, "\n");
-    p1 = "A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0CD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\0";
+    p1 = "A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0";
     
     p = malloc (100000);
     if (!p)
@@ -574,15 +587,14 @@ static void show_rom_list (void)
 	strcat (p, p1); strcat (p, ": ");
 	if (listrom (rp))
 	    ok = 1;
-        while(*rp++ != -1)
-        rp++;
+        while(*rp++ != -1);
         if (*rp != -1) {
 	    ok = 0;
 	    if (listrom (rp))
 	        ok = 1;
 	    while(*rp++ != -1);
-		rp++;
 	}
+        rp++;
 	if (ok)
 	    strcat (p, avail); else strcat (p, unavail);
 	p1 = p2;
@@ -650,6 +662,8 @@ int scan_roms (char *pathp)
     char path[MAX_DPATH];
     int ret;
     static int recursive;
+    int id;
+    HKEY fkey;
 
     if (recursive)
 	return 0;
@@ -660,6 +674,22 @@ int scan_roms (char *pathp)
 	ret = scan_roms_2 (path);
 	if (ret)
 	    set_path ("KickstartPath", path);
+    }
+    if (hWinUAEKey) {
+	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+	if (fkey) {
+	    id = 1;
+	    for (;;) {
+		struct romdata *rd = getromdatabyid(id);
+		if (!rd)
+		    break;
+		if (rd->crc32 == 0xffffffff)
+		    addrom(fkey, rd, NULL);
+		id++;
+	    }
+	    RegCloseKey(fkey);
+	}
     }
     read_rom_list ();
     show_rom_list ();
@@ -2923,11 +2953,12 @@ static struct amigamodels amodels[] = {
     { 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
     { 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
     { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
+    { 1, IDS_QS_MODEL_A3000 }, // "Amiga 3000"
+    { 0, }, //{ 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
+    { 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
     { 3, IDS_QS_MODEL_CD32 }, // "CD32"
     { 4, IDS_QS_MODEL_CDTV }, // "CDTV"
     { 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
-    { 0, 0 },
-    { 0, 0 },
     { 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
     { -1 }
 };
@@ -4160,6 +4191,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CS_A2091, workprefs.cs_a2091 > 0);
     CheckDlgButton (hDlg, IDC_CS_A4091, workprefs.cs_a4091 > 0);
     CheckDlgButton (hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi > 0);
+    CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
     CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia > 0);
     CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
     CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
@@ -4226,6 +4258,8 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
     workprefs.cs_a2091 = IsDlgButtonChecked (hDlg, IDC_CS_A2091) ? 1 : 0;
     workprefs.cs_a4091 = IsDlgButtonChecked (hDlg, IDC_CS_A4091) ? 1 : 0;
+    if (msg == WM_COMMAND && LOWORD(wParam) == IDC_CS_SCSIMODE)
+        workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_CS_SCSIMODE) ? 2 : 0;
     workprefs.cs_cdtvscsi = IsDlgButtonChecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
     workprefs.cs_pcmcia = IsDlgButtonChecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
@@ -4288,6 +4322,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_DMAC2, e);
     ew (hDlg, IDC_CS_A2091, e);
     ew (hDlg, IDC_CS_A4091, e);
+    ew (hDlg, IDC_CS_SCSIMODE, TRUE);
     ew (hDlg, IDC_CS_CDTVSCSI, e);
     ew (hDlg, IDC_CS_PCMCIA, e);
     ew (hDlg, IDC_CS_CD32CD, e);
@@ -4537,7 +4572,7 @@ static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, int type)
 	int err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
 	if (err != ERROR_SUCCESS)
 	    break;
-	if (strlen (tmp) == 5) {
+	if (strlen (tmp) == 6) {
 	    idx2 = atol (tmp + 3);
 	    if (idx2 >= 0) {
 		struct romdata *rd = getromdatabyid (idx2);
@@ -4563,42 +4598,28 @@ static void getromfile (HWND hDlg, DWORD d, char *path, int size)
     if (val == CB_ERR) {
 	SendDlgItemMessage (hDlg, d, WM_GETTEXT, (WPARAM)size, (LPARAM)path);
     } else {
-	char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+	char tmp1[MAX_DPATH];
 	struct romdata *rd;
 	SendDlgItemMessage (hDlg, d, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp1);
 	path[0] = 0;
 	rd = getromdatabyname (tmp1);
-	if (rd && hWinUAEKey) {
-	    HKEY fkey;
-	    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-		KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-	    if (fkey) {
-		DWORD outsize = size;
-		sprintf (tmp1, "ROM%02d", rd->id);
-		tmp2[0] = 0;
-		RegQueryValueEx (fkey, tmp1, NULL, NULL, tmp2, &outsize);
-		RegCloseKey (fkey);
-		if (tmp2[0])
-		    strncpy (path, tmp2, size);
-	    }
+	if (rd) {
+	    struct romlist *rl = getromlistbyromdata(rd);
+	    if (rd->configname)
+		sprintf (path, ":%s", rd->configname);
+	    else if (rl)
+		strncpy (path, rl->path, size);
 	}
     }
 }
-
-#define CART_SUPERIV "[Action Cartridge Super IV Professional]"
 
 static void values_from_kickstartdlg (HWND hDlg)
 {
     getromfile (hDlg, IDC_ROMFILE, workprefs.romfile, sizeof (workprefs.romfile));
     getromfile (hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof (workprefs.romextfile));
     getromfile (hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof (workprefs.cartfile));
-    if (workprefs.cartfile[0])
-	workprefs.cart_internal = 0;
-    if (!strcmp(workprefs.cartfile, CART_SUPERIV)) {
-	workprefs.cart_internal = 2;
-    }
     ew (hDlg, IDC_HRTMON, workprefs.cartfile[0] ? FALSE : TRUE);
-    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1 ? TRUE : FALSE);
+    //CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1 ? TRUE : FALSE);
 }
 
 static void values_to_kickstartdlg (HWND hDlg)
@@ -4611,7 +4632,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	load_keyring(&workprefs, NULL);
 	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
 	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_ARCADIAGAME);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -4619,7 +4640,7 @@ static void values_to_kickstartdlg (HWND hDlg)
     SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
     CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
     CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
-    CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1);
+    //CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -4711,12 +4732,12 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	case IDC_MAPROM:
 	    workprefs.maprom = IsDlgButtonChecked(hDlg, IDC_MAPROM) ? 0xe00000 : 0;
 	    break;
-
+#if 0
 	case IDC_HRTMON:
 	    workprefs.cart_internal = IsDlgButtonChecked(hDlg, IDC_HRTMON) ? 1 : 0;
 	    ew (hDlg, IDC_CARTFILE, workprefs.cart_internal == 1 ? FALSE : TRUE);
 	    break;
-	
+#endif	
 	}
 	recursive--;
 	break;
@@ -4888,7 +4909,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
 	CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
-	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi);
+	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
@@ -5062,7 +5083,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.win32_ctrl_F11_is_quit = IsDlgButtonChecked (hDlg, IDC_CTRLF11);
 	    break;
 	case IDC_SCSIDEVICE:
-	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE);
+	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE) ? 1 : 0;
 	    enable_for_miscdlg (hDlg);
 	    break;
 	case IDC_CLOCKSYNC:
@@ -5662,7 +5683,7 @@ static void values_to_sounddlg (HWND hDlg)
     }
     if (workprefs.dfxclick[idx] < 0) {
 	p = drivesounds;
-	i = DS_BUILD_IN_SOUNDS + 2 + 1;
+	i = DS_BUILD_IN_SOUNDS + (driveclick_pcdrivemask ? 2 : 0) + 1;
 	while (p && p[0]) {
 	    if (!strcmpi (p, workprefs.dfxclickexternal[idx])) {
 		SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, i, 0);
@@ -10255,7 +10276,9 @@ static int transla[] = {
     NUMSG_MODRIP_SAVE,IDS_NUMSG_MODRIP_SAVE,
     NUMSG_KS68EC020,IDS_NUMSG_KS68EC020,
     NUMSG_KS68020,IDS_NUMSG_KS68020,
+    NUMSG_KS68030,IDS_NUMSG_KS68030,
     NUMSG_ROMNEED,IDS_NUMSG_ROMNEED,
+    NUMSG_EXPROMNEED,IDS_NUMSG_EXPROMNEED,
     NUMSG_NOZLIB,IDS_NUMSG_NOZLIB,
     NUMSG_STATEHD,IDS_NUMSG_STATEHD,
     NUMSG_OLDCAPS, IDS_NUMSG_OLDCAPS,

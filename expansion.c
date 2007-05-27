@@ -1068,7 +1068,7 @@ int need_uae_boot_rom(void)
 	return 1;
     if (currprefs.uaeserial)
 	return 1;
-    if (currprefs.scsi)
+    if (currprefs.scsi == 1)
 	return 1;
     if (currprefs.win32_outsidemouse)
 	return 1;

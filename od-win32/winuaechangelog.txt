@@ -1,4 +1,43 @@
 
+Beta 3:
+
+ROM rescan required (or new hrtmon/superiv config support won't work)
+
+- ROM scan report dialog was totally broken
+- uaescsi.device backends (SPTI/ASPI) are now available in new
+  SCSI emulation mode. Checkbox added to advanced chipset, merges
+  all SCSI and IDE CD/DVD devices automatically, does not override
+  configured HDFs. Not multithreaded yet = emulation is stopped while
+  SCSI command is executing = mostly useless for real world tasks,
+  also SCSI configuration panel is still not implemented..
+- confirmed A3000 3.1 ROM added to rom scan list.
+- floppy drive sound GUI didn't work correctly if fdrawcmd.sys was
+  not installed (=no PC floppy drives listed)
+- A3000 36.141 KS ROM SCSI driver compatiblity fix (long word writes
+  to byte wide WD33C93 registers.. not the first time Commodore ignored
+  their own programming guidelines.. )
+- A3000 SuperKickstart support hack, SuperKickstart loading works!
+  (simple memory map remap hack, there is no MMU!)
+- QS panel does not anymore complain about boot block crc error if disk
+  is A1000 Kickstart disk or A3000 SuperKickstart disk
+- A3000 Quickstart settings added, 1.4 = KS with Kickstart menu,
+  SuperKickstart disk (or HD installed SuperKickstart) required.
+  (also try clicking on top/left corner..)
+- added "need 68030 CPU" dialog (KS 1.4)
+- added expansion boot rom missing dialog
+- added process breakpoint debugger feature (KB)
+- GPL Ghostscript registry installation detection added (AFPL was only
+  supported previously)
+- Ghostscript printing fixed (only worked previously by accident..)
+- built-in HRTMon moved to Cartridge ROM select menu
+- added "real" SuperIV cart emulation (=need loader disk)
+- debugger deep trainer improved. "D[<s><dix> <[max diff]>]"
+  Di = value must increase, Dd = decrease, abs(new value minus
+  old value) must be smaller than "max diff". s = 1 = byte, 2 = word.
+  long words not supported. (defaults to byte) Signed integers used in
+  comparison. NOTE: not really tested, I was not interested :)
+
+
 Beta 2:
 
 - WD33C93 + (Super)DMAC based SCSI HDF emulation. A590/A2091, A3000 and

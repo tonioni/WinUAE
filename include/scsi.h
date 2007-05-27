@@ -1,6 +1,7 @@
 
 struct scsi_data
 {
+    int id;
     int len;
     uae_u8 *data;
     int data_len;
@@ -15,10 +16,13 @@ struct scsi_data
     int offset;
     uae_u8 buffer[256 * 512];
     struct hd_hardfiledata *hfd;
+    int nativescsiunit;
 };
 
-extern struct scsi_data *scsi_alloc(struct hd_hardfiledata*);
+extern struct scsi_data *scsi_alloc(int,struct hd_hardfiledata*);
+extern struct scsi_data *scsi_alloc_native(int,int);
 extern void scsi_free(struct scsi_data*);
+extern void scsi_reset(void);
 
 extern void scsi_start_transfer(struct scsi_data*,int);
 extern int scsi_send_data(struct scsi_data*, uae_u8);

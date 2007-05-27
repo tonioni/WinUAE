@@ -287,7 +287,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int read
     hfd->bootpri = bootpri;
     hfd->hfd.blocksize = blocksize;
     if (!hdf_open(&hfd->hfd, path))
-	return -1;
+	return 0;
     hfd->path = my_strdup(path);
     hfd->hfd.heads = surfaces;
     hfd->hfd.reservedblocks = reserved;
@@ -433,13 +433,24 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		p[2] = 0x20;
 		p[3] = 0;
 		r[0] += 4;
+	    } else if (pcode == 3) {
+		p[0] = 3;
+		p[1] = 24;
+		p[10] = hdhfd->secspertrack >> 8;
+		p[11] = hdhfd->secspertrack;
+		p[12] = hfd->blocksize >> 8;
+		p[13] = hfd->blocksize;
+		p[20] = 0x80;
+		r[0] += p[1];
 	    } else if (pcode == 4) {
 		p[0] = 4;
 		wl(p + 1, hdhfd->cyls);
-		p[1] = 0x16;
+		p[1] = 24;
 		p[5] = hdhfd->heads;
 		ww(p + 20, 5400);
 		r[0] += p[1];
+	    } else {
+		goto err;
 	    }
 	    scsi_len = lr = r[0] + 1;
 	    break;
@@ -489,6 +500,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	ls = 12;
 	break;
 	default:
+err:
         lr = -1;
 	write_log ("UAEHF: unsupported scsi command 0x%02.2X\n", cmdbuf[0]);
 	status = 2; /* CHECK CONDITION */

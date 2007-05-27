@@ -6,8 +6,8 @@
   * (c) 1995 Bernd Schmidt
   */
 
-//#define MOVEC_DEBUG
-//#define MMUOP_DEBUG
+#define MOVEC_DEBUG 0
+#define MMUOP_DEBUG 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -79,6 +79,10 @@ extern uae_u32 get_fpsr(void);
 #define COUNT_INSTRS 0
 #define MC68060_PCR   0x04300000
 #define MC68EC060_PCR 0x04310000
+
+static uae_u64 srp_030, crp_030;
+static uae_u32 tt0_030, tt1_030, tc_030;
+static uae_u16 mmusr_030;
 
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
@@ -1172,7 +1176,7 @@ int movec_illg (int regno)
 
 int m68k_move2c (int regno, uae_u32 *regp)
 {
-#ifdef MOVEC_DEBUG
+#if MOVEC_DEBUG > 0
     write_log("move2c %04.4X <- %08.8X PC=%x\n", regno, *regp, M68K_GETPC);
 #endif
     if (movec_illg (regno)) {
@@ -1242,7 +1246,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 
 int m68k_movec2 (int regno, uae_u32 *regp)
 {
-#ifdef MOVEC_DEBUG
+#if MOVEC_DEBUG > 0
     write_log("movec2 %04.4X PC=%x\n", regno, M68K_GETPC);
 #endif
     if (movec_illg (regno)) {
@@ -1289,7 +1293,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	    return 0;
 	}
     }
-#ifdef MOVEC_DEBUG
+#if MOVEC_DEBUG > 0
     write_log("-> %08.8X\n", *regp);
 #endif
     return 1;
@@ -1549,7 +1553,7 @@ void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 #endif
 
-void m68k_reset (void)
+void m68k_reset (int hardreset)
 {
     regs.kick_mask = 0x00F80000;
     regs.spcflags = 0;
@@ -1589,6 +1593,16 @@ void m68k_reset (void)
     regs.caar = regs.cacr = 0;
     regs.itt0 = regs.itt1 = regs.dtt0 = regs.dtt1 = 0;
     regs.tcr = regs.mmusr = regs.urp = regs.srp = regs.buscr = 0;
+
+    a3000_fakekick(0);
+    /* only (E)nable bit is zeroed when CPU is reset, A3000 SuperKickstart expects this */
+    tc_030 &= ~0x80000000;
+    if (hardreset) {
+	srp_030 = crp_030 = 0;
+	tt0_030 = tt1_030 = tc_030 = 0;
+    }
+    mmusr_030 = 0;
+
     /* 68060 FPU is not compatible with 68040,
      * 68060 accelerators' boot ROM disables the FPU
      */
@@ -1681,48 +1695,173 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 }
 
 #ifdef CPUEMU_0
-void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isextra, uae_u16 extra)
+
+static char *mmu30regs[] = { "TCR", "", "SRP", "CRP", "", "", "", "" };
+
+static void mmu_op30_pmove(uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+{
+    int preg = (next >> 10) & 31;
+    int rw = (next >> 9) & 1;
+    int fd = (next >> 8) & 1;
+    char *reg = NULL;
+    uae_u32 otc = tc_030;
+    int siz;
+
+    switch (preg)
+    {
+    case 0x10: // TC
+	reg = "TC";
+	siz = 4;
+	if (rw)
+	    put_long(extra, tc_030);
+	else
+	    tc_030 = get_long(extra);
+    break;
+    case 0x12: // SRP
+	reg = "SRP";
+	siz = 8;
+	if (rw) {
+	    put_long(extra, srp_030 >> 32);
+	    put_long(extra + 4, srp_030);
+	} else {
+	    srp_030 = (uae_u64)get_long(extra) << 32;
+	    srp_030 |= get_long(extra + 4);
+	}
+    break;
+    case 0x13: // CRP
+	reg = "CRP";
+	siz = 8;
+	if (rw) {
+	    put_long(extra, crp_030 >> 32);
+	    put_long(extra + 4, crp_030);
+	} else {
+	    crp_030 = (uae_u64)get_long(extra) << 32;
+	    crp_030 |= get_long(extra + 4);
+	}
+    break;
+    case 0x18: // MMUSR
+	reg = "MMUSR";
+	siz = 2;
+	if (rw)
+	    put_word(extra, mmusr_030);
+	else
+	    mmusr_030 = get_word(extra);
+    break;
+    case 0x02: // TT0
+	reg = "TT0";
+	siz = 4;
+	if (rw)
+	    put_long(extra, tt0_030);
+	else
+	    tt0_030 = get_long(extra);
+    break;
+    case 0x03: // TT1
+	reg = "TT1";
+	siz = 4;
+	if (rw)
+	    put_long(extra, tt1_030);
+	else
+	    tt1_030 = get_long(extra);
+    break;
+    }
+
+    if (!reg) {
+	op_illg(opcode, &regs);
+	return;
+    }
+#if MMUOP_DEBUG > 0
+    {
+	uae_u32 val;
+	if (siz == 8) {
+	    uae_u32 val2 = get_long(extra);
+	    val = get_long(extra + 4);
+	    if (rw)
+		write_log("PMOVE %s,%08X%08X", reg, val2, val);
+	    else
+		write_log("PMOVE %08X%08X,%s", val2, val, reg);
+	} else {
+	    if (siz == 4)
+		val = get_long(extra);
+	    else
+		val = get_word(extra);
+	    if (rw)
+		write_log("PMOVE %s,%08X", reg, val);
+	    else
+		write_log("PMOVE %08X,%s", val, reg);
+	}
+	write_log (" PC=%08X\n", pc);
+    }
+#endif
+    if (currprefs.cs_mbdmac == 1 && currprefs.mbresmem_low_size > 0) {
+	if (otc != tc_030) {
+	    a3000_fakekick(tc_030 & 0x80000000);
+	}
+    }
+}
+
+static void mmu_op30_ptest(uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+{
+#if MMUOP_DEBUG > 0
+    char tmp[10];
+
+    tmp[0] = 0;
+    if ((next >> 8) & 1)
+	sprintf(tmp,",A%d", (next >> 4) & 15);
+    write_log("PTEST%c %02X,%08X,#%X%s PC=%08X\n",
+	((next >> 9) & 1) ? 'W' : 'R', (next & 15), extra, (next >> 10) & 7, tmp, pc); 
+#endif
+    mmusr_030 = 0;
+}
+
+void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isnext, uaecptr extra)
 {
     if (currprefs.cpu_model != 68030) {
-#ifdef MMUOP_DEBUG
-	write_log("Unknown 68030 MMU OP %04.4X PC=%X\n", opcode, m68k_getpc(regs));
+#if MMUOP_DEBUG > 0
+	write_log("Unknown 68030 MMU OP %04X PC=%08X\n", opcode, m68k_getpc(regs));
 #endif
 	m68k_setpc (regs, pc);
 	op_illg (opcode, regs);
 	return;
     }
-    if (isextra)
+    if (isnext) {
+	uae_u16 next = get_word(pc + 2);
+	if (next & 0x8000)
+	    mmu_op30_ptest(pc, opcode, next, extra);
+	else
+	    mmu_op30_pmove(pc, opcode, next, extra);
 	m68k_setpc (regs, m68k_getpc (regs) + 2);
-#ifdef MMUOP_DEBUG
-    write_log("MMU030: %04.4x PC=%x\n", opcode, m68k_getpc(regs));
+    } else {
+#if MMUOP_DEBUG > 0
+	write_log("MMU030: %04x PC=%08x\n", opcode, m68k_getpc(regs));
 #endif
+    }
     return;
 }
 
-void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
+void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
 {
-#ifdef MMUOP_DEBUG
-    write_log("mmu_op %04.4x\n", opcode);
+#if MMUOP_DEBUG > 0
+    write_log("mmu_op %04X PC=%08X\n", opcode, m68k_getpc(regs));
 #endif
     if ((opcode & 0xFE0) == 0x0500) {
 	/* PFLUSH */
 	regs->mmusr = 0;
-#ifdef MMUOP_DEBUG
-	write_log ("PFLUSH @$%lx\n", m68k_getpc(regs));
+#if MMUOP_DEBUG > 0
+	write_log ("PFLUSH\n");
 #endif
 	return;
     } else if ((opcode & 0x0FD8) == 0x548) {
 	if (currprefs.cpu_model < 68060) { /* PTEST not in 68060 */
 	    /* PTEST */
-#ifdef MMUOP_DEBUG
-	    write_log ("PTEST @$%lx\n", m68k_getpc(regs));
+#if MMUOP > 0
+	    write_log ("PTEST\n");
 #endif
 	    return;
 	}
     } else if ((opcode & 0x0FB8) == 0x588) {
 	/* PLPA */
 	if (currprefs.cpu_model == 68060) {
-#ifdef MMUOP_DEBUG
+#if MMUOP_DEBUG > 0
 	    write_log("PLPA\n");
 #endif
 	    return;
@@ -1730,13 +1869,13 @@ void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     } else if (opcode == 0xff00 && extra == 0x01c0) {
 	/* LPSTOP */
 	if (currprefs.cpu_model == 68060) {
-#ifdef MMUOP_DEBUG
+#if MMUOP_DEBUG > 0
 	    write_log("LPSTOP\n");
 #endif
 	    return;
 	}
     }
-#ifdef MMUOP_DEBUG
+#if MMUOP_DEBUG > 0
     write_log("Unknown MMU OP\n");
 #endif
     m68k_setpc (regs, m68k_getpc (regs) - 2);
@@ -2297,7 +2436,7 @@ void m68k_go (int may_quit)
 	    customreset ();
 	    if (hardreset)
 		rtc_hardreset();
-	    m68k_reset ();
+	    m68k_reset (hardreset);
 	    if (hardreset) {
 		memory_hardreset();
 		write_log ("hardreset, memory cleared\n");
@@ -2727,11 +2866,12 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	    currprefs.m68k_speed = changed_prefs.m68k_speed = -1;
     }
     if (model >= 68030) {
-	restore_u32();
-	restore_u32();
-	restore_u16();
-	restore_u32();
-	restore_u32();
+	crp_030 = restore_u64();
+	srp_030 = restore_u64();
+	tt0_030 =restore_u32();
+	tt1_030 = restore_u32();
+	tc_030 = restore_u32();
+	mmusr_030 = restore_u16();
     }
     if (model >= 68040) {
 	regs.itt0 = restore_u32();
@@ -2798,11 +2938,12 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (regs.msp);				/* MSP */
     }
     if(model >= 68030) {
-	save_u32 (0);					/* AC0 */
-	save_u32 (0);					/* AC1 */
-	save_u16 (0);					/* ACUSR */
-	save_u32 (0);					/* TT0 */
-	save_u32 (0);					/* TT1 */
+	save_u64 (crp_030);				/* CRP */
+	save_u64 (srp_030);				/* SRP */
+	save_u32 (tt0_030);				/* TT0/AC0 */
+	save_u32 (tt1_030);				/* TT1/AC1 */
+	save_u32 (tc_030);				/* TCR */
+	save_u16 (mmusr_030);				/* MMUSR/ACUSR */
     }
     if(model >= 68040) {
 	save_u32 (regs.itt0);				/* ITT0 */

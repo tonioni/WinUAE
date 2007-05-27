@@ -2125,7 +2125,7 @@ void read_rom_list (void)
 	err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
 	if (err != ERROR_SUCCESS)
 	    break;
-	if (strlen (tmp) == 5) {
+	if (strlen (tmp) == 6) {
 	    idx2 = atol (tmp + 3);
 	    if (idx2 >= 0 && strlen (tmp2) > 0) {
 		struct romdata *rd = getromdatabyid (idx2);

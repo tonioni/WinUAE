@@ -787,7 +787,7 @@ static uaecptr diskdev_startup (uaecptr resaddr)
 
 uaecptr scsidev_startup (uaecptr resaddr)
 {
-    if (!currprefs.scsi)
+    if (currprefs.scsi != 1)
 	return resaddr;
     if (log_scsi)
 	write_log ("scsidev_startup(0x%x)\n", resaddr);
@@ -812,7 +812,7 @@ static void diskdev_install (void)
     uae_u32 initcode, openfunc, closefunc, expungefunc;
     uae_u32 beginiofunc, abortiofunc;
 
-    if (!currprefs.scsi)
+    if (currprefs.scsi != 1)
 	return;
     if (log_scsi)
 	write_log ("diskdev_install(): 0x%x\n", here ());
@@ -891,7 +891,7 @@ void scsidev_install (void)
     uae_u32 initcode, openfunc, closefunc, expungefunc;
     uae_u32 beginiofunc, abortiofunc;
 
-    if (!currprefs.scsi)
+    if (currprefs.scsi != 1)
 	return;
     if (log_scsi)
 	write_log ("scsidev_install(): 0x%x\n", here ());
@@ -967,7 +967,7 @@ void scsidev_install (void)
 
 void scsidev_start_threads (void)
 {
-    if (!currprefs.scsi) /* quite useless.. */
+    if (currprefs.scsi != 1) /* quite useless.. */
 	return;
     if (log_scsi)
 	write_log ("scsidev_start_threads()\n");
@@ -976,7 +976,7 @@ void scsidev_start_threads (void)
 
 void scsidev_reset (void)
 {
-    if (!currprefs.scsi)
+    if (currprefs.scsi != 1)
 	return;
     dev_reset ();
 }

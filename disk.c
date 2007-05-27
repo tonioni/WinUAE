@@ -3022,6 +3022,10 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	    crc++;
 	crc += v;
     }
+    if (dos == 0x4b49434b) { /* KICK */
+	ret = 10;
+	goto end;
+    }
     crc ^= 0xffffffff;
     if (crc != crc2) {
 	ret = 3;

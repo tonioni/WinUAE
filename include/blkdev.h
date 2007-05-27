@@ -47,6 +47,21 @@ struct device_scsi_info {
     int bufsize;
 };
 
+struct amigascsi
+{
+    uae_u8 *data;
+    uae_u32 len;
+    uae_u8 cmd[16];
+    uae_u32 cmd_len;
+    uae_u8 flags;
+    uae_u8 sensedata[256];
+    uae_u16 sense_len;
+    uae_u16 cmdactual;
+    uae_u8 status;
+    uae_u16 actual;
+    uae_u16 sactual;
+};
+
 typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
 typedef int (*open_device_func)(int);
@@ -55,7 +70,7 @@ typedef struct device_info* (*info_device_func)(int, struct device_info*);
 typedef struct device_scsi_info* (*scsiinfo_func)(int, struct device_scsi_info*);
 typedef uae_u8* (*execscsicmd_out_func)(int, uae_u8*, int);
 typedef uae_u8* (*execscsicmd_in_func)(int, uae_u8*, int, int*);
-typedef int (*execscsicmd_direct_func)(int, uaecptr);
+typedef int (*execscsicmd_direct_func)(int, struct amigascsi*);
 
 typedef int (*pause_func)(int, int);
 typedef int (*stop_func)(int);
@@ -111,6 +126,7 @@ extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);
 extern uae_u8 *sys_command_cd_rawread (int mode, int unitnum, int offset, int size);
 extern uae_u8 *sys_command_read (int mode, int unitnum, int offset);
 extern int sys_command_write (int mode, int unitnum, int offset);
+extern int sys_command_scsi_direct_native(int unitnum, struct amigascsi *as);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
 extern int sys_command_ismedia (int mode, int unitnum, int quick);
 

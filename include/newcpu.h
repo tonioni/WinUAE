@@ -318,12 +318,12 @@ extern void m68k_go (int);
 extern void m68k_dumpstate (void *, uaecptr *);
 extern void m68k_disasm (void *, uaecptr, uaecptr *, int);
 extern void sm68k_disasm(char *, char *, uaecptr addr, uaecptr *nextpc);
-extern void m68k_reset (void);
+extern void m68k_reset (int);
 extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
 
-extern void mmu_op       (uae_u32, struct regstruct *regs, uae_u16);
-extern void mmu_op30     (uaecptr, uae_u32, struct regstruct *regs, int, uae_u16);
+extern void mmu_op       (uae_u32, struct regstruct *regs, uae_u32);
+extern void mmu_op30     (uaecptr, uae_u32, struct regstruct *regs, int, uaecptr);
 
 extern void fpp_opp      (uae_u32, struct regstruct *regs, uae_u16);
 extern void fdbcc_opp    (uae_u32, struct regstruct *regs, uae_u16);

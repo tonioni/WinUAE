@@ -953,7 +953,7 @@ void host_connect(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 na
 							if (sb->eintr) {
 								// Destroy socket to cancel abort, replace it with fake socket to enable proper closing.
 								// This is in accordance with BSD behaviour.
-												shutdown(s,1);
+								shutdown(s,1);
 								closesocket(s);
 								sb->dtable[sd-1] = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 							}

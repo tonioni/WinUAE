@@ -10,7 +10,7 @@
 #ifdef DEBUGGER
 
 #define	MAX_HIST 100
-#define MAX_LINEWIDTH 90
+#define MAX_LINEWIDTH 100
 
 extern int debugging;
 extern int exception_debugging;

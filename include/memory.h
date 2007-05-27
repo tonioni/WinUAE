@@ -326,6 +326,7 @@ extern void mapkick (void);
 extern int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom);
 extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 extern void init_shm(void);
+extern void a3000_fakekick(int);
 
 #define ROMTYPE_KICK 1
 #define ROMTYPE_KICKCD32 2
@@ -338,6 +339,7 @@ extern void init_shm(void);
 #define ROMTYPE_KEY 256
 #define ROMTYPE_ARCADIABIOS 512
 #define ROMTYPE_ARCADIAGAME 1024
+#define ROMTYPE_HRTMON 2048
 
 struct romdata {
     char *name;
@@ -350,6 +352,7 @@ struct romdata {
     int cpu;
     int cloanto;
     int type;
+    char *configname;
 };
 
 struct romlist {
@@ -357,16 +360,19 @@ struct romlist {
     struct romdata *rd;
 };
 
+extern struct romdata *getromdatabypath(char *path);
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
 extern struct romlist **getarcadiaroms (void);
 extern struct romdata *getarcadiarombyname (char *name);
-extern struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all);
+extern struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, char *model, int all);
 extern void getromname (struct romdata*, char*);
 extern struct romdata *getromdatabyname (char*);
-extern struct romlist *getrombyids(int *ids);
+extern struct romlist *getromlistbyids(int *ids);
+extern void romwarning(int *ids);
+extern struct romlist *getromlistbyromdata(struct romdata *rd);
 extern void romlist_add (char *path, struct romdata *rd);
 extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);

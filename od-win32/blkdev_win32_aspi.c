@@ -861,38 +861,26 @@ static void close_scsi_bus (void)
     scsi_handle = 0;
 }
 
-static int execscsicmd_direct (int unitnum, uaecptr acmd)
+static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 {
     int sactual = 0, i, parm;
     SCSI *scgp = si[unitnum].handle;
     struct scg_cmd *scmd = scgp->scmd;
-    uaecptr scsi_data = get_long (acmd + 0);
-    uae_u32 scsi_len = get_long (acmd + 4);
-    uaecptr scsi_cmd = get_long (acmd + 12);
-    int scsi_cmd_len = get_word (acmd + 16);
-    int scsi_cmd_len_org = scsi_cmd_len;
-    uae_u8 scsi_flags = get_byte (acmd + 20);
-    uaecptr scsi_sense = get_long (acmd + 22);
-    uae_u16 scsi_sense_len = get_word (acmd + 26);
+    int scsi_cmd_len_org = as->cmd_len;
     int io_error = 0;
-    addrbank *bank_data = &get_mem_bank (scsi_data);
     uae_u8 *scsi_datap, *scsi_datap_org;
-
-    /* do transfer directly to and from Amiga memory */
-    if (!bank_data || !bank_data->check (scsi_data, scsi_len))
-	return -5; /* IOERR_BADADDRESS */
 
     uae_sem_wait (&scgp_sem);
 
     /* the Amiga does not tell us how long the timeout shall be, so make it _very_ long (specified in seconds) */
     scmd->timeout = 80 * 60;
-    scsi_datap = scsi_datap_org = scsi_len ? bank_data->xlateaddr (scsi_data) : 0;
-    scmd->flags = ((scsi_flags & 1) ? SCG_RECV_DATA : 0) | SCG_DISRE_ENA;
-    for (i = 0; i < scsi_cmd_len; i++)
-	scmd->cdb.cmd_cdb[i] = get_byte (scsi_cmd + i);
+    scsi_datap = scsi_datap_org = as->len ? as->data : 0;
+    scmd->flags = ((as->flags & 1) ? SCG_RECV_DATA : 0) | SCG_DISRE_ENA;
+    for (i = 0; i < as->cmd_len; i++)
+	scmd->cdb.cmd_cdb[i] = as->cmd[i];
     scmd->target = si[unitnum].target;
-    scmd->sense_len = (scsi_flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-	(scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
+    scmd->sense_len = (as->flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
+	(as->flags & 2) ? as->sense_len : /* SCSIF_AUTOSENSE */
 	-1;
     scmd->sense_count = 0;
     scmd->u_scb.cmd_scb[0] = 0;
@@ -900,38 +888,38 @@ static int execscsicmd_direct (int unitnum, uaecptr acmd)
     scgp->addr.target = si[unitnum].target;
     scgp->addr.lun = si[unitnum].lun;
     if (si[unitnum].isatapi)
-	scsi_atapi_fixup_pre (scmd->cdb.cmd_cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
+	scsi_atapi_fixup_pre (scmd->cdb.cmd_cdb, &as->cmd_len, &scsi_datap, &as->len, &parm);
     scmd->addr = scsi_datap;
-    scmd->size = scsi_len;
-    scmd->cdb_len = scsi_cmd_len;
+    scmd->size = as->len;
+    scmd->cdb_len = as->cmd_len;
     aspi_led (unitnum);
     scsicmd (scgp);
     aspi_led (unitnum);
 
-    put_word (acmd + 18, scmd->error == SCG_FATAL ? 0 : scsi_cmd_len_org); /* fake scsi_CmdActual */
-    put_byte (acmd + 21, scmd->u_scb.cmd_scb[0]); /* scsi_Status */
+    as->cmdactual = scmd->error == SCG_FATAL ? 0 : scsi_cmd_len_org; /* fake scsi_CmdActual */
+    as->status = scmd->u_scb.cmd_scb[0]; /* scsi_Status */
     if (scmd->u_scb.cmd_scb[0]) {
 	io_error = 45; /* HFERR_BadStatus */
 	/* copy sense? */
-	for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < scmd->sense_count; sactual++)
-	    put_byte (scsi_sense + sactual, scmd->u_sense.cmd_sense[sactual]);
-	put_long (acmd + 8, 0); /* scsi_Actual */
+	for (sactual = 0; sactual < as->sense_len && sactual < scmd->sense_count; sactual++)
+	    as->sensedata[sactual] = scmd->u_sense.cmd_sense[sactual];
+	as->actual = 0; /* scsi_Actual */
     } else {
 	int i;
-	for (i = 0; i < scsi_sense_len; i++)
-	    put_byte (scsi_sense + i, 0);
+	for (i = 0; i < as->sense_len; i++)
+	    as->sensedata[i] = 0;
 	sactual = 0;
 	if (scmd->error != SCG_NO_ERROR) {
 	    io_error = 20; /* io_Error, but not specified */
-	    put_long (acmd + 8, 0); /* scsi_Actual */
+	    as->actual = 0; /* scsi_Actual */
 	} else {
 	    io_error = 0;
 	    if (si[unitnum].isatapi)
-		scsi_atapi_fixup_post (scmd->cdb.cmd_cdb, scsi_cmd_len, scsi_datap_org, scsi_datap, &scsi_len, parm);
-	    put_long (acmd + 8, scsi_len - scmd->resid); /* scsi_Actual */
+		scsi_atapi_fixup_post (scmd->cdb.cmd_cdb, as->cmd_len, scsi_datap_org, scsi_datap, &as->len, parm);
+	    as->actual = as->len - scmd->resid; /* scsi_Actual */
 	}
     }
-    put_word (acmd + 28, sactual);
+    as->sactual = sactual;
 
     uae_sem_post (&scgp_sem);
 

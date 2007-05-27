@@ -1,7 +1,7 @@
  /*
   * UAE - The Un*x Amiga Emulator
   *
-  * A590/A2091/A3000 (DMAC/SuperDMAC + WD33C93) emulation
+  * A590/A2091/A3000/CDTV SCSI expansion (DMAC/SuperDMAC + WD33C93) emulation
   *
   * Copyright 2007 Toni Wilen
   *
@@ -164,10 +164,10 @@ uae_u8 wdregs[32];
 static int isirq(void)
 {
     if (superdmac) {
-	if ((dmac_cntr & SCNTR_INTEN) && (dmac_istr & ISTR_INTS))
+	if ((dmac_cntr & SCNTR_INTEN) && (dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 	    return 1;
     } else {
-        if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
+        if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & (ISTR_INTS | ISTR_E_INT)))
 	    return 1;
     }
     return 0;
@@ -224,6 +224,7 @@ static void dmac_start_dma(void)
 static void dmac_stop_dma(void)
 {
     dmac_dma = 0;
+    dmac_istr &= ~ISTR_E_INT;
 }
 
 static void dmac_reset(void)
@@ -236,9 +237,11 @@ static void dmac_reset(void)
 #endif
 }
 
-static void incsasr(void)
+static void incsasr(int w)
 {
     if (sasr == WD_AUXILIARY_STATUS || sasr == WD_DATA || sasr == WD_COMMAND)
+	return;
+    if (w && sasr == WD_SCSI_STATUS)
 	return;
     sasr++;
     sasr &= 0x1f;
@@ -426,6 +429,14 @@ static void wd_cmd_sel_atn(void)
     set_status(CSR_TIMEOUT, 0);
 }
 
+static void wd_cmd_reset(void)
+{
+#if WD33C93_DEBUG > 0
+    write_log("%s reset\n", WD33C93);
+#endif
+    set_status(1, 0);
+}
+
 static void wd_cmd_abort(void)
 {
 #if WD33C93_DEBUG > 0
@@ -434,13 +445,21 @@ static void wd_cmd_abort(void)
     set_status(CSR_SEL_ABORT, 0);
 }
 
+static int writeonlyreg(int reg)
+{
+    if (reg == WD_SCSI_STATUS)
+	return 1;
+    return 0;
+}
+
 void wdscsi_put(uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
     if (sasr != WD_DATA)
-	write_log("W %s REG %02.2X (%d) = %02.2X (%d)\n", WD33C93, sasr, sasr, d, d);
+	write_log("W %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, sasr, sasr, d, d, M68K_GETPC);
 #endif
-    wdregs[sasr] = d;
+    if (!writeonlyreg(sasr))
+	wdregs[sasr] = d;
     if (!wd_used) {
 	wd_used = 1;
 	write_log("%s in use\n", WD33C93);
@@ -454,6 +473,10 @@ void wdscsi_put(uae_u8 d)
     } else if (sasr == WD_COMMAND) {
 	switch (d & 0x7f)
 	{
+	    case WD_CMD_RESET:
+		wd_cmd_reset();
+	    break;
+	    break;
 	    case WD_CMD_SEL_ATN:
 	        wd_cmd_sel_atn();
 	    break;
@@ -468,7 +491,7 @@ void wdscsi_put(uae_u8 d)
 	    break;
 	}
     }
-    incsasr();
+    incsasr(1);
 }
 
 void wdscsi_sasr(uae_u8 b)
@@ -503,10 +526,10 @@ uae_u8 wdscsi_get(void)
 	    set_status(wd_phase, 1);
 	}
     }
-    incsasr();
+    incsasr(0);
 #if WD33C93_DEBUG > 1
     if (osasr != WD_DATA)
-	write_log("R %s REG %02.2X (%d) = %02.2X (%d)\n", WD33C93, osasr, osasr, v, v);
+	write_log("R %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, osasr, osasr, v, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -548,9 +571,22 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0xa7:
 	v = 0xff;
 	break;
+	case 0xe0:
+	case 0xe1:
+	if (!dmac_dma)
+	    dmac_start_dma();
+	break;
+	case 0xe2:
+	case 0xe3:
+	dmac_stop_dma();
+	break;
+	case 0xe4:
+	case 0xe5:
+	dmac_cint();
+	break;
 	case 0xe8:
 	case 0xe9:
-    	/* FLUSH */
+	/* FLUSH */
 	dmac_istr |= ISTR_FE_FLG;
 	break;
     }
@@ -653,8 +689,10 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     addr &= 65535;
-    v = (dmac_bget2 (addr) << 24) | (dmac_bget2 (addr + 1) << 16) |
-	(dmac_bget2 (addr + 2) << 8) | (dmac_bget2 (addr + 3));
+    v = dmac_bget2 (addr) << 24;
+    v |= dmac_bget2 (addr + 1) << 16;
+    v |= dmac_bget2 (addr + 2) << 8;
+    v |= dmac_bget2 (addr + 3);
 #ifdef A2091_DEBUG
     if (addr >= 0x40 && addr < ROM_OFFSET)
 	write_log ("dmac_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
@@ -669,7 +707,8 @@ static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     addr &= 65535;
-    v = (dmac_bget2 (addr) << 8) | dmac_bget2 (addr + 1);
+    v = dmac_bget2 (addr) << 8;
+    v |= dmac_bget2 (addr + 1);
 #if A2091_DEBUG > 0
     if (addr >= 0x40 && addr < ROM_OFFSET)
 	write_log ("dmac_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
@@ -786,7 +825,7 @@ static uae_u32 dmacreg_read(uae_u32 val, int addr, int size)
     return (val >> (addr * 8)) & 0xff;
 }
 
-static void mbdmac_write (uae_u32 addr, uae_u32 val)
+static void mbdmac_write (uae_u32 addr, uae_u32 val, int mode)
 {
     if (currprefs.cs_mbdmac > 1)
 	return;
@@ -838,10 +877,12 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val)
 	break;
 	case 0x3e:
 	case 0x3f:
-	dmac_dma = 0;
 	dmac_stop_dma();
 	break;
 	case 0x41:
+	if ((mode & 0x10) || ((mode & 0x70) > 0x10 && (mode & 0x0f) == 1))
+	    sasr = val;
+	break;
 	case 0x49:
 	sasr = val;
 	break;
@@ -851,7 +892,7 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val)
     }
 }
 
-static uae_u32 mbdmac_read (uae_u32 addr)
+static uae_u32 mbdmac_read (uae_u32 addr, int mode)
 {
     uae_u32 vaddr = addr;
     uae_u32 v = 0xffffffff;
@@ -884,10 +925,8 @@ static uae_u32 mbdmac_read (uae_u32 addr)
 	break;
 	case 0x12:
 	case 0x13:
-	if (dmac_dma) {
-	    dmac_dma = 1;
+	if (!dmac_dma)
 	    dmac_start_dma();
-	}
 	v = 0;
 	break;
 	case 0x1a:
@@ -931,47 +970,57 @@ static void REGPARAM3 mbdmac_bput (uaecptr, uae_u32) REGPARAM;
 
 static uae_u32 REGPARAM2 mbdmac_lget (uaecptr addr)
 {
+    uae_u32 v;
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    return (mbdmac_wget (addr) << 16) | mbdmac_wget (addr + 2);
+    v =  mbdmac_read (addr, 0x40 | 0) << 24;
+    v |= mbdmac_read (addr + 1, 0x40 | 1) << 16;
+    v |= mbdmac_read (addr + 2, 0x40 | 2) << 8;
+    v |= mbdmac_read (addr + 3, 0x40 | 3);
+    return v;
 }
 static uae_u32 REGPARAM2 mbdmac_wget (uaecptr addr)
 {
+    uae_u32 v;
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    return (mbdmac_bget (addr) << 8) | mbdmac_bget(addr + 1);;
+    v =  mbdmac_read (addr, 0x40 | 0) << 8;
+    v |= mbdmac_read (addr + 1, 0x40 | 1) << 0;
+    return v;
 }
 static uae_u32 REGPARAM2 mbdmac_bget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    return mbdmac_read (addr);
+    return mbdmac_read (addr, 0x10);
 }
-static void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 l)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    mbdmac_wput (addr, value >> 16);
-    mbdmac_wput (addr + 2, value & 0xffff);
+    mbdmac_write (addr + 0, l >> 24, 0x40 | 0);
+    mbdmac_write (addr + 1, l >> 16, 0x40 | 1);
+    mbdmac_write (addr + 2, l >> 8, 0x40 | 2);
+    mbdmac_write (addr + 3, l, 0x40 | 3);
 }
-static void REGPARAM2 mbdmac_wput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 mbdmac_wput (uaecptr addr, uae_u32 w)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    mbdmac_bput (addr, value >> 8);
-    mbdmac_bput (addr + 1, value & 0xff);
+    mbdmac_write (addr + 0, w >> 8, 0x20 | 0);
+    mbdmac_write (addr + 1, w >> 0, 0x20 | 1);
 }
-static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    mbdmac_write (addr, value);
+    mbdmac_write (addr, b, 0x10 | 0);
 }
 
 addrbank mbdmac_a3000_bank = {
@@ -1010,8 +1059,54 @@ int addscsi(int ch, char *path, int blocksize, int readonly,
     if (!hdf_hd_open(hfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return 0;
     hfd->ansi_version = 2;
-    scsis[ch] = scsi_alloc(hfd);
+    scsis[ch] = scsi_alloc(ch, hfd);
     return scsis[ch] ? 1 : 0;
+}
+
+static void addnativescsi(void)
+{
+    int i, j;
+    int devices[MAX_TOTAL_DEVICES];
+    int types[MAX_TOTAL_DEVICES];
+    struct device_info dis[MAX_TOTAL_DEVICES];
+
+    i = 0;
+    while (i < MAX_TOTAL_DEVICES) {
+	types[i] = -1;
+	devices[i] = -1;
+	if (sys_command_open (DF_SCSI, i)) {
+	    if (sys_command_info (DF_SCSI, i, &dis[i])) {
+		devices[i] = i;
+		types[i] = 100 - i;
+		if (dis[i].type == INQ_ROMD)
+		    types[i] = 1000 - i;
+	    }
+	    sys_command_close (DF_SCSI, i);
+	}
+	i++;
+    }
+    i = 0;
+    while (devices[i] >= 0) {
+	j = i + 1;
+	while (devices[j] >= 0) {
+	    if (types[i] > types[j]) {
+		int tmp = types[i];
+		types[i] = types[j];
+		types[j] = tmp;
+	    }
+	    j++;
+	}
+	i++;
+    }
+    i = 0; j = 0;
+    while (devices[i] >= 0 && j < 7) {
+	if (scsis[j] == NULL) {
+	    scsis[j] = scsi_alloc_native(j, devices[i]);
+	    write_log("SCSI: %d:'%s'\n", j, dis[i].label);
+	    i++;
+	}
+	j++;
+    }
 }
 
 int a3000_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
@@ -1056,6 +1151,8 @@ void a2091_reset (void)
     wd_used = 0;
     superdmac = 0;
     superdmac = currprefs.cs_mbdmac ? 1 : 0;
+    if (currprefs.scsi == 2)
+	addnativescsi();
 }
 
 void a2091_init (void)
@@ -1081,7 +1178,7 @@ void a2091_init (void)
     roms[2] = 53;
     roms[3] = -1;
 
-    rl = getrombyids(roms);
+    rl = getromlistbyids(roms);
     if (rl) {
 	write_log("A590/A2091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
 	z = zfile_fopen(rl->path, "rb");
@@ -1093,6 +1190,8 @@ void a2091_init (void)
 	} else {
 	    write_log("failed to load\n");
 	}
+    } else {
+	romwarning(roms);
     }
     map_banks (&dmaca2091_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 }

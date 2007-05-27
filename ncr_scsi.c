@@ -6,7 +6,7 @@
   * (c) 2007 Toni Wilen
   */
 
-#define NCR_LOG 0
+#define NCR_LOG 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -119,6 +119,141 @@ static char *regname(uaecptr addr)
     return "?";
 }
 
+#define SCNTL0_REG                      0x03
+#define         FULL_ARBITRATION        0xc0
+#define         PARITY                  0x08
+#define         ENABLE_PARITY           0x04
+#define         AUTO_ATN                0x02
+#define SCNTL1_REG                      0x02
+#define         SLOW_BUS                0x80
+#define         ENABLE_SELECT           0x20   
+#define         ASSERT_RST              0x08
+#define         ASSERT_EVEN_PARITY      0x04
+#define SDID_REG                        0x01
+#define SIEN_REG                        0x00
+#define         PHASE_MM_INT            0x80
+#define         FUNC_COMP_INT           0x40
+#define         SEL_TIMEOUT_INT         0x20
+#define         SELECT_INT              0x10
+#define         GROSS_ERR_INT           0x08               
+#define         UX_DISC_INT             0x04   
+#define         RST_INT                 0x02                  
+#define         PAR_ERR_INT             0x01
+#define SCID_REG                        0x07
+#define SXFER_REG                       0x06
+#define         ASYNC_OPERATION         0x00                    
+#define SODL_REG                        0x05  
+#define SOCL_REG                        0x04
+#define SFBR_REG                        0x0b
+#define SIDL_REG                        0x0a
+#define SBDL_REG                        0x0a
+#define SBCL_REG                        0x08
+#define         SBCL_IO                 0x01                
+#define         SYNC_DIV_AS_ASYNC       0x00
+#define         SYNC_DIV_1_0            0x01
+#define         SYNC_DIV_1_5            0x02
+#define         SYNC_DIV_2_0            0x03
+#define DSTAT_REG                       0x0e
+#define         ILGL_INST_DETECTED      0x01
+#define         WATCH_DOG_INTERRUPT     0x02
+#define         SCRIPT_INT_RECEIVED     0x04
+#define         ABORTED                 0x10
+#define SSTAT0_REG                      0x0e
+#define         PARITY_ERROR            0x01
+#define         SCSI_RESET_DETECTED     0x02
+#define         UNEXPECTED_DISCONNECT   0x04
+#define         SCSI_GROSS_ERROR        0x08
+#define         SELECTED                0x10
+#define         SELECTION_TIMEOUT       0x20
+#define         FUNCTION_COMPLETE       0x40
+#define         PHASE_MISMATCH          0x80                    
+#define SSTAT1_REG                      0x0d                        
+#define         SIDL_REG_FULL           0x80
+#define         SODR_REG_FULL           0x40
+#define         SODL_REG_FULL           0x20
+#define SSTAT2_REG                      0x0c          
+#define CTEST0_REG                      0x17
+#define         BTB_TIMER_DISABLE       0x40
+#define CTEST1_REG                      0x16
+#define CTEST2_REG                      0x15
+#define CTEST3_REG                      0x14
+#define CTEST4_REG                      0x1b
+#define         DISABLE_FIFO            0x00   
+#define         SLBE                    0x10
+#define         SFWR                    0x08
+#define         BYTE_LANE0              0x04
+#define         BYTE_LANE1              0x05
+#define         BYTE_LANE2              0x06
+#define         BYTE_LANE3              0x07
+#define         SCSI_ZMODE              0x20
+#define         ZMODE                   0x40
+#define CTEST5_REG                      0x1a            
+#define         MASTER_CONTROL          0x10   
+#define         DMA_DIRECTION           0x08                  
+#define CTEST7_REG                      0x18
+#define         BURST_DISABLE           0x80 /* 710 only */
+#define         SEL_TIMEOUT_DISABLE     0x10 /* 710 only */
+#define         DFP                     0x08                    
+#define         EVP                     0x04      
+#define         DIFF                    0x01
+#define CTEST6_REG                      0x19
+#define TEMP_REG                        0x1C
+#define DFIFO_REG                       0x20
+#define         FLUSH_DMA_FIFO          0x80
+#define         CLR_FIFO                0x40
+#define ISTAT_REG                       0x22               
+#define         ABORT_OPERATION         0x80
+#define         SOFTWARE_RESET_710      0x40
+#define         DMA_INT_PENDING         0x01
+#define         SCSI_INT_PENDING        0x02
+#define         CONNECTED               0x08
+#define CTEST8_REG                      0x21
+#define         LAST_DIS_ENBL           0x01
+#define         SHORTEN_FILTERING       0x04
+#define         ENABLE_ACTIVE_NEGATION  0x10
+#define         GENERATE_RECEIVE_PARITY 0x20
+#define         CLR_FIFO_710            0x04
+#define         FLUSH_DMA_FIFO_710      0x08
+#define LCRC_REG                        0x20
+#define DBC_REG                         0x25
+#define DCMD_REG                        0x24
+#define DNAD_REG                        0x28
+#define DIEN_REG                        0x3a
+#define         BUS_FAULT               0x20
+#define         ABORT_INT               0x10                                                
+#define         INT_INST_INT            0x04                         
+#define         WD_INT                  0x02
+#define         ILGL_INST_INT           0x01
+#define DCNTL_REG                       0x38
+#define         SOFTWARE_RESET          0x01            
+#define         COMPAT_700_MODE         0x01
+#define         SCRPTS_16BITS           0x20
+#define         ASYNC_DIV_2_0           0x00
+#define         ASYNC_DIV_1_5           0x40
+#define         ASYNC_DIV_1_0           0x80
+#define         ASYNC_DIV_3_0           0xc0
+#define DMODE_710_REG                   0x3b
+#define DMODE_700_REG                   0x34
+#define         BURST_LENGTH_1          0x00
+#define         BURST_LENGTH_2          0x40
+#define         BURST_LENGTH_4          0x80
+#define         BURST_LENGTH_8          0xC0
+#define         DMODE_FC1               0x10
+#define         DMODE_FC2               0x20
+#define         BW16                    32  
+#define         MODE_286                16                 
+#define         IO_XFER                 8      
+#define         FIXED_ADDR              4                     
+
+static void INT2(void)
+{
+    if (ncrregs[SIEN_REG] == 0)
+	return;
+    INTREQ_f(0x8000 | 0x0008);
+    write_log("IRQ\n");
+}
+
+
 static uae_u8 read_rom(uaecptr addr)
 {
     int off;
@@ -143,13 +278,20 @@ void ncr_bput2(uaecptr addr, uae_u32 val)
 	return;
     switch (addr)
     {
-	case 0x08:
-	ncrregs[0x22] |= 2;
+	case SBCL_REG:
 	break;
-	case 0x02: // SCNTL1
+	case SCNTL1_REG:
 	break;
-	case 0x22 : // ISTAT
+	case ISTAT_REG:
+	ncrregs[ISTAT_REG] = 0;
 	break;
+	case SCID_REG:
+    	ncrregs[ISTAT_REG] |= 2;
+	//ncrregs[SSTAT1_REG] |= 1 << 4; 
+	//INT2();
+	break;
+
+
     }
     write_log("%s write %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), val & 0xff, M68K_GETPC);
     ncrregs[addr] = val;
@@ -167,19 +309,20 @@ uae_u32 ncr_bget2(uaecptr addr)
     v = ncrregs[addr];
     switch (addr)
     {
-	case 0x0c: // SSTAT2
+	case SSTAT2_REG:
 	v &= ~7;
-	v |= ncrregs[8] & 7;
+	v |= ncrregs[SBCL_REG] & 7;
 	break;
-	case 0x0e: // SSTAT0
+	case SSTAT0_REG:
 	v |= 0x20;
 	break;
-        case 0x22: // ISTAT
-	ncrregs[addr] &= 0x40;
+	case ISTAT_REG:
+	if (v)
+	    v |= 2;
+	INT2();
 	break;
-	case 0x21: // CTEST8
-	v &= 0x0f;
-	v |= 0x20;
+	case CTEST8_REG:
+	v &= 0x0f; // revision 0
 	break;
     }
 
@@ -363,7 +506,7 @@ void ncr_init (void)
     roms[1] = 56;
     roms[2] = -1;
 
-    rl = getrombyids(roms);
+    rl = getromlistbyids(roms);
     if (rl) {
 	write_log("A4091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
 	z = zfile_fopen(rl->path, "rb");
@@ -375,6 +518,8 @@ void ncr_init (void)
 	} else {
 	    write_log("failed to load\n");
 	}
+    } else {
+	romwarning(roms);
     }
     map_banks (&ncr_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 }

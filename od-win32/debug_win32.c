@@ -140,9 +140,8 @@ static void AddToHistory(const char *command)
     currhist = NULL;
     if (histcount > 0 && !strcmp(command, lasthist->command))
         return;
-    else if (histcount == MAXINPUTHIST) {
+    else if (histcount == MAXINPUTHIST)
         DeleteFromHistory(1);
-    }
     tmp = lasthist;
     lasthist = malloc(sizeof(struct histnode));
     if (histcount == 0)
@@ -153,7 +152,6 @@ static void AddToHistory(const char *command)
     if (tmp)
         tmp->next = lasthist;
     histcount++;
-    currhist = NULL;
 }
 
 int GetInput (char *out, int maxlen)

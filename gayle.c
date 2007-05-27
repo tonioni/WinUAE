@@ -8,6 +8,7 @@
 
 #define GAYLE_LOG 0
 #define IDE_LOG 0
+#define MBRES_LOG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -509,7 +510,7 @@ static uae_u32 ide_read (uaecptr addr)
 	write_log ("IDE_READ %08.8X PC=%X\n", addr, M68K_GETPC);
     if (currprefs.cs_ide <= 0) {
 	if (addr == 0x201c) // AR1200 IDE detection hack
-	    return 0;
+	    return 0x7f;
 	return 0xff;
     }
     if (addr >= GAYLE_IRQ_4000 && addr <= GAYLE_IRQ_4000 + 1 && currprefs.cs_ide == 2) {
@@ -530,9 +531,12 @@ static uae_u32 ide_read (uaecptr addr)
 	return 0;
     }
     ide_reg = get_ide_reg(addr);
-    /* Emulated "ide hack". Prevents long KS boot delay if no drives installed */
-    if (idedrive[0].hdhfd.size == 0 && idedrive[2].hdhfd.size == 0)
+    /* Emulated "ide killer". Prevents long KS boot delay if no drives installed */
+    if (idedrive[0].hdhfd.size == 0 && idedrive[2].hdhfd.size == 0) {
+	if (ide_reg == IDE_STATUS)
+	    return 0x7f;
 	return 0xff;
+    }
     switch (ide_reg)
     {
 	case IDE_DRVADDR:
@@ -876,8 +880,8 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 {
     addr &= 0xffff;
 
-    if (GAYLE_LOG)
-	write_log ("MBRES_WRITE %08.8X=%08.8X (%d) PC=%08.8X\n", addr, val, size, M68K_GETPC);
+    if (MBRES_LOG > 0)
+	write_log ("MBRES_WRITE %08X=%08X (%d) PC=%08X\n", addr, val, size, M68K_GETPC);
     if (addr == 0x1002)
 	garyidoffset = -1;
     if (addr == 0x03)
@@ -892,38 +896,38 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 
 static uae_u32 mbres_read (uaecptr addr, int size)
 {
+    uae_u32 v = 0;
     addr &= 0xffff;
-
-    if (GAYLE_LOG)
-	write_log ("MBRES_READ %08.8X\n", addr);
 
     /* Gary ID (I don't think this exists in real chips..) */
     if (addr == 0x1002 && currprefs.cs_fatgaryrev >= 0) {
 	garyidoffset++;
 	garyidoffset &= 7;
-	return (currprefs.cs_fatgaryrev << garyidoffset) & 0x80;
+	v = (currprefs.cs_fatgaryrev << garyidoffset) & 0x80;
     }
     if (addr == 0x43) { /* RAMSEY revision */
 	if (currprefs.cs_ramseyrev >= 0)
-	    return currprefs.cs_ramseyrev;
+	    v = currprefs.cs_ramseyrev;
     }
     if (addr == 0x03) { /* RAMSEY config */
 	if (currprefs.cs_ramseyrev >= 0)
-	    return ramsey_config;
+	    v = ramsey_config;
     }
     if (addr == 0x02) { /* coldreboot flag */
 	if (currprefs.cs_fatgaryrev >= 0)
-	    return gary_coldboot ? 0x80 : 0x00;
+	    v = gary_coldboot ? 0x80 : 0x00;
     }
     if (addr == 0x01) { /* toenb flag */
 	if (currprefs.cs_fatgaryrev >= 0)
-	    return gary_toenb ? 0x80 : 0x00;
+	    v = gary_toenb ? 0x80 : 0x00;
     }
     if (addr == 0x00) { /* timeout flag */
 	if (currprefs.cs_fatgaryrev >= 0)
-	    return gary_timeout ? 0x80 : 0x00;
+	     v = gary_timeout ? 0x80 : 0x00;
     }
-    return 0;
+    if (MBRES_LOG > 0)
+	write_log ("MBRES_READ %08X=%08X (%d) PC=%08X\n", addr, v, size, M68K_GETPC);
+    return v;
 }
 
 static uae_u32 REGPARAM3 mbres_lget (uaecptr) REGPARAM;

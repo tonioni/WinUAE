@@ -44,6 +44,7 @@
 #include "parallel.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
+#include "scsi.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -537,6 +538,12 @@ void reset_all_systems (void)
 {
     init_eventtab ();
 
+#ifdef SCSIEMU
+    scsi_reset ();
+    scsidev_reset ();
+    scsidev_start_threads ();
+#endif
+
 #ifdef FILESYS
     filesys_reset ();
 #endif
@@ -547,10 +554,6 @@ void reset_all_systems (void)
 #ifdef FILESYS
     filesys_start_threads ();
     hardfile_reset ();
-#endif
-#ifdef SCSIEMU
-    scsidev_reset ();
-    scsidev_start_threads ();
 #endif
 #ifdef UAESERIAL
     uaeserialdev_reset ();
@@ -705,6 +708,7 @@ static void real_main2 (int argc, char **argv)
 
     savestate_init ();
 #ifdef SCSIEMU
+    scsi_reset ();
     scsidev_install ();
 #endif
 #ifdef UAESERIAL

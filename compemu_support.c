@@ -442,14 +442,14 @@ void check_prefs_changed_comp (void)
     }
 
     // Turn off illegal-mem logging when using JIT...
-    if( currprefs.cachesize )
+    if(currprefs.cachesize)
 	currprefs.illegal_mem = changed_prefs.illegal_mem;// = 0;
 
     currprefs.comp_midopt=changed_prefs.comp_midopt;
     currprefs.comp_lowopt=changed_prefs.comp_lowopt;
 
-    if ( ( !canbang || !currprefs.cachesize ) &&
-	currprefs.comptrustbyte != 1 )
+    if ((!canbang || !currprefs.cachesize) &&
+	currprefs.comptrustbyte != 1)
     {
 	// Set all of these to indirect when canbang == 0
 	// Basically, set the  compforcesettings option...
@@ -465,7 +465,7 @@ void check_prefs_changed_comp (void)
 	changed_prefs.comptrustnaddr= 1;
 	changed_prefs.compforcesettings = 1;
 
-	if( currprefs.cachesize )
+	if(currprefs.cachesize)
 	{
 	    write_log( "JIT: Reverting to \"indirect\" access, because canbang is zero!\n" );
 	}

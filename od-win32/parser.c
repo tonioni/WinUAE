@@ -242,12 +242,11 @@ void finishjob (void)
 
 static void DoSomeWeirdPrintingStuff (char val)
 {
-    static char prev[4];
-    static uae_u8 one = 1;
-    static uae_u8 three = 3;
+    static char prev[5];
 
     memmove (prev, prev + 1, 3);
     prev[3] = val;
+    prev[4] = 0;
     if (currprefs.parallel_postscript_detection) {
 	if (psmode && val == 4) {
 	    flushprtbuf ();
@@ -332,7 +331,10 @@ int load_ghostscript (void)
     }
     if (!gsdll) {
 	HKEY key;
-	if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+	DWORD ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_ALL_ACCESS, &key);
+	if (ret |= ERROR_SUCCESS)
+	    ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\GPL Ghostscript", 0, KEY_ALL_ACCESS, &key);
+	if (ret == ERROR_SUCCESS) {
 	    int idx = 0, cnt = 20;
 	    char tmp1[MAX_DPATH];
 	    while (cnt-- > 0) {

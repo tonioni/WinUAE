@@ -204,7 +204,7 @@ static uae_u8 *armemory_rom = 0, *armemory_ram = 0;
 
 static uae_u32 hrtmem_mask, hrtmem2_mask, hrtmem3_mask;
 static uae_u8 *hrtmon_custom, *hrtmon_ciaa, *hrtmon_ciab;
-uae_u32 hrtmem_start, hrtmem2_start, hrtmem3_start, hrtmem_size, hrtmem2_size, hrtmem3_size;
+uae_u32 hrtmem_start, hrtmem2_start, hrtmem3_start, hrtmem_size, hrtmem2_size, hrtmem2_size2, hrtmem3_size;
 static int triggered_once;
 
 static void hrtmon_unmap_banks(void);
@@ -284,6 +284,12 @@ static uae_u8 *REGPARAM2 hrtmem3_xlate (uaecptr addr)
 
 static uae_u32 REGPARAM2 hrtmem2_bget (uaecptr addr)
 {
+    if (addr == 0xb8007c && cart_type == CART_SUPER4) {
+        static int cnt = 60;
+	cnt--;
+	if (cnt == 0)
+	    uae_reset(0);
+    }
     addr -= hrtmem2_start & hrtmem2_mask;
     addr &= hrtmem2_mask;
     return hrtmemory2[addr];
@@ -948,10 +954,13 @@ static void hrtmon_go (void)
 	Exception (2, &regs, 0);
 	put_long ((uaecptr)(regs.vbr + 8), old);
     } else if (cart_type == CART_SUPER4) {
-        old = get_long((uaecptr)(regs.vbr + 0x7c));
-	put_long ((uaecptr)(regs.vbr + 0x7c), get_long (hrtmem_start + 0x7c));
-	Interrupt (7);
-	put_long ((uaecptr)(regs.vbr + 0x7c), old);
+	uae_u32 v = get_long (hrtmem_start + 0x7c);
+	if (v) {
+	    old = get_long((uaecptr)(regs.vbr + 0x7c));
+	    put_long ((uaecptr)(regs.vbr + 0x7c), v);
+	    Interrupt (7);
+	    put_long ((uaecptr)(regs.vbr + 0x7c), old);
+	}
     } else {
         old = get_long((uaecptr)(regs.vbr + 0x7c));
 	put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 12 + 2 + get_word (hrtmem_start + 14));
@@ -1476,15 +1485,18 @@ static int superiv_init(struct zfile *f)
     hrtmem_start = 0xd00000;
     hrtmem_size = 0x40000;
     hrtmem2_start = 0xb00000;
-    hrtmem2_size = 0xc0000;
+    hrtmem2_size =  0x100000;
+    hrtmem2_size2 = 0x0c0000;
     hrtmem3_start = 0xe00000;
     hrtmem3_size = 0x80000;
 
     hrtmemory = mapped_malloc (hrtmem_size, cart_memnames[cart_type]);
     memset (hrtmemory, 0x00, hrtmem_size);
-    zfile_fseek (f, 0, SEEK_SET);
-    zfile_fread (hrtmemory, hrtmem_size, 1, f);
-    zfile_fclose (f);
+    if (f) {
+	zfile_fseek (f, 0, SEEK_SET);
+	zfile_fread (hrtmemory, hrtmem_size, 1, f);
+	zfile_fclose (f);
+    }
 
     hrtmem_mask = hrtmem_size - 1;
     hrtmem2_mask = hrtmem2_size - 1;
@@ -1529,6 +1541,9 @@ int action_replay_load(void)
 
     if (strlen(currprefs.cartfile) == 0)
 	return 0;
+    rd = getromdatabypath(currprefs.cartfile);
+    if (rd && rd->id == 62)
+	return superiv_init(NULL);
     f = zfile_fopen(currprefs.cartfile,"rb");
     if (!f) {
 	write_log("failed to load '%s' cartridge ROM\n", currprefs.cartfile);
@@ -1658,6 +1673,8 @@ int hrtmon_load(void)
 {
     struct zfile *f;
     uae_u32 header[4];
+    struct romdata *rd;
+    int isinternal = 0;
 
     /* Don't load a rom if one is already loaded. Use action_replay_unload() first. */
     if (armemory_rom)
@@ -1665,13 +1682,14 @@ int hrtmon_load(void)
     if (hrtmemory)
       return 0;
 
-    //currprefs.cart_internal= changed_prefs.cart_internal = 2;
-
     triggered_once = 0;
     armodel = 0;
     cart_type = CART_AR;
     hrtmem_start = 0xa10000;
-    if (!currprefs.cart_internal) {
+    rd = getromdatabypath(currprefs.cartfile);
+    if (rd && rd->id == 63)
+	isinternal = 1;
+    if (!isinternal) {
 	if (strlen(currprefs.cartfile) == 0)
 	    return 0;
 	f = zfile_fopen(currprefs.cartfile,"rb");
@@ -1693,7 +1711,7 @@ int hrtmon_load(void)
     }
     hrtmem_size = 0x100000;
     hrtmem_mask = hrtmem_size - 1;
-    if (currprefs.cart_internal == 1) {
+    if (isinternal) {
 	#ifdef ACTION_REPLAY_HRTMON
 	struct zfile *zf = zfile_fopen_data ("hrtrom.gz", hrtrom_len, hrtrom);
 	f = zfile_gunzip (zf);
@@ -1729,7 +1747,7 @@ void hrtmon_map_banks()
 	return;
     map_banks (&hrtmem_bank, hrtmem_start >> 16, hrtmem_size >> 16, 0);
     if (hrtmem2_size)
-	map_banks (&hrtmem2_bank, hrtmem2_start >> 16, hrtmem2_size >> 16, 0);
+	map_banks (&hrtmem2_bank, hrtmem2_start >> 16, hrtmem2_size2 >> 16, 0);
     if (hrtmem3_size)
 	map_banks (&hrtmem3_bank, hrtmem3_start >> 16, hrtmem3_size >> 16, 0);
 }
@@ -1740,7 +1758,7 @@ static void hrtmon_unmap_banks()
 	return;
     map_banks (&dummy_bank, hrtmem_start >> 16, hrtmem_size >> 16, 0);
     if (hrtmem2_size)
-	map_banks (&dummy_bank, hrtmem2_start >> 16, hrtmem2_size >> 16, 0);
+	map_banks (&dummy_bank, hrtmem2_start >> 16, hrtmem2_size2 >> 16, 0);
     if (hrtmem3_size)
 	map_banks (&dummy_bank, hrtmem3_start >> 16, hrtmem3_size >> 16, 0);
 }

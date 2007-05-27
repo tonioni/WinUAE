@@ -322,33 +322,69 @@ void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *
     }
 }
 
-static void scsi_atapi_fixup_inquiry (uaecptr req)
+static void scsi_atapi_fixup_inquiry (struct amigascsi *as)
 {
-    uaecptr scsi_data = get_long (req + 0);
-    uae_u32 scsi_len = get_long (req + 4);
-    uaecptr scsi_cmd = get_long (req + 12);
+    uae_u8 *scsi_data = as->data;
+    uae_u32 scsi_len = as->len;
+    uae_u8 *scsi_cmd = as->cmd;
     uae_u8 cmd;
 
-    cmd = get_byte (scsi_cmd);
+    cmd = scsi_cmd[0];
     /* CDROM INQUIRY: most Amiga programs expect ANSI version == 2
      * (ATAPI normally responds with zero)
      */
     if (cmd == 0x12 && scsi_len > 2 && scsi_data) {
-	uae_u8 per = get_byte (scsi_data + 0);
-	uae_u8 b = get_byte (scsi_data + 2);
+	uae_u8 per = scsi_data[0];
+	uae_u8 b = scsi_data[2];
 	/* CDROM and ANSI version == 0 ? */
 	if ((per & 31) == 5 && (b & 7) == 0) {
 	    b |= 2;
-	    put_byte (scsi_data + 2, b);
+	    scsi_data[2] = b;
 	}
     }
 }
 
-int sys_command_scsi_direct (int unitnum, uaecptr request)
+int sys_command_scsi_direct_native(int unitnum, struct amigascsi *as)
 {
-    int ret = device_func[DF_SCSI]->exec_direct (unitnum, request);
+    int ret = device_func[DF_SCSI]->exec_direct (unitnum, as);
     if (!ret && device_func[DF_SCSI]->isatapi(unitnum))
-	scsi_atapi_fixup_inquiry (request);
+	scsi_atapi_fixup_inquiry (as);
+    return ret;
+}
+
+int sys_command_scsi_direct (int unitnum, uaecptr acmd)
+{
+    int ret, i;
+    struct amigascsi as;
+    uaecptr ap;
+    addrbank *bank;
+
+    ap = get_long (acmd + 0);
+    as.len = get_long (acmd + 4);
+
+    bank = &get_mem_bank (ap);
+    if (!bank || !bank->check(ap, as.len))
+	return -5;
+    as.data = bank->xlateaddr (ap);
+
+    ap = get_long (acmd + 12);
+    as.cmd_len = get_word (acmd + 16);
+    for (i = 0; i < as.cmd_len; i++)
+	as.cmd[i] = get_byte(ap++);
+    as.flags = get_byte (acmd + 20);
+    as.sense_len = get_word (acmd + 26);
+
+    ret = sys_command_scsi_direct_native (unitnum, &as);
+
+    put_long(acmd + 8, as.actual);
+    put_word(acmd + 18, as.cmdactual);
+    put_byte(acmd + 21, as.status);
+    put_word(acmd + 28, as.sactual);
+
+    ap = get_long(acmd + 22);
+    for (i = 0; i < as.sactual; i++)
+	put_byte(ap, as.sensedata[i]);
+
     return ret;
 }
 

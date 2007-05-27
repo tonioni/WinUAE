@@ -137,77 +137,65 @@ static int execscsicmd (int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int i
     return dolen;
 }
 
-static int execscsicmd_direct (int unitnum, uaecptr acmd)
+static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 {
     SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
     DWORD status;
     int sactual = 0, i;
-    uaecptr scsi_data = get_long (acmd + 0);
-    uae_u32 scsi_len = get_long (acmd + 4);
-    uaecptr scsi_cmd = get_long (acmd + 12);
-    int scsi_cmd_len = get_word (acmd + 16);
-    int scsi_cmd_len_orig = scsi_cmd_len;
-    uae_u8 scsi_flags = get_byte (acmd + 20);
-    uaecptr scsi_sense = get_long (acmd + 22);
-    uae_u16 scsi_sense_len = get_word (acmd + 26);
     int io_error = 0, err, parm;
-    addrbank *bank_data = &get_mem_bank (scsi_data);
     uae_u8 *scsi_datap, *scsi_datap_org;
+    uae_u32 scsi_cmd_len_orig = as->cmd_len;
 
     memset (&swb, 0, sizeof (swb));
     swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
     swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 
-    /* do transfer directly to and from Amiga memory */
-    if (!bank_data || !bank_data->check (scsi_data, scsi_len))
-	return -5; /* IOERR_BADADDRESS */
-
     uae_sem_wait (&scgp_sem);
 
     /* the Amiga does not tell us how long the timeout shall be, so make it _very_ long (specified in seconds) */
     swb.spt.TimeOutValue = 80 * 60;
-    scsi_datap = scsi_datap_org = scsi_len ? bank_data->xlateaddr (scsi_data) : 0;
-    swb.spt.DataIn = (scsi_flags & 1) ? SCSI_IOCTL_DATA_IN : SCSI_IOCTL_DATA_OUT;
-    for (i = 0; i < scsi_cmd_len; i++)
-	swb.spt.Cdb[i] = get_byte (scsi_cmd + i);
-    if (scsi_sense_len > 32)
-	scsi_sense_len = 32;
-    swb.spt.SenseInfoLength  = (scsi_flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-	(scsi_flags & 2) ? scsi_sense_len : /* SCSIF_AUTOSENSE */
+    scsi_datap = scsi_datap_org = as->len ? as->data : 0;
+    swb.spt.DataIn = (as->flags & 1) ? SCSI_IOCTL_DATA_IN : SCSI_IOCTL_DATA_OUT;
+    for (i = 0; i < as->cmd_len; i++)
+	swb.spt.Cdb[i] = as->cmd[i];
+    if (as->sense_len > 32)
+	as->sense_len = 32;
+    swb.spt.SenseInfoLength  = (as->flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
+	(as->flags & 2) ? as->sense_len : /* SCSIF_AUTOSENSE */
 	32;
     if (dev_info[unitnum].isatapi)
-	scsi_atapi_fixup_pre (swb.spt.Cdb, &scsi_cmd_len, &scsi_datap, &scsi_len, &parm);
-    swb.spt.CdbLength = (UCHAR)scsi_cmd_len;
-    swb.spt.DataTransferLength = scsi_len;
+	scsi_atapi_fixup_pre (swb.spt.Cdb, &as->cmd_len, &scsi_datap, &as->len, &parm);
+    swb.spt.CdbLength = (UCHAR)as->cmd_len;
+    swb.spt.DataTransferLength = as->len;
     swb.spt.DataBuffer = scsi_datap;
 
     status = doscsi (unitnum, &swb, &err);
 
-    put_word (acmd + 18, status == 0 ? 0 : scsi_cmd_len_orig); /* fake scsi_CmdActual */
-    put_byte (acmd + 21, swb.spt.ScsiStatus); /* scsi_Status */
+    as->cmdactual = status == 0 ? 0 : scsi_cmd_len_orig; /* fake scsi_CmdActual */
+    as->status = swb.spt.ScsiStatus; /* scsi_Status */
     if (swb.spt.ScsiStatus) {
 	io_error = 45; /* HFERR_BadStatus */
 	/* copy sense? */
-	for (sactual = 0; scsi_sense && sactual < scsi_sense_len && sactual < swb.spt.SenseInfoLength; sactual++)
-	    put_byte (scsi_sense + sactual, swb.SenseBuf[sactual]);
-	put_long (acmd + 8, 0); /* scsi_Actual */
+	for (sactual = 0; sactual < as->sense_len && sactual < swb.spt.SenseInfoLength; sactual++)
+	    as->sensedata[sactual] = swb.SenseBuf[sactual];
+	as->actual = 0; /* scsi_Actual */
     } else {
 	int i;
-	for (i = 0; i < scsi_sense_len; i++)
-	    put_byte (scsi_sense + i, 0);
+	for (i = 0; i < as->sense_len; i++)
+	    as->sensedata[i] = 0;
 	sactual = 0;
 	if (status == 0) {
 	    io_error = 20; /* io_Error, but not specified */
-	    put_long (acmd + 8, 0); /* scsi_Actual */
+	    as->actual = 0; /* scsi_Actual */
 	} else {
-	    scsi_len = swb.spt.DataTransferLength;
+	    as->len = swb.spt.DataTransferLength;
 	    if (dev_info[unitnum].isatapi)
-		scsi_atapi_fixup_post (swb.spt.Cdb, scsi_cmd_len, scsi_datap_org, scsi_datap, &scsi_len, parm);
+		scsi_atapi_fixup_post (swb.spt.Cdb, as->cmd_len, scsi_datap_org, scsi_datap, &as->len, parm);
 	    io_error = 0;
-	    put_long (acmd + 8, scsi_len); /* scsi_Actual */
+	    as->actual = as->len; /* scsi_Actual */
 	}
     }
-    put_word (acmd + 28, sactual);
+    as->sactual = sactual;
     uae_sem_post (&scgp_sem);
 
     if (scsi_datap != scsi_datap_org)
