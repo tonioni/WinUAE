@@ -320,8 +320,6 @@ static int initialize_rawinput (void)
 	    if (did == di_mouse) {
 		if (rdpmouse(buf))
 		    continue;
-		if (rnum_mouse < 2 && !os_vista)
-		    continue;
 		if (num_mouse >= MAX_INPUT_DEVICES - 1) /* leave space for Windows mouse */
 		    continue;
 		did += num_mouse;

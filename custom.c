@@ -3380,13 +3380,19 @@ STATIC_INLINE int dangerous_reg (int reg)
 
 static int test_copper_dangerous (unsigned int address)
 {
-    if ((address & 0x1fe) < (copcon & 2 ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
+    if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
 	cop_state.state = COP_stop;
 	copper_enabled_thisline = 0;
 	unset_special (&regs, SPCFLAG_COPPER);
 	return 1;
     }
     return 0;
+}
+
+static int custom_wput_copper(int hpos, uaecptr addr, uae_u32 value, int noget)
+{
+    debug_wputpeek (0xdff000 + (cop_state.saved_i1 & 0x1fe), cop_state.saved_i2);
+    return custom_wput_1 (hpos, addr, value, noget);
 }
 
 static void perform_copper_write (int old_hpos)
@@ -3407,7 +3413,7 @@ static void perform_copper_write (int old_hpos)
 	cop_state.ip = cop2lc;
 	cop_state.state = COP_strobe_delay;
     } else {
-	custom_wput_1 (old_hpos, cop_state.saved_i1, cop_state.saved_i2, 0);
+	custom_wput_copper (old_hpos, cop_state.saved_i1, cop_state.saved_i2, 0);
 	cop_state.last_write = cop_state.saved_i1;
 	cop_state.last_write_hpos = old_hpos;
 	old_hpos++;
@@ -4945,7 +4951,7 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
 	    decide_fetch (hpos);
 	    decide_blitter (hpos);
 	    v = last_custom_value;
-	    r = custom_wput_1 (hpos, addr, v, 1);
+	    r = custom_wput_copper (hpos, addr, v, 1);
 	}
 	return v;
     }
@@ -4996,7 +5002,6 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 #endif
     return ((uae_u32)custom_wget (addr) << 16) | custom_wget (addr + 2);
 }
-
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
     addr &= 0x1FE;

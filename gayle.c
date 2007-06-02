@@ -1179,8 +1179,10 @@ void gayle_reset (int hardreset)
     strcpy(bankname, "Gayle (low)");
     if (currprefs.cs_ide == 2)
 	strcpy(bankname, "A4000 IDE");
-    if (currprefs.cs_mbdmac == 2)
+    if (currprefs.cs_mbdmac == 2) {
 	strcat(bankname," + NCR53C710 SCSI");
+	ncr_reset();
+    }
     gayle_bank.name = bankname;
 }
 

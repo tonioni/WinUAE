@@ -1816,9 +1816,6 @@ static void mmu_op30_ptest(uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr ext
 void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isnext, uaecptr extra)
 {
     if (currprefs.cpu_model != 68030) {
-#if MMUOP_DEBUG > 0
-	write_log("Unknown 68030 MMU OP %04X PC=%08X\n", opcode, m68k_getpc(regs));
-#endif
 	m68k_setpc (regs, pc);
 	op_illg (opcode, regs);
 	return;
@@ -1840,7 +1837,7 @@ void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isnext, ua
 
 void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
 {
-#if MMUOP_DEBUG > 0
+#if MMUOP_DEBUG > 1
     write_log("mmu_op %04X PC=%08X\n", opcode, m68k_getpc(regs));
 #endif
     if ((opcode & 0xFE0) == 0x0500) {
@@ -1853,7 +1850,7 @@ void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
     } else if ((opcode & 0x0FD8) == 0x548) {
 	if (currprefs.cpu_model < 68060) { /* PTEST not in 68060 */
 	    /* PTEST */
-#if MMUOP > 0
+#if MMUOP_DEBUG > 0
 	    write_log ("PTEST\n");
 #endif
 	    return;
@@ -1876,7 +1873,7 @@ void mmu_op(uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
 	}
     }
 #if MMUOP_DEBUG > 0
-    write_log("Unknown MMU OP\n");
+    write_log("Unknown MMU OP %04X\n", opcode);
 #endif
     m68k_setpc (regs, m68k_getpc (regs) - 2);
     op_illg (opcode, regs);
@@ -2727,6 +2724,30 @@ struct cpum2c m2cregs[] = {
     0x808, "PCR",
     -1, NULL
 };
+
+void val_move2c2 (int regno, uae_u32 val)
+{
+    switch (regno) {
+    case 0: regs.sfc = val; break;
+    case 1: regs.dfc = val; break;
+    case 2: regs.cacr = val; break;
+    case 3: regs.tcr = val; break;
+    case 4: regs.itt0 = val; break;
+    case 5: regs.itt1 = val; break;
+    case 6: regs.dtt0 = val; break;
+    case 7: regs.dtt1 = val; break;
+    case 8: regs.buscr = val; break;
+    case 0x800: regs.usp = val; break;
+    case 0x801: regs.vbr = val; break;
+    case 0x802: regs.caar = val; break;
+    case 0x803: regs.msp = val; break;
+    case 0x804: regs.isp = val; break;
+    case 0x805: regs.mmusr = val; break;
+    case 0x806: regs.urp = val; break;
+    case 0x807: regs.srp = val; break;
+    case 0x808: regs.pcr = val; break;
+    }
+} 
 
 uae_u32 val_move2c (int regno)
 {

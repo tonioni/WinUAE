@@ -1,4 +1,26 @@
 
+Beta 4:
+
+- return SCSI-1 style inquiry response when using A590/A2091 SCSI
+  emulation (Old HDToolbox compatibility fix)
+- do not crash with "out of bounds" error if SCSI emulation tried to
+  read/write non-existing HDF block(s)
+- SCSI READ CAPACITY PMI-bit emulated, HDToolbox "Read configuration
+  from drive" compatibility fix
+- A3000 1.3 SuperKickstart support implemented (includes "bonus"
+  code remapping to 0xf00000 area)
+- JIT on/off switching via uae-configuration re-enables direct mode
+- added MOVEC registers and PC to r <reg> <val> debugger command
+- A4091 ("A3090" says driver string in ROM...) Z3 card autoconfig and
+  ROM loading implemented (pointless, no NCR53C710 SCSI chip emulation
+  yet, same infinite loop as with A4000T KS3.1 built-in SCSI driver)
+- A590/A2091 Guru ROM adapter emulated, driver does not yet work,
+  uses not yet emulated WD33C93 features.
+- real SCSI device support (via hardware emulation) is not really
+  working. It isn't so easy to implement after all..
+- copper writes are now detected by memwatch break points (note: writes
+  only, freeze not possible. copper is a special case)
+
 Beta 3:
 
 ROM rescan required (or new hrtmon/superiv config support won't work)
@@ -13,7 +35,7 @@ ROM rescan required (or new hrtmon/superiv config support won't work)
 - confirmed A3000 3.1 ROM added to rom scan list.
 - floppy drive sound GUI didn't work correctly if fdrawcmd.sys was
   not installed (=no PC floppy drives listed)
-- A3000 36.141 KS ROM SCSI driver compatiblity fix (long word writes
+- A3000 36.141 KS ROM SCSI driver compatibility fix (long word writes
   to byte wide WD33C93 registers.. not the first time Commodore ignored
   their own programming guidelines.. )
 - A3000 SuperKickstart support hack, SuperKickstart loading works!

@@ -7,6 +7,7 @@
   */
 
 #define NCR_LOG 1
+#define NCR_DEBUG 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -22,13 +23,14 @@
 #define NCRNAME "NCR53C710"
 #define NCR_REGS 0x40
 
-#define ROM_VECTOR 0x8080
-#define ROM_OFFSET 0x8000
+#define ROM_VECTOR 0x0200
+#define ROM_OFFSET 0x0000
 #define ROM_SIZE 32768
 #define ROM_MASK (ROM_SIZE - 1)
-#define BOARD_SIZE (65536 * 2)
+#define BOARD_SIZE 16777216
 
 static uae_u8 *rom;
+static int board_mask;
 static int configured;
 static uae_u8 acmemory[100];
 
@@ -256,24 +258,14 @@ static void INT2(void)
 
 static uae_u8 read_rom(uaecptr addr)
 {
-    int off;
-    uae_u8 v;
-    
-    addr -= 0x8080;
-    off = (addr & (BOARD_SIZE - 1)) / 4;
-    off += 0x80;
-
-    if ((addr & 2))
-	v = (rom[off] & 0x0f) << 4;
-    else
-	v = (rom[off] & 0xf0);
-    write_log("%08.8X:%04.4X = %02.2X PC=%08X\n", addr, off, v, M68K_GETPC);
+    uae_u8 v = rom[addr];
+    //write_log("%08.8X = %02.2X PC=%08X\n", addr, v, M68K_GETPC);
     return v;
 }
 
 void ncr_bput2(uaecptr addr, uae_u32 val)
 {
-    addr &= 0xffff;
+    addr &= board_mask;
     if (addr >= NCR_REGS)
 	return;
     switch (addr)
@@ -286,9 +278,6 @@ void ncr_bput2(uaecptr addr, uae_u32 val)
 	ncrregs[ISTAT_REG] = 0;
 	break;
 	case SCID_REG:
-    	ncrregs[ISTAT_REG] |= 2;
-	//ncrregs[SSTAT1_REG] |= 1 << 4; 
-	//INT2();
 	break;
 
 
@@ -299,13 +288,13 @@ void ncr_bput2(uaecptr addr, uae_u32 val)
 
 uae_u32 ncr_bget2(uaecptr addr)
 {
-    uae_u32 v;
+    uae_u32 v = 0;
 
-    addr &= 0xffff;
-    if (rom && addr >= ROM_OFFSET)
+    addr &= board_mask;
+    if (rom && addr >= ROM_VECTOR && addr >= ROM_OFFSET)
 	return read_rom(addr);
     if (addr >= NCR_REGS)
-	return 0;
+	return v;
     v = ncrregs[addr];
     switch (addr)
     {
@@ -317,9 +306,6 @@ uae_u32 ncr_bget2(uaecptr addr)
 	v |= 0x20;
 	break;
 	case ISTAT_REG:
-	if (v)
-	    v |= 2;
-	INT2();
 	break;
 	case CTEST8_REG:
 	v &= 0x0f; // revision 0
@@ -341,8 +327,8 @@ static uae_u32 REGPARAM2 ncr_lget (uaecptr addr)
     addr &= 65535;
     v = (ncr_bget2 (addr) << 24) | (ncr_bget2 (addr + 1) << 16) |
 	(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
-#ifdef NCR_DEBUG
-    if (addr >= 0x40 && addr < ROM_OFFSET)
+#if NCR_DEBUG > 0
+    if (addr < ROM_VECTOR)
 	write_log ("ncr_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
 #endif
     return v;
@@ -354,10 +340,10 @@ static uae_u32 REGPARAM2 ncr_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    addr &= 65535;
+    addr &= board_mask;
     v = (ncr_bget2 (addr) << 8) | ncr_bget2 (addr + 1);
 #if NCR_DEBUG > 0
-    if (addr >= 0x40 && addr < ROM_OFFSET)
+    if (addr < ROM_VECTOR)
 	write_log ("ncr_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
 #endif
     return v;
@@ -369,7 +355,7 @@ static uae_u32 REGPARAM2 ncr_bget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    addr &= 65535;
+    addr &= board_mask;
     if (!configured) {
 	if (addr >= sizeof acmemory)
 	    return 0;
@@ -384,9 +370,9 @@ static void REGPARAM2 ncr_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    addr &= 65535;
+    addr &= board_mask;
 #if NCR_DEBUG > 0
-    if (addr >= 0x40 && addr < ROM_OFFSET)
+    if (addr < ROM_VECTOR)
 	write_log ("ncr_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, M68K_GETPC);
 #endif
     ncr_bput2 (addr, l >> 24);
@@ -400,11 +386,22 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    addr &= 65535;
+    w &= 0xffff;
+    addr &= board_mask;
 #if NCR_DEBUG > 0
-    if (addr >= 0x40 && addr < ROM_OFFSET)
+    if (addr < ROM_VECTOR)
 	write_log ("ncr_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, M68K_GETPC);
 #endif
+    if (addr == 0x44 && !configured) {
+	uae_u32 value = (p96ram_start + ((currprefs.gfxmem_size + 0xffffff) & ~0xffffff)) >> 16;
+	chipmem_wput (regs.regs[11] + 0x20, value);
+	chipmem_wput (regs.regs[11] + 0x28, value);
+	map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);
+	write_log ("A4091 Z3 autoconfigured at %04X0000\n", value);
+	configured = 1;
+	expamem_next();
+	return;
+    }
     ncr_bput2 (addr, w >> 8);
     ncr_bput2 (addr + 1, w);
 }
@@ -415,15 +412,8 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
     special_mem |= S_WRITE;
 #endif
     b &= 0xff;
-    addr &= 65535;
-    if (addr == 0x48) {
-	map_banks (&ncr_bank, b, BOARD_SIZE >> 16, BOARD_SIZE);
-	write_log ("A4091 autoconfigured at %02.2X0000\n", b);
-	configured = 1;
-	expamem_next();
-	return;
-    }
-    if (addr == 0x4c) {
+    addr &= board_mask;
+    if (addr == 0x4c && !configured) {
 	write_log ("A4091 AUTOCONFIG SHUT-UP!\n");
 	configured = 1;
 	expamem_next();
@@ -434,38 +424,15 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
     ncr_bput2 (addr, b);
 }
 
-static uae_u32 REGPARAM2 ncr_wgeti (uaecptr addr)
-{
-    uae_u32 v = 0xffff;
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-    addr &= 65535;
-    if (addr >= ROM_OFFSET)
-	v = (rom[addr & ROM_MASK] << 8) | rom[(addr + 1) & ROM_MASK];
-    return v;
-}
-static uae_u32 REGPARAM2 ncr_lgeti (uaecptr addr)
-{
-    uae_u32 v = 0xffff;
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
-    addr &= 65535;
-    v = (ncr_wgeti(addr) << 16) | ncr_wgeti(addr + 2);
-    return v;
-}
-
 static addrbank ncr_bank = {
     ncr_lget, ncr_wget, ncr_bget,
     ncr_lput, ncr_wput, ncr_bput,
     default_xlate, default_check, NULL, "A4091",
-    ncr_lgeti, ncr_wgeti, ABFLAG_IO
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 static void ew (int addr, uae_u32 value)
 {
-    addr &= 0xffff;
     if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
 	acmemory[addr] = (value & 0xf0);
 	acmemory[addr + 2] = (value & 0x0f) << 4;
@@ -481,7 +448,12 @@ void ncr_free (void)
 
 void ncr_reset (void)
 {
+    board_mask = 131072 - 1;
     configured = 0; 
+    if (currprefs.cs_mbdmac == 2) {
+	board_mask = 65535 - 1;
+	configured = -1;
+    }
 }
 
 void ncr_init (void)
@@ -489,10 +461,13 @@ void ncr_init (void)
     struct zfile *z;
     int roms[3];
     struct romlist *rl;
+    int i;
 
     configured = 0;
     memset (acmemory, 0xff, 100);
-    ew (0x00, 0xc0 | 0x02 | 0x10);
+    ew (0x00, 0x80 | 0x10 | 0x00);
+    ew (0x08, 0x80 | 0x20 | 0x10);
+
     /* A4091 hardware id */
     ew (0x04, 0x54);
     /* commodore's manufacturer id */
@@ -502,8 +477,13 @@ void ncr_init (void)
     ew (0x28, ROM_VECTOR >> 8);
     ew (0x2c, ROM_VECTOR);
 
-    roms[0] = 57;
-    roms[1] = 56;
+    ew (0x18, 0x00); /* ser.no. Byte 0 */
+    ew (0x1c, 0x00); /* ser.no. Byte 1 */
+    ew (0x20, 0x00); /* ser.no. Byte 2 */
+    ew (0x24, 0x00); /* ser.no. Byte 3 */
+
+    roms[0] = 58;
+    roms[1] = 57;
     roms[2] = -1;
 
     rl = getromlistbyids(roms);
@@ -512,8 +492,13 @@ void ncr_init (void)
 	z = zfile_fopen(rl->path, "rb");
 	if (z) {
 	    write_log("loaded\n");
-	    rom = xmalloc (ROM_SIZE);
-	    zfile_fread (rom, ROM_SIZE, 1, z);
+	    rom = xmalloc (ROM_SIZE * 4);
+	    for (i = 0; i < ROM_SIZE; i++) {
+		uae_u8 b;
+	        zfile_fread(&b, 1, 1, z);
+		rom[i * 4 + 0] = b;
+		rom[i * 4 + 2] = b << 4;
+	    }
 	    zfile_fclose(z);
 	} else {
 	    write_log("failed to load\n");
@@ -521,6 +506,6 @@ void ncr_init (void)
     } else {
 	romwarning(roms);
     }
-    map_banks (&ncr_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+    map_banks (&ncr_bank, 0xe80000 >> 16, 65536 >> 16, 0);
 }
 

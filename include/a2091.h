@@ -22,7 +22,7 @@ extern uae_u8 wdregs[32];
 extern struct scsi_data *scsis[8];
 
 #define WD33C93 "WD33C93"
-#define SCSIID (scsis[wdregs[WD_DESTINATION_ID]])
+#define SCSIID (scsis[wdregs[WD_DESTINATION_ID] & 7])
 
 extern int a2091_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
@@ -33,6 +33,6 @@ extern int a3000_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 
 extern int addscsi(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
-		       int bootpri, char *filesys);
+		       int bootpri, char *filesys, int scsi_level);
 
 #endif

@@ -31,32 +31,30 @@
 
 #define ROM_VECTOR 0x2000
 #define ROM_OFFSET 0x2000
-#define ROM_SIZE 16384
-#define ROM_MASK (ROM_SIZE - 1)
 
 /* SuperDMAC CNTR bits. */
-#define SCNTR_TCEN               (1<<5)
-#define SCNTR_PREST              (1<<4)
-#define SCNTR_PDMD               (1<<3)
-#define SCNTR_INTEN              (1<<2)
-#define SCNTR_DDIR               (1<<1)
-#define SCNTR_IO_DX              (1<<0)
+#define SCNTR_TCEN	(1<<5)
+#define SCNTR_PREST	(1<<4)
+#define SCNTR_PDMD	(1<<3)
+#define SCNTR_INTEN	(1<<2)
+#define SCNTR_DDIR	(1<<1)
+#define SCNTR_IO_DX	(1<<0)
 /* DMAC CNTR bits. */
-#define CNTR_TCEN               (1<<7)
-#define CNTR_PREST              (1<<6)
-#define CNTR_PDMD               (1<<5)
-#define CNTR_INTEN              (1<<4)
-#define CNTR_DDIR               (1<<3)
+#define CNTR_TCEN	(1<<7)
+#define CNTR_PREST	(1<<6)
+#define CNTR_PDMD	(1<<5)
+#define CNTR_INTEN	(1<<4)
+#define CNTR_DDIR	(1<<3)
 /* ISTR bits. */
-#define ISTR_INTX               (1<<8)
-#define ISTR_INT_F              (1<<7)
-#define ISTR_INTS               (1<<6)  
-#define ISTR_E_INT              (1<<5)
-#define ISTR_INT_P              (1<<4)
-#define ISTR_UE_INT             (1<<3)  
-#define ISTR_OE_INT             (1<<2)
-#define ISTR_FF_FLG             (1<<1)
-#define ISTR_FE_FLG             (1<<0)  
+#define ISTR_INTX	(1<<8)	/* XT/AT Interrupt pending */
+#define ISTR_INT_F	(1<<7)	/* Interrupt Follow */
+#define ISTR_INTS	(1<<6)	/* SCSI Peripheral Interrupt */
+#define ISTR_E_INT	(1<<5)	/* End-Of-Process Interrupt */
+#define ISTR_INT_P	(1<<4)	/* Interrupt Pending */
+#define ISTR_UE_INT	(1<<3)	/* Under-Run FIFO Error Interrupt */
+#define ISTR_OE_INT	(1<<2)	/* Over-Run FIFO Error Interrupt */
+#define ISTR_FF_FLG	(1<<1)	/* FIFO-Full Flag */
+#define ISTR_FE_FLG	(1<<0)	/* FIFO-Empty Flag */
 
 /* wd register names */
 #define WD_OWN_ID		0x00
@@ -138,10 +136,11 @@
 #define PHS_MESS_OUT	    0x06
 #define PHS_MESS_IN	    0x07
 
-
 static int configured;
 static uae_u8 dmacmemory[100];
 static uae_u8 *rom;
+static int rombankswitcher, rombank;
+static int rom_size, rom_mask;
 
 static uae_u32 dmac_istr, dmac_cntr;
 static uae_u32 dmac_dawr;
@@ -156,6 +155,7 @@ static uae_u8 wd_data[32];
 
 static int superdmac;
 static int scsiirqdelay;
+static int wd33c93a = 1;
 
 struct scsi_data *scsis[8];
 
@@ -185,6 +185,14 @@ void rethink_a2091(void)
     }
 }
 
+static void doscsiirq(void)
+{
+    uae_int_requested |= 2;
+#if A2091_DEBUG > 2 || A3000_DEBUG > 2
+    write_log("Interrupt\n");
+#endif
+}
+
 static void INT2(int quick)
 {
     int irq = 0;
@@ -194,7 +202,7 @@ static void INT2(int quick)
     dmac_istr |= ISTR_INTS;
     if (isirq()) {
         if (quick)
-	    uae_int_requested |= 2;
+	   doscsiirq();
 	else
 	    scsiirqdelay = 2;
     }
@@ -204,10 +212,7 @@ void scsi_hsync(void)
 {
     if (scsiirqdelay == 1) {
 	scsiirqdelay = 0;
-	uae_int_requested |= 2;
-#if A2091_DEBUG > 2 || A3000_DEBUG > 2
-	write_log("Interrupt\n");
-#endif
+	doscsiirq();
 	return;
     }
     if (scsiirqdelay > 1)
@@ -257,6 +262,9 @@ static void set_status(uae_u8 status, int quick)
 {
     wdregs[WD_SCSI_STATUS] = status;
     auxstatus |= 0x80;
+#if WD33C93_DEBUG > 0
+    write_log("%s STATUS=%02X\n", WD33C93, status);
+#endif
     if (!currprefs.cs_a2091 && currprefs.cs_mbdmac != 1)
 	return;
     INT2(quick);
@@ -287,13 +295,14 @@ static void wd_cmd_sel_xfer(void)
 #if WD33C93_DEBUG > 0
     write_log("* %s select and transfer, phase=%02X\n", WD33C93, phase);
 #endif
+    SCSIID->buffer[0] = 0;
     if (phase >= 0x46) {
 	phase = 0x50;
 	wdregs[WD_TARGET_LUN] = SCSIID->status;
+	SCSIID->buffer[0] = SCSIID->status;
     }
     wdregs[WD_COMMAND_PHASE] = phase;
     wd_phase = CSR_XFER_DONE | PHS_MESS_IN;
-    SCSIID->buffer[0] = 0;
     set_status(wd_phase, 1);
 }
 
@@ -302,7 +311,7 @@ static void do_dma(void)
     if (currprefs.cs_cdtvscsi)
 	cdtv_getdmadata(&dmac_acr);
     if (SCSIID->direction == 0) {
-	write_log("%s DMA but no data!?\n");
+	write_log("%s DMA but no data!?\n", WD33C93);
     } else if (SCSIID->direction < 0) {
 	for (;;) {
 	    uae_u8 v;
@@ -331,7 +340,7 @@ static void do_dma(void)
 static void wd_do_transfer_out(void)
 {
 #if WD33C93_DEBUG > 0
-    write_log("%s SCSI O %d/%d %s\n", WD33C93, wd_dataoffset, wd_tc, scsitostring());
+    write_log("%s SCSI O [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring());
 #endif
     if (wdregs[WD_COMMAND_PHASE] == 0x11) {
 	wdregs[WD_COMMAND_PHASE] = 0x20;
@@ -369,10 +378,10 @@ static void wd_do_transfer_out(void)
 static void wd_do_transfer_in(void)
 {
 #if WD33C93_DEBUG > 0
-    write_log("%s SCSI I %d/%d %s\n", WD33C93, wd_dataoffset, wd_tc, scsitostring());
+    write_log("%s SCSI I [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring());
 #endif
     wd_dataoffset = 0;
-    if (wdregs[WD_COMMAND_PHASE] == 0x3f) {
+    if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] < 0x47) {
 	wdregs[WD_COMMAND_PHASE] = 0x47;
 	wd_phase = CSR_XFER_DONE | PHS_STATUS;
     } else if (wdregs[WD_COMMAND_PHASE] == 0x47) {
@@ -387,6 +396,70 @@ static void wd_do_transfer_in(void)
     SCSIID->direction = 0;
 }
 
+
+static void wd_cmd_sel_xfer_atn(void)
+{
+    int i, tmp_tc;
+
+    tmp_tc = wdregs[WD_TRANSFER_COUNT_LSB] | (wdregs[WD_TRANSFER_COUNT] << 8) | (wdregs[WD_TRANSFER_COUNT_MSB] << 16);
+#if WD33C93_DEBUG > 0
+    write_log("* %s select and transfer with atn, PHASE=%02X TC=%d\n", WD33C93, wdregs[WD_COMMAND_PHASE], tmp_tc);
+#endif
+    if (wdregs[WD_COMMAND] & 0x80)
+	wd_tc = 1;
+    SCSIID->buffer[0] = 0;
+    if (!SCSIID) {
+	set_status(CSR_TIMEOUT, 0);
+	return;
+    }
+    SCSIID->direction = 0;
+    if (wdregs[WD_COMMAND_PHASE] <= 0x30) {
+	wd_tc = 6;
+	wd_dataoffset = 0;
+	scsi_start_transfer(SCSIID, 6);
+	for (i = 0; i < wd_tc; i++) {
+	    uae_u8 b = wdregs[3 + i];
+	    wd_data[i] = b;
+	    scsi_send_data(SCSIID, b);
+	    wd_dataoffset++;
+	}
+	// command
+	SCSIID->direction = (wdregs[WD_SOURCE_ID] & 0x20) ? 1 : -1;
+	wdregs[WD_COMMAND_PHASE] = 0x30;
+	wd_do_transfer_out();
+	wdregs[WD_COMMAND_PHASE] = 0x36;
+    }
+    if (wdregs[WD_COMMAND_PHASE] <= 0x41) {
+        wd_tc = tmp_tc;
+        wd_dataoffset = 0;
+        wdregs[WD_COMMAND_PHASE] = 0x45;
+	if (wd_tc == 0) {
+	    if (SCSIID->direction != 0 && SCSIID->status == 0) {
+		wd_phase = CSR_UNEXP;
+		if (SCSIID->direction < 0)
+		    wd_phase |= PHS_DATA_IN;
+		else
+		    wd_phase |= PHS_DATA_OUT;
+		set_status(wd_phase, 1);
+		return;
+	    }
+	}
+	if ((wdregs[WD_CONTROL] >> 5) == 4) {
+	    if (wd_phase == (CSR_XFER_DONE | PHS_DATA_IN))
+	        do_dma();
+	    else if(wd_phase == (CSR_XFER_DONE | PHS_DATA_OUT))
+	        do_dma();
+	}
+
+    }
+    wdregs[WD_COMMAND_PHASE] = 0x60;
+    wdregs[WD_TARGET_LUN] = SCSIID->status;
+    SCSIID->buffer[0] = SCSIID->status;
+    wd_phase = CSR_SEL_XFER_DONE;
+    set_status(wd_phase, 0);
+}
+
+
 static void wd_cmd_trans_info(void)
 {
     if (wdregs[WD_COMMAND_PHASE] == 0x47)
@@ -399,10 +472,12 @@ static void wd_cmd_trans_info(void)
 	wd_tc = 1;
     wd_dataoffset = 0;
 #if WD33C93_DEBUG > 0
-    write_log("* %s transfer info phase=%02x len=%d dma=%d\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_tc, wdregs[WD_CONTROL] >> 6);
+    write_log("* %s transfer info phase=%02x len=%d dma=%d\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_tc, wdregs[WD_CONTROL] >> 5);
 #endif
     scsi_start_transfer(SCSIID, wd_tc);
-    if ((wdregs[WD_CONTROL] >> 6) == 2) {
+    if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] <= 0x3f)
+	wdregs[WD_COMMAND_PHASE] = 0x45;
+    if ((wdregs[WD_CONTROL] >> 5) == 4) {
         do_dma();
 	if (SCSIID->direction < 0)
 	    wd_do_transfer_in();
@@ -416,7 +491,7 @@ static void wd_cmd_trans_info(void)
 static void wd_cmd_sel_atn(void)
 {
 #if WD33C93_DEBUG > 0
-    write_log("* %s select with atn, ID=%d\n", WD33C93, wdregs[WD_DESTINATION_ID]);
+    write_log("* %s select with atn, ID=%d\n", WD33C93, wdregs[WD_DESTINATION_ID] & 0x7);
 #endif
     wd_phase = 0;
     wdregs[WD_COMMAND_PHASE] = 0;
@@ -431,10 +506,17 @@ static void wd_cmd_sel_atn(void)
 
 static void wd_cmd_reset(void)
 {
+    int i;
+
 #if WD33C93_DEBUG > 0
     write_log("%s reset\n", WD33C93);
 #endif
-    set_status(1, 0);
+    for (i = 1; i < 0x16; i++)
+	wdregs[i] = 0;
+    wdregs[0x18] = 0;
+    if (!wd33c93a)
+	wdregs[0] &= ~(0x08 | 0x10);
+    set_status((wdregs[0] & 0x10) ? 1 : 0, 1);
 }
 
 static void wd_cmd_abort(void)
@@ -455,7 +537,7 @@ static int writeonlyreg(int reg)
 void wdscsi_put(uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
-    if (sasr != WD_DATA)
+    if (WD33C93_DEBUG > 3 || sasr != WD_DATA)
 	write_log("W %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, sasr, sasr, d, d, M68K_GETPC);
 #endif
     if (!writeonlyreg(sasr))
@@ -464,7 +546,11 @@ void wdscsi_put(uae_u8 d)
 	wd_used = 1;
 	write_log("%s in use\n", WD33C93);
     }
-    if (sasr == WD_DATA) {
+    if (sasr == WD_COMMAND_PHASE) {
+#if WD33C93_DEBUG > 0
+	write_log("%s PHASE=%02X\n", WD33C93, d);
+#endif
+    } else if (sasr == WD_DATA) {
 	if (wd_dataoffset < sizeof wd_data)
 	    wd_data[wd_dataoffset] = wdregs[sasr];
 	wd_dataoffset++;
@@ -479,6 +565,9 @@ void wdscsi_put(uae_u8 d)
 	    break;
 	    case WD_CMD_SEL_ATN:
 	        wd_cmd_sel_atn();
+	    break;
+	    case WD_CMD_SEL_ATN_XFER:
+		wd_cmd_sel_xfer_atn();
 	    break;
 	    case WD_CMD_SEL_XFER:
 		wd_cmd_sel_xfer();
@@ -528,7 +617,7 @@ uae_u8 wdscsi_get(void)
     }
     incsasr(0);
 #if WD33C93_DEBUG > 1
-    if (osasr != WD_DATA)
+    if (WD33C93_DEBUG > 3 || osasr != WD_DATA)
 	write_log("R %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, osasr, osasr, v, v, M68K_GETPC);
 #endif
     return v;
@@ -541,9 +630,13 @@ static uae_u32 dmac_bget2 (uaecptr addr)
     if (addr < 0x40)
 	return dmacmemory[addr];
     if (addr >= ROM_OFFSET) {
-	//write_log("%08x %08x\n", addr, M68K_GETPC);
-	if (rom)
-	    return rom[addr & ROM_MASK];
+	if (rom) {
+	    int off = addr & rom_mask;
+	    if (rombankswitcher && (addr & 0xffe0) == ROM_OFFSET)
+		rombank = (addr & 0x02) >> 1;
+	    off += rombank * rom_size;
+	    return rom[off];
+	}
 	return 0;
     }
 
@@ -569,6 +662,10 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0xa3:
 	case 0xa5:
 	case 0xa7:
+	case 0xc1:
+	case 0xc3:
+	case 0xc5:
+	case 0xc7:
 	v = 0xff;
 	break;
 	case 0xe0:
@@ -766,14 +863,14 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 #endif
     b &= 0xff;
     addr &= 65535;
-    if (addr == 0x48) {
+    if (addr == 0x48 && !configured) {
 	map_banks (&dmaca2091_bank, b, 0x10000 >> 16, 0x10000);
-	write_log ("A590/A2091 autoconfigured at %02.2X0000\n", b);
+	write_log ("A590/A2091 Z2 autoconfigured at %02.2X0000\n", b);
 	configured = 1;
 	expamem_next();
 	return;
     }
-    if (addr == 0x4c) {
+    if (addr == 0x4c && !configured) {
 	write_log ("A590/A2091 DMAC AUTOCONFIG SHUT-UP!\n");
 	configured = 1;
 	expamem_next();
@@ -792,7 +889,7 @@ static uae_u32 REGPARAM2 dmac_wgeti (uaecptr addr)
 #endif
     addr &= 65535;
     if (addr >= ROM_OFFSET)
-	v = (rom[addr & ROM_MASK] << 8) | rom[(addr + 1) & ROM_MASK];
+	v = (rom[addr & rom_mask] << 8) | rom[(addr + 1) & rom_mask];
     return v;
 }
 static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
@@ -880,14 +977,17 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val, int mode)
 	dmac_stop_dma();
 	break;
 	case 0x41:
-	if ((mode & 0x10) || ((mode & 0x70) > 0x10 && (mode & 0x0f) == 1))
+	if (mode & 0x10)
 	    sasr = val;
 	break;
 	case 0x49:
 	sasr = val;
 	break;
 	case 0x43:
-	wdscsi_put(val);
+	if (mode & 0x10)
+	    wdscsi_put(val);
+	else
+	    sasr = val;
 	break;
     }
 }
@@ -1050,7 +1150,7 @@ static void freescsi(struct scsi_data *sd)
 
 int addscsi(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
-		       int bootpri, char *filesys)
+		       int bootpri, char *filesys, int scsi_level)
 {
     struct hd_hardfiledata *hfd;
     freescsi(scsis[ch]);
@@ -1058,9 +1158,18 @@ int addscsi(int ch, char *path, int blocksize, int readonly,
     hfd = xcalloc(sizeof(struct hd_hardfiledata), 1);
     if (!hdf_hd_open(hfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return 0;
-    hfd->ansi_version = 2;
+    hfd->ansi_version = scsi_level;
     scsis[ch] = scsi_alloc(ch, hfd);
     return scsis[ch] ? 1 : 0;
+}
+
+static void freenativescsi(void)
+{
+    int i;
+    for (i = 0; i < 7; i++) {
+	freescsi(scsis[i]);
+	scsis[i] = NULL;
+    }
 }
 
 static void addnativescsi(void)
@@ -1070,6 +1179,7 @@ static void addnativescsi(void)
     int types[MAX_TOTAL_DEVICES];
     struct device_info dis[MAX_TOTAL_DEVICES];
 
+    freenativescsi();
     i = 0;
     while (i < MAX_TOTAL_DEVICES) {
 	types[i] = -1;
@@ -1113,7 +1223,7 @@ int a3000_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, char *filesys)
 {
-    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys);
+    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 2);
 }
 
 void a3000scsi_reset(void)
@@ -1123,24 +1233,20 @@ void a3000scsi_reset(void)
 
 void a3000scsi_free(void)
 {
-    int i;
-    for (i = 0; i < 7; i++)
-	freescsi(scsis[i]);
+    freenativescsi();
 }
 
 int a2091_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, char *filesys)
 {
-    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys);
+    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 1);
 }
 
 
 void a2091_free (void)
 {
-    int i;
-    for (i = 0; i < 7; i++)
-	freescsi(scsis[i]);
+    freenativescsi();
     xfree(rom);
     rom = NULL;
 }
@@ -1158,7 +1264,7 @@ void a2091_reset (void)
 void a2091_init (void)
 {
     struct zfile *z;
-    int roms[4];
+    int roms[5];
     struct romlist *rl;
 
     configured = 0;
@@ -1173,20 +1279,40 @@ void a2091_init (void)
     ew (0x28, ROM_VECTOR >> 8);
     ew (0x2c, ROM_VECTOR);
 
+    ew (0x18, 0x00); /* ser.no. Byte 0 */
+    ew (0x1c, 0x00); /* ser.no. Byte 1 */
+    ew (0x20, 0x00); /* ser.no. Byte 2 */
+    ew (0x24, 0x00); /* ser.no. Byte 3 */
+
     roms[0] = 55;
     roms[1] = 54;
     roms[2] = 53;
-    roms[3] = -1;
+    roms[3] = 56;
+    roms[4] = -1;
+    //roms[0] = 56;
 
+    rombankswitcher = 0;
+    rombank = 0;
     rl = getromlistbyids(roms);
     if (rl) {
 	write_log("A590/A2091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
 	z = zfile_fopen(rl->path, "rb");
 	if (z) {
-	    write_log("loaded\n");
-	    rom = xmalloc (ROM_SIZE);
-	    zfile_fread (rom, ROM_SIZE, 1, z);
+	    if (rl->rd->id == 56) {
+		int i;
+		rom_size = 32768;
+		rombankswitcher = 1;
+   		rom = xmalloc (rom_size * 2);
+		for (i = 0; i < rom_size; i++)
+		    zfile_fread(rom + i * 2, 1, 1, z);
+ 	    } else {
+		rom_size = 16384;
+		rom = xmalloc (rom_size);
+		zfile_fread (rom, rom_size, 1, z);
+	    }
 	    zfile_fclose(z);
+	    rom_mask = rom_size - 1;
+	    write_log("loaded\n");
 	} else {
 	    write_log("failed to load\n");
 	}

@@ -343,6 +343,15 @@ static uae_u64 cmd_write (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 off
     return cmd_writex (hfd, bank_data->xlateaddr (dataptr), offset, len);
 }
 
+static int checkbounds(struct hardfiledata *hfd, uae_u64 offset, uae_u64 len)
+{
+    if (offset >= hfd->size)
+	return 0;
+    if (offset + len > hfd->size)
+	return 0;
+    return 1;
+}
+
 int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
 		uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
 {
@@ -365,7 +374,8 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	len = cmdbuf[4];
 	if (!len) len = 256;
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 	break;
 	case 0x0a: /* WRITE (6) */
 	offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
@@ -373,19 +383,25 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	len = cmdbuf[4];
 	if (!len) len = 256;
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 	break;
 	case 0x12: /* INQUIRY */
+	if ((cmdbuf[1] & 1) || cmdbuf[2] != 0)
+	    goto err;
 	len = cmdbuf[4];
+	if (cmdbuf[1] >> 5)
+	    goto err;//r[0] = 0x7f; /* no lun supported */
 	r[2] = 2; /* supports SCSI-2 */
 	r[3] = 2; /* response data format */
 	r[4] = 32; /* additional length */
+	r[7] = 0x20; /* 16 bit bus */
 	scsi_len = lr = len < 36 ? (uae_u32)len : 36;
 	if (hdhfd) {
-	    r[2] = (hdhfd->iso_version << 6) | (hdhfd->ecma_version << 3) | hdhfd->ansi_version;
+	    r[2] = hdhfd->ansi_version;
 	    r[3] = hdhfd->ansi_version >= 2 ? 2 : 0;
+	    r[7] = hdhfd->ansi_version >= 2 ? 0x20 : 0;
 	}
-	r[7] = 0x20; /* 16 bit bus */
 	i = 0; /* vendor id */
 	while (i < 8 && hfd->vendor_id[i]) {
 	    r[8 + i] = hfd->vendor_id[i];
@@ -420,13 +436,20 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	    int pc = cmdbuf[2] >> 6;
 	    int pcode = cmdbuf[2] & 0x3f;
 	    int dbd = cmdbuf[1] & 8;
-	    write_log("MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
+	    //write_log("MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
 	    p = r;
 	    p[0] = 4 - 1;
 	    p[1] = 0;
 	    p[2] = 0;
 	    p[3] = 0;
 	    p += 4;
+	    if (!dbd) {
+		uae_u32 blocks = (uae_u32)(hfd->size / hfd->blocksize);
+		p[-1] = 8;
+		wl(p + 0, blocks);
+		wl(p + 4, hfd->blocksize);
+		p += 8;
+	    }
 	    if (pcode == 0) {
     		p[0] = 0;
 		p[1] = 0;
@@ -436,10 +459,12 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	    } else if (pcode == 3) {
 		p[0] = 3;
 		p[1] = 24;
+		p[3] = 1;
 		p[10] = hdhfd->secspertrack >> 8;
 		p[11] = hdhfd->secspertrack;
 		p[12] = hfd->blocksize >> 8;
 		p[13] = hfd->blocksize;
+		p[15] = 1; // interleave
 		p[20] = 0x80;
 		r[0] += p[1];
 	    } else if (pcode == 4) {
@@ -447,33 +472,52 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		wl(p + 1, hdhfd->cyls);
 		p[1] = 24;
 		p[5] = hdhfd->heads;
+		wl(p + 13, hdhfd->cyls);
 		ww(p + 20, 5400);
 		r[0] += p[1];
 	    } else {
 		goto err;
 	    }
+	    r[0] += r[3];
 	    scsi_len = lr = r[0] + 1;
 	    break;
 	}
 	break;
+	case 0x1d: /* SEND DIAGNOSTICS */
+	break;
 	case 0x25: /* READ_CAPACITY */
-	wl (r, (uae_u32)(hfd->size / hfd->blocksize - 1));
-	wl (r + 4, hfd->blocksize);
-	scsi_len = lr = 8;
+	{
+	    int pmi = cmdbuf[8] & 1;
+	    uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
+	    uae_u32 blocks = (uae_u32)(hfd->size / hfd->blocksize - 1);
+	    if (pmi) {
+		lba += hdhfd->secspertrack * hdhfd->heads;
+		lba /= hdhfd->secspertrack * hdhfd->heads;
+		lba *= hdhfd->secspertrack * hdhfd->heads;
+		if (lba > blocks)
+		    lba = blocks;
+		blocks = lba;
+	    }
+    	    wl (r, blocks);
+	    wl (r + 4, hfd->blocksize);
+	    scsi_len = lr = 8;
+	}
 	break;
 	case 0x28: /* READ (10) */
 	offset = rl (cmdbuf + 2);
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 7 - 2) & 0xffff;
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 	break;
 	case 0x2a: /* WRITE (10) */
 	offset = rl (cmdbuf + 2);
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 7 - 2) & 0xffff;
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 	break;
 	case 0x35: /* SYNCRONIZE CACHE (10) */
 	break;
@@ -482,14 +526,16 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 6);
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 	break;
 	case 0xaa: /* WRITE (12) */
 	offset = rl (cmdbuf + 2);
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 6);
 	len *= hfd->blocksize;
-	scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
+	if (checkbounds(hfd, offset, len))
+	    scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 	break;
 	case 0x37: /* READ DEFECT DATA */
 	write_log ("UAEHF: READ DEFECT DATA\n");

@@ -1372,7 +1372,7 @@ int cdtv_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, char *filesys)
 {
-    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys);
+    return addscsi(ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 1);
 }
 
 void cdtv_free (void)

@@ -89,6 +89,7 @@ static char help[] = {
     "  g [<address>]         Start execution at the current address or <address>\n"
     "  c                     Dump state of the CIA, disk drives and custom registers\n"
     "  r                     Dump state of the CPU\n"
+    "  r <reg> <value>       Modify CPU registers (Dx,Ax,USP,ISP,VBR,...)\n"
     "  m <address> [<lines>] Memory dump starting at <address>\n"
     "  m r<register>         Memory dump starting at <register>\n"
     "  d <address> [<lines>] Disassembly starting at <address>\n"
@@ -1385,7 +1386,6 @@ static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
     if (memwatch_func (addr, 2, 1, &v))
 	debug_mem_banks[off]->bput(addr, v);
 }
-
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->check (addr, size);
@@ -1393,6 +1393,45 @@ static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
 static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 {
     return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
+}
+void debug_putlpeek(uaecptr addr, uae_u32 v)
+{
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 2, 4, &v);
+}
+void debug_wputpeek(uaecptr addr, uae_u32 v)
+{
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 2, 2, &v);
+}
+void debug_bputpeek(uaecptr addr, uae_u32 v)
+{
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 2, 1, &v);
+}
+void debug_bgetpeek (uaecptr addr, uae_u32 v)
+{
+    uae_u32 vv = v;
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 1, 1, &vv);
+}
+void debug_wgetpeek (uaecptr addr, uae_u32 v)
+{
+    uae_u32 vv = v;
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 1, 2, &vv);
+}
+void debug_lgetpeek (uaecptr addr, uae_u32 v)
+{
+    uae_u32 vv = v;
+    if (!memwatch_enabled)
+	return;
+    memwatch_func (addr, 1, 4, &vv);
 }
 
 static void deinitialize_memwatch (void)
@@ -1592,6 +1631,20 @@ static void memwatch (char **c)
 	mwn->rwi = 3;
     memwatch_dump (num);
 }
+
+static void writeintoreg (char **c)
+{
+    char cc, cc2;
+
+    ignore_ws(c);
+    cc = toupper(*c[0]);
+    cc2 = toupper(*c[1]);
+    if ((cc == 'D' || cc == 'A') && cc2 >= '0' && cc2 <= '7') {
+
+
+    }
+}
+
 
 static void writeintomem (char **c)
 {
@@ -2093,42 +2146,42 @@ static void m68k_modify (char **inptr)
     uae_u32 v;
     char parm[10];
     char c1, c2;
+    int i;
 
     if (!next_string (inptr, parm, sizeof (parm), 1))
 	return;
     c1 = toupper (parm[0]);
-    c2 = toupper (parm[1]);
+    c2 = 99;
     if (c1 == 'A' || c1 == 'D' || c1 == 'P') {
-	if (!isdigit (c2))
-	    return;
-	c2 -= '0';
+	c2 = toupper (parm[1]);
+	if (isdigit (c2))
+	    c2 -= '0';
+	else
+	    c2 = 99;
     }
     v = readhex (inptr);
-    if (c1 == 'A')
+    if (c1 == 'A' && c2 < 8)
 	regs.regs[8 + c2] = v;
-    else if (c1 == 'D')
+    else if (c1 == 'D' && c2 < 8)
 	regs.regs[c2] = v;
     else if (c1 == 'P' && c2 == 0)
 	regs.irc = v;
     else if (c1 == 'P' && c2 == 1)
 	regs.ir = v;
-    else if (!strcmp (parm, "VBR"))
-	regs.vbr = v;
-    else if (!strcmp (parm, "USP")) {
-	regs.usp = v;
-	MakeFromSR (&regs);
-    } else if (!strcmp (parm, "ISP")) {
-	regs.isp = v;
-	MakeFromSR (&regs);
-    } else if (!strcmp (parm, "MSP")) {
-	regs.msp = v;
-	MakeFromSR (&regs);
-    } else if (!strcmp (parm, "SR")) {
+    else if (!strcmp (parm, "SR")) {
 	regs.sr = v;
 	MakeFromSR (&regs);
     } else if (!strcmp (parm, "CCR")) {
-	regs.sr = (regs.sr & ~15) | (v & 15);
+	regs.sr = (regs.sr & ~31) | (v & 31);
 	MakeFromSR (&regs);
+    } else if (!strcmp (parm, "PC")) {
+	m68k_setpc(&regs, v);
+	fill_prefetch_slow(&regs);
+    } else {
+	for (i = 0; m2cregs[i].regname; i++) {
+	    if (!strcmp (parm, m2cregs[i].regname))
+		val_move2c2 (m2cregs[i].regno, v);
+	}
     }
 }
 
@@ -2166,10 +2219,13 @@ static void debug_1 (void)
 	    dump_vectors (addr);
 	break;
 	case 'e': dump_custom_regs (tolower(*inptr) == 'a'); break;
-	case 'r': if (more_params(&inptr))
+	case 'r':
+	    {
+		if (more_params(&inptr))
 		    m68k_modify (&inptr);
 		  else
 		    m68k_dumpstate (stdout, &nextpc);
+	    }
 	break;
 	case 'D': deepcheatsearch (&inptr); break;
 	case 'C': cheatsearch (&inptr); break;
@@ -2383,7 +2439,7 @@ static void debug_1 (void)
 static void addhistory(void)
 {
     uae_u32 pc = m68k_getpc(&regs);
-    if (pc >= 0xf00000 && pc <= 0xffffff)
+    if (!notinrom())
 	return;
     history[lasthist] = regs;
     history[lasthist].pc = m68k_getpc(&regs);
@@ -2441,7 +2497,7 @@ void debug (void)
 	    if (skipaddr_doskip) {
 		if (skipaddr_start == pc)
 		    bp = 1;
-		if ((processptr || processname) && !notinrom()) {
+		if ((processptr || processname) && notinrom()) {
 		    uaecptr execbase = get_long (4);
 		    uaecptr activetask = get_long (execbase + 276);
 		    int process = get_byte(activetask + 8) == 13 ? 1 : 0;

@@ -1087,7 +1087,7 @@ static void decode_rom_ident (char *romfile, int maxlen, char *ident)
 		}
 	    }
 	    if (*p == 0 || *p == ';') {
-		rl = getrombyident(ver, rev, subver, subrev, modelp, round);
+		rl = getromlistbyident(ver, rev, subver, subrev, modelp, round);
 		if (rl) {
 		    for (i = 0; rl[i]; i++) {
 			if (round) {

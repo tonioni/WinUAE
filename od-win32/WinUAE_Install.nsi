@@ -1,6 +1,6 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "1.4.2"
-!define PRODUCT_PUBLISHER "Toni Wilen"
+!define PRODUCT_VERSION "1.4.3"
+!define PRODUCT_PUBLISHER "Arabuusimiehet"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"

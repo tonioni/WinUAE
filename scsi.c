@@ -16,7 +16,8 @@
 #include "blkdev.h"
 
 static int outcmd[] = { 0x0a, 0x2a, 0xaa, -1 };
-static int incmd[] = { 0x08, 0x12, 0x1a, 0x25, 0x28, 0xa8, 0x37, -1 };
+static int incmd[] = { 0x03, 0x08, 0x12, 0x1a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, -1 };
+static int nonecmd[] = { 0x00, 0x35, -1 };
 
 int scsi_data_dir(struct scsi_data *sd)
 {
@@ -34,7 +35,13 @@ int scsi_data_dir(struct scsi_data *sd)
 	    return -1;
 	}
     }
-    return 0;
+    for (i = 0; nonecmd[i] >= 0; i++) {
+	if (cmd == nonecmd[i]) {
+	    return 0;
+	}
+    }
+    write_log("SCSI command %02X, no direction specified (IN?)!\n", sd->cmd[0]);
+    return -2;
 }
 
 void scsi_emulate_cmd(struct scsi_data *sd)
@@ -44,6 +51,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 	int len = sd->buffer[4];
 	memset (sd->buffer, 0, len);
 	memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+	sd->data_len = len;
     } else if (sd->nativescsiunit < 0) {
 	sd->status = scsi_emulate(&sd->hfd->hfd, sd->hfd,
 	    sd->cmd, sd->len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
@@ -55,18 +63,25 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 	}
     } else {
 	struct amigascsi as;
+
+	memset(sd->sense, 0, 256);
 	memset(&as, 0, sizeof as);
 	memcpy (&as.cmd, sd->cmd, sd->len);
-	as.flags = 2;
-	if (sd->direction < 0)
-	    as.flags |= 1;
+	as.flags = 2 | 1;
+	if (sd->direction > 0)
+	    as.flags &= ~1;
 	as.sense_len = 32;
 	as.cmd_len = sd->len;
 	as.data = sd->buffer;
-	as.len = sd->direction < 0 ? 256 * 512 : sd->data_len;
+	as.len = sd->direction < 0 ? DEVICE_SCSI_BUFSIZE : sd->data_len;
 	sys_command_scsi_direct_native(sd->nativescsiunit, &as);
 	sd->status = as.status;
-	memcpy(sd->sense, as.sensedata, as.sense_len);
+	sd->data_len = as.len;
+	if (sd->status) {
+	    sd->direction = 0;
+	    sd->data_len = 0;
+	    memcpy(sd->sense, as.sensedata, as.sense_len);
+	}
     }
     sd->offset = 0;
 }

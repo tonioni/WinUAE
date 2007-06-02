@@ -47,7 +47,7 @@ struct hd_hardfiledata {
     int secspertrack_def;
     int heads_def;
     char *path;
-    int iso_version, ecma_version, ansi_version;
+    int ansi_version;
 };
 
 #define HD_CONTROLLER_UAE 0

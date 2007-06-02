@@ -184,7 +184,7 @@ static struct romdata roms[] = {
 
 };
 
-struct romlist **getrombyident(int ver, int rev, int subver, int subrev, char *model, int all)
+struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, char *model, int all)
 {
     int i, j, ok, out, max;
     struct romdata *rd;
@@ -531,11 +531,18 @@ struct romdata *getromdatabyid (int id)
     return 0;
 }
 
+STATIC_INLINE notcrc32(uae_u32 crc32)
+{
+    if (crc32 == 0xffffffff || crc32 == 0x00000000)
+	return 1;
+    return 0;
+}
+
 struct romdata *getromdatabycrc (uae_u32 crc32)
 {
     int i = 0;
     while (roms[i].name) {
-	if (crc32 == roms[i].crc32)
+	if (crc32 == roms[i].crc32 && !notcrc32(crc32))
 	    return &roms[i];
 	i++;
     }
@@ -566,7 +573,7 @@ struct romdata *getromdatabydata (uae_u8 *rom, int size)
     memcpy (rom, tmp, 4);
     i = 0;
     while (roms[i].name) {
-	if (roms[i].crc32 && roms[i].size >= size) {
+	if (!notcrc32(roms[i].crc32) && roms[i].size >= size) {
 	    if (crc32a == roms[i].crc32 || crc32b == roms[i].crc32)
 		return &roms[i];
 	    if (crc32c == roms[i].crc32 && roms[i].type == ROMTYPE_AR)
@@ -1714,13 +1721,41 @@ addrbank extendedkickmem_bank = {
 void a3000_fakekick(int map)
 {
     static uae_u8 *blop;
+    static int f0;
+
     if (map) {
 	uae_u8 *fkickmemory = a3000lmemory + allocated_a3000lmem - fkickmem_size;
-	if (!blop)
-	    blop = xmalloc (fkickmem_size);
-	memcpy (blop, kickmemory, fkickmem_size);
-	memcpy (kickmemory, fkickmemory, fkickmem_size);
+	if (fkickmemory[2] == 0x4e && fkickmemory[3] == 0xf9 && fkickmemory[4] == 0x00) {
+	    if (!blop)
+		blop = xmalloc (fkickmem_size);
+	    memcpy (blop, kickmemory, fkickmem_size);
+	    if (fkickmemory[5] == 0xfc) {
+		memcpy (kickmemory, fkickmemory, fkickmem_size / 2);
+		memcpy (kickmemory + fkickmem_size / 2, fkickmemory, fkickmem_size / 2);
+		if (!extendedkickmemory) {
+		    if (!need_uae_boot_rom()) {
+			extendedkickmem_size = 65536;
+			extendedkickmem_mask = extendedkickmem_size - 1;
+			extendedkickmemory = (uae_u8 *) mapped_malloc (extendedkickmem_size, "rom_f0");
+			extendedkickmem_bank.baseaddr = (uae_u8 *) extendedkickmemory;
+			memcpy(extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
+			map_banks(&extendedkickmem_bank, 0xf0, 1, 1);
+			f0 = 1;
+		    } else {
+			write_log("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
+		    }
+		}
+	    } else {
+		memcpy (kickmemory, fkickmemory, fkickmem_size);
+	    }
+	}
     } else {
+	if (f0) {
+	    map_banks(&dummy_bank, 0xf0, 1, 1);
+	    mapped_free(extendedkickmemory);
+	    extendedkickmemory = NULL;
+	    f0 = 0;
+	}
 	if (blop)
 	    memcpy (kickmemory, blop, fkickmem_size);
 	xfree(blop);
