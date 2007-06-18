@@ -344,7 +344,7 @@ static int add_async_request (struct devstruct *dev, uaecptr request)
 	write_log ("%s:%d async request %x added\n", getdevname(), dev->unit, request);
 
     uae_sem_wait (&async_sem);
-    ar = xcalloc (sizeof (struct asyncreq), 1);
+    ar = (struct asyncreq*)xcalloc (sizeof (struct asyncreq), 1);
     ar->request = request;
     if (!dev->ar) {
 	dev->ar = ar;
@@ -585,7 +585,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 
 static void *dev_thread (void *devs)
 {
-    struct devstruct *dev = devs;
+    struct devstruct *dev = (struct devstruct*)devs;
 
     uae_set_thread_priority (2);
     dev->thread_running = 1;

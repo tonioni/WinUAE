@@ -9,8 +9,8 @@
   *
   */
 
-//#define CDTV_DEBUG
-//#define CDTV_DEBUG_CMD
+#define CDTV_DEBUG
+#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -27,6 +27,7 @@
 #include "zfile.h"
 #include "threaddep/thread.h"
 #include "a2091.h"
+#include "uae.h"
 
 
 /* DMAC CNTR bits. */
@@ -795,7 +796,7 @@ static void dmac_start_dma(void)
     }
 }
 
-void cdtv_getdmadata(int *acr)
+void cdtv_getdmadata(uae_u32 *acr)
 {
     *acr = dmac_acr;
 }

@@ -37,6 +37,7 @@ struct uae_driveinfo {
     uae_u64 size;
     uae_u64 offset;
     int bytespersector;
+    int dangerous;
 };
 
 #define HDF_HANDLE_WIN32 1
@@ -81,7 +82,7 @@ static void rdbdump (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
     cnt++;
 }
 
-static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize, int dowarn)
+static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 {
     int i, j, blocks = 63, empty = 1;
     DWORD outlen, high;
@@ -90,19 +91,19 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize, i
 	high = (DWORD)(offset >> 32);
 	if (SetFilePointer (h, (DWORD)offset, &high, FILE_BEGIN) == INVALID_FILE_SIZE) {
 	    write_log ("hd ignored, SetFilePointer failed, error %d\n", GetLastError());
-	    return 0;
+	    return 1;
 	}
 	memset (buf, 0xaa, blocksize);
 	ReadFile (h, buf, blocksize, &outlen, NULL);
 	if (outlen != blocksize) {
 	    write_log ("hd ignored, read error %d!\n", GetLastError());
-	    return 0;
+	    return 2;
 	}
 	if (!memcmp (buf, "RDSK", 4)) {
 	    if (do_rdbdump)
 		rdbdump (h, offset, buf, blocksize);
 	    write_log ("hd accepted (rdb detected at block %d)\n", j);
-	    return 1;
+	    return -1;
 	}
 	if (j == 0) {
 	    for (i = 0; i < blocksize; i++) {
@@ -112,18 +113,14 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize, i
 	}
 	offset += blocksize;
     }
-    if (harddrive_dangerous != 0x1234dead) {
-        if (!empty) {
-	    write_log ("hd ignored, not empty and no RDB detected\n");
-	    return 0;
-	}
-	write_log ("hd accepted (empty)\n");
-	return 1;
+    if (!empty) {
+        write_log ("hd ignored, not empty and no RDB detected\n");
+        return 0;
     }
-    if (dowarn)
-	gui_message_id (IDS_HARDDRIVESAFETYWARNING);
-    return 2;
+    write_log ("hd accepted (empty)\n");
+    return -2;
 }
+
 
 static void trim (char *s)
 {
@@ -168,7 +165,7 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	if (i >= 0) {
 	    DWORD r;
 	    udi = &uae_drives[i];
-	    hfd->flags = 1;
+	    hfd->flags = HFD_FLAGS_REALDRIVE;
 	    flags =  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 	    h = CreateFile (udi->device_path,
 		GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE),
@@ -192,11 +189,22 @@ int hdf_open (struct hardfiledata *hfd, char *name)
 	    }
 	    hfd->blocksize = udi->bytespersector;
 	    if (hfd->offset == 0) {
-		if (!safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize, hfd->warned ? 0 : 1)) {
+		int sf = safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize);
+		if (sf > 0) {
 		    hdf_close (hfd);
 		    return 0;
 		}
-		hfd->warned = 1;
+		if (sf == 0) {
+		    if (harddrive_dangerous != 0x1234dead) {
+			gui_message_id (IDS_HARDDRIVESAFETYWARNING1);
+			hdf_close(hfd);
+			return 0;
+		    }
+		    if (!hfd->warned) {
+			gui_message_id (IDS_HARDDRIVESAFETYWARNING2);
+			hfd->warned = 1;
+		    }
+		}
 	    }
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
 	}
@@ -907,7 +915,7 @@ Return Value:
 	    udi->offset = udi->offset2 = pi->StartingOffset.QuadPart;
 	    udi->size = udi->size2 = pi->PartitionLength.QuadPart;
 	    write_log ("used\n");
-	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector, 1)) {
+	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector) <= 0) {
 		sprintf (udi->device_name, "HD_P#%d_%s", pi->PartitionNumber, orgname);
 		udi++;
 		(*index2)++;
@@ -926,16 +934,11 @@ Return Value:
 	write_log ("no MBR partition table detected, checking for RDB\n");
     }
 
-    i = safetycheck (hDevice, 0, buffer, dg.BytesPerSector, 1);
-    if (!i) {
-	ret = 1;
+    udi->dangerous = safetycheck (hDevice, 0, buffer, dg.BytesPerSector);
+    if (udi->dangerous > 0)
 	goto end;
-    }
 amipartfound:
-    if (i > 1)
-	sprintf (udi->device_name, "HD_*_%s", orgname);
-    else
-	sprintf (udi->device_name, "HD_%s", orgname);
+    sprintf (udi->device_name, "HD_%s", orgname);
     while (isharddrive (udi->device_name) >= 0)
 	strcat (udi->device_name, "_");
     (*index2)++;
@@ -994,13 +997,27 @@ char *hdf_getnameharddrive (int index, int flags)
     static char name[512];
     char tmp[32];
     uae_u64 size = uae_drives[index].size;
+    char *dang = "?";
+
+    switch (uae_drives[index].dangerous)
+    {
+	case -2:
+	dang = "Empty";
+	break;
+	case -1:
+	dang = "RDB";
+	break;
+	case 0:
+	dang = "NON-EMPTY";
+	break;
+    }
 
     if (flags & 1) {
-	    if (size >= 1024 * 1024 * 1024)
-	        sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
-	    else
-	        sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
- 	sprintf (name, "[%s] %s", tmp, uae_drives[index].device_name);
+	if (size >= 1024 * 1024 * 1024)
+	    sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
+	else
+	    sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
+	sprintf (name, "%10s [%s] %s", dang, tmp, uae_drives[index].device_name);
 	return name;
     }
     if (flags & 2)

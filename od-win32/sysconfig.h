@@ -36,6 +36,7 @@
 #define SCSIEMU /* uaescsi.device emulation */
 #define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
+#define FPU_UAE
 #define MMUEMU
 #define CPUEMU_0 /* generic 680x0 emulation */
 #define CPUEMU_11 /* 68000+prefetch emulation */
@@ -244,10 +245,18 @@
 #define SIZEOF_LONG 4
 
 /* The number of bytes in a long long.  */
-#define SIZEOF_LONG_LONG 0
+#define SIZEOF_LONG_LONG 8
 
 /* The number of bytes in a short.  */
 #define SIZEOF_SHORT 2
+
+#define SIZEOF_FLOAT 4
+#define SIZEOF_DOUBLE 8
+
+#define HAVE_ISNAN
+#define HAVE_ISINF
+#define isnan _isnan
+extern int isinf(double);
 
 /* Define if you have the bcopy function.  */
 /* #undef HAVE_BCOPY */

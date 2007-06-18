@@ -48,7 +48,7 @@ uae_s16 *decodewav (uae_u8 *s, int *lenp)
 	if (!memcmp (s, "data", 4)) {
 	    s += 4;
 	    len = s[0] | (s[1] << 8) | (s[2] << 16) | (s[3] << 24);
-	    dst = xmalloc (len);
+	    dst = (uae_s16*)xmalloc (len);
 	    memcpy (dst, s + 4, len);
 	    *lenp = len / 2;
 	    return dst;
@@ -77,7 +77,7 @@ static int loadsample (char *path, struct drvsample *ds)
     }
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
-    buf = xmalloc (size);
+    buf = (uae_u8*)xmalloc (size);
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (buf, size, 1, f);
     zfile_fclose (f);
@@ -208,7 +208,7 @@ void driveclick_reset (void)
     xfree (clickbuffer);
     if (!wave_initialized)
 	return;
-    clickbuffer = xmalloc (sndbufsize);
+    clickbuffer = (uae_s16*)xmalloc (sndbufsize);
     sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
 

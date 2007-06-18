@@ -423,9 +423,10 @@ STATIC_INLINE void alloc_blockinfos(void)
  ********************************************************************/
 extern int have_done_picasso;
 
-void check_prefs_changed_comp (void)
+int check_prefs_changed_comp (void)
 {
-    static int cachesize_prev, comptrust_prev, compforce_prev;
+    int changed = 0;
+    static int cachesize_prev, comptrust_prev, compforce_prev, canbang_prev;
 
     currprefs.comptrustbyte = changed_prefs.comptrustbyte;
     currprefs.comptrustword = changed_prefs.comptrustword;
@@ -445,13 +446,16 @@ void check_prefs_changed_comp (void)
 	    changed_prefs.comptrustlong = currprefs.comptrustlong = comptrust_prev;
 	    changed_prefs.comptrustnaddr = currprefs.comptrustnaddr = comptrust_prev;
 	    changed_prefs.compforcesettings = currprefs.compforcesettings = compforce_prev;
+	    canbang = canbang_prev;
 	} else if (currprefs.cachesize && changed_prefs.cachesize == 0) {
 	    comptrust_prev = currprefs.comptrustbyte;
 	    compforce_prev = currprefs.compforcesettings;
 	    cachesize_prev = currprefs.cachesize;
+	    canbang_prev = canbang;
 	}
 	currprefs.cachesize = changed_prefs.cachesize;
 	alloc_cache();
+	changed = 1;
     }
 
     // Turn off illegal-mem logging when using JIT...
@@ -477,6 +481,8 @@ void check_prefs_changed_comp (void)
 	changed_prefs.comptrustlong = 1;
 	changed_prefs.comptrustnaddr= 1;
 	changed_prefs.compforcesettings = 1;
+
+	changed = 1;
 
 	if(currprefs.cachesize)
 	{
@@ -516,6 +522,7 @@ void check_prefs_changed_comp (void)
 	}
 #endif
     }
+    return changed;
 }
 
 /********************************************************************

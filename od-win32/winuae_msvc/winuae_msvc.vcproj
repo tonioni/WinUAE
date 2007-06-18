@@ -68,7 +68,7 @@
 				SuppressStartupBanner="true"
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				EnablePREfast="false"
 			/>
@@ -282,7 +282,7 @@
 				ProgramDataBaseFileName=".\Release/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -1065,7 +1065,7 @@
 				ProgramDataBaseFileName=".\FullRelease/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -1798,11 +1798,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\unzip.c"
+				RelativePath="..\..\zfile.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\zfile.c"
+				RelativePath="..\..\zfile_archive.c"
 				>
 			</File>
 		</Filter>
@@ -1824,58 +1824,6 @@
 			</File>
 			<File
 				RelativePath="..\..\compstbl.c"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="dms"
-			>
-			<File
-				RelativePath="..\..\dms\cdata.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\crc_csum.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\getbits.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\maketbl.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\pfile.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\tables.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_deep.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_heavy.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_init.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_medium.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_quick.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\dms\u_rle.c"
 				>
 			</File>
 		</Filter>
@@ -2328,48 +2276,176 @@
 			</Filter>
 		</Filter>
 		<Filter
-			Name="7z"
+			Name="decompressors"
 			>
-			<File
-				RelativePath="..\..\7z\7zAlloc.c"
+			<Filter
+				Name="dms"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zBuffer.c"
+				<File
+					RelativePath="..\..\archivers\dms\crc_csum.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\getbits.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\maketbl.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\pfile.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\tables.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_deep.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_heavy.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_init.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_medium.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_quick.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\dms\u_rle.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="7z"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zCrc.c"
+				<File
+					RelativePath="..\..\archivers\7z\7zAlloc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zBuffer.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zCrc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zDecode.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zExtract.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zHeader.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zIn.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zItem.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zMain.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\7zMethodID.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\LzmaDecode.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="lha"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zDecode.c"
+				<File
+					RelativePath="..\..\archivers\lha\crcio.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\dhuf.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\header.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\huf.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\larc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\lhamaketbl.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\lharc.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\shuf.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\slide.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\uae_lha.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\lha\util.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="zip"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zExtract.c"
+				<File
+					RelativePath="..\..\archivers\zip\unzip.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="lzx"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zHeader.c"
+				<File
+					RelativePath="..\..\archivers\lzx\unlzx.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="xfd"
 				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zIn.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zItem.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\7z\7zMethodID.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\7z\LzmaDecode.c"
-				>
-			</File>
+				<File
+					RelativePath="..\..\archivers\xfd\xfd.c"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<File
 			RelativePath="..\resources\drive_click.wav"

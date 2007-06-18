@@ -179,7 +179,7 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
     /* @@@ use strcasecmp for some targets.  */
     if (strlen (path) > 0 && strncmp (file, path, strlen (path)) == 0) {
 	int l;
-	char *p = xmalloc (strlen (file) + strlen (subst) + 2);
+	char *p = (char*)xmalloc (strlen (file) + strlen (subst) + 2);
 	strcpy (p, subst);
 	l = strlen (p);
 	while (l > 0 && p[l - 1] == '/')
@@ -1055,7 +1055,7 @@ static void decode_rom_ident (char *romfile, int maxlen, char *ident)
 
     if (!ident[0])
 	return;
-    romtxt = malloc (10000);
+    romtxt = (char*)malloc (10000);
     romtxt[0] = 0;
     for (round = 0; round < 2; round++) {
 	ver = rev = subver = subrev = -1;
@@ -1124,6 +1124,8 @@ int add_filesys_config (struct uae_prefs *p, int index,
 			int secspertrack, int surfaces, int reserved,
 			int blocksize, int bootpri, char *filesysdir, int hdc, int flags) {
     struct uaedev_config_info *uci;
+    int i;
+
     if (index < 0)
 	uci = getuci(p);
     else
@@ -1144,7 +1146,19 @@ int add_filesys_config (struct uae_prefs *p, int index,
     uci->controller = hdc;
     strcpy (uci->filesys, filesysdir ? filesysdir : "");
     if (!uci->devname[0])
-	sprintf(uci->devname,"DH%d", uci - &p->mountconfig[0]);
+	sprintf(uci->devname, "DH%d", uci - &p->mountconfig[0]);
+    if (volname && !uci->volname[0]) {
+	for (i = strlen(rootdir) - 1; i >= 0; i--) {
+	    char c = rootdir[i];
+	    if (c == ':' || c == '/' || c == '\\') {
+		if (i == strlen(rootdir) - 1)
+		    continue;
+		i++;
+		break;
+	    }
+	}
+	strcpy (uci->volname, rootdir + i);
+    }
     return 1;
 }
 
@@ -1595,7 +1609,7 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, char *line1b, cha
 	    if (sl->option && !strcasecmp (line1b, sl->option)) break;
 	}
 	if (!sl) {
-	    struct strlist *u = xcalloc (sizeof (struct strlist), 1);
+	    struct strlist *u = (struct strlist*)xcalloc (sizeof (struct strlist), 1);
 	    u->option = my_strdup(line3b);
 	    u->value = my_strdup(line4b);
 	    u->next = p->all_lines;
@@ -1801,7 +1815,7 @@ int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
 int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type)
 {
     int result = 0;
-    struct uae_prefs *p = xmalloc (sizeof (struct uae_prefs));
+    struct uae_prefs *p = (struct uae_prefs*)xmalloc (sizeof (struct uae_prefs));
     p->description[0] = 0;
     p->config_host_path[0] = 0;
     p->config_hardware_path[0] = 0;
@@ -2055,7 +2069,7 @@ static void parse_cpu_specs (struct uae_prefs *p, char *spec)
 /* Returns the number of args used up (0 or 1).  */
 int parse_cmdline_option (struct uae_prefs *p, char c, char *arg)
 {
-    struct strlist *u = xcalloc (sizeof (struct strlist), 1);
+    struct strlist *u = (struct strlist*)xcalloc (sizeof (struct strlist), 1);
     const char arg_required[] = "0123rKpImWSAJwNCZUFcblOdHRv";
 
     if (strchr (arg_required, c) && ! arg) {
@@ -2063,7 +2077,7 @@ int parse_cmdline_option (struct uae_prefs *p, char c, char *arg)
 	return 0;
     }
 
-    u->option = malloc (2);
+    u->option = (char*)malloc (2);
     u->option[0] = c;
     u->option[1] = 0;
     u->value = my_strdup(arg);
@@ -2196,7 +2210,7 @@ void cfgfile_addcfgparam (char *line)
     }
     if (!cfgfile_separate_line (line, line1b, line2b))
 	return;
-    u = xcalloc (sizeof (struct strlist), 1);
+    u = (struct strlist*)xcalloc (sizeof (struct strlist), 1);
     u->option = my_strdup(line1b);
     u->value = my_strdup(line2b);
     u->next = temp_lines;
@@ -2479,12 +2493,12 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     int i, ret;
 
     put_byte (out, 0);
-    parms_p = xmalloc (size + 1);
+    parms_p = (char*)xmalloc (size + 1);
     if (!parms_p) {
 	ret = 10;
 	goto end;
     }
-    out_p = xmalloc (outsize + 1);
+    out_p = (char*)xmalloc (outsize + 1);
     if (!out_p) {
 	ret = 10;
 	goto end;
@@ -3083,13 +3097,17 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
     int roms[2];
 
     buildin_default_prefs_68020 (p);
-    roms[0] = 18;
+    roms[0] = 64;
     roms[1] = -1;
-    if (!configure_rom (p, roms, romcheck))
-	return 0;
-    roms[0] = 19;
-    if (!configure_rom (p, roms, romcheck))
-	return 0;
+    if (!configure_rom (p, roms, 0)) {
+	roms[0] = 18;
+	roms[1] = -1;
+	if (!configure_rom (p, roms, romcheck))
+	    return 0;
+	roms[0] = 19;
+	if (!configure_rom (p, roms, romcheck))
+	    return 0;
+    }
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
     p->nr_floppies = 0;
     p->dfxtype[0] = DRV_NONE;

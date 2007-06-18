@@ -331,7 +331,7 @@ void fsdb_dir_writeback (a_inode *dir)
     fseek (f, 0, SEEK_SET);
     tmpbuf = 0;
     if (size > 0) {
-	tmpbuf = malloc (size);
+	tmpbuf = (uae_u8*)malloc (size);
 	fread (tmpbuf, 1, size, f);
     }
     TRACE (("**** updating '%s' %d\n", dir->aname, size));

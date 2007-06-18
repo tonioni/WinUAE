@@ -481,7 +481,7 @@ static int direct_detect(void)
 		    prevResDes = resDes;
 		    if(CM_Get_Res_Des_Data_Size_Ex(&dataSize,resDes,0,NULL)!=CR_SUCCESS)
 			continue;
-		    resDesData = malloc (dataSize);
+		    resDesData = (PBYTE)malloc (dataSize);
 		    if(!resDesData)
 			continue;
 		    if(CM_Get_Res_Des_Data_Ex(resDes,resDesData,dataSize,0,NULL)!=CR_SUCCESS) {

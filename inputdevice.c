@@ -140,7 +140,7 @@ int inprec_open(char *fname, int record)
 	zfile_fseek (inprec_zf, 0, SEEK_END);
 	inprec_size = zfile_ftell (inprec_zf);
 	zfile_fseek (inprec_zf, 0, SEEK_SET);
-        inprec_buffer = inprec_p = xmalloc (inprec_size);
+        inprec_buffer = inprec_p = (uae_u8*)xmalloc (inprec_size);
 	zfile_fread (inprec_buffer, inprec_size, 1, inprec_zf);
 	inprec_plastptr = inprec_buffer;
 	id = inprec_pu32();
@@ -159,7 +159,7 @@ int inprec_open(char *fname, int record)
 	if (record < -1)
 	    inprec_div = maxvpos;
     } else if (record > 0) {
-	inprec_buffer = inprec_p = xmalloc (inprec_size);
+	inprec_buffer = inprec_p = (uae_u8*)xmalloc (inprec_size);
 	inprec_ru32('UAE\0');
 	inprec_ru8(1);
 	inprec_ru8(UAEMAJOR);
@@ -755,6 +755,7 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 static int ievent_alive = 0;
 static int lastmx, lastmy;
 static uae_u32 magicmouse_ibase = 0;
+#define intui "intuition.library"
 
 static uaecptr get_intuitionbase(void)
 {
@@ -781,7 +782,7 @@ static uaecptr get_intuitionbase(void)
 	if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
 	    return 0;
 	p = b->xlateaddr(v2);
-	if (!strcmp(p, "intuition.library"))
+	if (!memcmp(p, intui, strlen(intui) + 1))
 	    return v;
     }
     return 0;

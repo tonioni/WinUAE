@@ -12,7 +12,7 @@
 
 #include <windows.h>
 
-static HANDLE *hipc = INVALID_HANDLE_VALUE, *olevent = INVALID_HANDLE_VALUE;
+static HANDLE hipc = INVALID_HANDLE_VALUE, olevent = INVALID_HANDLE_VALUE;
 static OVERLAPPED ol;
 #define IPC_BUFFER_SIZE 16384
 static uae_u8 buffer[IPC_BUFFER_SIZE], outbuf[IPC_BUFFER_SIZE];
@@ -224,10 +224,10 @@ int checkIPC(struct uae_prefs *p)
     }
     readpending = FALSE;
     write_log("IPC: got message '%s'\n", buffer);
-    parsemessage(buffer, p, outbuf, sizeof outbuf);
+    parsemessage((char*)buffer, p, (char*)outbuf, sizeof outbuf);
     memset (&ol, 0, sizeof ol);
     ol.hEvent = olevent;
-    ok = WriteFile(hipc, outbuf, strlen (outbuf) + 1, &ret, &ol);
+    ok = WriteFile(hipc, outbuf, strlen ((char*)outbuf) + 1, &ret, &ol);
     err = GetLastError();
     if (!ok && err != ERROR_IO_PENDING) {
 	write_log ("IPC: WriteFile() err=%d\n", err);

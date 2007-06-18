@@ -51,10 +51,10 @@ int uaeexe(const char *cmd)
     if (!running)
 	goto NORUN;
 
-    nw = malloc (sizeof *nw);
+    nw = (struct uae_xcmd*)malloc (sizeof *nw);
     if (!nw)
 	goto NOMEM;
-    nw->cmd = malloc (strlen (cmd) + 1);
+    nw->cmd = (char*)malloc (strlen (cmd) + 1);
     if (!nw->cmd) {
 	free (nw);
 	goto NOMEM;

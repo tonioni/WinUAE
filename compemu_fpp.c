@@ -49,7 +49,7 @@ static const uae_u16 x86_fpucw[]={
 static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
 static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
-static const struct {
+static struct {
 	double b[2];
 	double w[2];
 	double l[2];
@@ -695,6 +695,7 @@ extern float  fp_1e1, fp_1e2, fp_1e4;
 
 void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 {
+    int reg;
     int sreg, prec = 0;
     int	dreg = (extra >> 7) & 7;
     int source = (extra >> 13) & 7;
@@ -766,6 +767,157 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	}
 	FAIL(1);
 	return;
+     case 6:
+     case 7: 
+	{
+	    uae_u32 list = 0;
+	    int incr = 0;
+	    if (extra & 0x2000) {
+		uae_u32 ad;
+
+		/* FMOVEM FPP->memory */
+		switch ((extra >> 11) & 3) { /* Get out early if failure */
+		 case 0:
+		 case 2:
+		    break;
+		 case 1:
+		 case 3: 
+		 default:
+		    FAIL(1); return;
+		}
+		ad=comp_fp_adr (opcode);
+		if (ad<0) {
+		    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
+		    op_illg (opcode, &regs);
+		    return;
+		}
+		switch ((extra >> 11) & 3) {
+		case 0:	/* static pred */
+		    list = extra & 0xff;
+		    incr = -1;
+		    break;
+		case 2:	/* static postinc */
+		    list = extra & 0xff;
+		    incr = 1;
+		    break;
+		case 1:	/* dynamic pred */
+		case 3:	/* dynamic postinc */
+		   abort();
+		}
+		if (incr < 0) { /* Predecrement */
+			for (reg = 7; reg >= 0; reg--) {
+				if (list & 0x80) {
+					fmov_ext_mr((uintptr)temp_fp,reg);
+					sub_l_ri(ad,4); 
+					mov_l_rm(S2,(uintptr)temp_fp);
+					writelong_clobber(ad,S2,S3);
+					sub_l_ri(ad,4); 
+					mov_l_rm(S2,(uintptr)temp_fp+4);
+					writelong_clobber(ad,S2,S3);
+					sub_l_ri(ad,4); 
+					mov_w_rm(S2,(uintptr)temp_fp+8);
+					writeword_clobber(ad,S2,S3);
+				}
+				list <<= 1;
+			}
+		}
+		else { /* Postincrement */
+			for (reg = 0; reg <= 7; reg++) {
+				if (list & 0x80) {
+					fmov_ext_mr((uintptr)temp_fp,reg);
+					mov_w_rm(S2,(uintptr)temp_fp+8);
+					writeword_clobber(ad,S2,S3);
+					add_l_ri(ad,4);
+					mov_l_rm(S2,(uintptr)temp_fp+4);
+					writelong_clobber(ad,S2,S3);
+					add_l_ri(ad,4);
+					mov_l_rm(S2,(uintptr)temp_fp);
+					writelong_clobber(ad,S2,S3);
+					add_l_ri(ad,4);
+				}
+				list <<= 1;
+			}
+		}
+		if ((opcode & 0x38) == 0x18)
+		    mov_l_rr((opcode & 7)+8,ad);
+		if ((opcode & 0x38) == 0x20)
+		    mov_l_rr((opcode & 7)+8,ad);
+	    } else {
+		/* FMOVEM memory->FPP */
+
+		uae_u32 ad;
+		switch ((extra >> 11) & 3) { /* Get out early if failure */
+		 case 0:
+		 case 2:
+		    break;
+		 case 1:
+		 case 3: 
+		 default:
+		    FAIL(1); return;
+		}
+		ad=comp_fp_adr (opcode);
+		if (ad<0) {
+		    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
+		    op_illg (opcode, &regs);
+		    return;
+		}
+		switch ((extra >> 11) & 3) {
+		case 0:	/* static pred */
+		    list = extra & 0xff;
+		    incr = -1;
+		    break;
+		case 2:	/* static postinc */
+		    list = extra & 0xff;
+		    incr = 1;
+		    break;
+		case 1:	/* dynamic pred */
+		case 3:	/* dynamic postinc */
+		   abort();
+		}
+
+		if (incr < 0) {
+			// not reached
+			for (reg = 7; reg >= 0; reg--) {
+				if (list & 0x80) {
+					sub_l_ri(ad,4);
+					readlong(ad,S2,S3);
+					mov_l_mr((uintptr)(temp_fp),S2);
+					sub_l_ri(ad,4);
+					readlong(ad,S2,S3);
+					mov_l_mr((uintptr)(temp_fp)+4,S2);
+					sub_l_ri(ad,4);
+					readword(ad,S2,S3);
+					mov_w_mr(((uintptr)temp_fp)+8,S2);
+					fmov_ext_rm(reg,(uintptr)(temp_fp));
+				}
+				list <<= 1;
+			}
+		}
+		else {
+			for (reg = 0; reg <= 7; reg++) {
+				if (list & 0x80) {
+					readword(ad,S2,S3);
+					mov_w_mr(((uintptr)temp_fp)+8,S2);
+					add_l_ri(ad,4);
+					readlong(ad,S2,S3);
+					mov_l_mr((uintptr)(temp_fp)+4,S2);
+					add_l_ri(ad,4);
+					readlong(ad,S2,S3);
+					mov_l_mr((uintptr)(temp_fp),S2);
+					add_l_ri(ad,4);
+					fmov_ext_rm(reg,(uintptr)(temp_fp));
+				}
+				list <<= 1;
+			}
+		}
+		if ((opcode & 0x38) == 0x18)
+		    mov_l_rr((opcode & 7)+8,ad);
+		if ((opcode & 0x38) == 0x20)
+		    mov_l_rr((opcode & 7)+8,ad);
+	    }
+	}
+	return;
+#if 0
      case 6: /* FMOVEM  <EA>, FPx-FPz */
 	if (!(extra & 0x0800)) {
 	    uae_u32 list = extra & 0xff;
@@ -839,6 +991,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	write_log ("fallback from JIT FMOVEM dynamic register list\n");
 	FAIL(1);
 	return;
+#endif
      case 2: /* from <EA> to FPx */
 	dont_care_fflags();
 	if ((extra & 0xfc00) == 0x5c00) { /* FMOVECR */

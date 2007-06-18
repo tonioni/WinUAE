@@ -25,6 +25,7 @@
 #include "native2amiga.h"
 #include "blkdev.h"
 #include "scsidev.h"
+#include "uae.h"
 
 #define CDDEV_COMMANDS
 
@@ -622,7 +623,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 
 static void *dev_thread (void *devs)
 {
-    struct devstruct *dev = devs;
+    struct devstruct *dev = (struct devstruct*)devs;
 
     uae_set_thread_priority (2);
     dev->thread_running = 1;

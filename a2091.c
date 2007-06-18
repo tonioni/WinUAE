@@ -1155,7 +1155,7 @@ int addscsi(int ch, char *path, int blocksize, int readonly,
     struct hd_hardfiledata *hfd;
     freescsi(scsis[ch]);
     scsis[ch] = NULL;
-    hfd = xcalloc(sizeof(struct hd_hardfiledata), 1);
+    hfd = (struct hd_hardfiledata*)xcalloc(sizeof(struct hd_hardfiledata), 1);
     if (!hdf_hd_open(hfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return 0;
     hfd->ansi_version = scsi_level;
@@ -1302,12 +1302,12 @@ void a2091_init (void)
 		int i;
 		rom_size = 32768;
 		rombankswitcher = 1;
-   		rom = xmalloc (rom_size * 2);
+   		rom = (uae_u8*)xmalloc (rom_size * 2);
 		for (i = 0; i < rom_size; i++)
 		    zfile_fread(rom + i * 2, 1, 1, z);
  	    } else {
 		rom_size = 16384;
-		rom = xmalloc (rom_size);
+		rom = (uae_u8*)xmalloc (rom_size);
 		zfile_fread (rom, rom_size, 1, z);
 	    }
 	    zfile_fclose(z);

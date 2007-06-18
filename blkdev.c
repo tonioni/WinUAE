@@ -85,7 +85,7 @@ int device_func_init (int flags)
 
 static int audiostatus (int unitnum)
 {
-    uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,DEVICE_SCSI_BUFSIZE>>8,DEVICE_SCSI_BUFSIZE&0xff,0};
+    uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,(uae_u8)(DEVICE_SCSI_BUFSIZE>>8),(uae_u8)(DEVICE_SCSI_BUFSIZE&0xff),0};
     uae_u8 *p = device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
     if (!p)
 	return 0;
@@ -154,7 +154,7 @@ int sys_command_cd_play (int mode, int unitnum,uae_u32 startmsf, uae_u32 endmsf,
 uae_u8 *sys_command_cd_qcode (int mode, int unitnum)
 {
     if (mode == DF_SCSI || !have_ioctl) {
-	uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,DEVICE_SCSI_BUFSIZE>>8,DEVICE_SCSI_BUFSIZE&0xff,0};
+	uae_u8 cmd[10] = {0x42,2,0x40,1,0,0,0,(uae_u8)(DEVICE_SCSI_BUFSIZE>>8),(uae_u8)(DEVICE_SCSI_BUFSIZE&0xff),0};
 	return  device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof (cmd), 0);
     }
     return device_func[DF_IOCTL]->qcode (unitnum);
@@ -164,7 +164,7 @@ uae_u8 *sys_command_cd_qcode (int mode, int unitnum)
 uae_u8 *sys_command_cd_toc (int mode, int unitnum)
 {
     if (mode == DF_SCSI || !have_ioctl) {
-	uae_u8 cmd [10] = { 0x43,0,2,0,0,0,1,DEVICE_SCSI_BUFSIZE>>8,DEVICE_SCSI_BUFSIZE&0xFF,0};
+	uae_u8 cmd [10] = { 0x43,0,2,0,0,0,1,(uae_u8)(DEVICE_SCSI_BUFSIZE>>8),(uae_u8)(DEVICE_SCSI_BUFSIZE&0xff),0};
 	return device_func[DF_SCSI]->exec_in (unitnum, cmd, sizeof(cmd), 0);
     }
     return device_func[DF_IOCTL]->toc (unitnum);
@@ -279,7 +279,7 @@ void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **datap, int *data
 	scsi_cmd[9] = scsi_cmd[5];
 	scsi_cmd[2] = scsi_cmd[3] = scsi_cmd[4] = scsi_cmd[5] = scsi_cmd[6] = 0;
 	*len = 10;
-	p = xmalloc (8 + datalen + 4);
+	p = (uae_u8*)xmalloc (8 + datalen + 4);
 	if (datalen > 4)
 	    memcpy (p + 8, data + 4, datalen - 4);
 	p[0] = 0;
@@ -298,7 +298,7 @@ void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **datap, int *data
 	scsi_cmd[3] = scsi_cmd[4] = scsi_cmd[5] = scsi_cmd[6] = 0;
 	if (l > 8)
 	    datalen += 4;
-	*datap = xmalloc (datalen);
+	*datap = (uae_u8*)xmalloc (datalen);
 	*len = 10;
 	*parm = MODE_SENSE_10;
     }

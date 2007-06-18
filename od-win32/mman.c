@@ -18,6 +18,8 @@ static struct shmid_ds shmids[MAX_SHMID];
 
 extern int p96mode;
 
+static int memorylocking = 0;
+
 uae_u8 *natmem_offset = NULL;
 #ifdef CPU_64_BIT
 int max_allowed_mman = 2048;
@@ -27,17 +29,30 @@ int max_allowed_mman = 512;
 
 static uae_u8 *p96mem_offset;
 static uae_u8 *p96fakeram;
+static int p96fakeramsize;
+
+static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect) 
+{
+    void *p = VirtualAlloc (addr, size, allocationtype, protect);
+    if (p && memorylocking && os_winnt)
+	VirtualLock(p, size);
+    return p;
+}
+static void virtualfreewithlock(LPVOID addr, SIZE_T size, DWORD freetype)
+{
+    if (memorylocking && os_winnt)
+	VirtualUnlock(addr, size);
+    VirtualFree(addr, size, freetype);
+}
 
 void cache_free(void *cache)
 {
-    VirtualFree (cache, 0, MEM_RELEASE);
+    virtualfreewithlock(cache, 0, MEM_RELEASE);
 }
 
 void *cache_alloc(int size)
 {
-    uae_u8 *cache;
-    cache = VirtualAlloc (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-    return cache;
+    return virtualallocwithlock(NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
 void init_shm(void)
@@ -154,7 +169,6 @@ void mapped_free(uae_u8 *mem)
 	xfree (p96fakeram);
 	p96fakeram = NULL;
 	while(x) {
-	    struct shmid_ds blah;
 	    if (mem == x->native_address) {
 		int shmid = x->id;
 		shmids[shmid].key = -1;
@@ -275,9 +289,15 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    } else {
 		p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
 		shmaddr = natmem_offset + p96ram_start;
-		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-		xfree(p96fakeram);
-		result = p96fakeram = xcalloc (size + 4096, 1);
+		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
+		if (os_winnt) {
+		    virtualfreewithlock(p96fakeram, p96fakeramsize, MEM_RELEASE);
+		    p96fakeramsize = size + 4096;
+		    p96fakeram = virtualallocwithlock(NULL, p96fakeramsize, MEM_COMMIT, 0);
+		} else {
+		    xfree(p96fakeram);
+		    result = p96fakeram = xcalloc (size + 4096, 1);
+		}
 		shmids[shmid].attached = result;
 		return result;
 	    }
@@ -325,8 +345,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	got = FALSE;
 	if (got == FALSE) {
 	    if (shmaddr)
-		VirtualFree(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-	    result = VirtualAlloc(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96mode ? MEM_WRITE_WATCH : 0)),
+		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
+	    result = virtualallocwithlock(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96mode ? MEM_WRITE_WATCH : 0)),
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {
 		result = (void*)-1;
@@ -334,6 +354,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 		    size, size >> 10, GetLastError());
 	    } else {
+		if (memorylocking && os_winnt)
+		    VirtualLock(shmaddr, size);
 		shmids[shmid].attached = result; 
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
@@ -393,6 +415,8 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
     return result;
 }
 
+#endif
+
 int isinf(double x)
 {
     const int nClass = _fpclass(x);
@@ -403,11 +427,3 @@ int isinf(double x)
 	result = 0;
     return result;
 }
-
-int isnan(double x)
-{
-    int result = _isnan(x);
-    return result;
-}
-
-#endif

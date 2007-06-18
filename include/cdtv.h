@@ -20,7 +20,7 @@ int cdtv_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, char *filesys);
 
-extern void cdtv_getdmadata(int *);
+extern void cdtv_getdmadata(uae_u32*);
 
 #endif
 

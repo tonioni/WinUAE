@@ -271,7 +271,7 @@
 #define IDS_ROMSCANEND                  319
 #define IDS_ROM_AVAILABLE               320
 #define IDS_ROM_UNAVAILABLE             321
-#define IDS_HARDDRIVESAFETYWARNING      322
+#define IDS_HARDDRIVESAFETYWARNING1     322
 #define IDS_NUMSG_KS68EC020             323
 #define IDS_ROMSCANNOROMS               324
 #define IDS_NUMSG_KICKREP               325
@@ -282,6 +282,7 @@
 #define IDR_DBGACCEL                    330
 #define IDS_NUMSG_KS68030               331
 #define IDS_NUMSG_EXPROMNEED            332
+#define IDS_HARDDRIVESAFETYWARNING2     333
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -470,6 +471,7 @@
 #define IDC_NEW_HF                      1340
 #define IDC_NEW_HD                      1341
 #define IDC_PORT0                       1342
+#define IDC_NEW_FSARCH                  1342
 #define IDC_PORT1                       1343
 #define IDC_PATH_NAME                   1362
 #define IDC_SELECTOR                    1363
@@ -930,7 +932,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        253
+#define _APS_NEXT_RESOURCE_VALUE        334
 #define _APS_NEXT_COMMAND_VALUE         40029
 #define _APS_NEXT_CONTROL_VALUE         1773
 #define _APS_NEXT_SYMED_VALUE           101

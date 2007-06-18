@@ -248,7 +248,7 @@ static void *trap_thread (void *arg)
  */
 static void trap_HandleExtendedTrap (TrapHandler handler_func, int has_retval)
 {
-    struct ExtendedTrapContext *context = calloc (1, sizeof (ExtendedTrapContext));
+    struct ExtendedTrapContext *context = (struct ExtendedTrapContext*)calloc (1, sizeof (ExtendedTrapContext));
 
     if (context) {
 	uae_sem_init (&context->switch_to_trap_sem, 0, 0);
@@ -368,7 +368,7 @@ static uae_u32 REGPARAM2 m68k_return_handler (struct regstruct *regs)
 
     /* Get trap context from 68k stack. */
     sp = m68k_areg (regs, 7);
-    context = get_pointer(sp);
+    context = (struct ExtendedTrapContext*)get_pointer(sp);
     sp += sizeof (void *);
     m68k_areg (regs, 7) = sp;
 

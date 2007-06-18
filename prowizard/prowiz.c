@@ -322,7 +322,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       /* The player 6.0a (packed samples)? */
       if ( testP60A_pack() != BAD )
       {
-        write_log ( "\b\b\b\b\b\b\b\bThe Player 6.0A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P60A ();*/
         /*Depack_P60A ();*/
         continue;
@@ -339,7 +338,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       /* The player 6.1a (packed samples)? */
       if ( testP61A_pack() != BAD )
       {
-        write_log ( "\b\b\b\b\b\b\b\bThe Player 6.1A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P61A ();*/
         /*Depack_P61A ();*/
         continue;

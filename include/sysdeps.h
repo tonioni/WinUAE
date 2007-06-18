@@ -1,4 +1,7 @@
- /*
+#ifndef UAE_SYSDEPS_H
+#define UAE_SYSDEPS_H
+
+/*
   * UAE - The Un*x Amiga Emulator
   *
   * Try to include the right system headers and get other system-specific
@@ -530,4 +533,6 @@ extern void log_close(void *f);
 #  define bswap_16(x) (((x) >> 8) | (((x) & 0xFF) << 8))
 #  define bswap_32(x) (((x) << 24) | (((x) << 8) & 0x00FF0000) | (((x) >> 8) & 0x0000FF00) | ((x) >> 24))
 # endif
+#endif
+
 #endif

@@ -2762,19 +2762,19 @@ static void gen_opcode (unsigned long int opcode)
 	fpulimit();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tfpp_opp(opcode, regs, extra);\n");
+	printf ("\tfpuop_arithmetic(opcode, regs, extra);\n");
 	break;
     case i_FDBcc:
 	fpulimit();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tfdbcc_opp(opcode, regs, extra);\n");
+	printf ("\tfpuop_dbcc(opcode, regs, extra);\n");
 	break;
     case i_FScc:
 	fpulimit();
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tfscc_opp(opcode, regs, extra);\n");
+	printf ("\tfpuop_scc(opcode, regs, extra);\n");
 	break;
     case i_FTRAPcc:
 	fpulimit();
@@ -2784,7 +2784,7 @@ static void gen_opcode (unsigned long int opcode)
 	if (curi->smode != am_unknown && curi->smode != am_illg)
 	    genamode (curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tftrapcc_opp(opcode, regs, oldpc);\n");
+	printf ("\tfpuop_trapcc(opcode, regs, oldpc);\n");
 	break;
     case i_FBcc:
 	fpulimit();
@@ -2793,17 +2793,17 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuaecptr pc = m68k_getpc(regs);\n");
 	genamode (curi->dmode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tfbcc_opp(opcode,regs, pc,extra);\n");
+	printf ("\tfpuop_bcc(opcode,regs, pc,extra);\n");
 	break;
     case i_FSAVE:
 	fpulimit();
 	sync_m68k_pc ();
-	printf ("\tfsave_opp(opcode, regs);\n");
+	printf ("\tfpuop_save(opcode, regs);\n");
 	break;
     case i_FRESTORE:
 	fpulimit();
 	sync_m68k_pc ();
-	printf ("\tfrestore_opp(opcode, regs);\n");
+	printf ("\tfpuop_restore(opcode, regs);\n");
 	break;
 
      case i_CINVL:

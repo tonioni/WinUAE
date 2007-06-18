@@ -90,7 +90,7 @@ static int load_rom8 (char *xpath, uae_u8 *mem,	int extra)
     struct zfile *zf;
     char path[MAX_DPATH];
     int i;
-    uae_u8 *tmp = xmalloc (131072);
+    uae_u8 *tmp = (uae_u8*)xmalloc (131072);
     char *bin = extra == 1 ? ".bin" : "";
 
     memset (tmp, 0, 131072);
@@ -396,7 +396,7 @@ int arcadia_map_banks (void)
 {
     if (!arcadia_bios)
 	return 0;
-    arbmemory = xmalloc (allocated_arbmemory);
+    arbmemory = (uae_u8*)xmalloc (allocated_arbmemory);
     arbbmemory = arbmemory + bios_offset;
     memset (arbmemory, 0, allocated_arbmemory);
     if (!load_roms (arcadia_bios)) {

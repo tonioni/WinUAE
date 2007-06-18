@@ -185,7 +185,7 @@ static void create_virtual_rdb(struct hardfiledata *hfd, uae_u32 dostype, int bo
     int cyls = 262144 / (cyl * 512);
     int size = cyl * cyls * 512;
 
-    rdb = xcalloc (size, 1);
+    rdb = (uae_u8*)xcalloc (size, 1);
     hfd->virtual_rdb = rdb;
     hfd->virtual_size = size;
     part = rdb + 512;
@@ -1083,7 +1083,7 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 
 static void *hardfile_thread (void *devs)
 {
-    struct hardfileprivdata *hfpd = devs;
+    struct hardfileprivdata *hfpd = (struct hardfileprivdata*)devs;
 
     uae_set_thread_priority (2);
     hfpd->thread_running = 1;

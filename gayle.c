@@ -150,7 +150,7 @@ static int ide_drv, ide2, ide_splitter;
 
 static struct ide_hdf *ide;
 
-STATIC_INLINE pw(int offset, uae_u16 w)
+STATIC_INLINE void pw(int offset, uae_u16 w)
 {
     ide->secbuf[offset * 2 + 0] = (uae_u8)w;
     ide->secbuf[offset * 2 + 1] = w >> 8;
@@ -1201,7 +1201,7 @@ uae_u8 *save_gayle (int *len)
 
     if (currprefs.cs_ide <= 0)
 	return NULL;
-    dstbak = dst = malloc (1000);
+    dstbak = dst = (uae_u8*)malloc (1000);
     save_u8 (currprefs.cs_ide);
     save_u8 (gayle_intena);
     save_u8 (gayle_irq);
@@ -1218,7 +1218,7 @@ uae_u8 *save_ide (int num, int *len)
 	return NULL;
     if (ide->hdhfd.size == 0)
 	return NULL;
-    dstbak = dst = malloc (1000);
+    dstbak = dst = (uae_u8*)malloc (1000);
     save_u32(num);
     save_u64(ide->hdhfd.size);
     save_string(ide->hdhfd.path);

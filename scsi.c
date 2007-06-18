@@ -88,7 +88,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 
 struct scsi_data *scsi_alloc(int id, struct hd_hardfiledata *hfd)
 {
-    struct scsi_data *sd = xcalloc(sizeof (struct scsi_data), 1);
+    struct scsi_data *sd = (struct scsi_data*)xcalloc(sizeof (struct scsi_data), 1);
     sd->hfd = hfd;
     sd->id = id;
     sd->nativescsiunit = -1;
@@ -102,7 +102,7 @@ struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 	write_log("SCSI: native scsi unit %d failed to open\n", nativeunit);
 	return NULL;
     }
-    sd = xcalloc(sizeof (struct scsi_data), 1);
+    sd = (struct scsi_data*)xcalloc(sizeof (struct scsi_data), 1);
     sd->id = id;
     sd->nativescsiunit = nativeunit;
     return sd;

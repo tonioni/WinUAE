@@ -48,7 +48,7 @@ static int partcnt;
 static int first_frame = 1;
 
 static unsigned int StreamSizeAudio; // audio write position
-static unsigned int StreamSizeAudioExpected;
+static double StreamSizeAudioExpected;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 
@@ -661,14 +661,22 @@ static void AVIOuput_WAVWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
     fwrite (sndbuffer, 1, sndbufsize, wavfile);
 }
 
+static int skipsample;
+
 void AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 {
+    int size = sndbufsize;
+
     if (!avioutput_audio || !avioutput_enabled)
 	return;
+    if (skipsample > 0 && size > wfxSrc.nBlockAlign) {
+	size -= wfxSrc.nBlockAlign;
+	skipsample--;
+    }
     if (avioutput_audio == AVIAUDIO_WAV)
-	AVIOuput_WAVWriteAudio (sndbuffer, sndbufsize);
+	AVIOuput_WAVWriteAudio (sndbuffer, size);
     else
-	AVIOuput_AVIWriteAudio (sndbuffer, sndbufsize);
+	AVIOuput_AVIWriteAudio (sndbuffer, size);
 }
 
 static int getFromDC(LPBITMAPINFO lpbi)
@@ -1121,12 +1129,14 @@ void AVIOutput_Initialize(void)
 
 #include <math.h>
 
-#define ADJUST_SIZE 100
-#define EXP 1.5
+#define ADJUST_SIZE 10
+#define EXP 1.1
 
 void frame_drawn(void)
 {
+#if 0
     double diff, skipmode;
+#endif
     int idiff;
 
     if (!avioutput_video || !avioutput_enabled)
@@ -1139,12 +1149,22 @@ void frame_drawn(void)
 
     AVIOutput_WriteVideo();
 
-    if (!avioutput_audio || (frame_count % avioutput_fps))
+    if (!avioutput_audio)
 	return;
 
-    StreamSizeAudioExpected += currprefs.sound_freq;
+    StreamSizeAudioExpected += ((double)currprefs.sound_freq) / avioutput_fps;
     idiff = StreamSizeAudio - StreamSizeAudioExpected;
-    diff = idiff / 100.0;
+    if (idiff > 0) {
+	skipsample += idiff / 10;
+	if (skipsample > 4)
+	    skipsample = 4;
+    write_log("%d ", skipsample);
+    }
+    sound_setadjust (0.0);
+
+#if 0
+    write_log("%d ", idiff);
+    diff = idiff / 20.0;
     skipmode = pow (diff < 0 ? -diff : diff, EXP);
     if (idiff < 0)
 	skipmode = -skipmode;
@@ -1152,11 +1172,14 @@ void frame_drawn(void)
 	skipmode = -ADJUST_SIZE;
     if (skipmode > ADJUST_SIZE)
 	skipmode = ADJUST_SIZE;
+    write_log("%d/%.2f\n", idiff, skipmode);
 
     sound_setadjust (skipmode);
 
-    write_log("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
-	StreamSizeAudio, StreamSizeAudioExpected, idiff);
+    if (0 && !(frame_count % avioutput_fps))
+	write_log("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
+	    StreamSizeAudio, StreamSizeAudioExpected, idiff);
+#endif
 }
 
 

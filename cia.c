@@ -1232,10 +1232,12 @@ static uae_u8 rtc_memory[13], rtc_alarm[13];
 void rtc_hardreset(void)
 {
     if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	clock_bank.name = "Battery backed up clock (MSM6242B)";
 	clock_control_d = 0x1;
 	clock_control_e = 0;
 	clock_control_f = 0x4; /* 24/12 */
     } else if (currprefs.cs_rtc == 2) { /* RF5C01A */
+	clock_bank.name = "Battery backed up clock (RF5C01A)";
 	clock_control_d = 0x4; /* Timer EN */
 	clock_control_e = 0;
 	clock_control_f = 0;
@@ -1463,7 +1465,7 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (16 + 12 + 1 + 1);
+	dstbak = dst = (uae_u8*)malloc (16 + 12 + 1 + 1);
 
     compute_passed_time ();
 

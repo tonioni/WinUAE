@@ -36,6 +36,8 @@ struct hardfiledata {
     uae_u64 virtual_size;
 };
 
+#define HFD_FLAGS_REALDRIVE 1
+
 struct hd_hardfiledata {
     struct hardfiledata hfd;
     int bootpri;

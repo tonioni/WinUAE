@@ -325,13 +325,13 @@ extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
 extern void mmu_op       (uae_u32, struct regstruct *regs, uae_u32);
 extern void mmu_op30     (uaecptr, uae_u32, struct regstruct *regs, int, uaecptr);
 
-extern void fpp_opp      (uae_u32, struct regstruct *regs, uae_u16);
-extern void fdbcc_opp    (uae_u32, struct regstruct *regs, uae_u16);
-extern void fscc_opp     (uae_u32, struct regstruct *regs, uae_u16);
-extern void ftrapcc_opp  (uae_u32, struct regstruct *regs, uaecptr);
-extern void fbcc_opp     (uae_u32, struct regstruct *regs, uaecptr, uae_u32);
-extern void fsave_opp    (uae_u32, struct regstruct *regs);
-extern void frestore_opp (uae_u32, struct regstruct *regs);
+extern void fpuop_arithmetic(uae_u32, struct regstruct *regs, uae_u16);
+extern void fpuop_dbcc(uae_u32, struct regstruct *regs, uae_u16);
+extern void fpuop_scc(uae_u32, struct regstruct *regs, uae_u16);
+extern void fpuop_trapcc(uae_u32, struct regstruct *regs, uaecptr);
+extern void fpuop_bcc(uae_u32, struct regstruct *regs, uaecptr, uae_u32);
+extern void fpuop_save(uae_u32, struct regstruct *regs);
+extern void fpuop_restore(uae_u32, struct regstruct *regs);
 extern uae_u32 fpp_get_fpsr (const struct regstruct *regs);
 
 extern void exception3 (uae_u32 opcode, uaecptr addr, uaecptr fault);
@@ -381,7 +381,7 @@ void newcpu_showstate(void);
 #ifdef JIT
 extern void flush_icache(int n);
 extern void compemu_reset(void);
-extern void check_prefs_changed_comp (void);
+extern int check_prefs_changed_comp (void);
 #else
 #define flush_icache(X) do {} while (0)
 #endif

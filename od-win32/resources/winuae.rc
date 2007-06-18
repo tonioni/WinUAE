@@ -242,21 +242,22 @@ BEGIN
     RTEXT           "Disk label:",IDC_STATIC,14,216,52,10,SS_CENTERIMAGE
 END
 
-IDD_HARDDISK DIALOGEX 0, 0, 300, 231
+IDD_HARDDISK DIALOGEX 0, 0, 300, 240
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,182
-    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,5,186,64,15
-    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,74,186,64,15
-    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,143,186,65,15
-    PUSHBUTTON      "Remove",IDC_REMOVE,235,186,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,235,207,60,15
-    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,205,100,10
-    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,205,119,10
-    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,216,121,10
-    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,216,101,10
+    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,10,186,64,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,153,186,64,15
+    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,223,186,65,15
+    PUSHBUTTON      "Remove",IDC_REMOVE,232,207,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,232,225,60,15
+    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,209,100,10
+    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,209,119,10
+    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,220,121,10
+    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,101,10
+    PUSHBUTTON      "Add Archive...",IDC_NEW_FSARCH,82,186,64,15
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 231
@@ -1238,8 +1239,10 @@ STRINGTABLE
 BEGIN
     IDS_ROM_AVAILABLE       "available"
     IDS_ROM_UNAVAILABLE     "unavailable"
-    IDS_HARDDRIVESAFETYWARNING 
-                            "Warning: The safety test has been disabled, and non-empty hard disks were detected.\n\nHard disks marked with 'HD_*_' are not empty."
+    IDS_HARDDRIVESAFETYWARNING1 
+                            "Warning: The drive safety check is active. Selected drive is not empty and non-RDB partitioned."
+    IDS_HARDDRIVESAFETYWARNING2 
+                            "Warning: The drive safety check has been disabled, and non-empty and non-RDB partitioned hard disk(s) were detected."
     IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68020 with 24-bit addressing or higher CPU."
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."

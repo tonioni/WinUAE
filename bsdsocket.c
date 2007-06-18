@@ -364,7 +364,7 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
     SB;
     int i;
 
-    if ((sb = calloc (sizeof (struct socketbase), 1)) != NULL) {
+    if ((sb = (struct socketbase*)calloc (sizeof (struct socketbase), 1)) != NULL) {
 	sb->ownertask = gettask (context);
 
 	m68k_dreg (&context->regs, 0) = -1;
@@ -380,8 +380,8 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 
 	sb->dtablesize = DEFAULT_DTABLE_SIZE;
 	/* @@@ check malloc() result */
-	sb->dtable = malloc (sb->dtablesize * sizeof (*sb->dtable));
-	sb->ftable = malloc (sb->dtablesize * sizeof (*sb->ftable));
+	sb->dtable = (SOCKET*)malloc (sb->dtablesize * sizeof (*sb->dtable));
+	sb->ftable = (int*)malloc (sb->dtablesize * sizeof (*sb->ftable));
 
 	for (i = sb->dtablesize; i--;)
 	    sb->dtable[i] = -1;
@@ -407,7 +407,7 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 
 STATIC_INLINE struct socketbase *get_socketbase (TrapContext *context)
 {
-    return get_pointer (m68k_areg (&context->regs, 6) + offsetof (struct UAEBSDBase, sb));
+    return (struct socketbase*)get_pointer (m68k_areg (&context->regs, 6) + offsetof (struct UAEBSDBase, sb));
 }
 
 static void free_socketbase (TrapContext *context)
@@ -707,7 +707,7 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
     sb->dtablesize = newSize;
     free(sb->dtable);
     free(sb->ftable);
-    sb->dtable = newdtable;
+    sb->dtable = (SOCKET*)newdtable;
     sb->ftable = newftable;
     sb->resultval = 0;
     return 0;
@@ -1488,7 +1488,7 @@ void bsdlib_install (void)
     int i;
 
     if (!sockdata) {
-	sockdata = xcalloc (sizeof (struct sockd), 1);
+	sockdata = (struct sockd*)xcalloc (sizeof (struct sockd), 1);
         for (i = 0; i < SOCKPOOLSIZE; i++)
 	    sockdata->sockpoolids[i] = UNIQUE_ID;
     }

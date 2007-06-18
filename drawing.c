@@ -1141,8 +1141,8 @@ static void init_aspect_maps (void)
 	free (amiga2aspect_line_map);
 
     /* At least for this array the +1 is necessary. */
-    amiga2aspect_line_map = malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
-    native2amiga_line_map = malloc (sizeof (int) * gfxvidinfo.height);
+    amiga2aspect_line_map = (int*)malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
+    native2amiga_line_map = (int*)malloc (sizeof (int) * gfxvidinfo.height);
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
@@ -2256,9 +2256,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	}
 
 	check_prefs_changed_audio ();
-#ifdef JIT
-	check_prefs_changed_comp ();
-#endif
 	check_prefs_changed_custom ();
 	check_prefs_changed_cpu ();
 

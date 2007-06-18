@@ -10,6 +10,7 @@
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 
 #include <math.h>
+#include <float.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -199,6 +200,11 @@ static int get_fpu_version(void)
     return v;
 }
 
+#define fp_round_to_minus_infinity(x) fp_floor(x)
+#define fp_round_to_plus_infinity(x) fp_ceil(x)
+#define fp_round_to_zero(x) ((int)(x))
+#define fp_round_to_nearest(x) ((int)((x) + 0.5))
+
 STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
 {
     if (src < minval)
@@ -216,16 +222,24 @@ STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
 	return (tointtype)tmp_fp;
     }
 #else /* no X86_MSVC */
-    switch ((regs.fpcr >> 4) & 3) {
-    case 0: /* to nearest */
-	return (tointtype)floor (src + 0.5);
-    case 1: /* to zero */
-	return (tointtype)src;
-    case 2: /* down */
-	return (tointtype)floor (src);
-    case 3: /* up */
-	return (tointtype)ceil (src);
-  }
+    switch (get_fpcr() & 0x30) {
+	case FPCR_ROUND_ZERO:
+    	result = fp_round_to_zero(src);
+	break;
+	case FPCR_ROUND_MINF:
+	result = fp_round_to_minus_infinity(src);
+	break;
+	case FPCR_ROUND_NEAR:
+	result = fp_round_to_nearest(src);
+	break;
+	case FPCR_ROUND_PINF:
+	result = fp_round_to_plus_infinity(src);
+	break;
+	default:
+	result = src; /* should never be reached */
+	break;
+    }
+    return result;
 #endif
 }
 
@@ -674,9 +688,8 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
 
 STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
 {
-    int N = (regs.fp_result<0);
-    int Z = (regs.fp_result==0);
-    /* int I = (regs.fpsr & 0x2000000) != 0; */
+    int N = (regs.fp_result < 0.0);
+    int Z = (regs.fp_result == 0.0);
     int NotANumber = 0;
 
 #ifdef HAVE_ISNAN
@@ -744,11 +757,7 @@ STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
     case 0x1b:
 	return NotANumber || Z || !N;
     case 0x1c:
-#if 0
-	return NotANumber || (Z && N); /* This is wrong, compare 0x0c */
-#else
 	return NotANumber || (N && !Z);
-#endif
     case 0x1d:
 	return NotANumber || Z || N;
     case 0x1e:
@@ -759,7 +768,7 @@ STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
     return -1;
 }
 
-void fdbcc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
+void fpuop_dbcc (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 {
     uaecptr pc = (uae_u32) m68k_getpc (regs);
     uae_s32 disp = (uae_s32) (uae_s16) next_iword (regs);
@@ -782,7 +791,7 @@ void fdbcc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     }
 }
 
-void fscc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
+void fpuop_scc (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 {
     uae_u32 ad;
     int cc;
@@ -806,7 +815,7 @@ void fscc_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     }
 }
 
-void ftrapcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
+void fpuop_trapcc (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
 {
     int cc;
 
@@ -822,7 +831,7 @@ void ftrapcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
 	Exception (7, regs, oldpc - 2);
 }
 
-void fbcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extra)
+void fpuop_bcc (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extra)
 {
     int cc;
 
@@ -840,7 +849,7 @@ void fbcc_opp (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extra
     }
 }
 
-void fsave_opp (uae_u32 opcode, struct regstruct *regs)
+void fpuop_save (uae_u32 opcode, struct regstruct *regs)
 {
     uae_u32 ad;
     int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
@@ -910,7 +919,7 @@ void fsave_opp (uae_u32 opcode, struct regstruct *regs)
 	m68k_areg (regs, opcode & 7) = ad;
 }
 
-void frestore_opp (uae_u32 opcode, struct regstruct *regs)
+void fpuop_restore (uae_u32 opcode, struct regstruct *regs)
 {
     uae_u32 ad;
     uae_u32 d;
@@ -999,7 +1008,7 @@ static void fround (int reg)
     regs.fp[reg] = (float)regs.fp[reg];
 }
 
-void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
+void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 {
     int reg;
     fptype src;
@@ -1118,7 +1127,6 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		op_illg (opcode, regs);
 		return;
 	    }
-	    //ad = (opcode & 0x38) == 0x20 ? ad - 12 : ad;
 	    if((opcode & 0x38) == 0x20) {
 	    	if (extra & 0x1000)
 		    incr += 4;
@@ -1144,7 +1152,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    if ((opcode & 0x38) == 0x18)
 		m68k_areg (regs, opcode & 7) = ad;
 	    if ((opcode & 0x38) == 0x20)
-		m68k_areg (regs, opcode & 7) = ad - 12;
+		m68k_areg (regs, opcode & 7) = ad - incr;
 	}
 	return;
 
@@ -1178,26 +1186,34 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		incr = 1;
 		break;
 	    }
-	    while (list) {
-		uae_u32 wrd1, wrd2, wrd3;
-		if (incr < 0) {
-		    from_exten (regs->fp[fpp_movem_index2[list]], &wrd1, &wrd2, &wrd3);
-		    ad -= 4;
-		    put_long (ad, wrd3);
-		    ad -= 4;
-		    put_long (ad, wrd2);
-		    ad -= 4;
-		    put_long (ad, wrd1);
-		} else {
-		    from_exten (regs->fp[fpp_movem_index1[list]], &wrd1, &wrd2, &wrd3);
-		    put_long (ad, wrd1);
-		    ad += 4;
-		    put_long (ad, wrd2);
-		    ad += 4;
-		    put_long (ad, wrd3);
-		    ad += 4;
+	    if (incr < 0) {
+		for (reg = 7; reg >= 0; reg--) {
+		    uae_u32 wrd1, wrd2, wrd3;
+		    if (list & 0x80) {
+			from_exten (regs->fp[reg], &wrd1, &wrd2, &wrd3);
+			ad -= 4;
+			put_long (ad, wrd3);
+			ad -= 4;
+			put_long (ad, wrd2);
+			ad -= 4;
+			put_long (ad, wrd1);
+		    }
+		    list <<= 1;
 		}
-		list = fpp_movem_next[list];
+	    } else {
+		for (reg = 0; reg <= 7; reg++) {
+		    uae_u32 wrd1, wrd2, wrd3;
+		    if (list & 0x80) {
+			from_exten (regs->fp[reg], &wrd1, &wrd2, &wrd3);
+			put_long (ad, wrd1);
+			ad += 4;
+			put_long (ad, wrd2);
+			ad += 4;
+			put_long (ad, wrd3);
+			ad += 4;
+		    }
+		    list <<= 1;
+		}
 	    }
 	    if ((opcode & 0x38) == 0x18)
 		m68k_areg (regs, opcode & 7) = ad;
@@ -1228,26 +1244,34 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		incr = 1;
 		break;
 	    }
-	    while (list) {
-		uae_u32 wrd1, wrd2, wrd3;
-		if (incr < 0) {
-		    ad -= 4;
-		    wrd3 = get_long (ad);
-		    ad -= 4;
-		    wrd2 = get_long (ad);
-		    ad -= 4;
-		    wrd1 = get_long (ad);
-		    regs->fp[fpp_movem_index2[list]] = to_exten (wrd1, wrd2, wrd3);
-		} else {
-		    wrd1 = get_long (ad);
-		    ad += 4;
-		    wrd2 = get_long (ad);
-		    ad += 4;
-		    wrd3 = get_long (ad);
-		    ad += 4;
-		    regs->fp[fpp_movem_index1[list]] = to_exten (wrd1, wrd2, wrd3);
+	    if (incr < 0) {
+		for (reg = 7; reg >= 0; reg--) {
+		    uae_u32 wrd1, wrd2, wrd3;
+		    if (list & 0x80) {
+			ad -= 4;
+			wrd3 = get_long (ad);
+			ad -= 4;
+			wrd2 = get_long (ad);
+			ad -= 4;
+			wrd1 = get_long (ad);
+			regs->fp[reg] = to_exten(wrd1, wrd2, wrd3);
+		    }
+		    list <<= 1;
 		}
-		list = fpp_movem_next[list];
+	    } else {
+		for (reg = 0; reg <= 7; reg++) {
+		    uae_u32 wrd1, wrd2, wrd3;
+		    if (list & 0x80) {
+			wrd1 = get_long (ad);
+			ad += 4;
+			wrd2 = get_long (ad);
+			ad += 4;
+			wrd3 = get_long (ad);
+			ad += 4;
+			regs->fp[reg] = to_exten(wrd1, wrd2, wrd3);
+		    }
+		    list <<= 1;
+		}
 	    }
 	    if ((opcode & 0x38) == 0x18)
 		m68k_areg (regs, opcode & 7) = ad;
@@ -1333,7 +1357,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		op_illg (opcode, regs);
 		return;
 	    }
-	    MAKE_FPSR (regs, regs->fp[reg]); /* see Motorola 68k Manual */
+	    MAKE_FPSR (regs, regs->fp[reg]);
 	    return;
 	}
 	if (get_fp_value (opcode, extra, &src) == 0) {
@@ -1391,10 +1415,7 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    regs->fp[reg] = sinh (src);
 	    break;
 	case 0x03: /* FINTRZ */
-	    if (src >= 0.0)
-		regs->fp[reg] = floor (src);
-	    else
-		regs->fp[reg] = ceil (src);
+	    regs->fp[reg] = fp_round_to_zero(src);
 	    break;
 	case 0x04: /* FSQRT */
 	case 0x41:
@@ -1474,15 +1495,23 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    break;
 	case 0x1e: /* FGETEXP */
 	    {
-	      int expon;
-	      frexp (src, &expon);
-	      regs->fp[reg] = (double) (expon - 1);
+		if (src == 0) {
+		    regs->fp[reg] = 0;
+		} else {
+		    int expon;
+		    frexp (src, &expon);
+		    regs->fp[reg] = (double) (expon - 1);
+		}
 	    }
 	    break;
 	case 0x1f: /* FGETMAN */
 	    {
-	      int expon;
-	      regs->fp[reg] = frexp (src, &expon) * 2.0;
+		if (src == 0) {
+		    regs->fp[reg] = 0;
+		} else {
+		  int expon;
+		  regs->fp[reg] = frexp (src, &expon) * 2.0;
+		}
 	    }
 	    break;
 	case 0x20: /* FDIV */
@@ -1494,12 +1523,8 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    break;
 	case 0x21: /* FMOD */
 	    {
-	      fptype divi = regs->fp[reg] / src;
-
-	      if (divi >= 0.0)
-		regs->fp[reg] -= src * floor (divi);
-	      else
-		regs->fp[reg] -= src * ceil (divi);
+		fptype quot = fp_round_to_zero(regs->fp[reg] / src);
+		regs->fp[reg] = regs->fp[reg] - quot * src;
 	    }
 	    break;
 	case 0x22: /* FADD */
@@ -1520,14 +1545,19 @@ void fpp_opp (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    regs->fp[reg] /= src;
 	    break;
 	case 0x25: /* FREM */
-	    regs->fp[reg] -= src * floor ((regs->fp[reg] / src) + 0.5);
+	    {
+		fptype quot = fp_round_to_nearest(regs->fp[reg] / src);
+		regs->fp[reg] = regs->fp[reg] - quot * src;
+	    }
 	    break;
 	case 0x26: /* FSCALE */
+	    if (src != 0) {
 #ifdef ldexp
-	    regs->fp[reg] = ldexp (regs->fp[reg], (int) src);
+		regs->fp[reg] = ldexp (regs->fp[reg], (int) src);
 #else
-	    regs->fp[reg] *= exp (*fp_ln_2 * (int) src);
+		regs->fp[reg] *= exp (*fp_ln_2 * (int) src);
 #endif
+	    }
 	    break;
 	case 0x27: /* FSGLMUL */
 	    regs->fp[reg] *= src;
@@ -1609,7 +1639,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc(4+4+8*10+4+4+4+4+4);
+	dstbak = dst = (uae_u8*)malloc(4+4+8*10+4+4+4+4+4);
     save_u32 (currprefs.fpu_model);
     save_u32 (0x80000000);
     for (i = 0; i < 8; i++) {

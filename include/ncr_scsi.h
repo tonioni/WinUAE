@@ -1,4 +1,4 @@
-void ncr_bput2(uacptr, uae_u32);
+void ncr_bput2(uaecptr, uae_u32);
 uae_u32 ncr_bget2(uaecptr);
 
 extern void ncr_init(void);

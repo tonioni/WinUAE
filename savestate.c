@@ -196,7 +196,7 @@ char *restore_string_func (uae_u8 **dstp)
     uae_u8 *dst = *dstp;
     char *top, *to;
     len = strlen(dst) + 1;
-    top = to = malloc (len);
+    top = to = (char*)malloc (len);
     do {
 	v = *dst++;
 	*top++ = v;
@@ -311,7 +311,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *
 	&& strcmp (name, "PRAM") != 0)
     {
 	/* without zeros at the end old state files may not work */
-	mem = calloc (1, len2 + 32);
+	mem = (uae_u8*)calloc (1, len2 + 32);
 	zfile_fread (mem, 1, len2, f);
     } else {
 	mem = 0;
@@ -604,7 +604,7 @@ int save_state (char *filename, char *description)
 	    int len, len2, i;
 	    uae_u8 *tmp;
 	    len = zfile_ftell(f) - pos;
-	    tmp = xmalloc(len);
+	    tmp = (uae_u8*)xmalloc(len);
 	    zfile_fseek(f, pos, SEEK_SET);
 	    len2 = zfile_fread(tmp, 1, len, f);
 	    for (i = 0; i < len2; i++)
@@ -1089,7 +1089,7 @@ void savestate_init (void)
     frameextra = 0;
     if (currprefs.statecapture && currprefs.statecapturebuffersize && currprefs.statecapturerate) {
 	replaybuffersize = currprefs.statecapturebuffersize;
-	replaybuffer = malloc (replaybuffersize);
+	replaybuffer = (uae_u8*)malloc (replaybuffersize);
     }
 }
 

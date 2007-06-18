@@ -1,4 +1,38 @@
 
+Beta 5:
+
+- JIT on/off switching via uae-configuration re-enables direct mode
+  This time it really should work as designed.
+- video recording sound pitch change fix (side-effects possible..)
+- random FPU fixes from Aranym (which btw, isn't feature complete
+  either, at least float to integer clamping is missing)
+- rom scanner uses SHA-1 now (instead of CRC32)
+- archive as a harddrive emulation. Data is decompressed on the fly.
+  Only directory tree is allocated in memory during mount-phase.
+  "file not found error" will be returned if decompression fails
+  (corrupt archive?) Already decompressed files will be left in
+  memory (memory is cheap, repeated decompression can be slow)
+- archive support completely rewritten (memory/file leaks possible)
+  Recursive decompression possible (not yet enabled and not fully
+  implemented), not sure if I enable it later or not.. (would
+  enable transparent archives inside archives inside archives etc..)
+- work in progress (this is really crazy idea..): xfd (Amiga
+  decompression library) slave library support via separate 68k
+  emulation instance :D Crazy or very stupid idea, not sure yet..
+  It would enable full transparent decompression support of nearly
+  every Amiga compression format..
+- built-in lha/lzh archive support added
+- built-in lzx archive support added (store mode not supported yet)
+- "add directory/archive" harddrives: only path is mandatory, volume
+  name (if left empty) is automatically generated from selected path
+- added "add archive" harddrive type. Single plain file also accepted.
+- real harddrive "safety check" system changed, now all drives are
+  listed (and marked as empty,non-empty or RDB) but drive is not
+  mounted if safety check is not disabled and drive is non-empty.
+- disable "add harddrive" on vista without full admin privileges
+- harddisk panel directory and archive dragndrop added
+
+
 Beta 4:
 
 - return SCSI-1 style inquiry response when using A590/A2091 SCSI

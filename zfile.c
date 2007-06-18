@@ -4,7 +4,7 @@
   * routines to handle compressed file automatically
   *
   * (c) 1996 Samuel Devulder, Tim Gunn
-  *     2002-2004 Toni Wilen
+  *     2002-2007 Toni Wilen
   */
 
 #define ZLIB_WINAPI
@@ -14,36 +14,25 @@
 
 #include "options.h"
 #include "zfile.h"
-#include "unzip.h"
 #include "disk.h"
-#include "dms/pfile.h"
 #include "gui.h"
 #include "crc32.h"
 #include "fsdb.h"
+#include "fsusage.h"
+#include "zarchive.h"
 
-#include <zlib.h>
-
-struct zfile {
-    char *name;
-    char *zipname;
-    FILE *f;
-    uae_u8 *data;
-    int size;
-    int seek;
-    int deleteafterclose;
-    struct zfile *next;
-    int writeskipbytes;
-};
+#include "archivers/zip/unzip.h"
+#include "archivers/dms/pfile.h"
 
 static struct zfile *zlist = 0;
 
-const char *uae_archive_extensions[] = { "zip", "rar", "7z", NULL };
+const char *uae_archive_extensions[] = { "zip", "rar", "7z", "lha", "lzh", "lzx", NULL };
 
 static struct zfile *zfile_create (void)
 {
     struct zfile *z;
 
-    z = malloc (sizeof *z);
+    z = (struct zfile*)malloc (sizeof *z);
     if (!z)
 	return 0;
     memset (z, 0, sizeof *z);
@@ -147,74 +136,6 @@ int zfile_gettype (struct zfile *z)
     return ZFILE_UNKNOWN;
 }
 
-#if 0
-#define TMP_PREFIX "uae_"
-
-static struct zfile *createinputfile (struct zfile *z)
-{
-    FILE *f;
-    struct zfile *z2;
-    char *name;
-
-    z2 = zfile_create ();
-    if (!z->data) {
-	z2->name = strdup (z->name);
-	return z2;
-    }
-    name = tempnam (0, TMP_PREFIX);
-    f = fopen (name, "wb");
-    if (!f) return 0;
-    write_log ("created temporary file '%s'\n", name);
-    fwrite (z->data, z->size, 1, f);
-    fclose (f);
-    z2->name = name;
-    z2->deleteafterclose = 1;
-    return z2;
-}
-
-static struct zfile *createoutputfile (struct zfile *z)
-{
-    struct zfile *z2;
-    char *name;
-
-    name = tempnam (0, TMP_PREFIX);
-    z2 = zfile_create ();
-    z2->name = name;
-    z2->deleteafterclose = 1;
-    write_log ("allocated temporary file name '%s'\n", name);
-    return z2;
-}
-
-/* we want to delete temporary files as early as possible */
-static struct zfile *updateoutputfile (struct zfile *z)
-{
-    struct zfile *z2 = 0;
-    int size;
-    FILE *f = fopen (z->name, "rb");
-    for (;;) {
-	if (!f)
-	    break;
-	fseek (f, 0, SEEK_END);
-	size = ftell (f);
-	fseek (f, 0, SEEK_SET);
-	if (!size)
-	    break;
-	z2 = zfile_fopen_empty (z->name, size);
-	if (!z2)
-	    break;
-	fread (z2->data, size, 1, f);
-	fclose (f);
-	zfile_fclose (z);
-	return z2;
-    }
-    if (f)
-	fclose (f);
-    zfile_fclose (z);
-    zfile_fclose (z2);
-    return 0;
-}
-#endif
-
 static struct zfile *zuncompress (struct zfile *z);
 
 struct zfile *zfile_gunzip (struct zfile *z)
@@ -298,17 +219,6 @@ struct zfile *zfile_gunzip (struct zfile *z)
     return z2;
 }
 
-
-static struct zfile *bunzip (const char *decompress, struct zfile *z)
-{
-    return z;
-}
-
-static struct zfile *lha (struct zfile *z)
-{
-    return z;
-}
-
 static struct zfile *dms (struct zfile *z)
 {
     int ret;
@@ -323,22 +233,6 @@ static struct zfile *dms (struct zfile *z)
     }
     return z;
 }
-
-#if 0
-static struct zfile *dms (struct zfile *z)
-{
-    char cmd[2048];
-    struct zfile *zi = createinputfile (z);
-    struct zfile *zo = createoutputfile (z);
-    if (zi && zo) {
-	sprintf(cmd, "xdms -q u \"%s\" +\"%s\"", zi->name, zo->name);
-	execute_command (cmd);
-    }
-    zfile_fclose (zi);
-    zfile_fclose (z);
-    return updateoutputfile (zo);
-}
-#endif
 
 const char *uae_ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
@@ -371,582 +265,16 @@ int zfile_isdiskimage (const char *name)
     return 0;
 }
 
-#define ArchiveFormat7Zip '7z  '
-#define ArchiveFormatRAR 'rar '
-#define ArchiveFormatZIP 'zip '
 
-#if defined(ARCHIVEACCESS)
-
-struct aaFILETIME
-{
-    uae_u32 dwLowDateTime;
-    uae_u32 dwHighDateTime;
-};
-typedef void* aaHandle;
-// This struct contains file information from an archive. The caller may store 
-// this information for accessing this file after calls to findFirst, findNext
-#define FileInArchiveInfoStringSize 1024
-struct aaFileInArchiveInfo {
-	int ArchiveHandle; // handle for Archive/class pointer
-	uae_u64 CompressedFileSize;
-	uae_u64 UncompressedFileSize;
-	uae_u32 attributes;
-	int IsDir, IsEncrypted;
-	struct aaFILETIME LastWriteTime;
-	char path[FileInArchiveInfoStringSize];
-};
-
-typedef HRESULT (__stdcall *aaReadCallback)(int StreamID, uae_u64 offset, uae_u32 count, void* buf, uae_u32 *processedSize);
-typedef HRESULT (__stdcall *aaWriteCallback)(int StreamID, uae_u64 offset, uae_u32 count, const void *buf, uae_u32 *processedSize);
-typedef aaHandle (__stdcall *aapOpenArchive)(aaReadCallback function, int StreamID, uae_u64 FileSize, int ArchiveType, int *result, char *password);
-typedef int (__stdcall *aapGetFileCount)(aaHandle ArchiveHandle);
-typedef int (__stdcall *aapGetFileInfo)(aaHandle ArchiveHandle, int FileNum, struct aaFileInArchiveInfo *FileInfo);
-typedef int (__stdcall *aapExtract)(aaHandle ArchiveHandle, int FileNum, int StreamID, aaWriteCallback WriteFunc, uae_u64 *written);
-typedef int (__stdcall *aapCloseArchive)(aaHandle ArchiveHandle);
-
-static aapOpenArchive aaOpenArchive;
-static aapGetFileCount aaGetFileCount;
-static aapGetFileInfo aaGetFileInfo;
-static aapExtract aaExtract;
-static aapCloseArchive aaCloseArchive;
-
-#ifdef _WIN32
-#include <windows.h>
-#include "win32.h"
-static HMODULE arcacc_mod;
-
-static void arcacc_free (void)
-{
-    if (arcacc_mod)
-	FreeLibrary (arcacc_mod);
-    arcacc_mod = NULL;
-}
-
-static int arcacc_init (void)
-{
-    if (arcacc_mod)
-	return 1;
-    arcacc_mod = WIN32_LoadLibrary ("archiveaccess.dll");
-    if (!arcacc_mod) {
-	write_log ("failed to open archiveaccess.dll\n");
-	return 0;
-    }
-    aaOpenArchive = (aapOpenArchive) GetProcAddress (arcacc_mod, "aaOpenArchive");
-    aaGetFileCount = (aapGetFileCount) GetProcAddress (arcacc_mod, "aaGetFileCount");
-    aaGetFileInfo = (aapGetFileInfo) GetProcAddress (arcacc_mod, "aaGetFileInfo");
-    aaExtract = (aapExtract) GetProcAddress (arcacc_mod, "aaExtract");
-    aaCloseArchive = (aapCloseArchive) GetProcAddress (arcacc_mod, "aaCloseArchive");
-    if (!aaOpenArchive || !aaGetFileCount || !aaGetFileInfo || !aaExtract || !aaCloseArchive) {
-	write_log ("Missing functions in archiveaccess.dll. Old version?\n");
-	arcacc_free ();
-	return 0;
-    }
-    return 1;
-}
-#endif
-
-#define ARCACC_STACKSIZE 10
-static struct zfile *arcacc_stack[ARCACC_STACKSIZE];
-static int arcacc_stackptr = -1;
-
-static int arcacc_push (struct zfile *f)
-{
-    if (arcacc_stackptr == ARCACC_STACKSIZE - 1)
-	return -1;
-    arcacc_stackptr++;
-    arcacc_stack[arcacc_stackptr] = f;
-    return arcacc_stackptr;
-}
-static void arcacc_pop (void)
-{
-    arcacc_stackptr--;
-}
-
-static HRESULT __stdcall readCallback (int StreamID, uae_u64 offset, uae_u32 count, void *buf, uae_u32 *processedSize)
-{
-    struct zfile *f = arcacc_stack[StreamID];
-    int ret;
-
-    zfile_fseek (f, (long)offset, SEEK_SET);
-    ret = zfile_fread (buf, 1, count, f);
-    if (processedSize)
-	*processedSize = ret;
-    return 0;
-}
-static HRESULT __stdcall writeCallback (int StreamID, uae_u64 offset, uae_u32 count, const void *buf, uae_u32 *processedSize)
-{
-    struct zfile *f = arcacc_stack[StreamID];
-    int ret;
-
-    ret = zfile_fwrite ((void*)buf, 1, count, f);
-    if (processedSize)
-	*processedSize = ret;
-    if (ret != count)
-	return -1;
-    return 0;
-}
-
-static struct zfile *arcacc_unpack (struct zfile *z, int type)
-{
-    aaHandle ah;
-    int status, f;
-    char tmphist[MAX_DPATH];
-    int first = 1;
-    int we_have_file = 0;
-    int size, id_r, id_w;
-    struct zfile *zf;
-    int skipsize = 0;
-
-    tmphist[0] = 0;
-    zf = 0;
-    if (!arcacc_init ())
-	return z;
-    id_r = arcacc_push (z);
-    zfile_fseek (z, 0, SEEK_END);
-    size = zfile_ftell (z);
-    zfile_fseek (z, 0, SEEK_SET);
-    ah = aaOpenArchive (readCallback, id_r, size, type, &status, NULL);
-    if (!status) {
-	int fc = aaGetFileCount (ah);
-	int zipcnt = 0;
-	for (f = 0; f < fc; f++) {
-	    struct aaFileInArchiveInfo fi;
-	    char *name;
-
-	    zipcnt++;
-	    memset (&fi, 0, sizeof (fi));
-	    aaGetFileInfo (ah, f, &fi);
-	    if (fi.IsDir)
-		continue;
-
-	    name = fi.path;
-	    if (!zfile_is_ignore_ext(name)) {
-		int select = 0;
-		if (tmphist[0]) {
-		    DISK_history_add (tmphist, -1);
-		    tmphist[0] = 0;
-		    first = 0;
-		}
-		if (first) {
-		    if (zfile_isdiskimage (name))
-			sprintf (tmphist,"%s/%s", z->name, name);
-		} else {
-		    sprintf (tmphist,"%s/%s", z->name, name);
-		    DISK_history_add (tmphist, -1);
-		    tmphist[0] = 0;
-		}
-		if (!z->zipname)
-		    select = 1;
-		if (z->zipname && !strcasecmp (z->zipname, name))
-		    select = -1;
-		if (z->zipname && z->zipname[0] == '#' && atol (z->zipname + 1) == zipcnt)
-		    select = -1;
-		if (select && !we_have_file) {
-
-		    zf = zfile_fopen_empty (name, (int)fi.UncompressedFileSize);
-		    if (zf) {
-			int err;
-			uae_u64 written = 0;
-			zf->writeskipbytes = skipsize;
-			id_w = arcacc_push (zf);
-			err = aaExtract (ah, f, id_w, writeCallback, &written);
-			if (zf->seek != fi.UncompressedFileSize)
-			    write_log ("%s unpack failed, got only %d bytes\n", name, zf->seek);
-			if (zf->seek == fi.UncompressedFileSize && (select < 0 || zfile_gettype (zf)))
-			    we_have_file = 1;
-			 if (!we_have_file) {
-			    zfile_fclose (zf);
-			    zf = 0;
-			}
-			arcacc_pop ();
-		    }
-		}
-	    }
-	    if (type == ArchiveFormat7Zip) {
-		if (fi.CompressedFileSize)
-		    skipsize = 0;
-		skipsize += (int)fi.UncompressedFileSize;
-	    }
-	}
-        aaCloseArchive (ah);
-    }
-    arcacc_pop ();
-    if (zf) {
-	zfile_fclose (z);
-	z = zf;
-	zfile_fseek (z, 0, SEEK_SET);
-    }
-    return z;
-}
-
-#endif
-
-
-#include "7z/7zCrc.h"
-#include "7z/7zIn.h"
-#include "7z/7zExtract.h"
-
-typedef struct _CFileInStream
-{
-  ISzInStream InStream;
-  struct zfile *zf;
-} CFileInStream;
-
-static CFileInStream archiveStream;
-static CArchiveDatabaseEx db;
-static ISzAlloc allocImp;
-static ISzAlloc allocTempImp;
-
-static SZ_RESULT SzFileReadImp(void *object, void *buffer, size_t size, size_t *processedSize)
-{
-  CFileInStream *s = (CFileInStream *)object;
-  size_t processedSizeLoc = zfile_fread(buffer, 1, size, s->zf);
-  if (processedSize != 0)
-    *processedSize = processedSizeLoc;
-  return SZ_OK;
-}
-
-static SZ_RESULT SzFileSeekImp(void *object, CFileSize pos)
-{
-  CFileInStream *s = (CFileInStream *)object;
-  int res = zfile_fseek(s->zf, pos, SEEK_SET);
-  if (res == 0)
-    return SZ_OK;
-  return SZE_FAIL;
-}
-
-static void init_7z(void)
-{
-    static int initialized;
- 
-    if (initialized)
-	return;
-    initialized = 1;
-    archiveStream.InStream.Read = SzFileReadImp;
-    archiveStream.InStream.Seek = SzFileSeekImp;
-    allocImp.Alloc = SzAlloc;
-    allocImp.Free = SzFree;
-    allocTempImp.Alloc = SzAllocTemp;
-    allocTempImp.Free = SzFreeTemp;
-    InitCrcTable();
-}
-
-static struct zfile *un7z (struct zfile *z)
-{
-    SZ_RESULT res;
-    int i;
-    static int first = 1;
-    char tmphist[MAX_DPATH];
-    struct zfile *zf;
-    int zipcnt = 0;
-    int we_have_file = 0;
-
-    init_7z();
-    SzArDbExInit(&db);
-    tmphist[0] = 0;
-    zf = 0;
-    archiveStream.zf = z;
-    res = SzArchiveOpen(&archiveStream.InStream, &db, &allocImp, &allocTempImp);
-    if (res != SZ_OK)
-	return z;
-    for (i = 0; i < db.Database.NumFiles; i++) {
-	int select = 0;
-	size_t offset;
-	size_t outSizeProcessed;
-	CFileItem *f = db.Database.Files + i;
-	char *name = f->Name;
-
-	zipcnt++;
-	if (f->IsDirectory)
-	    continue;
-	if (zfile_is_ignore_ext(name))
-	    continue;
-	if (tmphist[0]) {
-	    DISK_history_add (tmphist, -1);
-	    tmphist[0] = 0;
-	    first = 0;
-	}
-	if (first) {
-	    if (zfile_isdiskimage (name))
-		sprintf (tmphist,"%s/%s", z->name, name);
-	} else {
-	    sprintf (tmphist,"%s/%s", z->name, name);
-	    DISK_history_add (tmphist, -1);
-	    tmphist[0] = 0;
-	}
-	if (!z->zipname)
-	    select = 1;
-	if (z->zipname && !strcasecmp (z->zipname, name))
-	    select = -1;
-	if (z->zipname && z->zipname[0] == '#' && atol (z->zipname + 1) == zipcnt)
-	    select = -1;
-	if (select && !we_have_file) {
-	    zf = zfile_fopen_empty (name, f->Size);
-	    if (zf) {
-		uae_u32 blockIndex = 0xffffffff;
-		uae_u8 *outBuffer = 0;
-		size_t outBufferSize = 0;
-		res = SzExtract(&archiveStream.InStream, &db, i, 
-		    &blockIndex, &outBuffer, &outBufferSize, 
-		    &offset, &outSizeProcessed, 
-		    &allocImp, &allocTempImp);
-		if (res == SZ_OK) {
-		    zfile_fwrite (outBuffer + offset, 1, outSizeProcessed, zf);
-		    if (select < 0 || zfile_gettype(zf))
-			we_have_file = 1;
-		}
-		allocImp.Free(outBuffer);
-		if (!we_have_file) {
-		    zfile_fclose (zf);
-		    zf = 0;
-		}
-	    }
-	}
-    }
-    SzArDbExFree(&db, allocImp.Free);
-    if (zf) {
-	zfile_fclose (z);
-	z = zf;
-	zfile_fseek (z, 0, SEEK_SET);
-    }
-    return z;
-}
-
-/* copy and paste job? you are only imagining it! */
-static struct zfile *rarunpackzf; /* stupid unrar.dll */
-#include <unrar.h>
-typedef HANDLE (_stdcall* RAROPENARCHIVE)(struct RAROpenArchiveData*);
-static RAROPENARCHIVE pRAROpenArchive;
-typedef int (_stdcall* RARREADHEADEREX)(HANDLE,struct RARHeaderDataEx*);
-static RARREADHEADEREX pRARReadHeaderEx;
-typedef int (_stdcall* RARPROCESSFILE)(HANDLE,int,char*,char *);
-static RARPROCESSFILE pRARProcessFile;
-typedef int (_stdcall* RARCLOSEARCHIVE)(HANDLE);
-static RARCLOSEARCHIVE pRARCloseArchive;
-typedef void (_stdcall* RARSETCALLBACK)(HANDLE,UNRARCALLBACK,LONG);
-static RARSETCALLBACK pRARSetCallback;
-typedef int (_stdcall* RARGETDLLVERSION)(void);
-static RARGETDLLVERSION pRARGetDllVersion;
-
-static int rar_resetf(struct zfile *z)
-{
-    z->f = fopen (z->name, "rb");
-    if (!z->f) {
-        zfile_fclose (z);
-        return 0;
-    }
-    return 1;
-}
-
-static int canrar(void)
-{
-    static int israr;
-    HMODULE rarlib;
-
-    if (israr == 0) {
-	israr = -1;
-	rarlib = WIN32_LoadLibrary("unrar.dll");
-	if (rarlib) {
-	    pRAROpenArchive = (RAROPENARCHIVE)GetProcAddress (rarlib, "RAROpenArchive");
-	    pRARReadHeaderEx = (RARREADHEADEREX)GetProcAddress (rarlib, "RARReadHeaderEx");
-	    pRARProcessFile = (RARPROCESSFILE)GetProcAddress (rarlib, "RARProcessFile");
-	    pRARCloseArchive = (RARCLOSEARCHIVE)GetProcAddress (rarlib, "RARCloseArchive");
-	    pRARSetCallback = (RARSETCALLBACK)GetProcAddress (rarlib, "RARSetCallback");
-	    pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
-	    if (pRAROpenArchive && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
-		israr = 1;
-		write_log ("unrar.dll version %08.8X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
-
-	    }
-	}
-    }
-    return israr < 0 ? 0 : 1;
-}
-
-static int CALLBACK RARCallbackProc(UINT msg,LONG UserData,LONG P1,LONG P2)
-{
-    if (msg == UCM_PROCESSDATA) {
-	zfile_fwrite((uae_u8*)P1, 1, P2, rarunpackzf);
-	return 0;
-    }
-    return -1;
-}
-static struct zfile *unrar (struct zfile *z)
-{
-    HANDLE hArcData;
-    static int first = 1;
-    char tmphist[MAX_DPATH];
-    struct zfile *zf;
-    int zipcnt;
-    int we_have_file = 0;
-
-    struct RARHeaderDataEx HeaderData;	
-    struct RAROpenArchiveData OpenArchiveData;
-
-    if (!canrar())
-	return arcacc_unpack (z, ArchiveFormatRAR);
-
-    if (z->data)
-	 /* wtf? stupid unrar.dll only accept filename as an input.. */
-	return arcacc_unpack (z, ArchiveFormatRAR);
-    fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
-    z->f = NULL;
-    zf = 0;
-    memset(&OpenArchiveData,0,sizeof(OpenArchiveData));
-    OpenArchiveData.ArcName=z->name;
-    OpenArchiveData.OpenMode=RAR_OM_EXTRACT;
-    hArcData=pRAROpenArchive(&OpenArchiveData);
-    if (OpenArchiveData.OpenResult!=0) {
-	if (!rar_resetf(z))
-	    return NULL;
-	return arcacc_unpack (z, ArchiveFormatRAR);
-    }
-    pRARSetCallback(hArcData,RARCallbackProc,0);
-    tmphist[0] = 0;
-    zipcnt = 0;
-    while (pRARReadHeaderEx(hArcData,&HeaderData)==0) {
-	int select = 0;
-	int needskip = 1;
-	char *name = HeaderData.FileName;
-	zipcnt++;
-	if (zfile_is_ignore_ext(name))
-	    continue;
-	if (tmphist[0]) {
-	    DISK_history_add (tmphist, -1);
-	    tmphist[0] = 0;
-	    first = 0;
-	}
-	if (first) {
-	    if (zfile_isdiskimage (name))
-		sprintf (tmphist,"%s/%s", z->name, name);
-	} else {
-	    sprintf (tmphist,"%s/%s", z->name, name);
-	    DISK_history_add (tmphist, -1);
-	    tmphist[0] = 0;
-	}
-	if (!z->zipname)
-	    select = 1;
-	if (z->zipname && !strcasecmp (z->zipname, name))
-	    select = -1;
-	if (z->zipname && z->zipname[0] == '#' && atol (z->zipname + 1) == zipcnt)
-	    select = -1;
-	if (select && !we_have_file && HeaderData.UnpSize > 0) {
-	    zf = zfile_fopen_empty (name, HeaderData.UnpSize);
-	    rarunpackzf = zf;
-	    if (zf && pRARProcessFile(hArcData,RAR_TEST,NULL,NULL) == 0) {
-		needskip = 0;
-		if (select < 0 || zfile_gettype(zf))
-		    we_have_file = 1;
-		if (!we_have_file) {
-		    zfile_fclose (zf);
-		    zf = 0;
-		}
-	    }
-	}
-	if (needskip)
-	    pRARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
-    }
-    pRARCloseArchive(hArcData);
-    if (zf) {
-	zfile_fclose (z);
-	z = zf;
-	zfile_fseek (z, 0, SEEK_SET);
-    } else {
-	/* bleh continues, reopen the closed archive.. */
-	if (!rar_resetf(z)) 
-	    z = NULL;
-    }
-    return z;
-}
-
-static struct zfile *unzip (struct zfile *z)
-{
-    unzFile uz;
-    unz_file_info file_info;
-    char filename_inzip[2048];
-    struct zfile *zf;
-    int err, zipcnt, select, i, we_have_file = 0;
-    char tmphist[MAX_DPATH];
-    int first = 1;
-
-    zf = 0;
-    uz = unzOpen (z);
-    if (!uz)
-	return z;
-    if (unzGoToFirstFile (uz) != UNZ_OK)
-	return z;
-    zipcnt = 1;
-    tmphist[0] = 0;
-    for (;;) {
-	err = unzGetCurrentFileInfo(uz,&file_info,filename_inzip,sizeof(filename_inzip),NULL,0,NULL,0);
-	if (err != UNZ_OK)
-	    return z;
-	if (file_info.uncompressed_size > 0) {
-	    i = 0;
-	    if (!zfile_is_ignore_ext(filename_inzip)) {
-		if (tmphist[0]) {
-		    DISK_history_add (tmphist, -1);
-		    tmphist[0] = 0;
-		    first = 0;
-		}
-		if (first) {
-		    if (zfile_isdiskimage (filename_inzip))
-			sprintf (tmphist,"%s/%s", z->name, filename_inzip);
-		} else {
-		    sprintf (tmphist,"%s/%s", z->name, filename_inzip);
-		    DISK_history_add (tmphist, -1);
-		    tmphist[0] = 0;
-		}
-		select = 0;
-		if (!z->zipname)
-		    select = 1;
-		if (z->zipname && !strcasecmp (z->zipname, filename_inzip))
-		    select = -1;
-		if (z->zipname && z->zipname[0] == '#' && atol (z->zipname + 1) == zipcnt)
-		    select = -1;
-		if (select && !we_have_file) {
-		    int err = unzOpenCurrentFile (uz);
-		    if (err == UNZ_OK) {
-			zf = zfile_fopen_empty (filename_inzip, file_info.uncompressed_size);
-			if (zf) {
-			    err = unzReadCurrentFile  (uz, zf->data, file_info.uncompressed_size);
-			    unzCloseCurrentFile (uz);
-			    if (err == 0 || err == file_info.uncompressed_size) {
-				zf = zuncompress (zf);
-				if (select < 0 || zfile_gettype (zf)) {
-				    we_have_file = 1;
-				}
-			    }
-			}
-			if (!we_have_file) {
-			    zfile_fclose (zf);
-			    zf = 0;
-			}
-		    }
-		}
-	    }
-	}
-	zipcnt++;
-	err = unzGoToNextFile (uz);
-	if (err != UNZ_OK)
-	    break;
-    }
-    if (zf) {
-	zfile_fclose (z);
-	z = zf;
-    }
-    return z;
-}
-
-static const char *plugins_7z[] = { "7z", "rar", "zip", NULL };
-static const char *plugins_7z_x[] = { "7z", "Rar!", "MK" };
-static const int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP };
+static const char *plugins_7z[] = { "7z", "rar", "zip", "lha", "lzh", "lzx", NULL };
+static const char *plugins_7z_x[] = { "7z", "Rar!", "MK", NULL, NULL, NULL, NULL };
+static const int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP, ArchiveFormatLHA, ArchiveFormatLHA, ArchiveFormatLZX };
 
 static int iszip (struct zfile *z)
 {
     char *name = z->name;
     char *ext = strrchr (name, '.');
-    uae_u8 header[4];
+    uae_u8 header[6];
     int i;
 
     if (!ext)
@@ -961,6 +289,10 @@ static int iszip (struct zfile *z)
 	return ArchiveFormat7Zip;
     if (!strcasecmp (ext, ".rar") && header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
 	return ArchiveFormatRAR;
+    if ((!strcasecmp (ext, ".lha") || !strcasecmp (ext, ".lzh")) && header[2] == '-' && header[3] == 'l' && header[3] == 'h' && header[5] == '-')
+	return ArchiveFormatLHA;
+    if (!strcasecmp (ext, ".lzx") && header[0] == 'L' && header[1] == 'Z' && header[2] == 'X')
+	return ArchiveFormatLZX;
 #if defined(ARCHIVEACCESS)
     for (i = 0; plugins_7z[i]; i++) {
 	if (plugins_7z_x[i] && !strcasecmp (ext + 1, plugins_7z[i]) &&
@@ -975,15 +307,22 @@ static struct zfile *zuncompress (struct zfile *z)
 {
     char *name = z->name;
     char *ext = strrchr (name, '.');
-    uae_u8 header[4];
+    uae_u8 header[6];
     int i;
 
     if (ext != NULL) {
 	ext++;
 	if (strcasecmp (ext, "7z") == 0)
-	     return un7z (z);
+	     return archive_access_select (z, ArchiveFormat7Zip);
 	if (strcasecmp (ext, "zip") == 0)
-	     return unzip (z);
+	     return archive_access_select (z, ArchiveFormatZIP);
+	if (strcasecmp (ext, "lha") == 0
+	    || strcasecmp (ext, "lzh") == 0)
+	     return archive_access_select (z, ArchiveFormatLHA);
+	if (strcasecmp (ext, "lzx") == 0)
+	     return archive_access_select (z, ArchiveFormatLZX);
+	if (strcasecmp (ext, "rar") == 0)
+	     return archive_access_select (z, ArchiveFormatRAR);
 	if (strcasecmp (ext, "gz") == 0)
 	     return zfile_gunzip (z);
 	if (strcasecmp (ext, "adz") == 0)
@@ -994,17 +333,12 @@ static struct zfile *zuncompress (struct zfile *z)
 	     return zfile_gunzip (z);
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
-	if (strcasecmp (ext, "rar") == 0)
-	    return unrar (z);
 #if defined(ARCHIVEACCESS)
 	for (i = 0; plugins_7z[i]; i++) {
 	    if (strcasecmp (ext, plugins_7z[i]) == 0)
-		return arcacc_unpack (z, plugins_7z_t[i]);
+		return archive_access_arcacc_select (z, plugins_7z_t[i]);
 	}
 #endif
-	if (strcasecmp (ext, "lha") == 0
-	    || strcasecmp (ext, "lzh") == 0)
-	    return lha (z);
 	memset (header, 0, sizeof (header));
 	zfile_fseek (z, 0, SEEK_SET);
 	zfile_fread (header, sizeof (header), 1, z);
@@ -1012,11 +346,15 @@ static struct zfile *zuncompress (struct zfile *z)
 	if (header[0] == 0x1f && header[1] == 0x8b)
 	    return zfile_gunzip (z);
 	if (header[0] == 'P' && header[1] == 'K')
-	    return unzip (z);
+	     return archive_access_select (z, ArchiveFormatZIP);
 	if (header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
-	    return unrar (z);
+	     return archive_access_select (z, ArchiveFormatRAR);
 	if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
 	    return dms (z);
+	if (header[0] == 'L' && header[1] == 'Z' && header[2] == 'X')
+	     return archive_access_select (z, ArchiveFormatLZX);
+	if (header[2] == '-' && header[3] == 'l' && header[3] == 'h' && header[5] == '-')
+	     return archive_access_select (z, ArchiveFormatLHA);
     }
     return z;
 }
@@ -1089,13 +427,31 @@ static struct zfile *zfile_opensinglefile(struct zfile *l)
 }
 #endif
 
+static struct zfile *zfile_fopen_nozip (const char *name, const char *mode)
+{
+    struct zfile *l;
+    FILE *f;
+
+    if(*name == '\0')
+	return NULL;
+    l = zfile_create ();
+    l->name = strdup (name);
+    f = fopen (name, mode);
+    if (!f) {
+        zfile_fclose (l);
+        return 0;
+    }
+    l->f = f;
+    return l;
+}
+
 static struct zfile *zfile_fopen_2 (const char *name, const char *mode)
 {
     struct zfile *l;
     FILE *f;
-    char zipname[1000];
+    char zipname[MAX_DPATH];
 
-    if( *name == '\0' )
+    if(*name == '\0')
 	return NULL;
     l = zfile_create ();
     l->name = strdup (name);
@@ -1123,223 +479,8 @@ static struct zfile *zfile_fopen_2 (const char *name, const char *mode)
     return l;
 }
 
-/* archiveaccess 7z-plugin compressed file scanner */
-static int scan_arcacc_zunzip (struct zfile *z, zfile_callback zc, void *user, int type)
-{
-    char tmp[MAX_DPATH], tmp2[2];
-    struct zfile *zf;
-    aaHandle ah;
-    int err, fc, size, status, i;
-    int id_r, id_w;
-    struct aaFileInArchiveInfo fi;
-    int skipsize = 0;
-
-    memset (&fi, 0, sizeof (fi));
-    if (!arcacc_init ())
-	return 0;
-    zf = 0;
-    id_r = arcacc_push (z);
-    if (id_r < 0)
-	return 0;
-    zfile_fseek (z, 0, SEEK_END);
-    size = zfile_ftell (z);
-    zfile_fseek (z, 0, SEEK_SET);
-    ah = aaOpenArchive (readCallback, id_r, size, type, &status, NULL);
-    if (status) {
-	arcacc_pop ();
-	return 0;
-    }
-    fc = aaGetFileCount (ah);
-    for (i = 0; i < fc; i++) {
-	aaGetFileInfo (ah, i, &fi);
-	if (fi.IsDir)
-	    continue;
-	tmp2[0] = FSDB_DIR_SEPARATOR;
-	tmp2[1] = 0;
-	strcpy (tmp, z->name);
-	strcat (tmp, tmp2);
-	strcat (tmp, fi.path);
-	zf = zfile_fopen_empty (tmp, (int)fi.UncompressedFileSize);
-	if (zf) {
-	    id_w = arcacc_push (zf);
-	    if (id_w >= 0) {
-		uae_u64 written = 0;
-		zf->writeskipbytes = skipsize;
-		err = aaExtract (ah, i, id_w, writeCallback, &written);
-		if (zf->seek == fi.UncompressedFileSize) {
-		    zfile_fseek (zf, 0, SEEK_SET);
-		    if (!zc (zf, user)) {
-			aaCloseArchive (ah);
-			arcacc_pop ();
-			zfile_fclose (zf);
-			arcacc_pop ();
-			return 0;
-		    }
-		}
-		arcacc_pop ();
-	    }
-	    zfile_fclose (zf);
-	}
-	if (fi.CompressedFileSize)
-	    skipsize = 0;
-	skipsize += (int)fi.UncompressedFileSize;
-    }
-    aaCloseArchive (ah);
-    arcacc_pop ();
-    return 1;
-}
-
-// rar scan
-static int scan_rar (struct zfile *z, zfile_callback zc, void *user)
-{
-    HANDLE hArcData;
-    struct RARHeaderDataEx HeaderData;	
-    struct RAROpenArchiveData OpenArchiveData;
-
-    if (!canrar())
-	return scan_arcacc_zunzip (z, zc, user, ArchiveFormatRAR);
-    if (z->data)
-	return scan_arcacc_zunzip (z, zc, user, ArchiveFormatRAR);
-    fclose (z->f);
-    z->f = NULL;
-    memset(&OpenArchiveData,0,sizeof(OpenArchiveData));
-    OpenArchiveData.ArcName=z->name;
-    OpenArchiveData.OpenMode=RAR_OM_EXTRACT;
-    hArcData=pRAROpenArchive(&OpenArchiveData);
-    if (OpenArchiveData.OpenResult!=0) {
-	rar_resetf(z);
-	return 0;
-    }
-    pRARSetCallback(hArcData,RARCallbackProc,0);
-    while (pRARReadHeaderEx(hArcData,&HeaderData)==0) {
-	int needskip = 1;
-	char *name = HeaderData.FileName;
-	if (HeaderData.UnpSize > 0) {
-	    struct zfile *zf = zfile_fopen_empty (name, HeaderData.UnpSize);
-	    rarunpackzf = zf;
-	    if (zf && pRARProcessFile(hArcData,RAR_EXTRACT,NULL,NULL) == 0) {
-		needskip = 0;
-		zfile_fseek (zf, 0, SEEK_SET);
-		if (!zc (zf, user)) {
-		    pRARCloseArchive(hArcData);
-		    zfile_fclose (zf);
-		    rar_resetf (z);
-		    return 0;
-		}
-	    }
-	    zfile_fclose (zf);
-	}
-	if (needskip)
-	    pRARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
-    }
-    pRARCloseArchive(hArcData);
-    if (!rar_resetf (z))
-	return 0;
-    return 1;
-}
-
-/* zip (zlib) scanning */
-static int scan_zunzip (struct zfile *z, zfile_callback zc, void *user)
-{
-    unzFile uz;
-    unz_file_info file_info;
-    char filename_inzip[MAX_DPATH];
-    char tmp[MAX_DPATH], tmp2[2];
-    struct zfile *zf;
-    int err;
-
-    zf = 0;
-    uz = unzOpen (z);
-    if (!uz)
-	return 0;
-    if (unzGoToFirstFile (uz) != UNZ_OK)
-	return 0;
-    for (;;) {
-	err = unzGetCurrentFileInfo(uz, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
-	if (err != UNZ_OK)
-	    return 0;
-	if (file_info.uncompressed_size > 0) {
-	    int err = unzOpenCurrentFile (uz);
-	    if (err == UNZ_OK) {
-		tmp2[0] = FSDB_DIR_SEPARATOR;
-		tmp2[1] = 0;
-		strcpy (tmp, z->name);
-		strcat (tmp, tmp2);
-		strcat (tmp, filename_inzip);
-		zf = zfile_fopen_empty (tmp, file_info.uncompressed_size);
-		if (zf) {
-		    err = unzReadCurrentFile  (uz, zf->data, file_info.uncompressed_size);
-		    unzCloseCurrentFile (uz);
-		    if (err == 0 || err == file_info.uncompressed_size) {
-			zf = zuncompress (zf);
-			if (!zc (zf, user)) {
-			    zfile_fclose (zf);
-			    return 0;
-			}
-		    }
-		    zfile_fclose (zf);
-		}
-	    }
-	}
-	err = unzGoToNextFile (uz);
-	if (err != UNZ_OK)
-	    break;
-    }
-    return 1;
-}
-
-// 7z scan
-static int scan_7z (struct zfile *z, zfile_callback zc, void *user)
-{
-    SZ_RESULT res;
-    int i;
-    struct zfile *zf = NULL;
-    char tmp[MAX_DPATH], tmp2[2];
-
-    init_7z();
-    SzArDbExInit(&db);
-    archiveStream.zf = z;
-    res = SzArchiveOpen(&archiveStream.InStream, &db, &allocImp, &allocTempImp);
-    if (res != SZ_OK)
-	return 0;
-    for (i = 0; i < db.Database.NumFiles; i++) {
-	int select = 0;
-	size_t offset;
-	size_t outSizeProcessed;
-	CFileItem *f = db.Database.Files + i;
-	char *name = f->Name;
-
-	if (f->IsDirectory)
-	    continue;
-	tmp2[0] = FSDB_DIR_SEPARATOR;
-	tmp2[1] = 0;
-	strcpy (tmp, z->name);
-	strcat (tmp, tmp2);
-	strcat (tmp, name);
-        zf = zfile_fopen_empty (tmp, f->Size);
-	if (zf) {
-	    uae_u32 blockIndex = 0xffffffff;
-	    uae_u8 *outBuffer = 0;
-	    size_t outBufferSize = 0;
-	    res = SzExtract(&archiveStream.InStream, &db, i, 
-	        &blockIndex, &outBuffer, &outBufferSize, 
-	        &offset, &outSizeProcessed, 
-	        &allocImp, &allocTempImp);
-	    if (res == SZ_OK) {
-		if (!zc (zf, user)) {
-		    zfile_fclose (zf);
-		    SzArDbExFree(&db, allocImp.Free);
-		    return 0;
-		}
-	    }
-	    allocImp.Free(outBuffer);
-	    zfile_fclose (zf);
-	}
-    }
-    SzArDbExFree(&db, allocImp.Free);
-    return 1;
-}
-
+#ifdef _WIN32
+#include "win32.h"
 
 #define AF "%AMIGAFOREVERDATA%"
 
@@ -1352,6 +493,11 @@ static void manglefilename(char *out, const char *in)
 	out[0] = 0;
     strcat(out, in);
 }
+#else
+static void manglefilename(char *out, const char *in)
+{
+}
+#endif
 
 int zfile_zopen (const char *name, zfile_callback zc, void *user)
 {
@@ -1366,14 +512,8 @@ int zfile_zopen (const char *name, zfile_callback zc, void *user)
     ztype = iszip (l);
     if (ztype == 0)
 	zc (l, user);
-    else if (ztype == ArchiveFormatZIP)
-	scan_zunzip (l, zc, user);
-    else if (ztype == ArchiveFormat7Zip)
-	scan_7z (l, zc, user);
-    else if (ztype == ArchiveFormatRAR)
-	scan_rar (l, zc, user);
     else
-	scan_arcacc_zunzip (l, zc, user, ztype);
+	archive_access_scan (l, zc, user, ztype);
     zfile_fclose (l);
     return 1;
 }
@@ -1400,7 +540,7 @@ struct zfile *zfile_dup (struct zfile *zf)
     if (!zf->data)
 	return NULL;
     nzf = zfile_create();
-    nzf->data = malloc (zf->size);
+    nzf->data = (uae_u8*)malloc (zf->size);
     memcpy (nzf->data, zf->data, zf->size);
     nzf->size = zf->size;
     return nzf;
@@ -1437,9 +577,11 @@ struct zfile *zfile_fopen_empty (const char *name, int size)
     struct zfile *l;
     l = zfile_create ();
     l->name = name ? strdup (name) : "";
-    l->data = malloc (size);
-    l->size = size;
-    memset (l->data, 0, size);
+    if (size) {
+	l->data = (uae_u8*)malloc (size);
+	l->size = size;
+	memset (l->data, 0, size);
+    }
     return l;
 }
 
@@ -1448,7 +590,7 @@ struct zfile *zfile_fopen_data (const char *name, int size, uae_u8 *data)
     struct zfile *l;
     l = zfile_create ();
     l->name = name ? strdup (name) : "";
-    l->data = malloc (size);
+    l->data = (uae_u8*)malloc (size);
     l->size = size;
     memcpy (l->data, data, size);
     return l;
@@ -1464,7 +606,7 @@ long zfile_ftell (struct zfile *z)
 int zfile_fseek (struct zfile *z, long offset, int mode)
 {
     if (z->data) {
-	int old = z->seek;
+	int ret = 0;
 	switch (mode)
 	{
 	    case SEEK_SET:
@@ -1477,56 +619,77 @@ int zfile_fseek (struct zfile *z, long offset, int mode)
 	    z->seek = z->size + offset;
 	    break;
 	}
-	if (z->seek < 0) z->seek = 0;
-	if (z->seek > z->size) z->seek = z->size;
-	return old;
+	if (z->seek < 0) {
+	    z->seek = 0;
+	    ret = 1;
+	}
+	if (z->seek > z->size) {
+	    z->seek = z->size;
+	    ret = 1;
+	}
+	return ret;
     }
     return fseek (z->f, offset, mode);
 }
 
 size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
 {
-    long len = l1 * l2;
     if (z->data) {
-	if (z->seek + len > z->size) {
-	    len = z->size - z->seek;
-	    if (len < 0)
-		len = 0;
+	if (z->seek + l1 * l2 > z->size) {
+	    if (l1)
+		l2 = (z->size - z->seek) / l1;
+	    else
+		l2 = 0;
+	    if (l2 < 0)
+		l2 = 0;
 	}
-	memcpy (b, z->data + z->seek, len);
-	z->seek += len;
-	return len;
+	memcpy (b, z->data + z->seek, l1 * l2);
+	z->seek += l1 * l2;
+	return l2;
     }
     return fread (b, l1, l2, z->f);
 }
+
+
+size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
+{
+    if (z->data) {
+	if (z->seek + l1 * l2 > z->size) {
+	    if (l1)
+    		l2 = (z->size - z->seek) / l1;
+	    else
+		l2 = 0;
+	    if (l2 < 0)
+		l2 = 0;
+	}
+	memcpy (z->data + z->seek, b, l1 * l2);
+	z->seek += l1 * l2;
+	return l2;
+    }
+    return fwrite (b, l1, l2, z->f);
+}
+
 
 size_t zfile_fputs (struct zfile *z, char *s)
 {
     return zfile_fwrite (s, strlen (s), 1, z);
 }
 
-size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
+int zfile_getc (struct zfile *z)
 {
-    long len = l1 * l2;
-
-    if (z->writeskipbytes) {
-	z->writeskipbytes -= len;
-	if (z->writeskipbytes >= 0)
-	    return len;
-	len = -z->writeskipbytes;
-	z->writeskipbytes = 0;
-    }
+    int out = -1;
     if (z->data) {
-	if (z->seek + len > z->size) {
-	    len = z->size - z->seek;
-	    if (len < 0)
-		len = 0;
-	}
-	memcpy (z->data + z->seek, b, len);
-	z->seek += len;
-	return len;
+	if (z->seek < z->size)
+	    out = z->data[z->seek++];
+    } else {
+	out = fgetc (z->f);
     }
-    return fwrite (b, l1, l2, z->f);
+    return out;
+}
+
+int zfile_ferror (struct zfile *z)
+{
+    return 0;
 }
 
 int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
@@ -1539,7 +702,7 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
     memset (&zs, 0, sizeof(zs));
     if (inflateInit_ (&zs, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 	return 0;
-    zs.next_out = dst;
+    zs.next_out = (Bytef*)dst;
     zs.avail_out = dstsize;
     incnt = 0;
     v = Z_OK;
@@ -1568,7 +731,7 @@ int zfile_zcompress (struct zfile *f, void *src, int size)
     memset (&zs, 0, sizeof (zs));
     if (deflateInit_ (&zs, Z_DEFAULT_COMPRESSION, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 	return 0;
-    zs.next_in = src;
+    zs.next_in = (Bytef*)src;
     zs.avail_in = size;
     v = Z_OK;
     while (v == Z_OK) {
@@ -1600,7 +763,7 @@ uae_u32 zfile_crc32 (struct zfile *f)
     pos = zfile_ftell (f);
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
-    p = xmalloc (size);
+    p = (uae_u8*)xmalloc (size);
     if (!p)
 	return 0;
     memset (p, 0, size);
@@ -1610,5 +773,455 @@ uae_u32 zfile_crc32 (struct zfile *f)
     crc = get_crc32 (p, size);
     xfree (p);
     return crc;
+}
+
+static struct zvolume *zvolume_list;
+
+static struct znode *znode_alloc(struct znode *parent, const char *name)
+{
+    char fullpath[MAX_DPATH];
+    struct znode *zn = xcalloc(sizeof(struct znode), 1);
+
+    sprintf(fullpath,"%s%c%s", parent->fullname, FSDB_DIR_SEPARATOR, name);
+    zn->fullname = my_strdup(fullpath);
+    zn->name = my_strdup(name);
+    zn->volume = parent->volume;
+    zn->volume->last->next = zn;
+    zn->prev = zn->volume->last;
+    zn->volume->last = zn;
+    return zn;
+}
+
+static struct znode *znode_alloc_child(struct znode *parent, const char *name)
+{
+    struct znode *zn = znode_alloc(parent, name);
+
+    if (!parent->child) {
+	parent->child = zn;
+    } else {
+        struct znode *pn = parent->child;
+        while (pn->sibling)
+	    pn = pn->sibling;
+	pn->sibling = zn;
+    }
+    zn->parent = parent;
+    return zn;
+}
+static struct znode *znode_alloc_sibling(struct znode *sibling, const char *name)
+{
+    struct znode *zn = znode_alloc(sibling->parent, name);
+
+    if (!sibling->sibling) {
+	sibling->sibling = zn;
+    } else {
+        struct znode *pn = sibling->sibling;
+        while (pn->sibling)
+	    pn = pn->sibling;
+	pn->sibling = zn;
+    }
+    zn->parent = sibling->parent;
+    return zn;
+}
+
+struct zvolume *zvolume_alloc(struct zfile *z, unsigned int id, void *handle)
+{
+    struct zvolume *zv = xcalloc(sizeof (struct zvolume), 1);
+    struct znode *root;
+    char *name;
+    size_t pos;
+
+    name = zfile_getname(z);
+    root = &zv->root;
+    zv->last = root;
+    zv->archive = z;
+    zv->handle = handle;
+    zv->id = id;
+    zv->blocks = 4;
+    root->volume = zv;
+    root->name = my_strdup(name);
+    root->fullname = my_strdup(name);
+    if (!zvolume_list) {
+	zvolume_list = zv;
+    } else {
+	struct zvolume *v = zvolume_list;
+	while (v->next)
+	    v = v->next;
+	v->next = zv;
+    }
+    pos = zfile_ftell(z);
+    zfile_fseek(z, 0, SEEK_END);
+    zv->archivesize = zfile_ftell(z);
+    zfile_fseek(z, pos, SEEK_SET);
+    return zv;
+}
+
+static struct zvolume *get_zvolume(const char *path)
+{
+    struct zvolume *zv = zvolume_list;
+    while (zv) {
+	char *s = zfile_getname(zv->archive);
+	if (strlen(path) >= strlen(s) && !memcmp (path, s, strlen(s)))
+	    return zv;
+ 	zv = zv->next;
+    }
+    return NULL;
+}
+
+static struct znode *get_znode(struct zvolume *zv, const char *ppath)
+{
+    struct znode *zn;
+    const char *path = ppath;
+    int prevlen = 0;
+
+    if (!zv)
+	return NULL;
+    zn = &zv->root;
+    while (zn) {
+	if (zn->isfile) {
+	    if (!stricmp(zn->fullname, path))
+		return zn;
+	} else {
+	    int len = strlen(zn->fullname);
+	    if (strlen(path) >= len && (path[len] == 0 || path[len] == FSDB_DIR_SEPARATOR) && !strnicmp(zn->fullname, path, len)) {
+		if (path[len] == 0)
+		    return zn;
+		if (zn->vchild) {
+		    /* jump to separate tree */
+		    zn = zn->vchild->root.child;
+		    path += prevlen + 1;
+		} else {
+		    zn = zn->child;
+		}
+		prevlen = len;
+		continue;
+	    }
+	}
+	zn = zn->sibling;
+    }
+    return NULL;
+}
+
+
+struct znode *znode_adddir(struct znode *parent, const char *name, struct zarchive_info *zai)
+{
+    struct znode *zn;
+    char path[MAX_DPATH];
+    
+    sprintf(path, "%s%c%s", parent->fullname, FSDB_DIR_SEPARATOR, name);
+    zn = get_znode(parent->volume, path);
+    if (zn)
+	return zn;
+    zn = znode_alloc_child(parent, name);
+    zn->mtime = zai->t;
+    parent->volume->blocks++;
+    return zn;
+}
+
+struct znode *zvolume_adddir_abs(struct zvolume *zv, struct zarchive_info *zai)
+{
+    struct znode *zn2;
+    char *path = my_strdup(zai->name);
+    char *p, *p2;
+    int i;
+
+    zn2 = &zv->root;
+    p = p2 = path;
+    for (i = 0; path[i]; i++) {
+	if (path[i] == '/' || path[i] == '\\') {
+	    path[i] = 0;
+	    zn2 = znode_adddir(zn2, p, zai);
+	    path[i] = FSDB_DIR_SEPARATOR;
+	    p = p2 = &path[i + 1];
+	}
+    }
+    return znode_adddir(zn2, p, zai);
+}
+
+struct znode *zvolume_addfile_abs(struct zvolume *zv, struct zarchive_info *zai)
+{
+    struct znode *zn, *zn2;
+    int i;
+    char *path = my_strdup(zai->name);
+    char *p, *p2;
+
+    zn2 = &zv->root;
+    p = p2 = path;
+    for (i = 0; path[i]; i++) {
+	if (path[i] == '/' || path[i] == '\\') {
+	    path[i] = 0;
+	    zn2 = znode_adddir(zn2, p, zai);
+	    path[i] = FSDB_DIR_SEPARATOR;
+	    p = p2 = &path[i + 1];
+	}
+    }
+    if (p2) {
+	zn = znode_alloc_child(zn2, p2);
+	zn->size = zai->size;
+	zn->isfile = 1;
+	zn->mtime = zai->t;
+	if (zai->comment)
+	    zn->comment = my_strdup(zai->comment);
+	zn->flags = zai->flags;
+	zn->volume->blocks += (zai->size + 511) / 512;
+	zn->volume->size += zai->size;
+    }
+    xfree(path);
+    return zn;
+}
+
+static struct zvolume *zfile_fopen_archive_ext(struct zfile *zf)
+{
+    struct zvolume *zv = NULL;
+    char *ext = strrchr (zfile_getname(zf), '.');
+
+    if (ext != NULL) {
+	ext++;
+	if (strcasecmp (ext, "lha") == 0 || strcasecmp (ext, "lzh") == 0)
+	     zv = archive_directory_lha (zf);
+	if (strcasecmp (ext, "zip") == 0)
+	     zv = archive_directory_zip (zf);
+	if (strcasecmp (ext, "7z") == 0)
+	     zv = archive_directory_7z (zf);
+	if (strcasecmp (ext, "lzx") == 0)
+	     zv = archive_directory_lzx (zf);
+	if (strcasecmp (ext, "rar") == 0)
+	     zv = archive_directory_rar (zf);
+    }
+    return zv;
+}
+
+
+struct zvolume *zfile_fopen_archive_data(struct zfile *zf)
+{
+    struct zvolume *zv = NULL;
+    uae_u8 header[6];
+
+    memset (header, 0, sizeof (header));
+    zfile_fread (header, sizeof (header), 1, zf);
+    zfile_fseek (zf, 0, SEEK_SET);
+    if (header[0] == 'P' && header[1] == 'K')
+         zv = archive_directory_zip (zf);
+    if (header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
+         zv = archive_directory_rar (zf);
+    if (header[0] == 'L' && header[1] == 'Z' && header[2] == 'X')
+         zv = archive_directory_lzx (zf);
+    if (header[2] == '-' && header[3] == 'l' && header[3] == 'h' && header[5] == '-')
+         zv = archive_directory_lha (zf);
+    return zv;
+}
+
+static int zfile_fopen_archive_recurse(struct zvolume *zv)
+{
+    struct znode *zn;
+    int i, added;
+
+    added = 0;
+    zn = zv->root.child;
+    while (zn) {
+	char *ext = strrchr (zn->name, '.');
+	if (ext && !zn->vchild && zn->isfile) {
+	    for (i = 0; plugins_7z[i]; i++) {
+		if (!strcasecmp(ext + 1, plugins_7z[i])) {
+		    struct zfile *zf;
+		    struct zvolume *zvnew;
+		    char tmp[MAX_DPATH];
+		    zf = zfile_open_archive(zn->fullname, 0);
+		    zvnew = zfile_fopen_archive_ext(zf);
+		    if (!zvnew) {
+			zfile_fclose(zf);
+		    } else {
+			struct znode *zndir;
+			sprintf(tmp, "%s.DIR", zn->fullname + strlen(zv->root.name) + 1);
+			zndir = get_znode(zv, tmp);
+			if (!zndir) {
+			    struct zarchive_info zai = { 0 };
+			    zai.name = tmp;
+			    zai.t = zn->mtime;
+			    zndir = zvolume_adddir_abs(zv, &zai);
+			    zndir->vchild = zvnew;
+			    zfile_fopen_archive_recurse(zvnew);
+			}
+		    }
+		}
+	    }
+	}
+	zn = zn->next;
+    }
+    return 0;
+}
+
+
+struct zvolume *zfile_fopen_archive(const char *filename)
+{
+    struct zvolume *zv = NULL;
+    struct zfile *zf = zfile_fopen_nozip (filename, "rb");
+
+    if (!zf)
+	return NULL;
+    zv = zfile_fopen_archive_ext(zf);
+    if (!zv)
+	zv = zfile_fopen_archive_data(zf);
+#if 0
+    if (zv)
+	zfile_fopen_archive_recurse (zv);
+#endif
+    /* pointless but who cares? */
+    if (!zv)
+	zv = archive_directory_plain (zf);
+    return zv;
+}
+
+void zfile_fclose_archive(struct zvolume *zv)
+{
+    struct znode *zn;
+    struct zvolume *v;
+
+    zn = &zv->root;
+    while (zn) {
+	struct znode *zn2 = zn->next;
+	if (zn->vchild)
+	    zfile_fclose_archive(zn->vchild);
+	xfree(zn->comment);
+	xfree(zn->fullname);
+	xfree(zn->name);
+	zfile_fclose(zn->f);
+	if (zn != &zv->root)
+	    xfree(zn);
+	zn = zn2;
+    }
+    archive_access_close (zv->handle, zv->id);
+    if (zvolume_list == zv) {
+	zvolume_list = zvolume_list->next;
+    } else {
+	v = zvolume_list;
+	while (v) {
+	    if (v->next == zv) {
+		v->next = zv->next;
+		break;
+	    }
+	    v = v->next;
+	}
+    }
+    xfree(zv);
+}
+
+struct zdirectory {
+    struct znode *n;
+};
+
+void *zfile_opendir_archive(const char *path)
+{
+    struct zvolume *zv = get_zvolume(path);
+    struct znode *zn = get_znode(zv, path);
+    struct zdirectory *zd = xmalloc(sizeof (struct zdirectory));
+
+    if (!zn || (!zn->child && !zn->vchild))
+	return NULL;
+    if (zn->child)
+	zd->n = zn->child;
+    else
+	zd->n = zn->vchild->root.next;
+    return zd;
+}
+void zfile_closedir_archive(struct zdirectory *zd)
+{
+    xfree(zd);
+}
+int zfile_readdir_archive(struct zdirectory *zd, char *out)
+{
+    if (!zd->n)
+	return 0;
+    strcpy (out, zd->n->name);
+    zd->n = zd->n->sibling;
+    return 1;
+}
+
+int zfile_fill_file_attrs_archive(const char *path, int *isdir, int *flags, char **comment)
+{
+    struct zvolume *zv = get_zvolume(path);
+    struct znode *zn = get_znode(zv, path);
+
+    *isdir = 0;
+    *flags = 0;
+    *comment = 0;
+    if (!zn)
+	return 0;
+    *isdir = zn->isfile ? 0 : 1;
+    *flags = zn->flags;
+    if (zn->comment)
+	*comment = my_strdup(zn->comment);
+    return 1;
+}
+
+int zfile_fs_usage_archive(const char *path, const char *disk, struct fs_usage *fsp)
+{
+    struct zvolume *zv = get_zvolume(path);
+
+    if (!zv)
+	return -1;
+    fsp->fsu_blocks = zv->blocks;
+    fsp->fsu_bavail = 0;
+    return 0;
+}
+
+int zfile_stat_archive (const char *path, struct stat *s)
+{
+    struct zvolume *zv = get_zvolume(path);
+    struct znode *zn = get_znode(zv, path);
+
+    if (!zn)
+	return 0;
+    s->st_mode = zn->isfile ? 0 : FILEFLAG_DIR;
+    s->st_size = zn->size;
+    s->st_mtime = zn->mtime;
+    return 1;
+}
+
+unsigned int zfile_lseek_archive (void *d, unsigned int offset, int whence)
+{
+    if (zfile_fseek (d, offset, whence))
+	return -1;
+    return zfile_ftell (d);
+}
+
+unsigned int zfile_read_archive (void *d, void *b, unsigned int size)
+{
+    return zfile_fread (b, 1, size, d);
+}
+
+void zfile_close_archive (void *d)
+{
+    /* do nothing, keep file cached */
+}
+
+void *zfile_open_archive (const char *path, int flags)
+{
+    struct zvolume *zv = get_zvolume(path);
+    struct znode *zn = get_znode(zv, path);
+    struct zfile *z;
+
+    if (!zn)
+	return 0;
+    if (zn->f) {
+	zfile_fseek(zn->f, 0, SEEK_SET);
+	return zn->f;
+    }
+    z = archive_getzfile (zn, zv->id);
+    if (z)
+	zfile_fseek(z, 0, SEEK_SET);
+    zn->f = z;
+    return zn->f;
+}
+
+int zfile_exists_archive (const char *path, const char *rel)
+{
+    char tmp[MAX_DPATH];
+    struct zvolume *zv;
+    struct znode *zn;
+    
+    sprintf(tmp, "%s%c%s", path, FSDB_DIR_SEPARATOR, rel);
+    zv = get_zvolume(tmp);
+    zn = get_znode(zv, tmp);
+    return zn ? 1 : 0;
 }
 

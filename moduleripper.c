@@ -42,7 +42,7 @@ void moduleripper (void)
     size += currprefs.fastmem_size;
     size += currprefs.bogomem_size;
     size += currprefs.z3fastmem_size;
-    buf = p = xmalloc (size);
+    buf = p = (uae_u8*)xmalloc (size);
     if (!buf)
 	return;
     memcpy (p, chipmemory, currprefs.chipmem_size);

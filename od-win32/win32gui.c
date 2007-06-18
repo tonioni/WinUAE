@@ -51,6 +51,7 @@
 #include "parallel.h"
 #include "audio.h"
 #include "arcadia.h"
+#include "fsdb.h"
 
 #include "dxwrap.h"
 #include "win32.h"
@@ -77,9 +78,11 @@
 #include "uaeipc.h"
 #include "crc32.h"
 
-#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.zip;*.7z;*.rar;*.exe;*.ima\0"
-#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.zip;*.roz;*.7z;*.rar\0"
-#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;*.zip;*.7z;*.rar\0"
+#define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx\0"
+
+#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;" ARCHIVE_STRING
+#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.roz;" ARCHIVE_STRING
+#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;"  ARCHIVE_STRING
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING "(*.hdf;*.rdf;*.hdz;*.rdz)\0*.hdf;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING "(*.inp)\0*.inp\0"
@@ -383,7 +386,7 @@ static HWND cachedlist = NULL;
 #define MIN_Z3_MEM 0
 #define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 9 : ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12))
 #define MIN_P96_MEM 0
-#define MAX_P96_MEM 7
+#define MAX_P96_MEM 8
 #define MIN_MB_MEM 0
 #define MAX_MB_MEM 7
 
@@ -436,9 +439,10 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
     }
     if (!cl)
 	rd = getromdatabydata (rombuf, size);
-    if (!rd)
-	write_log ("'%s' %d, unknown CRC32 %08X\n",
-	    zfile_getname(f), size, get_crc32(rombuf, size));
+    if (!rd) {
+	write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
+	   size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+    }
     free (rombuf);
     return rd;
 }
@@ -1134,6 +1138,13 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	break;
     case 13:
 	WIN32GUI_LoadUIString(IDS_SELECTINFO, szTitle, MAX_DPATH);
+
+	openFileName.lpstrFilter = NULL;
+	openFileName.lpstrDefExt = NULL;
+	openFileName.lpstrInitialDir = path_out;
+	break;
+    case 14:
+	strcpy (szTitle, "Select supported archive file");
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
@@ -5885,6 +5896,7 @@ struct hfdlg_vals
 
 static struct hfdlg_vals empty_hfdlg = { "", "", "", "", 32, 2, 1, 0, 512, 1, 0, 0 };
 static struct hfdlg_vals current_hfdlg;
+static int archivehd;
 
 static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -5894,76 +5906,82 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
     LPITEMIDLIST browse;
     char szTitle[MAX_DPATH];
 
-    WIN32GUI_LoadUIString(IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
-
-    browse_info.hwndOwner = hDlg;
-    browse_info.pidlRoot = NULL;
-    browse_info.pszDisplayName = directory_path;
-    browse_info.lpszTitle = "";
-    browse_info.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS;
-    browse_info.lpfn = NULL;
-    browse_info.iImage = 0;
-
     switch (msg) {
-     case WM_INITDIALOG:
-	recursive++;
-	SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume);
-	SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device);
-	SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir);
-	SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri, TRUE);
-	CheckDlgButton (hDlg, IDC_RW, current_fsvdlg.rw);
-	recursive--;
+	case WM_INITDIALOG:
+	{
+	    if (archivehd < 0) {
+		if (my_existsfile(current_fsvdlg.rootdir))
+		    archivehd = 1;
+		else if (my_existsdir(current_fsvdlg.rootdir))
+		    archivehd = 0;
+	    }
+	    recursive++;
+	    SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume);
+	    SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device);
+	    SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir);
+	    SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri, TRUE);
+	    if (archivehd)
+		current_fsvdlg.rw = 0;
+	    CheckDlgButton (hDlg, IDC_RW, current_fsvdlg.rw);
+	    ew (hDlg, IDC_RW, !archivehd);
+	    recursive--;
+	}
 	return TRUE;
 
-     case WM_COMMAND:
-	if (recursive)
-	    break;
-	recursive++;
-	if (HIWORD (wParam) == BN_CLICKED) {
-	    switch (LOWORD (wParam)) {
-	     case IDC_SELECTOR:
-		if ((browse = SHBrowseForFolder (&browse_info)) != NULL) {
-		    SHGetPathFromIDList (browse, directory_path);
-		    SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
+	case WM_COMMAND:
+	    if (recursive)
+		break;
+	    recursive++;
+	    if (HIWORD (wParam) == BN_CLICKED) {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_SELECTOR:
+		    {
+			strcpy (directory_path, current_fsvdlg.rootdir);
+			if (archivehd) {
+			    if (DiskSelection(hDlg, 0, 14, &workprefs, directory_path))
+				SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
+			} else {
+			    WIN32GUI_LoadUIString(IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
+			    browse_info.hwndOwner = hDlg;
+			    browse_info.pidlRoot = NULL;
+			    browse_info.pszDisplayName = directory_path;
+			    browse_info.lpszTitle = "";
+			    browse_info.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS;
+			    browse_info.lpfn = NULL;
+			    browse_info.iImage = 0;
+			    if ((browse = SHBrowseForFolder (&browse_info)) != NULL) {
+				SHGetPathFromIDList (browse, directory_path);
+				SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
+			    }
+			}
+		    }
+		    break;
+		    case IDOK:
+		    {
+			if(!my_existsfile(current_fsvdlg.rootdir) && !my_existsdir(current_fsvdlg.rootdir)) {
+			    char szMessage[MAX_DPATH];
+			    char szTitle[MAX_DPATH];
+			    WIN32GUI_LoadUIString(IDS_MUSTSELECTPATH, szMessage, MAX_DPATH);
+			    WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
+			    MessageBox(hDlg, szMessage, szTitle,
+				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+			    break;
+			}
+			EndDialog (hDlg, 1);
+		    }
+		    break;
+		    case IDCANCEL:
+			EndDialog (hDlg, 0);
+		    break;
 		}
-		break;
-	     case IDOK:
-		    if(strlen(current_fsvdlg.rootdir) == 0) 
-		    {
-			char szMessage[MAX_DPATH];
-			char szTitle[MAX_DPATH];
-			WIN32GUI_LoadUIString(IDS_MUSTSELECTPATH, szMessage, MAX_DPATH);
-			WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
-
-			MessageBox(hDlg, szMessage, szTitle,
-				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
-			break;
-		    }
-		    if(strlen(current_fsvdlg.volume) == 0)
-		    {
-			char szMessage[MAX_DPATH];
-			char szTitle[MAX_DPATH];
-			WIN32GUI_LoadUIString(IDS_MUSTSELECTNAME, szMessage, MAX_DPATH);
-			WIN32GUI_LoadUIString(IDS_SETTINGSERROR, szTitle, MAX_DPATH);
-
-			MessageBox(hDlg, szMessage, szTitle,
-				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
-			break;
-		    }
-		EndDialog (hDlg, 1);
-
-		break;
-	     case IDCANCEL:
-		EndDialog (hDlg, 0);
-		break;
 	    }
-	}
-	GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir, sizeof current_fsvdlg.rootdir);
-	GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume);
-	GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device);
-	current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
-	current_fsvdlg.bootpri = GetDlgItemInt(hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
-	recursive--;
+	    GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir, sizeof current_fsvdlg.rootdir);
+	    GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume);
+	    GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device);
+	    current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
+	    current_fsvdlg.bootpri = GetDlgItemInt(hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
+	    recursive--;
 	break;
     }
     return FALSE;
@@ -6331,6 +6349,7 @@ static void harddisk_edit (HWND hDlg)
 	}
 	current_fsvdlg.rw = !uci->readonly;
 	current_fsvdlg.bootpri = uci->bootpri;
+	archivehd = -1;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 	    int result = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
 					current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
@@ -6349,6 +6368,13 @@ static void harddiskdlg_button (HWND hDlg, int button)
 {
     switch (button) {
      case IDC_NEW_FS:
+	current_fsvdlg = empty_fsvdlg;
+	archivehd = 0;
+	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
+	    new_filesys (hDlg);
+	break;
+     case IDC_NEW_FSARCH:
+	 archivehd = 1;
 	current_fsvdlg = empty_fsvdlg;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
 	    new_filesys (hDlg);
@@ -6451,13 +6477,12 @@ static void hilitehd (void)
 
 static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-
     switch (msg) {
     case WM_INITDIALOG:
 	clicked_entry = 0;
 	pages[HARDDISK_ID] = hDlg;
 	currentpage = HARDDISK_ID;
-	EnableWindow (GetDlgItem(hDlg, IDC_NEW_HD), os_winnt && os_winnt_admin ? TRUE : FALSE);
+	EnableWindow (GetDlgItem(hDlg, IDC_NEW_HD), os_winnt && os_winnt_admin > 1 ? TRUE : FALSE);
 	
     case WM_USER:
 	CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
@@ -9468,101 +9493,111 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     }
     firstdrv = drv;
     for (i = 0; i < cnt; i++) {
+	struct romdata *rd = NULL;
 	struct zfile *z;
+	int type = -1;
+
 	DragQueryFile (hd, i, file, sizeof (file));
         flags = GetFileAttributes(file);
-	z = zfile_fopen (file, "rb");
-	if (z) {
-	    int type = zfile_gettype (z);
-	    struct romdata *rd = getromdatabyzfile (z);
-	    zfile_fclose (z);
-	    switch (type)
-	    {
-		case  ZFILE_DISKIMAGE:
-		    if (currentpage == DISK_ID) {
-			list = 0;
-			while (list < MAX_SPARE_DRIVES) {
-			    if (!strcasecmp (prefs->dfxlist[list], file))
-				break;
+	if (flags & FILE_ATTRIBUTE_DIRECTORY)
+	    type = ZFILE_HDF;
+	if (type < 0) {
+	    z = zfile_fopen (file, "rb");
+	    if (z) {
+		type = zfile_gettype (z);
+		rd = getromdatabyzfile (z);
+		zfile_fclose (z);
+		z = NULL;
+	    }
+	}
+
+	switch (type)
+	{
+    	    case  ZFILE_DISKIMAGE:
+	        if (currentpage == DISK_ID) {
+		    list = 0;
+		    while (list < MAX_SPARE_DRIVES) {
+		        if (!strcasecmp (prefs->dfxlist[list], file))
+			    break;
+			list++;
+		    }
+		    if (list == MAX_SPARE_DRIVES) {
+		        list = 0;
+		        while (list < MAX_SPARE_DRIVES) {
+			    if (!prefs->dfxlist[list][0]) {
+			        strcpy (prefs->dfxlist[list], file);
+			        break;
+			    }
 			    list++;
 			}
-			if (list == MAX_SPARE_DRIVES) {
-			    list = 0;
-			    while (list < MAX_SPARE_DRIVES) {
-				if (!prefs->dfxlist[list][0]) {
-				    strcpy (prefs->dfxlist[list], file);
-				    break;
-				}
-				list++;
-			    }
-			}
-		    } else {
-			strcpy (workprefs.df[drv], file);
-			disk_insert (drv, workprefs.df[drv]);
-			drv++;
-			if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
-			    drv = 0;
-			if (workprefs.dfxtype[drv] < 0)
-			    drv = 0;
-			if (drv == firstdrv)
-			    i = cnt;
 		    }
-		break;
-		case ZFILE_ROM:
-		    if (rd) {
-			if (rd->type == ROMTYPE_KICK || rd->type == ROMTYPE_KICKCD32)
-			    strcpy (prefs->romfile, file);
-			if (rd->type == ROMTYPE_EXTCD32 || rd->type == ROMTYPE_EXTCDTV)
-			    strcpy (prefs->romextfile, file);
-			if (rd->type == ROMTYPE_AR)
-			    strcpy (prefs->cartfile, file);
-		    } else {
-			strcpy (prefs->romfile, file);
-		    }
-		break;
-		case ZFILE_HDF:
-		{
-		    if (currentpage == HARDDISK_ID) {
-			if (flags & FILE_ATTRIBUTE_DIRECTORY) {
-			    add_filesys_config (&workprefs, -1, NULL, "XXX", file, 0,
-			        0, 0, 0, 0, 0, NULL, 0, 0);
-			} else {
-			    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
-			        32, 1, 2, 512, 0, NULL, 0, 0);
-			}
-		    }
+		} else {
+		    strcpy (workprefs.df[drv], file);
+		    disk_insert (drv, workprefs.df[drv]);
+		    drv++;
+		    if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
+		        drv = 0;
+		    if (workprefs.dfxtype[drv] < 0)
+		        drv = 0;
+		    if (drv == firstdrv)
+		        i = cnt;
 		}
-		break;
-		case ZFILE_NVR:
-		    strcpy (prefs->flashfile, file);
-		break;
-		case ZFILE_CONFIGURATION:
-		    if (target_cfgfile_load (&workprefs, file, 0, 0)) {
-			if (full_property_sheet) {
-			    inputdevice_updateconfig (&workprefs);
-			    if (!workprefs.start_gui)
-				ret = 1;
-			} else {
-			    uae_restart (workprefs.start_gui, file);
+	    break;
+	    case ZFILE_ROM:
+	        if (rd) {
+		    if (rd->type == ROMTYPE_KICK || rd->type == ROMTYPE_KICKCD32)
+		        strcpy (prefs->romfile, file);
+		    if (rd->type == ROMTYPE_EXTCD32 || rd->type == ROMTYPE_EXTCDTV)
+		        strcpy (prefs->romextfile, file);
+		    if (rd->type == ROMTYPE_AR)
+		        strcpy (prefs->cartfile, file);
+		} else {
+		    strcpy (prefs->romfile, file);
+		}
+	    break;
+	    case ZFILE_HDF:
+		if (flags & FILE_ATTRIBUTE_DIRECTORY) {
+		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
+			0, 0, 0, 0, 0, NULL, 0, 0);
+		} else {
+		    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
+			32, 1, 2, 512, 0, NULL, 0, 0);
+		}
+	    break;
+	    case ZFILE_NVR:
+	        strcpy (prefs->flashfile, file);
+	    break;
+	    case ZFILE_CONFIGURATION:
+	        if (target_cfgfile_load (&workprefs, file, 0, 0)) {
+		    if (full_property_sheet) {
+		        inputdevice_updateconfig (&workprefs);
+		        if (!workprefs.start_gui)
 			    ret = 1;
-			}
+		    } else {
+		        uae_restart (workprefs.start_gui, file);
+		        ret = 1;
 		    }
-		break;
-		case ZFILE_STATEFILE:
-		    savestate_state = STATE_DORESTORE;
-		    strcpy (savestate_fname, file);
-		    ret = 1;
-		break;
-		default:
-		rd = scan_arcadia_rom (file, 0);
-		if (rd) {
-		    if (rd->type == ROMTYPE_ARCADIABIOS)
-			strcpy (prefs->romextfile, file);
-		    else if (rd->type == ROMTYPE_ARCADIAGAME)
-			strcpy (prefs->cartfile, file);
 		}
-		break;
-	    }
+	    break;
+	    case ZFILE_STATEFILE:
+	        savestate_state = STATE_DORESTORE;
+	        strcpy (savestate_fname, file);
+	        ret = 1;
+	    break;
+	    default:
+		if (currentpage == HARDDISK_ID) {
+		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
+			0, 0, 0, 0, 0, NULL, 0, 0);
+		} else {
+		    rd = scan_arcadia_rom (file, 0);
+	    	    if (rd) {
+			if (rd->type == ROMTYPE_ARCADIABIOS)
+			    strcpy (prefs->romextfile, file);
+			else if (rd->type == ROMTYPE_ARCADIAGAME)
+			    strcpy (prefs->cartfile, file);
+		    }
+		}
+	    break;
 	}
     }
     DragFinish (hd);

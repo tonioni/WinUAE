@@ -1,6 +1,6 @@
 
 #define MAX_TOTAL_DEVICES 8
-#define DEVICE_SCSI_BUFSIZE 65536
+#define DEVICE_SCSI_BUFSIZE (65536 - 1024)
 
 //#define device_debug write_log
 #define device_debug

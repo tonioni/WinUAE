@@ -492,7 +492,7 @@ void ncr_init (void)
 	z = zfile_fopen(rl->path, "rb");
 	if (z) {
 	    write_log("loaded\n");
-	    rom = xmalloc (ROM_SIZE * 4);
+	    rom = (uae_u8*)xmalloc (ROM_SIZE * 4);
 	    for (i = 0; i < ROM_SIZE; i++) {
 		uae_u8 b;
 	        zfile_fread(&b, 1, 1, z);

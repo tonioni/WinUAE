@@ -286,7 +286,7 @@ int host_sbinit(TrapContext *context, SB)
 	if ((sb->hEvent = CreateEvent(NULL,FALSE,FALSE,NULL)) == NULL)
 		return 0;
 
-	sb->mtable = calloc(sb->dtablesize,sizeof(*sb->mtable));
+	sb->mtable = calloc(sb->dtablesize, sizeof(*sb->mtable));
 	
 	return 1;
 }
@@ -780,7 +780,7 @@ struct threadsock_packet
     SB;
 } sockreq;
 
-static BOOL HandleStuff( void )
+static BOOL HandleStuff(void)
 {
 	BOOL quit = FALSE;
 	SB = NULL;
@@ -789,7 +789,7 @@ static BOOL HandleStuff( void )
 	// 100ms sleepiness might need some tuning...
 	//if(WaitForSingleObject( hSockReq, 100 ) == WAIT_OBJECT_0 )
 		{
-			switch( sockreq.packet_type )
+			switch(sockreq.packet_type)
 			{
 				case connect_req:
 				sockreq.sb->resultval = connect(sockreq.s,(struct sockaddr *)(sockreq.params.connect_s.buf),sockreq.params.connect_s.namelen);
@@ -1062,7 +1062,7 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 			sockreq.params.sendto_s.to = to;
 			sockreq.params.sendto_s.tolen = tolen;
 
-			if (sb->ftable[sd-1]&SF_RAW_UDP) {
+			if (sb->ftable[sd - 1] & SF_RAW_UDP) {
 				*(buf+2) = *(realpt+2);
 				*(buf+3) = *(realpt+3);
 				// Copy DST-Port
@@ -1070,7 +1070,7 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 				sockreq.params.sendto_s.realpt += iCut;
 				sockreq.params.sendto_s.len -= iCut;
 			}
-			if (sb->ftable[sd-1]&SF_RAW_RUDP) {
+			if (sb->ftable[sd - 1] & SF_RAW_RUDP) {
 				int iTTL;
 				iTTL = (int) *(realpt+8)&0xff;
 				setsockopt(s,IPPROTO_IP,4,(char*) &iTTL,sizeof(iTTL));
@@ -1081,7 +1081,7 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 				sockreq.params.sendto_s.realpt += iCut;
 				sockreq.params.sendto_s.len -= iCut;
 			}
-			if (sb->ftable[sd-1]&SF_RAW_RICMP) {
+			if (sb->ftable[sd - 1] & SF_RAW_RICMP) {
 				int iTTL;
 				iTTL = (int) *(realpt+8)&0xff;
 				setsockopt(s,IPPROTO_IP,4,(char*) &iTTL,sizeof(iTTL));
@@ -1091,11 +1091,11 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 			}
 
 			TRIGGER_THREAD;
-			if (sb->ftable[sd-1]&SF_RAW_UDP||sb->ftable[sd-1]&SF_RAW_RUDP||sb->ftable[sd-1]&SF_RAW_RICMP) {
+			if ((sb->ftable[sd - 1] & SF_RAW_UDP) || (sb->ftable[sd - 1] & SF_RAW_RUDP) || (sb->ftable[sd-1] & SF_RAW_RICMP)) {
 				sb->resultval += iCut;
 			}
 			if (sb->resultval == -1) {
-				if (sb->sb_errno != WSAEWOULDBLOCK - WSABASEERR || !(sb->ftable[sd-1] & SF_BLOCKING))
+				if (sb->sb_errno != WSAEWOULDBLOCK - WSABASEERR || !(sb->ftable[sd - 1] & SF_BLOCKING))
 					break;
 			} else {
 				realpt += sb->resultval;
@@ -1106,11 +1106,11 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 					continue;
 			}
 
-			if (sb->mtable[sd-1] || (wMsg = allocasyncmsg(sb,sd,s)) != 0) {
-				if (sb->mtable[sd-1] == 0) {
+			if (sb->mtable[sd - 1] || (wMsg = allocasyncmsg(sb, sd, s)) != 0) {
+				if (sb->mtable[sd - 1] == 0) {
 					WSAAsyncSelect(s,hWndSelector ? hAmigaWnd : bsd->hSockWnd,wMsg,FD_WRITE);
 				} else {
-					setWSAAsyncSelect(sb,sd,s,FD_WRITE);
+					setWSAAsyncSelect(sb, sd, s, FD_WRITE);
 				}
 					
 				WAITSIGNAL;
@@ -1118,7 +1118,7 @@ void host_sendto(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len,
 				if (sb->mtable[sd-1] == 0) {
 					cancelasyncmsg(context, wMsg);
 				} else {
-					setWSAAsyncSelect(sb,sd,s,0);
+					setWSAAsyncSelect(sb, sd, s, 0);
 				}
 				
 				if (sb->eintr) {

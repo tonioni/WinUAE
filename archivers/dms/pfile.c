@@ -404,7 +404,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
     passretries--;
     pwrounds = 0;
     maybeencrypted = 0;
-    tmp = malloc (pklen1);
+    tmp = (unsigned char*)malloc (pklen1);
     memcpy (tmp, b1, pklen1);
     for (;;) {
 	r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);

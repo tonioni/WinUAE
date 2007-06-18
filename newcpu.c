@@ -67,9 +67,11 @@ int movem_index2[256];
 int movem_next[256];
 
 #ifdef FPUEMU
+#if 0
 int fpp_movem_index1[256];
 int fpp_movem_index2[256];
 int fpp_movem_next[256];
+#endif
 #endif
 
 cpuop_func *cpufunctbl[65536];
@@ -144,7 +146,7 @@ static void set_cpu_caches(void)
 	    flush_icache(1);
 	}
     } else {
-	set_cache_state(regs.cacr & 0x8000);
+	set_cache_state((regs.cacr & 0x8000) ? 1 : 0);
     }
 #endif
 }
@@ -237,6 +239,7 @@ static void build_cpufunctbl (void)
 #ifdef JIT
     build_comp ();
 #endif
+    set_cpu_caches ();
 }
 
 void fill_prefetch_slow (struct regstruct *regs)
@@ -279,7 +282,13 @@ static void prefs_changed_cpu (void)
 
 void check_prefs_changed_cpu (void)
 {
-    if (currprefs.cpu_model != changed_prefs.cpu_model
+    int changed = 0;
+
+#ifdef JIT
+    changed = check_prefs_changed_comp ();
+#endif
+    if (changed
+	|| currprefs.cpu_model != changed_prefs.cpu_model
 	|| currprefs.fpu_model != changed_prefs.fpu_model
 	|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 	|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
@@ -288,8 +297,9 @@ void check_prefs_changed_cpu (void)
 	if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
 	    fill_prefetch_slow (&regs);
 	build_cpufunctbl ();
+	changed = 1;
     }
-    if (currprefs.m68k_speed != changed_prefs.m68k_speed) {
+    if (changed || currprefs.m68k_speed != changed_prefs.m68k_speed) {
 	currprefs.m68k_speed = changed_prefs.m68k_speed;
 	reset_frame_rate_hack ();
 	update_68k_cycles ();
@@ -297,6 +307,9 @@ void check_prefs_changed_cpu (void)
     if (currprefs.cpu_idle != changed_prefs.cpu_idle) {
 	currprefs.cpu_idle = changed_prefs.cpu_idle;
     }
+    if (changed)
+	set_special (&regs, SPCFLAG_BRK);
+
 }
 
 void init_m68k (void)
@@ -316,6 +329,7 @@ void init_m68k (void)
 	movem_next[i] = i & (~(1 << j));
     }
 #ifdef FPUEMU
+#if 0
     for (i = 0 ; i < 256 ; i++) {
 	int j;
 	for (j = 7 ; j >= 0 ; j--) {
@@ -325,6 +339,7 @@ void init_m68k (void)
 	fpp_movem_index2[i] = j;
 	fpp_movem_next[i] = i & (~(1 << j));
     }
+#endif
 #endif
 #if COUNT_INSTRS
     {
@@ -374,7 +389,6 @@ void init_m68k (void)
     /* We need to check whether NATMEM settings have changed
      * before starting the CPU */
     check_prefs_changed_comp ();
-    set_cpu_caches();
 #endif
 }
 
@@ -2621,7 +2635,7 @@ void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *s
 {
     char *buf;
 
-    buf = malloc((MAX_LINEWIDTH + 1) * cnt);
+    buf = (char*)malloc((MAX_LINEWIDTH + 1) * cnt);
     if (!buf)
         return;
     m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, seaddr, deaddr, 1);
@@ -2632,7 +2646,7 @@ void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt)
 {
     char *buf;
 
-    buf = malloc((MAX_LINEWIDTH + 1) * cnt);
+    buf = (char*)malloc((MAX_LINEWIDTH + 1) * cnt);
     if (!buf)
         return;
     m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, NULL, NULL, 0);
@@ -2934,7 +2948,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc(1000);
+	dstbak = dst = (uae_u8*)malloc(1000);
     model = currprefs.cpu_model;
     save_u32 (model);					/* MODEL */
     save_u32 (0x80000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */

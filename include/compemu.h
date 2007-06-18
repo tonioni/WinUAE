@@ -486,7 +486,7 @@ extern void empty_optimizer(void);
 #define comp_get_ilong(o) do_get_mem_long((uae_u32 *)(comp_pc_p + (o)))
 
 /* Preferences handling */
-void check_prefs_changed_comp (void);
+int check_prefs_changed_comp (void);
 
 struct blockinfo_t;
 

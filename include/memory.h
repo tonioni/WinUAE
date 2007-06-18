@@ -346,12 +346,13 @@ struct romdata {
     int ver, rev;
     int subver, subrev;
     char *model;
-    uae_u32 crc32;
     uae_u32 size;
     int id;
     int cpu;
     int cloanto;
     int type;
+    uae_u32 crc32;
+    uae_u32 sha1[5];
     char *configname;
 };
 

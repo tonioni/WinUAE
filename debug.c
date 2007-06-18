@@ -581,8 +581,8 @@ void record_copper (uaecptr addr, int hpos, int vpos)
 {
     int t = nr_cop_records[curr_cop_set];
     if (!cop_record[0]) {
-	cop_record[0] = malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
-	cop_record[1] = malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[0] = (struct cop_record*)malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[1] = (struct cop_record*)malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
     }
     if (t < NR_COPPER_RECORDS) {
 	cop_record[curr_cop_set][t].addr = addr;
@@ -740,7 +740,7 @@ static int totaltrainers;
 static void clearcheater(void)
 {
     if (!trainerdata)
-        trainerdata = xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
+        trainerdata = (struct trainerstruct*)xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
     memset(trainerdata, 0, sizeof (struct trainerstruct) * MAX_CHEAT_VIEW);
     totaltrainers = 0;
 }
@@ -823,7 +823,7 @@ static void deepcheatsearch (char **c)
 	    addr = end - 1;
 	}
 	memsize2 = (memsize + 7) / 8;
-	memtmp = xmalloc (memsize + memsize2);
+	memtmp = (uae_u8*)xmalloc (memsize + memsize2);
 	if (!memtmp)
 	    return;
 	memset (memtmp + memsize, 0xff, memsize2);
@@ -944,7 +944,7 @@ static void cheatsearch (char **c)
     	console_out("search reset\n");
 	xfree (vlist);
 	listsize = memsize;
-	vlist = xcalloc (listsize >> 3, 1);
+	vlist = (uae_u8*)xcalloc (listsize >> 3, 1);
 	return;
     }
     val = readint (c);
@@ -966,7 +966,7 @@ static void cheatsearch (char **c)
 
     if (vlist == NULL) {
 	listsize = memsize;
-	vlist = xcalloc (listsize >> 3, 1);
+	vlist = (uae_u8*)xcalloc (listsize >> 3, 1);
     }
 
     count = 0;
@@ -1030,7 +1030,7 @@ static void illg_init (void)
     int i;
 
     free (illgdebug);
-    illgdebug = xmalloc (0x1000000);
+    illgdebug = (uae_u8*)xmalloc (0x1000000);
     if (!illgdebug)
 	return;
     memset (illgdebug, 3, 0x1000000);
@@ -1146,7 +1146,7 @@ static void smc_detect_init(void)
     if (currprefs.z3fastmem_size)
 	smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
     smc_size += 4;
-    smc_table = xmalloc (smc_size * sizeof (struct smc_item));
+    smc_table = (struct smc_item*)xmalloc (smc_size * sizeof (struct smc_item));
     smc_reset();
     console_out("SMCD enabled\n");
 }
@@ -1464,8 +1464,8 @@ static void initialize_memwatch (int mode)
 
     deinitialize_memwatch();
     as = currprefs.address_space_24 ? 256 : 65536;
-    debug_mem_banks = xmalloc (sizeof (addrbank*) * as);
-    debug_mem_area = xmalloc (sizeof (addrbank) * as);
+    debug_mem_banks = (addrbank**)xmalloc (sizeof (addrbank*) * as);
+    debug_mem_area = (addrbank*)xmalloc (sizeof (addrbank) * as);
     for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i] = debug_mem_area + i;
 	a2 = mem_banks[i];
@@ -1521,7 +1521,7 @@ static void memwatch_dump (int num)
     char *buf;
     int multiplier = num < 0 ? MEMWATCH_TOTAL : 1;
 
-    buf = malloc(50 * multiplier);
+    buf = (char*)malloc(50 * multiplier);
     if (!buf)
         return;
     memwatch_dump2 (buf, 50 * multiplier, num);
@@ -1771,8 +1771,7 @@ STATIC_INLINE uaecptr BPTR2APTR(uaecptr addr)
 }
 static char* BSTR2CSTR(uae_u8 *bstr)
 {
-    char *cstr = NULL;
-    cstr = xmalloc(bstr[0] + 1);
+    char *cstr = (char*)xmalloc(bstr[0] + 1);
     if (cstr) {
         memcpy(cstr, bstr + 1, bstr[0]);
         cstr[bstr[0]] = 0;
@@ -1914,7 +1913,7 @@ static int process_breakpoint(char **c)
     if (!more_params (c))
 	return 0;
     if (**c == '\"') {
-	processname = xmalloc(200);
+	processname = (char*)xmalloc(200);
 	next_string(c, processname, 200, 0);
     } else {
 	processptr = readhex(c);
@@ -2501,7 +2500,7 @@ void debug (void)
 		    uaecptr execbase = get_long (4);
 		    uaecptr activetask = get_long (execbase + 276);
 		    int process = get_byte(activetask + 8) == 13 ? 1 : 0;
-		    char *name = get_real_address(get_long(activetask + 10));
+		    char *name = (char*)get_real_address(get_long(activetask + 10));
 		    if (process) {
 			uaecptr cli = BPTR2APTR(get_long(activetask + 172));
 			uaecptr seglist = 0;
@@ -2940,7 +2939,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     }
 
     mmu_slots = 1 << ((currprefs.address_space_24 ? 24 : 32) - MMU_PAGE_SHIFT);
-    mmunl = xcalloc (sizeof (struct mmunode*) * mmu_slots, 1);
+    mmunl = (struct mmunode**)xcalloc (sizeof (struct mmunode*) * mmu_slots, 1);
     size = 1;
     p2 = get_long (p);
     while (get_long (p2) != 0xffffffff) {
@@ -2948,7 +2947,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	size++;
     }
     p = banks = get_long (p);
-    snptr = mmubanks = xmalloc (sizeof (struct mmudata) * size);
+    snptr = mmubanks = (struct mmudata*)xmalloc (sizeof (struct mmudata) * size);
     for (;;) {
 	int off;
 	if (getmmubank(snptr, p))
@@ -2956,12 +2955,12 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	p += 16;
 	off = snptr->addr >> MMU_PAGE_SHIFT;
 	if (mmunl[off] == NULL) {
-	    mn = mmunl[off] = xcalloc (sizeof (struct mmunode), 1); 
+	    mn = mmunl[off] = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1); 
 	} else {
 	    mn = mmunl[off];
 	    while (mn->next)
 		mn = mn->next;
-	    mn = mn->next = xcalloc (sizeof (struct mmunode), 1);
+	    mn = mn->next = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1);
 	}
 	mn->mmubank = snptr;
 	snptr++;

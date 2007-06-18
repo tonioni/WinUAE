@@ -219,7 +219,7 @@ static void disk_checksum(uae_u8 *p, uae_u8 *c)
     c[0] = cs >> 24; c[1] = cs >> 16; c[2] = cs >> 8; c[3] = cs >> 0;
 }
 
-static int dirhash (unsigned char *name)
+static int dirhash (const unsigned char *name)
 {
     unsigned long hash;
     int i;
@@ -969,7 +969,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 	    drv->num_tracks = size / (512 * (drv->num_secs = 11));
 
 	if (drv->num_tracks > MAX_TRACKS)
-	    write_log ("Your diskfile is too big!\n");
+	    write_log ("Your diskfile is too big, %d bytes!\n", size);
 	for (i = 0; i < drv->num_tracks; i++) {
 	    tid = &drv->trackdata[i];
 	    tid->type = TRACK_AMIGADOS;
@@ -1817,7 +1817,7 @@ void disk_creatediskfile (char *name, int type, drive_type adftype, char *disk_n
     }
 
     f = zfile_fopen (name, "wb");
-    chunk = xmalloc (16384);
+    chunk = (uae_u8*)xmalloc (16384);
     if (f && chunk) {
 	memset(chunk,0,16384);
 	if (type == 0 && adftype < 2) {
@@ -3144,7 +3144,7 @@ static uae_u32 getadfcrc (drive *drv)
 	return 0;
     zfile_fseek (drv->diskfile, 0, SEEK_END);
     size = zfile_ftell (drv->diskfile);
-    b = malloc (size);
+    b = (uae_u8*)malloc (size);
     if (!b)
 	return 0;
     zfile_fseek (drv->diskfile, 0, SEEK_SET);
@@ -3163,7 +3163,7 @@ uae_u8 *save_disk(int num, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (2+1+1+1+1+4+4+256);
+	dstbak = dst = (uae_u8*)malloc (2+1+1+1+1+4+4+256);
     save_u32 (drv->drive_id);	    /* drive type ID */
     save_u8 ((drv->motoroff ? 0:1) | ((disabled & (1 << num)) ? 2 : 0) | (drv->idbit ? 4 : 0));
     save_u8 (drv->cyl);		    /* cylinder */
@@ -3204,7 +3204,7 @@ uae_u8 *save_floppy(int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc(2+1+1+1+1+2);
+	dstbak = dst = (uae_u8*)malloc(2+1+1+1+1+2);
     save_u16 (word);		/* current fifo (low word) */
     save_u8 (bitoffset);	/* dma bit offset */
     save_u8 (dma_enable);	/* disk sync found */

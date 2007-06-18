@@ -17,7 +17,9 @@ extern void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int w
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned long uint32;
+#ifndef __cplusplus
 typedef int bool;
+#endif
 
 extern void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs);
 extern int Init_2xSaI(int rb, int gb, int bb, int rs, int gs, int bs);

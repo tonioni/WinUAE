@@ -262,7 +262,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 
     if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
 	write_log("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n",
-	    aino->nname, GetLastError(), aino,aino->dir);
+	    aino->nname, GetLastError(), aino, aino->dir);
 	return 0;
     }
     aino->dir = (mode & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
@@ -327,18 +327,16 @@ int fsdb_set_file_attrs (a_inode *aino)
 	return ERROR_OBJECT_NOT_AROUND;
     mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
 
-    if (1 || ! aino->dir) {
-	mode = 0;
-	if ((tmpmask & (A_FIBF_WRITE | A_FIBF_DELETE)) == 0)
-	    mode |= FILE_ATTRIBUTE_READONLY;
-	if (!(tmpmask & A_FIBF_ARCHIVE))
-	    mode |= FILE_ATTRIBUTE_ARCHIVE;
-	if (tmpmask & A_FIBF_PURE)
-	    mode |= FILE_ATTRIBUTE_SYSTEM;
-	if (tmpmask & A_FIBF_HIDDEN)
-	    mode |= FILE_ATTRIBUTE_HIDDEN;
-	SetFileAttributes (aino->nname, mode);
-    }
+    mode = 0;
+    if ((tmpmask & (A_FIBF_WRITE | A_FIBF_DELETE)) == 0)
+        mode |= FILE_ATTRIBUTE_READONLY;
+    if (!(tmpmask & A_FIBF_ARCHIVE))
+        mode |= FILE_ATTRIBUTE_ARCHIVE;
+    if (tmpmask & A_FIBF_PURE)
+        mode |= FILE_ATTRIBUTE_SYSTEM;
+    if (tmpmask & A_FIBF_HIDDEN)
+        mode |= FILE_ATTRIBUTE_HIDDEN;
+    SetFileAttributes (aino->nname, mode);
 
     aino->dirty = 1;
     if (aino->volflags & MYVOLUMEINFO_STREAMS) {

@@ -1045,7 +1045,7 @@ STATIC_INLINE void flush_display (int fm)
     toscr_nbits = 0;
 }
 
-STATIC_INLINE fetch_start(int hpoa)
+STATIC_INLINE void fetch_start(int hpoa)
 {
     fetch_state = fetch_started;
 }
@@ -3070,7 +3070,7 @@ static void BLTSIZH (uae_u16 v)
     do_blitter (current_hpos());
 }
 
-STATIC_INLINE spr_arm (int num, int state)
+STATIC_INLINE void spr_arm (int num, int state)
 {
     switch (state)
     {
@@ -4958,7 +4958,7 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
     return v;
 }
 
- STATIC_INLINE custom_wget2 (uaecptr addr)
+ STATIC_INLINE uae_u32 custom_wget2 (uaecptr addr)
  {
     uae_u32 v;
     sync_copper_with_cpu (current_hpos (), 1);
@@ -5421,7 +5421,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (8 + 256 * 2);
+	dstbak = dst = (uae_u8*)malloc (8 + 256 * 2);
 
     SL (currprefs.chipset_mask);
     SW (0);			/* 000 ? */
@@ -5584,7 +5584,7 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (256*4);
+	dstbak = dst = (uae_u8*)malloc (256*4);
     for (i = 0; i < 256; i++)
 #ifdef AGA
     SL (current_colors.color_regs_aga[i]);
@@ -5619,7 +5619,7 @@ uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (25);
+	dstbak = dst = (uae_u8*)malloc (30);
     SL (spr[num].pt);		/* 120-13E SPRxPT */
     SW (sprpos[num]);		/* 1x0 SPRxPOS */
     SW (sprctl[num]);		/* 1x2 SPRxPOS */
@@ -5696,7 +5696,7 @@ STATIC_INLINE void sync_copper (int hpos)
 	update_copper (hpos);
 }
 
-STATIC_INLINE decide_fetch_ce (int hpos)
+STATIC_INLINE void decide_fetch_ce (int hpos)
 {
     if ((ddf_change == vpos || ddf_change + 1 == vpos) && vpos < maxvpos)
 	decide_fetch (hpos);

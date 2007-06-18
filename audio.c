@@ -233,7 +233,7 @@ static void do_samplerip(struct audio_channel_data *adp)
 	    /* replace old identical but shorter sample */
 	    if (len > rs->len && !memcmp(rs->sample, smp, rs->len)) {
 		xfree(rs->sample);
-		rs->sample = xmalloc(len);
+		rs->sample = (uae_u8*)xmalloc(len);
 		memcpy(rs->sample, smp, len);
 		write_log("SAMPLERIPPER: replaced sample %d (%d -> %d)\n", cnt, rs->len, len);
 		rs->len = len;
@@ -249,14 +249,14 @@ static void do_samplerip(struct audio_channel_data *adp)
     }
     if (rs || cnt > 100)
 	return;
-    rs = xmalloc(sizeof(struct ripped_sample));
+    rs = (struct ripped_sample*)xmalloc(sizeof(struct ripped_sample));
     if (prev)
 	prev->next = rs;
     else
 	ripped_samples = rs;
     rs->len = len;
     rs->per = adp->per / CYCLE_UNIT;
-    rs->sample = xmalloc(len);
+    rs->sample = (uae_u8*)xmalloc(len);
     memcpy(rs->sample, smp, len);
     rs->next = NULL;
     rs->changed = 1;
@@ -1796,7 +1796,7 @@ uae_u8 *save_audio (int i, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (100);
+	dstbak = dst = (uae_u8*)malloc (100);
     acd = audio_channel + i;
     save_u8 ((uae_u8)acd->state);
     save_u8 (acd->vol);

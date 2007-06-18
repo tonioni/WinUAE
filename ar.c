@@ -1572,7 +1572,7 @@ int action_replay_load(void)
 	return 0;
     }
     action_replay_flag = ACTION_REPLAY_INACTIVE;
-    armemory_rom = xmalloc (ar_rom_file_size);
+    armemory_rom = (uae_u8*)xmalloc (ar_rom_file_size);
     zfile_fread (armemory_rom, ar_rom_file_size, 1, f);
     zfile_fclose (f);
     if (ar_rom_file_size == 65536) {
@@ -1591,7 +1591,7 @@ int action_replay_load(void)
     }
     arram_mask = arram_size - 1;
     arrom_mask = arrom_size - 1;
-    armemory_ram = xcalloc (arram_size, 1);
+    armemory_ram = (uae_u8*)xcalloc (arram_size, 1);
     write_log("Action Replay %d installed at %08.8X, size %08.8X\n", armodel, arrom_start, arrom_size);
     action_replay_setbanks ();
     action_replay_version();
@@ -1866,7 +1866,7 @@ uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = malloc (hrtmem_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
+	dstbak = dst = (uae_u8*)malloc (hrtmem_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
     save_u8 (0);
     save_u8 (0);
     save_u32 (0);

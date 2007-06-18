@@ -24,6 +24,7 @@
 #include "akiko.h"
 #include "gui.h"
 #include "crc32.h"
+#include "uae.h"
 
 #define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 0
@@ -1411,10 +1412,10 @@ int akiko_init (void)
 	}
 	if (!sys_cddev_open ()) {
 	    cdromok = 1;
-	    sector_buffer_1 = malloc (SECTOR_BUFFER_SIZE * 2048);
-	    sector_buffer_2 = malloc (SECTOR_BUFFER_SIZE * 2048);
-	    sector_buffer_info_1 = malloc (SECTOR_BUFFER_SIZE);
-	    sector_buffer_info_2 = malloc (SECTOR_BUFFER_SIZE);
+	    sector_buffer_1 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE * 2048);
+	    sector_buffer_2 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE * 2048);
+	    sector_buffer_info_1 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE);
+	    sector_buffer_info_2 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE);
 	    sector_buffer_sector_1 = -1;
 	    sector_buffer_sector_2 = -1;
 	    patchrom ();
@@ -1439,7 +1440,7 @@ uae_u8 *save_akiko(int *len)
     uae_u8 *dstbak, *dst;
     int i;
 
-    dstbak = dst = malloc (1000);
+    dstbak = dst = (uae_u8*)malloc (1000);
     save_u16 (0);
     save_u16 (0xCAFE);
     save_u32 (cdrom_status1);
