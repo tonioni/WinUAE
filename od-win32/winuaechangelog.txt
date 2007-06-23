@@ -1,4 +1,39 @@
 
+Beta 6:
+
+- rar unpacking double memory deallocation (unrar.dll is still
+  the most stupidly designed unpacking library)
+- crash if dearchiver (rar or archiveaccess) was not available
+- hardfile filesys loader/relocator sometimes incorrectly allocated
+  code/data space from chip memory
+- lha/lzh archive detection fixed
+- P96 ram allocation forced indirect JIT mode
+- -datapath fixed, overrides paths-panel paths again
+
+- recursive harddrive archive support enabled
+  
+  Archives inside archive are only unpacked when first accessed for
+  best performance. Tested by creating 200MB zip archive that contained
+  ~250 pre-installed zipped WHDLoad demo slaves. (Note that this can
+  confuse some programs because size of "harddrive" gets bigger and
+  bigger the more archives inside archives are unpacked..)
+  
+  Original archive is "duplicated" as a directory called
+  <name of archive>.DIR
+  
+  "file not found" or "empty directory" is returned if decompression
+  fails
+ 
+  In future there may be options to disable recursive archive support
+  and ability to replace original archive file with unpacked directory
+  (without .DIR extension) Another future idea is write access (to
+  separate "diff" directory)
+  
+  
+  Note: rar archive inside another archive can not be unpacked
+  without archiveaccess.dll (unrar.dll can't do it without temp
+  files and I refuse to use temp files)
+
 Beta 5:
 
 - JIT on/off switching via uae-configuration re-enables direct mode
@@ -31,6 +66,8 @@ Beta 5:
   mounted if safety check is not disabled and drive is non-empty.
 - disable "add harddrive" on vista without full admin privileges
 - harddisk panel directory and archive dragndrop added
+- included beta updated rtg.library, fully enables >1024 pixel wide
+  bitmaps (including acceleration), obsoletes picasso96fix. (BR)
 
 
 Beta 4:

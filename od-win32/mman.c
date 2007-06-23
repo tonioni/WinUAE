@@ -290,14 +290,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
 		shmaddr = natmem_offset + p96ram_start;
 		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-		if (os_winnt) {
-		    virtualfreewithlock(p96fakeram, p96fakeramsize, MEM_RELEASE);
-		    p96fakeramsize = size + 4096;
-		    p96fakeram = virtualallocwithlock(NULL, p96fakeramsize, MEM_COMMIT, 0);
-		} else {
-		    xfree(p96fakeram);
-		    result = p96fakeram = xcalloc (size + 4096, 1);
-		}
+		xfree(p96fakeram);
+		result = p96fakeram = xcalloc (size + 4096, 1);
 		shmids[shmid].attached = result;
 		return result;
 	    }

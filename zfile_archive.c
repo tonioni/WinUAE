@@ -102,13 +102,16 @@ struct zfile *archive_getzfile(struct znode *zn, unsigned int id)
 
 struct zfile *archive_access_select (struct zfile *zf, unsigned int id)
 {
-    struct zvolume *zv = getzvolume(zf, id);
+    struct zvolume *zv;
     struct znode *zn;
     int zipcnt, first, select;
     char tmphist[MAX_DPATH];
     struct zfile *z = NULL;
     int we_have_file;
 
+    zv = getzvolume(zf, id);
+    if (!zv)
+	return zf;
     we_have_file = 0;
     tmphist[0] = 0;
     zipcnt = 1;
@@ -483,7 +486,6 @@ struct RARContext
 
 static void archive_close_rar(struct RARContext *rc)
 {
-    pRARCloseArchive (rc->hArcData);
     xfree(rc);
 }
 
@@ -533,7 +535,6 @@ struct zvolume *archive_directory_rar (struct zfile *z)
     zftmp = zfile_fopen_empty (z->name, 0);
     zv->archive = zftmp;
     zv->method = ArchiveFormatRAR;
-    zfile_fclose(z);
     return zv;
 }
 

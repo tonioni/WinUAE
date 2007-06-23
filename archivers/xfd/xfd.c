@@ -236,12 +236,12 @@ int init_xfd(void)
 
     codememory = 0x2000;
     codeptr = malloc (FAKEMEM_SIZE);
-    sprintf (tmp, "%suae_data%cxfd", start_path_data, FSDB_DIR_SEPARATOR);
+    sprintf (tmp, "%splugins%cxfd", start_path_data, FSDB_DIR_SEPARATOR);
     d = my_opendir(tmp);
     if (d) {
 	while(my_readdir(d, tmp)) {
 	    char tmp2[MAX_DPATH];
-	    sprintf (tmp2, "%suae_data%cxfd%c%s", start_path_data, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, tmp);
+	    sprintf (tmp2, "%splugins%cxfd%c%s", start_path_data, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, tmp);
 	    load_xfd(tmp2);
 	}
 	my_closedir(d);

@@ -19,6 +19,7 @@ struct znode {
     struct zvolume *volume;
     struct znode *next;
     struct znode *prev;
+    struct znode *vfile; // points to real file when this node is virtual directory
     char *name;
     char *fullname;
     unsigned int size;
@@ -40,6 +41,7 @@ struct zvolume
     struct znode root;
     struct zvolume *next;
     struct znode *last;
+    struct zvolume *parent;
     unsigned int size;
     unsigned int blocks;
     unsigned int id;
@@ -67,6 +69,7 @@ struct zarchive_info
 extern int zfile_is_ignore_ext(const char *name);
 
 extern struct zvolume *zvolume_alloc(struct zfile *z, unsigned int id, void *handle);
+extern struct zvolume *zvolume_alloc_empty(const char *name);
 
 extern struct znode *zvolume_addfile_abs(struct zvolume *zv, struct zarchive_info*);
 extern struct znode *zvolume_adddir_abs(struct zvolume *zv, struct zarchive_info *zai);

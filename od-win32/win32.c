@@ -87,6 +87,7 @@ RECT amigawin_rect;
 static UINT TaskbarRestart;
 static int TaskbarRestartOk;
 static int forceroms;
+static int start_data = 0;
 
 char VersionStr[256];
 char BetaStr[64];
@@ -1997,11 +1998,11 @@ void fetch_path (char *name, char *out, int size)
 	strcat (out, "..\\shared\\rom\\");
     if (!strcmp (name, "ConfigurationPath"))
 	strcat (out, "Configurations\\");
-    if (hWinUAEKey)
+    if (hWinUAEKey && start_data >= 0)
 	RegQueryValueEx (hWinUAEKey, name, 0, NULL, out, &size);
     if (out[0] == '\\' && (strlen(out) >= 2 && out[1] != '\\')) { /* relative? */
 	strcpy (out, start_path_data);
-	if (hWinUAEKey) {
+	if (hWinUAEKey && start_data >= 0) {
 	    size2 -= strlen (out);
 	    RegQueryValueEx (hWinUAEKey, name, 0, NULL, out + strlen (out) - 1, &size2);
 	}
@@ -2512,7 +2513,7 @@ static int osdetect (void)
 
 typedef HRESULT (CALLBACK* SHGETFOLDERPATH)(HWND,int,HANDLE,DWORD,LPTSTR);
 typedef BOOL (CALLBACK* SHGETSPECIALFOLDERPATH)(HWND,LPTSTR,int,BOOL);
-static void getstartpaths(int start_data)
+static void getstartpaths(void)
 {
     SHGETFOLDERPATH pSHGetFolderPath;
     SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
@@ -2696,7 +2697,6 @@ static void makeverstr(char *s)
 }
 
 static int multi_display = 1;
-static int start_data = 0;
 
 static int process_arg(char **xargv)
 {
@@ -2800,7 +2800,7 @@ static int process_arg(char **xargv)
 	    if (!strcmp (arg, "-datapath")) {
 		i++;
 		strcpy(start_path_data, np);
-		start_data = 1;
+		start_data = -1;
 		continue;
 	    }
 	    if (!strcmp (arg, "-maxmem")) {
@@ -2859,7 +2859,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argv = xcalloc (sizeof (char*),  __argc);
     argc = process_arg(argv);
 
-    getstartpaths(start_data);
+    getstartpaths();
     makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);
 
