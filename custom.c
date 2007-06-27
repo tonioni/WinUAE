@@ -2473,6 +2473,7 @@ static void perform_copper_write (int old_hpos);
 static void immediate_copper (int num)
 {
     int pos = 0;
+    int oldpos = 0;
 
     cop_state.state = COP_stop;
     cop_state.vpos = vpos;
@@ -2480,16 +2481,19 @@ static void immediate_copper (int num)
     cop_state.ip = num == 1 ? cop1lc : cop2lc;
  
     while (pos < (maxvpos << 5)) {
+	if (oldpos > pos)
+	    pos = oldpos;
 	if (!dmaen(DMA_COPPER))
 	    break;
 	if (cop_state.ip >= currprefs.chipmem_size)
 	    break;
 	pos++;
+	oldpos = pos;
 	cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
 	cop_state.i2 = chipmem_agnus_wget (cop_state.ip + 2);
 	cop_state.ip += 4;
 	if (!(cop_state.i1 & 1)) { // move
-	    cop_state.i1 &= 0x1ff;
+	    cop_state.i1 &= 0x1fe;
 	    if (cop_state.i1 == 0x88) {
 	        cop_state.ip = cop1lc;
 		continue;

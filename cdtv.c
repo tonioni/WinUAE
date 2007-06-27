@@ -9,8 +9,8 @@
   *
   */
 
-#define CDTV_DEBUG
-#define CDTV_DEBUG_CMD
+//#define CDTV_DEBUG
+//#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"

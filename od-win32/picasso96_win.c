@@ -111,7 +111,7 @@ static struct ScreenResolution alphacolour = { 640, 480 };
 #include "win32gui.h"
 #include "resource.h"
 #define UAE_RTG_LIBRARY_VERSION 40
-#define UAE_RTG_LIBRARY_REVISION 3993
+#define UAE_RTG_LIBRARY_REVISION 3994
 static void checkrtglibrary(void)
 {
     uae_u32 v;

@@ -106,7 +106,8 @@ typedef struct {
     uaecptr startup;
     char *volname; /* volume name, e.g. CDROM, WORK, etc. */
     int volflags; /* volume flags, readonly, stream uaefsdb support */
-    char *rootdir; /* root unix directory */
+    char *rootdir; /* root native directory/hdf */
+    char *rootdirdiff; /* "diff" file/directory */
     int readonly; /* disallow write access? */
     int bootpri; /* boot priority */
     int devno;

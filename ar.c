@@ -1494,7 +1494,7 @@ static int superiv_init(struct zfile *f)
     memset (hrtmemory, 0x00, hrtmem_size);
     if (f) {
 	zfile_fseek (f, 0, SEEK_SET);
-	zfile_fread (hrtmemory, hrtmem_size, 1, f);
+	zfile_fread (hrtmemory, 1, hrtmem_size, f);
 	zfile_fclose (f);
     }
 
@@ -1573,7 +1573,7 @@ int action_replay_load(void)
     }
     action_replay_flag = ACTION_REPLAY_INACTIVE;
     armemory_rom = (uae_u8*)xmalloc (ar_rom_file_size);
-    zfile_fread (armemory_rom, ar_rom_file_size, 1, f);
+    zfile_fread (armemory_rom, 1, ar_rom_file_size, f);
     zfile_fclose (f);
     if (ar_rom_file_size == 65536) {
 	armodel = 1;
@@ -1723,7 +1723,7 @@ int hrtmon_load(void)
     hrtmemory = mapped_malloc (hrtmem_size, cart_memnames[cart_type]);
     memset (hrtmemory, 0xff, 0x80000);
     zfile_fseek (f, 0, SEEK_SET);
-    zfile_fread (hrtmemory, 524288, 1, f);
+    zfile_fread (hrtmemory, 1, 524288, f);
     zfile_fclose (f);
     hrtmon_configure();
     hrtmon_custom = hrtmemory + 0x08f000;

@@ -202,8 +202,7 @@ struct zfile *zfile_gunzip (struct zfile *z)
     first = 1;
     do {
 	zs.next_in = buffer;
-	zs.avail_in = sizeof (buffer);
-	zfile_fread (buffer, sizeof (buffer), 1, z);
+	zs.avail_in = zfile_fread (buffer, 1, sizeof (buffer), z);
 	if (first) {
 	    if (inflateInit2_ (&zs, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
 		break;
@@ -359,36 +358,6 @@ static struct zfile *zuncompress (struct zfile *z)
     return z;
 }
 
-static FILE *openzip (char *name, char *zippath)
-{
-    int i, j;
-    char v;
-
-    i = strlen (name) - 2;
-    if (zippath)
-	zippath[0] = 0;
-    while (i > 0) {
-	if (name[i] == '/' || name[i] == '\\' && i > 4) {
-	    v = name[i];
-	    name[i] = 0;
-	    for (j = 0; plugins_7z[j]; j++) {
-		int len = strlen (plugins_7z[j]);
-		if (name[i - len - 1] == '.' && !strcasecmp (name + i - len, plugins_7z[j])) {
-		    FILE *f = fopen (name, "rb");
-		    if (f) {
-			if (zippath)
-			    strcpy (zippath, name + i + 1);
-			return f;
-		    }
-		    break;
-		}
-	    }
-	    name[i] = v;
-	}
-	i--;
-    }
-    return 0;
-}
 
 #ifdef SINGLEFILE
 extern uae_u8 singlefile_data[];
@@ -445,37 +414,66 @@ static struct zfile *zfile_fopen_nozip (const char *name, const char *mode)
     return l;
 }
 
+
+static struct zfile *openzip (const char *pname)
+{
+    int i, j;
+    char v;
+    char name[MAX_DPATH];
+    char zippath[MAX_DPATH];
+
+    zippath[0] = 0;
+    strcpy (name, pname);
+    i = strlen (name) - 2;
+    while (i > 0) {
+	if (name[i] == '/' || name[i] == '\\' && i > 4) {
+	    v = name[i];
+	    name[i] = 0;
+	    for (j = 0; plugins_7z[j]; j++) {
+		int len = strlen (plugins_7z[j]);
+		if (name[i - len - 1] == '.' && !strcasecmp (name + i - len, plugins_7z[j])) {
+		    struct zfile *f = zfile_fopen_nozip (name, "rb");
+		    if (f) {
+			f->zipname = my_strdup(name + i + 1);
+			return f;
+		    }
+		    break;
+		}
+	    }
+	    name[i] = v;
+	}
+	i--;
+    }
+    return 0;
+}
+
 static struct zfile *zfile_fopen_2 (const char *name, const char *mode)
 {
     struct zfile *l;
     FILE *f;
-    char zipname[MAX_DPATH];
 
     if(*name == '\0')
 	return NULL;
-    l = zfile_create ();
-    l->name = strdup (name);
 #ifdef SINGLEFILE
     if (zfile_opensinglefile (l))
 	return l;
 #endif
-    f = openzip (l->name, zipname);
-    if (f) {
-	if (strcmpi (mode, "rb")) {
+    l = openzip (name);
+    if (l) {
+	if (strcmpi (mode, "rb") && strcmpi (mode, "r")) {
 	    zfile_fclose (l);
-	    fclose (f);
 	    return 0;
 	}
-	l->zipname = strdup (zipname);
-    }
-    if (!f) {
-	f = fopen (name, mode);
+    } else {
+	l = zfile_create ();
+	l->name = strdup (name);
+	f = fopen (l->name, mode);
 	if (!f) {
 	    zfile_fclose (l);
 	    return 0;
 	}
+	l->f = f;
     }
-    l->f = f;
     return l;
 }
 
@@ -549,21 +547,23 @@ struct zfile *zfile_dup (struct zfile *zf)
 int zfile_exists (const char *name)
 {
     char fname[2000];
-    FILE *f;
+    struct zfile *f;
 
     if (strlen (name) == 0)
 	return 0;
     manglefilename(fname, name);
-    f = openzip (fname, 0);
+    f = openzip (fname);
     if (!f) {
+	FILE *f2;
 	manglefilename(fname, name);
 	if (!my_existsfile(fname))
 	    return 0;
-	f = fopen(fname,"rb");
+	f2 = fopen(fname, "rb");
+	if (!f2)
+	    return 0;
+	fclose(f2);
     }
-    if (!f)
-	return 0;
-    fclose (f);
+    zfile_fclose (f);
     return 1;
 }
 
@@ -650,7 +650,6 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
     return fread (b, l1, l2, z->f);
 }
 
-
 size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
 {
     if (z->data) {
@@ -669,10 +668,34 @@ size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z)
     return fwrite (b, l1, l2, z->f);
 }
 
-
 size_t zfile_fputs (struct zfile *z, char *s)
 {
     return zfile_fwrite (s, strlen (s), 1, z);
+}
+
+char *zfile_fgets(char *s, int size, struct zfile *z)
+{
+    if (z->data) {
+	char *os = s;
+	int i;
+	for (i = 0; i < size - 1; i++) {
+	    if (z->seek == z->size) {
+		if (i == 0)
+		    return NULL;
+		break;
+	    }
+	    *s = z->data[z->seek++];
+	    if (*s == '\n') {
+		s++;
+		break;
+	    }
+	    s++;
+	}
+	*s = 0;
+	return os;
+    } else {
+	return fgets(s, size, z->f);
+    }
 }
 
 int zfile_getc (struct zfile *z)

@@ -1,4 +1,27 @@
 
+Beta 7:
+
+- rom scanner detects overdumped roms again
+- added "(SK)" to A3000 KS 1.3 ROM name (SuperKickstart disk rip,
+  this version has never been in ROM chip format, only included
+  because it comes with AF)
+- removed A4091 boot rom from scan result dialog (NCR SCSI won't
+  be implemented in next version)
+- removed add host scsi from advanced chipset (not working)
+- added more rom choices to "highend" configuration
+- rom scanner didn't write full path to registry (zipped roms)
+- command line configuration parameters accept compressed
+  configuration files ("-f myconfigurations.zip\myconfig.uae")
+- some dms compressed files failed to decompress and also took
+  very long time to finish 
+- disk history is updating correctly again
+- new rtg.library version number bump. added warning if older
+  library is installed. NOTE: new rtg.library is fully compatible
+  with older (Win)UAE versions.
+- disabled CDTV debug logging
+- hrtmon works again
+- gzip decompression works again
+
 Beta 6:
 
 - rar unpacking double memory deallocation (unrar.dll is still
@@ -28,8 +51,7 @@ Beta 6:
   and ability to replace original archive file with unpacked directory
   (without .DIR extension) Another future idea is write access (to
   separate "diff" directory)
-  
-  
+
   Note: rar archive inside another archive can not be unpacked
   without archiveaccess.dll (unrar.dll can't do it without temp
   files and I refuse to use temp files)

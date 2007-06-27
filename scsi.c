@@ -110,7 +110,7 @@ struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 
 void scsi_reset(void)
 {
-    device_func_init (DEVICE_TYPE_SCSI);
+    //device_func_init (DEVICE_TYPE_SCSI);
 }
 
 void scsi_free(struct scsi_data *sd)

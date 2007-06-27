@@ -1639,7 +1639,7 @@ static void subst (char *p, char *f, int n)
     free (str);
 }
 
-static char *cfg_fgets (char *line, int max, FILE *fh)
+static char *cfg_fgets (char *line, int max, struct zfile *fh)
 {
 #ifdef SINGLEFILE
     extern char singlefile_config[];
@@ -1648,7 +1648,7 @@ static char *cfg_fgets (char *line, int max, FILE *fh)
 #endif
 
     if (fh)
-	return fgets (line, max, fh);
+	return zfile_fgets (line, max, fh);
 #ifdef SINGLEFILE
     if (sfile_ptr == 0) {
 	sfile_ptr = singlefile_config;
@@ -1678,7 +1678,7 @@ static char *cfg_fgets (char *line, int max, FILE *fh)
 static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, int *type)
 {
     int i;
-    FILE *fh;
+    struct zfile *fh;
     char line[CONFIG_BLEN], line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
     struct strlist *sl;
     int type1 = 0, type2 = 0, askedtype = 0;
@@ -1693,7 +1693,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 	reset_inputdevice_config (p);
     }
 
-    fh = fopen (filename, "r");
+    fh = zfile_fopen (filename, "r");
 #ifndef	SINGLEFILE
     if (! fh)
 	return 0;
@@ -1730,8 +1730,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 
     if (type && *type == 0)
 	*type = CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST;
-    if (fh)
-	fclose (fh);
+    zfile_fclose (fh);
 
     if (!real)
 	return 1;

@@ -488,12 +488,26 @@ static int addrom (HKEY fkey, struct romdata *rd, char *name)
 
 static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
 {
-    struct romdata *rd = scan_single_rom_2 (f);
+    int i;
+    char *path = zfile_getname(f);
+    char *ext = strrchr (path, '.');
+    struct romdata *rd;
+
+    if (!ext)
+	return 0;
+    ext++;
+    for (i = 0; uae_archive_extensions[i]; i++) {
+	if (!stricmp (ext, uae_archive_extensions[i])) {
+	    //zfile_zopen (path, scan_rom_2, rsd);
+	    return 0;
+	}
+    }
+    rd = scan_single_rom_2 (f);
     if (rd) {
-	addrom (rsd->fkey, rd, zfile_getname (f));
+	addrom (rsd->fkey, rd, path);
 	rsd->got = 1;
     }
-    return 1;
+    return 0;
 }
 
 static int scan_rom (char *path, HKEY fkey)
@@ -565,9 +579,9 @@ static void show_rom_list (void)
 	18, -1, 19, -1, -1, // CD32
 	20, 21, 22, -1, 6, 32, -1, -1, // CDTV
 	49, 50, 51, -1, 5, 4, -1, -1, // ARCADIA
-	46, -1, -1, // highend
-	53, 54, 55, -1, -1, // A2091
-	56, 57, -1, -1, // A4091
+	46, 16, 17, 31, 13, 12, -1, -1, // highend, any 3.x A4000
+	53, 54, 55, -1, -1, // A590/A2091
+	//56, 57, -1, -1, // A4091
 	0, 0, 0
     };
 
@@ -575,7 +589,7 @@ static void show_rom_list (void)
     WIN32GUI_LoadUIString (IDS_ROM_UNAVAILABLE, unavail, sizeof (avail));
     strcat (avail, "\n");
     strcat (unavail, "\n");
-    p1 = "A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0A4091 SCSI Boot ROM\0\0";
+    p1 = "A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0\nCD32\0CDTV\0Arcadia Multi Select\0High end WinUAE\0\nA590/A2091 SCSI Boot ROM\0\0";
     
     p = malloc (100000);
     if (!p)
@@ -2811,13 +2825,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    selpath = numtypes;
 	ptypes[numtypes++] = 0;
         SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
-	if (numtypes > 1) {
-	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), TRUE);
-	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), SW_SHOW);
-	} else {
-	    EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), FALSE);
-	    ShowWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), SW_HIDE);
-	}
+	EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
 	values_to_pathsdialog (hDlg);
 	recursive--;
 	return TRUE;
@@ -4269,8 +4277,10 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_mbdmac = IsDlgButtonChecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
     workprefs.cs_a2091 = IsDlgButtonChecked (hDlg, IDC_CS_A2091) ? 1 : 0;
     workprefs.cs_a4091 = IsDlgButtonChecked (hDlg, IDC_CS_A4091) ? 1 : 0;
+#if 0
     if (msg == WM_COMMAND && LOWORD(wParam) == IDC_CS_SCSIMODE)
         workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_CS_SCSIMODE) ? 2 : 0;
+#endif
     workprefs.cs_cdtvscsi = IsDlgButtonChecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
     workprefs.cs_pcmcia = IsDlgButtonChecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
@@ -4333,7 +4343,8 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_DMAC2, e);
     ew (hDlg, IDC_CS_A2091, e);
     ew (hDlg, IDC_CS_A4091, e);
-    ew (hDlg, IDC_CS_SCSIMODE, TRUE);
+    ShowWindow (GetDlgItem(hDlg, IDC_CS_SCSIMODE), SW_HIDE);
+    ew (hDlg, IDC_CS_SCSIMODE, FALSE);
     ew (hDlg, IDC_CS_CDTVSCSI, e);
     ew (hDlg, IDC_CS_PCMCIA, e);
     ew (hDlg, IDC_CS_CD32CD, e);

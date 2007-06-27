@@ -239,6 +239,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, USHORT pwd){
 	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l;
 	UCHAR cmode, flags;
+	int crcerr = 0;
 
 
 	l = (USHORT)zfile_fread(b1,1,THLEN,fi);
@@ -286,7 +287,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if (CreateCRC(b1,(ULONG)pklen1) != dcrc) {
 	    log_error (number);
-	    //return ERR_TDCRC;
+	    crcerr = 1;
 	}
 	/*  track 80 is FILEID.DIZ, track 0xffff (-1) is Banner  */
 	/*  and track 0 with 1024 bytes only is a fake boot block with more advertising */
@@ -295,9 +296,14 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	//if (pwd && (number!=80)) dms_decrypt(b1,pklen1);
 
 	if ((cmd == CMD_UNPACK) && (number<80) && (unpklen>2048)) {
-		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
+	        memset(b2, 0, unpklen);
+		if (!crcerr)
+		    Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
 		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen) return ERR_CANTWRITE;
 	}
+
+	if (crcerr)
+	    return NO_PROBLEM;
 
 	if ((cmd == CMD_SHOWBANNER) && (number == 0xffff)){
 		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum);
@@ -382,11 +388,12 @@ static void dms_decrypt(UCHAR *p, USHORT len, UCHAR *src){
 
 static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, UCHAR cmode, UCHAR flags, USHORT number, USHORT pklen1, USHORT usum1)
 {
-    USHORT r, err = NO_PROBLEM, prevpass;
+    USHORT r, err = NO_PROBLEM;
     static USHORT pass;
     int maybeencrypted;
     int pwrounds;
     UCHAR *tmp;
+    USHORT prevpass = 0;
 
     if (passfound) {
 	if (number != 80)
@@ -406,6 +413,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
     maybeencrypted = 0;
     tmp = (unsigned char*)malloc (pklen1);
     memcpy (tmp, b1, pklen1);
+    memset(b2, 0, unpklen);
     for (;;) {
 	r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);
 	if (r == NO_PROBLEM) {

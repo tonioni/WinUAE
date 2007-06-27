@@ -55,6 +55,18 @@ void *cache_alloc(int size)
     return virtualallocwithlock(NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
+#if 0
+static void setworkingset(void)
+{
+    typedef BOOL (CALLBACK* SETPROCESSWORKINGSETSIZE)(HANDLE,SIZE_T,SIZE_T);
+    SETPROCESSWORKINGSETSIZE pSetProcessWorkingSetSize;
+    pSetProcessWorkingSetSize = (SETPROCESSWORKINGSETSIZE)GetProcAddress(GetModuleHandle("kernal32.dll", "GetProcessWorkingSetSize");
+    if (!pSetProcessWorkingSetSize)
+	return;
+    pSetProcessWorkingSetSize(GetCurrentProcess (), 
+);
+#endif
+
 void init_shm(void)
 {
     static int allocated;

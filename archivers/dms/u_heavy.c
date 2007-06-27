@@ -24,7 +24,7 @@
 USHORT left[2 * NC - 1], right[2 * NC - 1 + 9];
 static UCHAR c_len[NC], pt_len[NPT];
 static USHORT c_table[4096], pt_table[256];
-static USHORT lastlen, np;
+USHORT lastlen, np;
 USHORT heavy_text_loc;
 
 

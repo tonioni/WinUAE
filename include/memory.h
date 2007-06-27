@@ -341,6 +341,11 @@ extern void a3000_fakekick(int);
 #define ROMTYPE_ARCADIAGAME 1024
 #define ROMTYPE_HRTMON 2048
 
+struct romheader {
+    char *name;
+    int id;
+};
+
 struct romdata {
     char *name;
     int ver, rev;
@@ -351,6 +356,7 @@ struct romdata {
     int cpu;
     int cloanto;
     int type;
+    int title;
     uae_u32 crc32;
     uae_u32 sha1[5];
     char *configname;

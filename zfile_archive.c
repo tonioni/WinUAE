@@ -160,6 +160,8 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id)
 	zipcnt++;
 	zn = zn->next;
     }
+    if (first && tmphist[0])
+        DISK_history_add (zfile_getname(zf), -1);
     zfile_fclose_archive (zv);
     if (z) {
 	zfile_fclose(zf);
@@ -276,7 +278,7 @@ struct zfile *archive_access_zip (struct znode *zn)
     }
     if (unzOpenCurrentFile (uz) != UNZ_OK)
 	return 0;
-    z = zfile_fopen_empty (zn->name, zn->size);
+    z = zfile_fopen_empty (zn->fullname, zn->size);
     if (z) {
 	err = unzReadCurrentFile (uz, z->data, zn->size);
     }
@@ -399,7 +401,7 @@ struct zfile *archive_access_7z (struct znode *zn)
 		    &offset, &outSizeProcessed, 
 		    &allocImp, &allocTempImp);
     if (res == SZ_OK) {
-        z = zfile_fopen_empty (zn->name, zn->size);
+        z = zfile_fopen_empty (zn->fullname, zn->size);
 	zfile_fwrite (ctx->outBuffer + offset, zn->size, 1, z);
     } else {
 	write_log("7Z: SzExtract %s returned %d\n", zn->fullname, res);
@@ -559,7 +561,7 @@ struct zfile *archive_access_rar (struct znode *zn)
 		goto end;
 	}
     }
-    zf = zfile_fopen_empty (zn->name, zn->size);
+    zf = zfile_fopen_empty (zn->fullname, zn->size);
     rarunpackzf = zf;
     if (pRARProcessFile(rc->hArcData, RAR_TEST, NULL, NULL)) {
 	zfile_fclose(zf);
@@ -747,7 +749,7 @@ struct zfile *archive_access_arcacc (struct znode *zn)
 	struct aaFileInArchiveInfo fi;
 	memset (&fi, 0, sizeof (fi));
 	aaGetFileInfo (ah, zn->offset, &fi);
-	zf = zfile_fopen_empty (zn->name, zn->size);
+	zf = zfile_fopen_empty (zn->fullname, zn->size);
 	id_w = arcacc_push (zf);
 	err = aaExtract(ah, zn->offset, id_w, writeCallback, &written);
 	if (zf->seek == fi.UncompressedFileSize)
@@ -807,7 +809,7 @@ struct zfile *archive_access_plain (struct znode *zn)
 {
     struct zfile *z;
 
-    z = zfile_fopen_empty (zn->name, zn->size);
+    z = zfile_fopen_empty (zn->fullname, zn->size);
     zfile_fread(z->data, zn->size, 1, zn->volume->archive);
     return z;
 }

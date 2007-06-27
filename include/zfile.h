@@ -20,6 +20,7 @@ extern int zfile_fseek (struct zfile *z, long offset, int mode);
 extern long zfile_ftell (struct zfile *z);
 extern size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z);
 extern size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z);
+extern char *zfile_fgets(char *s, int size, struct zfile *z);
 extern size_t zfile_fputs (struct zfile *z, char *s);
 extern int zfile_getc (struct zfile *z);
 extern int zfile_ferror (struct zfile *z);
