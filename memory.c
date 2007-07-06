@@ -102,7 +102,7 @@ struct romdata *getromdatabypath(char *path)
     return NULL;
 }
 
-#define NEXT_ROM_ID 65
+#define NEXT_ROM_ID 68
 
 static struct romheader romheaders[] = {
     { "Freezer Cartridges", 1 },
@@ -182,27 +182,35 @@ static struct romdata roms[] = {
     { "A1000 bootstrap ROM", 0, 0, 0, 0, "A1000\0", 65536, 24, 0, 0, ROMTYPE_KICK, 0,
 	0x0b1ad2d0, 0xBA93B8B8,0x5CA0D83A,0x68225CC3,0x3B95050D,0x72D2FDD7 },
 
-    { "Action Replay Mk I v1.00", 1, 0, 1, 0, "AR\0", 65536, 52, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk I v1.00", 1, 0, 1, 0, "AR\0", 65536, 52, 0, 0, ROMTYPE_AR, 1,
 	0x2d921771, 0x1EAD9DDA,0x2DAD2914,0x6441F5EF,0x72183750,0x22E01248 },
-    { "Action Replay Mk I v1.50", 1, 50, 1, 50, "AR\0", 65536, 25, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk I v1.50", 1, 50, 1, 50, "AR\0", 65536, 25, 0, 0, ROMTYPE_AR, 1,
 	0xd4ce0675, 0x843B433B,0x2C56640E,0x045D5FDC,0x854DC6B1,0xA4964E7C },
-    { "Action Replay Mk II v2.05", 2, 5, 2, 5, "AR\0", 131072, 26, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk II v2.05", 2, 5, 2, 5, "AR\0", 131072, 26, 0, 0, ROMTYPE_AR, 1,
 	0x1287301f, 0xF6601DE8,0x888F0050,0x72BF562B,0x9F533BBC,0xAF1B0074 },
-    { "Action Replay Mk II v2.12", 2, 12, 2, 12, "AR\0", 131072, 27, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk II v2.12", 2, 12, 2, 12, "AR\0", 131072, 27, 0, 0, ROMTYPE_AR, 1,
 	0x804d0361, 0x3194A07A,0x0A82D8B5,0xF2B6AEFA,0x3CA581D6,0x8BA8762B },
-    { "Action Replay Mk II v2.14", 2, 14, 2, 14, "AR\0", 131072, 28, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk II v2.14", 2, 14, 2, 14, "AR\0", 131072, 28, 0, 0, ROMTYPE_AR, 1,
 	0x49650e4f, 0x255D6DF6,0x3A4EAB0A,0x838EB1A1,0x6A267B09,0x59DFF634 },
-    { "Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 262144, 29, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 262144, 29, 0, 0, ROMTYPE_AR, 1,
 	0x0ed9b5aa, 0x0FF3170A,0xBBF0CA64,0xC9DD93D6,0xEC0C7A01,0xB5436824 },
-    { "Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 262144, 30, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 262144, 30, 0, 0, ROMTYPE_AR, 1,
 	0xc8a16406, 0x5D4987C2,0xE3FFEA8B,0x1B02E314,0x30EF190F,0x2DB76542 },
-    { "Action Replay 1200", 0, 0, 0, 0, "AR\0", 262144, 47, 0, 0, ROMTYPE_AR, 1,
+    { "Freezer: Action Replay 1200", 0, 0, 0, 0, "AR\0", 262144, 47, 0, 0, ROMTYPE_AR, 1,
 	0x8d760101, 0x0F6AB834,0x2810094A,0xC0642F62,0xBA42F78B,0xC0B07E6A },
-    { "Action Cartridge Super IV Pro (+ROM)", 4, 3, 4, 3, "SUPERIV\0", 170368, 60, 0, 0, ROMTYPE_SUPERIV, 1,
+
+    { "Freezer: Action Cartridge Super IV Pro (+ROM)", 4, 3, 4, 3, "SUPERIV\0", 170368, 60, 0, 0, ROMTYPE_SUPERIV, 1,
 	0xe668a0be, 0x633A6E65,0xA93580B8,0xDDB0BE9C,0x9A64D4A1,0x7D4B4801 },
-    { "Action Cartridge Super IV Pro", 0, 0, 0, 0, "SUPERIV\0", 0, 62, 0, 0, ROMTYPE_SUPERIV, 1,
+    { "Freezer: Action Cartridge Super IV Pro", 0, 0, 0, 0, "SUPERIV\0", 0, 62, 0, 0, ROMTYPE_SUPERIV, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "SuperIV" },
-    { "HRTMon (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 1,
+    { "Freezer: X-Power Professional 500", 1, 2, 1, 2, "XPOWER\0", 131072, 65, 0, 0, ROMTYPE_SUPERIV, 1,
+	0x9e70c231, 0xa2977a1c,0x41a8ca7d,0x4af4a168,0x726da542,0x179d5963 },
+    /* only 2 bad dumps available */
+    { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
+    { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_SUPERIV, 1, },
+	//0xdd16cdec, 0xfd882967,0x87e2da5f,0x4ef6be32,0x5f7c9324,0xb5bd8e64 },
+
+    { "Freezer: HRTMon (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "HRTMon" },
 
     { "A590/A2091 SCSI boot ROM", 0, 0, 6, 0, "A590\0A2091\0", 16384, 53, 0, 0, ROMTYPE_A2091BOOT, 0,

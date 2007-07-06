@@ -51,7 +51,7 @@ struct zvolume
 
 struct zarchive_info
 {
-    char *name;
+    const char *name;
     unsigned int size;
     int flags;
     char *comment;

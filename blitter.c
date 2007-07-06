@@ -149,7 +149,7 @@ static const int blit_cycle_diagram[][10] =
 static const int blit_cycle_diagram_fill[][10] =
 {
     { 0, 3, 0,5,0 },		/* 0 */
-    { 0, 3, 3,5,4 },		/* 1 */
+    { 0, 3, 0,5,4 },		/* 1 */
     { 0, 3, 0,3,0 },		/* 2 */
     { 2, 3, 3,5,4, 3,0 },	/* 3 */
     { 0, 3, 0,2,5 },		/* 4 */

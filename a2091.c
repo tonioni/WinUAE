@@ -1144,6 +1144,8 @@ static void ew (int addr, uae_u32 value)
 
 static void freescsi(struct scsi_data *sd)
 {
+    if (!sd)
+	return;
     hdf_hd_close(sd->hfd);
     scsi_free(sd);
 }

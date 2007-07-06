@@ -78,11 +78,11 @@
 #include "uaeipc.h"
 #include "crc32.h"
 
-#define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx\0"
+#define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
-#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;" ARCHIVE_STRING
-#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.roz;" ARCHIVE_STRING
-#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;"  ARCHIVE_STRING
+#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;" ARCHIVE_STRING "\0"
+#define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.roz;" ARCHIVE_STRING "\0"
+#define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;"  ARCHIVE_STRING "\0"
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING "(*.hdf;*.rdf;*.hdz;*.rdz)\0*.hdf;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING "(*.inp)\0*.inp\0"
@@ -1061,8 +1061,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 6:
-	WIN32GUI_LoadUIString( IDS_SELECTROM, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString( IDS_ROM, szFormat, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_SELECTROM, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString(IDS_ROM, szFormat, MAX_DPATH);
 	sprintf(szFilter, "%s ", szFormat);
 	memcpy(szFilter + strlen(szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
 
@@ -1129,7 +1129,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	break;
     case 11:
 	WIN32GUI_LoadUIString(IDS_SELECTFLASH, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_FLASH, szFormat, MAX_DPATH );
+	WIN32GUI_LoadUIString(IDS_FLASH, szFormat, MAX_DPATH);
 	sprintf(szFilter, "%s ", szFormat);
 	memcpy(szFilter + strlen(szFilter), "(*.nvr)\0*.nvr\0", 15);
 
@@ -1159,9 +1159,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	break;
     case 14:
 	strcpy (szTitle, "Select supported archive file");
+	sprintf (szFilter, "%s (%s)", "Archive", ARCHIVE_STRING);
+	strcpy (szFilter + strlen(szFilter) + 1, ARCHIVE_STRING);
 
 	openFileName.lpstrFilter = NULL;
-	openFileName.lpstrDefExt = NULL;
+	openFileName.lpstrFilter = szFilter;
 	openFileName.lpstrInitialDir = path_out;
 	break;
     }
@@ -5539,8 +5541,7 @@ static void update_soundgui (HWND hDlg)
     char txt[20];
 
     bufsize = exact_log2 (workprefs.sound_maxbsiz / 1024);
-    sprintf (txt, "%d (%dms)",
-	bufsize, ((1000 * (workprefs.sound_maxbsiz >> 1) / workprefs.sound_freq) + 30) / 10 * 10);
+    sprintf (txt, "%d", bufsize);
     SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
     SendDlgItemMessage( hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
@@ -9542,6 +9543,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			    list++;
 			}
 		    }
+		} else if (currentpage == HARDDISK_ID) {
+		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
+			0, 0, 0, 0, 0, NULL, 0, 0);
 		} else {
 		    strcpy (workprefs.df[drv], file);
 		    disk_insert (drv, workprefs.df[drv]);

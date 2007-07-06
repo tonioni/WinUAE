@@ -784,11 +784,33 @@ void archive_access_close (void *handle, unsigned int id)
 }
 
 /* plain single file */
+
+static void addfile(struct zvolume *zv, const char *path, uae_u8 *data, int size)
+{
+    struct zarchive_info zai;
+    struct znode *zn;
+    struct zfile *z = zfile_fopen_empty (path, size);
+
+    zfile_fwrite(data, size, 1, z);
+    memset(&zai, 0, sizeof zai);
+    zai.name = path;
+    zai.size = size;
+    zn = zvolume_addfile_abs(zv, &zai);
+    if (zn)
+        zn->f = z;
+    else
+        zfile_fclose(z);
+}
+
+static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};
 struct zvolume *archive_directory_plain (struct zfile *z)
 {
     struct zvolume *zv;
+    struct znode *zn;
     struct zarchive_info zai;
     int i;
+    char *filename;
+    uae_u8 id[8];
 
     memset(&zai, 0, sizeof zai);
     zv = zvolume_alloc(z, ArchiveFormatPLAIN, NULL);
@@ -798,11 +820,21 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	    break;
 	}
     }
-    zai.name = &z->name[i];
+    filename = &z->name[i];
+    memset(id, 0, sizeof id);
+    zai.name = filename;
     zfile_fseek(z, 0, SEEK_END);
     zai.size = zfile_ftell(z);
     zfile_fseek(z, 0, SEEK_SET);
-    zvolume_addfile_abs(zv, &zai);
+    zfile_fread(id, sizeof id, 1, z);
+    zfile_fseek(z, 0, SEEK_SET);
+    zn = zvolume_addfile_abs(zv, &zai);
+    if (!memcmp (id, exeheader, sizeof id)) {
+	uae_u8 *data = xmalloc(strlen(filename) + 2);
+	sprintf(data,"%s\n", filename);
+	addfile(zv, "s/startup-sequence", data, strlen(data));
+	xfree(data);
+    }
     return zv;
 }
 struct zfile *archive_access_plain (struct znode *zn)

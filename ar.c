@@ -152,9 +152,27 @@
   * - 0xc00000
   * - 0x080000
   *
-  * CIA-A: 0xb40000
-  * CIA-B: 0xb40001
+  * CIA-A: 0xb40000 (0x000, 0x100,...)
+  * CIA-B: 0xb40001 (0x001, 0x101,...)
   * Custom: 0xe40000
+  */
+
+ /* X-Power 500:
+  *
+  * ROM: 0xe20000 (128k)
+  * RAM: 0xf20000 (64k)
+  * CIA-A: 0xf2fc00 (00,02,04,...)
+  * CIA-B: 0xf2fc01 (01,03,05,...)
+  * Custom: 0xf2fc00 (from 0x20->)
+  */
+
+ /* Nordic Power:
+  *
+  * ROM: 0xf00000 (64k)
+  * RAM: 0xf40000 (32k)
+  * CIA-A: 0xf47c00 (00,02,04,...)
+  * CIA-B: 0xf47c01 (01,03,05,...)
+  * Custom: 0xf47c00 (from 0x20->)
   */
 
 #include "sysconfig.h"
@@ -195,6 +213,7 @@ static char *cart_memnames3[] = { NULL, NULL, NULL, "superiv_3" };
 
 uae_u8 ar_custom[2*256];
 uae_u8 ar_ciaa[16], ar_ciab[16];
+static int hrtmon_ciadiv = 256;
 
 int hrtmon_flag = ACTION_REPLAY_INACTIVE;
 static int cart_type;
@@ -205,6 +224,7 @@ static uae_u8 *armemory_rom = 0, *armemory_ram = 0;
 static uae_u32 hrtmem_mask, hrtmem2_mask, hrtmem3_mask;
 static uae_u8 *hrtmon_custom, *hrtmon_ciaa, *hrtmon_ciab;
 uae_u32 hrtmem_start, hrtmem2_start, hrtmem3_start, hrtmem_size, hrtmem2_size, hrtmem2_size2, hrtmem3_size;
+static int hrtmem_rom;
 static int triggered_once;
 
 static void hrtmon_unmap_banks(void);
@@ -370,6 +390,8 @@ static void REGPARAM2 hrtmem_lput (uaecptr addr, uae_u32 l)
     addr &= hrtmem_mask;
     if (cart_type == CART_AR1200 && addr < 0x80000)
 	return;
+    if (hrtmem_rom)
+	return;
     m = (uae_u32 *)(hrtmemory + addr);
     do_put_mem_long (m, l);
 }
@@ -381,6 +403,8 @@ static void REGPARAM2 hrtmem_wput (uaecptr addr, uae_u32 w)
     addr &= hrtmem_mask;
     if (cart_type == CART_AR1200 && addr < 0x80000)
 	return;
+    if (hrtmem_rom)
+	return;
     m = (uae_u16 *)(hrtmemory + addr);
     do_put_mem_word (m, (uae_u16)w);
 }
@@ -389,6 +413,8 @@ static void REGPARAM2 hrtmem_bput (uaecptr addr, uae_u32 b)
     addr -= hrtmem_start & hrtmem_mask;
     addr &= hrtmem_mask;
     if (cart_type == CART_AR1200 && addr < 0x80000)
+	return;
+    if (hrtmem_rom)
 	return;
     hrtmemory[addr] = b;
 }
@@ -940,12 +966,13 @@ static void hrtmon_go (void)
     cartridge_enter();
     hrtmon_flag = ACTION_REPLAY_ACTIVE;
     set_special (&regs, SPCFLAG_ACTION_REPLAY);
-    memcpy (hrtmon_custom, ar_custom, 2 * 256);
+    if (hrtmon_custom)
+	memcpy (hrtmon_custom, ar_custom, 2 * 256);
     for (i = 0; i < 16; i++) {
 	if (hrtmon_ciaa)
-	    hrtmon_ciaa[i * 256 + 1] = ar_ciaa[i];
+	    hrtmon_ciaa[i * hrtmon_ciadiv + 1] = ar_ciaa[i];
 	if (hrtmon_ciab)
-	    hrtmon_ciab[i * 256 + 0] = ar_ciab[i];
+	    hrtmon_ciab[i * hrtmon_ciadiv + 0] = ar_ciab[i];
     }
     if (cart_type == CART_AR1200) {
         old = get_long((uaecptr)(regs.vbr + 0x8));
@@ -1477,18 +1504,42 @@ int action_replay_unload(int in_memory_reset)
     return 1;
 }
 
-static int superiv_init(struct zfile *f)
+static int superiv_init(struct romdata *rd, struct zfile *f)
 {
     uae_u32 chip = currprefs.chipmem_size - 0x10000;
+    int subtype = rd->id;
 
     cart_type = CART_SUPER4;
-    hrtmem_start = 0xd00000;
-    hrtmem_size = 0x40000;
-    hrtmem2_start = 0xb00000;
-    hrtmem2_size =  0x100000;
-    hrtmem2_size2 = 0x0c0000;
-    hrtmem3_start = 0xe00000;
-    hrtmem3_size = 0x80000;
+
+    hrtmon_custom = 0;
+    hrtmon_ciaa = 0;
+    hrtmon_ciab = 0;
+
+    if (subtype == 65) { /* xpower */
+	hrtmem_start = 0xe20000;
+	hrtmem_size = 0x20000;
+	hrtmem2_start = 0xf20000;
+	hrtmem2_size =  0x10000;
+	hrtmem_rom = 1;
+	hrtmon_ciadiv = 2;
+    } else if (subtype == 66 || subtype == 67) { /* nordic */
+	hrtmem_start = 0xf00000;
+	hrtmem_size = 0x10000;
+	hrtmem2_start = 0xf40000;
+	hrtmem2_size =  0x10000;
+	hrtmem_rom = 1;
+	hrtmon_ciadiv = 2;
+    } else { /* super4 */
+	hrtmem_start = 0xd00000;
+	hrtmem_size = 0x40000;
+	hrtmem2_start = 0xb00000;
+	hrtmem2_size =  0x100000;
+	hrtmem2_size2 = 0x0c0000;
+	hrtmem3_start = 0xe00000;
+	hrtmem3_size = 0x80000;
+    }
+    if (hrtmem2_size && !hrtmem2_size2)
+	hrtmem2_size2 = hrtmem2_size;
 
     hrtmemory = mapped_malloc (hrtmem_size, cart_memnames[cart_type]);
     memset (hrtmemory, 0x00, hrtmem_size);
@@ -1501,23 +1552,41 @@ static int superiv_init(struct zfile *f)
     hrtmem_mask = hrtmem_size - 1;
     hrtmem2_mask = hrtmem2_size - 1;
     hrtmem3_mask = hrtmem3_size - 1;
-    hrtmemory2 = mapped_malloc (hrtmem2_size, cart_memnames2[cart_type]);
-    memset(hrtmemory2, 0, hrtmem2_size);
-    hrtmemory3 = mapped_malloc (hrtmem3_size, cart_memnames3[cart_type]);
-    memset(hrtmemory3, 0, hrtmem3_size);
+    if (hrtmem2_size) {
+	hrtmemory2 = mapped_malloc (hrtmem2_size, cart_memnames2[cart_type]);
+	memset(hrtmemory2, 0, hrtmem2_size);
+    }
+    if (hrtmem3_size) {
+	hrtmemory3 = mapped_malloc (hrtmem3_size, cart_memnames3[cart_type]);
+        memset(hrtmemory3, 0, hrtmem3_size);
+    }
     hrtmem3_bank.baseaddr = hrtmemory3;
     hrtmem2_bank.baseaddr = hrtmemory2;
     hrtmem_bank.baseaddr = hrtmemory;
 
-    hrtmon_custom = hrtmemory3 + 0x040000;
-    hrtmon_ciaa = hrtmemory2 + 0x040000;
-    hrtmon_ciab = hrtmemory2 + 0x040001;
-
-    chip += 0x30000;
-    hrtmemory2[0x80] = chip >> 24;
-    hrtmemory2[0x81] = chip >> 16;
-    hrtmemory2[0x82] = chip >> 8;
-    hrtmemory2[0x83] = chip >> 0;
+    if (subtype == 65) {
+	hrtmon_custom = hrtmemory2 + 0xfc00;
+	hrtmon_ciaa = hrtmemory2 + 0xfc00;
+	hrtmon_ciab = hrtmemory2 + 0xfc01;
+	chip += 0x30000;
+	hrtmemory2[0xfc80] = chip >> 24;
+	hrtmemory2[0xfc81] = chip >> 16;
+	hrtmemory2[0xfc82] = chip >> 8;
+	hrtmemory2[0xfc83] = chip >> 0;
+    } else if (subtype == 66 || subtype == 67) {
+	hrtmon_custom = hrtmemory2 + 0x7c00;
+	hrtmon_ciaa = hrtmemory2 + 0x7c00;
+	hrtmon_ciab = hrtmemory2 + 0x7c01;
+    } else {
+	hrtmon_custom = hrtmemory3 + 0x040000;
+	hrtmon_ciaa = hrtmemory2 + 0x040000;
+	hrtmon_ciab = hrtmemory2 + 0x040001;
+	chip += 0x30000;
+	hrtmemory2[0x80] = chip >> 24;
+	hrtmemory2[0x81] = chip >> 16;
+	hrtmemory2[0x82] = chip >> 8;
+	hrtmemory2[0x83] = chip >> 0;
+    }
 
     hrtmon_flag = ACTION_REPLAY_IDLE;
     write_log("%s installed at %08.8X\n", cart_memnames[cart_type], hrtmem_start);
@@ -1543,7 +1612,7 @@ int action_replay_load(void)
 	return 0;
     rd = getromdatabypath(currprefs.cartfile);
     if (rd && rd->id == 62)
-	return superiv_init(NULL);
+	return superiv_init(rd, NULL);
     f = zfile_fopen(currprefs.cartfile,"rb");
     if (!f) {
 	write_log("failed to load '%s' cartridge ROM\n", currprefs.cartfile);
@@ -1554,7 +1623,7 @@ int action_replay_load(void)
 	write_log("Unknown cartridge ROM\n");
     } else {
 	if (rd->type & ROMTYPE_SUPERIV) {
-	    return superiv_init(f);
+	    return superiv_init(rd, f);
 	}
     }
     zfile_fseek(f, 0, SEEK_END);
@@ -1632,8 +1701,11 @@ void action_replay_cleanup()
     hrtmemory3 = 0;
     hrtmem_size = 0;
     hrtmem2_size = 0;
+    hrtmem2_size2 = 0;
     hrtmem3_size = 0;
     cart_type = 0;
+    hrtmem_rom = 0;
+    hrtmon_ciadiv = 256;
 }
 
 #ifndef FALSE

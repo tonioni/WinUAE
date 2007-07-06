@@ -275,15 +275,15 @@ void hdf_hd_close(struct hd_hardfiledata *hfd)
 {
     if (!hfd)
 	return;
-    if (hfd->hfd.handle_valid)
-	hdf_close(&hfd->hfd);
-	xfree(hfd->path);
+    hdf_close(&hfd->hfd);
+    xfree(hfd->path);
 }
 
 int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, char *filesys)
 {
+    memset(hfd, 0, sizeof (struct hd_hardfiledata));
     hfd->bootpri = bootpri;
     hfd->hfd.blocksize = blocksize;
     if (!hdf_open(&hfd->hfd, path))

@@ -1082,11 +1082,11 @@ static int isirq (int nr)
     return INTREQR() & (0x80 << nr);
 }
 
-static void setirq (int nr, int debug)
+static void setirq (int nr)
 {
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("SETIRQ %d %08.8X (%d)\n", nr, M68K_GETPC, debug);
+	write_log ("SETIRQ %d %08.8X\n", nr, M68K_GETPC);
 #endif
     INTREQ (0x8000 | (0x80 << nr));
 }
@@ -1125,7 +1125,7 @@ static void state23 (struct audio_channel_data *cdp)
     }
 }
 
-static void audio_handler (int nr, int timed)
+static void audio_handler (int nr)
 {
     struct audio_channel_data *cdp = audio_channel + nr;
 
@@ -1139,8 +1139,6 @@ static void audio_handler (int nr, int timed)
     switch (cdp->state)
     {
 	case 0:
-	    cdp->request_word = 0;
-	    cdp->request_word_skip = 0;
 	    cdp->intreq2 = 0;
 	    cdp->vpos = vpos;
 	    if (cdp->dmaen) {
@@ -1153,15 +1151,19 @@ static void audio_handler (int nr, int timed)
 		if (debugchannel (nr))
 		    write_log ("%d:0>1: LEN=%d\n", nr, cdp->wlen);
 #endif
-		audio_handler (nr, timed);
+		cdp->request_word = 0;
+		cdp->request_word_skip = 0;
+		audio_handler (nr);
 		return;
 	    } else if (!cdp->dmaen && cdp->request_word < 0 && !isirq (nr)) {
 		cdp->evtime = 0;
 		cdp->state = 2;
-		setirq (nr, 0);
-		audio_handler (nr, timed);
+		setirq (nr);
+		audio_handler (nr);
 		return;
 	    }
+	    cdp->request_word = 0;
+	    cdp->request_word_skip = 0;
 	return;
 
 	case 1:
@@ -1184,7 +1186,7 @@ static void audio_handler (int nr, int timed)
 		cdp->request_word = 2;
 		return;
 	    }
-	    setirq (nr, 1);
+	    setirq (nr);
 	    if (!cdp->dmaen) {
 		cdp->state = 0;
 		cdp->request_word = 0;
@@ -1214,7 +1216,7 @@ static void audio_handler (int nr, int timed)
 	    /* Period attachment? */
 	    if (audap) {
 		if (cdp->intreq2 && cdp->dmaen)
-		    setirq (nr, 2);
+		    setirq (nr);
 		cdp->intreq2 = 0;
 		cdp->request_word = 1;
 		cdp->dat = cdp->dat2;
@@ -1242,10 +1244,10 @@ static void audio_handler (int nr, int timed)
 		if (napnav)
 		    cdp->request_word = 1;
 		if (cdp->intreq2 && napnav)
-		    setirq (nr, 3);
+		    setirq (nr);
 	    } else {
 		if (napnav)
-		    setirq (nr, 4);
+		    setirq (nr);
 	    }
 	    cdp->intreq2 = 0;
 
@@ -1508,13 +1510,13 @@ void update_audio (void)
 	}
 
 	if (audio_channel[0].evtime == 0)
-	    audio_handler (0, 1);
+	    audio_handler (0);
 	if (audio_channel[1].evtime == 0)
-	    audio_handler (1, 1);
+	    audio_handler (1);
 	if (audio_channel[2].evtime == 0)
-	    audio_handler (2, 1);
+	    audio_handler (2);
 	if (audio_channel[3].evtime == 0)
-	    audio_handler (3, 1);
+	    audio_handler (3);
     }
 end:
     last_cycles = get_cycles () - n_cycles;
@@ -1602,7 +1604,7 @@ void audio_hsync (int dmaaction)
 		handle2 = 1;
 	}
 	if (handle2)
-	    audio_handler (nr, 0);
+	    audio_handler (nr);
 	handle |= handle2;
     }
     if (handle) {
@@ -1625,9 +1627,12 @@ void AUDxDAT (int nr, uae_u16 v)
     cdp->dat2 = v;
     cdp->request_word = -1;
     cdp->request_word_skip = 0;
-    if (cdp->state == 0) {
+    /* cpu >= 68020: another "too fast" memory/CPU hack */
+    if (cdp->state == 0 || currprefs.cpu_model >= 68020) {
 	cdp->state = 2;
-	audio_handler (nr, 0);
+	if (currprefs.cpu_model >= 68020)
+	    INTREQ (0x80 << nr);
+	audio_handler (nr);
 	schedule_audio ();
 	events_schedule ();
     }

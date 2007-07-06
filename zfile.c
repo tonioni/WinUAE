@@ -1166,7 +1166,10 @@ struct zvolume *zfile_fopen_archive(const char *filename)
     /* pointless but who cares? */
     if (!zv)
 	zv = archive_directory_plain (zf);
-    zvolume_addtolist (zv);
+    if (zv)
+	zvolume_addtolist (zv);
+    else
+	zfile_fclose(zf);
     return zv;
 }
 

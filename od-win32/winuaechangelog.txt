@@ -1,4 +1,21 @@
 
+Beta 8:
+
+- plain executable mounted as a harddrive automatically creates
+  virtual s/startup-sequence (same as mounting executable as a floppy)
+- possible crash fix in SCSI emulation
+- X-Power Professional 500 cartridge support. (basically old version
+  of Action Cartridge Super IV)
+- Nordic Power cartridge "support" but only 2 bad non-working rom
+  dumps available (ROM chip fault, one data line stuck) And perhaps
+  suprisingly, perhaps not, Nordic Power is old version of X-Power :)
+- possible fix for audio problems when using audio.device (usually
+  when continuously starting and stopping short samples) in JIT mode.
+  (usual reason: too "fast" cpu/chipset access speed..)
+- removed sound latency value from GUI, it was wildly inaccurate
+
+WANTED: Nordic Power cartridge(s) (can be non-working)
+
 Beta 7:
 
 - rom scanner detects overdumped roms again
