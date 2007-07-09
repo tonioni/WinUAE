@@ -1,4 +1,16 @@
 
+Beta 9:
+
+- ROM scan dialog listed "available" even if configuration required
+  2 ROMs (like CDTV or CD32) and only one was available.
+- if fullscreen resolution is smaller than GUI size, moving mouse to
+  screen borders moves the GUI dialog. (in future this means it is now
+  possible to increase GUI size to 800x600 without too many complaints)
+- CD32 CD audio end position detection and signaling, interrupt
+  handling finally implemented, fixes non-looping audio tracks,
+  (for example Brian the Lion), and games that freeze (for example
+  Fightin' Spirit, Base Jumpers)
+
 Beta 8:
 
 - plain executable mounted as a harddrive automatically creates

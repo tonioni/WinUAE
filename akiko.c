@@ -25,10 +25,19 @@
 #include "gui.h"
 #include "crc32.h"
 #include "uae.h"
+#include "custom.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 0
-#define AKIKO_DEBUG_IO_CMD 0
+#define AKIKO_DEBUG_IO 1
+#define AKIKO_DEBUG_IO_CMD 1
+
+
+static void irq(void)
+{
+    if (!(intreq & 8)) {
+	INTREQ_f(0x8000 | 0x0008);
+    }
+}
 
 static int m68k_getpc(void) { return 0;	}
 
@@ -280,7 +289,8 @@ static void akiko_c2p_do (void)
 {
     int i;
 
-    for (i = 0; i < 8; i++) akiko_result[i] = 0;
+    for (i = 0; i < 8; i++)
+	akiko_result[i] = 0;
     /* FIXME: better c2p algoritm than this piece of crap.... */
     for (i = 0; i < 8 * 32; i++) {
 	if (akiko_buffer[7 - (i >> 5)] & (1 << (i & 31)))
@@ -290,7 +300,8 @@ static void akiko_c2p_do (void)
 
 static void akiko_c2p_write (int offset, uae_u32 v)
 {
-    if (offset == 3) akiko_buffer[akiko_write_offset] = 0;
+    if (offset == 3)
+	akiko_buffer[akiko_write_offset] = 0;
     akiko_buffer[akiko_write_offset] |= v << ( 8 * (3 - offset));
     if (offset == 0) {
 	akiko_write_offset++;
@@ -323,13 +334,21 @@ static uae_u32 akiko_c2p_read (int offset)
  */
 
 #define	CDSTATUS_FRAME		    0x80000000
+#define CDSTATUS_UNK1		    0x40000000 /* not used by ROM */
+#define CDSTATUS_UNK2		    0x20000000 /* not used by ROM */
 #define	CDSTATUS_DATA_AVAILABLE	    0x10000000
 #define	CDSTATUS_DATASECTOR_ERROR   0x08000000 /* ?? */
 #define	CDSTATUS_DATASECTOR	    0x04000000
-#define	CDSTATUS_UNKNOWN	    0x02000000
 
 #define	CDS_ERROR 0x80
 #define	CDS_PLAYING 0x08
+
+#define AUDIO_STATUS_NOT_SUPPORTED  0x00
+#define AUDIO_STATUS_IN_PROGRESS    0x11
+#define AUDIO_STATUS_PAUSED         0x12
+#define AUDIO_STATUS_PLAY_COMPLETE  0x13
+#define AUDIO_STATUS_PLAY_ERROR     0x14
+#define AUDIO_STATUS_NO_STATUS      0x15
 
 static uae_u32 cdrom_status1, cdrom_status2;
 static uae_u8 cdrom_status3;
@@ -344,7 +363,7 @@ static uae_u8 cdrom_result_buffer[32];
 static uae_u8 cdrom_command_buffer[32];
 static uae_u8 cdrom_command;
 
-#define	MAX_TOC_ENTRIES 103 /* tracks 1-99, A0,A1 and A2 */
+#define	MAX_TOC_ENTRIES 103 /* tracks 1-99, A0, A1 and A2 */
 static int cdrom_toc_entries;
 static int cdrom_toc_counter;
 static uae_u32 cdrom_toc_crc;
@@ -368,6 +387,13 @@ static int unitnum = -1;
 static int cdromok = 0;
 static int cd_hunt;
 
+
+static void set_status(uae_u32 status)
+{
+    cdrom_status1 |= status;
+    if (cdrom_status1 & cdrom_status2)
+	irq();
+}
 
 static uae_u8 frombcd (uae_u8 v)
 {
@@ -418,10 +444,9 @@ static void cdaudiostop	(void)
 static uae_u32 last_play_end;
 static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int	scan)
 {
-    if (endmsf == 0xffffffff)
-	endmsf = last_play_end;
-    else
-	last_play_end = endmsf;
+    if (endmsf >= lsn2msf (cdrom_leadout))
+	endmsf = lsn2msf (cdrom_leadout);
+    last_play_end = endmsf;
     return sys_command_cd_play (DF_IOCTL, unitnum,startmsf, endmsf, scan);
 }
 
@@ -473,7 +498,6 @@ static int cd_qcode (uae_u8 *d)
 	    d[10] = tobcd ((uae_u8)(msf >> 0));
 	}
     }
-
     return 0;
 }
 
@@ -601,7 +625,8 @@ static void cdrom_return_data (int len)
     int i;
     uae_u8 checksum;
 
-    if (len <= 0) return;
+    if (len <= 0)
+	return;
 #if AKIKO_DEBUG_IO_CMD
     write_log ("OUT:");
 #endif
@@ -618,7 +643,7 @@ static void cdrom_return_data (int len)
     write_log ("%02.2X\n", checksum);
 #endif
     cdrom_result_complete += len + 1;
-    cdrom_status1 |= CDSTATUS_DATA_AVAILABLE;
+    set_status(CDSTATUS_DATA_AVAILABLE);
 }
 
 static int cdrom_command_something (void)
@@ -855,7 +880,7 @@ static void cdrom_run_read (void)
 	return;
     if (!cdrom_readmask_w)
 	return;
-    if (cdrom_data_offset<0)
+    if (cdrom_data_offset < 0)
 	return;
     j = cdrom_sector_counter & 15;
     if (unitnum >= 0 && cdrom_readmask_w & (1 << j)) {
@@ -884,7 +909,7 @@ static void cdrom_run_read (void)
     }
     cdrom_sector_counter++;
     if (cdrom_readmask_w == 0)
-	cdrom_status1 |= CDSTATUS_DATASECTOR;
+	set_status(CDSTATUS_DATASECTOR);
 }
 
 static uae_sem_t akiko_sem;
@@ -897,7 +922,7 @@ static void akiko_handler (void)
     if (unitnum < 0)
 	return;
     if (cdrom_result_complete > cdrom_result_last_pos && cdrom_result_complete - cdrom_result_last_pos < 100) {
-	cdrom_status1 |= CDSTATUS_DATA_AVAILABLE;
+	set_status(CDSTATUS_DATA_AVAILABLE);
 	return;
     }
     if (cdrom_result_last_pos < cdrom_result_complete)
@@ -963,6 +988,7 @@ static void do_hunt(void)
 void AKIKO_hsync_handler (void)
 {
     static int framecounter;
+    static int frame2counter;
 
     if (!currprefs.cs_cd32cd)
 	return;
@@ -982,12 +1008,31 @@ void AKIKO_hsync_handler (void)
 	    gui_cd_led (1);
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
-	cdrom_status1 |= CDSTATUS_FRAME;
+	set_status(CDSTATUS_FRAME);
+    }
+    if (cdrom_playing) {
+        frame2counter--;
+        if (frame2counter <= 0) {
+	    uae_u8 *s;
+	    frame2counter = 312 * 50 * 2;
+	    s = sys_command_cd_qcode (DF_IOCTL, unitnum);
+	    if (s) {
+		uae_u8 as = s[1];
+		if (as == AUDIO_STATUS_IN_PROGRESS) {
+		    int lsn = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4] << 0));
+		    if (lsn >= cdrom_leadout - 75 || lsn >= msf2lsn(last_play_end) - 75) {
+			set_status(CDSTATUS_DATA_AVAILABLE);
+			cdrom_playing = 0;
+			cdrom_result_buffer[1] = 0;
+			cdrom_return_data (2);
+		    }
+		}
+	    }
+	}
     }
     akiko_internal ();
     akiko_handler ();
 }
-
 
 static volatile int akiko_thread_running;
 
@@ -1377,14 +1422,15 @@ void akiko_reset (void)
     akiko_cdrom_free ();
 }
 
-static uae_u8 patchdata[]={0x0c,0x82,0x00,0x00,0x03,0xe8,0x64,0x00,0x00,0x46};
+static uae_u8 patchdata1[]={0x0c,0x82,0x00,0x00,0x03,0xe8,0x64,0x00,0x00,0x46};
+static uae_u8 patchdata2[]={0x0c,0x82,0x00,0x00,0x03,0xe8,0x4e,0x71,0x4e,0x71};
 
 static void patchrom (void)
 {
     int i;
     uae_u8 *p = (uae_u8*)extendedkickmemory;
-    for (i = 0; i < 524288 - sizeof (patchdata); i++) {
-	if (!memcmp (p + i, patchdata, sizeof(patchdata))) {
+    for (i = 0; i < 524288 - sizeof (patchdata1); i++) {
+	if (!memcmp (p + i, patchdata1, sizeof(patchdata1))) {
 	    p[i + 6] = 0x4e;
 	    p[i + 7] = 0x71;
 	    p[i + 8] = 0x4e;
@@ -1392,6 +1438,8 @@ static void patchrom (void)
 	    write_log ("extended rom delay loop patched at 0x%p\n", i + 6 + 0xe00000);
 	    return;
 	}
+	if (!memcmp (p + i, patchdata2, sizeof(patchdata2)))
+	    return;
     }
     write_log ("couldn't patch extended rom\n");
 }

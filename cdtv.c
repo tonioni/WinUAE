@@ -161,12 +161,6 @@ static int get_qcode(void)
 	}
     }
     s[1] = cd_audio_status;
-#if 0
-    if (s[1] != subq0) {
-	subq0 = s[1];
-	do_stch();
-    }
-#endif
     return 1;
 }
 

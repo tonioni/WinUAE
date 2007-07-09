@@ -607,9 +607,11 @@ static void show_rom_list (void)
 	    ok = 1;
         while(*rp++ != -1);
         if (*rp != -1) {
-	    ok = 0;
-	    if (listrom (rp))
-	        ok = 1;
+	    if (ok) {
+		ok = 0;
+		if (listrom (rp))
+		    ok = 1;
+	    }
 	    while(*rp++ != -1);
 	}
         rp++;
@@ -9823,56 +9825,52 @@ static int init_page (int tmpl, int icon, int title,
 
 static RECT dialog_rect;
 
-static void dialogmousemove(HWND hDlg, MSG *msg)
+static void dialogmousemove(HWND hDlg)
 {
-    int edge2 = 80;
-    int rate = 32;
-    int qual = msg->wParam;
-    int newmx, newmy;
-    static int oldx, oldy, ignorenext;
-    int mx, my;
+    static int newmx, newmy;
+    RECT rc;
+    POINT pt;
+    static POINT pt2;
+    int dx, dy;
+    int sw, sh;
 
-    mx = (signed short) LOWORD (msg->lParam);
-    my = (signed short) HIWORD (msg->lParam);
-
-    if (!(qual & MK_CONTROL) || ignorenext > 0) {
-	oldx = mx;
-	oldy = my;
-	if (ignorenext > 0)
-	    ignorenext--;
+    if (isfullscreen() <= 0)
 	return;
-    }
-
-    newmx = mx - oldx;
-    newmy = my - oldy;
-
-    oldx = mx;
-    oldy = my;
-
-    if (newmx < -edge2 || newmy < -edge2 || newmx > edge2 || newmy > edge2) {
-	ignorenext++;
+    GetCursorPos(&pt);
+    if (pt.x == pt2.x && pt.y == pt2.y)
 	return;
+    sw = WIN32GFX_GetWidth();
+    sh = WIN32GFX_GetHeight();
+    dx = dialog_x_offset;
+    dy = dialog_y_offset;
+    GetWindowRect(hDlg, &rc);
+    rc.right -= rc.left;
+    rc.bottom -= rc.top;
+    rc.left = 0;
+    rc.top = 0;
+    if (rc.right <= sw && rc.bottom <= sh)
+	return;
+    pt2.x = pt.x;
+    pt2.y = pt.y;
+
+    newmx = pt.x;
+    newmy = pt.y;
+
+    if (newmx >= sw - 1 && rc.right > sw)
+	dx = sw - rc.right;
+    if (newmx <= 1)
+	dx = 0;
+    if (newmy >= sh - 1 && rc.bottom > sh)
+	dy = sh - rc.bottom;
+    if (newmy <= 1)
+	dy = 0;
+
+    if (dx != dialog_x_offset || dy != dialog_y_offset) {
+	dialog_x_offset = dx;
+	dialog_y_offset = dy;
+	SetWindowPos(hDlg, 0, dialog_x_offset, dialog_y_offset, 0, 0,
+	    SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_DEFERERASE);
     }
-
-    write_log("%dx%d\n", newmx, newmy);
-
-    dialog_x_offset += newmx;
-    dialog_y_offset += newmy;
-
-    /*
-    if (dialog_x_offset >= dialog_rect.right - WIN32GFX_GetWidth() + edge2)
-	dialog_x_offset = dialog_rect.right - WIN32GFX_GetWidth() + edge2;
-    if (dialog_y_offset >= dialog_rect.bottom - WIN32GFX_GetHeight() + edge2)
-	dialog_y_offset = dialog_rect.bottom - WIN32GFX_GetHeight() + edge2;
-    if (dialog_x_offset < -edge2)
-	dialog_x_offset = -edge2;
-    if (dialog_y_offset < -edge2)
-	dialog_y_offset = -edge2;
-*/
-    SetWindowPos(hDlg, 0, dialog_x_offset, dialog_y_offset, 0, 0,
-	SWP_NOOWNERZORDER | SWP_NOREDRAW | SWP_NOSIZE | SWP_NOACTIVATE | SWP_DEFERERASE);
-    ignorenext++;
-
 }
 
 static int GetSettings (int all_options, HWND hwnd)
@@ -9963,6 +9961,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	}
 	ShowWindow (dhwnd, SW_SHOW);
 	MapDialogRect(dhwnd, &dialog_rect);
+
 	for (;;) {
 	    HANDLE IPChandle;
 	    IPChandle = geteventhandleIPC();
@@ -9972,6 +9971,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	    } else {
 		WaitMessage();
 	    }
+	    dialogmousemove(dhwnd);
 	    while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
 		if (dialogreturn >= 0)
 		    break;
