@@ -28,8 +28,8 @@
 #include "custom.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 1
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO 0
+#define AKIKO_DEBUG_IO_CMD 0
 
 
 static void irq(void)
@@ -883,7 +883,7 @@ static void cdrom_run_read (void)
     if (cdrom_data_offset < 0)
 	return;
     j = cdrom_sector_counter & 15;
-    if (unitnum >= 0 && cdrom_readmask_w & (1 << j)) {
+    if (unitnum >= 0 && (cdrom_readmask_w & (1 << j))) {
 	sector = cdrom_current_sector = cdrom_data_offset + cdrom_sector_counter;
 	sec = sector - sector_buffer_sector_1;
 	if (sector_buffer_sector_1 >= 0 && sec >= 0 && sec < SECTOR_BUFFER_SIZE) {
@@ -900,8 +900,9 @@ static void cdrom_run_read (void)
 	    }
 	    if (sector_buffer_info_1[sec] != 0xff)
 		sector_buffer_info_1[sec]--;
-	} else
+	} else {
 	    return;
+	}
 #if AKIKO_DEBUG_IO_CMD
 	write_log("read sector=%d, scnt=%d -> %d\n", cdrom_data_offset, cdrom_sector_counter, sector);
 #endif
@@ -910,6 +911,7 @@ static void cdrom_run_read (void)
     cdrom_sector_counter++;
     if (cdrom_readmask_w == 0)
 	set_status(CDSTATUS_DATASECTOR);
+
 }
 
 static uae_sem_t akiko_sem;
@@ -988,7 +990,6 @@ static void do_hunt(void)
 void AKIKO_hsync_handler (void)
 {
     static int framecounter;
-    static int frame2counter;
 
     if (!currprefs.cs_cd32cd)
 	return;
@@ -1011,6 +1012,7 @@ void AKIKO_hsync_handler (void)
 	set_status(CDSTATUS_FRAME);
     }
     if (cdrom_playing) {
+	static int frame2counter;
         frame2counter--;
         if (frame2counter <= 0) {
 	    uae_u8 *s;
@@ -1054,7 +1056,8 @@ static void *akiko_thread (void	*null)
 	    if (sector_buffer_info_1[i] == 0xff)
 		break;
 	}
-	if (cdrom_data_end > 0 && sector >= 0 && (sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
+	if (cdrom_data_end > 0 && sector >= 0 &&
+		(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
 	    memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
 	    write_log("filling buffer sector=%d (max=%d)\n", sector, cdrom_data_end);

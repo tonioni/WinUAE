@@ -9834,7 +9834,7 @@ static void dialogmousemove(HWND hDlg)
     int dx, dy;
     int sw, sh;
 
-    if (isfullscreen() <= 0)
+    if (full_property_sheet || isfullscreen() <= 0)
 	return;
     GetCursorPos(&pt);
     if (pt.x == pt2.x && pt.y == pt2.y)
