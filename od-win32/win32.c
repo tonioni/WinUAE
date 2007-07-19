@@ -1686,6 +1686,26 @@ void logging_cleanup( void )
     debugfile = 0;
 }
 
+uae_u8 *save_log(int *len)
+{
+    FILE *f;
+    uae_u8 *dst;
+    int size;
+
+    f = fopen(LOG_BOOT, "rb");
+    if (!f)
+	return NULL;
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    dst = xcalloc(1, size + 1);
+    if (dst)
+	fread(dst, 1, size, f);
+    fclose(f);
+    *len = size + 1;
+    return dst;
+}
+
 typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
 uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *name)
 {

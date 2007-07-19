@@ -160,6 +160,7 @@ static const char *obsolete[] = {
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
     "kickstart_key_file", "fast_copper", "sound_adjust",
+    "serial_hardware_dtrdsr",
     0
 };
 
@@ -2557,6 +2558,45 @@ uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
     }
     return 0;
 }
+
+uae_u8 *restore_configuration (uae_u8 *src)
+{
+    write_log(src);
+    src += strlen(src) + 1;
+    return src;
+}
+
+uae_u8 *save_configuration(int *len)
+{
+    int tmpsize = 30000;
+    uae_u8 *dstbak, *dst;
+    char *p;
+    int index = -1;
+
+    dstbak = dst = (uae_u8*)malloc (tmpsize);
+    p = dst;
+    for (;;) {
+	char tmpout[256];
+        int ret;
+        tmpout[0] = 0;
+        ret = cfgfile_modify (index, "*", 1, tmpout, sizeof (tmpout));
+	index++;
+	if (strlen(tmpout) > 0) {
+	    if (!memcmp(tmpout, "input.", 6))
+		continue;
+	    strcpy (p, tmpout);
+	    strcat (p, "\n");
+	    p += strlen(p);
+	    if (p - dstbak >= tmpsize - sizeof(tmpout))
+		break;
+	}
+	if (ret >= 0)
+	    break;
+    }
+    *len = p - dstbak + 1;
+    return dstbak;
+}
+
 
 static int configure_rom (struct uae_prefs *p, int *rom, int msg)
 {

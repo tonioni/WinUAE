@@ -29,10 +29,16 @@
 #include "a2091.h"
 
 int canbang;
+int candirect = -1;
 #ifdef JIT
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
 #endif
+
+static void nocanbang(void)
+{
+    canbang = 0;
+}
 
 int ersatzkickfile;
 
@@ -199,18 +205,18 @@ static struct romdata roms[] = {
     { "Freezer: Action Replay 1200", 0, 0, 0, 0, "AR\0", 262144, 47, 0, 0, ROMTYPE_AR, 1,
 	0x8d760101, 0x0F6AB834,0x2810094A,0xC0642F62,0xBA42F78B,0xC0B07E6A },
 
-    { "Freezer: Action Cartridge Super IV Pro (+ROM)", 4, 3, 4, 3, "SUPERIV\0", 170368, 60, 0, 0, ROMTYPE_SUPERIV, 1,
-	0xe668a0be, 0x633A6E65,0xA93580B8,0xDDB0BE9C,0x9A64D4A1,0x7D4B4801 },
-    { "Freezer: Action Cartridge Super IV Pro", 0, 0, 0, 0, "SUPERIV\0", 0, 62, 0, 0, ROMTYPE_SUPERIV, 1,
+    { "Freezer: Action Cartridge Super IV Professional", 0, 0, 0, 0, "SUPERIV\0", 0, 62, 0, 0, ROMTYPE_SUPERIV, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "SuperIV" },
-    { "Freezer: X-Power Professional 500", 1, 2, 1, 2, "XPOWER\0", 131072, 65, 0, 0, ROMTYPE_SUPERIV, 1,
+    { "Freezer: Action Cart. Super IV Pro (+ROM v4.3)", 4, 3, 4, 3, "SUPERIV\0", 170368, 60, 0, 0, ROMTYPE_SUPERIV, 1,
+	0xe668a0be, 0x633A6E65,0xA93580B8,0xDDB0BE9C,0x9A64D4A1,0x7D4B4801 },
+    { "Freezer: X-Power Professional 500 v1.2", 1, 2, 1, 2, "XPOWER\0", 131072, 65, 0, 0, ROMTYPE_SUPERIV, 1,
 	0x9e70c231, 0xa2977a1c,0x41a8ca7d,0x4af4a168,0x726da542,0x179d5963 },
     /* only 2 bad dumps available */
     { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
     { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_SUPERIV, 1, },
 	//0xdd16cdec, 0xfd882967,0x87e2da5f,0x4ef6be32,0x5f7c9324,0xb5bd8e64 },
 
-    { "Freezer: HRTMon (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 1,
+    { "Freezer: HRTMon v2.30 (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "HRTMon" },
 
     { "A590/A2091 SCSI boot ROM", 0, 0, 6, 0, "A590\0A2091\0", 16384, 53, 0, 0, ROMTYPE_A2091BOOT, 0,
@@ -2207,7 +2213,7 @@ static shmpiece *find_shmpiece (uae_u8 *base)
     if (!x) {
 	write_log ("NATMEM: Failure to find mapping at %p\n",base);
 	dumplist ();
-	canbang = 0;
+	nocanbang();
 	return 0;
     }
     return x;
@@ -2231,7 +2237,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 	    if (x->size > size) {
 		write_log ("NATMEM: Failure to delete mapping at %08x(size %08x, delsize %08x)\n",start,x->size,size);
 		dumplist ();
-		canbang = 0;
+		nocanbang();
 		return;
 	    }
 	    shmdt (x->native_address);
@@ -2272,7 +2278,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     if (y->native_address == (void *) -1) {
 	write_log ("NATMEM: Failure to map existing at %08x(%p)\n",start,base);
 	dumplist ();
-	canbang = 0;
+	nocanbang();
 	return;
     }
     y->next = shm_start;
@@ -2288,12 +2294,14 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     void *answer;
     shmpiece *x;
 
-    if (!canbang)
+    if (!canbang) {
+	nocanbang();
 	return xmalloc (s);
+    }
 
     id = shmget (IPC_PRIVATE, s, 0x1ff, file);
     if (id == -1) {
-	canbang = 0;
+	nocanbang();
 	return mapped_malloc (s, file);
     }
     answer = shmat (id, 0, 0);
@@ -2308,10 +2316,9 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 	if (x->next)
 	    x->next->prev = x;
 	shm_start = x;
-
 	return answer;
     }
-    canbang = 0;
+    nocanbang();
     return mapped_malloc (s, file);
 }
 

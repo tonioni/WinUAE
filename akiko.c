@@ -26,11 +26,11 @@
 #include "crc32.h"
 #include "uae.h"
 #include "custom.h"
+#include "newcpu.h"
 
 #define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 0
 #define AKIKO_DEBUG_IO_CMD 0
-
 
 static void irq(void)
 {
@@ -38,8 +38,6 @@ static void irq(void)
 	INTREQ_f(0x8000 | 0x0008);
     }
 }
-
-static int m68k_getpc(void) { return 0;	}
 
 /*
  * CD32 1Kb NVRAM (EEPROM) emulation
@@ -144,7 +142,7 @@ static void i2c_do (void)
 	    if (scl_out && !oscl) {
 		if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-		    write_log ("RB %02.2X ", nvram_byte, m68k_getpc());
+		    write_log ("RB %02.2X ", nvram_byte, M68K_GETPC);
 #endif
 		    sda_in = 0; /* ACK */
 		    if (direction > 0) {
@@ -173,7 +171,7 @@ static void i2c_do (void)
 		bitcounter++;
 		if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-		    write_log ("NVRAM sent byte %02.2X address %04.4X PC=%08.8X\n", cd32_nvram[nvram_address], nvram_address, m68k_getpc());
+		    write_log ("NVRAM sent byte %02.2X address %04.4X PC=%08.8X\n", cd32_nvram[nvram_address], nvram_address, M68K_GETPC);
 #endif
 		    nvram_address++;
 		    nvram_address &= NVRAM_SIZE - 1;
@@ -207,14 +205,14 @@ static void i2c_do (void)
 	}
 	bitcounter = 0;
 #if AKIKO_DEBUG_NVRAM
-	write_log ("I2C_DEVICEADDR: rw %d, address %02.2Xxx PC=%08.8X\n", nvram_rw, nvram_address >> 8, m68k_getpc());
+	write_log ("I2C_DEVICEADDR: rw %d, address %02.2Xxx PC=%08.8X\n", nvram_rw, nvram_address >> 8, M68K_GETPC);
 #endif
 	break;
 	case I2C_WORDADDR:
 	nvram_address &= 0x300;
 	nvram_address |= nvram_byte;
 #if AKIKO_DEBUG_NVRAM
-	write_log ("I2C_WORDADDR: address %04.4X PC=%08.8X\n", nvram_address, m68k_getpc());
+	write_log ("I2C_WORDADDR: address %04.4X PC=%08.8X\n", nvram_address, M68K_GETPC);
 #endif
 	if (direction < 0) {
 	    memcpy (nvram_writetmp, cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), NVRAM_PAGE_SIZE);
@@ -1205,7 +1203,7 @@ static uae_u32 akiko_bget2 (uaecptr addr, int msg)
     akiko_internal ();
     uae_sem_post (&akiko_sem);
     if (msg && addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_bget %08.8X: %08.8X %02.2X\n", m68k_getpc(), addr, v & 0xff);
+	write_log ("akiko_bget %08.8X: %08.8X %02.2X\n", M68K_GETPC, addr, v & 0xff);
     return v;
 }
 
@@ -1227,7 +1225,7 @@ static uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
     v = akiko_bget2 (addr + 1, 0);
     v |= akiko_bget2 (addr + 0, 0) << 8;
     if (addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_wget %08.8X: %08.8X %04.4X\n", m68k_getpc(), addr, v & 0xffff);
+	write_log ("akiko_wget %08.8X: %08.8X %04.4X\n", M68K_GETPC, addr, v & 0xffff);
     return v;
 }
 
@@ -1244,9 +1242,23 @@ static uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
     v |= akiko_bget2 (addr + 1, 0) << 16;
     v |= akiko_bget2 (addr + 0, 0) << 24;
     if (addr < 0x30 && (addr != 4 && addr != 8) && AKIKO_DEBUG_IO)
-	write_log ("akiko_lget %08.8X: %08.8X %08.8X\n", m68k_getpc(), addr, v);
+	write_log ("akiko_lget %08.8X: %08.8X %08.8X\n", M68K_GETPC, addr, v);
     return v;
 }
+
+static void write_readmask(uae_u16 v)
+{
+    int i, cnt;
+
+    cnt = 0;
+    for (i = 0; i < 16; i++) {
+	if (v & (1 << i))
+	    cnt++;
+    }
+    cdrom_readmask_w |= v;
+    cdrom_readmask_r = 0;
+}
+
 
 static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 {
@@ -1255,7 +1267,7 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
     addr &= 0xffff;
     v &= 0xff;
     if(msg && addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_bput %08.8X: %08.8X=%02.2X\n", m68k_getpc(), addr, v & 0xff);
+	write_log ("akiko_bput %08.8X: %08.8X=%02.2X\n", M68K_GETPC, addr, v & 0xff);
     uae_sem_wait (&akiko_sem);
     switch (addr)
     {
@@ -1302,12 +1314,10 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	    cdrom_result_last_pos = v;
 	    break;
 	    case 0x20:
-	    cdrom_readmask_w |= (v << 8);
-	    cdrom_readmask_r &= 0x00ff;
+	    write_readmask(v <<8);
 	    break;
 	    case 0x21:
-	    cdrom_readmask_w |= (v << 0);
-	    cdrom_readmask_r &= 0xff00;
+	    write_readmask(v);
 	    break;
 	    case 0x24:
 	    case 0x25:
@@ -1361,7 +1371,7 @@ static void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
 #endif
     addr &= 0xfff;
     if((addr < 0x30 && AKIKO_DEBUG_IO))
-	write_log("akiko_wput %08.8X: %08.8X=%04.4X\n", m68k_getpc(), addr, v & 0xffff);
+	write_log("akiko_wput %08.8X: %08.8X=%04.4X\n", M68K_GETPC, addr, v & 0xffff);
     akiko_bput2 (addr + 1, v & 0xff, 0);
     akiko_bput2 (addr + 0, v >> 8, 0);
 }
@@ -1373,7 +1383,7 @@ static void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
 #endif
     addr &= 0xffff;
     if(addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log("akiko_lput %08.8X: %08.8X=%08.8X\n", m68k_getpc(), addr, v);
+	write_log("akiko_lput %08.8X: %08.8X=%08.8X\n", M68K_GETPC, addr, v);
     akiko_bput2 (addr + 3, (v >> 0) & 0xff, 0);
     akiko_bput2 (addr + 2, (v >> 8) & 0xff, 0);
     akiko_bput2 (addr + 1, (v >> 16) & 0xff, 0);

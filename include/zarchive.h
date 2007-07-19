@@ -90,7 +90,7 @@ extern struct zfile *archive_access_lzx (struct znode *zn);
 extern struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id);
 extern struct zfile *archive_access_arcacc (struct znode *zn);
 
-extern struct zfile *archive_access_select (struct zfile *zf, unsigned int id);
+extern struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int doselect);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id);
 
 

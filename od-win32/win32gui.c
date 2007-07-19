@@ -574,7 +574,7 @@ static void show_rom_list (void)
 	8, 9, 10, -1, -1, // A600
 	23, 24, -1, -1, // A1000
 	11, 31, 15, -1, -1, // A1200
-	61, 32, 59, -1, -1, // A3000
+	61, 59, -1, -1, // A3000
 	16, 46, 31, 13, 12, -1, -1, // A4000
 	18, -1, 19, -1, -1, // CD32
 	20, 21, 22, -1, 6, 32, -1, -1, // CDTV
@@ -5197,7 +5197,7 @@ static void enable_for_cpudlg (HWND hDlg)
 #ifndef JIT
     enable = FALSE;
 #endif
-    enable2 = enable && workprefs.compforcesettings;
+    enable2 = enable && workprefs.compforcesettings && candirect;
 
     ew (hDlg, IDC_TRUST0, enable2);
     ew (hDlg, IDC_TRUST1, enable2);
@@ -5268,7 +5268,7 @@ static void values_to_cpudlg (HWND hDlg)
 
 #ifdef JIT
     if(enable) {
-	if (!canbang) {
+	if (!canbang || !candirect) {
 	    workprefs.compforcesettings = TRUE;
 	    workprefs.comptrustbyte = 1;
 	    workprefs.comptrustword = 1;
@@ -5390,6 +5390,9 @@ static void values_from_cpudlg (HWND hDlg)
     }
     if (oldcache == 0 && workprefs.cachesize > 0)
 	canbang = 1;
+    if (!candirect)
+	canbang = 0;
+
 #endif
     workprefs.cpu_idle = SendMessage(GetDlgItem(hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
     if (workprefs.cpu_idle > 0)
@@ -10185,7 +10188,8 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
     hr = DirectDraw_FlipToGDISurface();
     if (FAILED(hr))
 	write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
-    *flags &= ~MB_SETFOREGROUND;
+    *flags |= MB_SETFOREGROUND;
+    *flags |= MB_TOPMOST;
     return 0;
 /*
     HRESULT hr;

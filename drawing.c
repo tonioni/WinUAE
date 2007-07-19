@@ -1693,7 +1693,7 @@ static void center_image (void)
     /* @@@ interlace_seen used to be (bplcon0 & 4), but this is probably
      * better.  */
     if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust)
-	frame_redraw_necessary |= interlace_seen && currprefs.gfx_linedbl ? 2 : 1;
+	frame_redraw_necessary |= (interlace_seen && currprefs.gfx_linedbl) ? 2 : 1;
 
     max_diwstop = 0;
     min_diwstart = 10000;
@@ -2235,9 +2235,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	    quit_program = -quit_program;
 	    set_inhibit_frame (IHF_QUIT_PROGRAM);
 	    set_special (&regs, SPCFLAG_BRK);
-#ifdef FILESYS
-	    filesys_prepare_reset ();
-#endif
 	    return;
 	}
 

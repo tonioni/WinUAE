@@ -91,6 +91,11 @@ extern uae_u8 *save_gayle (int *len);
 extern uae_u8 *restore_ide (uae_u8 *src);
 extern uae_u8 *save_ide (int num, int *len);
 
+extern uae_u8 *save_configuration (int *len);
+extern uae_u8 *restore_configuration (uae_u8 *src);
+extern uae_u8 *save_log (int *len);
+extern uae_u8 *restore_log (uae_u8 *src);
+
 extern void restore_cram (int, size_t);
 extern void restore_bram (int, size_t);
 extern void restore_fram (int, size_t);

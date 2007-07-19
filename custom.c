@@ -2789,7 +2789,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	hpos_previous = hpos;
     }
 
-    if ((v & 4) && !interlace_seen)
+    if (((v & 4) && !interlace_seen) || (!(v & 4) && interlace_seen))
 	interlace_started = 2;
 
     ddf_change = vpos;
@@ -4584,13 +4584,14 @@ void init_eventtab (void)
     events_schedule ();
 }
 
-void customreset (void)
+void customreset (int hardreset)
 {
     int i;
     int zero = 0;
 
     write_log ("Reset at %08.8X\n", m68k_getpc(&regs));
     memory_map_dump();
+
     hsync_counter = 0;
     vsync_counter = 0;
     ciavsync_counter = 0;
@@ -4635,6 +4636,7 @@ void customreset (void)
 	CLXCON (0);
     }
 
+    gayle_reset (hardreset);
 #ifdef AUTOCONFIG
     expamem_reset ();
 #endif
@@ -4647,6 +4649,9 @@ void customreset (void)
 #endif
 #ifdef NCR
     ncr_reset ();
+#endif
+#ifdef FILESYS
+    filesys_free_handles();
 #endif
 #ifdef JIT
     compemu_reset ();
@@ -4752,6 +4757,9 @@ void customreset (void)
     #if defined(ENFORCER)
     enforcer_disable();
     #endif
+
+    if (hardreset)
+	rtc_hardreset();
 }
 
 void dumpcustom (void)

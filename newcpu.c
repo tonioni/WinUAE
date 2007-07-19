@@ -232,10 +232,11 @@ static void build_cpufunctbl (void)
 	    opcnt++;
 	}
     }
-    write_log ("Building CPU function table, %d opcodes (%d %d %d). CPU=%d, FPU=%d.\n",
+    write_log ("Building CPU, %d opcodes (%d %d %d). CPU=%d, FPU=%d, JIT=%d.\n",
 	opcnt, currprefs.cpu_level,
 	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0,
-	currprefs.address_space_24, currprefs.cpu_model, currprefs.fpu_model);
+	currprefs.address_space_24, currprefs.cpu_model, currprefs.fpu_model,
+	currprefs.cachesize);
 #ifdef JIT
     build_comp ();
 #endif
@@ -1147,9 +1148,9 @@ STATIC_INLINE void do_interrupt(int nr, struct regstruct *regs)
     doint();
 }
 
-void Interrupt (int nr)
+void NMI(void)
 {
-    do_interrupt (nr, &regs);
+    do_interrupt (7, &regs);
 }
 
 #ifndef CPUEMU_68000_ONLY
@@ -2011,7 +2012,7 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	    int intr = intlev ();
 	    unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
 	    if (intr != -1 && intr > regs->intmask)
-		Interrupt (intr);
+		do_interrupt (intr, regs);
 	}
 	if ((regs->spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 	    unset_special (regs, SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
@@ -2439,14 +2440,8 @@ void m68k_go (int may_quit)
 	    else if (savestate_state == STATE_REWIND)
 		savestate_rewind ();
 #endif
-	    /* following three lines must not be reordered or
-	     * fastram state restore breaks
-	     */
 	    reset_all_systems ();
-	    gayle_reset (hardreset);
-	    customreset ();
-	    if (hardreset)
-		rtc_hardreset();
+	    customreset (hardreset);
 	    m68k_reset (hardreset);
 	    if (hardreset) {
 		memory_hardreset();
@@ -3048,7 +3043,7 @@ void cpureset (void)
     uae_u16 ins;
 
     if (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) {
-        customreset ();
+        customreset (0);
 	return;
     }
     pc = m68k_getpc(&regs);
@@ -3056,11 +3051,11 @@ void cpureset (void)
 	addrbank *b = &get_mem_bank(pc);
 	if (b->check(pc, 2 + 2)) {
 	    /* We have memory, hope for the best.. */
-	    customreset ();
+	    customreset (0);
 	    return;
 	}
 	write_log("M68K RESET PC=%x, rebooting..\n", pc);
-	customreset ();
+	customreset (0);
 	m68k_setpc (&regs, ksboot);
 	return;
     }
@@ -3070,14 +3065,14 @@ void cpureset (void)
 	int reg = ins & 7;
 	uae_u32 addr = m68k_areg (&regs, reg);
 	write_log ("reset/jmp (ax) combination emulated -> %x\n", addr);
-	customreset ();
+	customreset (0);
 	if (addr < 0x80000)
 	    addr += 0xf80000;
 	m68k_setpc (&regs, addr - 2);
 	return;
     }
     write_log("M68K RESET PC=%x, rebooting..\n", pc);
-    customreset ();
+    customreset (0);
     m68k_setpc (&regs, ksboot);
 }
 

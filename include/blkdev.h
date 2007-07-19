@@ -113,6 +113,7 @@ struct device_functions {
 extern struct device_functions *device_func[2];
 
 extern int device_func_init(int flags);
+extern void device_func_reset(void);
 extern int sys_command_open (int mode, int unitnum);
 extern void sys_command_close (int mode, int unitnum);
 extern struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di);

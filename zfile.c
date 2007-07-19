@@ -137,7 +137,7 @@ int zfile_gettype (struct zfile *z)
     return ZFILE_UNKNOWN;
 }
 
-static struct zfile *zuncompress (struct zfile *z);
+static struct zfile *zuncompress (struct zfile *z, int);
 
 struct zfile *zfile_gunzip (struct zfile *z)
 {
@@ -303,7 +303,7 @@ static int iszip (struct zfile *z)
     return 0;
 }
 
-static struct zfile *zuncompress (struct zfile *z)
+static struct zfile *zuncompress (struct zfile *z, int dodefault)
 {
     char *name = z->name;
     char *ext = strrchr (name, '.');
@@ -313,15 +313,15 @@ static struct zfile *zuncompress (struct zfile *z)
     if (ext != NULL) {
 	ext++;
 	if (strcasecmp (ext, "7z") == 0)
-	     return archive_access_select (z, ArchiveFormat7Zip);
+	     return archive_access_select (z, ArchiveFormat7Zip, dodefault);
 	if (strcasecmp (ext, "zip") == 0)
-	     return archive_access_select (z, ArchiveFormatZIP);
+	     return archive_access_select (z, ArchiveFormatZIP, dodefault);
 	if (strcasecmp (ext, "lha") == 0 || strcasecmp (ext, "lzh") == 0)
-	     return archive_access_select (z, ArchiveFormatLHA);
+	     return archive_access_select (z, ArchiveFormatLHA, dodefault);
 	if (strcasecmp (ext, "lzx") == 0)
-	     return archive_access_select (z, ArchiveFormatLZX);
+	     return archive_access_select (z, ArchiveFormatLZX, dodefault);
 	if (strcasecmp (ext, "rar") == 0)
-	     return archive_access_select (z, ArchiveFormatRAR);
+	     return archive_access_select (z, ArchiveFormatRAR, dodefault);
 	if (strcasecmp (ext, "gz") == 0)
 	     return zfile_gunzip (z);
 	if (strcasecmp (ext, "adz") == 0)
@@ -345,15 +345,15 @@ static struct zfile *zuncompress (struct zfile *z)
 	if (header[0] == 0x1f && header[1] == 0x8b)
 	    return zfile_gunzip (z);
 	if (header[0] == 'P' && header[1] == 'K')
-	     return archive_access_select (z, ArchiveFormatZIP);
+	     return archive_access_select (z, ArchiveFormatZIP, dodefault);
 	if (header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
-	     return archive_access_select (z, ArchiveFormatRAR);
+	     return archive_access_select (z, ArchiveFormatRAR, dodefault);
 	if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
 	    return dms (z);
 	if (header[0] == 'L' && header[1] == 'Z' && header[2] == 'X')
-	     return archive_access_select (z, ArchiveFormatLZX);
+	     return archive_access_select (z, ArchiveFormatLZX, dodefault);
 	if (header[2] == '-' && header[3] == 'l' && header[4] == 'h' && header[6] == '-')
-	     return archive_access_select (z, ArchiveFormatLHA);
+	     return archive_access_select (z, ArchiveFormatLHA, dodefault);
     }
     return z;
 }
@@ -494,6 +494,7 @@ static void manglefilename(char *out, const char *in)
 #else
 static void manglefilename(char *out, const char *in)
 {
+    strcpy(out, in);
 }
 #endif
 
@@ -528,7 +529,7 @@ struct zfile *zfile_fopen (const char *name, const char *mode)
     l = zfile_fopen_2 (path, mode);
     if (!l)
 	return 0;
-    l = zuncompress (l);
+    l = zuncompress (l, 0);
     return l;
 }
 

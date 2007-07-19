@@ -308,11 +308,17 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *
 	&& strcmp (name, "BRAM") != 0
 	&& strcmp (name, "FRAM") != 0
 	&& strcmp (name, "ZRAM") != 0
-	&& strcmp (name, "PRAM") != 0)
+	&& strcmp (name, "PRAM") != 0
+	&& strcmp (name, "A3K1") != 0
+	&& strcmp (name, "A3K2") != 0)
     {
 	/* without zeros at the end old state files may not work */
-	mem = (uae_u8*)calloc (1, len2 + 32);
-	zfile_fread (mem, 1, len2, f);
+	mem = (uae_u8*)calloc (1, *totallen + 32);
+	if (flags & 1) {
+	    zfile_zuncompress (mem, *totallen, f, len2);
+	} else {
+	    zfile_fread (mem, 1, len2, f);
+	}
     } else {
 	mem = 0;
 	zfile_fseek (f, len2, SEEK_CUR);
@@ -505,8 +511,14 @@ void restore_state (char *filename)
 	    end = restore_gayle (chunk);
 	else if (!strcmp (name, "IDE "))
 	    end = restore_ide (chunk);
-	else
+	else if (!strcmp (name, "CONF"))
+	    end = restore_configuration (chunk);
+	else if (!strcmp (name, "LOG "))
+	    end = chunk + len;
+	else {
+	    end = chunk + len;
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);
+	}
 	if (len != end - chunk)
 	    write_log ("Chunk '%s' total size %d bytes but read %d bytes!\n",
 		       name, len, end - chunk);
@@ -575,6 +587,7 @@ static void save_rams (struct zfile *f, int comp)
 
 int save_state (char *filename, char *description)
 {
+    uae_u8 endhunk[] = { 'E', 'N', 'D', ' ', 0, 0, 0, 8 };
     uae_u8 header[1000];
     char tmp[100];
     uae_u8 *dst;
@@ -704,9 +717,9 @@ int save_state (char *filename, char *description)
 
 #ifdef ACTION_REPLAY
     dst = save_action_replay (&len, 0);
-    save_chunk (f, dst, len, "ACTR", 0);
+    save_chunk (f, dst, len, "ACTR", 1);
     dst = save_hrtmon (&len, 0);
-    save_chunk (f, dst, len, "HRTM", 0);
+    save_chunk (f, dst, len, "HRTM", 1);
 #endif
 #ifdef FILESYS
     dst = save_filesys_common (&len);
@@ -734,8 +747,23 @@ int save_state (char *filename, char *description)
 	}
     }
 
-    zfile_fwrite ("END ", 1, 4, f);
-    zfile_fwrite ("\0\0\0\08", 1, 4, f);
+    /* add fake END tag, makes it easy to strip CONF and LOG hunks */
+    /* move this if you want to use CONF or LOG hunks when restoring state */
+    zfile_fwrite (endhunk, 1, 8, f);
+
+    dst = save_configuration (&len);
+    if (dst) {
+	save_chunk (f, dst, len, "CONF", 1);
+	xfree(dst);
+    }
+    dst = save_log (&len);
+    if (dst) {
+	save_chunk (f, dst, len, "LOG ", 1);
+	xfree(dst);
+    }
+
+    zfile_fwrite (endhunk, 1, 8, f);
+
     write_log ("Save of '%s' complete\n", filename);
     zfile_fclose (f);
     savestate_state = 0;
@@ -1324,7 +1352,7 @@ INTERNAL FLOPPY	CONTROLLER STATUS
 
 RAM SPACE
 
-	"xRAM" (CRAM = chip, BRAM = bogo, FRAM = fast, ZFRAM = Z3)
+	"xRAM" (CRAM = chip, BRAM = bogo, FRAM = fast, ZRAM = Z3, P96 = RTG RAM, A3K1/A3K2 = MB RAM)
 
 	start address           4 ("bank"=chip/slow/fast etc..)
 	of RAM "bank"

@@ -912,7 +912,7 @@ static void action_replay_go (void)
     set_special (&regs, SPCFLAG_ACTION_REPLAY);
     copyfromamiga (artemp, regs.vbr + 0x7c, 4);
     copytoamiga (regs.vbr+0x7c, armemory_rom + 0x7c, 4);
-    Interrupt (7);
+    NMI ();
 }
 
 static void action_replay_go1 (int irq)
@@ -921,7 +921,7 @@ static void action_replay_go1 (int irq)
     hide_cart (0);
     action_replay_flag = ACTION_REPLAY_ACTIVE;
     memcpy (armemory_ram + 0xf000, ar_custom, 2 * 256);
-    Interrupt (7);
+    NMI ();
 }
 
 typedef struct {
@@ -985,13 +985,13 @@ static void hrtmon_go (void)
 	if (v) {
 	    old = get_long((uaecptr)(regs.vbr + 0x7c));
 	    put_long ((uaecptr)(regs.vbr + 0x7c), v);
-	    Interrupt (7);
+	    NMI ();
 	    put_long ((uaecptr)(regs.vbr + 0x7c), old);
 	}
     } else {
         old = get_long((uaecptr)(regs.vbr + 0x7c));
 	put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 12 + 2 + get_word (hrtmem_start + 14));
-	Interrupt (7);
+	NMI ();
 	//put_long ((uaecptr)(regs.vbr + 0x7c), old);
     }
 }

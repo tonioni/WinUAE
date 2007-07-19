@@ -1550,7 +1550,7 @@ void inputdevice_handle_inputcode (void)
 	disk_eject (3);
 	break;
     case AKS_IRQ7:
-	Interrupt (7);
+	NMI ();
 	break;
     case AKS_PAUSE:
 	pausemode (-1);

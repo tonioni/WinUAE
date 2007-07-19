@@ -118,6 +118,53 @@ static int rl (uae_u8 *p)
 }
 
 
+static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+{
+    unsigned int total = (unsigned int)(hfd->size / 1024);
+    int heads;
+    int sectors = 63;
+
+    /* do we have RDB values? */
+    if (hfd->cylinders) {
+	*cyl = hfd->cylinders;
+	*tracksec = hfd->sectors;
+	*head = hfd->heads;
+	*cylsec = hfd->sectors * hfd->heads;
+	return;
+    }
+    /* what about HDF settings? */
+    if (hfd->surfaces && hfd->secspertrack) {
+	*head = hfd->surfaces;
+	*tracksec = hfd->secspertrack;
+	*cylsec = (*head) * (*tracksec);
+	*cyl = (unsigned int)(hfd->size / hfd->blocksize) / ((*tracksec) * (*head));
+	return;
+    }
+    /* no, lets guess something.. */
+    if (total <= 504 * 1024)
+	heads = 16;
+    else if (total <= 1008 * 1024)
+	heads = 32;
+    else if (total <= 2016 * 1024)
+	heads = 64;
+    else if (total <= 4032 * 1024)
+	heads = 128;
+    else
+	heads = 255;
+    *cyl = (unsigned int)(hfd->size / hfd->blocksize) / (sectors * heads);
+    *cylsec = sectors * heads;
+    *tracksec = sectors;
+    *head = heads;
+}
+
+static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
+{
+    getchs2 (hfd, cyl, cylsec, head, tracksec);
+    hf_log ("CHS: %08.8X-%08.8X %d %d %d %d %d\n",
+	(uae_u32)(hfd->size >> 32),(uae_u32)hfd->size,
+	*cyl, *cylsec, *head, *tracksec);
+}
+
 void getchshd (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorspertrack)
 {
     unsigned int total = (unsigned int)(hfd->size / 512);
@@ -436,6 +483,15 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	    int pc = cmdbuf[2] >> 6;
 	    int pcode = cmdbuf[2] & 0x3f;
 	    int dbd = cmdbuf[1] & 8;
+	    int cyl, cylsec, head, tracksec;
+	    if (hdhfd) {
+		cyl = hdhfd->cyls;
+		head = hdhfd->heads;
+		tracksec = hdhfd->secspertrack;
+		cylsec = 0;
+	    } else {
+		getchs (hfd, &cyl, &cylsec, &head, &tracksec);
+	    }
 	    //write_log("MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
 	    p = r;
 	    p[0] = 4 - 1;
@@ -460,8 +516,8 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		p[0] = 3;
 		p[1] = 24;
 		p[3] = 1;
-		p[10] = hdhfd->secspertrack >> 8;
-		p[11] = hdhfd->secspertrack;
+		p[10] = tracksec >> 8;
+		p[11] = tracksec;
 		p[12] = hfd->blocksize >> 8;
 		p[13] = hfd->blocksize;
 		p[15] = 1; // interleave
@@ -469,10 +525,10 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		r[0] += p[1];
 	    } else if (pcode == 4) {
 		p[0] = 4;
-		wl(p + 1, hdhfd->cyls);
+		wl(p + 1, cyl);
 		p[1] = 24;
-		p[5] = hdhfd->heads;
-		wl(p + 13, hdhfd->cyls);
+		p[5] = head;
+		wl(p + 13, cyl);
 		ww(p + 20, 5400);
 		r[0] += p[1];
 	    } else {
@@ -490,10 +546,19 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	    int pmi = cmdbuf[8] & 1;
 	    uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
 	    uae_u32 blocks = (uae_u32)(hfd->size / hfd->blocksize - 1);
+	    int cyl, cylsec, head, tracksec;
+	    if (hdhfd) {
+		cyl = hdhfd->cyls;
+		head = hdhfd->heads;
+		tracksec = hdhfd->secspertrack;
+		cylsec = 0;
+	    } else {
+		getchs (hfd, &cyl, &cylsec, &head, &tracksec);
+	    }
 	    if (pmi) {
-		lba += hdhfd->secspertrack * hdhfd->heads;
-		lba /= hdhfd->secspertrack * hdhfd->heads;
-		lba *= hdhfd->secspertrack * hdhfd->heads;
+		lba += tracksec * head;
+		lba /= tracksec * head;
+		lba *= tracksec * head;
 		if (lba > blocks)
 		    lba = blocks;
 		blocks = lba;
@@ -766,53 +831,6 @@ static uae_u32 REGPARAM2 hardfile_close (TrapContext *context)
 static uae_u32 REGPARAM2 hardfile_expunge (TrapContext *context)
 {
     return 0; /* Simply ignore this one... */
-}
-
-static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
-{
-    unsigned int total = (unsigned int)(hfd->size / 1024);
-    int heads;
-    int sectors = 63;
-
-    /* do we have RDB values? */
-    if (hfd->cylinders) {
-	*cyl = hfd->cylinders;
-	*tracksec = hfd->sectors;
-	*head = hfd->heads;
-	*cylsec = hfd->sectors * hfd->heads;
-	return;
-    }
-    /* what about HDF settings? */
-    if (hfd->surfaces && hfd->secspertrack) {
-	*head = hfd->surfaces;
-	*tracksec = hfd->secspertrack;
-	*cylsec = (*head) * (*tracksec);
-	*cyl = (unsigned int)(hfd->size / hfd->blocksize) / ((*tracksec) * (*head));
-	return;
-    }
-    /* no, lets guess something.. */
-    if (total <= 504 * 1024)
-	heads = 16;
-    else if (total <= 1008 * 1024)
-	heads = 32;
-    else if (total <= 2016 * 1024)
-	heads = 64;
-    else if (total <= 4032 * 1024)
-	heads = 128;
-    else
-	heads = 255;
-    *cyl = (unsigned int)(hfd->size / hfd->blocksize) / (sectors * heads);
-    *cylsec = sectors * heads;
-    *tracksec = sectors;
-    *head = heads;
-}
-
-static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
-{
-    getchs2 (hfd, cyl, cylsec, head, tracksec);
-    hf_log ("CHS: %08.8X-%08.8X %d %d %d %d %d\n",
-	(uae_u32)(hfd->size >> 32),(uae_u32)hfd->size,
-	*cyl, *cylsec, *head, *tracksec);
 }
 
 static void outofbounds (int cmd, uae_u64 offset, uae_u64 len, uae_u64 max)

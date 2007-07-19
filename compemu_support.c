@@ -457,6 +457,8 @@ int check_prefs_changed_comp (void)
 	alloc_cache();
 	changed = 1;
     }
+    if (!candirect)
+	canbang = 0;
 
     // Turn off illegal-mem logging when using JIT...
     if(currprefs.cachesize)
@@ -469,7 +471,7 @@ int check_prefs_changed_comp (void)
 	currprefs.comptrustbyte != 1)
     {
 	// Set all of these to indirect when canbang == 0
-	// Basically, set the  compforcesettings option...
+	// Basically, set the compforcesettings option...
 	currprefs.comptrustbyte = 1;
 	currprefs.comptrustword = 1;
 	currprefs.comptrustlong = 1;
@@ -2415,6 +2417,32 @@ MIDFUNC(2,setcc_m,(IMM d, IMM cc))
     raw_setcc_m(d,cc);
 }
 MENDFUNC(2,setcc_m,(IMM d, IMM cc))
+
+MIDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
+{
+    if (d==s)
+	return;
+    CLOBBER_CMOV;
+    s=readreg(s,1);
+    d=rmw(d,1,1);
+    raw_cmov_b_rr(d,s,cc);
+    unlock(s);
+    unlock(d);
+}
+MENDFUNC(3,cmov_b_rr,(RW1 d, R1 s, IMM cc))
+
+MIDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
+{
+    if (d==s)
+	return;
+    CLOBBER_CMOV;
+    s=readreg(s,2);
+    d=rmw(d,2,2);
+    raw_cmov_w_rr(d,s,cc);
+    unlock(s);
+    unlock(d);
+}
+MENDFUNC(3,cmov_w_rr,(RW2 d, R2 s, IMM cc))
 
 MIDFUNC(3,cmov_l_rr,(RW4 d, R4 s, IMM cc))
 {

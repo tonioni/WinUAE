@@ -1,4 +1,34 @@
 
+Beta 10:
+
+- Arcadia emulation crash fixed
+- SCSI emulator MODE SENSE code 3 and 4 crash fix (uaehf.device only)
+- A3000 KS 1.3 ROM removed from rom scan "available"-list (only
+  proper A3000 ROMs, 1.4b and 3.1 included)
+- added missing version numbers to cartridge roms
+- xBCD instruction 68040/060 undefined behaviour emulated, N and V
+  flags are not cleared. (from Basilisk II JIT)
+- JIT LSL, LSR, ASR X-flag was incorrectly modified when shift count
+  was zero (from Basilisk II JIT)
+- configuration and bootlog (text format) saved with statefile
+  (compressed, few kb size increase, only for debugging purposes)
+  NOTE: fake END-hunk inserted before CONF and LOG hunks, you can
+  simply delete all "useless" data after first END-hunk without
+  corrupting the statefile.
+- action replay/hrtmon statefile hunks are now compressed
+- drive GUI properly initialized when restoring state (disabled
+  drives are "blanked", no track number visible)
+- empty drive disk change status was incorrect in some cases when
+  restoring state (load state, OS detects disk in empty drive)
+- do not allow JIT direct mode if emulation was originally started
+  without JIT direct enabled (different memory allocation which is not
+  compatible with direct = crashes. Will be properly fixed in future)
+- uaescsi.device SCSI mode selection reset after loading new config
+- messagebox in fullscreen mode tweaks, perhaps fixes problem with
+  hidden "too old rtg.library" messagebox in fullscreen mode
+- close native-side open filehandles after software reset
+  (fixes locked startup-sequence after directory fs setpatch reset)
+
 Beta 9:
 
 - ROM scan dialog listed "available" even if configuration required
@@ -119,7 +149,6 @@ Beta 5:
 - harddisk panel directory and archive dragndrop added
 - included beta updated rtg.library, fully enables >1024 pixel wide
   bitmaps (including acceleration), obsoletes picasso96fix. (BR)
-
 
 Beta 4:
 

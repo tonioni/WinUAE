@@ -100,7 +100,7 @@ struct zfile *archive_getzfile(struct znode *zn, unsigned int id)
     return zf;
 }
 
-struct zfile *archive_access_select (struct zfile *zf, unsigned int id)
+struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dodefault)
 {
     struct zvolume *zv;
     struct znode *zn;
@@ -166,6 +166,9 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id)
     if (z) {
 	zfile_fclose(zf);
 	zf = z;
+    } else if (!dodefault && zf->zipname && zf->zipname[0]) {
+	zfile_fclose(zf);
+	zf = NULL;
     }
     return zf;
 }
@@ -830,8 +833,8 @@ struct zvolume *archive_directory_plain (struct zfile *z)
     zfile_fseek(z, 0, SEEK_SET);
     zn = zvolume_addfile_abs(zv, &zai);
     if (!memcmp (id, exeheader, sizeof id)) {
-	uae_u8 *data = xmalloc(strlen(filename) + 2);
-	sprintf(data,"%s\n", filename);
+	uae_u8 *data = xmalloc(1 + strlen(filename) + 1 + 2);
+	sprintf(data,"\"%s\"\n", filename);
 	addfile(zv, "s/startup-sequence", data, strlen(data));
 	xfree(data);
     }

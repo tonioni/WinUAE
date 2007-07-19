@@ -45,6 +45,7 @@
 #include "a2091.h"
 #include "ncr_scsi.h"
 #include "scsi.h"
+#include "blkdev.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -545,6 +546,7 @@ void reset_all_systems (void)
 #endif
 
 #ifdef FILESYS
+    filesys_prepare_reset ();
     filesys_reset ();
 #endif
     memory_reset ();
@@ -578,6 +580,10 @@ void do_start_program (void)
 {
     if (quit_program == -1)
 	return;
+    if (!canbang && candirect < 0)
+	candirect = 0;
+    if (canbang && candirect < 0)
+	candirect = 1;
     /* Do a reset on startup. Whether this is elegant is debatable. */
     inputdevice_updateconfig (&currprefs);
     if (quit_program >= 0)
@@ -618,6 +624,7 @@ void do_leave_program (void)
 #ifdef FILESYS
     filesys_cleanup ();
 #endif
+    device_func_reset();
     savestate_free ();
     memory_cleanup ();
     cfgfile_addcfgparam (0);

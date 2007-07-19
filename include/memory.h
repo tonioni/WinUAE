@@ -17,7 +17,7 @@ extern int special_mem;
 extern void *cache_alloc (int);
 extern void cache_free (void*);
 
-extern int canbang;
+extern int canbang, candirect;
 void init_shm (void);
 #endif
 

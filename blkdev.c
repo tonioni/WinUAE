@@ -18,6 +18,8 @@ static int have_ioctl;
 
 #ifdef _WIN32
 
+static int initialized;
+
 #include "od-win32/win32.h"
 
 extern struct device_functions devicefunc_win32_aspi;
@@ -62,9 +64,14 @@ void sys_command_close (int mode, int unitnum)
 	device_func[DF_IOCTL]->closedev (unitnum);
 }
 
+void device_func_reset (void)
+{
+    initialized = 0;
+    have_ioctl = 0;
+}
+
 int device_func_init (int flags)
 {
-    static int initialized;
     int support_scsi = 0, support_ioctl = 0;
     int oflags = (flags & DEVICE_TYPE_SCSI) ? 0 : (1 << INQ_ROMD);
 

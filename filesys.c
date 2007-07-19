@@ -3779,7 +3779,24 @@ void filesys_start_threads (void)
 
 void filesys_cleanup (void)
 {
+    filesys_free_handles();
     free_mountinfo ();
+}
+
+void filesys_free_handles(void)
+{
+    Unit *u, *u1;
+    for (u = units; u; u = u1) {
+	Key *k1, *knext;
+	u1 = u->next;
+	for (k1 = u->keys; k1; k1 = knext) {
+	    knext = k1->next;
+	    if (k1->fd)
+		fs_close (u, k1->fd);
+	    xfree(k1);
+	}
+	u->keys = NULL;
+    }
 }
 
 void filesys_reset (void)
@@ -3791,6 +3808,7 @@ void filesys_reset (void)
     if (savestate_state == STATE_RESTORE)
 	return;
 
+    filesys_free_handles();
     for (u = units; u; u = u1) {
 	u1 = u->next;
 	xfree (u);
@@ -3838,6 +3856,7 @@ void filesys_prepare_reset (void)
 	}
     }
 #endif
+    filesys_free_handles();
     u = units;
     while (u != 0) {
 	free_all_ainos (u, &u->rootnode);
@@ -4414,7 +4433,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
     put_long (parmpacket + 44, 0); /* unused */
     put_long (parmpacket + 48, 0); /* interleave */
     put_long (parmpacket + 52, 0); /* lowCyl */
-    put_long (parmpacket + 56, uip[unit_no].hf.nrcyls - 1); /* hiCyl */
+    put_long (parmpacket + 56, uip[unit_no].hf.nrcyls <= 0 ? 0 : uip[unit_no].hf.nrcyls - 1); /* hiCyl */
     put_long (parmpacket + 60, 50); /* Number of buffers */
     put_long (parmpacket + 64, 0); /* Buffer mem type */
     put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
