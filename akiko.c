@@ -1442,6 +1442,9 @@ static void patchrom (void)
 {
     int i;
     uae_u8 *p = (uae_u8*)extendedkickmemory;
+
+    if (!p)
+	return;
     for (i = 0; i < 524288 - sizeof (patchdata1); i++) {
 	if (!memcmp (p + i, patchdata1, sizeof(patchdata1))) {
 	    p[i + 6] = 0x4e;

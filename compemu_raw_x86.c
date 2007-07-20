@@ -5,40 +5,70 @@
  * Some basic information about the the target CPU                       *
  *************************************************************************/
 
-#define EAX 0
-#define ECX 1
-#define EDX 2
-#define EBX 3
+#define EAX_INDEX 0
+#define ECX_INDEX 1
+#define EDX_INDEX 2
+#define EBX_INDEX 3
+#define ESP_INDEX 4
+#define EBP_INDEX 5
+#define ESI_INDEX 6
+#define EDI_INDEX 7
+#if defined(__x86_64__)
+#define R8_INDEX  8
+#define R9_INDEX  9
+#define R10_INDEX 10
+#define R11_INDEX 11
+#define R12_INDEX 12
+#define R13_INDEX 13
+#define R14_INDEX 14
+#define R15_INDEX 15
+#endif
+/* XXX this has to match X86_Reg8H_Base + 4 */
+#define AH_INDEX (0x10+4+EAX_INDEX)
+#define CH_INDEX (0x10+4+ECX_INDEX)
+#define DH_INDEX (0x10+4+EDX_INDEX)
+#define BH_INDEX (0x10+4+EBX_INDEX)
 
 /* The register in which subroutines return an integer return value */
-#define REG_RESULT EAX
+#define REG_RESULT EAX_INDEX
 
 /* The registers subroutines take their first and second argument in */
-#ifdef _WIN32
-/* MSVC __fastcall registers are ECX and EDX */
-#define REG_PAR1 ECX
-#define REG_PAR2 EDX
+#if defined(_WIN32)
+/* Handle the _fastcall parameters of ECX and EDX */
+#define REG_PAR1 ECX_INDEX
+#define REG_PAR2 EDX_INDEX
+#elif defined(__x86_64__)
+#define REG_PAR1 EDI_INDEX
+#define REG_PAR2 ESI_INDEX
 #else
-#define REG_PAR1 EAX
-#define REG_PAR2 EDX
+#define REG_PAR1 EAX_INDEX
+#define REG_PAR2 EDX_INDEX
 #endif
 
-/* Three registers that are not used for any of the above */
-#define REG_NOPAR1 6
-#define REG_NOPAR2 5
-#define REG_NOPAR3 3
+#if defined(_WIN32)
+#define REG_PC_PRE EAX_INDEX /* The register we use for preloading regs.pc_p */
+#define REG_PC_TMP ECX_INDEX
+#define SHIFTCOUNT_NREG ECX_INDEX  /* Register that can be used for shiftcount. -1 if any reg will do */
+#else
+#define REG_PC_PRE EAX_INDEX /* The register we use for preloading regs.pc_p */
+#define REG_PC_TMP ECX_INDEX /* Another register that is not the above */
+#define SHIFTCOUNT_NREG ECX_INDEX  /* Register that can be used for shiftcount. -1 if any reg will do */
+#endif
 
-#define REG_PC_PRE 0 /* The register we use for preloading regs.pc_p */
-#define REG_PC_TMP 1 /* Another register that is not the above */
+#define MUL_NREG1 EAX_INDEX /* %eax will hold the low 32 bits after a 32x32 mul */
+#define MUL_NREG2 EDX_INDEX /* %edx will hold the high 32 bits */
 
-#define SHIFTCOUNT_NREG 1  /* Register that can be used for shiftcount.
-			      -1 if any reg will do */
-#define MUL_NREG1 0 /* %eax will hold the low 32 bits after a 32x32 mul */
-#define MUL_NREG2 2 /* %edx will hold the high 32 bits */
+#define STACK_ALIGN		16
+#define STACK_OFFSET	sizeof(void *)
 
 uae_s8 always_used[]={4,-1};
+#if defined(__x86_64__)
+uae_s8 can_byte[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
+uae_s8 can_word[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
+#else
 uae_s8 can_byte[]={0,1,2,3,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,-1};
+#endif
 
 uae_u8 call_saved[]={0,0,0,0,1,0,0,0};
 

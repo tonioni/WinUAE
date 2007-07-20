@@ -201,34 +201,31 @@ addrbank expamem_bank = {
     expamem_lget, expamem_wget, expamem_bget,
     expamem_lput, expamem_wput, expamem_bput,
     default_xlate, default_check, NULL, "Autoconfig",
-    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
     write_log ("warning: READ.L from address $%lx \n", addr);
-    return 0xfffffffful;
+    return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
-#ifdef JIT
-    special_mem |= S_READ;
-#endif
     write_log ("warning: READ.W from address $%lx \n", addr);
-    return 0xffff;
+    return (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
 }
 
 static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 {
+    uae_u8 b;
 #ifdef JIT
     special_mem |= S_READ;
 #endif
     addr &= 0xFFFF;
-    return expamem[addr];
+    b = expamem[addr];
+    //write_log("%08x=%02.2X\n", addr, b);
+    return b;
 }
 
 static void REGPARAM2 expamem_write (uaecptr addr, uae_u32 value)
@@ -264,6 +261,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
+    value &= 0xffff;
     if (expamem_type() != zorroIII)
 	write_log ("warning: WRITE.W to address $%lx : value $%x\n", addr, value);
     else {
@@ -278,8 +276,8 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		    // Z3 P96 RAM
 		    value = p96ram_start >> 16;
 		}
-		chipmem_wput (regs.regs[11] + 0x20, value);
-		chipmem_wput (regs.regs[11] + 0x28, value);
+		put_word (regs.regs[11] + 0x20, value);
+		put_word (regs.regs[11] + 0x28, value);
 		// -Bernd Roesch
 		expamem_hi = value;
 		(*card_map[ecard]) ();
@@ -300,6 +298,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
+    value &= 0xff;
     switch (addr & 0xff) {
      case 0x30:
      case 0x32:
@@ -310,7 +309,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 
      case 0x48:
 	if (expamem_type () == zorroII) {
-	    expamem_hi = value & 0xFF;
+	    expamem_hi = value;
 	    (*card_map[ecard]) ();
 	    write_log ("   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
 	    ++ecard;
@@ -636,7 +635,7 @@ static addrbank filesys_bank = {
     filesys_lget, filesys_wget, filesys_bget,
     filesys_lput, filesys_wput, filesys_bput,
     default_xlate, default_check, NULL, "Filesystem Autoconfig Area",
-    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 #endif /* FILESYS */

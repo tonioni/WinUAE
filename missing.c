@@ -26,18 +26,12 @@ char *my_strdup (const char *s)
 void *xmalloc (size_t n)
 {
     void *a = malloc (n);
-    if (a == NULL) {
-	abort ();
-    }
     return a;
 }
 
 void *xcalloc (size_t n, size_t size)
 {
     void *a = calloc (n, size);
-    if (a == NULL) {
-	abort ();
-    }
     return a;
 }
 

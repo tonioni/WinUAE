@@ -68,7 +68,7 @@ extern int uae_boot_rom, uae_boot_rom_size;
 
 extern uae_u8* baseaddr[];
 
-enum { ABFLAG_UNK = 0, ABFLAG_RAM, ABFLAG_ROM, ABFLAG_ROMIN, ABFLAG_IO, ABFLAG_NONE };
+enum { ABFLAG_UNK = 0, ABFLAG_RAM = 1, ABFLAG_ROM = 2, ABFLAG_ROMIN = 4, ABFLAG_IO = 8, ABFLAG_NONE = 16, ABFLAG_SAFE = 32 };
 typedef struct {
     /* These ones should be self-explanatory... */
     mem_get_func lget, wget, bget;

@@ -177,7 +177,7 @@ void mapped_free(uae_u8 *mem)
 {
     shmpiece *x = shm_start;
 
-    if (!p96mode && mem == p96fakeram) {
+    if (mem == filesysory || (!p96mode && mem == p96fakeram)) {
 	xfree (p96fakeram);
 	p96fakeram = NULL;
 	while(x) {
@@ -315,12 +315,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		size+=32;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
-	    result=natmem_offset + 0x10000;
-	    shmids[shmid].attached=result;
-	    return result;
-	}
-	if(!strcmp(shmids[shmid].name,"arcadia")) {
-	    result=natmem_offset + 0x10000;
+	    result = xmalloc (size);
 	    shmids[shmid].attached=result;
 	    return result;
 	}

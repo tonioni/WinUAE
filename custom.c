@@ -2469,7 +2469,17 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     return vp;
 }
 
-static void perform_copper_write (int old_hpos);
+static int test_copper_dangerous (unsigned int address)
+{
+    if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
+	cop_state.state = COP_stop;
+	copper_enabled_thisline = 0;
+	unset_special (&regs, SPCFLAG_COPPER);
+	return 1;
+    }
+    return 0;
+}
+
 static void immediate_copper (int num)
 {
     int pos = 0;
@@ -2502,7 +2512,9 @@ static void immediate_copper (int num)
 	        cop_state.ip = cop2lc;
 		continue;
 	    }
-	    perform_copper_write (0);
+	    if (test_copper_dangerous (cop_state.i1))
+		break;
+	    custom_wput_1 (0, cop_state.i1, cop_state.i2, 0);
 	} else { // wait or skip
 	    if ((cop_state.i1 >> 8) > ((pos >> 5) & 0xff))
 		pos = (((pos >> 5) & 0x100) | ((cop_state.i1 >> 8)) << 5) | ((cop_state.i1 & 0xff) >> 3);
@@ -3380,17 +3392,6 @@ STATIC_INLINE int dangerous_reg (int reg)
     if (reg >= 0xE0 && reg < 0x1C0)
 	return 0;
     return 1;
-}
-
-static int test_copper_dangerous (unsigned int address)
-{
-    if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
-	cop_state.state = COP_stop;
-	copper_enabled_thisline = 0;
-	unset_special (&regs, SPCFLAG_COPPER);
-	return 1;
-    }
-    return 0;
 }
 
 static int custom_wput_copper(int hpos, uaecptr addr, uae_u32 value, int noget)

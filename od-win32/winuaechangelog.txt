@@ -1,4 +1,15 @@
 
+Beta 11:
+
+- autoconfig memory banks do not show ****'s in debugger anymore
+- filesystem not initializing if JIT was enabled and no other
+  autoconfig expansions enabled (ancient bug..)
+- do not crash if CD32 is selected in advanced chipset without
+  extended ROM
+- fixes and updates to illegal address logger
+- "faster RTG" "immediate copper" emulation was very broken
+- reverted JIT LSL/LSR/ASR change, merge error most likely, later..
+
 Beta 10:
 
 - Arcadia emulation crash fixed

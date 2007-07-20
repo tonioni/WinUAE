@@ -805,7 +805,7 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 int addr_valid(char *txt, uaecptr addr, uae_u32 len)
 {
     addrbank *ab = &get_mem_bank(addr);
-    if (ab == 0 || ab->flags != ABFLAG_RAM || addr < 0x100 || len < 0 || len > 16777215 || !valid_address(addr, len)) {
+    if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address(addr, len)) {
     	write_log("corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
 	return 0;
     }
@@ -950,14 +950,6 @@ static int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    if (currprefs.illegal_mem) {
-	if (illegal_count < MAX_ILG || MAX_ILG < 0) {
-	    if (MAX_ILG >= 0)
-		illegal_count++;
-	    write_log ("Illegal check at %08lx PC=%x\n", addr, M68K_GETPC);
-	}
-    }
-
     return 0;
 }
 
@@ -1712,7 +1704,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 		    write_log ("%08.8X ", i >= 5 ? a3 : a2);
 		    for (j = 0; j < 16; j += 2) {
 			write_log (" %04.4X", get_word (i >= 5 ? a3 : a2));
-			if (i >= 5) a3 +=2; else a2 += 2;
+			if (i >= 5) a3 += 2; else a2 += 2;
 		    }
 		    write_log ("\n");
 		}
@@ -1803,7 +1795,7 @@ addrbank kickram_bank = {
     kickmem_lget, kickmem_wget, kickmem_bget,
     kickmem2_lput, kickmem2_wput, kickmem2_bput,
     kickmem_xlate, kickmem_check, NULL, "Kickstart Shadow RAM",
-    kickmem_lget, kickmem_wget, ABFLAG_UNK
+    kickmem_lget, kickmem_wget, ABFLAG_UNK | ABFLAG_SAFE
 };
 
 addrbank extendedkickmem_bank = {

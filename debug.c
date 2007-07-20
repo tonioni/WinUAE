@@ -358,9 +358,11 @@ int safe_addr(uaecptr addr, int size)
     addrbank *ab = &get_mem_bank (addr);
     if (!ab)
 	return 0;
+    if (ab->flags & ABFLAG_SAFE)
+	return 1;
     if (!ab->check (addr, size))
 	return 0;
-    if (ab->flags == ABFLAG_RAM || ab->flags == ABFLAG_ROM || ab->flags == ABFLAG_ROMIN)
+    if (ab->flags & (ABFLAG_RAM | ABFLAG_ROM | ABFLAG_ROMIN | ABFLAG_SAFE))
 	return 1;
     return 0;
 }
@@ -1025,18 +1027,27 @@ static struct memwatch_node mwhit;
 static uae_u8 *illgdebug;
 static int illgdebug_break;
 
+static void illg_free (void)
+{
+    free (illgdebug);
+    illgdebug = NULL;
+}
+
 static void illg_init (void)
 {
     int i;
+    uae_u8 c = 3;
+    uaecptr addr, end;
 
-    free (illgdebug);
-    illgdebug = (uae_u8*)xmalloc (0x1000000);
+    illgdebug = (uae_u8*)xcalloc (0x01000000, 1);
     if (!illgdebug)
 	return;
-    memset (illgdebug, 3, 0x1000000);
-    memset (illgdebug, 0, currprefs.chipmem_size);
-    memset (illgdebug + 0xc00000, 0, currprefs.bogomem_size);
-    memset (illgdebug + 0x200000, 0, currprefs.fastmem_size);
+    addr = 0xffffffff;
+    while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+	if (end < 0x01000000)
+	    memset (illgdebug + addr, c, end - addr);
+        addr = end - 1;
+    }
     i = 0;
     while (custd[i].name) {
 	int rw = custd[i].rw;
@@ -1047,20 +1058,20 @@ static void illg_init (void)
     for (i = 0; i < 16; i++) { /* CIAs */
 	if (i == 11)
 	    continue;
-	illgdebug[0xbfe001 + i * 0x100] = 0;
-	illgdebug[0xbfd000 + i * 0x100] = 0;
+	illgdebug[0xbfe001 + i * 0x100] = c;
+	illgdebug[0xbfd000 + i * 0x100] = c;
     }
     memset (illgdebug + 0xf80000, 1, 512 * 1024); /* KS ROM */
-    memset (illgdebug + 0xdc0000, 0, 0x3f); /* clock */
+    memset (illgdebug + 0xdc0000, c, 0x3f); /* clock */
 #ifdef CDTV
     if (currprefs.cs_cdtvram) {
-	memset (illgdebug + 0xdc8000, 0, 4096); /* CDTV batt RAM */
+	memset (illgdebug + 0xdc8000, c, 4096); /* CDTV batt RAM */
 	memset (illgdebug + 0xf00000, 1, 256 * 1024); /* CDTV ext ROM */
     }
 #endif
 #ifdef CD32
     if (currprefs.cs_cd32cd) {
-	memset (illgdebug + AKIKO_BASE, 0, AKIKO_BASE_END - AKIKO_BASE);
+	memset (illgdebug + AKIKO_BASE, c, AKIKO_BASE_END - AKIKO_BASE);
 	memset (illgdebug + 0xe00000, 1, 512 * 1024); /* CD32 ext ROM */
     }
 #endif
@@ -1087,26 +1098,26 @@ static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
     for (i = size - 1; i >= 0; i--) {
 	uae_u8 v = val >> (i * 8);
 	uae_u32 ad = addr + i;
-	if (ad >= 0x1000000)
+	if (ad >= 0x01000000)
 	    mask = 7;
 	else
 	    mask = illgdebug[ad];
-	if (!mask)
-	    continue;
+	if ((mask & 3) == 3)
+	    return;
 	if (mask & 0x80) {
 	    illg_debug_check (ad, rwi, size, val);
-	} else if ((mask & 3) == 3) {
+	} else if ((mask & 3) == 0) {
 	    if (rwi & 2)
 		console_out ("W: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
 	    else if (rwi & 1)
 		console_out ("R: %08.8X    PC=%08.8X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
-	} else if ((mask & 1) && (rwi & 1)) {
+	} else if (!(mask & 1) && (rwi & 1)) {
 	    console_out ("RO: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
-	} else if ((mask & 2) && (rwi & 2)) {
+	} else if (!(mask & 2) && (rwi & 2)) {
 	    console_out ("WO: %08.8X    PC=%08.8X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
@@ -1138,6 +1149,7 @@ static void smc_reset(void)
     }
 }
 
+static void initialize_memwatch (int mode);
 static void smc_detect_init(void)
 {
     xfree(smc_table);
@@ -1147,7 +1159,11 @@ static void smc_detect_init(void)
 	smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
     smc_size += 4;
     smc_table = (struct smc_item*)xmalloc (smc_size * sizeof (struct smc_item));
+    if (!smc_table)
+	return;
     smc_reset();
+    if (!memwatch_enabled)
+	initialize_memwatch (0);
     console_out("SMCD enabled\n");
 }
 
@@ -1562,10 +1578,13 @@ static void memwatch (char **c)
 		console_out ("cleared logging addresses %08.8X - %08.8X\n", addr, addr + len);
 		while (len > 0) {
 		    addr &= 0xffffff;
-		    illgdebug[addr] = 0;
+		    illgdebug[addr] = 7;
 		    addr++;
 		    len--;
 		}
+	    } else {
+		illg_free();
+		console_out("Illegal memory access logging disabled\n");
 	    }
 	} else {
 	    illg_init ();
@@ -1644,7 +1663,6 @@ static void writeintoreg (char **c)
 
     }
 }
-
 
 static void writeintomem (char **c)
 {
