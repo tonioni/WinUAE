@@ -727,8 +727,8 @@ STATIC_INLINE void compute_delay_offset (void)
 {
     delayoffset = (16 << fetchmode) - (((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1);
 #if 0
-	/* maybe we can finally get rid of this stupid table.. */
-	if (tmp == 4)
+    /* maybe we can finally get rid of this stupid table.. */
+    if (tmp == 4)
 	delayoffset = 4; // Loons Docs
     else if (tmp == 8)
 	delayoffset = 8;
@@ -2330,6 +2330,7 @@ static void calcdiw (void)
     plfstrt = ddfstrt;
     plfstop = ddfstop;
     /* probably not the correct place.. */
+    /* ECS/AGA and ddfstop > maxhpos = always-on display */
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 	if (ddfstop > maxhpos)
 	    plfstrt = 0;
@@ -2593,19 +2594,14 @@ static void DMACON (int hpos, uae_u16 v)
 	}
     }
     if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done) {
-	static int count = 0;
-	if (!count) {
-	    count = 1;
-	    write_log ("warning: program is doing blitpri hacks.\n");
-	}
-	set_special (&regs, SPCFLAG_BLTNASTY);
 	decide_blitter (hpos);
+	set_special (&regs, SPCFLAG_BLTNASTY);
     }
     if (dmaen (DMA_BLITTER) && bltstate == BLT_init)
 	bltstate = BLT_work;
     if ((dmacon & (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) != (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) {
-	unset_special (&regs, SPCFLAG_BLTNASTY);
 	decide_blitter (hpos);
+	unset_special (&regs, SPCFLAG_BLTNASTY);
     }
     if (changed & (DMA_MASTER | 0x0f))
 	audio_hsync (0);
@@ -2801,7 +2797,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	hpos_previous = hpos;
     }
 
-    if (((v & 4) && !interlace_seen) || (!(v & 4) && interlace_seen))
+    if ((v & 4) && !interlace_seen)
 	interlace_started = 2;
 
     ddf_change = vpos;
@@ -4309,24 +4305,23 @@ static void hsync_handler (void)
 	    hpos_lpen = lightpen_cx;
 	    lightpen_triggered = 1;
 	}
-
+    }
 #ifdef CD32
-	AKIKO_hsync_handler ();
+    AKIKO_hsync_handler ();
 #endif
 #ifdef CDTV
-	CDTV_hsync_handler ();
+    CDTV_hsync_handler ();
 #endif
 #ifdef CPUEMU_12
-	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
-	    decide_blitter (hpos);
-	    memset (cycle_line, 0, sizeof cycle_line);
-	    cycle_line[9] = CYCLE_REFRESH;
-	    cycle_line[3] = CYCLE_REFRESH;
-	    cycle_line[5] = CYCLE_REFRESH;
-	    cycle_line[7] = CYCLE_REFRESH;
-	}
-#endif
+    if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
+        decide_blitter (hpos);
+        memset (cycle_line, 0, sizeof cycle_line);
+        cycle_line[9] = CYCLE_REFRESH;
+        cycle_line[3] = CYCLE_REFRESH;
+        cycle_line[5] = CYCLE_REFRESH;
+        cycle_line[7] = CYCLE_REFRESH;
     }
+#endif
 
     eventtab[ev_hsync].evtime += get_cycles () - eventtab[ev_hsync].oldcycles;
     eventtab[ev_hsync].oldcycles = get_cycles ();
@@ -5228,18 +5223,31 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
     write_log ("%d:%d:wput: %04.4X %04.4X pc=%p\n", hpos, vpos, addr & 0x01fe, value & 0xffff, m68k_getpc());
 #endif
     sync_copper_with_cpu (hpos, 1);
+    if (addr & 1) {
+	addr &= ~1;
+	custom_wput_1 (hpos, addr, (value >> 8) | (value & 0xff00), 0);
+	custom_wput_1 (hpos, addr + 2, (value << 8) | (value & 0x00ff), 0);
+	return;
+    }
     custom_wput_1 (hpos, addr, value, 0);
 }
 
 static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 {
+    uae_u16 rval = (value << 8) | (value & 0xFF);
     static int warned;
 
-    uae_u16 rval = (value << 8) | (value & 0xFF);
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    custom_wput (addr & ~1, rval);
+    if (currprefs.cpu_level == 68060) {
+	if (addr & 1)
+	    custom_wput (addr & ~1, rval);
+	else
+	    custom_wput (addr, value << 8);
+    } else {
+	custom_wput (addr & ~1, rval);
+    }
     if (warned < 10) {
 	if (M68K_GETPC < 0xe00000 || M68K_GETPC >= 0x10000000) {
 	    write_log ("Byte put to custom register %04.4X PC=%08.8X\n", addr, M68K_GETPC);

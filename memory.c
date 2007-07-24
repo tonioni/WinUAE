@@ -212,9 +212,10 @@ static struct romdata roms[] = {
     { "Freezer: X-Power Professional 500 v1.2", 1, 2, 1, 2, "XPOWER\0", 131072, 65, 0, 0, ROMTYPE_SUPERIV, 1,
 	0x9e70c231, 0xa2977a1c,0x41a8ca7d,0x4af4a168,0x726da542,0x179d5963 },
     /* only 2 bad dumps available */
-    { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
-    { "Freezer: Nordic Power v?", 0, 0, 0, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_SUPERIV, 1, },
+    { "Freezer: Nordic Power v1", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
 	//0xdd16cdec, 0xfd882967,0x87e2da5f,0x4ef6be32,0x5f7c9324,0xb5bd8e64 },
+    { "Freezer: Nordic Power v2.0", 2, 0, 2, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_SUPERIV, 1,
+	0xa4db2906, 0x0aec68f7,0x25470c89,0x6b699ff4,0x6623dec5,0xc777466e },
 
     { "Freezer: HRTMon v2.30 (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "HRTMon" },
@@ -1751,7 +1752,7 @@ addrbank chipmem_agnus_bank = {
 addrbank chipmem_bank_ce2 = {
     chipmem_lget_ce2, chipmem_wget_ce2, chipmem_bget_ce2,
     chipmem_lput_ce2, chipmem_wput_ce2, chipmem_bput_ce2,
-    chipmem_xlate, chipmem_check, NULL, "Chip memory",
+    chipmem_xlate, chipmem_check, NULL, "Chip memory (68020 'ce')",
     chipmem_lget_ce2, chipmem_wget_ce2, ABFLAG_RAM
 };
 #endif

@@ -1,7 +1,18 @@
 
+Beta 12:
+
+- added quick enable/disable checkboxes to floppy panel
+- non-word aligned word writes to custom registers emulated correctly
+- byte writes to custom registers emulated properly on a 68060 (perhaps
+  only Blizzard 68060 cards' feature?)
+- 68020 "cycle-exact" does not anymore freeze when switching to RTG mode
+  (but it still should not be used)
+- Nordic Power v2.0 support (got another "blue" Nordic Power today,
+  also "cartridge support" credits added to contributors list)
+
 Beta 11:
 
-- autoconfig memory banks do not show ****'s in debugger anymore
+- autoconfig memory banks do not show as ****'s in debugger anymore
 - filesystem not initializing if JIT was enabled and no other
   autoconfig expansions enabled (ancient bug..)
 - do not crash if CD32 is selected in advanced chipset without

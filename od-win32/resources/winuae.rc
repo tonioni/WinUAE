@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "resource."
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -199,28 +199,24 @@ IDD_FLOPPY DIALOGEX 0, 0, 300, 240
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    RTEXT           "DF0:",IDC_STATIC,10,7,20,10,SS_CENTERIMAGE
     COMBOBOX        IDC_DF0TEXT,2,22,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_DF0TYPE,123,6,49,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Write-protected",IDC_STATIC,174,8,59,10,SS_CENTERIMAGE
     CONTROL         "",IDC_DF0WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,238,4,10,15
     PUSHBUTTON      "Eject",IDC_EJECT0,253,4,30,15
     PUSHBUTTON      "...",IDC_DF0,287,4,10,15
-    RTEXT           "DF1:",IDC_STATIC,10,42,20,10,SS_CENTERIMAGE
     COMBOBOX        IDC_DF1TEXT,2,58,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_DF1TYPE,123,42,49,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Write-protected",IDC_STATIC,174,43,59,10,SS_CENTERIMAGE
     CONTROL         "",IDC_DF1WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,238,40,10,15
     PUSHBUTTON      "Eject",IDC_EJECT1,253,40,30,15
     PUSHBUTTON      "...",IDC_DF1,287,40,10,15
-    RTEXT           "DF2:",IDC_STATIC,10,77,20,10,SS_CENTERIMAGE
     COMBOBOX        IDC_DF2TEXT,2,93,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_DF2TYPE,123,77,49,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Write-protected",IDC_STATIC,174,77,59,10,SS_CENTERIMAGE
     CONTROL         "",IDC_DF2WP,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,238,75,9,15
     PUSHBUTTON      "Eject",IDC_EJECT2,253,75,30,15
     PUSHBUTTON      "...",IDC_DF2,287,75,10,15
-    RTEXT           "DF3:",IDC_STATIC,10,112,20,9,SS_CENTERIMAGE
     COMBOBOX        IDC_DF3TEXT,2,128,296,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_DF3TYPE,123,112,49,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Write-protected",IDC_STATIC,174,113,59,10,SS_CENTERIMAGE
@@ -240,6 +236,10 @@ BEGIN
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE3,43,110,70,15,NOT WS_VISIBLE
     EDITTEXT        IDC_CREATE_NAME,75,215,98,13,ES_AUTOHSCROLL
     RTEXT           "Disk label:",IDC_STATIC,14,216,52,10,SS_CENTERIMAGE
+    CONTROL         "DF0:",IDC_DF0ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,6,34,15
+    CONTROL         "DF1:",IDC_DF1ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,41,34,15
+    CONTROL         "DF2:",IDC_DF2ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,76,34,15
+    CONTROL         "DF3:",IDC_DF3ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,111,34,15
 END
 
 IDD_HARDDISK DIALOGEX 0, 0, 300, 240
@@ -810,7 +810,7 @@ CAPTION "Processing..."
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,88,40,50,14
-    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",PBS_SMOOTH | WS_BORDER,7,19,215,14
+    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",WS_BORDER | 0x1,7,19,215,14
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
@@ -1050,7 +1050,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation"
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock and Dirk Trowe - Cartridge hardware support."
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
@@ -1241,8 +1241,6 @@ BEGIN
     IDS_ROM_UNAVAILABLE     "unavailable"
     IDS_HARDDRIVESAFETYWARNING1 
                             "Warning: The drive safety check is active. Selected drive is not empty and non-RDB partitioned."
-    IDS_HARDDRIVESAFETYWARNING2 
-                            "Warning: The drive safety check has been disabled, and non-empty and non-RDB partitioned hard disk(s) were detected."
     IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68020 with 24-bit addressing or higher CPU."
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
@@ -1252,6 +1250,8 @@ BEGIN
     IDS_HDCLONE_FAIL        "Hard drive image file creation failed.\nError code %d:%d."
     IDS_NUMSG_KS68030       "The selected system ROM requires a 68030 CPU."
     IDS_NUMSG_EXPROMNEED    "One of the following expansion boot ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
+    IDS_HARDDRIVESAFETYWARNING2 
+                            "Warning: The drive safety check has been disabled, and non-empty and non-RDB partitioned hard disk(s) were detected."
 END
 
 STRINGTABLE 

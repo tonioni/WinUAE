@@ -6576,10 +6576,10 @@ static void out_floppyspeed (HWND hDlg)
 
 #define BUTTONSPERFLOPPY 7
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_SAVEIMAGE0,-1 },
-    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,IDC_SAVEIMAGE1,-1 },
-    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,IDC_SAVEIMAGE2,-1 },
-    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,IDC_SAVEIMAGE3,-1 }
+    { IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_SAVEIMAGE0,IDC_DF0ENABLE },
+    { IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,IDC_SAVEIMAGE1,IDC_DF1ENABLE },
+    { IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,IDC_SAVEIMAGE2,IDC_DF2ENABLE },
+    { IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,IDC_SAVEIMAGE3,IDC_DF3ENABLE }
 };
 static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
     { IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,-1,IDC_DF0QENABLE },
@@ -6725,7 +6725,10 @@ static void addfloppytype (HWND hDlg, int n)
     if (f_drive >= 0)
 	ew (hDlg, f_drive, state);
     if (f_enable >= 0) {
-	ew (hDlg, f_enable, n > 0 && workprefs.nr_floppies > 0);
+	if (currentpage == QUICKSTART_ID)
+	    ew (hDlg, f_enable, n > 0 && workprefs.nr_floppies > 0);
+	else
+	    ew (hDlg, f_enable, TRUE);
 	CheckDlgButton(hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
     }
     chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
@@ -6748,22 +6751,24 @@ static void getfloppytype (HWND hDlg, int n)
 }
 static void getfloppytypeq (HWND hDlg, int n)
 {
-    int f_enable = floppybuttonsq[n][6];
+    int f_enable = currentpage == QUICKSTART_ID ? floppybuttonsq[n][6] : floppybuttons[n][6];
     int chk;
 
-    if (f_enable <= 0 || n == 0)
+    if (f_enable <= 0 || (n == 0 && currentpage == QUICKSTART_ID))
 	return;
     chk = IsDlgButtonChecked (hDlg, f_enable) ? 0 : -1;
     if (chk != workprefs.dfxtype[n]) {
 	workprefs.dfxtype[n] = chk;
 	addfloppytype (hDlg, n);
     }
-    if (chk == 0)
-	quickstart_floppy = 2;
-    else
-	quickstart_floppy = 1;
-    if (hWinUAEKey)
-	RegSetValueEx (hWinUAEKey, "QuickStartFloppies", 0, REG_DWORD, (CONST BYTE *)&quickstart_floppy, sizeof(quickstart_floppy));
+    if (currentpage == QUICKSTART_ID) {
+	if (chk == 0)
+	    quickstart_floppy = 2;
+	else
+	    quickstart_floppy = 1;
+	if (hWinUAEKey)
+	    RegSetValueEx (hWinUAEKey, "QuickStartFloppies", 0, REG_DWORD, (CONST BYTE *)&quickstart_floppy, sizeof(quickstart_floppy));
+    }
 }
 
 static int getfloppybox (HWND hDlg, int f_text, char *out, int maxlen)
@@ -6947,12 +6952,20 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	}
 	switch (LOWORD (wParam))
 	{
+	case IDC_DF0ENABLE:
 	case IDC_DF0QENABLE:
 	    getfloppytypeq (hDlg, 0);
 	    break;
+	case IDC_DF1ENABLE:
 	case IDC_DF1QENABLE:
 	    getfloppytypeq (hDlg, 1);
     	    break;
+	case IDC_DF2ENABLE:
+	    getfloppytypeq (hDlg, 2);
+	    break;
+	case IDC_DF3ENABLE:
+	    getfloppytypeq (hDlg, 3);
+	    break;
 	case IDC_DF0WP:
 	case IDC_DF0WPQ:
 	    floppysetwriteprotect (hDlg, 0, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF0WPQ) : IsDlgButtonChecked (hDlg, IDC_DF0WP));
