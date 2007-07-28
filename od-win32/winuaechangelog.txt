@@ -1,5 +1,13 @@
 
-Beta 12:
+Beta 13: (RC2)
+
+- Action Replay 1200 "cartridge support" credits added
+- Nordic Power/X-Power/SuperIV statefile support added (not complete)
+- 68030 "NOP MMU emulation" fix, some variants of PFLUSH caused F-line
+  exception
+- illegal access logger (wd) now supports full 32-bit address space
+
+Beta 12: (RC1)
 
 - added quick enable/disable checkboxes to floppy panel
 - non-word aligned word writes to custom registers emulated correctly
@@ -17,7 +25,7 @@ Beta 11:
   autoconfig expansions enabled (ancient bug..)
 - do not crash if CD32 is selected in advanced chipset without
   extended ROM
-- fixes and updates to illegal address logger
+- fixes and updates to illegal access logger
 - "faster RTG" "immediate copper" emulation was very broken
 - reverted JIT LSL/LSR/ASR change, merge error most likely, later..
 

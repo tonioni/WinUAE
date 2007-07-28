@@ -1828,6 +1828,13 @@ static void mmu_op30_ptest(uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr ext
     mmusr_030 = 0;
 }
 
+static void mmu_op30_pflush(uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
+{
+#if MMUOP_DEBUG > 0
+    write_log("PFLUSH PC=%08X\n", pc);
+#endif
+}
+
 void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isnext, uaecptr extra)
 {
     if (currprefs.cpu_model != 68030) {
@@ -1839,6 +1846,8 @@ void mmu_op30(uaecptr pc, uae_u32 opcode, struct regstruct *regs, int isnext, ua
 	uae_u16 next = get_word(pc + 2);
 	if (next & 0x8000)
 	    mmu_op30_ptest(pc, opcode, next, extra);
+	else if (next & 0x2000)
+	    mmu_op30_pflush (pc, opcode, next, extra);
 	else
 	    mmu_op30_pmove(pc, opcode, next, extra);
 	m68k_setpc (regs, m68k_getpc (regs) + 2);

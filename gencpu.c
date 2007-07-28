@@ -2897,7 +2897,10 @@ static void gen_opcode (unsigned long int opcode)
 	break;
     case i_MMUOP30A:
 	printf ("\tuaecptr pc = m68k_getpc (regs);\n");
-	genamode (curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
+	if (curi->smode == Areg || curi->smode == Dreg)
+	    printf("\tuae_u16 extraa = 0;\n");
+        else
+	    genamode (curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
 	sync_m68k_pc ();
 	printf ("\tmmu_op30(pc, opcode, regs, 1, extraa);\n");
 	break;

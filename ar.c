@@ -1982,16 +1982,24 @@ uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)malloc (hrtmem_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
-    save_u8 (0);
+	dstbak = dst = (uae_u8*)malloc (hrtmem_size + hrtmem2_size + sizeof ar_custom + sizeof ar_ciaa + sizeof ar_ciab + 1024);
+    save_u8 (cart_type);
     save_u8 (0);
     save_u32 (0);
     strcpy (dst, currprefs.cartfile);
     dst += strlen(dst) + 1;
     save_u32 (0);
-    save_u32 (hrtmem_size);
-    memcpy (dst, hrtmemory, hrtmem_size);
-    dst += hrtmem_size;
+    if (!hrtmem_rom) {
+	save_u32 (hrtmem_size);
+        memcpy (dst, hrtmemory, hrtmem_size);
+	dst += hrtmem_size;
+    } else if (hrtmem2_size) {
+	save_u32 (hrtmem2_size);
+	memcpy (dst, hrtmemory2, hrtmem2_size);
+	dst += hrtmem2_size;
+    } else {
+	save_u32 (0);
+    }
     save_u32 (sizeof ar_custom);
     memcpy (dst, ar_custom, sizeof ar_custom);
     dst += sizeof ar_custom;
@@ -2007,6 +2015,8 @@ uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)
 
 uae_u8 *restore_hrtmon (uae_u8 *src)
 {
+    uae_u32 size;
+
     action_replay_unload (1);
     restore_u8 ();
     restore_u8 ();
@@ -2015,13 +2025,18 @@ uae_u8 *restore_hrtmon (uae_u8 *src)
     strcpy (currprefs.cartfile, changed_prefs.cartfile);
     src += strlen(src) + 1;
     hrtmon_load ();
+    action_replay_load ();
     if (restore_u32() != 0)
 	return src;
-    if (restore_u32() != hrtmem_size)
-	return src;
-    if (hrtmemory)
-	memcpy (hrtmemory, src, hrtmem_size);
-    src += hrtmem_size;
+    size = restore_u32();
+    if (!hrtmem_rom) {
+	if (hrtmemory)
+	    memcpy (hrtmemory, src, size);
+    } else if (hrtmem2_size) {
+	if (hrtmemory2)
+	    memcpy (hrtmemory2, src, size);
+    }
+    src += size;
     restore_u32();
     memcpy (ar_custom, src, sizeof ar_custom);
     src += sizeof ar_custom;

@@ -211,8 +211,8 @@ static struct romdata roms[] = {
 	0xe668a0be, 0x633A6E65,0xA93580B8,0xDDB0BE9C,0x9A64D4A1,0x7D4B4801 },
     { "Freezer: X-Power Professional 500 v1.2", 1, 2, 1, 2, "XPOWER\0", 131072, 65, 0, 0, ROMTYPE_SUPERIV, 1,
 	0x9e70c231, 0xa2977a1c,0x41a8ca7d,0x4af4a168,0x726da542,0x179d5963 },
-    /* only 2 bad dumps available */
-    { "Freezer: Nordic Power v1", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
+    /* v1.0 is bad dump */
+    { "Freezer: Nordic Power v1.0", 0, 0, 0, 0, "NPOWER\0", 65536, 66, 0, 0, ROMTYPE_SUPERIV, 1, },
 	//0xdd16cdec, 0xfd882967,0x87e2da5f,0x4ef6be32,0x5f7c9324,0xb5bd8e64 },
     { "Freezer: Nordic Power v2.0", 2, 0, 2, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_SUPERIV, 1,
 	0xa4db2906, 0x0aec68f7,0x25470c89,0x6b699ff4,0x6623dec5,0xc777466e },

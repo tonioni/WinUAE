@@ -326,7 +326,7 @@
 			/>
 			<Tool
 				Name="VCManifestTool"
-				AdditionalManifestFiles="..\resources\winuae.exe.manifest"
+				AdditionalManifestFiles="..\resources\winuae9.exe.manifest"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
@@ -1100,16 +1100,16 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="1"
-				RandomizedBaseAddress="2"
+				RandomizedBaseAddress="1"
 				DataExecutionPrevention="2"
-				TargetMachine="1"
+				TargetMachine="0"
 			/>
 			<Tool
 				Name="VCALinkTool"
 			/>
 			<Tool
 				Name="VCManifestTool"
-				AdditionalManifestFiles="..\resources\winuae.exe.manifest"
+				AdditionalManifestFiles="..\resources\winuae9.exe.manifest"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"

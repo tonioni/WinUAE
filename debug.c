@@ -1024,13 +1024,15 @@ static addrbank *debug_mem_area;
 struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 static struct memwatch_node mwhit;
 
-static uae_u8 *illgdebug;
+static uae_u8 *illgdebug, *illghdebug;
 static int illgdebug_break;
 
 static void illg_free (void)
 {
-    free (illgdebug);
+    xfree (illgdebug);
     illgdebug = NULL;
+    xfree (illghdebug);
+    illghdebug = NULL;
 }
 
 static void illg_init (void)
@@ -1040,14 +1042,25 @@ static void illg_init (void)
     uaecptr addr, end;
 
     illgdebug = (uae_u8*)xcalloc (0x01000000, 1);
-    if (!illgdebug)
+    illghdebug = (uae_u8*)xcalloc(65536, 1);
+    if (!illgdebug || !illghdebug) {
+	illg_free();
 	return;
+    }
     addr = 0xffffffff;
     while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
-	if (end < 0x01000000)
+	if (end < 0x01000000) {
 	    memset (illgdebug + addr, c, end - addr);
+	} else {
+	    uae_u32 s = addr >> 16;
+	    uae_u32 e = end >> 16;
+	    memset (illghdebug + s, c, e - s);
+	}
         addr = end - 1;
     }
+    if (currprefs.gfxmem_size)
+	memset (illghdebug + (p96ram_start >> 16), 3, currprefs.gfxmem_size >> 16);
+
     i = 0;
     while (custd[i].name) {
 	int rw = custd[i].rw;
@@ -1081,6 +1094,8 @@ static void illg_init (void)
     if (uae_boot_rom) /* filesys "rom" */
 	memset (illgdebug + RTAREA_BASE, 1, 0x10000);
 #endif
+    if (currprefs.cs_ide > 0)
+	memset (illgdebug + 0xdd0000, 3, 65536);
 }
 
 /* add special custom register check here */
@@ -1099,7 +1114,7 @@ static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
 	uae_u8 v = val >> (i * 8);
 	uae_u32 ad = addr + i;
 	if (ad >= 0x01000000)
-	    mask = 7;
+	    mask = illghdebug[ad >> 16];
 	else
 	    mask = illgdebug[ad];
 	if ((mask & 3) == 3)
