@@ -10,6 +10,7 @@
 !define DISTPATH "c:\projects\winuae\distribution"
 
 SetCompressor lzma
+RequestExecutionLevel admin
 
 !include "StrFunc.nsh"
 !include "WinMessages.nsh"
@@ -143,7 +144,6 @@ SubSection "Additional files" secAdditionalFiles
   File "${DISTPATH}\Amiga Programs\transdisk"
   File "${DISTPATH}\Amiga Programs\timehack"
   File "${DISTPATH}\Amiga Programs\rtg.library"
-  File "${DISTPATH}\Amiga Programs\picasso96fix"
   File "${DISTPATH}\Amiga Programs\p96refresh"
   File "${DISTPATH}\Amiga Programs\p96_uae_tweak"
   File "${DISTPATH}\Amiga Programs\mousehack"
@@ -151,7 +151,6 @@ SubSection "Additional files" secAdditionalFiles
   File "${DISTPATH}\Amiga Programs\amigaprog.txt"
   File "${DISTPATH}\Amiga Programs\ahidriver.zip"
   File "${DISTPATH}\Amiga Programs\sources\p96refresh.ab2"
-  File "${DISTPATH}\Amiga Programs\sources\picasso96fix.lha"
   File "${DISTPATH}\Amiga Programs\sources\uae-configuration.s"
   File "${DISTPATH}\Amiga Programs\sources\uae-configuration.c"
  SectionEnd
