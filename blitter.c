@@ -184,7 +184,7 @@ static const int blit_cycle_diagram_fill[][10] =
 
 static const int blit_cycle_diagram_line[] =
 {
-    0, 4, 0,3,0,4, 0,0,0,0,0,0,0,0,0,0  /* guessed */
+    0, 4, 0,3,0,4, 0,0,0,0,0,0,0,0,0,0
 };
 
 static const int blit_cycle_diagram_finald[] =
@@ -522,7 +522,7 @@ static void blitter_line(void)
 
     if (blitsing && blitonedot)
 	blitahold = 0;
-    blitonedot = 1;
+    blitonedot++;
     blt_info.bltddat = blit_func(blitahold, blitbhold, blitchold, bltcon0 & 0xFF);
 }
 
@@ -581,17 +581,27 @@ static void decide_blitter_line (int hpos)
     hpos++;
     if (dmaen (DMA_BLITTER)) {
 	while (blit_last_hpos < hpos) {
-	    int c = channel_state (blit_cyclecounter);
+	    int c = blit_cyclecounter % 4;
 	    for (;;) {
-		if (c) {
-		    if (!canblit(blit_last_hpos))
+		if (c == 1 || c == 3) {
+		    /* onedot mode and no pixel = bus write access is skipped */
+		    if (c == 3 && blitsing && blitonedot > 1) {
+			blit_cyclecounter++;
+			if (blt_info.vblitsize == 0) {
+			    bltdpt = bltcpt;
+			    blitter_done();
+			    return;
+			}
+			break;
+		    }
+		    if (canblit(blit_last_hpos) <= 0)
 			break;
 		}
 		blit_cyclecounter++;
-		if (c == 3) {
+		if (c == 1) {
 		    blitter_read();
-		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
-		} else if (c == 4) {
+		    alloc_cycle_ext (blit_last_hpos, CYCLE_BLITTER);
+		} else if (c == 2) {
 		    if (ddat1use) {
 			bltdpt = bltcpt;
 		    }
@@ -599,8 +609,9 @@ static void decide_blitter_line (int hpos)
 		    blitter_line();
 		    blitter_line_proc();
 		    blitter_nxline();
+		} else if (c == 3) {
 		    blitter_write();
-		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+		    alloc_cycle_ext (blit_last_hpos, CYCLE_BLITTER);
 		    if (blt_info.vblitsize == 0) {
 			bltdpt = bltcpt;
 		        blitter_done();
@@ -843,16 +854,16 @@ void decide_blitter (int hpos)
 
 	        blt_info.got_cycle = 1;
 		if (c < 0) { /* no channel but bus still needs to be allocated.. */
-		    cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+		    alloc_cycle_ext (blit_last_hpos, CYCLE_BLITTER);
 		    blit_cyclecounter++;
 		} else if (c == 4) {
 		    if (blitter_doddma ()) {
-			cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+			alloc_cycle_ext (blit_last_hpos, CYCLE_BLITTER);
 			blit_cyclecounter++;
 		    }
 		} else if (c) {
 		    if (blitter_vcounter1 < blt_info.vblitsize) {
-			cycle_line[blit_last_hpos] |= CYCLE_BLITTER;
+			alloc_cycle_ext (blit_last_hpos, CYCLE_BLITTER);
 			blitter_dodma (c);
 		    }
 		    blit_cyclecounter++;

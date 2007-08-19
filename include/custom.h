@@ -188,4 +188,5 @@ struct customhack {
 };
 void customhack_put (struct customhack *ch, uae_u16 v, int hpos);
 uae_u16 customhack_get (struct customhack *ch, int hpos);
+extern void alloc_cycle_ext(int, int);
 

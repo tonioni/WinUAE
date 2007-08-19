@@ -2035,6 +2035,74 @@ void fetch_path (char *name, char *out, int size)
     }
     fixtrailing (out);
 }
+
+int get_rom_path(char *out, int mode)
+{
+    char tmp[MAX_DPATH];
+
+    tmp[0] = 0;
+    switch (mode)
+    {
+	case 0:
+	{
+	    if (!strcmp (start_path_data, start_path_exe))
+		strcpy (tmp, ".\\");
+	    else
+		strcpy (tmp, start_path_data);
+	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
+		char tmp2[MAX_DPATH];
+		strcpy (tmp2, tmp);
+		strcat (tmp2, "rom");
+		if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES) {
+		    strcpy (tmp, tmp2);
+		} else {
+		    strcpy (tmp2, tmp);
+		    strcpy (tmp2, "roms");
+		    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES)
+			strcpy (tmp, tmp2);
+		}
+	    }
+	}
+        break;
+	case 1:
+	{
+    	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_new1);
+	    strcat (tmp2, "..\\system\\rom");
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
+	}
+        break;
+	case 2:
+	{
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_new2);
+	    strcat (tmp2, "system\\rom");
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
+	}
+	break;
+	case 3:
+	{
+	    char tmp2[MAX_DPATH];
+	    strcpy (tmp2, start_path_af);
+	    strcat (tmp2, "..\\shared\\rom");
+	    if (isfilesindir(tmp2))
+	        strcpy (tmp, tmp2);
+	}
+	break;
+	default:
+        return -1;
+    }
+    if (isfilesindir(tmp)) {
+	strcpy (out, tmp);
+        fixtrailing (out);
+    }
+    return out[0] ? 1 : 0;
+}
+
+
+
 void set_path (char *name, char *path)
 {
     char tmp[MAX_DPATH];
@@ -2062,43 +2130,14 @@ void set_path (char *name, char *path)
     strip_slashes (tmp);
     if (!strcmp (name, "KickstartPath")) {
 	DWORD v = GetFileAttributes (tmp);
-	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY)) {
-	    if (!strcmp (start_path_data, start_path_exe))
-		strcpy (tmp, ".\\");
-	    else
-		strcpy (tmp, start_path_data);
-	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
-		char tmp2[MAX_DPATH];
-		strcpy (tmp2, tmp);
-		strcat (tmp2, "rom");
-		if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES) {
-		    strcpy (tmp, tmp2);
-		} else {
-		    strcpy (tmp2, tmp);
-		    strcpy (tmp2, "roms");
-		    if (GetFileAttributes(tmp2) != INVALID_FILE_ATTRIBUTES)
-			strcpy (tmp, tmp2);
-		}
-	    }
-	}
+	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
+	    get_rom_path(tmp, 0);
 	if ((af_path_2005 & 1) && path_type == PATH_TYPE_NEWAF) {
-	    char tmp2[MAX_DPATH];
-	    strcpy (tmp2, start_path_new1);
-	    strcat (tmp2, "..\\system\\rom");
-	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+	    get_rom_path(tmp, 1);
 	} else if ((af_path_2005 & 2) && path_type == PATH_TYPE_AMIGAFOREVERDATA) {
-	    char tmp2[MAX_DPATH];
-	    strcpy (tmp2, start_path_new2);
-	    strcat (tmp2, "system\\rom");
-	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+	    get_rom_path(tmp, 2);
 	} else if (af_path_old && path_type == PATH_TYPE_OLDAF) {
-	    char tmp2[MAX_DPATH];
-	    strcpy (tmp2, start_path_af);
-	    strcat (tmp2, "..\\shared\\rom");
-	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+	    get_rom_path(tmp, 3);
 	}
     }
     fixtrailing (tmp);
@@ -2533,6 +2572,40 @@ static int osdetect (void)
 
 typedef HRESULT (CALLBACK* SHGETFOLDERPATH)(HWND,int,HANDLE,DWORD,LPTSTR);
 typedef BOOL (CALLBACK* SHGETSPECIALFOLDERPATH)(HWND,LPTSTR,int,BOOL);
+
+void create_afnewdir(int remove)
+{
+    SHGETFOLDERPATH pSHGetFolderPath;
+    SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
+    char tmp[MAX_DPATH], tmp2[MAX_DPATH];
+    BOOL ok = FALSE;
+
+    pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
+    pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
+    if (pSHGetFolderPath)
+        ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
+    else if (pSHGetSpecialFolderPath)
+        ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
+    if (ok) {
+        fixtrailing(tmp);
+        strcpy (tmp2, tmp);
+        strcat (tmp2, "Amiga Files");
+        strcpy (tmp, tmp2);
+        strcat(tmp, "\\WinUAE");
+	if (remove) {
+	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
+		RemoveDirectory(tmp);
+		RemoveDirectory(tmp2);
+	    }
+	} else {
+	    CreateDirectory(tmp2, NULL);
+	    CreateDirectory(tmp, NULL);
+	}
+    }
+}
+
 static void getstartpaths(void)
 {
     SHGETFOLDERPATH pSHGetFolderPath;
@@ -2622,18 +2695,15 @@ static void getstartpaths(void)
 	    strcat (tmp2, "Amiga Files\\");
 	    strcpy (tmp, tmp2);
 	    strcat(tmp, "WinUAE");
-	    CreateDirectory(tmp2, NULL);
-	    CreateDirectory(tmp, NULL);
 	    v = GetFileAttributes(tmp);
-	    if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-		strcpy(start_path_new1, tmp2);
-		strcat(start_path_new1, "WinUAE\\");
-		strcat(tmp, "\\configurations");
-		if (isfilesindir(tmp)) {
-		    strcpy (xstart_path_uae, start_path_exe);
-		    strcpy (xstart_path_new1, start_path_new1); 
+	    if (v == INVALID_FILE_ATTRIBUTES || (v & FILE_ATTRIBUTE_DIRECTORY)) {
+		strcpy(xstart_path_new1, tmp2);
+		strcat(xstart_path_new1, "WinUAE\\");
+		strcpy (xstart_path_uae, start_path_exe);
+		strcpy (start_path_new1, xstart_path_new1);
+		strcat(tmp2, "System");
+		if (isfilesindir(tmp2))
 		    af_path_2005 |= 1;
-		}
 	    }
 	}
     }
@@ -2644,8 +2714,12 @@ static void getstartpaths(void)
 	    strcpy(start_path_data, xstart_path_uae);
 	} else if (path_type == PATH_TYPE_OLDAF && af_path_old && xstart_path_old[0]) {
 	    strcpy(start_path_data, xstart_path_old);
-	} else if ((path_type == PATH_TYPE_NEWAF || path_type == PATH_TYPE_NEWWINUAE) && (af_path_2005 & 1) && xstart_path_new1[0]) {
+	} else if (path_type == PATH_TYPE_NEWWINUAE && xstart_path_new1[0]) {
 	    strcpy (start_path_data, xstart_path_new1);
+	    create_afnewdir(0);
+	} else if (path_type == PATH_TYPE_NEWAF && (af_path_2005 & 1) && xstart_path_new1[0]) {
+	    strcpy (start_path_data, xstart_path_new1);
+	    create_afnewdir(0);
 	} else if (path_type == PATH_TYPE_AMIGAFOREVERDATA && (af_path_2005 & 2) && xstart_path_new2[0]) {
 	    strcpy (start_path_data, xstart_path_new2);
 	} else if (path_type < 0) {
@@ -2657,6 +2731,7 @@ static void getstartpaths(void)
 	    }
 	    if (af_path_2005 & 1) {
 		path_type = PATH_TYPE_NEWAF;
+		create_afnewdir(1);
 		strcpy(start_path_data, xstart_path_new1);
 	    }
 	    if (af_path_2005 & 2) {
@@ -2672,7 +2747,7 @@ static void getstartpaths(void)
     }
 
     v = GetFileAttributes(start_path_data);
-    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data <= 0) {
+    if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
 	strcpy(start_path_data, start_path_exe);
     }
     fixtrailing(start_path_data);
@@ -2779,7 +2854,7 @@ static int process_arg(char **xargv)
 	    continue;
 	}
 	if (!strcmp (arg, "-legacypaths")) {
-	    start_data = -1;
+	    start_data = -2;
 	    continue;
 	}
 	if (!strcmp (arg, "-screenshotbmp")) {
@@ -2938,6 +3013,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     closeprinter ();
 #endif
     WIN32_CleanupLibraries();
+    create_afnewdir(1);
     close_console();
     _fcloseall();
     if(hWinUAEKey)

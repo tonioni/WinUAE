@@ -156,7 +156,7 @@
   * CIA-B: 0xb40001 (0x001, 0x101,...)
   * Custom: 0xe40000
   *
-  * NOTE: emulation also supports 0xd40000 relocated "rom"-images
+  * NOTE: emulation also supports 0xd00000 relocated "rom"-images
   */
 
  /* X-Power 500:
@@ -177,6 +177,23 @@
   * Custom: 0xf43c00 (from 0x20->)
   * addresses 0 to 1023: 0xf40000 (weird feature..)
   */
+
+  /* X-Power and Nordic Power ROM scrambling
+   *
+   * Data lines are swapped.
+   * Address lines are XOR'd (0x817F) and swapped.
+   *
+   * Even (middle) ROM
+   *
+   * Data: 0-3,1-6,2-0,3-4,4-7,5-5,6-1,7-2
+   * Addr: 0-7,1-1,2-2,3-11,4-12,5-0,6-13,7-14,8-8,9-3,10-5,11-6,12-4,13-10,14-9,15-15
+   *
+   * Odd (corner) ROM
+   *
+   * Data: 0-2,1-3,2-4,3-5,4-6,5-7,6-0,7-1
+   * Addr: 0-3,1-6,2-5,3-7,4-9,5-12,6-14,7-13,8-8,9-11,10-10,11-1,12-0,13-4,14-2,15-15
+   * 
+   */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -1514,6 +1531,7 @@ static int superiv_init(struct romdata *rd, struct zfile *f)
 {
     uae_u32 chip = currprefs.chipmem_size - 0x10000;
     int subtype = rd->id;
+    int flags = rd->type;
 
     cart_type = CART_SUPER4;
 
@@ -1521,13 +1539,13 @@ static int superiv_init(struct romdata *rd, struct zfile *f)
     hrtmon_ciaa = 0;
     hrtmon_ciab = 0;
 
-    if (subtype == 65) { /* xpower */
+    if (flags & ROMTYPE_XPOWER) { /* xpower */
 	hrtmem_start = 0xe20000;
 	hrtmem_size = 0x20000;
 	hrtmem2_start = 0xf20000;
 	hrtmem2_size =  0x10000;
 	hrtmem_rom = 1;
-    } else if (subtype == 66 || subtype == 67) { /* nordic */
+    } else if (flags & ROMTYPE_NORDIC) { /* nordic */
 	hrtmem_start = 0xf00000;
 	hrtmem_size = 0x10000;
 	hrtmem_end = 0xf20000;
@@ -1570,7 +1588,7 @@ static int superiv_init(struct romdata *rd, struct zfile *f)
     hrtmem2_bank.baseaddr = hrtmemory2;
     hrtmem_bank.baseaddr = hrtmemory;
 
-    if (subtype == 65) {
+    if (flags & ROMTYPE_XPOWER) {
 	hrtmon_custom = hrtmemory2 + 0xfc00;
 	hrtmon_ciaa = hrtmemory2 + 0xfc00;
 	hrtmon_ciab = hrtmemory2 + 0xfc01;
@@ -1580,7 +1598,7 @@ static int superiv_init(struct romdata *rd, struct zfile *f)
 	hrtmemory2[0xfc81] = chip >> 16;
 	hrtmemory2[0xfc82] = chip >> 8;
 	hrtmemory2[0xfc83] = chip >> 0;
-    } else if (subtype == 66 || subtype == 67) {
+    } else if (flags & ROMTYPE_NORDIC) {
 	hrtmon_custom = hrtmemory2 + 0x3c00;
 	hrtmon_ciaa = hrtmemory2 + 0x3c00;
 	hrtmon_ciab = hrtmemory2 + 0x3c01;
@@ -1631,7 +1649,7 @@ int action_replay_load(void)
     if (!rd) {
 	write_log("Unknown cartridge ROM\n");
     } else {
-	if (rd->type & ROMTYPE_SUPERIV) {
+	if (rd->type & (ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER)) {
 	    return superiv_init(rd, f);
 	}
     }

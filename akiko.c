@@ -1504,6 +1504,9 @@ uae_u8 *save_akiko(int *len)
     uae_u8 *dstbak, *dst;
     int i;
 
+    if (!currprefs.cs_cd32cd)
+	return NULL;
+
     dstbak = dst = (uae_u8*)malloc (1000);
     save_u16 (0);
     save_u16 (0xCAFE);
@@ -1556,6 +1559,9 @@ uae_u8 *restore_akiko(uae_u8 *src)
 {
     uae_u32 v;
     int i;
+
+    if (!currprefs.cs_cd32cd)
+	return NULL;
 
     restore_u16 ();
     restore_u16 ();

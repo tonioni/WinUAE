@@ -126,41 +126,32 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 
 void fixup_cpu(struct uae_prefs *p)
 {
-    p->cpu_level = 0;
     switch(p->cpu_model)
     {
         case 68000:
-        p->cpu_level = 0;
 	p->address_space_24 = 1;
 	p->fpu_model = 0;
         break;
 	case 68010:
-	p->cpu_level = 1;
 	p->address_space_24 = 1;
 	p->fpu_model = 0;
 	break;
 	case 68020:
-	p->cpu_level = 2;
 	break;
 	case 68030:
-	p->cpu_level = 3;
 	p->address_space_24 = 0;
 	break;
 	case 68040:
-	p->cpu_level = 5;
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68040;
 	break;
 	case 68060:
-	p->cpu_level = 6;
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68060;
 	break;
     }
-    if ((p->cpu_level == 2 || p->cpu_level == 3) && p->fpu_model)
-	p->cpu_level = 4;
 }
 
 
@@ -348,7 +339,6 @@ void fixup_prefs (struct uae_prefs *p)
 
 #ifdef CPU_68000_ONLY
     p->cpu_model = 68000;
-    p->cpu_level = 0;
     p->fpu_model = 0;
 #endif
 #ifndef CPUEMU_0

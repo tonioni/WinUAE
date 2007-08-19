@@ -56,3 +56,8 @@ STATIC_INLINE int get_audio_ismono(void)
 	return 1;
     return 0;
 }
+
+ #define SOUND_MAX_DELAY_BUFFER 1024
+ #define SOUND_MAX_LOG_DELAY 10
+ #define MIXED_STEREO_MAX 16
+ #define MIXED_STEREO_SCALE 32

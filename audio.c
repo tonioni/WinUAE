@@ -306,15 +306,12 @@ typedef	uae_u8 sample8_t;
 #define	FINISH_DATA(data,b,logn)
 #endif
 
-/* Always put the right word before the left word.  */
-#define	MAX_DELAY_BUFFER 1024
-static uae_u32 right_word_saved[MAX_DELAY_BUFFER];
-static uae_u32 left_word_saved[MAX_DELAY_BUFFER];
-static uae_u32 right2_word_saved[MAX_DELAY_BUFFER];
-static uae_u32 left2_word_saved[MAX_DELAY_BUFFER];
+static uae_u32 right_word_saved[SOUND_MAX_DELAY_BUFFER];
+static uae_u32 left_word_saved[SOUND_MAX_DELAY_BUFFER];
+static uae_u32 right2_word_saved[SOUND_MAX_DELAY_BUFFER];
+static uae_u32 left2_word_saved[SOUND_MAX_DELAY_BUFFER];
 static int saved_ptr, saved_ptr2;
 
-#define	MIXED_STEREO_MAX 32
 static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
 static int led_filter_forced, sound_use_filter, sound_use_filter_sinc, led_filter_on;
 
@@ -400,6 +397,8 @@ static int filter(int input, struct filter_state *fs)
     return o;
 }
 
+/* Always put the right word before the left word.  */
+
 STATIC_INLINE void put_sound_word_right (uae_u32 w)
 {
     if (mixed_on) {
@@ -421,12 +420,12 @@ STATIC_INLINE void put_sound_word_left (uae_u32 w)
 	saved_ptr = (saved_ptr + 1) & mixed_stereo_size;
 
 	lold = left_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	tmp = (rnew * mixed_mul1 + lold * mixed_mul2) / MIXED_STEREO_MAX;
+	tmp = (rnew * mixed_mul2 + lold * mixed_mul1) / MIXED_STEREO_SCALE;
 	tmp += SOUND16_BASE_VAL;
 	PUT_SOUND_WORD_RIGHT (tmp);
 
 	rold = right_word_saved[saved_ptr] - SOUND16_BASE_VAL;
-	w = (lnew * mixed_mul1 + rold * mixed_mul2) / MIXED_STEREO_MAX;
+	w = (lnew * mixed_mul2 + rold * mixed_mul1) / MIXED_STEREO_SCALE;
     }
     PUT_SOUND_WORD_LEFT (w);
 }
@@ -1307,7 +1306,7 @@ STATIC_INLINE int sound_prefs_changed (void)
 	    || changed_prefs.win32_soundcard != currprefs.win32_soundcard
 	    || changed_prefs.sound_stereo != currprefs.sound_stereo
 	    || changed_prefs.sound_stereo_separation != currprefs.sound_stereo_separation
-	    || changed_prefs.sound_mixed_stereo != currprefs.sound_mixed_stereo
+	    || changed_prefs.sound_mixed_stereo_delay != currprefs.sound_mixed_stereo_delay
 	    || changed_prefs.sound_maxbsiz != currprefs.sound_maxbsiz
 	    || changed_prefs.sound_freq != currprefs.sound_freq
 	    || changed_prefs.sound_auto != currprefs.sound_auto
@@ -1356,12 +1355,16 @@ void check_prefs_changed_audio (void)
 
 void set_audio(void)
 {
+    int old_mixed_on = mixed_on;
+    int old_mixed_size = mixed_stereo_size;
+    int sep, delay;
+
     close_sound ();
     currprefs.produce_sound = changed_prefs.produce_sound;
     currprefs.win32_soundcard = changed_prefs.win32_soundcard;
     currprefs.sound_stereo = changed_prefs.sound_stereo;
     currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
-    currprefs.sound_mixed_stereo = changed_prefs.sound_mixed_stereo;
+    currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
     currprefs.sound_auto = changed_prefs.sound_auto;
     currprefs.sound_interpol = changed_prefs.sound_interpol;
     currprefs.sound_freq = changed_prefs.sound_freq;
@@ -1387,10 +1390,16 @@ void set_audio(void)
     last_cycles = get_cycles () - 1;
     compute_vsynctime ();
 
-    mixed_mul1 = MIXED_STEREO_MAX / 2 - ((currprefs.sound_stereo_separation * 3) / 2);
-    mixed_mul2 = MIXED_STEREO_MAX / 2 + ((currprefs.sound_stereo_separation * 3) / 2);
-    mixed_stereo_size = currprefs.sound_mixed_stereo > 0 ? (1 << (currprefs.sound_mixed_stereo - 1)) - 1 : 0;
-    mixed_on = (currprefs.sound_stereo_separation > 0 || currprefs.sound_mixed_stereo > 0) ? 1 : 0;
+    sep = (currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation) * 3 / 2;
+    delay = currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
+    mixed_mul1 = MIXED_STEREO_SCALE / 2 - sep;
+    mixed_mul2 = MIXED_STEREO_SCALE / 2 + sep;
+    mixed_stereo_size = delay > 0 ? (1 << (delay - 1)) - 1 : 0;
+    mixed_on = (sep > 0 && sep < MIXED_STEREO_MAX) || mixed_stereo_size > 0;
+    if (mixed_on && old_mixed_size != mixed_stereo_size) {
+	saved_ptr = 0;
+	memset (right_word_saved, 0, sizeof right_word_saved);
+    }
 
     led_filter_forced = -1; // always off
     sound_use_filter = sound_use_filter_sinc = 0;
@@ -1528,9 +1537,6 @@ void audio_evhandler (void)
     schedule_audio ();
 }
 
-#ifdef CPUEMU_6
-extern uae_u8 cycle_line[];
-#endif
 uae_u16	dmacon;
 
 void audio_hsync (int dmaaction)
@@ -1583,9 +1589,7 @@ void audio_hsync (int dmaaction)
 	    if (cdp->request_word >= 2)
 		handle2 = 1;
 	    if (chan_ena) {
-#ifdef CPUEMU_6
-		cycle_line[13 + nr * 2] |= CYCLE_MISC;
-#endif
+		alloc_cycle_ext (13 + nr * 2, CYCLE_MISC);
 		if (cdp->request_word == 1 || cdp->request_word == 2)
 		    cdp->pt += 2;
 	    }

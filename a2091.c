@@ -154,7 +154,8 @@ static int wd_dataoffset, wd_tc;
 static uae_u8 wd_data[32];
 
 static int superdmac;
-static int scsiirqdelay;
+static int scsidelay_irq;
+static uae_u8 scsidelay_status;
 static int wd33c93a = 1;
 
 struct scsi_data *scsis[8];
@@ -185,38 +186,15 @@ void rethink_a2091(void)
     }
 }
 
-static void doscsiirq(void)
-{
-    uae_int_requested |= 2;
-#if A2091_DEBUG > 2 || A3000_DEBUG > 2
-    write_log("Interrupt\n");
-#endif
-}
-
-static void INT2(int quick)
+static void INT2(void)
 {
     int irq = 0;
 
     if (!(auxstatus & 0x80))
 	return;
     dmac_istr |= ISTR_INTS;
-    if (isirq()) {
-        if (quick)
-	   doscsiirq();
-	else
-	    scsiirqdelay = 2;
-    }
-}
-
-void scsi_hsync(void)
-{
-    if (scsiirqdelay == 1) {
-	scsiirqdelay = 0;
-	doscsiirq();
-	return;
-    }
-    if (scsiirqdelay > 1)
-	scsiirqdelay--;
+    if (isirq())
+	uae_int_requested |= 2;
 }
 
 static void dmac_start_dma(void)
@@ -258,16 +236,36 @@ static void dmac_cint(void)
     rethink_a2091();
 }
 
-static void set_status(uae_u8 status, int quick)
+static void doscsistatus(void)
 {
-    wdregs[WD_SCSI_STATUS] = status;
+    wdregs[WD_SCSI_STATUS] = scsidelay_status;
     auxstatus |= 0x80;
 #if WD33C93_DEBUG > 0
-    write_log("%s STATUS=%02X\n", WD33C93, status);
+    write_log("%s STATUS=%02X\n", WD33C93, scsidelay_status);
 #endif
     if (!currprefs.cs_a2091 && currprefs.cs_mbdmac != 1)
 	return;
-    INT2(quick);
+    INT2();
+#if A2091_DEBUG > 2 || A3000_DEBUG > 2
+    write_log("Interrupt\n");
+#endif
+}
+
+void scsi_hsync(void)
+{
+    if (scsidelay_irq == 1) {
+	scsidelay_irq = 0;
+	doscsistatus();
+	return;
+    }
+    if (scsidelay_irq > 1)
+	scsidelay_irq--;
+}
+
+static void set_status(uae_u8 status, int quick)
+{
+    scsidelay_irq = quick <= 2 ? 2 : quick;
+    scsidelay_status = status;
 }
 
 static char *scsitostring(void)
@@ -293,8 +291,12 @@ static void wd_cmd_sel_xfer(void)
 {
     int phase = wdregs[WD_COMMAND_PHASE];
 #if WD33C93_DEBUG > 0
-    write_log("* %s select and transfer, phase=%02X\n", WD33C93, phase);
+    write_log("* %s select and transfer, ID=%d phase=%02X\n", WD33C93, wdregs[WD_DESTINATION_ID] & 0x7, phase);
 #endif
+    if (!SCSIID) {
+	set_status(CSR_TIMEOUT, 0);
+	return;
+    }
     SCSIID->buffer[0] = 0;
     if (phase >= 0x46) {
 	phase = 0x50;
@@ -396,22 +398,22 @@ static void wd_do_transfer_in(void)
     SCSIID->direction = 0;
 }
 
-
 static void wd_cmd_sel_xfer_atn(void)
 {
     int i, tmp_tc;
 
     tmp_tc = wdregs[WD_TRANSFER_COUNT_LSB] | (wdregs[WD_TRANSFER_COUNT] << 8) | (wdregs[WD_TRANSFER_COUNT_MSB] << 16);
 #if WD33C93_DEBUG > 0
-    write_log("* %s select and transfer with atn, PHASE=%02X TC=%d\n", WD33C93, wdregs[WD_COMMAND_PHASE], tmp_tc);
+    write_log("* %s select and transfer with atn, ID=%d PHASE=%02X TC=%d\n",
+	WD33C93, wdregs[WD_DESTINATION_ID] & 0x7, wdregs[WD_COMMAND_PHASE], tmp_tc);
 #endif
     if (wdregs[WD_COMMAND] & 0x80)
 	wd_tc = 1;
-    SCSIID->buffer[0] = 0;
     if (!SCSIID) {
 	set_status(CSR_TIMEOUT, 0);
 	return;
     }
+    SCSIID->buffer[0] = 0;
     SCSIID->direction = 0;
     if (wdregs[WD_COMMAND_PHASE] <= 0x30) {
 	wd_tc = 6;
@@ -501,7 +503,7 @@ static void wd_cmd_sel_atn(void)
 	wdregs[WD_COMMAND_PHASE] = 0x10;
 	return;
     }
-    set_status(CSR_TIMEOUT, 0);
+    set_status(CSR_TIMEOUT, 1000);
 }
 
 static void wd_cmd_reset(void)
@@ -657,12 +659,14 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0x93:
 	v = wdscsi_get();
 	break;
+	case 0xc1:
+	v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
+	break;
 	/* XT IO */
 	case 0xa1:
 	case 0xa3:
 	case 0xa5:
 	case 0xa7:
-	case 0xc1:
 	case 0xc3:
 	case 0xc5:
 	case 0xc7:
@@ -1291,7 +1295,7 @@ void a2091_init (void)
     roms[2] = 53;
     roms[3] = 56;
     roms[4] = -1;
-    //roms[0] = 56;
+    roms[0] = 56;
 
     rombankswitcher = 0;
     rombank = 0;

@@ -33,6 +33,8 @@
 #define ERROR_DELETE_PROTECTED		222
 #define ERROR_WRITE_PROTECTED		223
 #define ERROR_READ_PROTECTED		224
+#define ERROR_NOT_A_DOS_DISK		225
+#define ERROR_NO_DISK			226
 #define ERROR_NO_MORE_ENTRIES		232
 #define ERROR_NOT_IMPLEMENTED		236
 
@@ -86,6 +88,8 @@ typedef struct a_inode_struct {
     unsigned int deleted:1;
     /* target volume flag */
     unsigned int volflags;
+    /* not equaling unit.mountcount -> not in this volume */
+    unsigned int mountcount;
 #ifdef AINO_DEBUG
     uae_u32 checksum2;
 #endif
@@ -146,4 +150,4 @@ extern int custom_fsdb_used_as_nname (a_inode *base, const char *nname);
 #define MYVOLUMEINFO_STREAMS 2
 #define MYVOLUMEINFO_ARCHIVE 4
 
-extern int my_getvolumeinfo (char *root);
+extern int my_getvolumeinfo (const char *root);

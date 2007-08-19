@@ -271,6 +271,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
     if ((base->volflags & MYVOLUMEINFO_STREAMS) && read_uaefsdb (aino->nname, NULL, fsdb)) {
 	aino->amigaos_mode = do_get_mem_long ((uae_u32 *)(fsdb + 1));
 	xfree (aino->comment);
+	aino->comment = NULL;
 	if (fsdb[5 + 2 * 257])
 	    aino->comment = my_strdup (fsdb + 5 + 2 * 257);
 	xfree (aino_from_buf (base, fsdb, &winmode));
@@ -791,7 +792,7 @@ int dos_errno (void)
 typedef BOOL (CALLBACK* GETVOLUMEPATHNAME)
   (LPCTSTR lpszFileName, LPTSTR lpszVolumePathName, DWORD cchBufferLength);
 
-int my_getvolumeinfo (char *root)
+int my_getvolumeinfo (const char *root)
 {
     DWORD v, err;
     int ret = 0;

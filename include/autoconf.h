@@ -52,6 +52,9 @@ extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mounte
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
 
+int filesys_insert(int nr, char *volume, char *rootdir, int readonly, int flags);
+int filesys_eject(int nr);
+
 extern int sprintf_filesys_unit (char *buffer, int num);
 
 extern void filesys_reset (void);
@@ -60,6 +63,7 @@ extern void filesys_prepare_reset (void);
 extern void filesys_start_threads (void);
 extern void filesys_flush_cache (void);
 extern void filesys_free_handles (void);
+extern void filesys_vsync (void);
 
 extern void filesys_install (void);
 extern void filesys_install_code (void);

@@ -340,6 +340,12 @@ extern void a3000_fakekick(int);
 #define ROMTYPE_ARCADIABIOS 512
 #define ROMTYPE_ARCADIAGAME 1024
 #define ROMTYPE_HRTMON 2048
+#define ROMTYPE_NORDIC 4096
+#define ROMTYPE_XPOWER 8192
+#define ROMTYPE_EVEN 16384
+#define ROMTYPE_ODD 32768
+#define ROMTYPE_BYTESWAP 65536
+#define ROMTYPE_SCRAMBLED 131072
 
 struct romheader {
     char *name;
@@ -356,6 +362,7 @@ struct romdata {
     int cpu;
     int cloanto;
     int type;
+    int group;
     int title;
     uae_u32 crc32;
     uae_u32 sha1[5];

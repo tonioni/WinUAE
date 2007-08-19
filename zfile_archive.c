@@ -189,10 +189,10 @@ void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsig
     zn = &zv->root;
     while (zn) {
 	if (zn->isfile) {
-	    struct zfile *zf = archive_getzfile (zn, id);
-	    if (zf) {
-		int ret = zc (zf, user);
-		zfile_fclose(zf);
+	    struct zfile *zf2 = archive_getzfile (zn, id);
+	    if (zf2) {
+		int ret = zc (zf2, user);
+		zfile_fclose(zf2);
 		if (ret)
 		    break;
 	    }

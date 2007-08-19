@@ -1199,20 +1199,21 @@ static void decode_pcdos (drive *drv)
     uae_u8 secbuf[700];
     uae_u16 crc16;
     trackid *ti = drv->trackdata + tr;
+    int tracklen = 12500;
 
     mfm2 = drv->bigmfmbuf;
     *mfm2++ = 0x9254;
-    memset (secbuf, 0x4e, 80); // 94
-    memset (secbuf + 80, 0x00, 12); // 12
-    secbuf[92] = 0xc2;
-    secbuf[93] = 0xc2;
-    secbuf[94] = 0xc2;
-    secbuf[95] = 0xfc;
-    memset (secbuf + 96, 0x4e, 50); // 50
-    dstmfmbuf = mfmcoder(secbuf, mfm2, 146);
-    mfm2[92] = 0x5224;
-    mfm2[93] = 0x5224;
-    mfm2[94] = 0x5224;
+    memset (secbuf, 0x4e, 40);
+    memset (secbuf + 40, 0x00, 12);
+    secbuf[52] = 0xc2;
+    secbuf[53] = 0xc2;
+    secbuf[54] = 0xc2;
+    secbuf[55] = 0xfc;
+    memset (secbuf + 56, 0x4e, 40);
+    dstmfmbuf = mfmcoder(secbuf, mfm2, 96);
+    mfm2[52] = 0x5224;
+    mfm2[53] = 0x5224;
+    mfm2[54] = 0x5224;
     for (i = 0; i < drv->num_secs; i++) {
         mfm2 = dstmfmbuf;
 	memset (secbuf, 0x00, 12);
@@ -1237,7 +1238,7 @@ static void decode_pcdos (drive *drv)
 	crc16 = get_crc16(secbuf + 56, 3 + 1 + 512);
 	secbuf[60 + 512] = crc16 >> 8;
 	secbuf[61 + 512] = crc16 & 0xff;
-	memset(secbuf + 512 + 62, 0x4e, 76 / drv->ddhd);
+	memset(secbuf + 512 + 62, 0x4e, (tracklen / 2 - 96) / drv->num_secs - 574);
 	dstmfmbuf = mfmcoder(secbuf, mfm2, 60 + 512 + 2 + 76 / drv->ddhd);
 	mfm2[12] = 0x4489;
 	mfm2[13] = 0x4489;
@@ -1246,7 +1247,7 @@ static void decode_pcdos (drive *drv)
 	mfm2[57] = 0x4489;
 	mfm2[58] = 0x4489;
     }
-    for (i = 0; i < 200; i++)
+    while (dstmfmbuf - drv->bigmfmbuf < tracklen / 2)
         *dstmfmbuf++ = 0x9254;
     drv->skipoffset = 0;
     drv->tracklen = (dstmfmbuf - drv->bigmfmbuf) * 16;
@@ -2468,7 +2469,7 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
     }
 }
 
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 extern uae_u8 cycle_line[256];
 #endif
 
@@ -2545,7 +2546,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	    if (dsklength > 0) {
 		put_word (dskpt, word);
 		dskpt += 2;
-#ifdef CPUEMU_6
+#ifdef CPUEMU_12
 		cycle_line[7] |= CYCLE_MISC;
 		cycle_line[9] |= CYCLE_MISC;
 #endif

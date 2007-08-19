@@ -1,4 +1,51 @@
 
+Beta 1:
+
+- ROM scan now always scans all detected ROM paths (skips duplicate
+  paths)
+- zero sized files inside archives could have caused illegal accesses
+  in some cases
+- return HFERR_NoBoard, not IOERR_OPENFAIL when opening non-existing
+  uaehf.device units. Fixes problem with <OS3.5 hdtoolbox versions
+  not detecting hardfiles that are not in topmost position in harddisk
+  panel.
+- if blitter line draw with onedot-mode enabled, blitter does not write
+  non-drawn pixel words back to chip ram (it becomes free bus cycle)
+- -datapath fixed, again and again, it seems to never work properly..
+- CD32 statefile support works again
+- paths-panel adjustments, "new" path (in All Users) is only created
+  if selected in paths-panel.
+- directory filesystem ACTION_WRITE_PROTECT packet implemented
+  (AmigaDOS Lock-command) Note: "hardware" lock (read-only status
+  in configuration file/GUI) can't be unlocked with Lock-command.
+- directory filesystem ACTION_INHIBIT implemented (not really needed
+  but it uses same functions as removable drive support)
+- directory filesystem ACTION_MORE_CACHE implemented (Addbuffers),
+  No-op, currently always returns 50 and flushes file/dir cache.
+- directory filesystem ACTION_FLUSH_CACHE implemented, flushes
+  file/dir cache.
+- possible filecomment leak/access error in fsdb/streams support
+- filesystem ACTION_WRITE optimized (no temporary buffer if memory
+  is directly accessable, optimization copied from ACTION_READ)
+- removable directory filesystem support added
+  - it is not possible to add new devices after emulation has been
+    started (workaround: add 1 or more empty drives = add new directory
+    without device/volume name or path)
+  - only volume name gets removed (like CD0: without CD inserted)
+  - GUI can't be used to insert/remove harddrives. Yet.
+    I don't know make it easy to use..
+  - drag'n'drop (directories or files/archives) to WinUAE's window is
+    currently the only way to test removable drive support. Note that
+    only drives that were empty when emulation was started will be
+    remounted. (It is quite bad idea to remove OS/boot drive..)
+  - weird things can happen if files are open when changing drive
+- CPU emulation and other cleanups (Bernd Schmidt!)
+- X-Power Professional 500 v1.3 supported
+- Nordic Power v1.5 supported
+- compiled with MSVS 2008 (Orcas) Beta 2
+
+1.4.3
+
 Beta 13: (RC2)
 
 - Action Replay 1200 "cartridge support" credits added

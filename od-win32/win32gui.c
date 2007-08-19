@@ -440,8 +440,8 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
     if (!cl)
 	rd = getromdatabydata (rombuf, size);
     if (!rd) {
-	write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
-	   size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+	;//write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
+	 //  size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
     }
     free (rombuf);
     return rd;
@@ -486,22 +486,32 @@ static int addrom (HKEY fkey, struct romdata *rd, char *name)
     return 1;
 }
 
-static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
+static int isromext(char *path)
 {
-    int i;
-    char *path = zfile_getname(f);
     char *ext = strrchr (path, '.');
-    struct romdata *rd;
+    int i;
 
     if (!ext)
 	return 0;
     ext++;
+
+    if (!stricmp (ext, "rom") ||  !stricmp (ext, "adf") || !stricmp (ext, "key")
+        || !stricmp (ext, "a500") || !stricmp (ext, "a1200") || !stricmp (ext, "a4000"))
+	    return 1;
     for (i = 0; uae_archive_extensions[i]; i++) {
-	if (!stricmp (ext, uae_archive_extensions[i])) {
-	    //zfile_zopen (path, scan_rom_2, rsd);
-	    return 0;
-	}
+	if (!stricmp (ext, uae_archive_extensions[i]))
+	    return 1;
     }
+    return 0;
+}
+
+static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
+{
+    char *path = zfile_getname(f);
+    struct romdata *rd;
+
+    if (!isromext(path))
+	return 0;
     rd = scan_single_rom_2 (f);
     if (rd) {
 	addrom (rsd->fkey, rd, path);
@@ -514,24 +524,12 @@ static int scan_rom (char *path, HKEY fkey)
 {
     struct romscandata rsd = { fkey, 0 };
     struct romdata *rd;
-    int cnt = 0, i;
-    char *ext = strrchr (path, '.');
+    int cnt = 0;
 
-    if (!ext)
+    if (!isromext(path)) {
+	//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 	return 0;
-    ext++;
-    for (i = 0; uae_archive_extensions[i]; i++) {
-	if (!stricmp (ext, uae_archive_extensions[i]))
-	    break;
     }
-    if (!uae_archive_extensions[i]) {
-	if (stricmp (ext, "rom") && stricmp (ext, "adf") && stricmp (ext, "key")
-	    && stricmp (ext, "a500") && stricmp (ext, "a1200") && stricmp (ext, "a4000")) {
-	    write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
-	    return 0;
-	}
-    }
-
     for (;;) {
 	char tmp[MAX_DPATH];
 	strcpy (tmp, path);
@@ -624,46 +622,85 @@ static void show_rom_list (void)
     free (p);
 }
 
-static int scan_roms_2 (char *pathp)
+static int scan_roms_2 (HKEY fkey, char *pathp)
 {
-    HKEY fkey = NULL;
     char buf[MAX_DPATH], path[MAX_DPATH];
     WIN32_FIND_DATA find_data;
     HANDLE handle;
     int ret;
-    int keys;
     
     if (!pathp)
-	fetch_path ("KickstartPath", path, sizeof (path));
-    else
-	strcpy (path, pathp);
+	return 0;
+    GetFullPathName(pathp, MAX_DPATH, path, NULL);
+    write_log("ROM scan directory '%s'\n", path);
     strcpy (buf, path);
     strcat (buf, "*.*");
-    if (!hWinUAEKey)
-	goto end;
-    keys = get_keyring();
+    ret = 0;
+    handle = FindFirstFile (buf, &find_data);
+    if (handle == INVALID_HANDLE_VALUE)
+        return 0;
+    for (;;) {
+        char tmppath[MAX_DPATH];
+        strcpy (tmppath, path);
+        strcat (tmppath, find_data.cFileName);
+        if (!(find_data.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY |FILE_ATTRIBUTE_SYSTEM)) && find_data.nFileSizeLow < 10000000) {
+	    if (scan_rom (tmppath, fkey))
+	        ret = 1;
+	}
+	if (FindNextFile (handle, &find_data) == 0) {
+	    FindClose (handle);
+	    break;
+	}
+    }
+    return ret;
+}
+
+static int scan_roms_3(HKEY fkey, char **paths, int offset, char *path)
+{
+    int i, ret;
+
+    ret = 0;
+    for (i = 0; i < offset; i++) {
+	if (paths[i] && !strcmpi(paths[i], path))
+	    return ret;
+    }
+    ret = scan_roms_2 (fkey, path);
+    paths[offset] = my_strdup(path);
+    return ret;
+}
+
+extern int get_rom_path(char *out, int mode);
+
+int scan_roms (void)
+{
+    char path[MAX_DPATH];
+    static int recursive;
+    int id, i, ret, keys, cnt;
+    HKEY fkey = NULL;
+    char *paths[10];
+
+    if (recursive)
+	return 0;
+    recursive++;
+
     SHDeleteKey (hWinUAEKey, "DetectedROMs");
     RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
 	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
     if (fkey == NULL)
 	goto end;
-    ret = 0;
+
+    cnt = 0;
+    for (i = 0; i < 10; i++)
+	paths[i] = NULL;
     for (;;) {
-	handle = FindFirstFile (buf, &find_data);
-	if (handle == INVALID_HANDLE_VALUE)
-	    goto end;
-	for (;;) {
-	    char tmppath[MAX_DPATH];
-	    strcpy (tmppath, path);
-	    strcat (tmppath, find_data.cFileName);
-	    if (!(find_data.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY |FILE_ATTRIBUTE_SYSTEM)) && find_data.nFileSizeLow < 10000000) {
-		if (scan_rom (tmppath, fkey))
-		    ret = 1;
-	    }
-	    if (FindNextFile (handle, &find_data) == 0) {
-		FindClose (handle);
+	keys = get_keyring();
+	fetch_path("KickstartPath", path, sizeof path);
+        scan_roms_3 (fkey, paths, 0, path);
+	for(i = 0; ;i++) {
+	    ret = get_rom_path(path, i);
+	    if (ret < 0)
 		break;
-	    }
+	    cnt += scan_roms_3 (fkey, paths, 2 + i, path);
 	}
 	if (get_keyring() > keys) { /* more keys detected in previous scan? */
 	    keys = get_keyring();
@@ -671,48 +708,33 @@ static int scan_roms_2 (char *pathp)
 	}
 	break;
     }
-end:
-    if (fkey)
-	RegCloseKey (fkey);
-    return ret;
-}
+    if (cnt == 0)
+	scan_roms_3 (fkey, paths, 1, workprefs.path_rom);
 
-int scan_roms (char *pathp)
-{
-    char path[MAX_DPATH];
-    int ret;
-    static int recursive;
-    int id;
-    HKEY fkey;
+    for (i = 0; i < 10; i++)
+	xfree(paths[i]);
 
-    if (recursive)
-	return 0;
-    recursive++;
-    ret = scan_roms_2 (pathp);
-    sprintf (path, "%s..\\shared\\rom\\", start_path_data);
-    if (!ret && pathp == NULL) {
-	ret = scan_roms_2 (path);
-	if (ret)
-	    set_path ("KickstartPath", path);
-    }
-    if (hWinUAEKey) {
-	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-	if (fkey) {
-	    id = 1;
-	    for (;;) {
-		struct romdata *rd = getromdatabyid(id);
-		if (!rd)
-		    break;
-		if (rd->crc32 == 0xffffffff)
-		    addrom(fkey, rd, NULL);
-		id++;
-	    }
-	    RegCloseKey(fkey);
+    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
+        KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    if (fkey) {
+        id = 1;
+        for (;;) {
+	    struct romdata *rd = getromdatabyid(id);
+	    if (!rd)
+	        break;
+	    if (rd->crc32 == 0xffffffff)
+	        addrom(fkey, rd, NULL);
+	    id++;
 	}
+	RegCloseKey(fkey);
     }
+
+end:
     read_rom_list ();
     show_rom_list ();
+
+    if (fkey)
+	RegCloseKey (fkey);
     recursive--;
     return ret;
 }
@@ -2784,6 +2806,7 @@ static void resetregistry (void)
 int path_type;
 static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    void create_afnewdir(int);
     static int recursive;
     static int ptypes[3], numtypes;
     int val, selpath = 0;
@@ -2804,6 +2827,8 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    if (path_type == PATH_TYPE_NEWAF)
 		selpath = numtypes;
 	    ptypes[numtypes++] = PATH_TYPE_NEWAF;
+	}
+	if (start_path_new1[0]) {
 	    WIN32GUI_LoadUIString(IDS_DEFAULT_NEWWINUAE, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == PATH_TYPE_NEWWINUAE)
@@ -2844,11 +2869,9 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    fetch_path ("KickstartPath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
 	        load_keyring(&workprefs, NULL);
-		if (tmp[strlen (tmp) - 1] != '\\')
-		    strcat (tmp, "\\");
-		if (!scan_roms (tmp)) 
-		    gui_message_id (IDS_ROMSCANNOROMS);
 		set_path ("KickstartPath", tmp);
+		if (!scan_roms ()) 
+		    gui_message_id (IDS_ROMSCANNOROMS);
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
@@ -2924,6 +2947,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		} else if (val == PATH_TYPE_NEWWINUAE && start_path_new1[0]) {
 		    strcpy (start_path_data, start_path_new1);
 		    path_type = PATH_TYPE_NEWWINUAE;
+		    create_afnewdir(0);
 		    strcpy (pathmode, "WinUAE_2");
 		} else if (val == PATH_TYPE_OLDAF && start_path_af[0]) {
 		    strcpy (start_path_data, start_path_af);
@@ -2932,6 +2956,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		} else if (val == PATH_TYPE_NEWAF && start_path_new1[0]) {
 		    strcpy (pathmode, "AF2005");
 		    path_type = PATH_TYPE_NEWAF;
+		    create_afnewdir(0);
 		    strcpy (start_path_data, start_path_new1);
 		} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
 		    strcpy (pathmode, "AMIGAFOREVERDATA");
@@ -2952,7 +2977,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    }
 	    break;
 	    case IDC_ROM_RESCAN:
-	    scan_roms (NULL);
+	    scan_roms ();
 	    break;
 	    case IDC_RESETREGISTRY:
 	    resetregistry ();
@@ -4656,9 +4681,12 @@ static void values_to_kickstartdlg (HWND hDlg)
 	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
 	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
 	load_keyring(&workprefs, NULL);
-	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile, ROMTYPE_KICK | ROMTYPE_KICKCD32);
-	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile, ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile, ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
+	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
+	    ROMTYPE_KICK | ROMTYPE_KICKCD32);
+	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
+	    ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
+	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
+	    ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
 	if (fkey)
 	    RegCloseKey (fkey);
     }
@@ -4690,7 +4718,7 @@ static void init_kickstart (HWND hDlg)
     ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
     if (RegOpenKeyEx (hWinUAEKey , "DetectedROMs", 0, KEY_READ, &fkey) != ERROR_SUCCESS)
-	scan_roms (workprefs.path_rom);
+	scan_roms ();
     if (fkey)
 	RegCloseKey (fkey);
     ew (hDlg, IDC_HRTMON, full_property_sheet);
@@ -5637,7 +5665,7 @@ static void values_to_sounddlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SOUNDSTEREOMIX, CB_ADDSTRING, 0, (LPARAM)txt);
     }
     SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_SETCURSEL,
-	workprefs.sound_mixed_stereo > 0 ? workprefs.sound_mixed_stereo : 0, 0);
+	workprefs.sound_mixed_stereo_delay > 0 ? workprefs.sound_mixed_stereo_delay : 0, 0);
     
     SendDlgItemMessage(hDlg, IDC_SOUNDINTERPOLATION, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_SOUND_INTERPOL_DISABLED, txt, sizeof (txt));
@@ -5755,17 +5783,17 @@ static void values_from_sounddlg (HWND hDlg)
     if (idx != CB_ERR)
 	workprefs.sound_stereo = idx;
     workprefs.sound_stereo_separation = 0;
-    workprefs.sound_mixed_stereo = 0;
+    workprefs.sound_mixed_stereo_delay = 0;
     if (workprefs.sound_stereo > 0) {
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOSEP, CB_GETCURSEL, 0, 0);
 	if (idx != CB_ERR) {
 	    if (idx > 0)
-		workprefs.sound_mixed_stereo = -1;
+		workprefs.sound_mixed_stereo_delay = -1;
 	    workprefs.sound_stereo_separation = 10 - idx;
 	}
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREOMIX, CB_GETCURSEL, 0, 0);
 	if (idx != CB_ERR && idx > 0)
-	    workprefs.sound_mixed_stereo = idx;
+	    workprefs.sound_mixed_stereo_delay = idx;
     }
 
     workprefs.sound_interpol = SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_GETCURSEL, 0, 0);
@@ -5976,6 +6004,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		    break;
 		    case IDOK:
 		    {
+#if 0
 			if(!my_existsfile(current_fsvdlg.rootdir) && !my_existsdir(current_fsvdlg.rootdir)) {
 			    char szMessage[MAX_DPATH];
 			    char szTitle[MAX_DPATH];
@@ -5985,6 +6014,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 			    break;
 			}
+#endif
 			EndDialog (hDlg, 1);
 		    }
 		    break;
@@ -9590,8 +9620,11 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	    break;
 	    case ZFILE_HDF:
 		if (flags & FILE_ATTRIBUTE_DIRECTORY) {
-		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
-			0, 0, 0, 0, 0, NULL, 0, 0);
+		    if (!full_property_sheet && currentpage < 0)
+			filesys_insert(-1, NULL, file, 0, 0);
+		    else
+			add_filesys_config (&workprefs, -1, NULL, "", file, 0,
+			    0, 0, 0, 0, 0, NULL, 0, 0);
 		} else {
 		    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
 			32, 1, 2, 512, 0, NULL, 0, 0);
@@ -9618,7 +9651,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	        ret = 1;
 	    break;
 	    default:
-		if (currentpage == HARDDISK_ID) {
+		if (currentpage < 0 && !full_property_sheet) {
+		    filesys_insert(-1, NULL, file, 0, 0);
+		} else if (currentpage == HARDDISK_ID) {
 		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
 			0, 0, 0, 0, 0, NULL, 0, 0);
 		} else {

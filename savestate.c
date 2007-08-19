@@ -396,6 +396,7 @@ void restore_state (char *filename)
     changed_prefs.bogomem_size = 0;
     changed_prefs.chipmem_size = 0;
     changed_prefs.fastmem_size = 0;
+    changed_prefs.z3fastmem_size = 0;
     changed_prefs.mbresmem_low_size = 0;
     changed_prefs.mbresmem_high_size = 0;
     savestate_state = STATE_RESTORE;
@@ -507,6 +508,10 @@ void restore_state (char *filename)
 	else if (!strcmp (name, "FSYC"))
 	    end = restore_filesys_common (chunk);
 #endif
+#ifdef CD32
+	else if (!strcmp (name, "CD32"))
+	    end = restore_akiko (chunk);
+#endif
 	else if (!strcmp (name, "GAYL"))
 	    end = restore_gayle (chunk);
 	else if (!strcmp (name, "IDE "))
@@ -525,6 +530,7 @@ void restore_state (char *filename)
 	xfree (chunk);
     }
     restore_blitter_finish();
+    restore_akiko_finish();
     return;
 
     error:
@@ -715,6 +721,11 @@ int save_state (char *filename, char *description)
 	xfree (dst);
     } while ((dst = save_rom (0, &len, 0)));
 
+#ifdef CD32
+    dst = save_akiko (&len);
+    save_chunk (f, dst, len, "CD32", 0);
+    xfree (dst);
+#endif
 #ifdef ACTION_REPLAY
     dst = save_action_replay (&len, 0);
     save_chunk (f, dst, len, "ACTR", 1);

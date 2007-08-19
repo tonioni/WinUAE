@@ -91,7 +91,7 @@ static void generate_func(void)
 #endif
 	if (a_is_on) printf("uae_u32 preva = 0;\n");
 	if (b_is_on) printf("uae_u32 prevb = 0, srcb = b->bltbhold;\n");
-	printf("uae_u32 srcc = b->bltcdat;\n");
+	if (c_is_on) printf("uae_u32 srcc = b->bltcdat;\n");
 	printf("uae_u32 dstd=0;\n");
 	printf("uaecptr dstp = 0;\n");
 	printf("for (j = 0; j < b->vblitsize; j++) {\n");
@@ -115,7 +115,7 @@ static void generate_func(void)
 	printf("\tif (ptd) ptd += b->bltdmod;\n");
 	printf("}\n");
 	if (b_is_on) printf("b->bltbhold = srcb;\n");
-	printf("b->bltcdat = srcc;\n");
+	if (c_is_on) printf("b->bltcdat = srcc;\n");
 	printf("\t\tif (dstp) chipmem_agnus_wput (dstp, dstd);\n");
 #if 0
 	printf("}\n");
@@ -168,8 +168,8 @@ static void generate_func(void)
 #endif
 	if (a_is_on) printf("uae_u32 preva = 0;\n");
 	if (b_is_on) printf("uae_u32 prevb = 0, srcb = b->bltbhold;\n");
-	printf("uae_u32 srcc = b->bltcdat;\n");
-	printf("uae_u32 dstd=0;\n");
+	if (c_is_on) printf("uae_u32 srcc = b->bltcdat;\n");
+	printf("uae_u32 dstd = 0;\n");
 	printf("uaecptr dstp = 0;\n");
 	printf("for (j = 0; j < b->vblitsize; j++) {\n");
 	printf("\tfor (i = 0; i < b->hblitsize; i++) {\n\t\tuae_u32 bltadat, srca;\n");
@@ -192,7 +192,7 @@ static void generate_func(void)
 	printf("\tif (ptd) ptd -= b->bltdmod;\n");
 	printf("}\n");
 	if (b_is_on) printf("b->bltbhold = srcb;\n");
-	printf("b->bltcdat = srcc;\n");
+	if (c_is_on) printf("b->bltcdat = srcc;\n");
 	printf("\t\tif (dstp) chipmem_agnus_wput (dstp, dstd);\n");
 #if 0
 	printf("}\n");

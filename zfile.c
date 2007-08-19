@@ -582,6 +582,9 @@ struct zfile *zfile_fopen_empty (const char *name, int size)
 	l->data = (uae_u8*)malloc (size);
 	l->size = size;
 	memset (l->data, 0, size);
+    } else {
+	l->data = (uae_u8*)calloc (1, 1);
+	l->size = 0;
     }
     return l;
 }

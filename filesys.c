@@ -106,12 +106,14 @@ typedef struct {
     uaecptr startup;
     char *volname; /* volume name, e.g. CDROM, WORK, etc. */
     int volflags; /* volume flags, readonly, stream uaefsdb support */
-    char *rootdir; /* root native directory/hdf */
+    char *rootdir; /* root native directory/hdf. empty drive if invalid path */
+    struct zvolume *zarchive;
     char *rootdirdiff; /* "diff" file/directory */
     int readonly; /* disallow write access? */
     int bootpri; /* boot priority */
     int devno;
     int controller;
+    int wasisempty; /* if true, this unit can be safely ejected and inserted */
 
     struct hardfiledata hf;
 
@@ -152,7 +154,7 @@ int nr_units (void)
 
 int is_hardfile (int unit_no)
 {
-    if (mountinfo.ui[unit_no].volname)
+    if (mountinfo.ui[unit_no].volname || mountinfo.ui[unit_no].wasisempty)
 	return FILESYS_VIRTUAL;
     if (mountinfo.ui[unit_no].hf.secspertrack == 0) {
 	if (mountinfo.ui[unit_no].hf.flags & 1)
@@ -210,6 +212,9 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
     if (!ui) {
 	ui = &uitmp;
 	if (!uci->ishdf) {
+	    mi->ismounted = 1;
+	    if (uci->rootdir && strlen(uci->rootdir) == 0)
+		return FILESYS_VIRTUAL;
 	    if (my_getvolumeinfo (uci->rootdir) < 0)
 		return -1;
 	    return FILESYS_VIRTUAL;
@@ -244,6 +249,33 @@ static void stripsemicolon(char *s)
 	s[strlen(s) - 1] = 0;
 }
 
+static int set_filesys_volume(const char *rootdir, int *flags, int *readonly, int *emptydrive, struct zvolume **zvp)
+{
+    *emptydrive = 0;
+    if (my_existsfile(rootdir)) {
+        struct zvolume *zv;
+        zv = zfile_fopen_archive(rootdir);
+        if (!zv) {
+	    write_log ("'%s' is not a supported archive file\n", rootdir);
+	    return -1;
+	}
+	*zvp = zv;
+	*flags = MYVOLUMEINFO_ARCHIVE;
+	*readonly = 1;
+    } else {
+        *flags = my_getvolumeinfo (rootdir);
+        if (*flags < 0) {
+	    write_log ("directory '%s' not found, mounting as empty drive\n", rootdir);
+	    *emptydrive = 1;
+	    *flags = 0;
+	} else if ((*flags) & MYVOLUMEINFO_READONLY) {
+	    write_log ("'%s' set to read-only\n", rootdir);
+	    *readonly = 1;
+	}
+    }
+    return 1;
+}
+
 static int set_filesys_unit_1 (int nr,
 				 char *devname, char *volname, char *rootdir, int readonly,
 				 int secspertrack, int surfaces, int reserved,
@@ -251,6 +283,7 @@ static int set_filesys_unit_1 (int nr,
 {
     UnitInfo *ui;
     int i;
+    int emptydrive = 0;
 
     if (hdc)
 	return -1;
@@ -268,7 +301,7 @@ static int set_filesys_unit_1 (int nr,
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
         if (nr == i || !mountinfo.ui[i].open)
 	    continue;
-	if (!strcmpi (mountinfo.ui[i].rootdir, rootdir)) {
+	if (strlen(rootdir) > 0 && !strcmpi (mountinfo.ui[i].rootdir, rootdir)) {
 	    write_log ("directory/hardfile '%s' already added\n", rootdir);
 	    return -1;
 	}
@@ -285,29 +318,13 @@ static int set_filesys_unit_1 (int nr,
     ui->bootpri = 0;
     ui->filesysdir = 0;
 
-    if (volname != 0 && volname[0]) {
+    if (volname != NULL) {
 	int flags = 0;
-	ui->volname = my_strdup (volname);
-	stripsemicolon(ui->volname);
-	if (my_existsfile(rootdir)) {
-	    struct zvolume *zv;
-	    zv = zfile_fopen_archive(rootdir);
-	    if (!zv) {
-		write_log ("'%s' is not a supported archive file\n", rootdir);
-		return -1;
-	    }
-	    flags = MYVOLUMEINFO_ARCHIVE;
-	    readonly = 1;
-	} else {
-	    flags = my_getvolumeinfo (rootdir);
-	    if (flags < 0) {
-		write_log ("directory '%s' not found\n", rootdir);
-		return -1;
-	    }
-	    if (flags & MYVOLUMEINFO_READONLY) {
-		write_log ("'%s' set to read-only\n", rootdir);
-		readonly = 1;
-	    }
+	if (set_filesys_volume(rootdir, &flags, &readonly, &emptydrive, &ui->zarchive) < 0)
+	    return -1;
+	if (!emptydrive) {
+	    ui->volname = my_strdup (volname);
+	    stripsemicolon(ui->volname);
 	}
 	ui->volflags = flags;
     } else {
@@ -344,7 +361,8 @@ static int set_filesys_unit_1 (int nr,
     }
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
-    ui->rootdir = my_strdup (rootdir);
+    ui->wasisempty = emptydrive;
+    ui->rootdir = emptydrive ? my_strdup("") : my_strdup (rootdir);
     ui->devname = my_strdup (devname);
     stripsemicolon(ui->devname);
     if (filesysdir && filesysdir[0])
@@ -418,7 +436,9 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
     return 1;
 }
 
+
 static void filesys_addexternals(void);
+
 static void initialize_mountinfo(void)
 {
     int i;
@@ -429,7 +449,7 @@ static void initialize_mountinfo(void)
 	int idx;
 	uci = &currprefs.mountconfig[i];
 	if (uci->controller == HD_CONTROLLER_UAE) {
-	    idx = set_filesys_unit_1 (-1, uci->devname, uci->volname, uci->rootdir,
+	    idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
 		uci->blocksize, uci->bootpri, uci->filesys, 0, 0);
 	    if (idx >= 0)
@@ -482,7 +502,7 @@ void free_mountinfo (void)
 struct hardfiledata *get_hardfile_data (int nr)
 {
     UnitInfo *uip = mountinfo.ui;
-    if (nr < 0 || nr >= MAX_FILESYSTEM_UNITS || uip[nr].open == 0 || uip[nr].volname != 0)
+    if (nr < 0 || nr >= MAX_FILESYSTEM_UNITS || uip[nr].open == 0 || is_hardfile(nr) == FILESYS_VIRTUAL)
 	return 0;
     return &uip[nr].hf;
 }
@@ -516,6 +536,7 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_FREE_LOCK	15
 #define ACTION_DELETE_OBJECT	16
 #define ACTION_RENAME_OBJECT	17
+#define ACTION_MORE_CACHE	18
 #define ACTION_COPY_DIR		19
 #define ACTION_SET_PROTECT	21
 #define ACTION_CREATE_DIR	22
@@ -532,6 +553,7 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_FIND_OUTPUT	1006
 #define ACTION_END		1007
 #define ACTION_SEEK		1008
+#define ACTION_WRITE_PROTECT	1023
 #define ACTION_IS_FILESYSTEM	1027
 #define ACTION_READ		'R'
 #define ACTION_WRITE		'W'
@@ -630,6 +652,17 @@ typedef struct _unit {
     struct notify *notifyhash[NOTIFY_HASH_SIZE];
 
     int volflags;
+    uae_u32 lockkey;
+    int inhibited;
+    int canremovable;
+    int mountcount;
+    struct zvolume *zarchive;
+
+    int reinsertdelay;
+    char *newvolume;
+    char *newrootdir;
+    int newreadonly;
+    int newflags;
 
 } Unit;
 
@@ -646,6 +679,8 @@ typedef uae_u8 *dpacket;
 #define GET_PCK_ARG3(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg3))))
 #define GET_PCK_ARG4(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg4))))
 #define GET_PCK_ARG5(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg5))))
+
+static int flush_cache(Unit *unit, int num);
 
 static char *char1 (uaecptr addr)
 {
@@ -712,6 +747,165 @@ find_unit (uaecptr port)
 	    break;
 
     return u;
+}
+
+static void set_volume_name(Unit *unit)
+{
+    int namelen;
+    int i;
+
+    namelen = strlen (unit->ui.volname);
+    put_byte (unit->volume + 44, namelen);
+    for (i = 0; i < namelen; i++)
+        put_byte (unit->volume + 45 + i, unit->ui.volname[i]);
+    put_byte (unit->volume + 45 + namelen, 0);
+    unit->rootnode.aname = unit->ui.volname;
+    unit->rootnode.nname = unit->ui.rootdir;
+    unit->rootnode.mountcount = unit->mountcount;
+}
+
+static int filesys_isvolume(Unit *unit)
+{
+    return get_byte(unit->volume + 44);
+}
+
+static void clear_exkeys(Unit *unit)
+{
+    int i;
+    a_inode *a;
+    for (i = 0; i < EXKEYS; i++) {
+	unit->examine_keys[i].aino = 0;
+	unit->examine_keys[i].curr_file = 0;
+	unit->examine_keys[i].uniq = 0;
+    }
+    unit->next_exkey = 1;
+    a = &unit->rootnode;
+    while (a) {
+	a->exnext_count = 0;
+	if (a->locked_children) {
+	    a->locked_children = 0;
+	    unit->total_locked_ainos--;
+	}
+	a = a->next;
+	if (a == &unit->rootnode)
+	    break;
+    }
+}
+
+int filesys_eject(int nr)
+{
+    UnitInfo *ui = &mountinfo.ui[nr];
+    Unit *u = ui->self;
+
+    if (!ui->open || u == NULL)
+	return 0;
+    if (is_hardfile(nr) != FILESYS_VIRTUAL)
+	return 0;
+    if (!filesys_isvolume(u))
+	return 0;
+    zfile_fclose_archive(u->zarchive);
+    u->zarchive = NULL;
+    u->mountcount++;
+    write_log("FILESYS: removed volume '%s'\n", u->ui.volname);
+    flush_cache(u, -1);
+    put_byte(u->volume + 172 - 32, -1);
+    uae_Signal(get_long(u->volume + 176 - 32), 1 << 17);
+    return 1;
+}
+
+void filesys_vsync(void)
+{
+    Unit *u;
+
+    for (u = units; u; u = u->next) {
+	if (u->reinsertdelay > 0) {
+	    u->reinsertdelay--;
+	    if (u->reinsertdelay == 0) {
+		filesys_insert(u->unit, u->newvolume, u->newrootdir, u->newreadonly, u->newflags);
+		xfree(u->newvolume);
+		u->newvolume = NULL;
+		xfree(u->newrootdir);
+		u->newrootdir = NULL;
+	    }
+	}
+    }
+}
+
+int filesys_insert(int nr, char *volume, char *rootdir, int readonly, int flags)
+{
+    int emptydrive = 0;
+    UnitInfo *ui;
+    Unit *u;
+
+    if (nr < 0) {
+	for (u = units; u; u = u->next) {
+	    if (is_hardfile(u->unit) == FILESYS_VIRTUAL) {
+		if (!filesys_isvolume(u))
+		    break;
+	    }
+	}
+	if (!u) {
+	    for (u = units; u; u = u->next) {
+		if (is_hardfile(u->unit) == FILESYS_VIRTUAL) {
+		    if (mountinfo.ui[u->unit].wasisempty)
+			break;
+		}
+	    }
+	}
+	if (!u)
+	    return 0;
+	nr = u->unit;
+	ui = &mountinfo.ui[nr];
+    } else {
+	ui = &mountinfo.ui[nr];
+	u = ui->self;
+    }
+
+    if (u->reinsertdelay)
+	return -1;
+    if (!ui->open || u == NULL)
+	return 0;
+    if (is_hardfile(nr) != FILESYS_VIRTUAL)
+	return 0;
+    if (filesys_isvolume(u)) {
+	u->reinsertdelay = 100;
+	u->newflags = flags;
+	u->newreadonly = readonly;
+	u->newrootdir = my_strdup(rootdir);
+	u->newvolume = my_strdup(volume);
+	filesys_eject(nr);
+	write_log("FILESYS: delayed insert %d '%s' ('%s')\n", nr, volume, rootdir);
+	return -1;
+    }
+    u->mountcount++;
+    clear_exkeys(u);
+    xfree (u->ui.rootdir);
+    ui->rootdir = u->ui.rootdir = my_strdup(rootdir);
+    flush_cache(u, -1);
+    if (set_filesys_volume (rootdir, &flags, &readonly, &emptydrive, &u->zarchive) < 0)
+	return 0;
+    if (emptydrive)
+	return 0;
+    xfree (u->ui.volname);
+    if (volume) {
+	ui->volname = u->ui.volname = my_strdup(volume);
+    } else {
+	char *p = strrchr (rootdir, '\\');
+	if (!p)
+	    p = strrchr (rootdir, '/');
+	if (p)
+	    ui->volname = u->ui.volname = my_strdup(p + 1);
+	else
+	    ui->volname = u->ui.volname = my_strdup("removable");
+    }
+    set_volume_name(u);
+    write_log("FILESYS: inserted volume %d '%s' ('%s')\n", nr, volume, rootdir);
+    ui->readonly = readonly;
+    ui->volflags = u->volflags = u->ui.volflags = flags;
+    put_byte (u->volume + 44, 0);
+    put_byte(u->volume + 172 - 32, 1);
+    uae_Signal(get_long(u->volume + 176 - 32), 1 << 17);
+    return 1;
 }
 
 /* flags and comments supported? */
@@ -798,10 +992,76 @@ static void dispose_aino (Unit *unit, a_inode **aip, a_inode *aino)
 
     *aip = aino->sibling;
     xfree (aino->aname);
-    if (aino->comment)
-	xfree (aino->comment);
+    xfree (aino->comment);
     xfree (aino->nname);
     xfree (aino);
+}
+
+static void free_all_ainos (Unit *u, a_inode *parent)
+{
+    a_inode *a;
+    while (a = parent->child) {
+	free_all_ainos (u, a);
+	dispose_aino (u, &parent->child, a);
+    }
+}
+
+static int flush_cache(Unit *unit, int num)
+{
+    int i = 0;
+    int cnt = 100;
+
+    write_log("FILESYS: flushing cache unit %d (max %d items)\n", unit->unit, num);
+    if (num == 0)
+	num = -1;
+    while (i < num || num < 0) {
+	int ii = i;
+	a_inode *parent = unit->rootnode.prev->parent;
+	a_inode **aip;
+
+	aip = &parent->child;
+	aino_test (parent);
+	if (parent && !parent->locked_children) {
+	    for (;;) {
+	        a_inode *aino = *aip;
+	        aino_test (aino);
+	        if (aino == 0)
+		    break;
+		/* Not recyclable if next == 0 (i.e., not chained into
+		   recyclable list), or if parent directory is being
+		   ExNext()ed.  */
+		if (aino->next == 0) {
+		    aip = &aino->sibling;
+		} else {
+		    if (aino->shlock > 0 || aino->elock)
+		        write_log ("panic: freeing locked a_inode!\n");
+		    de_recycle_aino (unit, aino);
+		    dispose_aino (unit, aip, aino);
+		    i++;
+		}
+	    }
+	}
+	if (unit->rootnode.next != unit->rootnode.prev) {
+	    /* In the previous loop, we went through all children of one
+	       parent.  Re-arrange the recycled list so that we'll find a
+	       different parent the next time around.
+	       (infinite loop if there is only one parent?)
+	    */
+	    int maxloop = 10000;
+	    do {
+		unit->rootnode.next->prev = unit->rootnode.prev;
+		unit->rootnode.prev->next = unit->rootnode.next;
+		unit->rootnode.next = unit->rootnode.prev;
+		unit->rootnode.prev = unit->rootnode.prev->prev;
+		unit->rootnode.prev->next = unit->rootnode.next->prev = &unit->rootnode;
+	    } while (unit->rootnode.prev->parent == parent && maxloop-- > 0);
+	}
+	if (i == ii)
+	    cnt--;
+	if (cnt <= 0)
+	    break;
+    }
+    return unit->aino_cache_size > 0 ? 0 : 1;
 }
 
 static void recycle_aino (Unit *unit, a_inode *new_aino)
@@ -816,45 +1076,7 @@ static void recycle_aino (Unit *unit, a_inode *new_aino)
 	    unit->aino_cache_size, unit->total_locked_ainos));
     if (unit->aino_cache_size > 5000 + unit->total_locked_ainos) {
 	/* Reap a few. */
-	int i = 0;
-	while (i < 50) {
-	    a_inode *parent = unit->rootnode.prev->parent;
-	    a_inode **aip;
-	    aip = &parent->child;
-
-	    aino_test (parent);
-	    if (! parent->locked_children) {
-		for (;;) {
-		    a_inode *aino = *aip;
-		    aino_test (aino);
-		    if (aino == 0)
-			break;
-		    /* Not recyclable if next == 0 (i.e., not chained into
-		       recyclable list), or if parent directory is being
-		       ExNext()ed.  */
-		    if (aino->next == 0) {
-			aip = &aino->sibling;
-		    } else {
-			if (aino->shlock > 0 || aino->elock)
-			    write_log ("panic: freeing locked a_inode!\n");
-
-			de_recycle_aino (unit, aino);
-			dispose_aino (unit, aip, aino);
-			i++;
-		    }
-		}
-	    }
-	    /* In the previous loop, we went through all children of one
-	       parent.  Re-arrange the recycled list so that we'll find a
-	       different parent the next time around.  */
-	    do {
-		unit->rootnode.next->prev = unit->rootnode.prev;
-		unit->rootnode.prev->next = unit->rootnode.next;
-		unit->rootnode.next = unit->rootnode.prev;
-		unit->rootnode.prev = unit->rootnode.prev->prev;
-		unit->rootnode.prev->next = unit->rootnode.next->prev = &unit->rootnode;
-	    } while (unit->rootnode.prev->parent == parent);
-	}
+	flush_cache (unit, 50);
 #if 0
 	{
 	    char buffer[40];
@@ -874,6 +1096,10 @@ static void recycle_aino (Unit *unit, a_inode *new_aino)
     aino_test (new_aino->prev);
 
     unit->aino_cache_size++;
+}
+
+void filesys_flush_cache (void)
+{
 }
 
 static void update_child_names (Unit *unit, a_inode *a, a_inode *parent)
@@ -1081,7 +1307,7 @@ static char *create_nname (Unit *unit, a_inode *base, char *rel)
 	oh_dear:
 #endif
 	if (currprefs.filesys_no_uaefsdb && !(base->volflags & MYVOLUMEINFO_STREAMS)) {
-	    write_log ("illegal filename '%s' and uaefsdb disabled\n", rel);
+	    write_log ("illegal filename '%s', no stream supporting filesystem and uaefsdb disabled\n", rel);
 	    return 0;
 	}
 	p = fsdb_create_unique_nname (base, rel);
@@ -1153,6 +1379,7 @@ static void init_child_aino (Unit *unit, a_inode *base, a_inode *aino)
 
     aino->dirty = 0;
     aino->deleted = 0;
+    aino->mountcount = unit->mountcount;
 
     /* For directories - this one isn't being ExNext()ed yet.  */
     aino->locked_children = 0;
@@ -1249,7 +1476,7 @@ static a_inode *lookup_child_aino (Unit *unit, a_inode *base, char *rel, uae_u32
     while (c != 0) {
 	int l1 = strlen (c->aname);
 	if (l0 <= l1 && same_aname (rel, c->aname + l1 - l0)
-	    && (l0 == l1 || c->aname[l1-l0-1] == '/'))
+	    && (l0 == l1 || c->aname[l1-l0-1] == '/') && c->mountcount == unit->mountcount)
 	    break;
 	c = c->sibling;
     }
@@ -1276,7 +1503,7 @@ static a_inode *lookup_child_aino_for_exnext (Unit *unit, a_inode *base, char *r
 	int l1 = strlen (c->nname);
 	/* Note: using strcmp here.  */
 	if (l0 <= l1 && strcmp (rel, c->nname + l1 - l0) == 0
-	    && (l0 == l1 || c->nname[l1-l0-1] == FSDB_DIR_SEPARATOR))
+	    && (l0 == l1 || c->nname[l1-l0-1] == FSDB_DIR_SEPARATOR) && c->mountcount == unit->mountcount)
 	    break;
 	c = c->sibling;
     }
@@ -1418,16 +1645,24 @@ static void startup_update_unit (Unit *unit, UnitInfo *uinfo)
     unit->ui.readonly = uinfo->readonly;
     unit->ui.unit_pipe = uinfo->unit_pipe;
     unit->ui.back_pipe = uinfo->back_pipe;
+    unit->ui.wasisempty = uinfo->wasisempty;
 }
 
 static Unit *startup_create_unit (UnitInfo *uinfo)
 {
     int i;
-    Unit *unit;
+    Unit *unit, *u;
 
     unit = (Unit*)xcalloc (sizeof (Unit), 1);
-    unit->next = units;
-    units = unit;
+    /* keep list in insertion order */
+    u = units;
+    if (u) {
+	while (u->next)
+	    u = u->next;
+	u->next = unit;
+    } else {
+	units = unit;
+    }
     uinfo->self = unit;
 
     unit->volume = 0;
@@ -1439,13 +1674,8 @@ static Unit *startup_create_unit (UnitInfo *uinfo)
     unit->cmds_complete = 0;
     unit->cmds_sent = 0;
     unit->cmds_acked = 0;
-    for (i = 0; i < EXKEYS; i++) {
-	unit->examine_keys[i].aino = 0;
-	unit->examine_keys[i].curr_file = 0;
-	unit->examine_keys[i].uniq = 0;
-    }
+    clear_exkeys(unit);
     unit->total_locked_ainos = 0;
-    unit->next_exkey = 1;
     unit->keys = 0;
     for (i = 0; i < NOTIFY_HASH_SIZE; i++) {
 	Notify *n = unit->notifyhash[i];
@@ -1489,7 +1719,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
     uaecptr dos_info = get_long (rootnode + 24) << 2;
     uaecptr pkt = m68k_dreg (&context->regs, 3);
     uaecptr arg2 = get_long (pkt + dp_Arg2);
-    int i, namelen;
+    int i;
     char* devname = bstr1 (get_long (pkt + dp_Arg1) << 2);
     char* s;
     Unit *unit;
@@ -1504,21 +1734,27 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 	/* Hardfile volume name? */
 	if (!mountinfo.ui[i].open)
 	    continue;
-	if (mountinfo.ui[i].volname == 0)
+	if (is_hardfile(i) != FILESYS_VIRTUAL)
 	    continue;
-
 	if (mountinfo.ui[i].startup == arg2)
 	    break;
     }
 
-    if (i == MAX_FILESYSTEM_UNITS
-	|| (!my_existsdir (mountinfo.ui[i].rootdir) && !my_existsfile (mountinfo.ui[i].rootdir)))
+    if (i == MAX_FILESYSTEM_UNITS) {
+	write_log ("Failed attempt to mount device '%s'\n", devname);
+	put_long (pkt + dp_Res1, DOS_FALSE);
+	put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
+	return 1;
+    }
+
+    if (!mountinfo.ui[i].wasisempty && !my_existsdir (mountinfo.ui[i].rootdir) && !my_existsfile (mountinfo.ui[i].rootdir))
     {
 	write_log ("Failed attempt to mount device '%s'\n", devname);
 	put_long (pkt + dp_Res1, DOS_FALSE);
 	put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
 	return 1;
     }
+
     uinfo = mountinfo.ui + i;
     unit = startup_create_unit (uinfo);
     unit->volflags = uinfo->volflags;
@@ -1549,20 +1785,15 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
     put_long (unit->volume + 24, 0);
     put_long (unit->volume + 28, 0); /* lock list */
     put_long (unit->volume + 40, (unit->volume + 44) >> 2); /* Name */
-    namelen = strlen (unit->ui.volname);
-    put_byte (unit->volume + 44, namelen);
-    for (i = 0; i < namelen; i++)
-	put_byte (unit->volume + 45 + i, unit->ui.volname[i]);
 
-    /* link into DOS list */
-    put_long (unit->volume, get_long (dos_info + 4));
-    put_long (dos_info + 4, unit->volume >> 2);
+    put_byte (unit->volume + 44, 0);
+    if (!uinfo->wasisempty)
+	set_volume_name(unit);
 
     put_long (unit->volume + 8, unit->port);
     put_long (unit->volume + 32, DISK_TYPE);
 
     put_long (pkt + dp_Res1, DOS_TRUE);
-
     fsdb_clean_dir (&unit->rootnode);
 
     return 0;
@@ -2086,7 +2317,7 @@ static ExamineKey *new_exkey (Unit *unit, a_inode *aino)
 	 * before this happens because of something else. */
 	uniq = 1;
     }
-    unit->next_exkey = uniq+1;
+    unit->next_exkey = uniq + 1;
     ek->aino = aino;
     ek->curr_file = 0;
     ek->uniq = uniq;
@@ -2322,7 +2553,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	aino = lookup_aino (unit, get_long (lock + 4));
     if (aino == 0)
 	aino = &unit->rootnode;
-
+for(;;) {
     uniq = get_long (info);
     if (uniq == 0) {
 	write_log ("ExNext called for a file! (Houston?)\n");
@@ -2335,10 +2566,10 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	if (ek) {
 	    if (aino->exnext_count++ == 0)
 		populate_directory (unit, aino);
-	}
-	ek->curr_file = aino->child;
-	TRACE(("Initial curr_file: %p %s\n", ek->curr_file,
+	    ek->curr_file = aino->child;
+	    TRACE(("Initial curr_file: %p %s\n", ek->curr_file,
 	       ek->curr_file ? ek->curr_file->aname : "NULL"));
+	}
     } else {
 	TRACE(("Looking up ExKey\n"));
 	ek = lookup_exkey (unit, get_long (info));
@@ -2348,6 +2579,12 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	goto no_more_entries;
     }
     put_long (info, ek->uniq);
+    if (!ek->curr_file || ek->curr_file->mountcount == unit->mountcount)
+	break;
+    ek->curr_file = ek->curr_file->sibling;
+    if (!ek->curr_file)
+	goto no_more_entries;
+}
     do_examine (unit, packet, ek, info);
     return;
 
@@ -2707,18 +2944,28 @@ action_write (Unit *unit, dpacket packet)
 	return;
     }
 
-    /* ugh this is inefficient but easy */
-    buf = (char *)malloc(size);
-    if (!buf) {
-	PUT_PCK_RES1 (packet, -1);
-	PUT_PCK_RES2 (packet, ERROR_NO_FREE_STORE);
-	return;
+    if (valid_address (addr, size)) {
+	uae_u8 *realpt = get_real_address (addr);
+	actual = my_write (k->fd, realpt, size);
+
+    } else {
+
+	write_log ("unixfs warning: Bad pointer passed for write: %08x, size %d\n", addr, size);
+	/* ugh this is inefficient but easy */
+	buf = (char *)malloc(size);
+	if (!buf) {
+	    PUT_PCK_RES1 (packet, -1);
+	    PUT_PCK_RES2 (packet, ERROR_NO_FREE_STORE);
+	    return;
+	}
+
+	for (i = 0; i < size; i++)
+	    buf[i] = get_byte(addr + i);
+
+	actual = my_write (k->fd, buf, size);
+	xfree (buf);
     }
 
-    for (i = 0; i < size; i++)
-	buf[i] = get_byte(addr + i);
-
-    actual = my_write (k->fd, buf, size);
     TRACE(("=%d\n", actual));
     PUT_PCK_RES1 (packet, actual);
     if (actual != size)
@@ -2727,7 +2974,6 @@ action_write (Unit *unit, dpacket packet)
 	k->file_pos += actual;
 
     k->notifyactive = 1;
-    xfree (buf);
 }
 
 static void
@@ -3385,7 +3631,10 @@ action_rename_object (Unit *unit, dpacket packet)
 static void
 action_current_volume (Unit *unit, dpacket packet)
 {
-    PUT_PCK_RES1 (packet, unit->volume >> 2);
+    if (filesys_isvolume(unit))
+	PUT_PCK_RES1 (packet, unit->volume >> 2);
+    else
+	PUT_PCK_RES1 (packet, 0);
 }
 
 static void
@@ -3410,10 +3659,7 @@ action_rename_disk (Unit *unit, dpacket packet)
     for (i = 0; i < namelen; i++, name++)
 	unit->ui.volname[i] = get_byte (name);
     unit->ui.volname[i] = 0;
-
-    put_byte (unit->volume + 44, namelen);
-    for (i = 0; i < namelen; i++)
-	put_byte (unit->volume + 45 + i, unit->ui.volname[i]);
+    set_volume_name (unit);
 
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
@@ -3421,13 +3667,55 @@ action_rename_disk (Unit *unit, dpacket packet)
 static void
 action_is_filesystem (Unit *unit, dpacket packet)
 {
+    TRACE(("ACTION_IS_FILESYSTEM()\n"));
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
 static void
 action_flush (Unit *unit, dpacket packet)
 {
+    TRACE(("ACTION_FLUSH()\n"));
     PUT_PCK_RES1 (packet, DOS_TRUE);
+    flush_cache(unit, 0);
+}
+
+static void
+action_more_cache (Unit *unit, dpacket packet)
+{
+    TRACE(("ACTION_MORE_CACHE()\n"));
+    PUT_PCK_RES1 (packet, 50); /* bug but AmigaOS expects it */
+    flush_cache(unit, 0);
+}
+
+static void
+action_inhibit (Unit *unit, dpacket packet)
+{
+    TRACE(("ACTION_INHIBIT()\n"));
+    PUT_PCK_RES1 (packet, DOS_TRUE);
+    flush_cache(unit, 0);
+    unit->inhibited = GET_PCK_ARG1 (packet);
+}
+
+static void
+action_write_protect (Unit *unit, dpacket packet)
+{
+    TRACE(("ACTION_WRITE_PROTECT()\n"));
+    PUT_PCK_RES1 (packet, DOS_TRUE);
+    if (GET_PCK_ARG1 (packet)) {
+	if (!(unit->ui.readonly & 2)) {
+	    unit->ui.readonly |= 2;
+	    unit->lockkey = GET_PCK_ARG2 (packet);
+	}
+    } else {
+	if (unit->ui.readonly & 2) {
+	    if (unit->lockkey == GET_PCK_ARG2 (packet) || unit->lockkey == 0) {
+	        unit->ui.readonly &= ~2;
+	    } else {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, 0);
+	    }
+	}
+    }
 }
 
 /* We don't want multiple interrupts to be active at the same time. I don't
@@ -3581,6 +3869,23 @@ static int handle_packet (Unit *unit, dpacket pck)
 {
     uae_s32 type = GET_PCK_TYPE (pck);
     PUT_PCK_RES2 (pck, 0);
+
+    if (unit->inhibited && filesys_isvolume(unit)
+	&& type != ACTION_INHIBIT && type != ACTION_MORE_CACHE
+	&& type != ACTION_DISK_INFO) {
+	PUT_PCK_RES1 (pck, DOS_FALSE);
+	PUT_PCK_RES2 (pck, ERROR_NOT_A_DOS_DISK);
+	return 1;
+    }
+    if (type != ACTION_INHIBIT && type != ACTION_CURRENT_VOLUME
+	&& type != ACTION_IS_FILESYSTEM && type != ACTION_MORE_CACHE
+	&& type != ACTION_WRITE_PROTECT
+	&& !filesys_isvolume(unit)) {
+	PUT_PCK_RES1 (pck, DOS_FALSE);
+	PUT_PCK_RES2 (pck, ERROR_NO_DISK);
+	return 1;
+    }
+
     switch (type) {
      case ACTION_LOCATE_OBJECT: action_lock (unit, pck); break;
      case ACTION_FREE_LOCK: action_free_lock (unit, pck); break;
@@ -3608,6 +3913,9 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_RENAME_DISK: action_rename_disk (unit, pck); break;
      case ACTION_IS_FILESYSTEM: action_is_filesystem (unit, pck); break;
      case ACTION_FLUSH: action_flush (unit, pck); break;
+     case ACTION_MORE_CACHE: action_more_cache (unit, pck); break;
+     case ACTION_INHIBIT: action_inhibit (unit, pck); break;
+     case ACTION_WRITE_PROTECT: action_write_protect (unit, pck); break;
 
      /* 2.0+ packet types */
      case ACTION_SET_FILE_SIZE: action_set_file_size (unit, pck); break;
@@ -3796,6 +4104,10 @@ void filesys_free_handles(void)
 	    xfree(k1);
 	}
 	u->keys = NULL;
+	xfree(u->newrootdir);
+	xfree(u->newvolume);
+	u->newrootdir = NULL;
+	u->newvolume = NULL;
     }
 }
 
@@ -3819,19 +4131,6 @@ void filesys_reset (void)
     a_uniq = 0;
     free_mountinfo ();
     initialize_mountinfo();
-}
-
-static void free_all_ainos (Unit *u, a_inode *parent)
-{
-    a_inode *a;
-    while (a = parent->child) {
-	free_all_ainos (u, a);
-	dispose_aino (u, &parent->child, a);
-    }
-}
-
-void filesys_flush_cache (void)
-{
 }
 
 void filesys_prepare_reset (void)

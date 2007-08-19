@@ -23,6 +23,9 @@
 #include "memory.h"
 #include "newcpu.h"
 
+#include "cpu_small.h"
+#include "cputbl_small.h"
+
 /* memory structure
  *
  * 0x000676 execbase
@@ -234,6 +237,7 @@ int init_xfd(void)
 	return 0;
     init = -1;
 
+    init_cpu_small();
     codememory = 0x2000;
     codeptr = malloc (FAKEMEM_SIZE);
     sprintf (tmp, "%splugins%cxfd", start_path_data, FSDB_DIR_SEPARATOR);
@@ -253,19 +257,31 @@ int init_xfd(void)
     return 1;
 }
 
-static void execute68k(struct regstruct *r)
+void xop_illg (uae_u32 opcode)
 {
-    uaecptr stack = m68k_areg(r, 7);
-    m68k_areg(r, 7) = stack - 4;
+    write_log("minicpu illegal opcode %04.4x\n", opcode);
+    xm68k_setpc(0);
+}
+
+static int execute68k(void)
+{
+    uaecptr stack = xm68k_areg(7);
+    xm68k_areg(7) = stack - 4;
     for (;;) {
-	uae_u32 opcode = get_iword (r, 0);
-	(*cpufunctbl[opcode])(opcode, r);
-	if (m68k_areg(r, 7) >= stack)
-	    break;
+	uae_u32 pc;
+	uae_u32 opcode = xget_iword (0);
+	(*xcpufunctbl[opcode])(opcode);
+	if (xm68k_areg(7) == stack)
+	    return 1;
+	pc = xm68k_getpc();
+	if (pc <= 0x100 || pc >= FAKEMEM_SIZE) {
+	    write_log("minicpu crash, pc=%x\n", pc);
+	    return 0;
+	}
     }
 }
 
-static struct zfile *decomp(struct zfile *zf, struct xfdslave *xfds, uae_u32 size, struct regstruct *regs)
+static struct zfile *decomp(struct zfile *zf, struct xfdslave *xfds, uae_u32 size)
 {
     uae_u8 *p;
     uae_u32 decompsize;
@@ -274,13 +290,16 @@ static struct zfile *decomp(struct zfile *zf, struct xfdslave *xfds, uae_u32 siz
 
     p = xfdmemory + bufferinfo;
     memset(p, 0, 20 * 4);
-    regs->regs[8] = bufferinfo; // A0
+    xregs.regs[8] = bufferinfo; // A0
     decompsize = gl (p + 16 * 4);
+    if (decompsize <= 0)
+	return 0;
     decompaddr = FAKEMEM_SIZE - stacksize - decompsize;
     pl (p + 6 * 4, decompaddr); // TargetBuffer
     pl (p + 8 * 4, decompsize);
-    execute68k(regs);
-    if (!regs->regs[0])
+    if (!execute68k())
+	return 0;
+    if (!xregs.regs[0])
 	return 0;
     decompsize = gl (p + 16 * 4);
     zfout = zfile_fopen_empty (zfile_getname(zf), decompsize);
@@ -288,78 +307,43 @@ static struct zfile *decomp(struct zfile *zf, struct xfdslave *xfds, uae_u32 siz
     return zfout;
 }
 
-static struct regstruct backregs;
-static addrbank **back_mem_banks;
-
-
-static uae_u32 REGPARAM3 xfdmem_lget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 xfdmem_wget (uaecptr) REGPARAM;
-static uae_u32 REGPARAM3 xfdmem_bget (uaecptr) REGPARAM;
-static void REGPARAM3 xfdmem_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 xfdmem_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 xfdmem_bput (uaecptr, uae_u32) REGPARAM;
-
-static uae_u32 REGPARAM2 xfdmem_lget (uaecptr addr)
+uae_u32 xget_long (uaecptr addr)
 {
     uae_u32 *m;
     addr &= xfdmem_mask;
     m = (uae_u32 *)(xfdmemory + addr);
     return do_get_mem_long (m);
 }
-static uae_u32 REGPARAM2 xfdmem_wget (uaecptr addr)
+uae_u32 xget_word (uaecptr addr)
 {
     uae_u16 *m;
     addr &= xfdmem_mask;
     m = (uae_u16 *)(xfdmemory + addr);
     return do_get_mem_word (m);
 }
-static uae_u32 REGPARAM2 xfdmem_bget (uaecptr addr)
+uae_u32 xget_byte (uaecptr addr)
 {
     addr &= xfdmem_mask;
     return xfdmemory[addr];
 }
-static void REGPARAM2 xfdmem_lput (uaecptr addr, uae_u32 l)
+void xput_long (uaecptr addr, uae_u32 l)
 {
     uae_u32 *m;
     addr &= xfdmem_mask;
     m = (uae_u32 *)(xfdmemory + addr);
     do_put_mem_long (m, l);
 }
-static void REGPARAM2 xfdmem_wput (uaecptr addr, uae_u32 w)
+void xput_word (uaecptr addr, uae_u32 w)
 {
     uae_u16 *m;
     addr &= xfdmem_mask;
     m = (uae_u16 *)(xfdmemory + addr);
     do_put_mem_word (m, w);
 }
-static void REGPARAM2 xfdmem_bput (uaecptr addr, uae_u32 b)
+void xput_byte (uaecptr addr, uae_u32 b)
 {
     addr &= xfdmem_mask;
     xfdmemory[addr] = b;
-}
-static addrbank xfdmem_bank = {
-    xfdmem_lget, xfdmem_wget, xfdmem_bget,
-    xfdmem_lput, xfdmem_wput, xfdmem_bput,
-    NULL, NULL, NULL, "XFDFAKE",
-    xfdmem_lget, xfdmem_wget, ABFLAG_RAM
-};
-
-static void store_state(void)
-{
-    int i;
-
-    memcpy (&backregs, &regs, sizeof (struct regstruct));
-    back_mem_banks = xmalloc(MEMORY_BANKS * sizeof (addrbank*));
-    memcpy (back_mem_banks, mem_banks, MEMORY_BANKS * sizeof (addrbank*));
-    for (i = 0; i < MEMORY_BANKS; i++)
-	mem_banks[bankindex(i * 65536)] = &xfdmem_bank;
-}
-
-static void restore_state(void)
-{
-    memcpy (mem_banks, back_mem_banks, MEMORY_BANKS * sizeof (addrbank*));
-    xfree(back_mem_banks);
-    memcpy (&regs, &backregs, sizeof (struct regstruct));
 }
 
 struct zfile *decompress_zfd(struct zfile *z)
@@ -367,49 +351,49 @@ struct zfile *decompress_zfd(struct zfile *z)
     unsigned int size;
     uae_u8 *p;
     struct xfdslave *xfds;
-    struct zfile *zfout = NULL;
+    struct zfile *zfout = z;
 
     if (!init_xfd())
-	return z;
+	return zfout;
     memset (xfdmemory, 0, FAKEMEM_SIZE);
     memcpy (xfdmemory, codeptr, codememory);
     xfdmem_mask = FAKEMEM_SIZE - 1;
 
-    p = codeptr + codememory;
+    p = xfdmemory + codememory;
     zfile_fseek (z, 0, SEEK_END);
     size = zfile_ftell (z);
     zfile_fseek (z, 0, SEEK_SET);
     zfile_fread (p, size, 1, z);
 
-    store_state();
-
     xfds = xfdslaves;
     while (xfds) {
 	uaecptr start = xfds->start;
-	memset(&regs, 0, sizeof regs);
+	memset(&xregs, 0, sizeof xregs);
 	pl(codeptr + freememaddr, codememory + size); // reset start of "free memory" 
-	regs.regs[0] = size; // D0
-	regs.regs[8] = codememory; // A0
-	regs.regs[9] = bufferinfo; // A1
-	regs.regs[15] = FAKEMEM_SIZE; // A7
+	xregs.regs[0] = size; // D0
+	xregs.regs[8] = codememory; // A0
+	xregs.regs[9] = bufferinfo; // A1
+	xregs.regs[15] = FAKEMEM_SIZE; // A7
 	pl(xfdmemory + bufferinfo + 0x00, codememory); // SourceBuffer
 	pl(xfdmemory + bufferinfo + 0x04, size); // SourceBufLen
-	m68k_setpc(&regs, gl(xfdmemory + start + 16)); // recog code
-	if (regs.pc) {
-	    execute68k(&regs);
-	    if (regs.regs[0]) {
-		write_log("XFD slave '%s' recognised the compressed data\n", xfds->name);
-		m68k_setpc(&regs, gl(xfdmemory + start + 20)); // decomp code
-		if (regs.pc)
-		    zfout = decomp(z, xfds, size, &regs);
-		if (zfout)
-		    break;
+	xm68k_setpc(gl(xfdmemory + start + 16)); // recog code
+	if (xregs.pc) {
+	    if (execute68k()) {
+		if (xregs.regs[0]) {
+		    write_log("XFD slave '%s' recognised the compressed data\n", xfds->name);
+		    xm68k_setpc(gl(xfdmemory + start + 20)); // decomp code
+		    if (xregs.pc) {
+			struct zfile *zz = decomp(z, xfds, size);
+			if (zz) {
+			    zfout = zz;
+			    break;
+			}
+		    }
+		}
 	    }
 	}
 	xfds = xfds->next;
     }
-
-    restore_state();
 
     return zfout;
 }

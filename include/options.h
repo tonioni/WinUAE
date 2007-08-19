@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 1
 #define UAEMINOR 4
-#define UAESUBREV 3
+#define UAESUBREV 4
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -103,7 +103,7 @@ struct uae_prefs {
     int produce_sound;
     int sound_stereo;
     int sound_stereo_separation;
-    int sound_mixed_stereo;
+    int sound_mixed_stereo_delay;
     int sound_bits;
     int sound_freq;
     int sound_maxbsiz;
@@ -232,7 +232,6 @@ struct uae_prefs {
     char path_rom[256];
 
     int m68k_speed;
-    int cpu_level;
     int cpu_model;
     int cpu060_revision;
     int fpu_model;
@@ -336,10 +335,10 @@ extern void discard_prefs (struct uae_prefs *, int);
 
 int parse_cmdline_option (struct uae_prefs *, char, char *);
 
-extern int cfgfile_yesno (char *option, char *value, char *name, int *location);
-extern int cfgfile_intval (char *option, char *value, char *name, int *location, int scale);
-extern int cfgfile_strval (char *option, char *value, char *name, int *location, const char *table[], int more);
-extern int cfgfile_string (char *option, char *value, char *name, char *location, int maxsz);
+extern int cfgfile_yesno (const char *option, const char *value, const char *name, int *location);
+extern int cfgfile_intval (const char *option, const char *value, const char *name, int *location, int scale);
+extern int cfgfile_strval (const char *option, const char *value, const char *name, int *location, const char *table[], int more);
+extern int cfgfile_string (const char *option, const char *value, const char *name, char *location, int maxsz);
 extern char *cfgfile_subst_path (const char *path, const char *subst, const char *file);
 
 extern int target_parse_option (struct uae_prefs *, char *option, char *value);

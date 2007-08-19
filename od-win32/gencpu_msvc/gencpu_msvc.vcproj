@@ -68,7 +68,7 @@
 			<Tool
 				Name="VCPreLinkEventTool"
 				Description="deleting gencpu files"
-				CommandLine="del ..\..\cputbl.h;del ..\..\cpustbl.c&#x0D;&#x0A;;del ..\..\cpuemu.c&#x0D;&#x0A;"
+				CommandLine=""
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -339,7 +339,7 @@
 			<Tool
 				Name="VCPreLinkEventTool"
 				Description="deleting gencpu files"
-				CommandLine="del ..\..\cputbl.h&#x0D;&#x0A;del ..\..\cpustbl.c&#x0D;&#x0A;del ..\..\cpuemu.c&#x0D;&#x0A;"
+				CommandLine=""
 			/>
 			<Tool
 				Name="VCLinkerTool"

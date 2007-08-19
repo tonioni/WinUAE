@@ -168,34 +168,37 @@ static void build_cpufunctbl (void)
     int i, opcnt;
     unsigned long opcode;
     const struct cputbl *tbl = 0;
-    int fpu_model = 0;
+    int lvl;
 
-    switch (currprefs.cpu_level)
+    switch (currprefs.cpu_model)
     {
 #ifdef CPUEMU_0
 #ifndef CPUEMU_68000_ONLY
-	case 6: /* 68060 */
+	case 68060:
+	lvl = 5;
 	tbl = op_smalltbl_0_ff;
 	break;
-	case 5: /* 68040 */
-	tbl = op_smalltbl_0_ff;
+	case 68040:
+	lvl = 4;
+	tbl = op_smalltbl_1_ff;
 	break;
-	case 4: /* 68020/68030 + 68881+68882 */
+	case 68030:
+	lvl = 3;
 	tbl = op_smalltbl_2_ff;
 	break;
-	case 3: /* 68030 */
+	case 68020:
+	lvl = 2;
 	tbl = op_smalltbl_3_ff;
 	break;
-	case 2: /* 68020 */
+	case 68010:
+	lvl = 1;
 	tbl = op_smalltbl_4_ff;
-	break;
-	case 1: /* 68010 */
+  	break;
+#endif
+#endif
+	case 68000:
+	lvl = 0;
 	tbl = op_smalltbl_5_ff;
-	break;
-#endif
-#endif
-	case 0: /* 68000 */
-	tbl = op_smalltbl_6_ff;
 #ifdef CPUEMU_11
 	if (currprefs.cpu_compatible)
 	    tbl = op_smalltbl_11_ff; /* prefetch */
@@ -221,7 +224,7 @@ static void build_cpufunctbl (void)
     for (opcode = 0; opcode < 65536; opcode++) {
 	cpuop_func *f;
 
-	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > currprefs.cpu_level)
+	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > lvl)
 	    continue;
 
 	if (table68k[opcode].handler != -1) {
@@ -233,7 +236,7 @@ static void build_cpufunctbl (void)
 	}
     }
     write_log ("Building CPU, %d opcodes (%d %d %d). CPU=%d, FPU=%d, JIT=%d.\n",
-	opcnt, currprefs.cpu_level,
+	opcnt, lvl,
 	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0,
 	currprefs.address_space_24, currprefs.cpu_model, currprefs.fpu_model,
 	currprefs.cachesize);
@@ -273,7 +276,6 @@ static void update_68k_cycles (void)
 static void prefs_changed_cpu (void)
 {
     fixup_cpu (&changed_prefs);
-    currprefs.cpu_level = changed_prefs.cpu_level;
     currprefs.cpu_model = changed_prefs.cpu_model;
     currprefs.fpu_model = changed_prefs.fpu_model;
     currprefs.cpu_compatible = changed_prefs.cpu_compatible;
@@ -955,7 +957,7 @@ static void Exception_ce (int nr, struct regstruct *regs, uaecptr oldpc)
     /* some delays are interleaved with stack pushes, not bothered yet..
      */
     if (c)
-	do_cycles (c * CYCLE_UNIT / 2);
+	do_cycles_ce (c * CYCLE_UNIT / 2);
     if (!regs->s) {
 	regs->usp = m68k_areg(regs, 7);
 	m68k_areg(regs, 7) = regs->isp;
@@ -1612,6 +1614,8 @@ void m68k_reset (int hardreset)
     a3000_fakekick(0);
     /* only (E)nable bit is zeroed when CPU is reset, A3000 SuperKickstart expects this */
     tc_030 &= ~0x80000000;
+    tt0_030 &= ~0x80000000;
+    tt1_030 &= ~0x80000000;
     if (hardreset) {
 	srp_030 = crp_030 = 0;
 	tt0_030 = tt1_030 = tc_030 = 0;

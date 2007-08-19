@@ -265,54 +265,49 @@ static uae_u8 read_rom(uaecptr addr)
 
 void ncr_bput2(uaecptr addr, uae_u32 val)
 {
+    uae_u32 v = val;
     addr &= board_mask;
     if (addr >= NCR_REGS)
 	return;
     switch (addr)
     {
-	case SBCL_REG:
+        case ISTAT_REG:
+	if (val & 0x80)
+	    val |= 1;
+	val &= ~0x80;
+	INT2();
 	break;
-	case SCNTL1_REG:
-	break;
-	case ISTAT_REG:
-	ncrregs[ISTAT_REG] = 0;
-	break;
-	case SCID_REG:
-	break;
-
-
     }
-    write_log("%s write %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), val & 0xff, M68K_GETPC);
+    write_log("%s write %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
     ncrregs[addr] = val;
 }
 
 uae_u32 ncr_bget2(uaecptr addr)
 {
-    uae_u32 v = 0;
+    uae_u32 v = 0, v2;
 
     addr &= board_mask;
     if (rom && addr >= ROM_VECTOR && addr >= ROM_OFFSET)
 	return read_rom(addr);
     if (addr >= NCR_REGS)
 	return v;
-    v = ncrregs[addr];
+    v2 = v = ncrregs[addr];
     switch (addr)
     {
+	case ISTAT_REG:
+	v2 &= ~3;
+	break;
 	case SSTAT2_REG:
 	v &= ~7;
 	v |= ncrregs[SBCL_REG] & 7;
-	break;
-	case SSTAT0_REG:
-	v |= 0x20;
-	break;
-	case ISTAT_REG:
 	break;
 	case CTEST8_REG:
 	v &= 0x0f; // revision 0
 	break;
     }
-
     write_log("%s read  %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), v, M68K_GETPC);
+    if (v2 != v)
+	ncrregs[addr] = v2;
     return v;
 }
 

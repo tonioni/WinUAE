@@ -806,8 +806,8 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 	hf_log ("hardfile_open, unit %d (%d), OK\n", unit, m68k_dreg (&context->regs, 0));
 	return 0;
     }
-    if (is_hardfile(unit) == FILESYS_VIRTUAL)
-	err = -6;
+    if (unit < 1000 || is_hardfile(unit) == FILESYS_VIRTUAL)
+	err = 50; /* HFERR_NoBoard */
     hf_log ("hardfile_open, unit %d (%d), ERR=%d\n", unit, m68k_dreg (&context->regs, 0), err);
     put_long (tmp1 + 20, (uae_u32)err);
     put_byte (tmp1 + 31, (uae_u8)err);

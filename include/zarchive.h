@@ -93,10 +93,10 @@ extern struct zfile *archive_access_arcacc (struct znode *zn);
 extern struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int doselect);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id);
 
-
-
 extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsigned int id);
 
 extern void archive_access_close (void *handle, unsigned int id);
 
 extern struct zfile *archive_getzfile(struct znode *zn, unsigned int id);
+
+extern struct zfile *decompress_zfd (struct zfile*);

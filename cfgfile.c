@@ -354,7 +354,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
     cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
     cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
-    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo >= 0 ? p->sound_mixed_stereo : 0);
+    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo_delay >= 0 ? p->sound_mixed_stereo_delay : 0);
     cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
     cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
     cfgfile_write (f, "sound_latency=%d\n", p->sound_latency);
@@ -581,7 +581,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     /* Don't write gfxlib/gfx_test_speed options.  */
 }
 
-int cfgfile_yesno (char *option, char *value, char *name, int *location)
+int cfgfile_yesno (const char *option, const char *value, const char *name, int *location)
 {
     if (strcmp (option, name) != 0)
 	return 0;
@@ -598,7 +598,7 @@ int cfgfile_yesno (char *option, char *value, char *name, int *location)
     return 1;
 }
 
-int cfgfile_intval (char *option, char *value, char *name, int *location, int scale)
+int cfgfile_intval (const char *option, const char *value, const char *name, int *location, int scale)
 {
     int base = 10;
     char *endptr;
@@ -616,7 +616,7 @@ int cfgfile_intval (char *option, char *value, char *name, int *location, int sc
     return 1;
 }
 
-int cfgfile_strval (char *option, char *value, char *name, int *location, const char *table[], int more)
+int cfgfile_strval (const char *option, const char *value, const char *name, int *location, const char *table[], int more)
 {
     int val;
     if (strcmp (option, name) != 0)
@@ -633,7 +633,7 @@ int cfgfile_strval (char *option, char *value, char *name, int *location, const 
     return 1;
 }
 
-int cfgfile_string (char *option, char *value, char *name, char *location, int maxsz)
+int cfgfile_string (const char *option, const char *value, const char *name, char *location, int maxsz)
 {
     if (strcmp (option, name) != 0)
 	return 0;
@@ -759,7 +759,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "sound_frequency", &p->sound_freq, 1)
 	|| cfgfile_intval (option, value, "sound_volume", &p->sound_volume, 1)
 	|| cfgfile_intval (option, value, "sound_stereo_separation", &p->sound_stereo_separation, 1)
-	|| cfgfile_intval (option, value, "sound_stereo_mixing_delay", &p->sound_mixed_stereo, 1)
+	|| cfgfile_intval (option, value, "sound_stereo_mixing_delay", &p->sound_mixed_stereo_delay, 1)
 
 	|| cfgfile_intval (option, value, "gfx_display", &p->gfx_display, 1)
 	|| cfgfile_intval (option, value, "gfx_framerate", &p->gfx_framerate, 1)
@@ -973,7 +973,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_strval (option, value, "sound_channels", &p->sound_stereo, stereomode, 1)) {
 	if (p->sound_stereo == SND_NONE) { /* "mixed stereo" compatibility hack */
 	    p->sound_stereo = SND_STEREO;
-	    p->sound_mixed_stereo = 5;
+	    p->sound_mixed_stereo_delay = 5;
 	    p->sound_stereo_separation = 7;
 	}
 	return 1;
@@ -1146,9 +1146,26 @@ int add_filesys_config (struct uae_prefs *p, int index,
     uci->configoffset = -1;
     uci->controller = hdc;
     strcpy (uci->filesys, filesysdir ? filesysdir : "");
-    if (!uci->devname[0])
-	sprintf(uci->devname, "DH%d", uci - &p->mountconfig[0]);
-    if (volname && !uci->volname[0]) {
+    if (!uci->devname[0]) {
+	char base[32];
+	char base2[32];
+	int num = 0;
+	if (uci->rootdir[0] == 0 && !uci->ishdf)
+	    strcpy (base, "RDH");
+	else
+	    strcpy (base, "DH");
+	strcpy (base2, base);
+	for (i = 0; i < p->mountitems; i++) {
+	    sprintf(base2, "%s%d", base, num);
+	    if (!strcmp(base2, p->mountconfig[i].devname)) {
+		num++;
+		i = -1;
+		continue;
+	    }
+	}
+        strcpy (uci->devname, base2);
+    }
+    if (volname && !uci->volname[0] && rootdir) {
 	for (i = strlen(rootdir) - 1; i >= 0; i--) {
 	    char c = rootdir[i];
 	    if (c == ':' || c == '/' || c == '\\') {
@@ -1433,9 +1450,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| strcmp (option, "hardfile2") == 0)
     {
 	int secs, heads, reserved, bs, ro, bp, hdcv;
-	char *dname, *aname, *root, *fs, *hdc;
+	char *dname = NULL, *aname = "", *root = NULL, *fs = NULL, *hdc;
 	char *tmpp = strchr (value, ',');
-	char *str;
+	char *str = NULL;
 
 	config_newfilesystem = 1;
 	if (tmpp == 0)
@@ -1455,21 +1472,21 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	if (strcmp (option, "filesystem2") == 0) {
 	    tmpp = strchr (value, ':');
 	    if (tmpp == 0)
-		goto invalid_fs;
+		goto empty_fs;
 	    *tmpp++ = 0;
 	    dname = value;
 	    aname = tmpp;
 	    tmpp = strchr (tmpp, ':');
 	    if (tmpp == 0)
-		goto invalid_fs;
+		goto empty_fs;
 	    *tmpp++ = 0;
 	    root = tmpp;
 	    tmpp = strchr (tmpp, ',');
 	    if (tmpp == 0)
-		goto invalid_fs;
+		goto empty_fs;
 	    *tmpp++ = 0;
 	    if (! getintval (&tmpp, &bp, 0))
-		goto invalid_fs;
+		goto empty_fs;
 	} else {
 	    tmpp = strchr (value, ':');
 	    if (tmpp == 0)
@@ -1506,7 +1523,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 		}
 	    }
 	}
-	str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
+      empty_fs:
+	if (root)
+	    str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
 #ifdef FILESYS
 	add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
 #endif
@@ -2621,18 +2640,10 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
 	    romwarning(rom);
 	return 0;
     }
-    switch (rd->type)
-    {
-	case ROMTYPE_KICK:
-	case ROMTYPE_KICKCD32:
+    if (rd->type & (ROMTYPE_KICK | ROMTYPE_KICKCD32))
 	strcpy (p->romfile, path);
-	break;
-	case ROMTYPE_EXTCD32:
-	case ROMTYPE_EXTCDTV:
-	case ROMTYPE_ARCADIABIOS:
+    if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS))
 	strcpy (p->romextfile, path);
-	break;
-    }
     return 1;
 }
 
@@ -2686,7 +2697,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->produce_sound = 3;
     p->sound_stereo = SND_STEREO;
     p->sound_stereo_separation = 7;
-    p->sound_mixed_stereo = 0;
+    p->sound_mixed_stereo_delay = 0;
     p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;

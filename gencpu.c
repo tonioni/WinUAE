@@ -45,7 +45,6 @@ static int optimized_flags;
 #define GF_NOREFILL 8
 #define GF_PREFETCH 16
 
-
 /* For the current opcode, the next lower level that will have different code.
  * Initialized to -1 for each opcode. If it remains unchanged, indicates we
  * are done with that opcode.  */
@@ -55,6 +54,7 @@ static int *opcode_map;
 static int *opcode_next_clev;
 static int *opcode_last_postfix;
 static unsigned long *counts;
+static int generate_stbl;
 
 static void read_counts (void)
 {
@@ -64,12 +64,12 @@ static void read_counts (void)
     int nr = 0;
     memset (counts, 0, 65536 * sizeof *counts);
 
-	count = 0;
+    count = 0;
     file = fopen ("frequent.68k", "r");
     if (file) {
 	fscanf (file, "Total: %lu\n", &total);
 	while (fscanf (file, "%lx: %lu %s\n", &opcode, &count, name) == 3) {
-	    opcode_next_clev[nr] = 6;
+	    opcode_next_clev[nr] = 5;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -82,7 +82,7 @@ static void read_counts (void)
 	if (table68k[opcode].handler == -1 && table68k[opcode].mnemo != i_ILLG
 	    && counts[opcode] == 0)
 	{
-	    opcode_next_clev[nr] = 6;
+	    opcode_next_clev[nr] = 5;
 	    opcode_last_postfix[nr] = -1;
 	    opcode_map[nr++] = opcode;
 	    counts[opcode] = count;
@@ -3070,16 +3070,19 @@ static void generate_one_opcode (int rp)
 	return;
 
     if (opcode_next_clev[rp] != cpu_level) {
-	fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
+	if (generate_stbl)
+	    fprintf (stblfile, "{ CPUFUNC(op_%04lx_%d), %ld }, /* %s */\n", opcode, opcode_last_postfix[rp],
 		 opcode, lookuptab[i].name);
 	return;
     }
-    if (i68000)
-	fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-    fprintf (stblfile, "{ %sCPUFUNC(op_%04lx_%d), %ld }, /* %s */\n",
-	using_ce ? "(cpuop_func*)" : "", opcode, postfix, opcode, lookuptab[i].name);
-    if (i68000)
-	fprintf (stblfile, "#endif\n");
+    if (generate_stbl) {
+	if (i68000)
+	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
+	fprintf (stblfile, "{ %sCPUFUNC(op_%04lx_%d), %ld }, /* %s */\n",
+	    using_ce ? "(cpuop_func*)" : "", opcode, postfix, opcode, lookuptab[i].name);
+	if (i68000)
+	    fprintf (stblfile, "#endif\n");
+    }
     fprintf (headerfile, "extern %s op_%04lx_%d_nf;\n",
 	using_ce ? "cpuop_func_ce" : "cpuop_func", opcode, postfix);
     fprintf (headerfile, "extern %s op_%04lx_%d_ff;\n",
@@ -3194,7 +3197,8 @@ static void generate_func (void)
 		printf ("#endif\n\n");
 	}
 
-	fprintf (stblfile, "{ 0, 0 }};\n");
+	if (generate_stbl)
+	    fprintf (stblfile, "{ 0, 0 }};\n");
 }
 
 int main (int argc, char **argv)
@@ -3228,16 +3232,18 @@ int main (int argc, char **argv)
     postfix2 = -1;
     for (i = 0; i < 13; i++) {
 	postfix = i;
-	if (i >= 7 && i < 11)
+	if (i >= 6 && i < 11)
 	    continue;
+	generate_stbl = 1;
 	if (i == 0 || i == 11 || i == 12) {
-	    fprintf (stblfile, "#ifdef CPUEMU_%d\n", postfix);
+	    if (generate_stbl)
+		fprintf (stblfile, "#ifdef CPUEMU_%d\n", postfix);
 	    postfix2 = postfix;
 	    sprintf (fname, "cpuemu_%d.c", postfix);
 	    freopen (fname, "wb", stdout);
 	    generate_includes (stdout);
 	}
-	cpu_level = 6 - i;
+	cpu_level = 5 - i;
 	if (i == 11 || i == 12) {
 	    cpu_level = 0;
 	    using_prefetch = 1;
@@ -3247,14 +3253,18 @@ int main (int argc, char **argv)
 	    for (rp = 0; rp < nr_cpuop_funcs; rp++)
 		opcode_next_clev[rp] = 0;
 	}
-	if (i > 0 && i < 7)
-	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-	fprintf (stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d)[] = {\n", postfix);
+	if (generate_stbl) {
+	    if (i > 0 && i < 10)
+		fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
+	    fprintf (stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d)[] = {\n", postfix);
+	}
 	generate_func ();
-	if (i > 0 && i < 7)
-	    fprintf (stblfile, "#endif /* CPUEMU_68000_ONLY */\n");
-	if (postfix2 >= 0)
-	    fprintf (stblfile, "#endif /* CPUEMU_%d */\n", postfix2);
+	if (generate_stbl) {
+	    if (i > 0 && i < 10)
+		fprintf (stblfile, "#endif /* CPUEMU_68000_ONLY */\n");
+	    if (postfix2 >= 0)
+		fprintf (stblfile, "#endif /* CPUEMU_%d */\n", postfix2);
+	}
 	postfix2 = -1;
     }
 

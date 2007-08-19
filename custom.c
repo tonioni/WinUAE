@@ -392,6 +392,26 @@ STATIC_INLINE void setclr (uae_u16 *p, uae_u16 val)
 	*p &= ~val;
 }
 
+STATIC_INLINE alloc_cycle(int hpos, int type)
+{
+#ifdef CPUEMU_12
+#if 0
+    if (cycle_line[hpos])
+	write_log("hpos=%d, old=%d, new=%d\n", hpos, cycle_line[hpos], type);
+    if ((type == CYCLE_CPU || type == CYCLE_COPPER) && (hpos & 1))
+	write_log("odd %d cycle %d\n", hpos);
+    if (!(hpos & 1) && (type == CYCLE_SPRITE || type == CYCLE_REFRESH || type == CYCLE_MISC))
+	write_log("even %d cycle %d\n", type, hpos);
+#endif
+    cycle_line[hpos] = type;
+#endif
+}
+
+void alloc_cycle_ext(int hpos, int type)
+{
+    alloc_cycle (hpos, type);
+}
+
 static void hsyncdelay(void)
 {
 #if 0 
@@ -3531,10 +3551,6 @@ static void update_copper (int until_hpos)
 	}
 
 	c_hpos += 2;
-#if 0
-	if (copper_cant_read (old_hpos))
-	    continue;
-#endif
 	if (cop_state.strobe) {
 	    if (cop_state.strobe > 0)
 		cop_state.ip = cop_state.strobe == 1 ? cop1lc : cop2lc;
@@ -3551,9 +3567,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
-#ifdef CPUEMU_12
-	    cycle_line[old_hpos] |= CYCLE_COPPER;
-#endif
+	    alloc_cycle(old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    cop_state.state = cop_state.state == COP_read1 ? COP_read2 : COP_read2_wr_in2;
 	    break;
@@ -3565,9 +3579,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
-#ifdef CPUEMU_12
-	    cycle_line[old_hpos] |= CYCLE_COPPER;
-#endif
+	    alloc_cycle(old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    if (cop_state.ignore_next) {
 		cop_state.ignore_next = 0;
@@ -3752,9 +3764,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
     uae_u16 data = last_custom_value;
     if (dma) {
 	data = last_custom_value = chipmem_agnus_wget (s->pt);
-#ifdef CPUEMU_12
-	cycle_line[hpos] |= CYCLE_SPRITE;
-#endif
+        alloc_cycle(hpos, CYCLE_SPRITE);
     }
     s->pt += 2;
     return data;
@@ -4212,6 +4222,7 @@ static void vsync_handler (void)
     if (timehack_alive > 0)
 	timehack_alive--;
     inputdevice_vsync ();
+    filesys_vsync ();
 
     init_hardware_frame ();
 }
@@ -4316,10 +4327,10 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
         decide_blitter (hpos);
         memset (cycle_line, 0, sizeof cycle_line);
-        cycle_line[9] = CYCLE_REFRESH;
-        cycle_line[3] = CYCLE_REFRESH;
-        cycle_line[5] = CYCLE_REFRESH;
-        cycle_line[7] = CYCLE_REFRESH;
+	alloc_cycle(1, CYCLE_REFRESH);
+	alloc_cycle(3, CYCLE_REFRESH);
+	alloc_cycle(5, CYCLE_REFRESH);
+	alloc_cycle(7, CYCLE_REFRESH);
     }
 #endif
 
@@ -5240,7 +5251,7 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    if (currprefs.cpu_level == 68060) {
+    if (currprefs.cpu_model == 68060) {
 	if (addr & 1)
 	    custom_wput (addr & ~1, rval);
 	else
@@ -5751,7 +5762,7 @@ STATIC_INLINE void dma_cycle(void)
 	/* bus was allocated to dma channel, wait for next cycle.. */
     }
     bnasty = 0;
-    cycle_line[hpos] |= CYCLE_CPU;
+    alloc_cycle(hpos, CYCLE_CPU);
 }
 
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)

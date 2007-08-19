@@ -206,13 +206,13 @@ addrbank expamem_bank = {
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
-    write_log ("warning: READ.L from address $%lx \n", addr);
+    write_log ("warning: READ.L from address $%lx PC=%x\n", addr, M68K_GETPC);
     return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
-    write_log ("warning: READ.W from address $%lx \n", addr);
+    write_log ("warning: READ.W from address $%lx PC=%x\n", addr, M68K_GETPC);
     return (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
 }
 

@@ -2441,10 +2441,6 @@
 			<Filter
 				Name="xfd"
 				>
-				<File
-					RelativePath="..\..\archivers\xfd\xfd.c"
-					>
-				</File>
 			</Filter>
 		</Filter>
 		<File

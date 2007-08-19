@@ -5767,8 +5767,12 @@ void build_comp(void)
 	compop_func *nfcf;
 #endif
 	int isjmp,isaddx,iscjmp;
-
-	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > currprefs.cpu_level)
+	int lvl;
+	
+	lvl = 5 - (currprefs.cpu_model - 68000) / 10;
+	if (lvl < 0)
+	    lvl = 0;
+	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > lvl)
 	    continue;
 
 	if (table68k[opcode].handler != -1) {
@@ -5925,7 +5929,7 @@ int failure;
 
 void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 {
-    if (letit && compiled_code && currprefs.cpu_level>=2) {
+    if (letit && compiled_code && currprefs.cpu_model>=68020) {
 
 	/* OK, here we need to 'compile' a block */
 	int i;

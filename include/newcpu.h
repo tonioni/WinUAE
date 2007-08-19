@@ -347,16 +347,14 @@ extern void fill_prefetch_slow (struct regstruct *regs);
 extern const struct cputbl op_smalltbl_0_ff[];
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
-/* 68020/68030+FPU */
-extern const struct cputbl op_smalltbl_2_ff[];
 /* 68030 */
-extern const struct cputbl op_smalltbl_3_ff[];
+extern const struct cputbl op_smalltbl_2_ff[];
 /* 68020 */
-extern const struct cputbl op_smalltbl_4_ff[];
+extern const struct cputbl op_smalltbl_3_ff[];
 /* 68010 */
-extern const struct cputbl op_smalltbl_5_ff[];
+extern const struct cputbl op_smalltbl_4_ff[];
 /* 68000 */
-extern const struct cputbl op_smalltbl_6_ff[];
+extern const struct cputbl op_smalltbl_5_ff[];
 /* 68000 slow but compatible.  */
 extern const struct cputbl op_smalltbl_11_ff[];
 /* 68000 slow but compatible and cycle-exact.  */
