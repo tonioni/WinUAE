@@ -116,9 +116,9 @@ static uae_u8 DP[2][24] = {
 #define L2_P   (43*2*2)
 #define RS_L12_BITS 8
 
-static uae_u32 build_edc(uae_u8 *inout, int from, int upto)
+static uae_u32 build_edc (const uae_u8 *inout, int from, int upto)
 {
-    uae_u8 *p = inout + from;
+    const uae_u8 *p = inout + from;
     uae_u32 result = 0;
     for (; from <= upto; from++)
 	result = EDC_crctable[(result ^ *p++) & 0xff] ^ (result >> 8);

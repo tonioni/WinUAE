@@ -1,13 +1,14 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource."
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
+
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -73,9 +74,6 @@ BEGIN
     RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,112,75,10
     EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
-    GROUPBOX        "HRTMon Settings",-1,5,136,290,31,NOT WS_VISIBLE
-    CONTROL         "Enable HRTMon [] HRTMon is monitor/debugger similar to Action Replay series, default activation key is Page Up.",IDC_HRTMON,
-                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,89,148,84,10
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 300, 235
@@ -248,16 +246,15 @@ EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,182
-    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,10,186,64,15
-    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,153,186,64,15
-    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,223,186,65,15
+    PUSHBUTTON      "Add &Directory or Archive...",IDC_NEW_FS,10,186,103,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,130,186,74,15
+    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,220,186,75,15
     PUSHBUTTON      "Remove",IDC_REMOVE,232,207,60,15
     PUSHBUTTON      "&Properties",IDC_EDIT,232,225,60,15
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,209,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,209,119,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,220,121,10
     CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,101,10
-    PUSHBUTTON      "Add Archive...",IDC_NEW_FSARCH,82,186,64,15
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 231
@@ -472,17 +469,19 @@ CAPTION "Volume Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Device name:",-1,5,9,54,10
-    EDITTEXT        IDC_VOLUME_DEVICE,65,5,86,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_VOLUME_DEVICE,65,5,104,15,ES_AUTOHSCROLL
     LTEXT           "Volume label:",-1,5,31,54,10
-    EDITTEXT        IDC_VOLUME_NAME,65,25,85,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_VOLUME_NAME,65,25,103,15,ES_AUTOHSCROLL
     LTEXT           "Path:",-1,5,51,44,10
-    EDITTEXT        IDC_PATH_NAME,65,46,213,15,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_SELECTOR,283,46,10,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,72,70,50,10
-    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,135,70,51,8
-    EDITTEXT        IDC_VOLUME_BOOTPRI,199,68,27,15
-    PUSHBUTTON      "OK",IDOK,120,91,48,15
-    PUSHBUTTON      "Cancel",IDCANCEL,175,91,48,15
+    EDITTEXT        IDC_PATH_NAME,65,46,227,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "Select Directory",IDC_FS_SELECT_DIR,64,66,103,15
+    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,215,9,75,10
+    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,29,59,8
+    EDITTEXT        IDC_VOLUME_BOOTPRI,261,27,30,15
+    PUSHBUTTON      "OK",IDOK,65,91,48,15
+    PUSHBUTTON      "Cancel",IDCANCEL,120,91,48,15
+    PUSHBUTTON      "Select Archive or Plain File",IDC_FS_SELECT_FILE,189,66,103,15
+    PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,230,91,62,15
 END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
@@ -602,7 +601,7 @@ BEGIN
     LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,255,84,19,8
     PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,16,141,76,14
     GROUPBOX        "Ripper",IDC_STATIC,5,127,274,38
-    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,100,141,76,14,WS_DISABLED
+    PUSHBUTTON      "Pro Wizard 1.62",IDC_PROWIZARD,100,141,76,14,WS_DISABLED
     CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,192,141,77,14
     GROUPBOX        "Input Recorder",IDC_STATIC,5,166,274,33
     CONTROL         "Record",IDC_INPREC_RECORD,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,191,177,77,14
@@ -810,7 +809,7 @@ CAPTION "Processing..."
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,88,40,50,14
-    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",WS_BORDER | 0x1,7,19,215,14
+    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",PBS_SMOOTH | WS_BORDER,7,19,215,14
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
@@ -1220,7 +1219,7 @@ BEGIN
     IDS_NUMSG_NOEXTROM      "No extended ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nWould you like to save it?"
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nStart address %08.8X, Size %d bytes\nWould you like to save it?"
     IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 with 32-bit addressing or 68030 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
     IDS_NUMSG_STATEHD       "WARNING: Current configuration is not fully compatible with state saves.\nThis message will not appear again."
@@ -1299,14 +1298,10 @@ BEGIN
     "resource.\0"
 END
 
+
 3 TEXTINCLUDE 
 BEGIN
     "\r\0"
-END
-
-2 TEXTINCLUDE 
-BEGIN
-    "#include ""afxres.h""\r\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -1321,7 +1316,8 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

@@ -5,7 +5,7 @@
   *
   * Copyright 1996 Herman ten Brugge
   * Modified 2005 Peter Keunecke
-   */
+  */
 
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 
@@ -144,29 +144,29 @@ static void fpu_op_illg (uae_u32 opcode, struct regstruct *regs, int pcoffset)
 	|| (currprefs.cpu_model == 68040 && currprefs.fpu_model == 0)) {
 	/* 68040 unimplemented/68060 FPU disabled exception.
 	 * Line F exception with different stack frame.. */
-	uaecptr newpc = m68k_getpc(regs);
+	uaecptr newpc = m68k_getpc (regs);
 	uaecptr oldpc = newpc - pcoffset;
 	MakeSR(regs);
-        if (!regs->s) {
-	    regs->usp = m68k_areg(regs, 7);
-	    m68k_areg(regs, 7) = regs->isp;
+	if (!regs->s) {
+	    regs->usp = m68k_areg (regs, 7);
+	    m68k_areg (regs, 7) = regs->isp;
 	}
 	regs->s = 1;
-        m68k_areg(regs, 7) -= 4;
-        put_long (m68k_areg(regs, 7), oldpc);
-        m68k_areg(regs, 7) -= 4;
-        put_long (m68k_areg(regs, 7), oldpc);
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), 0x4000 + 11 * 4);
-        m68k_areg(regs, 7) -= 4;
-        put_long (m68k_areg(regs, 7), newpc);
-	m68k_areg(regs, 7) -= 2;
-	put_word (m68k_areg(regs, 7), regs->sr);
-        write_log("68040/060 FPU disabled exception PC=%x\n", newpc);
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), oldpc);
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), oldpc);
+	m68k_areg (regs, 7) -= 2;
+	put_word (m68k_areg (regs, 7), 0x4000 + 11 * 4);
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), newpc);
+	m68k_areg (regs, 7) -= 2;
+	put_word (m68k_areg (regs, 7), regs->sr);
+	write_log("68040/060 FPU disabled exception PC=%x\n", newpc);
 	newpc = get_long (regs->vbr + 11 * 4);
-	m68k_setpc(regs, newpc);
-	set_special(regs, SPCFLAG_END_COMPILE);
-   	return;
+	m68k_setpc (regs, newpc);
+	set_special (regs, SPCFLAG_END_COMPILE);
+	return;
     }
     op_illg (opcode, regs);
 }
@@ -206,7 +206,7 @@ static int get_fpu_version(void)
 #define fp_round_to_zero(x) ((int)(x))
 #define fp_round_to_nearest(x) ((int)((x) + 0.5))
 
-STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
+STATIC_INLINE tointtype toint (fptype src, fptype minval, fptype maxval)
 {
     if (src < minval)
 	src = minval;
@@ -225,7 +225,7 @@ STATIC_INLINE tointtype toint(fptype src, fptype minval, fptype maxval)
 #else /* no X86_MSVC */
     switch (get_fpcr() & 0x30) {
 	case FPCR_ROUND_ZERO:
-    	result = fp_round_to_zero(src);
+	result = fp_round_to_zero(src);
 	break;
 	case FPCR_ROUND_MINF:
 	result = fp_round_to_minus_infinity(src);
@@ -378,16 +378,17 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src)
     uae_u16 tmp;
     int size, mode, reg;
     uae_u32 ad = 0;
-    static int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
-    static int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
+    static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
+    static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
 
     if (!(extra & 0x4000)) {
 	*src = regs.fp[(extra >> 10) & 7];
 	return 1;
     }
-    reg = opcode & 7;
     mode = (opcode >> 3) & 7;
+    reg = opcode & 7;
     size = (extra >> 10) & 7;
+
     switch (mode) {
     case 0:
 	switch (size) {
@@ -525,15 +526,15 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
     case 0:
 	switch (size) {
 	case 6:
-	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -128.0, 127.0) & 0xff)
+	    m68k_dreg (regs, reg) = (uae_u32)(((toint (value, -128.0, 127.0) & 0xff)
 		| (m68k_dreg (regs, reg) & ~0xff)));
 	    break;
 	case 4:
-	    m68k_dreg (regs, reg) = (uae_u32)(((toint(value, -32768.0, 32767.0) & 0xffff)
+	    m68k_dreg (regs, reg) = (uae_u32)(((toint (value, -32768.0, 32767.0) & 0xffff)
 	    | (m68k_dreg (regs, reg) & ~0xffff)));
 	    break;
 	case 0:
-	    m68k_dreg (regs, reg) = (uae_u32)toint(value, -2147483648.0, 2147483647.0);
+	    m68k_dreg (regs, reg) = (uae_u32)toint (value, -2147483648.0, 2147483647.0);
 	    break;
 	case 1:
 	    m68k_dreg (regs, reg) = from_single (value);
@@ -588,7 +589,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
     }
     switch (size) {
     case 0:
-	put_long (ad, (uae_u32)toint(value, -2147483648.0, 2147483647.0));
+	put_long (ad, (uae_u32)toint (value, -2147483648.0, 2147483647.0));
 	break;
     case 1:
 	put_long (ad, from_single (value));
@@ -616,7 +617,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 	}
 	break;
     case 4:
-	put_word (ad, (uae_s16) toint(value, -32768.0, 32767.0));
+	put_word (ad, (uae_s16) toint (value, -32768.0, 32767.0));
 	break;
     case 5:{
 	    uae_u32 wrd1, wrd2;
@@ -627,7 +628,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 	}
 	break;
     case 6:
-	put_byte (ad, (uae_s8)toint(value, -128.0, 127.0));
+	put_byte (ad, (uae_s8)toint (value, -128.0, 127.0));
 	break;
     default:
 	return 0;
@@ -1144,7 +1145,7 @@ void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 		return;
 	    }
 	    if((opcode & 0x38) == 0x20) {
-	    	if (extra & 0x1000)
+		if (extra & 0x1000)
 		    incr += 4;
 		if (extra & 0x0800)
 		    incr += 4;
@@ -1395,7 +1396,7 @@ void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	case 0x01: /* FINT */
 	    /* need to take the current rounding mode into account */
 #if defined(X86_MSVC_ASSEMBLY)
-            {
+	    {
 	      fptype tmp_fp;
 
 	      __asm {
@@ -1639,7 +1640,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 	restore_u32();
 	restore_u32();
     }
-    write_log("FPU=%d\n", currprefs.fpu_model);
+    write_log ("FPU=%d\n", currprefs.fpu_model);
     return src;
 }
 

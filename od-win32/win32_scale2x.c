@@ -90,11 +90,11 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     DirectDrawState.temporary.desc.dwWidth = dst_width;
     DirectDrawState.temporary.desc.dwHeight = dst_height;
     if (DirectDraw_GetPrimaryPixelFormat (&DirectDrawState.temporary.desc.ddpfPixelFormat))
-        DirectDrawState.temporary.desc.dwFlags |= DDSD_PIXELFORMAT;
-    ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, 
-                                            &DirectDrawState.temporary.desc,
-                                            &DirectDrawState.temporary.surface,
-                                            NULL);
+	DirectDrawState.temporary.desc.dwFlags |= DDSD_PIXELFORMAT;
+    ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd,
+					    &DirectDrawState.temporary.desc,
+					    &DirectDrawState.temporary.surface,
+					    NULL);
     if (FAILED(ddrval)) {
 	write_log ("DDRAW: failed to create temp surface\n%s\n", DXError (ddrval));
 	tempsurf = 0;
@@ -132,9 +132,9 @@ void S2X_render (void)
     ah -= (int)(-v * 4.0 / 10);
 
     if (aw * scale > dst_width)
-        aw = dst_width / scale;
+	aw = dst_width / scale;
     if (ah * scale > dst_height)
-        ah = dst_height / scale;
+	ah = dst_height / scale;
 
     if (ah < 16)
 	return;
@@ -202,7 +202,7 @@ void S2X_render (void)
 		return;
 	    }
 	}
-        dptr = (uae_u8*)desc.lpSurface;
+	dptr = (uae_u8*)desc.lpSurface;
 	pitch = desc.lPitch;
     } else {
 	if (!DirectDraw_SurfaceLock (lockable_surface))
@@ -213,7 +213,7 @@ void S2X_render (void)
 
     if (usedfilter->type == UAE_FILTER_SCALE2X ) { /* 16+32/2X */
 
-        if (amiga_depth == 16 && dst_depth == 16) {
+	if (amiga_depth == 16 && dst_depth == 16) {
 	    AdMame2x (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
 	    ok = 1;
 	} else if (amiga_depth == 32 && dst_depth == 32) {
@@ -224,7 +224,7 @@ void S2X_render (void)
 #if 0
     } else if (usedfilter->type == UAE_FILTER_HQ) { /* 32/2X+3X+4X */
 
-        int hqsrcpitch = gfxvidinfo.rowbytes - aw * amiga_depth / 8;
+	int hqsrcpitch = gfxvidinfo.rowbytes - aw * amiga_depth / 8;
 	int hqdstpitch = pitch - aw * scale * dst_depth / 8;
 	int hqdstpitch2 = pitch * scale - aw * scale * dst_depth / 8;
 	if (scale == 2) {
@@ -237,7 +237,7 @@ void S2X_render (void)
 		hq3x_16 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
 		ok = 1;
 	    } else if (amiga_depth == 16 && dst_depth == 32) {
-	    	hq3x_32 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
+		hq3x_32 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
 		ok = 1;
 	    }
 	} else if (scale == 4) {
@@ -257,7 +257,7 @@ void S2X_render (void)
     } else if (usedfilter->type == UAE_FILTER_SUPER2XSAI) { /* 16/2X */
 
 	if (scale == 2 && amiga_depth == 16 && dst_depth == 16) {
-    	    Super2xSaI (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+	    Super2xSaI (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
 	    ok = 1;
 	}
 
@@ -270,7 +270,7 @@ void S2X_render (void)
 
     } else if (usedfilter->type == UAE_FILTER_PAL) { /* 16/32/1X */
 
-        if (amiga_depth == 32 && dst_depth == 32) {
+	if (amiga_depth == 32 && dst_depth == 32) {
 	    PAL_1x1_32((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
 	    ok = 1;
 	} else if (amiga_depth == 16 && dst_depth == 16) {
@@ -296,12 +296,12 @@ void S2X_render (void)
     }
 
     if (ok == 0 && currprefs.gfx_filter) {
-        usedfilter = &uaefilters[0];
-        changed_prefs.gfx_filter = usedfilter->type;
+	usedfilter = &uaefilters[0];
+	changed_prefs.gfx_filter = usedfilter->type;
     }
 
     if (temp_needed) {
-        IDirectDrawSurface7_Unlock (dds, NULL);
+	IDirectDrawSurface7_Unlock (dds, NULL);
 	DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0, NULL);
     } else {
 	DirectDraw_SurfaceUnlock ();
@@ -314,7 +314,7 @@ void S2X_refresh (void)
     uae_u8 *dptr;
 
     if (!DirectDraw_SurfaceLock (lockable_surface))
-    	return;
+	return;
     dptr = DirectDraw_GetSurfacePointer ();
     pitch = DirectDraw_GetSurfacePitch();
     for (y = 0; y < dst_height; y++)

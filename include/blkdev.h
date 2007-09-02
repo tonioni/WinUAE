@@ -107,7 +107,7 @@ struct device_functions {
     scsiinfo_func scsiinfo;
 
     ismedia_func ismedia;
-    
+
 };
 
 extern struct device_functions *device_func[2];

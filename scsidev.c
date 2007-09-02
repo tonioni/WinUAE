@@ -211,7 +211,7 @@ static int start_thread (struct scsidevdata *sdd)
 
 static uae_u32 scsidev_open (void)
 {
-    uaecptr tmp1 = m68k_areg(regs, 1); /* IOReq */
+    uaecptr tmp1 = m68k_areg (regs, 1); /* IOReq */
     uae_u32 unit = m68k_dreg (regs, 0);
     struct scsidevdata *sdd;
 
@@ -223,7 +223,7 @@ static uae_u32 scsidev_open (void)
     if ((sdd = get_scsidev_data (unit)) &&
 	start_thread (sdd)) {
 	opencount++;
-	put_word (m68k_areg(regs, 6)+32, get_word (m68k_areg(regs, 6)+32) + 1);
+	put_word (m68k_areg (regs, 6)+32, get_word (m68k_areg (regs, 6)+32) + 1);
 	put_long (tmp1 + 24, unit); /* io_Unit */
 	put_byte (tmp1 + 31, 0); /* io_Error */
 	put_byte (tmp1 + 8, 7); /* ln_type = NT_REPLYMSG */
@@ -242,7 +242,7 @@ static uae_u32 scsidev_close (void)
 #endif
 
     opencount--;
-    put_word (m68k_areg(regs, 6) + 32, get_word (m68k_areg(regs, 6) + 32) - 1);
+    put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) - 1);
 
     return 0;
 }
@@ -537,21 +537,21 @@ static void scsidev_do_io (struct scsidevdata *sdd, uaecptr request)
 #ifdef DEBUGME
     printf ("scsidev: did io: sdd     = 0x%x\n", sdd);
     printf ("scsidev: did io: request = %08lx\n", (unsigned long)request);
-    printf ("scsidev: did io: error   = %d\n", (int)get_word(request+31));
+    printf ("scsidev: did io: error   = %d\n", (int)get_word (request+31));
 #endif
 }
 
 
 static uae_u32 scsidev_beginio (void)
 {
-    uae_u32 request = m68k_areg(regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     int unit = get_long (request + 24);
     struct scsidevdata *sdd = get_scsidev_data (unit);
 
 #ifdef DEBUGME
     printf ("scsidev_begin_io: sdd     = 0x%x\n", sdd);
     printf ("scsidev_begin_io: request = %08lx\n", (unsigned long)request);
-    printf ("scsidev_begin_io: cmd     = %d\n", (int)get_word(request+28));
+    printf ("scsidev_begin_io: cmd     = %d\n", (int)get_word (request+28));
 #endif
 
     put_byte (request+8, NT_MESSAGE);
@@ -599,7 +599,7 @@ static void *scsidev_thread (void *sddv)
 #ifdef DEBUGME
 	printf ("scsidev_penguin: sdd  = 0x%x\n", sdd);
 	printf ("scsidev_penguin: req  = %08lx\n", (unsigned long)request);
-	printf ("scsidev_penguin: cmd  = %d\n", (int)get_word(request+28));
+	printf ("scsidev_penguin: cmd  = %d\n", (int)get_word (request+28));
 #endif
 	if (!request) {
 	    printf ("scsidev_penguin: going down with 0x%x\n", sdd->sync_sem);
@@ -680,14 +680,14 @@ uaecptr scsidev_startup (uaecptr resaddr)
 #endif
     /* Build a struct Resident. This will set up and initialize
      * the uaescsi.device */
-    put_word(resaddr + 0x0, 0x4AFC);
-    put_long(resaddr + 0x2, resaddr);
-    put_long(resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-    put_word(resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-    put_word(resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-    put_long(resaddr + 0xE, ROM_scsidev_resname);
-    put_long(resaddr + 0x12, ROM_scsidev_resid);
-    put_long(resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
+    put_word (resaddr + 0x0, 0x4AFC);
+    put_long (resaddr + 0x2, resaddr);
+    put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+    put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+    put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+    put_long (resaddr + 0xE, ROM_scsidev_resname);
+    put_long (resaddr + 0x12, ROM_scsidev_resid);
+    put_long (resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
     resaddr += 0x1A;
 
     return resaddr;

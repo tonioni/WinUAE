@@ -67,11 +67,11 @@ static int listenIPC(void)
 	    return 0;
 	}
     } else if (err != ERROR_IO_PENDING) {
-        write_log ("IPC: ConnectNamedPipe failed, err=%d\n", err);
+	write_log ("IPC: ConnectNamedPipe failed, err=%d\n", err);
 	closeIPC();
 	return 0;
     }
-    write_log("IPC: waiting for connections\n");
+    write_log ("IPC: waiting for connections\n");
     return 1;
 }
 
@@ -198,13 +198,13 @@ int checkIPC(struct uae_prefs *p)
 	    connected = TRUE;
 	    return 0;
 	}
-        if (writepending) {
+	if (writepending) {
 	    writepending = FALSE;
 	    SetEvent (ol.hEvent);
 	    memset (&ol, 0, sizeof ol);
 	    ol.hEvent = olevent;
 	    return 0;
-        }
+	}
     }
     if (!readpending) {
 	ok = ReadFile(hipc, buffer, IPC_BUFFER_SIZE, &ret, &ol);
@@ -223,7 +223,7 @@ int checkIPC(struct uae_prefs *p)
 	}
     }
     readpending = FALSE;
-    write_log("IPC: got message '%s'\n", buffer);
+    write_log ("IPC: got message '%s'\n", buffer);
     parsemessage((char*)buffer, p, (char*)outbuf, sizeof outbuf);
     memset (&ol, 0, sizeof ol);
     ol.hEvent = olevent;
@@ -231,7 +231,7 @@ int checkIPC(struct uae_prefs *p)
     err = GetLastError();
     if (!ok && err != ERROR_IO_PENDING) {
 	write_log ("IPC: WriteFile() err=%d\n", err);
-        resetIPC();
+	resetIPC();
 	return 0;
     }
     writepending = TRUE;

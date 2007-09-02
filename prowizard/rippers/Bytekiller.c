@@ -109,7 +109,6 @@ short testByteKiller_20 ( void )
        (in_data[PW_Start_Address+6]  != 0x00 ) ||
        (in_data[PW_Start_Address+7]  != 0xDF ) ||
        (in_data[PW_Start_Address+8]  != 0xF1 ) ||
-       (in_data[PW_Start_Address+9]  != 0x80 ) ||
        (in_data[PW_Start_Address+10] != 0x41 ) ||
        (in_data[PW_Start_Address+11] != 0xFA ) ||
        (in_data[PW_Start_Address+12] != 0x00 ) ||
@@ -383,7 +382,7 @@ void Rip_ByteKiller ( void )
   }
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 173);  /* 171 should do but call it "just to be sure" :) */
+    PW_i += 173;  /* 171 should do but call it "just to be sure" :) */
 }
 
 void Rip_ByteKiller30 ( void )
@@ -427,7 +426,7 @@ void Rip_ByteKiller30 ( void )
   }
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 36);  /* 32 should do but call it "just to be sure" :) */
+    PW_i += 36;  /* 32 should do but call it "just to be sure" :) */
 }
 
 
@@ -506,6 +505,6 @@ void Rip_bytekillerpro10 ( void )
   }
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 54);  /* 51 should do but call it "just to be sure" :) */
+    PW_i += 54;  /* 51 should do but call it "just to be sure" :) */
 }
 

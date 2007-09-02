@@ -141,7 +141,7 @@ BOOL checksd(SB, int sd)
     if (s != INVALID_SOCKET) {
 	for (iCounter  = 1; iCounter <= sb->dtablesize; iCounter++) {
 	    if (iCounter != sd) {
-	        if (getsock(sb,iCounter) == s) {
+		if (getsock(sb,iCounter) == s) {
 		    releasesock(sb,sd);
 		    return TRUE;
 		}
@@ -209,8 +209,8 @@ SOCKET_TYPE getsock (SB, int sd)
 	    if (!addr_valid("getsock4", ot1, 1))
 		break;
 	    if (strcmp(get_real_address (ot1), get_real_address (ot)) == 0) {
-		// Task with same name already exists -> use same dtable 
-	    	if (sb1->dtable[sd - 1] != INVALID_SOCKET)
+		// Task with same name already exists -> use same dtable
+		if (sb1->dtable[sd - 1] != INVALID_SOCKET)
 		    return sb1->dtable[sd - 1];
 	    }
 	    nsb = sb1->next;
@@ -278,7 +278,7 @@ void bsdsock_fake_int_handler(void)
     bsd_int_requested = 0;
 
     if (sbsigqueue != NULL) {
-        SB;
+	SB;
 
 	for (sb = sbsigqueue; sb; sb = sb->nextsig) {
 	    if (sb->dosignal == 1) {
@@ -331,7 +331,7 @@ void waitsig (TrapContext *context, SB)
     long sigs;
     m68k_dreg (&context->regs, 0) = (((uae_u32) 1) << sb->signal) | sb->eintrsigs;
     if ((sigs = CallLib (context, get_long (4), -0x13e)) & sb->eintrsigs) { /* Wait */
-	sockabort (sb); 
+	sockabort (sb);
 	bsdsocklib_seterrno (sb, 4); /* EINTR */
 
 	// Set signal
@@ -751,8 +751,8 @@ static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
 
     if (sd != -1) {
 	sb->ftable[sd - 1] = sockdata->sockpoolflags[i];
-        sockdata->sockpoolids[i] = UNIQUE_ID;
-        return sd - 1;
+	sockdata->sockpoolids[i] = UNIQUE_ID;
+	return sd - 1;
     }
 
     return -1;
@@ -1091,7 +1091,7 @@ static const char *herrortexts[] =
 static uae_u32 herrnotextptrs[sizeof (herrortexts) / sizeof (*herrortexts)];
 static const uae_u32 number_host_error = sizeof (herrortexts) / sizeof (*herrortexts);
 
-static const char * const strErr = "Errlist lookup error"; 
+static const char * const strErr = "Errlist lookup error";
 static uae_u32 strErrptr;
 
 
@@ -1223,7 +1223,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 		    if (currtag & 1) {
 			bsdsocklib_SetDTableSize(sb, currval);
 		    } else {
-			put_long(tagptr + 4, sb->dtablesize);
+			put_long (tagptr + 4, sb->dtablesize);
 		    }
 		    break;
 		 case SBTC_ERRNOSTRPTR:
@@ -1232,12 +1232,12 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 		    } else {
 			unsigned long ulTmp;
 			if (currtag & 0x8000) { /* SBTM_GETREF */
-			    ulTmp = get_long(currval);
+			    ulTmp = get_long (currval);
 			} else { /* SBTM_GETVAL */
 			    ulTmp = currval;
 			}
 			TRACE (("ERRNOSTRPTR),%d", ulTmp));
-			if (ulTmp < number_sys_error) { 
+			if (ulTmp < number_sys_error) {
 			    tagcopy (currtag, currval, tagptr, &errnotextptrs[ulTmp]);
 			} else {
 			    tagcopy (currtag, currval, tagptr, &strErrptr);
@@ -1250,7 +1250,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 		    } else {
 			unsigned long ulTmp;
 			if (currtag & 0x8000) { /* SBTM_GETREF */
-			    ulTmp = get_long(currval);
+			    ulTmp = get_long (currval);
 			} else { /* SBTM_GETVAL */
 			    ulTmp = currval;
 			}
@@ -1291,7 +1291,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 		TRACE (("TAG_UNKNOWN(0x%x)", currtag));
 		/* Aminetradio uses 0x00004e55 as an ending tag */
 		if ((currtag & 0xffff8000) == 0) {
-		    write_log("bsdsocket: WARNING: Corrupted SocketBaseTagList(%x) tag detected (%08.8x)\n",
+		    write_log ("bsdsocket: WARNING: Corrupted SocketBaseTagList(%x) tag detected (%08.8x)\n",
 			m68k_areg (&context->regs, 0), currtag);
 		    goto done;
 		}
@@ -1489,7 +1489,7 @@ void bsdlib_install (void)
 
     if (!sockdata) {
 	sockdata = (struct sockd*)xcalloc (sizeof (struct sockd), 1);
-        for (i = 0; i < SOCKPOOLSIZE; i++)
+	for (i = 0; i < SOCKPOOLSIZE; i++)
 	    sockdata->sockpoolids[i] = UNIQUE_ID;
     }
 

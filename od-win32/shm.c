@@ -1,6 +1,6 @@
 #include <float.h>
 
-#include "sysconfig.h" 
+#include "sysconfig.h"
 #include "sysdeps.h"
 #include "sys/mman.h"
 #include "include/memory.h"
@@ -50,10 +50,10 @@ void init_shm( void )
 	    natmem_offset = addr;
 	    break;
 	}
-        addr += 0x01000000;
+	addr += 0x01000000;
     }
     if (natmem_offset) {
-        write_log( "NATMEM: Our special area is 0x%x\n", natmem_offset);
+	write_log ( "NATMEM: Our special area is 0x%x\n", natmem_offset);
     } else {
 	canbang = 0;
     }
@@ -89,7 +89,7 @@ STATIC_INLINE key_t find_shmkey( key_t key )
 int mprotect(void *addr, size_t len, int prot)
 {
     int result = 0;
-  
+
     return result;
 }
 
@@ -98,7 +98,7 @@ int shmget(key_t key, size_t size, int shmflg, char *name)
     int result = -1;
 
     if( ( key == IPC_PRIVATE ) || ( ( shmflg & IPC_CREAT ) && ( find_shmkey( key ) == -1) ) ) {
-	write_log( "shmget of size %d for %s\n", size, name );
+	write_log ( "shmget of size %d for %s\n", size, name );
 	if( ( result = get_next_shmkey() ) != -1 ) {
 		HANDLE h = CreateFileMapping (NULL, 0, PAGE_READWRITE, 0, size, NULL);
 		if (h == NULL)
@@ -139,7 +139,7 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 }
 
 void *shmat(int shmid, LPVOID shmaddr, int shmflg)
-{ 
+{
     struct shmid_ds *shm = &shmids[shmid];
 
     if(shm->addr == shmaddr )
@@ -157,13 +157,13 @@ int shmdt(const void *shmaddr)
     int i;
     if (shmaddr == (void*)0xffffffff)
 	return 0;
-    write_log("shmdt: %08.8X\n", shmaddr);
+    write_log ("shmdt: %08.8X\n", shmaddr);
     if (UnmapViewOfFile ((LPCVOID)shmaddr) == FALSE) {
 	win32_error("UnmapViewOfFile %08.8X", shmaddr);
 	return 0;
     }
     for( i = 0; i < MAX_SHMID; i++ ) {
-        struct shmid_ds *shm = &shmids[i];
+	struct shmid_ds *shm = &shmids[i];
 	if (shm->addr == shmaddr) {
 	    shm->addr = (void*)0xffffffff;
 	}

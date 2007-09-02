@@ -86,9 +86,9 @@ static void setmax()
     Disable();
     max = gettime(0);
     for (;;) {
-        i = gettime(i);
-        if (i >= max) max = i;
-        else break;
+	i = gettime(i);
+	if (i >= max) max = i;
+	else break;
     }
     max -= 2;
     Enable();
@@ -110,7 +110,7 @@ static timeout()
     return (newtime > (lasttime + 60));
 }
 
-    
+
 
 static char *buffer[2] = { 0, 0} ;
 static long bufferlength[2] = { 0,0 };
@@ -125,39 +125,39 @@ allocbuffers()
     short sysex = 0;
     short i;
     for (;track;track = track->next) {
-        tool = (struct MIDITool *) track->toollist;
-        if (tool->tool.toolid == ID_MDIN) {
-            sysex |= tool->status;
-        }
+	tool = (struct MIDITool *) track->toollist;
+	if (tool->tool.toolid == ID_MDIN) {
+	    sysex |= tool->status;
+	}
     }
     if (sysex & 128) {
-        if (allocated < 2) {
-            for (i=0;i<2;i++) {
-                if (!buffer[i]) {
-                    buffer[i] = (char *) (*functions->myalloc)(BUFFLEN,MEMF_PUBLIC);
-                    if (buffer[i]) {
-                        bufferlength[i] = BUFFLEN;
-                        allocated++;
-                    }
-                    else bufferlength[i] = 0;
-                }
-            }
-            bufferselect = 0;
-        }
+	if (allocated < 2) {
+	    for (i=0;i<2;i++) {
+		if (!buffer[i]) {
+		    buffer[i] = (char *) (*functions->myalloc)(BUFFLEN,MEMF_PUBLIC);
+		    if (buffer[i]) {
+			bufferlength[i] = BUFFLEN;
+			allocated++;
+		    }
+		    else bufferlength[i] = 0;
+		}
+	    }
+	    bufferselect = 0;
+	}
     }
     else {
-        if (allocated) {
-            for (i=0;i<2;i++) {
-                if (buffer[i]) {
-                    allocated--;
-                    (*functions->myfree)(buffer[i],bufferlength[i]);
-                    bufferlength[i] = 0;
-                    buffer[i] = 0;
-                }
-            }
-            bufferselect = 0;
-        }
-        allocated = 0;
+	if (allocated) {
+	    for (i=0;i<2;i++) {
+		if (buffer[i]) {
+		    allocated--;
+		    (*functions->myfree)(buffer[i],bufferlength[i]);
+		    bufferlength[i] = 0;
+		    buffer[i] = 0;
+		}
+	    }
+	    bufferselect = 0;
+	}
+	allocated = 0;
     }
     return(allocated);
 }
@@ -168,18 +168,18 @@ struct MIDITool *copy;
 
 {
     struct MIDITool *tool;
-    tool = (struct MIDITool *) 
-        (*functions->myalloc)(sizeof(struct MIDITool),MEMF_CLEAR);
+    tool = (struct MIDITool *)
+	(*functions->myalloc)(sizeof(struct MIDITool),MEMF_CLEAR);
     if (tool) {
-        if (copy) {
-            memcpy((char *)tool,(char *)copy,sizeof(struct MIDITool));
-            tool->tool.next = 0;
-            if (tool->status & 128) allocbuffers();
-        }
-        tool->tool.tooltype = TOOL_INPUT;
-        tool->tool.toolid = ID_MDIN;
-        tool->status = 0x7F;
-        tool->tool.touched = TOUCH_INIT;
+	if (copy) {
+	    memcpy((char *)tool,(char *)copy,sizeof(struct MIDITool));
+	    tool->tool.next = 0;
+	    if (tool->status & 128) allocbuffers();
+	}
+	tool->tool.tooltype = TOOL_INPUT;
+	tool->tool.toolid = ID_MDIN;
+	tool->status = 0x7F;
+	tool->tool.touched = TOUCH_INIT;
     }
     return((struct Tool *)tool);
 }
@@ -190,8 +190,8 @@ struct MIDITool *tool;
 
 {
     if (tool->status & 128) {
-        tool->status = 0;
-        allocbuffers();
+	tool->status = 0;
+	allocbuffers();
     }
     (*functions->myfree)(tool,sizeof(struct MIDITool));
 }
@@ -216,14 +216,14 @@ struct MIDITool *tool;
     char menuname[100];
     midiinNewWindowStructure1.Screen = functions->screen;
     if (tool->tool.touched & TOUCH_EDIT) {
-        midiinNewWindowStructure1.LeftEdge = tool->tool.left;
-        midiinNewWindowStructure1.TopEdge = tool->tool.top;
-        midiinNewWindowStructure1.Width = tool->tool.width;
-        midiinNewWindowStructure1.Height = tool->tool.height;
+	midiinNewWindowStructure1.LeftEdge = tool->tool.left;
+	midiinNewWindowStructure1.TopEdge = tool->tool.top;
+	midiinNewWindowStructure1.Width = tool->tool.width;
+	midiinNewWindowStructure1.Height = tool->tool.height;
     }
     if (!(tool->tool.touched & TOUCH_INIT)) tool->status = 0x7F;
-    newwindow = (struct NewWindow *) 
-        (*functions->DupeNewWindow)(&midiinNewWindowStructure1);
+    newwindow = (struct NewWindow *)
+	(*functions->DupeNewWindow)(&midiinNewWindowStructure1);
     if (!newwindow) return;
     newwindow->Title = 0;
     newwindow->Flags |= BORDERLESS;
@@ -231,7 +231,7 @@ struct MIDITool *tool;
     window = (struct Window *) (*functions->FlashyOpenWindow)(newwindow);
     if (!window) return;
     (*functions->EmbossWindowOn)(window,WINDOWCLOSE|WINDOWDEPTH|WINDOWDRAG,
-        "Midi In",-1,-1,0,0);
+	"Midi In",-1,-1,0,0);
     tool->tool.window = window;
     (*functions->EmbossOn)(window,1,1);
     (*functions->EmbossOn)(window,2,1);
@@ -251,37 +251,37 @@ struct MIDITool *tool;
     TitleMenu.MenuName = menuname;
     SetMenuStrip(window,&TitleMenu);
     for (;;) {
-        message = (struct IntuiMessage *)(*functions->GetIntuiMessage)(window);
-        class = message->Class;
-        code = message->Code;
-        gadget = (struct Gadget *) message->IAddress;
-        class = (*functions->SystemGadgets)(window,class,gadget,code);
-        ReplyMsg((struct Message *)message);
-        if (class == CLOSEWINDOW) break;
-        else if (class == GADGETUP) {
-            class = gadget->GadgetID;
-            switch (class) {
-                case 1 :
-                    tool->status ^= 3;
-                    (*functions->SelectEmbossed)(window,1,tool->status & 1);
-                    break;
-                case 2 :
-                case 3 :
-                case 4 :
-                case 5 :
-                case 6 :
-                case 7 :
-                    class = 1 << (class);
-                    tool->status ^= class;
-                    if (class & 128) {
-                        if (!allocbuffers() && (tool->status & 128))
-                            tool->status &= ~128;
-                    }
-                    (*functions->SelectEmbossed)
-                        (window,gadget->GadgetID,tool->status & class);
-                    break;
-            }
-        }
+	message = (struct IntuiMessage *)(*functions->GetIntuiMessage)(window);
+	class = message->Class;
+	code = message->Code;
+	gadget = (struct Gadget *) message->IAddress;
+	class = (*functions->SystemGadgets)(window,class,gadget,code);
+	ReplyMsg((struct Message *)message);
+	if (class == CLOSEWINDOW) break;
+	else if (class == GADGETUP) {
+	    class = gadget->GadgetID;
+	    switch (class) {
+		case 1 :
+		    tool->status ^= 3;
+		    (*functions->SelectEmbossed)(window,1,tool->status & 1);
+		    break;
+		case 2 :
+		case 3 :
+		case 4 :
+		case 5 :
+		case 6 :
+		case 7 :
+		    class = 1 << (class);
+		    tool->status ^= class;
+		    if (class & 128) {
+			if (!allocbuffers() && (tool->status & 128))
+			    tool->status &= ~128;
+		    }
+		    (*functions->SelectEmbossed)
+			(window,gadget->GadgetID,tool->status & class);
+		    break;
+	    }
+	}
     }
     ClearMenuStrip(window);
     (*functions->EmbossOff)(window,1);
@@ -315,7 +315,7 @@ extern long stdout;
 
 static struct Interrupt midiintin;
 
-static unsigned char plen[128] = { 
+static unsigned char plen[128] = {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -334,12 +334,12 @@ struct String *string;
     short i;
     unsigned long j;
     if (string) {
-        dprintf("Length: %ld\n",string->length);
-        for (i=0;i<string->length;i++) {
-            j = string->string[i];
-            j &= 0xFF;
-            dprintf("%lx ",j);
-        }
+	dprintf("Length: %ld\n",string->length);
+	for (i=0;i<string->length;i++) {
+	    j = string->string[i];
+	    j &= 0xFF;
+	    dprintf("%lx ",j);
+	}
     }
     else dprintf("No string");
     dprintf("\n");
@@ -366,103 +366,103 @@ static void eventcode()
     eventsignal = 1 << AllocSignal(-1);
     index = 0;
     for (;;) {
-        Wait(eventsignal);
-        for (;index != eventindex;) {
-            event = &eventarray[index];
-            status = 1 << ((event->status >> 4) - 8);
-            if (status == 2) {
-                if (!event->byte1) {
-                    index++;
-                    index &= 0x1F;
-                    continue;
-                }
-                if (event->byte2 && functions->remotecontrol[event->byte1]) {
-                    if (functions->processinputevent) {
-                        (*functions->processinputevent)
-                            (functions->remotecontrol[event->byte1]);
-                        index++;
-                        index &= 0x1F;
-                        continue;
-                    }
-                }
-            }
-            if (status == 128) {
-                if (functions->multiin) {
-                    for (track = functions->tracklist;track;track = track->next) {
-                        tool = (struct MIDITool *) track->toollist;
-                        if (tool->tool.toolid == ID_MDIN) {
-                            if (tool->status & 128) break;
-                        }
-                    }
-                }
-                else track = master.intrack;
-                if (track) {
-                    tool = (struct MIDITool *) track->toollist;
-                    stringevent = (struct StringEvent *) 
-                        (*functions->fastallocevent)();
-                    if (stringevent) {
-                        stringevent->type = EVENT_SYSX;
-                        stringevent->tool = tool->tool.next;
-                        stringevent->time = event->time;
-                        if (!event->tool) {
-                            index++;
-                            index &= 0x1F;
-                            continue;
-                        }
-                        stringevent->string = (struct String *)
-                            (*functions->myalloc)(event->data + 3,0);
-                        if (stringevent->string) {
-                            stringevent->string->length = event->data + 2;
-                            memcpy(stringevent->string->string,event->tool,
-                                event->data);
-                        }
-                        stringevent->status = MIDI_SYSX;
-                        (*functions->qevent)(stringevent);
-                    }
-                }
-                index++;
-                index &= 0x1F;
-                continue;
-            }
-            if (functions->multiin) {
-                channel = event->status & 15;
-                track = (struct Track *) functions->tracklist;
-                for (;track;track = track->next) {
-                    tool = (struct MIDITool *) track->toollist;
-                    if (tool && (tool->tool.toolid == ID_MDIN) && 
-                        (tool->status & status)) {
-                        if (track->channelin == channel) {
-                            break;
-                        }
-                    }
-                }
-            }
-            else {
-                track = master.intrack;
-            }
-            if (track) {
-                tool = (struct MIDITool *) track->toollist;
-                if (tool && (tool->tool.toolid == ID_MDIN) &&
-                    (tool->status & status)) {
-                    copy = (struct Event *) (*functions->fastallocevent)();
-                    if (copy) {
-                        copy->type = EVENT_VOICE;
-                        copy->tool = tool->tool.next;
-                        copy->status = (event->status & 0xF0);
-                        copy->byte1 = event->byte1;
-                        copy->byte2 = event->byte2;
-                        if (copy->status == MIDI_NOTEON) {
-                            if (!copy->byte2) copy->status = MIDI_NOTEOFF;
-                        }
-                        copy->time = event->time;
-                        (*functions->qevent)(copy);
-                    }
-                }
-            }
-            index++;
-            index &= 0x1F;
-            continue;
-        }
+	Wait(eventsignal);
+	for (;index != eventindex;) {
+	    event = &eventarray[index];
+	    status = 1 << ((event->status >> 4) - 8);
+	    if (status == 2) {
+		if (!event->byte1) {
+		    index++;
+		    index &= 0x1F;
+		    continue;
+		}
+		if (event->byte2 && functions->remotecontrol[event->byte1]) {
+		    if (functions->processinputevent) {
+			(*functions->processinputevent)
+			    (functions->remotecontrol[event->byte1]);
+			index++;
+			index &= 0x1F;
+			continue;
+		    }
+		}
+	    }
+	    if (status == 128) {
+		if (functions->multiin) {
+		    for (track = functions->tracklist;track;track = track->next) {
+			tool = (struct MIDITool *) track->toollist;
+			if (tool->tool.toolid == ID_MDIN) {
+			    if (tool->status & 128) break;
+			}
+		    }
+		}
+		else track = master.intrack;
+		if (track) {
+		    tool = (struct MIDITool *) track->toollist;
+		    stringevent = (struct StringEvent *)
+			(*functions->fastallocevent)();
+		    if (stringevent) {
+			stringevent->type = EVENT_SYSX;
+			stringevent->tool = tool->tool.next;
+			stringevent->time = event->time;
+			if (!event->tool) {
+			    index++;
+			    index &= 0x1F;
+			    continue;
+			}
+			stringevent->string = (struct String *)
+			    (*functions->myalloc)(event->data + 3,0);
+			if (stringevent->string) {
+			    stringevent->string->length = event->data + 2;
+			    memcpy(stringevent->string->string,event->tool,
+				event->data);
+			}
+			stringevent->status = MIDI_SYSX;
+			(*functions->qevent)(stringevent);
+		    }
+		}
+		index++;
+		index &= 0x1F;
+		continue;
+	    }
+	    if (functions->multiin) {
+		channel = event->status & 15;
+		track = (struct Track *) functions->tracklist;
+		for (;track;track = track->next) {
+		    tool = (struct MIDITool *) track->toollist;
+		    if (tool && (tool->tool.toolid == ID_MDIN) &&
+			(tool->status & status)) {
+			if (track->channelin == channel) {
+			    break;
+			}
+		    }
+		}
+	    }
+	    else {
+		track = master.intrack;
+	    }
+	    if (track) {
+		tool = (struct MIDITool *) track->toollist;
+		if (tool && (tool->tool.toolid == ID_MDIN) &&
+		    (tool->status & status)) {
+		    copy = (struct Event *) (*functions->fastallocevent)();
+		    if (copy) {
+			copy->type = EVENT_VOICE;
+			copy->tool = tool->tool.next;
+			copy->status = (event->status & 0xF0);
+			copy->byte1 = event->byte1;
+			copy->byte2 = event->byte2;
+			if (copy->status == MIDI_NOTEON) {
+			    if (!copy->byte2) copy->status = MIDI_NOTEOFF;
+			}
+			copy->time = event->time;
+			(*functions->qevent)(copy);
+		    }
+		}
+	    }
+	    index++;
+	    index &= 0x1F;
+	    continue;
+	}
     }
 }
 
@@ -487,128 +487,128 @@ static void midiincode()
     static char *bufferpoint = 0;
 
     for (data = custom.serdatr;;data = custom.serdatr) {
-        if (!(data & 0x4000)) {
-            if (sysexon && master.readsysex && !timeout()) continue;
-            return;
-        }
-        if (data & 0x8000) unknownstatus = 1;
-        if (sysexon && master.readsysex) reset();
-        event = &eventarray[eventindex];
-        custom.intreq = INTF_RBF;
-        data &= 0xFF;
-        if (data & 0x80) {
-            if (data >= MIDI_CLOCK) {
-                if (data == MIDI_CLOCK) {
-                    timeevent.status = MIDI_CLOCK;
-                    if (functions->midiclock) 
-                        (*functions->processmidiclock)(&timeevent);
-                    continue;
-                }
-                if (data == MIDI_START) {
-                    timeevent.status = MIDI_START;
-                    if (functions->midiclock) 
-                        (*functions->processmidiclock)(&timeevent);
-                    continue;
-                }
-                if (data == MIDI_CONTINUE) {
-                    timeevent.status = MIDI_CONTINUE;
-                    if (functions->midiclock) 
-                        (*functions->processmidiclock)(&timeevent);
-                    continue;
-                }
-                if (data == MIDI_STOP) {
-                    timeevent.status = MIDI_STOP;
-                    if (functions->midiclock) 
-                        (*functions->processmidiclock)(&timeevent);
-                    continue;
-                }
-                continue;
-            }
-            else if (data == MIDI_MTC) {
-                miditimecode = 1;
-                continue;
-            }
-            else if (sysexon) {  /* End of Sysex. */
-                if (master.readsysex) {
-                    (*master.readsysex)(MIDI_EOX);
-                }
-                else if (allocated) {
-                    bufferpoint[bufferindex++] = MIDI_EOX;
-                    if (bufferindex >= BUFFLEN) bufferindex = (BUFFLEN - 1);
-                    eventindex++;
-                    eventindex &= 0x1F;
-                    event->status = MIDI_SYSX;
-                    event->time = functions->timenow;
-                    event->byte1 = bufferselect;
-                    event->data = bufferindex;
-                    event->tool = (struct Tool *) bufferpoint;
-                    Signal(eventtask,eventsignal);
-                    bufferselect = !bufferselect;
-                    if (bufferselect >= allocated) bufferselect = 0;
-                    bufferpoint = buffer[bufferselect];
-                }
-                sysexon = 0;
-                unknownstatus = 1;
-                if (data == MIDI_EOX) continue;
-            } 
-            status = data;
-            midiinlen = plen[data & 0x7F];
-            midiinpos = 0;
-            unknownstatus = 0;
-            if (data == MIDI_SYSX) {
-                sysexon = 1;
-                if (master.readsysex) {
-                    reset();
-                    (*master.readsysex)(MIDI_SYSX);
-                }
-                else if (allocated) {
-                    bufferindex = 0;
-                    bufferpoint = buffer[bufferselect];
-                    bufferpoint[bufferindex++] = MIDI_SYSX;
-                }
-                continue;
-            }
-        }
-        else if (miditimecode) {
+	if (!(data & 0x4000)) {
+	    if (sysexon && master.readsysex && !timeout()) continue;
+	    return;
+	}
+	if (data & 0x8000) unknownstatus = 1;
+	if (sysexon && master.readsysex) reset();
+	event = &eventarray[eventindex];
+	custom.intreq = INTF_RBF;
+	data &= 0xFF;
+	if (data & 0x80) {
+	    if (data >= MIDI_CLOCK) {
+		if (data == MIDI_CLOCK) {
+		    timeevent.status = MIDI_CLOCK;
+		    if (functions->midiclock)
+			(*functions->processmidiclock)(&timeevent);
+		    continue;
+		}
+		if (data == MIDI_START) {
+		    timeevent.status = MIDI_START;
+		    if (functions->midiclock)
+			(*functions->processmidiclock)(&timeevent);
+		    continue;
+		}
+		if (data == MIDI_CONTINUE) {
+		    timeevent.status = MIDI_CONTINUE;
+		    if (functions->midiclock)
+			(*functions->processmidiclock)(&timeevent);
+		    continue;
+		}
+		if (data == MIDI_STOP) {
+		    timeevent.status = MIDI_STOP;
+		    if (functions->midiclock)
+			(*functions->processmidiclock)(&timeevent);
+		    continue;
+		}
+		continue;
+	    }
+	    else if (data == MIDI_MTC) {
+		miditimecode = 1;
+		continue;
+	    }
+	    else if (sysexon) {  /* End of Sysex. */
+		if (master.readsysex) {
+		    (*master.readsysex)(MIDI_EOX);
+		}
+		else if (allocated) {
+		    bufferpoint[bufferindex++] = MIDI_EOX;
+		    if (bufferindex >= BUFFLEN) bufferindex = (BUFFLEN - 1);
+		    eventindex++;
+		    eventindex &= 0x1F;
+		    event->status = MIDI_SYSX;
+		    event->time = functions->timenow;
+		    event->byte1 = bufferselect;
+		    event->data = bufferindex;
+		    event->tool = (struct Tool *) bufferpoint;
+		    Signal(eventtask,eventsignal);
+		    bufferselect = !bufferselect;
+		    if (bufferselect >= allocated) bufferselect = 0;
+		    bufferpoint = buffer[bufferselect];
+		}
+		sysexon = 0;
+		unknownstatus = 1;
+		if (data == MIDI_EOX) continue;
+	    }
+	    status = data;
+	    midiinlen = plen[data & 0x7F];
+	    midiinpos = 0;
+	    unknownstatus = 0;
+	    if (data == MIDI_SYSX) {
+		sysexon = 1;
+		if (master.readsysex) {
+		    reset();
+		    (*master.readsysex)(MIDI_SYSX);
+		}
+		else if (allocated) {
+		    bufferindex = 0;
+		    bufferpoint = buffer[bufferselect];
+		    bufferpoint[bufferindex++] = MIDI_SYSX;
+		}
+		continue;
+	    }
+	}
+	else if (miditimecode) {
 //          if (functions->smpteclock) {
-                timeevent.status = MIDI_MTC;
-                timeevent.byte1 = data;
-                (*functions->processsmpteclock)(&timeevent);
+		timeevent.status = MIDI_MTC;
+		timeevent.byte1 = data;
+		(*functions->processsmpteclock)(&timeevent);
 //          }
-            miditimecode = 0;
-            continue;
-        }
-        else if (sysexon) {
-            if (master.readsysex) {
-                (*master.readsysex)(data);
-            }
-            else if (allocated) {
-                bufferpoint[bufferindex++] = data;
-                if (bufferindex >= BUFFLEN) bufferindex = (BUFFLEN - 1);
-            }
-            continue;
-        }
-        else if (unknownstatus) {
-            continue;
-        }
-        else if (++midiinpos == 1) event->byte1 = data;
-        else event->byte2 = data;
-        if (midiinpos >= midiinlen) {
-            event->status = status;
-            midiinpos = 0;
-            if (status == MIDI_SONGPP) {
-                if (functions->midiclock) 
-                    (*functions->processmidiclock)(event);
-                continue;
-            }
-            else {
-                eventindex++;
-                eventindex &= 0x1F;
-                event->time = functions->timenow;
-                Signal(eventtask,eventsignal);
-                continue;
-            }
-        }
+	    miditimecode = 0;
+	    continue;
+	}
+	else if (sysexon) {
+	    if (master.readsysex) {
+		(*master.readsysex)(data);
+	    }
+	    else if (allocated) {
+		bufferpoint[bufferindex++] = data;
+		if (bufferindex >= BUFFLEN) bufferindex = (BUFFLEN - 1);
+	    }
+	    continue;
+	}
+	else if (unknownstatus) {
+	    continue;
+	}
+	else if (++midiinpos == 1) event->byte1 = data;
+	else event->byte2 = data;
+	if (midiinpos >= midiinlen) {
+	    event->status = status;
+	    midiinpos = 0;
+	    if (status == MIDI_SONGPP) {
+		if (functions->midiclock)
+		    (*functions->processmidiclock)(event);
+		continue;
+	    }
+	    else {
+		eventindex++;
+		eventindex &= 0x1F;
+		event->time = functions->timenow;
+		Signal(eventtask,eventsignal);
+		continue;
+	    }
+	}
     }
 }
 
@@ -646,7 +646,7 @@ void stealint()
     Disable();
     oldserin = (struct Interrupt *) SetIntVector(INTB_RBF,&midiintin);
     Enable();
-    custom.serper = 114; 
+    custom.serper = 114;
     custom.intena = INTF_SETCLR | INTF_RBF;
     functions->releasemidi = releaseint;
     functions->stealmidi = 0;
@@ -661,7 +661,7 @@ struct ToolMaster *inittoolmaster()
     midiintin.is_Code = midiincode;
     eventtask = CreateTask("midi in",40,eventcode,4000);
     if (functions->releasemidi) {
-        (*functions->releasemidi)();
+	(*functions->releasemidi)();
     }
     functions->releasemidi = releaseint;
     stealint();

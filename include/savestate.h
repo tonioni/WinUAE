@@ -20,7 +20,7 @@ extern uae_u32 restore_u32_func (uae_u8 **);
 extern uae_u16 restore_u16_func (uae_u8 **);
 extern uae_u8 restore_u8_func (uae_u8 **);
 
-extern void save_string_func (uae_u8 **, char*);
+extern void save_string_func (uae_u8 **, const char*);
 extern char *restore_string_func (uae_u8 **);
 
 #define save_u64(x) save_u64_func (&dst, (x))

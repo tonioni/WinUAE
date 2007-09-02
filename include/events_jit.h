@@ -14,7 +14,7 @@ STATIC_INLINE void events_schedule (void)
 	    unsigned long int eventtime = eventtab[i].evtime - currcycle;
 #ifdef EVENT_DEBUG
 	    if (eventtime == 0) {
-		write_log("event %d bug\n",i);
+		write_log ("event %d bug\n",i);
 	    }
 #endif
 	    if (eventtime < mintime)

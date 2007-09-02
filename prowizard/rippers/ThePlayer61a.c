@@ -537,7 +537,7 @@ void Rip_P61A ( void )
   Save_Rip ( "The Player 6.1A module", P61A );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 12);  /* 7 should do but call it "just to be sure" :) */
+    PW_i += 12;  /* 7 should do but call it "just to be sure" :) */
 }
 
 

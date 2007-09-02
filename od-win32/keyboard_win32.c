@@ -46,7 +46,7 @@
 static struct uae_input_device_kbr_default keytrans[] = {
 
     { DIK_ESCAPE, INPUTEVENT_KEY_ESC },
-    
+
     { DIK_F1, INPUTEVENT_KEY_F1 },
     { DIK_F2, INPUTEVENT_KEY_F2 },
     { DIK_F3, INPUTEVENT_KEY_F3 },
@@ -267,8 +267,8 @@ static int handlecdtv (int scancode, int state)
     int e = 0;
     switch (scancode)
     {
-        case DIK_UP:
-        if (specialpressed())
+	case DIK_UP:
+	if (specialpressed())
 	    e = INPUTEVENT_KEY_CDTV_PLAYPAUSE;
 	break;
 	case DIK_DOWN:
@@ -357,7 +357,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     if (scancode == specialkeycode())
 	return;
 
-    //write_log( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate ); 
+    //write_log ( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate );
     if (newstate) {
 	switch (scancode)
 	{

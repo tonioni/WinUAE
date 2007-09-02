@@ -60,7 +60,7 @@ static D3DXMATRIX* xD3DXMatrixPerspectiveFovLH(D3DXMATRIX *pOut, FLOAT fovy, FLO
     sine = sin(fovy);
     dz = zf - zn;
     if (sine == 0 || dz == 0 || Aspect == 0)
-        return pOut;
+	return pOut;
     yscale = cos(fovy) / sine;
     xscale = yscale / Aspect;
     pOut->_11 = xscale;
@@ -110,7 +110,7 @@ static int restoredeviceobjects(void)
     hr = IDirect3DSurface9_GetDesc (bb, &dsdbb);
     hr = IDirect3DSurface9_Release (bb);
 
-    // Set up the texture 
+    // Set up the texture
     hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
     hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
     hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
@@ -329,7 +329,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 		else
 		    vsync2 = 1;
 	    }
-	}    
+	}
     }
 
     ret = IDirect3D9_CreateDevice(d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
@@ -343,7 +343,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     max_texture_w = d3dCaps.MaxTextureWidth;
     max_texture_h = d3dCaps.MaxTextureHeight;
 
-    write_log("D3D: max texture width: %d, max texture height: %d\n",
+    write_log ("D3D: max texture width: %d, max texture height: %d\n",
 	max_texture_w, max_texture_h);
 
     if (max_texture_w < t_w || max_texture_h < t_h) {

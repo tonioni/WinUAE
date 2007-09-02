@@ -68,7 +68,7 @@ void moduleripper (void)
 	prowizard_search (buf, size);
 #ifdef _WIN32
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
-	write_log("prowizard scan crashed\n");
+	write_log ("prowizard scan crashed\n");
     }
 #endif
     if (!got)
@@ -83,7 +83,7 @@ FILE *moduleripper_fopen (const char *name, const char *mode)
     return fopen (name, mode);
 }
 
-FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id)
+FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id, int addr, int size)
 {
     char msg[MAX_DPATH], msg2[MAX_DPATH];
     int ret;
@@ -92,7 +92,7 @@ FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id)
 	return NULL;
     got++;
     translate_message (NUMSG_MODRIP_SAVE, msg);
-    sprintf (msg2, msg, id);
+    sprintf (msg2, msg, id, addr, size);
     ret = gui_message_multibutton (2, msg2);
     if (ret < 0)
 	canceled = 1;

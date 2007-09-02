@@ -185,7 +185,7 @@ void SERDAT (uae_u16 w)
 
     if (currprefs.serial_demand && !dtr) {
 	if (!isbaeh) {
-	    write_log("SERDAT: Baeh.. Your software needs SERIAL_ALWAYS to work properly.\n");
+	    write_log ("SERDAT: Baeh.. Your software needs SERIAL_ALWAYS to work properly.\n");
 	    isbaeh=1;
 	}
 	return;

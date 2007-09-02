@@ -1,5 +1,5 @@
 /*
- * newtron.c ... 9 mar 2003
+ * newtron.c ... 9 mar 2003/21 jan 2007
 */
 /* testNewtron() */
 /* Rip_Newtron() */
@@ -124,11 +124,12 @@ void Rip_Newtron ( void )
 }
 
 /*
- *   newtron.c   2003 (c) Asle / ReDoX
+ *   newtron.c   2003-2007 (c) Asle / ReDoX
  *
  * Converts Newtron packed MODs back to PTK MODs
  *
  * Last update: 09 mar 2003
+ * fixed again : 21 jan 2007
 */
 
 void Depack_Newtron ( void )
@@ -151,7 +152,7 @@ void Depack_Newtron ( void )
   /* title */
   fwrite ( Whatever , 20 , 1 , out );
 
-  Where = 4;
+  Where += 4;
 
   for ( i=0 ; i<31 ; i++ )
   {
@@ -165,7 +166,7 @@ void Depack_Newtron ( void )
   /*printf ( "Whole sample size : %ld\n" , Total_Sample_Size );*/
 
   /* pattern table lenght & Ntk byte */
-  fwrite ( &in_data[0] , 1 , 1 , out );
+  fwrite ( &in_data[PW_Start_Address] , 1 , 1 , out );
   Whatever[0] = 0x7f;
   fwrite ( &Whatever[0] , 1 , 1 , out );
 

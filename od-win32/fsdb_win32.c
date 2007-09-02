@@ -46,7 +46,7 @@ static char *make_uaefsdbpath (const char *dir, const char *name)
 {
     int len;
     char *p;
-    
+
     len = strlen (dir) + 1 + 1;
     if (name)
 	len += 1 + strlen (name);
@@ -88,7 +88,7 @@ static int delete_uaefsdb (const char *dir)
 
     p = make_uaefsdbpath (dir, NULL);
     ret = DeleteFile(p);
-    //write_log("delete FSDB stream '%s' = %d\n", p, ret);
+    //write_log ("delete FSDB stream '%s' = %d\n", p, ret);
     xfree (p);
     return ret;
 }
@@ -102,7 +102,7 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
     FILETIME t1, t2, t3;
     int time_valid = FALSE;
     int ret = 0;
-    
+
     p = make_uaefsdbpath (dir, NULL);
     dirattr = GetFileAttributes (dir);
     dirflag = FILE_ATTRIBUTE_NORMAL;
@@ -110,7 +110,7 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 	dirflag = FILE_FLAG_BACKUP_SEMANTICS; /* argh... */
     h = CreateFile (dir, GENERIC_READ, 0,
 	NULL, OPEN_EXISTING, dirflag, NULL);
-    if (h != INVALID_HANDLE_VALUE) {    
+    if (h != INVALID_HANDLE_VALUE) {
 	if (GetFileTime (h, &t1, &t2, &t3))
 	    time_valid = TRUE;
 	CloseHandle (h);
@@ -118,7 +118,7 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
     h = CreateFile (p, GENERIC_WRITE, 0,
 	NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (h == INVALID_HANDLE_VALUE && GetLastError () == ERROR_ACCESS_DENIED) {
-        attr = GetFileAttributes (p);
+	attr = GetFileAttributes (p);
 	if (attr != INVALID_FILE_ATTRIBUTES) {
 	    if (attr & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)) {
 		SetFileAttributes (p, attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN));
@@ -142,7 +142,7 @@ end:
     if (time_valid) {
 	h = CreateFile (dir, GENERIC_WRITE, 0,
 	    NULL, OPEN_EXISTING, dirflag, NULL);
-	if (h != INVALID_HANDLE_VALUE) {	
+	if (h != INVALID_HANDLE_VALUE) {
 	    SetFileTime (h, &t1, &t2, &t3);
 	    CloseHandle (h);
 	}
@@ -161,7 +161,7 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
     buf[5 + 257 + 256] = '\0';
     strncpy (buf + 5 + 2 * 257, aino->comment ? aino->comment : "", 80);
     buf[5 + 2 * 257 + 80] = '\0';
-    do_put_mem_long ((uae_u32 *)(buf + 5 + 2 * 257 + 81), winmode); 
+    do_put_mem_long ((uae_u32 *)(buf + 5 + 2 * 257 + 81), winmode);
     aino->has_dbentry = 0;
     aino->dirty = 0;
 }
@@ -186,7 +186,7 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
     aino->dirty = 0;
     aino->db_offset = 0;
     if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
-	write_log("xGetFileAttributes('%s') failed! error=%d, aino=%p\n",
+	write_log ("xGetFileAttributes('%s') failed! error=%d, aino=%p\n",
 	    aino->nname, GetLastError(), aino);
 	return aino;
     }
@@ -261,7 +261,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
     int reset = 0;
 
     if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
-	write_log("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n",
+	write_log ("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n",
 	    aino->nname, GetLastError(), aino, aino->dir);
 	return 0;
     }
@@ -330,13 +330,13 @@ int fsdb_set_file_attrs (a_inode *aino)
 
     mode = 0;
     if ((tmpmask & (A_FIBF_WRITE | A_FIBF_DELETE)) == 0)
-        mode |= FILE_ATTRIBUTE_READONLY;
+	mode |= FILE_ATTRIBUTE_READONLY;
     if (!(tmpmask & A_FIBF_ARCHIVE))
-        mode |= FILE_ATTRIBUTE_ARCHIVE;
+	mode |= FILE_ATTRIBUTE_ARCHIVE;
     if (tmpmask & A_FIBF_PURE)
-        mode |= FILE_ATTRIBUTE_SYSTEM;
+	mode |= FILE_ATTRIBUTE_SYSTEM;
     if (tmpmask & A_FIBF_HIDDEN)
-        mode |= FILE_ATTRIBUTE_HIDDEN;
+	mode |= FILE_ATTRIBUTE_HIDDEN;
     SetFileAttributes (aino->nname, mode);
 
     aino->dirty = 1;
@@ -358,16 +358,16 @@ int fsdb_mode_supported (const a_inode *aino)
     if (0 && aino->dir)
 	return 0;
     if (fsdb_mode_representable_p (aino, mask))
-        return mask;
+	return mask;
     mask &= ~(A_FIBF_SCRIPT | A_FIBF_READ | A_FIBF_EXECUTE);
     if (fsdb_mode_representable_p (aino, mask))
-        return mask;
+	return mask;
     mask &= ~A_FIBF_WRITE;
     if (fsdb_mode_representable_p (aino, mask))
-        return mask;
+	return mask;
     mask &= ~A_FIBF_DELETE;
     if (fsdb_mode_representable_p (aino, mask))
-        return mask;
+	return mask;
     return 0;
 }
 
@@ -400,7 +400,7 @@ char *fsdb_create_unique_nname (a_inode *base, const char *suggestion)
     int i;
 
     strncat (tmp, suggestion, 240);
-	
+
     /* replace the evil ones... */
     for (i=0; i < NUM_EVILCHARS; i++)
 	while ((c = strchr (tmp, evilchars[i])) != 0)
@@ -452,7 +452,7 @@ static a_inode *custom_fsdb_lookup_aino (a_inode *base, const char *aname, int o
     HANDLE h;
     WIN32_FIND_DATA fd;
     static a_inode dummy;
-    
+
     tmp1 = build_nname (base->nname, UAEFSDB_BEGINSX);
     if (!tmp1)
 	return NULL;
@@ -503,13 +503,13 @@ static int recycle (const char *name)
 	DWORD dirattr = GetFileAttributes (name);
 	if (dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY))
 	    return RemoveDirectory (name) ? 0 : -1;
-    	return DeleteFile(name) ? 0 : -1;
+	return DeleteFile(name) ? 0 : -1;
     } else {
-        SHFILEOPSTRUCT fos;
+	SHFILEOPSTRUCT fos;
 	/* name must be terminated by \0\0 */
 	char *p = xcalloc (strlen (name) + 2, 1);
 	int v;
-    
+
 	strcpy (p, name);
 	memset (&fos, 0, sizeof (fos));
 	fos.wFunc = FO_DELETE;
@@ -570,7 +570,7 @@ void *my_opendir (const char *name)
 {
     struct my_opendirs *mod;
     char tmp[MAX_DPATH];
-    
+
     strcpy (tmp, name);
     strcat (tmp, "\\*.*");
     mod = xmalloc (sizeof (struct my_opendirs));
@@ -588,7 +588,8 @@ void *my_opendir (const char *name)
 void my_closedir (void *d)
 {
     struct my_opendirs *mod = d;
-    FindClose (mod->h);
+    if (d)
+	FindClose (mod->h);
     xfree (mod);
 }
 
@@ -679,7 +680,7 @@ void *my_open (const char *name, int flags)
     DWORD CreationDisposition = OPEN_EXISTING;
     DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
     DWORD attr;
-    
+
     mos = xmalloc (sizeof (struct my_opens));
     if (!mos)
 	return NULL;

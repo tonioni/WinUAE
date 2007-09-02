@@ -241,7 +241,7 @@ void rtarea_init (void)
 #endif
 
     uae_boot_rom_size = here() - RTAREA_BASE;
-    init_extended_traps();
+    init_extended_traps ();
 }
 
 volatile int uae_int_requested = 0;

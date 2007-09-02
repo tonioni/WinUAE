@@ -105,7 +105,7 @@ static void state_incompatible_warn(void)
 #endif
 #ifdef FILESYS
     for(i = 0; i < currprefs.mountitems; i++) {
-        struct mountedinfo mi;
+	struct mountedinfo mi;
 	int type = get_filesys_unitconfig (&currprefs, i, &mi);
 	if (mi.ismounted && type != FILESYS_VIRTUAL && type != FILESYS_HARDFILE && type != FILESYS_HARDFILE_RDB)
 	    dowarn = 1;
@@ -147,10 +147,10 @@ void save_u8_func (uae_u8 **dstp, uae_u8 v)
     *dst++ = v;
     *dstp = dst;
 }
-void save_string_func (uae_u8 **dstp, char *from)
+void save_string_func (uae_u8 **dstp, const char *from)
 {
     uae_u8 *dst = *dstp;
-    while(from && *from)
+    while (from && *from)
 	*dst++ = *from++;
     *dst++ = 0;
     *dstp = dst;
@@ -296,7 +296,7 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *
     if (flags & 1) {
 	zfile_fread (tmp, 1, 4, f);
 	src = tmp;
-	*totallen = restore_u32();
+	*totallen = restore_u32 ();
 	*filepos = zfile_ftell (f) - 4 - 4 - 4;
 	len2 -= 4;
     } else {
@@ -340,13 +340,13 @@ void restore_ram (size_t filepos, uae_u8 *memory)
 
     zfile_fseek (savestate_file, filepos, SEEK_SET);
     zfile_fread (tmp, 1, sizeof(tmp), savestate_file);
-    size = restore_u32();
-    flags = restore_u32();
+    size = restore_u32 ();
+    flags = restore_u32 ();
     size -= 4 + 4 + 4;
     if (flags & 1) {
 	zfile_fread (tmp, 1, 4, savestate_file);
 	src = tmp;
-	fullsize = restore_u32();
+	fullsize = restore_u32 ();
 	size -= 4;
 	zfile_zuncompress (memory, fullsize, savestate_file, size);
     } else {
@@ -358,7 +358,7 @@ static void restore_header (uae_u8 *src)
 {
     char *emuname, *emuversion, *description;
 
-    restore_u32();
+    restore_u32 ();
     emuname = restore_string ();
     emuversion = restore_string ();
     description = restore_string ();
@@ -638,7 +638,7 @@ int save_state (char *filename, char *description)
 
     dst = header;
     save_u32 (0);
-    save_string("UAE");
+    save_string ("UAE");
     sprintf (tmp, "%d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
     save_string (tmp);
     save_string (description);
@@ -747,7 +747,7 @@ int save_state (char *filename, char *description)
 #endif
     dst = save_gayle(&len);
     if (dst) {
-        save_chunk (f, dst, len, "GAYL", 0);
+	save_chunk (f, dst, len, "GAYL", 0);
 	xfree(dst);
     }
     for (i = 0; i < 4; i++) {
@@ -1221,10 +1221,10 @@ CPU
 	BUSCR                   4
 	PCR                     4
 
-        All:
+	All:
 
 	Clock in KHz            4 (only if bit 31 in flags)
-	                        4 (spare, only if bit 31 in flags)
+				4 (spare, only if bit 31 in flags)
 
 
 FPU (only if used)
@@ -1239,7 +1239,7 @@ FPU (only if used)
 	FPIAR                   4
 
 	Clock in KHz            4 (only if bit 31 in flags)
-	                        4 (spare, only if bit 31 in flags)
+				4 (spare, only if bit 31 in flags)
 
 MMU (when and if MMU is supported in future..)
 

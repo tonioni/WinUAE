@@ -119,32 +119,32 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dode
     zn = &zv->root;
     while (zn) {
 	int isok = 1;
-	
+
 	if (!zn->isfile)
 	    isok = 0;
 	if (zfile_is_ignore_ext(zn->fullname))
 	    isok = 0;
 	if (isok) {
 	    if (tmphist[0]) {
-	        DISK_history_add (tmphist, -1);
-	        tmphist[0] = 0;
-	        first = 0;
+		DISK_history_add (tmphist, -1);
+		tmphist[0] = 0;
+		first = 0;
 	    }
 	    if (first) {
 		if (zfile_isdiskimage (zn->fullname))
 		    strcpy (tmphist, zn->fullname);
 	    } else {
-	        strcpy (tmphist, zn->fullname);
-	        DISK_history_add (tmphist, -1);
-	        tmphist[0] = 0;
+		strcpy (tmphist, zn->fullname);
+		DISK_history_add (tmphist, -1);
+		tmphist[0] = 0;
 	    }
 	    select = 0;
 	    if (!zf->zipname)
-	        select = 1;
+		select = 1;
 	    if (zf->zipname && !strcasecmp (zf->zipname, zn->name))
-	        select = -1;
+		select = -1;
 	    if (zf->zipname && zf->zipname[0] == '#' && atol (zf->zipname + 1) == zipcnt)
-	        select = -1;
+		select = -1;
 	    if (select && !we_have_file) {
 		z = archive_getzfile(zn, id);
 		if (z) {
@@ -161,7 +161,7 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dode
 	zn = zn->next;
     }
     if (first && tmphist[0])
-        DISK_history_add (zfile_getname(zf), -1);
+	DISK_history_add (zfile_getname(zf), -1);
     zfile_fclose_archive (zv);
     if (z) {
 	zfile_fclose(zf);
@@ -288,7 +288,7 @@ struct zfile *archive_access_zip (struct znode *zn)
     unzCloseCurrentFile (uz);
     return z;
 }
-    
+
 /* 7Z */
 
 #include "archivers/7z/7zCrc.h"
@@ -325,7 +325,7 @@ static SZ_RESULT SzFileSeekImp(void *object, CFileSize pos)
 static void init_7z(void)
 {
     static int initialized;
- 
+
     if (initialized)
 	return;
     initialized = 1;
@@ -368,7 +368,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
     ctx->archiveStream.zf = z;
     res = SzArchiveOpen(&ctx->archiveStream.InStream, &ctx->db, &allocImp, &allocTempImp);
     if (res != SZ_OK) {
-	write_log("7Z: SzArchiveOpen %s returned %d\n", zfile_getname(z), res);
+	write_log ("7Z: SzArchiveOpen %s returned %d\n", zfile_getname(z), res);
 	return NULL;
     }
     zv = zvolume_alloc(z, ArchiveFormat7Zip, ctx);
@@ -399,15 +399,15 @@ struct zfile *archive_access_7z (struct znode *zn)
     struct SevenZContext *ctx;
 
     ctx = zv->handle;
-    res = SzExtract(&ctx->archiveStream.InStream, &ctx->db, zn->offset, 
-		    &ctx->blockIndex, &ctx->outBuffer, &ctx->outBufferSize, 
-		    &offset, &outSizeProcessed, 
+    res = SzExtract(&ctx->archiveStream.InStream, &ctx->db, zn->offset,
+		    &ctx->blockIndex, &ctx->outBuffer, &ctx->outBufferSize,
+		    &offset, &outSizeProcessed,
 		    &allocImp, &allocTempImp);
     if (res == SZ_OK) {
-        z = zfile_fopen_empty (zn->fullname, zn->size);
+	z = zfile_fopen_empty (zn->fullname, zn->size);
 	zfile_fwrite (ctx->outBuffer + offset, zn->size, 1, z);
     } else {
-	write_log("7Z: SzExtract %s returned %d\n", zn->fullname, res);
+	write_log ("7Z: SzExtract %s returned %d\n", zn->fullname, res);
     }
     return z;
 }
@@ -436,8 +436,8 @@ static int rar_resetf(struct zfile *z)
 {
     z->f = fopen (z->name, "rb");
     if (!z->f) {
-        zfile_fclose (z);
-        return 0;
+	zfile_fclose (z);
+	return 0;
     }
     return 1;
 }
@@ -484,7 +484,7 @@ static int CALLBACK RARCallbackProc(UINT msg,LONG UserData,LONG P1,LONG P2)
 struct RARContext
 {
     struct RAROpenArchiveData OpenArchiveData;
-    struct RARHeaderDataEx HeaderData;	
+    struct RARHeaderDataEx HeaderData;
     HANDLE hArcData;
 };
 
@@ -519,7 +519,7 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 	    zfile_fclose_archive(zv);
 	    return NULL;
 	}
-        zfile_fclose_archive(zv);
+	zfile_fclose_archive(zv);
 	return archive_directory_arcacc (z, ArchiveFormatRAR);
     }
     pRARSetCallback(rc->hArcData, RARCallbackProc, 0);
@@ -532,9 +532,9 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 	zai.name = name;
 	zai.size = rc->HeaderData.UnpSize;
 	zai.t = fromdostime(rc->HeaderData.FileTime);
-        zn = zvolume_addfile_abs(zv, &zai);
+	zn = zvolume_addfile_abs(zv, &zai);
 	zn->offset = cnt++;
-        pRARProcessFile(rc->hArcData, RAR_SKIP, NULL, NULL);
+	pRARProcessFile(rc->hArcData, RAR_SKIP, NULL, NULL);
     }
     pRARCloseArchive(rc->hArcData);
     zftmp = zfile_fopen_empty (z->name, 0);
@@ -586,7 +586,7 @@ struct aaFILETIME
     uae_u32 dwHighDateTime;
 };
 typedef void* aaHandle;
-// This struct contains file information from an archive. The caller may store 
+// This struct contains file information from an archive. The caller may store
 // this information for accessing this file after calls to findFirst, findNext
 #define FileInArchiveInfoStringSize 1024
 struct aaFileInArchiveInfo {
@@ -800,9 +800,9 @@ static void addfile(struct zvolume *zv, const char *path, uae_u8 *data, int size
     zai.size = size;
     zn = zvolume_addfile_abs(zv, &zai);
     if (zn)
-        zn->f = z;
+	zn->f = z;
     else
-        zfile_fclose(z);
+	zfile_fclose(z);
 }
 
 static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};

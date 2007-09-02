@@ -78,38 +78,38 @@ static void OutputCurrHistNode(HWND hWnd)
     char *buf;
 
     if (currhist->command) {
-        txtlen = GetWindowTextLength(hWnd);
-        buf = malloc(txtlen + 1);
-        GetWindowText(hWnd, buf, txtlen + 1);
-        if (strcmp(buf, currhist->command)) {
-            SetWindowText(hWnd, currhist->command);
-            txtlen = strlen(currhist->command);
-            SendMessage(hWnd, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
-            SendMessage(hWnd, EM_SETSEL, -1, -1);
-        }
+	txtlen = GetWindowTextLength(hWnd);
+	buf = malloc(txtlen + 1);
+	GetWindowText(hWnd, buf, txtlen + 1);
+	if (strcmp(buf, currhist->command)) {
+	    SetWindowText(hWnd, currhist->command);
+	    txtlen = strlen(currhist->command);
+	    SendMessage(hWnd, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
+	    SendMessage(hWnd, EM_SETSEL, -1, -1);
+	}
     }
 }
 
 static void SetPrevHistNode(HWND hWnd)
 {
     if (currhist) {
-        if (currhist->prev)
-            currhist = currhist->prev;
-        OutputCurrHistNode(hWnd);
+	if (currhist->prev)
+	    currhist = currhist->prev;
+	OutputCurrHistNode(hWnd);
 
     }
     else if (lasthist) {
-        currhist = lasthist;
-        OutputCurrHistNode(hWnd);
+	currhist = lasthist;
+	OutputCurrHistNode(hWnd);
     }
 }
 
 static void SetNextHistNode(HWND hWnd)
 {
     if (currhist) {
-        if (currhist->next)
-            currhist = currhist->next;
-        OutputCurrHistNode(hWnd);
+	if (currhist->next)
+	    currhist = currhist->next;
+	OutputCurrHistNode(hWnd);
     }
 }
 
@@ -119,17 +119,17 @@ static void DeleteFromHistory(int count)
     struct histnode *tmp;
 
     for (i = 0; i < count && histcount; i++) {
-        tmp = firsthist;
-        firsthist = firsthist->next;
-        if (currhist == tmp)
-            currhist = NULL;
-        if (lasthist == tmp)
-            lasthist = NULL;
-        if (firsthist)
-            firsthist->prev = NULL;
-        free(tmp->command);
-        free(tmp);
-        histcount--;
+	tmp = firsthist;
+	firsthist = firsthist->next;
+	if (currhist == tmp)
+	    currhist = NULL;
+	if (lasthist == tmp)
+	    lasthist = NULL;
+	if (firsthist)
+	    firsthist->prev = NULL;
+	free(tmp->command);
+	free(tmp);
+	histcount--;
     }
 }
 
@@ -139,18 +139,18 @@ static void AddToHistory(const char *command)
 
     currhist = NULL;
     if (histcount > 0 && !strcmp(command, lasthist->command))
-        return;
+	return;
     else if (histcount == MAXINPUTHIST)
-        DeleteFromHistory(1);
+	DeleteFromHistory(1);
     tmp = lasthist;
     lasthist = malloc(sizeof(struct histnode));
     if (histcount == 0)
-        firsthist = lasthist;
+	firsthist = lasthist;
     lasthist->command = strdup(command);
     lasthist->next = NULL;
     lasthist->prev = tmp;
     if (tmp)
-        tmp->next = lasthist;
+	tmp->next = lasthist;
     histcount++;
 }
 
@@ -160,12 +160,12 @@ int GetInput (char *out, int maxlen)
     int chars;
 
     if (!hDbgWnd)
-        return 0;
+	return 0;
     inputfinished = 0;
     hInput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
     chars = GetWindowText(hInput, out, maxlen);
     if (chars == 0)
-        return 0;
+	return 0;
     WriteOutput(linebreak + 1, 2);
     WriteOutput(out, strlen(out));
     WriteOutput(linebreak + 1, 2);
@@ -182,24 +182,24 @@ static int CheckLineLimit(HWND hWnd, const char *out)
     tmp = (char *)out;
     lines_have = SendMessage(hWnd, EM_GETLINECOUNT, 0, 0);
     while (strlen(tmp) > 0 && (p = strchr(tmp, '\n')) > 0) {
-        lines_new++;
-        tmp = p + 1;
+	lines_new++;
+	tmp = p + 1;
     }
     lines_new++;
     if (lines_new > MAXLINES)
-        return 0;
+	return 0;
     if (lines_have + lines_new > MAXLINES) {
-        visible = IsWindowVisible(hWnd);
-        if (visible)
-            SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
-        lastchr = SendMessage(hWnd, EM_LINEINDEX, lines_have + lines_new - MAXLINES, 0);
-        SendMessage(hWnd, EM_SETSEL, 0, lastchr);
-        SendMessage(hWnd, EM_REPLACESEL, FALSE, (LPARAM)"");
-        txtlen = GetWindowTextLength(hWnd);
-        SendMessage(hWnd, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
-        SendMessage(hWnd, EM_SETSEL, -1, -1);
-        if (visible)
-            SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
+	visible = IsWindowVisible(hWnd);
+	if (visible)
+	    SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
+	lastchr = SendMessage(hWnd, EM_LINEINDEX, lines_have + lines_new - MAXLINES, 0);
+	SendMessage(hWnd, EM_SETSEL, 0, lastchr);
+	SendMessage(hWnd, EM_REPLACESEL, FALSE, (LPARAM)"");
+	txtlen = GetWindowTextLength(hWnd);
+	SendMessage(hWnd, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
+	SendMessage(hWnd, EM_SETSEL, -1, -1);
+	if (visible)
+	    SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
     }
     return 1;
 }
@@ -210,44 +210,44 @@ void WriteOutput(const char *out, int len)
     char *buf = 0, *p, *tmp;
 
     if (!hOutput || !strcmp(out, ">") || len == 0)
-        return;
+	return;
     if (!CheckLineLimit(hOutput, out))
-        return;
+	return;
     tmp = (char *)out;
     for(;;) {
-        p = strchr(tmp, '\n');
-        if (p) {
-            pos = p - tmp + 1;
-            if (pos > (MAX_LINEWIDTH + 1))
-                pos = MAX_LINEWIDTH + 1;
-            buf = xmalloc(pos + 2);
-            memset(buf, 0, pos + 2);
-            strncpy(buf, tmp, pos - 1);
-            strcat(buf, linebreak);
-        } else if (strlen(tmp) == 0) {
-            leave = 1;
+	p = strchr(tmp, '\n');
+	if (p) {
+	    pos = p - tmp + 1;
+	    if (pos > (MAX_LINEWIDTH + 1))
+		pos = MAX_LINEWIDTH + 1;
+	    buf = xmalloc(pos + 2);
+	    memset(buf, 0, pos + 2);
+	    strncpy(buf, tmp, pos - 1);
+	    strcat(buf, linebreak);
+	} else if (strlen(tmp) == 0) {
+	    leave = 1;
 	} else {
-            count = SendMessage(hOutput, EM_GETLINECOUNT, 0, 0);
-            index = SendMessage(hOutput, EM_LINEINDEX, count - 1, 0);
-            txtlen = SendMessage(hOutput, EM_LINELENGTH, index, 0);
-            if (strlen(tmp) + txtlen > MAX_LINEWIDTH) {
-                buf = xmalloc(MAX_LINEWIDTH + 3 - txtlen);
-                memset(buf, 0, MAX_LINEWIDTH + 3 - txtlen);
-                strncpy(buf, tmp, MAX_LINEWIDTH - txtlen);
-                strcat(buf, linebreak);
-            }
-            leave = 1;
-        }
-        txtlen = GetWindowTextLength(hOutput);
-        SendMessage(hOutput, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
-        SendMessage(hOutput, EM_REPLACESEL, FALSE, (LPARAM)(buf ? buf : tmp));
-        if (buf) {
-           xfree(buf);
-           buf = 0;
-           tmp += pos;
-        }
-        if (leave)
-            return;
+	    count = SendMessage(hOutput, EM_GETLINECOUNT, 0, 0);
+	    index = SendMessage(hOutput, EM_LINEINDEX, count - 1, 0);
+	    txtlen = SendMessage(hOutput, EM_LINELENGTH, index, 0);
+	    if (strlen(tmp) + txtlen > MAX_LINEWIDTH) {
+		buf = xmalloc(MAX_LINEWIDTH + 3 - txtlen);
+		memset(buf, 0, MAX_LINEWIDTH + 3 - txtlen);
+		strncpy(buf, tmp, MAX_LINEWIDTH - txtlen);
+		strcat(buf, linebreak);
+	    }
+	    leave = 1;
+	}
+	txtlen = GetWindowTextLength(hOutput);
+	SendMessage(hOutput, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
+	SendMessage(hOutput, EM_REPLACESEL, FALSE, (LPARAM)(buf ? buf : tmp));
+	if (buf) {
+	   xfree(buf);
+	   buf = 0;
+	   tmp += pos;
+	}
+	if (leave)
+	    return;
     }
 }
 
@@ -260,23 +260,23 @@ static void UpdateListboxString(HWND hWnd, int pos, char *out, int mark)
     COLORREF cr;
 
     if (!IsWindowEnabled(hWnd)) {
-        p = strchr(out, ':');
-        if (p)
-            *(p + 1) = '\0';
+	p = strchr(out, ':');
+	if (p)
+	    *(p + 1) = '\0';
     }
     if (strlen(out) > MAX_LINEWIDTH)
-        out[MAX_LINEWIDTH] = '\0';
+	out[MAX_LINEWIDTH] = '\0';
     p = strchr(out, '\n');
     if (p)
-        *p = '\0';
+	*p = '\0';
     cr = GetSysColor(COLOR_WINDOWTEXT);
     count = SendMessage(hWnd, (UINT) LB_GETCOUNT, 0, 0);
     if (pos < count) {
-        memset(text, 0, MAX_LINEWIDTH + 1);
-        SendMessage(hWnd, LB_GETTEXT, pos, (LPARAM)((LPTSTR)text));
-        if (strcmp(out, text) != 0 && mark)
-            cr = GetSysColor(COLOR_HIGHLIGHT);
-        SendMessage(hWnd, LB_DELETESTRING, pos, 0);
+	memset(text, 0, MAX_LINEWIDTH + 1);
+	SendMessage(hWnd, LB_GETTEXT, pos, (LPARAM)((LPTSTR)text));
+	if (strcmp(out, text) != 0 && mark)
+	    cr = GetSysColor(COLOR_HIGHLIGHT);
+	SendMessage(hWnd, LB_DELETESTRING, pos, 0);
     }
     SendMessage(hWnd, LB_INSERTSTRING, pos, (LPARAM)out);
     SendMessage(hWnd, LB_SETITEMDATA, pos, cr);
@@ -310,10 +310,10 @@ static int GetLBOutputLines(HWND hWnd)
 
     GetClientRect(hWnd, &rc);
     clientsize = rc.bottom - rc.top;
-    itemsize = SendMessage(hWnd, LB_GETITEMHEIGHT, 0, 0);  
+    itemsize = SendMessage(hWnd, LB_GETITEMHEIGHT, 0, 0);
     while (clientsize > itemsize) {
-        lines ++;
-        clientsize -= itemsize;
+	lines ++;
+	clientsize -= itemsize;
     }
     return lines;
 }
@@ -414,7 +414,7 @@ static void ShowMisc(void)
 	    (p[23] << 16) | (p[22] << 8) | p[21],
 	    (p[26] << 16) | (p[25] << 8) | p[24],
 	    (p[27] & 1) ? 'L' : ' ', (p[27] & 2) ? ' ' : 'S');
-        free(p2);
+	free(p2);
     }
     for (i = 0; i < 4; i++) {
 	p = p2 = save_disk (i, &len, NULL);
@@ -497,29 +497,29 @@ static void ShowBreakpoints(void)
     ULBS("");
     got = 0;
     for (i = 0; i < BREAKPOINT_TOTAL; i++) {
-        if (!bpnodes[i].enabled)
-            continue;
+	if (!bpnodes[i].enabled)
+	    continue;
 		m68k_disasm_2(outbp, sizeof(outbp), bpnodes[i].addr, NULL, 1, NULL, NULL, 0);
-        ULBS(outbp);
-        got = 1;
+	ULBS(outbp);
+	got = 1;
     }
     if (!got)
-        ULBS("none");
+	ULBS("none");
     ULBS("");
     ULBS("Memwatch breakpoints:");
     ULBS("");
     got = 0;
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
-        if (mwnodes[i].size == 0)
-            continue;
+	if (mwnodes[i].size == 0)
+	    continue;
 	memwatch_dump2(outw, sizeof(outw), i);
-        ULBS(outw);
-        got = 1;
+	ULBS(outw);
+	got = 1;
     }
     if (!got)
-        ULBS("none");
+	ULBS("none");
     for (i = ulbs_pos; i < lines_old; i++)
-        SendMessage(hBrkpts, LB_DELETESTRING, line, 0);
+	SendMessage(hBrkpts, LB_DELETESTRING, line, 0);
 }
 
 static void ShowMem(int offset)
@@ -535,11 +535,11 @@ static void ShowMem(int offset)
     lines_old = SendMessage(hMemory, LB_GETCOUNT, 0, 0);
     lines_new = GetLBOutputLines(hMemory);
     for (i = 0; i < lines_new; i++) {
-        addr = dumpmem2(addr, out, sizeof(out));
-        UpdateListboxString(hMemory, i, out, FALSE);
+	addr = dumpmem2(addr, out, sizeof(out));
+	UpdateListboxString(hMemory, i, out, FALSE);
     }
     for (i = lines_new; i < lines_old; i++) {
-        SendMessage(hMemory, LB_DELETESTRING, lines_new, 0);
+	SendMessage(hMemory, LB_DELETESTRING, lines_new, 0);
     }
     SendMessage(hMemory, LB_SETTOPINDEX, 0, 0);
 }
@@ -552,12 +552,12 @@ static int GetPrevAddr(uae_u32 addr, uae_u32 *prevaddr)
     dasmaddr = addr - 20;
     while (dasmaddr < addr) {
 	next = dasmaddr + 2;
-        m68k_disasm_2(NULL, 0, dasmaddr, &next, 1, NULL, NULL, 0);
-        if (next == addr) {
-            *prevaddr = dasmaddr;
-            return 1;
-        }
-        dasmaddr = next;
+	m68k_disasm_2(NULL, 0, dasmaddr, &next, 1, NULL, NULL, 0);
+	if (next == addr) {
+	    *prevaddr = dasmaddr;
+	    return 1;
+	}
+	dasmaddr = next;
     }
     return 0;
 }
@@ -571,36 +571,36 @@ static void ShowDasm(int direction)
 
     hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM);
     if (!dbgpage[currpage].init) {
-        addr = m68k_getpc(&regs);
-        dbgpage[currpage].init = 1;
+	addr = m68k_getpc (&regs);
+	dbgpage[currpage].init = 1;
     }
     else
-        addr = dbgpage[currpage].addr;
+	addr = dbgpage[currpage].addr;
     if (direction > 0) {
-        m68k_disasm_2(NULL, 0, addr, &addr, 1, NULL, NULL, 0);
-        if (!addr || addr < dbgpage[currpage].addr)
-            addr = dbgpage[currpage].addr;
+	m68k_disasm_2(NULL, 0, addr, &addr, 1, NULL, NULL, 0);
+	if (!addr || addr < dbgpage[currpage].addr)
+	    addr = dbgpage[currpage].addr;
     }
     else if (direction < 0 && addr > 0) {
-        if (GetPrevAddr(addr, &prev))
-            addr = prev;
-        else
-            addr -= 2;
+	if (GetPrevAddr(addr, &prev))
+	    addr = prev;
+	else
+	    addr -= 2;
     }
     if (addr % 2)
-        return;
+	return;
     dbgpage[currpage].addr = addr;
     lines_old = SendMessage(hDasm, LB_GETCOUNT, 0, 0);
     lines_new = GetLBOutputLines(hDasm);
     for (i = 0; i < lines_new; i++) {
-        m68k_disasm_2(out, sizeof(out), addr, &addr, 1, NULL, NULL, 0);
-        if (addr > dbgpage[currpage].addr)
-            UpdateListboxString(hDasm, i, out, FALSE);
-        else
-            UpdateListboxString(hDasm, i, "", FALSE);
+	m68k_disasm_2(out, sizeof(out), addr, &addr, 1, NULL, NULL, 0);
+	if (addr > dbgpage[currpage].addr)
+	    UpdateListboxString(hDasm, i, out, FALSE);
+	else
+	    UpdateListboxString(hDasm, i, "", FALSE);
     }
     for (i = lines_new; i < lines_old; i++) {
-        SendMessage(hDasm, LB_DELETESTRING, lines_new, 0);
+	SendMessage(hDasm, LB_DELETESTRING, lines_new, 0);
     }
     SendMessage(hDasm, LB_SETTOPINDEX, 0, 0);
 }
@@ -609,12 +609,12 @@ static void SetMemToPC(void)
 {
     int i, id;
 
-    dbgpage[currpage].addr = m68k_getpc(&regs);
+    dbgpage[currpage].addr = m68k_getpc (&regs);
     sprintf(dbgpage[currpage].addrinput, "%08lX", dbgpage[currpage].addr);
     for (i = 0; i < MAXPAGECONTROLS; i++) {
-        id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
-        if (id == IDC_DBG_MEMINPUT)
-            SetWindowText(dbgpage[currpage].ctrl[i], dbgpage[currpage].addrinput);
+	id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
+	if (id == IDC_DBG_MEMINPUT)
+	    SetWindowText(dbgpage[currpage].ctrl[i], dbgpage[currpage].addrinput);
     }
     ShowDasm(0);
 }
@@ -625,43 +625,43 @@ static void ShowPage(int index, int force)
     HWND hwnd;
 
     if (index >= pages || ((index == currpage) && !force))
-        return;
+	return;
     if (currpage >= 0) {
-        pstatuscolor[currpage] = (currpage < 2 && index > 1) ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT;
-        if (index < 2)
-            pstatuscolor[index == 0 ? 1 : 0] = COLOR_GRAYTEXT;
-        for (i = 0; i < MAXPAGECONTROLS; i++) {
-            if (dbgpage[currpage].ctrl[i]) {
-                id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
-                if (id == IDC_DBG_MEMINPUT)
-                    GetWindowText(dbgpage[currpage].ctrl[i], dbgpage[currpage].addrinput, 9);
-                ShowWindow(dbgpage[currpage].ctrl[i], SW_HIDE);
-            }
-        }
+	pstatuscolor[currpage] = (currpage < 2 && index > 1) ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT;
+	if (index < 2)
+	    pstatuscolor[index == 0 ? 1 : 0] = COLOR_GRAYTEXT;
+	for (i = 0; i < MAXPAGECONTROLS; i++) {
+	    if (dbgpage[currpage].ctrl[i]) {
+		id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
+		if (id == IDC_DBG_MEMINPUT)
+		    GetWindowText(dbgpage[currpage].ctrl[i], dbgpage[currpage].addrinput, 9);
+		ShowWindow(dbgpage[currpage].ctrl[i], SW_HIDE);
+	    }
+	}
     }
     pagetype = 0;
     for (i = 0; i < MAXPAGECONTROLS; i++) {
-        if (dbgpage[index].ctrl[i]) {
-            id = GetDlgCtrlID(dbgpage[index].ctrl[i]);
+	if (dbgpage[index].ctrl[i]) {
+	    id = GetDlgCtrlID(dbgpage[index].ctrl[i]);
 	    if (id == IDC_DBG_OUTPUT1 || id == IDC_DBG_OUTPUT2) {
-                hOutput = dbgpage[index].ctrl[i];
- 	    } else if (id == IDC_DBG_MEM) {
-                ShowMem(0);
+		hOutput = dbgpage[index].ctrl[i];
+	    } else if (id == IDC_DBG_MEM) {
+		ShowMem(0);
 		pagetype = id;
 	    } else if (id == IDC_DBG_DASM) {
-                ShowDasm(0);
+		ShowDasm(0);
 		pagetype = id;
 	    } else if (id == IDC_DBG_MEMINPUT) {
-                SetWindowText(dbgpage[index].ctrl[i], dbgpage[index].addrinput);
-        } else if (id == IDC_DBG_BRKPTS) {
-            ShowBreakpoints();
-        } else if (id == IDC_DBG_MISC) {
-            ShowMisc();
-        } else if (id == IDC_DBG_CUSTOM) {
-            ShowCustom();
-        }
+		SetWindowText(dbgpage[index].ctrl[i], dbgpage[index].addrinput);
+	} else if (id == IDC_DBG_BRKPTS) {
+	    ShowBreakpoints();
+	} else if (id == IDC_DBG_MISC) {
+	    ShowMisc();
+	} else if (id == IDC_DBG_CUSTOM) {
+	    ShowCustom();
+	}
 	    ShowWindow(dbgpage[index].ctrl[i], SW_SHOW);
-        }
+	}
     }
     currpage = index;
     pstatuscolor[currpage] = COLOR_HIGHLIGHT;
@@ -674,11 +674,11 @@ static void AddPage(int *iddata)
     int i;
 
     if (pages >= MAXPAGES)
-        return;
+	return;
     memset(&dbgpage[pages], 0, sizeof(struct debuggerpage));
     for (i = 0; iddata[i] > 0; i++) {
-        dbgpage[pages].ctrl[i] = GetDlgItem(hDbgWnd, iddata[i]);
-        ShowWindow(dbgpage[pages].ctrl[i], SW_HIDE);
+	dbgpage[pages].ctrl[i] = GetDlgItem(hDbgWnd, iddata[i]);
+	ShowWindow(dbgpage[pages].ctrl[i], SW_HIDE);
     }
     pages++;
 }
@@ -695,9 +695,9 @@ static int GetTextSize(HWND hWnd, char *text, int width)
     SelectObject(hdc, hfontold);
     ReleaseDC(hWnd, hdc);
     if (!width)
-        return tm.tmHeight + tm.tmExternalLeading;
+	return tm.tmHeight + tm.tmExternalLeading;
     else if (text)
-        return tm.tmMaxCharWidth * strlen(text);
+	return tm.tmMaxCharWidth * strlen(text);
     return 0;
 }
 
@@ -707,31 +707,31 @@ static void InitPages(void)
     HWND hwnd;
 
     int dpage[][MAXPAGECONTROLS + 1] = {
-        { IDC_DBG_OUTPUT1, -1 },
-        { IDC_DBG_OUTPUT2, -1 },
-        { IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
-        { IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
-        { IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
-        { IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
-        { IDC_DBG_BRKPTS, -1 },
-        { IDC_DBG_MISC, -1 },
-        { IDC_DBG_CUSTOM, -1 }
+	{ IDC_DBG_OUTPUT1, -1 },
+	{ IDC_DBG_OUTPUT2, -1 },
+	{ IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
+	{ IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
+	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
+	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
+	{ IDC_DBG_BRKPTS, -1 },
+	{ IDC_DBG_MISC, -1 },
+	{ IDC_DBG_CUSTOM, -1 }
     };
 
     pages = 0;
     for (i = 0; i < (sizeof(dpage) / sizeof(dpage[0])); i++)
-        AddPage(dpage[i]);
+	AddPage(dpage[i]);
     memset(parts, 0, MAXPAGES * sizeof(int));
     width = GetTextSize(hDbgWnd, "12345678", TRUE); // longest pagename + 2
     for (i = 0; i < pages; i++) {
-        pwidth += width;
-        parts[i] = pwidth;
+	pwidth += width;
+	parts[i] = pwidth;
     }
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
     SendMessage(hwnd, SB_SETPARTS, (WPARAM)pages, (LPARAM)parts);
     for (i = 0; i < pages; i++) {
-        SendMessage(hwnd, SB_SETTEXT, i | SBT_OWNERDRAW, 0);
-        pstatuscolor[i] = COLOR_GRAYTEXT;
+	SendMessage(hwnd, SB_SETTEXT, i | SBT_OWNERDRAW, 0);
+	pstatuscolor[i] = COLOR_GRAYTEXT;
     }
 }
 
@@ -740,21 +740,21 @@ static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
     WNDPROC oldproc;
 
     switch (message) {
-        case WM_KEYUP:
-            switch (wParam) {
-                case VK_RETURN:
-                    inputfinished = 1;
-                    break;
-                case VK_UP: 
-                    SetPrevHistNode(hWnd);
-                    return TRUE;
-                case VK_DOWN:
-                    SetNextHistNode(hWnd);
-                    return TRUE;
-            }
-            break;
+	case WM_KEYUP:
+	    switch (wParam) {
+		case VK_RETURN:
+		    inputfinished = 1;
+		    break;
+		case VK_UP:
+		    SetPrevHistNode(hWnd);
+		    return TRUE;
+		case VK_DOWN:
+		    SetNextHistNode(hWnd);
+		    return TRUE;
+	    }
+	    break;
     }
-    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -769,41 +769,41 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
     WNDPROC oldproc;
 
     switch (message) {
-        case WM_CHAR:
-            if (wParam == VK_BACK)
-                break;
-            if (!strchr(allowed, wParam))
-                return TRUE;
-            break;
-        case WM_PASTE:
-            if (!OpenClipboard(NULL))
-                return TRUE;
-            hdata = GetClipboardData(CF_TEXT);
-            if (hdata) {
-                lptstr = GlobalLock(hdata); 
-                if (lptstr) {
-                    if (strspn(lptstr, allowed) != strlen(lptstr))
-                        ok = 0;
-                    GlobalUnlock(hdata);
-                }
-            }
-            CloseClipboard();
-            if (!ok)
-                return TRUE;
-            break;
-        case WM_KEYUP:
-             switch (wParam) {
-                case VK_RETURN:
-                    sprintf(addrstr, "0x");
-                    GetWindowText(hWnd, addrstr + 2, 9);
-                    addr = strtoul(addrstr, NULL, 0);
-                    dbgpage[currpage].addr = addr;
-                    ShowPage(currpage, TRUE);
-                    break;
-            }
-            break;
+	case WM_CHAR:
+	    if (wParam == VK_BACK)
+		break;
+	    if (!strchr(allowed, wParam))
+		return TRUE;
+	    break;
+	case WM_PASTE:
+	    if (!OpenClipboard(NULL))
+		return TRUE;
+	    hdata = GetClipboardData(CF_TEXT);
+	    if (hdata) {
+		lptstr = GlobalLock(hdata);
+		if (lptstr) {
+		    if (strspn(lptstr, allowed) != strlen(lptstr))
+			ok = 0;
+		    GlobalUnlock(hdata);
+		}
+	    }
+	    CloseClipboard();
+	    if (!ok)
+		return TRUE;
+	    break;
+	case WM_KEYUP:
+	     switch (wParam) {
+		case VK_RETURN:
+		    sprintf(addrstr, "0x");
+		    GetWindowText(hWnd, addrstr + 2, 9);
+		    addr = strtoul(addrstr, NULL, 0);
+		    dbgpage[currpage].addr = addr;
+		    ShowPage(currpage, TRUE);
+		    break;
+	    }
+	    break;
     }
-    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -818,68 +818,68 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
     HFONT oldfont, font;
     HDC hdc, compdc;
     HBITMAP compbmp, oldbmp;
- 
+
     switch (message) {
-        case WM_CHAR:
-            hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
-            SetFocus(hinput);
-            SendMessage(hinput, WM_CHAR, wParam, lParam);
-            return TRUE;
-        case WM_ERASEBKGND:
-            return TRUE;
-        case WM_SETFOCUS:
-            return TRUE;
-        case WM_PAINT:
-            hdc = BeginPaint(hWnd, &ps);
-            GetClientRect(hWnd, &rc);
-            height = rc.bottom - rc.top;
-            width = rc.right - rc.left;
-            bottom = rc.bottom;
-            itemheight = SendMessage(hWnd, LB_GETITEMHEIGHT, 0, 0);
-            rc.bottom = itemheight;
-            count = SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-            compdc = CreateCompatibleDC(hdc);
-            compbmp = CreateCompatibleBitmap(hdc, width, height);
-            oldbmp = SelectObject(compdc, compbmp);
-            font = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
-            oldfont = SelectObject(compdc, font);
-            id = GetDlgCtrlID(hWnd);
-            dis.CtlType = ODT_LISTBOX;
-            dis.CtlID = id;
-            dis.itemAction = 0;
-            dis.itemState = 0;
-            dis.hwndItem = hWnd;
-            dis.hDC = compdc;
+	case WM_CHAR:
+	    hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+	    SetFocus(hinput);
+	    SendMessage(hinput, WM_CHAR, wParam, lParam);
+	    return TRUE;
+	case WM_ERASEBKGND:
+	    return TRUE;
+	case WM_SETFOCUS:
+	    return TRUE;
+	case WM_PAINT:
+	    hdc = BeginPaint(hWnd, &ps);
+	    GetClientRect(hWnd, &rc);
+	    height = rc.bottom - rc.top;
+	    width = rc.right - rc.left;
+	    bottom = rc.bottom;
+	    itemheight = SendMessage(hWnd, LB_GETITEMHEIGHT, 0, 0);
+	    rc.bottom = itemheight;
+	    count = SendMessage(hWnd, LB_GETCOUNT, 0, 0);
+	    compdc = CreateCompatibleDC(hdc);
+	    compbmp = CreateCompatibleBitmap(hdc, width, height);
+	    oldbmp = SelectObject(compdc, compbmp);
+	    font = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+	    oldfont = SelectObject(compdc, font);
+	    id = GetDlgCtrlID(hWnd);
+	    dis.CtlType = ODT_LISTBOX;
+	    dis.CtlID = id;
+	    dis.itemAction = 0;
+	    dis.itemState = 0;
+	    dis.hwndItem = hWnd;
+	    dis.hDC = compdc;
 	    top = SendMessage(hWnd, LB_GETTOPINDEX, 0, 0);
 	    for (i = top; i < count && rc.top < height; i++) {
 		dis.itemID = i;
-                dis.rcItem = rc;
-                dis.itemData =  SendMessage(hWnd, LB_GETITEMDATA, i, 0);
-                SendMessage(hDbgWnd, WM_DRAWITEM, id, (LPARAM)&dis);
-                rc.top += itemheight;
-                rc.bottom += itemheight;
-            }
-            rc.bottom = bottom;
-            if (!IsWindowEnabled(hWnd))
-                FillRect(compdc, &rc, GetSysColorBrush(COLOR_3DFACE));
-            else
-                FillRect(compdc, &rc, GetSysColorBrush(COLOR_WINDOW));
-            GetWindowRect(hWnd, &rc);
-            hsbar = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
-            GetWindowRect(hsbar, &r);
-            if (rc.top < r.top) { // not below status bar
-                if (rc.bottom > r.top) // partly visible
-                    height -= rc.bottom - r.top;
-                BitBlt(hdc, 0, 0, width, height, compdc, 0, 0, SRCCOPY);
-            }
-            SelectObject(compdc, oldfont);
-            SelectObject(compdc, oldbmp);
-            DeleteObject(compbmp);
-            DeleteDC(compdc);
-            EndPaint(hWnd, &ps);
-            return TRUE;
+		dis.rcItem = rc;
+		dis.itemData =  SendMessage(hWnd, LB_GETITEMDATA, i, 0);
+		SendMessage(hDbgWnd, WM_DRAWITEM, id, (LPARAM)&dis);
+		rc.top += itemheight;
+		rc.bottom += itemheight;
+	    }
+	    rc.bottom = bottom;
+	    if (!IsWindowEnabled(hWnd))
+		FillRect(compdc, &rc, GetSysColorBrush(COLOR_3DFACE));
+	    else
+		FillRect(compdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+	    GetWindowRect(hWnd, &rc);
+	    hsbar = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
+	    GetWindowRect(hsbar, &r);
+	    if (rc.top < r.top) { // not below status bar
+		if (rc.bottom > r.top) // partly visible
+		    height -= rc.bottom - r.top;
+		BitBlt(hdc, 0, 0, width, height, compdc, 0, 0, SRCCOPY);
+	    }
+	    SelectObject(compdc, oldfont);
+	    SelectObject(compdc, oldbmp);
+	    DeleteObject(compbmp);
+	    DeleteDC(compdc);
+	    EndPaint(hWnd, &ps);
+	    return TRUE;
     }
-    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -889,16 +889,16 @@ static LRESULT CALLBACK EditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
     HWND hinput;
 
     switch (message) {
-        case WM_CHAR:
-            if (wParam != VK_CANCEL) { // not for Ctrl-C for copying
-                hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
-                SetFocus(hinput);
-                SendMessage(hinput, WM_CHAR, wParam, lParam);
-                return TRUE;
-            }
-            break;
+	case WM_CHAR:
+	    if (wParam != VK_CANCEL) { // not for Ctrl-C for copying
+		hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+		SetFocus(hinput);
+		SendMessage(hinput, WM_CHAR, wParam, lParam);
+		return TRUE;
+	    }
+	    break;
     }
-    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);    
+    oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -1009,54 +1009,54 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 
     id = GetDlgCtrlID(hWnd);
     switch (id) {
-        case IDC_DBG_INPUT:
-            newproc = InputProc;
-            SendMessage(hWnd, EM_LIMITTEXT, MAX_LINEWIDTH, 0);
-            break;
-        case IDC_DBG_MEMINPUT:
-            newproc = MemInputProc;
-            SendMessage(hWnd, EM_LIMITTEXT, 8, 0);
-            break;
-        case IDC_DBG_PREFETCH:
-            newproc = ListboxProc;
-            enable = currprefs.cpu_compatible ? TRUE : FALSE;
-            break;
-        case IDC_DBG_FPREG:
-        case IDC_DBG_FPSR:
-            newproc = ListboxProc;
-            enable = currprefs.cpu_model < 68020 ? FALSE : TRUE;
-            break;
-        case IDC_DBG_MISCCPU:
-            if (currprefs.cpu_model == 68000) {
-                items = 4;
-                enable = FALSE;
-            }
-            else {
-                for (i = 0; m2cregs[i].regno>= 0; i++) {
-	                if (!movec_illg(m2cregs[i].regno))
-                        items++;
-                }
-            }
-            pwi.cbSize = sizeof pwi;
-            GetWindowInfo(hWnd, &pwi);
-            r = &pwi.rcClient;
-            r->bottom = r->top + items * GetTextSize(hWnd, NULL, FALSE);
-            AdjustWindowRectEx(r, pwi.dwStyle, FALSE, pwi.dwExStyle);
-            SetWindowPos(hWnd, 0, 0, 0, r->right - r->left, r->bottom - r->top, SWP_NOMOVE | SWP_NOZORDER);
-            newproc = ListboxProc;
-            break;
-        default:
-            if (GetClassName(hWnd, classname, CLASSNAMELENGTH)) {
-                if (!strcmp(classname, "ListBox"))
-                    newproc = ListboxProc;
-                else if (!strcmp(classname, "Edit"))
-                    newproc = EditProc;
-            }
-            break;
+	case IDC_DBG_INPUT:
+	    newproc = InputProc;
+	    SendMessage(hWnd, EM_LIMITTEXT, MAX_LINEWIDTH, 0);
+	    break;
+	case IDC_DBG_MEMINPUT:
+	    newproc = MemInputProc;
+	    SendMessage(hWnd, EM_LIMITTEXT, 8, 0);
+	    break;
+	case IDC_DBG_PREFETCH:
+	    newproc = ListboxProc;
+	    enable = currprefs.cpu_compatible ? TRUE : FALSE;
+	    break;
+	case IDC_DBG_FPREG:
+	case IDC_DBG_FPSR:
+	    newproc = ListboxProc;
+	    enable = currprefs.cpu_model < 68020 ? FALSE : TRUE;
+	    break;
+	case IDC_DBG_MISCCPU:
+	    if (currprefs.cpu_model == 68000) {
+		items = 4;
+		enable = FALSE;
+	    }
+	    else {
+		for (i = 0; m2cregs[i].regno>= 0; i++) {
+			if (!movec_illg(m2cregs[i].regno))
+			items++;
+		}
+	    }
+	    pwi.cbSize = sizeof pwi;
+	    GetWindowInfo(hWnd, &pwi);
+	    r = &pwi.rcClient;
+	    r->bottom = r->top + items * GetTextSize(hWnd, NULL, FALSE);
+	    AdjustWindowRectEx(r, pwi.dwStyle, FALSE, pwi.dwExStyle);
+	    SetWindowPos(hWnd, 0, 0, 0, r->right - r->left, r->bottom - r->top, SWP_NOMOVE | SWP_NOZORDER);
+	    newproc = ListboxProc;
+	    break;
+	default:
+	    if (GetClassName(hWnd, classname, CLASSNAMELENGTH)) {
+		if (!strcmp(classname, "ListBox"))
+		    newproc = ListboxProc;
+		else if (!strcmp(classname, "Edit"))
+		    newproc = EditProc;
+	    }
+	    break;
     }
     if (newproc) {
-        oldproc = (WNDPROC)SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG_PTR)newproc);
-        SetWindowLongPtr(hWnd, GWL_USERDATA, (LONG_PTR)oldproc);
+	oldproc = (WNDPROC)SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG_PTR)newproc);
+	SetWindowLongPtr(hWnd, GWL_USERDATA, (LONG_PTR)oldproc);
     }
     EnableWindow(hWnd, enable);
     return TRUE;
@@ -1071,16 +1071,16 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
     char text[MAX_LINEWIDTH + 1];
 
     switch (message) {
-        case WM_INITDIALOG:
+	case WM_INITDIALOG:
 	{
 	    int newpos = 0;
 	    LONG x, y, w, h;
 	    DWORD regkeytype;
 	    DWORD regkeysize = sizeof(LONG);
-            RECT rw;
-            GetWindowRect(hDlg, &rw);
-            dbgwnd_minx = rw.right - rw.left;
-            dbgwnd_miny = rw.bottom - rw.top;
+	    RECT rw;
+	    GetWindowRect(hDlg, &rw);
+	    dbgwnd_minx = rw.right - rw.left;
+	    dbgwnd_miny = rw.bottom - rw.top;
 	    GetClientRect(hDlg, &dlgRect);
 	    if (hWinUAEKey) {
 		newpos = 1;
@@ -1109,28 +1109,28 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    histcount = 0;
 	    inputfinished = 0;
 	    AdjustDialog(hDlg);
-            return TRUE;
+	    return TRUE;
 	}
-        case WM_CLOSE:
-            DestroyWindow(hDlg);
+	case WM_CLOSE:
+	    DestroyWindow(hDlg);
 	    uae_quit();
-            return TRUE;
-        case WM_DESTROY:
+	    return TRUE;
+	case WM_DESTROY:
 	{
 	    RECT r;
 	    if (GetWindowRect (hDlg, &r) && hWinUAEKey) {
 		r.right -= r.left;
 		r.bottom -= r.top;
-	        RegSetValueEx (hWinUAEKey, "DebuggerPosX", 0, REG_DWORD, (LPBYTE)&r.left, sizeof(LONG));
-	        RegSetValueEx (hWinUAEKey, "DebuggerPosY", 0, REG_DWORD, (LPBYTE)&r.top, sizeof(LONG));
-	        RegSetValueEx (hWinUAEKey, "DebuggerPosW", 0, REG_DWORD, (LPBYTE)&r.right, sizeof(LONG));
-	        RegSetValueEx (hWinUAEKey, "DebuggerPosH", 0, REG_DWORD, (LPBYTE)&r.bottom, sizeof(LONG));
+		RegSetValueEx (hWinUAEKey, "DebuggerPosX", 0, REG_DWORD, (LPBYTE)&r.left, sizeof(LONG));
+		RegSetValueEx (hWinUAEKey, "DebuggerPosY", 0, REG_DWORD, (LPBYTE)&r.top, sizeof(LONG));
+		RegSetValueEx (hWinUAEKey, "DebuggerPosW", 0, REG_DWORD, (LPBYTE)&r.right, sizeof(LONG));
+		RegSetValueEx (hWinUAEKey, "DebuggerPosH", 0, REG_DWORD, (LPBYTE)&r.bottom, sizeof(LONG));
 	    }
-            hDbgWnd = 0;
-            PostQuitMessage(0);
+	    hDbgWnd = 0;
+	    PostQuitMessage(0);
 	    DeleteFromHistory(histcount);
 	    consoleopen = 0;
-            return TRUE;
+	    return TRUE;
 	}
 	case WM_GETMINMAXINFO:
 	{
@@ -1142,96 +1142,96 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	case WM_EXITSIZEMOVE:
 	{
 	    AdjustDialog(hDlg);
-        ShowPage(currpage, TRUE);
+	ShowPage(currpage, TRUE);
 	    return TRUE;
 	}
-        case WM_CTLCOLORSTATIC:
-            SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
-            return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
-        case WM_CTLCOLORLISTBOX:
-            hwnd = (HWND)lParam;
-            if (!IsWindowEnabled(hwnd)) {
-                SetBkColor((HDC)wParam, GetSysColor(COLOR_3DFACE));
-                return (LRESULT)GetSysColorBrush(COLOR_3DFACE);
-            }
-            SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
-            return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
-        case WM_COMMAND:
-            switch (LOWORD(wParam)) {
-                case IDC_DBG_HELP:
-                {
-                    HWND hinput;
-                    WriteOutput(linebreak + 1, 2);
-                    debug_help();
-                    hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
-                    SetFocus(hinput);
-                    return TRUE;
-                }
-                case ID_DBG_PAGE1:
-                case ID_DBG_PAGE2:
-                case ID_DBG_PAGE3:
-                case ID_DBG_PAGE4:
-                case ID_DBG_PAGE5:
-                case ID_DBG_PAGE6:
-                case ID_DBG_PAGE7:
-                case ID_DBG_PAGE8:
-                case ID_DBG_PAGE9:
-                    // IDs have to be consecutive and in order of page order for this to work
-                    ShowPage(LOWORD(wParam) - ID_DBG_PAGE1, FALSE);
-                    return TRUE;
-                case IDC_DBG_MEMUP:
+	case WM_CTLCOLORSTATIC:
+	    SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
+	    return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+	case WM_CTLCOLORLISTBOX:
+	    hwnd = (HWND)lParam;
+	    if (!IsWindowEnabled(hwnd)) {
+		SetBkColor((HDC)wParam, GetSysColor(COLOR_3DFACE));
+		return (LRESULT)GetSysColorBrush(COLOR_3DFACE);
+	    }
+	    SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
+	    return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+	case WM_COMMAND:
+	    switch (LOWORD(wParam)) {
+		case IDC_DBG_HELP:
+		{
+		    HWND hinput;
+		    WriteOutput(linebreak + 1, 2);
+		    debug_help();
+		    hinput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
+		    SetFocus(hinput);
+		    return TRUE;
+		}
+		case ID_DBG_PAGE1:
+		case ID_DBG_PAGE2:
+		case ID_DBG_PAGE3:
+		case ID_DBG_PAGE4:
+		case ID_DBG_PAGE5:
+		case ID_DBG_PAGE6:
+		case ID_DBG_PAGE7:
+		case ID_DBG_PAGE8:
+		case ID_DBG_PAGE9:
+		    // IDs have to be consecutive and in order of page order for this to work
+		    ShowPage(LOWORD(wParam) - ID_DBG_PAGE1, FALSE);
+		    return TRUE;
+		case IDC_DBG_MEMUP:
 		    moveupdown(-1);
 		    return TRUE;
-                case IDC_DBG_MEMDOWN:
-                    moveupdown(1);
-                    return TRUE;
-                case IDC_DBG_MEMUPFAST:
+		case IDC_DBG_MEMDOWN:
+		    moveupdown(1);
+		    return TRUE;
+		case IDC_DBG_MEMUPFAST:
 		    moveupdown(-2);
 		    return TRUE;
-                case IDC_DBG_MEMDOWNFAST:
-                    moveupdown(2);
-                    return TRUE;
-                case IDC_DBG_MEMTOPC:
-                {
-                    HWND hmeminput;
-                    SetMemToPC();
-                    hmeminput = GetDlgItem(hDbgWnd, IDC_DBG_MEMINPUT);
-                    SetFocus(hmeminput);
-                    return TRUE;
-                }
-            }
-            break;
-        case WM_MEASUREITEM:
-            ((MEASUREITEMSTRUCT*)(lParam))->itemHeight = GetTextSize(hDlg, NULL, FALSE);
-            return TRUE;
-        case WM_DRAWITEM:
-            pdis = (DRAWITEMSTRUCT *)lParam;
-            hdc = pdis->hDC;
-            rc = pdis->rcItem;
-            SetBkMode(hdc, TRANSPARENT);
-            if (wParam == IDC_DBG_STATUS) {
-                SetTextColor(hdc, GetSysColor(pstatuscolor[pdis->itemID]));
-                DrawText(hdc, pname[pdis->itemID], lstrlen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
-            }
-            else {
-                if (pdis->itemID < 0) {
-                    return TRUE;
-                }
-                memset(text, 0, MAX_LINEWIDTH + 1);
-                SendMessage(pdis->hwndItem, LB_GETTEXT, pdis->itemID, (LPARAM)(LPSTR)text);
-                if (!IsWindowEnabled(pdis->hwndItem)) {
-                    FillRect(hdc, &rc, GetSysColorBrush(COLOR_3DFACE));
-                    SetBkColor(hdc, GetSysColor(COLOR_3DFACE));
-                }
-                else {
-                    FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
-                    SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
-                }
-                SetTextColor(hdc, pdis->itemData);
-                TextOut(hdc, rc.left, rc.top, text, strlen(text));
-                return TRUE;
-            }
-            break;
+		case IDC_DBG_MEMDOWNFAST:
+		    moveupdown(2);
+		    return TRUE;
+		case IDC_DBG_MEMTOPC:
+		{
+		    HWND hmeminput;
+		    SetMemToPC();
+		    hmeminput = GetDlgItem(hDbgWnd, IDC_DBG_MEMINPUT);
+		    SetFocus(hmeminput);
+		    return TRUE;
+		}
+	    }
+	    break;
+	case WM_MEASUREITEM:
+	    ((MEASUREITEMSTRUCT*)(lParam))->itemHeight = GetTextSize(hDlg, NULL, FALSE);
+	    return TRUE;
+	case WM_DRAWITEM:
+	    pdis = (DRAWITEMSTRUCT *)lParam;
+	    hdc = pdis->hDC;
+	    rc = pdis->rcItem;
+	    SetBkMode(hdc, TRANSPARENT);
+	    if (wParam == IDC_DBG_STATUS) {
+		SetTextColor(hdc, GetSysColor(pstatuscolor[pdis->itemID]));
+		DrawText(hdc, pname[pdis->itemID], lstrlen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+	    }
+	    else {
+		if (pdis->itemID < 0) {
+		    return TRUE;
+		}
+		memset(text, 0, MAX_LINEWIDTH + 1);
+		SendMessage(pdis->hwndItem, LB_GETTEXT, pdis->itemID, (LPARAM)(LPSTR)text);
+		if (!IsWindowEnabled(pdis->hwndItem)) {
+		    FillRect(hdc, &rc, GetSysColorBrush(COLOR_3DFACE));
+		    SetBkColor(hdc, GetSysColor(COLOR_3DFACE));
+		}
+		else {
+		    FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+		    SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
+		}
+		SetTextColor(hdc, pdis->itemData);
+		TextOut(hdc, rc.left, rc.top, text, strlen(text));
+		return TRUE;
+	    }
+	    break;
     }
     return FALSE;
 }
@@ -1242,16 +1242,16 @@ int open_debug_window(void)
     struct newresource *nr;
 
     if (hDbgWnd)
-        return 0;
+	return 0;
     reopen = 0;
     dbgaccel = LoadAccelerators(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDR_DBGACCEL));
     nr = getresource(IDD_DEBUGGER);
     if (nr) {
-        hDbgWnd = CreateDialogIndirect (nr->inst, nr->resource, NULL, DebuggerProc);
-        freescaleresource(nr);
+	hDbgWnd = CreateDialogIndirect (nr->inst, nr->resource, NULL, DebuggerProc);
+	freescaleresource(nr);
     }
     if (!hDbgWnd)
-        return 0;
+	return 0;
     InitPages();
     ShowPage(0, TRUE);
     ShowWindow(hDbgWnd, SW_SHOWNORMAL);
@@ -1294,21 +1294,21 @@ void update_debug_info(void)
     char *fpsrflag[] = { "N:   ", "Z:   ", "I:   ", "NAN: " };
 
     if (!hDbgWnd)
-        return;
+	return;
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_DREG);
     for (i = 0; i < 8; i++) {
-        sprintf(out, "D%d: %08lX", i, m68k_dreg(&regs, i));
-        UpdateListboxString(hwnd, i, out, TRUE);
+	sprintf(out, "D%d: %08lX", i, m68k_dreg (&regs, i));
+	UpdateListboxString(hwnd, i, out, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
     for (i = 0; i < 8; i++) {
-        hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
-        sprintf(out, "A%d: %08lX", i, m68k_areg(&regs, i));
-        UpdateListboxString(hwnd, i, out, TRUE);
-        hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AMEM);
-        dumpmem2(m68k_areg(&regs, i), out, sizeof(out));
-        UpdateListboxString(hwnd, i, out + 9, TRUE);
+	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
+	sprintf(out, "A%d: %08lX", i, m68k_areg (&regs, i));
+	UpdateListboxString(hwnd, i, out, TRUE);
+	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AMEM);
+	dumpmem2(m68k_areg (&regs, i), out, sizeof(out));
+	UpdateListboxString(hwnd, i, out + 9, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_CCR);
@@ -1339,7 +1339,7 @@ void update_debug_info(void)
     UpdateListboxString(hwnd, 4, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PC);
-    sprintf(out, "PC: %08lX", m68k_getpc(&regs));
+    sprintf(out, "PC: %08lX", m68k_getpc (&regs));
     UpdateListboxString(hwnd, 0, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PREFETCH);
@@ -1354,15 +1354,15 @@ void update_debug_info(void)
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPREG);
     for (i = 0; i < 8; i++) {
-        sprintf(out, "FP%d: %g", i, regs.fp[i]);
-        UpdateListboxString(hwnd, i, out, TRUE);
+	sprintf(out, "FP%d: %g", i, regs.fp[i]);
+	UpdateListboxString(hwnd, i, out, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPSR);
     fpsr = get_fpsr();
     for (i = 0; i < 4; i++) {
-        sprintf(out, "%s%d", fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
-        UpdateListboxString(hwnd, i, out, TRUE);
+	sprintf(out, "%s%d", fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
+	UpdateListboxString(hwnd, i, out, TRUE);
     }
     ShowPage(currpage, TRUE);
 }

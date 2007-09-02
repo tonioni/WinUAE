@@ -1,8 +1,8 @@
 /*
   UAE - The Ultimate Amiga Emulator
-  
+
   avioutput.c
-  
+
   Copyright(c) 2001 - 2002; §ane
   2005-2006; Toni Wilen
 
@@ -149,7 +149,7 @@ static UINT CALLBACK acmFilterChooseHookProc(HWND hwnd, UINT uMsg, WPARAM wParam
 	{
 	    case FORMATCHOOSE_FORMATTAG_VERIFY:
 		switch(lParam) // remove known error prone codecs
-	    	{
+		{
 		    case WAVE_FORMAT_ADPCM: // 0x0002 Microsoft Corporation
 		    case WAVE_FORMAT_IMA_ADPCM: // 0x0011 Intel Corporation
 		    case WAVE_FORMAT_GSM610: // 0x0031 Microsoft Corporation
@@ -209,7 +209,7 @@ static int AVIOutput_AllocateAudio(void)
     wfxSrc.cbSize = 0;
 
     if(!(pwfxDst = (LPWAVEFORMATEX) malloc(wfxMaxFmtSize)))
-    	return 0;
+	return 0;
 
     // set the initial destination format to match source
     memset(pwfxDst, 0, wfxMaxFmtSize);
@@ -309,8 +309,8 @@ int AVIOutput_GetAudioCodec(char *name, int len)
     if (!AVIOutput_AllocateAudio())
 	return 0;
     if (AVIOutput_GetAudioFromRegistry(pwfxDst)) {
-        AVIOutput_GetAudioCodecName(pwfxDst, name, len);
-        return 1;
+	AVIOutput_GetAudioCodecName(pwfxDst, name, len);
+	return 1;
     }
     AVIOutput_ReleaseAudio();
     return 0;
@@ -320,7 +320,7 @@ int AVIOutput_ChooseAudioCodec(HWND hwnd, char *s, int len)
 {
     AVIOutput_End();
     if (!AVIOutput_AllocateAudio())
-        return 0;
+	return 0;
 
     acmopt.hwndOwner = hwnd;
     acmopt.pfnHook = acmFilterChooseHookProc;
@@ -339,32 +339,32 @@ int AVIOutput_ChooseAudioCodec(HWND hwnd, char *s, int len)
 	    }
 	    return 1;
 	}
-		
+
 	case ACMERR_CANCELED:
 	    AVIOutput_GetAudioFromRegistry(NULL);
 	    AVIOutput_ReleaseAudio();
 	    break;
-		
+
 	case ACMERR_NOTPOSSIBLE:
 	    MessageBox(hwnd, "The buffer identified by the pwfx member of the ACMFORMATCHOOSE structure is too small to contain the selected format.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
-		
+
 	case MMSYSERR_INVALFLAG:
 	    MessageBox(hwnd, "At least one flag is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
-		
+
 	case MMSYSERR_INVALHANDLE:
 	    MessageBox(hwnd, "The specified handle is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
-		
+
 	case MMSYSERR_INVALPARAM:
 	    MessageBox(hwnd, "At least one parameter is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
-		
+
 	case MMSYSERR_NODRIVER:
 	    MessageBox(hwnd, "A suitable driver is not available to provide valid format selections.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
-		
+
 	default:
 	    MessageBox(hwnd, "acmFormatChoose() FAILED", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
@@ -388,11 +388,11 @@ static int AVIOutput_AllocateVideo(void)
     if (!avioutput_width || !avioutput_height || !avioutput_bits) {
 	avioutput_width = workprefs.gfx_size.width;
 	avioutput_height = workprefs.gfx_size.height;
-        avioutput_bits = 24;
+	avioutput_bits = 24;
     }
 
     if(!(lpbi = (LPBITMAPINFOHEADER) malloc(sizeof(BITMAPINFOHEADER) + (((avioutput_bits <= 8) ? 1 << avioutput_bits : 0) * sizeof(RGBQUAD)))))
-    	return 0;
+	return 0;
 
     lpbi->biSize = sizeof(BITMAPINFOHEADER);
     lpbi->biWidth = avioutput_width;
@@ -438,7 +438,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry(COMPVARS *pcv)
 	    pcv->cbState = 0;
 	    if (RegQueryValueEx(avikey, "VideoConfigurationState", 0, NULL, NULL, &ss) == ERROR_SUCCESS) {
 		if (ss > 0) {
-    		    LPBYTE state = xmalloc (ss);
+		    LPBYTE state = xmalloc (ss);
 		    if (RegQueryValueEx(avikey, "VideoConfigurationState", 0, NULL, state, &ss) == ERROR_SUCCESS) {
 			pcv->hic = ICOpen(pcv->fccType, pcv->fccHandler, ICMODE_COMPRESS);
 			if (pcv->hic) {
@@ -446,7 +446,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry(COMPVARS *pcv)
 			    ICSetState(pcv->hic, state, ss);
 			}
 		    }
-	    	    xfree (state);
+		    xfree (state);
 		} else {
 		    ok = 1;
 		}
@@ -471,7 +471,7 @@ static int AVIOutput_GetVideoCodecName(COMPVARS *pcv, char *name, int len)
 	return 1;
     }
     if(ICGetInfo(pcv->hic, &icinfo, sizeof(ICINFO)) != 0) {
-        if(WideCharToMultiByte(CP_ACP, 0, icinfo.szDescription, -1, name, len, NULL, NULL) != 0)
+	if(WideCharToMultiByte(CP_ACP, 0, icinfo.szDescription, -1, name, len, NULL, NULL) != 0)
 	    return 1;
     }
     return 0;
@@ -485,8 +485,8 @@ int AVIOutput_GetVideoCodec(char *name, int len)
 	return 0;
     AVIOutput_FreeCOMPVARS(pcompvars);
     if (AVIOutput_GetCOMPVARSFromRegistry(pcompvars)) {
-        AVIOutput_GetVideoCodecName(pcompvars, name, len);
-        return 1;
+	AVIOutput_GetVideoCodecName(pcompvars, name, len);
+	return 1;
     }
     AVIOutput_ReleaseVideo();
     return 0;
@@ -496,7 +496,7 @@ int AVIOutput_ChooseVideoCodec(HWND hwnd, char *s, int len)
 {
     AVIOutput_End();
     if (!AVIOutput_AllocateVideo())
-        return 0;
+	return 0;
     AVIOutput_FreeCOMPVARS(pcompvars);
 
     // we really should check first to see if the user has a particular compressor installed before we set one
@@ -542,7 +542,7 @@ int AVIOutput_ChooseVideoCodec(HWND hwnd, char *s, int len)
 	return AVIOutput_GetVideoCodecName(pcompvars, s, len);
     } else {
 	AVIOutput_GetCOMPVARSFromRegistry(NULL);
-        AVIOutput_ReleaseVideo();
+	AVIOutput_ReleaseVideo();
 	return 0;
     }
 }
@@ -558,7 +558,7 @@ static void checkAVIsize (int force)
 	return;
     strcpy (fn, avioutput_filename_tmp);
     sprintf (avioutput_filename, "%s_%d.avi", fn, tmp_partcnt);
-    write_log("AVI split %d at %d bytes, %d frames\n",
+    write_log ("AVI split %d at %d bytes, %d frames\n",
 	tmp_partcnt, total_avi_size, frame_count);
     AVIOutput_End ();
     first_frame = 0;
@@ -639,7 +639,7 @@ static void AVIOuput_AVIWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
 	total_avi_size += written;
 
 	acmStreamUnprepareHeader(has, &ash, 0);
-		
+
 	if(lpAudio) {
 	    free(lpAudio);
 	    lpAudio = NULL;
@@ -801,7 +801,7 @@ void AVIOutput_WriteVideo(void)
 		goto error;
 	    }
 	}
-			
+
 	if((err = AVIStreamWrite(AVIVideoStream, frame_count, 1, lpVideo, lpbi->biSizeImage, 0, NULL, &written)) != 0)
 	{
 	    gui_message("AVIStreamWrite() FAILED (%X)\n", err);
@@ -915,9 +915,9 @@ void AVIOutput_End(void)
     partcnt = 0;
 
     if (wavfile) {
-        writewavheader (ftell (wavfile));
-        fclose (wavfile);
-        wavfile = 0;
+	writewavheader (ftell (wavfile));
+	fclose (wavfile);
+	wavfile = 0;
     }
 
     LeaveCriticalSection(&AVIOutput_CriticalSection);
@@ -930,30 +930,30 @@ void AVIOutput_Begin(void)
     char *ext1, *ext2;
 
     if (avioutput_enabled) {
-        if (!avioutput_requested)
+	if (!avioutput_requested)
 	    AVIOutput_End ();
 	return;
     }
     if (!avioutput_requested)
-        return;
+	return;
 
     changed_prefs.sound_auto = currprefs.sound_auto = 0;
     reset_sound ();
 
     if (avioutput_audio == AVIAUDIO_WAV) {
-        ext1 = ".wav"; ext2 = ".avi";
+	ext1 = ".wav"; ext2 = ".avi";
     } else {
-        ext1 = ".avi"; ext2 = ".wav";
+	ext1 = ".avi"; ext2 = ".wav";
     }
     if (strlen (avioutput_filename) >= 4 && !strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext2))
-        avioutput_filename[strlen (avioutput_filename) - 4] = 0;
+	avioutput_filename[strlen (avioutput_filename) - 4] = 0;
     if (strlen (avioutput_filename) >= 4 && strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext1))
-        strcat (avioutput_filename, ext1);
+	strcat (avioutput_filename, ext1);
     strcpy (avioutput_filename_tmp, avioutput_filename);
     i = strlen (avioutput_filename_tmp) - 1;
     while (i > 0 && avioutput_filename_tmp[i] != '.') i--;
     if (i > 0)
-        avioutput_filename_tmp[i] = 0;
+	avioutput_filename_tmp[i] = 0;
 
     avioutput_needs_restart = 0;
     avioutput_enabled = avioutput_audio || avioutput_video;
@@ -965,8 +965,8 @@ void AVIOutput_Begin(void)
     DeleteFile(avioutput_filename);
 
     if (avioutput_audio == AVIAUDIO_WAV) {
-        wavfile = fopen (avioutput_filename, "wb");
-        if (!wavfile) {
+	wavfile = fopen (avioutput_filename, "wb");
+	if (!wavfile) {
 	    gui_message("Failed to open wave-file\n\nThis can happen if the path and or file name was entered incorrectly.\n");
 	    goto error;
 	}
@@ -974,12 +974,12 @@ void AVIOutput_Begin(void)
 	write_log ("wave-output to '%s' started\n", avioutput_filename);
 	return;
     }
-	
+
     if(((err = AVIFileOpen(&pfile, avioutput_filename, OF_CREATE | OF_WRITE, NULL)) != 0)) {
 	gui_message("AVIFileOpen() FAILED (Error %X)\n\nThis can happen if the path and or file name was entered incorrectly.\nRequired *.avi extension.\n", err);
 	goto error;
     }
-	
+
     if(avioutput_audio) {
 	if (!AVIOutput_AllocateAudio())
 	    goto error;
@@ -1093,7 +1093,7 @@ error:
 void AVIOutput_Release(void)
 {
     AVIOutput_End();
-	
+
     AVIOutput_ReleaseAudio();
     AVIOutput_ReleaseVideo();
 
@@ -1117,7 +1117,7 @@ void AVIOutput_Initialize(void)
 
     pcompvars = (PCOMPVARS) malloc(sizeof(COMPVARS));
     if (!pcompvars)
-        return;
+	return;
     memset(pcompvars, 0, sizeof(COMPVARS));
     pcompvars->cbSize = sizeof(COMPVARS);
 
@@ -1158,12 +1158,12 @@ void frame_drawn(void)
 	skipsample += idiff / 10;
 	if (skipsample > 4)
 	    skipsample = 4;
-    write_log("%d ", skipsample);
+    write_log ("%d ", skipsample);
     }
     sound_setadjust (0.0);
 
 #if 0
-    write_log("%d ", idiff);
+    write_log ("%d ", idiff);
     diff = idiff / 20.0;
     skipmode = pow (diff < 0 ? -diff : diff, EXP);
     if (idiff < 0)
@@ -1172,12 +1172,12 @@ void frame_drawn(void)
 	skipmode = -ADJUST_SIZE;
     if (skipmode > ADJUST_SIZE)
 	skipmode = ADJUST_SIZE;
-    write_log("%d/%.2f\n", idiff, skipmode);
+    write_log ("%d/%.2f\n", idiff, skipmode);
 
     sound_setadjust (skipmode);
 
     if (0 && !(frame_count % avioutput_fps))
-	write_log("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
+	write_log ("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
 	    StreamSizeAudio, StreamSizeAudioExpected, idiff);
 #endif
 }

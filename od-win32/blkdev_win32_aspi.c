@@ -62,7 +62,7 @@ static int getversion(const char *name, VS_FIXEDFILEINFO *ver)
 		    if(vsFileInfo) {
 			memcpy (ver, vsFileInfo, sizeof (*ver));
 			ok = TRUE;
-			write_log("%s version %d.%d.%d.%d\n", name,
+			write_log ("%s version %d.%d.%d.%d\n", name,
 			    vsFileInfo->dwFileVersionMS >> 16,
 			    vsFileInfo->dwFileVersionMS & 0xffff,
 			    vsFileInfo->dwFileVersionLS >> 16,
@@ -92,13 +92,13 @@ const char *get_aspi_path(int aspitype)
 	if (frog < 0)
 	    return NULL;
 	frog = -1;
-        if (getversion(path_frog, &ver))
+	if (getversion(path_frog, &ver))
 	    frog = 1;
 	return path_frog;
 
 	case 1: // Nero
 	{
-            HKEY key;
+	    HKEY key;
 	    DWORD type = REG_SZ;
 	    DWORD size = sizeof (path_nero);
 	    if (nero > 0)
@@ -120,7 +120,7 @@ const char *get_aspi_path(int aspitype)
 		    }
 		    return NULL;
 		}
-	        RegCloseKey (key);
+		RegCloseKey (key);
 	    }
 	}
 	return NULL;
@@ -350,7 +350,7 @@ err:
 struct scg_local {
     int dummy;
 };
-#define scglocal(p) ((struct scg_local *)((p)->local)) 
+#define scglocal(p) ((struct scg_local *)((p)->local))
 
 static SCSI *openscsi (int busno, int tgt, int tlun)
 {
@@ -457,7 +457,7 @@ static void set_error(SRB_ExecSCSICmd *cp, struct scg_cmd *sp)
 	case SS_MISMATCHED_COMPONENTS:	/* 0xE7 The DLLs/EXEs of ASPI don't  */
 					/*      version check                */
 	case SS_NO_ADAPTERS:		/* 0xE8 No host adapters to manager  */
-	
+
 	case SS_ASPI_IS_SHUTDOWN:	/* 0xEA Call came to ASPI after      */
 					/*      PROCESS_DETACH               */
 	case SS_BAD_INSTALL:		/* 0xEB The DLL or other components  */
@@ -567,7 +567,7 @@ static int scsicmd(SCSI *scgp)
     s.SRB_CDBLen = sp->cdb_len;  /* SCSI command length */
     s.SRB_PostProc = Event; /* Post proc event */
     s.SRB_SenseLen = SENSE_LEN; /* Lenght of sense buffer */
-    
+
     /*
      * Do we receive data from this ASPI command?
      */
@@ -698,7 +698,7 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 			    cis->isatapi = 1;
 			} else
 			    write_log (",SCSI");
-			write_log("]");
+			write_log ("]");
 			if (use) {
 			    unitcnt++;
 			    cis->buf = malloc (DEVICE_SCSI_BUFSIZE);
@@ -818,12 +818,12 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 	return 0;
     ok = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen) ? 1 : 0;
     if (ok) {
-        di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
+	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
 	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
     }
     if (di->type == INQ_DASD) {
-        uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
-        ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
+	uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
+	ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
 	if (ok) {
 	    di->write_protected = (p[3]& 0x80) ? 1 : 0;
 	}

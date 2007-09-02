@@ -158,42 +158,42 @@ struct DirectDrawSurfaceMapper
     HWND window;
     struct
     {
-        LPDIRECTDRAW ddx;
-        LPDIRECTDRAW7 dd;
+	LPDIRECTDRAW ddx;
+	LPDIRECTDRAW7 dd;
     } directdraw;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        DDSURFACEDESC2 desc;
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
     } primary;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        DDSURFACEDESC2 desc;
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
     } secondary;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        DDSURFACEDESC2 desc;
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
     } tertiary;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        DDSURFACEDESC2 desc;
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
     } overlay;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        DDSURFACEDESC2 desc;
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
     } temporary;
     struct
     {
-        DDSURFACEDESC2 desc;
+	DDSURFACEDESC2 desc;
     } current;
     struct
     {
-        LPDIRECTDRAWSURFACE7 surface;
-        LPDDSURFACEDESC2 lpdesc;
+	LPDIRECTDRAWSURFACE7 surface;
+	LPDDSURFACEDESC2 lpdesc;
     } lockable;
     LPDIRECTDRAWCLIPPER lpDDC;
     LPDIRECTDRAWPALETTE lpDDP;

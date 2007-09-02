@@ -1,4 +1,4 @@
-/* 
+/*
 7zMain.c
 Test application for 7z Decoder
 LZMA SDK 4.43 Copyright (c) 1999-2006 Igor Pavlov (2006-06-04)
@@ -125,8 +125,8 @@ int main(int numargs, char *args[])
       UInt32 i;
       for (i = 0; i < db.Database.NumFiles; i++)
       {
-        CFileItem *f = db.Database.Files + i;
-        printf("%10d  %s\n", (int)f->Size, f->Name);
+	CFileItem *f = db.Database.Files + i;
+	printf("%10d  %s\n", (int)f->Size, f->Name);
       }
     }
     else if (testCommand || extractCommand)
@@ -144,62 +144,62 @@ int main(int numargs, char *args[])
       printf("\n");
       for (i = 0; i < db.Database.NumFiles; i++)
       {
-        size_t offset;
-        size_t outSizeProcessed;
-        CFileItem *f = db.Database.Files + i;
-        if (f->IsDirectory)
-          printf("Directory ");
-        else
-          printf(testCommand ? 
-            "Testing   ":
-            "Extracting");
-        printf(" %s", f->Name);
-        if (f->IsDirectory)
-        {
-          printf("\n");
-          continue;
-        }
-        res = SzExtract(&archiveStream.InStream, &db, i, 
-            &blockIndex, &outBuffer, &outBufferSize, 
-            &offset, &outSizeProcessed, 
-            &allocImp, &allocTempImp);
-        if (res != SZ_OK)
-          break;
-        if (!testCommand)
-        {
-          FILE *outputHandle;
-          UInt32 processedSize;
-          char *fileName = f->Name;
-          size_t nameLen = strlen(f->Name);
-          for (; nameLen > 0; nameLen--)
-            if (f->Name[nameLen - 1] == '/')
-            {
-              fileName = f->Name + nameLen;
-              break;
-            }
-            
-          outputHandle = fopen(fileName, "wb+");
-          if (outputHandle == 0)
-          {
-            PrintError("can not open output file");
-            res = SZE_FAIL;
-            break;
-          }
-          processedSize = fwrite(outBuffer + offset, 1, outSizeProcessed, outputHandle);
-          if (processedSize != outSizeProcessed)
-          {
-            PrintError("can not write output file");
-            res = SZE_FAIL;
-            break;
-          }
-          if (fclose(outputHandle))
-          {
-            PrintError("can not close output file");
-            res = SZE_FAIL;
-            break;
-          }
-        }
-        printf("\n");
+	size_t offset;
+	size_t outSizeProcessed;
+	CFileItem *f = db.Database.Files + i;
+	if (f->IsDirectory)
+	  printf("Directory ");
+	else
+	  printf(testCommand ?
+	    "Testing   ":
+	    "Extracting");
+	printf(" %s", f->Name);
+	if (f->IsDirectory)
+	{
+	  printf("\n");
+	  continue;
+	}
+	res = SzExtract(&archiveStream.InStream, &db, i,
+	    &blockIndex, &outBuffer, &outBufferSize,
+	    &offset, &outSizeProcessed,
+	    &allocImp, &allocTempImp);
+	if (res != SZ_OK)
+	  break;
+	if (!testCommand)
+	{
+	  FILE *outputHandle;
+	  UInt32 processedSize;
+	  char *fileName = f->Name;
+	  size_t nameLen = strlen(f->Name);
+	  for (; nameLen > 0; nameLen--)
+	    if (f->Name[nameLen - 1] == '/')
+	    {
+	      fileName = f->Name + nameLen;
+	      break;
+	    }
+
+	  outputHandle = fopen(fileName, "wb+");
+	  if (outputHandle == 0)
+	  {
+	    PrintError("can not open output file");
+	    res = SZE_FAIL;
+	    break;
+	  }
+	  processedSize = fwrite(outBuffer + offset, 1, outSizeProcessed, outputHandle);
+	  if (processedSize != outSizeProcessed)
+	  {
+	    PrintError("can not write output file");
+	    res = SZE_FAIL;
+	    break;
+	  }
+	  if (fclose(outputHandle))
+	  {
+	    PrintError("can not close output file");
+	    res = SZE_FAIL;
+	    break;
+	  }
+	}
+	printf("\n");
       }
       allocImp.Free(outBuffer);
     }
@@ -219,7 +219,7 @@ int main(int numargs, char *args[])
   }
   if (res == SZE_OUTOFMEMORY)
     PrintError("can not allocate memory");
-  else     
+  else
     printf("\nERROR #%d\n", res);
   return 1;
 }

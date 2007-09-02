@@ -2,7 +2,7 @@
  * cpummu.h - MMU emulation
  *
  * Copyright (c) 2001-2004 Milan Jurik of ARAnyM dev team (see AUTHORS)
- * 
+ *
  * Inspired by UAE MMU patch
  *
  * This file is part of the ARAnyM project which builds a new and powerful
@@ -242,12 +242,12 @@ STATIC_INLINE void mmu_set_root_pointer(int regno, uae_u32 val)
 
 extern uaecptr REGPARAM3 mmu_translate(uaecptr addr, int super, int data, int write);
 
-extern uae_u32 REGPARAM3 sfc_get_long(uaecptr addr) REGPARAM;
-extern uae_u16 REGPARAM3 sfc_get_word(uaecptr addr) REGPARAM;
-extern uae_u8 REGPARAM3 sfc_get_byte(uaecptr addr) REGPARAM;
-extern void REGPARAM3 dfc_put_long(uaecptr addr, uae_u32 val) REGPARAM;
-extern void REGPARAM3 dfc_put_word(uaecptr addr, uae_u16 val) REGPARAM;
-extern void REGPARAM3 dfc_put_byte(uaecptr addr, uae_u8 val) REGPARAM;
+extern uae_u32 REGPARAM3 sfc_get_long (uaecptr addr) REGPARAM;
+extern uae_u16 REGPARAM3 sfc_get_word (uaecptr addr) REGPARAM;
+extern uae_u8 REGPARAM3 sfc_get_byte (uaecptr addr) REGPARAM;
+extern void REGPARAM3 dfc_put_long (uaecptr addr, uae_u32 val) REGPARAM;
+extern void REGPARAM3 dfc_put_word (uaecptr addr, uae_u16 val) REGPARAM;
+extern void REGPARAM3 dfc_put_byte (uaecptr addr, uae_u8 val) REGPARAM;
 
 extern void REGPARAM3 mmu_flush_atc(uaecptr addr, int super, int global) REGPARAM;
 extern void REGPARAM3 mmu_flush_atc_all(int global) REGPARAM;
@@ -263,18 +263,18 @@ STATIC_INLINE int phys_valid_address(uaecptr a,int b, int c) { return 1; }
 
 
 
-STATIC_INLINE uae_u32 phys_get_long(uaecptr addr)
+STATIC_INLINE uae_u32 phys_get_long (uaecptr addr)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ read_page) <= ARAM_PAGE_MASK))
-        return do_get_mem_long((uae_u32*)(addr + read_offset));
+	return do_get_mem_long((uae_u32*)(addr + read_offset));
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) return HWget_l(addr);
 #endif
     check_ram_boundary(addr, 4, false);
-    uae_u32 * const m = (uae_u32 *)phys_get_real_address(addr);
+    uae_u32 * const m = (uae_u32 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     read_page = addr;
     read_offset = (uintptr)m - (uintptr)addr;
@@ -282,18 +282,18 @@ STATIC_INLINE uae_u32 phys_get_long(uaecptr addr)
     return do_get_mem_long(m);
 }
 
-STATIC_INLINE uae_u32 phys_get_word(uaecptr addr)
+STATIC_INLINE uae_u32 phys_get_word (uaecptr addr)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ read_page) <= ARAM_PAGE_MASK))
-        return do_get_mem_word((uae_u16*)(addr + read_offset));
+	return do_get_mem_word((uae_u16*)(addr + read_offset));
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) return HWget_w(addr);
 #endif
     check_ram_boundary(addr, 2, false);
-    uae_u16 * const m = (uae_u16 *)phys_get_real_address(addr);
+    uae_u16 * const m = (uae_u16 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     read_page = addr;
     read_offset = (uintptr)m - (uintptr)addr;
@@ -301,18 +301,18 @@ STATIC_INLINE uae_u32 phys_get_word(uaecptr addr)
     return do_get_mem_word(m);
 }
 
-STATIC_INLINE uae_u32 phys_get_byte(uaecptr addr)
+STATIC_INLINE uae_u32 phys_get_byte (uaecptr addr)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ read_page) <= ARAM_PAGE_MASK))
-        return do_get_mem_byte((uae_u8*)(addr + read_offset));
+	return do_get_mem_byte((uae_u8*)(addr + read_offset));
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) return HWget_b(addr);
 #endif
     check_ram_boundary(addr, 1, false);
-    uae_u8 * const m = (uae_u8 *)phys_get_real_address(addr);
+    uae_u8 * const m = (uae_u8 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     read_page = addr;
     read_offset = (uintptr)m - (uintptr)addr;
@@ -320,23 +320,23 @@ STATIC_INLINE uae_u32 phys_get_byte(uaecptr addr)
     return do_get_mem_byte(m);
 }
 
-STATIC_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
+STATIC_INLINE void phys_put_long (uaecptr addr, uae_u32 l)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ write_page) <= ARAM_PAGE_MASK)) {
-        do_put_mem_long((uae_u32*)(addr + write_offset), l);
-        return;
+	do_put_mem_long((uae_u32*)(addr + write_offset), l);
+	return;
     }
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) {
-        HWput_l(addr, l);
-        return;
-    } 
+	HWput_l(addr, l);
+	return;
+    }
 #endif
     check_ram_boundary(addr, 4, true);
-    uae_u32 * const m = (uae_u32 *)phys_get_real_address(addr);
+    uae_u32 * const m = (uae_u32 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     write_page = addr;
     write_offset = (uintptr)m - (uintptr)addr;
@@ -344,23 +344,23 @@ STATIC_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
     do_put_mem_long(m, l);
 }
 
-STATIC_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
+STATIC_INLINE void phys_put_word (uaecptr addr, uae_u32 w)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ write_page) <= ARAM_PAGE_MASK)) {
-        do_put_mem_word((uae_u16*)(addr + write_offset), w);
-        return;
+	do_put_mem_word((uae_u16*)(addr + write_offset), w);
+	return;
     }
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) {
-        HWput_w(addr, w);
-        return;
+	HWput_w(addr, w);
+	return;
     }
 #endif
     check_ram_boundary(addr, 2, true);
-    uae_u16 * const m = (uae_u16 *)phys_get_real_address(addr);
+    uae_u16 * const m = (uae_u16 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     write_page = addr;
     write_offset = (uintptr)m - (uintptr)addr;
@@ -368,23 +368,23 @@ STATIC_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
     do_put_mem_word(m, w);
 }
 
-STATIC_INLINE void phys_put_byte(uaecptr addr, uae_u32 b)
+STATIC_INLINE void phys_put_byte (uaecptr addr, uae_u32 b)
 {
 #if ARAM_PAGE_CHECK
     if (((addr ^ write_page) <= ARAM_PAGE_MASK)) {
-        do_put_mem_byte((uae_u8*)(addr + write_offset), b);
-        return;
+	do_put_mem_byte((uae_u8*)(addr + write_offset), b);
+	return;
     }
 #endif
 #ifndef HW_SIGSEGV
     addr = addr < 0xff000000 ? addr : addr & 0x00ffffff;
     if ((addr & 0xfff00000) == 0x00f00000) {
-        HWput_b(addr, b);
-        return;
+	HWput_b(addr, b);
+	return;
     }
 #endif
     check_ram_boundary(addr, 1, true);
-    uae_u8 * const m = (uae_u8 *)phys_get_real_address(addr);
+    uae_u8 * const m = (uae_u8 *)phys_get_real_address (addr);
 #if ARAM_PAGE_CHECK
     write_page = addr;
     write_offset = (uintptr)m - (uintptr)addr;
@@ -398,112 +398,112 @@ STATIC_INLINE int is_unaligned(uaecptr addr, int size)
     return unlikely((addr & (size - 1)) && (addr ^ (addr + size - 1)) & 0x1000);
 }
 
-STATIC_INLINE uae_u8 *mmu_get_real_address(uaecptr addr, struct mmu_atc_line *cl)
+STATIC_INLINE uae_u8 *mmu_get_real_address (uaecptr addr, struct mmu_atc_line *cl)
 {
-	return do_get_real_address(cl->phys + addr);
+	return do_get_real_address (cl->phys + addr);
 }
 
-STATIC_INLINE uae_u32 mmu_get_long(uaecptr addr, int data, int size)
+STATIC_INLINE uae_u32 mmu_get_long (uaecptr addr, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 0, &cl)))
-		return do_get_mem_long((uae_u32 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_long((uae_u32 *)mmu_get_real_address (addr, cl));
 	return mmu_get_long_slow(addr, regs.s, data, size, cl);
 }
 
-STATIC_INLINE uae_u32 get_long(uaecptr addr)
+STATIC_INLINE uae_u32 get_long (uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
 		return mmu_get_long_unaligned(addr, 1);
-	return mmu_get_long(addr, 1, sz_long);
+	return mmu_get_long (addr, 1, sz_long);
 }
 
-STATIC_INLINE uae_u16 mmu_get_word(uaecptr addr, int data, int size)
+STATIC_INLINE uae_u16 mmu_get_word (uaecptr addr, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 0, &cl)))
-		return do_get_mem_word((uae_u16 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_word((uae_u16 *)mmu_get_real_address (addr, cl));
 	return mmu_get_word_slow(addr, regs.s, data, size, cl);
 }
 
-STATIC_INLINE uae_u16 get_word(uaecptr addr)
+STATIC_INLINE uae_u16 get_word (uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 2)))
 		return mmu_get_word_unaligned(addr, 1);
-	return mmu_get_word(addr, 1, sz_word);
+	return mmu_get_word (addr, 1, sz_word);
 }
 
-STATIC_INLINE uae_u8 mmu_get_byte(uaecptr addr, int data, int size)
+STATIC_INLINE uae_u8 mmu_get_byte (uaecptr addr, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 0, &cl)))
-		return do_get_mem_byte((uae_u8 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_byte((uae_u8 *)mmu_get_real_address (addr, cl));
 	return mmu_get_byte_slow(addr, regs.s, data, size, cl);
 }
 
-STATIC_INLINE uae_u8 get_byte(uaecptr addr)
+STATIC_INLINE uae_u8 get_byte (uaecptr addr)
 {
-	return mmu_get_byte(addr, 1, sz_byte);
+	return mmu_get_byte (addr, 1, sz_byte);
 }
 
-STATIC_INLINE void mmu_put_long(uaecptr addr, uae_u32 val, int data, int size)
+STATIC_INLINE void mmu_put_long (uaecptr addr, uae_u32 val, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 1, &cl)))
-		do_put_mem_long((uae_u32 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_long((uae_u32 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, regs.s, data, size, cl);
 }
 
-STATIC_INLINE void put_long(uaecptr addr, uae_u32 val)
+STATIC_INLINE void put_long (uaecptr addr, uae_u32 val)
 {
 	if (unlikely(is_unaligned(addr, 4)))
 		mmu_put_long_unaligned(addr, val, 1);
 	else
-		mmu_put_long(addr, val, 1, sz_long);
+		mmu_put_long (addr, val, 1, sz_long);
 }
 
-STATIC_INLINE void mmu_put_word(uaecptr addr, uae_u16 val, int data, int size)
+STATIC_INLINE void mmu_put_word (uaecptr addr, uae_u16 val, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 1, &cl)))
-		do_put_mem_word((uae_u16 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_word((uae_u16 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_word_slow(addr, val, regs.s, data, size, cl);
 }
 
-STATIC_INLINE void put_word(uaecptr addr, uae_u16 val)
+STATIC_INLINE void put_word (uaecptr addr, uae_u16 val)
 {
 	if (unlikely(is_unaligned(addr, 2)))
 		mmu_put_word_unaligned(addr, val, 1);
 	else
-		mmu_put_word(addr, val, 1, sz_word);
+		mmu_put_word (addr, val, 1, sz_word);
 }
 
-STATIC_INLINE void mmu_put_byte(uaecptr addr, uae_u8 val, int data, int size)
+STATIC_INLINE void mmu_put_byte (uaecptr addr, uae_u8 val, int data, int size)
 {
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_lookup(addr, data, 1, &cl)))
-		do_put_mem_byte((uae_u8 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_byte((uae_u8 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_byte_slow(addr, val, regs.s, data, size, cl);
 }
 
-STATIC_INLINE void put_byte(uaecptr addr, uae_u8 val)
+STATIC_INLINE void put_byte (uaecptr addr, uae_u8 val)
 {
-	mmu_put_byte(addr, val, 1, sz_byte);
+	mmu_put_byte (addr, val, 1, sz_byte);
 }
 
-STATIC_INLINE uae_u8 *get_real_address(uaecptr addr, int write, int sz)
+STATIC_INLINE uae_u8 *get_real_address (uaecptr addr, int write, int sz)
 {
 	(void)sz;
-    return phys_get_real_address(mmu_translate(addr, regs.s, 1, write));
+    return phys_get_real_address (mmu_translate(addr, regs.s, 1, write));
 }
 
 STATIC_INLINE uae_u32 mmu_get_user_long(uaecptr addr, int super, int data, int size)
@@ -511,7 +511,7 @@ STATIC_INLINE uae_u32 mmu_get_user_long(uaecptr addr, int super, int data, int s
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 0, &cl)))
-		return do_get_mem_long((uae_u32 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_long((uae_u32 *)mmu_get_real_address (addr, cl));
 	return mmu_get_long_slow(addr, super, data, size, cl);
 }
 
@@ -520,7 +520,7 @@ STATIC_INLINE uae_u16 mmu_get_user_word(uaecptr addr, int super, int data, int s
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 0, &cl)))
-		return do_get_mem_word((uae_u16 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_word((uae_u16 *)mmu_get_real_address (addr, cl));
 	return mmu_get_word_slow(addr, super, data, size, cl);
 }
 
@@ -529,7 +529,7 @@ STATIC_INLINE uae_u8 mmu_get_user_byte(uaecptr addr, int super, int data, int si
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 0, &cl)))
-		return do_get_mem_byte((uae_u8 *)mmu_get_real_address(addr, cl));
+		return do_get_mem_byte((uae_u8 *)mmu_get_real_address (addr, cl));
 	return mmu_get_byte_slow(addr, super, data, size, cl);
 }
 
@@ -538,7 +538,7 @@ STATIC_INLINE void mmu_put_user_long(uaecptr addr, uae_u32 val, int super, int d
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 1, &cl)))
-		do_put_mem_long((uae_u32 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_long((uae_u32 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, super, data, size, cl);
 }
@@ -548,7 +548,7 @@ STATIC_INLINE void mmu_put_user_word(uaecptr addr, uae_u16 val, int super, int d
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 1, &cl)))
-		do_put_mem_word((uae_u16 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_word((uae_u16 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_word_slow(addr, val, super, data, size, cl);
 }
@@ -558,7 +558,7 @@ STATIC_INLINE void mmu_put_user_byte(uaecptr addr, uae_u8 val, int super, int da
 	struct mmu_atc_line *cl;
 
 	if (likely(mmu_user_lookup(addr, super, data, 1, &cl)))
-		do_put_mem_byte((uae_u8 *)mmu_get_real_address(addr, cl), val);
+		do_put_mem_byte((uae_u8 *)mmu_get_real_address (addr, cl), val);
 	else
 		mmu_put_byte_slow(addr, val, super, data, size, cl);
 }
@@ -575,18 +575,18 @@ STATIC_INLINE int valid_address(uaecptr addr, int write, int sz)
     CATCH(prb) {
 		RESTORE_EXCEPTION;
 		return false;
-    } 
+    }
 }
 
 #else
 
-#define get_long(a)			phys_get_long(a)
-#define get_word(a)			phys_get_word(a)
-#define get_byte(a)			phys_get_byte(a)
-#define put_long(a,b)			phys_put_long(a,b)
-#define put_word(a,b)			phys_put_word(a,b)
-#define put_byte(a,b)			phys_put_byte(a,b)
-#define get_real_address(a,w,s)	phys_get_real_address(a)
+#define get_long (a)			phys_get_long (a)
+#define get_word (a)			phys_get_word (a)
+#define get_byte (a)			phys_get_byte (a)
+#define put_long (a,b)			phys_put_long (a,b)
+#define put_word (a,b)			phys_put_word (a,b)
+#define put_byte (a,b)			phys_put_byte (a,b)
+#define get_real_address (a,w,s)	phys_get_real_address (a)
 
 #define valid_address(a,w,s)		phys_valid_address(a,w,s)
 #endif

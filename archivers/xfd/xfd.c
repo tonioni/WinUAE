@@ -146,7 +146,7 @@ static int load_xfd(char *path)
 	    memcpy (codeptr + haddr, p, hsize);
 	    p += hsize;
 	} else if (htype != 0x3eb) {
-	    write_log("RELOC: unknown hunk %08X\n", htype);
+	    write_log ("RELOC: unknown hunk %08X\n", htype);
 	    goto end;
 	}
 	htype = gl(p);
@@ -154,24 +154,24 @@ static int load_xfd(char *path)
 	if (htype == 0x3f2)
 	    continue;
 	if (htype != 0x3ec) {
-	    write_log("RELOC: expected 000003EC but got %08X\n", htype);
+	    write_log ("RELOC: expected 000003EC but got %08X\n", htype);
 	    goto end;
 	}
 	relocnum = gl(p);
 	p += 4;
-        relochunknum = gl(p);
+	relochunknum = gl(p);
 	p += 4;
-        srchunk = hunks[relochunknum];
+	srchunk = hunks[relochunknum];
 	for (j = 0; j < relocnum; j++) {
 	    uae_u32 off = gl(p);
 	    p += 4;
 	    pl(codeptr + haddr + off, gl(codeptr + haddr + off) + srchunk);
 	}
     }
-    write_log("XFD slave '%s' loaded and relocated @%08X (%d bytes) succesfully\n", path, startaddr, codememory - startaddr);
+    write_log ("XFD slave '%s' loaded and relocated @%08X (%d bytes) succesfully\n", path, startaddr, codememory - startaddr);
     p = codeptr + startaddr + 8;
     if (gl(p + 4) != 'XFDF') {
-	write_log("XFD header corrupt\n");
+	write_log ("XFD header corrupt\n");
 	goto end;
     }
     p = codeptr + gl(p + 20);
@@ -184,7 +184,7 @@ static int load_xfd(char *path)
 	uae_u8 *nameptr = codeptr + name;
 	struct xfdslave *xfds;
 
-	write_log("- '%s' ver %d, master ver %d, minsize %d\n",
+	write_log ("- '%s' ver %d, master ver %d, minsize %d\n",
 	    nameptr, version, mversion, minsize);
 	xfds = xcalloc(sizeof(struct xfdslave), 1);
 	xfds->name = nameptr;
@@ -208,7 +208,7 @@ end:
 
 static void initexec(void)
 {
-    
+
     pl(codeptr + 4, exec);
 
     // fake memory allocation functions
@@ -369,7 +369,7 @@ struct zfile *decompress_zfd(struct zfile *z)
     while (xfds) {
 	uaecptr start = xfds->start;
 	memset(&xregs, 0, sizeof xregs);
-	pl(codeptr + freememaddr, codememory + size); // reset start of "free memory" 
+	pl(codeptr + freememaddr, codememory + size); // reset start of "free memory"
 	xregs.regs[0] = size; // D0
 	xregs.regs[8] = codememory; // A0
 	xregs.regs[9] = bufferinfo; // A1

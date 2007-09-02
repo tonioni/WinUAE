@@ -72,7 +72,7 @@ struct xfdBufferInfo {
   APTR		   xfdbi_UserTargetBuf;	  /* (V38) Target buffer allocated by user */
   ULONG		   xfdbi_UserTargetBufLen;/* (V38) Target buffer length */
   ULONG		   xfdbi_MinSourceLen;	  /* (V39) minimum source length (tested by
-  					     master library */
+					     master library */
 };
 
 #define xfdbi_MaxSpecialLen xfdbi_Error	/* Max. length of special info */
@@ -241,7 +241,7 @@ struct xfdScanHook {
 					   that support user targets */
 #define	XFDFB_USERTARGET	3	/* (V38) xfdbi_DecrunchBuffer() decrunchs
 					   to given xfdbi_UserTarget */
-#define XFDFB_MASTERALLOC	4	/* (V39) master allocated decrunch buffer */ 
+#define XFDFB_MASTERALLOC	4	/* (V39) master allocated decrunch buffer */
 
 /* Bit masks */
 #define XFDFF_RECOGEXTERN	(1<<XFDFB_RECOGEXTERN)

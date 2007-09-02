@@ -1,13 +1,13 @@
 /*
  * UAE - The Un*x Amiga Emulator
- * 
+ *
  * Win32 interface
  *
  * Copyright 1997 Mathias Ortmann
  * Copyright 1997-2001 Brian King
  * Copyright 2000-2002 Bernd Roesch
  */
-    
+
 #define NATIVBUFFNUM 4
 #define RECORDBUFFER 50 //survive 9 sec of blocking at 44100
 
@@ -49,7 +49,7 @@ static char *sndptrmax, soundneutral, sndptr;
 static LPSTR lpData,sndptrout;
 extern uae_u32 chipmem_mask;
 unsigned int *sndbufrecpt;
-static char *ahisndbuffer,*sndrecbuffer; 
+static char *ahisndbuffer,*sndrecbuffer;
 static int ahisndbufsize,*ahisndbufpt,ahitweak;;
 int ahi_pollrate = 40;
 
@@ -72,11 +72,11 @@ static LPDIRECTSOUNDCAPTURE lpDS2r = NULL;
 static LPDIRECTSOUNDCAPTUREBUFFER lpDSBprimary2r = NULL;
 static LPDIRECTSOUNDCAPTUREBUFFER lpDSB2r = NULL;
 
-struct winuae	//this struct is put in a6 if you call 
+struct winuae	//this struct is put in a6 if you call
 		//execute native function
 {
     HWND amigawnd;    //adress of amiga Window Windows Handle
-    unsigned int changenum;   //number to detect screen close/open 
+    unsigned int changenum;   //number to detect screen close/open
     unsigned int z3offset;    //the offset to add to acsess Z3 mem from Dll side
 };
 static struct winuae uaevar;
@@ -90,27 +90,27 @@ static struct winuae *a6;
 #define CALL_NATIVE_FUNC2( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7) if(native_func) return native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7,regs_ )
 
 static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
-{ 
+{
     unsigned int espstore;
-    uae_u8* object_UAM = (uae_u8*) m68k_areg(&context->regs, 0);
-    uae_u32 d1 = m68k_dreg(&context->regs, 1);
-    uae_u32 d2 = m68k_dreg(&context->regs, 2);
-    uae_u32 d3 = m68k_dreg(&context->regs, 3);
-    uae_u32 d4 = m68k_dreg(&context->regs, 4);
-    uae_u32 d5 = m68k_dreg(&context->regs, 5);
-    uae_u32 d6 = m68k_dreg(&context->regs, 6);
-    uae_u32 d7 = m68k_dreg(&context->regs, 7);
-    uae_u32 a1 = m68k_areg(&context->regs, 1);
-    uae_u32 a2 = m68k_areg(&context->regs, 2);
-    uae_u32 a3 = m68k_areg(&context->regs, 3);
-    uae_u32 a4 = m68k_areg(&context->regs, 4);
-    uae_u32 a5 = m68k_areg(&context->regs, 5);
-    uae_u32 a7 = m68k_areg(&context->regs, 7);
+    uae_u8* object_UAM = (uae_u8*) m68k_areg (&context->regs, 0);
+    uae_u32 d1 = m68k_dreg (&context->regs, 1);
+    uae_u32 d2 = m68k_dreg (&context->regs, 2);
+    uae_u32 d3 = m68k_dreg (&context->regs, 3);
+    uae_u32 d4 = m68k_dreg (&context->regs, 4);
+    uae_u32 d5 = m68k_dreg (&context->regs, 5);
+    uae_u32 d6 = m68k_dreg (&context->regs, 6);
+    uae_u32 d7 = m68k_dreg (&context->regs, 7);
+    uae_u32 a1 = m68k_areg (&context->regs, 1);
+    uae_u32 a2 = m68k_areg (&context->regs, 2);
+    uae_u32 a3 = m68k_areg (&context->regs, 3);
+    uae_u32 a4 = m68k_areg (&context->regs, 4);
+    uae_u32 a5 = m68k_areg (&context->regs, 5);
+    uae_u32 a7 = m68k_areg (&context->regs, 7);
     uae_u32 regs_ = (uae_u32)&context->regs;
     CREATE_NATIVE_FUNC_PTR2;
     uaevar.z3offset = (uae_u32)(get_real_address (0x10000000) - 0x10000000);
     uaevar.amigawnd = hAmigaWnd;
-    a6 = &uaevar;    
+    a6 = &uaevar;
     if(object_UAM)  {
 	SET_NATIVE_FUNC2(object_UAM);
     __asm
@@ -135,7 +135,7 @@ static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 	}
 	//CALL_NATIVE_FUNC2( d1, d2,d3, d4, d5, d6, d7, a1, a2, a3, a4 , a5 , a6 , a7);
     } else {
-    	return 0;
+	return 0;
     }
 }
 
@@ -144,7 +144,7 @@ static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 void ahi_close_sound (void)
 {
     HRESULT hr = DS_OK;
-   
+
     if (!ahi_on)
 	return;
     ahi_on = 0;
@@ -154,9 +154,9 @@ void ahi_close_sound (void)
     if (lpDSB2) {
 	hr = IDirectSoundBuffer_Stop (lpDSB2);
 	if(FAILED(hr))
-	    write_log( "AHI: SoundStop() failure: %s\n", DXError(hr));
+	    write_log ( "AHI: SoundStop() failure: %s\n", DXError(hr));
     } else {
-	write_log( "AHI: Sound Stopped...\n" );
+	write_log ( "AHI: Sound Stopped...\n" );
     }
 
     if (lpDSB2)
@@ -168,7 +168,7 @@ void ahi_close_sound (void)
     if (lpDS2)
 	IDirectSound_Release (lpDS2);
     lpDS2 = NULL;
-    
+
     if (lpDSB2r)
 	IDirectSoundCaptureBuffer_Release (lpDSB2r);
     lpDSB2r = NULL;
@@ -203,7 +203,7 @@ void ahi_updatesound(int force)
     if(hr != DSERR_BUFFERLOST) {
 	pos -= ahitweak;
 	if (pos < 0)
-	    pos += ahisndbufsize;                  
+	    pos += ahisndbufsize;
 	if (pos >= ahisndbufsize)
 	    pos -= ahisndbufsize;
 	pos = (pos / (amigablksize * 4)) * (amigablksize * 4);
@@ -220,7 +220,7 @@ void ahi_updatesound(int force)
 
     hr = IDirectSoundBuffer_Lock(lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     if(hr == DSERR_BUFFERLOST) {
-	write_log("AHI: lostbuf %d %x\n", pos, amigablksize);
+	write_log ("AHI: lostbuf %d %x\n", pos, amigablksize);
 	IDirectSoundBuffer_Restore(lpDSB2);
 	hr = IDirectSoundBuffer_Lock(lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     }
@@ -244,8 +244,8 @@ void ahi_updatesound(int force)
 
     sndptrmax = ahisndbuffer + ahisndbufsize;
     ahisndbufpt = (int*)ahisndbuffer;
- 
-    IDirectSoundBuffer_Unlock(lpDSB2, dwData1, dwBytes1, dwData2, dwBytes2); 
+
+    IDirectSoundBuffer_Unlock(lpDSB2, dwData1, dwBytes1, dwData2, dwBytes2);
 
     oldpos += amigablksize * 4;
     if (oldpos >= ahisndbufsize)
@@ -274,7 +274,7 @@ static int ahi_init_record_win32 (void)
     // Record begin
     hr = DirectSoundCaptureCreate(NULL, &lpDS2r, NULL);
     if (FAILED(hr)) {
-	write_log( "AHI: DirectSoundCaptureCreate() failure: %s\n", DXError(hr));
+	write_log ( "AHI: DirectSoundCaptureCreate() failure: %s\n", DXError(hr));
 	record_enabled = -1;
 	return 0;
     }
@@ -283,22 +283,22 @@ static int ahi_init_record_win32 (void)
     sound_buffer_rec.dwBufferBytes = amigablksize * 4 * RECORDBUFFER;
     sound_buffer_rec.lpwfxFormat = &wavfmt;
     sound_buffer_rec.dwFlags = 0 ;
-  
+
     hr = IDirectSoundCapture_CreateCaptureBuffer(lpDS2r, &sound_buffer_rec, &lpDSB2r, NULL);
     if (FAILED(hr)) {
-        write_log ("AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
-        record_enabled = -1;
+	write_log ("AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
+	record_enabled = -1;
 	return 0;
     }
 
     hr = IDirectSoundCaptureBuffer_Start(lpDSB2r, DSCBSTART_LOOPING);
     if (FAILED(hr)) {
-	write_log("AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError(hr));
+	write_log ("AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError(hr));
 	record_enabled = -1;
 	return 0;
     }
     record_enabled = 1;
-    write_log("AHI: Init AHI Audio Recording \n");
+    write_log ("AHI: Init AHI Audio Recording \n");
     return 1;
 }
 
@@ -309,7 +309,7 @@ void setvolume_ahi (LONG vol)
 	return;
     hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
     if (FAILED(hr))
-        write_log ("AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	write_log ("AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 }
 
 static int ahi_init_sound_win32 (void)
@@ -317,7 +317,7 @@ static int ahi_init_sound_win32 (void)
     HRESULT hr;
     DSBUFFERDESC sound_buffer;
     DSCAPS DSCaps;
-    
+
     if (lpDS2)
 	return 0;
 
@@ -337,7 +337,7 @@ static int ahi_init_sound_win32 (void)
 	return 0;
     hr = DirectSoundCreate(&sound_device_guid[currprefs.win32_soundcard], &lpDS2, NULL);
     if (FAILED(hr)) {
-	write_log( "AHI: DirectSoundCreate() failure: %s\n", DXError(hr));
+	write_log ( "AHI: DirectSoundCreate() failure: %s\n", DXError(hr));
 	return 0;
     }
     memset (&sound_buffer, 0, sizeof(DSBUFFERDESC));
@@ -350,18 +350,18 @@ static int ahi_init_sound_win32 (void)
     hr = IDirectSound_GetCaps(lpDS2, &DSCaps);
     if(SUCCEEDED(hr)) {
 	if(DSCaps.dwFlags & DSCAPS_EMULDRIVER)
-	    write_log( "AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n" );
+	    write_log ( "AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n" );
     }
     if FAILED(IDirectSound_SetCooperativeLevel(lpDS2, hMainWnd, DSSCL_PRIORITY))
 	return 0;
     hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSBprimary2, NULL);
     if(FAILED(hr)) {
-	write_log("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
+	write_log ("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
     }
     hr = IDirectSoundBuffer_SetFormat(lpDSBprimary2, &wavfmt);
     if(FAILED(hr)) {
-	write_log( "AHI: SetFormat() failure: %s\n", DXError(hr));
+	write_log ( "AHI: SetFormat() failure: %s\n", DXError(hr));
 	return 0;
     }
     sound_buffer.dwBufferBytes = ahisndbufsize;
@@ -371,7 +371,7 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.guid3DAlgorithm = GUID_NULL;
     hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSB2, NULL);
     if (FAILED(hr)) {
-	write_log("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
+	write_log ("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
     }
 
@@ -379,21 +379,21 @@ static int ahi_init_sound_win32 (void)
 
     hr = IDirectSoundBuffer_GetFormat(lpDSBprimary2,&wavfmt,500,0);
     if(FAILED(hr)) {
-	write_log("AHI: GetFormat() failure: %s\n", DXError(hr));
+	write_log ("AHI: GetFormat() failure: %s\n", DXError(hr));
 	return 0;
     }
 
     ahisndbufpt =(int*)ahisndbuffer;
     sndptrmax = ahisndbuffer + ahisndbufsize;
     memset(ahisndbuffer,  soundneutral, amigablksize * 8);
-    write_log("AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
-	sound_freq_ahi, sound_channels_ahi, sound_bits_ahi, amigablksize); 
+    write_log ("AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
+	sound_freq_ahi, sound_channels_ahi, sound_bits_ahi, amigablksize);
     ahi_on = 1;
     return sound_freq_ahi;
 }
 
 int ahi_open_sound (void)
-{  
+{
     int rate;
 
     uaevar.changenum++;
@@ -405,7 +405,7 @@ int ahi_open_sound (void)
     if ((rate = ahi_init_sound_win32 ()))
 	return rate;
     return 0;
-} 
+}
 
 
 static void *bswap_buffer = NULL;
@@ -414,13 +414,13 @@ static double syncdivisor;
 
 uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 {
-//use the extern int (6 #13)  
+//use the extern int (6 #13)
 // d0 0=opensound      d1=unit d2=samplerate d3=blksize ret: sound frequency
 // d0 6=opensound_new  d1=unit d2=samplerate d3=blksize ret d4=channels d5=bits d6=zero: sound frequency
 // d0 1=closesound     d1=unit
-// d0 2=writesamples   d1=unit a0=addr     write blksize samples to card     
+// d0 2=writesamples   d1=unit a0=addr     write blksize samples to card
 // d0 3=readsamples    d1=unit a0=addr     read samples from card ret: d0=samples read
-	// make sure you have from amigaside blksize*4 mem alloced 
+	// make sure you have from amigaside blksize*4 mem alloced
 	// d0=-1 no data available d0=-2 no recording open
 	// d0 > 0 there are more blksize Data in the que
 	// do the loop until d0 get 0
@@ -437,7 +437,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 // d0=12 write clipboard data	 a0=clipboarddata
 // d0=13 setp96mouserate	 d1=hz value
 // d0=100 open dll		 d1=dll name in windows name conventions
-// d0=101 get dll function addr	 d1=dllhandle a0 function/var name 
+// d0=101 get dll function addr	 d1=dllhandle a0 function/var name
 // d0=102 exec dllcode		 a0=addr of function (see 101)
 // d0=103 close dll
 // d0=104 screenlost
@@ -483,7 +483,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    int i;
 	    uaecptr addr = m68k_areg (&context->regs, 0);
 	    for (i = 0; i < amigablksize * 4; i += 4)
-		*ahisndbufpt++ = get_long(addr + i);
+		*ahisndbufpt++ = get_long (addr + i);
 	    ahi_finish_sound_buffer();
 	}
 	return amigablksize;
@@ -518,12 +518,12 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    if ((cap_pos + t) < (t * RECORDBUFFER))
 		cap_pos = cap_pos + t;
 	    else
-		cap_pos = 0;  
+		cap_pos = 0;
 	    addr = m68k_areg (&context->regs, 0);
 	    sndbufrecpt = (unsigned int*)pos1;
 	    t /= 4;
 	    for (i = 0; i < t; i++) {
-		put_long(addr, *sndbufrecpt++);
+		put_long (addr, *sndbufrecpt++);
 		addr += 4;
 	    }
 	    t *= 4;
@@ -562,7 +562,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	{
 	    int i;
 	    for (i = 0; i < clipsize; i++)
-		put_byte(m68k_areg (&context->regs, 0) + i, clipdat[i]);
+		put_byte (m68k_areg (&context->regs, 0) + i, clipdat[i]);
 	    CloseClipboard();
 	}
 	return 0;
@@ -588,7 +588,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			GlobalUnlock (p);
 			SetClipboardData (CF_TEXT,p2);
 		    }
-                }
+		}
 		CloseClipboard ();
 	    }
 	}
@@ -628,7 +628,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    dllname = (char *) m68k_areg (&context->regs, 0);
 	    dllname = (char *)get_real_address ((uae_u32)dllname);
 	    result=(uae_u32) LoadLibrary(dllname);
-	    write_log("%s windows dll/alib loaded at %d (0 mean failure)\n",dllname,result); 
+	    write_log ("%s windows dll/alib loaded at %d (0 mean failure)\n",dllname,result);
 	    syncdivisor = (3580000.0 * CYCLE_UNIT) / (double)syncbase;
 	    return result;
 	}
@@ -648,7 +648,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    uae_u32 ret;
 	    unsigned long rate1;
 	    double v;
-	    rate1 = read_processor_time(); 
+	    rate1 = read_processor_time();
 	    ret = emulib_ExecuteNativeCode2 (context);
 	    rate1 = read_processor_time() - rate1;
 	    v = syncdivisor * rate1;
@@ -681,14 +681,14 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 #if defined(X86_MSVC_ASSEMBLY)
 
 	case 105:   //returns memory offset
-	    return (uae_u32) get_real_address(0);
+	    return (uae_u32) get_real_address (0);
 
 	case 106:   //byteswap 16bit vars
 		    //a0 = start address
 		    //d1 = number of 16bit vars
 		    //returns address of new array
-	    src = m68k_areg(&context->regs, 0);
-	    num_vars = m68k_dreg(&context->regs, 1);
+	    src = m68k_areg (&context->regs, 0);
+	    num_vars = m68k_dreg (&context->regs, 1);
 
 	    if (bswap_buffer_size < num_vars * 2) {
 		bswap_buffer_size = (num_vars + 1024) * 2;
@@ -750,8 +750,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		    //a0 = start address
 		    //d1 = number of 32bit vars
 		    //returns address of new array
-	    src = m68k_areg(&context->regs, 0);
-	    num_vars = m68k_dreg(&context->regs, 1);
+	    src = m68k_areg (&context->regs, 0);
+	    num_vars = m68k_dreg (&context->regs, 1);
 	    if (bswap_buffer_size < num_vars * 4) {
 		bswap_buffer_size = (num_vars + 16384) * 4;
 		free(bswap_buffer);
@@ -761,7 +761,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		mov esi, dword ptr [src]
 		mov edi, dword ptr [bswap_buffer]
 		mov ecx, num_vars
-		
+
 		mov ebx, ecx
 		and ecx, 3
 		je BSWAP_DWORD_4X

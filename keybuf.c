@@ -190,7 +190,7 @@ void record_key_direct (int kc)
 void joystick_setting_changed (void)
 {
     fs_np = fs_ck = fs_se = 0;
-#ifdef ARCADIA 
+#ifdef ARCADIA
     fs_xa1 = fs_xa2 = 0;
 #endif
 
@@ -209,7 +209,7 @@ void joystick_setting_changed (void)
     else if (JSEM_ISSOMEWHEREELSE (1, &currprefs))
 	fs_se = fakestate[1];
 
-#ifdef ARCADIA 
+#ifdef ARCADIA
     if (JSEM_ISXARCADE1 (0, &currprefs))
 	fs_xa1 = fakestate[0];
     else if (JSEM_ISXARCADE1 (1, &currprefs))
@@ -220,7 +220,7 @@ void joystick_setting_changed (void)
     else if (JSEM_ISXARCADE2 (1, &currprefs))
 	fs_xa2 = fakestate[1];
 #endif
- }
+}
 
 void keybuf_init (void)
 {

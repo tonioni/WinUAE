@@ -44,7 +44,7 @@ SZ_RESULT SzDecode(const CFileSize *packSizes, const CFolder *folder,
     #else
     const Byte *inBuffer,
     #endif
-    Byte *outBuffer, size_t outSize, 
+    Byte *outBuffer, size_t outSize,
     size_t *outSizeProcessed, ISzAlloc *allocMain)
 {
   UInt32 si;
@@ -73,12 +73,12 @@ SZ_RESULT SzDecode(const CFileSize *packSizes, const CFolder *folder,
       size_t bufferSize;
       RINOK(inStream->Read((void *)inStream,  (void **)&inBuffer, inSize - i, &bufferSize));
       if (bufferSize == 0)
-        return SZE_DATA_ERROR;
+	return SZE_DATA_ERROR;
       if (bufferSize > inSize - i)
-        return SZE_FAIL;
+	return SZE_FAIL;
       *outSizeProcessed += bufferSize;
       for (j = 0; j < bufferSize && i < inSize; j++, i++)
-        outBuffer[i] = inBuffer[j];
+	outBuffer[i] = inBuffer[j];
     }
     #else
     for (i = 0; i < inSize; i++)
@@ -106,8 +106,8 @@ SZ_RESULT SzDecode(const CFileSize *packSizes, const CFolder *folder,
     lzmaCallback.InCallback.Read = LzmaReadImp;
     #endif
 
-    if (LzmaDecodeProperties(&state.Properties, coder->Properties.Items, 
-        coder->Properties.Capacity) != LZMA_RESULT_OK)
+    if (LzmaDecodeProperties(&state.Properties, coder->Properties.Items,
+	coder->Properties.Capacity) != LZMA_RESULT_OK)
       return SZE_FAIL;
 
     state.Probs = (CProb *)allocMain->Alloc(LzmaGetNumProbs(&state.Properties) * sizeof(CProb));
@@ -122,20 +122,20 @@ SZ_RESULT SzDecode(const CFileSize *packSizes, const CFolder *folder,
       state.Dictionary = (unsigned char *)allocMain->Alloc(state.Properties.DictionarySize);
       if (state.Dictionary == 0)
       {
-        allocMain->Free(state.Probs);
-        return SZE_OUTOFMEMORY;
+	allocMain->Free(state.Probs);
+	return SZE_OUTOFMEMORY;
       }
     }
     LzmaDecoderInit(&state);
     #endif
 
     result = LzmaDecode(&state,
-        #ifdef _LZMA_IN_CB
-        &lzmaCallback.InCallback,
-        #else
-        inBuffer, (SizeT)inSize, &inProcessed,
-        #endif
-        outBuffer, (SizeT)outSize, &outSizeProcessedLoc);
+	#ifdef _LZMA_IN_CB
+	&lzmaCallback.InCallback,
+	#else
+	inBuffer, (SizeT)inSize, &inProcessed,
+	#endif
+	outBuffer, (SizeT)outSize, &outSizeProcessedLoc);
     *outSizeProcessed = (size_t)outSizeProcessedLoc;
     allocMain->Free(state.Probs);
     #ifdef _LZMA_OUT_READ

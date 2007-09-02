@@ -45,7 +45,7 @@ struct zvolume *archive_directory_lha(struct zfile *zf)
 		zn->method = i;
 	}
 	zfile_fseek(zf, hdr.packed_size, SEEK_CUR);
-	
+
     }
     return zv;
 }
@@ -73,7 +73,7 @@ struct zfile *archive_access_lha(struct znode *zn)
 	case LARC_METHOD_NUM:		/* -lzs- */
 	    lhinterface.dicbit = 11;
 	    decode(&lhinterface);
-        break;
+	break;
 	case LZHUFF1_METHOD_NUM:		/* -lh1- */
 	case LZHUFF4_METHOD_NUM:		/* -lh4- */
 	case LARC5_METHOD_NUM:			/* -lz5- */

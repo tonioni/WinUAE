@@ -238,7 +238,7 @@ int sys_command_ismedia (int mode, int unitnum, int quick)
     if (mode == DF_SCSI || !have_ioctl || !device_func[DF_IOCTL]->ismedia) {
 	if (quick)
 	    return -1;
-        memset(&di, 0, sizeof di);
+	memset(&di, 0, sizeof di);
 	device_func[DF_SCSI]->info (unitnum, &di);
 	return di.media_inserted;
     } else {
@@ -377,20 +377,20 @@ int sys_command_scsi_direct (int unitnum, uaecptr acmd)
     ap = get_long (acmd + 12);
     as.cmd_len = get_word (acmd + 16);
     for (i = 0; i < as.cmd_len; i++)
-	as.cmd[i] = get_byte(ap++);
+	as.cmd[i] = get_byte (ap++);
     as.flags = get_byte (acmd + 20);
     as.sense_len = get_word (acmd + 26);
 
     ret = sys_command_scsi_direct_native (unitnum, &as);
 
-    put_long(acmd + 8, as.actual);
-    put_word(acmd + 18, as.cmdactual);
-    put_byte(acmd + 21, as.status);
-    put_word(acmd + 28, as.sactual);
+    put_long (acmd + 8, as.actual);
+    put_word (acmd + 18, as.cmdactual);
+    put_byte (acmd + 21, as.status);
+    put_word (acmd + 28, as.sactual);
 
-    ap = get_long(acmd + 22);
+    ap = get_long (acmd + 22);
     for (i = 0; i < as.sactual; i++)
-	put_byte(ap, as.sensedata[i]);
+	put_byte (ap, as.sensedata[i]);
 
     return ret;
 }
@@ -399,15 +399,15 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 {
     int i;
     for (i = 0; i < cdblen; i++) {
-	write_log("%s%02.2X", i > 0 ? "." : "", cdb[i]);
+	write_log ("%s%02.2X", i > 0 ? "." : "", cdb[i]);
     }
-    write_log("\n");
+    write_log ("\n");
     if (data) {
 	write_log ("DATAOUT: %d\n", datalen);
 	for (i = 0; i < datalen && i < 100; i++)
-	    write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
+	    write_log ("%s%02.2X", i > 0 ? "." : "", data[i]);
 	if (datalen > 0)
-	    write_log("\n");
+	    write_log ("\n");
     }
 }
 
@@ -416,14 +416,14 @@ void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
     int i;
     write_log ("DATAIN: %d\n", datalen);
     for (i = 0; i < datalen && i < 100 && data; i++)
-	write_log("%s%02.2X", i > 0 ? "." : "", data[i]);
+	write_log ("%s%02.2X", i > 0 ? "." : "", data[i]);
     if (data && datalen > 0)
-	write_log("\n");
+	write_log ("\n");
     if (senselen > 0) {
-	write_log("SENSE: %d,", senselen);
+	write_log ("SENSE: %d,", senselen);
 	for (i = 0; i < senselen && i < 32; i++) {
-	    write_log("%s%02.2X", i > 0 ? "." : "", sense[i]);
+	    write_log ("%s%02.2X", i > 0 ? "." : "", sense[i]);
 	}
-	write_log("\n");
+	write_log ("\n");
     }
 }

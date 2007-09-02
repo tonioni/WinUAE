@@ -101,7 +101,7 @@ short testTreasure ( void )
 
 
 
-void Rip_TP3 ( void )
+void Rip_Tre( void )
 {
   /* PW_j is the size of the pattern list */
   /* PW_l is the number of sample */

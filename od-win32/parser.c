@@ -1,4 +1,4 @@
-/* 
+/*
  * UAE - The Un*x Amiga Emulator
  *
  * Not a parser, but parallel and serial emulation for Win32
@@ -117,7 +117,7 @@ static void freepsbuffers (void)
 static int openprinter_ps (void)
 {
     char *gsargv[] = {
-	"-dNOPAUSE", "-dBATCH", "-dNOPAGEPROMPT", "-dNOPROMPT", "-dQUIET", "-dNoCancel", 
+	"-dNOPAUSE", "-dBATCH", "-dNOPAGEPROMPT", "-dNOPROMPT", "-dQUIET", "-dNoCancel",
 	"-sDEVICE=mswinpr2", NULL
     };
     int gsargc, gsargc2, i;
@@ -137,17 +137,17 @@ static int openprinter_ps (void)
     }
     if (postscript_print_debugging) {
 	for(i = 0; i < gsargc2; i++)
-	    write_log("GSPARM%d: '%s'\n", i, tmpparms[i]);
+	    write_log ("GSPARM%d: '%s'\n", i, tmpparms[i]);
     }
     __try {
 	int rc = ptr_gsapi_init_with_args (gsinstance, gsargc2, tmpparms);
 	if (rc != 0) {
-	    write_log("GS failed, returncode %d\n", rc);
+	    write_log ("GS failed, returncode %d\n", rc);
 	    return 0;
 	}
 	ptr_gsapi_run_string_begin (gsinstance, 0, &gs_exitcode);
     } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
-	write_log("GS crashed\n");
+	write_log ("GS crashed\n");
 	return 0;
     }
     psmode = 1;
@@ -225,12 +225,12 @@ static void flushprtbuf (void)
     } else if (hPrt != INVALID_HANDLE_VALUE) {
 	if (WritePrinter(hPrt, prtbuf, prtbufbytes, &written)) {
 	    if (written != prtbufbytes)
-		write_log("PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes);
+		write_log ("PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes);
 	} else {
-	    write_log("PRINTER: Couldn't write data!\n");
+	    write_log ("PRINTER: Couldn't write data!\n");
 	}
     } else {
-	write_log("PRINTER: Not open!\n");
+	write_log ("PRINTER: Not open!\n");
     }
     prtbufbytes = 0;
 }
@@ -274,7 +274,7 @@ static void DoSomeWeirdPrintingStuff (char val)
 	    freepsbuffers ();
 	    return;
 	} else if (!psmode && !stricmp (prev, "%!PS")) {
-	    
+
 	    if (postscript_print_debugging)
 		prtdump = zfile_fopen ("psdump.dat", "wb");
 
@@ -363,12 +363,12 @@ int load_ghostscript (void)
     ptr_gsapi_revision = (GSAPI_REVISION)GetProcAddress (gsdll, "gsapi_revision");
     if (!ptr_gsapi_revision) {
 	unload_ghostscript ();
-	write_log("incompatible %s! (1)\n", path);
+	write_log ("incompatible %s! (1)\n", path);
 	return -1;
     }
     if (ptr_gsapi_revision(&r, sizeof(r))) {
 	unload_ghostscript ();
-	write_log("incompatible %s! (2)\n", path);
+	write_log ("incompatible %s! (2)\n", path);
 	return -2;
     }
     ptr_gsapi_new_instance = (GSAPI_NEW_INSTANCE)GetProcAddress (gsdll, "gsapi_new_instance");
@@ -383,7 +383,7 @@ int load_ghostscript (void)
 	!ptr_gsapi_run_string_begin || !ptr_gsapi_run_string_continue || !ptr_gsapi_run_string_end ||
 	!ptr_gsapi_init_with_args) {
 	unload_ghostscript ();
-	write_log("incompatible %s! (3)\n", path);
+	write_log ("incompatible %s! (3)\n", path);
 	return -3;
     }
     write_log ("%s: %s rev %d initialized\n", path, r.product, r.revision);
@@ -407,7 +407,7 @@ void openprinter( void )
 {
     DOC_INFO_1 DocInfo;
     static int first;
-    
+
     closeprinter ();
     if (!currprefs.prtname[0])
 	return;
@@ -434,9 +434,9 @@ void openprinter( void )
 	}
     }
     if (hPrt != INVALID_HANDLE_VALUE) {
-	write_log( "PRINTER: Opening printer \"%s\" with handle 0x%x.\n", currprefs.prtname, hPrt );
+	write_log ( "PRINTER: Opening printer \"%s\" with handle 0x%x.\n", currprefs.prtname, hPrt );
     } else if (*currprefs.prtname) {
-	write_log( "PRINTER: ERROR - Couldn't open printer \"%s\" for output.\n", currprefs.prtname );
+	write_log ( "PRINTER: ERROR - Couldn't open printer \"%s\" for output.\n", currprefs.prtname );
     }
 }
 
@@ -519,7 +519,7 @@ int uaeser_query (struct uaeserialdatawin32 *sd, uae_u16 *status, uae_u32 *pendi
     uae_u16 s = 0;
 
     if (!ClearCommError (sd->hCom, &err, &ComStat))
-        return 0;
+	return 0;
     *pending = ComStat.cbInQue;
     if (status) {
 	s |= (err & CE_BREAK) ? (1 << 10) : 0;
@@ -562,14 +562,14 @@ int uaeser_setparams (struct uaeserialdatawin32 *sd, int baud, int rbuffer, int 
     dcb.fDsrSensitivity = FALSE;
     dcb.fOutxDsrFlow = FALSE;
     dcb.fDtrControl = DTR_CONTROL_DISABLE;
-   
+
     if (rtscts) {
-        dcb.fOutxCtsFlow = TRUE;
-        dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
+	dcb.fOutxCtsFlow = TRUE;
+	dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
     } else {
-        dcb.fRtsControl = RTS_CONTROL_DISABLE;
-        dcb.fOutxCtsFlow = FALSE;
-    }   
+	dcb.fRtsControl = RTS_CONTROL_DISABLE;
+	dcb.fOutxCtsFlow = FALSE;
+    }
 
     dcb.fTXContinueOnXoff = FALSE;
     if (xonxoff & 1) {
@@ -590,7 +590,7 @@ int uaeser_setparams (struct uaeserialdatawin32 *sd, int baud, int rbuffer, int 
     //dcb.XonLim = 2048;
 
     if (!SetCommState (sd->hCom, &dcb)) {
-	write_log("uaeserial: SetCommState() failed %d\n", GetLastError());
+	write_log ("uaeserial: SetCommState() failed %d\n", GetLastError());
 	return 5;
     }
     SetupComm (sd->hCom, rbuffer, rbuffer);
@@ -672,7 +672,7 @@ int uaeser_read (struct uaeserialdatawin32 *sd, uae_u8 *data, uae_u32 len)
     COMSTAT ComStat;
 
     if (!ClearCommError (sd->hCom, &err, &ComStat))
-        return 0;
+	return 0;
     if (len > ComStat.cbInQue)
 	return 0;
     if (!ReadFile (sd->hCom, data, len, NULL, &sd->olr)) {
@@ -709,7 +709,7 @@ int uaeser_open (struct uaeserialdatawin32 *sd, void *user, int unit)
     sd->hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
     if (sd->hCom == INVALID_HANDLE_VALUE) {
-	write_log("UAESER: '%s' failed to open, err=%d\n", buf, GetLastError());
+	write_log ("UAESER: '%s' failed to open, err=%d\n", buf, GetLastError());
 	goto end;
     }
     uae_sem_init (&sd->sync_sem, 0, 0);
@@ -735,9 +735,9 @@ end:
 void uaeser_close (struct uaeserialdatawin32 *sd)
 {
     if (sd->threadactive) {
-        sd->threadactive = -1;
-        SetEvent (sd->evtt);
-        while (sd->threadactive)
+	sd->threadactive = -1;
+	SetEvent (sd->evtt);
+	while (sd->threadactive)
 	    Sleep(10);
 	CloseHandle (sd->evtt);
     }
@@ -819,14 +819,14 @@ int openser (char *sername)
     dcb.fDsrSensitivity = FALSE;
     dcb.fOutxDsrFlow = FALSE;
     dcb.fDtrControl = DTR_CONTROL_DISABLE;
-   
+
     if (currprefs.serial_hwctsrts) {
-        dcb.fOutxCtsFlow = TRUE;
-        dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
+	dcb.fOutxCtsFlow = TRUE;
+	dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
     } else {
-        dcb.fRtsControl = RTS_CONTROL_DISABLE;
-        dcb.fOutxCtsFlow = FALSE;
-    }   
+	dcb.fRtsControl = RTS_CONTROL_DISABLE;
+	dcb.fOutxCtsFlow = FALSE;
+    }
 
     dcb.fTXContinueOnXoff = FALSE;
     dcb.fOutX = FALSE;
@@ -835,13 +835,13 @@ int openser (char *sername)
     dcb.fErrorChar = FALSE;
     dcb.fNull = FALSE;
     dcb.fAbortOnError = FALSE;
-	
+
     //dcb.XoffLim = 512;
     //dcb.XonLim = 2048;
 
     if (SetCommState (hCom, &dcb)) {
-        write_log ("SERIAL: Using %s CTS/RTS=%d\n", sername, currprefs.serial_hwctsrts);
-        return 1;
+	write_log ("SERIAL: Using %s CTS/RTS=%d\n", sername, currprefs.serial_hwctsrts);
+	return 1;
     }
 
     write_log ("SERIAL: serial driver didn't accept new parameters\n");
@@ -860,7 +860,7 @@ void closeser (void)
 	Midi_Close();
 	//need for camd Midi Stuff(it close midi and reopen it but serial.c think the baudrate
 	//is the same and do not open midi), so setting serper to different value helps
-        serper = 0x30;
+	serper = 0x30;
     }
     if(writeevent)
 	CloseHandle(writeevent);
@@ -939,8 +939,8 @@ int readser (int *buffer)
     COMSTAT ComStat;
     DWORD dwErrorFlags;
     DWORD actual;
-    
-    
+
+
     if (midi_ready) {
 	*buffer = getmidibyte ();
 	if (*buffer < 0)
@@ -998,7 +998,7 @@ void getserstat (int *pstatus)
     *pstatus = 0;
     if (hCom == INVALID_HANDLE_VALUE || !currprefs.use_serial)
 	return;
-    
+
     GetCommModemStatus (hCom, &stat);
     if (stat & MS_CTS_ON)
 	status |= TIOCM_CTS;
@@ -1065,12 +1065,12 @@ void initparallel (void)
 }
 
 void hsyncstuff(void)
-//only generate Interrupts when 
+//only generate Interrupts when
 //writebuffer is complete flushed
 //check state of lwin rwin
 {
     static int keycheck = 0;
-    
+
 #ifdef AHI
     { //begin ahi_sound
 	static int count;
@@ -1115,7 +1115,7 @@ void hsyncstuff(void)
 
 static int enumserialports_2(void)
 {
-    // Create a device information set that will be the container for 
+    // Create a device information set that will be the container for
     // the device interfaces.
     HDEVINFO hDevInfo = INVALID_HANDLE_VALUE;
     SP_DEVICE_INTERFACE_DETAIL_DATA *pDetData = NULL;
@@ -1127,7 +1127,7 @@ static int enumserialports_2(void)
 
     hDevInfo = SetupDiGetClassDevs(&GUID_CLASS_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if(hDevInfo == INVALID_HANDLE_VALUE)
-        return 0;
+	return 0;
     // Enumerate the serial ports
     pDetData = xmalloc (dwDetDataSize);
     // This is required, according to the documentation. Yes,
@@ -1135,17 +1135,17 @@ static int enumserialports_2(void)
     ifcData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
     pDetData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
     for (ii = 0; bOk; ii++) {
-        bOk = SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_CLASS_COMPORT, ii, &ifcData);
-        if (bOk) {
+	bOk = SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_CLASS_COMPORT, ii, &ifcData);
+	if (bOk) {
 	    // Got a device. Get the details.
 	    SP_DEVINFO_DATA devdata = {sizeof(SP_DEVINFO_DATA)};
 	    bOk = SetupDiGetDeviceInterfaceDetail(hDevInfo,
-	    	&ifcData, pDetData, dwDetDataSize, NULL, &devdata);
+		&ifcData, pDetData, dwDetDataSize, NULL, &devdata);
 	    if (bOk) {
-	        // Got a path to the device. Try to get some more info.
-	        TCHAR fname[256];
-	        TCHAR desc[256];
-	        BOOL bSuccess = SetupDiGetDeviceRegistryProperty(
+		// Got a path to the device. Try to get some more info.
+		TCHAR fname[256];
+		TCHAR desc[256];
+		BOOL bSuccess = SetupDiGetDeviceRegistryProperty(
 		    hDevInfo, &devdata, SPDRP_FRIENDLYNAME, NULL,
 		    (PBYTE)fname, sizeof(fname), NULL);
 		bSuccess = bSuccess && SetupDiGetDeviceRegistryProperty(
@@ -1165,17 +1165,17 @@ static int enumserialports_2(void)
 		    } else {
 			comports[cnt].cfgname = my_strdup (pDetData->DevicePath);
 		    }
-		    write_log("SERPORT: '%s' = '%s' = '%s'\n", comports[cnt].name, comports[cnt].cfgname, comports[cnt].dev);
+		    write_log ("SERPORT: '%s' = '%s' = '%s'\n", comports[cnt].name, comports[cnt].cfgname, comports[cnt].dev);
 		    cnt++;
 		}
 	    } else {
-	        write_log("SetupDiGetDeviceInterfaceDetail failed, err=%d", GetLastError());
-	        goto end;
+		write_log ("SetupDiGetDeviceInterfaceDetail failed, err=%d", GetLastError());
+		goto end;
 	    }
 	} else {
 	    DWORD err = GetLastError();
 	    if (err != ERROR_NO_MORE_ITEMS) {
-		write_log("SetupDiEnumDeviceInterfaces failed, err=%d", err);
+		write_log ("SetupDiEnumDeviceInterfaces failed, err=%d", err);
 		goto end;
 	    }
 	}
@@ -1194,7 +1194,7 @@ int enumserialports(void)
     DWORD size = sizeof(COMMCONFIG);
     char devname[1000];
 
-    write_log("Serial port enumeration..\n");
+    write_log ("Serial port enumeration..\n");
     cnt = 0;
     if (os_winnt)
 	cnt = enumserialports_2();
@@ -1214,12 +1214,12 @@ int enumserialports(void)
 		sprintf(comports[cnt].dev, "\\.\\\\%s", name);
 		comports[j].cfgname = my_strdup (name);
 		comports[j].name = my_strdup (name);
-		write_log("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
+		write_log ("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
 		cnt++;
 	    }
 	}
     }
-    write_log("Serial port enumeration end\n");
+    write_log ("Serial port enumeration end\n");
     return cnt;
 }
 

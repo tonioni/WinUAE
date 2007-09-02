@@ -768,7 +768,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	FAIL(1);
 	return;
      case 6:
-     case 7: 
+     case 7:
 	{
 	    uae_u32 list = 0;
 	    int incr = 0;
@@ -781,7 +781,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 case 2:
 		    break;
 		 case 1:
-		 case 3: 
+		 case 3:
 		 default:
 		    FAIL(1); return;
 		}
@@ -808,13 +808,13 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			for (reg = 7; reg >= 0; reg--) {
 				if (list & 0x80) {
 					fmov_ext_mr((uintptr)temp_fp,reg);
-					sub_l_ri(ad,4); 
+					sub_l_ri(ad,4);
 					mov_l_rm(S2,(uintptr)temp_fp);
 					writelong_clobber(ad,S2,S3);
-					sub_l_ri(ad,4); 
+					sub_l_ri(ad,4);
 					mov_l_rm(S2,(uintptr)temp_fp+4);
 					writelong_clobber(ad,S2,S3);
-					sub_l_ri(ad,4); 
+					sub_l_ri(ad,4);
 					mov_w_rm(S2,(uintptr)temp_fp+8);
 					writeword_clobber(ad,S2,S3);
 				}
@@ -851,7 +851,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		 case 2:
 		    break;
 		 case 1:
-		 case 3: 
+		 case 3:
 		 default:
 		    FAIL(1); return;
 		}
@@ -1278,7 +1278,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	    case 0x44: /* FDMOVE */
 		if (prec || !currprefs.fpu_strict) {
 		    if (sreg != dreg) /* no <EA> */
-		        fmov_rr(dreg,sreg);
+			fmov_rr(dreg,sreg);
 		} else {
 		    fmov_mr((uae_u32)temp_fp,sreg);
 		    fmov_rm(dreg,(uae_u32)temp_fp);

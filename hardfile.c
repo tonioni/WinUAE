@@ -216,7 +216,7 @@ static void rdb_crc(uae_u8 *p)
 {
     uae_u32 sum;
     int i, blocksize;
-    
+
     sum =0;
     blocksize = rl (p + 1 * 4);
     for (i = 0; i < blocksize; i++)
@@ -347,7 +347,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int read
     hfd->heads_def = hfd->heads;
     if (hfd->hfd.heads && hfd->hfd.secspertrack) {
 	uae_u8 buf[512] = { 0 };
-        hdf_read(&hfd->hfd, buf, 0, 512);
+	hdf_read(&hfd->hfd, buf, 0, 512);
 	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
 	    hfd->hfd.nrcyls = (hfd->hfd.size / blocksize) / (sectors * surfaces);
 	    create_virtual_rdb(&hfd->hfd, rl (buf), hfd->bootpri, filesys);
@@ -492,7 +492,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	    } else {
 		getchs (hfd, &cyl, &cylsec, &head, &tracksec);
 	    }
-	    //write_log("MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
+	    //write_log ("MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
 	    p = r;
 	    p[0] = 4 - 1;
 	    p[1] = 0;
@@ -507,7 +507,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		p += 8;
 	    }
 	    if (pcode == 0) {
-    		p[0] = 0;
+		p[0] = 0;
 		p[1] = 0;
 		p[2] = 0x20;
 		p[3] = 0;
@@ -563,7 +563,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 		    lba = blocks;
 		blocks = lba;
 	    }
-    	    wl (r, blocks);
+	    wl (r, blocks);
 	    wl (r + 4, hfd->blocksize);
 	    scsi_len = lr = 8;
 	}
@@ -612,7 +612,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	break;
 	default:
 err:
-        lr = -1;
+	lr = -1;
 	write_log ("UAEHF: unsupported scsi command 0x%02.2X\n", cmdbuf[0]);
 	status = 2; /* CHECK CONDITION */
 	s[0] = 0x70;
@@ -771,7 +771,7 @@ static int start_thread (TrapContext *context, int unit)
     if (hfpd->thread_running)
 	return 1;
     memset (hfpd, 0, sizeof (struct hardfileprivdata));
-    hfpd->base = m68k_areg(&context->regs, 6);
+    hfpd->base = m68k_areg (&context->regs, 6);
     init_comm_pipe (&hfpd->requests, 100, 1);
     uae_sem_init (&hfpd->sync_sem, 0, 0);
     uae_start_thread ("hardfile", hardfile_thread, hfpd, &hfpd->tid);
@@ -792,7 +792,7 @@ static int mangleunit (int unit)
 
 static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 {
-    uaecptr tmp1 = m68k_areg(&context->regs, 1); /* IOReq */
+    uaecptr tmp1 = m68k_areg (&context->regs, 1); /* IOReq */
     int unit = mangleunit (m68k_dreg (&context->regs, 0));
     struct hardfileprivdata *hfpd = &hardfpd[unit];
     int err = -1;
@@ -816,14 +816,14 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 
 static uae_u32 REGPARAM2 hardfile_close (TrapContext *context)
 {
-    uaecptr request = m68k_areg(&context->regs, 1); /* IOReq */
+    uaecptr request = m68k_areg (&context->regs, 1); /* IOReq */
     int unit = mangleunit (get_long (request + 24));
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     if (!hfpd)
 	return 0;
     put_word (hfpd->base + 32, get_word (hfpd->base + 32) - 1);
-    if (get_word(hfpd->base + 32) == 0)
+    if (get_word (hfpd->base + 32) == 0)
 	write_comm_pipe_u32 (&hfpd->requests, 0, 1);
     return 0;
 }
@@ -1019,14 +1019,14 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
     put_byte (request + 31, error);
 
     hf_log2 ("hf: unit=%d, request=%p, cmd=%d offset=%u len=%d, actual=%d error%=%d\n", unit, request,
-	get_word(request + 28), get_long (request + 44), get_long (request + 36), actual, error);
+	get_word (request + 28), get_long (request + 44), get_long (request + 36), actual, error);
 
     return async;
 }
 
 static uae_u32 REGPARAM2 hardfile_abortio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg(&context->regs, 1);
+    uae_u32 request = m68k_areg (&context->regs, 1);
     int unit = mangleunit (get_long (request + 24));
     struct hardfiledata *hfd = get_hardfile_data (unit);
     struct hardfileprivdata *hfpd = &hardfpd[unit];
@@ -1071,7 +1071,7 @@ static int hardfile_canquick (struct hardfiledata *hfd, uaecptr request)
 
 static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg(&context->regs, 1);
+    uae_u32 request = m68k_areg (&context->regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int cmd = get_word (request + 28);
     int unit = mangleunit (get_long (request + 24));
@@ -1132,7 +1132,7 @@ void hardfile_reset (void)
 
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	 hfpd = &hardfpd[i];
-	if (hfpd->base && valid_address(hfpd->base, 36) && get_word(hfpd->base + 32) > 0) {
+	if (hfpd->base && valid_address(hfpd->base, 36) && get_word (hfpd->base + 32) > 0) {
 	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 		uaecptr request;
 		if ((request = hfpd->d_request[i]))

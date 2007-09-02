@@ -203,20 +203,20 @@ int paraport_init (void)
 	write_log ("PARAPORT: GetProcAddress() failed\n");
 	paraport_free ();
     }
-    write_log("PARAPORT:");
+    write_log ("PARAPORT:");
     for (i = 0; i < 4 ; i++) {
 	sprintf (tmp, "LPT%d", i + 1);
 	pp = pp_openport (tmp);
 	if (pp != INVALID_HANDLE_VALUE) {
 	    mask |= 1 << i;
 	    pp_closeport (pp);
-	    write_log(" %s", tmp);
+	    write_log (" %s", tmp);
 	}
 	pp = 0;
     }
     if (!mask)
 	write_log ("no parallel ports detected");
-    write_log("\n");
+    write_log ("\n");
     return mask;
 }
 
@@ -236,12 +236,12 @@ int paraport_open (char *port)
 	return 0;
     }
     strcpy (oldport, port);
-    write_log("PARAPORT: port '%s' opened\n", port);
+    write_log ("PARAPORT: port '%s' opened\n", port);
     memset (c, 0, sizeof (PARAPORT_CYCLE));
     c[0].MaskControl = PARAPORT_MASK_CONTROL | PARAPORT_MASK_CONTROL_DIRECTION;
     c[0].Control = PARAPORT_MASK_CONTROL_INIT | PARAPORT_MASK_CONTROL_DIRECTION;
     if (!pp_executecycle (pport, c, 1)) {
-   	write_log ("PARAPORT: init executeCycle failed\n");
+	write_log ("PARAPORT: init executeCycle failed\n");
     }
     return 1;
 }

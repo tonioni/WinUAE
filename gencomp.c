@@ -191,32 +191,32 @@ static __inline__ void gen_update_next_handler(void)
     return; /* Can anything clever be done here? */
 }
 
-static void gen_writebyte(char* address, char* source)
+static void gen_writebyte (char* address, char* source)
 {
     comprintf("\twritebyte(%s,%s,scratchie);\n",address,source);
 }
 
-static void gen_writeword(char* address, char* source)
+static void gen_writeword (char* address, char* source)
 {
     comprintf("\twriteword(%s,%s,scratchie);\n",address,source);
 }
 
-static void gen_writelong(char* address, char* source)
+static void gen_writelong (char* address, char* source)
 {
     comprintf("\twritelong(%s,%s,scratchie);\n",address,source);
 }
 
-static void gen_readbyte(char* address, char* dest)
+static void gen_readbyte (char* address, char* dest)
 {
     comprintf("\treadbyte(%s,%s,scratchie);\n",address,dest);
 }
 
-static void gen_readword(char* address, char* dest)
+static void gen_readword (char* address, char* dest)
 {
     comprintf("\treadword(%s,%s,scratchie);\n",address,dest);
 }
 
-static void gen_readlong(char* address, char* dest)
+static void gen_readlong (char* address, char* dest)
 {
     comprintf("\treadlong(%s,%s,scratchie);\n",address,dest);
 }

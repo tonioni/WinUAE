@@ -1,4 +1,19 @@
 
+Beta 2:
+
+- 4-channel stereo mixing fixed (broke in b1)
+- Pro-Wizard updated (1.62)
+- directory filesystem ACTION_INHIBIT fixed (didn't really do much
+  and if it rarely did, result was infinite loop)
+- directory filesystem ACTION_EXAMINE_ALL implemented (more optimal
+  but also more complex way to read directory listing). Bugs possible,
+  please test it by running all kinds of new utilities. eac_MatchString
+  confirmed working, eac_MatchFunc not tested (no test program found)
+  Full logging currently enabled.
+- some removable directory drive fixes
+- Harddrives GUI can be used to eject and insert directory harddrives
+  on the fly (device name ignored)
+
 Beta 1:
 
 - ROM scan now always scans all detected ROM paths (skips duplicate
@@ -39,6 +54,14 @@ Beta 1:
     only drives that were empty when emulation was started will be
     remounted. (It is quite bad idea to remove OS/boot drive..)
   - weird things can happen if files are open when changing drive
+  - volume name is automatically generated from directory or file name
+  - very useful when installing software, just drag and drop
+    installation package (lha-archive for example) and run it.
+    No need for temporarily locations or worry about losing flags or
+    file comments.
+  - overrides normal (executables -> floppy drive, configuration file
+    -> restart emulation etc..) drag and drop function if GUI is not
+    active and dropped file/directory gets accepted by filesystem.
 - CPU emulation and other cleanups (Bernd Schmidt!)
 - X-Power Professional 500 v1.3 supported
 - Nordic Power v1.5 supported

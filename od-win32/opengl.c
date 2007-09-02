@@ -1,4 +1,4 @@
-/* 
+/*
  * UAE - The Un*x Amiga Emulator
  *
  * OpenGL renderer
@@ -128,14 +128,14 @@ static int WGLisExtensionSupported(const char *extension)
 
 // InitMultisample: Used To Query The Multisample Frequencies
 static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd)
-{  
+{
 	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
 	int pixelFormat;
 	int valid, i;
 	UINT numFormats;
 	float fAttributes[] = {0,0};
 	// These Attributes Are The Bits We Want To Test For In Our Sample
-	// Everything Is Pretty Standard, The Only One We Want To 
+	// Everything Is Pretty Standard, The Only One We Want To
 	// Really Focus On Is The SAMPLE BUFFERS ARB And WGL SAMPLES
 	// These Two Are Going To Do The Main Testing For Whether Or Not
 	// We Support Multisampling On This Hardware.
@@ -158,8 +158,8 @@ static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd)
 		return 0;
 
 	// Get Our Pixel Format
-	wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");	
-	if (!wglChoosePixelFormatARB) 
+	wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+	if (!wglChoosePixelFormatARB)
 		return 0;
 
 	for (i = 8; i >= 2; i -= 2) {
@@ -168,7 +168,7 @@ static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd)
 	    // If We Returned True, And Our Format Count Is Greater Than 1
 	    if (valid && numFormats >= 1) {
 		arbMultisampleSupported = i;
-		arbMultisampleFormat = pixelFormat;	
+		arbMultisampleFormat = pixelFormat;
 		write_log ("OPENGL: max FSAA = %d\n", i);
 		return arbMultisampleSupported;
 	    }
@@ -207,7 +207,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
     for (;;) {
 
-        memset (&pfd, 0, sizeof (pfd));
+	memset (&pfd, 0, sizeof (pfd));
 	pfd.nSize = sizeof (PIXELFORMATDESCRIPTOR);
 	pfd.nVersion = 1;
 	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_TYPE_RGBA;
@@ -230,12 +230,12 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	    sprintf (errmsg, "OPENGL: can't set pixelformat %x", PixelFormat);
 	    return errmsg;
 	}
-        
+
 	if (!(hrc = wglCreateContext (openglhdc))) {
 	    strcpy (errmsg, "OPENGL: can't create gl rendering context");
 	    return errmsg;
 	}
-        
+
 	if (!wglMakeCurrent (openglhdc, hrc)) {
 	    strcpy (errmsg, "OPENGL: can't activate gl rendering context");
 	    return errmsg;
@@ -269,7 +269,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
     ext1 = glGetString (GL_EXTENSIONS);
     if (!init)
-	write_log("OpenGL extensions: %s\n", ext1);
+	write_log ("OpenGL extensions: %s\n", ext1);
     if (strstr (ext1, "EXT_packed_pixels"))
 	packed_pixels = 1;
     if (strstr (ext1, "WGL_EXT_swap_control")) {
@@ -293,10 +293,10 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 		"EXT_packed_pixels extension was not found.");
 	    OGL_free();
 	    return errmsg;
-	}   
+	}
 	ti2d_internalformat = GL_RGB5_A1;
-        ti2d_format = GL_RGBA;
-        ti2d_type = GL_UNSIGNED_SHORT_5_5_5_1_EXT;
+	ti2d_format = GL_RGBA;
+	ti2d_type = GL_UNSIGNED_SHORT_5_5_5_1_EXT;
     }
     if (depth == 32) {
 	ti2d_internalformat = GL_RGBA;
@@ -309,11 +309,11 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	}
     }
     if (ti2d_type < 0) {
-    	sprintf (errmsg, "OPENGL: Only 15, 16 or 32 bit screen depths supported (was %d)", depth);
-        OGL_free();
+	sprintf (errmsg, "OPENGL: Only 15, 16 or 32 bit screen depths supported (was %d)", depth);
+	OGL_free();
 	return errmsg;
     }
-    
+
     glGenTextures (total_textures, tex);
 
     /* "bitplane" texture */
@@ -326,7 +326,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     glClearColor (0.0, 0.0, 0.0, 0.0);
-    glShadeModel (GL_FLAT); 
+    glShadeModel (GL_FLAT);
     glDisable (GL_DEPTH_TEST);
     glEnable (GL_TEXTURE_2D);
     glDisable (GL_LIGHTING);
@@ -337,7 +337,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     OGL_refresh ();
     init = 1;
 
-    write_log("OPENGL: using texture depth %d texture size %d * %d scanline texture size %d * %d\n",
+    write_log ("OPENGL: using texture depth %d texture size %d * %d scanline texture size %d * %d\n",
 	depth, required_texture_size, required_texture_size, required_sl_texture_size, required_sl_texture_size);
     return 0;
 }
@@ -356,15 +356,15 @@ static void createscanlines (int force)
     osl3 = currprefs.gfx_filter_scanlinelevel;
     osl2 = currprefs.gfx_filter_scanlineratio;
     if (!currprefs.gfx_filter_scanlines) {
-        glDisable (GL_BLEND);
+	glDisable (GL_BLEND);
 	return;
-    }   
+    }
 
     glEnable (GL_BLEND);
     scanlinetex = tex[total_textures - 1];
     glBindTexture (GL_TEXTURE_2D, scanlinetex);
     glTexImage2D (GL_TEXTURE_2D, 0, sl_ti2d_internalformat,
-        required_sl_texture_size, required_sl_texture_size, 0, sl_ti2d_format, sl_ti2d_type, 0);
+	required_sl_texture_size, required_sl_texture_size, 0, sl_ti2d_format, sl_ti2d_type, 0);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -388,12 +388,12 @@ static void createscanlines (int force)
 		if (packed_pixels) {
 		    /* 16-bit, R4G4B4A4 */
 		    uae_u8 sll = sl42;
-    		    p = &sld[((y + yy) * w_width + x) * 2];
+		    p = &sld[((y + yy) * w_width + x) * 2];
 		    p[0] = sl4 | (sll << 4);
 		    p[1] = (sll << 4) | (sll << 0);
 		} else {
 		    /* 32-bit, R8G8B8A8 */
-    		    p = &sld[((y + yy) * w_width + x) * 4];
+		    p = &sld[((y + yy) * w_width + x) * 4];
 		    p[0] = p[1] = p[2] = sl82;
 		    p[3] = sl8;
 		}
@@ -418,7 +418,7 @@ static void setfilter (void)
 	break;
     }
     if (currprefs.gfx_filter_scanlines > 0) {
-        glBindTexture (GL_TEXTURE_2D, scanlinetex);
+	glBindTexture (GL_TEXTURE_2D, scanlinetex);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
     }
@@ -535,7 +535,7 @@ static void OGL_dorender (int newtex)
 	float v = (float)required_sl_texture_size;
 	glBindTexture (GL_TEXTURE_2D, scanlinetex);
 	glBegin (GL_QUADS);
-        glTexCoord2f (0, -1.0f); glVertex2f (0, 0);
+	glTexCoord2f (0, -1.0f); glVertex2f (0, 0);
 	glTexCoord2f (0, 0); glVertex2f (0, v);
 	glTexCoord2f (1.0f, 0); glVertex2f (v, v);
 	glTexCoord2f (1.0f, -1.0f); glVertex2f (v, 0);
@@ -576,7 +576,7 @@ void OGL_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
     switch (depth)
     {
 	case 32:
-        *rb = 8;
+	*rb = 8;
 	*gb = 8;
 	*bb = 8;
 	*ab = 8;
@@ -588,7 +588,7 @@ void OGL_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 	break;
 	case 15:
 	case 16:
-        *rb = 5;
+	*rb = 5;
 	*gb = 5;
 	*bb = 5;
 	*ab = 1;
@@ -604,9 +604,9 @@ void OGL_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 void OGL_free (void)
 {
     if (hrc) {
-        wglMakeCurrent (NULL, NULL);
-        wglDeleteContext (hrc);
-        hrc = 0;
+	wglMakeCurrent (NULL, NULL);
+	wglDeleteContext (hrc);
+	hrc = 0;
     }
     if (openglhdc) {
 	ReleaseDC (hwnd, openglhdc);

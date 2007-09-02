@@ -1,8 +1,8 @@
-/* 
+/*
   * UAE - The Un*x Amiga Emulator
-  * 
+  *
   * Win32-specific header file
-  * 
+  *
   * (c) 1997-1999 Mathias Ortmann
   * (c) 1998-2001 Brian King
   */
@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 1
+#define WINUAEBETA 2
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 8, 19)
+#define WINUAEDATE MAKEBD(2007, 9, 2)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 

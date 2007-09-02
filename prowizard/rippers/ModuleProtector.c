@@ -233,7 +233,7 @@ void Rip_MP_withID ( void )
   Save_Rip ( "Module Protector Packed music", Module_protector );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 5);  /* 4 should do but call it "just to be sure" :) */
+    PW_i += 3;  /* 4 should do but call it "just to be sure" :) */
 }
 
 

@@ -59,6 +59,14 @@ uae_u32 max_z3fastmem = 512 * 1024 * 1024;
 
 static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lmem_filepos, a3000hmem_filepos;
 
+/* Set if we notice during initialization that settings changed,
+   and we must clear all memory to prevent bogus contents from confusing
+   the Kickstart.  */
+static int need_hardreset;
+
+/* The address space setting used during the last reset.  */
+static int last_address_space_24;
+
 static struct romlist *rl;
 static int romlist_cnt;
 
@@ -263,7 +271,7 @@ struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, cha
     struct romlist **rdout, *rltmp;
     void *buf;
     static struct romlist rlstatic;
-    
+
     for (i = 0; roms[i].name; i++);
     if (all)
 	max = i;
@@ -274,7 +282,7 @@ struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, cha
     rltmp = (struct romlist*)((uae_u8*)buf + (i + 1) * sizeof (struct romlist*));
     out = 0;
     for (i = 0; i < max; i++) {
-        ok = 0;
+	ok = 0;
 	if (!all)
 	    rd = rl[i].rd;
 	else
@@ -407,7 +415,7 @@ int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size)
     uae_u8 *key;
 
     for (i = ROM_KEY_NUM - 1; i >= 0; i--) {
-        keysize = keyring[i].size;
+	keysize = keyring[i].size;
 	key = keyring[i].key;
 	if (!key)
 	    continue;
@@ -473,7 +481,7 @@ int load_keyring (struct uae_prefs *p, char *path)
     keybuf = target_load_keyfile(p, path, &keysize, tmp);
     addkey(&keyid, keybuf, keysize, tmp);
     for (i = 0; keyids[i] >= 0 && keyid < ROM_KEY_NUM; i++) {
-        struct romdata *rd = getromdatabyid (keyids[i]);
+	struct romdata *rd = getromdatabyid (keyids[i]);
 	char *s;
 	if (rd) {
 	    s = romlist_get (rd);
@@ -493,10 +501,10 @@ int load_keyring (struct uae_prefs *p, char *path)
 	    }
 	}
     }
-    
+
     cnt = 0;
     for (;;) {
-        keybuf = NULL;
+	keybuf = NULL;
 	keysize = 0;
 	tmp[0] = 0;
 	switch (cnt)
@@ -719,7 +727,7 @@ void getromname	(struct romdata *rd, char *name)
 struct romlist *getromlistbyromdata(struct romdata *rd)
 {
     int ids[2];
-    
+
     ids[0] = rd->id;
     ids[1] = 0;
     return getromlistbyids(ids);
@@ -757,11 +765,11 @@ void romwarning(int *ids)
 	struct romdata *rd = getromdatabyid (ids[i]);
 	getromname (rd, tmp1);
 	strcat (tmp2, "- ");
-        strcat (tmp2, tmp1);
-        strcat (tmp2, "\n");
+	strcat (tmp2, tmp1);
+	strcat (tmp2, "\n");
 	if (rd->type & (ROMTYPE_A2091BOOT | ROMTYPE_A4091BOOT))
 	    exp++;
-        i++;
+	i++;
     }
     translate_message (exp ? NUMSG_EXPROMNEED : NUMSG_ROMNEED, tmp3);
     gui_message (tmp3, tmp2);
@@ -808,7 +816,7 @@ int addr_valid(char *txt, uaecptr addr, uae_u32 len)
 {
     addrbank *ab = &get_mem_bank(addr);
     if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address(addr, len)) {
-    	write_log("corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
+	write_log ("corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
 	return 0;
     }
     return 1;
@@ -1699,7 +1707,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;
-		uaecptr a3 = m68k_getpc(&regs) - 32;
+		uaecptr a3 = m68k_getpc (&regs) - 32;
 		write_log ("Your Amiga program just did something terribly stupid %08.8X PC=%08.8X\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
@@ -1826,7 +1834,7 @@ void a3000_fakekick(int map)
 			map_banks(&extendedkickmem_bank, 0xf0, 1, 1);
 			f0 = 1;
 		    } else {
-			write_log("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
+			write_log ("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
 		    }
 		}
 	    } else {
@@ -2056,7 +2064,7 @@ static void patch_kick(void)
 {
     int patched = 0;
     if (kickmem_size >= 524288 && currprefs.kickshifter)
-        patched += patch_shapeshifter (kickmemory);
+	patched += patch_shapeshifter (kickmemory);
     patched += patch_residents (kickmemory, kickmem_size);
     if (extendedkickmemory) {
 	patched += patch_residents (extendedkickmemory, extendedkickmem_size);
@@ -2064,7 +2072,7 @@ static void patch_kick(void)
 	    kickstart_fix_checksum (extendedkickmemory, extendedkickmem_size);
     }
     if (patched)
-    	kickstart_fix_checksum (kickmemory, kickmem_size);
+	kickstart_fix_checksum (kickmemory, kickmem_size);
 }
 
 static int load_kickstart (void)
@@ -2136,7 +2144,7 @@ static int load_kickstart (void)
 	size = read_kickstart (f, kickmemory, maxsize, 1, &cloanto_rom);
 	if (size == 0)
 	    goto err;
-        kickmem_mask = size - 1;
+	kickmem_mask = size - 1;
 	kickmem_size = size;
 	if (filesize >= 524288 * 2 && !extendedkickmem_type) {
 	    extendedkickmem_size = 0x80000;
@@ -2342,7 +2350,7 @@ static void allocate_memory (void)
 	    write_log ("Fatal error: out of memory for chipmem.\n");
 	    allocated_chipmem = 0;
 	} else {
-	    memory_hardreset();
+	    need_hardreset = 1;
 	    if (memsize != allocated_chipmem)
 		memset (chipmemory + allocated_chipmem, 0xff, memsize - allocated_chipmem);
 	}
@@ -2351,7 +2359,7 @@ static void allocate_memory (void)
     currprefs.chipset_mask = changed_prefs.chipset_mask;
     chipmem_full_mask = allocated_chipmem - 1;
     if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && allocated_chipmem < 0x100000)
-        chipmem_full_mask = 0x100000 - 1;
+	chipmem_full_mask = 0x100000 - 1;
 
     if (allocated_bogomem != currprefs.bogomem_size) {
 	if (bogomemory)
@@ -2368,7 +2376,7 @@ static void allocate_memory (void)
 		allocated_bogomem = 0;
 	    }
 	}
-	memory_hardreset();
+	need_hardreset = 1;
     }
     if (allocated_a3000lmem != currprefs.mbresmem_low_size) {
 	if (a3000lmemory)
@@ -2385,7 +2393,7 @@ static void allocate_memory (void)
 		allocated_a3000lmem = 0;
 	    }
 	}
-	memory_hardreset();
+	need_hardreset = 1;
     }
     if (allocated_a3000hmem != currprefs.mbresmem_high_size) {
 	if (a3000hmemory)
@@ -2402,7 +2410,7 @@ static void allocate_memory (void)
 		allocated_a3000hmem = 0;
 	    }
 	}
-	memory_hardreset();
+	need_hardreset = 1;
     }
     if (allocated_cardmem != currprefs.cs_cdtvcard * 1024) {
 	if (cardmemory)
@@ -2455,12 +2463,12 @@ void map_overlay (int chip)
     else
 	map_banks (&kickmem_bank, 0, i, 0x80000);
     if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND)
-	m68k_setpc(&regs, m68k_getpc(&regs));
+	m68k_setpc (&regs, m68k_getpc (&regs));
 }
 
 void memory_reset (void)
 {
-    int bnk;
+    int bnk, bnk_end;
 
     be_cnt = 0;
     currprefs.chipmem_size = changed_prefs.chipmem_size;
@@ -2471,6 +2479,16 @@ void memory_reset (void)
     currprefs.cs_cdtvram = changed_prefs.cs_cdtvram;
     currprefs.cs_cdtvcard = changed_prefs.cs_cdtvcard;
     currprefs.cs_a1000ram = changed_prefs.cs_a1000ram;
+    currprefs.cs_ide = changed_prefs.cs_ide;
+    currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev;
+    currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev;
+
+    need_hardreset = 0;
+    /* Use changed_prefs, as m68k_reset is called later.  */
+    if (last_address_space_24 != changed_prefs.address_space_24)
+	need_hardreset = 1;
+
+    last_address_space_24 = changed_prefs.address_space_24;
 
     init_mem_banks ();
     allocate_memory ();
@@ -2483,10 +2501,10 @@ void memory_reset (void)
 	xfree (a1000_bootrom);
 	a1000_bootrom = 0;
 	a1000_kickstart_mode = 0;
+
 	memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 	memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
-	if (savestate_state != STATE_RESTORE)
-	    memory_hardreset();
+	need_hardreset = 1;
 	mapped_free (extendedkickmemory);
 	extendedkickmemory = 0;
 	extendedkickmem_size = 0;
@@ -2519,8 +2537,9 @@ void memory_reset (void)
 		}
 		if (rd->cloanto)
 		    cloanto_rom = 1;
-		if ((rd->cpu & 4) && currprefs.cs_compatible) { /* A4000 ROM = need ramsey, gary and ide */
-		    if (currprefs.cs_ramseyrev < 0) 
+		if ((rd->cpu & 4) && currprefs.cs_compatible) {
+		    /* A4000 ROM = need ramsey, gary and ide */
+		    if (currprefs.cs_ramseyrev < 0)
 			changed_prefs.cs_ramseyrev = currprefs.cs_ramseyrev = 0x0f;
 		    changed_prefs.cs_fatgaryrev = currprefs.cs_fatgaryrev = 0;
 		    if (currprefs.cs_ide != 2)
@@ -2537,13 +2556,15 @@ void memory_reset (void)
     map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
     map_banks (&cia_bank, 0xA0, 32, 0);
     if (!currprefs.cs_a1000ram)
-	map_banks (&dummy_bank, 0xD8, 6, 0); /* D80000 - DDFFFF not mapped (A1000 = custom chips) */
+	/* D80000 - DDFFFF not mapped (A1000 = custom chips) */
+	map_banks (&dummy_bank, 0xD8, 6, 0);
 
     /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if PCMCIA or AGA) */
     bnk = allocated_chipmem >> 16;
     if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 	bnk = 0x20 + (currprefs.fastmem_size >> 16);
-    map_banks (&dummy_bank, bnk, (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia) ? 0xBF : 0xA0) - bnk, 0);
+    bnk_end = (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia) ? 0xBF : 0xA0);
+    map_banks (&dummy_bank, bnk, bnk_end - bnk, 0);
     if (currprefs.chipset_mask & CSMASK_AGA)
 	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
 
@@ -2556,7 +2577,7 @@ void memory_reset (void)
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
     if (currprefs.cs_ide) {
-	if(currprefs.cs_ide == 1) {
+	if (currprefs.cs_ide == 1) {
 	    map_banks (&gayle_bank, 0xD8, 6, 0);
 	    map_banks (&gayle2_bank, 0xDD, 2, 0);
 	    // map_banks (&gayle_attr_bank, 0xA0, 8, 0); only if PCMCIA card inserted */
@@ -2571,17 +2592,17 @@ void memory_reset (void)
     }
     if (currprefs.cs_rtc)
 	map_banks (&clock_bank, 0xDC, 1, 0);
-    if (currprefs.cs_fatgaryrev >= 0|| currprefs.cs_ramseyrev >= 0)
+    if (currprefs.cs_fatgaryrev >= 0 || currprefs.cs_ramseyrev >= 0)
 	map_banks (&mbres_bank, 0xDE, 1, 0);
     if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
 	map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
     if (currprefs.cs_mbdmac == 1)
-	a3000scsi_reset();
+	a3000scsi_reset ();
 
     if (a3000lmemory != 0)
-        map_banks (&a3000lmem_bank, a3000lmem_start >> 16, allocated_a3000lmem >> 16, 0);
+	map_banks (&a3000lmem_bank, a3000lmem_start >> 16, allocated_a3000lmem >> 16, 0);
     if (a3000hmemory != 0)
-        map_banks (&a3000hmem_bank, a3000hmem_start >> 16, allocated_a3000hmem >> 16, 0);
+	map_banks (&a3000hmem_bank, a3000hmem_start >> 16, allocated_a3000hmem >> 16, 0);
     if (cardmemory != 0)
 	map_banks (&cardmem_bank, cardmem_start >> 16, allocated_cardmem >> 16, 0);
 
@@ -2611,9 +2632,7 @@ void memory_reset (void)
     /* Map the chipmem into all of the lower 8MB */
     map_overlay (1);
 
-    switch (extendedkickmem_type)
-    {
-
+    switch (extendedkickmem_type) {
     case EXTENDED_ROM_KS:
 	map_banks (&extendedkickmem_bank, 0xE0, 8, 0);
 	break;
@@ -2628,9 +2647,9 @@ void memory_reset (void)
 	break;
 #endif
     }
-    
+
     if ((cloanto_rom || currprefs.cs_ksmirror) && !currprefs.maprom && !extendedkickmem_type)
-        map_banks (&kickmem_bank, 0xE0, 8, 0);
+	map_banks (&kickmem_bank, 0xE0, 8, 0);
     if (currprefs.cs_ksmirror == 2) { /* unexpanded A1200 also maps ROM here.. */
 	struct romdata *rd = getromdatabypath(currprefs.cartfile);
 	if (!rd || rd->id != 63) {
@@ -2644,7 +2663,7 @@ void memory_reset (void)
 	    memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
 	if (strcmp (currprefs.cartfile, changed_prefs.cartfile) != 0)
 	    memcpy (currprefs.cartfile, changed_prefs.cartfile, sizeof currprefs.cartfile);
-        arcadia_unmap ();
+	arcadia_unmap ();
 	is_arcadia_rom (currprefs.romextfile);
 	is_arcadia_rom (currprefs.cartfile);
 	arcadia_map_banks ();
@@ -2784,7 +2803,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	return;
     }
 #endif
-    if (currprefs.address_space_24)
+    if (last_address_space_24)
 	endhioffs = 0x10000;
 #ifdef ADDRESS_SPACE_24BIT
     endhioffs = 0x100;
@@ -3004,12 +3023,12 @@ void memcpyah_safe (uae_u8 *dst, uaecptr src, int size)
     if (!addr_valid("memcpyah", src, size))
 	return;
     while (size--)
-	*dst++ = get_byte(src++);
+	*dst++ = get_byte (src++);
 }
 void memcpyah (uae_u8 *dst, uaecptr src, int size)
 {
     while (size--)
-	*dst++ = get_byte(src++);
+	*dst++ = get_byte (src++);
 }
 char *strcpyah_safe (char *dst, uaecptr src)
 {
@@ -3018,7 +3037,7 @@ char *strcpyah_safe (char *dst, uaecptr src)
     do {
 	if (!addr_valid("strcpyah", src, 1))
 	    return res;
-	b = get_byte(src++);
+	b = get_byte (src++);
 	*dst++ = b;
     } while (b);
     return res;

@@ -31,22 +31,22 @@ calc_sum(p, len)
 
 /* ------------------------------------------------------------------------ */
 static unsigned short
-get_word()
+get_word ()
 {
 	int             b0, b1;
 
-	b0 = get_byte();
-	b1 = get_byte();
+	b0 = get_byte ();
+	b1 = get_byte ();
 	return (b1 << 8) + b0;
 }
 
 /* ------------------------------------------------------------------------ */
 static void
-put_word(v)
+put_word (v)
 	unsigned int    v;
 {
-	put_byte(v);
-	put_byte(v >> 8);
+	put_byte (v);
+	put_byte (v >> 8);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -55,10 +55,10 @@ get_longword()
 {
 	long            b0, b1, b2, b3;
 
-	b0 = get_byte();
-	b1 = get_byte();
-	b2 = get_byte();
-	b3 = get_byte();
+	b0 = get_byte ();
+	b1 = get_byte ();
+	b2 = get_byte ();
+	b3 = get_byte ();
 	return (b3 << 24) + (b2 << 16) + (b1 << 8) + b0;
 }
 
@@ -67,10 +67,10 @@ static void
 put_longword(v)
 	long            v;
 {
-	put_byte(v);
-	put_byte(v >> 8);
-	put_byte(v >> 16);
-	put_byte(v >> 24);
+	put_byte (v);
+	put_byte (v >> 8);
+	put_byte (v >> 16);
+	put_byte (v >> 24);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -422,7 +422,7 @@ get_header(fp, hdr)
 		return FALSE;	/* finish */
 	}
 	setup_get(data + I_HEADER_LEVEL);
-	hdr->header_level = get_byte();
+	hdr->header_level = get_byte ();
 	if (hdr->header_level != 2 &&
 	    zfile_fread(data + header_size, sizeof(char), 2, fp) < 2) {
 		fatal_error("Invalid header (LHarc file ?)");
@@ -435,7 +435,7 @@ get_header(fp, hdr)
 	}
 
 	setup_get(data + I_HEADER_CHECKSUM);
-	checksum = get_byte();
+	checksum = get_byte ();
 
 	if (hdr->header_level == 2) {
 		hdr->header_size = header_size + checksum*256;
@@ -447,14 +447,14 @@ get_header(fp, hdr)
 	hdr->packed_size = get_longword();
 	hdr->original_size = get_longword();
 	hdr->last_modified_stamp = get_longword();
-	hdr->attribute = get_byte();
+	hdr->attribute = get_byte ();
 
-	if ((hdr->header_level = get_byte()) != 2) {
+	if ((hdr->header_level = get_byte ()) != 2) {
 		if (calc_sum(data + I_METHOD, header_size) != checksum)
 			warning("Checksum error (LHarc file?)", "");
-		name_length = get_byte();
+		name_length = get_byte ();
 		for (i = 0; i < name_length; i++)
-			hdr->name[i] = (char) get_byte();
+			hdr->name[i] = (char) get_byte ();
 		hdr->name[name_length] = '\0';
 	}
 	else {
@@ -479,55 +479,55 @@ get_header(fp, hdr)
 			}
 		} else {
 			hdr->has_crc = TRUE;
-			hdr->crc = get_word();
+			hdr->crc = get_word ();
 		}
 
 		if (extend_size >= 1) {
-			hdr->extend_type = get_byte();
+			hdr->extend_type = get_byte ();
 			extend_size--;
 		}
 		if (hdr->extend_type == EXTEND_UNIX || hdr->extend_type == EXTEND_AMIGAOS) {
 			if (extend_size >= 11) {
-				hdr->minor_version = get_byte();
+				hdr->minor_version = get_byte ();
 				hdr->unix_last_modified_stamp = (time_t) get_longword();
-				hdr->unix_mode = get_word();
-				hdr->unix_uid = get_word();
-				hdr->unix_gid = get_word();
+				hdr->unix_mode = get_word ();
+				hdr->unix_uid = get_word ();
+				hdr->unix_gid = get_word ();
 				extend_size -= 11;
 			} else {
 				hdr->extend_type = EXTEND_GENERIC;
 			}
 		}
 		while (extend_size-- > 0)
-			dmy = get_byte();
+			dmy = get_byte ();
 		if (hdr->extend_type == EXTEND_UNIX)
 			return TRUE;
 	} else if (hdr->header_level == 1) {
 		hdr->has_crc = TRUE;
 		extend_size = header_size - name_length-25;
-		hdr->crc = get_word();
-		hdr->extend_type = get_byte();
+		hdr->crc = get_word ();
+		hdr->extend_type = get_byte ();
 		while (extend_size-- > 0)
-			dmy = get_byte();
+			dmy = get_byte ();
 	} else { /* level 2 */
 		hdr->has_crc = TRUE;
-		hdr->crc = get_word();
-		hdr->extend_type = get_byte();
-	}		
+		hdr->crc = get_word ();
+		hdr->extend_type = get_byte ();
+	}
 
 	if (hdr->header_level > 0) {
 		/* Extend Header */
 		if (hdr->header_level != 2)
 			setup_get(data + hdr->header_size);
 		ptr = get_ptr;
-		while ((header_size = get_word()) != 0) {
+		while ((header_size = get_word ()) != 0) {
 			if (hdr->header_level != 2 &&
 			((data + LZHEADER_STRAGE - get_ptr < header_size) ||
 			 zfile_fread(get_ptr, sizeof(char), header_size, fp) < header_size)) {
 				fatal_error("Invalid header (LHa file ?)");
 				return FALSE;
 			}
-			switch (get_byte()) {
+			switch (get_byte ()) {
 			case 0:
 				/*
 				 * header crc
@@ -541,7 +541,7 @@ get_header(fp, hdr)
 				if (header_size >= 256)
 				    return FALSE;
 				for (i = 0; i < header_size - 3; i++)
-					hdr->name[i] = (char) get_byte();
+					hdr->name[i] = (char) get_byte ();
 				hdr->name[header_size - 3] = '\0';
 				name_length = header_size - 3;
 				break;
@@ -552,7 +552,7 @@ get_header(fp, hdr)
 				if (header_size >= FILENAME_LENGTH)
 				    return FALSE;
 				for (i = 0; i < header_size - 3; i++)
-					dirname[i] = (char) get_byte();
+					dirname[i] = (char) get_byte ();
 				dirname[header_size - 3] = '\0';
 				convdelim(dirname, DELIM);
 				dir_length = header_size - 3;
@@ -565,22 +565,22 @@ get_header(fp, hdr)
 				    hdr->extend_type == EXTEND_HUMAN ||
 				    hdr->extend_type == EXTEND_AMIGAOS ||
 				    hdr->extend_type == EXTEND_GENERIC)
-					hdr->attribute = get_word();
+					hdr->attribute = get_word ();
 				break;
 			case 0x50:
 				/*
 				 * UNIX permission
 				 */
 				if (hdr->extend_type == EXTEND_UNIX)
-					hdr->unix_mode = get_word();
+					hdr->unix_mode = get_word ();
 				break;
 			case 0x51:
 				/*
 				 * UNIX gid and uid
 				 */
 				if (hdr->extend_type == EXTEND_UNIX) {
-					hdr->unix_gid = get_word();
-					hdr->unix_uid = get_word();
+					hdr->unix_gid = get_word ();
+					hdr->unix_uid = get_word ();
 				}
 				break;
 			case 0x52:
@@ -706,10 +706,10 @@ init_header(name, v_stat, hdr)
 			strcpy(&hdr->name[len++], "/");
 	}
 
-#ifdef S_IFLNK	
+#ifdef S_IFLNK
 	if (is_symlink(v_stat)) {
 		char	lkname[257];
-		int		len;	
+		int		len;
 		bcopy(LZHDIRS_METHOD, hdr->method, METHOD_TYPE_STRAGE);
 		hdr->attribute = GENERIC_DIRECTORY_ATTRIBUTE;
 		hdr->original_size = 0;

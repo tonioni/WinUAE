@@ -95,6 +95,9 @@ extern struct regstruct
     uae_u8 *pc_p;
     uae_u8 *pc_oldp;
 
+    uae_u16 irc, ir;
+    uae_u32 spcflags;
+
     uaecptr usp, isp, msp;
     uae_u16 sr;
     flagtype t1;
@@ -111,7 +114,7 @@ extern struct regstruct
     fptype fp[8];
     fptype fp_result;
 
-    uae_u32 fpcr,fpsr, fpiar;
+    uae_u32 fpcr, fpsr, fpiar;
     uae_u32 fpsr_highbyte;
 #endif
 #ifndef CPUEMU_68000_ONLY
@@ -128,11 +131,8 @@ extern struct regstruct
 #endif
 
     uae_u32 pcr;
-    uae_u32 spcflags;
     uae_u32 kick_mask;
     uae_u32 address_space_mask;
-
-    uae_u16 irc, ir;
 
     uae_u8 panic;
     uae_u32 panic_pc, panic_addr;
@@ -156,7 +156,7 @@ typedef union {
 
 extern signed long pissoff;
 
-STATIC_INLINE uae_u32 munge24(uae_u32 x)
+STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 {
     return x & regs.address_space_mask;
 }
@@ -169,7 +169,7 @@ extern int cpu_cycles;
 STATIC_INLINE void set_special (struct regstruct *regs, uae_u32 x)
 {
     regs->spcflags |= x;
-    cycles_do_special();
+    cycles_do_special ();
 }
 
 STATIC_INLINE void unset_special (struct regstruct *regs, uae_u32 x)
@@ -197,6 +197,8 @@ STATIC_INLINE uaecptr m68k_getpc_p (struct regstruct *regs, uae_u8 *p)
     return (uaecptr)(regs->pc + ((char *)p - (char *)regs->pc_oldp));
 }
 
+#define m68k_incpc(regs, o) ((regs)->pc_p += (o))
+
 STATIC_INLINE void m68k_setpci(struct regstruct *regs, uaecptr newpc)
 {
     regs->pc = newpc;
@@ -210,14 +212,43 @@ STATIC_INLINE void m68k_incpci(struct regstruct *regs, int o)
     regs->pc += o;
 }
 
+STATIC_INLINE void m68k_do_rts(struct regstruct *regs)
+{
+    m68k_setpc(regs, get_long(m68k_areg (regs, 7)));
+    m68k_areg (regs, 7) += 4;
+}
+STATIC_INLINE void m68k_do_rtsi(struct regstruct *regs)
+{
+    m68k_setpci(regs, get_long(m68k_areg (regs, 7)));
+    m68k_areg (regs, 7) += 4;
+}
+
+STATIC_INLINE void m68k_do_bsr(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
+{
+    m68k_areg (regs, 7) -= 4;
+    put_long(m68k_areg (regs, 7), oldpc);
+    m68k_incpc(regs, offset);
+}
+STATIC_INLINE void m68k_do_bsri(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
+{
+    m68k_areg (regs, 7) -= 4;
+    put_long(m68k_areg (regs, 7), oldpc);
+    m68k_incpci(regs, offset);
+}
+
+STATIC_INLINE void m68k_do_jsr(struct regstruct *regs, uaecptr oldpc, uaecptr dest)
+{
+    m68k_areg (regs, 7) -= 4;
+    put_long(m68k_areg (regs, 7), oldpc);
+    m68k_setpc(regs, dest);
+}
+
 #define get_ibyte(regs, o) do_get_mem_byte((uae_u8 *)((regs)->pc_p + (o) + 1))
 #define get_iword(regs, o) do_get_mem_word((uae_u16 *)((regs)->pc_p + (o)))
 #define get_ilong(regs, o) do_get_mem_long((uae_u32 *)((regs)->pc_p + (o)))
 
 #define get_iwordi(o) get_wordi(o)
 #define get_ilongi(o) get_longi(o)
-
-#define m68k_incpc(regs, o) ((regs)->pc_p += (o))
 
 /* These are only used by the 68020/68881 code, and therefore don't
  * need to handle prefetch.  */
@@ -252,37 +283,6 @@ STATIC_INLINE uae_u32 next_ilongi (struct regstruct *regs)
     uae_u32 r = get_ilongi (m68k_getpci(regs));
     m68k_incpc (regs, 4);
     return r;
-}
-
-STATIC_INLINE void m68k_do_rts(struct regstruct *regs)
-{
-    m68k_setpc(regs, get_long(m68k_areg(regs, 7)));
-    m68k_areg(regs, 7) += 4;
-}
-STATIC_INLINE void m68k_do_rtsi(struct regstruct *regs)
-{
-    m68k_setpci(regs, get_long(m68k_areg(regs, 7)));
-    m68k_areg(regs, 7) += 4;
-}
-
-STATIC_INLINE void m68k_do_bsr(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
-{
-    m68k_areg(regs, 7) -= 4;
-    put_long(m68k_areg(regs, 7), oldpc);
-    m68k_incpc(regs, offset);
-}
-STATIC_INLINE void m68k_do_bsri(struct regstruct *regs, uaecptr oldpc, uae_s32 offset)
-{
-    m68k_areg(regs, 7) -= 4;
-    put_long(m68k_areg(regs, 7), oldpc);
-    m68k_incpci(regs, offset);
-}
-
-STATIC_INLINE void m68k_do_jsr(struct regstruct *regs, uaecptr oldpc, uaecptr dest)
-{
-    m68k_areg(regs, 7) -= 4;
-    put_long(m68k_areg(regs, 7), oldpc);
-    m68k_setpc(regs, dest);
 }
 
 STATIC_INLINE void m68k_setstopped (struct regstruct *regs, int stop)

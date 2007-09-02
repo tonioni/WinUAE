@@ -252,15 +252,15 @@ static int next_string (char **c, char *out, int max, int forceupper)
 static uae_u32 lastaddr (void)
 {
     if (currprefs.z3fastmem_size)
-        return z3fastmem_start + currprefs.z3fastmem_size;
+	return z3fastmem_start + currprefs.z3fastmem_size;
     if (currprefs.mbresmem_high_size)
 	return a3000hmem_start + currprefs.mbresmem_high_size;
     if (currprefs.mbresmem_low_size)
 	return a3000lmem_start + currprefs.mbresmem_low_size;
     if (currprefs.bogomem_size)
-        return bogomem_start + currprefs.bogomem_size;
+	return bogomem_start + currprefs.bogomem_size;
     if (currprefs.fastmem_size)
-        return fastmem_start + currprefs.fastmem_size;
+	return fastmem_start + currprefs.fastmem_size;
     return currprefs.chipmem_size;
 }
 
@@ -373,7 +373,7 @@ uaecptr dumpmem2 (uaecptr addr, char *out, int osize)
     int nonsafe = 0;
 
     if (osize <= (9 + cols * 5 + 1 + 2 * cols))
-        return addr;
+	return addr;
     sprintf (out, "%08lX ", addr);
     for (i = 0; i < cols; i++) {
 	uae_u8 b1, b2;
@@ -390,7 +390,7 @@ uaecptr dumpmem2 (uaecptr addr, char *out, int osize)
 	    out[9 + cols * 5 + 1 + i * 2 + 0] = '*';
 	    out[9 + cols * 5 + 1 + i * 2 + 1] = '*';
 	}
-        addr += 2;
+	addr += 2;
     }
     out[9 + cols * 5] = ' ';
     out[9 + cols * 5 + 1 + 2 * cols] = 0;
@@ -406,8 +406,8 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 {
     char line[MAX_LINEWIDTH + 1];
     for (;lines--;) {
-        addr = dumpmem2 (addr, line, sizeof(line));
-        console_out ("%s", line);
+	addr = dumpmem2 (addr, line, sizeof(line));
+	console_out ("%s", line);
 	console_out ("\n");
     }
     *nxmem = addr;
@@ -504,7 +504,7 @@ static void dump_custom_regs (int aga)
 static void dump_vectors (uaecptr addr)
 {
     int i = 0, j = 0;
-    
+
     if (addr == 0xffffffff)
 	addr = regs.vbr;
 
@@ -627,7 +627,7 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
     if (find_copper_record (addr, &hpos, &vpos)) {
 	sprintf (record, " [%03x %03x]", vpos, hpos);
     }
-    
+
     if (get_copper_address(-1) >= addr && get_copper_address(-1) <= addr + 3)
 	here = '*';
 
@@ -742,7 +742,7 @@ static int totaltrainers;
 static void clearcheater(void)
 {
     if (!trainerdata)
-        trainerdata = (struct trainerstruct*)xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
+	trainerdata = (struct trainerstruct*)xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
     memset(trainerdata, 0, sizeof (struct trainerstruct) * MAX_CHEAT_VIEW);
     totaltrainers = 0;
 }
@@ -768,11 +768,11 @@ static void listcheater(int mode, int size)
     for(i = 0; i < totaltrainers; i++) {
 	struct trainerstruct *ts = &trainerdata[i];
 	uae_u16 b;
-	
+
 	if (size) {
-	    b = get_byte(ts->addr);
+	    b = get_byte (ts->addr);
 	} else {
-	    b = get_word(ts->addr);
+	    b = get_word (ts->addr);
 	}
 	if (mode)
 	    console_out("%08.8X=%4.4X ", ts->addr, b);
@@ -795,7 +795,7 @@ static void deepcheatsearch (char **c)
     static int inconly, deconly, maxdiff;
     int addrcnt, cnt;
     char v;
-    
+
     v = toupper(**c);
 
     if(!memtmp || v == 'S') {
@@ -819,7 +819,7 @@ static void deepcheatsearch (char **c)
 	first = 1;
 	xfree(memtmp);
 	memsize = 0;
-        addr = 0xffffffff;
+	addr = 0xffffffff;
 	while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
 	    memsize += end - addr;
 	    addr = end - 1;
@@ -943,7 +943,7 @@ static void cheatsearch (char **c)
     ignore_ws (c);
     if (!more_params(c)) {
 	first = 1;
-    	console_out("search reset\n");
+	console_out("search reset\n");
 	xfree (vlist);
 	listsize = memsize;
 	vlist = (uae_u8*)xcalloc (listsize >> 3, 1);
@@ -980,7 +980,7 @@ static void cheatsearch (char **c)
     while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
 	if (addr + size < end) {
 	    for (i = 0; i < size; i++) {
-		if (get_byte(addr + i) != val >> ((size - i - 1) << 8))
+		if (get_byte (addr + i) != val >> ((size - i - 1) << 8))
 		    break;
 	    }
 	    if (i == size) {
@@ -1056,7 +1056,7 @@ static void illg_init (void)
 	    uae_u32 e = end >> 16;
 	    memset (illghdebug + s, c, e - s);
 	}
-        addr = end - 1;
+	addr = end - 1;
     }
     if (currprefs.gfxmem_size)
 	memset (illghdebug + (p96ram_start >> 16), 3, currprefs.gfxmem_size >> 16);
@@ -1195,7 +1195,7 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
     if (rwi == 2) {
 	for (i = 0; i < size; i++) {
 	    if (smc_table[addr + i].cnt < SMC_MAXHITS) {
-		smc_table[addr + i].addr = m68k_getpc(&regs);
+		smc_table[addr + i].addr = m68k_getpc (&regs);
 	    }
 	}
 	return;
@@ -1220,7 +1220,7 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 	    return; /* BRA.B */
     }
     if (hitcnt < 100) {
-        smc_table[hitaddr].cnt++;
+	smc_table[hitaddr].cnt++;
 	console_out("SMC at %08.8X - %08.8X (%d) from %08.8X\n",
 	    hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
 	if (smc_table[hitaddr].cnt >= SMC_MAXHITS)
@@ -1304,7 +1304,7 @@ static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 4, 0, &v))
-        v = debug_mem_banks[off]->lget(addr);
+	v = debug_mem_banks[off]->lget(addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
@@ -1312,7 +1312,7 @@ static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 2, 0, &v))
-        v = debug_mem_banks[off]->wget(addr);
+	v = debug_mem_banks[off]->wget(addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
@@ -1320,7 +1320,7 @@ static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 1, 0, &v))
-        v = debug_mem_banks[off]->bget(addr);
+	v = debug_mem_banks[off]->bget(addr);
     return v;
 }
 static void REGPARAM2 mmu_lput (uaecptr addr, uae_u32 v)
@@ -1355,7 +1355,7 @@ static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 4, 4, &v))
-        v = debug_mem_banks[off]->lgeti(addr);
+	v = debug_mem_banks[off]->lgeti(addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
@@ -1363,7 +1363,7 @@ static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 2, 4, &v))
-        v = debug_mem_banks[off]->wgeti(addr);
+	v = debug_mem_banks[off]->wgeti(addr);
     return v;
 }
 
@@ -1527,7 +1527,7 @@ void memwatch_dump2 (char *buf, int bufsize, int num)
     struct memwatch_node *mwn;
 
     if (buf)
-        memset(buf, 0, bufsize);
+	memset(buf, 0, bufsize);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	if ((num >= 0 && num == i) || (num < 0)) {
 	    mwn = &mwnodes[i];
@@ -1554,7 +1554,7 @@ static void memwatch_dump (int num)
 
     buf = (char*)malloc(50 * multiplier);
     if (!buf)
-        return;
+	return;
     memwatch_dump2 (buf, 50 * multiplier, num);
     f_out(stdout, "%s", buf);
     free(buf);
@@ -1740,11 +1740,11 @@ static void memory_map_dump_2 (int log)
 	    uae_u8 *caddr;
 	    char *name;
 	    char tmp[MAX_DPATH];
-	    
+
 	    name = a1->name;
 	    if (name == NULL)
 		name = "<none>";
-	    
+
 	    k = j;
 	    caddr = dump_xlate(k << 16);
 	    mirrored = caddr ? 1 : 0;
@@ -1806,27 +1806,27 @@ static char* BSTR2CSTR(uae_u8 *bstr)
 {
     char *cstr = (char*)xmalloc(bstr[0] + 1);
     if (cstr) {
-        memcpy(cstr, bstr + 1, bstr[0]);
-        cstr[bstr[0]] = 0;
+	memcpy(cstr, bstr + 1, bstr[0]);
+	cstr[bstr[0]] = 0;
     }
     return cstr;
 }
 
 static void print_task_info(uaecptr node)
 {
-    int process = get_byte(node + 8) == 13 ? 1 : 0;
+    int process = get_byte (node + 8) == 13 ? 1 : 0;
     console_out ("%08X: %08X", node, 0);
     console_out (process ? " PROCESS '%s'" : " TASK    '%s'\n", get_real_address (get_long (node + 10)));
     if (process) {
-        uaecptr cli = BPTR2APTR(get_long(node + 172));
-        int tasknum = get_long(node + 140);
-        if (cli && tasknum) {
-            uae_u8 *command_bstr = get_real_address(BPTR2APTR(get_long(cli + 16)));
-            char * command = BSTR2CSTR(command_bstr);;
-            console_out(" [%d, '%s']\n", tasknum, command);
-            xfree(command);
+	uaecptr cli = BPTR2APTR (get_long (node + 172));
+	int tasknum = get_long (node + 140);
+	if (cli && tasknum) {
+	    uae_u8 *command_bstr = get_real_address (BPTR2APTR (get_long (cli + 16)));
+	    char * command = BSTR2CSTR (command_bstr);
+	    console_out (" [%d, '%s']\n", tasknum, command);
+	    xfree (command);
 	} else {
-            console_out ("\n");
+	    console_out ("\n");
 	}
     }
 }
@@ -2207,7 +2207,7 @@ static void m68k_modify (char **inptr)
 	regs.sr = (regs.sr & ~31) | (v & 31);
 	MakeFromSR (&regs);
     } else if (!strcmp (parm, "PC")) {
-	m68k_setpc(&regs, v);
+	m68k_setpc (&regs, v);
 	fill_prefetch_slow(&regs);
     } else {
 	for (i = 0; m2cregs[i].regname; i++) {
@@ -2295,7 +2295,7 @@ static void debug_1 (void)
 		inputdevice_logging = 1 | 2;
 		if (more_params(&inptr))
 		    inputdevice_logging = readint(&inptr);
-	        console_out("input logging level %d\n", inputdevice_logging);
+		console_out("input logging level %d\n", inputdevice_logging);
 	    } else if(*inptr == 'm') {
 		memory_map_dump_2(0);
 	    } else {
@@ -2369,7 +2369,7 @@ static void debug_1 (void)
 	case 'H':
 	{
 	    int count, temp, badly;
-	    uae_u32 oldpc = m68k_getpc(&regs);
+	    uae_u32 oldpc = m68k_getpc (&regs);
 	    struct regstruct save_regs = regs;
 
 	    badly = 0;
@@ -2393,7 +2393,7 @@ static void debug_1 (void)
 	    }
 	    while (temp != lasthist) {
 		regs = history[temp];
-		m68k_setpc(&regs, history[temp].pc);
+		m68k_setpc (&regs, history[temp].pc);
 		if (badly) {
 		    m68k_dumpstate(stdout, NULL);
 		} else {
@@ -2403,7 +2403,7 @@ static void debug_1 (void)
 		    temp = 0;
 	    }
 	    regs = save_regs;
-	    m68k_setpc(&regs, oldpc);
+	    m68k_setpc (&regs, oldpc);
 	}
 	break;
 	case 'm':
@@ -2431,8 +2431,8 @@ static void debug_1 (void)
 	case 'o':
 	{
 	    if (copper_debugger(&inptr)) {
-	        debugger_active = 0;
-	        debugging = 0;
+		debugger_active = 0;
+		debugging = 0;
 		return;
 	    }
 	    break;
@@ -2470,11 +2470,11 @@ static void debug_1 (void)
 
 static void addhistory(void)
 {
-    uae_u32 pc = m68k_getpc(&regs);
+    uae_u32 pc = m68k_getpc (&regs);
     if (!notinrom())
 	return;
     history[lasthist] = regs;
-    history[lasthist].pc = m68k_getpc(&regs);
+    history[lasthist].pc = m68k_getpc (&regs);
     if (++lasthist == MAX_HIST)
 	lasthist = 0;
     if (lasthist == firsthist) {
@@ -2513,7 +2513,7 @@ void debug (void)
 
     if (!memwatch_triggered) {
 	if (do_skip) {
-	    uae_u32 pc = munge24 (m68k_getpc(&regs));
+	    uae_u32 pc = munge24 (m68k_getpc (&regs));
 	    uae_u16 opcode = (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
 	    int bp = 0;
 
@@ -2532,30 +2532,30 @@ void debug (void)
 		if ((processptr || processname) && notinrom()) {
 		    uaecptr execbase = get_long (4);
 		    uaecptr activetask = get_long (execbase + 276);
-		    int process = get_byte(activetask + 8) == 13 ? 1 : 0;
-		    char *name = (char*)get_real_address(get_long(activetask + 10));
+		    int process = get_byte (activetask + 8) == 13 ? 1 : 0;
+		    char *name = (char*)get_real_address (get_long (activetask + 10));
 		    if (process) {
-			uaecptr cli = BPTR2APTR(get_long(activetask + 172));
+			uaecptr cli = BPTR2APTR(get_long (activetask + 172));
 			uaecptr seglist = 0;
 			char *command = NULL;
 			if (cli) {
 			    if (processname) {
-				uae_u8 *command_bstr = get_real_address(BPTR2APTR(get_long(cli + 16)));
+				uae_u8 *command_bstr = get_real_address (BPTR2APTR(get_long (cli + 16)));
 				command = BSTR2CSTR(command_bstr);
 			    }
-			    seglist = BPTR2APTR(get_long(cli + 60));
+			    seglist = BPTR2APTR(get_long (cli + 60));
 			} else {
-			    seglist = BPTR2APTR(get_long(activetask + 128));
-			    seglist = BPTR2APTR(get_long(seglist + 12));
+			    seglist = BPTR2APTR(get_long (activetask + 128));
+			    seglist = BPTR2APTR(get_long (seglist + 12));
 			}
 			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && !stricmp(command, processname))))) {
 			    while (seglist) {
-				uae_u32 size = get_long(seglist - 4) - 4;
+				uae_u32 size = get_long (seglist - 4) - 4;
 				if (pc >= (seglist + 4) && pc < (seglist + size)) {
 				    bp = 1;
 				    break;
 				}
-				seglist = BPTR2APTR(get_long(seglist));
+				seglist = BPTR2APTR(get_long (seglist));
 			    }
 			}
 			xfree(command);
@@ -2635,7 +2635,7 @@ void debug (void)
 
 int notinrom (void)
 {
-    uaecptr pc = munge24(m68k_getpc(&regs));
+    uaecptr pc = munge24(m68k_getpc (&regs));
     if (pc < 0x00e00000 || pc > 0x00ffffff)
 	return 1;
     return 0;
@@ -2646,7 +2646,7 @@ const char *debuginfo (int mode)
     static char txt[100];
     uae_u32 pc = M68K_GETPC;
     sprintf (txt, "PC=%08.8X INS=%04.4X %04.4X %04.4X",
-	pc, get_word(pc), get_word(pc+2), get_word(pc+4));
+	pc, get_word (pc), get_word (pc+2), get_word (pc+4));
     return txt;
 }
 
@@ -2696,18 +2696,18 @@ void mmu_do_hit(void)
     uae_u32 pc;
 
     mmu_triggered = 0;
-    pc = m68k_getpc(&regs);
+    pc = m68k_getpc (&regs);
     p = mmu_regs + 18 * 4;
     put_long (p, pc);
     regs = mmu_backup_regs;
     regs.intmask = 7;
     regs.t0 = regs.t1 = 0;
     if (!regs.s) {
-	regs.usp = m68k_areg(&regs, 7);
+	regs.usp = m68k_areg (&regs, 7);
 	if (currprefs.cpu_model >= 68020)
-	    m68k_areg(&regs, 7) = regs.m ? regs.msp : regs.isp;
+	    m68k_areg (&regs, 7) = regs.m ? regs.msp : regs.isp;
 	else
-	    m68k_areg(&regs, 7) = regs.isp;
+	    m68k_areg (&regs, 7) = regs.isp;
 	regs.s = 1;
     }
     MakeSR (&regs);
@@ -2716,29 +2716,29 @@ void mmu_do_hit(void)
 
     if (currprefs.cpu_model > 68000) {
 	for (i = 0 ; i < 9; i++) {
-	    m68k_areg(&regs, 7) -= 4;
-	    put_long (m68k_areg(&regs, 7), 0);
+	    m68k_areg (&regs, 7) -= 4;
+	    put_long (m68k_areg (&regs, 7), 0);
 	}
-	m68k_areg(&regs, 7) -= 4;
-	put_long (m68k_areg(&regs, 7), mmu_fault_addr);
-	m68k_areg(&regs, 7) -= 2;
-	put_word (m68k_areg(&regs, 7), 0); /* WB1S */
-	m68k_areg(&regs, 7) -= 2;
-	put_word (m68k_areg(&regs, 7), 0); /* WB2S */
-	m68k_areg(&regs, 7) -= 2;
-	put_word (m68k_areg(&regs, 7), 0); /* WB3S */
-	m68k_areg(&regs, 7) -= 2;
-	put_word (m68k_areg(&regs, 7),
+	m68k_areg (&regs, 7) -= 4;
+	put_long (m68k_areg (&regs, 7), mmu_fault_addr);
+	m68k_areg (&regs, 7) -= 2;
+	put_word (m68k_areg (&regs, 7), 0); /* WB1S */
+	m68k_areg (&regs, 7) -= 2;
+	put_word (m68k_areg (&regs, 7), 0); /* WB2S */
+	m68k_areg (&regs, 7) -= 2;
+	put_word (m68k_areg (&regs, 7), 0); /* WB3S */
+	m68k_areg (&regs, 7) -= 2;
+	put_word (m68k_areg (&regs, 7),
 	    (mmu_fault_rw ? 0 : 0x100) | (mmu_fault_size << 5)); /* SSW */
-	m68k_areg(&regs, 7) -= 4;
-	put_long (m68k_areg(&regs, 7), mmu_fault_bank_addr);
-	m68k_areg(&regs, 7) -= 2;
-	put_word (m68k_areg(&regs, 7), 0x7002);
+	m68k_areg (&regs, 7) -= 4;
+	put_long (m68k_areg (&regs, 7), mmu_fault_bank_addr);
+	m68k_areg (&regs, 7) -= 2;
+	put_word (m68k_areg (&regs, 7), 0x7002);
     }
-    m68k_areg(&regs, 7) -= 4;
-    put_long (m68k_areg(&regs, 7), get_long (p - 4));
-    m68k_areg(&regs, 7) -= 2;
-    put_word (m68k_areg(&regs, 7), mmur.sr);
+    m68k_areg (&regs, 7) -= 4;
+    put_long (m68k_areg (&regs, 7), get_long (p - 4));
+    m68k_areg (&regs, 7) -= 2;
+    put_word (m68k_areg (&regs, 7), mmur.sr);
 
     set_special(&regs, SPCFLAG_END_COMPILE);
 }
@@ -2749,7 +2749,7 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rwi,
     int i;
 
     mmur = regs;
-    pc = m68k_getpc(&regs);
+    pc = m68k_getpc (&regs);
     if (mmu_logging)
 	console_out ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rwi, v, pc);
 
@@ -2789,7 +2789,7 @@ static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v)
     mn = mmunl[addr >> MMU_PAGE_SHIFT];
     if (mn == NULL)
 	return 0;
-    
+
     s = regs.s;
     while (mn) {
 	md = mn->mmubank;
@@ -2819,26 +2819,26 @@ static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v)
 			switch (size)
 			{
 			    case 4:
-			    put_long(maddr, *v);
+			    put_long (maddr, *v);
 			    break;
 			    case 2:
-			    put_word(maddr, *v);
+			    put_word (maddr, *v);
 			    break;
 			    case 1:
-			    put_byte(maddr, *v);
+			    put_byte (maddr, *v);
 			    break;
 			}
 		    } else {
 			switch (size)
 			{
 			    case 4:
-			    *v = get_long(maddr);
+			    *v = get_long (maddr);
 			    break;
 			    case 2:
-			    *v = get_word(maddr);
+			    *v = get_word (maddr);
 			    break;
 			    case 1:
-			    *v = get_byte(maddr);
+			    *v = get_byte (maddr);
 			    break;
 			}
 		    }
@@ -2897,7 +2897,7 @@ static int getmmubank(struct mmudata *snptr, uaecptr p)
 {
     snptr->flags = get_long (p);
     if (snptr->flags == 0xffffffff)
-        return 1;
+	return 1;
     snptr->addr = get_long (p + 4);
     snptr->len = get_long (p + 8);
     snptr->remap = get_long (p + 12);
@@ -2988,7 +2988,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	p += 16;
 	off = snptr->addr >> MMU_PAGE_SHIFT;
 	if (mmunl[off] == NULL) {
-	    mn = mmunl[off] = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1); 
+	    mn = mmunl[off] = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1);
 	} else {
 	    mn = mmunl[off];
 	    while (mn->next)

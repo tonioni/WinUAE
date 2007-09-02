@@ -52,7 +52,7 @@
 
 int lores_factor, lores_shift;
 int aga_mode; /* mirror of chipset_mask & CSMASK_AGA */
-int direct_rgb; 
+int direct_rgb;
 
 /* The shift factor to apply when converting between Amiga coordinates and window
    coordinates.  Zero if the resolution is the same, positive if window coordinates
@@ -237,7 +237,7 @@ STATIC_INLINE void count_frame (void)
     if (framecnt >= currprefs.gfx_framerate)
 	framecnt = 0;
     if (inhibit_frame)
-        framecnt = 1;
+	framecnt = 1;
 }
 
 int coord_native_to_amiga_x (int x)
@@ -1141,8 +1141,8 @@ static void init_aspect_maps (void)
 	free (amiga2aspect_line_map);
 
     /* At least for this array the +1 is necessary. */
-    amiga2aspect_line_map = (int*)malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
-    native2amiga_line_map = (int*)malloc (sizeof (int) * gfxvidinfo.height);
+    amiga2aspect_line_map = (int *)malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
+    native2amiga_line_map = (int *)malloc (sizeof (int) * gfxvidinfo.height);
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
@@ -1256,29 +1256,6 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
 	flush_screen (0, 0); /* vsync mode */
 }
 
-static int drawing_color_matches;
-static enum { color_match_acolors, color_match_full } color_match_type;
-
-/* Set up colors_for_drawing to the state at the beginning of the currently drawn
-   line.  Try to avoid copying color tables around whenever possible.  */
-static void adjust_drawing_colors (int ctable, int need_full)
-{
-    if (drawing_color_matches != ctable) {
-	if (need_full) {
-	    color_reg_cpy (&colors_for_drawing, curr_color_tables + ctable);
-	    color_match_type = color_match_full;
-	} else {
-	    memcpy (colors_for_drawing.acolors, curr_color_tables[ctable].acolors,
-		sizeof colors_for_drawing.acolors);
-	    color_match_type = color_match_acolors;
-	}
-	drawing_color_matches = ctable;
-    } else if (need_full && color_match_type != color_match_full) {
-	color_reg_cpy (&colors_for_drawing, &curr_color_tables[ctable]);
-	color_match_type = color_match_full;
-    }
-}
-
 /* We only save hardware registers during the hardware frame. Now, when
  * drawing the frame, we expand the data into a slightly more useful
  * form. */
@@ -1318,31 +1295,54 @@ static void pfield_expand_dp_bplcon (void)
     brdsprt = !brdblank && (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
 #endif
 }
-static void pfield_expand_dp_bplcon2(int regno, int v)
+static void pfield_expand_dp_bplcon2 (int regno, int v)
 {
     regno -= 0x1000;
     switch (regno)
     {
-        case 0x100:
-        dp_for_drawing->bplcon0 = v;
-        dp_for_drawing->bplres = GET_RES(v);
-        dp_for_drawing->nr_planes = GET_PLANES(v);
+	case 0x100:
+	dp_for_drawing->bplcon0 = v;
+	dp_for_drawing->bplres = GET_RES(v);
+	dp_for_drawing->nr_planes = GET_PLANES(v);
 	dp_for_drawing->ham_seen = !! (v & 0x800);
-        break;
-        case 0x104:
-        dp_for_drawing->bplcon2 = v;
-        break;
+	break;
+	case 0x104:
+	dp_for_drawing->bplcon2 = v;
+	break;
 #ifdef AGA
 	case 0x106:
-        dp_for_drawing->bplcon3 = v;
-        break;
-        case 0x108:
-        dp_for_drawing->bplcon4 = v;
-        break;
+	dp_for_drawing->bplcon3 = v;
+	break;
+	case 0x108:
+	dp_for_drawing->bplcon4 = v;
+	break;
 #endif
     }
-    pfield_expand_dp_bplcon();
+    pfield_expand_dp_bplcon ();
     res_shift = lores_shift - bplres;
+}
+
+static int drawing_color_matches;
+static enum { color_match_acolors, color_match_full } color_match_type;
+
+/* Set up colors_for_drawing to the state at the beginning of the currently drawn
+   line.  Try to avoid copying color tables around whenever possible.  */
+static void adjust_drawing_colors (int ctable, int need_full)
+{
+    if (drawing_color_matches != ctable) {
+	if (need_full) {
+	    color_reg_cpy (&colors_for_drawing, curr_color_tables + ctable);
+	    color_match_type = color_match_full;
+	} else {
+	    memcpy (colors_for_drawing.acolors, curr_color_tables[ctable].acolors,
+		sizeof colors_for_drawing.acolors);
+	    color_match_type = color_match_acolors;
+	}
+	drawing_color_matches = ctable;
+    } else if (need_full && color_match_type != color_match_full) {
+	color_reg_cpy (&colors_for_drawing, &curr_color_tables[ctable]);
+	color_match_type = color_match_full;
+    }
 }
 
 STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_func worker_pfield)
@@ -1385,7 +1385,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 	}
 	if (i != dip_for_drawing->last_color_change) {
 	    if (regno >= 0x1000) {
-		pfield_expand_dp_bplcon2(regno, value);
+		pfield_expand_dp_bplcon2 (regno, value);
 	    } else {
 		color_reg_set (&colors_for_drawing, regno, value);
 		colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -1399,7 +1399,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 /* Move color changes in horizontal cycles 0 to HBLANK_OFFSET - 1 to previous line.
  * Cycles 0 to HBLANK_OFFSET are visible in right border on real Amigas.
  */
-static void mungedip(int lineno, int next)
+static void mungedip (int lineno, int next)
 {
     int i = dip_for_drawing->last_color_change;
     struct draw_info *dip_for_drawing_next = curr_drawinfo + (lineno + next);
@@ -1437,7 +1437,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
     dp_for_drawing = line_decisions + lineno;
     dip_for_drawing = curr_drawinfo + lineno;
-    mungedip(lineno, (dp_for_drawing->bplcon0 & 4) ? 2 : 1);
+    mungedip (lineno, (dp_for_drawing->bplcon0 & 4) ? 2 : 1);
     switch (linestate[lineno]) {
     case LINE_REMEMBERED_AS_PREVIOUS:
 	if (!warned)
@@ -1520,21 +1520,19 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
 	    weird_bitplane_fix ();
 
-	{
-	    if (dip_for_drawing->nr_sprites) {
-		int i;
+	if (dip_for_drawing->nr_sprites) {
+	    int i;
 #ifdef AGA
-		if (brdsprt)
-		    clear_bitplane_border_aga ();
+	    if (brdsprt)
+		clear_bitplane_border_aga ();
 #endif
-		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
+	    for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 #ifdef AGA
-		    if (currprefs.chipset_mask & CSMASK_AGA)
-			draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
-		    else
+		if (currprefs.chipset_mask & CSMASK_AGA)
+		    draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
+		else
 #endif
-			draw_sprites_ecs (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
-		}
+		    draw_sprites_ecs (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
 	    }
 	}
 
@@ -1726,7 +1724,7 @@ static void init_drawing_frame (void)
 			changed_prefs.gfx_filter_horiz_zoom_mult = 1000 / (changed_prefs.gfx_lores + 1);
 			changed_prefs.gfx_filter_vert_zoom_mult = (changed_prefs.gfx_linedbl + 1) * 500;
 		    } else {
-    			*dst = *src;
+			*dst = *src;
 		    }
 		    break;
 		}
@@ -1830,8 +1828,7 @@ STATIC_INLINE void putpixel (int x, xcolnr c8)
     if (x <= 0)
 	return;
 
-    switch(gfxvidinfo.pixbytes)
-    {
+    switch (gfxvidinfo.pixbytes) {
     case 1:
 	xlinebuffer[x] = (uae_u8)c8;
 	break;
@@ -2020,7 +2017,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
     xlinebuffer = gfxvidinfo.linemem;
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[line];
-    
+
     p = lightpen_cursor + y * LIGHTPEN_WIDTH;
     for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 	int xx = x + i - LIGHTPEN_WIDTH / 2;
@@ -2064,8 +2061,8 @@ static void lightpen_update (void)
 	lightpen_cy = maxvpos_max - 1;
 
     for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
-        int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
-        if (line >= 0 || line < max_ypos_thisframe) {
+	int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
+	if (line >= 0 || line < max_ypos_thisframe) {
 	    draw_lightpen_cursor(lightpen_x, i, line, lightpen_cx > 0);
 	    flush_line (line);
 	}
@@ -2378,7 +2375,7 @@ void reset_drawing (void)
 
 void drawing_init (void)
 {
-    gen_pfield_tables();
+    gen_pfield_tables ();
 
     uae_sem_init (&gui_sem, 0, 1);
 #ifdef PICASSO96

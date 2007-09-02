@@ -88,7 +88,7 @@ void sleep_millis (int ms)
 	Sleep (ms);
     } else {
 	WaitForSingleObject (timehandle, ms);
-        ResetEvent (timehandle);
+	ResetEvent (timehandle);
 	timeKillEvent (TimerEvent);
     }
 }
@@ -113,9 +113,9 @@ static uae_u64 win32_read_processor_time (void)
     uae_u32 foo, bar;
      __asm
     {
-        rdtsc
-        mov foo, eax
-        mov bar, edx
+	rdtsc
+	mov foo, eax
+	mov bar, edx
     }
     return ((uae_u64)bar << 32) | foo;
 }
@@ -130,12 +130,12 @@ static int figure_processor_speed (void)
     int i, ratecnt = 6;
     LARGE_INTEGER freq;
     int qpc_avail = 0;
-    int mmx = 0; 
+    int mmx = 0;
 
     rpt_available = 1;
     __try
     {
-	__asm 
+	__asm
 	{
 	    rdtsc
 	}
@@ -145,7 +145,7 @@ static int figure_processor_speed (void)
     }
     __try
     {
-	__asm 
+	__asm
 	{
 	    mov eax,1
 	    cpuid
@@ -159,7 +159,7 @@ static int figure_processor_speed (void)
 
     if (QueryPerformanceFrequency(&freq)) {
 	qpc_avail = 1;
-	write_log("CLOCKFREQ: QPF %.2fMHz\n", freq.QuadPart / 1000000.0);
+	write_log ("CLOCKFREQ: QPF %.2fMHz\n", freq.QuadPart / 1000000.0);
 	qpfrate = freq.QuadPart;
 	 /* we don't want 32-bit overflow */
 	if (qpfrate > 100000000) {
@@ -167,7 +167,7 @@ static int figure_processor_speed (void)
 	    qpc_avail = -1;
 	}
     } else {
-	write_log("CLOCKREQ: QPF not supported\n");
+	write_log ("CLOCKREQ: QPF not supported\n");
     }
 
     if (!rpt_available && !qpc_avail)
@@ -190,7 +190,7 @@ static int figure_processor_speed (void)
 	    clockrate = win32_read_processor_time();
 	    sleep_millis (500);
 	    clockrate = (win32_read_processor_time() - clockrate) * 2;
-	    write_log("CLOCKFREQ: RDTSC %.2fMHz (busy) / %.2fMHz (idle)\n",
+	    write_log ("CLOCKFREQ: RDTSC %.2fMHz (busy) / %.2fMHz (idle)\n",
 		clockrate / 1000000.0, clockrateidle / 1000000.0);
 	    clkdiv = (double)clockrate / (double)clockrateidle;
 	    clockrate >>= 6;
@@ -205,7 +205,7 @@ static int figure_processor_speed (void)
 	    clockrate = qpfrate;
 	    clockrate1000 = clockrate / 1000.0;
 	    if (dummythread_die < 0) {
-	        dummythread_die = 0;
+		dummythread_die = 0;
 		_beginthread(&dummythread, 0, 0);
 	    }
 	    if (!qpc_avail)
@@ -225,7 +225,7 @@ static int figure_processor_speed (void)
 		write_log ("%1.2fms ", rate1 / clockrate1000);
 		ratea1 += rate1;
 	    }
-	    write_log("\n");
+	    write_log ("\n");
 	    timeend ();
 	    sleep_millis (50);
 	}
@@ -239,12 +239,12 @@ static int figure_processor_speed (void)
 	    write_log ("%1.2fms ", rate2 / clockrate1000);
 	    ratea2 += rate2;
 	}
-	write_log("\n");
+	write_log ("\n");
     }
 
     SetThreadPriority ( GetCurrentThread(), THREAD_PRIORITY_NORMAL);
     dummythread_die = 1;
-   
+
     if (clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) {
 	limit = 2.5;
 	if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
@@ -402,7 +402,7 @@ void logging_init( void )
     if (first == 1) {
 	if (debugfile)
 	    fclose (debugfile);
-        debugfile = 0;
+	debugfile = 0;
     }
     if( currprefs.win32_logfile ) {
 	sprintf( debugfilename, "%s\\winuaelog.txt", start_path );
@@ -466,13 +466,13 @@ int _stdcall WinMain (HINSTANCE hInstance, HINSTANCE prev, LPSTR cmd, int show)
 {
     char **argv, *posn;
     int argc;
- 
+
     hInst = hInstance;
     argc = __argc; argv = __argv;
     start_path = xmalloc( MAX_DPATH );
     GetModuleFileName( NULL, start_path, MAX_DPATH );
     if( ( posn = strrchr( start_path, '\\' ) ) )
-        *posn = 0;
+	*posn = 0;
     real_main (argc, argv);
     if (mm_timerres && timermode == 0)
 	timeend ();

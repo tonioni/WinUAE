@@ -10,7 +10,7 @@
 
 /* ------------------------------------------------------------------------ */
 static short    child[TREESIZE], parent[TREESIZE], block[TREESIZE], edge[TREESIZE], stock[TREESIZE],
-                s_node[TREESIZE / 2];	/* Changed N.Watazaki */
+		s_node[TREESIZE / 2];	/* Changed N.Watazaki */
 /*	node[..] -> s_node[..] */
 
 static unsigned short freq[TREESIZE];

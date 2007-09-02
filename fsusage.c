@@ -55,7 +55,7 @@ int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
     ULARGE_INTEGER FreeBytesAvailable, TotalNumberOfBytes, TotalNumberOfFreeBytes;
 
     if (!GetFullPathName (path, sizeof buf2, buf2, NULL)) {
-	write_log("GetFullPathName() failed err=%d\n", GetLastError());
+	write_log ("GetFullPathName() failed err=%d\n", GetLastError());
 	return -1;
     }
 
@@ -75,7 +75,7 @@ int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
 
     if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes))
     {
-	write_log("GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
+	write_log ("GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
 	return -1;
     }
 

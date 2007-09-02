@@ -80,7 +80,7 @@ struct CapsTrackInfo {
 	UDWORD sectorcnt;  // available sectors
 	UDWORD sectorsize; // sector size
 	UDWORD trackcnt;   // track variant count
-	PUBYTE trackbuf;   // track buffer memory 
+	PUBYTE trackbuf;   // track buffer memory
 	UDWORD tracklen;   // track buffer memory length
 	PUBYTE trackdata[CAPS_MTRS]; // track data pointer if available
 	UDWORD tracksize[CAPS_MTRS]; // track data size
@@ -97,7 +97,7 @@ struct CapsTrackInfoT1 {
 	UDWORD head;       // head#
 	UDWORD sectorcnt;  // available sectors
 	UDWORD sectorsize; // sector size
-	PUBYTE trackbuf;   // track buffer memory 
+	PUBYTE trackbuf;   // track buffer memory
 	UDWORD tracklen;   // track buffer memory length
 	UDWORD timelen;    // timing buffer length
 	PUDWORD timebuf;   // timing buffer

@@ -65,7 +65,7 @@ static struct uniq_head *find_uniq (uniq_list *a, uae_u32 uniq)
     while (b && b->uniq != uniq)
 	b = b->next;
     if (!b)
-	write_log("Couldn't find structure. Bad\n");
+	write_log ("Couldn't find structure. Bad\n");
     return b;
 }
 
@@ -76,7 +76,7 @@ static struct uniq_head *find_and_rem_uniq (uniq_list *a, uae_u32 uniq)
 	b = &(*b)->next;
     c = *b;
     if (!c)
-	write_log("Couldn't find structure. Bad\n");
+	write_log ("Couldn't find structure. Bad\n");
     else
 	*b = c->next;
     return c;
@@ -85,7 +85,7 @@ static struct uniq_head *find_and_rem_uniq (uniq_list *a, uae_u32 uniq)
 static void add_uniq (uniq_list *a, struct uniq_head *item, uaecptr amem)
 {
     item->uniq = a->uniq++;
-    put_long(amem, item->uniq);
+    put_long (amem, item->uniq);
     if (a->uniq == 0)
 	a->uniq++;
     item->next = a->head;
@@ -103,18 +103,18 @@ static void do_LockLayer(uaecptr layer)
 {
 #if 0 /* Later.. */
     uaecptr sigsem = layer + 72;
-    m68k_areg(regs, 0) = sigsem;
-    CallLib(get_long(4), -564);
+    m68k_areg (regs, 0) = sigsem;
+    CallLib (get_long (4), -564);
 #else
-    m68k_areg(regs, 1) = layer;
-    CallLib(layersbase, -96);
+    m68k_areg (regs, 1) = layer;
+    CallLib (layersbase, -96);
 #endif
 }
 
 static void do_UnlockLayer(uaecptr layer)
 {
-    m68k_areg(regs, 0) = layer;
-    CallLib(layersbase, -102);
+    m68k_areg (regs, 0) = layer;
+    CallLib (layersbase, -102);
 }
 
 static uae_u32 gfxlibname, layerslibname;
@@ -125,10 +125,10 @@ struct Rectangle {
 
 static int GFX_PointInRectangle(uaecptr rect, int x, int y)
 {
-    uae_s16 minx = get_word(rect);
-    uae_s16 miny = get_word(rect+2);
-    uae_s16 maxx = get_word(rect+4);
-    uae_s16 maxy = get_word(rect+6);
+    uae_s16 minx = get_word (rect);
+    uae_s16 miny = get_word (rect+2);
+    uae_s16 maxx = get_word (rect+4);
+    uae_s16 maxy = get_word (rect+6);
 
     if (x < minx || x > maxx || y < miny || y > maxy)
 	return 0;
@@ -143,10 +143,10 @@ static int GFX_RectContainsRect(struct Rectangle *r1, struct Rectangle *r2)
 
 static struct Rectangle *GFX_RectFA(struct Rectangle *rp, uaecptr rect)
 {
-    rp->MinX = (uae_s16)get_word(rect);
-    rp->MinY = (uae_s16)get_word(rect+2);
-    rp->MaxX = (uae_s16)get_word(rect+4);
-    rp->MaxY = (uae_s16)get_word(rect+6);
+    rp->MinX = (uae_s16)get_word (rect);
+    rp->MinY = (uae_s16)get_word (rect+2);
+    rp->MaxX = (uae_s16)get_word (rect+4);
+    rp->MaxY = (uae_s16)get_word (rect+6);
     return rp;
 }
 
@@ -157,10 +157,10 @@ static int GFX_Bitmap_WritePixel(uaecptr bitmap, int x, int y, uaecptr rp)
     unsigned int rows = get_word (bitmap + 2);
     uae_u16 mask;
 
-    uae_u8 planemask = get_byte(rp + 24);
-    uae_u8 fgpen = get_byte(rp + 25);
-    uae_u8 bgpen = get_byte(rp + 26);
-    uae_u8 drmd = get_byte(rp + 28);
+    uae_u8 planemask = get_byte (rp + 24);
+    uae_u8 fgpen = get_byte (rp + 25);
+    uae_u8 bgpen = get_byte (rp + 26);
+    uae_u8 drmd = get_byte (rp + 28);
     uae_u8 pen = drmd & 4 ? bgpen : fgpen;
 
     if (x < 0 || y < 0 || x >= 8*bpr || y >= rows)
@@ -175,8 +175,8 @@ static int GFX_Bitmap_WritePixel(uaecptr bitmap, int x, int y, uaecptr rp)
 	if ((planemask & (1 << i)) == 0)
 	    continue;
 
-	planeptr = get_long(bitmap + 8 + i*4);
-	data = get_word(planeptr + offs);
+	planeptr = get_long (bitmap + 8 + i*4);
+	data = get_word (planeptr + offs);
 
 	mask = 0x8000 >> (x & 15);
 
@@ -188,7 +188,7 @@ static int GFX_Bitmap_WritePixel(uaecptr bitmap, int x, int y, uaecptr rp)
 	    if ((pen & (1 << i)) != 0)
 		data |= mask;
 	}
-	put_word(planeptr + offs, data);
+	put_word (planeptr + offs, data);
     }
     return 0;
 }
@@ -196,8 +196,8 @@ static int GFX_Bitmap_WritePixel(uaecptr bitmap, int x, int y, uaecptr rp)
 int GFX_WritePixel(uaecptr rp, int x, int y)
 {
     int v;
-    uaecptr layer = get_long(rp);
-    uaecptr bitmap = get_long(rp + 4);
+    uaecptr layer = get_long (rp);
+    uaecptr bitmap = get_long (rp + 4);
     uaecptr cliprect;
     int x2, y2;
 
@@ -218,17 +218,17 @@ int GFX_WritePixel(uaecptr rp, int x, int y)
      * Not good.
      */
 
-    x2 = x + (uae_s16)get_word(layer + 16);
-    y2 = y + (uae_s16)get_word(layer + 18);
+    x2 = x + (uae_s16)get_word (layer + 16);
+    y2 = y + (uae_s16)get_word (layer + 18);
 
     if (!GFX_PointInRectangle (layer + 16, x2, y2)) {
 	do_UnlockLayer(layer);
 	return -1;
     }
     /* Find the right ClipRect */
-    cliprect = get_long(layer + 8);
+    cliprect = get_long (layer + 8);
     while (cliprect != 0 && !GFX_PointInRectangle (cliprect + 16, x2, y2))
-	cliprect = get_long(cliprect);
+	cliprect = get_long (cliprect);
     if (cliprect == 0) {
 	/* Don't complain: The "Dots" demo does this all the time. I
 	 * suppose if we can't find a ClipRect, we aren't supposed to draw
@@ -236,29 +236,29 @@ int GFX_WritePixel(uaecptr rp, int x, int y)
 	 */
 	/*write_log ("Weirdness in WritePixel\n");*/
 	v = -1;
-    } else if (get_long(cliprect + 8) == 0) {
+    } else if (get_long (cliprect + 8) == 0) {
 	v = GFX_Bitmap_WritePixel(bitmap, x2, y2, rp);
-    } else if (get_long(cliprect + 12) == 0) {
+    } else if (get_long (cliprect + 12) == 0) {
 	/* I don't really know what to do here... */
 	v = 0;
     } else {
 	/* This appears to be normal for smart refresh layers which are obscured */
-	v = GFX_Bitmap_WritePixel (get_long(cliprect + 12), x2 - (uae_s16)get_word(cliprect + 16),
-				   y2 - (uae_s16)get_word(cliprect + 18), rp);
+	v = GFX_Bitmap_WritePixel (get_long (cliprect + 12), x2 - (uae_s16)get_word (cliprect + 16),
+				   y2 - (uae_s16)get_word (cliprect + 18), rp);
     }
     do_UnlockLayer(layer);
     return v;
 }
 
 
-static uae_u32 gfxl_WritePixel(void) { return GFX_WritePixel(m68k_areg(regs, 1), (uae_s16)m68k_dreg(regs, 0), (uae_s16)m68k_dreg(regs, 1)); }
+static uae_u32 gfxl_WritePixel(void) { return GFX_WritePixel(m68k_areg (regs, 1), (uae_s16)m68k_dreg (regs, 0), (uae_s16)m68k_dreg (regs, 1)); }
 
 static uae_u32 gfxl_BltClear(void)
 {
-    uaecptr mem=m68k_areg(regs, 1);
-    uae_u8 *mptr = chipmem_bank.xlateaddr(m68k_areg(regs, 1));
-    uae_u32 count=m68k_dreg(regs, 0);
-    uae_u32 flags=m68k_dreg(regs, 1);
+    uaecptr mem=m68k_areg (regs, 1);
+    uae_u8 *mptr = chipmem_bank.xlateaddr(m68k_areg (regs, 1));
+    uae_u32 count=m68k_dreg (regs, 0);
+    uae_u32 flags=m68k_dreg (regs, 1);
     unsigned int i;
     uae_u32 pattern;
 
@@ -293,26 +293,26 @@ static uae_u32 gfxl_BltClear(void)
 
 static uae_u32 gfxl_BltBitmap(void)
 {
-    uaecptr srcbitmap = m68k_areg(regs, 0), dstbitmap = m68k_areg(regs, 1);
-    int srcx = (uae_s16)m68k_dreg(regs, 0), srcy = (uae_s16)m68k_dreg(regs, 1);
-    int dstx = (uae_s16)m68k_dreg(regs, 2), dsty = (uae_s16)m68k_dreg(regs, 3);
-    int sizex = (uae_s16)m68k_dreg(regs, 4), sizey = (uae_s16)m68k_dreg(regs, 5);
-    uae_u8 minterm = (uae_u8)m68k_dreg(regs, 6), mask = m68k_dreg(regs, 7);
+    uaecptr srcbitmap = m68k_areg (regs, 0), dstbitmap = m68k_areg (regs, 1);
+    int srcx = (uae_s16)m68k_dreg (regs, 0), srcy = (uae_s16)m68k_dreg (regs, 1);
+    int dstx = (uae_s16)m68k_dreg (regs, 2), dsty = (uae_s16)m68k_dreg (regs, 3);
+    int sizex = (uae_s16)m68k_dreg (regs, 4), sizey = (uae_s16)m68k_dreg (regs, 5);
+    uae_u8 minterm = (uae_u8)m68k_dreg (regs, 6), mask = m68k_dreg (regs, 7);
     return 0; /* sam: a return was missing here ! */
 }
 
 static uaecptr amiga_malloc(int len)
 {
-    m68k_dreg(regs, 0) = len;
-    m68k_dreg(regs, 1) = 1; /* MEMF_PUBLIC */
-    return CallLib(get_long(4), -198); /* AllocMem */
+    m68k_dreg (regs, 0) = len;
+    m68k_dreg (regs, 1) = 1; /* MEMF_PUBLIC */
+    return CallLib (get_long (4), -198); /* AllocMem */
 }
 
 static void amiga_free(uaecptr addr, int len)
 {
-    m68k_areg(regs, 1) = addr;
-    m68k_dreg(regs, 0) = len;
-    CallLib(get_long(4), -210); /* FreeMem */
+    m68k_areg (regs, 1) = addr;
+    m68k_dreg (regs, 0) = len;
+    CallLib (get_long (4), -210); /* FreeMem */
 }
 
 /*
@@ -636,21 +636,21 @@ static int copy_rects (uaecptr region, struct RectList *rl)
     uaecptr regionrect;
     int numrects = 0;
     struct Rectangle b;
-    regionrect = get_long(region+8);
-    b.MinX = get_word(region);
-    b.MinY = get_word(region+2);
-    b.MaxX = get_word(region+4);
-    b.MaxY = get_word(region+6);
+    regionrect = get_long (region+8);
+    b.MinX = get_word (region);
+    b.MinY = get_word (region+2);
+    b.MaxX = get_word (region+4);
+    b.MaxY = get_word (region+6);
 
     while (regionrect != 0) {
 	struct Rectangle tmpr;
 
-	tmpr.MinX = (uae_s16)get_word(regionrect+8)  + b.MinX;
-	tmpr.MinY = (uae_s16)get_word(regionrect+10) + b.MinY;
-	tmpr.MaxX = (uae_s16)get_word(regionrect+12) + b.MinX;
-	tmpr.MaxY = (uae_s16)get_word(regionrect+14) + b.MinY;
+	tmpr.MinX = (uae_s16)get_word (regionrect+8)  + b.MinX;
+	tmpr.MinY = (uae_s16)get_word (regionrect+10) + b.MinY;
+	tmpr.MaxX = (uae_s16)get_word (regionrect+12) + b.MinX;
+	tmpr.MaxY = (uae_s16)get_word (regionrect+14) + b.MinY;
 	add_rect(rl, tmpr);
-	regionrect = get_long(regionrect);
+	regionrect = get_long (regionrect);
 	numrects++;
     }
     return numrects;
@@ -1010,16 +1010,16 @@ static uae_u32 gfxl_perform_regionop(regionop op, int with_rect)
 
     if (with_rect) {
 	struct Rectangle tmpr;
-	reg2 = m68k_areg(regs, 0);
+	reg2 = m68k_areg (regs, 0);
 	numrects2 = copy_rects(reg2, &rl2);
-	tmpr.MinX = get_word(m68k_areg(regs, 1));
-	tmpr.MinY = get_word(m68k_areg(regs, 1) + 2);
-	tmpr.MaxX = get_word(m68k_areg(regs, 1) + 4);
-	tmpr.MaxY = get_word(m68k_areg(regs, 1) + 6);
+	tmpr.MinX = get_word (m68k_areg (regs, 1));
+	tmpr.MinY = get_word (m68k_areg (regs, 1) + 2);
+	tmpr.MaxX = get_word (m68k_areg (regs, 1) + 4);
+	tmpr.MaxY = get_word (m68k_areg (regs, 1) + 6);
 	add_rect(&rl1, tmpr);
     } else {
-	reg1 = m68k_areg(regs, 0);
-	reg2 = m68k_areg(regs, 1);
+	reg1 = m68k_areg (regs, 0);
+	reg2 = m68k_areg (regs, 1);
 
 	copy_rects(reg1, &rl1);
 	numrects2 = copy_rects(reg2, &rl2);
@@ -1039,43 +1039,43 @@ static uae_u32 gfxl_perform_regionop(regionop op, int with_rect)
     rpp = reg2 + 8;
     if (rl3.count < numrects2) {
 	while (numrects2-- != rl3.count) {
-	    tmp = get_long(rpp);
-	    put_long(rpp, get_long(tmp));
+	    tmp = get_long (rpp);
+	    put_long (rpp, get_long (tmp));
 	    amiga_free(tmp, 16);
 	}
 	if (rl3.count > 0)
-	    put_long(get_long(rpp) + 4, rpp);
+	    put_long (get_long (rpp) + 4, rpp);
     } else if (rl3.count > numrects2) {
 	while(numrects2++ != rl3.count) {
-	    uaecptr prev = get_long(rpp);
+	    uaecptr prev = get_long (rpp);
 	    tmp = amiga_malloc(16);
 	    if (tmp == 0)
 		goto done;
-	    put_long(tmp, prev);
-	    put_long(tmp + 4, rpp);
+	    put_long (tmp, prev);
+	    put_long (tmp + 4, rpp);
 	    if (prev != 0)
-		put_long(prev + 4, tmp);
-	    put_long(rpp, tmp);
+		put_long (prev + 4, tmp);
+	    put_long (rpp, tmp);
 	}
     }
 
     if (rl3.count > 0) {
 	rpp = reg2 + 8;
 	for (i = 0; i < rl3.count; i++) {
-	    uaecptr rr = get_long(rpp);
-	    put_word(rr+8, rl3.rects[i].MinX - rl3.bounds.MinX);
-	    put_word(rr+10, rl3.rects[i].MinY - rl3.bounds.MinY);
-	    put_word(rr+12, rl3.rects[i].MaxX - rl3.bounds.MinX);
-	    put_word(rr+14, rl3.rects[i].MaxY - rl3.bounds.MinY);
+	    uaecptr rr = get_long (rpp);
+	    put_word (rr+8, rl3.rects[i].MinX - rl3.bounds.MinX);
+	    put_word (rr+10, rl3.rects[i].MinY - rl3.bounds.MinY);
+	    put_word (rr+12, rl3.rects[i].MaxX - rl3.bounds.MinX);
+	    put_word (rr+14, rl3.rects[i].MaxY - rl3.bounds.MinY);
 	    rpp = rr;
 	}
-	if (get_long(rpp) != 0)
+	if (get_long (rpp) != 0)
 	    write_log ("BUG\n");
     }
-    put_word(reg2+0, rl3.bounds.MinX);
-    put_word(reg2+2, rl3.bounds.MinY);
-    put_word(reg2+4, rl3.bounds.MaxX);
-    put_word(reg2+6, rl3.bounds.MaxY);
+    put_word (reg2+0, rl3.bounds.MinX);
+    put_word (reg2+2, rl3.bounds.MinY);
+    put_word (reg2+4, rl3.bounds.MaxX);
+    put_word (reg2+6, rl3.bounds.MaxY);
     retval = 1;
 
     done:
@@ -1124,42 +1124,42 @@ static uae_u32 LY_TryLockLayer(uaecptr layer)
 {
     uaecptr sigsem = layer + 72;
 
-    m68k_areg(regs, 0) = sigsem;
-    return CallLib(get_long(4), -576);
+    m68k_areg (regs, 0) = sigsem;
+    return CallLib (get_long (4), -576);
 }
 
 static void LY_LockLayer(uaecptr layer)
 {
     uaecptr sigsem = layer + 72;
 
-    m68k_areg(regs, 0) = sigsem;
-    CallLib(get_long(4), -564);
+    m68k_areg (regs, 0) = sigsem;
+    CallLib (get_long (4), -564);
 }
 
 static void LY_UnlockLayer(uaecptr layer)
 {
     uaecptr sigsem = layer + 72;
 
-    m68k_areg(regs, 0) = sigsem;
-    CallLib(get_long(4), -570);
+    m68k_areg (regs, 0) = sigsem;
+    CallLib (get_long (4), -570);
 }
 
 static void LY_LockLayerInfo(uaecptr li)
 {
     uaecptr sigsem = li + 24;
 
-    m68k_areg(regs, 0) = sigsem;
-    CallLib(get_long(4), -564);
-    put_byte(li+91, get_byte(li+91)+1);
+    m68k_areg (regs, 0) = sigsem;
+    CallLib (get_long (4), -564);
+    put_byte (li+91, get_byte (li+91)+1);
 }
 
 static void LY_UnlockLayerInfo(uaecptr li)
 {
     uaecptr sigsem = li + 24;
 
-    put_byte(li+91, get_byte(li+91)-1);
-    m68k_areg(regs, 0) = sigsem;
-    CallLib(get_long(4), -570);
+    put_byte (li+91, get_byte (li+91)-1);
+    m68k_areg (regs, 0) = sigsem;
+    CallLib (get_long (4), -570);
 }
 
 static void LY_LockLayers(uaecptr li)
@@ -1168,7 +1168,7 @@ static void LY_LockLayers(uaecptr li)
     LY_LockLayerInfo(li);
     while (l != 0) {
 	LY_LockLayer(l);
-	l = get_long(l);
+	l = get_long (l);
     }
     LY_UnlockLayerInfo(li);
 }
@@ -1179,7 +1179,7 @@ static void LY_UnlockLayers(uaecptr li)
     LY_LockLayerInfo(li);
     while (l != 0) {
 	LY_UnlockLayer(l);
-	l = get_long(l);
+	l = get_long (l);
     }
     LY_UnlockLayerInfo(li);
 }
@@ -1214,12 +1214,12 @@ static uniq_list MyLayerInfo_list = UNIQ_INIT;
 
 static void LY_InitLayers(uaecptr li)
 {
-    memset (get_real_address(li), 0, 92);
-    put_long(li + 0, 0); /* top layer */
-    put_long(li+84, 0); /* uniq: */
-    m68k_areg(regs, 0) = li + 24; CallLib(get_long(4), -558); /* InitSemaphore() */
-    put_word(li+88, 0); /* flags (???) */
-    put_byte(li+89, 0); /* fatten_count */
+    memset (get_real_address (li), 0, 92);
+    put_long (li + 0, 0); /* top layer */
+    put_long (li+84, 0); /* uniq: */
+    m68k_areg (regs, 0) = li + 24; CallLib (get_long (4), -558); /* InitSemaphore() */
+    put_word (li+88, 0); /* flags (???) */
+    put_byte (li+89, 0); /* fatten_count */
     /* @@@ How big can I assume the structure? What's all this 1.0/1.1 cruft? */
 }
 
@@ -1241,7 +1241,7 @@ static void LY_ThinLayerInfo(uaecptr li)
     int fatten_count = get_byte (li + 89)-1;
     put_byte (li + 89, fatten_count);
     if (fatten_count == 0) {
-	struct MyLayerInfo *mli = (struct MyLayerInfo *)find_and_rem_uniq(&MyLayerInfo_list, get_long(li+84));
+	struct MyLayerInfo *mli = (struct MyLayerInfo *)find_and_rem_uniq(&MyLayerInfo_list, get_long (li+84));
 	if (mli)
 	    free(mli);
     }
@@ -1270,7 +1270,7 @@ static void build_cliprects (struct MyLayer *l)
     uaecptr layer = l->amigaos_layer;
     uaecptr cr = layer + 8;
     uaecptr prev = 0;
-    uae_u16 flags = get_word(layer + 30);
+    uae_u16 flags = get_word (layer + 30);
     int i;
 
     if ((flags & LAYER_CR_CHANGED) == 0)
@@ -1292,28 +1292,28 @@ static void propagate_clueless_redo (struct MyLayerInfo *mli)
 {
     /* For all CLUELESS layers, set the REDO bit for all layers below it that overlap it
      * and delete the data associated with them. */
-    uaecptr current_l = get_long(mli->amigaos_linfo);
+    uaecptr current_l = get_long (mli->amigaos_linfo);
     while (current_l) {
-	struct MyLayer *l = (struct MyLayer *)find_uniq(&mli->layer_list, get_long(current_l + 24));
-	if ((get_word(l->amigaos_layer + 32) & LAYER_CLUELESS) != 0) {
-	    uaecptr next_l = get_long(current_l);
-	    put_word(l->amigaos_layer + 32, get_word(l->amigaos_layer + 32) | LAYER_REDO);
+	struct MyLayer *l = (struct MyLayer *)find_uniq(&mli->layer_list, get_long (current_l + 24));
+	if ((get_word (l->amigaos_layer + 32) & LAYER_CLUELESS) != 0) {
+	    uaecptr next_l = get_long (current_l);
+	    put_word (l->amigaos_layer + 32, get_word (l->amigaos_layer + 32) | LAYER_REDO);
 	    while (next_l) {
-		struct MyLayer *l2 = (struct MyLayer *)find_uniq(&mli->layer_list, get_long(next_l + 24));
-		uae_u16 flags = get_word(l2->amigaos_layer + 32);
+		struct MyLayer *l2 = (struct MyLayer *)find_uniq(&mli->layer_list, get_long (next_l + 24));
+		uae_u16 flags = get_word (l2->amigaos_layer + 32);
 		if (l2->bounds.MinX <= l->bounds.MaxX && l->bounds.MinX <= l2->bounds.MaxX
 		    && l2->bounds.MinY <= l->bounds.MaxY && l->bounds.MinY <= l2->bounds.MaxY)
-		    put_word(l2->amigaos_layer + 32, flags | LAYER_REDO);
+		    put_word (l2->amigaos_layer + 32, flags | LAYER_REDO);
 		if ((flags & (LAYER_REDO|LAYER_CLUELESS)) == 0) {
 		    free_rectlist(&l->obscured);
 		    free_rectlist(&l->visible);
 		    free_bandlist(&l->big_bands);
 		    free_bandlist(&l->small_bands);
 		}
-		next_l = get_long(next_l);
+		next_l = get_long (next_l);
 	    }
 	}
-	current_l = get_long(current_l);
+	current_l = get_long (current_l);
     }
 }
 
@@ -1323,13 +1323,13 @@ static void redo_layers(struct MyLayerInfo *mli, uaecptr bm)
     struct RectList tmp_rl;
 
     propagate_clueless_redo(mli);
-    current_l = get_long(mli->amigaos_linfo);
+    current_l = get_long (mli->amigaos_linfo);
 
     while (current_l) {
-	struct MyLayer *l = (struct MyLayer *)find_uniq(&mli->layer_list, get_long(current_l + 24));
-	uae_u16 flags = get_word(l->amigaos_layer + 32);
+	struct MyLayer *l = (struct MyLayer *)find_uniq(&mli->layer_list, get_long (current_l + 24));
+	uae_u16 flags = get_word (l->amigaos_layer + 32);
 	if ((flags & LAYER_REDO) != 0) {
-	    uaecptr next_l = get_long(current_l+4);
+	    uaecptr next_l = get_long (current_l+4);
 	    int have_rects = 0;
 
 	    init_rectlist(&l->obscured);
@@ -1337,7 +1337,7 @@ static void redo_layers(struct MyLayerInfo *mli, uaecptr bm)
 	    add_rect_to_bands(&l->big_bands, &l->bounds);
 
 	    while (next_l) {
-		struct MyLayer *l2 = (struct MyLayer *)find_uniq(&mli->layer_list, get_long(next_l + 24));
+		struct MyLayer *l2 = (struct MyLayer *)find_uniq(&mli->layer_list, get_long (next_l + 24));
 		if (l2->visible.bounds.MinX <= l->bounds.MaxX && l->bounds.MinX <= l2->visible.bounds.MaxX
 		    && l2->visible.bounds.MinY <= l->bounds.MaxY && l->bounds.MinY <= l2->visible.bounds.MaxY
 		    && !rect_in_region (&l->obscured, &l2->visible.bounds))
@@ -1346,7 +1346,7 @@ static void redo_layers(struct MyLayerInfo *mli, uaecptr bm)
 		    add_rect(&l->obscured, l2->visible.bounds);
 		    have_rects++;
 		}
-		next_l = get_long(next_l+4);
+		next_l = get_long (next_l+4);
 	    }
 	    init_rectlist(&l->visible);
 	    init_rectlist(&tmp_rl);
@@ -1358,7 +1358,7 @@ static void redo_layers(struct MyLayerInfo *mli, uaecptr bm)
 	    flags |= LAYER_CR_CHANGED;
 	}
 	put_word (l->amigaos_layer + 32, flags & ~(LAYER_CLUELESS|LAYER_REDO));
-	current_l = get_long(current_l);
+	current_l = get_long (current_l);
     }
 }
 
@@ -1367,17 +1367,17 @@ static struct MyLayer *LY_NewLayer(struct MyLayerInfo *mli, int x0, int x1, int 
 {
     struct MyLayer *l = (struct MyLayer *)malloc(sizeof (struct MyLayer));
     uaecptr layer = amiga_malloc(LAYER_SIZE);
-    memset (get_real_address(layer), 0, LAYER_SIZE);
+    memset (get_real_address (layer), 0, LAYER_SIZE);
     l->amigaos_layer = layer;
 
-    put_word(layer + 16, x0); /* bounds */
-    put_word(layer + 18, y0);
-    put_word(layer + 20, x1);
-    put_word(layer + 22, y1);
-    put_word(layer + 30, flags | LAYER_CLUELESS);
-    put_long(layer + 32, flags & 4 ? sbm : 0); /* ClipRect */
-    put_long(layer + 68, mli->amigaos_linfo);
-    m68k_areg(regs, 0) = layer + 72; CallLib(get_long(4), -558); /* InitSemaphore() */
+    put_word (layer + 16, x0); /* bounds */
+    put_word (layer + 18, y0);
+    put_word (layer + 20, x1);
+    put_word (layer + 22, y1);
+    put_word (layer + 30, flags | LAYER_CLUELESS);
+    put_long (layer + 32, flags & 4 ? sbm : 0); /* ClipRect */
+    put_long (layer + 68, mli->amigaos_linfo);
+    m68k_areg (regs, 0) = layer + 72; CallLib (get_long (4), -558); /* InitSemaphore() */
     add_uniq(&mli->layer_list, &l->head, layer + 24);
     l->mli = mli;
 
@@ -1394,7 +1394,7 @@ static void LY_DeleteLayer(uaecptr layer)
     struct MyLayer *l = (struct MyLayer *)find_and_rem_uniq(&l->mli->layer_list, get_long (layer + 24));
     /* Free ClipRects */
     while ((cr = get_long (l->amigaos_layer + 8))) {
-	put_long (l->amigaos_layer + 8, get_long(cr));
+	put_long (l->amigaos_layer + 8, get_long (cr));
 	amiga_free(cr, CLIPRECT_SIZE);
     }
     amiga_free (l->amigaos_layer, LAYER_SIZE);
@@ -1410,7 +1410,7 @@ static uaecptr find_behindlayer_position(uaecptr li, uae_u16 flags)
 	if (other == 0)
 	    break;
 	/* Backdrop? */
-	if ((get_word(other + 30) & 0x40) > (flags & 0x40))
+	if ((get_word (other + 30) & 0x40) > (flags & 0x40))
 	    break;
 	where = other;
     }
@@ -1427,11 +1427,11 @@ static uaecptr LY_CreateLayer(uaecptr li, int x0, int x1, int y0, int y1,
 
     l = LY_NewLayer(mli, x0, x1, y0, y1, flags, bm, sbm);
     /* Chain into list */
-    put_long(l->amigaos_layer, get_long (where));
-    put_long(l->amigaos_layer + 4, where == li ? 0 : where);
+    put_long (l->amigaos_layer, get_long (where));
+    put_long (l->amigaos_layer + 4, where == li ? 0 : where);
     if (get_long (where) != 0)
-	put_long(get_long (where) + 4, l->amigaos_layer);
-    put_long(where, l->amigaos_layer);
+	put_long (get_long (where) + 4, l->amigaos_layer);
+    put_long (where, l->amigaos_layer);
     redo_layers(mli, bm);
     build_cliprects(l);
     LY_UnlockLayerInfo(li);
@@ -1454,25 +1454,25 @@ static uae_u32 layers_NewLayerInfo(void)
 static uae_u32 layers_InitLayers(void) { LY_InitLayers (m68k_areg (regs, 0)); return 0; }
 static uae_u32 layers_DisposeLayerInfo(void) { LY_DisposeLayerInfo (m68k_areg (regs, 0)); return 0; }
 
-static uae_u32 layers_FattenLayerInfo(void) { LY_FattenLayerInfo(m68k_areg(regs, 0)); return 0; }
-static uae_u32 layers_ThinLayerInfo(void) { LY_ThinLayerInfo(m68k_areg(regs, 0)); return 0; }
+static uae_u32 layers_FattenLayerInfo(void) { LY_FattenLayerInfo(m68k_areg (regs, 0)); return 0; }
+static uae_u32 layers_ThinLayerInfo(void) { LY_ThinLayerInfo(m68k_areg (regs, 0)); return 0; }
 
 static uae_u32 layers_CreateUpfrontLayer(void)
 {
-    return LY_CreateLayer(m68k_areg(regs, 0), (uae_s32)m68k_dreg(regs, 0),
-			  (uae_s32)m68k_dreg(regs, 1), (uae_s32)m68k_dreg(regs, 2),
-			  (uae_s32)m68k_dreg(regs, 3),
-			  m68k_dreg(regs, 4),
-			  m68k_areg(regs, 1), m68k_areg(regs, 2), m68k_areg(regs, 0));
+    return LY_CreateLayer(m68k_areg (regs, 0), (uae_s32)m68k_dreg (regs, 0),
+			  (uae_s32)m68k_dreg (regs, 1), (uae_s32)m68k_dreg (regs, 2),
+			  (uae_s32)m68k_dreg (regs, 3),
+			  m68k_dreg (regs, 4),
+			  m68k_areg (regs, 1), m68k_areg (regs, 2), m68k_areg (regs, 0));
 }
 static uae_u32 layers_CreateBehindLayer(void)
 {
-    return LY_CreateLayer(m68k_areg(regs, 0), (uae_s32)m68k_dreg(regs, 0),
-			  (uae_s32)m68k_dreg(regs, 1), (uae_s32)m68k_dreg(regs, 2),
-			  (uae_s32)m68k_dreg(regs, 3),
-			  m68k_dreg(regs, 4),
-			  m68k_areg(regs, 1), m68k_areg(regs, 2),
-			  find_behindlayer_position (m68k_areg(regs, 0), m68k_dreg(regs, 4)));
+    return LY_CreateLayer(m68k_areg (regs, 0), (uae_s32)m68k_dreg (regs, 0),
+			  (uae_s32)m68k_dreg (regs, 1), (uae_s32)m68k_dreg (regs, 2),
+			  (uae_s32)m68k_dreg (regs, 3),
+			  m68k_dreg (regs, 4),
+			  m68k_areg (regs, 1), m68k_areg (regs, 2),
+			  find_behindlayer_position (m68k_areg (regs, 0), m68k_dreg (regs, 4)));
 }
 static uae_u32 layers_DeleteLayer(void) { LY_DeleteLayer (m68k_areg (regs, 1)); return 0; }
 
@@ -1496,15 +1496,15 @@ static uae_u32 LY_TryLockLayer1(uaecptr layer)
     build_cliprects (l);
     return 1;
 }
-static uae_u32 gfx_TryLockLayer(void) { return LY_TryLockLayer1 (m68k_areg(regs, 5));  }
-static uae_u32 gfx_LockLayer(void) { LY_LockLayer1 (m68k_areg(regs, 5)); return 0; }
-static uae_u32 gfx_UnlockLayer(void) { LY_UnlockLayer(m68k_areg(regs, 5)); return 0; }
-static uae_u32 layers_LockLayer(void) { LY_LockLayer1 (m68k_areg(regs, 1)); return 0; }
-static uae_u32 layers_LockLayers(void) { LY_LockLayers(m68k_areg(regs, 0)); return 0; }
-static uae_u32 layers_LockLayerInfo(void) { LY_LockLayerInfo(m68k_areg(regs, 0)); return 0; }
-static uae_u32 layers_UnlockLayer(void) { LY_UnlockLayer(m68k_areg(regs, 0)); return 0; }
-static uae_u32 layers_UnlockLayers(void) { LY_UnlockLayers(m68k_areg(regs, 0)); return 0; }
-static uae_u32 layers_UnlockLayerInfo(void) { LY_UnlockLayerInfo(m68k_areg(regs, 0)); return 0; }
+static uae_u32 gfx_TryLockLayer(void) { return LY_TryLockLayer1 (m68k_areg (regs, 5));  }
+static uae_u32 gfx_LockLayer(void) { LY_LockLayer1 (m68k_areg (regs, 5)); return 0; }
+static uae_u32 gfx_UnlockLayer(void) { LY_UnlockLayer(m68k_areg (regs, 5)); return 0; }
+static uae_u32 layers_LockLayer(void) { LY_LockLayer1 (m68k_areg (regs, 1)); return 0; }
+static uae_u32 layers_LockLayers(void) { LY_LockLayers(m68k_areg (regs, 0)); return 0; }
+static uae_u32 layers_LockLayerInfo(void) { LY_LockLayerInfo(m68k_areg (regs, 0)); return 0; }
+static uae_u32 layers_UnlockLayer(void) { LY_UnlockLayer(m68k_areg (regs, 0)); return 0; }
+static uae_u32 layers_UnlockLayers(void) { LY_UnlockLayers(m68k_areg (regs, 0)); return 0; }
+static uae_u32 layers_UnlockLayerInfo(void) { LY_UnlockLayerInfo(m68k_areg (regs, 0)); return 0; }
 
 static uae_u32 layers_ScrollLayer(void)
 {
@@ -1567,16 +1567,16 @@ static uae_u32 layers_SwapBitsRastPortClipRect(void)
 static uae_u32 gfxlib_init(void)
 {
     uae_u32 old_arr;
-    uaecptr sysbase=m68k_areg(regs, 6);
+    uaecptr sysbase=m68k_areg (regs, 6);
     int i=0;
 
     /* Install new routines */
-    m68k_dreg(regs, 0)=0;
-    m68k_areg(regs, 1)=gfxlibname;
-    gfxbase=CallLib(sysbase, -408);  /* OpenLibrary */
-    m68k_dreg(regs, 0)=0;
-    m68k_areg(regs, 1)=layerslibname;
-    layersbase=CallLib(sysbase, -408);  /* OpenLibrary */
+    m68k_dreg (regs, 0)=0;
+    m68k_areg (regs, 1)=gfxlibname;
+    gfxbase=CallLib (sysbase, -408);  /* OpenLibrary */
+    m68k_dreg (regs, 0)=0;
+    m68k_areg (regs, 1)=layerslibname;
+    layersbase=CallLib (sysbase, -408);  /* OpenLibrary */
 
     libemu_InstallFunctionFlags(gfxl_WritePixel, gfxbase, -324, TRAPFLAG_EXTRA_STACK, "");
     libemu_InstallFunctionFlags(gfxl_BltClear, gfxbase, -300, 0, "");

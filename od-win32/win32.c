@@ -270,13 +270,13 @@ static int figure_processor_speed (void)
     int i, ratecnt = 5;
     LARGE_INTEGER freq;
     int qpc_avail = 0;
-    int mmx = 0; 
+    int mmx = 0;
 
     rpt_available = no_rdtsc > 0 ? 0 : 1;
 #ifdef X86_MSVC_ASSEMBLY
     __try
     {
-	__asm 
+	__asm
 	{
 	    rdtsc
 	}
@@ -286,7 +286,7 @@ static int figure_processor_speed (void)
     }
     __try
     {
-	__asm 
+	__asm
 	{
 	    mov eax,1
 	    cpuid
@@ -313,12 +313,12 @@ static int figure_processor_speed (void)
 	    qpcdivisor++;
 	    qpc_avail = -1;
 	}
-	write_log("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
+	write_log ("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
 	    qpfrate / 1000000.0, 1 << qpcdivisor);
 	if (SystemInfo.dwNumberOfProcessors > 1 && no_rdtsc >= 0)
 	    rpt_available = 0; /* RDTSC can be weird in SMP-systems */
     } else {
-	write_log("CLOCKREQ: QPF not supported\n");
+	write_log ("CLOCKREQ: QPF not supported\n");
     }
 
     if (!rpt_available && !qpc_avail) {
@@ -344,7 +344,7 @@ static int figure_processor_speed (void)
 	    clockrate = win32_read_processor_time();
 	    sleep_millis (500);
 	    clockrate = (win32_read_processor_time() - clockrate) * 2;
-	    write_log("CLOCKFREQ: RDTSC %.2fMHz (busy) / %.2fMHz (idle)\n",
+	    write_log ("CLOCKFREQ: RDTSC %.2fMHz (busy) / %.2fMHz (idle)\n",
 		clockrate / 1000000.0, clockrateidle / 1000000.0);
 	    clkdiv = (double)clockrate / (double)clockrateidle;
 	    clockrate >>= 6;
@@ -388,7 +388,7 @@ static int figure_processor_speed (void)
 		write_log ("%1.2fms ", rate1 / clockrate1000);
 		ratea1 += rate1;
 	    }
-	    write_log("\n");
+	    write_log ("\n");
 	    timeend ();
 	    sleep_millis (50);
 	}
@@ -402,7 +402,7 @@ static int figure_processor_speed (void)
 	    write_log ("%1.2fms ", rate2 / clockrate1000);
 	    ratea2 += rate2;
 	}
-	write_log("\n");
+	write_log ("\n");
     }
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
@@ -568,7 +568,7 @@ static void winuae_active (HWND hWnd, int minimized)
     sleep_millis (2);
     timermode = ot;
     if (timermode != 0)
-	timeend();  
+	timeend();
 
     focus = 1;
     pri = &priorities[currprefs.win32_inactive_priority];
@@ -742,7 +742,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	recursive--;
 	return 0;
     }
-    break;    
+    break;
     case WM_ACTIVATE:
 	if (recursive)
 	    return 0;
@@ -769,7 +769,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    }
 	}
 	recursive--;
-        return 0;
+	return 0;
 
     case WM_ACTIVATEAPP:
     {
@@ -794,7 +794,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
 	manual_palette_refresh_needed = 1;
 	recursive--;
-        return 0;
+	return 0;
     }
 
     case WM_PALETTECHANGED:
@@ -896,7 +896,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_DROPFILES:
 	dragdrop (hWnd, (HDROP)wParam, &changed_prefs, -1);
     break;
-     
+
     case WM_TIMER:
 #ifdef PARALLEL_PORT
 	finishjob ();
@@ -1030,7 +1030,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case 0xff: // WM_INPUT:
     handle_rawinput (lParam);
     break;
-    
+
     case WM_NOTIFY:
     {
 	LPNMHDR nm = (LPNMHDR)lParam;
@@ -1041,7 +1041,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		case NM_CLICK:
 		case NM_RCLICK:
 		{
-		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam; 
+		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam;
 		    int num = (int)lpnm->dwItemSpec;
 		    if (num >= 7 && num <= 10) {
 			num -= 7;
@@ -1063,7 +1063,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
     }
     break;
-    
+
     case WM_USER + 1: /* Systray icon */
 	 switch (lParam)
 	 {
@@ -1204,7 +1204,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		RECT rc2;
 		if (GetWindowRect(hMainWnd, &rc2)) {
 		    DWORD left = rc2.left - win_x_diff;
-	    	    DWORD top = rc2.top - win_y_diff;
+		    DWORD top = rc2.top - win_y_diff;
 		    if (amigawin_rect.left & 3) {
 			MoveWindow (hMainWnd, rc2.left + 4 - amigawin_rect.left % 4, rc2.top,
 				    rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
@@ -1307,7 +1307,7 @@ int WIN32_RegisterClasses( void )
 
     g_dwBackgroundColor = RGB(10, 0, 10);
     hDC = GetDC (NULL);
-    if (GetDeviceCaps (hDC, NUMCOLORS) != -1) 
+    if (GetDeviceCaps (hDC, NUMCOLORS) != -1)
 	g_dwBackgroundColor = RGB (255, 0, 255);
     ReleaseDC (NULL, hDC);
 
@@ -1336,7 +1336,7 @@ int WIN32_RegisterClasses( void )
     wc.lpszClassName = "PCsuxRox";
     if (!RegisterClass (&wc))
 	return 0;
-    
+
     wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW;
     wc.lpfnWndProc = HiddenWindowProc;
     wc.cbClsExtra = 0;
@@ -1349,12 +1349,12 @@ int WIN32_RegisterClasses( void )
     wc.lpszClassName = "Useless";
     if (!RegisterClass (&wc))
 	return 0;
-    
+
     hHiddenWnd = CreateWindowEx (0,
 	"Useless", "You don't see me",
 	WS_POPUP,
 	0, 0,
-	1, 1, 
+	1, 1,
 	NULL, NULL, 0, NULL);
     if (!hHiddenWnd)
 	return 0;
@@ -1373,7 +1373,7 @@ int WIN32_CleanupLibraries( void )
 {
     if (hRichEdit)
 	FreeLibrary(hRichEdit);
-    
+
     if (hHtmlHelp)
 	FreeLibrary(hHtmlHelp);
 
@@ -1492,7 +1492,7 @@ HMODULE language_load(WORD language)
     char *dllname;
 
     if (language <= 0) {
-        /* new user-specific Windows ME/2K/XP method to get UI language */
+	/* new user-specific Windows ME/2K/XP method to get UI language */
 	pGetUserDefaultUILanguage = (PGETUSERDEFAULTUILANGUAGE)GetProcAddress(
 	    GetModuleHandle("kernel32.dll"), "GetUserDefaultUILanguage");
 	language = GetUserDefaultLangID();
@@ -1567,7 +1567,7 @@ struct threadpriorities priorities[] = {
 static void pritransla (void)
 {
     int i;
-    
+
     for (i = 0; priorities[i].id; i++) {
 	char tmp[MAX_DPATH];
 	WIN32GUI_LoadUIString (priorities[i].id, tmp, sizeof (tmp));
@@ -1581,7 +1581,7 @@ static void WIN32_InitLang(void)
     if (hWinUAEKey) {
 	DWORD regkeytype;
 	DWORD regkeysize = sizeof(langid);
-        RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
+	RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
     }
     hUIDLL = language_load(langid);
     pritransla ();
@@ -1594,12 +1594,12 @@ static int WIN32_InitLibraries( void )
     /* Determine our processor speed and capabilities */
     if (!figure_processor_speed())
 	return 0;
-    
+
     /* Make sure we do an InitCommonControls() to get some advanced controls */
     InitCommonControls();
-    
+
     hRichEdit = LoadLibrary ("RICHED32.DLL");
-    
+
     return result;
 }
 
@@ -1650,7 +1650,7 @@ void logging_init(void)
 	return;
     }
     if (first == 1) {
-	write_log("Log (%s): '%s%s'\n", currprefs.win32_logfile ? "enabled" : "disabled",
+	write_log ("Log (%s): '%s%s'\n", currprefs.win32_logfile ? "enabled" : "disabled",
 	    start_path_data, LOG_NORMAL);
 	if (debugfile)
 	    log_close (debugfile);
@@ -1847,7 +1847,7 @@ static int fetchpri (int pri, int defpri)
 static const char *obsolete[] = {
     "killwinkeys", "sound_force_primary", "iconified_highpriority",
     "sound_sync", "sound_tweak", "directx6", "sound_style",
-    "file_path", "iconified_nospeed", "activepriority", 
+    "file_path", "iconified_nospeed", "activepriority",
     0
 };
 
@@ -1992,10 +1992,10 @@ static int isfilesindir(char *p)
     strcat (path, "\\*.*");
     h = FindFirstFile(path, &fd);
     if (h != INVALID_HANDLE_VALUE) {
-        for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++) {
 	    if (!FindNextFile (h, &fd))
-	        break;
-        }
+		break;
+	}
 	FindClose(h);
     }
     if (i == 3)
@@ -2063,23 +2063,23 @@ int get_rom_path(char *out, int mode)
 		}
 	    }
 	}
-        break;
+	break;
 	case 1:
 	{
-    	    char tmp2[MAX_DPATH];
+	    char tmp2[MAX_DPATH];
 	    strcpy (tmp2, start_path_new1);
 	    strcat (tmp2, "..\\system\\rom");
 	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+		strcpy (tmp, tmp2);
 	}
-        break;
+	break;
 	case 2:
 	{
 	    char tmp2[MAX_DPATH];
 	    strcpy (tmp2, start_path_new2);
 	    strcat (tmp2, "system\\rom");
 	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+		strcpy (tmp, tmp2);
 	}
 	break;
 	case 3:
@@ -2088,15 +2088,15 @@ int get_rom_path(char *out, int mode)
 	    strcpy (tmp2, start_path_af);
 	    strcat (tmp2, "..\\shared\\rom");
 	    if (isfilesindir(tmp2))
-	        strcpy (tmp, tmp2);
+		strcpy (tmp, tmp2);
 	}
 	break;
 	default:
-        return -1;
+	return -1;
     }
     if (isfilesindir(tmp)) {
 	strcpy (out, tmp);
-        fixtrailing (out);
+	fixtrailing (out);
     }
     return out[0] ? 1 : 0;
 }
@@ -2201,7 +2201,7 @@ static int parseversion (char **vs)
 {
     char tmp[10];
     int i;
-    
+
     i = 0;
     while (**vs >= '0' && **vs <= '9') {
 	if (i >= sizeof (tmp))
@@ -2330,7 +2330,7 @@ static void WIN32_HandleRegistryStuff(void)
 	    if (RegSetValueEx (hWinUAEKey, "ROMCheckVersion", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1) == ERROR_SUCCESS)
 		forceroms = 1;
 	}
-	
+
 	size = sizeof (quickstart);
 	dwType = REG_DWORD;
 	RegQueryValueEx(hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &size);
@@ -2383,7 +2383,7 @@ static int betamessage (void)
 
 	if (!hWinUAEKey)
 	    break;
-        if (GetModuleFileName(NULL, tmp1, sizeof tmp1) == 0)
+	if (GetModuleFileName(NULL, tmp1, sizeof tmp1) == 0)
 	    break;
 	h = CreateFile(tmp1, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (h == INVALID_HANDLE_VALUE)
@@ -2417,7 +2417,7 @@ static int betamessage (void)
 	size = sizeof data;
 	if (hWinUAEKey && RegQueryValueEx(hWinUAEKey, "Beta_Just_Shut_Up", 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
 	    if (data == 68000) {
-		write_log("I was told to shut up :(\n");
+		write_log ("I was told to shut up :(\n");
 		return 1;
 	    }
 	}
@@ -2462,7 +2462,7 @@ static int dxdetect (void)
 
 int os_winnt, os_winnt_admin, os_64bit, os_vista, os_winxp;
 
-static int isadminpriv (void) 
+static int isadminpriv (void)
 {
     DWORD i, dwSize = 0, dwResult = 0;
     HANDLE hToken;
@@ -2471,7 +2471,7 @@ static int isadminpriv (void)
     PSID pSID = (PSID)&sidBuffer;
     SID_IDENTIFIER_AUTHORITY SIDAuth = SECURITY_NT_AUTHORITY;
     int isadmin = 0;
-   
+
     // Open a handle to the access token for the calling process.
     if (!OpenProcessToken( GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
 	write_log ("OpenProcessToken Error %u\n", GetLastError());
@@ -2482,7 +2482,7 @@ static int isadminpriv (void)
     if(!GetTokenInformation(hToken, TokenGroups, NULL, dwSize, &dwSize)) {
 	dwResult = GetLastError();
 	if(dwResult != ERROR_INSUFFICIENT_BUFFER) {
-	    write_log("GetTokenInformation Error %u\n", dwResult);
+	    write_log ("GetTokenInformation Error %u\n", dwResult);
 	    return FALSE;
 	}
     }
@@ -2502,7 +2502,7 @@ static int isadminpriv (void)
 		 DOMAIN_ALIAS_RID_ADMINS,
 		 0, 0, 0, 0, 0, 0,
 		 &pSID)) {
-	write_log( "AllocateAndInitializeSid Error %u\n", GetLastError() );
+	write_log ( "AllocateAndInitializeSid Error %u\n", GetLastError() );
 	return FALSE;
    }
 
@@ -2511,7 +2511,7 @@ static int isadminpriv (void)
 	if (EqualSid(pSID, pGroupInfo->Groups[i].Sid))
 	    isadmin = 1;
     }
-    
+
     if (pSID)
 	FreeSid(pSID);
     if (pGroupInfo)
@@ -2585,15 +2585,15 @@ void create_afnewdir(int remove)
     pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
     if (pSHGetFolderPath)
-        ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
+	ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
     else if (pSHGetSpecialFolderPath)
-        ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
+	ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
     if (ok) {
-        fixtrailing(tmp);
-        strcpy (tmp2, tmp);
-        strcat (tmp2, "Amiga Files");
-        strcpy (tmp, tmp2);
-        strcat(tmp, "\\WinUAE");
+	fixtrailing(tmp);
+	strcpy (tmp2, tmp);
+	strcat (tmp2, "Amiga Files");
+	strcpy (tmp, tmp2);
+	strcat(tmp, "\\WinUAE");
 	if (remove) {
 	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
 		RemoveDirectory(tmp);
@@ -2624,7 +2624,7 @@ static void getstartpaths(void)
 			  KEY_WRITE | KEY_READ, NULL, &key, &dispo) == ERROR_SUCCESS)
     {
 	DWORD size = sizeof (prevpath);
-        DWORD dwType = REG_SZ;
+	DWORD dwType = REG_SZ;
 	if (RegQueryValueEx (key, "PathMode", 0, &dwType, (LPBYTE)&prevpath, &size) != ERROR_SUCCESS)
 	    prevpath[0] = 0;
 	RegCloseKey(key);
@@ -2651,12 +2651,12 @@ static void getstartpaths(void)
     strcpy (tmp, start_path_exe);
     strcat (tmp, "roms");
     if (isfilesindir(tmp)) {
-        strcpy (xstart_path_uae, start_path_exe);
+	strcpy (xstart_path_uae, start_path_exe);
     }
     strcpy (tmp, start_path_exe);
     strcat (tmp, "configurations");
     if (isfilesindir(tmp)) {
-        strcpy (xstart_path_uae, start_path_exe);
+	strcpy (xstart_path_uae, start_path_exe);
     }
 
     strcpy (tmp, start_path_exe);
@@ -3081,7 +3081,7 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
 
 static LONG WINAPI WIN32_ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
-    write_log("EVALEXCEPTION!\n");
+    write_log ("EVALEXCEPTION!\n");
     return EXCEPTION_EXECUTE_HANDLER;
 }
 #else
@@ -3120,7 +3120,7 @@ LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers
 	    if ((p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32))
 		|| (p >= (void*)prevpc && p < (void*)(prevpc + 32))) {
 		int got = 0;
-		uaecptr opc = m68k_getpc(&regs);
+		uaecptr opc = m68k_getpc (&regs);
 		void *ps = get_real_address (0);
 		m68k_dumpstate (0, 0);
 		efix (&ctx->Eax, p, ps, &got);
@@ -3273,7 +3273,7 @@ static void LLError(const char *s)
 
     if (err == ERROR_MOD_NOT_FOUND || err == ERROR_DLL_NOT_FOUND)
 	return;
-    write_log("%s failed to open %d\n", s, err);
+    write_log ("%s failed to open %d\n", s, err);
 }
 
 HMODULE WIN32_LoadLibrary (const char *name)
@@ -3346,7 +3346,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     HANDLE thread;
 
     thread = GetCurrentThread();
-    original_affinity = SetThreadAffinityMask(thread, 1); 
+    original_affinity = SetThreadAffinityMask(thread, 1);
 #if 0
     CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
     pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(

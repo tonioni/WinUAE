@@ -1,8 +1,8 @@
 /*
   UAE - The Ultimate Amiga Emulator
-  
+
   avioutput.h
-  
+
   Copyright(c) 2001 - 2002 §ane
 */
 

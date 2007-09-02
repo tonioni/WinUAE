@@ -10,7 +10,10 @@
 #include <sys/stat.h>
 /*#include <gtk/gtk.h>*/
 #ifdef DOS
-#include <winsock.h>
+#include <winsock2.h>
+#endif
+#ifdef DMALLOC
+#include "dmalloc.h"
 #endif
 
 
@@ -26,7 +29,7 @@ __inline Ulong htonl (Ulong v)
 }
 #endif
 
-#define _KNOWN_FORMATS      130
+#define _KNOWN_FORMATS      135
 #define _TYPES_FILENAME     "_types_"
 #define _TYPES_LINE_LENGHT  256
 #define MINIMAL_FILE_LENGHT 64
@@ -174,4 +177,9 @@ enum
   GNUPacker12,
   CrunchmaniaSimple,
   dmu,
+  TitanicsPlayer,
+  NewtronOld,
+  NovoTrade,
+  Skizzo,
+  StoneArtsPlayer,
 };

@@ -51,7 +51,7 @@ struct uae_input_device_kbr_default {
 extern int inputdevice_iterate (int devnum, int num, char *name, int *af);
 extern int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int af, int sub);
 extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, char *custom, int sub);
-extern void inputdevice_copyconfig (struct uae_prefs *src, struct uae_prefs *dst);
+extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
 extern void inputdevice_config_change (void);
@@ -150,12 +150,12 @@ extern void inputdevice_handle_inputcode (void);
 #define JSEM_LASTKBD 5
 #define JSEM_ISANYKBD(port,p) (jsem_iskbdjoy(port,p) >= JSEM_KBDLAYOUT && jsem_iskbdjoy(port,p) < JSEM_KBDLAYOUT + JSEM_LASTKBD)
 
-extern int jsem_isjoy (int port, struct uae_prefs *p);
-extern int jsem_ismouse (int port, struct uae_prefs *p);
-extern int jsem_iskbdjoy (int port, struct uae_prefs *p);
-extern void do_fake_joystick(int nr, int *fake);
+extern int jsem_isjoy (int port, const struct uae_prefs *p);
+extern int jsem_ismouse (int port, const struct uae_prefs *p);
+extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
+extern void do_fake_joystick (int nr, int *fake);
 
-extern int inputdevice_uaelib (char*, char*);
+extern int inputdevice_uaelib (char *, char *);
 
 #define INPREC_JOYPORT 1
 #define INPREC_JOYBUTTON 2

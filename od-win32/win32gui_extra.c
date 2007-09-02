@@ -93,7 +93,7 @@ static BYTE *skiptext(BYTE *s)
 static BYTE *todword(BYTE *p)
 {
     while ((LONG_PTR)p & 3)
-        p++;
+	p++;
     return p;
 }
 

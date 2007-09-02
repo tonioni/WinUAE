@@ -1,5 +1,5 @@
-#include "../rippers/globals.h"
-#include "../rippers/extern.h"
+#include "globals.h"
+#include "extern.h"
 
 
 /*

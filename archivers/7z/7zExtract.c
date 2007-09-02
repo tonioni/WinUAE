@@ -5,14 +5,14 @@
 #include "7zCrc.h"
 
 SZ_RESULT SzExtract(
-    ISzInStream *inStream, 
+    ISzInStream *inStream,
     CArchiveDatabaseEx *db,
     UInt32 fileIndex,
     UInt32 *blockIndex,
-    Byte **outBuffer, 
+    Byte **outBuffer,
     size_t *outBufferSize,
-    size_t *offset, 
-    size_t *outSizeProcessed, 
+    size_t *offset,
+    size_t *outSizeProcessed,
     ISzAlloc *allocMain,
     ISzAlloc *allocTemp)
 {
@@ -41,15 +41,15 @@ SZ_RESULT SzExtract(
     *blockIndex = folderIndex;
     allocMain->Free(*outBuffer);
     *outBuffer = 0;
-    
+
     RINOK(inStream->Seek(inStream, SzArDbGetFolderStreamPos(db, folderIndex, 0)));
-    
+
     #ifndef _LZMA_IN_CB
     if (packSize != 0)
     {
       inBuffer = (Byte *)allocTemp->Alloc((size_t)packSize);
       if (inBuffer == 0)
-        return SZE_OUTOFMEMORY;
+	return SZE_OUTOFMEMORY;
     }
     res = inStream->Read(inStream, inBuffer, (size_t)packSize, &processedSize);
     if (res == SZ_OK && processedSize != (size_t)packSize)
@@ -60,34 +60,34 @@ SZ_RESULT SzExtract(
       *outBufferSize = (size_t)unPackSize;
       if (unPackSize != 0)
       {
-        *outBuffer = (Byte *)allocMain->Alloc((size_t)unPackSize);
-        if (*outBuffer == 0)
-          res = SZE_OUTOFMEMORY;
+	*outBuffer = (Byte *)allocMain->Alloc((size_t)unPackSize);
+	if (*outBuffer == 0)
+	  res = SZE_OUTOFMEMORY;
       }
       if (res == SZ_OK)
       {
-        size_t outRealSize;
-        res = SzDecode(db->Database.PackSizes + 
-          db->FolderStartPackStreamIndex[folderIndex], folder, 
-          #ifdef _LZMA_IN_CB
-          inStream,
-          #else
-          inBuffer, 
-          #endif
-          *outBuffer, (size_t)unPackSize, &outRealSize, allocTemp);
-        if (res == SZ_OK)
-        {
-          if (outRealSize == (size_t)unPackSize)
-          {
-            if (folder->UnPackCRCDefined)
-            {
-              if (!CrcVerifyDigest(folder->UnPackCRC, *outBuffer, (size_t)unPackSize))
-                res = SZE_FAIL;
-            }
-          }
-          else
-            res = SZE_FAIL;
-        }
+	size_t outRealSize;
+	res = SzDecode(db->Database.PackSizes +
+	  db->FolderStartPackStreamIndex[folderIndex], folder,
+	  #ifdef _LZMA_IN_CB
+	  inStream,
+	  #else
+	  inBuffer,
+	  #endif
+	  *outBuffer, (size_t)unPackSize, &outRealSize, allocTemp);
+	if (res == SZ_OK)
+	{
+	  if (outRealSize == (size_t)unPackSize)
+	  {
+	    if (folder->UnPackCRCDefined)
+	    {
+	      if (!CrcVerifyDigest(folder->UnPackCRC, *outBuffer, (size_t)unPackSize))
+		res = SZE_FAIL;
+	    }
+	  }
+	  else
+	    res = SZE_FAIL;
+	}
       }
     }
     #ifndef _LZMA_IN_CB
@@ -96,7 +96,7 @@ SZ_RESULT SzExtract(
   }
   if (res == SZ_OK)
   {
-    UInt32 i; 
+    UInt32 i;
     CFileItem *fileItem = db->Database.Files + fileIndex;
     *offset = 0;
     for(i = db->FolderStartFileIndex[folderIndex]; i < fileIndex; i++)
@@ -107,8 +107,8 @@ SZ_RESULT SzExtract(
     {
       if (fileItem->IsFileCRCDefined)
       {
-        if (!CrcVerifyDigest(fileItem->FileCRC, *outBuffer + *offset, *outSizeProcessed))
-          res = SZE_FAIL;
+	if (!CrcVerifyDigest(fileItem->FileCRC, *outBuffer + *offset, *outSizeProcessed))
+	  res = SZE_FAIL;
       }
     }
   }

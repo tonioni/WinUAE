@@ -162,7 +162,7 @@ void driveclick_init(void)
 		    break;
 		}
 	    } else if (currprefs.dfxclick[i] == -1) {
-	        wave_initialized = 1;
+		wave_initialized = 1;
 		for (j = 0; j < CLICK_TRACKS; j++)
 		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 		sprintf (tmp, "%suae_data%cdrive_click_%s",

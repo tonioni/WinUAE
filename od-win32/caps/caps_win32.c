@@ -133,7 +133,7 @@ static void outdisk (void)
     int tr;
     FILE *f;
     static int done;
-    
+
     if (done)
 	return;
     done = 1;
@@ -161,8 +161,8 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
     *tracklength = len * 8;
     mfm = mfmbuf;
     for (i = 0; i < (len + 1) / 2; i++) {
-        uae_u8 *data = ci.trackbuf + i * 2;
-        *mfm++ = 256 * *data + *(data + 1);
+	uae_u8 *data = ci.trackbuf + i * 2;
+	*mfm++ = 256 * *data + *(data + 1);
     }
     return 1;
 }
@@ -183,8 +183,8 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
     *tracklength = len * 8;
     *gapoffset = ci.overlap >= 0 ? ci.overlap * 8 : -1;
     for (i = 0; i < (len + 1) / 2; i++) {
-        uae_u8 *data = ci.trackbuf + i * 2;
-        *mfm++ = 256 * *data + *(data + 1);
+	uae_u8 *data = ci.trackbuf + i * 2;
+	*mfm++ = 256 * *data + *(data + 1);
     }
 #if 0
     {

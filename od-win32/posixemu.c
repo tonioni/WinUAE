@@ -1,4 +1,4 @@
-/* 
+/*
  * UAE - The Un*x Amiga Emulator
  *
  * Win32 interface
@@ -79,8 +79,8 @@ static DWORD getattr(const char *name, LPFILETIME lpft, size_t *size)
     WIN32_FIND_DATA fd;
 
     if ((hFind = FindFirstFile(name,&fd)) == INVALID_HANDLE_VALUE) {
-        fd.dwFileAttributes = GetFileAttributes(name);
-        return fd.dwFileAttributes;
+	fd.dwFileAttributes = GetFileAttributes(name);
+	return fd.dwFileAttributes;
     }
     FindClose(hFind);
 
@@ -126,16 +126,16 @@ int posixemu_chmod(const char *name, int mode)
 static void tmToSystemTime(struct tm *tmtime, LPSYSTEMTIME systime)
 {
     if (tmtime == NULL) {
-        GetSystemTime (systime);
+	GetSystemTime (systime);
     } else {
-        systime->wDay       = tmtime->tm_mday;
-        systime->wDayOfWeek = tmtime->tm_wday;
-        systime->wMonth     = tmtime->tm_mon + 1;
-        systime->wYear      = tmtime->tm_year + 1900;
-        systime->wHour      = tmtime->tm_hour;
-        systime->wMinute    = tmtime->tm_min;
-        systime->wSecond    = tmtime->tm_sec;
-        systime->wMilliseconds = 0;
+	systime->wDay       = tmtime->tm_mday;
+	systime->wDayOfWeek = tmtime->tm_wday;
+	systime->wMonth     = tmtime->tm_mon + 1;
+	systime->wYear      = tmtime->tm_year + 1900;
+	systime->wHour      = tmtime->tm_hour;
+	systime->wMinute    = tmtime->tm_min;
+	systime->wSecond    = tmtime->tm_sec;
+	systime->wMilliseconds = 0;
     }
 }
 
@@ -148,17 +148,17 @@ static int setfiletime(const char *name, unsigned int days, int minute, int tick
 	return 0;
 
     *(__int64 *)&LocalFileTime = (((__int64)(377*365+91+days)*(__int64)1440+(__int64)minute)*(__int64)(60*50)+(__int64)tick)*(__int64)200000;
-    
+
     if (tolocal) {
 	if (!LocalFileTimeToFileTime(&LocalFileTime,&FileTime))
 	    FileTime = LocalFileTime;
     } else {
 	FileTime = LocalFileTime;
     }
-    
+
     success = SetFileTime(hFile,&FileTime,&FileTime,&FileTime);
     CloseHandle(hFile);
-    
+
     return success;
 }
 
@@ -178,7 +178,7 @@ int posixemu_utime( const char *name, struct utimbuf *ttime )
     get_time(actime, &days, &mins, &ticks);
 
     if(setfiletime (name, days, mins, ticks, tolocal))
-        result = 0;
+	result = 0;
 
 	return result;
 }
@@ -253,12 +253,12 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     hThread = (HANDLE)_beginthreadex(NULL, 0, thread_init, thp, 0, &foo);
     *tid = hThread;
     if (hThread) {
-        SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
+	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
 	if (name)
-	    write_log("Thread '%s' started (%d)\n", name, foo);
+	    write_log ("Thread '%s' started (%d)\n", name, foo);
     } else {
-        result = 0;
-	write_log("Thread '%s' failed to start!?\n", name ? name : "<unknown>");
+	result = 0;
+	write_log ("Thread '%s' failed to start!?\n", name ? name : "<unknown>");
     }
     return result;
 }
@@ -273,6 +273,6 @@ DWORD_PTR cpu_affinity = 1;
 void uae_set_thread_priority (int pri)
 {
     /* workaround for filesystem emulation freeze with some dual core systems */
-    //SetThreadAffinityMask(GetCurrentThread(), cpu_affinity); 
+    //SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
 }
 

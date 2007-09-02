@@ -1,7 +1,5 @@
-#include "../rippers/globals.h"
-#include "../rippers/extern.h"
-
-extern void write_log (const char *, ...);
+#include "globals.h"
+#include "extern.h"
 
 /*
  *  at now, when this fonction is called, no global var has been used ...
@@ -20,7 +18,7 @@ void Support_Types ( void )
   types_file = fopen ( _TYPES_FILENAME , "rb" );
   if ( types_file == NULL )
   {
-    write_log ( "!!! couldn't find \"%s\" file !. Default extension used.\n"
+    printf ( "!!! couldn't find \"%s\" file !. Default extension used.\n"
              , _TYPES_FILENAME );
     Support_Types_FileDefault ();
     return;
@@ -39,7 +37,7 @@ void Support_Types ( void )
       continue;
     if ( sizeof ( read_line ) < 2 )
     {
-      write_log ( "!!! Damaged \"%s\" file at non-commented line %ld\n"
+      printf ( "!!! Damaged \"%s\" file at non-commented line %ld\n"
              , _TYPES_FILENAME , PW_i+1 );
       PW_i = 99999l;
       break;
@@ -50,7 +48,7 @@ void Support_Types ( void )
       Extensions[PW_i][cpt] = read_line[cpt];
       cpt += 1;
     }
-    /*write_log ( "[%ld]%ld:%s," , PW_i,ftell (types_file),read_line );*/
+    /*printf ( "[%ld]%ld:%s," , PW_i,ftell (types_file),read_line );*/
     PW_i += 1;
     if ( PW_i == _KNOWN_FORMATS )
       break;
@@ -58,7 +56,7 @@ void Support_Types ( void )
 
   if ( PW_i != _KNOWN_FORMATS )
   {
-    write_log ( "!!! Damaged \"%s\" file. Missing up %ld extensions definitions\n"
+    printf ( "!!! Damaged \"%s\" file. Missing up %ld extensions definitions\n"
              , _TYPES_FILENAME , _KNOWN_FORMATS-(PW_i+1));
     Support_Types_FileDefault ();
     return;
@@ -212,8 +210,15 @@ void Support_Types_FileDefault ( void )
   strcpy ( Extensions[127], "GNUPacker12" );
   strcpy ( Extensions[128], "CrunchmaniaSimple" );
   strcpy ( Extensions[129], "dmu" );
-  strcpy ( Extensions[130], "---" );
+  strcpy ( Extensions[130], "TitanicsPlayer" );
+  strcpy ( Extensions[131], "NewtronOld" );
+  strcpy ( Extensions[132], "NovoTrade" );
+  strcpy ( Extensions[133], "Skizzo" );
+  strcpy ( Extensions[134], "StoneArtsPlayer" );
+  strcpy ( Extensions[135], "---" );
 }
+
+
 
 
 /*
@@ -236,7 +241,8 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
   write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save);
+  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize);
+  //PW_out = PW_fopen ( OutName_final , "w+b" );
   if (!PW_out)
       return;
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
@@ -246,7 +252,7 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
   {
     write_log ( "  converting to Protracker ... " );
   }
-  fflush ( stdout );
+  //fflush ( stdout );
   Save_Status = GOOD;
 }
 
@@ -269,9 +275,8 @@ void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
   write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save );
-  if (!PW_out)
-      return;
+//  PW_out = PW_fopen ( OutName_final , "w+b" );
+  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize );
   fwrite ( Header_Block , Block_Size  , 1 , PW_out );
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
@@ -283,7 +288,7 @@ void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block
   write_log ( "  Header of this file was missing and has been rebuilt !\n" );
   if ( FMT_EXT == DragPack252)
     write_log ( "  WARNING !: it's a fake header since in this case !!\n" );
-  fflush ( stdout );
+  //fflush ( stdout );
   Amiga_EXE_Header = GOOD;
   Save_Status = GOOD;
 }
@@ -317,6 +322,22 @@ void Crap ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
   }
 }
 
+/* writing craps in converted MODs */
+void Crap15 ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
+{
+  fseek ( out , 260 , SEEK_SET );
+  fprintf ( out , "[  Converted with  ]" );
+  fseek ( out , 290 , SEEK_SET );
+  fprintf ( out , "[ ProWizard for PC ]" );
+  fseek ( out , 320 , SEEK_SET );
+  fprintf ( out , "[ written by Asle! ]" );
+
+  fseek ( out , 380 , SEEK_SET );
+  fprintf ( out , "[ Original Format: ]" );
+  fseek ( out , 410 , SEEK_SET );
+  fprintf ( out , "[%s]" , Format );
+}
+
 /*
  * Special version of Test() for cruncher data (Ice! etc...)
  * only one file and not hundreds ...
@@ -329,7 +350,7 @@ short testSpecialCruncherData ( long Pack_addy , long Unpack_addy )
   /* e.g. addressing of unassigned data */
   if ( ( (long)PW_i + Pack_addy ) > PW_in_size )
   {
-/*write_log ( "#0\n" );*/
+/*printf ( "#0\n" );*/
     return BAD;
   }
 
@@ -346,25 +367,25 @@ short testSpecialCruncherData ( long Pack_addy , long Unpack_addy )
 
   if ( (PW_k <= 2) || (PW_l <= 2) )
   {
-/*write_log ( "#1\n" );*/
+/*printf ( "#1\n" );*/
     return BAD;
   }
 
   if ( PW_l > 0x989680 ) /* 10 mb */
   {
-/*write_log ( "#2\n" );*/
+/*printf ( "#2\n" );*/
     return BAD;
   }
 
   if ( PW_k <= PW_l )
   {
-/*write_log ( "#3\n" );*/
+/*printf ( "#3\n" );*/
     return BAD;
   }
 
   if ( PW_k > 0x989689 )  /* 10 Megs ! */
   {
-/*write_log ( "#4\n" );*/
+/*printf ( "#4\n" );*/
     return BAD;
   }
 
@@ -392,7 +413,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
       OutputSize = PW_l + Header_Size;
   }
 
-  /* write_log ( "\b\b\b\b\b\b\b\b%s file found at %ld !. its size is : %ld\n" , Packer_Name , PW_Start_Address , OutputSize );*/
+  /* printf ( "\b\b\b\b\b\b\b\b%s file found at %ld !. its size is : %ld\n" , Packer_Name , PW_Start_Address , OutputSize );*/
   /*  OutName[1] = Extensions[Packer_Extension_Define][0];
   OutName[2] = Extensions[Packer_Extension_Define][1];
   OutName[3] = Extensions[Packer_Extension_Define][2];*/
@@ -409,7 +430,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
 
 
 /* yet again on Xigh's suggestion. How to handle 'correctly' a file size */
-long GetFileSizeX (char * infile)
+long PWGetFileSize (char * infile)
 {
   long i;
   struct stat *Stat;
@@ -423,18 +444,18 @@ long GetFileSizeX (char * infile)
 #if 0
 /* Same as fopen() but saves a lot of tests, done only here. */
 /* Done to check if the output file could be created */
-FILE * PW_fopen (char *filename, char *fopenargs)
+FILE * PW_fopen (char *filename, char fopenargs[3] )
 {
   FILE *local_out;
   local_out = fopen (filename, fopenargs);
   if (local_out == NULL)
   {
-    write_log ("!!couldn't create the file \"%s\"!\nexiting...",filename);
+    printf ("!!couldn't create the file \"%s\"!\nexiting...",filename);
     exit (-1);
   }
   return local_out;
 }
-#endif
+#endif 
 FILE * PW_fopen (char *filename, char *fopenargs)
 {
     return moduleripper_fopen (filename, fopenargs);

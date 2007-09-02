@@ -54,7 +54,7 @@ static UBYTE *mergepieces(UBYTE *start,int len,int bits,UBYTE *sync)
 	UBYTE b;
 	int size;
 	int shift;
-	
+
 	size=len-(sync-start);
 	memcpy(dst,sync,size);
 	dst+=size;
@@ -68,8 +68,8 @@ static UBYTE *mergepieces(UBYTE *start,int len,int bits,UBYTE *sync)
 		start++;
 	}
 	return tmpmfmbuffer;
-}	
-		
+}
+
 #define SCANOFFSET 1 /* scanning range in bytes, -SCANOFFSET to SCANOFFSET */
 #define SCANOFFSET2 20
 #define SCANLENGHT 200 /* scanning length in bytes */
@@ -78,7 +78,7 @@ static UBYTE* scantrack(UBYTE *sync1,UBYTE *sync2,int *trackbytes,int *trackbits
 {
 	int i,bits,bytes,matched;
 	UBYTE *sync2bak=sync2;
-	
+
 	sync1+=SCANOFFSET2;
 	sync2+=SCANOFFSET2;
 	while(sync1 < sync2bak - 2*SCANOFFSET - SCANOFFSET2 - SCANLENGHT) {
@@ -105,7 +105,7 @@ static UBYTE* scantrack(UBYTE *sync1,UBYTE *sync2,int *trackbytes,int *trackbits
 		sync2++;
 	}
 	return 0;
-}					
+}
 #endif
 
 #define MFMMASK 0x55555555

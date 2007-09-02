@@ -77,11 +77,11 @@
 
 #define ASYNC_REQUEST_NONE 0
 #define ASYNC_REQUEST_TEMP 1
-#define ASYNC_REQUEST_CHANGEINT	10
+#define ASYNC_REQUEST_CHANGEINT 10
 #define ASYNC_REQUEST_FRAMEINT 11
 #define ASYNC_REQUEST_PLAY 12
 #define ASYNC_REQUEST_READXL 13
-#define ASYNC_REQUEST_FRAMECALL	14
+#define ASYNC_REQUEST_FRAMECALL 14
 
 struct devstruct {
     int unitnum, aunit;
@@ -123,12 +123,12 @@ static struct device_info *devinfo (int mode, int unitnum, struct device_info *d
     return sys_command_info (mode, unitnum, di);
 }
 
-static void io_log (char *msg, uaecptr request)
+static void io_log (const char *msg, uaecptr request)
 {
     if (log_scsi)
 	write_log ("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n",
-	    msg, request, get_word(request + 28), get_long(request + 40),
-	    get_long(request + 36), get_long(request + 44),
+	    msg, request, get_word (request + 28), get_long (request + 40),
+	    get_long (request + 36), get_long (request + 44),
 	    get_long (request + 32), get_byte (request + 31));
 }
 
@@ -204,7 +204,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 	return 0;
     dev_close_3 (dev, pdev);
     put_long (request + 24, 0);
-    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) - 1);
+    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
     return 0;
 }
 
@@ -269,7 +269,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
     }
     dev->opencnt++;
 
-    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) + 1);
+    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
@@ -392,7 +392,7 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, int offs
 {
     int blocksize = dev->di.bytespersector;
     uae_u8 *temp;
-    
+
     length /= blocksize;
     offset /= blocksize;
     while (length > 0) {
@@ -410,7 +410,7 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, int off
 {
     int blocksize = dev->di.bytespersector;
     struct device_scsi_info dsi;
-    
+
     if (!sys_command_scsi_info(mode, dev->unitnum, &dsi))
 	return 20;
     length /= blocksize;
@@ -774,14 +774,14 @@ static uaecptr diskdev_startup (uaecptr resaddr)
      * the cd.device */
     if (log_scsi)
 	write_log ("diskdev_startup(0x%x)\n", resaddr);
-    put_word(resaddr + 0x0, 0x4AFC);
-    put_long(resaddr + 0x2, resaddr);
-    put_long(resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-    put_word(resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-    put_word(resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-    put_long(resaddr + 0xE, ROM_diskdev_resname);
-    put_long(resaddr + 0x12, ROM_diskdev_resid);
-    put_long(resaddr + 0x16, ROM_diskdev_init);
+    put_word (resaddr + 0x0, 0x4AFC);
+    put_long (resaddr + 0x2, resaddr);
+    put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+    put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+    put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+    put_long (resaddr + 0xE, ROM_diskdev_resname);
+    put_long (resaddr + 0x12, ROM_diskdev_resid);
+    put_long (resaddr + 0x16, ROM_diskdev_init);
     resaddr += 0x1A;
     return resaddr;
 }
@@ -794,14 +794,14 @@ uaecptr scsidev_startup (uaecptr resaddr)
 	write_log ("scsidev_startup(0x%x)\n", resaddr);
     /* Build a struct Resident. This will set up and initialize
      * the uaescsi.device */
-    put_word(resaddr + 0x0, 0x4AFC);
-    put_long(resaddr + 0x2, resaddr);
-    put_long(resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-    put_word(resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-    put_word(resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-    put_long(resaddr + 0xE, ROM_scsidev_resname);
-    put_long(resaddr + 0x12, ROM_scsidev_resid);
-    put_long(resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
+    put_word (resaddr + 0x0, 0x4AFC);
+    put_long (resaddr + 0x2, resaddr);
+    put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+    put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+    put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+    put_long (resaddr + 0xE, ROM_scsidev_resname);
+    put_long (resaddr + 0x12, ROM_scsidev_resid);
+    put_long (resaddr + 0x16, ROM_scsidev_init); /* calls scsidev_init */
     resaddr += 0x1A;
     return resaddr;
     return diskdev_startup (resaddr);

@@ -63,7 +63,7 @@ static int opendevice(void)
 	h = CreateFile("\\\\.\\fdraw0", GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return 0;
-	b = 0; // 500Kbps 
+	b = 0; // 500Kbps
 	if (!DeviceIoControl(h, IOCTL_FD_SET_DATA_RATE, &b, sizeof b, NULL, 0, &ret, NULL)) {
 		printf("IOCTL_FD_SET_DATA_RATE=%d failed err=%d\n", b, GetLastError());
 		closedevice();
@@ -95,7 +95,7 @@ static int readraw(int cyl, int head)
 	if (!seek(cyl, head))
 		return 0;
 
-	rrp.flags = FD_OPTION_MFM; 
+	rrp.flags = FD_OPTION_MFM;
 	rrp.head = head;
 	rrp.size = 7;
 	memset (trackbuffer, 0, TRACK_SIZE);

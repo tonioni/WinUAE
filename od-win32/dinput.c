@@ -236,9 +236,9 @@ static int initialize_catweasel(void)
 static int rdpmouse(char *buf)
 {
     if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
-        return 1;
+	return 1;
     if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
-        return 1;
+	return 1;
     return 0;
 }
 
@@ -357,7 +357,7 @@ static int initialize_rawinput (void)
 		continue;
 	    if (type == RIM_TYPEMOUSE) {
 		PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
-		write_log ("id=%d buttons=%d hw=%d rate=%d\n", 
+		write_log ("id=%d buttons=%d hw=%d rate=%d\n",
 		    rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
 		did->buttons = rdim->dwNumberOfButtons;
 		did->axles = 3;
@@ -462,7 +462,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
     if (raw->header.dwType == RIM_TYPEMOUSE) {
 	PRAWMOUSE rm = &raw->data.mouse;
-	
+
 	for (num = 0; num < num_mouse; num++) {
 	    did = &di_mouse[num];
 	    if (!did->disabled && did->rawinput == raw->header.hDevice)
@@ -471,12 +471,12 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 #ifdef DI_DEBUG2
 	write_log ("HANDLE=%08.8x %04.4x %04.4x %04.4x %08.8x %3d %3d %08.8x M=%d\n",
 	    raw->header.hDevice,
-	    rm->usFlags, 
-	    rm->usButtonFlags, 
-	    rm->usButtonData, 
-	    rm->ulRawButtons, 
-	    rm->lLastX, 
-	    rm->lLastY, 
+	    rm->usFlags,
+	    rm->usButtonFlags,
+	    rm->usButtonData,
+	    rm->ulRawButtons,
+	    rm->lLastX,
+	    rm->lLastY,
 	    rm->ulExtraInformation, num < num_mouse ? num + 1 : -1);
 #endif
 	if (num == num_mouse) {
@@ -628,7 +628,7 @@ static void fixbuttons (struct didata *did)
 {
     if (did->buttons > 0)
 	return;
-    write_log("'%s' has no buttons, adding single default button\n", did->name);
+    write_log ("'%s' has no buttons, adding single default button\n", did->name);
     did->buttonmappings[0] = DIJOFS_BUTTON(0);
     did->buttonsort[0] = 0;
     did->buttonname[0] = my_strdup("Button");
@@ -834,37 +834,37 @@ static LPDIRECTINPUT8 g_lpdi;
 
 static int di_do_init (void)
 {
-    HRESULT hr; 
+    HRESULT hr;
 
     num_mouse = num_joystick = num_keyboard = 0;
     memset (&di_mouse, 0, sizeof (di_mouse));
     memset (&di_joystick, 0, sizeof (di_joystick));
     memset (&di_keyboard, 0, sizeof (di_keyboard));
 
-    hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL); 
+    hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL);
     if (FAILED(hr)) {
 	write_log ("DirectInput8Create failed, %s\n", DXError (hr));
 	gui_message ("Failed to initialize DirectInput!");
 	return 0;
     }
     if (dinput_enum_all) {
-	write_log("DirectInput enumeration..\n");
+	write_log ("DirectInput enumeration..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
     } else {
-	write_log("DirectInput enumeration.. Keyboards..\n");
+	write_log ("DirectInput enumeration.. Keyboards..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-	write_log("DirectInput enumeration.. Pointing devices..\n");
+	write_log ("DirectInput enumeration.. Pointing devices..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-	write_log("DirectInput enumeration.. Game controllers..\n");
+	write_log ("DirectInput enumeration.. Game controllers..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_GAMECTRL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
     }
-    write_log("RawInput enumeration..\n");
+    write_log ("RawInput enumeration..\n");
     initialize_rawinput();
-    write_log("Windowsmouse initialization..\n");
+    write_log ("Windowsmouse initialization..\n");
     initialize_windowsmouse();
-    write_log("Catweasel joymouse initialization..\n");
+    write_log ("Catweasel joymouse initialization..\n");
     initialize_catweasel();
-    write_log("end\n");
+    write_log ("end\n");
 
     sortdd (di_joystick, num_joystick, DID_JOYSTICK);
     sortdd (di_mouse, num_mouse, DID_MOUSE);
@@ -953,7 +953,7 @@ static int init_mouse (void)
 {
     int i;
     LPDIRECTINPUTDEVICE8 lpdi;
-    HRESULT hr; 
+    HRESULT hr;
     struct didata *did;
 
     if (mouse_inited)
@@ -965,7 +965,7 @@ static int init_mouse (void)
 	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (hr == DI_OK) {
-		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIMouse); 
+		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIMouse);
 		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
 		fixbuttons (did);
 		sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
@@ -1298,7 +1298,7 @@ static int init_kb (void)
 	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (hr == DI_OK) {
-		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIKeyboard); 
+		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIKeyboard);
 		if (hr != DI_OK)
 		    write_log ("keyboard setdataformat failed, %s\n", DXError (hr));
 		memset (&dipdw, 0, sizeof (dipdw));
@@ -1399,8 +1399,8 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 static int keyhack (int scancode,int pressed, int num)
 {
     static byte backslashstate,apostrophstate;
-    
-     //check ALT-F4 
+
+     //check ALT-F4
     if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4 && di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
 	uae_quit ();
 	return -1;
@@ -1412,7 +1412,7 @@ static int keyhack (int scancode,int pressed, int num)
     }
 #endif
 
-    // release mouse if TAB and ALT is pressed 
+    // release mouse if TAB and ALT is pressed
     if (pressed && di_keycodes[num][DIK_LALT] && scancode == DIK_TAB) {
 	disablecapture ();
 	return -1;
@@ -1420,7 +1420,7 @@ static int keyhack (int scancode,int pressed, int num)
 
     if (!keyboard_german || currprefs.input_selected_setting > 0)
 	return scancode;
- 
+
  //This code look so ugly because there is no Directinput
  //key for # (called numbersign on win standard message)
  //available
@@ -1429,7 +1429,7 @@ static int keyhack (int scancode,int pressed, int num)
     if (scancode == DIK_BACKSLASH) // The # key
     {
 	if (di_keycodes[num][DIK_LSHIFT] || di_keycodes[num][DIK_RSHIFT] || apostrophstate)
-	{   
+	{
 	    if (pressed)
 	    {   apostrophstate=1;
 		inputdevice_translatekeycode (num, DIK_RSHIFT, 0);
@@ -1459,15 +1459,15 @@ static int keyhack (int scancode,int pressed, int num)
 	    inputdevice_translatekeycode (num, DIK_LSHIFT, 0);
 	    // Here is the same not nice but do the job
 	    return 4;           // the german # key
-	    
-	}    
+
+	}
     }
     if ((di_keycodes[num][DIK_RALT]) || (backslashstate)) {
 	switch (scancode)
 	{
 	    case 12:
 	    if (pressed)
-	    {   
+	    {
 		backslashstate=1;
 		inputdevice_translatekeycode (num, DIK_RALT, 0);
 		return DIK_BACKSLASH;
@@ -1606,7 +1606,7 @@ static int acquire_kb (int num, int flags)
 	currprefs.kbledmode = 1;
 #endif
 	oldleds = get_leds ();
-	if (oldusedleds < 0) 
+	if (oldusedleds < 0)
 	    oldusedleds = newleds = oldleds;
 	set_leds (oldusedleds);
     }
@@ -1744,7 +1744,7 @@ static void read_joystick (void)
 		int data2 = data;
 		int state = (data & 0x80) ? 1 : 0;
 		data -= 32768;
-		
+
 		for (k = 0; k < did->buttons; k++) {
 		    if (did->buttonmappings[k] == dimofs) {
 #ifdef DI_DEBUG2
@@ -1880,7 +1880,7 @@ int dinput_wmkey (uae_u32 key)
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port)
 {
     if (di_mouse[i].wininput)
-        port = 0;
+	port = 0;
     uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_MOUSE2_HORIZ : INPUTEVENT_MOUSE1_HORIZ;
     uid[i].eventid[ID_AXIS_OFFSET + 1][0] = port ? INPUTEVENT_MOUSE2_VERT : INPUTEVENT_MOUSE1_VERT;
     uid[i].eventid[ID_AXIS_OFFSET + 2][0] = port ? 0 : INPUTEVENT_MOUSE1_WHEEL;
@@ -1888,10 +1888,10 @@ int input_get_default_mouse (struct uae_input_device *uid, int i, int port)
     uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON;
     uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
     if (port == 0) { /* map back and forward to ALT+LCUR and ALT+RCUR */
-        uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = INPUTEVENT_KEY_ALT_LEFT;
-        uid[i].eventid[ID_BUTTON_OFFSET + 3][1] = INPUTEVENT_KEY_CURSOR_LEFT;
-        uid[i].eventid[ID_BUTTON_OFFSET + 4][0] = INPUTEVENT_KEY_ALT_LEFT;
-        uid[i].eventid[ID_BUTTON_OFFSET + 4][1] = INPUTEVENT_KEY_CURSOR_RIGHT;
+	uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = INPUTEVENT_KEY_ALT_LEFT;
+	uid[i].eventid[ID_BUTTON_OFFSET + 3][1] = INPUTEVENT_KEY_CURSOR_LEFT;
+	uid[i].eventid[ID_BUTTON_OFFSET + 4][0] = INPUTEVENT_KEY_ALT_LEFT;
+	uid[i].eventid[ID_BUTTON_OFFSET + 4][1] = INPUTEVENT_KEY_CURSOR_RIGHT;
     }
     if (i == 0)
 	return 1;
@@ -1909,7 +1909,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port)
     uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON;
     uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
     for (j = 2; j < MAX_MAPPINGS - 1; j++) {
-        int am = did->axismappings[j];
+	int am = did->axismappings[j];
 	if (am == DIJOFS_POV(0) || am == DIJOFS_POV(1) || am == DIJOFS_POV(2) || am == DIJOFS_POV(3)) {
 	    uid[i].eventid[ID_AXIS_OFFSET + j + 0][0] = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
 	    uid[i].eventid[ID_AXIS_OFFSET + j + 1][0] = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
@@ -1917,13 +1917,13 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port)
 	}
     }
     if (currprefs.cs_cd32cd) {
-        uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED;
-        uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE;
-        uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_CD32_YELLOW : INPUTEVENT_JOY1_CD32_YELLOW;
-        uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = port ? INPUTEVENT_JOY2_CD32_GREEN : INPUTEVENT_JOY1_CD32_GREEN;
-        uid[i].eventid[ID_BUTTON_OFFSET + 4][0] = port ? INPUTEVENT_JOY2_CD32_FFW : INPUTEVENT_JOY1_CD32_FFW;
-        uid[i].eventid[ID_BUTTON_OFFSET + 5][0] = port ? INPUTEVENT_JOY2_CD32_RWD : INPUTEVENT_JOY1_CD32_RWD;
-        uid[i].eventid[ID_BUTTON_OFFSET + 6][0] = port ? INPUTEVENT_JOY2_CD32_PLAY :  INPUTEVENT_JOY1_CD32_PLAY;
+	uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED;
+	uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE;
+	uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_CD32_YELLOW : INPUTEVENT_JOY1_CD32_YELLOW;
+	uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = port ? INPUTEVENT_JOY2_CD32_GREEN : INPUTEVENT_JOY1_CD32_GREEN;
+	uid[i].eventid[ID_BUTTON_OFFSET + 4][0] = port ? INPUTEVENT_JOY2_CD32_FFW : INPUTEVENT_JOY1_CD32_FFW;
+	uid[i].eventid[ID_BUTTON_OFFSET + 5][0] = port ? INPUTEVENT_JOY2_CD32_RWD : INPUTEVENT_JOY1_CD32_RWD;
+	uid[i].eventid[ID_BUTTON_OFFSET + 6][0] = port ? INPUTEVENT_JOY2_CD32_PLAY :  INPUTEVENT_JOY1_CD32_PLAY;
     }
     if (i == 0)
 	return 1;

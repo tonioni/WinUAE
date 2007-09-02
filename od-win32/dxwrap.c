@@ -58,12 +58,12 @@ static HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surface)
 		write_log ("Restore succeeded but following Blt failed with lost surface. Display driver bug?\n");
 		return hr;
 	    }
-	    write_log("Surface clear failed: %s\n", DXError (hr2));
+	    write_log ("Surface clear failed: %s\n", DXError (hr2));
 	}
 	surfacedesc.dwSize = sizeof surfacedesc;
 	hr2 = IDirectDrawSurface7_Lock(surface, NULL, &surfacedesc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL);
 	if (SUCCEEDED(hr2)) {
-	    write_log("Surface Pointer: %p\n", surfacedesc.lpSurface);
+	    write_log ("Surface Pointer: %p\n", surfacedesc.lpSurface);
 	    IDirectDrawSurface7_Unlock(surface, NULL);
 	}
     }
@@ -131,60 +131,60 @@ static void ShowDDCaps( DDCAPS_DX7 caps, int hw )
 
     if( shown < 2)
     {
-	dxwrite_log( "DirectDraw Capabilities for %s:\n", hw ? "Display Driver Hardware" : "Display Driver Emulation Layer" );
+	dxwrite_log ( "DirectDraw Capabilities for %s:\n", hw ? "Display Driver Hardware" : "Display Driver Emulation Layer" );
 	if( caps.dwCaps & DDCAPS_BLT )
-	    dxwrite_log( "DDCAPS_BLT - Capable of blitting\n" );
+	    dxwrite_log ( "DDCAPS_BLT - Capable of blitting\n" );
 	if( caps.dwCaps & DDCAPS_BLTCOLORFILL )
-	    dxwrite_log( "DDCAPS_BLTCOLORFILL - Color filling with blitter\n" );
+	    dxwrite_log ( "DDCAPS_BLTCOLORFILL - Color filling with blitter\n" );
 	if( caps.dwCaps & DDCAPS_BLTSTRETCH )
-	    dxwrite_log( "DDCAPS_BLTSTRETCH - Stretch blitting\n" );
+	    dxwrite_log ( "DDCAPS_BLTSTRETCH - Stretch blitting\n" );
 	if( caps.dwCaps & DDCAPS_CANBLTSYSMEM )
-	    dxwrite_log( "DDCAPS_CANBLTSYSMEM - Blits from system memory\n" );
+	    dxwrite_log ( "DDCAPS_CANBLTSYSMEM - Blits from system memory\n" );
 	if( caps.dwCaps & DDCAPS_CANCLIP )
-	    dxwrite_log( "DDCAPS_CANCLIP - Can clip while blitting\n" );
+	    dxwrite_log ( "DDCAPS_CANCLIP - Can clip while blitting\n" );
 	if( caps.dwCaps & DDCAPS_CANCLIPSTRETCHED )
-	    dxwrite_log( "DDCAPS_CANCLIPSTRETCHED - Can clip while stretch-blitting\n" );
+	    dxwrite_log ( "DDCAPS_CANCLIPSTRETCHED - Can clip while stretch-blitting\n" );
 	if( caps.dwCaps & DDCAPS_COLORKEY )
 	{
-	    dxwrite_log( "DDCAPS_COLORKEY - Can color-key with blits/overlays\n" );
+	    dxwrite_log ( "DDCAPS_COLORKEY - Can color-key with blits/overlays\n" );
 	    bColourKeyAvailable = TRUE;
 	}
 	if( caps.dwCaps & DDCAPS_GDI )
-	    dxwrite_log( "DDCAPS_GDI - Display h/w shared with GDI\n" );
+	    dxwrite_log ( "DDCAPS_GDI - Display h/w shared with GDI\n" );
 	if( caps.dwCaps & DDCAPS_NOHARDWARE )
-	    dxwrite_log( "DDCAPS_NOHARDWARE - no h/w support!\n" );
+	    dxwrite_log ( "DDCAPS_NOHARDWARE - no h/w support!\n" );
 	if( caps.dwCaps & DDCAPS_OVERLAY )
 	{
-	    dxwrite_log( "DDCAPS_OVERLAY - support for %d overlay(s)\n", caps.dwMaxVisibleOverlays );
+	    dxwrite_log ( "DDCAPS_OVERLAY - support for %d overlay(s)\n", caps.dwMaxVisibleOverlays );
 	    if( bColourKeyAvailable )
 	    {
 		if( caps.dwCKeyCaps & DDCKEYCAPS_DESTOVERLAY )
 		{
-		    dxwrite_log( "DDCKEYCAPS_DESTOVERLAY - colour-keyed overlays\n" );
+		    dxwrite_log ( "DDCKEYCAPS_DESTOVERLAY - colour-keyed overlays\n" );
 		    bOverlayAvailable = TRUE;
 		}
 	    }
 	}
 	if( caps.dwCaps & DDCAPS_OVERLAYFOURCC )
-	    dxwrite_log( "DDCAPS_OVERLAYFOURCC - overlay can do color-space conversions\n" );
+	    dxwrite_log ( "DDCAPS_OVERLAYFOURCC - overlay can do color-space conversions\n" );
 	if( caps.dwCaps & DDCAPS_OVERLAYSTRETCH )
-	    dxwrite_log( "DDCAPS_OVERLAYSTRETCH - overlay can stretch with min=%d/max=%d\n", caps.dwMinOverlayStretch, caps.dwMaxOverlayStretch );
+	    dxwrite_log ( "DDCAPS_OVERLAYSTRETCH - overlay can stretch with min=%d/max=%d\n", caps.dwMinOverlayStretch, caps.dwMaxOverlayStretch );
 	if( caps.dwCaps & DDCAPS_VBI )
-	    dxwrite_log( "DDCAPS_VBI - h/w can generate a vertical-blanking interrupt\n" );
+	    dxwrite_log ( "DDCAPS_VBI - h/w can generate a vertical-blanking interrupt\n" );
 	if( caps.dwCaps2 & DDCAPS2_CERTIFIED )
-	    dxwrite_log( "DDCAPS2_CERTIFIED - certified driver\n" );
+	    dxwrite_log ( "DDCAPS2_CERTIFIED - certified driver\n" );
 	if( caps.dwCaps2 & DDCAPS2_CANRENDERWINDOWED )
-	    dxwrite_log( "DDCAPS2_CANRENDERWINDOWED - GDI windows can be seen when in full-screen\n" );
+	    dxwrite_log ( "DDCAPS2_CANRENDERWINDOWED - GDI windows can be seen when in full-screen\n" );
 	if( caps.dwCaps2 & DDCAPS2_NOPAGELOCKREQUIRED )
-	    dxwrite_log( "DDCAPS2_NOPAGELOCKREQUIRED - no page locking needed for DMA blits\n" );
+	    dxwrite_log ( "DDCAPS2_NOPAGELOCKREQUIRED - no page locking needed for DMA blits\n" );
 	if( caps.dwCaps2 & DDCAPS2_FLIPNOVSYNC )
-	    dxwrite_log( "DDCAPS2_FLIPNOVSYNC - can pass DDFLIP_NOVSYNC to Flip calls\n" );
+	    dxwrite_log ( "DDCAPS2_FLIPNOVSYNC - can pass DDFLIP_NOVSYNC to Flip calls\n" );
 	if( caps.dwCaps2 & DDCAPS2_FLIPINTERVAL ) {
-	    dxwrite_log( "DDCAPS2_FLIPINTERVAL - can pass DDFLIP_INTERVALx to Flip calls\n" );
+	    dxwrite_log ( "DDCAPS2_FLIPINTERVAL - can pass DDFLIP_INTERVALx to Flip calls\n" );
 	    flipinterval_supported = 1;
 	}
-	
-	dxwrite_log( "Video memory: %d/%d\n", caps.dwVidMemFree, caps.dwVidMemTotal );
+
+	dxwrite_log ( "Video memory: %d/%d\n", caps.dwVidMemFree, caps.dwVidMemTotal );
     }
     shown++;
 }
@@ -271,7 +271,7 @@ static int LockStub( surface_type_e type )
 	    if (FAILED(ddrval))
 		break;
 	}
-	else if (ddrval != DDERR_SURFACEBUSY) 
+	else if (ddrval != DDERR_SURFACEBUSY)
 	{
 	    write_log ("lpDDS->Lock() failed - %s\n", DXError (ddrval));
 	    break;
@@ -281,7 +281,7 @@ static int LockStub( surface_type_e type )
 	static int warned = 10;
 	DWORD_PTR pixels = (DWORD_PTR)(surfacedesc->lpSurface);
 	if (warned > 0 && (pixels & 7)) {
-	    write_log("bogus surface pointer %x!\n", pixels);
+	    write_log ("bogus surface pointer %x!\n", pixels);
 	    warned--;
 	}
 	lockcnt++;
@@ -595,19 +595,19 @@ static surface_type_e try_surface_locks(int want_fullscreen)
     if(DirectDrawState.isoverlay && DirectDraw_SurfaceLock(overlay_surface))
     {
 	result = overlay_surface;
-	write_log("try_surface_locks() returning overlay\n");
+	write_log ("try_surface_locks() returning overlay\n");
     }
     else if(want_fullscreen && WIN32GFX_IsPicassoScreen())
     {
 	if(DirectDraw_SurfaceLock(primary_surface))
 	{
 	    result = primary_surface;
-	    write_log("try_surface_locks() returning primary\n");
+	    write_log ("try_surface_locks() returning primary\n");
 	}
 	else if(DirectDraw_SurfaceLock(secondary_surface))
 	{
 	    result = secondary_surface;
-	    write_log("try_surface_locks() returning secondary\n");
+	    write_log ("try_surface_locks() returning secondary\n");
 	}
     }
     else
@@ -615,7 +615,7 @@ static surface_type_e try_surface_locks(int want_fullscreen)
 	if(DirectDraw_SurfaceLock(secondary_surface))
 	{
 	    result = secondary_surface;
-	    write_log("try_surface_locks() returning secondary\n");
+	    write_log ("try_surface_locks() returning secondary\n");
 	}
     }
 
@@ -925,7 +925,7 @@ static DWORD ConvertGDIColor(COLORREF dwGDIColor)
 
     memset(&pdds,0,sizeof(pdds));
     pdds.dwSize = sizeof(pdds);
- 
+
     IDirectDrawSurface7_GetSurfaceDesc(DirectDrawState.primary.surface, &pdds);
 
     //  Use GDI SetPixel to color match for us
@@ -939,7 +939,7 @@ static DWORD ConvertGDIColor(COLORREF dwGDIColor)
     ddsd.dwSize = sizeof(ddsd);
     hr = IDirectDrawSurface7_Lock(DirectDrawState.primary.surface, NULL, &ddsd, DDLOCK_WAIT, NULL );
     if(SUCCEEDED(hr)) {
-	dw = *(DWORD *) ddsd.lpSurface; 
+	dw = *(DWORD *) ddsd.lpSurface;
 	if(ddsd.ddpfPixelFormat.dwRGBBitCount < 32) // Mask it to bpp
 	    dw &= (1 << ddsd.ddpfPixelFormat.dwRGBBitCount) - 1;
 	IDirectDrawSurface7_Unlock(DirectDrawState.primary.surface,NULL);
@@ -951,7 +951,7 @@ static DWORD ConvertGDIColor(COLORREF dwGDIColor)
 	IDirectDrawSurface7_ReleaseDC(DirectDrawState.primary.surface,hdc);
     }
 
-    return dw;    
+    return dw;
 }
 
 
@@ -968,33 +968,33 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
     ZeroMemory(&ddsd, sizeof(ddsd));
 
     if (bOverlayAvailable) {
-	write_log( "CreateOverlaySurface being called with %d-bits!\n", bits );
+	write_log ( "CreateOverlaySurface being called with %d-bits!\n", bits );
 	if(bits == 16) {
 	    // Set the overlay format to 16 bit RGB 5:6:5
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 16;
-	    ddpfOverlayFormat.dwRBitMask    = 0xF800; 
+	    ddpfOverlayFormat.dwRBitMask    = 0xF800;
 	    ddpfOverlayFormat.dwGBitMask    = 0x07E0;
-	    ddpfOverlayFormat.dwBBitMask    = 0x001F; 
+	    ddpfOverlayFormat.dwBBitMask    = 0x001F;
 	} else if(bits == 32) {
 	    // Set the overlay format to 32 bit ARGB 8:8:8:8
 	    ddpfOverlayFormat.dwFlags       = flags;
 	    ddpfOverlayFormat.dwRGBBitCount = 32;
-	    ddpfOverlayFormat.dwRBitMask    = 0x00FF0000; 
+	    ddpfOverlayFormat.dwRBitMask    = 0x00FF0000;
 	    ddpfOverlayFormat.dwGBitMask    = 0x0000FF00;
-	    ddpfOverlayFormat.dwBBitMask    = 0x000000FF; 
+	    ddpfOverlayFormat.dwBBitMask    = 0x000000FF;
 	} else if(bits == 8) {
 	    // Set the overlay format to 8 bit palette
 	    ddpfOverlayFormat.dwFlags       = flags | DDPF_PALETTEINDEXED8;
 	    ddpfOverlayFormat.dwRGBBitCount = 8;
-	    ddpfOverlayFormat.dwRBitMask    = 0x00000000; 
+	    ddpfOverlayFormat.dwRBitMask    = 0x00000000;
 	    ddpfOverlayFormat.dwGBitMask    = 0x00000000;
-	    ddpfOverlayFormat.dwBBitMask    = 0x00000000; 
+	    ddpfOverlayFormat.dwBBitMask    = 0x00000000;
 	} else {
 	    // We don't handle this case...
 	    return DDERR_INVALIDPIXELFORMAT;
 	}
-    
+
 	// Setup the overlay surface's attributes in the surface descriptor
 	ddsd.dwSize            = sizeof(ddsd);
 	ddsd.dwFlags           = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
@@ -1019,7 +1019,7 @@ HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int typ
 	    DirectDrawState.isoverlay = 0;
 	}
     } else {
-	write_log( "CreateOverlaySurface being called, but no overlay support with this card...!\n" );
+	write_log ( "CreateOverlaySurface being called, but no overlay support with this card...!\n" );
     }
     return ddrval;
 }
@@ -1053,7 +1053,7 @@ HRESULT DirectDraw_CreateSurface(int width, int height)
 	DirectDrawState.primary.desc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
 	DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_COMPLEX | DDSCAPS_FLIP;
 	DirectDrawState.primary.desc.dwBackBufferCount = 2;
-	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
+	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd,
 		    &DirectDrawState.primary.desc, &DirectDrawState.primary.surface, NULL);
 	if (FAILED(ddrval)) {
 	    // Create a non-flipping pair, since the flipping pair creation failed...
@@ -1061,7 +1061,7 @@ HRESULT DirectDraw_CreateSurface(int width, int height)
 	    DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
 	    DirectDrawState.primary.desc.dwFlags = DDSD_CAPS;
 	    DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	    ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
+	    ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd,
 						&DirectDrawState.primary.desc,
 						&DirectDrawState.primary.surface,
 						NULL);
@@ -1075,14 +1075,14 @@ HRESULT DirectDraw_CreateSurface(int width, int height)
 	DirectDrawState.primary.desc.dwSize = sizeof(DDSURFACEDESC2);
 	DirectDrawState.primary.desc.dwFlags = DDSD_CAPS;
 	DirectDrawState.primary.desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
+	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd,
 			&DirectDrawState.primary.desc, &DirectDrawState.primary.surface, NULL);
     }
 
     if(FAILED(ddrval))
 	goto errout;
     else
-	write_log( "DDRAW: Primary %ssurface created in video-memory\n",
+	write_log ( "DDRAW: Primary %ssurface created in video-memory\n",
 	    DirectDrawState.flipping != single_buffer ? "flipping " : "");
 
     // Check if we can access the back-buffer of our flipping-pair (if present)
@@ -1118,20 +1118,20 @@ HRESULT DirectDraw_CreateSurface(int width, int height)
 	DirectDrawState.secondary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | xtraflag;
 	DirectDrawState.secondary.desc.dwWidth = width;
 	DirectDrawState.secondary.desc.dwHeight = height;
-	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
+	ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd,
 			&DirectDrawState.secondary.desc, &DirectDrawState.secondary.surface, NULL);
 	if(FAILED(ddrval)) {
-	    write_log( "DDRAW:Secondary surface creation attempt #1 failed with %s\n", DXError(ddrval));
+	    write_log ( "DDRAW:Secondary surface creation attempt #1 failed with %s\n", DXError(ddrval));
 	    DirectDrawState.secondary.desc.ddsCaps.dwCaps &= ~DDSCAPS_VIDEOMEMORY;
 	    DirectDrawState.secondary.desc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
-	    ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd, 
+	    ddrval = IDirectDraw7_CreateSurface(DirectDrawState.directdraw.dd,
 			&DirectDrawState.secondary.desc, &DirectDrawState.secondary.surface, NULL);
 	    if(SUCCEEDED(ddrval))
-		write_log("DDRAW: Secondary surface created in plain system-memory\n");
+		write_log ("DDRAW: Secondary surface created in plain system-memory\n");
 	    else
 		goto errout;
 	} else {
-	    write_log("DDRAW: Secondary surface created in video-memory\n");
+	    write_log ("DDRAW: Secondary surface created in video-memory\n");
 	}
     }
     DirectDraw_ClearSurfaces ();
@@ -1166,7 +1166,7 @@ int DirectDraw_DetermineLocking( int wantfull )
 	DirectDrawState.lockable.lpdesc = NULL;
 	DirectDrawState.lockable.surface = NULL;
 	DirectDrawState.lockable.surface = NULL;
-	write_log("set_ddraw: Couldn't lock primary, and no secondary available.\n");
+	write_log ("set_ddraw: Couldn't lock primary, and no secondary available.\n");
 	break;
     case primary_surface:
 	DirectDrawState.lockable.lpdesc = &DirectDrawState.primary.desc;
@@ -1329,7 +1329,7 @@ HRESULT DirectDraw_CreatePalette(LPPALETTEENTRY pal)
     ddrval = IDirectDraw_CreatePalette(DirectDrawState.directdraw.dd,
 	DDPCAPS_8BIT | DDPCAPS_ALLOW256, pal, &DirectDrawState.lpDDP, NULL);
     if(SUCCEEDED(ddrval))
-   	ddrval = DirectDraw_SetPalette(0);
+	ddrval = DirectDraw_SetPalette(0);
     return ddrval;
 }
 
@@ -1428,7 +1428,7 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
 	if (r == 0x0000FF00 && g == 0x00FF0000 && b == 0xFF000000)
 	    return RGBFB_A8R8G8B8;
 	break;
-	
+
      default:
 	write_log ("Unknown %d bit format %d %d %d\n", pfp->dwRGBBitCount, r, g, b);
 	break;
@@ -1546,7 +1546,7 @@ static int DirectDraw_BltFastStub4(LPDIRECTDRAWSURFACE7 dstsurf, DWORD x, DWORD 
 	    if (FAILED(ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log("BltFastStub7(): DirectDrawSURFACE7_BltFast() failed with %s\n", DXError (ddrval));
+	    write_log ("BltFastStub7(): DirectDrawSURFACE7_BltFast() failed with %s\n", DXError (ddrval));
 	    break;
 	}
     }
@@ -1620,7 +1620,7 @@ static HRESULT DirectDraw_BltStub(LPDIRECTDRAWSURFACE7 dstsurf, LPRECT dstrect, 
 		break;
 	    }
 	} else if (ddrval != DDERR_SURFACEBUSY)  {
-	    write_log("BltStub(): DirectDrawSURFACE7_Blt() failed with %s\n", DXError (ddrval));
+	    write_log ("BltStub(): DirectDrawSURFACE7_Blt() failed with %s\n", DXError (ddrval));
 	    break;
 	}
     }
@@ -1650,7 +1650,7 @@ int DirectDraw_Flip(int wait)
     DWORD flags = DDFLIP_WAIT;
     static int skip;
     frame_time_t start;
-    
+
     start = read_processor_time ();
     if (DirectDrawState.flipping == triple_buffer) {
 	if (!currprefs.gfx_afullscreen && !currprefs.gfx_avsync) {
@@ -1703,7 +1703,7 @@ int DirectDraw_Flip(int wait)
 		recurse--;
 	    }
 	} else {
-	    write_log("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
+	    write_log ("FLIP: DirectDrawSurface_Flip() failed with %s\n", DXError (ddrval));
 	}
     }
     return result;
@@ -1729,7 +1729,7 @@ HRESULT DirectDraw_Blt(surface_type_e dsttype, LPRECT dstrect,
 	    DWORD flags, LPDDBLTFX fx)
 {
     LPDIRECTDRAWSURFACE7 lpDDS4_dst, lpDDS4_src;
-    
+
     if(dsttype == primary_surface) {
 	if(DirectDrawState.isoverlay)
 	    lpDDS4_dst = DirectDrawState.overlay.surface;
@@ -1902,11 +1902,11 @@ HRESULT DirectDraw_UpdateOverlay(RECT sr, RECT dr)
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNSIZESRC) && drivercaps.dwAlignSizeSrc)
 	    sr.right = sr.left + (sr.right - sr.left + drivercaps.dwAlignSizeSrc / 2) & ~(drivercaps.dwAlignSizeSrc - 1);
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNBOUNDARYDEST) && drivercaps.dwAlignBoundaryDest)
-	    dr.left = (dr.left + drivercaps.dwAlignBoundaryDest / 2) & ~(drivercaps.dwAlignBoundaryDest - 1);    
+	    dr.left = (dr.left + drivercaps.dwAlignBoundaryDest / 2) & ~(drivercaps.dwAlignBoundaryDest - 1);
 	if ((drivercaps.dwCaps & DDCAPS_ALIGNSIZEDEST) && drivercaps.dwAlignSizeDest)
 	    dr.right = dr.left + (dr.right - dr.left) & ~(drivercaps.dwAlignSizeDest - 1);
 	result = IDirectDrawSurface7_UpdateOverlay(DirectDrawState.overlay.surface, &sr, DirectDrawState.primary.surface, &dr, overlayflags, &overlayfx);
-	
+
     }
     if (FAILED(result)) {
 	if (result == DDERR_SURFACELOST)
@@ -1932,7 +1932,7 @@ int DirectDraw_GetPrimaryPixelFormat (LPDDPIXELFORMAT ddpf)
 {
     surface_type_e surface_type;
     HRESULT ddrval;
-    
+
     surface_type = DirectDraw_GetLockableType ();
     ddpf->dwSize = sizeof (DDPIXELFORMAT);
     if (surface_type == overlay_surface)

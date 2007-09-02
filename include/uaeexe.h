@@ -5,7 +5,7 @@
  */
 
 struct uae_xcmd {
-    struct uae_xcmd *prev,*next;
+    struct uae_xcmd *prev, *next;
     char *cmd;
 };
 
@@ -15,7 +15,7 @@ struct uae_xcmd {
 #define UAEEXE_NOTRUNNING  1
 #define UAEEXE_NOMEM       2
 
-extern void uaeexe_install(void);
-extern int  uaeexe(const char *cmd);
+extern void uaeexe_install (void);
+extern int uaeexe (const char *cmd);
 
 

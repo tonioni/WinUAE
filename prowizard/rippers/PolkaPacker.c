@@ -31,7 +31,7 @@ short testPolka ( void )
     PW_n = (((in_data[PW_Start_Address+48+30*PW_j]*256)+in_data[PW_Start_Address+49+30*PW_j])*2);
     PW_WholeSampleSize += PW_k;
 
-    if ( test_smps(PW_k, PW_m, PW_n, in_data[PW_Start_Address+45+30*PW_j], in_data[PW_Start_Address+44+30*PW_j] ) == BAD )
+    if ( test_smps(PW_k, PW_m/2, PW_n, in_data[PW_Start_Address+45+30*PW_j], in_data[PW_Start_Address+44+30*PW_j] ) == BAD )
     {
       /*      printf ("#2 (start:%ld)(siz:%ld)(lstart:%ld)(lsiz:%ld)(vol:%d)(fine:%d)(Where:%ld)\n"
 	      ,PW_Start_Address,PW_k,PW_m,PW_n

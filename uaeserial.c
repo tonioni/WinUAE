@@ -149,9 +149,10 @@ static char *getdevname (void)
 static void io_log (char *msg, uaecptr request)
 {
     if (log_uaeserial)
-        write_log ("%s: %08X %d %08.8X %d %d io_actual=%d io_error=%d\n",
-	    msg, request,get_word(request + 28),get_long(request + 40),get_long(request + 36),get_long(request + 44),
-	    get_long (request + 32), get_byte (request + 31));
+	write_log ("%s: %08X %d %08.8X %d %d io_actual=%d io_error=%d\n",
+		   msg, request, get_word (request + 28), get_long (request + 40),
+		   get_long (request + 36), get_long (request + 44),
+		   get_long (request + 32), get_byte (request + 31));
 }
 
 static struct devstruct *getdevstruct (int uniq)
@@ -187,38 +188,38 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
     uae_u32 request = m68k_areg (&context->regs, 1);
     struct devstruct *dev;
 
-    dev = getdevstruct (get_long(request + 24));
+    dev = getdevstruct (get_long (request + 24));
     if (!dev)
 	return 0;
     if (log_uaeserial)
 	write_log ("%s:%d close, req=%x\n", getdevname(), dev->unit, request);
     dev_close_3 (dev);
     put_long (request + 24, 0);
-    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) - 1);
+    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
     return 0;
 }
 
 static void resetparams(struct devstruct *dev, uaecptr req)
 {
-    put_long(req + io_CtlChar, 0x00001311);
-    put_long(req + io_RBufLen, 1024);
-    put_long(req + io_ExtFlags, 0);
-    put_long(req + io_Baud, 9600);
-    put_long(req + io_BrkTime, 250000);
-    put_long(req + io_TermArray0, 0);
-    put_long(req + io_TermArray1, 0);
-    put_byte(req + io_ReadLen, 8);
-    put_byte(req + io_WriteLen, 8);
-    put_byte(req + io_StopBits, 1);
-    put_byte(req + io_SerFlags, get_byte(req + io_SerFlags) & (SERF_XDISABLED | SERF_SHARED | SERF_7WIRE));
-    put_word(req + io_Status, 0);
+    put_long (req + io_CtlChar, 0x00001311);
+    put_long (req + io_RBufLen, 1024);
+    put_long (req + io_ExtFlags, 0);
+    put_long (req + io_Baud, 9600);
+    put_long (req + io_BrkTime, 250000);
+    put_long (req + io_TermArray0, 0);
+    put_long (req + io_TermArray1, 0);
+    put_byte (req + io_ReadLen, 8);
+    put_byte (req + io_WriteLen, 8);
+    put_byte (req + io_StopBits, 1);
+    put_byte (req + io_SerFlags, get_byte (req + io_SerFlags) & (SERF_XDISABLED | SERF_SHARED | SERF_7WIRE));
+    put_word (req + io_Status, 0);
 }
 
 static int setparams(struct devstruct *dev, uaecptr req)
 {
     int v;
     int rbuffer, baud, rbits, wbits, sbits, rtscts, parity, xonxoff;
-    
+
     rbuffer = get_long (req + io_RBufLen);
     v = get_long (req + io_ExtFlags);
     if (v) {
@@ -247,12 +248,12 @@ static int setparams(struct devstruct *dev, uaecptr req)
 	return 5;
     }
     write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06.6X\n",
-	getdevname(), dev->unit, 
+	getdevname(), dev->unit,
 	baud, rbuffer, rbits, sbits, rtscts, parity, xonxoff);
     v = uaeser_setparams (dev->sysdata, baud, rbuffer,
 	rbits, sbits, rtscts, parity, xonxoff);
     if (v) {
-	write_log("->failed\n");
+	write_log ("->failed\n");
 	return v;
     }
     return 0;
@@ -292,7 +293,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     dev->unit = unit;
     dev->open = 1;
     dev->uniq = ++uniq;
-    dev->exclusive = (get_word(ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
+    dev->exclusive = (get_word (ioreq + io_SerFlags) & SERF_SHARED) ? 0 : 1;
     put_long (ioreq + 24, dev->uniq);
     resetparams (dev, ioreq);
     err = setparams (dev, ioreq);
@@ -306,7 +307,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	write_log ("%s:%d open ioreq=%08.8X\n", getdevname(), unit, ioreq);
     start_thread (dev);
 
-    put_word (m68k_areg(&context->regs, 6) + 32, get_word (m68k_areg(&context->regs, 6) + 32) + 1);
+    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
@@ -367,7 +368,7 @@ static int release_async_request (struct devstruct *dev, uaecptr request)
     prevar = NULL;
     while (ar) {
 	if (ar->request == request) {
-    	    if (prevar == NULL)
+	    if (prevar == NULL)
 		dev->ar = ar->next;
 	    else
 		prevar->next = ar->next;
@@ -393,7 +394,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 	return;
     }
     if (log_uaeserial)
-        write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
+	write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
     put_byte (request + 31, -2);
     put_byte (request + 30, get_byte (request + 30) | 0x20);
     write_comm_pipe_u32 (&dev->requests, request, 1);
@@ -458,14 +459,14 @@ void uaeser_signal (struct devstruct *dev, int sigmask)
 		}
 		break;
 		default:
-		    write_log("%s:%d incorrect async request %x (cmd=%d) signaled?!", getdevname(), dev->unit, request, command);
+		    write_log ("%s:%d incorrect async request %x (cmd=%d) signaled?!", getdevname(), dev->unit, request, command);
 		break;
 	    }
 
 	    if (io_done) {
 		if (log_uaeserial)
 		    write_log ("%s:%d async request %x completed\n", getdevname(), dev->unit, request);
-    		put_long (request + 32, io_actual);
+		put_long (request + 32, io_actual);
 		put_byte (request + 31, io_error);
 		ar->ready = 1;
 		write_comm_pipe_u32 (&dev->requests, request, 1);
@@ -492,7 +493,7 @@ static void cmd_reset(struct devstruct *dev, uaecptr req)
     put_long (req + io_StopBits, 1);
     put_long (req + io_SerFlags, SERF_XDISABLED);
     put_word (req + io_Status, 0);
-}  
+}
 
 static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 {
@@ -564,7 +565,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
     uae_u32 request = m68k_areg (&context->regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
-    struct devstruct *dev = getdevstruct (get_long(request + 24));
+    struct devstruct *dev = getdevstruct (get_long (request + 24));
 
     put_byte (request + 8, NT_MESSAGE);
     if (!dev) {
@@ -577,7 +578,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 	    write_log ("device %s:%d command %d bug with IO_QUICK\n", getdevname(), dev->unit, command);
 	return get_byte (request + 31);
     } else {
-        put_byte (request + 30, get_byte (request + 30) & ~1);
+	put_byte (request + 30, get_byte (request + 30) & ~1);
 	write_comm_pipe_u32 (&dev->requests, request, 1);
 	return 0;
     }
@@ -593,7 +594,7 @@ static void *dev_thread (void *devs)
     for (;;) {
 	uaecptr request = (uaecptr)read_comm_pipe_u32_blocking (&dev->requests);
 	uae_sem_wait (&change_sem);
-        if (!request) {
+	if (!request) {
 	    dev->thread_running = 0;
 	    uae_sem_post (&dev->sync_sem);
 	    uae_sem_post (&change_sem);
@@ -602,7 +603,7 @@ static void *dev_thread (void *devs)
 	    uae_ReplyMsg (request);
 	    release_async_request (dev, request);
 	} else if (dev_do_io (dev, request, 0) == 0) {
-            uae_ReplyMsg (request);
+	    uae_ReplyMsg (request);
 	} else {
 	    add_async_request (dev, request);
 	    uaeser_trigger (dev->sysdata);
@@ -623,7 +624,7 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
     uae_u32 request = m68k_areg (&context->regs, 1);
-    struct devstruct *dev = getdevstruct (get_long(request + 24));
+    struct devstruct *dev = getdevstruct (get_long (request + 24));
 
     if (!dev) {
 	put_byte (request + 31, 32);
@@ -662,14 +663,14 @@ uaecptr uaeserialdev_startup (uaecptr resaddr)
 	write_log ("uaeserialdev_startup(0x%x)\n", resaddr);
     /* Build a struct Resident. This will set up and initialize
      * the serial.device */
-    put_word(resaddr + 0x0, 0x4AFC);
-    put_long(resaddr + 0x2, resaddr);
-    put_long(resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
-    put_word(resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
-    put_word(resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
-    put_long(resaddr + 0xE, ROM_uaeserialdev_resname);
-    put_long(resaddr + 0x12, ROM_uaeserialdev_resid);
-    put_long(resaddr + 0x16, ROM_uaeserialdev_init);
+    put_word (resaddr + 0x0, 0x4AFC);
+    put_long (resaddr + 0x2, resaddr);
+    put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+    put_word (resaddr + 0xA, 0x8101); /* RTF_AUTOINIT|RTF_COLDSTART; Version 1 */
+    put_word (resaddr + 0xC, 0x0305); /* NT_DEVICE; pri 05 */
+    put_long (resaddr + 0xE, ROM_uaeserialdev_resname);
+    put_long (resaddr + 0x12, ROM_uaeserialdev_resid);
+    put_long (resaddr + 0x16, ROM_uaeserialdev_init);
     resaddr += 0x1A;
     return resaddr;
 }
@@ -690,7 +691,7 @@ void uaeserialdev_install (void)
     /* initcode */
     initcode = here ();
     calltrap (deftrap (dev_init)); dw (RTS);
-    
+
     /* Open */
     openfunc = here ();
     calltrap (deftrap (dev_open)); dw (RTS);

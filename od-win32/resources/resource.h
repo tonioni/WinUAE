@@ -653,8 +653,6 @@
 #define IDC_AVIOUTPUT_FILETEXT          1610
 #define IDC_INPUTDEVICETEXT             1610
 #define IDC_ALWAYSONTOP                 1610
-#define IDC_MAPROM2                     1610
-#define IDC_HRTMON                      1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611
@@ -907,7 +905,10 @@
 #define IDC_CS_SCSIMODE                 1772
 #define IDC_DF0ENABLE                   1773
 #define IDC_DF1ENABLE                   1774
+#define IDC_FS_SELECT_DIR               1774
+#define IDC_FS_SELECT_FILE              1775
 #define IDC_DF2ENABLE                   1776
+#define IDC_FS_SELECT_EJECT             1776
 #define IDC_DF3ENABLE                   1778
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
@@ -938,7 +939,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        334
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1774
+#define _APS_NEXT_CONTROL_VALUE         1775
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

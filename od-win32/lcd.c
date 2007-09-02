@@ -73,7 +73,7 @@ static int lcd_init(void)
     octx.index = 0;
     ret = lgLcdOpen(&octx);
     if (ret != ERROR_SUCCESS) {
-	write_log("LCD: lgLcdOpen() returned %d\n", ret);
+	write_log ("LCD: lgLcdOpen() returned %d\n", ret);
 	lcd_close();
 	return 0;
     }
@@ -84,7 +84,7 @@ static int lcd_init(void)
     SelectObject(dc, bmp);
     GetObject (bmp, sizeof (binfo), &binfo);
     for (y = 0; y < binfo.bmHeight; y++) {
-        for (x = 0; x < binfo.bmWidth; x++) {
+	for (x = 0; x < binfo.bmWidth; x++) {
 	    bitmap[y * binfo.bmWidth + x] = GetPixel(dc, x, y) == 0 ? 0xff : 0;
 	}
     }
@@ -92,7 +92,7 @@ static int lcd_init(void)
     memcpy (origbitmap, bitmap, desc.Width * desc.Height);
     DeleteDC(dc);
 
-    write_log("LCD: Logitech LCD system initialized\n");
+    write_log ("LCD: Logitech LCD system initialized\n");
     return 1;
 }
 
@@ -153,14 +153,14 @@ void lcd_update(int led, int on)
 	return;
 
     if (led < 0) {
-        lgLcdUpdateBitmap(device, lbh, LGLCD_PRIORITY_IDLE_NO_SHOW);
+	lgLcdUpdateBitmap(device, lbh, LGLCD_PRIORITY_IDLE_NO_SHOW);
 	return;
     }
 
     if (led >= 1 && led <= 4) {
 	x = 23 + (led - 1) * 40;
 	y = 17;
-        track = gui_data.drive_track[led - 1];
+	track = gui_data.drive_track[led - 1];
 	if (gui_data.drive_disabled[led - 1])
 	    track = -1;
 	putnumbers(x, y, track, on);
@@ -169,7 +169,7 @@ void lcd_update(int led, int on)
     } else if (led == 5) {
 	dorect(&coords[4 * 1], on);
     } else if (led == 6) {
-        dorect(&coords[4 * 0], on);
+	dorect(&coords[4 * 0], on);
     } else if (led == 7) {
 	y = 2;
 	x = 125;

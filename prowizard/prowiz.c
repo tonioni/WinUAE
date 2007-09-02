@@ -1,13 +1,13 @@
 /*
  * Pro-Wizard_1.c
  *
- * 1997-2006 (c) Sylvain "Asle" Chipaux
+ * 1997-2007 (c) Sylvain "Asle" Chipaux
  *
 */
 
-#include "rippers/globals.h"
-#include "rippers/extern.h"
-#include "rippers/vars.h"
+#include "include/globals.h"
+#include "include/extern.h"
+#include "include/vars.h"
 
 
 #if 0
@@ -20,7 +20,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   in_data = in_data_p;
   PW_in_size = PW_in_size_p;
 #if 0
-  printf ( "\n\n-<([ Pro-Wizard v1.61a ])>-\n\n" );
+  printf ( "\n\n-<([ Pro-Wizard v1.62 ])>-\n\n" );
 
   if ( ac != 2 )
   {
@@ -236,6 +236,20 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         }
       }
 
+      /* -GD- Skizzo*/
+      if ( (in_data[PW_i]   == 0x2D) &&
+           (in_data[PW_i+1] == 'G') &&
+           (in_data[PW_i+2] == 'D') &&
+           (in_data[PW_i+3] == 0x2D) )
+      {
+        if ( testSkizzo() != BAD )
+        {
+          Rip_Skizzo ();
+          Depack_Skizzo ();
+          continue;
+        }
+      }
+
       /* Max Packer 1.2 */
       if ((in_data[PW_i]   == 0x28) &&
          (in_data[PW_i+1]  == 0x3C) &&
@@ -322,6 +336,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       /* The player 6.0a (packed samples)? */
       if ( testP60A_pack() != BAD )
       {
+        printf ( "\b\b\b\b\b\b\b\bThe Player 6.0A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P60A ();*/
         /*Depack_P60A ();*/
         continue;
@@ -338,6 +353,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       /* The player 6.1a (packed samples)? */
       if ( testP61A_pack() != BAD )
       {
+        printf ( "\b\b\b\b\b\b\b\bThe Player 6.1A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P61A ();*/
         /*Depack_P61A ();*/
         continue;
@@ -476,6 +492,22 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_Newtron ();
         Depack_Newtron ();
+        continue;
+      }
+
+      /* Newtron Old */
+      if ( testNewtronOld() != BAD )
+      {
+        Rip_NewtronOld ();
+        Depack_NewtronOld ();
+        continue;
+      }
+
+      /* Titanics Packer ? */
+      if ( testTitanicsPlayer() != BAD )
+      {
+        Rip_TitanicsPlayer ();
+        Depack_TitanicsPlayer ();
         continue;
       }
     }
@@ -768,9 +800,9 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( (in_data[PW_i+1] == 0xFA) &&
              (in_data[PW_i+2] == 0x02) &&
              (in_data[PW_i+3] == 0x8C) &&
-             (in_data[PW_i+4] == 0x4B) &&
-             (in_data[PW_i+5] == 0xF9) &&
-             (in_data[PW_i+6] == 0x00))
+             ((in_data[PW_i+4] == 0x4B) || (in_data[PW_i+4] == 0x9B))&&
+             ((in_data[PW_i+5] == 0xF9) || (in_data[PW_i+5] == 0xCD))&&
+             ((in_data[PW_i+6] == 0x00) || (in_data[PW_i+6] == 0x4E)))
         {
           if ( testDefjam32() == BAD )
             break;
@@ -866,7 +898,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           Rip_BSIFutureComposer ();
           break;
         }
-  	  /* "Fuck" : ID of Noise From Heaven chiptunes */
+         /* "Fuck" : ID of Noise From Heaven chiptunes */
         if ( (in_data[PW_i+1] == 'u') &&
              (in_data[PW_i+2] == 'c') &&
              (in_data[PW_i+3] == 'k') )
@@ -874,7 +906,18 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testNFH() == BAD )
             break;
           Rip_NFH ();
-	  Depack_NFH ();
+	      Depack_NFH ();
+          break;
+        }
+    	  /* "FAST" : ID of Stone Arts Player */
+        if ( (in_data[PW_i+1] == 'A') &&
+             (in_data[PW_i+2] == 'S') &&
+             (in_data[PW_i+3] == 'T') )
+        {
+          if ( testStoneArtsPlayer() == BAD )
+            break;
+          Rip_StoneArtsPlayer ();
+	      Depack_StoneArtsPlayer ();
           break;
         }
 #ifdef INCLUDEALL
@@ -1530,6 +1573,19 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           }
         }
 
+        /*if ( (in_data[PW_i+1] == 'O') &&
+             (in_data[PW_i+2] == 'D') &&
+             (in_data[PW_i+3] == 'U') )
+        {*/
+          /* NovoTrade */
+          /*if ( testNovoTrade() != BAD )
+          {
+            Rip_NovoTrade ();
+            Depack_NovoTrade ();
+            break;
+          }
+        }*/
+
         if ( (in_data[PW_i+1] == 'T') &&
              (in_data[PW_i+2] == 'N') &&
              (in_data[PW_i+3] == 0x00) )
@@ -1711,7 +1767,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '2') &&
              (in_data[PW_i+3] == '0') )
         {
-          write_log ( "PowerPacker ID (PP20) found at %ld ... cant rip it!\n" , PW_i );
+          printf ( "PowerPacker ID (PP20) found at %ld ... cant rip it!\n" , PW_i );
           break;
         }
 #endif
@@ -2337,8 +2393,52 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           Rip_Tetrapack_2_1 ();
           break;
         }
+
+        /* Defjam Cruncher 3.2T */
+        if ( (in_data[PW_i+1]  == 0x00) &&
+             (in_data[PW_i+2]  == 0x43) &&
+             (in_data[PW_i+3]  == 0xFA) &&
+             (in_data[PW_i+4]  == 0x02) &&
+             (in_data[PW_i+5]  == 0x8C) &&
+             (in_data[PW_i+6]  == 0x4B) &&
+             (in_data[PW_i+7]  == 0xF9) &&
+             (in_data[PW_i+8]  == 0x00) &&
+             (in_data[PW_i+9]  == 0xDF) &&
+             (in_data[PW_i+10] == 0xF1))
+        {
+          if ( testDefjam32t() == BAD )
+            break;
+          Rip_Defjam32 ();
+          break;
+        }
 #endif
 	break;
+     case 0x80:
+          /* Viruz2 8000 */
+/*     if ( (in_data[PW_i+1] == 0x00) &&
+          (in_data[PW_i+2] == 0x00) &&
+          (in_data[PW_i+3] == 0x00) &&
+          ((in_data[PW_i+6] == 0x00) || (in_data[PW_i+8] == 0x01)) &&
+          (in_data[PW_i+7] == 0x00) &&
+          (in_data[PW_i+8] == 0x01) &&
+          (in_data[PW_i+9] == 0x00) &&
+          (in_data[PW_i+10] == 0x00) &&
+          (in_data[PW_i+11] == 0x00) &&
+          (in_data[PW_i+12] == 0x00) &&
+          (in_data[PW_i+13] == 0x00) &&
+          (in_data[PW_i+14] == 0x00) &&
+          (in_data[PW_i+16] == 0xAB) &&
+          (in_data[PW_i+17] == 0x05) &&
+          (in_data[PW_i+18] == 0x00) &&
+          (in_data[PW_i+19] == 0x04) &&
+          (in_data[PW_i+20] == 0x04) &&
+          (in_data[PW_i+21] == 0x08) )
+       {
+         if ( testViruz2_80 () == BAD )
+           break;
+         continue;
+       }*/
+       break;
 
       case 0xAC:
           /* AC1D packer ?!? */
@@ -2366,17 +2466,35 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         }
         break;
 
+      case 0xE0:
+          
+/*        if ( (in_data[PW_i+1] == 0x01) &&
+             (in_data[PW_i+2] == 0x00) &&
+             (in_data[PW_i+3] == 0x00) &&
+             (in_data[PW_i+7] == 0x00) &&
+             (in_data[PW_i+8] == 0x01) &&
+             (in_data[PW_i+9] == 0x00) &&
+             (in_data[PW_i+10] == 0x00) &&
+             (in_data[PW_i+11] == 0x00) &&
+             (in_data[PW_i+12] == 0x00) )
+        {
+          if ( testViruz2_E0 () == BAD )
+            break;
+          continue;
+        }*/
+        break;
+
 
       default: /* do nothing ... save continuing :) */
         break;
 
     } /* end of switch */
   }
-
 #if 0
   free ( in_data );
   printf ( "\n" );
-  printf ( " 1997-2005 (c) Sylvain \"Asle\" Chipaux (asle@free.fr)\n\n");
+  printf ( " 1997-2007 (c) Sylvain \"Asle\" Chipaux (asle@free.fr)\n\n");
+/*  getchar();*/
   exit ( 0 );
 #endif
   return 0;

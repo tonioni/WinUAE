@@ -4,7 +4,7 @@
 
 #include <float.h>
 
-#include "sysconfig.h" 
+#include "sysconfig.h"
 #include "sysdeps.h"
 #include "sys/mman.h"
 #include "memory.h"
@@ -31,7 +31,7 @@ static uae_u8 *p96mem_offset;
 static uae_u8 *p96fakeram;
 static int p96fakeramsize;
 
-static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect) 
+static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
     void *p = VirtualAlloc (addr, size, allocationtype, protect);
     if (p && memorylocking && os_winnt)
@@ -63,7 +63,7 @@ static void setworkingset(void)
     pSetProcessWorkingSetSize = (SETPROCESSWORKINGSETSIZE)GetProcAddress(GetModuleHandle("kernal32.dll", "GetProcessWorkingSetSize");
     if (!pSetProcessWorkingSetSize)
 	return;
-    pSetProcessWorkingSetSize(GetCurrentProcess (), 
+    pSetProcessWorkingSetSize(GetCurrentProcess (),
 );
 #endif
 
@@ -128,10 +128,10 @@ void init_shm(void)
 	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (blah)
 	    break;
-	write_log("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
+	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
 	size >>= 1;
 	if (size < 0x10000000) {
-	    write_log("NATMEM: No special area could be allocated (2)!\n");
+	    write_log ("NATMEM: No special area could be allocated (2)!\n");
 	    return;
 	}
     }
@@ -140,7 +140,7 @@ void init_shm(void)
 	if (p96mode) {
 	    p96mem_offset = VirtualAlloc(natmem_offset + size + add, 128 * 1024 * 1024, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
 	    if (!p96mem_offset) {
-		write_log("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
+		write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
 		p96mode = 0;
 	    }
 	}
@@ -160,16 +160,16 @@ void init_shm(void)
     }
 
     if (!natmem_offset) {
-	write_log("NATMEM: No special area could be allocated! (1)\n");
+	write_log ("NATMEM: No special area could be allocated! (1)\n");
     } else {
 	max_z3fastmem = size;
-	write_log("NATMEM: Our special area: 0x%p-0x%p (%dM)\n",
+	write_log ("NATMEM: Our special area: 0x%p-0x%p (%dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + size + add, (size + add) >> 20);
 	canbang = 1;
 	allocated = 1;
     }
 
-    write_log("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+    write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
 }
 
 
@@ -239,10 +239,10 @@ int mprotect(void *addr, size_t len, int prot)
 }
 
 void *shmat(int shmid, void *shmaddr, int shmflg)
-{ 
+{
     void *result = (void *)-1;
     BOOL got = FALSE;
-	
+
 #ifdef NATMEM_OFFSET
     unsigned int size=shmids[shmid].size;
     if(shmids[shmid].attached)
@@ -341,7 +341,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	}
 }
 #endif
-    
+
     if ((shmids[shmid].key == shmid) && shmids[shmid].size) {
 	got = FALSE;
 	if (got == FALSE) {
@@ -357,7 +357,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    } else {
 		if (memorylocking && os_winnt)
 		    VirtualLock(shmaddr, size);
-		shmids[shmid].attached = result; 
+		shmids[shmid].attached = result;
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 		    size, size >> 10);

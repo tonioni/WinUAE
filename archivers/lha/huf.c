@@ -21,7 +21,7 @@
 unsigned short  left[2 * NC - 1], right[2 * NC - 1];
 unsigned char   c_len[NC], pt_len[NPT];
 unsigned short  c_freq[2 * NC - 1], c_table[4096], c_code[NC], p_freq[2 * NP - 1],
-                pt_table[256], pt_code[NPT], t_freq[2 * NT - 1];
+		pt_table[256], pt_code[NPT], t_freq[2 * NT - 1];
 
 static unsigned char *buf;
 static unsigned int bufsiz;

@@ -37,7 +37,7 @@ void PAL_init(void)
     } else {
 	xx1 = 2;
 	xx2 = 5;
-        xx3 = 7;
+	xx3 = 7;
     }
     pal_noise_mask = (1 << (currprefs.gfx_filter_noise * 7 / 100)) - 1;
     scanlinelevel = 128 - currprefs.gfx_filter_scanlines * 128 / 100;
@@ -104,14 +104,14 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
     src = src + pitchs * ys + xs - 2;
     trg = trg + pitcht * yt + xt;
     if (width < 8) {
-        wstart = width;
-        wfast = 0;
-        wend = 0;
+	wstart = width;
+	wfast = 0;
+	wend = 0;
     } else {
-        /* alignment: 8 pixels*/
-        wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
-        wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
-        wend = (width - wstart) & 0x07; /* do not forget the rest*/
+	/* alignment: 8 pixels*/
+	wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
+	wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
+	wend = (width - wstart) & 0x07; /* do not forget the rest*/
     }
     wint = width + 5;
     lineptr0 = line_yuv_0;
@@ -120,17 +120,17 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
     tmpsrc = src - pitchs;
     line = lineptr0;
     for (x = 0; x < wint; x++) {
-        uae_u32 cl0, cl1, cl2, cl3;
+	uae_u32 cl0, cl1, cl2, cl3;
 
-        cl0 = tmpsrc[0];
-        cl1 = tmpsrc[xx1];
-        cl2 = tmpsrc[xx2];
-        cl3 = tmpsrc[xx3];
-        line[0] = 0;
-        line[1] = zcb(cl0) + zcb(cl1) + zcb(cl2) + zcb(cl3);
-        line[2] = zcr(cl0) + zcr(cl1) + zcr(cl2) + zcr(cl3);
-        tmpsrc++;
-        line += 3;
+	cl0 = tmpsrc[0];
+	cl1 = tmpsrc[xx1];
+	cl2 = tmpsrc[xx2];
+	cl3 = tmpsrc[xx3];
+	line[0] = 0;
+	line[1] = zcb(cl0) + zcb(cl1) + zcb(cl2) + zcb(cl3);
+	line[2] = zcr(cl0) + zcr(cl1) + zcr(cl2) + zcr(cl3);
+	tmpsrc++;
+	line += 3;
     }
 
     for (y = 0; y < height; y++) {
@@ -138,47 +138,47 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
 	randomshift = rand() & 15;
 	randomoffset = rand() & 2047;
 
-        tmpsrc = src;
-        tmptrg = trg;
+	tmpsrc = src;
+	tmptrg = trg;
 
-        line = lineptr0;
-        lineptr0 = lineptr1;
-        lineptr1 = line;
+	line = lineptr0;
+	lineptr0 = lineptr1;
+	lineptr1 = line;
 
-        tmpsrc = src;
-        line = lineptr0;
-        for (x = 0; x < wint; x++) {
+	tmpsrc = src;
+	line = lineptr0;
+	for (x = 0; x < wint; x++) {
 	    int r = (randomtable[randomoffset++] >> randomshift) & pal_noise_mask;
-            uae_u32 cl0, cl1, cl2, cl3;
-            cl0 = tmpsrc[0];
-            cl1 = tmpsrc[xx1];
-            cl2 = tmpsrc[xx2];
-            cl3 = tmpsrc[xx3];
+	    uae_u32 cl0, cl1, cl2, cl3;
+	    cl0 = tmpsrc[0];
+	    cl1 = tmpsrc[xx1];
+	    cl2 = tmpsrc[xx2];
+	    cl3 = tmpsrc[xx3];
 	    line[0] = (zyl(cl1) + zyh(cl2) * (scn - r) / 128 + zyl(cl3)) / 256; /* 1/4 + 1/2 + 1/4 */
-            line[1] = zcb(cl0) + zcb(cl1) + zcb(cl2) + zcb(cl3);
-            line[2] = zcr(cl0) + zcr(cl1) + zcr(cl2) + zcr(cl3);
-            tmpsrc++;
-            line += 3;
-        }
+	    line[1] = zcb(cl0) + zcb(cl1) + zcb(cl2) + zcb(cl3);
+	    line[2] = zcr(cl0) + zcr(cl1) + zcr(cl2) + zcr(cl3);
+	    tmpsrc++;
+	    line += 3;
+	}
 
-        line = lineptr0;
-        linepre = lineptr1;
-        for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
+	line = lineptr0;
+	linepre = lineptr1;
+	for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
 
-            l = line[0];
-            u = (line[1] + linepre[1]) / 8;
-            v = (line[2] + linepre[2]) / 8;
-            line += 3;
-            linepre += 3;
+	    l = line[0];
+	    u = (line[1] + linepre[1]) / 8;
+	    v = (line[2] + linepre[2]) / 8;
+	    line += 3;
+	    linepre += 3;
 
-            red = (v + l) / 256;
-            blu = (u + l) / 256;
-            grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
-            *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
-        }
+	    red = (v + l) / 256;
+	    blu = (u + l) / 256;
+	    grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
+	    *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
+	}
 
-        src += pitchs;
-        trg += pitcht;
+	src += pitchs;
+	trg += pitcht;
     }
 }
 #endif
@@ -205,14 +205,14 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
     src = src + pitchs * ys + xs - 2;
     trg = trg + pitcht * yt + xt;
     if (width < 8) {
-        wstart = width;
-        wfast = 0;
-        wend = 0;
+	wstart = width;
+	wfast = 0;
+	wend = 0;
     } else {
-        /* alignment: 8 pixels*/
-        wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
-        wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
-        wend = (width - wstart) & 0x07; /* do not forget the rest*/
+	/* alignment: 8 pixels*/
+	wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
+	wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
+	wend = (width - wstart) & 0x07; /* do not forget the rest*/
     }
     wint = width + 5;
     lineptr0 = line_yuv_0;
@@ -221,17 +221,17 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
     tmpsrc = src - pitchs;
     line = lineptr0;
     for (x = 0; x < wint; x++) {
-        uae_u32 cl0, cl1, cl2, cl3;
+	uae_u32 cl0, cl1, cl2, cl3;
 
-        cl0 = tmpsrc[0];
-        cl1 = tmpsrc[xx1];
-        cl2 = tmpsrc[xx2];
-        cl3 = tmpsrc[xx3];
-        line[0] = 0;
-        line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
-        line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
-        tmpsrc++;
-        line += 3;
+	cl0 = tmpsrc[0];
+	cl1 = tmpsrc[xx1];
+	cl2 = tmpsrc[xx2];
+	cl3 = tmpsrc[xx3];
+	line[0] = 0;
+	line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
+	line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
+	tmpsrc++;
+	line += 3;
     }
 
     for (y = 0; y < height; y++) {
@@ -239,47 +239,47 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
 	randomshift = rand() & 15;
 	randomoffset = rand() & 2047;
 
-        tmpsrc = src;
-        tmptrg = trg;
+	tmpsrc = src;
+	tmptrg = trg;
 
-        line = lineptr0;
-        lineptr0 = lineptr1;
-        lineptr1 = line;
+	line = lineptr0;
+	lineptr0 = lineptr1;
+	lineptr1 = line;
 
-        tmpsrc = src;
-        line = lineptr0;
-        for (x = 0; x < wint; x++) {
+	tmpsrc = src;
+	line = lineptr0;
+	for (x = 0; x < wint; x++) {
 	    int r = (randomtable[randomoffset++] >> randomshift) & pal_noise_mask;
-            uae_u32 cl0, cl1, cl2, cl3;
-            cl0 = tmpsrc[0];
-            cl1 = tmpsrc[xx1];
-            cl2 = tmpsrc[xx2];
-            cl3 = tmpsrc[xx3];
+	    uae_u32 cl0, cl1, cl2, cl3;
+	    cl0 = tmpsrc[0];
+	    cl1 = tmpsrc[xx1];
+	    cl2 = tmpsrc[xx2];
+	    cl3 = tmpsrc[xx3];
 	    line[0] = (zylRGB(cl1) + zyhRGB(cl2) * (scn - r) / 128 + zylRGB(cl3)) / 256; /* 1/4 + 1/2 + 1/4 */
-            line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
-            line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
-            tmpsrc++;
-            line += 3;
-        }
+	    line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
+	    line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
+	    tmpsrc++;
+	    line += 3;
+	}
 
-        line = lineptr0;
-        linepre = lineptr1;
-        for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
+	line = lineptr0;
+	linepre = lineptr1;
+	for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
 
-            l = line[0];
-            u = (line[1] + linepre[1]) / 8;
-            v = (line[2] + linepre[2]) / 8;
-            line += 3;
-            linepre += 3;
+	    l = line[0];
+	    u = (line[1] + linepre[1]) / 8;
+	    v = (line[2] + linepre[2]) / 8;
+	    line += 3;
+	    linepre += 3;
 
-            red = (v + l) / 256;
-            blu = (u + l) / 256;
-            grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
-            *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
-        }
+	    red = (v + l) / 256;
+	    blu = (u + l) / 256;
+	    grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
+	    *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
+	}
 
-        src += pitchs;
-        trg += pitcht;
+	src += pitchs;
+	trg += pitcht;
     }
 }
 
@@ -305,14 +305,14 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
     src = src + pitchs * ys + xs - 2;
     trg = trg + pitcht * yt + xt;
     if (width < 8) {
-        wstart = width;
-        wfast = 0;
-        wend = 0;
+	wstart = width;
+	wfast = 0;
+	wend = 0;
     } else {
-        /* alignment: 8 pixels*/
-        wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
-        wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
-        wend = (width - wstart) & 0x07; /* do not forget the rest*/
+	/* alignment: 8 pixels*/
+	wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
+	wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
+	wend = (width - wstart) & 0x07; /* do not forget the rest*/
     }
     wint = width + 5;
     lineptr0 = line_yuv_0;
@@ -321,17 +321,17 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
     tmpsrc = src - pitchs;
     line = lineptr0;
     for (x = 0; x < wint; x++) {
-        uae_u32 cl0, cl1, cl2, cl3;
+	uae_u32 cl0, cl1, cl2, cl3;
 
-        cl0 = tmpsrc[0];
-        cl1 = tmpsrc[xx1];
-        cl2 = tmpsrc[xx2];
-        cl3 = tmpsrc[xx3];
-        line[0] = 0;
-        line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
-        line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
-        tmpsrc++;
-        line += 3;
+	cl0 = tmpsrc[0];
+	cl1 = tmpsrc[xx1];
+	cl2 = tmpsrc[xx2];
+	cl3 = tmpsrc[xx3];
+	line[0] = 0;
+	line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
+	line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
+	tmpsrc++;
+	line += 3;
     }
 
     for (y = 0; y < height; y++) {
@@ -339,46 +339,46 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
 	randomshift = rand() & 15;
 	randomoffset = rand() & 2047;
 
-        tmpsrc = src;
-        tmptrg = trg;
+	tmpsrc = src;
+	tmptrg = trg;
 
-        line = lineptr0;
-        lineptr0 = lineptr1;
-        lineptr1 = line;
+	line = lineptr0;
+	lineptr0 = lineptr1;
+	lineptr1 = line;
 
-        tmpsrc = src;
-        line = lineptr0;
-        for (x = 0; x < wint; x++) {
+	tmpsrc = src;
+	line = lineptr0;
+	for (x = 0; x < wint; x++) {
 	    int r = (randomtable[randomoffset++] >> randomshift) & pal_noise_mask;
-            uae_u32 cl0, cl1, cl2, cl3;
-            cl0 = tmpsrc[0];
-            cl1 = tmpsrc[xx1];
-            cl2 = tmpsrc[xx2];
-            cl3 = tmpsrc[xx3];
+	    uae_u32 cl0, cl1, cl2, cl3;
+	    cl0 = tmpsrc[0];
+	    cl1 = tmpsrc[xx1];
+	    cl2 = tmpsrc[xx2];
+	    cl3 = tmpsrc[xx3];
 	    line[0] = (zylRGB(cl1) + zyhRGB(cl2) * (scn - r) / 128 + zylRGB(cl3)) / 256; /* 1/4 + 1/2 + 1/4 */
-            line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
-            line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
-            tmpsrc++;
-            line += 3;
-        }
+	    line[1] = zcbRGB(cl0) + zcbRGB(cl1) + zcbRGB(cl2) + zcbRGB(cl3);
+	    line[2] = zcrRGB(cl0) + zcrRGB(cl1) + zcrRGB(cl2) + zcrRGB(cl3);
+	    tmpsrc++;
+	    line += 3;
+	}
 
-        line = lineptr0;
-        linepre = lineptr1;
-        for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
+	line = lineptr0;
+	linepre = lineptr1;
+	for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
 
-            l = line[0];
-            u = (line[1] + linepre[1]) / 8;
-            v = (line[2] + linepre[2]) / 8;
-            line += 3;
-            linepre += 3;
+	    l = line[0];
+	    u = (line[1] + linepre[1]) / 8;
+	    v = (line[2] + linepre[2]) / 8;
+	    line += 3;
+	    linepre += 3;
 
-            red = (v + l) / 256;
-            blu = (u + l) / 256;
-            grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
-            *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
-        }
+	    red = (v + l) / 256;
+	    blu = (u + l) / 256;
+	    grn = (l * 256 - 50 * u - 130 * v) / (256 * 256);
+	    *tmptrg++ = predc[red] | pgrec[grn] | pbluc[blu];
+	}
 
-        src += pitchs;
-        trg += pitcht;
+	src += pitchs;
+	trg += pitcht;
     }
 }

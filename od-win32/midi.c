@@ -2,7 +2,7 @@
  * MODULE:      midi.c
  *
  * DESCRIPTION: MIDI-handling code for MIDI-I/O.  Parses the MIDI-output stream and
- *   sends system-exclusive MIDI-messages out using midiOutLongMsg(), while using 
+ *   sends system-exclusive MIDI-messages out using midiOutLongMsg(), while using
  *   midiOutShortMsg() for normal MIDI-messages.  MIDI-input is passed byte-for-byte
  *   up to the Amiga's serial-port.
  *
@@ -14,7 +14,7 @@
  *   1999.09.05  1.0    Brian King      - creation
  *   2000.01.30  1.1    Brian King      - addition of midi-input
  *   2002.05.xx  1.2    Bernd Roesch    - sysex in/MTC/Song Position pointer add
- */ 
+ */
 
 #include "sysconfig.h"
 #include <windows.h>
@@ -42,7 +42,7 @@
 #define TRACE(x)
 #endif
 #define MIDI_INBUFFERS 800  //use 13 MB Buffer with this settings
-			    //on my system it work ok with 10 but who 
+			    //on my system it work ok with 10 but who
 			    //know when windows rest for a while
 			    //with sysex size of 40 win can 8 sec sleep
 #define	INBUFFLEN 16000	      //if this is not enough a warning come
@@ -128,7 +128,7 @@ static int MidiOut_Alloc(void)
 	}
 	outbufferselect = 0;
     } else {
-	write_log("MIDI: ERROR - MidiOutAlloc() called twice?\n");
+	write_log ("MIDI: ERROR - MidiOutAlloc() called twice?\n");
     }
     return out_allocated;
 }
@@ -194,7 +194,7 @@ static int MidiOut_PrepareHeader(LPMIDIHDR out, LPSTR data, DWORD length)
     out->dwFlags = 0;
 
     if((result = midiOutPrepareHeader(outHandle, out, sizeof( MIDIHDR)))) {
-	write_log( "MIDI: error %s / %d\n", getmidiouterr(err, result), result);
+	write_log ( "MIDI: error %s / %d\n", getmidiouterr(err, result), result);
 	result = 0;
     }
     return result;
@@ -259,7 +259,7 @@ static int MidiIn_Alloc(void)
 	    }
 	}
     } else {
-	write_log("MIDI: ERROR - MidiInAlloc() called twice?\n");
+	write_log ("MIDI: ERROR - MidiInAlloc() called twice?\n");
     }
     return in_allocated;
 }
@@ -295,7 +295,7 @@ static void MidiIn_Free( void )
     only_one_time = 0;
 }
 
-static unsigned char plen[128] = { 
+static unsigned char plen[128] = {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -339,16 +339,16 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 	    if(data >= MIDI_CLOCK) {
 		switch(data)
 		{
-		    case MIDI_CLOCK:			
+		    case MIDI_CLOCK:
 			TRACE(( "MIDI: MIDI_CLOCK\n" ));
 		    break;
-		    case MIDI_START:			
+		    case MIDI_START:
 			TRACE(( "MIDI: MIDI_START\n" ));
 		    break;
-		    case MIDI_CONTINUE:	
+		    case MIDI_CONTINUE:
 			TRACE(( "MIDI: MIDI_CONTINUE\n" ));
 		    break;
-		    case MIDI_STOP:		
+		    case MIDI_STOP:
 			TRACE(( "MIDI: MIDI_STOP\n" ));
 		    break;
 		    default:
@@ -407,7 +407,7 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 	    midiOutShortMsg(outHandle, shortMsg);
 	}
     } else { // handle input-data
-	
+
     }
     return result;
 }
@@ -418,25 +418,25 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
  * PURPOSE:    Translate Midi in messages to raw serial data
 
  * NOTES:      Sysex in not supported
- 
+
  */
-  
+
 static unsigned char midibuf[BUFFLEN];
 static long midi_inptr = 0, midi_inlast = 0;
 
 static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-        TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
-        return;
+	TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
+	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
 }
 static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-        TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
-        return;
+	TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
+	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
     w = w >> 8;
@@ -445,8 +445,8 @@ static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-        TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
-        return;
+	TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
+	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
     w = w >> 8;
@@ -457,13 +457,13 @@ static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 
 int ismidibyte(void)
 {
-    if (midi_inptr < midi_inlast) 
+    if (midi_inptr < midi_inlast)
 	return 1;
     return 0;
-}    
+}
 
 LONG getmidibyte(void) //return midibyte or -1 if none
-{   
+{
     int i;
     LONG rv;
 
@@ -475,18 +475,18 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 	overflow = 0;
     }
     TRACE(("getmidibyte(%02.2X)\n", midibuf[midi_inptr]));
-    if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex 
+    if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex
 	for (i = 0;i < MIDI_INBUFFERS;i++) {
 	    if (midiin[i].dwFlags == (MHDR_DONE|MHDR_PREPARED)) {
 		 // add a buffer if one is free
 		LeaveCriticalSection(&cs_proc);
 		midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
 		EnterCriticalSection(&cs_proc);
-	    }	
+	    }
 	}
     }
     rv = -1;
-    if (midi_inptr < midi_inlast) 
+    if (midi_inptr < midi_inlast)
 	rv = midibuf[midi_inptr++];
     if (midi_inptr >= midi_inlast)
 	midi_inptr = midi_inlast = 0;
@@ -498,13 +498,13 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 {
     EnterCriticalSection (&cs_proc);
     if(wMsg == MIM_ERROR) {
-        TRACE(("MIDI Data Lost\n"));
+	TRACE(("MIDI Data Lost\n"));
     }
     if(wMsg == MIM_LONGDATA) {
-        LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
-        static long synum;
-        TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
-        if (exitin == 1)
+	LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
+	static long synum;
+	TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
+	if (exitin == 1)
 	    goto end; //for safeness midi want close
 	if ((midi_inlast + midiin->dwBytesRecorded) >= (BUFFLEN-6)) {
 	    overflow = 1;
@@ -523,14 +523,14 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
     }
 
     if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA) {
-        BYTE state = (BYTE)dwParam1;
+	BYTE state = (BYTE)dwParam1;
 	TRACE(("%s %08.8X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
 	if(state == 254)
 	    goto end;
 	if(state < 0xf0)
 	    state = state & 0xf0;
 	switch (state)
-	{	
+	{
 	    case 0x80: //Note OFF
 	    add3byte(dwParam1);
 	    break;
@@ -609,26 +609,26 @@ int Midi_Open(void)
 {
     unsigned long result = 0, i;
     char err[MAX_DPATH];
-    
+
     if((result = midiOutOpen(&outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL))) {
-	write_log("MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
+	write_log ("MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 	result = 0;
     } else {
 	InitializeCriticalSection(&cs_proc);
 	// We don't need input for output...
-	if((currprefs.win32_midiindev >= 0) && 
+	if((currprefs.win32_midiindev >= 0) &&
 	    (result = midiInOpen( &inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
-	    write_log( "MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
+	    write_log ( "MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
 	} else {
 	    midi_in_ready = TRUE;
 	    result=midiInStart(inHandle);
 	}
-	
+
 	if(MidiOut_Alloc()) {
 	    if(midi_in_ready) {
 		if(!MidiIn_Alloc()) {
 		    midiInClose(inHandle);
-		    midi_in_ready = FALSE; 
+		    midi_in_ready = FALSE;
 		} else {
 		    for (i = 0;i < MIDI_INBUFFERS; i++) {
 			midiin[i].lpData = inbuffer[i];
@@ -647,8 +647,8 @@ int Midi_Open(void)
 	} else {
 	    midiOutClose(outHandle);
 	    if(midi_in_ready) {
-	        midiInClose(inHandle);
-	        midi_in_ready = FALSE;
+		midiInClose(inHandle);
+		midi_in_ready = FALSE;
 	    }
 	    result = 0;
 	    DeleteCriticalSection(&cs_proc);
@@ -697,7 +697,7 @@ void Midi_Close(void)
 	    exitin = 0;
 	}
 	midi_ready = FALSE;
-	write_log("MIDI: closed.\n");
+	write_log ("MIDI: closed.\n");
 	DeleteCriticalSection(&cs_proc);
     }
 }

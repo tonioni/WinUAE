@@ -167,7 +167,7 @@ static int specialcase (uae_u16 opcode, int cpu_lev)
     return cpu_lev;
 }
 
-static amodes mode_from_str (const char	*str)
+static amodes mode_from_str (const char *str)
 {
     if (strncmp (str, "Dreg", 4) == 0) return Dreg;
     if (strncmp (str, "Areg", 4) == 0) return Areg;

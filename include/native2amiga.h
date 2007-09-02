@@ -5,7 +5,7 @@
   * and without stack magic.
   *
   * Copyright 1999 Patrick Ohly
-  * 
+  *
   * Uses the EXTER interrupt that is setup in filesys.c
   * and some of it needs thread support.
   */
@@ -26,7 +26,7 @@ void uae_NewList(uaecptr list);
 
 /*
  * The following functions are shortcuts for calling
- * the exec.library function with CallLib(), so they
+ * the exec.library function with CallLib (), so they
  * are only available in a trap function. This trap
  * function has to be setup with deftrap2() and
  * TRAPFLAG_EXTRA_STACK and stack magic is required.

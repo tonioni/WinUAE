@@ -67,7 +67,7 @@ void Rip_SGT ( void )
 
 /*
  *   SGT-Packer.c   2006 (c) Asle
- * ! STILL UNDER DEV !
+ *
 */
 
 void Depack_SGT ( void )

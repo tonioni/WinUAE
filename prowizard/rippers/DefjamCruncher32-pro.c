@@ -1,5 +1,6 @@
 /* testDefjam32()    */
 /* testDefjam32pro() */
+/* testDefjam32t() */
 /* Rip_Defjam32()    */
 
 #include "globals.h"
@@ -150,6 +151,68 @@ short testDefjam32pro ( void )
 }
 
 
+short testDefjam32t ( void )
+{
+
+  PW_Start_Address = PW_i;
+
+  if ( (in_data[PW_Start_Address+12] != 0x28 ) ||
+       (in_data[PW_Start_Address+13] != 0x7A ) ||
+       (in_data[PW_Start_Address+14] != 0x01 ) ||
+       (in_data[PW_Start_Address+15] != 0x54 ) ||
+       (in_data[PW_Start_Address+16] != 0x20 ) ||
+       (in_data[PW_Start_Address+17] != 0x4C ) ||
+       (in_data[PW_Start_Address+18] != 0xD1 ) ||
+       (in_data[PW_Start_Address+19] != 0xFC ) )
+  {
+    /* should be enough :))) */
+/*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
+    return BAD;
+    
+  }
+
+
+  /* packed size */
+  PW_l = ( (in_data[PW_Start_Address+20]*256*256*256) +
+           (in_data[PW_Start_Address+21]*256*256) +
+           (in_data[PW_Start_Address+22]*256) +
+           in_data[PW_Start_Address+23] );
+
+  PW_l += 692;
+
+  if ( PW_i >= 32 )
+  {
+    if ( (in_data[PW_Start_Address-32]  != 0x00 ) ||
+         (in_data[PW_Start_Address-31]  != 0x00 ) ||
+         (in_data[PW_Start_Address-30]  != 0x03 ) ||
+         (in_data[PW_Start_Address-29]  != 0xF3 ) ||
+         (in_data[PW_Start_Address-28]  != 0x00 ) ||
+         (in_data[PW_Start_Address-27]  != 0x00 ) ||
+         (in_data[PW_Start_Address-26]  != 0x00 ) ||
+         (in_data[PW_Start_Address-25]  != 0x00 ) ||
+         (in_data[PW_Start_Address-24]  != 0x00 ) ||
+         (in_data[PW_Start_Address-23]  != 0x00 ) ||
+         (in_data[PW_Start_Address-22]  != 0x00 ) ||
+         (in_data[PW_Start_Address-21]  != 0x01 ) ||
+         (in_data[PW_Start_Address-20]  != 0x00 ) ||
+         (in_data[PW_Start_Address-19]  != 0x00 ) ||
+         (in_data[PW_Start_Address-18]  != 0x00 ) ||
+         (in_data[PW_Start_Address-17]  != 0x00 ) )
+    {
+      Amiga_EXE_Header = BAD;
+    }
+    else
+      Amiga_EXE_Header = GOOD;
+  }
+  else
+    Amiga_EXE_Header = BAD;
+
+
+  return GOOD;
+  /* PW_l is the size of the pack */
+}
+
+
 void Rip_Defjam32 ( void )
 {
   /* PW_l is still the whole size */
@@ -188,13 +251,13 @@ void Rip_Defjam32 ( void )
     in_data[PW_Start_Address+OutputSize-2]  = 0x03;
     in_data[PW_Start_Address+OutputSize-1]  = 0xF2;
 
-    Save_Rip_Special ( "Defjam Cruncher 3.2 / pro Exe-file", Defjam_32, Amiga_EXE_Header_Block , 32 );
+    Save_Rip_Special ( "Defjam Cruncher 3.2 / pro / t Exe-file", Defjam_32, Amiga_EXE_Header_Block , 32 );
     free ( Amiga_EXE_Header_Block );
   }
   else
   {
     PW_Start_Address -= 32;
-    Save_Rip ( "Defjam Cruncher 3.2 / pro Exe-file", Defjam_32 );
+    Save_Rip ( "Defjam Cruncher 3.2 / pro / t Exe-file", Defjam_32 );
   }
 
   if ( Save_Status == GOOD )

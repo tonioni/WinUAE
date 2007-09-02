@@ -99,13 +99,13 @@ static float video_gamma(float value, float gamma, float bri, float con)
     value *= con;
 
     if (value <= 0.0f)
-        return 0.0f;
+	return 0.0f;
 
     factor = pow(255.0f, 1.0f - gamma);
     ret = (float)(factor * pow(value, gamma));
 
     if (ret < 0.0f)
-        ret = 0.0f;
+	ret = 0.0f;
 
     return ret;
 }
@@ -120,7 +120,7 @@ static void video_calc_gammatable(void)
     uae_u32 vi;
 
     bri = ((float)(currprefs.gfx_luminance))
-          * (128.0f / 1000.0f);
+	  * (128.0f / 1000.0f);
     con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
     gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f;
 
@@ -128,16 +128,16 @@ static void video_calc_gammatable(void)
     hf = 256 - lf * 2;
 
     for (i = 0; i < (256 * 3); i++) {
-        v = video_gamma((float)(i - 256), gam, bri, con);
+	v = video_gamma((float)(i - 256), gam, bri, con);
 
-        vi = (uae_u32)v;
-        if (vi > 255)
-            vi = 255;
-    
+	vi = (uae_u32)v;
+	if (vi > 255)
+	    vi = 255;
+
 	if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0)
 	    vi = i & 0xff;
 
-        gamma[i] = vi;
+	gamma[i] = vi;
     }
 }
 
@@ -204,15 +204,15 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	int r = ((i >> 8) << 4) | (i >> 8);
 	int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 	int b = ((i & 0xf) << 4) | (i & 0x0f);
-        r = gamma[r + j];
-        g = gamma[g + j];
-        b = gamma[b + j];
-        xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
-        if (byte_swap) {
+	r = gamma[r + j];
+	g = gamma[g + j];
+	b = gamma[b + j];
+	xcolors[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs) | doAlpha (alpha, aw, as);
+	if (byte_swap) {
 	    if (bpp <= 16)
-    	        xcolors[i] = bswap_16 (xcolors[i]);
+		xcolors[i] = bswap_16 (xcolors[i]);
 	    else
-	        xcolors[i] = bswap_32 (xcolors[i]);
+		xcolors[i] = bswap_32 (xcolors[i]);
 	}
 	if (bpp <= 16) {
 	    /* Fill upper 16 bits of each colour value
@@ -248,19 +248,19 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
     }
     /* copy original color table */
     for (i = 0; i < 256; i++) {
-        redc[0 * 256 + i] = xredcolors[0];
-        grec[0 * 256 + i] = xgreencolors[0];
-        bluc[0 * 256 + i] = xbluecolors[0];
-        redc[1 * 256 + i] = xredcolors[i];
-        grec[1 * 256 + i] = xgreencolors[i];
-        bluc[1 * 256 + i] = xbluecolors[i];
-        redc[2 * 256 + i] = xredcolors[255];
-        grec[2 * 256 + i] = xgreencolors[255];
-        bluc[2 * 256 + i] = xbluecolors[255];
+	redc[0 * 256 + i] = xredcolors[0];
+	grec[0 * 256 + i] = xgreencolors[0];
+	bluc[0 * 256 + i] = xbluecolors[0];
+	redc[1 * 256 + i] = xredcolors[i];
+	grec[1 * 256 + i] = xgreencolors[i];
+	bluc[1 * 256 + i] = xbluecolors[i];
+	redc[2 * 256 + i] = xredcolors[255];
+	grec[2 * 256 + i] = xgreencolors[255];
+	bluc[2 * 256 + i] = xbluecolors[255];
     }
     if (usedfilter && usedfilter->yuv) {
 	/* create internal 5:6:5 color tables */
-        for (i = 0; i < 256; i++) {
+	for (i = 0; i < 256; i++) {
 	    j = i + 256;
 	    xredcolors[i] = doColor (gamma[j], 5, 11);
 	    xgreencolors[i] = doColor (gamma[j], 6, 5);
@@ -296,7 +296,7 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 
 	/* create RGB 5:6:5 -> YUV tables */
 	for (i = 0; i < 65536; i++) {
-    	    uae_u32 r, g, b;
+	    uae_u32 r, g, b;
 	    r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
 	    r = gamma[r + 256];
 	    g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);

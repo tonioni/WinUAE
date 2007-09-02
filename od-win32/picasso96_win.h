@@ -83,9 +83,9 @@ typedef enum {
 typedef enum {
 	GCT_Unknown,
 	GCT_ET4000,
-	GCT_ETW32,	
+	GCT_ETW32,
 	GCT_CirrusGD542x,
-	GCT_NCR77C32BLT,	
+	GCT_NCR77C32BLT,
 	GCT_CirrusGD5446,
 	GCT_CirrusGD5434,
 	GCT_S3Trio64,

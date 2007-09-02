@@ -74,12 +74,12 @@ int arcacc_init (void)
 {
     if (arcacc_mod)
 	return 1;
-    arcacc_mod = LoadLibrary ("archiveaccess-debug.dll"); 
+    arcacc_mod = LoadLibrary ("archiveaccess-debug.dll");
     if (!arcacc_mod)
 	return 0;
-    openArchive = (pOpenArchive) GetProcAddress (arcacc_mode, "openArchive"); 
+    openArchive = (pOpenArchive) GetProcAddress (arcacc_mode, "openArchive");
     getFileCount = (pGetFileCount) GetProcAddress (arcacc_mode, "getFileCount");
-    getFileInfo = (pGetFileInfo) GetProcAddress (arcacc_mode, "getFileInfo"); 
+    getFileInfo = (pGetFileInfo) GetProcAddress (arcacc_mode, "getFileInfo");
     extract = (pExtract) GetProcAddress (arcacc_mode, "extract");
     closeArchive = (pCloseArchive) GetProcAddress (arcacc_mode, "closeArchive");
     if (!OpenArchive || !getFileCount || !getFileInfo || !extract || !closeArchive) {

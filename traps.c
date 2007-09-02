@@ -94,7 +94,7 @@ unsigned int define_trap (TrapHandler handler_func, int flags, const char *name)
     if (trap_count == MAX_TRAPS) {
 	write_log ("Ran out of emulator traps\n");
 	abort ();
-	return 0;
+	return -1;
     } else {
 	unsigned int trap_num = trap_count++;
 	struct Trap *trap = &traps[trap_num];

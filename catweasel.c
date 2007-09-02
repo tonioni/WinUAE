@@ -281,7 +281,7 @@ uae_u32	catweasel_do_bget (uaecptr addr)
     buf1[0] = (uae_u8)addr;
     if (handle != INVALID_HANDLE_VALUE) {
 	if (!DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0))
-	    write_log("catweasel_do_bget fail err=%d\n", GetLastError());
+	    write_log ("catweasel_do_bget fail err=%d\n", GetLastError());
     } else {
 	buf2[0] = ioport_read (cwc.iobase + addr);
     }
@@ -300,7 +300,7 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
     buf[1] = b;
     if (handle != INVALID_HANDLE_VALUE) {
 	if (!DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0))
-	    write_log("catweasel_do_bput fail err=%d\n", GetLastError());
+	    write_log ("catweasel_do_bput fail err=%d\n", GetLastError());
     } else {
 	ioport_write (cwc.iobase + addr, b);
     }
@@ -417,7 +417,7 @@ static int direct_detect(void)
 	return 0;
     devInfoListDetail.cbSize = sizeof(devInfoListDetail);
     if(SetupDiGetDeviceInfoListDetail(devs,&devInfoListDetail)) {
-        devInfo.cbSize = sizeof(devInfo);
+	devInfo.cbSize = sizeof(devInfo);
 	for(devIndex=0;SetupDiEnumDeviceInfo(devs,devIndex,&devInfo);devIndex++) {
 	    TCHAR devID[MAX_DEVICE_ID_LEN];
 	    if(CM_Get_Device_ID_Ex(devInfo.DevInst,devID,MAX_DEVICE_ID_LEN,0,devInfoListDetail.RemoteMachineHandle)!=CR_SUCCESS)
@@ -438,8 +438,8 @@ static int direct_detect(void)
 		BOOL haveConfig = FALSE;
 		ULONG dataSize;
 		PBYTE resDesData;
-	        RES_DES prevResDes, resDes;
-	        RESOURCEID resId = ResType_IO;
+		RES_DES prevResDes, resDes;
+		RESOURCEID resId = ResType_IO;
 
 		devInfoListDetail.cbSize = sizeof(devInfoListDetail);
 		if((!SetupDiGetDeviceInfoListDetail(devs,&devInfoListDetail)) ||
@@ -491,7 +491,7 @@ static int direct_detect(void)
 		    if (resId == ResType_IO) {
 			PIO_RESOURCE pIoData = (PIO_RESOURCE)resDesData;
 			if(pIoData->IO_Header.IOD_Alloc_End-pIoData->IO_Header.IOD_Alloc_Base+1) {
-			    write_log("CW: PCI SCAN: CWMK%d @%I64X - %I64X\n", cw,
+			    write_log ("CW: PCI SCAN: CWMK%d @%I64X - %I64X\n", cw,
 				pIoData->IO_Header.IOD_Alloc_Base,pIoData->IO_Header.IOD_Alloc_End);
 			    cwc.iobase = (int)pIoData->IO_Header.IOD_Alloc_Base;
 			    cwc.direct_type = cw;
@@ -499,9 +499,9 @@ static int direct_detect(void)
 		    }
 		    free (resDesData);
 		}
-	        if(prevResDes != config)
+		if(prevResDes != config)
 		    CM_Free_Res_Des_Handle(prevResDes);
-	        CM_Free_Log_Conf_Handle(config);
+		CM_Free_Log_Conf_Handle(config);
 	    }
 	}
     }
@@ -528,7 +528,7 @@ int catweasel_init(void)
 
     if (force_direct_catweasel >= 100) {
 
-        cwc.iobase = force_direct_catweasel & 0xffff;
+	cwc.iobase = force_direct_catweasel & 0xffff;
 	if (force_direct_catweasel > 0xffff) {
 	    cwc.direct_type = force_direct_catweasel >> 16;
 	} else {
@@ -551,7 +551,7 @@ int catweasel_init(void)
     }
 
     if (handle == INVALID_HANDLE_VALUE) {
-        strcpy(name, "[DIRECT]");
+	strcpy(name, "[DIRECT]");
 	if (cwc.direct_type && ioport_init()) {
 	    if (cwc.direct_type == 4 && catweasel4_configure()) {
 		cwc.type = 4;
@@ -630,7 +630,7 @@ int catweasel_init(void)
 	    sprintf(p, " SID1=%d", cwc.sid[1]);
 	}
     }
-    write_log("%s\n", tmp);
+    write_log ("%s\n", tmp);
     detected = 1;
 
     return 1;
@@ -671,14 +671,14 @@ int catweasel_detect (void)
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (h != INVALID_HANDLE_VALUE) {
 	    CloseHandle (h);
-	    write_log("CW: Windows driver device detected '%s'\n", name);
+	    write_log ("CW: Windows driver device detected '%s'\n", name);
 	    detected = 1;
 	    return TRUE;
 	}
     }
     if (h == INVALID_HANDLE_VALUE) {
 	if (force_direct_catweasel >= 100) {
-	    if (ioport_init()) 
+	    if (ioport_init())
 		return TRUE;
 	    return FALSE;
 	}
@@ -725,7 +725,7 @@ static uae_u8 *mergepieces(uae_u8 *start,int len,int bits,uae_u8 *sync)
 	uae_u8 b;
 	int size;
 	int shift;
-	
+
 	size=len-(sync-start);
 	memcpy(dst,sync,size);
 	dst+=size;
@@ -739,7 +739,7 @@ static uae_u8 *mergepieces(uae_u8 *start,int len,int bits,uae_u8 *sync)
 		start++;
 	}
 	return tmpmfmbuffer;
-}	
+}
 
 #define SCANOFFSET 1 /*	scanning range in bytes, -SCANOFFSET to SCANOFFSET */
 #define SCANOFFSET2 20
@@ -749,7 +749,7 @@ static uae_u8* scantrack(uae_u8 *sync1,uae_u8 *sync2,int *trackbytes,int *trackb
 {
 	int i,bits,bytes,matched;
 	uae_u8 *sync2bak=sync2;
-	
+
 	sync1+=SCANOFFSET2;
 	sync2+=SCANOFFSET2;
 	while(sync1 < sync2bak - 2*SCANOFFSET - SCANOFFSET2 - SCANLENGHT) {
@@ -776,7 +776,7 @@ static uae_u8* scantrack(uae_u8 *sync1,uae_u8 *sync2,int *trackbytes,int *trackb
 		sync2++;
 	}
 	return 0;
-}	
+}
 
 static unsigned char threshtab[128];
 
@@ -870,7 +870,7 @@ void catweasel_init_controller(catweasel_contr *c)
 	c->drives[i].number = i;
 	c->drives[i].contr = c;
 	c->drives[i].diskindrive = 0;
-	
+
 	/* select only the respective drive, step to track 0 */
 	if(i == 0) {
 	    CWSetCReg(c, c->crm_sel0, c->crm_dir | c->crm_sel1);
@@ -882,7 +882,7 @@ void catweasel_init_controller(catweasel_contr *c)
 	    CWTriggerStep(c);
 	    sleep_millis(6);
 	}
-	
+
 	if(j < 86) {
 	    c->drives[i].type = 1;
 	    c->drives[i].track = 0;
@@ -1300,7 +1300,7 @@ int catweasel_fillmfm (catweasel_drive *d, uae_u16 *mfm, int side, int clock, in
     }
     return 0;
 }
-	
+
 int catweasel_read(catweasel_drive *d, int side, int clock, int rawmode)
 {
     int iobase = d->contr->iobase;

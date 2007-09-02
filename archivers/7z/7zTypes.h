@@ -6,12 +6,12 @@
 #ifndef _7ZIP_BYTE_DEFINED
 #define _7ZIP_BYTE_DEFINED
 typedef unsigned char Byte;
-#endif 
+#endif
 
 #ifndef _7ZIP_UINT16_DEFINED
 #define _7ZIP_UINT16_DEFINED
 typedef unsigned short UInt16;
-#endif 
+#endif
 
 #ifndef _7ZIP_UINT32_DEFINED
 #define _7ZIP_UINT32_DEFINED
@@ -20,7 +20,7 @@ typedef unsigned long UInt32;
 #else
 typedef unsigned int UInt32;
 #endif
-#endif 
+#endif
 
 /* #define _SZ_NO_INT_64 */
 /* define it your compiler doesn't support long long int */
@@ -44,9 +44,9 @@ typedef unsigned long long int UInt64;
 
 #ifndef CFileSize
 #ifdef _SZ_FILE_SIZE_64
-typedef UInt64 CFileSize; 
+typedef UInt64 CFileSize;
 #else
-typedef UInt32 CFileSize; 
+typedef UInt32 CFileSize;
 #endif
 #endif
 

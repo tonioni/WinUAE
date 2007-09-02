@@ -50,7 +50,7 @@
 #include <assert.h>
 
 #ifdef DEBUG
-static char *datalog(uae_u8 *src, int len)
+static char *datalog (uae_u8 *src, int len)
 {
 	static char buf[1000];
 	static int offset;
@@ -58,7 +58,7 @@ static char *datalog(uae_u8 *src, int len)
 
 	offset2 = offset;
 	buf[offset++]='\'';
-	while(len--) {
+	while (len--) {
 		sprintf (buf + offset, "%02.2X", src[i]);
 		offset += 2;
 		i++;
@@ -70,7 +70,7 @@ static char *datalog(uae_u8 *src, int len)
 	return buf + offset2;
 }
 #else
-static char *datalog(uae_u8 *src, int len) { return ""; }
+static char *datalog (uae_u8 *src, int len) { return ""; }
 #endif
 
 #ifdef DEBUG
@@ -269,7 +269,7 @@ static void fdi_decode (uae_u8 *stream, int size, uae_u8 *out)
 
 		//huffman tree architecture decode
 		temp = *stream++;
-		temp2 =	0x80;
+		temp2 = 0x80;
 		stream = expand_tree (stream, &root);
 		if (temp2 == 0x80)
 			stream--;
@@ -281,7 +281,7 @@ static void fdi_decode (uae_u8 *stream, int size, uae_u8 *out)
 			stream = values_tree8 (stream, &root);
 
 		//sub-stream data decode
-		temp2 =	0;
+		temp2 = 0;
 		for (i = 0; i < size; i++) {
 			uae_u32 v;
 			uae_u8 decode = 1;
@@ -406,13 +406,13 @@ static void bit_mfm_add (FDI *fdi, int bit)
 static void bit_drop_next (FDI *fdi)
 {
 	if (fdi->nextdrop > 0) {
-		outlog("multiple bit_drop_next() called");
+		outlog ("multiple bit_drop_next() called");
 	} else if (fdi->nextdrop < 0) {
 		fdi->nextdrop = 0;
-		debuglog(":DNN:");
+		debuglog (":DNN:");
 		return;
 	}
-	debuglog(":DN:");
+	debuglog (":DN:");
 	fdi->nextdrop = 1;
 }
 
@@ -420,10 +420,10 @@ static void bit_drop_next (FDI *fdi)
 static void bit_dedrop (FDI *fdi)
 {
 	if (fdi->nextdrop) {
-		outlog("bit_drop_next called before bit_dedrop");
+		outlog ("bit_drop_next called before bit_dedrop");
 	}
 	fdi->nextdrop = -1;
-	debuglog(":BDD:");
+	debuglog (":BDD:");
 }
 
 /* add one byte */
@@ -495,7 +495,7 @@ static void s0a(FDI *fdi)
 	int i, bits = (fdi->track_src[0] << 8) | fdi->track_src[1];
 	uae_u8 b;
 	fdi->track_src += 2;
-	debuglog ("s0a:bits=%d,data=%s", bits, datalog(fdi->track_src, (bits + 7) / 8));
+	debuglog ("s0a:bits=%d,data=%s", bits, datalog (fdi->track_src, (bits + 7) / 8));
 	while (bits >= 8) {
 		byte_add (fdi, *fdi->track_src++);
 		bits -= 8;
@@ -515,7 +515,7 @@ static void s0b(FDI *fdi)
 	int i, bits = ((fdi->track_src[0] << 8) | fdi->track_src[1]) + 65536;
 	uae_u8 b;
 	fdi->track_src += 2;
-	debuglog ("s0b:bits=%d,data=%s", bits, datalog(fdi->track_src, (bits + 7) / 8));
+	debuglog ("s0b:bits=%d,data=%s", bits, datalog (fdi->track_src, (bits + 7) / 8));
 	while (bits >= 8) {
 		byte_add (fdi, *fdi->track_src++);
 		bits -= 8;
@@ -536,7 +536,7 @@ static void s0c(FDI *fdi)
 	uae_u8 b;
 	fdi->track_src += 2;
 	bit_drop_next (fdi);
-	debuglog ("s0c:bits=%d,data=%s", bits, datalog(fdi->track_src, (bits + 7) / 8));
+	debuglog ("s0c:bits=%d,data=%s", bits, datalog (fdi->track_src, (bits + 7) / 8));
 	while (bits >= 8) {
 		byte_mfm_add (fdi, *fdi->track_src++);
 		bits -= 8;
@@ -557,7 +557,7 @@ static void s0d(FDI *fdi)
 	uae_u8 b;
 	fdi->track_src += 2;
 	bit_drop_next (fdi);
-	debuglog ("s0d:bits=%d,data=%s", bits, datalog(fdi->track_src, (bits + 7) / 8));
+	debuglog ("s0d:bits=%d,data=%s", bits, datalog (fdi->track_src, (bits + 7) / 8));
 	while (bits >= 8) {
 		byte_mfm_add (fdi, *fdi->track_src++);
 		bits -= 8;
@@ -679,16 +679,16 @@ static int amiga_check_track (FDI *fdi)
 
 		while (getmfmword (mbuf) == 0x4489)
 			mbuf+= 1 * 2;
-		mbuf2 =	mbuf + 8;
+		mbuf2 = mbuf + 8;
 
 		odd = getmfmlong (mbuf);
 		even = getmfmlong (mbuf + 2 * 2);
-		mbuf +=	4 * 2;
+		mbuf += 4 * 2;
 		id = (odd << 1) | even;
 
 		trackoffs = (id & 0xff00) >> 8;
 		if (trackoffs + 1 > drvsec) {
-			outlog("illegal sector offset %d\n",trackoffs);
+			outlog ("illegal sector offset %d\n",trackoffs);
 			ok = 0;
 			mbuf = mbuf2;
 			continue;
@@ -713,14 +713,14 @@ static int amiga_check_track (FDI *fdi)
 		even = getmfmlong (mbuf + 2 * 2);
 		mbuf += 4 * 2;
 		if (((odd << 1) | even) != chksum) {
-			outlog("sector %d header crc error\n", trackoffs);
+			outlog ("sector %d header crc error\n", trackoffs);
 			ok = 0;
 			mbuf = mbuf2;
 			continue;
 		}
-		outlog("sector %d header crc ok\n", trackoffs);
+		outlog ("sector %d header crc ok\n", trackoffs);
 		if (((id & 0x00ff0000) >> 16) != (uae_u32)fdi->current_track) {
-			outlog("illegal track number %d <> %d\n",fdi->current_track,(id & 0x00ff0000) >> 16);
+			outlog ("illegal track number %d <> %d\n",fdi->current_track,(id & 0x00ff0000) >> 16);
 			ok++;
 			mbuf = mbuf2;
 			continue;
@@ -743,14 +743,14 @@ static int amiga_check_track (FDI *fdi)
 		}
 		mbuf += 256 * 2;
 		if (chksum) {
-			outlog("sector %d data checksum error\n",trackoffs);
+			outlog ("sector %d data checksum error\n",trackoffs);
 			ok = 0;
 		} else if (sectable[trackoffs]) {
-			outlog("sector %d already found?\n", trackoffs);
+			outlog ("sector %d already found?\n", trackoffs);
 			mbuf = mbuf2;
 		} else {
-			outlog("sector %d ok\n",trackoffs);
-			if (slabel) outlog("(non-empty sector header)\n");
+			outlog ("sector %d ok\n",trackoffs);
+			if (slabel) outlog ("(non-empty sector header)\n");
 			sectable[trackoffs] = 1;
 			secwritten++;
 			if (trackoffs == 9)
@@ -815,7 +815,7 @@ static void amiga_data (FDI *fdi, uae_u8 *secbuf)
 		word_post_mfm_add (fdi, mfmbuf[i]);
 }
 
-static void amiga_sector_header	(FDI *fdi, uae_u8 *header, uae_u8 *data, int sector, int untilgap)
+static void amiga_sector_header (FDI *fdi, uae_u8 *header, uae_u8 *data, int sector, int untilgap)
 {
 	uae_u8 headerbuf[4], databuf[16];
 	uae_u32 deven, dodd, hck;
@@ -839,7 +839,7 @@ static void amiga_sector_header	(FDI *fdi, uae_u8 *header, uae_u8 *data, int sec
 	else
 		memset (databuf, 0, 16);
 
-	deven =	((headerbuf[0] << 24) | (headerbuf[1] << 16)
+	deven = ((headerbuf[0] << 24) | (headerbuf[1] << 16)
 		| (headerbuf[2] << 8) | (headerbuf[3]));
 	dodd = deven >> 1;
 	deven &= 0x55555555;
@@ -876,65 +876,65 @@ static void amiga_sector_header	(FDI *fdi, uae_u8 *header, uae_u8 *data, int sec
 }
 
 /* standard super-extended Amiga sector header */
-static void s20(FDI *fdi)
+static void s20 (FDI *fdi)
 {
 	bit_drop_next (fdi);
-	debuglog ("s20:header=%s,data=%s", datalog(fdi->track_src, 4), datalog(fdi->track_src + 4, 16));
+	debuglog ("s20:header=%s,data=%s", datalog (fdi->track_src, 4), datalog (fdi->track_src + 4, 16));
 	amiga_sector_header (fdi, fdi->track_src, fdi->track_src + 4, 0, 0);
 	fdi->track_src += 4 + 16;
 }
 /* standard extended Amiga sector header */
-static void s21(FDI *fdi)
+static void s21 (FDI *fdi)
 {
 	bit_drop_next (fdi);
-	debuglog ("s21:header=%s", datalog(fdi->track_src, 4));
+	debuglog ("s21:header=%s", datalog (fdi->track_src, 4));
 	amiga_sector_header (fdi, fdi->track_src, 0, 0, 0);
 	fdi->track_src += 4;
 }
 /* standard Amiga sector header */
-static void s22(FDI *fdi)
+static void s22 (FDI *fdi)
 {
 	bit_drop_next (fdi);
-	debuglog("s22:sector=%d,untilgap=%d", fdi->track_src[0], fdi->track_src[1]);
+	debuglog ("s22:sector=%d,untilgap=%d", fdi->track_src[0], fdi->track_src[1]);
 	amiga_sector_header (fdi, 0, 0, fdi->track_src[0], fdi->track_src[1]);
 	fdi->track_src += 2;
 }
 /* standard 512-byte, CRC-correct Amiga data */
-static void s23(FDI *fdi)
+static void s23 (FDI *fdi)
 {
-	debuglog("s23:data=%s", datalog (fdi->track_src, 512));
+	debuglog ("s23:data=%s", datalog (fdi->track_src, 512));
 	amiga_data (fdi, fdi->track_src);
 	fdi->track_src += 512;
 }
 /* not-decoded, 128*2^x-byte, CRC-correct Amiga data */
-static void s24(FDI *fdi)
+static void s24 (FDI *fdi)
 {
 	int shift = *fdi->track_src++;
-	debuglog("s24:shift=%d,data=%s", shift, datalog (fdi->track_src, 128 << shift));
+	debuglog ("s24:shift=%d,data=%s", shift, datalog (fdi->track_src, 128 << shift));
 	amiga_data_raw (fdi, fdi->track_src, 0, 128 << shift);
 	fdi->track_src += 128 << shift;
 }
 /* not-decoded, 128*2^x-byte, CRC-incorrect Amiga data */
-static void s25(FDI *fdi)
+static void s25 (FDI *fdi)
 {
 	int shift = *fdi->track_src++;
-	debuglog("s25:shift=%d,crc=%s,data=%s", shift, datalog (fdi->track_src, 4), datalog (fdi->track_src + 4, 128 << shift));
+	debuglog ("s25:shift=%d,crc=%s,data=%s", shift, datalog (fdi->track_src, 4), datalog (fdi->track_src + 4, 128 << shift));
 	amiga_data_raw (fdi, fdi->track_src + 4, fdi->track_src, 128 << shift);
 	fdi->track_src += 4 + (128 << shift);
 }
 /* standard extended Amiga sector */
-static void s26(FDI *fdi)
+static void s26 (FDI *fdi)
 {
 	s21 (fdi);
-	debuglog("s26:data=%s", datalog (fdi->track_src, 512));
+	debuglog ("s26:data=%s", datalog (fdi->track_src, 512));
 	amiga_data (fdi, fdi->track_src);
 	fdi->track_src += 512;
 }
 /* standard short Amiga sector */
-static void s27(FDI *fdi)
+static void s27 (FDI *fdi)
 {
 	s22 (fdi);
-	debuglog("s27:data=%s", datalog (fdi->track_src, 512));
+	debuglog ("s27:data=%s", datalog (fdi->track_src, 512));
 	amiga_data (fdi, fdi->track_src);
 	fdi->track_src += 512;
 }
@@ -1181,8 +1181,7 @@ static void track_atari_st (struct fdi *fdi, int max_sector)
 	int i, gap3;
 	uae_u8 *p = fdi->track_src;
 
-	switch (max_sector)
-		{
+	switch (max_sector) {
 		case 9:
 		gap3 = 40;
 		break;
@@ -1206,8 +1205,7 @@ static void track_pc (struct fdi *fdi, int max_sector)
 	int i, gap3;
 	uae_u8 *p = fdi->track_src;
 
-	switch (max_sector)
-		{
+	switch (max_sector) {
 		case 8:
 		gap3 = 116;
 		break;
@@ -1325,7 +1323,7 @@ static int handle_sectors_described_track (FDI *fdi)
 		outlog ("%06.6X %06.6X %02.2X:",fdi->track_src - start_src + 0x200, fdi->out/8, fdi->track_type);
 		oldout = fdi->out;
 		decode_sectors_described_track[fdi->track_type](fdi);
-		outlog(" %d\n", fdi->out - oldout);
+		outlog (" %d\n", fdi->out - oldout);
 		oldout = fdi->out;
 		if (fdi->out < 0 || fdi->err) {
 			outlog ("\nin %d bytes, out %d bits\n", fdi->track_src - fdi->track_src_buffer, fdi->out);
@@ -1336,7 +1334,7 @@ static int handle_sectors_described_track (FDI *fdi)
 			return -1;
 		}
 	} while (fdi->track_type != 0xff);
-	outlog("\n");
+	outlog ("\n");
 	fix_mfm_sync (fdi);
 	return fdi->out;
 }
@@ -1403,7 +1401,7 @@ struct pulse_sample {
 static int pulse_limitval = 15; /* tolerance of 15% */
 static struct pulse_sample psarray[FDI_MAX_ARRAY];
 static int array_index;
-static unsigned	long total;
+static unsigned long total;
 static int totaldiv;
 
 static void init_array(unsigned long standard_MFM_2_bit_cell_size, int nb_of_bits)
@@ -1526,8 +1524,8 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			for (j = real_size; j > 1; j--)
 				addbit (d, 0);
 			addbit (d, 1);
-			for (j = 0; j <	real_size; j++)
-				*pt++ =	(uae_u16)(pulse / real_size);
+			for (j = 0; j < real_size; j++)
+				*pt++ = (uae_u16)(pulse / real_size);
 		}
 
 		/* prepares for the next pulse */
@@ -1557,7 +1555,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 	int real_size, i, j, nexti, eodat, outstep, randval;
 	int indexoffset = *indexoffsetp;
 	uae_u8 *d = fdi->track_dst_buffer;
-	uae_u16	*pt = fdi->track_dst_buffer_timing;
+	uae_u16 *pt = fdi->track_dst_buffer_timing;
 	uae_u32 ref_pulse, pulse;
 	long jitter;
 
@@ -1925,7 +1923,7 @@ static int decode_lowlevel_track (FDI *fdi, int track, struct fdi_cache *cache)
 		idxp[i] = sum;
 	}
 	len = totalavg / 100000;
-	debuglog("totalavg=%u index=%d (%d) maxidx=%d weakbits=%d len=%d\n",
+	debuglog ("totalavg=%u index=%d (%d) maxidx=%d weakbits=%d len=%d\n",
 		totalavg, indexoffset, maxidx, weakbits, len);
 	cache->avgp = avgp;
 	cache->idxp = idxp;
@@ -1956,7 +1954,7 @@ void fdi2raw_header_free (FDI *fdi)
 	fdi_free (fdi->track_src_buffer);
 	fdi_free (fdi->track_dst_buffer);
 	fdi_free (fdi->track_dst_buffer_timing);
-	for (i = 0; i <	MAX_TRACKS; i++) {
+	for (i = 0; i < MAX_TRACKS; i++) {
 		struct fdi_cache *c = &fdi->cache[i];
 		if (c->idx_free)
 			fdi_free (c->idxp);
@@ -2035,7 +2033,7 @@ FDI *fdi2raw_header(struct zfile *f)
 		uae_u32 crc = get_crc32(fdi->header, 508);
 		uae_u32 crc2 = (fdi->header[508] << 24) | (fdi->header[509] << 16) | (fdi->header[510] << 8) | fdi->header[511];
 		if (crc != crc2) {
-			outlog("FDI: header checksum error\n");
+			outlog ("FDI: header checksum error\n");
 			fdi_free(fdi);
 			return NULL;
 		}
@@ -2096,7 +2094,7 @@ static int fdi2raw_loadrevolution_2 (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *trackti
 		cache->avgp, cache->minp, cache->maxp, cache->idxp,
 		cache->maxidx, &idx, cache->pulses, mfm);
 	//fdi2_gcr_decode (fdi, totalavg, avgp, minp, maxp, idxp, idx_off1, idx_off2, idx_off3, maxidx, pulses);
-	debuglog("track %d: nbits=%d avg len=%.2f weakbits=%d idx=%d\n",
+	debuglog ("track %d: nbits=%d avg len=%.2f weakbits=%d idx=%d\n",
 		track, bitoffset, (double)cache->totalavg / bitoffset, cache->weakbits, cache->indexoffset);
 	len = fdi->out;
 	if (cache->weakbits >= 10 && multirev)

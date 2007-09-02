@@ -10,7 +10,7 @@ int main (int argc, char **argv)
     char *wu;
     FILE *f;
     uae_u8 *b, *p1, *p2, *p3, *cfgbuf, *databuf;
-    int size, size2, i, num, offset;    
+    int size, size2, i, num, offset;
 
     if (argc < 4) {
 	printf("Usage: sfhelper.exe <winuae.exe> <config file> <file1> [<file2>..]");
@@ -42,7 +42,7 @@ int main (int argc, char **argv)
 	    if (!strcmp (p1, "_DATA_STARTS_HERE"))
 		databuf = p1;
 	}
-        p1++;
+	p1++;
 	if (cfgbuf && databuf)
 	    break;
     }

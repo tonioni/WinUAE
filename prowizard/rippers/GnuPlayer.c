@@ -304,10 +304,10 @@ void Depack_GnuPlayer ( void )
     {
       samp = (in_data[Where]>>4)&0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k] = (Whatever[k-1] + samp); k++;
+      Whatever[k++] = (Whatever[k-1] + samp);
       samp = in_data[Where] & 0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k] = (Whatever[k-1] + samp); k++;
+      Whatever[k++] = (Whatever[k-1] + samp);
       Where += 1;
     }
     Where -= 1;

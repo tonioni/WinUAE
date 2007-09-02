@@ -23,7 +23,7 @@ int screenshotmode = PNG_SCREENSHOTS;
 static void namesplit (char *s)
 {
     int l;
-    
+
     l = strlen (s) - 1;
     while (l >= 0) {
 	if (s[l] == '.')
@@ -49,13 +49,13 @@ static int toclipboard (BITMAPINFO *bi, void *bmp)
     EmptyClipboard ();
     hg = GlobalAlloc (GMEM_MOVEABLE | GMEM_DDESHARE, bi->bmiHeader.biSize + bi->bmiHeader.biSizeImage);
     if (hg) {
-        dib = GlobalLock (hg);
+	dib = GlobalLock (hg);
 	if (dib) {
 	    memcpy (dib, &bi->bmiHeader, bi->bmiHeader.biSize);
 	    memcpy (dib + bi->bmiHeader.biSize, bmp, bi->bmiHeader.biSizeImage);
 	}
-        GlobalUnlock (hg);
-        if (SetClipboardData (CF_DIB, hg))
+	GlobalUnlock (hg);
+	if (SetClipboardData (CF_DIB, hg))
 	    v = 1;
     }
     CloseClipboard ();
@@ -64,7 +64,7 @@ static int toclipboard (BITMAPINFO *bi, void *bmp)
     return v;
 }
 
-static HDC surface_dc, offscreen_dc;    
+static HDC surface_dc, offscreen_dc;
 static BITMAPINFO bi; // bitmap info
 static LPVOID lpvBits = NULL; // pointer to bitmap bits array
 static HBITMAP offscreen_bitmap;
@@ -73,7 +73,7 @@ static int screenshot_prepared;
 void screenshot_free(void)
 {
     if (surface_dc)
-        releasehdc (surface_dc);
+	releasehdc (surface_dc);
     surface_dc = NULL;
     if(offscreen_dc)
 	DeleteDC(offscreen_dc);
@@ -104,12 +104,12 @@ int screenshot_prepare(void)
 
     // need a HBITMAP to convert it to a DIB
     if((offscreen_bitmap = CreateCompatibleBitmap(surface_dc, width, height)) == NULL)
-    	goto oops; // error
-	
+	goto oops; // error
+
     // The bitmap is empty, so let's copy the contents of the surface to it.
     // For that we need to select it into a device context.
     if((offscreen_dc = CreateCompatibleDC(surface_dc)) == NULL)
-    	goto oops; // error
+	goto oops; // error
 
     // select offscreen_bitmap into offscreen_dc
     hgdiobj = SelectObject(offscreen_dc, offscreen_bitmap);
@@ -119,7 +119,7 @@ int screenshot_prepare(void)
 
     // de-select offscreen_bitmap
     SelectObject(offscreen_dc, hgdiobj);
-	
+
     ZeroMemory(&bi, sizeof(bi));
     bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi.bmiHeader.biWidth = width;
@@ -184,7 +184,7 @@ static int savepng(FILE *fp)
     }
 
     png_init_io(png_ptr, fp);
-    png_set_filter(png_ptr, 0, PNG_FILTER_NONE); 
+    png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
     png_set_IHDR(png_ptr, info_ptr,
 	w, h, 8, PNG_COLOR_TYPE_RGB,
 	PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
@@ -225,30 +225,30 @@ void screenshot(int mode, int doprepare)
 {
     static int recursive;
     FILE *fp = NULL;
-	
+
     HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
     HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
 
     if(recursive)
-    	return;
-	
+	return;
+
     recursive++;
 
     if (!screenshot_prepared || doprepare) {
-        if (!screenshot_prepare())
+	if (!screenshot_prepare())
 	    goto oops;
     }
 
     if (mode == 0) {
-        toclipboard (&bi, lpvBits);
+	toclipboard (&bi, lpvBits);
     } else {
-        char filename[MAX_DPATH];
-        char path[MAX_DPATH];
-        char name[MAX_DPATH];
-        char underline[] = "_";
-        int number = 0;
-		
-    	fetch_path ("ScreenshotPath", path, sizeof (path));
+	char filename[MAX_DPATH];
+	char path[MAX_DPATH];
+	char name[MAX_DPATH];
+	char underline[] = "_";
+	int number = 0;
+
+	fetch_path ("ScreenshotPath", path, sizeof (path));
 	CreateDirectory (path, NULL);
 	name[0] = 0;
 	if (currprefs.dfxtype[0] >= 0)
@@ -256,7 +256,7 @@ void screenshot(int mode, int doprepare)
 	if (!name[0])
 	    underline[0] = 0;
 	namesplit (name);
-		
+
 	while(++number < 1000) // limit 999 iterations / screenshots
 	{
 	    sprintf(filename, "%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? "png" : "bmp");
@@ -275,20 +275,20 @@ void screenshot(int mode, int doprepare)
 		fp = NULL;
 		if (!ok)
 		    goto oops;
-		write_log("Screenshot saved as \"%s\"\n", filename);
+		write_log ("Screenshot saved as \"%s\"\n", filename);
 		break;
 	    }
 	    fclose (fp);
 	    fp = NULL;
 	}
     }
-	
+
 oops:
     if(fp)
-        fclose(fp);
-	
+	fclose(fp);
+
     if (doprepare)
-        screenshot_free();
+	screenshot_free();
 
     recursive--;
 }

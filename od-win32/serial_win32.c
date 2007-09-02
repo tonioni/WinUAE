@@ -10,7 +10,7 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
- 
+
 #include "options.h"
 #include "uae.h"
 #include "memory.h"
@@ -57,11 +57,11 @@ void SERPER (uae_u16 w)
     serper = w;
 
     if (w & 0x8000) {
-        if (!warned) {
-            write_log("SERIAL: program uses 9bit mode PC=%x\n", M68K_GETPC);
+	if (!warned) {
+	    write_log ("SERIAL: program uses 9bit mode PC=%x\n", M68K_GETPC);
 	    warned++;
-        }
-        ninebit = 1;
+	}
+	ninebit = 1;
     }
     w &= 0x7fff;
 
@@ -115,7 +115,7 @@ static void checkreceive (int mode)
 	return;
 
     if (data_in_serdatr) {
-        /* probably not needed but there may be programs that expect OVRUNs.. */
+	/* probably not needed but there may be programs that expect OVRUNs.. */
 	gettimeofday (&tv, NULL);
 	if (tv.tv_sec > lastchartime) {
 	    ovrun = 1;
@@ -147,10 +147,10 @@ static void checkreceive (int mode)
 	    }
 	}
     } else {
-        if (!readser (&recdata))
+	if (!readser (&recdata))
 	    return;
 	serdatr = recdata;
-        serdatr |= 0x100;
+	serdatr |= 0x100;
     }
     gettimeofday (&tv, NULL);
     lastchartime = tv.tv_sec + 5;
@@ -184,12 +184,12 @@ static void checksend (int mode)
 	writeser (serdatshift);
 #endif
 	data_in_serdat = 0;
-        INTREQ_f (0x8000 | 0x0001);
+	INTREQ_f (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
 	write_log ("SERIAL: send %04.4X (%c)\n", serdatshift, dochar (serdatshift));
 #endif
     }
-}    
+}
 
 void serial_hsynchandler (void)
 {
@@ -232,7 +232,7 @@ void SERDAT (uae_u16 w)
 	write_log ("SERIAL: program wrote to SERDAT but old byte wasn't fetched yet\n");
     }
 #endif
-    
+
     if (seriallog)
 	console_out("%c", dochar (w));
 
@@ -268,7 +268,7 @@ uae_u16 SERDATR (void)
     if (ovrun)
 	serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-    write_log( "SERIAL: read 0x%04.4x (%c) %x\n", serdatr, dochar (serdatr), m68k_getpc());
+    write_log ( "SERIAL: read 0x%04.4x (%c) %x\n", serdatr, dochar (serdatr), m68k_getpc ());
 #endif
     ovrun = 0;
     data_in_serdatr = 0;
@@ -278,13 +278,13 @@ uae_u16 SERDATR (void)
 void serial_check_irq (void)
 {
     if (data_in_serdatr)
-        INTREQ_0 (0x8000 | 0x0800);
+	INTREQ_0 (0x8000 | 0x0800);
 }
 
 void serial_dtr_on(void)
 {
 #if SERIALHSDEBUG > 0
-    write_log( "SERIAL: DTR on\n" );
+    write_log ( "SERIAL: DTR on\n" );
 #endif
     dtr = 1;
     if (currprefs.serial_demand)
@@ -297,7 +297,7 @@ void serial_dtr_on(void)
 void serial_dtr_off(void)
 {
 #if SERIALHSDEBUG > 0
-    write_log( "SERIAL: DTR off\n" );
+    write_log ( "SERIAL: DTR off\n" );
 #endif
     dtr = 0;
 #ifdef SERIAL_PORT
@@ -316,7 +316,7 @@ static uae_u8 oldserbits;
 static void serial_status_debug(char *s)
 {
 #if SERIALHSDEBUG > 1
-    write_log("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
+    write_log ("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
 	(oldserbits & 0x80) ? 0 : 1, (oldserbits & 0x40) ? 0 : 1,
 	(oldserbits & 0x20) ? 0 : 1, (oldserbits & 0x10) ? 0 : 1, (oldserbits & 0x08) ? 0 : 1);
 #endif
@@ -334,46 +334,46 @@ uae_u8 serial_readstatus(uae_u8 dir)
 	if (!(serbits & 0x20)) {
 	    serbits |= 0x20;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: CD off\n" );
+	    write_log ( "SERIAL: CD off\n" );
 #endif
 	}
     } else {
 	if (serbits & 0x20) {
 	    serbits &= ~0x20;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: CD on\n" );
+	    write_log ( "SERIAL: CD on\n" );
 #endif
 	}
     }
 
     if (!(status & TIOCM_DSR)) {
-        if (!(serbits & 0x08)) {
+	if (!(serbits & 0x08)) {
 	    serbits |= 0x08;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: DSR off\n" );
+	    write_log ( "SERIAL: DSR off\n" );
 #endif
-        }
+	}
     } else {
-        if (serbits & 0x08) {
+	if (serbits & 0x08) {
 	    serbits &= ~0x08;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: DSR on\n" );
+	    write_log ( "SERIAL: DSR on\n" );
 #endif
 	}
     }
 
     if (!(status & TIOCM_CTS)) {
-        if (!(serbits & 0x10)) {
+	if (!(serbits & 0x10)) {
 	    serbits |= 0x10;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: CTS off\n" );
+	    write_log ( "SERIAL: CTS off\n" );
 #endif
-        }
+	}
     } else {
-        if (serbits & 0x10) {
+	if (serbits & 0x10) {
 	    serbits &= ~0x10;
 #if SERIALHSDEBUG > 0
-	    write_log( "SERIAL: CTS on\n" );
+	    write_log ( "SERIAL: CTS on\n" );
 #endif
 	}
     }
@@ -407,7 +407,7 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 		write_log ("SERIAL: RTS cleared\n");
 #endif
 	    } else {
-	        setserstat (TIOCM_RTS, 1);
+		setserstat (TIOCM_RTS, 1);
 #if SERIALHSDEBUG > 0
 		write_log ("SERIAL: RTS set\n");
 #endif
@@ -417,11 +417,11 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 
  #if 0 /* CIA io-pins can be read even when set to output.. */
     if ((newstate & 0x20) != (oldserbits & 0x20) && (dir & 0x20))
-        write_log ("SERIAL: warning, program tries to use CD as an output!\n");
+	write_log ("SERIAL: warning, program tries to use CD as an output!\n");
     if ((newstate & 0x10) != (oldserbits & 0x10) && (dir & 0x10))
-        write_log ("SERIAL: warning, program tries to use CTS as an output!\n");
+	write_log ("SERIAL: warning, program tries to use CTS as an output!\n");
     if ((newstate & 0x08) != (oldserbits & 0x08) && (dir & 0x08))
-        write_log ("SERIAL: warning, program tries to use DSR as an output!\n");
+	write_log ("SERIAL: warning, program tries to use DSR as an output!\n");
 #endif
 
     if (logcnt > 0) {
@@ -452,8 +452,8 @@ void serial_open(void)
 	return;
     serper = 0;
     if(!openser(currprefs.sername)) {
-        write_log("SERIAL: Could not open device %s\n", currprefs.sername);
-        return;
+	write_log ("SERIAL: Could not open device %s\n", currprefs.sername);
+	return;
     }
     serdev = 1;
 #endif

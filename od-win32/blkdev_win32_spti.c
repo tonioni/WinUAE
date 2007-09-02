@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 
-#include <devioctl.h>  
+#include <devioctl.h>
 #include <ntddstor.h>
 #include <winioctl.h>
 #include <initguid.h>   // Guid definition
@@ -85,8 +85,8 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
     if (!status) {
 	int lasterror = GetLastError();
 	*err = lasterror;
-	write_log("SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
-	write_log("Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
+	write_log ("SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
+	write_log ("Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
@@ -283,7 +283,7 @@ static int inquiry (int unitnum, int *type, uae_u8 *inquirydata, int *inqlen)
     *type = 0x1f;
     if (!p) {
 	if (log_scsi)
-	    write_log("SPTI: INQUIRY failed\n");
+	    write_log ("SPTI: INQUIRY failed\n");
 	return 0;
     }
     *inqlen = outlen > INQUIRY_SIZE ? INQUIRY_SIZE : outlen;
@@ -293,8 +293,8 @@ static int inquiry (int unitnum, int *type, uae_u8 *inquirydata, int *inqlen)
 	v = 1;
     memcpy (inquirydata, p, *inqlen);
     if (log_scsi) {
-	if (outlen >= INQUIRY_SIZE) 
-	    write_log("SPTI: INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
+	if (outlen >= INQUIRY_SIZE)
+	    write_log ("SPTI: INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
 		p[0], p[1], p[2], v, p + 8, p + 16);
     }
     return v;
@@ -353,7 +353,7 @@ int open_scsi_device (int unitnum)
 	dev = xmalloc (100);
 	sprintf (dev, "\\\\.\\Scsi%d:", di->bus);
     } else {
-        dev = my_strdup(di->drvpath);
+	dev = my_strdup(di->drvpath);
     }
     if (!di->scsibuf)
 	di->scsibuf = VirtualAlloc (NULL, DEVICE_SCSI_BUFSIZE, MEM_COMMIT, PAGE_READWRITE);
@@ -364,7 +364,7 @@ int open_scsi_device (int unitnum)
     } else {
 	uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 	int inqlen;
-        dev_info[unitnum].isatapi = inquiry (unitnum, &dev_info[unitnum].type, inqdata, &inqlen);
+	dev_info[unitnum].isatapi = inquiry (unitnum, &dev_info[unitnum].type, inqdata, &inqlen);
 	if (inqlen == 0) {
 	    write_log ("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
 		di->bus, di->path, di->target, di->lun);
@@ -385,7 +385,7 @@ int open_scsi_device (int unitnum)
 	dev_info[unitnum].name = my_strdup (inqdata + 8);
 	dev_info[unitnum].inquirydata = xmalloc (INQUIRY_SIZE);
 	memcpy (dev_info[unitnum].inquirydata, inqdata, INQUIRY_SIZE);
-        xfree (dev);
+	xfree (dev);
 	return 1;
     }
     xfree (dev);
@@ -405,7 +405,7 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
 	if (!strcmp(drvpath, di->drvpath))
 	    return 0;
     }
-    write_log("SPTI: unit %d '%s' added\n", total_devices, drvpath);
+    write_log ("SPTI: unit %d '%s' added\n", total_devices, drvpath);
     di = &dev_info[total_devices];
     di->drvpath = my_strdup(drvpath);
     di->type = 0;
@@ -418,7 +418,7 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
     if (open_scsi_device(cnt)) {
 	for (i = 0; i < cnt; i++) {
 	    if (!memcmp(di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
-		write_log("duplicate device, skipped..\n");
+		write_log ("duplicate device, skipped..\n");
 		break;
 	    }
 	}
@@ -495,7 +495,7 @@ static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
     DWORD status, errorCode;
 
     interfaceData.cbSize = sizeof (SP_INTERFACE_DEVICE_DATA);
-    status = SetupDiEnumDeviceInterfaces ( 
+    status = SetupDiEnumDeviceInterfaces (
 	DevInfo,	// Interface Device Info handle
 	0,		// Device Info data
 	guid,		// Interface registered by driver
@@ -565,8 +565,8 @@ static void scanscsi(void)
 
     idx = 0;
     for (;;) {
-        sprintf(DeviceName, "\\\\.\\Scsi%d:", idx++);
-        h = CreateFile (DeviceName,
+	sprintf(DeviceName, "\\\\.\\Scsi%d:", idx++);
+	h = CreateFile (DeviceName,
 	    GENERIC_READ | GENERIC_WRITE,
 	    0,
 	    NULL, // no SECURITY_ATTRIBUTES structure
@@ -584,13 +584,13 @@ static void scanscsi(void)
 	    0,
 	    &bytesTransferred,
 	    NULL)) {
-	    write_log( "Rescan SCSI port %d failed [Error %d]\n", idx - 1, GetLastError());
+	    write_log ( "Rescan SCSI port %d failed [Error %d]\n", idx - 1, GetLastError());
 	    CloseHandle(h);
-            continue;
-        }
+	    continue;
+	}
 
 	// Get the SCSI inquiry data for all devices for the given SCSI bus
-	status = DeviceIoControl(	
+	status = DeviceIoControl(
 	    h,
 	    IOCTL_SCSI_GET_INQUIRY_DATA,
 	    NULL,
@@ -616,7 +616,7 @@ static void scanscsi(void)
 		Claimed = InquiryData->DeviceClaimed;
 		write_log ("SCSI=%d Initiator=%d Path=%d Target=%d LUN=%d Claimed=%s Type=%d\n",
 		    idx - 1,
-		    BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId, 
+		    BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId,
 		    InquiryData->Lun, Claimed ? "Yes" : "No ", type);
 		if (Claimed == 0 && !luncheck) {
 		    luncheck = 1;
@@ -673,9 +673,9 @@ static int rescan(void)
 	}
     }
     if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
-	write_log("SCSI adapter enumeration..\n");
+	write_log ("SCSI adapter enumeration..\n");
 	scanscsi();
-	write_log("SCSI adapter enumeration ends\n");
+	write_log ("SCSI adapter enumeration ends\n");
     }
     return 1;
 }

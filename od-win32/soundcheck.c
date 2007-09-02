@@ -84,7 +84,7 @@ static void pause_audio_ds (void)
 static void resume_audio_ds (void)
 {
     HRESULT hr;
-    
+
     clearbuffer ();
     hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
     if (hr != DS_OK)
@@ -124,11 +124,11 @@ static int open_audio_ds (void)
     WAVEFORMATEX wavfmt;
     int minfreq, maxfreq;
     int freq = sounddata_frequency;
-    
+
     hr = DirectSoundCreate (&sound_device_guid[devicenum], &lpDS, NULL);
     if (hr != DS_OK)  {
-        write_log ("SOUND: DirectSoundCreate() failure: %s\n", DXError (hr));
-        return 0;
+	write_log ("SOUND: DirectSoundCreate() failure: %s\n", DXError (hr));
+	return 0;
     }
     memset (&DSCaps, 0, sizeof (DSCaps));
     DSCaps.dwSize = sizeof(DSCaps);
@@ -146,23 +146,23 @@ static int open_audio_ds (void)
 	if (minfreq > freq) {
 	    freq = minfreq;
 	    sounddata_frequency = freq;
-	    write_log("SOUND: minimum supported frequency: %d\n", minfreq);
+	    write_log ("SOUND: minimum supported frequency: %d\n", minfreq);
 	}
 	if (maxfreq < freq) {
 	    freq = maxfreq;
 	    sounddata_frequency = freq;
-	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);
+	    write_log ("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     } else {
-	write_log("SOUND: ignored weird min (%d) or max (%d) sample rate\n", minfreq, maxfreq);
+	write_log ("SOUND: ignored weird min (%d) or max (%d) sample rate\n", minfreq, maxfreq);
     }
-    
+
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
     sound_buffer.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_GETCURRENTPOSITION2;
     hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &lpDSBprimary, NULL);
     if( hr != DS_OK )  {
-        write_log ("SOUND: Primary CreateSoundBuffer() failure: %s\n", DXError (hr));
+	write_log ("SOUND: Primary CreateSoundBuffer() failure: %s\n", DXError (hr));
 	goto error;
     }
 
@@ -183,15 +183,15 @@ static int open_audio_ds (void)
 
     hr = IDirectSound_SetCooperativeLevel (lpDS, hwnd, DSSCL_PRIORITY);
     if (hr != DS_OK) {
-        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
-        goto error;
+	write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
+	goto error;
     }
 
     dsoundbuf = sounddata_bufsize;
     if (dsoundbuf < DSBSIZE_MIN)
-        dsoundbuf = DSBSIZE_MIN;
+	dsoundbuf = DSBSIZE_MIN;
     if (dsoundbuf > DSBSIZE_MAX)
-        dsoundbuf = DSBSIZE_MAX;
+	dsoundbuf = DSBSIZE_MAX;
 
     memset (&sound_buffer, 0, sizeof (sound_buffer));
     sound_buffer.dwSize = sizeof (sound_buffer);
@@ -201,16 +201,16 @@ static int open_audio_ds (void)
 
     hr = IDirectSound_CreateSoundBuffer( lpDS, &sound_buffer, &lpDSBsecondary, NULL );
     if (hr != DS_OK) {
-        write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
-        goto error;
+	write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
+	goto error;
     }
 
     hr = IDirectSoundBuffer_SetFormat (lpDSBprimary, &wavfmt);
     if( hr != DS_OK )  {
-        write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
-        goto error;
+	write_log ("SOUND: Primary SetFormat() failure: %s\n", DXError (hr));
+	goto error;
     }
-    
+
     clearbuffer ();
 
     return 1;
@@ -238,33 +238,33 @@ static HWND GetConsoleHwnd(void)
     HWND hwndFound;         // this is what is returned to the caller
     char pszNewWindowTitle[MY_BUFSIZE]; // contains fabricated WindowTitle
     char pszOldWindowTitle[MY_BUFSIZE]; // contains original WindowTitle
- 
+
     // fetch current window title
- 
+
     GetConsoleTitle(pszOldWindowTitle, MY_BUFSIZE);
- 
+
     // format a "unique" NewWindowTitle
- 
+
     wsprintf(pszNewWindowTitle,"%d/%d",
-                GetTickCount(),
-                GetCurrentProcessId());
- 
+		GetTickCount(),
+		GetCurrentProcessId());
+
     // change current window title
- 
+
     SetConsoleTitle(pszNewWindowTitle);
- 
+
     // ensure window title has been updated
- 
+
     Sleep(40);
- 
+
     // look for NewWindowTitle
- 
+
     hwndFound=FindWindow(NULL, pszNewWindowTitle);
- 
+
     // restore original window title
- 
+
     SetConsoleTitle(pszOldWindowTitle);
- 
+
     return(hwndFound);
 }
 
@@ -331,7 +331,7 @@ static int sm (int ms)
 	return 0;
     } else {
 	WaitForSingleObject (timehandle, ms);
-        ResetEvent (timehandle);
+	ResetEvent (timehandle);
 	timeKillEvent (TimerEvent);
     }
     return 1;
@@ -351,7 +351,7 @@ static int getpos (void)
 }
 
 static void runtest(void)
-{ 
+{
     int pos, spos, expected, len, freqdiff;
     int lastpos, minpos, maxpos;
     int mult = sounddata_stereo ? 4 : 2;
@@ -393,8 +393,8 @@ static void runtest(void)
     write_log2 ("position granularity: minimum %d, maximum %d samples\n", minpos, maxpos);
     len = 200;
     while (len <= 1400) {
-        pause_audio_ds ();
-        resume_audio_ds ();
+	pause_audio_ds ();
+	resume_audio_ds ();
 	while (pos > 1000)
 	    pos = getpos();
 	while (pos < 1000)
@@ -417,7 +417,7 @@ static void runtest(void)
     write_log2("real calculated frequency: %d\n",
 	sounddata_frequency - freqdiff);
     pause_audio_ds ();
-}        
+}
 
 static int selectdevice (void)
 {
@@ -467,42 +467,42 @@ static int osdetect (void)
     }
 
     if(!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,
-         &hAccessToken )) {
-         if(GetLastError() != ERROR_NO_TOKEN)
-            return 1;
-         // 
-         // retry against process token if no thread token exists
-         // 
-         if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY,
-            &hAccessToken))
-            return 1;
+	 &hAccessToken )) {
+	 if(GetLastError() != ERROR_NO_TOKEN)
+	    return 1;
+	 //
+	 // retry against process token if no thread token exists
+	 //
+	 if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY,
+	    &hAccessToken))
+	    return 1;
       }
 
       bSuccess = GetTokenInformation(hAccessToken,TokenGroups,InfoBuffer,
-         1024, &dwInfoBufferSize);
+	 1024, &dwInfoBufferSize);
 
       CloseHandle(hAccessToken);
 
       if(!bSuccess )
-         return 1;
+	 return 1;
 
       if(!AllocateAndInitializeSid(&siaNtAuthority, 2,
-         SECURITY_BUILTIN_DOMAIN_RID,
-         DOMAIN_ALIAS_RID_ADMINS,
-         0, 0, 0, 0, 0, 0,
-         &psidAdministrators))
-         return 1;
+	 SECURITY_BUILTIN_DOMAIN_RID,
+	 DOMAIN_ALIAS_RID_ADMINS,
+	 0, 0, 0, 0, 0, 0,
+	 &psidAdministrators))
+	 return 1;
 
    // assume that we don't find the admin SID.
       bSuccess = FALSE;
 
       for(x=0;x<ptgGroups->GroupCount;x++)
       {
-         if( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
-         {
-            bSuccess = TRUE;
-            break;
-         }
+	 if( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
+	 {
+	    bSuccess = TRUE;
+	    break;
+	 }
 
       }
       FreeSid(psidAdministrators);
@@ -531,7 +531,7 @@ int main (int argc, char **argv)
     devicenum = selectdevice ();
     i = 0;
     while (srates[i]) {
-        sounddata_frequency = srates[i];
+	sounddata_frequency = srates[i];
 	if (open_audio_ds ()) {
 	    if (!timebegin ()) {
 		printf ("no MM timer, exiting..\n");

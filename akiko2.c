@@ -30,7 +30,7 @@
 
 int cd32_enabled;
 
-static int m68k_getpc(void) { return 0; }
+static int m68k_getpc (void) { return 0; }
 
 /*
  * CD32 1Kb NVRAM (EEPROM) emulation
@@ -123,14 +123,14 @@ static void i2c_do (void)
 	    }
 	    return;
 	}
-    } 
+    }
     if (bitcounter >= 0) {
 	if (direction) {
 	    /* Amiga -> NVRAM */
 	    if (scl_out && !oscl) {
 		if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-		    write_log ("RB %02.2X ", nvram_byte, m68k_getpc());
+		    write_log ("RB %02.2X ", nvram_byte, m68k_getpc ());
 #endif
 		    sda_in = 0; /* ACK */
 		    if (direction > 0) {
@@ -141,7 +141,7 @@ static void i2c_do (void)
 			bitcounter = -1;
 		    }
 		} else {
-		    //write_log("NVRAM received bit %d, offset %d\n", sda_out, bitcounter);
+		    //write_log ("NVRAM received bit %d, offset %d\n", sda_out, bitcounter);
 		    nvram_byte <<= 1;
 		    nvram_byte |= sda_out;
 		    bitcounter++;
@@ -154,12 +154,12 @@ static void i2c_do (void)
 		    nvram_byte = cd32_nvram[nvram_address];
 		sda_dir_nvram = 1;
 		sda_in = (nvram_byte & 0x80) ? 1 : 0;
-		//write_log("NVRAM sent bit %d, offset %d\n", sda_in, bitcounter);
+		//write_log ("NVRAM sent bit %d, offset %d\n", sda_in, bitcounter);
 		nvram_byte <<= 1;
 		bitcounter++;
 		if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-		    write_log ("NVRAM sent byte %02.2X address %04.4X PC=%08.8X\n", cd32_nvram[nvram_address], nvram_address, m68k_getpc());
+		    write_log ("NVRAM sent byte %02.2X address %04.4X PC=%08.8X\n", cd32_nvram[nvram_address], nvram_address, m68k_getpc ());
 #endif
 		    nvram_address++;
 		    nvram_address &= NVRAM_SIZE - 1;
@@ -193,14 +193,14 @@ static void i2c_do (void)
 	}
 	bitcounter = 0;
 #if AKIKO_DEBUG_NVRAM
-	write_log ("I2C_DEVICEADDR: rw %d, address %02.2Xxx PC=%08.8X\n", nvram_rw, nvram_address >> 8, m68k_getpc());
+	write_log ("I2C_DEVICEADDR: rw %d, address %02.2Xxx PC=%08.8X\n", nvram_rw, nvram_address >> 8, m68k_getpc ());
 #endif
 	break;
 	case I2C_WORDADDR:
 	nvram_address &= 0x300;
 	nvram_address |= nvram_byte;
 #if AKIKO_DEBUG_NVRAM
-	write_log ("I2C_WORDADDR: address %04.4X PC=%08.8X\n", nvram_address, m68k_getpc());
+	write_log ("I2C_WORDADDR: address %04.4X PC=%08.8X\n", nvram_address, m68k_getpc ());
 #endif
 	if (direction < 0) {
 	    memcpy (nvram_writetmp, cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), NVRAM_PAGE_SIZE);
@@ -833,7 +833,7 @@ static void cdrom_run_read (void)
 	} else
 	    return;
 #if AKIKO_DEBUG_IO_CMD
-	write_log("read sector=%d, scnt=%d -> %d\n", cdrom_data_offset, cdrom_sector_counter, sector);
+	write_log ("read sector=%d, scnt=%d -> %d\n", cdrom_data_offset, cdrom_sector_counter, sector);
 #endif
 	cdrom_readmask_w &= ~(1 << j);
 	cdrom_status1 |= CDSTATUS_DATASECTOR;
@@ -873,7 +873,7 @@ static void akiko_handler (void)
 	return;
     }
 }
-	
+
 static void akiko_internal (void)
 {
     cdrom_run_command ();
@@ -925,7 +925,7 @@ static void *akiko_thread (void *null)
 	if (cdrom_data_end > 0 && sector >= 0 && (sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
 	    memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
-	    write_log("filling buffer sector=%d (max=%d)\n", sector, cdrom_data_end);
+	    write_log ("filling buffer sector=%d (max=%d)\n", sector, cdrom_data_end);
 #endif
 	    sector_buffer_sector_2 = sector;
 	    offset = 0;
@@ -1055,7 +1055,7 @@ uae_u32 akiko_bget2 (uaecptr addr, int msg)
     akiko_internal ();
     uae_sem_post (&akiko_sem);
     if (msg && addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_bget %08.8X: %08.8X %02.2X\n", m68k_getpc(), addr, v & 0xff);
+	write_log ("akiko_bget %08.8X: %08.8X %02.2X\n", m68k_getpc (), addr, v & 0xff);
     return v;
 }
 
@@ -1071,7 +1071,7 @@ uae_u32 akiko_wget (uaecptr addr)
     v = akiko_bget2 (addr + 1, 0);
     v |= akiko_bget2 (addr + 0, 0) << 8;
     if (addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_wget %08.8X: %08.8X %04.4X\n", m68k_getpc(), addr, v & 0xffff);
+	write_log ("akiko_wget %08.8X: %08.8X %04.4X\n", m68k_getpc (), addr, v & 0xffff);
     return v;
 }
 
@@ -1085,7 +1085,7 @@ uae_u32 akiko_lget (uaecptr addr)
     v |= akiko_bget2 (addr + 1, 0) << 16;
     v |= akiko_bget2 (addr + 0, 0) << 24;
     if (addr < 0x30 && (addr != 4 && addr != 8) && AKIKO_DEBUG_IO)
-	write_log ("akiko_lget %08.8X: %08.8X %08.8X\n", m68k_getpc(), addr, v);
+	write_log ("akiko_lget %08.8X: %08.8X %08.8X\n", m68k_getpc (), addr, v);
     return v;
 }
 
@@ -1096,7 +1096,7 @@ void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
     addr &= 0xffff;
     v &= 0xff;
     if(msg && addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log ("akiko_bput %08.8X: %08.8X=%02.2X\n", m68k_getpc(), addr, v & 0xff);
+	write_log ("akiko_bput %08.8X: %08.8X=%02.2X\n", m68k_getpc (), addr, v & 0xff);
     uae_sem_wait (&akiko_sem);
     switch (addr)
     {
@@ -1190,7 +1190,7 @@ void akiko_wput (uaecptr addr, uae_u32 v)
 {
     addr &= 0xfff;
     if((addr < 0x30 && AKIKO_DEBUG_IO))
-	write_log("akiko_wput %08.8X: %08.8X=%04.4X\n", m68k_getpc(), addr, v & 0xffff);
+	write_log ("akiko_wput %08.8X: %08.8X=%04.4X\n", m68k_getpc (), addr, v & 0xffff);
     akiko_bput2 (addr + 1, v & 0xff, 0);
     akiko_bput2 (addr + 0, v >> 8, 0);
 }
@@ -1199,7 +1199,7 @@ void akiko_lput (uaecptr addr, uae_u32 v)
 {
     addr &= 0xffff;
     if(addr < 0x30 && AKIKO_DEBUG_IO)
-	write_log("akiko_lput %08.8X: %08.8X=%08.8X\n", m68k_getpc(), addr, v);
+	write_log ("akiko_lput %08.8X: %08.8X=%08.8X\n", m68k_getpc (), addr, v);
     akiko_bput2 (addr + 3, (v >> 0) & 0xff, 0);
     akiko_bput2 (addr + 2, (v >> 8) & 0xff, 0);
     akiko_bput2 (addr + 1, (v >> 16) & 0xff, 0);
@@ -1284,7 +1284,7 @@ void akiko_init (void)
     if (!savestate_state) {
 	cdrom_playing = cdrom_paused = 0;
 	cdrom_data_offset = -1;
-    	uae_sem_init (&akiko_sem, 0, 1);
+	uae_sem_init (&akiko_sem, 0, 1);
     }
     if (cdromok && !akiko_thread_running) {
 	akiko_thread_running = 1;
@@ -1326,7 +1326,7 @@ uae_u8 *save_akiko(int *len)
 	save_u32 (akiko_buffer[i]);
     save_u8 ((uae_u8)akiko_read_offset);
     save_u8 ((uae_u8)akiko_write_offset);
-    
+
     save_u32 ((cdrom_playing ? 1 : 0) | (cdrom_paused ? 2 : 0));
     if (cdrom_playing)
 	cd_qcode (0);

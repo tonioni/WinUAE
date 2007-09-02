@@ -47,9 +47,9 @@ uae_u16 get_crc16( uae_u8 *buf, int len)
 #define GET_UINT32_BE(n,b,i)                            \
 {                                                       \
     (n) = ( (unsigned long) (b)[(i)    ] << 24 )        \
-        | ( (unsigned long) (b)[(i) + 1] << 16 )        \
-        | ( (unsigned long) (b)[(i) + 2] <<  8 )        \
-        | ( (unsigned long) (b)[(i) + 3]       );       \
+	| ( (unsigned long) (b)[(i) + 1] << 16 )        \
+	| ( (unsigned long) (b)[(i) + 2] <<  8 )        \
+	| ( (unsigned long) (b)[(i) + 3]       );       \
 }
 #endif
 #ifndef PUT_UINT32_BE
@@ -108,7 +108,7 @@ static void sha1_process( sha1_context *ctx, unsigned char data[64] )
 #define R(t)                                            \
 (                                                       \
     temp = W[(t -  3) & 0x0F] ^ W[(t - 8) & 0x0F] ^     \
-           W[(t - 14) & 0x0F] ^ W[ t      & 0x0F],      \
+	   W[(t - 14) & 0x0F] ^ W[ t      & 0x0F],      \
     ( W[t & 0x0F] = S(temp,1) )                         \
 )
 
@@ -247,7 +247,7 @@ static void sha1_update( sha1_context *ctx, unsigned char *input, int ilen )
     unsigned long left;
 
     if( ilen <= 0 )
-        return;
+	return;
 
     left = ctx->total[0] & 0x3F;
     fill = 64 - left;
@@ -256,29 +256,29 @@ static void sha1_update( sha1_context *ctx, unsigned char *input, int ilen )
     ctx->total[0] &= 0xFFFFFFFF;
 
     if( ctx->total[0] < (unsigned long) ilen )
-        ctx->total[1]++;
+	ctx->total[1]++;
 
     if( left && ilen >= fill )
     {
-        memcpy( (void *) (ctx->buffer + left),
-                (void *) input, fill );
-        sha1_process( ctx, ctx->buffer );
-        input += fill;
-        ilen  -= fill;
-        left = 0;
+	memcpy( (void *) (ctx->buffer + left),
+		(void *) input, fill );
+	sha1_process( ctx, ctx->buffer );
+	input += fill;
+	ilen  -= fill;
+	left = 0;
     }
 
     while( ilen >= 64 )
     {
-        sha1_process( ctx, input );
-        input += 64;
-        ilen  -= 64;
+	sha1_process( ctx, input );
+	input += 64;
+	ilen  -= 64;
     }
 
     if( ilen > 0 )
     {
-        memcpy( (void *) (ctx->buffer + left),
-                (void *) input, ilen );
+	memcpy( (void *) (ctx->buffer + left),
+		(void *) input, ilen );
     }
 }
 
@@ -300,7 +300,7 @@ static void sha1_finish( sha1_context *ctx, unsigned char output[20] )
     unsigned char msglen[8];
 
     high = ( ctx->total[0] >> 29 )
-         | ( ctx->total[1] <<  3 );
+	 | ( ctx->total[1] <<  3 );
     low  = ( ctx->total[0] <<  3 );
 
     PUT_UINT32_BE( high, msglen, 0 );

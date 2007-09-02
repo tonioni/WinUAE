@@ -33,7 +33,7 @@ static HWND myGetConsoleWindow(void)
     GETCONSOLEWINDOW pGetConsoleWindow;
     /* Windows 2000 or newer only */
     pGetConsoleWindow = (GETCONSOLEWINDOW)GetProcAddress(
-        GetModuleHandle("kernel32.dll"), "GetConsoleWindow");
+	GetModuleHandle("kernel32.dll"), "GetConsoleWindow");
     if (pGetConsoleWindow)
 	return pGetConsoleWindow();
     return NULL;
@@ -99,11 +99,11 @@ void reopen_console(void)
 	return;
     hwnd = myGetConsoleWindow();
     if (hwnd && hWinUAEKey) {
-        int newpos = 1;
-        LONG x, y, w, h;
+	int newpos = 1;
+	LONG x, y, w, h;
 	DWORD regkeytype;
 	DWORD regkeysize = sizeof(LONG);
-    	if (RegQueryValueEx (hWinUAEKey, "LoggerPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
+	if (RegQueryValueEx (hWinUAEKey, "LoggerPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
 	    newpos = 0;
 	if (RegQueryValueEx (hWinUAEKey, "LoggerPosY", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
 	    newpos = 0;
@@ -119,7 +119,7 @@ void reopen_console(void)
 	    rc.bottom = y + h;
 	    if (MonitorFromRect (&rc, MONITOR_DEFAULTTONULL) != NULL) {
 		SetForegroundWindow(hwnd);
-	        SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE);
+		SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE);
 
 	    }
 	}
@@ -324,7 +324,7 @@ char* buf_out (char *buffer, int *bufsize, const char *format, ...)
 void *log_open(const char *name, int append, int bootlog)
 {
     FILE *f;
-    
+
     f = fopen(name, append ? "a" : "wt");
     bootlogmode = bootlog;
     if (!cs_init)

@@ -162,7 +162,7 @@ static void crc_calc(unsigned char *memory, unsigned int length)
 /* There is an alternate algorithm which is faster but also more complex. */
 
 static int make_decode_table(int number_symbols, int table_size,
-                      unsigned char *length, unsigned short *table)
+		      unsigned char *length, unsigned short *table)
 {
  register unsigned char bit_num = 0;
  register int symbol;
@@ -446,14 +446,14 @@ static int read_literal_table()
       {
        do /* symbol is longer than 6 bits */
        {
-        symbol = huffman20_table[((control >> 6) & 1) + (symbol << 1)];
-        if(!shift--)
-        {
-         shift += 16;
-         control += *source++ << 24;
-         control += *source++ << 16;
-        }
-        control >>= 1;
+	symbol = huffman20_table[((control >> 6) & 1) + (symbol << 1)];
+	if(!shift--)
+	{
+	 shift += 16;
+	 control += *source++ << 24;
+	 control += *source++ << 16;
+	}
+	control >>= 1;
        } while(symbol >= 20);
        temp = 6;
       }
@@ -664,13 +664,13 @@ struct zfile *archive_access_lzx (struct znode *zn)
 	    unpsize -= s;
 	    crc_calc (pdest, s);
 	} else {
-	    write_log("LZX corrupt compressed data\n");
+	    write_log ("LZX corrupt compressed data\n");
 	    goto end;
 	}
     }
     /* pre-cache all files we just decompressed */
     for (;;) {
-        if (znfirst->size && !znfirst->f) {
+	if (znfirst->size && !znfirst->f) {
 	    dstf = zfile_fopen_empty (znfirst->name, znfirst->size);
 	    zfile_fwrite(dbuf + znfirst->offset2, znfirst->size, 1, dstf);
 	    znfirst->f = dstf;
@@ -741,25 +741,25 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
        actual = zfile_fread(header_comment, 1, temp, in_file);
        if(!zfile_ferror(in_file))
        {
-        if(actual == temp)
-        {
-         header_comment[temp] = 0;
-         crc_calc(header_comment, temp);
-         if(sum == crc)
-         {
+	if(actual == temp)
+	{
+	 header_comment[temp] = 0;
+	 crc_calc(header_comment, temp);
+	 if(sum == crc)
+	 {
 	  unsigned int year, month, day;
 	  unsigned int hour, minute, second;
 	  unsigned char attributes;
-          attributes = archive_header[0]; /* file protection modes */
-          unpack_size = (archive_header[5] << 24) + (archive_header[4] << 16) + (archive_header[3] << 8) + archive_header[2]; /* unpack size */
-          pack_size = (archive_header[9] << 24) + (archive_header[8] << 16) + (archive_header[7] << 8) + archive_header[6]; /* packed size */
-          temp = (archive_header[18] << 24) + (archive_header[19] << 16) + (archive_header[20] << 8) + archive_header[21]; /* date */
-          year = ((temp >> 17) & 63) + 1970;
-          month = (temp >> 23) & 15;
-          day = (temp >> 27) & 31;
-          hour = (temp >> 12) & 31;
-          minute = (temp >> 6) & 63;
-          second = temp & 63;
+	  attributes = archive_header[0]; /* file protection modes */
+	  unpack_size = (archive_header[5] << 24) + (archive_header[4] << 16) + (archive_header[3] << 8) + archive_header[2]; /* unpack size */
+	  pack_size = (archive_header[9] << 24) + (archive_header[8] << 16) + (archive_header[7] << 8) + archive_header[6]; /* packed size */
+	  temp = (archive_header[18] << 24) + (archive_header[19] << 16) + (archive_header[20] << 8) + archive_header[21]; /* date */
+	  year = ((temp >> 17) & 63) + 1970;
+	  month = (temp >> 23) & 15;
+	  day = (temp >> 27) & 31;
+	  hour = (temp >> 12) & 31;
+	  minute = (temp >> 6) & 63;
+	  second = temp & 63;
 
 	  memset(&zai, 0, sizeof zai);
 	  zai.name = header_filename;
@@ -786,26 +786,26 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  zn = zvolume_addfile_abs(zv, &zai);
 	  zn->offset2 = merge_size;
 
-	  //write_log("%d %d %d %s\n", unpack_size, merge_size, pack_size, zai.name);
-          total_pack += pack_size;
-          total_unpack += unpack_size;
-          total_files++;
-          merge_size += unpack_size;
+	  //write_log ("%d %d %d %s\n", unpack_size, merge_size, pack_size, zai.name);
+	  total_pack += pack_size;
+	  total_unpack += unpack_size;
+	  total_files++;
+	  merge_size += unpack_size;
 
 	  if(pack_size) /* seek past the packed data */
-          {
-           merge_size = 0;
+	  {
+	   merge_size = 0;
 	   zn->offset = zfile_ftell(in_file);
 	   zn->packedsize = pack_size;
-           if(!zfile_fseek(in_file, pack_size, SEEK_CUR))
-           {
-            abort = 0; /* continue */
-           }
-          }
-          else
-           abort = 0; /* continue */
-         }
-        }
+	   if(!zfile_fseek(in_file, pack_size, SEEK_CUR))
+	   {
+	    abort = 0; /* continue */
+	   }
+	  }
+	  else
+	   abort = 0; /* continue */
+	 }
+	}
        }
       }
      }

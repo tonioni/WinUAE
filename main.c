@@ -65,9 +65,9 @@ char warning_buffer[256];
 
 char optionsfile[256];
 
-int uaerand(void)
+int uaerand (void)
 {
-    return rand();
+    return rand ();
 }
 /* If you want to pipe printer output to a file, put something like
  * "cat >>printerfile.tmp" above.
@@ -120,33 +120,33 @@ static void fixup_prefs_dim2 (struct wh *wh)
 
 void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
-    fixup_prefs_dim2(&prefs->gfx_size_fs);
-    fixup_prefs_dim2(&prefs->gfx_size_win);
+    fixup_prefs_dim2 (&prefs->gfx_size_fs);
+    fixup_prefs_dim2 (&prefs->gfx_size_win);
 }
 
-void fixup_cpu(struct uae_prefs *p)
+void fixup_cpu (struct uae_prefs *p)
 {
-    switch(p->cpu_model)
+    switch (p->cpu_model)
     {
-        case 68000:
-	p->address_space_24 = 1;
-	p->fpu_model = 0;
-        break;
-	case 68010:
+    case 68000:
 	p->address_space_24 = 1;
 	p->fpu_model = 0;
 	break;
-	case 68020:
+    case 68010:
+	p->address_space_24 = 1;
+	p->fpu_model = 0;
 	break;
-	case 68030:
+    case 68020:
+	break;
+    case 68030:
 	p->address_space_24 = 0;
 	break;
-	case 68040:
+    case 68040:
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68040;
 	break;
-	case 68060:
+    case 68060:
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68060;
@@ -159,8 +159,8 @@ void fixup_prefs (struct uae_prefs *p)
 {
     int err = 0;
 
-    build_in_chipset_prefs (p);
-    fixup_cpu(p);
+    built_in_chipset_prefs (p);
+    fixup_cpu (p);
 
     if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
 	|| p->chipmem_size < 0x40000
@@ -295,7 +295,7 @@ void fixup_prefs (struct uae_prefs *p)
 	p->gfxmem_size = 0;
 	err = 1;
     }
-#if !defined(BSDSOCKET)
+#if !defined (BSDSOCKET)
     if (p->socket_emu) {
 	write_log ("Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n");
 	p->socket_emu = 0;
@@ -345,7 +345,7 @@ void fixup_prefs (struct uae_prefs *p)
     p->cpu_compatible = 1;
     p->address_space_24 = 1;
 #endif
-#if !defined(CPUEMU_11) && !defined (CPUEMU_12)
+#if !defined (CPUEMU_11) && !defined (CPUEMU_12)
     p->cpu_compatible = 0;
     p->address_space_24 = 0;
 #endif
@@ -370,7 +370,7 @@ void fixup_prefs (struct uae_prefs *p)
 #if !defined (UAESERIAL)
     p->uaeserial = 0;
 #endif
-#if defined(CPUEMU_12)
+#if defined (CPUEMU_12)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
 #endif
@@ -392,7 +392,7 @@ void uae_reset (int hardreset)
 
 void uae_quit (void)
 {
-    deactivate_debugger();
+    deactivate_debugger ();
     if (quit_program != -1)
 	quit_program = -1;
 }
@@ -435,7 +435,7 @@ static void parse_diskswapper (char *s)
     int num = 0;
 
     p1 = tmp;
-    for(;;) {
+    for (;;) {
 	p2 = strtok (p1, delim);
 	if (!p2)
 	    break;
@@ -467,7 +467,7 @@ static void parse_cmdline (int argc, char **argv)
 	    if (i + 1 == argc) {
 		write_log ("Missing argument for '-f' option.\n");
 	    } else {
-	        currprefs.mountitems = 0;
+		currprefs.mountitems = 0;
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
 	} else if (strcmp (argv[i], "-s") == 0) {
@@ -540,7 +540,7 @@ void reset_all_systems (void)
     filesys_reset ();
 #endif
     memory_reset ();
-#if defined(BSDSOCKET)
+#if defined (BSDSOCKET)
     bsdlib_reset ();
 #endif
 #ifdef FILESYS
@@ -558,11 +558,11 @@ void reset_all_systems (void)
 
 /* Okay, this stuff looks strange, but it is here to encourage people who
  * port UAE to re-use as much of this code as possible. Functions that you
- * should be using are do_start_program() and do_leave_program(), as well
- * as real_main(). Some OSes don't call main() (which is braindamaged IMHO,
- * but unfortunately very common), so you need to call real_main() from
+ * should be using are do_start_program () and do_leave_program (), as well
+ * as real_main (). Some OSes don't call main () (which is braindamaged IMHO,
+ * but unfortunately very common), so you need to call real_main () from
  * whatever entry point you have. You may want to write your own versions
- * of start_program() and leave_program() if you need to do anything special.
+ * of start_program () and leave_program () if you need to do anything special.
  * Add #ifdefs around these as appropriate.
  */
 
@@ -614,7 +614,7 @@ void do_leave_program (void)
 #ifdef FILESYS
     filesys_cleanup ();
 #endif
-    device_func_reset();
+    device_func_reset ();
     savestate_free ();
     memory_cleanup ();
     cfgfile_addcfgparam (0);
@@ -633,7 +633,7 @@ void leave_program (void)
 
 static void real_main2 (int argc, char **argv)
 {
-#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined( NO_WIN32_EXCEPTION_HANDLER )
+#if defined (JIT) && (defined ( _WIN32 ) || defined (_WIN64)) && !defined ( NO_WIN32_EXCEPTION_HANDLER )
     extern int EvalException ( LPEXCEPTION_POINTERS blah, int n_except );
     __try
 #endif
@@ -653,7 +653,7 @@ static void real_main2 (int argc, char **argv)
     }
 
 #ifdef NATMEM_OFFSET
-    init_shm();
+    init_shm ();
 #endif
 
 #ifdef FILESYS
@@ -672,7 +672,7 @@ static void real_main2 (int argc, char **argv)
 	write_log ("Sound driver unavailable: Sound output disabled\n");
 	currprefs.produce_sound = 0;
     }
-    inputdevice_init();
+    inputdevice_init ();
 
     changed_prefs = currprefs;
     no_gui = ! currprefs.start_gui;
@@ -696,7 +696,7 @@ static void real_main2 (int argc, char **argv)
 	canbang = 0;
 #endif
 
-    logging_init(); /* Yes, we call this twice - the first case handles when the user has loaded
+    logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 		       a config using the cmd-line.  This case handles loads through the GUI. */
     fixup_prefs (&currprefs);
     changed_prefs = currprefs;
@@ -729,7 +729,7 @@ static void real_main2 (int argc, char **argv)
 
 #ifdef AUTOCONFIG
     gfxlib_install ();
-#if defined(BSDSOCKET)
+#if defined (BSDSOCKET)
     bsdlib_install ();
 #endif
     emulib_install ();
@@ -744,7 +744,7 @@ static void real_main2 (int argc, char **argv)
     DISK_init ();
 
     reset_frame_rate_hack ();
-    init_m68k(); /* must come after reset_frame_rate_hack (); */
+    init_m68k (); /* must come after reset_frame_rate_hack (); */
 
     gui_update ();
 
@@ -762,8 +762,8 @@ static void real_main2 (int argc, char **argv)
     }
 
     }
-#if defined (JIT) && (defined( _WIN32 ) || defined(_WIN64)) && !defined(NO_WIN32_EXCEPTION_HANDLER)
-    __except(EvalException(GetExceptionInformation(), GetExceptionCode()))
+#if defined (JIT) && (defined ( _WIN32 ) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+    __except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
     {
 	// EvalException does the good stuff...
     }

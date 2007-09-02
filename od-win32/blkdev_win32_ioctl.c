@@ -62,7 +62,7 @@ static void mcierr(char *str, DWORD err)
     if (err == MMSYSERR_NOERROR)
 	return;
     if (mciGetErrorString(err, es, sizeof es))
-	write_log("MCIErr: %s: %d = '%s'\n", str, err, es);
+	write_log ("MCIErr: %s: %d = '%s'\n", str, err, es);
 }
 
 static int win32_error (int unitnum, const char *format,...)
@@ -96,10 +96,10 @@ static int close_createfile(int unitnum)
 
     if (ciw->h != INVALID_HANDLE_VALUE) {
 	if (log_scsi)
-	    write_log("IOCTL: IOCTL close\n");
+	    write_log ("IOCTL: IOCTL close\n");
 	CloseHandle(ciw->h);
 	if (log_scsi)
-	    write_log("IOCTL: IOCTL close completed\n");
+	    write_log ("IOCTL: IOCTL close completed\n");
 	ciw->h = INVALID_HANDLE_VALUE;
 	return 1;
     }
@@ -114,12 +114,12 @@ static int close_mci(int unitnum)
     ciw->playend = -1;
     if (ciw->mciid > 0) {
 	if (log_scsi)
-	    write_log("IOCTL: MCI close\n");
+	    write_log ("IOCTL: MCI close\n");
 	mcierr("MCI_STOP", mciSendCommand(ciw->mciid, MCI_STOP, MCI_WAIT, (DWORD_PTR)&gp));
 	mcierr("MCI_CLOSE", mciSendCommand(ciw->mciid, MCI_CLOSE, MCI_WAIT, (DWORD_PTR)&gp));
 	if (log_scsi)
-	    write_log("IOCTL: MCI close completed\n");
-        ciw->mciid = 0;
+	    write_log ("IOCTL: MCI close completed\n");
+	ciw->mciid = 0;
 	return 1;
     }
     return 0;
@@ -136,7 +136,7 @@ static int open_createfile(int unitnum)
 	return 1;
     closed = close_mci(unitnum);
     if (log_scsi)
-	write_log("IOCTL: opening IOCTL %s\n", ciw->devname);
+	write_log ("IOCTL: opening IOCTL %s\n", ciw->devname);
     for (;;) {
 	flags = GENERIC_READ;
 	ciw->h = CreateFile(ciw->devname, flags, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -155,7 +155,7 @@ static int open_createfile(int unitnum)
 			}
 		    }
 		    if (closed)
-			write_log("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
+			write_log ("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
 		    return 0;
 		}
 	    }
@@ -163,7 +163,7 @@ static int open_createfile(int unitnum)
 	break;
     }
     if (log_scsi)
-        write_log("IOCTL: IOCTL open completed\n");
+	write_log ("IOCTL: IOCTL open completed\n");
     return 1;
 }
 
@@ -181,7 +181,7 @@ static int open_mci(int unitnum)
     ciw->playend = -1;
     closed = close_createfile(unitnum);
     if (log_scsi)
-	write_log("IOCTL: MCI opening %c:\n", ciw->drvletter);
+	write_log ("IOCTL: MCI opening %c:\n", ciw->drvletter);
     memset (&mciOpen, 0, sizeof(mciOpen));
     mciOpen.lpstrDeviceType = (LPSTR)MCI_DEVTYPE_CD_AUDIO;
     sprintf(elname,"%c:", ciw->drvletter);
@@ -197,7 +197,7 @@ static int open_mci(int unitnum)
 	return 0;
     }
     if (log_scsi)
-        write_log("IOCTL: MCI open completed\n");
+	write_log ("IOCTL: MCI open completed\n");
     return 1;
 }
 
@@ -208,7 +208,7 @@ static int ioctl_command_pause (int unitnum, int paused)
 
     if (ciw->mciid > 0) {
 
-        MCI_GENERIC_PARMS gp = { 0 };
+	MCI_GENERIC_PARMS gp = { 0 };
 	if (paused)
 	    mcierr("MCI_PAUSE", mciSendCommand(ciw->mciid, MCI_PAUSE, MCI_WAIT, (DWORD_PTR)&gp));
 	else
@@ -242,7 +242,7 @@ static int ioctl_command_stop (int unitnum)
 
     if (ciw->mciid > 0) {
 
-        MCI_GENERIC_PARMS gp = { 0 };
+	MCI_GENERIC_PARMS gp = { 0 };
 	mcierr("MCI_STOP", mciSendCommand(ciw->mciid, MCI_STOP, MCI_WAIT, (DWORD_PTR)&gp));
 	ciw->playend = -1;
 
@@ -295,15 +295,15 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 	{
 	VOLUME_CONTROL vc;
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_GET_VOLUME, NULL, 0, &vc, sizeof(vc), &len, NULL))
-	    write_log("IOCTL_CDROM_GET_VOLUME %d\n", GetLastError());
+	    write_log ("IOCTL_CDROM_GET_VOLUME %d\n", GetLastError());
 	vc.PortVolume[0] = 0xff;
 	vc.PortVolume[1] = 0xff;
 	vc.PortVolume[2] = 0xff;
 	vc.PortVolume[3] = 0xff;
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_SET_VOLUME, &vc, sizeof(vc), NULL, 0, &len, NULL))
-	    write_log("IOCTL_CDROM_SET_VOLUME %d\n", GetLastError());
+	    write_log ("IOCTL_CDROM_SET_VOLUME %d\n", GetLastError());
 	}
-#endif   
+#endif
 
 	while (cnt-- > 0) {
 	    pa.StartingM = start >> 16;
@@ -351,8 +351,8 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 
     if (ciw->mciid > 0) {
 
-        static uae_u8 buf[4 + 12];
-        MCI_STATUS_PARMS mciStatusParms;
+	static uae_u8 buf[4 + 12];
+	MCI_STATUS_PARMS mciStatusParms;
 	DWORD err, mode;
 	uae_u8 *p;
 	uae_u32 pos, pos2;
@@ -361,19 +361,19 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 	memset(buf, 0, sizeof buf);
 	memset(&mciStatusParms, 0, sizeof mciStatusParms);
 	mciStatusParms.dwItem = MCI_STATUS_MODE;
-        err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	mode = mciStatusParms.dwReturn;
 	mciStatusParms.dwItem = MCI_STATUS_CURRENT_TRACK;
-        err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	trk = mciStatusParms.dwReturn - 1;
 	if (trk < 0)
 	    trk = 0;
 	mciStatusParms.dwItem = MCI_STATUS_POSITION;
-        err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand(ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	pos = (((mciStatusParms.dwReturn >> 16) & 0xff) << 0) | (((mciStatusParms.dwReturn >> 8) & 0xff) << 8) | (((mciStatusParms.dwReturn >> 0) & 0xff) << 16);
@@ -455,7 +455,7 @@ static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
     uae_u8 *p = ciw32[unitnum].tempbuffer;
 
     if (log_scsi)
-	write_log("rawread unit=%d sector=%d blocksize=%d tm=%d\n", unitnum, sector, size, tm[track_mode]);
+	write_log ("rawread unit=%d sector=%d blocksize=%d tm=%d\n", unitnum, sector, size, tm[track_mode]);
     if (!open_createfile(unitnum))
 	return 0;
     if (size != 2336 && size != 2352 && size != 2048)
@@ -471,7 +471,7 @@ static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
 	    p, IOCTL_DATA_BUFFER, &len, NULL)) {
 	    reseterrormode (unitnum);
 	    if (win32_error (unitnum, "IOCTL_CDROM_RAW_READ") < 0)
-	        continue;
+		continue;
 	    return 0;
 	}
 	reseterrormode (unitnum);
@@ -783,9 +783,9 @@ static int ioctl_ismedia (int unitnum, int quick)
     if (!unitcheck (unitnum))
 	return 0;
     if (quick) {
-        struct dev_info_ioctl *ciw = &ciw32[unitnum];
+	struct dev_info_ioctl *ciw = &ciw32[unitnum];
 	return ciw->mediainserted;
-    } 
+    }
     return ismedia(unitnum);
 }
 

@@ -546,7 +546,7 @@ LOWFUNC(READ,NONE,3,raw_cmov_b_rr,(RW1 d, R1 s, IMM cc))
 {
 	/* replacement using branch and mov */
 	int uncc=(cc^1);
-	emit_byte(0x70+uncc); 
+	emit_byte(0x70+uncc);
 	emit_byte(3);  /* skip next 2 bytes if not cc=true */
     emit_byte(0x88);
     emit_byte(0xc0+8*s+d);
@@ -563,7 +563,7 @@ LOWFUNC(READ,NONE,3,raw_cmov_w_rr,(RW2 d, R2 s, IMM cc))
     }
     else { /* replacement using branch and mov */
 	int uncc=(cc^1);
-	emit_byte(0x70+uncc); 
+	emit_byte(0x70+uncc);
 	emit_byte(3);  /* skip next 3 bytes if not cc=true */
 	emit_byte(0x66);
 	emit_byte(0x89);
@@ -641,7 +641,7 @@ LOWFUNC(NONE,NONE,2,raw_imul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
     if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("JIT: Bad register in IMUL: d=%d, s=%d\n",d,s);
+	write_log ("JIT: Bad register in IMUL: d=%d, s=%d\n",d,s);
 	abort();
     }
 #endif
@@ -654,7 +654,7 @@ LOWFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 {
 #ifdef JIT_DEBUG
     if (d!=MUL_NREG1 || s!=MUL_NREG2) {
-	write_log("JIT: Bad register in MUL: d=%d, s=%d\n",d,s);
+	write_log ("JIT: Bad register in MUL: d=%d, s=%d\n",d,s);
 	abort();
     }
 #endif
@@ -1724,18 +1724,18 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 	addr = (uae_u32)(pExceptRecord->ExceptionInformation[1]);
     }
 #ifdef JIT_DEBUG
-    write_log("JIT: fault address is 0x%x at 0x%x\n",addr,i);
+    write_log ("JIT: fault address is 0x%x at 0x%x\n",addr,i);
 #endif
     if (!canbang || !currprefs.cachesize)
     {
 #ifdef JIT_DEBUG
-	write_log("JIT: Not happy! Canbang or cachesize is 0 in SIGSEGV handler!\n");
+	write_log ("JIT: Not happy! Canbang or cachesize is 0 in SIGSEGV handler!\n");
 #endif
 	return EXCEPTION_CONTINUE_SEARCH;
     }
 
     if (in_handler)
-	write_log("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
+	write_log ("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
 
     if (canbang && i>=compiled_code && i<=current_compile_p) {
 	if (*i==0x66) {
@@ -1809,7 +1809,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
     if (r!=-1) {
 	void* pr=NULL;
 #ifdef JIT_DEBUG
-	write_log("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
+	write_log ("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
 #endif
 
 	switch(r) {
@@ -1855,27 +1855,27 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-			write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
+			write_log ("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 #endif
 		if (dir==SIG_READ) {
 		    switch (size) {
-		    case 1: *((uae_u8*)pr)=get_byte(addr); break;
-		    case 2: *((uae_u16*)pr)=swap16(get_word(addr)); break;
-		    case 4: *((uae_u32*)pr)=swap32(get_long(addr)); break;
+		    case 1: *((uae_u8*)pr)=get_byte (addr); break;
+		    case 2: *((uae_u16*)pr)=swap16(get_word (addr)); break;
+		    case 4: *((uae_u32*)pr)=swap32(get_long (addr)); break;
 		    default: abort();
 		    }
 		}
 		else { /* write */
 		    switch (size) {
-		    case 1: put_byte(addr,*((uae_u8*)pr)); break;
-		    case 2: put_word(addr,swap16(*((uae_u16*)pr))); break;
-		    case 4: put_long(addr,swap32(*((uae_u32*)pr))); break;
+		    case 1: put_byte (addr,*((uae_u8*)pr)); break;
+		    case 2: put_word (addr,swap16(*((uae_u16*)pr))); break;
+		    case 4: put_long (addr,swap32(*((uae_u32*)pr))); break;
 		    default: abort();
 		    }
 		}
 #ifdef JIT_DEBUG
-		write_log("JIT: Handled one access!\n");
+		write_log ("JIT: Handled one access!\n");
 #endif
 		fflush(stdout);
 		segvcount++;
@@ -1891,7 +1891,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 #ifdef JIT_DEBUG
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-		    write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
+		    write_log ("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 #endif
 
@@ -1902,8 +1902,8 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		emit_long((uae_u32)veccode-(uae_u32)target-4);
 #ifdef JIT_DEBUG
 
-		write_log("JIT: Create jump to %p\n",veccode);
-		write_log("JIT: Handled one access!\n");
+		write_log ("JIT: Create jump to %p\n",veccode);
+		write_log ("JIT: Handled one access!\n");
 #endif
 		segvcount++;
 
@@ -1911,17 +1911,17 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 
 		if (dir==SIG_READ) {
 		    switch(size) {
-		    case 1: raw_mov_b_ri(r,get_byte(addr)); break;
-		    case 2: raw_mov_w_ri(r,swap16(get_word(addr))); break;
-		    case 4: raw_mov_l_ri(r,swap32(get_long(addr))); break;
+		    case 1: raw_mov_b_ri(r,get_byte (addr)); break;
+		    case 2: raw_mov_w_ri(r,swap16(get_word (addr))); break;
+		    case 4: raw_mov_l_ri(r,swap32(get_long (addr))); break;
 		    default: abort();
 		    }
 		}
 		else { /* write */
 		    switch(size) {
-		    case 1: put_byte(addr,*((uae_u8*)pr)); break;
-		    case 2: put_word(addr,swap16(*((uae_u16*)pr))); break;
-		    case 4: put_long(addr,swap32(*((uae_u32*)pr))); break;
+		    case 1: put_byte (addr,*((uae_u8*)pr)); break;
+		    case 2: put_word (addr,swap16(*((uae_u16*)pr))); break;
+		    case 4: put_long (addr,swap32(*((uae_u32*)pr))); break;
 		    default: abort();
 		    }
 		}
@@ -1939,7 +1939,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
-		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
+		    write_log ("JIT: deleted trigger (%p<%p<%p) %p\n",
 			bi->handler,
 			i,
 			bi->nexthandler,
@@ -1960,7 +1960,7 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
 #ifdef JIT_DEBUG
-		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
+		    write_log ("JIT: deleted trigger (%p<%p<%p) %p\n",
 			bi->handler,
 			i,
 			bi->nexthandler,
@@ -1974,22 +1974,22 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
 		bi=bi->next;
 	    }
 #ifdef JIT_DEBUG
-	    write_log("JIT: Huh? Could not find trigger!\n");
+	    write_log ("JIT: Huh? Could not find trigger!\n");
 #endif
 	    return EXCEPTION_CONTINUE_EXECUTION;
 	}
     }
-    write_log("JIT: Can't handle access %08.8X!\n", i);
+    write_log ("JIT: Can't handle access %08.8X!\n", i);
 #if 0
     if (i)
     {
 	int j;
 
 	for (j=0;j<10;j++) {
-	    write_log("JIT: instruction byte %2d is 0x%02x\n",j,i[j]);
+	    write_log ("JIT: instruction byte %2d is 0x%02x\n",j,i[j]);
 	}
     }
-    write_log("Please send the above info (starting at \"fault address\") to\n"
+    write_log ("Please send the above info (starting at \"fault address\") to\n"
 	   "bmeyer@csse.monash.edu.au\n"
 	   "This shouldn't happen ;-)\n");
 #endif
@@ -2006,11 +2006,11 @@ static void vec(int x, struct sigcontext sc)
     int len=0;
     int j;
 
-    write_log("JIT: fault address is %08x at %08x\n",sc.cr2,sc.eip);
+    write_log ("JIT: fault address is %08x at %08x\n",sc.cr2,sc.eip);
     if (!canbang)
-	write_log("JIT: Not happy! Canbang is 0 in SIGSEGV handler!\n");
+	write_log ("JIT: Not happy! Canbang is 0 in SIGSEGV handler!\n");
     if (in_handler)
-	write_log("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
+	write_log ("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");
 
     if (canbang && i>=compiled_code && i<=current_compile_p) {
 	if (*i==0x66) {
@@ -2085,7 +2085,7 @@ static void vec(int x, struct sigcontext sc)
 
     if (r!=-1) {
 	void* pr=NULL;
-	write_log("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
+	write_log ("JIT: register was %d, direction was %d, size was %d\n",r,dir,size);
 
 	switch(r) {
 	 case 0: pr=&(sc.eax); break;
@@ -2112,25 +2112,25 @@ static void vec(int x, struct sigcontext sc)
 
 	    if ((addr>=0x10000000 && addr<0x40000000) ||
 		(addr>=0x50000000)) {
-		write_log("JIT: Suspicious address in %x SEGV handler.\n",addr);
+		write_log ("JIT: Suspicious address in %x SEGV handler.\n",addr);
 	    }
 	    if (dir==SIG_READ) {
 		switch(size) {
-		 case 1: *((uae_u8*)pr)=get_byte(addr); break;
-		 case 2: *((uae_u16*)pr)=get_word(addr); break;
-		 case 4: *((uae_u32*)pr)=get_long(addr); break;
+		 case 1: *((uae_u8*)pr)=get_byte (addr); break;
+		 case 2: *((uae_u16*)pr)=get_word (addr); break;
+		 case 4: *((uae_u32*)pr)=get_long (addr); break;
 		 default: abort();
 		}
 	    }
 	    else { /* write */
 		switch(size) {
-		 case 1: put_byte(addr,*((uae_u8*)pr)); break;
-		 case 2: put_word(addr,*((uae_u16*)pr)); break;
-		 case 4: put_long(addr,*((uae_u32*)pr)); break;
+		 case 1: put_byte (addr,*((uae_u8*)pr)); break;
+		 case 2: put_word (addr,*((uae_u16*)pr)); break;
+		 case 4: put_long (addr,*((uae_u32*)pr)); break;
 		 default: abort();
 		}
 	    }
-	    write_log("JIT: Handled one access!\n");
+	    write_log ("JIT: Handled one access!\n");
 	    fflush(stdout);
 	    segvcount++;
 	    sc.eip+=len;
@@ -2144,7 +2144,7 @@ static void vec(int x, struct sigcontext sc)
 
 		if ((addr>=0x10000000 && addr<0x40000000) ||
 		    (addr>=0x50000000)) {
-		    write_log("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
+		    write_log ("JIT: Suspicious address 0x%x in SEGV handler.\n",addr);
 		}
 
 		target=(uae_u8*)sc.eip;
@@ -2152,26 +2152,26 @@ static void vec(int x, struct sigcontext sc)
 		    vecbuf[i]=target[i];
 		emit_byte(0xe9);
 		emit_long((uae_u32)veccode-(uae_u32)target-4);
-		write_log("JIT: Create jump to %p\n",veccode);
+		write_log ("JIT: Create jump to %p\n",veccode);
 
-		write_log("JIT: Handled one access!\n");
+		write_log ("JIT: Handled one access!\n");
 		segvcount++;
 
 		target=veccode;
 
 		if (dir==SIG_READ) {
 		    switch(size) {
-		     case 1: raw_mov_b_ri(r,get_byte(addr)); break;
-		     case 2: raw_mov_w_ri(r,get_word(addr)); break;
-		     case 4: raw_mov_l_ri(r,get_long(addr)); break;
+		     case 1: raw_mov_b_ri(r,get_byte (addr)); break;
+		     case 2: raw_mov_w_ri(r,get_word (addr)); break;
+		     case 4: raw_mov_l_ri(r,get_long (addr)); break;
 		     default: abort();
 		    }
 		}
 		else { /* write */
 		    switch(size) {
-		     case 1: put_byte(addr,*((uae_u8*)pr)); break;
-		     case 2: put_word(addr,*((uae_u16*)pr)); break;
-		     case 4: put_long(addr,*((uae_u32*)pr)); break;
+		     case 1: put_byte (addr,*((uae_u8*)pr)); break;
+		     case 2: put_word (addr,*((uae_u16*)pr)); break;
+		     case 4: put_long (addr,*((uae_u32*)pr)); break;
 		     default: abort();
 		    }
 		}
@@ -2188,7 +2188,7 @@ static void vec(int x, struct sigcontext sc)
 		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
-		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
+		    write_log ("JIT: deleted trigger (%p<%p<%p) %p\n",
 			      bi->handler,
 			      i,
 			      bi->nexthandler,
@@ -2207,7 +2207,7 @@ static void vec(int x, struct sigcontext sc)
 		if (bi->handler &&
 		    (uae_u8*)bi->direct_handler<=i &&
 		    (uae_u8*)bi->nexthandler>i) {
-		    write_log("JIT: deleted trigger (%p<%p<%p) %p\n",
+		    write_log ("JIT: deleted trigger (%p<%p<%p) %p\n",
 			      bi->handler,
 			      i,
 			      bi->nexthandler,
@@ -2219,16 +2219,16 @@ static void vec(int x, struct sigcontext sc)
 		}
 		bi=bi->next;
 	    }
-	    write_log("JIT: Huh? Could not find trigger!\n");
+	    write_log ("JIT: Huh? Could not find trigger!\n");
 	    return;
 	}
     }
-    write_log("JIT: Can't handle access!\n");
+    write_log ("JIT: Can't handle access!\n");
     for (j=0;j<10;j++) {
-	write_log("JIT: instruction byte %2d is %02x\n",j,i[j]);
+	write_log ("JIT: instruction byte %2d is %02x\n",j,i[j]);
     }
 #if 0
-    write_log("Please send the above info (starting at \"fault address\") to\n"
+    write_log ("Please send the above info (starting at \"fault address\") to\n"
 	   "bmeyer@csse.monash.edu.au\n"
 	   "This shouldn't happen ;-)\n");
     fflush(stdout);
@@ -2499,7 +2499,7 @@ static int target_check_bsf(void)
 		}
 	}}}}
 	if (mismatch)
-		write_log("Target CPU defines all flags on BSF instruction\n");
+		write_log ("Target CPU defines all flags on BSF instruction\n");
 	return !mismatch;
 }
 #endif
@@ -2567,7 +2567,7 @@ static void raw_init_cpu(void)
 
     x=cpuid(0);
     maxlev=x.eax;
-    write_log("Max CPUID level=%d Processor is %c%c%c%c%c%c%c%c%c%c%c%c\n",
+    write_log ("Max CPUID level=%d Processor is %c%c%c%c%c%c%c%c%c%c%c%c\n",
 	      maxlev,
 	      x.ebx,
 	      x.ebx>>8,
@@ -2598,7 +2598,7 @@ static void raw_init_cpu(void)
     write_log ("have_cmov=%d, avoid_cmov=%d, have_rat_stall=%d\n",
 	       have_cmov,currprefs.avoid_cmov,have_rat_stall);
     if (currprefs.avoid_cmov) {
-	write_log("Disabling cmov use despite processor claiming to support it!\n");
+	write_log ("Disabling cmov use despite processor claiming to support it!\n");
 	have_cmov=0;
     }
 #else
@@ -2689,7 +2689,7 @@ STATIC_INLINE int stackpos(int r)
     if (live.spos[r]<0)
 	abort();
     if (live.tos<live.spos[r]) {
-	write_log("JIT: Looking for spos for fnreg %d\n",r);
+	write_log ("JIT: Looking for spos for fnreg %d\n",r);
 	abort();
     }
     return live.tos-live.spos[r];

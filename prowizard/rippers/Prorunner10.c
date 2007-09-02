@@ -17,7 +17,7 @@ short testPRUN1 ( void )
 
   /* test 2 */
   PW_Start_Address = PW_i-1080;
-  if ( in_data[PW_Start_Address+951] != 0x7f )
+  if ( (in_data[PW_Start_Address+951] != 0x7f) && (in_data[PW_Start_Address+951] != 0x00) )
   {
     return BAD;
   }

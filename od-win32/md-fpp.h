@@ -100,7 +100,7 @@ STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u3
     *wrd2 =  longarray[1];
     *wrd3 =  longarray[0]; // little endian
     if (!srcarray[0] && (srcarray[1]==0x7ff00000 || srcarray[1]==0xfff00000))
-        *wrd2 = 0; // The MSB of the mantissa was set wrongly for infinity, causing a NaN
+	*wrd2 = 0; // The MSB of the mantissa was set wrongly for infinity, causing a NaN
 }
 #endif
 #endif /* X86_MSVC_ASSEMBLY */
@@ -167,10 +167,10 @@ STATIC_INLINE double to_exten(uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
     double frac;
 
     if ((wrd1 & 0x7fff0000) == 0 && wrd2 == 0 && wrd3 == 0)
-        return 0.0;
+	return 0.0;
     frac = ((double)wrd2 + ((double)wrd3 / twoto32)) / 2147483648.0;
     if (wrd1 & 0x80000000)
-        frac = -frac;
+	frac = -frac;
     return ldexp (frac, ((wrd1 >> 16) & 0x7fff) - 16383);
 }
 #endif
@@ -183,22 +183,22 @@ STATIC_INLINE void from_exten(double src, uae_u32 * wrd1, uae_u32 * wrd2, uae_u3
     double frac;
 
     if (src == 0.0) {
-        *wrd1 = 0;
-        *wrd2 = 0;
-        *wrd3 = 0;
-        return;
+	*wrd1 = 0;
+	*wrd2 = 0;
+	*wrd3 = 0;
+	return;
     }
     if (src < 0) {
-        *wrd1 = 0x80000000;
-        src = -src;
+	*wrd1 = 0x80000000;
+	src = -src;
     } else {
-        *wrd1 = 0;
+	*wrd1 = 0;
     }
     frac = frexp (src, &expon);
     frac += 0.5 / (twoto32 * twoto32);
     if (frac >= 1.0) {
-        frac /= 2.0;
-        expon++;
+	frac /= 2.0;
+	expon++;
     }
     *wrd1 |= (((expon + 16383 - 1) & 0x7fff) << 16);
     *wrd2 = (uae_u32) (frac * twoto32);

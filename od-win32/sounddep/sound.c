@@ -1,6 +1,6 @@
- /* 
+ /*
   * UAE - The Un*x Amiga Emulator
-  * 
+  *
   * Win32 sound interface (DirectSound)
   *
   * Copyright 1997 Mathias Ortmann
@@ -90,7 +90,7 @@ static int lastfreq;
 void update_sound (int freq)
 {
     if (freq < 0)
-    	freq = lastfreq;
+	freq = lastfreq;
     lastfreq = freq;
     if (have_sound) {
 	if (isvsync() || currprefs.chipset_refreshrate) {
@@ -130,10 +130,10 @@ static void pause_audio_ds (void)
     waiting_for_buffer = 0;
     hr = IDirectSoundBuffer_Stop (lpDSBsecondary);
     if (FAILED(hr))
-	write_log("SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
+	write_log ("SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
     hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
     if (FAILED(hr))
-	write_log("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError(hr));
+	write_log ("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError(hr));
     cleardsbuffer ();
 }
 
@@ -198,10 +198,10 @@ static void setvolume (void)
     LONG vol = DSBVOLUME_MIN;
 
     if (currprefs.sound_volume < 100 && !mute)
-        vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - currprefs.sound_volume / 100.0)));
+	vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - currprefs.sound_volume / 100.0)));
     hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
     if (FAILED(hr))
-        write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
     setvolume_ahi (vol);
 }
 
@@ -216,7 +216,7 @@ static void recalc_offsets(void)
 const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
     {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
 #define KSAUDIO_SPEAKER_QUAD_SURROUND   (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | \
-                                         SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
+					 SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
 
 struct dsaudiomodes {
     int ch;
@@ -241,7 +241,7 @@ static void fillsupportedmodes(int freq)
     supportedmodes[1].ksmode = 0;
     if (FAILED(IDirectSound8_GetSpeakerConfig(lpDS, &speakerconfig)))
 	speakerconfig = DSSPEAKER_STEREO;
-    
+
     memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
     wavfmt.Format.nSamplesPerSec = freq;
     wavfmt.Format.wBitsPerSample = 16;
@@ -251,8 +251,8 @@ static void fillsupportedmodes(int freq)
     wavfmt.Samples.wValidBitsPerSample = 16;
     for (ch = 4; ch <= 6; ch+= 2) {
 	wavfmt.Format.nChannels = ch;
-        wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
-        wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
+	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
+	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 	if (ch == 6) {
 	    rn[0] = KSAUDIO_SPEAKER_5POINT1;
 	    rn[1] = KSAUDIO_SPEAKER_5POINT1_SURROUND;
@@ -262,7 +262,7 @@ static void fillsupportedmodes(int freq)
 	    rn[1] = KSAUDIO_SPEAKER_QUAD_SURROUND;
 	    rn[2] = KSAUDIO_SPEAKER_SURROUND;
 	    rn[3] = 0;
-        }
+	}
 	skip = sound_mode_skip;
 	for (round = 0; rn[round]; round++) {
 	    if (skip > 0 && rn[round + 1] != 0) {
@@ -286,10 +286,10 @@ static void fillsupportedmodes(int freq)
 	    }
 	}
     }
-    write_log("SOUND: %08.8X ", speakerconfig);
+    write_log ("SOUND: %08.8X ", speakerconfig);
     for (i = 0; i < mode; i++)
-	write_log("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
-    write_log("\n");
+	write_log ("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
+    write_log ("\n");
 }
 
 static int open_audio_ds (int size)
@@ -308,33 +308,33 @@ static int open_audio_ds (int size)
     snd_configsize = size;
     sndbufsize = size / 32;
     if (sndbufsize > SND_MAX_BUFFER)
-        sndbufsize = SND_MAX_BUFFER;
+	sndbufsize = SND_MAX_BUFFER;
 
     max_sndbufsize = size * 4;
     if (max_sndbufsize > SND_MAX_BUFFER2)
-        max_sndbufsize = SND_MAX_BUFFER2;
+	max_sndbufsize = SND_MAX_BUFFER2;
     dsoundbuf = max_sndbufsize * 2;
 
     if (dsoundbuf < DSBSIZE_MIN)
-        dsoundbuf = DSBSIZE_MIN;
+	dsoundbuf = DSBSIZE_MIN;
     if (dsoundbuf > DSBSIZE_MAX)
-        dsoundbuf = DSBSIZE_MAX;
+	dsoundbuf = DSBSIZE_MAX;
 
     if (max_sndbufsize * 2 > dsoundbuf)
-        max_sndbufsize = dsoundbuf / 2;
+	max_sndbufsize = dsoundbuf / 2;
 
     recalc_offsets();
 
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
     if (FAILED(hr))  {
-        write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
-        return 0;
+	write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
+	return 0;
     }
 
     hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
     if (FAILED(hr)) {
-        write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
-        goto error;
+	write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
+	goto error;
     }
 
     memset (&DSCaps, 0, sizeof (DSCaps));
@@ -353,23 +353,23 @@ static int open_audio_ds (int size)
 	if (minfreq > freq && freq < 22050) {
 	    freq = minfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
-	    write_log("SOUND: minimum supported frequency: %d\n", minfreq);
+	    write_log ("SOUND: minimum supported frequency: %d\n", minfreq);
 	}
 	if (maxfreq < freq && freq > 44100) {
 	    freq = maxfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
-	    write_log("SOUND: maximum supported frequency: %d\n", maxfreq);
+	    write_log ("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     }
 
     fillsupportedmodes(freq);
 
     for (round = 0; supportedmodes[round].ch; round++) {
-        DWORD ksmode = 0;
- 
+	DWORD ksmode = 0;
+
 	pdsb = NULL;
 	memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
-        wavfmt.Format.nChannels = ch;
+	wavfmt.Format.nChannels = ch;
 	wavfmt.Format.nSamplesPerSec = freq;
 	wavfmt.Format.wBitsPerSample = 16;
 	if (supportedmodes[round].ch != ch)
@@ -402,13 +402,13 @@ static int open_audio_ds (int size)
 	hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
 	if (SUCCEEDED(hr))
 	    break;
-        if (sound_buffer.dwFlags & DSBCAPS_LOCHARDWARE) {
+	if (sound_buffer.dwFlags & DSBCAPS_LOCHARDWARE) {
 	    HRESULT hr2 = hr;
 	    sound_buffer.dwFlags &= ~DSBCAPS_LOCHARDWARE;
 	    sound_buffer.dwFlags |=  DSBCAPS_LOCSOFTWARE;
 	    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED(hr)) {
-	        write_log("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
+		write_log ("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
 		break;
 	    }
 	}
@@ -419,7 +419,7 @@ static int open_audio_ds (int size)
 	goto error;
     hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED(hr))  {
-        write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
+	write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release(pdsb);
@@ -565,7 +565,7 @@ void restart_sound_buffer(void)
 	return;
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
     if (FAILED(hr)) {
-	write_log("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError(hr));
+	write_log ("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError(hr));
 	return;
     }
     writepos = playpos + snd_writeoffset;
@@ -597,7 +597,7 @@ static void finish_sound_buffer_ds (void)
     if (!waiting_for_buffer)
 	return;
     if (savestate_state)
-        return;
+	return;
 
     if (waiting_for_buffer == 1) {
 	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
@@ -623,11 +623,11 @@ static void finish_sound_buffer_ds (void)
 	    sleep_millis(1);
 	    counter--;
 	    if (counter < 0) {
-		write_log("SOUND: stuck?!?!\n");
+		write_log ("SOUND: stuck?!?!\n");
 		break;
 	    }
 	}
-	write_log("SOUND: %d = (%d - %d)\n", safedist - playpos, safedist, playpos);
+	write_log ("SOUND: %d = (%d - %d)\n", safedist - playpos, safedist, playpos);
 	recalc_offsets();
 	safedist -= playpos;
 	if (safedist < 64)
@@ -645,7 +645,7 @@ static void finish_sound_buffer_ds (void)
 #endif
 	waiting_for_buffer = -1;
 	restart_sound_buffer();
-	write_log("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
+	write_log ("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
 	    sndbufsize, snd_writeoffset,
 	    snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
 	tfprev = timeframes + 10;
@@ -706,7 +706,7 @@ static void finish_sound_buffer_ds (void)
 	    statuscnt = SND_STATUSCNT;
 	    restart_sound_buffer();
 	    diff = snd_writeoffset;
-	    write_log("SOUND: underflow (%d %d)\n", diff, snd_totalmaxoffset_of);
+	    write_log ("SOUND: underflow (%d %d)\n", diff, snd_totalmaxoffset_of);
 	    break;
 	}
 
@@ -730,11 +730,11 @@ static void finish_sound_buffer_ds (void)
 	return;
     if (FAILED(hr)) {
 	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
-        return;
+	return;
     }
     memcpy (b1, sndbuffer, s1);
     if (b2)
-        memcpy (b2, (uae_u8*)sndbuffer + s1, s2);
+	memcpy (b2, (uae_u8*)sndbuffer + s1, s2);
     IDirectSoundBuffer_Unlock (lpDSBsecondary, b1, s1, b2, s2);
 
     vdiff = diff - snd_writeoffset;
@@ -767,9 +767,9 @@ static void finish_sound_buffer_ds (void)
 	    write_log ("b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
 		sndbufsize, snd_configsize, max_sndbufsize, dsoundbuf, diff, vdiff, skipmode);
 	tfprev = timeframes;
-        if (!avioutput_audio)
+	if (!avioutput_audio)
 	    sound_setadjust (skipmode);
-        gui_data.sndbuf = vdiff * 1000 / (snd_maxoffset - snd_writeoffset);
+	gui_data.sndbuf = vdiff * 1000 / (snd_maxoffset - snd_writeoffset);
     }
 
     writepos += sndbufsize;
@@ -813,7 +813,7 @@ void finish_sound_buffer (void)
 #endif
 #ifdef AVIOUTPUT
     if (avioutput_audio)
-        AVIOutput_WriteAudio ((uae_u8*)sndbuffer, sndbufsize);
+	AVIOutput_WriteAudio ((uae_u8*)sndbuffer, sndbufsize);
     if (avioutput_enabled && (!avioutput_framelimiter || avioutput_nosoundoutput))
 	return;
 #endif
@@ -837,7 +837,7 @@ static BOOL CALLBACK DSEnumProc(LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrv
 char **enumerate_sound_devices (int *total)
 {
     if (!num_sound_devices)
-        DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, 0);
+	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, 0);
     if (total)
 	*total = num_sound_devices;
     if (currprefs.win32_soundcard >= num_sound_devices)
@@ -848,7 +848,7 @@ char **enumerate_sound_devices (int *total)
 }
 
 #include <mmdeviceapi.h>
-#include <endpointvolume.h> 
+#include <endpointvolume.h>
 
 /*
     Based on
@@ -865,7 +865,7 @@ const static GUID XIID_IAudioEndpointVolume = {0x5CDF2C82, 0x841E,0x4546,
 static int setget_master_volume_vista(int setvolume, int *volume, int *mute)
 {
     IMMDeviceEnumerator *deviceEnumerator = NULL;
-    IMMDevice *defaultDevice = NULL; 
+    IMMDevice *defaultDevice = NULL;
     IAudioEndpointVolume *endpointVolume = NULL;
     HRESULT hr;
     int ok = 0;
@@ -895,7 +895,7 @@ static int setget_master_volume_vista(int setvolume, int *volume, int *mute)
 		    ok++;
 		}
 	    }
-	    endpointVolume->lpVtbl->Release(endpointVolume); 
+	    endpointVolume->lpVtbl->Release(endpointVolume);
 	}
 	defaultDevice->lpVtbl->Release(defaultDevice);
     }
@@ -910,9 +910,9 @@ static void mcierr(char *str, DWORD err)
     if (err == MMSYSERR_NOERROR)
 	return;
     if (mciGetErrorString(err, es, sizeof es))
-	write_log("MCIErr: %s: %d = '%s'\n", str, err, es);
+	write_log ("MCIErr: %s: %d = '%s'\n", str, err, es);
     else
-	write_log("%s, errcode=%d\n", str, err);
+	write_log ("%s, errcode=%d\n", str, err);
 }
 /* from http://www.codeproject.com/audio/mixerSetControlDetails.asp */
 static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
@@ -936,7 +936,7 @@ static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
 	    ml.dwComponentType = MIXERLINE_COMPONENTTYPE_DST_DIGITAL;
 	    result = mixerGetLineInfo((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
 	}
-        if (result == MMSYSERR_NOERROR) {
+	if (result == MMSYSERR_NOERROR) {
 	    mlc.cbStruct = sizeof(MIXERLINECONTROLS);
 	    mlc.dwLineID = ml.dwLineID;
 	    mlc.dwControlType = MIXERCONTROL_CONTROLTYPE_VOLUME;
@@ -967,7 +967,7 @@ static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
 		    mcb.fValue = 0;
 		    mcd.cbDetails = sizeof(MIXERCONTROLDETAILS_BOOLEAN);
 		    if (setvolume) {
-			mcb.fValue    = *mute; 
+			mcb.fValue    = *mute;
 			result = mixerSetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
 		    } else {
 			result = mixerGetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);

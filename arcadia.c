@@ -44,7 +44,7 @@ struct arcadiarom *arcadia_bios, *arcadia_game;
 
 #define BIOS_VERSION_211 2
 #define BIOS_VERSION_300 3
- 
+
 static struct arcadiarom roms[]	= {
 
     { 49, "ar_bios.zip", "scpa21",	    ARCADIA_BIOS, 0, 6, 1, 0, 2, 3, 4, 5, 7 },
@@ -218,7 +218,7 @@ static void decrypt_roms (struct arcadiarom *rom)
     for (i = start; i < end; i += 2) {
 	arbmemory[i] = bswap (arbmemory[i],
 	    rom->b7,rom->b6,rom->b5,rom->b4,rom->b3,rom->b2,rom->b1,rom->b0);
-    	if (rom->extra == 2)
+	if (rom->extra == 2)
 	    arbmemory[i - 1] = bswap (arbmemory[i - 1],7,6,5,4,3,2,1,0);
     }
 }
@@ -457,16 +457,16 @@ struct romdata *scan_arcadia_rom (char *path, int cnt)
 
     arcadia_rom = is_arcadia(path, cnt);
     if (arcadia_rom) {
-        arc_rl = getarcadiaroms();
-        for (i = 0; arc_rl[i]; i++) {
+	arc_rl = getarcadiaroms();
+	for (i = 0; arc_rl[i]; i++) {
 	    if (arc_rl[i]->rd->id == arcadia_rom->romid) {
-                rd = arc_rl[i]->rd;
+		rd = arc_rl[i]->rd;
 		strcat(path, "/");
 		strcat(path, arcadia_rom->rom);
-                break;
-            }
-        }
-        xfree(arc_rl);
+		break;
+	    }
+	}
+	xfree(arc_rl);
     }
     return rd;
 }

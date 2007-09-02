@@ -186,8 +186,8 @@ static void update()
 		}
 	}
 #endif
-	n = fread_crc(&text[(unsigned)(txtsiz - dicsiz)], 
-	                           (unsigned)dicsiz, infile);
+	n = fread_crc(&text[(unsigned)(txtsiz - dicsiz)],
+				   (unsigned)dicsiz, infile);
 
 	remainder += n;
 	encoded_origsize += n;
@@ -311,7 +311,7 @@ struct interfacing *lhinterface;
 	crc = unpackable = 0;
 
 	/* encode_alloc(); */ /* allocate_memory(); */
-	init_slide();  
+	init_slide();
 
 	encode_set.encode_start();
 	memset(&text[0], ' ', (long)TXTSIZ);
@@ -323,8 +323,8 @@ struct interfacing *lhinterface;
 	pos = dicsiz;
 
 	if (matchlen > remainder) matchlen = remainder;
-	hval = ((((text[dicsiz] << 5) ^ text[dicsiz + 1]) << 5) 
-	        ^ text[dicsiz + 2]) & (unsigned)(HSHSIZ - 1);
+	hval = ((((text[dicsiz] << 5) ^ text[dicsiz + 1]) << 5)
+		^ text[dicsiz + 2]) & (unsigned)(HSHSIZ - 1);
 
 	insert();
 	while (remainder > 0 && ! unpackable) {
@@ -385,7 +385,7 @@ decode(lhinterface)
 	unsigned int i, j, k, c;
 	unsigned int dicsiz1, offset;
 	unsigned char *dtext;
-	
+
 
 #ifdef DEBUG
 	fout = fopen("de", "wt");

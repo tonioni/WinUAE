@@ -1,5 +1,5 @@
 
-#include <windows.h> 
+#include <windows.h>
 #include <stdio.h>
 #include <conio.h>
 
@@ -15,7 +15,7 @@ static DWORD WINAPI readroutine(void *parm)
     DWORD ret, avail;
 
     for (;;) {
-        Sleep(50);
+	Sleep(50);
 	if (!threadmode_in)
 	    continue;
 	threadmode_out = 1;
@@ -24,7 +24,7 @@ static DWORD WINAPI readroutine(void *parm)
 	    return 0;
 	}
 	if (avail > 0) {
-    	    if (!ReadFile(p, buf, sizeof buf, &ret, NULL)) {
+	    if (!ReadFile(p, buf, sizeof buf, &ret, NULL)) {
 		printf ("ReadFile() failed, err=%d\n", GetLastError());
 		return 0;
 	    }
@@ -34,8 +34,8 @@ static DWORD WINAPI readroutine(void *parm)
     }
 }
 
-int main(int argc, char *argv[]) 
-{ 
+int main(int argc, char *argv[])
+{
 
     DWORD mode;
     DWORD tid;
