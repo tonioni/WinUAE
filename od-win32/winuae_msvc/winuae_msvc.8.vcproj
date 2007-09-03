@@ -1051,7 +1051,7 @@
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
+				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
 				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -1853,7 +1853,7 @@
 				>
 			</File>
 			<Filter
-				Name="rips"
+				Name="rippers"
 				>
 				<File
 					RelativePath="..\..\prowizard\rippers\AC1D_packer.c"
@@ -2020,6 +2020,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\prowizard\rippers\NewtronOld.c"
+					>
+				</File>
+				<File
 					RelativePath="..\..\prowizard\rippers\NoiseFromHeaven.c"
 					>
 				</File>
@@ -2037,6 +2041,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\NoiseRunner.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\NovoTrade.c"
 					>
 				</File>
 				<File
@@ -2108,10 +2116,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\prowizard\rippers\ptktable.h"
-					>
-				</File>
-				<File
 					RelativePath="..\..\prowizard\rippers\QuadraComposer.c"
 					>
 				</File>
@@ -2121,6 +2125,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\SGT-Packer.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\skizzo.c"
 					>
 				</File>
 				<File
@@ -2149,6 +2157,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\StimPacker.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\StoneArtsPlayer.c"
 					>
 				</File>
 				<File
@@ -2229,6 +2241,10 @@
 				</File>
 				<File
 					RelativePath="..\..\prowizard\rippers\TimeCruncher17.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\prowizard\rippers\TitanicsPlayer.c"
 					>
 				</File>
 				<File

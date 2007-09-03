@@ -2450,7 +2450,6 @@ void m68k_go (int may_quit)
 	    else if (savestate_state == STATE_REWIND)
 		savestate_rewind ();
 #endif
-	    reset_all_systems ();
 	    customreset (hardreset);
 	    m68k_reset (hardreset);
 	    if (hardreset) {

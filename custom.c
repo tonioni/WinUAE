@@ -4595,6 +4595,7 @@ void customreset (int hardreset)
     int i;
     int zero = 0;
 
+    reset_all_systems ();
     write_log ("Reset at %08.8X\n", m68k_getpc (&regs));
     memory_map_dump();
 
@@ -4655,9 +4656,6 @@ void customreset (int hardreset)
 #endif
 #ifdef NCR
     ncr_reset ();
-#endif
-#ifdef FILESYS
-    filesys_free_handles();
 #endif
 #ifdef JIT
     compemu_reset ();

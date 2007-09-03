@@ -289,6 +289,7 @@ struct uae_prefs {
     int win32_borderless;
     int win32_ctrl_F11_is_quit;
     int win32_automount_drives;
+    int win32_automount_cddrives;
     int win32_automount_netdrives;
     int win32_midioutdev;
     int win32_midiindev;

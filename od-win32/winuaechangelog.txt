@@ -1,4 +1,28 @@
 
+Beta 3:
+
+- do not cause hard reset if PC was in memory area that disappears
+  during reset ("Did something stupid.."-message appeared after soft
+  reset)
+- software reset didn't fully reset all subsystems. Do not use beta
+  1 or 2 anymore. Can cause random crashes etc..
+- added more ACTION_EXAMINE_ALL error codes (from SFS changelog, no
+  space for even one directory entry = ERROR_NO_FREE_STORE, unknown
+  or already finished directory scan = ERROR_OBJECT_WRONG_TYPE)
+- "real" removable drives supported, for example USB memory sticks
+  will get removed/mounted properly. (Restriction: new removable
+  drive needs empty drive slot because new Amiga-side drives can't be
+  created on the fly. Perhaps later but it would need major filesys
+  emulation changes..)
+- automatically adds 2 hidden empty drives if one or more directory
+  filesystem drives configured (RDH0: and RDH1:, reserved slots for
+  new removable drives) Testing, this might change in future..
+- CD drives can be again mounted easily without uaescsi.device,
+  checkbox added to GUI. (I didn't really want to do this but now it
+  really works as well as it can ever work.. No audio tracks and some
+  Amiga CDs really need Amiga-side CDFS but it still is much easier
+  to use..) Not really recommended if uaescsi.device is used..
+
 Beta 2:
 
 - 4-channel stereo mixing fixed (broke in b1)

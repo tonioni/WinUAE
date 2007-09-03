@@ -253,6 +253,8 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
 {
     char *nvol = NULL;
     int i, archivehd;
+    char *p;
+    char tmp[10];
 
     archivehd = -1;
     if (my_existsfile(rootdir))
@@ -261,17 +263,25 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
         archivehd = 0;
 
     if ((!volname || strlen (volname) == 0) && rootdir && archivehd >= 0) {
-	for (i = strlen (rootdir) - 1; i >= 0; i--) {
-	    char c = rootdir[i];
+	p = rootdir;
+	for (i = strlen (p) - 1; i >= 0; i--) {
+	    char c = p[i];
 	    if (c == ':' || c == '/' || c == '\\') {
-		if (i == strlen (rootdir) - 1)
+		if (i == strlen (p) - 1)
 		    continue;
-		i++;
+		if (!strcmp (p + i, ":\\")) {
+		    p = tmp;
+		    p[0] = rootdir[0];
+		    p[1] = 0;
+		    i = 0;
+		} else {
+		    i++;
+		}
 		break;
 	    }
 	}
 	if (i >= 0)
-	    nvol = my_strdup (rootdir + i);
+	    nvol = my_strdup (p + i);
     }
     if (!nvol && archivehd >= 0) {
 	char *s = NULL;
@@ -302,7 +312,8 @@ static int set_filesys_volume(const char *rootdir, int *flags, int *readonly, in
     } else {
 	*flags = my_getvolumeinfo (rootdir);
 	if (*flags < 0) {
-	    write_log ("directory '%s' not found, mounting as empty drive\n", rootdir);
+	    if (rootdir && rootdir[0])
+		write_log ("directory '%s' not found, mounting as empty drive\n", rootdir);
 	    *emptydrive = 1;
 	    *flags = 0;
 	} else if ((*flags) & MYVOLUMEINFO_READONLY) {
@@ -338,7 +349,7 @@ static int set_filesys_unit_1 (int nr,
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	if (nr == i || !mountinfo.ui[i].open)
 	    continue;
-	if (strlen(rootdir) > 0 && !strcmpi (mountinfo.ui[i].rootdir, rootdir)) {
+	if (rootdir && strlen(rootdir) > 0 && !strcmpi (mountinfo.ui[i].rootdir, rootdir)) {
 	    write_log ("directory/hardfile '%s' already added\n", rootdir);
 	    return -1;
 	}
@@ -357,8 +368,11 @@ static int set_filesys_unit_1 (int nr,
 
     if (volname != NULL) {
 	int flags = 0;
-	if (set_filesys_volume(rootdir, &flags, &readonly, &emptydrive, &ui->zarchive) < 0)
-	    return -1;
+	emptydrive = 1;
+	if (rootdir) {
+	    if (set_filesys_volume (rootdir, &flags, &readonly, &emptydrive, &ui->zarchive) < 0)
+		return -1;
+	}
 	if (!emptydrive) {
 	    ui->volname = filesys_createvolname (volname, rootdir, "harddrive");
 	}
@@ -398,7 +412,7 @@ static int set_filesys_unit_1 (int nr,
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
     ui->wasisempty = emptydrive;
-    ui->rootdir = emptydrive ? my_strdup("") : my_strdup (rootdir);
+    ui->rootdir = my_strdup (rootdir);
     ui->devname = my_strdup (devname);
     stripsemicolon(ui->devname);
     if (filesysdir && filesysdir[0])
@@ -477,9 +491,24 @@ static void filesys_addexternals(void);
 
 static void initialize_mountinfo(void)
 {
-    int i;
+    int i, nr;
+    int haveempty, havevd;
     struct uaedev_config_info *uci;
     UnitInfo *uip = &mountinfo.ui[0];
+
+    /* add 2 spares until new devices can be added on the fly */
+    haveempty = havevd = 0;
+    for (i = 0; i < currprefs.mountitems; i++) {
+	int idx;
+	uci = &currprefs.mountconfig[i];
+	if (uci->controller == HD_CONTROLLER_UAE) {
+	    if (!uci->ishdf) {
+		havevd++;
+		if (uci->rootdir[0] == 0 && uci->volname[0] == 0)
+		    haveempty++;
+	    }
+	}
+    }
 
     for (i = 0; i < currprefs.mountitems; i++) {
 	int idx;
@@ -511,6 +540,14 @@ static void initialize_mountinfo(void)
 	}
     }
     filesys_addexternals();
+
+    if (havevd && !haveempty) {
+	for (i = 0; i < 2; i++) {
+	    char devname[10];
+	    sprintf (devname, "RDH%d", i);
+	    add_filesys_unit (devname, "", "", 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	}
+    }
 }
 
 
@@ -933,6 +970,46 @@ void filesys_vsync (void)
     }
 }
 
+
+int filesys_media_change (char *rootdir, int inserted)
+{
+    Unit *u;
+    UnitInfo *ui;
+    int nr = -1;
+    char volname[MAX_DPATH], *volptr;
+
+    for (u = units; u; u = u->next) {
+        if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
+	    ui = &mountinfo.ui[u->unit];
+	    if (ui->rootdir && !memcmp (ui->rootdir, rootdir, strlen (rootdir)) && strlen (rootdir) + 3 >= strlen (ui->rootdir)) {
+		nr = u->unit;
+		break;
+	    }
+	}
+    }
+    if (nr < 0 && !inserted)
+	return 0;
+    /* already mounted volume was ejected? */
+    if (nr >= 0 && !inserted)
+	return filesys_eject (nr);
+    if (inserted) {
+	volname[0] = 0;
+	target_get_volume_name(&mountinfo, rootdir, volname, MAX_DPATH, 1, 0);
+	volptr = volname;
+	if (!volname[0])
+	    volptr = NULL;
+	/* new volume inserted and it was previously mounted? */
+	if (nr >= 0) {
+	    if (!filesys_isvolume (u)) /* not going to mount twice */
+		return filesys_insert (nr, volptr, rootdir, -1, -1);
+	    return 0;
+	}
+	/* new volume inserted and it was not previously mlunted? */
+    	return filesys_insert (-1, volptr, rootdir, 0, 0);
+    }
+    return 0;
+}
+
 int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags)
 {
     struct uaedev_config_info *uci;
@@ -976,12 +1053,13 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
 	u->newflags = flags;
 	u->newreadonly = readonly;
 	u->newrootdir = my_strdup (rootdir);
-	u->newvolume = my_strdup (volume);
+	if (volume)
+	    u->newvolume = my_strdup (volume);
 	filesys_eject(nr);
 	if (!rootdir || strlen (rootdir) == 0)
 	    u->reinsertdelay = 0;
 	if (u->reinsertdelay > 0)
-	    write_log ("FILESYS: delayed insert %d '%s' ('%s')\n", nr, volume, rootdir);
+	    write_log ("FILESYS: delayed insert %d '%s' ('%s')\n", nr, volume ? volume : "<none>", rootdir);
 	return -1;
     }
     u->mountcount++;
@@ -996,12 +1074,13 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
     xfree (u->ui.volname);
     ui->volname = u->ui.volname = filesys_createvolname (volume, rootdir, "removable");
     set_volume_name (u);
-    write_log ("FILESYS: inserted volume %d '%s' ('%s')\n", nr, volume, rootdir);
-    ui->readonly = readonly;
-    ui->volflags = u->volflags = u->ui.volflags = flags;
+    write_log ("FILESYS: inserted volume %d '%s' ('%s')\n", nr, ui->volname, rootdir);
+    if (flags >= 0)
+	ui->volflags = u->volflags = u->ui.volflags = flags;
     strcpy (uci->volname, ui->volname);
     strcpy (uci->rootdir, rootdir);
-    uci->readonly = readonly;
+    if (readonly >= 0)
+	uci->readonly = ui->readonly = readonly;
     put_byte (u->volume + 44, 0);
     put_byte (u->volume + 172 - 32, 1);
     uae_Signal (get_long(u->volume + 176 - 32), 1 << 17);
@@ -1780,7 +1859,7 @@ static Unit *startup_create_unit (UnitInfo *uinfo, int num)
 static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 {
     /* Just got the startup packet. It's in A4. DosBase is in A2,
-     * our allocated volume structure is in D6, A5 is a pointer to
+     * our allocated volume structure is in A3, A5 is a pointer to
      * our port. */
     uaecptr rootnode = get_long (m68k_areg (&context->regs, 2) + 34);
     uaecptr dos_info = get_long (rootnode + 24) << 2;
@@ -1854,14 +1933,15 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
     put_long (unit->volume + 40, (unit->volume + 44) >> 2); /* Name */
 
     put_byte (unit->volume + 44, 0);
-    if (!uinfo->wasisempty)
+    if (!uinfo->wasisempty) {
 	set_volume_name(unit);
+	fsdb_clean_dir (&unit->rootnode);
+    }
 
     put_long (unit->volume + 8, unit->port);
     put_long (unit->volume + 32, DISK_TYPE);
 
     put_long (pkt + dp_Res1, DOS_TRUE);
-    fsdb_clean_dir (&unit->rootnode);
 
     return 0;
 }
@@ -2673,6 +2753,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
     void *d;
     int id, ok, i;
     uaecptr exp;
+    uae_u32 doserr = ERROR_NO_MORE_ENTRIES;
 
     ok = 0;
 
@@ -2685,9 +2766,8 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	return 0;
 
     if (type == 0 || type > 6) {
-	PUT_PCK_RES1 (packet, DOS_FALSE);
-	PUT_PCK_RES2 (packet, ERROR_BAD_NUMBER);
-	return 1;
+	doserr = ERROR_BAD_NUMBER;
+	goto fail;
     }
 
     PUT_PCK_RES1 (packet, DOS_TRUE);
@@ -2696,10 +2776,17 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	eak = getexall (unit, id);
 	if (!eak) {
 	    write_log ("FILESYS: EXALL non-existing ID %d\n", id);
+	    doserr = ERROR_OBJECT_WRONG_TYPE;
 	    goto fail;
 	}
 	if (!action_examine_all_do (unit, lock, eak, exalldata, exalldatasize, type, control))
 	    goto fail;
+	if (get_long (control + 0) == 0) {
+	    /* uh, no space for first entry.. */
+	    doserr = ERROR_NO_FREE_STORE;
+	    goto fail;
+	}
+
     } else {
 
 	eak = getexall (unit, -1);
@@ -2717,6 +2804,12 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	put_long (control + 4, eak->id);
 	if (!action_examine_all_do (unit, lock, eak, exalldata, exalldatasize, type, control))
 	    goto fail;
+	if (get_long (control + 0) == 0) {
+	    /* uh, no space for first entry.. */
+	    doserr = ERROR_NO_FREE_STORE;
+	    goto fail;
+	}
+
     }
     ok = 1;
 
@@ -2726,17 +2819,18 @@ fail:
     i = get_long (control + 0);
     for (;;) {
 	if (i <= 1) {
-	    put_long (exp, 0);
+	    if (exp)
+		put_long (exp, 0);
 	    break;
 	}
 	exp = get_long (exp); /* ed_Next */
 	i--;
     }
-    write_log("ok=%d, eac_Entries = %d\n", ok, get_long (control + 0));
+    write_log("ok=%d, err=%d, eac_Entries = %d\n", ok, ok ? -1 : doserr, get_long (control + 0));
 
     if (!ok) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
-	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
+	PUT_PCK_RES2 (packet, doserr);
 	if (eak) {
 	    eak->id = 0;
 	    fs_closedir (unit, eak->dirhandle);

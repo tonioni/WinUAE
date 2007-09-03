@@ -240,7 +240,7 @@ BEGIN
     CONTROL         "DF3:",IDC_DF3ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,111,34,15
 END
 
-IDD_HARDDISK DIALOGEX 0, 0, 300, 240
+IDD_HARDDISK DIALOGEX 0, 0, 300, 245
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
@@ -250,11 +250,12 @@ BEGIN
     PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,130,186,74,15
     PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,220,186,75,15
     PUSHBUTTON      "Remove",IDC_REMOVE,232,207,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,232,225,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,232,230,60,15
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,209,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,209,119,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,220,121,10
-    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,101,10
+    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,232,101,10
+    CONTROL         "Include CD/DVD drives..",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,100,10
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 231
@@ -1298,10 +1299,14 @@ BEGIN
     "resource.\0"
 END
 
-
 3 TEXTINCLUDE 
 BEGIN
     "\r\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -1316,8 +1321,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

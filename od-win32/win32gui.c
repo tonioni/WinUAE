@@ -6464,6 +6464,10 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	workprefs.win32_automount_drives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES);
 	break;
 
+     case IDC_MAPDRIVES_CD:
+	workprefs.win32_automount_cddrives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES_CD);
+	break;
+
      case IDC_MAPDRIVES_NET:
 	workprefs.win32_automount_netdrives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES_NET);
 	break;
@@ -6530,6 +6534,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
     case WM_USER:
 	CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
+	CheckDlgButton (hDlg, IDC_MAPDRIVES_CD, workprefs.win32_automount_cddrives);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_NET, workprefs.win32_automount_netdrives);
 	CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 	CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);

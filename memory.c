@@ -2462,7 +2462,7 @@ void map_overlay (int chip)
 	map_banks (cb, 0, i, allocated_chipmem);
     else
 	map_banks (&kickmem_bank, 0, i, 0x80000);
-    if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND)
+    if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND && valid_address (regs.pc, 4))
 	m68k_setpc (&regs, m68k_getpc (&regs));
 }
 

@@ -535,6 +535,7 @@
 #define IDC_MAPDRIVES_NET               1508
 #define IDC_SWAP                        1509
 #define IDC_CACHETEXT                   1509
+#define IDC_MAPDRIVES_CD                1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
 #define IDC_SCREENRESTEXT               1511

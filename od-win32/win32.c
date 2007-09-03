@@ -983,25 +983,33 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	extern void win32_ioctl_media_change (char driveletter, int insert);
 	extern void win32_aspi_media_change (char driveletter, int insert);
 	DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
-	if( pBHdr && ( pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME ) ) {
+	if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {
 	    DEV_BROADCAST_VOLUME *pBVol = (DEV_BROADCAST_VOLUME *)lParam;
-	    if( pBVol->dbcv_flags & DBTF_MEDIA ) {
-		if( pBVol->dbcv_unitmask ) {
+	    if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
+		if (pBVol->dbcv_unitmask) {
 		    int inserted, i;
 		    char drive;
 		    for (i = 0; i <= 'Z'-'A'; i++) {
 			if (pBVol->dbcv_unitmask & (1 << i)) {
+			    char drvname[10];
+			    int type;
+
 			    drive = 'A' + i;
-			    inserted = -1;
+			    sprintf (drvname, "%c:\\", drive);
+			    type = GetDriveType(drvname);
 			    if (wParam == DBT_DEVICEARRIVAL)
 				inserted = 1;
-			    else if (wParam == DBT_DEVICEREMOVECOMPLETE)
+			    else
 				inserted = 0;
-#ifdef WINDDK
-			    win32_spti_media_change (drive, inserted);
-			    win32_ioctl_media_change (drive, inserted);
-#endif
-			    win32_aspi_media_change (drive, inserted);
+			    if (pBVol->dbcv_flags & DBTF_MEDIA) {
+    #ifdef WINDDK
+				win32_spti_media_change (drive, inserted);
+				win32_ioctl_media_change (drive, inserted);
+    #endif
+				win32_aspi_media_change (drive, inserted);
+			    }
+			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted)
+				filesys_media_change (drvname, inserted); 
 			}
 		    }
 		}
@@ -1780,6 +1788,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_alwaysontop = 0;
 	p->win32_specialkey = 0xcf; // DIK_END
 	p->win32_automount_drives = 0;
+	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
@@ -1802,6 +1811,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "magic_mouse=%s\n", p->win32_outsidemouse ? "true" : "false");
     cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
     cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
+    cfgfile_target_write (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
     cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
     serdevtoname(p->sername);
     cfgfile_target_write (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
@@ -1856,6 +1866,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     int i, v;
     int result = (cfgfile_yesno (option, value, "middle_mouse", &p->win32_middle_mouse)
 	    || cfgfile_yesno (option, value, "map_drives", &p->win32_automount_drives)
+	    || cfgfile_yesno (option, value, "map_cd_drives", &p->win32_automount_cddrives)
 	    || cfgfile_yesno (option, value, "map_net_drives", &p->win32_automount_netdrives)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
 	    || cfgfile_yesno (option, value, "networking", &p->socket_emu)
