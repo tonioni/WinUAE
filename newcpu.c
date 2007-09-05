@@ -66,14 +66,6 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 
-#ifdef FPUEMU
-#if 0
-int fpp_movem_index1[256];
-int fpp_movem_index2[256];
-int fpp_movem_next[256];
-#endif
-#endif
-
 cpuop_func *cpufunctbl[65536];
 
 extern uae_u32 get_fpsr (void);
@@ -235,10 +227,12 @@ static void build_cpufunctbl (void)
 	    opcnt++;
 	}
     }
-    write_log ("Building CPU, %d opcodes (%d %d %d). CPU=%d, FPU=%d, JIT=%d.\n",
+    write_log ("Building CPU, %d opcodes (%d %d %d)\n",
 	opcnt, lvl,
-	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0,
-	currprefs.address_space_24, currprefs.cpu_model, currprefs.fpu_model,
+	currprefs.cpu_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0, currprefs.address_space_24);
+    write_log ("CPU=%d, FPU=%d, JIT%s=%d.\n",
+	currprefs.cpu_model, currprefs.fpu_model,
+	currprefs.cachesize ? (currprefs.compfpu ? "=CPU/FPU" : "=CPU") : "",
 	currprefs.cachesize);
 #ifdef JIT
     build_comp ();
@@ -331,19 +325,7 @@ void init_m68k (void)
 	movem_index2[i] = 7-j;
 	movem_next[i] = i & (~(1 << j));
     }
-#ifdef FPUEMU
-#if 0
-    for (i = 0 ; i < 256 ; i++) {
-	int j;
-	for (j = 7 ; j >= 0 ; j--) {
-		if (i & (1 << j)) break;
-	}
-	fpp_movem_index1[i] = 7-j;
-	fpp_movem_index2[i] = j;
-	fpp_movem_next[i] = i & (~(1 << j));
-    }
-#endif
-#endif
+
 #if COUNT_INSTRS
     {
 	FILE *f = fopen (icountfilename (), "r");

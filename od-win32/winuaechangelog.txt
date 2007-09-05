@@ -1,4 +1,18 @@
 
+Beta 4:
+
+- ACTION_EXAMINE_ALL_END implemented (forgot in b2..)
+- directory filesystem on the fly mount implemented without need for
+  spare empty devices. (I lied again, it was really simple after all..)
+  "empty slot" drives removed. USB memory sticks etc will always
+  mount on the fly automagically now. (if uae boot rom is available)
+  Device node ("RDHx") is never removed. My black magic skill level
+  is not high enough yet.
+  hardfiles next..
+- enable uae boot rom if chip ram > 2M enabled (KS does not
+  detect more than 2MB of chip, the rest is mapped by boot rom)
+- 68040/060 FPU was always interpreted (no JIT) (b1)
+
 Beta 3:
 
 - do not cause hard reset if PC was in memory area that disappears
@@ -22,6 +36,7 @@ Beta 3:
   really works as well as it can ever work.. No audio tracks and some
   Amiga CDs really need Amiga-side CDFS but it still is much easier
   to use..) Not really recommended if uaescsi.device is used..
+- compiled with MSVS 2005 again
 
 Beta 2:
 

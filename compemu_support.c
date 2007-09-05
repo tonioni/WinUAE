@@ -5769,9 +5769,9 @@ void build_comp(void)
 	int isjmp,isaddx,iscjmp;
 	int lvl;
 
-	lvl = 5 - (currprefs.cpu_model - 68000) / 10;
-	if (lvl < 0)
-	    lvl = 0;
+	lvl = (currprefs.cpu_model - 68000) / 10;
+	if (lvl > 4)
+	    lvl--;
 	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > lvl)
 	    continue;
 

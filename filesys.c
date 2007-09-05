@@ -91,6 +91,8 @@ static void aino_test_init (a_inode *aino)
 uaecptr filesys_initcode;
 static uae_u32 fsdevname, filesys_configdev;
 static int filesys_in_interrupt;
+static uae_u32 mountertask;
+static int automountunit = -1;
 
 #define FS_STARTUP 0
 #define FS_GO_DOWN 1
@@ -253,8 +255,7 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
 {
     char *nvol = NULL;
     int i, archivehd;
-    char *p;
-    char tmp[10];
+    char *p = NULL;
 
     archivehd = -1;
     if (my_existsfile(rootdir))
@@ -263,14 +264,15 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
         archivehd = 0;
 
     if ((!volname || strlen (volname) == 0) && rootdir && archivehd >= 0) {
-	p = rootdir;
+	p = my_strdup (rootdir);
 	for (i = strlen (p) - 1; i >= 0; i--) {
 	    char c = p[i];
 	    if (c == ':' || c == '/' || c == '\\') {
 		if (i == strlen (p) - 1)
 		    continue;
 		if (!strcmp (p + i, ":\\")) {
-		    p = tmp;
+		    xfree (p);
+		    p = xmalloc (10);
 		    p[0] = rootdir[0];
 		    p[1] = 0;
 		    i = 0;
@@ -293,6 +295,7 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
     if (!nvol)
 	nvol = my_strdup ("");
     stripsemicolon(nvol);
+    xfree (p);
     return nvol;
 }
 
@@ -491,24 +494,9 @@ static void filesys_addexternals(void);
 
 static void initialize_mountinfo(void)
 {
-    int i, nr;
-    int haveempty, havevd;
+    int i;
     struct uaedev_config_info *uci;
     UnitInfo *uip = &mountinfo.ui[0];
-
-    /* add 2 spares until new devices can be added on the fly */
-    haveempty = havevd = 0;
-    for (i = 0; i < currprefs.mountitems; i++) {
-	int idx;
-	uci = &currprefs.mountconfig[i];
-	if (uci->controller == HD_CONTROLLER_UAE) {
-	    if (!uci->ishdf) {
-		havevd++;
-		if (uci->rootdir[0] == 0 && uci->volname[0] == 0)
-		    haveempty++;
-	    }
-	}
-    }
 
     for (i = 0; i < currprefs.mountitems; i++) {
 	int idx;
@@ -540,14 +528,6 @@ static void initialize_mountinfo(void)
 	}
     }
     filesys_addexternals();
-
-    if (havevd && !haveempty) {
-	for (i = 0; i < 2; i++) {
-	    char devname[10];
-	    sprintf (devname, "RDH%d", i);
-	    add_filesys_unit (devname, "", "", 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	}
-    }
 }
 
 
@@ -641,10 +621,13 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_FH_FROM_LOCK	1026
 #define ACTION_COPY_DIR_FH	1030
 #define ACTION_PARENT_FH	1031
-#define ACTION_EXAMINE_FH	1034
 #define ACTION_EXAMINE_ALL	1033
+#define ACTION_EXAMINE_FH	1034
+#define ACTION_EXAMINE_ALL_END	1035
+
 #define ACTION_MAKE_LINK	1021
 #define ACTION_READ_LINK	1024
+
 #define ACTION_FORMAT		1020
 #define ACTION_IS_FILESYSTEM	1027
 #define ACTION_ADD_NOTIFY	4097
@@ -978,6 +961,8 @@ int filesys_media_change (char *rootdir, int inserted)
     int nr = -1;
     char volname[MAX_DPATH], *volptr;
 
+    if (automountunit >= 0)
+	return -1;
     for (u = units; u; u = u->next) {
         if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
 	    ui = &mountinfo.ui[u->unit];
@@ -993,6 +978,7 @@ int filesys_media_change (char *rootdir, int inserted)
     if (nr >= 0 && !inserted)
 	return filesys_eject (nr);
     if (inserted) {
+	char devname[10];
 	volname[0] = 0;
 	target_get_volume_name(&mountinfo, rootdir, volname, MAX_DPATH, 1, 0);
 	volptr = volname;
@@ -1004,8 +990,19 @@ int filesys_media_change (char *rootdir, int inserted)
 		return filesys_insert (nr, volptr, rootdir, -1, -1);
 	    return 0;
 	}
-	/* new volume inserted and it was not previously mlunted? */
-    	return filesys_insert (-1, volptr, rootdir, 0, 0);
+	/* new volume inserted and it was not previously mounted? 
+	 * perhaps we have some empty device slots? */
+    	if (filesys_insert (-1, volptr, rootdir, 0, 0) > 0)
+	    return 1;
+	/* nope, uh, need black magic now.. */
+	sprintf (devname, "RDH%d", nr_units());
+	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, NULL, 0, 0);
+	if (nr < 0)
+	    return 0;
+	automountunit = nr;
+	uae_Signal (mountertask, 1 << 17);
+	/* poof */
+	return 1;
     }
     return 0;
 }
@@ -1856,6 +1853,31 @@ static Unit *startup_create_unit (UnitInfo *uinfo, int num)
     return unit;
 }
 
+#ifdef UAE_FILESYS_THREADS
+static void *filesys_thread (void *unit_v);
+#endif
+static void filesys_start_thread (UnitInfo *ui, int nr)
+{
+    ui->unit_pipe = 0;
+    ui->back_pipe = 0;
+    ui->reset_state = FS_STARTUP;
+    if (savestate_state != STATE_RESTORE) {
+        ui->startup = 0;
+        ui->self = 0;
+    }
+#ifdef UAE_FILESYS_THREADS
+    if (is_hardfile (nr) == FILESYS_VIRTUAL) {
+        ui->unit_pipe = (smp_comm_pipe *)xmalloc (sizeof (smp_comm_pipe));
+        ui->back_pipe = (smp_comm_pipe *)xmalloc (sizeof (smp_comm_pipe));
+        init_comm_pipe (ui->unit_pipe, 100, 3);
+        init_comm_pipe (ui->back_pipe, 100, 1);
+        uae_start_thread ("filesys", filesys_thread, (void *)ui, &ui->tid);
+    }
+#endif
+    if (savestate_state == STATE_RESTORE)
+        startup_update_unit (ui->self, ui);
+}
+
 static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 {
     /* Just got the startup packet. It's in A4. DosBase is in A2,
@@ -1865,11 +1887,13 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
     uaecptr dos_info = get_long (rootnode + 24) << 2;
     uaecptr pkt = m68k_dreg (&context->regs, 3);
     uaecptr arg2 = get_long (pkt + dp_Arg2);
+    uaecptr devnode;
     int i;
     char* devname = bstr1 (get_long (pkt + dp_Arg1) << 2);
     char* s;
     Unit *unit;
     UnitInfo *uinfo;
+    int late = 0;
 
     /* find UnitInfo with correct device name */
     s = strchr (devname, ':');
@@ -1890,7 +1914,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 	write_log ("Failed attempt to mount device '%s'\n", devname);
 	put_long (pkt + dp_Res1, DOS_FALSE);
 	put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
-	return 1;
+	return 0;
     }
 
     if (!mountinfo.ui[i].wasisempty && !my_existsdir (mountinfo.ui[i].rootdir) && !my_existsfile (mountinfo.ui[i].rootdir))
@@ -1898,10 +1922,14 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 	write_log ("Failed attempt to mount device '%s'\n", devname);
 	put_long (pkt + dp_Res1, DOS_FALSE);
 	put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
-	return 1;
+	return 0;
     }
 
     uinfo = mountinfo.ui + i;
+    if (!uinfo->unit_pipe) {
+	late = 1;
+	filesys_start_thread (uinfo, i);
+    }
     unit = startup_create_unit (uinfo, i);
     unit->volflags = uinfo->volflags;
 
@@ -1910,7 +1938,9 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
     write_log ("FS: %s (flags=%08.8X) starting..\n", unit->ui.volname, unit->volflags);
 
     /* fill in our process in the device node */
-    put_long ((get_long (pkt + dp_Arg3) << 2) + 8, unit->port);
+    devnode = get_long (pkt + dp_Arg3) << 2;
+    put_long (unit->volume + 180, devnode);
+    put_long (devnode + 8, unit->port);
     unit->dosbase = m68k_areg (&context->regs, 2);
 
     /* make new volume */
@@ -1926,7 +1956,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
     put_long (unit->volume + 4, 2); /* Type = dt_volume */
     put_long (unit->volume + 12, 0); /* Lock */
-    put_long (unit->volume + 16, 3800); /* Creation Date */
+    put_long (unit->volume + 16, 3800 + i); /* Creation Date */
     put_long (unit->volume + 20, 0);
     put_long (unit->volume + 24, 0);
     put_long (unit->volume + 28, 0); /* lock list */
@@ -1943,7 +1973,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
     put_long (pkt + dp_Res1, DOS_TRUE);
 
-    return 0;
+    return 1 | (late ? 2 : 0);
 }
 
 static void
@@ -2589,7 +2619,7 @@ static ExAllKey *getexall (Unit *unit, int id)
 		return &unit->exalls[i];
 	    }
 	}
-    } else {
+    } else if (id > 0) {
 	for (i = 0; i < EXALLKEYS; i++) {
 	    if (unit->exalls[i].id == id)
 		return &unit->exalls[i];
@@ -2739,6 +2769,36 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
     return 1;
 }
 
+static int action_examine_all_end (Unit *unit, dpacket packet)
+{
+    uae_u32 id;
+    uae_u32 doserr = 0;
+    ExAllKey *eak;
+    uaecptr control = GET_PCK_ARG5 (packet);
+
+    if (kickstart_version < 36)
+	return 0;
+    id = get_long (control + 4);
+    eak = getexall (unit, id);
+    if (!eak) {
+        write_log ("FILESYS: EXALL_END non-existing ID %d\n", id);
+        doserr = ERROR_OBJECT_WRONG_TYPE;
+    } else {
+        eak->id = 0;
+        fs_closedir (unit, eak->dirhandle);
+        xfree (eak->fn);
+	eak->fn = NULL;
+	eak->dirhandle = NULL;
+    }
+    if (doserr) {
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	PUT_PCK_RES2 (packet, doserr);
+    } else {
+	PUT_PCK_RES1 (packet, DOS_TRUE);
+    }
+    return 1;
+}
+
 static int action_examine_all (Unit *unit, dpacket packet)
 {
     uaecptr lock = GET_PCK_ARG1 (packet) << 2;
@@ -2751,9 +2811,9 @@ static int action_examine_all (Unit *unit, dpacket packet)
     int isarch = unit->volflags & MYVOLUMEINFO_ARCHIVE;
     a_inode *base;
     void *d;
-    int id, ok, i;
+    int ok, i;
     uaecptr exp;
-    uae_u32 doserr = ERROR_NO_MORE_ENTRIES;
+    uae_u32 id, doserr = ERROR_NO_MORE_ENTRIES;
 
     ok = 0;
 
@@ -2762,6 +2822,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     put_long (control + 0, 0); /* eac_Entries */
 
+     /* EXAMINE ALL might use dos.library MatchPatternNoCase() which is >=36 */
     if (kickstart_version < 36)
 	return 0;
 
@@ -2796,7 +2857,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	    base = lookup_aino (unit, get_long (lock + 4));
 	if (base == 0)
 	    base = &unit->rootnode;
-	write_log("exall: '%s'\n", base->nname);
+	//write_log("exall: '%s'\n", base->nname);
 	d = fs_opendir (unit, base->nname);
 	if (!d)
 	    goto fail;
@@ -2834,9 +2895,10 @@ fail:
 	if (eak) {
 	    eak->id = 0;
 	    fs_closedir (unit, eak->dirhandle);
+	    eak->dirhandle = NULL;
+	    xfree (eak->fn);
+	    eak->fn = NULL;
 	}
-	xfree (eak->fn);
-	eak->fn = NULL;
     }
     return 1;
 }
@@ -4181,8 +4243,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 	 *        d0 = 2: Signal(), task in a1, signal set in d1
 	 *        d0 = 3: ReplyMsg(), message in a1
 	 *        d0 = 4: Cause(), interrupt in a1
-	 *        d0 = 5: AllocMem(), size in d0, flags in d1, pointer to address at a0
-	 *        d0 = 6: FreeMem(), memory in a1, size in d0
+	 *        d0 = 5: Send FileNofication message, port in a0, notifystruct in a1
 	 */
 
 #ifdef SUPPORT_THREADS
@@ -4321,6 +4382,7 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_ADD_NOTIFY: action_add_notify (unit, pck); break;
      case ACTION_REMOVE_NOTIFY: action_remove_notify (unit, pck); break;
      case ACTION_EXAMINE_ALL: return action_examine_all (unit, pck); break;
+     case ACTION_EXAMINE_ALL_END: return action_examine_all_end (unit, pck); break;
 
 	 /* unsupported packets */
      case ACTION_LOCK_RECORD:
@@ -4454,24 +4516,7 @@ void filesys_start_threads (void)
 	UnitInfo *ui = &mountinfo.ui[i];
 	if (!ui->open)
 	    continue;
-	ui->unit_pipe = 0;
-	ui->back_pipe = 0;
-	ui->reset_state = FS_STARTUP;
-	if (savestate_state != STATE_RESTORE) {
-	    ui->startup = 0;
-	    ui->self = 0;
-	}
-#ifdef UAE_FILESYS_THREADS
-	if (is_hardfile (i) == FILESYS_VIRTUAL) {
-	    ui->unit_pipe = (smp_comm_pipe *)xmalloc (sizeof (smp_comm_pipe));
-	    ui->back_pipe = (smp_comm_pipe *)xmalloc (sizeof (smp_comm_pipe));
-	    init_comm_pipe (ui->unit_pipe, 100, 3);
-	    init_comm_pipe (ui->back_pipe, 100, 1);
-	    uae_start_thread ("filesys", filesys_thread, (void *)ui, &ui->tid);
-	}
-#endif
-	if (savestate_state == STATE_RESTORE)
-	    startup_update_unit (ui->self, ui);
+	filesys_start_thread (ui, i);
     }
 }
 
@@ -4679,6 +4724,23 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
 	fsnode = get_long (fsnode);
     }
     return 0;
+}
+
+static uae_u32 REGPARAM2 filesys_init_storeinfo (TrapContext *context)
+{
+    int ret = -1;
+    switch (m68k_dreg (&context->regs, 1))
+    {
+	case 1:
+	mountertask = m68k_areg (&context->regs, 1);
+	break;
+	case 2:
+	ret = automountunit;
+	automountunit = -1;
+	break;
+	return 0;
+    }
+    return ret;
 }
 
 /* Remember a pointer AmigaOS gave us so we can later use it to identify
@@ -5183,6 +5245,10 @@ void filesys_install (void)
 
     org (RTAREA_BASE + 0xFF40);
     calltrap (deftrap2 (startup_handler, 0, "startup_handler"));
+    dw (RTS);
+
+    org (RTAREA_BASE + 0xFF48);
+    calltrap (deftrap2 (filesys_init_storeinfo, 0, "filesys_init_storeinfo"));
     dw (RTS);
 
     org (RTAREA_BASE + 0xFF50);

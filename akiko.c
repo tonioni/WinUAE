@@ -365,7 +365,8 @@ static uae_u8 cdrom_command;
 static int cdrom_toc_entries;
 static int cdrom_toc_counter;
 static uae_u32 cdrom_toc_crc;
-static uae_u8 cdrom_toc_buffer[MAX_TOC_ENTRIES*13];
+static uae_u8 cdrom_toc_buffer[MAX_TOC_ENTRIES * 13];
+static uae_u8 cdrom_toc_cd_buffer[4 + MAX_TOC_ENTRIES * 11];
 
 static int cdrom_disk, cdrom_paused, cdrom_playing;
 static int cdrom_command_active;
@@ -442,8 +443,37 @@ static void cdaudiostop (void)
 static uae_u32 last_play_end;
 static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
 {
-    if (endmsf >= lsn2msf (cdrom_leadout))
+#if 0
+    uae_u8 *buf = cdrom_toc_cd_buffer;
+    uae_u8 *s;
+    uae_u32 addr;
+    int i, changed;
+
+    changed = 0;
+    for (i = 0; i < cdrom_toc_entries; i++) {
+	s = buf + 4 + i * 11;
+	addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+	if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
+	    break;
+    }
+    addr = lsn2msf (cdrom_leadout);
+    if (i + 1 < cdrom_toc_entries) { 
+	s += 11;
+	addr =(s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+    }
+    if (endmsf >= addr) {
+	endmsf = addr;
+	changed = 1;
+    }
+    if (endmsf >= lsn2msf (cdrom_leadout)) {
 	endmsf = lsn2msf (cdrom_leadout);
+	changed = 1;
+    }
+#if AKIKO_DEBUG_IO_CMD
+    if (changed)
+	write_log ("Adjusted from %06.6X to %06.6X\n", startmsf, endmsf);
+#endif
+#endif
     last_play_end = endmsf;
     return sys_command_cd_play (DF_IOCTL, unitnum, startmsf, endmsf, scan);
 }
@@ -516,11 +546,15 @@ static int cdrom_toc (void)
     i /= 11;
     if (i > MAX_TOC_ENTRIES)
 	return -1;
+    cdrom_toc_entries = i;
     memset (cdrom_toc_buffer, 0, MAX_TOC_ENTRIES * 13);
+    memcpy (cdrom_toc_cd_buffer, buf, 4 + cdrom_toc_entries * 11);
     cdrom_data_end = -1;
-    for (j = 0; j < i; j++) {
+    for (j = 0; j < cdrom_toc_entries; j++) {
+	uae_u32 addr;
 	s = buf + 4 + j * 11;
 	d = &cdrom_toc_buffer[j * 13];
+	addr = msf2lsn ((s[8] << 16) | (s[9] << 8) | (s[10] << 0));
 	d[1] = (s[1] >> 4) | (s[1] << 4);
 	d[3] = s[3] < 100 ? tobcd(s[3]) : s[3];
 	d[8] = tobcd (s[8]);
@@ -529,11 +563,10 @@ static int cdrom_toc (void)
 	if (s[3] == 1 && (s[1] & 0x0f) == 0x04)
 	    datatrack = 1;
 	if (s[3] == 2)
-	    secondtrack = msf2lsn ((s[8] << 16) | (s[9] << 8) | (s[10] << 0));
+	    secondtrack = addr;
 	if (s[3] == 0xa2)
-	    cdrom_leadout = msf2lsn ((s[8] << 16) | (s[9] << 8) | (s[10] << 0));
+	    cdrom_leadout = addr;
     }
-    cdrom_toc_entries = i;
     cdrom_toc_crc = get_crc32(cdrom_toc_buffer, cdrom_toc_entries * 13);
     if (datatrack) {
 	if (secondtrack)
@@ -748,7 +781,8 @@ static int cdrom_command_multi (void)
 	else if (cdrom_command_buffer[7] & 0x08)
 	    scan = -1;
 #if AKIKO_DEBUG_IO_CMD
-	write_log ("PLAY FROM %06.6X to %06.6X SCAN=%d\n", seekpos, endpos, scan);
+	write_log ("PLAY FROM %06.6X (%d) to %06.6X (%d) SCAN=%d\n",
+	    seekpos, msf2lsn (seekpos), endpos, msf2lsn (endpos), scan);
 #endif
 	if (!cd_play_audio (seekpos, endpos, 0)) {
 	    cdrom_result_buffer[1] = CDS_ERROR;
@@ -1020,7 +1054,8 @@ void AKIKO_hsync_handler (void)
 		uae_u8 as = s[1];
 		if (as == AUDIO_STATUS_IN_PROGRESS) {
 		    int lsn = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4] << 0));
-		    if (lsn >= cdrom_leadout - 75 || lsn >= msf2lsn(last_play_end) - 75) {
+		    //write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
+		    if (lsn >= cdrom_leadout - 100 || lsn >= msf2lsn(last_play_end) - 100) {
 			set_status(CDSTATUS_DATA_AVAILABLE);
 			cdrom_playing = 0;
 			cdrom_result_buffer[1] = 0;
