@@ -2544,6 +2544,8 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 
     if (buf)
 	memset (buf, 0, bufsize);
+    if (!table68k)
+	return;
     while (cnt-- > 0) {
 	char instrname[100], *ccpt;
 	int i;

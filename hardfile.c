@@ -92,6 +92,7 @@ struct hardfileprivdata {
     int thread_running;
     uae_sem_t sync_sem;
     uaecptr base;
+    int changenum;
 };
 
 static uae_sem_t change_sem;
@@ -696,6 +697,23 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
     return ret;
 }
 
+void hardfile_do_disk_change (int fsid, int insert)
+{
+    int j;
+
+    write_log("uaehf.device:%d %d\n", fsid, insert);
+    uae_sem_wait (&change_sem);
+    hardfpd[fsid].changenum++;
+    j = 0;
+    while (j < MAX_ASYNC_REQUESTS) {
+	if (hardfpd[fsid].d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
+	    uae_Cause (hardfpd[fsid].d_request_data[j]);
+	}
+	j++;
+    }
+    uae_sem_post (&change_sem);
+}
+
 static int add_async_request (struct hardfileprivdata *hfpd, uaecptr request, int type, uae_u32 data)
 {
     int i;
@@ -984,12 +1002,15 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	case CMD_CLEAR:
 	case CMD_MOTOR:
 	case CMD_SEEK:
-	case CMD_CHANGENUM:
 	case TD_SEEK64:
 	case NSCMD_TD_SEEK64:
 	break;
 
 	case CMD_REMOVE:
+	break;
+
+	case CMD_CHANGENUM:
+	    actual = hfpd->changenum;
 	break;
 
 	case CMD_ADDCHANGEINT:

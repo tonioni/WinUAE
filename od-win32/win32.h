@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 4
+#define WINUAEBETA 5
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 9, 5)
+#define WINUAEDATE MAKEBD(2007, 9, 8)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -107,6 +107,8 @@ extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
 extern int dinput_winmousemode (void);
 
+void addnotifications (HWND hwnd, int remove);
+extern int CheckRM(char *DriveName);
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);
 void exit_gui (int);

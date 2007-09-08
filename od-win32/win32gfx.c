@@ -989,8 +989,10 @@ static void close_hwnds( void )
     AVIOutput_Restart ();
 #endif
     setmouseactive (0);
-    if (hMainWnd)
+    if (hMainWnd) {
+	addnotifications (hMainWnd, TRUE);
 	systray (hMainWnd, TRUE);
+    }
     if (hStatusWnd) {
 	ShowWindow (hStatusWnd, SW_HIDE);
 	DestroyWindow (hStatusWnd);
@@ -1915,6 +1917,31 @@ static void createstatuswindow (void)
     }
 }
 
+#if 0
+#include <dbt.h>
+
+static int createnotification (HWND hwnd)
+{
+    DEV_BROADCAST_DEVICEINTERFACE NotificationFilter;
+    HDEVNOTIFY hDevNotify;
+
+    ZeroMemory(&NotificationFilter, sizeof(NotificationFilter));
+    NotificationFilter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+    NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+
+    hDevNotify = RegisterDeviceNotification(hMainWnd, 
+        &NotificationFilter, DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+
+    if(!hDevNotify) 
+    {
+        write_log ("RegisterDeviceNotification failed: %d\n", GetLastError());
+        return FALSE;
+    }
+
+    return TRUE;
+}
+#endif
+
 static int create_windows (void)
 {
     int dxfs = currentmode->flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
@@ -2031,6 +2058,7 @@ static int create_windows (void)
     }
 
     systray (hMainWnd, FALSE);
+    addnotifications (hMainWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);

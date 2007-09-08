@@ -376,6 +376,7 @@ static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
 static int cdrom_current_sector;
 static int cdrom_data_end, cdrom_leadout;
 static int cdrom_dosomething;
+static int cdrom_audiotimeout;
 
 static uae_u8 *sector_buffer_1, *sector_buffer_2;
 static int sector_buffer_sector_1, sector_buffer_sector_2;
@@ -438,6 +439,7 @@ static void cdaudiostop (void)
     sys_command_cd_pause (DF_IOCTL, unitnum, 0);
     sys_command_cd_stop (DF_IOCTL, unitnum);
     sys_command_cd_pause (DF_IOCTL, unitnum, 1);
+    cdrom_audiotimeout = 0;
 }
 
 static uae_u32 last_play_end;
@@ -475,6 +477,7 @@ static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
 #endif
 #endif
     last_play_end = endmsf;
+    cdrom_audiotimeout = 0;
     return sys_command_cd_play (DF_IOCTL, unitnum, startmsf, endmsf, scan);
 }
 
@@ -731,6 +734,7 @@ static int cdrom_command_pause (void)
 	return 2;
     if (cdrom_paused)
 	return 2;
+    cdrom_audiotimeout = 0;
     sys_command_cd_pause (DF_IOCTL, unitnum,1);
     cdrom_paused = 1;
     return 2;
@@ -1045,6 +1049,15 @@ void AKIKO_hsync_handler (void)
     }
     if (cdrom_playing) {
 	static int frame2counter;
+	if (cdrom_audiotimeout > 0) {
+	    cdrom_audiotimeout--;
+	    if (cdrom_audiotimeout == 0) {
+		set_status(CDSTATUS_DATA_AVAILABLE);
+		cdrom_playing = 0;
+		cdrom_result_buffer[1] = 0;
+		cdrom_return_data (2);
+	    }
+	}
 	frame2counter--;
 	if (frame2counter <= 0) {
 	    uae_u8 *s;
@@ -1054,12 +1067,11 @@ void AKIKO_hsync_handler (void)
 		uae_u8 as = s[1];
 		if (as == AUDIO_STATUS_IN_PROGRESS) {
 		    int lsn = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4] << 0));
-		    //write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
-		    if (lsn >= cdrom_leadout - 100 || lsn >= msf2lsn(last_play_end) - 100) {
-			set_status(CDSTATUS_DATA_AVAILABLE);
-			cdrom_playing = 0;
-			cdrom_result_buffer[1] = 0;
-			cdrom_return_data (2);
+		    write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
+		    // make sure audio play really ends because not all drives report position accurately
+		    if ((lsn >= cdrom_leadout - 3 * 75 || lsn >= msf2lsn(last_play_end) - 3 * 75) && !cdrom_audiotimeout) {
+			cdrom_audiotimeout = 3 * 312;
+			write_log("audiotimeout starts\n");
 		    }
 		}
 	    }

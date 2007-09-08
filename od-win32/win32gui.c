@@ -115,7 +115,7 @@ extern char help_file[MAX_DPATH];
 
 extern int mouseactive;
 
-static char config_filename[MAX_DPATH] = "";
+char config_filename[MAX_DPATH] = "";
 
 #define Error(x) MessageBox(NULL, (x), "WinUAE Error", MB_OK)
 
@@ -1507,6 +1507,37 @@ static const char *nth[] = {
     "", "second ", "third ", "fourth ", "fifth ", "sixth ", "seventh ", "eighth ", "ninth ", "tenth "
 };
 
+static void setguititle (HWND phwnd)
+{
+    static char title[200];
+    char title2[1000];
+    char *name;
+    static HWND hwnd;
+
+    if (phwnd)
+	hwnd = phwnd;
+    if (!title[0]) {
+        GetWindowText (hwnd, title, sizeof (title));
+	if (WINUAEBETA > 0) {
+	    strcat (title, BetaStr);
+	    if (strlen(WINUAEEXTRA) > 0) {
+    		strcat (title, " ");
+		strcat (title, WINUAEEXTRA);
+	    }
+	}
+    }
+    title2[0] = 0;
+    name = config_filename;
+    if (name && strlen (name) > 0) {
+	strcat (title2, "[");
+	strcat (title2, name);
+	strcat (title2, "] - ");
+    }
+    strcat (title2, title);
+    SetWindowText (hwnd, title2);
+}
+
+
 static void GetConfigPath (char *path, struct ConfigStruct *parent, int noroot)
 {
     if (parent == 0) {
@@ -1670,6 +1701,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 
     full_path[0] = 0;
     GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
+    strcpy (config_filename, name);
     if (flag == CONFIG_SAVE_FULL || flag == CONFIG_SAVE) {
 	if (strlen (name) < 4 || strcasecmp (name + strlen (name) - 4, ".uae")) {
 	    strcat (name, ".uae");
@@ -1716,8 +1748,9 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 	    } else {
 		if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
 		    char szMessage[MAX_DPATH];
-		    WIN32GUI_LoadUIString( IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH );
+		    WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
 		    pre_gui_message (szMessage);
+		    config_filename[0] = 0;
 		} else {
 		    ew (hDlg, IDC_VIEWINFO, workprefs.info[0]);
 		}
@@ -1731,18 +1764,20 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		} else {
 		    char szMessage[MAX_DPATH];
 		    char szTitle[MAX_DPATH];
-		    WIN32GUI_LoadUIString( IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH );
-		    WIN32GUI_LoadUIString( IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
-		    if( MessageBox( hDlg, szMessage, szTitle,
-			MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND ) == IDYES ) {
+		    WIN32GUI_LoadUIString (IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
+		    WIN32GUI_LoadUIString (IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
+		    if (MessageBox (hDlg, szMessage, szTitle,
+			MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
 			cfgfile_backup (path);
 			DeleteFile (path);
 			write_log ("deleted config '%s'\n", path);
+			config_filename[0] = 0;
 		    }
 		}
 	    break;
 	}
     }
+    setguititle (NULL);
     return full_path;
 }
 
@@ -2416,8 +2451,7 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
     HTREEITEM root;
     char name_buf[MAX_DPATH];
 
-    EnableWindow (GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0]);
-    SetDlgItemText (hDlg, IDC_EDITNAME, config_filename);
+    EnableWindow (GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
     SetDlgItemText (hDlg, IDC_EDITPATH, "");
     SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
     root = InitializeConfigTreeView (hDlg);
@@ -3002,7 +3036,7 @@ static struct amigamodels amodels[] = {
     { 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
     { 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
     { 1, IDS_QS_MODEL_A3000 }, // "Amiga 3000"
-    { 0, }, //{ 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
+    { 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
     { 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
     { 3, IDS_QS_MODEL_CD32 }, // "CD32"
     { 4, IDS_QS_MODEL_CDTV }, // "CDTV"
@@ -3032,6 +3066,8 @@ static void load_quickstart (HWND hDlg, int romcheck)
     addfloppytype (hDlg, 0);
     addfloppytype (hDlg, 1);
     addfloppyhistory (hDlg);
+    config_filename[0] = 0;
+    setguititle (NULL);
 }
 
 static void quickstarthost (HWND hDlg, char *name)
@@ -6050,12 +6086,8 @@ static void sethardfile (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 }
 
-static void inithardfile (HWND hDlg)
+static void inithdcontroller (HWND hDlg)
 {
-    char tmp[MAX_DPATH];
-
-    ew (hDlg, IDC_HF_DOSTYPE, FALSE);
-    ew (hDlg, IDC_HF_CREATE, FALSE);
     SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"UAE");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"IDE0");
@@ -6070,6 +6102,15 @@ static void inithardfile (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI5");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI6");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
+}
+
+static void inithardfile (HWND hDlg)
+{
+    char tmp[MAX_DPATH];
+
+    ew (hDlg, IDC_HF_DOSTYPE, FALSE);
+    ew (hDlg, IDC_HF_CREATE, FALSE);
+    inithdcontroller (hDlg);
     SendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
     WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp));
     SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)"OFS/FFS/RDB");
@@ -6222,19 +6263,24 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	oposn = -1;
 	hdf_init ();
 	recursive++;
+	inithdcontroller (hDlg);
 	CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
 	SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 	ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 	ew (hDlg, IDOK, FALSE);
 	ew (hDlg, IDC_RW, FALSE);
+	ew (hDlg, IDC_HDF_CONTROLLER, FALSE);
 	index = -1;
 	for (i = 0; i < hdf_getnumharddrives(); i++) {
-	    SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive(i, 1));
-	    if (!strcmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0)))
+	    SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive(i, 1, NULL));
+	    if (!strcmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0, NULL)))
 		index = i;
 	}
-	if (index >= 0)
+	if (index >= 0) {
 	    SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_SETCURSEL, index, 0);
+	    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
+	}
 	recursive--;
 	return TRUE;
 
@@ -6249,6 +6295,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		ew (hDlg, IDC_HARDDRIVE_IMAGE, TRUE);
 		ew (hDlg, IDOK, TRUE);
 		ew (hDlg, IDC_RW, TRUE);
+		ew (hDlg, IDC_HDF_CONTROLLER, TRUE);
 	    }
 	}
 	if (HIWORD (wParam) == BN_CLICKED) {
@@ -6266,8 +6313,11 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	    }
 	}
 	if (posn != CB_ERR)
-	    strcpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0));
+	    strcpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize));
 	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
+	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+	if (posn != CB_ERR)
+	    current_hfdlg.controller = posn;
 	recursive--;
 	break;
     }
@@ -6460,6 +6510,10 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	clicked_entry++;
 	break;
 
+     case IDC_MAPDRIVES_AUTO:
+	workprefs.win32_automount_removable = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES_AUTO);
+	break;
+
      case IDC_MAPDRIVES:
 	workprefs.win32_automount_drives = IsDlgButtonChecked(hDlg, IDC_MAPDRIVES);
 	break;
@@ -6533,6 +6587,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	EnableWindow (GetDlgItem(hDlg, IDC_NEW_HD), os_winnt && os_winnt_admin > 1 ? TRUE : FALSE);
 
     case WM_USER:
+	CheckDlgButton (hDlg, IDC_MAPDRIVES_AUTO, workprefs.win32_automount_removable);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_CD, workprefs.win32_automount_cddrives);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_NET, workprefs.win32_automount_netdrives);
@@ -10007,16 +10062,8 @@ static int GetSettings (int all_options, HWND hwnd)
     if (dhwnd != NULL) {
 	MSG msg;
 	DWORD v;
-	char tmp[MAX_DPATH];
 
-	if (WINUAEBETA > 0 && GetWindowText (dhwnd, tmp, sizeof (tmp)) > 0) {
-	    strcat (tmp, BetaStr);
-	    if (strlen(WINUAEEXTRA) > 0) {
-		strcat (tmp, " ");
-		strcat (tmp, WINUAEEXTRA);
-	    }
-	    SetWindowText (dhwnd, tmp);
-	}
+	setguititle (dhwnd);
 	ShowWindow (dhwnd, SW_SHOW);
 	MapDialogRect(dhwnd, &dialog_rect);
 

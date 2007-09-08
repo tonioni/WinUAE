@@ -1,4 +1,26 @@
 
+
+Beta 5:
+
+- "Add Harddrive" button was disabled on Windows 2000 ("full
+  administrator" test used function that was Windows XP+ only)
+- improved directory filesystem Windows-side media change detection,
+  detects now memory cards in card readers (stupid Windows having
+  multiple completely different ways to get media notifications)
+- added GUI "Add Harddrive" emulated HD controller selection
+- directory filesystem read+write/readonly on the fly status change
+  fixed
+- device node is now removed when removable drive gets ejected and if
+  drive was originally created on the fly. Note: device node is only
+  hidden (removed from dos list) and it will be reused later when new
+  disk is inserted. No KS 1.3 support yet.
+- added GUI option to enable/disable on the fly automounting
+- current configuration name added to window title bar
+- added two A4000 quickstart configurations (68030/68882 and 68040)
+- better CD32 audio end detection accuracy, last 1s was cut previously
+- ["bsdsocket breaks after reset if it was initialized before reset"
+  will be fixed soon]
+
 Beta 4:
 
 - ACTION_EXAMINE_ALL_END implemented (forgot in b2..)
@@ -7,8 +29,7 @@ Beta 4:
   "empty slot" drives removed. USB memory sticks etc will always
   mount on the fly automagically now. (if uae boot rom is available)
   Device node ("RDHx") is never removed. My black magic skill level
-  is not high enough yet.
-  hardfiles next..
+  is not high enough yet. Hardfile on the fly automount next..
 - enable uae boot rom if chip ram > 2M enabled (KS does not
   detect more than 2MB of chip, the rest is mapped by boot rom)
 - 68040/060 FPU was always interpreted (no JIT) (b1)

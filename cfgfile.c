@@ -3033,12 +3033,16 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[0] = 16;
     roms[1] = 31;
     roms[2] = 13;
-    roms[3] = -1;
+    roms[3] = 12;
+    roms[4] = -1;
     p->immediate_blits = 1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x200000;
-    p->cpu_model = 68040;
-    p->fpu_model = 68040;
+    p->mbresmem_low_size = 8 * 1024 * 1024;
+    p->cpu_model = 68030;
+    p->fpu_model = 68882;
+    if (config > 0)
+	p->cpu_model = p->fpu_model = 68040;
     p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     p->cpu_compatible = p->address_space_24 = 0;
     p->m68k_speed = -1;
@@ -3066,8 +3070,11 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
     p->immediate_blits = 1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x200000;
-    p->cpu_model = 68040;
-    p->fpu_model = 68040;
+    p->mbresmem_low_size = 8 * 1024 * 1024;
+    p->cpu_model = 68030;
+    p->fpu_model = 68882;
+    if (config > 0)
+	p->cpu_model = p->fpu_model = 68040;
     p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     p->cpu_compatible = p->address_space_24 = 0;
     p->m68k_speed = -1;

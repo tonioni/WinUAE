@@ -485,10 +485,40 @@ static void checkpause (void)
 
 static int showcursor;
 
+extern char config_filename[MAX_DPATH];
+
+static void setmaintitle (HWND hwnd)
+{
+    char txt[1000], txt2[500];
+
+    txt[0] = 0;
+    if (config_filename[0]) {
+	strcat (txt, "[");
+	strcat (txt, config_filename);
+	strcat (txt, "] - ");
+    }
+    strcat (txt, "WinUAE");
+    txt2[0] = 0;
+    if (mouseactive > 0) {
+	WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
+	    txt2, sizeof (txt2));
+    }
+    if (WINUAEBETA > 0)
+	strcat (txt, BetaStr);
+    if (strlen(WINUAEEXTRA) > 0) {
+	strcat (txt, " ");
+	strcat (txt, WINUAEEXTRA);
+    }
+    if (txt2[0]) {
+	strcat (txt, " - ");
+	strcat (txt, txt2);
+    }
+    SetWindowText (hwnd, txt);
+}
+
 void setmouseactive (int active)
 {
     int oldactive = mouseactive;
-    char txt[400], txt2[200];
 
     if (showcursor) {
 	ClipCursor(NULL);
@@ -506,24 +536,9 @@ void setmouseactive (int active)
     inputdevice_unacquire ();
 
     mouseactive = active;
-    strcpy (txt, "WinUAE");
-    txt2[0] = 0;
-    if (mouseactive > 0) {
+    setmaintitle (hMainWnd);
+    if (mouseactive > 0)
 	focus = 1;
-	WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
-	    txt2, sizeof (txt2));
-    }
-    if (WINUAEBETA > 0)
-	strcat (txt, BetaStr);
-    if (strlen(WINUAEEXTRA) > 0) {
-	strcat (txt, " ");
-	strcat (txt, WINUAEEXTRA);
-    }
-    if (txt2[0]) {
-	strcat (txt, " - ");
-	strcat (txt, txt2);
-    }
-    SetWindowText (hMainWnd, txt);
     if (mouseactive) {
 	if (focus) {
 	    if (!showcursor) {
@@ -977,6 +992,25 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #endif
 
 #ifdef FILESYS
+    case WM_USER + 2:
+    {
+	typedef struct {
+	    DWORD dwItem1;    // dwItem1 contains the previous PIDL or name of the folder. 
+	    DWORD dwItem2;    // dwItem2 contains the new PIDL or name of the folder. 
+	} SHNOTIFYSTRUCT;
+	char path[MAX_PATH];
+
+	if (lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_MEDIAREMOVED) {
+	    SHNOTIFYSTRUCT *shns = (SHNOTIFYSTRUCT*)wParam;
+	    if(SHGetPathFromIDList((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
+		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
+		write_log("Shell Notification %d '%s'\n", inserted, path);
+		if ((inserted && CheckRM (path)) || !inserted)
+		    filesys_media_change (path, inserted);
+	    }
+	}
+    }
+    return TRUE;
     case WM_DEVICECHANGE:
     {
 	extern void win32_spti_media_change (char driveletter, int insert);
@@ -1008,8 +1042,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     #endif
 				win32_aspi_media_change (drive, inserted);
 			    }
-			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted)
-				filesys_media_change (drvname, inserted); 
+			    if (currprefs.win32_automount_removable && (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted)) {
+				if ((inserted && CheckRM (drvname)) || !inserted)
+				    filesys_media_change (drvname, inserted);
+			    }
 			}
 		    }
 		}
@@ -1133,7 +1169,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
      default:
 	 if (TaskbarRestartOk && message == TaskbarRestart)
-	     systray (hWnd, 0);
+	     systray (hWnd, FALSE);
     break;
     }
 
@@ -1182,8 +1218,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_CLOSE:
      case WM_HELP:
      case WM_DEVICECHANGE:
-     case 0xff: // WM_INPUT
+     case WM_INPUT:
      case WM_USER + 1:
+     case WM_USER + 2:
      case WM_COMMAND:
      case WM_NOTIFY:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
@@ -1787,6 +1824,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_notaskbarbutton = 0;
 	p->win32_alwaysontop = 0;
 	p->win32_specialkey = 0xcf; // DIK_END
+	p->win32_automount_removable = 0;
 	p->win32_automount_drives = 0;
 	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
@@ -1811,6 +1849,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_write (f, "magic_mouse=%s\n", p->win32_outsidemouse ? "true" : "false");
     cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
     cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
+    cfgfile_target_write (f, "map_drives_auto=%s\n", p->win32_automount_removable ? "true" : "false");
     cfgfile_target_write (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
     cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
     serdevtoname(p->sername);
@@ -1866,6 +1905,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     int i, v;
     int result = (cfgfile_yesno (option, value, "middle_mouse", &p->win32_middle_mouse)
 	    || cfgfile_yesno (option, value, "map_drives", &p->win32_automount_drives)
+	    || cfgfile_yesno (option, value, "map_drives_auto", &p->win32_automount_removable)
 	    || cfgfile_yesno (option, value, "map_cd_drives", &p->win32_automount_cddrives)
 	    || cfgfile_yesno (option, value, "map_net_drives", &p->win32_automount_netdrives)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
@@ -2573,9 +2613,13 @@ static int osdetect (void)
     if (!os_winnt)
 	return 1;
     os_winnt_admin = isadminpriv ();
-    if (os_winnt_admin && pIsUserAnAdmin) {
-	if (pIsUserAnAdmin())
+    if (os_winnt_admin) {
+	if (pIsUserAnAdmin) {
+	    if (pIsUserAnAdmin())
+		os_winnt_admin++;
+	} else {
 	    os_winnt_admin++;
+	}
     }
 
     return 1;
@@ -3222,6 +3266,42 @@ LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers
 
 #endif
 
+typedef ULONG (CALLBACK *SHCHANGENOTIFYREGISTER)
+    (HWND hwnd,
+    int fSources,
+    LONG fEvents,
+    UINT wMsg,
+    int cEntries,
+    const SHChangeNotifyEntry *pshcne);
+typedef BOOL (CALLBACK *SHCHANGENOTIFYDEREGISTER)(ULONG ulID);
+
+void addnotifications (HWND hwnd, int remove)
+{
+    static ULONG ret;
+    LPITEMIDLIST ppidl;
+    SHCHANGENOTIFYREGISTER pSHChangeNotifyRegister;
+    SHCHANGENOTIFYDEREGISTER pSHChangeNotifyDeregister;
+
+    pSHChangeNotifyRegister = (SHCHANGENOTIFYREGISTER)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHChangeNotifyRegister");
+    pSHChangeNotifyDeregister = (SHCHANGENOTIFYDEREGISTER)GetProcAddress(
+	GetModuleHandle("shell32.dll"), "SHChangeNotifyDeregister");
+
+    if (remove) {
+	if (ret > 0 && pSHChangeNotifyDeregister)
+	    pSHChangeNotifyDeregister (ret);
+    } else {
+	if(currprefs.win32_automount_removable && pSHChangeNotifyRegister && SHGetSpecialFolderLocation(hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
+	    SHChangeNotifyEntry shCNE;
+	    shCNE.pidl = ppidl;
+	    shCNE.fRecursive = TRUE;
+	    ret = pSHChangeNotifyRegister (hwnd, SHCNE_DISKEVENTS, SHCNE_MEDIAINSERTED | SHCNE_MEDIAREMOVED,
+		WM_USER + 2, 1, &shCNE);
+	    write_log("SHChangeNotifyRegister=%d\n", ret);
+	}
+    }
+}
+
 void systray (HWND hwnd, int remove)
 {
     NOTIFYICONDATA nid;
@@ -3331,6 +3411,11 @@ HMODULE WIN32_LoadLibrary (const char *name)
 	    m = LoadLibrary (s);
 	    if (m)
 		goto end;
+	    sprintf (s, "%s%s", start_path_exe, newname);
+	    m = LoadLibrary (s);
+	    if (m)
+		goto end;
+	    sprintf (s, "%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
 	    LLError(s);
 	    xfree (s);
 	}

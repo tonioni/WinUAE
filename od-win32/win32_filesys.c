@@ -1,7 +1,7 @@
 
 
 /* Determines if this drive-letter currently has a disk inserted */
-static int CheckRM(char *DriveName)
+int CheckRM(char *DriveName)
 {
     char filename[MAX_DPATH];
     DWORD dwHold;
@@ -95,51 +95,48 @@ static void filesys_addexternals(void)
     char volumepath[6];
     DWORD dwDriveMask;
 
-    if(currprefs.win32_automount_drives || currprefs.win32_automount_netdrives || currprefs.win32_automount_cddrives)
-    {
-	dwDriveMask = GetLogicalDrives();
-	dwDriveMask >>= 2; // Skip A and B drives...
+    dwDriveMask = GetLogicalDrives();
+    dwDriveMask >>= 2; // Skip A and B drives...
 
-	for(drive = 'C'; drive <= 'Z'; ++drive) {
-	    sprintf(volumepath, "%c:\\", drive);
-	    /* Is this drive-letter valid (it used to check for media in drive) */
-	    if(dwDriveMask & 1) {
-		char devname[100];
-		BOOL inserted = CheckRM(volumepath); /* Is there a disk inserted? */
-		int nok = FALSE;
-		int rw = 1;
-		drivetype = GetDriveType(volumepath);
-		devname[0] = 0;
-		for (;;) {
-		    if (drivetype == DRIVE_CDROM && currprefs.win32_automount_cddrives) {
-			sprintf (devname, "WinCD_%c", drive);
-			rw = 0;
-			break;
-		    }
-		    if (!inserted) {
-			nok = TRUE;
-			break;
-		    }
-		    if (drivetype == DRIVE_REMOTE && currprefs.win32_automount_netdrives)
-			break;
-		    if ((drivetype == DRIVE_FIXED || drivetype == DRIVE_REMOVABLE) && currprefs.win32_automount_drives)
-			break;
+    for(drive = 'C'; drive <= 'Z'; ++drive) {
+        sprintf(volumepath, "%c:\\", drive);
+        /* Is this drive-letter valid (it used to check for media in drive) */
+        if(dwDriveMask & 1) {
+    	    char devname[100];
+	    BOOL inserted = CheckRM(volumepath); /* Is there a disk inserted? */
+	    int nok = FALSE;
+	    int rw = 1;
+	    drivetype = GetDriveType(volumepath);
+	    devname[0] = 0;
+	    for (;;) {
+		if (drivetype == DRIVE_CDROM && currprefs.win32_automount_cddrives) {
+		    sprintf (devname, "WinCD_%c", drive);
+		    rw = 0;
+		    break;
+		}
+		if (!inserted) {
 		    nok = TRUE;
 		    break;
 		}
-		if (nok)
-		    continue;
-		volumename[0] = 0;
-		if (inserted)
-		    target_get_volume_name(&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
-		if (drivetype == DRIVE_REMOTE)
-		    strcat(volumepath, ".");
-		else
-		    strcat(volumepath, "..");
-		add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20, 0, 0, 0);
-	    } /* if drivemask */
-	    dwDriveMask >>= 1;
-	}
+		if (drivetype == DRIVE_REMOTE && currprefs.win32_automount_netdrives)
+		    break;
+		if ((drivetype == DRIVE_FIXED || drivetype == DRIVE_REMOVABLE) && currprefs.win32_automount_drives)
+		    break;
+		nok = TRUE;
+		break;
+	    }
+	    if (nok)
+	        continue;
+	    volumename[0] = 0;
+	    if (inserted)
+	        target_get_volume_name(&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
+	    if (drivetype == DRIVE_REMOTE)
+	        strcat(volumepath, ".");
+	    else
+	        strcat(volumepath, "..");
+	    add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20, 0, 0, 0);
+	} /* if drivemask */
+	dwDriveMask >>= 1;
     }
     SetErrorMode(errormode);
 }

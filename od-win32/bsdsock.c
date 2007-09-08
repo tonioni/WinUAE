@@ -181,19 +181,18 @@ static int mySockStartup(void)
 	return result;
 }
 
-static int socket_layer_initialized = 0;
-
 int init_socket_layer(void)
 {
     int result = 0;
 
+    deinit_socket_layer ();
     if (currprefs.socket_emu) {
 		if((result = mySockStartup())) {
-			InitializeCriticalSection(&bsd->csSigQueueLock);
 
 			if(bsd->hSockThread == NULL) {
 				WNDCLASS wc;    // Set up an invisible window and dummy wndproc
 
+				InitializeCriticalSection(&bsd->csSigQueueLock);
 				InitializeCriticalSection(&bsd->SockThreadCS);
 				bsd->hSockReq = CreateEvent(NULL, FALSE, FALSE, NULL);
 				bsd->hSockReqHandled = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -220,33 +219,52 @@ int init_socket_layer(void)
 			}
 		}
 	}
-	socket_layer_initialized = result;
-
 	return result;
 }
 
 void deinit_socket_layer(void)
 {
 	int i;
-	if (currprefs.socket_emu) {
-		WSACleanup();
-		if(socket_layer_initialized) {
-			DeleteCriticalSection(&bsd->csSigQueueLock);
-			if(bsd->hSockThread) {
-				DeleteCriticalSection(&bsd->SockThreadCS);
-				CloseHandle(bsd->hSockReq);
-				bsd->hSockReq = NULL;
-				CloseHandle(bsd->hSockReqHandled);
-				WaitForSingleObject(bsd->hSockThread, INFINITE);
-				CloseHandle(bsd->hSockThread);
-			}
-			for (i = 0; i < MAX_SELECT_THREADS; i++) {
-				if (bsd->hThreads[i]) {
-					CloseHandle(bsd->hThreads[i]);
-					bsd->hThreads[i] = NULL;
-				}
-			}
+
+	if (!bsd)
+	    return;
+	WSACleanup();
+	if(bsd->hSockThread) {
+		HANDLE t = bsd->hSockThread;
+		DeleteCriticalSection(&bsd->csSigQueueLock);
+		DeleteCriticalSection(&bsd->SockThreadCS);
+		bsd->hSockThread = NULL;
+		SetEvent (bsd->hSockReq);
+		WaitForSingleObject(bsd->hSockThread, INFINITE);
+		CloseHandle(t);
+		CloseHandle(bsd->hSockReq);
+		CloseHandle(bsd->hSockReqHandled);
+		bsd->hSockReq = NULL;
+		bsd->hSockThread = NULL;
+		bsd->hSockReqHandled = NULL;
+		DestroyWindow (bsd->hSockWnd);
+		bsd->hSockWnd = NULL;
+	}
+	for (i = 0; i < MAX_SELECT_THREADS; i++) {
+		if (bsd->hThreads[i]) {
+			CloseHandle (bsd->hThreads[i]);
+			bsd->hThreads[i] = NULL;
 		}
+		if (bsd->hEvents[i]) {
+			CloseHandle (bsd->hEvents[i]);
+			bsd->hEvents[i] = NULL;
+		}
+	}
+	for (i = 0; i < MAX_GET_THREADS; i++) {
+		if (bsd->hGetThreads[i]) {
+			CloseHandle (bsd->hGetThreads[i]);
+			bsd->hGetThreads[i] = NULL;
+		}
+		if (bsd->hGetEvents[i]) {
+			CloseHandle (bsd->hGetEvents[i]);
+			bsd->hGetEvents[i] = NULL;
+		}
+		bsd->threadGetargs_inuse[i] = 0;
 	}
 }
 
@@ -872,21 +890,23 @@ static unsigned int sock_thread2(void *blah)
 	    }
 	    SetThreadPriority(GetCurrentThread(), pri);
 
-	    while(TRUE) {
-			if(bsd->hSockReq) {
-				DWORD wait;
-				WaitHandle = bsd->hSockReq;
-				wait = MsgWaitForMultipleObjects (1, &WaitHandle, FALSE, INFINITE, QS_POSTMESSAGE);
-				if (wait == WAIT_OBJECT_0) {
-					if(HandleStuff()) // See if its time to quit...
-						break;
-				}
-				if (wait == WAIT_OBJECT_0 + 1) {
-					Sleep(10);
-					while(PeekMessage(&msg, NULL, WM_USER, 0xB000 + MAXPENDINGASYNC * 2, PM_REMOVE) > 0) {
-						TranslateMessage(&msg);
-						DispatchMessage(&msg);
-					}
+		while(bsd->hSockThread && bsd->hSockWnd) {
+			DWORD wait;
+			WaitHandle = bsd->hSockReq;
+			wait = MsgWaitForMultipleObjects (1, &WaitHandle, FALSE, INFINITE, QS_POSTMESSAGE);
+			if (wait == WAIT_OBJECT_0) {
+				if (!bsd->hSockThread || !bsd->hSockWnd)
+					break;
+				if(HandleStuff()) // See if its time to quit...
+					break;
+			}
+			if (wait == WAIT_OBJECT_0 + 1) {
+				if (!bsd->hSockThread || !bsd->hSockWnd)
+					break;
+				Sleep(10);
+				while(PeekMessage(&msg, NULL, WM_USER, 0xB000 + MAXPENDINGASYNC * 2, PM_REMOVE) > 0) {
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
 				}
 			}
 	    }

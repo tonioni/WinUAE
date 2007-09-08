@@ -223,8 +223,14 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	} else {
 	    ui->hf.readonly = 1;
 	    ui->hf.blocksize = uci->blocksize;
-	    if (!hdf_open (&ui->hf, uci->rootdir))
+	    if (!hdf_open (&ui->hf, uci->rootdir)) {
+		if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
+		    if (ui->hf.flags & 1)
+			return FILESYS_HARDDRIVE;
+		    return FILESYS_HARDFILE_RDB;
+		}
 		return -1;
+	    }
 	    hdf_close (&ui->hf);
 	}
     } else {
@@ -930,7 +936,7 @@ int filesys_eject (int nr)
     u->mountcount++;
     write_log ("FILESYS: removed volume '%s'\n", u->ui.volname);
     flush_cache(u, -1);
-    put_byte (u->volume + 172 - 32, -1);
+    put_byte (u->volume + 172 - 32, -2);
     uae_Signal(get_long(u->volume + 176 - 32), 1 << 17);
     return 1;
 }
@@ -963,10 +969,13 @@ int filesys_media_change (char *rootdir, int inserted)
 
     if (automountunit >= 0)
 	return -1;
+    nr = -1;
     for (u = units; u; u = u->next) {
         if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
 	    ui = &mountinfo.ui[u->unit];
 	    if (ui->rootdir && !memcmp (ui->rootdir, rootdir, strlen (rootdir)) && strlen (rootdir) + 3 >= strlen (ui->rootdir)) {
+		if (filesys_isvolume (u) && inserted)
+		    return 0;
 		nr = u->unit;
 		break;
 	    }
@@ -1046,7 +1055,7 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
     if (is_hardfile(nr) != FILESYS_VIRTUAL)
 	return 0;
     if (filesys_isvolume (u)) {
-	u->reinsertdelay = 100;
+	u->reinsertdelay = 50;
 	u->newflags = flags;
 	u->newreadonly = readonly;
 	u->newrootdir = my_strdup (rootdir);
@@ -1071,13 +1080,13 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
     xfree (u->ui.volname);
     ui->volname = u->ui.volname = filesys_createvolname (volume, rootdir, "removable");
     set_volume_name (u);
-    write_log ("FILESYS: inserted volume %d '%s' ('%s')\n", nr, ui->volname, rootdir);
+    write_log ("FILESYS: inserted volume NR=%d RO=%d '%s' ('%s')\n", nr, readonly, ui->volname, rootdir);
     if (flags >= 0)
 	ui->volflags = u->volflags = u->ui.volflags = flags;
     strcpy (uci->volname, ui->volname);
     strcpy (uci->rootdir, rootdir);
     if (readonly >= 0)
-	uci->readonly = ui->readonly = readonly;
+	uci->readonly = ui->readonly = u->ui.readonly = readonly;
     put_byte (u->volume + 44, 0);
     put_byte (u->volume + 172 - 32, 1);
     uae_Signal (get_long(u->volume + 176 - 32), 1 << 17);
@@ -1939,12 +1948,12 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
     /* fill in our process in the device node */
     devnode = get_long (pkt + dp_Arg3) << 2;
-    put_long (unit->volume + 180, devnode);
     put_long (devnode + 8, unit->port);
     unit->dosbase = m68k_areg (&context->regs, 2);
 
     /* make new volume */
     unit->volume = m68k_areg (&context->regs, 3) + 32;
+    put_long (unit->volume + 180 - 32, devnode);
 #ifdef UAE_FILESYS_THREADS
     unit->locklist = m68k_areg (&context->regs, 3) + 8;
 #else
@@ -2694,7 +2703,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
     if (exalldata + exalldatasize - exp < size + size2)
 	return 0; /* not enough space */
 
-    write_log("%d, %08x: '%s'%s\n", get_long (control + 0), exp, x, aino->dir ? " [DIR]" : "");
+    //write_log("%d, %08x: '%s'%s\n", get_long (control + 0), exp, x, aino->dir ? " [DIR]" : "");
 
     put_long (exp, exp + size + size2); /* ed_Next */
     if (control >= 1) {

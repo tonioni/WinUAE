@@ -992,7 +992,7 @@ int hdf_getnumharddrives (void)
     return num_drives;
 }
 
-char *hdf_getnameharddrive (int index, int flags)
+char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
 {
     static char name[512];
     char tmp[32];
@@ -1012,6 +1012,8 @@ char *hdf_getnameharddrive (int index, int flags)
 	break;
     }
 
+    if (sectorsize)
+	*sectorsize = uae_drives[index].bytespersector;
     if (flags & 1) {
 	if (size >= 1024 * 1024 * 1024)
 	    sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);

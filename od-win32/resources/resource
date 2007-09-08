@@ -539,6 +539,7 @@
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
 #define IDC_SCREENRESTEXT               1511
+#define IDC_MAPDRIVES_AUTO              1511
 #define IDC_WIDTHTEXT                   1512
 #define IDC_WINDOWEDTEXT                1512
 #define IDC_HEIGHTTEXT                  1513
