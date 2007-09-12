@@ -1,4 +1,38 @@
 
+Beta 6: (DO NOT USE OLDER BETAS, they are too broken)
+
+- real harddrive support improvements:
+  - empty drives are now listed in "Add Harddrive" GUI
+  - uaehf.device media change command support (CMD_ADDCHANGEINT,
+    CMD_REMCHANGEINT and CMD_CHANGESTATE are not no-ops anymore)
+  - drive parameters (includes size) is re-detected every time new
+    media is inserted
+  - automount on the fly but only if configured using "Add Harddrive"
+    (drive was empty or missing when emulation was started)
+    No RDB parsing.
+  - do not automount as a directory filesystem on the fly if drive is
+    in "Add Harddrive" list (for example: FATxx formatted zip disk/HD
+    mounted using Amiga-side fat filesystem driver)
+- configured directory drives always support automount (even if
+  "automount removable drives" is not checked). Also keep original
+  configured volume name. (do not replace with real volume label)
+- harddrive safety check slightly relaxed, do not complain if drive
+  is inserted on the fly and only complain once.
+- 'E' in harddrive panel means drive is mounted but empty
+- KS 1.3 directory filesystem WB HD icons appear again (instead of
+  hiding somewhere and corrupting memory)
+- KS 1.3 directory filesystem automount support
+- added "Restart" (better names?) button that closes running emulation
+  and returns back to GUI without changing current configuration
+- do not hide mouse pointer when GUI is active in fullscreen mode
+- ACTION_EXAMINE_ALL 2xbug fix. If last directory entry was filtered
+  with eac_MatchString/eac_MatchFunc, previous eac_Next was not
+  cleared (broke monitor driver loading if last dir entry was *.info
+  or vgaonly). eac_MatchString/eac_MatchFunc filtering didn't work
+  correctly, calculated number of bytes to copy in register D0, used
+  D1 in main copy loop... DO NOT USE OLDER BETAS.
+- hq2x filter support. I hope someone is happy now.
+- [still nothing done with bsdsocket problem, FS problems first]
 
 Beta 5:
 
@@ -20,6 +54,8 @@ Beta 5:
 - better CD32 audio end detection accuracy, last 1s was cut previously
 - ["bsdsocket breaks after reset if it was initialized before reset"
   will be fixed soon]
+- [uaehf.device media changes may be implemented before next official
+  release but full support will be done later]
 
 Beta 4:
 

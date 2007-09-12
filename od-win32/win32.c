@@ -611,7 +611,7 @@ static void winuae_active (HWND hWnd, int minimized)
     inputdevice_acquire ();
     wait_keyrelease ();
     inputdevice_acquire ();
-    if (isfullscreen() > 0)
+    if (isfullscreen() > 0 && !gui_active)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
 
@@ -1005,8 +1005,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    if(SHGetPathFromIDList((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
 		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
 		write_log("Shell Notification %d '%s'\n", inserted, path);
-		if ((inserted && CheckRM (path)) || !inserted)
-		    filesys_media_change (path, inserted);
+		if (!win32_hardfile_media_change ()) {	
+		    if ((inserted && CheckRM (path)) || !inserted)
+			filesys_media_change (path, inserted);
+		}
 	    }
 	}
     }
@@ -1042,9 +1044,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     #endif
 				win32_aspi_media_change (drive, inserted);
 			    }
-			    if (currprefs.win32_automount_removable && (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted)) {
-				if ((inserted && CheckRM (drvname)) || !inserted)
-				    filesys_media_change (drvname, inserted);
+			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
+				if (!win32_hardfile_media_change ()) {
+				    if ((inserted && CheckRM (drvname)) || !inserted)
+					filesys_media_change (drvname, inserted);
+				}
 			    }
 			}
 		    }
@@ -3291,7 +3295,7 @@ void addnotifications (HWND hwnd, int remove)
 	if (ret > 0 && pSHChangeNotifyDeregister)
 	    pSHChangeNotifyDeregister (ret);
     } else {
-	if(currprefs.win32_automount_removable && pSHChangeNotifyRegister && SHGetSpecialFolderLocation(hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
+	if(pSHChangeNotifyRegister && SHGetSpecialFolderLocation(hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
 	    SHChangeNotifyEntry shCNE;
 	    shCNE.pidl = ppidl;
 	    shCNE.fRecursive = TRUE;

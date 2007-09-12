@@ -34,6 +34,9 @@ struct hardfiledata {
     int warned;
     uae_u8 *virtual_rdb;
     uae_u64 virtual_size;
+
+    int drive_empty;
+    char *emptyname;
 };
 
 #define HFD_FLAGS_REALDRIVE 1

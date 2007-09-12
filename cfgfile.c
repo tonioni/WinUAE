@@ -1392,6 +1392,13 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
     }
 
+    for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	char tmp[100];
+	sprintf (tmp, "uaehf%d", i);
+	if (strcmp (option, tmp) == 0)
+	    return 1;
+    }
+ 
     if (strcmp (option, "filesystem") == 0
 	|| strcmp (option, "hardfile") == 0)
     {

@@ -552,13 +552,15 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 {
     struct MultiDisplay *md = Displays;
     MONITORINFOEX lpmi;
+    char tmp[200];
 
     while (md->name) {
 	if (md - Displays >= MAX_DISPLAYS)
 	    return 0;
 	md++;
     }
-    md->name = my_strdup (desc);
+    sprintf (tmp, "%d: %s", md - Displays, desc);
+    md->name = my_strdup (tmp);
     if (guid == 0) {
 	POINT pt = { 0, 0 };
 	md->primary = 1;
@@ -612,6 +614,7 @@ void sortdisplays (void)
     struct MultiDisplay *md1, *md2, tmp;
     int i;
 
+#if 0
     md1 = Displays;
     while (md1->name) {
 	md2 = md1 + 1;
@@ -625,6 +628,7 @@ void sortdisplays (void)
 	}
 	md1++;
     }
+#endif
     md1 = Displays;
     while (md1->name) {
 	DisplayModes = md1->DisplayModes = xmalloc (sizeof (struct PicassoResolution) * MAX_PICASSO_MODES);
@@ -1352,7 +1356,7 @@ void init_colors (void)
 	}
     }
     if (currentmode->current_depth > 8) {
-	if (!(currentmode->flags & DM_OPENGL|DM_D3D)) {
+	if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
 	    if (currentmode->current_depth != currentmode->native_depth) {
 		if (currentmode->current_depth == 16) {
 		    red_bits = 5; green_bits = 6; blue_bits = 5;

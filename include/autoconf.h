@@ -44,6 +44,7 @@ struct mountedinfo
 {
     uae_u64 size;
     int ismounted;
+    int ismedia;
     int nrcyls;
 };
 

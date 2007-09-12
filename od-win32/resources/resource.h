@@ -533,6 +533,7 @@
 #define IDC_MAPDRIVES                   1507
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508
+#define IDC_RESTARTEMU                  1508
 #define IDC_SWAP                        1509
 #define IDC_CACHETEXT                   1509
 #define IDC_MAPDRIVES_CD                1509

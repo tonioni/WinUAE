@@ -32,10 +32,8 @@ extern void AdMame2x32(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
 	      u8 *dstPtr, u32 dstPitch, int width, int height);
 
 extern void hq_init(int rb, int gb, int bb, int rs, int gs, int bs);
-extern void hq2x_32(unsigned char*, unsigned char*, int, int, int, int, int);
-extern void hq3x_32(unsigned char*, unsigned char*, int, int, int, int, int);
-extern void hq3x_16(unsigned char*, unsigned char*, int, int, int, int, int);
-extern void hq4x_32(unsigned char*, unsigned char*, int, int, int, int, int);
+extern void hq2x_16(unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
+extern void hq2x_32(unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
 
 #define UAE_FILTER_NULL 1
 #define UAE_FILTER_DIRECT3D 2

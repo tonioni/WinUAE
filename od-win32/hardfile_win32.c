@@ -37,6 +37,8 @@ struct uae_driveinfo {
     uae_u64 size;
     uae_u64 offset;
     int bytespersector;
+    int removablemedia;
+    int nomedia;
     int dangerous;
 };
 
@@ -52,8 +54,18 @@ struct uae_driveinfo {
  */
 
 int harddrive_dangerous, do_rdbdump;
-static int num_drives;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
+
+static int isnomediaerr (DWORD err)
+{
+    if (err == ERROR_NOT_READY ||
+	err == ERROR_MEDIA_CHANGED ||
+	err == ERROR_NO_MEDIA_IN_DRIVE ||
+	err == ERROR_DEV_NOT_EXIST ||
+	err == ERROR_BAD_NET_NAME)
+	return 1;
+    return 0;
+}
 
 static void rdbdump (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 {
@@ -132,7 +144,7 @@ int isharddrive (const char *name)
 {
     int i;
 
-    for (i = 0; i < num_drives; i++) {
+    for (i = 0; i < hdf_getnumharddrives (); i++) {
 	if (!strcmp (uae_drives[i].device_name, name))
 	    return i;
     }
@@ -141,14 +153,16 @@ int isharddrive (const char *name)
 
 static char *hdz[] = { "hdz", "zip", "rar", "7z", NULL };
 
-int hdf_open (struct hardfiledata *hfd, const char *name)
+int hdf_open (struct hardfiledata *hfd, const char *pname)
 {
     HANDLE h = INVALID_HANDLE_VALUE;
     DWORD flags;
     int i;
     struct uae_driveinfo *udi;
+    char *name = my_strdup (pname);
 
     hfd->flags = 0;
+    hfd->drive_empty = 0;
     hdf_close (hfd);
     hfd->cache = VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
     hfd->cache_valid = 0;
@@ -156,7 +170,7 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
     hfd->virtual_rdb = NULL;
     if (!hfd->cache) {
 	write_log ("VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError());
-	return 0;
+	goto end;
     }
     hfd_log ("hfd open: '%s'\n", name);
     if (strlen (name) > 4 && !memcmp (name, "HD_", 3)) {
@@ -166,16 +180,16 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
 	    DWORD r;
 	    udi = &uae_drives[i];
 	    hfd->flags = HFD_FLAGS_REALDRIVE;
-	    flags =  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+	    if (udi->nomedia)
+		hfd->drive_empty = -1;
+	    flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 	    h = CreateFile (udi->device_path,
 		GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE),
 		FILE_SHARE_READ | (hfd->readonly ? 0 : FILE_SHARE_WRITE),
 		NULL, OPEN_EXISTING, flags, NULL);
 	    hfd->handle = h;
-	    if (h == INVALID_HANDLE_VALUE) {
-		hdf_close (hfd);
-		return 0;
-	    }
+	    if (h == INVALID_HANDLE_VALUE)
+		goto end;
 	    if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
 		write_log ("FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError());
 	    strncpy (hfd->vendor_id, udi->vendor_id, 8);
@@ -188,25 +202,31 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
 		abort ();
 	    }
 	    hfd->blocksize = udi->bytespersector;
-	    if (hfd->offset == 0) {
+	    if (hfd->offset == 0 && !hfd->drive_empty) {
 		int sf = safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize);
-		if (sf > 0) {
-		    hdf_close (hfd);
-		    return 0;
-		}
-		if (sf == 0) {
+		if (sf > 0)
+		    goto end;
+		if (sf == 0 && hfd->warned >= 0) {
 		    if (harddrive_dangerous != 0x1234dead) {
-			gui_message_id (IDS_HARDDRIVESAFETYWARNING1);
-			hdf_close(hfd);
-			return 0;
+			if (!hfd->warned)
+			    gui_message_id (IDS_HARDDRIVESAFETYWARNING1);
+			hfd->warned = 1;
+			goto end;
 		    }
 		    if (!hfd->warned) {
 			gui_message_id (IDS_HARDDRIVESAFETYWARNING2);
 			hfd->warned = 1;
 		    }
 		}
+	    } else {
+		hfd->warned = -1;
 	    }
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
+	    hfd->emptyname = my_strdup (name);
+	} else {
+	    hfd->flags = HFD_FLAGS_REALDRIVE;
+	    hfd->drive_empty = -1;
+	    hfd->emptyname = my_strdup (name);
 	}
     } else {
 	int zmode = 0;
@@ -235,15 +255,11 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
 	    DWORD ret, low, high;
 	    high = 0;
 	    ret = SetFilePointer (h, 0, &high, FILE_END);
-	    if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
-		hdf_close (hfd);
-		return 0;
-	    }
+	    if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+		goto end;
 	    low = GetFileSize (h, &high);
-	    if (low == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
-		hdf_close (hfd);
-		return 0;
-	    }
+	    if (low == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+		goto end;
 	    low &= ~(hfd->blocksize - 1);
 	    hfd->size = hfd->size2 = ((uae_u64)high << 32) | low;
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
@@ -251,10 +267,8 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
 		write_log ("HDF '%s' re-opened in zfile-mode\n", name);
 		CloseHandle (h);
 		hfd->handle = h = zfile_fopen(name, hfd->readonly ? "rb" : "r+b");
-		if (!h) {
-		    hdf_close (hfd);
-		    return 0;
-		}
+		if (!h)
+		    goto end;
 		zfile_fseek (h, 0, SEEK_END);
 		hfd->size = hfd->size2 = zfile_ftell (h);
 		zfile_fseek (h, 0, SEEK_SET);
@@ -265,11 +279,14 @@ int hdf_open (struct hardfiledata *hfd, const char *name)
 	}
     }
     hfd->handle = h;
-    if (hfd->handle != INVALID_HANDLE_VALUE) {
-	hfd_log ("HDF '%s' opened succesfully, handle=%p, mode=%d\n", name, hfd->handle, hfd->handle_valid);
+    if (hfd->handle_valid || hfd->drive_empty) {
+	hfd_log ("HDF '%s' opened succesfully, mode=%d empty=%d\n",
+	    name, hfd->handle_valid, hfd->drive_empty);
 	return 1;
     }
+end:
     hdf_close (hfd);
+    xfree (name);
     return 0;
 }
 
@@ -277,13 +294,14 @@ void hdf_close (struct hardfiledata *hfd)
 {
     if (!hfd->handle_valid)
 	return;
-    hfd_log ("close handle=%p\n", hfd->handle);
     if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
 	if (hfd->handle_valid == HDF_HANDLE_WIN32)
 	    CloseHandle (hfd->handle);
 	else if(hfd->handle_valid == HDF_HANDLE_ZFILE)
 	    zfile_fclose (hfd->handle);
     }
+    xfree (hfd->emptyname);
+    hfd->emptyname = NULL;
     hfd->handle = 0;
     hfd->handle_valid = 0;
     if (hfd->cache)
@@ -293,6 +311,7 @@ void hdf_close (struct hardfiledata *hfd)
     hfd->virtual_size = 0;
     hfd->cache = 0;
     hfd->cache_valid = 0;
+    hfd->drive_empty = 0;
 }
 
 int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
@@ -548,6 +567,8 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
     int got = 0;
     uae_u8 *p = buffer;
 
+    if (hfd->drive_empty)
+	return 0;
     if (offset < hfd->virtual_size) {
 	uae_u64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
 	if (!hfd->virtual_rdb)
@@ -589,6 +610,9 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     int got = 0;
     uae_u8 *p = buffer;
+
+    if (hfd->drive_empty)
+	return 0;
     if (offset < hfd->virtual_size)
 	return len;
     offset -= hfd->virtual_size;
@@ -769,13 +793,13 @@ Return Value:
 			hDevice,
 			IOCTL_STORAGE_QUERY_PROPERTY,
 			&query,
-			sizeof( STORAGE_PROPERTY_QUERY ),
+			sizeof(STORAGE_PROPERTY_QUERY),
 			&outBuf,
 			sizeof (outBuf),
 			&returnedLength,
 			NULL
 			);
-    if ( !status ) {
+    if (!status) {
 	write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code%d.\n", GetLastError());
 	ret = 1;
 	goto end;
@@ -788,7 +812,7 @@ Return Value:
 			hDevice,
 			IOCTL_STORAGE_QUERY_PROPERTY,
 			&query,
-			sizeof( STORAGE_PROPERTY_QUERY ),
+			sizeof(STORAGE_PROPERTY_QUERY),
 			&outBuf,
 			sizeof (outBuf),
 			&returnedLength,
@@ -846,10 +870,17 @@ Return Value:
 	    write_log ("empty device id?!?, replacing with device path\n");
 	    strcpy (udi->device_name, udi->device_path);
 	}
+	udi->removablemedia = devDesc->RemovableMedia;
 
 	write_log ("device id string: '%s'\n", udi->device_name);
+    strcpy (orgname, udi->device_name);
     if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
-	write_log ("IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n", GetLastError());
+	DWORD err = GetLastError();
+	if (isnomediaerr (err)) {
+	    udi->nomedia = 1;
+	    goto amipartfound;
+	}
+	write_log ("IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n", err);
 	ret = 1;
 	goto end;
     }
@@ -887,7 +918,6 @@ Return Value:
 	ret = 1;
 	goto end;
     }
-    strcpy (orgname, udi->device_name);
     trim (orgname);
     dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
     if (dli->PartitionCount) {
@@ -950,7 +980,10 @@ end:
 }
 #endif
 
-int hdf_init (void)
+
+static int num_drives;
+
+static int hdf_init2 (int force)
 {
 #ifdef WINDDK
     HDEVINFO hIntDevInfo;
@@ -959,7 +992,7 @@ int hdf_init (void)
     uae_u8 *buffer;
     static int done;
 
-    if (done)
+    if (done && !force)
 	return num_drives;
     done = 1;
     num_drives = 0;
@@ -987,6 +1020,11 @@ int hdf_init (void)
     return num_drives;
 }
 
+int hdf_init (void)
+{
+    return hdf_init2 (0);
+}
+
 int hdf_getnumharddrives (void)
 {
     return num_drives;
@@ -997,6 +1035,7 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
     static char name[512];
     char tmp[32];
     uae_u64 size = uae_drives[index].size;
+    int nomedia = uae_drives[index].nomedia;
     char *dang = "?";
 
     switch (uae_drives[index].dangerous)
@@ -1011,14 +1050,20 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
 	dang = "NON-EMPTY";
 	break;
     }
+    if (nomedia)	
+	dang = "NO MEDIA";
 
     if (sectorsize)
 	*sectorsize = uae_drives[index].bytespersector;
     if (flags & 1) {
-	if (size >= 1024 * 1024 * 1024)
-	    sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
-	else
-	    sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
+	if (nomedia) {
+	    strcpy (tmp, "N/A");
+	} else {
+	    if (size >= 1024 * 1024 * 1024)
+		sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
+	    else
+		sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
+	}
 	sprintf (name, "%10s [%s] %s", dang, tmp, uae_drives[index].device_name);
 	return name;
     }
@@ -1027,6 +1072,77 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
     return uae_drives[index].device_name;
 }
 
+static int hmc (struct hardfiledata *hfd, int nr)
+{
+    uae_u8 *buf = xmalloc (hfd->blocksize);
+    DWORD ret, got, err, status;
+    int first = 1;
+
+    while (hfd->handle_valid) {
+	status = 0;
+	SetFilePointer (hfd->handle, 0, NULL, FILE_BEGIN);
+	ret = ReadFile (hfd->handle, buf, hfd->blocksize, &got, NULL);
+	err = GetLastError ();
+	if (!ret && err == ERROR_DEV_NOT_EXIST) {
+	    if (!first)
+		break;
+	    first = 0;
+	    hdf_open (hfd, hfd->emptyname);
+	    continue;
+	}
+	break;
+    }
+    if (ret && hfd->drive_empty)
+	status = 1;
+    if (!ret && !hfd->drive_empty && isnomediaerr (err))
+	status = -1;
+    xfree (buf);
+    return status;
+}
+
+int hardfile_remount (int nr);
+
+int win32_hardfile_media_change (void)
+{
+    int gotinsert = 0, rescanned = 0;
+    int i;
+
+    for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	struct hardfiledata *hfd = get_hardfile_data (i);
+	int ret, reopen = 0;
+	if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE))
+	    continue;
+	if (!hfd->emptyname)
+	    continue;
+	if (!rescanned) {
+	    hdf_init2 (1);
+	    rescanned = 1;
+	}
+	if (hfd->drive_empty < 0 || !hfd->handle_valid) {
+	    int empty = hfd->drive_empty;
+	    if (!hdf_open (hfd, hfd->emptyname))
+		continue;
+	    reopen = 1;
+	    if (hfd->drive_empty < 0)
+		continue;
+	    hfd->drive_empty = empty ? 1 : 0;
+	}
+	ret = hmc (hfd, i);
+	if (!ret)
+	    continue;
+	if (ret > 0) {
+	    if (!reopen) {
+		hdf_open (hfd, hfd->emptyname);
+		if (!hfd->handle_valid)
+		    continue;
+	    }
+	    gotinsert = 1;
+	    hardfile_remount (i);
+	}
+	hardfile_do_disk_change (i, ret < 0 ? 0 : 1);
+    }
+    return gotinsert;
+}
 
 static int progressdialogreturn;
 static int progressdialogactive;
@@ -1199,4 +1315,3 @@ ok:
 	CloseHandle(hdst);
     return retcode;
 }
-

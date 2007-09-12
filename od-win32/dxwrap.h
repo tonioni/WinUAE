@@ -188,6 +188,11 @@ struct DirectDrawSurfaceMapper
     } temporary;
     struct
     {
+	LPDIRECTDRAWSURFACE7 surface;
+	DDSURFACEDESC2 desc;
+    } temporary2;
+    struct
+    {
 	DDSURFACEDESC2 desc;
     } current;
     struct

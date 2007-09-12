@@ -15,7 +15,10 @@
 
 /* Scaler (except Scale2x) code borrowed from ScummVM project */
 
-#include "filter.h"
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#include "gfxfilter.h"
 
 static uint32 colorMask;
 static uint32 lowPixelMask;
@@ -1497,6 +1500,8 @@ void AdMame2x32(u8 *srcPtr, u32 srcPitch, /* u8 deltaPtr, */
 
 unsigned int LUT16to32[65536];
 unsigned int RGBtoYUV[65536];
+
+#define swap16(x) (((x >> 24) & 0x000000ff) | ((x >> 8) & 0x0000ff00) | ((x << 8) & 0x00ff0000) | ((x << 16) & 0xff000000))
 
 void hq_init (int rb, int gb, int bb, int rs, int gs, int bs)
 {

@@ -1075,6 +1075,8 @@ int need_uae_boot_rom(void)
 	return 1;
     if (currprefs.gfxmem_size)
 	return 1;
+    if (currprefs.win32_automount_removable)
+	return 1;
     if (currprefs.chipmem_size > 2 * 1024 * 1024)
 	return 1;
     return 0;

@@ -30,7 +30,7 @@
 
 #define AKIKO_DEBUG_NVRAM 0
 #define AKIKO_DEBUG_IO 0
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO_CMD 0
 
 static void irq(void)
 {

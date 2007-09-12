@@ -2482,6 +2482,14 @@
 			>
 		</File>
 		<File
+			RelativePath="..\hq2x16.obj"
+			>
+		</File>
+		<File
+			RelativePath="..\hq2x32.obj"
+			>
+		</File>
+		<File
 			RelativePath="..\resources\resource"
 			>
 		</File>

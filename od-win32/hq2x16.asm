@@ -1,5 +1,5 @@
 ;hq2x filter
-;32bpp output
+;16bpp output
 ;----------------------------------------------------------
 ;Copyright (C) 2003 MaxSt ( maxst@hiend3d.com )
 ;
@@ -18,7 +18,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-GLOBAL _hq2x_32
+GLOBAL _hq2x_16
 
 EXTERN _LUT16to32
 EXTERN _RGBtoYUV
@@ -38,15 +38,6 @@ w6        resd 1
 w7        resd 1
 w8        resd 1
 w9        resd 1
-c1        resd 1
-c2        resd 1
-c3        resd 1
-c4        resd 1
-c5        resd 1
-c6        resd 1
-c7        resd 1
-c8        resd 1
-c9        resd 1
 
 SECTION .data
 
@@ -56,6 +47,7 @@ const5       dd  0x00050005,0x00000005
 const6       dd  0x00060006,0x00000006
 const14      dd  0x000E000E,0x0000000E
 threshold    dd  0x00300706,0x00000000
+zerolowbits  dd  0xF7DEF7DE
 
 SECTION .text
 
@@ -135,33 +127,63 @@ SECTION .text
 
 %macro Interp1 3
     mov edx,%2
-    shl edx,2
-    add edx,%3
-    sub edx,%2
-    shr edx,2
-    mov %1,edx
+    mov ecx,%3
+    cmp edx,ecx
+    je  %%fin
+    and edx,[zerolowbits]
+    and ecx,[zerolowbits]
+    add ecx,edx
+    shr ecx,1
+    add ecx,0x0821
+    and ecx,[zerolowbits]
+    add edx,ecx
+    shr edx,1
+%%fin
+    mov %1,dx
 %endmacro
 
 %macro Interp2 4
+    mov edx,%3
+    mov ecx,%4
+    cmp edx,ecx
+    je  %%fin1
+    and edx,[zerolowbits]
+    and ecx,[zerolowbits]
+    add ecx,edx
+    shr ecx,1
+    add ecx,0x0821
+%%fin1
     mov edx,%2
-    shl edx,1
-    add edx,%3
-    add edx,%4
-    shr edx,2
-    mov %1,edx
+    cmp edx,ecx
+    je  %%fin2
+    and ecx,[zerolowbits]
+    and edx,[zerolowbits]
+    add edx,ecx
+    shr edx,1
+%%fin2
+    mov %1,dx
 %endmacro
 
 %macro Interp5 3
     mov edx,%2
-    add edx,%3
+    mov ecx,%3
+    cmp edx,ecx
+    je  %%fin
+    and edx,[zerolowbits]
+    and ecx,[zerolowbits]
+    add edx,ecx
     shr edx,1
-    mov %1,edx
+%%fin
+    mov %1,dx
 %endmacro
 
 %macro Interp6 3
-    movd       mm1, eax
-    movd       mm2, %2
-    movd       mm3, %3
+    mov        ecx, _LUT16to32
+    movd       mm1, [ecx+eax*4]
+    mov        edx, %2
+    movd       mm2, [ecx+edx*4]
+    mov        edx, %3
+    movd       mm3, [ecx+edx*4]
     punpcklbw  mm1, [reg_blank]
     punpcklbw  mm2, [reg_blank]
     punpcklbw  mm3, [reg_blank]
@@ -169,30 +191,46 @@ SECTION .text
     psllw      mm2, 1
     paddw      mm1, mm3
     paddw      mm1, mm2
-    psrlw      mm1, 3
+    psrlw      mm1, 5
     packuswb   mm1, [reg_blank]
-    movd       %1, mm1
+    movd       edx, mm1
+    shl        dl,  2
+    shr        edx, 1
+    shl        dx,  3
+    shr        edx, 5
+    mov        %1,  dx
 %endmacro
 
 %macro Interp7 3
-    movd       mm1, eax
-    movd       mm2, %2
-    movd       mm3, %3
+    mov        ecx, _LUT16to32
+    movd       mm1, [ecx+eax*4]
+    mov        edx, %2
+    movd       mm2, [ecx+edx*4]
+    mov        edx, %3
+    movd       mm3, [ecx+edx*4]
     punpcklbw  mm1, [reg_blank]
     punpcklbw  mm2, [reg_blank]
     punpcklbw  mm3, [reg_blank]
     pmullw     mm1, [const6]
     paddw      mm2, mm3
     paddw      mm1, mm2
-    psrlw      mm1, 3
+    psrlw      mm1, 5
     packuswb   mm1, [reg_blank]
-    movd       %1, mm1
+    movd       edx, mm1
+    shl        dl,  2
+    shr        edx, 1
+    shl        dx,  3
+    shr        edx, 5
+    mov        %1,  dx
 %endmacro
 
 %macro Interp9 3
-    movd       mm1, eax
-    movd       mm2, %2
-    movd       mm3, %3
+    mov        ecx, _LUT16to32
+    movd       mm1, [ecx+eax*4]
+    mov        edx, %2
+    movd       mm2, [ecx+edx*4]
+    mov        edx, %3
+    movd       mm3, [ecx+edx*4]
     punpcklbw  mm1, [reg_blank]
     punpcklbw  mm2, [reg_blank]
     punpcklbw  mm3, [reg_blank]
@@ -200,216 +238,229 @@ SECTION .text
     paddw      mm2, mm3
     pmullw     mm2, [const3]
     paddw      mm1, mm2
-    psrlw      mm1, 3
+    psrlw      mm1, 5
     packuswb   mm1, [reg_blank]
-    movd       %1, mm1
+    movd       edx, mm1
+    shl        dl,  2
+    shr        edx, 1
+    shl        dx,  3
+    shr        edx, 5
+    mov        %1,  dx
 %endmacro
 
 %macro Interp10 3
-    movd       mm1, eax
-    movd       mm2, %2
-    movd       mm3, %3
+    mov        ecx, _LUT16to32
+    movd       mm1, [ecx+eax*4]
+    mov        edx, %2
+    movd       mm2, [ecx+edx*4]
+    mov        edx, %3
+    movd       mm3, [ecx+edx*4]
     punpcklbw  mm1, [reg_blank]
     punpcklbw  mm2, [reg_blank]
     punpcklbw  mm3, [reg_blank]
     pmullw     mm1, [const14]
     paddw      mm2, mm3
     paddw      mm1, mm2
-    psrlw      mm1, 4
+    psrlw      mm1, 6
     packuswb   mm1, [reg_blank]
-    movd       %1, mm1
+    movd       edx, mm1
+    shl        dl,  2
+    shr        edx, 1
+    shl        dx,  3
+    shr        edx, 5
+    mov        %1,  dx
 %endmacro
 
 %macro PIXEL00_0 0
-    mov [edi],eax
+    mov [edi],ax
 %endmacro
 
 %macro PIXEL00_10 0
-    Interp1 [edi],eax,[c1]
+    Interp1 [edi],eax,[w1]
 %endmacro
 
 %macro PIXEL00_11 0
-    Interp1 [edi],eax,[c4]
+    Interp1 [edi],eax,[w4]
 %endmacro
 
 %macro PIXEL00_12 0
-    Interp1 [edi],eax,[c2]
+    Interp1 [edi],eax,[w2]
 %endmacro
 
 %macro PIXEL00_20 0
-    Interp2 [edi],eax,[c4],[c2]
+    Interp2 [edi],eax,[w4],[w2]
 %endmacro
 
 %macro PIXEL00_21 0
-    Interp2 [edi],eax,[c1],[c2]
+    Interp2 [edi],eax,[w1],[w2]
 %endmacro
 
 %macro PIXEL00_22 0
-    Interp2 [edi],eax,[c1],[c4]
+    Interp2 [edi],eax,[w1],[w4]
 %endmacro
 
 %macro PIXEL00_60 0
-    Interp6 [edi],[c2],[c4]
+    Interp6 [edi],[w2],[w4]
 %endmacro
 
 %macro PIXEL00_61 0
-    Interp6 [edi],[c4],[c2]
+    Interp6 [edi],[w4],[w2]
 %endmacro
 
 %macro PIXEL00_70 0
-    Interp7 [edi],[c4],[c2]
+    Interp7 [edi],[w4],[w2]
 %endmacro
 
 %macro PIXEL00_90 0
-    Interp9 [edi],[c4],[c2]
+    Interp9 [edi],[w4],[w2]
 %endmacro
 
 %macro PIXEL00_100 0
-    Interp10 [edi],[c4],[c2]
+    Interp10 [edi],[w4],[w2]
 %endmacro
 
 %macro PIXEL01_0 0
-    mov [edi+4],eax
+    mov [edi+2],ax
 %endmacro
 
 %macro PIXEL01_10 0
-    Interp1 [edi+4],eax,[c3]
+    Interp1 [edi+2],eax,[w3]
 %endmacro
 
 %macro PIXEL01_11 0
-    Interp1 [edi+4],eax,[c2]
+    Interp1 [edi+2],eax,[w2]
 %endmacro
 
 %macro PIXEL01_12 0
-    Interp1 [edi+4],eax,[c6]
+    Interp1 [edi+2],eax,[w6]
 %endmacro
 
 %macro PIXEL01_20 0
-    Interp2 [edi+4],eax,[c2],[c6]
+    Interp2 [edi+2],eax,[w2],[w6]
 %endmacro
 
 %macro PIXEL01_21 0
-    Interp2 [edi+4],eax,[c3],[c6]
+    Interp2 [edi+2],eax,[w3],[w6]
 %endmacro
 
 %macro PIXEL01_22 0
-    Interp2 [edi+4],eax,[c3],[c2]
+    Interp2 [edi+2],eax,[w3],[w2]
 %endmacro
 
 %macro PIXEL01_60 0
-    Interp6 [edi+4],[c6],[c2]
+    Interp6 [edi+2],[w6],[w2]
 %endmacro
 
 %macro PIXEL01_61 0
-    Interp6 [edi+4],[c2],[c6]
+    Interp6 [edi+2],[w2],[w6]
 %endmacro
 
 %macro PIXEL01_70 0
-    Interp7 [edi+4],[c2],[c6]
+    Interp7 [edi+2],[w2],[w6]
 %endmacro
 
 %macro PIXEL01_90 0
-    Interp9 [edi+4],[c2],[c6]
+    Interp9 [edi+2],[w2],[w6]
 %endmacro
 
 %macro PIXEL01_100 0
-    Interp10 [edi+4],[c2],[c6]
+    Interp10 [edi+2],[w2],[w6]
 %endmacro
 
 %macro PIXEL10_0 0
-    mov [edi+ebx],eax
+    mov [edi+ebx],ax
 %endmacro
 
 %macro PIXEL10_10 0
-    Interp1 [edi+ebx],eax,[c7]
+    Interp1 [edi+ebx],eax,[w7]
 %endmacro
 
 %macro PIXEL10_11 0
-    Interp1 [edi+ebx],eax,[c8]
+    Interp1 [edi+ebx],eax,[w8]
 %endmacro
 
 %macro PIXEL10_12 0
-    Interp1 [edi+ebx],eax,[c4]
+    Interp1 [edi+ebx],eax,[w4]
 %endmacro
 
 %macro PIXEL10_20 0
-    Interp2 [edi+ebx],eax,[c8],[c4]
+    Interp2 [edi+ebx],eax,[w8],[w4]
 %endmacro
 
 %macro PIXEL10_21 0
-    Interp2 [edi+ebx],eax,[c7],[c4]
+    Interp2 [edi+ebx],eax,[w7],[w4]
 %endmacro
 
 %macro PIXEL10_22 0
-    Interp2 [edi+ebx],eax,[c7],[c8]
+    Interp2 [edi+ebx],eax,[w7],[w8]
 %endmacro
 
 %macro PIXEL10_60 0
-    Interp6 [edi+ebx],[c4],[c8]
+    Interp6 [edi+ebx],[w4],[w8]
 %endmacro
 
 %macro PIXEL10_61 0
-    Interp6 [edi+ebx],[c8],[c4]
+    Interp6 [edi+ebx],[w8],[w4]
 %endmacro
 
 %macro PIXEL10_70 0
-    Interp7 [edi+ebx],[c8],[c4]
+    Interp7 [edi+ebx],[w8],[w4]
 %endmacro
 
 %macro PIXEL10_90 0
-    Interp9 [edi+ebx],[c8],[c4]
+    Interp9 [edi+ebx],[w8],[w4]
 %endmacro
 
 %macro PIXEL10_100 0
-    Interp10 [edi+ebx],[c8],[c4]
+    Interp10 [edi+ebx],[w8],[w4]
 %endmacro
 
 %macro PIXEL11_0 0
-    mov [edi+ebx+4],eax
+    mov [edi+ebx+2],ax
 %endmacro
 
 %macro PIXEL11_10 0
-    Interp1 [edi+ebx+4],eax,[c9]
+    Interp1 [edi+ebx+2],eax,[w9]
 %endmacro
 
 %macro PIXEL11_11 0
-    Interp1 [edi+ebx+4],eax,[c6]
+    Interp1 [edi+ebx+2],eax,[w6]
 %endmacro
 
 %macro PIXEL11_12 0
-    Interp1 [edi+ebx+4],eax,[c8]
+    Interp1 [edi+ebx+2],eax,[w8]
 %endmacro
 
 %macro PIXEL11_20 0
-    Interp2 [edi+ebx+4],eax,[c6],[c8]
+    Interp2 [edi+ebx+2],eax,[w6],[w8]
 %endmacro
 
 %macro PIXEL11_21 0
-    Interp2 [edi+ebx+4],eax,[c9],[c8]
+    Interp2 [edi+ebx+2],eax,[w9],[w8]
 %endmacro
 
 %macro PIXEL11_22 0
-    Interp2 [edi+ebx+4],eax,[c9],[c6]
+    Interp2 [edi+ebx+2],eax,[w9],[w6]
 %endmacro
 
 %macro PIXEL11_60 0
-    Interp6 [edi+ebx+4],[c8],[c6]
+    Interp6 [edi+ebx+2],[w8],[w6]
 %endmacro
 
 %macro PIXEL11_61 0
-    Interp6 [edi+ebx+4],[c6],[c8]
+    Interp6 [edi+ebx+2],[w6],[w8]
 %endmacro
 
 %macro PIXEL11_70 0
-    Interp7 [edi+ebx+4],[c6],[c8]
+    Interp7 [edi+ebx+2],[w6],[w8]
 %endmacro
 
 %macro PIXEL11_90 0
-    Interp9 [edi+ebx+4],[c6],[c8]
+    Interp9 [edi+ebx+2],[w6],[w8]
 %endmacro
 
 %macro PIXEL11_100 0
-    Interp10 [edi+ebx+4],[c6],[c8]
+    Interp10 [edi+ebx+2],[w6],[w8]
 %endmacro
 
 inbuffer     equ 8
@@ -418,7 +469,7 @@ Xres         equ 16
 Yres         equ 20
 pitch        equ 24
 
-_hq2x_32:
+_hq2x_16:
     push ebp
     mov ebp,esp
     pushad
@@ -563,8 +614,7 @@ _hq2x_32:
     test    ecx,ecx
     jnz     .testflag1
     mov     ecx,[cross]
-    mov     ebx,_LUT16to32
-    mov     eax,[ebx+eax*4]
+    mov     ebx,[ebp+pitch]
     jmp     [FuncTable2+ecx*4]
 .testflag1
     mov     edx,[w1]
@@ -623,35 +673,6 @@ _hq2x_32:
     jz      .noflag9
     or      ecx,128
 .noflag9
-    mov  ebx,_LUT16to32
-    mov  eax,[ebx+eax*4]
-    mov  edx,[w2]
-    mov  edx,[ebx+edx*4]
-    mov  [c2],edx
-    mov  edx,[w4]
-    mov  edx,[ebx+edx*4]
-    mov  [c4],edx
-    mov  edx,[w6]
-    mov  edx,[ebx+edx*4]
-    mov  [c6],edx
-    mov  edx,[w8]
-    mov  edx,[ebx+edx*4]
-    mov  [c8],edx
-    test ecx,0x005A
-    jz  .switch
-    mov  edx,[w1]
-    mov  edx,[ebx+edx*4]
-    mov  [c1],edx
-    mov  edx,[w3]
-    mov  edx,[ebx+edx*4]
-    mov  [c3],edx
-    mov  edx,[w7]
-    mov  edx,[ebx+edx*4]
-    mov  [c7],edx
-    mov  edx,[w9]
-    mov  edx,[ebx+edx*4]
-    mov  [c9],edx
-.switch
     mov  ebx,[ebp+pitch]
     jmp  [FuncTable+ecx*4]
 
@@ -671,31 +692,10 @@ _hq2x_32:
 ..@flag161
 ..@flag37
 ..@flag165
-;    PIXEL00_20
-;    PIXEL01_20
-;    PIXEL10_20
-;    PIXEL11_20
-
-;   the same, only optimized
-    shl eax,1
-    mov ecx,eax
-    add ecx,[c2]
-    mov edx,ecx
-    add edx,[c4]
-    shr edx,2
-    mov [edi],edx
-    add ecx,[c6]
-    shr ecx,2
-    mov [edi+4],ecx
-    mov ecx,eax
-    add ecx,[c8]
-    mov edx,ecx
-    add edx,[c4]
-    shr edx,2
-    mov [edi+ebx],edx
-    add ecx,[c6]
-    shr ecx,2
-    mov [edi+ebx+4],ecx
+    PIXEL00_20
+    PIXEL01_20
+    PIXEL10_20
+    PIXEL11_20
     jmp .loopx_end
 ..@flag2
 ..@flag34
@@ -1716,83 +1716,84 @@ _hq2x_32:
 
 
 ..@cross0
-    mov     ebx,[ebp+pitch]
+    mov     edx,eax
+    shl     eax,16
+    or      eax,edx
     mov     [edi],eax
-    mov     [edi+4],eax
     mov     [edi+ebx],eax
-    mov     [edi+ebx+4],eax
     jmp     .loopx_end
 ..@cross1
-    mov     ecx,[w2] 
     mov     edx,eax
-    shl     edx,2
-    add     edx,[ebx+ecx*4]
-    sub     edx,eax
-    shr     edx,2
-    mov     ebx,[ebp+pitch]
+    shl     eax,16
+    or      eax,edx
+    mov     ecx,[w2]
+    and     edx,[zerolowbits]
+    and     ecx,[zerolowbits]
+    add     ecx,edx
+    shr     ecx,1
+    add     ecx,0x0821
+    and     ecx,[zerolowbits]
+    add     edx,ecx
+    shr     edx,1
+    mov     ecx,edx
+    shl     edx,16
+    or      edx,ecx
     mov     [edi],edx
-    mov     [edi+4],edx
     mov     [edi+ebx],eax
-    mov     [edi+ebx+4],eax
     jmp     .loopx_end
 ..@cross2
+    shl     eax,16
     mov     ecx,[w4]
-    mov     edx,eax
-    shl     edx,2
-    add     edx,[ebx+ecx*4]
-    sub     edx,eax
-    shr     edx,2
-    mov     ebx,[ebp+pitch]
-    mov     [edi],edx
-    mov     [edi+4],eax
-    mov     [edi+ebx],edx
-    mov     [edi+ebx+4],eax
+    and     edx,[zerolowbits]
+    and     ecx,[zerolowbits]
+    add     ecx,edx
+    shr     ecx,1
+    add     ecx,0x0821
+    and     ecx,[zerolowbits]
+    add     edx,ecx
+    shr     edx,1
+    or      eax,edx
+    mov     [edi],eax
+    mov     [edi+ebx],eax
     jmp     .loopx_end
 ..@cross4
     mov     ecx,[w6]
-    mov     edx,eax
-    shl     edx,2
-    add     edx,[ebx+ecx*4]
-    sub     edx,eax
-    shr     edx,2
-    mov     ebx,[ebp+pitch]
+    and     edx,[zerolowbits]
+    and     ecx,[zerolowbits]
+    add     ecx,edx
+    shr     ecx,1
+    add     ecx,0x0821
+    and     ecx,[zerolowbits]
+    add     edx,ecx
+    shr     edx,1
+    shl     edx,16
+    or      eax,edx
     mov     [edi],eax
-    mov     [edi+4],edx
     mov     [edi+ebx],eax
-    mov     [edi+ebx+4],edx
     jmp     .loopx_end
 ..@cross8
-    mov     ecx,[w8]
     mov     edx,eax
-    shl     edx,2
-    add     edx,[ebx+ecx*4]
-    sub     edx,eax
-    shr     edx,2
-    mov     ebx,[ebp+pitch]
+    shl     eax,16
+    or      eax,edx
+    mov     ecx,[w8]
+    and     edx,[zerolowbits]
+    and     ecx,[zerolowbits]
+    add     ecx,edx
+    shr     ecx,1
+    add     ecx,0x0821
+    and     ecx,[zerolowbits]
+    add     edx,ecx
+    shr     edx,1
+    mov     ecx,edx
+    shl     edx,16
+    or      edx,ecx
     mov     [edi],eax
-    mov     [edi+4],eax
     mov     [edi+ebx],edx
-    mov     [edi+ebx+4],edx
     jmp     .loopx_end
-..@crossN
-    mov     edx,[w2]
-    mov     ecx,[ebx+edx*4]
-    mov     [c2],ecx
-    mov     edx,[w4]
-    mov     ecx,[ebx+edx*4]
-    mov     [c4],ecx
-    mov     edx,[w6]
-    mov     ecx,[ebx+edx*4]
-    mov     [c6],ecx
-    mov     edx,[w8]
-    mov     ecx,[ebx+edx*4]
-    mov     [c8],ecx
-    mov     ebx,[ebp+pitch]
-    jmp     ..@flag0
 
 .loopx_end
     add     esi,2
-    add     edi,8
+    add     edi,4
     dec     dword[xcounter]
     jle     .xres_2
     jmp     .loopx
@@ -1923,8 +1924,8 @@ FuncTable
     dd ..@flag248, ..@flag249, ..@flag250, ..@flag251, ..@flag252, ..@flag253, ..@flag254, ..@flag255
 
 FuncTable2
-    dd ..@cross0, ..@cross1, ..@cross2, ..@crossN,
-    dd ..@cross4, ..@crossN, ..@crossN, ..@crossN,
-    dd ..@cross8, ..@crossN, ..@crossN, ..@crossN,
-    dd ..@crossN, ..@crossN, ..@crossN, ..@crossN
+    dd ..@cross0, ..@cross1, ..@cross2, ..@flag0,
+    dd ..@cross4, ..@flag0,  ..@flag0,  ..@flag0,
+    dd ..@cross8, ..@flag0,  ..@flag0,  ..@flag0,
+    dd ..@flag0,  ..@flag0,  ..@flag0,  ..@flag0
 

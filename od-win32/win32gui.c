@@ -2064,10 +2064,14 @@ void InitializeListView (HWND hDlg)
 		strcpy (size_str, "n/a");
 		sprintf (bootpri_str, "%d", uci->bootpri);
 	    }
+	    if (!mi.ismedia) {
+		strcpy (blocksize_str, "n/a");
+		strcpy (size_str, "n/a");
+	    }
 	    WIN32GUI_LoadUIString (uci->readonly ? IDS_NO : IDS_YES, readwrite_str, sizeof (readwrite_str));
 
 	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-	    lvstruct.pszText  = nosize ? "X" : (mi.ismounted ? "*" : " ");
+	    lvstruct.pszText  = mi.ismedia == 0 ? "E" : (nosize ? "X" : (mi.ismounted ? "*" : " "));
 	    if (uci->controller)
 		lvstruct.pszText = " ";
 	    lvstruct.lParam   = 0;
@@ -9762,6 +9766,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		WIN32GUI_LoadUIString (IDS_STARTEMULATION, tmp, sizeof (tmp));
 		SetWindowText (GetDlgItem (guiDlg, IDOK), tmp);
 	    }
+	    ShowWindow (GetDlgItem(guiDlg, IDC_RESTARTEMU), full_property_sheet ? SW_HIDE : SW_SHOW);
 	    centerWindow (hDlg);
 	    createTreeView (hDlg, currentpage);
 	    updatePanel (hDlg, currentpage);
@@ -9805,6 +9810,10 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 		case IDC_QUITEMU:
 		    uae_quit ();
 		    SendMessage (hDlg, WM_COMMAND, IDCANCEL, 0);
+		    return TRUE;
+		case IDC_RESTARTEMU:
+		    uae_restart (-1, NULL);
+		    exit_gui(1);
 		    return TRUE;
 		case IDHELP:
 		    if (pHtmlHelp && ppage[currentpage].help)

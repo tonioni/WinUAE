@@ -114,6 +114,7 @@ typedef struct {
     int devno;
     int controller;
     int wasisempty; /* if true, this unit can be safely ejected and inserted */
+    int configureddrive; /* if true, this is drive that was manually configured */
 
     struct hardfiledata hf;
 
@@ -215,15 +216,20 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	    mi->ismounted = 1;
 	    if (uci->rootdir && strlen(uci->rootdir) == 0)
 		return FILESYS_VIRTUAL;
-	    if (my_existsfile (uci->rootdir))
+	    if (my_existsfile (uci->rootdir)) {
+		mi->ismedia = 1;
 		return FILESYS_VIRTUAL;
+	    }
 	    if (my_getvolumeinfo (uci->rootdir) < 0)
 		return -1;
+	    mi->ismedia = 1;
 	    return FILESYS_VIRTUAL;
 	} else {
 	    ui->hf.readonly = 1;
 	    ui->hf.blocksize = uci->blocksize;
 	    if (!hdf_open (&ui->hf, uci->rootdir)) {
+		mi->ismedia = 0;
+		mi->ismounted = 1;
 		if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
 		    if (ui->hf.flags & 1)
 			return FILESYS_HARDDRIVE;
@@ -231,11 +237,19 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		}
 		return -1;
 	    }
+	    mi->ismedia = 1;
+	    if (ui->hf.drive_empty)
+		mi->ismedia = 0;
 	    hdf_close (&ui->hf);
 	}
     } else {
-	if (!ui->controller || (ui->controller && p->cs_ide))
+	if (!ui->controller || (ui->controller && p->cs_ide)) {
 	    mi->ismounted = 1;
+	    if (uci->ishdf)
+		mi->ismedia = ui->hf.drive_empty ? 0 : 1;
+	    else
+		mi->ismedia = 1;
+	}
     }
     mi->size = ui->hf.size;
     mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.size / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
@@ -298,8 +312,12 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
 	else
 	    nvol = my_strdup (def);
     }
-    if (!nvol)
-	nvol = my_strdup ("");
+    if (!nvol) {
+	if (volname && strlen (volname))
+	    nvol = my_strdup (volname);
+	else
+	    nvol = my_strdup ("");
+    }
     stripsemicolon(nvol);
     xfree (p);
     return nvol;
@@ -382,9 +400,9 @@ static int set_filesys_unit_1 (int nr,
 	    if (set_filesys_volume (rootdir, &flags, &readonly, &emptydrive, &ui->zarchive) < 0)
 		return -1;
 	}
-	if (!emptydrive) {
+	//if (!emptydrive) {
 	    ui->volname = filesys_createvolname (volname, rootdir, "harddrive");
-	}
+	//}
 	ui->volflags = flags;
     } else {
 	ui->hf.secspertrack = secspertrack;
@@ -398,25 +416,27 @@ static int set_filesys_unit_1 (int nr,
 	    hdf_open (&ui->hf, rootdir);
 	}
 	ui->hf.readonly = readonly;
-	if (ui->hf.handle_valid == 0) {
-	    write_log ("Hardfile %s not found\n", ui->hf.device_name);
-	    goto err;
-	}
-	if ((ui->hf.blocksize & (ui->hf.blocksize - 1)) != 0 || ui->hf.blocksize == 0) {
-	    write_log ("Hardfile %s bad blocksize\n", ui->hf.device_name);
-	    goto err;
-	}
-	if ((ui->hf.secspertrack || ui->hf.surfaces || ui->hf.reservedblocks) &&
-	    (ui->hf.secspertrack < 1 || ui->hf.surfaces < 1 || ui->hf.surfaces > 1023 ||
-	    ui->hf.reservedblocks < 0 || ui->hf.reservedblocks > 1023) != 0) {
-		write_log ("Hardfile %s bad hardfile geometry\n", ui->hf.device_name);
+	if (!ui->hf.drive_empty) {
+	    if (ui->hf.handle_valid == 0) {
+		write_log ("Hardfile %s not found\n", ui->hf.device_name);
 		goto err;
+	    }
+	    if ((ui->hf.blocksize & (ui->hf.blocksize - 1)) != 0 || ui->hf.blocksize == 0) {
+		write_log ("Hardfile %s bad blocksize\n", ui->hf.device_name);
+		goto err;
+	    }
+	    if ((ui->hf.secspertrack || ui->hf.surfaces || ui->hf.reservedblocks) &&
+		(ui->hf.secspertrack < 1 || ui->hf.surfaces < 1 || ui->hf.surfaces > 1023 ||
+		ui->hf.reservedblocks < 0 || ui->hf.reservedblocks > 1023) != 0) {
+		    write_log ("Hardfile %s bad hardfile geometry\n", ui->hf.device_name);
+		    goto err;
+	    }
+	    if (ui->hf.blocksize > ui->hf.size || ui->hf.size == 0) {
+		write_log ("Hardfile %s too small\n", ui->hf.device_name);
+		goto err;
+	    }
+	    ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.size / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
 	}
-	if (ui->hf.blocksize > ui->hf.size || ui->hf.size == 0) {
-	    write_log ("Hardfile %s Hardfile too small\n", ui->hf.device_name);
-	    goto err;
-	}
-	ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.size / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
     }
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
@@ -511,9 +531,13 @@ static void initialize_mountinfo(void)
 	    idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
 		uci->blocksize, uci->bootpri, uci->filesys, 0, 0);
-	    if (idx >= 0)
+	    if (idx >= 0) {
+		UnitInfo *ui;
 		uci->configoffset = idx;
-	} else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
+		ui = &mountinfo.ui[idx];
+		ui->configureddrive = 1;
+	    }
+        } else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
 	    gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
 		uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 		uci->bootpri, uci->filesys);
@@ -959,7 +983,6 @@ void filesys_vsync (void)
     }
 }
 
-
 int filesys_media_change (char *rootdir, int inserted)
 {
     Unit *u;
@@ -967,6 +990,8 @@ int filesys_media_change (char *rootdir, int inserted)
     int nr = -1;
     char volname[MAX_DPATH], *volptr;
 
+    if (!mountertask)
+	return 0;
     if (automountunit >= 0)
 	return -1;
     nr = -1;
@@ -981,6 +1006,12 @@ int filesys_media_change (char *rootdir, int inserted)
 	    }
 	}
     }
+    ui = NULL;
+    if (nr >= 0)
+	ui = &mountinfo.ui[nr];
+    /* only configured drives have automount support if automount is disabled */
+    if (!currprefs.win32_automount_removable && (!ui || !ui->configureddrive))
+        return 0;
     if (nr < 0 && !inserted)
 	return 0;
     /* already mounted volume was ejected? */
@@ -993,6 +1024,10 @@ int filesys_media_change (char *rootdir, int inserted)
 	volptr = volname;
 	if (!volname[0])
 	    volptr = NULL;
+	if (ui && ui->configureddrive && ui->volname) {
+	    volptr = volname;
+	    strcpy (volptr, ui->volname);
+	}
 	/* new volume inserted and it was previously mounted? */
 	if (nr >= 0) {
 	    if (!filesys_isvolume (u)) /* not going to mount twice */
@@ -1014,6 +1049,18 @@ int filesys_media_change (char *rootdir, int inserted)
 	return 1;
     }
     return 0;
+}
+
+int hardfile_remount (int nr)
+{
+    /* this does work but every media reinsert duplicates the device.. */
+#if 0
+    if (!mountertask)
+	return 0;
+    automountunit = nr;
+    uae_Signal (mountertask, 1 << 17);
+#endif
+    return 1;
 }
 
 int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags)
@@ -2638,8 +2685,6 @@ static ExAllKey *getexall (Unit *unit, int id)
 }
 
 
-#if 1
-
 static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaecptr control, Unit *unit, a_inode *aino)
 {
     uaecptr exp = exalldata;
@@ -2826,8 +2871,8 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     ok = 0;
 
-    write_log ("exall: %08x %08x-%08x %d %d %08x\n", lock, exalldata, exalldata + exalldatasize, exalldatasize, type, control);
-    write_log ("exall: MatchString %08x, MatchFunc %08x\n", get_long (control + 8), get_long (control + 12));
+    //write_log ("exall: %08x %08x-%08x %d %d %08x\n", lock, exalldata, exalldata + exalldatasize, exalldatasize, type, control);
+    //write_log ("exall: MatchString %08x, MatchFunc %08x\n", get_long (control + 8), get_long (control + 12));
 
     put_long (control + 0, 0); /* eac_Entries */
 
@@ -2896,7 +2941,7 @@ fail:
 	exp = get_long (exp); /* ed_Next */
 	i--;
     }
-    write_log("ok=%d, err=%d, eac_Entries = %d\n", ok, ok ? -1 : doserr, get_long (control + 0));
+    //write_log("ok=%d, err=%d, eac_Entries = %d\n", ok, ok ? -1 : doserr, get_long (control + 0));
 
     if (!ok) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -2911,7 +2956,6 @@ fail:
     }
     return 1;
 }
-#endif
 
 static void action_examine_object (Unit *unit, dpacket packet)
 {
@@ -4747,6 +4791,7 @@ static uae_u32 REGPARAM2 filesys_init_storeinfo (TrapContext *context)
 	ret = automountunit;
 	automountunit = -1;
 	break;
+	case 3:
 	return 0;
     }
     return ret;
@@ -4875,6 +4920,11 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     int oldversion, oldrevision;
     int newversion, newrevision;
 
+    if (hfd->drive_empty) {
+	rdbmnt
+	write_log ("ignored, drive is empty\n");
+	return -2;
+    }
     if (hfd->blocksize == 0) {
 	rdbmnt
 	write_log ("failed, blocksize == 0\n");
@@ -4958,7 +5008,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     }
 
     if (!(flags & 1)) /* not bootable */
-	m68k_dreg (&regs, 7) = 0;
+	m68k_dreg (&regs, 7) = m68k_dreg (&regs, 7) & ~1;
 
     buf[37 + buf[36]] = 0; /* zero terminate BSTR */
     uip->rdb_devname_amiga[partnum] = ds (device_dupfix (get_long (parmpacket + PP_EXPLIB), buf + 37));
