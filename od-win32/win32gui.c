@@ -6328,34 +6328,39 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
     return FALSE;
 }
 
-static void new_filesys (HWND hDlg)
+static void new_filesys (HWND hDlg, int entry)
 {
-    int result;
+    struct uaedev_config_info *uci;
 
-    result = add_filesys_config (&workprefs, -1, current_fsvdlg.device, current_fsvdlg.volume,
+    uci = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
 		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
-
+    if (uci)
+	filesys_media_change (uci->rootdir, 1, uci);
 }
 
-static void new_hardfile (HWND hDlg)
+static void new_hardfile (HWND hDlg, int entry)
 {
-    int result;
+    struct uaedev_config_info *uci;
 
-    result = add_filesys_config (&workprefs, -1, current_hfdlg.devicename, 0,
+    uci = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
 				current_hfdlg.reserved, current_hfdlg.blocksize,
 				current_hfdlg.bootpri, current_hfdlg.fsfilename,
 				current_hfdlg.controller, 0);
+    if (uci)
+	hardfile_do_disk_change (uci->configoffset, 1);
 }
 
-static void new_harddrive (HWND hDlg)
+static void new_harddrive (HWND hDlg, int entry)
 {
-    int result;
+    struct uaedev_config_info *uci;
 
-    result = add_filesys_config (&workprefs, -1, 0, 0,
+    uci = add_filesys_config (&workprefs, entry, 0, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
 				0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0);
+    if (uci)
+	hardfile_do_disk_change (uci->configoffset, 1);
 }
 
 static void harddisk_remove (HWND hDlg)
@@ -6414,10 +6419,7 @@ static void harddisk_edit (HWND hDlg)
 	current_hfdlg.bootpri = uci->bootpri;
 	if (CustomDialogBox(IDD_HARDFILE, hDlg, HardfileSettingsProc))
 	{
-	    int result = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0, current_hfdlg.filename,
-					! current_hfdlg.rw, current_hfdlg.sectors, current_hfdlg.surfaces,
-					current_hfdlg.reserved, current_hfdlg.blocksize, current_hfdlg.bootpri,
-					current_hfdlg.fsfilename, current_hfdlg.controller, 0);
+	    new_hardfile (hDlg, entry);
 	}
     }
     else if (type == FILESYS_HARDDRIVE) /* harddisk */
@@ -6427,10 +6429,7 @@ static void harddisk_edit (HWND hDlg)
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';
 	if (CustomDialogBox(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
 	{
-	    int result = add_filesys_config (&workprefs, entry, 0, 0, current_hfdlg.filename,
-					! current_hfdlg.rw, 0, 0,
-					0, current_hfdlg.blocksize, current_hfdlg.bootpri, 0,
-					current_hfdlg.controller, 0);
+	    new_harddrive (hDlg, entry);
 	}
     }
     else /* Filesystem */
@@ -6448,9 +6447,7 @@ static void harddisk_edit (HWND hDlg)
 	current_fsvdlg.bootpri = uci->bootpri;
 	archivehd = -1;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
-	    int result = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
-		current_fsvdlg.rootdir, !current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
-    	    filesys_insert (entry, current_fsvdlg.volume, current_fsvdlg.rootdir, !current_fsvdlg.rw, 0);
+	    new_filesys (hDlg, entry);
 	}
     }
 }
@@ -6469,19 +6466,19 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	current_fsvdlg = empty_fsvdlg;
 	archivehd = 0;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
-	    new_filesys (hDlg);
+	    new_filesys (hDlg, -1);
 	break;
      case IDC_NEW_FSARCH:
 	 archivehd = 1;
 	current_fsvdlg = empty_fsvdlg;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
-	    new_filesys (hDlg);
+	    new_filesys (hDlg, -1);
 	break;
 
      case IDC_NEW_HF:
 	current_hfdlg = empty_hfdlg;
 	if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc))
-	    new_hardfile (hDlg);
+	    new_hardfile (hDlg, -1);
 	break;
 
      case IDC_NEW_HD:
@@ -6492,7 +6489,7 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	    gui_message (tmp);
 	} else {
 	    if (CustomDialogBox (IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
-		new_harddrive (hDlg);
+		new_harddrive (hDlg, -1);
 	}
 	break;
 
@@ -9572,6 +9569,13 @@ static void centerWindow (HWND hDlg)
     SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 
+static int do_filesys_insert (const char *root)
+{
+    if (filesys_insert (-1, NULL, root, 0, 0) == 0)
+	return filesys_media_change (root, 2, NULL);
+    return 1;
+}
+
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
     int cnt, i, drv, firstdrv, list;
@@ -9633,7 +9637,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	}
 
 	if (currentpage < 0 && i == 0) {
-	    if (filesys_insert (-1, NULL, file, 0, 0))
+	    if (do_filesys_insert (file))
 		continue;
 	}
 
@@ -9687,7 +9691,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	    case ZFILE_HDF:
 		if (flags & FILE_ATTRIBUTE_DIRECTORY) {
 		    if (!full_property_sheet && currentpage < 0)
-			filesys_insert (-1, NULL, file, 0, 0);
+			do_filesys_insert (file);
 		    else
 			add_filesys_config (&workprefs, -1, NULL, "", file, 0,
 			    0, 0, 0, 0, 0, NULL, 0, 0);
@@ -9718,7 +9722,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	    break;
 	    default:
 		if (currentpage < 0 && !full_property_sheet) {
-		    filesys_insert (-1, NULL, file, 0, 0);
+		    do_filesys_insert (file);
 		} else if (currentpage == HARDDISK_ID) {
 		    add_filesys_config (&workprefs, -1, NULL, "", file, 0,
 			0, 0, 0, 0, 0, NULL, 0, 0);

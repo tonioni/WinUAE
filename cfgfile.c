@@ -1128,7 +1128,7 @@ static struct uaedev_config_info *getuci(struct uae_prefs *p)
     return NULL;
 }
 
-int add_filesys_config (struct uae_prefs *p, int index,
+struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
 			int blocksize, int bootpri, char *filesysdir, int hdc, int flags) {
@@ -1136,10 +1136,12 @@ int add_filesys_config (struct uae_prefs *p, int index,
     int i;
     char *s;
 
-    if (index < 0)
+    if (index < 0) {
 	uci = getuci(p);
-    else
+	uci->configoffset = -1;
+    } else {
 	uci = &p->mountconfig[index];
+    }
     if (!uci)
 	return 0;
     uci->ishdf = volname == NULL ? 1 : 0;
@@ -1152,7 +1154,6 @@ int add_filesys_config (struct uae_prefs *p, int index,
     uci->reserved = reserved;
     uci->blocksize = blocksize;
     uci->bootpri = bootpri;
-    uci->configoffset = -1;
     uci->controller = hdc;
     strcpy (uci->filesys, filesysdir ? filesysdir : "");
     if (!uci->devname[0]) {
@@ -1177,7 +1178,7 @@ int add_filesys_config (struct uae_prefs *p, int index,
     s = filesys_createvolname (volname, rootdir, "Harddrive");
     strcpy (uci->volname, s);
     xfree (s);
-    return 1;
+    return uci;
 }
 
 static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *value)

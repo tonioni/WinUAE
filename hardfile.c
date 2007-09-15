@@ -563,10 +563,11 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	{
 	    int pmi = cmdbuf[8] & 1;
 	    uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
-	    uae_u32 blocks = (uae_u32)(hfd->size / hfd->blocksize - 1);
+	    uae_u32 blocks;
 	    int cyl, cylsec, head, tracksec;
 	    if (nodisk (hfd))
 		goto nodisk;
+	    blocks = (uae_u32)(hfd->size / hfd->blocksize - 1);
 	    if (hdhfd) {
 		cyl = hdhfd->cyls;
 		head = hdhfd->heads;
@@ -744,8 +745,6 @@ void hardfile_do_disk_change (int fsid, int insert)
 
     hfd = get_hardfile_data (fsid);
     if (!hfd)
-	return;
-    if (hfd->drive_empty == newstate)
 	return;
     write_log("uaehf.device:%d media status=%d\n", fsid, insert);
     hfd->drive_empty = newstate;

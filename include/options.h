@@ -327,7 +327,7 @@ extern void save_options (struct zfile *, struct uae_prefs *, int);
 extern void cfgfile_write (struct zfile *, char *format,...);
 extern void cfgfile_target_write (struct zfile *, char *format,...);
 extern void cfgfile_backup (const char *path);
-extern int add_filesys_config (struct uae_prefs *p, int index,
+extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
 			int blocksize, int bootpri, char *filesysdir, int hdc, int flags);

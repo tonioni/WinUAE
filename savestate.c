@@ -285,8 +285,10 @@ static uae_u8 *restore_chunk (struct zfile *f, char *name, size_t *len, size_t *
     if (len2 < 0)
 	len2 = 0;
     *len = len2;
-    if (len2 == 0)
+    if (len2 == 0) {
+	*filepos = zfile_ftell (f);
 	return 0;
+    }
 
     /* chunk flags */
     zfile_fread (tmp, 1, 4, f);
@@ -354,6 +356,13 @@ void restore_ram (size_t filepos, uae_u8 *memory)
     }
 }
 
+static uae_u8 *restore_log (uae_u8 *src)
+{
+    write_log (src);
+    src += strlen(src) + 1;
+    return src;
+}
+
 static void restore_header (uae_u8 *src)
 {
     char *emuname, *emuversion, *description;
@@ -377,12 +386,15 @@ void restore_state (char *filename)
     uae_u8 *chunk,*end;
     char name[5];
     size_t len, totallen;
-    size_t filepos;
+    size_t filepos, filesize;
 
     chunk = 0;
     f = zfile_fopen (filename, "rb");
     if (!f)
 	goto error;
+    zfile_fseek (f, 0, SEEK_END);
+    filesize = zfile_ftell (f);
+    zfile_fseek (f, 0, SEEK_SET);
     savestate_init ();
 
     chunk = restore_chunk (f, name, &len, &totallen, &filepos);
@@ -404,8 +416,13 @@ void restore_state (char *filename)
 	name[0] = 0;
 	chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
 	write_log ("Chunk '%s' size %d (%d)\n", name, len, totallen);
-	if (!strcmp (name, "END "))
+	if (!strcmp (name, "END ")) {
+#ifdef _DEBUG
+	    if (filesize > filepos + 8)
+		continue;
+#endif
 	    break;
+	}
 	if (!strcmp (name, "CRAM")) {
 	    restore_cram (totallen, filepos);
 	    continue;
@@ -519,7 +536,7 @@ void restore_state (char *filename)
 	else if (!strcmp (name, "CONF"))
 	    end = restore_configuration (chunk);
 	else if (!strcmp (name, "LOG "))
-	    end = chunk + len;
+	    end = restore_log (chunk);
 	else {
 	    end = chunk + len;
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);

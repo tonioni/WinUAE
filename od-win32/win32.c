@@ -1007,7 +1007,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		write_log("Shell Notification %d '%s'\n", inserted, path);
 		if (!win32_hardfile_media_change ()) {	
 		    if ((inserted && CheckRM (path)) || !inserted)
-			filesys_media_change (path, inserted);
+			filesys_media_change (path, inserted, NULL);
 		}
 	    }
 	}
@@ -1047,7 +1047,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 				if (!win32_hardfile_media_change ()) {
 				    if ((inserted && CheckRM (drvname)) || !inserted)
-					filesys_media_change (drvname, inserted);
+					filesys_media_change (drvname, inserted, NULL);
 				}
 			    }
 			}

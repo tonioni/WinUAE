@@ -53,12 +53,12 @@ extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mounte
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
 
-int filesys_insert(int nr, char *volume, char *rootdir, int readonly, int flags);
+int filesys_insert(int nr, char *volume, const char *rootdir, int readonly, int flags);
 int filesys_eject(int nr);
-int filesys_media_change (char *rootdir, int inserted);
+int filesys_media_change (const char *rootdir, int inserted, struct uaedev_config_info *uci);
 
 extern char *filesys_createvolname (const char *volname, const char *rootdir, const char *def);
-extern int target_get_volume_name(struct uaedev_mount_info *mtinf, char *volumepath, char *volumename, int size, int inserted, int fullcheck);
+extern int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck);
 
 extern int sprintf_filesys_unit (char *buffer, int num);
 

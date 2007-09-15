@@ -40,7 +40,7 @@ static int valid_volumename(struct uaedev_mount_info *mountinfo, char *volumenam
 }
 
 /* Returns 1 if an actual volume-name was found, 2 if no volume-name (so uses some defaults) */
-int target_get_volume_name(struct uaedev_mount_info *mtinf, char *volumepath, char *volumename, int size, int inserted, int fullcheck)
+int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck)
 {
     int result = 2;
     int drivetype;

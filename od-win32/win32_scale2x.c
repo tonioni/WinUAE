@@ -56,6 +56,10 @@ void S2X_free (void)
     if (tempsurf)
 	IDirectDrawSurface7_Release (DirectDrawState.temporary.surface);
     tempsurf = 0;
+    xfree (tempsurf2);
+    tempsurf2 = 0;
+    xfree (tempsurf3);
+    tempsurf3 = 0;
 }
 
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
@@ -102,7 +106,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 
     if (usedfilter->type == UAE_FILTER_HQ) {
 	tempsurf2 = xmalloc (amiga_width * amiga_height * (amiga_depth / 8));
-	tempsurf3 = xmalloc (amiga_width * amiga_height * (dst_depth / 8) * 4);
+	tempsurf3 = xmalloc (dst_width * dst_height * (dst_depth / 8) * 4);
     }
 }
 
@@ -228,7 +232,7 @@ void S2X_render (void)
 
     } else if (usedfilter->type == UAE_FILTER_HQ) { /* 32/2X+3X+4X */
 
-	if (tempsurf2) {
+	if (tempsurf2 && scale == 2) {
 	    /* Aaaaaaaarghhhghgh.. */
 	    uae_u8 *sptr2 = tempsurf3;
 	    uae_u8 *dptr2 = tempsurf2;
@@ -239,14 +243,12 @@ void S2X_render (void)
 		dptr2 += w;
 		sptr += gfxvidinfo.rowbytes;
 	    }
-	    if (scale == 2) {
-		if (amiga_depth == 16 && dst_depth == 32) {
-		    hq2x_32 (tempsurf2, tempsurf3, aw, ah, aw * scale * 4);
-		    ok = 1;
-		} else if (amiga_depth == 16 && dst_depth == 16) {
-		    hq2x_16 (tempsurf2, tempsurf3, aw, ah, aw * scale * 2);
-		    ok = 1;
-		}
+	    if (amiga_depth == 16 && dst_depth == 32) {
+	        hq2x_32 (tempsurf2, tempsurf3, aw, ah, aw * scale * 4);
+	        ok = 1;
+	    } else if (amiga_depth == 16 && dst_depth == 16) {
+	        hq2x_16 (tempsurf2, tempsurf3, aw, ah, aw * scale * 2);
+	        ok = 1;
 	    }
 	    for (i = 0; i < ah * scale; i++) {
 		int w = aw * scale * (dst_depth / 8);
@@ -255,21 +257,6 @@ void S2X_render (void)
 		dptr += pitch;
 	    }
 	}
-#if 0
-	} else if (scale == 3) {
-	    if (amiga_depth == 16 && dst_depth == 16) {
-		hq3x_16 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
-		ok = 1;
-	    } else if (amiga_depth == 16 && dst_depth == 32) {
-		hq3x_32 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
-		ok = 1;
-	    }
-	} else if (scale == 4) {
-	    if (amiga_depth == 16 && dst_depth == 32) {
-		hq4x_32 (sptr, dptr, aw, ah, hqdstpitch, hqsrcpitch, hqdstpitch2);
-		ok = 1;
-	    }
-#endif
 
     } else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/2X */
 

@@ -1080,6 +1080,8 @@ int getjoystate (int joy)
 	bot = 1;
     v = (uae_u8)mouse_x[joy] | (mouse_y[joy] << 8);
     if (left || right || top || bot || !mouse_port[joy]) {
+	mouse_x[joy] &= ~3;
+	mouse_y[joy] &= ~3;
 	if (left)
 	    top = !top;
 	if (right)

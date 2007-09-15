@@ -559,25 +559,22 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 	    return 0;
 	md++;
     }
-    sprintf (tmp, "%d: %s", md - Displays, desc);
-    md->name = my_strdup (tmp);
+    lpmi.cbSize = sizeof (lpmi);
     if (guid == 0) {
 	POINT pt = { 0, 0 };
 	md->primary = 1;
-	lpmi.cbSize = sizeof (lpmi);
 	GetMonitorInfo(MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&lpmi);
-	md->rect = lpmi.rcMonitor;
     } else {
 	memcpy (&md->guid,  guid, sizeof (GUID));
+	GetMonitorInfo(hm, (LPMONITORINFO)&lpmi);
     }
+    md->rect = lpmi.rcMonitor;
+    if (md->rect.left == 0 && md->rect.top == 0)
+	sprintf (tmp, "%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
+    else
+	sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+    md->name = my_strdup (tmp);
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
-    if ((strstr(desc, "X1900") || strstr(desc, "X1800") || strstr(desc, "X1600")) && !b0rken_ati_overlay) {
-	b0rken_ati_overlay = 1;
-	if (!os_vista) {
-	    write_log ("** Radeon X1x00 series display card detected, enabling overlay workaround.\n");
-	    write_log ("** (blank display with Catalyst 6.1 and newer). Use -disableowr to disable workaround.\n");
-	}
-    }
     return 1;
 }
 
@@ -609,17 +606,30 @@ void enumeratedisplays (int multi)
     }
 }
 
+static int makesort (struct MultiDisplay *md)
+{
+    int v;
+
+    v = md->rect.top * 65536 + md->rect.left;
+    if (md->primary)
+	v = 0x80000001;
+    if (md->rect.top == 0 && md->rect.left == 0)
+	v = 0x80000000;
+    return v;
+}
+
 void sortdisplays (void)
 {
     struct MultiDisplay *md1, *md2, tmp;
     int i;
 
-#if 0
     md1 = Displays;
     while (md1->name) {
+	int sort1 = makesort (md1);
 	md2 = md1 + 1;
 	while (md2->name) {
-	    if (md1->primary < md2->primary || (md1->primary == md2->primary && strcmp (md1->name, md2->name) > 0)) {
+	    int sort2 = makesort (md2);
+	    if (sort1 > sort2) {
 		memcpy (&tmp, md1, sizeof (tmp));
 		memcpy (md1, md2, sizeof (tmp));
 		memcpy (md2, &tmp, sizeof (tmp));
@@ -628,7 +638,7 @@ void sortdisplays (void)
 	}
 	md1++;
     }
-#endif
+
     md1 = Displays;
     while (md1->name) {
 	DisplayModes = md1->DisplayModes = xmalloc (sizeof (struct PicassoResolution) * MAX_PICASSO_MODES);

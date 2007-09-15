@@ -1,4 +1,17 @@
 
+
+Beta 7:
+
+- hq2x crash fix (too small temp buffer)
+- directory/archive dragndrop work now without empty spare drives
+- uaehf.device media insertion detection fixed
+- display size and position (if not 0*0) added to display name list
+- joystick direction does not get stuck anymore if active mouse and
+  joystick is configured to same port using input panel
+- allocate more temporary memory space for filesystem state saving
+- GUI add/remove directory filesystem work on the fly (hardfiles not
+  supported)
+
 Beta 6: (DO NOT USE OLDER BETAS, they are too broken)
 
 - real harddrive support improvements:

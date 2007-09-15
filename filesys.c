@@ -113,7 +113,8 @@ typedef struct {
     int bootpri; /* boot priority */
     int devno;
     int controller;
-    int wasisempty; /* if true, this unit can be safely ejected and inserted */
+    int wasisempty; /* if true, this unit was created empty */
+    int canremove; /* if true, this unit can be safely ejected and remounted */
     int configureddrive; /* if true, this is drive that was manually configured */
 
     struct hardfiledata hf;
@@ -352,7 +353,7 @@ static int set_filesys_volume(const char *rootdir, int *flags, int *readonly, in
 }
 
 static int set_filesys_unit_1 (int nr,
-				 char *devname, char *volname, char *rootdir, int readonly,
+				 char *devname, char *volname, const char *rootdir, int readonly,
 				 int secspertrack, int surfaces, int reserved,
 				 int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
@@ -400,9 +401,7 @@ static int set_filesys_unit_1 (int nr,
 	    if (set_filesys_volume (rootdir, &flags, &readonly, &emptydrive, &ui->zarchive) < 0)
 		return -1;
 	}
-	//if (!emptydrive) {
-	    ui->volname = filesys_createvolname (volname, rootdir, "harddrive");
-	//}
+        ui->volname = filesys_createvolname (volname, rootdir, "harddrive");
 	ui->volflags = flags;
     } else {
 	ui->hf.secspertrack = secspertrack;
@@ -441,6 +440,7 @@ static int set_filesys_unit_1 (int nr,
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
     ui->wasisempty = emptydrive;
+    ui->canremove = emptydrive;
     ui->rootdir = my_strdup (rootdir);
     ui->devname = my_strdup (devname);
     stripsemicolon(ui->devname);
@@ -460,7 +460,7 @@ err:
 }
 
 static int set_filesys_unit (int nr,
-			char *devname, char *volname, char *rootdir, int readonly,
+			char *devname, char *volname, const char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
 			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
@@ -471,7 +471,7 @@ static int set_filesys_unit (int nr,
     return ret;
 }
 
-static int add_filesys_unit (char *devname, char *volname, char *rootdir, int readonly,
+static int add_filesys_unit (char *devname, char *volname, const char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
 			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
 {
@@ -492,6 +492,8 @@ int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
     if (nr < 0)
 	return 0;
     uci = &p->mountconfig[nr];
+    if (uci->configoffset >= 0)
+	filesys_media_change (uci->rootdir, 0, uci);
     while (nr < MOUNT_CONFIG_SIZE) {
 	memmove (&p->mountconfig[nr], &p->mountconfig[nr + 1], sizeof (struct uaedev_config_info));
 	nr++;
@@ -949,6 +951,8 @@ int filesys_eject (int nr)
     UnitInfo *ui = &mountinfo.ui[nr];
     Unit *u = ui->self;
 
+    if (!mountertask)
+	return 0;
     if (!ui->open || u == NULL)
 	return 0;
     if (is_hardfile(nr) != FILESYS_VIRTUAL)
@@ -983,12 +987,13 @@ void filesys_vsync (void)
     }
 }
 
-int filesys_media_change (char *rootdir, int inserted)
+int filesys_media_change (const char *rootdir, int inserted, struct uaedev_config_info *uci)
 {
     Unit *u;
     UnitInfo *ui;
     int nr = -1;
     char volname[MAX_DPATH], *volptr;
+    char devname[MAX_DPATH];
 
     if (!mountertask)
 	return 0;
@@ -1010,7 +1015,7 @@ int filesys_media_change (char *rootdir, int inserted)
     if (nr >= 0)
 	ui = &mountinfo.ui[nr];
     /* only configured drives have automount support if automount is disabled */
-    if (!currprefs.win32_automount_removable && (!ui || !ui->configureddrive))
+    if (!currprefs.win32_automount_removable && (!ui || !ui->configureddrive) && (inserted == 0 || inserted == 1))
         return 0;
     if (nr < 0 && !inserted)
 	return 0;
@@ -1018,16 +1023,26 @@ int filesys_media_change (char *rootdir, int inserted)
     if (nr >= 0 && !inserted)
 	return filesys_eject (nr);
     if (inserted) {
-	char devname[10];
-	volname[0] = 0;
-	target_get_volume_name(&mountinfo, rootdir, volname, MAX_DPATH, 1, 0);
-	volptr = volname;
-	if (!volname[0])
-	    volptr = NULL;
-	if (ui && ui->configureddrive && ui->volname) {
+	if (uci) {
+	    volptr = my_strdup (uci->volname);
+	} else {
+	    volname[0] = 0;
+	    target_get_volume_name (&mountinfo, rootdir, volname, MAX_DPATH, 1, 0);
 	    volptr = volname;
-	    strcpy (volptr, ui->volname);
+	    if (!volname[0])
+		volptr = NULL;
+	    if (ui && ui->configureddrive && ui->volname) {
+		volptr = volname;
+		strcpy (volptr, ui->volname);
+	    }
 	}
+	if (!volptr) {
+	    volptr = filesys_createvolname (NULL, rootdir, "removable");
+	    strcpy (volname, volptr);
+	    xfree (volptr);
+	    volptr = volname;
+	}
+
 	/* new volume inserted and it was previously mounted? */
 	if (nr >= 0) {
 	    if (!filesys_isvolume (u)) /* not going to mount twice */
@@ -1036,17 +1051,28 @@ int filesys_media_change (char *rootdir, int inserted)
 	}
 	/* new volume inserted and it was not previously mounted? 
 	 * perhaps we have some empty device slots? */
-    	if (filesys_insert (-1, volptr, rootdir, 0, 0) > 0)
-	    return 1;
+    	nr = filesys_insert (-1, volptr, rootdir, 0, 0);
+	if (nr >= 100) {
+	    if (uci)
+		uci->configoffset = nr - 100;
+	    return nr;
+	}
 	/* nope, uh, need black magic now.. */
-	sprintf (devname, "RDH%d", nr_units());
+	if (uci)
+	    strcpy (devname, uci->devname);
+	else
+	    sprintf (devname, "RDH%d", nr_units());
 	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, NULL, 0, 0);
 	if (nr < 0)
 	    return 0;
+	if (inserted > 1)
+	    mountinfo.ui[nr].canremove = 1;
 	automountunit = nr;
 	uae_Signal (mountertask, 1 << 17);
 	/* poof */
-	return 1;
+	if (uci)
+	    uci->configoffset = nr;
+	return 100 + nr;
     }
     return 0;
 }
@@ -1063,13 +1089,15 @@ int hardfile_remount (int nr)
     return 1;
 }
 
-int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags)
+int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int flags)
 {
     struct uaedev_config_info *uci;
     int emptydrive = 0;
     UnitInfo *ui;
     Unit *u;
 
+    if (!mountertask)
+	return 0;
     if (nr < 0) {
 	for (u = units; u; u = u->next) {
 	    if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
@@ -1080,7 +1108,7 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
 	if (!u) {
 	    for (u = units; u; u = u->next) {
 		if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
-		    if (mountinfo.ui[u->unit].wasisempty)
+		    if (mountinfo.ui[u->unit].canremove)
 			break;
 		}
 	    }
@@ -1137,7 +1165,7 @@ int filesys_insert (int nr, char *volume, char *rootdir, int readonly, int flags
     put_byte (u->volume + 44, 0);
     put_byte (u->volume + 172 - 32, 1);
     uae_Signal (get_long(u->volume + 176 - 32), 1 << 17);
-    return 1;
+    return 100 + nr;
 }
 
 /* flags and comments supported? */
@@ -1845,6 +1873,7 @@ static void startup_update_unit (Unit *unit, UnitInfo *uinfo)
     unit->ui.unit_pipe = uinfo->unit_pipe;
     unit->ui.back_pipe = uinfo->back_pipe;
     unit->ui.wasisempty = uinfo->wasisempty;
+    unit->ui.canremove = uinfo->canremove;
 }
 
 static Unit *startup_create_unit (UnitInfo *uinfo, int num)
@@ -5863,7 +5892,7 @@ uae_u8 *save_filesys_common (int *len)
     uae_u8 *dstbak, *dst;
     if (nr_units() == 0)
 	return NULL;
-    dstbak = dst = (uae_u8*)malloc (10000);
+    dstbak = dst = (uae_u8*)xmalloc (1000);
     save_u32 (2);
     save_u64 (a_uniq);
     save_u64 (key_uniq);
@@ -5889,7 +5918,7 @@ uae_u8 *save_filesys (int num, int *len)
 
     ui = &mountinfo.ui[num];
     write_log ("FS_FILESYS: '%s' '%s'\n", ui->devname, ui->volname);
-    dstbak = dst = (uae_u8*)malloc (10000);
+    dstbak = dst = (uae_u8*)xmalloc (100000);
     save_u32 (2); /* version */
     save_u32 (ui->devno);
     save_u16 (type);
