@@ -222,10 +222,39 @@ int init_socket_layer(void)
 	return result;
 }
 
-void deinit_socket_layer(void)
+static void close_selectget_threads(void)
 {
 	int i;
 
+	for (i = 0; i < MAX_SELECT_THREADS; i++) {
+		if (bsd->hEvents[i]) {
+			HANDLE h = bsd->hEvents[i];
+			bsd->hEvents[i] = NULL;
+			CloseHandle (h);
+		}
+		if (bsd->hThreads[i]) {
+			CloseHandle (bsd->hThreads[i]);
+			bsd->hThreads[i] = NULL;
+		}
+	}
+
+	for (i = 0; i < MAX_GET_THREADS; i++) {
+		if (bsd->hGetThreads[i]) {
+			HANDLE h = bsd->hGetThreads[i];
+			bsd->hGetThreads[i] = NULL;
+			CloseHandle (h);
+		}
+		if (bsd->hGetEvents[i]) {
+			CloseHandle (bsd->hGetEvents[i]);
+			bsd->hGetEvents[i] = NULL;
+		}
+		bsd->threadGetargs_inuse[i] = 0;
+	}
+
+}
+
+void deinit_socket_layer(void)
+{
 	if (!bsd)
 	    return;
 	WSACleanup();
@@ -245,27 +274,7 @@ void deinit_socket_layer(void)
 		DestroyWindow (bsd->hSockWnd);
 		bsd->hSockWnd = NULL;
 	}
-	for (i = 0; i < MAX_SELECT_THREADS; i++) {
-		if (bsd->hThreads[i]) {
-			CloseHandle (bsd->hThreads[i]);
-			bsd->hThreads[i] = NULL;
-		}
-		if (bsd->hEvents[i]) {
-			CloseHandle (bsd->hEvents[i]);
-			bsd->hEvents[i] = NULL;
-		}
-	}
-	for (i = 0; i < MAX_GET_THREADS; i++) {
-		if (bsd->hGetThreads[i]) {
-			CloseHandle (bsd->hGetThreads[i]);
-			bsd->hGetThreads[i] = NULL;
-		}
-		if (bsd->hGetEvents[i]) {
-			CloseHandle (bsd->hGetEvents[i]);
-			bsd->hGetEvents[i] = NULL;
-		}
-		bsd->threadGetargs_inuse[i] = 0;
-	}
+	close_selectget_threads ();
 }
 
 #ifdef BSDSOCKET
@@ -311,11 +320,11 @@ int host_sbinit(TrapContext *context, SB)
 
 void host_closesocketquick(SOCKET s)
 {
-	BOOL true = 1;
+	BOOL b = 1;
 
 	if(s) {
-	    setsockopt(s,SOL_SOCKET,SO_DONTLINGER,(char *)&true,sizeof(true));
-	    shutdown(s,1);
+	    setsockopt(s, SOL_SOCKET, SO_DONTLINGER, (char *)&b, sizeof(b));
+	    shutdown(s, 1);
 	    closesocket(s);
 	}
 }
@@ -323,6 +332,11 @@ void host_closesocketquick(SOCKET s)
 void host_sbcleanup(SB)
 {
 	int i;
+
+	if (!sb) {
+		close_selectget_threads ();
+		return;
+	}
 
 	for (i = 0; i < MAXPENDINGASYNC; i++) {
 		if (bsd->asyncsb[i] == sb)
@@ -340,7 +354,7 @@ void host_sbcleanup(SB)
 			bsd->asyncsb[(sb->mtable[i] - 0xb000) / 2] = NULL;
 	}
 
-	shutdown(sb->sockAbort,1);
+	shutdown(sb->sockAbort, 1);
 	closesocket(sb->sockAbort);
 
 	free(sb->mtable);
@@ -677,7 +691,7 @@ void host_accept(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 nam
 	}
     TRACE(("accept(%d,%d,%d) -> ",sd,name,hlenuae));
 
-    s = (SOCKET)getsock(sb, (int)sd);
+    s = getsock(sb, (int)sd);
 
     if (s != INVALID_SOCKET) {
 		BEGINBLOCKING;
@@ -938,7 +952,7 @@ void host_connect(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 na
 	if (!addr_valid("host_connect", name, namelen))
 		return;
 
-    s = (SOCKET)getsock(sb,(int)sd);
+    s = getsock(sb,(int)sd);
 
     if (s != INVALID_SOCKET) {
 		if (namelen <= MAXADDRLEN) {
@@ -1664,7 +1678,7 @@ static void fd_zero(uae_u32 fdset, uae_u32 nfds)
 static unsigned int thread_WaitSelect2(void *indexp)
 {
     int index = *((int*)indexp);
-    unsigned int result = 0;
+    unsigned int result = 0, resultval;
     long nfds;
     uae_u32 readfds, writefds, exceptfds;
     uae_u32 timeout;
@@ -1674,8 +1688,11 @@ static unsigned int thread_WaitSelect2(void *indexp)
 
     SB;
 
-    for (;;) {
-	    WaitForSingleObject(bsd->hEvents[index], INFINITE);
+	while (bsd->hEvents[index]) {
+	    if (WaitForSingleObject(bsd->hEvents[index], INFINITE) == WAIT_ABANDONED)
+			break;
+		if (bsd->hEvents[index] == NULL)
+			break;
 
 	    if ((args = bsd->threadargsw[index]) != NULL) {
 		    sb = args->sb;
@@ -1700,8 +1717,11 @@ static unsigned int thread_WaitSelect2(void *indexp)
 
 		    TRACE(("-> "));
 
-		    sb->resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,
+		    resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,
 					exceptfds ? &exceptsocks : NULL, timeout ? &tv : 0);
+			if (bsd->hEvents[index] == NULL)
+				break;
+			sb->resultval = resultval;
 			if (sb->resultval == SOCKET_ERROR) {
 				// select was stopped by sb->sockAbort
 				if (readsocks.fd_count > 1) {
@@ -1709,7 +1729,10 @@ static unsigned int thread_WaitSelect2(void *indexp)
 					tv.tv_sec = 0;
 					tv.tv_usec = 10000;
 					// Check for 10ms if data is available
-					sb->resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,exceptfds ? &exceptsocks : NULL,&tv);
+					resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,exceptfds ? &exceptsocks : NULL,&tv);
+					if (bsd->hEvents[index] == NULL)
+						break;
+					sb->resultval = resultval;
 					if (sb->resultval == 0) { // Now timeout -> really no data available
 						if (GetLastError() != 0) {
 							sb->resultval = SOCKET_ERROR;
@@ -1749,6 +1772,7 @@ static unsigned int thread_WaitSelect2(void *indexp)
 		    SetEvent(sb->hEvent);
 	    }
     }
+	write_log ("BSDSOCK: thread_WaitSelect2 terminated\n");
     THREADEND(result);
     return result;
 }
@@ -1982,9 +2006,12 @@ static unsigned int thread_get2(void *indexp)
 	char *name_rp;
 	SB;
 
-    for (;;) {
+	while (bsd->hGetEvents[index]) {
 
-		WaitForSingleObject(bsd->hGetEvents[index], INFINITE);
+		if (WaitForSingleObject(bsd->hGetEvents[index], INFINITE) == WAIT_ABANDONED)
+			break;
+		if (bsd->hGetEvents[index] == NULL)
+			break;
 
 		if (bsd->threadGetargs_inuse[index] == -1)
 			bsd->threadGetargs_inuse[index] = 0;
@@ -2092,7 +2119,8 @@ static unsigned int thread_get2(void *indexp)
 
 		}
     }
-    THREADEND(result);
+	write_log ("BSDSOCK: thread_get2 terminated\n");
+	THREADEND(result);
     return result;
 }
 

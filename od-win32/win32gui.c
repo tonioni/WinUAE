@@ -267,7 +267,7 @@ static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
     bFirst = TRUE;
     iPos = ListView_GetNextItem(hListView, -1, LVNI_SELECTED);
     while (iPos != -1) {
-	if (bFirst) {
+        if (bFirst) {
 	    // For the first selected item,
 	    // we simply create a single-line drag image
 	    hDragImageList = ListView_CreateDragImage(hListView, iPos, &p);
@@ -279,8 +279,7 @@ static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
 	    // we create a single-line drag image, then
 	    // append it to the bottom of the complete drag image
 	    hOneImageList = ListView_CreateDragImage(hListView, iPos, &p);
-	    hTempImageList = ImageList_Merge(hDragImageList,
-			     0, hOneImageList, 0, 0, iHeight);
+	    hTempImageList = ImageList_Merge(hDragImageList, 0, hOneImageList, 0, 0, iHeight);
 	    ImageList_Destroy(hDragImageList);
 	    ImageList_Destroy(hOneImageList);
 	    hDragImageList = hTempImageList;
@@ -296,7 +295,7 @@ static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
     pt = ((NM_LISTVIEW*) ((LPNMHDR)lParam))->ptAction;
     ClientToScreen(hListView, &pt);
 
-    ImageList_DragEnter(GetDesktopWindow(), pt.x, pt.y);
+    ImageList_DragEnter(NULL, pt.x, pt.y);
 
     bDragging = TRUE;
 

@@ -1420,10 +1420,14 @@ void bsdlib_reset (void)
 
     SockLibBase = 0;
 
-    for (sb = socketbases; sb; sb = nsb) {
+	write_log("BSDSOCK: cleanup starting..\n");
+	host_sbcleanup (NULL);
+	for (sb = socketbases; sb; sb = nsb) {
 	nsb = sb->next;
 
+	write_log("BSDSOCK: cleanup start socket %x\n", sb);
 	host_sbcleanup (sb);
+	write_log("BSDSOCK: cleanup end\n");
 
 	free (sb->dtable);
 	free (sb->ftable);
@@ -1444,6 +1448,7 @@ void bsdlib_reset (void)
     }
 
     host_sbreset ();
+	write_log("BSDSOCK: cleanup end\n");
 }
 
 static const TrapHandler sockfuncs[] = {

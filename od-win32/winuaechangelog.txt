@@ -1,4 +1,13 @@
 
+Beta 8: (this is basically RC1 if bsdsocket is fixed)
+
+- ExAll ED_OWNER supported (return zero uid and gid) because
+  there are programs that ask for ED_OWNER and ignore
+  ERROR_BAD_NUMBER (as documented in autodocs)
+- possible fix for bsdsocket crash/issues after reset
+  (previously background threads weren't terminated properly and
+  caused random access errors, another ancient bug in bsdsocket..)
+  Also added some cleanup logging.
 
 Beta 7:
 

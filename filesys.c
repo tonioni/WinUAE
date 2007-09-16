@@ -2724,6 +2724,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
     uae_u32 flags = 15, days, mins, ticks;
     struct stat statbuf;
     int fsdb_can = fsdb_cando (unit);
+    uae_u16 uid = 0, gid = 0;
 
     memset(&statbuf, 0, sizeof statbuf);
     if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
@@ -2767,6 +2768,11 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 	size += strlen (comment) + 1;
 	size = (size + 3) & ~3;
     }
+    if (control >= 7) {
+	size2 += 4;
+	uid = 0;
+	gid = 0;
+    }
 
     i = get_long (control + 0);
     while (i > 0) {
@@ -2805,6 +2811,10 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 	    put_byte (exp + size2, comment[i]);
 	    size2++;
 	}
+    }
+    if (control >= 7) {
+	put_word (exp + 36, uid);
+	put_word (exp + 38, gid);
     }
     put_long (control + 0, get_long (control + 0) + 1);
     return 1;
@@ -2900,8 +2910,12 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     ok = 0;
 
-    //write_log ("exall: %08x %08x-%08x %d %d %08x\n", lock, exalldata, exalldata + exalldatasize, exalldatasize, type, control);
-    //write_log ("exall: MatchString %08x, MatchFunc %08x\n", get_long (control + 8), get_long (control + 12));
+#if 0
+    write_log ("exall: %08x %08x-%08x %d %d %08x\n",
+	lock, exalldata, exalldata + exalldatasize, exalldatasize, type, control);
+    write_log ("exall: MatchString %08x, MatchFunc %08x\n",
+	get_long (control + 8), get_long (control + 12));
+#endif
 
     put_long (control + 0, 0); /* eac_Entries */
 
@@ -2909,7 +2923,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
     if (kickstart_version < 36)
 	return 0;
 
-    if (type == 0 || type > 6) {
+    if (type == 0 || type > 7) {
 	doserr = ERROR_BAD_NUMBER;
 	goto fail;
     }
