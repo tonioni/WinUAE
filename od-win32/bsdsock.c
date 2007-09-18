@@ -201,20 +201,23 @@ int init_socket_layer(void)
 				wc.lpfnWndProc = SocketWindowProc;
 				wc.cbClsExtra = 0;
 				wc.cbWndExtra = 0;
-				wc.hInstance = 0;
+				wc.hInstance = hInst;
 				wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
 				wc.hCursor = LoadCursor (NULL, IDC_ARROW);
 				wc.hbrBackground = GetStockObject (BLACK_BRUSH);
 				wc.lpszMenuName = 0;
 				wc.lpszClassName = "SocketFun";
-				if(RegisterClass(&wc)) {
-					bsd->hSockWnd = CreateWindowEx (0,
-						"SocketFun", "WinUAE Socket Window",
-						WS_POPUP,
-						0, 0,
-						1, 1,
-						NULL, NULL, 0, NULL);
-					bsd->hSockThread = THREAD(sock_thread, NULL);
+				RegisterClass(&wc);
+				bsd->hSockWnd = CreateWindowEx (0,
+					"SocketFun", "WinUAE Socket Window",
+					WS_POPUP,
+					0, 0,
+					1, 1,
+					NULL, NULL, 0, NULL);
+				bsd->hSockThread = THREAD(sock_thread, NULL);
+				if (!bsd->hSockWnd) {
+				    deinit_socket_layer();
+				    return 0;
 				}
 			}
 		}
@@ -273,6 +276,7 @@ void deinit_socket_layer(void)
 		bsd->hSockReqHandled = NULL;
 		DestroyWindow (bsd->hSockWnd);
 		bsd->hSockWnd = NULL;
+		UnregisterClass ("SocketFun", hInst);
 	}
 	close_selectget_threads ();
 }

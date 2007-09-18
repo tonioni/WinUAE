@@ -69,22 +69,25 @@ filesys_init:
 	move.l (a0),a5
 	lea.l explibname(pc),a1 ; expansion lib name
 	moveq #36,d0
-	moveq #0,d5
+	moveq #1,d5
 	jsr  -552(a6) ; OpenLibrary
 	tst.l d0
 	bne.b FSIN_explibok
 	lea.l explibname(pc),a1 ; expansion lib name
 	moveq #0,d0
-	moveq #1,d5
+	moveq #0,d5
 	jsr  -552(a6) ; OpenLibrary
 FSIN_explibok:
 	move.l d0,a4
+
+	tst.l $10c(a5)
+	beq.s FSIN_none
+
 	move.l #PP_TOTAL,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	move.l d0,a3  ; param packet
 	move.l a4,PP_EXPLIB(a3)
-
 	moveq #0,d6
 FSIN_init_units:
 	cmp.l $10c(a5),d6
@@ -92,7 +95,10 @@ FSIN_init_units:
 	move.l d6,-(sp)
 FSIN_nextsub:
 	moveq #1,d7
-	move.l a3,-(sp)
+	tst.w d5
+	beq.s .oldks
+	bset #2,d7
+.oldks	move.l a3,-(sp)
 	move.l a3,a0
 	bsr.w make_dev
 	move.l (sp)+,a3
@@ -106,8 +112,13 @@ FSIN_nomoresub:
 	move.l (sp)+,d6
 	addq.w #1,d6
 	bra.b  FSIN_init_units
-
 FSIN_units_ok:
+	move.l 4.w,a6
+	move.l a3,a1
+	move.l #PP_TOTAL,d0
+	jsr FreeMem(a6)
+
+FSIN_none:
 	move.l 4.w,a6
 	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
@@ -502,28 +513,31 @@ addvolumenode
 	jsr -$2A6(a6) ;AddDosEntry (Volume)
 .nvol	btst #1,d7
 	beq.s .ndev
+	tst.b 158(a3)
+	bne.s .ndev
+	st 158(a3)
 	move.l 180(a3),d1
-	jsr -$2a6(a6) ;AddDosEntry (Device)
+	jsr -$2A6(a6) ;AddDosEntry (Device)
 .ndev	moveq #(1<<1)+(1<<3)+(1<<2),d1 ;LDF_WRITE | LDF_VOLUMES | LDF_DEVICES
 	jsr -$294(a6) ;UnLockDosList
 	bra.s .end
 .prev37	move.l 4.w,a6
 	jsr -$0084(a6) ; Forbid
-	move.l 160(a3),a0
-	move.l 34(a0),a0 ; rootnode
-	add.l a0,a0
-	add.l a0,a0
-	move.l 24(a0),a0 ; dosinfo
-	add.l a0,a0
-	add.l a0,a0
-	lea 32(a3),a1
-	move.l 4(a0),(a1)
-	move.l a1,d0
-	lsr.l #2,d0
-	move.l d0,4(a0)
-	jsr -$008a(a6) ;Permit
+	btst #0,d7
+	beq.s .nvol13
+	lea 32(a3),a0
+	bsr.w adddosentry13
+.nvol13	btst #1,d7
+	beq.s .ndev13
+	tst.b 158(a3)
+	bne.s .ndev13
+	st 158(a3)
+	move.l 180(a3),a0
+	bsr.w adddosentry13
+.ndev13	jsr -$008a(a6) ;Permit
 .end	movem.l (sp)+,d7/a6
 	rts	
+
 remvolumenode
 	movem.l d7/a2/a6,-(sp)
 	move.l d0,d7
@@ -541,6 +555,9 @@ remvolumenode
 	jsr -$2A0(a6) ;RemDosEntry (Volume)
 .nvol	btst #1,d7
 	beq.s .ndev
+	tst.b 158(a3)
+	beq.s .ndev
+	clr.b 158(a3)
 	move.l 180(a3),d1
 	jsr -$2A0(a6) ;RemDosEntry (Device)
 .ndev	moveq #(1<<1)+(1<<3)+(1<<2),d1 ;LDF_WRITE | LDF_VOLUMES | LDF_DEVICES
@@ -548,30 +565,62 @@ remvolumenode
 	bra.s .end
 .prev37	move.l 4.w,a6
 	jsr -$0084(a6) ; Forbid
-	move.l 160(a3),a0
-	move.l 34(a0),a0 ; rootnode
-	add.l a0,a0
-	add.l a0,a0
-	move.l 24(a0),a0 ; dosinfo
-	add.l a0,a0
-	add.l a0,a0
-	lea 4(a0),a1
-	lea 32(a3),a2
-.pr2	move.l 4(a0),d0
-	beq.s .pr1
-	add.l d0,d0
-	add.l d0,d0
-	cmp.l d0,a2
-	beq.s .pr3
-	move.l d0,a1
-	move.l (a1),a0
-	add.l a0,a0
-	add.l a0,a0
-	bra.s .pr2
-.pr3	move.l (a2),(a1)
-.pr1	jsr -$008a(a6) ;Permit
+	btst #0,d7
+	beq.s .nvol13
+	lea 32(a3),a0
+	bsr.w remdosentry13
+.nvol13	btst #1,d7
+	beq.s .ndev13
+	tst.b 158(a3)
+	beq.s .ndev13
+	clr.b 158(a3)
+	move.l 180(a3),a0
+	bsr.w remdosentry13
+.ndev13	jsr -$008a(a6) ;Permit
 .end	movem.l (sp)+,d7/a2/a6
 	rts
+
+adddosentry13:
+	move.l a0,a1
+	move.l 160(a3),a0
+	move.l 34(a0),a0 ; RootNode
+	move.l 24(a0),a0 ; DosInfo
+	add.l a0,a0
+	add.l a0,a0
+	move.l 4(a0),(a1) ; myentry->dl_Next = di_DevInfo
+	move.l a1,d0
+	lsr.l #2,d0
+	move.l d0,4(a0) ; di_DevInfo = myentry
+	rts
+
+remdosentry13:
+	move.l a0,a2
+	move.l 160(a3),a0
+	move.l 34(a0),a0 ; RootNode
+	move.l 24(a0),a0 ; DosInfo
+	add.l a0,a0
+	add.l a0,a0
+	move.l 4(a0),a1 ; DosInfo->di_DevInfo
+	add.l a1,a1
+	add.l a1,a1
+	cmp.l a2,a1
+	bne.s .pr2
+	; was first entry
+	move.l (a2),4(a0) ; di_DevInfo = myentry->dl_Next
+	bra.s .pr1
+.pr2	move.l a1,d0
+	beq.s .pr3
+	move.l (a1),d0 ; prevEntry->dl_Next
+	add.l d0,d0
+	add.l d0,d0
+	cmp.l d0,a2 ; next is our entry?
+	beq.s .pr3
+	move.l d0,a1
+	bra.s .pr2
+.pr3	move.l a1,d0
+	beq.s .pr1
+	move.l (a2),(a1) ; prevEntry->dl_Next = myentry->dl_Next
+.pr1	rts
 
 diskinsertremove:
 	movem.l d2/a2/a6,-(sp)
@@ -651,20 +700,23 @@ action_inhibit
 	rts
 .add
 	moveq #1,d0
-	moveq #1,d1
+	moveq #3,d1
 	bsr dodiskchange
 	rts
 
 diskchange
-	tst.b 172(a3)
+	move.b 172(a3),d0
 	bmi.s .nodisk
 	moveq #1,d0
-	moveq #1,d1
+	moveq #3,d1
 	bsr dodiskchange
 	rts
 .nodisk
-	moveq #0,d0
 	moveq #1,d1
+	cmp.b #-2,d0 ;remove device node?
+	bne.s .nod1
+	moveq #3,d1
+.nod1	moveq #0,d0
 	bsr dodiskchange
 	rts
 
@@ -680,6 +732,7 @@ action_exall
 	move.l a0,a5
 	move.l 24(a4),a2 ;dp_Arg2, ExAllData
 	move.l (a5),d7 ; eac_Entries
+	moveq #0,d5 ; previous entry
 .ex4	tst.l d7
 	beq.s .ex3
 	move.l a2,d0
@@ -711,24 +764,32 @@ action_exall
 	; need to delete current entry.. this is not really the proper way..
 	move.l 4(a2),d0 ; pointer to filename (which is first address after structure)
 	sub.l a2,d0 ; copy this much data
-	tst.l (a2) ; eac_Next
+	tst.l (a2) ; delete last? (eac_Next)
+	bne.s .ex10
+	; need to clear previous eac_Next
+	move.l d5,d0
 	beq.s .ex8
-	move.l (a2),a0
+	move.l d0,a0
+	clr.l (a0)
+	bra.s .ex8
+.ex10	move.l (a2),a0
 	move.l a2,a1
 .ex9	move.l (a0)+,(a1)+
-	subq.l #4,d1
+	subq.l #4,d0
 	bpl.s .ex9
 .ex8	subq.l #1,(a5) ; eac_Entries
 	subq.l #1,d7
 	bra.s .ex4
-.ex7	move.l (a2),a2 ; eac_Next
+.ex7	move.l a2,d5
+	move.l (a2),a2 ; eac_Next
 	subq.l #1,d7
 	bra.s .ex4
 .ex3	movem.l (sp)+,d2-d7/a2-a6
 	rts
 
 
-make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly, A4: expansionbase
+make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36+
+	; A4: expansionbase
 
 	bsr.w fsres
 	move.l d0,PP_FSRES(a0) ; pointer to FileSystem.resource
@@ -745,14 +806,16 @@ make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly, A4: e
 	jsr (a1)
 	; ret:0=virtual,1=hardfile,2=rdbhardfile,-1=hardfile-donotmount,-2=no more subunits
 	move.l d0,d3
-	cmp.l #-2,d3
+	cmp.w #-2,d3
 	beq.w general_ret
-	cmp.l #2,d3
-	beq.s mountalways
-	
+	cmp.w #1,d3
+	bne.s mountalways
+
 	; KS < V36: init regular hardfiles only if filesystem is loaded
-	and.l d5,d0
-	beq.s mountalways ; >= 36
+	btst #2,d7
+	bne.s mountalways ; >= 36
+	btst #1,d7
+	bne.s mountalways
 	tst.l PP_FSSIZE(a0)
 	beq.w general_ret ; no filesystem -> don't mount
 
@@ -823,8 +886,8 @@ nordbfs2:
 
 MKDV_is_filesys:
 	move.l #6000,20(a3)     ; dn_StackSize
-	lea.l our_seglist(pc),a1
-	move.l a1,d0
+	lea.l our_seglist(pc),a0
+	move.l a0,d0
 	lsr.l  #2,d0
 	move.l d0,32(a3)        ; dn_SegList
 	moveq #-1,d0
@@ -850,39 +913,98 @@ MKDV_doboot:
 	move.l a3,16(a1)        ; devicenode
 	lea.l  74(a4),a0 ; MountList
 	jsr  -270(a6) ; Enqueue()
+	moveq #0,d0
 	rts
 
 MKDV_noboot:
-	move.l a3,a0
+	move.l a1,a2 ; bootnode
+	move.l a3,a0 ; parmpacket
 	moveq #0,d1
 	move.l d1,a1
 	btst #1,d7
 	beq.s .nob
-	moveq #1,d1 ; ADNF_STARTPROC
+	btst #2,d7
+	beq.s .nob
+	moveq #1,d1 ; ADNF_STARTPROC (v36+)
 .nob	moveq #-20,d0
 	move.l a4,a6 ; expansion base
 	jsr  -150(a6) ; AddDosNode
+	btst #1,d7
+	beq.s .noproc
+	btst #2,d7
+	bne.s .noproc
+
+	; 1.3 and need to start immediately
+	move.l (a2),a0 ; 'dh0' but need 'dh0:'
+	moveq #2,d2
+.devpr1	addq.l #1,d2
+	tst.b -3(a0,d2.l)
+	bne.s .devpr1
+	move.l 4.w,a6
+	move.l d2,d0
+	moveq #1,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq.s .noproc
+	move.l (a2),a0
+	move.l d0,a2
+	move.l a2,a1
+.devpr2	move.b (a0)+,(a1)+
+	bne.s .devpr2
+	move.b #':',-1(a1)
+	clr.b (a1)
+	move.l 4.w,a6
+	lea doslibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ; OpenLibrary
+	move.l d0,a6
+	move.l a2,d1
+	jsr -$0AE(a6) ; DeviceProc (start fs handler, ignore return code)
+	move.l a6,a1
+	move.l 4.w,a6
+	jsr -$019e(a6); CloseLibrary
+	move.l a2,a1
+	move.l d2,d0
+	jsr FreeMem(a6)
+.noproc
+	moveq #0,d0
 	rts
 
 addfsonthefly ; d1 = fs index
 	movem.l d2-d7/a2-a6,-(sp)
 	move.l d1,d6
-	moveq #2,d7
-	moveq #0,d5
+	moveq #2+4,d7
 	move.l 4.w,a6
+	lea.l explibname(pc),a1 ; expansion lib name
+	moveq #36,d0
+	jsr  -552(a6) ; OpenLibrary
+	tst.l d0
+	bne.s .newks
+	bclr #2,d7
 	lea.l explibname(pc),a1 ; expansion lib name
 	moveq #0,d0
 	jsr  -552(a6) ; OpenLibrary
-	move.l d0,a4
+.newks	move.l d0,a4
 	move.l #PP_TOTAL,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	move.l d0,a0  ; param packet
+	tst.l d0
+	beq.s .nomem
 	move.l a4,PP_EXPLIB(a0)
-	movem.l a4/a6,-(sp)
+.next	movem.l a0/a4/a6,-(sp)
 	bsr.w make_dev
-	movem.l (sp)+,a4/a6
-	move.l a4,a1
+	movem.l (sp)+,a0/a4/a6
+	cmp.l #-2,d0
+	beq.s .nomsub
+	swap d6
+	addq.w #1,d6
+	swap d6
+	bra.s .next
+.nomsub	move.l a0,a1
+	move.l #PP_TOTAL,d0
+	jsr FreeMem(a6)
+.nomem	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
 	movem.l (sp)+,d2-d7/a2-a6
 	rts
@@ -907,6 +1029,7 @@ filesys_mainloop:
 	; 12: dummy message
 	; 32: the volume (44+80+1 bytes)
 	; 157: mousehack started-flag
+	; 158: device node on/off status
 	; 160: dosbase
 	; 164: input.device ioreq (disk inserted/removed input message)
 	; 168: timer.device ioreq
@@ -922,6 +1045,7 @@ filesys_mainloop:
 	move.l d6,4(a3)
 	move.l d6,8(a3)
 	move.l a2,160(a3)
+	st 158(a3)
 
 	sub.l a1,a1
 	jsr -294(a6) ; FindTask
@@ -1300,7 +1424,9 @@ createtask:
 	move.l a2,a1
 	move.l d3,a2
 	sub.l a3,a3
+	move.l a1,d2
 	jsr -$011a(a6) ;AddTask
+	move.l d2,d0
 .f	movem.l (sp)+,d2/d3/d4/a2/a3/a6
 	rts
 

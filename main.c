@@ -614,6 +614,9 @@ void do_leave_program (void)
 #ifdef FILESYS
     filesys_cleanup ();
 #endif
+#ifdef BSDSOCKET
+    bsdlib_reset ();
+#endif
     device_func_reset ();
     savestate_free ();
     memory_cleanup ();

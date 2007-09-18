@@ -2693,6 +2693,8 @@ int get_native_path(uae_u32 lock, char *out)
     return -1;
 }
 
+#define EXALL_DEBUG 0
+
 static ExAllKey *getexall (Unit *unit, int id)
 {
     int i;
@@ -2712,7 +2714,6 @@ static ExAllKey *getexall (Unit *unit, int id)
     }
     return NULL;
 }
-
 
 static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaecptr control, Unit *unit, a_inode *aino)
 {
@@ -2783,7 +2784,10 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
     if (exalldata + exalldatasize - exp < size + size2)
 	return 0; /* not enough space */
 
-    //write_log("%d, %08x: '%s'%s\n", get_long (control + 0), exp, x, aino->dir ? " [DIR]" : "");
+#if EXALL_DEBUG > 0
+   write_log("ID=%d, %d, %08x: '%s'%s\n",
+       get_long (control + 4), get_long (control + 0), exp, x, aino->dir ? " [DIR]" : "");
+#endif
 
     put_long (exp, exp + size + size2); /* ed_Next */
     if (control >= 1) {
@@ -2873,6 +2877,9 @@ static int action_examine_all_end (Unit *unit, dpacket packet)
 	return 0;
     id = get_long (control + 4);
     eak = getexall (unit, id);
+#if EXALL_DEBUG > 0
+    write_log ("EXALL_END ID=%d %x\n", id, eak);
+#endif
     if (!eak) {
         write_log ("FILESYS: EXALL_END non-existing ID %d\n", id);
         doserr = ERROR_OBJECT_WRONG_TYPE;
@@ -2910,7 +2917,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     ok = 0;
 
-#if 0
+#if EXALL_DEBUG > 0
     write_log ("exall: %08x %08x-%08x %d %d %08x\n",
 	lock, exalldata, exalldata + exalldatasize, exalldatasize, type, control);
     write_log ("exall: MatchString %08x, MatchFunc %08x\n",
@@ -2954,7 +2961,9 @@ static int action_examine_all (Unit *unit, dpacket packet)
 	    base = lookup_aino (unit, get_long (lock + 4));
 	if (base == 0)
 	    base = &unit->rootnode;
-	//write_log("exall: '%s'\n", base->nname);
+#if EXALL_DEBUG > 0
+	write_log("exall: ID=%d '%s'\n", eak->id, base->nname);
+#endif
 	d = fs_opendir (unit, base->nname);
 	if (!d)
 	    goto fail;
@@ -2984,7 +2993,9 @@ fail:
 	exp = get_long (exp); /* ed_Next */
 	i--;
     }
-    //write_log("ok=%d, err=%d, eac_Entries = %d\n", ok, ok ? -1 : doserr, get_long (control + 0));
+#if EXALL_DEBUG > 0
+    write_log("ok=%d, err=%d, eac_Entries = %d\n", ok, ok ? -1 : doserr, get_long (control + 0));
+#endif
 
     if (!ok) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);

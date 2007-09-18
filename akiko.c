@@ -1067,11 +1067,11 @@ void AKIKO_hsync_handler (void)
 		uae_u8 as = s[1];
 		if (as == AUDIO_STATUS_IN_PROGRESS) {
 		    int lsn = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4] << 0));
-		    write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
+		    //write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
 		    // make sure audio play really ends because not all drives report position accurately
 		    if ((lsn >= cdrom_leadout - 3 * 75 || lsn >= msf2lsn(last_play_end) - 3 * 75) && !cdrom_audiotimeout) {
 			cdrom_audiotimeout = 3 * 312;
-			write_log("audiotimeout starts\n");
+			//write_log("audiotimeout starts\n");
 		    }
 		}
 	    }

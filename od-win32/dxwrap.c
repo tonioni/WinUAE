@@ -254,7 +254,7 @@ static int LockStub( surface_type_e type )
     if(lockcnt)
     {
 #ifdef _DEBUG
-	DebugBreak();
+	//DebugBreak();
 #endif
 	return 1;
     }

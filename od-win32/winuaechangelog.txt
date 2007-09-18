@@ -1,4 +1,13 @@
 
+Beta 9: RC2
+
+- deleting file, recycle bin support enabled and deletion fails:
+  return error code was wrong (SHFileOperation() is weird)
+- Action Replay 1/2/3 work again
+- bsdsocket froze if new configuration was loaded on the fly
+- filter crashes (old bug) if display was big, also centering code
+  is back to pre-b7
+
 Beta 8: (this is basically RC1 if bsdsocket is fixed)
 
 - ExAll ED_OWNER supported (return zero uid and gid) because

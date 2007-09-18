@@ -105,8 +105,10 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     }
 
     if (usedfilter->type == UAE_FILTER_HQ) {
-	tempsurf2 = xmalloc (amiga_width * amiga_height * (amiga_depth / 8));
-	tempsurf3 = xmalloc (dst_width * dst_height * (dst_depth / 8) * 4);
+	int w = amiga_width > dst_width ? amiga_width : dst_width;
+	int h = amiga_height > dst_height ? amiga_height : dst_height;
+	tempsurf2 = xmalloc (w * h * (amiga_depth / 8));
+	tempsurf3 = xmalloc (w * h *(dst_depth / 8) * 4);
     }
 }
 
@@ -121,14 +123,14 @@ void S2X_render (void)
     DDSURFACEDESC2 desc;
 
     sptr = gfxvidinfo.bufmem;
-    v = (dst_width - amiga_width * scale) / 2;
+    v = (dst_width - amiga_width) / 2;
     aw += v;
     sptr -= v * (amiga_depth / 8);
-    v = (dst_height - amiga_height * scale) / 2;
+    v = (dst_height - amiga_height) / 2;
     ah += v;
     sptr -= v * gfxvidinfo.rowbytes;
 
-    endsptr = gfxvidinfo.realbufmem + (amiga_height - 1) * 3 * gfxvidinfo.rowbytes;
+    endsptr = gfxvidinfo.bufmemend;
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
     v += (dst_width / scale - amiga_width) / 8;

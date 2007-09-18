@@ -517,6 +517,20 @@ static int recycle (const char *name)
 	fos.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NORECURSION | FOF_SILENT;
 	v = SHFileOperation (&fos);
 	xfree (p);
+	switch (v)
+	{
+	    case 0xb7: //DE_ERROR_MAX
+	    case 0x7c: //DE_INVALIDFILES
+	    v = ERROR_FILE_NOT_FOUND;
+	    break;
+	    case 0x75: //DE_OPCANCELLED:
+	    case 0x10000: //ERRORONDEST:
+	    case 0x78: //DE_ACCESSDENIEDSRC:
+	    case 0x74: //DE_ROOTDIR:
+	    v = ERROR_ACCESS_DENIED;
+	    break;
+	}
+	SetLastError (v);
 	return v ? -1 : 0;
     }
 }
@@ -773,7 +787,6 @@ int dos_errno (void)
 
      case ERROR_SHARING_VIOLATION:
      case ERROR_BUSY:
-     /* SHFileOperation() returns this if file can't be deleted!?! */
      case ERROR_INVALID_HANDLE:
 	return ERROR_OBJECT_IN_USE;
 

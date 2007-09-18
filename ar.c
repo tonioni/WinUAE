@@ -1104,10 +1104,12 @@ void action_replay_reset(void)
 	if (armodel == 1) {
 	    /* We need to mark it as active here, because the kickstart rom jumps directly into it. */
 	    action_replay_flag = ACTION_REPLAY_ACTIVE;
+	    hide_cart (0);
 	} else {
 	    write_log_debug ("Setting flag to ACTION_REPLAY_WAITRESET\n");
 	    write_log_debug ("armode == %d\n", armode);
 	    action_replay_flag = ACTION_REPLAY_WAITRESET;
+	    hide_cart (0);
 	}
     }
 }
@@ -1670,7 +1672,6 @@ int action_replay_load (void)
     arrom_mask = arrom_size - 1;
     armemory_ram = (uae_u8*)xcalloc (arram_size, 1);
     write_log ("Action Replay %d installed at %08.8X, size %08.8X\n", armodel, arrom_start, arrom_size);
-    action_replay_setbanks ();
     action_replay_version();
     return armodel;
 }
@@ -1942,11 +1943,6 @@ void action_replay_version(void)
 /* This function doesn't reset the Cart memory, it is just called during a memory reset */
 void action_replay_memory_reset(void)
 {
-    #ifdef ACTION_REPLAY
-    if (armemory_rom) {
-	action_replay_hide ();
-    }
-    #endif
     #ifdef ACTION_REPLAY_HRTMON
     if (hrtmemory) {
 	hrtmon_hide (); /* It is never really idle */
@@ -1960,7 +1956,10 @@ void action_replay_memory_reset(void)
     #endif
     action_replay_patch ();
     action_replay_checksum_info ();
+    action_replay_setbanks ();
     hrtmon_configure ();
+    if (armodel == 1)
+	action_replay_flag = ACTION_REPLAY_ACTIVE;
 }
 
 uae_u8 *save_hrtmon (int *len, uae_u8 *dstptr)

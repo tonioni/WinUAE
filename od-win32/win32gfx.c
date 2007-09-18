@@ -2280,11 +2280,14 @@ static BOOL doInit (void)
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
 	gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
     } else if (!(currentmode->flags & DM_D3D)) {
-	int size = (currentmode->amiga_width * 2) * (currentmode->amiga_height * 3) * gfxvidinfo.pixbytes;
+	int w = currentmode->amiga_width * 2;
+	int h = currentmode->amiga_height * 2;
+	int size = (w * 2) * (h * 3) * gfxvidinfo.pixbytes;
 	gfxvidinfo.realbufmem = xmalloc (size);
 	memset (gfxvidinfo.realbufmem, 0, size);
-	gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (currentmode->amiga_width + (currentmode->amiga_width * 2) * currentmode->amiga_height) * gfxvidinfo.pixbytes;
-	gfxvidinfo.rowbytes = currentmode->amiga_width * 2 * gfxvidinfo.pixbytes;
+	gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
+	gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
+	gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
     }
 
     init_row_map ();
