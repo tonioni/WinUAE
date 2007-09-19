@@ -4488,8 +4488,8 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_PARENT_FH: action_parent_fh (unit, pck); break;
      case ACTION_ADD_NOTIFY: action_add_notify (unit, pck); break;
      case ACTION_REMOVE_NOTIFY: action_remove_notify (unit, pck); break;
-     case ACTION_EXAMINE_ALL: return action_examine_all (unit, pck); break;
-     case ACTION_EXAMINE_ALL_END: return action_examine_all_end (unit, pck); break;
+     case ACTION_EXAMINE_ALL: return action_examine_all (unit, pck);
+     case ACTION_EXAMINE_ALL_END: return action_examine_all_end (unit, pck);
 
 	 /* unsupported packets */
      case ACTION_LOCK_RECORD:
@@ -4497,7 +4497,7 @@ static int handle_packet (Unit *unit, dpacket pck)
      case ACTION_MAKE_LINK:
      case ACTION_READ_LINK:
      case ACTION_FORMAT:
-	 return 0;
+	return 0;
      default:
 	write_log ("FILESYS: UNKNOWN PACKET %x\n", type);
 	return 0;
@@ -5942,6 +5942,8 @@ uae_u8 *save_filesys (int num, int *len)
     int type = is_hardfile (num);
 
     ui = &mountinfo.ui[num];
+    if (!ui->open)
+	return NULL;
     write_log ("FS_FILESYS: '%s' '%s'\n", ui->devname, ui->volname);
     dstbak = dst = (uae_u8*)xmalloc (100000);
     save_u32 (2); /* version */

@@ -503,11 +503,12 @@ static void setmaintitle (HWND hwnd)
 	WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
 	    txt2, sizeof (txt2));
     }
-    if (WINUAEBETA > 0)
+    if (WINUAEBETA > 0) {
 	strcat (txt, BetaStr);
-    if (strlen(WINUAEEXTRA) > 0) {
-	strcat (txt, " ");
-	strcat (txt, WINUAEEXTRA);
+	if (strlen(WINUAEEXTRA) > 0) {
+	    strcat (txt, " ");
+	    strcat (txt, WINUAEEXTRA);
+	}
     }
     if (txt2[0]) {
 	strcat (txt, " - ");
