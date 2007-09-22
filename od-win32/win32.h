@@ -17,8 +17,8 @@
 
 #define WINUAEBETA 0
 #define WINUAEPUBLICBETA 0
-#define WINUAEDATE MAKEBD(2007, 9, 20)
-#define WINUAEEXTRA "AmiKit 1.4.0 CD release"
+#define WINUAEDATE MAKEBD(2007, 9, 22)
+#define WINUAEEXTRA ""
 #define WINUAEREV ""
 
 #define IHF_WINDOWHIDDEN 6
