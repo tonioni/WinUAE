@@ -3374,11 +3374,12 @@ extern int p96mode;
 
 static void flushpixels_rgbx(uae_u8 *dst)
 {
-    int i, j;
+    int i, j, off;
     int rowwidth_src = picasso_vidinfo.width * picasso_vidinfo.pixbytes;
     int rowwidth_dst = picasso96_state.Width * picasso96_state.BytesPerPixel;
     ULONG ps;
     ULONG_PTR gwwcnt;
+    uae_u8 *src = p96ram_start + natmem_offset;
 
     if (!picasso_vidinfo.extra_mem)
 	return;
@@ -3386,22 +3387,47 @@ static void flushpixels_rgbx(uae_u8 *dst)
 	gwwbufsize = allocated_gfxmem / 4096 + 1;
 	gwwbuf = xmalloc (gwwbufsize * sizeof (void*));
     }
-    gwwcnt = gwwbufsize;
-    if (GetWriteWatch(WRITE_WATCH_FLAG_RESET, p96ram_start + natmem_offset, allocated_gfxmem, gwwbuf, &gwwcnt, &ps))
-	return;
-    for (i = 0; i < gwwcnt; i++) {
-	uae_u8 *p = gwwbuf[i];
-	uaecptr addr = p - p96ram_start - natmem_offset;
-	for (j = 0; j < ps / 4; j++) {
-	    int xbytes, y;
-	    uae_u32 *dst2;
-	    y = addr / picasso96_state.BytesPerRow;
-	    xbytes = addr % picasso96_state.BytesPerRow;
-	    dst2 = (uae_u32*)(dst + y * picasso_vidinfo.rowbytes + xbytes);
-	    if (xbytes < rowwidth_dst && y < picasso96_state.Height)
-		*dst2 = ((uae_u32*)p)[0];
-	    addr += 4;
-	    p += 4;
+    for (;;) {
+	gwwcnt = gwwbufsize;
+	if (GetWriteWatch(WRITE_WATCH_FLAG_RESET, src, allocated_gfxmem, gwwbuf, &gwwcnt, &ps))
+	    return;
+	if (gwwcnt == 0)
+	    return;
+	off = picasso96_state.XYOffset - gfxmem_start;
+	for (i = 0; i < gwwcnt; i++) {
+	    uae_u8 *p = gwwbuf[i];
+	    uaecptr addr = (p - src) - off;
+	    int y = addr / picasso96_state.BytesPerRow;
+	    int yend = (addr + ps + picasso96_state.BytesPerRow - 1) / picasso96_state.BytesPerRow;
+	    uae_u8 *src2 = src + y * picasso96_state.BytesPerRow + off;
+	    uae_u8 *dst2 = dst + y * picasso_vidinfo.rowbytes;
+
+	    while (y <= yend && y < picasso96_state.Height) {
+#if 0
+		for (j = 0; j < rowwidth_dst; j++)
+		    dst2[j] = src2[j] ^ 0xff;
+#else
+		memcpy (dst2, src2, rowwidth_dst);
+#endif
+		src2 += picasso96_state.BytesPerRow;
+		dst2 += picasso_vidinfo.rowbytes;
+		y++;
+	    }
+
+#if 0
+	    for (j = 0; j < ps / 4; j++) {
+		int xbytes, y;
+		uae_u32 *dst2;
+		y = addr / picasso96_state.BytesPerRow;
+		xbytes = addr % picasso96_state.BytesPerRow;
+		if (xbytes < rowwidth_dst && y < picasso96_state.Height) {
+		    dst2 = (uae_u32*)(dst + y * picasso_vidinfo.rowbytes + xbytes);
+		    *dst2 = ((uae_u32*)p)[0];
+		}
+		addr += 4;
+		p += 4;
+	    }
+#endif
 	}
     }
 }
@@ -3499,6 +3525,8 @@ static void flushpixels(void)
 	if (p96mode) {
 	    if(picasso_vidinfo.rgbformat == picasso96_state.RGBFormat)
 		flushpixels_rgbx(dst);
+	    else
+		write_log("!");
 	} else {
 	    if(picasso_vidinfo.rgbformat == picasso96_state.RGBFormat)
 		flushpixels_rgb(dst);

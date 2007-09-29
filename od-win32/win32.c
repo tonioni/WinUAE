@@ -409,7 +409,7 @@ static int figure_processor_speed (void)
     dummythread_die = 1;
 
     sleep_resolution = 1;
-    if (clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) {
+    if ((clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) && no_rdtsc < 2) {
 	limit = 2.5;
 	if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
 	    timermode = 0;
@@ -2615,8 +2615,11 @@ static int osdetect (void)
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 	    os_64bit = 1;
     }
-    if (!os_winnt)
+    if (!os_winnt) {
+	extern int p96mode;
+	p96mode = 0;
 	return 1;
+    }
     os_winnt_admin = isadminpriv ();
     if (os_winnt_admin) {
 	if (pIsUserAnAdmin) {
@@ -2814,7 +2817,7 @@ static void getstartpaths(void)
 }
 
 extern void test (void);
-extern int screenshotmode, b0rken_ati_overlay, postscript_print_debugging, sound_debug, log_uaeserial;
+extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
 extern int force_direct_catweasel, max_allowed_mman, sound_mode_skip;
 
 extern DWORD_PTR cpu_affinity;
@@ -2881,20 +2884,16 @@ static int process_arg(char **xargv)
 	    continue;
 	}
 #endif
-	if (!strcmp (arg, "-disableowr")) {
-	    b0rken_ati_overlay = -1;
-	    continue;
-	}
-	if (!strcmp (arg, "-enableowr")) {
-	    b0rken_ati_overlay = 1;
-	    continue;
-	}
 	if (!strcmp (arg, "-nordtsc")) {
 	    no_rdtsc = 1;
 	    continue;
 	}
 	if (!strcmp (arg, "-forcerdtsc")) {
 	    no_rdtsc = -1;
+	    continue;
+	}
+	if (!strcmp (arg, "-busywait")) {
+	    no_rdtsc = 2;
 	    continue;
 	}
 	if (!strcmp (arg, "-norawinput")) {

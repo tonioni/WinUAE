@@ -87,7 +87,7 @@ static void do_stch(void);
 static void INT2(void)
 {
     if (!(intreq & 8)) {
-	INTREQ_f(0x8000 | 0x0008);
+	INTREQ_0 (0x8000 | 0x0008);
     }
 }
 
@@ -682,7 +682,7 @@ static void tp_check_interrupts(void)
 	return;
 
     if (sten == 1) {
-	if (!(tp_air & (1 << 3)) && (tp_cd & (1 << 3))) {
+	if (tp_cd & (1 << 3)) {
 	    tp_air |= 1 << 3;
 	    INT2();
 	}
@@ -820,6 +820,7 @@ static void do_hunt(void)
 static void checkint(void)
 {
     int irq = 0;
+
     if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus() & 0x80)) {
 	dmac_istr |= ISTR_INTS;
 	if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
@@ -830,6 +831,13 @@ static void checkint(void)
     if (irq)
 	INT2();
 }
+
+void rethink_cdtv (void)
+{
+    checkint ();
+    tp_check_interrupts ();
+}
+
 
 void CDTV_hsync_handler(void)
 {
@@ -881,10 +889,8 @@ void CDTV_hsync_handler(void)
     if (cd_playing)
 	gui_cd_led (1);
     if (cd_media && (tp_cr & 1)) {
-	if (!(tp_air & (1 << 1))) {
-	    tp_air |= 1 << 1;
-	    INT2();
-	}
+	tp_air |= 1 << 1;
+	INT2();
     }
 
     subqcnt--;
@@ -1266,7 +1272,7 @@ static void ew (int addr, uae_u32 value)
 addrbank dmac_bank = {
     dmac_lget, dmac_wget, dmac_bget,
     dmac_lput, dmac_wput, dmac_bput,
-    default_xlate, default_check, NULL, "CDTV CD Controller",
+    default_xlate, default_check, NULL, "CDTV DMAC/CD Controller",
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 

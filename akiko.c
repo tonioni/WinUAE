@@ -35,7 +35,7 @@
 static void irq(void)
 {
     if (!(intreq & 8)) {
-	INTREQ_f(0x8000 | 0x0008);
+	INTREQ_0 (0x8000 | 0x0008);
     }
 }
 
@@ -387,13 +387,23 @@ static int unitnum = -1;
 static int cdromok = 0;
 static int cd_hunt;
 
+static void checkint (void)
+{
+    if (cdrom_status1 & cdrom_status2)
+	irq();
+}
 
 static void set_status(uae_u32 status)
 {
     cdrom_status1 |= status;
-    if (cdrom_status1 & cdrom_status2)
-	irq();
+    checkint ();
 }
+
+void rethink_akiko (void)
+{
+    checkint ();
+}
+
 
 static uae_u8 frombcd (uae_u8 v)
 {

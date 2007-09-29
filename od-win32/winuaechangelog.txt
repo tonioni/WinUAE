@@ -1,8 +1,27 @@
 
+Beta 1:
+
+- CDTV and CD32 interrupt handling improved, fixes "Snoopy In The
+  Case Of The Missing Blanket"
+- lzx decompressor compatibility and stability improved, store-mode
+  supported
+- do not include display dimensions in display list if Windows 98/ME
+  (it is garbage, at least on some systems)
+- Windows 98/ME serial port detection update
+- possible fix for overlay issues but it might cause slow downs in
+  some cases..
+- added -busywait debugging command line option
+- DiskSqueeze (dsq) dms-like disk packer format supported (probably
+  totally useless but was easy to do..) cop, dimp, warp (not to be
+  confused with mfmwarp) support may be "useful" too, perhaps in
+  future.. Unfortunately most formats are not documented.
+
+1.4.4
+
 Beta 9: RC2
 
 - deleting file, recycle bin support enabled and deletion fails:
-  return error code was wrong (SHFileOperation() is weird)
+  returned error code was wrong (SHFileOperation() is weird)
 - Action Replay 1/2/3 work again
 - bsdsocket froze if new configuration was loaded on the fly
 - filter crashes (old bug) if display was big, also centering code

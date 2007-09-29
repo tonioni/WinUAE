@@ -1200,21 +1200,36 @@ int enumserialports(void)
 	cnt = enumserialports_2();
     for (i = 0; i < 10; i++) {
 	sprintf(name, "COM%d", i);
-	if (!QueryDosDevice(name, devname, sizeof devname)) {
+	if (!QueryDosDevice(name, devname, sizeof devname))
 	    continue;
-	} else {
-	    for(j = 0; j < cnt; j++) {
-		if (!strcmp(comports[j].cfgname, name))
-		    break;
-	    }
-	    if (j == cnt) {
-		if (cnt >= MAX_SERIAL_PORTS)
-		    break;
+	for(j = 0; j < cnt; j++) {
+	    if (!strcmp(comports[j].cfgname, name))
+	        break;
+	}
+	if (j == cnt) {
+	    if (cnt >= MAX_SERIAL_PORTS)
+	        break;
+	    comports[j].dev = xmalloc(100);
+	    sprintf(comports[cnt].dev, "\\.\\\\%s", name);
+	    comports[j].cfgname = my_strdup (name);
+	    comports[j].name = my_strdup (name);
+	    write_log ("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
+	    cnt++;
+	}
+    }
+    if (cnt == 0 && !os_winnt) {
+	/* windows 98 hack */
+	for (i = 0; i < 8; i++) {
+	    COMMCONFIG cc;
+	    DWORD size = sizeof(COMMCONFIG);
+	    sprintf(name, "COM%d", i);
+	    if(GetDefaultCommConfig (name, &cc, &size)) {
+		j = cnt;
 		comports[j].dev = xmalloc(100);
 		sprintf(comports[cnt].dev, "\\.\\\\%s", name);
 		comports[j].cfgname = my_strdup (name);
 		comports[j].name = my_strdup (name);
-		write_log ("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
+		write_log ("W98SERPORT: %d:'%s'\n", cnt, comports[j].name);
 		cnt++;
 	    }
 	}

@@ -1184,7 +1184,8 @@ void expamem_reset (void)
     }
 
     z3fastmem_start = currprefs.z3fastmem_start;
-    p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+    if (!p96mode)
+	p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
     (*card_init[0]) ();
 }
 

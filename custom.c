@@ -2694,6 +2694,12 @@ void INTREQ_f(uae_u32 data)
 #ifdef A2091
     rethink_a2091 ();
 #endif
+#ifdef CDTV
+    rethink_cdtv ();
+#endif
+#ifdef CD32
+    rethink_akiko ();
+#endif
 }
 
 static void INTREQ_d (uae_u16 v, int d)

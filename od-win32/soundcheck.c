@@ -8,7 +8,7 @@
 
 static int sounddata_frequency = 44100;
 static int sounddata_stereo = 2;
-static int sounddata_bufsize = 262144;
+static int sounddata_bufsize = 262144 * 2;
 
 #define write_log printf
 
@@ -22,7 +22,7 @@ static LPDIRECTSOUND lpDS;
 static LPDIRECTSOUNDBUFFER lpDSBprimary;
 static LPDIRECTSOUNDBUFFER lpDSBsecondary;
 
-static uae_u8 sndbuffer[131072];
+static uae_u8 sndbuffer[131072*8];
 static int dsoundbuf, snd_configsize;
 static DWORD writepos;
 static HWND hwnd;
@@ -122,7 +122,6 @@ static int open_audio_ds (void)
     DSCAPS DSCaps;
     DSBCAPS DSBCaps;
     WAVEFORMATEX wavfmt;
-    int minfreq, maxfreq;
     int freq = sounddata_frequency;
 
     hr = DirectSoundCreate (&sound_device_guid[devicenum], &lpDS, NULL);
@@ -140,21 +139,17 @@ static int open_audio_ds (void)
     if (DSCaps.dwFlags & DSCAPS_EMULDRIVER) {
 	write_log ("SOUND: Emulated DirectSound driver detected, don't complain if sound quality is crap :)\n");
     }
-    minfreq = DSCaps.dwMinSecondarySampleRate;
-    maxfreq = DSCaps.dwMaxSecondarySampleRate;
-    if (maxfreq > 11000) {
-	if (minfreq > freq) {
+    if (DSCaps.dwFlags & DSCAPS_CONTINUOUSRATE) {
+	int minfreq = DSCaps.dwMinSecondarySampleRate;
+	int maxfreq = DSCaps.dwMaxSecondarySampleRate;
+	if (minfreq > freq && freq < 22050) {
 	    freq = minfreq;
-	    sounddata_frequency = freq;
 	    write_log ("SOUND: minimum supported frequency: %d\n", minfreq);
 	}
-	if (maxfreq < freq) {
+	if (maxfreq < freq && freq > 44100) {
 	    freq = maxfreq;
-	    sounddata_frequency = freq;
 	    write_log ("SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
-    } else {
-	write_log ("SOUND: ignored weird min (%d) or max (%d) sample rate\n", minfreq, maxfreq);
     }
 
     memset (&sound_buffer, 0, sizeof (sound_buffer));
@@ -255,7 +250,7 @@ static HWND GetConsoleHwnd(void)
 
     // ensure window title has been updated
 
-    Sleep(40);
+    Sleep(1000);
 
     // look for NewWindowTitle
 
@@ -510,7 +505,7 @@ static int osdetect (void)
       return 1;
    }
 
-static int srates[] = { 22050, 32000, 44100, 0 };
+static int srates[] = { 22050, 44100, 48000, 0 };
 
 int main (int argc, char **argv)
 {
@@ -518,7 +513,8 @@ int main (int argc, char **argv)
 
     logfile = fopen("soundlog.txt","w");
     osdetect();
-    write_log2("OS: %s %d.%d%s\n", os_winnt ? "NT" : "W9X/ME", osVersion.dwMajorVersion, osVersion.dwMinorVersion, os_winnt_admin ? " (Admin)" : "");
+    write_log2("WinUAE soundtest 0.2. OS: %s %d.%d%s\n",
+	os_winnt ? "NT" : "W9X/ME", osVersion.dwMajorVersion, osVersion.dwMinorVersion, os_winnt_admin ? " (Admin)" : "");
 
     init_mmtimer();
     if (!QueryPerformanceFrequency(&qpf)) {

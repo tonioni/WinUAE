@@ -610,20 +610,22 @@ struct zfile *archive_access_lzx (struct znode *zn)
     unsigned int startpos;
     struct znode *znfirst, *znlast;
     struct zfile *zf = zn->volume->archive;
-    struct zfile *dstf;
+    struct zfile *dstf, *newzf;
     uae_u8 *buf, *dbuf;
     unsigned int compsize, unpsize;
 
     dstf = NULL;
     buf = dbuf = NULL;
+    newzf = NULL;
 
     /* find first file in compressed block */
     unpsize = 0;
     znfirst = zn;
     while (znfirst->prev) {
-	znfirst = znfirst->prev;
-	if (!znfirst || znfirst->offset != 0)
+	struct znode *zt = znfirst->prev;
+	if (!zt || zt->offset != 0)
 	    break;
+	znfirst = zt;
 	unpsize += znfirst->size;
     }
     /* find last file in compressed block */
@@ -642,7 +644,7 @@ struct zfile *archive_access_lzx (struct znode *zn)
     zfile_fseek (zf, startpos, SEEK_SET);
     buf = xmalloc(compsize);
     zfile_fread (buf, compsize, 1, zf);
-    dbuf = xmalloc (unpsize);
+    dbuf = xcalloc (unpsize, 1);
 
     /* unpack complete block */
     memset(offset_len, 0, sizeof offset_len);
@@ -654,18 +656,20 @@ struct zfile *archive_access_lzx (struct znode *zn)
     global_shift = -16;
     last_offset = 1;
     destination = dbuf;
-    while (unpsize > 0) {
-	uae_u8 *pdest = destination;
-	if (!read_literal_table()) {
-	    int s;
-	    destination_end = destination + decrunch_length;
-	    decrunch();
-	    s = destination - pdest;
-	    unpsize -= s;
-	    crc_calc (pdest, s);
-	} else {
-	    write_log ("LZX corrupt compressed data\n");
-	    goto end;
+    if (compsize == unpsize) {
+	memcpy (dbuf, buf, unpsize);
+    } else {
+	while (unpsize > 0) {
+	    uae_u8 *pdest = destination;
+	    if (!read_literal_table()) {
+		destination_end = destination + decrunch_length;
+		decrunch();
+		unpsize -= decrunch_length;
+		crc_calc (pdest, decrunch_length);
+	    } else {
+		write_log ("LZX corrupt compressed data %s\n", zn->name);
+		goto end;
+	    }
 	}
     }
     /* pre-cache all files we just decompressed */
@@ -674,6 +678,8 @@ struct zfile *archive_access_lzx (struct znode *zn)
 	    dstf = zfile_fopen_empty (znfirst->name, znfirst->size);
 	    zfile_fwrite(dbuf + znfirst->offset2, znfirst->size, 1, dstf);
 	    znfirst->f = dstf;
+	    if (znfirst == zn)
+		newzf = zfile_dup (dstf);
 	}
 	if (znfirst == znlast)
 	    break;
@@ -682,7 +688,7 @@ struct zfile *archive_access_lzx (struct znode *zn)
 end:
     xfree(buf);
     xfree(dbuf);
-    return zn->f;
+    return newzf;
 }
 
 struct zvolume *archive_directory_lzx (struct zfile *in_file)
@@ -786,7 +792,6 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  zn = zvolume_addfile_abs(zv, &zai);
 	  zn->offset2 = merge_size;
 
-	  //write_log ("%d %d %d %s\n", unpack_size, merge_size, pack_size, zai.name);
 	  total_pack += pack_size;
 	  total_unpack += unpack_size;
 	  total_files++;
@@ -804,6 +809,10 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  }
 	  else
 	   abort = 0; /* continue */
+
+	  //write_log ("unp=%6d mrg=%6d pack=%6d off=%6d %s\n", unpack_size, merge_size, pack_size, zn->offset, zai.name);
+
+
 	 }
 	}
        }

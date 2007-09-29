@@ -260,7 +260,6 @@ void deinit_socket_layer(void)
 {
 	if (!bsd)
 	    return;
-	WSACleanup();
 	if(bsd->hSockThread) {
 		HANDLE t = bsd->hSockThread;
 		DeleteCriticalSection(&bsd->csSigQueueLock);
@@ -279,6 +278,7 @@ void deinit_socket_layer(void)
 		UnregisterClass ("SocketFun", hInst);
 	}
 	close_selectget_threads ();
+	WSACleanup();
 }
 
 #ifdef BSDSOCKET

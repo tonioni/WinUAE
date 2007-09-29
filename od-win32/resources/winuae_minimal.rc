@@ -73,41 +73,38 @@ BEGIN
     RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,112,75,10
     EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,110,10,15
-    GROUPBOX        "HRTMon Settings",-1,5,136,290,31,NOT WS_VISIBLE
-    CONTROL         "Enable HRTMon [] HRTMon is monitor/debugger similar to Action Replay series, default activation key is Page Up.",IDC_HRTMON,
-                    "Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,89,148,84,10
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 300, 235
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Screen",IDC_SCREENRESTEXT,12,0,199,67,BS_LEFT
+    GROUPBOX        "Screen",IDC_SCREENRESTEXT,12,0,270,67,BS_LEFT
     RTEXT           "Full screen:",IDC_SELECTRESTEXT,15,17,40,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_DISPLAYSELECT,59,10,147,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RESOLUTION,59,27,52,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_REFRESHRATE,145,27,61,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_XSIZE,59,48,35,12,ES_NUMBER
-    EDITTEXT        IDC_YSIZE,103,48,35,12,ES_NUMBER
+    COMBOBOX        IDC_DISPLAYSELECT,59,10,215,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RESOLUTION,59,27,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_REFRESHRATE,187,27,87,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_XSIZE,59,48,48,12,ES_NUMBER
+    EDITTEXT        IDC_YSIZE,114,48,47,12,ES_NUMBER
     GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,73,199,125
     CONTROL         "Correct aspect ratio",IDC_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,19,126,92,10
     CONTROL         "Force low resolution",IDC_LORES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,126,89,10
     LTEXT           "Refresh:",IDC_REFRESHTEXT,18,162,28,8
     CONTROL         "Slider1",IDC_FRAMERATE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,47,157,75,20
     EDITTEXT        IDC_RATETEXT,127,161,77,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "Centering",IDC_STATIC,221,0,61,67
-    CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,16,49,10
-    CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,32,49,10
-    GROUPBOX        "Line Mode",IDC_LINEMODE,222,73,61,73
-    CONTROL         "Normal",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,231,89,44,10
-    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,105,45,10
-    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,121,46,10
+    GROUPBOX        "Centering",IDC_STATIC,221,73,61,49
+    CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,87,49,10
+    CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,229,103,49,10
+    GROUPBOX        "Line Mode",IDC_LINEMODE,222,126,61,73
+    CONTROL         "Normal",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,231,142,44,10
+    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,158,45,10
+    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,231,174,46,10
     COMBOBOX        IDC_DA_MODE,20,211,58,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,84,207,101,20
     LTEXT           "FPS adj.:",IDC_REFRESH2TEXT,16,182,32,8
     CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,47,177,127,20
     EDITTEXT        IDC_RATE2TEXT,178,181,26,12,ES_CENTER | ES_READONLY
-    COMBOBOX        IDC_RESOLUTIONDEPTH,112,27,32,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RESOLUTIONDEPTH,135,27,46,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Filtered low resolution",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,140,89,10
     COMBOBOX        IDC_SCREENMODE_NATIVE,100,85,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_SCREENMODE_RTG,100,103,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -242,22 +239,23 @@ BEGIN
     CONTROL         "DF3:",IDC_DF3ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,111,34,15
 END
 
-IDD_HARDDISK DIALOGEX 0, 0, 300, 240
+IDD_HARDDISK DIALOGEX 0, 0, 300, 245
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,182
-    PUSHBUTTON      "Add &Directory...",IDC_NEW_FS,10,186,64,15
-    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,153,186,64,15
-    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,223,186,65,15
+    PUSHBUTTON      "Add &Directory or Archive...",IDC_NEW_FS,10,186,103,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,130,186,74,15
+    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,220,186,75,15
     PUSHBUTTON      "Remove",IDC_REMOVE,232,207,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,232,225,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,232,230,60,15
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,209,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,209,119,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,220,121,10
-    CONTROL         "Include network drives",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,101,10
-    PUSHBUTTON      "Add Archive...",IDC_NEW_FSARCH,82,186,64,15
+    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,232,101,10
+    CONTROL         "Include CD/DVD drives..",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,220,100,10
+    CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,232,115,10
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 231
@@ -472,17 +470,19 @@ CAPTION "Volume Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Device name:",-1,5,9,54,10
-    EDITTEXT        IDC_VOLUME_DEVICE,65,5,86,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_VOLUME_DEVICE,65,5,104,15,ES_AUTOHSCROLL
     LTEXT           "Volume label:",-1,5,31,54,10
-    EDITTEXT        IDC_VOLUME_NAME,65,25,85,15,ES_AUTOHSCROLL
+    EDITTEXT        IDC_VOLUME_NAME,65,25,103,15,ES_AUTOHSCROLL
     LTEXT           "Path:",-1,5,51,44,10
-    EDITTEXT        IDC_PATH_NAME,65,46,213,15,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_SELECTOR,283,46,10,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,72,70,50,10
-    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,135,70,51,8
-    EDITTEXT        IDC_VOLUME_BOOTPRI,199,68,27,15
-    PUSHBUTTON      "OK",IDOK,120,91,48,15
-    PUSHBUTTON      "Cancel",IDCANCEL,175,91,48,15
+    EDITTEXT        IDC_PATH_NAME,65,46,227,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "Select Directory",IDC_FS_SELECT_DIR,64,66,103,15
+    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,215,9,75,10
+    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,29,59,8
+    EDITTEXT        IDC_VOLUME_BOOTPRI,261,27,30,15
+    PUSHBUTTON      "OK",IDOK,65,91,48,15
+    PUSHBUTTON      "Cancel",IDCANCEL,120,91,48,15
+    PUSHBUTTON      "Select Archive or Plain File",IDC_FS_SELECT_FILE,189,66,103,15
+    PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,230,91,62,15
 END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
@@ -602,7 +602,7 @@ BEGIN
     LTEXT           "fps",IDC_AVIOUTPUT_FPS_STATIC,255,84,19,8
     PUSHBUTTON      "Save screenshot",IDC_SCREENSHOT,16,141,76,14
     GROUPBOX        "Ripper",IDC_STATIC,5,127,274,38
-    PUSHBUTTON      "Pro Wizard",IDC_PROWIZARD,100,141,76,14,WS_DISABLED
+    PUSHBUTTON      "Pro Wizard 1.62",IDC_PROWIZARD,100,141,76,14,WS_DISABLED
     CONTROL         "Sample ripper",IDC_SAMPLERIPPER_ACTIVATED,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,192,141,77,14
     GROUPBOX        "Input Recorder",IDC_STATIC,5,166,274,33
     CONTROL         "Record",IDC_INPREC_RECORD,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | BS_FLAT,191,177,77,14
@@ -678,13 +678,15 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK |
 CAPTION "Harddrive Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    LTEXT           "Hard drive:",-1,7,11,35,10
+    LTEXT           "Hard drive:",IDC_STATIC,7,11,35,10
     COMBOBOX        IDC_HARDDRIVE,49,9,325,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,247,33,55,10
-    DEFPUSHBUTTON   "Add hard drive",IDOK,173,30,65,14
-    PUSHBUTTON      "Cancel",IDCANCEL,321,30,54,14
+    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,51,55,10
+    DEFPUSHBUTTON   "Add hard drive",IDOK,231,48,65,14
+    PUSHBUTTON      "Cancel",IDCANCEL,319,48,54,14
     DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,49,30,115,14
-    EDITTEXT        IDC_PATH_NAME,89,49,169,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
+    EDITTEXT        IDC_PATH_NAME,183,27,97,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
+    COMBOBOX        IDC_HDF_CONTROLLER,102,50,41,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "HD Controller:",IDC_STATIC,42,52,52,10,SS_CENTERIMAGE
 END
 
 IDD_MISC2 DIALOGEX 0, 0, 300, 92
@@ -723,13 +725,14 @@ CAPTION "WinUAE Properties"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "",IDC_PANEL_FRAME,112,4,303,247,NOT WS_VISIBLE
-    CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
+    CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | WS_HSCROLL | WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
     GROUPBOX        "",IDC_PANEL_FRAME_OUTER,110,2,307,251
     PUSHBUTTON      "Reset",IDC_RESETAMIGA,6,259,47,14
     PUSHBUTTON      "Quit",IDC_QUITEMU,57,259,47,14
     DEFPUSHBUTTON   "OK",IDOK,260,259,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,313,259,50,14
     PUSHBUTTON      "Help",IDHELP,366,259,50,14,WS_DISABLED
+    PUSHBUTTON      "Restart",IDC_RESTARTEMU,109,259,47,14,NOT WS_VISIBLE
 END
 
 IDD_PATHS DIALOGEX 0, 0, 300, 237
@@ -810,7 +813,7 @@ CAPTION "Processing..."
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,88,40,50,14
-    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",WS_BORDER | 0x1,7,19,215,14
+    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",PBS_SMOOTH | WS_BORDER,7,19,215,14
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
@@ -893,8 +896,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,3,0
- PRODUCTVERSION 1,4,3,0
+ FILEVERSION 1,4,4,0
+ PRODUCTVERSION 1,4,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -910,12 +913,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.4.3"
+            VALUE "FileVersion", "1.4.4"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2007 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.4.3"
+            VALUE "ProductVersion", "1.4.4"
         END
     END
     BLOCK "VarFileInfo"
@@ -955,6 +958,7 @@ BEGIN
         MENUITEM "Quit WinUAE",                 ID_ST_QUIT
     END
 END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1030,7 +1034,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance and Dirk Trowe - Freezer cartridge hardware support."
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christoph Meier - Freezer cartridge hardware support."
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
@@ -1200,7 +1204,7 @@ BEGIN
     IDS_NUMSG_NOEXTROM      "No extended ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
     IDS_NUMSG_MODRIP_FINISHED "Scan finished."
-    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nWould you like to save it?"
+    IDS_NUMSG_MODRIP_SAVE   "Module/packed data found\n%s\nStart address %08.8X, Size %d bytes\nWould you like to save it?"
     IDS_NUMSG_KS68020       "The selected system ROM requires a 68020 with 32-bit addressing or 68030 or higher CPU."
     IDS_NUMSG_ROMNEED       "One of the following system ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
     IDS_NUMSG_STATEHD       "WARNING: Current configuration is not fully compatible with state saves.\nThis message will not appear again."
@@ -1236,7 +1240,7 @@ END
 
 STRINGTABLE 
 BEGIN
-    IDS_QS_MODELS           "A500\nA500+\nA600\nA1000\nA1200\nA3000\nCD32\nCDTV\nArcadia Multi Select system\nExpanded WinUAE example configuration"
+    IDS_QS_MODELS           "A500\nA500+\nA600\nA1000\nA1200\nA3000\nA4000\nCD32\nCDTV\nArcadia Multi Select system\nExpanded WinUAE example configuration"
     IDS_QS_MODEL_A500       "1.3 ROM, OCS, 512 KB Chip + 512 KB Slow RAM (most common)\nThis configuration is capable of running most games and demos produced for first-generation hardware. Only few exceptions need a different configuration (e.g. the oldest games tend to be incompatible with this configuration).\n1.3 ROM, ECS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nLater hardware revision of the A500. Nearly 100% compatible with the previous configuration.\n1.3 ROM, ECS Agnus, 1 MB Chip RAM\nFew newer games and demos require this configuration.\n1.3 ROM, OCS Agnus, 512 KB Chip RAM\nVery old (e.g. pre-1988) games and demos may require this configuration.\n1.2 ROM, OCS Agnus, 512 KB Chip RAM\nAs available for the A1000, and installed on the first A500 and A2000 series. Some very old programs only work correctly with this configuration. Note: This system ROM version can only boot from floppy disk (no hard disk boot support).\n1.2 ROM, OCS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nThis configuration adds expansion memory to the first A500 produced. Try this if your game does not work with newer configurations, but works with the previous one. It could add some features to the game, including faster loading times. Note: This system ROM version can only boot from floppy disk (no hard disk boot support)."
     IDS_QS_MODEL_A500P      "Basic non-expanded configuration\nThe A500+ adds an ECS Agnus chip, 1 MB of Chip RAM and a 2.0 ROM to the A500. Many A500 games and demos don't work properly on an A500+.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
@@ -1251,7 +1255,7 @@ BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
     IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an A500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
-    IDS_QS_MODEL_A4000      "A4000 (test)\nA4000"
+    IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T"
 END
 

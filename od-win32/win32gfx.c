@@ -94,7 +94,6 @@ static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
 int window_led_drives, window_led_drives_end;
 extern int console_logging;
-int b0rken_ati_overlay;
 
 #define SM_WINDOW 0
 #define SM_WINDOW_OVERLAY 1
@@ -569,10 +568,14 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 	GetMonitorInfo(hm, (LPMONITORINFO)&lpmi);
     }
     md->rect = lpmi.rcMonitor;
-    if (md->rect.left == 0 && md->rect.top == 0)
-	sprintf (tmp, "%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
-    else
-	sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+    if (os_winnt) {
+	if (md->rect.left == 0 && md->rect.top == 0)
+	    sprintf (tmp, "%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
+	else
+	    sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+    } else {
+	strcpy (tmp, desc);
+    }
     md->name = my_strdup (tmp);
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     return 1;
@@ -754,7 +757,7 @@ void setoverlay(int quick)
     MONITORINFO mi;
 
     if (quick) {
-	if (!(currentmode->flags & DM_OVERLAY) || b0rken_ati_overlay <= 0)
+	if (!(currentmode->flags & DM_OVERLAY))
 	    return;
 	goto end;
     }

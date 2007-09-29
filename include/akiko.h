@@ -12,3 +12,5 @@ extern void akiko_exitgui (void);
 extern void AKIKO_hsync_handler (void);
 
 extern uae_u8 *extendedkickmemory;
+
+extern void rethink_akiko (void);

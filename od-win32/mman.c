@@ -242,6 +242,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 {
     void *result = (void *)-1;
     BOOL got = FALSE;
+    int p96special = FALSE;
 
 #ifdef NATMEM_OFFSET
     unsigned int size=shmids[shmid].size;
@@ -296,6 +297,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"gfx")) {
 	    got = TRUE;
 	    if (p96mode) {
+		p96special = TRUE;
 		p96ram_start = p96mem_offset - natmem_offset;
 		shmaddr = natmem_offset + p96ram_start;
 	    } else {
@@ -347,7 +349,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if (got == FALSE) {
 	    if (shmaddr)
 		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-	    result = virtualallocwithlock(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96mode ? MEM_WRITE_WATCH : 0)),
+	    result = virtualallocwithlock(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96special ? MEM_WRITE_WATCH : 0)),
 		PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {
 		result = (void*)-1;
@@ -358,9 +360,9 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		if (memorylocking && os_winnt)
 		    VirtualLock(shmaddr, size);
 		shmids[shmid].attached = result;
-		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok\n",
+		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-		    size, size >> 10);
+		    size, size >> 10, p96special ? " P96" : "");
 	    }
 	} else {
 	    shmids[shmid].attached = shmaddr;
