@@ -54,6 +54,7 @@
 #define SAVESTATE /* State file support */
 #define A2091 /* A590/A2091 SCSI */
 #define NCR /* A4000T/A4091 SCSI */
+#define SANA2 /* SANA2 network driver */
 
 #else
 

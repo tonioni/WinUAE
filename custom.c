@@ -155,7 +155,7 @@ static int REGPARAM3 custom_wput_1 (int, uaecptr, uae_u32, int) REGPARAM;
 
 static uae_u16 cregs[256];
 
-uae_u16 intena,intreq;
+uae_u16 intena, intreq, intreqr;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
 
@@ -165,7 +165,7 @@ int maxhpos = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_max = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
-int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip;
+int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip, doublescan;
 frame_time_t syncbase;
 static int fmode;
 unsigned int beamcon0, new_beamcon0;
@@ -2254,6 +2254,7 @@ void init_hz (void)
 	changed_prefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
     }
 
+    doublescan = 0;
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
     if (hack_vpos > 0) {
@@ -2296,7 +2297,9 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
+	doublescan = htotal <= MAXHPOS / 2;
 	dumpsync();
+        reset_drawing ();
     }
     /* limit to sane values */
     if (vblank_hz < 10)
@@ -2423,7 +2426,7 @@ STATIC_INLINE uae_u16 INTENAR (void)
 }
 uae_u16 INTREQR (void)
 {
-    return intreq;
+    return intreqr;
 }
 STATIC_INLINE uae_u16 ADKCONR (void)
 {
@@ -2683,6 +2686,7 @@ void INTREQ_0 (uae_u16 v)
     if (v & (0x80|0x100|0x200|0x400))
 	audio_update_irq (v);
     setclr (&intreq, v);
+    intreqr = intreq;
     doint ();
 }
 
@@ -2704,6 +2708,8 @@ void INTREQ_f(uae_u32 data)
 
 static void INTREQ_d (uae_u16 v, int d)
 {
+    intreqr = intreq;
+    setclr (&intreqr, v); /* data in intreq is immediately available */
     if (!use_eventmode() || v == 0)
 	INTREQ_f(v);
     else
@@ -4432,7 +4438,7 @@ static void hsync_handler (void)
 	    notice_interlace_seen ();
 
 	nextline_how = nln_normal;
-	if (currprefs.gfx_linedbl) {
+	if (currprefs.gfx_linedbl && !doublescan) {
 	    lineno *= 2;
 	    nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
 	    if (bplcon0 & 4) {
@@ -5378,7 +5384,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
     CLXCON(RW);			/* 098 CLXCON */
     intena = RW;		/* 09A INTENA */
-    intreq = RW;		/* 09C INTREQ */
+    intreq = intreqr = RW;	/* 09C INTREQ */
     adkcon = RW;		/* 09E ADKCON */
     for (i = 0; i < 8; i++)
 	bplpt[i] = RL;

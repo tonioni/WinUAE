@@ -58,7 +58,7 @@
 #define CMD_ADDCHANGEINT 20
 #define CMD_REMCHANGEINT 21
 #define CMD_GETGEOMETRY	22
-
+#define HD_SCSICMD 28
 #define CD_INFO		32
 #define CD_CONFIG	33
 #define CD_TOCMSF	34
@@ -74,6 +74,18 @@
 #define CD_ATTENUATE	44
 #define CD_ADDFRAMEINT	45
 #define CD_REMFRAMEINT	46
+
+#define TD_READ64 24
+#define TD_WRITE64 25
+#define TD_SEEK64 26
+#define TD_FORMAT64 27
+
+#define DRIVE_NEWSTYLE 0x4E535459L   /* 'NSTY' */
+#define NSCMD_DEVICEQUERY 0x4000
+#define NSCMD_TD_READ64 0xc000
+#define NSCMD_TD_WRITE64 0xc001
+#define NSCMD_TD_SEEK64 0xc002
+#define NSCMD_TD_FORMAT64 0xc003
 
 #define ASYNC_REQUEST_NONE 0
 #define ASYNC_REQUEST_TEMP 1
@@ -115,7 +127,7 @@ struct priv_devstruct {
 
 static struct devstruct devst[MAX_TOTAL_DEVICES];
 static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
-
+static uae_u32 nscmd_cmd;
 static uae_sem_t change_sem;
 
 static struct device_info *devinfo (int mode, int unitnum, struct device_info *di)
@@ -388,7 +400,7 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 	write_log ("asyncronous request=%08.8X aborted, error=%d\n", request, errcode);
 }
 
-static int command_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
     int blocksize = dev->di.bytespersector;
     uae_u8 *temp;
@@ -406,9 +418,9 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, int offs
     }
     return 0;
 }
-static int command_write (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
-    int blocksize = dev->di.bytespersector;
+    uae_u32 blocksize = dev->di.bytespersector;
     struct device_scsi_info dsi;
 
     if (!sys_command_scsi_info(mode, dev->unitnum, &dsi))
@@ -430,12 +442,12 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, int off
     return 0;
 }
 
-static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, int offset, int length, uae_u32 *io_actual)
+static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
     uae_u8 *temp;
-    int len, sector;
+    uae_u32 len, sector;
 
-    int startoffset = offset % dev->di.bytespersector;
+    uae_u32 startoffset = offset % dev->di.bytespersector;
     offset -= startoffset;
     sector = offset / dev->di.bytespersector;
     *io_actual = 0;
@@ -475,6 +487,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     uae_u32 io_actual = get_long (request + 32); // 0x20
     uae_u32 io_offset = get_long (request + 44); // 0x2c
     uae_u32 io_error = 0;
+    uae_u64 io_offset64;
     int async = 0;
     int bmask = dev->di.bytespersector - 1;
     struct device_info di;
@@ -494,6 +507,17 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	else
 	    io_error = command_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	break;
+	case TD_READ64:
+	case NSCMD_TD_READ64:
+	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
+	if ((io_offset64 & bmask) || (io_length & bmask))
+	    goto bad_command;
+	if (dev->drivetype == INQ_ROMD)
+	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+	else
+	    io_error = command_read (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+	break;
+
 	case CMD_WRITE:
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
@@ -503,6 +527,18 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	}
 	break;
+	case TD_WRITE64:
+	case NSCMD_TD_WRITE64:
+	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
+	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
+	    io_error = 28; /* writeprotect */
+	} else if ((io_offset64 & bmask) || (io_length & bmask)) {
+	    goto bad_command;
+	} else {
+	    io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+	}
+	break;
+
 	case CMD_FORMAT:
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
@@ -512,6 +548,18 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	}
 	break;
+	case TD_FORMAT64:
+	case NSCMD_TD_FORMAT64:
+	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
+	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
+	    io_error = 28; /* writeprotect */
+	} else if ((io_offset64 & bmask) || (io_length & bmask)) {
+	    goto bad_command;
+	} else {
+	    io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+	}
+	break;
+
 	case CMD_UPDATE:
 	case CMD_CLEAR:
 	case CMD_FLUSH:
@@ -545,7 +593,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_REMCHANGEINT:
 	release_async_request (dev, request);
 	break;
-	case 28: /* HD_SCSICMD */
+	case HD_SCSICMD:
 	if (dev->allow_scsi && pdev->scsi) {
 	    uae_u32 sdd = get_long (request + 40);
 	    io_error = sys_command_scsi_direct (dev->unitnum, sdd);
@@ -554,6 +602,13 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	} else {
 	    io_error = -3;
 	}
+	break;
+	case NSCMD_DEVICEQUERY:
+	    put_long (io_data + 4, 16); /* size */
+	    put_word (io_data + 8, 5); /* NSDEVTYPE_TRACKDISK */
+	    put_word (io_data + 10, 0);
+	    put_long (io_data + 12, nscmd_cmd);
+	    io_actual = 16;
 	break;
 	default:
 	io_error = -3;
@@ -962,6 +1017,34 @@ void scsidev_install (void)
     dl (functable);
     dl (datatable);
     dl (initcode);
+
+    nscmd_cmd = here ();
+    dw (NSCMD_DEVICEQUERY);
+    dw (CMD_RESET);
+    dw (CMD_READ);
+    dw (CMD_WRITE);
+    dw (CMD_UPDATE);
+    dw (CMD_CLEAR);
+    dw (CMD_START);
+    dw (CMD_STOP);
+    dw (CMD_FLUSH);
+    dw (CMD_MOTOR);
+    dw (CMD_SEEK);
+    dw (CMD_FORMAT);
+    dw (CMD_REMOVE);
+    dw (CMD_CHANGENUM);
+    dw (CMD_CHANGESTATE);
+    dw (CMD_PROTSTATUS);
+    dw (CMD_GETDRIVETYPE);
+    dw (CMD_GETGEOMETRY);
+    dw (CMD_ADDCHANGEINT);
+    dw (CMD_REMCHANGEINT);
+    dw (HD_SCSICMD);
+    dw (NSCMD_TD_READ64);
+    dw (NSCMD_TD_WRITE64);
+    dw (NSCMD_TD_SEEK64);
+    dw (NSCMD_TD_FORMAT64);
+    dw (0);
 
     diskdev_install ();
 }

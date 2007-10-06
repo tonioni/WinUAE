@@ -46,6 +46,7 @@
 #include "savestate.h"
 #include "a2091.h"
 #include "cdtv.h"
+#include "sana2.h"
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -110,7 +111,7 @@ typedef struct {
     struct zvolume *zarchive;
     char *rootdirdiff; /* "diff" file/directory */
     int readonly; /* disallow write access? */
-    int bootpri; /* boot priority */
+    int bootpri; /* boot priority. -128 = no autoboot, -129 = no mount */
     int devno;
     int controller;
     int wasisempty; /* if true, this unit was created empty */
@@ -355,7 +356,8 @@ static int set_filesys_volume(const char *rootdir, int *flags, int *readonly, in
 static int set_filesys_unit_1 (int nr,
 				 char *devname, char *volname, const char *rootdir, int readonly,
 				 int secspertrack, int surfaces, int reserved,
-				 int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
+				 int blocksize, int bootpri, int donotmount, int autoboot,
+				 char *filesysdir, int hdc, int flags)
 {
     UnitInfo *ui;
     int i;
@@ -447,7 +449,11 @@ static int set_filesys_unit_1 (int nr,
     if (filesysdir && filesysdir[0])
 	ui->filesysdir = my_strdup (filesysdir);
     ui->readonly = readonly;
-    if (bootpri < -128) bootpri = -128;
+    if (!autoboot)
+	bootpri = -128;
+    if (donotmount)
+	bootpri = -129;
+    if (bootpri < -129) bootpri = -129;
     if (bootpri > 127) bootpri = 127;
     ui->bootpri = bootpri;
     ui->open = 1;
@@ -462,18 +468,21 @@ err:
 static int set_filesys_unit (int nr,
 			char *devname, char *volname, const char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
+			int blocksize, int bootpri, int donotmount, int autoboot,
+			char *filesysdir, int hdc, int flags)
 {
     int ret;
 
     ret = set_filesys_unit_1 (nr, devname, volname, rootdir, readonly,
-	secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, hdc, flags);
+	secspertrack, surfaces, reserved, blocksize, bootpri, donotmount, autoboot,
+	filesysdir, hdc, flags);
     return ret;
 }
 
 static int add_filesys_unit (char *devname, char *volname, const char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int hdc, int flags)
+			int blocksize, int bootpri, int donotmount, int autoboot,
+			char *filesysdir, int hdc, int flags)
 {
     int ret;
 
@@ -481,7 +490,8 @@ static int add_filesys_unit (char *devname, char *volname, const char *rootdir, 
 	return -1;
 
     ret = set_filesys_unit_1 (-1, devname, volname, rootdir, readonly,
-				 secspertrack, surfaces, reserved, blocksize, bootpri, filesysdir, hdc, flags);
+				 secspertrack, surfaces, reserved, blocksize,
+				 bootpri, donotmount, autoboot, filesysdir, hdc, flags);
     return ret;
 }
 
@@ -532,7 +542,7 @@ static void initialize_mountinfo(void)
 	if (uci->controller == HD_CONTROLLER_UAE) {
 	    idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
-		uci->blocksize, uci->bootpri, uci->filesys, 0, 0);
+		uci->blocksize, uci->bootpri, uci->donotmount, uci->autoboot, uci->filesys, 0, 0);
 	    if (idx >= 0) {
 		UnitInfo *ui;
 		uci->configoffset = idx;
@@ -1062,7 +1072,7 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
 	    strcpy (devname, uci->devname);
 	else
 	    sprintf (devname, "RDH%d", nr_units());
-	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, NULL, 0, 0);
+	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, 0, 1, NULL, 0, 0);
 	if (nr < 0)
 	    return 0;
 	if (inserted > 1)
@@ -4764,6 +4774,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 #ifdef SCSIEMU
     resaddr = scsidev_startup (resaddr);
 #endif
+#ifdef SANA2
+    resaddr = netdev_startup (resaddr);
+#endif
 #ifdef UAESERIAL
     resaddr = uaeserialdev_startup (resaddr);
 #endif
@@ -5305,6 +5318,10 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
     put_long (parmpacket + 80, 0x444f5300); /* DOS\0 */
     if (type == FILESYS_HARDFILE)
 	dofakefilesys (&uip[unit_no], parmpacket);
+    if (uip[unit_no].bootpri < -127)
+	m68k_dreg (&regs, 7) = m68k_dreg (&regs, 7) & ~1; /* do not boot */
+    if (uip[unit_no].bootpri < -128)
+	return -1; /* do not mount */
     return type;
 }
 
@@ -5989,7 +6006,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	src = restore_filesys_hardfile(ui, src);
     if (set_filesys_unit (devno, devname, volname, rootdir, readonly,
 	ui->hf.secspertrack, ui->hf.surfaces, ui->hf.reservedblocks, ui->hf.blocksize,
-	bootpri, filesysdir[0] ? filesysdir : NULL, 0, 0) < 0) {
+	bootpri, 0, 1, filesysdir[0] ? filesysdir : NULL, 0, 0) < 0) {
 	write_log ("filesys '%s' failed to restore\n", rootdir);
 	goto end;
     }

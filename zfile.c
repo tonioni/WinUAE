@@ -24,6 +24,7 @@
 
 #include "archivers/zip/unzip.h"
 #include "archivers/dms/pfile.h"
+#include "archivers/wrp/warp.h"
 
 static struct zfile *zlist = 0;
 
@@ -92,7 +93,7 @@ void zfile_fclose (struct zfile *f)
 }
 
 static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};
-static char *diskimages[] = { "adf", "adz", "ipf", "fdi", "dms", "dsq", 0 };
+static char *diskimages[] = { "adf", "adz", "ipf", "fdi", "dms", "wrp", "dsq", 0 };
 int zfile_gettype (struct zfile *z)
 {
     uae_u8 buf[8];
@@ -225,15 +226,15 @@ static struct zfile *dsq (struct zfile *z)
 	if (zv) {
 	    if (zv->root.child) {
 		struct zfile *zi = archive_access_lzx (zv->root.child);
-		if (zi) {
+		if (zi && zi->data && zi->size > 1000) {
 		    uae_u8 *buf = zi->data;
-		    if (!memcmp (buf, "PKD", 3)) {
+		    if (!memcmp (buf, "PKD\x13", 4) || !memcmp (buf, "PKD\x11", 4)) {
 			int sectors = buf[18];
 			int heads = buf[15];
 			int blocks = (buf[6] << 8) | buf[7];
 			int blocksize = (buf[10] << 8) | buf[11];
 			if (blocksize == 512 && blocks == 1760 && sectors == 22 && heads == 2) {
-			    int off = 52;
+			    int off = buf[3] == 0x13 ? 52 : 32;
 			    int i;
 			    for (i = 0; i < blocks / (sectors / heads); i++) {
 				zfile_fwrite (zi->data + off, sectors * blocksize / heads, 1, zo);
@@ -251,6 +252,11 @@ static struct zfile *dsq (struct zfile *z)
 	zfile_fclose (zo);
     }
     return z;
+}
+
+static struct zfile *wrp (struct zfile *z)
+{
+    return unwarp (z);
 }
 
 static struct zfile *dms (struct zfile *z)
@@ -272,7 +278,7 @@ static struct zfile *dms (struct zfile *z)
 const char *uae_ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
 const char *uae_diskimageextensions[] =
-    { ".adf", ".adz", ".ipf", ".fdi", ".exe", ".dms", ".dsq", 0 };
+    { ".adf", ".adz", ".ipf", ".fdi", ".exe", ".dms", ".wrp", ".dsq", 0 };
 
 
 int zfile_is_ignore_ext(const char *name)
@@ -367,6 +373,8 @@ static struct zfile *zuncompress (struct zfile *z, int dodefault)
 	     return zfile_gunzip (z);
 	if (strcasecmp (ext, "dms") == 0)
 	     return dms (z);
+	if (strcasecmp (ext, "wrp") == 0)
+	     return wrp (z);
 	if (strcasecmp (ext, "dsq") == 0)
 	     return dsq (z);
 #if defined(ARCHIVEACCESS)
@@ -739,6 +747,12 @@ char *zfile_fgets(char *s, int size, struct zfile *z)
     }
 }
 
+int zfile_putc (int c, struct zfile *z)
+{
+    uae_u8 b = (uae_u8)c;
+    return zfile_fwrite (&b, 1, 1, z) ? 1 : -1;
+}
+
 int zfile_getc (struct zfile *z)
 {
     int out = -1;
@@ -754,6 +768,21 @@ int zfile_getc (struct zfile *z)
 int zfile_ferror (struct zfile *z)
 {
     return 0;
+}
+
+char *zfile_getdata (struct zfile *z, int offset, int len)
+{
+    size_t pos;
+    uae_u8 *b = xmalloc (len);
+    if (z->data) {
+	memcpy (b, z->data + offset, len);
+    } else {
+	pos = zfile_ftell (z);
+	zfile_fseek (z, offset, SEEK_SET);
+	zfile_fread (b, len, 1, z);
+	zfile_fseek (z, pos, SEEK_SET);
+    }
+    return b;
 }
 
 int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)

@@ -394,12 +394,12 @@ BEGIN
     CONTROL         "Untrap mouse with middle button",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,15,129,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,27,120,10
     CONTROL         "On-screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,40,115,10
-    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,53,117,10
+    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,53,63,10
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,66,117,10
     CONTROL         "bsdsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,15,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,27,120,10
     CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,120,10
-    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,115,10
+    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,53,115,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,140,85,94
     COMBOBOX        IDC_KBLED1,22,154,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED2,22,173,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -416,21 +416,22 @@ BEGIN
     RTEXT           "Recording buffer (MB):",IDC_STATIC,157,219,83,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATE_BUFFERSIZE,248,217,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,79,117,10
-    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,115,10
+    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,115,10
     CONTROL         "USB mode",IDC_KBLED_USB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,216,64,10
-    COMBOBOX        IDC_SCSIMODE,161,51,104,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCSIMODE,92,51,64,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_LANGUAGE,103,121,179,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Language",IDC_STATIC,7,112,285,25
     CONTROL         "Disable powersaving features",IDC_POWERSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,92,120,10
-    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,92,119,10
+    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,119,10
+    CONTROL         "uaenet.device",IDC_SANA2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,92,94,10
 END
 
-IDD_HARDFILE DIALOGEX 0, 0, 299, 212
+IDD_HARDFILE DIALOGEX 0, 0, 299, 224
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Hardfile Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Settings",IDC_STATIC,10,5,280,113
+    GROUPBOX        "Settings",IDC_STATIC,10,5,280,127
     RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,26,18,22,10
     EDITTEXT        IDC_PATH_NAME,52,15,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_SELECTOR,271,15,11,15
@@ -438,30 +439,33 @@ BEGIN
     EDITTEXT        IDC_PATH_FILESYS,52,34,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,271,34,11,15
     RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,17,58,31,10
-    EDITTEXT        IDC_HARDFILE_DEVICE,52,54,40,15,ES_AUTOHSCROLL
-    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,79,44,8
-    EDITTEXT        IDC_HARDFILE_BOOTPRI,74,75,40,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,57,50,10
-    PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,192,55,92,14
-    RTEXT           "Surfaces:",IDC_SURFACES_TEXT,120,79,30,10
-    EDITTEXT        IDC_HEADS,155,75,35,15,ES_NUMBER
-    RTEXT           "Reserved:",IDC_RESERVED_TEXT,197,79,35,10
-    EDITTEXT        IDC_RESERVED,237,75,35,15,ES_NUMBER
-    RTEXT           "Sectors:",IDC_SECTORS_TEXT,120,101,30,10
-    EDITTEXT        IDC_SECTORS,155,96,35,15,ES_NUMBER
-    RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,197,101,35,10
-    EDITTEXT        IDC_BLOCKSIZE,237,96,35,15,ES_NUMBER
-    GROUPBOX        "New hard disk image file",IDC_STATIC,10,120,280,62
-    PUSHBUTTON      "Create",IDC_HF_CREATE,50,135,80,14
-    EDITTEXT        IDC_HF_SIZE,146,135,61,15,ES_NUMBER
-    PUSHBUTTON      "OK",IDOK,102,191,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,158,191,50,14
-    EDITTEXT        IDC_HF_DOSTYPE,146,158,61,15
-    COMBOBOX        IDC_HDF_CONTROLLER,73,97,41,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "DOS type",IDC_STATIC,214,160,32,10,SS_CENTERIMAGE
-    RTEXT           "MB",IDC_STATIC,214,138,13,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_HARDFILE_DEVICE,52,54,66,15,ES_AUTOHSCROLL
+    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,94,44,8
+    EDITTEXT        IDC_HARDFILE_BOOTPRI,74,90,40,15
+    CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,74,64,10
+    PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,174,55,92,14
+    RTEXT           "Surfaces:",IDC_SURFACES_TEXT,120,94,30,10
+    EDITTEXT        IDC_HEADS,155,90,35,15,ES_NUMBER
+    RTEXT           "Reserved:",IDC_RESERVED_TEXT,197,94,35,10
+    EDITTEXT        IDC_RESERVED,237,90,35,15,ES_NUMBER
+    RTEXT           "Sectors:",IDC_SECTORS_TEXT,120,116,30,10
+    EDITTEXT        IDC_SECTORS,155,111,35,15,ES_NUMBER
+    RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,197,116,35,10
+    EDITTEXT        IDC_BLOCKSIZE,237,111,35,15,ES_NUMBER
+    GROUPBOX        "New hard disk image file",IDC_STATIC,10,134,280,62
+    PUSHBUTTON      "Create",IDC_HF_CREATE,50,149,80,14
+    EDITTEXT        IDC_HF_SIZE,146,149,61,15,ES_NUMBER
+    PUSHBUTTON      "OK",IDOK,102,205,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,158,205,50,14
+    EDITTEXT        IDC_HF_DOSTYPE,146,172,61,15
+    COMBOBOX        IDC_HF_TYPE,50,172,80,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_HDF_CONTROLLER,73,112,41,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "DOS type",IDC_STATIC,214,174,32,10,SS_CENTERIMAGE
+    RTEXT           "MB",IDC_STATIC,214,152,13,10,SS_CENTERIMAGE
     RTEXT           "Type:",IDC_STATIC,18,160,25,10,SS_CENTERIMAGE
-    RTEXT           "HD Controller:",IDC_STATIC,13,98,52,10,SS_CENTERIMAGE
+    RTEXT           "HD Controller:",IDC_STATIC,13,113,52,10,SS_CENTERIMAGE
+    CONTROL         "Autoboot",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,73,53,10
+    CONTROL         "Do not mount",IDC_HDF_DONOTMOUNT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,217,74,67,10
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 299, 111
@@ -476,13 +480,14 @@ BEGIN
     LTEXT           "Path:",-1,5,51,44,10
     EDITTEXT        IDC_PATH_NAME,65,46,227,15,ES_AUTOHSCROLL
     PUSHBUTTON      "Select Directory",IDC_FS_SELECT_DIR,64,66,103,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,215,9,75,10
-    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,29,59,8
-    EDITTEXT        IDC_VOLUME_BOOTPRI,261,27,30,15
+    CONTROL         "Read/write",IDC_FS_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,7,55,10
+    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,28,49,8
+    EDITTEXT        IDC_VOLUME_BOOTPRI,237,24,30,15
     PUSHBUTTON      "OK",IDOK,65,91,48,15
     PUSHBUTTON      "Cancel",IDCANCEL,120,91,48,15
     PUSHBUTTON      "Select Archive or Plain File",IDC_FS_SELECT_FILE,189,66,103,15
     PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,230,91,62,15
+    CONTROL         "Autoboot",IDC_FS_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,236,7,53,10
 END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
@@ -680,7 +685,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Hard drive:",IDC_STATIC,7,11,35,10
     COMBOBOX        IDC_HARDDRIVE,49,9,325,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,51,55,10
+    CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,51,55,10
     DEFPUSHBUTTON   "Add hard drive",IDOK,231,48,65,14
     PUSHBUTTON      "Cancel",IDCANCEL,319,48,54,14
     DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,49,30,115,14
@@ -813,7 +818,7 @@ CAPTION "Processing..."
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,88,40,50,14
-    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",WS_BORDER | 0x1,7,19,215,14
+    CONTROL         "",IDC_PROGRESSBAR,"msctls_progress32",PBS_SMOOTH | WS_BORDER,7,19,215,14
     CTEXT           "x",IDC_PROGRESSBAR_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
@@ -981,6 +986,22 @@ IDB_LCD160X43           BITMAP                  "lcd.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_HARDFILE, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 212
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // String Table
 //
 
@@ -1053,7 +1074,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christoph Meier - Freezer cartridge hardware support."
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe, Christoph Meier and Christian Schindler - Freezer cartridge hardware support."
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"

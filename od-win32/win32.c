@@ -127,7 +127,7 @@ char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi;
+int log_scsi, log_net = 1;
 DWORD quickstart = 1;
 
 static int timeend (void)
@@ -1838,6 +1838,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
 	p->win32_outsidemouse = 0;
+	p->sana2[0] = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
@@ -1850,40 +1851,40 @@ static const char *scsimode[] = { "none", "SPTI", "SPTI+SCSISCAN", "AdaptecASPI"
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
-    cfgfile_target_write (f, "middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
-    cfgfile_target_write (f, "magic_mouse=%s\n", p->win32_outsidemouse ? "true" : "false");
-    cfgfile_target_write (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
-    cfgfile_target_write (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
-    cfgfile_target_write (f, "map_drives_auto=%s\n", p->win32_automount_removable ? "true" : "false");
-    cfgfile_target_write (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
-    cfgfile_target_write (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
+    cfgfile_target_dwrite (f, "middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
+    cfgfile_target_dwrite (f, "magic_mouse=%s\n", p->win32_outsidemouse ? "true" : "false");
+    cfgfile_target_dwrite (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
+    cfgfile_target_dwrite (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
+    cfgfile_target_dwrite (f, "map_drives_auto=%s\n", p->win32_automount_removable ? "true" : "false");
+    cfgfile_target_dwrite (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
+    cfgfile_target_dwrite (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
     serdevtoname(p->sername);
-    cfgfile_target_write (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
+    cfgfile_target_dwrite (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
     sernametodev(p->sername);
-    cfgfile_target_write (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
+    cfgfile_target_dwrite (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
 
-    cfgfile_target_write (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
-    cfgfile_target_write (f, "inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
-    cfgfile_target_write (f, "inactive_nosound=%s\n", p->win32_inactive_nosound ? "true" : "false");
-    cfgfile_target_write (f, "inactive_pause=%s\n", p->win32_inactive_pause ? "true" : "false");
-    cfgfile_target_write (f, "iconified_priority=%d\n", priorities[p->win32_iconified_priority].value);
-    cfgfile_target_write (f, "iconified_nosound=%s\n", p->win32_iconified_nosound ? "true" : "false");
-    cfgfile_target_write (f, "iconified_pause=%s\n", p->win32_iconified_pause ? "true" : "false");
+    cfgfile_target_dwrite (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
+    cfgfile_target_dwrite (f, "inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
+    cfgfile_target_dwrite (f, "inactive_nosound=%s\n", p->win32_inactive_nosound ? "true" : "false");
+    cfgfile_target_dwrite (f, "inactive_pause=%s\n", p->win32_inactive_pause ? "true" : "false");
+    cfgfile_target_dwrite (f, "iconified_priority=%d\n", priorities[p->win32_iconified_priority].value);
+    cfgfile_target_dwrite (f, "iconified_nosound=%s\n", p->win32_iconified_nosound ? "true" : "false");
+    cfgfile_target_dwrite (f, "iconified_pause=%s\n", p->win32_iconified_pause ? "true" : "false");
 
-    cfgfile_target_write (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
-    cfgfile_target_write (f, "midiout_device=%d\n", p->win32_midioutdev );
-    cfgfile_target_write (f, "midiin_device=%d\n", p->win32_midiindev );
-    cfgfile_target_write (f, "no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
-    cfgfile_target_write (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
-    cfgfile_target_write (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
-    cfgfile_target_write (f, "soundcard=%d\n", p->win32_soundcard );
-    cfgfile_target_write (f, "cpu_idle=%d\n", p->cpu_idle);
-    cfgfile_target_write (f, "notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
-    cfgfile_target_write (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
-    cfgfile_target_write (f, "no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
-    cfgfile_target_write (f, "specialkey=0x%x\n", p->win32_specialkey);
-    cfgfile_target_write (f, "kbledmode=%d\n", p->win32_kbledmode);
-    cfgfile_target_write (f, "powersavedisabled=%s\n", p->win32_powersavedisabled ? "true" : "false");
+    cfgfile_target_dwrite (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
+    cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev );
+    cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
+    cfgfile_target_dwrite (f, "no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
+    cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
+    cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
+    cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
+    cfgfile_target_dwrite (f, "cpu_idle=%d\n", p->cpu_idle);
+    cfgfile_target_dwrite (f, "notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
+    cfgfile_target_dwrite (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
+    cfgfile_target_dwrite (f, "no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
+    cfgfile_target_dwrite (f, "specialkey=0x%x\n", p->win32_specialkey);
+    cfgfile_target_dwrite (f, "kbledmode=%d\n", p->win32_kbledmode);
+    cfgfile_target_dwrite (f, "powersavedisabled=%s\n", p->win32_powersavedisabled ? "true" : "false");
 
 }
 
@@ -2211,7 +2212,7 @@ static void initpath (char *name, char *path)
     set_path (name, NULL);
 }
 
-extern int scan_roms (char*);
+extern int scan_roms (int);
 void read_rom_list (void)
 {
     char tmp2[1000];
@@ -2230,7 +2231,7 @@ void read_rom_list (void)
 	return;
     if (disp == REG_CREATED_NEW_KEY || forceroms) {
 	load_keyring (NULL, NULL);
-	scan_roms (NULL);
+	scan_roms (forceroms ? 0 : 1);
     }
     forceroms = 0;
     idx = 0;
@@ -2820,7 +2821,7 @@ extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
 extern int force_direct_catweasel, max_allowed_mman, sound_mode_skip;
 
-extern DWORD_PTR cpu_affinity;
+extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity;
 
 static int getval(char *s)
@@ -2949,6 +2950,14 @@ static int process_arg(char **xargv)
 		if (cpu_affinity == 0)
 		    cpu_affinity = original_affinity;
 		SetThreadAffinityMask(GetCurrentThread(), cpu_affinity);
+		continue;
+	    }
+	    if (!strcmp (arg, "-paffinity")) {
+		cpu_paffinity = getval (np);
+		i++;
+		if (cpu_paffinity == 0)
+		    cpu_paffinity = original_affinity;
+		SetProcessAffinityMask(GetCurrentProcess(), cpu_paffinity);
 		continue;
 	    }
 	    if (!strcmp (arg, "-datapath")) {

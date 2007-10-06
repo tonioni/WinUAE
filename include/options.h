@@ -58,6 +58,8 @@ struct uaedev_config_info {
     int ishdf;
     int readonly;
     int bootpri;
+    int autoboot;
+    int donotmount;
     char filesys[MAX_DPATH];
     int surfaces;
     int sectors;
@@ -180,6 +182,7 @@ struct uae_prefs {
     int keyboard_leds[3];
     int keyboard_leds_in_use;
     int scsi;
+    char sana2[256];
     int uaeserial;
     int catweasel;
     int cpu_idle;
@@ -325,7 +328,9 @@ struct uae_prefs {
 extern char optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
 extern void cfgfile_write (struct zfile *, char *format,...);
+extern void cfgfile_dwrite (struct zfile *, char *format,...);
 extern void cfgfile_target_write (struct zfile *, char *format,...);
+extern void cfgfile_target_dwrite (struct zfile *, char *format,...);
 extern void cfgfile_backup (const char *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,

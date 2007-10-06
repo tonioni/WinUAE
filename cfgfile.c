@@ -31,6 +31,7 @@
 
 static int config_newfilesystem;
 static struct strlist *temp_lines;
+static struct zfile *default_file;
 
 /* @@@ need to get rid of this... just cut part of the manual and print that
  * as a help text.  */
@@ -194,6 +195,19 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
     return my_strdup (file);
 }
 
+static int isdefault (const char *s)
+{
+    char tmp[MAX_DPATH];
+    if (!default_file)
+	return 0;
+    zfile_fseek (default_file, 0, SEEK_SET);
+    while (zfile_fgets (tmp, sizeof tmp, default_file)) {
+	if (!strcmp (tmp, s))
+	    return 1;
+    }
+    return 0;
+}
+
 void cfgfile_write (struct zfile *f, char *format,...)
 {
     va_list parms;
@@ -202,6 +216,18 @@ void cfgfile_write (struct zfile *f, char *format,...)
     va_start (parms, format);
     vsprintf (tmp, format, parms);
     zfile_fwrite (tmp, 1, strlen (tmp), f);
+    va_end (parms);
+}
+
+void cfgfile_dwrite (struct zfile *f, char *format,...)
+{
+    va_list parms;
+    char tmp[CONFIG_BLEN];
+
+    va_start (parms, format);
+    vsprintf (tmp, format, parms);
+    if (!isdefault (tmp))
+	zfile_fwrite (tmp, 1, strlen (tmp), f);
     va_end (parms);
 }
 
@@ -218,6 +244,20 @@ void cfgfile_target_write (struct zfile *f, char *format,...)
     va_end (parms);
 }
 
+void cfgfile_target_dwrite (struct zfile *f, char *format,...)
+{
+    va_list parms;
+    char tmp[CONFIG_BLEN];
+
+    va_start (parms, format);
+    vsprintf (tmp + strlen (TARGET_NAME) + 1, format, parms);
+    memcpy (tmp, TARGET_NAME, strlen (TARGET_NAME));
+    tmp[strlen (TARGET_NAME)] = '.';
+    if (!isdefault (tmp))
+	zfile_fwrite (tmp, 1, strlen (tmp), f);
+    va_end (parms);
+}
+
 static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 				  const char *default_path, struct zfile *f)
 {
@@ -230,11 +270,16 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
     for (i = 0; i < p->mountitems; i++) {
 	struct uaedev_config_info *uci = &p->mountconfig[i];
 	char *str;
+        int bp = uci->bootpri;
 
+	if (!uci->autoboot)
+	    bp = -128;
+	if (uci->donotmount)
+	    bp = -129;
 	str = cfgfile_subst_path (default_path, unexpanded, uci->rootdir);
 	if (!uci->ishdf) {
 	    sprintf (tmp, "%s,%s:%s:%s,%d\n", uci->readonly ? "ro" : "rw",
-		uci->devname ? uci->devname : "", uci->volname, str, uci->bootpri);
+		uci->devname ? uci->devname : "", uci->volname, str, bp);
 	    sprintf (tmp2, "filesystem2=%s", tmp);
 	    zfile_fputs (f, tmp2);
 #if 0
@@ -247,7 +292,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
 		     uci->readonly ? "ro" : "rw",
 		     uci->devname ? uci->devname : "", str,
 		     uci->sectors, uci->surfaces, uci->reserved, uci->blocksize,
-		     uci->bootpri, uci->filesys ? uci->filesys : "", hdcontrollers[uci->controller]);
+		     bp, uci->filesys ? uci->filesys : "", hdcontrollers[uci->controller]);
 	    sprintf (tmp2, "hardfile2=%s", tmp);
 	    zfile_fputs (f, tmp2);
 #if 0
@@ -279,7 +324,7 @@ static void write_compatibility_cpu(struct zfile *f, struct uae_prefs *p)
 	sprintf(tmp, "%d", model);
     if (model == 68020 && (p->fpu_model == 68881 || p->fpu_model == 68882))
 	strcat(tmp,"/68881");
-    cfgfile_write (f, "cpu_type=%s\n", tmp);
+    cfgfile_dwrite (f, "cpu_type=%s\n", tmp);
 }
 
 void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
@@ -306,94 +351,99 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "%s.floppy_path=%s\n", TARGET_NAME, p->path_floppy);
     cfgfile_write (f, "%s.hardfile_path=%s\n", TARGET_NAME, p->path_hardfile);
 
+    cfgfile_write (f, "; host-specific\n");
+
     target_save_options (f, p);
 
-    cfgfile_write (f, "use_gui=%s\n", guimode1[p->start_gui]);
-    cfgfile_write (f, "use_debugger=%s\n", p->start_debugger ? "true" : "false");
+    cfgfile_write (f, "; common\n");
+
+    cfgfile_dwrite (f, "use_gui=%s\n", guimode1[p->start_gui]);
+    cfgfile_dwrite (f, "use_debugger=%s\n", p->start_debugger ? "true" : "false");
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->romfile);
-    cfgfile_write (f, "kickstart_rom_file=%s\n", str);
+    cfgfile_dwrite (f, "kickstart_rom_file=%s\n", str);
     free (str);
     if (p->romident[0])
-	cfgfile_write (f, "kickstart_rom=%s\n", p->romident);
+	cfgfile_dwrite (f, "kickstart_rom=%s\n", p->romident);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->romextfile);
-    cfgfile_write (f, "kickstart_ext_rom_file=%s\n", str);
+    cfgfile_dwrite (f, "kickstart_ext_rom_file=%s\n", str);
     free (str);
     if (p->romextident[0])
-	cfgfile_write (f, "kickstart_ext_rom=%s\n", p->romextident);
+	cfgfile_dwrite (f, "kickstart_ext_rom=%s\n", p->romextident);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->flashfile);
-    cfgfile_write (f, "flash_file=%s\n", str);
+    cfgfile_dwrite (f, "flash_file=%s\n", str);
     free (str);
     str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->cartfile);
-    cfgfile_write (f, "cart_file=%s\n", str);
+    cfgfile_dwrite (f, "cart_file=%s\n", str);
     free (str);
     if (p->cartident[0])
-	cfgfile_write (f, "cart=%s\n", p->cartident);
-    //cfgfile_write (f, "cart_internal=%s\n", cartsmode[p->cart_internal]);
-    cfgfile_write (f, "kickshifter=%s\n", p->kickshifter ? "true" : "false");
+	cfgfile_dwrite (f, "cart=%s\n", p->cartident);
+    //cfgfile_dwrite (f, "cart_internal=%s\n", cartsmode[p->cart_internal]);
+    cfgfile_dwrite (f, "kickshifter=%s\n", p->kickshifter ? "true" : "false");
 
     p->nr_floppies = 4;
     for (i = 0; i < 4; i++) {
 	str = cfgfile_subst_path (p->path_floppy, UNEXPANDED, p->df[i]);
-	cfgfile_write (f, "floppy%d=%s\n", i, str);
+	cfgfile_dwrite (f, "floppy%d=%s\n", i, str);
 	free (str);
-	cfgfile_write (f, "floppy%dtype=%d\n", i, p->dfxtype[i]);
-	cfgfile_write (f, "floppy%dsound=%d\n", i, p->dfxclick[i]);
+	cfgfile_dwrite (f, "floppy%dtype=%d\n", i, p->dfxtype[i]);
+	cfgfile_dwrite (f, "floppy%dsound=%d\n", i, p->dfxclick[i]);
 	if (p->dfxclick[i] < 0 && p->dfxclickexternal[i][0])
-	    cfgfile_write (f, "floppy%dsoundext=%s\n", i, p->dfxclickexternal[i]);
+	    cfgfile_dwrite (f, "floppy%dsoundext=%s\n", i, p->dfxclickexternal[i]);
 	if (p->dfxtype[i] < 0 && p->nr_floppies > i)
 	    p->nr_floppies = i;
     }
     for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	if (p->dfxlist[i][0])
-	    cfgfile_write (f, "diskimage%d=%s\n", i, p->dfxlist[i]);
+	    cfgfile_dwrite (f, "diskimage%d=%s\n", i, p->dfxlist[i]);
     }
 
-    cfgfile_write (f, "nr_floppies=%d\n", p->nr_floppies);
-    cfgfile_write (f, "floppy_speed=%d\n", p->floppy_speed);
-    cfgfile_write (f, "floppy_volume=%d\n", p->dfxclickvolume);
-    cfgfile_write (f, "parallel_on_demand=%s\n", p->parallel_demand ? "true" : "false");
-    cfgfile_write (f, "serial_on_demand=%s\n", p->serial_demand ? "true" : "false");
-    cfgfile_write (f, "serial_hardware_ctsrts=%s\n", p->serial_hwctsrts ? "true" : "false");
-    cfgfile_write (f, "serial_direct=%s\n", p->serial_direct ? "true" : "false");
-    cfgfile_write (f, "scsi=%s\n", scsimode[p->scsi]);
-    cfgfile_write (f, "uaeserial=%s\n", p->uaeserial ? "true" : "false");
+    cfgfile_dwrite (f, "nr_floppies=%d\n", p->nr_floppies);
+    cfgfile_dwrite (f, "floppy_speed=%d\n", p->floppy_speed);
+    cfgfile_dwrite (f, "floppy_volume=%d\n", p->dfxclickvolume);
+    cfgfile_dwrite (f, "parallel_on_demand=%s\n", p->parallel_demand ? "true" : "false");
+    cfgfile_dwrite (f, "serial_on_demand=%s\n", p->serial_demand ? "true" : "false");
+    cfgfile_dwrite (f, "serial_hardware_ctsrts=%s\n", p->serial_hwctsrts ? "true" : "false");
+    cfgfile_dwrite (f, "serial_direct=%s\n", p->serial_direct ? "true" : "false");
+    cfgfile_dwrite (f, "scsi=%s\n", scsimode[p->scsi]);
+    cfgfile_dwrite (f, "uaeserial=%s\n", p->uaeserial ? "true" : "false");
+    cfgfile_dwrite (f, "sana2=%s\n", p->sana2[0] ? p->sana2 : "none");
 
-    cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
-    cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
-    cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
-    cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
-    cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo_delay >= 0 ? p->sound_mixed_stereo_delay : 0);
-    cfgfile_write (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
-    cfgfile_write (f, "sound_frequency=%d\n", p->sound_freq);
-    cfgfile_write (f, "sound_latency=%d\n", p->sound_latency);
-    cfgfile_write (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
-    cfgfile_write (f, "sound_filter=%s\n", soundfiltermode1[p->sound_filter]);
-    cfgfile_write (f, "sound_filter_type=%s\n", soundfiltermode2[p->sound_filter_type]);
-    cfgfile_write (f, "sound_volume=%d\n", p->sound_volume);
-    cfgfile_write (f, "sound_auto=%s\n", p->sound_auto ? "yes" : "no");
-    cfgfile_write (f, "sound_stereo_swap_paula=%s\n", p->sound_stereo_swap_paula ? "yes" : "no");
-    cfgfile_write (f, "sound_stereo_swap_ahi=%s\n", p->sound_stereo_swap_ahi ? "yes" : "no");
+    cfgfile_dwrite (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
+    cfgfile_dwrite (f, "sound_bits=%d\n", p->sound_bits);
+    cfgfile_dwrite (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
+    cfgfile_dwrite (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
+    cfgfile_dwrite (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo_delay >= 0 ? p->sound_mixed_stereo_delay : 0);
+    cfgfile_dwrite (f, "sound_max_buff=%d\n", p->sound_maxbsiz);
+    cfgfile_dwrite (f, "sound_frequency=%d\n", p->sound_freq);
+    cfgfile_dwrite (f, "sound_latency=%d\n", p->sound_latency);
+    cfgfile_dwrite (f, "sound_interpol=%s\n", interpolmode[p->sound_interpol]);
+    cfgfile_dwrite (f, "sound_filter=%s\n", soundfiltermode1[p->sound_filter]);
+    cfgfile_dwrite (f, "sound_filter_type=%s\n", soundfiltermode2[p->sound_filter_type]);
+    cfgfile_dwrite (f, "sound_volume=%d\n", p->sound_volume);
+    cfgfile_dwrite (f, "sound_auto=%s\n", p->sound_auto ? "yes" : "no");
+    cfgfile_dwrite (f, "sound_stereo_swap_paula=%s\n", p->sound_stereo_swap_paula ? "yes" : "no");
+    cfgfile_dwrite (f, "sound_stereo_swap_ahi=%s\n", p->sound_stereo_swap_ahi ? "yes" : "no");
 
-    cfgfile_write (f, "comp_trustbyte=%s\n", compmode[p->comptrustbyte]);
-    cfgfile_write (f, "comp_trustword=%s\n", compmode[p->comptrustword]);
-    cfgfile_write (f, "comp_trustlong=%s\n", compmode[p->comptrustlong]);
-    cfgfile_write (f, "comp_trustnaddr=%s\n", compmode[p->comptrustnaddr]);
-    cfgfile_write (f, "comp_nf=%s\n", p->compnf ? "true" : "false");
-    cfgfile_write (f, "comp_constjump=%s\n", p->comp_constjump ? "true" : "false");
-    cfgfile_write (f, "comp_oldsegv=%s\n", p->comp_oldsegv ? "true" : "false");
+    cfgfile_dwrite (f, "comp_trustbyte=%s\n", compmode[p->comptrustbyte]);
+    cfgfile_dwrite (f, "comp_trustword=%s\n", compmode[p->comptrustword]);
+    cfgfile_dwrite (f, "comp_trustlong=%s\n", compmode[p->comptrustlong]);
+    cfgfile_dwrite (f, "comp_trustnaddr=%s\n", compmode[p->comptrustnaddr]);
+    cfgfile_dwrite (f, "comp_nf=%s\n", p->compnf ? "true" : "false");
+    cfgfile_dwrite (f, "comp_constjump=%s\n", p->comp_constjump ? "true" : "false");
+    cfgfile_dwrite (f, "comp_oldsegv=%s\n", p->comp_oldsegv ? "true" : "false");
 
-    cfgfile_write (f, "comp_flushmode=%s\n", flushmode[p->comp_hardflush]);
-    cfgfile_write (f, "compforcesettings=%s\n", p->compforcesettings ? "true" : "false");
-    cfgfile_write (f, "compfpu=%s\n", p->compfpu ? "true" : "false");
-    cfgfile_write (f, "fpu_strict=%s\n", p->fpu_strict ? "true" : "false");
-    cfgfile_write (f, "comp_midopt=%s\n", p->comp_midopt ? "true" : "false");
-    cfgfile_write (f, "comp_lowopt=%s\n", p->comp_lowopt ? "true" : "false");
-    cfgfile_write (f, "avoid_cmov=%s\n", p->avoid_cmov ? "true" : "false" );
-    cfgfile_write (f, "avoid_dga=%s\n", p->avoid_dga ? "true" : "false" );
-    cfgfile_write (f, "avoid_vid=%s\n", p->avoid_vid ? "true" : "false" );
-    cfgfile_write (f, "cachesize=%d\n", p->cachesize);
+    cfgfile_dwrite (f, "comp_flushmode=%s\n", flushmode[p->comp_hardflush]);
+    cfgfile_dwrite (f, "compforcesettings=%s\n", p->compforcesettings ? "true" : "false");
+    cfgfile_dwrite (f, "compfpu=%s\n", p->compfpu ? "true" : "false");
+    cfgfile_dwrite (f, "fpu_strict=%s\n", p->fpu_strict ? "true" : "false");
+    cfgfile_dwrite (f, "comp_midopt=%s\n", p->comp_midopt ? "true" : "false");
+    cfgfile_dwrite (f, "comp_lowopt=%s\n", p->comp_lowopt ? "true" : "false");
+    cfgfile_dwrite (f, "avoid_cmov=%s\n", p->avoid_cmov ? "true" : "false" );
+    cfgfile_dwrite (f, "avoid_dga=%s\n", p->avoid_dga ? "true" : "false" );
+    cfgfile_dwrite (f, "avoid_vid=%s\n", p->avoid_vid ? "true" : "false" );
+    cfgfile_dwrite (f, "cachesize=%d\n", p->cachesize);
     if (p->override_dga_address)
-	cfgfile_write (f, "override_dga_address=0x%08x\n", p->override_dga_address);
+	cfgfile_dwrite (f, "override_dga_address=0x%08x\n", p->override_dga_address);
 
     for (i = 0; i < 2; i++) {
 	int v = i == 0 ? p->jport0 : p->jport1;
@@ -410,41 +460,41 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		sprintf (tmp2, "mouse%d", v - JSEM_MICE);
 	}
 	sprintf (tmp1, "joyport%d=%s\n", i, tmp2);
-	cfgfile_write (f, tmp1);
+	cfgfile_dwrite (f, tmp1);
     }
 
-    cfgfile_write (f, "bsdsocket_emu=%s\n", p->socket_emu ? "true" : "false");
+    cfgfile_dwrite (f, "bsdsocket_emu=%s\n", p->socket_emu ? "true" : "false");
 
-    cfgfile_write (f, "synchronize_clock=%s\n", p->tod_hack ? "yes" : "no");
-    cfgfile_write (f, "maprom=0x%x\n", p->maprom);
-    cfgfile_write (f, "parallel_postscript_emulation=%s\n", p->parallel_postscript_emulation ? "yes" : "no");
-    cfgfile_write (f, "parallel_postscript_detection=%s\n", p->parallel_postscript_detection ? "yes" : "no");
-    cfgfile_write (f, "ghostscript_parameters=%s\n", p->ghostscript_parameters);
-    cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
+    cfgfile_dwrite (f, "synchronize_clock=%s\n", p->tod_hack ? "yes" : "no");
+    cfgfile_dwrite (f, "maprom=0x%x\n", p->maprom);
+    cfgfile_dwrite (f, "parallel_postscript_emulation=%s\n", p->parallel_postscript_emulation ? "yes" : "no");
+    cfgfile_dwrite (f, "parallel_postscript_detection=%s\n", p->parallel_postscript_detection ? "yes" : "no");
+    cfgfile_dwrite (f, "ghostscript_parameters=%s\n", p->ghostscript_parameters);
+    cfgfile_dwrite (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
 
-    cfgfile_write (f, "gfx_display=%d\n", p->gfx_display);
-    cfgfile_write (f, "gfx_framerate=%d\n", p->gfx_framerate);
-    cfgfile_write (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
-    cfgfile_write (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
-    cfgfile_write (f, "gfx_top_windowed=%d\n", p->gfx_size_win.x);
-    cfgfile_write (f, "gfx_left_windowed=%d\n", p->gfx_size_win.y);
-    cfgfile_write (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
-    cfgfile_write (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
-    cfgfile_write (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
-    cfgfile_write (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
-    cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
-    cfgfile_write (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
-    cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
-    cfgfile_write (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
-    cfgfile_write (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
-    cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
-    cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
-    cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
-    cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
-    cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
-    cfgfile_write (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
-    cfgfile_write (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
-    cfgfile_write (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
+    cfgfile_dwrite (f, "gfx_display=%d\n", p->gfx_display);
+    cfgfile_dwrite (f, "gfx_framerate=%d\n", p->gfx_framerate);
+    cfgfile_dwrite (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
+    cfgfile_dwrite (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
+    cfgfile_dwrite (f, "gfx_top_windowed=%d\n", p->gfx_size_win.x);
+    cfgfile_dwrite (f, "gfx_left_windowed=%d\n", p->gfx_size_win.y);
+    cfgfile_dwrite (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
+    cfgfile_dwrite (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
+    cfgfile_dwrite (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
+    cfgfile_dwrite (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
+    cfgfile_dwrite (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
+    cfgfile_dwrite (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
+    cfgfile_dwrite (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
+    cfgfile_dwrite (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
+    cfgfile_dwrite (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
+    cfgfile_dwrite (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
+    cfgfile_dwrite (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
+    cfgfile_dwrite (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
+    cfgfile_dwrite (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
 
 #ifdef GFXFILTER
     if (p->gfx_filter > 0) {
@@ -453,120 +503,120 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	while (uaefilters[i].name) {
 	    uf = &uaefilters[i];
 	    if (uf->type == p->gfx_filter) {
-		cfgfile_write (f, "gfx_filter=%s\n", uf->cfgname);
+		cfgfile_dwrite (f, "gfx_filter=%s\n", uf->cfgname);
 		if (uf->type == p->gfx_filter) {
 		    if (uf->x[0]) {
-			cfgfile_write (f, "gfx_filter_mode=%s\n", filtermode1[p->gfx_filter_filtermode]);
+			cfgfile_dwrite (f, "gfx_filter_mode=%s\n", filtermode1[p->gfx_filter_filtermode]);
 		    } else {
 			int mt[4], i = 0;
 			if (uf->x[1]) mt[i++] = 1;
 			if (uf->x[2]) mt[i++] = 2;
 			if (uf->x[3]) mt[i++] = 3;
 			if (uf->x[4]) mt[i++] = 4;
-			cfgfile_write (f, "gfx_filter_mode=%dx\n", mt[p->gfx_filter_filtermode]);
+			cfgfile_dwrite (f, "gfx_filter_mode=%dx\n", mt[p->gfx_filter_filtermode]);
 		    }
 		}
 	    }
 	    i++;
 	}
     } else {
-	cfgfile_write (f, "gfx_filter=no\n");
+	cfgfile_dwrite (f, "gfx_filter=no\n");
     }
 
-    cfgfile_write (f, "gfx_filter_vert_zoom=%d\n", p->gfx_filter_vert_zoom);
-    cfgfile_write (f, "gfx_filter_horiz_zoom=%d\n", p->gfx_filter_horiz_zoom);
-    cfgfile_write (f, "gfx_filter_vert_zoom_mult=%d\n", p->gfx_filter_vert_zoom_mult);
-    cfgfile_write (f, "gfx_filter_horiz_zoom_mult=%d\n", p->gfx_filter_horiz_zoom_mult);
-    cfgfile_write (f, "gfx_filter_vert_offset=%d\n", p->gfx_filter_vert_offset);
-    cfgfile_write (f, "gfx_filter_horiz_offset=%d\n", p->gfx_filter_horiz_offset);
-    cfgfile_write (f, "gfx_filter_scanlines=%d\n", p->gfx_filter_scanlines);
-    cfgfile_write (f, "gfx_filter_scanlinelevel=%d\n", p->gfx_filter_scanlinelevel);
-    cfgfile_write (f, "gfx_filter_scanlineratio=%d\n", p->gfx_filter_scanlineratio);
-    cfgfile_write (f, "gfx_filter_luminance=%d\n", p->gfx_filter_luminance);
-    cfgfile_write (f, "gfx_filter_contrast=%d\n", p->gfx_filter_contrast);
-    cfgfile_write (f, "gfx_filter_saturation=%d\n", p->gfx_filter_saturation);
-    cfgfile_write (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
-    cfgfile_write (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
-    cfgfile_write (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
+    cfgfile_dwrite (f, "gfx_filter_vert_zoom=%d\n", p->gfx_filter_vert_zoom);
+    cfgfile_dwrite (f, "gfx_filter_horiz_zoom=%d\n", p->gfx_filter_horiz_zoom);
+    cfgfile_dwrite (f, "gfx_filter_vert_zoom_mult=%d\n", p->gfx_filter_vert_zoom_mult);
+    cfgfile_dwrite (f, "gfx_filter_horiz_zoom_mult=%d\n", p->gfx_filter_horiz_zoom_mult);
+    cfgfile_dwrite (f, "gfx_filter_vert_offset=%d\n", p->gfx_filter_vert_offset);
+    cfgfile_dwrite (f, "gfx_filter_horiz_offset=%d\n", p->gfx_filter_horiz_offset);
+    cfgfile_dwrite (f, "gfx_filter_scanlines=%d\n", p->gfx_filter_scanlines);
+    cfgfile_dwrite (f, "gfx_filter_scanlinelevel=%d\n", p->gfx_filter_scanlinelevel);
+    cfgfile_dwrite (f, "gfx_filter_scanlineratio=%d\n", p->gfx_filter_scanlineratio);
+    cfgfile_dwrite (f, "gfx_filter_luminance=%d\n", p->gfx_filter_luminance);
+    cfgfile_dwrite (f, "gfx_filter_contrast=%d\n", p->gfx_filter_contrast);
+    cfgfile_dwrite (f, "gfx_filter_saturation=%d\n", p->gfx_filter_saturation);
+    cfgfile_dwrite (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
+    cfgfile_dwrite (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
+    cfgfile_dwrite (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
 
-    cfgfile_write (f, "gfx_luminance=%d\n", p->gfx_luminance);
-    cfgfile_write (f, "gfx_contrast=%d\n", p->gfx_contrast);
-    cfgfile_write (f, "gfx_gamma=%d\n", p->gfx_gamma);
+    cfgfile_dwrite (f, "gfx_luminance=%d\n", p->gfx_luminance);
+    cfgfile_dwrite (f, "gfx_contrast=%d\n", p->gfx_contrast);
+    cfgfile_dwrite (f, "gfx_gamma=%d\n", p->gfx_gamma);
 #endif
 
-    cfgfile_write (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
-    cfgfile_write (f, "ntsc=%s\n", p->ntscmode ? "true" : "false");
-    cfgfile_write (f, "genlock=%s\n", p->genlock ? "true" : "false");
-    cfgfile_write (f, "show_leds=%s\n", p->leds_on_screen ? "true" : "false");
-    cfgfile_write (f, "keyboard_leds=numlock:%s,capslock:%s,scrolllock:%s\n",
+    cfgfile_dwrite (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
+    cfgfile_dwrite (f, "ntsc=%s\n", p->ntscmode ? "true" : "false");
+    cfgfile_dwrite (f, "genlock=%s\n", p->genlock ? "true" : "false");
+    cfgfile_dwrite (f, "show_leds=%s\n", p->leds_on_screen ? "true" : "false");
+    cfgfile_dwrite (f, "keyboard_leds=numlock:%s,capslock:%s,scrolllock:%s\n",
 	kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
     if (p->chipset_mask & CSMASK_AGA)
-	cfgfile_write (f, "chipset=aga\n");
+	cfgfile_dwrite (f, "chipset=aga\n");
     else if ((p->chipset_mask & CSMASK_ECS_AGNUS) && (p->chipset_mask & CSMASK_ECS_DENISE))
-	cfgfile_write (f, "chipset=ecs\n");
+	cfgfile_dwrite (f, "chipset=ecs\n");
     else if (p->chipset_mask & CSMASK_ECS_AGNUS)
-	cfgfile_write (f, "chipset=ecs_agnus\n");
+	cfgfile_dwrite (f, "chipset=ecs_agnus\n");
     else if (p->chipset_mask & CSMASK_ECS_DENISE)
-	cfgfile_write (f, "chipset=ecs_denise\n");
+	cfgfile_dwrite (f, "chipset=ecs_denise\n");
     else
-	cfgfile_write (f, "chipset=ocs\n");
-    cfgfile_write (f, "chipset_refreshrate=%d\n", p->chipset_refreshrate);
-    cfgfile_write (f, "collision_level=%s\n", collmode[p->collision_level]);
+	cfgfile_dwrite (f, "chipset=ocs\n");
+    cfgfile_dwrite (f, "chipset_refreshrate=%d\n", p->chipset_refreshrate);
+    cfgfile_dwrite (f, "collision_level=%s\n", collmode[p->collision_level]);
 
-    cfgfile_write (f, "chipset_compatible=%s\n", cscompa[p->cs_compatible]);
-    cfgfile_write (f, "ciaatod=%s\n", ciaatodmode[p->cs_ciaatod]);
-    cfgfile_write (f, "rtc=%s\n", rtctype[p->cs_rtc]);
-    //cfgfile_write (f, "chipset_rtc_adjust=%d\n", p->cs_rtc_adjust);
-    cfgfile_write (f, "ksmirror=%s\n", ksmirrortype[p->cs_ksmirror]);
-    cfgfile_write (f, "cd32cd=%s\n", p->cs_cd32cd ? "true" : "false");
-    cfgfile_write (f, "cd32c2p=%s\n", p->cs_cd32c2p ? "true" : "false");
-    cfgfile_write (f, "cd32nvram=%s\n", p->cs_cd32nvram ? "true" : "false");
-    cfgfile_write (f, "cdtvcd=%s\n", p->cs_cdtvcd ? "true" : "false");
-    cfgfile_write (f, "cdtvram=%s\n", p->cs_cdtvram ? "true" : "false");
-    cfgfile_write (f, "cdtvramcard=%d\n", p->cs_cdtvcard);
-    cfgfile_write (f, "ide=%s\n", p->cs_ide == 1 ? "a600/a1200" : (p->cs_ide == 2 ? "a4000" : "none"));
-    cfgfile_write (f, "a1000ram=%s\n", p->cs_a1000ram ? "true" : "false");
-    cfgfile_write (f, "fatgary=%d\n", p->cs_fatgaryrev);
-    cfgfile_write (f, "ramsey=%d\n", p->cs_ramseyrev);
-    cfgfile_write (f, "scsi_cdtv=%s\n", p->cs_cdtvscsi ? "true" : "false");
-    cfgfile_write (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
-    cfgfile_write (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
-    cfgfile_write (f, "scsi_a3000=%s\n", p->cs_mbdmac == 1 ? "true" : "false");
-    cfgfile_write (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
+    cfgfile_dwrite (f, "chipset_compatible=%s\n", cscompa[p->cs_compatible]);
+    cfgfile_dwrite (f, "ciaatod=%s\n", ciaatodmode[p->cs_ciaatod]);
+    cfgfile_dwrite (f, "rtc=%s\n", rtctype[p->cs_rtc]);
+    //cfgfile_dwrite (f, "chipset_rtc_adjust=%d\n", p->cs_rtc_adjust);
+    cfgfile_dwrite (f, "ksmirror=%s\n", ksmirrortype[p->cs_ksmirror]);
+    cfgfile_dwrite (f, "cd32cd=%s\n", p->cs_cd32cd ? "true" : "false");
+    cfgfile_dwrite (f, "cd32c2p=%s\n", p->cs_cd32c2p ? "true" : "false");
+    cfgfile_dwrite (f, "cd32nvram=%s\n", p->cs_cd32nvram ? "true" : "false");
+    cfgfile_dwrite (f, "cdtvcd=%s\n", p->cs_cdtvcd ? "true" : "false");
+    cfgfile_dwrite (f, "cdtvram=%s\n", p->cs_cdtvram ? "true" : "false");
+    cfgfile_dwrite (f, "cdtvramcard=%d\n", p->cs_cdtvcard);
+    cfgfile_dwrite (f, "ide=%s\n", p->cs_ide == 1 ? "a600/a1200" : (p->cs_ide == 2 ? "a4000" : "none"));
+    cfgfile_dwrite (f, "a1000ram=%s\n", p->cs_a1000ram ? "true" : "false");
+    cfgfile_dwrite (f, "fatgary=%d\n", p->cs_fatgaryrev);
+    cfgfile_dwrite (f, "ramsey=%d\n", p->cs_ramseyrev);
+    cfgfile_dwrite (f, "scsi_cdtv=%s\n", p->cs_cdtvscsi ? "true" : "false");
+    cfgfile_dwrite (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
+    cfgfile_dwrite (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
+    cfgfile_dwrite (f, "scsi_a3000=%s\n", p->cs_mbdmac == 1 ? "true" : "false");
+    cfgfile_dwrite (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
 
-    cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
-    cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
-    cfgfile_write (f, "mbresmem_size=%d\n", p->mbresmem_high_size / 0x100000);
-    cfgfile_write (f, "z3mem_size=%d\n", p->z3fastmem_size / 0x100000);
-    cfgfile_write (f, "z3mem_start=0x%x\n", p->z3fastmem_start);
-    cfgfile_write (f, "bogomem_size=%d\n", p->bogomem_size / 0x40000);
-    cfgfile_write (f, "gfxcard_size=%d\n", p->gfxmem_size / 0x100000);
-    cfgfile_write (f, "chipmem_size=%d\n", (p->chipmem_size == 0x40000) ? 0 : p->chipmem_size / 0x80000);
+    cfgfile_dwrite (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
+    cfgfile_dwrite (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
+    cfgfile_dwrite (f, "mbresmem_size=%d\n", p->mbresmem_high_size / 0x100000);
+    cfgfile_dwrite (f, "z3mem_size=%d\n", p->z3fastmem_size / 0x100000);
+    cfgfile_dwrite (f, "z3mem_start=0x%x\n", p->z3fastmem_start);
+    cfgfile_dwrite (f, "bogomem_size=%d\n", p->bogomem_size / 0x40000);
+    cfgfile_dwrite (f, "gfxcard_size=%d\n", p->gfxmem_size / 0x100000);
+    cfgfile_dwrite (f, "chipmem_size=%d\n", (p->chipmem_size == 0x40000) ? 0 : p->chipmem_size / 0x80000);
 
     if (p->m68k_speed > 0)
-	cfgfile_write (f, "finegrain_cpu_speed=%d\n", p->m68k_speed);
+	cfgfile_dwrite (f, "finegrain_cpu_speed=%d\n", p->m68k_speed);
     else
-	cfgfile_write (f, "cpu_speed=%s\n", p->m68k_speed == -1 ? "max" : "real");
+	cfgfile_dwrite (f, "cpu_speed=%s\n", p->m68k_speed == -1 ? "max" : "real");
 
     /* do not reorder start */
     write_compatibility_cpu(f, p);
-    cfgfile_write (f, "cpu_model=%d\n", p->cpu_model);
+    cfgfile_dwrite (f, "cpu_model=%d\n", p->cpu_model);
     if (p->fpu_model)
-	cfgfile_write (f, "fpu_model=%d\n", p->fpu_model);
-    cfgfile_write (f, "cpu_compatible=%s\n", p->cpu_compatible ? "true" : "false");
-    cfgfile_write (f, "cpu_24bit_addressing=%s\n", p->address_space_24 ? "true" : "false");
+	cfgfile_dwrite (f, "fpu_model=%d\n", p->fpu_model);
+    cfgfile_dwrite (f, "cpu_compatible=%s\n", p->cpu_compatible ? "true" : "false");
+    cfgfile_dwrite (f, "cpu_24bit_addressing=%s\n", p->address_space_24 ? "true" : "false");
     /* do not reorder end */
-    cfgfile_write (f, "cpu_cycle_exact=%s\n", p->cpu_cycle_exact ? "true" : "false");
-    cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
-    cfgfile_write (f, "rtg_nocustom=%s\n", p->picasso96_nocustom ? "true" : "false");
+    cfgfile_dwrite (f, "cpu_cycle_exact=%s\n", p->cpu_cycle_exact ? "true" : "false");
+    cfgfile_dwrite (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
+    cfgfile_dwrite (f, "rtg_nocustom=%s\n", p->picasso96_nocustom ? "true" : "false");
 
-    cfgfile_write (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
+    cfgfile_dwrite (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
     if (p->catweasel >= 100)
-	cfgfile_write (f, "catweasel=0x%x\n", p->catweasel);
+	cfgfile_dwrite (f, "catweasel=0x%x\n", p->catweasel);
     else
-	cfgfile_write (f, "catweasel=%d\n", p->catweasel);
+	cfgfile_dwrite (f, "catweasel=%d\n", p->catweasel);
 
-    cfgfile_write (f, "kbd_lang=%s\n", (p->keyboard_lang == KBD_LANG_DE ? "de"
+    cfgfile_dwrite (f, "kbd_lang=%s\n", (p->keyboard_lang == KBD_LANG_DE ? "de"
 					: p->keyboard_lang == KBD_LANG_DK ? "dk"
 					: p->keyboard_lang == KBD_LANG_ES ? "es"
 					: p->keyboard_lang == KBD_LANG_US ? "us"
@@ -575,14 +625,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 					: p->keyboard_lang == KBD_LANG_IT ? "it"
 					: "FOO"));
 
-    cfgfile_write (f, "state_replay=%s\n", p->statecapture ? "yes" : "no");
-    cfgfile_write (f, "state_replay_rate=%d\n", p->statecapturerate);
-    cfgfile_write (f, "state_replay_buffer=%d\n", p->statecapturebuffersize);
+    cfgfile_dwrite (f, "state_replay=%s\n", p->statecapture ? "yes" : "no");
+    cfgfile_dwrite (f, "state_replay_rate=%d\n", p->statecapturerate);
+    cfgfile_dwrite (f, "state_replay_buffer=%d\n", p->statecapturebuffersize);
 
 #ifdef FILESYS
     write_filesys_config (p, UNEXPANDED, p->path_hardfile, f);
     if (p->filesys_no_uaefsdb)
-	cfgfile_write (f, "filesys_no_fsdb=%s\n", p->filesys_no_uaefsdb ? "true" : "false");
+	cfgfile_dwrite (f, "filesys_no_fsdb=%s\n", p->filesys_no_uaefsdb ? "true" : "false");
 #endif
     write_inputdevice_config (p, f);
 
@@ -1131,7 +1181,8 @@ static struct uaedev_config_info *getuci(struct uae_prefs *p)
 struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			char *devname, char *volname, char *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int hdc, int flags) {
+			int blocksize, int bootpri,
+			char *filesysdir, int hdc, int flags) {
     struct uaedev_config_info *uci;
     int i;
     char *s;
@@ -1154,6 +1205,12 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
     uci->reserved = reserved;
     uci->blocksize = blocksize;
     uci->bootpri = bootpri;
+    uci->donotmount = 0;
+    uci->autoboot = 0;
+    if (bootpri < -128)
+	uci->donotmount = 1;
+    else if (bootpri > -127)
+	uci->autoboot = 1;
     uci->controller = hdc;
     strcpy (uci->filesys, filesysdir ? filesysdir : "");
     if (!uci->devname[0]) {
@@ -1280,6 +1337,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 
     if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, sizeof p->romfile)
 	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile)
+	|| cfgfile_string (option, value, "sana2", p->sana2, sizeof p->sana2)
 	|| cfgfile_string (option, value, "flash_file", p->flashfile, sizeof p->flashfile)
 	|| cfgfile_string (option, value, "cart_file", p->cartfile, sizeof p->cartfile)
 	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, sizeof p->pci_devices)
@@ -2672,6 +2730,8 @@ void default_prefs (struct uae_prefs *p, int type)
 {
     int i;
     int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
+    uae_u8 zero = 0;
+    struct zfile *f;
 
     memset (p, 0, sizeof (*p));
     strcpy (p->description, "UAE default configuration");
@@ -2868,6 +2928,15 @@ void default_prefs (struct uae_prefs *p, int type)
 #endif
 
     inputdevice_default_prefs (p);
+
+    zfile_fclose (default_file);
+    default_file = NULL;
+    f = zfile_fopen_empty ("configstore", 50000);
+    if (f) {
+	cfgfile_save_options (f, p, 0);
+	zfile_fwrite (&zero, 1, 1, f);
+	default_file = f;
+    }
 }
 
 static void buildin_default_prefs_68020 (struct uae_prefs *p)
@@ -3309,8 +3378,8 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     p->chipmem_size = 0x400000;
     p->z3fastmem_size = 8 * 1024 * 1024;
     p->gfxmem_size = 8 * 1024 * 1024;
-    p->cpu_model = 68060;
-    p->fpu_model = 68060;
+    p->cpu_model = 68040;
+    p->fpu_model = 68040;
     p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     p->cpu_compatible = p->address_space_24 = 0;
     p->m68k_speed = -1;
@@ -3446,7 +3515,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
     case CP_CDTV: // CDTV
 	p->cs_rtc = 1;
 	p->cs_cdtvcd = p->cs_cdtvram = 1;
-	p->cs_df0idhw = 0;
+	p->cs_df0idhw = 1;
 	p->cs_ksmirror = 0;
 	break;
     case CP_CD32: // CD32

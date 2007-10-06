@@ -275,6 +275,8 @@ void write_log (const char *format, ...)
     va_start(parms, format);
     count = _vsnprintf(buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
     ts = writets();
+    if (buffer[0] == '*')
+	count++;
     if (SHOW_CONSOLE || console_logging) {
 	if (lfdetected && ts)
 	    writeconsole(ts);

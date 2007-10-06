@@ -116,7 +116,7 @@ struct romdata *getromdatabypath(char *path)
     return NULL;
 }
 
-#define NEXT_ROM_ID 70
+#define NEXT_ROM_ID 71
 
 static struct romheader romheaders[] = {
     { "Freezer Cartridges", 1 },
@@ -225,6 +225,8 @@ static struct romdata roms[] = {
 	0x83b4b21c, 0xc56ced25,0x506a5aab,0x3fa13813,0x4fc9e5ae,0x0f9d3709 },
     { "Freezer: Nordic Power v2.0", 2, 0, 2, 0, "NPOWER\0", 65536, 67, 0, 0, ROMTYPE_NORDIC, 0, 1,
 	0xa4db2906, 0x0aec68f7,0x25470c89,0x6b699ff4,0x6623dec5,0xc777466e },
+    { "Freezer: Nordic Power v3.0", 3, 0, 3, 0, "NPOWER\0", 65536, 70, 0, 0, ROMTYPE_NORDIC, 0, 1,
+	0x72850aef, 0x59c91d1f,0xa8f118f9,0x0bdba05a,0x9ae788d7,0x7a6cc7c9 },
 
     { "Freezer: HRTMon v2.30 (built-in)", 0, 0, 0, 0, "HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1,
 	0xffffffff, 0, 0, 0, 0, 0, "HRTMon" },

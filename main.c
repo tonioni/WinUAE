@@ -45,6 +45,7 @@
 #include "a2091.h"
 #include "ncr_scsi.h"
 #include "scsi.h"
+#include "sana2.h"
 #include "blkdev.h"
 
 #ifdef USE_SDL
@@ -367,6 +368,9 @@ void fixup_prefs (struct uae_prefs *p)
     p->scsi = 0;
     p->win32_aspi = 0;
 #endif
+#if !defined (SANA2)
+    p->sana2 = 0;
+#endif
 #if !defined (UAESERIAL)
     p->uaeserial = 0;
 #endif
@@ -534,7 +538,10 @@ void reset_all_systems (void)
     scsidev_reset ();
     scsidev_start_threads ();
 #endif
-
+#ifdef SANA2
+    netdev_reset ();
+    netdev_start_threads ();
+#endif
 #ifdef FILESYS
     filesys_prepare_reset ();
     filesys_reset ();
@@ -710,6 +717,9 @@ static void real_main2 (int argc, char **argv)
 #ifdef SCSIEMU
     scsi_reset ();
     scsidev_install ();
+#endif
+#ifdef SANA2
+    netdev_install ();
 #endif
 #ifdef UAESERIAL
     uaeserialdev_install ();

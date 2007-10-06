@@ -80,7 +80,7 @@
 
 #define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
-#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;" ARCHIVE_STRING "\0"
+#define DISK_FORMAT_STRING "(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;*.wrp;*.dsq;" ARCHIVE_STRING "\0"
 #define ROM_FORMAT_STRING "(*.rom;*.roz)\0*.rom;*.roz;" ARCHIVE_STRING "\0"
 #define USS_FORMAT_STRING_RESTORE "(*.uss)\0*.uss;*.gz;"  ARCHIVE_STRING "\0"
 #define USS_FORMAT_STRING_SAVE "(*.uss)\0*.uss\0"
@@ -670,7 +670,7 @@ static int scan_roms_3(HKEY fkey, char **paths, int offset, char *path)
 
 extern int get_rom_path(char *out, int mode);
 
-int scan_roms (void)
+int scan_roms (int show)
 {
     char path[MAX_DPATH];
     static int recursive;
@@ -730,7 +730,8 @@ int scan_roms (void)
 
 end:
     read_rom_list ();
-    show_rom_list ();
+    if (show)
+	show_rom_list ();
 
     if (fkey)
 	RegCloseKey (fkey);
@@ -1127,7 +1128,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    p++;
 	    WIN32GUI_LoadUIString(IDS_STATEFILE_UNCOMPRESSED, tmp, sizeof(tmp));
 	    strcat(p, tmp);
-	    strcat(p, " (*.uss");
+	    strcat(p, " (*.uss)");
 	    p += strlen(p) + 1;
 	    strcpy(p, "*.uss");
 	    p += strlen(p) + 1;
@@ -2907,7 +2908,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    if (DirectorySelection (hDlg, 0, tmp)) {
 		load_keyring(&workprefs, NULL);
 		set_path ("KickstartPath", tmp);
-		if (!scan_roms ())
+		if (!scan_roms (1))
 		    gui_message_id (IDS_ROMSCANNOROMS);
 		values_to_pathsdialog (hDlg);
 	    }
@@ -3014,7 +3015,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    }
 	    break;
 	    case IDC_ROM_RESCAN:
-	    scan_roms ();
+	    scan_roms (1);
 	    break;
 	    case IDC_RESETREGISTRY:
 	    resetregistry ();
@@ -4755,7 +4756,7 @@ static void init_kickstart (HWND hDlg)
     ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
     if (RegOpenKeyEx (hWinUAEKey , "DetectedROMs", 0, KEY_READ, &fkey) != ERROR_SUCCESS)
-	scan_roms ();
+	scan_roms (1);
     if (fkey)
 	RegCloseKey (fkey);
 }
@@ -4999,6 +5000,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
+	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2[0] ? 1 : 0);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
@@ -5174,6 +5176,12 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	case IDC_SCSIDEVICE:
 	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE) ? 1 : 0;
 	    enable_for_miscdlg (hDlg);
+	    break;
+	case IDC_SANA2:
+	    if (IsDlgButtonChecked (hDlg, IDC_SANA2))
+		strcpy (workprefs.sana2, "UAE");
+	    else
+		workprefs.sana2[0] = 0;
 	    break;
 	case IDC_CLOCKSYNC:
 	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);
@@ -5950,11 +5958,13 @@ struct fsvdlg_vals
     char device[4096];
     char rootdir[4096];
     int bootpri;
+    int autoboot;
+    int donotmount;
     int rw;
     int rdb;
 };
 
-static struct fsvdlg_vals empty_fsvdlg = { "", "", "", 0, 1, 0 };
+static struct fsvdlg_vals empty_fsvdlg = { "", "", "", 0, 1, 1, 0 };
 static struct fsvdlg_vals current_fsvdlg;
 
 struct hfdlg_vals
@@ -5971,10 +5981,12 @@ struct hfdlg_vals
     int rw;
     int rdb;
     int bootpri;
+    int donotmount;
+    int autoboot;
     int controller;
 };
 
-static struct hfdlg_vals empty_hfdlg = { "", "", "", "", 32, 2, 1, 0, 512, 1, 0, 0 };
+static struct hfdlg_vals empty_hfdlg = { "", "", "", "", 32, 2, 1, 0, 512, 1, 0, 0, 0, 1, 0 };
 static struct hfdlg_vals current_hfdlg;
 static int archivehd;
 
@@ -6001,8 +6013,9 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	    SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri, TRUE);
 	    if (archivehd)
 		current_fsvdlg.rw = 0;
-	    CheckDlgButton (hDlg, IDC_RW, current_fsvdlg.rw);
-	    ew (hDlg, IDC_RW, !archivehd);
+	    CheckDlgButton (hDlg, IDC_FS_RW, current_fsvdlg.rw);
+	    CheckDlgButton (hDlg, IDC_FS_AUTOBOOT, current_fsvdlg.autoboot);
+	    ew (hDlg, IDC_FS_RW, !archivehd);
 	    recursive--;
 	}
 	return TRUE;
@@ -6017,8 +6030,8 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		    case IDC_FS_SELECT_EJECT:
 			SetDlgItemText (hDlg, IDC_PATH_NAME, "");
 			SetDlgItemText (hDlg, IDC_VOLUME_NAME, "");
-			CheckDlgButton (hDlg, IDC_RW, FALSE);
-			ew (hDlg, IDC_RW, FALSE);
+			CheckDlgButton (hDlg, IDC_FS_RW, FALSE);
+			ew (hDlg, IDC_FS_RW, FALSE);
 			archivehd = -1;
 		    break;
 		    case IDC_FS_SELECT_FILE:
@@ -6028,8 +6041,8 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			    SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 			    SetDlgItemText (hDlg, IDC_VOLUME_NAME, s);
 			    xfree (s);
-			    CheckDlgButton (hDlg, IDC_RW, FALSE);
-			    ew (hDlg, IDC_RW, FALSE);
+			    CheckDlgButton (hDlg, IDC_FS_RW, FALSE);
+			    ew (hDlg, IDC_FS_RW, FALSE);
 			    archivehd = 1;
 			}
 		    break;
@@ -6046,7 +6059,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			if ((browse = SHBrowseForFolder (&browse_info)) != NULL) {
 			    SHGetPathFromIDList (browse, directory_path);
 			    SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
-			    ew (hDlg, IDC_RW, TRUE);
+			    ew (hDlg, IDC_FS_RW, TRUE);
 			    archivehd = 0;
 			}
 		    break;
@@ -6061,8 +6074,9 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	    GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir, sizeof current_fsvdlg.rootdir);
 	    GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume);
 	    GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device);
-	    current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
+	    current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_FS_RW);
 	    current_fsvdlg.bootpri = GetDlgItemInt(hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
+	    current_fsvdlg.autoboot = IsDlgButtonChecked (hDlg, IDC_FS_AUTOBOOT);
 	    recursive--;
 	break;
     }
@@ -6076,6 +6090,7 @@ STATIC_INLINE int is_hdf_rdb(void)
 
 static void sethardfile (HWND hDlg)
 {
+    int rdb = is_hdf_rdb();
     SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename);
     SetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename);
     SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename);
@@ -6084,8 +6099,12 @@ static void sethardfile (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.reserved, FALSE);
     SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.blocksize, FALSE);
     SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri, TRUE);
-    CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
-    ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb());
+    CheckDlgButton (hDlg, IDC_HDF_RW, current_hfdlg.rw);
+    CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, current_hfdlg.autoboot);
+    CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, current_hfdlg.donotmount);
+    ew (hDlg, IDC_HDF_RDB, !rdb);
+    ew (hDlg, IDC_HDF_AUTOBOOT, !rdb);
+    ew (hDlg, IDC_HDF_DONOTMOUNT, !rdb);
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 }
 
@@ -6145,6 +6164,8 @@ static void hardfile_testrdb (HWND hDlg)
     current_hfdlg.reserved = 0;
     current_hfdlg.fsfilename[0] = 0;
     current_hfdlg.bootpri = 0;
+    current_hfdlg.autoboot = 1;
+    current_hfdlg.donotmount = 0;
     current_hfdlg.devicename[0] = 0;
     sethardfile (hDlg);
 }
@@ -6221,8 +6242,14 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	    case IDCANCEL:
 		EndDialog (hDlg, 0);
 		break;
-	    case IDC_RW:
-		current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
+	    case IDC_HDF_RW:
+		current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_HDF_RW);
+		break;
+	    case IDC_HDF_AUTOBOOT:
+		current_hfdlg.autoboot = IsDlgButtonChecked (hDlg, IDC_HDF_AUTOBOOT);
+		break;
+	    case IDC_HDF_DONOTMOUNT:
+		current_hfdlg.donotmount = IsDlgButtonChecked (hDlg, IDC_HDF_DONOTMOUNT);
 		break;
 	    case IDC_HDF_RDB:
 		SetDlgItemInt (hDlg, IDC_SECTORS, 0, FALSE);
@@ -6231,6 +6258,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		SetDlgItemText (hDlg, IDC_PATH_FILESYS, "");
 		SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, "");
 		current_hfdlg.sectors = current_hfdlg.reserved = current_hfdlg.surfaces = 0;
+		current_hfdlg.autoboot = 1;
+		current_hfdlg.donotmount = 0;
 		sethardfile (hDlg);
 		break;
 	}
@@ -6267,12 +6296,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	hdf_init ();
 	recursive++;
 	inithdcontroller (hDlg);
-	CheckDlgButton (hDlg, IDC_RW, current_hfdlg.rw);
+	CheckDlgButton (hDlg, IDC_HDF_RW, current_hfdlg.rw);
 	SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 	ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 	ew (hDlg, IDOK, FALSE);
-	ew (hDlg, IDC_RW, FALSE);
+	ew (hDlg, IDC_HDF_RW, FALSE);
 	ew (hDlg, IDC_HDF_CONTROLLER, FALSE);
 	index = -1;
 	for (i = 0; i < hdf_getnumharddrives(); i++) {
@@ -6297,7 +6326,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	    if (posn >= 0) {
 		ew (hDlg, IDC_HARDDRIVE_IMAGE, TRUE);
 		ew (hDlg, IDOK, TRUE);
-		ew (hDlg, IDC_RW, TRUE);
+		ew (hDlg, IDC_HDF_RW, TRUE);
 		ew (hDlg, IDC_HDF_CONTROLLER, TRUE);
 	    }
 	}
@@ -6317,7 +6346,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	}
 	if (posn != CB_ERR)
 	    strcpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize));
-	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_RW);
+	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_HDF_RW);
 	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
 	    current_hfdlg.controller = posn;
@@ -6327,12 +6356,24 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
     return FALSE;
 }
 
+static int tweakbootpri (int bp, int ab, int dnm)
+{
+    if (dnm)
+	return -129;
+    if (!ab)
+	return -128;
+    if (bp < -127)
+	bp = -127;
+    return bp;
+}
+
 static void new_filesys (HWND hDlg, int entry)
 {
     struct uaedev_config_info *uci;
+    int bp = tweakbootpri (current_fsvdlg.bootpri, current_fsvdlg.autoboot, current_fsvdlg.donotmount);
 
     uci = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
-		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, current_fsvdlg.bootpri, 0, 0, 0);
+		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, bp, 0, 0, 0);
     if (uci)
 	filesys_media_change (uci->rootdir, 1, uci);
 }
@@ -6340,12 +6381,13 @@ static void new_filesys (HWND hDlg, int entry)
 static void new_hardfile (HWND hDlg, int entry)
 {
     struct uaedev_config_info *uci;
+    int bp = tweakbootpri (current_hfdlg.bootpri, current_hfdlg.autoboot, current_hfdlg.donotmount);
 
     uci = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0,
 				current_hfdlg.filename, ! current_hfdlg.rw,
 				current_hfdlg.sectors, current_hfdlg.surfaces,
 				current_hfdlg.reserved, current_hfdlg.blocksize,
-				current_hfdlg.bootpri, current_hfdlg.fsfilename,
+				bp, current_hfdlg.fsfilename,
 				current_hfdlg.controller, 0);
     if (uci)
 	hardfile_do_disk_change (uci->configoffset, 1);
@@ -6416,6 +6458,8 @@ static void harddisk_edit (HWND hDlg)
 	}
 	current_hfdlg.rw = !uci->readonly;
 	current_hfdlg.bootpri = uci->bootpri;
+	current_hfdlg.autoboot = uci->autoboot;
+	current_hfdlg.donotmount = uci->donotmount;
 	if (CustomDialogBox(IDD_HARDFILE, hDlg, HardfileSettingsProc))
 	{
 	    new_hardfile (hDlg, entry);
@@ -6444,6 +6488,8 @@ static void harddisk_edit (HWND hDlg)
 	}
 	current_fsvdlg.rw = !uci->readonly;
 	current_fsvdlg.bootpri = uci->bootpri;
+	current_fsvdlg.autoboot = uci->autoboot;
+	current_fsvdlg.donotmount = uci->donotmount;
 	archivehd = -1;
 	if (CustomDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 	    new_filesys (hDlg, entry);

@@ -51,7 +51,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions=""
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
+				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include,..\tun"
 				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0500"
 				GeneratePreprocessedFile="0"
 				KeepComments="false"
@@ -1364,6 +1364,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\tun.c"
+				>
+			</File>
+			<File
 				RelativePath="..\win32.c"
 				>
 			</File>
@@ -1763,6 +1767,10 @@
 			</File>
 			<File
 				RelativePath="..\..\readcpu.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\sana2.c"
 				>
 			</File>
 			<File
@@ -2457,6 +2465,14 @@
 			<Filter
 				Name="xfd"
 				>
+			</Filter>
+			<Filter
+				Name="wrp"
+				>
+				<File
+					RelativePath="..\..\archivers\wrp\warp.c"
+					>
+				</File>
 			</Filter>
 		</Filter>
 		<File

@@ -1,4 +1,31 @@
 
+Beta 2:
+
+- warp (.wrp) disk compression format supported
+- ce-mode interrupt delay fix, intreq contents was incorrectly delayed
+  (fixes some programs that froze in CE-mode)
+- doublescanned modes look slightly better
+- added 64-bit CMD_READ uaescsi.device support (if there are programs
+  that access DVDs in non-SCSI-direct mode) 
+- missing hardfile dos type select box is back (disappeared few
+  releases ago..)
+- Nordic Power v3.0 support added (Thanks Christian!)
+  Interestingly this one has ROM at 0xf60000, not at 0xf00000
+- EXPERIMENTAL: save only non-default configuration entries. Makes
+  smaller config files but I am not yet sure if this is safe..
+  (at least long list of input config entries can be removed safely)
+- added autoboot (bootpri>=-127) and donotmount (bootpri=-129)
+  checkboxes to GUI
+- Amiga-side dummy Sana2 driver (most commands return bogus errors)
+  Real communication between Sana2 driver and TAP driver (comes with
+  OpenVPN, 2.1rc4 or newer required) will be implemented later,
+  I hope.. current development name is "uaenet.device".
+- do not show rom scan results if rom scan was automatic (missing
+  registry data or new winuae version was detected)
+- high end quickstart cpu changed back to 68040 (68060 does not boot
+  very well without 68060.library..)
+
+
 Beta 1:
 
 - CDTV and CD32 interrupt handling improved, fixes "Snoopy In The

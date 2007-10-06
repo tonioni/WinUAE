@@ -60,6 +60,8 @@ int direct_rgb;
    coordinates have a lower resolution (i.e. we're shrinking the image).  */
 static int res_shift;
 
+static int linedbl, linedbld;
+
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
@@ -1135,6 +1137,12 @@ static void init_aspect_maps (void)
 	/* Do nothing if the gfx driver hasn't initialized the screen yet */
 	return;
 
+    linedbld = linedbl = currprefs.gfx_linedbl;
+    if (doublescan) {
+	linedbl = 0;
+	linedbld = 1;
+    }
+
     if (native2amiga_line_map)
 	free (native2amiga_line_map);
     if (amiga2aspect_line_map)
@@ -1147,13 +1155,13 @@ static void init_aspect_maps (void)
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
 				       * (currprefs.gfx_lores ? 320 : 640)
-				       / (currprefs.gfx_linedbl ? 512 : 256)
+				       / (linedbld ? 512 : 256)
 				       / gfxvidinfo.width);
     else
 	native_lines_per_amiga_line = 1;
 
-    maxl = (MAXVPOS + 1) * (currprefs.gfx_linedbl ? 2 : 1);
-    min_ypos_for_screen = minfirstline << (currprefs.gfx_linedbl ? 1 : 0);
+    maxl = (MAXVPOS + 1) * (linedbld ? 2 : 1);
+    min_ypos_for_screen = minfirstline << (linedbl ? 1 : 0);
     max_drawn_amiga_line = -1;
     for (i = 0; i < maxl; i++) {
 	int v = (int) ((i - min_ypos_for_screen) * native_lines_per_amiga_line);
@@ -1163,12 +1171,12 @@ static void init_aspect_maps (void)
 	    v = -1;
 	amiga2aspect_line_map[i] = v;
     }
-    if (currprefs.gfx_linedbl)
+    if (linedbl)
 	max_drawn_amiga_line >>= 1;
 
     if (currprefs.gfx_ycenter && !(currprefs.gfx_correct_aspect)) {
 	/* @@@ verify maxvpos vs. MAXVPOS */
-	extra_y_adjust = (gfxvidinfo.height - (maxvpos_max << (currprefs.gfx_linedbl ? 1 : 0))) >> 1;
+	extra_y_adjust = (gfxvidinfo.height - (maxvpos_max << (linedbl ? 1 : 0))) >> 1;
 	if (extra_y_adjust < 0)
 	    extra_y_adjust = 0;
     }
@@ -1180,7 +1188,7 @@ static void init_aspect_maps (void)
 	/* Must omit drawing some lines. */
 	for (i = maxl - 1; i > min_ypos_for_screen; i--) {
 	    if (amiga2aspect_line_map[i] == amiga2aspect_line_map[i-1]) {
-		if (currprefs.gfx_linedbl && (i & 1) == 0 && amiga2aspect_line_map[i+1] != -1) {
+		if (linedbl && (i & 1) == 0 && amiga2aspect_line_map[i+1] != -1) {
 		    /* If only the first line of a line pair would be omitted,
 		     * omit the second one instead to avoid problems with line
 		     * doubling. */
@@ -1197,7 +1205,7 @@ static void init_aspect_maps (void)
 	if (amiga2aspect_line_map[i] == -1)
 	    continue;
 	for (j = amiga2aspect_line_map[i]; j < gfxvidinfo.height && native2amiga_line_map[j] == -1; j++)
-	    native2amiga_line_map[j] = i >> (currprefs.gfx_linedbl ? 1 : 0);
+	    native2amiga_line_map[j] = i >> (linedbl ? 1 : 0);
     }
 }
 
@@ -1267,6 +1275,8 @@ static void pfield_expand_dp_bplcon (void)
     bplplanecnt = dp_for_drawing->nr_planes;
     bplham = dp_for_drawing->ham_seen;
 
+    if (doublescan)
+	bplres >>= 1;
     if (bplres > 0)
 	frame_res = 1;
     if (bplres > 0)
@@ -1679,8 +1689,8 @@ static void center_image (void)
 	if (thisframe_y_adjust < minfirstline)
 	    thisframe_y_adjust = minfirstline;
     }
-    thisframe_y_adjust_real = thisframe_y_adjust << (currprefs.gfx_linedbl ? 1 : 0);
-    tmp = (maxvpos_max - thisframe_y_adjust) << (currprefs.gfx_linedbl ? 1 : 0);
+    thisframe_y_adjust_real = thisframe_y_adjust << (linedbl ? 1 : 0);
+    tmp = (maxvpos_max - thisframe_y_adjust) << (linedbl ? 1 : 0);
     if (tmp != max_ypos_thisframe) {
 	last_max_ypos = tmp;
 	if (last_max_ypos < 0)
@@ -1691,7 +1701,7 @@ static void center_image (void)
     /* @@@ interlace_seen used to be (bplcon0 & 4), but this is probably
      * better.  */
     if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust)
-	frame_redraw_necessary |= (interlace_seen && currprefs.gfx_linedbl) ? 2 : 1;
+	frame_redraw_necessary |= (interlace_seen && linedbl) ? 2 : 1;
 
     max_diwstop = 0;
     min_diwstart = 10000;
@@ -1754,7 +1764,7 @@ static void init_drawing_frame (void)
     if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 	thisframe_last_drawn_line = thisframe_first_drawn_line;
 
-    maxline = currprefs.gfx_linedbl ? (maxvpos_max + 1) * 2 + 1 : (maxvpos_max + 1) + 1;
+    maxline = linedbl ? (maxvpos_max + 1) * 2 + 1 : (maxvpos_max + 1) + 1;
     maxline++;
 #ifdef SMART_UPDATE
     for (i = 0; i < maxline; i++) {
@@ -2047,7 +2057,7 @@ static void lightpen_update (void)
     lightpen_cx = (((lightpen_x + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET;
 
     lightpen_cy = lightpen_y;
-    if (currprefs.gfx_linedbl)
+    if (linedbl)
 	lightpen_cy >>= 1;
     lightpen_cy += minfirstline;
 

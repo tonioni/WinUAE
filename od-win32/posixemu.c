@@ -268,7 +268,7 @@ int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
     return uae_start_thread(NULL, f, arg, tid);
 }
 
-DWORD_PTR cpu_affinity = 1;
+DWORD_PTR cpu_affinity = 1, cpu_paffinity = 1;
 
 void uae_set_thread_priority (int pri)
 {

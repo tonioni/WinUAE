@@ -1370,6 +1370,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\tun.c"
+				>
+			</File>
+			<File
 				RelativePath="..\win32.c"
 				>
 			</File>
@@ -1769,6 +1773,10 @@
 			</File>
 			<File
 				RelativePath="..\..\readcpu.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\sana2.c"
 				>
 			</File>
 			<File
@@ -2457,6 +2465,14 @@
 				>
 				<File
 					RelativePath="..\..\archivers\zip\unzip.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="wrp"
+				>
+				<File
+					RelativePath="..\..\archivers\wrp\warp.c"
 					>
 				</File>
 			</Filter>

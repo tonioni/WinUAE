@@ -1536,6 +1536,10 @@ static int superiv_init(struct romdata *rd, struct zfile *f)
 	hrtmem2_end = 0xf60000;
 	hrtmem2_size =  0x10000;
 	hrtmem_rom = 1;
+	if (subtype == 70) {
+	    hrtmem_start += 0x60000;
+	    hrtmem_end += 0x60000;
+	}
     } else { /* super4 */
 	hrtmem_start = 0xd00000;
 	hrtmem_size = 0x40000;
