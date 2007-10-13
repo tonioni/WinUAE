@@ -39,6 +39,7 @@
 #endif
 #include "crc32.h"
 #include "inputdevice.h"
+#include "amax.h"
 
 #undef CATWEASEL
 
@@ -176,6 +177,7 @@ typedef struct {
     catweasel_drive *catweasel;
 #else
     int catweasel;
+    int amax;
 #endif
 } drive;
 
@@ -570,9 +572,31 @@ static void reset_drive_gui(int i)
 	gui_data.drive_disabled[i] = 1;
 }
 
+static void setamax(void)
+{
+#ifdef AMAX
+    if (currprefs.amaxromfile[0]) {
+        /* Put A-Max as last drive in drive chain */
+        int j;
+        for (j = 0; j < MAX_FLOPPY_DRIVES; j++)
+	    if (floppy[j].amax)
+	        return;
+	for (j = 0; j < MAX_FLOPPY_DRIVES; j++) {
+	    if ((1 << j) & disabled) {
+		floppy[j].amax = 1;
+		write_log ("AMAX: drive %d\n", j);
+		return;
+	    }
+	}
+    }
+#endif
+}
+
 static void reset_drive(int i)
 {
     drive *drv = &floppy[i];
+ 
+    drv->amax = 0;
     drive_image_free (drv);
     drv->motoroff = 1;
     disabled &= ~(1 << i);
@@ -2123,6 +2147,11 @@ void DISK_select (uae_u8 data)
     if (disk_debug_logging > 1)
 	write_log ("%08.8X %02.2X %s drvmask=%x", M68K_GETPC, data, tobin(data), selected ^ 15);
 
+#ifdef AMAX
+    if (currprefs.amaxromfile[0])
+	amax_disk_select (data, prevdata);
+#endif
+
     if ((prevdata & 0x80) != (data & 0x80)) {
 	for (dr = 0; dr < 4; dr++) {
 	    if (floppy[dr].indexhackmode > 1 && !(selected & (1 << dr))) {
@@ -2202,7 +2231,9 @@ uae_u8 DISK_status (void)
 
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = floppy + dr;
-	if (!((selected | disabled) & (1 << dr))) {
+	if (drv->amax) {
+	    st = amax_disk_status ();
+	} else if (!((selected | disabled) & (1 << dr))) {
 	    if (drive_running (drv)) {
 		if (drv->catweasel) {
 #ifdef CATWEASEL
@@ -2238,7 +2269,7 @@ uae_u8 DISK_status (void)
 	    }
 	} else if (!(selected & (1 << dr))) {
 	    if (drv->idbit)
-		st &= ~0x20;
+	        st &= ~0x20;
 	}
     }
     return st;
@@ -2386,8 +2417,13 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 	    if (!bitoffset) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 		    drive *drv2 = &floppy[dr];
+		    uae_u16 w = get_word (dskpt);
 		    if (drives[dr])
-			drv2->bigmfmbuf[drv2->mfmpos >> 4] = get_word (dskpt);
+			drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
+#ifdef AMAX
+		    if (currprefs.amaxromfile[0])
+			amax_diskwrite (w);
+#endif
 		}
 		dskpt += 2;
 		dsklength--;
@@ -2826,8 +2862,8 @@ void DSKLEN (uae_u16 v, int hpos)
 	    break;
     }
     if (dr == 4) {
-	write_log ("disk %s DMA started, drvmask=%x motormask=%x\n",
-	   dskdmaen == 3 ? "write" : "read", selected ^ 15, motormask);
+        write_log ("disk %s DMA started, drvmask=%x motormask=%x\n",
+	    dskdmaen == 3 ? "write" : "read", selected ^ 15, motormask);
 	noselected = 1;
     } else {
 	if (disk_debug_logging > 0) {
@@ -2898,7 +2934,12 @@ void DSKLEN (uae_u16 v, int hpos)
 	    } else if (dskdmaen == 3) { /* TURBO write */
 
 		for (i = 0; i < dsklength; i++) {
-		    drv->bigmfmbuf[pos >> 4] = get_word (dskpt + i * 2);
+		    uae_u16 w = get_word (dskpt + i * 2);
+		    drv->bigmfmbuf[pos >> 4] = w;
+#ifdef AMAX
+		    if (currprefs.amaxromfile[0])
+			amax_diskwrite (w);
+#endif
 		    pos += 16;
 		    pos %= drv->tracklen;
 		}
@@ -2908,7 +2949,15 @@ void DSKLEN (uae_u16 v, int hpos)
 	}
 	if (!done && noselected) {
 	    while (dsklength-- > 0) {
-		put_word (dskpt, 0);
+		if (dskdmaen == 3) {
+		    uae_u16 w = get_word (dskpt);
+#ifdef AMAX
+		    if (currprefs.amaxromfile[0])
+			amax_diskwrite (w);
+#endif
+		} else {
+		    put_word (dskpt, 0);
+		}
 		dskpt += 2;
 	    }
 	    INTREQ_f (0x8000 | 0x1000);
@@ -2985,6 +3034,7 @@ void DISK_init (void)
     }
     if (disk_empty (0))
 	write_log ("No disk in drive 0.\n");
+    amax_init ();
 }
 
 void DISK_reset (void)
@@ -3000,6 +3050,7 @@ void DISK_reset (void)
     disabled = 0;
     for (i = 0; i < MAX_FLOPPY_DRIVES; i++)
 	reset_drive (i);
+    setamax ();
 }
 
 int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
@@ -3086,6 +3137,11 @@ void DISK_restore_custom (uae_u32 pdskpt, uae_u16 pdsklength, uae_u16 pdskbytr)
     dskpt = pdskpt;
     dsklength = pdsklength;
     dskbytr_val = pdskbytr;
+}
+
+void restore_disk_finish (void)
+{
+    setamax();
 }
 
 uae_u8 *restore_disk(int num,uae_u8 *src)

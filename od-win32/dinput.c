@@ -75,6 +75,9 @@ struct didata {
     int buttonmappings[MAX_MAPPINGS];
     char *buttonname[MAX_MAPPINGS];
     int buttonsort[MAX_MAPPINGS];
+
+    int axisparent[MAX_MAPPINGS];
+    int axisparentdir[MAX_MAPPINGS];
 };
 
 #define DI_BUFFER 30
@@ -104,6 +107,40 @@ int dinput_winmousemode (void)
     if (winmouse)
 	return winmousemode;
     return 0;
+}
+
+static void fixbuttons (struct didata *did)
+{
+    if (did->buttons > 0)
+	return;
+    write_log ("'%s' has no buttons, adding single default button\n", did->name);
+    did->buttonmappings[0] = DIJOFS_BUTTON(0);
+    did->buttonsort[0] = 0;
+    did->buttonname[0] = my_strdup("Button");
+    did->buttons++;
+}
+
+#define AXISBUTTON 0x20000
+#define AXISBUTTON_2 0x10000
+
+static void fixthings (struct didata *did)
+{
+    int i, j;
+    char tmp[256];
+
+    for (i = 0; i < did->axles; i++) {
+	if (did->buttons + 1 >= MAX_MAPPINGS)
+	    break;
+	for (j = 0; j < 2; j++) {
+	    sprintf (tmp, "%s [%c]", did->axisname[i], j ? '+' : '-');
+	    did->buttonname[did->buttons] = my_strdup (tmp);
+	    did->buttonmappings[did->buttons] = did->axismappings[i];
+	    did->buttonsort[did->buttons] = 1000 + (did->axismappings[i] + did->axistype[i]) * 2 + j;
+	    did->axisparent[did->buttons] = i;
+	    did->axisparentdir[did->buttons] = j;
+	    did->buttons++;
+	}
+    }
 }
 
 typedef BOOL (CALLBACK* REGISTERRAWINPUTDEVICES)
@@ -164,6 +201,7 @@ static void cleardid(struct didata *did)
     for (i = 0; i < MAX_MAPPINGS; i++) {
 	did->axismappings[i] = -1;
 	did->buttonmappings[i] = -1;
+	did->axisparent[i] = -1;
     }
 }
 
@@ -184,10 +222,8 @@ static int initialize_catweasel(void)
 	    did->sortname = my_strdup (tmp);
 	    did->buttons = 3;
 	    did->axles = 2;
-	    did->axistype[0] = 1;
 	    did->axissort[0] = 0;
 	    did->axisname[0] = my_strdup ("X-Axis");
-	    did->axistype[1] = 1;
 	    did->axissort[1] = 1;
 	    did->axisname[1] = my_strdup ("Y-Axis");
 	    for (j = 0; j < did->buttons; j++) {
@@ -211,10 +247,8 @@ static int initialize_catweasel(void)
 	    did->sortname = my_strdup (tmp);
 	    did->buttons = (catweasel_isjoystick() & 0x80) ? 3 : 1;
 	    did->axles = 2;
-	    did->axistype[0] = 1;
 	    did->axissort[0] = 0;
 	    did->axisname[0] = my_strdup ("X-Axis");
-	    did->axistype[1] = 1;
 	    did->axissort[1] = 1;
 	    did->axisname[1] = my_strdup ("Y-Axis");
 	    for (j = 0; j < did->buttons; j++) {
@@ -223,6 +257,8 @@ static int initialize_catweasel(void)
 		did->buttonname[j] = my_strdup (tmp);
 	    }
 	    did->priority = -1;
+	    fixbuttons (did);
+	    fixthings (did);
 	    num_joystick++;
 	}
     }
@@ -361,17 +397,13 @@ static int initialize_rawinput (void)
 		    rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
 		did->buttons = rdim->dwNumberOfButtons;
 		did->axles = 3;
-		did->axistype[0] = 1;
 		did->axissort[0] = 0;
 		did->axisname[0] = my_strdup ("X-Axis");
-		did->axistype[1] = 1;
 		did->axissort[1] = 1;
 		did->axisname[1] = my_strdup ("Y-Axis");
-		did->axistype[2] = 1;
 		did->axissort[2] = 2;
 		did->axisname[2] = my_strdup ("Wheel");
 		if (rdim->fHasHorizontalWheel) {
-		    did->axistype[3] = 1;
 		    did->axissort[3] = 3;
 		    did->axisname[3] = my_strdup ("HWheel");
 		    did->axles++;
@@ -428,19 +460,15 @@ static void initialize_windowsmouse (void)
 	if (did->buttons > 3 && !os_winnt)
 	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
 	did->axles = os_vista ? 4 : 3;
-	did->axistype[0] = 1;
 	did->axissort[0] = 0;
 	did->axisname[0] = my_strdup ("X-Axis");
-	did->axistype[1] = 1;
 	did->axissort[1] = 1;
 	did->axisname[1] = my_strdup ("Y-Axis");
 	if (did->axles > 2) {
-	    did->axistype[2] = 1;
 	    did->axissort[2] = 2;
 	    did->axisname[2] = my_strdup ("Wheel");
 	}
 	if (did->axles > 3) {
-	    did->axistype[3] = 1;
 	    did->axissort[3] = 3;
 	    did->axisname[3] = my_strdup ("HWheel");
 	}
@@ -624,17 +652,6 @@ static void sortdd (struct didata *dd, int num, int type)
 
 }
 
-static void fixbuttons (struct didata *did)
-{
-    if (did->buttons > 0)
-	return;
-    write_log ("'%s' has no buttons, adding single default button\n", did->name);
-    did->buttonmappings[0] = DIJOFS_BUTTON(0);
-    did->buttonsort[0] = 0;
-    did->buttonname[0] = my_strdup("Button");
-    did->buttons++;
-}
-
 static void sortobjects (struct didata *did, int *mappings, int *sort, char **names, int *types, int num)
 {
     int i, j, tmpi;
@@ -732,7 +749,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	    sprintf (tmp, "%s (%d)", pdidoi->tszName, i + 1);
 	    did->axisname[did->axles + i] = my_strdup (tmp);
 	    did->axissort[did->axles + i] = did->axissort[did->axles];
-	    did->axistype[did->axles + i] = 1;
+	    did->axistype[did->axles + i] = i + 1;
 	}
 	did->axles += 2;
     }
@@ -1746,34 +1763,64 @@ static void read_joystick (void)
 		data -= 32768;
 
 		for (k = 0; k < did->buttons; k++) {
-		    if (did->buttonmappings[k] == dimofs) {
+
+		    if (did->axisparent >= 0 && did->buttonmappings[k] == dimofs) {
+			int bstate = 0;
+			int axis = did->axisparent[k];
+			int dir = did->axisparentdir[k];
+
+			if (did->axistype[axis] == 1) {
+			    if (!dir)
+				bstate = (data2 >= 20250 && data2 <= 33750) ? 1 : 0;
+			    else
+				bstate = (data2 >= 2250 && data2 <= 15750) ? 1 : 0;
+			} else if (did->axistype[axis] == 2) {
+			    if (!dir)
+				bstate = ((data2 >= 29250 && data2 <= 33750) || (data2 >= 0 && data2 <= 6750))  ? 1 : 0;
+			    else
+				bstate = (data2 >= 11250 && data2 <= 24750) ? 1 : 0;
+			} else if (did->axistype[axis] == 0) {
+			    if (dir)
+				bstate = data > 20000 ? 1 : 0;
+			    else
+				bstate = data < -20000 ? 1 : 0;
+			}
+		        setjoybuttonstate (i, k, bstate);
+#ifdef DI_DEBUG2
+			write_log ("AB:NUM=%d OFF=%d AXIS=%d DIR=%d NAME=%s VAL=%d STATE=%d\n",
+			    k, dimofs, axis, dir, did->buttonname[k], data, state);
+#endif
+
+		    } else if (did->buttonmappings[k] == dimofs) {
 #ifdef DI_DEBUG2
 			write_log ("B:NUM=%d OFF=%d NAME=%s VAL=%d STATE=%d\n",
 			    k, dimofs, did->buttonname[k], data, state);
 #endif
 			setjoybuttonstate (i, k, state);
-			break;
 		    }
 		}
+
 		for (k = 0; k < did->axles; k++) {
 		    if (did->axismappings[k] == dimofs) {
-			if (did->axistype[k]) {
+			if (did->axistype[k] == 1) {
 			    setjoystickstate (i, k, (data2 >= 20250 && data2 <= 33750) ? -1 : (data2 >= 2250 && data2 <= 15750) ? 1 : 0, 1);
-			    setjoystickstate (i, k + 1, ((data2 >= 29250 && data2 <= 33750) || (data2 >= 0 && data2 <= 6750)) ? -1 : (data2 >= 11250 && data2 <= 24750) ? 1 : 0, 1);
+			} else if (did->axistype[k] == 2) {
+			    setjoystickstate (i, k, ((data2 >= 29250 && data2 <= 33750) || (data2 >= 0 && data2 <= 6750)) ? -1 : (data2 >= 11250 && data2 <= 24750) ? 1 : 0, 1);
 #ifdef DI_DEBUG2
 			    write_log ("P:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data2);
 #endif
-			} else {
+			} else if (did->axistype[k] == 0) {
 #ifdef DI_DEBUG2
 			    if (data < -20000 || data > 20000)
 				write_log ("A:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data);
 #endif
 			    setjoystickstate (i, k, data, 32768);
 			}
-			break;
 		    }
 		}
+
 	    }
+
 	} else if (hr == DIERR_INPUTLOST) {
 	    acquire (lpdi, "joystick");
 	} else if (did->acquired &&  hr == DIERR_NOTACQUIRED) {
@@ -1804,6 +1851,7 @@ static int init_joystick (void)
 		    did->lpdi = lpdi;
 		    IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
 		    fixbuttons (did);
+		    fixthings (did);
 		    sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		    sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		}

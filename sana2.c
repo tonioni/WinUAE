@@ -3,6 +3,8 @@
   *
   * SanaII emulation
   *
+  * partially based on code from 3c589 PCMCIA driver by Neil Cafferke
+  *
   * Copyright 2007 Toni Wilen
   *
   */
@@ -99,6 +101,9 @@
 #define S2EVENT_HARDWARE        (1L<<6) /* hardware error catch all     */
 #define S2EVENT_SOFTWARE        (1L<<7) /* software error catch all     */
 
+#define KNOWN_EVENTS (S2EVENT_ERROR|S2EVENT_TX|S2EVENT_RX|S2EVENT_ONLINE|\
+   S2EVENT_OFFLINE|S2EVENT_BUFF|S2EVENT_HARDWARE|S2EVENT_SOFTWARE)
+
 #define DRIVE_NEWSTYLE 0x4E535459L   /* 'NSTY' */
 #define NSCMD_DEVICEQUERY 0x4000
 
@@ -125,15 +130,18 @@ struct priv_devstruct {
     int flags; /* OpenDevice() */
     int configured;
     int adapter;
+    int online;
     uae_u8 mac[ADDR_SIZE];
     struct tapdata *td;
 
-    int packetsreceived;
-    int packetssent;
-    int baddata;
-    int overruns;
-    int unknowntypesreceived;
-    int reconfigurations;
+    uae_u32 packetsreceived;
+    uae_u32 packetssent;
+    uae_u32 baddata;
+    uae_u32 overruns;
+    uae_u32 unknowntypesreceived;
+    uae_u32 reconfigurations;
+    uae_u32 online_micro;
+    uae_u32 online_secs;
 };
 
 static struct tapdata td;
@@ -385,19 +393,38 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 
 	case CMD_READ:
-	    goto offline;
-	break;
-	case S2_READORPHAN:
-	    goto offline;
+	    if (!pdev->online)
+		goto offline;
 	break;
 
-	case CMD_WRITE:
-	    goto offline;
+	case S2_READORPHAN:
+	    if (!pdev->online)
+		goto offline;
 	break;
+
 	case S2_BROADCAST:
-	    goto offline;
+	    if (!pdev->online)
+		goto offline;
+	    put_byte (dstaddr +  0, 0xff);
+	    put_byte (dstaddr +  1, 0xff);
+	    put_byte (dstaddr +  2, 0xff);
+	    put_byte (dstaddr +  3, 0xff);
+	    put_byte (dstaddr +  4, 0xff);
+	    put_byte (dstaddr +  5, 0xff);
+	    /* fall through */
+	case CMD_WRITE:
+	    if (!pdev->online)
+		goto offline;
 	break;
+
 	case S2_MULTICAST:
+	    if (!pdev->online)
+		goto offline;
+	    if ((get_byte (dstaddr + 0) & 1) == 0) {
+		io_error = S2ERR_BAD_ADDRESS;
+		wire_error = S2WERR_BAD_MULTICAST;
+		goto end;
+	    }
 	    io_error = S2WERR_BAD_MULTICAST;
 	break;
 
@@ -438,6 +465,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    put_long (statdata + 12, pdev->overruns);
 	    put_long (statdata + 16, pdev->unknowntypesreceived);
 	    put_long (statdata + 20, pdev->reconfigurations);
+	    put_long (statdata + 24, pdev->online_secs);
+	    put_long (statdata + 28, pdev->online_micro);
 	break;
 
 	case S2_GETSPECIALSTATS:
@@ -472,21 +501,47 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		wire_error = S2WERR_RCVREL_HDW_ERR;
 	    }
 	    if (!io_error) {
+		time_t t;
 		pdev->packetsreceived = 0;
 		pdev->packetssent = 0;
 		pdev->baddata = 0;
 		pdev->overruns = 0;
 		pdev->unknowntypesreceived = 0;
 		pdev->reconfigurations = 0;
+		pdev->online = 1;
+		t = time (NULL);
+		pdev->online_micro = 0;
+		pdev->online_secs = (uae_u32)t;
 	    }
 	break;
 
 	case S2_OFFLINE:
+	    pdev->online = 0;
 	break;
 
 	case S2_ONEVENT:
-	    io_error = S2ERR_NOT_SUPPORTED;
-	    wire_error = S2WERR_BAD_EVENT;
+	{
+	    int complete = FALSE;
+	    uae_u32 events;
+	    uae_u32 wanted_events = get_long (request + 32);
+	    if (wanted_events & ~KNOWN_EVENTS) {
+		io_error = S2ERR_NOT_SUPPORTED;
+		events = S2WERR_BAD_EVENT;
+	    } else {
+		if (!pdev->online)
+		    events = S2EVENT_ONLINE;
+		else
+		    events = S2EVENT_OFFLINE;
+		events &= wanted_events;
+	    }
+	    if (events) {
+		wire_error = events;
+		complete = TRUE;
+	    } else {
+		io_error = S2ERR_NOT_SUPPORTED;
+		wire_error = S2WERR_BAD_EVENT;
+	    }
+	}
 	break;
 
 	default:
@@ -498,6 +553,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	wire_error = S2WERR_UNIT_OFFLINE;
 	break;
     }
+end:
     put_long (request + 32, wire_error);
     put_byte (request + 31, io_error);
     return async;

@@ -399,8 +399,7 @@ static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 
 static void out_config (struct zfile *f, int id, int num, char *s1, char *s2)
 {
-    cfgfile_dwrite (f, "input.%d.%s%d=%s\n", id, s1, num, s2);
-    //write_log ("-input.%d.%s%d=%s\n", id, s1, num, s2);
+    cfgfile_write (f, "input.%d.%s%d=%s\n", id, s1, num, s2);
 }
 
 static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *tmp1, struct uae_input_device *id)
@@ -444,7 +443,7 @@ static void write_config (struct zfile *f, int idnum, int devnum, char *name, st
 
     if (!isdevice (id))
 	return;
-    cfgfile_dwrite (f, "input.%d.%s.%d.disabled=%d\n", idnum, name, devnum, id->enabled ? 0 : 1);
+    cfgfile_write (f, "input.%d.%s.%d.disabled=%d\n", idnum, name, devnum, id->enabled ? 0 : 1);
     sprintf (tmp1, "%s.%d.axis.", name, devnum);
     for (i = 0; i < ID_AXIS_TOTAL; i++)
 	write_config2 (f, idnum, i, ID_AXIS_OFFSET, tmp1, id);
@@ -519,7 +518,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	sprintf (tmp3, "%d", kbr->extra[i][0]);
 	kbrlabel (tmp3);
 	sprintf (tmp1, "keyboard.%d.button.%s", devnum, tmp3);
-	cfgfile_dwrite (f, "input.%d.%s=%s\n", idnum, tmp1, tmp2[0] ? tmp2 : "NULL");
+	cfgfile_write (f, "input.%d.%s=%s\n", idnum, tmp1, tmp2[0] ? tmp2 : "NULL");
 	i++;
     }
 }
@@ -528,13 +527,13 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 {
     int i, id;
 
-    cfgfile_dwrite (f, "input.config=%d\n", p->input_selected_setting);
-    cfgfile_dwrite (f, "input.joymouse_speed_analog=%d\n", p->input_joymouse_multiplier);
-    cfgfile_dwrite (f, "input.joymouse_speed_digital=%d\n", p->input_joymouse_speed);
-    cfgfile_dwrite (f, "input.joymouse_deadzone=%d\n", p->input_joymouse_deadzone);
-    cfgfile_dwrite (f, "input.joystick_deadzone=%d\n", p->input_joystick_deadzone);
-    cfgfile_dwrite (f, "input.mouse_speed=%d\n", p->input_mouse_speed);
-    cfgfile_dwrite (f, "input.autofire=%d\n", p->input_autofire_framecnt);
+    cfgfile_write (f, "input.config=%d\n", p->input_selected_setting);
+    cfgfile_write (f, "input.joymouse_speed_analog=%d\n", p->input_joymouse_multiplier);
+    cfgfile_write (f, "input.joymouse_speed_digital=%d\n", p->input_joymouse_speed);
+    cfgfile_write (f, "input.joymouse_deadzone=%d\n", p->input_joymouse_deadzone);
+    cfgfile_write (f, "input.joystick_deadzone=%d\n", p->input_joystick_deadzone);
+    cfgfile_write (f, "input.mouse_speed=%d\n", p->input_mouse_speed);
+    cfgfile_write (f, "input.autofire=%d\n", p->input_autofire_framecnt);
     for (id = 1; id <= MAX_INPUT_SETTINGS; id++) {
 	for (i = 0; i < MAX_INPUT_DEVICES; i++)
 	    write_config (f, id, i, "joystick", &p->joystick_settings[id][i], &joysticks2[i]);

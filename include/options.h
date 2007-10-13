@@ -229,6 +229,7 @@ struct uae_prefs {
     char pci_devices[256];
     char prtname[256];
     char sername[256];
+    char amaxromfile[MAX_DPATH];
 
     char path_floppy[256];
     char path_hardfile[256];

@@ -546,6 +546,7 @@ void restore_state (char *filename)
 		       name, len, end - chunk);
 	xfree (chunk);
     }
+    restore_disk_finish();
     restore_blitter_finish();
     restore_akiko_finish();
     return;

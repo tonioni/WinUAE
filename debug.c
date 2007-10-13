@@ -836,7 +836,7 @@ static void deepcheatsearch (char **c)
 		*p1++ = get_byte (i);
 	    addr = end - 1;
 	}
-	console_out("deep trainer first pass complete.\n");
+	console_out("Deep trainer first pass complete.\n");
 	return;
     }
     inconly = deconly = 0;
@@ -951,16 +951,16 @@ static void cheatsearch (char **c)
     }
     val = readint (c);
     if (first) {
-	ignore_ws (c);
 	if (val > 255)
 	    size = 2;
 	if (val > 65535)
 	    size = 3;
 	if (val > 16777215)
 	    size = 4;
-	if (more_params(c))
-	    size = readint(c);
     }
+    ignore_ws (c);
+    if (more_params(c))
+        size = readint(c);
     if (size > 4)
 	size = 4;
     if (size < 1)
@@ -980,7 +980,8 @@ static void cheatsearch (char **c)
     while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
 	if (addr + size < end) {
 	    for (i = 0; i < size; i++) {
-		if (get_byte (addr + i) != val >> ((size - i - 1) << 8))
+		int shift = (size - i - 1) * 8;
+		if (get_byte (addr + i) != ((val >> shift) & 0xff))
 		    break;
 	    }
 	    if (i == size) {
@@ -1011,10 +1012,11 @@ static void cheatsearch (char **c)
 	    vlist[prevmemcnt >> 3] &= ~(1 << (prevmemcnt & 7));
 	    prevmemcnt++;
 	}
-	listcheater(0, size);
+	listcheater (0, size);
     }
     console_out ("Found %d possible addresses with 0x%X (%u) (%d bytes)\n", count, val, val, size);
-    console_out ("Now continue with 'g' and use 'C' with a different value\n");
+    if (count > 0)
+	console_out ("Now continue with 'g' and use 'C' with a different value\n");
     first = 0;
 }
 

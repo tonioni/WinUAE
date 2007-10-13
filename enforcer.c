@@ -194,7 +194,7 @@ static void enforcer_display_hit (const char *addressmode, uae_u32 pc, uaecptr a
 
     if (enforcer_hit)
 	return; /* our function itself generated a hit ;), avoid endless loop */
-    if (regs.vbr < 0x100 && addr >= 0x0c && addr < 0x78)
+    if (regs.vbr < 0x100 && addr >= 0x0c && addr < 0x80)
 	return;
 
     enforcer_hit = 1;

@@ -270,28 +270,44 @@ void write_log (const char *format, ...)
 {
     int count;
     char buffer[WRITE_LOG_BUF_SIZE], *ts;
+    int bufsize = WRITE_LOG_BUF_SIZE;
+    char *bufp;
 
     va_list parms;
     va_start(parms, format);
-    count = _vsnprintf(buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+    bufp = buffer;
+    for (;;) {
+	count = _vsnprintf(bufp, bufsize - 1, format, parms);
+	if (count < 0) {
+	    bufsize *= 10;
+	    if (bufp != buffer)
+		xfree (bufp);
+    	    bufp = xmalloc (bufsize);
+	    continue;
+	}
+	break;
+    }
+    bufp[bufsize - 1] = 0;
     ts = writets();
-    if (buffer[0] == '*')
+    if (bufp[0] == '*')
 	count++;
     if (SHOW_CONSOLE || console_logging) {
 	if (lfdetected && ts)
 	    writeconsole(ts);
-	writeconsole(buffer);
+	writeconsole(bufp);
     }
     if (debugfile) {
 	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
-	fprintf(debugfile, buffer);
+	fprintf(debugfile, bufp);
 	fflush(debugfile);
     }
     lfdetected = 0;
-    if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
+    if (strlen(bufp) > 0 && bufp[strlen(bufp) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
+    if (bufp != buffer)
+	xfree (bufp);
 }
 
 void f_out (void *f, const char *format, ...)

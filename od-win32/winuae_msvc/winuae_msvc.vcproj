@@ -1578,6 +1578,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\amax.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\ar.c"
 				>
 			</File>

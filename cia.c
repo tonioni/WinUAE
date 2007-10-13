@@ -681,6 +681,10 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	ciaapra = (ciaapra & ~0xc3) | (val & 0xc3);
 	bfe001_change ();
 	handle_cd32_joystick_cia (ciaapra, ciaadra);
+#ifdef AMAX
+	if (currprefs.amaxromfile[0])
+	    amax_bfe001_write (val, ciaadra);
+#endif
 	break;
     case 1:
 #ifdef DONGLE_DEBUG

@@ -1,4 +1,25 @@
 
+Beta 3:
+
+- autoboot/donotmount checkbox problems fixed
+- winuaenforcer enabled and VBR not moved: interrupt levels
+  6 and 7 caused enforcer hit flood
+- uae boot rom was always mounted (b2)
+- b2 interrupt fix update, only "pre-delay" vblank interrupt
+- A-Max rom-"dongle" emulation added (manual configuration file
+  editing currently needed, amaxromfile=<rom file>) Yes, this is
+  very pointless feature. (A-Max technical info by Mark Knibbs)
+- C debugger command only worked in byte-mode
+- disk write without drives selected was emulated as a read without
+  drives selected, clearing disk dma buffer
+- input configuration is fully saved again, need design update..
+  (in b2 all default settings disappeared after saving and loading..)
+- added "directional buttons" to input panel list, for example
+  "X-Axis" is available as "X-Axis" (original), "X-Axis [-]" (button
+  event when joystick/dpad moved left) and "X-Axis [+]" (button
+  event when joystick/dpad moved right) Currently new "buttons"
+  are at the end of the list.
+
 Beta 2:
 
 - warp (.wrp) disk compression format supported
@@ -24,7 +45,6 @@ Beta 2:
   registry data or new winuae version was detected)
 - high end quickstart cpu changed back to 68040 (68060 does not boot
   very well without 68060.library..)
-
 
 Beta 1:
 

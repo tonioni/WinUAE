@@ -2709,7 +2709,8 @@ void INTREQ_f(uae_u32 data)
 static void INTREQ_d (uae_u16 v, int d)
 {
     intreqr = intreq;
-    setclr (&intreqr, v); /* data in intreq is immediately available */
+    /* data in intreq is immediately available (vsync only currently because there is something unknown..) */
+    setclr (&intreqr, v & (0x8000 | 0x20));
     if (!use_eventmode() || v == 0)
 	INTREQ_f(v);
     else

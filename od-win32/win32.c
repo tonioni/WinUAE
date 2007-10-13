@@ -3452,11 +3452,15 @@ typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     SETPROCESSDPIAWARE pSetProcessDPIAware;
+    DWORD_PTR sys_aff;
+
+    original_affinity = 1;
+    GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);
+#if 0
     HANDLE thread;
 
     thread = GetCurrentThread();
     original_affinity = SetThreadAffinityMask(thread, 1);
-#if 0
     CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
     pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
 	GetModuleHandle("user32.dll"), "ChangeWindowMessageFilter");
@@ -3472,7 +3476,9 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
+#if 0
     SetThreadAffinityMask(thread, original_affinity);
+#endif
     return FALSE;
 }
 

@@ -6010,11 +6010,12 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	    SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume);
 	    SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device);
 	    SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir);
-	    SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri, TRUE);
+	    SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri >= -127 ? current_fsvdlg.bootpri : -127, TRUE);
 	    if (archivehd)
 		current_fsvdlg.rw = 0;
 	    CheckDlgButton (hDlg, IDC_FS_RW, current_fsvdlg.rw);
 	    CheckDlgButton (hDlg, IDC_FS_AUTOBOOT, current_fsvdlg.autoboot);
+	    current_fsvdlg.donotmount = 0;
 	    ew (hDlg, IDC_FS_RW, !archivehd);
 	    recursive--;
 	}
@@ -6098,7 +6099,7 @@ static void sethardfile (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_HEADS, current_hfdlg.surfaces, FALSE);
     SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.reserved, FALSE);
     SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.blocksize, FALSE);
-    SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri, TRUE);
+    SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.bootpri >= -127 ? current_hfdlg.bootpri : -127, TRUE);
     CheckDlgButton (hDlg, IDC_HDF_RW, current_hfdlg.rw);
     CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, current_hfdlg.autoboot);
     CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, current_hfdlg.donotmount);

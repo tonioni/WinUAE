@@ -773,7 +773,10 @@ int zfile_ferror (struct zfile *z)
 char *zfile_getdata (struct zfile *z, int offset, int len)
 {
     size_t pos;
-    uae_u8 *b = xmalloc (len);
+    uae_u8 *b;
+    if (len < 0)
+	len = z->size;
+    b = xmalloc (len);
     if (z->data) {
 	memcpy (b, z->data + offset, len);
     } else {

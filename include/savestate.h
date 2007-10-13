@@ -51,6 +51,7 @@ extern uae_u8 *restore_floppy (uae_u8 *src);
 extern uae_u8 *save_floppy (int *len, uae_u8 *);
 extern void DISK_save_custom  (uae_u32 *pdskpt, uae_u16 *pdsklen, uae_u16 *pdsksync, uae_u16 *pdskbytr);
 extern void DISK_restore_custom  (uae_u32 pdskpt, uae_u16 pdsklength, uae_u16 pdskbytr);
+extern void restore_disk_finish (void);
 
 extern uae_u8 *restore_custom (uae_u8 *);
 extern uae_u8 *save_custom (int *, uae_u8 *, int);
