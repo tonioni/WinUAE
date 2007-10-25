@@ -320,6 +320,7 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
+#define IDC_SCREENMODE_RTG2             1028
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033
@@ -670,7 +671,6 @@
 #define IDC_MOUSETRICK                  1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614
-#define IDC_MOUSETRICK2                 1614
 #define IDC_SANA2                       1614
 #define IDC_AVIOUTPUT_VIDEO_CODEC       1615
 #define IDC_INPUTDEVICEDISABLE          1615

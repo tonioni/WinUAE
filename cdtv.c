@@ -29,7 +29,6 @@
 #include "a2091.h"
 #include "uae.h"
 
-
 /* DMAC CNTR bits. */
 #define CNTR_TCEN               (1<<7)
 #define CNTR_PREST              (1<<6)
@@ -74,13 +73,14 @@ static volatile uae_u32 dmac_acr;
 static volatile int dmac_wtc;
 static volatile int dmac_dma;
 
-static volatile int activate_stch, cdrom_command_done, play_state, play_statewait;
+static volatile int activate_stch, cdrom_command_done, play_state, play_state_cmd, play_statewait;
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
 static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready, cd_hunt;
 
 static volatile int cdtv_hsync, dma_finished, cdtv_sectorsize;
 static volatile uae_u64 dma_wait;
 static int first;
+static int cd_volume;
 
 static void do_stch(void);
 
@@ -136,6 +136,15 @@ static int get_toc(void)
     return 1;
 }
 
+static void finished_cdplay (void)
+{
+    cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
+    cd_playing = 0;
+    cd_finished = 1;
+    cd_paused = 0;
+    do_stch ();
+}
+
 static int get_qcode(void)
 {
     uae_u8 *s;
@@ -149,15 +158,10 @@ static int get_qcode(void)
     if (cd_playing) {
 	if (s[1] == AUDIO_STATUS_IN_PROGRESS) {
 	    int end = msf2lsn((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
-	    if (end >= play_end - 75) {
-		cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
-		cd_playing = 0;
-		do_stch();
-	    }
+	    if (end >= play_end - 75)
+		finished_cdplay ();
 	} else if (s[1] == AUDIO_STATUS_PLAY_COMPLETE) {
-	    cd_audio_status = AUDIO_STATUS_PLAY_COMPLETE;
-	    cd_playing = 0;
-	    do_stch();
+	    finished_cdplay ();
 	}
     }
     s[1] = cd_audio_status;
@@ -251,6 +255,7 @@ static int play_cdtrack (uae_u8 *p)
     write_log ("PLAY CD AUDIO from %d-%d, %06.6X (%d) to %06.6X (%d)\n",
 	track_start, track_end, start, msf2lsn(start), end, msf2lsn(end));
     play_state = 1;
+    play_state_cmd = 1;
     return 0;
 }
 
@@ -289,6 +294,7 @@ static int play_cd(uae_u8 *p)
     write_log ("PLAY CD AUDIO from %06.6X (%d) to %06.6X (%d)\n",
 	start, msf2lsn(start), end, msf2lsn(end));
     play_state = 1;
+    play_state_cmd = 1;
     return 0;
 }
 
@@ -692,6 +698,7 @@ static void tp_check_interrupts(void)
 
 static void tp_bput (int addr, uae_u8 v)
 {
+    static int volstrobe1, volstrobe2;
 #ifdef CDTV_DEBUG_6525
     write_log ("6525 write %x=%02.2X PC=%x\n", addr, v, M68K_GETPC);
 #endif
@@ -726,6 +733,23 @@ static void tp_bput (int addr, uae_u8 v)
     enable = (tp_b >> 1) & 1;
     xaen = (tp_b >> 2) & 1;
     dten = (tp_b >> 3) & 1;
+
+    if (!volstrobe1 && ((tp_b >> 6) & 1)) {
+	cd_volume >>= 1;
+	cd_volume |= ((tp_b >> 5) & 1) << 11;
+	volstrobe1 = 1;
+    } else if (volstrobe1 && !((tp_b >> 6) & 1)) {
+	volstrobe1 = 0;
+    }
+    if (!volstrobe2 && ((tp_b >> 7) & 1)) {
+#ifdef CDTV_DEBUG_CMD
+	write_log ("CDTV CD volume = %d\n", cd_volume);
+#endif
+	cd_volume = 0;
+	volstrobe2 = 1;
+    } else if (volstrobe2 && !((tp_b >> 7) & 1)) {
+	volstrobe2 = 0;
+    }
 }
 
 static uae_u8 tp_bget(int addr)
@@ -872,6 +896,7 @@ void CDTV_hsync_handler(void)
     if (play_state == 1) {
 	play_state = 2;
 	cd_playing = 1;
+	cd_motor = 1;
 	activate_stch = 1;
 	play_statewait = 5;
     } else if (play_statewait > 0) {

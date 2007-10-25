@@ -113,7 +113,7 @@ static void *fdi_malloc (int size)
 #define MAX_DST_BUFFER 40000
 #define MAX_MFM_SYNC_BUFFER 60000
 #define MAX_TIMING_BUFFER 400000
-#define MAX_TRACKS 166
+#define MAX_TRACKS 168
 
 struct fdi_cache {
 	uae_u32 *avgp, *minp, *maxp;
@@ -2046,8 +2046,10 @@ FDI *fdi2raw_header(struct zfile *f)
 
 	fdi->last_track = ((fdi->header[142] << 8) + fdi->header[143]) + 1;
 	fdi->last_track *= fdi->header[144] + 1;
-	if (fdi->last_track > MAX_TRACKS)
-		fdi->last_track = MAX_TRACKS;
+	if (fdi->last_track >= MAX_TRACKS) {
+		write_log ("FDI: last_track >= MAX_TRACKS (%d >= %d)\n", fdi->last_track, MAX_TRACKS);
+		fdi->last_track = MAX_TRACKS - 1;
+	}
 	fdi->last_head = fdi->header[144];
 	fdi->disk_type = fdi->header[145];
 	fdi->rotation_speed = fdi->header[146] + 128;

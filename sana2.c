@@ -357,6 +357,39 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 	write_log ("%s: asyncronous request=%08.8X aborted, error=%d\n", SANA2NAME, request, errcode);
 }
 
+struct sanapacket
+{
+    uae_u8 *data;
+    int len;
+    uae_u8 srcaddr[ADDR_SIZE], dstaddr[ADDR_SIZE];
+};
+
+static void frees2packet (struct sanapacket *sp)
+{
+    if (!sp)
+	return;
+    xfree (sp->data);
+    xfree (sp);
+}
+
+static int writes2packet (uaecptr data, int datalen, uaecptr srcaddr, uaecptr dstaddr)
+{
+    struct sanapacket *sp = NULL;
+
+    sp = xcalloc (sizeof (struct sanapacket), 1);
+    if (!sp)
+	goto err;
+    sp->data = xmalloc (datalen);
+    memcpyah_safe (sp->data, data, datalen);
+    memcpyah_safe (sp->srcaddr, srcaddr, ADDR_SIZE);
+    memcpyah_safe (sp->dstaddr, dstaddr, ADDR_SIZE);
+    //writes2packetqueue (sp);
+    //return 0;
+err:
+    frees2packet (sp);
+    return S2ERR_NO_RESOURCES;
+}
+
 static int dev_do_io (struct devstruct *dev, uaecptr request)
 {
     uae_u32 command = get_word (request + 28);
@@ -395,6 +428,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_READ:
 	    if (!pdev->online)
 		goto offline;
+	    io_error = S2ERR_NO_RESOURCES;
 	break;
 
 	case S2_READORPHAN:
@@ -415,6 +449,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_WRITE:
 	    if (!pdev->online)
 		goto offline;
+	    io_error = writes2packet (data, datalength, srcaddr, dstaddr);
 	break;
 
 	case S2_MULTICAST:

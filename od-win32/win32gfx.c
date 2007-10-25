@@ -1119,7 +1119,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
     //c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
-    c |= currprefs.gfx_lores != changed_prefs.gfx_lores ? 2 : 0;
+    c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? 2 : 0;
     c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 2 : 0;
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
@@ -1165,7 +1165,7 @@ int check_prefs_changed_gfx (void)
 	//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
 	currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
-	currprefs.gfx_lores = changed_prefs.gfx_lores;
+	currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
@@ -2220,7 +2220,7 @@ static BOOL doInit (void)
 	    currentmode->native_depth = currentmode->current_depth;
 #if defined (GFXFILTER)
 	    if (currentmode->flags & (DM_OPENGL | DM_D3D | DM_SWSCALE)) {
-		currentmode->amiga_width = AMIGA_WIDTH_MAX >> (currprefs.gfx_lores ? 1 : 0);
+		currentmode->amiga_width = AMIGA_WIDTH_MAX >> (currprefs.gfx_resolution ? 0 : 1);
 		currentmode->amiga_height = AMIGA_HEIGHT_MAX >> (currprefs.gfx_linedbl ? 0 : 1);
 		if (usedfilter) {
 		    if (usedfilter->x[0]) {
@@ -2263,6 +2263,7 @@ static BOOL doInit (void)
     }
 
     if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
+
 	int flags;
 	if(!DirectDraw_SurfaceLock (lockable_surface))
 	    goto oops;
@@ -2277,12 +2278,16 @@ static BOOL doInit (void)
 	    gui_message(szMessage);
 	    goto oops;
 	}
+
     } else if (!(currentmode->flags & DM_SWSCALE)) {
+
 	int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
 	gfxvidinfo.realbufmem = xmalloc (size);
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
 	gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
+
     } else if (!(currentmode->flags & DM_D3D)) {
+
 	int w = currentmode->amiga_width * 2;
 	int h = currentmode->amiga_height * 2;
 	int size = (w * 2) * (h * 3) * gfxvidinfo.pixbytes;
@@ -2291,6 +2296,7 @@ static BOOL doInit (void)
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
 	gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
 	gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
+
     }
 
     init_row_map ();

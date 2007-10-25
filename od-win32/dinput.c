@@ -91,7 +91,7 @@ static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int oldleds, oldusedleds, newleds, oldusbleds;
-static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode;
+static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 
 int no_rawinput, dinput_enum_all;
@@ -101,6 +101,10 @@ int dinput_winmouse (void)
     if (winmouse)
 	return winmousenumber;
     return -1;
+}
+int dinput_wheelbuttonstart (void)
+{
+    return winmousewheelbuttonstart;
 }
 int dinput_winmousemode (void)
 {
@@ -120,29 +124,40 @@ static void fixbuttons (struct didata *did)
     did->buttons++;
 }
 
-#define AXISBUTTON 0x20000
-#define AXISBUTTON_2 0x10000
-
-static void fixthings (struct didata *did)
+static void addplusminus (struct didata *did, int i)
 {
-    int i, j;
     char tmp[256];
+    int j;
 
-    for (i = 0; i < did->axles; i++) {
-	if (did->buttons + 1 >= MAX_MAPPINGS)
-	    break;
-	for (j = 0; j < 2; j++) {
-	    sprintf (tmp, "%s [%c]", did->axisname[i], j ? '+' : '-');
-	    did->buttonname[did->buttons] = my_strdup (tmp);
-	    did->buttonmappings[did->buttons] = did->axismappings[i];
-	    did->buttonsort[did->buttons] = 1000 + (did->axismappings[i] + did->axistype[i]) * 2 + j;
-	    did->axisparent[did->buttons] = i;
-	    did->axisparentdir[did->buttons] = j;
-	    did->buttons++;
-	}
+    if (did->buttons + 1 >= MAX_MAPPINGS)
+	return;
+    for (j = 0; j < 2; j++) {
+        sprintf (tmp, "%s [%c]", did->axisname[i], j ? '+' : '-');
+        did->buttonname[did->buttons] = my_strdup (tmp);
+        did->buttonmappings[did->buttons] = did->axismappings[i];
+        did->buttonsort[did->buttons] = 1000 + (did->axismappings[i] + did->axistype[i]) * 2 + j;
+        did->axisparent[did->buttons] = i;
+        did->axisparentdir[did->buttons] = j;
+        did->buttons++;
     }
 }
 
+static void fixthings (struct didata *did)
+{
+    int i;
+
+    for (i = 0; i < did->axles; i++)
+	addplusminus (did, i);
+}
+static void fixthings_mouse (struct didata *did)
+{
+    int i;
+
+    for (i = 0; i < did->axles; i++) {
+	if (did->axissort[i] == -97)
+	    addplusminus (did, i);
+    }
+}
 typedef BOOL (CALLBACK* REGISTERRAWINPUTDEVICES)
     (PCRAWINPUTDEVICE, UINT, UINT);
 static REGISTERRAWINPUTDEVICES pRegisterRawInputDevices;
@@ -396,6 +411,11 @@ static int initialize_rawinput (void)
 		write_log ("id=%d buttons=%d hw=%d rate=%d\n",
 		    rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
 		did->buttons = rdim->dwNumberOfButtons;
+		for (j = 0; j < did->buttons; j++) {
+		    did->buttonsort[j] = j;
+		    sprintf (tmp, "Button %d", j + 1);
+		    did->buttonname[j] = my_strdup (tmp);
+		}
 		did->axles = 3;
 		did->axissort[0] = 0;
 		did->axisname[0] = my_strdup ("X-Axis");
@@ -403,15 +423,12 @@ static int initialize_rawinput (void)
 		did->axisname[1] = my_strdup ("Y-Axis");
 		did->axissort[2] = 2;
 		did->axisname[2] = my_strdup ("Wheel");
+		addplusminus (did, 2);
 		if (rdim->fHasHorizontalWheel) {
 		    did->axissort[3] = 3;
 		    did->axisname[3] = my_strdup ("HWheel");
 		    did->axles++;
-		}
-		for (j = 0; j < did->buttons; j++) {
-		    did->buttonsort[j] = j;
-		    sprintf (tmp, "Button %d", j + 1);
-		    did->buttonname[j] = my_strdup (tmp);
+		    addplusminus (did, 3);
 		}
 		did->priority = -1;
 	    } else {
@@ -459,6 +476,12 @@ static void initialize_windowsmouse (void)
 	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
 	if (did->buttons > 3 && !os_winnt)
 	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
+	for (j = 0; j < did->buttons; j++) {
+	    did->buttonsort[j] = j;
+	    sprintf (tmp, "Button %d", j + 1);
+	    did->buttonname[j] = my_strdup (tmp);
+	}
+	winmousewheelbuttonstart = did->buttons;
 	did->axles = os_vista ? 4 : 3;
 	did->axissort[0] = 0;
 	did->axisname[0] = my_strdup ("X-Axis");
@@ -467,15 +490,12 @@ static void initialize_windowsmouse (void)
 	if (did->axles > 2) {
 	    did->axissort[2] = 2;
 	    did->axisname[2] = my_strdup ("Wheel");
+	    addplusminus (did, 2);
 	}
 	if (did->axles > 3) {
 	    did->axissort[3] = 3;
 	    did->axisname[3] = my_strdup ("HWheel");
-	}
-	for (j = 0; j < did->buttons; j++) {
-	    did->buttonsort[j] = j;
-	    sprintf (tmp, "Button %d", j + 1);
-	    did->buttonname[j] = my_strdup (tmp);
+	    addplusminus (did, 3);
 	}
 	did->priority = 2;
 	did->wininput = i + 1;
@@ -530,8 +550,17 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		    }
 		}
 	    }
-	    if (rm->usButtonFlags & RI_MOUSE_WHEEL)
-		setmousestate (num, 2, (int)rm->usButtonData, 0);
+	    if (rm->usButtonFlags & RI_MOUSE_WHEEL) {
+		int val = (int)rm->usButtonData;
+		int bnum = did->buttons - 2;
+		if (did->axles == 3)
+		    bnum -= 2;
+		setmousestate (num, 2, val, 0);
+		if (val < 0)
+		    setmousebuttonstate (num, bnum + 0, -1);
+		else if (val > 0)
+		    setmousebuttonstate (num, bnum + 1, -1);
+	    }
 	    setmousestate (num, 0, rm->lLastX, (rm->usFlags & MOUSE_MOVE_ABSOLUTE) ? 1 : 0);
 	    setmousestate (num, 1, rm->lLastY, (rm->usFlags & MOUSE_MOVE_ABSOLUTE) ? 1 : 0);
 	}
@@ -776,7 +805,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 {
     struct didata *did;
-    int i, len, type;
+    int len, type;
     char *typetxt;
 
     type = lpddi->dwDevType & 0xff;
@@ -821,11 +850,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
     } else
 	return DIENUM_CONTINUE;
 
-    memset (did, 0, sizeof (*did));
-    for (i = 0; i < MAX_MAPPINGS; i++) {
-	did->axismappings[i] = -1;
-	did->buttonmappings[i] = -1;
-    }
+    cleardid (did);
     if (lpddi->tszInstanceName) {
 	len = strlen (lpddi->tszInstanceName) + 5 + 1;
 	did->name = malloc (len);
@@ -985,6 +1010,7 @@ static int init_mouse (void)
 		hr = IDirectInputDevice8_SetDataFormat(lpdi, &c_dfDIMouse);
 		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
 		fixbuttons (did);
+		fixthings_mouse (did);
 		sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		did->lpdi = lpdi;
@@ -1112,20 +1138,27 @@ static void read_mouse (void)
 		if (focus) {
 		    if (mouseactive || fs) {
 			for (k = 0; k < did->axles; k++) {
-			    if (did->axismappings[k] == dimofs) {
+			    if (did->axismappings[k] == dimofs)
 				setmousestate (i, k, data, 0);
-				break;
-			    }
 			}
 			for (k = 0; k < did->buttons; k++) {
 			    if (did->buttonmappings[k] == dimofs) {
+				if (did->axisparent[k] >= 0) {
+				    int dir = did->axisparentdir[k];
+				    int bstate = 0;
+				    if (dir)
+					bstate = data > 0 ? 1 : 0;
+				    else
+					bstate = data < 0 ? 1 : 0;
+				    if (bstate)
+					setmousebuttonstate (i, k, -1);
+				} else {
 #ifdef SINGLEFILE
-				if (k == 0)
-				    uae_quit ();
+				    if (k == 0)
+					uae_quit ();
 #endif
-				if ((currprefs.win32_middle_mouse && k != 2) || !(currprefs.win32_middle_mouse)) {
-				    setmousebuttonstate (i, k, state);
-				    break;
+				    if ((currprefs.win32_middle_mouse && k != 2) || !(currprefs.win32_middle_mouse))
+					setmousebuttonstate (i, k, state);
 				}
 			    }
 			}
@@ -1764,8 +1797,9 @@ static void read_joystick (void)
 
 		for (k = 0; k < did->buttons; k++) {
 
-		    if (did->axisparent >= 0 && did->buttonmappings[k] == dimofs) {
-			int bstate = 0;
+		    if (did->axisparent[k] >= 0 && did->buttonmappings[k] == dimofs) {
+
+			int bstate = -1;
 			int axis = did->axisparent[k];
 			int dir = did->axisparentdir[k];
 
@@ -1785,13 +1819,14 @@ static void read_joystick (void)
 			    else
 				bstate = data < -20000 ? 1 : 0;
 			}
-		        setjoybuttonstate (i, k, bstate);
+			if (bstate >= 0)
+			    setjoybuttonstate (i, k, bstate);
 #ifdef DI_DEBUG2
 			write_log ("AB:NUM=%d OFF=%d AXIS=%d DIR=%d NAME=%s VAL=%d STATE=%d\n",
 			    k, dimofs, axis, dir, did->buttonname[k], data, state);
 #endif
 
-		    } else if (did->buttonmappings[k] == dimofs) {
+		    } else if (did->axisparent[k] < 0 && did->buttonmappings[k] == dimofs) {
 #ifdef DI_DEBUG2
 			write_log ("B:NUM=%d OFF=%d NAME=%s VAL=%d STATE=%d\n",
 			    k, dimofs, did->buttonname[k], data, state);

@@ -1,4 +1,36 @@
 
+Beta 4:
+
+- fixed completely broken joystick buttons (b3)
+- input panel mouse wheel "buttons" added. Sends button/key down
+  event, waits one frame, sends button/key up event
+- started implementing "real" ROM image ROM scanner support
+  (2xROM setups like CDTV extended ROM or A1200, Nordic Power etc..)
+- big superhires resolution and hires/superhires sprite update
+* full SuperHires resolution support (without dropped pixels)
+* Doublescan hires modes are now also properly displayed (hires
+  doublescan is really "half-scan" superhires mode)
+* Replaced lores checkbox with lores/hires/superhires selection.
+  SuperHires mode uses 4xdoubling in lores, 2xdoubling in hires and
+  no doubling (and no dropped pixels) in superhires
+  Hires = old non-lores mode, 2xdoubling in lores, no doubling in
+  hires and drop every other pixel in superhires (*)
+  Lores = no doubling in lores, drop every other pixel in hires (*),
+  superhires not supported
+  * = lores smooth filtering supported
+  NOTE: regular (non-doublescan) superhires aspect ratio is wrong,
+  use filters if you need correct aspect ratio
+  NOTE2: interlaced doublescan modes are buggy
+* AGA superhires sprite resolution supported (previously hires only)
+* hires sprites are not converted to lores (and then doubled again..)
+  anymore if screen is doubled (lores program, hires/shres in GUI)
+  Check Super Stardust AGA if you want to see the difference.
+* AGA hires/shres "smooth" scroll BPLCON1 bits supported
+* OCS/ECS (no ECS Denise) uses old code path = no performance change.
+  ECS-Denise and AGA uses new more complex and slower sprite/bitplane
+  drawing code path
+* Probably breaks something...
+
 Beta 3:
 
 - autoboot/donotmount checkbox problems fixed

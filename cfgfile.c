@@ -136,6 +136,8 @@ static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
 static const char *soundfiltermode1[] = { "off", "emulated", "on", 0 };
 static const char *soundfiltermode2[] = { "standard", "enhanced", 0 };
+static const char *lorestype1[] = { "lores", "hires", "superhires" };
+static const char *lorestype2[] = { "true", "false" };
 static const char *loresmode[] = { "normal", "filtered", 0 };
 #ifdef GFXFILTER
 static const char *filtermode1[] = { "no_16", "bilinear_16", "no_32", "bilinear_32", 0 };
@@ -492,7 +494,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
     cfgfile_dwrite (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
     cfgfile_dwrite (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
-    cfgfile_dwrite (f, "gfx_lores=%s\n", p->gfx_lores ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_lores=%s\n", p->gfx_resolution == 0 ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_resolution=%s\n", lorestype1[p->gfx_resolution]);
     cfgfile_dwrite (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
     cfgfile_dwrite (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
     cfgfile_dwrite (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
@@ -884,7 +887,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "filesys_no_fsdb", &p->filesys_no_uaefsdb)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_avsync)
 	|| cfgfile_yesno (option, value, "gfx_vsync_picasso", &p->gfx_pvsync)
-	|| cfgfile_yesno (option, value, "gfx_lores", &p->gfx_lores)
 	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
 	|| cfgfile_yesno (option, value, "show_leds", &p->leds_on_screen)
 	|| cfgfile_yesno (option, value, "synchronize_clock", &p->tod_hack)
@@ -899,9 +901,11 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode1, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode2, 1)
 	|| cfgfile_strval (option, value, "use_gui", &p->start_gui, guimode3, 0)
+	|| cfgfile_strval (option, value, "gfx_resolution", &p->gfx_resolution, lorestype1, 0)
+	|| cfgfile_strval (option, value, "gfx_lores", &p->gfx_resolution, lorestype2, 0)
+	|| cfgfile_strval (option, value, "gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
 	|| cfgfile_strval (option, value, "gfx_fullscreen_amiga", &p->gfx_afullscreen, fullmodes, 0)
 	|| cfgfile_strval (option, value, "gfx_fullscreen_picasso", &p->gfx_pfullscreen, fullmodes, 0)
-	|| cfgfile_strval (option, value, "gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode1, 1)
 	|| cfgfile_strval (option, value, "gfx_linemode", &p->gfx_linedbl, linemode2, 0)
 	|| cfgfile_strval (option, value, "gfx_center_horizontal", &p->gfx_xcenter, centermode1, 1)
@@ -1959,7 +1963,7 @@ static void parse_gfx_specs (struct uae_prefs *p, char *spec)
 
     p->gfx_size_win.width = p->gfx_size_fs.width = atoi (x0);
     p->gfx_size_win.height = p->gfx_size_fs.height = atoi (x1);
-    p->gfx_lores = strchr (x2, 'l') != 0;
+    p->gfx_resolution = strchr (x2, 'l') != 0 ? 1 : 0;
     p->gfx_xcenter = strchr (x2, 'x') != 0 ? 1 : strchr (x2, 'X') != 0 ? 2 : 0;
     p->gfx_ycenter = strchr (x2, 'y') != 0 ? 1 : strchr (x2, 'Y') != 0 ? 2 : 0;
     p->gfx_linedbl = strchr (x2, 'd') != 0;
@@ -2820,7 +2824,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_size_win_xtra[i].width = 0;
 	p->gfx_size_win_xtra[i].height = 0;
     }
-    p->gfx_lores = 0;
+    p->gfx_resolution = 1;
     p->gfx_linedbl = 1;
     p->gfx_afullscreen = 0;
     p->gfx_pfullscreen = 0;

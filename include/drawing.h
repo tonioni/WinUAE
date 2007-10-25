@@ -219,7 +219,6 @@ struct decision {
 #endif
     uae_u8 nr_planes;
     uae_u8 bplres;
-    unsigned int any_hires_sprites:1;
     unsigned int ham_seen:1;
     unsigned int ham_at_start:1;
     unsigned int valid:1;

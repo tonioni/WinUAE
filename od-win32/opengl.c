@@ -491,7 +491,7 @@ static void OGL_dorender (int newtex)
 
 #else
 
-    xm = currprefs.gfx_lores ? 2 : 1;
+    xm = 2 >> currprefs.gfx_resolution;
     ym = currprefs.gfx_linedbl ? 1 : 2;
     if (w_width >= 1024)
 	xm *= 2;
@@ -501,6 +501,10 @@ static void OGL_dorender (int newtex)
 	ym *= 2;
     else if (w_height < 350)
 	ym /= 2;
+    if (xm < 1)
+	xm = 1;
+    if (ym < 1)
+	ym = 1;
     fx = (t_width * xm - w_width) / 2;
     fy = (t_height * ym - w_height) / 2;
 

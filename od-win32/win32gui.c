@@ -468,7 +468,12 @@ static struct romdata *scan_single_rom (char *path)
 static int addrom (HKEY fkey, struct romdata *rd, char *name)
 {
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+
     sprintf (tmp1, "ROM%03d", rd->id);
+    if (rd->group) {
+	char *p = tmp1 + strlen (tmp1);
+	sprintf (p, "_%02d_%02d", rd->group >> 16, rd->group & 65535);
+    }
     if (RegQueryValueEx (fkey, tmp1, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
 	return 0;
     tmp2[0] = 0;
@@ -3857,8 +3862,13 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL, display_toselect(workprefs.gfx_pfullscreen, workprefs.gfx_pvsync, 1), 0);
 
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)"Lores");
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)"Hires (normal)");
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)"SuperHires");
+    SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
+
     CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
-    CheckDlgButton (hDlg, IDC_LORES, workprefs.gfx_lores);
     CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
 
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
@@ -3908,7 +3918,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     display_fromselect(SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0),
 	&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
 
-    workprefs.gfx_lores          = IsDlgButtonChecked (hDlg, IDC_LORES);
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
     workprefs.gfx_correct_aspect = IsDlgButtonChecked (hDlg, IDC_ASPECT);
     workprefs.gfx_linedbl = (IsDlgButtonChecked(hDlg, IDC_LM_SCANLINES) ? 2 :
@@ -3964,6 +3973,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		init_display_mode (hDlg);
 	    }
 	    return;
+	} else if (LOWORD (wParam) == IDC_LORES) {
+	    posn = SendDlgItemMessage (hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
+	    if (posn != CB_ERR)
+		workprefs.gfx_resolution = posn;
 	} else if (LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) {
 	    LRESULT posn1, posn2;
 	    posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
@@ -8411,7 +8424,7 @@ static int *filtervars[] = {
 	&workprefs.gfx_filter_vert_zoom_mult, &workprefs.gfx_filter_horiz_zoom_mult,
 	&workprefs.gfx_filter_vert_offset, &workprefs.gfx_filter_horiz_offset,
 	&workprefs.gfx_filter_scanlines, &workprefs.gfx_filter_scanlinelevel, &workprefs.gfx_filter_scanlineratio,
-	&workprefs.gfx_lores, &workprefs.gfx_linedbl, &workprefs.gfx_correct_aspect,
+	&workprefs.gfx_resolution, &workprefs.gfx_linedbl, &workprefs.gfx_correct_aspect,
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,

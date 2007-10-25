@@ -200,7 +200,8 @@ static uae_u16 sprdata[MAX_SPRITES][1], sprdatb[MAX_SPRITES][1];
 #endif
 static int sprite_last_drawn_at[MAX_SPRITES];
 static int last_sprite_point, nr_armed;
-static int sprite_width, sprres, sprite_buffer_res;
+static int sprite_width, sprres;
+int sprite_buffer_res;
 
 #ifdef CPUEMU_12
 uae_u8 cycle_line[256];
@@ -788,6 +789,8 @@ static void compute_toscr_delay_1 (void)
 {
     int delay1 = (bplcon1 & 0x0f) | ((bplcon1 & 0x0c00) >> 6);
     int delay2 = ((bplcon1 >> 4) & 0x0f) | (((bplcon1 >> 4) & 0x0c00) >> 6);
+    int shdelay1 = (bplcon1 >> 12) & 3;
+    int shdelay2 = (bplcon1 >> 8) & 3;
     int delaymask;
     int fetchwidth = 16 << fetchmode;
 
@@ -795,7 +798,9 @@ static void compute_toscr_delay_1 (void)
     delay2 += delayoffset;
     delaymask = (fetchwidth - 1) >> toscr_res;
     toscr_delay1x = (delay1 & delaymask) << toscr_res;
+    toscr_delay1x |= shdelay1 >> (2 - toscr_res);
     toscr_delay2x = (delay2 & delaymask) << toscr_res;
+    toscr_delay2x |= shdelay2 >> (2 - toscr_res);
 }
 
 static void compute_toscr_delay (int hpos)
@@ -1651,6 +1656,31 @@ static void record_register_change (int hpos, int regno, unsigned long value)
 
 typedef int sprbuf_res_t, cclockres_t, hwres_t,	bplres_t;
 
+static int expand_sprres (uae_u16 con0, uae_u16 con3)
+{
+    int res;
+
+    switch ((con3 >> 6) & 3) {
+    case 0: /* ECS defaults (LORES,HIRES=LORES sprite,SHRES=HIRES sprite) */
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES (con0) == RES_SUPERHIRES)
+	    res = RES_HIRES;
+	else
+	    res = RES_LORES;
+	break;
+    /* AGA */
+    case 1:
+	res = RES_LORES;
+	break;
+    case 2:
+	res = RES_HIRES;
+	break;
+    case 3:
+	res = RES_SUPERHIRES;
+	break;
+    }
+    return res;
+}
+
 /* handle very rarely needed playfield collision (CLXDAT bit 0) */
 static void do_playfield_collisions (void)
 {
@@ -1817,39 +1847,21 @@ static void do_sprite_collisions (void)
 #endif
 }
 
-static void expand_sprres (void)
-{
-    switch ((bplcon3 >> 6) & 3) {
-    case 0: /* ECS defaults (LORES,HIRES=140ns,SHRES=70ns) */
-	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES (bplcon0) == RES_SUPERHIRES)
-	    sprres = RES_HIRES;
-	else
-	    sprres = RES_LORES;
-	break;
-    case 1:
-	sprres = RES_LORES;
-	break;
-    case 2:
-	sprres = RES_HIRES;
-	break;
-    case 3:
-	sprres = RES_SUPERHIRES;
-	break;
-    }
-}
-
 STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int dbl,
-				    unsigned int mask, int do_collisions, uae_u32 collision_mask)
+				    int do_collisions, uae_u32 collision_mask)
 {
     int j = 0;
     while (datab) {
 	unsigned int tmp = *buf;
 	unsigned int col = (datab & 3) << (2 * num);
 	tmp |= col;
-	if ((j & mask) == 0)
+        *buf++ = tmp;
+	if (dbl > 0)
 	    *buf++ = tmp;
-	if (dbl)
+	if (dbl > 1) {
 	    *buf++ = tmp;
+	    *buf++ = tmp;
+	}
 	j++;
 	datab >>= 2;
 	if (do_collisions) {
@@ -1868,8 +1880,8 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
    This function assumes that for all sprites in a given line, SPRXP either
    stays equal or increases between successive calls.
 
-   The data is recorded either in lores pixels (if ECS), or in hires pixels
-   (if AGA).  No support for SHRES sprites.  */
+   The data is recorded either in lores pixels (if ECS), or in superhires
+   pixels (if AGA).  */
 
 static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl)
 {
@@ -1878,24 +1890,15 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     int word_offs;
     uae_u16 *buf;
     uae_u32 collision_mask;
-    int width = sprite_width;
-    int dbl = 0, half = 0;
-    unsigned int mask = 0;
+    int width, dbl, half;
 
-    if (sprres != RES_LORES)
-	thisline_decision.any_hires_sprites = 1;
-
-#ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA) {
-	width = (width << 1) >> sprres;
-	dbl = sprite_buffer_res - sprres;
-	if (dbl < 0) {
-	    half = -dbl;
-	    dbl = 0;
-	}
-	mask = sprres == RES_SUPERHIRES ? 1 : 0;
+    half = 0;
+    dbl = sprite_buffer_res - sprres;
+    if (dbl < 0) {
+        half = -dbl;
+        dbl = 0;
     }
-#endif
+    width = (sprite_width << sprite_buffer_res) >> sprres;
 
     /* Try to coalesce entries if they aren't too far apart.  */
     if (! next_sprite_forced && e[-1].max + 16 >= sprxp) {
@@ -1924,9 +1927,9 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
 	buf = spixels + word_offs + ((i << dbl) >> half);
 	if (currprefs.collision_level > 0 && collision_mask)
-	    record_sprite_1 (buf, datab, num, dbl, mask, 1, collision_mask);
+	    record_sprite_1 (buf, datab, num, dbl, 1, collision_mask);
 	else
-	    record_sprite_1 (buf, datab, num, dbl, mask, 0, collision_mask);
+	    record_sprite_1 (buf, datab, num, dbl, 0, collision_mask);
 	data++;
 	datb++;
     }
@@ -1971,15 +1974,19 @@ static void decide_sprites (int hpos)
     count = 0;
     for (i = 0; i < MAX_SPRITES; i++) {
 	int sprxp = spr[i].xpos;
-	int hw_xp = (sprxp >> sprite_buffer_res);
+	int hw_xp = sprxp >> sprite_buffer_res;
 	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 	int j, bestp;
 
 	if (!((debug_sprite_mask) & (1 << i)))
 	    continue;
 
-	if (! spr[i].armed || sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
+	if (! spr[i].armed)
 	    continue;
+
+	if (sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
+	    continue;
+
 	if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
 	    ((thisline_decision.diwfirstword >= 0 && window_xp + window_width < thisline_decision.diwfirstword)
 	    || (thisline_decision.diwlastword >= 0 && window_xp > thisline_decision.diwlastword)))
@@ -2100,7 +2107,7 @@ static void finish_decisions (void)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
     if (thisline_decision.plfleft != -1 || (bplcon3 & 2))
-	decide_sprites (hpos);
+	decide_sprites (hpos + 1);
 
     dip->last_sprite_entry = next_sprite_entry;
     dip->last_color_change = next_color_change;
@@ -2138,7 +2145,6 @@ static void reset_decisions (void)
 	return;
 
     thisline_decision.bplres = GET_RES (bplcon0);
-    thisline_decision.any_hires_sprites = 0;
     thisline_decision.nr_planes = 0;
 
     thisline_decision.plfleft = -1;
@@ -2297,7 +2303,7 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
-	doublescan = htotal <= MAXHPOS / 2;
+	doublescan = htotal <= 140;
 	dumpsync();
         reset_drawing ();
     }
@@ -2844,7 +2850,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 #ifdef AGA
     if (currprefs.chipset_mask & CSMASK_AGA) {
 	decide_sprites (hpos);
-	expand_sprres ();
+	sprres = expand_sprres (bplcon0, bplcon3);
     }
 #endif
 
@@ -2886,7 +2892,7 @@ STATIC_INLINE void BPLCON3 (int hpos, uae_u16 v)
     decide_line (hpos);
     decide_sprites (hpos);
     bplcon3 = v;
-    expand_sprres ();
+    sprres = expand_sprres (bplcon0, bplcon3);
     record_register_change (hpos, 0x106, v);
 }
 
@@ -3144,15 +3150,11 @@ STATIC_INLINE void SPRxCTLPOS (int num)
 
     sprstartstop (s);
     sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
+    sprxp <<= sprite_buffer_res;
     /* Quite a bit salad in this register... */
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA) {
-	/* We ignore the SHRES 35ns increment for now; SHRES support doesn't
-	   work anyway, so we may as well restrict AGA sprites to a 70ns
-	   resolution.  */
-	sprxp <<= 1;
-	sprxp |= (sprctl[num] >> 4) & 1;
-    }
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	sprxp |= ((sprctl[num] >> 3) & 3) >> (2 - sprite_buffer_res);
 #endif
     s->xpos = sprxp;
     s->vstart = (sprpos[num] >> 8) | ((sprctl[num] << 6) & 0x100);
@@ -4717,7 +4719,7 @@ void customreset (int hardreset)
 
     bogusframe = 1;
 
-    sprite_buffer_res = currprefs.chipset_mask & CSMASK_AGA ? RES_HIRES : RES_LORES;
+    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : ((currprefs.chipset_mask & CSMASK_ECS_DENISE) ? RES_HIRES : RES_LORES);
     if (savestate_state == STATE_RESTORE) {
 	uae_u16 v;
 	uae_u32 vv;
@@ -4765,7 +4767,7 @@ void customreset (int hardreset)
 	    events_schedule ();
 	}
     }
-    expand_sprres ();
+    sprres = expand_sprres (bplcon0, bplcon3);
 
     #ifdef ACTION_REPLAY
     /* Doing this here ensures we can use the 'reset' command from within AR */

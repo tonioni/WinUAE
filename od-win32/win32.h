@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 3
+#define WINUAEBETA 4
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2007, 10, 13)
+#define WINUAEDATE MAKEBD(2007, 10, 25)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -105,6 +105,7 @@ extern void setpriority (struct threadpriorities *pri);
 
 extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
+extern int dinput_wheelbuttonstart (void);
 extern int dinput_winmousemode (void);
 
 void addnotifications (HWND hwnd, int remove);

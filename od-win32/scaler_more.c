@@ -30,7 +30,7 @@ void PAL_init(void)
     pgrec = &grec[1 * 256];
     pbluc = &bluc[1 * 256];
 
-    if (currprefs.gfx_lores) {
+    if (currprefs.gfx_resolution == 0) {
 	xx1 = 1;
 	xx2 = 2;
 	xx3 = 3;

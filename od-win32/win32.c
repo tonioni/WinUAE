@@ -878,12 +878,26 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
     return 0;
     case WM_MOUSEWHEEL:
-	if (dinput_winmouse () >= 0)
-	    setmousestate (dinput_winmouse(), 2, ((short)HIWORD(wParam)), 0);
+	if (dinput_winmouse () >= 0) {
+	    int val = ((short)HIWORD(wParam));
+	    setmousestate (dinput_winmouse(), 2, val, 0);
+	    if (val < 0)
+		setmousebuttonstate (dinput_winmouse(), dinput_wheelbuttonstart() + 0, -1);
+	    else if (val > 0)
+		setmousebuttonstate (dinput_winmouse(), dinput_wheelbuttonstart() + 1, -1);
+	    return TRUE;
+	}
     return 0;
     case WM_MOUSEHWHEEL:
-	if (dinput_winmouse () >= 0)
-	    setmousestate (dinput_winmouse(), 3, ((short)HIWORD(wParam)), 0);
+	if (dinput_winmouse () >= 0) {
+	    int val = ((short)HIWORD(wParam));
+	    setmousestate (dinput_winmouse(), 3, val, 0);
+	    if (val < 0)
+		setmousebuttonstate (dinput_winmouse(), dinput_wheelbuttonstart() + 2, -1);
+	    else if (val > 0)
+		setmousebuttonstate (dinput_winmouse(), dinput_wheelbuttonstart() + 3, -1);
+	    return TRUE;
+	}
     return 0;
 
     case WM_PAINT:
@@ -1195,6 +1209,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     {
      case WM_MOUSEMOVE:
      case WM_MOUSEWHEEL:
+     case WM_MOUSEHWHEEL:
      case WM_ACTIVATEAPP:
      case WM_DROPFILES:
      case WM_ACTIVATE:

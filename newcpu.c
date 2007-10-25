@@ -2238,7 +2238,7 @@ void exec_nostats (void)
 
 	do_cycles (cpu_cycles);
 
-	if (end_block (opcode) || r->spcflags)
+	if (end_block (opcode) || r->spcflags || uae_int_requested)
 	    return; /* We will deal with the spcflags in the caller */
     }
 }
