@@ -1,4 +1,18 @@
 
+Beta 5:
+
+- AGA T (genlock transparency) color register bit emulated
+  (=color register read, RDRAM=1 and LOCT=0 -> return stored
+  T-bit, bit 15, value with color RGB value)
+  instead of always returning zero. Nobody probably cares..)
+- AGA sprite doublescan emulated (FMODE SSCAN2 bit)
+  (Does something use this feature?)
+- 16 bit display mode graphics problems fixed (b4)
+- regular hardfiles, KS 1.3 and FFS filesys path set: all hardfiles
+  gets properly mounted. Previously only first hardfile used FFS.
+- switching doublescan<>non-doublescan didn't always reset all display
+  parameters (bottom half of display was sometimes blank)
+
 Beta 4:
 
 - fixed completely broken joystick buttons (b3)
@@ -28,7 +42,7 @@ Beta 4:
 * AGA hires/shres "smooth" scroll BPLCON1 bits supported
 * OCS/ECS (no ECS Denise) uses old code path = no performance change.
   ECS-Denise and AGA uses new more complex and slower sprite/bitplane
-  drawing code path
+  drawing code path (optimization still to do..)
 * Probably breaks something...
 
 Beta 3:

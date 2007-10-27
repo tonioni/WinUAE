@@ -253,8 +253,13 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	    outln (	"    *((uae_u16 *)&buf[dpix]) = (uae_u16) out_val;");
 	    outln (	"    dpix += 2;");
 	} else if (bpp == DEPTH_16BPP) {
-	    outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
-	    outln (	"    dpix += 2;");
+	    if (spr) {
+		out_sprite (0);
+		out_sprite (1);
+	    } else {
+		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
+		outln (	"    dpix += 2;");
+	    }
 	} else {
 	    if (spr) {
 		out_sprite (0);
@@ -269,10 +274,17 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	    outln (	"    *((uae_u32 *)&buf[dpix]) = (uae_u32) out_val;");
 	    outln (	"    dpix += 4;");
 	} else if (bpp == DEPTH_16BPP) {
-	    outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
-	    outln (	"    dpix += 2;");
-	    outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
-	    outln (	"    dpix += 2;");
+	    if (spr) {
+		out_sprite (0);
+		out_sprite (1);
+		out_sprite (2);
+		out_sprite (3);
+	    } else {
+		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
+		outln (	"    dpix += 2;");
+		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
+		outln (	"    dpix += 2;");
+	    }
 	} else {
 	    if (spr) {
 		out_sprite (0);
@@ -288,8 +300,12 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	}
     } else {
 	if (bpp == DEPTH_16BPP) {
-	    outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
-	    outln (	"    dpix += 2;");
+	    if (spr) {
+		out_sprite (0);
+	    } else {
+		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
+		outln (	"    dpix += 2;");
+	    }
 	} else {
 	    if (spr) {
 		out_sprite (0);

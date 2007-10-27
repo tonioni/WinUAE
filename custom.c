@@ -147,6 +147,9 @@ static uae_u32 sprite_ab_merge[256];
 /* Tables for collision detection.  */
 static uae_u32 sprclx[16], clxmask[16];
 
+/* AGA T genlock bit in color registers */
+static uae_u8 color_regs_aga_genlock[256];
+
 /*
  * Hardware registers of all sorts.
  */
@@ -183,6 +186,7 @@ struct sprite {
     int xpos;
     int vstart;
     int vstop;
+    int dblscan; /* AGA SSCAN2 */
     int armed;
     int dmastate;
     int dmacycle;
@@ -1955,6 +1959,13 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     }
 }
 
+STATIC_INLINE int SSCAN2_H10 (int x)
+{
+    if (fmode & 0x8000)
+	return x & ~(0x100 << sprite_buffer_res);
+    return x;
+}
+
 static void decide_sprites (int hpos)
 {
     int nrs[MAX_SPRITES], posns[MAX_SPRITES];
@@ -1973,7 +1984,7 @@ static void decide_sprites (int hpos)
 
     count = 0;
     for (i = 0; i < MAX_SPRITES; i++) {
-	int sprxp = spr[i].xpos;
+	int sprxp = SSCAN2_H10 (spr[i].xpos);
 	int hw_xp = sprxp >> sprite_buffer_res;
 	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 	int j, bestp;
@@ -2009,7 +2020,7 @@ static void decide_sprites (int hpos)
     }
     for (i = 0; i < count; i++) {
 	int nr = nrs[i];
-	record_sprite (next_lineno, nr, spr[nr].xpos, sprdata[nr], sprdatb[nr], sprctl[nr]);
+	record_sprite (next_lineno, nr, SSCAN2_H10 (spr[nr].xpos), sprdata[nr], sprdatb[nr], sprctl[nr]);
     }
     last_sprite_point = point;
 }
@@ -2249,6 +2260,8 @@ static void dumpsync (void)
 void init_hz (void)
 {
     int isntsc;
+    int odbl = doublescan;
+    int hzc = 0;
 
     if ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
 	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
@@ -2261,6 +2274,8 @@ void init_hz (void)
     }
 
     doublescan = 0;
+    if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
+	hzc = 1;
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
     if (hack_vpos > 0) {
@@ -2305,8 +2320,10 @@ void init_hz (void)
 	maxvpos_max = maxvpos;
 	doublescan = htotal <= 140;
 	dumpsync();
-        reset_drawing ();
+	hzc = 1;
     }
+    if (doublescan != odbl)
+	hzc = 1;
     /* limit to sane values */
     if (vblank_hz < 10)
 	vblank_hz = 10;
@@ -2315,6 +2332,8 @@ void init_hz (void)
     eventtab[ev_hsync].oldcycles = get_cycles ();
     eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
     events_schedule ();
+    if (hzc)
+        reset_drawing ();
     compute_vsynctime ();
 #ifdef OPENGL
     OGL_refresh ();
@@ -2322,8 +2341,11 @@ void init_hz (void)
 #ifdef PICASSO96
     init_hz_p96 ();
 #endif
-    write_log ("%s mode, %dHz (h=%d v=%d)\n",
-	isntsc ? "NTSC" : "PAL", vblank_hz, maxhpos, maxvpos);
+    write_log ("%s mode, V=%dHz H=%dHz (%dx%d)\n",
+	isntsc ? "NTSC" : "PAL",
+	vblank_hz,
+	vblank_hz * maxvpos,
+	maxhpos, maxvpos);
 }
 
 static void calcdiw (void)
@@ -3153,8 +3175,10 @@ STATIC_INLINE void SPRxCTLPOS (int num)
     sprxp <<= sprite_buffer_res;
     /* Quite a bit salad in this register... */
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA)
+    if (currprefs.chipset_mask & CSMASK_AGA) {
 	sprxp |= ((sprctl[num] >> 3) & 3) >> (2 - sprite_buffer_res);
+	s->dblscan = sprpos[num] & 0x80;
+    }
 #endif
     s->xpos = sprxp;
     s->vstart = (sprpos[num] >> 8) | ((sprctl[num] << 6) & 0x100);
@@ -3305,10 +3329,13 @@ static uae_u16 COLOR_READ (int num)
     cr = current_colors.color_regs_aga[colreg] >> 16;
     cg = (current_colors.color_regs_aga[colreg] >> 8) & 0xFF;
     cb = current_colors.color_regs_aga[colreg] & 0xFF;
-    if (bplcon3 & 0x200)
+    if (bplcon3 & 0x200) {
 	cval = ((cr & 15) << 8) | ((cg & 15) << 4) | ((cb & 15) << 0);
-    else
+    } else {
 	cval = ((cr >> 4) << 8) | ((cg >> 4) << 4) | ((cb >> 4) << 0);
+	if (color_regs_aga_genlock[num])
+	    cval |= 0x8000;
+    }
     return cval;
 }
 #endif
@@ -3343,6 +3370,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 	    cr = r + (r << 4);
 	    cg = g + (g << 4);
 	    cb = b + (b << 4);
+	    color_regs_aga_genlock[colreg] = v >> 15;
 	}
 	cval = (cr << 16) | (cg << 8) | cb;
 	if (cval == current_colors.color_regs_aga[colreg])
@@ -3792,6 +3820,11 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 
     if (vpos == sprite_vblank_endline)
 	spr_arm (num, 0);
+
+    if (s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
+	spr_arm (num, 1);
+	return;
+    }
 
 #if SPRITE_DEBUG > 3
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
@@ -4720,6 +4753,7 @@ void customreset (int hardreset)
     bogusframe = 1;
 
     sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : ((currprefs.chipset_mask & CSMASK_ECS_DENISE) ? RES_HIRES : RES_LORES);
+    //sprite_buffer_res = RES_HIRES;
     if (savestate_state == STATE_RESTORE) {
 	uae_u16 v;
 	uae_u32 vv;
@@ -5611,12 +5645,18 @@ uae_u8 *restore_custom_agacolors (uae_u8 *src)
 {
     int i;
 
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < 256; i++) {
 #ifdef AGA
-	current_colors.color_regs_aga[i] = RL;
+	uae_u32 v = RL;
+	color_regs_aga_genlock[i] = 0;
+	if (v & 0x80000000)
+	    color_regs_aga_genlock[i] = 1;
+	v &= 0x00ffffff;
+	current_colors.color_regs_aga[i] = v;
 #else
 	RL;
 #endif
+    }
     return src;
 }
 
@@ -5631,7 +5671,7 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
 	dstbak = dst = (uae_u8*)malloc (256*4);
     for (i = 0; i < 256; i++)
 #ifdef AGA
-    SL (current_colors.color_regs_aga[i]);
+	SL (current_colors.color_regs_aga[i] | (color_regs_aga_genlock[i] ? 0x80000000 : 0));
 #else
     SL (0);
 #endif

@@ -5201,7 +5201,7 @@ static void addfakefilesys (uaecptr parmpacket, uae_u32 dostype)
     put_long (parmpacket + PP_FSHDSTART + 44, 0xffffffff);
 }
 
-static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
+static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 {
     int i, size;
     char tmp[1024];
@@ -5211,14 +5211,17 @@ static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     hdf_read (&uip->hf, tmp, 0, 4);
     dostype = (tmp[0] << 24) | (tmp[1] << 16) |(tmp[2] << 8) | tmp[3];
     if (dostype == 0)
-	return;
+	return FILESYS_HARDFILE;
     fsres = get_long (parmpacket + PP_FSRES);
     fsnode = get_long (fsres + 18);
     while (get_long (fsnode)) {
 	if (get_long (fsnode + 14) == dostype) {
-	    if ((dostype & 0xffffff00) != 0x444f5300)
+	    if (kickstart_version < 36) {
 		addfakefilesys (parmpacket, dostype);
-	    return;
+	    } else if ((dostype & 0xffffff00) != 0x444f5300) {
+		addfakefilesys (parmpacket, dostype);
+	    }
+	    return FILESYS_HARDFILE;
 	}
 	fsnode = get_long (fsnode);
     }
@@ -5235,25 +5238,28 @@ static void dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     }
     if (tmp[0] == 0) {
 	write_log ("RDB: no filesystem for dostype 0x%08.8X\n", dostype);
-	return;
+	return -1;
     }
     write_log ("RDB: fakefilesys, trying to load '%s', dostype 0x%08.8X\n", tmp, dostype);
     zf = zfile_fopen (tmp,"rb");
     if (!zf) {
 	write_log ("RDB: filesys not found\n");
-	return;
+	return -1;
     }
 
     zfile_fseek (zf, 0, SEEK_END);
     size = zfile_ftell (zf);
-    zfile_fseek (zf, 0, SEEK_SET);
-    uip->rdb_filesysstore = (uae_u8*)xmalloc (size);
-    zfile_fread (uip->rdb_filesysstore, size, 1, zf);
+    if (size > 0) {
+	zfile_fseek (zf, 0, SEEK_SET);
+	uip->rdb_filesysstore = (uae_u8*)xmalloc (size);
+	zfile_fread (uip->rdb_filesysstore, size, 1, zf);
+    }
     zfile_fclose (zf);
     uip->rdb_filesyssize = size;
     put_long (parmpacket + PP_FSSIZE, uip->rdb_filesyssize);
     addfakefilesys (parmpacket, dostype);
     write_log ("HDF: faked RDB filesystem %08.8X loaded\n", dostype);
+    return FILESYS_HARDFILE;
 }
 
 static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecptr *devname_amiga, int unit_no)
@@ -5317,7 +5323,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
     put_long (parmpacket + 76, uip[unit_no].bootpri); /* bootPri */
     put_long (parmpacket + 80, 0x444f5300); /* DOS\0 */
     if (type == FILESYS_HARDFILE)
-	dofakefilesys (&uip[unit_no], parmpacket);
+	type = dofakefilesys (&uip[unit_no], parmpacket);
     if (uip[unit_no].bootpri < -127)
 	m68k_dreg (&regs, 7) = m68k_dreg (&regs, 7) & ~1; /* do not boot */
     if (uip[unit_no].bootpri < -128)
