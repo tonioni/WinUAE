@@ -971,7 +971,6 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
 #endif
 	    } else if (ham) {
 
-		col = color_reg_get (&colors_for_drawing, col);
 #ifdef AGA
 		if (aga) {
 
@@ -985,6 +984,7 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
 
 		} else {
 #endif
+		    col = color_reg_get (&colors_for_drawing, col);
 		    ham_linebuf[window_pos] = col;
 		    if (sizedoubling)
 			ham_linebuf[window_pos + 1] = col;
@@ -1673,7 +1673,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
 	/* The problem is that we must call decode_ham() BEFORE we do the
 	   sprites. */
-	if (! border && dp_for_drawing->ham_seen) {
+	if (dp_for_drawing->ham_seen) {
 	    init_ham_decoding ();
 	    if (dip_for_drawing->nr_color_changes == 0) {
 		/* The easy case: need to do HAM decoding only once for the

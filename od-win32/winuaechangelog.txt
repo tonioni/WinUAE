@@ -1,4 +1,23 @@
 
+Beta 6:
+
+- do not call CD32 CD emulation handler when non-CD controller
+  Akiko registers are accessed. Fixes slowdown when program uses
+  C2P feature of Akiko (Wing Commander CD32, perhaps others)
+- debugger ea command AGA genlock color bit support
+- smc command added to debugger help
+- Ghostscript and neroaspi registry detection didn't work without
+  admin privileges
+- directory harddrive read/write status and volume name change
+  work again on the fly
+- directory harddrive eject-button works again
+- directory harddrive readwrite checkbox is not disabled anymore if
+  no path entered
+- filter superhires support
+- ECS Denise hires sprite support removed, hires/shres sprite support
+  is not compatible with OCS ham modes (and who needs ECS hires sprites
+  when AGA is much better choice..)
+
 Beta 5:
 
 - AGA T (genlock transparency) color register bit emulated

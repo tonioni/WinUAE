@@ -996,6 +996,20 @@ void filesys_vsync (void)
 	}
     }
 }
+static void filesys_delayed_change (Unit *u, int frames, const char *rootdir, const char *volume, int readonly, int flags)
+{
+    u->reinsertdelay = 50;
+    u->newflags = flags;
+    u->newreadonly = readonly;
+    u->newrootdir = my_strdup (rootdir);
+    if (volume)
+        u->newvolume = my_strdup (volume);
+    filesys_eject(u->unit);
+    if (!rootdir || strlen (rootdir) == 0)
+        u->reinsertdelay = 0;
+    if (u->reinsertdelay > 0)
+	write_log ("FILESYS: delayed insert %d: '%s' ('%s')\n", u->unit, volume ? volume : "<none>", rootdir);
+}
 
 int filesys_media_change (const char *rootdir, int inserted, struct uaedev_config_info *uci)
 {
@@ -1014,8 +1028,10 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
         if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
 	    ui = &mountinfo.ui[u->unit];
 	    if (ui->rootdir && !memcmp (ui->rootdir, rootdir, strlen (rootdir)) && strlen (rootdir) + 3 >= strlen (ui->rootdir)) {
-		if (filesys_isvolume (u) && inserted)
+		if (filesys_isvolume (u) && inserted) {
+		    filesys_delayed_change (u, 50, rootdir, uci->volname, uci->readonly, 0);
 		    return 0;
+		}
 		nr = u->unit;
 		break;
 	    }
@@ -1140,17 +1156,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
     if (is_hardfile(nr) != FILESYS_VIRTUAL)
 	return 0;
     if (filesys_isvolume (u)) {
-	u->reinsertdelay = 50;
-	u->newflags = flags;
-	u->newreadonly = readonly;
-	u->newrootdir = my_strdup (rootdir);
-	if (volume)
-	    u->newvolume = my_strdup (volume);
-	filesys_eject(nr);
-	if (!rootdir || strlen (rootdir) == 0)
-	    u->reinsertdelay = 0;
-	if (u->reinsertdelay > 0)
-	    write_log ("FILESYS: delayed insert %d '%s' ('%s')\n", nr, volume ? volume : "<none>", rootdir);
+	filesys_delayed_change (u, 50, rootdir, volume, readonly, flags);
 	return -1;
     }
     u->mountcount++;

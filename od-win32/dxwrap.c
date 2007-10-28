@@ -17,7 +17,7 @@
 #include <mmsystem.h>
 #include <ddraw.h>
 #include <dsound.h>
-#include <dxerr8.h>
+#include <dxerr9.h>
 
 #include "sysdeps.h"
 #include "options.h"
@@ -197,7 +197,7 @@ const char *DXError (HRESULT ddrval)
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),
 	HRESULT_CODE(ddrval),
-	DXGetErrorDescription8 (ddrval));
+	DXGetErrorDescription9 (ddrval));
     return dderr;
 }
 

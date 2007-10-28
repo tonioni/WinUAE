@@ -1168,21 +1168,41 @@ static void REGPARAM3 akiko_bput (uaecptr, uae_u32) REGPARAM;
 
 static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 {
-    uae_u8 v;
+    uae_u8 v = 0;
 
     addr &= 0xffff;
-    uae_sem_wait (&akiko_sem);
+
     switch (addr)
     {
 	/* "CAFE" = Akiko identification.
 	 * Kickstart ignores Akiko C2P if this ID isn't correct */
-    case 0x02:
-	v = 0xCA;
-	break;
-    case 0x03:
-	v = 0xFE;
-	break;
+	case 0x02:
+	return 0xCA;
+	case 0x03:
+	return 0xFE;
+	/* NVRAM */
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	if (currprefs.cs_cd32nvram)
+	    v =  akiko_nvram_read (addr - 0x30);
+	return v;
 
+	/* C2P */
+	case 0x38:
+	case 0x39:
+	case 0x3a:
+	case 0x3b:
+	if (currprefs.cs_cd32c2p)
+	    v = akiko_c2p_read (addr - 0x38);
+	return v;
+    }
+
+
+    uae_sem_wait (&akiko_sem);
+    switch (addr)
+    {
 	if (currprefs.cs_cd32cd) {
 	    /* CDROM control */
 	case 0x04:
@@ -1234,24 +1254,6 @@ static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 	} else if (addr < 0x30) {
 	    break;
 	}
-
-	/* NVRAM */
-	case 0x30:
-	case 0x31:
-	case 0x32:
-	case 0x33:
-	if (currprefs.cs_cd32nvram)
-	    v =  akiko_nvram_read (addr - 0x30);
-	break;
-
-	/* C2P */
-	case 0x38:
-	case 0x39:
-	case 0x3a:
-	case 0x3b:
-	if (currprefs.cs_cd32c2p)
-	    v = akiko_c2p_read (addr - 0x38);
-	break;
 
 	default:
 	write_log ("akiko_bget: unknown address %08.8X\n", addr);
@@ -1324,8 +1326,29 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 
     addr &= 0xffff;
     v &= 0xff;
+
     if(msg && addr < 0x30 && AKIKO_DEBUG_IO)
 	write_log ("akiko_bput %08.8X: %08.8X=%02.2X\n", M68K_GETPC, addr, v & 0xff);
+
+    switch (addr)
+    {
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	    if (currprefs.cs_cd32nvram)
+		akiko_nvram_write (addr - 0x30, v);
+        return;
+
+	case 0x38:
+	case 0x39:
+	case 0x3a:
+	case 0x3b:
+	    if (currprefs.cs_cd32c2p)
+		akiko_c2p_write (addr - 0x38, v);
+	return;
+    }
+
     uae_sem_wait (&akiko_sem);
     switch (addr)
     {
@@ -1389,22 +1412,6 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	} else if (addr < 0x30) {
 	    break;
 	}
-
-	case 0x30:
-	case 0x31:
-	case 0x32:
-	case 0x33:
-	    if (currprefs.cs_cd32nvram)
-		akiko_nvram_write (addr - 0x30, v);
-	break;
-
-	case 0x38:
-	case 0x39:
-	case 0x3a:
-	case 0x3b:
-	    if (currprefs.cs_cd32c2p)
-		akiko_c2p_write (addr - 0x38, v);
-	break;
 
 	default:
 	write_log ("akiko_bput: unknown address %08.8X\n", addr);

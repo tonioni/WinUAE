@@ -331,9 +331,9 @@ int load_ghostscript (void)
     }
     if (!gsdll) {
 	HKEY key;
-	DWORD ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_ALL_ACCESS, &key);
+	DWORD ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\AFPL Ghostscript", 0, KEY_READ, &key);
 	if (ret |= ERROR_SUCCESS)
-	    ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\GPL Ghostscript", 0, KEY_ALL_ACCESS, &key);
+	    ret = RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\GPL Ghostscript", 0, KEY_READ, &key);
 	if (ret == ERROR_SUCCESS) {
 	    int idx = 0, cnt = 20;
 	    char tmp1[MAX_DPATH];
@@ -342,7 +342,7 @@ int load_ghostscript (void)
 		FILETIME ft;
 		if (RegEnumKeyEx (key, idx, tmp1, &size1, NULL, NULL, NULL, &ft) == ERROR_SUCCESS) {
 		    HKEY key2;
-		    if (RegOpenKeyEx (key, tmp1, 0, KEY_ALL_ACCESS, &key2) == ERROR_SUCCESS) {
+		    if (RegOpenKeyEx (key, tmp1, 0, KEY_READ, &key2) == ERROR_SUCCESS) {
 			DWORD type = REG_SZ;
 			DWORD size = sizeof (path);
 			if (RegQueryValueEx (key2, "GS_DLL", 0, &type, (LPBYTE)path, &size) == ERROR_SUCCESS) {

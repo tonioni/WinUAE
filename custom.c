@@ -3308,10 +3308,10 @@ void dump_aga_custom (void)
 	c2 = c1 + 64;
 	c3 = c2 + 64;
 	c4 = c3 + 64;
-	rgb1 = current_colors.color_regs_aga[c1];
-	rgb2 = current_colors.color_regs_aga[c2];
-	rgb3 = current_colors.color_regs_aga[c3];
-	rgb4 = current_colors.color_regs_aga[c4];
+	rgb1 = current_colors.color_regs_aga[c1] | (color_regs_aga_genlock[c1] << 31);
+	rgb2 = current_colors.color_regs_aga[c2] | (color_regs_aga_genlock[c2] << 31);
+	rgb3 = current_colors.color_regs_aga[c3] | (color_regs_aga_genlock[c3] << 31);
+	rgb4 = current_colors.color_regs_aga[c4] | (color_regs_aga_genlock[c4] << 31);
 	console_out("%3d %08.8X %3d %08.8X %3d %08.8X %3d %08.8X\n",
 	    c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
     }
@@ -4752,8 +4752,7 @@ void customreset (int hardreset)
 
     bogusframe = 1;
 
-    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : ((currprefs.chipset_mask & CSMASK_ECS_DENISE) ? RES_HIRES : RES_LORES);
-    //sprite_buffer_res = RES_HIRES;
+    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
     if (savestate_state == STATE_RESTORE) {
 	uae_u16 v;
 	uae_u32 vv;

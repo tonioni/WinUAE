@@ -106,7 +106,7 @@ const char *get_aspi_path(int aspitype)
 	    if (nero < 0)
 		return NULL;
 	    nero = -1;
-	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_ALL_ACCESS, &key) == ERROR_SUCCESS) {
+	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_READ, &key) == ERROR_SUCCESS) {
 		if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path_nero, &size) == ERROR_SUCCESS) {
 		    if (path_nero[strlen(path_nero) - 1] != '\\')
 			strcat (path_nero, "\\");
@@ -173,7 +173,7 @@ static int open_driver (SCSI *scgp)
     int nero, frog;
 
     /*
-     * Check if ASPI library is already loaded yet
+     * Check if ASPI library is already loaded
      */
     if (AspiLoaded == TRUE)
 	return TRUE;
@@ -217,7 +217,7 @@ static int open_driver (SCSI *scgp)
     pfnGetASPI32SupportInfo = (DWORD(*)(void))GetProcAddress(hAspiLib, "GetASPI32SupportInfo");
     pfnSendASPI32Command = (DWORD(*)(LPSRB))GetProcAddress(hAspiLib, "SendASPI32Command");
 
-    if ((pfnGetASPI32SupportInfo == NULL) || (pfnSendASPI32Command == NULL)) {
+    if (pfnGetASPI32SupportInfo == NULL || pfnSendASPI32Command == NULL) {
 	write_log ("ASPI: obsolete wnaspi32.dll found\n");
 	return FALSE;
     }
@@ -256,7 +256,8 @@ static int open_driver (SCSI *scgp)
 
 static void close_driver (void)
 {
-    if (!AspiLoaded) return;
+    if (!AspiLoaded)
+	return;
     AspiLoaded = FALSE;
     pfnGetASPI32SupportInfo = NULL;
     pfnSendASPI32Command = NULL;

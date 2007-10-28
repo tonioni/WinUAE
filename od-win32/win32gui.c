@@ -5977,7 +5977,7 @@ struct fsvdlg_vals
     int rdb;
 };
 
-static struct fsvdlg_vals empty_fsvdlg = { "", "", "", 0, 1, 1, 0 };
+static struct fsvdlg_vals empty_fsvdlg = { "", "", "", 0, 1, 1, 1, 0 };
 static struct fsvdlg_vals current_fsvdlg;
 
 struct hfdlg_vals
@@ -6024,12 +6024,12 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	    SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device);
 	    SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir);
 	    SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.bootpri >= -127 ? current_fsvdlg.bootpri : -127, TRUE);
-	    if (archivehd)
+	    if (archivehd > 0)
 		current_fsvdlg.rw = 0;
 	    CheckDlgButton (hDlg, IDC_FS_RW, current_fsvdlg.rw);
 	    CheckDlgButton (hDlg, IDC_FS_AUTOBOOT, current_fsvdlg.autoboot);
 	    current_fsvdlg.donotmount = 0;
-	    ew (hDlg, IDC_FS_RW, !archivehd);
+	    ew (hDlg, IDC_FS_RW, archivehd <= 0);
 	    recursive--;
 	}
 	return TRUE;
@@ -6044,8 +6044,8 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		    case IDC_FS_SELECT_EJECT:
 			SetDlgItemText (hDlg, IDC_PATH_NAME, "");
 			SetDlgItemText (hDlg, IDC_VOLUME_NAME, "");
-			CheckDlgButton (hDlg, IDC_FS_RW, FALSE);
-			ew (hDlg, IDC_FS_RW, FALSE);
+			CheckDlgButton (hDlg, IDC_FS_RW, TRUE);
+			ew (hDlg, IDC_FS_RW, TRUE);
 			archivehd = -1;
 		    break;
 		    case IDC_FS_SELECT_FILE:
@@ -6388,8 +6388,12 @@ static void new_filesys (HWND hDlg, int entry)
 
     uci = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
 		    current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, bp, 0, 0, 0);
-    if (uci)
-	filesys_media_change (uci->rootdir, 1, uci);
+    if (uci) {
+	if (uci->rootdir[0])
+	    filesys_media_change (uci->rootdir, 1, uci);
+	else
+	    filesys_eject (uci->configoffset);
+    }
 }
 
 static void new_hardfile (HWND hDlg, int entry)

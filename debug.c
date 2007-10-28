@@ -133,6 +133,7 @@ static char help[] = {
     "                        Also enables level 1 disk logging\n"
     "  did <log level>       Enable disk logging\n"
     "  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
+    "  smc                   Enable self-modifying code detector\n"
     "  dm                    Dump current address space map\n"
 #ifdef _WIN32
     "  x                     Close debugger.\n"

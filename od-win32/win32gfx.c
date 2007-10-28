@@ -47,7 +47,7 @@
 #include "parser.h"
 #include "lcd.h"
 
-#define AMIGA_WIDTH_MAX 736
+#define AMIGA_WIDTH_MAX 752
 #define AMIGA_HEIGHT_MAX 568
 
 #define DM_DX_FULLSCREEN 1
@@ -2220,8 +2220,12 @@ static BOOL doInit (void)
 	    currentmode->native_depth = currentmode->current_depth;
 #if defined (GFXFILTER)
 	    if (currentmode->flags & (DM_OPENGL | DM_D3D | DM_SWSCALE)) {
-		currentmode->amiga_width = AMIGA_WIDTH_MAX >> (currprefs.gfx_resolution ? 0 : 1);
+		currentmode->amiga_width = AMIGA_WIDTH_MAX;
 		currentmode->amiga_height = AMIGA_HEIGHT_MAX >> (currprefs.gfx_linedbl ? 0 : 1);
+		if (currprefs.gfx_resolution == 0)
+		    currentmode->amiga_width >>= 1;
+		else if (currprefs.gfx_resolution > 1)
+		    currentmode->amiga_width <<= 1;
 		if (usedfilter) {
 		    if (usedfilter->x[0]) {
 			currentmode->current_depth = (currprefs.gfx_filter_filtermode / 2) ? 32 : 16;
