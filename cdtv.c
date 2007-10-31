@@ -53,6 +53,8 @@
 #define AUDIO_STATUS_PLAY_ERROR     0x14
 #define AUDIO_STATUS_NO_STATUS      0x15
 
+#define MODEL_NAME "MATSHITA0.97" /* also MATSHITA0.96 exists */
+
 static smp_comm_pipe requests;
 static volatile int thread_alive;
 
@@ -500,6 +502,12 @@ static void cdrom_command_thread(uae_u8 b)
 	    cd_finished = 1;
 	}
 	break;
+	case 0x83:
+        if (cdrom_command_cnt_in == 7) {
+	    memcpy (cdrom_command_output, MODEL_NAME, strlen (MODEL_NAME)); 
+	    cdrom_command_accepted(strlen (MODEL_NAME), s, &cdrom_command_cnt_in);
+	    cd_finished = 1;
+	}
 	case 0x84:
 	if (cdrom_command_cnt_in == 7) {
 	    cdrom_command_accepted(cdrom_modeset(cdrom_command_input), s, &cdrom_command_cnt_in);

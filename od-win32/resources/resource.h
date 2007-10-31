@@ -917,6 +917,7 @@
 #define IDC_FS_RW                       1777
 #define IDC_DF3ENABLE                   1778
 #define IDC_HDF_RW                      1778
+#define IDC_HDFINFO                     1779
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

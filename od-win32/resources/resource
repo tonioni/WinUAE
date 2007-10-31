@@ -320,7 +320,6 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
-#define IDC_SCREENMODE_RTG2             1028
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033
@@ -918,6 +917,7 @@
 #define IDC_FS_RW                       1777
 #define IDC_DF3ENABLE                   1778
 #define IDC_HDF_RW                      1778
+#define IDC_HDFINFO                     1779
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -947,7 +947,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        334
 #define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1779
+#define _APS_NEXT_CONTROL_VALUE         1780
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -25,7 +25,8 @@
 #define CATWEASEL /* Catweasel MK2/3 support */
 #define AHI /* AHI sound emulation */
 #define ENFORCER /* UAE Enforcer */
-#define AGA /* AGA chipset emulation */
+#define ECS_DENISE /* ECS DENISE new features */
+#define AGA /* AGA chipset emulation (ECS_DENISE must be enabled) */
 #define CD32 /* CD32 emulation */
 #define CDTV /* CDTV emulation */
 #define D3D /* D3D display filter support */

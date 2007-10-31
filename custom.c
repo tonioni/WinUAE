@@ -523,7 +523,8 @@ static void remember_ctable_for_border (void)
  * checked.  */
 static void decide_diw (int hpos)
 {
-    int pix_hpos = coord_diw_to_window_x (hpos == 227 ? 455 : hpos * 2); /* (227.5*2 = 455) */
+     /* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455 */
+    int pix_hpos = coord_diw_to_window_x (hpos == maxhpos ? hpos * 2 + 1 : hpos * 2);
     if (hdiwstate == DIW_waiting_start && thisline_decision.diwfirstword == -1
 	&& pix_hpos >= diwfirstword && last_diw_pix_hpos < diwfirstword)
     {
@@ -1665,13 +1666,18 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
     int res;
 
     switch ((con3 >> 6) & 3) {
+    default:
+	res = RES_LORES;
+    break;
+#ifdef ECS_DENISE
     case 0: /* ECS defaults (LORES,HIRES=LORES sprite,SHRES=HIRES sprite) */
 	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES (con0) == RES_SUPERHIRES)
 	    res = RES_HIRES;
 	else
 	    res = RES_LORES;
 	break;
-    /* AGA */
+#endif
+#ifdef AGA
     case 1:
 	res = RES_LORES;
 	break;
@@ -1682,6 +1688,7 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
 	res = RES_SUPERHIRES;
 	break;
     }
+#endif
     return res;
 }
 
@@ -2869,8 +2876,8 @@ static void BPLCON0 (int hpos, uae_u16 v)
     bplcon0 = v;
     record_register_change (hpos, 0x100, v);
 
-#ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA) {
+#ifdef ECS_DENISE
+    if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
 	decide_sprites (hpos);
 	sprres = expand_sprres (bplcon0, bplcon3);
     }
@@ -3174,8 +3181,13 @@ STATIC_INLINE void SPRxCTLPOS (int num)
     sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
     sprxp <<= sprite_buffer_res;
     /* Quite a bit salad in this register... */
+#ifdef ECS_DENISE
+    if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
+	sprxp |= ((sprctl[num] >> 3) & 2) >> (2 - sprite_buffer_res);
+    }
+#endif
 #ifdef AGA
-    if (currprefs.chipset_mask & CSMASK_AGA) {
+    else if (currprefs.chipset_mask & CSMASK_AGA) {
 	sprxp |= ((sprctl[num] >> 3) & 3) >> (2 - sprite_buffer_res);
 	s->dblscan = sprpos[num] & 0x80;
     }
@@ -3821,11 +3833,12 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     if (vpos == sprite_vblank_endline)
 	spr_arm (num, 0);
 
+#ifdef AGA
     if (s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
 	spr_arm (num, 1);
 	return;
     }
-
+#endif
 #if SPRITE_DEBUG > 3
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
 	write_log ("%d:%d:slot%d:%d\n", vpos, hpos, num, cycle);

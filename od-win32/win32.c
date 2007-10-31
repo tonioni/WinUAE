@@ -781,7 +781,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (!minimized)
 		    winuae_active (hWnd, minimized);
 		if (is3dmode() && normal_display_change_starting == 0)
-		    normal_display_change_starting = 1;
+		    normal_display_change_starting = 10;
 	    }
 	}
 	recursive--;
@@ -975,7 +975,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		setmousestate (dinput_winmouse (), 0, mx, 0);
 		setmousestate (dinput_winmouse (), 1, my, 0);
 	    }
-	} else if ((!mouseactive && isfullscreen() <= 0)) {
+	} else if (!mouseactive && isfullscreen() <= 0) {
 	    setmousestate (0, 0, mx, 1);
 	    setmousestate (0, 1, my, 1);
 	}
@@ -3462,26 +3462,27 @@ end:
 
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
-#define MSGFLT_ADD 1
 
 int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     SETPROCESSDPIAWARE pSetProcessDPIAware;
     DWORD_PTR sys_aff;
+    HANDLE thread;
+    CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
 
     original_affinity = 1;
     GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);
-#if 0
-    HANDLE thread;
 
     thread = GetCurrentThread();
     original_affinity = SetThreadAffinityMask(thread, 1);
-    CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
     pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
 	GetModuleHandle("user32.dll"), "ChangeWindowMessageFilter");
+#if 0
+#define MSGFLT_ADD 1
     if (pChangeWindowMessageFilter)
 	pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
+
     pSetProcessDPIAware = (SETPROCESSDPIAWARE)GetProcAddress(
 	GetModuleHandle("user32.dll"), "SetProcessDPIAware");
     if (pSetProcessDPIAware)

@@ -1741,26 +1741,33 @@ int handle_input_event (int nr, int state, int max, int autofire)
 	case 4: /* ->Parallel port joystick adapter port #2 */
 	    joy = ie->unit - 1;
 	    if (ie->type & 4) {
+
 		if (state)
 		    joybutton[joy] |= 1 << ie->data;
 		else
 		    joybutton[joy] &= ~(1 << ie->data);
+
 	    } else if (ie->type & 8) {
+
 		/* real mouse / analog stick mouse emulation */
 		int delta;
 		int deadzone = currprefs.input_joymouse_deadzone * max / 100;
 		if (max) {
-		    if (state < deadzone && state > -deadzone) {
+		    if (state <= deadzone && state >= -deadzone) {
 			state = 0;
+			mouse_deltanoreset[joy][ie->data] = 0;
 		    } else if (state < 0) {
 			state += deadzone;
+			mouse_deltanoreset[joy][ie->data] = 1;
 		    } else {
 			state -= deadzone;
+			mouse_deltanoreset[joy][ie->data] = 1;
 		    }
 		    max -= deadzone;
 		    delta = state * currprefs.input_joymouse_multiplier / max;
 		} else {
 		    delta = state;
+	    	    mouse_deltanoreset[joy][ie->data] = 0;
 		}
 		mouse_delta[joy][ie->data] += delta;
 
@@ -1789,9 +1796,10 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		    mouse_deltanoreset[joy][0] = 0;
 
 	    } else if (ie->type & 128) { /* analog (paddle) */
+
 		int deadzone = currprefs.input_joymouse_deadzone * max / 100;
 		if (max) {
-		    if (state < deadzone && state > -deadzone) {
+		    if (state <= deadzone && state >= -deadzone) {
 			state = 0;
 		    } else if (state < 0) {
 			state += deadzone;
@@ -1802,7 +1810,9 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		}
 		state = state / 256 + 128;
 		joydirpot[joy][ie->data] = state;
+
 	    } else {
+
 		int left = oleft[joy], right = oright[joy], top = otop[joy], bot = obot[joy];
 		if (ie->type & 16) {
 		    /* button to axis mapping */
@@ -1828,6 +1838,7 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		if (right) joydir[joy] |= DIR_RIGHT;
 		if (top) joydir[joy] |= DIR_UP;
 		if (bot) joydir[joy] |= DIR_DOWN;
+
 	    }
 	break;
 	case 0: /* ->KEY */

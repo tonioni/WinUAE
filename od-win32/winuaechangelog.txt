@@ -1,4 +1,23 @@
 
+Beta 7:
+
+- added information text to hardfile panel.
+  RDB hardfile: size of selected file, first 4 bytes of data.
+  Regular hardfile: cylinders (warns if > 65535, OS3.5+ only), blocks,
+  current size and total size of hardfile, first 4 bytes of data.
+- analog joystick mouse emulation didn't "repeat"
+- graphics garbage in right border fixed (happened for example when
+  productivity mode with vgaonly was enabled)
+- CDTV CD ROM command 0x83 emulated, returns drive name/version string
+  ("MATSHITA0.97", also "MATSHITA0.96" exists. No idea if there are any
+  real differences). Another quite pointless feature because CDTV's
+  driver does not use command 0x83..
+- ECS superhires sprite positioning fixed. Note that ECS shres sprites
+  always have halved resolution (not size) due to emulation limitation
+- ECS superhires "palette scrambling" emulated, ECS shres colors should
+  be now 100% correct
+- some doublescan emulation tweaks
+
 Beta 6:
 
 - do not call CD32 CD emulation handler when non-CD controller

@@ -1500,7 +1500,7 @@ static int CalculateHardfileSize (HWND hDlg)
     BOOL Translated = FALSE;
     UINT mbytes = 0;
 
-    mbytes = GetDlgItemInt( hDlg, IDC_HF_SIZE, &Translated, FALSE );
+    mbytes = GetDlgItemInt(hDlg, IDC_HF_SIZE, &Translated, FALSE);
     if (mbytes <= 0)
 	mbytes = 0;
     if( !Translated )
@@ -5967,9 +5967,9 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 struct fsvdlg_vals
 {
-    char volume[4096];
-    char device[4096];
-    char rootdir[4096];
+    char volume[MAX_DPATH];
+    char device[MAX_DPATH];
+    char rootdir[MAX_DPATH];
     int bootpri;
     int autoboot;
     int donotmount;
@@ -5982,10 +5982,10 @@ static struct fsvdlg_vals current_fsvdlg;
 
 struct hfdlg_vals
 {
-    char volumename[4096];
-    char devicename[4096];
-    char filename[4096];
-    char fsfilename[4096];
+    char volumename[MAX_DPATH];
+    char devicename[MAX_DPATH];
+    char filename[MAX_DPATH];
+    char fsfilename[MAX_DPATH];
     int sectors;
     int reserved;
     int surfaces;
@@ -6184,10 +6184,58 @@ static void hardfile_testrdb (HWND hDlg)
     sethardfile (hDlg);
 }
 
+static void updatehdfinfo (HWND hDlg, int force)
+{
+    static uae_u64 bsize;
+    static uae_u8 id[4];
+    int blocks, cyls, i;
+    char tmp[200], idtmp[5], tmp2[200];
+
+    if (force) {
+	struct zfile *zf = zfile_fopen (current_hfdlg.filename, "rb");
+	if (zf) {
+	    memset (id, 0, sizeof (id));
+	    zfile_fread (id, 1, sizeof (id), zf);
+	    zfile_fseek (zf, 0, SEEK_END);
+	    bsize = zfile_ftell (zf);
+	    zfile_fclose (zf);
+	}
+    }
+    cyls = 0;
+    if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces)
+        cyls = bsize / (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces);
+    blocks = cyls * (current_hfdlg.sectors * current_hfdlg.surfaces);
+    for (i = 0; i < 4; i++) {
+	unsigned char c = id[i];
+	if (c < 32 || c > 126)
+	    c = '.';
+	idtmp[i] = c;
+	idtmp[i + 1] = 0;
+    }
+
+    tmp[0] = 0;
+    if (bsize) {
+	sprintf (tmp2, " %s [%02X%02X%02X%02X]", idtmp, id[0], id[1], id[2], id[3]);
+	if (!cyls || !blocks)
+	    sprintf (tmp, "%dMB", bsize / (1024 * 1024));
+	else
+	    sprintf (tmp, "%d cyls, %d blocks, %.1fMB/%.1fMB",
+		cyls, blocks,
+		(double)blocks * 1.0 * current_hfdlg.blocksize / (1024.0 * 1024.0),
+		(double)bsize / (1024.0 * 1024.0));
+	if (cyls > 65535)
+	    strcat (tmp, " [Too many cyls]");
+	strcat (tmp, tmp2);
+    }
+    SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
+}
+
+
 static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     LRESULT res, posn;
+    char tmp[MAX_DPATH];
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -6195,6 +6243,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	inithardfile (hDlg);
 	sethardfile (hDlg);
 	sethfdostype (hDlg, 0);
+	updatehdfinfo (hDlg, 1);
 	recursive--;
 	return TRUE;
 
@@ -6235,6 +6284,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
 		hardfile_testrdb (hDlg);
 		inithardfile(hDlg);
+		updatehdfinfo (hDlg, 1);
 		break;
 	    case IDC_FILESYS_SELECTOR:
 		DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
@@ -6278,7 +6328,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		break;
 	}
 
-	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
+	GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp);
+	if (strcmp (tmp, current_hfdlg.filename)) {
+	    strcpy (current_hfdlg.filename, tmp);
+	    updatehdfinfo (hDlg, 1);
+	}
 	GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename);
 	GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename);
 	current_hfdlg.sectors   = GetDlgItemInt(hDlg, IDC_SECTORS, NULL, FALSE);
@@ -6289,6 +6343,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
 	    current_hfdlg.controller = posn;
+	updatehdfinfo (hDlg, 0);
 	recursive--;
 
 	break;
