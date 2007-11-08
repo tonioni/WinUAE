@@ -46,6 +46,9 @@
 #include "gfxfilter.h"
 #include "parser.h"
 #include "lcd.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define AMIGA_WIDTH_MAX 752
 #define AMIGA_HEIGHT_MAX 568
@@ -218,18 +221,18 @@ int WIN32GFX_IsPicassoScreen(void)
     return screen_is_picasso;
 }
 
-void WIN32GFX_DisablePicasso( void )
+void WIN32GFX_DisablePicasso(void)
 {
     picasso_requested_on = 0;
     picasso_on = 0;
 }
 
-void WIN32GFX_EnablePicasso( void )
+void WIN32GFX_EnablePicasso(void)
 {
     picasso_requested_on = 1;
 }
 
-void WIN32GFX_DisplayChangeRequested( void )
+void WIN32GFX_DisplayChangeRequested(void)
 {
     display_change_requested = 1;
 }
@@ -1813,7 +1816,7 @@ static void gfxmode_reset (void)
 #endif
 }
 
-void machdep_init (void)
+int machdep_init (void)
 {
     picasso_requested_on = 0;
     picasso_on = 0;
@@ -1822,6 +1825,7 @@ void machdep_init (void)
 #ifdef LOGITECHLCD
     lcd_open();
 #endif
+    return 1;
 }
 
 void machdep_free (void)
@@ -2063,7 +2067,7 @@ static int create_windows (void)
 
     hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
-				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP),
+				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX),
 				x, y,
 				currentmode->native_width, currentmode->native_height,
 				hMainWnd ? hMainWnd : hhWnd, NULL, 0, NULL);
@@ -2082,7 +2086,9 @@ static int create_windows (void)
     }
     UpdateWindow (hAmigaWnd);
     ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
-
+#ifdef RETROPLATFORM
+    rp_set_hwnd ();
+#endif
     return 1;
 }
 

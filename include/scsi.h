@@ -1,4 +1,5 @@
 
+#define SCSI_DATA_BUFFER_SIZE (512 * 512)
 struct scsi_data
 {
     int id;
@@ -14,7 +15,7 @@ struct scsi_data
     int direction;
 
     int offset;
-    uae_u8 buffer[256 * 512];
+    uae_u8 buffer[SCSI_DATA_BUFFER_SIZE];
     struct hd_hardfiledata *hfd;
     int nativescsiunit;
 };

@@ -53,25 +53,22 @@ void SERPER (uae_u16 w)
 
     if (serper == w)  /* don't set baudrate if it's already ok */
 	return;
+
     ninebit = 0;
     serper = w;
-
-    if (w & 0x8000) {
-	if (!warned) {
-	    write_log ("SERIAL: program uses 9bit mode PC=%x\n", M68K_GETPC);
-	    warned++;
-	}
+    if (w & 0x8000)
 	ninebit = 1;
-    }
     w &= 0x7fff;
 
     if (w < 13)
 	w = 13;
 
     per = w;
-    if (per == 0) per = 1;
+    if (per == 0)
+	per = 1;
     per = 3546895 / (per + 1);
-    if (per <= 0) per = 1;
+    if (per <= 0)
+	per = 1;
     i = 0;
     while (allowed_baudrates[i] >= 0 && per > allowed_baudrates[i] * 100 / 97)
 	i++;
@@ -82,7 +79,7 @@ void SERPER (uae_u16 w)
 	serial_period_hsyncs = 1;
     serial_period_hsync_counter = 0;
 
-    write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d PC=%x\n", w, baud, serial_period_hsyncs, M68K_GETPC);
+    write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n", w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
 
     if (ninebit)
 	baud *= 2;

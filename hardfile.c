@@ -746,10 +746,10 @@ void hardfile_do_disk_change (int fsid, int insert)
     hfd = get_hardfile_data (fsid);
     if (!hfd)
 	return;
-    write_log("uaehf.device:%d media status=%d\n", fsid, insert);
-    hfd->drive_empty = newstate;
     uae_sem_wait (&change_sem);
     hardfpd[fsid].changenum++;
+    write_log("uaehf.device:%d media status=%d changenum=%d\n", fsid, insert, hardfpd[fsid].changenum);
+    hfd->drive_empty = newstate;
     j = 0;
     while (j < MAX_ASYNC_REQUESTS) {
 	if (hardfpd[fsid].d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {

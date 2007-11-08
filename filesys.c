@@ -4094,9 +4094,10 @@ action_set_date (Unit *unit, dpacket packet)
     if (err != 0) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, err);
-    } else
+    } else {
+	notify_check (unit, a);
 	PUT_PCK_RES1 (packet, DOS_TRUE);
-    notify_check (unit, a);
+    }
     gui_hd_led (2);
 }
 
@@ -5784,10 +5785,10 @@ static uae_u8 *restore_filesys_virtual (UnitInfo *ui, uae_u8 *src, int num)
 
 static char *getfullaname(a_inode *a)
 {
-    char *p = (char*)xmalloc (2000);
+    char *p;
     int first = 1;
 
-    memset(p, 0, 2000);
+    p = (char*)xcalloc (2000, 1);
     while (a) {
 	int len = strlen(a->aname);
 	memmove (p + len + 1, p, strlen(p) + 1);
@@ -5812,10 +5813,13 @@ static int recurse_aino (UnitInfo *ui, a_inode *a, int cnt, uae_u8 **dstp)
     if (dstp)
 	dst = *dstp;
     while (a) {
+	//write_log("recurse '%s' '%s' %d %08x\n", a->aname, a->nname, a->uniq, a->parent);
 	if (a->elock || a->shlock || a->uniq == 0) {
 	    if (dst) {
-		char *fn = getfullaname(a);
-		write_log ("%04x '%s' s=%d e=%d d=%d\n", a->uniq, fn, a->shlock, a->elock, a->dir);
+		char *fn;
+		write_log ("%04x s=%d e=%d d=%d '%s' '%s'\n", a->uniq, a->shlock, a->elock, a->dir, a->aname, a->nname);
+		fn = getfullaname(a);
+		write_log ("->'%s'\n", fn);
 		save_u64 (a->uniq);
 		save_u32 (a->locked_children);
 		save_u32 (a->exnext_count);
@@ -5972,6 +5976,9 @@ uae_u8 *save_filesys (int num, int *len)
 
     ui = &mountinfo.ui[num];
     if (!ui->open)
+	return NULL;
+    /* not initialized yet, do not save */
+    if (type == FILESYS_VIRTUAL && (ui->self == NULL || ui->volname == NULL))
 	return NULL;
     write_log ("FS_FILESYS: '%s' '%s'\n", ui->devname, ui->volname);
     dstbak = dst = (uae_u8*)xmalloc (100000);

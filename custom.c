@@ -356,6 +356,11 @@ enum fetchstate {
  * helper functions
  */
 
+STATIC_INLINE int ecsshres(void)
+{
+    return GET_RES (bplcon0) == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
+}
+
 STATIC_INLINE int nodraw (void)
 {
     return !currprefs.cpu_cycle_exact && framecnt != 0;
@@ -1665,7 +1670,8 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
 {
     int res;
 
-    switch ((con3 >> 6) & 3) {
+    switch ((con3 >> 6) & 3)
+    {
     default:
 	res = RES_LORES;
     break;
@@ -1687,8 +1693,8 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
     case 3:
 	res = RES_SUPERHIRES;
 	break;
-    }
 #endif
+    }
     return res;
 }
 
@@ -1859,14 +1865,15 @@ static void do_sprite_collisions (void)
 }
 
 STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int dbl,
-				    int do_collisions, uae_u32 collision_mask)
+				    unsigned int mask, int do_collisions, uae_u32 collision_mask)
 {
     int j = 0;
     while (datab) {
 	unsigned int tmp = *buf;
 	unsigned int col = (datab & 3) << (2 * num);
 	tmp |= col;
-        *buf++ = tmp;
+	if ((j & mask) == 0)
+	    *buf++ = tmp;
 	if (dbl > 0)
 	    *buf++ = tmp;
 	if (dbl > 1) {
@@ -1891,7 +1898,7 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
    This function assumes that for all sprites in a given line, SPRXP either
    stays equal or increases between successive calls.
 
-   The data is recorded either in lores pixels (if ECS), or in superhires
+   The data is recorded either in lores pixels (if OCS/ECS), or in superhires
    pixels (if AGA).  */
 
 static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl)
@@ -1902,12 +1909,15 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     uae_u16 *buf;
     uae_u32 collision_mask;
     int width, dbl, half;
+    unsigned int mask = 0;
 
     half = 0;
     dbl = sprite_buffer_res - sprres;
     if (dbl < 0) {
         half = -dbl;
         dbl = 0;
+	if (ecsshres())
+	    mask = 1;
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
 
@@ -1938,9 +1948,9 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
 	buf = spixels + word_offs + ((i << dbl) >> half);
 	if (currprefs.collision_level > 0 && collision_mask)
-	    record_sprite_1 (buf, datab, num, dbl, 1, collision_mask);
+	    record_sprite_1 (buf, datab, num, dbl, mask, 1, collision_mask);
 	else
-	    record_sprite_1 (buf, datab, num, dbl, 0, collision_mask);
+	    record_sprite_1 (buf, datab, num, dbl, mask, 0, collision_mask);
 	data++;
 	datb++;
     }
@@ -2325,7 +2335,7 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
-	doublescan = htotal <= 140;
+	doublescan = htotal <= 150;
 	dumpsync();
 	hzc = 1;
     }
@@ -2350,8 +2360,7 @@ void init_hz (void)
 #endif
     write_log ("%s mode, V=%dHz H=%dHz (%dx%d)\n",
 	isntsc ? "NTSC" : "PAL",
-	vblank_hz,
-	vblank_hz * maxvpos,
+	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
 }
 
@@ -3181,15 +3190,17 @@ STATIC_INLINE void SPRxCTLPOS (int num)
     sprxp = (sprpos[num] & 0xFF) * 2 + (sprctl[num] & 1);
     sprxp <<= sprite_buffer_res;
     /* Quite a bit salad in this register... */
-#ifdef ECS_DENISE
-    if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
-	sprxp |= ((sprctl[num] >> 3) & 2) >> (2 - sprite_buffer_res);
+    if (0) {
     }
-#endif
 #ifdef AGA
     else if (currprefs.chipset_mask & CSMASK_AGA) {
 	sprxp |= ((sprctl[num] >> 3) & 3) >> (2 - sprite_buffer_res);
 	s->dblscan = sprpos[num] & 0x80;
+    }
+#endif
+#ifdef ECS_DENISE
+    else if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
+	sprxp |= ((sprctl[num] >> 3) & 2) >> (2 - sprite_buffer_res);
     }
 #endif
     s->xpos = sprxp;

@@ -378,6 +378,7 @@ void fixup_prefs (struct uae_prefs *p)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
 #endif
+    target_fixup_options (p);
 }
 
 int quit_program = 0;
@@ -676,7 +677,10 @@ static void real_main2 (int argc, char **argv)
     else
 	currprefs = changed_prefs;
 
-    machdep_init ();
+    if (!machdep_init ()) {
+	restart_program = 0;
+	return;
+    }
 
     if (! setup_sound ()) {
 	write_log ("Sound driver unavailable: Sound output disabled\n");

@@ -414,7 +414,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "serial_direct=%s\n", p->serial_direct ? "true" : "false");
     cfgfile_write (f, "scsi=%s\n", scsimode[p->scsi]);
     cfgfile_write (f, "uaeserial=%s\n", p->uaeserial ? "true" : "false");
-    cfgfile_write (f, "sana2=%s\n", p->sana2[0] ? p->sana2 : "none");
+    cfgfile_write (f, "sana2=%s\n", p->sana2[0] ? p->sana2 : "");
 
     cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);

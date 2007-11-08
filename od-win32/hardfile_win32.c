@@ -1079,15 +1079,25 @@ static int hmc (struct hardfiledata *hfd, int nr)
     int first = 1;
 
     while (hfd->handle_valid) {
+//	write_log ("testing if %s:%d has media inserted\n", hfd->emptyname, nr);
 	status = 0;
 	SetFilePointer (hfd->handle, 0, NULL, FILE_BEGIN);
 	ret = ReadFile (hfd->handle, buf, hfd->blocksize, &got, NULL);
 	err = GetLastError ();
+//	if (ret)
+//	    write_log ("read ok\n");
+//	else
+//	    write_log ("=%d\n", err);
 	if (!ret && err == ERROR_DEV_NOT_EXIST) {
 	    if (!first)
 		break;
 	    first = 0;
 	    hdf_open (hfd, hfd->emptyname);
+	    if (!hfd->handle_valid) {
+		/* whole device has disappeared */
+		status = -1;
+		goto end;
+	    }
 	    continue;
 	}
 	break;
@@ -1096,7 +1106,9 @@ static int hmc (struct hardfiledata *hfd, int nr)
 	status = 1;
     if (!ret && !hfd->drive_empty && isnomediaerr (err))
 	status = -1;
+end:
     xfree (buf);
+    //write_log("hmc returned %d\n", status);
     return status;
 }
 
@@ -1120,7 +1132,11 @@ int win32_hardfile_media_change (void)
 	}
 	if (hfd->drive_empty < 0 || !hfd->handle_valid) {
 	    int empty = hfd->drive_empty;
-	    if (!hdf_open (hfd, hfd->emptyname))
+	    int r;
+	    //write_log ("trying to open '%s' de=%d hv=%d\n", hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
+	    r = hdf_open (hfd, hfd->emptyname);
+	    //write_log ("=%d\n", r);
+	    if (!r)
 		continue;
 	    reopen = 1;
 	    if (hfd->drive_empty < 0)
@@ -1141,6 +1157,7 @@ int win32_hardfile_media_change (void)
 	}
 	hardfile_do_disk_change (i, ret < 0 ? 0 : 1);
     }
+    //write_log ("win32_hardfile_media_change returned %d\n", gotinsert);
     return gotinsert;
 }
 

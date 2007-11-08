@@ -43,7 +43,7 @@ extern int bogusframe;
 extern unsigned long int hsync_counter;
 
 extern uae_u16 dmacon;
-extern uae_u16 intena,intreq;
+extern uae_u16 intena, intreq, intreqr;
 
 extern int current_hpos (void);
 extern int vpos;

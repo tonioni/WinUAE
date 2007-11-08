@@ -815,14 +815,13 @@ make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36
 	btst #2,d7
 	bne.s mountalways ; >= 36
 	btst #1,d7
-	bne.s mountalways
-	tst.l PP_FSSIZE(a0)
-	beq.w general_ret ; no filesystem -> don't mount
+	bne.w mountalways
 
 mountalways
 	; allocate memory for loaded filesystem
 	move.l PP_FSSIZE(a0),d0
 	beq.s nordbfs1
+	bmi.s nordbfs1
 	move.l a0,-(sp)
 	moveq #1,d1
 	move.l 4.w,a6

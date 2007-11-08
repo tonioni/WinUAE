@@ -301,7 +301,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		p96ram_start = p96mem_offset - natmem_offset;
 		shmaddr = natmem_offset + p96ram_start;
 	    } else {
-		p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+		extern void p96memstart(void);
+		p96memstart();
 		shmaddr = natmem_offset + p96ram_start;
 		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
 		xfree(p96fakeram);

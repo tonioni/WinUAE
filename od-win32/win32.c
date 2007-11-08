@@ -68,9 +68,12 @@
 #include "ar.h"
 #include "akiko.h"
 #include "cdtv.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 extern FILE *debugfile;
-extern int console_logging;
+extern int console_logging = 0;
 static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 
@@ -554,6 +557,9 @@ void setmouseactive (int active)
     }
     if (!active)
 	checkpause ();
+#ifdef RETROPLATFORM
+    rp_mousecapture (active);
+#endif
 }
 
 #ifndef AVIOUTPUT
@@ -615,6 +621,9 @@ static void winuae_active (HWND hWnd, int minimized)
     if (isfullscreen() > 0 && !gui_active)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
+#ifdef RETROPLATFORM
+    rp_activate (1);
+#endif
 
 }
 
@@ -656,10 +665,14 @@ static void winuae_inactive (HWND hWnd, int minimized)
 #ifdef FILESYS
     filesys_flush_cache ();
 #endif
+#ifdef RETROPLATFORM
+    rp_activate (0);
+#endif
 }
 
 void minimizewindow (void)
 {
+    write_log("minimize\n");
     ShowWindow (hMainWnd, SW_MINIMIZE);
 }
 
@@ -942,11 +955,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
 
     case WM_WINDOWPOSCHANGED:
+    {
+	WINDOWPOS *wp = (WINDOWPOS *)lParam;
 	GetWindowRect (hWnd, &amigawin_rect);
 	if (isfullscreen() == 0) {
 	    changed_prefs.gfx_size_win.x = amigawin_rect.left;
 	    changed_prefs.gfx_size_win.y = amigawin_rect.top;
 	}
+#ifdef RETROPLATFORM
+	rp_moved (!(wp->flags & SWP_NOZORDER));
+#endif
+    }
     break;
 
     case WM_MOUSEMOVE:
@@ -1060,6 +1079,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				win32_aspi_media_change (drive, inserted);
 			    }
 			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
+				write_log("WM_DEVICECHANGE '%s' type=%d inserted=%d\n", drvname, type, inserted);
 				if (!win32_hardfile_media_change ()) {
 				    if ((inserted && CheckRM (drvname)) || !inserted)
 					filesys_media_change (drvname, inserted, NULL);
@@ -1826,6 +1846,13 @@ static get_aspi(int old)
     return UAESCSI_ADAPTECASPI;
 }
 
+void target_fixup_options (struct uae_prefs *p)
+{
+#ifdef RETROPLATFORM
+    rp_fixup_options (p);
+#endif
+}
+
 void target_default_options (struct uae_prefs *p, int type)
 {
     if (type == 2 || type == 0) {
@@ -1859,6 +1886,10 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
 	p->win32_midioutdev = -2;
 	p->win32_midiindev = 0;
+	p->win32_automount_removable = 0;
+	p->win32_automount_drives = 0;
+	p->win32_automount_cddrives = 0;
+	p->win32_automount_netdrives = 0;
     }
 }
 
@@ -2950,6 +2981,12 @@ static int process_arg(char **xargv)
 		force_direct_catweasel = getval (argv[++i]);
 	    continue;
 	}
+#ifdef RETROPLATFORM
+	if (!_strnicmp (arg, "/rphost:", 8) || !_strnicmp (arg, "-rphost:", 8)) {
+	    rp_param = arg + 8;
+	    continue;
+	}
+#endif
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
 
@@ -3081,6 +3118,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	}
     }
 
+#ifdef RETROPLATFORM
+    rp_free ();
+#endif
     closeIPC();
     write_disk_history ();
     if (mm_timerres && timermode == 0)
@@ -3468,17 +3508,17 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     SETPROCESSDPIAWARE pSetProcessDPIAware;
     DWORD_PTR sys_aff;
     HANDLE thread;
-    CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
 
     original_affinity = 1;
     GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);
 
     thread = GetCurrentThread();
     original_affinity = SetThreadAffinityMask(thread, 1);
-    pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
-	GetModuleHandle("user32.dll"), "ChangeWindowMessageFilter");
 #if 0
 #define MSGFLT_ADD 1
+    CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
+    pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
+	GetModuleHandle("user32.dll"), "ChangeWindowMessageFilter");
     if (pChangeWindowMessageFilter)
 	pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
@@ -3492,9 +3532,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
-#if 0
     SetThreadAffinityMask(thread, original_affinity);
-#endif
     return FALSE;
 }
 

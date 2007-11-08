@@ -1,4 +1,25 @@
 
+Beta 8:
+
+- AGA sprite doublescan fixed (b7)
+- some more doublescan tweaks (Super72 modes are now detected as
+  doublescanned. Other "weird" modes also work more or less, note that
+  some require horizontal centering)
+- sana2 configuration save fixed (but note that sana2 emulation still
+  isn't really doing much)
+- CDTV "Snoopy" fix corrected. Fixes random CDTV boot freeze.
+- increased A590/A2091 SCSI data buffer size (crash while formatting
+  if sectors per track size was large enough)
+- default hardware config (used by QS) clears pc drive mount checkboxes
+- harddrive removal signal was not always send to uaehf.device if drive
+  was removed with disk still in drive (for example USB ZIP drive)
+- ACTION_SET_DATE notification check crashed if file didn't exist
+- directory filesystem and hardfile slowdown fixed (b2)
+- state save crashed if directory harddrives were configured but state
+  was saved before drive initialization, for example when booting
+  non-dos adf
+- always have empty memory space between Z3Fast and RTG RAM
+
 Beta 7:
 
 - added information text to hardfile panel.

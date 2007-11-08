@@ -2294,6 +2294,7 @@ static void m68k_run_2a (void)
 	/* Whenever we return from that, we should check spcflags */
 	if (uae_int_requested) {
 	    intreq |= 0x0008;
+	    intreqr = intreq;
 	    set_special (&regs, SPCFLAG_INT);
 	}
 	if (regs.spcflags) {

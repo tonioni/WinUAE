@@ -352,6 +352,7 @@ extern char *cfgfile_subst_path (const char *path, const char *subst, const char
 extern int target_parse_option (struct uae_prefs *, char *option, char *value);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
+extern void target_fixup_options (struct uae_prefs *);
 extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type, int isdefault);
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
@@ -380,7 +381,7 @@ extern int check_prefs_changed_gfx (void);
 
 extern struct uae_prefs currprefs, changed_prefs;
 
-extern void machdep_init (void);
+extern int machdep_init (void);
 extern void machdep_free (void);
 
 /* AIX doesn't think it is Unix. Neither do I. */

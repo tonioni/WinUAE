@@ -1344,6 +1344,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\cloanto\RetroPlatformGuestIPC.c"
+				>
+			</File>
+			<File
+				RelativePath="..\rp.c"
+				>
+			</File>
+			<File
 				RelativePath="..\scaler.c"
 				>
 			</File>
@@ -1373,6 +1381,10 @@
 			</File>
 			<File
 				RelativePath="..\win32_scale2x.c"
+				>
+			</File>
+			<File
+				RelativePath="..\win32_uaenet.c"
 				>
 			</File>
 			<File

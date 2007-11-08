@@ -1108,6 +1108,13 @@ static void expamem_init_a4091 (void)
     ncr_init();
 }
 
+void p96memstart(void)
+{
+    p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+    if (p96ram_start == currprefs.z3fastmem_start + currprefs.z3fastmem_size)
+	p96ram_start += 0x1000000;
+}
+
 void expamem_reset (void)
 {
     int do_mount = 1;
@@ -1187,7 +1194,7 @@ void expamem_reset (void)
 
     z3fastmem_start = currprefs.z3fastmem_start;
     if (!p96mode)
-	p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
+	p96memstart();
     (*card_init[0]) ();
 }
 

@@ -26,6 +26,7 @@
 #include "uae.h"
 #include "sana2.h"
 #include "tun_uae.h"
+#include "win32_uaenet.h"
 
 #define SANA2NAME "uaenet.device"
 
@@ -107,20 +108,32 @@
 #define DRIVE_NEWSTYLE 0x4E535459L   /* 'NSTY' */
 #define NSCMD_DEVICEQUERY 0x4000
 
-#define ASYNC_REQUEST_NONE 0
-#define ASYNC_REQUEST_TEMP 1
+static char *getdevname (void)
+{
+    return "uaenet.device";
+}
+
+struct sanapacket
+{
+    uae_u8 *data;
+    int len;
+    uae_u8 srcaddr[ADDR_SIZE], dstaddr[ADDR_SIZE];
+};
+
+struct asyncreq {
+    struct asyncreq *next;
+    uaecptr request;
+    int ready;
+};
 
 struct devstruct {
-    int unitnum, aunit;
-    int opencnt;
-    int changenum;
-    volatile uaecptr d_request[MAX_ASYNC_REQUESTS];
-    volatile int d_request_type[MAX_ASYNC_REQUESTS];
-    volatile uae_u32 d_request_data[MAX_ASYNC_REQUESTS];
+    int unitnum, unit, opencnt;
+    struct asyncreq *ar;
     smp_comm_pipe requests;
     uae_thread_id tid;
     int thread_running;
     uae_sem_t sync_sem;
+    void *sysdata;
 };
 
 struct priv_devstruct {
@@ -148,7 +161,7 @@ static struct tapdata td;
 static struct devstruct devst[MAX_TOTAL_DEVICES];
 static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
-static uae_sem_t change_sem;
+static uae_sem_t change_sem, async_sem;
 
 static struct device_info *devinfo (int mode, int unitnum, struct device_info *di)
 {
@@ -182,16 +195,6 @@ static int start_thread (struct devstruct *dev)
     return dev->thread_running;
 }
 
-static void dev_close_3 (struct devstruct *dev, struct priv_devstruct *pdev)
-{
-    if (!dev->opencnt) return;
-    dev->opencnt--;
-    if (!dev->opencnt) {
-	pdev->inuse = 0;
-	write_comm_pipe_u32 (&dev->requests, 0, 1);
-    }
-}
-
 static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 {
     uae_u32 request = m68k_areg (&context->regs, 1);
@@ -205,8 +208,13 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 	write_log ("%s:%d close, req=%08.8X\n", SANA2NAME, pdev->unit, request);
     if (!dev)
 	return 0;
-    dev_close_3 (dev, pdev);
     put_long (request + 24, 0);
+    dev->opencnt--;
+    if (!dev->opencnt) {
+	pdev->inuse = 0;
+	write_comm_pipe_u32 (&dev->requests, 0, 1);
+	uaenet_close (dev->sysdata);
+    }
     put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
     return 0;
 }
@@ -240,10 +248,16 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	write_log ("opening %s:%d ioreq=%08.8X\n", SANA2NAME, unit, ioreq);
     if (!dev)
 	return openfail (ioreq, 32); /* badunitnum */
-    if (!dev->opencnt) {
+    dev->sysdata = xcalloc (uaenet_getdatalenght(), 1);
+    if (!uaenet_open (dev->sysdata, dev, unit)) {
+	xfree (dev->sysdata);
+	return openfail (ioreq, 32); /* badunitnum */
+    }
+    if (get_word (m68k_areg (&context->regs, 6) + 32) == 0) {
 	for (i = 0; i < MAX_OPEN_DEVICES; i++) {
 	    pdev = &pdevst[i];
-	    if (pdev->inuse == 0) break;
+	    if (pdev->inuse == 0)
+		break;
 	}
 	pdev->unit = unit;
 	pdev->flags = flags;
@@ -261,9 +275,9 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	    return openfail (ioreq, -1);
 	put_long (ioreq + 24, pdev - pdevst);
     }
-    dev->opencnt++;
 
-    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
+    dev->opencnt = get_word (m68k_areg (&context->regs, 6) + 32) + 1;
+    put_word (m68k_areg (&context->regs, 6) + 32, dev->opencnt);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
@@ -282,87 +296,92 @@ static uae_u32 REGPARAM2 diskdev_expunge (TrapContext *context)
     return 0;
 }
 
-static int is_async_request (struct devstruct *dev, uaecptr request)
+static struct asyncreq *get_async_request (struct devstruct *dev, uaecptr request, int ready)
 {
-    int i = 0;
-    while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == request) return 1;
-	i++;
+    struct asyncreq *ar;
+    int ret = 0;
+
+    uae_sem_wait (&async_sem);
+    ar = dev->ar;
+    while (ar) {
+	if (ar->request == request) {
+	    if (ready)
+		ar->ready = 1;
+	    break;
+	}
+	ar = ar->next;
     }
-    return 0;
+    uae_sem_post (&async_sem);
+    return ar;
 }
 
-static int add_async_request (struct devstruct *dev, uaecptr request, int type, uae_u32 data)
+static int add_async_request (struct devstruct *dev, uaecptr request)
 {
-    int i;
+    struct asyncreq *ar, *ar2;
 
-//    if (log_net)
-//	write_log ("%s: async request %08x (%d) added\n", SANA2NAME, request, type);
-    i = 0;
-    while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == request) {
-	    dev->d_request_type[i] = type;
-	    dev->d_request_data[i] = data;
-	    return 0;
-	}
-	i++;
+    if (log_net)
+	write_log ("%s:%d async request %x added\n", getdevname(), dev->unit, request);
+
+    uae_sem_wait (&async_sem);
+    ar = (struct asyncreq*)xcalloc (sizeof (struct asyncreq), 1);
+    ar->request = request;
+    if (!dev->ar) {
+	dev->ar = ar;
+    } else {
+	ar2 = dev->ar;
+	while (ar2->next)
+	    ar2 = ar2->next;
+	ar2->next = ar;
     }
-    i = 0;
-    while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == 0) {
-	    dev->d_request[i] = request;
-	    dev->d_request_type[i] = type;
-	    dev->d_request_data[i] = data;
-	    return 0;
-	}
-	i++;
-    }
-    return -1;
+    uae_sem_post (&async_sem);
+    return 1;
 }
 
 static int release_async_request (struct devstruct *dev, uaecptr request)
 {
-    int i = 0;
+    struct asyncreq *ar, *prevar;
 
-//    if (log_net)
-//	write_log ("async request %p removed\n", request);
-    while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == request) {
-	    int type = dev->d_request_type[i];
-	    dev->d_request[i] = 0;
-	    dev->d_request_data[i] = 0;
-	    dev->d_request_type[i] = 0;
-	    return type;
+    uae_sem_wait (&async_sem);
+    ar = dev->ar;
+    prevar = NULL;
+    while (ar) {
+	if (ar->request == request) {
+	    if (prevar == NULL)
+		dev->ar = ar->next;
+	    else
+		prevar->next = ar->next;
+	    uae_sem_post (&async_sem);
+	    xfree (ar);
+	    if (log_net)
+		write_log ("%s:%d async request %x removed\n", getdevname(), dev->unit, request);
+	    return 1;
 	}
-	i++;
+	prevar = ar;
+	ar = ar->next;
     }
-    return -1;
+    uae_sem_post (&async_sem);
+    write_log ("%s:%d async request %x not found for removal!\n", getdevname(), dev->unit, request);
+    return 0;
 }
 
-static void abort_async (struct devstruct *dev, uaecptr request, int errcode, int type)
+static void abort_async (struct devstruct *dev, uaecptr request)
 {
-    int i;
-    i = 0;
-    while (i < MAX_ASYNC_REQUESTS) {
-	if (dev->d_request[i] == request && dev->d_request_type[i] == ASYNC_REQUEST_TEMP) {
-	    /* ASYNC_REQUEST_TEMP = request is processing */
-	    sleep_millis (10);
-	    i = 0;
-	    continue;
-	}
-	i++;
+    struct asyncreq *ar = get_async_request (dev, request, 1);
+    if (!ar) {
+	write_log ("%s:%d: abort sync but no request %x found!\n", getdevname(), dev->unit, request);
+	return;
     }
-    i = release_async_request (dev, request);
-    if (i >= 0 && log_net)
-	write_log ("%s: asyncronous request=%08.8X aborted, error=%d\n", SANA2NAME, request, errcode);
+    if (log_net)
+	write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
+    put_byte (request + 31, -2);
+    put_byte (request + 30, get_byte (request + 30) | 0x20);
+    write_comm_pipe_u32 (&dev->requests, request, 1);
 }
 
-struct sanapacket
+void uaenet_signal (struct devstruct *dev, int sigmask)
 {
-    uae_u8 *data;
-    int len;
-    uae_u8 srcaddr[ADDR_SIZE], dstaddr[ADDR_SIZE];
-};
+    return;
+}
 
 static void frees2packet (struct sanapacket *sp)
 {
@@ -390,7 +409,7 @@ err:
     return S2ERR_NO_RESOURCES;
 }
 
-static int dev_do_io (struct devstruct *dev, uaecptr request)
+static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 {
     uae_u32 command = get_word (request + 28);
     uae_u32 packettype = get_long (request + 32 + 4);
@@ -428,12 +447,13 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_READ:
 	    if (!pdev->online)
 		goto offline;
-	    io_error = S2ERR_NO_RESOURCES;
+	    async = 1;
 	break;
 
 	case S2_READORPHAN:
 	    if (!pdev->online)
 		goto offline;
+	    async = 1;
 	break;
 
 	case S2_BROADCAST:
@@ -449,7 +469,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_WRITE:
 	    if (!pdev->online)
 		goto offline;
-	    io_error = writes2packet (data, datalength, srcaddr, dstaddr);
+	    async = 1;
 	break;
 
 	case S2_MULTICAST:
@@ -460,7 +480,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		wire_error = S2WERR_BAD_MULTICAST;
 		goto end;
 	    }
-	    io_error = S2WERR_BAD_MULTICAST;
+	    async = 1;
 	break;
 
 	case CMD_FLUSH:
@@ -630,12 +650,11 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
     }
     put_byte (request+31, 0);
     if ((flags & 1) && dev_canquick (dev, request)) {
-	if (dev_do_io (dev, request))
+	if (dev_do_io (dev, request, 1))
 	    write_log ("%s: command %d bug with IO_QUICK\n", SANA2NAME, command);
 	return get_byte (request + 31);
     } else {
-	add_async_request (dev, request, ASYNC_REQUEST_TEMP, 0);
-	put_byte (request+30, get_byte (request + 30) & ~1);
+	put_byte (request + 30, get_byte (request + 30) & ~1);
 	write_comm_pipe_u32 (&dev->requests, request, 1);
 	return 0;
     }
@@ -656,13 +675,14 @@ static void *dev_thread (void *devs)
 	    uae_sem_post (&dev->sync_sem);
 	    uae_sem_post (&change_sem);
 	    return 0;
-	} else if (dev_do_io (dev, request) == 0) {
-	    put_byte (request + 30, get_byte (request + 30) & ~1);
+	} else if (get_async_request (dev, request, 1)) {
+	    uae_ReplyMsg (request);
 	    release_async_request (dev, request);
+	} else if (dev_do_io (dev, request, 0) == 0) {
 	    uae_ReplyMsg (request);
 	} else {
-	    if (log_net)
-		write_log ("%s:%d async request %08.8X\n", SANA2NAME, dev->unitnum, request);
+	    add_async_request (dev, request);
+	    uaenet_trigger (dev->sysdata);
 	}
 	uae_sem_post (&change_sem);
     }
@@ -685,49 +705,38 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
     uae_u32 request = m68k_areg (&context->regs, 1);
-    struct priv_devstruct *pdev = getpdevstruct (request);
-    struct devstruct *dev;
+    struct devstruct *dev = getdevstruct (get_long (request + 24));
 
-    if (!pdev) {
-	put_byte (request + 31, 32);
-	return get_byte (request + 31);
-    }
-    dev = getdevstruct (pdev->unit);
     if (!dev) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
-    put_byte (request + 31, -2);
-    if (log_net)
-	write_log ("%s abortio: unit=%d, request=%08.8X\n", SANA2NAME, pdev->unit, request);
-    abort_async (dev, request, -2, 0);
+    abort_async (dev, request);
     return 0;
 }
 
+
 static void dev_reset (void)
 {
-    int i, j;
+    int i;
     struct devstruct *dev;
     int unitnum = 0;
 
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	dev = &devst[i];
-	if (dev->opencnt > 0) {
-	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
-		uaecptr request;
-		if (request = dev->d_request[i])
-		    abort_async (dev, request, 0, 0);
-	    }
-	    dev->opencnt = 1;
+	if (dev->opencnt) {
+	    while (dev->ar)
+		abort_async (dev, dev->ar->request);
+	    write_comm_pipe_u32 (&dev->requests, 0, 1);
+	    uae_sem_wait (&dev->sync_sem);
 	}
 	memset (dev, 0, sizeof (struct devstruct));
-	dev->unitnum = dev->aunit = -1;
+	dev->unitnum = -1;
     }
     for (i = 0; i < MAX_OPEN_DEVICES; i++)
 	memset (&pdevst[i], 0, sizeof (struct priv_devstruct));
 
 }
-
 static uaecptr ROM_netdev_resname = 0,
     ROM_netdev_resid = 0,
     ROM_netdev_init = 0;
@@ -765,7 +774,7 @@ void netdev_install (void)
 
     tap_open_driver (&td, currprefs.sana2);
 
-    ROM_netdev_resname = ds ("uaenet.device");
+    ROM_netdev_resname = ds (getdevname());
     ROM_netdev_resid = ds ("UAE net.device 0.1");
 
     /* initcode */
@@ -863,6 +872,7 @@ void netdev_start_threads (void)
     if (log_net)
 	write_log ("netdev_start_threads()\n");
     uae_sem_init (&change_sem, 0, 1);
+    uae_sem_init (&async_sem, 0, 1);
 }
 
 void netdev_reset (void)

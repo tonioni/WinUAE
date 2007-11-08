@@ -45,6 +45,7 @@
 #include "zfile.h"
 #include "cia.h"
 #include "autoconf.h"
+#include "rp.h"
 
 int inputdevice_logging = 0;
 
@@ -2980,6 +2981,9 @@ void warpmode (int mode)
 	}  else {
 	    turbo_emulation = currprefs.gfx_framerate;
 	}
+#ifdef RETROPLATFORM
+	rp_turbo (turbo_emulation);
+#endif
     } else if (mode == 0 && turbo_emulation > 0) {
 	changed_prefs.gfx_framerate = currprefs.gfx_framerate = turbo_emulation;
 	turbo_emulation = 0;

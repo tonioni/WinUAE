@@ -132,6 +132,10 @@ void scsi_start_transfer(struct scsi_data *sd, int len)
 int scsi_send_data(struct scsi_data *sd, uae_u8 b)
 {
     if (sd->direction) {
+	if (sd->offset >= SCSI_DATA_BUFFER_SIZE) {
+	    write_log ("SCSI data buffer overflow!\n");
+	    return 0;
+	}
 	sd->buffer[sd->offset++] = b;
     } else {
 	if (sd->offset >= 16) {

@@ -83,8 +83,8 @@ const struct tap_reg *get_tap_reg (void)
 				   &len);
 
 	  if (status != ERROR_SUCCESS || data_type != REG_SZ)
-	    write_log ("Error opening registry key: %s\\%s\n",
-		 unit_string, component_id_string);
+	    ;//write_log ("Error opening registry key: %s\\%s\n",
+		// unit_string, component_id_string);
 	  else
 	    {	      
 	      len = sizeof (net_cfg_instance_id);

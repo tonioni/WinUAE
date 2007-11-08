@@ -487,9 +487,8 @@ static void cdrom_command_thread(uae_u8 b)
 	    cdrom_command_output[0] = flag;
 	    cdrom_command_accepted(1, s, &cdrom_command_cnt_in);
 	    cd_finished = 0;
-	    if (first)
-		do_stch();
-	    first = 0;
+	    if (first == -1)
+		first = 1;
 	}
 	break;
 	case 0x82:
@@ -692,15 +691,17 @@ static uae_u8 tp_imr, tp_cr, tp_air;
 
 static void tp_check_interrupts(void)
 {
+    /* MC = 1 ? */
     if ((tp_cr & 1) != 1)
 	return;
 
     if (sten == 1) {
-	if (tp_cd & (1 << 3)) {
+	sten = -1;
+	if (tp_cd & (1 << 3))
 	    tp_air |= 1 << 3;
-	    INT2();
-	}
     }
+    if ((tp_air & tp_cd) & 0x1f)
+	INT2 ();
 }
 
 
@@ -719,7 +720,8 @@ static void tp_bput (int addr, uae_u8 v)
 	tp_b = v;
 	break;
 	case 2:
-	tp_c = v;
+	if (!(tp_cr & 1))
+	    tp_c = v;
 	break;
 	case 3:
 	tp_ad = v;
@@ -901,6 +903,12 @@ void CDTV_hsync_handler(void)
 	return;
     cdtv_hsync = 0;
 
+    if (first > 0) {
+	first--;
+	if (first == 0)
+	    do_stch();
+    }
+
     if (play_state == 1) {
 	play_state = 2;
 	cd_playing = 1;
@@ -968,7 +976,7 @@ static void cdtv_reset (void)
     cd_error = 0;
     cd_finished = 0;
     stch = 0;
-    first = 1;
+    first = -1;
 }
 
 static uae_u32 dmac_bget2 (uaecptr addr)

@@ -77,6 +77,7 @@
 #include "lcd.h"
 #include "uaeipc.h"
 #include "crc32.h"
+#include "rp.h"
 
 #define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
@@ -10180,8 +10181,17 @@ static int GetSettings (int all_options, HWND hwnd)
     dialogreturn = -1;
     hAccelTable = NULL;
     DragAcceptFiles(hwnd, TRUE);
-    if (first)
+    if (first) {
+#ifdef RETROPLATFORM
+	if (rp_param != NULL) {
+	    if (FAILED (rp_init ()))
+		return -2;
+	    return 0;
+	}
+#endif
 	write_log ("Entering GUI idle loop\n");
+    }
+
     scaleresource_setmaxsize(800, 600);
     tres = scaleresource(panelresource, hwnd);
     dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
@@ -10339,6 +10349,9 @@ void gui_led (int led, int on)
     indicator_leds (led, on);
 #ifdef LOGITECHLCD
     lcd_update (led, on);
+#endif
+#ifdef RETROPLATFORM
+    rp_update_leds (led, on);
 #endif
     if (!hStatusWnd)
 	return;
