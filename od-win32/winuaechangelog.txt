@@ -1,4 +1,11 @@
 
+Beta 10:
+
+- added missing "barrier" bytes at end of Z3 fast. Crashed in
+  non-direct JIT-mode if read/write crossed memory boundaries.
+  (for example long read from END_OF_Z3 - 2)
+- paths reseting to default fix (b9)
+
 Beta 9:
 
 - default GUI and main window position is centered, not top/left corner

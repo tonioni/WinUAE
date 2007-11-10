@@ -14,6 +14,8 @@
 
 #if defined(NATMEM_OFFSET)
 
+#define BARRIER 32
+
 static struct shmid_ds shmids[MAX_SHMID];
 
 extern int p96mode;
@@ -253,12 +255,12 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    shmaddr=natmem_offset;
 	    got = TRUE;
 	    if (currprefs.fastmem_size == 0 || currprefs.chipmem_size < 2 * 1024 * 1024)
-		size += 32;
+		size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"kick")) {
 	    shmaddr=natmem_offset + 0xf80000;
 	    got = TRUE;
-	    size += 32;
+	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"rom_a8")) {
 	    shmaddr=natmem_offset + 0xa80000;
@@ -280,18 +282,22 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"fast")) {
 	    shmaddr=natmem_offset + 0x200000;
 	    got = TRUE;
-	    size += 32;
+	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"ramsey_low")) {
 	    shmaddr=natmem_offset + a3000lmem_start;
 	    got = TRUE;
+	    if (!currprefs.mbresmem_high_size)
+		size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"ramsey_high")) {
 	    shmaddr=natmem_offset + a3000hmem_start;
 	    got = TRUE;
+	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"z3")) {
 	    shmaddr=natmem_offset + currprefs.z3fastmem_start;
+	    size += BARRIER;
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"gfx")) {
@@ -300,6 +306,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		p96special = TRUE;
 		p96ram_start = p96mem_offset - natmem_offset;
 		shmaddr = natmem_offset + p96ram_start;
+		size += BARRIER;
 	    } else {
 		extern void p96memstart(void);
 		p96memstart();
@@ -315,7 +322,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    shmaddr=natmem_offset+0x00C00000;
 	    got = TRUE;
 	    if (currprefs.bogomem_size <= 0x100000)
-		size+=32;
+		size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
 	    result = xmalloc (size);

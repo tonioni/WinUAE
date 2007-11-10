@@ -2250,7 +2250,7 @@ void set_path (char *name, char *path)
 
 static void initpath (char *name, char *path)
 {
-    if (regexists (NULL, name) == 0)
+    if (regexists (NULL, name))
 	return;
     set_path (name, NULL);
 }

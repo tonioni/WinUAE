@@ -2318,7 +2318,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 
     if (!canbang) {
 	nocanbang();
-	return xmalloc (s);
+	return xmalloc (s + 4);
     }
 
     id = shmget (IPC_PRIVATE, s, 0x1ff, file);
