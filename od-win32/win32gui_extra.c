@@ -21,6 +21,7 @@
 #include "sysdeps.h"
 
 #include "resource.h"
+#include "registry.h"
 #include "win32.h"
 #include "win32gui.h"
 

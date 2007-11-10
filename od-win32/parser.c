@@ -33,6 +33,7 @@
 #include "autoconf.h"
 #include "newcpu.h"
 #include "traps.h"
+#include "registry.h"
 #include "od-win32/win32gui.h"
 #include "od-win32/parser.h"
 #include "od-win32/midi.h"

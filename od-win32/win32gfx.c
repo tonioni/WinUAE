@@ -31,6 +31,7 @@
 #include "drawing.h"
 #include "dxwrap.h"
 #include "picasso96_win.h"
+#include "registry.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "win32gui.h"
@@ -1992,13 +1993,11 @@ static int create_windows (void)
     if (!dxfs)  {
 	RECT rc;
 	LONG stored_x = 1, stored_y = cymenu + cyborder;
-	DWORD regkeytype;
-	DWORD regkeysize = sizeof (LONG);
 	int oldx, oldy;
 	int first = 2;
 
-	RegQueryValueEx(hWinUAEKey, "MainPosX", 0, &regkeytype, (LPBYTE)&stored_x, &regkeysize);
-	RegQueryValueEx(hWinUAEKey, "MainPosY", 0, &regkeytype, (LPBYTE)&stored_y, &regkeysize);
+	regqueryint (NULL, "MainPosX", &stored_x);
+	regqueryint (NULL, "MainPosY", &stored_y);
 
 	while (first) {
 	    first--;

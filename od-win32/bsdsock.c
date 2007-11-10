@@ -28,6 +28,7 @@
 #include "bsdsocket.h"
 
 #include "threaddep/thread.h"
+#include "registry.h"
 #include "native2amiga.h"
 #include "resource.h"
 #include "win32gui.h"

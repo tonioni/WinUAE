@@ -24,6 +24,7 @@
 #include "savestate.h"
 #include "debug_win32.h"
 #include "win32.h"
+#include "registry.h"
 #include "win32gui.h"
 
 #include "uae.h"
@@ -1075,24 +1076,20 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	{
 	    int newpos = 0;
 	    LONG x, y, w, h;
-	    DWORD regkeytype;
-	    DWORD regkeysize = sizeof(LONG);
 	    RECT rw;
 	    GetWindowRect(hDlg, &rw);
 	    dbgwnd_minx = rw.right - rw.left;
 	    dbgwnd_miny = rw.bottom - rw.top;
 	    GetClientRect(hDlg, &dlgRect);
-	    if (hWinUAEKey) {
-		newpos = 1;
-		if (RegQueryValueEx (hWinUAEKey, "DebuggerPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
-		    newpos = 0;
-		if (RegQueryValueEx (hWinUAEKey, "DebuggerPosY", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
-		    newpos = 0;
-		if (RegQueryValueEx (hWinUAEKey, "DebuggerPosW", 0, &regkeytype, (LPBYTE)&w, &regkeysize) != ERROR_SUCCESS)
-		    newpos = 0;
-		if (RegQueryValueEx (hWinUAEKey, "DebuggerPosH", 0, &regkeytype, (LPBYTE)&h, &regkeysize) != ERROR_SUCCESS)
-		    newpos = 0;
-	    }
+	    newpos = 1;
+	    if (!regqueryint (NULL, "DebuggerPosX", &x))
+		newpos = 0;
+	    if (!regqueryint (NULL, "DebuggerPosY", &y))
+		newpos = 0;
+	    if (!regqueryint (NULL, "DebuggerPosW", &w))
+		newpos = 0;
+	    if (!regqueryint (NULL, "DebuggerPosH", &h))
+		newpos = 0;
 	    if (newpos) {
 		RECT rc;
 		rc.left = x;
@@ -1118,13 +1115,13 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	case WM_DESTROY:
 	{
 	    RECT r;
-	    if (GetWindowRect (hDlg, &r) && hWinUAEKey) {
+	    if (GetWindowRect (hDlg, &r)) {
 		r.right -= r.left;
 		r.bottom -= r.top;
-		RegSetValueEx (hWinUAEKey, "DebuggerPosX", 0, REG_DWORD, (LPBYTE)&r.left, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "DebuggerPosY", 0, REG_DWORD, (LPBYTE)&r.top, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "DebuggerPosW", 0, REG_DWORD, (LPBYTE)&r.right, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "DebuggerPosH", 0, REG_DWORD, (LPBYTE)&r.bottom, sizeof(LONG));
+		regsetint (NULL, "DebuggerPosX", r.left);
+		regsetint (NULL, "DebuggerPosY", r.top);
+		regsetint (NULL, "DebuggerPosW", r.right);
+		regsetint (NULL, "DebuggerPosH", r.bottom);
 	    }
 	    hDbgWnd = 0;
 	    PostQuitMessage(0);

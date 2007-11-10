@@ -55,6 +55,7 @@
 
 #include "dxwrap.h"
 #include "win32.h"
+#include "registry.h"
 #include "picasso96_win.h"
 #include "win32gui.h"
 #include "win32gfx.h"
@@ -157,12 +158,9 @@ void write_disk_history (void)
 {
     int i, j;
     char tmp[16];
-    HKEY fkey;
+    UAEREG *fkey;
 
-    if (!hWinUAEKey)
-	return;
-    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    fkey = regcreatetree (NULL, "DiskImageMRUList");
     if (fkey == NULL)
 	return;
     j = 1;
@@ -171,16 +169,16 @@ void write_disk_history (void)
 	if (s == 0 || strlen(s) == 0)
 	    continue;
 	sprintf (tmp, "Image%02d", j);
-	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
+	regsetstr (fkey, tmp, s);
 	j++;
    }
     while (j <= MAX_PREVIOUS_FLOPPIES) {
 	char *s = "";
 	sprintf (tmp, "Image%02d", j);
-	RegSetValueEx (fkey, tmp, 0, REG_SZ, (CONST BYTE *)s, strlen(s) + 1);
+	regsetstr (fkey, tmp, s);
 	j++;
     }
-    RegCloseKey(fkey);
+    regclosetree (fkey);
 }
 
 void reset_disk_history (void)
@@ -192,30 +190,25 @@ void reset_disk_history (void)
     write_disk_history();
 }
 
-HKEY read_disk_history (void)
+UAEREG *read_disk_history (void)
 {
     static int regread;
     char tmp2[1000];
     DWORD size2;
     int idx, idx2;
-    HKEY fkey;
+    UAEREG *fkey;
     char tmp[1000];
     DWORD size;
 
-    if (!hWinUAEKey)
-	return NULL;
-    RegCreateKeyEx(hWinUAEKey , "DiskImageMRUList", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    fkey = regcreatetree (NULL, "DiskImageMRUList");
     if (fkey == NULL || regread)
 	return fkey;
 
     idx = 0;
     for (;;) {
-	int err;
 	size = sizeof (tmp);
 	size2 = sizeof (tmp2);
-	err = RegEnumValue (fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
-	if (err != ERROR_SUCCESS)
+	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
 	    break;
 	if (strlen (tmp) == 7) {
 	    idx2 = atol (tmp + 5) - 1;
@@ -400,7 +393,7 @@ static HWND cachedlist = NULL;
 #define MAX_SOUND_MEM 6
 
 struct romscandata {
-    HKEY fkey;
+    UAEREG *fkey;
     int got;
 };
 
@@ -466,7 +459,7 @@ static struct romdata *scan_single_rom (char *path)
     return scan_single_rom_2 (z);
 }
 
-static int addrom (HKEY fkey, struct romdata *rd, char *name)
+static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
 {
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
@@ -475,7 +468,7 @@ static int addrom (HKEY fkey, struct romdata *rd, char *name)
 	char *p = tmp1 + strlen (tmp1);
 	sprintf (p, "_%02d_%02d", rd->group >> 16, rd->group & 65535);
     }
-    if (RegQueryValueEx (fkey, tmp1, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
+    if (regexists (fkey, tmp1))
 	return 0;
     tmp2[0] = 0;
     if (name)
@@ -486,7 +479,7 @@ static int addrom (HKEY fkey, struct romdata *rd, char *name)
 	else
 	    sprintf(tmp2, ":ROM%03d", rd->id);
     }
-    if (RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)tmp2, strlen (tmp2) + 1) != ERROR_SUCCESS)
+    if (!regsetstr (fkey, tmp1, tmp2))
 	return 0;
     return 1;
 }
@@ -525,7 +518,7 @@ static int scan_rom_2 (struct zfile *f, struct romscandata *rsd)
     return 0;
 }
 
-static int scan_rom (char *path, HKEY fkey)
+static int scan_rom (char *path, UAEREG *fkey)
 {
     struct romscandata rsd = { fkey, 0 };
     struct romdata *rd;
@@ -627,7 +620,7 @@ static void show_rom_list (void)
     free (p);
 }
 
-static int scan_roms_2 (HKEY fkey, char *pathp)
+static int scan_roms_2 (UAEREG *fkey, char *pathp)
 {
     char buf[MAX_DPATH], path[MAX_DPATH];
     WIN32_FIND_DATA find_data;
@@ -660,7 +653,7 @@ static int scan_roms_2 (HKEY fkey, char *pathp)
     return ret;
 }
 
-static int scan_roms_3(HKEY fkey, char **paths, int offset, char *path)
+static int scan_roms_3(void *fkey, char **paths, int offset, char *path)
 {
     int i, ret;
 
@@ -681,16 +674,15 @@ int scan_roms (int show)
     char path[MAX_DPATH];
     static int recursive;
     int id, i, ret, keys, cnt;
-    HKEY fkey = NULL;
+    UAEREG *fkey, *fkey2;
     char *paths[10];
 
     if (recursive)
 	return 0;
     recursive++;
 
-    SHDeleteKey (hWinUAEKey, "DetectedROMs");
-    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
+    regdeletetree (NULL, "DetectedROMs");
+    fkey = regcreatetree (NULL, "DetectedROMs");
     if (fkey == NULL)
 	goto end;
 
@@ -719,9 +711,8 @@ int scan_roms (int show)
     for (i = 0; i < 10; i++)
 	xfree(paths[i]);
 
-    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-    if (fkey) {
+    fkey2 = regcreatetree (NULL, "DetectedROMS");
+    if (fkey2) {
 	id = 1;
 	for (;;) {
 	    struct romdata *rd = getromdatabyid(id);
@@ -731,7 +722,7 @@ int scan_roms (int show)
 		addrom(fkey, rd, NULL);
 	    id++;
 	}
-	RegCloseKey(fkey);
+	regclosetree (fkey2);
     }
 
 end:
@@ -739,8 +730,7 @@ end:
     if (show)
 	show_rom_list ();
 
-    if (fkey)
-	RegCloseKey (fkey);
+    regclosetree (fkey);
     recursive--;
     return ret;
 }
@@ -809,7 +799,7 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
     type2 = type;
     if (type == 0)
 	default_prefs (p, type);
-    RegQueryValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, NULL, (LPBYTE)&ct2, &size);
+    regqueryint (NULL, "ConfigFile_NoAuto", &ct2);
     v = cfgfile_load (p, fname, &type2, ct2);
     if (!v)
 	return v;
@@ -819,10 +809,10 @@ int target_cfgfile_load (struct uae_prefs *p, char *filename, int type, int isde
 	if (type != i) {
 	    size = sizeof (ct);
 	    ct = 0;
-	    RegQueryValueEx (hWinUAEKey, configreg2[i], 0, NULL, (LPBYTE)&ct, &size);
+	    regqueryint (NULL, configreg2[i], &ct);
 	    if (ct && ((i == 1 && p->config_hardware_path[0] == 0) || (i == 2 && p->config_host_path[0] == 0) || ct2)) {
 		size = sizeof (tmp1);
-		RegQueryValueEx (hWinUAEKey, configreg[i], 0, NULL, (LPBYTE)tmp1, &size);
+		regquerystr (NULL, configreg[i], tmp1, &size);
 		fetch_path ("ConfigurationPath", tmp2, sizeof (tmp2));
 		strcat (tmp2, tmp1);
 		v = i;
@@ -1346,15 +1336,13 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 	    if (amiga_path && amiga_path != openFileName.lpstrFile) {
 		*amiga_path = 0;
-		if (hWinUAEKey)
-		    RegSetValueEx (hWinUAEKey, "FloppyPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen(openFileName.lpstrFile) + 1);
+		regsetstr (NULL, "FloppyPath", openFileName.lpstrFile);
 	    }
 	} else if (flag == 2 || flag == 3) {
 	    amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 	    if (amiga_path && amiga_path != openFileName.lpstrFile) {
 		*amiga_path = 0;
-		if(hWinUAEKey)
-		    RegSetValueEx(hWinUAEKey, "hdfPath", 0, REG_SZ, (CONST BYTE *)openFileName.lpstrFile, strlen(openFileName.lpstrFile) + 1);
+	        regsetstr (NULL, "hdfPath", openFileName.lpstrFile);
 	    }
 	}
 	if (!multi)
@@ -2402,38 +2390,34 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 
 static void ConfigToRegistry (struct ConfigStruct *config, int type)
 {
-    if (hWinUAEKey && config) {
+    if (config) {
 	char path[MAX_DPATH];
 	strcpy (path, config->Path);
 	strncat (path, config->Name, MAX_DPATH);
-	RegSetValueEx (hWinUAEKey, configreg[type], 0, REG_SZ, (CONST BYTE *)path, strlen(path) + 1);
+	regsetstr (NULL, configreg[type], path);
     }
 }
 static void ConfigToRegistry2 (DWORD ct, int type, DWORD noauto)
 {
-    if (!hWinUAEKey)
-	return;
     if (type > 0)
-	RegSetValueEx (hWinUAEKey, configreg2[type], 0, REG_DWORD, (CONST BYTE *)&ct, sizeof (ct));
+	regsetint (NULL, configreg2[type], ct);
     if (noauto == 0 || noauto == 1)
-	RegSetValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, REG_DWORD, (CONST BYTE *)&noauto, sizeof (noauto));
+	regsetint (NULL, "ConfigFile_NoAuto", noauto);
 }
 
 static void checkautoload (HWND	hDlg, struct ConfigStruct *config)
 {
     int ct = 0;
-    DWORD dwType = REG_DWORD;
-    DWORD dwRFPsize = sizeof (ct);
 
     if (configtypepanel > 0)
-	RegQueryValueEx (hWinUAEKey, configreg2[configtypepanel], 0, &dwType, (LPBYTE)&ct, &dwRFPsize);
+	regqueryint (NULL, configreg2[configtypepanel], &ct);
     if (!config || config->Directory) {
 	ct = 0;
 	ConfigToRegistry2 (ct, configtypepanel, -1);
     }
     CheckDlgButton(hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
     ew (hDlg, IDC_CONFIGAUTO, configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
-    RegQueryValueEx (hWinUAEKey, "ConfigFile_NoAuto", 0, &dwType, (LPBYTE)&ct, &dwRFPsize);
+    regqueryint (NULL, "ConfigFile_NoAuto", &ct);
     CheckDlgButton(hDlg, IDC_CONFIGNOLINK, ct ? BST_CHECKED : BST_UNCHECKED);
 }
 
@@ -2460,20 +2444,17 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 {
     HTREEITEM root;
     char name_buf[MAX_DPATH];
+    DWORD dwRFPsize = sizeof (name_buf);
+    char path[MAX_DPATH];
 
     EnableWindow (GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
     SetDlgItemText (hDlg, IDC_EDITPATH, "");
     SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
     root = InitializeConfigTreeView (hDlg);
-    if (hWinUAEKey) {
-	DWORD dwType = REG_SZ;
-	DWORD dwRFPsize = sizeof (name_buf);
-	char path[MAX_DPATH];
-	if (RegQueryValueEx (hWinUAEKey, configreg[configtypepanel], 0, &dwType, (LPBYTE)name_buf, &dwRFPsize) == ERROR_SUCCESS) {
-	    struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
-	    if (config2)
-		config = config2;
-	}
+    if (regquerystr (NULL, configreg[configtypepanel], name_buf, &dwRFPsize)) {
+        struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
+        if (config2)
+	    config = config2;
 	checkautoload (hDlg, config);
     }
     config = fixloadconfig (hDlg, config);
@@ -2827,24 +2808,22 @@ static void values_to_pathsdialog (HWND hDlg)
 
 static void resetregistry (void)
 {
-    if (!hWinUAEKey)
-	return;
-    SHDeleteKey (hWinUAEKey, "DetectedROMs");
-    RegDeleteValue (hWinUAEKey, "QuickStartMode");
-    RegDeleteValue (hWinUAEKey, "ConfigFile");
-    RegDeleteValue (hWinUAEKey, "ConfigFileHardware");
-    RegDeleteValue (hWinUAEKey, "ConfigFileHost");
-    RegDeleteValue (hWinUAEKey, "ConfigFileHardware_Auto");
-    RegDeleteValue (hWinUAEKey, "ConfigFileHost_Auto");
-    RegDeleteValue (hWinUAEKey, "ConfigurationPath");
-    RegDeleteValue (hWinUAEKey, "SaveimagePath");
-    RegDeleteValue (hWinUAEKey, "ScreenshotPath");
-    RegDeleteValue (hWinUAEKey, "StatefilePath");
-    RegDeleteValue (hWinUAEKey, "VideoPath");
-    RegDeleteValue (hWinUAEKey, "QuickStartModel");
-    RegDeleteValue (hWinUAEKey, "QuickStartConfiguration");
-    RegDeleteValue (hWinUAEKey, "QuickStartCompatibility");
-    RegDeleteValue (hWinUAEKey, "QuickStartHostConfig");
+    regdeletetree (NULL, "DetectedROMs");
+    regdelete (NULL, "QuickStartMode");
+    regdelete (NULL, "ConfigFile");
+    regdelete (NULL, "ConfigFileHardware");
+    regdelete (NULL, "ConfigFileHost");
+    regdelete (NULL, "ConfigFileHardware_Auto");
+    regdelete (NULL, "ConfigFileHost_Auto");
+    regdelete (NULL, "ConfigurationPath");
+    regdelete (NULL, "SaveimagePath");
+    regdelete (NULL, "ScreenshotPath");
+    regdelete (NULL, "StatefilePath");
+    regdelete (NULL, "VideoPath");
+    regdelete (NULL, "QuickStartModel");
+    regdelete (NULL, "QuickStartConfiguration");
+    regdelete (NULL, "QuickStartCompatibility");
+    regdelete (NULL, "QuickStartHostConfig");
 }
 
 int path_type;
@@ -3008,8 +2987,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		    strcpy (start_path_data, start_path_new1);
 		}
 		SetCurrentDirectory (start_path_data);
-		if (hWinUAEKey)
-		    RegSetValueEx (hWinUAEKey, "PathMode", 0, REG_SZ, (CONST BYTE *)pathmode, strlen(pathmode) + 1);
+		regsetstr (NULL, "PathMode", pathmode);
 		set_path ("KickstartPath", NULL);
 		set_path ("ConfigurationPath", NULL);
 		set_path ("ScreenshotPath", NULL);
@@ -3110,24 +3088,17 @@ static void init_quickstartdlg_tooltip (HWND hDlg, char *tt)
 static void init_quickstartdlg (HWND hDlg)
 {
     static int firsttime;
-    int i, j, idx, idx2;
-    DWORD dwType, qssize;
+    int i, j, idx, idx2, qssize;
     char tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH], hostconf[MAX_DPATH];
     char *p1, *p2;
 
     qssize = sizeof (tmp1);
-    RegQueryValueEx (hWinUAEKey, "QuickStartHostConfig", 0, &dwType, (LPBYTE)hostconf, &qssize);
+    regquerystr (NULL, "QuickStartHostConfig", hostconf, &qssize);
     if (firsttime == 0) {
-	if (hWinUAEKey) {
-	    qssize = sizeof (quickstart_model);
-	    RegQueryValueEx (hWinUAEKey, "QuickStartModel", 0, &dwType, (LPBYTE)&quickstart_model, &qssize);
-	    qssize = sizeof (quickstart_conf);
-	    RegQueryValueEx (hWinUAEKey, "QuickStartConfiguration", 0, &dwType, (LPBYTE)&quickstart_conf, &qssize);
-	    qssize = sizeof (quickstart_compa);
-	    RegQueryValueEx (hWinUAEKey, "QuickStartCompatibility", 0, &dwType, (LPBYTE)&quickstart_compa, &qssize);
-	    qssize = sizeof (quickstart_floppy);
-	    RegQueryValueEx (hWinUAEKey, "QuickStartFloppies", 0, &dwType, (LPBYTE)&quickstart_floppy, &qssize);
-	}
+	regqueryint (NULL, "QuickStartModel", &quickstart_model);
+	regqueryint (NULL, "QuickStartConfiguration", &quickstart_conf);
+	regqueryint (NULL, "QuickStartCompatibility", &quickstart_compa);
+	regqueryint (NULL, "QuickStartFloppies", &quickstart_floppy);
 	if (quickstart) {
 	    workprefs.df[0][0] = 0;
 	    workprefs.df[1][0] = 0;
@@ -3215,12 +3186,9 @@ static void init_quickstartdlg (HWND hDlg)
 	}
     }
     SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_SETCURSEL, idx, 0);
-
-    if (hWinUAEKey) {
-	RegSetValueEx (hWinUAEKey, "QuickStartModel", 0, REG_DWORD, (CONST BYTE *)&quickstart_model, sizeof(quickstart_model));
-	RegSetValueEx (hWinUAEKey, "QuickStartConfiguration", 0, REG_DWORD, (CONST BYTE *)&quickstart_conf, sizeof(quickstart_conf));
-	RegSetValueEx (hWinUAEKey, "QuickStartCompatibility", 0, REG_DWORD, (CONST BYTE *)&quickstart_compa, sizeof(quickstart_compa));
-    }
+    regsetint (NULL, "QuickStartModel", quickstart_model);
+    regsetint (NULL, "QuickStartConfiguration", quickstart_conf);
+    regsetint (NULL, "QuickStartCompatibility", quickstart_compa);
 }
 
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32);
@@ -3369,8 +3337,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETCURSEL, 0, 0);
 		if (val != CB_ERR) {
 		    SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
-		    if (hWinUAEKey)
-			RegSetValueEx (hWinUAEKey, "QuickStartHostConfig", 0, REG_SZ, (CONST BYTE *)&tmp, strlen (tmp) + 1);
+		    regsetstr (NULL, "QuickStartHostConfig", tmp);
 		    quickstarthost (hDlg, tmp);
 		    if (val == 0 && quickstart)
 			load_quickstart (hDlg, 0);
@@ -3382,8 +3349,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	    {
 		case IDC_QUICKSTARTMODE:
 		quickstart = IsDlgButtonChecked (hDlg, IDC_QUICKSTARTMODE);
-		if (hWinUAEKey)
-		    RegSetValueEx( hWinUAEKey, "QuickStartMode", 0, REG_DWORD, (CONST BYTE *)&quickstart, sizeof(quickstart));
+		regsetint (NULL, "QuickStartMode", quickstart);
 		if (quickstart) {
 		    init_quickstartdlg (hDlg);
 		    load_quickstart (hDlg, 0);
@@ -4658,7 +4624,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
     return FALSE;
 }
 
-static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, int type)
+static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, char *path, int type)
 {
     int idx, idx2;
     char tmp[MAX_DPATH];
@@ -4674,8 +4640,7 @@ static void addromfiles (HKEY fkey, HWND hDlg, DWORD d, char *path, int type)
     for (;fkey;) {
 	DWORD size = sizeof (tmp);
 	DWORD size2 = sizeof (tmp2);
-	int err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
-	if (err != ERROR_SUCCESS)
+	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
 	    break;
 	if (strlen (tmp) == 6) {
 	    idx2 = atol (tmp + 3);
@@ -4727,21 +4692,17 @@ static void values_from_kickstartdlg (HWND hDlg)
 
 static void values_to_kickstartdlg (HWND hDlg)
 {
-    HKEY fkey;
+    UAEREG *fkey;
 
-    if (hWinUAEKey) {
-	RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-	load_keyring(&workprefs, NULL);
-	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
-	    ROMTYPE_KICK | ROMTYPE_KICKCD32);
-	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
-	    ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
-	    ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
-	if (fkey)
-	    RegCloseKey (fkey);
-    }
+    fkey = regcreatetree (NULL, "DetectedROMs");
+    load_keyring(&workprefs, NULL);
+    addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
+        ROMTYPE_KICK | ROMTYPE_KICKCD32);
+    addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
+        ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
+    addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
+        ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
+    regclosetree (fkey);
 
     SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
     CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
@@ -4751,8 +4712,6 @@ static void values_to_kickstartdlg (HWND hDlg)
 
 static void init_kickstart (HWND hDlg)
 {
-    HKEY fkey;
-
 #if !defined(AUTOCONFIG)
     ew (hDlg, IDC_MAPROM), FALSE);
 #endif
@@ -4769,10 +4728,8 @@ static void init_kickstart (HWND hDlg)
     ew (hDlg, IDC_CARTCHOOSER), FALSE);
     ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
-    if (RegOpenKeyEx (hWinUAEKey , "DetectedROMs", 0, KEY_READ, &fkey) != ERROR_SUCCESS)
+    if (!regexiststree (NULL , "DetectedROMs"))
 	scan_roms (1);
-    if (fkey)
-	RegCloseKey (fkey);
 }
 
 static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4942,14 +4899,11 @@ static void misc_scsi(HWND hDlg)
 
 static void misc_lang(HWND hDlg)
 {
-    int i, idx = 0, cnt = 0;
+    int i, idx = 0, cnt = 0, lid;
     WORD langid = -1;
 
-    if (hWinUAEKey) {
-	DWORD regkeytype;
-	DWORD regkeysize = sizeof(langid);
-	RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
-    }
+    if (regqueryint (NULL, "Language", &lid))
+	langid = (WORD)lid;
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"Autodetect");
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)"English (built-in)");
@@ -4988,8 +4942,7 @@ static void misc_setlang(int v)
     }
     if (v == -2)
 	langid = -1;
-    if (hWinUAEKey)
-	RegSetValueEx (hWinUAEKey, "Language", 0, REG_DWORD, (CONST BYTE *)&langid, sizeof(langid));
+    regsetint (NULL, "Language", langid);
     FreeLibrary(hUIDLL);
     hUIDLL = NULL;
     if (langid >= 0)
@@ -6818,7 +6771,7 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
     SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void addfloppyhistory_2 (HWND hDlg, HKEY fkey, int n, int f_text)
+static void addfloppyhistory_2 (HWND hDlg, UAEREG *fkey, int n, int f_text)
 {
     int i, j;
     char *s;
@@ -6868,7 +6821,7 @@ static void addfloppyhistory_2 (HWND hDlg, HKEY fkey, int n, int f_text)
 
 static void addfloppyhistory(HWND hDlg)
 {
-    HKEY fkey;
+    UAEREG *fkey;
     int f_text, max, n;
 
     if (currentpage == QUICKSTART_ID)
@@ -6889,8 +6842,7 @@ static void addfloppyhistory(HWND hDlg)
 	    f_text = IDC_DISKTEXT;
 	addfloppyhistory_2 (hDlg, fkey, n, f_text);
     }
-    if (fkey)
-	RegCloseKey (fkey);
+    regclosetree (fkey);
 }
 
 static void addfloppytype (HWND hDlg, int n)
@@ -6973,8 +6925,7 @@ static void getfloppytypeq (HWND hDlg, int n)
 	    quickstart_floppy = 2;
 	else
 	    quickstart_floppy = 1;
-	if (hWinUAEKey)
-	    RegSetValueEx (hWinUAEKey, "QuickStartFloppies", 0, REG_DWORD, (CONST BYTE *)&quickstart_floppy, sizeof(quickstart_floppy));
+	regsetint (NULL, "QuickStartFloppies", quickstart_floppy);
     }
 }
 
@@ -8506,7 +8457,7 @@ static void values_to_hw3ddlg (HWND hDlg)
     char txt[100], tmp[100];
     int i, j, nofilter, fltnum, modenum;
     struct uae_filter *uf;
-    HKEY fkey;
+    UAEREG *fkey;
 
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
@@ -8648,27 +8599,22 @@ static void values_to_hw3ddlg (HWND hDlg)
 	sprintf(tmp, "* %s", filterpresets[i].name);
 	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
     }
-    if (hWinUAEKey) {
-	RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_READ, NULL, &fkey, NULL);
-	if (fkey) {
-	    int idx = 0;
-	    char tmp[MAX_DPATH], tmp2[MAX_DPATH];
-	    DWORD size, size2;
+    fkey = regcreatetree (NULL, "FilterPresets");
+    if (fkey) {
+        int idx = 0;
+        char tmp[MAX_DPATH], tmp2[MAX_DPATH];
+        DWORD size, size2;
 
-	    for (;;) {
-		int err;
-		size = sizeof (tmp);
-		size2 = sizeof (tmp2);
-		err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
-		if (err != ERROR_SUCCESS)
-		    break;
-		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
-		idx++;
-	    }
-	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
-	    RegCloseKey (fkey);
+        for (;;) {
+	    size = sizeof (tmp);
+	    size2 = sizeof (tmp2);
+	    if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
+		break;
+	    SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    idx++;
 	}
+	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
+	regclosetree (fkey);
     }
 
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
@@ -8687,19 +8633,16 @@ static void values_from_hw3ddlg (HWND hDlg)
 
 static void filter_preset (HWND hDlg, WPARAM wParam)
 {
-    int ok, err, load, i, builtin, userfilter;
+    int ok, load, i, builtin, userfilter;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
     DWORD outsize;
-    HKEY fkey = NULL;
+    UAEREG *fkey;
     LRESULT item;
 
     load = 0;
     ok = 0;
     for (builtin = 0; filterpresets[builtin].name; builtin++);
-    if (hWinUAEKey) {
-	RegCreateKeyEx(hWinUAEKey , "FilterPresets", 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_READ | KEY_WRITE, NULL, &fkey, NULL);
-    }
+    fkey = regcreatetree (NULL, "FilterPresets");
     item = SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_GETCURSEL, 0, 0);
     tmp1[0] = 0;
     if (item != CB_ERR) {
@@ -8721,7 +8664,7 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 
     if (filterpreset_builtin < 0) {
 	outsize = sizeof (tmp2);
-	if (tmp1[0] && fkey && RegQueryValueEx (fkey, tmp1, NULL, NULL, tmp2, &outsize) == ERROR_SUCCESS)
+	if (tmp1[0] && regquerystr (fkey, tmp1, tmp2, &outsize))
 	    ok = 1;
     } else {
 	char *p = tmp2;
@@ -8752,13 +8695,12 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	    if (tmp1[0] == 0)
 		goto end;
 	}
-	if (fkey)
-	    RegSetValueEx (fkey, tmp1, 0, REG_SZ, (CONST BYTE *)&tmp2, strlen (tmp2) + 1);
+	regsetstr (fkey, tmp1, tmp2);
 	values_to_hw3ddlg (hDlg);
     }
     if (ok) {
-	if (wParam == IDC_FILTERPRESETDELETE && userfilter && fkey) {
-	    err = RegDeleteValue (fkey, tmp1);
+	if (wParam == IDC_FILTERPRESETDELETE && userfilter) {
+	    regdelete (fkey, tmp1);
 	    values_to_hw3ddlg (hDlg);
 	} else if (wParam == IDC_FILTERPRESETLOAD) {
 	    char *s = tmp2;
@@ -8779,8 +8721,7 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	}
     }
 end:
-    if (fkey)
-	RegCloseKey (fkey);
+    regclosetree (fkey);
     if (load) {
 	values_to_hw3ddlg (hDlg);
 	SendMessage (hDlg, WM_HSCROLL, 0, 0);
@@ -9477,12 +9418,12 @@ static HWND updatePanel (HWND hDlg, int id)
     if (id < 0) {
 	if (isfullscreen () <= 0) {
 	    RECT r;
-	    if (GetWindowRect (hDlg, &r) && hWinUAEKey) {
+	    if (GetWindowRect (hDlg, &r)) {
 		LONG left, top;
 		left = r.left;
 		top = r.top;
-		RegSetValueEx (hWinUAEKey, "GUIPosX", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "GUIPosY", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
+		regsetint (NULL, "GUIPosX", left);
+		regsetint (NULL, "GUIPosY", top);
 	    }
 	}
 	ew (hDlg, IDHELP, FALSE);
@@ -9649,16 +9590,8 @@ static void centerWindow (HWND hDlg)
     if (owner == NULL)
 	owner = GetDesktopWindow();
     if (isfullscreen () <= 0) {
-	DWORD regkeytype;
-	DWORD regkeysize = sizeof(LONG);
-	if (hWinUAEKey) {
-	    if (RegQueryValueEx (hWinUAEKey, "GUIPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
-		x = 0;
-	    if (RegQueryValueEx (hWinUAEKey, "GUIPosY", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
-		y = 0;
-	} else {
-	    x = y = 0;
-	}
+	regqueryint (NULL, "GUIPosX", &x);
+	regqueryint (NULL, "GUIPosY", &y);
     } else {
 	GetWindowRect (owner, &rcOwner);
 	GetWindowRect (hDlg, &rcDlg);

@@ -10,6 +10,7 @@
 #include "threaddep/thread.h"
 #include "filesys.h"
 #include "blkdev.h"
+#include "registry.h"
 #include "win32gui.h"
 #include "zfile.h"
 

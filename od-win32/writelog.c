@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "debug_win32.h"
 #include "win32.h"
+#include "registry.h"
 
 #define SHOW_CONSOLE 0
 
@@ -55,10 +56,7 @@ static void openconsole(void)
 	if (consoleopen > 0)
 	    return;
 	if (debugger_type < 0) {
-	    DWORD regkeytype;
-	    DWORD regkeysize = sizeof(LONG);
-	    if (hWinUAEKey)
-		RegQueryValueEx (hWinUAEKey, "DebuggerType", 0, &regkeytype, (LPBYTE)&debugger_type, &regkeysize);
+	    regqueryint (NULL, "DebuggerType", &debugger_type);
 	    if (debugger_type <= 0)
 		debugger_type = 2;
 	    openconsole();
@@ -86,8 +84,7 @@ void debugger_change(int mode)
 	debugger_type = mode;
     if (debugger_type != 1 && debugger_type != 2)
 	debugger_type = 2;
-    if (hWinUAEKey)
-	RegSetValueEx (hWinUAEKey, "DebuggerType", 0, REG_DWORD, (LPBYTE)&debugger_type, sizeof(LONG));
+    regsetint (NULL, "DebuggerType", debugger_type);
     openconsole();
 }
 
@@ -98,18 +95,16 @@ void reopen_console(void)
     if (consoleopen >= 0)
 	return;
     hwnd = myGetConsoleWindow();
-    if (hwnd && hWinUAEKey) {
+    if (hwnd) {
 	int newpos = 1;
 	LONG x, y, w, h;
-	DWORD regkeytype;
-	DWORD regkeysize = sizeof(LONG);
-	if (RegQueryValueEx (hWinUAEKey, "LoggerPosX", 0, &regkeytype, (LPBYTE)&x, &regkeysize) != ERROR_SUCCESS)
+	if (!regqueryint (NULL, "LoggerPosX", &x))
 	    newpos = 0;
-	if (RegQueryValueEx (hWinUAEKey, "LoggerPosY", 0, &regkeytype, (LPBYTE)&y, &regkeysize) != ERROR_SUCCESS)
+	if (!regqueryint (NULL, "LoggerPosY", &y))
 	    newpos = 0;
-	if (RegQueryValueEx (hWinUAEKey, "LoggerPosW", 0, &regkeytype, (LPBYTE)&w, &regkeysize) != ERROR_SUCCESS)
+	if (!regqueryint (NULL, "LoggerPosW", &w))
 	    newpos = 0;
-	if (RegQueryValueEx (hWinUAEKey, "LoggerPosH", 0, &regkeytype, (LPBYTE)&h, &regkeysize) != ERROR_SUCCESS)
+	if (!regqueryint (NULL, "LoggerPosH", &h))
 	    newpos = 0;
 	if (newpos) {
 	    RECT rc;
@@ -132,15 +127,15 @@ void close_console(void)
 	close_debug_window();
     } else if (consoleopen < 0) {
 	HWND hwnd = myGetConsoleWindow();
-	if (hwnd && hWinUAEKey) {
+	if (hwnd) {
 	    RECT r;
 	    if (GetWindowRect (hwnd, &r)) {
 		r.bottom -= r.top;
 		r.right -= r.left;
-		RegSetValueEx (hWinUAEKey, "LoggerPosX", 0, REG_DWORD, (LPBYTE)&r.left, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "LoggerPosY", 0, REG_DWORD, (LPBYTE)&r.top, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "LoggerPosW", 0, REG_DWORD, (LPBYTE)&r.right, sizeof(LONG));
-		RegSetValueEx (hWinUAEKey, "LoggerPosH", 0, REG_DWORD, (LPBYTE)&r.bottom, sizeof(LONG));
+		regsetint (NULL, "LoggerPosX", r.left);
+		regsetint (NULL, "LoggerPosY", r.top);
+		regsetint (NULL, "LoggerPosW", r.right);
+		regsetint (NULL, "LoggerPosH", r.bottom);
 	    }
 	}
 	FreeConsole();

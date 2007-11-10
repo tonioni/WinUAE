@@ -4668,7 +4668,7 @@ void customreset (int hardreset)
     int zero = 0;
 
     reset_all_systems ();
-    write_log ("Reset at %08.8X\n", m68k_getpc (&regs));
+    write_log ("Reset at %08X\n", m68k_getpc (&regs));
     memory_map_dump();
 
     hsync_counter = 0;

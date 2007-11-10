@@ -49,6 +49,7 @@
 #include "bsdsocket.h"
 #include "win32.h"
 #include "win32gfx.h"
+#include "registry.h"
 #include "win32gui.h"
 #include "resource.h"
 #include "autoconf.h"
@@ -1295,9 +1296,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				    rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
 
 		    }
-		    if (hWinUAEKey && store_xy++) {
-			RegSetValueEx(hWinUAEKey, "MainPosX", 0, REG_DWORD, (LPBYTE)&left, sizeof(LONG));
-			RegSetValueEx(hWinUAEKey, "MainPosY", 0, REG_DWORD, (LPBYTE)&top, sizeof(LONG));
+		    if (store_xy++) {
+			regsetint (NULL, "MainPosX", left);
+			regsetint (NULL, "MainPosY", top);
 		    }
 		    changed_prefs.gfx_size_win.x = left;
 		    changed_prefs.gfx_size_win.y = top;
@@ -1662,12 +1663,11 @@ static void pritransla (void)
 
 static void WIN32_InitLang(void)
 {
+    int lid;
     WORD langid = -1;
-    if (hWinUAEKey) {
-	DWORD regkeytype;
-	DWORD regkeysize = sizeof(langid);
-	RegQueryValueEx (hWinUAEKey, "Language", 0, &regkeytype, (LPBYTE)&langid, &regkeysize);
-    }
+
+    if (regqueryint (NULL, "Language", &lid))
+	langid = (WORD)lid;
     hUIDLL = language_load(langid);
     pritransla ();
 }
@@ -1762,6 +1762,7 @@ void logging_init(void)
 	       "\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 	       "\n");
     write_log ("EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
+    regstatus ();
 }
 
 void logging_cleanup( void )
@@ -2121,13 +2122,13 @@ void fetch_path (char *name, char *out, int size)
 	strcat (out, "..\\shared\\rom\\");
     if (!strcmp (name, "ConfigurationPath"))
 	strcat (out, "Configurations\\");
-    if (hWinUAEKey && start_data >= 0)
-	RegQueryValueEx (hWinUAEKey, name, 0, NULL, out, &size);
+    if (start_data >= 0)
+	regquerystr (NULL, name, out, &size); 
     if (out[0] == '\\' && (strlen(out) >= 2 && out[1] != '\\')) { /* relative? */
 	strcpy (out, start_path_data);
-	if (hWinUAEKey && start_data >= 0) {
+	if (start_data >= 0) {
 	    size2 -= strlen (out);
-	    RegQueryValueEx (hWinUAEKey, name, 0, NULL, out + strlen (out) - 1, &size2);
+	    regquerystr (NULL, name, out, &size2);
 	}
     }
     strip_slashes (out);
@@ -2244,16 +2245,12 @@ void set_path (char *name, char *path)
 	}
     }
     fixtrailing (tmp);
-
-    if (hWinUAEKey)
-	RegSetValueEx (hWinUAEKey, name, 0, REG_SZ, (CONST BYTE *)tmp, strlen (tmp) + 1);
+    regsetstr (NULL, name, tmp);
 }
 
 static void initpath (char *name, char *path)
 {
-    if (!hWinUAEKey)
-	return;
-    if (RegQueryValueEx(hWinUAEKey, name, 0, NULL, NULL, NULL) == ERROR_SUCCESS)
+    if (regexists (NULL, name) == 0)
 	return;
     set_path (name, NULL);
 }
@@ -2262,31 +2259,26 @@ extern int scan_roms (int);
 void read_rom_list (void)
 {
     char tmp2[1000];
-    DWORD size2;
     int idx, idx2;
-    HKEY fkey;
+    UAEREG *fkey;
     char tmp[1000];
-    DWORD size, disp;
+    int size, size2, exists;
 
     romlist_clear ();
-    if (!hWinUAEKey)
-	return;
-    RegCreateKeyEx(hWinUAEKey , "DetectedROMs", 0, NULL, REG_OPTION_NON_VOLATILE,
-	KEY_READ | KEY_WRITE, NULL, &fkey, &disp);
+    exists = regexiststree (NULL, "DetectedROMs");
+    fkey = regcreatetree (NULL, "DetectedROMs");
     if (fkey == NULL)
 	return;
-    if (disp == REG_CREATED_NEW_KEY || forceroms) {
+    if (!exists || forceroms) {
 	load_keyring (NULL, NULL);
 	scan_roms (forceroms ? 0 : 1);
     }
     forceroms = 0;
     idx = 0;
     for (;;) {
-	int err;
 	size = sizeof (tmp);
 	size2 = sizeof (tmp2);
-	err = RegEnumValue(fkey, idx, tmp, &size, NULL, NULL, tmp2, &size2);
-	if (err != ERROR_SUCCESS)
+	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
 	    break;
 	if (strlen (tmp) == 6) {
 	    idx2 = atol (tmp + 3);
@@ -2298,6 +2290,7 @@ void read_rom_list (void)
 	}
 	idx++;
     }
+    regclosetree (fkey);
 }
 
 static int parseversion (char **vs)
@@ -2344,7 +2337,6 @@ static void WIN32_HandleRegistryStuff(void)
     char path[MAX_DPATH] = "";
     char version[100];
     HKEY hWinUAEKeyLocal = NULL;
-    HKEY fkey;
     HKEY rkey;
     char rpath1[MAX_DPATH], rpath2[MAX_DPATH], rpath3[MAX_DPATH];
 
@@ -2371,7 +2363,7 @@ static void WIN32_HandleRegistryStuff(void)
 	// commands in.  This way, we're always up to date.
 
 	/* Set our (default) sub-key to point to the "WinUAE" key, which we then create */
-	RegSetValueEx(hWinUAEKey, "", 0, REG_SZ, (CONST BYTE *)"WinUAE", strlen( "WinUAE" ) + 1);
+	RegSetValueEx(hWinUAEKey, "", 0, REG_SZ, (CONST BYTE *)"WinUAE", strlen("WinUAE") + 1);
 
 	if((RegCreateKeyEx(rkey, rpath2, 0, "", REG_OPTION_NON_VOLATILE,
 			      KEY_WRITE | KEY_READ, NULL, &hWinUAEKeyLocal, &disposition) == ERROR_SUCCESS))
@@ -2395,49 +2387,50 @@ static void WIN32_HandleRegistryStuff(void)
     hWinUAEKey = NULL;
 
     /* Create/Open the hWinUAEKey which points our config-info */
-    if (RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
-			  KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition) == ERROR_SUCCESS)
-    {
-	initpath ("FloppyPath", start_path_data);
-	initpath ("KickstartPath", start_path_data);
-	initpath ("hdfPath", start_path_data);
-	initpath ("ConfigurationPath", start_path_data);
-	initpath ("ScreenshotPath", start_path_data);
-	initpath ("StatefilePath", start_path_data);
-	initpath ("SaveimagePath", start_path_data);
-	initpath ("VideoPath", start_path_data);
-	initpath ("InputPath", start_path_data);
-	if (disposition == REG_CREATED_NEW_KEY) {
-	    /* Create and initialize all our sub-keys to the default values */
-	    RegSetValueEx(hWinUAEKey, "MainPosX", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "MainPosY", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "GUIPosX", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	    RegSetValueEx(hWinUAEKey, "GUIPosY", 0, REG_DWORD, (CONST BYTE *)&colortype, sizeof(colortype));
-	}
-	size = sizeof (version);
-	dwType = REG_SZ;
-	if (RegQueryValueEx (hWinUAEKey, "Version", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
-	    if (checkversion (version))
-		RegSetValueEx (hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1);
-	} else {
-	    RegSetValueEx (hWinUAEKey, "Version", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1);
-	}
-	size = sizeof (version);
-	dwType = REG_SZ;
-	if (RegQueryValueEx (hWinUAEKey, "ROMCheckVersion", 0, &dwType, (LPBYTE)&version, &size) == ERROR_SUCCESS) {
-	    if (checkversion (version)) {
-		if (RegSetValueEx (hWinUAEKey, "ROMCheckVersion", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1) == ERROR_SUCCESS)
-		    forceroms = 1;
-	    }
-	} else {
-	    if (RegSetValueEx (hWinUAEKey, "ROMCheckVersion", 0, REG_SZ, (CONST BYTE *)VersionStr, strlen (VersionStr) + 1) == ERROR_SUCCESS)
-		forceroms = 1;
-	}
-
-	size = sizeof (quickstart);
-	dwType = REG_DWORD;
-	RegQueryValueEx(hWinUAEKey, "QuickStartMode", 0, &dwType, (LPBYTE)&quickstart, &size);
+    RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
+	  KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
+    initpath ("FloppyPath", start_path_data);
+    initpath ("KickstartPath", start_path_data);
+    initpath ("hdfPath", start_path_data);
+    initpath ("ConfigurationPath", start_path_data);
+    initpath ("ScreenshotPath", start_path_data);
+    initpath ("StatefilePath", start_path_data);
+    initpath ("SaveimagePath", start_path_data);
+    initpath ("VideoPath", start_path_data);
+    initpath ("InputPath", start_path_data);
+    if (!regexists (NULL, "MainPosX") || !regexists (NULL, "GUIPosX")) {
+	int x = GetSystemMetrics (SM_CXSCREEN);
+	int y = GetSystemMetrics (SM_CYSCREEN);
+	x = (x - 800) / 2;
+	y = (y - 600) / 2;
+	if (x < 10)
+	    x = 10;
+	if (y < 10)
+	    y = 10;
+        /* Create and initialize all our sub-keys to the default values */
+        regsetint(NULL, "MainPosX", x);
+        regsetint(NULL, "MainPosY", y);
+        regsetint(NULL, "GUIPosX", x);
+        regsetint(NULL, "GUIPosY", y);
     }
+    size = sizeof (version);
+    if (regquerystr (NULL, "Version", version, &size)) {
+        if (checkversion (version))
+    	regsetstr(NULL, "Version", VersionStr);
+    } else {
+        regsetstr (NULL, "Version", VersionStr);
+    }
+    size = sizeof (version);
+    if (regquerystr (NULL, "ROMCheckVersion", version, &size)) {
+        if (checkversion (version)) {
+    	if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
+    	    forceroms = 1;
+        }
+    } else {
+        if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
+    	forceroms = 1;
+    }
+    regsetint (NULL, "QuickStartMode", quickstart);
     reopen_console();
     fetch_path ("ConfigurationPath", path, sizeof (path));
     path[strlen (path) - 1] = 0;
@@ -2453,9 +2446,7 @@ static void WIN32_HandleRegistryStuff(void)
     strcpy (savestate_fname, path);
     fetch_path ("InputPath", path, sizeof (path));
     CreateDirectory (path, NULL);
-    fkey = read_disk_history ();
-    if (fkey)
-	RegCloseKey (fkey);
+    regclosetree (read_disk_history ());
     read_rom_list ();
     load_keyring(NULL, NULL);
 }
@@ -2723,21 +2714,18 @@ static void getstartpaths(void)
     char *posn, *p;
     char tmp[MAX_DPATH], tmp2[MAX_DPATH], prevpath[MAX_DPATH];
     DWORD v;
-    HKEY key;
-    DWORD dispo;
+    UAEREG *key;
     char xstart_path_uae[MAX_DPATH], xstart_path_old[MAX_DPATH];
     char xstart_path_new1[MAX_DPATH], xstart_path_new2[MAX_DPATH];
 
     path_type = -1;
     xstart_path_uae[0] = xstart_path_old[0] = xstart_path_new1[0] = xstart_path_new2[0] = 0;
-    if (RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
-			  KEY_WRITE | KEY_READ, NULL, &key, &dispo) == ERROR_SUCCESS)
-    {
+    key = regcreatetree (NULL, NULL);
+    if (key)  {
 	DWORD size = sizeof (prevpath);
-	DWORD dwType = REG_SZ;
-	if (RegQueryValueEx (key, "PathMode", 0, &dwType, (LPBYTE)&prevpath, &size) != ERROR_SUCCESS)
+	if (!regquerystr (NULL, "PathMode", prevpath, &size))
 	    prevpath[0] = 0;
-	RegCloseKey(key);
+	regclosetree (key);
     }
     if (!strcmp(prevpath, "WinUAE"))
 	path_type = PATH_TYPE_WINUAE;
@@ -2754,7 +2742,7 @@ static void getstartpaths(void)
 	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
     pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
 	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
-    strcpy (start_path_exe, _pgmptr );
+    strcpy (start_path_exe, _pgmptr);
     if((posn = strrchr (start_path_exe, '\\')))
 	posn[1] = 0;
 
@@ -2902,6 +2890,7 @@ static void makeverstr(char *s)
 }
 
 static int multi_display = 1;
+static char *inipath = NULL;
 
 static int process_arg(char **xargv)
 {
@@ -3028,6 +3017,11 @@ static int process_arg(char **xargv)
 		sound_mode_skip = getval (np);
 		continue;
 	    }
+	    if  (!strcmp (arg, "-ini")) {
+		i++;
+		inipath = my_strdup (np);
+		continue;
+	    }
 	}
 	xargv[xargc++] = my_strdup(arg);
     }
@@ -3074,6 +3068,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argv = xcalloc (sizeof (char*),  __argc);
     argc = process_arg(argv);
 
+    reginitializeinit (inipath);
     getstartpaths();
     makeverstr(VersionStr);
     SetCurrentDirectory (start_path_data);

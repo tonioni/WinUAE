@@ -1350,6 +1350,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\registry.c"
+				>
+			</File>
+			<File
 				RelativePath="..\cloanto\RetroPlatformGuestIPC.c"
 				>
 			</File>

@@ -46,6 +46,7 @@
 
 #if defined(PICASSO96)
 
+#include "registry.h"
 #include "dxwrap.h"
 #include "picasso96_win.h"
 #include "win32gfx.h"
