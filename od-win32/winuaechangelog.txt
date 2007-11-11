@@ -1,4 +1,57 @@
 
+Beta 11:
+
+- some device insertions caused crashes
+- quick start mode on/off registry setting fixed (b9)
+- A3000 RAM detection problem fixed (b10)
+- some hardfiles didn't automount
+- Sana2 device is working, at least in theory..
+
+Sana 2 device emulation instructions:
+
+Requirements:
+
+OpenVPN Win32 TAP driver
+http://openvpn.net/download.html (OpenVPN 2.1_rc4 or newer)
+run OpenVPN installer, only needed component is "TAP-Win32
+Virtual Ethernet Adapter"
+
+Now TAP Adapter and real network adapter needs to be bridged.
+Go to "Network Connections", select both TAP adapter and your real
+network adapter and select "Bridge Connections" from right mouse menu.
+http://www.pavelec.net/adam/openvpn/bridge/
+(only steps 1 and 2 are needed, name is not important)
+
+Check new bridged adapter has correct IP settings. (This is now your
+"real" network adapter) Windows networking should continue working
+normally.
+
+(Perhaps there is simpler solution?)
+
+Enable "uaenet.device" in misc-panel. Emulation-side device name is
+"uaenet.device" (remember to disable bsdsocket emulation or there may
+be bsdsocket.library conflicts)
+
+Note: without bridging all sent data goes to black hole and nothing
+can be received either. Emulator can't detect bridge's status.
+
+Not supported (yet):
+- multicast
+- tracked stats counters
+- something I forgot..
+
+Other notes:
+
+- global stats may not be correct
+- stability may not be too good
+- very ugly interrupt routine.. (CopyToBuff,CopyFromBuff made things
+  very complex..)
+- produces lots of logging
+- MiamiDX DHCP and ping worked
+- OS3.9 Genesis never tries to send any data.. Confusing..
+- didn't test AmiTCP, I didn't bother to configure it :)
+- as you can see, not much testing done..
+
 Beta 10:
 
 - added missing "barrier" bytes at end of Z3 fast. Crashed in

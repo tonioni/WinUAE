@@ -4519,10 +4519,19 @@ static void hsync_handler (void)
     }
 
     {
-	extern void bsdsock_fake_int_handler(void);
-	extern int bsd_int_requested;
+	//extern void uaenet_fake_int_handler (void);
+	extern int volatile uaenet_int_requested;
+	if (uaenet_int_requested) {
+	    INTREQ (0x8000 | 0x2000);
+	    //uaenet_fake_int_handler ();
+	}
+    }
+
+    {
+	extern void bsdsock_fake_int_handler (void);
+	extern int volatile bsd_int_requested;
 	if (bsd_int_requested)
-	    bsdsock_fake_int_handler();
+	    bsdsock_fake_int_handler ();
     }
 
     /* See if there's a chance of a copper wait ending this line.  */

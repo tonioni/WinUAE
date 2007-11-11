@@ -2430,7 +2430,7 @@ static void WIN32_HandleRegistryStuff(void)
         if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
     	forceroms = 1;
     }
-    regsetint (NULL, "QuickStartMode", quickstart);
+    regqueryint (NULL, "QuickStartMode", &quickstart);
     reopen_console();
     fetch_path ("ConfigurationPath", path, sizeof (path));
     path[strlen (path) - 1] = 0;

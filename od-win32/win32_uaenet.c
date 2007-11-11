@@ -3,8 +3,7 @@
  *
  * Win32 uaenet emulation
  *
- * Copyright 1997 Mathias Ortmann
- * Copyright 1998-1999 Brian King - added MIDI output support
+ * Copyright 2007 Toni Wilen
  */
 
 #include "sysconfig.h"
@@ -29,18 +28,23 @@
 
 #include "threaddep/thread.h"
 #include "win32_uaenet.h"
+#include "tun_uae.h"
 
 struct uaenetdatawin32
 {
     HANDLE hCom;
-    HANDLE evtr, evtw, evtt, evtwce;
-    OVERLAPPED olr, olw, olwce;
+    HANDLE evtr, evtw, evtt;
+    OVERLAPPED olr, olw;
     int writeactive;
     void *readdata, *writedata;
     volatile int threadactive;
     uae_thread_id tid;
     uae_sem_t change_sem, sync_sem;
     void *user;
+    struct tapdata *tc;
+    uae_u8 *readbuffer;
+    uae_u8 *writebuffer;
+    int mtu;
 };
 
 int uaenet_getdatalenght (void)
@@ -52,7 +56,7 @@ static void uaeser_initdata (struct uaenetdatawin32 *sd, void *user)
 {
     memset (sd, 0, sizeof (struct uaenetdatawin32));
     sd->hCom = INVALID_HANDLE_VALUE;
-    sd->evtr = sd->evtw = sd->evtt = sd->evtwce = 0;
+    sd->evtr = sd->evtw = sd->evtt = 0;
     sd->user = user;
 }
 
@@ -60,38 +64,68 @@ static void *uaenet_trap_thread (void *arg)
 {
     struct uaenetdatawin32 *sd = arg;
     HANDLE handles[4];
-    int cnt, actual;
-    DWORD evtmask;
+    int cnt, towrite;
+    int readactive, writeactive;
+    DWORD actual;
 
     uae_set_thread_priority (2);
     sd->threadactive = 1;
     uae_sem_post (&sd->sync_sem);
+    readactive = 0;
+    writeactive = 0;
     while (sd->threadactive == 1) {
-	int sigmask = 0;
+	int donotwait = 0;
+
 	uae_sem_wait (&sd->change_sem);
-	if (WaitForSingleObject(sd->evtwce, 0) == WAIT_OBJECT_0) {
-	    if (evtmask & EV_RXCHAR)
-		sigmask |= 1;
-	    if ((evtmask & EV_TXEMPTY) && !sd->writeactive)
-		sigmask |= 2;
-	    //startwce(sd, &evtmask);
-	}
-	cnt = 0;
-	handles[cnt++] = sd->evtt;
-	handles[cnt++] = sd->evtwce;
-	if (sd->writeactive) {
-	    if (GetOverlappedResult (sd->hCom, &sd->olw, &actual, FALSE)) {
-		sd->writeactive = 0;
-		sigmask |= 2;
-	    } else {
-		handles[cnt++] = sd->evtw;
+
+	if (readactive) {
+	    if (GetOverlappedResult (sd->hCom, &sd->olr, &actual, FALSE)) {
+		readactive = 0;
+		uaenet_gotdata (sd->user, sd->readbuffer, actual);
+		donotwait = 1;
 	    }
 	}
-	if (!sd->writeactive)
-	    sigmask |= 2;
-	uaenet_signal (sd->user, sigmask | 1);
+	if (writeactive) {
+	    if (GetOverlappedResult (sd->hCom, &sd->olw, &actual, FALSE)) {
+		writeactive = 0;
+		donotwait = 1;
+	    }
+	}
+
+	if (!readactive) {
+	    if (!ReadFile (sd->hCom, sd->readbuffer, sd->mtu, &actual, &sd->olr)) {
+		DWORD err = GetLastError();
+		if (err == ERROR_IO_PENDING)
+		    readactive = 1;
+	    } else {
+		uaenet_gotdata (sd->user, sd->readbuffer, actual);
+		donotwait = 1;
+	    }
+	}
+
+	towrite = 0;
+	if (!writeactive && uaenet_getdata (sd->user, sd->writebuffer, &towrite)) {
+	    donotwait = 1;
+	    if (!WriteFile (sd->hCom, sd->writebuffer, towrite, &actual, &sd->olw)) {
+		DWORD err = GetLastError();
+		if (err == ERROR_IO_PENDING)
+		    writeactive = 1;
+	    }
+	}
+
 	uae_sem_post (&sd->change_sem);
-	WaitForMultipleObjects(cnt, handles, FALSE, INFINITE);
+
+	if (!donotwait) {
+	    cnt = 0;
+	    handles[cnt++] = sd->evtt;
+	    if (readactive)
+		handles[cnt++] = sd->olr.hEvent;
+	    if (writeactive)
+		handles[cnt++] = sd->olw.hEvent;
+	    WaitForMultipleObjects(cnt, handles, FALSE, INFINITE);
+	}
+
+
     }
     sd->threadactive = 0;
     uae_sem_post (&sd->sync_sem);
@@ -117,47 +151,25 @@ int uaenet_write (struct uaenetdatawin32 *sd, uae_u8 *data, uae_u32 len)
     return ret;
 }
 
-int uaenet_read (struct uaenetdatawin32 *sd, uae_u8 *data, uae_u32 len)
+int uaenet_open (struct uaenetdatawin32 *sd, struct tapdata *tc, void *user, int unit)
 {
-    int ret = 1;
-    DWORD err;
-
-    if (!ReadFile (sd->hCom, data, len, NULL, &sd->olr)) {
-	if (GetLastError() == ERROR_IO_PENDING)
-	    WaitForSingleObject(sd->evtr, INFINITE);
-	else
-	    ret = 0;
-    }
-    SetEvent (sd->evtt);
-    return ret;
-}
-
-int uaenet_open (struct uaenetdatawin32 *sd, void *user, int unit)
-{
-    char buf[256];
-
+    sd->tc = tc;
     sd->user = user;
-    sprintf (buf, "\\.\\\\COM%d", unit);
     sd->evtr = CreateEvent (NULL, TRUE, FALSE, NULL);
     sd->evtw = CreateEvent (NULL, TRUE, FALSE, NULL);
     sd->evtt = CreateEvent (NULL, FALSE, FALSE, NULL);
-    sd->evtwce = CreateEvent (NULL, TRUE, FALSE, NULL);
-    if (!sd->evtt || !sd->evtw || !sd->evtt || !sd->evtwce)
+    if (!sd->evtt || !sd->evtw || !sd->evtt)
 	goto end;
     sd->olr.hEvent = sd->evtr;
     sd->olw.hEvent = sd->evtw;
-    sd->olwce.hEvent = sd->evtwce;
-    sd->hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-    if (sd->hCom == INVALID_HANDLE_VALUE) {
-	write_log ("UAENET: '%s' failed to open, err=%d\n", buf, GetLastError());
-	goto end;
-    }
+    sd->hCom = tc->h;
+    sd->mtu = tc->mtu;
+    sd->readbuffer = xmalloc (sd->mtu);
+    sd->writebuffer = xmalloc (sd->mtu);
     uae_sem_init (&sd->sync_sem, 0, 0);
     uae_sem_init (&sd->change_sem, 0, 1);
     uae_start_thread ("uaenet_win32", uaenet_trap_thread, sd, &sd->tid);
     uae_sem_wait (&sd->sync_sem);
-
     return 1;
 
 end:
@@ -174,13 +186,11 @@ void uaenet_close (struct uaenetdatawin32 *sd)
 	    Sleep(10);
 	CloseHandle (sd->evtt);
     }
-    if (sd->hCom != INVALID_HANDLE_VALUE)
-	CloseHandle(sd->hCom);
     if (sd->evtr)
 	CloseHandle(sd->evtr);
     if (sd->evtw)
 	CloseHandle(sd->evtw);
-    if (sd->evtwce)
-	CloseHandle(sd->evtwce);
+    xfree (sd->readbuffer);
+    xfree (sd->writebuffer);
     uaeser_initdata (sd, sd->user);
 }

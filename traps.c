@@ -447,6 +447,13 @@ uae_u32 CallLib (TrapContext *context, uaecptr base, uae_s16 offset)
     return retval;
 }
 
+/*
+ * Call 68k function from extended trap.
+ */
+uae_u32 CallFunc (TrapContext *context, uaecptr func)
+{
+    return trap_Call68k ((ExtendedTrapContext *)context, func);
+}
 
 /*
  * Initialize trap mechanism.

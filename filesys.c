@@ -1029,7 +1029,8 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
 	    ui = &mountinfo.ui[u->unit];
 	    if (ui->rootdir && !memcmp (ui->rootdir, rootdir, strlen (rootdir)) && strlen (rootdir) + 3 >= strlen (ui->rootdir)) {
 		if (filesys_isvolume (u) && inserted) {
-		    filesys_delayed_change (u, 50, rootdir, uci->volname, uci->readonly, 0);
+		    if (uci)
+			filesys_delayed_change (u, 50, rootdir, uci->volname, uci->readonly, 0);
 		    return 0;
 		}
 		nr = u->unit;
@@ -5245,12 +5246,16 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     }
     if (tmp[0] == 0) {
 	write_log ("RDB: no filesystem for dostype 0x%08.8X\n", dostype);
+	if ((dostype & 0xffffff00) == 0x444f5300)
+	    return FILESYS_HARDFILE;
 	return -1;
     }
     write_log ("RDB: fakefilesys, trying to load '%s', dostype 0x%08.8X\n", tmp, dostype);
     zf = zfile_fopen (tmp,"rb");
     if (!zf) {
 	write_log ("RDB: filesys not found\n");
+	if ((dostype & 0xffffff00) == 0x444f5300)
+	    return FILESYS_HARDFILE;
 	return -1;
     }
 
