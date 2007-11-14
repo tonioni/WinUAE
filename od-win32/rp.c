@@ -24,11 +24,16 @@
 
 static int initialized;
 static RPGUESTINFO guestinfo;
-char *rp_param;
+
+char *rp_param = NULL;
+int rp_rmousevkey = 0x1b;
+int rp_rmouseholdtime = 600;
+int rp_screenmode = 0;
+int rp_inputmode = 0;
+
 static int default_width, default_height;
 static int hwndset;
 static int minimized;
-
 
 const char *getmsg (int msg)
 {
@@ -189,6 +194,8 @@ HRESULT rp_init (void)
     } else {
 	write_log ("rp_init('%s') failed, error code %08x\n", rp_param, hr);
     }
+    xfree (rp_param);
+    rp_param = NULL;
     return hr;
 }
 

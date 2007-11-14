@@ -1,4 +1,22 @@
 
+Beta 12:
+
+- path selection really fixed now
+- do not mount cd/dvdroms if removable automount was enabled
+- uaenet partially rewritten, "should" be working properly now
+  * multicast supported, including multicast filter (not tested)
+  * IEEE 802.3 frame support (I think)
+  * CMD_FLUSH implemented
+  * stats trackers implemented, probably do not work correctly yet..
+  * globalstats fixed
+  * multiple openers handled correctly
+  * interrupt handler setup is still very ugly
+  * SANA2IOF_RAW supported
+  * S2_PacketFilter hook supported (not tested)
+  * (Genesis still refuses to send anything but I think the problem
+    can't be uaenet.device but something else. Also Genesis calls
+    S2_ONLINE before S2_CONFIGINTERFACE which is against the spec..)
+
 Beta 11:
 
 - some device insertions caused crashes
@@ -38,6 +56,7 @@ can be received either. Emulator can't detect bridge's status.
 Not supported (yet):
 - multicast
 - tracked stats counters
+- promiscuous mode
 - something I forgot..
 
 Other notes:

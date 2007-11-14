@@ -1082,8 +1082,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 				write_log("WM_DEVICECHANGE '%s' type=%d inserted=%d\n", drvname, type, inserted);
 				if (!win32_hardfile_media_change ()) {
-				    if ((inserted && CheckRM (drvname)) || !inserted)
+				    if ((inserted && CheckRM (drvname)) || !inserted) {
+					if (type == DRIVE_CDROM && inserted)
+					    inserted = -1;
 					filesys_media_change (drvname, inserted, NULL);
+				    }
 				}
 			    }
 			}
@@ -2723,7 +2726,7 @@ static void getstartpaths(void)
     key = regcreatetree (NULL, NULL);
     if (key)  {
 	DWORD size = sizeof (prevpath);
-	if (!regquerystr (NULL, "PathMode", prevpath, &size))
+	if (!regquerystr (key, "PathMode", prevpath, &size))
 	    prevpath[0] = 0;
 	regclosetree (key);
     }
@@ -2864,7 +2867,7 @@ static int getval(char *s)
     int v;
     char *endptr;
 
-    if (s[0] == '0' && s[1] == 'x')
+    if (s[0] == '0' && toupper(s[1]) == 'x')
 	s += 2, base = 16;
     v = strtol (s, &endptr, base);
     if (*endptr != '\0' || *s == '\0')
@@ -2970,12 +2973,7 @@ static int process_arg(char **xargv)
 		force_direct_catweasel = getval (argv[++i]);
 	    continue;
 	}
-#ifdef RETROPLATFORM
-	if (!_strnicmp (arg, "/rphost:", 8) || !_strnicmp (arg, "-rphost:", 8)) {
-	    rp_param = arg + 8;
-	    continue;
-	}
-#endif
+
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
 
@@ -3017,11 +3015,38 @@ static int process_arg(char **xargv)
 		sound_mode_skip = getval (np);
 		continue;
 	    }
-	    if  (!strcmp (arg, "-ini")) {
+	    if (!strcmp (arg, "-ini")) {
 		i++;
 		inipath = my_strdup (np);
 		continue;
 	    }
+#ifdef RETROPLATFORM
+	    if (!strcmp (arg, "-rphost")) {
+		i++;
+		rp_param = my_strdup (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-rprmousevkey")) {
+		i++;
+		rp_rmousevkey = getval (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-rprmouseholdtime")) {
+		i++;
+		rp_rmouseholdtime = getval (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-rpscreenmode")) {
+		i++;
+		rp_screenmode = getval (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-rpinputmode")) {
+		i++;
+		rp_inputmode = getval (np);
+		continue;
+	    }
+#endif
 	}
 	xargv[xargc++] = my_strdup(arg);
     }

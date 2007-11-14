@@ -134,6 +134,8 @@ static void *uaenet_trap_thread (void *arg)
 
 void uaenet_trigger (struct uaenetdatawin32 *sd)
 {
+    if (!sd)
+	return;
     SetEvent (sd->evtt);
 }
 
@@ -170,6 +172,7 @@ int uaenet_open (struct uaenetdatawin32 *sd, struct tapdata *tc, void *user, int
     uae_sem_init (&sd->change_sem, 0, 1);
     uae_start_thread ("uaenet_win32", uaenet_trap_thread, sd, &sd->tid);
     uae_sem_wait (&sd->sync_sem);
+    write_log ("uaenet_win32 initialized\n");
     return 1;
 
 end:
@@ -185,6 +188,7 @@ void uaenet_close (struct uaenetdatawin32 *sd)
 	while (sd->threadactive)
 	    Sleep(10);
 	CloseHandle (sd->evtt);
+	write_log ("uaenet_win32 thread %d killed\n", sd->tid);
     }
     if (sd->evtr)
 	CloseHandle(sd->evtr);
@@ -193,4 +197,5 @@ void uaenet_close (struct uaenetdatawin32 *sd)
     xfree (sd->readbuffer);
     xfree (sd->writebuffer);
     uaeser_initdata (sd, sd->user);
+    write_log ("uaenet_win32 closed\n");
 }

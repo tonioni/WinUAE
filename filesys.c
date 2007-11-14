@@ -1049,6 +1049,8 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
     /* already mounted volume was ejected? */
     if (nr >= 0 && !inserted)
 	return filesys_eject (nr);
+    if (inserted < 0) /* -1 = only mount if already exists */
+	return 0;
     if (inserted) {
 	if (uci) {
 	    volptr = my_strdup (uci->volname);

@@ -11,3 +11,7 @@ extern void rp_set_hwnd (void);
 extern void rp_moved (int);
 
 extern char *rp_param;
+extern int rp_rmousevkey;
+extern int rp_rmouseholdtime;
+extern int rp_screenmode;
+extern int rp_inputmode;

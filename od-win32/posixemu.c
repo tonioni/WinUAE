@@ -255,7 +255,7 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     if (hThread) {
 	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
 	if (name)
-	    write_log ("Thread '%s' started (%d)\n", name, foo);
+	    write_log ("Thread '%s' started (%d)\n", name, *tid);
     } else {
 	result = 0;
 	write_log ("Thread '%s' failed to start!?\n", name ? name : "<unknown>");

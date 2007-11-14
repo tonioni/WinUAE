@@ -4521,7 +4521,8 @@ static void hsync_handler (void)
     {
 	//extern void uaenet_fake_int_handler (void);
 	extern int volatile uaenet_int_requested;
-	if (uaenet_int_requested) {
+	extern int uaenet_vsync_requested;
+	if (uaenet_int_requested || (uaenet_vsync_requested && vpos == 10)) {
 	    INTREQ (0x8000 | 0x2000);
 	    //uaenet_fake_int_handler ();
 	}
