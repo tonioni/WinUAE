@@ -799,7 +799,7 @@ static void expamem_map_filesys (void)
     write_log ("Filesystem: mapped memory @$%lx.\n", filesys_start);
     /* 68k code needs to know this. */
     a = here ();
-    org (RTAREA_BASE+0xFFFC);
+    org (rtarea_base + 0xFFFC);
     dl (filesys_start + 0x2000);
     org (a);
 }
@@ -1061,26 +1061,29 @@ static void allocate_expamem (void)
 #endif /* SAVESTATE */
 }
 
-int need_uae_boot_rom(void)
+uaecptr need_uae_boot_rom(void)
 {
+    uaecptr b = 0xf00000;
+    if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi)
+	b = 0xe70000;
     if (nr_units() > 0)
-	return 1;
+	return b;
     if (currprefs.socket_emu)
-	return 1;
+	return b;
     if (currprefs.uaeserial)
-	return 1;
+	return b;
     if (currprefs.scsi == 1)
-	return 1;
+	return b;
     if (currprefs.sana2[0])
-	return 1;
+	return b;
     if (currprefs.win32_outsidemouse)
-	return 1;
+	return b;
     if (currprefs.gfxmem_size)
-	return 1;
+	return b;
     if (currprefs.win32_automount_removable)
-	return 1;
+	return b;
     if (currprefs.chipmem_size > 2 * 1024 * 1024)
-	return 1;
+	return b;
     return 0;
 }
 
@@ -1321,7 +1324,7 @@ uae_u8 *save_expansion (int *len, uae_u8 *dstptr)
     save_u32 (fastmem_start);
     save_u32 (z3fastmem_start);
     save_u32 (gfxmem_start);
-    save_u32 (RTAREA_BASE);
+    save_u32 (rtarea_base);
     *len = 4 + 4 + 4 + 4;
     return dstbak;
 }

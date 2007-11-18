@@ -463,7 +463,6 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	if (hdhfd) {
 	    r[2] = hdhfd->ansi_version;
 	    r[3] = hdhfd->ansi_version >= 2 ? 2 : 0;
-	    r[7] = hdhfd->ansi_version >= 2 ? 0x20 : 0;
 	}
 	i = 0; /* vendor id */
 	while (i < 8 && hfd->vendor_id[i]) {

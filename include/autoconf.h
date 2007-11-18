@@ -38,7 +38,7 @@ extern uaecptr filesys_initcode;
 
 extern int is_hardfile (int unit_no);
 extern int nr_units (void);
-extern int need_uae_boot_rom (void);
+extern uaecptr need_uae_boot_rom (void);
 
 struct mountedinfo
 {
@@ -85,4 +85,3 @@ extern void expansion_clear (void);
 #define TRAPFLAG_EXTRA_STACK 4
 #define TRAPFLAG_DORET 8
 
-#define RTAREA_BASE 0xF00000

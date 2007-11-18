@@ -149,5 +149,6 @@ extern int custom_fsdb_used_as_nname (a_inode *base, const char *nname);
 #define MYVOLUMEINFO_READONLY 1
 #define MYVOLUMEINFO_STREAMS 2
 #define MYVOLUMEINFO_ARCHIVE 4
+#define MYVOLUMEINFO_REUSABLE 8
 
 extern int my_getvolumeinfo (const char *root);

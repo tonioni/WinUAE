@@ -65,6 +65,7 @@ extern int ersatzkickfile;
 extern int cloanto_rom;
 extern uae_u16 kickstart_version;
 extern int uae_boot_rom, uae_boot_rom_size;
+extern uaecptr rtarea_base;
 
 extern uae_u8* baseaddr[];
 

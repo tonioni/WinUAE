@@ -22,6 +22,7 @@
 
 #include "sysdeps.h"
 #include "options.h"
+#include "rp.h"
 #include "inputdevice.h"
 #include "keybuf.h"
 #include "xwin.h"
@@ -1449,6 +1450,11 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 static int keyhack (int scancode,int pressed, int num)
 {
     static byte backslashstate,apostrophstate;
+
+#ifdef RETROPLATFORM
+    if (rp_checkesc (scancode, di_keycodes[num], pressed, num))
+	return -1;
+#endif
 
      //check ALT-F4
     if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4 && di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {

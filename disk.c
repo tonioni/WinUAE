@@ -2418,8 +2418,10 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 		    drive *drv2 = &floppy[dr];
 		    uae_u16 w = get_word (dskpt);
-		    if (drives[dr])
+		    if (drives[dr]) {
 			drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
+			drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
+		    }
 #ifdef AMAX
 		    if (currprefs.amaxromfile[0])
 			amax_diskwrite (w);

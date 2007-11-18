@@ -442,7 +442,7 @@ static int set_filesys_unit_1 (int nr,
     ui->self = 0;
     ui->reset_state = FS_STARTUP;
     ui->wasisempty = emptydrive;
-    ui->canremove = emptydrive;
+    ui->canremove = emptydrive && (flags & MYVOLUMEINFO_REUSABLE);
     ui->rootdir = my_strdup (rootdir);
     ui->devname = my_strdup (devname);
     stripsemicolon(ui->devname);
@@ -542,7 +542,7 @@ static void initialize_mountinfo(void)
 	if (uci->controller == HD_CONTROLLER_UAE) {
 	    idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 		uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
-		uci->blocksize, uci->bootpri, uci->donotmount, uci->autoboot, uci->filesys, 0, 0);
+		uci->blocksize, uci->bootpri, uci->donotmount, uci->autoboot, uci->filesys, 0, MYVOLUMEINFO_REUSABLE);
 	    if (idx >= 0) {
 		UnitInfo *ui;
 		uci->configoffset = idx;
@@ -1049,8 +1049,6 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
     /* already mounted volume was ejected? */
     if (nr >= 0 && !inserted)
 	return filesys_eject (nr);
-    if (inserted < 0) /* -1 = only mount if already exists */
-	return 0;
     if (inserted) {
 	if (uci) {
 	    volptr = my_strdup (uci->volname);
@@ -1078,6 +1076,8 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
 		return filesys_insert (nr, volptr, rootdir, -1, -1);
 	    return 0;
 	}
+	if (inserted < 0) /* -1 = only mount if already exists */
+	    return 0;
 	/* new volume inserted and it was not previously mounted? 
 	 * perhaps we have some empty device slots? */
     	nr = filesys_insert (-1, volptr, rootdir, 0, 0);
@@ -1091,7 +1091,7 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
 	    strcpy (devname, uci->devname);
 	else
 	    sprintf (devname, "RDH%d", nr_units());
-	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, 0, 1, NULL, 0, 0);
+	nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, 0, 1, NULL, 0, MYVOLUMEINFO_REUSABLE);
 	if (nr < 0)
 	    return 0;
 	if (inserted > 1)
@@ -1130,7 +1130,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
     if (nr < 0) {
 	for (u = units; u; u = u->next) {
 	    if (is_hardfile (u->unit) == FILESYS_VIRTUAL) {
-		if (!filesys_isvolume (u))
+		if (!filesys_isvolume (u) && mountinfo.ui[u->unit].canremove)
 		    break;
 	    }
 	}
@@ -4807,9 +4807,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
     }
     /* call setup_exter */
     put_word (resaddr +  0, 0x2079);
-    put_long (resaddr +  2, RTAREA_BASE + 28 + 4); /* move.l RTAREA_BASE+32,a0 */
+    put_long (resaddr +  2, rtarea_base + 28 + 4); /* move.l RTAREA_BASE+32,a0 */
     put_word (resaddr +  6, 0xd1fc);
-    put_long (resaddr +  8, RTAREA_BASE + 8 + 4); /* add.l #RTAREA_BASE+12,a0 */
+    put_long (resaddr +  8, rtarea_base + 8 + 4); /* add.l #RTAREA_BASE+12,a0 */
     put_word (resaddr + 12, 0x4e90); /* jsr (a0) */
     put_word (resaddr + 14, 0x7001); /* moveq.l #1,d0 */
     put_word (resaddr + 16, RTS);
@@ -5348,7 +5348,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 {
     /* do not allow other fs threads to start another mousehack */
-    rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] = 0xff;
+    rtarea[get_long (rtarea_base + 40) + 12 - 2] = 0xff;
     return 1;
 }
 
@@ -5372,36 +5372,36 @@ void filesys_install (void)
 
     loop = here ();
 
-    org (RTAREA_BASE + 0xFF18);
+    org (rtarea_base + 0xFF18);
     calltrap (deftrap2 (filesys_dev_bootfilesys, 0, "filesys_dev_bootfilesys"));
     dw (RTS);
 
     /* Special trap for the assembly make_dev routine */
-    org (RTAREA_BASE + 0xFF20);
+    org (rtarea_base + 0xFF20);
     calltrap (deftrap2 (filesys_dev_remember, 0, "filesys_dev_remember"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF28);
+    org (rtarea_base + 0xFF28);
     calltrap (deftrap2 (filesys_dev_storeinfo, 0, "filesys_dev_storeinfo"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF30);
+    org (rtarea_base + 0xFF30);
     calltrap (deftrap2 (filesys_handler, 0, "filesys_handler"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF38);
+    org (rtarea_base + 0xFF38);
     calltrap (deftrap2 (mousehack_done, 0, "mousehack_done"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF40);
+    org (rtarea_base + 0xFF40);
     calltrap (deftrap2 (startup_handler, 0, "startup_handler"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF48);
+    org (rtarea_base + 0xFF48);
     calltrap (deftrap2 (filesys_init_storeinfo, 0, "filesys_init_storeinfo"));
     dw (RTS);
 
-    org (RTAREA_BASE + 0xFF50);
+    org (rtarea_base + 0xFF50);
     calltrap (deftrap2 (exter_int_helper, 0, "exter_int_helper"));
     dw (RTS);
 

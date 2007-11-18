@@ -1059,7 +1059,7 @@ int setbaud (long baud)
 void initparallel (void)
 {
     uaecptr a = here (); //this install the ahisound
-    org (RTAREA_BASE + 0xFFC0);
+    org (rtarea_base + 0xFFC0);
     calltrap (deftrap (ahi_demux));
     dw (0x4e75);// rts
     org (a);

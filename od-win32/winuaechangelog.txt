@@ -1,8 +1,30 @@
 
+Beta 13:
+
+- more cd/dvdrom automount issues fixed
+- S2_ADDMULTICASTADDRESSES and S2_DELMULTICASTADDRESSES were not
+  included in NSCMD_DEVICEQUERY list
+- fixed SANA2IOF_RAW write length
+- S2_ONLINE Sana2DeviceStats->LastStart uses GetSysTime() now
+- -netlog command line parameter added, default logging disabled
+- more compatible with raw (non-AmigaDos format) disk writes that do
+  not fill complete track
+- crash when loading AGA statefiles (usually only when JIT was enabled)
+- CDTV SCSI emulation interrupt handling fix, would freeze randomly
+- UAE boot rom is moved to 0xe70000 if CDTV mode is enabled. Now "UAE"
+  HD controller harddrives work in CDTV mode. (note that other
+  expansions like Picasso96 use absolute jumps and will crash if UAE
+  boot rom is located in non-standard location)
+- autocomplete added to most path text boxes (I didn't know Windows had
+  very easy to use text box autocomplete feature..) TAB (+SHIFT) can be
+  used to move between paths. (SHAutoComplete() does not work exactly
+  like "normal" autocomplete because cursor keys/ESC must go directly
+  to normal text box functions)
+
 Beta 12:
 
 - path selection really fixed now
-- do not mount cd/dvdroms if removable automount was enabled
+- do not mount cd/dvdroms on the fly if removable automount was enabled
 - uaenet partially rewritten, "should" be working properly now
   * multicast supported, including multicast filter (not tested)
   * IEEE 802.3 frame support (I think)

@@ -176,6 +176,8 @@ static int isirq(void)
 
 void rethink_a2091(void)
 {
+    if (currprefs.cs_cdtvscsi)
+	return;
     if (isirq()) {
 	uae_int_requested |= 2;
 #if A2091_DEBUG > 2 || A3000_DEBUG > 2
@@ -190,6 +192,8 @@ static void INT2(void)
 {
     int irq = 0;
 
+    if (currprefs.cs_cdtvscsi)
+	return;
     if (!(auxstatus & 0x80))
 	return;
     dmac_istr |= ISTR_INTS;
@@ -243,6 +247,10 @@ static void doscsistatus(void)
 #if WD33C93_DEBUG > 0
     write_log ("%s STATUS=%02X\n", WD33C93, scsidelay_status);
 #endif
+    if (currprefs.cs_cdtvscsi) {
+	cdtv_scsi_int ();
+	return;
+    }
     if (!currprefs.cs_a2091 && currprefs.cs_mbdmac != 1)
 	return;
     INT2();
@@ -610,6 +618,7 @@ uae_u8 wdscsi_get(void)
     } else if (sasr == WD_SCSI_STATUS) {
 	uae_int_requested &= ~2;
 	auxstatus &= ~0x80;
+	cdtv_scsi_clear_int ();
 	dmac_istr &= ~ISTR_INTS;
 	if (wdregs[WD_COMMAND_PHASE] == 0x10) {
 	    wdregs[WD_COMMAND_PHASE] = 0x11;

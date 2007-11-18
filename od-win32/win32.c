@@ -74,7 +74,7 @@
 #endif
 
 extern FILE *debugfile;
-extern int console_logging = 0;
+extern int console_logging = 1;
 static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 
@@ -131,7 +131,7 @@ char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi, log_net = 1;
+int log_scsi, log_net;
 DWORD quickstart = 1;
 
 static int timeend (void)
@@ -1041,8 +1041,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
 		write_log("Shell Notification %d '%s'\n", inserted, path);
 		if (!win32_hardfile_media_change ()) {	
-		    if ((inserted && CheckRM (path)) || !inserted)
+		    if ((inserted && CheckRM (path)) || !inserted) {
+			if (inserted) {
+			    DWORD type = GetDriveType(path);
+			    if (type == DRIVE_CDROM)
+				inserted = -1;
+			}
 			filesys_media_change (path, inserted, NULL);
+		    }
 		}
 	    }
 	}
@@ -2941,6 +2947,10 @@ static int process_arg(char **xargv)
 	}
 	if (!strcmp (arg, "-scsilog")) {
 	    log_scsi = 1;
+	    continue;
+	}
+	if (!strcmp (arg, "-netlog")) {
+	    log_net = 1;
 	    continue;
 	}
 	if (!strcmp (arg, "-seriallog")) {

@@ -2787,6 +2787,23 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     }
 }
 
+static void setac (HWND hDlg, int id)
+{
+    SHAutoComplete (GetDlgItem (hDlg, id), SHACF_FILESYSTEM | SHACF_AUTOAPPEND_FORCE_ON | SHACF_AUTOSUGGEST_FORCE_ON | SHACF_USETAB);
+}
+static void setautocomplete (HWND hDlg, int id)
+{
+    HWND item = FindWindowEx(GetDlgItem (hDlg, id), NULL, "Edit", NULL);
+    if (item)
+	SHAutoComplete (item, SHACF_FILESYSTEM | SHACF_AUTOAPPEND_FORCE_ON | SHACF_AUTOSUGGEST_FORCE_ON | SHACF_USETAB);
+}
+static void setmultiautocomplete (HWND hDlg, int *ids)
+{
+    int i;
+    for (i = 0; ids[i] >= 0; i++)
+	setautocomplete (hDlg, ids[i]);
+}
+
 static void setpath (HWND hDlg, char *name, DWORD d, char *def)
 {
     char tmp[MAX_DPATH];
@@ -2840,6 +2857,12 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_INITDIALOG:
 	recursive++;
 	pages[PATHS_ID] = hDlg;
+	setac (hDlg, IDC_PATHS_ROM);
+	setac (hDlg, IDC_PATHS_CONFIG);
+	setac (hDlg, IDC_PATHS_SCREENSHOT);
+	setac (hDlg, IDC_PATHS_SAVESTATE);
+	setac (hDlg, IDC_PATHS_SAVEIMAGE);
+	setac (hDlg, IDC_PATHS_AVIOUTPUT);
 	currentpage = PATHS_ID;
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 	numtypes = 0;
@@ -3273,13 +3296,17 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
     switch(msg)
     {
 	case WM_INITDIALOG:
+	{
+	    int ids[] = { IDC_DF0TEXTQ, IDC_DF1TEXTQ, -1 };
 	    pages[QUICKSTART_ID] = hDlg;
 	    currentpage = QUICKSTART_ID;
 	    enable_for_quickstart (hDlg);
 	    strcpy (df0, workprefs.df[0]);
 	    strcpy (df1, workprefs.df[1]);
+	    setmultiautocomplete (hDlg, ids);
 	    doinit = 1;
 	    break;
+	}
 	case WM_NULL:
 	    if (recursive > 0)
 		break;
@@ -4740,12 +4767,16 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
     switch( msg )
     {
     case WM_INITDIALOG:
+    {
+	int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, -1 };
 	pages[KICKSTART_ID] = hDlg;
 	currentpage = KICKSTART_ID;
 	init_kickstart (hDlg);
 	values_to_kickstartdlg (hDlg);
+	setmultiautocomplete (hDlg, ids);
+	setac (hDlg, IDC_FLASHFILE);
 	return TRUE;
-
+    }
     case WM_COMMAND:
 	if (recursive > 0)
 	    break;
@@ -5974,6 +6005,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	    else if (my_existsdir(current_fsvdlg.rootdir))
 	        archivehd = 0;
 	    recursive++;
+	    setac (hDlg, IDC_PATH_NAME);
 	    SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume);
 	    SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device);
 	    SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir);
@@ -6198,6 +6230,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	sethardfile (hDlg);
 	sethfdostype (hDlg, 0);
 	updatehdfinfo (hDlg, 1);
+	setac (hDlg, IDC_PATH_NAME);
 	recursive--;
 	return TRUE;
 
@@ -6282,6 +6315,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		break;
 	}
 
+	current_hfdlg.sectors   = GetDlgItemInt(hDlg, IDC_SECTORS, NULL, FALSE);
+	current_hfdlg.reserved  = GetDlgItemInt(hDlg, IDC_RESERVED, NULL, FALSE);
+	current_hfdlg.surfaces  = GetDlgItemInt(hDlg, IDC_HEADS, NULL, FALSE);
+	current_hfdlg.blocksize = GetDlgItemInt(hDlg, IDC_BLOCKSIZE, NULL, FALSE);
+	current_hfdlg.bootpri = GetDlgItemInt(hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
 	GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp);
 	if (strcmp (tmp, current_hfdlg.filename)) {
 	    strcpy (current_hfdlg.filename, tmp);
@@ -6289,11 +6327,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	}
 	GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename);
 	GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename);
-	current_hfdlg.sectors   = GetDlgItemInt(hDlg, IDC_SECTORS, NULL, FALSE);
-	current_hfdlg.reserved  = GetDlgItemInt(hDlg, IDC_RESERVED, NULL, FALSE);
-	current_hfdlg.surfaces  = GetDlgItemInt(hDlg, IDC_HEADS, NULL, FALSE);
-	current_hfdlg.blocksize = GetDlgItemInt(hDlg, IDC_BLOCKSIZE, NULL, FALSE);
-	current_hfdlg.bootpri = GetDlgItemInt(hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
 	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
 	    current_hfdlg.controller = posn;
@@ -7023,6 +7056,8 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
     case WM_INITDIALOG:
     {
 	char ft35dd[20], ft35hd[20], ft525sd[20], ftdis[20], ft35ddescom[20];
+	int df0texts[] = { IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, -1 };
+
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd);
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd);
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd);
@@ -7048,6 +7083,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
 	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
 	}
+	setmultiautocomplete (hDlg, df0texts);
     }
     case WM_USER:
 	recursive++;
@@ -7265,6 +7301,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	addfloppyhistory (hDlg);
 	entry = 0;
 	swapperhili (hDlg, entry);
+	setautocomplete (hDlg, IDC_DISKTEXT);
     break;
     case WM_LBUTTONUP:
     {
@@ -10114,16 +10151,8 @@ static int GetSettings (int all_options, HWND hwnd)
     dialogreturn = -1;
     hAccelTable = NULL;
     DragAcceptFiles(hwnd, TRUE);
-    if (first) {
-#ifdef RETROPLATFORM
-	if (rp_param != NULL) {
-	    if (FAILED (rp_init ()))
-		return -2;
-	    return 0;
-	}
-#endif
+    if (first)
 	write_log ("Entering GUI idle loop\n");
-    }
 
     scaleresource_setmaxsize(800, 600);
     tres = scaleresource(panelresource, hwnd);

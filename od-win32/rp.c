@@ -7,10 +7,10 @@
 
 #include "cloanto/RetroPlatformGuestIPC.h"
 #include "cloanto/RetroPlatformIPC.h"
-#include "rp.h"
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "rp.h"
 #include "options.h"
 #include "uae.h"
 #include "inputdevice.h"
@@ -26,10 +26,11 @@ static int initialized;
 static RPGUESTINFO guestinfo;
 
 char *rp_param = NULL;
-int rp_rmousevkey = 0x1b;
+int rp_rmousevkey = 0x01;
 int rp_rmouseholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
+int log_rp = 1;
 
 static int default_width, default_height;
 static int hwndset;
@@ -79,8 +80,9 @@ BOOL RPSendMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam,
                    LPCVOID pData, DWORD dwDataSize, const RPGUESTINFO *pInfo, LRESULT *plResult)
 {
     BOOL v = RPSendMessage (uMessage, wParam, lParam, pData, dwDataSize, pInfo, plResult);
-    write_log ("RPSEND(%s [%d], %08x, %08x, %08x, %d\n",
-	getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize);
+    if (log_rp)
+	write_log ("RPSEND(%s [%d], %08x, %08x, %08x, %d\n",
+	    getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize);
     return v;
 }
 
@@ -120,13 +122,14 @@ static int get_x (void)
 static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM lParam,
                                           LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
-    write_log ("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n",
-	getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
+    if (log_rp)
+	write_log ("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n",
+	    getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
 
     switch (uMessage)
     {
 	default:
-	write_log ("Unknown or unsupported command\n");
+	    write_log ("RP: Unknown or unsupported command %x\n", uMessage);
 	break;
 	case RPIPCHM_CLOSE:
 	    uae_quit ();
@@ -164,9 +167,13 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	}
 	case RPIPCHM_SCREENMODE:
 	{
-	    BYTE mode = (BYTE)wParam;
-	    int res = (mode == RP_SCREENMODE_1X) ? 0 : ((mode == RP_SCREENMODE_2X) ? 1 : 2);
+	    int res = (BYTE)wParam;
 	    minimized = 0;
+	    changed_prefs.gfx_afullscreen = 0;
+	    if (res >= RP_SCREENMODE_FULLSCREEN) {
+		res = 1;
+		changed_prefs.gfx_afullscreen = 1;
+	    }
 	    changed_prefs.gfx_resolution = res;
 	    if (res == 0)
 		changed_prefs.gfx_linedbl = 0;
@@ -215,7 +222,30 @@ void rp_fixup_options (struct uae_prefs *p)
 
     if (!initialized)
 	return;
+    write_log ("rp_fixup_options(rmousevkey=%d,rmouseholdtime=%d,screenmode=%d,inputmode=%d)\n",
+	rp_rmousevkey, rp_rmouseholdtime, rp_screenmode, rp_inputmode);
+
+    res = 1 << currprefs.gfx_resolution;
+    default_width = currprefs.gfx_size_win.width / res;
+    default_height = currprefs.gfx_size_win.height / res;
+
     p->win32_borderless = 1;
+    p->gfx_afullscreen = p->gfx_pfullscreen = 0;
+    res = rp_screenmode;
+    if (res >= RP_SCREENMODE_FULLSCREEN) {
+	p->gfx_afullscreen = 1;
+	res = 1;
+    } else {
+        int xres = 1 << res;
+	p->gfx_size_win.width = default_width * xres;
+	p->gfx_size_win.height = default_height * xres;
+    }
+    changed_prefs.gfx_resolution = res;
+    if (res == 0)
+	p->gfx_linedbl = 0;
+    else
+	p->gfx_linedbl = 1;
+
     RPSendMessagex(RPIPCGM_FEATURES,
 	RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_SCREEN2X |
 	RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_INPUTMODE | RP_FEATURE_VOLUME,
@@ -227,9 +257,6 @@ void rp_fixup_options (struct uae_prefs *p)
 	    v |= 1 << i;
     }
     RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, v, NULL, 0, &guestinfo, NULL);
-    res = 1 << currprefs.gfx_resolution;
-    default_width = currprefs.gfx_size_win.width / res;
-    default_height = currprefs.gfx_size_win.height / res;
 }
 
 void rp_update_leds (int led, int onoff)
@@ -296,4 +323,35 @@ void rp_moved (int zorder)
     if (!winok())
 	return;
     RPSendMessagex(zorder ? RPIPCGM_ZORDER : RPIPCGM_MOVED, 0, 0, NULL, 0, &guestinfo, NULL);
+}
+
+int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
+{
+    static uae_u64 esctime;
+    uae_u64 t;
+    SYSTEMTIME st;
+    FILETIME ft;
+    ULARGE_INTEGER li;
+
+    if (!initialized)
+	return 0;
+    if (scancode != rp_rmousevkey)
+	return 0;
+    GetSystemTime (&st);
+    if (!SystemTimeToFileTime (&st, &ft))
+	return scancode;
+    li.LowPart = ft.dwLowDateTime;
+    li.HighPart = ft.dwHighDateTime;
+    t = li.QuadPart / 10000;
+    if (pressed) {
+	esctime = t + rp_rmouseholdtime;
+	return 1;
+    }
+    if (t >= esctime) {
+	setmouseactive (0);
+	return 1;
+    }
+    my_kbd_handler (num, scancode, 1);
+    my_kbd_handler (num, scancode, 0);
+    return 1;
 }

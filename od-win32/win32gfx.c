@@ -1826,6 +1826,12 @@ int machdep_init (void)
 #ifdef LOGITECHLCD
     lcd_open();
 #endif
+#ifdef RETROPLATFORM
+    if (rp_param != NULL) {
+        if (FAILED (rp_init ()))
+	    return 0;
+    }
+#endif
     return 1;
 }
 

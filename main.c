@@ -369,7 +369,10 @@ void fixup_prefs (struct uae_prefs *p)
     p->win32_aspi = 0;
 #endif
 #if !defined (SANA2)
-    p->sana2 = 0;
+    p->sana2[0] = 0;
+#else
+    if (!strcmp (p->sana2, "none"))
+	p->sana2[0] = 0;
 #endif
 #if !defined (UAESERIAL)
     p->uaeserial = 0;
@@ -667,11 +670,6 @@ static void real_main2 (int argc, char **argv)
     init_shm ();
 #endif
 
-#ifdef FILESYS
-    rtarea_init ();
-    hardfile_install ();
-#endif
-
     if (restart_config[0])
 	parse_cmdline_and_init_file (argc, argv);
     else
@@ -717,6 +715,13 @@ static void real_main2 (int argc, char **argv)
     /* force sound settings change */
     currprefs.produce_sound = 0;
 
+#ifdef AUTOCONFIG
+    rtarea_setup ();
+#endif
+#ifdef FILESYS
+    rtarea_init ();
+    hardfile_install ();
+#endif
     savestate_init ();
 #ifdef SCSIEMU
     scsi_reset ();
@@ -728,11 +733,6 @@ static void real_main2 (int argc, char **argv)
 #ifdef UAESERIAL
     uaeserialdev_install ();
 #endif
-#ifdef AUTOCONFIG
-    /* Install resident module to get 8MB chipmem, if requested */
-    rtarea_setup ();
-#endif
-
     keybuf_init (); /* Must come after init_joystick */
 
 #ifdef AUTOCONFIG

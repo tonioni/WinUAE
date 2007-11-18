@@ -275,7 +275,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"rtarea")) {
-	    shmaddr=natmem_offset + RTAREA_BASE;
+	    shmaddr=natmem_offset + rtarea_base;
 	    got = TRUE;
 	    size += 32;
 	}

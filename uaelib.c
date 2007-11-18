@@ -461,11 +461,11 @@ void emulib_install (void)
 {
     uaecptr a = here ();
     currprefs.mmkeyboard = 0;
-    org (RTAREA_BASE + 0xFF60);
+    org (rtarea_base + 0xFF60);
 #if 0
     dw (0x4eb9);
-    dw ((RTAREA_BASE >> 16) | get_word (RTAREA_BASE + 36));
-    dw (get_word (RTAREA_BASE + 38) + 12);
+    dw ((rtarea_base >> 16) | get_word (rtarea_base + 36));
+    dw (get_word (rtarea_base + 38) + 12);
 #endif
     calltrap (define_trap (uaelib_demux, 0, ""));
     dw (RTS);

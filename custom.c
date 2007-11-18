@@ -432,6 +432,12 @@ static void hsyncdelay(void)
 #endif
 }
 
+static void update_mirrors(void)
+{
+    aga_mode = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
+    direct_rgb = aga_mode;
+}
+
 STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
 {
     if (!chipmem_bank.check (plpt, bytecount)) {
@@ -474,6 +480,7 @@ void notice_new_xcolors (void)
 {
     int i;
 
+    update_mirrors ();
     docols(&current_colors);
     docols(&colors_for_drawing);
     for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
@@ -2406,11 +2413,6 @@ static void calcdiw (void)
     }
 }
 
-static void update_mirrors(void)
-{
-    aga_mode = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
-    direct_rgb = aga_mode;
-}
 /* display mode changed (lores, doubling etc..), recalculate everything */
 void init_custom (void)
 {
@@ -4944,11 +4946,11 @@ int custom_init (void)
 	uaecptr pos;
 	pos = here ();
 
-	org (RTAREA_BASE+0xFF70);
+	org (rtarea_base + 0xFF70);
 	calltrap (deftrap (mousehack_helper_old));
 	dw (RTS);
 
-	org (RTAREA_BASE+0xFFA0);
+	org (rtarea_base + 0xFFA0);
 	calltrap (deftrap (timehack_helper));
 	dw (RTS);
 

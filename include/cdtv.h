@@ -23,6 +23,8 @@ int cdtv_add_scsi_unit(int ch, char *path, int blocksize, int readonly,
 extern void cdtv_getdmadata(uae_u32*);
 
 extern void rethink_cdtv (void);
+extern void cdtv_scsi_int (void);
+extern void cdtv_scsi_clear_int (void);
 
 #endif
 

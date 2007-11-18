@@ -2630,9 +2630,9 @@ void memory_reset (void)
 	map_banks (&cardmem_bank, cardmem_start >> 16, allocated_cardmem >> 16, 0);
 
 #ifdef AUTOCONFIG
-    if (need_uae_boot_rom()) {
+    if (need_uae_boot_rom ()) {
 	uae_boot_rom = 1;
-	map_banks (&rtarea_bank, RTAREA_BASE >> 16, 1, 0);
+	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
     }
 #endif
 

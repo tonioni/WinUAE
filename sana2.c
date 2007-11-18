@@ -146,6 +146,8 @@ struct s2packet {
 volatile int uaenet_int_requested;
 int uaenet_vsync_requested;
 
+static uaecptr timerdevname;
+
 static char *getdevname (void)
 {
     return "uaenet.device";
@@ -208,6 +210,8 @@ struct priv_devstruct {
     uaecptr copyfrombuff;
     uaecptr packetfilter;
     uaecptr tempbuf;
+
+    uaecptr timerbase;
 
     struct tapdata *td;
 
@@ -284,7 +288,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 	xfree (dev->sysdata);
 	dev->sysdata = NULL;
 	write_comm_pipe_u32 (&dev->requests, 0, 1);
-	write_log ("%s: all instances closed\n", SANA2NAME);
+        write_log ("%s: all instances closed\n", SANA2NAME);
     }
     put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
     return 0;
@@ -376,6 +380,13 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	start_thread (dev);
     }
 
+    if (kickstart_version >= 36) {
+	m68k_areg (&context->regs, 0) = get_long (4) + 350;
+	m68k_areg (&context->regs, 1) = timerdevname;
+	CallLib (context, get_long (4), -0x114); /*FindName() */
+	pdev->timerbase = m68k_dreg (&context->regs, 0);
+    }
+
     pdev->copyfrombuff = pdev->copytobuff = pdev->packetfilter = 0;
     tagpnext = buffermgmt;
     while (tagpnext) {
@@ -407,8 +418,9 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	    break;
 	}
     }
-    write_log("%s:%d CTB=%08x CFB=%08x PF=%08x\n",
-	getdevname(), unit,
+    if (log_net)
+	write_log("%s:%d CTB=%08x CFB=%08x PF=%08x\n",
+	    getdevname(), unit,
 	pdev->copytobuff, pdev->copyfrombuff, pdev->packetfilter);
     if (!pdev->copyfrombuff || !pdev->copyfrombuff) {
 	if (dev->opencnt == 0) {
@@ -790,12 +802,11 @@ void uaenet_gotdata (struct devstruct *dev, uae_u8 *d, int len)
 
     type = (d[12] << 8) | d[13];
     s2p = createreadpacket (dev, d, len);
-#if 1
-    write_log ("<-DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X L=%d P=%p\n",
-        d[0], d[1], d[2], d[3], d[4], d[5],
-        d[6], d[7], d[8], d[9], d[10], d[11],
-        type, len, s2p);
-#endif
+    if (log_net)
+	write_log ("<-DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X L=%d P=%p\n",
+	    d[0], d[1], d[2], d[3], d[4], d[5],
+	    d[6], d[7], d[8], d[9], d[10], d[11],
+	    type, len, s2p);
     uae_sem_wait (&async_sem);
     if (!dev->readqueue) {
 	dev->readqueue = s2p;
@@ -828,14 +839,16 @@ static struct s2packet *createwritepacket (TrapContext *ctx, uaecptr request)
     s2p->data = xmalloc (pdev->td->mtu + ETH_HEADER_SIZE + 2);
     if (flags & SANA2IOF_RAW) {
 	memcpyah_safe (s2p->data, pdev->tempbuf, datalength);
+	packettype = (s2p->data[2 * ADDR_SIZE + 0] << 8) | (s2p->data[2 * ADDR_SIZE + 1]);
+	s2p->len = datalength;
     } else {
 	memcpyah_safe (s2p->data + ETH_HEADER_SIZE, pdev->tempbuf, datalength);
 	memcpy (s2p->data + ADDR_SIZE, pdev->td->mac, ADDR_SIZE);
 	memcpyah_safe (s2p->data, dstaddr, ADDR_SIZE);
 	s2p->data[2 * ADDR_SIZE + 0] = packettype >> 8;
 	s2p->data[2 * ADDR_SIZE + 1] = packettype;
+	s2p->len = datalength + ETH_HEADER_SIZE;
     }
-    s2p->len = datalength + ETH_HEADER_SIZE;
     if (pdev->tracks[packettype]) {
 	pdev->packetssent++;
 	pdev->bytessent += datalength;
@@ -863,10 +876,11 @@ int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
 		    if (ars2p->request == request) {
 		        *len = ars2p->s2p->len;
 		        memcpy (d, ars2p->s2p->data, *len);
-		        write_log ("->DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
-			    d[0], d[1], d[2], d[3], d[4], d[5],
-			    d[6], d[7], d[8], d[9], d[10], d[11],
-			    packettype, *len);
+			if (log_net)
+			    write_log ("->DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
+				d[0], d[1], d[2], d[3], d[4], d[5],
+				d[6], d[7], d[8], d[9], d[10], d[11],
+				packettype, *len);
 			gotit = 1;
 			dev->packetssent++;
 			signalasync (dev, ar, *len, 0);
@@ -882,11 +896,12 @@ int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
     return gotit;
 }
 
-void checkevents (struct devstruct *dev, int mask)
+void checkevents (struct devstruct *dev, int mask, int sem)
 {
     struct asyncreq *ar;
 
-    uae_sem_wait (&async_sem);
+    if (sem)
+	uae_sem_wait (&async_sem);
     ar = dev->ar;
     while (ar) {
 	if (!ar->ready) {
@@ -898,7 +913,8 @@ void checkevents (struct devstruct *dev, int mask)
 	}
 	ar = ar->next;
     }
-    uae_sem_post (&async_sem);
+    if (sem)
+	uae_sem_post (&async_sem);
 }
 
 static int checksize (uaecptr request, struct devstruct *dev)
@@ -945,13 +961,12 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
     int async = 0;
     struct priv_devstruct *pdev = getpdevstruct (request);
 
-#if 1
-    write_log ("S2: C=%02d T=%04X S=%02X%02X%02X%02X%02X%02X D=%02X%02X%02X%02X%02X%02X LEN=%d\n",
-	command, packettype,
-	get_byte (srcaddr + 0), get_byte (srcaddr + 1), get_byte (srcaddr + 2), get_byte (srcaddr + 3), get_byte (srcaddr + 4), get_byte (srcaddr + 5),
-	get_byte (dstaddr + 0), get_byte (dstaddr + 1), get_byte (dstaddr + 2), get_byte (dstaddr + 3), get_byte (dstaddr + 4), get_byte (dstaddr + 5), 
-	datalength);
-#endif
+    if (log_net)
+	write_log ("S2: C=%02d T=%04X S=%02X%02X%02X%02X%02X%02X D=%02X%02X%02X%02X%02X%02X LEN=%d\n",
+	    command, packettype,
+	    get_byte (srcaddr + 0), get_byte (srcaddr + 1), get_byte (srcaddr + 2), get_byte (srcaddr + 3), get_byte (srcaddr + 4), get_byte (srcaddr + 5),
+	    get_byte (dstaddr + 0), get_byte (dstaddr + 1), get_byte (dstaddr + 2), get_byte (dstaddr + 3), get_byte (dstaddr + 4), get_byte (dstaddr + 5), 
+	    datalength);
     if (!pdev) {
 	write_log ("%s unknown iorequest %08x\n", getdevname (), request);
 	return 0;
@@ -981,9 +996,6 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	break;
 
 	case S2_BROADCAST:
-	    if (!dev->online)
-		goto offline;
-	    /* fall through */
 	case CMD_WRITE:
 	    if (!dev->online)
 		goto offline;
@@ -1006,7 +1018,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	break;
 
 	case CMD_FLUSH:
-	    write_log ("flush started %08x\n", request);
+	    if (log_net)
+		write_log ("flush started %08x\n", request);
 	    flush (pdev);
 	    async = 1;
 	    uaenet_vsync_requested++;
@@ -1109,18 +1122,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 		wire_error = S2WERR_RCVREL_HDW_ERR;
 	    }
 	    if (!io_error && !dev->online) {
-		time_t t;
-		dev->packetsreceived = 0;
-		dev->packetssent = 0;
-		dev->baddata = 0;
-		dev->overruns = 0;
-		dev->unknowntypesreceived = 0;
-		dev->reconfigurations = 0;
-		dev->online = 1;
-		t = time (NULL);
-		dev->online_micro = 0;
-		dev->online_secs = (uae_u32)t;
-		checkevents (dev, S2EVENT_ONLINE);
+		uaenet_vsync_requested++;
+		async = 1;
 	    }
 	break;
 
@@ -1154,7 +1157,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	case S2_OFFLINE:
 	    if (dev->online) {
 		dev->online = 0;
-		checkevents (dev, S2EVENT_OFFLINE);
+		checkevents (dev, S2EVENT_OFFLINE, 1);
 	    }
 	break;
 
@@ -1195,7 +1198,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 
     }
 end:
-    write_log("-> %d (%d)\n", io_error, wire_error);
+    if (log_net)
+	write_log("-> %d (%d)\n", io_error, wire_error);
     put_long (request + 32, wire_error);
     put_byte (request + 31, io_error);
     return async;
@@ -1207,8 +1211,6 @@ static int dev_can_quick (uae_u32 command)
     {
 	case NSCMD_DEVICEQUERY:
 	case S2_DEVICEQUERY:
-	case S2_ONLINE:
-	case S2_OFFLINE:
 	case S2_CONFIGINTERFACE:
 	case S2_GETSTATIONADDRESS:
 	case S2_TRACKTYPE:
@@ -1350,83 +1352,110 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	struct devstruct *dev = &devst[i];
 	struct s2packet *p;
-	if (!dev->online) {
+	if (dev->online) {
 	    while (dev->readqueue) {
+		uae_u16 type;
+		p = dev->readqueue;
+		type = (p->data[2 * ADDR_SIZE] << 8) | p->data[2 * ADDR_SIZE + 1];
+		ar = dev->ar;
+		gotit = 0;
+		while (ar) {
+		    if (!ar->ready) {
+			uaecptr request = ar->request;
+			int command = get_word (request + 28);
+			uae_u32 packettype = get_long (request + 32 + 4);
+			if (command == CMD_READ && (packettype == type || (packettype <= 1500 && type <= 1500))) {
+			    struct priv_devstruct *pdev = getpdevstruct (request);
+			    if (pdev && pdev->tmp == 0) {
+				if (handleread (ctx, pdev, request, p->data, p->len, command)) {
+				    if (log_net)
+					write_log("-> %p Accepted, CMD_READ, REQ=%08X LEN=%d\n", p, request, p->len);
+				    write_comm_pipe_u32 (&dev->requests, request, 1);
+				    dev->packetsreceived++;
+				    gotit = 1;
+				    pdev->tmp = 1;
+				} else {
+				    if (log_net)
+					write_log("-> %p PacketFilter() rejected, CMD_READ, REQ=%08X LEN=%d\n", p, request, p->len);
+				    pdev->tmp = -1;
+				}
+			    }
+			}
+		    }
+		    ar = ar->next;
+		}
+    		ar = dev->ar;
+		while (ar) {
+		    if (!ar->ready) {
+			uaecptr request = ar->request;
+			int command = get_word (request + 28);
+			if (command == S2_READORPHAN) {
+			    struct priv_devstruct *pdev = getpdevstruct (request);
+			    if (pdev && pdev->tmp <= 0) {
+				if (log_net)
+				    write_log("-> %p Accepted, S2_READORPHAN, REQ=%08X LEN=%d\n", p, request, p->len);
+				handleread (ctx, pdev, request, p->data, p->len, command);
+				write_comm_pipe_u32 (&dev->requests, request, 1);
+				dev->packetsreceived++;
+				dev->unknowntypesreceived++;
+				gotit = 1;
+				pdev->tmp = 1;
+			    }
+			}
+		    }
+		    ar = ar->next;
+		}
+		if (!gotit) {
+		    if (log_net)
+			write_log ("-> %p packet dropped, LEN=%d\n", p, p->len);
+		    for (i = 0; i < MAX_OPEN_DEVICES; i++) {
+			if (pdevst[i].unit == dev->unit) {
+			    if (pdevst[i].tracks[type])
+				pdevst[i].packetsdropped++;
+			}
+		    }
+		}
+		dev->readqueue = dev->readqueue->next;
+		freepacket (p);
+	    }
+	} else {
+    	    while (dev->readqueue) {
 		p = dev->readqueue;
 		dev->readqueue = dev->readqueue->next;
 		freepacket (p);
 	    }
-	    continue;
 	}
-	while (dev->readqueue) {
-	    uae_u16 type;
-	    p = dev->readqueue;
-	    type = (p->data[2 * ADDR_SIZE] << 8) | p->data[2 * ADDR_SIZE + 1];
-	    ar = dev->ar;
-	    gotit = 0;
-	    while (ar) {
-		if (!ar->ready) {
-		    uaecptr request = ar->request;
-		    int command = get_word (request + 28);
-		    uae_u32 packettype = get_long (request + 32 + 4);
-		    if (command == CMD_READ && (packettype == type || (packettype <= 1500 && type <= 1500))) {
-			struct priv_devstruct *pdev = getpdevstruct (request);
-			if (pdev && pdev->tmp == 0) {
-			    if (handleread (ctx, pdev, request, p->data, p->len, command)) {
-				write_log("-> %p Accepted, CMD_READ, REQ=%08X LEN=%d\n", p, request, p->len);
-				write_comm_pipe_u32 (&dev->requests, request, 1);
-				dev->packetsreceived++;
-				gotit = 1;
-				pdev->tmp = 1;
-			    } else {
-				write_log("-> %p PacketFilter() refused, CMD_READ, REQ=%08X LEN=%d\n", p, request, p->len);
-				pdev->tmp = -1;
-			    }
-			}
-		    }
-		}
-		ar = ar->next;
-	    }
-    	    ar = dev->ar;
-	    while (ar) {
-	        if (!ar->ready) {
-		    uaecptr request = ar->request;
-		    int command = get_word (request + 28);
-		    if (command == S2_READORPHAN) {
-			struct priv_devstruct *pdev = getpdevstruct (request);
-			if (pdev && pdev->tmp <= 0) {
-			    write_log("-> %p Accepted, S2_READORPHAN, REQ=%08X LEN=%d\n", p, request, p->len);
-			    handleread (ctx, pdev, request, p->data, p->len, command);
-			    write_comm_pipe_u32 (&dev->requests, request, 1);
-			    dev->packetsreceived++;
-			    dev->unknowntypesreceived++;
-			    gotit = 1;
-			    pdev->tmp = 1;
-			}
-		    }
-		}
-	        ar = ar->next;
-	    }
-	    if (!gotit) {
-		write_log ("-> %p packet dropped, LEN=%d\n", p, p->len);
-		for (i = 0; i < MAX_OPEN_DEVICES; i++) {
-		    if (pdevst[i].unit == dev->unit) {
-			if (pdevst[i].tracks[type])
-			    pdevst[i].packetsdropped++;
-		    }
-		}
-	    }
-	    dev->readqueue = dev->readqueue->next;
-	    freepacket (p);
-	}
+
 	ar = dev->ar;
 	while (ar) {
 	    if (!ar->ready) {
 		uaecptr request = ar->request;
 		int command = get_word (request + 28);
-		if (command == CMD_FLUSH && dev->ar->next == NULL) {
+		if (command == S2_ONLINE) {
+		    struct priv_devstruct *pdev = getpdevstruct (request);
+		    dev->packetsreceived = 0;
+		    dev->packetssent = 0;
+		    dev->baddata = 0;
+		    dev->overruns = 0;
+		    dev->unknowntypesreceived = 0;
+		    dev->reconfigurations = 0;
+		    if (pdev && pdev->timerbase) {
+			m68k_areg (&ctx->regs, 0) = pdev->tempbuf;
+			CallLib (ctx, pdev->timerbase, -0x42); /* GetSysTime() */
+		    } else {
+			put_long (pdev->tempbuf + 0, 0);
+			put_long (pdev->tempbuf + 4, 0);
+		    }
+		    dev->online_secs = get_long (pdev->tempbuf + 0);
+		    dev->online_micro = get_long (pdev->tempbuf + 4);
+		    checkevents (dev, S2EVENT_ONLINE, 0);
+		    dev->online = 1;
+		    write_comm_pipe_u32 (&dev->requests, request, 1);
+		    uaenet_vsync_requested--;
+		} else if (command == CMD_FLUSH && dev->ar->next == NULL) {
 		    /* do not reply CMD_FLUSH until all others are gone */
-		    write_log ("flush replied %08x\n", request);
+		    if (log_net)
+			write_log ("flush replied %08x\n", request);
 		    write_comm_pipe_u32 (&dev->requests, request, 1);
 		    uaenet_vsync_requested--;
 		}
@@ -1511,10 +1540,11 @@ void netdev_install (void)
 
     ROM_netdev_resname = ds (getdevname());
     ROM_netdev_resid = ds ("UAE net.device 0.1");
+    timerdevname = ds ("timer.device");
 
     /* initcode */
     initcode = here ();
-    calltrap (deftrap2 (dev_init, TRAPFLAG_EXTRA_STACK, "uaenet.int")); dw (RTS);
+    calltrap (deftrap2 (dev_init, TRAPFLAG_EXTRA_STACK, "uaenet.init")); dw (RTS);
 
     /* Open */
     openfunc = here ();
@@ -1530,8 +1560,7 @@ void netdev_install (void)
 
     /* BeginIO */
     beginiofunc = here ();
-    calltrap (deftrap2 (dev_beginio, TRAPFLAG_EXTRA_STACK, "uaenet.beginio"));
-    dw (RTS);
+    calltrap (deftrap2 (dev_beginio, TRAPFLAG_EXTRA_STACK, "uaenet.beginio")); dw (RTS);
 
     /* AbortIO */
     abortiofunc = here ();
@@ -1595,6 +1624,8 @@ void netdev_install (void)
     dw (S2_READORPHAN);
     dw (S2_ONLINE);
     dw (S2_OFFLINE);
+    dw (S2_ADDMULTICASTADDRESSES);
+    dw (S2_DELMULTICASTADDRESSES);
     dw (NSCMD_DEVICEQUERY);
     dw (0);
 

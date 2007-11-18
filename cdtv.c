@@ -53,7 +53,8 @@
 #define AUDIO_STATUS_PLAY_ERROR     0x14
 #define AUDIO_STATUS_NO_STATUS      0x15
 
-#define MODEL_NAME "MATSHITA0.97" /* also MATSHITA0.96 exists */
+#define MODEL_NAME "MATSHITA0.96"
+/* also MATSHITA0.97 exists but is apparently rare */
 
 static smp_comm_pipe requests;
 static volatile int thread_alive;
@@ -864,6 +865,15 @@ static void checkint(void)
 	irq = 1;
     if (irq)
 	INT2();
+}
+
+void cdtv_scsi_int (void)
+{
+    checkint ();
+}
+void cdtv_scsi_clear_int (void)
+{
+    dmac_istr &= ~ISTR_INTS;
 }
 
 void rethink_cdtv (void)

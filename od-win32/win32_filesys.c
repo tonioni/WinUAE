@@ -90,11 +90,12 @@ int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepa
 static void filesys_addexternals(void)
 {
     int drive, drivetype;
-    UINT errormode = SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX );
+    UINT errormode;
     char volumename[MAX_DPATH]="";
     char volumepath[6];
     DWORD dwDriveMask;
 
+    errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
     dwDriveMask = GetLogicalDrives();
     dwDriveMask >>= 2; // Skip A and B drives...
 
@@ -128,8 +129,11 @@ static void filesys_addexternals(void)
 	    if (nok)
 	        continue;
 	    volumename[0] = 0;
-	    if (inserted)
+	    if (inserted) {
 	        target_get_volume_name(&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
+		if (!volumename[0])
+		    sprintf (volumename, "WinUNK_%c", drive);
+	    }
 	    if (drivetype == DRIVE_REMOTE)
 	        strcat(volumepath, ".");
 	    else

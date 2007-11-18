@@ -1095,7 +1095,7 @@ static void illg_init (void)
 	memset (illgdebug + 0xe00000, 1, 512 * 1024);
 #ifdef FILESYS
     if (uae_boot_rom) /* filesys "rom" */
-	memset (illgdebug + RTAREA_BASE, 1, 0x10000);
+	memset (illgdebug + rtarea_base, 1, 0x10000);
 #endif
     if (currprefs.cs_ide > 0)
 	memset (illgdebug + 0xdd0000, 3, 65536);

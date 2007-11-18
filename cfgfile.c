@@ -2858,6 +2858,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->filesys_custom_uaefsdb = 1;
     p->picasso96_nocustom = 1;
     p->cart_internal = 1;
+    p->sana2[0] = 0;
 
     p->cs_compatible = 1;
     p->cs_rtc = 2;

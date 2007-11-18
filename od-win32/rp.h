@@ -9,6 +9,7 @@ extern void rp_mousecapture (int);
 extern void rp_turbo (int);
 extern void rp_set_hwnd (void);
 extern void rp_moved (int);
+extern int rp_checkesc (int, uae_u8*, int, int);
 
 extern char *rp_param;
 extern int rp_rmousevkey;

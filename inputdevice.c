@@ -792,11 +792,13 @@ static uaecptr get_intuitionbase(void)
 
 static void mousehack_enable (void)
 {
+    int off;
     if (!uae_boot_rom)
 	return;
-    if (rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] == 0xff)
+    off = get_long (rtarea_base + 40);
+    if (rtarea[off + 12 - 2] == 0xff)
 	return;
-    rtarea[get_long (RTAREA_BASE + 40) + 12 - 2] = 1;
+    rtarea[off + 12 - 2] = 1;
 }
 
 static void mousehack_setpos(int mousexpos, int mouseypos)
@@ -804,7 +806,7 @@ static void mousehack_setpos(int mousexpos, int mouseypos)
     uae_u8 *p;
     if (!uae_boot_rom)
 	return;
-    p = rtarea + get_long (RTAREA_BASE + 40) + 12;
+    p = rtarea + get_long (rtarea_base + 40) + 12;
     p[0] = mousexpos >> 8;
     p[1] = mousexpos;
     p[2] = mouseypos >> 8;
