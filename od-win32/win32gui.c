@@ -4288,6 +4288,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     CheckDlgButton (hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi > 0);
     CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
     CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia > 0);
+    CheckDlgButton (hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast > 0);
     CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
     CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
     txt[0] = 0;
@@ -4359,6 +4360,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 #endif
     workprefs.cs_cdtvscsi = IsDlgButtonChecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
     workprefs.cs_pcmcia = IsDlgButtonChecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
+    workprefs.cs_slowmemisfast = IsDlgButtonChecked (hDlg, IDC_CS_SLOWISFAST) ? 1 : 0;
     workprefs.cs_ide = IsDlgButtonChecked (hDlg, IDC_CS_IDE1) ? 1 : (IsDlgButtonChecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
     workprefs.cs_ciaatod = IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
 	: (IsDlgButtonChecked (hDlg, IDC_CS_CIAA_TOD2) ? 1 : 2);
@@ -4423,6 +4425,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_SCSIMODE, FALSE);
     ew (hDlg, IDC_CS_CDTVSCSI, e);
     ew (hDlg, IDC_CS_PCMCIA, e);
+    ew (hDlg, IDC_CS_SLOWISFAST, e);
     ew (hDlg, IDC_CS_CD32CD, e);
     ew (hDlg, IDC_CS_CD32NVRAM, e);
     ew (hDlg, IDC_CS_CD32C2P, e);
@@ -4998,7 +5001,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_NOOVERLAY, workprefs.win32_no_overlay);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
-	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2[0] ? 1 : 0);
+	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
@@ -5176,10 +5179,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    enable_for_miscdlg (hDlg);
 	    break;
 	case IDC_SANA2:
-	    if (IsDlgButtonChecked (hDlg, IDC_SANA2))
-		strcpy (workprefs.sana2, "UAE");
-	    else
-		workprefs.sana2[0] = 0;
+	    workprefs.sana2 = IsDlgButtonChecked (hDlg, IDC_SANA2) ? 1 : 0;
 	    break;
 	case IDC_CLOCKSYNC:
 	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);

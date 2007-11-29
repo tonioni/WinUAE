@@ -182,7 +182,7 @@ struct uae_prefs {
     int keyboard_leds[3];
     int keyboard_leds_in_use;
     int scsi;
-    char sana2[256];
+    int sana2;
     int uaeserial;
     int catweasel;
     int cpu_idle;
@@ -215,6 +215,7 @@ struct uae_prefs {
     int cs_cdtvscsi;
     int cs_a2091, cs_a4091;
     int cs_df0idhw;
+    int cs_slowmemisfast;
 
     char df[4][MAX_DPATH];
     char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
@@ -354,6 +355,7 @@ extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern void target_fixup_options (struct uae_prefs *);
 extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type, int isdefault);
+extern void target_quit (void);
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
 extern int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink);

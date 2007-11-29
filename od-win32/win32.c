@@ -74,7 +74,7 @@
 #endif
 
 extern FILE *debugfile;
-extern int console_logging = 1;
+extern int console_logging;
 static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 
@@ -475,12 +475,8 @@ void setpaused(void)
 #endif
 }
 
-static WPARAM activateapp;
-
 static void checkpause (void)
 {
-    if (activateapp)
-	return;
     if (currprefs.win32_inactive_pause) {
 	setpaused ();
 	emulation_paused = 1;
@@ -495,6 +491,10 @@ static void setmaintitle (HWND hwnd)
 {
     char txt[1000], txt2[500];
 
+#ifdef RETROPLATFORM
+    if (rp_isactive ())
+	return;
+#endif
     txt[0] = 0;
     if (config_filename[0]) {
 	strcat (txt, "[");
@@ -521,10 +521,30 @@ static void setmaintitle (HWND hwnd)
     SetWindowText (hwnd, txt);
 }
 
+
+#ifndef AVIOUTPUT
+static int avioutput_video = 0;
+#endif
+
+void setpriority (struct threadpriorities *pri)
+{
+    int err;
+    if (os_winnt)
+	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
+    else
+	err = SetThreadPriority (GetCurrentThread(), pri->value);
+    if (!err)
+	write_log ("priority set failed, %08.8X\n", GetLastError ());
+}
+
 void setmouseactive (int active)
 {
-    int oldactive = mouseactive;
 
+    if (mouseactive == active)
+	return;
+    mouseactive = active;
+
+    //write_log ("setmouseactive(%d)\n", active);
     if (showcursor) {
 	ClipCursor(NULL);
 	ReleaseCapture();
@@ -540,7 +560,6 @@ void setmouseactive (int active)
 #endif
     inputdevice_unacquire ();
 
-    mouseactive = active;
     setmaintitle (hMainWnd);
     if (mouseactive > 0)
 	focus = 1;
@@ -563,35 +582,23 @@ void setmouseactive (int active)
 #endif
 }
 
-#ifndef AVIOUTPUT
-static int avioutput_video = 0;
-#endif
-
-void setpriority (struct threadpriorities *pri)
-{
-    int err;
-    if (os_winnt)
-	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
-    else
-	err = SetThreadPriority (GetCurrentThread(), pri->value);
-    if (!err)
-	write_log ("priority set failed, %08.8X\n", GetLastError ());
-}
-
 static void winuae_active (HWND hWnd, int minimized)
 {
     int ot;
     struct threadpriorities *pri;
 
+    write_log ("winuae_active(%d)\n", minimized);
     /* without this returning from hibernate-mode causes wrong timing
      */
-    ot = timermode;
-    timermode = 0;
-    timebegin();
-    sleep_millis (2);
-    timermode = ot;
-    if (timermode != 0)
-	timeend();
+    if (!os_vista) {
+	ot = timermode;
+	timermode = 0;
+	timebegin();
+	sleep_millis (2);
+	timermode = ot;
+	if (timermode != 0)
+	    timeend();
+    }
 
     focus = 1;
     pri = &priorities[currprefs.win32_inactive_priority];
@@ -608,7 +615,6 @@ static void winuae_active (HWND hWnd, int minimized)
     }
     if (emulation_paused > 0)
 	emulation_paused = -1;
-    ShowWindow (hWnd, SW_RESTORE);
     if (sound_closed) {
 	resumepaused();
 	sound_closed = 0;
@@ -623,7 +629,8 @@ static void winuae_active (HWND hWnd, int minimized)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
 #ifdef RETROPLATFORM
-    rp_activate (1);
+    if (minimized)
+	rp_minimize (0);
 #endif
 
 }
@@ -631,7 +638,9 @@ static void winuae_active (HWND hWnd, int minimized)
 static void winuae_inactive (HWND hWnd, int minimized)
 {
     struct threadpriorities *pri;
+    int wasfocus = focus;
 
+    //write_log("winuae_inactive(%d)\n", minimized);
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -667,13 +676,13 @@ static void winuae_inactive (HWND hWnd, int minimized)
     filesys_flush_cache ();
 #endif
 #ifdef RETROPLATFORM
-    rp_activate (0);
+    if (minimized)
+	rp_minimize (1);
 #endif
 }
 
 void minimizewindow (void)
 {
-    write_log("minimize\n");
     ShowWindow (hMainWnd, SW_MINIMIZE);
 }
 
@@ -722,7 +731,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 {
     PAINTSTRUCT ps;
     HDC hDC;
-    int mx, my, v;
+    int mx, my;
     static int mm, minimized, recursive, ignoremousemove;
 
 #if MSGDEBUG > 1
@@ -736,8 +745,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     switch (message)
     {
-    case WM_SETCURSOR:
-	return TRUE;
+
+
+#if 0
     case WM_SIZE:
     {
 	if (recursive)
@@ -773,6 +783,43 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	return 0;
     }
     break;
+#endif
+
+    case WM_SETFOCUS:
+#if MSGDEBUG
+	write_log ("**** WM_SETFOCUS %d\n", minimized);
+#endif
+	if (!minimized)
+	    winuae_active (hWnd, minimized);
+        minimized = 0;
+	return 0;
+    case WM_KILLFOCUS:
+#if MSGDEBUG
+	write_log ("**** WM_KILLFOCUS %d\n", minimized);
+#endif
+	winuae_inactive (hWnd, 0);
+	return 0;
+    case WM_ACTIVATE:
+	if (!minimized) {
+	    minimized = HIWORD (wParam) ? 1 : 0;
+	    if (minimized) {
+#if MSGDEBUG
+		write_log("**** minimize\n");
+#endif
+		winuae_inactive (hWnd, minimized);
+	    }
+	} else {
+	    winuae_active (hWnd, minimized);
+	    minimized = 0;
+	}
+	return 0;
+#ifdef RETROPLATFORM
+    case WM_ACTIVATEAPP:
+	rp_activate (wParam, lParam);
+	return 0;
+#endif
+
+#if 0
     case WM_ACTIVATE:
 	if (recursive)
 	    return 0;
@@ -826,11 +873,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	recursive--;
 	return 0;
     }
+#endif
 
     case WM_PALETTECHANGED:
 	if ((HWND)wParam != hWnd)
 	    manual_palette_refresh_needed = 1;
-    break;
+    return 0;
 
     case WM_KEYDOWN:
 	if (dinput_wmkey ((uae_u32)lParam))
@@ -935,21 +983,21 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    recursive--;
 	}
     }
-    break;
+    return 0;
 
     case WM_DROPFILES:
 	dragdrop (hWnd, (HDROP)wParam, &changed_prefs, -1);
-    break;
+    return 0;
 
     case WM_TIMER:
 #ifdef PARALLEL_PORT
 	finishjob ();
 #endif
-    break;
+    return 0;
 
     case WM_CREATE:
 	DragAcceptFiles (hWnd, TRUE);
-    break;
+    return 0;
 
     case WM_CLOSE:
 	uae_quit ();
@@ -958,14 +1006,18 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_WINDOWPOSCHANGED:
     {
 	WINDOWPOS *wp = (WINDOWPOS *)lParam;
-	GetWindowRect (hWnd, &amigawin_rect);
-	if (isfullscreen() == 0) {
-	    changed_prefs.gfx_size_win.x = amigawin_rect.left;
-	    changed_prefs.gfx_size_win.y = amigawin_rect.top;
-	}
+	if (!IsIconic (hWnd)) {
+	    GetWindowRect (hWnd, &amigawin_rect);
+	    if (isfullscreen() == 0) {
+		changed_prefs.gfx_size_win.x = amigawin_rect.left;
+		changed_prefs.gfx_size_win.y = amigawin_rect.top;
+	    }
 #ifdef RETROPLATFORM
-	rp_moved (!(wp->flags & SWP_NOZORDER));
+	    if (!(wp->flags & SWP_NOZORDER))
+		rp_moved (1);
 #endif
+	}
+	notice_screen_contents_lost ();
     }
     break;
 
@@ -1005,9 +1057,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
 
     case WM_MOVING:
+    {
+	LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
+	WIN32GFX_WindowMove();
+#ifdef RETROPLATFORM
+	rp_moved (0);
+#endif
+	return lr;
+    }
     case WM_MOVE:
 	WIN32GFX_WindowMove();
-    return TRUE;
+    return FALSE;
 
 #if 0
     case WM_GETMINMAXINFO:
@@ -1105,12 +1165,30 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return TRUE;
 
     case WM_SYSCOMMAND:
-	if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled) {
-	    switch (wParam) // Check System Calls
+	    switch (wParam & 0xfff0) // Check System Calls
 	    {
 		case SC_SCREENSAVE: // Screensaver Trying To Start?
 		case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
-		return 0; // Prevent From Happening
+		if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled) {
+		    return 0; // Prevent From Happening
+		break;
+		default:
+		{
+		    LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
+		    switch (wParam & 0xfff0)
+		    {
+			case SC_MINIMIZE:
+			rp_minimize (1);
+			break;
+			case SC_RESTORE:
+			rp_minimize (0);
+			break;
+			case SC_CLOSE:
+			PostQuitMessage (0);
+			break;
+		    }
+		    return lr;
+		}
 	    }
 	}
     break;
@@ -1120,9 +1198,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    return 0;
     break;
 
-    case 0xff: // WM_INPUT:
-    handle_rawinput (lParam);
-    break;
+    case WM_INPUT:
+	handle_rawinput (lParam);
+    return 0;
 
     case WM_NOTIFY:
     {
@@ -1237,6 +1315,8 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
     switch (message)
     {
+     case WM_KILLFOCUS:
+     case WM_SETFOCUS:
      case WM_MOUSEMOVE:
      case WM_MOUSEWHEEL:
      case WM_MOUSEHWHEEL:
@@ -1276,7 +1356,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
      case WM_DISPLAYCHANGE:
-	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel() )
+	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel())
 	    WIN32GFX_DisplayChangeRequested();
 	break;
 
@@ -1322,7 +1402,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	GetClientRect (hWnd, &rc);
 	DrawEdge (hDC, &rc, EDGE_SUNKEN, BF_RECT);
 	EndPaint (hWnd, &ps);
-	break;
+	return 0;
 
      case WM_NCLBUTTONDBLCLK:
 	if (wParam == HTCAPTION) {
@@ -1856,6 +1936,13 @@ static get_aspi(int old)
     return UAESCSI_ADAPTECASPI;
 }
 
+void target_quit (void)
+{
+#ifdef RETROPLATFORM
+    rp_free ();
+#endif
+}
+
 void target_fixup_options (struct uae_prefs *p)
 {
 #ifdef RETROPLATFORM
@@ -1890,7 +1977,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
 	p->win32_outsidemouse = 0;
-	p->sana2[0] = 0;
+	p->sana2 = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
@@ -2873,7 +2960,7 @@ static int getval(char *s)
     int v;
     char *endptr;
 
-    if (s[0] == '0' && toupper(s[1]) == 'x')
+    if (s[0] == '0' && toupper(s[1]) == 'X')
 	s += 2, base = 16;
     v = strtol (s, &endptr, base);
     if (*endptr != '\0' || *s == '\0')

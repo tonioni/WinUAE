@@ -40,6 +40,7 @@ static uae_u32 skipins;
 static int do_skip;
 static int debug_rewind;
 static int memwatch_enabled, memwatch_triggered;
+static uae_u16 sr_bpmask, sr_bpvalue;
 int debugging;
 int exception_debugging;
 int debug_copper;
@@ -104,6 +105,7 @@ static char help[] = {
     "  fp \"<name>\"/<addr>    Step forward until process <name> or <addr> is active\n"
     "  fl                    List breakpoints\n"
     "  fd                    Remove all breakpoints\n"
+    "  fs <val> <mask>       Break when (SR & mask) = val\n"                   
     "  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
     "  e                     Dump contents of all custom registers, ea = AGA colors\n"
     "  i [<addr>]            Dump contents of interrupt and trap vectors\n"
@@ -1872,7 +1874,18 @@ static int instruction_breakpoint (char **c)
 
     if (more_params (c)) {
 	char nc = toupper((*c)[0]);
-	if (nc == 'I') {
+	if (nc == 'S') {
+	    next_char (c);
+	    sr_bpvalue = sr_bpmask = 0;
+	    if (more_params (c)) {
+		sr_bpmask = 0xffff;
+		sr_bpvalue = readhex (c);
+		if (more_params (c))
+		    sr_bpmask = readhex (c);
+	    }
+	    console_out ("SR breakpoint, value=%04X, mask=%04X\n", sr_bpvalue, sr_bpmask);
+	    return 0;
+	} else if (nc == 'I') {
 	    next_char (c);
 	    if (more_params (c))
 		skipins = readhex (c);
@@ -2542,16 +2555,14 @@ void debug (void)
 			uaecptr seglist = 0;
 			char *command = NULL;
 			if (cli) {
-			    if (processname) {
-				uae_u8 *command_bstr = get_real_address (BPTR2APTR(get_long (cli + 16)));
-				command = BSTR2CSTR(command_bstr);
-			    }
+			    if (processname)
+				command = (char *)get_real_address (BPTR2APTR(get_long (cli + 16)));
 			    seglist = BPTR2APTR(get_long (cli + 60));
 			} else {
 			    seglist = BPTR2APTR(get_long (activetask + 128));
 			    seglist = BPTR2APTR(get_long (seglist + 12));
 			}
-			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && !stricmp(command, processname))))) {
+			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && command[0] && !strnicmp(command + 1, processname, command[0] && processname[command[0]+1] == 0))))) {
 			    while (seglist) {
 				uae_u32 size = get_long (seglist - 4) - 4;
 				if (pc >= (seglist + 4) && pc < (seglist + size)) {
@@ -2561,7 +2572,6 @@ void debug (void)
 				seglist = BPTR2APTR(get_long (seglist));
 			    }
 			}
-			xfree(command);
 		    }
 		} else if (skipins != 0xffffffff) {
 		    if (skipins == 0x10000) {
@@ -2577,6 +2587,13 @@ void debug (void)
 		} else if (skipaddr_end != 0xffffffff) {
 		    if (pc >= skipaddr_start && pc < skipaddr_end)
 			bp = 1;
+		}
+	    }
+	    if (sr_bpmask || sr_bpvalue) {
+		MakeSR (&regs);
+		if ((regs.sr & sr_bpmask) == sr_bpvalue) {
+		    console_out ("SR breakpoint\n");
+		    bp = 1;
 		}
 	    }
 	    if (!bp) {
@@ -2627,6 +2644,8 @@ void debug (void)
 	if (bpnodes[i].enabled)
 	    do_skip = 1;
     }
+    if (sr_bpmask || sr_bpvalue)
+	do_skip = 1;
     if (do_skip) {
 	set_special (&regs, SPCFLAG_BRK);
 	unset_special (&regs, SPCFLAG_STOP);

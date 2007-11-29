@@ -495,6 +495,16 @@ static void fill_line_32 (uae_u8 *buf, unsigned int start, unsigned int stop)
 	b[i] = col;
 }
 
+static void pfield_do_fill_line (int start, int stop)
+{
+    xlinecheck(start, stop);
+    switch (gfxvidinfo.pixbytes) {
+    case 1: fill_line_8 (xlinebuffer, start, stop); break;
+    case 2: fill_line_16 (xlinebuffer, start, stop); break;
+    case 4: fill_line_32 (xlinebuffer, start, stop); break;
+    }
+}
+
 STATIC_INLINE void fill_line (void)
 {
     int shift;
@@ -508,11 +518,11 @@ STATIC_INLINE void fill_line (void)
     if (gfxvidinfo.pixbytes == 4)
 	shift = 2;
 
-    nints = gfxvidinfo.width >> (2-shift);
+    nints = gfxvidinfo.width >> (2 - shift);
     nrem = nints & 7;
     nints &= ~7;
     start = (int *)(((char *)xlinebuffer) + (visible_left_border << shift));
-#ifdef AGA
+#ifdef ECS_DENISE
     val = brdblank ? 0 : colors_for_drawing.acolors[0];
 #else
     val = colors_for_drawing.acolors[0];
@@ -801,16 +811,6 @@ static void pfield_do_linetoscr (int start, int stop)
 		}
 	    }
 	}
-    }
-}
-
-static void pfield_do_fill_line (int start, int stop)
-{
-    xlinecheck(start, stop);
-    switch (gfxvidinfo.pixbytes) {
-    case 1: fill_line_8 (xlinebuffer, start, stop); break;
-    case 2: fill_line_16 (xlinebuffer, start, stop); break;
-    case 4: fill_line_32 (xlinebuffer, start, stop); break;
     }
 }
 
@@ -1593,23 +1593,28 @@ static void pfield_expand_dp_bplcon (void)
 	frame_res = 1;
     if (bplres > 0)
 	can_use_lores = 0;
-    if (currprefs.chipset_mask & CSMASK_AGA) {
-	/* The KILLEHB bit exists in ECS, but is apparently meant for Genlock
-	 * stuff, and it's set by some demos (e.g. Andromeda Seven Seas) */
-	bplehb = ((dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200));
-    } else {
+
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	bplehb = (dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200);
+    else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
+	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200);
+    else
 	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(currprefs.chipset_mask & CSMASK_NO_EHB);
-    }
+
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
     plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
     plf_sprite_mask |= (0xFFFF << (4 * plf1pri)) & 0xFFFF;
     bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
     bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
+
+#ifdef ECS_DENISE
     brdblank_2 = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
     if (brdblank_2 != brdblank)
 	brdblank_changed = 1;
     brdblank = brdblank_2;
+#endif
+
 #ifdef AGA
     bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
     sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
@@ -1632,10 +1637,12 @@ static void pfield_expand_dp_bplcon2 (int regno, int v)
 	case 0x104:
 	dp_for_drawing->bplcon2 = v;
 	break;
-#ifdef AGA
+#ifdef ECS_DENISE
 	case 0x106:
 	dp_for_drawing->bplcon3 = v;
 	break;
+#endif
+#ifdef AGA
 	case 0x108:
 	dp_for_drawing->bplcon4 = v;
 	break;
@@ -2456,12 +2463,14 @@ void finish_drawing_frame (void)
 
     do_flush_screen (first_drawn_line, last_drawn_line);
 
+#ifdef ECS_DENISE
     if (brdblank_changed) {
 	last_max_ypos = max_ypos_thisframe;
 	last_redraw_point = 10;
 	notice_screen_contents_lost();
 	brdblank_changed = 0;
     }
+#endif
 }
 
 void hardware_line_completed (int lineno)

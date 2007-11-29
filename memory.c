@@ -1261,7 +1261,7 @@ static uae_u8 *REGPARAM2 bogomem_xlate (uaecptr addr)
 
 /* CDTV expension memory card memory */
 
-static uae_u8 *cardmemory;
+uae_u8 *cardmemory;
 
 static uae_u32 REGPARAM3 cardmem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 cardmem_wget (uaecptr) REGPARAM;

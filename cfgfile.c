@@ -414,7 +414,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "serial_direct=%s\n", p->serial_direct ? "true" : "false");
     cfgfile_write (f, "scsi=%s\n", scsimode[p->scsi]);
     cfgfile_write (f, "uaeserial=%s\n", p->uaeserial ? "true" : "false");
-    cfgfile_write (f, "sana2=%s\n", p->sana2[0] ? p->sana2 : "");
+    cfgfile_write (f, "sana2=%s\n", p->sana2 ? "true" : "false");
 
     cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
     cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
@@ -592,6 +592,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
     cfgfile_dwrite (f, "scsi_a3000=%s\n", p->cs_mbdmac == 1 ? "true" : "false");
     cfgfile_dwrite (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
+    cfgfile_dwrite (f, "bogomem_fast=%s\n", p->cs_slowmemisfast ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
@@ -1282,9 +1283,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "scsi_cdtv", &p->cs_cdtvscsi)
 	|| cfgfile_yesno (option, value, "scsi_a4091", &p->cs_a4091)
 	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
+	|| cfgfile_yesno (option, value, "bogomem_fast", &p->cs_slowmemisfast)
 
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
+	|| cfgfile_yesno (option, value, "sana2", &p->sana2)
 	|| cfgfile_yesno (option, value, "genlock", &p->genlock)
 	|| cfgfile_yesno (option, value, "cpu_compatible", &p->cpu_compatible)
 	|| cfgfile_yesno (option, value, "cpu_24bit_addressing", &p->address_space_24)
@@ -1348,7 +1351,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     if (cfgfile_string (option, value, "kickstart_rom_file", p->romfile, sizeof p->romfile)
 	|| cfgfile_string (option, value, "kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile)
 	|| cfgfile_string (option, value, "amax_rom_file", p->amaxromfile, sizeof p->amaxromfile)
-	|| cfgfile_string (option, value, "sana2", p->sana2, sizeof p->sana2)
 	|| cfgfile_string (option, value, "flash_file", p->flashfile, sizeof p->flashfile)
 	|| cfgfile_string (option, value, "cart_file", p->cartfile, sizeof p->cartfile)
 	|| cfgfile_string (option, value, "pci_devices", p->pci_devices, sizeof p->pci_devices)
@@ -2858,7 +2860,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->filesys_custom_uaefsdb = 1;
     p->picasso96_nocustom = 1;
     p->cart_internal = 1;
-    p->sana2[0] = 0;
+    p->sana2 = 0;
 
     p->cs_compatible = 1;
     p->cs_rtc = 2;
@@ -2877,6 +2879,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_ksmirror = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
+    p->cs_slowmemisfast = 0;
 
     p->gfx_filter = 0;
     p->gfx_filter_horiz_zoom_mult = 1000;
@@ -3219,7 +3222,7 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	return 0;
     p->bogomem_size = 0;
     p->chipmem_size = 0x100000;
-    p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+    p->chipset_mask = CSMASK_ECS_AGNUS;
     p->cs_cdtvcd = p->cs_cdtvram = 1;
     if (config > 0)
 	p->cs_cdtvcard = 64;

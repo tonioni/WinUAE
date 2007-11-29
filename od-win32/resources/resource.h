@@ -875,6 +875,7 @@
 #define IDC_CS_DENISEREV                1738
 #define IDC_DBG_OUTPUT1                 1739
 #define IDC_CS_PCMCIA                   1739
+#define IDC_CS_SLOWISFAST               1740
 #define IDC_DBG_HELP                    1740
 #define IDC_DBG_INPUT                   1741
 #define IDC_DBG_DREG                    1742

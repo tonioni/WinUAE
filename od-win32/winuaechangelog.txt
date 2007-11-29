@@ -1,4 +1,43 @@
 
+Beta 14:
+
+- BPLCON3 BRDRBLNK-bit didn't work when chipset was ECS Denise
+- BPLCON3 KILLEHB-bit was first implemented in ECS Denise (not AGA)
+  It makes 6-plane display to work like normal 5-plane display,
+  6th plane can now be used for genlock mask
+- COPCON CDANG-bit allowing full register writes was first implemented
+  in ECS Agnus, not in AGA. (OCS has low address limit of 0x40)
+- CDTV QS Denise setting corrected (OCS, not ECS Denise)
+- added "slow is fast" option to advanced chipset. (Original A2000
+  with DIP Agnus has real fast at 0xc00000, some A1000 CPU socket
+  fast ram expansions mapped to 0xc00000 instead of usual 0x200000)
+  CPU socket RAM expansions) Speed difference only in CE-mode
+- Windows message handling changes, most likely breaks something but
+  also should fix Direct3D filter fullscreen switch issues (WIP)
+- compressed disk images (dms, adz etc..) inside archives (lha, zip
+  etc..) supported (this may have worked few releases ago, not sure..)
+
+- uaenet.device backend replaced with winpcap
+  http://www.winpcap.org/install/ (version 4.x only tested)
+  differences:
+  - winpcap is easier to use. Install. Done. (*)
+  - promiscuous mode supported
+  - all available network adapters are automatically mapped to
+    uaenet.device. first adapter = unit 0, second = unit 1 etc..
+    (manual configuration someday, maybe..) Check the log.
+  - some (bad) software firewalls may block some/all packets..
+    (at least Vista x64 + eset smart security fw seems to eat all
+    non-broadcast packets..)
+  - fixed bug in dropped packet (packet that nobody wanted) handing
+
+  *) Vista note: winpcap kernel mode driver will be loaded when it is
+  first required. This needs admin privileges (only once after boot)
+  Another easier solution is to enable autostart:
+  Open Device manager, "View"-menu, "Show hidden devices", open
+  "Non-Plug and Play Drivers" from device tree, find "NetGroup Packet
+  Filter Driver", select properties, "Driver"-tab, set type to
+  "Automatic"
+
 Beta 13:
 
 - more cd/dvdrom automount issues fixed

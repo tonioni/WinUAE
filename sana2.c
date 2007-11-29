@@ -25,7 +25,6 @@
 #include "blkdev.h"
 #include "uae.h"
 #include "sana2.h"
-#include "tun_uae.h"
 #include "win32_uaenet.h"
 
 #define SANA2NAME "uaenet.device"
@@ -168,7 +167,7 @@ struct mcast {
 };
 
 struct devstruct {
-    int unitnum, unit, opencnt, exclusive;
+    int unitnum, unit, opencnt, exclusive, promiscuous;
     struct asyncreq *ar;
     struct asyncreq *s2p;
     struct mcast *mc;
@@ -188,7 +187,7 @@ struct devstruct {
     int configured;
     int adapter;
     int online;
-    struct tapdata *td;
+    struct netdriverdata *td;
     struct s2packet *readqueue;
     uae_u8 mac[ADDR_SIZE];
 };
@@ -197,6 +196,7 @@ struct priv_devstruct {
     int inuse;
     int unit;
     int flags; /* OpenDevice() */
+    int promiscuous;
 
     uae_u8 tracks[65536];
     int trackcnt;
@@ -213,13 +213,13 @@ struct priv_devstruct {
 
     uaecptr timerbase;
 
-    struct tapdata *td;
+    struct netdriverdata *td;
 
     int tmp;
 };
 
-static struct tapdata td;
-static struct devstruct devst[MAX_TOTAL_DEVICES];
+static struct netdriverdata td[MAX_TOTAL_NET_DEVICES];
+static struct devstruct devst[MAX_TOTAL_NET_DEVICES];
 static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
 static uae_sem_t change_sem, async_sem;
@@ -231,9 +231,7 @@ static struct device_info *devinfo (int mode, int unitnum, struct device_info *d
 
 static struct devstruct *getdevstruct (int unit)
 {
-    if (unit != 0)
-	return 0;
-    if (unit >= MAX_TOTAL_DEVICES || unit < 0)
+    if (unit >= MAX_TOTAL_NET_DEVICES || unit < 0)
 	return 0;
     return &devst[unit];
 }
@@ -345,13 +343,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	return openfail (ioreq, 32); /* badunitnum */
     if (!buffermgmt)
 	return openfail (ioreq, S2ERR_BAD_ARGUMENT);
-    if ((flags & SANA2OPF_MINE) && (dev->exclusive || dev->opencnt > 0))
+    if ((flags & SANA2OPF_PROM) && dev->opencnt > 0)
 	return openfail (ioreq, -6); /* busy */
-    if (flags & SANA2OPF_PROM) {
-	if (dev->exclusive || dev->opencnt > 0)
-	    return openfail (ioreq, -6); /* busy */
-	return openfail (ioreq, S2ERR_NOT_SUPPORTED);
-    }
 
     for (i = 0; i < MAX_OPEN_DEVICES; i++) {
         pdev = &pdevst[i];
@@ -360,23 +353,28 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
     }
     if (i == MAX_OPEN_DEVICES)
         return openfail (ioreq, -6);
+
     put_long (ioreq + 24, pdev - pdevst);
     pdev->unit = unit;
     pdev->flags = flags;
     pdev->inuse = 1;
-    pdev->td = &td;
+    pdev->td = &td[unit];
+    pdev->promiscuous = (flags & SANA2OPF_PROM) ? 1 : 0;
+
+    if (pdev->td->active == 0)
+	return openfail (ioreq, 32); /* badunit, no adapter */
 
     dev->opencnt = get_word (m68k_areg (&context->regs, 6) + 32);
     if (dev->opencnt == 0) {
 	dev->sysdata = xcalloc (uaenet_getdatalenght(), 1);
-	if (!uaenet_open (dev->sysdata, &td, dev, unit)) {
+	if (!uaenet_open (dev->sysdata, pdev->td, dev, pdev->promiscuous)) {
 	    xfree (dev->sysdata);
 	    dev->sysdata = NULL;
 	    return openfail (ioreq, 32); /* badunitnum */
 	}
 	write_log ("%s: initializing unit %d\n", getdevname (), unit);
-	dev->td = &td;
-	dev->adapter = td.active;
+	dev->td = pdev->td;
+	dev->adapter = pdev->td->active;
 	start_thread (dev);
     }
 
@@ -637,14 +635,14 @@ static uae_u32 packetfilter (TrapContext *ctx, uaecptr hook, uaecptr ios2, uaecp
     return v;
 }
 
-static int isbroadcast (uae_u8 *d)
+static int isbroadcast (const uae_u8 *d)
 {
     if (d[0] == 0xff && d[1] == 0xff && d[2] == 0xff &&
 	d[3] == 0xff && d[4] == 0xff && d[5] == 0xff)
 	    return 1;
     return 0;
 }
-static int ismulticast (uae_u8 *d)
+static int ismulticast (const uae_u8 *d)
 {
     if (isbroadcast (d))
 	return 0;
@@ -653,7 +651,7 @@ static int ismulticast (uae_u8 *d)
     return 0;
 }
 
-static uae_u64 addrto64 (uae_u8 *d)
+static uae_u64 addrto64 (const uae_u8 *d)
 {
     int i;
     uae_u64 addr = 0;
@@ -727,7 +725,7 @@ static int delmulticastaddresses (struct devstruct *dev, uae_u64 start, uae_u64 
     return 0;
 }
 
-static struct s2packet *createreadpacket (struct devstruct *dev, uae_u8 *d, int len)
+static struct s2packet *createreadpacket (struct devstruct *dev, const uae_u8 *d, int len)
 {
     struct s2packet *s2p = xcalloc (sizeof (struct s2packet), 1);
     s2p->data = xmalloc (dev->td->mtu + ETH_HEADER_SIZE + 2);
@@ -777,7 +775,7 @@ static int handleread (TrapContext *ctx, struct priv_devstruct *pdev, uaecptr re
     return 1;
 }
 
-void uaenet_gotdata (struct devstruct *dev, uae_u8 *d, int len)
+void uaenet_gotdata (struct devstruct *dev, const uae_u8 *d, int len)
 {
     uae_u16 type;
     struct mcast *mc;
@@ -785,8 +783,16 @@ void uaenet_gotdata (struct devstruct *dev, uae_u8 *d, int len)
 
     if (!dev->online)
 	return;
+    /* drop if bogus size */
     if (len <= ETH_HEADER_SIZE + 2 || len >= dev->td->mtu + ETH_HEADER_SIZE + 2)
 	return;
+    /* drop if dst == broadcast and src == me */
+    if (isbroadcast (d) && !memcmp (d + 6, dev->td->mac, ADDR_SIZE))
+	return;
+    /* drop if not promiscuous and dst != broadcast and dst != me */
+    if (!dev->promiscuous && !isbroadcast (d) && memcmp (d, dev->td->mac, ADDR_SIZE))
+	return;
+    /* drop if multicast with unknown address */
     if (ismulticast (d)) {
 	uae_u64 mac64 = addrto64 (d);
 	/* multicast */
@@ -1340,7 +1346,7 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 
 static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 {
-    int i;
+    int i, j;
     int ours = 0;
     int gotit;
     struct asyncreq *ar;
@@ -1349,7 +1355,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
     for (i = 0; i < MAX_OPEN_DEVICES; i++)
 	pdevst[i].tmp = 0;
 
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+    for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 	struct devstruct *dev = &devst[i];
 	struct s2packet *p;
 	if (dev->online) {
@@ -1408,10 +1414,10 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 		if (!gotit) {
 		    if (log_net)
 			write_log ("-> %p packet dropped, LEN=%d\n", p, p->len);
-		    for (i = 0; i < MAX_OPEN_DEVICES; i++) {
-			if (pdevst[i].unit == dev->unit) {
-			    if (pdevst[i].tracks[type])
-				pdevst[i].packetsdropped++;
+		    for (j = 0; j < MAX_OPEN_DEVICES; j++) {
+			if (pdevst[j].unit == dev->unit) {
+			    if (pdevst[j].tracks[type])
+				pdevst[j].packetsdropped++;
 			}
 		    }
 		}
@@ -1476,7 +1482,7 @@ static void dev_reset (void)
     int unitnum = 0;
 
     write_log ("%s reset\n", getdevname());
-    for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+    for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 	dev = &devst[i];
 	if (dev->opencnt) {
 	    struct asyncreq *ar = dev->ar;
@@ -1507,7 +1513,7 @@ static uaecptr ROM_netdev_resname = 0,
 
 uaecptr netdev_startup (uaecptr resaddr)
 {
-    if (!currprefs.sana2[0])
+    if (!currprefs.sana2)
 	return resaddr;
     if (log_net)
 	write_log ("netdev_startup(0x%x)\n", resaddr);
@@ -1531,12 +1537,13 @@ void netdev_install (void)
     uae_u32 initcode, openfunc, closefunc, expungefunc;
     uae_u32 beginiofunc, abortiofunc;
 
-    if (!currprefs.sana2[0])
+    if (!currprefs.sana2)
 	return;
     if (log_net)
 	write_log ("netdev_install(): 0x%x\n", here ());
 
-    tap_open_driver (&td, currprefs.sana2);
+    uaenet_close_driver (td);
+    uaenet_open_driver (td);
 
     ROM_netdev_resname = ds (getdevname());
     ROM_netdev_resid = ds ("UAE net.device 0.1");
@@ -1633,7 +1640,7 @@ void netdev_install (void)
 
 void netdev_start_threads (void)
 {
-    if (!currprefs.sana2[0])
+    if (!currprefs.sana2)
 	return;
     if (log_net)
 	write_log ("netdev_start_threads()\n");
@@ -1643,7 +1650,7 @@ void netdev_start_threads (void)
 
 void netdev_reset (void)
 {
-    if (!currprefs.sana2[0])
+    if (!currprefs.sana2)
 	return;
     dev_reset ();
 }

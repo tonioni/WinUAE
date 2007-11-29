@@ -369,10 +369,7 @@ void fixup_prefs (struct uae_prefs *p)
     p->win32_aspi = 0;
 #endif
 #if !defined (SANA2)
-    p->sana2[0] = 0;
-#else
-    if (!strcmp (p->sana2, "none"))
-	p->sana2[0] = 0;
+    p->sana2 = 0;
 #endif
 #if !defined (UAESERIAL)
     p->uaeserial = 0;
@@ -403,6 +400,7 @@ void uae_quit (void)
     deactivate_debugger ();
     if (quit_program != -1)
 	quit_program = -1;
+    target_quit ();
 }
 
 /* 0 = normal, 1 = nogui, -1 = disable nogui */

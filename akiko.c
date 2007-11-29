@@ -573,7 +573,7 @@ static int cdrom_toc (void)
 	d[8] = tobcd (s[8]);
 	d[9] = tobcd (s[9]);
 	d[10] = tobcd (s[10]);
-	if (s[3] == 1 && (s[1] & 0x0f) == 0x04)
+	if (s[3] == 1 && (s[1] & 0x0c) == 0x04)
 	    datatrack = 1;
 	if (s[3] == 2)
 	    secondtrack = addr;

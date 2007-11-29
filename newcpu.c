@@ -2063,7 +2063,6 @@ void doint (void)
 }
 //static uae_u32 pcs[1000];
 
-
 //#define DEBUG_CD32IO
 #ifdef DEBUG_CD32IO
 
@@ -2126,9 +2125,9 @@ static void out_cd32io (uae_u32 pc)
 		activate_debugger (1);
 	}
 #endif
-	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d\n",
+	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d PC=%x\n",
 	    cmd, get_long (request + 40),
-	    get_long (request + 36), get_long (request + 44));
+	    get_long (request + 36), get_long (request + 44), M68K_GETPC);
     }
     if (ioreq < 0)
 	;//activate_debugger ();

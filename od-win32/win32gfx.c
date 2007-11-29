@@ -917,6 +917,8 @@ int lockscr (void)
 	return 0;
     if (currentmode->flags & DM_D3D) {
 #ifdef D3D
+	if (D3D_needreset ())
+	    WIN32GFX_DisplayChangeRequested ();
 	return D3D_locktexture ();
 #endif
     } else if (currentmode->flags & DM_SWSCALE) {
@@ -2055,7 +2057,7 @@ static int create_windows (void)
 		style,
 		rc.left, rc.top,
 		rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-		hhWnd, NULL, 0, NULL);
+		hhWnd, NULL, hInst, NULL);
 
 	    if (!hMainWnd) {
 		write_log ("main window creation failed\n");
@@ -2075,7 +2077,7 @@ static int create_windows (void)
 				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX),
 				x, y,
 				currentmode->native_width, currentmode->native_height,
-				hMainWnd ? hMainWnd : hhWnd, NULL, 0, NULL);
+				borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
 
     if (!hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
@@ -2368,7 +2370,7 @@ oops:
 }
 
 
-void WIN32GFX_PaletteChange( void )
+void WIN32GFX_PaletteChange(void)
 {
     HRESULT hr;
 
@@ -2383,7 +2385,7 @@ void WIN32GFX_PaletteChange( void )
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
 }
 
-int WIN32GFX_ClearPalette( void )
+int WIN32GFX_ClearPalette(void)
 {
     HRESULT hr;
     if (currentmode->current_depth > 8)
@@ -2395,7 +2397,7 @@ int WIN32GFX_ClearPalette( void )
     return SUCCEEDED(hr);
 }
 
-int WIN32GFX_SetPalette( void )
+int WIN32GFX_SetPalette(void)
 {
     HRESULT hr;
     if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
@@ -2406,7 +2408,7 @@ int WIN32GFX_SetPalette( void )
 	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
     return SUCCEEDED(hr);
 }
-void WIN32GFX_WindowMove ( void	)
+void WIN32GFX_WindowMove (void)
 {
     if (currentmode->flags & DM_OVERLAY)
 	setoverlay(0);

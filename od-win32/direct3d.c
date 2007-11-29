@@ -558,13 +558,23 @@ void D3D_unlocktexture (void)
 	D3D_render ();
 }
 
+int D3D_needreset (void)
+{
+    HRESULT hr = IDirect3DDevice9_TestCooperativeLevel(d3ddev);
+    if (hr == D3DERR_DEVICENOTRESET)
+	return 1;
+    return 0;
+}
+
 int D3D_locktexture (void)
 {
     D3DLOCKED_RECT locked;
     HRESULT hr;
 
-    if (FAILED(IDirect3DDevice9_TestCooperativeLevel(d3ddev)))
+    hr = IDirect3DDevice9_TestCooperativeLevel(d3ddev);
+    if (FAILED (hr))
 	return 0;
+
     IDirect3DDevice9_Clear(d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
 
     hr = IDirect3DDevice9_BeginScene(d3ddev);
@@ -660,7 +670,7 @@ HDC D3D_getDC(HDC hdc)
 	return 0;
     if (!hdc) {
 	hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
-	if (!SUCCEEDED (hr)) {
+	if (FAILED (hr)) {
 	    write_log ("failed to create backbuffer: %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}

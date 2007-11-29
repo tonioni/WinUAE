@@ -1052,7 +1052,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500;WIN32"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -1087,14 +1087,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="setupapi.dll"
+				DelayLoadDLLs="setupapi.dll;wpcap.dll;packet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1379,10 +1379,6 @@
 			</File>
 			<File
 				RelativePath="..\sounddep\sound.c"
-				>
-			</File>
-			<File
-				RelativePath="..\tun.c"
 				>
 			</File>
 			<File

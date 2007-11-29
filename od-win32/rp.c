@@ -79,10 +79,23 @@ const char *getmsg (int msg)
 BOOL RPSendMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam,
                    LPCVOID pData, DWORD dwDataSize, const RPGUESTINFO *pInfo, LRESULT *plResult)
 {
-    BOOL v = RPSendMessage (uMessage, wParam, lParam, pData, dwDataSize, pInfo, plResult);
-    if (log_rp)
+    BOOL v;
+    
+    if (!pInfo) {
+	write_log ("RPSEND: pInfo == NULL!\n");
+        return FALSE;
+    }
+    if (!pInfo->hHostMessageWindow) {
+	write_log ("RPSEND: pInfo->hHostMessageWindow == NULL!\n");
+        return FALSE;
+    }
+    v = RPSendMessage (uMessage, wParam, lParam, pData, dwDataSize, pInfo, plResult);
+    if (log_rp) {
 	write_log ("RPSEND(%s [%d], %08x, %08x, %08x, %d\n",
 	    getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize);
+	if (v == FALSE)
+	    write_log("ERROR %d\n", GetLastError ());
+    }
     return v;
 }
 
@@ -102,8 +115,6 @@ static int winok(void)
     if (!initialized)
 	return 0;
     if (!hwndset)
-	return 0;
-    if (minimized)
 	return 0;
     return 1;
 }
@@ -240,7 +251,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	p->gfx_size_win.width = default_width * xres;
 	p->gfx_size_win.height = default_height * xres;
     }
-    changed_prefs.gfx_resolution = res;
+    p->gfx_resolution = res;
     if (res == 0)
 	p->gfx_linedbl = 0;
     else
@@ -293,11 +304,18 @@ void rp_mousecapture (int captured)
     RPSendMessagex(RPIPCGM_MOUSECAPTURE, captured, 0, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_activate (int active)
+void rp_activate (int active, LPARAM lParam)
 {
-    if (!winok())
+    if (!initialized)
 	return;
-    RPSendMessagex(active ? RPIPCGM_ACTIVATED : RPIPCGM_DEACTIVATED, 0, 0, NULL, 0, &guestinfo, NULL);
+    RPSendMessagex(active ? RPIPCGM_ACTIVATED : RPIPCGM_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_minimize (int minimize)
+{
+    if (!initialized)
+	return;
+    RPSendMessagex(minimize ? RPIPCGM_MINIMIZED : RPIPCGM_RESTORED, 0, 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_turbo (int active)
@@ -325,33 +343,72 @@ void rp_moved (int zorder)
     RPSendMessagex(zorder ? RPIPCGM_ZORDER : RPIPCGM_MOVED, 0, 0, NULL, 0, &guestinfo, NULL);
 }
 
-int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
+static uae_u64 esctime;
+static int ignorerelease;
+
+static uae_u64 gett (void)
 {
-    static uae_u64 esctime;
-    uae_u64 t;
     SYSTEMTIME st;
     FILETIME ft;
     ULARGE_INTEGER li;
 
-    if (!initialized)
-	return 0;
-    if (scancode != rp_rmousevkey)
-	return 0;
     GetSystemTime (&st);
     if (!SystemTimeToFileTime (&st, &ft))
-	return scancode;
+	return 0;
     li.LowPart = ft.dwLowDateTime;
     li.HighPart = ft.dwHighDateTime;
-    t = li.QuadPart / 10000;
+    return li.QuadPart / 10000;
+}
+
+void rp_hsync (void)
+{
+    uae_u64 t;
+    static int cnt;
+
+    cnt--;
+    if (cnt > 0)
+	return;
+    cnt = 100;
+    if (!esctime)
+	return;
+    t = gett ();
+    if (t >= esctime) {
+	setmouseactive (0);
+	ignorerelease = 1;
+	esctime = 0;
+    }
+}
+
+int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
+{
+    uae_u64 t;
+
+    if (!initialized)
+	goto end;
+    if (scancode != rp_rmousevkey)
+	goto end;
+    if (ignorerelease && !pressed) {
+	ignorerelease = 0;
+	goto end;
+    }
+    t = gett();
+    if (!t)
+	goto end;
     if (pressed) {
 	esctime = t + rp_rmouseholdtime;
 	return 1;
     }
-    if (t >= esctime) {
-	setmouseactive (0);
-	return 1;
-    }
     my_kbd_handler (num, scancode, 1);
     my_kbd_handler (num, scancode, 0);
+    ignorerelease = 0;
+    esctime = 0;
     return 1;
+end:
+    esctime = 0;
+    return 0;
+}
+
+int rp_isactive (void)
+{
+    return initialized;
 }

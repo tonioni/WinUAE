@@ -1593,7 +1593,7 @@ static void read_kb (void)
 
 void wait_keyrelease (void)
 {
-    int i, j, maxcount = 200, found;
+    int i, j, maxcount = 10, found;
     stopoutput++;
 
     while (maxcount-- > 0) {
@@ -1602,14 +1602,15 @@ void wait_keyrelease (void)
 	found = 0;
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 	    for (i = 0; i < MAX_KEYCODES; i++) {
-		if (di_keycodes[j][i]) found = 1;
+		if (di_keycodes[j][i])
+		    found = 1;
 	    }
 	}
 	if (!found)
 	    break;
     }
     release_keys ();
-
+#if 0
     for (;;) {
 	int ok = 0, nok = 0;
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
@@ -1635,6 +1636,7 @@ void wait_keyrelease (void)
 	if (ok == nok) break;
 	sleep_millis (10);
     }
+#endif
     stopoutput--;
 }
 

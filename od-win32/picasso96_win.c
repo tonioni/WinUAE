@@ -48,6 +48,7 @@
 
 #include "registry.h"
 #include "dxwrap.h"
+#include "rp.h"
 #include "picasso96_win.h"
 #include "win32gfx.h"
 
@@ -2950,6 +2951,9 @@ void picasso_handle_hsync (void)
 {
     static int p96hsync;
 
+#ifdef RETROPLATFORM
+    rp_hsync ();
+#endif
     if (currprefs.gfxmem_size == 0)
 	return;
     if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_pvsync) {

@@ -220,28 +220,6 @@ const struct panel_reg *get_panel_reg (void)
   return first;
 }
 
-int check_tap_driver (const char *name)
-{
-    const struct tap_reg *tr;
-    const struct panel_reg *pr;
-
-    const struct tap_reg *tap_reg = get_tap_reg ();
-    const struct panel_reg *panel_reg = get_panel_reg ();
-    /* loop through each TAP-Win32 adapter registry entry */
-    for (tr = tap_reg; tr != NULL; tr = tr->next)
-    {
-	/* loop through each network connections entry in the control panel */
-	for (pr = panel_reg; pr != NULL; pr = pr->next)
-	{
-	    if (!strcmp (tr->guid, pr->guid)) {
-		write_log ("TAP-WIN32: '%s' %s\n", pr->name, tr->guid);
-	    }
-	}
-    }
-    return 1;
-}
-
-
 static const char *guid_to_name (const char *guid, const struct panel_reg *panel_reg)
 {
   const struct panel_reg *pr;
@@ -298,7 +276,7 @@ get_unspecified_device_guid (const int device_number,
   return ret;
 }
 
-void tap_close_driver (struct tapdata *tc)
+void uaenet_close_driver (struct netdriverdata *tc)
 {
     if (tc->h != INVALID_HANDLE_VALUE) {
 	DWORD status = FALSE;
@@ -310,7 +288,7 @@ void tap_close_driver (struct tapdata *tc)
     tc->active = 0;
 }
 
-static void tap_get_mtu (struct tapdata *tc)
+static void tap_get_mtu (struct netdriverdata *tc)
 {
     ULONG mtu;
     DWORD len;
@@ -322,7 +300,7 @@ static void tap_get_mtu (struct tapdata *tc)
 	 tc->mtu = mtu;
 }
 
-static void tap_get_mac (struct tapdata *tc)
+static void tap_get_mac (struct netdriverdata *tc)
 {
     DWORD len;
 
@@ -332,7 +310,7 @@ static void tap_get_mac (struct tapdata *tc)
 }
 
 
-int tap_open_driver (struct tapdata *tc, const char *name)
+int uaenet_open_driver (struct netdriverdata *tc, const char *name)
 {
     int device_number = 0;
     HANDLE hand;
@@ -389,7 +367,7 @@ int tap_open_driver (struct tapdata *tc, const char *name)
 	write_log ("TAP-Win32 Driver Version %d.%d %s\n", (int) info[0], (int) info[1], (info[2] ? "(DEBUG)" : ""));
     if (!(info[0] == TAP_WIN32_MIN_MAJOR && info[1] >= TAP_WIN32_MIN_MINOR)) {
 	write_log ("ERROR: TAP-Win32 driver version %d.%d or newer required\n", TAP_WIN32_MIN_MAJOR, TAP_WIN32_MIN_MINOR);
-	tap_close_driver (tc);
+	uaenet_close_driver (tc);
 	return 0;
     }
     status = TRUE;

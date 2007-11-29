@@ -1074,7 +1074,7 @@ uaecptr need_uae_boot_rom(void)
 	return b;
     if (currprefs.scsi == 1)
 	return b;
-    if (currprefs.sana2[0])
+    if (currprefs.sana2)
 	return b;
     if (currprefs.win32_outsidemouse)
 	return b;
@@ -1113,6 +1113,7 @@ static void expamem_init_a4091 (void)
 
 void p96memstart(void)
 {
+    /* make sure there is always empty space between Z3 and P96 RAM */
     p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
     if (p96ram_start == currprefs.z3fastmem_start + currprefs.z3fastmem_size)
 	p96ram_start += 0x1000000;

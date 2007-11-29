@@ -608,8 +608,10 @@ static void finish_playfield_line (void)
 	|| line_decisions[next_lineno].plfleft != thisline_decision.plfleft
 	|| line_decisions[next_lineno].bplcon0 != thisline_decision.bplcon0
 	|| line_decisions[next_lineno].bplcon2 != thisline_decision.bplcon2
-#ifdef AGA
+#ifdef ECS_DENISE
 	|| line_decisions[next_lineno].bplcon3 != thisline_decision.bplcon3
+#endif
+#ifdef AGA
 	|| line_decisions[next_lineno].bplcon4 != thisline_decision.bplcon4
 #endif
 	)
@@ -2022,11 +2024,12 @@ static void decide_sprites (int hpos)
 	if (sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
 	    continue;
 
+#ifdef AGA
 	if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
 	    ((thisline_decision.diwfirstword >= 0 && window_xp + window_width < thisline_decision.diwfirstword)
 	    || (thisline_decision.diwlastword >= 0 && window_xp > thisline_decision.diwlastword)))
 	    continue;
-
+#endif
 	/* Sort the sprites in order of ascending X position before recording them.  */
 	for (bestp = 0; bestp < count; bestp++) {
 	    if (posns[bestp] > sprxp)
@@ -2224,8 +2227,10 @@ static void reset_decisions (void)
     /* These are for comparison. */
     thisline_decision.bplcon0 = bplcon0;
     thisline_decision.bplcon2 = bplcon2;
-#ifdef AGA
+#ifdef ECS_DENISE
     thisline_decision.bplcon3 = bplcon3;
+#endif
+#ifdef AGA
     thisline_decision.bplcon4 = bplcon4;
 #endif
 }
@@ -2280,7 +2285,7 @@ static void dumpsync (void)
     write_log ("HSSTRT=%04.4X VSSTRT=%04.4X HCENTER=%04.4X\n", hsstrt, vsstrt, hcenter);
 }
 
-/* set PAL or NTSC timing variables */
+/* set PAL/NTSC or custom timing variables */
 void init_hz (void)
 {
     int isntsc;
@@ -2524,7 +2529,7 @@ static void VPOSW (uae_u16 v)
     if (lof != (v & 0x8000))
 	lof_changed = 1;
     lof = v & 0x8000;
-    if ( (v & 1) && vpos > 0)
+    if ((v & 1) && vpos > 0)
 	hack_vpos = vpos;
 }
 
@@ -2541,7 +2546,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 
 static int test_copper_dangerous (unsigned int address)
 {
-    if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_AGA) ? 0 : 0x40u) : 0x80u)) {
+    if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0 : 0x40) : 0x80)) {
 	cop_state.state = COP_stop;
 	copper_enabled_thisline = 0;
 	unset_special (&regs, SPCFLAG_COPPER);
@@ -2922,11 +2927,15 @@ STATIC_INLINE void BPLCON2 (int hpos, uae_u16 v)
     record_register_change (hpos, 0x104, v);
 }
 
-#ifdef AGA
+#ifdef ECS_DENISE
 STATIC_INLINE void BPLCON3 (int hpos, uae_u16 v)
 {
-    if (! (currprefs.chipset_mask & CSMASK_AGA))
+    if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
 	return;
+    if (!(currprefs.chipset_mask & CSMASK_AGA)) {
+	v &= 0x3f;
+	v |= 0x0c00;
+    }
     if (bplcon3 == v)
 	return;
     decide_line (hpos);
@@ -2935,10 +2944,11 @@ STATIC_INLINE void BPLCON3 (int hpos, uae_u16 v)
     sprres = expand_sprres (bplcon0, bplcon3);
     record_register_change (hpos, 0x106, v);
 }
-
+#endif
+#ifdef AGA
 STATIC_INLINE void BPLCON4 (int hpos, uae_u16 v)
 {
-    if (! (currprefs.chipset_mask & CSMASK_AGA))
+    if (!(currprefs.chipset_mask & CSMASK_AGA))
 	return;
     if (bplcon4 == v)
 	return;
@@ -3966,23 +3976,6 @@ static void do_sprites (int hpos)
     int maxspr, minspr;
     int i;
 
-    /* I don't know whether this is right. Some programs write the sprite pointers
-     * directly at the start of the copper list. With the test against currvp, the
-     * first two words of data are read on the second line in the frame. The problem
-     * occurs when the program jumps to another copperlist a few lines further down
-     * which _also_ writes the sprite pointer registers. This means that a) writing
-     * to the sprite pointers sets the state to SPR_restart; or b) that sprite DMA
-     * is disabled until the end of the vertical blanking interval. The HRM
-     * isn't clear - it says that the vertical sprite position can be set to any
-     * value, but this wouldn't be the first mistake... */
-    /* Update: I modified one of the programs to write the sprite pointers the
-     * second time only _after_ the VBlank interval, and it showed the same behaviour
-     * as it did unmodified under UAE with the above check. This indicates that the
-     * solution below is correct. */
-    /* Another update: seems like we have to use the NTSC value here (see Sanity Turmoil
-     * demo).  */
-    /* Maximum for Sanity Turmoil: 27.
-       Minimum for Sanity Arte: 22.  */
     if (vpos < sprite_vblank_endline)
 	return;
 
@@ -4717,8 +4710,8 @@ void customreset (int hardreset)
 	DSKLEN (0, 0);
 
 	bplcon0 = 0;
-	bplcon4 = 0x11; /* Get AGA chipset into ECS compatibility mode */
-	bplcon3 = 0xC00;
+	bplcon4 = 0x0011; /* Get AGA chipset into ECS compatibility mode */
+	bplcon3 = 0x0C00;
 
 	diwhigh = 0;
 	diwhigh_written = 0;
@@ -4796,9 +4789,6 @@ void customreset (int hardreset)
 	audio_update_adkmasks ();
 	INTENA_f (0);
 	INTREQ_f (0);
-#if 0
-	DMACON (0, 0);
-#endif
 	COPJMP (1);
 	v = bplcon0;
 	BPLCON0 (0, 0);
@@ -5221,7 +5211,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
      case 0x100: BPLCON0 (hpos, value); break;
      case 0x102: BPLCON1 (hpos, value); break;
      case 0x104: BPLCON2 (hpos, value); break;
-#ifdef AGA
+#ifdef ECS_DENISE
      case 0x106: BPLCON3 (hpos, value); break;
 #endif
 
@@ -5277,6 +5267,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 
 #ifndef CUSTOM_SIMPLE
      case 0x1DC: BEAMCON0 (value); break;
+#ifdef ECS_DENISE
      case 0x1C0: if (htotal != value) { htotal = value; varsync (); } break;
      case 0x1C2: if (hsstop != value) { hsstop = value; varsync (); } break;
      case 0x1C4: if (hbstrt != value) { hbstrt = value; varsync (); } break;
@@ -5288,6 +5279,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
      case 0x1DE: if (hsstrt != value) { hsstrt = value; varsync (); } break;
      case 0x1E0: if (vsstrt != value) { vsstrt = value; varsync (); } break;
      case 0x1E2: if (hcenter != value) { hcenter = value; varsync (); } break;
+#endif
 #endif
 
 #ifdef AGA
@@ -5781,6 +5773,7 @@ void check_prefs_changed_custom (void)
     currprefs.cs_deniserev = changed_prefs.cs_deniserev;
     currprefs.cs_mbdmac = changed_prefs.cs_mbdmac;
     currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
+    currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast;
 
     if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 	currprefs.gfx_avsync != changed_prefs.gfx_avsync ||

@@ -264,7 +264,7 @@ static struct zfile *dms (struct zfile *z)
     int ret;
     struct zfile *zo;
 
-    zo = zfile_fopen_empty ("zipped.dms", 1760 * 512);
+    zo = zfile_fopen_empty ("undms.adf", 1760 * 512);
     if (!zo)
 	return z;
     ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0);
@@ -279,7 +279,6 @@ const char *uae_ignoreextensions[] =
     { ".gif", ".jpg", ".png", ".xml", ".pdf", ".txt", 0 };
 const char *uae_diskimageextensions[] =
     { ".adf", ".adz", ".ipf", ".fdi", ".exe", ".dms", ".wrp", ".dsq", 0 };
-
 
 int zfile_is_ignore_ext(const char *name)
 {
@@ -567,14 +566,24 @@ int zfile_zopen (const char *name, zfile_callback zc, void *user)
  */
 struct zfile *zfile_fopen (const char *name, const char *mode)
 {
-    struct zfile *l;
+    int cnt = 10;
+    struct zfile *l, *l2;
     char path[MAX_DPATH];
 
     manglefilename(path, name);
     l = zfile_fopen_2 (path, mode);
     if (!l)
 	return 0;
-    l = zuncompress (l, 0);
+    l2 = NULL;
+    while (cnt-- > 0) {
+	l = zuncompress (l, 0);
+	if (!l)
+	    break;
+	zfile_fseek (l, 0, SEEK_SET);
+	if (l == l2)
+	    break;
+	l2 = l;
+    }
     return l;
 }
 

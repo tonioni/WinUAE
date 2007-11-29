@@ -1,5 +1,5 @@
 
-struct tapdata
+struct netdriverdata
 {
     HANDLE h;
     int mtu;
@@ -7,7 +7,6 @@ struct tapdata
     int active;
 };
 
-int tap_open_driver (struct tapdata *tc, const char *name);
-void tap_close_driver (struct tapdata *tc);
-int check_tap_driver (const char *name);
+int uaenet_open_driver (struct netdriverdata *tc, const char *name);
+void uaenet_close_driver (struct netdriverdata *tc);
 
