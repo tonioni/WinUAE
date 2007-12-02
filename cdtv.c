@@ -974,7 +974,7 @@ void CDTV_hsync_handler(void)
 	do_stch();
 }
 
-static void do_stch(void)
+static void do_stch (void)
 {
     static int stch_cnt;
     if ((tp_cr & 1) && !(tp_air & (1 << 2)) && (tp_cd & (1 << 2))) {
@@ -985,7 +985,7 @@ static void do_stch(void)
     }
 }
 
-void bleh(void)
+void bleh (void)
 {
 #if 0
     cd_playing = cd_finished = cd_motor = cd_media = 1;

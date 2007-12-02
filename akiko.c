@@ -455,36 +455,27 @@ static void cdaudiostop (void)
 static uae_u32 last_play_end;
 static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
 {
-#if 0
+#if 1
     uae_u8 *buf = cdrom_toc_cd_buffer;
     uae_u8 *s;
     uae_u32 addr;
-    int i, changed;
+    int i;
 
-    changed = 0;
     for (i = 0; i < cdrom_toc_entries; i++) {
 	s = buf + 4 + i * 11;
 	addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
 	if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
 	    break;
     }
-    addr = lsn2msf (cdrom_leadout);
-    if (i + 1 < cdrom_toc_entries) { 
+    if ((s[1] & 0x0c) == 0x04) {
+	write_log ("tried to play data track %d!\n", s[3]);
 	s += 11;
-	addr =(s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+	startmsf = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+	s += 11;
+	endmsf = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+	//cdrom_audiotimeout = 312;
+	return 0;
     }
-    if (endmsf >= addr) {
-	endmsf = addr;
-	changed = 1;
-    }
-    if (endmsf >= lsn2msf (cdrom_leadout)) {
-	endmsf = lsn2msf (cdrom_leadout);
-	changed = 1;
-    }
-#if AKIKO_DEBUG_IO_CMD
-    if (changed)
-	write_log ("Adjusted from %06.6X to %06.6X\n", startmsf, endmsf);
-#endif
 #endif
     last_play_end = endmsf;
     cdrom_audiotimeout = 0;
@@ -784,8 +775,8 @@ static int cdrom_command_multi (void)
 	int cdrom_data_offset_end = msf2lsn (endpos);
 	cdrom_data_offset = msf2lsn (seekpos);
 #if AKIKO_DEBUG_IO_CMD
-	write_log ("READ DATA FROM %06.6X (%d) TO %06.6X (%d) SPEED=%dx\n",
-	    seekpos, cdrom_data_offset, endpos, cdrom_data_offset_end, cdrom_speed);
+	write_log ("READ DATA %06.6X (%d) - %06.6X (%d) SPD=%dx PC=%08X\n",
+	    seekpos, cdrom_data_offset, endpos, cdrom_data_offset_end, cdrom_speed, M68K_GETPC);
 #endif
 	cdrom_result_buffer[1] |= 0x02;
     } else if (cdrom_command_buffer[10] & 4) { /* play audio */

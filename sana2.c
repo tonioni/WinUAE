@@ -143,7 +143,7 @@ struct s2packet {
 };
 
 volatile int uaenet_int_requested;
-int uaenet_vsync_requested;
+volatile int uaenet_vsync_requested;
 
 static uaecptr timerdevname;
 
@@ -381,7 +381,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
     if (kickstart_version >= 36) {
 	m68k_areg (&context->regs, 0) = get_long (4) + 350;
 	m68k_areg (&context->regs, 1) = timerdevname;
-	CallLib (context, get_long (4), -0x114); /*FindName() */
+	CallLib (context, get_long (4), -0x114); /* FindName('timer.device') */
 	pdev->timerbase = m68k_dreg (&context->regs, 0);
     }
 
@@ -784,7 +784,7 @@ void uaenet_gotdata (struct devstruct *dev, const uae_u8 *d, int len)
     if (!dev->online)
 	return;
     /* drop if bogus size */
-    if (len <= ETH_HEADER_SIZE + 2 || len >= dev->td->mtu + ETH_HEADER_SIZE + 2)
+    if (len < ETH_HEADER_SIZE  || len >= dev->td->mtu + ETH_HEADER_SIZE + 2)
 	return;
     /* drop if dst == broadcast and src == me */
     if (isbroadcast (d) && !memcmp (d + 6, dev->td->mac, ADDR_SIZE))
@@ -937,7 +937,6 @@ static void flush (struct priv_devstruct *pdev)
     struct asyncreq *ar;
     struct devstruct *dev;
 
-    uae_sem_wait (&async_sem);
     dev = getdevstruct (pdev->unit);
     ar = dev->ar;
     while (ar) {
@@ -947,7 +946,6 @@ static void flush (struct priv_devstruct *pdev)
 	}
 	ar = ar->next;
    }
-   uae_sem_post (&async_sem);
 }
 
 static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
@@ -1026,7 +1024,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	case CMD_FLUSH:
 	    if (log_net)
 		write_log ("flush started %08x\n", request);
+	    uae_sem_wait (&async_sem);
 	    flush (pdev);
+	    uae_sem_post (&async_sem);
 	    async = 1;
 	    uaenet_vsync_requested++;
 	break;
@@ -1458,12 +1458,26 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 		    dev->online = 1;
 		    write_comm_pipe_u32 (&dev->requests, request, 1);
 		    uaenet_vsync_requested--;
-		} else if (command == CMD_FLUSH && dev->ar->next == NULL) {
-		    /* do not reply CMD_FLUSH until all others are gone */
-		    if (log_net)
-			write_log ("flush replied %08x\n", request);
-		    write_comm_pipe_u32 (&dev->requests, request, 1);
-		    uaenet_vsync_requested--;
+		} else if (command == CMD_FLUSH) {
+		    /* do not reply CMD_FLUSH until all other requests are gone */
+		    if (dev->ar->next == NULL) {
+			if (log_net)
+			    write_log ("flush replied %08x\n", request);
+			write_comm_pipe_u32 (&dev->requests, request, 1);
+			uaenet_vsync_requested--;
+		    } else {
+			static int cnt;
+			struct priv_devstruct *pdev = getpdevstruct (request);
+			if (pdev) {
+			    cnt--;
+			    if (cnt <= 0) {
+				if (log_net)
+				    write_log ("flushing %08x..\n", request);
+				cnt = 25;
+				flush (pdev);
+			    }
+			}
+		    }
 		}
 	    }
 	    ar = ar->next;

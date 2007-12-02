@@ -840,6 +840,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_refreshrate", &p->gfx_refreshrate, 1)
 	|| cfgfile_intval (option, value, "gfx_autoresolution", &p->gfx_autoresolution, 1)
 
+	|| cfgfile_intval (option, value, "gfx_center_horizontal_adjust", &p->gfx_xcenter_adjust, 1)
+	|| cfgfile_intval (option, value, "gfx_center_vertical_adjust", &p->gfx_ycenter_adjust, 1)
+
 #ifdef GFXFILTER
 	|| cfgfile_intval (option, value, "gfx_filter_vert_zoom", &p->gfx_filter_vert_zoom, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_horiz_zoom", &p->gfx_filter_horiz_zoom, 1)
@@ -2831,8 +2834,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_afullscreen = 0;
     p->gfx_pfullscreen = 0;
     p->gfx_correct_aspect = 0;
-    p->gfx_xcenter = 0;
-    p->gfx_ycenter = 0;
+    p->gfx_xcenter = 0; p->gfx_xcenter_adjust = 0;
+    p->gfx_ycenter = 0; p->gfx_ycenter_adjust = 0;
     p->color_mode = 2;
 
     p->x11_use_low_bandwidth = 0;

@@ -1287,6 +1287,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 		}
 		return 0;
 	    }
+	    mwhit.pc = M68K_GETPC;
 	    mwhit.addr = addr;
 	    mwhit.rwi = rwi;
 	    mwhit.size = size;
@@ -2562,7 +2563,7 @@ void debug (void)
 			    seglist = BPTR2APTR(get_long (activetask + 128));
 			    seglist = BPTR2APTR(get_long (seglist + 12));
 			}
-			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && command[0] && !strnicmp(command + 1, processname, command[0] && processname[command[0]+1] == 0))))) {
+			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && command[0] && !strnicmp(command + 1, processname, command[0]) && processname[command[0]+1] == 0)))) {
 			    while (seglist) {
 				uae_u32 size = get_long (seglist - 4) - 4;
 				if (pc >= (seglist + 4) && pc < (seglist + size)) {
@@ -2602,10 +2603,10 @@ void debug (void)
 	    }
 	}
     } else {
-	console_out ("Memwatch %d: break at %08.8X.%c %c%c%c %08.8X\n", memwatch_triggered - 1, mwhit.addr,
+	console_out ("Memwatch %d: break at %08X.%c %c%c%c %08.8X PC=%08X\n", memwatch_triggered - 1, mwhit.addr,
 	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
 	    (mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-	    mwhit.val);
+	    mwhit.val, mwhit.pc);
 	memwatch_triggered = 0;
     }
     if (skipaddr_doskip > 0) {

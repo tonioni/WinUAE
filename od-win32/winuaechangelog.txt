@@ -1,4 +1,12 @@
 
+Beta 15:
+
+- fullscreen switching should work correctly again
+- mouse moves are now ignored if winuae is not active
+- do not get in "semi mouse captured" mode if WinUAE opens without
+  focus (for example other program got focus before WinUAE opened)
+- some uaenet.device tweaks
+
 Beta 14:
 
 - BPLCON3 BRDRBLNK-bit didn't work when chipset was ECS Denise
@@ -28,7 +36,7 @@ Beta 14:
   - some (bad) software firewalls may block some/all packets..
     (at least Vista x64 + eset smart security fw seems to eat all
     non-broadcast packets..)
-  - fixed bug in dropped packet (packet that nobody wanted) handing
+  - fixed bug in dropped packet (packet that nobody wanted) handling
 
   *) Vista note: winpcap kernel mode driver will be loaded when it is
   first required. This needs admin privileges (only once after boot)

@@ -482,6 +482,34 @@
 //
 #define RPIPCHM_VOLUME	(WM_APP + 209)
 
+// Message:
+//    RPIPCHM_RELEASEMOUSEKEY
+// Description:
+//    the host uses the RPIPCHM_RELEASEMOUSEKEY message
+//    to change the release mouse key information
+// Data sent:
+//    WPARAM = VK_* identifier of the mouse-release key
+//             (e.g. "0x1B" for the Esc key - see VK_* constants in winuser.h)
+//    LPARAM = milliseconds value
+//             (amount of time the user has to hold the above key to release the mouse)
+// Response:
+//    LRESULT = non-zero if the guest accepted the new settings
+//
+#define RPIPCHM_RELEASEMOUSEKEY	(WM_APP + 210)
+
+// Message:
+//    RPIPCHM_EVENT
+// Description:
+//    the host uses the RPIPCHM_EVENT message
+//    to simulate keyboard, mouse, joystick (press/release)
+//    and other guest-specific events
+// Data sent:
+//    pData = (Unicode) event string (guest-specific)
+// Response:
+//    LRESULT = non-zero if the guest simulated the specified event
+//
+#define RPIPCHM_EVENT	(WM_APP + 211)
+
 
 
 // ****************************************************************************

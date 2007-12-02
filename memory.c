@@ -2613,7 +2613,7 @@ void memory_reset (void)
 	    map_banks (&gayle_bank, 0xDD, 1, 0);
 	}
     }
-    if (currprefs.cs_rtc)
+    if (currprefs.cs_rtc || currprefs.cs_cdtvram)
 	map_banks (&clock_bank, 0xDC, 1, 0);
     if (currprefs.cs_fatgaryrev >= 0 || currprefs.cs_ramseyrev >= 0)
 	map_banks (&mbres_bank, 0xDE, 1, 0);

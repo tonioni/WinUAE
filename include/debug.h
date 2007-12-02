@@ -51,6 +51,7 @@ struct memwatch_node {
     uae_u32 modval;
     int modval_written;
     int frozen;
+    uaecptr pc;
 };
 extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 

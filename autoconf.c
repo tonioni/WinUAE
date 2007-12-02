@@ -28,7 +28,7 @@ uaecptr EXPANSION_bootcode, EXPANSION_nullfunc;
 /* ROM tag area memory access */
 
 uae_u8 *rtarea;
-uaecptr rtarea_base = 0xf00000;
+uaecptr rtarea_base;
 
 static uae_u32 REGPARAM3 rtarea_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 rtarea_wget (uaecptr) REGPARAM;

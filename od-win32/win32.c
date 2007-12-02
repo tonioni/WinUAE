@@ -73,6 +73,9 @@
 #include "rp.h"
 #endif
 
+extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
+int log_scsi, log_net;
+
 extern FILE *debugfile;
 extern int console_logging;
 static OSVERSIONINFO osVersion;
@@ -88,6 +91,7 @@ HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD) = NULL;
 HWND hAmigaWnd, hMainWnd, hHiddenWnd;
 RECT amigawin_rect;
+static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
 static int TaskbarRestartOk;
 static int forceroms;
@@ -129,9 +133,6 @@ char start_path_new1[MAX_DPATH]; /* AF2005 */
 char start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
-
-extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi, log_net;
 DWORD quickstart = 1;
 
 static int timeend (void)
@@ -442,8 +443,12 @@ static void setcursor(int oldx, int oldy)
 {
     int x = (amigawin_rect.right - amigawin_rect.left) / 2;
     int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
-    if (oldx == x && oldy == y)
+    mouseposx = oldx - x;
+    mouseposy = oldy - y;
+    if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
 	return;
+    mouseposx = 0;
+    mouseposy = 0;
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
@@ -532,7 +537,7 @@ void setpriority (struct threadpriorities *pri)
     if (os_winnt)
 	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
     else
-	err = SetThreadPriority (GetCurrentThread(), pri->value);
+	err = SetThreadPriority (GetCurrentThread (), pri->value);
     if (!err)
 	write_log ("priority set failed, %08.8X\n", GetLastError ());
 }
@@ -540,10 +545,13 @@ void setpriority (struct threadpriorities *pri)
 void setmouseactive (int active)
 {
 
-    if (mouseactive == active)
+    if (mouseactive == active && active >= 0)
 	return;
+    if (active < 0)
+	active = 1;
     mouseactive = active;
 
+    mouseposx = mouseposy = 0;
     //write_log ("setmouseactive(%d)\n", active);
     if (showcursor) {
 	ClipCursor(NULL);
@@ -560,9 +568,21 @@ void setmouseactive (int active)
 #endif
     inputdevice_unacquire ();
 
-    setmaintitle (hMainWnd);
     if (mouseactive > 0)
 	focus = 1;
+    if (focus) {
+	int donotfocus = 0;
+	if (SetForegroundWindow (hMainWnd) == FALSE)
+	    donotfocus = 1;
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+	    donotfocus = 0;
+#endif
+	if (donotfocus) {
+	    focus = 0;
+	    mouseactive = 0;
+	}
+    }
     if (mouseactive) {
 	if (focus) {
 	    if (!showcursor) {
@@ -577,6 +597,7 @@ void setmouseactive (int active)
     }
     if (!active)
 	checkpause ();
+    setmaintitle (hMainWnd);
 #ifdef RETROPLATFORM
     rp_mousecapture (active);
 #endif
@@ -608,10 +629,8 @@ static void winuae_active (HWND hWnd, int minimized)
 #endif
     setpriority (pri);
 
-    if (!minimized) {
-	if (!avioutput_video) {
-	    clear_inhibit_frame (IHF_WINDOWHIDDEN);
-	}
+    if (!avioutput_video) {
+        clear_inhibit_frame (IHF_WINDOWHIDDEN);
     }
     if (emulation_paused > 0)
 	emulation_paused = -1;
@@ -640,7 +659,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     struct threadpriorities *pri;
     int wasfocus = focus;
 
-    //write_log("winuae_inactive(%d)\n", minimized);
+    write_log("winuae_inactive(%d)\n", minimized);
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -725,7 +744,7 @@ static void handleXbutton (WPARAM wParam, int updown)
 	setmousebuttonstate (dinput_winmouse(), num, updown);
 }
 
-#define MSGDEBUG 0
+#define MSGDEBUG 1
 
 static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -746,133 +765,20 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     switch (message)
     {
 
-
-#if 0
-    case WM_SIZE:
-    {
-	if (recursive)
-	    return 0;
-	recursive++;
-#if MSGDEBUG
-	write_log ("WM_SIZE %x %d %d\n", hWnd, wParam, minimized);
-#endif
-	if (isfullscreen () > 0) {
-	    v = minimized;
-	    switch (wParam)
-	    {
-		case SIZE_MAXIMIZED:
-		case SIZE_RESTORED:
-		v = FALSE;
-		break;
-		default:
-		v = TRUE;
-		break;
-	    }
-	    exit_gui (0);
-	    if (v != minimized) {
-		minimized = v;
-		if (v) {
-		    winuae_inactive (hWnd, wParam == SIZE_MINIMIZED);
-		} else {
-		    pausemode (0);
-		    winuae_active (hWnd, minimized);
-		}
-	    }
-	}
-	recursive--;
-	return 0;
-    }
-    break;
-#endif
-
     case WM_SETFOCUS:
-#if MSGDEBUG
-	write_log ("**** WM_SETFOCUS %d\n", minimized);
-#endif
-	if (!minimized)
-	    winuae_active (hWnd, minimized);
+        winuae_active (hWnd, minimized);
         minimized = 0;
 	return 0;
-    case WM_KILLFOCUS:
-#if MSGDEBUG
-	write_log ("**** WM_KILLFOCUS %d\n", minimized);
-#endif
-	winuae_inactive (hWnd, 0);
-	return 0;
     case WM_ACTIVATE:
-	if (!minimized) {
+        if (LOWORD (wParam) == WA_INACTIVE) {
 	    minimized = HIWORD (wParam) ? 1 : 0;
-	    if (minimized) {
-#if MSGDEBUG
-		write_log("**** minimize\n");
-#endif
-		winuae_inactive (hWnd, minimized);
-	    }
-	} else {
-	    winuae_active (hWnd, minimized);
-	    minimized = 0;
+	    winuae_inactive (hWnd, minimized);
 	}
 	return 0;
 #ifdef RETROPLATFORM
     case WM_ACTIVATEAPP:
 	rp_activate (wParam, lParam);
 	return 0;
-#endif
-
-#if 0
-    case WM_ACTIVATE:
-	if (recursive)
-	    return 0;
-	recursive++;
-#if MSGDEBUG
-	write_log ("WM_ACTIVATE %x %d %d %d\n", hWnd, HIWORD (wParam), LOWORD (wParam), minimized);
-#endif
-	if (isfullscreen () <= 0) {
-	    minimized = HIWORD (wParam);
-	    if (LOWORD (wParam) != WA_INACTIVE) {
-		winuae_active (hWnd, minimized);
-	    } else {
-		winuae_inactive (hWnd, minimized);
-	    }
-	} else {
-	    if (LOWORD (wParam) == WA_INACTIVE) {
-		minimized = HIWORD (wParam);
-		winuae_inactive (hWnd, minimized);
-	    } else {
-		if (!minimized)
-		    winuae_active (hWnd, minimized);
-		if (is3dmode() && normal_display_change_starting == 0)
-		    normal_display_change_starting = 10;
-	    }
-	}
-	recursive--;
-	return 0;
-
-    case WM_ACTIVATEAPP:
-    {
-	if (recursive)
-	    return 0;
-	recursive++;
-#if MSGDEBUG
-	write_log ("WM_ACTIVATEAPP %x %d %d\n", hWnd, wParam, minimized);
-#endif
-	activateapp = wParam;
-	if (!wParam) {
-	    setmouseactive (0);
-	    normal_display_change_starting = 0;
-	} else {
-	    if (minimized)
-		minimized = 0;
-	    winuae_active (hWnd, minimized);
-	    if (is3dmode () && normal_display_change_starting == 1) {
-		WIN32GFX_DisplayChangeRequested ();
-		normal_display_change_starting = -1;
-	    }
-	}
-	manual_palette_refresh_needed = 1;
-	recursive--;
-	return 0;
-    }
 #endif
 
     case WM_PALETTECHANGED:
@@ -893,9 +799,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_LBUTTONDBLCLK:
 	if (!mouseactive && isfullscreen() <= 0 && !gui_active) {
 	    setmouseactive (1);
-	}
-	if (dinput_winmouse () >= 0)
+	} else if (dinput_winmouse () >= 0) {
 	    setmousebuttonstate (dinput_winmouse(), 0, 1);
+	}
     return 0;
     case WM_RBUTTONUP:
 	if (dinput_winmouse () >= 0)
@@ -1025,27 +931,31 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 	mx = (signed short) LOWORD (lParam);
 	my = (signed short) HIWORD (lParam);
+	mx -= mouseposx;
+	my -= mouseposy;
 	if (recapture && isfullscreen() <= 0) {
 	    setmouseactive(1);
 	    setamigamouse(mx, my);
 	    return 0;
 	}
-	if (normal_display_change_starting)
-	    return 0;
+        if (dinput_winmouse () >= 0 && !focus) {
+            if (dinput_winmousemode ()) {
+	        /* absolete + mousehack */
+	        setmousestate (dinput_winmouse (), 0, mx, 1);
+	        setmousestate (dinput_winmouse (), 1, my, 1);
+	        return 0;
+	    }
+	    return DefWindowProc (hWnd, message, wParam, lParam);
+	}
 	if (dinput_winmouse () >= 0) {
-	    if (dinput_winmousemode ()) {
-		/* absolete + mousehack */
-		setmousestate (dinput_winmouse (), 0, mx, 1);
-		setmousestate (dinput_winmouse (), 1, my, 1);
-		return 0;
-	    } else {
-		/* relative */
-		int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
-		int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
-		mx = mx - mxx;
-		my = my - myy;
-		setmousestate (dinput_winmouse (), 0, mx, 0);
-		setmousestate (dinput_winmouse (), 1, my, 0);
+	    if (dinput_winmousemode () == 0) {
+	        /* relative */
+	        int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
+	        int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
+	        mx = mx - mxx;
+	        my = my - myy;
+	        setmousestate (dinput_winmouse (), 0, mx, 0);
+	        setmousestate (dinput_winmouse (), 1, my, 0);
 	    }
 	} else if (!mouseactive && isfullscreen() <= 0) {
 	    setmousestate (0, 0, mx, 1);
@@ -1053,8 +963,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
 	if (showcursor || mouseactive)
 	    setcursor (LOWORD (lParam), HIWORD (lParam));
+	return 0;
     }
-    return 0;
+    break;
 
     case WM_MOVING:
     {
@@ -3196,6 +3107,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     SetCurrentDirectory (start_path_data);
 
     logging_init ();
+    write_log ("params:\n");
+    for (i = 1; i < __argc; i++)
+	write_log ("%d: '%s'\n", i, __argv[i]);
 
     if(WIN32_RegisterClasses() && WIN32_InitLibraries() && DirectDraw_Start(NULL)) {
 	DEVMODE devmode;

@@ -1063,11 +1063,15 @@ static void allocate_expamem (void)
 
 uaecptr need_uae_boot_rom(void)
 {
+    int i;
     uaecptr b = 0xf00000;
     if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi)
 	b = 0xe70000;
-    if (nr_units() > 0)
-	return b;
+    for (i = 0; i < currprefs.mountitems; i++) {
+	struct uaedev_config_info *uci = &currprefs.mountconfig[i];
+	if (uci->controller == 0)
+	    return b;
+    }
     if (currprefs.socket_emu)
 	return b;
     if (currprefs.uaeserial)

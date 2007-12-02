@@ -1974,6 +1974,9 @@ static void center_image (void)
 	if (doublescan)
 	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
     }
+    visible_left_border += currprefs.gfx_xcenter_adjust;
+    visible_left_border &= ~((xshift (1, lores_shift)) - 1);
+
     if (visible_left_border > max_diwlastword - 32)
 	visible_left_border = max_diwlastword - 32;
     if (visible_left_border < 0)
@@ -2001,12 +2004,14 @@ static void center_image (void)
 		&& prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line)
 		thisframe_y_adjust = prev_y_adjust;
 	}
-	/* Make sure the value makes sense */
-	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_max)
-	    thisframe_y_adjust = maxvpos_max - max_drawn_amiga_line;
-	if (thisframe_y_adjust < minfirstline)
-	    thisframe_y_adjust = minfirstline;
     }
+    thisframe_y_adjust += currprefs.gfx_ycenter_adjust;
+    /* Make sure the value makes sense */
+    if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_max)
+        thisframe_y_adjust = maxvpos_max - max_drawn_amiga_line;
+    if (thisframe_y_adjust < minfirstline)
+        thisframe_y_adjust = minfirstline;
+
     thisframe_y_adjust_real = thisframe_y_adjust << (linedbl ? 1 : 0);
     tmp = (maxvpos_max - thisframe_y_adjust) << (linedbl ? 1 : 0);
     if (tmp != max_ypos_thisframe) {

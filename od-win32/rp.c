@@ -36,7 +36,19 @@ static int default_width, default_height;
 static int hwndset;
 static int minimized;
 
-const char *getmsg (int msg)
+
+static char *ua (const WCHAR *s)
+{
+    char *d;
+    int len = WideCharToMultiByte (CP_ACP, 0, s, -1, NULL, 0, 0, FALSE);
+    if (!len)
+	return my_strdup ("");
+    d = xmalloc (len + 1);
+    WideCharToMultiByte (CP_ACP, 0, s, -1, d, len, 0, FALSE);
+    return d;
+}
+
+static const char *getmsg (int msg)
 {
     switch (msg)
     {
@@ -71,6 +83,7 @@ const char *getmsg (int msg)
 	case RPIPCHM_TURBO: return "RPIPCHM_TURBO";
 	case RPIPCHM_INPUTMODE: return "RPIPCHM_INPUTMODE";
 	case RPIPCHM_VOLUME: return "RPIPCHM_VOLUME";
+	case RPIPCHM_EVENT: return "RPIPCHM_EVENT";
 
 	default: return "UNKNOWN";
     }
@@ -97,17 +110,6 @@ BOOL RPSendMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam,
 	    write_log("ERROR %d\n", GetLastError ());
     }
     return v;
-}
-
-static char *ua (WCHAR *s)
-{
-    char *d;
-    int len = WideCharToMultiByte (CP_ACP, 0, s, -1, NULL, 0, 0, FALSE);
-    if (!len)
-	return "";
-    d = xmalloc (len + 1);
-    WideCharToMultiByte (CP_ACP, 0, s, -1, d, len, 0, FALSE);
-    return d;
 }
 
 static int winok(void)
@@ -197,6 +199,23 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    hwndset = 0;
 	    return (LRESULT)INVALID_HANDLE_VALUE;
 	}
+	case RPIPCHM_EVENT:
+	{
+	    char out[256];
+	    char *s = ua ((WCHAR*)pData);
+	    int idx = -1;
+	    for (;;) {
+		int ret;
+		out[0] = 0;
+		ret = cfgfile_modify (idx++, s, strlen (s), out, sizeof out);
+		if (ret >= 0)
+		    break;
+	    }
+	    xfree (s);
+	    return TRUE;
+	}
+
+
     }
     return FALSE;
 }

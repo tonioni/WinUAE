@@ -1082,7 +1082,7 @@ static int open_windows (void)
     } while (ret < 0);
 
     setpriority(&priorities[currprefs.win32_active_priority]);
-    setmouseactive (1);
+    setmouseactive (-1);
     for (i = 0; i < NUM_LEDS; i++)
 	gui_led (i, 0);
     gui_fps (0, 0);
@@ -1199,10 +1199,14 @@ int check_prefs_changed_gfx (void)
     }
 
     if (currprefs.gfx_correct_aspect != changed_prefs.gfx_correct_aspect ||
+	currprefs.gfx_xcenter_adjust != changed_prefs.gfx_xcenter_adjust ||
+	currprefs.gfx_ycenter_adjust != changed_prefs.gfx_ycenter_adjust ||
 	currprefs.gfx_xcenter != changed_prefs.gfx_xcenter ||
 	currprefs.gfx_ycenter != changed_prefs.gfx_ycenter)
     {
 	currprefs.gfx_correct_aspect = changed_prefs.gfx_correct_aspect;
+	currprefs.gfx_xcenter_adjust = changed_prefs.gfx_xcenter_adjust;
+	currprefs.gfx_ycenter_adjust = changed_prefs.gfx_ycenter_adjust;
 	currprefs.gfx_xcenter = changed_prefs.gfx_xcenter;
 	currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
 	return 1;
@@ -2091,11 +2095,11 @@ static int create_windows (void)
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);
     }
-    UpdateWindow (hAmigaWnd);
     ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
 #ifdef RETROPLATFORM
     rp_set_hwnd ();
 #endif
+    UpdateWindow (hAmigaWnd);
     return 1;
 }
 
