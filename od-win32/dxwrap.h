@@ -234,7 +234,7 @@ DWORD DirectDraw_GetSurfaceBitCount( void );
 DWORD DirectDraw_GetPrimaryBitCount( void );
 void DirectDraw_GetPrimaryWidthHeight(int *w, int *h);
 int DirectDraw_DetermineLocking( int wantfull );
-BYTE DirectDraw_GetBytesPerPixel( void );
+int DirectDraw_GetBytesPerPixel( void );
 RGBFTYPE DirectDraw_GetSurfacePixelFormat( LPDDSURFACEDESC2 surface );
 surface_type_e DirectDraw_GetLockableType( void );
 int DirectDraw_SurfaceLock( surface_type_e surface_type );

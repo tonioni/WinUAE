@@ -77,7 +77,7 @@ void init_shm(void)
     // Letting the system decide doesn't seem to work on some systems (Win9x..)
     LPBYTE address = (LPBYTE)0x10000000;
     uae_u32 size;
-    uae_u32 add = 0x11000000;
+    uae_u32 add = 0x10000000 + 128 * 1024 * 1024;
     uae_u32 inc = 0x100000;
     uae_u64 size64, total64;
     uae_u64 totalphys64;
@@ -116,6 +116,8 @@ void init_shm(void)
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
     size = max_z3fastmem = (uae_u32)size64;
+    if (size < 1024 * 1024 * 1024)
+	max_z3fastmem = 512 * 1024 * 1024;
 
     canbang = 0;
     shm_start = 0;
@@ -131,7 +133,7 @@ void init_shm(void)
 	if (blah)
 	    break;
 	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
-	size >>= 1;
+	size -= 128 * 1024 * 1024;
 	if (size < 0x10000000) {
 	    write_log ("NATMEM: No special area could be allocated (2)!\n");
 	    return;
@@ -165,8 +167,10 @@ void init_shm(void)
 	write_log ("NATMEM: No special area could be allocated! (1)\n");
     } else {
 	max_z3fastmem = size;
-	write_log ("NATMEM: Our special area: 0x%p-0x%p (%dM)\n",
-	    natmem_offset, (uae_u8*)natmem_offset + size + add, (size + add) >> 20);
+	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
+	    natmem_offset, (uae_u8*)natmem_offset + size + add,
+	    size + add,
+	    (size + add) >> 20);
 	canbang = 1;
 	allocated = 1;
     }
@@ -344,6 +348,14 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	}
 	if(!strcmp(shmids[shmid].name,"superiv_3")) {
 	    shmaddr=natmem_offset + 0x00e00000;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"custmem1")) {
+	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"custmem2")) {
+	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[1];
 	    got = TRUE;
 	}
 }

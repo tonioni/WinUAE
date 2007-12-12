@@ -474,16 +474,23 @@ static int open_sound (void)
 
 void close_sound (void)
 {
+    gui_data.sndbuf = 0;
+    gui_data.sndbuf_status = 3;
     if (! have_sound)
 	return;
     pause_sound ();
     close_audio_ds ();
     have_sound = 0;
-    gui_data.sndbuf = 0;
 }
 
 int init_sound (void)
 {
+    gui_data.sndbuf_status = 3;
+    gui_data.sndbuf = 0;
+    if (!sound_available)
+	return 0;
+    if (currprefs.produce_sound <= 1)
+	return 0;
     if (have_sound)
 	return 1;
     if (!open_sound ())

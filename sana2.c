@@ -366,6 +366,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 
     dev->opencnt = get_word (m68k_areg (&context->regs, 6) + 32);
     if (dev->opencnt == 0) {
+	dev->unit = unit;
 	dev->sysdata = xcalloc (uaenet_getdatalenght(), 1);
 	if (!uaenet_open (dev->sysdata, pdev->td, dev, pdev->promiscuous)) {
 	    xfree (dev->sysdata);
@@ -588,7 +589,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 {
     struct asyncreq *ar = get_async_request (dev, request, 1);
     if (!ar) {
-	write_log ("%s:%d: abort sync but no request %x found!\n", getdevname(), dev->unit, request);
+	write_log ("%s:%d: abort async but no request %x found!\n", getdevname(), dev->unit, request);
 	return;
     }
     if (log_net)
@@ -1119,10 +1120,12 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	break;
 
 	case S2_ONLINE:
+#if 0
 	    if (!dev->configured) {
 		io_error = S2ERR_BAD_STATE;
 		wire_error = S2WERR_NOT_CONFIGURED;
 	    }
+#endif
 	    if (!dev->adapter) {
 		io_error = S2ERR_OUTOFSERVICE;
 		wire_error = S2WERR_RCVREL_HDW_ERR;
@@ -1333,13 +1336,22 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
     uae_u32 request = m68k_areg (&context->regs, 1);
-    struct devstruct *dev = getdevstruct (get_long (request + 24));
+    struct priv_devstruct *pdev = getpdevstruct (request);
+    struct devstruct *dev;
 
-    write_log ("%s abortio %08x\n", getdevname(), request);
-    if (!dev) {
+    if (!pdev) {
+	write_log ("%s abortio but no request %08x found!\n", getdevname(), request);
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
+    dev = getdevstruct (pdev->unit);
+    if (!dev) {
+	write_log ("%s (%d) abortio but no request %08x found!\n", getdevname(), pdev->unit, request);
+	put_byte (request + 31, 32);
+	return get_byte (request + 31);
+    }
+    if (log_net)
+	write_log ("%s:%d abortio %08x\n", getdevname(), dev->unit, request);
     abort_async (dev, request);
     return 0;
 }

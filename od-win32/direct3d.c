@@ -383,7 +383,10 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     window_h = w_h;
     tin_w = t_w;
     tin_h = t_h;
-    createtexture (t_w, t_h);
+    if (!createtexture (t_w, t_h)) {
+	sprintf (errmsg, "Direct3D: %d * %d texture creation failed.\n", t_w, t_h);
+	return  errmsg;
+    }
     if (currprefs.gfx_filter_scanlines > 0)
 	createsltexture ();
     createscanlines (1);

@@ -768,8 +768,10 @@ static void real_main2 (int argc, char **argv)
 	if (currprefs.start_debugger && debuggable ())
 	    activate_debugger ();
 
-	if (sound_available && currprefs.produce_sound > 1 && ! init_audio ()) {
-	    write_log ("Sound driver unavailable: Sound output disabled\n");
+	if (!init_audio ()) {
+	    if (sound_available && currprefs.produce_sound > 1) {
+		write_log ("Sound driver unavailable: Sound output disabled\n");
+	    }
 	    currprefs.produce_sound = 0;
 	}
 

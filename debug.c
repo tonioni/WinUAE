@@ -514,7 +514,7 @@ static void dump_vectors (uaecptr addr)
     while (int_labels[i].name || trap_labels[j].name) {
 	if (int_labels[i].name) {
 	    console_out ("$%08X: %s  \t $%08X\t", int_labels[i].adr + addr,
-		int_labels[i].name, get_long (int_labels[i].adr + (int_labels[i].adr == 4 ? 0 : addr)));
+		int_labels[i].name, get_long (int_labels[i].adr + addr));
 	    i++;
 	} else {
 	    console_out ("\t\t\t\t");

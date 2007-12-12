@@ -1374,6 +1374,7 @@ void set_audio(void)
     currprefs.sound_volume = changed_prefs.sound_volume;
     currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
     currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
+
     if (currprefs.produce_sound >= 2) {
 	if (!init_audio ()) {
 	    if (! sound_available) {

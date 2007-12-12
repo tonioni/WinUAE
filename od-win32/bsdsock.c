@@ -701,25 +701,25 @@ void host_accept(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 nam
     if (s != INVALID_SOCKET) {
 		BEGINBLOCKING;
 
-		s2 = accept(s,rp_name,&hlen);
+		s2 = accept(s, rp_name, &hlen);
 
 		if (s2 == INVALID_SOCKET) {
 			SETERRNO;
 
-			if ((sb->ftable[sd-1] & SF_BLOCKING) && sb->sb_errno == WSAEWOULDBLOCK - WSABASEERR) {
-				if (sb->mtable[sd-1] || (wMsg = allocasyncmsg(sb,sd,s)) != 0) {
-					if (sb->mtable[sd-1] == 0) {
+			if ((sb->ftable[sd - 1] & SF_BLOCKING) && sb->sb_errno == WSAEWOULDBLOCK - WSABASEERR) {
+				if (sb->mtable[sd - 1] || (wMsg = allocasyncmsg(sb, sd, s)) != 0) {
+					if (sb->mtable[sd - 1] == 0) {
 						WSAAsyncSelect(s,hWndSelector ? hAmigaWnd : bsd->hSockWnd, wMsg, FD_ACCEPT);
 					} else {
-						setWSAAsyncSelect(sb,sd,s,FD_ACCEPT);
+						setWSAAsyncSelect(sb, sd, s, FD_ACCEPT);
 					}
 
 					WAITSIGNAL;
 
-					if (sb->mtable[sd-1] == 0) {
+					if (sb->mtable[sd - 1] == 0) {
 						cancelasyncmsg(context, wMsg);
 					} else {
-						setWSAAsyncSelect(sb,sd,s,0);
+						setWSAAsyncSelect(sb, sd, s, 0);
 					}
 
 					if (sb->eintr) {
@@ -728,7 +728,7 @@ void host_accept(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 nam
 						return;
 					}
 
-					s2 = accept(s,rp_name,&hlen);
+					s2 = accept(s, rp_name, &hlen);
 
 					if (s2 == INVALID_SOCKET) {
 						SETERRNO;
@@ -745,23 +745,23 @@ void host_accept(TrapContext *context, SB, uae_u32 sd, uae_u32 name, uae_u32 nam
 			TRACE(("failed (%d)\n",sb->sb_errno));
 		} else {
 			sb->resultval = getsd(sb, s2);
-			sb->ftable[sb->resultval-1] = sb->ftable[sd-1];	// new socket inherits the old socket's properties
+			sb->ftable[sb->resultval - 1] = sb->ftable[sd - 1]; // new socket inherits the old socket's properties
 			sb->resultval--;
 			if (rp_name != 0) { // 1.11.2002 XXX
 				if (hlen <= hlenuae) { // Fix for CNET BBS Part 2
-					prepamigaaddr(rp_name,hlen);
+					prepamigaaddr(rp_name, hlen);
 					if (namelen != 0) {
-						put_long (namelen,hlen);
+						put_long (namelen, hlen);
 					}
 				} else { // Copy only the number of bytes requested
 					if (hlenuae != 0) {
-						prepamigaaddr(rp_name,hlenuae);
-						memcpy(rp_nameuae,rp_name,hlenuae);
-						put_long (namelen,hlenuae);
+						prepamigaaddr(rp_name, hlenuae);
+						memcpy(rp_nameuae, rp_name, hlenuae);
+						put_long (namelen, hlenuae);
 					}
 				}
 			}
-			TRACE(("%d/%d\n",sb->resultval,hlen));
+			TRACE(("%d/%d\n", sb->resultval, hlen));
 		}
 
 		ENDBLOCKING;
@@ -817,11 +817,15 @@ struct threadsock_packet
     SB;
 } sockreq;
 
+// sockreg.sb may be gone if thread dies at right time.. fixme.. */
+
 static BOOL HandleStuff(void)
 {
 	BOOL quit = FALSE;
 	SB = NULL;
 	BOOL handled = TRUE;
+	int rv;
+
 	if (bsd->hSockReq) {
 	// 100ms sleepiness might need some tuning...
 	//if(WaitForSingleObject( hSockReq, 100 ) == WAIT_OBJECT_0 )
@@ -840,19 +844,19 @@ static BOOL HandleStuff(void)
 				break;
 				case recvfrom_req:
 					if(sockreq.params.recvfrom_s.addr) {
-						sockreq.sb->resultval = recvfrom( sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
+						sockreq.sb->resultval = recvfrom(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
 							sockreq.params.recvfrom_s.flags, sockreq.params.recvfrom_s.rp_addr,
-							sockreq.params.recvfrom_s.hlen );
+							sockreq.params.recvfrom_s.hlen);
 
 					} else {
-						sockreq.sb->resultval = recv( sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
-							sockreq.params.recvfrom_s.flags );
+						sockreq.sb->resultval = recv(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
+							sockreq.params.recvfrom_s.flags);
 					}
 				break;
 				case abort_req:
 					*(sockreq.params.abort_s.newsock) = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 					if (*(sockreq.params.abort_s.newsock) != sb->sockAbort) {
-						shutdown( sb->sockAbort, 1 );
+						shutdown(sb->sockAbort, 1);
 						closesocket(sb->sockAbort);
 					}
 					handled = FALSE; /* Don't bother the SETERRNO section after the switch() */

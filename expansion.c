@@ -966,6 +966,7 @@ static void expamem_init_gfxcard (void)
 }
 #endif
 
+
 #ifdef SAVESTATE
 static size_t fast_filepos, z3_filepos, p96_filepos;
 #endif
@@ -1119,7 +1120,8 @@ void p96memstart(void)
 {
     /* make sure there is always empty space between Z3 and P96 RAM */
     p96ram_start = currprefs.z3fastmem_start + ((currprefs.z3fastmem_size + 0xffffff) & ~0xffffff);
-    if (p96ram_start == currprefs.z3fastmem_start + currprefs.z3fastmem_size)
+    if (p96ram_start == currprefs.z3fastmem_start + currprefs.z3fastmem_size &&
+	(currprefs.z3fastmem_size < 512 * 1024 * 1024 || currprefs.gfxmem_size < 128 * 1024 * 1024))
 	p96ram_start += 0x1000000;
 }
 

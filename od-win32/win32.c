@@ -74,7 +74,7 @@
 #endif
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi, log_net;
+int log_scsi, log_net = 1;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -902,6 +902,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
 
     case WM_CREATE:
+#ifdef RETROPLATFORM
+	rp_set_hwnd (hWnd);
+#endif
 	DragAcceptFiles (hWnd, TRUE);
     return 0;
 
@@ -3034,14 +3037,14 @@ static int process_arg(char **xargv)
 		rp_param = my_strdup (np);
 		continue;
 	    }
-	    if (!strcmp (arg, "-rprmousevkey")) {
+	    if (!strcmp (arg, "-rpescapekey")) {
 		i++;
-		rp_rmousevkey = getval (np);
+		rp_rpescapekey = getval (np);
 		continue;
 	    }
-	    if (!strcmp (arg, "-rprmouseholdtime")) {
+	    if (!strcmp (arg, "-rpescapeholdtime")) {
 		i++;
-		rp_rmouseholdtime = getval (np);
+		rp_rpescapeholdtime = getval (np);
 		continue;
 	    }
 	    if (!strcmp (arg, "-rpscreenmode")) {

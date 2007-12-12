@@ -2096,9 +2096,6 @@ static int create_windows (void)
 	UpdateWindow (hMainWnd);
     }
     ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
-#ifdef RETROPLATFORM
-    rp_set_hwnd ();
-#endif
     UpdateWindow (hAmigaWnd);
     return 1;
 }

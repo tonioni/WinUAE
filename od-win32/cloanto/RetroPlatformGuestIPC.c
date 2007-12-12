@@ -44,6 +44,7 @@ HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHo
 	_TCHAR szGuestClass[(sizeof(g_szGuestWndClass)/sizeof(_TCHAR))+20];
 	_TCHAR *pszHostClass;
 	LRESULT lr;
+	int n;
 
 	if (!pInfo || !pszHostInfo)
 		return E_POINTER;

@@ -1269,11 +1269,11 @@ HRESULT DirectDraw_GetClipList(LPRGNDATA cliplist, LPDWORD size)
  *   1999.08.02  Brian King             Creation
  *
  */
-BYTE DirectDraw_GetBytesPerPixel(void)
+int DirectDraw_GetBytesPerPixel(void)
 {
-    int bpp;
-    bpp = (DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwRGBBitCount + 7) >> 3;
-    return bpp;
+    if(DirectDrawState.lockable.lpdesc)
+	return (DirectDrawState.lockable.lpdesc->ddpfPixelFormat.dwRGBBitCount + 7) >> 3;
+    return 0;
 }
 
 /*

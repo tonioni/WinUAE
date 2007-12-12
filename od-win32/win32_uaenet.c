@@ -8,22 +8,12 @@
 
 #include "sysconfig.h"
 
+#include <stdio.h>
+
 #define HAVE_REMOTE
 #define WPCAP
 #include "pcap.h"
 
-#include <winspool.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <mmsystem.h>
-#include <ddraw.h>
-#include <commctrl.h>
-#include <commdlg.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <io.h>
-#include <setupapi.h>
 #include <windows.h>
 
 #include "packet32.h"
@@ -31,7 +21,6 @@
 
 #include "sysdeps.h"
 #include "options.h"
-
 
 #include "threaddep/thread.h"
 #include "win32_uaenet.h"

@@ -229,8 +229,10 @@
 //    the guest sends this message when the mouse is captured/released
 //    (the mouse is "captured" when its movements are restricted to the guest window area
 //    and the system cursor is not visible);
+//    mouse capture changes requested by the host
+//    (see the RPIPCHM_MOUSECAPTURE message) must not be notified;
 //    for consistency across different guests, a guest which sends RPIPCGM_MOUSECAPTURE
-//    messages should also implement a keyboard-actuated mouse release functionality
+//    messages should also implement a keyboard-actuated escape functionality
 //    (the preferred key for this purpose is included in the parameters sent from the
 //    host at startup time - see RPLaunchGuest() in RetroPlatformPlugin.h);
 //    note that in order not to interfere with the window dragging functionality,
@@ -341,6 +343,17 @@
 //
 #define RPIPCGM_VOLUME	(WM_APP + 19)
 
+// Message:
+//    RPIPCGM_ESCAPED
+// Description:
+//    this message is sent to notify the host
+//    that the escape key has been held down
+// Data sent:
+//    none
+// Response:
+//    none
+//
+#define RPIPCGM_ESCAPED	(WM_APP + 20)
 
 
 
@@ -483,19 +496,19 @@
 #define RPIPCHM_VOLUME	(WM_APP + 209)
 
 // Message:
-//    RPIPCHM_RELEASEMOUSEKEY
+//    RPIPCHM_ESCAPEKEY
 // Description:
-//    the host uses the RPIPCHM_RELEASEMOUSEKEY message
-//    to change the release mouse key information
+//    the host uses the RPIPCHM_ESCAPEKEY message
+//    to change the escape key information
 // Data sent:
-//    WPARAM = VK_* identifier of the mouse-release key
-//             (e.g. "0x1B" for the Esc key - see VK_* constants in winuser.h)
+//    WPARAM = DirectInput DIK_* identifier of the escape key
+//             (e.g. 1 for the Esc key - see DIK_* constants in dinput.h)
 //    LPARAM = milliseconds value
-//             (amount of time the user has to hold the above key to release the mouse)
+//             (amount of time the user has to hold the above key to trigger the escape functionality)
 // Response:
 //    LRESULT = non-zero if the guest accepted the new settings
 //
-#define RPIPCHM_RELEASEMOUSEKEY	(WM_APP + 210)
+#define RPIPCHM_ESCAPEKEY	(WM_APP + 210)
 
 // Message:
 //    RPIPCHM_EVENT
@@ -509,6 +522,19 @@
 //    LRESULT = non-zero if the guest simulated the specified event
 //
 #define RPIPCHM_EVENT	(WM_APP + 211)
+
+// Message:
+//    RPIPCHM_MOUSECAPTURE
+// Description:
+//    the host uses this message to ask the guest
+//    to capture or release the mouse
+// Data sent:
+//    WPARAM = non-zero if the mouse should be captured,
+//             zero if the mouse should be released
+// Response:
+//    LRESULT = non-zero if the guest executed the command
+//
+#define RPIPCHM_MOUSECAPTURE	(WM_APP + 212)
 
 
 

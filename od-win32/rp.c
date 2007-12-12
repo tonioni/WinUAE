@@ -26,8 +26,8 @@ static int initialized;
 static RPGUESTINFO guestinfo;
 
 char *rp_param = NULL;
-int rp_rmousevkey = 0x01;
-int rp_rmouseholdtime = 600;
+int rp_rpescapekey = 0x01;
+int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
 int log_rp = 1;
@@ -84,6 +84,8 @@ static const char *getmsg (int msg)
 	case RPIPCHM_INPUTMODE: return "RPIPCHM_INPUTMODE";
 	case RPIPCHM_VOLUME: return "RPIPCHM_VOLUME";
 	case RPIPCHM_EVENT: return "RPIPCHM_EVENT";
+	case RPIPCHM_ESCAPEKEY: return "RPIPCHM_ESCAPEKEY";
+	case RPIPCHM_MOUSECAPTURE: return "RPIPCHM_MOUSECAPTURE";
 
 	default: return "UNKNOWN";
     }
@@ -125,6 +127,8 @@ static int get_x (void)
 {
     int res = currprefs.gfx_resolution;
 
+    if (currprefs.gfx_afullscreen)
+	return RP_SCREENMODE_FULLSCREEN;
     if (res == 0)
 	return RP_SCREENMODE_1X;
     if (res == 1)
@@ -168,6 +172,16 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    if (ShowWindow (hAmigaWnd, SW_MINIMIZE))
 		return TRUE;
 	break;
+	case RPIPCHM_ESCAPEKEY:
+	    rp_rpescapekey = wParam;
+	    rp_rpescapeholdtime = lParam;
+        return TRUE;
+	case RPIPCHM_MOUSECAPTURE:
+	    if (wParam)
+		setmouseactive (1);
+	    else
+		setmouseactive (0);
+	return TRUE;
 	case RPIPCHM_DEVICEIMAGE:
 	{
 	    RPDEVICEIMAGE *di = (RPDEVICEIMAGE*)pData;
@@ -195,6 +209,7 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    res = 1 << res;
 	    changed_prefs.gfx_size_win.width = default_width * res;
 	    changed_prefs.gfx_size_win.height = default_height * res;
+	    updatewinfsmode (&changed_prefs);
 	    WIN32GFX_DisplayChangeRequested();
 	    hwndset = 0;
 	    return (LRESULT)INVALID_HANDLE_VALUE;
@@ -252,8 +267,8 @@ void rp_fixup_options (struct uae_prefs *p)
 
     if (!initialized)
 	return;
-    write_log ("rp_fixup_options(rmousevkey=%d,rmouseholdtime=%d,screenmode=%d,inputmode=%d)\n",
-	rp_rmousevkey, rp_rmouseholdtime, rp_screenmode, rp_inputmode);
+    write_log ("rp_fixup_options(rpescapekey=%d,rpescapeholdtime=%d,screenmode=%d,inputmode=%d)\n",
+	rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
 
     res = 1 << currprefs.gfx_resolution;
     default_width = currprefs.gfx_size_win.width / res;
@@ -277,7 +292,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	p->gfx_linedbl = 1;
 
     RPSendMessagex(RPIPCGM_FEATURES,
-	RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_SCREEN2X |
+	RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_SCREEN2X | RP_FEATURE_FULLSCREEN |
 	RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_INPUTMODE | RP_FEATURE_VOLUME,
 	0, NULL, 0, &guestinfo, NULL);
     /* floppy drives */
@@ -344,15 +359,14 @@ void rp_turbo (int active)
     RPSendMessagex(RPIPCGM_TURBO, RP_TURBO_CPU, active, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_set_hwnd (void)
+void rp_set_hwnd (HWND hWnd)
 {
     int rx;
     if (!initialized)
 	return;
     rx = get_x ();
     hwndset = 1;
-    RPSendMessagex(RPIPCGM_SCREENMODE, rx, (LPARAM)hAmigaWnd, NULL, 0, &guestinfo, NULL); 
-    rp_mousecapture (1);
+    RPSendMessagex(RPIPCGM_SCREENMODE, rx, (LPARAM)hWnd, NULL, 0, &guestinfo, NULL); 
 }
 
 void rp_moved (int zorder)
@@ -384,6 +398,8 @@ void rp_hsync (void)
     uae_u64 t;
     static int cnt;
 
+    if (!initialized)
+	return;
     cnt--;
     if (cnt > 0)
 	return;
@@ -392,7 +408,7 @@ void rp_hsync (void)
 	return;
     t = gett ();
     if (t >= esctime) {
-	setmouseactive (0);
+	RPSendMessagex(RPIPCGM_ESCAPED, 0, 0, NULL, 0, &guestinfo, NULL);
 	ignorerelease = 1;
 	esctime = 0;
     }
@@ -404,7 +420,7 @@ int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
 
     if (!initialized)
 	goto end;
-    if (scancode != rp_rmousevkey)
+    if (scancode != rp_rpescapekey)
 	goto end;
     if (ignorerelease && !pressed) {
 	ignorerelease = 0;
@@ -414,7 +430,7 @@ int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
     if (!t)
 	goto end;
     if (pressed) {
-	esctime = t + rp_rmouseholdtime;
+	esctime = t + rp_rpescapeholdtime;
 	return 1;
     }
     my_kbd_handler (num, scancode, 1);

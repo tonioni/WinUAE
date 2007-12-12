@@ -722,7 +722,7 @@ static int getintval (char **p, int *result, int delim)
 
     *p2++ = '\0';
 
-    if (value[0] == '0' && value[1] == 'x')
+    if (value[0] == '0' && toupper (value[1]) == 'X')
 	value += 2, base = 16;
     *result = strtol (value, &endptr, base);
     *p = p2;
@@ -750,7 +750,7 @@ static int getintval2 (char **p, int *result, int delim)
     if (*p2 != 0)
 	*p2++ = '\0';
 
-    if (value[0] == '0' && value[1] == 'x')
+    if (value[0] == '0' && toupper (value[1]) == 'X')
 	value += 2, base = 16;
     *result = strtol (value, &endptr, base);
     *p = p2;
@@ -1252,6 +1252,22 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
     return uci;
 }
 
+static void parse_addmem (struct uae_prefs *p, char *buf, int num)
+{
+    uae_u32 size = 0, addr = 0;
+
+    if (!getintval2 (&buf, &addr, ','))
+	return;
+    if (!getintval2 (&buf, &size, 0))
+	return;
+    if (addr & 0xffff)
+	return;
+    if ((size & 0xffff) || (size & 0xffff0000) == 0)
+	return;
+    p->custom_memory_addrs[num] = addr;
+    p->custom_memory_sizes[num] = size;
+}
+
 static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *value)
 {
     int tmpval, dummy, i;
@@ -1392,6 +1408,15 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	    p->chipmem_size = 0x40000;
 	else
 	    p->chipmem_size = dummy * 0x80000;
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, "addmem1", tmpbuf, sizeof tmpbuf)) {
+	parse_addmem (p, tmpbuf, 0);
+	return 1;
+    }
+    if (cfgfile_string (option, value, "addmem2", tmpbuf, sizeof tmpbuf)) {
+	parse_addmem (p, tmpbuf, 1);
 	return 1;
     }
 
@@ -2928,6 +2953,10 @@ void default_prefs (struct uae_prefs *p, int type)
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
     p->gfxmem_size = 0x00000000;
+    p->custom_memory_addrs[0] = 0;
+    p->custom_memory_sizes[0] = 0;
+    p->custom_memory_addrs[1] = 0;
+    p->custom_memory_sizes[1] = 0;
 
     p->nr_floppies = 2;
     p->dfxtype[0] = DRV_35_DD;

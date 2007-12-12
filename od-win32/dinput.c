@@ -1126,7 +1126,7 @@ static void read_mouse (void)
 	    continue;
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if (hr == DI_OK) {
+	if (hr == DI_OK || hr == DI_BUFFEROVERFLOW) {
 	    if (supermouse && !did->superdevice)
 		continue;
 	    for (j = 0; j < elements; j++) {
@@ -1264,16 +1264,16 @@ static void set_leds (uae_u32 led)
 {
     if (os_winnt && currprefs.win32_kbledmode) {
 	if((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK)) {
-	    keybd_event (VK_NUMLOCK, 0, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_NUMLOCK, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+	    keybd_event (VK_NUMLOCK, 0x45, KEYEVENTF_EXTENDEDKEY, 0);
+	    keybd_event (VK_NUMLOCK, 0x45, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
 	}
 	if((oldusbleds & KBLED_CAPSLOCK) != (led & KBLED_CAPSLOCK)) {
-	    keybd_event (VK_CAPITAL, 0, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_CAPITAL, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+	    keybd_event (VK_CAPITAL, 0x3a, KEYEVENTF_EXTENDEDKEY, 0);
+	    keybd_event (VK_CAPITAL, 0x3a, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
 	}
 	if((oldusbleds & KBLED_SCROLLLOCK) != (led & KBLED_SCROLLLOCK)) {
-	    keybd_event (VK_SCROLL, 0, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_SCROLL, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+	    keybd_event (VK_SCROLL, 0x46, KEYEVENTF_EXTENDEDKEY, 0);
+	    keybd_event (VK_SCROLL, 0x46, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
 	}
 	oldusbleds = led;
     } else if (os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
@@ -1530,8 +1530,8 @@ static int keyhack (int scancode,int pressed, int num)
 	    }
 	    else
 	    {
-	    backslashstate=0;
-	    return DIK_BACKSLASH;
+		backslashstate=0;
+		return DIK_BACKSLASH;
 	    }
 	}
     }
@@ -1561,7 +1561,7 @@ static void read_kb (void)
 	}
 	elements = DI_KBBUFFER;
 	hr = IDirectInputDevice8_GetDeviceData(lpdi, sizeof(DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if (hr == DI_OK) {
+	if (hr == DI_OK || hr == DI_BUFFEROVERFLOW) {
 	    if (did->superdevice && (normalkb || rawkb))
 		continue;
 	    for (j = 0; j < elements; j++) {
@@ -1593,11 +1593,11 @@ static void read_kb (void)
 
 void wait_keyrelease (void)
 {
-    int i, j, maxcount = 10, found;
     stopoutput++;
 
+#if 0
+    int i, j, maxcount = 10, found;
     while (maxcount-- > 0) {
-	sleep_millis (10);
 	read_kb ();
 	found = 0;
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
@@ -1608,7 +1608,9 @@ void wait_keyrelease (void)
 	}
 	if (!found)
 	    break;
+	sleep_millis (10);
     }
+#endif
     release_keys ();
 #if 0
     for (;;) {
@@ -1795,7 +1797,7 @@ static void read_joystick (void)
 	    continue;
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if (hr == DI_OK) {
+	if (hr == DI_OK || hr == DI_BUFFEROVERFLOW) {
 	    for (j = 0; j < elements; j++) {
 		int dimofs = didod[j].dwOfs;
 		int data = didod[j].dwData;

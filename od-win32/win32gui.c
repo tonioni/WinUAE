@@ -486,9 +486,12 @@ static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
 
 static int isromext(char *path)
 {
-    char *ext = strrchr (path, '.');
+    char *ext;
     int i;
 
+    if (!path)
+	return 0;
+    ext = strrchr (path, '.');
     if (!ext)
 	return 0;
     ext++;
@@ -2705,7 +2708,7 @@ static urlinfo urls[] =
     {IDC_THEROOTS, FALSE, "Back To The Roots", "http://www.back2roots.org/"},
     {IDC_ABIME, FALSE, "abime.net", "http://www.abime.net/"},
     {IDC_CAPS, FALSE, "SPS", "http://www.softpres.org/"},
-    {IDC_AMIGASYS, FALSE, "AmigaSYS", "http://amigasys.fw.hu/"},
+    {IDC_AMIGASYS, FALSE, "AmigaSYS", "http://amigasys.extra.hu/"},
     {IDC_AMIKIT, FALSE, "AmiKit", "http://amikit.amiga.sk/"},
     { -1, FALSE, NULL, NULL }
 };
@@ -8118,7 +8121,7 @@ static void init_inputdlg( HWND hDlg )
 	sprintf (buf, "%d", i + 1);
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_ADDSTRING, 0, (LPARAM)buf);
     }
-    SendDlgItemMessage( hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0 );
+    SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
 
     SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_RESETCONTENT, 0, 0L);
     for (i = 0; i < inputdevice_get_device_total (IDTYPE_JOYSTICK); i++) {
@@ -8143,7 +8146,7 @@ static void enable_for_inputdlg (HWND hDlg)
     int v = workprefs.input_selected_setting == 0 ? FALSE : TRUE;
     ew (hDlg, IDC_INPUTLIST, TRUE);
     ew (hDlg, IDC_INPUTAMIGA, v);
-    ew (hDlg, IDC_INPUTAMIGACNT, v);
+    ew (hDlg, IDC_INPUTAMIGACNT, TRUE);
     ew (hDlg, IDC_INPUTDEADZONE, TRUE);
     ew (hDlg, IDC_INPUTAUTOFIRERATE, v);
     ew (hDlg, IDC_INPUTSPEEDA, v);

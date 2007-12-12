@@ -1,4 +1,18 @@
 
+Beta 16:
+
+- added 2 non-autoconfig ram configuration entries
+  addmem1/addmem2=<address>,<size>
+  Adds fast ram to specified address without autoconfiguring it. Size
+  must be power of 2 and min size is 64k. GUI support in future.
+- uaenet.device unit number >0 abortio fixed
+- 512M Z3Fast and 128M RTG RAM now works without overflowing allocated
+  JIT direct access memory (no garbage gfx modes in display prefs)
+- map extended ROM location depending on advanced chipset CDTV/CD32
+  settings (previously 256k = 0xF0, 512k = 0xE0)
+- Direct3D CreateTexture() return code was ignored, crashed if texture
+  creation failed for some reason (out of video memory?)
+
 Beta 15:
 
 - fullscreen switching should work correctly again

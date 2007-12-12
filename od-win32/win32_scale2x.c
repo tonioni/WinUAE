@@ -222,6 +222,9 @@ void S2X_render (void)
 	pitch = DirectDraw_GetSurfacePitch ();
     }
 
+    if (!dptr) /* weird things can happen */
+	goto end;
+
     if (usedfilter->type == UAE_FILTER_SCALE2X ) { /* 16+32/2X */
 
 	if (amiga_depth == 16 && dst_depth == 16) {
@@ -313,6 +316,7 @@ void S2X_render (void)
 	changed_prefs.gfx_filter = usedfilter->type;
     }
 
+end:
     if (temp_needed) {
 	IDirectDrawSurface7_Unlock (dds, NULL);
 	DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0, NULL);

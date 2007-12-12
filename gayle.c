@@ -27,17 +27,23 @@
 #include "ncr_scsi.h"
 
 /*
-D80000 to D8FFFF		64 KB SPARE chip select
-D90000 to D9FFFF		64 KB ARCNET chip select
-DA0000 to DA3FFF		16 KB IDE drive
-DA4000 to DA4FFF		16 KB IDE reserved
-DA8000 to DAFFFF		32 KB Credit Card and IDE configregisters
-DB0000 to DBFFFF		64 KB Not used (reserved for external IDE)
-* DC0000 to DCFFFF		64 KB Real Time Clock (RTC)
-DD0000 to DDFFFF		64 KB A3000 DMA controller
-DD0000 to DD1FFF                      A4000 DMAC
-DD2000 to DDFFFF                      A4000 IDE
-DE0000 to DEFFFF		64 KB Motherboard resources
+600000 to 9FFFFF	4 MB	Credit Card memory if CC present
+AOOOOO to A1FFFF	128 KB	Credit Card Attributes
+A20000 to A3FFFF	128 KB	Credit Card I/O
+A40000 to A5FFFF	128 KB	Credit Card Bits
+A60000 to A7FFFF	128 KB	PC I/O
+
+D80000 to D8FFFF	64 KB SPARE chip select
+D90000 to D9FFFF	64 KB ARCNET chip select
+DA0000 to DA3FFF	16 KB IDE drive
+DA4000 to DA4FFF	16 KB IDE reserved
+DA8000 to DAFFFF	32 KB Credit Card and IDE configregisters
+DB0000 to DBFFFF	64 KB Not used (reserved for external IDE)
+* DC0000 to DCFFFF	64 KB Real Time Clock (RTC)
+DD0000 to DDFFFF	64 KB A3000 DMA controller
+DD0000 to DD1FFF        A4000 DMAC
+DD2000 to DDFFFF        A4000 IDE
+DE0000 to DEFFFF	64 KB Motherboard resources
 */
 
 #define NCR_OFFSET 0x40
@@ -1016,36 +1022,95 @@ void gayle_hsync (void)
     }
 }
 
+#define PCMCIA_COMMON_MAX 0x400000
+static int pcmcia_common_size, pcmcia_attrs_size;
+static uae_u8 *pcmcia_common;
+static uae_u8 *pcmcia_attrs;
+
 static uae_u32 gayle_attr_read (uaecptr addr)
 {
     uae_u8 v = 0;
-    write_log ("R: %x %x\n", addr, M68K_GETPC);
-    addr &= 262144 - 1;
-    switch (addr)
-    {
-	case 0:
-	v = 0x91;
-	break;
-	case 2:
-	v = 0x05;
-	break;
-	case 4:
-	v = 0x23;
-	break;
+    write_log ("PCMCIA ATTR R: %x %x\n", addr, M68K_GETPC);
+    addr &= 0x80000 - 1;
+    if (addr >= 0x40000) {
+        write_log ("GAYLE: Reset disabled\n");
+	gayle_irq |= GAYLE_IRQ_CCDET | GAYLE_IRQ_SC | GAYLE_CS_IRQ;
+	if (gayle_intena & GAYLE_CS_IRQ)
+	    INTREQ_f (0x8000 | 0x0008);
+	return v;
     }
+    if (addr >= pcmcia_attrs_size)
+	return v;
+    v = pcmcia_attrs[addr / 2];
     return v;
 }
 static void gayle_attr_write (uaecptr addr, uae_u32 v)
 {
-    write_log ("W: %x=%x %x\n", addr, v, M68K_GETPC);
-    addr &= 262144 - 1;
-    if (addr == 0x40000) {
-	if (v)
-	    write_log ("GAYLE: Reset active\n");
-	else
-	    write_log ("GAYLE: Reset non-active\n");
+    write_log ("PCMCIA ATTR W: %x=%x %x\n", addr, v, M68K_GETPC);
+    addr &= 0x80000 - 1;
+    if (addr >= 0x40000) {
+        write_log ("GAYLE: Reset active\n");
+    } else if (addr < pcmcia_attrs_size) {
+	;
     }
 }
+
+static void initsramattr (void)
+{
+    int wps = 1;
+    uae_u8 *p = pcmcia_attrs;
+
+    *p++ = 0x01; /* CISTPL_DEVICE */
+    *p++ = 3;
+    *p++ = (6 /* DTYPE_SRAM */ << 4) | (wps ? 8 : 0) | (3 /* DSPEED_150NS */);
+    *p++ = (4 << 3) | 4;
+    *p++ = 0xff;
+
+    *p++ = 0xff; /* CISTPL_END */
+}
+
+static void initpcmcia (void)
+{
+    pcmcia_common_size = 4 * 1024 * 1024;
+    xfree (pcmcia_common);
+    pcmcia_common = xcalloc (pcmcia_common_size, 1);
+    pcmcia_attrs_size = 256;
+    xfree (pcmcia_attrs);
+    pcmcia_attrs = xmalloc (pcmcia_attrs_size);
+    initsramattr();
+}
+
+static uae_u32 gayle_common_read (uaecptr addr)
+{
+    uae_u8 v = 0;
+    write_log ("PCMCIA COMMON R: %x %x\n", addr, M68K_GETPC);
+    addr &= PCMCIA_COMMON_MAX - 1;
+    if (addr < pcmcia_common_size)
+	v = pcmcia_common[addr];
+    return v;
+}
+static void gayle_common_write (uaecptr addr, uae_u32 v)
+{
+    write_log ("PCMCIA COMMON W: %x=%x %x\n", addr, v, M68K_GETPC);
+    addr &= PCMCIA_COMMON_MAX - 1;
+    if (addr < pcmcia_common_size)
+	pcmcia_common[addr] = v;
+}
+
+static uae_u32 REGPARAM3 gayle_common_lget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_common_wget (uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 gayle_common_bget (uaecptr) REGPARAM;
+static void REGPARAM3 gayle_common_lput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_common_wput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 gayle_common_bput (uaecptr, uae_u32) REGPARAM;
+
+addrbank gayle_common_bank = {
+    gayle_common_lget, gayle_common_wget, gayle_common_bget,
+    gayle_common_lput, gayle_common_wput, gayle_common_bput,
+    default_xlate, default_check, NULL, "Gayle PCMCIA Common",
+    dummy_lgeti, dummy_wgeti, ABFLAG_RAM
+};
+
 
 static uae_u32 REGPARAM3 gayle_attr_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 gayle_attr_wget (uaecptr) REGPARAM;
@@ -1057,8 +1122,8 @@ static void REGPARAM3 gayle_attr_bput (uaecptr, uae_u32) REGPARAM;
 addrbank gayle_attr_bank = {
     gayle_attr_lget, gayle_attr_wget, gayle_attr_bget,
     gayle_attr_lput, gayle_attr_wput, gayle_attr_bput,
-    default_xlate, default_check, NULL, "Gayle PCMCIA attribute",
-    dummy_lgeti, dummy_wgeti, ABFLAG_IO
+    default_xlate, default_check, NULL, "Gayle PCMCIA Attribute/Misc",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 static uae_u32 REGPARAM2 gayle_attr_lget (uaecptr addr)
@@ -1088,7 +1153,6 @@ static uae_u32 REGPARAM2 gayle_attr_bget (uaecptr addr)
 #endif
     return gayle_attr_read (addr);
 }
-
 static void REGPARAM2 gayle_attr_lput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
@@ -1097,7 +1161,6 @@ static void REGPARAM2 gayle_attr_lput (uaecptr addr, uae_u32 value)
     gayle_attr_wput (addr, value >> 16);
     gayle_attr_wput (addr + 2, value & 0xffff);
 }
-
 static void REGPARAM2 gayle_attr_wput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
@@ -1106,13 +1169,64 @@ static void REGPARAM2 gayle_attr_wput (uaecptr addr, uae_u32 value)
     gayle_attr_bput (addr, value >> 8);
     gayle_attr_bput (addr + 1, value & 0xff);
 }
-
 static void REGPARAM2 gayle_attr_bput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
     gayle_attr_write (addr, value);
+}
+
+
+static uae_u32 REGPARAM2 gayle_common_lget (uaecptr addr)
+{
+    uae_u32 v;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    v = gayle_common_wget (addr) << 16;
+    v |= gayle_common_wget (addr + 2);
+    return v;
+}
+static uae_u32 REGPARAM2 gayle_common_wget (uaecptr addr)
+{
+    uae_u16 v;
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    v = gayle_common_bget (addr) << 8;
+    v |= gayle_common_bget (addr + 1);
+    return v;
+}
+static uae_u32 REGPARAM2 gayle_common_bget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return gayle_common_read (addr);
+}
+static void REGPARAM2 gayle_common_lput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_common_wput (addr, value >> 16);
+    gayle_common_wput (addr + 2, value & 0xffff);
+}
+static void REGPARAM2 gayle_common_wput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_common_bput (addr, value >> 8);
+    gayle_common_bput (addr + 1, value & 0xff);
+}
+static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+    gayle_common_write (addr, value);
 }
 
 
@@ -1192,6 +1306,8 @@ void gayle_reset (int hardreset)
 	ncr_reset ();
     }
     gayle_bank.name = bankname;
+
+    initpcmcia();
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)

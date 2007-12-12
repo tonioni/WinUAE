@@ -40,6 +40,7 @@ struct uae_input_device {
 };
 
 #define MAX_SPARE_DRIVES 20
+#define MAX_CUSTOM_MEMORY_ADDRS 2
 
 #define CONFIG_TYPE_HARDWARE 1
 #define CONFIG_TYPE_HOST 2
@@ -253,6 +254,8 @@ struct uae_prefs {
     uae_u32 mbresmem_low_size;
     uae_u32 mbresmem_high_size;
     uae_u32 gfxmem_size;
+    uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
+    uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 
     int kickshifter;
     int filesys_no_uaefsdb;
