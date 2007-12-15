@@ -310,7 +310,7 @@ static const char *plugins_7z[] = { "7z", "rar", "zip", "lha", "lzh", "lzx", NUL
 static const char *plugins_7z_x[] = { "7z", "Rar!", "MK", NULL, NULL, NULL, NULL };
 static const int plugins_7z_t[] = { ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP, ArchiveFormatLHA, ArchiveFormatLHA, ArchiveFormatLZX };
 
-static int iszip (struct zfile *z)
+int iszip (struct zfile *z)
 {
     char *name = z->name;
     char *ext = strrchr (name, '.');

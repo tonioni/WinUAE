@@ -38,6 +38,7 @@ extern uae_u32 zfile_crc32 (struct zfile *f);
 extern struct zfile *zfile_dup (struct zfile *f);
 extern struct zfile *zfile_gunzip (struct zfile *z);
 extern int zfile_isdiskimage (const char *name);
+extern int iszip (struct zfile *z);
 
 #define ZFILE_UNKNOWN 0
 #define ZFILE_CONFIGURATION 1

@@ -1,3 +1,26 @@
+ 
+
+ 
+
+Dabei seit: 09.09.2005 15:28 It since: 09.09.2005 15:28 
+Herkunft: Rheinland-Pfalz Source: Rhineland-Palatinate 
+Beiträge: 81 Posts: 81 
+
+        Hallo Leute im Amigaemuboard! Hi people in Amigaemuboard! 
+
+Wie kann ich eigentlich im WinUAE den Schreibschutz für Amiga-Games deaktivieren? How can I actually WinUAE in the write protection for Amiga Games deactivate? 
+Muß den nicht bei einigen Amigaspielen die als ADF-Format vorliegen der Schreibschutz Do not some Amiga games as ADF-Format present the write protection 
+deaktiviert wwerden, um sie lauffähig machen zu können??? Disabled wwerden order to be able to run? Wie kann man den Schreibschutz How can you write protection 
+einer Diskette (ADF) deaktivieren? A diskette (ADF) disable? 
+
+MfG Micro Micro MfG  
+ 
+ 
+Beta 17:
+
+- roms inside archive directory failed to load
+- check that mouse buttons #4 and #5 are real buttons (not "Wheel -/+")
+  before adding default Left ALT + Cursor Left/Right mappings
 
 Beta 16:
 
@@ -12,6 +35,7 @@ Beta 16:
   settings (previously 256k = 0xF0, 512k = 0xE0)
 - Direct3D CreateTexture() return code was ignored, crashed if texture
   creation failed for some reason (out of video memory?)
+- misc tweaks
 
 Beta 15:
 

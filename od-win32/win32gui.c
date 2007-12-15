@@ -690,21 +690,24 @@ int scan_roms (int show)
 	goto end;
 
     cnt = 0;
+    ret = 0;
     for (i = 0; i < 10; i++)
 	paths[i] = NULL;
     for (;;) {
 	keys = get_keyring();
-	fetch_path("KickstartPath", path, sizeof path);
+	fetch_path ("KickstartPath", path, sizeof path);
 	scan_roms_3 (fkey, paths, 0, path);
-	for(i = 0; ;i++) {
-	    ret = get_rom_path(path, i);
-	    if (ret < 0)
-		break;
-	    cnt += scan_roms_3 (fkey, paths, 2 + i, path);
-	}
-	if (get_keyring() > keys) { /* more keys detected in previous scan? */
-	    keys = get_keyring();
-	    continue;
+	if (1) {
+	    for(i = 0; ;i++) {
+		ret = get_rom_path (path, i);
+		if (ret < 0)
+		    break;
+		cnt += scan_roms_3 (fkey, paths, 2 + i, path);
+	    }
+	    if (get_keyring() > keys) { /* more keys detected in previous scan? */
+		keys = get_keyring();
+		continue;
+	    }
 	}
 	break;
     }
