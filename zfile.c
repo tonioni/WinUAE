@@ -170,11 +170,13 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	i = 0;
 	do {
 	    zfile_fread (name + i, 1, 1, z);
-	} while (name[i++]);
+	} while (i < MAX_DPATH - 1 && name[i++]);
+	name[i] = 0;
     }
     if (flags & 16) { /* skip comment */
 	i = 0;
 	do {
+	    b = 0;
 	    zfile_fread (&b, 1, 1, z);
 	} while (b);
     }

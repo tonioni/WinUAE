@@ -1,26 +1,22 @@
- 
 
- 
+Beta 18:
 
-Dabei seit: 09.09.2005 15:28 It since: 09.09.2005 15:28 
-Herkunft: Rheinland-Pfalz Source: Rhineland-Palatinate 
-Beiträge: 81 Posts: 81 
-
-        Hallo Leute im Amigaemuboard! Hi people in Amigaemuboard! 
-
-Wie kann ich eigentlich im WinUAE den Schreibschutz für Amiga-Games deaktivieren? How can I actually WinUAE in the write protection for Amiga Games deactivate? 
-Muß den nicht bei einigen Amigaspielen die als ADF-Format vorliegen der Schreibschutz Do not some Amiga games as ADF-Format present the write protection 
-deaktiviert wwerden, um sie lauffähig machen zu können??? Disabled wwerden order to be able to run? Wie kann man den Schreibschutz How can you write protection 
-einer Diskette (ADF) deaktivieren? A diskette (ADF) disable? 
-
-MfG Micro Micro MfG  
- 
+- moved Picasso96 resolution list from special reserved display RAM
+  area to regular Amiga RAM (allocated with AllocMem) This should be
+  100% fix to display resolution list corruption in display prefs
+  utility. (if previous fix in b16 didn't fix it)
+- following "fake" display resolutions added to Picasso96 resolution
+  list (if no native support): 320x200, 320x240, 640x400, 640x480.
+  In fullscreen selects next bigger supported resolution automatically.
+  Note: fullscreen display is not centered
+- keyboard led emulation should not cause random key presses anymore
+  (but it still is quite unreliable)
  
 Beta 17:
 
-- roms inside archive directory failed to load
-- check that mouse buttons #4 and #5 are real buttons (not "Wheel -/+")
-  before adding default Left ALT + Cursor Left/Right mappings
+- rom scan detected roms inside archive directory failed to load
+- mouse buttons #4 and #5 default Left ALT + Cursor Left/Right mapping
+  fixed, was mapped to "Wheel +/-" if less than 5 buttons
 
 Beta 16:
 

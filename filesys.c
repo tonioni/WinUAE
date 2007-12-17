@@ -4856,6 +4856,7 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
     return 0;
 }
 
+extern void picasso96_alloc (TrapContext*);
 static uae_u32 REGPARAM2 filesys_init_storeinfo (TrapContext *context)
 {
     int ret = -1;
@@ -4863,6 +4864,7 @@ static uae_u32 REGPARAM2 filesys_init_storeinfo (TrapContext *context)
     {
 	case 1:
 	mountertask = m68k_areg (&context->regs, 1);
+	picasso96_alloc (context);
 	break;
 	case 2:
 	ret = automountunit;
@@ -5398,7 +5400,7 @@ void filesys_install (void)
     dw (RTS);
 
     org (rtarea_base + 0xFF48);
-    calltrap (deftrap2 (filesys_init_storeinfo, 0, "filesys_init_storeinfo"));
+    calltrap (deftrap2 (filesys_init_storeinfo, TRAPFLAG_EXTRA_STACK, "filesys_init_storeinfo"));
     dw (RTS);
 
     org (rtarea_base + 0xFF50);

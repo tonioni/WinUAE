@@ -64,7 +64,7 @@ static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     addr &= 0xFFFF;
-    return (uae_u32)(rtarea_wget (addr) << 16) + rtarea_wget (addr+2);
+    return (uae_u32)(rtarea_wget (addr) << 16) + rtarea_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
@@ -73,7 +73,7 @@ static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     addr &= 0xFFFF;
-    return (rtarea[addr]<<8) + rtarea[addr+1];
+    return (rtarea[addr] << 8) + rtarea[addr + 1];
 }
 
 static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
@@ -143,11 +143,13 @@ void dl (uae_u32 data)
 
 uae_u32 ds (const char *str)
 {
-    int len = strlen (str) + 1;
+    int len;
 
+    if (!str)
+	return addr (rt_straddr);
+    len = strlen (str) + 1;
     rt_straddr -= len;
     strcpy ((char *)rtarea + rt_straddr, str);
-
     return addr (rt_straddr);
 }
 

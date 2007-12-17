@@ -21,6 +21,8 @@
 #include "options.h"
 #include "audio.h"
 #include "custom.h"
+#include "memory.h"
+#include "newcpu.h"
 #include "picasso96.h"
 #include "dxwrap.h"
 #include "win32.h"

@@ -354,11 +354,13 @@ static int set_ddraw (void)
 	write_log ( "set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq );
 	ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	if (FAILED(ddrval)) {
-	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
-	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
-	    if (FAILED(ddrval)) {
-		write_log ( "set_ddraw: Couldn't SetDisplayMode()\n" );
-		goto oops;
+	    if (ddrval == E_NOTIMPL) {
+	        write_log ("set_ddraw: failed, trying without forced refresh rate\n");
+	        ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
+	        if (FAILED(ddrval)) {
+	            write_log ( "set_ddraw: Couldn't SetDisplayMode()\n" );
+	            goto oops;
+		}
 	    }
 	}
 
@@ -2052,7 +2054,6 @@ static int create_windows (void)
 	    currentmode->native_width = rc.right - rc.left;
 	    currentmode->native_height = rc.bottom - rc.top;
 	}
-
 	flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 
 	if (!borderless) {
@@ -2074,7 +2075,25 @@ static int create_windows (void)
 	    y = rc.top;
 	}
 
+    } else {
+	int i;
+
+	for (i = 0; DisplayModes[i].depth >= 0; i++) {
+	    struct PicassoResolution *pr = &DisplayModes[i];
+	    if (pr->res.width == currentmode->native_width && pr->res.height == currentmode->native_height)
+		break;
+	    if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
+		write_log ("FS: %dx%d -> %dx%d\n", currentmode->native_width, currentmode->native_height,
+		    pr->res.width, pr->res.height);
+		currentmode->native_width = pr->res.width;
+		currentmode->native_height = pr->res.height;
+		break;
+	    }
+	}
+
     }
+
+
 
     hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
@@ -2214,7 +2233,8 @@ static BOOL doInit (void)
 		if (!modefallback (0))
 		    goto oops;
 		close_windows ();
-		if (!DirectDraw_Start (displayGUID)) break;
+		if (!DirectDraw_Start (displayGUID))
+		    break;
 		continue;
 	    }
 	    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch();

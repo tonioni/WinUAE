@@ -220,7 +220,7 @@ static key_t get_next_shmkey(void)
     key_t result = -1;
     int i;
     for (i = 0; i < MAX_SHMID; i++) {
-	if( shmids[i].key == -1) {
+	if (shmids[i].key == -1) {
 	    shmids[i].key = i;
 	    result = i;
 	    break;
@@ -281,7 +281,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"rtarea")) {
 	    shmaddr=natmem_offset + rtarea_base;
 	    got = TRUE;
-	    size += 32;
+	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"fast")) {
 	    shmaddr=natmem_offset + 0x200000;
@@ -326,7 +326,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
-	    result = xmalloc (size);
+	    result = xcalloc (size, 1);
 	    shmids[shmid].attached=result;
 	    return result;
 	}

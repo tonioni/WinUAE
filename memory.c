@@ -874,7 +874,7 @@ static void dummylog(int rw, uaecptr addr, int size, uae_u32 val, int ins)
     /* extended rom */
     if (addr >= 0xf00000 && addr <= 0xf7ffff)
 	return;
-    /* motherbord ram */
+    /* motherboard ram */
     if (addr >= 0x08000000 && addr <= 0x08000007)
 	return;
     if (addr >= 0x07f00000 && addr <= 0x07f00007)

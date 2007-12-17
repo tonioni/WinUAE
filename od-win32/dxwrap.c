@@ -21,12 +21,14 @@
 
 #include "sysdeps.h"
 #include "options.h"
+#include "custom.h"
+#include "memory.h"
+#include "newcpu.h"
 #include "picasso96.h"
 #include "dxwrap.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "machdep/rpt.h"
-#include "custom.h"
 
 static BOOL bColourKeyAvailable = FALSE;
 static BOOL bOverlayAvailable = FALSE;

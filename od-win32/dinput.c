@@ -1269,21 +1269,34 @@ static uae_u32 get_leds (void)
     return led;
 }
 
+static void kbevt (uae_u8 vk, uae_u8 sc)
+{
+    if (0) {
+	INPUT inp[2] = { 0 };
+	int i;
+
+	for (i = 0; i < 2; i++) {
+	    inp[i].type = INPUT_KEYBOARD;
+	    inp[i].ki.wVk = vk;
+	}
+	inp[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+	SendInput (1, inp, sizeof (INPUT));
+	SendInput (1, inp + 1, sizeof (INPUT));
+    } else {
+	keybd_event (vk, 0, 0, 0);
+	keybd_event (vk, 0, KEYEVENTF_KEYUP, 0);
+    }
+}
+
 static void set_leds (uae_u32 led)
 {
     if (os_winnt && currprefs.win32_kbledmode) {
-	if((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK)) {
-	    keybd_event (VK_NUMLOCK, 0x45, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_NUMLOCK, 0x45, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-	}
-	if((oldusbleds & KBLED_CAPSLOCK) != (led & KBLED_CAPSLOCK)) {
-	    keybd_event (VK_CAPITAL, 0x3a, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_CAPITAL, 0x3a, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-	}
-	if((oldusbleds & KBLED_SCROLLLOCK) != (led & KBLED_SCROLLLOCK)) {
-	    keybd_event (VK_SCROLL, 0x46, KEYEVENTF_EXTENDEDKEY, 0);
-	    keybd_event (VK_SCROLL, 0x46, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-	}
+	if((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK))
+	    kbevt (VK_NUMLOCK, 0x45);
+	if((oldusbleds & KBLED_CAPSLOCK) != (led & KBLED_CAPSLOCK))
+	    kbevt (VK_CAPITAL, 0x3a);
+	if((oldusbleds & KBLED_SCROLLLOCK) != (led & KBLED_SCROLLLOCK))
+	    kbevt (VK_SCROLL, 0x46);
 	oldusbleds = led;
     } else if (os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
 #ifdef WINDDK
@@ -1709,8 +1722,7 @@ static void unacquire_kb (int num)
 
     if (currprefs.keyboard_leds_in_use) {
 	if (oldusedleds >= 0) {
-	    if (!currprefs.win32_kbledmode)
-		set_leds (oldleds);
+	    set_leds (oldleds);
 	    oldusedleds = oldleds;
 	}
 #ifdef WINDDK
