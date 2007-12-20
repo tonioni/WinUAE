@@ -3585,9 +3585,12 @@ action_seek (Unit *unit, dpacket packet)
 	long filesize = fs_lseek (unit, k->fd, 0, SEEK_END);
 	fs_lseek (unit, k->fd, old, SEEK_SET);
 
-	if (whence == SEEK_CUR) temppos = old + pos;
-	if (whence == SEEK_SET) temppos = pos;
-	if (whence == SEEK_END) temppos = filesize + pos;
+	if (whence == SEEK_CUR)
+	    temppos = old + pos;
+	if (whence == SEEK_SET)
+	    temppos = pos;
+	if (whence == SEEK_END)
+	    temppos = filesize + pos;
 	if (filesize < temppos) {
 	    res = -1;
 	    PUT_PCK_RES1 (packet,res);

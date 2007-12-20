@@ -1828,7 +1828,7 @@ static void print_task_info(uaecptr node)
 	int tasknum = get_long (node + 140);
 	if (cli && tasknum) {
 	    uae_u8 *command_bstr = get_real_address (BPTR2APTR (get_long (cli + 16)));
-	    char * command = BSTR2CSTR (command_bstr);
+	    char *command = BSTR2CSTR (command_bstr);
 	    console_out (" [%d, '%s']\n", tasknum, command);
 	    xfree (command);
 	} else {
@@ -2550,20 +2550,21 @@ void debug (void)
 		    uaecptr execbase = get_long (4);
 		    uaecptr activetask = get_long (execbase + 276);
 		    int process = get_byte (activetask + 8) == 13 ? 1 : 0;
-		    char *name = (char*)get_real_address (get_long (activetask + 10));
+		    uae_u8 *name = get_real_address (get_long (activetask + 10));
 		    if (process) {
 			uaecptr cli = BPTR2APTR(get_long (activetask + 172));
 			uaecptr seglist = 0;
-			char *command = NULL;
+
+			uae_u8 *command = NULL;
 			if (cli) {
 			    if (processname)
-				command = (char *)get_real_address (BPTR2APTR(get_long (cli + 16)));
+				command = get_real_address (BPTR2APTR(get_long (cli + 16)));
 			    seglist = BPTR2APTR(get_long (cli + 60));
 			} else {
 			    seglist = BPTR2APTR(get_long (activetask + 128));
 			    seglist = BPTR2APTR(get_long (seglist + 12));
 			}
-			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && command[0] && !strnicmp(command + 1, processname, command[0]) && processname[command[0]+1] == 0)))) {
+			if (activetask == processptr || (processname && (!stricmp(name, processname) || (command && command[0] && !strnicmp(command + 1, processname, command[0]) && processname[command[0]] == 0)))) {
 			    while (seglist) {
 				uae_u32 size = get_long (seglist - 4) - 4;
 				if (pc >= (seglist + 4) && pc < (seglist + size)) {

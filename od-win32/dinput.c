@@ -331,18 +331,23 @@ static int initialize_rawinput (void)
 	!pGetRawInputDeviceInfo || !pGetRawInputBuffer || !pDefRawInputProc)
 	goto error;
 
-    ridl = malloc (sizeof(RAWINPUTDEVICELIST) * num);
-    memset (ridl, 0, sizeof (RAWINPUTDEVICELIST) * num);
     bufsize = 10000;
     buf = malloc (bufsize);
 
     register_rawinput();
+    if (pGetRawInputDeviceList(NULL, &num, sizeof (RAWINPUTDEVICELIST)) != 0) {
+	write_log ("RAWINPUT error %08X\n", GetLastError());
+	goto error2;
+    }
+    write_log ("RAWINPUT: found %d devices\n", num);
+    if (num <= 0)
+	goto error2;
+    ridl = calloc (sizeof(RAWINPUTDEVICELIST), num);
     gotnum = pGetRawInputDeviceList(ridl, &num, sizeof (RAWINPUTDEVICELIST));
     if (gotnum <= 0) {
 	write_log ("RAWINPUT didn't find any devices\n");
 	goto error2;
     }
-    write_log ("RAWINPUT: found %d devices\n", gotnum);
     rnum_raw = rnum_mouse = rnum_kb = 0;
     for (i = 0; i < gotnum; i++) {
 	int type = ridl[i].dwType;

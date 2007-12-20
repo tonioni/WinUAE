@@ -1,13 +1,14 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource."
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
+
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -88,7 +89,6 @@ BEGIN
     EDITTEXT        IDC_YSIZE,114,48,47,12,ES_NUMBER
     GROUPBOX        "Settings",IDC_SETTINGSTEXT,12,73,199,125
     CONTROL         "Correct aspect ratio",IDC_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,19,126,92,10
-    CONTROL         "Force low resolution",IDC_LORES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,126,89,10
     LTEXT           "Refresh:",IDC_REFRESHTEXT,18,162,28,8
     CONTROL         "Slider1",IDC_FRAMERATE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,47,157,75,20
     EDITTEXT        IDC_RATETEXT,127,161,77,12,ES_CENTER | ES_READONLY
@@ -105,13 +105,15 @@ BEGIN
     CONTROL         "",IDC_FRAMERATE2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,47,177,127,20
     EDITTEXT        IDC_RATE2TEXT,178,181,26,12,ES_CENTER | ES_READONLY
     COMBOBOX        IDC_RESOLUTIONDEPTH,135,27,46,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Filtered low resolution",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,140,89,10
+    CONTROL         "Filtered low resolution",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,118,126,89,10
     COMBOBOX        IDC_SCREENMODE_NATIVE,100,85,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_SCREENMODE_RTG,100,103,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Native mode:",IDC_STATIC,19,85,59,15,SS_CENTERIMAGE
     RTEXT           "Windowed:",IDC_WINDOWEDTEXT,15,51,40,8
     RTEXT           "RTG mode:",IDC_STATIC,19,101,59,15,SS_CENTERIMAGE
     PUSHBUTTON      "Reset to defaults",IDC_DA_RESET,212,211,73,14
+    RTEXT           "Resolution:",IDC_STATIC,27,140,59,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_LORES,100,140,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 300, 175
@@ -394,12 +396,12 @@ BEGIN
     CONTROL         "Untrap mouse with middle button",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,15,129,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,27,120,10
     CONTROL         "On-screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,40,115,10
-    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,53,117,10
+    CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,53,63,10
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,66,117,10
     CONTROL         "bsdsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,15,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,27,120,10
     CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,120,10
-    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,115,10
+    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,53,115,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,140,85,94
     COMBOBOX        IDC_KBLED1,22,154,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED2,22,173,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -416,21 +418,22 @@ BEGIN
     RTEXT           "Recording buffer (MB):",IDC_STATIC,157,219,83,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATE_BUFFERSIZE,248,217,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,79,117,10
-    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,115,10
+    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,115,10
     CONTROL         "USB mode",IDC_KBLED_USB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,216,64,10
-    COMBOBOX        IDC_SCSIMODE,161,51,104,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCSIMODE,92,51,64,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_LANGUAGE,103,121,179,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Language",IDC_STATIC,7,112,285,25
     CONTROL         "Disable powersaving features",IDC_POWERSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,92,120,10
-    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,92,119,10
+    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,119,10
+    CONTROL         "uaenet.device",IDC_SANA2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,92,94,10
 END
 
-IDD_HARDFILE DIALOGEX 0, 0, 299, 212
+IDD_HARDFILE DIALOGEX 0, 0, 299, 249
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Hardfile Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Settings",IDC_STATIC,10,5,280,113
+    GROUPBOX        "Settings",IDC_STATIC,10,5,280,146
     RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,26,18,22,10
     EDITTEXT        IDC_PATH_NAME,52,15,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_SELECTOR,271,15,11,15
@@ -438,30 +441,34 @@ BEGIN
     EDITTEXT        IDC_PATH_FILESYS,52,34,213,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,271,34,11,15
     RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,17,58,31,10
-    EDITTEXT        IDC_HARDFILE_DEVICE,52,54,40,15,ES_AUTOHSCROLL
-    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,79,44,8
-    EDITTEXT        IDC_HARDFILE_BOOTPRI,74,75,40,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,57,50,10
-    PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,192,55,92,14
-    RTEXT           "Surfaces:",IDC_SURFACES_TEXT,120,79,30,10
-    EDITTEXT        IDC_HEADS,155,75,35,15,ES_NUMBER
-    RTEXT           "Reserved:",IDC_RESERVED_TEXT,197,79,35,10
-    EDITTEXT        IDC_RESERVED,237,75,35,15,ES_NUMBER
-    RTEXT           "Sectors:",IDC_SECTORS_TEXT,120,101,30,10
-    EDITTEXT        IDC_SECTORS,155,96,35,15,ES_NUMBER
-    RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,197,101,35,10
-    EDITTEXT        IDC_BLOCKSIZE,237,96,35,15,ES_NUMBER
-    GROUPBOX        "New hard disk image file",IDC_STATIC,10,120,280,62
-    PUSHBUTTON      "Create",IDC_HF_CREATE,50,135,80,14
-    EDITTEXT        IDC_HF_SIZE,146,135,61,15,ES_NUMBER
-    PUSHBUTTON      "OK",IDOK,102,191,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,158,191,50,14
-    EDITTEXT        IDC_HF_DOSTYPE,146,158,61,15
-    COMBOBOX        IDC_HDF_CONTROLLER,73,97,41,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "DOS type",IDC_STATIC,214,160,32,10,SS_CENTERIMAGE
-    RTEXT           "MB",IDC_STATIC,214,138,13,10,SS_CENTERIMAGE
-    RTEXT           "Type:",IDC_STATIC,18,160,25,10,SS_CENTERIMAGE
-    RTEXT           "HD Controller:",IDC_STATIC,13,98,52,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_HARDFILE_DEVICE,52,54,66,15,ES_AUTOHSCROLL
+    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,94,44,8
+    EDITTEXT        IDC_HARDFILE_BOOTPRI,74,90,40,15
+    CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,74,64,10
+    PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,174,55,92,14
+    RTEXT           "Surfaces:",IDC_SURFACES_TEXT,120,94,30,10
+    EDITTEXT        IDC_HEADS,155,90,35,15,ES_NUMBER
+    RTEXT           "Reserved:",IDC_RESERVED_TEXT,197,94,35,10
+    EDITTEXT        IDC_RESERVED,237,90,35,15,ES_NUMBER
+    RTEXT           "Sectors:",IDC_SECTORS_TEXT,120,116,30,10
+    EDITTEXT        IDC_SECTORS,155,111,35,15,ES_NUMBER
+    RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,197,116,35,10
+    EDITTEXT        IDC_BLOCKSIZE,237,111,35,15,ES_NUMBER
+    GROUPBOX        "New hard disk image file",IDC_STATIC,10,156,280,62
+    PUSHBUTTON      "Create",IDC_HF_CREATE,50,171,80,14
+    EDITTEXT        IDC_HF_SIZE,146,171,61,15,ES_NUMBER
+    PUSHBUTTON      "OK",IDOK,102,226,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,158,226,50,14
+    EDITTEXT        IDC_HF_DOSTYPE,146,194,61,15
+    COMBOBOX        IDC_HF_TYPE,50,194,80,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_HDF_CONTROLLER,73,112,41,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "DOS type",IDC_STATIC,214,196,32,10,SS_CENTERIMAGE
+    RTEXT           "MB",IDC_STATIC,214,174,13,10,SS_CENTERIMAGE
+    RTEXT           "Type:",IDC_STATIC,18,182,25,10,SS_CENTERIMAGE
+    RTEXT           "HD Controller:",IDC_STATIC,13,113,52,10,SS_CENTERIMAGE
+    CONTROL         "Autoboot",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,73,53,10
+    CONTROL         "Do not mount",IDC_HDF_DONOTMOUNT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,217,74,67,10
+    EDITTEXT        IDC_HDFINFO,16,131,268,12,ES_CENTER | ES_READONLY
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 299, 111
@@ -476,13 +483,14 @@ BEGIN
     LTEXT           "Path:",-1,5,51,44,10
     EDITTEXT        IDC_PATH_NAME,65,46,227,15,ES_AUTOHSCROLL
     PUSHBUTTON      "Select Directory",IDC_FS_SELECT_DIR,64,66,103,15
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,215,9,75,10
-    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,29,59,8
-    EDITTEXT        IDC_VOLUME_BOOTPRI,261,27,30,15
+    CONTROL         "Read/write",IDC_FS_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,174,7,55,10
+    RTEXT           "Boot priority:",IDC_VOLUME_BOOTPRI_TEXT,178,28,49,8
+    EDITTEXT        IDC_VOLUME_BOOTPRI,237,24,30,15
     PUSHBUTTON      "OK",IDOK,65,91,48,15
     PUSHBUTTON      "Cancel",IDCANCEL,120,91,48,15
     PUSHBUTTON      "Select Archive or Plain File",IDC_FS_SELECT_FILE,189,66,103,15
     PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,230,91,62,15
+    CONTROL         "Autoboot",IDC_FS_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,236,7,53,10
 END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
@@ -542,44 +550,44 @@ IDD_CHIPSET2 DIALOGEX 0, 65490, 300, 247
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Advanced Chipset Options",IDC_STATIC,7,6,287,239
-    GROUPBOX        "Battery Backed Up Real Time Clock",IDC_STATIC,14,37,275,29
-    CONTROL         "None",IDC_CS_RTC1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,22,49,55,10
-    CONTROL         "MSM6242B",IDC_CS_RTC2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,91,49,52,10
-    CONTROL         "RF5C01A",IDC_CS_RTC3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,160,49,46,10
-    EDITTEXT        IDC_CS_RTCADJUST,218,47,64,13,ES_AUTOHSCROLL
-    GROUPBOX        "CIA-A TOD Clock Source",IDC_STATIC,12,69,275,29
-    CONTROL         "Vertical Sync",IDC_CS_CIAA_TOD1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,25,81,63,10
-    CONTROL         "Power Supply 50Hz",IDC_CS_CIAA_TOD2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,95,81,85,10
-    CONTROL         "Power Supply 60Hz",IDC_CS_CIAA_TOD3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,192,81,88,10
-    CONTROL         "Boot ROM Mirror",IDC_CS_KSMIRROR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,108,80,10
-    CONTROL         "A1000 Boot RAM/ROM",IDC_CS_A1000RAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,108,88,10
-    CONTROL         "CD32 CD",IDC_CS_CD32CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,121,76,10
-    CONTROL         "CD32 C2P",IDC_CS_CD32C2P,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,121,87,10
-    CONTROL         "CD32 NVRAM",IDC_CS_CD32NVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,121,84,10
-    CONTROL         "CDTV CD",IDC_CS_CDTVCD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,134,47,10
-    CONTROL         "CDTV SRAM",IDC_CS_CDTVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,133,87,10
-    CONTROL         "CDTV SRAM Expansion",IDC_CS_CDTVRAMEXP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,133,90,10
-    CONTROL         "A600/A1200 IDE",IDC_CS_IDE1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,146,79,10
-    CONTROL         "A4000/A4000T IDE",IDC_CS_IDE2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,146,88,10
-    CONTROL         "Ramsey revision:",IDC_CS_RAMSEY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,211,71,10
-    EDITTEXT        IDC_CS_RAMSEYREV,94,209,45,13,ES_AUTOHSCROLL
-    CONTROL         "Fat Gary revision:",IDC_CS_FATGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,224,71,10
-    EDITTEXT        IDC_CS_FATGARYREV,94,223,45,13,ES_AUTOHSCROLL
-    CONTROL         "A3000 SCSI",IDC_CS_DMAC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,175,76,10
-    CONTROL         "Compatible Settings",IDC_CS_COMPATIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,21,234,10
-    CONTROL         "DF0: ID Hardware",IDC_CS_DF0IDHW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,108,92,10
-    CONTROL         "Agnus/Alice revision:",IDC_CS_AGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,211,81,10
-    EDITTEXT        IDC_CS_AGNUSREV,235,209,45,13,ES_AUTOHSCROLL
-    CONTROL         "Denise/Lisa revision:",IDC_CS_DENISE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,227,81,10
-    EDITTEXT        IDC_CS_DENISEREV,235,226,45,13,ES_AUTOHSCROLL
-    CONTROL         "A590/A2091 SCSI",IDC_CS_A2091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,175,76,10
-    CONTROL         "A4000T SCSI",IDC_CS_DMAC2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,175,88,10
-    LTEXT           "A4091/A4000T SCSI not yet implemented.",IDC_STATIC,25,161,224,8,SS_CENTERIMAGE
-    CONTROL         "PCMCIA",IDC_CS_PCMCIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,146,92,10
-    CONTROL         "A4091 SCSI",IDC_CS_A4091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,187,76,10
-    CONTROL         "CDTV SCSI",IDC_CS_CDTVSCSI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,97,187,76,10
-    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,187,101,10
+    GROUPBOX        "Battery Backed Up Real Time Clock",IDC_STATIC,11,24,275,29
+    CONTROL         "None",IDC_CS_RTC1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,19,36,55,10
+    CONTROL         "MSM6242B",IDC_CS_RTC2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,88,36,52,10
+    CONTROL         "RF5C01A",IDC_CS_RTC3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,157,36,46,10
+    EDITTEXT        IDC_CS_RTCADJUST,215,34,64,13,ES_AUTOHSCROLL
+    GROUPBOX        "CIA-A TOD Clock Source",IDC_STATIC,9,56,275,29
+    CONTROL         "Vertical Sync",IDC_CS_CIAA_TOD1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,22,68,63,10
+    CONTROL         "Power Supply 50Hz",IDC_CS_CIAA_TOD2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,92,68,85,10
+    CONTROL         "Power Supply 60Hz",IDC_CS_CIAA_TOD3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,189,68,88,10
+    CONTROL         "Boot ROM Mirror",IDC_CS_KSMIRROR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,95,80,10
+    CONTROL         "A1000 Boot RAM/ROM",IDC_CS_A1000RAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,95,88,10
+    CONTROL         "CD32 CD",IDC_CS_CD32CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,108,76,10
+    CONTROL         "CD32 C2P",IDC_CS_CD32C2P,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,108,87,10
+    CONTROL         "CD32 NVRAM",IDC_CS_CD32NVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,108,84,10
+    CONTROL         "CDTV CD",IDC_CS_CDTVCD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,121,47,10
+    CONTROL         "CDTV SRAM",IDC_CS_CDTVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,120,87,10
+    CONTROL         "CDTV SRAM Expansion",IDC_CS_CDTVRAMEXP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,120,90,10
+    CONTROL         "A600/A1200 IDE",IDC_CS_IDE1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,133,79,10
+    CONTROL         "A4000/A4000T IDE",IDC_CS_IDE2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,133,88,10
+    CONTROL         "Ramsey revision:",IDC_CS_RAMSEY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,210,71,10
+    EDITTEXT        IDC_CS_RAMSEYREV,91,208,45,13,ES_AUTOHSCROLL
+    CONTROL         "Fat Gary revision:",IDC_CS_FATGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,223,71,10
+    EDITTEXT        IDC_CS_FATGARYREV,91,222,45,13,ES_AUTOHSCROLL
+    CONTROL         "A3000 SCSI",IDC_CS_DMAC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,174,76,10
+    CONTROL         "Compatible Settings",IDC_CS_COMPATIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,8,234,10
+    CONTROL         "DF0: ID Hardware",IDC_CS_DF0IDHW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,95,92,10
+    CONTROL         "Agnus/Alice revision:",IDC_CS_AGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,147,210,81,10
+    EDITTEXT        IDC_CS_AGNUSREV,232,208,45,13,ES_AUTOHSCROLL
+    CONTROL         "Denise/Lisa revision:",IDC_CS_DENISE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,147,226,81,10
+    EDITTEXT        IDC_CS_DENISEREV,232,225,45,13,ES_AUTOHSCROLL
+    CONTROL         "A590/A2091 SCSI",IDC_CS_A2091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,174,76,10
+    CONTROL         "A4000T SCSI",IDC_CS_DMAC2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,174,88,10
+    LTEXT           "A4091/A4000T SCSI not yet implemented.",IDC_STATIC,22,160,224,8,SS_CENTERIMAGE
+    CONTROL         "PCMCIA",IDC_CS_PCMCIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,133,92,10
+    CONTROL         "A4091 SCSI",IDC_CS_A4091,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,186,76,10
+    CONTROL         "CDTV SCSI",IDC_CS_CDTVSCSI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,94,186,76,10
+    CONTROL         "Include host SCSI devices",IDC_CS_SCSIMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,186,101,10
+    CONTROL         "C00000 is Fast RAM",IDC_CS_SLOWISFAST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,146,92,10
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 288, 203
@@ -680,7 +688,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Hard drive:",IDC_STATIC,7,11,35,10
     COMBOBOX        IDC_HARDDRIVE,49,9,325,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Read/write",IDC_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,51,55,10
+    CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,51,55,10
     DEFPUSHBUTTON   "Add hard drive",IDOK,231,48,65,14
     PUSHBUTTON      "Cancel",IDCANCEL,319,48,54,14
     DEFPUSHBUTTON   "Create hard disk image file",IDC_HARDDRIVE_IMAGE,49,30,115,14
@@ -896,8 +904,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,4,0
- PRODUCTVERSION 1,4,4,0
+ FILEVERSION 1,4,5,0
+ PRODUCTVERSION 1,4,5,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -913,12 +921,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.4.4"
+            VALUE "FileVersion", "1.4.5"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2007 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.4.4"
+            VALUE "ProductVersion", "1.4.5"
         END
     END
     BLOCK "VarFileInfo"
@@ -958,6 +966,21 @@ BEGIN
         MENUITEM "Quit WinUAE",                 ID_ST_QUIT
     END
 END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_HARDFILE, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 224
+    END
+END
+#endif    // APSTUDIO_INVOKED
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1034,7 +1057,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christoph Meier - Freezer cartridge hardware support."
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe, Christoph Meier and Christian Schindler - Freezer cartridge hardware support."
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
@@ -1305,7 +1328,8 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

@@ -597,7 +597,7 @@ static uae_u8 *read_raw(int sector, int size)
 	track = trackcnt;
     }
     if (f) {
-	write_log ("%dx%d=%d\n", sector, size, sector * size);
+	write_log ("CDTV fakeraw: %dx%d=%d\n", sector, size, sector * size);
 	zfile_fseek (f, sector * size, SEEK_SET);
 	zfile_fread (buf, size, 1, f);
 	return buf;

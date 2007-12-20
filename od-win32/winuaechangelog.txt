@@ -1,4 +1,9 @@
 
+Beta 19:
+
+- ESS Mega (CDTV) now works, added workaround for another Windows
+  low level CDROM read weirdness..
+
 Beta 18:
 
 - moved Picasso96 resolution list from special reserved display RAM

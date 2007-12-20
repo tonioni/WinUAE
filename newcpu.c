@@ -2071,6 +2071,7 @@ static uae_u32 cd32nextpc, cd32request;
 static void out_cd32io2 (void)
 {
     uae_u32 request = cd32request;
+    write_log ("%08x returned\n", request);
     //write_log ("ACTUAL=%d ERROR=%d\n", get_long (request + 32), get_byte (request + 31));
     cd32nextpc = 0;
     cd32request = 0;
