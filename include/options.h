@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 1
 #define UAEMINOR 4
-#define UAESUBREV 5
+#define UAESUBREV 6
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -32,11 +32,18 @@ struct strlist {
 
 struct uae_input_device {
     char *name;
+    char *configname;
     uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     char *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
     uae_u8 enabled;
+};
+
+struct jport {
+    int id;
+    char *name;
+    char *configname;
 };
 
 #define MAX_SPARE_DRIVES 20
@@ -315,8 +322,7 @@ struct uae_prefs {
 
     /* input */
 
-    int jport0;
-    int jport1;
+    struct jport jports[2];
     int input_selected_setting;
     int input_joymouse_multiplier;
     int input_joymouse_deadzone;

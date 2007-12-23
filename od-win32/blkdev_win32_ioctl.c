@@ -23,6 +23,11 @@
 #include <ntddcdrm.h>
 #include <windows.h>
 #include <mmsystem.h>
+#include <winioctl.h>
+#include <setupapi.h>   // for SetupDiXxx functions.
+#include <stddef.h>
+
+#include <ntddscsi.h>
 
 struct dev_info_ioctl {
     HANDLE h;
@@ -36,6 +41,7 @@ struct dev_info_ioctl {
     CDROM_TOC toc;
     UINT errormode;
     int playend;
+    int fullaccess;
 };
 
 #define IOCTL_DATA_BUFFER 4096
@@ -94,6 +100,7 @@ static int close_createfile(int unitnum)
 {
     struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
+    ciw->fullaccess = 0;
     if (ciw->h != INVALID_HANDLE_VALUE) {
 	if (log_scsi)
 	    write_log ("IOCTL: IOCTL close\n");
@@ -125,43 +132,56 @@ static int close_mci(int unitnum)
     return 0;
 }
 
-static int open_createfile(int unitnum)
+static int open_createfile(int unitnum, int fullaccess)
 {
     struct dev_info_ioctl *ciw = &ciw32[unitnum];
     int closed = 0;
     int cnt = 50;
-    DWORD flags;
+    DWORD len;
 
-    if (ciw->h != INVALID_HANDLE_VALUE)
-	return 1;
+    if (ciw->h != INVALID_HANDLE_VALUE) {
+        if (fullaccess && ciw->fullaccess == 0) {
+	    close_createfile (unitnum);
+	} else {
+    	    return 1;
+	}
+    }
     closed = close_mci(unitnum);
     if (log_scsi)
 	write_log ("IOCTL: opening IOCTL %s\n", ciw->devname);
     for (;;) {
-	flags = GENERIC_READ;
-	ciw->h = CreateFile(ciw->devname, flags, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (ciw->h == INVALID_HANDLE_VALUE) {
-	    ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (fullaccess) {
+	    ciw->h = CreateFile(ciw->devname, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	    if (ciw->h != INVALID_HANDLE_VALUE)
+		ciw->fullaccess = 1;
+	} else {
+	    DWORD flags = GENERIC_READ;
+	    ciw->h = CreateFile(ciw->devname, flags, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	    if (ciw->h == INVALID_HANDLE_VALUE) {
-		flags |= GENERIC_WRITE;
 		ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (ciw->h == INVALID_HANDLE_VALUE) {
-		    DWORD err = GetLastError();
-		    if (err == ERROR_SHARING_VIOLATION) {
-			if (closed && cnt > 0) {
-			    cnt--;
-			    Sleep(10);
-			    continue;
-			}
-		    }
-		    if (closed)
-			write_log ("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
-		    return 0;
+		    flags |= GENERIC_WRITE;
+		    ciw->h = CreateFile(ciw->devname, flags, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	        }
+	    }
+	}
+        if (ciw->h == INVALID_HANDLE_VALUE) {
+	    DWORD err = GetLastError();
+	    if (err == ERROR_SHARING_VIOLATION) {
+		if (closed && cnt > 0) {
+		    cnt--;
+		    Sleep(10);
+		    continue;
 		}
 	    }
+	    if (closed)
+		write_log ("IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
+	    return 0;
 	}
 	break;
     }
+    if (!DeviceIoControl(ciw->h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &len, NULL))
+	write_log ("IOCTL: FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError());
     if (log_scsi)
 	write_log ("IOCTL: IOCTL open completed\n");
     return 1;
@@ -445,9 +465,60 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
     }
 }
 
-int track_mode = 4;
-static int tm[] = { YellowMode2, XAForm2, RawWithC2AndSubCode, RawWithC2, RawWithSubCode };
-static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
+typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
+  SCSI_PASS_THROUGH_DIRECT spt;
+  ULONG Filler;
+  UCHAR SenseBuf[32];
+} SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
+
+static uae_u8 *spti_read (int unitnum, int sector, int sectorsize)
+{
+    DWORD status, returned;
+    SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
+    uae_u8 *p = ciw32[unitnum].tempbuffer;
+    /* number of bytes returned depends on type of track:
+     * CDDA = 2352
+     * Mode1 = 2048
+     * Mode2 = 2336
+     * Mode2 Form 1 = 2048
+     * Mode2 Form 2 = 2328
+     */
+    uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0x10, 0, 0 };
+    int len = sizeof cmd;
+
+    if (!open_createfile(unitnum, 1))
+	return 0;
+    cmd[3] = (uae_u8)(sector >> 16);
+    cmd[4] = (uae_u8)(sector >> 8);
+    cmd[5] = (uae_u8)(sector >> 0);
+    gui_cd_led (1);
+    memset (&swb, 0, sizeof (swb));
+    memcpy (swb.spt.Cdb, cmd, len);
+    swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
+    swb.spt.CdbLength = len;
+    swb.spt.DataIn = SCSI_IOCTL_DATA_IN;
+    swb.spt.DataTransferLength = IOCTL_DATA_BUFFER;
+    swb.spt.DataBuffer = p;
+    memset (p, 0, IOCTL_DATA_BUFFER);
+    swb.spt.TimeOutValue = 80 * 60;
+    swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
+    swb.spt.SenseInfoLength = 32;
+
+    seterrormode (unitnum);
+    status = DeviceIoControl (ciw32[unitnum].h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
+	&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+	&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+	&returned, NULL);
+    reseterrormode (unitnum);
+    if (!status) {
+	DWORD err = GetLastError();
+	write_log ("IOCTL_RAW_SCSI unit %d, ERR=%d ", unitnum, err);
+	return 0;
+    }
+    return p;
+}
+
+uae_u8 *ioctl_command_rawread (int unitnum, int sector, int sectorsize)
 {
     int cnt = 3;
     RAW_READ_INFO rri;
@@ -455,19 +526,21 @@ static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
     uae_u8 *p = ciw32[unitnum].tempbuffer;
 
     if (log_scsi)
-	write_log ("rawread unit=%d sector=%d blocksize=%d tm=%d\n", unitnum, sector, size, tm[track_mode]);
-    if (!open_createfile(unitnum))
+	write_log ("IOCTL rawread unit=%d sector=%d blocksize=%d\n", unitnum, sector, sectorsize);
+    if (!os_vista)
+	return spti_read (unitnum, sector, sectorsize);
+    if (!open_createfile(unitnum, 1))
 	return 0;
-    if (size != 2336 && size != 2352 && size != 2048)
+    if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048)
 	return 0;
     while (cnt-- > 0) {
 	gui_cd_led (1);
 	seterrormode (unitnum);
 	rri.DiskOffset.QuadPart = sector * 2048;
 	rri.SectorCount = 1;
-	rri.TrackMode = tm[track_mode];
-	len = size;
-	memset (p, 0, size);
+	rri.TrackMode = RawWithSubCode;
+	len = sectorsize;
+	memset (p, 0, sectorsize);
 	if (!DeviceIoControl(ciw32[unitnum].h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri,
 	    p, IOCTL_DATA_BUFFER, &len, NULL)) {
 	    DWORD err = GetLastError ();
@@ -475,7 +548,7 @@ static uae_u8 *ioctl_command_rawread_2 (int unitnum, int sector, int size)
 	reseterrormode (unitnum);
 	break;
     }
-    if (size == 2352)
+    if (sectorsize == 2352)
 	return p;
     return p + 16;
 }
@@ -487,7 +560,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
     uae_u8 *p = ciw32[unitnum].tempbuffer;
 
     *ptr = NULL;
-    if (!open_createfile(unitnum))
+    if (!open_createfile(unitnum, 0))
 	return 0;
     while (cnt-- > 0) {
 	gui_cd_led (1);
@@ -517,6 +590,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 		return 0;
 	    }
 	} else {
+	    dtotal = 0;
 	    if (!ReadFile (ciw32[unitnum].h, p, blocksize, &dtotal, 0)) {
 		reseterrormode (unitnum);
 		if (win32_error (unitnum, "ReadFile") < 0)
@@ -524,9 +598,12 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 		return 0;
 	    }
 	    if (dtotal == 0) {
-		/* ESS Mega (CDTV) "fake" data area returns zero bytes and no error..
-		 * IOCTL_CDROM_RAW_READ does return correct data but also returns error code.. wtf?
-		 */
+		/* ESS Mega (CDTV) "fake" data area returns zero bytes and no error.. */
+		*ptr = spti_read (unitnum, sector, 2048);
+		if (log_scsi)
+		    write_log ("IOCTL unit %d, sector %d: ReadFile()==0. SPTI=%d\n", unitnum, sector, *ptr == 0 ? GetLastError() : 0);
+		return 1;
+#if 0
 		DWORD len = CD_RAW_SECTOR_WITH_SUBCODE_SIZE, err = -1;
 		RAW_READ_INFO rri = { 0 };
 		rri.DiskOffset.QuadPart = sector * 2048;
@@ -540,6 +617,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 	        p += 16; /* skip raw header */
 		write_log ("ioctl_command_read(%d,%d)==0, IOCTL_CDROM_RAW_READ = d\n",
 		    sector, blocksize, err);
+#endif
 	    }
 	}
 	reseterrormode (unitnum);
@@ -563,16 +641,6 @@ static uae_u8 *ioctl_command_read (int unitnum, int sector)
 	return ptr;
     return NULL;
 }
-static uae_u8 *ioctl_command_rawread (int unitnum, int sector, int size)
-{
-    uae_u8 *ptr;
-    if (track_mode < 0) {
-	if (ioctl_command_readwrite (unitnum, sector, 0, size, &ptr) > 0)
-	    return ptr;
-	return NULL;
-    }
-    return ioctl_command_rawread_2 (unitnum, sector, size);
-}
 
 static int fetch_geometry (int unitnum, struct device_info *di)
 {
@@ -580,7 +648,7 @@ static int fetch_geometry (int unitnum, struct device_info *di)
     DWORD len;
     int cnt = 3;
 
-    if (!open_createfile(unitnum))
+    if (!open_createfile(unitnum, 0))
 	return 0;
     while (cnt-- > 0) {
 	seterrormode (unitnum);
@@ -635,7 +703,7 @@ static uae_u8 *ioctl_command_toc (int unitnum)
     int cnt = 3;
     CDROM_TOC *toc = &ciw32[unitnum].toc;
 
-    if (!open_createfile(unitnum))
+    if (!open_createfile(unitnum, 0))
 	return 0;
     gui_cd_led (1);
     while (cnt-- > 0) {
@@ -701,7 +769,7 @@ static int sys_cddev_open (int unitnum)
 	write_log ("IOCTL: failed to allocate buffer");
 	return 1;
     }
-    if (!open_createfile(unitnum)) {
+    if (!open_createfile(unitnum, 0)) {
 	write_log ("IOCTL: failed to open '%s', err=%d\n", ciw->devname, GetLastError());
 	goto error;
     }

@@ -23,11 +23,6 @@ extern int p96mode;
 static int memorylocking = 0;
 
 uae_u8 *natmem_offset = NULL;
-#ifdef CPU_64_BIT
-int max_allowed_mman = 2048;
-#else
-int max_allowed_mman = 512;
-#endif
 
 static uae_u8 *p96mem_offset;
 static uae_u8 *p96fakeram;
@@ -69,23 +64,37 @@ static void setworkingset(void)
 );
 #endif
 
-void init_shm(void)
+static uae_u32 lowmem (void)
 {
-    static int allocated;
-    int i;
-    LPVOID blah = NULL;
-    // Letting the system decide doesn't seem to work on some systems (Win9x..)
-    LPBYTE address = (LPBYTE)0x10000000;
-    uae_u32 size;
-    uae_u32 add = 0x10000000 + 128 * 1024 * 1024;
-    uae_u32 inc = 0x100000;
-    uae_u64 size64, total64;
+    uae_u32 change = 0;
+    if (currprefs.z3fastmem_size >= 8 * 1024 * 1024 && currprefs.gfxmem_size < 256 * 1024 * 1024) {
+        change = currprefs.z3fastmem_size - currprefs.z3fastmem_size / 2;
+        currprefs.z3fastmem_size >>= 1;
+	changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
+    } else if (currprefs.gfxmem_size >= 8 * 1024 * 1024) {
+        change = currprefs.gfxmem_size - currprefs.gfxmem_size / 2;
+        currprefs.gfxmem_size >>= 1;
+	changed_prefs.gfxmem_size = currprefs.gfxmem_size;
+    }
+    return change;
+}
+
+static uae_u32 max_allowed_mman;
+static uae_u64 size64;
+
+void preinit_shm (void)
+{
+    uae_u64 total64;
     uae_u64 totalphys64;
     MEMORYSTATUS memstats;
 
-    if (natmem_offset && os_winnt)
-	VirtualFree(natmem_offset, 0, MEM_RELEASE);
-    natmem_offset = NULL;
+    max_allowed_mman = 512;
+    if (os_winnt) {
+	max_allowed_mman = 1536;
+	if (os_64bit)
+	    max_allowed_mman = 2048;
+    }
+    max_z3fastmem = (max_allowed_mman >> 1) * 1024 * 1024;
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
@@ -115,11 +124,36 @@ void init_shm(void)
 	size64 = 0x80000000;
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
-    size = max_z3fastmem = (uae_u32)size64;
-    if (size < 1024 * 1024 * 1024)
-	max_z3fastmem = 512 * 1024 * 1024;
 
+    write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+}
+
+int init_shm (void)
+{
+    int i;
+    LPVOID blah = NULL;
+    // Letting the system decide doesn't seem to work on some systems (Win9x..)
+    LPBYTE address = (LPBYTE)0x10000000;
+    uae_u32 size;
+    uae_u32 add = 0x10000000;
+    uae_u32 inc = 0x100000;
+
+    if (natmem_offset && os_winnt)
+	VirtualFree(natmem_offset, 0, MEM_RELEASE);
+    natmem_offset = NULL;
     canbang = 0;
+
+    size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
+    size += currprefs.gfxmem_size;
+    size += 16 * 1024 * 1024;
+
+    while (size > size64) {
+	int change = lowmem ();
+	if (!change)
+	    return 0;
+	size -= change;
+    }
+
     shm_start = 0;
     for (i = 0; i < MAX_SHMID; i++) {
 	shmids[i].attached = 0;
@@ -129,14 +163,16 @@ void init_shm(void)
 	shmids[i].name[0] = 0;
     }
     for (;;) {
+	int change;
 	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (blah)
 	    break;
 	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
-	size -= 128 * 1024 * 1024;
-	if (size < 0x10000000) {
+	change = lowmem ();
+	size -= change;
+	if (change == 0 || size < 0x10000000) {
 	    write_log ("NATMEM: No special area could be allocated (2)!\n");
-	    return;
+	    return 0;
 	}
     }
     if (os_winnt) {
@@ -166,16 +202,14 @@ void init_shm(void)
     if (!natmem_offset) {
 	write_log ("NATMEM: No special area could be allocated! (1)\n");
     } else {
-	max_z3fastmem = size;
 	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + size + add,
 	    size + add,
 	    (size + add) >> 20);
 	canbang = 1;
-	allocated = 1;
     }
 
-    write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+    return canbang;
 }
 
 

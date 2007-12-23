@@ -178,10 +178,13 @@ void fixup_prefs (struct uae_prefs *p)
 	err = 1;
     }
     if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
-	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > 0x8000000)))
+	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > max_z3fastmem / 2)))
     {
 	write_log ("Unsupported graphics card memory size %x!\n", p->gfxmem_size);
-	p->gfxmem_size = 0;
+	if (p->gfxmem_size > max_z3fastmem / 2)
+	    p->gfxmem_size = max_z3fastmem / 2;
+	else
+	    p->gfxmem_size = 0;
 	err = 1;
     }
     if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
@@ -665,7 +668,7 @@ static void real_main2 (int argc, char **argv)
     }
 
 #ifdef NATMEM_OFFSET
-    init_shm ();
+    preinit_shm ();
 #endif
 
     if (restart_config[0])
@@ -708,6 +711,11 @@ static void real_main2 (int argc, char **argv)
 
     logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 		       a config using the cmd-line.  This case handles loads through the GUI. */
+
+#ifdef NATMEM_OFFSET
+    init_shm ();
+#endif
+
     fixup_prefs (&currprefs);
     changed_prefs = currprefs;
     /* force sound settings change */

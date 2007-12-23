@@ -68,8 +68,8 @@ static uae_u32 emulib_EnableSound (uae_u32 val)
  */
 static uae_u32 emulib_EnableJoystick (uae_u32 val)
 {
-    currprefs.jport0 = val & 255;
-    currprefs.jport1 = (val >> 8) & 255;
+    currprefs.jports[0].id = val & 255;
+    currprefs.jports[1].id = (val >> 8) & 255;
     return 1;
 }
 
@@ -223,7 +223,7 @@ static uae_u32 emulib_GetUaeConfig (uaecptr place)
     put_long (place + 12, allocated_fastmem);
     put_long (place + 16, currprefs.gfx_framerate);
     put_long (place + 20, currprefs.produce_sound);
-    put_long (place + 24, currprefs.jport0 | (currprefs.jport1 << 8));
+    put_long (place + 24, currprefs.jports[0].id | (currprefs.jports[1].id << 8));
     put_long (place + 28, currprefs.keyboard_lang);
     if (disk_empty (0))
 	put_byte (place + 32, 0);
@@ -459,7 +459,10 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
  */
 void emulib_install (void)
 {
-    uaecptr a = here ();
+    uaecptr a;
+    if (!uae_boot_rom)
+	return;
+    a = here ();
     currprefs.mmkeyboard = 0;
     org (rtarea_base + 0xFF60);
 #if 0

@@ -1,4 +1,36 @@
 
+
+1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
+will require Windows 2000 or newer.
+
+Beta 1: 
+
+- ESS Mega (CDTV) "hidden" data track now reads properly on W2K/XP
+  (uses SPTI READ_CD SCSI command if ReadFile() returns zero bytes.
+  This is getting quite messy, mixing IOCTL, MCI and SPTI, Windows
+  version specific read modes etc..) NOTE: SPTI requires exclusive
+  access (IOCTL does not) so make sure no other program (including
+  Windows explorer) do not have any open handles.
+- crash when program executes any 68k command that causes a-line
+  exception and pc was in first 64K of chip ram (145b1x)
+- added inverted mouse/analog joystick input events
+- 'none' input event was incorrectly parsed causing all following
+  'sub configuration' entries to be ignored
+- added friendly name and not so friendly (GUID) device names to input
+  configuration file (so that we can match devices if they change or
+  configuration gets moved between PCs, see below)
+- input device insertion/removal on the fly supported (Windows 2K+)
+  Lots of bugs expected.. (ports-panel settings are not updated yet)
+- fixed mouse not capturing (Windows 98/ME mainly)
+- dynamic JIT direct memory allocation, can now have max 1G of Z3 fast
+  or 512M RTG RAM (both not possible at the same time, automatically
+  lowers memory settings until allocation succeeds) Max 2G Z3 possible
+  when 98/ME support is gone (need also 64-bit OS)
+  Extremely pointless feature.
+
+
+1.4.5
+
 Beta 19:
 
 - ESS Mega (CDTV) now works, added workaround for another Windows

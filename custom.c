@@ -4932,7 +4932,7 @@ int custom_init (void)
 	return 0;
 
 #ifdef AUTOCONFIG
-    {
+    if (uae_boot_rom) {
 	uaecptr pos;
 	pos = here ();
 

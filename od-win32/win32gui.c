@@ -28,6 +28,7 @@
 #include <shlwapi.h>
 #include <ddraw.h>
 #include <shobjidl.h>
+#include <dbt.h>
 
 #include "resource.h"
 #include "sysconfig.h"
@@ -379,7 +380,7 @@ static HWND cachedlist = NULL;
 #define MIN_Z3_MEM 0
 #define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 9 : ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12))
 #define MIN_P96_MEM 0
-#define MAX_P96_MEM 8
+#define MAX_P96_MEM ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
 #define MIN_MB_MEM 0
 #define MAX_MB_MEM 7
 
@@ -1488,7 +1489,7 @@ static int msi_chip[] = { 1, 2, 3, 4, 5, 6 };
 static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
 static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16 };
-static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10 };
+static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
 static int CalculateHardfileSize (HWND hDlg)
 {
@@ -1516,7 +1517,7 @@ static void setguititle (HWND phwnd)
 
     if (phwnd)
 	hwnd = phwnd;
-    if (!title[0]) {
+    if (hwnd && !title[0]) {
         GetWindowText (hwnd, title, sizeof (title));
 	if (WINUAEBETA > 0) {
 	    strcat (title, BetaStr);
@@ -4570,6 +4571,9 @@ static void values_to_memorydlg (HWND hDlg)
      case 0x02000000: mem_size = 6; break;
      case 0x04000000: mem_size = 7; break;
      case 0x08000000: mem_size = 8; break;
+     case 0x10000000: mem_size = 9; break;
+     case 0x20000000: mem_size = 10; break;
+     case 0x40000000: mem_size = 11; break;
     }
     SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
@@ -7573,7 +7577,7 @@ static void updatejoyport (HWND hDlg)
 	int total = 2;
 	int idx = i == 0 ? joy0previous : joy1previous;
 	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
-	int v = i == 0 ? workprefs.jport0 : workprefs.jport1;
+	int v = workprefs.jports[i].id;
 	char *p1, *p2;
 
 	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
@@ -7621,9 +7625,9 @@ static void updatejoyport (HWND hDlg)
     }
 }
 
-static void fixjport (int *port, int v)
+static void fixjport (struct jport *port, int v)
 {
-    int vv = *port;
+    int vv = port->id;
     if (vv != v)
 	return;
     if (vv >= JSEM_JOYS && vv < JSEM_MICE) {
@@ -7647,7 +7651,7 @@ static void fixjport (int *port, int v)
 	    vv = 0;
 	vv += JSEM_KBDLAYOUT;
     }
-    *port = vv;
+    port->id = vv;
 }
 
 static void values_from_portsdlg (HWND hDlg)
@@ -7659,7 +7663,7 @@ static void values_from_portsdlg (HWND hDlg)
 
     for (i = 0; i < 2; i++) {
 	int idx = 0;
-	int *port = i == 0 ? &workprefs.jport0 : &workprefs.jport1;
+	int *port = &workprefs.jports[i].id;
 	int prevport = *port;
 	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
 	LRESULT v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
@@ -7681,9 +7685,9 @@ static void values_from_portsdlg (HWND hDlg)
     }
     if (changed) {
 	if (lastside)
-	    fixjport (&workprefs.jport0, workprefs.jport1);
+	    fixjport (&workprefs.jports[0], workprefs.jports[1].id);
 	else
-	    fixjport (&workprefs.jport1, workprefs.jport0);
+	    fixjport (&workprefs.jports[1], workprefs.jports[0].id);
     }
 
     item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
@@ -7949,9 +7953,10 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    break;
 	recursive++;
 	if (wParam == IDC_SWAP) {
-	    temp = workprefs.jport0;
-	    workprefs.jport0 = workprefs.jport1;
-	    workprefs.jport1 = temp;
+	    struct jport tmp;
+	    memcpy (&tmp, &workprefs.jports[0], sizeof (struct jport));
+	    memcpy (&workprefs.jports[0], &workprefs.jports[1], sizeof (struct jport));
+	    memcpy (&workprefs.jports[1], &tmp, sizeof (struct jport));
 	    temp = joy0previous;
 	    joy0previous = joy1previous;
 	    joy1previous = temp;
@@ -8139,6 +8144,8 @@ static void init_inputdlg( HWND hDlg )
     input_total_devices = inputdevice_get_device_total (IDTYPE_JOYSTICK) +
 	inputdevice_get_device_total (IDTYPE_MOUSE) +
 	inputdevice_get_device_total (IDTYPE_KEYBOARD);
+    if (input_selected_device >= input_total_devices)
+	input_selected_device = 0;
     InitializeListView(hDlg);
     init_inputdlg_2 (hDlg);
     values_to_inputdlg (hDlg);
@@ -9841,13 +9848,38 @@ static int dialogreturn;
 static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
+    static int waitfornext;
 
     switch(msg)
     {
+	case WM_DEVICECHANGE:
+	{
+	    DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
+	    int doit = 0;
+	    if (wParam == DBT_DEVNODES_CHANGED && lParam == 0) {
+		if (waitfornext)
+		    doit = 1;
+	    } else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+		DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
+		write_log ("%s: %s\n", wParam == DBT_DEVICEREMOVECOMPLETE ? "Removed" : "Inserted",
+		    dbd->dbcc_name);
+		if (wParam == DBT_DEVICEREMOVECOMPLETE)
+		    doit = 1;
+		else if (wParam == DBT_DEVICEARRIVAL)
+		    waitfornext = 1; /* DirectInput enumeration does not yet show the new device.. */
+	    }
+	    if (doit) {
+	        inputdevice_devicechange (&workprefs);
+		updatePanel (hDlg, currentpage);
+		waitfornext = 0;
+	    }
+	}
+	return TRUE;
 	case WM_DESTROY:
 	PostQuitMessage (0);
 	return TRUE;
 	case WM_CLOSE:
+        addnotifications (hDlg, 1);
 	DestroyWindow(hDlg);
 	if (dialogreturn < 0) {
 	    dialogreturn = 0;
@@ -9858,6 +9890,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	}
 	return TRUE;
 	case WM_INITDIALOG:
+	    waitfornext = 0;
 	    guiDlg = hDlg;
 	    SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE(IDI_APPICON)));
 	    if (full_property_sheet) {
@@ -9869,6 +9902,7 @@ static INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	    centerWindow (hDlg);
 	    createTreeView (hDlg, currentpage);
 	    updatePanel (hDlg, currentpage);
+	    addnotifications (hDlg, 0);
 	return TRUE;
 	case WM_DROPFILES:
 	    if (dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage))

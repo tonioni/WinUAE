@@ -18,7 +18,8 @@ extern void *cache_alloc (int);
 extern void cache_free (void*);
 
 extern int canbang, candirect;
-void init_shm (void);
+int init_shm (void);
+void preinit_shm (void);
 #endif
 
 #ifdef ADDRESS_SPACE_24BIT
@@ -326,7 +327,6 @@ extern void mapped_free (uae_u8 *);
 extern void clearexec (void);
 extern void mapkick (void);
 extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
-extern void init_shm(void);
 extern void a3000_fakekick(int);
 
 #define ROMTYPE_KICK 1

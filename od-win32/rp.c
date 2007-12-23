@@ -161,7 +161,7 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    warpmode (lParam);
 	return TRUE;
 	case RPIPCHM_PAUSE:
-	    pausemode (lParam);
+	    pausemode (wParam ? 1 : 0);
 	return TRUE;
 	case RPIPCHM_VOLUME:
 	    currprefs.sound_volume = changed_prefs.sound_volume = wParam;

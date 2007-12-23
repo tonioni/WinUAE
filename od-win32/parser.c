@@ -1058,11 +1058,13 @@ int setbaud (long baud)
 
 void initparallel (void)
 {
-    uaecptr a = here (); //this install the ahisound
-    org (rtarea_base + 0xFFC0);
-    calltrap (deftrap (ahi_demux));
-    dw (0x4e75);// rts
-    org (a);
+    if (uae_boot_rom) {
+	uaecptr a = here (); //this install the ahisound
+	org (rtarea_base + 0xFFC0);
+	calltrap (deftrap (ahi_demux));
+	dw (0x4e75);// rts
+	org (a);
+    }
 }
 
 void hsyncstuff(void)

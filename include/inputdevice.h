@@ -19,7 +19,8 @@ struct inputdevice_functions {
     void (*unacquire)(int);
     void (*read)(void);
     int (*get_num)(void);
-    char* (*get_name)(int);
+    char* (*get_friendlyname)(int);
+    char* (*get_uniquename)(int);
     int (*get_widget_num)(int);
     int (*get_widget_type)(int,int,char*,uae_u32*);
     int (*get_widget_first)(int,int);
@@ -99,6 +100,7 @@ extern int getjoystickstate (int mouse);
 void setmousestate (int mouse, int axis, int data, int isabs);
 extern int getmousestate (int mouse);
 extern void inputdevice_updateconfig (struct uae_prefs *prefs);
+extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
 extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans);
@@ -141,7 +143,7 @@ extern void inputdevice_handle_inputcode (void);
 #define JSEM_JOYS 100
 #define JSEM_MICE 200
 #define JSEM_END 300
-#define JSEM_DECODEVAL(port,p) ((port) == 0 ? (p)->jport0 : (p)->jport1)
+#define JSEM_DECODEVAL(port,p) ((p)->jports[port].id)
 #define JSEM_ISNUMPAD(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT)
 #define JSEM_ISCURSOR(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 1)
 #define JSEM_ISSOMEWHEREELSE(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 2)

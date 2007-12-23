@@ -454,7 +454,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, "override_dga_address=0x%08x\n", p->override_dga_address);
 
     for (i = 0; i < 2; i++) {
-	int v = i == 0 ? p->jport0 : p->jport1;
+	int v = p->jports[i].id;
 	char tmp1[100], tmp2[50];
 	if (v < 0) {
 	    strcpy (tmp2, "none");
@@ -1027,10 +1027,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 		}
 	    }
 	    if (got == 2) {
-		if (port)
-		    p->jport1 = start;
-		else
-		    p->jport0 = start;
+		p->jports[port].id = start;
 	    }
 	}
 	return 1;
@@ -2093,8 +2090,8 @@ bad:
 	     "can be 0 for joystick 0, 1 for joystick 1, M for mouse, and\n"
 	     "a, b or c for different keyboard settings.\n");
 
-    p->jport0 = v0;
-    p->jport1 = v1;
+    p->jports[0].id = v0;
+    p->jports[1].id = v1;
 }
 
 static void parse_filesys_spec (struct uae_prefs *p, int readonly, char *spec)
@@ -2797,8 +2794,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->parallel_autoflush_time = 5;
     p->ghostscript_parameters[0] = 0;
 
-    p->jport0 = JSEM_MICE;
-    p->jport1 = JSEM_KBDLAYOUT;
+    p->jports[0].id = JSEM_MICE;
+    p->jports[1].id = JSEM_KBDLAYOUT;
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;

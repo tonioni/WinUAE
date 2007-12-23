@@ -1623,7 +1623,7 @@ STATIC_INLINE int in_rom (uaecptr pc)
 
 STATIC_INLINE int in_rtarea (uaecptr pc)
 {
-    return (munge24 (pc) & 0xFFFF0000) == rtarea_base;
+    return (munge24 (pc) & 0xFFFF0000) == rtarea_base && uae_boot_rom;
 }
 
 unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)

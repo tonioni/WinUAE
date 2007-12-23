@@ -60,6 +60,7 @@ struct didata {
     GUID guid;
     char *name;
     char *sortname;
+    char *configname;
 
     int connection;
     LPDIRECTINPUTDEVICE8 lpdi;
@@ -243,8 +244,11 @@ static int initialize_catweasel(void)
 	    cleardid(did);
 	    did->connection = DIDC_CAT;
 	    did->catweasel = i;
-	    did->name = my_strdup ("Catweasel mouse");
+	    sprintf (tmp, "Catweasel mouse");
+	    did->name = my_strdup (tmp);
 	    did->sortname = my_strdup (tmp);
+	    sprintf (tmp, "CWMOUSE%d", i);
+	    did->configname = my_strdup (tmp);
 	    did->buttons = 3;
 	    did->axles = 2;
 	    did->axissort[0] = 0;
@@ -270,6 +274,8 @@ static int initialize_catweasel(void)
 	    sprintf (tmp, "Catweasel joystick");
 	    did->name = my_strdup (tmp);
 	    did->sortname = my_strdup (tmp);
+	    sprintf (tmp, "CWJOY%d", i);
+	    did->configname = my_strdup (tmp);
 	    did->buttons = (catweasel_isjoystick() & 0x80) ? 3 : 1;
 	    did->axles = 2;
 	    did->axissort[0] = 0;
@@ -413,6 +419,7 @@ static int initialize_rawinput (void)
 	    write_log ("%p %s: ", h, type == RIM_TYPEMOUSE ? "mouse" : "keyboard");
 	    did->sortname = my_strdup (buf);
 	    write_log ("'%s'\n", buf);
+	    did->configname = my_strdup (buf);
 	    rdi = (PRID_DEVICE_INFO)buf;
 	    rdi->cbSize = sizeof (RID_DEVICE_INFO);
 	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
@@ -482,8 +489,9 @@ static void initialize_windowsmouse (void)
 	num_mouse++;
 	name = (i == 0) ? "Windows mouse" : "Mousehack mouse";
 	did->connection = DIDC_WIN;
-	did->name = my_strdup (i ? "Mousehack mouse  (Required for tablets)" : "Windows mouse");
+	did->name = my_strdup (i ? "Mousehack mouse (Required for tablets)" : "Windows mouse");
 	did->sortname = my_strdup (i ? "Windowsmouse2" : "Windowsmouse1");
+	did->configname = my_strdup (i ? "WINMOUSE2" : "WINMOUSE1");
 	did->buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
 	if (did->buttons < 3)
 	    did->buttons = 3;
@@ -822,6 +830,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
     struct didata *did;
     int len, type;
     char *typetxt;
+    char tmp[100];
 
     type = lpddi->dwDevType & 0xff;
     if (type == DI8DEVTYPE_MOUSE || type == DI8DEVTYPE_SCREENPOINTER) {
@@ -874,6 +883,11 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	did->name = malloc (100);
 	sprintf(did->name, "[no name]");
     }
+    sprintf (tmp, "%08.8X-%04.8X-%04.8X-%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X",
+	lpddi->guidProduct.Data1, lpddi->guidProduct.Data2, lpddi->guidProduct.Data3,
+	lpddi->guidProduct.Data4[0], lpddi->guidProduct.Data4[1], lpddi->guidProduct.Data4[2], lpddi->guidProduct.Data4[3],
+	lpddi->guidProduct.Data4[4], lpddi->guidProduct.Data4[5], lpddi->guidProduct.Data4[6], lpddi->guidProduct.Data4[7]);
+    did->configname = my_strdup (tmp);
     did->guid = lpddi->guidInstance;
     did->sortname = my_strdup (did->name);
     did->connection = DIDC_DX;
@@ -932,8 +946,9 @@ static int di_do_init (void)
 
 static void di_dev_free (struct didata *did)
 {
-    free (did->name);
-    free (did->sortname);
+    xfree (did->name);
+    xfree (did->sortname);
+    xfree (did->configname);
     memset (did, 0, sizeof (*did));
 }
 
@@ -966,9 +981,14 @@ static int get_mouse_num (void)
     return num_mouse;
 }
 
-static char *get_mouse_name (int mouse)
+static char *get_mouse_friendlyname (int mouse)
 {
     return di_mouse[mouse].name;
+}
+
+static char *get_mouse_uniquename (int mouse)
+{
+    return di_mouse[mouse].configname;
 }
 
 static int get_mouse_widget_num (int mouse)
@@ -1197,7 +1217,7 @@ static void read_mouse (void)
 
 struct inputdevice_functions inputdevicefunc_mouse = {
     init_mouse, close_mouse, acquire_mouse, unacquire_mouse, read_mouse,
-    get_mouse_num, get_mouse_name,
+    get_mouse_num, get_mouse_friendlyname, get_mouse_uniquename,
     get_mouse_widget_num, get_mouse_widget_type,
     get_mouse_widget_first
 };
@@ -1208,9 +1228,14 @@ static int get_kb_num (void)
     return num_keyboard;
 }
 
-static char *get_kb_name (int kb)
+static char *get_kb_friendlyname (int kb)
 {
     return di_keyboard[kb].name;
+}
+
+static char *get_kb_uniquename (int kb)
+{
+    return di_keyboard[kb].configname;
 }
 
 static int get_kb_widget_num (int kb)
@@ -1742,7 +1767,7 @@ static void unacquire_kb (int num)
 
 struct inputdevice_functions inputdevicefunc_keyboard = {
     init_kb, close_kb, acquire_kb, unacquire_kb, read_kb,
-    get_kb_num, get_kb_name,
+    get_kb_num, get_kb_friendlyname, get_kb_uniquename,
     get_kb_widget_num, get_kb_widget_type,
     get_kb_widget_first
 };
@@ -1785,9 +1810,15 @@ static int get_joystick_widget_first (int joy, int type)
     return -1;
 }
 
-static char *get_joystick_name (int joy)
+static char *get_joystick_friendlyname (int joy)
 {
     return di_joystick[joy].name;
+}
+
+
+static char *get_joystick_uniquename (int joy)
+{
+    return di_joystick[joy].configname;
 }
 
 static void read_joystick (void)
@@ -1982,7 +2013,7 @@ static void unacquire_joystick (int num)
 
 struct inputdevice_functions inputdevicefunc_joystick = {
     init_joystick, close_joystick, acquire_joystick, unacquire_joystick,
-    read_joystick, get_joystick_num, get_joystick_name,
+    read_joystick, get_joystick_num, get_joystick_friendlyname, get_joystick_uniquename,
     get_joystick_widget_num, get_joystick_widget_type,
     get_joystick_widget_first
 };
@@ -1998,8 +2029,11 @@ int dinput_wmkey (uae_u32 key)
 
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port)
 {
-    struct didata *did = &di_mouse[i];
+    struct didata *did;
 
+    if (i >= num_mouse)
+	return 0;
+    did = &di_mouse[i];
     if (did->wininput)
 	port = 0;
     uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_MOUSE2_HORIZ : INPUTEVENT_MOUSE1_HORIZ;
@@ -2026,8 +2060,11 @@ int input_get_default_mouse (struct uae_input_device *uid, int i, int port)
 int input_get_default_joystick (struct uae_input_device *uid, int i, int port)
 {
     int j;
-    struct didata *did = &di_joystick[i];
+    struct didata *did;
 
+    if (i >= num_joystick)
+	return 0;
+    did = &di_joystick[i];
     uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
     uid[i].eventid[ID_AXIS_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
     uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON;
