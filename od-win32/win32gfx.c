@@ -354,17 +354,14 @@ static int set_ddraw (void)
 	write_log ( "set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq );
 	ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	if (FAILED(ddrval)) {
-	    if (ddrval == E_NOTIMPL) {
-	        write_log ("set_ddraw: failed, trying without forced refresh rate\n");
-	        ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
-	        if (FAILED(ddrval)) {
-	            write_log ( "set_ddraw: Couldn't SetDisplayMode()\n" );
-	            goto oops;
-		}
+	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
+	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
+	    if (FAILED(ddrval)) {
+		write_log ( "set_ddraw: Couldn't SetDisplayMode()\n");
+	        goto oops;
 	    }
 	}
-
-	ddrval = DirectDraw_GetDisplayMode();
+	ddrval = DirectDraw_GetDisplayMode ();
 	if (FAILED(ddrval)) {
 	    write_log ( "set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
@@ -372,21 +369,21 @@ static int set_ddraw (void)
     }
 
     if (dd) {
-	ddrval = DirectDraw_CreateClipper();
+	ddrval = DirectDraw_CreateClipper ();
 	if (FAILED(ddrval)) {
-	    write_log ( "set_ddraw: No clipping support\n" );
+	    write_log ("set_ddraw: No clipping support\n");
 	    goto oops;
 	}
 	ddrval = DirectDraw_CreateSurface (width, height);
 	if (FAILED(ddrval)) {
-	    write_log ( "set_ddraw: Couldn't CreateSurface() for primary because %s.\n", DXError( ddrval ) );
+	    write_log ("set_ddraw: Couldn't CreateSurface() for primary because %s.\n", DXError (ddrval));
 	    goto oops;
 	}
 	if (DirectDraw_GetPrimaryBitCount() != (unsigned)bits && overlay) {
 	    ddrval = DirectDraw_CreateOverlaySurface (width, height, bits, 0);
 	    if(FAILED(ddrval))
 	    {
-		write_log ( "set_ddraw: Couldn't CreateOverlaySurface(%d,%d,%d) because %s.\n", width, height, bits, DXError( ddrval ) );
+		write_log ("set_ddraw: Couldn't CreateOverlaySurface(%d,%d,%d) because %s.\n", width, height, bits, DXError (ddrval));
 		goto oops2;
 	    }
 	} else {
@@ -397,14 +394,14 @@ static int set_ddraw (void)
 
 	if (!DirectDraw_DetermineLocking (dxfullscreen))
 	{
-	    write_log ( "set_ddraw: Couldn't determine locking.\n" );
+	    write_log ("set_ddraw: Couldn't determine locking.\n");
 	    goto oops;
 	}
 
 	ddrval = DirectDraw_SetClipper (hAmigaWnd);
 
 	if (FAILED(ddrval)) {
-	    write_log ( "set_ddraw: Couldn't SetHWnd()\n" );
+	    write_log ("set_ddraw: Couldn't SetHWnd()\n");
 	    goto oops;
 	}
 
@@ -412,7 +409,7 @@ static int set_ddraw (void)
 	    ddrval = DirectDraw_CreatePalette (currentmode->pal);
 	    if (FAILED(ddrval))
 	    {
-		write_log ( "set_ddraw: Couldn't CreatePalette()\n" );
+		write_log ("set_ddraw: Couldn't CreatePalette()\n");
 		goto oops;
 	    }
 	}
@@ -1014,15 +1011,13 @@ static void close_hwnds( void )
     AVIOutput_Restart ();
 #endif
     setmouseactive (0);
-    if (hMainWnd) {
-	addnotifications (hMainWnd, TRUE);
-	systray (hMainWnd, TRUE);
-    }
     if (hStatusWnd) {
 	ShowWindow (hStatusWnd, SW_HIDE);
 	DestroyWindow (hStatusWnd);
     }
     if (hAmigaWnd) {
+	addnotifications (hAmigaWnd, TRUE);
+	systray (hAmigaWnd, TRUE);
 #ifdef OPENGL
 	OGL_free ();
 #endif
@@ -2082,18 +2077,21 @@ static int create_windows (void)
 	    struct PicassoResolution *pr = &DisplayModes[i];
 	    if (pr->res.width == currentmode->native_width && pr->res.height == currentmode->native_height)
 		break;
-	    if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
-		write_log ("FS: %dx%d -> %dx%d\n", currentmode->native_width, currentmode->native_height,
-		    pr->res.width, pr->res.height);
-		currentmode->native_width = pr->res.width;
-		currentmode->native_height = pr->res.height;
-		break;
+	}
+	if (DisplayModes[i].depth < 0) {
+	    for (i = 0; DisplayModes[i].depth >= 0; i++) {
+		struct PicassoResolution *pr = &DisplayModes[i];
+		if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
+		    write_log ("FS: %dx%d -> %dx%d\n", currentmode->native_width, currentmode->native_height,
+			pr->res.width, pr->res.height);
+		    currentmode->native_width = pr->res.width;
+		    currentmode->native_height = pr->res.height;
+		    break;
+		}
 	    }
 	}
 
     }
-
-
 
     hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 				"AmigaPowah", "WinUAE",
@@ -2108,8 +2106,8 @@ static int create_windows (void)
 	return 0;
     }
 
-    systray (hMainWnd, FALSE);
-    addnotifications (hMainWnd, FALSE);
+    systray (hAmigaWnd, FALSE);
+    addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);

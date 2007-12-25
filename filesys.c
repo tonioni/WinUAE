@@ -4269,7 +4269,8 @@ action_more_cache (Unit *unit, dpacket packet)
 {
     TRACE(("ACTION_MORE_CACHE()\n"));
     PUT_PCK_RES1 (packet, 50); /* bug but AmigaOS expects it */
-    flush_cache(unit, 0);
+    if (GET_PCK_ARG1 (packet) != 0)
+	flush_cache(unit, 0);
 }
 
 static void

@@ -5752,10 +5752,8 @@ uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
 void check_prefs_changed_custom (void)
 {
     currprefs.gfx_framerate = changed_prefs.gfx_framerate;
-    if (inputdevice_config_change_test ()) {
+    if (inputdevice_config_change_test ()) 
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
-	inputdevice_updateconfig (&currprefs);
-    }
     currprefs.immediate_blits = changed_prefs.immediate_blits;
     currprefs.collision_level = changed_prefs.collision_level;
 

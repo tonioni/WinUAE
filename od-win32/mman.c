@@ -88,13 +88,12 @@ void preinit_shm (void)
     uae_u64 totalphys64;
     MEMORYSTATUS memstats;
 
-    max_allowed_mman = 512;
+    max_allowed_mman = 768;
     if (os_winnt) {
 	max_allowed_mman = 1536;
 	if (os_64bit)
 	    max_allowed_mman = 2048;
     }
-    max_z3fastmem = (max_allowed_mman >> 1) * 1024 * 1024;
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
@@ -113,17 +112,14 @@ void preinit_shm (void)
 	    }
 	}
     }
-
-    size64 = 16 * 1024 * 1024;
-    while (total64 >= (size64 << 1)
-	&& size64 != ((uae_u64)2048) * 1024 * 1024)
-	    size64 <<= 1;
-    if (size64 > max_allowed_mman * 1024 * 1024)
-	size64 = max_allowed_mman * 1024 * 1024;
-    if (size64 > 0x80000000)
-	size64 = 0x80000000;
+    size64 = total64 - (total64 >> 3);
+    if (size64 > 0x7f000000)
+	size64 = 0x7f000000;
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
+    if (max_allowed_mman * 1024 * 1024 > size64)
+	max_allowed_mman = size64 / (1024 * 1024);
+    max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
 
     write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
 }
@@ -162,6 +158,7 @@ int init_shm (void)
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
+
     for (;;) {
 	int change;
 	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);

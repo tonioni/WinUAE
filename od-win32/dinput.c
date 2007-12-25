@@ -1215,11 +1215,22 @@ static void read_mouse (void)
     }
 }
 
+static int get_mouse_flags (int num)
+{
+    if (di_mouse[num].rawinput)
+	return 0;
+    if (di_mouse[num].catweasel)
+	return 0;
+    if (di_mouse[num].wininput == 1 && !rawinput_available)
+	return 0;
+    return 1;
+}
 struct inputdevice_functions inputdevicefunc_mouse = {
     init_mouse, close_mouse, acquire_mouse, unacquire_mouse, read_mouse,
     get_mouse_num, get_mouse_friendlyname, get_mouse_uniquename,
     get_mouse_widget_num, get_mouse_widget_type,
-    get_mouse_widget_first
+    get_mouse_widget_first,
+    get_mouse_flags
 };
 
 
@@ -1765,11 +1776,17 @@ static void unacquire_kb (int num)
     }
 }
 
+static int get_kb_flags (int kb)
+{
+    return 0;
+}
+
 struct inputdevice_functions inputdevicefunc_keyboard = {
     init_kb, close_kb, acquire_kb, unacquire_kb, read_kb,
     get_kb_num, get_kb_friendlyname, get_kb_uniquename,
     get_kb_widget_num, get_kb_widget_type,
-    get_kb_widget_first
+    get_kb_widget_first,
+    get_kb_flags
 };
 
 
@@ -2011,11 +2028,17 @@ static void unacquire_joystick (int num)
     di_joystick[num].acquired = 0;
 }
 
+static int get_joystick_flags (int num)
+{
+    return 0;
+}
+
 struct inputdevice_functions inputdevicefunc_joystick = {
     init_joystick, close_joystick, acquire_joystick, unacquire_joystick,
     read_joystick, get_joystick_num, get_joystick_friendlyname, get_joystick_uniquename,
     get_joystick_widget_num, get_joystick_widget_type,
-    get_joystick_widget_first
+    get_joystick_widget_first,
+    get_joystick_flags
 };
 
 int dinput_wmkey (uae_u32 key)

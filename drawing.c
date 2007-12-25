@@ -373,15 +373,25 @@ static void pfield_init_linetoscr (void)
 #ifdef AGA
     if (brdsprt && dip_for_drawing->nr_sprites) {
 	int min = visible_right_border, max = visible_left_border, i;
+	int posdiff = sprite_buffer_res - bplres;
 	for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 	    int x;
 	    x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].pos;
-	    if (x < min) min = x;
+	    if (x < min)
+		min = x;
 	    x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].max;
-	    if (x > max) max = x;
+	    if (x > max)
+		max = x;
 	}
-	min += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << (2 - lores_shift);
-	max += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << (2 - lores_shift);
+	min += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res;
+	max += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res;
+	if (posdiff < 0) {
+	    min <<= -posdiff;
+	    max <<= -posdiff;
+	} else {
+	    min >>= posdiff;
+	    max >>= posdiff;
+	}
 	if (min < playfield_start)
 	    playfield_start = min;
 	if (playfield_start < visible_left_border)
@@ -1883,7 +1893,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
 #ifdef AGA /* this makes things complex.. */
-	if (brdsprt && (currprefs.chipset_mask & CSMASK_AGA) && dip_for_drawing->nr_sprites > 0) {
+	if (brdsprt && dip_for_drawing->nr_sprites > 0) {
 	    dosprites = 1;
 	    pfield_expand_dp_bplcon ();
 	    pfield_init_linetoscr ();

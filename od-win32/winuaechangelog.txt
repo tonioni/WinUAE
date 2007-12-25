@@ -3,7 +3,52 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
-Beta 1: 
+Beta 2:
+
+- sprites outside bitplane area (AGA feature) was not working in all
+  bitplane/sprite resolution combinations (broke when shres was added)
+- relaxed Z3/RTG max RAM limits slightly (NOTE: it is 100% your
+  problem if you select too much RAM resulting in massive paging and
+  hd trashing)
+- systray icon was not always removed
+- fullscreen mode fallback fixes (145b18)
+- do not flush directory filesystem cache if ACTION_MORE_CACHE is
+  called with dp_Arg == 0, return current number of buffers only
+- ports-panel joystick/mouse friendly/guid name saved to config file,
+  no more changed selected devices if you save config, exit WinUAE,
+  insert or remove some input device(s) and then reload the config
+
+- joystick/mouse autoselection, input compatibility mode:
+  Press any unselected joystick's button 0 to "insert" it in
+  Amiga port 1 (joystick port) and button 1 to "insert" it in port 0
+  (mouse port). Same with any unselected mouse except left mouse
+  button = port 0 (mouse port) and right mouse button = port 1
+  (joystick port).
+
+- joystick/mouse autoselection, input configuration mode:
+  Differences compared to compatibility mode:
+  - because you can have mappings to multiple ports, device's first
+  port related mapping in input-panel is decided as the only port
+  number when doing remappings. When switching, only mappings that have
+  same port number are remapped to new port. Old mappings that already
+  have new port number will be remapped to old port number. Other
+  mappings are not changed.
+  - all other devices that are mapped to same port as new device will
+  be disabled
+  - only devices that are disabled (checkbox on right side of device
+  name is not ticked) are available for autoselection
+  - mouse switching is disabled if there are any "supermouse" mice
+  enabled (Windows mouse etc..) because it would cause total confusion.
+  Rawmouse or catweasel mouse are "safe".  
+  
+  Note: joystick button 0 has to select port 1 because for example
+  Amiga joysticks in PC adapter may only have one button and generally
+  you want joysticks in port 1.
+  
+  Just insert any plug&play compatible joystick on the fly and press
+  first button. Can't get any easier!
+
+Beta 1:
 
 - ESS Mega (CDTV) "hidden" data track now reads properly on W2K/XP
   (uses SPTI READ_CD SCSI command if ReadFile() returns zero bytes.

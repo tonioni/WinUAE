@@ -24,6 +24,7 @@ struct inputdevice_functions {
     int (*get_widget_num)(int);
     int (*get_widget_type)(int,int,char*,uae_u32*);
     int (*get_widget_first)(int,int);
+    int (*get_flags)(int);
 };
 extern struct inputdevice_functions idev[3];
 extern struct inputdevice_functions inputdevicefunc_joystick;
@@ -123,6 +124,7 @@ extern void inputdevice_reset (void);
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, char *option, char *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
+extern void inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, int type);
 
 extern void inputdevice_init (void);
 extern void inputdevice_close (void);

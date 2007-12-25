@@ -7595,7 +7595,8 @@ static void updatejoyport (HWND hDlg)
 		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)p1);
 		total++;
 		p1 = p2;
-	    } else break;
+	    } else
+		break;
 	}
 	for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++, total++)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));

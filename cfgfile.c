@@ -454,7 +454,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, "override_dga_address=0x%08x\n", p->override_dga_address);
 
     for (i = 0; i < 2; i++) {
-	int v = p->jports[i].id;
+	struct jport *jp = &p->jports[i];
+	int v = jp->id;
 	char tmp1[100], tmp2[50];
 	if (v < 0) {
 	    strcpy (tmp2, "none");
@@ -469,6 +470,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	}
 	sprintf (tmp1, "joyport%d=%s\n", i, tmp2);
 	cfgfile_write (f, tmp1);
+	if (jp->name) {
+	    sprintf (tmp1, "joyportfriendlyname%d=%s\n", i, jp->name);
+	    cfgfile_write (f, tmp1);
+	}
+	if (jp->configname) {
+	    sprintf (tmp1, "joyportname%d=%s\n", i, jp->configname);
+	    cfgfile_write (f, tmp1);
+	}
     }
 
     cfgfile_write (f, "bsdsocket_emu=%s\n", p->socket_emu ? "true" : "false");
@@ -995,41 +1004,17 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	return 1;
     }
 
+    if (strcmp (option, "joyportfriendlyname0") == 0 || strcmp (option, "joyportfriendlyname1") == 0) {
+	inputdevice_joyport_config (p, value, strcmp (option, "joyportfriendlyname0") == 0 ? 0 : 1, 2);
+	return 1;
+    }
+    if (strcmp (option, "joyportname0") == 0 || strcmp (option, "joyportname1") == 0) {
+	inputdevice_joyport_config (p, value, strcmp (option, "joyportname0") == 0 ? 0 : 1, 1);
+	return 1;
+    }
+
     if (strcmp (option, "joyport0") == 0 || strcmp (option, "joyport1") == 0) {
-	int port = strcmp (option, "joyport0") == 0 ? 0 : 1;
-	int start = -1, got = 0;
-	char *pp = 0;
-	if (strncmp (value, "kbd", 3) == 0) {
-	    start = JSEM_KBDLAYOUT;
-	    pp = value + 3;
-	    got = 1;
-	} else if (strncmp (value, "joy", 3) == 0) {
-	    start = JSEM_JOYS;
-	    pp = value + 3;
-	    got = 1;
-	} else if (strncmp (value, "mouse", 5) == 0) {
-	    start = JSEM_MICE;
-	    pp = value + 5;
-	    got = 1;
-	} else if (strcmp (value, "none") == 0) {
-	    got = 2;
-	}
-	if (got) {
-	    if (pp) {
-		int v = atol (pp);
-		if (start >= 0) {
-		    if (start == JSEM_KBDLAYOUT)
-			v--;
-		    if (v >= 0) {
-			start += v;
-			got = 2;
-		    }
-		}
-	    }
-	    if (got == 2) {
-		p->jports[port].id = start;
-	    }
-	}
+	inputdevice_joyport_config (p, value, strcmp (option, "joyport0") == 0 ? 0 : 1, 0);
 	return 1;
     }
 
