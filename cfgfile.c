@@ -267,7 +267,8 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
     char tmp[MAX_DPATH], tmp2[MAX_DPATH];
     char *hdcontrollers[] = { "uae",
 	"ide0", "ide1", "ide2", "ide3",
-	"scsi0", "scsi1", "scsi2", "scsi3", "scsi4", "scsi5", "scsi6" };
+	"scsi0", "scsi1", "scsi2", "scsi3", "scsi4", "scsi5", "scsi6",
+	"scsram", "scside" }; /* scsram = smart card sram = pcmcia sram card */
 
     for (i = 0; i < p->mountitems; i++) {
 	struct uaedev_config_info *uci = &p->mountconfig[i];
@@ -596,6 +597,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "a1000ram=%s\n", p->cs_a1000ram ? "true" : "false");
     cfgfile_dwrite (f, "fatgary=%d\n", p->cs_fatgaryrev);
     cfgfile_dwrite (f, "ramsey=%d\n", p->cs_ramseyrev);
+    cfgfile_dwrite (f, "pcmcia=%s\n", p->cs_pcmcia ? "true" :"false");
     cfgfile_dwrite (f, "scsi_cdtv=%s\n", p->cs_cdtvscsi ? "true" : "false");
     cfgfile_dwrite (f, "scsi_a2091=%s\n", p->cs_a2091 ? "true" : "false");
     cfgfile_dwrite (f, "scsi_a4091=%s\n", p->cs_a4091 ? "true" : "false");
@@ -1281,6 +1283,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "cdtvcd", &p->cs_cdtvcd)
 	|| cfgfile_yesno (option, value, "cdtvram", &p->cs_cdtvram)
 	|| cfgfile_yesno (option, value, "a1000ram", &p->cs_a1000ram)
+	|| cfgfile_yesno (option, value, "pcmcia", &p->cs_pcmcia)
 	|| cfgfile_yesno (option, value, "scsi_cdtv", &p->cs_cdtvscsi)
 	|| cfgfile_yesno (option, value, "scsi_a4091", &p->cs_a4091)
 	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
@@ -1598,16 +1601,18 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 		if (tmpp != 0) {
 		    *tmpp++ = 0;
 		    hdc = tmpp;
-		    if(strlen(hdc) >= 4 && !memcmp(hdc, "ide", 3)) {
+		    if(strlen (hdc) >= 4 && !memcmp( hdc, "ide", 3)) {
 			hdcv = hdc[3] - '0' + HD_CONTROLLER_IDE0;
 			if (hdcv < HD_CONTROLLER_IDE0 || hdcv > HD_CONTROLLER_IDE3)
 			    hdcv = 0;
 		    }
-		    if(strlen(hdc) >= 5 && !memcmp(hdc, "scsi", 4)) {
+		    if(strlen (hdc) >= 5 && !memcmp (hdc, "scsi", 4)) {
 			hdcv = hdc[4] - '0' + HD_CONTROLLER_SCSI0;
 			if (hdcv < HD_CONTROLLER_SCSI0 || hdcv > HD_CONTROLLER_SCSI6)
 			    hdcv = 0;
 		    }
+		    if (strlen (hdc) >= 6 && !memcmp (hdc, "scsram", 6))
+			hdcv = HD_CONTROLLER_PCMCIA_SRAM;
 		}
 	    }
 	}

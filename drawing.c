@@ -1092,7 +1092,7 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
 		} else {
 		    col += 16;
 		}
-		col += (offs * 2);
+		col += offs * 2;
 	    }
 
 	    if (dualpf) {
@@ -1265,7 +1265,7 @@ STATIC_INLINE void draw_sprites_ecs (struct sprite_entry *e)
 		    draw_sprites_normal_dp_hi_nat (e);
 		else
 		    draw_sprites_normal_sp_hi_nat (e);
-	else if (bplres == 0)
+	else if (res == 0)
 	    if (dp_for_drawing->ham_seen)
 		draw_sprites_ham_sp_lo_nat (e);
 	    else
@@ -1284,8 +1284,9 @@ STATIC_INLINE void draw_sprites_ecs (struct sprite_entry *e)
 /* clear possible bitplane data outside DIW area */
 static void clear_bitplane_border_aga (void)
 {
-    int len, shift = lores_shift - bplres;
+    int len, shift = res_shift;
     uae_u8 v = 0;
+
     if (shift < 0) {
 	shift = -shift;
 	len = (real_playfield_start - playfield_start) << shift;
@@ -1304,18 +1305,20 @@ static void clear_bitplane_border_aga (void)
 /* emulate OCS/ECS only undocumented "SWIV" hardware feature */
 static void weird_bitplane_fix (void)
 {
-    int i, shift = lores_shift - bplres;
+    int i, shift = res_shift;
+    int sh = lores_shift;
+    uae_u8 *p = pixdata.apixels + pixels_offset;
 
     if (shift < 0) {
 	shift = -shift;
-	for (i = xshift (playfield_start, lores_shift); i < xshift (playfield_end, lores_shift); i++) {
-	    if (pixdata.apixels[pixels_offset + i] > 16)
-		pixdata.apixels[pixels_offset + i] = 16;
+	for (i = playfield_start << sh; i < playfield_end << sh; i++) {
+	    if (p[i] > 16)
+		p[i] = 16;
 	}
     } else {
-	for (i = xshift (playfield_start, lores_shift); i < xshift (playfield_end, lores_shift); i++) {
-	    if (pixdata.apixels[pixels_offset + i] > 16)
-		pixdata.apixels[pixels_offset + i] = 16;
+	for (i = playfield_start >> sh; i < playfield_end >> sh; i++) {
+	    if (p[i] > 16)
+		p[i] = 16;
 	}
     }
 }

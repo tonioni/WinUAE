@@ -704,16 +704,16 @@ static void real_main2 (int argc, char **argv)
 	}
     }
 
-#ifdef JIT
-    if (!((currprefs.cpu_model >= 68020) && (currprefs.address_space_24 == 0) && (currprefs.cachesize)))
-	canbang = 0;
-#endif
-
     logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 		       a config using the cmd-line.  This case handles loads through the GUI. */
 
 #ifdef NATMEM_OFFSET
     init_shm ();
+#endif
+
+#ifdef JIT
+    if (!((currprefs.cpu_model >= 68020) && (currprefs.address_space_24 == 0) && (currprefs.cachesize)))
+	canbang = 0;
 #endif
 
     fixup_prefs (&currprefs);

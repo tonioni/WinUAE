@@ -2048,6 +2048,11 @@ void InitializeListView (HWND hDlg)
 		sprintf (devname_str, "*SCSI%d*", uci->controller - HD_CONTROLLER_SCSI0);
 		strcpy (volname_str, "n/a");
 		strcpy (bootpri_str, "n/a");
+	    } else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+		strcpy (blocksize_str, "n/a");
+		strcpy(devname_str, "*SCSRAM*");
+		strcpy (volname_str, "n/a");
+		strcpy (bootpri_str, "n/a");
 	    } else if (type == FILESYS_HARDFILE) {
 		sprintf (blocksize_str, "%d", uci->blocksize);
 		strcpy (devname_str, uci->devname);
@@ -6133,6 +6138,7 @@ static void inithdcontroller (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI4");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI5");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI6");
+    //SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSRAM");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
 }
 
@@ -6195,6 +6201,14 @@ static void updatehdfinfo (HWND hDlg, int force)
 	    zfile_fseek (zf, 0, SEEK_END);
 	    bsize = zfile_ftell (zf);
 	    zfile_fclose (zf);
+	    if (bsize == -1) { /* perhaps file is >=2G? */
+		FILE *fp = fopen (current_hfdlg.filename, "rb");
+		if (fp) {
+		    _fseeki64 (fp, 0, SEEK_END);
+		    bsize = _ftelli64 (fp);
+		    fclose (fp);
+		}
+	    }
 	}
     }
     cyls = 0;
@@ -6352,19 +6366,20 @@ extern int harddrive_to_hdf(HWND, struct uae_prefs*, int);
 static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
-    int i, index;
+    int i;
     LRESULT posn;
     static int oposn;
 
     switch (msg) {
     case WM_INITDIALOG:
+    {
+	int index;
 	oposn = -1;
 	hdf_init ();
 	recursive++;
 	inithdcontroller (hDlg);
 	CheckDlgButton (hDlg, IDC_HDF_RW, current_hfdlg.rw);
 	SendDlgItemMessage(hDlg, IDC_HARDDRIVE, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 	ew (hDlg, IDC_HARDDRIVE_IMAGE, FALSE);
 	ew (hDlg, IDOK, FALSE);
 	ew (hDlg, IDC_HDF_RW, FALSE);
@@ -6381,7 +6396,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	}
 	recursive--;
 	return TRUE;
-
+    }
     case WM_COMMAND:
 	if (recursive)
 	    break;
@@ -6406,7 +6421,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		break;
 	    case IDC_HARDDRIVE_IMAGE:
 		if (posn != CB_ERR)
-		    harddrive_to_hdf(hDlg, &workprefs, posn);
+		    harddrive_to_hdf (hDlg, &workprefs, posn);
 		break;
 	    }
 	}
@@ -6537,6 +6552,7 @@ static void harddisk_edit (HWND hDlg)
     }
     else if (type == FILESYS_HARDDRIVE) /* harddisk */
     {
+	current_hfdlg.controller = uci->controller;
 	current_hfdlg.rw = !uci->readonly;
 	strncpy (current_hfdlg.filename, uci->rootdir, (sizeof current_hfdlg.filename) - 1);
 	current_hfdlg.filename[(sizeof current_hfdlg.filename) - 1] = '\0';

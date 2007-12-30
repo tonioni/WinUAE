@@ -1636,7 +1636,7 @@ HMODULE language_load(WORD language)
 			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-				&& HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV) {
+				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV || HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV - 1)) {
 				success = TRUE;
 				write_log ("Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {
@@ -1775,7 +1775,7 @@ void logging_init(void)
 	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 	SystemInfo.dwNumberOfProcessors);
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-	       "\n(c) 1998-2007 Toni Wilen      - Win32 port, core code updates."
+	       "\n(c) 1998-2008 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 	       "\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 	       "\n(c) 2000-2001 Bernd Meyer     - JIT engine."

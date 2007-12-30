@@ -45,12 +45,12 @@ struct hd_hardfiledata {
     struct hardfiledata hfd;
     int bootpri;
     uae_u64 size;
-    int cyls;
-    int heads;
-    int secspertrack;
-    int cyls_def;
-    int secspertrack_def;
-    int heads_def;
+    unsigned int cyls;
+    unsigned int heads;
+    unsigned int secspertrack;
+    unsigned int cyls_def;
+    unsigned int secspertrack_def;
+    unsigned int heads_def;
     char *path;
     int ansi_version;
 };

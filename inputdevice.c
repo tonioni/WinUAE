@@ -1962,6 +1962,7 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
     int i;
     int ismouse = 0;
     int newport = 0;
+    int flags = 0;
     char *name = NULL;
 
     if (num >= 4)
@@ -1972,23 +1973,28 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	if (id == &joysticks[i]) {
 	    name = idev[IDTYPE_JOYSTICK].get_uniquename (i);
 	    newport = num == 0 ? 1 : 0;
-	    if (currprefs.input_selected_setting && idev[IDTYPE_JOYSTICK].get_flags (i))
-		return 0;
+	    flags = idev[IDTYPE_JOYSTICK].get_flags (i);
 	}
 	if (id == &mice[i]) {
 	    ismouse = 1;
 	    name = idev[IDTYPE_MOUSE].get_uniquename (i);
 	    newport = num == 0 ? 0 : 1;
-	    if (currprefs.input_selected_setting && idev[IDTYPE_MOUSE].get_flags (i))
-		return 0;
+	    flags = idev[IDTYPE_MOUSE].get_flags (i);
 	}
     }
     if (!name)
 	return 0;
-    write_log ("inputdevice change request '%s':%d->%d\n", name, num, newport);
     if (!currprefs.input_selected_setting) {
 	if (num == 0 || num == 1) {
+	    int om = jsem_ismouse (num, &currprefs);
+	    int om1 = jsem_ismouse (0, &currprefs);
+	    int om2 = jsem_ismouse (1, &currprefs);
+	    if ((om1 >= 0 || om2 >= 0) && ismouse)
+		return 0;
+	    if (flags)
+		return 0;
 	    if (name) {
+	        write_log ("inputdevice change '%s':%d->%d\n", name, num, newport);
 		inputdevice_joyport_config (&changed_prefs, name, newport, 2);
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 		return 1;
@@ -2000,18 +2006,16 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	int i, j, k, evt;
 	struct inputevent *ie, *ie2;
 
+	if (flags)
+	    return 0;
 	if (oldport <= 0)
 	    return 0;
 	newport++;
-	/* do not switch if "supermouse" mouse is already selected
-	 * in same port and new device is also mouse.
-	 */
+	/* do not switch if switching mouse and any "supermouse" mouse enabled */
 	if (ismouse) {
 	    for (i = 0; i < MAX_INPUT_SETTINGS + 1; i++) {
-		if (getoldport (&mice[i]) == newport && mice[i].enabled) {
-		    if (idev[IDTYPE_MOUSE].get_flags (i))
-			return 0;
-		}
+		if (mice[i].enabled && idev[IDTYPE_MOUSE].get_flags (i))
+		    return 0;
 	    }
 	}
 	for (i = 0; i < MAX_INPUT_SETTINGS + 1; i++) {
@@ -2050,6 +2054,7 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 		}
 	    }
 	}
+        write_log ("inputdevice change '%s':%d->%d\n", name, num, newport);
 	inputdevice_copyconfig (&currprefs, &changed_prefs);
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	return 1;

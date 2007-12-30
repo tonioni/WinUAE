@@ -2755,6 +2755,7 @@ void INTREQ_f(uae_u32 data)
 #ifdef CD32
     rethink_akiko ();
 #endif
+    rethink_gayle ();
 }
 
 static void INTREQ_d (uae_u16 v, int d)

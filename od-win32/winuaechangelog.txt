@@ -3,6 +3,31 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 3:
+
+- input compatibility mouse switching restrictions added due to
+  stupid Windows "supermouse" features. (Problem happens when you get
+  two or more mouse button clicks from two or more virtual mice when
+  in reality there is only one physical mouse..) Also you can't just
+  select "raw mouse" because it can have different speed/acceleration
+  than Windows "supermouse" mouse cursor..
+- unusable pcmcia sram card emulation. No on the fly card insert/eject
+  support yet. (insert empty sram card before starting emulation =
+  card becomes system ram expansion automatically)
+  This will be fully implemented after 1.4.6
+- new default mapping end+shift+pause/break = IRQ7/NMI
+- hardfile info panel didn't use 2G+ compatible size check
+- IDE emulation end of drive check fixed (most block addresses after
+  2G were detected as past end of disk)
+- JIT-mode memory allocation was not disabled in non-JIT modes
+  (68000/68010 and 68020 without 32-bit address space)
+  Caused problems with cartridge emulation and more. (b2)
+- GUI aligment/spacing errors fixed (David Walker)
+- "Add Harddrive" HD controller select box updates correctly
+- "SWIV" undocumented bitplane feature broke in 145b4 (not related to
+  shres changes, just standard code cleanup copy/paste error..)
+
+
 Beta 2:
 
 - sprites outside bitplane area (AGA feature) was not working in all

@@ -567,6 +567,8 @@ static void initialize_mountinfo(void)
 		    uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 		    uci->bootpri, uci->filesys);
 	    }
+	} else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+	    gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
 	}
     }
     filesys_addexternals();
@@ -591,7 +593,7 @@ void free_mountinfo (void)
     int i;
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++)
 	close_filesys_unit (mountinfo.ui + i);
-    gayle_free_ide_units();
+    gayle_free_units();
 }
 
 struct hardfiledata *get_hardfile_data (int nr)

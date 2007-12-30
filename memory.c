@@ -27,6 +27,7 @@
 #include "arcadia.h"
 #include "enforcer.h"
 #include "a2091.h"
+#include "gayle.h"
 
 int canbang;
 int candirect = -1;
@@ -1983,7 +1984,7 @@ addrbank custmem2_bank = {
 };
 
 #define fkickmem_size 524288
-void a3000_fakekick(int map)
+void a3000_fakekick (int map)
 {
     static uae_u8 *blop;
     static int f0;
@@ -1998,11 +1999,11 @@ void a3000_fakekick(int map)
 		memcpy (kickmemory, fkickmemory, fkickmem_size / 2);
 		memcpy (kickmemory + fkickmem_size / 2, fkickmemory, fkickmem_size / 2);
 		if (!extendedkickmemory) {
-		    if (!need_uae_boot_rom()) {
+		    if (need_uae_boot_rom() != 0xf00000) {
 			extendedkickmem_size = 65536;
 			extendedkickmem_mask = extendedkickmem_size - 1;
-			extendedkickmemory = (uae_u8 *) mapped_malloc (extendedkickmem_size, "rom_f0");
-			extendedkickmem_bank.baseaddr = (uae_u8 *) extendedkickmemory;
+			extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
+			extendedkickmem_bank.baseaddr = extendedkickmemory;
 			memcpy(extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
 			map_banks(&extendedkickmem_bank, 0xf0, 1, 1);
 			f0 = 1;
@@ -2779,20 +2780,22 @@ void memory_reset (void)
 	    t = 0x10;
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
-    if (currprefs.cs_ide) {
-	if (currprefs.cs_ide == 1) {
+    if (currprefs.cs_ide || currprefs.cs_pcmcia) {
+	if (currprefs.cs_ide == 1 || currprefs.cs_pcmcia) {
 	    map_banks (&gayle_bank, 0xD8, 6, 0);
 	    map_banks (&gayle2_bank, 0xDD, 2, 0);
-	    //map_banks (&gayle_attr_bank, 0xA0, 8, 0); // only if PCMCIA card inserted
-	    //map_banks (&gayle_common_bank, 0x60, 64, 0); // only if PCMCIA card inserted
 	}
-	if (currprefs.cs_ide == 2 || currprefs.cs_mbdmac == 2) {
+	if (currprefs.cs_pcmcia) {
+	    map_banks (&gayle_attr_bank, 0xA0, 8, 0);
+	    if (currprefs.chipmem_size <= 4 * 1024 * 1024 || currprefs.fastmem_size <= 4 * 1024 * 1024)
+	        map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
+	}
+	if (currprefs.cs_ide == 2 || currprefs.cs_mbdmac == 2)
 	    map_banks (&gayle_bank, 0xDD, 1, 0);
-	}
-	if (currprefs.cs_ide < 0) {
+	if (currprefs.cs_ide < 0 && !currprefs.cs_pcmcia)
 	    map_banks (&gayle_bank, 0xD8, 6, 0);
+	if (currprefs.cs_ide < 0)
 	    map_banks (&gayle_bank, 0xDD, 1, 0);
-	}
     }
     if (currprefs.cs_rtc || currprefs.cs_cdtvram)
 	map_banks (&clock_bank, 0xDC, 1, 0);

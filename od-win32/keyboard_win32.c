@@ -456,10 +456,14 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    screenshot (specialpressed() ? 1 : 0, 1);
 	    break;
 	    case DIK_PAUSE:
-	    if (specialpressed ())
-		code = AKS_WARP;
-	    else
+	    if (specialpressed ()) {
+		if (shiftpressed ())
+		    code = AKS_IRQ7;
+		else
+		    code = AKS_WARP;
+	    } else {
 		code = AKS_PAUSE;
+	    }
 	    break;
 	    case DIK_SCROLL:
 	    code = AKS_INHIBITSCREEN;

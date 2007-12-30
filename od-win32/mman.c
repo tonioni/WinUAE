@@ -122,6 +122,7 @@ void preinit_shm (void)
     max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
 
     write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+    canbang = 1;
 }
 
 int init_shm (void)
