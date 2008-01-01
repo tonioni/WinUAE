@@ -372,7 +372,7 @@ static void ide_read_sectors (int multi)
     if (nsec * 512 > ide->hdhfd.size - lba * 512)
 	nsec = (ide->hdhfd.size - lba * 512) / 512;
     ide_data_ready (nsec);
-    hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * 512, nsec * 512);
+    hdf_read (&ide->hdhfd.hfd, ide->secbuf, (uae_u64)lba * 512, nsec * 512);
     put_lbachs (ide, lba, cyl, head, sec, nsec);
     ide->data_multi = multi ? ide->multiple_mode : 1;
 }
@@ -484,7 +484,7 @@ static void ide_put_data (uae_u16 v)
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (IDE_LOG > 0)
 	    write_log ("IDE%d write finished, %d bytes (%d) written\n", ide->num, ide->data_offset, ide->data_offset / 512);
-	hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * 512, ide->data_offset);
+	hdf_write (&ide->hdhfd.hfd, ide->secbuf, (uae_u64)lba * 512, ide->data_offset);
 	put_lbachs (ide, lba, cyl, head, sec, nsec);
 	irq = 1;
     }

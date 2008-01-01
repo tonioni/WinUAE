@@ -1230,7 +1230,29 @@ static unsigned int clock_control_d;
 static unsigned int clock_control_e;
 static unsigned int clock_control_f;
 
-static uae_u8 rtc_memory[13], rtc_alarm[13];
+#define RF5C01A_RAM_SIZE 16
+static uae_u8 rtc_memory[RF5C01A_RAM_SIZE], rtc_alarm[RF5C01A_RAM_SIZE];
+
+static void write_battclock (void)
+{
+    struct zfile *f = zfile_fopen (currprefs.flashfile, "rb+");
+    if (!f) {
+        f = zfile_fopen (currprefs.flashfile, "wb");
+        if (f) {
+	    zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+	    zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+	    zfile_fclose (f);
+	}
+	return;
+    }
+    zfile_fseek (f, 0, SEEK_END);
+    if (zfile_ftell (f) <= 2 * RF5C01A_RAM_SIZE) {
+	zfile_fseek (f, 0, SEEK_SET);
+        zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+        zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+    }
+    zfile_fclose (f);
+}
 
 void rtc_hardreset(void)
 {
@@ -1244,8 +1266,17 @@ void rtc_hardreset(void)
 	clock_control_d = 0x4; /* Timer EN */
 	clock_control_e = 0;
 	clock_control_f = 0;
-	memset (rtc_memory, 0, 13);
-	memset (rtc_alarm, 0, 13);
+	memset (rtc_memory, 0, RF5C01A_RAM_SIZE);
+	memset (rtc_alarm, 0, RF5C01A_RAM_SIZE);
+#if 0
+	struct zfile *f;
+	f = zfile_fopen (currprefs.flashfile, "rb");
+	if (f) {
+	    zfile_fread (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+	    zfile_fread (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+	    zfile_fclose (f);
+	}
+#endif
     }
 }
 
@@ -1373,6 +1404,11 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 	if (bank >= 2 && addr < 0x0d) {
 	    rtc_memory[addr] &= ((bank == 2) ? 0xf0 : 0x0f);
 	    rtc_memory[addr] |= value << ((bank == 2) ? 0 : 4);
+#if 0
+	    uae_u8 ov = rtc_memory[addr];
+	    if (rtc_memory[addr] != ov)
+		write_battclock ();
+#endif
 	    return;
 	}
 	/* alarm */
@@ -1385,6 +1421,11 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 	    rtc_alarm[8] &= ~0xc;
 	    rtc_alarm[10] &= ~0xe;
 	    rtc_alarm[11] &= ~0xc;
+#if 0
+	    uae_u8 ov = rtc_alarm[addr];
+	    if (rtc_alarm[addr] != value)
+		write_battclock ();
+#endif
 	    return;
 	}
 	switch (addr)

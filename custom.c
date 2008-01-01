@@ -5,7 +5,7 @@
   *
   * Copyright 1995-2002 Bernd Schmidt
   * Copyright 1995 Alessandro Bissacco
-  * Copyright 2000-2004 Toni Wilen
+  * Copyright 2000-2008 Toni Wilen
   */
 
 //#define CUSTOM_DEBUG

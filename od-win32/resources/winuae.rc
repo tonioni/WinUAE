@@ -1,13 +1,13 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource."
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -441,7 +441,7 @@ BEGIN
     PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,271,34,11,15
     RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,17,58,31,10
     EDITTEXT        IDC_HARDFILE_DEVICE,52,54,66,15,ES_AUTOHSCROLL
-    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,94,44,8
+    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,13,94,55,8
     EDITTEXT        IDC_HARDFILE_BOOTPRI,74,90,40,15
     CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,74,64,10
     PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,174,55,92,14
@@ -465,7 +465,7 @@ BEGIN
     RTEXT           "MB",IDC_STATIC,214,174,13,10,SS_CENTERIMAGE
     RTEXT           "Type:",IDC_STATIC,18,182,25,10,SS_CENTERIMAGE
     RTEXT           "HD Controller:",IDC_STATIC,13,113,52,10,SS_CENTERIMAGE
-    CONTROL         "Autoboot",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,73,53,10
+    CONTROL         "Bootable",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,73,53,10
     CONTROL         "Do not mount",IDC_HDF_DONOTMOUNT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,217,74,67,10
     EDITTEXT        IDC_HDFINFO,16,131,268,12,ES_CENTER | ES_READONLY
 END
@@ -489,7 +489,7 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,120,91,48,15
     PUSHBUTTON      "Select Archive or Plain File",IDC_FS_SELECT_FILE,189,66,103,15
     PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,230,91,62,15
-    CONTROL         "Autoboot",IDC_FS_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,236,7,53,10
+    CONTROL         "Bootable",IDC_FS_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,236,7,53,10
 END
 
 IDD_SETINFO DIALOGEX 0, 0, 229, 85
@@ -1347,7 +1347,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

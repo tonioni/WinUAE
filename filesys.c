@@ -4941,40 +4941,46 @@ int rdb_checksum (char *id, uae_u8 *p, int block)
     return 1;
 }
 
-static char *device_dupfix (uaecptr expbase, char *devname)
+static int device_isdup (uaecptr expbase, char *devname)
 {
     uaecptr bnode, dnode, name;
-    int len, i, modified;
-    char dname[256], newname[256];
+    int len, i;
+    char dname[256];
+
+    bnode = get_long (expbase + 74); /* expansion.library bootnode list */
+    while (get_long (bnode)) {
+	dnode = get_long (bnode + 16); /* device node */
+	name = get_long (dnode + 40) << 2; /* device name BSTR */
+	len = get_byte (name);
+	for (i = 0; i < len; i++)
+	    dname[i] = get_byte (name + 1 + i);
+	dname[len] = 0;
+	if (!strcmpi (devname, dname))
+	    return 1;
+        bnode = get_long (bnode);
+    }
+    return 0;
+}
+
+static char *device_dupfix (uaecptr expbase, char *devname)
+{
+    int modified;
+    char newname[256];
 
     strcpy (newname, devname);
     modified = 1;
     while (modified) {
 	modified = 0;
-	bnode = get_long (expbase + 74); /* expansion.library bootnode list */
-	while (get_long (bnode)) {
-	    dnode = get_long (bnode + 16); /* device node */
-	    name = get_long (dnode + 40) << 2; /* device name BSTR */
-	    len = get_byte (name);
-	    for (i = 0; i < len; i++)
-		dname[i] = get_byte (name + 1 + i);
-	    dname[len] = 0;
-	    for (;;) {
-		if (!strcmpi (newname, dname)) {
-		    if (strlen (newname) > 2 && newname[strlen (newname) - 2] == '_') {
-			newname[strlen (newname) - 1]++;
-		    } else {
-			strcat (newname, "_0");
-		    }
-		    modified = 1;
-		} else {
-		    break;
-		}
+	if (device_isdup (expbase, newname)) {
+	    if (strlen (newname) > 2 && newname[strlen (newname) - 2] == '_') {
+		newname[strlen (newname) - 1]++;
+	    } else {
+		strcat (newname, "_0");
 	    }
-	    bnode = get_long (bnode);
+	    modified = 1;
 	}
     }
-    return strdup (newname);
+    return my_strdup (newname);
 }
 
 static void dump_partinfo (char *name, int num, uaecptr pp, int partblock)
@@ -5005,6 +5011,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     int oldversion, oldrevision;
     int newversion, newrevision;
 
+    write_log ("%s:\n", uip->rootdir);
     if (hfd->drive_empty) {
 	rdbmnt
 	write_log ("ignored, drive is empty\n");
@@ -5287,13 +5294,19 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecptr *devname_amiga, int unit_no)
 {
     char buffer[80];
+    uaecptr expbase = get_long (parmpacket + PP_EXPLIB);
 
     if (*devname == 0 || strlen(*devname) == 0) {
-	sprintf (buffer, "DH%d", unit_no);
+	int un = unit_no;
+	for (;;) {
+	    sprintf (buffer, "DH%d", un++);
+	    if (!device_isdup (expbase, buffer))
+		break;
+	}
     } else {
 	strcpy (buffer, *devname);
     }
-    *devname_amiga = ds (device_dupfix (get_long (parmpacket + PP_EXPLIB), buffer));
+    *devname_amiga = ds (device_dupfix (expbase, buffer));
     if (type == FILESYS_VIRTUAL)
 	write_log ("FS: mounted virtual unit %s (%s)\n", buffer, mountinfo.ui[unit_no].rootdir);
     else

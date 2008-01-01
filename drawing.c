@@ -7,7 +7,7 @@
   *
   * Copyright 1995-2000 Bernd Schmidt
   * Copyright 1995 Alessandro Bissacco
-  * Copyright 2000,2001 Toni Wilen
+  * Copyright 2000-2008 Toni Wilen
   */
 
 /* There are a couple of concepts of "coordinates" in this file.
@@ -1305,21 +1305,13 @@ static void clear_bitplane_border_aga (void)
 /* emulate OCS/ECS only undocumented "SWIV" hardware feature */
 static void weird_bitplane_fix (void)
 {
-    int i, shift = res_shift;
+    int i;
     int sh = lores_shift;
     uae_u8 *p = pixdata.apixels + pixels_offset;
 
-    if (shift < 0) {
-	shift = -shift;
-	for (i = playfield_start << sh; i < playfield_end << sh; i++) {
-	    if (p[i] > 16)
-		p[i] = 16;
-	}
-    } else {
-	for (i = playfield_start >> sh; i < playfield_end >> sh; i++) {
-	    if (p[i] > 16)
-		p[i] = 16;
-	}
+    for (i = playfield_start >> sh; i < playfield_end >> sh; i++) {
+        if (p[i] > 16)
+    	    p[i] = 16;
     }
 }
 
@@ -1408,7 +1400,7 @@ static void pfield_doline (int lineno)
     uae_u32 *data = pixdata.apixels_l + MAX_PIXELS_PER_LINE / 4;
 
 #ifdef SMART_UPDATE
-#define DATA_POINTER(n) (line_data[lineno] + (n)*MAX_WORDS_PER_LINE*2)
+#define DATA_POINTER(n) (line_data[lineno] + (n) * MAX_WORDS_PER_LINE * 2)
     real_bplpt[0] = DATA_POINTER (0);
     real_bplpt[1] = DATA_POINTER (1);
     real_bplpt[2] = DATA_POINTER (2);

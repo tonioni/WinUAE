@@ -3,6 +3,16 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 4:
+
+- A600/A1200/A4000 IDE emulation 4G wrap around bug fixed
+- "Add PC drives at startup" drive device name creation tries to
+  detect already mounted device, prevents ugly looking 'DHx_0' names
+  due to name conflicts. (note that this only affects name generation
+  of "Add PC drives at startup"-drives)
+- renamed GUI "autoboot" -> "bootable"
+- rom scan duplicate path detection improved
+
 Beta 3:
 
 - input compatibility mouse switching restrictions added due to

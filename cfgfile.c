@@ -3434,6 +3434,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     built_in_chipset_prefs (p);
     p->cs_ide = -1;
     p->cs_ciaatod = p->ntscmode ? 2 : 1;
+    strcat(p->flashfile, "battclock.nvr");
     return configure_rom (p, roms, romcheck);
 }
 

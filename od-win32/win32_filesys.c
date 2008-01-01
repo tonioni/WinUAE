@@ -94,6 +94,7 @@ static void filesys_addexternals(void)
     char volumename[MAX_DPATH]="";
     char volumepath[6];
     DWORD dwDriveMask;
+    int drvnum = 0;
 
     errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
     dwDriveMask = GetLogicalDrives();
@@ -138,7 +139,8 @@ static void filesys_addexternals(void)
 	        strcat(volumepath, ".");
 	    else
 	        strcat(volumepath, "..");
-	    add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20, 0, 1, 0, 0, 0);
+	    add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
+	    drvnum++;
 	} /* if drivemask */
 	dwDriveMask >>= 1;
     }

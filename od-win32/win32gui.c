@@ -624,16 +624,15 @@ static void show_rom_list (void)
     free (p);
 }
 
-static int scan_roms_2 (UAEREG *fkey, char *pathp)
+static int scan_roms_2 (UAEREG *fkey, char *path)
 {
-    char buf[MAX_DPATH], path[MAX_DPATH];
+    char buf[MAX_DPATH];
     WIN32_FIND_DATA find_data;
     HANDLE handle;
     int ret;
 
-    if (!pathp)
+    if (!path)
 	return 0;
-    GetFullPathName(pathp, MAX_DPATH, path, NULL);
     write_log("ROM scan directory '%s'\n", path);
     strcpy (buf, path);
     strcat (buf, "*.*");
@@ -657,17 +656,26 @@ static int scan_roms_2 (UAEREG *fkey, char *pathp)
     return ret;
 }
 
-static int scan_roms_3(void *fkey, char **paths, int offset, char *path)
+#define MAX_ROM_PATHS 10
+
+static int scan_roms_3(void *fkey, char **paths, char *path)
 {
     int i, ret;
+    char pathp[MAX_DPATH];
 
     ret = 0;
-    for (i = 0; i < offset; i++) {
-	if (paths[i] && !strcmpi(paths[i], path))
+    GetFullPathName(path, MAX_DPATH, pathp, NULL);
+    for (i = 0; i < MAX_ROM_PATHS; i++) {
+	if (paths[i] && !strcmpi(paths[i], pathp))
 	    return ret;
     }
-    ret = scan_roms_2 (fkey, path);
-    paths[offset] = my_strdup(path);
+    ret = scan_roms_2 (fkey, pathp);
+    for (i = 0; i < MAX_ROM_PATHS; i++) {
+	if (!paths[i]) {
+	    paths[i] = my_strdup(pathp);
+	    break;
+	}
+    }
     return ret;
 }
 
@@ -679,7 +687,7 @@ int scan_roms (int show)
     static int recursive;
     int id, i, ret, keys, cnt;
     UAEREG *fkey, *fkey2;
-    char *paths[10];
+    char *paths[MAX_ROM_PATHS];
 
     if (recursive)
 	return 0;
@@ -692,30 +700,34 @@ int scan_roms (int show)
 
     cnt = 0;
     ret = 0;
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < MAX_ROM_PATHS; i++)
 	paths[i] = NULL;
     for (;;) {
 	keys = get_keyring();
 	fetch_path ("KickstartPath", path, sizeof path);
-	scan_roms_3 (fkey, paths, 0, path);
+	cnt += scan_roms_3 (fkey, paths, path);
 	if (1) {
-	    for(i = 0; ;i++) {
+	    for(i = 0; i < MAX_ROM_PATHS; i++) {
 		ret = get_rom_path (path, i);
 		if (ret < 0)
 		    break;
-		cnt += scan_roms_3 (fkey, paths, 2 + i, path);
+		cnt += scan_roms_3 (fkey, paths, path);
 	    }
 	    if (get_keyring() > keys) { /* more keys detected in previous scan? */
-		keys = get_keyring();
+		write_log ("ROM scan: more keys found, restarting..\n");
+		for (i = 0; i < MAX_ROM_PATHS; i++) {
+		    xfree (paths[i]);
+		    paths[i] = NULL;
+		}
 		continue;
 	    }
 	}
 	break;
     }
     if (cnt == 0)
-	scan_roms_3 (fkey, paths, 1, workprefs.path_rom);
+	scan_roms_3 (fkey, paths, workprefs.path_rom);
 
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < MAX_ROM_PATHS; i++)
 	xfree(paths[i]);
 
     fkey2 = regcreatetree (NULL, "DetectedROMS");
