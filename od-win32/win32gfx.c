@@ -346,7 +346,7 @@ static int set_ddraw (void)
     dd = (currentmode->flags & DM_DDRAW) ? TRUE : FALSE;
     overlay = (currentmode->flags & DM_OVERLAY) ? TRUE : FALSE;
 
-    ddrval = DirectDraw_SetCooperativeLevel(hAmigaWnd, dxfullscreen);
+    ddrval = DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen);
     if (FAILED(ddrval))
 	goto oops;
 
@@ -357,13 +357,13 @@ static int set_ddraw (void)
 	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
 	    if (FAILED(ddrval)) {
-		write_log ( "set_ddraw: Couldn't SetDisplayMode()\n");
+		write_log ("set_ddraw: Couldn't SetDisplayMode()\n");
 	        goto oops;
 	    }
 	}
 	ddrval = DirectDraw_GetDisplayMode ();
 	if (FAILED(ddrval)) {
-	    write_log ( "set_ddraw: Couldn't GetDisplayMode()\n" );
+	    write_log ("set_ddraw: Couldn't GetDisplayMode()\n" );
 	    goto oops;
 	}
     }
@@ -1017,7 +1017,8 @@ static void close_hwnds( void )
     }
     if (hAmigaWnd) {
 	addnotifications (hAmigaWnd, TRUE);
-	systray (hAmigaWnd, TRUE);
+	//write_log ("notif: close_hwnds\n");
+	systray (NULL, TRUE);
 #ifdef OPENGL
 	OGL_free ();
 #endif
@@ -1874,6 +1875,7 @@ uae_u32 OSDEP_minimize_uae( void )
 
 void close_windows (void)
 {
+    systray (NULL, TRUE);
     reset_sound();
 #if defined (GFXFILTER)
     S2X_free ();
@@ -2105,7 +2107,8 @@ static int create_windows (void)
 	close_hwnds();
 	return 0;
     }
-
+    systray (NULL, TRUE);
+    //write_log ("notif: open_windows()\n");
     systray (hAmigaWnd, FALSE);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {

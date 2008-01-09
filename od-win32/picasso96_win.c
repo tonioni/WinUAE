@@ -1897,8 +1897,8 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
 	AmigaListAddTail (AmigaBoardInfo + PSSO_BoardInfo_ResolutionsList, amem);
 	amem += PSSO_LibResolution_sizeof;
     }
-    if (amem != picasso96_amemend)
-	write_log ("P96: display resolution list corruption %08x<>%08x", amem, picasso96_amemend);
+    if (amem > picasso96_amemend)
+	write_log ("P96: display resolution list corruption %08x<>%08x (%d)\n", amem, picasso96_amemend, i);
 
     return -1;
 }

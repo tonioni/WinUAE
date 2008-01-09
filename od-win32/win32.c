@@ -93,7 +93,7 @@ HWND hAmigaWnd, hMainWnd, hHiddenWnd;
 RECT amigawin_rect;
 static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
-static int TaskbarRestartOk;
+static HWND TaskbarRestartHWND;
 static int forceroms;
 static int start_data = 0;
 
@@ -1228,8 +1228,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	break;
 
      default:
-	 if (TaskbarRestartOk && message == TaskbarRestart)
-	     systray (hWnd, FALSE);
+	 if (TaskbarRestart != 0 && TaskbarRestartHWND == hWnd && message == TaskbarRestart) {
+	     //write_log ("notif: taskbarrestart\n");
+	     systray (TaskbarRestartHWND, FALSE);
+	 }
     break;
     }
 
@@ -1346,7 +1348,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 
     default:
-	if (TaskbarRestartOk && message == TaskbarRestart)
+	if (TaskbarRestart != 0 && TaskbarRestartHWND == hWnd && message == TaskbarRestart)
 	    return AmigaWindowProc (hWnd, message, wParam, lParam);
 	break;
 
@@ -3426,20 +3428,34 @@ void addnotifications (HWND hwnd, int remove)
 void systray (HWND hwnd, int remove)
 {
     NOTIFYICONDATA nid;
+    BOOL v;
 
-    if (hwnd == NULL)
-	return;
-    if (!TaskbarRestartOk) {
+    //write_log ("notif: systray(%x,%d)\n", hwnd, remove);
+    if (!remove) {
 	TaskbarRestart = RegisterWindowMessage(TEXT("TaskbarCreated"));
-	TaskbarRestartOk = 1;
+	TaskbarRestartHWND = hwnd;
+	//write_log ("notif: taskbarrestart = %d\n", TaskbarRestart);
+    } else {
+	TaskbarRestart = 0;
+	hwnd = TaskbarRestartHWND;
     }
+    if (!hwnd)
+	return;
     memset (&nid, 0, sizeof (nid));
     nid.cbSize = sizeof (nid);
     nid.hWnd = hwnd;
     nid.hIcon = LoadIcon (hInst, (LPCSTR)MAKEINTRESOURCE(IDI_APPICON));
     nid.uFlags = NIF_ICON | NIF_MESSAGE;
     nid.uCallbackMessage = WM_USER + 1;
-    Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
+    v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
+    //write_log ("notif: Shell_NotifyIcon returned %d\n", v);
+    if (v) {
+	if (remove)
+	    TaskbarRestartHWND = NULL;
+    } else {
+	DWORD err = GetLastError ();
+	write_log ("Notify error code = %x (%d)\n",  err, err);
+    }
 }
 
 void systraymenu (HWND hwnd)
@@ -3451,7 +3467,7 @@ void systraymenu (HWND hwnd)
     char text[100];
 
     winuae_inactive (hwnd, FALSE);
-    WIN32GUI_LoadUIString( IDS_STMENUNOFLOPPY, text, sizeof (text));
+    WIN32GUI_LoadUIString (IDS_STMENUNOFLOPPY, text, sizeof (text));
     GetCursorPos (&pt);
     menu = LoadMenu (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDM_SYSTRAY));
     if (!menu)

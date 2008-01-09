@@ -169,6 +169,14 @@ static const char *obsolete[] = {
 
 #define UNEXPANDED "$(FILE_PATH)"
 
+static void trimws (char *s)
+{
+    /* Delete trailing whitespace.  */
+    int len = strlen (s);
+    while (len > 0 && strcspn (s + len - 1, "\t \r\n") == 0)
+        s[--len] = '\0';
+}
+
 static int match_string (const char *table[], const char *str)
 {
     int i;
@@ -1813,10 +1821,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 #endif
 
     while (cfg_fgets (line, sizeof (line), fh) != 0) {
-	int len = strlen (line);
-	/* Delete trailing whitespace.  */
-	while (len > 0 && strcspn (line + len - 1, "\t \r\n") == 0)
-	    line[--len] = '\0';
+	trimws (line);
 	if (strlen (line) > 0) {
 	    if (line[0] == '#' || line[0] == ';')
 		continue;
@@ -3111,11 +3116,12 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
     int roms[2];
 
-    if (config) {
+    if (config == 2)
 	roms[0] = 61;
-    } else {
+    else if (config == 1)
+	roms[0] = 71;
+    else
 	roms[0] = 59;
-    }
     roms[1] = -1;
     p->immediate_blits = 1;
     p->bogomem_size = 0;

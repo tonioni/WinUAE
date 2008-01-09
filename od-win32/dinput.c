@@ -825,6 +825,14 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
     return DIENUM_CONTINUE;
 }
 
+static void trimws (char *s)
+{
+    /* Delete trailing whitespace.  */
+    int len = strlen (s);
+    while (len > 0 && strcspn (s + len - 1, "\t \r\n") == 0)
+        s[--len] = '\0';
+}
+
 static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 {
     struct didata *did;
@@ -849,7 +857,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
     }
 
 #ifdef DI_DEBUG
-    write_log ("GUID=%08.8X-%04.8X-%04.8X-%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X:\n",
+    write_log ("GUID=%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X:\n",
 	lpddi->guidInstance.Data1, lpddi->guidInstance.Data2, lpddi->guidInstance.Data3,
 	lpddi->guidInstance.Data4[0], lpddi->guidInstance.Data4[1], lpddi->guidInstance.Data4[2], lpddi->guidInstance.Data4[3],
 	lpddi->guidInstance.Data4[4], lpddi->guidInstance.Data4[5], lpddi->guidInstance.Data4[6], lpddi->guidInstance.Data4[7]);
@@ -883,11 +891,13 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	did->name = malloc (100);
 	sprintf(did->name, "[no name]");
     }
-    sprintf (tmp, "%08.8X-%04.8X-%04.8X-%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X",
+    trimws (did->name);
+    sprintf (tmp, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
 	lpddi->guidProduct.Data1, lpddi->guidProduct.Data2, lpddi->guidProduct.Data3,
 	lpddi->guidProduct.Data4[0], lpddi->guidProduct.Data4[1], lpddi->guidProduct.Data4[2], lpddi->guidProduct.Data4[3],
 	lpddi->guidProduct.Data4[4], lpddi->guidProduct.Data4[5], lpddi->guidProduct.Data4[6], lpddi->guidProduct.Data4[7]);
     did->configname = my_strdup (tmp);
+    trimws (did->configname);
     did->guid = lpddi->guidInstance;
     did->sortname = my_strdup (did->name);
     did->connection = DIDC_DX;

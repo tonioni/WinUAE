@@ -17,6 +17,7 @@
 ; 2007.08.09 started implementing removable drive support (TW)
 ; 2007.09.01 ACTION_EXAMINE_ALL (TW)
 ; 2007.09.05 fully filesystem device mounting on the fly (TW)
+; 2008.01.09 ACTION_EXAMINE_ALL does not anymore return eac_Entries = 0 with continue (fixes some broken programs)
 
 AllocMem = -198
 FreeMem = -210
@@ -723,10 +724,13 @@ diskchange
 	; exall is complex, need to emulate eac_MatchString and/or eac_MatchFunc
 action_exall
 	move.l 36(a4),a0 ; dp_Arg5, struct ExAllControl
+	tst.l (a0)
+	beq.s .ex0
 	tst.l 8(a0) ; eac_MatchString
 	bne.s .ex1
 	tst.l 12(a0) ; eac_MatchFunc
 	bne.s .ex1
+.ex0	moveq #1,d0 ; no need to get more entries
 	rts ;nothing to do here
 .ex1:	movem.l d2-d7/a2-a6,-(sp)
 	move.l a0,a5
@@ -785,6 +789,8 @@ action_exall
 	subq.l #1,d7
 	bra.s .ex4
 .ex3	movem.l (sp)+,d2-d7/a2-a6
+	move.l 36(a4),a0 ; dp_Arg5, struct ExAllControl
+	tst.l (a0) ; eac_Entries == 0 -> get more
 	rts
 
 
@@ -1210,7 +1216,15 @@ ReplyOne:
 FSML_ReplyOne2:
 	cmp.l #1033,8(a4) ;ACTION_EXAMINE_ALL
 	bne.s FSML_ReplyOne3
+.exaretry:
 	bsr.w action_exall
+	bne.s FSML_ReplyOne3
+	; Arghh.. we need more entries. (some buggy programs fail if eac_Entries = 0 with continue enabled)
+	move.w #$ff58,d0
+	bsr.w getrtbase
+	jsr (a0)
+	bra.s .exaretry
+	
 FSML_ReplyOne3:
 	move.l (a4),a1  ; dp_Link
 	move.l 4(a4),a0 ; dp_Port

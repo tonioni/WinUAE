@@ -971,6 +971,13 @@ static void expamem_init_gfxcard (void)
 static size_t fast_filepos, z3_filepos, p96_filepos;
 #endif
 
+void free_fastmemory (void)
+{
+    if (fastmemory)
+        mapped_free (fastmemory);
+    fastmemory = 0;
+}
+
 static void allocate_expamem (void)
 {
     currprefs.fastmem_size = changed_prefs.fastmem_size;
@@ -978,9 +985,7 @@ static void allocate_expamem (void)
     currprefs.gfxmem_size = changed_prefs.gfxmem_size;
 
     if (allocated_fastmem != currprefs.fastmem_size) {
-	if (fastmemory)
-	    mapped_free (fastmemory);
-	fastmemory = 0;
+	free_fastmemory ();
 	allocated_fastmem = currprefs.fastmem_size;
 	fastmem_mask = allocated_fastmem - 1;
 
@@ -991,7 +996,7 @@ static void allocate_expamem (void)
 		allocated_fastmem = 0;
 	    }
 	}
-	memory_hardreset();
+	memory_hardreset ();
     }
     if (allocated_z3fastmem != currprefs.z3fastmem_size) {
 	if (z3fastmem)
@@ -1008,7 +1013,7 @@ static void allocate_expamem (void)
 		allocated_z3fastmem = 0;
 	    }
 	}
-	memory_hardreset();
+	memory_hardreset ();
     }
 #ifdef PICASSO96
     if (allocated_gfxmem != currprefs.gfxmem_size) {
@@ -1026,7 +1031,7 @@ static void allocate_expamem (void)
 		allocated_gfxmem = 0;
 	    }
 	}
-	memory_hardreset();
+	memory_hardreset ();
     }
 #endif
 
@@ -1062,12 +1067,19 @@ static void allocate_expamem (void)
 #endif /* SAVESTATE */
 }
 
-uaecptr need_uae_boot_rom(void)
+static uaecptr check_boot_rom (void)
 {
     int i;
     uaecptr b = 0xf00000;
+    addrbank *ab;
+
     if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi)
 	b = 0xe70000;
+    ab = &get_mem_bank (0xf00000);
+    if (ab) {
+	if (valid_address (0xf00000, 65536))
+	    b = 0xe70000;
+    }
     for (i = 0; i < currprefs.mountitems; i++) {
 	struct uaedev_config_info *uci = &currprefs.mountconfig[i];
 	if (uci->controller == 0)
@@ -1092,7 +1104,18 @@ uaecptr need_uae_boot_rom(void)
     return 0;
 }
 
-void expamem_next(void)
+uaecptr need_uae_boot_rom (void)
+{
+    uaecptr v;
+
+    uae_boot_rom = 0;
+    v = check_boot_rom ();
+    if (v)
+	uae_boot_rom = 1;
+    return v;
+}
+
+void expamem_next (void)
 {
     expamem_init_clear ();
     map_banks (&expamem_bank, 0xE8, 1, 0);

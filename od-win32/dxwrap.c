@@ -730,8 +730,8 @@ void DirectDraw_Release(void)
     releaser(DirectDrawState.lpDDP, IDirectDrawPalette_Release);
 
     if (DirectDrawState.directdraw.dd && DirectDrawState.modeset) {
-	IDirectDraw7_SetCooperativeLevel(DirectDrawState.directdraw.dd, hAmigaWnd, DDSCL_NORMAL);
 	IDirectDraw7_RestoreDisplayMode(DirectDrawState.directdraw.dd);
+	IDirectDraw7_SetCooperativeLevel(DirectDrawState.directdraw.dd, hAmigaWnd, DDSCL_NORMAL);
     }
     DirectDrawState.modeset = 0;
 
@@ -1923,7 +1923,7 @@ char *outGUID (GUID *guid)
     static char gb[64];
     if (guid == NULL)
 	return "NULL";
-    sprintf(gb, "%08.8X-%04.8X-%04.8X-%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X%02.2X",
+    sprintf(gb, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
 	guid->Data1, guid->Data2, guid->Data3,
 	guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
 	guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);

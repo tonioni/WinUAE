@@ -3,13 +3,33 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 5:
+
+- fixed wrong input device GUID format in config files
+- 'friendlyname' mapping didn't work if device name had trailing
+  whitespace (like USB ProComp 'USB 2A4K  GamePad          ')
+- C00000 and F00000 relocated beta/special KS roms supported
+  (200000 already supported long time ago)
+- A3000 official confirmed 2.04 ROM added (37.132 internal rom version,
+  37.175 shown in "insert disk" screen..)
+- possible crash when switching >2M chip setting from/to <=2M Chip
+  and >0M Fast RAM configuration
+- removed bogus "P96: display resolution list corruption" log message
+  if biggest available resolution required more RTG RAM than available
+- directory filesystem ACTION_EXAMINE_ALL is now "compatible" with
+  FFS implementation. (workaround for older Scalos ExAll bugs that
+  caused missing icons. Probably fixes other bad programs too..)
+  - eac_Entries is now always at least 1 if continuation flag is set
+  - keep returning ERROR_NO_MORE_ENTRIES even if previous call already
+  returned ERROR_NO_MORE_ENTRIES
+
 Beta 4:
 
 - A600/A1200/A4000 IDE emulation 4G wrap around bug fixed
-- "Add PC drives at startup" drive device name creation tries to
-  detect already mounted device, prevents ugly looking 'DHx_0' names
-  due to name conflicts. (note that this only affects name generation
-  of "Add PC drives at startup"-drives)
+- "Add PC drives at startup" drive device name creation tries to detect
+  already mounted device names, prevents ugly looking 'DHx_0'-style
+  names. (note that this only affects name generation of "Add PC drives
+  at startup"-drives)
 - renamed GUI "autoboot" -> "bootable"
 - rom scan duplicate path detection improved
 

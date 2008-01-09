@@ -709,6 +709,7 @@ typedef struct exallkey {
     uae_u32 id;
     void *dirhandle;
     char *fn;
+    uaecptr control;
 } ExAllKey;
 
 /* Since ACTION_EXAMINE_NEXT is so braindamaged, we have to keep
@@ -2715,15 +2716,19 @@ int get_native_path(uae_u32 lock, char *out)
 }
 
 #define EXALL_DEBUG 0
+#define EXALL_END 0xde1111ad
 
-static ExAllKey *getexall (Unit *unit, int id)
+static ExAllKey *getexall (Unit *unit, uaecptr control, int id)
 {
     int i;
     if (id < 0) {
 	for (i = 0; i < EXALLKEYS; i++) {
 	    if (unit->exalls[i].id == 0) {
 	        unit->exallid++;
+		if (unit->exallid == EXALL_END)
+		    unit->exallid++;
 		unit->exalls[i].id = unit->exallid;
+		unit->exalls[i].control = control;
 		return &unit->exalls[i];
 	    }
 	}
@@ -2897,7 +2902,7 @@ static int action_examine_all_end (Unit *unit, dpacket packet)
     if (kickstart_version < 36)
 	return 0;
     id = get_long (control + 4);
-    eak = getexall (unit, id);
+    eak = getexall (unit, control, id);
 #if EXALL_DEBUG > 0
     write_log ("EXALL_END ID=%d %x\n", id, eak);
 #endif
@@ -2958,8 +2963,12 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     PUT_PCK_RES1 (packet, DOS_TRUE);
     id = get_long (control + 4);
+    if (id == EXALL_END) {
+	write_log ("FILESYS: EXALL called twice with ERROR_NO_MORE_ENTRIES\n");
+	goto fail; /* already ended exall() */
+    }
     if (id) {
-	eak = getexall (unit, id);
+	eak = getexall (unit, control, id);
 	if (!eak) {
 	    write_log ("FILESYS: EXALL non-existing ID %d\n", id);
 	    doserr = ERROR_OBJECT_WRONG_TYPE;
@@ -2975,7 +2984,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 
     } else {
 
-	eak = getexall (unit, -1);
+	eak = getexall (unit, control, -1);
 	if (!eak)
 	    goto fail;
 	if (lock != 0)
@@ -3027,6 +3036,31 @@ fail:
 	    eak->dirhandle = NULL;
 	    xfree (eak->fn);
 	    eak->fn = NULL;
+	}
+	if (doserr == ERROR_NO_MORE_ENTRIES)
+	    put_long (control + 4, EXALL_END);
+    }
+    return 1;
+}
+
+static uae_u32 REGPARAM2 exall_helper (TrapContext *context)
+{
+    int i;
+    Unit *u;
+    uaecptr packet = m68k_areg (&context->regs, 4);
+    uaecptr control = get_long (packet + dp_Arg5);
+    uae_u32 id = get_long (control + 4);
+
+#if EXALL_DEBUG > 0
+    write_log ("FILESYS: EXALL extra round ID=%d\n", id);
+#endif
+    if (id == EXALL_END)
+	return 1;
+    for (u = units; u; u = u->next) {
+	for (i = 0; i < EXALLKEYS; i++) {
+	    if (u->exalls[i].id == id && u->exalls[i].control == control) {
+		action_examine_all (u, get_real_address (packet));
+	    }
 	}
     }
     return 1;
@@ -5424,6 +5458,10 @@ void filesys_install (void)
 
     org (rtarea_base + 0xFF50);
     calltrap (deftrap2 (exter_int_helper, 0, "exter_int_helper"));
+    dw (RTS);
+
+    org (rtarea_base + 0xFF58);
+    calltrap (deftrap2 (exall_helper, 0, "exall_helper"));
     dw (RTS);
 
     org (loop);

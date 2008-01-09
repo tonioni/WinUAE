@@ -54,8 +54,6 @@ static uaecptr debug_copper_pc;
 extern int audio_channel_mask;
 extern int inputdevice_logging;
 
-static FILE *logfile;
-
 void deactivate_debugger (void)
 {
     debugger_active = 0;
@@ -68,9 +66,6 @@ void deactivate_debugger (void)
 
 void activate_debugger (void)
 {
-    if (logfile)
-	fclose (logfile);
-    logfile = 0;
     do_skip = 0;
     if (debugger_active)
 	return;
@@ -123,7 +118,7 @@ static char help[] = {
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/I/F> [<value>] (read/write/opcode/freeze)\n"
     "                        Add/remove memory watchpoints\n"
-    "  wd                    Enable illegal access logger\n"
+    "  wd [<0-1>]            Enable illegal access logger. 1 = break when detected.\n"
     "  S <file> <addr> <n>   Save a block of Amiga memory\n"
     "  s \"<string>\"/<values> [<addr>] [<length>]\n"
     "                        Search for string/bytes\n"
@@ -135,7 +130,7 @@ static char help[] = {
     "                        Also enables level 1 disk logging\n"
     "  did <log level>       Enable disk logging\n"
     "  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
-    "  smc                   Enable self-modifying code detector\n"
+    "  smc [<0-1>]           Enable self-modifying code detector. 1 = break when detected.\n"
     "  dm                    Dump current address space map\n"
 #ifdef _WIN32
     "  x                     Close debugger.\n"
@@ -1155,25 +1150,26 @@ struct smc_item {
     uae_u8 cnt;
 };
 
-static int smc_size;
+static int smc_size, smc_mode;
 static struct smc_item *smc_table;
 
-static void smc_reset(void)
+static void smc_free (void)
 {
-    int i;
-    if (!smc_table)
-	return;
-    for (i = 0; i < smc_size; i++) {
-	smc_table[i].addr = 0xffffffff;
-	smc_table[i].cnt = 0;
-    }
+    if (smc_table)
+	console_out("SMCD disabled\n");
+    xfree(smc_table);
+    smc_mode = 0;
+    smc_table = NULL;
 }
 
 static void initialize_memwatch (int mode);
-static void smc_detect_init(void)
+static void smc_detect_init (char **c)
 {
-    xfree(smc_table);
-    smc_table = NULL;
+    int v, i;
+    
+    ignore_ws (c);
+    v = readint (c);
+    smc_free ();
     smc_size = 1 << 24;
     if (currprefs.z3fastmem_size)
 	smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
@@ -1181,14 +1177,19 @@ static void smc_detect_init(void)
     smc_table = (struct smc_item*)xmalloc (smc_size * sizeof (struct smc_item));
     if (!smc_table)
 	return;
-    smc_reset();
+    for (i = 0; i < smc_size; i++) {
+	smc_table[i].addr = 0xffffffff;
+	smc_table[i].cnt = 0;
+    }
     if (!memwatch_enabled)
 	initialize_memwatch (0);
-    console_out("SMCD enabled\n");
+    if (v)
+	smc_mode = 1;
+    console_out("SMCD enabled. Break=%d\n", smc_mode);
 }
 
 #define SMC_MAXHITS 8
-static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
+static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
 {
     int i, hitcnt;
     uaecptr hitaddr, hitpc;
@@ -1228,6 +1229,8 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 	smc_table[hitaddr].cnt++;
 	console_out("SMC at %08.8X - %08.8X (%d) from %08.8X\n",
 	    hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
+	if (smc_mode)
+	    activate_debugger ();
 	if (smc_table[hitaddr].cnt >= SMC_MAXHITS)
 	    console_out("* hit count >= %d, future hits ignored\n", SMC_MAXHITS);
     }
@@ -1609,11 +1612,11 @@ static void memwatch (char **c)
 	    }
 	} else {
 	    illg_init ();
-	    console_out ("Illegal memory access logging enabled\n");
 	    ignore_ws (c);
 	    illgdebug_break = 0;
 	    if (more_params (c))
 		illgdebug_break = 1;
+	    console_out ("Illegal memory access logging enabled. Break=%d\n", illgdebug_break);
 	}
 	return;
     }
@@ -1863,9 +1866,11 @@ static void show_exec_tasks (void)
     }
 }
 
+#if 0
 static int trace_same_insn_count;
 static uae_u8 trace_insn_copy[10];
 static struct regstruct trace_prev_regs;
+#endif
 static uaecptr nextpc;
 
 static int instruction_breakpoint (char **c)
@@ -1944,12 +1949,14 @@ static int instruction_breakpoint (char **c)
 	    return 0;
 	}
     }
+#if 0
     if (skipaddr_start == 0xC0DEDBAD) {
 	trace_same_insn_count = 0;
 	logfile = fopen ("uae.trace", "w");
 	memcpy (trace_insn_copy, regs.pc_p, 10);
 	memcpy (&trace_prev_regs, &regs, sizeof regs);
     }
+#endif
     do_skip = 1;
     skipaddr_doskip = -1;
     return 1;
@@ -2286,17 +2293,17 @@ static void debug_1 (void)
 		screenshot (1, 1);
 	    } else if (*inptr == 'm') {
 		if (*(inptr + 1) == 'c') {
-		    if (!memwatch_enabled)
-			initialize_memwatch(0);
+		    next_char (&inptr);
+		    next_char (&inptr);
 		    if (!smc_table)
-			smc_detect_init();
+			smc_detect_init (&inptr);
 		    else
-			smc_reset();
+			smc_free ();
 		} else {
-		    next_char(&inptr);
-		    if (more_params(&inptr))
-			debug_sprite_mask = readint(&inptr);
-		    console_out("sprite mask: %02.2X\n", debug_sprite_mask);
+		    next_char (&inptr);
+		    if (more_params (&inptr))
+			debug_sprite_mask = readint (&inptr);
+		    console_out ("sprite mask: %02.2X\n", debug_sprite_mask);
 		}
 	    } else {
 		searchmem (&inptr);
@@ -2509,8 +2516,8 @@ void debug (void)
     bogusframe = 1;
     addhistory();
 
-    if (do_skip && skipaddr_start == 0xC0DEDBAD) {
 #if 0
+    if (do_skip && skipaddr_start == 0xC0DEDBAD) {
 	if (trace_same_insn_count > 0) {
 	    if (memcmp (trace_insn_copy, regs.pc_p, 10) == 0
 		&& memcmp (trace_prev_regs.regs, regs.regs, sizeof regs.regs) == 0)
@@ -2521,12 +2528,12 @@ void debug (void)
 	}
 	if (trace_same_insn_count > 1)
 	    fprintf (logfile, "[ repeated %d times ]\n", trace_same_insn_count);
-#endif
 	m68k_dumpstate (logfile, &nextpc);
 	trace_same_insn_count = 1;
 	memcpy (trace_insn_copy, regs.pc_p, 10);
 	memcpy (&trace_prev_regs, &regs, sizeof regs);
     }
+#endif
 
     if (!memwatch_triggered) {
 	if (do_skip) {

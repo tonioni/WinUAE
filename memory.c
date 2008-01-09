@@ -117,7 +117,7 @@ struct romdata *getromdatabypath(char *path)
     return NULL;
 }
 
-#define NEXT_ROM_ID 71
+#define NEXT_ROM_ID 72
 
 static struct romheader romheaders[] = {
     { "Freezer Cartridges", 1 },
@@ -159,6 +159,10 @@ static struct romdata roms[] = {
 	0x64466c2a, 0xF72D8914,0x8DAC39C6,0x96E30B10,0x859EBC85,0x9226637B },
     { "KS ROM v2.05 (A600HD)", 2, 5, 37, 350, "A600HD\0A600\0", 524288, 10, 0, 0, ROMTYPE_KICK, 0, 0,
 	0x43b0df7b, 0x02843C42,0x53BBD29A,0xBA535B0A,0xA3BD9A85,0x034ECDE4 },
+    { "KS ROM v2.04 (A3000)", 2, 4, 37, 132, "A3000\0", 524288, 71, 3, 0, ROMTYPE_KICK, 0, 0,
+	0x234a7233, 0xd82ebb59,0xafc53540,0xddf2d718,0x7ecf239b,0x7ea91590 },
+    ALTROM(71, 1, 1, 262144, ROMTYPE_EVEN, 0x7db1332b,0x48f14b31,0x279da675,0x7848df6f,0xeb531881,0x8f8f576c)
+    ALTROM(71, 1, 2, 262144, ROMTYPE_ODD , 0xa245dbdf,0x83bab8e9,0x5d378b55,0xb0c6ae65,0x61385a96,0xf638598f)
 
     { "KS ROM v3.0 (A1200)", 3, 0, 39, 106, "A1200\0", 524288, 11, 0, 0, ROMTYPE_KICK, 0, 0,
 	0x6c9b07d2, 0x70033828,0x182FFFC7,0xED106E53,0x73A8B89D,0xDA76FAA5 },
@@ -839,7 +843,7 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 int addr_valid(char *txt, uaecptr addr, uae_u32 len)
 {
     addrbank *ab = &get_mem_bank(addr);
-    if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address(addr, len)) {
+    if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address (addr, len)) {
 	write_log ("corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
 	return 0;
     }
@@ -2312,6 +2316,10 @@ static int load_kickstart (void)
 	    filesize = 262144;
 	    maxsize = 262144;
 	}
+	if (filesize == 524288 + 8) {
+	    /* GVP 0xf0 kickstart */
+	    zfile_fseek (f, 8, SEEK_SET);
+	}
 	if (filesize >= 524288 * 2) {
 	    struct romdata *rd = getromdatabyzfile(f);
 	    if (rd && rd->id == 64) {
@@ -2519,6 +2527,8 @@ static void allocate_memory (void)
 	if (chipmemory)
 	    mapped_free (chipmemory);
 	chipmemory = 0;
+	if (currprefs.chipmem_size > 2 * 1024 * 1024)
+	    free_fastmemory ();
 
 	memsize = allocated_chipmem = currprefs.chipmem_size;
 	chipmem_full_mask = chipmem_mask = allocated_chipmem - 1;
@@ -2763,11 +2773,11 @@ void memory_reset (void)
 	/* D80000 - DDFFFF not mapped (A1000 = custom chips) */
 	map_banks (&dummy_bank, 0xD8, 6, 0);
 
-    /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if PCMCIA or AGA) */
+    /* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if Gayle) */
     bnk = allocated_chipmem >> 16;
     if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 	bnk = 0x20 + (currprefs.fastmem_size >> 16);
-    bnk_end = (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia) ? 0xBF : 0xA0);
+    bnk_end = (((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0) ? 0xBF : 0xA0);
     map_banks (&dummy_bank, bnk, bnk_end - bnk, 0);
     if (currprefs.chipset_mask & CSMASK_AGA)
 	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
@@ -2787,7 +2797,7 @@ void memory_reset (void)
 	}
 	if (currprefs.cs_pcmcia) {
 	    map_banks (&gayle_attr_bank, 0xA0, 8, 0);
-	    if (currprefs.chipmem_size <= 4 * 1024 * 1024 || currprefs.fastmem_size <= 4 * 1024 * 1024)
+	    if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
 	        map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	}
 	if (currprefs.cs_ide == 2 || currprefs.cs_mbdmac == 2)
@@ -2813,22 +2823,24 @@ void memory_reset (void)
     if (cardmemory != 0)
 	map_banks (&cardmem_bank, cardmem_start >> 16, allocated_cardmem >> 16, 0);
 
-#ifdef AUTOCONFIG
-    if (need_uae_boot_rom ()) {
-	uae_boot_rom = 1;
-	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
-    }
-#endif
-
     map_banks (&kickmem_bank, 0xF8, 8, 0);
     if (currprefs.maprom)
 	map_banks (&kickram_bank, currprefs.maprom >> 16, 8, 0);
-    /* map beta Kickstarts at 0x200000 */
-    if (kickmemory[2] == 0x4e && kickmemory[3] == 0xf9 && kickmemory[4] == 0x00) {
+    /* map beta Kickstarts at 0x200000/0xC00000/0xF00000 */
+    if (kickmemory[0] == 0x11 && kickmemory[2] == 0x4e && kickmemory[3] == 0xf9 && kickmemory[4] == 0x00) {
 	uae_u32 addr = kickmemory[5];
 	if (addr == 0x20 && currprefs.chipmem_size <= 0x200000 && currprefs.fastmem_size == 0)
 	    map_banks (&kickmem_bank, addr, 8, 0);
+	if (addr == 0xC0 && currprefs.bogomem_size == 0)
+	    map_banks (&kickmem_bank, addr, 8, 0);
+	if (addr == 0xF0)
+	    map_banks (&kickmem_bank, addr, 8, 0);
     }
+
+#ifdef AUTOCONFIG
+    if (need_uae_boot_rom ())
+	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
+#endif
 
     if (a1000_bootrom)
 	a1000_handle_kickstart (1);
