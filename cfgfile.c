@@ -594,7 +594,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "ciaatod=%s\n", ciaatodmode[p->cs_ciaatod]);
     cfgfile_dwrite (f, "rtc=%s\n", rtctype[p->cs_rtc]);
     //cfgfile_dwrite (f, "chipset_rtc_adjust=%d\n", p->cs_rtc_adjust);
-    cfgfile_dwrite (f, "ksmirror=%s\n", ksmirrortype[p->cs_ksmirror]);
+    cfgfile_dwrite (f, "ksmirror_e0=%s\n", p->cs_ksmirror_e0 ? "true" : "false");
+    cfgfile_dwrite (f, "ksmirror_a8=%s\n", p->cs_ksmirror_a8 ? "true" : "false");
     cfgfile_dwrite (f, "cd32cd=%s\n", p->cs_cd32cd ? "true" : "false");
     cfgfile_dwrite (f, "cd32c2p=%s\n", p->cs_cd32c2p ? "true" : "false");
     cfgfile_dwrite (f, "cd32nvram=%s\n", p->cs_cd32nvram ? "true" : "false");
@@ -612,6 +613,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "scsi_a3000=%s\n", p->cs_mbdmac == 1 ? "true" : "false");
     cfgfile_dwrite (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
     cfgfile_dwrite (f, "bogomem_fast=%s\n", p->cs_slowmemisfast ? "true" : "false");
+    cfgfile_dwrite (f, "resetwarning=%s\n", p->cs_resetwarning ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
@@ -1295,7 +1297,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "scsi_cdtv", &p->cs_cdtvscsi)
 	|| cfgfile_yesno (option, value, "scsi_a4091", &p->cs_a4091)
 	|| cfgfile_yesno (option, value, "scsi_a2091", &p->cs_a2091)
+	|| cfgfile_yesno (option, value, "cia_overlay", &p->cs_ciaoverlay)
 	|| cfgfile_yesno (option, value, "bogomem_fast", &p->cs_slowmemisfast)
+	|| cfgfile_yesno (option, value, "ksmirror_e0", &p->cs_ksmirror_e0)
+	|| cfgfile_yesno (option, value, "ksmirror_a8", &p->cs_ksmirror_a8)
+	|| cfgfile_yesno (option, value, "resetwarning", &p->cs_resetwarning)
 
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
@@ -1349,7 +1355,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     if (cfgfile_strval (option, value, "comp_trustbyte", &p->comptrustbyte, compmode, 0)
 	|| cfgfile_strval (option, value, "chipset_compatible", &p->cs_compatible, cscompa, 0)
 	|| cfgfile_strval (option, value, "rtc", &p->cs_rtc, rtctype, 0)
-	|| cfgfile_strval (option, value, "ksmirror", &p->cs_ksmirror, ksmirrortype, 0)
+	|| cfgfile_strval (option, value, "ksmirror", &p->cs_ksmirror_e0, ksmirrortype, 0)
 	|| cfgfile_strval (option, value, "ciaatod", &p->cs_ciaatod, ciaatodmode, 0)
 	|| cfgfile_strval (option, value, "ide", &p->cs_ide, idemode, 0)
 	|| cfgfile_strval (option, value, "scsi", &p->scsi, scsimode, 0)
@@ -2896,10 +2902,13 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_pcmcia = 0;
-    p->cs_ksmirror = 1;
+    p->cs_ksmirror_e0 = 1;
+    p->cs_ksmirror_a8 = 0;
+    p->cs_ciaoverlay = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
     p->cs_slowmemisfast = 0;
+    p->cs_resetwarning = 1;
 
     p->gfx_filter = 0;
     p->gfx_filter_horiz_zoom_mult = 1000;
@@ -3041,7 +3050,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->z3fastmem_size = 0x00000000;
     p->gfxmem_size = 0x00000000;
 
-    p->cs_rtc = 1;
+    p->cs_rtc = 0;
     p->cs_a1000ram = 0;
     p->cs_fatgaryrev = -1;
     p->cs_ramseyrev = -1;
@@ -3054,9 +3063,12 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = 0;
     p->cs_ide = 0;
     p->cs_pcmcia = 0;
-    p->cs_ksmirror = 1;
+    p->cs_ksmirror_e0 = 1;
+    p->cs_ksmirror_a8 = 0;
+    p->cs_ciaoverlay = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
+    p->cs_resetwarning = 0;
 
     strcpy (p->romfile, "");
     strcpy (p->romextfile, "");
@@ -3302,6 +3314,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[1] = 31;
     roms[2] = 15;
     roms[3] = -1;
+    p->cs_rtc = 0;
     if (config == 1) {
 	p->fastmem_size = 0x400000;
 	p->cs_rtc = 2;
@@ -3322,6 +3335,8 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[3] = -1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x100000;
+    if (config > 0)
+	p->cs_rtc = 1;
     if (config == 1)
 	p->chipmem_size = 0x200000;
     if (config == 2)
@@ -3341,6 +3356,8 @@ static int bip_a500p (struct uae_prefs *p, int config, int compa, int romcheck)
     roms[1] = -1;
     p->bogomem_size = 0;
     p->chipmem_size = 0x100000;
+    if (config > 0)
+	p->cs_rtc = 1;
     if (config == 1)
 	p->chipmem_size = 0x200000;
     if (config == 2)
@@ -3440,7 +3457,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
     built_in_chipset_prefs (p);
     p->cs_ide = -1;
     p->cs_ciaatod = p->ntscmode ? 2 : 1;
-    strcat(p->flashfile, "battclock.nvr");
+    //strcat(p->flashfile, "battclock.nvr");
     return configure_rom (p, roms, romcheck);
 }
 
@@ -3541,9 +3558,11 @@ int built_in_chipset_prefs (struct uae_prefs *p)
     p->cs_mbdmac = 0;
     p->cs_a2091 = 0;
     p->cs_pcmcia = 0;
-    p->cs_ksmirror = 1;
+    p->cs_ksmirror_e0 = 1;
+    p->cs_ciaoverlay = 1;
     p->cs_ciaatod = 0;
     p->cs_df0idhw = 1;
+    p->cs_resetwarning = 1;
 
     switch (p->cs_compatible)
     {
@@ -3558,37 +3577,45 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_rtc = 1;
 	p->cs_cdtvcd = p->cs_cdtvram = 1;
 	p->cs_df0idhw = 1;
-	p->cs_ksmirror = 0;
+	p->cs_ksmirror_e0 = 0;
 	break;
     case CP_CD32: // CD32
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
-	p->cs_ksmirror = 0;
+	p->cs_ksmirror_e0 = 0;
+	p->cs_ksmirror_a8 = 1;
+	p->cs_ciaoverlay = 0;
+	p->cs_resetwarning = 0;
 	break;
     case CP_A500: // A500
 	p->cs_df0idhw = 0;
+	p->cs_resetwarning = 0;
 	break;
     case CP_A500P: // A500+
+	p->cs_resetwarning = 0;
 	break;
     case CP_A600: // A600
 	p->cs_ide = 1;
 	p->cs_pcmcia = 1;
+	p->cs_ksmirror_a8 = 1;
+	p->cs_ciaoverlay = 0;
+	p->cs_resetwarning = 0;
 	break;
     case CP_A1000: // A1000
 	p->cs_a1000ram = 1;
 	p->cs_ciaatod = p->ntscmode ? 2 : 1;
-	p->cs_ksmirror = 0;
+	p->cs_ksmirror_e0 = 0;
 	p->cs_rtc = 0;
 	p->chipset_mask |= CSMASK_BLTBUSY_BUG;
 	break;
     case CP_A1200: // A1200
 	p->cs_ide = 1;
 	p->cs_pcmcia = 1;
-	p->cs_ksmirror = 2;
+	p->cs_ksmirror_a8 = 1;
+	p->cs_ciaoverlay = 0;
 	break;
     case CP_A2000: // A2000
 	p->cs_rtc = 1;
 	p->cs_ciaatod = p->ntscmode ? 2 : 1;
-	break;
 	break;
     case CP_A3000: // A3000
 	p->cs_rtc = 2;
@@ -3610,6 +3637,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_ramseyrev = 0x0f;
 	p->cs_ide = 2;
 	p->cs_mbdmac = 0;
+	p->cs_ksmirror_a8 = 1;
+	p->cs_ciaoverlay = 0;
 	break;
     case CP_A4000T: // A4000T
 	p->cs_rtc = 2;
@@ -3617,6 +3646,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_ramseyrev = 0x0f;
 	p->cs_ide = 2;
 	p->cs_mbdmac = 2;
+	p->cs_ksmirror_a8 = 1;
+	p->cs_ciaoverlay = 0;
 	break;
     }
     return 1;

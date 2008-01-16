@@ -3430,6 +3430,10 @@ void systray (HWND hwnd, int remove)
     NOTIFYICONDATA nid;
     BOOL v;
 
+#ifdef RETROPLATFORM
+    if (rp_isactive())
+	return;
+#endif
     //write_log ("notif: systray(%x,%d)\n", hwnd, remove);
     if (!remove) {
 	TaskbarRestart = RegisterWindowMessage(TEXT("TaskbarCreated"));

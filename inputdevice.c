@@ -1510,8 +1510,13 @@ void inputdevice_do_keyboard (int code, int state)
     if (code < 0x80) {
 	uae_u8 key = code | (state ? 0x00 : 0x80);
 	keybuf[key & 0x7f] = (key & 0x80) ? 0 : 1;
-	if (((keybuf[AK_CTRL] || keybuf[AK_RCTRL]) && keybuf[AK_LAMI] && keybuf[AK_RAMI]) || key == AK_RESETWARNING) {
+	if (key == AK_RESETWARNING) {
+	    resetwarning_do (0);
+	    return;
+	} else if ((keybuf[AK_CTRL] || keybuf[AK_RCTRL]) && keybuf[AK_LAMI] && keybuf[AK_RAMI]) {
 	    int r = keybuf[AK_LALT] | keybuf[AK_RALT];
+	    if (!r && currprefs.cs_resetwarning && resetwarning_do (1))
+		return;
 	    memset (keybuf, 0, sizeof (keybuf));
 	    uae_reset (r);
 	}
@@ -1959,11 +1964,12 @@ static int getoldport (struct uae_input_device *id)
 
 static int switchdevice (struct uae_input_device *id, int num, int button)
 {
-    int i;
+    int i, j;
     int ismouse = 0;
     int newport = 0;
     int flags = 0;
     char *name = NULL;
+    int otherbuttonpressed = 0;
 
     if (num >= 4)
 	return 0;
@@ -1974,6 +1980,13 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	    name = idev[IDTYPE_JOYSTICK].get_uniquename (i);
 	    newport = num == 0 ? 1 : 0;
 	    flags = idev[IDTYPE_JOYSTICK].get_flags (i);
+	    for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+		if (j != i) {
+		    struct uae_input_device2 *id2 = &joysticks2[j];
+		    if (id2->buttonmask)
+			otherbuttonpressed = 1;
+		}
+	    }
 	}
 	if (id == &mice[i]) {
 	    ismouse = 1;
@@ -1984,6 +1997,8 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
     }
     if (!name)
 	return 0;
+    if (num == 0 && otherbuttonpressed)
+        newport = newport ? 0 : 1;
     if (!currprefs.input_selected_setting) {
 	if (num == 0 || num == 1) {
 	    int om = jsem_ismouse (num, &currprefs);

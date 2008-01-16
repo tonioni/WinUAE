@@ -205,7 +205,9 @@ struct uae_prefs {
     int cs_rtc;
     int cs_rtc_adjust;
     int cs_rtc_adjust_mode;
-    int cs_ksmirror;
+    int cs_ksmirror_e0;
+    int cs_ksmirror_a8;
+    int cs_ciaoverlay;
     int cs_cd32cd;
     int cs_cd32c2p;
     int cs_cd32nvram;
@@ -224,6 +226,7 @@ struct uae_prefs {
     int cs_a2091, cs_a4091;
     int cs_df0idhw;
     int cs_slowmemisfast;
+    int cs_resetwarning;
 
     char df[4][MAX_DPATH];
     char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];

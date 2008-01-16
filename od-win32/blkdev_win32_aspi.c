@@ -724,9 +724,9 @@ static void aspi_led (int unitnum)
     int type = si[unitnum].type;
 
     if (type == INQ_ROMD)
-	gui_cd_led (1);
+	gui_cd_led (unitnum, 1);
     else if (type == INQ_DASD)
-	gui_hd_led (1);
+	gui_hd_led (unitnum, 1);
 }
 
 static uae_sem_t scgp_sem;

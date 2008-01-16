@@ -843,7 +843,7 @@
 #define IDC_CS_CIAA_TOD3                1713
 #define IDC_CS_COMPATIBLE               1714
 #define IDC_CS_RAMSEYREV                1715
-#define IDC_CS_KSMIRROR                 1716
+#define IDC_CS_KSMIRROR_E0              1716
 #define IDC_STRINGBOXEDIT               1716
 #define IDC_CS_CD32CD                   1717
 #define IDC_STRINGBOX_TEXT              1717
@@ -878,8 +878,12 @@
 #define IDC_CS_SLOWISFAST               1740
 #define IDC_DBG_HELP                    1740
 #define IDC_DBG_INPUT                   1741
+#define IDC_CS_KSMIRROR_A8              1741
 #define IDC_DBG_DREG                    1742
+#define IDC_CS_CIAOVERLAY               1742
 #define IDC_DBG_AREG                    1743
+#define IDC_CS_KSMIRROR_E1              1743
+#define IDC_CS_RESETWARNING             1743
 #define IDC_DBG_CCR                     1744
 #define IDC_DBG_AMEM                    1745
 #define IDC_DBG_SP_VBR                  1746

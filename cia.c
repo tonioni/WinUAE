@@ -32,6 +32,8 @@
 #include "debug.h"
 #include "arcadia.h"
 #include "audio.h"
+#include "keyboard.h"
+#include "uae.h"
 #include "amax.h"
 
 //#define CIAA_DEBUG_R
@@ -333,6 +335,71 @@ STATIC_INLINE void ciaa_checkalarm (int inc)
     }
 }
 
+static int resetwarning_phase, resetwarning_timer;
+
+static void setcode (uae_u8 keycode)
+{
+    ciaasdr = ~((keycode << 1) | (keycode >> 7));
+}
+
+static void sendrw (void)
+{
+    setcode (AK_RESETWARNING);
+    ciaaicr |= 8;
+    ciaasdr_unread = 1;
+    RethinkICRA ();
+    write_log ("KB: sent reset warning code (phase=%d)\n", resetwarning_phase);
+}
+
+int resetwarning_do (int canreset)
+{
+    if (resetwarning_phase) {
+	/* just force reset if second reset happens during resetwarning */
+	if (canreset) {
+	    resetwarning_phase = 0;
+	    resetwarning_timer = 0;
+	}
+	return 0;
+    }
+    resetwarning_phase = 1;
+    resetwarning_timer = maxvpos * 5;
+    write_log ("KB: reset warning triggered\n");
+    sendrw ();
+    return 1;
+}
+
+static void resetwarning_check (void)
+{
+    if (resetwarning_timer > 0) {
+	resetwarning_timer--;
+	if (resetwarning_timer <= 0) {
+	    write_log ("KB: reset warning forced reset. Phase=%d\n", resetwarning_phase);
+	    resetwarning_phase = -1;
+	    uae_reset (0);
+	}
+    }
+    if (resetwarning_phase == 1) {
+	if (kback && !(ciaacra & 0x40) && ciaasdr_unread == 2) {
+	    write_log ("KB: reset warning second phase..\n");
+	    resetwarning_phase = 2;
+	    resetwarning_timer = maxvpos * 5;
+	    sendrw ();
+	}
+    } else if (resetwarning_phase == 2) {
+	if (ciaacra & 0x40) {
+	    resetwarning_phase = 3;
+	    write_log ("KB: reset warning SP = output\n");
+	    resetwarning_timer = 10 * maxvpos * vblank_hz; /* wait max 10s */
+	}
+    } else if (resetwarning_phase == 3) {
+	if (!(ciaacra & 0x40)) {
+	    write_log ("KB: reset warning end by software. reset.\n");
+	    resetwarning_phase = -1;
+	    uae_reset (0);
+	}
+    }
+}
+
 void CIA_hsync_handler (void)
 {
     if (ciabtodon) {
@@ -341,7 +408,11 @@ void CIA_hsync_handler (void)
 	ciab_checkalarm (1);
     }
 
-    if (keys_available() && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
+    if (resetwarning_phase) {
+	resetwarning_check ();
+	while (keys_available ())
+	    get_next_key ();
+    } else if ((keys_available() || kbstate < 2) && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
 	/*
 	 * This hack lets one possible ciaaicr cycle go by without any key
 	 * being read, for every cycle in which a key is pulled out of the
@@ -359,12 +430,12 @@ void CIA_hsync_handler (void)
 	} else if (ciaasdr_unread == 0) {
 	    switch (kbstate) {
 	     case 0:
-		ciaasdr = (uae_s8)~0xFB; /* aaarghh... stupid compiler */
+		setcode (AK_INIT_POWERUP);
 		kbstate++;
 		break;
 	     case 1:
+		setcode (AK_TERM_POWERUP);
 		kbstate++;
-		ciaasdr = (uae_s8)~0xFD;
 		break;
 	     case 2:
 		ciaasdr = ~get_next_key();
@@ -442,8 +513,8 @@ static void bfe001_change (void)
 	oldovl = v & 1;
 	if (!oldovl || ersatzkickfile) {
 	    map_overlay (1);
-	} else if (!(currprefs.chipset_mask & CSMASK_AGA)) {
-	    /* pin disconnected in AGA chipset, CD audio mute on/off on CD32 */
+	} else if (currprefs.cs_ciaoverlay) {
+	    /* Gayle does this internally, CIA pin disconnected, CD audio mute on/off on CD32 */
 	    map_overlay (0);
 	}
     }
@@ -979,6 +1050,7 @@ void CIA_reset (void)
     serbits = 0;
     oldovl = -1;
     oldled = -1;
+    resetwarning_phase = resetwarning_timer = 0;
 
     if (!savestate_state) {
 	ciaatlatch = ciabtlatch = 0;
@@ -1222,7 +1294,7 @@ static void REGPARAM3 clock_bput (uaecptr, uae_u32) REGPARAM;
 addrbank clock_bank = {
     clock_lget, clock_wget, clock_bget,
     clock_lput, clock_wput, clock_bput,
-    default_xlate, default_check, NULL, "Battery backed up clock",
+    default_xlate, default_check, NULL, "Battery backed up clock (none)",
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 

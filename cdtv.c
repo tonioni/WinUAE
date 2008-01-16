@@ -957,7 +957,7 @@ void CDTV_hsync_handler(void)
 	    do_stch();
     }
     if (cd_playing)
-	gui_cd_led (1);
+	gui_cd_led (0, 1);
     if (cd_media && (tp_cr & 1)) {
 	tp_air |= 1 << 1;
 	INT2();

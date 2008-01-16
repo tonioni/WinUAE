@@ -358,7 +358,7 @@ static void ide_read_sectors (int multi)
 	ide_fail ();
 	return;
     }
-    gui_hd_led (1);
+    gui_hd_led (ide->num, 1);
     nsec = ide_nsector == 0 ? 256 : ide_nsector;
     get_lbachs (ide, &lba, &cyl, &head, &sec);
     if (IDE_LOG > 0)
@@ -384,7 +384,7 @@ static void ide_write_sectors (int multi)
 	ide_fail ();
 	return;
     }
-    gui_hd_led (2);
+    gui_hd_led (ide->num, 2);
     nsec = ide_nsector == 0 ? 256 : ide_nsector;
     get_lbachs (ide, &lba, &cyl, &head, &sec);
     if (lba * 512 >= ide->hdhfd.size) {
@@ -1181,7 +1181,6 @@ static void checkflush (int addr)
 	    int len = end - start;
 	    if (len > 0) {
 		hdf_write (&pcmcia_sram->hfd, pcmcia_common + start, start, len);
-		write_log ("write %d %d\n", start, len);
 		pcmcia_write_min = -1;
 	    }
 	}

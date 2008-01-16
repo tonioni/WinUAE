@@ -2593,8 +2593,8 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	if (currprefs.gfx_afullscreen && currprefs.gfx_avsync)
 	    flush_screen (0, 0); /* vsync mode */
     }
-    gui_hd_led (0);
-    gui_cd_led (0);
+    gui_hd_led (-1, 0);
+    gui_cd_led (-1, 0);
 #ifdef AVIOUTPUT
     frame_drawn ();
 #endif

@@ -71,7 +71,7 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
-    gui_cd_led (1);
+    gui_cd_led (unitnum, 1);
     swb->spt.ScsiStatus = 0;
     if (di->bus >= 0) {
 	swb->spt.PathId = di->path;
@@ -97,7 +97,7 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
 	swb->spt.SenseInfoLength = 0; /* 0 and 1 = success, not error.. */
     if (swb->spt.SenseInfoLength > 0)
 	return 0;
-    gui_cd_led (1);
+    gui_cd_led (unitnum, 1);
     return status;
 }
 

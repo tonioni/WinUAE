@@ -3,6 +3,55 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 6:
+
+- binary support added to debugger, '%10101'
+- hex/dec/bin converter added to debugger, '?<value>'
+  result is 0x<hex>, %<bin>, <unsigned dec> and <signed dec>
+- all debugger commands which take numeric parameters also accept
+  register names: A0-A7 = RA0-RA7, D0-D7 = RD0-RD7, PC, USP, VBR,..
+- debugger number prefixes: hex = 0x or $, bin = %, dec = !. Most
+  command parameters default to hex (addresses) or decimal.
+- do not reserve lots of jit direct ram if non-jit compatible cpu
+- logitech lcd dfx/cpu/fps counter leading zeros removed
+  (I have G15 again, updated revision this time)
+- some incorrect Quickstart RTC configurations fixed
+- keyboard reset warning feature emulated and added to advanced
+  chipset panel. Reset warning information:
+  http://cataclysm.cx/random/amiga/reference/Hardware_Manual_guide/node0178.html
+  Reset warning sequence is only triggered if Amiga-Amiga-CTRL key
+  sequence pressed and reset warning setting enabled. Or Input panel
+  event "Keycode 0x78 (Reset Warning)" is received.
+  Amiga-Amiga-CTRL-ALT still does instant hardreset. Second
+  Amiga-Amiga-CTRL during reset warning sequence will also cause
+  instant reset.
+  Pre-emptive "bug report": if Amiga-Amiga-CTRL now causes gurus,
+  reset delays or something weird (and does not if reset warning is
+  disabled or GUI Reset-button clicked) you have buggy/badly configured
+  reset handler utility installed. This is Somebody Else's Problem.
+- joystick autoswitch update: firebutton press on non-connected
+  (to emulated Amiga port) joystick AND another joystick already in
+  joystick port (port 1) WITH firebutton pressed = insert new joystick
+  to mouse port
+
+  Following can be ignored if you aren't testing custom ROM images
+  before burning EPROM(s)
+
+- kickstart chipram overlay maps 0xe00000 rom instead of 0xf80000,
+  same with 0xf00000 rom if it begins with 0x1114 (emulates my 1M CDTV
+  EPROM hack..)
+- 2M ROM image support. Gayle ROM mapping:
+  * first 512K bank: E00000-E7FFFF (overlay bank)
+  * second 512K bank: A80000-AFFFFF
+  * third 512K bank: B00000-B7FFFF
+  * fourth 512K bank: F80000-FFFFFF
+  At least A600 and A1200 have 2MB ROM support but note that A1200
+  Blizzard accel's MAPROM feature must be disabled
+- cia overlay advanced chipset setting added (Pre-Gayle models use
+  CIA overlay io pin, newer models have overlay logic inside Gayle)
+- ROM Mirror advanced chipset setting separated to E0 and A8 ROM
+  banks. (A8-B8 = Gayle feature)
+
 Beta 5:
 
 - fixed wrong input device GUID format in config files

@@ -131,7 +131,6 @@ extern struct regstruct
 #endif
 
     uae_u32 pcr;
-    uae_u32 kick_mask;
     uae_u32 address_space_mask;
 
     uae_u8 panic;

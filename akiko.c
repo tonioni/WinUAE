@@ -1043,7 +1043,7 @@ void AKIKO_hsync_handler (void)
     framecounter--;
     if (framecounter <= 0) {
 	if (cdrom_playing || cdrom_toc_counter > 0)
-	    gui_cd_led (1);
+	    gui_cd_led (0, 1);
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
 	set_status(CDSTATUS_FRAME);

@@ -363,7 +363,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int read
 
 static uae_u64 cmd_readx (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
-    gui_hd_led (1);
+    gui_hd_led (hfd->unitnum, 1);
     hf_log3 ("cmd_read: %p %04.4x-%08.8x (%d) %08.8x (%d)\n",
 	dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->blocksize), (uae_u32)len, (uae_u32)(len / hfd->blocksize));
     return hdf_read (hfd, dataptr, offset, len);
@@ -377,7 +377,7 @@ static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offs
 }
 static uae_u64 cmd_writex (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
-    gui_hd_led (2);
+    gui_hd_led (hfd->unitnum, 2);
     hf_log3 ("cmd_write: %p %04.4x-%08.8x (%d) %08.8x (%d)\n",
 	dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->blocksize), (uae_u32)len, (uae_u32)(len / hfd->blocksize));
     return hdf_write (hfd, dataptr, offset, len);

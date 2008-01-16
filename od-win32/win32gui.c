@@ -4292,7 +4292,10 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	break;
     }
     CheckDlgButton (hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible);
-    CheckDlgButton (hDlg, IDC_CS_KSMIRROR, workprefs.cs_ksmirror);
+    CheckDlgButton (hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
+    CheckDlgButton (hDlg, IDC_CS_KSMIRROR_E0, workprefs.cs_ksmirror_e0);
+    CheckDlgButton (hDlg, IDC_CS_KSMIRROR_A8, workprefs.cs_ksmirror_a8);
+    CheckDlgButton (hDlg, IDC_CS_CIAOVERLAY, workprefs.cs_ciaoverlay);
     CheckDlgButton (hDlg, IDC_CS_DF0IDHW, workprefs.cs_df0idhw);
     CheckDlgButton (hDlg, IDC_CS_CD32CD, workprefs.cs_cd32cd);
     CheckDlgButton (hDlg, IDC_CS_CD32C2P, workprefs.cs_cd32c2p);
@@ -4362,7 +4365,10 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     int v;
 
     workprefs.cs_compatible = IsDlgButtonChecked (hDlg, IDC_CS_COMPATIBLE);
-    workprefs.cs_ksmirror = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR);
+    workprefs.cs_resetwarning = IsDlgButtonChecked (hDlg, IDC_CS_RESETWARNING);
+    workprefs.cs_ksmirror_e0 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_E0);
+    workprefs.cs_ksmirror_a8 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_A8);
+    workprefs.cs_ciaoverlay = IsDlgButtonChecked (hDlg, IDC_CS_CIAOVERLAY);
     workprefs.cs_df0idhw = IsDlgButtonChecked (hDlg, IDC_CS_DF0IDHW);
     workprefs.cs_cd32cd = IsDlgButtonChecked (hDlg, IDC_CS_CD32CD);
     workprefs.cs_cd32c2p = IsDlgButtonChecked (hDlg, IDC_CS_CD32C2P);
@@ -4456,7 +4462,10 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_CDTVCD, e);
     ew (hDlg, IDC_CS_CDTVRAM, e);
     ew (hDlg, IDC_CS_CDTVRAMEXP, e);
-    ew (hDlg, IDC_CS_KSMIRROR, e);
+    ew (hDlg, IDC_CS_RESETWARNING, e);
+    ew (hDlg, IDC_CS_KSMIRROR_E0, e);
+    ew (hDlg, IDC_CS_KSMIRROR_A8, e);
+    ew (hDlg, IDC_CS_CIAOVERLAY, e);
     ew (hDlg, IDC_CS_A1000RAM, e);
     ew (hDlg, IDC_CS_DF0IDHW, e);
     ew (hDlg, IDC_CS_CIAA_TOD1, e);
@@ -10328,7 +10337,7 @@ void check_prefs_changed_gui( void )
 {
 }
 
-void gui_hd_led (int led)
+void gui_hd_led (int unitnum, int led)
 {
     static int resetcounter;
 
@@ -10338,13 +10347,16 @@ void gui_hd_led (int led)
 	if (resetcounter > 0)
 	    return;
     }
+#ifdef RETROPLATFORM
+    rp_hd_activity (unitnum, led);
+#endif
     gui_data.hd = led;
     resetcounter = 6;
     if (old != gui_data.hd)
 	gui_led (5, gui_data.hd);
 }
 
-void gui_cd_led (int led)
+void gui_cd_led (int unitnum, int led)
 {
     static int resetcounter;
 
@@ -10354,6 +10366,9 @@ void gui_cd_led (int led)
 	if (resetcounter > 0)
 	    return;
     }
+#ifdef RETROPLATFORM
+    rp_cd_activity (unitnum, led);
+#endif
     gui_data.cd = led;
     resetcounter = 6;
     if (old != gui_data.cd)

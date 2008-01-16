@@ -283,6 +283,8 @@ void write_log (const char *format, ...)
 	break;
     }
     bufp[bufsize - 1] = 0;
+    if (!memcmp (bufp, "write ",6))
+	bufsize--;
     ts = writets();
     if (bufp[0] == '*')
 	count++;

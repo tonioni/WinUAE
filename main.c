@@ -180,7 +180,7 @@ void fixup_prefs (struct uae_prefs *p)
     if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
 	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > max_z3fastmem / 2)))
     {
-	write_log ("Unsupported graphics card memory size %x!\n", p->gfxmem_size);
+	write_log ("Unsupported graphics card memory size %x (%x)!\n", p->gfxmem_size, max_z3fastmem / 2);
 	if (p->gfxmem_size > max_z3fastmem / 2)
 	    p->gfxmem_size = max_z3fastmem / 2;
 	else
@@ -190,11 +190,11 @@ void fixup_prefs (struct uae_prefs *p)
     if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
 	|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > max_z3fastmem)))
     {
+	write_log ("Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem_size, max_z3fastmem);
 	if (p->z3fastmem_size > max_z3fastmem)
 	    p->z3fastmem_size = max_z3fastmem;
 	else
 	    p->z3fastmem_size = 0;
-	write_log ("Unsupported Zorro III fastmem size!\n");
 	err = 1;
     }
     p->z3fastmem_start &= ~0xffff;

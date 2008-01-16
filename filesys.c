@@ -3163,7 +3163,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
     uae_u32 uniq;
 
     TRACE(("ACTION_EXAMINE_NEXT(0x%lx,0x%lx)\n", lock, info));
-    gui_hd_led (1);
+    gui_hd_led (unit->unit, 1);
     DUMPLOCK(unit, lock);
 
     if (lock != 0)
@@ -3472,7 +3472,7 @@ action_read (Unit *unit, dpacket packet)
 	return;
     }
     TRACE(("ACTION_READ(%s,0x%lx,%ld)\n",k->aino->nname,addr,size));
-    gui_hd_led (1);
+    gui_hd_led (unit->unit, 1);
 #ifdef RELY_ON_LOADSEG_DETECTION
     /* HACK HACK HACK HACK
      * Try to detect a LoadSeg() */
@@ -3552,7 +3552,7 @@ action_write (Unit *unit, dpacket packet)
 	return;
     }
 
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
     TRACE(("ACTION_WRITE(%s,0x%lx,%ld)\n",k->aino->nname,addr,size));
 
     if (unit->ui.readonly) {
@@ -3613,7 +3613,7 @@ action_seek (Unit *unit, dpacket packet)
     if (mode < 0) whence = SEEK_SET;
 
     TRACE(("ACTION_SEEK(%s,%d,%d)\n", k->aino->nname, pos, mode));
-    gui_hd_led (1);
+    gui_hd_led (unit->unit, 1);
 
     old = fs_lseek (unit, k->fd, 0, SEEK_CUR);
     {
@@ -3679,7 +3679,7 @@ action_set_protect (Unit *unit, dpacket packet)
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     }
     notify_check (unit, a);
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void action_set_comment (Unit * unit, dpacket packet)
@@ -3731,7 +3731,7 @@ static void action_set_comment (Unit * unit, dpacket packet)
     a->comment = commented;
     fsdb_set_file_attrs (a);
     notify_check (unit, a);
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void
@@ -3919,7 +3919,7 @@ action_create_dir (Unit *unit, dpacket packet)
     notify_check (unit, aino);
     updatedirtime (aino, 0);
     PUT_PCK_RES1 (packet, make_lock (unit, aino->uniq, -2) >> 2);
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void
@@ -3969,7 +3969,7 @@ action_set_file_size (Unit *unit, dpacket packet)
 	return;
     }
 
-    gui_hd_led (1);
+    gui_hd_led (unit->unit, 1);
     k->notifyactive = 1;
     /* If any open files have file pointers beyond this size, truncate only
      * so far that these pointers do not become invalid.  */
@@ -4107,7 +4107,7 @@ action_delete_object (Unit *unit, dpacket packet)
 	delete_aino (unit, a);
     }
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void
@@ -4140,7 +4140,7 @@ action_set_date (Unit *unit, dpacket packet)
 	notify_check (unit, a);
 	PUT_PCK_RES1 (packet, DOS_TRUE);
     }
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void
@@ -4246,7 +4246,7 @@ action_rename_object (Unit *unit, dpacket packet)
     if (a2->elock > 0 || a2->shlock > 0 || wehavekeys > 0)
 	de_recycle_aino (unit, a2);
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    gui_hd_led (2);
+    gui_hd_led (unit->unit, 2);
 }
 
 static void

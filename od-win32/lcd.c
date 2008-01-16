@@ -135,7 +135,7 @@ static void putnumber(int x, int y, int n, int inv)
 
 static void putnumbers(int x, int y, int num, int inv)
 {
-    putnumber(x, y, num < 0 ? num : num / 10, inv);
+    putnumber(x, y, num < 0 ? num : ((num / 10) > 0 ? num / 10 : -1), inv);
     putnumber(x + numbers_width, y, num < 0 ? num : num % 10, inv);
 }
 

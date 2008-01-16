@@ -24,6 +24,7 @@
 #include "picasso96_win.h"
 #include "win32.h"
 #include "win32gfx.h"
+#include "filesys.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -38,6 +39,7 @@ int log_rp = 1;
 static int default_width, default_height;
 static int hwndset;
 static int minimized;
+static DWORD hd_mask, cd_mask;
 
 
 static char *ua (const WCHAR *s)
@@ -305,6 +307,36 @@ void rp_fixup_options (struct uae_prefs *p)
 	    v |= 1 << i;
     }
     RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, v, NULL, 0, &guestinfo, NULL);
+    cd_mask = 0;
+    for (i = 0; i < currprefs.mountitems; i++) {
+        struct uaedev_config_info *uci = &currprefs.mountconfig[i];
+	if (uci->controller == HD_CONTROLLER_UAE) {
+	    hd_mask |= 1 << i;
+        } else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
+	    hd_mask |= 1 << (uci->controller -  HD_CONTROLLER_IDE0);
+	} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
+	    hd_mask |= 1 << (uci->controller -  HD_CONTROLLER_SCSI0);
+	}
+    }
+    RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_hd_change (int num, int removed)
+{
+    if (removed)
+	hd_mask &= ~(1 << num);
+    else
+	hd_mask |= 1 << num;
+    RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_cd_change (int num, int removed)
+{
+    if (removed)
+	cd_mask &= ~(1 << num);
+    else
+	cd_mask |= 1 << num;
+    RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_update_leds (int led, int onoff)
@@ -326,6 +358,32 @@ void rp_update_leds (int led, int onoff)
 	break;
     }
 }
+
+void rp_hd_activity (int num, int onoff)
+{
+    if (!initialized)
+	return;
+    if (num < 0)
+	return;
+    if (onoff)
+	RPSendMessage(RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num), 200, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_cd_activity (int num, int onoff)
+{
+    if (!initialized)
+	return;
+    if (num < 0)
+	return;
+    if ((cd_mask & (1 << num)) != ((onoff ? 1 : 0) << num)) {
+        cd_mask ^= 1 << num;
+        RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+    }
+    if (onoff) {
+	RPSendMessage(RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num), 200, NULL, 0, &guestinfo, NULL);
+    }
+}
+
 
 void rp_update_status (struct uae_prefs *p)
 {

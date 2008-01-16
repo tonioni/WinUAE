@@ -140,9 +140,14 @@ int init_shm (void)
     natmem_offset = NULL;
     canbang = 0;
 
-    size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
-    size += currprefs.gfxmem_size;
-    size += 16 * 1024 * 1024;
+    size = 0x1000000;
+    if (currprefs.cpu_model >= 68020)
+	size = 0x10000000;
+    if (currprefs.z3fastmem_size || currprefs.gfxmem_size) {
+	size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
+	size += currprefs.gfxmem_size;
+	size += 16 * 1024 * 1024;
+    }
 
     while (size > size64) {
 	int change = lowmem ();
