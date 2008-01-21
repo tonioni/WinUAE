@@ -2452,6 +2452,7 @@ static int load_kickstart (void)
 	    extendedkickmem_size = 0x80000;
 	    if (currprefs.cs_cdtvcd || currprefs.cs_cdtvram) {
 		extendedkickmem_type = EXTENDED_ROM_CDTV;
+		extendedkickmem_size *= 2;
 		extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
 	    } else {
 		extendedkickmem_type = EXTENDED_ROM_KS;
@@ -2459,7 +2460,7 @@ static int load_kickstart (void)
 	    }
 	    extendedkickmem_bank.baseaddr = extendedkickmemory;
 	    zfile_fseek (f, extpos, SEEK_SET);
-	    read_kickstart (f, extendedkickmemory, 0x80000,  0, 0, 1);
+	    read_kickstart (f, extendedkickmemory, extendedkickmem_size,  0, 0, 1);
 	    extendedkickmem_mask = extendedkickmem_size - 1;
 	}
 	if (filesize > 524288 * 2) {
@@ -2987,11 +2988,6 @@ void memory_reset (void)
 	    map_banks (&kickmem_bank, addr, 8, 0);
     }
 
-#ifdef AUTOCONFIG
-    if (need_uae_boot_rom ())
-	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
-#endif
-
     if (a1000_bootrom)
 	a1000_handle_kickstart (1);
 #ifdef AUTOCONFIG
@@ -3007,7 +3003,7 @@ void memory_reset (void)
 	break;
 #ifdef CDTV
     case EXTENDED_ROM_CDTV:
-	map_banks (&extendedkickmem_bank, 0xF0, 8, 0);
+	map_banks (&extendedkickmem_bank, 0xF0, extendedkickmem_size == 2 * 524288 ? 16 : 8, 0);
 	break;
 #endif
 #ifdef CD32
@@ -3016,6 +3012,11 @@ void memory_reset (void)
 	break;
 #endif
     }
+
+#ifdef AUTOCONFIG
+    if (need_uae_boot_rom ())
+	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
+#endif
 
     if ((cloanto_rom || currprefs.cs_ksmirror_e0) && !currprefs.maprom && !extendedkickmem_type)
 	map_banks (&kickmem_bank, 0xE0, 8, 0);

@@ -3,6 +3,16 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 7:
+
+- debugger activating when address error happened (debug code..)
+- 1M CDTV ROM (0xf00000-0xffffff) confused CPU emulator if m68k
+  instruction crossed extended and ks rom memory banks, 1M CDTV ROM is
+  now single 1M extended rom bank (I am still doing 1M real CDTV EPROM
+  tests..)
+- audio emulation update, copy AUDLEN and AUDLC to backup registers
+  when AUDxDAT starts interrupt-driven audio mode (Dungeon Master II)
+
 Beta 6:
 
 - binary support added to debugger, '%10101'

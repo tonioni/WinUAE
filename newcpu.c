@@ -1080,7 +1080,6 @@ static void Exception_normal (int nr, struct regstruct *regs, uaecptr oldpc)
 	put_word (m68k_areg (regs, 7) + 8, regs->sr);
 	put_long (m68k_areg (regs, 7) + 10, last_addr_for_exception_3);
 	write_log ("Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (regs->vbr + 4*nr));
-    activate_debugger();
 	goto kludge_me_do;
     }
     m68k_areg (regs, 7) -= 4;

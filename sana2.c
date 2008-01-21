@@ -305,6 +305,7 @@ static int openfail (uaecptr ioreq, int error)
 {
     put_long (ioreq + 20, -1);
     put_byte (ioreq + 31, error);
+    put_long (ioreq + 32, 0); /* io_device */
     return (uae_u32)-1;
 }
 
@@ -341,6 +342,9 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	write_log ("opening %s:%d ioreq=%08.8X\n", SANA2NAME, unit, ioreq);
     if (!dev)
 	return openfail (ioreq, 32); /* badunitnum */
+    if (get_word (ioreq + 0x12) < 32 + 4 + 4 + SANA2_MAX_ADDR_BYTES * 2 + 4 + 4 + 4 + 4)
+	return openfail (ioreq, -1); /* too small iorequest */
+
     if (!buffermgmt)
 	return openfail (ioreq, S2ERR_BAD_ARGUMENT);
     if ((flags & SANA2OPF_PROM) && dev->opencnt > 0)

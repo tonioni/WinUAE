@@ -614,6 +614,8 @@ static void dma_do_thread(void)
     while (dma_finished)
 	sleep_millis (2);
 
+    if (!cdtv_sectorsize)
+	return;
     cnt = dmac_wtc;
     write_log ("DMAC DMA: sector=%d, addr=%08.8X, words=%d (of %d)\n",
 	cdrom_offset / cdtv_sectorsize, dmac_acr, cnt, cdrom_length / 2);
@@ -1262,7 +1264,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
     b &= 0xff;
     if (addr == 0x48) {
 	map_banks (&dmac_bank, b, 0x10000 >> 16, 0x10000);
-	write_log ("CDTV DMAC autoconfigured at %02.2X0000\n", b & 0xff);
+	write_log ("CDTV DMAC autoconfigured at %02X0000\n", b);
 	configured = 1;
 	expamem_next();
 	return;

@@ -884,9 +884,9 @@ static void listcheater(int mode, int size)
 	    b = get_word (ts->addr);
 	}
 	if (mode)
-	    console_out("%08.8X=%4.4X ", ts->addr, b);
+	    console_out("%08X=%04X ", ts->addr, b);
 	else
-	    console_out("%08.8X ", ts->addr);
+	    console_out("%08X ", ts->addr);
 	if ((i % skip) == skip)
 	    console_out("\n");
     }

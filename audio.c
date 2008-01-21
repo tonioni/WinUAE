@@ -1635,6 +1635,8 @@ void AUDxDAT (int nr, uae_u16 v)
     /* cpu >= 68020: another "too fast" memory/CPU hack */
     if (cdp->state == 0 || currprefs.cpu_model >= 68020) {
 	cdp->state = 2;
+	cdp->wlen = cdp->len;
+	cdp->pt = cdp->lc;
 	if (currprefs.cpu_model >= 68020)
 	    INTREQ (0x80 << nr);
 	audio_handler (nr);

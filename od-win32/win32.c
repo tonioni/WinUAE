@@ -74,7 +74,7 @@
 #endif
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi, log_net = 1;
+int log_scsi, log_net = 0;
 
 extern FILE *debugfile;
 extern int console_logging;
