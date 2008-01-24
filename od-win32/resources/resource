@@ -688,6 +688,8 @@
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
 #define IDC_INPREC_PLAY                 1620
+#define IDC_FILTERENABLE2               1620
+#define IDC_FILTERUPSCALE               1620
 #define IDC_AVIOUTPUT_24BIT             1621
 #define IDC_AVIOUTPUT_WIDTH             1622
 #define IDC_AVIOUTPUT_HEIGHT            1623
@@ -882,10 +884,11 @@
 #define IDC_DBG_DREG                    1742
 #define IDC_CS_CIAOVERLAY               1742
 #define IDC_DBG_AREG                    1743
-#define IDC_CS_KSMIRROR_E1              1743
 #define IDC_CS_RESETWARNING             1743
 #define IDC_DBG_CCR                     1744
+#define IDC_CS_NOEHB                    1744
 #define IDC_DBG_AMEM                    1745
+#define IDC_CS_BLITTERBUG               1745
 #define IDC_DBG_SP_VBR                  1746
 #define IDC_DBG_MMISC                   1747
 #define IDC_DBG_PC                      1748

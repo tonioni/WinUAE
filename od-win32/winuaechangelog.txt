@@ -3,6 +3,21 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 8:
+
+- input-panel NMI and END+SHIFT+Break NMI was unstable in
+  cycle-exact/more compatible modes
+- Denise without EHB added to advanced chipset (was already in
+  A1000 "ICS" Quickstart)
+- original Agnus BLTBUSY bug added to advanced chipset (also was
+  already in A1000 Quickstart)
+- accept same windowed mode resolution as windows desktop
+- added "full screen" option to filter panel. Amiga display area
+  fills whole screen when this option is enabled. Maybe useful when
+  using "full-window" mode. Note: "whole screen" = resolution selected
+  in full screen display select box, even in "full-window" mode.
+  "Internal" filter window size can't be adjusted yet.
+
 Beta 7:
 
 - debugger activating when address error happened (debug code..)

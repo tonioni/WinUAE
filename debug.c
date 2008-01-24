@@ -148,7 +148,7 @@ void debug_help (void)
 static int debug_linecounter;
 #define MAX_LINECOUNTER 1000
 
-static int debug_out (const char *format,...)
+static int debug_out (const char *format, ...)
 {
     va_list parms;
     char buffer[4000];
@@ -2233,6 +2233,60 @@ static int staterecorder (char **cc)
     return 0;
 }
 
+static int debugtest_modes[DEBUGTEST_MAX];
+static const char *debugtest_names[] = {
+    "Blitter", "Keyboard", "Floppy"
+};
+
+void debugtest (enum debugtest_item di, const char *format, ...)
+{
+    va_list parms;
+    char buffer[1000];
+
+    if (!debugtest_modes[di])
+	return;
+    va_start (parms, format);
+    _vsnprintf (buffer, 1000 - 1, format, parms);
+    va_end (parms);
+    write_log ("%s PC=%08X: %s\n", debugtest_names[di], M68K_GETPC, buffer);
+    if (debugtest_modes[di] == 2)
+	activate_debugger ();
+}
+
+static void debugtest_set (char **inptr)
+{
+    int i, val, val2;
+    ignore_ws (inptr);
+
+    val2 = 1;
+    if (!more_params (inptr)) {
+	for (i = 0; i < DEBUGTEST_MAX; i++)
+	    debugtest_modes[i] = 0;
+	console_out ("all debugtests disabled\n");
+	return;
+    }
+    val = readint (inptr);
+    if (more_params (inptr)) {
+	val2 = readint (inptr);
+	if (val2 > 0)
+	    val2 = 2;
+    }
+    if (val < 0) {
+	for (i = 0; i < DEBUGTEST_MAX; i++)
+	    debugtest_modes[i] = val2;
+	console_out ("all debugtests enabled\n");
+	return;
+    }
+    if (val >= 0 && val < DEBUGTEST_MAX) {
+	if (debugtest_modes[val])
+	    debugtest_modes[val] = 0;
+	else
+	    debugtest_modes[val] = val2;
+	console_out ("debugtest '%s': %s. break = %s\n",
+	    debugtest_names[val], debugtest_modes[val] ? "on" :"off", val2 == 2 ? "on" : "off");
+    }
+}
+
 static void disk_debug(char **inptr)
 {
     char parm[10];
@@ -2240,14 +2294,14 @@ static void disk_debug(char **inptr)
 
     if (**inptr == 'd') {
 	(*inptr)++;
-	ignore_ws(inptr);
-	disk_debug_logging = readint(inptr);
+	ignore_ws (inptr);
+	disk_debug_logging = readint (inptr);
 	console_out ("disk logging level %d\n", disk_debug_logging);
 	return;
     }
     disk_debug_mode = 0;
     disk_debug_track = -1;
-    ignore_ws(inptr);
+    ignore_ws (inptr);
     if (!next_string (inptr, parm, sizeof (parm), 1))
 	goto end;
     for (i = 0; i < strlen(parm); i++) {
@@ -2426,16 +2480,19 @@ static void debug_1 (void)
 	case 'd':
 	{
 	    if (*inptr == 'i') {
-		next_char(&inptr);
-		disk_debug(&inptr);
-	    } else if(*inptr == 'j') {
+		next_char (&inptr);
+		disk_debug (&inptr);
+	    } else if (*inptr == 'j') {
 		inptr++;
 		inputdevice_logging = 1 | 2;
-		if (more_params(&inptr))
+		if (more_params (&inptr))
 		    inputdevice_logging = readint(&inptr);
 		console_out("input logging level %d\n", inputdevice_logging);
-	    } else if(*inptr == 'm') {
-		memory_map_dump_2(0);
+	    } else if (*inptr == 'm') {
+		memory_map_dump_2 (0);
+	    } else if (*inptr == 't') {
+		next_char (&inptr);
+		debugtest_set (&inptr);
 	    } else {
 		uae_u32 daddr;
 		int count;

@@ -39,7 +39,6 @@ struct uae_filter uaefilters[] =
 
 static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
 uae_u8 *bufmem_ptr;
-int bufmem_width, bufmem_height;
 static int tempsurf;
 static uae_u8 *tempsurf2, *tempsurf3;
 
@@ -115,30 +114,43 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 void S2X_render (void)
 {
     int aw = amiga_width, ah = amiga_height, v, pitch;
-    uae_u8 *dptr, *sptr, *endsptr;
+    uae_u8 *dptr, *enddptr, *sptr, *endsptr;
     int ok = 0, temp_needed = 0;
     RECT sr, dr;
     HRESULT ddrval;
     LPDIRECTDRAWSURFACE7 dds;
     DDSURFACEDESC2 desc;
+    int dst_width2 = dst_width;
+    int dst_height2 = dst_height;
+    int dst_width3 = dst_width;
+    int dst_height3 = dst_height;
+    int scale2 = scale;
+
+    if (currprefs.gfx_filter_upscale) {
+	dst_width2 = amiga_width;
+	dst_height2 = amiga_height;
+	dst_width3 = amiga_width * scale;
+	dst_height3 = amiga_height * scale;
+	scale2 = 1;
+    }
 
     sptr = gfxvidinfo.bufmem;
-    v = (dst_width - amiga_width) / 2;
+    v = (dst_width2 - amiga_width) / 2;
     aw += v;
     sptr -= v * (amiga_depth / 8);
-    v = (dst_height - amiga_height) / 2;
+    v = (dst_height2 - amiga_height) / 2;
     ah += v;
     sptr -= v * gfxvidinfo.rowbytes;
 
     endsptr = gfxvidinfo.bufmemend;
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
-    v += (dst_width / scale - amiga_width) / 8;
+    v += (dst_width3 / scale - amiga_width) / 8;
     sptr += (int)(-v * 4.0 / 10.0) * (amiga_depth / 8);
     aw -= (int)(-v * 4.0 / 10);
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
-    v += (dst_height / scale - amiga_height) / 8;
+    v += (dst_height3 / scale - amiga_height) / 8;
     sptr += (int)(-v * 4.0 / 10.0) * gfxvidinfo.rowbytes;
     ah -= (int)(-v * 4.0 / 10);
 
@@ -154,18 +166,23 @@ void S2X_render (void)
 
     if (currprefs.gfx_filter && (currprefs.gfx_filter_horiz_zoom || currprefs.gfx_filter_vert_zoom ||
 	    currprefs.gfx_filter_horiz_zoom_mult != 1000 ||
-	    currprefs.gfx_filter_vert_zoom_mult != 1000)) {
-	int wz = dst_width * currprefs.gfx_filter_horiz_zoom_mult / 1000;
-	int hz = dst_height * currprefs.gfx_filter_vert_zoom_mult / 1000;
+	    currprefs.gfx_filter_vert_zoom_mult != 1000 || currprefs.gfx_filter_upscale)) {
+
+	int wz = dst_width3 * currprefs.gfx_filter_horiz_zoom_mult / 1000;
+	int hz = dst_height3 * currprefs.gfx_filter_vert_zoom_mult / 1000;
+
 	wz += currprefs.gfx_filter_horiz_zoom / 4;
 	hz += currprefs.gfx_filter_vert_zoom / 4;
-	sr.left = (dst_width - wz) / 2;
-	sr.top = (dst_height - hz) / 2;
-	sr.right = sr.left + wz;
-	sr.bottom = sr.top + hz;
+
+        sr.left = (dst_width3 - wz) / 2;
+        sr.top = (dst_height3 - hz) / 2;
+        sr.right = sr.left + wz;
+        sr.bottom = sr.top + hz;
+
 	dr.left = dr.top = 0;
 	dr.right = dst_width;
 	dr.bottom = dst_height;
+
 	if (sr.left >= sr.right) {
 	    sr.left = dst_width / 2 - 1;
 	    sr.right = dst_width / 2 + 1;
@@ -191,16 +208,20 @@ void S2X_render (void)
 	    sr.bottom = sr.top + dst_height;
 	}
 
+	if (currprefs.gfx_filter_upscale) {
+	    dr.left = dr.top = 0;
+	    dr.right = dst_width;
+	    dr.bottom = dst_height;
+	}
+
 	if (tempsurf && sr.left != 0 || sr.top != 0 || sr.right != dst_width || sr.bottom != dst_height ||
-	    dr.top != 0 || dr.right != dst_width || dr.left != 0 || dr.bottom != dst_height) {
+	    dr.top != 0 || dr.right != dst_width || dr.left != 0 || dr.bottom != dst_height || currprefs.gfx_filter_upscale) {
 		dds = DirectDrawState.temporary.surface;
 		temp_needed = 1;
 	}
     }
 
     bufmem_ptr = sptr;
-    bufmem_width = aw;
-    bufmem_height = ah;
 
     if (temp_needed) {
 	desc.dwSize = sizeof (desc);
@@ -221,6 +242,7 @@ void S2X_render (void)
 	dptr = DirectDraw_GetSurfacePointer ();
 	pitch = DirectDraw_GetSurfacePitch ();
     }
+    enddptr = dptr + pitch * dst_height;
 
     if (!dptr) /* weird things can happen */
 	goto end;
@@ -259,6 +281,10 @@ void S2X_render (void)
 		int w = aw * scale * (dst_depth / 8);
 		memcpy (dptr, sptr2, w);
 		sptr2 += w;
+		dptr += pitch;
+	    }
+	    while (i < dst_height && dptr < enddptr) {
+		memset (dptr, 0, dst_width * dst_depth / 8);
 		dptr += pitch;
 	    }
 	}

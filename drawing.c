@@ -1604,7 +1604,7 @@ static void pfield_expand_dp_bplcon (void)
     else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
 	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200);
     else
-	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(currprefs.chipset_mask & CSMASK_NO_EHB);
+	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !currprefs.cs_denisenoehb;
 
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;

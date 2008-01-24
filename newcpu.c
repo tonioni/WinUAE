@@ -2038,7 +2038,7 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
     if (regs->spcflags & SPCFLAG_INT) {
 	int intr = intlev ();
 	unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
-	if (intr != -1 && intr > regs->intmask)
+	if (intr != -1 && (intr > regs->intmask || intr == 7))
 	    do_interrupt (intr, regs);
     }
     if (regs->spcflags & SPCFLAG_DOINT) {

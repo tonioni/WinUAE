@@ -2467,7 +2467,7 @@ STATIC_INLINE uae_u16 DMACONR (void)
 {
     uae_u16 v;
     decide_blitter (current_hpos ());
-    v = dmacon | (bltstate == BLT_done || (bltstate != BLT_done && (currprefs.chipset_mask & CSMASK_BLTBUSY_BUG) && !blt_info.got_cycle) ? 0 : 0x4000)
+    v = dmacon | (bltstate == BLT_done || (bltstate != BLT_done && currprefs.cs_agnusbltbusybug && !blt_info.got_cycle) ? 0 : 0x4000)
 	    | (blt_info.blitzero ? 0x2000 : 0);
     return v;
 }
@@ -2688,9 +2688,20 @@ static void DMACON (int hpos, uae_u16 v)
     events_schedule();
 }
 
+static int irq_nmi;
+
+void NMI_delayed (void)
+{
+    irq_nmi = 1;
+}
+
 int intlev (void)
 {
     uae_u16 imask = intreq & intena;
+    if (irq_nmi) {
+	irq_nmi = 0;
+	return 7;
+    }
     if (!(imask && (intena & 0x4000)))
 	return -1;
     if (imask & (0x4000 | 0x2000)) // 13 14

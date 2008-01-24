@@ -221,16 +221,17 @@ static int savebmp(FILE *fp)
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
-void screenshot(int mode, int doprepare)
+int screenshotf (const char *spath, int mode, int doprepare)
 {
     static int recursive;
     FILE *fp = NULL;
+    int allok = 0;
 
     HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
     HDC offscreen_dc = NULL; // offscreen DC that we can select offscreen bitmap into
 
     if(recursive)
-	return;
+	return 0;
 
     recursive++;
 
@@ -248,6 +249,20 @@ void screenshot(int mode, int doprepare)
 	char underline[] = "_";
 	int number = 0;
 
+	if (spath) {
+	    fp = fopen (spath, "wb");
+	    if (fp) {
+#if PNG_SCREENSHOTS > 0
+		if (screenshotmode)
+		    allok = savepng (fp);
+		else
+#endif
+		    allok = savebmp (fp);
+		fclose (fp);
+		fp = NULL;
+		goto oops;
+	    }
+	}
 	fetch_path ("ScreenshotPath", path, sizeof (path));
 	CreateDirectory (path, NULL);
 	name[0] = 0;
@@ -276,6 +291,7 @@ void screenshot(int mode, int doprepare)
 		if (!ok)
 		    goto oops;
 		write_log ("Screenshot saved as \"%s\"\n", filename);
+		allok = 1;
 		break;
 	    }
 	    fclose (fp);
@@ -291,5 +307,11 @@ oops:
 	screenshot_free();
 
     recursive--;
+
+    return allok;
 }
 
+void screenshot (int mode, int doprepare)
+{
+    screenshotf (NULL, mode, doprepare);
+}

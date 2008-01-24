@@ -4293,6 +4293,8 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     }
     CheckDlgButton (hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible);
     CheckDlgButton (hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
+    CheckDlgButton (hDlg, IDC_CS_NOEHB, workprefs.cs_denisenoehb);
+    CheckDlgButton (hDlg, IDC_CS_BLITTERBUG, workprefs.cs_agnusbltbusybug);
     CheckDlgButton (hDlg, IDC_CS_KSMIRROR_E0, workprefs.cs_ksmirror_e0);
     CheckDlgButton (hDlg, IDC_CS_KSMIRROR_A8, workprefs.cs_ksmirror_a8);
     CheckDlgButton (hDlg, IDC_CS_CIAOVERLAY, workprefs.cs_ciaoverlay);
@@ -4366,6 +4368,8 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 
     workprefs.cs_compatible = IsDlgButtonChecked (hDlg, IDC_CS_COMPATIBLE);
     workprefs.cs_resetwarning = IsDlgButtonChecked (hDlg, IDC_CS_RESETWARNING);
+    workprefs.cs_denisenoehb = IsDlgButtonChecked (hDlg, IDC_CS_NOEHB);
+    workprefs.cs_agnusbltbusybug = IsDlgButtonChecked (hDlg, IDC_CS_BLITTERBUG);
     workprefs.cs_ksmirror_e0 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_E0);
     workprefs.cs_ksmirror_a8 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_A8);
     workprefs.cs_ciaoverlay = IsDlgButtonChecked (hDlg, IDC_CS_CIAOVERLAY);
@@ -4463,6 +4467,8 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
     ew (hDlg, IDC_CS_CDTVRAM, e);
     ew (hDlg, IDC_CS_CDTVRAMEXP, e);
     ew (hDlg, IDC_CS_RESETWARNING, e);
+    ew (hDlg, IDC_CS_NOEHB, e);
+    ew (hDlg, IDC_CS_BLITTERBUG, e);
     ew (hDlg, IDC_CS_KSMIRROR_E0, e);
     ew (hDlg, IDC_CS_KSMIRROR_A8, e);
     ew (hDlg, IDC_CS_CIAOVERLAY, e);
@@ -8471,6 +8477,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
+    ew (hDlg, IDC_FILTERUPSCALE, vv && !vv2);
     ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
@@ -8527,16 +8534,17 @@ static int *filtervars[] = {
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
+	&workprefs.gfx_filter_upscale,
 	NULL
     };
 
 struct filterpreset {
     char *name;
-    int conf[22];
+    int conf[23];
 };
 static struct filterpreset filterpresets[] =
 {
-    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30 },
+    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0 },
     { NULL }
 };
 
@@ -8882,6 +8890,8 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
 	    currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
 	    values_to_hw3ddlg (hDlg);
+	    updatedisplayarea ();
+	    WIN32GFX_WindowMove ();
 	    break;
 	    case IDC_FILTERPRESETLOAD:
 	    case IDC_FILTERPRESETSAVE:
@@ -8893,6 +8903,11 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    break;
 	    case IDC_FILTERAUTORES:
 	    workprefs.gfx_autoresolution = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
+	    break;
+	    case IDC_FILTERUPSCALE:
+	    currprefs.gfx_filter_upscale = workprefs.gfx_filter_upscale = IsDlgButtonChecked (hDlg, IDC_FILTERUPSCALE);
+	    updatedisplayarea ();
+	    WIN32GFX_WindowMove ();
 	    break;
 	    default:
 	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {

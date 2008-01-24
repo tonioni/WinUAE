@@ -169,9 +169,6 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    currprefs.sound_volume = changed_prefs.sound_volume = wParam;
 	    set_volume (currprefs.sound_volume, 0);
 	return TRUE;
-	case RPIPCHM_SCREENCAPTURE:
-	    screenshot (1, 1);
-	return TRUE;
 	case RPIPCHM_MINIMIZE:
 	    minimized = 1;
 	    if (ShowWindow (hAmigaWnd, SW_MINIMIZE))
@@ -234,7 +231,15 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	    xfree (s);
 	    return TRUE;
 	}
-
+	case RPIPCHM_SCREENCAPTURE:
+	{
+	    extern int screenshotf (const char *spath, int mode, int doprepare);
+	    int ok;
+	    char *s = ua ((WCHAR*)pData);
+	    ok = screenshotf (s, 1, 1);
+	    xfree (s);
+	    return ok ? TRUE : FALSE;
+	}
 
     }
     return FALSE;

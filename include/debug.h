@@ -64,6 +64,8 @@ void debug_bputpeek(uaecptr addr, uae_u32 v);
 void debug_wputpeek(uaecptr addr, uae_u32 v);
 void debug_lputpeek(uaecptr addr, uae_u32 v);
 
+enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
+void debugtest (enum debugtest_item, const char *, ...);
 
 #else
 

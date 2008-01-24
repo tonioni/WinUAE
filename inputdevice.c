@@ -1606,7 +1606,7 @@ void inputdevice_handle_inputcode (void)
 	disk_eject (3);
 	break;
     case AKS_IRQ7:
-	NMI ();
+	NMI_delayed ();
 	break;
     case AKS_PAUSE:
 	pausemode (-1);

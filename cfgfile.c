@@ -565,6 +565,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
     cfgfile_dwrite (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
     cfgfile_dwrite (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
+    cfgfile_dwrite (f, "gfx_filter_upscale=%s\n", p->gfx_filter_upscale ? "true" : "false");
 
     cfgfile_dwrite (f, "gfx_luminance=%d\n", p->gfx_luminance);
     cfgfile_dwrite (f, "gfx_contrast=%d\n", p->gfx_contrast);
@@ -614,6 +615,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "scsi_a4000t=%s\n", p->cs_mbdmac == 2 ? "true" : "false");
     cfgfile_dwrite (f, "bogomem_fast=%s\n", p->cs_slowmemisfast ? "true" : "false");
     cfgfile_dwrite (f, "resetwarning=%s\n", p->cs_resetwarning ? "true" : "false");
+    cfgfile_dwrite (f, "denise_noehb=%s\n", p->cs_denisenoehb ? "true" : "false");
+    cfgfile_dwrite (f, "agnus_bltbusybug=%s\n", p->cs_agnusbltbusybug ? "true" : "false");
 
     cfgfile_write (f, "fastmem_size=%d\n", p->fastmem_size / 0x100000);
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
@@ -880,6 +883,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_gamma", &p->gfx_filter_gamma, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_blur", &p->gfx_filter_blur, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_noise", &p->gfx_filter_noise, 1)
+	|| cfgfile_yesno (option, value, "gfx_filter_upscale", &p->gfx_filter_upscale)
 	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
@@ -1302,6 +1306,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "ksmirror_e0", &p->cs_ksmirror_e0)
 	|| cfgfile_yesno (option, value, "ksmirror_a8", &p->cs_ksmirror_a8)
 	|| cfgfile_yesno (option, value, "resetwarning", &p->cs_resetwarning)
+	|| cfgfile_yesno (option, value, "denise_noehb", &p->cs_denisenoehb)
+	|| cfgfile_yesno (option, value, "agnus_bltbusybug", &p->cs_agnusbltbusybug)
 
 	|| cfgfile_yesno (option, value, "kickshifter", &p->kickshifter)
 	|| cfgfile_yesno (option, value, "ntsc", &p->ntscmode)
@@ -3234,9 +3240,10 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
     set_68000_compa (p, compa);
     p->dfxtype[1] = DRV_NONE;
     p->cs_compatible = CP_A1000;
+    p->cs_slowmemisfast = 1;
     built_in_chipset_prefs (p);
     if (config > 0)
-	p->chipset_mask |= CSMASK_NO_EHB;
+	p->cs_denisenoehb = 1;
     if (config > 1)
 	p->chipmem_size = 0x40000;
     return configure_rom (p, roms, romcheck);
@@ -3546,7 +3553,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
     if (!p->cs_compatible)
 	return 1;
 
-    p->chipset_mask &= ~CSMASK_BUGS;
     p->cs_a1000ram = 0;
     p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
     p->cs_cdtvcd = p->cs_cdtvram = 0;
@@ -3605,7 +3611,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_ciaatod = p->ntscmode ? 2 : 1;
 	p->cs_ksmirror_e0 = 0;
 	p->cs_rtc = 0;
-	p->chipset_mask |= CSMASK_BLTBUSY_BUG;
+	p->cs_agnusbltbusybug = 1;
 	break;
     case CP_A1200: // A1200
 	p->cs_ide = 1;

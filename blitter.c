@@ -24,6 +24,7 @@
 #include "blitter.h"
 #include "blit.h"
 #include "savestate.h"
+#include "debug.h"
 
 /* we must not change ce-mode while blitter is running.. */
 static int blitter_cycle_exact;
@@ -653,7 +654,7 @@ void blitter_handler (uae_u32 data)
 	/* "free" blitter in immediate mode if it has been "stuck" ~3 frames
 	 * fixes some JIT game incompatibilities
 	 */
-	write_log ("Blitter force-unstuck!\n");
+	debugtest (DEBUGTEST_BLITTER, "force-unstuck!\n");
     }
     blitter_stuck = 0;
     if (blit_slowdown > 0 && !currprefs.immediate_blits) {
@@ -927,35 +928,24 @@ static void blit_bltset (int con)
 
     if (blitline) {
 	if (blt_info.hblitsize != 2)
-	    write_log ("weird hblitsize in linemode: %d vsize=%d PC%=%x\n",
-		blt_info.hblitsize, blt_info.vblitsize, m68k_getpc (&regs));
+	    debugtest (DEBUGTEST_BLITTER, "weird hblitsize in linemode: %d vsize=%d\n",
+		blt_info.hblitsize, blt_info.vblitsize);
 	blit_diag = blit_cycle_diagram_line;
     } else {
 	if (con & 2) {
 	    blitfc = !!(bltcon1 & 0x4);
 	    blitife = bltcon1 & 0x8;
 	    if ((bltcon1 & 0x18) == 0x18) {
-		/* Digital "Trash" demo does this; others too. Apparently, no
-		* negative effects. */
-		static int warn = 1;
-		if (warn)
-		    write_log ("warning: weird fill mode (further messages suppressed) PC=%x\n",
-			m68k_getpc (&regs));
-		warn = 0;
+		debugtest (DEBUGTEST_BLITTER, "weird fill mode\n");
 		blitife = 0;
 	    }
 	}
-	if (blitfill && !blitdesc) {
-	    static int warn = 1;
-	    if (warn)
-		write_log ("warning: blitter fill without desc (further messages suppressed) PC=%x\n",
-		    m68k_getpc (&regs));
-	    warn = 0;
-	}
+	if (blitfill && !blitdesc)
+	    debugtest (DEBUGTEST_BLITTER, "fill without desc\n");
 	blit_diag = blitfill ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];
     }
     if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-	write_log ("warning: ECS BLTCON1 DOFF-bit set\n");
+	debugtest (DEBUGTEST_BLITTER, "ECS BLTCON1 DOFF-bit set\n");
 
     blit_dmacount = blit_dmacount2 = 0;
     blit_nod = 1;
@@ -1091,9 +1081,8 @@ void maybe_blit (int hpos, int hack)
 #ifndef BLITTER_DEBUG
 	warned = 1;
 #endif
-	if (m68k_getpc (&regs) < 0xe0000 || m68k_getpc (&regs) >= 0x10000000)
-	    write_log ("warning: Program does not wait for blitter %p vpos=%d tc=%d\n",
-		m68k_getpc (&regs), vpos, blit_cyclecounter);
+        debugtest (DEBUGTEST_BLITTER, "program does not wait for blitter vpos=%d tc=%d\n",
+	    vpos, blit_cyclecounter);
     }
 
     if (blitter_cycle_exact) {

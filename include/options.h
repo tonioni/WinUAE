@@ -179,6 +179,7 @@ struct uae_prefs {
     int gfx_filter_filtermode;
     int gfx_filter_noise, gfx_filter_blur;
     int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
+    int gfx_filter_upscale;
 
     int immediate_blits;
     unsigned int chipset_mask;
@@ -227,6 +228,8 @@ struct uae_prefs {
     int cs_df0idhw;
     int cs_slowmemisfast;
     int cs_resetwarning;
+    int cs_denisenoehb;
+    int cs_agnusbltbusybug;
 
     char df[4][MAX_DPATH];
     char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];

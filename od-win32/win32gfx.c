@@ -655,7 +655,8 @@ void sortdisplays (void)
 		int w = DirectDraw_CurrentWidth ();
 		int h = DirectDraw_CurrentHeight ();
 		int b = DirectDraw_GetSurfaceBitCount ();
-		write_log ("Desktop: W=%d H=%d B=%d\n", w, h, b);
+		write_log ("Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n", w, h, b,
+		    GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
 		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES , modesCallback);
 		//dhack();
 		sortmodes ();
@@ -1117,6 +1118,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_filter_scanlines != changed_prefs.gfx_filter_scanlines ? (1|8) : 0;
     c |= currprefs.gfx_filter_scanlinelevel != changed_prefs.gfx_filter_scanlinelevel ? (1|8) : 0;
     c |= currprefs.gfx_filter_scanlineratio != changed_prefs.gfx_filter_scanlineratio ? (1|8) : 0;
+    c |= currprefs.gfx_filter_upscale != changed_prefs.gfx_filter_upscale ? (1|8) : 0;
     c |= currprefs.gfx_filter_luminance != changed_prefs.gfx_filter_luminance ? (1|8) : 0;
     c |= currprefs.gfx_filter_contrast != changed_prefs.gfx_filter_contrast ? (1|8) : 0;
     c |= currprefs.gfx_filter_saturation != changed_prefs.gfx_filter_saturation ? (1|8) : 0;
@@ -1162,6 +1164,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_filter_scanlines = changed_prefs.gfx_filter_scanlines;
 	currprefs.gfx_filter_scanlinelevel = changed_prefs.gfx_filter_scanlinelevel;
 	currprefs.gfx_filter_scanlineratio = changed_prefs.gfx_filter_scanlineratio;
+	currprefs.gfx_filter_upscale = changed_prefs.gfx_filter_upscale;
 	currprefs.gfx_filter_luminance = changed_prefs.gfx_filter_luminance;
 	currprefs.gfx_filter_contrast = changed_prefs.gfx_filter_contrast;
 	currprefs.gfx_filter_saturation = changed_prefs.gfx_filter_saturation;
@@ -2192,8 +2195,8 @@ static BOOL doInit (void)
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_1;
 	} else if (colortype == RGBFB_CLUT && DirectDraw_GetSurfaceBitCount() != 8) {
 	    fs_warning = IDS_UNSUPPORTEDSCREENMODE_2;
-	} else if (currentmode->current_width >= GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
-	    currentmode->current_height >= GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
+	} else if (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
+	    currentmode->current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
 	    if (!console_logging)
 		fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 #ifdef PICASSO96
