@@ -511,8 +511,10 @@ BEGIN
     GROUPBOX        "Chipset",IDC_STATIC,14,11,145,90
     CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,26,51,10
-    CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). Later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
+    CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,42,55,10
+    CONTROL         "ECS Denise [] Enhanced chipset (ECS Denise chip only). Normally paired with ECS Agnus.",IDC_ECS_DENISE,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,42,55,10
     CONTROL         "Full ECS [] Full ECS chipset (ECS Agnus and ECS Denise chips). A500+, A600 and A3000.",IDC_ECS,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,58,52,10
     CONTROL         "AGA [] Advanced Graphics Architecture chipset. A1200, A4000 and CD32.",IDC_AGA,

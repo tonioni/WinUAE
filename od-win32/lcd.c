@@ -20,6 +20,7 @@ static lgLcdBitmapHeader *lbh;
 static uae_u8 *bitmap, *origbitmap;
 static uae_u8 *numbers;
 static int numbers_width = 7, numbers_height = 10;
+static int old_pri;
 
 void lcd_close(void)
 {
@@ -39,6 +40,7 @@ static int lcd_init(void)
     HDC dc;
     int x, y;
 
+    old_pri = 0;
     ret = lgLcdInit();
     if (ret != ERROR_SUCCESS) {
 	if (ret == RPC_S_SERVER_UNAVAILABLE || ret == ERROR_OLD_WIN_VERSION) {
@@ -145,6 +147,16 @@ static int coords[] = {
     2, 2, 30, 10 // POWER
 };
 
+void lcd_priority (int priority)
+{
+    if (!inited)
+	return;
+    if (old_pri == priority)
+	return;
+    if (lgLcdSetAsLCDForegroundApp(device, priority ? LGLCD_LCD_FOREGROUND_APP_YES : LGLCD_LCD_FOREGROUND_APP_NO) == ERROR_SUCCESS)
+	old_pri = priority;
+}
+
 void lcd_update(int led, int on)
 {
     int track, x, y;
@@ -173,7 +185,7 @@ void lcd_update(int led, int on)
     } else if (led == 7) {
 	y = 2;
 	x = 125;
-	putnumbers(x, y, gui_data.fps <= 999 ? gui_data.fps / 10 : 99, 0);
+	putnumbers(x, y, gui_data.fps <= 999 ? (gui_data.fps + 5) / 10 : 99, 0);
     } else if (led == 8) {
 	y = 2;
 	x = 98;

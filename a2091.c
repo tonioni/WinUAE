@@ -1317,12 +1317,12 @@ void a2091_init (void)
 		int i;
 		rom_size = 32768;
 		rombankswitcher = 1;
-		rom = (uae_u8*)xmalloc (rom_size * 2);
+		rom = xmalloc (rom_size * 2);
 		for (i = 0; i < rom_size; i++)
 		    zfile_fread(rom + i * 2, 1, 1, z);
 	    } else {
 		rom_size = 16384;
-		rom = (uae_u8*)xmalloc (rom_size);
+		rom = xmalloc (rom_size);
 		zfile_fread (rom, rom_size, 1, z);
 	    }
 	    zfile_fclose(z);

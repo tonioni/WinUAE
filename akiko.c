@@ -348,6 +348,20 @@ static uae_u32 akiko_c2p_read (int offset)
 #define AUDIO_STATUS_PLAY_ERROR     0x14
 #define AUDIO_STATUS_NO_STATUS      0x15
 
+#define CH_ERR_BADCOMMAND       0x80 // %10000000
+#define CH_ERR_CHECKSUM         0x88 // %10001000
+#define CH_ERR_DRAWERSTUCK      0x90 // %10010000
+#define CH_ERR_DISKUNREADABLE   0x98 // %10011000
+#define CH_ERR_INVALIDADDRESS   0xa0 // %10100000
+#define CH_ERR_WRONGDATA        0xa8 // %10101000
+#define CH_ERR_FOCUSERROR       0xc8 // %11001000
+#define CH_ERR_SPINDLEERROR     0xd0 // %11010000
+#define CH_ERR_TRACKINGERROR    0xd8 // %11011000
+#define CH_ERR_SLEDERROR        0xe0 // %11100000
+#define CH_ERR_TRACKJUMP        0xe8 // %11101000
+#define CH_ERR_ABNORMALSEEK     0xf0 // %11110000
+#define CH_ERR_NODISK           0xf8 // %11111000
+
 static uae_u32 cdrom_status1, cdrom_status2;
 static uae_u8 cdrom_status3;
 static uae_u32 cdrom_address1, cdrom_address2;
@@ -941,7 +955,8 @@ static void cdrom_run_read (void)
 	    return;
 	}
 #if AKIKO_DEBUG_IO_CMD
-	write_log ("read sector=%d, scnt=%d -> %d\n", cdrom_data_offset, cdrom_sector_counter, sector);
+	write_log ("read sector=%d, scnt=%d -> %d. %08X\n",
+	    cdrom_data_offset, cdrom_sector_counter, sector, cdrom_address1 + j * 4096);
 #endif
 	cdrom_readmask_w &= ~(1 << j);
     }

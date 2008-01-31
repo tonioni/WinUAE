@@ -208,12 +208,6 @@ void S2X_render (void)
 	    sr.bottom = sr.top + dst_height;
 	}
 
-	if (currprefs.gfx_filter_upscale) {
-	    dr.left = dr.top = 0;
-	    dr.right = dst_width;
-	    dr.bottom = dst_height;
-	}
-
 	if (tempsurf && sr.left != 0 || sr.top != 0 || sr.right != dst_width || sr.bottom != dst_height ||
 	    dr.top != 0 || dr.right != dst_width || dr.left != 0 || dr.bottom != dst_height || currprefs.gfx_filter_upscale) {
 		dds = DirectDrawState.temporary.surface;

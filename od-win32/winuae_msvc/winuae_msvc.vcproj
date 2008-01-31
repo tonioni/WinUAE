@@ -1634,6 +1634,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\cd32_fmv.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\cdrom.c"
 				>
 			</File>
@@ -2517,10 +2521,6 @@
 		</File>
 		<File
 			RelativePath="..\hq2x32.obj"
-			>
-		</File>
-		<File
-			RelativePath="..\resources\resource"
 			>
 		</File>
 		<File

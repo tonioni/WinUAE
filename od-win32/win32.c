@@ -658,7 +658,10 @@ static void winuae_active (HWND hWnd, int minimized)
     if (minimized)
 	rp_minimize (0);
 #endif
-
+#ifdef LOGITECHLCD
+    if (!minimized)
+	lcd_priority (1);
+#endif
 }
 
 static void winuae_inactive (HWND hWnd, int minimized)
@@ -704,6 +707,9 @@ static void winuae_inactive (HWND hWnd, int minimized)
 #ifdef RETROPLATFORM
     if (minimized)
 	rp_minimize (1);
+#endif
+#ifdef LOGITECHLCD
+    lcd_priority (0);
 #endif
 }
 
@@ -1622,9 +1628,9 @@ HMODULE language_load(WORD language)
 	int fail = 1;
 
 	if (language == 0x400)
-	    sprintf (dllbuf, "%sguidll.dll", start_path_exe);
+	    strcpy (dllbuf, "guidll.dll");
 	else
-	    sprintf (dllbuf, "%sWinUAE_%s.dll", start_path_exe, dllname);
+	    sprintf (dllbuf, "WinUAE_%s.dll", dllname);
 	result = WIN32_LoadLibrary (dllbuf);
 	if (result)  {
 	    dwFileVersionInfoSize = GetFileVersionInfoSize(dllbuf, &dwVersionHandle);

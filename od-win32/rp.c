@@ -234,9 +234,13 @@ static LRESULT CALLBACK RPHostMsgFunction(UINT uMessage, WPARAM wParam, LPARAM l
 	case RPIPCHM_SCREENCAPTURE:
 	{
 	    extern int screenshotf (const char *spath, int mode, int doprepare);
+	    extern int screenshotmode;
 	    int ok;
+	    int ossm = screenshotmode;
 	    char *s = ua ((WCHAR*)pData);
+	    screenshotmode = 0;
 	    ok = screenshotf (s, 1, 1);
+	    screenshotmode = ossm;
 	    xfree (s);
 	    return ok ? TRUE : FALSE;
 	}
@@ -303,7 +307,7 @@ void rp_fixup_options (struct uae_prefs *p)
 
     RPSendMessagex(RPIPCGM_FEATURES,
 	RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_SCREEN2X | RP_FEATURE_FULLSCREEN |
-	RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_INPUTMODE | RP_FEATURE_VOLUME,
+	RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_INPUTMODE | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE,
 	0, NULL, 0, &guestinfo, NULL);
     /* floppy drives */
     v = 0;

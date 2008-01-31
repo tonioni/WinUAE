@@ -1211,7 +1211,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 
     }
 end:
-    if (log_net)
+    if (log_net && (io_error || wire_error))
 	write_log("-> %d (%d)\n", io_error, wire_error);
     put_long (request + 32, wire_error);
     put_byte (request + 31, io_error);

@@ -3,6 +3,20 @@
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.
 
+Beta 9:
+
+- CD32 FMV cartridge "supported" (Actually it is a Z2 board). CD32 FMV
+  ROM checksums added to scanner. Completely unusable currently.
+  CD32 Cannon Fodder will try to play video, of course nothing can be
+  seen or heard :)
+- ECS Denise (without ECS Agnus) option re-added. Confirmed working
+  configuration (except superhires, OCS Agnus does not know shres
+  bitplane DMA sequence, result is vertical stripes. This "feature"
+  is not emulated)
+- full screen filter GUI checkbox was not initialized correctly
+- small fullscreen filter tweak
+- set foreground Logitech LCD priority when WinUAE has focus
+
 Beta 8:
 
 - input-panel NMI and END+SHIFT+Break NMI was unstable in

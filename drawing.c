@@ -1979,14 +1979,14 @@ static void center_image (void)
 	if (doublescan)
 	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
     }
-    if (currprefs.gfx_xcenter_adjust > 0)
-	visible_left_border = currprefs.gfx_xcenter_adjust + (DIW_DDF_OFFSET << currprefs.gfx_resolution);
-    visible_left_border &= ~((xshift (1, lores_shift)) - 1);
+    if (currprefs.gfx_xcenter_pos >= 0)
+	visible_left_border = currprefs.gfx_xcenter_pos + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
 
     if (visible_left_border > max_diwlastword - 32)
 	visible_left_border = max_diwlastword - 32;
     if (visible_left_border < 0)
 	visible_left_border = 0;
+    visible_left_border &= ~((xshift (1, lores_shift)) - 1);
 
     linetoscr_x_adjust_bytes = visible_left_border * gfxvidinfo.pixbytes;
 
@@ -2011,8 +2011,8 @@ static void center_image (void)
 		thisframe_y_adjust = prev_y_adjust;
 	}
     }
-    if (currprefs.gfx_ycenter_adjust > 0) {
-	thisframe_y_adjust = currprefs.gfx_ycenter_adjust;
+    if (currprefs.gfx_ycenter_pos >= 0) {
+	thisframe_y_adjust = currprefs.gfx_ycenter_pos;
 	if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_max)
 	    thisframe_y_adjust = 2 * maxvpos_max - max_drawn_amiga_line;
 	if (thisframe_y_adjust < 0)

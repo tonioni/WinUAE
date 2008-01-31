@@ -23,6 +23,7 @@
 #include "catweasel.h"
 #include "cdtv.h"
 #include "a2091.h"
+#include "cd32_fmv.h"
 #include "ncr_scsi.h"
 #include "debug.h"
 
@@ -338,6 +339,33 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	break;
     }
 }
+
+#ifdef CD32
+
+static void expamem_map_cd32fmv (void)
+{
+    uaecptr start = ((expamem_hi | (expamem_lo >> 4)) << 16);
+    cd32_fmv_init (start);
+}
+
+static void expamem_init_cd32fmv (void)
+{
+    int ids[] = { 72, -1 };
+    struct romlist *rl = getromlistbyids (ids);
+    struct zfile *z;
+
+    expamem_init_clear ();
+    if (!rl)
+	return;
+    write_log ("CD32 FMV ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
+    z = zfile_fopen(rl->path, "rb");
+    if (z) {
+	zfile_fread (expamem, 128, 1, z);
+	zfile_fclose (z);
+    }
+}
+
+#endif
 
 /* ********************************************************** */
 
@@ -1183,6 +1211,16 @@ void expamem_reset (void)
     if (currprefs.cs_cdtvcd) {
 	card_init[cardno] = expamem_init_cdtv;
 	card_map[cardno++] = NULL;
+    }
+#endif
+#ifdef CD32
+    if (currprefs.cs_cd32cd && currprefs.fastmem_size == 0 && currprefs.chipmem_size <= 0x200000) {
+	int ids[] = { 72, -1 };
+	struct romlist *rl = getromlistbyids (ids);
+	if (rl && !strcmp (rl->path, currprefs.cartfile)) {
+	    card_init[cardno] = expamem_init_cd32fmv;
+	    card_map[cardno++] = expamem_map_cd32fmv;
+	}
     }
 #endif
 #ifdef NCR

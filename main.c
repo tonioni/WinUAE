@@ -107,12 +107,12 @@ void discard_prefs (struct uae_prefs *p, int type)
 
 static void fixup_prefs_dim2 (struct wh *wh)
 {
-    if (wh->width < 320)
-	wh->width = 320;
-    if (wh->height < 200)
-	wh->height = 200;
-    if (wh->width > 2048)
-	wh->width = 2048;
+    if (wh->width < 160)
+	wh->width = 160;
+    if (wh->height < 128)
+	wh->height = 128;
+    if (wh->width > 3072)
+	wh->width = 3072;
     if (wh->height > 2048)
 	wh->height = 2048;
     wh->width += 7;
@@ -121,6 +121,10 @@ static void fixup_prefs_dim2 (struct wh *wh)
 
 void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
+    if (prefs->gfx_xcenter_size > 0)
+        prefs->gfx_size_win.width = prefs->gfx_xcenter_size << prefs->gfx_resolution;
+    if (prefs->gfx_ycenter_size > 0)
+        prefs->gfx_size_win.height = prefs->gfx_ycenter_size << (prefs->gfx_linedbl ? 1 : 0);
     fixup_prefs_dim2 (&prefs->gfx_size_fs);
     fixup_prefs_dim2 (&prefs->gfx_size_win);
 }
@@ -164,7 +168,7 @@ void fixup_prefs (struct uae_prefs *p)
     fixup_cpu (p);
 
     if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
-	|| p->chipmem_size < 0x40000
+	|| p->chipmem_size < 0x20000
 	|| p->chipmem_size > 0x800000)
     {
 	write_log ("Unsupported chipmem size %x!\n", p->chipmem_size);

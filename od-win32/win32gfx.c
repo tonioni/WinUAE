@@ -1200,16 +1200,23 @@ int check_prefs_changed_gfx (void)
     }
 
     if (currprefs.gfx_correct_aspect != changed_prefs.gfx_correct_aspect ||
-	currprefs.gfx_xcenter_adjust != changed_prefs.gfx_xcenter_adjust ||
-	currprefs.gfx_ycenter_adjust != changed_prefs.gfx_ycenter_adjust ||
+	currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
+	currprefs.gfx_ycenter_pos != changed_prefs.gfx_ycenter_pos ||
+	currprefs.gfx_xcenter_size != changed_prefs.gfx_xcenter_size ||
+	currprefs.gfx_ycenter_size != changed_prefs.gfx_ycenter_size ||
 	currprefs.gfx_xcenter != changed_prefs.gfx_xcenter ||
 	currprefs.gfx_ycenter != changed_prefs.gfx_ycenter)
     {
 	currprefs.gfx_correct_aspect = changed_prefs.gfx_correct_aspect;
-	currprefs.gfx_xcenter_adjust = changed_prefs.gfx_xcenter_adjust;
-	currprefs.gfx_ycenter_adjust = changed_prefs.gfx_ycenter_adjust;
+	currprefs.gfx_xcenter_pos = changed_prefs.gfx_xcenter_pos;
+	currprefs.gfx_ycenter_pos = changed_prefs.gfx_ycenter_pos;
+	currprefs.gfx_xcenter_size = changed_prefs.gfx_xcenter_size;
+	currprefs.gfx_ycenter_size = changed_prefs.gfx_ycenter_size;
 	currprefs.gfx_xcenter = changed_prefs.gfx_xcenter;
 	currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
+
+	fixup_prefs_dimensions (&changed_prefs);
+
 	return 1;
     }
 

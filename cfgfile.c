@@ -625,7 +625,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "z3mem_start=0x%x\n", p->z3fastmem_start);
     cfgfile_write (f, "bogomem_size=%d\n", p->bogomem_size / 0x40000);
     cfgfile_write (f, "gfxcard_size=%d\n", p->gfxmem_size / 0x100000);
-    cfgfile_write (f, "chipmem_size=%d\n", (p->chipmem_size == 0x40000) ? 0 : p->chipmem_size / 0x80000);
+    cfgfile_write (f, "chipmem_size=%d\n", p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 
     if (p->m68k_speed > 0)
 	cfgfile_write (f, "finegrain_cpu_speed=%d\n", p->m68k_speed);
@@ -864,8 +864,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_refreshrate", &p->gfx_refreshrate, 1)
 	|| cfgfile_intval (option, value, "gfx_autoresolution", &p->gfx_autoresolution, 1)
 
-	|| cfgfile_intval (option, value, "gfx_center_horizontal_adjust", &p->gfx_xcenter_adjust, 1)
-	|| cfgfile_intval (option, value, "gfx_center_vertical_adjust", &p->gfx_ycenter_adjust, 1)
+	|| cfgfile_intval (option, value, "gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
+	|| cfgfile_intval (option, value, "gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
+	|| cfgfile_intval (option, value, "gfx_center_horizontal_size", &p->gfx_xcenter_size, 1)
+	|| cfgfile_intval (option, value, "gfx_center_vertical_size", &p->gfx_ycenter_size, 1)
 
 #ifdef GFXFILTER
 	|| cfgfile_intval (option, value, "gfx_filter_vert_zoom", &p->gfx_filter_vert_zoom, 1)
@@ -1409,8 +1411,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
     }
 
     if (cfgfile_intval (option, value, "chipmem_size", &dummy, 1)) {
-	if (!dummy)
-	    p->chipmem_size = 0x40000;
+	if (dummy < 0)
+	    p->chipmem_size = 0x20000; /* 128k, prototype support */
+	else if (dummy == 0)
+	    p->chipmem_size = 0x40000; /* 256k */
 	else
 	    p->chipmem_size = dummy * 0x80000;
 	return 1;
@@ -2863,8 +2867,9 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_afullscreen = 0;
     p->gfx_pfullscreen = 0;
     p->gfx_correct_aspect = 0;
-    p->gfx_xcenter = 0; p->gfx_xcenter_adjust = 0;
-    p->gfx_ycenter = 0; p->gfx_ycenter_adjust = 0;
+    p->gfx_xcenter = 0; p->gfx_ycenter = 0;
+    p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
+    p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;
     p->color_mode = 2;
 
     p->x11_use_low_bandwidth = 0;

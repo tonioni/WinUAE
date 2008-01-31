@@ -1625,8 +1625,12 @@ int action_replay_load (void)
     if (strlen(currprefs.cartfile) == 0)
 	return 0;
     rd = getromdatabypath(currprefs.cartfile);
-    if (rd && rd->id == 62)
-	return superiv_init(rd, NULL);
+    if (rd) {
+	if (rd->id == 62)
+	    return superiv_init(rd, NULL);
+	if (rd->type & ROMTYPE_CD32CART)
+	    return 0;
+    }
     f = zfile_fopen(currprefs.cartfile, "rb");
     if (!f) {
 	write_log ("failed to load '%s' cartridge ROM\n", currprefs.cartfile);
@@ -1775,8 +1779,13 @@ int hrtmon_load (void)
     cart_type = CART_AR;
     hrtmem_start = 0xa10000;
     rd = getromdatabypath(currprefs.cartfile);
-    if (rd && rd->id == 63)
-	isinternal = 1;
+    if (rd) {
+	if (rd->id == 63)
+	    isinternal = 1;
+	if (rd->type & ROMTYPE_CD32CART)
+	    return 0;
+    }
+
     if (!isinternal) {
 	if (strlen(currprefs.cartfile) == 0)
 	    return 0;

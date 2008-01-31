@@ -28,6 +28,7 @@
 #include "enforcer.h"
 #include "a2091.h"
 #include "gayle.h"
+#include "debug.h"
 
 int canbang;
 int candirect = -1;
@@ -117,7 +118,7 @@ struct romdata *getromdatabypath(char *path)
     return NULL;
 }
 
-#define NEXT_ROM_ID 72
+#define NEXT_ROM_ID 73
 
 static struct romheader romheaders[] = {
     { "Freezer Cartridges", 1 },
@@ -191,6 +192,8 @@ static struct romdata roms[] = {
 	0x87746be2, 0x5BEF3D62,0x8CE59CC0,0x2A66E6E4,0xAE0DA48F,0x60E78F7F },
     { "CD32 ROM (KS + extended)", 3, 1, 40, 60, "CD32\0", 2 * 524288, 64, 1, 0, ROMTYPE_KICKCD32 | ROMTYPE_EXTCD32, 0, 0,
 	0xd3837ae4, 0x06807db3,0x18163745,0x5f4d4658,0x2d9972af,0xec8956d9 },
+    { "CD32 MPEG Cartridge ROM", 3, 1, 40, 30, "CD32\0", 262144, 72, 1, 0, ROMTYPE_CD32CART, 0, 0,
+	0xc35c37bf, 0x03ca81c7,0xa7b259cf,0x64bc9582,0x863eca0f,0x6529f435 },
 
     { "CDTV extended ROM v1.00", 1, 0, 1, 0, "CDTV\0", 262144, 20, 0, 0, ROMTYPE_EXTCDTV, 0, 0,
 	0x42baa124, 0x7BA40FFA,0x17E500ED,0x9FED041F,0x3424BD81,0xD9C907BE },
@@ -1830,20 +1833,22 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 #if defined(ENFORCER)
 	    enforcer_disable ();
 #endif
+
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;
 		uaecptr a3 = m68k_getpc (&regs) - 32;
-		write_log ("Your Amiga program just did something terribly stupid %08.8X PC=%08.8X\n", a, M68K_GETPC);
+		write_log ("Your Amiga program just did something terribly stupid %08X PC=%08.8X\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
-		    write_log ("%08.8X ", i >= 5 ? a3 : a2);
+		    write_log ("%08X ", i >= 5 ? a3 : a2);
 		    for (j = 0; j < 16; j += 2) {
-			write_log (" %04.4X", get_word (i >= 5 ? a3 : a2));
+			write_log (" %04X", get_word (i >= 5 ? a3 : a2));
 			if (i >= 5) a3 += 2; else a2 += 2;
 		    }
 		    write_log ("\n");
 		}
+		memory_map_dump ();
 	    }
 	    be_cnt++;
 	    if (be_cnt > 1000) {

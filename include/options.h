@@ -164,8 +164,9 @@ struct uae_prefs {
     int gfx_linedbl;
     int gfx_correct_aspect;
     int gfx_afullscreen, gfx_pfullscreen;
-    int gfx_xcenter, gfx_xcenter_adjust;
-    int gfx_ycenter, gfx_ycenter_adjust;
+    int gfx_xcenter, gfx_ycenter;
+    int gfx_xcenter_pos, gfx_ycenter_pos;
+    int gfx_xcenter_size, gfx_ycenter_size;
     int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
     int color_mode;
 

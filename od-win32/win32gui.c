@@ -4133,11 +4133,9 @@ static void values_to_chipsetdlg (HWND hDlg)
     case CSMASK_ECS_AGNUS:
 	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 1);
 	break;
-#if 0
     case CSMASK_ECS_DENISE:
 	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 2);
 	break;
-#endif
     case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE:
 	CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 3);
 	break;
@@ -4199,12 +4197,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     workprefs.collision_level = IsDlgButtonChecked (hDlg, IDC_COLLISION0) ? 0
 				 : IsDlgButtonChecked (hDlg, IDC_COLLISION1) ? 1
 				 : IsDlgButtonChecked (hDlg, IDC_COLLISION2) ? 2 : 3;
-    workprefs.chipset_mask = IsDlgButtonChecked( hDlg, IDC_OCS ) ? 0
-			      : IsDlgButtonChecked( hDlg, IDC_ECS_AGNUS ) ? CSMASK_ECS_AGNUS
-#if 0
-			      : IsDlgButtonChecked( hDlg, IDC_ECS_DENISE ) ? CSMASK_ECS_DENISE
-#endif
-			      : IsDlgButtonChecked( hDlg, IDC_ECS ) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
+    workprefs.chipset_mask = IsDlgButtonChecked (hDlg, IDC_OCS) ? 0
+			      : IsDlgButtonChecked (hDlg, IDC_ECS_AGNUS) ? CSMASK_ECS_AGNUS
+			      : IsDlgButtonChecked (hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
+			      : IsDlgButtonChecked (hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
 			      : CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
     n = IsDlgButtonChecked (hDlg, IDC_NTSC) ? 1 : 0;
     if (workprefs.ntscmode != n) {
@@ -4773,7 +4769,7 @@ static void values_to_kickstartdlg (HWND hDlg)
     addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
         ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS);
     addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
-        ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON);
+        ROMTYPE_AR | ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_CD32CART);
     regclosetree (fkey);
 
     SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
@@ -8483,6 +8479,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
     ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
     ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
+    CheckDlgButton(hDlg, IDC_FILTERUPSCALE, workprefs.gfx_filter_upscale);
 }
 
 static void makefilter(char *s, int x, int flags)
