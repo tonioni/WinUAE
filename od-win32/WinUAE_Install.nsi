@@ -1,5 +1,5 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "1.4.5"
+!define PRODUCT_VERSION "1.4.6"
 !define PRODUCT_PUBLISHER "Arabuusimiehet"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
@@ -9,14 +9,14 @@
 ;-- Your path here
 !define DISTPATH "c:\projects\winuae\distribution"
 
-SetCompressor lzma
+SetCompressor /solid lzma
 RequestExecutionLevel admin
 
 !include "StrFunc.nsh"
 !include "WinMessages.nsh"
 
 ; MUI begins ---
-!include "MUI.nsh"
+!include "MUI2.nsh"
 ; MUI Settings
 !define MUI_ABORTWARNING
 !define MUI_COMPONENTSPAGE_SMALLDESC
