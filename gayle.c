@@ -22,6 +22,7 @@
 #include "gayle.h"
 #include "filesys.h"
 #include "savestate.h"
+#include "uae.h"
 #include "gui.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
@@ -52,30 +53,17 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 
 /* PCMCIA stuff */
 
-#define GAYLE_RAM               (0x600000+zTwoBase)
-#define GAYLE_RAMSIZE           (0x400000)
-#define GAYLE_ATTRIBUTE         (0xa00000+zTwoBase)
-#define GAYLE_ATTRIBUTESIZE     (0x020000)
-#define GAYLE_IO                (0xa20000+zTwoBase)     /* 16bit and even 8bit registers */
-#define GAYLE_IOSIZE            (0x010000)
-#define GAYLE_IO_8BITODD        (0xa30000+zTwoBase)     /* odd 8bit registers */
-/* offset for accessing odd IO registers */
-#define GAYLE_ODD               (GAYLE_IO_8BITODD-GAYLE_IO-1)
+#define GAYLE_RAM               0x600000
+#define GAYLE_RAMSIZE           0x400000
+#define GAYLE_ATTRIBUTE         0xa00000
+#define GAYLE_ATTRIBUTESIZE     0x020000
+#define GAYLE_IO                0xa20000     /* 16bit and even 8bit registers */
+#define GAYLE_IOSIZE            0x010000
+#define GAYLE_IO_8BITODD        0xa30000     /* odd 8bit registers */
 
-#define GAYLE_ADDRESS   (0xda8000)      /* gayle main registers base address */
-#define GAYLE_RESET     (0xa40000)      /* write 0x00 to start reset,
+#define GAYLE_ADDRESS   0xda8000      /* gayle main registers base address */
+#define GAYLE_RESET     0xa40000      /* write 0x00 to start reset,
 					   read 1 byte to stop reset */
-/* GAYLE_CONFIG bit def
-   (bit 0-1 for program voltage, bit 2-3 for access speed */
-#define GAYLE_CFG_0V            0x00
-#define GAYLE_CFG_5V            0x01
-#define GAYLE_CFG_12V           0x02
-
-#define GAYLE_CFG_100NS         0x08
-#define GAYLE_CFG_150NS         0x04
-#define GAYLE_CFG_250NS         0x00
-#define GAYLE_CFG_720NS         0x0c
-
 /* IDE stuff */
 
 /*  Bases of the IDE interfaces */
@@ -111,6 +99,8 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 #define GAYLE_INT_1200  0xA000
 #define GAYLE_CFG_1200	0xB000
 
+/* DA8000 */
+#define GAYLE_CS_IDE	0x80	/* IDE int status */
 #define GAYLE_CS_CCDET	0x40    /* credit card detect */
 #define GAYLE_CS_BVD1	0x20    /* battery voltage detect 1 */
 #define GAYLE_CS_SC	0x20    /* credit card status change */
@@ -119,20 +109,45 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 #define GAYLE_CS_WR	0x08    /* write enable (1 == enabled) */
 #define GAYLE_CS_BSY	0x04    /* credit card busy */
 #define GAYLE_CS_IRQ	0x04    /* interrupt request */
+#define GAYLE_CS_DAEN   0x02    /* enable digital audio */ 
+#define GAYLE_CS_DIS    0x01    /* disable PCMCIA slot */ 
+
+/* DA9000 */
+#define GAYLE_IRQ_IDE	    0x80
+#define GAYLE_IRQ_CCDET	    0x40    /* credit card detect */
+#define GAYLE_IRQ_BVD1	    0x20    /* battery voltage detect 1 */
+#define GAYLE_IRQ_SC	    0x20    /* credit card status change */
+#define GAYLE_IRQ_BVD2	    0x10    /* battery voltage detect 2 */
+#define GAYLE_IRQ_DA	    0x10    /* digital audio */
+#define GAYLE_IRQ_WR	    0x08    /* write enable (1 == enabled) */
+#define GAYLE_IRQ_BSY	    0x04    /* credit card busy */
+#define GAYLE_IRQ_IRQ	    0x04    /* interrupt request */
+#define GAYLE_IRQ_RESET	    0x02    /* reset machine after CCDET change */ 
+#define GAYLE_IRQ_BERR      0x01    /* generate bus error after CCDET change */ 
+
+/* DAA000 */
+#define GAYLE_INT_IDE	    0x80    /* IDE interrupt enable */
+#define GAYLE_INT_CCDET	    0x40    /* credit card detect change enable */
+#define GAYLE_INT_BVD1	    0x20    /* battery voltage detect 1 change enable */
+#define GAYLE_INT_SC	    0x20    /* credit card status change enable */
+#define GAYLE_INT_BVD2	    0x10    /* battery voltage detect 2 change enable */
+#define GAYLE_INT_DA	    0x10    /* digital audio change enable */
+#define GAYLE_INT_WR	    0x08    /* write enable change enabled */
+#define GAYLE_INT_BSY	    0x04    /* credit card busy */
+#define GAYLE_INT_IRQ	    0x04    /* credit card interrupt request */
+#define GAYLE_INT_BVD_LEV   0x02    /* BVD int level, 0=lev2,1=lev6 */ 
+#define GAYLE_INT_BSY_LEV   0x01    /* BSY int level, 0=lev2,1=lev6 */ 
+
+/* 0xDAB000 GAYLE_CONFIG */
+#define GAYLE_CFG_0V            0x00
+#define GAYLE_CFG_5V            0x01
+#define GAYLE_CFG_12V           0x02
+#define GAYLE_CFG_100NS         0x08
+#define GAYLE_CFG_150NS         0x04
+#define GAYLE_CFG_250NS         0x00
+#define GAYLE_CFG_720NS         0x0c
 
 
-/* GAYLE_IRQ bit def */
-#define GAYLE_IRQ_IDE	0x80
-#define GAYLE_IRQ_CCDET	0x40	/* credit card detect */
-#define GAYLE_IRQ_BVD1	0x20	/* battery voltage detect 1 */
-#define GAYLE_IRQ_SC	0x20	/* credit card status change */
-#define GAYLE_IRQ_BVD2	0x10	/* battery voltage detect 2 */
-#define GAYLE_IRQ_DA	0x10	/* digital audio */
-#define GAYLE_IRQ_WR	0x08	/* write enable (1 == enabled) */
-#define GAYLE_IRQ_BSY	0x04	/* credit card busy */
-#define GAYLE_IRQ_IRQ	0x04    /* interrupt request */
-#define GAYLE_IRQ_IDEACK1 0x02
-#define GAYLE_IRQ_IDEACK0 0x01
 
 struct ide_hdf
 {
@@ -145,14 +160,17 @@ struct ide_hdf
     uae_u8 multiple_mode;
     uae_u8 status;
     int irq_delay;
+    int irq;
     int num;
 };
 
 static struct ide_hdf *idedrive[4];
-static struct hd_hardfiledata *pcmcia_sram;
+struct hd_hardfiledata *pcmcia_sram;
+static int pcmcia_card;
+static int pcmcia_readonly;
 
 static int gayle_id_cnt;
-static uae_u8 gayle_irq, gayle_intena, gayle_cs, gayle_cfg;
+static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
 static uae_u8 ide_select, ide_nsector, ide_sector, ide_lcyl, ide_hcyl, ide_devcon, ide_error, ide_feat;
 static uae_u8 ide_nsector2, ide_sector2, ide_lcyl2, ide_hcyl2, ide_feat2;
 static int ide_drv, ide2, ide_splitter;
@@ -179,28 +197,165 @@ static void ps (int offset, char *s, int max)
     }
 }
 
+static int isideirq (void)
+{
+    if (!idedrive)
+	return 0;
+    if (ide_devcon & 2)
+	return 0;
+    if (idedrive[ide_drv]->irq || idedrive[ide_drv + 2]->irq) {
+	/* IDE killer feature. Do not eat interrupt to make booting faster. */
+	if (idedrive[ide_drv]->irq && idedrive[ide_drv]->hdhfd.size == 0)
+	    idedrive[ide_drv]->irq = 0;
+	return 1;
+    }
+    return 0;
+}
+
 void rethink_gayle (void)
 {
-    if (currprefs.cs_ide != 1)
+    int lev2 = 0;
+    int lev6 = 0;
+    uae_u8 mask;
+
+    if (currprefs.cs_ide == 2) {
+	if (isideirq ())
+	    gayle_irq |= GAYLE_IRQ_IDE;
+	if ((gayle_irq & GAYLE_IRQ_IDE) && !(intreq & 0x0008))
+	INTREQ_0 (0x8000 | 0x0008);
+    }
+
+    if (currprefs.cs_ide != 1 && !currprefs.cs_pcmcia)
 	return;
-    if (gayle_intena & gayle_irq & (GAYLE_IRQ_IDE | GAYLE_IRQ_IRQ)) {
-	if (!(intreq & 8))
-	    INTREQ_0 (0x8000 | 0x0008);
+    if (isideirq ())
+	gayle_irq |= GAYLE_IRQ_IDE;
+    mask = gayle_int & gayle_irq;
+    if (mask & (GAYLE_IRQ_IDE | GAYLE_IRQ_WR))
+	lev2 = 1;
+    if (mask & GAYLE_IRQ_CCDET)
+	lev6 = 1;
+    if (mask & (GAYLE_IRQ_BVD1 | GAYLE_IRQ_BVD2)) {
+	if (gayle_int & GAYLE_INT_BVD_LEV)
+	    lev6 = 1;
+	else
+	    lev2 = 1;
+    }
+    if (mask & GAYLE_IRQ_BSY) {
+	if (gayle_int & GAYLE_INT_BSY_LEV)
+	    lev6 = 1;
+	else
+	    lev2 = 1;
+    }
+    if (lev2 && !(intreq & 0x0008))
+	INTREQ_0 (0x8000 | 0x0008);
+    if (lev6 && !(intreq & 0x2000))
+	INTREQ_0 (0x8000 | 0x2000);
+}
+
+static void gayle_cs_change (uae_u8 mask, int onoff)
+{
+    int changed = 0;
+    if ((gayle_cs & mask) && !onoff) {
+	gayle_cs &= ~mask;
+	changed = 1;
+    } else if (!(gayle_cs & mask) && onoff) {
+	gayle_cs |= mask;
+	changed = 1;
+    }
+    if (changed) {
+	gayle_irq |= mask;
+	rethink_gayle ();
+	if (mask & GAYLE_CS_CCDET) {
+	    if (gayle_irq & GAYLE_IRQ_RESET)
+		uae_reset (0);
+	    if (gayle_irq & GAYLE_IRQ_BERR)
+		Exception (2, &regs, 0);
+	}
     }
 }
+
+static void card_trigger (int insert)
+{
+    if (insert) {
+	if (pcmcia_card) {
+	    gayle_cs_change (GAYLE_CS_CCDET, 1);
+	    gayle_cfg = GAYLE_CFG_100NS;
+	    if (!pcmcia_readonly)
+		gayle_cs_change (GAYLE_CS_WR, 1);
+	}
+    } else {
+	gayle_cfg = 0;
+	gayle_cs_change (GAYLE_CS_CCDET, 0);
+	gayle_cs_change (GAYLE_CS_BVD2, 0);
+	gayle_cs_change (GAYLE_CS_BVD1, 0);
+	gayle_cs_change (GAYLE_CS_WR, 0);
+	gayle_cs_change (GAYLE_CS_BSY, 0);
+    }
+    rethink_gayle ();
+}
+
+static void write_gayle_cfg (uae_u8 val)
+{
+    gayle_cfg = val;
+}
+static uae_u8 read_gayle_cfg (void)
+{
+    return gayle_cfg & 0x0f;
+}
+static void write_gayle_irq (uae_u8 val)
+{
+    gayle_irq = (gayle_irq & val) | (val & 3);
+}
+static uae_u8 read_gayle_irq (void)
+{
+    return gayle_irq;
+}
+static void write_gayle_int (uae_u8 val)
+{
+    gayle_int = val;
+}
+static uae_u8 read_gayle_int (void)
+{
+    return gayle_int;
+}
+static void write_gayle_cs (uae_u8 val)
+{
+    int ov = gayle_cs;
+
+    gayle_cs_mask = val & ~3;
+    gayle_cs &= ~3;
+    gayle_cs |= val & 3;
+    if ((ov & 1) != (gayle_cs & 1)) {
+	gayle_map_pcmcia ();
+	/* PCMCIA disable -> enable */
+        card_trigger (!(gayle_cs & GAYLE_CS_DIS) ? 1 : 0);
+	if (PCMCIA_LOG)
+	    write_log ("PCMCIA slot: %s PC=%08X\n", !(gayle_cs & 1) ? "enabled" : "disabled", M68K_GETPC);
+    }
+}
+static uae_u8 read_gayle_cs (void)
+{
+    uae_u8 v;
+    
+    v = gayle_cs_mask | gayle_cs;
+    if (isideirq ())
+	v |= GAYLE_CS_IDE;
+    return v;
+}
+
 
 static void ide_interrupt (void)
 {
     ide->status |= IDE_STATUS_BSY;
     ide->irq_delay = 2;
 }
+
 static void ide_interrupt_do (struct ide_hdf *ide)
 {
     ide->status &= ~IDE_STATUS_BSY;
-    if (gayle_intena & GAYLE_IRQ_IDE) {
-	gayle_irq |= GAYLE_IRQ_IDE;
-	INTREQ_f (0x8000 | 0x0008);
-    }
+    ide->irq_delay = 0;
+    ide->irq = 1;
+    rethink_gayle ();
 }
 
 static void ide_fail (void)
@@ -532,11 +687,11 @@ static uae_u32 ide_read (uaecptr addr)
     if (addr >= 0x4000) {
 	if (addr == GAYLE_IRQ_1200) {
 	    if (currprefs.cs_ide == 1)
-		return gayle_irq;
+		return read_gayle_irq ();
 	    return 0;
 	} else if (addr == GAYLE_INT_1200) {
 	    if (currprefs.cs_ide == 1)
-		return gayle_intena;
+		return read_gayle_int ();
 	    return 0;
 	}
 	return 0;
@@ -589,6 +744,7 @@ static uae_u32 ide_read (uaecptr addr)
 	    v = ide_devcon;
 	break;
 	case IDE_STATUS:
+	    ide->irq = 0;
 	    if (ide->hdhfd.size == 0) {
 		v = 0;
 		if (ide_error)
@@ -615,11 +771,11 @@ static void ide_write (uaecptr addr, uae_u32 val)
 	return;
     if (currprefs.cs_ide == 1) {
 	if (addr == GAYLE_IRQ_1200) {
-	    gayle_irq &= val;
+	    write_gayle_irq (val);
 	    return;
 	}
 	if (addr == GAYLE_INT_1200) {
-	    gayle_intena = val;
+	    write_gayle_int (val);
 	    return;
 	}
     }
@@ -662,6 +818,7 @@ static void ide_write (uaecptr addr, uae_u32 val)
 	    ide_drv = (val & 0x10) ? 1 : 0;
 	break;
 	case IDE_STATUS:
+	    ide->irq = 0;
 	    ide_do_command (val);
 	break;
     }
@@ -679,29 +836,34 @@ static int gayle_read (uaecptr addr)
     if (currprefs.cs_pcmcia) {
 	if (currprefs.cs_ide != 1) {
 	    if (addr == GAYLE_IRQ_1200) {
-		v = gayle_irq;
+		v = read_gayle_irq ();
 		got = 1;
 	    } else if (addr == GAYLE_INT_1200) {
-		v = gayle_intena;
+		v = read_gayle_int ();
 		got = 1;
 	    }
 	}
 	if (addr == GAYLE_CS_1200) {
-	    v = gayle_cs;
+	    v = read_gayle_cs ();
 	    got = 1;
+	    if (PCMCIA_LOG)
+		write_log ("PCMCIA STATUS READ %08X=%02X PC=%08X\n", oaddr, (uae_u32)v & 0xff, M68K_GETPC);
 	} else if (addr == GAYLE_CFG_1200) {
-	    v = gayle_cfg;
+	    v = read_gayle_cfg ();
 	    got = 1;
+	    if (PCMCIA_LOG)
+		write_log ("PCMCIA CONFIG READ %08X=%02X PC=%08X\n", oaddr, (uae_u32)v & 0xff, M68K_GETPC);
 	}
     }
     if (!got)
 	v = ide_read (addr);
     if (GAYLE_LOG)
-	write_log ("GAYLE_READ %08.8X=%02.2X PC=%08.8X\n", oaddr, (uae_u32)v & 0xff, M68K_GETPC);
+	write_log ("GAYLE_READ %08X=%02X PC=%08X\n", oaddr, (uae_u32)v & 0xff, M68K_GETPC);
     return v;
 }
 static void gayle_write (uaecptr addr, int val)
 {
+    uaecptr oaddr = addr;
     int got = 0;
 #ifdef JIT
     special_mem |= S_WRITE;
@@ -710,23 +872,28 @@ static void gayle_write (uaecptr addr, int val)
     if (currprefs.cs_pcmcia) {
 	if (currprefs.cs_ide != 1) {
 	    if (addr == GAYLE_IRQ_1200) {
-		gayle_irq &= val;
+		write_gayle_irq (val);
 		got = 1;
 	    } else if (addr == GAYLE_INT_1200) {
-		gayle_intena = val;
+		write_gayle_int (val);
 		got = 1;
 	    }
 	}
 	if (addr == GAYLE_CS_1200) {
+	    write_gayle_cs (val);
 	    got = 1;
+	    if (PCMCIA_LOG > 1)
+		write_log ("PCMCIA STATUS WRITE %08X=%02X PC=%08X\n", oaddr, (uae_u32)val & 0xff, M68K_GETPC);
 	} else if (addr == GAYLE_CFG_1200) {
-	    gayle_cfg = val;
+	    write_gayle_cfg (val);
 	    got = 1;
+	    if (PCMCIA_LOG > 1)
+		write_log ("PCMCIA CONFIG WRITE %08X=%02X PC=%08X\n", oaddr, (uae_u32)val & 0xff, M68K_GETPC);
 	}
     }
 
     if (GAYLE_LOG)
-	write_log ("GAYLE_WRITE %08.8X=%02.2X PC=%08.8X\n", addr, (uae_u32)val & 0xff, M68K_GETPC);
+	write_log ("GAYLE_WRITE %08X=%02X PC=%08X\n", addr, (uae_u32)val & 0xff, M68K_GETPC);
     if (!got)
 	ide_write (addr, val);
 }
@@ -1072,9 +1239,7 @@ static int pcmcia_common_size, pcmcia_attrs_size;
 static int pcmcia_common_mask;
 static uae_u8 *pcmcia_common;
 static uae_u8 *pcmcia_attrs;
-static int pcmcia_card;
 static int pcmcia_write_min, pcmcia_write_max;
-static int pcmcia_readonly;
 
 static uae_u32 gayle_attr_read (uaecptr addr)
 {
@@ -1086,11 +1251,6 @@ static uae_u32 gayle_attr_read (uaecptr addr)
     if (addr >= 0x40000) {
 	if (PCMCIA_LOG > 0)
 	    write_log ("GAYLE: Reset disabled\n");
-	if (pcmcia_card) {
-	    gayle_irq |= GAYLE_IRQ_CCDET | GAYLE_IRQ_IRQ;
-	    if (gayle_intena & GAYLE_IRQ_IRQ)
-		INTREQ_f (0x8000 | 0x0008);
-	}
 	return v;
     }
     if (addr >= pcmcia_attrs_size)
@@ -1116,6 +1276,8 @@ static void initsramattr (int size, int readonly)
     uae_u8 *rp;
     uae_u8 *p = pcmcia_attrs;
     int sm, su, code, units;
+    struct hardfiledata *hfd = &pcmcia_sram->hfd;
+    int real = hfd->flags & HFD_FLAGS_REALDRIVE;
 
     code = 0;
     su = 512;
@@ -1134,23 +1296,43 @@ static void initsramattr (int size, int readonly)
     *p++ = (units << 3) | code; /* memory card size in weird units */
     *p++ = 0xff;
 
-    /* CISTPL_FUNCID */
-    *p++ = 0x21;
-    *p++ = 2;
-    *p++ = 1; /* Memory Card */
+    /* CISTPL_DEVICEGEO */
+    *p++ = 0x1e;
+    *p++ = 7;
+    *p++ = 2; /* 16-bit PCMCIA */
     *p++ = 0;
+    *p++ = 1;
+    *p++ = 1;
+    *p++ = 1;
+    *p++ = 1;
+    *p++ = 0xff;
 
     /* CISTPL_VERS_1 */
     *p++= 0x15;
     rp = p++;
     *p++= 4; /* PCMCIA 2.1 */
     *p++= 1;
-    strcpy (p, "UAE"); /* manafacturer */
+    if (real) {
+	strcpy (p, hfd->product_id);
+	p += strlen (p) + 1;
+	strcpy (p, hfd->product_rev);
+    } else {
+	strcpy (p, "UAE");
+	p += strlen (p) + 1;
+	strcpy (p, "68000");
+    }
     p += strlen (p) + 1;
-    strcpy (p, "PCMCIA SRAM"); /* product */
+    sprintf (p, "Generic Emulated %dKB PCMCIA SRAM Card", size >> 10);
     p += strlen (p) + 1;
+    *p++= 0;
     *p++= 0xff;
     *rp = p - rp; 
+
+    /* CISTPL_FUNCID */
+    *p++ = 0x21;
+    *p++ = 2;
+    *p++ = 1; /* Memory Card */
+    *p++ = 0;
 
     /* CISTPL_MANFID */
     *p++ = 0x20;
@@ -1159,10 +1341,6 @@ static void initsramattr (int size, int readonly)
     *p++ = 0xff;
     *p++ = 1;
     *p++ = 1;
-
-    /* CISTPL_NO_LINK */
-    *p++ = 0x14;
-    *p++ = 0;
 
     /* CISTPL_END */
     *p++ = 0xff;
@@ -1182,6 +1360,7 @@ static void checkflush (int addr)
 	    if (len > 0) {
 		hdf_write (&pcmcia_sram->hfd, pcmcia_common + start, start, len);
 		pcmcia_write_min = -1;
+		pcmcia_write_max = -1;
 	    }
 	}
     }
@@ -1191,14 +1370,21 @@ static void checkflush (int addr)
 	pcmcia_write_max = addr;
 }
 
-static void pcmcia_free (void)
+static int freepcmcia (int reset)
 {
     if (pcmcia_sram) {
 	checkflush (-1);
-        hdf_hd_close (pcmcia_sram);
+	if (reset) {
+	    hdf_hd_close (pcmcia_sram);
+	    xfree (pcmcia_sram);
+	    pcmcia_sram = NULL;
+	} else {
+	    pcmcia_sram->hfd.drive_empty = 1;
+	}
     }
-    xfree (pcmcia_sram);
-    pcmcia_sram = NULL;
+    if (pcmcia_card)
+	gayle_cs_change (GAYLE_CS_CCDET, 0);
+    pcmcia_card = 0;
 
     xfree (pcmcia_common);
     xfree (pcmcia_attrs);
@@ -1206,39 +1392,48 @@ static void pcmcia_free (void)
     pcmcia_attrs = NULL;
     pcmcia_common_size = 0;
     pcmcia_attrs_size = 0;
-    pcmcia_card = 0;
-
+    
     gayle_cfg = 0;
     gayle_cs = 0;
+    return 1;
 }
 
-static int initpcmcia (char *path, int readonly)
+static int initpcmcia (const char *path, int readonly, int reset)
 {
     if (currprefs.cs_pcmcia == 0)
 	return 0;
-    if (path) {
+    freepcmcia (reset);
+    if (reset) {
 	pcmcia_sram = xcalloc (sizeof (struct hd_hardfiledata), 1);
-	if (hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, NULL)) {
-	    pcmcia_common_size = pcmcia_sram->size;
-	    if (pcmcia_sram->size > 4 * 1024 * 1024) {
-		write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->size);
-		pcmcia_common_size = 4 * 1024 * 1024;
-	    }
-	    pcmcia_common = xcalloc (pcmcia_common_size, 1);
-	    write_log ("PCMCIA SRAM: '%s' open, size=%d\n", path, pcmcia_common_size);
-	    hdf_read (&pcmcia_sram->hfd, pcmcia_common, 0, pcmcia_common_size);
-	    pcmcia_card = 1;
-	    gayle_cs = GAYLE_CS_CCDET;
-	    if (!readonly)
-		gayle_cs |= GAYLE_CS_WR;
-	}
+	if (path)
+	    hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, NULL);
+    } else {
+	pcmcia_sram->hfd.drive_empty = 0;
     }
+    if (pcmcia_sram->hfd.readonly)
+	readonly = 1;
+    pcmcia_common_size = 0;
+    pcmcia_readonly = readonly;
     pcmcia_attrs_size = 256;
     pcmcia_attrs = xcalloc (pcmcia_attrs_size, 1);
-    initsramattr (pcmcia_common_size, readonly);
+    if (!pcmcia_sram->hfd.drive_empty) {
+	pcmcia_common_size = pcmcia_sram->hfd.size;
+	if (pcmcia_sram->hfd.size > 4 * 1024 * 1024) {
+	    write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->hfd.size);
+	    pcmcia_common_size = 4 * 1024 * 1024;
+	}
+	pcmcia_common = xcalloc (pcmcia_common_size, 1);
+	write_log ("PCMCIA SRAM: '%s' open, size=%d\n", path, pcmcia_common_size);
+	hdf_read (&pcmcia_sram->hfd, pcmcia_common, 0, pcmcia_common_size);
+	pcmcia_card = 1;
+	initsramattr (pcmcia_common_size, readonly);
+	if (!(gayle_cs & GAYLE_CS_DIS)) {
+	    gayle_map_pcmcia ();
+	    card_trigger (1);
+	}
+    }
     pcmcia_write_min = -1;
     pcmcia_write_max = -1;
-    pcmcia_readonly = readonly;
     return 1;
 }
 
@@ -1280,7 +1475,7 @@ static void REGPARAM3 gayle_common_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_common_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_common_bput (uaecptr, uae_u32) REGPARAM;
 
-addrbank gayle_common_bank = {
+static addrbank gayle_common_bank = {
     gayle_common_lget, gayle_common_wget, gayle_common_bget,
     gayle_common_lput, gayle_common_wput, gayle_common_bput,
     default_xlate, default_check, NULL, "Gayle PCMCIA Common",
@@ -1405,6 +1600,20 @@ static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
     gayle_common_write (addr, value);
 }
 
+void gayle_map_pcmcia (void)
+{
+    if (currprefs.cs_pcmcia == 0)
+	return;
+    if (pcmcia_card == 0 || (gayle_cs & GAYLE_CS_DIS)) {
+	map_banks (&dummy_bank, 0xa0, 8, 0);
+        if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
+	    map_banks (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
+    } else {
+        map_banks (&gayle_attr_bank, 0xA0, 8, 0);
+        if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
+            map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
+    }
+}
 
 static int rl (uae_u8 *p)
 {
@@ -1422,7 +1631,7 @@ void gayle_free_units (void)
 	    memset (ide, 0, sizeof (struct ide_hdf));
 	}
     }
-    pcmcia_free ();
+    freepcmcia (1);
 }
 
 static void alloc_ide_mem (void)
@@ -1454,9 +1663,17 @@ int gayle_add_ide_unit (int ch, char *path, int blocksize, int readonly,
     return 1;
 }
 
-int gayle_add_pcmcia_sram_unit (char *path, int readonly)
+int gayle_add_pcmcia_sram_unit (const char *path, int readonly)
 {
-    return initpcmcia (path, readonly);
+    return initpcmcia (path, readonly, 1);
+}
+
+int gayle_modify_pcmcia_sram_unit (const char *path, int readonly, int insert)
+{
+    if (insert)
+	return initpcmcia (path, readonly, 0);
+    else
+	return freepcmcia (0);
 }
 
 static void initide (void)
@@ -1478,10 +1695,7 @@ static void initide (void)
     }
     for (i = 0; i < 4; i++)
 	idedrive[i]->num = i;
-    gayle_irq = gayle_intena = 0;
-    if (currprefs.cs_ide == 2)
-	gayle_intena = 0xff;
-
+    gayle_irq = gayle_int = 0;
 }
 
 void gayle_reset (int hardreset)
@@ -1508,8 +1722,11 @@ void gayle_reset (int hardreset)
 uae_u8 *restore_gayle (uae_u8 *src)
 {
     changed_prefs.cs_ide = restore_u8 ();
-    gayle_intena = restore_u8 ();
+    gayle_int = restore_u8 ();
     gayle_irq = restore_u8 ();
+    gayle_cs = restore_u8 ();
+    gayle_cs_mask = restore_u8 ();
+    gayle_cfg = restore_u8 ();
     ide_error = 0;
     return src;
 }
@@ -1522,8 +1739,11 @@ uae_u8 *save_gayle (int *len)
 	return NULL;
     dstbak = dst = (uae_u8*)malloc (1000);
     save_u8 (currprefs.cs_ide);
-    save_u8 (gayle_intena);
+    save_u8 (gayle_int);
     save_u8 (gayle_irq);
+    save_u8 (gayle_cs);
+    save_u8 (gayle_cs_mask);
+    save_u8 (gayle_cfg);
     *len = dst - dstbak;
     return dstbak;
 }

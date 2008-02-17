@@ -93,9 +93,9 @@ extern char *hdf_getnameharddrive (int index, int flags, int *sectorsize);
 extern int hdf_init (void);
 extern int isspecialdrive(const char *name);
 extern int get_native_path(uae_u32 lock, char *out);
-extern void hardfile_do_disk_change (int fsid, int insert);
+extern void hardfile_do_disk_change (struct uaedev_config_info *uci, int insert);
 
 void hdf_hd_close(struct hd_hardfiledata *hfd);
-int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int readonly,
-		       char *devname, int sectors, int surfaces, int reserved,
-		       int bootpri, char *filesys);
+int hdf_hd_open(struct hd_hardfiledata *hfd, const char *path, int blocksize, int readonly,
+		       const char *devname, int sectors, int surfaces, int reserved,
+		       int bootpri, const char *filesys);

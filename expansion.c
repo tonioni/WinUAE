@@ -942,7 +942,7 @@ static void expamem_init_z3fastmem (void)
  */
 
 uaecptr p96ram_start;
-int p96mode = 0;
+int p96mode = 1;
 
 static void expamem_map_gfxcard (void)
 {
@@ -1264,7 +1264,7 @@ void expamem_reset (void)
     }
 
     z3fastmem_start = currprefs.z3fastmem_start;
-    if (!p96mode)
+    if (!p96mode || !canbang)
 	p96memstart();
     (*card_init[0]) ();
 }

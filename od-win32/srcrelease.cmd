@@ -1,7 +1,7 @@
 cd c:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-copy /s c:\projects\winuae\src\*.* c:\projects\winuae_bak\bak\
+cp -r c:\projects\winuae\src\. c:\projects\winuae_bak\bak\
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
@@ -21,8 +21,13 @@ del cpuemu_11.c
 del cpuemu_12.c
 del linetoscr.c
 
-cd od-win32
+cd jit
+del compemu.c
+del compstbl.h
+del compstbl.c
+cd ..
 
+cd od-win32
 cd ipctester
 rm -rf debug
 rm -rf release

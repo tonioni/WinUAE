@@ -199,14 +199,13 @@ void cd32_fmv_init (uaecptr start)
 	return;
     if (!rl)
 	return;
-    write_log ("CD32 FMV ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
-    z = zfile_fopen(rl->path, "rb");
+    write_log ("CD32 FMV ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
+    z = read_rom (rl->rd);
     if (z) {
 	rom = mapped_malloc (fmv_size, "fast");
-	if (rom) {
-	    zfile_fread(rom, rom_size, 1, z);
-	    zfile_fclose (z);
-	}
+	if (rom)
+	    zfile_fread (rom, rl->rd->size, 1, z);
+	zfile_fclose (z);
     }
     fmv_mask = fmv_size - 1;
     fmv_bank.baseaddr = rom;

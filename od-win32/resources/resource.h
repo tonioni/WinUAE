@@ -283,6 +283,8 @@
 #define IDS_NUMSG_KS68030               331
 #define IDS_NUMSG_EXPROMNEED            332
 #define IDS_HARDDRIVESAFETYWARNING2     333
+#define IDM_DBGCONTEXTMENU              334
+#define IDD_DBGMEMINPUT                 335
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -925,6 +927,11 @@
 #define IDC_DF3ENABLE                   1778
 #define IDC_HDF_RW                      1778
 #define IDC_HDFINFO                     1779
+#define IDC_DBG_AUTOSET                 1780
+#define IDC_DBG_DASM2                   1781
+#define IDC_DBG_MEM2                    1782
+#define IDC_DBG_MEMINPUT2               1783
+#define IDC_DBG_ADDRINPUTTXT            1784
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -945,6 +952,21 @@
 #define ID_DBG_PAGE7                    40026
 #define ID_DBG_PAGE8                    40027
 #define ID_DBG_PAGE9                    40028
+#define ID_DBG_STEP_OVER                40029
+#define ID_DBG_STEP_INTO                40030
+#define ID_DBG_SETTOA0                  40031
+#define ID_DBG_SETTOA1                  40032
+#define ID_DBG_SETTOA2                  40033
+#define ID_DBG_SETTOA3                  40034
+#define ID_DBG_SETTOA4                  40035
+#define ID_DBG_SETTOA5                  40036
+#define ID_DBG_SETTOA6                  40037
+#define ID_DBG_SETTOA7                  40038
+#define ID_DBG_ENTERADDR                40039
+#define ID_DBG_COPYLBLINE               40040
+#define ID_DBG_COPYLB                   40041
+#define ID_DBG_TOGGLEBP                 40042
+#define ID_DBG_DELETEBPS                40043
 
 // Next default values for new objects
 // 
@@ -952,9 +974,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        334
-#define _APS_NEXT_COMMAND_VALUE         40029
-#define _APS_NEXT_CONTROL_VALUE         1779
+#define _APS_NEXT_RESOURCE_VALUE        336
+#define _APS_NEXT_COMMAND_VALUE         40044
+#define _APS_NEXT_CONTROL_VALUE         1785
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

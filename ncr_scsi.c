@@ -256,14 +256,14 @@ static void INT2(void)
 }
 
 
-static uae_u8 read_rom(uaecptr addr)
+static uae_u8 read_rombyte (uaecptr addr)
 {
     uae_u8 v = rom[addr];
     //write_log ("%08.8X = %02.2X PC=%08X\n", addr, v, M68K_GETPC);
     return v;
 }
 
-void ncr_bput2(uaecptr addr, uae_u32 val)
+void ncr_bput2 (uaecptr addr, uae_u32 val)
 {
     uae_u32 v = val;
     addr &= board_mask;
@@ -282,13 +282,13 @@ void ncr_bput2(uaecptr addr, uae_u32 val)
     ncrregs[addr] = val;
 }
 
-uae_u32 ncr_bget2(uaecptr addr)
+uae_u32 ncr_bget2 (uaecptr addr)
 {
     uae_u32 v = 0, v2;
 
     addr &= board_mask;
     if (rom && addr >= ROM_VECTOR && addr >= ROM_OFFSET)
-	return read_rom(addr);
+	return read_rombyte (addr);
     if (addr >= NCR_REGS)
 	return v;
     v2 = v = ncrregs[addr];
@@ -483,10 +483,9 @@ void ncr_init (void)
 
     rl = getromlistbyids(roms);
     if (rl) {
-	write_log ("A4091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
-	z = zfile_fopen(rl->path, "rb");
+	write_log ("A4091 BOOT ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
+	z = read_rom (rl->rd);
 	if (z) {
-	    write_log ("loaded\n");
 	    rom = (uae_u8*)xmalloc (ROM_SIZE * 4);
 	    for (i = 0; i < ROM_SIZE; i++) {
 		uae_u8 b;
@@ -495,8 +494,6 @@ void ncr_init (void)
 		rom[i * 4 + 2] = b << 4;
 	    }
 	    zfile_fclose(z);
-	} else {
-	    write_log ("failed to load\n");
 	}
     } else {
 	romwarning(roms);

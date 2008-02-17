@@ -119,7 +119,7 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
  * Actual encoding of the instructions on the target CPU                 *
  *************************************************************************/
 
-#include "compemu_optimizer_x86.c"
+//#include "compemu_optimizer_x86.c"
 
 STATIC_INLINE uae_u16 swap16(uae_u16 x)
 {

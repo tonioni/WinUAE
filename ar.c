@@ -1510,7 +1510,7 @@ int action_replay_unload (int in_memory_reset)
     return 1;
 }
 
-static int superiv_init(struct romdata *rd, struct zfile *f)
+static int superiv_init (struct romdata *rd, struct zfile *f)
 {
     uae_u32 chip = currprefs.chipmem_size - 0x10000;
     int subtype = rd->id;
@@ -1624,14 +1624,14 @@ int action_replay_load (void)
 
     if (strlen(currprefs.cartfile) == 0)
 	return 0;
-    rd = getromdatabypath(currprefs.cartfile);
+    rd = getromdatabypath (currprefs.cartfile);
     if (rd) {
 	if (rd->id == 62)
-	    return superiv_init(rd, NULL);
+	    return superiv_init (rd, NULL);
 	if (rd->type & ROMTYPE_CD32CART)
 	    return 0;
     }
-    f = zfile_fopen(currprefs.cartfile, "rb");
+    f = read_rom_name (currprefs.cartfile);
     if (!f) {
 	write_log ("failed to load '%s' cartridge ROM\n", currprefs.cartfile);
 	return 0;
@@ -1641,7 +1641,7 @@ int action_replay_load (void)
 	write_log ("Unknown cartridge ROM\n");
     } else {
 	if (rd->type & (ROMTYPE_SUPERIV | ROMTYPE_NORDIC | ROMTYPE_XPOWER)) {
-	    return superiv_init(rd, f);
+	    return superiv_init (rd, f);
 	}
     }
     zfile_fseek(f, 0, SEEK_END);
@@ -1789,7 +1789,7 @@ int hrtmon_load (void)
     if (!isinternal) {
 	if (strlen(currprefs.cartfile) == 0)
 	    return 0;
-	f = zfile_fopen(currprefs.cartfile,"rb");
+	f = read_rom_name (currprefs.cartfile);
 	if(!f) {
 	    write_log ("failed to load '%s' cartridge ROM\n", currprefs.cartfile);
 	    return 0;
@@ -2116,3 +2116,94 @@ uae_u8 *restore_action_replay (uae_u8 *src)
     return src;
 }
 
+
+#define NPSIZE 65536
+
+static unsigned char bswap (unsigned char v,int b7,int b6,int b5,int b4,int b3,int b2,int b1,int b0)
+{
+    unsigned char b = 0;
+
+    b |= ((v >> b7) & 1) << 7;
+    b |= ((v >> b6) & 1) << 6;
+    b |= ((v >> b5) & 1) << 5;
+    b |= ((v >> b4) & 1) << 4;
+    b |= ((v >> b3) & 1) << 3;
+    b |= ((v >> b2) & 1) << 2;
+    b |= ((v >> b1) & 1) << 1;
+    b |= ((v >> b0) & 1) << 0;
+    return b;
+}
+
+static unsigned short wswap (unsigned short v,int b15,int b14,int b13,int b12, int b11, int b10, int b9, int b8, int b7,int b6,int b5,int b4,int b3,int b2,int b1,int b0)
+{
+    unsigned short b = 0;
+
+    b |= ((v >> b15) & 1) << 15;
+    b |= ((v >> b14) & 1) << 14;
+    b |= ((v >> b13) & 1) << 13;
+    b |= ((v >> b12) & 1) << 12;
+    b |= ((v >> b11) & 1) << 11;
+    b |= ((v >> b10) & 1) << 10;
+    b |= ((v >> b9) & 1) << 9;
+    b |= ((v >> b8) & 1) << 8;
+    b |= ((v >> b7) & 1) << 7;
+    b |= ((v >> b6) & 1) << 6;
+    b |= ((v >> b5) & 1) << 5;
+    b |= ((v >> b4) & 1) << 4;
+    b |= ((v >> b3) & 1) << 3;
+    b |= ((v >> b2) & 1) << 2;
+    b |= ((v >> b1) & 1) << 1;
+    b |= ((v >> b0) & 1) << 0;
+    return b;
+}
+
+#define AXOR 0x817f
+
+// middle (even)
+static void descramble1(unsigned char *buf, int size)
+{
+    int i;
+
+    for (i = 0; i < size; i++)
+	buf[i] = bswap(buf[i], 4, 1, 5, 3, 0, 7, 6, 2);
+}
+static void descramble1a(unsigned char *buf, int size)
+{
+    int i;
+    unsigned char tbuf[NPSIZE];
+
+    memcpy(tbuf, buf, size);
+    for (i = 0; i < size; i++) {
+	int a = (i ^ AXOR) & (size - 1);
+	buf[i] = tbuf[wswap(a, 15, 9, 10, 4, 6, 5, 3, 8, 14, 13, 0, 12, 11, 2, 1, 7)];
+    }
+}
+// corner (odd)
+static void descramble2(unsigned char *buf, int size)
+{
+    int i;
+
+    for (i = 0; i < size; i++)
+	buf[i] = bswap(buf[i], 5, 4, 3, 2, 1, 0, 7, 6);
+}
+static void descramble2a(unsigned char *buf, int size)
+{
+    int i;
+    unsigned char tbuf[NPSIZE];
+
+    memcpy(tbuf, buf, size);
+    for (i = 0; i < size; i++) {
+	int a = (i ^ AXOR) & (size - 1);
+	buf[i] = tbuf[wswap(a, 15, 2, 4, 0, 1, 10, 11, 8, 13, 14, 12, 9, 7, 5, 6, 3)];
+    }
+}
+void descramble_nordicpro (uae_u8 *buf, int size, int odd)
+{
+    if (odd) {
+	descramble2 (buf, size);
+	descramble2a (buf, size);
+    } else {
+	descramble1 (buf, size);
+	descramble1a (buf, size);
+    }
+}

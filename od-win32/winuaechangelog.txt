@@ -1,4 +1,51 @@
 
+Beta 2:
+
+- Weird Dreams sound problem (hospital scene when game is starting)
+
+
+Beta 1: (possible big changes in future betas)
+
+- MSVC 2008 compiled. Does not run on Windows 98/ME anymore.
+- debugger sprite dump command added (sp <addr> [<addr2>] [<size])
+- A3000 2.04 revision number fixed. It really is 37.175.
+- DOS HD floppy image crash fixed
+- PCMCIA SRAM card emulation. SCRAM "HD controller" in harddrive panel
+  (other HD parameters are ignored) Hot-swapping supported.
+  Note 1: Amiga PCMCIA slot supports max 4M of directly addressable RAM
+  and you can't have more than 4M of (non-32bit) fast RAM at the same
+  time. Note 2: real PCMCIA SRAM card in PCMCIA/CardBus slot is not
+  supported yet. I need SRAM card to implement it (or good
+  documentation)
+- rom scanner odd/even split and byteswapped rom support. Does not
+  include: AR2/3/1200 ROMs (no real rom dumps available), Arcadia ROMs
+  (not worth the trouble) or "non-rom roms" like Cloanto ROMs.
+- rom scanner data in registry changed, added human-readable names
+  NOTE: You need to manually rescan roms if you need to use 1.4.6 or
+  older WinUAE versions
+- EXTB.L was 68000+ when it should have been 68020+ (bug since the
+  beginning and more)
+- Gayle interrupt handling rewritten to match preliminary datasheet.
+  This solved remaining PCMCIA problems. This can also fix possible
+  problems with IDE emulation with specific device driver versions
+- uaenet.device NSCMD_DEVICEQUERY fixed (didn't work and/or corrupted
+  memory) S2_ADDMULTICASTADDRESSES and S2_DELMULTICASTADDRESSES had
+  wrong command number
+- uaenet.device random deadlock fixed
+- really ugly uaenet.device interrupt handler setup replaced with
+  proper exec.library AddIntServer() call
+- added NSCMD_DEVICEQUERY to uaeserial.device
+- added some sanity checks to emulated devices' open function
+- Quickstart boot disk check does not complain anymore if track zero
+  has errors but sectors 0 and 1 are ok
+- multithreaded avioutput (finally). Video/audio encoding now runs
+  in separate thread, MUCH faster encoding on 2+ core CPUs
+  Note: null filter recommended (or any other 2d filter), non-filter
+  mode requires reads from display RAM which is very slow
+- GUI debugger improvements (Karsten Bock)
+
+
+1.4.6
 
 1.4.6 will be the last Windows 98/ME compatible version. 1.5.0
 will require Windows 2000 or newer.

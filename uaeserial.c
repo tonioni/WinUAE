@@ -21,20 +21,12 @@
 #include "native2amiga.h"
 #include "uaeserial.h"
 #include "serial.h"
+#include "execio.h"
 
 #define MAX_TOTAL_DEVICES 8
 
 int log_uaeserial = 0;
 
-#define CMD_INVALID	0
-#define CMD_RESET	1
-#define CMD_READ	2
-#define CMD_WRITE	3
-#define CMD_UPDATE	4
-#define CMD_CLEAR	5
-#define CMD_STOP	6
-#define CMD_START	7
-#define CMD_FLUSH	8
 #define SDCMD_QUERY	9
 #define SDCMD_BREAK	10
 #define SDCMD_SETPARAMS	11
@@ -136,9 +128,8 @@ struct devstruct {
 };
 
 static int uniq;
-
+static uae_u32 nscmd_cmd;
 static struct devstruct devst[MAX_TOTAL_DEVICES];
-
 static uae_sem_t change_sem, async_sem;
 
 static char *getdevname (void)
@@ -274,21 +265,23 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
     struct devstruct *dev;
     int i, err;
 
+    if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE)
+	return openfail (ioreq, IOERR_BADLENGTH);
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	if (devst[i].open && devst[i].unit == unit && devst[i].exclusive)
-	    return openfail (ioreq, -6); /* busy */
+	    return openfail (ioreq, IOERR_UNITBUSY);
     }
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 	if (!devst[i].open)
 	    break;
     }
     if (i == MAX_TOTAL_DEVICES)
-	return openfail (ioreq, 32); /* badunitnum */
+	return openfail (ioreq, IOERR_OPENFAIL);
     dev = &devst[i];
     dev->sysdata = xcalloc (uaeser_getdatalenght(), 1);
     if (!uaeser_open (dev->sysdata, dev, unit)) {
 	xfree (dev->sysdata);
-	return openfail (ioreq, 32); /* badunitnum */
+	return openfail (ioreq, IOERR_OPENFAIL);
     }
     dev->unit = unit;
     dev->open = 1;
@@ -395,7 +388,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
     }
     if (log_uaeserial)
 	write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
-    put_byte (request + 31, -2);
+    put_byte (request + 31, IOERR_ABORTED);
     put_byte (request + 30, get_byte (request + 30) | 0x20);
     write_comm_pipe_u32 (&dev->requests, request, 1);
 }
@@ -443,14 +436,14 @@ void uaeser_signal (struct devstruct *dev, int sigmask)
 			    io_done = 1;
 			}
 		    } else {
-			io_error = -6;
+			io_error = IOERR_BADADDRESS;
 			io_done = 1;
 		    }
 		}
 		break;
 		case CMD_WRITE:
 		if (sigmask & 2) {
-		    io_error = -5;
+		    io_error = IOERR_BADADDRESS;
 		    addr = memmap(io_data, io_length);
 		    if (addr && uaeser_write (dev->sysdata, addr, io_length))
 			io_error = 0;
@@ -517,7 +510,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	if (uaeser_query (dev->sysdata, &io_status, &io_actual))
 	    put_byte (request + io_Status, io_status);
 	else
-	    io_error = -5;
+	    io_error = IOERR_BADADDRESS;
 	break;
 	case SDCMD_SETPARAMS:
 	io_error = setparams(dev, request);
@@ -545,8 +538,16 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	case CMD_START:
 	case CMD_STOP:
 	break;
+	case NSCMD_DEVICEQUERY:
+	    put_long (io_data + 0, 0);
+	    put_long (io_data + 4, 16); /* size */
+	    put_word (io_data + 8, NSDEVTYPE_SERIAL);
+	    put_word (io_data + 10, 0);
+	    put_long (io_data + 12, nscmd_cmd);
+	    io_actual = 16;
+	break;
 	default:
-	io_error = -3;
+	io_error = IOERR_NOCMD;
 	break;
     }
     put_long (request + 32, io_actual);
@@ -749,6 +750,20 @@ void uaeserialdev_install (void)
     dl (functable);
     dl (datatable);
     dl (initcode);
+
+    nscmd_cmd = here ();
+    dw (NSCMD_DEVICEQUERY);
+    dw (CMD_RESET);
+    dw (CMD_READ);
+    dw (CMD_WRITE);
+    dw (CMD_CLEAR);
+    dw (CMD_START);
+    dw (CMD_STOP);
+    dw (CMD_FLUSH);
+    dw (SDCMD_BREAK);
+    dw (SDCMD_SETPARAMS);
+    dw (SDCMD_QUERY);
+    dw (0);
 }
 
 void uaeserialdev_start_threads (void)

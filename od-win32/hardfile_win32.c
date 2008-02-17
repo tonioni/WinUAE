@@ -8,6 +8,7 @@
 #include "resource.h"
 
 #include "threaddep/thread.h"
+#include "options.h"
 #include "filesys.h"
 #include "blkdev.h"
 #include "registry.h"
@@ -95,6 +96,7 @@ static void rdbdump (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
     cnt++;
 }
 
+#define CA "Commodore\0Amiga\0"
 static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 {
     int i, j, blocks = 63, empty = 1;
@@ -118,6 +120,11 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	    write_log ("hd accepted (rdb detected at block %d)\n", j);
 	    return -1;
 	}
+
+	if (!memcmp (buf + 2, "CIS@", 4) && !memcmp (buf + 16, CA, strlen (CA))) {
+	    write_log ("hd accepted (PCMCIA RAM)\n");
+	    return -2;
+	}
 	if (j == 0) {
 	    for (i = 0; i < blocksize; i++) {
 		if (buf[i])
@@ -131,7 +138,7 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	return 0;
     }
     write_log ("hd accepted (empty)\n");
-    return -2;
+    return -9;
 }
 
 
@@ -735,7 +742,7 @@ Return Value:
 
     interfaceDetailDataSize = reqSize;
     interfaceDetailData = malloc (interfaceDetailDataSize);
-    if ( interfaceDetailData == NULL ) {
+    if (interfaceDetailData == NULL) {
 	write_log ("Unable to allocate memory to get the interface detail data.\n");
 	ret = 0;
 	goto end;
@@ -750,7 +757,7 @@ Return Value:
 		  &reqSize,                 // Buffer size required to get the detail data
 		  NULL);                    // Interface device info
 
-    if ( status == FALSE ) {
+    if (status == FALSE) {
 	write_log ("Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
 	ret = 0;
 	goto end;
@@ -1013,6 +1020,17 @@ static int hdf_init2 (int force)
 	    }
 	    SetupDiDestroyDeviceInfoList(hIntDevInfo);
 	}
+#if 0
+	hIntDevInfo = SetupDiGetClassDevs (&GUID_DEVCLASS_MTD, NULL, NULL, DIGCF_PRESENT);
+	if (hIntDevInfo != INVALID_HANDLE_VALUE) {
+	    while (index < MAX_FILESYSTEM_UNITS) {
+		memset (uae_drives + index2, 0, sizeof (struct uae_driveinfo));
+		index++;
+		num_drives = index2;
+	    }
+	    SetupDiDestroyDeviceInfoList(hIntDevInfo);
+	}
+#endif
 	VirtualFree (buffer, 0, MEM_RELEASE);
     }
     num_drives = index2;
@@ -1041,8 +1059,11 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
 
     switch (uae_drives[index].dangerous)
     {
-	case -2:
+	case -9:
 	dang = "Empty";
+	break;
+	case -2:
+	dang = "SRAM";
 	break;
 	case -1:
 	dang = "RDB";
@@ -1073,7 +1094,7 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
     return uae_drives[index].device_name;
 }
 
-static int hmc (struct hardfiledata *hfd, int nr)
+static int hmc (struct hardfiledata *hfd)
 {
     uae_u8 *buf = xmalloc (hfd->blocksize);
     DWORD ret, got, err, status;
@@ -1115,6 +1136,45 @@ end:
 
 int hardfile_remount (int nr);
 
+
+static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci, int *rescanned, int *reopen, int *gotinsert)
+{
+    int ret;
+
+    if (!hfd->emptyname)
+	return;
+    if (*rescanned == 0) {
+	hdf_init2 (1);
+	*rescanned = 1;
+    }
+    if (hfd->drive_empty < 0 || !hfd->handle_valid) {
+        int empty = hfd->drive_empty;
+        int r;
+        //write_log ("trying to open '%s' de=%d hv=%d\n", hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
+        r = hdf_open (hfd, hfd->emptyname);
+        //write_log ("=%d\n", r);
+        if (!r)
+	    return;
+	*reopen = 1;
+	if (hfd->drive_empty < 0)
+	    return;
+	hfd->drive_empty = empty ? 1 : 0;
+    }
+    ret = hmc (hfd);
+    if (!ret)
+	return;
+    if (ret > 0) {
+        if (*reopen == 0) {
+	    hdf_open (hfd, hfd->emptyname);
+	    if (!hfd->handle_valid)
+	        return;
+	}
+	*gotinsert = 1;
+	//hardfile_remount (uci);
+    }
+    hardfile_do_disk_change (uci, ret < 0 ? 0 : 1);
+}
+
 int win32_hardfile_media_change (void)
 {
     int gotinsert = 0, rescanned = 0;
@@ -1122,42 +1182,20 @@ int win32_hardfile_media_change (void)
 
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	struct hardfiledata *hfd = get_hardfile_data (i);
-	int ret, reopen = 0;
+	int reopen = 0;
 	if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE))
 	    continue;
-	if (!hfd->emptyname)
-	    continue;
-	if (!rescanned) {
-	    hdf_init2 (1);
-	    rescanned = 1;
-	}
-	if (hfd->drive_empty < 0 || !hfd->handle_valid) {
-	    int empty = hfd->drive_empty;
-	    int r;
-	    //write_log ("trying to open '%s' de=%d hv=%d\n", hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
-	    r = hdf_open (hfd, hfd->emptyname);
-	    //write_log ("=%d\n", r);
-	    if (!r)
-		continue;
-	    reopen = 1;
-	    if (hfd->drive_empty < 0)
-		continue;
-	    hfd->drive_empty = empty ? 1 : 0;
-	}
-	ret = hmc (hfd, i);
-	if (!ret)
-	    continue;
-	if (ret > 0) {
-	    if (!reopen) {
-		hdf_open (hfd, hfd->emptyname);
-		if (!hfd->handle_valid)
-		    continue;
-	    }
-	    gotinsert = 1;
-	    hardfile_remount (i);
-	}
-	hardfile_do_disk_change (i, ret < 0 ? 0 : 1);
+	hmc_check (hfd, &currprefs.mountconfig[i], &rescanned, &reopen, &gotinsert);
     }
+    for (i = 0; i < currprefs.mountitems; i++) {
+	extern struct hd_hardfiledata *pcmcia_sram;
+	int reopen = 0;
+	struct uaedev_config_info *uci = &currprefs.mountconfig[i];
+	if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+	    hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert);
+	}
+    }
+
     //write_log ("win32_hardfile_media_change returned %d\n", gotinsert);
     return gotinsert;
 }

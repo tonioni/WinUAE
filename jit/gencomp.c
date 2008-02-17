@@ -3095,9 +3095,9 @@ main (int argc, char **argv)
      * cputbl.h that way), but cpuopti can't cope.  That could be fixed, but
      * I don't dare to touch the 68k version.  */
 
-    headerfile = fopen ("comptbl.h", "wb");
-    stblfile = fopen ("compstbl.c", "wb");
-    freopen ("compemu.c", "wb", stdout);
+    headerfile = fopen ("jit/comptbl.h", "wb");
+    stblfile = fopen ("jit/compstbl.c", "wb");
+    freopen ("jit/compemu.c", "wb", stdout);
 
     generate_includes (stdout);
     generate_includes (stblfile);

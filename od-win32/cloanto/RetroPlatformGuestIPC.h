@@ -2,11 +2,12 @@
  Name    : RetroPlatformGuestIPC.h
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
- Legal   : Copyright © 2007 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007, 2008 Cloanto Italia srl - All rights reserved. This
          : file is made available under the terms of the GNU General Public
          : License version 2 as published by the Free Software Foundation.
  Authors : os
  Created : 2007-08-24 15:29:26
+ Updated : 2008-02-03 06:49:00
  Comment : RP Player interprocess communication include file (guest side)
  *****************************************************************************/
 

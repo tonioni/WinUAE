@@ -77,7 +77,6 @@ static unsigned int trap_count;
 
 static const int trace_traps = 0;
 
-
 static void trap_HandleExtendedTrap (TrapHandler, int has_retval);
 
 /*
@@ -196,7 +195,6 @@ static uaecptr exit_trap_trapaddr;
 /* For IPC between main thread and trap context */
 static uae_sem_t trap_mutex;
 static ExtendedTrapContext *current_context;
-
 
 /*
  * Thread body for trap context

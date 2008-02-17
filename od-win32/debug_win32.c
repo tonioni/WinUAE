@@ -32,8 +32,10 @@
 static HWND hDbgWnd = 0;
 static HWND hOutput = 0;
 static HACCEL dbgaccel = 0;
+static HFONT udfont = 0;
 
 extern int consoleopen;
+BOOL debuggerinitializing = FALSE;
 extern uae_u32 get_fpsr();
 
 static char linebreak[] = {'\r', '\n', '\0'};
@@ -60,9 +62,13 @@ static int histcount;
 
 struct debuggerpage {
     HWND ctrl[MAXPAGECONTROLS];
-    uae_u32 addr;
+    uae_u32 memaddr;
+	int memsel;
+	uae_u32 dasmaddr;
+	int dasmsel;
     char addrinput[9];
     int init;
+	BOOL autoset;
 };
 static struct debuggerpage dbgpage[MAXPAGES];
 static int currpage, pages;
@@ -72,6 +78,14 @@ char *pname[] = { "OUT1", "OUT2", "MEM1", "MEM2", "DASM1", "DASM2", "BRKPTS", "M
 static int pstatuscolor[MAXPAGES];
 
 static int dbgwnd_minx = 800, dbgwnd_miny = 600;
+
+static BOOL useinternalcmd = FALSE;
+static char internalcmd[MAX_LINEWIDTH + 1];
+
+static const char *ucbranch[] = { "BSR", "JMP", "JSR", 0 };
+static const char *cbranch[] = { "B", "DB", "FB", "FDB", 0 };
+static const char *ccode[] = { "T ", "F ", "HI", "LS", "CC", "CS", "NE", "EQ",
+								"VC", "VS", "PL", "MI", "GE", "LT", "GT", "LE", 0 };
 
 static void OutputCurrHistNode(HWND hWnd)
 {
@@ -162,7 +176,6 @@ int GetInput (char *out, int maxlen)
 
     if (!hDbgWnd)
 	return 0;
-    inputfinished = 0;
     hInput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
     chars = GetWindowText(hInput, out, maxlen);
     if (chars == 0)
@@ -487,7 +500,7 @@ static void ShowCustom(void)
 static void ShowBreakpoints(void)
 {
     HWND hBrkpts;
-    int i, line = 0, lines_old, got;
+    int i, lines_old, got;
     char outbp[MAX_LINEWIDTH + 1], outw[50];
 
     hBrkpts = GetDlgItem(hDbgWnd, IDC_DBG_BRKPTS);
@@ -520,7 +533,7 @@ static void ShowBreakpoints(void)
     if (!got)
 	ULBS("none");
     for (i = ulbs_pos; i < lines_old; i++)
-	SendMessage(hBrkpts, LB_DELETESTRING, line, 0);
+	SendMessage(hBrkpts, LB_DELETESTRING, ulbs_pos, 0);
 }
 
 static void ShowMem(int offset)
@@ -530,9 +543,12 @@ static void ShowMem(int offset)
     char out[MAX_LINEWIDTH + 1];
     HWND hMemory;
 
-    dbgpage[currpage].addr += offset;
-    addr = dbgpage[currpage].addr;
-    hMemory = GetDlgItem(hDbgWnd, IDC_DBG_MEM);
+    dbgpage[currpage].memaddr += offset;
+    addr = dbgpage[currpage].memaddr;
+	if (currpage == 0)
+		hMemory = GetDlgItem(hDbgWnd, IDC_DBG_MEM2);
+	else
+	    hMemory = GetDlgItem(hDbgWnd, IDC_DBG_MEM);
     lines_old = SendMessage(hMemory, LB_GETCOUNT, 0, 0);
     lines_new = GetLBOutputLines(hMemory);
     for (i = 0; i < lines_new; i++) {
@@ -570,17 +586,24 @@ static void ShowDasm(int direction)
     char out[MAX_LINEWIDTH + 1];
     HWND hDasm;
 
-    hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM);
+	if (currpage == 0)
+		hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM2);
+	else
+		hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM);
+
     if (!dbgpage[currpage].init) {
 	addr = m68k_getpc (&regs);
 	dbgpage[currpage].init = 1;
     }
+	else if (dbgpage[currpage].autoset && direction == 0) {
+	addr = m68k_getpc (&regs);
+	}
     else
-	addr = dbgpage[currpage].addr;
+	addr = dbgpage[currpage].dasmaddr;
     if (direction > 0) {
 	m68k_disasm_2(NULL, 0, addr, &addr, 1, NULL, NULL, 0);
-	if (!addr || addr < dbgpage[currpage].addr)
-	    addr = dbgpage[currpage].addr;
+	if (!addr || addr < dbgpage[currpage].dasmaddr)
+	    addr = dbgpage[currpage].dasmaddr;
     }
     else if (direction < 0 && addr > 0) {
 	if (GetPrevAddr(addr, &prev))
@@ -588,14 +611,12 @@ static void ShowDasm(int direction)
 	else
 	    addr -= 2;
     }
-    if (addr % 2)
-	return;
-    dbgpage[currpage].addr = addr;
+    dbgpage[currpage].dasmaddr = addr;
     lines_old = SendMessage(hDasm, LB_GETCOUNT, 0, 0);
     lines_new = GetLBOutputLines(hDasm);
     for (i = 0; i < lines_new; i++) {
 	m68k_disasm_2(out, sizeof(out), addr, &addr, 1, NULL, NULL, 0);
-	if (addr > dbgpage[currpage].addr)
+	if (addr > dbgpage[currpage].dasmaddr)
 	    UpdateListboxString(hDasm, i, out, FALSE);
 	else
 	    UpdateListboxString(hDasm, i, "", FALSE);
@@ -610,8 +631,8 @@ static void SetMemToPC(void)
 {
     int i, id;
 
-    dbgpage[currpage].addr = m68k_getpc (&regs);
-    sprintf(dbgpage[currpage].addrinput, "%08lX", dbgpage[currpage].addr);
+    dbgpage[currpage].dasmaddr = m68k_getpc (&regs);
+    sprintf(dbgpage[currpage].addrinput, "%08lX", dbgpage[currpage].dasmaddr);
     for (i = 0; i < MAXPAGECONTROLS; i++) {
 	id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
 	if (id == IDC_DBG_MEMINPUT)
@@ -636,23 +657,28 @@ static void ShowPage(int index, int force)
 		id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
 		if (id == IDC_DBG_MEMINPUT)
 		    GetWindowText(dbgpage[currpage].ctrl[i], dbgpage[currpage].addrinput, 9);
-		ShowWindow(dbgpage[currpage].ctrl[i], SW_HIDE);
+		if (index != currpage)
+			ShowWindow(dbgpage[currpage].ctrl[i], SW_HIDE);
 	    }
 	}
     }
     pagetype = 0;
+	currpage = index;
     for (i = 0; i < MAXPAGECONTROLS; i++) {
 	if (dbgpage[index].ctrl[i]) {
 	    id = GetDlgCtrlID(dbgpage[index].ctrl[i]);
 	    if (id == IDC_DBG_OUTPUT1 || id == IDC_DBG_OUTPUT2) {
 		hOutput = dbgpage[index].ctrl[i];
-	    } else if (id == IDC_DBG_MEM) {
+	    } else if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2) {
 		ShowMem(0);
 		pagetype = id;
 	    } else if (id == IDC_DBG_DASM) {
 		ShowDasm(0);
 		pagetype = id;
-	    } else if (id == IDC_DBG_MEMINPUT) {
+	    } else if (id == IDC_DBG_DASM2) {
+		ShowDasm(0);
+	    }
+		else if (id == IDC_DBG_MEMINPUT) {
 		SetWindowText(dbgpage[index].ctrl[i], dbgpage[index].addrinput);
 	} else if (id == IDC_DBG_BRKPTS) {
 	    ShowBreakpoints();
@@ -660,11 +686,12 @@ static void ShowPage(int index, int force)
 	    ShowMisc();
 	} else if (id == IDC_DBG_CUSTOM) {
 	    ShowCustom();
+	} else if (id == IDC_DBG_AUTOSET) {
+		SendMessage(dbgpage[index].ctrl[i], BM_SETCHECK, (WPARAM)dbgpage[index].autoset ? BST_CHECKED : BST_UNCHECKED, (LPARAM)0);
 	}
 	    ShowWindow(dbgpage[index].ctrl[i], SW_SHOW);
 	}
     }
-    currpage = index;
     pstatuscolor[currpage] = COLOR_HIGHLIGHT;
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_STATUS);
     RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
@@ -681,6 +708,10 @@ static void AddPage(int *iddata)
 	dbgpage[pages].ctrl[i] = GetDlgItem(hDbgWnd, iddata[i]);
 	ShowWindow(dbgpage[pages].ctrl[i], SW_HIDE);
     }
+	if (pages == 0)
+		dbgpage[pages].autoset = TRUE;
+	else
+		dbgpage[pages].autoset = FALSE;
     pages++;
 }
 
@@ -708,12 +739,12 @@ static void InitPages(void)
     HWND hwnd;
 
     int dpage[][MAXPAGECONTROLS + 1] = {
-	{ IDC_DBG_OUTPUT1, -1 },
+	{ IDC_DBG_OUTPUT1, IDC_DBG_DASM2, IDC_DBG_MEM2, -1 },
 	{ IDC_DBG_OUTPUT2, -1 },
 	{ IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
 	{ IDC_DBG_MEM, IDC_DBG_MEMINPUT, -1 },
-	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
-	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, -1 },
+	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, IDC_DBG_AUTOSET, -1 },
+	{ IDC_DBG_DASM, IDC_DBG_MEMINPUT, IDC_DBG_MEMTOPC, IDC_DBG_AUTOSET, -1 },
 	{ IDC_DBG_BRKPTS, -1 },
 	{ IDC_DBG_MISC, -1 },
 	{ IDC_DBG_CUSTOM, -1 }
@@ -759,6 +790,8 @@ static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
+static int addrinputdialogactive;
+
 static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HANDLE hdata;
@@ -797,15 +830,164 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 		case VK_RETURN:
 		    sprintf(addrstr, "0x");
 		    GetWindowText(hWnd, addrstr + 2, 9);
-		    addr = strtoul(addrstr, NULL, 0);
-		    dbgpage[currpage].addr = addr;
-		    ShowPage(currpage, TRUE);
+			if (addrstr[2] != 0) {
+				addr = strtoul(addrstr, NULL, 0);
+				if (pagetype == IDC_DBG_MEM || pagetype == IDC_DBG_MEM2) {
+					dbgpage[currpage].memaddr = addr;
+					ShowMem(0);
+				}
+				else if (pagetype == IDC_DBG_DASM) {
+					dbgpage[currpage].dasmaddr = addr;
+					ShowDasm(0);
+				}
+			}
+			addrinputdialogactive = -1;
 		    break;
 	    }
 	    break;
     }
     oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
+}
+
+static INT_PTR CALLBACK AddrInputDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch(msg)
+    {
+	case WM_DESTROY:
+	PostQuitMessage (0);
+	return TRUE;
+	case WM_CLOSE:
+	addrinputdialogactive = 0;
+	DestroyWindow(hDlg);
+	return TRUE;
+	case WM_INITDIALOG:
+	{
+		WNDPROC oldproc;
+		HWND hwnd = GetDlgItem(hDlg, IDC_DBG_MEMINPUT2);
+		SendMessage(hwnd, EM_LIMITTEXT, 8, 0);
+		oldproc = (WNDPROC)SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)MemInputProc);
+		SetWindowLongPtr(hwnd, GWL_USERDATA, (LONG_PTR)oldproc);
+	    return TRUE;
+	}
+	case WM_COMMAND:
+	    switch (LOWORD(wParam))
+	    {
+		case IDOK:
+		    addrinputdialogactive = -1;
+		    DestroyWindow (hDlg);
+		return TRUE;
+		case IDCANCEL:
+		    addrinputdialogactive = 0;
+		    DestroyWindow (hDlg);
+		return TRUE;
+	    }
+	break;
+    }
+	return FALSE;
+}
+
+static void ShowAddrInputDialog(HWND hparent)
+{
+    HWND hwnd;
+    char addrstr[11];
+	uae_u32 addr;
+
+    addrinputdialogactive = 1;
+	sprintf(addrstr, "0x");
+    hwnd = CustomCreateDialog (IDD_DBGMEMINPUT, hparent, (DLGPROC)AddrInputDialogProc);
+    if (hwnd == NULL)
+	return;
+    SetFocus(GetDlgItem(hwnd, IDC_DBG_MEMINPUT2));
+    while (addrinputdialogactive == 1) {
+	MSG msg;
+	int ret;
+	WaitMessage();
+	while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+	    if (ret == -1)
+		break;
+	    if (!IsWindow(hwnd) || !IsDialogMessage(hwnd, &msg)) {
+		TranslateMessage (&msg);
+		DispatchMessage (&msg);
+	    }
+		SendMessage(GetDlgItem(hwnd, IDC_DBG_MEMINPUT2), WM_GETTEXT, 9, (LPARAM)addrstr + 2);
+	}
+	if (addrinputdialogactive == -1) {
+		if (addrstr[2] != 0) {
+			addr = strtoul(addrstr, NULL, 0);
+			dbgpage[currpage].memaddr = addr;
+			ShowMem(0);
+		}
+		SetFocus(hDbgWnd);
+	    return;
+	}
+    }
+    return;
+
+}
+
+static void CopyListboxText(HWND hwnd, BOOL all)
+{
+	HANDLE hdata;
+	LPTSTR lptstr;
+	int i, count, start, end, size = 0;
+
+	if (!OpenClipboard(hwnd))
+		return;
+	EmptyClipboard();
+	if ((count = SendMessage(hwnd, LB_GETCOUNT, 0, 0)) < 1)
+		return;
+	if (all) {
+		start = 0;
+		end = count;
+	}
+	else {
+		int id = GetDlgCtrlID(hwnd);
+		if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2)
+			start = dbgpage[currpage].memsel;
+		else
+			start = dbgpage[currpage].dasmsel;
+		end = start + 1;
+	}
+	for (i = start; i < end; i++)
+		size += (SendMessage(hwnd, LB_GETTEXTLEN, i, 0) + 2);
+	size++;
+	hdata = GlobalAlloc(GMEM_MOVEABLE, size);
+	if (hdata) {
+		int pos = 0;
+		lptstr = GlobalLock(hdata);
+		lptstr[size - 1] = '\0';
+		for (i = start; i < end; i++) {
+			int len = SendMessage(hwnd, LB_GETTEXTLEN, i, 0);
+			SendMessage(hwnd, LB_GETTEXT, i, (LPARAM)lptstr);
+			lptstr[len] = '\r';
+			lptstr[len + 1] = '\n';
+			lptstr += (len + 2);
+		}
+        GlobalUnlock(hdata); 
+		SetClipboardData(CF_TEXT, hdata);
+	}
+	CloseClipboard();
+}
+
+static void ToggleBreakpoint(HWND hwnd)
+{
+	char addrstr[MAX_LINEWIDTH + 1], *ptr;
+	int index = dbgpage[currpage].dasmsel;
+	SendMessage(hwnd, LB_GETTEXT, index, (LPARAM)addrstr);
+	addrstr[8] = '\0';
+	ptr = addrstr;
+	console_out("\nf %s\n", addrstr);
+	instruction_breakpoint(&ptr);
+	RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
+}
+
+static void DeleteBreakpoints(HWND hwnd)
+{
+	char *cmd = "d";
+	console_out("\nfd\n");
+	instruction_breakpoint(&cmd);
+	RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
 }
 
 static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -879,6 +1061,35 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 	    DeleteDC(compdc);
 	    EndPaint(hWnd, &ps);
 	    return TRUE;
+	case WM_COMMAND:
+		switch(LOWORD(wParam)) {
+			case ID_DBG_SETTOA0:
+			case ID_DBG_SETTOA1:
+			case ID_DBG_SETTOA2:
+			case ID_DBG_SETTOA3:
+			case ID_DBG_SETTOA4:
+			case ID_DBG_SETTOA5:
+			case ID_DBG_SETTOA6:
+			case ID_DBG_SETTOA7:
+				dbgpage[currpage].memaddr =	m68k_areg(&regs, LOWORD(wParam) - ID_DBG_SETTOA0);
+				ShowMem(0);
+				return TRUE;
+			case ID_DBG_ENTERADDR:
+				ShowAddrInputDialog(hWnd);
+				return TRUE;
+			case ID_DBG_COPYLBLINE:
+				CopyListboxText(hWnd, FALSE);
+				return TRUE;
+			case ID_DBG_COPYLB:
+				CopyListboxText(hWnd, TRUE);
+				return TRUE;
+			case ID_DBG_TOGGLEBP:
+				ToggleBreakpoint(hWnd);
+				return TRUE;
+			case ID_DBG_DELETEBPS:
+				DeleteBreakpoints(hWnd);
+				return TRUE;
+		}
     }
     oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
     return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
@@ -905,7 +1116,7 @@ static LRESULT CALLBACK EditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 
 static void moveupdown(int dir)
 {
-    if (pagetype == IDC_DBG_MEM) {
+    if (pagetype == IDC_DBG_MEM || pagetype == IDC_DBG_MEM2) {
 	if (dir > 1 || dir < -1)
 	    dir *= 4;
 	ShowMem(dir * 16);
@@ -943,18 +1154,19 @@ static void adjustitem(HWND hwnd, int x, int y, int w, int h)
     MoveWindow(hwnd, r->left, r->top, r->right, r->bottom, TRUE);
 }
 
+static int randidx;
 static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 {
-    int id1y[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM, IDC_DBG_BRKPTS, IDC_DBG_MISC, IDC_DBG_CUSTOM, -1 };
+    int id1y[] = { IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM, IDC_DBG_BRKPTS, IDC_DBG_MISC, IDC_DBG_CUSTOM, -1 };
     int id2y[] = { IDC_DBG_INPUT, IDC_DBG_HELP, IDC_DBG_STATUS, -1 };
+	int id3y[] = { IDC_DBG_DASM2, IDC_DBG_MEM2, IDC_DBG_OUTPUT1, -1 };
 
-    int id1x[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_DASM,
+	int id1x[] = { IDC_DBG_OUTPUT1, IDC_DBG_OUTPUT2, IDC_DBG_MEM, IDC_DBG_MEM2, IDC_DBG_DASM, IDC_DBG_DASM2,
 	IDC_DBG_AMEM, IDC_DBG_PREFETCH, IDC_DBG_INPUT, IDC_DBG_STATUS, IDC_DBG_BRKPTS, IDC_DBG_MISC, IDC_DBG_CUSTOM, -1 };
     int id2x[] = { IDC_DBG_HELP, IDC_DBG_CCR, IDC_DBG_SP_VBR, IDC_DBG_MMISC,
 	IDC_DBG_FPREG, IDC_DBG_FPSR, IDC_DBG_MCUSTOM, IDC_DBG_MISCCPU, -1 };
 
-    int dlgid, j;
-
+    int dlgid, j, count, adjust, remainder, starty;
     dlgid = GetDlgCtrlID(hwnd);
 
     j = 0;
@@ -969,6 +1181,26 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 	    adjustitem(hwnd, 0, height_adjust, 0, 0);
 	j++;
     }
+	j = 0;
+	count = sizeof(id3y) / sizeof(int) - 1;
+	adjust = height_adjust / count;
+	remainder = height_adjust % count;
+	if (randidx < 0) {
+		srand(time(NULL));
+		randidx = rand() % count;
+	}
+	while (id3y[j] >= 0) {
+		if (id3y[j] == dlgid) {
+			starty = j * adjust;
+			if (j < randidx)
+				adjustitem(hwnd, 0, starty, 0, adjust);
+			else if (j == randidx)
+				adjustitem(hwnd, 0, starty, 0, adjust + remainder);
+			else
+				adjustitem(hwnd, 0, starty + remainder, 0, adjust);
+		}
+		j++;
+	}
     j = 0;
     while (id1x[j] >= 0) {
 	if (id1x[j] == dlgid)
@@ -995,6 +1227,7 @@ static void AdjustDialog(HWND hDlg)
     AdjustWindowRect(&r2, WS_POPUP | WS_CAPTION | WS_THICKFRAME, FALSE);
     dlgRect.left -= r2.left;
     dlgRect.top -= r2.top;
+	randidx = -1;
     EnumChildWindows (hDlg, childenumproc, 0);
     dlgRect = r;
     RedrawWindow(hDlg, 0, 0, RDW_INVALIDATE);
@@ -1063,20 +1296,65 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
     return TRUE;
 }
 
+static void step(BOOL over)
+{
+	if (over)
+		strcpy(internalcmd, "z");
+	else
+		strcpy(internalcmd, "t");
+	useinternalcmd = TRUE;
+	inputfinished = 1;
+}
+
+static void ShowContextMenu(HWND hwnd, int x, int y)
+{
+    POINT pt = { x, y };
+	HMENU hmenu, hsubmenu;
+	int id = GetDlgCtrlID(hwnd);
+	if (x == 65535 && y == 65535) {
+		DWORD msgpos = GetMessagePos();
+		pt.x = LOWORD(msgpos);
+		pt.y = HIWORD(msgpos);
+	}
+	hmenu = LoadMenu(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE(IDM_DBGCONTEXTMENU));
+	if (!hmenu)
+		return;
+
+	if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2)
+		hsubmenu = GetSubMenu(hmenu, 0);
+	else if (id == IDC_DBG_DASM || id == IDC_DBG_DASM2)
+		hsubmenu = GetSubMenu(hmenu, 1);
+	TrackPopupMenu(hsubmenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, NULL);
+	DestroyMenu(hmenu);
+	SendMessage(hwnd, LB_SETCURSEL, -1, 0);
+}
+
+static void SelectListboxLine(HWND hwnd, int x, int y)
+{
+	POINT pt = { x, y };
+	int index;
+	int size = GetTextSize(hwnd, NULL, 0);
+	int id = GetDlgCtrlID(hwnd);
+	ScreenToClient(hwnd, &pt);
+	index = pt.y /size;
+	SendMessage(hwnd, LB_SETCURSEL, index, 0);
+	if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2)
+		dbgpage[currpage].memsel = index;
+	else if (id == IDC_DBG_DASM || id == IDC_DBG_DASM2)
+		dbgpage[currpage].dasmsel = index;
+}
+
 static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HWND hwnd;
-    DRAWITEMSTRUCT *pdis;
-    HDC hdc;
-    RECT rc;
-    char text[MAX_LINEWIDTH + 1];
-
     switch (message) {
 	case WM_INITDIALOG:
 	{
 	    int newpos = 0;
 	    LONG x, y, w, h;
 	    RECT rw;
+		HFONT hfont;
+		LOGFONT lf;
 	    GetWindowRect(hDlg, &rw);
 	    dbgwnd_minx = rw.right - rw.left;
 	    dbgwnd_miny = rw.bottom - rw.top;
@@ -1106,6 +1384,10 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    histcount = 0;
 	    inputfinished = 0;
 	    AdjustDialog(hDlg);
+		hfont = (HFONT)SendMessage(hDlg, WM_GETFONT, 0, 0);
+		GetObject(hfont, sizeof(LOGFONT), &lf);
+		lf.lfEscapement = lf.lfOrientation = 1800;
+		udfont = CreateFontIndirect(&lf);
 	    return TRUE;
 	}
 	case WM_CLOSE:
@@ -1126,6 +1408,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    hDbgWnd = 0;
 	    PostQuitMessage(0);
 	    DeleteFromHistory(histcount);
+		DeleteObject(udfont);
 	    consoleopen = 0;
 	    return TRUE;
 	}
@@ -1143,8 +1426,14 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    return TRUE;
 	}
 	case WM_CTLCOLORSTATIC:
-	    SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
-	    return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+	{
+		int id = GetDlgCtrlID((HWND)lParam);
+		if (id == IDC_DBG_OUTPUT1 || id == IDC_DBG_OUTPUT2) {
+			SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
+			return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+		}
+		return FALSE;
+	}
 	case WM_CTLCOLORLISTBOX:
 	    hwnd = (HWND)lParam;
 	    if (!IsWindowEnabled(hwnd)) {
@@ -1176,6 +1465,12 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		    // IDs have to be consecutive and in order of page order for this to work
 		    ShowPage(LOWORD(wParam) - ID_DBG_PAGE1, FALSE);
 		    return TRUE;
+		case ID_DBG_STEP_OVER:
+			step(TRUE);
+			return TRUE;
+		case ID_DBG_STEP_INTO:
+			step(FALSE);
+			return TRUE;
 		case IDC_DBG_MEMUP:
 		    moveupdown(-1);
 		    return TRUE;
@@ -1196,19 +1491,45 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		    SetFocus(hmeminput);
 		    return TRUE;
 		}
+		case IDC_DBG_AUTOSET:
+		{
+			if (pagetype == IDC_DBG_DASM) {
+				HWND hctrl;
+				dbgpage[currpage].autoset = 1 - dbgpage[currpage].autoset;
+				hctrl = GetDlgItem(hDbgWnd, IDC_DBG_AUTOSET);
+				SendMessage(hctrl, BM_SETCHECK, dbgpage[currpage].autoset ? BST_CHECKED : BST_UNCHECKED, 0);
+				hctrl = GetDlgItem(hDbgWnd, IDC_DBG_MEMINPUT);
+				SetFocus(hctrl);
+			}
+			return TRUE;
+		}
 	    }
 	    break;
+	case WM_CONTEXTMENU:
+	{
+		int id = GetDlgCtrlID((HWND)wParam);
+		if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2 || id == IDC_DBG_DASM || id == IDC_DBG_DASM2) {
+			SelectListboxLine((HWND)wParam, LOWORD(lParam), HIWORD(lParam));
+			ShowContextMenu((HWND)wParam, LOWORD(lParam), HIWORD(lParam));
+			return TRUE;
+		}
+		break;
+	}
 	case WM_MEASUREITEM:
 	    ((MEASUREITEMSTRUCT*)(lParam))->itemHeight = GetTextSize(hDlg, NULL, FALSE);
 	    return TRUE;
 	case WM_DRAWITEM:
-	    pdis = (DRAWITEMSTRUCT *)lParam;
-	    hdc = pdis->hDC;
-	    rc = pdis->rcItem;
+	{
+		DRAWITEMSTRUCT *pdis = (DRAWITEMSTRUCT *)lParam;
+		HDC hdc = pdis->hDC;
+		RECT rc = pdis->rcItem;
+		char text[MAX_LINEWIDTH + 1];
+		uae_u32 addr;
 	    SetBkMode(hdc, TRANSPARENT);
 	    if (wParam == IDC_DBG_STATUS) {
 		SetTextColor(hdc, GetSysColor(pstatuscolor[pdis->itemID]));
 		DrawText(hdc, pname[pdis->itemID], lstrlen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+		return TRUE;
 	    }
 	    else {
 		if (pdis->itemID < 0) {
@@ -1225,10 +1546,94 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		    SetBkColor(hdc, GetSysColor(COLOR_WINDOW));
 		}
 		SetTextColor(hdc, pdis->itemData);
-		TextOut(hdc, rc.left, rc.top, text, strlen(text));
+		if (wParam == IDC_DBG_DASM || wParam == IDC_DBG_DASM2) {
+			char addrstr[11] = { '0', 'x', '\0'}, *btemp;
+			int i, j, size = rc.bottom - rc.top;
+			strncpy(addrstr + 2, text, 8);
+			addrstr[10] = 0;
+			addr = strtoul(addrstr, NULL, 0);
+			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+				if (addr == bpnodes[i].addr && bpnodes[i].enabled) {
+					int offset = 0;
+					if (size >= 9)
+						offset = 3;
+					SelectObject(hdc, GetSysColorBrush(COLOR_HIGHLIGHT));
+					Ellipse(hdc, rc.left + offset, rc.top + offset, rc.left + size - offset, rc.bottom - offset);
+				}
+			}
+			rc.left += size;
+			i = 0;
+			btemp = NULL;
+			addrstr[2] = '\0';
+			while (ucbranch[i])  {
+				if (!strncmp(text + 34, ucbranch[i], strlen(ucbranch[i]))) {
+					btemp = strchr(text + 34, '=');
+					if (btemp)
+						strncpy(addrstr + 2, btemp + 4, 8);
+					else {
+						int pos = 34 + strlen(ucbranch[i]) + 3;
+						if (text[pos] == '$')	//absolute addressing
+							strncpy(addrstr + 2, text + pos + 1, 8);
+						else if (text[pos] == '(' && isdigit(text[pos + 2])) { //address register indirect
+							int reg = atoi(text + pos + 2);
+							uae_u32 loc = m68k_areg (&regs, reg);
+							sprintf(addrstr + 2, "%08lx", loc);
+						}
+					}
+					break;
+				}
+				i++;
+			}
+			i = 0;
+			while (addrstr[2] == '\0' && cbranch[i]) {
+				if (!strncmp(text + 34, cbranch[i], strlen(cbranch[i]))) {
+					j = 0;
+					while (ccode[j]) {
+						if (!strncmp(text + 34 + strlen(cbranch[i]), ccode[j], strlen(ccode[j]))) {
+							btemp = strchr(text + 34, '=');
+							if (btemp)
+								strncpy(addrstr + 2, btemp + 4, 8);
+							break;
+						}
+						j++;
+					}
+				}
+				i++;
+			}
+			if (addrstr[2] != '\0') {
+				uae_u32 branchaddr = strtoul(addrstr, NULL, 0);
+				if (branchaddr < addr)
+					TextOut(hdc, rc.left, rc.top, "^", 1);
+				else if (branchaddr > addr) {
+					HFONT hfontold = (HFONT)SelectObject(hdc, udfont);
+					int width = GetTextSize(hDlg, "^", TRUE);
+					TextOut(hdc, rc.left + width, rc.bottom, "^", 1);
+					SelectObject(hdc, hfontold);
+				}
+				else
+					TextOut(hdc, rc.left, rc.top, "=", 1);
+			}
+			rc.left += size;
+			if (addr == m68k_getpc(&regs)) {
+				FillRect(hdc, &rc, GetSysColorBrush(COLOR_HIGHLIGHT));
+				SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
+				SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+			}
+			TextOut(hdc, rc.left, rc.top, text, strlen(text));
+			if ((pdis->itemState) & (ODS_SELECTED))
+				DrawFocusRect(hdc, &rc);
+		}
+		else if (wParam == IDC_DBG_MEM || wParam == IDC_DBG_MEM2) {
+			if ((pdis->itemState) & (ODS_SELECTED))
+				DrawFocusRect(hdc, &rc);
+			TextOut(hdc, rc.left, rc.top, text, strlen(text));
+		}
+		else
+			TextOut(hdc, rc.left, rc.top, text, strlen(text));
 		return TRUE;
 	    }
 	    break;
+	}
     }
     return FALSE;
 }
@@ -1240,6 +1645,7 @@ int open_debug_window(void)
 
     if (hDbgWnd)
 	return 0;
+	debuggerinitializing = TRUE;
     reopen = 0;
     dbgaccel = LoadAccelerators(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDR_DBGACCEL));
     nr = getresource(IDD_DEBUGGER);
@@ -1247,6 +1653,7 @@ int open_debug_window(void)
 	hDbgWnd = CreateDialogIndirect (nr->inst, nr->resource, NULL, DebuggerProc);
 	freescaleresource(nr);
     }
+	debuggerinitializing = FALSE;
     if (!hDbgWnd)
 	return 0;
     InitPages();
@@ -1270,12 +1677,25 @@ int console_get_gui (char *out, int maxlen)
     while ((ret = GetMessage(&msg, NULL, 0, 0)) != 0) {
 	if (!debugger_active || ret == -1) {
 	    return -1;
-	} else if (!IsWindow(hDbgWnd) || !TranslateAccelerator(hDbgWnd, dbgaccel, &msg) || !IsDialogMessage(hDbgWnd, &msg)) {
-	    TranslateMessage(&msg);
-	    DispatchMessage(&msg);
+	} else if (!TranslateAccelerator(hDbgWnd, dbgaccel, &msg)) {
+		if (!IsWindow(hDbgWnd) || !IsDialogMessage(hDbgWnd, &msg)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
-	if (inputfinished)
-	    return GetInput(out, maxlen);
+	if (inputfinished) {
+		inputfinished = 0;
+		if (useinternalcmd) {
+			useinternalcmd = FALSE;
+			console_out("\n");
+			console_out(internalcmd);
+			console_out("\n");
+			strncpy(out, internalcmd, maxlen);
+			return strlen(out);
+		}
+		else
+			return GetInput(out, maxlen);
+	}
     }
     return 0;
 }

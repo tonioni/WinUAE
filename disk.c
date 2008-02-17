@@ -40,6 +40,9 @@
 #include "crc32.h"
 #include "inputdevice.h"
 #include "amax.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #undef CATWEASEL
 
@@ -62,6 +65,7 @@ static int longwritemode = 0;
 #else
 #define DDHDMULT 1
 #endif
+#define MAX_SECTORS (DDHDMULT * 11)
 
 #undef DEBUG_DRIVE_ID
 
@@ -78,7 +82,7 @@ static int longwritemode = 0;
 static int side, direction;
 static uae_u8 selected = 15, disabled;
 
-static uae_u8 writebuffer[544 * 11 * DDHDMULT];
+static uae_u8 writebuffer[544 * MAX_SECTORS];
 
 #define DISK_INDEXSYNC 1
 #define DISK_WORDSYNC 2
@@ -855,6 +859,9 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     trackid *tid;
     int num_tracks, size;
 
+#ifdef RETROPLATFORM
+    rp_disk_change (dnum, fname);
+#endif
     drive_image_free (drv);
     drv->diskfile = DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32);
     drv->ddhd = 1;
@@ -1269,7 +1276,7 @@ static void decode_pcdos (drive *drv)
 	crc16 = get_crc16 (secbuf + 56, 3 + 1 + 512);
 	secbuf[60 + 512] = crc16 >> 8;
 	secbuf[61 + 512] = crc16 & 0xff;
-	memset(secbuf + 512 + 62, 0x4e, (tracklen / 2 - 96) / drv->num_secs - 574);
+	memset(secbuf + 512 + 62, 0x4e, (tracklen / 2 - 96) / drv->num_secs - 574 / drv->ddhd);
 	dstmfmbuf = mfmcoder (secbuf, mfm2, 60 + 512 + 2 + 76 / drv->ddhd);
 	mfm2[12] = 0x4489;
 	mfm2[13] = 0x4489;
@@ -1506,7 +1513,7 @@ static uae_u32 getmfmlong (uae_u16 *mbuf, int shift)
     return ((getmfmword (mbuf, shift) << 16) | getmfmword (mbuf + 1, shift)) & MFMMASK;
 }
 
-static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int filetype, int *drvsecp, int checkmode)
+static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int filetype, int *drvsecp, int *sectable, int checkmode)
 {
     int i, secwritten = 0;
     int fwlen = FLOPPY_WRITE_LEN * ddhd;
@@ -1515,10 +1522,9 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
     uae_u8 *secdata;
     uae_u8 secbuf[544];
     uae_u16 *mend = mbuf + length;
-    char sectable[22];
     int shift = 0;
 
-    memset (sectable, 0, sizeof (sectable));
+    memset (sectable, 0, MAX_SECTORS * sizeof (int));
     memcpy (mbuf + fwlen, mbuf, fwlen * sizeof (uae_u16));
     mend -= (4 + 16 + 8 + 512);
     while (secwritten < drvsec) {
@@ -1638,7 +1644,7 @@ static int drive_write_pcdos (drive *drv)
     uae_u16 *mbuf = drv->bigmfmbuf;
     uae_u16 *mend = mbuf + length;
     int secwritten = 0, shift = 0, sector = -1;
-    char sectable[18];
+    int sectable[18];
     uae_u8 secbuf[3 + 1 + 512];
     uae_u8 mark;
     uae_u16 crc;
@@ -1714,8 +1720,9 @@ static int drive_write_pcdos (drive *drv)
 static int drive_write_adf_amigados (drive *drv)
 {
     int drvsec, i;
+    int sectable[MAX_SECTORS];
 
-    if (decode_buffer (drv->bigmfmbuf, drv->cyl, drv->num_secs, drv->ddhd, drv->filetype, &drvsec, 0))
+    if (decode_buffer (drv->bigmfmbuf, drv->cyl, drv->num_secs, drv->ddhd, drv->filetype, &drvsec, sectable, 0))
 	return 2;
     if (!drvsec)
 	return 2;
@@ -1800,6 +1807,9 @@ static void drive_eject (drive * drv)
 {
 #ifdef DRIVESOUND
     driveclick_insert (drv - floppy, 1);
+#endif
+#ifdef RETROPLATFORM
+    rp_disk_change (drv - floppy, NULL);
 #endif
     drive_image_free (drv);
     drv->dskchange = 1;
@@ -3062,6 +3072,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
     drive *drv = &floppy[num];
     uae_u32 dos, crc, crc2;
     int wasdelayed = drv->dskchange_time;
+    int sectable[MAX_SECTORS];
 
     ret = 0;
     drv->cyl = 0;
@@ -3072,7 +3083,8 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
     if (!drv->diskfile)
 	return 1;
     *crc32 = zfile_crc32 (drv->diskfile);
-    if (decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, 1)) {
+    decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, sectable, 1);
+    if (sectable[0] == 0 || sectable[1] == 0) {
 	ret = 2;
 	goto end;
     }

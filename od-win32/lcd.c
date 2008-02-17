@@ -104,7 +104,7 @@ static void dorect(int *crd, int inv)
     int x = crd[0], y = crd[1], w = crd[2], h = crd[3];
     for (yy = y; yy < y + h; yy++) {
 	for (xx = x; xx < x + w; xx++) {
-	    uae_u8 b =  origbitmap[yy * desc.Width + xx];
+	    uae_u8 b = origbitmap[yy * desc.Width + xx];
 	    if (inv)
 		b = b == 0 ? 0xff : 0;
 	    bitmap[yy * desc.Width + xx] = b;

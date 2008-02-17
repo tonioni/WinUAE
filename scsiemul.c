@@ -26,6 +26,7 @@
 #include "blkdev.h"
 #include "scsidev.h"
 #include "uae.h"
+#include "execio.h"
 
 #define CDDEV_COMMANDS
 
@@ -37,63 +38,9 @@
 #define MAX_ASYNC_REQUESTS 20
 #define MAX_OPEN_DEVICES 20
 
-#define CMD_INVALID	0
-#define CMD_RESET	1
-#define CMD_READ	2
-#define CMD_WRITE	3
-#define CMD_UPDATE	4
-#define CMD_CLEAR	5
-#define CMD_STOP	6
-#define CMD_START	7
-#define CMD_FLUSH	8
-#define CMD_MOTOR	9
-#define CMD_SEEK	10
-#define CMD_FORMAT	11
-#define CMD_REMOVE	12
-#define CMD_CHANGENUM	13
-#define CMD_CHANGESTATE	14
-#define CMD_PROTSTATUS	15
-#define CMD_GETDRIVETYPE 18
-#define CMD_GETNUMTRACKS 19
-#define CMD_ADDCHANGEINT 20
-#define CMD_REMCHANGEINT 21
-#define CMD_GETGEOMETRY	22
-#define HD_SCSICMD 28
-#define CD_INFO		32
-#define CD_CONFIG	33
-#define CD_TOCMSF	34
-#define CD_TOCLSN	35
-#define CD_READXL	36
-#define CD_PLAYTRACK	37
-#define CD_PLAYMSF	38
-#define CD_PLAYLSN	39
-#define CD_PAUSE	40
-#define CD_SEARCH	41
-#define CD_QCODEMSF	42
-#define CD_QCODELSN	43
-#define CD_ATTENUATE	44
-#define CD_ADDFRAMEINT	45
-#define CD_REMFRAMEINT	46
-
-#define TD_READ64 24
-#define TD_WRITE64 25
-#define TD_SEEK64 26
-#define TD_FORMAT64 27
-
-#define DRIVE_NEWSTYLE 0x4E535459L   /* 'NSTY' */
-#define NSCMD_DEVICEQUERY 0x4000
-#define NSCMD_TD_READ64 0xc000
-#define NSCMD_TD_WRITE64 0xc001
-#define NSCMD_TD_SEEK64 0xc002
-#define NSCMD_TD_FORMAT64 0xc003
-
 #define ASYNC_REQUEST_NONE 0
 #define ASYNC_REQUEST_TEMP 1
 #define ASYNC_REQUEST_CHANGEINT 10
-#define ASYNC_REQUEST_FRAMEINT 11
-#define ASYNC_REQUEST_PLAY 12
-#define ASYNC_REQUEST_READXL 13
-#define ASYNC_REQUEST_FRAMECALL 14
 
 struct devstruct {
     int unitnum, aunit;
@@ -247,6 +194,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 
     if (log_scsi)
 	write_log ("opening %s:%d ioreq=%08.8X\n", getdevname (type), unit, ioreq);
+    if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE)
+	return openfail (ioreq, IOERR_BADLENGTH);
     if (!dev)
 	return openfail (ioreq, 32); /* badunitnum */
     if (!dev->opencnt) {
@@ -263,7 +212,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 	    pdev->mode = DF_IOCTL;
 	}
 	if (!pdev->scsi && !pdev->ioctl)
-	    return openfail (ioreq, -1);
+	    return openfail (ioreq, IOERR_OPENFAIL);
 	pdev->type = type;
 	pdev->unit = unit;
 	pdev->flags = flags;
@@ -276,7 +225,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 	    if (pdev->inuse && pdev->unit == unit) break;
 	}
 	if (i == MAX_OPEN_DEVICES)
-	    return openfail (ioreq, -1);
+	    return openfail (ioreq, IOERR_OPENFAIL);
 	put_long (ioreq + 24, pdev - pdevst);
     }
     dev->opencnt++;
@@ -495,7 +444,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 
     if (!pdev)
 	return 0;
-    command = get_word (request+28);
+    command = get_word (request + 28);
 
     switch (command)
     {
@@ -600,21 +549,22 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    if (log_scsi)
 		write_log ("scsidev: did io: sdd %p request %p error %d\n", sdd, request, get_byte (request + 31));
 	} else {
-	    io_error = -3;
+	    io_error = IOERR_NOCMD;
 	}
 	break;
 	case NSCMD_DEVICEQUERY:
+	    put_long (io_data + 0, 0);
 	    put_long (io_data + 4, 16); /* size */
-	    put_word (io_data + 8, 5); /* NSDEVTYPE_TRACKDISK */
+	    put_word (io_data + 8, NSDEVTYPE_TRACKDISK);
 	    put_word (io_data + 10, 0);
 	    put_long (io_data + 12, nscmd_cmd);
 	    io_actual = 16;
 	break;
 	default:
-	io_error = -3;
+	io_error = IOERR_NOCMD;
 	break;
 	bad_command:
-	io_error = -5; /* IOERR_BADADDRESS */
+	io_error = IOERR_BADADDRESS;
 	break;
     }
     put_long (request + 32, io_actual);
@@ -736,10 +686,10 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
     }
-    put_byte (request + 31, -2);
+    put_byte (request + 31, IOERR_ABORTED);
     if (log_scsi)
 	write_log ("abortio %s unit=%d, request=%08.8X\n", getdevname (pdev->type), pdev->unit, request);
-    abort_async (dev, request, -2, 0);
+    abort_async (dev, request, IOERR_ABORTED, 0);
     return 0;
 }
 

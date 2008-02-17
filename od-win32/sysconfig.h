@@ -10,6 +10,8 @@
 #define DRIVESOUND
 #define GFXFILTER
 #define X86_MSVC_ASSEMBLY
+#define OPTIMIZED_FLAGS
+#define __i386__
 
 #ifndef UAE_MINI
 

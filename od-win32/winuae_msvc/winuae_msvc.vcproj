@@ -98,6 +98,7 @@
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
+				LargeAddressAware="0"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 			/>
@@ -306,7 +307,7 @@
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="setupapi.dll;wpcap.dll;packet.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
@@ -316,7 +317,7 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
+				RandomizedBaseAddress="2"
 				FixedBaseAddress="1"
 				DataExecutionPrevention="2"
 				TargetMachine="1"
@@ -1047,7 +1048,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0500;WIN32"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -1082,14 +1083,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib dxerr8.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="setupapi.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1100,9 +1101,10 @@
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
 				LinkTimeCodeGeneration="1"
-				RandomizedBaseAddress="1"
+				RandomizedBaseAddress="2"
+				FixedBaseAddress="1"
 				DataExecutionPrevention="2"
-				TargetMachine="0"
+				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -1839,19 +1841,19 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\..\compemu.c"
+				RelativePath="..\..\jit\compemu.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\compemu_fpp.c"
+				RelativePath="..\..\jit\compemu_fpp.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\compemu_support.c"
+				RelativePath="..\..\jit\compemu_support.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\compstbl.c"
+				RelativePath="..\..\jit\compstbl.c"
 				>
 			</File>
 		</Filter>

@@ -119,7 +119,7 @@
 0100 1000 10dd dDDD:00:-----:-----:02: MVMLE.W #1,d[!Dreg,Areg,Aipi]
 0100 1000 11dd dDDD:00:-NZ00:-----:30: EXT.L   d[Dreg]         
 0100 1000 11dd dDDD:00:-----:-----:02: MVMLE.L #1,d[!Dreg,Areg,Aipi]
-0100 1001 11dd dDDD:00:-NZ00:-----:30: EXT.B   d[Dreg]         
+0100 1001 11dd dDDD:20:-NZ00:-----:30: EXT.B   d[Dreg]         
 0100 1010 zzss sSSS:00:-NZ00:-----:10: TST.z   s
 0100 1010 11dd dDDD:00:?????:?????:30: TAS.B   d[!Areg]
 0100 1010 1111 1100:00:?????:?????:00: ILLEGAL

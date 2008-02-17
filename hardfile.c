@@ -24,43 +24,8 @@
 #include "gui.h"
 #include "uae.h"
 #include "scsi.h"
-
-#define CMD_INVALID	0
-#define CMD_RESET	1
-#define CMD_READ	2
-#define CMD_WRITE	3
-#define CMD_UPDATE	4
-#define CMD_CLEAR	5
-#define CMD_STOP	6
-#define CMD_START	7
-#define CMD_FLUSH	8
-#define CMD_MOTOR	9
-#define CMD_SEEK	10
-#define CMD_FORMAT	11
-#define CMD_REMOVE	12
-#define CMD_CHANGENUM	13
-#define CMD_CHANGESTATE	14
-#define CMD_PROTSTATUS	15
-#define CMD_GETDRIVETYPE 18
-#define CMD_GETNUMTRACKS 19
-#define CMD_ADDCHANGEINT 20
-#define CMD_REMCHANGEINT 21
-#define CMD_GETGEOMETRY	22
-#define HD_SCSICMD 28
-
-/* Trackdisk64 support */
-#define TD_READ64 24
-#define TD_WRITE64 25
-#define TD_SEEK64 26
-#define TD_FORMAT64 27
-
-/* New Style Devices (NSD) support */
-#define DRIVE_NEWSTYLE 0x4E535459L   /* 'NSTY' */
-#define NSCMD_DEVICEQUERY 0x4000
-#define NSCMD_TD_READ64 0xc000
-#define NSCMD_TD_WRITE64 0xc001
-#define NSCMD_TD_SEEK64 0xc002
-#define NSCMD_TD_FORMAT64 0xc003
+#include "gayle.h"
+#include "execio.h"
 
 #undef DEBUGME
 #define hf_log
@@ -226,7 +191,7 @@ static void rdb_crc(uae_u8 *p)
     pl (p, 2, sum);
 }
 
-static void create_virtual_rdb(struct hardfiledata *hfd, uae_u32 dostype, int bootpri, char *filesys)
+static void create_virtual_rdb (struct hardfiledata *hfd, uae_u32 dostype, int bootpri, const char *filesys)
 {
     uae_u8 *rdb, *part, *denv;
     int cyl = hfd->heads * hfd->secspertrack;
@@ -327,14 +292,14 @@ void hdf_hd_close(struct hd_hardfiledata *hfd)
     xfree(hfd->path);
 }
 
-int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int readonly,
-		       char *devname, int sectors, int surfaces, int reserved,
-		       int bootpri, char *filesys)
+int hdf_hd_open (struct hd_hardfiledata *hfd, const char *path, int blocksize, int readonly,
+		       const char *devname, int sectors, int surfaces, int reserved,
+		       int bootpri, const char *filesys)
 {
     memset(hfd, 0, sizeof (struct hd_hardfiledata));
     hfd->bootpri = bootpri;
     hfd->hfd.blocksize = blocksize;
-    if (!hdf_open(&hfd->hfd, path))
+    if (!hdf_open (&hfd->hfd, path))
 	return 0;
     hfd->path = my_strdup(path);
     hfd->hfd.heads = surfaces;
@@ -342,7 +307,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int read
     hfd->hfd.secspertrack = sectors;
     if (devname)
 	strcpy (hfd->hfd.device_name, devname);
-    getchshd(&hfd->hfd, &hfd->cyls, &hfd->heads, &hfd->secspertrack);
+    getchshd (&hfd->hfd, &hfd->cyls, &hfd->heads, &hfd->secspertrack);
     hfd->cyls_def = hfd->cyls;
     hfd->secspertrack_def = hfd->secspertrack;
     hfd->heads_def = hfd->heads;
@@ -351,7 +316,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, char *path, int blocksize, int read
 	hdf_read(&hfd->hfd, buf, 0, 512);
 	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
 	    hfd->hfd.nrcyls = (hfd->hfd.size / blocksize) / (sectors * surfaces);
-	    create_virtual_rdb(&hfd->hfd, rl (buf), hfd->bootpri, filesys);
+	    create_virtual_rdb (&hfd->hfd, rl (buf), hfd->bootpri, filesys);
 	    while (hfd->hfd.nrcyls * surfaces * sectors > hfd->cyls_def * hfd->secspertrack_def * hfd->heads_def) {
 		hfd->cyls_def++;
 	    }
@@ -736,11 +701,17 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
     return ret;
 }
 
-void hardfile_do_disk_change (int fsid, int insert)
+void hardfile_do_disk_change (struct uaedev_config_info *uci, int insert)
 {
+    int fsid = uci->configoffset;
     int j;
     int newstate = insert ? 0 : 1;
     struct hardfiledata *hfd;
+
+    if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+	gayle_modify_pcmcia_sram_unit (uci->rootdir, uci->readonly, insert);
+	return;
+    }
 
     hfd = get_hardfile_data (fsid);
     if (!hfd)
@@ -855,28 +826,33 @@ static int mangleunit (int unit)
 
 static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 {
-    uaecptr tmp1 = m68k_areg (&context->regs, 1); /* IOReq */
+    uaecptr ioreq = m68k_areg (&context->regs, 1); /* IOReq */
     int unit = mangleunit (m68k_dreg (&context->regs, 0));
     struct hardfileprivdata *hfpd = &hardfpd[unit];
-    int err = -1;
-
-    /* Check unit number */
-    if (unit >= 0) {
-	struct hardfiledata *hfd = get_hardfile_data (unit);
-	if (hfd && hfd->handle_valid && start_thread (context, unit)) {
-	    put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
-	    put_long (tmp1 + 24, unit); /* io_Unit */
-	    put_byte (tmp1 + 31, 0); /* io_Error */
-	    put_byte (tmp1 + 8, 7); /* ln_type = NT_REPLYMSG */
-	    hf_log ("hardfile_open, unit %d (%d), OK\n", unit, m68k_dreg (&context->regs, 0));
-	    return 0;
+    int err = IOERR_OPENFAIL;
+    int size = get_word (ioreq + 0x12);
+ 
+    if (size >= IOSTDREQ_SIZE || size == 0) { /* boot device port size == 0!? */
+	/* Check unit number */
+	if (unit >= 0) {
+	    struct hardfiledata *hfd = get_hardfile_data (unit);
+	    if (hfd && hfd->handle_valid && start_thread (context, unit)) {
+		put_word (hfpd->base + 32, get_word (hfpd->base + 32) + 1);
+		put_long (ioreq + 24, unit); /* io_Unit */
+		put_byte (ioreq + 31, 0); /* io_Error */
+		put_byte (ioreq + 8, 7); /* ln_type = NT_REPLYMSG */
+		hf_log ("hardfile_open, unit %d (%d), OK\n", unit, m68k_dreg (&context->regs, 0));
+		return 0;
+	    }
 	}
+	if (unit < 1000 || is_hardfile(unit) == FILESYS_VIRTUAL)
+	    err = 50; /* HFERR_NoBoard */
+    } else {
+	err = IOERR_BADLENGTH;
     }
-    if (unit < 1000 || is_hardfile(unit) == FILESYS_VIRTUAL)
-	err = 50; /* HFERR_NoBoard */
     hf_log ("hardfile_open, unit %d (%d), ERR=%d\n", unit, m68k_dreg (&context->regs, 0), err);
-    put_long (tmp1 + 20, (uae_u32)err);
-    put_byte (tmp1 + 31, (uae_u8)err);
+    put_long (ioreq + 20, (uae_u32)err);
+    put_byte (ioreq + 31, (uae_u8)err);
     return (uae_u32)err;
 }
 
@@ -1003,15 +979,16 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	break;
 
 	bad_command:
-	error = -5; /* IOERR_BADADDRESS */
+	error = IOERR_BADADDRESS; /* IOERR_BADADDRESS */
 	break;
 	no_disk:
 	error = 29; /* no disk */
 	break;
 
 	case NSCMD_DEVICEQUERY:
+	    put_long (dataptr + 0, 0);
 	    put_long (dataptr + 4, 16); /* size */
-	    put_word (dataptr + 8, 5); /* NSDEVTYPE_TRACKDISK */
+	    put_word (dataptr + 8, NSDEVTYPE_TRACKDISK);
 	    put_word (dataptr + 10, 0);
 	    put_long (dataptr + 12, nscmd_cmd);
 	    actual = 16;
@@ -1085,14 +1062,14 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	    if (hfd->nrcyls == 0) {
 		error = handle_scsi (request, hfd);
 	    } else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
-		error = -3; /* IOERR_NOCMD */
+		error = IOERR_NOCMD;
 		write_log ("UAEHF: HD_SCSICMD tried on regular HDF, unit %d", unit);
 	    }
 	break;
 
 	default:
 	    /* Command not understood. */
-	    error = -3; /* IOERR_NOCMD */
+	    error = IOERR_NOCMD;
 	break;
     }
     put_long (request + 32, actual);

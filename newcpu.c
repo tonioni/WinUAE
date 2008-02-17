@@ -32,7 +32,7 @@
 
 #ifdef JIT
 extern uae_u8* compiled_code;
-#include "compemu.h"
+#include "jit/compemu.h"
 #include <signal.h>
 /* For faster cycles handling */
 signed long pissoff = 0;
@@ -2605,13 +2605,13 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 	    if (deaddr)
 		*deaddr = newpc;
 	    if (cctrue (&regs.ccrflags, dp->cc))
-		buf = buf_out (buf, &bufsize, " == %08lX (TRUE)", newpc);
+		buf = buf_out (buf, &bufsize, " == $%08lX (T)", newpc);
 	    else
-		buf = buf_out (buf, &bufsize, " == %08lX (FALSE)", newpc);
+		buf = buf_out (buf, &bufsize, " == $%08lX (F)", newpc);
 	} else if ((opcode & 0xff00) == 0x6100) { /* BSR */
 	    if (deaddr)
 		*deaddr = newpc;
-	    buf = buf_out (buf, &bufsize, " == %08lX", newpc);
+	    buf = buf_out (buf, &bufsize, " == $%08lX", newpc);
 	}
 	buf = buf_out (buf, &bufsize, "\n");
     }

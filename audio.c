@@ -1630,6 +1630,8 @@ void AUDxDAT (int nr, uae_u16 v)
     audio_activate();
     update_audio ();
     cdp->dat2 = v;
+    if (cdp->request_word >= 2 && cdp->request_word_skip == 0)
+	audio_handler (nr);
     cdp->request_word = -1;
     cdp->request_word_skip = 0;
     /* cpu >= 68020: another "too fast" memory/CPU hack */

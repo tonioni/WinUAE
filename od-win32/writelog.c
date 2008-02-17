@@ -20,8 +20,9 @@ static CRITICAL_SECTION cs;
 static int cs_init;
 
 FILE *debugfile = NULL;
-int console_logging;
+int console_logging = 0;
 static LONG debugger_type = -1;
+extern BOOL debuggerinitializing;
 
 #define WRITE_LOG_BUF_SIZE 4096
 
@@ -53,7 +54,7 @@ static void open_console_window(void)
 static void openconsole(void)
 {
     if (debugger_active && (debugger_type < 0 || debugger_type == 2)) {
-	if (consoleopen > 0)
+	if (consoleopen > 0 || debuggerinitializing)
 	    return;
 	if (debugger_type < 0) {
 	    regqueryint (NULL, "DebuggerType", &debugger_type);

@@ -502,7 +502,8 @@ int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
     if (nr < 0)
 	return 0;
     uci = &p->mountconfig[nr];
-    if (uci->configoffset >= 0)
+    hardfile_do_disk_change (uci, 0);
+    if (uci->configoffset >= 0 && uci->controller == 0)
 	filesys_media_change (uci->rootdir, 0, uci);
     while (nr < MOUNT_CONFIG_SIZE) {
 	memmove (&p->mountconfig[nr], &p->mountconfig[nr + 1], sizeof (struct uaedev_config_info));
@@ -2042,7 +2043,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
 /*    write_comm_pipe_int (unit->ui.unit_pipe, -1, 1);*/
 
-    write_log ("FS: %s (flags=%08.8X) starting..\n", unit->ui.volname, unit->volflags);
+    write_log ("FS: %s (flags=%08X) starting..\n", unit->ui.volname, unit->volflags);
 
     /* fill in our process in the device node */
     devnode = get_long (pkt + dp_Arg3) << 2;
@@ -4312,11 +4313,10 @@ action_more_cache (Unit *unit, dpacket packet)
 static void
 action_inhibit (Unit *unit, dpacket packet)
 {
-    TRACE(("ACTION_INHIBIT()\n"));
     PUT_PCK_RES1 (packet, DOS_TRUE);
     flush_cache(unit, 0);
     unit->inhibited = GET_PCK_ARG1 (packet);
-    write_log("ACTION_INHIBIT %d:%d\n", unit->unit, unit->inhibited);
+    TRACE(("ACTION_INHIBIT(%d:%d)\n", unit->unit, unit->inhibited));
 }
 
 static void

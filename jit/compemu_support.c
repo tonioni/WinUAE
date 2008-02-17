@@ -531,7 +531,7 @@ int check_prefs_changed_comp (void)
  * Get the optimizer stuff                                          *
  ********************************************************************/
 
-#include "compemu_optimizer.c"
+//#include "compemu_optimizer.c"
 #include "compemu_optimizer_x86.c"
 
 /********************************************************************

@@ -509,14 +509,12 @@ static void bfe001_change (void)
 	gui_data.powerled = led;
 	led_filter_audio ();
     }
-    if ((v & 1) != oldovl) {
+    if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
 	oldovl = v & 1;
-	if (!oldovl || ersatzkickfile) {
+	if (!oldovl || ersatzkickfile)
 	    map_overlay (1);
-	} else if (currprefs.cs_ciaoverlay) {
-	    /* Gayle does this internally, CIA pin disconnected, CD audio mute on/off on CD32 */
+	else
 	    map_overlay (0);
-	}
     }
 }
 
@@ -744,6 +742,10 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 #ifdef ACTION_REPLAY
     ar_ciaa[addr & 0xf] = val;
 #endif
+    if (!currprefs.cs_ciaoverlay && oldovl) {
+	map_overlay (1);
+	oldovl = 0;
+    }
     switch (addr & 0xf) {
     case 0:
 #ifdef DONGLE_DEBUG
@@ -1048,7 +1050,7 @@ void CIA_reset (void)
     kbstate = 0;
     ciaasdr_unread = 0;
     serbits = 0;
-    oldovl = -1;
+    oldovl = 1;
     oldled = -1;
     resetwarning_phase = resetwarning_timer = 0;
 
@@ -1067,8 +1069,9 @@ void CIA_reset (void)
 	ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
     }
     CIA_calctimers ();
-    if (! ersatzkickfile)
+    if (!ersatzkickfile)
 	map_overlay (0);
+    oldovl = 1;
 #ifdef SERIAL_PORT
     if (currprefs.use_serial && !savestate_state)
 	serial_dtr_off (); /* Drop DTR at reset */

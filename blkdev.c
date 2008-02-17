@@ -32,11 +32,9 @@ static void install_driver (int flags)
 
     device_func[DF_SCSI] = &devicefunc_win32_aspi;
 #ifdef WINDDK
-    if (os_winnt) {
-	device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
-	device_func[DF_SCSI] = &devicefunc_win32_spti;
-	installed = 1;
-    }
+    device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
+    device_func[DF_SCSI] = &devicefunc_win32_spti;
+    installed = 1;
     if (currprefs.win32_uaescsimode == UAESCSI_ADAPTECASPI ||
 	currprefs.win32_uaescsimode == UAESCSI_NEROASPI ||
 	currprefs.win32_uaescsimode == UAESCSI_FROGASPI ||

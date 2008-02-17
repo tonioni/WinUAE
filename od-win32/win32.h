@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 0
-#define WINUAEPUBLICBETA 0
-#define WINUAEDATE MAKEBD(2008, 2, 2)
+#define WINUAEBETA 1
+#define WINUAEPUBLICBETA 1
+#define WINUAEDATE MAKEBD(2008, 2, 17)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -69,7 +69,7 @@ extern int framecnt;
 extern char prtname[];
 extern char VersionStr[256];
 extern char BetaStr[64];
-extern int os_winnt, os_winnt_admin, os_64bit, os_vista, os_winxp;
+extern int os_winnt_admin, os_64bit, os_vista, os_winxp;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart;

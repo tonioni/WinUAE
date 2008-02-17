@@ -534,10 +534,7 @@ static int avioutput_video = 0;
 void setpriority (struct threadpriorities *pri)
 {
     int err;
-    if (os_winnt)
-	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
-    else
-	err = SetThreadPriority (GetCurrentThread (), pri->value);
+    err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
     if (!err)
 	write_log ("priority set failed, %08.8X\n", GetLastError ());
 }
@@ -552,7 +549,7 @@ void setmouseactive (int active)
     mouseactive = active;
 
     mouseposx = mouseposy = 0;
-    //write_log ("setmouseactive(%d)\n", active);
+    write_log ("setmouseactive(%d)\n", active);
     if (showcursor) {
 	ClipCursor(NULL);
 	ReleaseCapture();
@@ -573,9 +570,15 @@ void setmouseactive (int active)
     if (focus) {
 	int donotfocus = 0;
 	HWND fw = GetForegroundWindow ();
-	if (!(fw == hMainWnd || fw == hAmigaWnd)) {
-	    if (SetForegroundWindow (hMainWnd) == FALSE) {
-		if (SetForegroundWindow (hAmigaWnd) == FALSE) {
+	HWND w1 = hAmigaWnd;
+	HWND w2 = hMainWnd;
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+	    w2 = rp_getparent ();
+#endif
+	if (!(fw == w1 || fw == w2)) {
+	    if (SetForegroundWindow (w2) == FALSE) {
+		if (SetForegroundWindow (w1) == FALSE) {
 		    donotfocus = 1;
 		    write_log ("wanted focus but SetforegroundWindow() failed\n");
 		}
@@ -654,10 +657,6 @@ static void winuae_active (HWND hWnd, int minimized)
     if (isfullscreen() > 0 && !gui_active)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
-#ifdef RETROPLATFORM
-    if (minimized)
-	rp_minimize (0);
-#endif
 #ifdef LOGITECHLCD
     if (!minimized)
 	lcd_priority (1);
@@ -703,10 +702,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
     setpriority (pri);
 #ifdef FILESYS
     filesys_flush_cache ();
-#endif
-#ifdef RETROPLATFORM
-    if (minimized)
-	rp_minimize (1);
 #endif
 #ifdef LOGITECHLCD
     lcd_priority (0);
@@ -934,10 +929,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		changed_prefs.gfx_size_win.x = amigawin_rect.left;
 		changed_prefs.gfx_size_win.y = amigawin_rect.top;
 	    }
-#ifdef RETROPLATFORM
-	    if (!(wp->flags & SWP_NOZORDER))
-		rp_moved (1);
-#endif
 	}
 	notice_screen_contents_lost ();
     }
@@ -987,9 +978,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 	LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
 	WIN32GFX_WindowMove();
-#ifdef RETROPLATFORM
-	rp_moved (0);
-#endif
 	return lr;
     }
     case WM_MOVE:
@@ -1117,10 +1105,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		    switch (wParam & 0xfff0)
 		    {
 			case SC_MINIMIZE:
-			rp_minimize (1);
 			break;
 			case SC_RESTORE:
-			rp_minimize (0);
 			break;
 			case SC_CLOSE:
 			PostQuitMessage (0);
@@ -1776,7 +1762,7 @@ void logging_init(void)
     fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress(GetModuleHandle("kernel32"),"IsWow64Process");
     if (fnIsWow64Process)
 	fnIsWow64Process(GetCurrentProcess(), &wow64);
-    write_log ("%s (%s %d.%d %s%s[%d])", VersionStr, os_winnt ? "NT" : "W9X/ME",
+    write_log ("%s (%d.%d %s%s[%d])", VersionStr,
 	osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 	strlen(osVersion.szCSDVersion) > 0 ? " " : "", os_winnt_admin);
     write_log (" %d-bit %X.%X %d", wow64 ? 64 : 32,
@@ -1856,7 +1842,7 @@ extern char *get_aspi_path(int);
 
 static get_aspi(int old)
 {
-    if ((old == UAESCSI_SPTI || old == UAESCSI_SPTISCAN) && os_winnt && os_winnt_admin)
+    if ((old == UAESCSI_SPTI || old == UAESCSI_SPTISCAN) && os_winnt_admin)
 	return old;
     if (old == UAESCSI_NEROASPI && get_aspi_path(1))
 	return old;
@@ -1864,7 +1850,7 @@ static get_aspi(int old)
 	return old;
     if (old == UAESCSI_ADAPTECASPI && get_aspi_path(0))
 	return old;
-    if (os_winnt && os_winnt_admin)
+    if (os_winnt_admin)
 	return UAESCSI_SPTI;
     else if (get_aspi_path(1))
 	return UAESCSI_NEROASPI;
@@ -1872,9 +1858,8 @@ static get_aspi(int old)
 	return UAESCSI_FROGASPI;
     else if (get_aspi_path(0))
 	return UAESCSI_ADAPTECASPI;
-    else if (os_winnt)
+    else
 	return UAESCSI_SPTI;
-    return UAESCSI_ADAPTECASPI;
 }
 
 void target_quit (void)
@@ -2317,16 +2302,28 @@ void read_rom_list (void)
 	size2 = sizeof (tmp2);
 	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
 	    break;
-	if (strlen (tmp) == 6) {
-	    idx2 = atol (tmp + 3);
+	if (strlen (tmp) == 7 || strlen (tmp) == 13) {
+	    int group = 0;
+	    int subitem = 0;
+	    idx2 = atol (tmp + 4);
+	    if (strlen (tmp) == 13) {
+		group = atol (tmp + 8);
+		subitem = atol (tmp + 11);
+	    }
 	    if (idx2 >= 0 && strlen (tmp2) > 0) {
-		struct romdata *rd = getromdatabyid (idx2);
-		if (rd)
-		    romlist_add (tmp2, rd);
+		struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
+		if (rd) {
+		    char *s = strchr (tmp2, '/');
+		    if (s && strlen (s) > 2)
+			romlist_add (s + 2, rd);
+		    else
+			romlist_add (tmp2, rd);
+		}
 	    }
 	}
 	idx++;
     }
+    romlist_add (NULL, NULL);
     regclosetree (fkey);
 }
 
@@ -2379,15 +2376,13 @@ static void WIN32_HandleRegistryStuff(void)
 
     rpath1[0] = rpath2[0] = rpath3[0] = 0;
     rkey = HKEY_CLASSES_ROOT;
-    if (os_winnt) {
-	if (os_winnt_admin)
-	    rkey = HKEY_LOCAL_MACHINE;
-	else
-	    rkey = HKEY_CURRENT_USER;
-	strcpy(rpath1, "Software\\Classes\\");
-	strcpy(rpath2, rpath1);
-	strcpy(rpath3, rpath1);
-    }
+    if (os_winnt_admin)
+        rkey = HKEY_LOCAL_MACHINE;
+    else
+        rkey = HKEY_CURRENT_USER;
+    strcpy(rpath1, "Software\\Classes\\");
+    strcpy(rpath2, rpath1);
+    strcpy(rpath3, rpath1);
     strcat(rpath1, ".uae");
     strcat(rpath2, "WinUAE\\shell\\Edit\\command");
     strcat(rpath3, "WinUAE\\shell\\Open\\command");
@@ -2893,7 +2888,7 @@ extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeseria
 extern int force_direct_catweasel, sound_mode_skip;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
-static DWORD_PTR original_affinity;
+static DWORD_PTR original_affinity = -1;
 
 static int getval(char *s)
 {
@@ -3592,7 +3587,8 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);
 
     thread = GetCurrentThread();
-    original_affinity = SetThreadAffinityMask(thread, 1);
+    //original_affinity = SetThreadAffinityMask(thread, 1);
+
 #if 0
 #define MSGFLT_ADD 1
     CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
@@ -3611,7 +3607,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
     }
-    SetThreadAffinityMask(thread, original_affinity);
+    //SetThreadAffinityMask(thread, original_affinity);
     return FALSE;
 }
 

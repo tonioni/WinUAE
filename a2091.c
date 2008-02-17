@@ -1278,7 +1278,6 @@ void a2091_reset (void)
 
 void a2091_init (void)
 {
-    struct zfile *z;
     int roms[5];
     struct romlist *rl;
 
@@ -1310,26 +1309,16 @@ void a2091_init (void)
     rombank = 0;
     rl = getromlistbyids(roms);
     if (rl) {
-	write_log ("A590/A2091 BOOT ROM '%s' %d.%d ", rl->path, rl->rd->ver, rl->rd->rev);
-	z = zfile_fopen(rl->path, "rb");
+	struct zfile *z = read_rom (rl->rd);
+	write_log ("A590/A2091 BOOT ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
 	if (z) {
-	    if (rl->rd->id == 56) {
-		int i;
-		rom_size = 32768;
+	    rom_size = rl->rd->size;
+	    rom = xmalloc (rom_size);
+	    if (rl->rd->id == 56)
 		rombankswitcher = 1;
-		rom = xmalloc (rom_size * 2);
-		for (i = 0; i < rom_size; i++)
-		    zfile_fread(rom + i * 2, 1, 1, z);
-	    } else {
-		rom_size = 16384;
-		rom = xmalloc (rom_size);
-		zfile_fread (rom, rom_size, 1, z);
-	    }
-	    zfile_fclose(z);
+	    zfile_fread (rom, rom_size, 1, z);
+	    zfile_fclose (z);
 	    rom_mask = rom_size - 1;
-	    write_log ("loaded\n");
-	} else {
-	    write_log ("failed to load\n");
 	}
     } else {
 	romwarning(roms);

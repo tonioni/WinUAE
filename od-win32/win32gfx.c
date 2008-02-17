@@ -571,14 +571,10 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
 	GetMonitorInfo(hm, (LPMONITORINFO)&lpmi);
     }
     md->rect = lpmi.rcMonitor;
-    if (os_winnt) {
-	if (md->rect.left == 0 && md->rect.top == 0)
-	    sprintf (tmp, "%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
-	else
-	    sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
-    } else {
-	strcpy (tmp, desc);
-    }
+    if (md->rect.left == 0 && md->rect.top == 0)
+        sprintf (tmp, "%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
+    else
+        sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
     md->name = my_strdup (tmp);
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     return 1;
@@ -2000,7 +1996,7 @@ static int create_windows (void)
     int gap = 3;
     int x, y;
 
-    if (fsw)
+    if (fsw && !borderless)
 	borderless = 1;
     currentmode->native_width = currentmode->current_width;
     currentmode->native_height = currentmode->current_height;
@@ -2105,13 +2101,22 @@ static int create_windows (void)
 
     }
 
-    hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
-				"AmigaPowah", "WinUAE",
-				WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX),
-				x, y,
-				currentmode->native_width, currentmode->native_height,
-				borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
-
+    if (rp_isactive ()) {
+	HWND parent = rp_getparent ();
+	hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+			    "AmigaPowah", "WinUAE",
+			    WS_POPUP,
+			    x, y,
+			    currentmode->native_width, currentmode->native_height,
+			    parent, NULL, hInst, NULL);
+    } else {
+	hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+			    "AmigaPowah", "WinUAE",
+			    WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX),
+			    x, y,
+			    currentmode->native_width, currentmode->native_height,
+			    borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
+    }
     if (!hAmigaWnd) {
 	write_log ("creation of amiga window failed\n");
 	close_hwnds();

@@ -2785,8 +2785,18 @@ static void gen_opcode (unsigned long int opcode)
 	if (!isreg (curi->smode))
 	    addcycles (2);
 	fill_prefetch_next ();
-	printf ("\tsrc |= 0x80;\n");
-	genastore ("src", curi->smode, "srcreg", curi->size, "src");
+	if (1 || cpu_level >= 2 || curi->smode == Dreg) {
+	    printf ("\tsrc |= 0x80;\n");
+    	    if (next_cpu_level < 2)
+		next_cpu_level = 2 - 1;
+	    genastore ("src", curi->smode, "srcreg", curi->size, "src");
+	} else {
+	    /* not exactly like this either.. */
+	    printf ("\tif (src >= 0x200000 || (src >= 0xc00000 && src < 0xe00000)) {\n");
+	    printf ("\t    src |= 0x80; \n");
+	    genastore ("src", curi->smode, "srcreg", curi->size, "src");
+	    printf ("\t}\n");
+	}
 	break;
     case i_FPP:
 	fpulimit();

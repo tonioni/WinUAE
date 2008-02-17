@@ -230,6 +230,8 @@ end:
 
 void uaenet_close (struct uaenetdatawin32 *sd)
 {
+    if (!sd)
+	return;
     if (sd->threadactiver) {
 	sd->threadactiver = -1;
     }

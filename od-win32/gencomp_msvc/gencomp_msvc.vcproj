@@ -381,7 +381,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\gencomp.c"
+				RelativePath="..\..\jit\gencomp.c"
 				>
 			</File>
 			<File

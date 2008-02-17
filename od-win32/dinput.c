@@ -497,8 +497,6 @@ static void initialize_windowsmouse (void)
 	    did->buttons = 3;
 	if (did->buttons > 5)
 	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
-	if (did->buttons > 3 && !os_winnt)
-	    did->buttons = 3; /* Windows 98/ME support max 3 non-DI buttons */
 	for (j = 0; j < did->buttons; j++) {
 	    did->buttonsort[j] = j;
 	    sprintf (tmp, "Button %d", j + 1);
@@ -1294,9 +1292,9 @@ static uae_u32 get_leds (void)
     if (ledkeystate[VK_SCROLL] & 1)
 	led |= KBLED_SCROLLLOCK;
 
-    if (currprefs.win32_kbledmode && os_winnt) {
+    if (currprefs.win32_kbledmode) {
 	oldusbleds = led;
-    } else if (!currprefs.win32_kbledmode && os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
+    } else if (!currprefs.win32_kbledmode && kbhandle != INVALID_HANDLE_VALUE) {
 #ifdef WINDDK
 	KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
 	KEYBOARD_INDICATOR_PARAMETERS OutputBuffer;
@@ -1341,7 +1339,7 @@ static void kbevt (uae_u8 vk, uae_u8 sc)
 
 static void set_leds (uae_u32 led)
 {
-    if (os_winnt && currprefs.win32_kbledmode) {
+    if (currprefs.win32_kbledmode) {
 	if((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK))
 	    kbevt (VK_NUMLOCK, 0x45);
 	if((oldusbleds & KBLED_CAPSLOCK) != (led & KBLED_CAPSLOCK))
@@ -1349,7 +1347,7 @@ static void set_leds (uae_u32 led)
 	if((oldusbleds & KBLED_SCROLLLOCK) != (led & KBLED_SCROLLLOCK))
 	    kbevt (VK_SCROLL, 0x46);
 	oldusbleds = led;
-    } else if (os_winnt && kbhandle != INVALID_HANDLE_VALUE) {
+    } else if (kbhandle != INVALID_HANDLE_VALUE) {
 #ifdef WINDDK
 	KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
 	ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
@@ -1366,18 +1364,7 @@ static void set_leds (uae_u32 led)
 	    &InputBuffer, DataLength, NULL, 0, &ReturnedLength, NULL))
 		write_log ("kbleds: DeviceIoControl() failed %d\n", GetLastError());
 #endif
-    } else if (!os_winnt) {
-	ledkeystate[VK_NUMLOCK] &= ~1;
-	if (led & KBLED_NUMLOCK)
-	    ledkeystate[VK_NUMLOCK] = 1;
-	ledkeystate[VK_CAPITAL] &= ~1;
-	if (led & KBLED_CAPSLOCK)
-	    ledkeystate[VK_CAPITAL] = 1;
-	ledkeystate[VK_SCROLL] &= ~1;
-	if (led & KBLED_SCROLLLOCK)
-	    ledkeystate[VK_SCROLL] = 1;
-	SetKeyboardState (ledkeystate);
-     }
+    }
 }
 
 static void update_leds (void)
@@ -1723,7 +1710,7 @@ static int acquire_kb (int num, int flags)
     unacquire (lpdi, "keyboard");
     if (currprefs.keyboard_leds_in_use) {
 #ifdef WINDDK
-	if (os_winnt && !currprefs.win32_kbledmode) {
+	if (!currprefs.win32_kbledmode) {
 	    if (DefineDosDevice (DDD_RAW_TARGET_PATH, "Kbd","\\Device\\KeyboardClass0")) {
 		kbhandle = CreateFile("\\\\.\\Kbd", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 		if (kbhandle == INVALID_HANDLE_VALUE) {

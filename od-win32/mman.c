@@ -31,13 +31,13 @@ static int p96fakeramsize;
 static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
     void *p = VirtualAlloc (addr, size, allocationtype, protect);
-    if (p && memorylocking && os_winnt)
+    if (p && memorylocking)
 	VirtualLock(p, size);
     return p;
 }
 static void virtualfreewithlock(LPVOID addr, SIZE_T size, DWORD freetype)
 {
-    if (memorylocking && os_winnt)
+    if (memorylocking)
 	VirtualUnlock(addr, size);
     VirtualFree(addr, size, freetype);
 }
@@ -81,40 +81,40 @@ static uae_u32 lowmem (void)
 
 static uae_u32 max_allowed_mman;
 static uae_u64 size64;
+	typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
 
 void preinit_shm (void)
 {
     uae_u64 total64;
     uae_u64 totalphys64;
     MEMORYSTATUS memstats;
+    GLOBALMEMORYSTATUSEX pGlobalMemoryStatusEx;
+    MEMORYSTATUSEX memstatsex;
 
-    max_allowed_mman = 768;
-    if (os_winnt) {
-	max_allowed_mman = 1536;
-	if (os_64bit)
-	    max_allowed_mman = 2048;
-    }
+    max_allowed_mman = 1536;
+    if (os_64bit)
+        max_allowed_mman = 2048;
 
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
     totalphys64 = memstats.dwTotalPhys;
     total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys;
-    if (os_winnt) {
-	typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
-	GLOBALMEMORYSTATUSEX pGlobalMemoryStatusEx;
-	MEMORYSTATUSEX memstatsex;
-	pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress(GetModuleHandle("kernel32.dll"), "GlobalMemoryStatusEx");
-	if (pGlobalMemoryStatusEx) {
-	    memstatsex.dwLength = sizeof (MEMORYSTATUSEX);
-	    if (pGlobalMemoryStatusEx(&memstatsex)) {
-		totalphys64 = memstatsex.ullTotalPhys;
-		total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
-	    }
+    pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress(GetModuleHandle("kernel32.dll"), "GlobalMemoryStatusEx");
+    if (pGlobalMemoryStatusEx) {
+        memstatsex.dwLength = sizeof (MEMORYSTATUSEX);
+        if (pGlobalMemoryStatusEx(&memstatsex)) {
+	    totalphys64 = memstatsex.ullTotalPhys;
+	    total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
 	}
     }
     size64 = total64 - (total64 >> 3);
-    if (size64 > 0x7f000000)
-	size64 = 0x7f000000;
+    if (os_64bit) {
+	if (size64 > 0x7f000000)
+	    size64 = 0x7f000000;
+    } else {
+	if (size64 > 0x7f000000)
+	    size64 = 0x7f000000;
+    }
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;
     if (max_allowed_mman * 1024 * 1024 > size64)
@@ -129,13 +129,9 @@ int init_shm (void)
 {
     int i;
     LPVOID blah = NULL;
-    // Letting the system decide doesn't seem to work on some systems (Win9x..)
-    LPBYTE address = (LPBYTE)0x10000000;
-    uae_u32 size;
-    uae_u32 add = 0x10000000;
-    uae_u32 inc = 0x100000;
+    uae_u32 size, totalsize, z3size, natmemsize;
 
-    if (natmem_offset && os_winnt)
+    if (natmem_offset)
 	VirtualFree(natmem_offset, 0, MEM_RELEASE);
     natmem_offset = NULL;
     canbang = 0;
@@ -143,17 +139,18 @@ int init_shm (void)
     size = 0x1000000;
     if (currprefs.cpu_model >= 68020)
 	size = 0x10000000;
-    if (currprefs.z3fastmem_size || currprefs.gfxmem_size) {
-	size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
-	size += currprefs.gfxmem_size;
-	size += 16 * 1024 * 1024;
+    if (currprefs.z3fastmem_size) {
+	z3size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
+	if (currprefs.gfxmem_size)
+	    size += 16 * 1024 * 1024;
     }
 
-    while (size > size64) {
+    totalsize = size + z3size + currprefs.gfxmem_size;
+    while (totalsize > size64) {
 	int change = lowmem ();
 	if (!change)
 	    return 0;
-	size -= change;
+	totalsize -= change;
     }
 
     shm_start = 0;
@@ -164,41 +161,27 @@ int init_shm (void)
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
+    natmemsize = p96mode ? size + z3size : totalsize;
 
     for (;;) {
 	int change;
-	blah = VirtualAlloc(NULL, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	blah = VirtualAlloc(NULL, natmemsize, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (blah)
 	    break;
-	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", (size + add) >> 20, GetLastError());
+	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", natmemsize >> 20, GetLastError());
 	change = lowmem ();
-	size -= change;
-	if (change == 0 || size < 0x10000000) {
+	totalsize -= change;
+	if (change == 0 || totalsize < 0x10000000) {
 	    write_log ("NATMEM: No special area could be allocated (2)!\n");
 	    return 0;
 	}
     }
-    if (os_winnt) {
-	natmem_offset = blah;
-	if (p96mode) {
-	    p96mem_offset = VirtualAlloc(natmem_offset + size + add, 128 * 1024 * 1024, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
-	    if (!p96mem_offset) {
-		write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
-		p96mode = 0;
-	    }
-	}
-    } else {
-	VirtualFree(blah, 0, MEM_RELEASE);
-	while (address < (LPBYTE)0xa0000000) {
-	    blah = VirtualAlloc(address, size + add, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	    if (blah == NULL) {
-		address += inc;
-	    } else {
-		VirtualFree (blah, 0, MEM_RELEASE);
-		address += inc * 32;
-		natmem_offset = address;
-		break;
-	    }
+    natmem_offset = blah;
+    if (p96mode) {
+        p96mem_offset = VirtualAlloc(natmem_offset + size + z3size, currprefs.gfxmem_size + 4096, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
+        if (!p96mem_offset) {
+	    write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
+	    p96mode = 0;
 	}
     }
 
@@ -206,9 +189,12 @@ int init_shm (void)
 	write_log ("NATMEM: No special area could be allocated! (1)\n");
     } else {
 	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
-	    natmem_offset, (uae_u8*)natmem_offset + size + add,
-	    size + add,
-	    (size + add) >> 20);
+	    natmem_offset, (uae_u8*)natmem_offset + natmemsize,
+	    natmemsize, natmemsize >> 20);
+	if (p96mode)
+	    write_log ("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n",
+	    p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
+	    currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
 	canbang = 1;
     }
 
@@ -349,7 +335,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 		extern void p96memstart(void);
 		p96memstart();
 		shmaddr = natmem_offset + p96ram_start;
-		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
+		virtualfreewithlock(shmaddr, size, MEM_DECOMMIT);
 		xfree(p96fakeram);
 		result = p96fakeram = xcalloc (size + 4096, 1);
 		shmids[shmid].attached = result;
@@ -402,16 +388,15 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	got = FALSE;
 	if (got == FALSE) {
 	    if (shmaddr)
-		virtualfreewithlock(shmaddr, os_winnt ? size : 0, os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
-	    result = virtualallocwithlock(shmaddr, size, os_winnt ? MEM_COMMIT : (MEM_RESERVE | MEM_COMMIT | (p96special ? MEM_WRITE_WATCH : 0)),
-		PAGE_EXECUTE_READWRITE);
+		virtualfreewithlock(shmaddr, size, MEM_DECOMMIT);
+	    result = virtualallocwithlock(shmaddr, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 	    if (result == NULL) {
 		result = (void*)-1;
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 		    size, size >> 10, GetLastError());
 	    } else {
-		if (memorylocking && os_winnt)
+		if (memorylocking)
 		    VirtualLock(shmaddr, size);
 		shmids[shmid].attached = result;
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
@@ -459,8 +444,7 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 		result = 0;
 	    break;
 	    case IPC_RMID:
-		VirtualFree(shmids[shmid].attached, os_winnt ? shmids[shmid].size : 0,
-		    os_winnt ? MEM_DECOMMIT : MEM_RELEASE);
+		VirtualFree(shmids[shmid].attached, shmids[shmid].size, MEM_DECOMMIT);
 		shmids[shmid].key = -1;
 		shmids[shmid].name[0] = '\0';
 		shmids[shmid].size = 0;

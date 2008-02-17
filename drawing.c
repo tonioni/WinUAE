@@ -46,7 +46,7 @@
 #include "picasso96.h"
 #include "drawing.h"
 #ifdef JIT
-#include "compemu.h"
+#include "jit/compemu.h"
 #endif
 #include "savestate.h"
 
@@ -1979,8 +1979,10 @@ static void center_image (void)
 	if (doublescan)
 	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
     }
-    if (currprefs.gfx_xcenter_pos >= 0)
-	visible_left_border = currprefs.gfx_xcenter_pos + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
+    if (currprefs.gfx_xcenter_pos >= 0) {
+	int val = currprefs.gfx_xcenter_pos < 56 ? 56 : currprefs.gfx_xcenter_pos;
+	visible_left_border = val + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
+    }
 
     if (visible_left_border > max_diwlastword - 32)
 	visible_left_border = max_diwlastword - 32;

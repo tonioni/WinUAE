@@ -133,7 +133,7 @@ typedef	struct ip_option_information {
 
 static void bsdsetpriority (HANDLE thread)
 {
-	int pri = os_winnt ? THREAD_PRIORITY_NORMAL : priorities[currprefs.win32_active_priority].value;
+	int pri = THREAD_PRIORITY_NORMAL;
 	SetThreadPriority(thread, pri);
 }
 
@@ -904,13 +904,6 @@ static unsigned int sock_thread2(void *blah)
 	if(bsd->hSockWnd) {
 	    // Make sure we're outrunning the wolves
 	    int pri = THREAD_PRIORITY_ABOVE_NORMAL;
-	    if (!os_winnt) {
-			pri = priorities[currprefs.win32_active_priority].value;
-			if (pri == THREAD_PRIORITY_HIGHEST)
-				pri = THREAD_PRIORITY_TIME_CRITICAL;
-			else
-				pri++;
-	    }
 	    SetThreadPriority(GetCurrentThread(), pri);
 
 		while(bsd->hSockThread && bsd->hSockWnd) {

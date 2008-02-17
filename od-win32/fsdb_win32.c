@@ -823,8 +823,6 @@ int my_getvolumeinfo (const char *root)
     if (v & FILE_ATTRIBUTE_READONLY)
 	ret |= MYVOLUMEINFO_READONLY;
 */
-    if (!os_winnt)
-	return ret;
     pGetVolumePathName = (GETVOLUMEPATHNAME)GetProcAddress(
 	GetModuleHandle("kernel32.dll"), "GetVolumePathNameA");
     if (pGetVolumePathName && pGetVolumePathName (root, volume, sizeof (volume))) {

@@ -112,8 +112,6 @@ extern addrbank fastmem_bank;
 extern addrbank gfxmem_bank, gfxmem_bankx;
 extern addrbank gayle_bank;
 extern addrbank gayle2_bank;
-extern addrbank gayle_attr_bank;
-extern addrbank gayle_common_bank;
 extern addrbank mbres_bank;
 extern addrbank akiko_bank;
 extern addrbank cardmem_bank;
@@ -345,10 +343,12 @@ extern void a3000_fakekick(int);
 #define ROMTYPE_NORDIC 4096
 #define ROMTYPE_XPOWER 8192
 #define ROMTYPE_CD32CART 16384
+#define ROMTYPE_MASK 131071
 #define ROMTYPE_EVEN 131072
 #define ROMTYPE_ODD 262144
-#define ROMTYPE_BYTESWAP 524288
-#define ROMTYPE_SCRAMBLED 1048576
+#define ROMTYPE_8BIT 524288
+#define ROMTYPE_BYTESWAP 1048576
+#define ROMTYPE_SCRAMBLED 2097152
 
 struct romheader {
     char *name;
@@ -381,6 +381,7 @@ extern struct romdata *getromdatabypath(char *path);
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
+extern struct romdata *getromdatabyidgroup (int id, int group, int subitem);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
 extern struct romlist **getarcadiaroms (void);
 extern struct romdata *getarcadiarombyname (char *name);
@@ -393,6 +394,8 @@ extern struct romlist *getromlistbyromdata(struct romdata *rd);
 extern void romlist_add (char *path, struct romdata *rd);
 extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);
+extern struct zfile *read_rom (struct romdata *rd);
+extern struct zfile *read_rom_name (const char *filename);
 
 extern int load_keyring (struct uae_prefs *p, char *path);
 extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size, char *name);

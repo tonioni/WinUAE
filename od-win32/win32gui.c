@@ -431,8 +431,19 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	if (decode_cloanto_rom_do (rombuf, size, size))
 	    cl = 0;
     }
-    if (!cl)
+    if (!cl) {
 	rd = getromdatabydata (rombuf, size);
+	if (!rd && (size & 65535) == 0) {
+	    /* check byteswap */
+	    int i;
+	    for (i = 0; i < size; i+=2) {
+		uae_u8 b = rombuf[i];
+		rombuf[i] = rombuf[i + 1];
+		rombuf[i + 1] = b;
+	    }
+	    rd = getromdatabydata (rombuf, size);
+	}
+    }
     if (!rd) {
 	;//write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
 	 //  size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
@@ -451,7 +462,7 @@ static struct romdata *scan_single_rom (char *path)
     rd = scan_arcadia_rom (tmp, 0);
     if (rd)
 	return rd;
-    rd = getromdatabypath(path);
+    rd = getromdatabypath (path);
     if (rd && rd->crc32 == 0xffffffff)
 	return rd;
     z = zfile_fopen (path, "rb");
@@ -464,21 +475,23 @@ static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
 {
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
-    sprintf (tmp1, "ROM%03d", rd->id);
+    sprintf (tmp1, "ROM_%03d", rd->id);
     if (rd->group) {
 	char *p = tmp1 + strlen (tmp1);
 	sprintf (p, "_%02d_%02d", rd->group >> 16, rd->group & 65535);
     }
     if (regexists (fkey, tmp1))
 	return 0;
-    tmp2[0] = 0;
-    if (name)
-	strcpy (tmp2, name);
+    getromname (rd, tmp2);
+    if (name) {
+	strcat (tmp2, " / ");
+	strcat (tmp2, name);
+    }
     if (rd->crc32 == 0xffffffff) {
 	if (rd->configname)
 	    sprintf(tmp2, ":%s", rd->configname);
 	else
-	    sprintf(tmp2, ":ROM%03d", rd->id);
+	    sprintf(tmp2, ":ROM_%03d", rd->id);
     }
     if (!regsetstr (fkey, tmp1, tmp2))
 	return 0;
@@ -500,6 +513,8 @@ static int isromext(char *path)
     if (!stricmp (ext, "rom") ||  !stricmp (ext, "adf") || !stricmp (ext, "key")
 	|| !stricmp (ext, "a500") || !stricmp (ext, "a1200") || !stricmp (ext, "a4000"))
 	    return 1;
+    if (strlen (ext) >= 2 && toupper(ext[0]) == 'U' && isdigit (ext[1]))
+	return 1;
     for (i = 0; uae_archive_extensions[i]; i++) {
 	if (!stricmp (ext, uae_archive_extensions[i]))
 	    return 1;
@@ -734,7 +749,7 @@ int scan_roms (int show)
     if (fkey2) {
 	id = 1;
 	for (;;) {
-	    struct romdata *rd = getromdatabyid(id);
+	    struct romdata *rd = getromdatabyid (id);
 	    if (!rd)
 		break;
 	    if (rd->crc32 == 0xffffffff)
@@ -1056,7 +1071,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 
     }
 
-    openFileName.lStructSize = os_winnt ? sizeof (OPENFILENAME) : OPENFILENAME_SIZE_VERSION_400;
+    openFileName.lStructSize = sizeof (OPENFILENAME);
     openFileName.hwndOwner = hDlg;
     openFileName.hInstance = hInst;
 
@@ -2698,7 +2713,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
 	CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
-	strcpy (CharFormat.szFaceName, os_vista ? "Segoe UI" : (os_winnt ? "Tahoma" : "Times New Roman"));
+	strcpy (CharFormat.szFaceName, os_vista ? "Segoe UI" : "Tahoma");
 	SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	return TRUE;
     }
@@ -4694,7 +4709,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
 static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, char *path, int type)
 {
-    int idx, idx2;
+    int idx;
     char tmp[MAX_DPATH];
     char tmp2[MAX_DPATH];
     char seltmp[MAX_DPATH];
@@ -4710,13 +4725,20 @@ static void addromfiles (UAEREG *fkey, HWND hDlg, DWORD d, char *path, int type)
 	DWORD size2 = sizeof (tmp2);
 	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
 	    break;
-	if (strlen (tmp) == 6) {
-	    idx2 = atol (tmp + 3);
+	if (strlen (tmp) == 7 || strlen (tmp) == 13) {
+	    int group = 0;
+	    int subitem = 0;
+	    int idx2 = atol (tmp + 4);
+	    if (strlen (tmp) == 13) {
+	        group = atol (tmp + 8);
+	        subitem = atol (tmp + 11);
+	    }
 	    if (idx2 >= 0) {
-		struct romdata *rd = getromdatabyid (idx2);
+		struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
 		if (rd && (rd->type & type)) {
 		    getromname (rd, tmp);
-		    SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)tmp);
+		    if (SendDlgItemMessage (hDlg, d, CB_FINDSTRING, (WPARAM)-1, (LPARAM)tmp) < 0)
+			SendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)tmp);
 		    if (rd == rdx)
 			strcpy (seltmp, tmp);
 		}
@@ -4961,8 +4983,8 @@ extern char *get_aspi_path(int);
 static void misc_scsi(HWND hDlg)
 {
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)(os_winnt ? "SPTI" : "(SPTI)"));
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)(os_winnt ? "SPTI + SCSI SCAN" : "(SPTI + SCSI SCAN)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)"SPTI");
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)"SPTI + SCSI SCAN");
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? "AdaptecASPI" : "(AdaptecASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? "NeroASPI" : "(NeroASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(2)) ? "FrogASPI" : "(FrogASPI)"));
@@ -6161,7 +6183,7 @@ static void inithdcontroller (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI4");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI5");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSI6");
-    //SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSRAM");
+    SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)"SCSRAM");
     SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
 }
 
@@ -6188,33 +6210,35 @@ static void sethfdostype (HWND hDlg, int idx)
 	SetDlgItemText (hDlg, IDC_HF_DOSTYPE, "");
 }
 
-static void hardfile_testrdb (HWND hDlg)
+static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 {
-    void *f = zfile_fopen (current_hfdlg.filename, "rb");
+    void *f = zfile_fopen (hdf->filename, "rb");
     char tmp[8] = { 0 };
     if (!f)
 	return;
     zfile_fread (tmp, 1, sizeof (tmp), f);
     zfile_fclose (f);
-    if (memcmp (tmp, "RDSK\0\0\0", 7))
-	return;
-    current_hfdlg.sectors = 0;
-    current_hfdlg.surfaces = 0;
-    current_hfdlg.reserved = 0;
-    current_hfdlg.fsfilename[0] = 0;
-    current_hfdlg.bootpri = 0;
-    current_hfdlg.autoboot = 1;
-    current_hfdlg.donotmount = 0;
-    current_hfdlg.devicename[0] = 0;
+    if (!memcmp (tmp + 2, "CIS", 3))
+	hdf->controller = HD_CONTROLLER_PCMCIA_SRAM;
+    if (!memcmp (tmp, "RDSK\0\0\0", 7)) {
+	hdf->sectors = 0;
+	hdf->surfaces = 0;
+	hdf->reserved = 0;
+	hdf->fsfilename[0] = 0;
+	hdf->bootpri = 0;
+	hdf->autoboot = 1;
+	hdf->donotmount = 0;
+	hdf->devicename[0] = 0;
+    }
     sethardfile (hDlg);
 }
 
 static void updatehdfinfo (HWND hDlg, int force)
 {
     static uae_u64 bsize;
-    static uae_u8 id[4];
+    static uae_u8 id[8];
     int blocks, cyls, i;
-    char tmp[200], idtmp[5], tmp2[200];
+    char tmp[200], idtmp[9], tmp2[200];
 
     if (force) {
 	struct zfile *zf = zfile_fopen (current_hfdlg.filename, "rb");
@@ -6238,7 +6262,7 @@ static void updatehdfinfo (HWND hDlg, int force)
     if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces)
         cyls = bsize / (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces);
     blocks = cyls * (current_hfdlg.sectors * current_hfdlg.surfaces);
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 8; i++) {
 	unsigned char c = id[i];
 	if (c < 32 || c > 126)
 	    c = '.';
@@ -6248,16 +6272,19 @@ static void updatehdfinfo (HWND hDlg, int force)
 
     tmp[0] = 0;
     if (bsize) {
-	sprintf (tmp2, " %s [%02X%02X%02X%02X]", idtmp, id[0], id[1], id[2], id[3]);
-	if (!cyls || !blocks)
+	sprintf (tmp2, " %s [%02X%02X%02X%02X%02X%02X%02X%02X]", idtmp, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
+	if (!cyls || !blocks) {
 	    sprintf (tmp, "%dMB", bsize / (1024 * 1024));
-	else
+	} else {
 	    sprintf (tmp, "%d cyls, %d blocks, %.1fMB/%.1fMB",
 		cyls, blocks,
 		(double)blocks * 1.0 * current_hfdlg.blocksize / (1024.0 * 1024.0),
 		(double)bsize / (1024.0 * 1024.0));
-	if (cyls > 65535)
-	    strcat (tmp, " [Too many cyls]");
+	    if (cyls > 65535) {
+		sprintf (tmp2, " %4.4s [%02X%02X%02X%02X]", idtmp, id[0], id[1], id[2], id[3]);
+		strcat (tmp, " [Too many cyls]");
+	    }
+	}
 	strcat (tmp, tmp2);
     }
     SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
@@ -6314,12 +6341,14 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	    }
 	    break;
 	    case IDC_SELECTOR:
+	    {
 		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, 0);
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename);
-		hardfile_testrdb (hDlg);
 		inithardfile(hDlg);
+		hardfile_testrdb (hDlg, &current_hfdlg);
 		updatehdfinfo (hDlg, 1);
 		break;
+	    }
 	    case IDC_FILESYS_SELECTOR:
 		DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
 		break;
@@ -6432,6 +6461,8 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		ew (hDlg, IDOK, TRUE);
 		ew (hDlg, IDC_HDF_RW, TRUE);
 		ew (hDlg, IDC_HDF_CONTROLLER, TRUE);
+		hardfile_testrdb (hDlg, &current_hfdlg);
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 	    }
 	}
 	if (HIWORD (wParam) == BN_CLICKED) {
@@ -6498,7 +6529,7 @@ static void new_hardfile (HWND hDlg, int entry)
 				bp, current_hfdlg.fsfilename,
 				current_hfdlg.controller, 0);
     if (uci)
-	hardfile_do_disk_change (uci->configoffset, 1);
+	hardfile_do_disk_change (uci, 1);
 }
 
 static void new_harddrive (HWND hDlg, int entry)
@@ -6509,7 +6540,7 @@ static void new_harddrive (HWND hDlg, int entry)
 				current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
 				0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0);
     if (uci)
-	hardfile_do_disk_change (uci->configoffset, 1);
+	hardfile_do_disk_change (uci, 1);
 }
 
 static void harddisk_remove (HWND hDlg)
@@ -6739,7 +6770,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	clicked_entry = 0;
 	pages[HARDDISK_ID] = hDlg;
 	currentpage = HARDDISK_ID;
-	EnableWindow (GetDlgItem(hDlg, IDC_NEW_HD), os_winnt && os_winnt_admin > 1 ? TRUE : FALSE);
+	EnableWindow (GetDlgItem(hDlg, IDC_NEW_HD), os_winnt_admin > 1 ? TRUE : FALSE);
 
     case WM_USER:
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_AUTO, workprefs.win32_automount_removable);
@@ -7901,7 +7932,7 @@ static void init_portsdlg( HWND hDlg )
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
     if(!pInfo) {
-	int flags = PRINTER_ENUM_LOCAL | (os_winnt ? PRINTER_ENUM_CONNECTIONS : 0);
+	int flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
 	DWORD needed = 0;
 	EnumPrinters(flags, NULL, 1, (LPBYTE)pInfo, 0, &needed, &dwEnumeratedPrinters);
 	if (needed > 0) {
@@ -8049,6 +8080,7 @@ static INT_PTR CALLBACK StringBoxDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 	PostQuitMessage (0);
 	return TRUE;
 	case WM_CLOSE:
+	stringboxdialogactive = 0;
 	DestroyWindow(hDlg);
 	return TRUE;
 	case WM_INITDIALOG:
@@ -8067,7 +8099,7 @@ static INT_PTR CALLBACK StringBoxDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 	    }
 	break;
     }
-    return DefWindowProc(hDlg, msg, wParam, lParam);
+    return FALSE;
 }
 
 static int askinputcustom(HWND hDlg, char *custom, int maxlen)
