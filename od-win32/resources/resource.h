@@ -322,6 +322,7 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
+#define IDC_P96MODE                     1029
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033

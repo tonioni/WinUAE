@@ -11,6 +11,7 @@ typedef uae_u32 xcolnr;
 typedef int (*allocfunc_type)(int, int, int, xcolnr *);
 
 extern xcolnr xcolors[4096];
+extern uae_u32 p96_rgbx16[65536];
 
 extern int graphics_setup (void);
 extern int graphics_init (void);
@@ -40,6 +41,7 @@ extern unsigned int doMask256 (int p, int bits, int shift);
 extern void setup_maxcol (int);
 extern void alloc_colors256 (int (*)(int, int, int, xcolnr *));
 extern void alloc_colors64k (int, int, int, int, int, int, int, int, int, int);
+extern void alloc_colors_picasso (int, int, int, int, int, int, int, int, int, int);
 extern void setup_greydither (int bits, allocfunc_type allocfunc);
 extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
 extern void setup_dither (int bits, allocfunc_type allocfunc);

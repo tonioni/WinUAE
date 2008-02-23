@@ -132,11 +132,10 @@ BEGIN
     EDITTEXT        IDC_SLOWRAM,243,25,30,12,ES_CENTER | ES_READONLY
     RTEXT           "Fast:",IDC_FASTTEXT,24,51,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,47,50,20
-    EDITTEXT        IDC_FASTRAM,105,50,30,12,ES_CENTER | ES_READONLY
     RTEXT           "Z3 Fast:",IDC_Z3TEXT,139,51,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
     EDITTEXT        IDC_Z3FASTRAM,243,50,30,12,ES_CENTER | ES_READONLY
-    RTEXT           "RTG: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,79,76,90,10,SS_NOTIFY | SS_CENTERIMAGE
+    RTEXT           "RTG: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,136,76,33,10,SS_NOTIFY | SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,72,60,20
     EDITTEXT        IDC_P96RAM,243,75,30,12,ES_CENTER | ES_READONLY
     GROUPBOX        "Advanced Memory Settings",-1,13,104,275,65
@@ -146,6 +145,7 @@ BEGIN
     RTEXT           "Motherboard RAM (High area):",-1,39,148,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,144,59,20
     EDITTEXT        IDC_MBRAM2,243,147,30,12,ES_CENTER | ES_READONLY
+    COMBOBOX        IDC_P96MODE,80,74,52,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 226
@@ -876,7 +876,7 @@ BEGIN
     LISTBOX         IDC_DBG_MCUSTOM,372,79,81,138,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_MISC,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
     LISTBOX         IDC_DBG_CUSTOM,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
-    CONTROL         "Auto set",IDC_DBG_AUTOSET,"Button",BS_AUTOCHECKBOX | NOT WS_TABSTOP,84,79,50,12
+    CONTROL         "Auto set",IDC_DBG_AUTOSET,"Button",BS_AUTOCHECKBOX,84,79,50,12
     LISTBOX         IDC_DBG_DASM2,1,79,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_MEM2,1,167,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
 END
@@ -891,6 +891,7 @@ BEGIN
     EDITTEXT        IDC_DBG_MEMINPUT2,20,12,100,14,ES_AUTOHSCROLL | ES_WANTRETURN
     CTEXT           "Enter address",IDC_DBG_ADDRINPUTTXT,20,1,100,10,SS_CENTERIMAGE | WS_TABSTOP
 END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -996,33 +997,33 @@ BEGIN
     BEGIN
         POPUP "Copy"
         BEGIN
-            MENUITEM "Copy line"                 ID_DBG_COPYLBLINE
-            MENUITEM "Copy all"                  ID_DBG_COPYLB
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
         END
         POPUP "Set top address"
         BEGIN
-            MENUITEM "Set to A0",                ID_DBG_SETTOA0
-            MENUITEM "Set to A1",                ID_DBG_SETTOA1
-            MENUITEM "Set to A2",                ID_DBG_SETTOA2
-            MENUITEM "Set to A3",                ID_DBG_SETTOA3
-            MENUITEM "Set to A4",                ID_DBG_SETTOA4
-            MENUITEM "Set to A5",                ID_DBG_SETTOA5
-            MENUITEM "Set to A6",                ID_DBG_SETTOA6
-            MENUITEM "Set to A7",                ID_DBG_SETTOA7
-            MENUITEM "Enter address",            ID_DBG_ENTERADDR
+            MENUITEM "Set to A0",                   ID_DBG_SETTOA0
+            MENUITEM "Set to A1",                   ID_DBG_SETTOA1
+            MENUITEM "Set to A2",                   ID_DBG_SETTOA2
+            MENUITEM "Set to A3",                   ID_DBG_SETTOA3
+            MENUITEM "Set to A4",                   ID_DBG_SETTOA4
+            MENUITEM "Set to A5",                   ID_DBG_SETTOA5
+            MENUITEM "Set to A6",                   ID_DBG_SETTOA6
+            MENUITEM "Set to A7",                   ID_DBG_SETTOA7
+            MENUITEM "Enter address",               ID_DBG_ENTERADDR
         END
     END
     POPUP "Disassembly"
     BEGIN
         POPUP "Copy"
         BEGIN
-            MENUITEM "Copy line"                 ID_DBG_COPYLBLINE
-            MENUITEM "Copy all"                  ID_DBG_COPYLB
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
         END
         POPUP "Breakpoints"
         BEGIN
-            MENUITEM "Toggle breakpoint"         ID_DBG_TOGGLEBP
-            MENUITEM "Clear all breakpoints"     ID_DBG_DELETEBPS
+            MENUITEM "Toggle breakpoint",           ID_DBG_TOGGLEBP
+            MENUITEM "Clear all breakpoints",       ID_DBG_DELETEBPS
         END
     END
 END

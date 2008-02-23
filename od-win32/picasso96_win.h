@@ -523,10 +523,11 @@ extern int  DX_Fill(int dstx, int dsty, int width, int height, uae_u32 color, RG
 extern uae_u32 DX_ShowCursor(uae_u32 activate);
 extern uae_u32 DX_MoveCursor(uae_u32 x, uae_u32 y);
 extern void picasso_enablescreen (int on);
-extern void picasso_refresh (int);
+extern void picasso_refresh (void);
 extern void picasso_handle_vsync (void);
 extern void init_hz_p96 (void);
 extern void picasso_handle_hsync (void);
+extern void picasso_palette (void);
 
 extern uae_u8 *gfxmemory;
 
@@ -552,6 +553,7 @@ extern void picasso_clip_mouse (int *, int *);
 
 extern int p96refresh_active;
 extern int p96hsync_counter;
+extern int p96mode;
 
 #endif
 

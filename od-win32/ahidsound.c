@@ -605,7 +605,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    if (!currprefs.cs_ciaatod)
 		changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
 	    p96refresh_active=1;
-	    picasso_refresh (0);
+	    picasso_refresh ();
 	} //end for higher P96 mouse draw rate
 	return 0;
 

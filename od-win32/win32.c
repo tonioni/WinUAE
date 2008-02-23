@@ -2481,6 +2481,7 @@ static void WIN32_HandleRegistryStuff(void)
     regclosetree (read_disk_history ());
     read_rom_list ();
     load_keyring(NULL, NULL);
+    regqueryint (NULL, "p96mode", &p96mode);
 }
 
 #if WINUAEPUBLICBETA > 0

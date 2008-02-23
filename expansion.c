@@ -1264,7 +1264,9 @@ void expamem_reset (void)
     }
 
     z3fastmem_start = currprefs.z3fastmem_start;
-    if (!p96mode || !canbang)
+    if (!canbang)
+	p96mode = 0;
+    if (!p96mode)
 	p96memstart();
     (*card_init[0]) ();
 }

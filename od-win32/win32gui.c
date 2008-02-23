@@ -4543,6 +4543,7 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_MBMEM1, z3);
     ew (hDlg, IDC_MBRAM2, z3);
     ew (hDlg, IDC_MBMEM2, z3);
+    ew (hDlg, IDC_P96MODE, full_property_sheet);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -4648,6 +4649,12 @@ static void values_to_memorydlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
+
+    SendDlgItemMessage(hDlg, IDC_P96MODE, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_P96MODE, CB_ADDSTRING, 0, (LPARAM)"P96-OLD");
+    SendDlgItemMessage (hDlg, IDC_P96MODE, CB_ADDSTRING, 0, (LPARAM)"P96-NEW");
+    SendDlgItemMessage (hDlg, IDC_P96MODE, CB_SETCURSEL, p96mode, 0);
+
 }
 
 static void fix_values_memorydlg (void)
@@ -4699,6 +4706,10 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	if (recursive > 0)
 	    break;
 	recursive++;
+	if (LOWORD (wParam) == IDC_P96MODE && full_property_sheet) {
+	    p96mode = SendDlgItemMessage (hDlg, IDC_P96MODE, CB_GETCURSEL, 0, 0);
+	    regsetint (NULL, "p96mode", p96mode);
+	}
 	values_to_memorydlg (hDlg);
 	recursive--;
 	break;

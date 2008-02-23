@@ -193,6 +193,20 @@ static uae_u32 lowbits(int v, int shift, int lsize)
     return v;
 }
 
+void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
+{
+    int i;
+
+    for (i = 0; i < 65536; i++) {
+        uae_u32 r, g, b;
+        r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
+        g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);
+        b = (((i >>  0) & 31) << 3) | lowbits (i,  0, 3);
+	p96_rgbx16[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
+    }
+}
+    
+
 void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
 {
     int bpp = rw + gw + bw + aw;

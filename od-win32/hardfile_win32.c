@@ -641,137 +641,38 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 
 #ifdef WINDDK
 
-/* see MS KB article Q264203 more more information */
 
-static BOOL GetDeviceProperty(HDEVINFO IntDevInfo, DWORD Index, DWORD *index2, uae_u8 *buffer)
-/*++
-
-Routine Description:
-
-    This routine enumerates the disk devices using the Device interface
-    GUID DiskClassGuid. Gets the Adapter & Device property from the port
-    driver. Then sends IOCTL through SPTI to get the device Inquiry data.
-
-Arguments:
-
-    IntDevInfo - Handles to the interface device information list
-
-    Index      - Device member
-
-Return Value:
-
-  TRUE / FALSE. This decides whether to continue or not
-
---*/
+static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
 {
-    STORAGE_PROPERTY_QUERY              query;
-    SP_DEVICE_INTERFACE_DATA            interfaceData;
-    PSP_DEVICE_INTERFACE_DETAIL_DATA    interfaceDetailData = NULL;
+    int i, j;
+    int ret = -1;
+    PUCHAR p;
+    STORAGE_PROPERTY_QUERY query;
+    DRIVE_LAYOUT_INFORMATION		*dli;
+    struct uae_driveinfo *udi;
+    char orgname[1024];
+    HANDLE hDevice = INVALID_HANDLE_VALUE;
+    UCHAR outBuf[20000];
+    DISK_GEOMETRY			dg;
+    GET_LENGTH_INFORMATION		gli;
     PSTORAGE_ADAPTER_DESCRIPTOR         adpDesc;
     PSTORAGE_DEVICE_DESCRIPTOR          devDesc;
-    HANDLE                              hDevice = INVALID_HANDLE_VALUE;
+    int gli_ok;
     BOOL                                status;
-    PUCHAR                              p;
-    UCHAR                               outBuf[20000];
     ULONG                               length = 0,
 					returned = 0,
 					returnedLength;
-    DWORD                               interfaceDetailDataSize = 0,
-					reqSize,
-					errorCode,
-					i, j;
-    DRIVE_LAYOUT_INFORMATION		*dli;
-    DISK_GEOMETRY			dg;
-    GET_LENGTH_INFORMATION		gli;
-    int gli_ok;
-    int ret = -1;
-    struct uae_driveinfo *udi;
-    char orgname[1024];
-
-    interfaceData.cbSize = sizeof (SP_INTERFACE_DEVICE_DATA);
-
-    status = SetupDiEnumDeviceInterfaces (
-		IntDevInfo,             // Interface Device Info handle
-		0,                      // Device Info data
-		&GUID_DEVINTERFACE_DISK, // Interface registered by driver
-		Index,                  // Member
-		&interfaceData          // Device Interface Data
-		);
-
-    if (status == FALSE) {
-	errorCode = GetLastError();
-	if (errorCode != ERROR_NO_MORE_ITEMS) {
-	    write_log ("SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
-	}
-	ret = 0;
-	goto end;
-    }
-
-    //
-    // Find out required buffer size, so pass NULL
-    //
-
-    status = SetupDiGetDeviceInterfaceDetail (
-		IntDevInfo,         // Interface Device info handle
-		&interfaceData,     // Interface data for the event class
-		NULL,               // Checking for buffer size
-		0,                  // Checking for buffer size
-		&reqSize,           // Buffer size required to get the detail data
-		NULL                // Checking for buffer size
-		);
-
-    //
-    // This call returns ERROR_INSUFFICIENT_BUFFER with reqSize
-    // set to the required buffer size. Ignore the above error and
-    // pass a bigger buffer to get the detail data
-    //
-
-    if (status == FALSE) {
-	errorCode = GetLastError();
-	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
-	    write_log ("SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
-	    ret = 0;
-	    goto end;
-	}
-    }
-
-    //
-    // Allocate memory to get the interface detail data
-    // This contains the devicepath we need to open the device
-    //
-
-    interfaceDetailDataSize = reqSize;
-    interfaceDetailData = malloc (interfaceDetailDataSize);
-    if (interfaceDetailData == NULL) {
-	write_log ("Unable to allocate memory to get the interface detail data.\n");
-	ret = 0;
-	goto end;
-    }
-    interfaceDetailData->cbSize = sizeof (SP_INTERFACE_DEVICE_DETAIL_DATA);
-
-    status = SetupDiGetDeviceInterfaceDetail (
-		  IntDevInfo,               // Interface Device info handle
-		  &interfaceData,           // Interface data for the event class
-		  interfaceDetailData,      // Interface detail data
-		  interfaceDetailDataSize,  // Interface detail data size
-		  &reqSize,                 // Buffer size required to get the detail data
-		  NULL);                    // Interface device info
-
-    if (status == FALSE) {
-	write_log ("Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
-	ret = 0;
-	goto end;
-    }
 
     //
     // Now we have the device path. Open the device interface
     // to send Pass Through command
 
     udi = &uae_drives[*index2];
-    strcpy (udi->device_path, interfaceDetailData->DevicePath);
+    memset (udi, 0, sizeof (struct uae_driveinfo));
+    strcpy (udi->device_path, DevicePath);
     write_log ("opening device '%s'\n", udi->device_path);
     hDevice = CreateFile(
-		interfaceDetailData->DevicePath,    // device interface name
+		udi->device_path,    // device interface name
 		GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
 		FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
 		NULL,                               // lpSecurityAttributes
@@ -785,8 +686,6 @@ Return Value:
     // So we can release the interfaceDetailData buffer
     //
 
-    free (interfaceDetailData);
-    interfaceDetailData = NULL;
 
     if (hDevice == INVALID_HANDLE_VALUE) {
 	write_log ("CreateFile failed with error: %d\n", GetLastError());
@@ -825,62 +724,74 @@ Return Value:
 			sizeof (outBuf),
 			&returnedLength,
 			NULL);
-	if (!status) {
-	    write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", GetLastError());
+    if (!status) {
+        write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", GetLastError());
+        ret = 1;
+        goto end;
+    }
+    devDesc = (PSTORAGE_DEVICE_DESCRIPTOR) outBuf;
+    p = (PUCHAR) outBuf;
+    if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
+        ret = 1;
+        write_log ("not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
+        goto end;
+    }
+    if (devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
+        j = 0;
+        for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
+	    udi->vendor_id[j++] = p[i];
+    }
+    if (devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
+	j = 0;
+	for (i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
+	    udi->product_id[j++] = p[i];
+    }
+    if (devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
+        j = 0;
+        for (i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
+	    udi->product_rev[j++] = p[i];
+    }
+    if (devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
+        j = 0;
+        for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
+	    udi->product_serial[j++] = p[i];
+    }
+    if (udi->vendor_id[0])
+        strcat (udi->device_name, udi->vendor_id);
+    if (udi->product_id[0]) {
+        if (udi->device_name[0])
+	    strcat (udi->device_name, " ");
+	strcat (udi->device_name, udi->product_id);
+    }
+    if (udi->product_rev[0]) {
+        if (udi->device_name[0])
+	    strcat (udi->device_name, " ");
+	strcat (udi->device_name, udi->product_rev);
+    }
+    if (udi->product_serial[0]) {
+        if (udi->device_name[0])
+	    strcat (udi->device_name, " ");
+	strcat (udi->device_name, udi->product_serial);
+    }
+    if (!udi->device_name[0]) {
+        write_log ("empty device id?!?, replacing with device path\n");
+        strcpy (udi->device_name, udi->device_path);
+    }
+    udi->removablemedia = devDesc->RemovableMedia;
+    write_log ("device id string: '%s'\n", udi->device_name);
+    if (ignoreduplicates) {
+	sprintf (orgname, "HD_%s", udi->device_name);
+	if (isharddrive (orgname) >= 0) {
+	    write_log ("duplicate device, ignored\n");
 	    ret = 1;
 	    goto end;
 	}
-	devDesc = (PSTORAGE_DEVICE_DESCRIPTOR) outBuf;
-	p = (PUCHAR) outBuf;
-	if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
+	if (!udi->removablemedia) {
+	    write_log ("drive letter not removable, ignored\n");
 	    ret = 1;
-	    write_log ("not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
 	    goto end;
 	}
-	if (devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
-	    j = 0;
-	    for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
-		udi->vendor_id[j++] = p[i];
-	}
-	if (devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
-	    j = 0;
-	    for (i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
-		udi->product_id[j++] = p[i];
-	}
-	if (devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
-	    j = 0;
-	    for (i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
-		udi->product_rev[j++] = p[i];
-	}
-	if (devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
-	    j = 0;
-	    for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
-		udi->product_serial[j++] = p[i];
-	}
-	if (udi->vendor_id[0])
-	    strcat (udi->device_name, udi->vendor_id);
-	if (udi->product_id[0]) {
-	    if (udi->device_name[0])
-		strcat (udi->device_name, " ");
-	    strcat (udi->device_name, udi->product_id);
-	}
-	if (udi->product_rev[0]) {
-	    if (udi->device_name[0])
-		strcat (udi->device_name, " ");
-	    strcat (udi->device_name, udi->product_rev);
-	}
-	if (udi->product_serial[0]) {
-	    if (udi->device_name[0])
-		strcat (udi->device_name, " ");
-	    strcat (udi->device_name, udi->product_serial);
-	}
-	if (!udi->device_name[0]) {
-	    write_log ("empty device id?!?, replacing with device path\n");
-	    strcpy (udi->device_name, udi->device_path);
-	}
-	udi->removablemedia = devDesc->RemovableMedia;
-
-	write_log ("device id string: '%s'\n", udi->device_name);
+    }
     strcpy (orgname, udi->device_name);
     if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 	DWORD err = GetLastError();
@@ -977,15 +888,138 @@ Return Value:
 	goto end;
 amipartfound:
     sprintf (udi->device_name, "HD_%s", orgname);
-    while (isharddrive (udi->device_name) >= 0)
-	strcat (udi->device_name, "_");
+    {
+	int cnt = 1;
+	int off = strlen (udi->device_name);
+	while (isharddrive (udi->device_name) >= 0) {
+	    udi->device_name[off] = '_';
+	    udi->device_name[off + 1] = cnt + '0';
+	    udi->device_name[off + 2] = 0;
+	    cnt++;
+	}
+    }	
     (*index2)++;
 end:
-    free (interfaceDetailData);
     if (hDevice != INVALID_HANDLE_VALUE)
 	CloseHandle (hDevice);
     return ret;
 }
+
+/* see MS KB article Q264203 more more information */
+
+static BOOL GetDeviceProperty(HDEVINFO IntDevInfo, DWORD Index, DWORD *index2, uae_u8 *buffer)
+/*++
+
+Routine Description:
+
+    This routine enumerates the disk devices using the Device interface
+    GUID DiskClassGuid. Gets the Adapter & Device property from the port
+    driver. Then sends IOCTL through SPTI to get the device Inquiry data.
+
+Arguments:
+
+    IntDevInfo - Handles to the interface device information list
+
+    Index      - Device member
+
+Return Value:
+
+  TRUE / FALSE. This decides whether to continue or not
+
+--*/
+{
+    SP_DEVICE_INTERFACE_DATA            interfaceData;
+    PSP_DEVICE_INTERFACE_DETAIL_DATA    interfaceDetailData = NULL;
+    BOOL                                status;
+    DWORD                               interfaceDetailDataSize = 0,
+					reqSize,
+					errorCode;
+    int ret = -1;
+
+    interfaceData.cbSize = sizeof (SP_INTERFACE_DEVICE_DATA);
+
+    status = SetupDiEnumDeviceInterfaces (
+		IntDevInfo,             // Interface Device Info handle
+		0,                      // Device Info data
+		&GUID_DEVINTERFACE_DISK, // Interface registered by driver
+		Index,                  // Member
+		&interfaceData          // Device Interface Data
+		);
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_NO_MORE_ITEMS) {
+	    write_log ("SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
+	}
+	ret = 0;
+	goto end;
+    }
+
+    //
+    // Find out required buffer size, so pass NULL
+    //
+
+    status = SetupDiGetDeviceInterfaceDetail (
+		IntDevInfo,         // Interface Device info handle
+		&interfaceData,     // Interface data for the event class
+		NULL,               // Checking for buffer size
+		0,                  // Checking for buffer size
+		&reqSize,           // Buffer size required to get the detail data
+		NULL                // Checking for buffer size
+		);
+
+    //
+    // This call returns ERROR_INSUFFICIENT_BUFFER with reqSize
+    // set to the required buffer size. Ignore the above error and
+    // pass a bigger buffer to get the detail data
+    //
+
+    if (status == FALSE) {
+	errorCode = GetLastError();
+	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
+	    write_log ("SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
+	    ret = 0;
+	    goto end;
+	}
+    }
+
+    //
+    // Allocate memory to get the interface detail data
+    // This contains the devicepath we need to open the device
+    //
+
+    interfaceDetailDataSize = reqSize;
+    interfaceDetailData = malloc (interfaceDetailDataSize);
+    if (interfaceDetailData == NULL) {
+	write_log ("Unable to allocate memory to get the interface detail data.\n");
+	ret = 0;
+	goto end;
+    }
+    interfaceDetailData->cbSize = sizeof (SP_INTERFACE_DEVICE_DETAIL_DATA);
+
+    status = SetupDiGetDeviceInterfaceDetail (
+		  IntDevInfo,               // Interface Device info handle
+		  &interfaceData,           // Interface data for the event class
+		  interfaceDetailData,      // Interface detail data
+		  interfaceDetailDataSize,  // Interface detail data size
+		  &reqSize,                 // Buffer size required to get the detail data
+		  NULL);                    // Interface device info
+
+    if (status == FALSE) {
+	write_log ("Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
+	ret = 0;
+	goto end;
+    }
+    
+    ret = GetDevicePropertyFromName (interfaceDetailData->DevicePath, Index, index2, buffer, 0);
+
+end:
+    free (interfaceDetailData);
+
+    return ret;
+}
+
+
 #endif
 
 
@@ -996,8 +1030,10 @@ static int hdf_init2 (int force)
 #ifdef WINDDK
     HDEVINFO hIntDevInfo;
 #endif
-    DWORD index = 0, index2 = 0;
+    DWORD index = 0, index2 = 0, drive;
     uae_u8 *buffer;
+    UINT errormode;
+    DWORD dwDriveMask;
     static int done;
 
     if (done && !force)
@@ -1020,6 +1056,23 @@ static int hdf_init2 (int force)
 	    }
 	    SetupDiDestroyDeviceInfoList(hIntDevInfo);
 	}
+	errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+	dwDriveMask = GetLogicalDrives();
+        for(drive = 'A'; drive <= 'Z'; drive++) {
+	    if((dwDriveMask & 1) && drive >= 'C') {
+		char tmp1[20], tmp2[20];
+		DWORD drivetype;
+		sprintf (tmp1, "%c:\\", drive);
+		drivetype = GetDriveType(tmp1);
+		if (drivetype != DRIVE_REMOTE) {
+		    sprintf (tmp2, "\\\\.\\%c:", drive);
+		    GetDevicePropertyFromName (tmp2, index, &index2, buffer, 1);
+		    num_drives = index2;
+		}
+	    }
+	    dwDriveMask >>= 1;
+	}
+	SetErrorMode(errormode);
 #if 0
 	hIntDevInfo = SetupDiGetClassDevs (&GUID_DEVCLASS_MTD, NULL, NULL, DIGCF_PRESENT);
 	if (hIntDevInfo != INVALID_HANDLE_VALUE) {
@@ -1086,7 +1139,7 @@ char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
 	    else
 		sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
 	}
-	sprintf (name, "%10s [%s] %s", dang, tmp, uae_drives[index].device_name);
+	sprintf (name, "%10s [%s] %s", dang, tmp, uae_drives[index].device_name + 3);
 	return name;
     }
     if (flags & 2)

@@ -296,42 +296,6 @@ static int rgbformat_bits (RGBFTYPE t)
 	    : 0);
 }
 
-#if 0
-static DEVMODE dmScreenSettings;
-static volatile cdsthread_ret;
-
-static void cdsthread (void *dummy)
-{
-    int ret = ChangeDisplaySettings (&dmScreenSettings, CDS_FULLSCREEN);
-    if (ret != DISP_CHANGE_SUCCESSFUL && dmScreenSettings.dmDisplayFrequency > 0) {
-	dmScreenSettings.dmFields &= ~DM_DISPLAYFREQUENCY;
-	ret = ChangeDisplaySettings (&dmScreenSettings, CDS_FULLSCREEN);
-    }
-    if (ret != DISP_CHANGE_SUCCESSFUL) {
-	cdsthread_ret = 0;
-	return;
-    }
-    cdsthread_ret = 1;
-}
-
-#include <process.h>
-static int do_changedisplaysettings (int width, int height, int bits, int freq)
-{
-    memset (&dmScreenSettings, 0, sizeof(dmScreenSettings));
-    dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-    dmScreenSettings.dmPelsWidth = width;
-    dmScreenSettings.dmPelsHeight = height;
-    dmScreenSettings.dmBitsPerPel = bits;
-    dmScreenSettings.dmDisplayFrequency = freq;
-    dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | (freq > 0 ? DM_DISPLAYFREQUENCY : 0);
-    cdsthread_ret = -1;
-    _beginthread (&cdsthread, 0, 0);
-    while (cdsthread_ret < 0)
-	Sleep (10);
-    return cdsthread_ret;
-}
-#endif
-
 static int set_ddraw (void)
 {
     HRESULT ddrval;
@@ -424,26 +388,6 @@ oops:
 oops2:
     return 0;
 }
-
-/*
-static void dhack(void)
-{
-    int i = 0;
-    while (DisplayModes[i].depth >= 0)
-	i++;
-    if (i >= MAX_PICASSO_MODES - 1)
-	return;
-    DisplayModes[i].res.width = 480;
-    DisplayModes[i].res.height = 640;
-    DisplayModes[i].depth = DisplayModes[i - 1].depth;
-    DisplayModes[i].refresh[0] = 0;
-    DisplayModes[i].refresh[1] = 0;
-    DisplayModes[i].colormodes = DisplayModes[i - 1].colormodes;
-    DisplayModes[i + 1].depth = -1;
-    sprintf(DisplayModes[i].name, "%dx%d, %d-bit",
-	DisplayModes[i].res.width, DisplayModes[i].res.height, DisplayModes[i].depth * 8);
-}
-*/
 
 static HRESULT CALLBACK modesCallback(LPDDSURFACEDESC2 modeDesc, LPVOID context)
 {
@@ -1053,23 +997,25 @@ static int open_windows (void)
 	if (ret < -1) {
 #ifdef PICASSO96
 	    if (screen_is_picasso) {
-		currentmode->current_width = picasso_vidinfo.width;
-		currentmode->current_height = picasso_vidinfo.height;
+		currentmode->current_width = picasso96_state.Width;
+		currentmode->current_height = picasso96_state.Height;
 		currentmode->current_depth = rgbformat_bits (picasso_vidinfo.selected_rgbformat);
 		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
 	    } else {
 #endif
 		currentmode->current_width = currprefs.gfx_size.width;
 		currentmode->current_height = currprefs.gfx_size.height;
-		currentmode->current_depth = (currprefs.color_mode == 0 ? 8
-				: currprefs.color_mode == 1 ? 15
-				: currprefs.color_mode == 2 ? 16
-				: currprefs.color_mode == 3 ? 8
-				: currprefs.color_mode == 4 ? 8 : 32);
 		currentmode->frequency = abs (currprefs.gfx_refreshrate);
 #ifdef PICASSO96
 	    }
 #endif
+	    if (!screen_is_picasso || p96mode) {
+		currentmode->current_depth = (currprefs.color_mode == 0 ? 8
+			: currprefs.color_mode == 1 ? 15
+			: currprefs.color_mode == 2 ? 16
+			: currprefs.color_mode == 3 ? 8
+			: currprefs.color_mode == 4 ? 8 : 32);
+	    }
 	    currentmode->amiga_width = currentmode->current_width;
 	    currentmode->amiga_height = currentmode->current_height;
 	}
@@ -1403,11 +1349,26 @@ void init_colors (void)
 	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
     }
+    alloc_colors_picasso (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 }
 
 #ifdef PICASSO96
 void DX_SetPalette_vsync (void)
 {
+}
+
+void picasso_palette (void)
+{
+    int i;
+
+    for (i = 0; i < 256; i++) {
+        int r = picasso96_state.CLUT[i].Red;
+        int g = picasso96_state.CLUT[i].Green;
+        int b = picasso96_state.CLUT[i].Blue;
+        picasso_vidinfo.clut[i] = (doMask256 (r, red_bits, red_shift)
+	    | doMask256 (g, green_bits, green_shift)
+	    | doMask256 (b, blue_bits, blue_shift));
+    }
 }
 
 void DX_SetPalette (int start, int count)
@@ -1417,25 +1378,8 @@ void DX_SetPalette (int start, int count)
     if (!screen_is_picasso)
 	return;
 
-    if( picasso96_state.RGBFormat != RGBFB_CHUNKY )
-	return;
-
     if (picasso_vidinfo.pixbytes != 1)
-    {
-	/* write_log ("DX Setpalette emulation\n"); */
-	/* This is the case when we're emulating a 256 color display.  */
-	while (count-- > 0)
-	{
-	    int r = picasso96_state.CLUT[start].Red;
-	    int g = picasso96_state.CLUT[start].Green;
-	    int b = picasso96_state.CLUT[start].Blue;
-	    picasso_vidinfo.clut[start++] = (doMask256 (r, red_bits, red_shift)
-		| doMask256 (g, green_bits, green_shift)
-		| doMask256 (b, blue_bits, blue_shift));
-	}
-	notice_screen_contents_lost();
 	return;
-    }
 
     /* Set our DirectX palette here */
     if(currentmode->current_depth == 8)
@@ -1543,60 +1487,6 @@ static COLORREF BuildColorRef(int color, RGBFTYPE pixelformat)
     else
 	result = do_get_mem_long(&color);
     return result;
-#if 0
-    int r,g,b;
-    write_log ( "DX_Blit() called to fill with color of 0x%x, rgbtype of 0x%x\n", color, pixelformat );
-
-    switch( pixelformat )
-    {
-	case RGBFB_R5G6B5PC:
-	    r = color & 0xF800 >> 11;
-	    g = color & 0x07E0 >> 5;
-	    b = color & 0x001F;
-	break;
-	case RGBFB_R5G5B5PC:
-	    r = color & 0x7C00 >> 10;
-	    g = color & 0x03E0 >> 5;
-	    b = color & 0x001F;
-	break;
-	case RGBFB_B5G6R5PC:
-	    r = color & 0x001F;
-	    g = color & 0x07E0 >> 5;
-	    b = color & 0xF800 >> 11;
-	break;
-	case RGBFB_B5G5R5PC:
-	    r = color & 0x001F;
-	    g = color & 0x03E0 >> 5;
-	    b = color & 0x7C00 >> 10;
-	break;
-	case RGBFB_B8G8R8:
-	    r = color & 0x00FF0000 >> 16;
-	    g = color & 0x0000FF00 >> 8;
-	    b = color & 0x000000FF;
-	break;
-	case RGBFB_A8B8G8R8:
-	    r = color & 0xFF000000 >> 24;
-	    g = color & 0x00FF0000 >> 16;
-	    b = color & 0x0000FF00 >> 8;
-	break;
-	case RGBFB_R8G8B8:
-	    r = color & 0x000000FF;
-	    g = color & 0x0000FF00 >> 8;
-	    b = color & 0x00FF0000 >> 16;
-	break;
-	case RGBFB_A8R8G8B8:
-	    r = color & 0x0000FF00 >> 8;
-	    g = color & 0x00FF0000 >> 16;
-	    b = color & 0xFF000000 >> 24;
-	break;
-	default:
-	    write_log ( "Uknown 0x%x pixel-format\n", pixelformat );
-	break;
-    }
-    result = RGB(r,g,b);
-    write_log ( "R = 0x%02x, G = 0x%02x, B = 0x%02x - result = 0x%08x\n", r, g, b, result );
-    return result;
-#endif
 }
 
 static void centerrect(RECT *r)
@@ -1761,31 +1651,49 @@ static void open_screen(void)
 }
 
 #ifdef PICASSO96
+
+static int modeswitchneeded (void)
+{
+    if (!p96mode)
+	return 1;
+    if (picasso96_state.Width != currentmode->current_width ||
+	picasso96_state.Height != currentmode->current_height)
+	return 1;
+    return 0;
+}
+
 void gfx_set_picasso_state(int on)
 {
     if (screen_is_picasso == on)
 	return;
     screen_is_picasso = on;
+    if (currprefs.gfx_afullscreen == currprefs.gfx_pfullscreen && !modeswitchneeded())
+	return;
     open_screen();
 }
 
 void gfx_set_picasso_modeinfo(uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
-    depth >>= 3;
-    if(((unsigned)picasso_vidinfo.width == w) &&
-	    ((unsigned)picasso_vidinfo.height == h) &&
-	    ((unsigned)picasso_vidinfo.depth == depth) &&
-	    (picasso_vidinfo.selected_rgbformat == rgbfmt))
-	return;
+    if (p96mode) {
+	if (screen_is_picasso && modeswitchneeded())
+	    open_screen ();
+    } else {
+	depth >>= 3;
+	if(((unsigned)picasso_vidinfo.width == w) &&
+		((unsigned)picasso_vidinfo.height == h) &&
+		((unsigned)picasso_vidinfo.depth == depth) &&
+		(picasso_vidinfo.selected_rgbformat == rgbfmt))
+	    return;
 
-    picasso_vidinfo.selected_rgbformat = rgbfmt;
-    picasso_vidinfo.width = w;
-    picasso_vidinfo.height = h;
-    picasso_vidinfo.depth = depth;
-    picasso_vidinfo.extra_mem = 1;
+	picasso_vidinfo.selected_rgbformat = rgbfmt;
+	picasso_vidinfo.width = w;
+	picasso_vidinfo.height = h;
+	picasso_vidinfo.depth = depth;
+	picasso_vidinfo.extra_mem = 1;
 
-    if(screen_is_picasso) {
-	open_screen();
+	if(screen_is_picasso && modeswitchneeded()) {
+	    open_screen();
+	}
     }
 }
 #endif
@@ -2212,7 +2120,7 @@ static BOOL doInit (void)
 	    if (!console_logging)
 		fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 #ifdef PICASSO96
-	} else if (screen_is_picasso && !currprefs.gfx_pfullscreen &&
+	} else if (screen_is_picasso && !p96mode && !currprefs.gfx_pfullscreen &&
 		  (picasso_vidinfo.selected_rgbformat != RGBFB_CHUNKY) &&
 		  (picasso_vidinfo.selected_rgbformat != colortype) &&
 		    !(currentmode->flags & DM_OVERLAY) )
@@ -2315,6 +2223,18 @@ static BOOL doInit (void)
 	}
 #endif
     }
+
+#ifdef PICASSO96
+    if (p96mode) {
+	picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch();
+	picasso_vidinfo.pixbytes = DirectDraw_GetBytesPerPixel();
+	picasso_vidinfo.rgbformat = DirectDraw_GetPixelFormat();
+	picasso_vidinfo.extra_mem = 1;
+	picasso_vidinfo.height = currentmode->current_height;
+	picasso_vidinfo.width = currentmode->current_width;
+	picasso_vidinfo.depth = currentmode->current_depth;
+    }
+#endif
 
     if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
 

@@ -37,6 +37,12 @@ int candirect = -1;
 int special_mem;
 #endif
 
+static int canjit (void)
+{
+    if (canbang)
+	return 1;
+    return 0;
+}
 static void nocanbang(void)
 {
     canbang = 0;
@@ -2783,7 +2789,7 @@ static shmpiece *find_shmpiece (uae_u8 *base)
 
 static void delete_shmmaps (uae_u32 start, uae_u32 size)
 {
-    if (!canbang)
+    if (!canjit ())
 	return;
 
     while (size) {
@@ -2825,7 +2831,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     shmpiece *y;
     uae_u8 *base = what->baseaddr;
 
-    if (!canbang)
+    if (!canjit ())
 	return;
     if (!base)
 	return;
@@ -2856,7 +2862,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     void *answer;
     shmpiece *x;
 
-    if (!canbang) {
+    if (!canjit()) {
 	nocanbang();
 	return xcalloc (s + 4, 1);
     }

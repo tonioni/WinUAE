@@ -193,8 +193,8 @@ int init_shm (void)
 	    natmemsize, natmemsize >> 20);
 	if (p96mode)
 	    write_log ("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n",
-	    p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
-	    currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
+		p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
+		currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
 	canbang = 1;
     }
 

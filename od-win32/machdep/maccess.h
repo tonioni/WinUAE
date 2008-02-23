@@ -8,9 +8,11 @@
   * Copyright 1996 Bernd Schmidt
   */
 
+#define ALIGN_POINTER_TO32(p) ((~(unsigned long)(p)) & 3)
+
 STATIC_INLINE uae_u32 do_get_mem_long(uae_u32 *a)
 {
-#if !defined(X86_MSVC_ASSEMBLY)
+#if !defined(X86_MSVC_ASSEMBLY_MEMACCESS)
     uae_u8 *b = (uae_u8 *)a;
     return (*b << 24) | (*(b+1) << 16) | (*(b+2) << 8) | (*(b+3));
 #else
@@ -37,7 +39,7 @@ STATIC_INLINE uae_u16 do_get_mem_word(uae_u16 *a)
 
 STATIC_INLINE void do_put_mem_long(uae_u32 *a, uae_u32 v)
 {
-#if !defined(X86_MSVC_ASSEMBLY)
+#if !defined(X86_MSVC_ASSEMBLY_MEMACCESS)
     uae_u8 *b = (uae_u8 *)a;
 
     *b = v >> 24;

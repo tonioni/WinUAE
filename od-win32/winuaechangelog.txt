@@ -1,7 +1,31 @@
 
+Beta 3:
+
+- "P96 new"-mode only: RTG display depth is now completely virtual.
+  Emulation converts to real color space (configured in display panel)
+  16->32, 8->32, 32->16 and 8->16 supported. 8-bit and 16-bit (without
+  overlay) now possible in windowed mode. I guess real 8-bit support
+  can be removed because it is not very well supported anymore..
+  24-bit and 16-bit RGB (instead of 16-bit BGR) can be also implemented
+  if some weird program don't support other modes..
+- "new mode" fixes and optimizations
+- chipset<>RTG switching is now instant (no closing and reopening) if
+  both modes have same dimensions. (to do: different dimensions)
+- "old p96 mode" will be removed soon because it is incompatible with
+  above new features. Other new possible features will be RTG filter
+  support (for example 2x support for small resolutions like 320x200)
+
 Beta 2:
 
+- experimental Picasso96 speedup code. Default enabled, temporary
+  option added to RAM-panel (stored to registry, not config file)
+  May be slower on older PCs, I get up to 8x speedup in P96Speed
+  benchmark (both desktop and laptop) Post your results here.
+  Including PC specs, "old" and "new" P96Speed or other test results.
+- harddrive detection now also includes more devices, even CDROMs..
+  (perhaps this allows PCMCIA SRAM direct access)
 - Weird Dreams sound problem (hospital scene when game is starting)
+- GUI debugger patch I forgot to merge
 
 
 Beta 1: (possible big changes in future betas)

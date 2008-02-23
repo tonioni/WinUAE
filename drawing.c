@@ -2512,7 +2512,7 @@ STATIC_INLINE void check_picasso (void)
 {
 #ifdef PICASSO96
     if (picasso_on && picasso_redraw_necessary)
-	picasso_refresh (1);
+	picasso_refresh ();
     picasso_redraw_necessary = 0;
 
     if (picasso_requested_on == picasso_on)

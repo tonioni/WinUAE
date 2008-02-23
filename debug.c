@@ -113,8 +113,8 @@ static char help[] = {
     "  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions\n"
     "  C <value>             Search for values like energy or lifes in games\n"
     "  Cl                    List currently found trainer addresses\n"
-    "  D[idx <[max diff]>]   Deep trainer. i=new value must be larger, d=smaller,\n"
-    "                        x = must be same.\n"
+    "  D[idxzs <[max diff]>] Deep trainer. i=new value must be larger, d=smaller,\n"
+    "                        x = must be same, z = must be different, s = restart.\n"
     "  W <address> <value>   Write into Amiga memory\n"
     "  w <num> <address> <length> <R/W/I/F> [<value>] (read/write/opcode/freeze)\n"
     "                        Add/remove memory watchpoints\n"
@@ -900,7 +900,7 @@ static void deepcheatsearch (char **c)
     static int memsize, memsize2;
     uae_u8 *p1, *p2;
     uaecptr addr, end;
-    int i, wasmodified;
+    int i, wasmodified, nonmodified;
     static int size;
     static int inconly, deconly, maxdiff;
     int addrcnt, cnt;
@@ -951,6 +951,7 @@ static void deepcheatsearch (char **c)
     }
     inconly = deconly = 0;
     wasmodified = v == 'X' ? 0 : 1;
+    nonmodified = v == 'Z' ? 1 : 0;
     if (v == 'I')
 	inconly = 1;
     if (v == 'D')
@@ -977,7 +978,7 @@ static void deepcheatsearch (char **c)
 	}
 
 	if (p2[addroff] & addrmask) {
-	    if (wasmodified) {
+	    if (wasmodified && !nonmodified) {
 		int diff = b - b2;
 		if (b == b2)
 		    doremove = 1;
@@ -987,6 +988,8 @@ static void deepcheatsearch (char **c)
 		    doremove = 1;
 		if (deconly && diff > 0)
 		    doremove = 1;
+	    } else if (nonmodified && b != b2) {
+		doremove = 1;
 	    } else if (!wasmodified && b != b2) {
 		doremove = 1;
 	    }
