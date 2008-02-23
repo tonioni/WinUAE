@@ -20,9 +20,6 @@ void PICASSO96_Unlock2(char *filename, int linenum);
 #define PICASSO96_Unlock() PICASSO96_Unlock2(__FILE__, __LINE__)
 #endif
 
-/* Define this if you provide the proper sprite functions */
-//#define HARDWARE_SPRITE_EMULATION
-
 #define PIC_READ (S_READ)
 #define PIC_WRITE (S_WRITE)
 

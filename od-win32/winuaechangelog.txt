@@ -1,4 +1,9 @@
 
+- "Full-window" mode does not reopen window when switching modes
+- 16 and 8-bit RTG mode optimized blitter operations
+- RTG template-blit ("RectFill() Pattern") operations optimized (do
+  pen value endian swap only once per blit, not every pixel..)
+
 Beta 3:
 
 - "P96 new"-mode only: RTG display depth is now completely virtual.
@@ -8,12 +13,15 @@ Beta 3:
   can be removed because it is not very well supported anymore..
   24-bit and 16-bit RGB (instead of 16-bit BGR) can be also implemented
   if some weird program don't support other modes..
+  NOTE: make sure you have 32 bit selected in display panel if you want
+  real 32-bit RTG mode. (instead of 32bit converted to 16bit)
 - "new mode" fixes and optimizations
 - chipset<>RTG switching is now instant (no closing and reopening) if
   both modes have same dimensions. (to do: different dimensions)
 - "old p96 mode" will be removed soon because it is incompatible with
-  above new features. Other new possible features will be RTG filter
-  support (for example 2x support for small resolutions like 320x200)
+  above new features. (perhaps some optimizations to do first)
+  Other new possible features will be RTG filter support (for example
+  2x support for small resolutions like 320x200)
 
 Beta 2:
 

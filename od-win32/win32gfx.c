@@ -1656,9 +1656,15 @@ static int modeswitchneeded (void)
 {
     if (!p96mode)
 	return 1;
-    if (picasso96_state.Width != currentmode->current_width ||
-	picasso96_state.Height != currentmode->current_height)
-	return 1;
+    if (isfullscreen () >= 0) {
+	if (picasso96_state.Width != currentmode->current_width ||
+	    picasso96_state.Height != currentmode->current_height)
+	    return 1;
+    } else {
+	if (picasso96_state.Width > currentmode->native_width ||
+	    picasso96_state.Height > currentmode->native_height)
+	    return 1;
+    }
     return 0;
 }
 

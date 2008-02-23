@@ -425,12 +425,10 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
      case 32: return picasso_BlitPlanar2Direct (&context->regs);
      /* case 34: return picasso_WaitVerticalSync (); handled in asm-code */
      case 35: return allocated_gfxmem ? 1 : 0;
-#ifdef HARDWARE_SPRITE_EMULATION
      case 36: return picasso_SetSprite (&context->regs);
      case 37: return picasso_SetSpritePosition (&context->regs);
      case 38: return picasso_SetSpriteImage (&context->regs);
      case 39: return picasso_SetSpriteColor (&context->regs);
-#endif
      case 40: return picasso_DrawLine (&context->regs);
 #endif
      case 68: return emulib_Minimize ();

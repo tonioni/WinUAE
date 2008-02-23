@@ -136,6 +136,7 @@ int init_shm (void)
     natmem_offset = NULL;
     canbang = 0;
 
+    z3size = 0;
     size = 0x1000000;
     if (currprefs.cpu_model >= 68020)
 	size = 0x10000000;
