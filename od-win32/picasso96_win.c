@@ -82,6 +82,7 @@ static void flushpixels_lock(void);
 #else
 #define P96TRACE(x)
 #endif
+#define P96TRACE_SPR(x) do { write_log x; } while(0)
 
 #define GetBytesPerPixel(x) GetBytesPerPixel2(x,__FILE__,__LINE__)
 
@@ -118,6 +119,12 @@ static struct ScreenResolution truecolour = { 640, 480 };
 static struct ScreenResolution alphacolour = { 640, 480 };
 
 uae_u32 p96_rgbx16[65536];
+
+static LPDIRECTDRAWSURFACE7 cursorsurface;
+static int cursorwidth, cursorheight;
+static uae_u32 cursorrgb[4];
+static int reloadcursor, cursorvisible, cursordeactivate;
+static uaecptr cursorbi;
 
 #include "win32gui.h"
 #include "resource.h"
@@ -203,7 +210,7 @@ static void endianswap (uae_u32 *vp, int bpp)
     switch (bpp)
     {
 	case 2:
-	*vp = ((v >> 8) & 0xff) | (v << 8);
+	*vp = (((v >> 8) & 0xff) | (v << 8)) & 0xffff;
 	break;
 	case 4:
 	*vp = ((v >> 24) & 0x000000ff) | ((v >> 8) & 0x0000ff00) | ((v << 8) & 0x00ff0000) | ((v << 24) & 0xff000000);
@@ -308,6 +315,7 @@ static void DumpTemplate (struct Template *tmp, unsigned long w, unsigned long h
 	write_log ("\n");
     }
 }
+#endif
 
 static void DumpLine( struct Line *line )
 {
@@ -330,7 +338,6 @@ static void DumpLine( struct Line *line )
 	write_log ("Line->Yorigin = %d\n", line->Yorigin);
     }
 }
-#endif
 
 static void ShowSupportedResolutions (void)
 {
@@ -802,12 +809,12 @@ STATIC_INLINE void do_fillrect_frame_buffer (struct RenderInfo *ri, int X, int Y
 	    memset (p, Pen, Width);
 	break;
 	case 2:
-	    Pen = (Pen << 16) | Pen;
+	    Pen |= Pen << 16;
 	    for (cols = 0; cols < Width / 2; cols++)
 		*p++ = Pen;
 	    if (Width & 1)
-		((uae_u16*)p) = Pen;
-	break;
+		((uae_u16*)p)[0] = Pen;
+        break;
 	case 3:
 	    for (cols = 0; cols < Width; cols++) {
 		*dst++ = Pen >> 16;
@@ -831,8 +838,91 @@ STATIC_INLINE void do_fillrect_frame_buffer (struct RenderInfo *ri, int X, int Y
     }
 }
 
+static void disablemouse (void)
+{
+    if (cursorsurface)
+        IDirectDraw7_Release (cursorsurface);
+    cursorsurface = NULL;
+    cursordeactivate = 0;
+}
+
+static int remcursor_x, remcursor_y, newcursor_x, newcursor_y;
+static void mouseupdate (void)
+{
+    static int ox, oy;
+    int fx1, fy1, fx2, fy2;
+    int x = newcursor_x;
+    int y = newcursor_y;
+
+    if (cursordeactivate > 0) {
+	cursordeactivate--;
+	if (cursordeactivate == 0) {
+	    disablemouse ();
+	    cursorvisible = 0;
+	}
+    }
+    if (!hwsprite)
+	return;
+    if (!cursorsurface || !cursorvisible)
+	return;
+    if (ox == x && oy == y)
+	return;
+    ox = x;
+    oy = y;
+    if (x <= -cursorwidth)
+	x = -cursorwidth;
+    if (y <= -cursorheight)
+	y = -cursorheight;
+    if (x >= picasso96_state.Width)
+	x = picasso96_state.Width;
+    if (y >= picasso96_state.Height)
+	y = picasso96_state.Height;
+    fx1 = remcursor_x;
+    fy1 = remcursor_y;
+    fx2 = fx1 + cursorwidth;
+    fy2 = fy1 + cursorheight;
+    remcursor_x = x;
+    remcursor_y = y;
+    if (x < fx1)
+	fx1 = x;
+    if (y < fy1)
+	fy1 = y;
+    if (x + cursorwidth > fx2)
+	fx2 = x + cursorwidth;
+    if (y + cursorheight > fy2)
+	fy2 = y + cursorheight;
+
+    if (fx1 < 0)
+	fx1 = 0;
+    if (fy1 < 0)
+	fy1 = 0;
+    if (fx1 >= picasso96_state.Width)
+	fx1 = picasso96_state.Width - 1;
+    if (fy1 >= picasso96_state.Height)
+	fy1 = picasso96_state.Height - 1;
+    fx2 -= fx1;
+    fy2 -= fy1;
+    if (fx1 + fx2 >= picasso96_state.Width)
+	fx2 = picasso96_state.Width - fx1;
+    if (fy1 + fy2 >= picasso96_state.Height)
+	fy2 = picasso96_state.Height - fy1;
+    DX_Invalidate (fx1, fy1, fx2, fy2);
+    gfx_unlock_picasso ();
+}
+
 void picasso_handle_vsync (void)
 {
+    static int vsynccnt;
+    
+    mouseupdate ();
+    
+    if (vsyncgfxwrite < 0 && currprefs.chipset_refreshrate >= 100) {
+	vsynccnt++;
+	if (vsynccnt < 2)
+	    return;
+	vsynccnt = 0;
+    }    
+
     PICASSO96_Unlock();
 
     if (vsyncgfxwrite == 1) {
@@ -853,7 +943,10 @@ void picasso_handle_vsync (void)
 	    }
 	}
     }
+
     setoverlay(1);
+
+
 }
 
 static int set_panning_called = 0;
@@ -1223,9 +1316,10 @@ d7.l: RGBFormat
 This function is used to paint a line on the board memory possibly using the blitter. It is called by Draw
 and obeyes the destination RGBFormat as well as ForeGround and BackGround pens and draw modes.
 */
+#define P96_DRAWLINE
 uae_u32 REGPARAM2 picasso_DrawLine (struct regstruct *regs)
 {
-    uae_u32 result = 0;
+    uae_u32 result = 1;
 #ifdef P96_DRAWLINE
     struct Line line;
     struct RenderInfo ri;
@@ -1234,12 +1328,15 @@ uae_u32 REGPARAM2 picasso_DrawLine (struct regstruct *regs)
 
     CopyRenderInfoStructureA2U(m68k_areg (regs, 1), &ri);
     CopyLineStructureA2U(m68k_areg (regs, 2), &line);
-#if defined( P96TRACING_ENABLED ) && P96TRACING_LEVEL > 0
-    DumpLine( &line );
+#if defined P96TRACING_ENABLED && P96TRACING_LEVEL > 0
+    DumpLine (&line);
 #endif
 #else
     P96TRACE(("DrawLine() - not implemented!\n" ));
 #endif
+    write_log("drawline ****************************************************\n");
+    write_log ("%08x %08x %08x, %08x %08x\n", m68k_dreg(regs, 0), m68k_dreg(regs, 1), m68k_dreg(regs, 2), 
+	m68k_areg(regs, 0), m68k_areg(regs, 1));
     return result;
 }
 
@@ -1256,9 +1353,16 @@ uae_u32 REGPARAM2 picasso_SetSprite (struct regstruct *regs)
 {
     uae_u32 result = 0;
     uae_u32 activate = m68k_dreg (regs, 0);
-    //result = DX_ShowCursor (activate);
+    if (!hwsprite)
+	return 0;
+    if (activate) {
+	picasso_SetSpriteImage (regs);
+	cursorvisible = 1;
+    } else {
+	cursordeactivate = 10;
+    }
     result = 1;
-    write_log ("SetSprite() - trying to %s cursor, result = %d\n", activate ? "show":"hide", result);
+    write_log ("SetSprite: %d\n", activate);
     return result;
 }
 
@@ -1268,37 +1372,62 @@ Synopsis: SetSpritePosition(bi, RGBFormat);
 Inputs: a0: struct BoardInfo *bi
 d7: RGBFTYPE RGBFormat
 
-This function sets the hardware mouse sprite position according to the values in the BoardInfo structure.
-MouseX and MouseY are the coordinates relative to the screen bitmap. XOffset and YOffset must be subtracted
-to account for possible screen panning.
 */
 uae_u32 REGPARAM2 picasso_SetSpritePosition (struct regstruct *regs)
 {
-    uae_u32 result = 0;
     uaecptr bi = m68k_areg (regs, 0);
-    uae_u16 MouseX  = get_word (bi + PSSO_BoardInfo_MouseX) - picasso96_state.XOffset;
-    uae_u16 MouseY  = get_word (bi + PSSO_BoardInfo_MouseY) - picasso96_state.YOffset;
+    newcursor_x = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseX) - picasso96_state.XOffset;
+    newcursor_y = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseY) - picasso96_state.YOffset;
+    if (!hwsprite)
+	return 0;
+    return 1;
+}
 
-    // Keep these around, because we don't want flickering
-    static uae_u16 OldMouseX = -1;
-    static uae_u16 OldMouseY = -1;
 
-    // Bounds check MouseX and MouseY here, because sometimes they seem to go negative...
-    if ((uae_s16)MouseX < 0)
-	MouseX = 0;
-    if ((uae_s16)MouseY < 0)
-	MouseY = 0;
+/*
+SetSpriteColor:
+Synopsis: SetSpriteColor(bi, index, red, green, blue, RGBFormat);
+Inputs: a0: struct BoardInfo *bi
+d0.b: index
+d1.b: red
+d2.b: green
+d3.b: blue
+d7: RGBFTYPE RGBFormat
 
-    if (MouseX != OldMouseX || MouseY != OldMouseY) {
-	//result = DX_MoveCursor (MouseX, MouseY);
-	write_log ("SetSpritePosition() - moving cursor to (%d,%d), result = %d\n", MouseX, MouseY, result);
-	if(result) {
-	    OldMouseX = MouseX;
-	    OldMouseY = MouseY;
-	}
+This function changes one of the possible three colors of the hardware sprite.
+*/
+uae_u32 REGPARAM2 picasso_SetSpriteColor (struct regstruct *regs)
+{
+    uaecptr bi = m68k_areg (regs, 0);
+    uae_u8 idx = m68k_dreg (regs, 0);
+    uae_u8 red = m68k_dreg (regs, 1);
+    uae_u8 green = m68k_dreg (regs, 2);
+    uae_u8 blue = m68k_dreg (regs, 3);
+    uae_u32 v, vx;
+    idx++;
+    if (!hwsprite)
+	return 0;
+    if (idx >= 4)
+	return 0;
+    v = (red << 16) | (green << 8) | (blue << 0);
+    switch (picasso_vidinfo.pixbytes)
+    {
+	case 1:
+	cursorrgb[0] = 0;
+	cursorrgb[idx] = idx;
+	break;
+	case 2:
+	vx = 0xff00ff;
+	cursorrgb[0] = p96_rgbx16[(((vx >> (16 + 3)) & 0x1f) << 11) | (((vx >> (8 + 2)) & 0x3f) << 5) | (((vx >> (0 + 3)) & 0x1f) << 0)];
+	cursorrgb[idx] = p96_rgbx16[(((v >> (16 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (0 + 3)) & 0x1f) << 0)];
+	break;
+	case 4:
+	cursorrgb[0] = 0xff00ff;
+	cursorrgb[idx] = v;
+	break;
     }
-    result = 1;
-    return result;
+    P96TRACE_SPR (("SetSpriteColor(%08x,%d:%02X%02X%02X)\n", bi, idx, red, green, blue));
+    return 1;
 }
 
 /*
@@ -1326,41 +1455,277 @@ planes for one image line respectively. You have to double each pixel horizontal
 used in this case already assume a zoomed sprite, only the sprite data is not zoomed yet. You will have to
 compensate for this when accounting for hotspot offsets and sprite dimensions.
 */
-uae_u32 REGPARAM2 picasso_SetSpriteImage (struct regstruct *regs)
+
+static uae_u32 setspriteimage (uaecptr bi);
+static RECT cursor_r1, cursor_r2;
+static int mouseput;
+void picasso_putcursor (int sx, int sy, int sw, int sh)
 {
-    uae_u32 result = 0;
-    uaecptr bi = m68k_areg (regs, 0);
-    uaecptr img = get_long (bi + PSSO_BoardInfo_MouseImage);
-    write_log ("SetSpriteImage(%08x,%08x,W1=%04x,W2=%04X)\n",
-	bi, img, get_word (img), get_word (img + 2));
-    result = 1;
-    return result;
+    int xdiff, ydiff, xdiff2, ydiff2;
+    DWORD ddrval;
+    LPDIRECTDRAWSURFACE7 dstsurf = DirectDrawState.secondary.surface;
+    
+    if (cursorsurface == NULL || !cursorvisible)
+	return;
+
+    if (remcursor_x + cursorwidth < sx)
+	return;
+    if (remcursor_y + cursorheight < sy)
+	return;
+    if (remcursor_x > sx + sw)
+	return;
+    if (remcursor_y > sy + sh)
+	return;
+
+    cursor_r1.left = remcursor_x;
+    cursor_r1.top = remcursor_y;
+    cursor_r1.right = cursor_r1.left + cursorwidth;
+    cursor_r1.bottom = cursor_r1.top + cursorheight;
+
+    xdiff = ydiff = 0;
+    xdiff2 = ydiff2 = 0;
+    if (cursor_r1.right > picasso96_state.Width)
+	xdiff = picasso96_state.Width - cursor_r1.right;
+    if (cursor_r1.bottom > picasso96_state.Height)
+	ydiff = picasso96_state.Height - cursor_r1.bottom;
+    if (xdiff <= -cursorwidth)
+	return;
+    if (ydiff <= -cursorheight)
+	return;
+
+    if (cursor_r1.left < 0) {
+	xdiff2 = cursor_r1.left;
+	cursor_r1.left = 0;
+    }
+    if (cursor_r1.top < 0) {
+	ydiff2 = cursor_r1.top;
+	cursor_r1.top = 0;
+    }
+
+    cursor_r1.right += xdiff;
+    cursor_r1.bottom += ydiff;
+
+    cursor_r2.left = 0;
+    cursor_r2.top = cursorheight;
+    cursor_r2.right = cursorwidth + xdiff2 + xdiff;
+    cursor_r2.bottom = cursorheight + cursorheight + ydiff2 + ydiff;
+
+    ddrval = IDirectDrawSurface7_Blt (cursorsurface, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
+    if (FAILED(ddrval)) {
+	write_log ("Cursor surface blit1 failed: %08x %s\n", ddrval, DXError (ddrval));
+	if (ddrval == DDERR_SURFACELOST)
+	    setspriteimage (cursorbi);
+	return;
+    }
+
+    cursor_r2.left = -xdiff2;
+    cursor_r2.top = -ydiff2;
+    cursor_r2.right = cursorwidth + xdiff + xdiff2;
+    cursor_r2.bottom = cursorheight + ydiff + ydiff2;
+
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, cursorsurface, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
+    if (FAILED(ddrval)) {
+	write_log ("Cursor surface blit2 failed: %08x %s\n", ddrval, DXError (ddrval));
+	if (ddrval == DDERR_SURFACELOST)
+	    setspriteimage (cursorbi);
+	return;
+    }
+
+    cursor_r2.left = 0;
+    cursor_r2.top = cursorheight;
+    cursor_r2.right = cursorwidth + xdiff2 + xdiff;
+    cursor_r2.bottom = cursorheight + cursorheight + ydiff2 + ydiff;
+
+    mouseput = 1;
+}
+void picasso_clearcursor (void)
+{
+    DWORD ddrval;
+    LPDIRECTDRAWSURFACE7 dstsurf = DirectDrawState.secondary.surface;
+
+    if (cursorsurface == NULL)
+	return;
+    if (!mouseput)
+	return;
+    mouseput = 0;
+
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, cursorsurface, &cursor_r2, DDBLT_WAIT, NULL);
+    if (FAILED(ddrval))
+	write_log ("Cursor surface clearblit failed: %08x %s\n", ddrval, DXError (ddrval));
 }
 
-/*
-SetSpriteColor:
-Synopsis: SetSpriteColor(bi, index, red, green, blue, RGBFormat);
-Inputs: a0: struct BoardInfo *bi
-d0.b: index
-d1.b: red
-d2.b: green
-d3.b: blue
-d7: RGBFTYPE RGBFormat
-
-This function changes one of the possible three colors of the hardware sprite.
-*/
-uae_u32 REGPARAM2 picasso_SetSpriteColor (struct regstruct *regs)
+static void putmousepixel (uae_u8 *d, int bpp, int idx)
 {
-    uae_u32 result = 0;
+    uae_u32 val = cursorrgb[idx];
+    switch (bpp)
+    {
+	case 1:
+	((uae_u8*)d)[0] = (uae_u8)val;
+	break;
+	case 2:
+	((uae_u16*)d)[0] = (uae_u16)val;
+	break;
+	case 4:
+	((uae_u32*)d)[0] = (uae_u32)val;
+	break;
+    }
+}
+
+static uae_u32 setspriteimage (uaecptr bi)
+{
+    DDSURFACEDESC2 desc;
+    uae_u32 flags;
+    int x, y, yy, bits, bpp;
+    DWORD ddrval;
+    uae_u8 *dptr;
+    uae_u8 *tmpbuf;
+    DWORD pitch;
+    int hiressprite, doubledsprite;
+    int ret = 0;
+    int w, h;
+
+    cursordeactivate = 0;
+    if (!hwsprite)
+	return 0;
+    w = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseWidth);
+    h = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseHeight);
+    tmpbuf = NULL;
+    flags = get_long (bi + PSSO_BoardInfo_Flags);
+    hiressprite = 1;
+    doubledsprite = 0;
+    if (flags & BIF_HIRESSPRITE)
+	hiressprite = 2;
+    if (flags & BIF_BIGSPRITE)
+	doubledsprite = 1;
+
+    P96TRACE_SPR (("SetSpriteImage(%08x,%08x,w=%d,h=%d,hires=%d,double=%d,%08x)\n",
+	bi, get_long (bi + PSSO_BoardInfo_MouseImage), w, h, hiressprite - 1, doubledsprite, bi + PSSO_BoardInfo_MouseImage));
+
+    bpp = picasso_vidinfo.pixbytes;
+    if (!w || !h || get_long (bi + PSSO_BoardInfo_MouseImage) == 0) {
+	disablemouse ();
+	ret = 1;
+	goto end;
+    }
+
+    tmpbuf = xmalloc (w * h * bpp);
+    yy = 0;
+    for (y = 0; y < h; y++, yy++) {
+        uae_u8 *p = tmpbuf + w * bpp * y;
+	uae_u8 *pprev = p;
+	uaecptr img = get_long (bi + PSSO_BoardInfo_MouseImage) + 4 + yy * 4 * hiressprite;
+	x = 0;
+	while (x < w) {
+	    uae_u32 d1 = get_long (img);
+	    uae_u32 d2 = get_long (img + 2 * hiressprite);
+	    int maxbits = w - x;
+	    if (maxbits > 16 * hiressprite)
+		maxbits = 16 * hiressprite;
+	    for (bits = 0; bits < maxbits && x < w; bits++) {
+		uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
+		d1 <<= 1;
+		d2 <<= 1;
+		putmousepixel (p, bpp, c);
+		p += bpp;
+		x++;
+		if (doubledsprite && x < w) {
+		    putmousepixel (p, bpp, c);
+		    p += bpp;
+		    x++;
+		}
+	    }
+	}
+	if (doubledsprite && y < h) {
+	    y++;
+	    memcpy (p, pprev, w * bpp);
+	}
+    }
+
+    if (cursorsurface) {
+	for (;;) {
+	    if (!reloadcursor && w == cursorwidth && h == cursorheight) {
+		int different = 0;
+		desc.dwSize = sizeof (desc);
+		ddrval = DD_OK;
+		while (FAILED (ddrval = IDirectDrawSurface7_Lock (cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+		    if (ddrval == DDERR_SURFACELOST) {
+			ddrval = IDirectDrawSurface7_Restore (cursorsurface);
+			if (FAILED (ddrval))
+			    break;
+		    }
+		}
+		if (FAILED (ddrval))
+		    break;
+		dptr = (uae_u8*)desc.lpSurface;
+		pitch = desc.lPitch;
+		for (y = 0; y < h; y++) {
+		    uae_u8 *p1 = tmpbuf + w * bpp * y;
+		    uae_u8 *p2 = dptr + pitch * y;
+		    if (memcmp (p1, p2, w * bpp))
+			different = 1;
+		}
+		IDirectDrawSurface_Unlock (cursorsurface, NULL);
+		if (!different) {
+		    P96TRACE_SPR (("sprite was same as previously\n"));
+		    ret = 1;
+		    goto end;
+		}
+	    }
+	    break;
+	}
+	IDirectDraw7_Release (cursorsurface);
+    }
+
+    cursorwidth = w;
+    cursorheight = h;
+    cursorsurface = NULL;
+
+    ZeroMemory (&desc, sizeof desc);
+    desc.dwSize = sizeof desc;
+    desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_CKSRCBLT;
+    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    desc.dwWidth = w;
+    desc.dwHeight = h * 2;
+    if (DirectDraw_GetPrimaryPixelFormat (&desc.ddpfPixelFormat))
+	desc.dwFlags |= DDSD_PIXELFORMAT;
+    desc.ddckCKSrcBlt.dwColorSpaceLowValue = cursorrgb[0];
+    desc.ddckCKSrcBlt.dwColorSpaceHighValue = cursorrgb[0];
+    ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd, &desc, &cursorsurface, NULL);
+    if (FAILED(ddrval)) {
+	write_log ("Cursor surface creation failed: %08x %s\n", ddrval, DXError (ddrval));
+	return 0;
+    }
+    desc.dwSize = sizeof (desc);
+    while (FAILED(ddrval = IDirectDrawSurface7_Lock (cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+	if (ddrval == DDERR_SURFACELOST) {
+	    ddrval = IDirectDrawSurface7_Restore (cursorsurface);
+	    if (FAILED(ddrval)) {
+		write_log ("sprite surface failed to restore: %08x %s\n", ddrval, DXError (ddrval));
+	        goto end;
+	    }
+	}
+    }
+    dptr = (uae_u8*)desc.lpSurface;
+    pitch = desc.lPitch;
+    for (y = 0; y < h; y++) {
+	uae_u8 *p1 = tmpbuf + w * bpp * y;
+	uae_u8 *p2 = dptr + pitch * y;
+	memcpy (p2, p1, w * bpp);
+    }
+    IDirectDrawSurface_Unlock (cursorsurface, NULL);
+    ret = 1;
+    reloadcursor = 0;
+    P96TRACE_SPR (("hardware sprite created\n"));
+end:
+    xfree (tmpbuf);
+    return ret;
+}
+
+uae_u32 REGPARAM2 picasso_SetSpriteImage (struct regstruct *regs)
+{
     uaecptr bi = m68k_areg (regs, 0);
-    uae_u8 idx = m68k_dreg (regs, 0);
-    uae_u8 red = m68k_dreg (regs, 1);
-    uae_u8 green = m68k_dreg (regs, 2);
-    uae_u8 blue = m68k_dreg (regs, 3);
-    write_log ("SetSpriteColor(%08x,%d:%02X%02X%02X)\n",
-	bi, idx, red, green, blue);
-    result = 1;
-    return result;
+    cursorbi = bi;
+    return setspriteimage (bi);
 }
 
 /*
@@ -1688,14 +2053,17 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
     put_word (AmigaBoardInfo + PSSO_BoardInfo_RGBFormats, picasso96_pixel_format);
     put_long (AmigaBoardInfo + PSSO_BoardInfo_BoardType, BT_uaegfx);
     flags = get_long (AmigaBoardInfo + PSSO_BoardInfo_Flags);
-    if (hwsprite) {
+    if (flags & BIF_HARDWARESPRITE) {
+	hwsprite = 1;
 	put_word (AmigaBoardInfo + PSSO_BoardInfo_SoftSpriteFlags, 0);
-	flags |= BIF_HARDWARESPRITE;
+	write_log ("P96: uaegfx.card: hardware sprite support enabled\n");
     } else {
+	hwsprite = 0;
+	write_log ("P96: uaegfx.card: no hardware sprite support\n");
 	put_word (AmigaBoardInfo + PSSO_BoardInfo_SoftSpriteFlags, picasso96_pixel_format);
     }
-    flags |= BIF_BLITTER;
     put_long (AmigaBoardInfo + PSSO_BoardInfo_Flags, flags);
+
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 0, planar.width);
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 2, chunky.width);
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 4, hicolour.width);
@@ -1706,6 +2074,48 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 4, hicolour.height);
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 6, truecolour.height);
     put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 8, alphacolour.height);
+
+    put_long (AmigaBoardInfo + 0xaa, 1);
+    put_long (AmigaBoardInfo + 0xb2, 0);
+    put_long (AmigaBoardInfo + 0xae, 0);
+    put_long (AmigaBoardInfo + 0xfe, 1);
+    put_long (AmigaBoardInfo + 0x102, 1);
+    put_long (AmigaBoardInfo + 0x106, 1);
+    put_long (AmigaBoardInfo + 0x10a, 1);
+    put_long (AmigaBoardInfo + 0x10e, 1);
+    put_word (AmigaBoardInfo + 0xca, 0xffff);
+    put_word (AmigaBoardInfo + 0xcc, 0xffff);
+    put_word (AmigaBoardInfo + 0xce, 0xffff);
+    put_word (AmigaBoardInfo + 0xd0, 0xffff);
+    put_word (AmigaBoardInfo + 0xd2, 0xffff);
+    put_word (AmigaBoardInfo + 0xd4, 0xffff);
+    put_word (AmigaBoardInfo + 0xd6, 0xffff);
+    put_word (AmigaBoardInfo + 0xd8, 0xffff);
+    put_word (AmigaBoardInfo + 0xda, 0xffff);
+    put_word (AmigaBoardInfo + 0xdc, 0xffff);
+#if 0
+082CEC8E 257c 0000 0001 00aa      MOVE.L #$00000001,(A2, $00aa) == $0800be48
+082CEC96 257c 0000 0000 00b2      MOVE.L #$00000000,(A2, $00b2) == $0800be50
+082CEC9E 257c 0000 0000 00ae      MOVE.L #$00000000,(A2, $00ae) == $0800be4c
+082CECA6 00aa 0000 8002 00ba      OR.L #$00008002,(A2, $00ba) == $0800be58
+082CECCC 7001                     MOVE.L #$00000001,D0
+082CECCE 2540 00fe                MOVE.L D0,(A2, $00fe) == $0800be9c
+082CECD2 2540 0102                MOVE.L D0,(A2, $0102) == $0800bea0
+082CECD6 2540 0106                MOVE.L D0,(A2, $0106) == $0800bea4
+082CECDA 2540 010a                MOVE.L D0,(A2, $010a) == $0800bea8
+082CECDE 2540 010e                MOVE.L D0,(A2, $010e) == $0800beac
+082CECE2 303c ffff                MOVE.W #$ffff,D0
+082CECE6 3540 00ca                MOVE.W D0,(A2, $00ca) == $0800be68
+082CECEA 3540 00cc                MOVE.W D0,(A2, $00cc) == $0800be6a
+082CECEE 3540 00ce                MOVE.W D0,(A2, $00ce) == $0800be6c
+082CECF2 3540 00d0                MOVE.W D0,(A2, $00d0) == $0800be6e
+082CECF6 3540 00d2                MOVE.W D0,(A2, $00d2) == $0800be70
+082CECFA 3540 00d4                MOVE.W D0,(A2, $00d4) == $0800be72
+082CECFE 3540 00d6                MOVE.W D0,(A2, $00d6) == $0800be74
+082CED02 3540 00d8                MOVE.W D0,(A2, $00d8) == $0800be76
+082CED06 3540 00da                MOVE.W D0,(A2, $00da) == $0800be78
+082CED0A 3540 00dc                MOVE.W D0,(A2, $00dc) == $0800be7a
+#endif
 
     i = 0;
     unkcnt = 0;
@@ -1803,22 +2213,16 @@ void picasso_enablescreen (int on)
 * per cannon your board has. So you might have to shift the colors
 * before writing them to the hardware.
 */
-uae_u32 REGPARAM2 picasso_SetColorArray (struct regstruct *regs)
+static int updateclut (uaecptr clut, int start, int count)
 {
-    /* Fill in some static UAE related structure about this new CLUT setting
-     * We need this for CLUT-based displays, and for mapping CLUT to hi/true colour */
-    uae_u16 start = m68k_dreg (regs, 0);
-    uae_u16 count = m68k_dreg (regs, 1);
-    int i;
-    uaecptr boardinfo = m68k_areg (regs, 0);
-    uaecptr clut = boardinfo + PSSO_BoardInfo_CLUT + start * 3;
-
+    int i, changed = 0;
+    clut += start * 3;
     for (i = start; i < start + count; i++) {
 	int r = get_byte (clut);
 	int g = get_byte (clut + 1);
 	int b = get_byte (clut + 2);
 
-	palette_changed |= (picasso96_state.CLUT[i].Red != r
+	changed |= (picasso96_state.CLUT[i].Red != r
 	    || picasso96_state.CLUT[i].Green != g
 	    || picasso96_state.CLUT[i].Blue != b);
 
@@ -1827,6 +2231,18 @@ uae_u32 REGPARAM2 picasso_SetColorArray (struct regstruct *regs)
 	picasso96_state.CLUT[i].Blue = b;
 	clut += 3;
     }
+    return changed;
+}
+uae_u32 REGPARAM2 picasso_SetColorArray (struct regstruct *regs)
+{
+    /* Fill in some static UAE related structure about this new CLUT setting
+     * We need this for CLUT-based displays, and for mapping CLUT to hi/true colour */
+    uae_u16 start = m68k_dreg (regs, 0);
+    uae_u16 count = m68k_dreg (regs, 1);
+    uaecptr boardinfo = m68k_areg (regs, 0);
+    uaecptr clut = boardinfo + PSSO_BoardInfo_CLUT;
+    if (updateclut (clut, start, count))
+	palette_changed = 1;
     P96TRACE(("SetColorArray(%d,%d)\n", start, count));
     return 1;
 }
@@ -1851,6 +2267,7 @@ uae_u32 REGPARAM2 picasso_SetDAC (struct regstruct *regs)
 
 static void init_picasso_screen(void)
 {
+    reloadcursor = 1;
     if(set_panning_called) {
 	picasso96_state.Extent = picasso96_state.Address + picasso96_state.BytesPerRow * picasso96_state.VirtualHeight;
     }

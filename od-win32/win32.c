@@ -2313,11 +2313,17 @@ void read_rom_list (void)
 	    if (idx2 >= 0 && strlen (tmp2) > 0) {
 		struct romdata *rd = getromdatabyidgroup (idx2, group, subitem);
 		if (rd) {
-		    char *s = strchr (tmp2, '/');
-		    if (s && strlen (s) > 2)
-			romlist_add (s + 2, rd);
-		    else
+		    char *s = strchr (tmp2, '\"');
+		    if (s && strlen (s) > 1) {
+			char *s2 = my_strdup (s + 1);
+			s = strchr (s2, '\"');
+			if (s)
+			    *s = 0;
+			romlist_add (s2, rd);
+			xfree (s2);
+		    } else {
 			romlist_add (tmp2, rd);
+		    }
 		}
 	    }
 	}

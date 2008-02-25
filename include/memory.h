@@ -394,7 +394,7 @@ extern struct romlist *getromlistbyromdata(struct romdata *rd);
 extern void romlist_add (char *path, struct romdata *rd);
 extern char *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);
-extern struct zfile *read_rom (struct romdata *rd);
+extern struct zfile *read_rom (struct romdata **rd);
 extern struct zfile *read_rom_name (const char *filename);
 
 extern int load_keyring (struct uae_prefs *p, char *path);

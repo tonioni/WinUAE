@@ -244,6 +244,111 @@ static int getcbn (HWND hDlg, int v, char *out, int len)
     }
 }
 
+static WCHAR *au (const char *s)
+{
+    WCHAR *d;
+    int len = MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, NULL, 0);
+    if (!len)
+	return xcalloc (2, 1);
+    d = xmalloc ((len + 1) * sizeof (WCHAR));
+    MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, d, len);
+    return d;
+}
+
+static int popupmenu (HWND hwnd, const char **items)
+{
+    int i, item;
+    HMENU menu;
+    POINT pt;
+
+    menu = CreatePopupMenu();
+    i = 0;
+    while (items[i]) {
+	MENUITEMINFO mii = { 0 };
+	mii.cbSize = sizeof mii;
+	mii.fMask = MIIM_STRING | MIIM_ID;
+	mii.fType = MFT_STRING;
+	mii.fState = MFS_ENABLED;
+	mii.wID = 1 + i;
+	mii.dwTypeData = items[i];
+	mii.cch = strlen (items[i]);
+	i++;
+	InsertMenuItem (menu, i, TRUE, &mii);
+    }
+    GetCursorPos (&pt);
+    item = TrackPopupMenu (menu, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+        pt.x, pt.y, 0, hwnd, NULL);
+    PostMessage (hwnd, WM_NULL, 0, 0);
+    DestroyMenu (menu);
+    return item;
+}
+#define MAXFAVORITES 30
+static char *favoritepopup (HWND hwnd)
+{
+    UAEREG *fkey;
+    int idx, idx2;
+    char *values[MAXFAVORITES + 1];
+    char *paths[MAXFAVORITES + 1];
+    int ret, i, num;
+
+    fkey = regcreatetree (NULL, "FavoritePaths");
+    if (fkey == NULL)
+	return NULL;
+    idx = 0;
+    num = 0;
+    for (;;) {
+	char *p;
+	DWORD size, size2;
+	char tmp[1000], tmp2[1000];
+	size = sizeof (tmp);
+	size2 = sizeof (tmp2);
+	if (!regenumstr (fkey, idx, tmp, &size, tmp2, &size2))
+	    break;
+	p = strrchr (tmp, '_');
+	if (p) {
+	    idx2 = atol (p + 1);
+	    if (idx2 > 0 && idx2 < MAXFAVORITES) {
+		char *p2 = strchr (tmp2, '"');
+	        char *str, *fname;
+		idx2--;
+		if (p2) {
+		    fname = my_strdup (p2 + 1);
+		    p2[0] = 0;
+		    p2 = strchr (fname, '"');
+		    if (p2)
+			*p2 = 0;
+		    str = my_strdup (tmp2);
+		} else {
+		    str = my_strdup (tmp2);
+		    fname = my_strdup (tmp2);
+		}
+		str = my_strdup (tmp2);
+		paths[idx2] = fname;
+		values[idx2] = str;
+	    }
+	}
+	idx++;
+    }
+    regclosetree (fkey);
+    if (idx == 0) {
+	values[idx++] = my_strdup ("d:\\amiga\\stuff\\demos");
+	values[idx++] = my_strdup ("d:\\amiga\\stuff\\games");
+	values[idx++] = my_strdup ("c:\\windows");
+	for (i = 0; i < idx; i++)
+	    paths[i] = my_strdup (values[i]);
+    }
+    values[idx] = NULL;
+    ret = popupmenu (hwnd, values);
+    for (i = 0; i < idx; i++) {
+	xfree (values[i]);
+	if (i + 1 != ret)
+	    xfree (paths[i]);
+    }
+    if (ret == 0)
+	return NULL;
+    return paths[ret - 1];
+}
+
 /* base Drag'n'Drop code borrowed from http://www.codeproject.com/listctrl/jianghong.asp */
 
 static int bDragging = 0;
@@ -484,8 +589,9 @@ static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
 	return 0;
     getromname (rd, tmp2);
     if (name) {
-	strcat (tmp2, " / ");
+	strcat (tmp2, " / \"");
 	strcat (tmp2, name);
+	strcat (tmp2, "\"");
     }
     if (rd->crc32 == 0xffffffff) {
 	if (rd->configname)
@@ -1032,6 +1138,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     int all = 1;
     int next;
     int filterindex = 0;
+    int nosavepath = 0;
 
     char szTitle[MAX_DPATH] = { 0 };
     char szFormat[MAX_DPATH];
@@ -1039,38 +1146,41 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 
     memset (&openFileName, 0, sizeof (OPENFILENAME));
 
-    strncpy (init_path, start_path_data, MAX_DPATH);
-    switch (flag)
-    {
-	case 0:
-	case 1:
-	    fetch_path ("FloppyPath", init_path, sizeof (init_path));
-	break;
-	case 2:
-	case 3:
-	    fetch_path ("hdfPath", init_path, sizeof (init_path));
-	break;
-	case 6:
-	case 7:
-	case 11:
-	    fetch_path ("KickstartPath", init_path, sizeof (init_path));
-	break;
-	case 4:
-	case 5:
-	case 8:
-	    fetch_path ("ConfigurationPath", init_path, sizeof (init_path));
-	break;
-	case 9:
-	case 10:
-	    fetch_path ("StatefilePath", init_path, sizeof (init_path));
-	break;
-	case 15:
-	case 16:
-	    fetch_path ("InputPath", init_path, sizeof (init_path));
-	break;
-
+    if (path_out && path_out[0]) {
+	strcpy (init_path, path_out);
+	nosavepath = 1;
+    } else {
+	strncpy (init_path, start_path_data, MAX_DPATH);
+	switch (flag)
+	{
+	    case 0:
+	    case 1:
+		fetch_path ("FloppyPath", init_path, sizeof (init_path));
+	    break;
+	    case 2:
+	    case 3:
+		fetch_path ("hdfPath", init_path, sizeof (init_path));
+	    break;
+	    case 6:
+	    case 7:
+	    case 11:
+		fetch_path ("KickstartPath", init_path, sizeof (init_path));
+	    break;
+	    case 4:
+	    case 5:
+	    case 8:
+		fetch_path ("ConfigurationPath", init_path, sizeof (init_path));
+	    break;
+	    case 9:
+	    case 10:
+		fetch_path ("StatefilePath", init_path, sizeof (init_path));
+	    break;
+	    case 15:
+	    case 16:
+		fetch_path ("InputPath", init_path, sizeof (init_path));
+	    break;
+	}
     }
-
     openFileName.lStructSize = sizeof (OPENFILENAME);
     openFileName.hwndOwner = hDlg;
     openFileName.hInstance = hInst;
@@ -1366,17 +1476,19 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    inprec_open(full_path, 1);
 	    break;
 	}
-	if (flag == 0 || flag == 1) {
-	    amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
-	    if (amiga_path && amiga_path != openFileName.lpstrFile) {
-		*amiga_path = 0;
-		regsetstr (NULL, "FloppyPath", openFileName.lpstrFile);
-	    }
-	} else if (flag == 2 || flag == 3) {
-	    amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
-	    if (amiga_path && amiga_path != openFileName.lpstrFile) {
-		*amiga_path = 0;
-	        regsetstr (NULL, "hdfPath", openFileName.lpstrFile);
+	if (!nosavepath) {
+	    if (flag == 0 || flag == 1) {
+		amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
+		if (amiga_path && amiga_path != openFileName.lpstrFile) {
+		    *amiga_path = 0;
+		    regsetstr (NULL, "FloppyPath", openFileName.lpstrFile);
+		}
+	    } else if (flag == 2 || flag == 3) {
+		amiga_path = strstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
+		if (amiga_path && amiga_path != openFileName.lpstrFile) {
+		    *amiga_path = 0;
+		    regsetstr (NULL, "hdfPath", openFileName.lpstrFile);
+		}
 	    }
 	}
 	if (!multi)
@@ -3320,6 +3432,7 @@ static void testimage (HWND hDlg, int num)
 }
 
 static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam);
+static int diskselectmenu (HWND hDlg, WPARAM wParam);
 
 static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -3358,6 +3471,10 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	    }
 	    doinit = 0;
 	    recursive--;
+	break;
+
+	case WM_CONTEXTMENU:
+	    diskselectmenu (hDlg, wParam);
 	break;
 
 	case WM_COMMAND:
@@ -4833,12 +4950,35 @@ static void init_kickstart (HWND hDlg)
 	scan_roms (1);
 }
 
+static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, char *path)
+{
+    switch (LOWORD(wParam))
+    {
+	case IDC_KICKCHOOSER:
+	    DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, path);
+	    values_to_kickstartdlg (hDlg);
+	    break;
+	case IDC_ROMCHOOSER2:
+	    DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, path);
+	    values_to_kickstartdlg (hDlg);
+	    break;
+	case IDC_FLASHCHOOSER:
+	    DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, path);
+	    values_to_kickstartdlg (hDlg);
+	    break;
+	case IDC_CARTCHOOSER:
+	    DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, path);
+	    values_to_kickstartdlg (hDlg);
+	    break;
+    }
+}
+
 static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive;
     char tmp[MAX_DPATH];
 
-    switch( msg )
+    switch (msg)
     {
     case WM_INITDIALOG:
     {
@@ -4851,6 +4991,23 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	setac (hDlg, IDC_FLASHFILE);
 	return TRUE;
     }
+
+    case WM_CONTEXTMENU:
+    {
+	int id = GetDlgCtrlID((HWND)wParam);
+	if (id == IDC_KICKCHOOSER || id == IDC_ROMCHOOSER2
+	    || id == IDC_FLASHCHOOSER || id == IDC_CARTCHOOSER) {
+	    char *s = favoritepopup (hDlg);
+	    if (s) {
+		char newfile[MAX_DPATH];
+		strcpy (newfile, s);
+		kickstartfilebuttons (hDlg, id, newfile);
+		xfree (s);
+	    }
+	}
+	break;
+    }
+
     case WM_COMMAND:
 	if (recursive > 0)
 	    break;
@@ -4865,30 +5022,12 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	    }
 	}
+	kickstartfilebuttons (hDlg, wParam, NULL);
 	switch (LOWORD (wParam))
 	{
-	case IDC_KICKCHOOSER:
-	    DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, 0);
-	    values_to_kickstartdlg (hDlg);
-	    break;
-
-	case IDC_ROMCHOOSER2:
-	    DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, 0);
-	    values_to_kickstartdlg (hDlg);
-	    break;
-
-	case IDC_FLASHCHOOSER:
-	    DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, 0);
-	    values_to_kickstartdlg (hDlg);
-	    break;
 	case IDC_FLASHFILE:
 	    GetWindowText (GetDlgItem (hDlg, IDC_FLASHFILE), tmp, sizeof (tmp));
 	    strcpy (workprefs.flashfile, tmp);
-	    break;
-
-	case IDC_CARTCHOOSER:
-	    DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, 0);
-	    values_to_kickstartdlg (hDlg);
 	    break;
 
 	case IDC_KICKSHIFTER:
@@ -7125,15 +7264,48 @@ static void deletesaveimage (HWND hDlg, int num)
     }
 }
 
-static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv)
+static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv, char *defaultpath)
 {
-    MultiDiskSelection (hDlg, wParam, 0, &workprefs, NULL);
+    MultiDiskSelection (hDlg, wParam, 0, &workprefs, defaultpath);
     disk_insert (0, p->df[0]);
     disk_insert (1, p->df[1]);
     disk_insert (2, p->df[2]);
     disk_insert (3, p->df[3]);
     addfloppytype (hDlg, drv);
     addfloppyhistory (hDlg);
+}
+
+static int diskselectmenu (HWND hDlg, WPARAM wParam)
+{
+    int id = GetDlgCtrlID((HWND)wParam);
+    int num = -1;
+    switch (id)
+    {
+	case IDC_DF0:
+	case IDC_DF0QQ:
+	num = 0;
+	break;
+	case IDC_DF1:
+	case IDC_DF1QQ:
+	num = 1;
+	break;
+	case IDC_DF2:
+	num = 2;
+	break;
+	case IDC_DF3:
+	num = 3;
+	break;
+    }
+    if (num >= 0) {
+	char *s = favoritepopup (hDlg);
+	if (s) {
+	    int num = id == IDC_DF0QQ ? 0 : 1;
+	    diskselect (hDlg, id, &workprefs, num, s);
+	}
+	xfree (s);
+	return 1;
+    }
+    return 0;
 }
 
 static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7190,6 +7362,10 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	out_floppyspeed (hDlg);
 	addallfloppies (hDlg);
 	recursive--;
+	break;
+
+    case WM_CONTEXTMENU:
+	diskselectmenu (hDlg, wParam);
 	break;
 
     case WM_COMMAND:
@@ -7267,17 +7443,17 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    break;
 	case IDC_DF0:
 	case IDC_DF0QQ:
-	    diskselect (hDlg, wParam, &workprefs, 0);
+	    diskselect (hDlg, wParam, &workprefs, 0, NULL);
 	    break;
 	case IDC_DF1:
 	case IDC_DF1QQ:
-	    diskselect (hDlg, wParam, &workprefs, 1);
+	    diskselect (hDlg, wParam, &workprefs, 1, NULL);
 	    break;
 	case IDC_DF2:
-	    diskselect (hDlg, wParam, &workprefs, 2);
+	    diskselect (hDlg, wParam, &workprefs, 2, NULL);
 	    break;
 	case IDC_DF3:
-	    diskselect (hDlg, wParam, &workprefs, 3);
+	    diskselect (hDlg, wParam, &workprefs, 3, NULL);
 	    break;
 	case IDC_EJECT0:
 	case IDC_EJECT0Q:

@@ -2301,9 +2301,10 @@ static void descramble (struct romdata *rd, uae_u8 *data, int size, int odd)
 	descramble_nordicpro (data, size, odd);
 }
 
-struct zfile *read_rom (struct romdata *rd)
+struct zfile *read_rom (struct romdata **prd)
 {
-    struct romdata *rd2 = rd;
+    struct romdata *rd2 = *prd;
+    struct romdata *rd = *prd;
     char *name;
     int id = rd->id;
     uae_u32 crc32;
@@ -2318,6 +2319,7 @@ struct zfile *read_rom (struct romdata *rd)
 	    break;
 	rd2--;
     }
+    *prd = rd2;
     size = rd2->size;
     crc32 = rd2->crc32;
     name = rd->name;
@@ -2390,7 +2392,8 @@ struct zfile *read_rom_name (const char *filename)
 
     for (i = 0; i < romlist_cnt; i++) {
 	if (!strcmpi (filename, rl[i].path)) {
-	    f = read_rom (rl[i].rd);
+	    struct romdata *rd = rl[i].rd;
+	    f = read_rom (&rd);
 	    if (f)
 		return f;
 	}

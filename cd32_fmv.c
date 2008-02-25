@@ -192,6 +192,7 @@ void cd32_fmv_init (uaecptr start)
 {
     int ids[] = { 72, -1 };
     struct romlist *rl = getromlistbyids (ids);
+    struct romdata *rd;
     struct zfile *z;
 
     write_log ("CD32 FMV mapped @$%lx\n", start);
@@ -199,12 +200,13 @@ void cd32_fmv_init (uaecptr start)
 	return;
     if (!rl)
 	return;
-    write_log ("CD32 FMV ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
-    z = read_rom (rl->rd);
+    rd = rl->rd;
+    z = read_rom (&rd);
     if (z) {
+	write_log ("CD32 FMV ROM %d.%d\n", rd->ver, rd->rev);
 	rom = mapped_malloc (fmv_size, "fast");
 	if (rom)
-	    zfile_fread (rom, rl->rd->size, 1, z);
+	    zfile_fread (rom, rd->size, 1, z);
 	zfile_fclose (z);
     }
     fmv_mask = fmv_size - 1;

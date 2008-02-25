@@ -483,9 +483,10 @@ void ncr_init (void)
 
     rl = getromlistbyids(roms);
     if (rl) {
-	write_log ("A4091 BOOT ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
-	z = read_rom (rl->rd);
+	struct romdata *rd = rl->rd;
+	z = read_rom (&rd);
 	if (z) {
+	    write_log ("A4091 BOOT ROM %d.%d\n", rd->ver, rd->rev);
 	    rom = (uae_u8*)xmalloc (ROM_SIZE * 4);
 	    for (i = 0; i < ROM_SIZE; i++) {
 		uae_u8 b;

@@ -1,8 +1,38 @@
 
+Beta 4:
+
+NOTE: Fullscreen RTG modes are not fully working yet. Do not use.
+NOTE: Before benchmarking, make sure Display panel display depth
+matches Picasso96 display depth.
+
 - "Full-window" mode does not reopen window when switching modes
 - 16 and 8-bit RTG mode optimized blitter operations
 - RTG template-blit ("RectFill() Pattern") operations optimized (do
   pen value endian swap only once per blit, not every pixel..)
+- RTG hardware mouse cursor implemented. Rock-solid, no flickering.
+  Replace libs:picasso96/uaegfx.card with included updated version.
+  NOTE: Make sure devs:monitors/uaegfx.info does not have forced
+  software sprite setting. (SOFTSPRITE=Yes)
+- 16-bit RectFill() graphics corruption fixed (b3)
+- rom scan registry data updated, A590/A2091 ROMs work again, also
+  version number information in the log is correct. Manual ROM rescan
+  required or all roms will fail to load
+- "favorite paths" added. Right click on floppy "Select disk image" or
+  ".." buttons to open favorites menu. Data stored in registry, no
+  GUI support yet. No data in registry: show beta-only example paths.
+  There may be submenus or something similar in future if you are
+  wondering about 'ALL'-part.. Will be added to other path-buttons in
+  future.
+
+Example registry editor export:
+
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Arabuusimiehet\WinUAE\FavoritePaths]
+"PATH_ALL_01"="d:\\amiga\\stuff\\games"
+"PATH_ALL_02"="d:\\amiga\\stuff\\demos"
+"PATH_ALL_03"="My Favorite Path #1 \"E:\\blah\\blah\\adf\""
+
 
 Beta 3:
 

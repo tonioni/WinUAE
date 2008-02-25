@@ -1081,11 +1081,12 @@ HRESULT DirectDraw_CreateSurface(int width, int height)
 			&DirectDrawState.primary.desc, &DirectDrawState.primary.surface, NULL);
     }
 
-    if(FAILED(ddrval))
+    if(FAILED(ddrval)) {
 	goto errout;
-    else
+    } else {
 	write_log ( "DDRAW: Primary %ssurface created in video-memory\n",
 	    DirectDrawState.flipping != single_buffer ? "flipping " : "");
+    }
 
     // Check if we can access the back-buffer of our flipping-pair (if present)
     if(DirectDrawState.flipping != single_buffer) {

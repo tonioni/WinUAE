@@ -1280,6 +1280,7 @@ void a2091_init (void)
 {
     int roms[5];
     struct romlist *rl;
+    struct romdata *rd;
 
     configured = 0;
     memset (dmacmemory, 0xff, 100);
@@ -1309,10 +1310,12 @@ void a2091_init (void)
     rombank = 0;
     rl = getromlistbyids(roms);
     if (rl) {
-	struct zfile *z = read_rom (rl->rd);
-	write_log ("A590/A2091 BOOT ROM %d.%d\n", rl->rd->ver, rl->rd->rev);
+	struct zfile *z;
+	rd = rl->rd; 
+	z = read_rom (&rd);
 	if (z) {
-	    rom_size = rl->rd->size;
+	    write_log ("A590/A2091 BOOT ROM %d.%d ", rd->ver, rd->rev);
+	    rom_size = rd->size;
 	    rom = xmalloc (rom_size);
 	    if (rl->rd->id == 56)
 		rombankswitcher = 1;

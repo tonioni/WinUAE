@@ -826,7 +826,7 @@ void flush_screen (int a, int b)
 #ifdef GFXFILTER
     } else if (currentmode->flags & DM_SWSCALE) {
 	S2X_render ();
-	if(currentmode->flags & DM_DX_FULLSCREEN )
+	if (currentmode->flags & DM_DX_FULLSCREEN)
 	    DX_Flip ();
 	else if (DirectDraw_GetLockableType() != overlay_surface)
 	    DX_Blit (0, 0, 0, 0, WIN32GFX_GetWidth(), WIN32GFX_GetHeight(), BLIT_SRC);
@@ -923,11 +923,14 @@ void gfx_unlock_picasso (void)
 		relock = TRUE;
 		unlockscr();
 	    }
+	    picasso_putcursor (p96_double_buffer_firstx, p96_double_buffer_first,
+		p96_double_buffer_lastx - p96_double_buffer_firstx + 1, p96_double_buffer_last - p96_double_buffer_first + 1);
 	    DX_Blit (p96_double_buffer_firstx, p96_double_buffer_first,
 		     p96_double_buffer_firstx, p96_double_buffer_first,
 		     p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
 		     p96_double_buffer_last - p96_double_buffer_first + 1,
 		     BLIT_SRC);
+	    picasso_clearcursor ();
 	    if (relock) {
 		lockscr();
 	    }
