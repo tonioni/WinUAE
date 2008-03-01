@@ -39,7 +39,7 @@ struct uae_filter uaefilters[] =
 
 static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
 uae_u8 *bufmem_ptr;
-static int tempsurf;
+static LPDIRECTDRAWSURFACE7 tempsurf;
 static uae_u8 *tempsurf2, *tempsurf3;
 
 void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
@@ -52,8 +52,8 @@ void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
 
 void S2X_free (void)
 {
-    if (tempsurf)
-	IDirectDrawSurface7_Release (DirectDrawState.temporary.surface);
+
+    freesurface (tempsurf);
     tempsurf = 0;
     xfree (tempsurf2);
     tempsurf2 = 0;
@@ -64,7 +64,6 @@ void S2X_free (void)
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 {
     int flags = 0;
-    HRESULT ddrval;
 
     if (!currprefs.gfx_filter || !usedfilter) {
 	usedfilter = &uaefilters[0];
@@ -85,23 +84,9 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     amiga_depth = ad;
     scale = mult;
 
-    tempsurf = 1;
-    ZeroMemory (&DirectDrawState.temporary.desc, sizeof (DDSURFACEDESC2));
-    DirectDrawState.temporary.desc.dwSize = sizeof (DDSURFACEDESC2);
-    DirectDrawState.temporary.desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
-    DirectDrawState.temporary.desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY;
-    DirectDrawState.temporary.desc.dwWidth = dst_width;
-    DirectDrawState.temporary.desc.dwHeight = dst_height;
-    if (DirectDraw_GetPrimaryPixelFormat (&DirectDrawState.temporary.desc.ddpfPixelFormat))
-	DirectDrawState.temporary.desc.dwFlags |= DDSD_PIXELFORMAT;
-    ddrval = IDirectDraw7_CreateSurface (DirectDrawState.directdraw.dd,
-					    &DirectDrawState.temporary.desc,
-					    &DirectDrawState.temporary.surface,
-					    NULL);
-    if (FAILED(ddrval)) {
-	write_log ("DDRAW: failed to create temp surface\n%s\n", DXError (ddrval));
-	tempsurf = 0;
-    }
+    tempsurf = allocsurface (dst_width, dst_height);
+    if (!tempsurf)
+	write_log ("DDRAW: failed to create temp surface\n");
 
     if (usedfilter->type == UAE_FILTER_HQ) {
 	int w = amiga_width > dst_width ? amiga_width : dst_width;
@@ -210,7 +195,7 @@ void S2X_render (void)
 
 	if (tempsurf && sr.left != 0 || sr.top != 0 || sr.right != dst_width || sr.bottom != dst_height ||
 	    dr.top != 0 || dr.right != dst_width || dr.left != 0 || dr.bottom != dst_height || currprefs.gfx_filter_upscale) {
-		dds = DirectDrawState.temporary.surface;
+		dds = tempsurf;
 		temp_needed = 1;
 	}
     }
@@ -231,7 +216,7 @@ void S2X_render (void)
 	dptr = (uae_u8*)desc.lpSurface;
 	pitch = desc.lPitch;
     } else {
-	if (!DirectDraw_SurfaceLock (lockable_surface))
+	if (!DirectDraw_SurfaceLock ())
 	    return;
 	dptr = DirectDraw_GetSurfacePointer ();
 	pitch = DirectDraw_GetSurfacePitch ();
@@ -339,7 +324,7 @@ void S2X_render (void)
 end:
     if (temp_needed) {
 	IDirectDrawSurface7_Unlock (dds, NULL);
-	DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0, NULL);
+	//DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0);
     } else {
 	DirectDraw_SurfaceUnlock ();
     }
@@ -350,7 +335,7 @@ void S2X_refresh (void)
     int y, pitch;
     uae_u8 *dptr;
 
-    if (!DirectDraw_SurfaceLock (lockable_surface))
+    if (!DirectDraw_SurfaceLock ())
 	return;
     dptr = DirectDraw_GetSurfacePointer ();
     pitch = DirectDraw_GetSurfacePitch();

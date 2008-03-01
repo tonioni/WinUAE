@@ -51,6 +51,7 @@ struct dev_info_spti {
     int mediainserted;
     HANDLE handle;
     int isatapi;
+    int removable;
     int type;
     int bus, path, target, lun;
     int scanmode;
@@ -271,33 +272,36 @@ static void close_scsi_bus (void)
 	free_scsi_device(i);
 }
 
-static int inquiry (int unitnum, int *type, uae_u8 *inquirydata, int *inqlen)
+static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
 {
     uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
     uae_u8 out[INQUIRY_SIZE] = { 0 };
     int outlen = sizeof (out);
     uae_u8 *p = execscsicmd_in (unitnum, cmd, sizeof (cmd), &outlen);
-    int v = 0;
+    int inqlen = 0;
 
-    *inqlen = 0;
-    *type = 0x1f;
+    di->isatapi = 0;
+    di->removable = 0;
+    di->type = 0x1f;
     if (!p) {
 	if (log_scsi)
 	    write_log ("SPTI: INQUIRY failed\n");
 	return 0;
     }
-    *inqlen = outlen > INQUIRY_SIZE ? INQUIRY_SIZE : outlen;
-    if (outlen >= 1)
-	*type = p[0] & 31;
+    inqlen = outlen > INQUIRY_SIZE ? INQUIRY_SIZE : outlen;
+    if (outlen >= 1) {
+	di->type = p[0] & 31;
+	di->removable = (p[1] & 0x80) ? 1 : 0;
+    }
     if (outlen >= 2 && (p[0] & 31) == 5 && (p[2] & 7) == 0)
-	v = 1;
-    memcpy (inquirydata, p, *inqlen);
+	di->isatapi = 1;
+    memcpy (inquirydata, p, inqlen);
     if (log_scsi) {
 	if (outlen >= INQUIRY_SIZE)
 	    write_log ("SPTI: INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
-		p[0], p[1], p[2], v, p + 8, p + 16);
+	    p[0], p[1], p[2], di->isatapi, p + 8, p + 16);
     }
-    return v;
+    return inqlen;
 }
 
 static int mediacheck (int unitnum)
@@ -316,8 +320,10 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     uae_u8 *p;
     int outlen;
 
-    di->bytespersector = 2048;
-    di->cylinders = 1;
+    di->sectorspertrack = 0;
+    di->trackspercylinder = 0;
+    di->bytespersector = 0;
+    di->cylinders = 0;
     di->write_protected = 1;
     if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
@@ -325,14 +331,16 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     p = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen);
     if (p && outlen >= 8) {
 	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+        di->sectorspertrack = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+        di->trackspercylinder = 1;
+        di->cylinders = 1;
     }
     if (di->type == INQ_DASD) {
 	uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0xf0,0 }; /* MODE SENSE */
 	outlen = 32;
 	p = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen);
 	if (p && outlen >= 4) {
-	    di->write_protected = (p[3]& 0x80) ? 1 : 0;
+	    di->write_protected = (p[3] & 0x80) ? 1 : 0;
 	}
     }
     return 1;
@@ -363,9 +371,7 @@ int open_scsi_device (int unitnum)
 	write_log ("SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
     } else {
 	uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
-	int inqlen;
-	dev_info[unitnum].isatapi = inquiry (unitnum, &dev_info[unitnum].type, inqdata, &inqlen);
-	if (inqlen == 0) {
+	if (!inquiry (unitnum, di, inqdata)) {
 	    write_log ("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
 		di->bus, di->path, di->target, di->lun);
 	    close_scsi_device (unitnum);
@@ -373,18 +379,18 @@ int open_scsi_device (int unitnum)
 	    return 0;
 	}
 	inqdata[INQUIRY_SIZE] = 0;
-	if (dev_info[unitnum].type == INQ_ROMD) {
+	if (di->type == INQ_ROMD) {
 	    dev_info[unitnum].mediainserted = mediacheck (unitnum);
 	    write_log ("SPTI: unit %d opened [%s], %s, '%s'\n", unitnum,
-		dev_info[unitnum].isatapi ? "ATAPI" : "SCSI",
-		dev_info[unitnum].mediainserted ? "media inserted" : "drive empty", inqdata + 8);
+		di->isatapi ? "ATAPI" : "SCSI",
+		di->mediainserted ? "media inserted" : "drive empty", inqdata + 8);
 	} else {
 	    write_log ("SPTI: unit %d, type %d, '%s'\n",
-		unitnum, dev_info[unitnum].type, inqdata + 8);
+		unitnum, di->type, inqdata + 8);
 	}
-	dev_info[unitnum].name = my_strdup (inqdata + 8);
-	dev_info[unitnum].inquirydata = xmalloc (INQUIRY_SIZE);
-	memcpy (dev_info[unitnum].inquirydata, inqdata, INQUIRY_SIZE);
+	di->name = my_strdup (inqdata + 8);
+	di->inquirydata = xmalloc (INQUIRY_SIZE);
+	memcpy (di->inquirydata, inqdata, INQUIRY_SIZE);
 	xfree (dev);
 	return 1;
     }
@@ -436,19 +442,22 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
 
 static struct device_info *info_device (int unitnum, struct device_info *di)
 {
+    struct dev_info_spti *dispti;
     if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
-    di->label = my_strdup(dev_info[unitnum].name);
+    dispti = &dev_info[unitnum];
+    di->label = my_strdup(dispti->name);
     di->bus = 0;
     di->target = unitnum;
     di->lun = 0;
     di->media_inserted = mediacheck (unitnum);
+    di->removable = dispti->removable;
     mediacheck_full (unitnum, di);
-    di->type = dev_info[unitnum].type;
+    di->type = dispti->type;
     di->id = unitnum + 1;
     if (log_scsi) {
-	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
-	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);
+	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
+	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
     }
     return di;
 }

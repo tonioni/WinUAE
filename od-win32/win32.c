@@ -1885,7 +1885,6 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_iconified_pause = 1;
 	p->win32_inactive_nosound = 0;
 	p->win32_inactive_pause = 0;
-	p->win32_no_overlay = os_vista ? 1 : 0;
 	p->win32_ctrl_F11_is_quit = 0;
 	p->win32_soundcard = 0;
 	p->win32_active_priority = 1;
@@ -1904,6 +1903,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_powersavedisabled = 1;
 	p->win32_outsidemouse = 0;
 	p->sana2 = 0;
+	p->win32_rtgmatchdepth = 1;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
@@ -1943,7 +1943,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
     cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev );
     cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
-    cfgfile_target_dwrite (f, "no_overlay=%s\n", p->win32_no_overlay ? "true" : "false" );
+    cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false" );
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
@@ -2004,11 +2004,8 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
 	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
 
-    if (cfgfile_yesno (option, value, "no_overlay", &p->win32_no_overlay)) {
-	if (os_vista)
-	    p->win32_no_overlay = 1;
+    if (cfgfile_yesno (option, value, "rtg_match_depth", &p->win32_rtgmatchdepth))
 	return 1;
-    }
 
     if (cfgfile_yesno (option, value, "aspi", &v)) {
 	p->win32_uaescsimode = 0;
@@ -2487,7 +2484,6 @@ static void WIN32_HandleRegistryStuff(void)
     regclosetree (read_disk_history ());
     read_rom_list ();
     load_keyring(NULL, NULL);
-    regqueryint (NULL, "p96mode", &p96mode);
 }
 
 #if WINUAEPUBLICBETA > 0
@@ -2692,11 +2688,8 @@ static int osdetect (void)
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 	    os_64bit = 1;
     }
-    if (!os_winnt) {
-	extern int p96mode;
-	p96mode = 0;
-	return 1;
-    }
+    if (!os_winnt)
+	return 0;
     os_winnt_admin = isadminpriv ();
     if (os_winnt_admin) {
 	if (pIsUserAnAdmin) {

@@ -32,6 +32,7 @@
 struct device_info {
     int type;
     int media_inserted;
+    int removable;
     int write_protected;
     int cylinders;
     int trackspercylinder;

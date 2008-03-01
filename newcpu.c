@@ -7,7 +7,7 @@
   */
 
 #define MOVEC_DEBUG 0
-#define MMUOP_DEBUG 1
+#define MMUOP_DEBUG 2
 
 #include "sysconfig.h"
 #include "sysdeps.h"

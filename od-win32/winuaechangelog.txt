@@ -1,9 +1,39 @@
 
+Beta 5:
+
+NOTE: filters are currently not supported, they may or may not work
+NOTE: filter support rewrite coming soon..
+NOTE: vsync not supported. expect flashes or other issues..
+
+- "favorite path" editing added. Path added is always last opened
+  path from any file select dialog. (later..)
+- "favorite path" right button context menus added to most path
+  selection buttons
+- picasso96.c clean up, removed old p96mode and other unused code
+- new p96mode works without JIT
+- CHK.L is 68020+, not 68000+ (only CHK.W is 68000+)
+- uaescsi.device missing CMD_GETGEOMETRY added (not sure if "geometry"
+  data is correct but at least device type and removable flag is set)
+- RGB overlay option is gone, not very useful anymore and newer
+  display drivers seem to emulate this in software..
+- big directdraw support rewrite
+- fullscreen to different fullscreen mode switching should be quick
+  now (no more switching back to desktop and then back to fullscreen)
+- 16 bit modes should work correctly again
+- Windows-side 8 bit modes (temporarily) disabled. 8-bit RTG modes
+  still work and are automatically converted to 16/32-bit
+- "Match RTG color depth" option added to misc-panel. If checked
+  fullscreen RTG mode uses Amiga-side color depth (as previously)
+  Not checked = always use Display panel depth setting.
+  Windowed mode always uses desktop color depth
+
+
 Beta 4:
 
 NOTE: Fullscreen RTG modes are not fully working yet. Do not use.
 NOTE: Before benchmarking, make sure Display panel display depth
 matches Picasso96 display depth.
+NOTE: P96 OLD-mode not supported. Only use NEW-mode.
 
 - "Full-window" mode does not reopen window when switching modes
 - 16 and 8-bit RTG mode optimized blitter operations

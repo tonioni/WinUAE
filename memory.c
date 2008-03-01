@@ -39,7 +39,7 @@ int special_mem;
 
 static int canjit (void)
 {
-    if (canbang)
+    if (canbang || currprefs.cpu_model >= 68020)
 	return 1;
     return 0;
 }

@@ -1009,9 +1009,13 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	case CMD_GETGEOMETRY:
 	{
 	    int cyl, cylsec, head, tracksec;
+	    uae_u64 size;
 	    getchs (hfd, &cyl, &cylsec, &head, &tracksec);
 	    put_long (dataptr + 0, hfd->blocksize);
-	    put_long (dataptr + 4, (uae_u32)(hfd->size / hfd->blocksize));
+	    size = hfd->size / hfd->blocksize;
+	    if (size > 0x00ffffffff)
+		size = 0xffffffff;
+	    put_long (dataptr + 4, (uae_u32)size);
 	    put_long (dataptr + 8, cyl);
 	    put_long (dataptr + 12, cylsec);
 	    put_long (dataptr + 16, head);

@@ -18,15 +18,11 @@
 
 static struct shmid_ds shmids[MAX_SHMID];
 
-extern int p96mode;
-
 static int memorylocking = 0;
 
 uae_u8 *natmem_offset = NULL;
 
 static uae_u8 *p96mem_offset;
-static uae_u8 *p96fakeram;
-static int p96fakeramsize;
 
 static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
@@ -162,7 +158,7 @@ int init_shm (void)
 	shmids[i].addr = NULL;
 	shmids[i].name[0] = 0;
     }
-    natmemsize = p96mode ? size + z3size : totalsize;
+    natmemsize = size + z3size;
 
     for (;;) {
 	int change;
@@ -178,12 +174,10 @@ int init_shm (void)
 	}
     }
     natmem_offset = blah;
-    if (p96mode) {
-        p96mem_offset = VirtualAlloc(natmem_offset + size + z3size, currprefs.gfxmem_size + 4096, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
-        if (!p96mem_offset) {
-	    write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
-	    p96mode = 0;
-	}
+    p96mem_offset = VirtualAlloc(natmem_offset + size + z3size, currprefs.gfxmem_size + 4096, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
+    if (!p96mem_offset) {
+	currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
+        write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
     }
 
     if (!natmem_offset) {
@@ -192,7 +186,7 @@ int init_shm (void)
 	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + natmemsize,
 	    natmemsize, natmemsize >> 20);
-	if (p96mode)
+	if (currprefs.gfxmem_size)
 	    write_log ("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n",
 		p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
 		currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
@@ -207,9 +201,7 @@ void mapped_free(uae_u8 *mem)
 {
     shmpiece *x = shm_start;
 
-    if (mem == filesysory || (!p96mode && mem == p96fakeram)) {
-	xfree (p96fakeram);
-	p96fakeram = NULL;
+    if (mem == filesysory) {
 	while(x) {
 	    if (mem == x->native_address) {
 		int shmid = x->id;
@@ -327,21 +319,10 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	}
 	if(!strcmp(shmids[shmid].name,"gfx")) {
 	    got = TRUE;
-	    if (p96mode) {
-		p96special = TRUE;
-		p96ram_start = p96mem_offset - natmem_offset;
-		shmaddr = natmem_offset + p96ram_start;
-		size += BARRIER;
-	    } else {
-		extern void p96memstart(void);
-		p96memstart();
-		shmaddr = natmem_offset + p96ram_start;
-		virtualfreewithlock(shmaddr, size, MEM_DECOMMIT);
-		xfree(p96fakeram);
-		result = p96fakeram = xcalloc (size + 4096, 1);
-		shmids[shmid].attached = result;
-		return result;
-	    }
+	    p96special = TRUE;
+	    p96ram_start = p96mem_offset - natmem_offset;
+	    shmaddr = natmem_offset + p96ram_start;
+	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;

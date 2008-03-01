@@ -137,6 +137,8 @@ static char help[] = {
 #ifdef _WIN32
     "  x                     Close debugger.\n"
     "  xx                    Switch between console and GUI debugger.\n"
+    "  mg <address>          Memory dump starting at <address> in GUI\n"
+    "  dg <address>          Disassembly starting at <address> in GUI\n"
 #endif
     "  q                     Quit the emulator. You don't want to use this command.\n\n"
 };
@@ -2543,7 +2545,7 @@ static void debug_1 (void)
 
 	if (!debugger_active)
 	    return;
-	update_debug_info();
+	update_debug_info ();
 	console_out (">");
 	console_flush ();
 	debug_linecounter = 0;
@@ -2618,6 +2620,13 @@ static void debug_1 (void)
 	    } else if (*inptr == 't') {
 		next_char (&inptr);
 		debugtest_set (&inptr);
+#ifdef _WIN32
+	    } else if (*inptr == 'g') {
+		extern void update_disassembly (uae_u32);
+	    	next_char (&inptr);
+		if (more_params (&inptr))
+		    update_disassembly (readhex (&inptr));
+#endif
 	    } else {
 		uae_u32 daddr;
 		int count;
@@ -2730,6 +2739,15 @@ static void debug_1 (void)
 	{
 	    uae_u32 maddr;
 	    int lines;
+#ifdef _WIN32
+	    if (*inptr == 'g') {
+		extern void update_memdump (uae_u32);
+	    	next_char (&inptr);
+		if (more_params (&inptr))
+		    update_memdump (readhex (&inptr));
+		break;
+	    }
+#endif
 	    if (more_params(&inptr)) {
 		maddr = readhex(&inptr);
 	    } else {

@@ -42,6 +42,7 @@ struct scsi_info {
     char label[100];
     SCSI *handle;
     int isatapi;
+    int removable;
 };
 static struct scsi_info si[MAX_TOTAL_DEVICES];
 static int unitcnt;
@@ -707,6 +708,7 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 			    cis->target = scgp->addr.target;
 			    cis->lun = scgp->addr.lun;
 			    cis->type = inq.type;
+			    cis->removable = inq.removable;
 			    sprintf (cis->label, "%.8s %.16s %.4s", inq.vendor_info, inq.prod_ident, inq.prod_revision);
 			}
 		    }
@@ -812,21 +814,25 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     int ok, outlen;
     uae_u8 *p = si[unitnum].buf;
 
-    di->bytespersector = 2048;
-    di->cylinders = 1;
+    di->sectorspertrack = 0;
+    di->trackspercylinder = 0;
+    di->bytespersector = 0;
+    di->cylinders = 0;
     di->write_protected = 1;
     if (si[unitnum].handle == 0)
 	return 0;
     ok = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen) ? 1 : 0;
     if (ok) {
 	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-	di->cylinders = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+	di->sectorspertrack = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+        di->trackspercylinder = 1;
+        di->cylinders = 1;
     }
     if (di->type == INQ_DASD) {
 	uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0x10,0 }; /* MODE SENSE */
 	ok = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen) ? 1 : 0;
 	if (ok) {
-	    di->write_protected = (p[3]& 0x80) ? 1 : 0;
+	    di->write_protected = (p[3] & 0x80) ? 1 : 0;
 	}
     }
     return 1;
@@ -932,16 +938,18 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 
 static struct device_info *info_device (int unitnum, struct device_info *di)
 {
+    struct scsi_info *sif = &si[unitnum];
     if (unitnum >= unitcnt)
 	return 0;
-    di->bus = si[unitnum].scsibus;
-    di->target = si[unitnum].target;
-    di->lun = si[unitnum].lun;
+    di->bus = sif->scsibus;
+    di->target = sif->target;
+    di->lun = sif->lun;
     di->media_inserted = mediacheck (unitnum);
-    di->type = si[unitnum].type;
+    di->type = sif->type;
     mediacheck_full (unitnum, di);
     di->id = unitnum + 1;
-    di->label = my_strdup (si[unitnum].label);
+    di->removable = sif->removable;
+    di->label = my_strdup (sif->label);
     if (log_scsi) {
 	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
 	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);

@@ -511,6 +511,7 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
 
     if (!(opcode & 0x38))
 	mov_b_rr(reg,S4);
+#if 0
     else {
 	abort();
 	if (!comp_fp_adr (opcode)) {
@@ -520,6 +521,7 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
 	else
 	    put_byte (ad, cc ? 0xff : 0x00);
     }
+#endif
 }
 
 void comp_ftrapcc_opp (uae_u32 opcode, uaecptr oldpc)

@@ -3,6 +3,26 @@
 
 #include "ddraw.h"
 
+struct ddstuff
+{
+    int ddinit;
+    int ddzeroguid;
+    GUID ddguid;
+    LPDIRECTDRAW olddd;
+    LPDIRECTDRAW7 maindd;
+    LPDIRECTDRAWCLIPPER dclip;
+    LPDIRECTDRAWSURFACE7 primary, secondary, flipping[2];
+    int fsmodeset, backbuffers;
+    int width, height, depth, freq;
+    int swidth, sheight;
+    DDSURFACEDESC2 native;
+    DDSURFACEDESC2 locksurface;
+    int lockcnt;
+    DWORD pitch;
+    HWND hwnd;
+};
+extern struct ddstuff dxdata;
+
 struct ScreenResolution
 {
     uae_u32 width;  /* in pixels */
@@ -33,26 +53,6 @@ struct MultiDisplay {
     RECT rect;
 };
 extern struct MultiDisplay Displays[MAX_DISPLAYS];
-
-typedef enum {
-    BLIT_FALSE,
-    BLIT_NOR,
-    BLIT_ONLYDST,
-    BLIT_NOTSRC,
-    BLIT_ONLYSRC,
-    BLIT_NOTDST,
-    BLIT_EOR,
-    BLIT_NAND,
-    BLIT_AND,
-    BLIT_NEOR,
-    BLIT_DST,
-    BLIT_NOTONLYSRC,
-    BLIT_SRC,
-    BLIT_NOTONLYDST,
-    BLIT_OR,
-    BLIT_TRUE,
-    BLIT_LAST
-} BLIT_OPCODE;
 
 /* Types for RGBFormat used */
 typedef enum {
@@ -114,8 +114,6 @@ typedef enum {
 #define RGBMASK_24BIT (RGBFF_R8G8B8 | RGBFF_B8G8R8)
 #define RGBMASK_32BIT (RGBFF_A8R8G8B8 | RGBFF_A8B8G8R8 | RGBFF_R8G8B8A8 | RGBFF_B8G8R8A8)
 
-/************************************************************************/
-
 #define	RGBFF_PLANAR	RGBFF_NONE
 #define	RGBFF_CHUNKY	RGBFF_CLUT
 
@@ -129,130 +127,44 @@ typedef enum
     blue_mask
 } DirectDraw_Mask_e;
 
-typedef enum
-{
-    invalid_surface,
-    primary_surface,
-    secondary_surface,
-    tertiary_surface,
-    overlay_surface,
-    lockable_surface,
-    temporary_surface
-} surface_type_e;
-
-typedef enum
-{
-    single_buffer,
-    double_buffer,
-    triple_buffer
-} flipping;
-
-struct DirectDrawSurfaceMapper
-{
-    int initialized;
-    int fullscreen;
-    int isoverlay;
-    int flipping;
-    int locked;
-    int modeset;
-    HWND window;
-    struct
-    {
-	LPDIRECTDRAW ddx;
-	LPDIRECTDRAW7 dd;
-    } directdraw;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	DDSURFACEDESC2 desc;
-    } primary;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	DDSURFACEDESC2 desc;
-    } secondary;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	DDSURFACEDESC2 desc;
-    } tertiary;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	DDSURFACEDESC2 desc;
-    } overlay;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	DDSURFACEDESC2 desc;
-    } temporary;
-    struct
-    {
-	DDSURFACEDESC2 desc;
-    } current;
-    struct
-    {
-	LPDIRECTDRAWSURFACE7 surface;
-	LPDDSURFACEDESC2 lpdesc;
-    } lockable;
-    LPDIRECTDRAWCLIPPER lpDDC;
-    LPDIRECTDRAWPALETTE lpDDP;
-    LPDIRECTDRAWPALETTE lpOverlayDDP;
-    surface_type_e surface_type;
-};
-HRESULT DirectDraw_CreateOverlaySurface(int width, int height, int bits, int type);
-int DirectDraw_Start( GUID *);
-void DirectDraw_Release( void );
-HRESULT DirectDraw_SetCooperativeLevel( HWND window, int want_fullscreen );
-BOOL DirectDraw_GetCooperativeLevel( HWND *window, int *fullscreen );
-HRESULT DirectDraw_SetDisplayMode( int width, int height, int bits, int freq );
-HRESULT DirectDraw_GetDisplayMode( void );
-HRESULT DirectDraw_CreateClipper( void );
-HRESULT DirectDraw_GetCaps( DDCAPS_DX7 *driver_caps, DDCAPS_DX7 *hel_caps );
-HRESULT DirectDraw_CreateSurface( int width, int height );
-void    DirectDraw_ClearSurfaces( void );
-HRESULT DirectDraw_SetClipper( HWND hWnd );
-HRESULT DirectDraw_GetClipList( LPRGNDATA cliplist, LPDWORD size );
-HRESULT DirectDraw_CreatePalette( LPPALETTEENTRY pal );
-HRESULT DirectDraw_SetPalette( int remove );
-HRESULT DirectDraw_SetPaletteEntries( int start, int count, PALETTEENTRY *palette );
-HRESULT DirectDraw_WaitForVerticalBlank( DWORD flags );
-HRESULT DirectDraw_EnumDisplayModes( DWORD flags, LPDDENUMMODESCALLBACK2 callback );
-HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEX callback );
-HRESULT DirectDraw_FlipToGDISurface( void );
-HRESULT DirectDraw_GetDC( HDC *hdc, surface_type_e surface );
-HRESULT DirectDraw_ReleaseDC( HDC hdc, surface_type_e surface );
-int DirectDraw_Flip( int );
-HRESULT DirectDraw_UpdateOverlay(RECT sr, RECT dr);
-HRESULT DirectDraw_Blt( surface_type_e dsttype, LPRECT dstrect, surface_type_e srctype, LPRECT srcrect, DWORD flags, LPDDBLTFX fx );
-HRESULT DirectDraw_BltFast( surface_type_e dsttype, DWORD left, DWORD top, surface_type_e srctype, LPRECT srcrect );
-DWORD DirectDraw_GetPixelFormatBitMask( DirectDraw_Mask_e mask );
-RGBFTYPE DirectDraw_GetPixelFormat( void );
-DWORD DirectDraw_GetPixelFormatFlags( void );
-DWORD DirectDraw_GetSurfaceFlags( void );
-DWORD DirectDraw_GetSurfaceBitCount( void );
-DWORD DirectDraw_GetPrimaryBitCount( void );
-void DirectDraw_GetPrimaryWidthHeight(int *w, int *h);
-int DirectDraw_DetermineLocking( int wantfull );
-int DirectDraw_GetBytesPerPixel( void );
-RGBFTYPE DirectDraw_GetSurfacePixelFormat( LPDDSURFACEDESC2 surface );
-surface_type_e DirectDraw_GetLockableType( void );
-int DirectDraw_SurfaceLock( surface_type_e surface_type );
-BOOL DirectDraw_IsLocked( void );
-char *DirectDraw_GetSurfacePointer( void );
-LONG DirectDraw_GetSurfacePitch( void );
-DWORD DirectDraw_CurrentWidth( void );
-DWORD DirectDraw_CurrentHeight( void );
-DWORD DirectDraw_CurrentRefreshRate (void);
-int DirectDraw_GetVerticalBlankStatus (void);
-extern struct DirectDrawSurfaceMapper DirectDrawState;
-extern int DirectDraw_GetPrimaryPixelFormat (LPDDPIXELFORMAT ddpf);
-
-extern void ddraw_unlockscr (void);
-#define DirectDraw_SurfaceUnlock() ddraw_unlockscr()
-
 extern const char *DXError (HRESULT hr);
-
 extern char *outGUID (GUID *guid);
 
+HRESULT DirectDraw_GetDisplayMode (void);
+void DirectDraw_Release(void);
+int DirectDraw_Start(GUID *guid);
+void clearsurface(LPDIRECTDRAWSURFACE7 surf);
+int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc);
+void unlocksurface (LPDIRECTDRAWSURFACE7 surf);
+LPDIRECTDRAWSURFACE7 allocsurface (int width, int height);
+void freesurface (LPDIRECTDRAWSURFACE7 surf);
+void DirectDraw_FreeMainSurface (void);
+HRESULT DirectDraw_CreateMainSurface (int width, int height);
+HRESULT DirectDraw_SetDisplayMode(int width, int height, int bits, int freq);
+HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen);
+HRESULT DirectDraw_CreateClipper (void);
+HRESULT DirectDraw_SetClipper(HWND hWnd);
+RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface);
+HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback);
+HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEX callback);
+DWORD DirectDraw_CurrentWidth (void);
+DWORD DirectDraw_CurrentHeight (void);
+DWORD DirectDraw_GetCurrentDepth (void);
+int DirectDraw_SurfaceLock (void);
+void DirectDraw_SurfaceUnlock (void);
+void *DirectDraw_GetSurfacePointer (void);
+DWORD DirectDraw_GetSurfacePitch (void);
+int DirectDraw_IsLocked (void);
+DWORD DirectDraw_GetPixelFormatBitMask (DirectDraw_Mask_e mask);
+DWORD DirectDraw_GetPixelFormat (void);
+DWORD DirectDraw_GetBytesPerPixel (void);
+HRESULT DirectDraw_GetDC(HDC *hdc);
+HRESULT DirectDraw_ReleaseDC(HDC hdc);
+int DirectDraw_GetVerticalBlankStatus (void);
+DWORD DirectDraw_CurrentRefreshRate (void);
+void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc);
+HRESULT DirectDraw_FlipToGDISurface (void);
+int DirectDraw_Flip (int wait);
+int DirectDraw_BlitToPrimary (RECT *rect);
 #endif
+

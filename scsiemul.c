@@ -534,6 +534,21 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_GETNUMTRACKS:
 	io_actual = dev->di.cylinders;
 	break;
+	case CMD_GETGEOMETRY:
+	{
+	    struct device_info di2, *di;
+	    di = devinfo (pdev->mode, dev->unitnum, &di2);
+	    put_long (io_data + 0, di->bytespersector);
+	    put_long (io_data + 4, di->sectorspertrack * di->trackspercylinder * di->cylinders);
+	    put_long (io_data + 8, di->cylinders);
+	    put_long (io_data + 12, di->sectorspertrack * di->trackspercylinder);
+	    put_long (io_data + 16, di->trackspercylinder);
+	    put_long (io_data + 20, di->sectorspertrack);
+	    put_long (io_data + 24, 0); /* bufmemtype */
+	    put_byte (io_data + 28, di->type);
+	    put_byte (io_data + 29, di->removable ? 1 : 0); /* flags */
+	}
+	break;
 	case CMD_ADDCHANGEINT:
 	io_error = add_async_request (dev, request, ASYNC_REQUEST_CHANGEINT, io_data);
 	if (!io_error)

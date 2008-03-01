@@ -143,7 +143,7 @@
 0100 1110 0111 1010:12:?????:?????:10: MOVEC2  #1
 0100 1110 0111 1011:12:?????:?????:10: MOVE2C  #1
 0100 1110 10ss sSSS:00://///://///:80: JSR.L   s[!Dreg,Areg,Aipi,Apdi,Immd]
-0100 rrr1 00ss sSSS:00:?????:?????:11: CHK.L   s[!Areg],Dr
+0100 rrr1 00ss sSSS:20:?????:?????:11: CHK.L   s[!Areg],Dr
 0100 rrr1 10ss sSSS:00:?????:?????:11: CHK.W   s[!Areg],Dr
 0100 1110 11ss sSSS:00://///://///:80: JMP.L   s[!Dreg,Areg,Aipi,Apdi,Immd]
 0100 rrr1 11ss sSSS:00:-----:-----:02: LEA.L   s[!Dreg,Areg,Aipi,Apdi,Immd],Ar

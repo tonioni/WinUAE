@@ -322,7 +322,6 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
-#define IDC_P96MODE                     1029
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033
@@ -637,7 +636,7 @@
 #define IDC_DF3TYPE                     1598
 #define IDC_SOUNDSPEEDTEXT              1599
 #define IDC_SOUNDSPEEDCAPTION           1600
-#define IDC_NOOVERLAY                   1601
+#define IDC_RTGMATCHDEPTH               1601
 #define IDC_ROMFILE2TEXT                1602
 #define IDC_ROMTEXT                     1603
 #define IDC_KEYTEXT                     1604
@@ -850,7 +849,6 @@
 #define IDC_CS_KSMIRROR_E0              1716
 #define IDC_STRINGBOXEDIT               1716
 #define IDC_CS_CD32CD                   1717
-#define IDC_STRINGBOX_TEXT              1717
 #define IDC_CS_CD32C2P                  1718
 #define IDC_CS_CD32NVRAM                1719
 #define IDC_CS_CDTVCD                   1720
@@ -968,6 +966,7 @@
 #define ID_DBG_COPYLB                   40041
 #define ID_DBG_TOGGLEBP                 40042
 #define ID_DBG_DELETEBPS                40043
+#define ID_DBG_SETTOPC                  40044
 
 // Next default values for new objects
 // 
@@ -976,7 +975,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        336
-#define _APS_NEXT_COMMAND_VALUE         40044
+#define _APS_NEXT_COMMAND_VALUE         40045
 #define _APS_NEXT_CONTROL_VALUE         1785
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

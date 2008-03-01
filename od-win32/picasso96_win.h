@@ -12,17 +12,6 @@
 
 #include "dxwrap.h"
 
-#ifdef _DEBUG
-void PICASSO96_Lock2(char *filename, int linenum);
-#define PICASSO96_Lock() PICASSO96_Lock2(__FILE__, __LINE__)
-
-void PICASSO96_Unlock2(char *filename, int linenum);
-#define PICASSO96_Unlock() PICASSO96_Unlock2(__FILE__, __LINE__)
-#endif
-
-#define PIC_READ (S_READ)
-#define PIC_WRITE (S_WRITE)
-
 #define NOSIGNAL 0xFFFFFFFF
 
 /************************************************************************/
@@ -515,8 +504,6 @@ extern void DX_SetPalette (int start, int count);
 extern int  DX_BitsPerCannon (void);
 extern void DX_Invalidate (int, int, int, int);
 extern int  DX_Flip(void);
-extern int  DX_Blit(int srcx, int srcy, int dstx, int dsty, int w, int h, BLIT_OPCODE opcode);
-extern int  DX_Fill(int dstx, int dsty, int width, int height, uae_u32 color, RGBFTYPE rgbtype);
 extern void picasso_enablescreen (int on);
 extern void picasso_refresh (void);
 extern void picasso_handle_vsync (void);
@@ -550,7 +537,6 @@ extern void picasso_clearcursor (void);
 
 extern int p96refresh_active;
 extern int p96hsync_counter;
-extern int p96mode;
 
 #endif
 
