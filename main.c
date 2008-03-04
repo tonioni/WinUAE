@@ -652,8 +652,8 @@ void leave_program (void)
 
 static void real_main2 (int argc, char **argv)
 {
-#if defined (JIT) && (defined ( _WIN32 ) || defined (_WIN64)) && !defined ( NO_WIN32_EXCEPTION_HANDLER )
-    extern int EvalException ( LPEXCEPTION_POINTERS blah, int n_except );
+#if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+    extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
     __try
 #endif
     {

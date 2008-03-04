@@ -32,6 +32,7 @@ static void freemainsurface (void)
 	DirectDraw_SetClipper (NULL);
 	releaser (dxdata.dclip, IDirectDrawClipper_Release);
     }
+    releaser (dxdata.palette, IDirectDrawPalette_Release);
     releaser (dxdata.flipping[1], IDirectDrawSurface7_Release);
     releaser (dxdata.flipping[0], IDirectDrawSurface7_Release);
     releaser (dxdata.primary, IDirectDrawSurface7_Release);
@@ -103,6 +104,8 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
     ddrval = IDirectDrawSurface7_Restore (surf);
     if (FAILED (ddrval))
 	write_log ("IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
+    if (surf == dxdata.primary && dxdata.palette)
+	IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
     return ddrval;
 }
 
@@ -229,14 +232,14 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
         write_log ("IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
         return ddrval;
     }
+    ddrval = IDirectDrawSurface7_GetSurfaceDesc (dxdata.primary, &dxdata.native);
+    if (FAILED (ddrval))
+	write_log ("IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
     if (dxdata.fsmodeset)
         clearsurface (dxdata.primary);
     dxdata.backbuffers = desc.dwBackBufferCount;
     clearsurface (dxdata.flipping[0]);
     clearsurface (dxdata.flipping[1]);
-    ddrval = IDirectDrawSurface7_GetSurfaceDesc (dxdata.primary, &dxdata.native);
-    if (FAILED (ddrval))
-	write_log ("IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
     surf = allocsurface (width, height);
     if (surf) {
 	dxdata.secondary = surf;
@@ -310,7 +313,7 @@ HRESULT DirectDraw_SetClipper(HWND hWnd)
 }
 
 
-char *outGUID (GUID *guid)
+char *outGUID (const GUID *guid)
 {
     static char gb[64];
     if (guid == NULL)
@@ -368,8 +371,6 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
 	    return RGBFB_B5G6R5PC;
 	if (b == 0x7C00 && g == 0x03E0 && r == 0x001F)
 	    return RGBFB_B5G5R5PC;
-	/* This happens under NT - with r == b == g == 0 !!! */
-	write_log ("Unknown 16 bit format %d %d %d\n", r, g, b);
 	break;
 
      case 24:
@@ -558,20 +559,33 @@ int DirectDraw_BlitToPrimary (RECT *rect)
     return result;
 }
 
-static void quickblit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src)
+static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *srcrect)
 {
     HRESULT ddrval;
-    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, NULL, src, NULL, DDBLT_WAIT, NULL))) {
+    if (dst == NULL)
+	dst = getlocksurface ();
+    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (dst);
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("quickblit: %s\n", DXError (ddrval));
+	    write_log ("DirectDraw_Blit: %s\n", DXError (ddrval));
 	    break;
 	}
     }
 }
+
+void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src)
+{
+    DirectDraw_Blt (dst, NULL, src, NULL);
+}
+
+void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect)
+{
+    DirectDraw_Blt (dst, dstrect, src, scrrect);
+}
+
 
 extern int vblank_skip;
 static void flip (void)
@@ -596,17 +610,17 @@ static void flip (void)
 		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
 		} else {
 		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-		    quickblit (dxdata.flipping[1], dxdata.primary);
+		    DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
 		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 		}
 	    }
 	} else {
 	    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 	}
-        quickblit (dxdata.flipping[1], dxdata.primary);
+        DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
     } else if(dxdata.backbuffers == 1) {
         ddrval = IDirectDrawSurface7_Flip(dxdata.primary, NULL, flags);
-        quickblit (dxdata.flipping[0], dxdata.primary);
+        DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
     }
     if (ddrval == DDERR_SURFACELOST) {
         static int recurse;
@@ -621,7 +635,6 @@ static void flip (void)
     }
 }
 
-
 int DirectDraw_Flip (int wait)
 {
     if (getlocksurface () != dxdata.secondary) {
@@ -631,3 +644,30 @@ int DirectDraw_Flip (int wait)
     }
     return 1;
 }
+
+HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palette)
+{
+    HRESULT ddrval = DDERR_NOPALETTEATTACHED;
+    if (dxdata.palette)
+	ddrval = IDirectDrawPalette_SetEntries(dxdata.palette, 0, start, count, palette);
+    return ddrval;
+}
+HRESULT DirectDraw_SetPalette (int remove)
+{
+    HRESULT ddrval;
+    if (!dxdata.fsmodeset || (!dxdata.palette && !remove))
+	return DD_FALSE;
+    ddrval = IDirectDrawSurface7_SetPalette (dxdata.primary, remove ? NULL : dxdata.palette);
+    if (FAILED (ddrval))
+	write_log ("IDirectDrawSurface7_SetPalette: %s\n", DXError (ddrval));
+    return ddrval;
+}
+HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal)
+{
+    HRESULT ddrval;
+    ddrval = IDirectDraw_CreatePalette (dxdata.maindd, DDPCAPS_8BIT | DDPCAPS_ALLOW256, pal, &dxdata.palette, NULL);
+    if (FAILED (ddrval))
+	write_log ("IDirectDraw_CreatePalette: %s\n", DXError (ddrval));
+    return ddrval;
+}
+

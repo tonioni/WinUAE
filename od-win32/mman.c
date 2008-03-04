@@ -17,24 +17,19 @@
 #define BARRIER 32
 
 static struct shmid_ds shmids[MAX_SHMID];
-
-static int memorylocking = 0;
-
+static int memwatchok = 0;
 uae_u8 *natmem_offset = NULL;
-
 static uae_u8 *p96mem_offset;
+static int p96mem_size;
+static SYSTEM_INFO si;
 
 static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
     void *p = VirtualAlloc (addr, size, allocationtype, protect);
-    if (p && memorylocking)
-	VirtualLock(p, size);
     return p;
 }
 static void virtualfreewithlock(LPVOID addr, SIZE_T size, DWORD freetype)
 {
-    if (memorylocking)
-	VirtualUnlock(addr, size);
     VirtualFree(addr, size, freetype);
 }
 
@@ -75,9 +70,113 @@ static uae_u32 lowmem (void)
     return change;
 }
 
-static uae_u32 max_allowed_mman;
+typedef UINT (CALLBACK* GETWRITEWATCH)
+    (DWORD,PVOID,SIZE_T,PVOID*,PULONG_PTR,PULONG);
+#define TEST_SIZE (2 * 4096)
+static int testwritewatch (void)
+{
+    GETWRITEWATCH pGetWriteWatch;
+    void *mem;
+    void *pages[16];
+    ULONG_PTR gwwcnt;
+    ULONG ps;
+    int ret = 0;
+
+    ps = si.dwPageSize;
+
+    pGetWriteWatch = (GETWRITEWATCH)GetProcAddress(GetModuleHandle("kernel32.dll"), "GetWriteWatch");
+    if (pGetWriteWatch == NULL) {
+	write_log ("GetWriteWatch(): missing!?\n");
+	return 0;
+    }
+    mem = VirtualAlloc (NULL, TEST_SIZE, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
+    if (mem == NULL) {
+	write_log ("GetWriteWatch(): MEM_WRITE_WATCH not supported!? err=%d\n", GetLastError());
+	return 0;
+    }
+    if (VirtualAlloc (mem, TEST_SIZE, MEM_COMMIT, PAGE_EXECUTE_READWRITE) == NULL) {
+	write_log ("GetWriteWatch(): test memory area MEM_COMMIT failed!? err=%d\n", GetLastError());
+	goto end;
+    }
+    ResetWriteWatch (mem, TEST_SIZE);
+    ((uae_u8*)mem)[1] = 0;
+    gwwcnt = TEST_SIZE / ps;
+    if (GetWriteWatch(WRITE_WATCH_FLAG_RESET, mem, TEST_SIZE, pages, &gwwcnt, &ps)) {
+	write_log ("GetWriteWatch(): failed!? err=%d\n", GetLastError ());
+	goto end;
+    }
+    if (ps != si.dwPageSize) {
+	write_log ("GetWriteWatch(): pagesize %d != %d!?\n", si.dwPageSize, ps);
+	goto end;
+    }
+    if (gwwcnt != 1) {
+	write_log ("GetWriteWatch(): modified pages returned %d != 1!?\n", gwwcnt);
+	goto end;
+    }
+    if (pages[0] != mem) {
+	write_log ("GetWriteWatch(): modified page was wrong!?\n");
+	goto end;
+    }
+    write_log ("GetWriteWatch() test ok\n");
+    ret = 1;
+    memwatchok = 1;
+end:
+    if (mem) {
+	VirtualFree (mem, TEST_SIZE, MEM_DECOMMIT);
+	VirtualFree (mem, TEST_SIZE, MEM_RELEASE);
+    }
+    return ret;
+}
+
+static uae_u8 *memwatchtable;
+
+int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddresses, PULONG_PTR lpdwCount, PULONG lpdwGranularity)
+{
+    int i, j;
+
+    if (memwatchok)
+	return GetWriteWatch (WRITE_WATCH_FLAG_RESET, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
+    j = 0;
+    for (i = 0; i < p96mem_size / si.dwPageSize; i++) {
+	if (j >= *lpdwCount)
+	    break;
+	if (memwatchtable[i])
+	    lpAddresses[j++] = p96mem_offset + i * si.dwPageSize;
+    }
+    *lpdwCount = j;
+    *lpdwGranularity = si.dwPageSize;
+    return 0;
+}
+void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize)
+{
+    if (!memwatchok) {
+	DWORD op;
+	memset (memwatchtable, 0, p96mem_size / si.dwPageSize);
+	if (!VirtualProtect (lpBaseAddress, dwRegionSize, PAGE_READWRITE | PAGE_GUARD, &op))
+	    write_log ("VirtualProtect() failed, err=%d\n", GetLastError ());
+    }
+}
+
+int mman_guard_exception (LPEXCEPTION_POINTERS p)
+{
+    PEXCEPTION_RECORD record = p->ExceptionRecord;
+    PCONTEXT context = p->ContextRecord;
+    ULONG_PTR addr = record->ExceptionInformation[1];
+    int rw = record->ExceptionInformation[0];
+    ULONG_PTR p96addr = (ULONG_PTR)p96mem_offset;
+
+    if (memwatchok)
+	return EXCEPTION_CONTINUE_SEARCH;
+    if (addr < p96addr || addr >= p96addr + p96mem_size)
+	return EXCEPTION_CONTINUE_EXECUTION;
+    addr -= p96addr;
+    addr /= si.dwPageSize;
+    memwatchtable[addr] = 1;
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+
 static uae_u64 size64;
-	typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
+typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
 
 void preinit_shm (void)
 {
@@ -86,7 +185,9 @@ void preinit_shm (void)
     MEMORYSTATUS memstats;
     GLOBALMEMORYSTATUSEX pGlobalMemoryStatusEx;
     MEMORYSTATUSEX memstatsex;
+    uae_u32 max_allowed_mman;
 
+    GetSystemInfo (&si);
     max_allowed_mman = 1536;
     if (os_64bit)
         max_allowed_mman = 2048;
@@ -116,8 +217,11 @@ void preinit_shm (void)
     if (max_allowed_mman * 1024 * 1024 > size64)
 	max_allowed_mman = size64 / (1024 * 1024);
     max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
+    if (max_z3fastmem < 512 * 1024 * 1024)
+	max_z3fastmem = 512 * 1024 * 1024;
 
     write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+    testwritewatch ();
     canbang = 1;
 }
 
@@ -159,13 +263,23 @@ int init_shm (void)
 	shmids[i].name[0] = 0;
     }
     natmemsize = size + z3size;
+    if (!currprefs.gfxmem_size) {
+	natmemsize += si.dwPageSize;
+    } else {
+	xfree (memwatchtable);
+	memwatchtable = 0;
+	if (!memwatchok) {
+	    write_log ("GetWriteWatch() not supported, using guard pages, performance will be slower.\n");
+	    memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
+	}
+    }
 
     for (;;) {
 	int change;
-	blah = VirtualAlloc(NULL, natmemsize, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	blah = VirtualAlloc (NULL, natmemsize, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (blah)
 	    break;
-	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", natmemsize >> 20, GetLastError());
+	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", natmemsize >> 20, GetLastError ());
 	change = lowmem ();
 	totalsize -= change;
 	if (change == 0 || totalsize < 0x10000000) {
@@ -174,14 +288,18 @@ int init_shm (void)
 	}
     }
     natmem_offset = blah;
-    p96mem_offset = VirtualAlloc(natmem_offset + size + z3size, currprefs.gfxmem_size + 4096, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
-    if (!p96mem_offset) {
-	currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
-        write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM\n");
+    if (currprefs.gfxmem_size) {
+	p96mem_size = currprefs.gfxmem_size + si.dwPageSize;
+	p96mem_offset = VirtualAlloc (natmem_offset + size + z3size, p96mem_size,
+	    MEM_RESERVE | (memwatchok ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+	if (!p96mem_offset) {
+	    currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
+	    write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM, err=%d\n", GetLastError ());
+	}
     }
 
     if (!natmem_offset) {
-	write_log ("NATMEM: No special area could be allocated! (1)\n");
+	write_log ("NATMEM: No special area could be allocated! (1) err=%d\n", GetLastError ());
     } else {
 	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + natmemsize,
@@ -265,6 +383,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
     void *result = (void *)-1;
     BOOL got = FALSE;
     int p96special = FALSE;
+    DWORD protect = PAGE_READWRITE;
 
 #ifdef NATMEM_OFFSET
     unsigned int size=shmids[shmid].size;
@@ -323,6 +442,8 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	    p96ram_start = p96mem_offset - natmem_offset;
 	    shmaddr = natmem_offset + p96ram_start;
 	    size += BARRIER;
+	    if (!memwatchok)
+		protect |= PAGE_GUARD;
 	}
 	if(!strcmp(shmids[shmid].name,"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
@@ -370,16 +491,14 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	got = FALSE;
 	if (got == FALSE) {
 	    if (shmaddr)
-		virtualfreewithlock(shmaddr, size, MEM_DECOMMIT);
-	    result = virtualallocwithlock(shmaddr, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
+	    result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
 	    if (result == NULL) {
 		result = (void*)-1;
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 		    size, size >> 10, GetLastError());
 	    } else {
-		if (memorylocking)
-		    VirtualLock(shmaddr, size);
 		shmids[shmid].attached = result;
 		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
 		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,

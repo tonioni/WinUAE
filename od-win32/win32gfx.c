@@ -84,8 +84,8 @@ struct winuae_currentmode {
     int current_width, current_height, current_depth;
     int amiga_width, amiga_height;
     int frequency;
-    int mapping_is_mainscreen;
     int initdone;
+    int fullfill;
     LPPALETTEENTRY pal;
 };
 
@@ -185,6 +185,8 @@ void centerdstrect (RECT *dr, RECT *sr)
 	OffsetRect(dr, amigawin_rect.left, amigawin_rect.top);
     if (currentmode->flags & DM_W_FULLSCREEN) {
 	int dx, dy;
+	if (currentmode->fullfill)
+	    return;
 	OffsetRect (dr, (currentmode->native_width - currentmode->current_width) / 2,
 	    (currentmode->native_height - currentmode->current_height) / 2);
 	dx = (dr->right - dr->left) - currentmode->current_width;
@@ -306,6 +308,8 @@ static int set_ddraw (void)
 	    currentmode->pitch = DirectDraw_GetSurfacePitch ();
 	    DirectDraw_SurfaceUnlock ();
 	}
+	if (bits == 8)
+	    DirectDraw_CreatePalette (currentmode->pal);
     }
 
     write_log ("set_ddraw() called, and is %dx%d@%d-bytes\n", width, height, bits);
@@ -334,7 +338,7 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
 	depth = 3;
     else if (ct & RGBMASK_32BIT)
 	depth = 4;
-    if (depth == 0 || depth == 1)
+    if (depth == 0)
 	return DDENUMRET_OK;
     i = 0;
     while (DisplayModes[i].depth >= 0) {
@@ -701,9 +705,10 @@ void flush_clear_screen (void)
 
 uae_u8 *gfx_lock_picasso (void)
 {
-    uae_u8 *p = ddraw_dolock ();
-    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch();
-    return p;
+    if (!DirectDraw_SurfaceLock ())
+	return 0;
+    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
+    return (uae_u8*)DirectDraw_GetSurfacePointer ();
 }
 
 /* For the DX_Invalidate() and gfx_unlock_picasso() functions */
@@ -715,21 +720,12 @@ void gfx_unlock_picasso (void)
 {
     DirectDraw_SurfaceUnlock();
     if (p96_double_buffer_needs_flushing) {
-	/* Here, our flush_block() will deal with a offscreen-plain (back-buffer) to visible-surface (front-buffer) */
-	BOOL relock = FALSE;
-	if (DirectDraw_IsLocked()) {
-	    relock = TRUE;
-	    unlockscr();
-	}
 	picasso_putcursor (p96_double_buffer_firstx, p96_double_buffer_first,
 	    p96_double_buffer_lastx - p96_double_buffer_firstx + 1, p96_double_buffer_last - p96_double_buffer_first + 1);
 	DX_Blit (p96_double_buffer_firstx, p96_double_buffer_first,
 	     p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
 	     p96_double_buffer_last - p96_double_buffer_first + 1);
 	picasso_clearcursor ();
-	if (relock) {
-	    lockscr();
-	}
 	p96_double_buffer_needs_flushing = 0;
     }
 }
@@ -769,14 +765,44 @@ static void close_hwnds (void)
     hStatusWnd = 0;
 }
 
+static void update_gfxparams (void)
+{
+    updatewinfsmode (&currprefs);
+#ifdef PICASSO96
+    if (screen_is_picasso) {
+	currentmode->current_width = picasso96_state.Width;
+	currentmode->current_height = picasso96_state.Height;
+	currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
+    } else {
+#endif
+	currentmode->current_width = currprefs.gfx_size.width;
+	currentmode->current_height = currprefs.gfx_size.height;
+	currentmode->frequency = abs (currprefs.gfx_refreshrate);
+#ifdef PICASSO96
+    }
+#endif
+    currentmode->current_depth = (currprefs.color_mode == 0 ? 8
+    	: currprefs.color_mode == 1 ? 15
+	: currprefs.color_mode == 2 ? 16
+	: currprefs.color_mode == 3 ? 8
+	: currprefs.color_mode == 4 ? 8 : 32);
+    if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
+	int pbits = picasso96_state.BytesPerPixel * 8;
+	if (pbits >= 8)
+	    currentmode->current_depth = pbits;
+    }
+    currentmode->amiga_width = currentmode->current_width;
+    currentmode->amiga_height = currentmode->current_height;
+}
+
 static int open_windows (void)
 {
     int ret, i;
 
     reset_sound();
     in_sizemove = 0;
-    updatewinfsmode (&currprefs);
 
+    updatewinfsmode (&currprefs);
     if (!DirectDraw_Start (displayGUID))
 	return 0;
     write_log ("DirectDraw GUID=%s\n", outGUID (displayGUID));
@@ -784,31 +810,7 @@ static int open_windows (void)
     ret = -2;
     do {
 	if (ret < -1) {
-#ifdef PICASSO96
-	    if (screen_is_picasso) {
-		currentmode->current_width = picasso96_state.Width;
-		currentmode->current_height = picasso96_state.Height;
-		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
-	    } else {
-#endif
-		currentmode->current_width = currprefs.gfx_size.width;
-		currentmode->current_height = currprefs.gfx_size.height;
-		currentmode->frequency = abs (currprefs.gfx_refreshrate);
-#ifdef PICASSO96
-	    }
-#endif
-	    currentmode->current_depth = (currprefs.color_mode == 0 ? 8
-	    	: currprefs.color_mode == 1 ? 15
-		: currprefs.color_mode == 2 ? 16
-		: currprefs.color_mode == 3 ? 8
-		: currprefs.color_mode == 4 ? 8 : 32);
-	    if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
-		int pbits = picasso96_state.BytesPerPixel * 8;
-		if (pbits >= 15)
-	    	    currentmode->current_depth = pbits;
-	    }
-	    currentmode->amiga_width = currentmode->current_width;
-	    currentmode->amiga_height = currentmode->current_height;
+	    update_gfxparams ();
 	}
 	ret = doInit ();
     } while (ret < 0);
@@ -1072,8 +1074,6 @@ static int get_color (int r, int g, int b, xcolnr * cnp)
 
 void init_colors (void)
 {
-//    HRESULT ddrval;
-
     if (ncols256 == 0) {
 	alloc_colors256 (get_color);
 	memcpy (xcol8, xcolors, sizeof xcol8);
@@ -1093,9 +1093,7 @@ void init_colors (void)
 	{
 	    case 1:
 		memcpy (xcolors, xcol8, sizeof xcolors);
-		//ddrval = DirectDraw_SetPaletteEntries(0, 256, colors256);
-		//if (FAILED(ddrval))
-		//    write_log ("DX_SetPalette() failed with %s/%d\n", DXError (ddrval), ddrval);
+		DirectDraw_SetPaletteEntries(0, 256, colors256);
 	    break;
 
 	    case 2:
@@ -1141,41 +1139,38 @@ void DX_SetPalette_vsync (void)
 {
 }
 
-void picasso_palette (void)
+int picasso_palette (void)
 {
-    int i;
+    int i, changed;
 
+    changed = 0;
     for (i = 0; i < 256; i++) {
         int r = picasso96_state.CLUT[i].Red;
         int g = picasso96_state.CLUT[i].Green;
         int b = picasso96_state.CLUT[i].Blue;
-        picasso_vidinfo.clut[i] = (doMask256 (r, red_bits, red_shift)
+	uae_u32 v = (doMask256 (r, red_bits, red_shift)
 	    | doMask256 (g, green_bits, green_shift)
 	    | doMask256 (b, blue_bits, blue_shift));
+	if (v !=  picasso_vidinfo.clut[i]) {
+	     picasso_vidinfo.clut[i] = v;
+	     changed = 1;
+	}
     }
+    if (changed)
+	DX_SetPalette (0,256);
+    return changed;
 }
 
 void DX_SetPalette (int start, int count)
 {
     if (!screen_is_picasso)
 	return;
-
     if (picasso_vidinfo.pixbytes != 1)
 	return;
-
-    /* Set our DirectX palette here */
-#if 0
-    if(currentmode->current_depth == 8) {
-	HRESULT ddrval;
-	if (SUCCEEDED(DirectDraw_SetPalette(0))) {
-	    ddrval = DirectDraw_SetPaletteEntries(start, count, (LPPALETTEENTRY)&(picasso96_state.CLUT[start]));
-	    if (FAILED(ddrval))
-		gui_message("DX_SetPalette() failed with %s/%d\n", DXError (ddrval), ddrval);
-	}
-    } else {
-	write_log ("ERROR - DX_SetPalette() pixbytes %d\n", currentmode->current_depth >> 3);
-    }
-#endif
+    if(currentmode->current_depth > 8)
+	return;
+    if (SUCCEEDED (DirectDraw_SetPalette (0)))
+        DirectDraw_SetPaletteEntries (start, count, (LPPALETTEENTRY)&(picasso96_state.CLUT[start]));
 }
 
 void DX_Invalidate (int x, int y, int width, int height)
@@ -1256,19 +1251,33 @@ static int reopen (int full)
 
 #ifdef PICASSO96
 
-static int modeswitchneeded (void)
+static int modeswitchneeded (struct winuae_currentmode *wc)
 {
     if (isfullscreen () > 0) {
-	if (picasso96_state.Width != currentmode->current_width ||
-	    picasso96_state.Height != currentmode->current_height)
-	    return -1;
+	if (screen_is_picasso) {
+	    if (picasso96_state.Width != wc->current_width ||
+		picasso96_state.Height != wc->current_height ||
+		(picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth))
+		return -1;
+	} else {
+	    if (currentmode->current_width != wc->current_width ||
+		currentmode->current_height != wc->current_height ||
+		currentmode->current_depth != wc->current_depth)
+		return -1;
+	}
     } else if (isfullscreen () == 0) {
-	if (picasso96_state.Width != currentmode->current_width ||
-	    picasso96_state.Height != currentmode->current_height)
-	    return 1;
+	if (screen_is_picasso) {
+	    if (picasso96_state.Width != wc->current_width ||
+		picasso96_state.Height != wc->current_height)
+		return 1;
+	} else {
+	    if (currentmode->current_width != wc->current_width ||
+		currentmode->current_height != wc->current_height)
+		return 1;
+	}
     } else {
-	if (picasso96_state.Width > currentmode->native_width ||
-	    picasso96_state.Height > currentmode->native_height)
+	if (picasso96_state.Width > wc->native_width ||
+	    picasso96_state.Height > wc->native_height)
 	    return -1;
     }
     return 0;
@@ -1276,30 +1285,30 @@ static int modeswitchneeded (void)
 
 void gfx_set_picasso_state (int on)
 {
+    struct winuae_currentmode wc;
     int mode;
     if (screen_is_picasso == on)
 	return;
     screen_is_picasso = on;
-    mode = modeswitchneeded ();
-    currentmode->current_width = picasso96_state.Width;
-    currentmode->current_height = picasso96_state.Height;
-    picasso_vidinfo.width = picasso96_state.Width;
-    picasso_vidinfo.height = picasso96_state.Height;
+    memcpy (&wc, currentmode, sizeof (wc));
+    update_gfxparams ();
     if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen) {
 	mode = 1;
-    } else if (!mode) {
-	return;
+    } else {
+	mode = modeswitchneeded (&wc);
+	if (!mode)
+	    return;
     }
     if (mode < 0) {
 	open_windows ();
     } else {
-	open_screen ();
+	open_screen (); // reopen everything
     }
 }
 
 void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
-    if (screen_is_picasso && modeswitchneeded())
+    if (screen_is_picasso && modeswitchneeded(currentmode))
         open_screen ();
 }
 #endif
@@ -1635,6 +1644,7 @@ static void updatemodes (void)
 {
     DWORD flags;
 
+    currentmode->fullfill = 0;
     flags = DM_DDRAW;
     if (isfullscreen () > 0)
 	flags |= DM_DX_FULLSCREEN;
@@ -1654,6 +1664,8 @@ static void updatemodes (void)
     }
 #endif
     currentmode->flags = flags;
+    if (flags & DM_SWSCALE)
+	currentmode->fullfill = 1;
 }
 
 static BOOL doInit (void)
@@ -1832,7 +1844,7 @@ static BOOL doInit (void)
 
 #if defined (GFXFILTER)
     if (currentmode->flags & DM_SWSCALE) {
-	S2X_init (currentmode->current_width, currentmode->current_height,
+	S2X_init (currentmode->native_width, currentmode->native_height,
 	    currentmode->amiga_width, currentmode->amiga_height,
 	    mult, currentmode->current_depth, currentmode->native_depth);
     }
@@ -1880,49 +1892,32 @@ oops:
 
 void WIN32GFX_PaletteChange(void)
 {
-#if 0
-    HRESULT hr;
-
-    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return;
+    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
+	return;
     if (currentmode->current_depth > 8)
 	return;
-    hr = DirectDraw_SetPalette (1); /* Remove current palette */
-    if (FAILED(hr))
-	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
-    hr = DirectDraw_SetPalette (0); /* Set our real palette */
-    if (FAILED(hr))
-	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
-#endif
+    DirectDraw_SetPalette (1); /* Remove current palette */
+    DirectDraw_SetPalette (0); /* Set our real palette */
 }
 
 int WIN32GFX_ClearPalette(void)
 {
-#if 0
-    HRESULT hr;
     if (currentmode->current_depth > 8)
 	return 1;
-    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
-    hr = DirectDraw_SetPalette (1); /* Remove palette */
-    if (FAILED(hr))
-	write_log ("SetPalette(1) failed, %s\n", DXError (hr));
-    return SUCCEEDED(hr);
-#endif
-    return 0;
+    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
+	return 1;
+    DirectDraw_SetPalette (1); /* Remove palette */
+    return 1;
 }
 
 int WIN32GFX_SetPalette(void)
 {
-#if 0
-    HRESULT hr;
-    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D)) return 1;
+    if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
+	return 1;
     if (currentmode->current_depth > 8)
 	return 1;
-    hr = DirectDraw_SetPalette (0); /* Set palette */
-    if (FAILED(hr))
-	write_log ("SetPalette(0) failed, %s\n", DXError (hr));
-    return SUCCEEDED(hr);
-#endif
-    return 0;
+    DirectDraw_SetPalette (0); /* Set palette */
+    return 1;
 }
 void WIN32GFX_WindowMove (void)
 {

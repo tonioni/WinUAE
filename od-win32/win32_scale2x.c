@@ -109,40 +109,19 @@ void S2X_render (void)
     int dst_height2 = dst_height;
     int dst_width3 = dst_width;
     int dst_height3 = dst_height;
-    int scale2 = scale;
-
-    if (currprefs.gfx_filter_upscale) {
-	dst_width2 = amiga_width;
-	dst_height2 = amiga_height;
-	dst_width3 = amiga_width * scale;
-	dst_height3 = amiga_height * scale;
-	scale2 = 1;
-    }
 
     sptr = gfxvidinfo.bufmem;
-    v = (dst_width2 - amiga_width) / 2;
-    aw += v;
+    v = (dst_width - amiga_width * scale) / 2;
     sptr -= v * (amiga_depth / 8);
-    v = (dst_height2 - amiga_height) / 2;
-    ah += v;
+    v = (dst_height - amiga_height * scale) / 2;
     sptr -= v * gfxvidinfo.rowbytes;
-
     endsptr = gfxvidinfo.bufmemend;
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
-    v += (dst_width3 / scale - amiga_width) / 8;
-    sptr += (int)(-v * 4.0 / 10.0) * (amiga_depth / 8);
-    aw -= (int)(-v * 4.0 / 10);
+    sptr += (int)(-v * amiga_width / 1000.0) * (amiga_depth / 8);
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
-    v += (dst_height3 / scale - amiga_height) / 8;
-    sptr += (int)(-v * 4.0 / 10.0) * gfxvidinfo.rowbytes;
-    ah -= (int)(-v * 4.0 / 10);
-
-    if (aw * scale > dst_width)
-	aw = dst_width / scale;
-    if (ah * scale > dst_height)
-	ah = dst_height / scale;
+    sptr += (int)(-v * amiga_height / 1000.0) * gfxvidinfo.rowbytes;
 
     if (ah < 16)
 	return;
@@ -153,20 +132,35 @@ void S2X_render (void)
 	    currprefs.gfx_filter_horiz_zoom_mult != 1000 ||
 	    currprefs.gfx_filter_vert_zoom_mult != 1000 || currprefs.gfx_filter_upscale)) {
 
-	int wz = dst_width3 * currprefs.gfx_filter_horiz_zoom_mult / 1000;
-	int hz = dst_height3 * currprefs.gfx_filter_vert_zoom_mult / 1000;
+	double hz = currprefs.gfx_filter_horiz_zoom / 1000.0 * currprefs.gfx_filter_horiz_zoom_mult;
+	double vz = currprefs.gfx_filter_vert_zoom / 1000.0 * currprefs.gfx_filter_vert_zoom_mult;
 
-	wz += currprefs.gfx_filter_horiz_zoom / 4;
-	hz += currprefs.gfx_filter_vert_zoom / 4;
-
-        sr.left = (dst_width3 - wz) / 2;
-        sr.top = (dst_height3 - hz) / 2;
-        sr.right = sr.left + wz;
-        sr.bottom = sr.top + hz;
+        sr.left = (dst_width - amiga_width * scale) / 2;
+        sr.top = (dst_height - amiga_height * scale) / 2;
+	sr.right = amiga_width * scale + sr.left;
+	sr.bottom = amiga_height * scale + sr.top;
 
 	dr.left = dr.top = 0;
 	dr.right = dst_width;
 	dr.bottom = dst_height;
+
+        hz *= amiga_width / 2000.0;
+	if (hz > 0) {
+	    dr.left += hz;
+	    dr.right -= hz;
+	} else {
+	    sr.left -= hz;
+	    sr.right += hz;
+	}
+        vz *= amiga_height / 2000.0;
+	if (vz > 0) {
+	    dr.top += vz;
+	    dr.bottom -= vz;
+	} else {
+	    sr.top -= vz;
+	    sr.bottom += vz;
+	}
+
 
 	if (sr.left >= sr.right) {
 	    sr.left = dst_width / 2 - 1;
@@ -292,10 +286,10 @@ void S2X_render (void)
     } else if (usedfilter->type == UAE_FILTER_PAL) { /* 16/32/1X */
 
 	if (amiga_depth == 32 && dst_depth == 32) {
-	    PAL_1x1_32((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
+	    PAL_1x1_32 ((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
 	    ok = 1;
 	} else if (amiga_depth == 16 && dst_depth == 16) {
-	    PAL_1x1_16((uae_u16*)sptr, gfxvidinfo.rowbytes, (uae_u16*)dptr, pitch, aw, ah);
+	    PAL_1x1_16 ((uae_u16*)sptr, gfxvidinfo.rowbytes, (uae_u16*)dptr, pitch, aw, ah);
 	    ok = 1;
 	}
 
@@ -324,7 +318,7 @@ void S2X_render (void)
 end:
     if (temp_needed) {
 	IDirectDrawSurface7_Unlock (dds, NULL);
-	//DirectDraw_Blt (DirectDraw_GetLockableType(), &dr, temporary_surface, &sr, 0);
+	DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
     } else {
 	DirectDraw_SurfaceUnlock ();
     }

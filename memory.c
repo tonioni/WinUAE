@@ -2872,8 +2872,15 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 
     id = shmget (IPC_PRIVATE, s, 0x1ff, file);
     if (id == -1) {
+	static int recurse;
+	uae_u8 *p;
 	nocanbang();
-	return mapped_malloc (s, file);
+	if (recurse)
+	    return NULL;
+	recurse++;
+	p = mapped_malloc (s, file);
+	recurse--;
+	return p;
     }
     answer = shmat (id, 0, 0);
     shmctl (id, IPC_RMID, NULL);

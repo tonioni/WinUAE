@@ -12,6 +12,7 @@ struct ddstuff
     LPDIRECTDRAW7 maindd;
     LPDIRECTDRAWCLIPPER dclip;
     LPDIRECTDRAWSURFACE7 primary, secondary, flipping[2];
+    LPDIRECTDRAWPALETTE palette;
     int fsmodeset, backbuffers;
     int width, height, depth, freq;
     int swidth, sheight;
@@ -128,7 +129,7 @@ typedef enum
 } DirectDraw_Mask_e;
 
 extern const char *DXError (HRESULT hr);
-extern char *outGUID (GUID *guid);
+extern char *outGUID (const GUID *guid);
 
 HRESULT DirectDraw_GetDisplayMode (void);
 void DirectDraw_Release(void);
@@ -166,5 +167,12 @@ void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc);
 HRESULT DirectDraw_FlipToGDISurface (void);
 int DirectDraw_Flip (int wait);
 int DirectDraw_BlitToPrimary (RECT *rect);
+void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
+void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
+
+HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palette);
+HRESULT DirectDraw_SetPalette (int remove);
+HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal);
+
 #endif
 

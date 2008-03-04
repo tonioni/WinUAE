@@ -446,7 +446,6 @@ static char *favoritepopup (HWND hwnd)
 			str = my_strdup (tmp2);
 			fname = my_strdup (tmp2);
 		    }
-		    str = my_strdup (tmp2);
 		    paths[idx2] = fname;
 		    values[idx2] = str;
 		}
@@ -481,7 +480,7 @@ static char *favoritepopup (HWND hwnd)
     }
     for (i = 0; i < idx; i++) {
 	xfree (values[i]);
-	if (i + 1 != ret)
+	if (i != ret - 1)
 	    xfree (paths[i]);
     }
     if (ret == 0)
@@ -4018,16 +4017,14 @@ static void init_display_mode (HWND hDlg)
 	d = 16;
 	break;
     case 5:
-	d = 32;
-	break;
     default:
-	d = 8;
+	d = 32;
 	break;
     }
 
     if (workprefs.gfx_afullscreen) {
 	d2 = d;
-	if ((index = WIN32GFX_AdjustScreenmode(&workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
+	if ((index = WIN32GFX_AdjustScreenmode (&workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
 	    switch (d2)
 	    {
 	    case 15:
@@ -4039,12 +4036,9 @@ static void init_display_mode (HWND hDlg)
 		d = 2;
 		break;
 	    case 32:
+	    default:
 		workprefs.color_mode = 5;
 		d = 4;
-		break;
-	    default:
-		workprefs.color_mode = 0;
-		d = 1;
 		break;
 	    }
 	}
@@ -4059,7 +4053,7 @@ static void init_display_mode (HWND hDlg)
 	cnt = 0;
 	gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
 	for (i = 0; DisplayModes[i].depth >= 0; i++) {
-	    if (DisplayModes[i].residx == DisplayModes[index].residx) {
+	    if (DisplayModes[i].depth > 1 && DisplayModes[i].residx == DisplayModes[index].residx) {
 		char tmp[64];
 		sprintf (tmp, "%d", DisplayModes[i].depth * 8);
 		SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -4201,7 +4195,7 @@ static void init_resolution_combo (HWND hDlg)
 
     SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
     while (DisplayModes[i].depth >= 0) {
-	if (DisplayModes[i].residx != idx) {
+	if (DisplayModes[i].depth > 1 && DisplayModes[i].residx != idx) {
 	    sprintf (tmp, "%dx%d", DisplayModes[i].res.width, DisplayModes[i].res.height);
 	    SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    idx = DisplayModes[i].residx;
@@ -5828,7 +5822,7 @@ static void values_from_cpudlg (HWND hDlg)
 #ifdef JIT
     oldcache = workprefs.cachesize;
     jitena = IsDlgButtonChecked (hDlg, IDC_JITENABLE) ? 1 : 0;
-    workprefs.cachesize = SendMessage(GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
+    workprefs.cachesize = SendMessage (GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
     if (!jitena) {
 	cachesize_prev = workprefs.cachesize;
 	comptrust_prev = workprefs.comptrustbyte;
@@ -7536,9 +7530,11 @@ static int diskselectmenu (HWND hDlg, WPARAM wParam)
 	char *s = favoritepopup (hDlg);
 	if (s) {
 	    int num = id == IDC_DF0QQ ? 0 : 1;
-	    diskselect (hDlg, id, &workprefs, num, s);
+	    char tmp[MAX_DPATH];
+	    strcpy (tmp, s);
+	    xfree (s);
+	    diskselect (hDlg, id, &workprefs, num, tmp);
 	}
-	xfree (s);
 	return 1;
     }
     return 0;
@@ -8946,7 +8942,6 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
     ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
     ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
-    CheckDlgButton(hDlg, IDC_FILTERUPSCALE, workprefs.gfx_filter_upscale);
 }
 
 static void makefilter(char *s, int x, int flags)
@@ -9018,6 +9013,9 @@ static void values_to_hw3ddlg (HWND hDlg)
     int i, j, nofilter, fltnum, modenum;
     struct uae_filter *uf;
     UAEREG *fkey;
+
+    CheckDlgButton(hDlg, IDC_FILTERUPSCALE, workprefs.gfx_filter_upscale);
+    CheckDlgButton(hDlg, IDC_FILTERAUTORES, workprefs.gfx_autoresolution);
 
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);

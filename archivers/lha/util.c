@@ -76,7 +76,7 @@ strdup(buf)
  */
 
 /* ------------------------------------------------------------------------ */
-#if defined(NOBSTRING) && !defined(__STDC__)
+#if 0 && defined(NOBSTRING) && !defined(__STDC__)
 void           *
 memmove(dst, src, cnt)
 	register char  *dst, *src;

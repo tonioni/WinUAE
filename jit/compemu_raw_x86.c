@@ -1697,7 +1697,8 @@ static uae_u8 *veccode;
 #define ctxPC (pContext->Eip)
 #endif
 
-int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
+extern int mman_guard_exception (LPEXCEPTION_POINTERS);
+int EvalException (LPEXCEPTION_POINTERS blah, int n_except)
 {
     PEXCEPTION_RECORD pExceptRecord = NULL;
     PCONTEXT          pContext = NULL;
@@ -1709,7 +1710,9 @@ int EvalException ( LPEXCEPTION_POINTERS blah, int n_except )
     int dir=-1;
     int len=0;
 
-    if( n_except != STATUS_ACCESS_VIOLATION || !canbang)
+    if (n_except == STATUS_GUARD_PAGE_VIOLATION)
+	return mman_guard_exception (blah);
+    if (n_except != STATUS_ACCESS_VIOLATION || !canbang)
 	return EXCEPTION_CONTINUE_SEARCH;
 
     pExceptRecord = blah->ExceptionRecord;

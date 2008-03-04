@@ -25,7 +25,7 @@
 #include "win32.h"
 #include "win32gui.h"
 
-static int max_w, max_h, mult, pointsize;
+static int max_w = 800, max_h = 600, mult = 100, pointsize;
 
 #include <pshpack2.h>
 typedef struct {

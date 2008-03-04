@@ -1,9 +1,28 @@
 
+Beta 6:
+
+NOTE: Do not use filters, do not use vsync.
+
+- real 8-bit RTG mode work (fullscreen only)
+- buffer overflow in floppy image favorite shortcut code
+- disappeared Z2 fast ram amount box is back
+- Z3 but no RTG RAM allocation failure fixed
+- Picasso96 BltPattern and BltTemplate COMPLEMENT-mode uses now native
+  code
+- Picasso96 "new" mode is now Windows 2000 compatible. NOTE: this is
+  not 100% correct yet, graphics errors possible. W2K workaround mode
+  is also slower than Windows XP+ mode
+- Picasso96 RectFill() optimization (2x speedup here)
+- some mode switching crashes/graphics errors fixed
+- write warning to log if blitter is forced off in devs:monitors/uaegfx
+- 8-bit modes removed from display-panel GUI. Native (custom chipset)
+  display modes need at least 16-bit color depth now. RTG 8-bit still
+  supported.
+
 Beta 5:
 
 NOTE: filters are currently not supported, they may or may not work
-NOTE: filter support rewrite coming soon..
-NOTE: vsync not supported. expect flashes or other issues..
+NOTE: vsync not supported. expect flashing or other issues..
 
 - "favorite path" editing added. Path added is always last opened
   path from any file select dialog. (later..)
@@ -24,9 +43,10 @@ NOTE: vsync not supported. expect flashes or other issues..
   still work and are automatically converted to 16/32-bit
 - "Match RTG color depth" option added to misc-panel. If checked
   fullscreen RTG mode uses Amiga-side color depth (as previously)
-  Not checked = always use Display panel depth setting.
-  Windowed mode always uses desktop color depth
-
+  Not checked = always use Display panel depth setting. (if you have
+  programs that switch modes but you don't want Windows-side display
+  mode changes) Windowed mode always uses desktop color depth
+- GUI debugger updates (KB)
 
 Beta 4:
 

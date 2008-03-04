@@ -509,7 +509,7 @@ extern void picasso_refresh (void);
 extern void picasso_handle_vsync (void);
 extern void init_hz_p96 (void);
 extern void picasso_handle_hsync (void);
-extern void picasso_palette (void);
+extern int picasso_palette (void);
 
 extern uae_u8 *gfxmemory;
 

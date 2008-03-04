@@ -6,12 +6,14 @@ static void NOINLINE BLT_NAME (unsigned int w, unsigned int h, uae_u8 *src, uae_
     uae_u32 *src2_32 = (uae_u32*)src;
     uae_u32 *dst2_32 = (uae_u32*)dst;
     unsigned int y, x, ww, xxd;
+#ifdef BLT_TEMP
 #if BLT_SIZE == 4
     uae_u32 tmp;
 #elif BLT_SIZE == 2
     uae_u16 tmp;
 #else
     uae_u8 tmp;
+#endif
 #endif
 
     if (w < 8 * BLT_MULT) {
@@ -98,3 +100,6 @@ static void NOINLINE BLT_NAME (unsigned int w, unsigned int h, uae_u8 *src, uae_
 }
 #undef BLT_NAME
 #undef BLT_FUNC
+#ifdef BLT_TEMP
+#undef BLT_TEMP
+#endif
