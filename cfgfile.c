@@ -1350,6 +1350,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_intval (option, value, "bogomem_size", &p->bogomem_size, 0x40000)
 	|| cfgfile_intval (option, value, "gfxcard_size", &p->gfxmem_size, 0x100000)
 	|| cfgfile_intval (option, value, "floppy_speed", &p->floppy_speed, 1)
+	|| cfgfile_intval (option, value, "floppy_write_length", &p->floppy_write_length, 1)
 	|| cfgfile_intval (option, value, "nr_floppies", &p->nr_floppies, 1)
 	|| cfgfile_intval (option, value, "floppy0type", &p->dfxtype[0], 1)
 	|| cfgfile_intval (option, value, "floppy1type", &p->dfxtype[1], 1)
@@ -2976,6 +2977,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->dfxtype[2] = DRV_NONE;
     p->dfxtype[3] = DRV_NONE;
     p->floppy_speed = 100;
+    p->floppy_write_length = 0;
     p->dfxclickvolume = 33;
 
     p->statecapturebuffersize = 20 * 1024 * 1024;

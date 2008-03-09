@@ -869,7 +869,7 @@ void savestate_listrewind (void)
 	    break;
 	p = st->cpu + 17 * 4;
 	pc = restore_u32_func (&p);
-	console_out ("%d: PC=%08X %c\n", cnt, pc, regs.pc == pc ? '*' : ' ');
+	console_out_f ("%d: PC=%08X %c\n", cnt, pc, regs.pc == pc ? '*' : ' ');
 	cnt++;
 	i--;
 	if (i < 0)

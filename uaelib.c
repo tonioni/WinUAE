@@ -429,7 +429,6 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
      case 37: return picasso_SetSpritePosition (&context->regs);
      case 38: return picasso_SetSpriteImage (&context->regs);
      case 39: return picasso_SetSpriteColor (&context->regs);
-     case 40: return picasso_DrawLine (&context->regs);
 #endif
      case 68: return emulib_Minimize ();
      case 69: return emulib_ExecuteNativeCode (&context->regs);

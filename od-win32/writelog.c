@@ -144,7 +144,7 @@ void close_console(void)
     consoleopen = 0;
 }
 
-static void writeconsole(char *buffer)
+static void writeconsole(const char *buffer)
 {
     DWORD temp;
     if (!consoleopen)
@@ -155,7 +155,7 @@ static void writeconsole(char *buffer)
 	WriteConsole(stdoutput, buffer, strlen(buffer), &temp,0);
 }
 
-void console_out (const char *format,...)
+void console_out_f (const char *format,...)
 {
     va_list parms;
     char buffer[WRITE_LOG_BUF_SIZE];
@@ -163,8 +163,13 @@ void console_out (const char *format,...)
     va_start (parms, format);
     _vsnprintf (buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
     va_end (parms);
-    openconsole();
-    writeconsole(buffer);
+    openconsole ();
+    writeconsole (buffer);
+}
+void console_out (const char *txt)
+{
+    openconsole ();
+    writeconsole (txt);
 }
 
 int console_get (char *out, int maxlen)

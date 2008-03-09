@@ -1310,6 +1310,22 @@
 				>
 			</File>
 			<File
+				RelativePath="..\hq3x16.obj"
+				>
+			</File>
+			<File
+				RelativePath="..\hq3x32.obj"
+				>
+			</File>
+			<File
+				RelativePath="..\hq4x16.obj"
+				>
+			</File>
+			<File
+				RelativePath="..\hq4x32.obj"
+				>
+			</File>
+			<File
 				RelativePath="..\ioport.c"
 				>
 			</File>

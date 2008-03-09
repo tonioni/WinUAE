@@ -205,7 +205,37 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int a
 	p96_rgbx16[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
     }
 }
-    
+
+void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
+		       uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
+{
+    int bpp = rw + gw + bw + aw;
+    int i;
+    for(i = 0; i < 256; i++) {
+	int j = i + 256;
+	rc[i] = doColor (gamma[j], rw, rs) | doAlpha (alpha, aw, as);
+	gc[i] = doColor (gamma[j], gw, gs) | doAlpha (alpha, aw, as);
+	bc[i] = doColor (gamma[j], bw, bs) | doAlpha (alpha, aw, as);
+	if (byte_swap) {
+	    if (bpp <= 16) {
+		rc[i] = bswap_16 (rc[i]);
+		gc[i] = bswap_16 (gc[i]);
+		bc[i] = bswap_16 (bc[i]);
+	    } else {
+		rc[i] = bswap_32 (rc[i]);
+		gc[i] = bswap_32 (gc[i]);
+		bc[i] = bswap_32 (bc[i]);
+	    }
+	}
+	if (bpp <= 16) {
+	    /* Fill upper 16 bits of each colour value with
+	     * a copy of the colour. */
+	    rc[i] = rc[i] * 0x00010001;
+	    gc[i] = gc[i] * 0x00010001;
+	    bc[i] = bc[i] * 0x00010001;
+	}
+    }
+}
 
 void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
 {
@@ -235,31 +265,7 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	}
     }
 #if defined(AGA) || defined(GFXFILTER)
-    /* create AGA color tables */
-    for(i = 0; i < 256; i++) {
-	j = i + 256;
-	xredcolors[i] = doColor (gamma[j], rw, rs) | doAlpha (alpha, aw, as);
-	xgreencolors[i] = doColor (gamma[j], gw, gs) | doAlpha (alpha, aw, as);
-	xbluecolors[i] = doColor (gamma[j], bw, bs) | doAlpha (alpha, aw, as);
-	if (byte_swap) {
-	    if (bpp <= 16) {
-		xredcolors  [i] = bswap_16 (xredcolors[i]);
-		xgreencolors[i] = bswap_16 (xgreencolors[i]);
-		xbluecolors [i] = bswap_16 (xbluecolors[i]);
-	    } else {
-		xredcolors  [i] = bswap_32 (xredcolors[i]);
-		xgreencolors[i] = bswap_32 (xgreencolors[i]);
-		xbluecolors [i] = bswap_32 (xbluecolors[i]);
-	    }
-	}
-	if (bpp <= 16) {
-	    /* Fill upper 16 bits of each colour value with
-	     * a copy of the colour. */
-	    xredcolors  [i] = xredcolors  [i] * 0x00010001;
-	    xgreencolors[i] = xgreencolors[i] * 0x00010001;
-	    xbluecolors [i] = xbluecolors [i] * 0x00010001;
-	}
-    }
+    alloc_colors_rgb (rw, gw, bw, rs, gs, bs, aw, as, alpha, byte_swap, xredcolors, xgreencolors, xbluecolors);
     /* copy original color table */
     for (i = 0; i < 256; i++) {
 	redc[0 * 256 + i] = xredcolors[0];

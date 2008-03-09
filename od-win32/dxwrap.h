@@ -169,6 +169,7 @@ int DirectDraw_Flip (int wait);
 int DirectDraw_BlitToPrimary (RECT *rect);
 void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
 void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
+void DirectDraw_Fill (RECT *rect, uae_u32 color);
 
 HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palette);
 HRESULT DirectDraw_SetPalette (int remove);

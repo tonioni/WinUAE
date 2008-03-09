@@ -866,7 +866,7 @@ static void exception_debug (int nr)
 #ifdef DEBUGGER
     if (!exception_debugging)
 	return;
-    console_out ("Exception %d, PC=%08.8X\n", nr, m68k_getpc (&regs));
+    console_out_f ("Exception %d, PC=%08.8X\n", nr, m68k_getpc (&regs));
 #endif
 }
 

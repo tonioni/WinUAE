@@ -321,7 +321,6 @@ static int openfail (uaecptr ioreq, int error)
     return (uae_u32)-1;
 }
 
-/* AARGHHH!! */
 static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx);
 static int irq_init;
 static int initint (TrapContext *ctx)

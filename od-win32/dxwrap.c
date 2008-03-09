@@ -564,6 +564,8 @@ static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRA
     HRESULT ddrval;
     if (dst == NULL)
 	dst = getlocksurface ();
+    if (src == NULL)
+	src = getlocksurface ();
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (dst);
@@ -586,6 +588,28 @@ void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWS
     DirectDraw_Blt (dst, dstrect, src, scrrect);
 }
 
+void DirectDraw_Fill (RECT *rect, uae_u32 color)
+{
+    HRESULT ddrval;
+    DDBLTFX ddbltfx;
+    LPDIRECTDRAWSURFACE7 dst;
+
+    memset (&ddbltfx, 0, sizeof (ddbltfx));
+    ddbltfx.dwFillColor = color;
+    ddbltfx.dwSize = sizeof (ddbltfx);
+    dst = getlocksurface ();
+    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, rect, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
+	if (ddrval == DDERR_SURFACELOST) {
+	    ddrval = restoresurface (dst);
+	    if (FAILED (ddrval))
+		break;
+	} else if (ddrval != DDERR_SURFACEBUSY) {
+	    write_log ("DirectDraw_Fill: %s\n", DXError (ddrval));
+	    break;
+	}
+    }
+
+}
 
 extern int vblank_skip;
 static void flip (void)

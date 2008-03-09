@@ -231,12 +231,12 @@ void SERDAT (uae_u16 w)
 #endif
 
     if (seriallog)
-	console_out("%c", dochar (w));
+	console_out_f ("%c", dochar (w));
 
     if (serper == 372) {
 	extern int enforcermode;
 	if (enforcermode & 2) {
-	    console_out ("%c", dochar (w));
+	    console_out_f ("%c", dochar (w));
 	    if (w == 266)
 		console_out("\n");
 	}

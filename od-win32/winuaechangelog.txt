@@ -1,4 +1,39 @@
 
+Beta 7:
+
+NOTE: _DO_ use filters (except OGL/D3D). Vsync still broken.
+
+- Gayle and Gary CIA select lines work slightly differently, Gayle
+  does not select any CIAs if both CIA select bits are zero (address
+  bits 12 and 13). Gary enables both. Gary-style selection was
+  emulated long time ago, Gayle-style emulated now. (I think 'select
+  both CIAs' was only used by some games accidentally and perhaps
+  also used by some copy protections)
+- car color flickering in hires mode super skid marks (ancient bug)
+- real PCMCIA SRAM card detection really works now
+- uaegfx.card updated, now works even if "UAE boot rom" is not in
+  "standard" 0xf00000 location (=CDTV ROM enabled) or disabled.
+  Previos version simply crashed.
+- uae boot rom backup location moved from 0xe70000 to 0xef0000
+  (0xe70000 can conflict with KS mirror)
+- jit memory allocation update, should prevent random RTG memory
+  allocation failures
+- Picasso96 emulation updates and tweaks
+- CPU panel "After RTG" radiobutton removed, not needed anymore
+- big filter rewrite (NOTE: OpenGL/Direct3D not yet updated)
+  Settings needs to be readjusted
+  + works more intuitively now
+  + scaling does not affect centering anymore.
+  + position setting (0,0) = centered.
+  + 1/2x scaling factor added
+  + "FS" scaling factor added = full screen scaling (obsoletes short
+  lived "full screen filter" setting)
+  + user scaling factor (FS,1/2x,1x,2x..) never include filter's
+  possible internal scaling
+  + hq3x and hq4x added
+  + onscreen leds are now rendered after filter calculations
+  + (some kind of "keep aspect ratio" option needed?)
+
 Beta 6:
 
 NOTE: Do not use filters, do not use vsync.

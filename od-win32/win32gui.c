@@ -287,15 +287,35 @@ static void writefavoritepaths (int num, char **values, char **paths)
 
 
 static int askinputcustom(HWND hDlg, char *custom, int maxlen);
-static void addfavoritepath (HWND hDlg, const char *path, int num, char **values, char **paths)
+static void addfavoritepath (HWND hDlg, int num, char **values, char **paths)
 {
     char name[MAX_DPATH];
     if (num >= MAXFAVORITES)
 	return;
-    strcpy (name, path);
+    if (!stored_path[0])
+        GetModuleFileName(NULL, stored_path, MAX_DPATH);
+    while (stored_path[0]) {
+	DWORD v = GetFileAttributes (stored_path);
+	char *s;
+	if (v == INVALID_FILE_ATTRIBUTES)
+	    break;
+	if (v & FILE_ATTRIBUTE_DIRECTORY)
+	    break;
+	s = strrchr (stored_path, '\\');
+	if (!s)
+	    s = strrchr (stored_path, '/');
+	if (!s) {
+	    stored_path[0] = 0;
+	    break;
+	}
+	s[0] = 0;
+    }
+    if (!askinputcustom (hDlg, stored_path, sizeof stored_path))
+	return;
+    strcpy (name, stored_path);
     if (askinputcustom (hDlg, name, sizeof name)) {
 	values[num] = my_strdup (name);
-	paths[num] = my_strdup (path);
+	paths[num] = my_strdup (stored_path);
 	num++;
 	writefavoritepaths (num, values, paths);
     }
@@ -329,33 +349,13 @@ static void addeditmenu (HMENU menu, char **items)
     mii.fState = MFS_ENABLED;
     InsertMenuItem (menu, -1, TRUE, &mii);
 
-    if (!stored_path[0])
-        GetModuleFileName(NULL, stored_path, MAX_DPATH);
-    while (stored_path[0]) {
-	DWORD v = GetFileAttributes (stored_path);
-	char *s;
-	if (v == INVALID_FILE_ATTRIBUTES)
-	    break;
-	if (v & FILE_ATTRIBUTE_DIRECTORY)
-	    break;
-	s = strrchr (stored_path, '\\');
-	if (!s)
-	    s = strrchr (stored_path, '/');
-	if (!s) {
-	    stored_path[0] = 0;
-	    break;
-	}
-	s[0] = 0;
-    }
     mii.fMask = MIIM_STRING | MIIM_ID;
     mii.fType = MFT_STRING;
     mii.fState = MFS_ENABLED;
-    sprintf (newpath, "Add '%s'", stored_path);
-    mii.dwTypeData = newpath;
+    mii.dwTypeData = "Add New";
     mii.cch = strlen (mii.dwTypeData);
     mii.wID = 1000;
-    if (stored_path[0])
-	InsertMenuItem (emenu, -1, TRUE, &mii);
+    InsertMenuItem (emenu, -1, TRUE, &mii);
     i = 0;
     while (items[i]) {
 	mii.fMask = MIIM_STRING | MIIM_ID;
@@ -472,8 +472,7 @@ static char *favoritepopup (HWND hwnd)
 	if (ret <= idx)
 	    break;
 	if (ret == 1000) {
-	    if (stored_path[0])
-		addfavoritepath (hwnd, stored_path, idx, values, paths);
+	    addfavoritepath (hwnd, idx, values, paths);
 	} else if (ret > 1000) {
 	    removefavoritepath (ret - 1001, idx, values, paths);
 	}
@@ -2311,6 +2310,7 @@ void InitializeListView (HWND hDlg)
 	    struct uaedev_config_info *uci = &workprefs.mountconfig[i];
 	    int nosize = 0, type;
 	    struct mountedinfo mi;
+	    char *rootdir = uci->rootdir;
 
 	    type = get_filesys_unitconfig (&workprefs, i, &mi);
 	    if (type < 0) {
@@ -2322,6 +2322,8 @@ void InitializeListView (HWND hDlg)
 		strcpy (size_str, "n/a");
 	    else if (mi.size >= 1024 * 1024 * 1024)
 		sprintf (size_str, "%.1fG", ((double)(uae_u32)(mi.size / (1024 * 1024))) / 1024.0);
+	    else if (mi.size < 10 * 1024 * 1024)
+		sprintf (size_str, "%dK", mi.size / 1024);
 	    else
 		sprintf (size_str, "%.1fM", ((double)(uae_u32)(mi.size / (1024))) / 1024.0);
 
@@ -2350,6 +2352,8 @@ void InitializeListView (HWND hDlg)
 		strcpy (devname_str, "n/a");
 		strcpy (volname_str, "n/a");
 		strcpy (bootpri_str, "n/a");
+		if (!memcmp (rootdir, "HD_", 3))
+		    rootdir += 3;
 	    } else {
 		strcpy (blocksize_str, "n/a");
 		strcpy (devname_str, uci->devname);
@@ -2386,8 +2390,8 @@ void InitializeListView (HWND hDlg)
 		    listview_column_width[2] = width;
 
 		listview_column_width [3] = 150;
-		ListView_SetItemText(list, result, 3, uci->rootdir);
-		width = ListView_GetStringWidth(list, uci->rootdir) + 10;
+		ListView_SetItemText(list, result, 3, rootdir);
+		width = ListView_GetStringWidth(list, rootdir) + 10;
 		if(width > listview_column_width[3])
 		    listview_column_width[3] = width;
 
@@ -5615,7 +5619,7 @@ static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 static int cpu_ids[]   = { IDC_CPU0, IDC_CPU1, IDC_CPU2, IDC_CPU3, IDC_CPU4, IDC_CPU5 };
 static int fpu_ids[]   = { IDC_FPU0, IDC_FPU1, IDC_FPU2, IDC_FPU3 };
-static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST2 };
+static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
 
 static void enable_for_cpudlg (HWND hDlg)
 {
@@ -5652,7 +5656,6 @@ static void enable_for_cpudlg (HWND hDlg)
 
     ew (hDlg, IDC_TRUST0, enable2);
     ew (hDlg, IDC_TRUST1, enable2);
-    ew (hDlg, IDC_TRUST2, enable2);
     ew (hDlg, IDC_HARDFLUSH, enable2);
     ew (hDlg, IDC_CONSTJUMP, enable2);
     ew (hDlg, IDC_JITFPU, enable2);
@@ -5740,7 +5743,7 @@ static void values_to_cpudlg (HWND hDlg)
 	workprefs.comptrustnaddr= 0;
     }
 
-    CheckRadioButton(hDlg, IDC_TRUST0, IDC_TRUST2, trust_ids[workprefs.comptrustbyte]);
+    CheckRadioButton(hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
 
     SendDlgItemMessage(hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
     sprintf(cache, "%d MB", workprefs.cachesize / 1024 );
@@ -8957,8 +8960,8 @@ static void makefilter(char *s, int x, int flags)
 	strcat (s, " (32bit)");
 }
 
-static char *filtermultnames[] = { "1x", "2x", "4x", "6x", "8x", NULL };
-static int filtermults[] = { 1000, 500, 250, 167, 125 };
+static char *filtermultnames[] = { "FS", "1/2x", "1x", "2x", "4x", "6x", "8x", NULL };
+static int filtermults[] = { 0, 2000, 1000, 500, 250, 167, 125 };
 struct filterxtra {
     char *label;
     int *varw, *varc;

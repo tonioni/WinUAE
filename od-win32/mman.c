@@ -123,7 +123,7 @@ static int testwritewatch (void)
 end:
     if (mem) {
 	VirtualFree (mem, TEST_SIZE, MEM_DECOMMIT);
-	VirtualFree (mem, TEST_SIZE, MEM_RELEASE);
+	VirtualFree (mem, 0, MEM_RELEASE);
     }
     return ret;
 }
@@ -229,7 +229,7 @@ int init_shm (void)
 {
     int i;
     LPVOID blah = NULL;
-    uae_u32 size, totalsize, z3size, natmemsize;
+    uae_u32 size, totalsize, z3size, natmemsize, rtgbarrier, rtgextra;
 
     if (natmem_offset)
 	VirtualFree(natmem_offset, 0, MEM_RELEASE);
@@ -238,12 +238,16 @@ int init_shm (void)
 
     z3size = 0;
     size = 0x1000000;
+    rtgextra = 0;
+    rtgbarrier = si.dwPageSize;
     if (currprefs.cpu_model >= 68020)
 	size = 0x10000000;
     if (currprefs.z3fastmem_size) {
 	z3size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
 	if (currprefs.gfxmem_size)
-	    size += 16 * 1024 * 1024;
+	    rtgbarrier = 16 * 1024 * 1024;
+    } else {
+	rtgbarrier = 0;
     }
 
     totalsize = size + z3size + currprefs.gfxmem_size;
@@ -263,20 +267,24 @@ int init_shm (void)
 	shmids[i].name[0] = 0;
     }
     natmemsize = size + z3size;
-    if (!currprefs.gfxmem_size) {
-	natmemsize += si.dwPageSize;
-    } else {
-	xfree (memwatchtable);
-	memwatchtable = 0;
+    xfree (memwatchtable);
+    memwatchtable = 0;
+    if (currprefs.gfxmem_size) {
 	if (!memwatchok) {
 	    write_log ("GetWriteWatch() not supported, using guard pages, performance will be slower.\n");
 	    memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
 	}
     }
-
+restart:
     for (;;) {
 	int change;
-	blah = VirtualAlloc (NULL, natmemsize, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (currprefs.gfxmem_size) {
+	    rtgextra = si.dwPageSize;
+	} else {
+	    rtgbarrier = 0;
+	    rtgextra = 0;
+	}
+	blah = VirtualAlloc (NULL, natmemsize + rtgbarrier + currprefs.gfxmem_size + rtgextra + 16 * si.dwPageSize, MEM_RESERVE, PAGE_READWRITE);
 	if (blah)
 	    break;
 	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", natmemsize >> 20, GetLastError ());
@@ -288,10 +296,18 @@ int init_shm (void)
 	}
     }
     natmem_offset = blah;
-    if (currprefs.gfxmem_size) {
-	p96mem_size = currprefs.gfxmem_size + si.dwPageSize;
-	p96mem_offset = VirtualAlloc (natmem_offset + size + z3size, p96mem_size,
-	    MEM_RESERVE | (memwatchok ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+    p96mem_size = currprefs.gfxmem_size;
+    if (p96mem_size) {
+	VirtualFree (natmem_offset, 0, MEM_RELEASE);
+	if (!VirtualAlloc (natmem_offset, natmemsize + rtgbarrier, MEM_RESERVE, PAGE_READWRITE)) {
+	    write_log ("VirtualAlloc() part 2 error %d. RTG disabled.\n", GetLastError ());
+	    currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
+	    rtgbarrier = si.dwPageSize;
+	    rtgextra = 0;
+	    goto restart;
+	}
+        p96mem_offset = VirtualAlloc (natmem_offset + natmemsize + rtgbarrier, p96mem_size + rtgextra,
+	    MEM_RESERVE | (memwatchok == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
 	if (!p96mem_offset) {
 	    currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
 	    write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM, err=%d\n", GetLastError ());
@@ -416,7 +432,6 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	if(!strcmp(shmids[shmid].name,"rtarea")) {
 	    shmaddr=natmem_offset + rtarea_base;
 	    got = TRUE;
-	    size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"fast")) {
 	    shmaddr=natmem_offset + 0x200000;

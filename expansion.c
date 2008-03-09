@@ -27,6 +27,9 @@
 #include "ncr_scsi.h"
 #include "debug.h"
 
+#define RTAREA_DEFAULT 0xf00000
+#define RTAREA_BACKUP  0xef0000
+
 #define MAX_EXPANSION_BOARDS 8
 
 /* ********************************************************** */
@@ -1089,15 +1092,15 @@ static void allocate_expamem (void)
 static uaecptr check_boot_rom (void)
 {
     int i;
-    uaecptr b = 0xf00000;
+    uaecptr b = RTAREA_DEFAULT;
     addrbank *ab;
 
     if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi)
-	b = 0xe70000;
-    ab = &get_mem_bank (0xf00000);
+	b = RTAREA_BACKUP;
+    ab = &get_mem_bank (RTAREA_DEFAULT);
     if (ab) {
-	if (valid_address (0xf00000, 65536))
-	    b = 0xe70000;
+	if (valid_address (RTAREA_DEFAULT, 65536))
+	    b = RTAREA_BACKUP;
     }
     for (i = 0; i < currprefs.mountitems; i++) {
 	struct uaedev_config_info *uci = &currprefs.mountconfig[i];

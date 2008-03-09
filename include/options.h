@@ -199,6 +199,7 @@ struct uae_prefs {
     int cpu_cycle_exact;
     int blitter_cycle_exact;
     int floppy_speed;
+    int floppy_write_length;
     int tod_hack;
     uae_u32 maprom;
 

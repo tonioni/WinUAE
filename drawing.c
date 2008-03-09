@@ -49,6 +49,7 @@
 #include "jit/compemu.h"
 #endif
 #include "savestate.h"
+#include "statusline.h"
 
 extern int sprite_buffer_res;
 
@@ -2134,26 +2135,6 @@ static void init_drawing_frame (void)
  * Some code to put status information on the screen.
  */
 
-#define TD_PADX 10
-#define TD_PADY 2
-#define TD_WIDTH 32
-#define TD_LED_WIDTH 24
-#define TD_LED_HEIGHT 4
-
-#define TD_RIGHT 1
-#define TD_BOTTOM 2
-
-static int td_pos = (TD_RIGHT|TD_BOTTOM);
-
-#define TD_NUM_WIDTH 7
-#define TD_NUM_HEIGHT 7
-
-#define TD_TOTAL_HEIGHT (TD_PADY * 2 + TD_NUM_HEIGHT)
-
-#define NUMBERS_NUM 16
-
-#define TD_BORDER 0x333
-
 static const char *numbers = { /* ugly  0123456789CHD%+- */
 "+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+--------------"
 "+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x---+----------"
@@ -2164,18 +2145,18 @@ static const char *numbers = { /* ugly  0123456789CHD%+- */
 "+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------"
 };
 
-STATIC_INLINE void putpixel (int x, xcolnr c8)
+STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 {
     if (x <= 0)
 	return;
 
-    switch (gfxvidinfo.pixbytes) {
+    switch (bpp) {
     case 1:
-	xlinebuffer[x] = (uae_u8)c8;
+	buf[x] = (uae_u8)c8;
 	break;
     case 2:
     {
-	uae_u16 *p = (uae_u16 *)xlinebuffer + x;
+	uae_u16 *p = (uae_u16 *)buf + x;
 	*p = (uae_u16)c8;
 	break;
     }
@@ -2184,14 +2165,19 @@ STATIC_INLINE void putpixel (int x, xcolnr c8)
 	break;
     case 4:
     {
-	uae_u32 *p = (uae_u32 *)xlinebuffer + x;
+	uae_u32 *p = (uae_u32 *)buf + x;
 	*p = c8;
 	break;
     }
     }
 }
 
-static void write_tdnumber (int x, int y, int num)
+STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
+{
+    return rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
+}
+
+static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32 c1, uae_u32 c2)
 {
     int j;
     const char *numptr;
@@ -2199,71 +2185,73 @@ static void write_tdnumber (int x, int y, int num)
     numptr = numbers + num * TD_NUM_WIDTH + NUMBERS_NUM * TD_NUM_WIDTH * y;
     for (j = 0; j < TD_NUM_WIDTH; j++) {
 	if (*numptr == 'x')
-	    putpixel (x + j, xcolors[0xfff]);
+	    putpixel (buf, bpp, x + j, c1);
 	else if (*numptr == '+')
-	    putpixel (x + j, xcolors[0x000]);
+	    putpixel (buf, bpp, x + j, c2);
 	numptr++;
     }
 }
 
-static void draw_status_line (int line)
+void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
 {
-    int x_start, y, j, led;
+    int x_start, j, led;
+    uae_u32 c1, c2, cb;
+
+    c1 = ledcolor (0xffffff, rc, gc, bc);
+    c2 = ledcolor (0x000000, rc, gc, bc);
+    cb = ledcolor (TD_BORDER, rc, gc, bc);
 
     if (td_pos & TD_RIGHT)
-	x_start = gfxvidinfo.width - TD_PADX - NUM_LEDS * TD_WIDTH;
+	x_start = totalwidth - TD_PADX - NUM_LEDS * TD_WIDTH;
     else
 	x_start = TD_PADX;
 
-    y = line - (gfxvidinfo.height - TD_TOTAL_HEIGHT);
-    xlinebuffer = gfxvidinfo.linemem;
-    if (xlinebuffer == 0)
-	xlinebuffer = row_map[line];
-
     for (led = 0; led < NUM_LEDS; led++) {
 	int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
-	int x, off_rgb, on_rgb, c, on = 0, am = 2;
+	int x, c, on = 0, am = 2;
+	xcolnr on_rgb, off_rgb;
+
 	if (led >= 1 && led <= 4) {
 	    int pled = led - 1;
 	    int track = gui_data.drive_track[pled];
 	    pos = 6 + pled;
-	    on_rgb = 0x0c0;
-	    off_rgb = 0x030;
+	    on_rgb = 0x00cc00;
+	    off_rgb = 0x003300;
 	    if (!gui_data.drive_disabled[pled]) {
 		num1 = -1;
 		num2 = track / 10;
 		num3 = track % 10;
 		on = gui_data.drive_motor[pled];
 		if (gui_data.drive_writing[pled])
-		    on_rgb = 0xc00;
+		    on_rgb = 0xcc0000;
 	    }
 	    side = gui_data.drive_side;
 	} else if (led == 0) {
 	    pos = 3;
 	    on = gui_data.powerled;
-	    on_rgb = 0xc00;
-	    off_rgb = 0x300;
+	    on_rgb = 0xcc0000;
+	    off_rgb = 0x330000;
 	} else if (led == 5) {
 	    pos = 5;
 	    on = gui_data.cd;
-	    on_rgb = 0x00c;
-	    off_rgb = 0x003;
+	    on_rgb = 0x0000cc;
+	    off_rgb = 0x000033;
 	    num1 = -1;
 	    num2 = 10;
 	    num3 = 12;
 	} else if (led == 6) {
 	    pos = 4;
 	    on = gui_data.hd;
-	    on_rgb = on == 2 ? 0xc00 : 0x00c;
-	    off_rgb = 0x003;
+	    on_rgb = on == 2 ? 0xcc0000 : 0x0000cc;
+	    off_rgb = 0x000033;
 	    num1 = -1;
 	    num2 = 11;
 	    num3 = 12;
 	} else if (led == 7) {
 	    int fps = (gui_data.fps + 5) / 10;
 	    pos = 2;
-	    on_rgb = 0x000;
-	    off_rgb = 0x000;
+	    on_rgb = 0x000000;
+	    off_rgb = 0x000000;
 	    num1 = fps / 100;
 	    num2 = (fps - num1 * 100) / 10;
 	    num3 = fps % 10;
@@ -2274,8 +2262,8 @@ static void draw_status_line (int line)
 	    int idle = (gui_data.idle + 5) / 10;
 	    pos = 1;
 	    on = framecnt;
-	    on_rgb = 0xc00;
-	    off_rgb = 0x000;
+	    on_rgb = 0xcc0000;
+	    off_rgb = 0x000000;
 	    num1 = idle / 100;
 	    num2 = (idle - num1 * 100) / 10;
 	    num3 = idle % 10;
@@ -2292,42 +2280,58 @@ static void draw_status_line (int line)
 		num2 = snd / 10;
 		num3 = snd % 10;
 	    }
-	    on_rgb = 0x000;
+	    on_rgb = 0x000000;
 	    if (on < 0)
-		on_rgb = 0xcc0; // underflow
+		on_rgb = 0xcccc00; // underflow
 	    else if (on == 2)
-		on_rgb = 0xc00; // really big overflow
+		on_rgb = 0xcc0000; // really big overflow
 	    else if (on == 1)
-		on_rgb = 0x00c; // "normal" overflow
-	    off_rgb = 0x000;
+		on_rgb = 0x0000cc; // "normal" overflow
+	    off_rgb = 0x000000;
 	    am = 3;
 	}
-	c = xcolors[on ? on_rgb : off_rgb];
+	c = ledcolor (on ? on_rgb : off_rgb, rc, gc, bc);
 	if (y == 0 || y == TD_TOTAL_HEIGHT - 1)
-	    c = xcolors[TD_BORDER];
+	    c = ledcolor (TD_BORDER, rc, gc, bc);
 
 	x = x_start + pos * TD_WIDTH;
-	putpixel (x - 1, xcolors[TD_BORDER]);
+	putpixel (buf, bpp, x - 1, cb);
 	for (j = 0; j < TD_LED_WIDTH; j++)
-	    putpixel (x + j, c);
-	putpixel (x + j, xcolors[TD_BORDER]);
+	    putpixel (buf, bpp, x + j, c);
+	putpixel (buf, bpp, x + j, cb);
 
 	if (y >= TD_PADY && y - TD_PADY < TD_NUM_HEIGHT) {
 	    if (num3 >= 0) {
 		x += (TD_LED_WIDTH - am * TD_NUM_WIDTH) / 2;
 		if (num1 > 0) {
-		    write_tdnumber (x, y - TD_PADY, num1);
+		    write_tdnumber (buf, bpp, x, y - TD_PADY, num1, c1, c2);
 		    x += TD_NUM_WIDTH;
 		}
-		write_tdnumber (x, y - TD_PADY, num2);
+		write_tdnumber (buf, bpp, x, y - TD_PADY, num2, c1, c2);
 		x += TD_NUM_WIDTH;
-		write_tdnumber (x, y - TD_PADY, num3);
+		write_tdnumber (buf, bpp, x, y - TD_PADY, num3, c1, c2);
 		x += TD_NUM_WIDTH;
 		if (num4 > 0)
-		    write_tdnumber (x, y - TD_PADY, num4);
+		    write_tdnumber (buf, bpp, x, y - TD_PADY, num4, c1, c2);
 	    }
 	}
     }
+}
+
+static void draw_status_line (int line)
+{
+    int bpp, y;
+    uae_u8 *buf;
+
+    if (currprefs.leds_on_screen != STATUSLINE_BUILTIN)
+	return;
+    bpp = gfxvidinfo.pixbytes;
+    y = line - (gfxvidinfo.height - TD_TOTAL_HEIGHT);
+    xlinebuffer = gfxvidinfo.linemem;
+    if (xlinebuffer == 0)
+	xlinebuffer = row_map[line];
+    buf = xlinebuffer;
+    draw_status_line_single (buf, bpp, y, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -2363,7 +2367,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
     for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 	int xx = x + i - LIGHTPEN_WIDTH / 2;
 	if (*p != '-' && xx >= 0 && xx < gfxvidinfo.width)
-	    putpixel(xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
+	    putpixel(xlinebuffer, gfxvidinfo.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
 	p++;
     }
 }

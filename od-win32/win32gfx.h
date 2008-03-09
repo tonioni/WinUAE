@@ -34,8 +34,8 @@ extern void close_windows (void);
 extern void updatewinfsmode (struct uae_prefs *p);
 extern int is3dmode (void);
 
-int DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
-int DX_Blit (int x, int y, int w, int h);
+void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
+void DX_Blit (int x, int y, int w, int h);
 void centerdstrect (RECT *, RECT *);
 
 

@@ -1930,8 +1930,8 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
 
-    /* Try to coalesce entries if they aren't too far apart.  */
-    if (! next_sprite_forced && e[-1].max + 16 >= sprxp) {
+    /* Try to coalesce entries if they aren't too far apart, except AGA due to AGA sprite color selection.  */
+    if (! next_sprite_forced && e[-1].max + 16 >= sprxp && !(currprefs.chipset_mask & CSMASK_AGA)) {
 	e--;
     } else {
 	next_sprite_entry++;
@@ -3359,7 +3359,7 @@ void dump_aga_custom (void)
 	rgb2 = current_colors.color_regs_aga[c2] | (color_regs_aga_genlock[c2] << 31);
 	rgb3 = current_colors.color_regs_aga[c3] | (color_regs_aga_genlock[c3] << 31);
 	rgb4 = current_colors.color_regs_aga[c4] | (color_regs_aga_genlock[c4] << 31);
-	console_out("%3d %08.8X %3d %08.8X %3d %08.8X %3d %08.8X\n",
+	console_out_f ("%3d %08.8X %3d %08.8X %3d %08.8X %3d %08.8X\n",
 	    c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
     }
 }
@@ -4854,17 +4854,17 @@ void customreset (int hardreset)
 
 void dumpcustom (void)
 {
-    console_out ("DMACON: %x INTENA: %x INTREQ: %x VPOS: %x HPOS: %x\n", DMACONR(),
+    console_out_f ("DMACON: %x INTENA: %x INTREQ: %x VPOS: %x HPOS: %x\n", DMACONR(),
 	    (unsigned int)intena, (unsigned int)intreq, (unsigned int)vpos, (unsigned int)current_hpos());
-    console_out ("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
-    console_out ("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
+    console_out_f ("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
+    console_out_f ("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
 	    (unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
-    console_out ("BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
+    console_out_f ("BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
     if (timeframes) {
-	console_out ("Average frame time: %.2f ms [frames: %d time: %d]\n",
+	console_out_f ("Average frame time: %.2f ms [frames: %d time: %d]\n",
 		    (double)frametime / timeframes, timeframes, frametime);
 	if (total_skipped)
-	    console_out ("Skipped frames: %d\n", total_skipped);
+	    console_out_f ("Skipped frames: %d\n", total_skipped);
     }
 }
 

@@ -1351,7 +1351,7 @@ static void checkflush (int addr)
     if (pcmcia_card == 0 || pcmcia_sram == 0)
 	return;
     if (pcmcia_write_min >= 0) {
-	if (addr < 0 || abs (pcmcia_write_min - addr) > 60000 || abs (pcmcia_write_max - addr) > 60000) {
+	if (addr < 0 || abs (pcmcia_write_min - addr) >= 512 || abs (pcmcia_write_max - addr) >= 512) {
 	    int blocksize = pcmcia_sram->hfd.blocksize;
 	    int mask = ~(blocksize - 1);
 	    int start = pcmcia_write_min & mask;
@@ -1418,6 +1418,7 @@ static int initpcmcia (const char *path, int readonly, int reset)
     pcmcia_attrs = xcalloc (pcmcia_attrs_size, 1);
     if (!pcmcia_sram->hfd.drive_empty) {
 	pcmcia_common_size = pcmcia_sram->hfd.size;
+	pcmcia_common_size = 16384;
 	if (pcmcia_sram->hfd.size > 4 * 1024 * 1024) {
 	    write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->hfd.size);
 	    pcmcia_common_size = 4 * 1024 * 1024;

@@ -169,16 +169,6 @@ uae_u16 picasso96_pixel_format = RGBFF_CHUNKY;
 static char scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
 
-static COLORREF BuildColorRef(uae_u32 color)
-{
-    COLORREF result;
-    if(DirectDraw_GetCurrentDepth () <= 8)
-	result = color;
-    else
-	result = color;
-    return result;
-}
-
 void centerdstrect (RECT *dr, RECT *sr)
 {
     if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_W_FULLSCREEN)))
@@ -203,16 +193,11 @@ void centerdstrect (RECT *dr, RECT *sr)
 }
 
 
-int DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
+void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
 {
     int result = 0;
     RECT dstrect;
     RECT srcrect;
-    DDBLTFX ddbltfx;
-
-    memset (&ddbltfx, 0, sizeof (ddbltfx));
-    ddbltfx.dwFillColor = BuildColorRef (color);
-    ddbltfx.dwSize = sizeof (ddbltfx);
 
     /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
      * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
@@ -221,34 +206,15 @@ int DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
     /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
     SetRect (&dstrect, dstx, dsty, dstx + width, dsty + height);
     centerdstrect (&dstrect, &srcrect);
-#if 0
-    /* Render our fill to the visible (primary) surface */
-    hr = DirectDraw_Blt(primary_surface, &dstrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
-    if(SUCCEEDED(hr)) {
-	result = 1;
-	if(DirectDraw_GetLockableType() == secondary_surface) {
-	    /* We've colour-filled the visible, but still need to colour-fill the offscreen */
-	    hr = DirectDraw_Blt(secondary_surface, &srcrect, invalid_surface, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
-	    if (FAILED(hr)) {
-		write_log ("DX_Fill2(%dx%d %d%d): %s\n", dstx, dsty, width, height, DXError(hr));
-		result = 0;
-	    }
-
-	}
-    } else {
-	write_log ("DX_Fill(%dx%d %d%d): %s\n", dstx, dsty, width, height, DXError(hr));
-    }
-#endif
-    return result;
+    DirectDraw_Fill (&dstrect, color);
 }
 
-int DX_Blit (int x, int y, int w, int h)
+void DX_Blit (int x, int y, int w, int h)
 {
     RECT r;
 
     SetRect (&r, x, y, x + w, y + h);
     DirectDraw_BlitToPrimary (&r);
-    return 1;
 }
 
 static int rgbformat_bits (RGBFTYPE t)
@@ -1771,7 +1737,8 @@ static BOOL doInit (void)
 		    } else {
 			int j = 0, i = currprefs.gfx_filter_filtermode;
 			while (i >= 0) {
-			    while (!usedfilter->x[j]) j++;
+			    while (!usedfilter->x[j])
+				j++;
 			    if(i-- > 0)
 				j++;
 			}

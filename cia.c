@@ -1090,13 +1090,13 @@ void CIA_reset (void)
 
 void dumpcia (void)
 {
-    console_out ("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    console_out_f ("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 		 ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaata, ciaala, ciaatb, ciaalb);
-    console_out ("TOD %06x (%06x) ALARM %06x %c%c\n",
+    console_out_f ("TOD %06x (%06x) ALARM %06x %c%c\n",
 		 ciaatod, ciaatol, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S');
-    console_out ("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
+    console_out_f ("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
 		 ciabcra, ciabcrb, ciaaicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
-    console_out ("TOD %06x (%06x) ALARM %06x %c%c\n",
+    console_out_f ("TOD %06x (%06x) ALARM %06x %c%c\n",
 		 ciabtod, ciabtol, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S');
 }
 
@@ -1118,6 +1118,11 @@ addrbank cia_bank = {
     cia_lgeti, cia_wgeti, ABFLAG_IO
 };
 
+
+STATIC_INLINE isgayle (void)
+{
+    return (currprefs.cs_ide == 1 || currprefs.cs_pcmcia);
+}
 
 /* e-clock is 10 CPU cycles, 6 cycles low, 4 high
  * data transfer happens during 4 high cycles
@@ -1157,22 +1162,23 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
     cia_wait_pre ();
     v = 0xff;
     switch ((addr >> 12) & 3) {
-    case 0:
-	v = (addr & 1) ? ReadCIAA (r) : ReadCIAB (r);
+	case 0:
+	    if (!isgayle ())
+		v = (addr & 1) ? ReadCIAA (r) : ReadCIAB (r);
 	break;
-    case 1:
-	v = (addr & 1) ? 0xff : ReadCIAB (r);
+	case 1:
+	    v = (addr & 1) ? 0xff : ReadCIAB (r);
 	break;
-    case 2:
-	v = (addr & 1) ? ReadCIAA (r) : 0xff;
+	case 2:
+	    v = (addr & 1) ? ReadCIAA (r) : 0xff;
 	break;
-    case 3:
-	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
-	    v = (addr & 1) ? regs.irc : regs.irc >> 8;
-	if (warned > 0) {
-	    write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
-	    warned--;
-	}
+	case 3:
+	    if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
+		v = (addr & 1) ? regs.irc : regs.irc >> 8;
+	    if (warned > 0) {
+		write_log ("cia_bget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
+		warned--;
+	    }
 	break;
     }
     cia_wait_post ();
@@ -1191,24 +1197,24 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
     v = 0xffff;
     switch ((addr >> 12) & 3)
     {
-    case 0:
-	v = (ReadCIAB (r) << 8) | ReadCIAA (r);
+	case 0:
+	    if (!isgayle ())
+		v = (ReadCIAB (r) << 8) | ReadCIAA (r);
 	break;
-    case 1:
-	v = (ReadCIAB (r) << 8) | 0xff;
+	case 1:
+	    v = (ReadCIAB (r) << 8) | 0xff;
 	break;
-    case 2:
-	v = (0xff << 8) | ReadCIAA (r);
+	case 2:
+	    v = (0xff << 8) | ReadCIAA (r);
 	break;
-    case 3:
-	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
-	    v = regs.irc;
-	if (warned > 0) {
-	    write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
-	    warned--;
-	}
+	case 3:
+	    if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
+		v = regs.irc;
+	    if (warned > 0) {
+		write_log ("cia_wget: unknown CIA address %x PC=%x\n", addr, M68K_GETPC);
+		warned--;
+	    }
 	break;
-
     }
     cia_wait_post ();
     return v;
@@ -1246,13 +1252,15 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
     special_mem |= S_WRITE;
 #endif
     cia_wait_pre ();
-    if ((addr & 0x2000) == 0)
-	WriteCIAB (r, value);
-    if ((addr & 0x1000) == 0)
-	WriteCIAA (r, value);
-    if (((addr & 0x3000) == 0x3000) && warned > 0) {
-	write_log ("cia_bput: unknown CIA address %x %x\n", addr, value);
-	warned--;
+    if (!isgayle () || (addr & 0x3000) != 0) {
+	if ((addr & 0x2000) == 0)
+	    WriteCIAB (r, value);
+	if ((addr & 0x1000) == 0)
+	    WriteCIAA (r, value);
+	if (((addr & 0x3000) == 0x3000) && warned > 0) {
+	    write_log ("cia_bput: unknown CIA address %x %x\n", addr, value);
+	    warned--;
+	}
     }
     cia_wait_post ();
 }
@@ -1265,13 +1273,15 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
     special_mem |= S_WRITE;
 #endif
     cia_wait_pre ();
-    if ((addr & 0x2000) == 0)
-	WriteCIAB (r, value >> 8);
-    if ((addr & 0x1000) == 0)
-	WriteCIAA (r, value & 0xff);
-    if (((addr & 0x3000) == 0x3000) && warned > 0) {
-	write_log ("cia_wput: unknown CIA address %x %x\n", addr, value);
-	warned--;
+    if (!isgayle () || (addr & 0x3000) != 0) {
+	if ((addr & 0x2000) == 0)
+	    WriteCIAB (r, value >> 8);
+	if ((addr & 0x1000) == 0)
+	    WriteCIAA (r, value & 0xff);
+	if (((addr & 0x3000) == 0x3000) && warned > 0) {
+	    write_log ("cia_wput: unknown CIA address %x %x\n", addr, value);
+	    warned--;
+	}
     }
     cia_wait_post ();
 }

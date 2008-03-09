@@ -185,7 +185,6 @@ BEGIN
     CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,155,62,10
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,235,141,52,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,155,52,10
-    CONTROL         "After RTG",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,169,52,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,210,73,10
     GROUPBOX        "FPU",IDC_STATIC,6,146,81,80,BS_LEFT
@@ -402,7 +401,8 @@ BEGIN
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,66,117,10
     CONTROL         "bsdsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,15,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,27,120,10
-    CONTROL         "RTG color depth matching [] Do not use color space conversion if possible.",IDC_RTGMATCHDEPTH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,120,10
+    CONTROL         "RTG color depth matching [] Do not use color space conversion if possible.",IDC_RTGMATCHDEPTH,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,120,10
     CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,53,115,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,140,85,94
     COMBOBOX        IDC_KBLED1,22,154,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -688,7 +688,7 @@ BEGIN
     COMBOBOX        IDC_FILTERVZMULT,67,63,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,168,63,10
     COMBOBOX        IDC_FILTERXTRA,105,130,138,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Full screen filter",IDC_FILTERUPSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,153,87,10
+    CONTROL         "Full screen filter",IDC_FILTERUPSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP | NOT WS_VISIBLE,9,153,87,10
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 380, 76
@@ -846,7 +846,7 @@ BEGIN
 END
 
 IDD_DEBUGGER DIALOGEX 0, 0, 454, 368
-STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_OVERLAPPEDWINDOW
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "WinUAE Debugger"
 FONT 8, "Courier New", 0, 0, 0x0
@@ -875,7 +875,7 @@ BEGIN
     LISTBOX         IDC_DBG_MCUSTOM,372,79,81,138,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_MISC,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
     LISTBOX         IDC_DBG_CUSTOM,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
-    CONTROL         "Auto set",IDC_DBG_AUTOSET,"Button",BS_AUTOCHECKBOX | NOT WS_TABSTOP,84,79,50,12
+    CONTROL         "Auto set",IDC_DBG_AUTOSET,"Button",BS_AUTOCHECKBOX,84,79,50,12
     LISTBOX         IDC_DBG_DASM2,1,79,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_MEM2,1,167,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
 END
@@ -996,49 +996,50 @@ BEGIN
     BEGIN
         POPUP "Copy"
         BEGIN
-            MENUITEM "Copy line"                 ID_DBG_COPYLBLINE
-            MENUITEM "Copy all"                  ID_DBG_COPYLB
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
         END
     END
     POPUP "Memory"
     BEGIN
         POPUP "Copy"
         BEGIN
-            MENUITEM "Copy line"                 ID_DBG_COPYLBLINE
-            MENUITEM "Copy all"                  ID_DBG_COPYLB
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
         END
         POPUP "Set top address"
         BEGIN
-            MENUITEM "Set to A0",                ID_DBG_SETTOA0
-            MENUITEM "Set to A1",                ID_DBG_SETTOA1
-            MENUITEM "Set to A2",                ID_DBG_SETTOA2
-            MENUITEM "Set to A3",                ID_DBG_SETTOA3
-            MENUITEM "Set to A4",                ID_DBG_SETTOA4
-            MENUITEM "Set to A5",                ID_DBG_SETTOA5
-            MENUITEM "Set to A6",                ID_DBG_SETTOA6
-            MENUITEM "Set to A7",                ID_DBG_SETTOA7
-            MENUITEM "Enter address",            ID_DBG_ENTERADDR
+            MENUITEM "Set to A0",                   ID_DBG_SETTOA0
+            MENUITEM "Set to A1",                   ID_DBG_SETTOA1
+            MENUITEM "Set to A2",                   ID_DBG_SETTOA2
+            MENUITEM "Set to A3",                   ID_DBG_SETTOA3
+            MENUITEM "Set to A4",                   ID_DBG_SETTOA4
+            MENUITEM "Set to A5",                   ID_DBG_SETTOA5
+            MENUITEM "Set to A6",                   ID_DBG_SETTOA6
+            MENUITEM "Set to A7",                   ID_DBG_SETTOA7
+            MENUITEM "Enter address",               ID_DBG_ENTERADDR
         END
     END
     POPUP "Disassembly"
     BEGIN
         POPUP "Copy"
         BEGIN
-            MENUITEM "Copy line"                 ID_DBG_COPYLBLINE
-            MENUITEM "Copy all"                  ID_DBG_COPYLB
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
         END
         POPUP "Breakpoints"
         BEGIN
-            MENUITEM "Toggle breakpoint"         ID_DBG_TOGGLEBP
-            MENUITEM "Clear all breakpoints"     ID_DBG_DELETEBPS
+            MENUITEM "Toggle breakpoint",           ID_DBG_TOGGLEBP
+            MENUITEM "Clear all breakpoints",       ID_DBG_DELETEBPS
         END
         POPUP "Set top address"
         BEGIN
-            MENUITEM "Set to PC"                 ID_DBG_SETTOPC
-            MENUITEM "Enter address",            ID_DBG_ENTERADDR
+            MENUITEM "Set to PC",                   ID_DBG_SETTOPC
+            MENUITEM "Enter address",               ID_DBG_ENTERADDR
         END
     END
 END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

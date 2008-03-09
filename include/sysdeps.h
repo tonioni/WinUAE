@@ -457,7 +457,8 @@ extern void write_dlog (const char *, ...);
 
 extern void close_console (void);
 extern void reopen_console (void);
-extern void console_out (const char *, ...);
+extern void console_out (const char *);
+extern void console_out_f (const char *, ...);
 extern void console_flush (void);
 extern int console_get (char *, int);
 extern void f_out (void *, const char *, ...);

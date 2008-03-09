@@ -361,27 +361,158 @@ struct Line {
 #define PSSO_BoardInfo_MouseRendered               PSSO_BoardInfo_MouseChunky + 4
 #define PSSO_BoardInfo_MouseSaveBuffer             PSSO_BoardInfo_MouseRendered + 4
 
-struct BoardInfo {
-    uae_u8 *RegisterBase, *MemoryBase, *MemoryIOBase;
-    uae_u32 MemorySize;
-    char *BoardName, VBIName[32];
+#if 0
+struct BoardInfo{
+	UBYTE 			*RegisterBase, *MemoryBase, *MemoryIOBase;
+	ULONG			MemorySize;
+	char			*BoardName,VBIName[32];
+	struct CardBase		*CardBase;
+	struct ChipBase		*ChipBase;
+	struct ExecBase		*ExecBase;
+	struct Library		*UtilBase;
+	struct Interrupt	HardInterrupt;
+	struct Interrupt	SoftInterrupt;
+	struct SignalSemaphore	BoardLock;
+	struct MinList		ResolutionsList;
+	BTYPE			BoardType;
+	PCTYPE			PaletteChipType;
+	GCTYPE			GraphicsControllerType;
+	UWORD			MoniSwitch;
+	UWORD			BitsPerCannon;
+	ULONG			Flags;
+	UWORD			SoftSpriteFlags;
+	UWORD			ChipFlags;	// private, chip specific, not touched by RTG
+	ULONG			CardFlags;	// private, card specific, not touched by RTG
+	UWORD			BoardNum;
+	UWORD			RGBFormats;
+	UWORD			MaxHorValue[MAXMODES];
+	UWORD			MaxVerValue[MAXMODES];
+	UWORD			MaxHorResolution[MAXMODES];
+	UWORD			MaxVerResolution[MAXMODES];
+	ULONG			MaxMemorySize, MaxChunkSize;
+	ULONG			__obsolete;
+	ULONG			PixelClockCount[MAXMODES];
 
-    uae_u16 MoniSwitch;
-    uae_u16 BitsPerCannon;
-    uae_u32 Flags;
-    uae_u16 SoftSpriteFlags;
-    uae_u16 ChipFlags;	/* private, chip specific, not touched by RTG */
-    uae_u32 CardFlags;	/* private, card specific, not touched by RTG */
+	APTR __asm		(*AllocCardMem)(register __a0 struct BoardInfo *bi, register __d0 ULONG size, register __d1 BOOL force, register __d2 BOOL system);
+	BOOL __asm		(*FreeCardMem)(register __a0 struct BoardInfo *bi, register __a1 APTR membase);
 
-    uae_u16 BoardNum;
-    uae_s16 RGBFormats;
+	BOOL __asm		(*SetSwitch)(register __a0 struct BoardInfo *, register __d0 BOOL);
 
-    uae_u16 MaxHorValue[MAXMODES];
-    uae_u16 MaxVerValue[MAXMODES];
-    uae_u16 MaxHorResolution[MAXMODES];
-    uae_u16 MaxVerResolution[MAXMODES];
-    uae_u32 MaxMemorySize, MaxChunkSize;
+	void __asm		(*SetColorArray)(register __a0 struct BoardInfo *, register __d0 UWORD, register __d1 UWORD);
+
+	void __asm		(*SetDAC)(register __a0 struct BoardInfo *, register __d7 RGBFTYPE);
+	void __asm		(*SetGC)(register __a0 struct BoardInfo *, register __a1 struct ModeInfo *, register __d0 BOOL);
+	void __asm		(*SetPanning)(register __a0 struct BoardInfo *, register __a1 UBYTE *, register __d0 UWORD, register __d1 WORD, register __d2 WORD, register __d7 RGBFTYPE);
+	UWORD __asm		(*CalculateBytesPerRow)(register __a0 struct BoardInfo *, register __d0 UWORD, register __d7 RGBFTYPE);
+	APTR __asm		(*CalculateMemory)(register __a0 struct BoardInfo *, register __a1 APTR, register __d7 RGBFTYPE);
+	ULONG __asm		(*GetCompatibleFormats)(register __a0 struct BoardInfo *, register __d7 RGBFTYPE);
+	BOOL __asm		(*SetDisplay)(register __a0 struct BoardInfo *, register __d0 BOOL);
+
+	LONG __asm		(*ResolvePixelClock)(register __a0 struct BoardInfo *, register __a1 struct ModeInfo *, register __d0 ULONG, register __d7 RGBFTYPE);
+	ULONG	__asm		(*GetPixelClock)(register __a0 struct BoardInfo *bi, register __a1 struct ModeInfo *mi, register __d0 Index, register __d7 RGBFormat);
+	void __asm		(*SetClock)(register __a0 struct BoardInfo *);
+
+	void __asm		(*SetMemoryMode)(register __a0 struct BoardInfo *, register __d7 RGBFTYPE);
+	void __asm		(*SetWriteMask)(register __a0 struct BoardInfo *, register __d0 UBYTE);
+	void __asm		(*SetClearMask)(register __a0 struct BoardInfo *, register __d0 UBYTE);
+	void __asm		(*SetReadPlane)(register __a0 struct BoardInfo *, register __d0 UBYTE);
+
+	void __asm		(*WaitVerticalSync)(register __a0 struct BoardInfo *, register __d0 BOOL);
+	BOOL __asm		(*SetInterrupt)(register __a0 struct BoardInfo *, register __d0 BOOL);
+
+	void __asm		(*WaitBlitter)(register __a0 struct BoardInfo *);
+
+	void __asm		(*ScrollPlanar)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 UWORD, register __d1 UWORD, register __d2 UWORD, register __d3 UWORD, register __d4 UWORD, register __d5 UWORD, register __d6 UBYTE);
+	void __asm		(*ScrollPlanarDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 UWORD, register __d1 UWORD, register __d2 UWORD, register __d3 UWORD, register __d4 UWORD, register __d5 UWORD, register __d6 UBYTE);
+	void __asm		(*UpdatePlanar)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 UBYTE);
+	void __asm		(*UpdatePlanarDefault)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 UBYTE);
+	void __asm		(*BlitPlanar2Chunky)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 SHORT, register __d5 SHORT, register __d6 UBYTE, register __d7 UBYTE);
+	void __asm		(*BlitPlanar2ChunkyDefault)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 SHORT, register __d5 SHORT, register __d6 UBYTE, register __d7 UBYTE);
+
+	void __asm		(*FillRect)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 ULONG, register __d5 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*FillRectDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 ULONG, register __d5 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*InvertRect)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*InvertRectDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitRect)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 WORD, register __d5 WORD, register __d6 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitRectDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 WORD, register __d5 WORD, register __d6 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitTemplate)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct Template *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitTemplateDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct Template *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitPattern)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct Pattern *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitPatternDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct Pattern *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*DrawLine)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*DrawLineDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitRectNoMaskComplete)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 WORD, register __d5 WORD, register __d6 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitRectNoMaskCompleteDefault)(register __a0 struct BoardInfo *, register __a1 struct RenderInfo *, register __a2 struct RenderInfo *, register __d0 WORD, register __d1 WORD, register __d2 WORD, register __d3 WORD, register __d4 WORD, register __d5 WORD, register __d6 UBYTE, register __d7 RGBFTYPE);
+	void __asm		(*BlitPlanar2Direct)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __a3 struct ColorIndexMapping *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 SHORT, register __d5 SHORT, register __d6 UBYTE, register __d7 UBYTE);
+	void __asm		(*BlitPlanar2DirectDefault)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct RenderInfo *, register __a3 struct ColorIndexMapping *, register __d0 SHORT, register __d1 SHORT, register __d2 SHORT, register __d3 SHORT, register __d4 SHORT, register __d5 SHORT, register __d6 UBYTE, register __d7 UBYTE);
+	void __asm		(*Reserved0)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved0Default)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved1)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved1Default)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved2)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved2Default)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved3)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved3Default)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved4)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved4Default)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved5)(register __a0 struct BoardInfo *);
+	void __asm		(*Reserved5Default)(register __a0 struct BoardInfo *);
+	void __asm		(*SetDPMSLevel)(register __a0 struct BoardInfo *, register __d0 ULONG DPMSLevel);
+	void __asm		(*ResetChip)(register __a0 struct BoardInfo *);
+	ULONG __asm							(*GetFeatureAttrs)(register __a0 struct BoardInfo *bi, register __a1 APTR FeatureData, register __d0 ULONG Type, register __a2 struct TagItem *Tags);
+
+	struct BitMap * __asm 	(*AllocBitMap)(register __a0 struct BoardInfo *, register __d0 ULONG, register __d1 ULONG, register __a1 struct TagItem *);
+	BOOL __asm		(*FreeBitMap)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __a2 struct TagItem *);
+	ULONG __asm		(*GetBitMapAttr)(register __a0 struct BoardInfo *, register __a1 struct BitMap *, register __d0 ULONG);
+
+	BOOL __asm		(*SetSprite)(register __a0 struct BoardInfo *, register __d0 BOOL, register __d7 RGBFTYPE);
+	void __asm		(*SetSpritePosition)(register __a0 struct BoardInfo *, register __d0 WORD, register __d1 WORD, register __d7 RGBFTYPE);
+	void __asm		(*SetSpriteImage)(register __a0 struct BoardInfo *, register __d7 RGBFTYPE);
+	void __asm		(*SetSpriteColor)(register __a0 struct BoardInfo *, register __d0 UBYTE, register __d1 UBYTE, register __d2 UBYTE, register __d3 UBYTE, register __d7 RGBFTYPE);
+
+	APTR __asm		(*CreateFeature)(register __a0 struct BoardInfo *bi, register __d0 ULONG Type, register __a1 struct TagItem *Tags);
+	ULONG __asm		(*SetFeatureAttrs)(register __a0 struct BoardInfo *bi, register __a1 APTR FeatureData, register __d0 ULONG Type, register __a2 struct TagItem *Tags);
+	BOOL __asm		(*DeleteFeature)(register __a0 struct BoardInfo *bi, register __a1 APTR FeatureData, register __d0 ULONG Type);
+	struct MinList		SpecialFeatures;
+
+	struct ModeInfo		*ModeInfo;	/* Chip Settings Stuff */
+	RGBFTYPE		RGBFormat;
+	WORD			XOffset, YOffset;
+	UBYTE			Depth;
+	UBYTE			ClearMask;
+	BOOL			Border;
+	ULONG			Mask;
+	struct CLUTEntry	CLUT[256];
+
+	struct ViewPort		*ViewPort;	/* ViewPort Stuff */
+	struct BitMap		*VisibleBitMap;
+	struct BitMapExtra	*BitMapExtra;
+	struct MinList		BitMapList;
+	struct MinList		MemList;
+
+	WORD			MouseX, MouseY;	/* Sprite Stuff */
+	UBYTE			MouseWidth, MouseHeight;
+	UBYTE			MouseXOffset, MouseYOffset;
+	UWORD			*MouseImage;
+	UBYTE			MousePens[4];
+	struct Rectangle	MouseRect;
+	UBYTE			*MouseChunky;
+	UWORD			*MouseRendered;
+	UBYTE			*MouseSaveBuffer;
+
+	ULONG			ChipData[16];	/* for chip driver needs */
+	ULONG			CardData[16];	/* for card driver needs */
+	
+	APTR			MemorySpaceBase; /* the base address of the board memory address space */
+	ULONG			MemorySpaceSize; /* size of that area */
+
+	APTR			DoubleBufferList; /* chain of dbinfos being notified on vblanks */
+	
+	struct timeval		SyncTime;	/* system time when screen was set up, used for pseudo vblanks */
+	ULONG			SyncPeriod;	/* length of one frame in micros */
+	struct MsgPort		SoftVBlankPort;	/* MsgPort for software emulation of board interrupt */
 };
+#endif
 
 /* BoardInfo flags */
 /*  0-15: hardware flags */

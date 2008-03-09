@@ -978,7 +978,7 @@ static void ToggleBreakpoint(HWND hwnd)
 	SendMessage(hwnd, LB_GETTEXT, index, (LPARAM)addrstr);
 	addrstr[8] = '\0';
 	ptr = addrstr;
-	console_out("\nf %s\n", addrstr);
+	console_out_f ("\nf %s\n", addrstr);
 	instruction_breakpoint(&ptr);
 	RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
 }

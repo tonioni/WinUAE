@@ -385,7 +385,6 @@
 #define IDC_COMPATIBLE                  1214
 #define IDC_TRUST0                      1215
 #define IDC_TRUST1                      1216
-#define IDC_TRUST2                      1217
 #define IDC_CACHE                       1218
 #define IDC_CYCLEEXACT                  1219
 #define IDC_CS_CPU_TEXT2                1219
