@@ -163,12 +163,12 @@ static int restore (DWORD hr)
 static LARGE_INTEGER qpfc, qpf;
 static void storeqpf (void)
 {
-    QueryPerformanceCounter(&qpfc);
+    QueryPerformanceCounter (&qpfc);
 }
 static double getqpf (void)
 {
     LARGE_INTEGER qpfc2;
-    QueryPerformanceCounter(&qpfc2);
+    QueryPerformanceCounter (&qpfc2);
     return (qpfc2.QuadPart - qpfc.QuadPart) / (qpf.QuadPart / 1000.0);
 }
 
@@ -205,7 +205,7 @@ void set_volume (int volume, int mute)
     setvolume_ahi (vol);
 }
 
-static void recalc_offsets(void)
+static void recalc_offsets (void)
 {
     snd_writeoffset = max_sndbufsize * 5 / 8;
     snd_maxoffset = max_sndbufsize;
@@ -224,7 +224,7 @@ struct dsaudiomodes {
 };
 static struct dsaudiomodes supportedmodes[16];
 
-static void fillsupportedmodes(int freq)
+static void fillsupportedmodes (int freq)
 {
     DWORD speakerconfig;
     DSBUFFERDESC sound_buffer;
@@ -563,7 +563,7 @@ static int safedist;
 
 #define cf(x) if ((x) >= dsoundbuf) (x) -= dsoundbuf;
 
-void restart_sound_buffer(void)
+void restart_sound_buffer (void)
 {
     DWORD playpos, safed;
     HRESULT hr;
@@ -783,7 +783,7 @@ static void finish_sound_buffer_ds (void)
     cf(writepos);
 }
 
-static void channelswap(uae_s16 *sndbuffer, int len)
+static void channelswap (uae_s16 *sndbuffer, int len)
 {
     int i;
     for (i = 0; i < len; i += 2) {
@@ -792,7 +792,7 @@ static void channelswap(uae_s16 *sndbuffer, int len)
 	sndbuffer[i + 1] = t;
     }
 }
-static void channelswap6(uae_s16 *sndbuffer, int len)
+static void channelswap6 (uae_s16 *sndbuffer, int len)
 {
     int i;
     for (i = 0; i < len; i += 6) {

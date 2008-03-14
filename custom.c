@@ -1919,19 +1919,21 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     uae_u32 collision_mask;
     int width, dbl, half;
     unsigned int mask = 0;
+    int attachment;
 
     half = 0;
     dbl = sprite_buffer_res - sprres;
     if (dbl < 0) {
         half = -dbl;
         dbl = 0;
-	if (ecsshres())
+	if (ecsshres ())
 	    mask = 1;
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
+    attachment =  (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
 
-    /* Try to coalesce entries if they aren't too far apart, except AGA due to AGA sprite color selection.  */
-    if (! next_sprite_forced && e[-1].max + 16 >= sprxp && !(currprefs.chipset_mask & CSMASK_AGA)) {
+    /* Try to coalesce entries if they aren't too far apart  */
+    if (! next_sprite_forced && e[-1].max + sprite_width >= sprxp && (attachment || ((bplcon4 >> 4) & 15) == ((bplcon4 >> 0) & 15))) {
 	e--;
     } else {
 	next_sprite_entry++;
@@ -1966,7 +1968,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
     /* We have 8 bits per pixel in spixstate, two for every sprite pair.  The
        low order bit records whether the attach bit was set for this pair.  */
-    if (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80)))) {
+    if (attachment) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
@@ -4160,7 +4162,7 @@ static void framewait (void)
 	double v = rpt_vsync () / (syncbase / 1000.0);
 	if (v >= -4)
 	    break;
-	sleep_millis_busy (2);
+	sleep_millis (2);
     }
     curr_time = start = read_processor_time();
     if (!isvsync()) {

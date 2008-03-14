@@ -144,7 +144,7 @@ void close_console(void)
     consoleopen = 0;
 }
 
-static void writeconsole(const char *buffer)
+static void writeconsole (const char *buffer)
 {
     DWORD temp;
     if (!consoleopen)
@@ -203,7 +203,7 @@ void console_flush (void)
 
 static int lfdetected = 1;
 
-static char *writets(void)
+static char *writets (void)
 {
     struct tm *t;
     struct _timeb tb;
@@ -258,7 +258,7 @@ void write_dlog (const char *format, ...)
 	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, buffer);
-	fflush(debugfile);
+	//fflush(debugfile);
     }
     lfdetected = 0;
     if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
@@ -303,7 +303,8 @@ void write_log (const char *format, ...)
 	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, bufp);
-	fflush(debugfile);
+	if (!bootlogmode)
+	    fflush(debugfile);
     }
     lfdetected = 0;
     if (strlen(bufp) > 0 && bufp[strlen(bufp) - 1] == '\n')
@@ -342,7 +343,7 @@ char* buf_out (char *buffer, int *bufsize, const char *format, ...)
     return buffer + strlen(buffer);
 }
 
-void *log_open(const char *name, int append, int bootlog)
+void *log_open (const char *name, int append, int bootlog)
 {
     FILE *f;
 

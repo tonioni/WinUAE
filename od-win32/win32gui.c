@@ -1115,7 +1115,7 @@ static void m(void)
 }
 
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
-void gui_display(int shortcut)
+void gui_display (int shortcut)
 {
     static int here;
     HRESULT hr;

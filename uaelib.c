@@ -377,7 +377,7 @@ static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
     return 0;
 }
 
-static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
+static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 {
 #define ARG0 (get_long (m68k_areg (&context->regs, 7) + 4))
 #define ARG1 (get_long (m68k_areg (&context->regs, 7) + 8))
@@ -386,7 +386,8 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 #define ARG4 (get_long (m68k_areg (&context->regs, 7) + 20))
 #define ARG5 (get_long (m68k_areg (&context->regs, 7) + 24))
 
-    switch (ARG0) {
+    switch (ARG0)
+    {
      case 0: return emulib_GetVersion ();
      case 1: return emulib_GetUaeConfig (ARG1);
      case 2: return emulib_SetUaeConfig (ARG1);
@@ -449,6 +450,22 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 	 return 1;
     }
     return 0;
+}
+
+extern int uaelib_debug;
+static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
+{
+    uae_u32 v;
+    struct regstruct *r = &context->regs;
+    if (uaelib_debug)
+	write_log ("%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	    ARG0,
+	    r->regs[0],r->regs[1],r->regs[2],r->regs[3],r->regs[4],r->regs[5],r->regs[6],r->regs[7],
+	    r->regs[8],r->regs[9],r->regs[10],r->regs[11],r->regs[12],r->regs[13],r->regs[14],r->regs[15]);
+    v = uaelib_demux2 (context);
+    if (uaelib_debug)
+	write_log ("=%08x\n", v);
+    return v;
 }
 
 /*

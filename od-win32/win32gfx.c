@@ -77,6 +77,7 @@
 #define SM_NONE 11
 
 struct uae_filter *usedfilter;
+static int scalepicasso;
 
 struct winuae_currentmode {
     unsigned int flags;
@@ -169,26 +170,15 @@ uae_u16 picasso96_pixel_format = RGBFF_CHUNKY;
 static char scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
 
-void centerdstrect (RECT *dr, RECT *sr)
+void centerdstrect (RECT *dr)
 {
     if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_W_FULLSCREEN)))
 	OffsetRect(dr, amigawin_rect.left, amigawin_rect.top);
     if (currentmode->flags & DM_W_FULLSCREEN) {
-	int dx, dy;
 	if (currentmode->fullfill)
 	    return;
 	OffsetRect (dr, (currentmode->native_width - currentmode->current_width) / 2,
 	    (currentmode->native_height - currentmode->current_height) / 2);
-	dx = (dr->right - dr->left) - currentmode->current_width;
-	if (dx > 0) {
-	    dr->right -= dx;
-	    sr->right -= dx;
-	}
-	dy = (dr->bottom - dr->top) - currentmode->current_height;
-	if (dy > 0) {
-	    dr->bottom -= dy;
-	    sr->bottom -= dy;
-	}
     }
 }
 
@@ -205,16 +195,8 @@ void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
 
     /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
     SetRect (&dstrect, dstx, dsty, dstx + width, dsty + height);
-    centerdstrect (&dstrect, &srcrect);
+    centerdstrect (&dstrect);
     DirectDraw_Fill (&dstrect, color);
-}
-
-void DX_Blit (int x, int y, int w, int h)
-{
-    RECT r;
-
-    SetRect (&r, x, y, x + w, y + h);
-    DirectDraw_BlitToPrimary (&r);
 }
 
 static int rgbformat_bits (RGBFTYPE t)
@@ -270,11 +252,11 @@ static int set_ddraw (void)
 	ddrval = DirectDraw_SetClipper (hAmigaWnd);
 	if (FAILED(ddrval))
 	    goto oops;
-	if (DirectDraw_SurfaceLock()) {
+	if (DirectDraw_SurfaceLock ()) {
 	    currentmode->pitch = DirectDraw_GetSurfacePitch ();
 	    DirectDraw_SurfaceUnlock ();
 	}
-	if (bits == 8)
+	if (bits <= 8)
 	    DirectDraw_CreatePalette (currentmode->pal);
     }
 
@@ -682,13 +664,32 @@ static int p96_double_buffer_firstx, p96_double_buffer_lastx;
 static int p96_double_buffer_first, p96_double_buffer_last;
 static int p96_double_buffer_needs_flushing = 0;
 
+static void DX_Blit96 (int x, int y, int w, int h)
+{
+    RECT r;
+
+    if (scalepicasso) {
+	SetRect (&r, 0, 0, picasso96_state.Width, picasso96_state.Height);
+	DirectDraw_BlitToPrimaryScale (&r);
+    } else {
+        SetRect (&r, x, y, x + w, y + h);
+	DirectDraw_BlitToPrimary (&r);
+    }
+}
+
 void gfx_unlock_picasso (void)
 {
     DirectDraw_SurfaceUnlock();
     if (p96_double_buffer_needs_flushing) {
+	if (scalepicasso) {
+	   p96_double_buffer_firstx = 0;
+	   p96_double_buffer_lastx = picasso_vidinfo.width;
+	   p96_double_buffer_first = 0;
+	   p96_double_buffer_last = picasso_vidinfo.height;
+	}
 	picasso_putcursor (p96_double_buffer_firstx, p96_double_buffer_first,
 	    p96_double_buffer_lastx - p96_double_buffer_firstx + 1, p96_double_buffer_last - p96_double_buffer_first + 1);
-	DX_Blit (p96_double_buffer_firstx, p96_double_buffer_first,
+	DX_Blit96 (p96_double_buffer_firstx, p96_double_buffer_first,
 	     p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
 	     p96_double_buffer_last - p96_double_buffer_first + 1);
 	picasso_clearcursor ();
@@ -735,7 +736,7 @@ static void update_gfxparams (void)
 {
     updatewinfsmode (&currprefs);
 #ifdef PICASSO96
-    if (screen_is_picasso) {
+    if (screen_is_picasso && !scalepicasso) {
 	currentmode->current_width = picasso96_state.Width;
 	currentmode->current_height = picasso96_state.Height;
 	currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
@@ -1219,11 +1220,19 @@ static int reopen (int full)
 
 static int modeswitchneeded (struct winuae_currentmode *wc)
 {
+    scalepicasso = 0;
     if (isfullscreen () > 0) {
 	if (screen_is_picasso) {
+	    if (picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
+		return -1;
+	    if (picasso96_state.Width < wc->current_width && picasso96_state.Height < wc->current_height) {
+		if (currprefs.win32_rtgscaleifsmall) {
+		    scalepicasso = 1;
+		    return 0;
+		}
+	    }
 	    if (picasso96_state.Width != wc->current_width ||
-		picasso96_state.Height != wc->current_height ||
-		(picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth))
+		picasso96_state.Height != wc->current_height)
 		return -1;
 	} else {
 	    if (currentmode->current_width != wc->current_width ||
@@ -1233,6 +1242,12 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 	}
     } else if (isfullscreen () == 0) {
 	if (screen_is_picasso) {
+	    if (picasso96_state.Width < wc->current_width && picasso96_state.Height < wc->current_height) {
+		if (currprefs.win32_rtgscaleifsmall) {
+		    scalepicasso = 1;
+		    return 0;
+		}
+	    }
 	    if (picasso96_state.Width != wc->current_width ||
 		picasso96_state.Height != wc->current_height)
 		return 1;
@@ -1242,6 +1257,10 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 		return 1;
 	}
     } else {
+	if (currprefs.win32_rtgscaleifsmall) {
+	    scalepicasso = 1;
+	    return 0;
+	}
 	if (picasso96_state.Width > wc->native_width ||
 	    picasso96_state.Height > wc->native_height)
 	    return -1;
@@ -1253,10 +1272,13 @@ void gfx_set_picasso_state (int on)
 {
     struct winuae_currentmode wc;
     int mode;
+
     if (screen_is_picasso == on)
 	return;
     screen_is_picasso = on;
     memcpy (&wc, currentmode, sizeof (wc));
+
+    scalepicasso = 0;
     update_gfxparams ();
     if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen) {
 	mode = 1;

@@ -21,6 +21,7 @@ struct ddstuff
     int lockcnt;
     DWORD pitch;
     HWND hwnd;
+    int maxwidth, maxheight;
 };
 extern struct ddstuff dxdata;
 
@@ -165,8 +166,9 @@ int DirectDraw_GetVerticalBlankStatus (void);
 DWORD DirectDraw_CurrentRefreshRate (void);
 void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc);
 HRESULT DirectDraw_FlipToGDISurface (void);
-int DirectDraw_Flip (int wait);
+int DirectDraw_Flip (int doflip);
 int DirectDraw_BlitToPrimary (RECT *rect);
+int DirectDraw_BlitToPrimaryScale (RECT *rect);
 void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
 void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
 void DirectDraw_Fill (RECT *rect, uae_u32 color);

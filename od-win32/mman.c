@@ -18,7 +18,7 @@
 
 static struct shmid_ds shmids[MAX_SHMID];
 static int memwatchok = 0;
-uae_u8 *natmem_offset = NULL;
+uae_u8 *natmem_offset, *natmem_offset_end;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
 static SYSTEM_INFO si;
@@ -135,7 +135,7 @@ int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddre
     int i, j;
 
     if (memwatchok)
-	return GetWriteWatch (WRITE_WATCH_FLAG_RESET, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
+	return GetWriteWatch (0, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
     j = 0;
     for (i = 0; i < p96mem_size / si.dwPageSize; i++) {
 	if (j >= *lpdwCount)
@@ -149,7 +149,10 @@ int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddre
 }
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize)
 {
-    if (!memwatchok) {
+    if (memwatchok) {
+	if (ResetWriteWatch (lpBaseAddress, dwRegionSize))
+	    write_log ("ResetWriteWatch() failed, %d\n", GetLastError ());
+    } else {
 	DWORD op;
 	memset (memwatchtable, 0, p96mem_size / si.dwPageSize);
 	if (!VirtualProtect (lpBaseAddress, dwRegionSize, PAGE_READWRITE | PAGE_GUARD, &op))
@@ -234,6 +237,7 @@ int init_shm (void)
     if (natmem_offset)
 	VirtualFree(natmem_offset, 0, MEM_RELEASE);
     natmem_offset = NULL;
+    natmem_offset_end = NULL;
     canbang = 0;
 
     z3size = 0;
@@ -325,6 +329,7 @@ restart:
 		p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
 		currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
 	canbang = 1;
+	natmem_offset_end = p96mem_offset + currprefs.gfxmem_size;
     }
 
     return canbang;

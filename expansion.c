@@ -27,9 +27,6 @@
 #include "ncr_scsi.h"
 #include "debug.h"
 
-#define RTAREA_DEFAULT 0xf00000
-#define RTAREA_BACKUP  0xef0000
-
 #define MAX_EXPANSION_BOARDS 8
 
 /* ********************************************************** */

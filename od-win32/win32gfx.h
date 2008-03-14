@@ -36,7 +36,7 @@ extern int is3dmode (void);
 
 void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
 void DX_Blit (int x, int y, int w, int h);
-void centerdstrect (RECT *, RECT *);
+void centerdstrect (RECT *);
 
 
 #endif

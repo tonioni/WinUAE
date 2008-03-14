@@ -6,6 +6,9 @@
   * (c) 1996 Ed Hanway
   */
 
+#define RTAREA_DEFAULT 0xf00000
+#define RTAREA_BACKUP  0xef0000
+
 extern uae_u32 addr (int);
 extern void db (uae_u8);
 extern void dw (uae_u16);

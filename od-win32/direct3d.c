@@ -271,7 +271,6 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 {
     HRESULT ret;
     static char errmsg[100] = { 0 };
-    LPDIRECT3D9 (WINAPI *D3DCreate)(UINT);
     D3DDISPLAYMODE mode;
     D3DCAPS9 d3dCaps;
     int adapter;
@@ -292,14 +291,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    D3DCreate = (LPDIRECT3D9 (WINAPI *)(UINT))
-	GetProcAddress(d3dDLL, "Direct3DCreate9");
-    if(D3DCreate == NULL) {
-	D3D_free ();
-	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
-	return errmsg;
-    }
-    d3d = D3DCreate(D3D9b_SDK_VERSION);
+    d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
     if (d3d == NULL) {
 	D3D_free ();
 	strcpy (errmsg, "Direct3D: failed to create D3D object");
@@ -332,7 +324,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	}
     }
 
-    ret = IDirect3D9_CreateDevice(d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
+    ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
 	USAGE, &dpp, &d3ddev);
     if(FAILED(ret)) {
 	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));

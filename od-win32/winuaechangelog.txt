@@ -1,4 +1,44 @@
 
+Beta 8:
+
+NOTE: OGL/D3D filters still using old scaling
+
+- uaegfx.card fallback graphics routines fixed (rarely used drawing
+  modes that native C-code "blitter" does not support)
+- print uaegfx.card version to log file
+- simple RTG scaling support, do not change resolution but scale to
+  fullscreen if display size configured in display panel is larger than
+  requested Picasso96 resolution. Quality is not good, real filter
+  support later. Perhaps.. Mainly useful with games/demos that use
+  very low resolutions. (configuration enable option not yet added)
+- "super skid marks fix" updated, previous "fix" broke all attached
+  AGA-mode sprites
+- GUI does not get overdrawn in fullscreen when adjusting filters
+- timer calibration removed, uses now performance counters only, also
+  checks periodically if counter frequency changes and adjusts to new
+  rate automatically (possible fix for random power saving slowdown
+  problems)
+- fullscreen non-filter mode graphics problems fixed
+- vsync is working but it isn't 100% smooth yet (at least on my PC)
+- real CD32 rom (391640-03) checksums added to rom scanner
+- fixed left and top border RTG hardware cursor graphics problems
+- added warning if p96_uae_tweak is detected, it is incompatible with
+  new uaegfx.card (update will be released later)
+- filter temporary directdraw surface size restricted to max hardware
+  supported 3D texture size (at least some cards apparently switch
+  to very slow software blitter if size is bigger than max texture
+  size) note that this can restrict scaling range, image simply
+  disappears if scaling multiplier is out of supported range
+- "watch" only visible RTG display RAM, should improve performance if
+  program uses multiple temporary offscreen bitmaps
+- RTG hardware cursor didn't always get erased properly when cursor
+  shape was changed
+- ROM chip part numbers added to rom scanner data, also added to GUI
+  because not all ROMs have confirmed part number yet. "Non-ROMs" not
+  included, like separate CD32 ROMs (real CD32 has single 1M ROM)
+- PCMCIA SRAM on the fly insert/removal fix
+
+
 Beta 7:
 
 NOTE: _DO_ use filters (except OGL/D3D). Vsync still broken.

@@ -74,17 +74,15 @@
 #endif
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
-int log_scsi, log_net = 0;
+int log_scsi, log_net, uaelib_debug;
 
 extern FILE *debugfile;
 extern int console_logging;
 static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 
-int useqpc = 0; /* Set to TRUE to use the QueryPerformanceCounter() function instead of rdtsc() */
 int qpcdivisor = 0;
-int cpu_mmx = 0;
-static int no_rdtsc;
+int cpu_mmx = 1;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
@@ -125,6 +123,7 @@ int mouseactive, focus;
 static int mm_timerres;
 static int timermode, timeon;
 static HANDLE timehandle;
+int sleep_resolution;
 
 char start_path_data[MAX_DPATH];
 char start_path_exe[MAX_DPATH];
@@ -161,53 +160,32 @@ static int timebegin (void)
     return 0;
 }
 
-static void init_mmtimer (void)
+static int init_mmtimer (void)
 {
     TIMECAPS tc;
     mm_timerres = 0;
     if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
-	return;
+	return 0;
     mm_timerres = min(max(tc.wPeriodMin, 1), tc.wPeriodMax);
+    sleep_resolution = 1000 / mm_timerres;
     timehandle = CreateEvent (NULL, TRUE, FALSE, NULL);
+    return 1;
 }
 
-int sleep_resolution;
 void sleep_millis (int ms)
 {
     UINT TimerEvent;
-    int start = read_processor_time();
-    if (mm_timerres <= 0 || timermode) {
-	Sleep (ms);
-    } else {
-	TimerEvent = timeSetEvent (ms, 0, timehandle, 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
-	if (!TimerEvent) {
-	    Sleep (ms);
-	} else {
-	    WaitForSingleObject (timehandle, ms);
-	    ResetEvent (timehandle);
-	    timeKillEvent (TimerEvent);
-	}
-    }
+    int start;
+    
+    start = read_processor_time();
+    TimerEvent = timeSetEvent (ms, 0, timehandle, 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
+    WaitForSingleObject (timehandle, ms);
+    ResetEvent (timehandle);
+    timeKillEvent (TimerEvent);
     idletime += read_processor_time() - start;
 }
 
-void sleep_millis_busy (int ms)
-{
-    if (timermode < 0)
-	return;
-    sleep_millis (ms);
-}
-
-#include <process.h>
-static volatile int dummythread_die;
-static void dummythread (void *dummy)
-{
-    SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_LOWEST);
-    while (!dummythread_die);
-}
-
-
-STATIC_INLINE frame_time_t read_processor_time_qpc (void)
+frame_time_t read_processor_time (void)
 {
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
@@ -216,227 +194,27 @@ STATIC_INLINE frame_time_t read_processor_time_qpc (void)
     return (frame_time_t)(counter.QuadPart >> qpcdivisor);
 }
 
-frame_time_t read_processor_time (void)
+static void figure_processor_speed (void)
 {
-    frame_time_t foo;
-
-    if (useqpc) /* No RDTSC or RDTSC is not stable */
-	return read_processor_time_qpc();
-
-#if defined(X86_MSVC_ASSEMBLY)
-    {
-	frame_time_t bar;
-	__asm
-	{
-	    rdtsc
-	    mov foo, eax
-	    mov bar, edx
-	}
-	/* very high speed CPU's RDTSC might overflow without this.. */
-	foo >>= 6;
-	foo |= bar << 26;
-    }
-#else
-    foo = 0;
-#endif
-#ifdef HIBERNATE_TEST
-    if (rpt_skip_trigger) {
-	foo += rpt_skip_trigger;
-	rpt_skip_trigger = 0;
-    }
-#endif
-    return foo;
-}
-
-
-static uae_u64 win32_read_processor_time (void)
-{
-#if defined(X86_MSVC_ASSEMBLY)
-    uae_u32 foo, bar;
-    __asm
-    {
-	rdtsc
-	mov foo, eax
-	mov bar, edx
-    }
-    return ((uae_u64)bar << 32) | foo;
-#else
-    return 0;
-#endif
-}
-
-static int figure_processor_speed (void)
-{
-    extern volatile frame_time_t vsynctime;
-    extern unsigned long syncbase;
-    uae_u64 clockrate, clockrateidle, qpfrate, ratea1, ratea2;
-    uae_u32 rate1, rate2;
-    double limit, clkdiv = 1, clockrate1000 = 0;
-    int i, ratecnt = 5;
     LARGE_INTEGER freq;
-    int qpc_avail = 0;
-    int mmx = 0;
+    static LARGE_INTEGER freq2;
+    uae_u64 qpfrate;
 
-    rpt_available = no_rdtsc > 0 ? 0 : 1;
-#ifdef X86_MSVC_ASSEMBLY
-    __try
-    {
-	__asm
-	{
-	    rdtsc
-	}
-    } __except(GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
-	rpt_available = 0;
-	write_log ("CLOCKFREQ: RDTSC not supported\n");
+    if (!QueryPerformanceFrequency(&freq))
+	return;
+    if (freq.QuadPart == freq2.QuadPart)
+	return;
+    freq2.QuadPart = freq.QuadPart;
+    qpfrate = freq.QuadPart;
+     /* limit to 10MHz */
+    qpcdivisor = 0;
+    while (qpfrate > 10000000) {
+        qpfrate >>= 1;
+        qpcdivisor++;
     }
-    __try
-    {
-	__asm
-	{
-	    mov eax,1
-	    cpuid
-	    and edx,0x800000
-	    mov mmx,edx
-	}
-	if (mmx)
-	    cpu_mmx = 1;
-    } __except(GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
-    }
-#endif
-#ifdef WIN64
-    cpu_mmx = 1;
-    rpt_available = 0;
-#endif
-
-    if (QueryPerformanceFrequency(&freq)) {
-	qpc_avail = 1;
-	qpfrate = freq.QuadPart;
-	 /* limit to 10MHz */
-	qpcdivisor = 0;
-	while (qpfrate > 10000000) {
-	    qpfrate >>= 1;
-	    qpcdivisor++;
-	    qpc_avail = -1;
-	}
-	write_log ("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
-	    qpfrate / 1000000.0, 1 << qpcdivisor);
-	if (SystemInfo.dwNumberOfProcessors > 1 && no_rdtsc >= 0)
-	    rpt_available = 0; /* RDTSC can be weird in SMP-systems */
-    } else {
-	write_log ("CLOCKREQ: QPF not supported\n");
-    }
-
-    if (!rpt_available && !qpc_avail) {
-	pre_gui_message ("No timing reference found\n(no RDTSC or QPF support detected)\nWinUAE will exit\n");
-	return 0;
-    }
-
-    init_mmtimer();
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-    sleep_millis (50);
-    dummythread_die = -1;
-
-    if (qpc_avail || rpt_available)  {
-	int qpfinit = 0;
-
-	if (rpt_available) {
-	    clockrateidle = win32_read_processor_time();
-	    sleep_millis (500);
-	    clockrateidle = (win32_read_processor_time() - clockrateidle) * 2;
-	    dummythread_die = 0;
-	    _beginthread(&dummythread, 0, 0);
-	    sleep_millis (50);
-	    clockrate = win32_read_processor_time();
-	    sleep_millis (500);
-	    clockrate = (win32_read_processor_time() - clockrate) * 2;
-	    write_log ("CLOCKFREQ: RDTSC %.2fMHz (busy) / %.2fMHz (idle)\n",
-		clockrate / 1000000.0, clockrateidle / 1000000.0);
-	    clkdiv = (double)clockrate / (double)clockrateidle;
-	    clockrate >>= 6;
-	    clockrate1000 = clockrate / 1000.0;
-	}
-	if (rpt_available && qpc_avail && qpfrate / 950.0 >= clockrate1000) {
-	    write_log ("CLOCKFREQ: Using QPF (QPF ~>= RDTSC)\n");
-	    qpfinit = 1;
-	} else	if (((clkdiv <= 0.95 || clkdiv >= 1.05) && no_rdtsc == 0) || !rpt_available) {
-	    if (rpt_available)
-		write_log ("CLOCKFREQ: CPU throttling detected, using QPF instead of RDTSC\n");
-	    qpfinit = 1;
-	} else if (qpc_avail && freq.QuadPart >= 999000000) {
-	    write_log ("CLOCKFREQ: Using QPF (QPF >= 1GHz)\n");
-	    qpfinit = 1;
-	}
-	if (qpfinit) {
-	    useqpc = qpc_avail;
-	    rpt_available = 1;
-	    clkdiv = 1.0;
-	    clockrate = qpfrate;
-	    clockrate1000 = clockrate / 1000.0;
-	    if (dummythread_die < 0) {
-		dummythread_die = 0;
-		_beginthread(&dummythread, 0, 0);
-	    }
-	    if (!qpc_avail)
-		write_log ("No working timing reference detected\n");
-	}
-	timermode = 0;
-	if (mm_timerres) {
-	    sleep_millis (50);
-	    timebegin ();
-	    sleep_millis (50);
-	    ratea1 = 0;
-	    write_log ("Testing MM-timer resolution:\n");
-	    for (i = 0; i < ratecnt; i++) {
-		rate1 = read_processor_time();
-		sleep_millis (1);
-		rate1 = read_processor_time() - rate1;
-		write_log ("%1.2fms ", rate1 / clockrate1000);
-		ratea1 += rate1;
-	    }
-	    write_log ("\n");
-	    timeend ();
-	    sleep_millis (50);
-	}
-	timermode = 1;
-	ratea2 = 0;
-	write_log ("Testing Sleep() resolution:\n");
-	for (i = 0; i < ratecnt; i++) {
-	    rate2 = read_processor_time();
-	    sleep_millis (1);
-	    rate2 = read_processor_time() - rate2;
-	    write_log ("%1.2fms ", rate2 / clockrate1000);
-	    ratea2 += rate2;
-	}
-	write_log ("\n");
-    }
-
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
-    dummythread_die = 1;
-
-    sleep_resolution = 1;
-    if ((clkdiv >= 0.90 && clkdiv <= 1.10 && rpt_available) && no_rdtsc < 2) {
-	limit = 2.5;
-	if (mm_timerres && (ratea1 / ratecnt) < limit * clockrate1000) { /* MM-timer is ok */
-	    timermode = 0;
-	    sleep_resolution = (int)((1000 * ratea1) / (clockrate1000 * ratecnt));
-	    timebegin ();
-	    write_log ("Using MultiMedia timers (resolution < %.1fms) SR=%d\n", limit, sleep_resolution);
-	} else if ((ratea2 / ratecnt) < limit * clockrate1000) { /* regular Sleep() is ok */
-	    timermode = 1;
-	    sleep_resolution = (int)((1000 * ratea2) / (clockrate1000 * ratecnt));
-	    write_log ("Using Sleep() (resolution < %.1fms) SR=%d\n", limit, sleep_resolution);
-	} else {
-	    timermode = -1; /* both timers are bad, fall back to busy-wait */
-	    write_log ("falling back to busy-loop waiting (timer resolution > %.1fms)\n", limit);
-	}
-    } else {
-	timermode = -1;
-	write_log ("forcing busy-loop wait mode\n");
-    }
-    if (sleep_resolution < 1000)
-	sleep_resolution = 1000;
-    syncbase = (unsigned long)clockrate;
-    return 1;
+    write_log ("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
+	 qpfrate / 1000000.0, 1 << qpcdivisor);
+    syncbase = (unsigned long)qpfrate;
 }
 
 static void setcursor(int oldx, int oldy)
@@ -615,21 +393,14 @@ void setmouseactive (int active)
 
 static void winuae_active (HWND hWnd, int minimized)
 {
-    int ot;
     struct threadpriorities *pri;
 
     write_log ("winuae_active(%d)\n", minimized);
     /* without this returning from hibernate-mode causes wrong timing
      */
-    if (!os_vista) {
-	ot = timermode;
-	timermode = 0;
-	timebegin();
-	sleep_millis (2);
-	timermode = ot;
-	if (timermode != 0)
-	    timeend();
-    }
+    timeend ();
+    sleep_millis (2);
+    timebegin ();
 
     focus = 1;
     pri = &priorities[currprefs.win32_inactive_priority];
@@ -756,7 +527,6 @@ static void handleXbutton (WPARAM wParam, int updown)
 
 static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    PAINTSTRUCT ps;
     HDC hDC;
     int mx, my;
     static int mm, minimized, recursive, ignoremousemove;
@@ -880,6 +650,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 	static int recursive = 0;
 	if (recursive == 0) {
+	    PAINTSTRUCT ps;
 	    recursive++;
 	    notice_screen_contents_lost ();
 	    hDC = BeginPaint (hWnd, &ps);
@@ -1358,6 +1129,7 @@ void handle_events (void)
 {
     MSG msg;
     int was_paused = 0;
+    static int cnt;
 
     while (emulation_paused > 0 || pause_emulation) {
 	if ((emulation_paused > 0 || pause_emulation) && was_paused == 0) {
@@ -1371,12 +1143,12 @@ void handle_events (void)
 	    DispatchMessage (&msg);
 	}
 	sleep_millis (50);
-	inputdevicefunc_keyboard.read();
-	inputdevicefunc_mouse.read();
-	inputdevicefunc_joystick.read();
+	inputdevicefunc_keyboard.read ();
+	inputdevicefunc_mouse.read ();
+	inputdevicefunc_joystick.read ();
 	inputdevice_handle_inputcode ();
 	check_prefs_changed_gfx ();
-	while (checkIPC(&currprefs));
+	while (checkIPC (&currprefs));
 	if (quit_program)
 	    break;
     }
@@ -1384,12 +1156,17 @@ void handle_events (void)
 	TranslateMessage (&msg);
 	DispatchMessage (&msg);
     }
-    while (checkIPC(&currprefs));
+    while (checkIPC (&currprefs));
     if (was_paused) {
-	resumepaused();
+	resumepaused ();
 	emulation_paused = 0;
 	sound_closed = 0;
 	manual_painting_needed--;
+    }
+    cnt--;
+    if (cnt <= 0) {
+	figure_processor_speed ();
+	cnt = 100;
     }
 }
 
@@ -1691,17 +1468,30 @@ static void WIN32_InitLang(void)
  /* try to load COMDLG32 and DDRAW, initialize csDraw */
 static int WIN32_InitLibraries( void )
 {
-    int result = 1;
+    LARGE_INTEGER freq;
+
     /* Determine our processor speed and capabilities */
-    if (!figure_processor_speed())
+    if (!init_mmtimer()) {
+	pre_gui_message ("MMTimer initialization failed, exiting..");
 	return 0;
+    }
+    if (!QueryPerformanceCounter (&freq)) {
+	pre_gui_message ("No QueryPerformanceFrequency() supported, exiting..\n");
+	return 0;
+    }
+    rpt_available = 1;
+    figure_processor_speed ();
+    if (!timebegin ()) {
+	pre_gui_message ("MMTimer second initialization failed, exiting..");
+	return 0;
+    }
 
     /* Make sure we do an InitCommonControls() to get some advanced controls */
     InitCommonControls();
 
     hRichEdit = LoadLibrary ("RICHED32.DLL");
 
-    return result;
+    return 1;
 }
 
 int debuggable (void)
@@ -1904,6 +1694,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_outsidemouse = 0;
 	p->sana2 = 0;
 	p->win32_rtgmatchdepth = 1;
+	p->win32_rtgscaleifsmall = 1;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
@@ -1944,6 +1735,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev );
     cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
     cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false" );
+    cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false" );
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
@@ -2005,6 +1797,8 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
 
     if (cfgfile_yesno (option, value, "rtg_match_depth", &p->win32_rtgmatchdepth))
+	return 1;
+    if (cfgfile_yesno (option, value, "rtg_scale_small", &p->win32_rtgscaleifsmall))
 	return 1;
 
     if (cfgfile_yesno (option, value, "aspi", &v)) {
@@ -2952,18 +2746,6 @@ static int process_arg(char **xargv)
 	    continue;
 	}
 #endif
-	if (!strcmp (arg, "-nordtsc")) {
-	    no_rdtsc = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-forcerdtsc")) {
-	    no_rdtsc = -1;
-	    continue;
-	}
-	if (!strcmp (arg, "-busywait")) {
-	    no_rdtsc = 2;
-	    continue;
-	}
 	if (!strcmp (arg, "-norawinput")) {
 	    no_rawinput = 1;
 	    continue;
@@ -3166,8 +2948,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #endif
     closeIPC();
     write_disk_history ();
-    if (mm_timerres && timermode == 0)
-	timeend ();
+    timeend ();
 #ifdef AVIOUTPUT
     AVIOutput_Release ();
 #endif

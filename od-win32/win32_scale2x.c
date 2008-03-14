@@ -123,7 +123,11 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     scale = mult;
 
     temp_width = dst_width * 3;
+    if (temp_width > dxdata.maxwidth)
+	temp_width = dxdata.maxwidth;
     temp_height = dst_height * 3;
+    if (temp_height > dxdata.maxheight)
+	temp_height = dxdata.maxheight;
     tempsurf = allocsurface (temp_width, temp_height);
     if (!tempsurf)
 	write_log ("DDRAW: failed to create temp surface\n");
@@ -325,16 +329,7 @@ end:
 
 void S2X_refresh (void)
 {
-    int y, pitch;
-    uae_u8 *dptr;
-
-    if (!DirectDraw_SurfaceLock ())
-	return;
-    dptr = DirectDraw_GetSurfacePointer ();
-    pitch = DirectDraw_GetSurfacePitch ();
-    for (y = 0; y < dst_height; y++)
-	memset (dptr + y * pitch, 0, dst_width * dst_depth / 8);
-    DirectDraw_SurfaceUnlock ();
+    clearsurface (NULL);
     S2X_render ();
 }
 

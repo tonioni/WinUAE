@@ -1403,8 +1403,11 @@ static int initpcmcia (const char *path, int readonly, int reset)
     if (currprefs.cs_pcmcia == 0)
 	return 0;
     freepcmcia (reset);
-    if (reset) {
+    if (!pcmcia_sram)
 	pcmcia_sram = xcalloc (sizeof (struct hd_hardfiledata), 1);
+    if (!pcmcia_sram->hfd.handle_valid)
+	reset = 1;
+    if (reset) {
 	if (path)
 	    hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, NULL);
     } else {
@@ -1418,7 +1421,6 @@ static int initpcmcia (const char *path, int readonly, int reset)
     pcmcia_attrs = xcalloc (pcmcia_attrs_size, 1);
     if (!pcmcia_sram->hfd.drive_empty) {
 	pcmcia_common_size = pcmcia_sram->hfd.size;
-	pcmcia_common_size = 16384;
 	if (pcmcia_sram->hfd.size > 4 * 1024 * 1024) {
 	    write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->hfd.size);
 	    pcmcia_common_size = 4 * 1024 * 1024;
@@ -1672,9 +1674,9 @@ int gayle_add_pcmcia_sram_unit (const char *path, int readonly)
 int gayle_modify_pcmcia_sram_unit (const char *path, int readonly, int insert)
 {
     if (insert)
-	return initpcmcia (path, readonly, 0);
+	return initpcmcia (path, readonly, 1);
     else
-	return freepcmcia (0);
+	return freepcmcia (1);
 }
 
 static void initide (void)

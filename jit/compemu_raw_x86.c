@@ -1718,24 +1718,15 @@ int EvalException (LPEXCEPTION_POINTERS blah, int n_except)
     pExceptRecord = blah->ExceptionRecord;
     pContext = blah->ContextRecord;
 
-    if( pContext )
-    {
+    if (pContext)
 	i = (uae_u8 *)ctxPC;
-    }
-    if( pExceptRecord )
-    {
+    if (pExceptRecord)
 	addr = (uae_u32)(pExceptRecord->ExceptionInformation[1]);
-    }
 #ifdef JIT_DEBUG
     write_log ("JIT: fault address is 0x%x at 0x%x\n",addr,i);
 #endif
     if (!canbang || !currprefs.cachesize)
-    {
-#ifdef JIT_DEBUG
-	write_log ("JIT: Not happy! Canbang or cachesize is 0 in SIGSEGV handler!\n");
-#endif
 	return EXCEPTION_CONTINUE_SEARCH;
-    }
 
     if (in_handler)
 	write_log ("JIT: Argh --- Am already in a handler. Shouldn't happen!\n");

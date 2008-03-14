@@ -12,7 +12,7 @@
 
 #define MAX_SHMID 256
 
-extern uae_u8 *natmem_offset;
+extern uae_u8 *natmem_offset, *natmem_offset_end;
 
 typedef int key_t;
 typedef USHORT ushort;
