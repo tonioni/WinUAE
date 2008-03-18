@@ -135,7 +135,6 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
     else if (aga && cmode == CMODE_DUALPF) {
 	outln (		"    if (spritepixels[spix]) {");
 	outln (		"        dpix_val = colors_for_drawing.acolors[spritepixels[spix]];");
-	outln (		"        spritepixels[spix] = 0;");
 	outln (		"    } else {");
 	outln (		"        unsigned int val = lookup[spix_val];");
 	outln (		"        if (lookup_no[spix_val] == 2)");
@@ -179,7 +178,6 @@ static void out_sprite (int off)
 {
     outlnf ( "    if (spritepixels[sprx + MAX_PIXELS_PER_LINE * %d]) {", off);
     outlnf ( "        buf[dpix] = colors_for_drawing.acolors[spritepixels[sprx + MAX_PIXELS_PER_LINE * %d]];", off);
-    outlnf ( "        spritepixels[sprx + MAX_PIXELS_PER_LINE * %d] = 0;", off);
     outlnf ( "    } else {");
     outlnf ( "        buf[dpix] = out_val;");
     outlnf ( "    }");

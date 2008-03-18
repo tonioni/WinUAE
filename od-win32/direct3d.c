@@ -398,7 +398,7 @@ typedef struct _D3DTLVERTEX {
     float tv;
 } D3DTLVERTEX, *LPD3DTLVERTEX;
 
-static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
+static void BlitRect (LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
 		     float left, float top, float right, float bottom, D3DCOLOR col,float z)
 {
     int i;
@@ -420,20 +420,20 @@ static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
     verts[3].sx = left - 0.5f; verts[3].sy = bottom - 0.5f; verts[3].sz = z;
 
     // set the texture
-    hr = IDirect3DDevice9_SetTexture(dev, 0, (IDirect3DBaseTexture9*)src);
+    hr = IDirect3DDevice9_SetTexture (dev, 0, (IDirect3DBaseTexture9*)src);
     if (FAILED (hr))
 	write_log ("IDirect3DDevice9_SetTexture failed: %s\n", D3D_ErrorString (hr));
 
-    hr = IDirect3DDevice9_SetVertexShader(dev, NULL);
+    hr = IDirect3DDevice9_SetVertexShader (dev, NULL);
     if (FAILED (hr))
 	write_log ("IDirect3DDevice9_SetVertexShader failed: %s\n", D3D_ErrorString (hr));
     // configure shader for vertex type
-    hr = IDirect3DDevice9_SetFVF(dev, D3DFVF_TLVERTEX);
+    hr = IDirect3DDevice9_SetFVF (dev, D3DFVF_TLVERTEX);
     if (FAILED (hr))
 	write_log ("IDirect3DDevice9_SetFVF failed: %s\n", D3D_ErrorString (hr));
 
     // draw the rectangle
-    hr = IDirect3DDevice9_DrawPrimitiveUP(dev, D3DPT_TRIANGLEFAN, 2, verts, sizeof(D3DTLVERTEX));
+    hr = IDirect3DDevice9_DrawPrimitiveUP (dev, D3DPT_TRIANGLEFAN, 2, verts, sizeof(D3DTLVERTEX));
     if (FAILED (hr))
 	write_log ("IDirect3DDevice9_DrawPrimitiveUP failed: %s\n", D3D_ErrorString (hr));
 }
@@ -443,69 +443,26 @@ static void BlitRect(LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
     tin_ = internal window size
     twidth/theight = texture size
 */
-#if 0
+#if 1
 static void calc (float *xp, float *yp, float *sxp, float *syp)
 {
-    float x, y, sx, sy, tx, ty;
-    double mx, my, fx, fy, mmx, mmy;
+    RECT sr, dr;
+    float mx = (float)twidth / tin_w;
+    float my = (float)theight / tin_h;
+    int aw = twidth * window_w / tin_w;
+    int ah = theight * window_h / tin_h;
 
-    mmx = 1;
-    mmy = 1;//2.0 * window_h / tin_h;
+    mx = 1 / mx;
+    my = 1 / my;
 
-    fx = tin_w / 2;
-    fy = tin_h / 2;
-
-    fx = (twidth * window_w / tin_w) / 2;
-    fy = (theight * window_h / tin_h) / 2;
-
-    tx = ((currprefs.gfx_filter_horiz_zoom_mult + currprefs.gfx_filter_horiz_zoom / 4) / 1000.0);
-    ty = ((currprefs.gfx_filter_vert_zoom_mult + currprefs.gfx_filter_vert_zoom / 4) / 1000.0);
-
-    *sxp = (fx + fx / tx) * mmx;
-    *syp = (fy + fy / ty) * mmy;
-    *xp = (fx - fx / tx) * mmx;
-    *yp = (fy - fy / ty) * mmy;
-
-    mx = (currprefs.gfx_filter_horiz_offset / 1000.0) * fx;
-    my = (currprefs.gfx_filter_vert_offset / 1000.0) * fy;
-
-    *xp += mx;
-    *sxp += mx;
-    *yp += my;
-    *syp += my;
-
-    return;
-
-
-    fx = (twidth * window_w / tin_w) / 2;
-    fy = (theight * window_h / tin_h) / 2;
-
-    tx = fx / ((currprefs.gfx_filter_horiz_zoom_mult + currprefs.gfx_filter_horiz_zoom / 4) / 1000.0);
-    ty = fy / ((currprefs.gfx_filter_vert_zoom_mult + currprefs.gfx_filter_vert_zoom / 4) / 1000.0);
-
-    if (currprefs.gfx_lores)
-	tx /= 2;
-    if (!currprefs.gfx_linedbl)
-	ty /= 2;
-
-    mx = (currprefs.gfx_filter_horiz_offset / 1000.0) * fx;
-    my = (currprefs.gfx_filter_vert_offset / 1000.0) * fy;
-
-    x = -tx;
-    y = -ty;
-    sx = tx;
-    sy = ty;
-
-    x += fx + mx;
-    y += fy + my;
-    sx += tx + mx;
-    sy += ty + my;
-
-    *xp = x; *yp = y;
-    *sxp = sx; *syp = sy;
+    getfilterrect2 (&sr, &dr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
+    OffsetRect (&dr, aw / 2, ah / 2);
+    *xp = dr.left;
+    *yp = dr.top;
+    *sxp = *xp + (dr.right - dr.left) * mx;
+    *syp = *yp + (dr.bottom - dr.top) * my;
 }
-#endif
-#if 1
+#else
 static void calc (float *xp, float *yp, float *sxp, float *syp)
 {
     int xm, ym;
@@ -566,18 +523,18 @@ int D3D_locktexture (void)
     D3DLOCKED_RECT locked;
     HRESULT hr;
 
-    hr = IDirect3DDevice9_TestCooperativeLevel(d3ddev);
+    hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
     if (FAILED (hr))
 	return 0;
 
-    IDirect3DDevice9_Clear(d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
+    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
 
-    hr = IDirect3DDevice9_BeginScene(d3ddev);
+    hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (FAILED (hr)) {
 	write_log ("IDirect3DDevice9_BeginScene failed: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
-    hr = IDirect3DTexture9_LockRect(texture, 0, &locked, NULL, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK);
+    hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, D3DLOCK_DISCARD | D3DLOCK_NOSYSLOCK);
     if (FAILED (hr)) {
 	write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	D3D_unlocktexture ();
@@ -596,17 +553,17 @@ void D3D_render (void)
 
     if (!d3d_enabled)
 	return;
-    if (FAILED(IDirect3DDevice9_TestCooperativeLevel(d3ddev)))
+    if (FAILED (IDirect3DDevice9_TestCooperativeLevel (d3ddev)))
 	return;
-    IDirect3DDevice9_Clear(d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
-    hr = IDirect3DDevice9_BeginScene(d3ddev);
+    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
+    hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (FAILED (hr))
 	return;
     calc (&x, &y, &sx, &sy);
-    BlitRect(d3ddev, texture, x, y, sx, sy, 0xffffff, 0.1f);
+    BlitRect (d3ddev, texture, x, y, sx, sy, 0xffffff, 0.1f);
     if (scanlines_ok)
 	BlitRect (d3ddev, sltexture, 0, 0, required_sl_texture_w, required_sl_texture_h, 0xffffff, 0.2f);
-    IDirect3DDevice9_EndScene(d3ddev);
+    IDirect3DDevice9_EndScene (d3ddev);
     IDirect3DDevice9_Present (d3ddev, 0, 0, 0 ,0);
 }
 

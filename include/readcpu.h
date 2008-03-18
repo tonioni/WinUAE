@@ -28,7 +28,9 @@ ENUMDECL {
     i_PACK, i_UNPK, i_TAS, i_BKPT, i_CALLM, i_RTM, i_TRAPcc, i_MOVES,
     i_FPP, i_FDBcc, i_FScc, i_FTRAPcc, i_FBcc, i_FSAVE, i_FRESTORE,
     i_CINVL, i_CINVP, i_CINVA, i_CPUSHL, i_CPUSHP, i_CPUSHA, i_MOVE16,
-    i_MMUOP30A, i_MMUOP30B, i_MMUOP
+    i_MMUOP030, i_PFLUSHN, i_PFLUSH, i_PFLUSHAN, i_PFLUSHA,
+    i_PLPAR, i_PLPAW, i_PTESTR, i_PTESTW,
+    i_LPSTOP
 } ENUMNAME (instrmnem);
 
 extern struct mnemolookup {

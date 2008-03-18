@@ -167,7 +167,7 @@ uae_u32 default_freq = 0;
 HWND hStatusWnd = NULL;
 uae_u16 picasso96_pixel_format = RGBFF_CHUNKY;
 
-static char scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
+static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
 
 void centerdstrect (RECT *dr)
@@ -1871,6 +1871,11 @@ static BOOL doInit (void)
 #endif
 #endif
     screen_is_initialized = 1;
+    WIN32GFX_SetPalette ();
+#ifdef PICASSO96
+    DX_SetPalette (0, 256);
+#endif
+    picasso_refresh ();
     return 1;
 
 oops:

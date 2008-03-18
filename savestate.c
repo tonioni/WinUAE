@@ -541,7 +541,10 @@ void restore_state (char *filename)
 	    end = chunk + len;
 	    write_log ("unknown chunk '%s' size %d bytes\n", name, len);
 	}
-	if (len != end - chunk)
+	if (end == NULL)
+	    write_log ("Chunk '%s', size %d bytes was not accepted!\n",
+		name, len);
+	else if (len != end - chunk)
 	    write_log ("Chunk '%s' total size %d bytes but read %d bytes!\n",
 		       name, len, end - chunk);
 	xfree (chunk);

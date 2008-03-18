@@ -46,6 +46,8 @@
 
 #if defined(PICASSO96)
 
+#define NOBLITTER 0
+
 static int hwsprite;
 
 #include "registry.h"
@@ -79,6 +81,7 @@ static void flushpixels(void);
 #define P96TRACE(x)
 #define P96TRACE_SPR(x)
 #endif
+#define P96TRACE2(x) do { write_log x; } while(0)
 
 static void REGPARAM2 gfxmem_lputx (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM2 gfxmem_wputx (uaecptr, uae_u32) REGPARAM;
@@ -868,16 +871,15 @@ void picasso_refresh (void)
 /*
 * Functions to perform an action on the frame-buffer
 */
-STATIC_INLINE void do_blitrect_frame_buffer (struct RenderInfo *ri, struct
+static int do_blitrect_frame_buffer (struct RenderInfo *ri, struct
     RenderInfo *dstri, unsigned long srcx, unsigned long srcy,
     unsigned long dstx, unsigned long dsty, unsigned long width, unsigned
     long height, uae_u8 mask, BLIT_OPCODE opcode)
 {
-    uae_u8 *src, *dst, *tmp, *tmp2, *tmp3;
+    uae_u8 *src, *dst;
     uae_u8 Bpp = GetBytesPerPixel (ri->RGBFormat);
     unsigned long total_width = width * Bpp;
     unsigned long linewidth = (total_width + 15) & ~15;
-    unsigned long lines;
 
     src = ri->Memory + srcx * Bpp + srcy * ri->BytesPerRow;
     dst = dstri->Memory + dstx * Bpp + dsty * dstri->BytesPerRow;
@@ -905,7 +907,7 @@ STATIC_INLINE void do_blitrect_frame_buffer (struct RenderInfo *ri, struct
 		for (i = 0; i < height; i++, src -= ri->BytesPerRow, dst -= dstri->BytesPerRow)
 		    memcpy (dst, src, total_width);
 	    }
-	    return;
+	    return 1;
 
 	} else if (Bpp == 4) {
 
@@ -974,28 +976,9 @@ STATIC_INLINE void do_blitrect_frame_buffer (struct RenderInfo *ri, struct
 	    }
 
 	}
-	return;
+	return 1;
     }
-
-    tmp3 = tmp2 = tmp = xmalloc (linewidth * height); /* allocate enough memory for the src-rect */
-    if (!tmp)
-	return;
-
-    /* copy the src-rect into our temporary buffer space */
-    for (lines = 0; lines < height; lines++, src += ri->BytesPerRow, tmp2 += linewidth) {
-	memcpy (tmp2, src, total_width);
-    }
-
-    /* copy the temporary buffer to the destination */
-    for (lines = 0; lines < height; lines++, dst += dstri->BytesPerRow, tmp += linewidth) {
-	unsigned long cols;
-	for (cols = 0; cols < width; cols++) {
-	    dst[cols] &= ~mask;
-	    dst[cols] |= tmp[cols] & mask;
-	}
-    }
-    /* free the temp-buf */
-    free (tmp3);
+    return 0;
 }
 
 /*
@@ -2126,6 +2109,8 @@ uae_u32 REGPARAM2 picasso_InvertRect (struct regstruct *regs)
     unsigned long width_in_bytes;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if (CopyRenderInfoStructureA2U (renderinfo, &ri)) {
 	P96TRACE(("InvertRect %dbpp 0x%lx\n", Bpp, (long)mask));
 
@@ -2174,6 +2159,8 @@ uae_u32 REGPARAM2 picasso_FillRect (struct regstruct *regs)
     struct RenderInfo ri;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if (CopyRenderInfoStructureA2U (renderinfo, &ri) && Y != 0xFFFF) {
 	if (ri.RGBFormat != RGBFormat)
 	    write_log ("Weird Stuff!\n");
@@ -2294,8 +2281,7 @@ STATIC_INLINE int BlitRectHelper (void)
 	dstri = ri;
     }
     /* Do our virtual frame-buffer memory first */
-    do_blitrect_frame_buffer (ri, dstri, srcx, srcy, dstx, dsty, width, height, mask, opcode);
-    return 1;
+    return do_blitrect_frame_buffer (ri, dstri, srcx, srcy, dstx, dsty, width, height, mask, opcode);
 }
 
 STATIC_INLINE int BlitRect (uaecptr ri, uaecptr dstri,
@@ -2349,6 +2335,8 @@ uae_u32 REGPARAM2 picasso_BlitRect (struct regstruct *regs)
     uae_u8  Mask = (uae_u8)m68k_dreg (regs, 6);
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     P96TRACE(("BlitRect(%d, %d, %d, %d, %d, %d, 0x%x)\n", srcx, srcy, dstx, dsty, width, height, Mask));
     result = BlitRect (renderinfo, (uaecptr)NULL, srcx, srcy, dstx, dsty, width, height, Mask, BLIT_SRC);
     return result;
@@ -2386,6 +2374,8 @@ uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (struct regstruct *regs)
     uae_u32 RGBFmt = m68k_dreg (regs, 7);
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     {
 	uaecptr a5 = m68k_areg (regs, 5) & ~0xffff;
 	if (a5 != RTAREA_DEFAULT && a5 != RTAREA_BACKUP) {
@@ -2469,6 +2459,8 @@ uae_u32 REGPARAM2 picasso_BlitPattern (struct regstruct *regs)
     unsigned long ysize_mask;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if(CopyRenderInfoStructureA2U (rinf, &ri) && CopyPatternStructureA2U (pinf, &pattern)) {
 	Bpp = GetBytesPerPixel(ri.RGBFormat);
 	uae_mem = ri.Memory + Y * ri.BytesPerRow + X * Bpp; /* offset with address */
@@ -2626,6 +2618,8 @@ uae_u32 REGPARAM2 picasso_BlitTemplate (struct regstruct *regs)
     uae_u8 *tmpl_base;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if (CopyRenderInfoStructureA2U (rinf, &ri) && CopyTemplateStructureA2U (tmpl, &tmp)) {
 	Bpp = GetBytesPerPixel(ri.RGBFormat);
 	uae_mem = ri.Memory + Y * ri.BytesPerRow + X * Bpp; /* offset into address */
@@ -2931,6 +2925,8 @@ uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (struct regstruct *regs)
     struct BitMap local_bm;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if (minterm != 0x0C) {
 	write_log ("ERROR - BlitPlanar2Chunky() has minterm 0x%x, which I don't handle. Using fall-back routine.\n",
 	    minterm);
@@ -3070,6 +3066,8 @@ uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (struct regstruct *regs)
     struct ColorIndexMapping local_cim;
     uae_u32 result = 0;
 
+    if (NOBLITTER)
+	return 0;
     if (minterm != 0x0C) {
 	write_log ("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n",
 	    minterm);

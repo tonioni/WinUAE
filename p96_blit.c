@@ -50,7 +50,7 @@ static void NOINLINE BLT_NAME (unsigned int w, unsigned int h, uae_u8 *src, uae_
     }
 
     ww = w / (8 * BLT_MULT);
-    xxd = w - ww * (8 * BLT_MULT);
+    xxd = (w - ww * (8 * BLT_MULT)) / BLT_MULT;
     for(y = 0; y < h; y++) {
 	uae_u32 *src_32 = (uae_u32*)src2;
 	uae_u32 *dst_32 = (uae_u32*)dst2;

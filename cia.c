@@ -1082,9 +1082,11 @@ void CIA_reset (void)
 	DISK_select (ciabprb);
     }
 #ifdef CD32
-    akiko_reset ();
-    if (!akiko_init ())
-	currprefs.cs_cd32cd = changed_prefs.cs_cd32cd = 0;
+    if (savestate_state != STATE_RESTORE) {
+	akiko_reset ();
+	if (!akiko_init ())
+	    currprefs.cs_cd32cd = changed_prefs.cs_cd32cd = 0;
+    }
 #endif
 }
 

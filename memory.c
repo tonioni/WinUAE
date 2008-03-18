@@ -39,9 +39,12 @@ int special_mem;
 
 static int canjit (void)
 {
+    return 1;
+#if 0
     if (canbang || currprefs.cpu_model >= 68020)
 	return 1;
     return 0;
+#endif
 }
 static void nocanbang(void)
 {
@@ -590,7 +593,7 @@ int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size)
 		t = keysize - 1;
 	}
     }
-    return get_keyring();
+    return 0;
 }
 
 static int decode_rekick_rom_do (uae_u8 *mem, int size, int real_size)
@@ -656,10 +659,10 @@ int load_keyring (struct uae_prefs *p, char *path)
     int keyid;
     int cnt, i;
 
-    free_keyring();
+    free_keyring ();
     keyid = 0;
-    keybuf = target_load_keyfile(p, path, &keysize, tmp);
-    addkey(&keyid, keybuf, keysize, tmp);
+    keybuf = target_load_keyfile (p, path, &keysize, tmp);
+    addkey (&keyid, keybuf, keysize, tmp);
     for (i = 0; keyids[i] >= 0 && keyid < ROM_KEY_NUM; i++) {
 	struct romdata *rd = getromdatabyid (keyids[i]);
 	char *s;
@@ -2826,7 +2829,7 @@ static shmpiece *find_shmpiece (uae_u8 *base)
     while (x && x->native_address != base)
 	x = x->next;
     if (!x) {
-	write_log ("NATMEM: Failure to find mapping at %p\n",base);
+	write_log ("NATMEM: Failure to find mapping at %08X, %p\n", base - NATMEM_OFFSET, base);
 	dumplist ();
 	nocanbang();
 	return 0;
@@ -3180,7 +3183,7 @@ void memory_reset (void)
 	kickmem_mask = 524288 - 1;
 	if (!load_kickstart ()) {
 	    if (strlen (currprefs.romfile) > 0) {
-		write_log ("%s\n", currprefs.romfile);
+		write_log ("Failed to open '%s'\n", currprefs.romfile);
 		notify_user (NUMSG_NOROM);
 	    }
 #ifdef AUTOCONFIG

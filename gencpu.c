@@ -1677,6 +1677,19 @@ static void gen_opcode (unsigned long int opcode)
 	sync_m68k_pc ();
 	fill_prefetch_full ();
 	break;
+    case i_LPSTOP: /* 68060 */
+	printf ("\tuae_u16 sw = get_iword (regs, 2);\n");
+	printf ("\tuae_u16 sr;\n");
+	printf ("\tif (sw != (0x100|0x80|0x40)) { Exception (4, regs, 0); goto %s; }\n", endlabelstr);
+	printf ("\tsr = get_iword (regs, 4);\n");
+	printf ("\tif (!(sr & 0x8000)) { Exception (8, regs, 0); goto %s; }\n", endlabelstr);
+	printf ("\tregs->sr = sr;\n");
+	printf ("\tMakeFromSR (regs);\n");
+	printf ("\tm68k_setstopped(regs, 1);\n");
+	m68k_pc_offset += 4;
+	sync_m68k_pc ();
+	fill_prefetch_full ();
+	break;
     case i_RTE:
 	if (cpu_level == 0) {
 	    genamode (Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
@@ -2900,12 +2913,19 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	break;
 
-    case i_MMUOP:
+    case i_PFLUSHN:
+    case i_PFLUSH:
+    case i_PFLUSHAN:
+    case i_PFLUSHA:
+    case i_PLPAR:
+    case i_PLPAW:
+    case i_PTESTR:
+    case i_PTESTW:
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
 	printf ("\tmmu_op (opcode, regs, extra);\n");
 	break;
-    case i_MMUOP30A:
+    case i_MMUOP030:
 	printf ("\tuaecptr pc = m68k_getpc (regs);\n");
 	if (curi->smode == Areg || curi->smode == Dreg)
 	    printf("\tuae_u16 extraa = 0;\n");
@@ -2913,12 +2933,6 @@ static void gen_opcode (unsigned long int opcode)
 	    genamode (curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
 	sync_m68k_pc ();
 	printf ("\tmmu_op30 (pc, opcode, regs, 1, extraa);\n");
-	break;
-    case i_MMUOP30B:
-	printf ("\tuaecptr pc = m68k_getpc (regs);\n");
-	genamode (curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
-	sync_m68k_pc ();
-	printf ("\tmmu_op30 (pc, opcode, regs, 0, 0);\n");
 	break;
     default:
 	abort ();

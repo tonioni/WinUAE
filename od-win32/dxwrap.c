@@ -55,9 +55,9 @@ void DirectDraw_Release (void)
     dxdata.ddinit = 0;
     freemainsurface ();
     if (dxdata.fsmodeset)
-	IDirectDraw7_RestoreDisplayMode(dxdata.maindd);
+	IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
     dxdata.fsmodeset = 0;
-    IDirectDraw7_SetCooperativeLevel(dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
+    IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
     releaser (dxdata.dclip, IDirectDrawClipper_Release);
     releaser (dxdata.maindd, IDirectDraw_Release);
     memset (&dxdata, 0, sizeof (dxdata));
@@ -97,9 +97,10 @@ int DirectDraw_Start (GUID *guid)
 	IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
 	dxdata.maxwidth = d3dCaps.MaxTextureWidth;
 	dxdata.maxheight = d3dCaps.MaxTextureHeight;
+	write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
     }
 
-    if (SUCCEEDED(DirectDraw_GetDisplayMode ())) {
+    if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
 	dxdata.ddinit = 1;
 	dxdata.ddzeroguid = 1;
 	if (guid) {
@@ -138,7 +139,7 @@ static void clearsurf (LPDIRECTDRAWSURFACE7 surf)
     memset(&ddbltfx, 0, sizeof (ddbltfx));
     ddbltfx.dwFillColor = 0;
     ddbltfx.dwSize = sizeof (ddbltfx);
-    while (FAILED(ddrval = IDirectDrawSurface7_Blt (surf, NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
+    while (FAILED (ddrval = IDirectDrawSurface7_Blt (surf, NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (dxdata.primary);
 	    if (FAILED (ddrval))
@@ -161,10 +162,10 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 {
     HRESULT ddrval;
     desc->dwSize = sizeof (*desc);
-    while (FAILED(ddrval = IDirectDrawSurface7_Lock (surf, NULL, desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+    while (FAILED (ddrval = IDirectDrawSurface7_Lock (surf, NULL, desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (surf);
-	    if (FAILED(ddrval))
+	    if (FAILED (ddrval))
 	        return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
 	    write_log ("locksurface: %s\n", DXError (ddrval));
@@ -286,7 +287,7 @@ HRESULT DirectDraw_SetDisplayMode(int width, int height, int bits, int freq)
     if (dxdata.fsmodeset && dxdata.width == width && dxdata.height == height &&
 	dxdata.depth == bits && dxdata.freq == freq)
 	return DD_OK;
-    ddrval = IDirectDraw7_SetDisplayMode(dxdata.maindd, width, height, bits, freq, 0);
+    ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
     } else {
@@ -328,7 +329,7 @@ HRESULT DirectDraw_SetClipper(HWND hWnd)
     ddrval = IDirectDrawSurface7_SetClipper (dxdata.primary, hWnd ? dxdata.dclip : NULL);
     if (FAILED (ddrval))
 	write_log ("IDirectDrawSurface7_SetClipper: %s\n", DXError (ddrval));
-    if(hWnd && SUCCEEDED(ddrval)) {
+    if(hWnd && SUCCEEDED (ddrval)) {
 	ddrval = IDirectDrawClipper_SetHWnd (dxdata.dclip, 0, hWnd);
 	if (FAILED (ddrval))
 	    write_log ("IDirectDrawClipper_SetHWnd: %s\n", DXError (ddrval));
@@ -342,7 +343,7 @@ char *outGUID (const GUID *guid)
     static char gb[64];
     if (guid == NULL)
 	return "NULL";
-    sprintf(gb, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
+    sprintf (gb, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
 	guid->Data1, guid->Data2, guid->Data3,
 	guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
 	guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
@@ -352,7 +353,7 @@ char *outGUID (const GUID *guid)
 const char *DXError (HRESULT ddrval)
 {
     static char dderr[1000];
-    sprintf(dderr, "%08.8X S=%d F=%04.4X C=%04.4X (%d) (%s)",
+    sprintf (dderr, "%08.8X S=%d F=%04.4X C=%04.4X (%d) (%s)",
 	ddrval, (ddrval & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),
@@ -371,7 +372,7 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
     surf_flags = surface->dwFlags;
     pfp = &surface->ddpfPixelFormat;
 
-    if((surf_flags & DDSD_PIXELFORMAT) == 0x0)
+    if ((surf_flags & DDSD_PIXELFORMAT) == 0x0)
 	return RGBFB_NONE;
 
     if ((pfp->dwFlags & DDPF_RGB) == 0)
@@ -422,14 +423,14 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
     return RGBFB_NONE;
 }
 
-HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback)
+HRESULT DirectDraw_EnumDisplayModes (DWORD flags, LPDDENUMMODESCALLBACK2 callback)
 {
     HRESULT result;
-    result = IDirectDraw7_EnumDisplayModes(dxdata.maindd, flags, NULL, NULL, callback);
+    result = IDirectDraw7_EnumDisplayModes (dxdata.maindd, flags, NULL, NULL, callback);
     return result;
 }
 
-HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEX callback)
+HRESULT DirectDraw_EnumDisplays (LPDDENUMCALLBACKEX callback)
 {
     HRESULT result;
     result = DirectDrawEnumerateEx (callback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
@@ -522,7 +523,7 @@ HRESULT DirectDraw_ReleaseDC(HDC hdc)
 int DirectDraw_GetVerticalBlankStatus (void)
 {
     BOOL status;
-    if (FAILED(IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &status)))
+    if (FAILED (IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &status)))
 	return -1;
     return status;
 }
@@ -538,6 +539,8 @@ DWORD DirectDraw_CurrentRefreshRate (void)
 
 HRESULT DirectDraw_FlipToGDISurface (void)
 {
+    if (!dxdata.ddinit)
+	return DD_OK;
     return IDirectDraw7_FlipToGDISurface (dxdata.maindd);
 }
 
@@ -552,7 +555,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *rect)
     dst = dxdata.primary;
     SetRect (&dstrect, x, y, x + w, y + h);
     centerdstrect (&dstrect);
-    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, rect, DDBLT_WAIT, NULL))) {
+    while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, rect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (dst);
 	    if (FAILED (ddrval))
@@ -650,7 +653,7 @@ void DirectDraw_Fill (RECT *rect, uae_u32 color)
     ddbltfx.dwFillColor = color;
     ddbltfx.dwSize = sizeof (ddbltfx);
     dst = getlocksurface ();
-    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, rect, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
+    while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, rect, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface (dst);
 	    if (FAILED (ddrval))

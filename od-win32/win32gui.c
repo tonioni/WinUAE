@@ -1146,7 +1146,7 @@ void gui_display (int shortcut)
     scaleresource_setmaxsize (-1, -1);
     if (w > 0 && h > 0)
 	scaleresource_setmaxsize (w, h);
-    WIN32GFX_ClearPalette();
+    WIN32GFX_ClearPalette ();
     manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
     if (isfullscreen () > 0) {
@@ -1172,7 +1172,7 @@ void gui_display (int shortcut)
     }
     manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
     manual_palette_refresh_needed = 1;
-    resumepaused();
+    resumepaused ();
     inputdevice_copyconfig (&changed_prefs, &currprefs);
     inputdevice_config_change_test ();
     clearallkeys ();
@@ -1185,12 +1185,12 @@ void gui_display (int shortcut)
     AVIOutput_Begin ();
 #endif
     fpscounter_reset ();
-    WIN32GFX_SetPalette();
+    WIN32GFX_SetPalette ();
 #ifdef PICASSO96
     DX_SetPalette (0, 256);
 #endif
-    screenshot_free();
-    write_disk_history();
+    screenshot_free ();
+    write_disk_history ();
     gui_active--;
     here--;
 }
@@ -1325,103 +1325,103 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 
     switch (flag) {
     case 0:
-	WIN32GUI_LoadUIString(IDS_SELECTADF, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_ADF, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), DISK_FORMAT_STRING, sizeof(DISK_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString (IDS_SELECTADF, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 1:
-	WIN32GUI_LoadUIString(IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_ADF, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), "(*.adf)\0*.adf\0", 15);
+	WIN32GUI_LoadUIString (IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen (szFilter), "(*.adf)\0*.adf\0", 15);
 
 	openFileName.lpstrDefExt = "ADF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 2:
     case 3:
-	WIN32GUI_LoadUIString(IDS_SELECTHDF, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_HDF, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString (IDS_SELECTHDF, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_HDF, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen (szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "HDF";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 4:
     case 5:
-	WIN32GUI_LoadUIString(IDS_SELECTUAE, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_UAE, szFormat, MAX_DPATH );
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), "(*.uae)\0*.uae\0", 15);
+	WIN32GUI_LoadUIString (IDS_SELECTUAE, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_UAE, szFormat, MAX_DPATH );
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen (szFilter), "(*.uae)\0*.uae\0", 15);
 
 	openFileName.lpstrDefExt = "UAE";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 6:
-	WIN32GUI_LoadUIString(IDS_SELECTROM, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_ROM, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString (IDS_SELECTROM, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_ROM, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen(szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "ROM";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 7:
-	WIN32GUI_LoadUIString(IDS_SELECTKEY, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_KEY, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), "(*.key)\0*.key\0", 15);
+	WIN32GUI_LoadUIString (IDS_SELECTKEY, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_KEY, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen(szFilter), "(*.key)\0*.key\0", 15);
 
 	openFileName.lpstrDefExt = "KEY";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 15:
     case 16:
-	WIN32GUI_LoadUIString(flag == 15 ? IDS_RESTOREINP : IDS_SAVEINP, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_INP, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
+	WIN32GUI_LoadUIString (flag == 15 ? IDS_RESTOREINP : IDS_SAVEINP, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_INP, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen(szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
 
 	openFileName.lpstrDefExt = "INP";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 9:
     case 10:
-	WIN32GUI_LoadUIString(flag == 10 ? IDS_RESTOREUSS : IDS_SAVEUSS, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_USS, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
+	WIN32GUI_LoadUIString (flag == 10 ? IDS_RESTOREUSS : IDS_SAVEUSS, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_USS, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
 	if (flag == 10) {
-	    memcpy(szFilter + strlen(szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + 1);
+	    memcpy (szFilter + strlen(szFilter), USS_FORMAT_STRING_RESTORE, sizeof (USS_FORMAT_STRING_RESTORE) + 1);
 	    all = 1;
 	} else {
 	    char tmp[MAX_DPATH];
-	    memcpy(szFilter + strlen(szFilter), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE) + 1);
+	    memcpy (szFilter + strlen(szFilter), USS_FORMAT_STRING_SAVE, sizeof (USS_FORMAT_STRING_SAVE) + 1);
 	    p = szFilter;
 	    while (p[0] != 0 || p[1] !=0 ) p++;
 	    p++;
-	    WIN32GUI_LoadUIString(IDS_STATEFILE_UNCOMPRESSED, tmp, sizeof(tmp));
-	    strcat(p, tmp);
-	    strcat(p, " (*.uss)");
-	    p += strlen(p) + 1;
-	    strcpy(p, "*.uss");
-	    p += strlen(p) + 1;
-	    WIN32GUI_LoadUIString(IDS_STATEFILE_RAMDUMP, tmp, sizeof(tmp));
-	    strcat(p, tmp);
-	    strcat(p, " (*.dat)");
+	    WIN32GUI_LoadUIString (IDS_STATEFILE_UNCOMPRESSED, tmp, sizeof (tmp));
+	    strcat (p, tmp);
+	    strcat (p, " (*.uss)");
+	    p += strlen (p) + 1;
+	    strcpy (p, "*.uss");
+	    p += strlen (p) + 1;
+	    WIN32GUI_LoadUIString (IDS_STATEFILE_RAMDUMP, tmp, sizeof (tmp));
+	    strcat (p, tmp);
+	    strcat (p, " (*.dat)");
 	    p += strlen(p) + 1;
 	    strcpy (p, "*.dat");
-	    p += strlen(p) + 1;
-	    WIN32GUI_LoadUIString(IDS_STATEFILE_WAVE, tmp, sizeof(tmp));
-	    strcat(p, tmp);
-	    strcat(p, " (*.wav)");
-	    p += strlen(p) + 1;
+	    p += strlen (p) + 1;
+	    WIN32GUI_LoadUIString (IDS_STATEFILE_WAVE, tmp, sizeof (tmp));
+	    strcat (p, tmp);
+	    strcat (p, " (*.wav)");
+	    p += strlen (p) + 1;
 	    strcpy (p, "*.wav");
-	    p += strlen(p) + 1;
+	    p += strlen (p) + 1;
 	    *p = 0;
 	    all = 0;
 	    filterindex = statefile_previousfilter;
@@ -1430,30 +1430,30 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 11:
-	WIN32GUI_LoadUIString(IDS_SELECTFLASH, szTitle, MAX_DPATH);
-	WIN32GUI_LoadUIString(IDS_FLASH, szFormat, MAX_DPATH);
-	sprintf(szFilter, "%s ", szFormat);
-	memcpy(szFilter + strlen(szFilter), "(*.nvr)\0*.nvr\0", 15);
+	WIN32GUI_LoadUIString (IDS_SELECTFLASH, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_FLASH, szFormat, MAX_DPATH);
+	sprintf (szFilter, "%s ", szFormat);
+	memcpy (szFilter + strlen (szFilter), "(*.nvr)\0*.nvr\0", 15);
 
 	openFileName.lpstrDefExt = "NVR";
 	openFileName.lpstrFilter = szFilter;
 	break;
     case 8:
     default:
-	WIN32GUI_LoadUIString(IDS_SELECTINFO, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_SELECTINFO, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	break;
     case 12:
-	WIN32GUI_LoadUIString(IDS_SELECTFS, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_SELECTFS, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
 	openFileName.lpstrInitialDir = path_out;
 	break;
     case 13:
-	WIN32GUI_LoadUIString(IDS_SELECTINFO, szTitle, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_SELECTINFO, szTitle, MAX_DPATH);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrDefExt = NULL;
@@ -1462,7 +1462,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     case 14:
 	strcpy (szTitle, "Select supported archive file");
 	sprintf (szFilter, "%s (%s)", "Archive", ARCHIVE_STRING);
-	strcpy (szFilter + strlen(szFilter) + 1, ARCHIVE_STRING);
+	strcpy (szFilter + strlen (szFilter) + 1, ARCHIVE_STRING);
 
 	openFileName.lpstrFilter = NULL;
 	openFileName.lpstrFilter = szFilter;
@@ -8929,8 +8929,8 @@ static void enable_for_hw3ddlg (HWND hDlg)
     CheckDlgButton(hDlg, IDC_FILTERENABLE, v);
     ew (hDlg, IDC_FILTERHZ, v);
     ew (hDlg, IDC_FILTERVZ, v);
-    ew (hDlg, IDC_FILTERHZMULT, vv && !vv4);
-    ew (hDlg, IDC_FILTERVZMULT, vv && !vv4);
+    ew (hDlg, IDC_FILTERHZMULT, v);
+    ew (hDlg, IDC_FILTERVZMULT, v);
     ew (hDlg, IDC_FILTERHO, v);
     ew (hDlg, IDC_FILTERVO, v);
     ew (hDlg, IDC_FILTERSLR, vv3);
@@ -9600,11 +9600,11 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 		case IDC_AVIOUTPUT_FRAMELIMITER:
 		    avioutput_framelimiter = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
-		    AVIOutput_SetSettings();
+		    AVIOutput_SetSettings ();
 		break;
 		case IDC_AVIOUTPUT_NOSOUNDOUTPUT:
 		    avioutput_nosoundoutput = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT) ? 1 : 0;
-		    AVIOutput_SetSettings();
+		    AVIOutput_SetSettings ();
 		break;
 
 		case IDC_INPREC_PLAYMODE:
@@ -9613,13 +9613,13 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		    if (input_recording)
 			inprec_close ();
 		    else
-			DiskSelection(hDlg, wParam, 16, &workprefs, NULL);
+			DiskSelection (hDlg, wParam, 16, &workprefs, NULL);
 		break;
 		case IDC_INPREC_PLAY:
 		    if (input_recording)
 			inprec_close ();
 		    else
-			DiskSelection(hDlg, wParam, 15, &workprefs, NULL);
+			DiskSelection (hDlg, wParam, 15, &workprefs, NULL);
 		break;
 
 #ifdef PROWIZARD
@@ -9644,22 +9644,22 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		break;
 
 		case IDC_AVIOUTPUT_PAL:
-		    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
-		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+		    SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
+		    SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 		break;
 
 		case IDC_AVIOUTPUT_NTSC:
-		    SendDlgItemMessage(hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_NTSC);
-		    SendMessage(hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
+		    SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_NTSC);
+		    SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 		break;
 
 		case IDC_AVIOUTPUT_AUDIO:
 		{
 		    if (avioutput_enabled)
 			AVIOutput_End ();
-		    if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_AUDIO) == BST_CHECKED) {
-			avioutput_audio = AVIOutput_ChooseAudioCodec(hDlg, tmp, sizeof tmp);
-			enable_for_avioutputdlg(hDlg);
+		    if(IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_AUDIO) == BST_CHECKED) {
+			avioutput_audio = AVIOutput_ChooseAudioCodec (hDlg, tmp, sizeof tmp);
+			enable_for_avioutputdlg (hDlg);
 		    } else {
 			avioutput_audio = 0;
 		    }
@@ -9670,15 +9670,15 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		{
 		    if (avioutput_enabled)
 			AVIOutput_End ();
-		    if(IsDlgButtonChecked(hDlg, IDC_AVIOUTPUT_VIDEO) == BST_CHECKED) {
-			avioutput_video = AVIOutput_ChooseVideoCodec(hDlg, tmp, sizeof tmp);
+		    if(IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_VIDEO) == BST_CHECKED) {
+			avioutput_video = AVIOutput_ChooseVideoCodec (hDlg, tmp, sizeof tmp);
 			if (avioutput_audio = AVIAUDIO_WAV)
 			    avioutput_audio = 0;
-			enable_for_avioutputdlg(hDlg);
+			enable_for_avioutputdlg (hDlg);
 		    } else {
 			avioutput_video = 0;
 		    }
-		    enable_for_avioutputdlg(hDlg);
+		    enable_for_avioutputdlg (hDlg);
 		    break;
 		}
 
@@ -9686,8 +9686,8 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		{
 		    OPENFILENAME ofn;
 
-		    ZeroMemory(&ofn, sizeof(OPENFILENAME));
-		    ofn.lStructSize = sizeof(OPENFILENAME);
+		    ZeroMemory(&ofn, sizeof (OPENFILENAME));
+		    ofn.lStructSize = sizeof (OPENFILENAME);
 		    ofn.hwndOwner = hDlg;
 		    ofn.hInstance = hInst;
 		    ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
@@ -9704,7 +9704,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		    ofn.lCustData = 0;
 		    ofn.lpstrFilter = "Video Clip (*.avi)\0*.avi\0Wave Sound (*.wav)\0";
 
-		    if(!GetSaveFileName(&ofn))
+		    if(!GetSaveFileName (&ofn))
 			break;
 		    if (ofn.nFilterIndex == 2) {
 			avioutput_audio = AVIAUDIO_WAV;
@@ -10712,8 +10712,8 @@ static int GetSettings (int all_options, HWND hwnd)
     if (first)
 	write_log ("Entering GUI idle loop\n");
 
-    scaleresource_setmaxsize(800, 600);
-    tres = scaleresource(panelresource, hwnd);
+    scaleresource_setmaxsize (800, 600);
+    tres = scaleresource (panelresource, hwnd);
     dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
     dialog_rect.top = dialog_rect.left = 0;
     dialog_rect.right = tres->width;
@@ -10726,18 +10726,18 @@ static int GetSettings (int all_options, HWND hwnd)
 
 	setguititle (dhwnd);
 	ShowWindow (dhwnd, SW_SHOW);
-	MapDialogRect(dhwnd, &dialog_rect);
+	MapDialogRect (dhwnd, &dialog_rect);
 
 	for (;;) {
 	    HANDLE IPChandle;
-	    IPChandle = geteventhandleIPC();
+	    IPChandle = geteventhandleIPC ();
 	    if (IPChandle != INVALID_HANDLE_VALUE) {
 		MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
-		while (checkIPC(&workprefs));
+		while (checkIPC( &workprefs));
 	    } else {
 		WaitMessage();
 	    }
-	    dialogmousemove(dhwnd);
+	    dialogmousemove (dhwnd);
 	    while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
 		if (dialogreturn >= 0)
 		    break;
@@ -10957,7 +10957,7 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
     *hwnd = hAmigaWnd;
     if (isfullscreen () <= 0)
 	return 0;
-    hr = DirectDraw_FlipToGDISurface();
+    hr = DirectDraw_FlipToGDISurface ();
     if (FAILED(hr))
 	write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     *flags |= MB_SETFOREGROUND;

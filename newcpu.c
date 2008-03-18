@@ -1872,14 +1872,6 @@ void mmu_op (uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
 #endif
 	    return;
 	}
-    } else if (opcode == 0xff00 && extra == 0x01c0) {
-	/* LPSTOP */
-	if (currprefs.cpu_model == 68060) {
-#if MMUOP_DEBUG > 0
-	    write_log ("LPSTOP\n");
-#endif
-	    return;
-	}
     }
 #if MMUOP_DEBUG > 0
     write_log ("Unknown MMU OP %04X\n", opcode);
@@ -2579,15 +2571,40 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 	 default: strcat (instrname, "   "); break;
 	}
 
-	if (dp->suse) {
-	    newpc = m68k_getpc (&regs) + m68kpc_offset;
-	    newpc += ShowEA (0, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr, safemode);
-	}
-	if (dp->suse && dp->duse)
-	    strcat (instrname, ",");
-	if (dp->duse) {
-	    newpc = m68k_getpc (&regs) + m68kpc_offset;
-	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+	if (lookup->mnemo == i_MOVEC2 || lookup->mnemo == i_MOVE2C) {
+	    uae_u16 imm = get_iword_1 (m68kpc_offset) & 0xffff;
+	    uae_u16 creg = imm & 0x0fff;
+	    uae_u16 r = imm >> 12;
+	    char regs[16], *cname = "?";
+	    int i;
+	    for (i = 0; m2cregs[i].regname; i++) {
+		if (m2cregs[i].regno == creg)
+		    break;
+	    }
+	    sprintf (regs, "%c%d", r >= 8 ? 'A' : 'D', r >= 8 ? r - 8 : r);
+	    if (m2cregs[i].regname)
+		cname = m2cregs[i].regname;
+	    if (lookup->mnemo == i_MOVE2C) {
+		strcat (instrname, regs);
+		strcat (instrname, ",");
+		strcat (instrname, cname);
+	    } else {
+		strcat (instrname, cname);
+		strcat (instrname, ",");
+		strcat (instrname, regs);
+	    }
+	    m68kpc_offset += 2;
+	} else {
+	    if (dp->suse) {
+		newpc = m68k_getpc (&regs) + m68kpc_offset;
+		newpc += ShowEA (0, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr, safemode);
+	    }
+	    if (dp->suse && dp->duse)
+		strcat (instrname, ",");
+	    if (dp->duse) {
+		newpc = m68k_getpc (&regs) + m68kpc_offset;
+		newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+	    }
 	}
 
 	for (i = 0; i < (m68kpc_offset - oldpc) / 2; i++) {
@@ -2595,9 +2612,6 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 	}
 	while (i++ < 5)
 	    buf = buf_out (buf, &bufsize, "     ");
-    if (strlen (instrname) > 79) {
-	int i = 0;
-    }
 
 	buf = buf_out (buf, &bufsize, instrname);
 

@@ -10,12 +10,14 @@
 
 //#define CUSTOM_DEBUG
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 0x6a
-#define SPRITE_DEBUG_MAXY 0x70
+#define SPRITE_DEBUG_MINY 0xb0
+#define SPRITE_DEBUG_MAXY 0xf8
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
 #define SPEEDUP
+
+#define SPRBORDER 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -78,7 +80,7 @@ void uae_abort (const char *format,...)
     _vsnprintf(buffer, sizeof (buffer) - 1, format, parms );
     va_end (parms);
     if (nomore) {
-	write_log (buffer);
+	write_log ("%s\n", buffer);
 	return;
     }
     gui_message (buffer);
@@ -1933,7 +1935,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     attachment =  (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
 
     /* Try to coalesce entries if they aren't too far apart  */
-    if (! next_sprite_forced && e[-1].max + sprite_width >= sprxp && (attachment || ((bplcon4 >> 4) & 15) == ((bplcon4 >> 0) & 15))) {
+    if (!next_sprite_forced && e[-1].max + sprite_width >= sprxp && (attachment || ((bplcon4 >> 4) & 15) == ((bplcon4 >> 0) & 15))) {
 	e--;
     } else {
 	next_sprite_entry++;
@@ -1987,22 +1989,43 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     }
 }
 
-STATIC_INLINE int SSCAN2_H10 (int x)
+static void add_sprite (int *countp, int num, int sprxp, int window_xp, int posns[], int nrs[], int window_width)
 {
-    if (fmode & 0x8000)
-	return x & ~(0x100 << sprite_buffer_res);
-    return x;
+    int count = *countp;
+    int j, bestp;
+#ifdef AGA
+    if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
+        ((thisline_decision.diwfirstword >= 0 && window_xp + window_width < thisline_decision.diwfirstword)
+        || (thisline_decision.diwlastword >= 0 && window_xp > thisline_decision.diwlastword)))
+	    return;
+#endif
+    /* Sort the sprites in order of ascending X position before recording them.  */
+    for (bestp = 0; bestp < count; bestp++) {
+        if (posns[bestp] > sprxp)
+	    break;
+	if (posns[bestp] == sprxp && nrs[bestp] < num)
+	    break;
+    }
+    for (j = count; j > bestp; j--) {
+        posns[j] = posns[j - 1];
+        nrs[j] = nrs[j - 1];
+    }
+    posns[j] = sprxp;
+    nrs[j] = num;
+    count++;
+    *countp = count;
 }
 
 static void decide_sprites (int hpos)
 {
-    int nrs[MAX_SPRITES], posns[MAX_SPRITES];
+    int nrs[MAX_SPRITES * 2], posns[MAX_SPRITES * 2];
     int count, i;
      /* apparantly writes to custom registers happen in the 3/4th of cycle
       * and sprite xpos comparator sees it immediately */
     int point = hpos * 2 - 3;
     int width = sprite_width;
     int window_width = (width << lores_shift) >> sprres;
+    int sscanmask = 0x100 << sprite_buffer_res;
 
     if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
 	return;
@@ -2012,10 +2035,12 @@ static void decide_sprites (int hpos)
 
     count = 0;
     for (i = 0; i < MAX_SPRITES; i++) {
-	int sprxp = SSCAN2_H10 (spr[i].xpos);
+	int sprxp = (fmode & 0x8000) ? (spr[i].xpos & ~sscanmask) : spr[i].xpos;
 	int hw_xp = sprxp >> sprite_buffer_res;
 	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
-	int j, bestp;
+
+	if (spr[i].xpos < 0)
+	    continue;
 
 	if (!((debug_sprite_mask) & (1 << i)))
 	    continue;
@@ -2023,33 +2048,22 @@ static void decide_sprites (int hpos)
 	if (! spr[i].armed)
 	    continue;
 
-	if (sprxp < 0 || hw_xp <= last_sprite_point || hw_xp > point)
-	    continue;
+	if (hw_xp > last_sprite_point && hw_xp <= point)
+	    add_sprite (&count, i, sprxp, window_xp, posns, nrs, window_width);
 
-#ifdef AGA
-	if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
-	    ((thisline_decision.diwfirstword >= 0 && window_xp + window_width < thisline_decision.diwfirstword)
-	    || (thisline_decision.diwlastword >= 0 && window_xp > thisline_decision.diwlastword)))
-	    continue;
-#endif
-	/* Sort the sprites in order of ascending X position before recording them.  */
-	for (bestp = 0; bestp < count; bestp++) {
-	    if (posns[bestp] > sprxp)
-		break;
-	    if (posns[bestp] == sprxp && nrs[bestp] < i)
-		break;
+	/* SSCAN2-bit is fun.. */
+	if ((fmode & 0x8000) && !(sprxp & sscanmask)) {
+	    sprxp |= sscanmask;
+	    hw_xp = sprxp >> sprite_buffer_res;
+	    window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
+	    if (hw_xp > last_sprite_point && hw_xp <= point)
+		add_sprite (&count, MAX_SPRITES + i, sprxp, window_xp, posns, nrs, window_width);
 	}
-	for (j = count; j > bestp; j--) {
-	    posns[j] = posns[j-1];
-	    nrs[j] = nrs[j-1];
-	}
-	posns[j] = sprxp;
-	nrs[j] = i;
-	count++;
     }
+
     for (i = 0; i < count; i++) {
-	int nr = nrs[i];
-	record_sprite (next_lineno, nr, SSCAN2_H10 (spr[nr].xpos), sprdata[nr], sprdatb[nr], sprctl[nr]);
+	int nr = nrs[i] & (MAX_SPRITES - 1);
+	record_sprite (next_lineno, nr, posns[i], sprdata[nr], sprdatb[nr], sprctl[nr]);
     }
     last_sprite_point = point;
 }
@@ -2887,6 +2901,9 @@ static void BPLCON0 (int hpos, uae_u16 v)
     else if (! (currprefs.chipset_mask & CSMASK_AGA))
 	v &= ~0x00B1;
 
+#if SPRBORDER
+    v |= 1;
+#endif
     if (bplcon0 == v)
 	return;
 
@@ -2950,6 +2967,9 @@ STATIC_INLINE void BPLCON3 (int hpos, uae_u16 v)
 	v &= 0x3f;
 	v |= 0x0c00;
     }
+#if SPRBORDER
+    v |= 2;
+#endif
     if (bplcon3 == v)
 	return;
     decide_line (hpos);
@@ -3248,7 +3268,7 @@ STATIC_INLINE void SPRxCTL_1 (uae_u16 v, int num, int hpos)
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 	write_log ("%d:%d:SPR%dCTL %04.4X P=%06.6X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
-	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc ());
+	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
     }
 #endif
 
@@ -3261,7 +3281,7 @@ STATIC_INLINE void SPRxPOS_1 (uae_u16 v, int num, int hpos)
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 	write_log ("%d:%d:SPR%dPOS %04.4X P=%06.6X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
-	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, m68k_getpc ());
+	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
     }
 #endif
 }
@@ -3277,7 +3297,7 @@ STATIC_INLINE void SPRxDATA_1 (uae_u16 v, int num, int hpos)
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 	write_log ("%d:%d:SPR%dDATA %04.4X P=%06.6X D=%d A=%d PC=%x\n",
-	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, m68k_getpc ());
+	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, M68K_GETPC);
     }
 #endif
 }
@@ -3292,7 +3312,7 @@ STATIC_INLINE void SPRxDATB_1 (uae_u16 v, int num, int hpos)
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 	write_log ("%d:%d:SPR%dDATB %04.4X P=%06.6X D=%d A=%d PC=%x\n",
-	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, m68k_getpc ());
+	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, M68K_GETPC);
     }
 #endif
 }
@@ -3855,7 +3875,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
     uae_u16 data = last_custom_value;
     if (dma) {
 	data = last_custom_value = chipmem_agnus_wget (s->pt);
-	alloc_cycle(hpos, CYCLE_SPRITE);
+	alloc_cycle (hpos, CYCLE_SPRITE);
     }
     s->pt += 2;
     return data;
@@ -3893,6 +3913,12 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    write_log ("%d:%d:SPR%d STOP\n", vpos, hpos, num);
 #endif
 	s->dmastate = 0;
+#if 1
+	if (vpos == s->vstop) {
+	    spr_arm (num, 0);
+	    //return;
+	}
+#endif
     }
     if (!dmaen (DMA_SPRITE))
 	return;
@@ -4018,7 +4044,7 @@ static void do_sprites (int hpos)
 	    cycle = 1;
 	    break;
 	}
-	if (cycle >= 0)
+	if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
 	    do_sprites_1 (num, cycle, i);
     }
     last_sprite_hpos = hpos;

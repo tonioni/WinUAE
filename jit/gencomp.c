@@ -2843,9 +2843,16 @@ gen_opcode (unsigned long int opcode)
 	//}
 	break;
 
-     case i_MMUOP:
-     case i_MMUOP30A:
-     case i_MMUOP30B:
+     case i_MMUOP030:
+     case i_PFLUSHN:
+     case i_PFLUSH:
+     case i_PFLUSHAN:
+     case i_PFLUSHA:
+     case i_PLPAR:
+     case i_PLPAW:
+     case i_PTESTR:
+     case i_PTESTW:
+     case i_LPSTOP:
 	isjump;
 	failure;
 	break;

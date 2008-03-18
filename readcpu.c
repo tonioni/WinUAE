@@ -137,9 +137,18 @@ struct mnemolookup lookuptab[] = {
     { i_CPUSHA, "CPUSHA" },
     { i_MOVE16, "MOVE16" },
 
-    { i_MMUOP30A, "MMUOP30A" },
-    { i_MMUOP30B, "MMUOP30B" },
-    { i_MMUOP, "MMUOP" },
+    { i_MMUOP030, "MMUOP030" },
+    { i_PFLUSHN, "PFLUSHN" },
+    { i_PFLUSH, "PFLUSH" },
+    { i_PFLUSHAN, "PFLUSHAN" },
+    { i_PFLUSHA, "PFLUSHA" },
+
+    { i_PLPAR, "PLPAR" },
+    { i_PLPAW, "PLPAW" },
+    { i_PTESTR, "PTESTR" },
+    { i_PTESTW, "PTESTW" },
+
+    { i_LPSTOP, "LPSTOP" },
     { i_ILLG, "" },
 };
 
@@ -374,6 +383,7 @@ static void build_insn (int insn)
 	    switch (opcstr[pos]) {
 	    case 'p': srcmode = Apdi; pos++; break;
 	    case 'P': srcmode = Aipi; pos++; break;
+	    case 'a': srcmode = Aind; pos++; break;
 	    }
 	    break;
 	case 'L':
@@ -715,7 +725,8 @@ static void build_insn (int insn)
 		    table68k[opc].mnemo = lookuptab[find].mnemo;
 		    break;
 		}
-		if (strlen(lookuptab[find].name) == 0) abort();
+		if (strlen(lookuptab[find].name) == 0)
+		    abort();
 	    }
 	}
 	else {

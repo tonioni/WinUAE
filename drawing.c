@@ -330,6 +330,7 @@ static int pixels_offset;
 static int src_pixel;
 /* How many pixels in window coordinates which are to the left of the left border.  */
 static int unpainted;
+static int seen_sprites;
 
 /* Initialize the variables necessary for drawing a line.
  * This involves setting up start/stop positions and display window
@@ -374,7 +375,6 @@ static void pfield_init_linetoscr (void)
 #ifdef AGA
     if (brdsprt && dip_for_drawing->nr_sprites) {
 	int min = visible_right_border, max = visible_left_border, i;
-	int posdiff = sprite_buffer_res - bplres;
 	for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 	    int x;
 	    x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].pos;
@@ -384,15 +384,8 @@ static void pfield_init_linetoscr (void)
 	    if (x > max)
 		max = x;
 	}
-	min += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res;
-	max += (DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res;
-	if (posdiff < 0) {
-	    min <<= -posdiff;
-	    max <<= -posdiff;
-	} else {
-	    min >>= posdiff;
-	    max >>= posdiff;
-	}
+	min = coord_hw_to_window_x (min >> sprite_buffer_res) + (DIW_DDF_OFFSET << lores_shift);
+	max = coord_hw_to_window_x (max >> sprite_buffer_res) + (DIW_DDF_OFFSET << lores_shift);
 	if (min < playfield_start)
 	    playfield_start = min;
 	if (playfield_start < visible_left_border)
@@ -413,8 +406,16 @@ static void pfield_init_linetoscr (void)
     unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
     src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left + unpainted);
 
+    if (seen_sprites) {
+	/* clear previous sprite data storage line */
+	memset (spritepixels, 0, sizeof (spritepixels));
+	seen_sprites = 0;
+    }
     if (dip_for_drawing->nr_sprites == 0)
 	return;
+    if (seen_sprites < 0)
+	memset (spritepixels, 0, sizeof (spritepixels));
+    seen_sprites = 1;
     /* Must clear parts of apixels.  */
     if (linetoscr_diw_start < native_ddf_left) {
 	int size = res_shift_from_window (native_ddf_left - linetoscr_diw_start);
@@ -2129,6 +2130,7 @@ static void init_drawing_frame (void)
     thisframe_last_drawn_line = -1;
 
     drawing_color_matches = -1;
+    seen_sprites = -1;
 }
 
 /*

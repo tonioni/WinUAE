@@ -1,4 +1,31 @@
 
+Beta 9:
+
+- crash when fullscreen enabled and error dialog was shown before
+  display was changed to fullscreen
+- CD32 state restore compatibility improved
+- SSCAN2 'undocumented' feature emulated. "If SSCAN2 bit in FMODE is
+  set, then disable SH10 horizontal coincidence detect". This really
+  means both one AND zero SH10 match = single sprite can appear twice
+  on screen! (Fantastic Dizzy CD32 background)
+- AGA mode only: last line of sprite may have been redrawn if bitplane
+  width was changed and sprite was reused later (introduced in 1.4.5)
+- debugger sp command improvements
+- AGA sprite outside bitplanes position bug fix (introduced in 1.4.5)
+- Picasso96 8-bit mode wrong palette after mode switch
+- Picasso96 8-bit and 16-bit optimized blitter bug fix, too much data
+  was blitted if width was >32 bytes (not pixels) and it was not
+  divisible by 32. 32-bit mode was working properly.
+- emulated LPSTOP instruction (68060 only)
+- MMU instructions didn't check supervisor mode. Note that there is no
+  MMU emulation, I think I have to repeat this every time I talk about
+  MMU :)
+- added 68040/68060 MMU instructions to table68k (no more generic
+  "MMUOP" in debugger's disassembler) 68030 MMU instructions are still
+  shown as "MMUOP030", they don't really fit to table68k format because
+  first instruction word does not specify the instruction type
+- MOVEC weird disassembly updated (MOVEM is still weird)
+
 Beta 8:
 
 NOTE: OGL/D3D filters still using old scaling

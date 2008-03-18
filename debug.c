@@ -2295,17 +2295,17 @@ static void debugtest_set (char **inptr)
 
 static void debug_sprite (char **inptr)
 {
-    uaecptr addr, addr2;
+    uaecptr saddr, addr, addr2;
     int xpos, xpos_ecs;
     int ypos, ypos_ecs;
     int ypose, ypose_ecs;
     int attach;
     uae_u64 w1, w2, ww1, ww2;
     int size = 1, width;
-    int ecs = 0;
-    int sh10 = 0;
-    int y;
+    int ecs, sh10;
+    int y, i;
     char tmp[80];
+    int max = 2;
 
     addr2 = 0;
     ignore_ws (inptr);
@@ -2321,94 +2321,111 @@ static void debug_sprite (char **inptr)
 	if (size != 1 && size != 2 && size != 4)
 	    size = 1;
     }
-    width = size * 16;
-    w1 = get_word (addr);
-    w2 = get_word (addr + size * 2);
-    ypos = w1 >> 8;
-    xpos = w1 & 255;
-    ypose = w2 >> 8;
-    attach = (w2 & 0x80) ? 1 : 0;
-    if (w2 & 4)
-	ypos |= 256;
-    if (w2 & 2)
-	ypose |= 256;
-    ypos_ecs = ypos;
-    ypose_ecs = ypose;
-    if (w2 & 0x40)
-	ypos_ecs |= 512;
-    if (w2 & 0x20)
-	ypose_ecs |= 512;
-    xpos <<= 1;
-    if (w2 & 0x01)
-	xpos |= 1;
-    xpos_ecs = xpos << 2;
-    if (w2 & 0x10)
-	xpos_ecs |= 2;
-    if (w2 & 0x08)
-	xpos_ecs |= 1;
-    if (w2 & (0x40 | 0x20 | 0x10 | 0x08))
-	ecs = 1;
-    if (w1 & 0x80)
-	sh10 = 1;
-    for (y = ypos; y < ypose; y++) {
-	int x;
-	addr += size * 4;
-	if (addr2)
-	    addr2 += size * 4;
-	if (size == 1) {
-	    w1 = get_word (addr);
-	    w2 = get_word (addr + 2);
-	    if (addr2) {
-		ww1 = get_word (addr2);
-		ww2 = get_word (addr2 + 2);
-	    }
-	} else if (size == 2) {
-	    w1 = get_long (addr);
-	    w2 = get_long (addr + 4);
-	    if (addr2) {
-		ww1 = get_long (addr2);
-		ww2 = get_long (addr2 + 4);
-	    }
-	} else if (size == 4) {
-	    w1 = get_long (addr) << 16;
-	    w2 = get_long (addr + 4) << 16;
-	    w1 <<= 16;
-	    w2 <<= 16;
-	    w1 |= get_long (addr);
-	    w2 |= get_long (addr2 + 4);
-	    if (addr2) {
-		ww1 = get_long (addr2) << 16;
-		ww2 = get_long (addr2 + 4) << 16;
-		ww1 <<= 16;
-		ww2 <<= 16;
-		ww1 |= get_long (addr2);
-		ww2 |= get_long (addr2 + 4);
-	    }
-	}
+    for (;;) {
+	ecs = 0;
+	sh10 = 0;
+	saddr = addr;
 	width = size * 16;
-	for (x = 0; x < width; x++) {
-	    int v1 = (w1 >> (width - x)) & 1;
-	    int v2 = (w2 >> (width - x)) & 1;
-	    int v = v1 * 2 + v2;
-	    if (addr2) {
-		int vv1 = (ww1 >> (width - x)) & 1;
-		int vv2 = (ww2 >> (width - x)) & 1;
-		int vv = vv1 * 2 + vv2;
-		v *= 4;
-		v += vv;
-		tmp[x] = v >= 10 ? 'A' + v - 10 : v + '0';
-	    } else {
-		tmp[x] = v + '0';
+	w1 = get_word (addr);
+	w2 = get_word (addr + size * 2);
+	console_out_f ("    %06X ", addr);
+	for (i = 0; i < size * 2; i++)
+	    console_out_f ("%04X ", get_word (addr + i * 2));
+	console_out_f ("\n");
+	ypos = w1 >> 8;
+	xpos = w1 & 255;
+	ypose = w2 >> 8;
+	attach = (w2 & 0x80) ? 1 : 0;
+	if (w2 & 4)
+	    ypos |= 256;
+	if (w2 & 2)
+	    ypose |= 256;
+	ypos_ecs = ypos;
+	ypose_ecs = ypose;
+	if (w2 & 0x40)
+	    ypos_ecs |= 512;
+	if (w2 & 0x20)
+	    ypose_ecs |= 512;
+	xpos <<= 1;
+	if (w2 & 0x01)
+	    xpos |= 1;
+	xpos_ecs = xpos << 2;
+	if (w2 & 0x10)
+	    xpos_ecs |= 2;
+	if (w2 & 0x08)
+	    xpos_ecs |= 1;
+	if (w2 & (0x40 | 0x20 | 0x10 | 0x08))
+	    ecs = 1;
+	if (w1 & 0x80)
+	    sh10 = 1;
+	for (y = ypos; y < ypose; y++) {
+	    int x;
+	    addr += size * 4;
+	    if (addr2)
+		addr2 += size * 4;
+	    if (size == 1) {
+		w1 = get_word (addr);
+		w2 = get_word (addr + 2);
+		if (addr2) {
+		    ww1 = get_word (addr2);
+		    ww2 = get_word (addr2 + 2);
+		}
+	    } else if (size == 2) {
+		w1 = get_long (addr);
+		w2 = get_long (addr + 4);
+		if (addr2) {
+		    ww1 = get_long (addr2);
+		    ww2 = get_long (addr2 + 4);
+		}
+	    } else if (size == 4) {
+		w1 = get_long (addr) << 16;
+		w2 = get_long (addr + 4) << 16;
+		w1 <<= 16;
+		w2 <<= 16;
+		w1 |= get_long (addr);
+		w2 |= get_long (addr2 + 4);
+		if (addr2) {
+		    ww1 = get_long (addr2) << 16;
+		    ww2 = get_long (addr2 + 4) << 16;
+		    ww1 <<= 16;
+		    ww2 <<= 16;
+		    ww1 |= get_long (addr2);
+		    ww2 |= get_long (addr2 + 4);
+		}
 	    }
+	    width = size * 16;
+	    for (x = 0; x < width; x++) {
+		int v1 = (w1 >> (width - x)) & 1;
+		int v2 = (w2 >> (width - x)) & 1;
+		int v = v1 * 2 + v2;
+		if (addr2) {
+		    int vv1 = (ww1 >> (width - x)) & 1;
+		    int vv2 = (ww2 >> (width - x)) & 1;
+		    int vv = vv1 * 2 + vv2;
+		    v *= 4;
+		    v += vv;
+		    tmp[x] = v >= 10 ? 'A' + v - 10 : v + '0';
+		} else {
+		    tmp[x] = v + '0';
+		}
+	    }
+	    tmp[width] = 0;
+	    console_out_f ("%3d %06X %s\n", y, addr, tmp);
 	}
-	tmp[width] = 0;
-	console_out_f ("%3d: %s\n", y, tmp);
+
+	console_out_f ("Sprite address %08X, width = %d\n", saddr, size * 16);
+	console_out_f ("OCS: StartX=%d StartY=%d EndY=%d\n", xpos, ypos, ypose);
+	console_out_f ("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d%s\n", xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs, ecs ? " (*)" : "");
+	console_out_f ("Attach: %d. AGA SSCAN/SH10 bit: %d\n", attach, sh10);
+
+        addr += size * 4;
+	if (get_word (addr) == 0 && get_word (addr + size * 4) == 0)
+	    break;
+	max--;
+	if (max <= 0)
+	    break;
     }
 
-    console_out_f ("Sprite address %08X, width = %d\n", addr, size * 16);
-    console_out_f ("OCS: StartX=%d StartY=%d EndY=%d\n", xpos, ypos, ypose);
-    console_out_f ("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d%s\n", xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs, ecs ? " (*)" : "");
-    console_out_f ("Attach: %d. AGA SSCAN/SH10 bit: %d\n", attach, sh10);
 }
 
 static void disk_debug (char **inptr)
@@ -2597,7 +2614,7 @@ static void debug_1 (void)
 		} else {
 		    next_char (&inptr);
 		    if (more_params (&inptr))
-			debug_sprite_mask = readint (&inptr);
+			debug_sprite_mask = readhex (&inptr);
 		    console_out_f ("sprite mask: %02.2X\n", debug_sprite_mask);
 		}
 	    } else {

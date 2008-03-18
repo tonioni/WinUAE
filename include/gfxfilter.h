@@ -67,4 +67,7 @@ struct uae_filter
 extern struct uae_filter uaefilters[];
 extern struct uae_filter *usedfilter;
 
+uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch);
+void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height);
+
 #endif
