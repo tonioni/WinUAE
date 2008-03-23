@@ -183,6 +183,10 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     temp_height = dst_height * 3;
     if (temp_height > dxdata.maxheight)
 	temp_height = dxdata.maxheight;
+    if (temp_width < dst_width)
+	temp_width = dst_width;
+    if (temp_height < dst_height)
+	temp_height = dst_height;
     tempsurf = allocsurface (temp_width, temp_height);
     if (!tempsurf)
 	write_log ("DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);

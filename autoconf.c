@@ -264,3 +264,33 @@ void rtarea_setup (void)
 	rtarea_base = base;
     }
 }
+
+uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s8 priority, uae_u16 ver, uae_u16 rev)
+{
+    uaecptr datatable = here ();
+
+    dw (0xE000);		/* INITBYTE */
+    dw (0x0008);		/* LN_TYPE */
+    dw (type << 8);
+    dw (0xE000);		/* INITBYTE */
+    dw (0x0009);		/* LN_PRI */
+    dw (priority << 8);
+    dw (0xC000);		/* INITLONG */
+    dw (0x000A);		/* LN_NAME */
+    dl (resname);
+    dw (0xE000);		/* INITBYTE */
+    dw (0x000E);		/* LIB_FLAGS */
+    dw (0x0600);		/* LIBF_SUMUSED | LIBF_CHANGED */
+    dw (0xD000);		/* INITWORD */
+    dw (0x0014);		/* LIB_VERSION */
+    dw (ver);
+    dw (0xD000);		/* INITWORD */
+    dw (0x0016);		/* LIB_REVISION */
+    dw (rev);
+    dw (0xC000);		/* INITLONG */
+    dw (0x0018);		/* LIB_IDSTRING */
+    dl (resid);
+    dw (0x0000);		/* end of table */
+    return datatable;
+}
+

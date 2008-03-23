@@ -36,6 +36,7 @@ ENUMDECL {
 extern struct mnemolookup {
     instrmnem mnemo;
     const char *name;
+    const char *friendlyname;
 } lookuptab[];
 
 ENUMDECL {

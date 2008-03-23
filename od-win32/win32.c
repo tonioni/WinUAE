@@ -1608,8 +1608,13 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *
     char *libname = "amigaforever.dll";
 
     h = WIN32_LoadLibrary (libname);
-    if (!h)
-	return NULL;
+    if (!h) {
+	char path[MAX_DPATH];
+	sprintf (path, "%s..\\Player\\%s", start_path_exe, libname);
+	h = LoadLibrary (path);
+	if (!h)
+	    return NULL;
+    }
     GetModuleFileName(h, name, MAX_DPATH);
     pfnGetKey = (PFN_GetKey)GetProcAddress(h, "GetKey");
     if (pfnGetKey) {
@@ -2497,25 +2502,11 @@ static int osdetect (void)
     return 1;
 }
 
-typedef HRESULT (CALLBACK* SHGETFOLDERPATH)(HWND,int,HANDLE,DWORD,LPTSTR);
-typedef BOOL (CALLBACK* SHGETSPECIALFOLDERPATH)(HWND,LPTSTR,int,BOOL);
-
 void create_afnewdir(int remove)
 {
-    SHGETFOLDERPATH pSHGetFolderPath;
-    SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
     char tmp[MAX_DPATH], tmp2[MAX_DPATH];
-    BOOL ok = FALSE;
 
-    pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
-	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
-    pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
-	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
-    if (pSHGetFolderPath)
-	ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
-    else if (pSHGetSpecialFolderPath)
-	ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
-    if (ok) {
+    if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp))) {
 	fixtrailing(tmp);
 	strcpy (tmp2, tmp);
 	strcat (tmp2, "Amiga Files");
@@ -2535,8 +2526,6 @@ void create_afnewdir(int remove)
 
 static void getstartpaths(void)
 {
-    SHGETFOLDERPATH pSHGetFolderPath;
-    SHGETSPECIALFOLDERPATH pSHGetSpecialFolderPath;
     char *posn, *p;
     char tmp[MAX_DPATH], tmp2[MAX_DPATH], prevpath[MAX_DPATH];
     DWORD v;
@@ -2564,10 +2553,6 @@ static void getstartpaths(void)
     if (!strcmp(prevpath, "AMIGAFOREVERDATA"))
 	path_type = PATH_TYPE_AMIGAFOREVERDATA;
 
-    pSHGetFolderPath = (SHGETFOLDERPATH)GetProcAddress(
-	GetModuleHandle("shell32.dll"), "SHGetFolderPathA");
-    pSHGetSpecialFolderPath = (SHGETSPECIALFOLDERPATH)GetProcAddress(
-	GetModuleHandle("shell32.dll"), "SHGetSpecialFolderPathA");
     strcpy (start_path_exe, _pgmptr);
     if((posn = strrchr (start_path_exe, '\\')))
 	posn[1] = 0;
@@ -2608,12 +2593,7 @@ static void getstartpaths(void)
     }
 
     {
-	BOOL ok = FALSE;
-	if (pSHGetFolderPath)
-	    ok = SUCCEEDED(pSHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp));
-	else if (pSHGetSpecialFolderPath)
-	    ok = pSHGetSpecialFolderPath(NULL, tmp, CSIDL_COMMON_DOCUMENTS, 0);
-	if (ok) {
+	if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp))) {
 	    fixtrailing(tmp);
 	    strcpy (tmp2, tmp);
 	    strcat (tmp2, "Amiga Files\\");
@@ -2792,6 +2772,14 @@ static int process_arg(char **xargv)
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
 
+	    if (!strcmp (arg, "-ddforcemode")) {
+		extern int ddforceram;
+		ddforceram = getval (np);
+		if (ddforceram < 0 || ddforceram > 3)
+		    ddforceram = 0;
+		i++;
+		continue;
+	    }
 	    if (!strcmp (arg, "-affinity")) {
 		cpu_affinity = getval (np);
 		i++;
@@ -2822,6 +2810,12 @@ static int process_arg(char **xargv)
 	    if (!strcmp (arg, "-ini")) {
 		i++;
 		inipath = my_strdup (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-p96skipmode")) {
+		extern int p96skipmode;
+		i++;
+		p96skipmode = getval (np);
 		continue;
 	    }
 #ifdef RETROPLATFORM

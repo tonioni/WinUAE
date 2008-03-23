@@ -8,6 +8,7 @@
 #include "zfile.h"
 #include "gui.h"
 #include "win32.h"
+#include <shlobj.h>
 
 #include "ComType.h"
 #include "CapsAPI.h"
@@ -44,16 +45,25 @@ int caps_init (void)
     int i;
     HMODULE h;
     struct CapsVersionInfo cvi;
+    char *dllname = "CAPSImg.dll";
 
     if (init)
 	return 1;
-    h = WIN32_LoadLibrary ("CAPSImg.dll");
+    h = WIN32_LoadLibrary (dllname);
     if (!h) {
-	if (noticed)
-	    return 0;
-	notify_user (NUMSG_NOCAPS);
-	noticed = 1;
-	return 0;
+	char tmp[MAX_DPATH];
+	if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
+	    strcat (tmp, "\\Software Preservation Society\\");
+	    strcat (tmp, dllname);
+	    h = LoadLibrary (tmp);
+	    if (!h) {
+		if (noticed)
+		    return 0;
+		notify_user (NUMSG_NOCAPS);
+		noticed = 1;
+		return 0;
+	    }
+	}
     }
     if (GetProcAddress(h, "CAPSLockImageMemory") == 0 || GetProcAddress(h, "CAPSGetVersionInfo") == 0) {
 	if (noticed)

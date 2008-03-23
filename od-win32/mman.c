@@ -58,7 +58,7 @@ static void setworkingset(void)
 static uae_u32 lowmem (void)
 {
     uae_u32 change = 0;
-    if (currprefs.z3fastmem_size >= 8 * 1024 * 1024 && currprefs.gfxmem_size < 256 * 1024 * 1024) {
+    if (currprefs.z3fastmem_size >= 8 * 1024 * 1024 && currprefs.gfxmem_size < 64 * 1024 * 1024) {
         change = currprefs.z3fastmem_size - currprefs.z3fastmem_size / 2;
         currprefs.z3fastmem_size >>= 1;
 	changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
@@ -231,57 +231,63 @@ void preinit_shm (void)
 int init_shm (void)
 {
     int i;
-    LPVOID blah = NULL;
     uae_u32 size, totalsize, z3size, natmemsize, rtgbarrier, rtgextra;
+    int rounds = 0;
 
-    if (natmem_offset)
-	VirtualFree(natmem_offset, 0, MEM_RELEASE);
-    natmem_offset = NULL;
-    natmem_offset_end = NULL;
-    canbang = 0;
-
-    z3size = 0;
-    size = 0x1000000;
-    rtgextra = 0;
-    rtgbarrier = si.dwPageSize;
-    if (currprefs.cpu_model >= 68020)
-	size = 0x10000000;
-    if (currprefs.z3fastmem_size) {
-	z3size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
-	if (currprefs.gfxmem_size)
-	    rtgbarrier = 16 * 1024 * 1024;
-    } else {
-	rtgbarrier = 0;
-    }
-
-    totalsize = size + z3size + currprefs.gfxmem_size;
-    while (totalsize > size64) {
-	int change = lowmem ();
-	if (!change)
-	    return 0;
-	totalsize -= change;
-    }
-
-    shm_start = 0;
-    for (i = 0; i < MAX_SHMID; i++) {
-	shmids[i].attached = 0;
-	shmids[i].key = -1;
-	shmids[i].size = 0;
-	shmids[i].addr = NULL;
-	shmids[i].name[0] = 0;
-    }
-    natmemsize = size + z3size;
-    xfree (memwatchtable);
-    memwatchtable = 0;
-    if (currprefs.gfxmem_size) {
-	if (!memwatchok) {
-	    write_log ("GetWriteWatch() not supported, using guard pages, performance will be slower.\n");
-	    memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
-	}
-    }
 restart:
     for (;;) {
-	int change;
+	LPVOID blah = NULL;
+	if (rounds > 0)
+	    write_log ("NATMEM: retrying %d..\n", rounds);
+	rounds++;
+	if (natmem_offset)
+	    VirtualFree(natmem_offset, 0, MEM_RELEASE);
+	natmem_offset = NULL;
+	natmem_offset_end = NULL;
+	canbang = 0;
+
+	z3size = 0;
+	size = 0x1000000;
+	rtgextra = 0;
+	rtgbarrier = si.dwPageSize;
+	if (currprefs.cpu_model >= 68020)
+	    size = 0x10000000;
+	if (currprefs.z3fastmem_size) {
+	    z3size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
+	    if (currprefs.gfxmem_size)
+		rtgbarrier = 16 * 1024 * 1024;
+	} else {
+	    rtgbarrier = 0;
+	}
+	totalsize = size + z3size + currprefs.gfxmem_size;
+	while (totalsize > size64) {
+	    int change = lowmem ();
+	    if (!change)
+		return 0;
+	    totalsize -= change;
+	}
+	if ((rounds > 1 && totalsize < 0x10000000) || rounds > 20) {
+	    write_log ("NATMEM: No special area could be allocated (3)!\n");
+	    return 0;
+	}
+	natmemsize = size + z3size;
+
+	shm_start = 0;
+	for (i = 0; i < MAX_SHMID; i++) {
+	    shmids[i].attached = 0;
+	    shmids[i].key = -1;
+	    shmids[i].size = 0;
+	    shmids[i].addr = NULL;
+	    shmids[i].name[0] = 0;
+	}
+	xfree (memwatchtable);
+	memwatchtable = 0;
+	if (currprefs.gfxmem_size) {
+	    if (!memwatchok) {
+		write_log ("GetWriteWatch() not supported, using guard pages, performance will be slower.\n");
+		memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
+	    }
+	}
 	if (currprefs.gfxmem_size) {
 	    rtgextra = si.dwPageSize;
 	} else {
@@ -289,17 +295,17 @@ restart:
 	    rtgextra = 0;
 	}
 	blah = VirtualAlloc (NULL, natmemsize + rtgbarrier + currprefs.gfxmem_size + rtgextra + 16 * si.dwPageSize, MEM_RESERVE, PAGE_READWRITE);
-	if (blah)
+	if (blah) {
+	    natmem_offset = blah;
 	    break;
-	write_log ("NATMEM: %dM area failed to allocate, err=%d\n", natmemsize >> 20, GetLastError ());
-	change = lowmem ();
-	totalsize -= change;
-	if (change == 0 || totalsize < 0x10000000) {
+	}
+	write_log ("NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n",
+	    natmemsize >> 20, GetLastError (), currprefs.z3fastmem_size >> 20, currprefs.gfxmem_size >> 20);
+	if (!lowmem ()) {
 	    write_log ("NATMEM: No special area could be allocated (2)!\n");
 	    return 0;
 	}
     }
-    natmem_offset = blah;
     p96mem_size = currprefs.gfxmem_size;
     if (p96mem_size) {
 	VirtualFree (natmem_offset, 0, MEM_RELEASE);

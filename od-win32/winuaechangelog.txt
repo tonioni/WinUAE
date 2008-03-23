@@ -1,4 +1,19 @@
 
+Beta 10:
+
+- MOVEM is not weird in debugger anymore
+- JIT RAM allocation failure path fixed (if Z3+RTG RAM fails to
+  allocate, lower amount of RAM automatically and try again)
+- limit internal sprite resolution to current display resolution
+  (setting in display panel), should improve performance slightly
+  in AGA modes if lots of sprites are used and display isn't shres
+- harddrive detection crash if returned STORAGE_DEVICE_DESCRIPTOR
+  was shorter than expected
+- disable hardware sprite if uaegfx.card is old version without
+  hardware sprite support and devs:monitors/info has softsprite=no
+- added -ddforceram and -ddforcevram debugging command line params
+  try -ddforceram if you have slow P96Speed results
+
 Beta 9:
 
 - crash when fullscreen enabled and error dialog was shown before

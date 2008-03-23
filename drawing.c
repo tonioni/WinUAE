@@ -108,7 +108,8 @@ struct vidbuf_description gfxvidinfo;
 /* OCS/ECS color lookup table. */
 xcolnr xcolors[4096];
 
-static uae_u8 spritepixels[MAX_PIXELS_PER_LINE * 4]; /* used when sprite resolution > lores */
+static uae_u8 spritepixels[MAX_PIXELS_PER_LINE * 5]; /* used when sprite resolution > lores */
+static int sprite_aga_first_x, sprite_aga_last_x;
 
 #ifdef AGA
 /* AGA mode color lookup tables */
@@ -406,15 +407,23 @@ static void pfield_init_linetoscr (void)
     unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
     src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left + unpainted);
 
-    if (seen_sprites) {
+    if (sprite_aga_first_x < sprite_aga_last_x) {
+        uae_u8 *p = spritepixels + sprite_aga_first_x;
+	int len = sprite_aga_last_x - sprite_aga_first_x + 1;
+	int i;
 	/* clear previous sprite data storage line */
-	memset (spritepixels, 0, sizeof (spritepixels));
-	seen_sprites = 0;
+	for (i = 0; i < (1 << (res_shift < 0 ? 0 : res_shift)); i++) {
+	    memset (p, 0, len);
+	    p += MAX_PIXELS_PER_LINE;
+	}
+	sprite_aga_last_x = 0;
+	sprite_aga_first_x = MAX_PIXELS_PER_LINE;
     }
+    seen_sprites = 0;
     if (dip_for_drawing->nr_sprites == 0)
 	return;
-    if (seen_sprites < 0)
-	memset (spritepixels, 0, sizeof (spritepixels));
+    if (seen_sprites < 0 && sprite_buffer_res > 0)
+	memset (spritepixels, 0, sizeof spritepixels);
     seen_sprites = 1;
     /* Must clear parts of apixels.  */
     if (linetoscr_diw_start < native_ddf_left) {
@@ -1034,7 +1043,10 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
     else if (posdoubling)
 	window_pos <<= posdoubling;
     window_pos += pixels_offset;
-
+    if (aga) {
+	if (window_pos < sprite_aga_first_x)
+	    sprite_aga_first_x = window_pos;
+    }
     for (pos = e->pos; pos < e->max; pos += 1 << sizeskip) {
 	int maskshift, plfmask;
 	unsigned int v = buf[pos];
@@ -1192,6 +1204,10 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
 	    }
 	}
 
+    }
+    if (aga) {
+	if (window_pos > sprite_aga_last_x)
+	    sprite_aga_last_x = window_pos;
     }
 }
 STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,

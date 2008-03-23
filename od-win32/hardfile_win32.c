@@ -26,6 +26,7 @@
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <cfgmgr32.h>   // for SetupDiXxx functions.
 #endif
+#include <stddef.h>
 
 static int usefloppydrives = 0;
 
@@ -662,29 +663,35 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
     char orgname[1024];
     PUCHAR p;
     int i, j;
+    int size;
 
     devDesc = (PSTORAGE_DEVICE_DESCRIPTOR) outBuf;
+    size = devDesc->Version;
     p = (PUCHAR) outBuf;
+    if (offsetof(STORAGE_DEVICE_DESCRIPTOR, CommandQueueing) > size) {
+	write_log ("too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n", size);
+	return 1;
+    }
     if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
         write_log ("not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
         return 1;
     }
-    if (devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
+    if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
         j = 0;
         for (i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	    udi->vendor_id[j++] = p[i];
     }
-    if (devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
+    if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductIdOffset) && devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
 	j = 0;
 	for (i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	    udi->product_id[j++] = p[i];
     }
-    if (devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
+    if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductRevisionOffset) && devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
         j = 0;
         for (i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	    udi->product_rev[j++] = p[i];
     }
-    if (devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
+    if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, SerialNumberOffset) && devDesc->SerialNumberOffset && p[devDesc->SerialNumberOffset]) {
         j = 0;
         for (i = devDesc->SerialNumberOffset; p[i] != (UCHAR) NULL && i < returnedLength; i++)
 	    udi->product_serial[j++] = p[i];
@@ -794,6 +801,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
         adpDesc = (PSTORAGE_ADAPTER_DESCRIPTOR) outBuf;
     }
 
+    memset (outBuf, 0, sizeof outBuf);
     query.PropertyId = StorageDeviceProperty;
     query.QueryType = PropertyStandardQuery;
     status = DeviceIoControl(
@@ -802,7 +810,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 			&query,
 			sizeof(STORAGE_PROPERTY_QUERY),
 			&outBuf,
-			sizeof (outBuf),
+			sizeof outBuf,
 			&returnedLength,
 			NULL);
     if (!status) {

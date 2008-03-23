@@ -3392,6 +3392,8 @@ void memory_init (void)
     custmem1 = 0;
     custmem2 = 0;
 
+    init_mem_banks ();
+
     kickmemory = mapped_malloc (0x80000, "kick");
     memset (kickmemory, 0, 0x80000);
     kickmem_bank.baseaddr = kickmemory;
@@ -3409,8 +3411,6 @@ void memory_init (void)
     hrtmon_load();
 #endif
 #endif
-
-    init_mem_banks ();
 }
 
 void memory_cleanup (void)

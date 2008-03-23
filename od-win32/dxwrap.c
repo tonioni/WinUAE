@@ -12,6 +12,7 @@
 
 struct ddstuff dxdata;
 static int flipinterval_supported = 1;
+int ddforceram = 0;
 
 HRESULT DirectDraw_GetDisplayMode (void)
 {
@@ -46,73 +47,6 @@ static void freemainsurface (void)
     releaser (dxdata.primary, IDirectDrawSurface7_Release);
     releaser (dxdata.secondary, IDirectDrawSurface7_Release);
     dxdata.backbuffers = 0;
-}
-
-void DirectDraw_Release (void)
-{
-    if (!dxdata.ddinit)
-	return;
-    dxdata.ddinit = 0;
-    freemainsurface ();
-    if (dxdata.fsmodeset)
-	IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
-    dxdata.fsmodeset = 0;
-    IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
-    releaser (dxdata.dclip, IDirectDrawClipper_Release);
-    releaser (dxdata.maindd, IDirectDraw_Release);
-    memset (&dxdata, 0, sizeof (dxdata));
-}
-
-int DirectDraw_Start (GUID *guid)
-{
-    HRESULT ddrval;
-    LPDIRECT3D9 d3d;
-    D3DCAPS9 d3dCaps;
-
-    if (dxdata.ddinit) {
-	if (guid == NULL && dxdata.ddzeroguid)
-	    return -1;
-	if (guid && !memcmp (guid, &dxdata.ddguid, sizeof (GUID)))
-	    return -1;
-	DirectDraw_Release ();
-    }
-
-    ddrval = DirectDrawCreate (guid, &dxdata.olddd, NULL);
-    if (FAILED(ddrval)) {
-	if (guid != NULL)
-	    return 0;
-	goto oops;
-    }
-    ddrval = IDirectDraw_QueryInterface (dxdata.olddd, &IID_IDirectDraw7, (LPVOID*)&dxdata.maindd);
-    if(FAILED(ddrval)) {
-	gui_message("start_ddraw(): DirectX 7 or newer required");
-	DirectDraw_Release();
-	return 0;
-    }
-
-    dxdata.maxwidth = 16384;
-    dxdata.maxheight = 16384;
-    d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
-    if (d3d) {
-	IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
-	dxdata.maxwidth = d3dCaps.MaxTextureWidth;
-	dxdata.maxheight = d3dCaps.MaxTextureHeight;
-	write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
-    }
-
-    if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
-	dxdata.ddinit = 1;
-	dxdata.ddzeroguid = 1;
-	if (guid) {
-	    dxdata.ddzeroguid = 0;
-	    memcpy (&dxdata.ddguid, guid, sizeof (GUID));
-	}
-	return 1;
-    }
-  oops:
-    write_log ("DirectDraw_Start: %s\n", DXError (ddrval));
-    DirectDraw_Release();
-    return 0;
 }
 
 HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
@@ -183,28 +117,53 @@ void unlocksurface (LPDIRECTDRAWSURFACE7 surf)
 	write_log ("IDirectDrawSurface7_Unlock: %s\n", DXError (ddrval));
 }
 
-LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
+static char *alloctexts[] = { "NonLocalVRAM", "DefaultRAM", "VRAM", "RAM" };
+LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, int forcemode)
 {
     HRESULT ddrval;
-    DDSURFACEDESC2 desc = { 0 };
+    DDSURFACEDESC2 desc;
     LPDIRECTDRAWSURFACE7 surf;
 
+    memset (&desc, 0, sizeof desc);
     desc.dwSize = sizeof (desc);
     desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
-    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-    if (width > dxdata.maxwidth || height > dxdata.maxheight)
-	desc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
+    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_NONLOCALVIDMEM | DDSCAPS_VIDEOMEMORY;
+    if (forcemode >= DDFORCED_DEFAULT)
+        desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    if (forcemode == DDFORCED_VIDMEM)
+        desc.ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
+    if (width > dxdata.maxwidth || height > dxdata.maxheight || forcemode == DDFORCED_SYSMEM)
+        desc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
     desc.dwWidth = width;
     desc.dwHeight = height;
     memcpy (&desc.ddpfPixelFormat, &dxdata.native.ddpfPixelFormat, sizeof (DDPIXELFORMAT));
     ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &surf, NULL);
     if (FAILED (ddrval)) {
-	write_log ("IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
+	write_log ("IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
     } else {
-	clearsurf (surf);
+        clearsurf (surf);
+        write_log ("Created %dx%d surface in %s (%d)\n", width, height, alloctexts[forcemode]);
     }
     return surf;
 }
+
+LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
+{
+    LPDIRECTDRAWSURFACE7 s;
+    int mode = ddforceram;
+
+    for (;;) {
+	s = allocsurface_2 (width, height, mode);
+	if (s)
+	    return s;
+	mode++;
+	if (mode >= 4)
+	    mode = 0;
+	if (mode == ddforceram)
+	    return NULL;
+    }
+}
+
 void freesurface (LPDIRECTDRAWSURFACE7 surf)
 {
     if (surf)
@@ -759,3 +718,73 @@ HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal)
     return ddrval;
 }
 
+void DirectDraw_Release (void)
+{
+    if (!dxdata.ddinit)
+	return;
+    dxdata.ddinit = 0;
+    freemainsurface ();
+    if (dxdata.fsmodeset)
+	IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
+    dxdata.fsmodeset = 0;
+    IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
+    releaser (dxdata.dclip, IDirectDrawClipper_Release);
+    releaser (dxdata.maindd, IDirectDraw_Release);
+    memset (&dxdata, 0, sizeof (dxdata));
+}
+
+int DirectDraw_Start (GUID *guid)
+{
+    HRESULT ddrval;
+    LPDIRECT3D9 d3d;
+    D3DCAPS9 d3dCaps;
+
+    if (dxdata.ddinit) {
+	if (guid == NULL && dxdata.ddzeroguid)
+	    return -1;
+	if (guid && !memcmp (guid, &dxdata.ddguid, sizeof (GUID)))
+	    return -1;
+	DirectDraw_Release ();
+    }
+
+    ddrval = DirectDrawCreate (guid, &dxdata.olddd, NULL);
+    if (FAILED(ddrval)) {
+	if (guid != NULL)
+	    return 0;
+	goto oops;
+    }
+    ddrval = IDirectDraw_QueryInterface (dxdata.olddd, &IID_IDirectDraw7, (LPVOID*)&dxdata.maindd);
+    if(FAILED(ddrval)) {
+	gui_message("start_ddraw(): DirectX 7 or newer required");
+	DirectDraw_Release();
+	return 0;
+    }
+
+    dxdata.maxwidth = 16384;
+    dxdata.maxheight = 16384;
+    d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
+    if (d3d) {
+	IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
+	dxdata.maxwidth = d3dCaps.MaxTextureWidth;
+	dxdata.maxheight = d3dCaps.MaxTextureHeight;
+	write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
+	if (dxdata.maxwidth < 2048)
+	    dxdata.maxwidth = 2048;
+	if (dxdata.maxheight < 2048)
+	    dxdata.maxheight = 2048;
+    }
+
+    if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
+	dxdata.ddinit = 1;
+	dxdata.ddzeroguid = 1;
+	if (guid) {
+	    dxdata.ddzeroguid = 0;
+	    memcpy (&dxdata.ddguid, guid, sizeof (GUID));
+	}
+	return 1;
+    }
+  oops:
+    write_log ("DirectDraw_Start: %s\n", DXError (ddrval));
+    DirectDraw_Release();
+    return 0;
+}

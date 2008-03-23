@@ -1541,6 +1541,9 @@ void bsdlib_install (void)
     dw (0xE000);		/* INITBYTE */
     dw (0x0008);		/* LN_TYPE */
     dw (0x0900);		/* NT_LIBRARY */
+    dw (0xE000);		/* INITBYTE */
+    dw (0x0009);		/* LN_PRI */
+    dw (0xCE00);		/* -50 */
     dw (0xC000);		/* INITLONG */
     dw (0x000A);		/* LN_NAME */
     dl (resname);

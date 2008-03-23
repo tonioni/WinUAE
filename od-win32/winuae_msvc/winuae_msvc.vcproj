@@ -92,7 +92,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateManifest="false"
-				DelayLoadDLLs="setupapi.dll;wpcap.dll;packet.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/winuae.pdb"
 				SubSystem="2"

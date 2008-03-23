@@ -177,5 +177,11 @@ HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palett
 HRESULT DirectDraw_SetPalette (int remove);
 HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal);
 
+
+#define DDFORCED_NONLOCAL 0
+#define DDFORCED_DEFAULT 1
+#define DDFORCED_VIDMEM 2
+#define DDFORCED_SYSMEM 3
+
 #endif
 

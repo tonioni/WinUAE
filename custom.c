@@ -4822,6 +4822,8 @@ void customreset (int hardreset)
     bogusframe = 1;
 
     sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
+    if (sprite_buffer_res > currprefs.gfx_resolution)
+	sprite_buffer_res = currprefs.gfx_resolution;
     if (savestate_state == STATE_RESTORE) {
 	uae_u16 v;
 	uae_u32 vv;

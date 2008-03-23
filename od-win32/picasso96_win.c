@@ -48,7 +48,8 @@
 
 #define NOBLITTER 0
 
-static int hwsprite;
+static int hwsprite = 0;
+static int uaegfxcard_old = 1;
 
 #include "registry.h"
 #include "dxwrap.h"
@@ -110,6 +111,11 @@ static uae_u32 cursorrgb[4], cursorrgbn[4];
 static int reloadcursor, cursorvisible, cursordeactivate;
 static uaecptr cursorbi;
 
+
+static uaecptr uaegfx_resname,
+    uaegfx_resid,
+    uaegfx_init,
+    uaegfx_base;
 
 typedef enum {
     BLIT_FALSE,
@@ -625,11 +631,20 @@ static void mouseupdate (void)
     gfx_unlock_picasso ();
 }
 
+static int framecnt;
+int p96skipmode = -1;
+static int doskip (void)
+{
+    if (framecnt >= currprefs.gfx_framerate)
+	framecnt = 0;
+    return framecnt > 0;
+}
+
 void picasso_handle_vsync (void)
 {
     static int vsynccnt;
-    static int updatecnt;
     
+    framecnt++;
     mouseupdate ();
     
     if (currprefs.chipset_refreshrate >= 100) {
@@ -638,10 +653,10 @@ void picasso_handle_vsync (void)
 	    return;
 	vsynccnt = 0;
     }
-    updatecnt--;
-    if (updatecnt <= 0) {
+    if (doskip () && p96skipmode == 0) {
+	;
+    } else {
 	flushpixels ();
-	updatecnt = 1;
     }
     gfx_unlock_picasso ();
 }
@@ -982,40 +997,15 @@ static int do_blitrect_frame_buffer (struct RenderInfo *ri, struct
 }
 
 /*
-SetSprite:
-Synopsis: SetSprite(bi, activate, RGBFormat);
-Inputs: a0: struct BoardInfo *bi
-d0: BOOL activate
-d7: RGBFTYPE RGBFormat
-
-This function activates or deactivates the hardware sprite.
-*/
-uae_u32 REGPARAM2 picasso_SetSprite (struct regstruct *regs)
-{
-    uae_u32 result = 0;
-    uae_u32 activate = m68k_dreg (regs, 0);
-    if (!hwsprite)
-	return 0;
-    if (activate) {
-	picasso_SetSpriteImage (regs);
-	cursorvisible = 1;
-    } else {
-	cursordeactivate = 2;
-    }
-    result = 1;
-    P96TRACE_SPR (("SetSprite: %d\n", activate));
-    return result;
-}
-
-/*
 SetSpritePosition:
 Synopsis: SetSpritePosition(bi, RGBFormat);
 Inputs: a0: struct BoardInfo *bi
 d7: RGBFTYPE RGBFormat
 
 */
-uae_u32 REGPARAM2 picasso_SetSpritePosition (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetSpritePosition (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     newcursor_x = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseX) - picasso96_state.XOffset;
     newcursor_y = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseY) - picasso96_state.YOffset;
@@ -1037,8 +1027,9 @@ d7: RGBFTYPE RGBFormat
 
 This function changes one of the possible three colors of the hardware sprite.
 */
-uae_u32 REGPARAM2 picasso_SetSpriteColor (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     uae_u8 idx = m68k_dreg (regs, 0);
     uae_u8 red = m68k_dreg (regs, 1);
@@ -1054,32 +1045,6 @@ uae_u32 REGPARAM2 picasso_SetSpriteColor (struct regstruct *regs)
     return 1;
 }
 
-
-/*
-SetSpriteImage:
-Synopsis: SetSpriteImage(bi, RGBFormat);
-Inputs: a0: struct BoardInfo *bi
-d7: RGBFTYPE RGBFormat
-
-This function gets new sprite image data from the MouseImage field of the BoardInfo structure and writes
-it to the board.
-
-There are three possible cases:
-
-BIB_HIRESSPRITE is set:
-skip the first two long words and the following sprite data is arranged as an array of two longwords. Those form the
-two bit planes for one image line respectively.
-
-BIB_HIRESSPRITE and BIB_BIGSPRITE are not set:
-skip the first two words and the following sprite data is arranged as an array of two words. Those form the two
-bit planes for one image line respectively.
-
-BIB_HIRESSPRITE is not set and BIB_BIGSPRITE is set:
-skip the first two words and the following sprite data is arranged as an array of two words. Those form the two bit
-planes for one image line respectively. You have to double each pixel horizontally and vertically. All coordinates
-used in this case already assume a zoomed sprite, only the sprite data is not zoomed yet. You will have to
-compensate for this when accounting for hotspot offsets and sprite dimensions.
-*/
 
 static uae_u32 setspriteimage (uaecptr bi);
 static RECT cursor_r1, cursor_r2;
@@ -1381,11 +1346,64 @@ end:
     return ret;
 }
 
-uae_u32 REGPARAM2 picasso_SetSpriteImage (struct regstruct *regs)
+/*
+SetSpriteImage:
+Synopsis: SetSpriteImage(bi, RGBFormat);
+Inputs: a0: struct BoardInfo *bi
+d7: RGBFTYPE RGBFormat
+
+This function gets new sprite image data from the MouseImage field of the BoardInfo structure and writes
+it to the board.
+
+There are three possible cases:
+
+BIB_HIRESSPRITE is set:
+skip the first two long words and the following sprite data is arranged as an array of two longwords. Those form the
+two bit planes for one image line respectively.
+
+BIB_HIRESSPRITE and BIB_BIGSPRITE are not set:
+skip the first two words and the following sprite data is arranged as an array of two words. Those form the two
+bit planes for one image line respectively.
+
+BIB_HIRESSPRITE is not set and BIB_BIGSPRITE is set:
+skip the first two words and the following sprite data is arranged as an array of two words. Those form the two bit
+planes for one image line respectively. You have to double each pixel horizontally and vertically. All coordinates
+used in this case already assume a zoomed sprite, only the sprite data is not zoomed yet. You will have to
+compensate for this when accounting for hotspot offsets and sprite dimensions.
+*/
+static uae_u32 REGPARAM2 picasso_SetSpriteImage (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     cursorbi = bi;
     return setspriteimage (bi);
+}
+
+/*
+SetSprite:
+Synopsis: SetSprite(bi, activate, RGBFormat);
+Inputs: a0: struct BoardInfo *bi
+d0: BOOL activate
+d7: RGBFTYPE RGBFormat
+
+This function activates or deactivates the hardware sprite.
+*/
+static uae_u32 REGPARAM2 picasso_SetSprite (TrapContext *ctx)
+{
+    struct regstruct *regs = &ctx->regs;
+    uae_u32 result = 0;
+    uae_u32 activate = m68k_dreg (regs, 0);
+    if (!hwsprite)
+	return 0;
+    if (activate) {
+	picasso_SetSpriteImage (ctx);
+	cursorvisible = 1;
+    } else {
+	cursordeactivate = 2;
+    }
+    result = 1;
+    P96TRACE_SPR (("SetSprite: %d\n", activate));
+    return result;
 }
 
 /*
@@ -1403,10 +1421,16 @@ uae_u32 REGPARAM2 picasso_SetSpriteImage (struct regstruct *regs)
 * BoardInfo struct supplied by the caller, the rtg.library, for example
 * the MemoryBase, MemorySize and RegisterBase fields.
 */
-uae_u32 REGPARAM2 picasso_FindCard (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
     /* NOTES: See BoardInfo struct definition in Picasso96 dev info */
+#ifdef UAEGFX_INTERNAL
+    if (!uaegfx_base)
+	return 0;
+    put_long (uaegfx_base + CARD_BOARDINFO, AmigaBoardInfo);
+#endif
     if (allocated_gfxmem && !picasso96_state.CardFound) {
 	/* Fill in MemoryBase, MemorySize */
 	put_long (AmigaBoardInfo + PSSO_BoardInfo_MemoryBase, gfxmem_start);
@@ -1564,15 +1588,19 @@ static void CopyLibResolutionStructureU2A (struct LibResolution *libres, uaecptr
     put_long (amigamemptr + PSSO_LibResolution_BoardInfo, libres->BoardInfo);
 }
 
+
 static int missmodes[] = { 320, 200, 320, 240, 640, 400, 640, 480, -1 };
 
+#ifdef UAEGFX_INTERNAL
+static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 size);
+#endif
 void picasso96_alloc (TrapContext *ctx)
 {
     int i, j, size, cnt;
     int misscnt;
-    uaecptr rt;
     SYSTEM_INFO si;
 
+    uaegfx_resname = ds ("uaegfx.card");
     xfree (newmodes);
     newmodes = NULL;
     picasso96_amem = picasso96_amemend = 0;
@@ -1664,11 +1692,29 @@ void picasso96_alloc (TrapContext *ctx)
 #if 0
     ShowSupportedResolutions ();
 #endif
+#ifdef UAEGFX_INTERNAL
+    picasso96_amem = NULL;
+    if (uaegfx_card_install (ctx, size)) {
+	picasso96_amem = get_long (uaegfx_base + CARD_RESLIST);
+	picasso96_amemend = picasso96_amem + size;
+	write_log("P96 RESINFO: %08X-%08X (%d,%d)\n", picasso96_amem, picasso96_amemend, cnt, size);
+    }
+#else
     m68k_dreg (&ctx->regs, 0) = size;
     m68k_dreg (&ctx->regs, 1) = 65536 + 1;
-    picasso96_amem = CallLib (ctx, get_long (4), -0xC6); /* AllocMem */
-    picasso96_amemend = picasso96_amem + size;
-    write_log("P96 RESINFO: %08X-%08X (%d,%d)\n", picasso96_amem, picasso96_amemend, cnt, size);
+    if ((picasso96_amem = CallLib (ctx, get_long (4), -0xC6))) { /* AllocMem */
+	uaecptr rt;
+	picasso96_amemend = picasso96_amem + size;
+	write_log("P96 RESINFO: %08X-%08X (%d,%d)\n", picasso96_amem, picasso96_amemend, cnt, size);
+	/* put magic rtarea pointer to end of display ram */
+	put_long (p96ram_start + allocated_gfxmem - 12, 'UAE_');
+	rt = need_uae_boot_rom ();
+	if (rt)
+	    rt += 0xff60;
+	put_long (p96ram_start + allocated_gfxmem - 8, rt);
+	put_long (p96ram_start + allocated_gfxmem - 4, '_UAE');
+    }
+#endif
 
     xfree (gwwbuf);
     GetSystemInfo (&si);
@@ -1676,21 +1722,16 @@ void picasso96_alloc (TrapContext *ctx)
     gwwbufsize = allocated_gfxmem / gwwpagesize + 1;
     gwwpagemask = gwwpagesize - 1;
     gwwbuf = xmalloc (gwwbufsize * sizeof (void*));
-
-    /* put magic rtarea pointer to end of display ram */
-    put_long (p96ram_start + allocated_gfxmem - 12, 'UAE_');
-    rt = need_uae_boot_rom ();
-    if (rt)
-	rt += 0xff60;
-    put_long (p96ram_start + allocated_gfxmem - 8, rt);
-    put_long (p96ram_start + allocated_gfxmem - 4, '_UAE');
 }
 
+#ifndef UAEGFX_INTERNAL
 static void uaegfxversion (uaecptr bi)
 {
     uaecptr addr = get_long (bi + 16); /* gbi_BoardName */
     int max = 1000;
     int ok = 0;
+
+    uaegfxcard_old = 1;
 
     addr &= ~1;
     for (;;) {
@@ -1712,9 +1753,13 @@ static void uaegfxversion (uaecptr bi)
 	    uaecptr ver = get_long (addr + 18);
 	    if (valid_address (ver, 8)) {
 		char *vers = my_strdup (get_real_address (ver));
+		int version = get_byte (addr + 11);
 		while (strlen (vers) > 0 && (vers[strlen (vers) - 1] == 10 || vers[strlen (vers) - 1] == 13))
 		    vers[strlen (vers) - 1] = 0;
-		write_log ("P96: %s\n", vers);
+
+		write_log ("P96: v%d %08X %s\n", version, addr, vers);
+		if (version >= 2)
+		    uaegfxcard_old = 0;
 		xfree (vers);
 		ok = 1;
 	    }
@@ -1723,7 +1768,80 @@ static void uaegfxversion (uaecptr bi)
     if (!ok)
 	write_log ("P96: uaegfx.card not detected!?\n");
 }
+#endif
 
+static void inituaegfxfuncs (uaecptr ABI);
+static void inituaegfx (uaecptr ABI)
+{
+    uae_u32 flags;
+
+    put_word (ABI + PSSO_BoardInfo_BitsPerCannon, 8);
+    put_word (ABI + PSSO_BoardInfo_RGBFormats, picasso96_pixel_format);
+    put_long (ABI + PSSO_BoardInfo_BoardType, BT_uaegfx);
+    put_long (ABI + PSSO_BoardInfo_GraphicsControllerType, GCT_Unknown);
+    put_long (ABI + PSSO_BoardInfo_PaletteChipType, PCT_Unknown);
+    put_long (ABI + PSSO_BoardInfo_BoardName, uaegfx_resname);
+    put_long (ABI + PSSO_BoardInfo_BoardType, 1);
+
+    /* only 1 clock */
+    put_long (ABI + PSSO_BoardInfo_PixelClockCount + PLANAR * 4, 1);
+    put_long (ABI + PSSO_BoardInfo_PixelClockCount + CHUNKY * 4, 1);
+    put_long (ABI + PSSO_BoardInfo_PixelClockCount + HICOLOR * 4, 1);
+    put_long (ABI + PSSO_BoardInfo_PixelClockCount + TRUECOLOR * 4, 1);
+    put_long (ABI + PSSO_BoardInfo_PixelClockCount + TRUEALPHA * 4, 1);
+
+    /* we have 16 bits for horizontal and vertical timings - hack */
+    put_word (ABI + PSSO_BoardInfo_MaxHorValue + PLANAR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxHorValue + CHUNKY * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxHorValue + HICOLOR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxHorValue + TRUECOLOR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxHorValue + TRUEALPHA * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxVerValue + PLANAR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxVerValue + CHUNKY * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxVerValue + HICOLOR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxVerValue + TRUECOLOR * 2, 0xffff);
+    put_word (ABI + PSSO_BoardInfo_MaxVerValue + TRUEALPHA * 2, 0xffff);
+
+    flags = get_long (ABI + PSSO_BoardInfo_Flags);
+    flags &= 0xffff0000;
+    flags |= BIF_HARDWARESPRITE | BIF_BLITTER | BIF_NOMEMORYMODEMIX;
+    put_long (ABI + PSSO_BoardInfo_Flags, flags);
+#ifndef UAEGFX_INTERNAL
+    flags = get_long (ABI + PSSO_BoardInfo_Flags);
+    if (flags & BIF_HARDWARESPRITE) {
+	hwsprite = 1;
+	put_word (ABI + PSSO_BoardInfo_SoftSpriteFlags, 0);
+	write_log ("P96: uaegfx.card: hardware sprite support enabled\n");
+    } else {
+	hwsprite = 0;
+	write_log ("P96: uaegfx.card: no hardware sprite support\n");
+	put_word (ABI + PSSO_BoardInfo_SoftSpriteFlags, picasso96_pixel_format);
+    }
+    if (uaegfxcard_old && (flags & BIF_HARDWARESPRITE)) {
+	flags &= ~BIF_HARDWARESPRITE;
+	write_log ("P96: uaegfx.card: old version (<2.0), forced hardware sprite disabled\n");
+    }
+    if (!(flags & BIF_BLITTER))
+	write_log ("P96: no blitter support, bogus uaegfx.card!?\n");
+    put_long (ABI + PSSO_BoardInfo_Flags, flags);
+#endif
+    if (flags & BIF_NOBLITTER)
+	write_log ("P96: blitter disabled in devs:monitors/uaegfx!\n");
+
+    put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 0, planar.width);
+    put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 2, chunky.width);
+    put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 4, hicolour.width);
+    put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 6, truecolour.width);
+    put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 8, alphacolour.width);
+    put_word (ABI + PSSO_BoardInfo_MaxVerResolution + 0, planar.height);
+    put_word (ABI + PSSO_BoardInfo_MaxVerResolution + 2, chunky.height);
+    put_word (ABI + PSSO_BoardInfo_MaxVerResolution + 4, hicolour.height);
+    put_word (ABI + PSSO_BoardInfo_MaxVerResolution + 6, truecolour.height);
+    put_word (ABI + PSSO_BoardInfo_MaxVerResolution + 8, alphacolour.height);
+#ifdef UAEGFX_INTERNAL
+    inituaegfxfuncs (ABI);
+#endif
+}
 
 /****************************************
 * InitCard()
@@ -1731,51 +1849,25 @@ static void uaegfxversion (uaecptr bi)
 * a2: BoardInfo structure ptr - Amiga-based address in Intel endian-format
 *
 */
-uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     struct LibResolution res;
     int ModeInfoStructureCount = 1, LibResolutionStructureCount = 0;
     int i, j, unkcnt;
     uaecptr amem;
-    uaecptr AmigaBoardInfo = m68k_areg (regs, 2);
-    uae_u32 flags;
+    uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
 
+#ifndef UAEGFX_INTERNAL
     uaegfxversion (AmigaBoardInfo);
+#endif
     if (!picasso96_amem) {
 	write_log ("P96: InitCard() but no resolution memory!\n");
 	return 0;
     }
     amem = picasso96_amem;
 
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_BitsPerCannon, 8);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_RGBFormats, picasso96_pixel_format);
-    put_long (AmigaBoardInfo + PSSO_BoardInfo_BoardType, BT_uaegfx);
-    flags = get_long (AmigaBoardInfo + PSSO_BoardInfo_Flags);
-    if (flags & BIF_HARDWARESPRITE) {
-	hwsprite = 1;
-	put_word (AmigaBoardInfo + PSSO_BoardInfo_SoftSpriteFlags, 0);
-	write_log ("P96: uaegfx.card: hardware sprite support enabled\n");
-    } else {
-	hwsprite = 0;
-	write_log ("P96: uaegfx.card: no hardware sprite support\n");
-	put_word (AmigaBoardInfo + PSSO_BoardInfo_SoftSpriteFlags, picasso96_pixel_format);
-    }
-    if (!(flags & BIF_BLITTER))
-	write_log ("P96: no blitter support, bogus uaegfx.card!?\n");
-    if (flags & BIF_NOBLITTER)
-	write_log ("P96: blitter disabled in devs:monitors/uaegfx!\n");
-    put_long (AmigaBoardInfo + PSSO_BoardInfo_Flags, flags);
-
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 0, planar.width);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 2, chunky.width);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 4, hicolour.width);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 6, truecolour.width);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxHorResolution + 8, alphacolour.width);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 0, planar.height);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 2, chunky.height);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 4, hicolour.height);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 6, truecolour.height);
-    put_word (AmigaBoardInfo + PSSO_BoardInfo_MaxVerResolution + 8, alphacolour.height);
+    inituaegfx (AmigaBoardInfo);
 
     i = 0;
     unkcnt = 0;
@@ -1834,8 +1926,9 @@ uae_u32 REGPARAM2 picasso_InitCard (struct regstruct *regs)
 *
 * NOTE: Return the opposite of the switch-state. BDK
 */
-uae_u32 REGPARAM2 picasso_SetSwitch (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uae_u16 flag = m68k_dreg (regs, 0) & 0xFFFF;
     char p96text[100];
 
@@ -1896,10 +1989,11 @@ static int updateclut (uaecptr clut, int start, int count)
     }
     return changed;
 }
-uae_u32 REGPARAM2 picasso_SetColorArray (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
 {
     /* Fill in some static UAE related structure about this new CLUT setting
      * We need this for CLUT-based displays, and for mapping CLUT to hi/true colour */
+    struct regstruct *regs = &ctx->regs;
     uae_u16 start = m68k_dreg (regs, 0);
     uae_u16 count = m68k_dreg (regs, 1);
     uaecptr boardinfo = m68k_areg (regs, 0);
@@ -1918,8 +2012,9 @@ uae_u32 REGPARAM2 picasso_SetColorArray (struct regstruct *regs)
 * e.g. from chunky to TrueColor. Usually, all you have to do is to set
 * the RAMDAC of your board accordingly.
 */
-uae_u32 REGPARAM2 picasso_SetDAC (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetDAC (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
 /* Fill in some static UAE related structure about this new DAC setting
     * Lets us keep track of what pixel format the Amiga is thinking about in our frame-buffer */
 
@@ -1960,11 +2055,16 @@ static void init_picasso_screen(void)
 * or linear start adress. They will be set when appropriate by their
 * own functions.
 */
-uae_u32 REGPARAM2 picasso_SetGC (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     /* Fill in some static UAE related structure about this new ModeInfo setting */
+    uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
     uae_u32 border   = m68k_dreg (regs, 0);
     uaecptr modeinfo = m68k_areg (regs, 1);
+
+    put_long (AmigaBoardInfo + PSSO_BoardInfo_ModeInfo, modeinfo);
+    put_word (AmigaBoardInfo + PSSO_BoardInfo_Border, border);
 
     picasso96_state.Width = get_word (modeinfo + PSSO_ModeInfo_Width);
     picasso96_state.VirtualWidth = picasso96_state.Width; /* in case SetPanning doesn't get called */
@@ -2006,7 +2106,7 @@ uae_u32 REGPARAM2 picasso_SetGC (struct regstruct *regs)
   * because SetSwitch() is not called for subsequent Picasso screens.
 */
 
-static void picasso_SetPanningInit(void)
+static void picasso_SetPanningInit (void)
 {
     picasso96_state.XYOffset = picasso96_state.Address + (picasso96_state.XOffset * picasso96_state.BytesPerPixel)
 	+ (picasso96_state.YOffset * picasso96_state.BytesPerRow);
@@ -2016,8 +2116,9 @@ static void picasso_SetPanningInit(void)
 	picasso96_state.BigAssBitmap = 0;
 }
 
-uae_u32 REGPARAM2 picasso_SetPanning (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uae_u16 Width = m68k_dreg (regs, 0);
     uaecptr start_of_screen = m68k_areg (regs, 1);
     uaecptr bi = m68k_areg (regs, 0);
@@ -2038,6 +2139,8 @@ uae_u32 REGPARAM2 picasso_SetPanning (struct regstruct *regs)
     picasso96_state.Address = start_of_screen; /* Amiga-side address */
     picasso96_state.XOffset = (uae_s16)(m68k_dreg (regs, 1) & 0xFFFF);
     picasso96_state.YOffset = (uae_s16)(m68k_dreg (regs, 2) & 0xFFFF);
+    put_word (bi + PSSO_BoardInfo_XOffset, picasso96_state.XOffset);
+    put_word (bi + PSSO_BoardInfo_YOffset, picasso96_state.YOffset);
     picasso96_state.VirtualWidth = bme_width;
     picasso96_state.VirtualHeight = bme_height;
     picasso96_state.RGBFormat = m68k_dreg (regs, 7);
@@ -2093,8 +2196,9 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 * This function is used to invert a rectangular area on the board. It is called by BltBitMap,
 * BltPattern and BltTemplate.
 */
-uae_u32 REGPARAM2 picasso_InvertRect (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     unsigned long X = (uae_u16)m68k_dreg (regs, 0);
     unsigned long Y = (uae_u16)m68k_dreg (regs, 1);
@@ -2144,8 +2248,9 @@ FillRect:
 * d5: UBYTE Mask
 * d7: uae_u32 RGBFormat
 ***********************************************************/
-uae_u32 REGPARAM2 picasso_FillRect (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_FillRect (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     uae_u32 X = (uae_u16)m68k_dreg (regs, 0);
     uae_u32 Y = (uae_u16)m68k_dreg (regs, 1);
@@ -2323,8 +2428,9 @@ BlitRect:
 * d6:	UBYTE Mask
 * d7:	uae_u32 RGBFormat
 ***********************************************************/
-uae_u32 REGPARAM2 picasso_BlitRect (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitRect (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
     unsigned long srcy = (uae_u16)m68k_dreg (regs, 1);
@@ -2360,8 +2466,9 @@ BlitRectNoMaskComplete:
 *	because the RGBFormat or opcode aren't supported.
 *	OTHERWISE return 1
 ***********************************************************/
-uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr srcri = m68k_areg (regs, 1);
     uaecptr dstri = m68k_areg (regs, 2);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
@@ -2376,16 +2483,6 @@ uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (struct regstruct *regs)
 
     if (NOBLITTER)
 	return 0;
-    {
-	uaecptr a5 = m68k_areg (regs, 5) & ~0xffff;
-	if (a5 != RTAREA_DEFAULT && a5 != RTAREA_BACKUP) {
-	    static int notified;
-	    if (!notified)
-		gui_message ("Picasso96 function call with invalid parameters!\n"
-		    "Most likely reason: unsupported version of p96_uae_tweak");
-	    notified = 1;
-	}
-    }
 
     P96TRACE(("BlitRectNoMaskComplete() op 0x%02x, %08x:(%4d,%4d) --> %08x:(%4d,%4d), wh(%4d,%4d)\n",
 	OpCode, get_long (srcri + PSSO_RenderInfo_Memory), srcx, srcy, get_long (dstri + PSSO_RenderInfo_Memory), dstx, dsty, width, height));
@@ -2439,8 +2536,9 @@ STATIC_INLINE void PixelWrite (uae_u8 *mem, int bits, uae_u32 fgpen, int Bpp, ua
 * always 16 pixels (one word) and the height is calculated as 2^Size. The data must be shifted up
 * and to the left by XOffset and YOffset pixels at the beginning.
 */
-uae_u32 REGPARAM2 picasso_BlitPattern (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr rinf = m68k_areg (regs, 1);
     uaecptr pinf = m68k_areg (regs, 2);
     unsigned long X = (uae_u16)m68k_dreg (regs, 0);
@@ -2600,8 +2698,9 @@ BlitTemplate:
 * using a single plane of image data which will be expanded to the destination RGBFormat
 * using ForeGround and BackGround pens as well as draw modes.
 ***********************************************************************************/
-uae_u32 REGPARAM2 picasso_BlitTemplate (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uae_u8 inversion = 0;
     uaecptr rinf = m68k_areg (regs, 1);
     uaecptr tmpl = m68k_areg (regs, 2);
@@ -2761,8 +2860,9 @@ uae_u32 REGPARAM2 picasso_BlitTemplate (struct regstruct *regs)
 * This function calculates the amount of bytes needed for a line of
 * "Width" pixels in the given RGBFormat.
 */
-uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uae_u16 width = m68k_dreg (regs, 0);
     uae_u32 type = m68k_dreg (regs, 7);
     width = GetBytesPerPixel (type) * width;
@@ -2777,8 +2877,9 @@ uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (struct regstruct *regs)
 *
 * NOTE: return the opposite of the state
 */
-uae_u32 REGPARAM2 picasso_SetDisplay (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uae_u32 state = m68k_dreg (regs, 0);
     P96TRACE (("SetDisplay(%d)\n", state));
     return !state;
@@ -2909,8 +3010,9 @@ static void PlanarToChunky (struct RenderInfo *ri, struct BitMap *bm,
 * on the board. Watch out for plane pointers that are 0x00000000 (represents a plane with all bits "0")
 * or 0xffffffff (represents a plane with all bits "1").
 */
-uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr bm = m68k_areg (regs, 1);
     uaecptr ri = m68k_areg (regs, 2);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
@@ -3048,8 +3150,9 @@ static void PlanarToDirect (struct RenderInfo *ri, struct BitMap *bm,
 * triple bytes or longwords respectively similar to the color values used in FillRect(), BlitPattern() or
 * BlitTemplate().
 */
-uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (struct regstruct *regs)
+static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 {
+    struct regstruct *regs = &ctx->regs;
     uaecptr bm = m68k_areg (regs, 1);
     uaecptr ri = m68k_areg (regs, 2);
     uaecptr cim = m68k_areg (regs, 3);
@@ -3109,6 +3212,10 @@ static void flushpixels (void)
     for (;;) {
 
 	gwwcnt = 0;
+
+	if (doskip () && p96skipmode == 1)
+	    break;
+
 	if (palette_changed < 0) {
 	    palette_changed = 1;
 	    if (picasso_palette ()) {
@@ -3138,6 +3245,9 @@ static void flushpixels (void)
 	    }
 	}
 	if (dst == NULL)
+	    break;
+
+	if (doskip () && p96skipmode == 2)
 	    break;
 
 	for (i = 0; i < gwwcnt; i++) {
@@ -3264,11 +3374,20 @@ static void flushpixels (void)
     if(lock)
 	gfx_unlock_picasso ();
     if (dst && gwwcnt) {
-	mman_ResetWatch (src_start, src_end - src_start);
-        palette_changed = 0;
+	if (doskip () && p96skipmode == 3) {
+	    ;
+	} else {
+	    mman_ResetWatch (src_start, src_end - src_start);
+	}
+	palette_changed = 0;
     }
-    if (maxy >= 0)
-	DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny + 1);
+    if (maxy >= 0) {
+	if (doskip () && p96skipmode == 4) {
+	    ;
+	} else {
+	    DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny + 1);
+	}
+    }
 }
 
 static uae_u32 REGPARAM2 gfxmem_lgetx (uaecptr addr)
@@ -3436,4 +3555,238 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 
 #endif
 
+#ifdef UAEGFX_INTERNAL
+#define RTGCALL(ABI,func,funcdef,call) \
+    put_long (ABI + func, here ()); \
+    dl (0x48e78000); \
+    calltrap (deftrap (call)); \
+    dw (0x4a80); \
+    dl (0x4cdf0001);\
+    dw (0x6604); \
+    dw (0x2f28); \
+    dw (funcdef); \
+    dw (RTS);
+
+#define RTGCALL2(ABI,func,call) \
+    put_long (ABI + func, here ()); \
+    calltrap (deftrap (call)); \
+    dw (RTS);
+
+#define RTGCALLDEFAULT(ABI,func,funcdef) \
+    put_long (ABI + func, here ()); \
+    dw (0x2f28); \
+    dw (funcdef); \
+    dw (RTS);
+
+#define RTGNONE(ABI,func) \
+    put_long (ABI + func, start);
+
+static void inituaegfxfuncs (uaecptr ABI)
+{
+    uaecptr start = here ();
+
+    dw (RTS);
+    /* ResolvePixelClock
+	move.l	D0,gmi_PixelClock(a1)	; pass the pixelclock through
+	moveq	#0,D0			; index is 0
+	move.b	#98,gmi_Numerator(a1)	; whatever
+	move.b	#14,gmi_Denominator(a1)	; whatever
+	rts
+    */
+    put_long (ABI + PSSO_BoardInfo_ResolvePixelClock, here ());
+    dl (0x2340002c);
+    dw (0x7000);
+    dl (0x137c0062); dw (0x002a);
+    dl (0x137c000e); dw (0x002b);
+    dw (RTS);
+
+    /* GetPixelClock
+	move.l #CLOCK,D0 ; fill in D0 with our one true pixel clock
+	rts
+    */
+    put_long (ABI + PSSO_BoardInfo_GetPixelClock, here ());
+    dw (0x203c);
+    dl (100227260);
+    dw (RTS);
+
+    /* CalculateMemory
+	; this is simple, because we're not supporting planar modes in UAE
+	move.l	a1,d0
+	rts
+    */
+    put_long (ABI + PSSO_BoardInfo_CalculateMemory, here ());
+    dw (0x2009);
+    dw (RTS);
+
+    /* GetCompatibleFormats
+	; all formats can coexist without any problems, since we don't support planar stuff in UAE
+	move.l	#~RGBFF_PLANAR,d0
+	rts
+    */
+    put_long (ABI + PSSO_BoardInfo_GetCompatibleFormats, here ());
+    dw (0x203c);
+    dl (0xfffffffe);
+    dw (RTS);
+
+    RTGNONE(ABI, PSSO_BoardInfo_SetClock);
+    RTGNONE(ABI, PSSO_BoardInfo_SetMemoryMode);
+    RTGNONE(ABI, PSSO_BoardInfo_SetWriteMask);
+    RTGNONE(ABI, PSSO_BoardInfo_SetClearMask);
+    RTGNONE(ABI, PSSO_BoardInfo_SetReadPlane);
+
+    RTGNONE(ABI, PSSO_BoardInfo_WaitVerticalSync); /* FIXME */
+    RTGNONE(ABI, PSSO_BoardInfo_WaitBlitter);
+
+#if 0
+    RTGCALL2(ABI, PSSO_BoardInfo_, picasso_);
+    RTGCALL(ABI, PSSO_BoardInfo_, PSSO_BoardInfo_Default, picasso_);
+    RTGCALLDEFAULT(ABI, PSSO_BoardInfo_, PSSO_BoardInfo_Default);
 #endif
+
+    RTGCALL(ABI, PSSO_BoardInfo_BlitPlanar2Direct, PSSO_BoardInfo_BlitPlanar2DirectDefault, picasso_BlitPlanar2Direct);
+    RTGCALL(ABI, PSSO_BoardInfo_FillRect, PSSO_BoardInfo_FillRectDefault, picasso_FillRect);
+    RTGCALL(ABI, PSSO_BoardInfo_BlitRect, PSSO_BoardInfo_BlitRectDefault, picasso_BlitRect);
+    RTGCALL(ABI, PSSO_BoardInfo_BlitPlanar2Chunky, PSSO_BoardInfo_BlitPlanar2ChunkyDefault, picasso_BlitPlanar2Chunky);
+    RTGCALL(ABI, PSSO_BoardInfo_BlitTemplate, PSSO_BoardInfo_BlitTemplateDefault, picasso_BlitTemplate);
+    RTGCALL(ABI, PSSO_BoardInfo_InvertRect, PSSO_BoardInfo_InvertRectDefault, picasso_InvertRect);
+    RTGCALL(ABI, PSSO_BoardInfo_BlitRectNoMaskComplete, PSSO_BoardInfo_BlitRectNoMaskCompleteDefault, picasso_BlitRectNoMaskComplete);
+    RTGCALL(ABI, PSSO_BoardInfo_BlitPattern, PSSO_BoardInfo_BlitPatternDefault, picasso_BlitPattern);
+
+    RTGCALL2(ABI, PSSO_BoardInfo_SetSwitch, picasso_SetSwitch);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetColorArray, picasso_SetColorArray);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetDAC, picasso_SetDAC);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetGC, picasso_SetGC);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetPanning, picasso_SetPanning);
+    RTGCALL2(ABI, PSSO_BoardInfo_CalculateBytesPerRow, picasso_CalculateBytesPerRow);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetDisplay, picasso_SetDisplay);
+
+    RTGCALL2(ABI, PSSO_BoardInfo_SetSprite, picasso_SetSprite);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetSpritePosition, picasso_SetSpritePosition);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetSpriteImage, picasso_SetSpriteImage);
+    RTGCALL2(ABI, PSSO_BoardInfo_SetSpriteColor, picasso_SetSpriteColor);
+
+    RTGCALLDEFAULT(ABI, PSSO_BoardInfo_ScrollPlanar, PSSO_BoardInfo_ScrollPlanarDefault);
+    RTGCALLDEFAULT(ABI, PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
+    RTGCALLDEFAULT(ABI, PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
+
+    write_log ("uaegfx.card magic code: %08X-%08X\n", start, here ());
+}
+
+#define UAEGFX_VERSION 3
+#define UAEGFX_REVISION 0
+
+static uae_u32 REGPARAM2 gfx_open (TrapContext *context)
+{
+    put_word (uaegfx_base + 32, get_word (uaegfx_base + 32) + 1);
+    return uaegfx_base;
+}
+static uae_u32 REGPARAM2 gfx_close (TrapContext *context)
+{
+    put_word (uaegfx_base + 32, get_word (uaegfx_base + 32) - 1);
+    return 0;
+}
+static uae_u32 REGPARAM2 gfx_expunge (TrapContext *context)
+{
+    return 0;
+}
+
+static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
+{
+    uae_u32 functable, datatable, a2;
+    uaecptr openfunc, closefunc, expungefunc;
+    uaecptr findcardfunc, initcardfunc;
+    uaecptr exec = get_long (4);
+
+    uaegfx_resid = ds ("UAE Graphics Card 3.0");
+
+    /* Open */
+    openfunc = here ();
+    calltrap (deftrap (gfx_open)); dw (RTS);
+
+    /* Close */
+    closefunc = here ();
+    calltrap (deftrap (gfx_close)); dw (RTS);
+
+    /* Expunge */
+    expungefunc = here ();
+    calltrap (deftrap (gfx_expunge)); dw (RTS);
+
+    /* FindCard */
+    findcardfunc = here ();
+    calltrap (deftrap (picasso_FindCard)); dw (RTS);
+
+    /* InitCard */
+    initcardfunc = here ();
+    calltrap (deftrap (picasso_InitCard)); dw (RTS);
+
+    functable = here ();
+    dl (openfunc);
+    dl (closefunc);
+    dl (expungefunc);
+    dl (EXPANSION_nullfunc);
+    dl (findcardfunc);
+    dl (initcardfunc);
+    dl (0xFFFFFFFF); /* end of table */
+
+    datatable = makedatatable (uaegfx_resid, uaegfx_resname, 0x09, -50, UAEGFX_VERSION, UAEGFX_REVISION);
+
+    a2 = m68k_areg (&ctx->regs, 2);
+    m68k_areg (&ctx->regs, 0) = functable;
+    m68k_areg (&ctx->regs, 1) = datatable;
+    m68k_areg (&ctx->regs, 2) = 0;
+    m68k_dreg (&ctx->regs, 0) = CARD_SIZEOF + extrasize;
+    m68k_dreg (&ctx->regs, 1) = 0;
+    uaegfx_base = CallLib (ctx, exec, -0x54); /* MakeLibrary */
+    m68k_areg (&ctx->regs, 2) = a2;
+    if (uaegfx_base) {
+	m68k_areg (&ctx->regs, 1) = uaegfx_base;
+	CallLib (ctx, exec, -0x18c); /* AddLibrary */
+    }
+    m68k_areg (&ctx->regs, 1) = EXPANSION_explibname;
+    m68k_dreg (&ctx->regs, 0) = 0;
+    put_long (uaegfx_base + CARD_EXPANSIONBASE, CallLib (ctx, exec, -0x228)); /* OpenLibrary */
+    put_long (uaegfx_base + CARD_EXECBASE, exec);
+    put_long (uaegfx_base + CARD_NAME, uaegfx_resname);
+    put_long (uaegfx_base + CARD_RESLIST, uaegfx_base + CARD_SIZEOF);
+
+    write_log ("uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
+    return uaegfx_base;
+}
+#endif
+
+#ifndef UAEGFX_INTERNAL
+uae_u32 picasso_demux (uae_u32 arg, TrapContext *context)
+{
+    switch (arg)
+    {
+     case 16: return picasso_FindCard (context);
+     case 17: return picasso_FillRect (context);
+     case 18: return picasso_SetSwitch (context);
+     case 19: return picasso_SetColorArray (context);
+     case 20: return picasso_SetDAC (context);
+     case 21: return picasso_SetGC (context);
+     case 22: return picasso_SetPanning (context);
+     case 23: return picasso_CalculateBytesPerRow (context);
+     case 24: return picasso_BlitPlanar2Chunky (context);
+     case 25: return picasso_BlitRect (context);
+     case 26: return picasso_SetDisplay (context);
+     case 27: return picasso_BlitTemplate (context);
+     case 28: return picasso_BlitRectNoMaskComplete (context);
+     case 29: return picasso_InitCard (context);
+     case 30: return picasso_BlitPattern (context);
+     case 31: return picasso_InvertRect (context);
+     case 32: return picasso_BlitPlanar2Direct (context);
+     /* case 34: return picasso_WaitVerticalSync (); handled in asm-code */
+     case 35: return allocated_gfxmem ? 1 : 0;
+     case 36: return picasso_SetSprite (context);
+     case 37: return picasso_SetSpritePosition (context);
+     case 38: return picasso_SetSpriteImage (context);
+     case 39: return picasso_SetSpriteColor (context);
+    }
+    return 0;
+}
+#endif
+
+#endif
+
+

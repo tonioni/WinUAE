@@ -1610,7 +1610,7 @@ void m68k_reset (int hardreset)
     if (currprefs.cpu_model == 68060) {
 	regs.pcr = currprefs.fpu_model ? MC68060_PCR : MC68EC060_PCR;
 	regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
-	regs.pcr |= 2;
+	regs.pcr |= 2; /* disable FPU */
     }
     fill_prefetch_slow (&regs);
 }
@@ -2529,6 +2529,87 @@ static const char* ccnames[] =
 { "T ","F ","HI","LS","CC","CS","NE","EQ",
   "VC","VS","PL","MI","GE","LT","GT","LE" };
 
+static void addmovemreg (char *out, int *prevreg, int *lastreg, int *first, int reg)
+{
+    char *p = out + strlen (out);
+    if (*prevreg < 0) {
+	*prevreg = reg;
+	*lastreg = reg;
+	return;
+    }
+    if ((*prevreg) + 1 != reg || (reg & 8) != ((*prevreg & 8))) {
+	sprintf (p, "%s%c%d", (*first) ? "" : "/", (*lastreg) < 8 ? 'D' : 'A', (*lastreg) & 7);
+	p = p + strlen (p);
+	if ((*lastreg) + 2 == reg) {
+	    sprintf (p, "/%c%d", (*prevreg) < 8 ? 'D' : 'A', (*prevreg) & 7);
+	} else if ((*lastreg) != (*prevreg)) {
+	    sprintf (p, "-%c%d", (*prevreg) < 8 ? 'D' : 'A', (*prevreg) & 7);
+	}
+	*lastreg = reg;
+	*first = 0;
+    }
+    *prevreg = reg;
+}
+
+static void movemout (char *out, uae_u16 mask, int mode)
+{
+    unsigned int dmask, amask;
+    int prevreg = -1, lastreg = -1, first = 1;
+    if (mode == Apdi) {
+	int i;
+	uae_u8 dmask2 = (mask >> 8) & 0xff;
+	uae_u8 amask2 = mask & 0xff;
+	dmask = 0;
+	amask = 0;
+	for (i = 0; i < 8; i++) {
+	    if (dmask2 & (1 << i))
+		dmask |= 1 << (7 - i);
+	    if (amask2 & (1 << i))
+		amask |= 1 << (7 - i);
+	}
+    } else {
+	dmask = mask & 0xff;
+	amask = (mask >> 8) & 0xff;
+    }
+    while (dmask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[dmask]); dmask = movem_next[dmask]; }
+    while (amask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[amask] + 8); amask = movem_next[amask]; }
+    addmovemreg (out, &prevreg, &lastreg, &first, -1);
+}
+
+static void disasm_size (char *instrname, struct instr *dp)
+{
+#if 0
+    int i, size;
+    uae_u16 mnemo = dp->mnemo;
+    
+    size = dp->size;
+    for (i = 0; i < 65536; i++) {
+	struct instr *in = &table68k[i];
+	if (in->mnemo == mnemo && in != dp) {
+	    if (size != in->size)
+		break;
+	}
+    }
+    if (i == 65536)
+	size = -1;
+#endif
+    switch (dp->size)
+    {
+	case sz_byte:
+	    strcat (instrname, ".B ");
+	break;
+	case sz_word:
+	    strcat (instrname, ".W ");
+	break;
+	case sz_long:
+	    strcat (instrname, ".L ");
+	break;
+	default:
+	    strcat (instrname, "   ");
+	break;
+    }
+}
+
 void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode)
 {
     uaecptr newpc = 0;
@@ -2559,20 +2640,18 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 
 	m68kpc_offset += 2;
 
-	strcpy (instrname, lookup->name);
+	if (lookup->friendlyname)
+	    strcpy (instrname, lookup->friendlyname);
+	else
+	    strcpy (instrname, lookup->name);
 	ccpt = strstr (instrname, "cc");
 	if (ccpt != 0) {
 	    strncpy (ccpt, ccnames[dp->cc], 2);
 	}
-	switch (dp->size){
-	 case sz_byte: strcat (instrname, ".B "); break;
-	 case sz_word: strcat (instrname, ".W "); break;
-	 case sz_long: strcat (instrname, ".L "); break;
-	 default: strcat (instrname, "   "); break;
-	}
+	disasm_size (instrname, dp);
 
 	if (lookup->mnemo == i_MOVEC2 || lookup->mnemo == i_MOVE2C) {
-	    uae_u16 imm = get_iword_1 (m68kpc_offset) & 0xffff;
+	    uae_u16 imm = get_iword_1 (m68kpc_offset);
 	    uae_u16 creg = imm & 0x0fff;
 	    uae_u16 r = imm >> 12;
 	    char regs[16], *cname = "?";
@@ -2593,6 +2672,18 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 		strcat (instrname, ",");
 		strcat (instrname, regs);
 	    }
+	    m68kpc_offset += 2;
+	} else if (lookup->mnemo == i_MVMEL) {
+	    newpc = m68k_getpc (&regs) + m68kpc_offset;
+	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
+	    strcat (instrname, ",");
+	    movemout (instrname, get_iword_1 (m68kpc_offset), dp->dmode);
+	    m68kpc_offset += 2;
+	} else if (lookup->mnemo == i_MVMLE) {
+	    movemout (instrname, get_iword_1 (m68kpc_offset), dp->dmode);
+	    strcat (instrname, ",");
+	    newpc = m68k_getpc (&regs) + m68kpc_offset;
+	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 	    m68kpc_offset += 2;
 	} else {
 	    if (dp->suse) {
@@ -2637,7 +2728,7 @@ void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *s
 {
     char *buf;
 
-    buf = (char*)malloc ((MAX_LINEWIDTH + 1) * cnt);
+    buf = malloc ((MAX_LINEWIDTH + 1) * cnt);
     if (!buf)
 	return;
     m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, seaddr, deaddr, 1);
@@ -2648,7 +2739,7 @@ void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt)
 {
     char *buf;
 
-    buf = (char*)malloc ((MAX_LINEWIDTH + 1) * cnt);
+    buf = malloc ((MAX_LINEWIDTH + 1) * cnt);
     if (!buf)
 	return;
     m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, NULL, NULL, 0);
