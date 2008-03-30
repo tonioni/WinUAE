@@ -21,9 +21,11 @@ typedef USHORT ushort;
 struct shmid_ds {
     key_t  key;
     size_t size;
-    void  *addr;
+    void   *addr;
     char   name[MAX_PATH];
     void   *attached;
+    int    mode;
+    void   *natmembase;
 };
 
 int mprotect (void *addr, size_t len, int prot);

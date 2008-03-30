@@ -91,6 +91,7 @@ extern void mousehack_handle (int sprctl, int sprpos);
 extern void togglemouse (void);
 extern int mousehack_alive (void);
 extern int mousehack_allowed (void);
+extern int magicmouse_alive (void);
 
 extern void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask);
 extern void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask);

@@ -499,6 +499,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
 
     cfgfile_dwrite (f, "gfx_display=%d\n", p->gfx_display);
+    cfgfile_dwrite (f, "gfx_display_name=%s\n", p->gfx_display_name);
     cfgfile_dwrite (f, "gfx_framerate=%d\n", p->gfx_framerate);
     cfgfile_dwrite (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
     cfgfile_dwrite (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
@@ -643,6 +644,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "cpu_cycle_exact=%s\n", p->cpu_cycle_exact ? "true" : "false");
     cfgfile_write (f, "blitter_cycle_exact=%s\n", p->blitter_cycle_exact ? "true" : "false");
     cfgfile_write (f, "rtg_nocustom=%s\n", p->picasso96_nocustom ? "true" : "false");
+    cfgfile_write (f, "rtg_modes=0x%x\n", p->picasso96_modeflags);
 
     cfgfile_write (f, "log_illegal_mem=%s\n", p->illegal_mem ? "true" : "false");
     if (p->catweasel >= 100)
@@ -902,6 +904,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_string (option, value, "floppy1soundext", p->dfxclickexternal[1], sizeof p->dfxclickexternal[1])
 	|| cfgfile_string (option, value, "floppy2soundext", p->dfxclickexternal[2], sizeof p->dfxclickexternal[2])
 	|| cfgfile_string (option, value, "floppy3soundext", p->dfxclickexternal[3], sizeof p->dfxclickexternal[3])
+	|| cfgfile_string (option, value, "gfx_display_name", p->gfx_display_name, sizeof p->gfx_display_name)
 	|| cfgfile_string (option, value, "config_info", p->info, sizeof p->info)
 	|| cfgfile_string (option, value, "config_description", p->description, sizeof p->description))
 	    return 1;
@@ -1349,6 +1352,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_intval (option, value, "z3mem_start", &p->z3fastmem_start, 1)
 	|| cfgfile_intval (option, value, "bogomem_size", &p->bogomem_size, 0x40000)
 	|| cfgfile_intval (option, value, "gfxcard_size", &p->gfxmem_size, 0x100000)
+	|| cfgfile_intval (option, value, "rtg_modes", &p->picasso96_modeflags, 1)
 	|| cfgfile_intval (option, value, "floppy_speed", &p->floppy_speed, 1)
 	|| cfgfile_intval (option, value, "floppy_write_length", &p->floppy_write_length, 1)
 	|| cfgfile_intval (option, value, "nr_floppies", &p->nr_floppies, 1)
@@ -2923,8 +2927,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_resetwarning = 1;
 
     p->gfx_filter = 0;
-    p->gfx_filter_horiz_zoom_mult = 1000;
-    p->gfx_filter_vert_zoom_mult = 1000;
+    p->gfx_filter_horiz_zoom_mult = 0;
+    p->gfx_filter_vert_zoom_mult = 0;
     p->gfx_filter_filtermode = 1;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
 

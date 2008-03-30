@@ -799,7 +799,7 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
     xfree (custom);
 }
 
-static int ievent_alive = 0;
+static int ievent_alive, mouseedge_alive;
 static int lastmx, lastmy;
 static uae_u32 magicmouse_ibase = 0;
 #define intui "intuition.library"
@@ -846,7 +846,7 @@ static void mousehack_enable (void)
     rtarea[off + 12 - 2] = 1;
 }
 
-static void mousehack_setpos(int mousexpos, int mouseypos)
+static void mousehack_setpos (int mousexpos, int mouseypos)
 {
     uae_u8 *p;
     if (!uae_boot_rom)
@@ -863,16 +863,16 @@ static int mouseedge_x, mouseedge_y, mouseedge_time;
 #define MOUSEEDGE_RANGE 300
 #define MOUSEEDGE_TIME 2
 
-void setamigamouse(int x, int y)
+void setamigamouse (int x, int y)
 {
-    mousehack_enable();
-    mousehack_setpos(x, y);
+    mousehack_enable ();
+    mousehack_setpos (x, y);
 }
 
-extern void setmouseactivexy(int,int,int);
-extern void drawing_adjust_mousepos(int*,int*);
+extern void setmouseactivexy (int,int,int);
+extern void drawing_adjust_mousepos (int*,int*);
 
-static void mouseedge(void)
+static int mouseedge (void)
 {
     int x, y, dir;
     uaecptr ib;
@@ -880,7 +880,7 @@ static void mouseedge(void)
     static int isnonzero;
 
     if (!currprefs.win32_outsidemouse || magicmouse_ibase == 0xffffffff)
-	return;
+	return 0;
     dir = 0;
     if (!mouseedge_time) {
 	isnonzero = 0;
@@ -891,14 +891,13 @@ static void mouseedge(void)
     else
 	ib = magicmouse_ibase;
     if (!ib)
-	return;
+	return 0;
     x = get_word (ib + 70);
     y = get_word (ib + 68);
     if (x || y)
 	isnonzero = 1;
-    //write_log ("%x x %d\n", x, y);
     if (!isnonzero)
-	return;
+	return 0;
     if (melast_x == x) {
 	if (mouseedge_x < -MOUSEEDGE_RANGE) {
 	    mouseedge_x = 0;
@@ -929,20 +928,20 @@ static void mouseedge(void)
 	mouseedge_y = 0;
 	melast_y = y;
     }
-    return;
+    return 1;
 
 end:
     mouseedge_time = 0;
     if (dir) {
 	if (!picasso_on) {
-	    drawing_adjust_mousepos(&x, &y);
+	    drawing_adjust_mousepos (&x, &y);
 	}
-	//write_log ("%d\n", dir);
 	if (!dmaen(DMA_SPRITE))
-	    setmouseactivexy(x, y, 0);
+	    setmouseactivexy (x, y, 0);
 	else
-	    setmouseactivexy(x, y, dir);
+	    setmouseactivexy (x, y, dir);
     }
+    return 1;
 }
 
 int mousehack_alive (void)
@@ -950,11 +949,16 @@ int mousehack_alive (void)
     return ievent_alive > 0;
 }
 
+int magicmouse_alive (void)
+{
+    return mouseedge_alive > 0;
+}
+
 static void mousehack_helper (void)
 {
     int mousexpos, mouseypos;
 
-    if (!mousehack_allowed())
+    if (!mousehack_allowed ())
 	return;
 #ifdef PICASSO96
     if (picasso_on) {
@@ -963,10 +967,10 @@ static void mousehack_helper (void)
     } else
 #endif
     {
-	mouseypos = coord_native_to_amiga_y (lastmy) << 1;
 	mousexpos = coord_native_to_amiga_x (lastmx);
+	mouseypos = coord_native_to_amiga_y (lastmy) << 1;
     }
-    mousehack_setpos(mousexpos, mouseypos);
+    mousehack_setpos (mousexpos, mouseypos);
 }
 
 STATIC_INLINE int adjust (int val)
@@ -1932,11 +1936,14 @@ void inputdevice_vsync (void)
     inputdevice_handle_inputcode ();
     if (ievent_alive > 0)
 	ievent_alive--;
+    if (mouseedge_alive > 0)
+	mouseedge_alive--;
 #ifdef ARCADIA
     if (arcadia_bios)
 	arcadia_vsync ();
 #endif
-    mouseedge();
+    if (mouseedge ())
+	mouseedge_alive = 10;
 }
 
 void inputdevice_reset (void)
@@ -3206,7 +3213,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     }
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
-    mousehack_helper();
+    mousehack_helper ();
 }
 int getmousestate(int joy)
 {

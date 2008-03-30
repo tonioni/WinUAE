@@ -48,12 +48,12 @@ typedef enum {
  */
 typedef enum {
 	PCT_Unknown,
-	PCT_S11483,				// Sierra S11483: HiColor 15 bit, oMniBus, Domino
-	PCT_S15025,				// Sierra S15025: TrueColor 32 bit, oMniBus
+	PCT_S11483,			// Sierra S11483: HiColor 15 bit, oMniBus, Domino
+	PCT_S15025,			// Sierra S15025: TrueColor 32 bit, oMniBus
 	PCT_CirrusGD542x,		// Cirrus GD542x internal: TrueColor 24 bit
-	PCT_Domino,				// is in fact a Sierra S11483
-	PCT_BT482,				// BrookTree BT482: TrueColor 32 bit, Merlin
-	PCT_Music,				// Music MU9C4910: TrueColor 24 bit, oMniBus
+	PCT_Domino,			// is in fact a Sierra S11483
+	PCT_BT482,			// BrookTree BT482: TrueColor 32 bit, Merlin
+	PCT_Music,			// Music MU9C4910: TrueColor 24 bit, oMniBus
 	PCT_ICS5300,			// ICS 5300: ...., Retina BLT Z3
 	PCT_CirrusGD5446,		// Cirrus GD5446 internal: TrueColor 24 bit
 	PCT_CirrusGD5434,		// Cirrus GD5434 internal: TrueColor 32 bit

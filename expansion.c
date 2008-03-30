@@ -27,6 +27,8 @@
 #include "ncr_scsi.h"
 #include "debug.h"
 
+static int scrambled_autoconfig = 0;
+
 #define MAX_EXPANSION_BOARDS 8
 
 /* ********************************************************** */
@@ -1173,7 +1175,10 @@ void expamem_reset (void)
     int cardno = 0;
     ecard = 0;
 
-    uae_id = hackers_id;
+    if (scrambled_autoconfig)
+	uae_id = rand () & 2047 + 100;
+    else
+	uae_id = hackers_id;
 
     allocate_expamem ();
 

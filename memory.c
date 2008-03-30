@@ -814,7 +814,7 @@ struct romdata *getromdatabyidgroup (int id, int group, int subitem)
     return 0;
 }
 
-STATIC_INLINE int notcrc32(uae_u32 crc32)
+STATIC_INLINE int notcrc32 (uae_u32 crc32)
 {
     if (crc32 == 0xffffffff || crc32 == 0x00000000)
 	return 1;
@@ -832,7 +832,7 @@ struct romdata *getromdatabycrc (uae_u32 crc32)
     return 0;
 }
 
-static int cmpsha1(uae_u8 *s1, struct romdata *rd)
+static int cmpsha1 (uae_u8 *s1, struct romdata *rd)
 {
     int i;
 
@@ -846,7 +846,7 @@ static int cmpsha1(uae_u8 *s1, struct romdata *rd)
     return 0;
 }
 
-static struct romdata *checkromdata(uae_u8 *sha1, int size, uae_u32 mask)
+static struct romdata *checkromdata (uae_u8 *sha1, int size, uae_u32 mask)
 {
     int i = 0;
     while (roms[i].name) {
@@ -941,7 +941,7 @@ void getromname	(struct romdata *rd, char *name)
 	sprintf (name + strlen (name), " [%s]", rd->partnumber);
 }
 
-struct romlist *getromlistbyromdata(struct romdata *rd)
+struct romlist *getromlistbyromdata (struct romdata *rd)
 {
     int ids[2];
 
@@ -950,7 +950,7 @@ struct romlist *getromlistbyromdata(struct romdata *rd)
     return getromlistbyids(ids);
 }
 
-struct romlist *getromlistbyids(int *ids)
+struct romlist *getromlistbyids (int *ids)
 {
     struct romdata *rd;
     int i, j;
@@ -969,7 +969,7 @@ struct romlist *getromlistbyids(int *ids)
     return NULL;
 }
 
-void romwarning(int *ids)
+void romwarning (int *ids)
 {
     int i, exp;
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
@@ -1029,7 +1029,7 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 }
 #endif
 
-int addr_valid(char *txt, uaecptr addr, uae_u32 len)
+int addr_valid (char *txt, uaecptr addr, uae_u32 len)
 {
     addrbank *ab = &get_mem_bank(addr);
     if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address (addr, len)) {
@@ -1058,7 +1058,7 @@ static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 #define NONEXISTINGDATA 0
 //#define NONEXISTINGDATA 0xffffffff
 
-static void dummylog(int rw, uaecptr addr, int size, uae_u32 val, int ins)
+static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 {
     if (illegal_count >= MAX_ILG)
 	return;
@@ -2265,8 +2265,8 @@ void a3000_fakekick (int map)
 			extendedkickmem_mask = extendedkickmem_size - 1;
 			extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
 			extendedkickmem_bank.baseaddr = extendedkickmemory;
-			memcpy(extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
-			map_banks(&extendedkickmem_bank, 0xf0, 1, 1);
+			memcpy (extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
+			map_banks (&extendedkickmem_bank, 0xf0, 1, 1);
 			f0 = 1;
 		    } else {
 			write_log ("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
@@ -2278,7 +2278,7 @@ void a3000_fakekick (int map)
 	}
     } else {
 	if (f0) {
-	    map_banks(&dummy_bank, 0xf0, 1, 1);
+	    map_banks (&dummy_bank, 0xf0, 1, 1);
 	    mapped_free(extendedkickmemory);
 	    extendedkickmemory = NULL;
 	    f0 = 0;
@@ -2658,7 +2658,7 @@ static int patch_residents (uae_u8 *kickmemory, int size)
     return patched;
 }
 
-static void patch_kick(void)
+static void patch_kick (void)
 {
     int patched = 0;
     if (kickmem_size >= 524288 && currprefs.kickshifter)
@@ -2810,7 +2810,7 @@ void mapped_free (uae_u8 *p)
 
 shmpiece *shm_start;
 
-static void dumplist(void)
+static void dumplist (void)
 {
     shmpiece *x = shm_start;
     write_log ("Start Dump:\n");
@@ -2952,6 +2952,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 static void init_mem_banks (void)
 {
     int i;
+
     for (i = 0; i < MEMORY_BANKS; i++)
 	put_mem_bank (i << 16, &dummy_bank, 0);
 #ifdef NATMEM_OFFSET

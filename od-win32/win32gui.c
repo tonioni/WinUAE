@@ -113,7 +113,6 @@ extern HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD);
 #define HtmlHelp(a,b,c,d) if(pHtmlHelp) (*pHtmlHelp)(a,b,c,(LPDWORD)d); else \
 { char szMessage[MAX_DPATH]; WIN32GUI_LoadUIString(IDS_NOHELP, szMessage, MAX_DPATH); gui_message(szMessage); }
 
-extern HWND hAmigaWnd;
 extern char help_file[MAX_DPATH];
 
 extern int mouseactive;
@@ -1114,6 +1113,7 @@ static void m(void)
     mm++;
 }
 
+static int GetSettings (int all_options, HWND hwnd);
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
 void gui_display (int shortcut)
 {
@@ -1125,11 +1125,11 @@ void gui_display (int shortcut)
 	return;
     here++;
     gui_active++;
-    screenshot_prepare();
+    screenshot_prepare ();
 #ifdef D3D
     D3D_guimode (TRUE);
 #endif
-    setpaused();
+    setpaused ();
     inputdevice_unacquire ();
     clearallkeys ();
     setmouseactive (0);
@@ -4807,6 +4807,7 @@ static void enable_for_memorydlg (HWND hDlg)
 {
     int z3 = ! workprefs.address_space_24;
     int fast = workprefs.chipmem_size <= 0x200000;
+    int rtg = workprefs.gfxmem_size && full_property_sheet;
 
 #ifndef AUTOCONFIG
     z3 = FALSE;
@@ -4825,6 +4826,13 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_MBMEM1, z3);
     ew (hDlg, IDC_MBRAM2, z3);
     ew (hDlg, IDC_MBMEM2, z3);
+
+    ew (hDlg, IDC_RTG_8BIT, rtg);
+    ew (hDlg, IDC_RTG_16BIT, rtg);
+    ew (hDlg, IDC_RTG_24BIT, rtg);
+    ew (hDlg, IDC_RTG_32BIT, rtg);
+    ew (hDlg, IDC_RTG_MATCH_DEPTH, rtg);
+    ew (hDlg, IDC_RTG_SCALE, rtg);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -4902,6 +4910,45 @@ static void values_to_memorydlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
+    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"(8bit)");
+    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"8-bit (*)");
+    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"(15/16bit)");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5PC (*)");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5PC");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G6R5PC");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G5R5PC");
+    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
+	(workprefs.picasso96_modeflags & RGBFF_R5G6B5PC) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G5B5PC) ? 2 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G6B5) ? 3 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G5B5) ? 4 :
+	(workprefs.picasso96_modeflags & RGBFF_B5G6R5PC) ? 5 :
+	(workprefs.picasso96_modeflags & RGBFF_B5G5R5PC) ? 6 : 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"(24bit)");
+    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8");
+    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8");
+    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_SETCURSEL,
+	(workprefs.picasso96_modeflags & RGBFF_R8G8B8) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_B8G8R8) ? 2 : 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_RESETCONTENT, 0, 0);
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"(32bit)");
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8R8G8B8");
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8B8G8R8");
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8A8");
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8A8 (*)");
+    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_SETCURSEL,
+	(workprefs.picasso96_modeflags & RGBFF_A8R8G8B8) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_A8B8G8R8) ? 2 :
+	(workprefs.picasso96_modeflags & RGBFF_R8G8B8A8) ? 3 :
+	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 4 : 0, 0);
+    CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
+    CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 
     mem_size = 0;
     switch (workprefs.mbresmem_low_size) {
@@ -4940,51 +4987,119 @@ static void fix_values_memorydlg (void)
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    int v;
     static int recursive = 0;
 
     switch (msg)
     {
-    case WM_INITDIALOG:
-	pages[MEMORY_ID] = hDlg;
-	currentpage = MEMORY_ID;
+	case WM_INITDIALOG:
+	    pages[MEMORY_ID] = hDlg;
+	    currentpage = MEMORY_ID;
 
-	SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
-	SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
-	SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
-	SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
-	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
-	SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
-	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+	    SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
+	    SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
+	    SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
+	    SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
+	    SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
+	    SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+	    SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
 
-    case WM_USER:
-	recursive++;
-	fix_values_memorydlg ();
-	values_to_memorydlg (hDlg);
-	enable_for_memorydlg (hDlg);
-	recursive--;
+	case WM_USER:
+	    recursive++;
+	    fix_values_memorydlg ();
+	    values_to_memorydlg (hDlg);
+	    enable_for_memorydlg (hDlg);
+	    recursive--;
 	break;
 
-    case WM_HSCROLL:
-	workprefs.chipmem_size = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
-	workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
-	workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
-	workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
-	workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
-	workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
-	workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
-	fix_values_memorydlg ();
-	values_to_memorydlg (hDlg);
-	enable_for_memorydlg (hDlg);
+	case WM_HSCROLL:
+	    workprefs.chipmem_size = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
+	    workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
+	    fix_values_memorydlg ();
+	    values_to_memorydlg (hDlg);
+	    enable_for_memorydlg (hDlg);
 	break;
 
-    case WM_COMMAND:
-	if (recursive > 0)
-	    break;
-	recursive++;
-	values_to_memorydlg (hDlg);
-	recursive--;
+	case WM_COMMAND:
+	{
+	    uae_u32 mask = workprefs.picasso96_modeflags;
+	    if (recursive > 0)
+		break;
+	    recursive++;
+	    switch (LOWORD (wParam))
+	    {
+		case IDC_RTG_MATCH_DEPTH:
+		workprefs.win32_rtgmatchdepth = IsDlgButtonChecked (hDlg, IDC_RTG_MATCH_DEPTH);
+		break;
+		case IDC_RTG_SCALE:
+		workprefs.win32_rtgscaleifsmall = IsDlgButtonChecked (hDlg, IDC_RTG_SCALE);
+		break;
+	    }
+    	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_RTG_8BIT:
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			mask &= ~RGBFF_CLUT;
+			if (v == 1)
+			    mask |= RGBFF_CLUT;
+		    }
+		    break;
+		    case IDC_RTG_16BIT:
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			mask &= ~(RGBFF_R5G6B5PC | RGBFF_R5G5B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC);
+			if (v == 1)
+			    mask |= RGBFF_R5G6B5PC;
+			if (v == 2)
+			    mask |= RGBFF_R5G5B5PC;
+			if (v == 3)
+			    mask |= RGBFF_R5G6B5;
+			if (v == 4)
+			    mask |= RGBFF_R5G5B5;
+			if (v == 5)
+			    mask |= RGBFF_B5G6R5PC;
+			if (v == 6)
+			    mask |= RGBFF_B5G5R5PC;
+		    }
+		    break;
+		    case IDC_RTG_24BIT:
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			mask &= ~(RGBFF_R8G8B8 | RGBFF_B8G8R8);
+			if (v == 1)
+			    mask |= RGBFF_R8G8B8;
+			if (v == 2)
+			    mask |= RGBFF_B8G8R8;
+		    }
+		    break;
+		    case IDC_RTG_32BIT:
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			mask &= ~(RGBFF_A8R8G8B8 | RGBFF_A8B8G8R8 | RGBFF_R8G8B8A8 | RGBFF_B8G8R8A8);
+			if (v == 1)
+			    mask |= RGBFF_A8R8G8B8;
+			if (v == 2)
+			    mask |= RGBFF_A8B8G8R8;
+			if (v == 3)
+			    mask |= RGBFF_R8G8B8A8;
+			if (v == 4)
+			    mask |= RGBFF_B8G8R8A8;
+		    }
+		    break;
+		}
+	    }
+	    workprefs.picasso96_modeflags = mask;
+	    values_to_memorydlg (hDlg);
+	    recursive--;
+	}
 	break;
-
     }
     return FALSE;
 }
@@ -5206,6 +5321,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void enable_for_miscdlg (HWND hDlg)
 {
+    ew (hDlg, IDC_DD_SURFACETYPE, full_property_sheet);
     if (!full_property_sheet) {
 	ew (hDlg, IDC_JULIAN, TRUE);
 	ew (hDlg, IDC_CTRLF11, TRUE);
@@ -5214,7 +5330,6 @@ static void enable_for_miscdlg (HWND hDlg)
 	ew (hDlg, IDC_NOSPEED, TRUE);
 	ew (hDlg, IDC_NOSPEEDPAUSE, TRUE);
 	ew (hDlg, IDC_NOSOUND, TRUE);
-	ew (hDlg, IDC_RTGMATCHDEPTH, TRUE);
 	ew (hDlg, IDC_DOSAVESTATE, TRUE);
 	ew (hDlg, IDC_SCSIMODE, FALSE);
 	ew (hDlg, IDC_SCSIDEVICE, FALSE);
@@ -5362,7 +5477,6 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
 	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
-	CheckDlgButton (hDlg, IDC_RTGMATCHDEPTH, workprefs.win32_rtgmatchdepth);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
@@ -5403,6 +5517,13 @@ static void values_to_miscdlg (HWND hDlg)
 
 	misc_scsi(hDlg);
 	misc_lang(hDlg);
+
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)"NonLocalVRAM");
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)"DefaultRAM");
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)"LocalVRAM");
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)"SystemRAM");
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
 
     } else if (currentpage == MISC2_ID) {
 
@@ -5492,6 +5613,13 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			    misc_setlang(v);
 		    }
 		    break;
+		    case IDC_DD_SURFACETYPE:
+		    v = SendDlgItemMessage(hDlg, IDC_DD_SURFACETYPE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			ddforceram = v;
+			regsetint (NULL, "directdraw_secondary", ddforceram);
+		    }
+		    break;
 		}
 	    }
 	} else if (currentpage == MISC2_ID) {
@@ -5522,9 +5650,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_JULIAN:
 	    workprefs.win32_middle_mouse = IsDlgButtonChecked(hDlg, IDC_JULIAN);
-	    break;
-	case IDC_RTGMATCHDEPTH:
-	    workprefs.win32_rtgmatchdepth = IsDlgButtonChecked(hDlg, IDC_RTGMATCHDEPTH);
 	    break;
 	case IDC_SHOWLEDS:
 	    workprefs.leds_on_screen = IsDlgButtonChecked(hDlg, IDC_SHOWLEDS);

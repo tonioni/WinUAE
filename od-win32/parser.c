@@ -53,7 +53,6 @@ static char prtbuf[PRTBUFSIZE];
 static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
 static DWORD  dwJob;
-extern HWND hAmigaWnd;
 static int prtopen;
 extern void flushpixels(void);
 void DoSomeWeirdPrintingStuff(char val);

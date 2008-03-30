@@ -9,6 +9,7 @@
 
 //#define BLITTER_DEBUG
 //#define BLITTER_SLOWDOWNDEBUG 4
+//#define BLITTER_DEBUG_NO_D
 
 #define SPEEDUP
 
@@ -264,6 +265,13 @@ static void blitter_done (void)
 #endif
 }
 
+STATIC_INLINE chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
+{
+#ifndef BLITTER_DEBUG_NO_D
+    chipmem_agnus_wput (addr, w);
+#endif
+}
+
 static void blitter_dofast (void)
 {
     int i,j;
@@ -327,7 +335,8 @@ static void blitter_dofast (void)
 		    blt_info.bltcdat = chipmem_agnus_wget (bltcdatptr);
 		    bltcdatptr += 2;
 		}
-		if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
+		if (dodst)
+		    chipmem_agnus_wput2 (dstp, blt_info.bltddat);
 		blt_info.bltddat = blit_func (blitahold, blitbhold, blt_info.bltcdat, mt) & 0xFFFF;
 		if (blitfill) {
 		    uae_u16 d = blt_info.bltddat;
@@ -345,12 +354,17 @@ static void blitter_dofast (void)
 		    bltddatptr += 2;
 		}
 	    }
-	    if (bltadatptr) bltadatptr += blt_info.bltamod;
-	    if (bltbdatptr) bltbdatptr += blt_info.bltbmod;
-	    if (bltcdatptr) bltcdatptr += blt_info.bltcmod;
-	    if (bltddatptr) bltddatptr += blt_info.bltdmod;
+	    if (bltadatptr)
+		bltadatptr += blt_info.bltamod;
+	    if (bltbdatptr)
+		bltbdatptr += blt_info.bltbmod;
+	    if (bltcdatptr)
+		bltcdatptr += blt_info.bltcmod;
+	    if (bltddatptr)
+		bltddatptr += blt_info.bltdmod;
 	}
-	if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
+	if (dodst)
+	    chipmem_agnus_wput2 (dstp, blt_info.bltddat);
 	blt_info.bltbhold = blitbhold;
     }
     blit_masktable[0] = 0xFFFF;
@@ -420,7 +434,8 @@ static void blitter_dofast_desc (void)
 		    blt_info.bltcdat = blt_info.bltbdat = chipmem_agnus_wget (bltcdatptr);
 		    bltcdatptr -= 2;
 		}
-		if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
+		if (dodst)
+		    chipmem_agnus_wput2 (dstp, blt_info.bltddat);
 		blt_info.bltddat = blit_func (blitahold, blitbhold, blt_info.bltcdat, mt) & 0xFFFF;
 		if (blitfill) {
 		    uae_u16 d = blt_info.bltddat;
@@ -438,12 +453,17 @@ static void blitter_dofast_desc (void)
 		    bltddatptr -= 2;
 		}
 	    }
-	    if (bltadatptr) bltadatptr -= blt_info.bltamod;
-	    if (bltbdatptr) bltbdatptr -= blt_info.bltbmod;
-	    if (bltcdatptr) bltcdatptr -= blt_info.bltcmod;
-	    if (bltddatptr) bltddatptr -= blt_info.bltdmod;
+	    if (bltadatptr)
+		bltadatptr -= blt_info.bltamod;
+	    if (bltbdatptr)
+		bltbdatptr -= blt_info.bltbmod;
+	    if (bltcdatptr)
+		bltcdatptr -= blt_info.bltcmod;
+	    if (bltddatptr)
+		bltddatptr -= blt_info.bltdmod;
 	}
-	if (dodst) chipmem_agnus_wput (dstp, blt_info.bltddat);
+	if (dodst)
+	    chipmem_agnus_wput2 (dstp, blt_info.bltddat);
 	blt_info.bltbhold = blitbhold;
     }
     blit_masktable[0] = 0xFFFF;
@@ -730,7 +750,7 @@ STATIC_INLINE int blitter_doddma (void)
 	wd = 1;
     }
     if (wd) {
-	chipmem_agnus_wput (bltdpt, d);
+	chipmem_agnus_wput2 (bltdpt, d);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
 	if (blitter_hcounter2 == blt_info.hblitsize) {

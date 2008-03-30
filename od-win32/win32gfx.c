@@ -165,10 +165,32 @@ static BOOL doInit (void);
 uae_u32 default_freq = 0;
 
 HWND hStatusWnd = NULL;
-uae_u16 picasso96_pixel_format = RGBFF_CHUNKY;
 
 static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
+
+static struct MultiDisplay *getdisplay (struct uae_prefs *p)
+{
+    int i;
+    int display = p->gfx_display;
+
+    i = 0;
+    while (Displays[i].name) {
+	struct MultiDisplay *md = &Displays[i];
+	if (p->gfx_display_name[0] && !strcmp (md->name, p->gfx_display_name))
+	    return md;
+	if (p->gfx_display_name[0] && !strcmp (md->name2, p->gfx_display_name))
+	    return md;
+	i++;
+    }
+    if (i == 0) {
+	gui_message ("no display adapters! Exiting");
+	exit (0);
+    }
+    if (display >= i)
+	display = 0;
+    return &Displays[display];
+}
 
 void centerdstrect (RECT *dr)
 {
@@ -271,10 +293,10 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
     RGBFTYPE colortype;
     int i, j, ct, depth;
 
-    colortype = DirectDraw_GetSurfacePixelFormat(modeDesc);
-    if (colortype == RGBFB_NONE || colortype == RGBFB_R8G8B8 || colortype == RGBFB_B8G8R8 )
+    colortype = DirectDraw_GetSurfacePixelFormat (modeDesc);
+    if (colortype == RGBFB_NONE)
 	return DDENUMRET_OK;
-    if (modeDesc->dwWidth > 2048 || modeDesc->dwHeight > 2048)
+    if (modeDesc->dwWidth > 2560 || modeDesc->dwHeight > 2048)
 	return DDENUMRET_OK;
     ct = 1 << colortype;
     depth = 0;
@@ -303,7 +325,6 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
 	}
 	i++;
     }
-    picasso96_pixel_format |= ct;
     i = 0;
     while (DisplayModes[i].depth >= 0)
 	i++;
@@ -386,10 +407,10 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
     if (guid == 0) {
 	POINT pt = { 0, 0 };
 	md->primary = 1;
-	GetMonitorInfo(MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&lpmi);
+	GetMonitorInfo (MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&lpmi);
     } else {
 	memcpy (&md->guid,  guid, sizeof (GUID));
-	GetMonitorInfo(hm, (LPMONITORINFO)&lpmi);
+	GetMonitorInfo (hm, (LPMONITORINFO)&lpmi);
     }
     md->rect = lpmi.rcMonitor;
     if (md->rect.left == 0 && md->rect.top == 0)
@@ -397,6 +418,7 @@ BOOL CALLBACK displaysCallback (GUID *guid, LPSTR desc, LPSTR name, LPVOID ctx, 
     else
         sprintf (tmp, "%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
     md->name = my_strdup (tmp);
+    md->name2 = my_strdup (desc);
     write_log ("'%s' '%s' %s\n", desc, name, outGUID(guid));
     return 1;
 }
@@ -783,7 +805,8 @@ static int open_windows (void)
     } while (ret < 0);
 
     setpriority(&priorities[currprefs.win32_active_priority]);
-    setmouseactive (-1);
+    if (!rp_isactive ())
+	setmouseactive (-1);
     for (i = 0; i < NUM_LEDS; i++)
 	gui_led (i, 0);
     gui_fps (0, 0);
@@ -831,9 +854,11 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 2 : 0;
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
+    c |= strcmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
     c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
+    c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? 2 : 0;
 
     if (display_change_requested || c)
     {
@@ -865,9 +890,11 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
+	strcpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 	currprefs.win32_borderless = changed_prefs.win32_borderless;
 	currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
+	currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
 
 	inputdevice_unacquire ();
 	if (c & 16) {
@@ -1098,7 +1125,6 @@ void init_colors (void)
 	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
     }
-    alloc_colors_picasso (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 }
 
 #ifdef PICASSO96
@@ -1276,6 +1302,7 @@ void gfx_set_picasso_state (int on)
     if (screen_is_picasso == on)
 	return;
     screen_is_picasso = on;
+    rp_rtg_switch ();
     memcpy (&wc, currentmode, sizeof (wc));
 
     scalepicasso = 0;
@@ -1285,17 +1312,22 @@ void gfx_set_picasso_state (int on)
     } else {
 	mode = modeswitchneeded (&wc);
 	if (!mode)
-	    return;
+	    goto end;
     }
     if (mode < 0) {
 	open_windows ();
     } else {
 	open_screen (); // reopen everything
     }
+end:
+#ifdef RETROPLATFORM
+    rp_set_hwnd (hAmigaWnd);
+#endif
 }
 
 void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
+    alloc_colors_picasso (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt);
     if (screen_is_picasso && modeswitchneeded(currentmode))
         open_screen ();
 }
@@ -1545,7 +1577,7 @@ static int create_windows (void)
 	}
 
 	if (fsw) {
-	    rc = Displays[currprefs.gfx_display].rect;
+	    rc = getdisplay (&currprefs)->rect;
 	    flags |= WS_EX_TOPMOST;
 	    style = WS_POPUP;
 	    currentmode->native_width = rc.right - rc.left;
@@ -1795,9 +1827,9 @@ static BOOL doInit (void)
     }
 
 #ifdef PICASSO96
-    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch();
-    picasso_vidinfo.pixbytes = DirectDraw_GetBytesPerPixel();
-    picasso_vidinfo.rgbformat = DirectDraw_GetPixelFormat();
+    picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
+    picasso_vidinfo.pixbytes = DirectDraw_GetBytesPerPixel ();
+    picasso_vidinfo.rgbformat = DirectDraw_GetPixelFormat ();
     picasso_vidinfo.extra_mem = 1;
     picasso_vidinfo.height = currentmode->current_height;
     picasso_vidinfo.width = currentmode->current_width;
@@ -1945,7 +1977,7 @@ void updatedisplayarea (void)
 
 void updatewinfsmode (struct uae_prefs *p)
 {
-    int i;
+    struct MultiDisplay *md;
 
     fixup_prefs_dimensions (p);
     if (p->gfx_afullscreen) {
@@ -1954,18 +1986,13 @@ void updatewinfsmode (struct uae_prefs *p)
 	p->gfx_size = p->gfx_size_win;
     }
     displayGUID = NULL;
-    i = 0;
-    while (Displays[i].name) i++;
-    if (p->gfx_display >= i)
+    md = getdisplay (p);
+    if (md->disabled) {
 	p->gfx_display = 0;
-    if (Displays[p->gfx_display].disabled)
-	p->gfx_display = 0;
-    if (i == 0) {
-	gui_message ("no display adapters! Exiting");
-	exit (0);
+	md = getdisplay (p);
     }
-    if (!Displays[p->gfx_display].primary)
-	displayGUID = &Displays[p->gfx_display].guid;
+    if (!md->primary)
+	displayGUID = &md->guid;
     if (isfullscreen () == 0)
 	displayGUID = NULL;
 }

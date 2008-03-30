@@ -10,6 +10,7 @@
 #include "sysdeps.h"
 #include "options.h"
 #include "custom.h"
+#include "rtgmodes.h"
 #include "xwin.h"
 #include "gfxfilter.h"
 
@@ -90,7 +91,7 @@ static unsigned int doAlpha (int alpha, int bits, int shift)
     return (alpha & ((1 << bits) - 1)) << shift;
 }
 
-static float video_gamma(float value, float gamma, float bri, float con)
+static float video_gamma (float value, float gamma, float bri, float con)
 {
     double factor;
     float ret;
@@ -113,7 +114,7 @@ static float video_gamma(float value, float gamma, float bri, float con)
 static uae_u32 gamma[256 * 3];
 static int lf, hf;
 
-static void video_calc_gammatable(void)
+static void video_calc_gammatable (void)
 {
     int i;
     float bri, con, gam, v;
@@ -141,7 +142,7 @@ static void video_calc_gammatable(void)
     }
 }
 
-static uae_u32 limit256(double v)
+static uae_u32 limit256 (double v)
 {
     v = v * (double)(currprefs.gfx_filter_contrast + 1000) / 1000.0 + currprefs.gfx_filter_luminance / 10.0;
     if (v < 0)
@@ -150,7 +151,7 @@ static uae_u32 limit256(double v)
 	v = 255;
     return ((uae_u32)v) & 0xff;
 }
-static uae_u32 limit256rb(double v)
+static uae_u32 limit256rb (double v)
 {
     v *= (double)(currprefs.gfx_filter_saturation + 1000) / 1000.0;
     if (v < -128)
@@ -159,25 +160,25 @@ static uae_u32 limit256rb(double v)
 	v = 127;
     return ((uae_u32)v) & 0xff;
 }
-static double get_y(int r, int g, int b)
+static double get_y (int r, int g, int b)
 {
-    return 0.2989f*r + 0.5866f*g + 0.1145f*b;
+    return 0.2989f * r + 0.5866f * g + 0.1145f * b;
 }
-static uae_u32 get_yh(int r, int g, int b)
+static uae_u32 get_yh (int r, int g, int b)
 {
-    return limit256(get_y(r, g, b) * hf / 256);
+    return limit256 (get_y (r, g, b) * hf / 256);
 }
-static uae_u32 get_yl(int r, int g, int b)
+static uae_u32 get_yl (int r, int g, int b)
 {
-    return limit256(get_y(r, g, b) * lf / 256);
+    return limit256 (get_y (r, g, b) * lf / 256);
 }
-static uae_u32 get_cb(int r, int g, int b)
+static uae_u32 get_cb (int r, int g, int b)
 {
-    return limit256rb(-0.168736f*r - 0.331264f*g + 0.5f*b);
+    return limit256rb (-0.168736f * r - 0.331264f * g + 0.5f * b);
 }
-static uae_u32 get_cr(int r, int g, int b)
+static uae_u32 get_cr (int r, int g, int b)
 {
-    return limit256rb(0.5f*r - 0.418688f*g - 0.081312f*b);
+    return limit256rb (0.5f * r - 0.418688f * g - 0.081312f * b);
 }
 
 extern uae_s32 tyhrgb[65536];
@@ -186,23 +187,92 @@ extern uae_s32 tcbrgb[65536];
 extern uae_s32 tcrrgb[65536];
 extern uae_u32 redc[3 * 256], grec[3 * 256], bluc[3 * 256];
 
-static uae_u32 lowbits(int v, int shift, int lsize)
+static uae_u32 lowbits (int v, int shift, int lsize)
 {
     v >>= shift;
     v &= (1 << lsize) - 1;
     return v;
 }
 
-void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap)
+void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt)
 {
+    int byte_swap = 0;
     int i;
+    int red_bits = 0, green_bits, blue_bits;
+    int red_shift, green_shift, blue_shift;
 
-    for (i = 0; i < 65536; i++) {
-        uae_u32 r, g, b;
-        r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
-        g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);
-        b = (((i >>  0) & 31) << 3) | lowbits (i,  0, 3);
-	p96_rgbx16[i] = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
+    int bpp = rw + gw + bw;
+
+    switch (rgbfmt)
+    {
+	case RGBFB_R5G6B5PC:
+	red_bits = 5;
+	green_bits = 6;
+	blue_bits = 5;
+	red_shift = 11;
+	green_shift = 5;
+	blue_shift = 0;
+	break;
+	case RGBFB_R5G5B5PC:
+	red_bits = green_bits = blue_bits = 5;
+	red_shift = 10;
+	green_shift = 5;
+	blue_shift = 0;
+	break;
+	case RGBFB_R5G6B5:
+	red_bits = 5;
+	green_bits = 6;
+	blue_bits = 5;
+	red_shift = 11;
+	green_shift = 5;
+	blue_shift = 0;
+	byte_swap = 1;
+	break;
+	case RGBFB_R5G5B5:
+	red_bits = green_bits = blue_bits = 5;
+	red_shift = 10;
+	green_shift = 5;
+	blue_shift = 0;
+	byte_swap = 1;
+	break;
+	case RGBFB_B5G6R5PC:
+	red_bits = 5;
+	green_bits = 6;
+	blue_bits = 5;
+	red_shift = 0;
+	green_shift = 5;
+	blue_shift = 11;
+	break;
+	case RGBFB_B5G5R5PC:
+	red_bits = 5;
+	green_bits = 5;
+	blue_bits = 5;
+	red_shift = 0;
+	green_shift = 5;
+	blue_shift = 10;
+	break;
+    }
+
+    memset (p96_rgbx16, 0, sizeof p96_rgbx16);
+
+    if (red_bits) {
+	int lrbits = 8 - red_bits;
+	int lgbits = 8 - green_bits;
+	int lbbits = 8 - blue_bits;
+	int lrmask = (1 << red_bits) - 1;
+	int lgmask = (1 << green_bits) - 1;
+	int lbmask = (1 << blue_bits) - 1;
+	for (i = 65535; i >= 0; i--) {
+	    uae_u32 r, g, b, c;
+	    uae_u32 j = byte_swap ? bswap_16 (i) : i;
+	    r = (((j >>   red_shift) & lrmask) << lrbits) | lowbits (j,   red_shift, lrbits);
+	    g = (((j >> green_shift) & lgmask) << lgbits) | lowbits (j, green_shift, lgbits);
+	    b = (((j >>  blue_shift) & lbmask) << lbbits) | lowbits (j,  blue_shift, lbbits);
+	    c = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
+	    if (bpp <= 16)
+		c |= c * 0x00010001;
+	    p96_rgbx16[i] = c;
+	}
     }
 }
 

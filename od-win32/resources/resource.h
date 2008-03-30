@@ -930,6 +930,13 @@
 #define IDC_DBG_MEM2                    1782
 #define IDC_DBG_MEMINPUT2               1783
 #define IDC_DBG_ADDRINPUTTXT            1784
+#define IDC_RTG_SCALE                   1785
+#define IDC_RTG_MATCH_DEPTH             1786
+#define IDC_RTG_8BIT                    1787
+#define IDC_RTG_16BIT                   1788
+#define IDC_RTG_24BIT                   1789
+#define IDC_RTG_32BIT                   1790
+#define IDC_DD_SURFACETYPE              1791
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -975,7 +982,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        336
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1785
+#define _APS_NEXT_CONTROL_VALUE         1788
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -304,7 +304,7 @@ void write_log (const char *format, ...)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, bufp);
 	if (!bootlogmode)
-	    fflush(debugfile);
+	    ;//fflush(debugfile);
     }
     lfdetected = 0;
     if (strlen(bufp) > 0 && bufp[strlen(bufp) - 1] == '\n')

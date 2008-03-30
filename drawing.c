@@ -1031,6 +1031,7 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
     stbuf -= e->pos;
 
     window_pos = e->pos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
+
     spr_level = 0;
     spr_level_max = 0;
     if (res_shift > 0 && aga) {
@@ -1043,10 +1044,12 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
     else if (posdoubling)
 	window_pos <<= posdoubling;
     window_pos += pixels_offset;
+
     if (aga) {
 	if (window_pos < sprite_aga_first_x)
 	    sprite_aga_first_x = window_pos;
     }
+
     for (pos = e->pos; pos < e->max; pos += 1 << sizeskip) {
 	int maskshift, plfmask;
 	unsigned int v = buf[pos];
@@ -1998,7 +2001,7 @@ static void center_image (void)
 	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
     }
     if (currprefs.gfx_xcenter_pos >= 0) {
-	int val = currprefs.gfx_xcenter_pos < 56 ? 56 : currprefs.gfx_xcenter_pos;
+	int val = (currprefs.gfx_xcenter_pos >> RES_MAX) < 56 ? 56 : (currprefs.gfx_xcenter_pos >> RES_MAX);
 	visible_left_border = val + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
     }
 
@@ -2032,7 +2035,7 @@ static void center_image (void)
 	}
     }
     if (currprefs.gfx_ycenter_pos >= 0) {
-	thisframe_y_adjust = currprefs.gfx_ycenter_pos;
+	thisframe_y_adjust = currprefs.gfx_ycenter_pos >> 1;
 	if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_max)
 	    thisframe_y_adjust = 2 * maxvpos_max - max_drawn_amiga_line;
 	if (thisframe_y_adjust < 0)
@@ -2736,6 +2739,10 @@ void reset_drawing (void)
     notice_screen_contents_lost ();
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
     lightpen_y1 = lightpen_y2 = -1;
+
+    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
+    if (sprite_buffer_res > currprefs.gfx_resolution)
+	sprite_buffer_res = currprefs.gfx_resolution;
 }
 
 void drawing_init (void)

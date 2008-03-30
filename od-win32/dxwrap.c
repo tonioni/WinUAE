@@ -118,7 +118,7 @@ void unlocksurface (LPDIRECTDRAWSURFACE7 surf)
 }
 
 static char *alloctexts[] = { "NonLocalVRAM", "DefaultRAM", "VRAM", "RAM" };
-LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, int forcemode)
+LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, uae_u8 *ptr, int pitch, int forcemode)
 {
     HRESULT ddrval;
     DDSURFACEDESC2 desc;
@@ -136,13 +136,17 @@ LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, int forcemode)
         desc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
     desc.dwWidth = width;
     desc.dwHeight = height;
+    if (ptr) {
+	desc.dwFlags |= DDSD_LPSURFACE | DDSD_PITCH;
+	desc.lPitch = pitch;
+	desc.lpSurface = ptr;
+    }
     memcpy (&desc.ddpfPixelFormat, &dxdata.native.ddpfPixelFormat, sizeof (DDPIXELFORMAT));
     ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &surf, NULL);
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
     } else {
-        clearsurf (surf);
-        write_log ("Created %dx%d surface in %s (%d)\n", width, height, alloctexts[forcemode]);
+        write_log ("Created %dx%d surface in %s (%d)\n", width, height, alloctexts[forcemode], forcemode);
     }
     return surf;
 }
@@ -153,15 +157,21 @@ LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
     int mode = ddforceram;
 
     for (;;) {
-	s = allocsurface_2 (width, height, mode);
-	if (s)
+	s = allocsurface_2 (width, height, NULL, 0, mode);
+	if (s) {
+	    clearsurf (s);
 	    return s;
+	}
 	mode++;
 	if (mode >= 4)
 	    mode = 0;
 	if (mode == ddforceram)
 	    return NULL;
     }
+}
+LPDIRECTDRAWSURFACE7 createsurface (uae_u8 *ptr, int pitch, int width, int height)
+{
+    return allocsurface_2 (width, height, ptr, pitch, DDFORCED_SYSMEM);
 }
 
 void freesurface (LPDIRECTDRAWSURFACE7 surf)
@@ -321,13 +331,15 @@ const char *DXError (HRESULT ddrval)
     return dderr;
 }
 
-RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
+RGBFTYPE DirectDraw_GetSurfacePixelFormat (LPDDSURFACEDESC2 surface)
 {
     int surface_is = 0;
     DDPIXELFORMAT *pfp = NULL;
     DWORD r, g, b;
     DWORD surf_flags;
 
+    if (surface == NULL)
+	surface = &dxdata.native;
     surf_flags = surface->dwFlags;
     pfp = &surface->ddpfPixelFormat;
 
@@ -340,7 +352,8 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface)
     r = pfp->dwRBitMask;
     g = pfp->dwGBitMask;
     b = pfp->dwBBitMask;
-    switch (pfp->dwRGBBitCount) {
+    switch (pfp->dwRGBBitCount)
+    {
      case 8:
 	if ((pfp->dwFlags & DDPF_PALETTEINDEXED8) != 0)
 	    return RGBFB_CHUNKY;

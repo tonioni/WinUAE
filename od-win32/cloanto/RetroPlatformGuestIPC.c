@@ -161,13 +161,14 @@ BOOL RPSendMessage(UINT uMessage, WPARAM wParam, LPARAM lParam,
 		cds.dwData = (ULONG_PTR)uMessage;
 		cds.cbData = dwDataSize;
 		cds.lpData = (LPVOID)pData;
-		if (!SendMessageTimeout(pInfo->hHostMessageWindow, WM_COPYDATA, (WPARAM)pInfo->hGuestMessageWindow, (LPARAM)&cds, SMTO_NORMAL, SRPMSG_TIMEOUT, &dwResult))
-			return FALSE;
+		dwResult = SendMessage(pInfo->hHostMessageWindow, WM_COPYDATA, (WPARAM)pInfo->hGuestMessageWindow, (LPARAM)&cds);
 	}
 	else
 	{
-		if (!SendMessageTimeout(pInfo->hHostMessageWindow, uMessage, wParam, lParam, SMTO_NORMAL, SRPMSG_TIMEOUT, &dwResult))
-			return FALSE;
+		// SendMessageTimeout is not used, since the host
+		// might display MessageBoxes during notifications
+		// (e.g. go-to-fullscreen message)
+		dwResult = SendMessage(pInfo->hHostMessageWindow, uMessage, wParam, lParam);
 	}
 	if (plResult)
 		*plResult = dwResult;

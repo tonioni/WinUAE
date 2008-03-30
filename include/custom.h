@@ -160,6 +160,7 @@ extern int bpl_off[8];
 #define RES_LORES 0
 #define RES_HIRES 1
 #define RES_SUPERHIRES 2
+#define RES_MAX 2
 
 /* calculate shift depending on resolution (replaced "decided_hires ? 4 : 8") */
 #define RES_SHIFT(res) ((res) == RES_LORES ? 8 : (res) == RES_HIRES ? 4 : 2)

@@ -150,6 +150,7 @@ struct uae_prefs {
     uae_u32 override_dga_address;
 
     int gfx_display;
+    char gfx_display_name[256];
     int gfx_framerate, gfx_autoframerate;
     struct wh gfx_size_win;
     struct wh gfx_size_fs;
@@ -260,6 +261,7 @@ struct uae_prefs {
     int cpu_compatible;
     int address_space_24;
     int picasso96_nocustom;
+    int picasso96_modeflags;
 
     uae_u32 z3fastmem_size;
     uae_u32 z3fastmem_start;

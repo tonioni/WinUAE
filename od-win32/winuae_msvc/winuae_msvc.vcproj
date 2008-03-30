@@ -2542,7 +2542,7 @@
 			>
 		</File>
 		<File
-			RelativePath="..\resources\resource.h"
+			RelativePath="..\resources\resource"
 			>
 		</File>
 	</Files>

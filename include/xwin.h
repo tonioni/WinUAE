@@ -45,7 +45,7 @@ extern void alloc_colors256 (int (*)(int, int, int, xcolnr *));
 extern void alloc_colors64k (int, int, int, int, int, int, int, int, int, int);
 extern void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
 			      uae_u32 *rc, uae_u32 *gc, uae_u32 *bc);
-extern void alloc_colors_picasso (int, int, int, int, int, int, int, int, int, int);
+extern void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt);
 extern void setup_greydither (int bits, allocfunc_type allocfunc);
 extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
 extern void setup_dither (int bits, allocfunc_type allocfunc);
@@ -93,3 +93,4 @@ extern struct vidbuf_description gfxvidinfo;
 /* For ports using tui.c, this should be built by graphics_setup(). */
 extern struct bstring *video_mode_menu;
 extern void vidmode_menu_selected(int);
+

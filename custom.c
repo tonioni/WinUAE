@@ -819,9 +819,9 @@ static void compute_toscr_delay_1 (void)
     delay2 += delayoffset;
     delaymask = (fetchwidth - 1) >> toscr_res;
     toscr_delay1x = (delay1 & delaymask) << toscr_res;
-    toscr_delay1x |= shdelay1 >> (2 - toscr_res);
+    toscr_delay1x |= shdelay1 >> (RES_MAX - toscr_res);
     toscr_delay2x = (delay2 & delaymask) << toscr_res;
-    toscr_delay2x |= shdelay2 >> (2 - toscr_res);
+    toscr_delay2x |= shdelay2 >> (RES_MAX - toscr_res);
 }
 
 static void compute_toscr_delay (int hpos)
@@ -1880,23 +1880,38 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
 {
     int j = 0;
     while (datab) {
-	unsigned int tmp = *buf;
 	unsigned int col = (datab & 3) << (2 * num);
-	tmp |= col;
-	if ((j & mask) == 0)
+	unsigned coltmp = 0;
+
+	if ((j & mask) == 0) {
+    	    unsigned int tmp = (*buf) | col;
 	    *buf++ = tmp;
-	if (dbl > 0)
+	    if (do_collisions)
+		coltmp |= tmp;
+	}
+	if (dbl > 0) {
+    	    unsigned int tmp = (*buf) | col;
 	    *buf++ = tmp;
+	    if (do_collisions)
+		coltmp |= tmp;
+	}
 	if (dbl > 1) {
+	    unsigned int tmp;
+	    tmp = (*buf) | col;
 	    *buf++ = tmp;
+	    if (do_collisions)
+		coltmp |= tmp;
+	    tmp = (*buf) | col;
 	    *buf++ = tmp;
+	    if (do_collisions)
+		coltmp |= tmp;
 	}
 	j++;
 	datab >>= 2;
 	if (do_collisions) {
-	    tmp &= collision_mask;
-	    if (tmp) {
-		unsigned int shrunk_tmp = sprite_ab_merge[tmp & 255] | (sprite_ab_merge[tmp >> 8] << 2);
+	    coltmp &= collision_mask;
+	    if (coltmp) {
+		unsigned int shrunk_tmp = sprite_ab_merge[coltmp & 255] | (sprite_ab_merge[coltmp >> 8] << 2);
 		clxdat |= sprclx[shrunk_tmp];
 	    }
 	}
@@ -1909,8 +1924,8 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
    This function assumes that for all sprites in a given line, SPRXP either
    stays equal or increases between successive calls.
 
-   The data is recorded either in lores pixels (if OCS/ECS), or in superhires
-   pixels (if AGA).  */
+   The data is recorded either in lores pixels (if OCS/ECS), or in hires or
+   superhires pixels (if AGA).  */
 
 static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsigned int ctl)
 {
@@ -1928,14 +1943,14 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     if (dbl < 0) {
         half = -dbl;
         dbl = 0;
-	if (ecsshres ())
-	    mask = 1;
+	if (ecsshres () || (sprite_buffer_res < RES_SUPERHIRES && sprres == RES_SUPERHIRES))
+	    mask = 1; /* need to halve horizontal size */
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
-    attachment =  (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
+    attachment = (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
 
     /* Try to coalesce entries if they aren't too far apart  */
-    if (!next_sprite_forced && e[-1].max + sprite_width >= sprxp && (attachment || ((bplcon4 >> 4) & 15) == ((bplcon4 >> 0) & 15))) {
+    if (!next_sprite_forced && e[-1].max + sprite_width >= sprxp) {
 	e--;
     } else {
 	next_sprite_entry++;
@@ -1972,7 +1987,6 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
        low order bit records whether the attach bit was set for this pair.  */
     if (attachment) {
 	uae_u32 state = 0x01010101 << (num & ~1);
-	uae_u32 *stbuf = spixstate.words + (word_offs >> 2);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
 	for (i = 0; i < width; i += 8) {
 	    stb1[0] |= state;
@@ -3240,13 +3254,13 @@ STATIC_INLINE void SPRxCTLPOS (int num)
     }
 #ifdef AGA
     else if (currprefs.chipset_mask & CSMASK_AGA) {
-	sprxp |= ((sprctl[num] >> 3) & 3) >> (2 - sprite_buffer_res);
+	sprxp |= ((sprctl[num] >> 3) & 3) >> (RES_MAX - sprite_buffer_res);
 	s->dblscan = sprpos[num] & 0x80;
     }
 #endif
 #ifdef ECS_DENISE
     else if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
-	sprxp |= ((sprctl[num] >> 3) & 2) >> (2 - sprite_buffer_res);
+	sprxp |= ((sprctl[num] >> 3) & 2) >> (RES_MAX - sprite_buffer_res);
     }
 #endif
     s->xpos = sprxp;
@@ -4289,9 +4303,7 @@ static void vsync_handler (void)
 	lof ^= 0x8000;
 
 #ifdef PICASSO96
-    /* And now let's update the Picasso palette, if required */
-    if (picasso_on)
-	picasso_handle_vsync ();
+    picasso_handle_vsync ();
 #endif
 
     if (quit_program > 0) {
@@ -4821,9 +4833,6 @@ void customreset (int hardreset)
 
     bogusframe = 1;
 
-    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
-    if (sprite_buffer_res > currprefs.gfx_resolution)
-	sprite_buffer_res = currprefs.gfx_resolution;
     if (savestate_state == STATE_RESTORE) {
 	uae_u16 v;
 	uae_u32 vv;

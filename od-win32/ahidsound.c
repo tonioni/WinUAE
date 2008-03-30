@@ -33,7 +33,6 @@
 #include "newcpu.h"
 #include "traps.h"
 #include "od-win32/win32.h"
-#include "picasso96_win.h"
 #include "sounddep/sound.h"
 #include "dxwrap.h"
 #include "win32.h"

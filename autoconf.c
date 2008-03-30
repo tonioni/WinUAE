@@ -199,6 +199,7 @@ static void rtarea_init_mem (void)
 	write_log ("virtual memory exhausted (rtarea)!\n");
 	abort ();
     }
+    memset (rtarea, 0, 0x10000);
     rtarea_bank.baseaddr = rtarea;
 }
 

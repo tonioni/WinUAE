@@ -1,4 +1,29 @@
 
+Beta 11:
+
+- uaegfx.card is now WinUAE built-in, libs:picasso96/uaegfx.card is not
+  needed anymore (and is ignored if it exists)
+- resolution names in display preferences are now named
+  "UAE:<w>x<h>" instead of "uaegfx:<w>x<h>"
+- added new Picasso96 options to GUI
+- 24-bit display depth Picasso96 blitter routines implemented/updated
+- added all Picasso96 supported color depth modes, defaults are
+  old standard PC modes (palette mode, R5G6B5PC and B8G8R8A8)
+  NOTES:
+  - only one 8-bit,15/16-bit, 24-bit and 32-bit mode supported
+  simultaneously
+  - All "new" modes require color space conversion = slower.
+  - Not all mode color space conversions yet supported (black screen)
+  - Can be useful with old RTG compatible demos or games that require
+    specific "non-pc" display color modes
+- added "Display buffer" option to misc-panel (stored to registry)
+- "FS" scale setting is now the default
+- refresh whole screen using very optimized routine if >80% of
+  Picasso96 screen needs refreshing (faster than partial update)
+- Marvin's Marvellous Adventure clouds/score interference fixed
+  (It was really stupid bug, can only happen with AGA sprites)
+- Skid Marks hires mode car sprite problem fixed (b10)
+
 Beta 10:
 
 - MOVEM is not weird in debugger anymore
@@ -11,8 +36,11 @@ Beta 10:
   was shorter than expected
 - disable hardware sprite if uaegfx.card is old version without
   hardware sprite support and devs:monitors/info has softsprite=no
-- added -ddforceram and -ddforcevram debugging command line params
-  try -ddforceram if you have slow P96Speed results
+- adjusted DirectDraw surface allocation parameters, perhaps helps
+  with P96Speed differences
+- added -ddforcemode <mode> command line parameter, if you have slow
+  P96Speed results compared to 1.4.6, try mode values from 1 to 3 and
+  report results.
 
 Beta 9:
 

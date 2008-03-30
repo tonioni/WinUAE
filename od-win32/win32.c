@@ -387,7 +387,8 @@ void setmouseactive (int active)
 	checkpause ();
     setmaintitle (hMainWnd);
 #ifdef RETROPLATFORM
-    rp_mousecapture (active);
+    rp_mouse_capture (active);
+    rp_mouse_magic (magicmouse_alive ());
 #endif
 }
 
@@ -1148,6 +1149,9 @@ void handle_events (void)
 	inputdevicefunc_joystick.read ();
 	inputdevice_handle_inputcode ();
 	check_prefs_changed_gfx ();
+#ifdef RETROPLATFORM
+	rp_vsync ();
+#endif
 	while (checkIPC (&currprefs));
 	if (quit_program)
 	    break;
@@ -1635,7 +1639,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *
 
 extern char *get_aspi_path(int);
 
-static get_aspi(int old)
+static get_aspi (int old)
 {
     if ((old == UAESCSI_SPTI || old == UAESCSI_SPTISCAN) && os_winnt_admin)
 	return old;
@@ -1693,7 +1697,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
-	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
+	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
 	p->win32_outsidemouse = 0;
@@ -1702,13 +1706,14 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgscaleifsmall = 1;
     }
     if (type == 1 || type == 0) {
-	p->win32_uaescsimode = get_aspi(p->win32_uaescsimode);
+	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
 	p->win32_midioutdev = -2;
 	p->win32_midiindev = 0;
 	p->win32_automount_removable = 0;
 	p->win32_automount_drives = 0;
 	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
+	p->picasso96_modeflags = RGBFF_CLUT | RGBFF_R5G6B5PC | RGBFF_B8G8R8A8;
     }
 }
 
@@ -1863,12 +1868,17 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     return result;
 }
 
+static void createdir (const char *path)
+{
+    CreateDirectory (path, NULL);
+}
+
 void fetch_saveimagepath (char *out, int size, int dir)
 {
     fetch_path ("SaveimagePath", out, size);
     if (dir) {
 	out[strlen (out) - 1] = 0;
-	CreateDirectory (out, NULL);
+	createdir (out);
 	fetch_path ("SaveimagePath", out, size);
     }
 }
@@ -2264,22 +2274,23 @@ static void WIN32_HandleRegistryStuff(void)
         if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
     	forceroms = 1;
     }
+    regqueryint (NULL, "directdraw_secondary", &ddforceram);
     regqueryint (NULL, "QuickStartMode", &quickstart);
     reopen_console();
     fetch_path ("ConfigurationPath", path, sizeof (path));
     path[strlen (path) - 1] = 0;
-    CreateDirectory (path, NULL);
+    createdir (path);
     strcat (path, "\\Host");
-    CreateDirectory (path, NULL);
+    createdir (path);
     fetch_path ("ConfigurationPath", path, sizeof (path));
     strcat (path, "Hardware");
-    CreateDirectory (path, NULL);
+    createdir (path);
     fetch_path ("StatefilePath", path, sizeof (path));
-    CreateDirectory (path, NULL);
+    createdir (path);
     strcat (path, "default.uss");
     strcpy (savestate_fname, path);
     fetch_path ("InputPath", path, sizeof (path));
-    CreateDirectory (path, NULL);
+    createdir (path);
     regclosetree (read_disk_history ());
     read_rom_list ();
     load_keyring(NULL, NULL);
@@ -2514,12 +2525,12 @@ void create_afnewdir(int remove)
 	strcat(tmp, "\\WinUAE");
 	if (remove) {
 	    if (GetFileAttributes(tmp) != INVALID_FILE_ATTRIBUTES) {
-		RemoveDirectory(tmp);
-		RemoveDirectory(tmp2);
+		RemoveDirectory (tmp);
+		RemoveDirectory (tmp2);
 	    }
 	} else {
-	    CreateDirectory(tmp2, NULL);
-	    CreateDirectory(tmp, NULL);
+	    CreateDirectory (tmp2, NULL);
+	    CreateDirectory (tmp, NULL);
 	}
     }
 }

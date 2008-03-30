@@ -236,7 +236,7 @@ int screenshotf (const char *spath, int mode, int doprepare)
     recursive++;
 
     if (!screenshot_prepared || doprepare) {
-	if (!screenshot_prepare())
+	if (!screenshot_prepare ())
 	    goto oops;
     }
 

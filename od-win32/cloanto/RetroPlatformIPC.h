@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-02-03 06:49:00
+ Updated : 2008-03-25 18:49:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -28,42 +28,44 @@
 //  Guest-to-Host Messages
 // ****************************************************************************
 
-#define RPIPCGM_REGISTER	(WM_APP + 0)
-#define RPIPCGM_FEATURES	(WM_APP + 1)
-#define RPIPCGM_CLOSED	(WM_APP + 2)
-#define RPIPCGM_ACTIVATED	(WM_APP + 3)
-#define RPIPCGM_DEACTIVATED	(WM_APP + 4)
-#define RPIPCGM_SCREENMODE	(WM_APP + 9)
-#define RPIPCGM_POWERLED	(WM_APP + 10)
-#define RPIPCGM_DEVICES	(WM_APP + 11)
-#define RPIPCGM_DEVICEACTIVITY	(WM_APP + 12)
-#define RPIPCGM_MOUSECAPTURE	(WM_APP + 13)
-#define RPIPCGM_HOSTAPIVERSION	(WM_APP + 14)
-#define RPIPCGM_PAUSE	(WM_APP + 15)
-#define RPIPCGM_DEVICECONTENT	(WM_APP + 16)
-#define RPIPCGM_TURBO	(WM_APP + 17)
-#define RPIPCGM_PING	(WM_APP + 18)
-#define RPIPCGM_VOLUME	(WM_APP + 19)
-#define RPIPCGM_ESCAPED	(WM_APP + 20)
-#define RPIPCGM_PARENT	(WM_APP + 21)
+#define RPIPCGM_REGISTER        (WM_APP + 0)
+#define RPIPCGM_FEATURES        (WM_APP + 1)
+#define RPIPCGM_CLOSED          (WM_APP + 2)
+#define RPIPCGM_ACTIVATED       (WM_APP + 3)
+#define RPIPCGM_DEACTIVATED     (WM_APP + 4)
+#define RPIPCGM_SCREENMODE      (WM_APP + 9)
+#define RPIPCGM_POWERLED        (WM_APP + 10)
+#define RPIPCGM_DEVICES         (WM_APP + 11)
+#define RPIPCGM_DEVICEACTIVITY  (WM_APP + 12)
+#define RPIPCGM_MOUSECAPTURE    (WM_APP + 13)
+#define RPIPCGM_HOSTAPIVERSION  (WM_APP + 14)
+#define RPIPCGM_PAUSE           (WM_APP + 15)
+#define RPIPCGM_DEVICECONTENT   (WM_APP + 16)
+#define RPIPCGM_TURBO           (WM_APP + 17)
+#define RPIPCGM_PING            (WM_APP + 18)
+#define RPIPCGM_VOLUME          (WM_APP + 19)
+#define RPIPCGM_ESCAPED         (WM_APP + 20)
+#define RPIPCGM_PARENT          (WM_APP + 21)
+#define RPIPCGM_DEVICESEEK      (WM_APP + 22)
 
 
 // ****************************************************************************
 //  Host-to-Guest Messages
 // ****************************************************************************
 
-#define RPIPCHM_CLOSE	(WM_APP + 200)
-#define RPIPCHM_SCREENMODE	(WM_APP + 202)
-#define RPIPCHM_SCREENCAPTURE	(WM_APP + 203)
-#define RPIPCHM_PAUSE	(WM_APP + 204)
-#define RPIPCHM_DEVICECONTENT	(WM_APP + 205)
-#define RPIPCHM_RESET	(WM_APP + 206)
-#define RPIPCHM_TURBO	(WM_APP + 207)
-#define RPIPCHM_PING	(WM_APP + 208)
-#define RPIPCHM_VOLUME	(WM_APP + 209)
-#define RPIPCHM_ESCAPEKEY	(WM_APP + 210)
-#define RPIPCHM_EVENT	(WM_APP + 211)
-#define RPIPCHM_MOUSECAPTURE	(WM_APP + 212)
+#define RPIPCHM_CLOSE          (WM_APP + 200)
+#define RPIPCHM_SCREENMODE     (WM_APP + 202)
+#define RPIPCHM_SCREENCAPTURE  (WM_APP + 203)
+#define RPIPCHM_PAUSE          (WM_APP + 204)
+#define RPIPCHM_DEVICECONTENT  (WM_APP + 205)
+#define RPIPCHM_RESET          (WM_APP + 206)
+#define RPIPCHM_TURBO          (WM_APP + 207)
+#define RPIPCHM_PING           (WM_APP + 208)
+#define RPIPCHM_VOLUME         (WM_APP + 209)
+#define RPIPCHM_ESCAPEKEY      (WM_APP + 210)
+#define RPIPCHM_EVENT          (WM_APP + 211)
+#define RPIPCHM_MOUSECAPTURE   (WM_APP + 212)
+#define RPIPCHM_SCREENCLIP     (WM_APP + 213)
 
 
 // ****************************************************************************
@@ -80,6 +82,7 @@
 #define RP_FEATURE_PAUSE         0x00000040 // pause functionality is available (see RPIPCHM_PAUSE message)
 #define RP_FEATURE_TURBO         0x00000080 // turbo mode functionality is available (see RPIPCHM_TURBO message)
 #define RP_FEATURE_VOLUME        0x00000100 // volume adjustment is possible (see RPIPCHM_VOLUME message)
+#define RP_FEATURE_SCREENCLIP    0x00000200 // screen clipping is supported (see RPIPCHM_SCREENCLIP message)
 
 // Screen Modes
 #define RP_SCREENMODE_1X          0 // 1x windowed mode
@@ -127,5 +130,16 @@ typedef struct RPDeviceContent
 #define RP_RESET_SOFT  0 // soft reset
 #define RP_RESET_HARD  1 // hard reset
 
+// RPIPCGM_MOUSECAPTURE/RPIPCHM_MOUSECAPTURE
+#define RP_MOUSECAPTURE_CAPTURED     0x00000001
+#define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
+
+typedef struct RPScreenClip
+{
+	LONG lLeft;
+	LONG lTop;
+	LONG lWidth;
+	LONG lHeight;
+} RPSCREENCLIP;
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

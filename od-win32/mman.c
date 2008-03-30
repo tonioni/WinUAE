@@ -132,16 +132,17 @@ static uae_u8 *memwatchtable;
 
 int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddresses, PULONG_PTR lpdwCount, PULONG lpdwGranularity)
 {
-    int i, j;
+    int i, j, off;
 
     if (memwatchok)
 	return GetWriteWatch (0, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
     j = 0;
-    for (i = 0; i < p96mem_size / si.dwPageSize; i++) {
+    off = ((uae_u8*)lpBaseAddress - (natmem_offset + p96ram_start)) / si.dwPageSize;
+    for (i = 0; i < dwRegionSize / si.dwPageSize; i++) {
 	if (j >= *lpdwCount)
 	    break;
-	if (memwatchtable[i])
-	    lpAddresses[j++] = p96mem_offset + i * si.dwPageSize;
+	if (memwatchtable[off + i])
+	    lpAddresses[j++] = (uae_u8*)lpBaseAddress + i * si.dwPageSize;
     }
     *lpdwCount = j;
     *lpdwGranularity = si.dwPageSize;
@@ -183,6 +184,7 @@ typedef BOOL (CALLBACK* GLOBALMEMORYSTATUSEX)(LPMEMORYSTATUSEX);
 
 void preinit_shm (void)
 {
+    int i;
     uae_u64 total64;
     uae_u64 totalphys64;
     MEMORYSTATUS memstats;
@@ -223,14 +225,47 @@ void preinit_shm (void)
     if (max_z3fastmem < 512 * 1024 * 1024)
 	max_z3fastmem = 512 * 1024 * 1024;
 
+    shm_start = 0;
+    for (i = 0; i < MAX_SHMID; i++) {
+        shmids[i].attached = 0;
+        shmids[i].key = -1;
+        shmids[i].size = 0;
+        shmids[i].addr = NULL;
+        shmids[i].name[0] = 0;
+    }
+
     write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
     testwritewatch ();
     canbang = 1;
 }
 
-int init_shm (void)
+static void resetmem (void)
 {
     int i;
+
+    if (!shm_start)
+	return;
+    for (i = 0; i < MAX_SHMID; i++) {
+	struct shmid_ds *s = &shmids[i];
+	int size = s->size;
+	uae_u8 *shmaddr;
+	uae_u8 *result;
+
+	if (!s->attached)
+	    continue;
+	if (!s->natmembase)
+	    continue;
+	shmaddr = natmem_offset + ((uae_u8*)s->attached - (uae_u8*)s->natmembase);
+	result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, s->mode);
+	if (result != shmaddr)
+	    write_log ("NATMEM: realloc(%p,%d,%d) failed, err=%x\n", shmaddr, size, s->mode, GetLastError ());
+	else
+	    write_log ("NATMEM: rellocated(%p,%d,%s)\n", shmaddr, size, s->name);
+    }
+}
+
+int init_shm (void)
+{
     uae_u32 size, totalsize, z3size, natmemsize, rtgbarrier, rtgextra;
     int rounds = 0;
 
@@ -272,14 +307,6 @@ restart:
 	}
 	natmemsize = size + z3size;
 
-	shm_start = 0;
-	for (i = 0; i < MAX_SHMID; i++) {
-	    shmids[i].attached = 0;
-	    shmids[i].key = -1;
-	    shmids[i].size = 0;
-	    shmids[i].addr = NULL;
-	    shmids[i].name[0] = 0;
-	}
 	xfree (memwatchtable);
 	memwatchtable = 0;
 	if (currprefs.gfxmem_size) {
@@ -338,11 +365,13 @@ restart:
 	natmem_offset_end = p96mem_offset + currprefs.gfxmem_size;
     }
 
+    resetmem ();
+
     return canbang;
 }
 
 
-void mapped_free(uae_u8 *mem)
+void mapped_free (uae_u8 *mem)
 {
     shmpiece *x = shm_start;
 
@@ -354,6 +383,8 @@ void mapped_free(uae_u8 *mem)
 		shmids[shmid].name[0] = '\0';
 		shmids[shmid].size = 0;
 		shmids[shmid].attached = 0;
+		shmids[shmid].mode = 0;
+		shmids[shmid].natmembase = 0;
 	    }
 	    x = x->next;
 	}
@@ -362,21 +393,21 @@ void mapped_free(uae_u8 *mem)
 
     while(x) {
 	if(mem == x->native_address)
-	    shmdt(x->native_address);
+	    shmdt (x->native_address);
 	x = x->next;
     }
     x = shm_start;
     while(x) {
 	struct shmid_ds blah;
 	if (mem == x->native_address) {
-	    if (shmctl(x->id, IPC_STAT, &blah) == 0)
-		shmctl(x->id, IPC_RMID, &blah);
+	    if (shmctl (x->id, IPC_STAT, &blah) == 0)
+		shmctl (x->id, IPC_RMID, &blah);
 	}
 	x = x->next;
     }
 }
 
-static key_t get_next_shmkey(void)
+static key_t get_next_shmkey (void)
 {
     key_t result = -1;
     int i;
@@ -390,7 +421,7 @@ static key_t get_next_shmkey(void)
     return result;
 }
 
-STATIC_INLINE key_t find_shmkey(key_t key)
+STATIC_INLINE key_t find_shmkey (key_t key)
 {
     int result = -1;
     if(shmids[key].key == key) {
@@ -399,13 +430,13 @@ STATIC_INLINE key_t find_shmkey(key_t key)
     return result;
 }
 
-int mprotect(void *addr, size_t len, int prot)
+int mprotect (void *addr, size_t len, int prot)
 {
     int result = 0;
     return result;
 }
 
-void *shmat(int shmid, void *shmaddr, int shmflg)
+void *shmat (int shmid, void *shmaddr, int shmflg)
 {
     void *result = (void *)-1;
     BOOL got = FALSE;
@@ -413,10 +444,12 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
     DWORD protect = PAGE_READWRITE;
 
 #ifdef NATMEM_OFFSET
-    unsigned int size=shmids[shmid].size;
-    if(shmids[shmid].attached)
+    unsigned int size = shmids[shmid].size;
+
+    if (shmids[shmid].attached)
 	return shmids[shmid].attached;
-    if ((uae_u8*)shmaddr<natmem_offset) {
+
+    if ((uae_u8*)shmaddr < natmem_offset) {
 	if(!strcmp(shmids[shmid].name,"chip")) {
 	    shmaddr=natmem_offset;
 	    got = TRUE;
@@ -479,7 +512,7 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
 	    result = xcalloc (size, 1);
-	    shmids[shmid].attached=result;
+	    shmids[shmid].attached = result;
 	    return result;
 	}
 	if(!strcmp(shmids[shmid].name,"hrtmon")) {
@@ -513,37 +546,33 @@ void *shmat(int shmid, void *shmaddr, int shmflg)
 }
 #endif
 
-    if ((shmids[shmid].key == shmid) && shmids[shmid].size) {
-	got = FALSE;
-	if (got == FALSE) {
-	    if (shmaddr)
-		virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
-	    result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
-	    if (result == NULL) {
-		result = (void*)-1;
-		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
-		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-		    size, size >> 10, GetLastError());
-	    } else {
-		shmids[shmid].attached = result;
-		write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
-		    (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-		    size, size >> 10, p96special ? " P96" : "");
-	    }
-	} else {
-	    shmids[shmid].attached = shmaddr;
-	    result = shmaddr;
+    if (shmids[shmid].key == shmid && shmids[shmid].size) {
+	shmids[shmid].mode = protect;
+	shmids[shmid].natmembase = natmem_offset;
+        if (shmaddr)
+	    virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
+	result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
+	if (result == NULL) {
+	    result = (void*)-1;
+	    write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
+	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
+	        size, size >> 10, GetLastError());
+	 } else {
+	    shmids[shmid].attached = result;
+	    write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
+	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
+	        size, size >> 10, p96special ? " P96" : "");
 	}
     }
     return result;
 }
 
-int shmdt(const void *shmaddr)
+int shmdt (const void *shmaddr)
 {
     return 0;
 }
 
-int shmget(key_t key, size_t size, int shmflg, char *name)
+int shmget (key_t key, size_t size, int shmflg, char *name)
 {
     int result = -1;
 
@@ -559,11 +588,11 @@ int shmget(key_t key, size_t size, int shmflg, char *name)
     return result;
 }
 
-int shmctl(int shmid, int cmd, struct shmid_ds *buf)
+int shmctl (int shmid, int cmd, struct shmid_ds *buf)
 {
     int result = -1;
 
-    if ((find_shmkey(shmid) != -1) && buf) {
+    if ((find_shmkey (shmid) != -1) && buf) {
 	switch(cmd)
 	{
 	    case IPC_STAT:
@@ -571,11 +600,12 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 		result = 0;
 	    break;
 	    case IPC_RMID:
-		VirtualFree(shmids[shmid].attached, shmids[shmid].size, MEM_DECOMMIT);
+		VirtualFree (shmids[shmid].attached, shmids[shmid].size, MEM_DECOMMIT);
 		shmids[shmid].key = -1;
 		shmids[shmid].name[0] = '\0';
 		shmids[shmid].size = 0;
 		shmids[shmid].attached = 0;
+		shmids[shmid].mode = 0;
 		result = 0;
 	    break;
 	}
@@ -585,9 +615,9 @@ int shmctl(int shmid, int cmd, struct shmid_ds *buf)
 
 #endif
 
-int isinf(double x)
+int isinf (double x)
 {
-    const int nClass = _fpclass(x);
+    const int nClass = _fpclass (x);
     int result;
     if (nClass == _FPCLASS_NINF || nClass == _FPCLASS_PINF)
 	result = 1;
