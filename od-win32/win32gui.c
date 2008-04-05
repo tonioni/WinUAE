@@ -1685,23 +1685,16 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, char *dostype, char *newpat
     sparse = 0;
     hfsize = (uae_u64)hfsizem * 1024 * 1024;
     if (IsDlgButtonChecked (hDlg, IDC_HF_SPARSE) == BST_CHECKED)
-	sparse = -1;
+	sparse = 1;
     if (!DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, newpath))
 	return FALSE;
     GetDlgItemText (hDlg, IDC_PATH_NAME, init_path, MAX_DPATH);
     if (*init_path && hfsize) {
 	SetCursor (LoadCursor(NULL, IDC_WAIT));
-	if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL) ) != INVALID_HANDLE_VALUE) {
-	    DWORD mcl, fsf;
-	    if (GetVolumeInformationByHandleW (hf, NULL, 0, NULL, &mcl, &fsf, NULL, 0)) {
-		if ((fsf & FILE_SUPPORTS_SPARSE_FILES) && sparse < 0)
-		    sparse = 1;
-	    }
-	    if (sparse > 0) {
+	if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE) {
+	    if (sparse) {
 		DWORD ret;
-		int ok = 0;
-		if (DeviceIoControl (hf, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &ret, NULL))
-		    result = 1;
+		DeviceIoControl (hf, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &ret, NULL);
 	    }
 	    if (hfsize >= 0x80000000) {
 	        highword = (DWORD)(hfsize >> 32);

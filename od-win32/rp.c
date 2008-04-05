@@ -193,6 +193,7 @@ static void get_screenmode (struct RPScreenMode *sm)
     int res = currprefs.gfx_resolution;
     int m = RP_SCREENMODE_1X;
     int full = 0;
+    int dbl = 0;
 
     if (WIN32GFX_IsPicassoScreen ()) {
 	full = currprefs.gfx_pfullscreen;
@@ -206,10 +207,16 @@ static void get_screenmode (struct RPScreenMode *sm)
 	    m = RP_SCREENMODE_2X;
 	if (res == 2)
 	    m = RP_SCREENMODE_4X;
+	dbl = res >= 1 ? 1 : 0;
 	sm->lClipLeft = currprefs.gfx_xcenter_pos;
 	sm->lClipTop = currprefs.gfx_ycenter_pos;
-	sm->lClipWidth = LORES_WIDTH << currprefs.gfx_resolution;
-	sm->lClipHeight = LORES_HEIGHT << (currprefs.gfx_linedbl ? 1 : 0);
+	if (full) {
+	    sm->lClipWidth = LORES_WIDTH << currprefs.gfx_resolution;
+	    sm->lClipHeight = LORES_HEIGHT << (currprefs.gfx_linedbl ? 1 : 0);
+	} else {
+	    sm->lClipWidth = currprefs.gfx_size_win.width << (RES_MAX - res);
+	    sm->lClipHeight = currprefs.gfx_size_win.height << (1 - dbl);
+	}
     }
     if (full) {
 	int d = (currprefs.gfx_display + 1) << 8;
@@ -223,6 +230,7 @@ static void set_screenmode (struct RPScreenMode *sm)
 {
     int res = RP_SCREENMODE_MODE (sm->dwScreenMode);
     int fs = RP_SCREENMODE_DISPLAY (sm->dwScreenMode);
+    int dbl = 1;
 
     minimized = 0;
     if (fs)
@@ -233,13 +241,24 @@ static void set_screenmode (struct RPScreenMode *sm)
 	changed_prefs.gfx_afullscreen = fs;
 	changed_prefs.gfx_resolution = res;
 	if (res == 0)
-	    changed_prefs.gfx_linedbl = 0;
+	    dbl = changed_prefs.gfx_linedbl = 0;
 	else
-	    changed_prefs.gfx_linedbl = 1;
-	res = 1 << res;
-	changed_prefs.gfx_size_win.width = default_width * res;
-	changed_prefs.gfx_size_win.height = default_height * res;
+	    dbl = changed_prefs.gfx_linedbl = 1;
+	if (sm->lClipWidth <= 0)
+	    changed_prefs.gfx_size_win.width = LORES_WIDTH << res;
+	else
+	    changed_prefs.gfx_size_win.width = sm->lClipWidth >> (RES_MAX - res);
+	if (sm->lClipHeight <= 0)
+	    changed_prefs.gfx_size_win.height = LORES_HEIGHT << dbl;
+	else
+	    changed_prefs.gfx_size_win.height = sm->lClipHeight >> (1 - dbl);
+	if (fs) {
+	    changed_prefs.gfx_size_fs.width = changed_prefs.gfx_size_win.width;
+	    changed_prefs.gfx_size_fs.height = changed_prefs.gfx_size_win.height;
+	}
     }
+    changed_prefs.gfx_xcenter_pos = sm->lClipLeft;
+    changed_prefs.gfx_ycenter_pos = sm->lClipTop;
     updatewinfsmode (&changed_prefs);
     WIN32GFX_DisplayChangeRequested ();
     hwndset = 0;
