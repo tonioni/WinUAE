@@ -1,4 +1,18 @@
 
+Beta 12:
+
+- hardfile creation: sparse file option added (sparse file = non-written
+  parts of file do not take space on HD, NTFSv5+ required)
+- IDE harddrive emulation LBA48 support implemented (>128G hardfiles)
+  NOTE! READ THIS: http://eab.abime.net/showthread.php?t=35801
+- memwatch breakpoints with value detection improved if size is word or
+  byte
+- CD32 CD frame interrupt was not always cleared (Liberation CD32, perhaps
+  others, JIT still needs to be disabled)
+- mousehack (tablet) mode fix, partially broken since 1.4.6 (not tested,
+  I need to borrow my brother's tablet first..)
+- Picasso96 tweaks
+
 Beta 11:
 
 - uaegfx.card is now WinUAE built-in, libs:picasso96/uaegfx.card is not

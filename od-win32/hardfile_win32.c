@@ -374,7 +374,7 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
     }
     offset += hfd->offset;
     if (offset & (hfd->blocksize - 1)) {
-	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04.4X = %04.4X)\n", offset, hfd->blocksize, offset & (hfd->blocksize - 1));
+	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X)\n", offset, hfd->blocksize, offset & (hfd->blocksize - 1));
 	abort ();
     }
     if (hfd->handle_valid == HDF_HANDLE_WIN32) {

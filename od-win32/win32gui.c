@@ -1680,24 +1680,39 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, char *dostype, char *newpat
     uae_u64 hfsize;
     uae_u32 dt;
     uae_u8 b;
+    int sparse;
 
+    sparse = 0;
     hfsize = (uae_u64)hfsizem * 1024 * 1024;
+    if (IsDlgButtonChecked (hDlg, IDC_HF_SPARSE) == BST_CHECKED)
+	sparse = -1;
     if (!DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, newpath))
 	return FALSE;
     GetDlgItemText (hDlg, IDC_PATH_NAME, init_path, MAX_DPATH);
     if (*init_path && hfsize) {
 	SetCursor (LoadCursor(NULL, IDC_WAIT));
-	if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL) ) != INVALID_HANDLE_VALUE) {
+	if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL) ) != INVALID_HANDLE_VALUE) {
+	    DWORD mcl, fsf;
+	    if (GetVolumeInformationByHandleW (hf, NULL, 0, NULL, &mcl, &fsf, NULL, 0)) {
+		if ((fsf & FILE_SUPPORTS_SPARSE_FILES) && sparse < 0)
+		    sparse = 1;
+	    }
+	    if (sparse > 0) {
+		DWORD ret;
+		int ok = 0;
+		if (DeviceIoControl (hf, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &ret, NULL))
+		    result = 1;
+	    }
 	    if (hfsize >= 0x80000000) {
-		highword = (DWORD)(hfsize >> 32);
-		ret = SetFilePointer (hf, (DWORD)hfsize, &highword, FILE_BEGIN);
+	        highword = (DWORD)(hfsize >> 32);
+	        ret = SetFilePointer (hf, (DWORD)hfsize, &highword, FILE_BEGIN);
 	    } else {
-		ret = SetFilePointer (hf, (DWORD)hfsize, NULL, FILE_BEGIN);
+	        ret = SetFilePointer (hf, (DWORD)hfsize, NULL, FILE_BEGIN);
 	    }
 	    if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
-		write_log ("SetFilePointer() failure for %s to posn %ud\n", init_path, hfsize);
+	        write_log ("SetFilePointer() failure for %s to posn %ud\n", init_path, hfsize);
 	    else
-		result = SetEndOfFile (hf);
+	        result = SetEndOfFile (hf);
 	    SetFilePointer (hf, 0, NULL, FILE_BEGIN);
 	    b = 0;
 	    WriteFile (hf, &b, 1, &written, NULL);
@@ -5748,7 +5763,7 @@ static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
 
 static void enable_for_cpudlg (HWND hDlg)
 {
-    BOOL enable = FALSE, enable2 = FALSE;
+    BOOL enable = FALSE;
     BOOL cpu_based_enable = FALSE;
     BOOL fpu;
 
@@ -5777,17 +5792,16 @@ static void enable_for_cpudlg (HWND hDlg)
 #ifndef JIT
     enable = FALSE;
 #endif
-    enable2 = enable && workprefs.compforcesettings && candirect;
 
-    ew (hDlg, IDC_TRUST0, enable2);
-    ew (hDlg, IDC_TRUST1, enable2);
-    ew (hDlg, IDC_HARDFLUSH, enable2);
-    ew (hDlg, IDC_CONSTJUMP, enable2);
-    ew (hDlg, IDC_JITFPU, enable2);
-    ew (hDlg, IDC_NOFLAGS, enable2);
-    ew (hDlg, IDC_CS_CACHE_TEXT, cpu_based_enable && workprefs.cachesize);
-    ew (hDlg, IDC_CACHE, cpu_based_enable && workprefs.cachesize);
-    ew (hDlg, IDC_CACHETEXT, cpu_based_enable && workprefs.cachesize);
+    ew (hDlg, IDC_TRUST0, enable);
+    ew (hDlg, IDC_TRUST1, enable);
+    ew (hDlg, IDC_HARDFLUSH, enable);
+    ew (hDlg, IDC_CONSTJUMP, enable);
+    ew (hDlg, IDC_JITFPU, enable);
+    ew (hDlg, IDC_NOFLAGS, enable);
+    ew (hDlg, IDC_CS_CACHE_TEXT, enable);
+    ew (hDlg, IDC_CACHE, enable);
+    ew (hDlg, IDC_CACHETEXT, enable);
     ew (hDlg, IDC_FORCE, enable);
     ew (hDlg, IDC_JITENABLE, cpu_based_enable);
     ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
@@ -5861,25 +5875,25 @@ static void values_to_cpudlg (HWND hDlg)
     }
 #endif
 
-    if(!workprefs.compforcesettings) {
+    if (!workprefs.compforcesettings) {
 	workprefs.comptrustbyte = 0;
 	workprefs.comptrustword = 0;
 	workprefs.comptrustlong = 0;
 	workprefs.comptrustnaddr= 0;
     }
 
-    CheckRadioButton(hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
+    CheckRadioButton (hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
 
-    SendDlgItemMessage(hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
-    sprintf(cache, "%d MB", workprefs.cachesize / 1024 );
-    SetDlgItemText( hDlg, IDC_CACHETEXT, cache );
+    SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
+    sprintf (cache, "%d MB", workprefs.cachesize / 1024 );
+    SetDlgItemText (hDlg, IDC_CACHETEXT, cache);
 
-    CheckDlgButton(hDlg, IDC_FORCE, workprefs.compforcesettings);
-    CheckDlgButton(hDlg, IDC_NOFLAGS, workprefs.compnf);
-    CheckDlgButton(hDlg, IDC_JITFPU, workprefs.compfpu);
-    CheckDlgButton(hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
-    CheckDlgButton(hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
-    CheckDlgButton(hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
+    CheckDlgButton (hDlg, IDC_FORCE, workprefs.compforcesettings);
+    CheckDlgButton (hDlg, IDC_NOFLAGS, workprefs.compnf);
+    CheckDlgButton (hDlg, IDC_JITFPU, workprefs.compfpu);
+    CheckDlgButton (hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
+    CheckDlgButton (hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
+    CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
 }
 
 static void values_from_cpudlg (HWND hDlg)
@@ -5934,18 +5948,18 @@ static void values_from_cpudlg (HWND hDlg)
 	    workprefs.address_space_24 = 0;
 	break;
     }
-    newtrust = (IsDlgButtonChecked(hDlg, IDC_TRUST0) ? 0
-	: IsDlgButtonChecked(hDlg, IDC_TRUST1) ? 1 : 3);
+    newtrust = (IsDlgButtonChecked (hDlg, IDC_TRUST0) ? 0
+	: IsDlgButtonChecked (hDlg, IDC_TRUST1) ? 1 : 3);
     workprefs.comptrustbyte = newtrust;
     workprefs.comptrustword = newtrust;
     workprefs.comptrustlong = newtrust;
     workprefs.comptrustnaddr= newtrust;
 
-    workprefs.compforcesettings = IsDlgButtonChecked(hDlg, IDC_FORCE);
-    workprefs.compnf            = IsDlgButtonChecked(hDlg, IDC_NOFLAGS);
-    workprefs.compfpu           = IsDlgButtonChecked(hDlg, IDC_JITFPU);
-    workprefs.comp_hardflush    = IsDlgButtonChecked(hDlg, IDC_HARDFLUSH);
-    workprefs.comp_constjump    = IsDlgButtonChecked(hDlg, IDC_CONSTJUMP);
+    workprefs.compforcesettings = IsDlgButtonChecked (hDlg, IDC_FORCE);
+    workprefs.compnf            = IsDlgButtonChecked (hDlg, IDC_NOFLAGS);
+    workprefs.compfpu           = IsDlgButtonChecked (hDlg, IDC_JITFPU);
+    workprefs.comp_hardflush    = IsDlgButtonChecked (hDlg, IDC_HARDFLUSH);
+    workprefs.comp_constjump    = IsDlgButtonChecked (hDlg, IDC_CONSTJUMP);
 
 #ifdef JIT
     oldcache = workprefs.cachesize;
@@ -5973,18 +5987,18 @@ static void values_from_cpudlg (HWND hDlg)
 	canbang = 0;
 
 #endif
-    workprefs.cpu_idle = SendMessage(GetDlgItem(hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
+    workprefs.cpu_idle = SendMessage (GetDlgItem (hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
     if (workprefs.cpu_idle > 0)
 	workprefs.cpu_idle = (12 - workprefs.cpu_idle) * 15;
 
     if (workprefs.cachesize > 0)
 	workprefs.cpu_compatible = 0;
     if (pages[KICKSTART_ID])
-	SendMessage(pages[KICKSTART_ID], WM_USER, 0, 0 );
+	SendMessage (pages[KICKSTART_ID], WM_USER, 0, 0);
     if (pages[DISPLAY_ID])
-	SendMessage(pages[DISPLAY_ID], WM_USER, 0, 0 );
+	SendMessage (pages[DISPLAY_ID], WM_USER, 0, 0);
     if (pages[MEMORY_ID])
-	SendMessage(pages[MEMORY_ID], WM_USER, 0, 0 );
+	SendMessage (pages[MEMORY_ID], WM_USER, 0, 0);
 }
 
 static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6727,18 +6741,16 @@ static void updatehdfinfo (HWND hDlg, int force)
     if (force) {
 	struct zfile *zf = zfile_fopen (current_hfdlg.filename, "rb");
 	if (zf) {
+	    FILE *fp;
 	    memset (id, 0, sizeof (id));
 	    zfile_fread (id, 1, sizeof (id), zf);
 	    zfile_fseek (zf, 0, SEEK_END);
-	    bsize = zfile_ftell (zf);
 	    zfile_fclose (zf);
-	    if (bsize == -1) { /* perhaps file is >=2G? */
-		FILE *fp = fopen (current_hfdlg.filename, "rb");
-		if (fp) {
-		    _fseeki64 (fp, 0, SEEK_END);
-		    bsize = _ftelli64 (fp);
-		    fclose (fp);
-		}
+	    fp = fopen (current_hfdlg.filename, "rb");
+	    if (fp) {
+	        _fseeki64 (fp, 0, SEEK_END);
+	        bsize = _ftelli64 (fp);
+	        fclose (fp);
 	    }
 	}
     }
@@ -10945,8 +10957,9 @@ void check_prefs_changed_gui( void )
 void gui_hd_led (int unitnum, int led)
 {
     static int resetcounter;
-
-    int old = gui_data.hd;
+    int old;
+    
+    old = gui_data.hd;
     if (led == 0) {
 	resetcounter--;
 	if (resetcounter > 0)
@@ -10964,8 +10977,9 @@ void gui_hd_led (int unitnum, int led)
 void gui_cd_led (int unitnum, int led)
 {
     static int resetcounter;
-
-    int old = gui_data.cd;
+    int old;
+    
+    old = gui_data.cd;
     if (led == 0) {
 	resetcounter--;
 	if (resetcounter > 0)
@@ -11003,6 +11017,8 @@ void gui_led (int led, int on)
 #endif
 #ifdef RETROPLATFORM
     rp_update_leds (led, on);
+    if (led >= 1 && led <= 4 && !gui_data.drive_disabled[led - 1])
+	rp_floppy_track (led - 1, gui_data.drive_track[led - 1]);
 #endif
     if (!hStatusWnd)
 	return;

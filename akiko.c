@@ -1062,6 +1062,7 @@ void AKIKO_hsync_handler (void)
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
 	set_status (CDSTATUS_FRAME);
+	cdrom_status3++;
     }
     if (cdrom_playing) {
 	static int frame2counter;
@@ -1386,7 +1387,12 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	    akiko_put_long (&cdrom_address2, addr - 0x14, v);
 	    break;
 	case 0x18:
-	    cdrom_status3 = v;
+	    if (cdrom_status3 > 7)
+		cdrom_status3 = 7;
+	    if (cdrom_status3 > 0)
+		cdrom_status3--;
+	    if (cdrom_status3 == 0)
+		cdrom_status1 &= ~CDSTATUS_FRAME;
 	    break;
 	case 0x19:
 	    cdrom_command_offset_complete = v;

@@ -2541,10 +2541,6 @@
 			RelativePath="..\hq4x32.obj"
 			>
 		</File>
-		<File
-			RelativePath="..\resources\resource"
-			>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

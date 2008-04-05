@@ -1686,7 +1686,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 	return 4;
     }
     if (warned < 20) {
-	write_log ("Illegal instruction: %04x at %08.8X -> %08.8X\n", opcode, pc, get_long (regs->vbr + 0x10));
+	write_log ("Illegal instruction: %04x at %08X -> %08X\n", opcode, pc, get_long (regs->vbr + 0x10));
 	warned++;
     }
 
@@ -2108,13 +2108,13 @@ static void out_cd32io (uae_u32 pc)
     cd32nextpc = get_long (m68k_areg (&regs, 7));
     write_log ("%s A1=%08.8X\n", out, request);
     if (ioreq) {
-	static int cnt = 26;
+	static int cnt = 0;
 	int cmd = get_word (request + 28);
-#if 0
-	if (cmd == 2) {
+#if 1
+	if (cmd == 37) {
 	    cnt--;
-	    if (cnt == 0)
-		activate_debugger (1);
+	    if (cnt <= 0)
+		activate_debugger ();
 	}
 #endif
 	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d PC=%x\n",

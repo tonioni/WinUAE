@@ -249,7 +249,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
     return ddrval;
 }
 
-HRESULT DirectDraw_SetDisplayMode(int width, int height, int bits, int freq)
+HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 {
     HRESULT ddrval;
 

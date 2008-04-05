@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-03-25 18:49:00
+ Updated : 2008-04-03 15:18:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -33,6 +33,8 @@
 #define RPIPCGM_CLOSED          (WM_APP + 2)
 #define RPIPCGM_ACTIVATED       (WM_APP + 3)
 #define RPIPCGM_DEACTIVATED     (WM_APP + 4)
+#define RPIPCGM_ENABLED         (WM_APP + 5)
+#define RPIPCGM_DISABLED        (WM_APP + 6)
 #define RPIPCGM_SCREENMODE      (WM_APP + 9)
 #define RPIPCGM_POWERLED        (WM_APP + 10)
 #define RPIPCGM_DEVICES         (WM_APP + 11)
@@ -65,7 +67,6 @@
 #define RPIPCHM_ESCAPEKEY      (WM_APP + 210)
 #define RPIPCHM_EVENT          (WM_APP + 211)
 #define RPIPCHM_MOUSECAPTURE   (WM_APP + 212)
-#define RPIPCHM_SCREENCLIP     (WM_APP + 213)
 
 
 // ****************************************************************************
@@ -74,21 +75,36 @@
 
 // Guest Features
 #define RP_FEATURE_POWERLED      0x00000001 // a power LED is emulated
-#define RP_FEATURE_SCREEN1X      0x00000002 // 1x windowed mode is available
-#define RP_FEATURE_SCREEN2X      0x00000004 // 2x windowed mode is available
-#define RP_FEATURE_SCREEN4X      0x00000008 // 4x windowed mode is available
-#define RP_FEATURE_FULLSCREEN    0x00000010 // full screen display is available
-#define RP_FEATURE_SCREENCAPTURE 0x00000020 // screen capture functionality is available (see RPIPCHM_SCREENCAPTURE message)
-#define RP_FEATURE_PAUSE         0x00000040 // pause functionality is available (see RPIPCHM_PAUSE message)
-#define RP_FEATURE_TURBO         0x00000080 // turbo mode functionality is available (see RPIPCHM_TURBO message)
-#define RP_FEATURE_VOLUME        0x00000100 // volume adjustment is possible (see RPIPCHM_VOLUME message)
-#define RP_FEATURE_SCREENCLIP    0x00000200 // screen clipping is supported (see RPIPCHM_SCREENCLIP message)
+#define RP_FEATURE_SCREEN1X      0x00000002 // 1x mode is available
+#define RP_FEATURE_SCREEN2X      0x00000004 // 2x mode is available
+#define RP_FEATURE_SCREEN3X      0x00000008 // 3x mode is available
+#define RP_FEATURE_SCREEN4X      0x00000010 // 4x mode is available
+#define RP_FEATURE_FULLSCREEN    0x00000020 // full screen display is available
+#define RP_FEATURE_SCREENCAPTURE 0x00000040 // screen capture functionality is available (see RPIPCHM_SCREENCAPTURE message)
+#define RP_FEATURE_PAUSE         0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
+#define RP_FEATURE_TURBO         0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
+#define RP_FEATURE_VOLUME        0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
 
 // Screen Modes
-#define RP_SCREENMODE_1X          0 // 1x windowed mode
-#define RP_SCREENMODE_2X          1 // 2x windowed mode
-#define RP_SCREENMODE_4X          2 // 4x windowed mode
-#define RP_SCREENMODE_FULLSCREEN  3 // full screen
+#define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")
+#define RP_SCREENMODE_2X            0x00000001 // 2x window or full-screen mode ("VGA mode")
+#define RP_SCREENMODE_3X            0x00000002 // 3x window or full-screen mode ("triple CGA mode")
+#define RP_SCREENMODE_4X            0x00000003 // 4x window or full-screen mode ("double VGA mode")
+#define RP_SCREENMODE_FULLSCREEN_1	0x00000100 // full screen on primary (default) display
+#define RP_SCREENMODE_FULLSCREEN_2	0x00000200 // full screen on secondary display (fallback to 1 if unavailable)
+#define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" when in fullscreen (no gfx card full screen)
+#define RP_SCREENMODE_MODE(m)       ((m) & 0x000000FF) // given a mode 'm' returns the #X mode
+#define RP_SCREENMODE_DISPLAY(m)    (((m) >> 8) & 0x000000FF) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
+
+typedef struct RPScreenMode
+{
+	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
+	LONG lClipLeft;     // 0 = reset, -1 = ignore
+	LONG lClipTop;      // 0 = reset, -1 = ignore
+	LONG lClipWidth;    // 0 = reset, -1 = ignore
+	LONG lClipHeight;   // 0 = reset, -1 = ignore
+	HWND hGuestWindow;  // only valid for RPIPCGM_SCREENMODE
+} RPSCREENMODE;
 
 // Device Categories
 #define RP_DEVICE_FLOPPY     0 // floppy disk drive
@@ -133,13 +149,5 @@ typedef struct RPDeviceContent
 // RPIPCGM_MOUSECAPTURE/RPIPCHM_MOUSECAPTURE
 #define RP_MOUSECAPTURE_CAPTURED     0x00000001
 #define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
-
-typedef struct RPScreenClip
-{
-	LONG lLeft;
-	LONG lTop;
-	LONG lWidth;
-	LONG lHeight;
-} RPSCREENCLIP;
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

@@ -1374,8 +1374,6 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	brk = 0;
 	if (m->size == 0)
 	    continue;
-	if (!m->frozen && m->val_enabled && m->val != val)
-	    continue;
 	if (!(rwi & rwi2))
 	    continue;
 	if (addr >= addr2 && addr < addr3)
@@ -1384,7 +1382,28 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	    brk = 1;
 	if (!brk && size == 4 && ((addr + 2 >= addr2 && addr + 2 < addr3) || (addr + 3 >= addr2 && addr + 3 < addr3)))
 	    brk = 1;
-	if (brk && m->modval_written) {
+
+	if (!brk)
+	    continue;
+
+	if (!m->frozen && m->val_enabled) {
+	    int trigger = 0;
+	    uae_u32 mask = ((1 << (m->size * 8)) - 1);
+	    for (;;) {
+		if ((m->val & mask) == (val & mask))
+		    trigger = 1;
+		if (mask & 0x80000000)
+		    break;
+		if (m->size == 1)
+		    mask <<= 8;
+		else if (m->size == 2)
+		    mask <<= 16;
+	    }
+	    if (!trigger)
+		continue;
+	}
+
+	if (m->modval_written) {
 	    if (!rwi) {
 		brk = 0;
 	    } else if (m->modval_written == 1) {
@@ -1395,32 +1414,30 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 		brk = 0;
 	    }
 	}
-	if (brk) {
-	    if (m->frozen) {
-		if (m->val_enabled) {
-		    int shift = addr - m->addr;
-		    int max = 0;
-		    if (m->val > 256)
-			max = 1;
-		    if (m->val > 65536)
-			max = 3;
-		    shift &= max;
-		    *valp = m->val >> ((max - shift) * 8);
-		}
-		return 0;
+        if (m->frozen) {
+	    if (m->val_enabled) {
+	        int shift = addr - m->addr;
+	        int max = 0;
+	        if (m->val > 256)
+	    	    max = 1;
+		if (m->val > 65536)
+		    max = 3;
+		shift &= max;
+		*valp = m->val >> ((max - shift) * 8);
 	    }
-	    mwhit.pc = M68K_GETPC;
-	    mwhit.addr = addr;
-	    mwhit.rwi = rwi;
-	    mwhit.size = size;
-	    mwhit.val = 0;
-	    if (mwhit.rwi & 2)
-		mwhit.val = val;
-	    memwatch_triggered = i + 1;
-	    debugging = 1;
-	    set_special (&regs, SPCFLAG_BRK);
-	    return 1;
+	    return 0;
 	}
+	mwhit.pc = M68K_GETPC;
+	mwhit.addr = addr;
+	mwhit.rwi = rwi;
+	mwhit.size = size;
+	mwhit.val = 0;
+	if (mwhit.rwi & 2)
+	    mwhit.val = val;
+	memwatch_triggered = i + 1;
+	debugging = 1;
+	set_special (&regs, SPCFLAG_BRK);
+	return 1;
     }
     return 1;
 }
@@ -2714,7 +2731,7 @@ static void debug_1 (void)
 
 	case 'H':
 	{
-	    int count, temp, badly;
+	    int count, temp, badly, skip;
 	    uae_u32 oldpc = m68k_getpc (&regs);
 	    struct regstruct save_regs = regs;
 
@@ -2725,26 +2742,31 @@ static void debug_1 (void)
 	    }
 
 	    if (more_params(&inptr))
-		count = readhex(&inptr);
+		count = readint (&inptr);
 	    else
 		count = 10;
 	    if (count < 0)
 		break;
+	    skip = count;
+	    if (more_params (&inptr))
+		skip = count - readint (&inptr);
+
 	    temp = lasthist;
 	    while (count-- > 0 && temp != firsthist) {
 		if (temp == 0)
-		    temp = MAX_HIST-1;
+		    temp = MAX_HIST - 1;
 		else
 		    temp--;
 	    }
 	    while (temp != lasthist) {
 		regs = history[temp];
 		m68k_setpc (&regs, history[temp].pc);
-		if (badly) {
-		    m68k_dumpstate(stdout, NULL);
-		} else {
-		    m68k_disasm(stdout, history[temp].pc, NULL, 1);
-		}
+	        if (badly)
+		    m68k_dumpstate (stdout, NULL);
+		else
+		    m68k_disasm (stdout, history[temp].pc, NULL, 1);
+		if (skip-- < 0)
+		    break;
 		if (++temp == MAX_HIST)
 		    temp = 0;
 	    }

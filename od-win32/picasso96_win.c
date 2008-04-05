@@ -71,9 +71,9 @@ void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 #define P96TRACING_ENABLED 0
 
 int p96hack_vpos, p96hack_vpos2, p96refresh_active;
-int have_done_picasso; /* For the JIT compiler */
+int have_done_picasso = 1; /* For the JIT compiler */
 static int p96syncrate;
-int p96hsync_counter, palette_changed;
+int p96hsync_counter, full_refresh;
 #if defined(X86_MSVC_ASSEMBLY)
 #define SWAPSPEEDUP
 #endif
@@ -794,6 +794,7 @@ static void setconvert (void)
     picasso_convert = v;
     host_mode = DirectDraw_GetSurfacePixelFormat (NULL);
     write_log ("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
+    full_refresh = 1;
 }
 
 /* Clear our screen, since we've got a new Picasso screen-mode, and refresh with the proper contents
@@ -828,8 +829,7 @@ void picasso_refresh (void)
 	}
 		/* HACK until ntsc timing is fixed.. */
     } //end for higher P96 mousedraw rate
-    have_done_picasso = 1;
-    palette_changed = 1;
+    full_refresh = 1;
     setconvert ();
 
     /* Make sure that the first time we show a Picasso video mode, we don't blit any crap.
@@ -2254,7 +2254,7 @@ static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
     uaecptr boardinfo = m68k_areg (regs, 0);
     uaecptr clut = boardinfo + PSSO_BoardInfo_CLUT;
     if (updateclut (clut, start, count))
-	palette_changed = 1;
+	full_refresh = 1;
     P96TRACE(("SetColorArray(%d,%d)\n", start, count));
     return 1;
 }
@@ -2417,7 +2417,7 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
     picasso96_state.BytesPerRow = picasso96_state.VirtualWidth * picasso96_state.BytesPerPixel;
     picasso_SetPanningInit();
 
-    palette_changed = 1;
+    full_refresh = 1;
     set_panning_called = 1;
     P96TRACE(("SetPanning(%d, %d, %d) Start 0x%x, BPR %d Bpp %d RGBF %d\n",
 	Width, picasso96_state.XOffset, picasso96_state.YOffset,
@@ -3290,14 +3290,13 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (TrapContext *ctx)
     if (minterm != 0x0C) {
 	write_log ("ERROR - BlitPlanar2Chunky() has minterm 0x%x, which I don't handle. Using fall-back routine.\n",
 	    minterm);
-    } else if(CopyRenderInfoStructureA2U (ri, &local_ri) && CopyBitMapStructureA2U (bm, &local_bm)) {
+    } else if (CopyRenderInfoStructureA2U (ri, &local_ri) && CopyBitMapStructureA2U (bm, &local_bm)) {
 	P96TRACE(("BlitPlanar2Chunky(%d, %d, %d, %d, %d, %d) Minterm 0x%x, Mask 0x%x, Depth %d\n",
 	    srcx, srcy, dstx, dsty, width, height, minterm, mask, local_bm.Depth));
 	P96TRACE(("P2C - BitMap has %d BPR, %d rows\n", local_bm.BytesPerRow, local_bm.Rows));
 	PlanarToChunky (&local_ri, &local_bm, srcx, srcy, dstx, dsty, width, height, mask);
 	result = 1;
     }
-
     return result;
 }
 
@@ -3431,12 +3430,10 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
     if (NOBLITTER)
 	return 0;
     if (minterm != 0x0C) {
-	write_log ("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n",
-	    minterm);
+	write_log ("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n", minterm);
+	return 0;
     }
-    else if(CopyRenderInfoStructureA2U (ri, &local_ri) &&
-	     CopyBitMapStructureA2U (bm, &local_bm))
-    {
+    if (CopyRenderInfoStructureA2U (ri, &local_ri) && CopyBitMapStructureA2U (bm, &local_bm)) {
 	Mask = 0xFF;
 	CopyColorIndexMappingA2U (cim, &local_cim, GetBytesPerPixel (local_ri.RGBFormat));
 	P96TRACE(("BlitPlanar2Direct(%d, %d, %d, %d, %d, %d) Minterm 0x%x, Mask 0x%x, Depth %d\n",
@@ -3616,8 +3613,8 @@ static void flushpixels (void)
     if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
 	return;
 
-    if (palette_changed)
-	palette_changed = -1;
+    if (full_refresh)
+	full_refresh = -1;
 
     for (;;) {
 	int dofull;
@@ -3627,15 +3624,15 @@ static void flushpixels (void)
 	if (doskip () && p96skipmode == 1)
 	    break;
 
-	if (palette_changed < 0) {
-	    palette_changed = 1;
+	if (full_refresh < 0) {
+	    gwwcnt = (src_end - src_start) / gwwpagesize + 1;
+	    full_refresh = 1;
 	    if (picasso_palette ()) {
 		reloadcursor = 1;
 		setspriteimage (cursorbi);
 	    }
-	    gwwcnt = allocated_gfxmem / gwwpagesize;
 	    for (i = 0; i < gwwcnt; i++)
-		gwwbuf[i] = src + i * gwwpagesize;
+		gwwbuf[i] = src_start + i * gwwpagesize;
 	} else {
 	    ULONG ps;
 	    gwwcnt = gwwbufsize;
@@ -3723,7 +3720,7 @@ static void flushpixels (void)
 	} else {
 	    mman_ResetWatch (src_start, src_end - src_start);
 	}
-	palette_changed = 0;
+	full_refresh = 0;
     }
     if (maxy >= 0) {
 	if (doskip () && p96skipmode == 4) {
@@ -3813,8 +3810,7 @@ void InitPicasso96 (void)
 {
     int i;
 
-    have_done_picasso = 0;
-    palette_changed = 0;
+    full_refresh = 0;
 //fastscreen
     oldscr = 0;
 //fastscreen

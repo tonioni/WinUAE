@@ -86,17 +86,6 @@ static const char *getmsg (int msg)
 	case RPIPCGM_ACTIVATED: return "RPIPCGM_ACTIVATED";
 	case RPIPCGM_DEACTIVATED: return "RPIPCGM_DEACTIVATED";
 	case RPIPCGM_PARENT: return "RPIPCGM_PARENT";
-#if 0
-	case RPIPCGM_ZORDER: return "RPIPCGM_ZORDER";
-	case RPIPCGM_MINIMIZED: return "RPIPCGM_MINIMIZED";
-	case RPIPCGM_RESTORED: return "RPIPCGM_RESTORED";
-	case RPIPCGM_MOVED: return "RPIPCGM_MOVED";
-	case RPIPCGM_DEVICEIMAGE: return "RPIPCGM_DEVICEIMAGE";
-	case RPIPCGM_INPUTMODE: return "RPIPCGM_INPUTMODE";
-	case RPIPCHM_MINIMIZE: return "RPIPCHM_MINIMIZE";
-	case RPIPCHM_DEVICEIMAGE: return "RPIPCHM_DEVICEIMAGE";
-	case RPIPCHM_INPUTMODE: return "RPIPCHM_INPUTMODE";
-#endif
 	case RPIPCGM_SCREENMODE: return "RPIPCGM_SCREENMODE";
 	case RPIPCGM_POWERLED: return "RPIPCGM_POWERLED";
 	case RPIPCGM_DEVICES: return "RPIPCGM_DEVICES";
@@ -107,6 +96,7 @@ static const char *getmsg (int msg)
 	case RPIPCGM_TURBO: return "RPIPCGM_TURBO";
 	case RPIPCGM_VOLUME: return "RPIPCGM_VOLUME";
 	case RPIPCGM_DEVICECONTENT: return "RPIPCGM_DEVICECONTENT";
+	case RPIPCGM_DEVICESEEK: return "RPIPCGM_DEVICESEEK";
 
 	case RPIPCHM_CLOSE: return "RPIPCHM_CLOSE";
 	case RPIPCHM_SCREENMODE: return "RPIPCHM_SCREENMODE";
@@ -120,7 +110,6 @@ static const char *getmsg (int msg)
 	case RPIPCHM_MOUSECAPTURE: return "RPIPCHM_MOUSECAPTURE";
 	case RPIPCHM_DEVICECONTENT: return "RPIPCHM_DEVICECONTENT";
 	case RPIPCHM_PING: return "RPIPCHM_PING";
-	case RPIPCHM_SCREENCLIP: return "RPIPCHM_SCREENCLIP";
 
 	default: return "UNKNOWN";
     }
@@ -197,21 +186,63 @@ static int winok(void)
     return 1;
 }
 
-static int get_x (void)
+#define LORES_WIDTH 360
+#define LORES_HEIGHT 284
+static void get_screenmode (struct RPScreenMode *sm)
 {
     int res = currprefs.gfx_resolution;
+    int m = RP_SCREENMODE_1X;
+    int full = 0;
 
     if (WIN32GFX_IsPicassoScreen ()) {
-	return currprefs.gfx_pfullscreen ? RP_SCREENMODE_FULLSCREEN : RP_SCREENMODE_1X;
+	full = currprefs.gfx_pfullscreen;
+	sm->lClipTop = 0;
+	sm->lClipLeft = 0;
+	sm->lClipHeight = picasso96_state.Height;
+	sm->lClipWidth = picasso96_state.Width;
     } else {
-	if (currprefs.gfx_afullscreen)
-	    return RP_SCREENMODE_FULLSCREEN;
-	if (res == 0)
-	    return RP_SCREENMODE_1X;
+	full = currprefs.gfx_afullscreen;
 	if (res == 1)
-	    return RP_SCREENMODE_2X;
-	return RP_SCREENMODE_4X;
+	    m = RP_SCREENMODE_2X;
+	if (res == 2)
+	    m = RP_SCREENMODE_4X;
+	sm->lClipLeft = currprefs.gfx_xcenter_pos;
+	sm->lClipTop = currprefs.gfx_ycenter_pos;
+	sm->lClipWidth = LORES_WIDTH << currprefs.gfx_resolution;
+	sm->lClipHeight = LORES_HEIGHT << (currprefs.gfx_linedbl ? 1 : 0);
     }
+    if (full) {
+	int d = (currprefs.gfx_display + 1) << 8;
+	m &= ~0x0000ff00;
+	m |= d;
+    }
+    sm->dwScreenMode = m;
+}
+
+static void set_screenmode (struct RPScreenMode *sm)
+{
+    int res = RP_SCREENMODE_MODE (sm->dwScreenMode);
+    int fs = RP_SCREENMODE_DISPLAY (sm->dwScreenMode);
+
+    minimized = 0;
+    if (fs)
+	changed_prefs.gfx_display = fs - 1;
+    if (WIN32GFX_IsPicassoScreen ()) {
+	changed_prefs.gfx_pfullscreen = fs;
+    } else {
+	changed_prefs.gfx_afullscreen = fs;
+	changed_prefs.gfx_resolution = res;
+	if (res == 0)
+	    changed_prefs.gfx_linedbl = 0;
+	else
+	    changed_prefs.gfx_linedbl = 1;
+	res = 1 << res;
+	changed_prefs.gfx_size_win.width = default_width * res;
+	changed_prefs.gfx_size_win.height = default_height * res;
+    }
+    updatewinfsmode (&changed_prefs);
+    WIN32GFX_DisplayChangeRequested ();
+    hwndset = 0;
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
@@ -261,23 +292,6 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		setmouseactive (0);
 	}
 	return TRUE;
-#if 0
-	case RPIPCHM_MINIMIZE:
-	    minimized = 1;
-	    if (ShowWindow (hAmigaWnd, SW_MINIMIZE))
-		return TRUE;
-	break;
-	case RPIPCHM_DEVICEIMAGE:
-	{
-	    RPDEVICEIMAGE *di = (RPDEVICEIMAGE*)pData;
-	    if (di->btDeviceCategory == RP_DEVICE_FLOPPY) {
-		char *fn = ua (di->szImageFile);
-		disk_insert (di->btDeviceNumber, fn);
-		xfree (fn);
-	    }
-	    return TRUE;
-	}
-#endif
 	case RPIPCHM_DEVICECONTENT:
 	{
 	    struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
@@ -300,28 +314,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	}
 	case RPIPCHM_SCREENMODE:
 	{
-	    int res = (BYTE)wParam;
-	    minimized = 0;
-	    if (WIN32GFX_IsPicassoScreen ()) {
-		changed_prefs.gfx_pfullscreen = res >= RP_SCREENMODE_FULLSCREEN ? 1 : 0;
-	    } else {
-		changed_prefs.gfx_afullscreen = 0;
-		if (res >= RP_SCREENMODE_FULLSCREEN) {
-		    res = 1;
-		    changed_prefs.gfx_afullscreen = 1;
-		}
-		changed_prefs.gfx_resolution = res;
-		if (res == 0)
-		    changed_prefs.gfx_linedbl = 0;
-		else
-		    changed_prefs.gfx_linedbl = 1;
-		res = 1 << res;
-		changed_prefs.gfx_size_win.width = default_width * res;
-		changed_prefs.gfx_size_win.height = default_height * res;
-	    }
-	    updatewinfsmode (&changed_prefs);
-	    WIN32GFX_DisplayChangeRequested ();
-	    hwndset = 0;
+	    struct RPScreenMode *sm = (struct RPScreenMode*)pData;
+	    set_screenmode (sm);
 	    return (LRESULT)INVALID_HANDLE_VALUE;
 	}
 	case RPIPCHM_EVENT:
@@ -352,30 +346,6 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	    xfree (s);
 	    return ok ? TRUE : FALSE;
 	}
-	case RPIPCHM_SCREENCLIP:
-	{
-	    RPSCREENCLIP *sc = (RPSCREENCLIP*)pData;
-
-	    if (sc->lLeft < 0 || sc->lTop < 0) {
-		changed_prefs.gfx_xcenter_pos = -1;
-		changed_prefs.gfx_ycenter_pos = -1;
-	    } else {
-		changed_prefs.gfx_xcenter_pos = sc->lLeft;
-		changed_prefs.gfx_ycenter_pos = sc->lTop;
-	    }
-	    if (sc->lWidth <= 0) {
-		changed_prefs.gfx_size_win.width = default_width;
-	    } else {
-		changed_prefs.gfx_size_win.width = sc->lWidth << (RES_MAX - currprefs.gfx_resolution);
-	    }
-	    if (sc->lHeight <= 0) {
-		changed_prefs.gfx_size_win.height = default_height;
-	    } else {
-		changed_prefs.gfx_size_win.height = sc->lHeight << (currprefs.gfx_linedbl ? 0 : 1);
-	    }
-	    fixup_prefs_dimensions (&changed_prefs);
-	}
-	return TRUE;
     }
     return FALSE;
 }
@@ -439,38 +409,11 @@ static void sendfeatures (void)
 void rp_fixup_options (struct uae_prefs *p)
 {
     int i, v;
-    int res;
-    int p96;
 
     if (!initialized)
 	return;
     write_log ("rp_fixup_options(rpescapekey=%d,rpescapeholdtime=%d,screenmode=%d,inputmode=%d)\n",
 	rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
-
-    p96 = WIN32GFX_IsPicassoScreen ();
-    res = 1 << currprefs.gfx_resolution;
-    default_width = currprefs.gfx_size_win.width / res;
-    default_height = currprefs.gfx_size_win.height / res;
-
-    p->win32_borderless = -1;
-    p->gfx_afullscreen = p->gfx_pfullscreen = 0;
-    res = rp_screenmode;
-    if (res >= RP_SCREENMODE_FULLSCREEN) {
-	if (p96)
-	    p->gfx_pfullscreen = 1;
-	else
-	    p->gfx_afullscreen = 1;
-	res = 1;
-    } else {
-        int xres = 1 << res;
-	p->gfx_size_win.width = default_width * xres;
-	p->gfx_size_win.height = default_height * xres;
-    }
-    p->gfx_resolution = res;
-    if (res == 0)
-	p->gfx_linedbl = 0;
-    else
-	p->gfx_linedbl = 1;
 
     sendfeatures ();
 
@@ -535,7 +478,7 @@ void rp_hd_change (int num, int removed)
 	hd_mask &= ~(1 << num);
     else
 	hd_mask |= 1 << num;
-    RPSendMessagex(RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+    RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_cd_change (int num, int removed)
@@ -545,6 +488,13 @@ void rp_cd_change (int num, int removed)
     else
 	cd_mask |= 1 << num;
     RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_floppy_track (int floppy, int track)
+{
+    if (!initialized)
+	return;
+    RPSendMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_update_leds (int led, int onoff)
@@ -649,12 +599,21 @@ void rp_turbo (int active)
 
 void rp_set_hwnd (HWND hWnd)
 {
-    int rx;
+    struct RPScreenMode sm = { 0 };
+
     if (!initialized)
 	return;
-    rx = get_x ();
+    get_screenmode (&sm);
+    sm.hGuestWindow = hWnd;
     hwndset = 1;
-    RPSendMessagex (RPIPCGM_SCREENMODE, rx, (LPARAM)hWnd, NULL, 0, &guestinfo, NULL); 
+    RPSendMessagex (RPIPCGM_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL); 
+}
+
+void rp_set_enabledisable (int enabled)
+{
+    if (!initialized)
+	return;
+    RPSendMessagex (enabled ? RPIPCGM_ENABLED : RPIPCGM_DISABLED, 0, 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_rtg_switch (void)

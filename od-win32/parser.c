@@ -38,6 +38,8 @@
 #include "od-win32/parser.h"
 #include "od-win32/midi.h"
 #include "od-win32/ahidsound.h"
+#include "picasso96_win.h"
+#include "win32gfx.h"
 #include "win32.h"
 #include "ioport.h"
 #include "parallel.h"
@@ -1066,6 +1068,9 @@ void initparallel (void)
     }
 }
 
+extern int flashscreen;
+extern void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
+
 void hsyncstuff(void)
 //only generate Interrupts when
 //writebuffer is complete flushed
@@ -1088,18 +1093,19 @@ void hsyncstuff(void)
 #endif
 #ifdef PARALLEL_PORT
     keycheck++;
-    if(keycheck==1000)
+    if(keycheck >= 1000)
     {
 	flushprtbuf ();
 	{
 #if defined(AHI)
-	    extern flashscreen;
-	    int DX_Fill( int , int , int, int, uae_u32 , enum RGBFTYPE  );
 	    //extern int warned_JIT_0xF10000;
 	    //warned_JIT_0xF10000 = 0;
-	    if (flashscreen) {
-		DX_Fill(0,0,300,40,0x000000,9);
+	    if (flashscreen > 0) {
+		DX_Fill (0, 0, -1, 30, 0x000000);
+		DX_Invalidate (0, 0, -1, 30);
 		flashscreen--;
+		if (flashscreen == 0)
+		    picasso_refresh ();
 	    }
 #endif
 	}

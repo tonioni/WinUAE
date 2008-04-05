@@ -547,10 +547,10 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	return 1;
 
 	case 10:
-	    if (OpenClipboard(0)) {
-		clipdat=GetClipboardData(CF_TEXT);
+	    if (OpenClipboard (0)) {
+		clipdat = GetClipboardData (CF_TEXT);
 		if (clipdat) {
-		    clipsize=strlen(clipdat);
+		    clipsize = strlen (clipdat);
 		    clipsize++;
 		    return clipsize;
 		}
@@ -562,7 +562,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    int i;
 	    for (i = 0; i < clipsize; i++)
 		put_byte (m68k_areg (&context->regs, 0) + i, clipdat[i]);
-	    CloseClipboard();
+	    CloseClipboard ();
 	}
 	return 0;
 
@@ -639,7 +639,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    m = (HMODULE) m68k_dreg (&context->regs, 1);
 	    funcname = (char *)m68k_areg (&context->regs, 0);
 	    funcname = (char *)get_real_address ((uae_u32)funcname);
-	    return (uae_u32) GetProcAddress(m,funcname);
+	    return (uae_u32) GetProcAddress (m,funcname);
 	}
 
 	case 102:	//execute native code
@@ -800,7 +800,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 108: //frees swap array
 	    bswap_buffer_size = 0;
-	    free(bswap_buffer);
+	    free (bswap_buffer);
 	    bswap_buffer = NULL;
 	return 0;
 #endif

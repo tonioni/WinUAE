@@ -258,7 +258,6 @@ void write_dlog (const char *format, ...)
 	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, buffer);
-	//fflush(debugfile);
     }
     lfdetected = 0;
     if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
@@ -303,8 +302,6 @@ void write_log (const char *format, ...)
 	if (lfdetected && ts)
 	    fprintf(debugfile, ts);
 	fprintf(debugfile, bufp);
-	if (!bootlogmode)
-	    ;//fflush(debugfile);
     }
     lfdetected = 0;
     if (strlen(bufp) > 0 && bufp[strlen(bufp) - 1] == '\n')
@@ -312,6 +309,12 @@ void write_log (const char *format, ...)
     va_end (parms);
     if (bufp != buffer)
 	xfree (bufp);
+}
+
+void flush_log (void)
+{
+    if (debugfile)
+	fflush (debugfile);
 }
 
 void f_out (void *f, const char *format, ...)

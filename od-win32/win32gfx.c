@@ -207,17 +207,12 @@ void centerdstrect (RECT *dr)
 
 void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
 {
-    int result = 0;
     RECT dstrect;
-    RECT srcrect;
-
-    /* Set up our source rectangle.  This NEVER needs to be adjusted for windowed display, since the
-     * source is ALWAYS in an offscreen buffer, or we're in full-screen mode. */
-    SetRect (&srcrect, dstx, dsty, dstx + width, dsty + height);
-
-    /* Set up our destination rectangle, and adjust for blit to windowed display (if necessary ) */
+    if (width < 0)
+	width = currentmode->current_width;
+    if (height < 0)
+	height = currentmode->current_height;
     SetRect (&dstrect, dstx, dsty, dstx + width, dsty + height);
-    centerdstrect (&dstrect);
     DirectDraw_Fill (&dstrect, color);
 }
 
@@ -1173,6 +1168,8 @@ void DX_Invalidate (int x, int y, int width, int height)
     if (y < 0 || height < 0) {
 	y = 0;
 	height = picasso_vidinfo.height;
+    }
+    if (x < 0 || width < 0) {
 	x = 0;
 	width = picasso_vidinfo.width;
     }

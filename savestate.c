@@ -1149,7 +1149,7 @@ void savestate_init (void)
     frameextra = 0;
     if (currprefs.statecapture && currprefs.statecapturebuffersize && currprefs.statecapturerate) {
 	replaybuffersize = currprefs.statecapturebuffersize;
-	replaybuffer = (uae_u8*)malloc (replaybuffersize);
+	replaybuffer = xmalloc (replaybuffersize);
     }
 }
 

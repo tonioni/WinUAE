@@ -926,6 +926,7 @@
 #define IDC_HDF_RW                      1778
 #define IDC_HDFINFO                     1779
 #define IDC_DBG_AUTOSET                 1780
+#define IDC_HF_SPARSE                   1780
 #define IDC_DBG_DASM2                   1781
 #define IDC_DBG_MEM2                    1782
 #define IDC_DBG_MEMINPUT2               1783

@@ -467,9 +467,7 @@ int check_prefs_changed_comp (void)
     currprefs.comp_midopt=changed_prefs.comp_midopt;
     currprefs.comp_lowopt=changed_prefs.comp_lowopt;
 
-    if ((!canbang || !currprefs.cachesize) &&
-	currprefs.comptrustbyte != 1)
-    {
+    if ((!canbang || !currprefs.cachesize) && currprefs.comptrustbyte != 1) {
 	// Set all of these to indirect when canbang == 0
 	// Basically, set the compforcesettings option...
 	currprefs.comptrustbyte = 1;

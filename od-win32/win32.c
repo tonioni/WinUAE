@@ -713,18 +713,19 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	mx -= mouseposx;
 	my -= mouseposy;
 	if (recapture && isfullscreen() <= 0) {
-	    setmouseactive(1);
-	    setamigamouse(mx, my);
+	    setmouseactive (1);
+	    setamigamouse (mx, my);
 	    return 0;
 	}
-        if (dinput_winmouse () >= 0 && !focus) {
+        if (dinput_winmouse () >= 0) {
             if (dinput_winmousemode ()) {
-	        /* absolete + mousehack */
+	        /* absolute + mousehack */
 	        setmousestate (dinput_winmouse (), 0, mx, 1);
 	        setmousestate (dinput_winmouse (), 1, my, 1);
 	        return 0;
 	    }
-	    return DefWindowProc (hWnd, message, wParam, lParam);
+	    if (!focus)
+		return DefWindowProc (hWnd, message, wParam, lParam);
 	}
 	if (dinput_winmouse () >= 0) {
 	    if (dinput_winmousemode () == 0) {
@@ -754,6 +755,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     }
     case WM_MOVE:
 	WIN32GFX_WindowMove();
+    return FALSE;
+
+    case WM_ENABLE:
+	rp_set_enabledisable (wParam ? 1 : 0);
     return FALSE;
 
 #if 0
@@ -1052,6 +1057,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_USER + 2:
      case WM_COMMAND:
      case WM_NOTIFY:
+     case WM_ENABLE:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
      case WM_DISPLAYCHANGE:
@@ -3057,6 +3063,7 @@ static void efix (DWORD *regp, void *p, void *ps, int *got)
     }
 }
 
+extern void flush_log (void);
 LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec)
 {
     static uae_u8 *prevpc;
@@ -3135,9 +3142,10 @@ LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers
 			exinfo.ClientPointers = 0;
 			dump (GetCurrentProcess(), GetCurrentProcessId(), f, MiniDumpNormal, &exinfo, NULL, NULL);
 			CloseHandle (f);
+			flush_log ();
 			if (isfullscreen () <= 0) {
 			    sprintf (msg, "Crash detected. MiniDump saved as:\n%s\n", path2);
-			    MessageBox( NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
+			    MessageBox (NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND );
 			}
 		    }
 		}

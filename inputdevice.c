@@ -804,7 +804,7 @@ static int lastmx, lastmy;
 static uae_u32 magicmouse_ibase = 0;
 #define intui "intuition.library"
 
-static uaecptr get_intuitionbase(void)
+static uaecptr get_intuitionbase (void)
 {
     uaecptr v = get_long (4);
     addrbank *b = &get_mem_bank(v);
@@ -849,6 +849,7 @@ static void mousehack_enable (void)
 static void mousehack_setpos (int mousexpos, int mouseypos)
 {
     uae_u8 *p;
+
     if (!uae_boot_rom)
 	return;
     p = rtarea + get_long (rtarea_base + 40) + 12;
@@ -2465,8 +2466,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	cd32_pad_enabled[1] = 1;
 #endif
 
-    if (mousehack_allowed())
-	mousehack_enable();
+    if (mousehack_allowed ())
+	mousehack_enable ();
 }
 
 /* called when devices get inserted or removed */
