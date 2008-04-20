@@ -2260,7 +2260,7 @@ void a3000_fakekick (int map)
 		memcpy (kickmemory, fkickmemory, fkickmem_size / 2);
 		memcpy (kickmemory + fkickmem_size / 2, fkickmemory, fkickmem_size / 2);
 		if (!extendedkickmemory) {
-		    if (need_uae_boot_rom() != 0xf00000) {
+		    if (need_uae_boot_rom () != 0xf00000) {
 			extendedkickmem_size = 65536;
 			extendedkickmem_mask = extendedkickmem_size - 1;
 			extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");

@@ -163,7 +163,7 @@ static const char *obsolete[] = {
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
     "kickstart_key_file", "fast_copper", "sound_adjust",
-    "serial_hardware_dtrdsr",
+    "serial_hardware_dtrdsr", "gfx_filter_upscale",
     0
 };
 
@@ -497,6 +497,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "parallel_postscript_detection=%s\n", p->parallel_postscript_detection ? "yes" : "no");
     cfgfile_write (f, "ghostscript_parameters=%s\n", p->ghostscript_parameters);
     cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
+    cfgfile_dwrite (f, "uae_hide=%d\n", p->uae_hide);
 
     cfgfile_dwrite (f, "gfx_display=%d\n", p->gfx_display);
     cfgfile_dwrite (f, "gfx_display_name=%s\n", p->gfx_display_name);
@@ -566,7 +567,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
     cfgfile_dwrite (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
     cfgfile_dwrite (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
-    cfgfile_dwrite (f, "gfx_filter_upscale=%s\n", p->gfx_filter_upscale ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_filter_keep_aspect=%s\n", p->gfx_filter_aspect ? "true" : "false");
 
     cfgfile_dwrite (f, "gfx_luminance=%d\n", p->gfx_luminance);
     cfgfile_dwrite (f, "gfx_contrast=%d\n", p->gfx_contrast);
@@ -887,7 +888,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_gamma", &p->gfx_filter_gamma, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_blur", &p->gfx_filter_blur, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_noise", &p->gfx_filter_noise, 1)
-	|| cfgfile_yesno (option, value, "gfx_filter_upscale", &p->gfx_filter_upscale)
+	|| cfgfile_yesno (option, value, "gfx_filter_keep_aspect", &p->gfx_filter_aspect)
 	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
@@ -1362,6 +1363,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_intval (option, value, "floppy3type", &p->dfxtype[3], 1)
 	|| cfgfile_intval (option, value, "maprom", &p->maprom, 1)
 	|| cfgfile_intval (option, value, "parallel_autoflush", &p->parallel_autoflush_time, 1)
+	|| cfgfile_intval (option, value, "uae_hide", &p->uae_hide, 1)
 	|| cfgfile_intval (option, value, "catweasel", &p->catweasel, 1))
 	return 1;
 
@@ -2809,6 +2811,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->parallel_postscript_detection = 0;
     p->parallel_autoflush_time = 5;
     p->ghostscript_parameters[0] = 0;
+    p->uae_hide = 0;
 
     p->jports[0].id = JSEM_MICE;
     p->jports[1].id = JSEM_KBDLAYOUT;

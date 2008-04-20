@@ -27,8 +27,6 @@
 #include "ncr_scsi.h"
 #include "debug.h"
 
-static int scrambled_autoconfig = 0;
-
 #define MAX_EXPANSION_BOARDS 8
 
 /* ********************************************************** */
@@ -781,8 +779,8 @@ static void expamem_map_fastcard (void)
 
 static void expamem_init_fastcard (void)
 {
-    uae_u16 mid = currprefs.cs_a2091 ? commodore : uae_id;
-    uae_u8 pid = currprefs.cs_a2091 ? commodore_a2091_ram : 1;
+    uae_u16 mid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore : uae_id;
+    uae_u8 pid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore_a2091_ram : 1;
 
     expamem_init_clear ();
     if (allocated_fastmem == 0x100000)
@@ -1094,7 +1092,7 @@ static uaecptr check_boot_rom (void)
     uaecptr b = RTAREA_DEFAULT;
     addrbank *ab;
 
-    if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi)
+    if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi || currprefs.uae_hide > 1)
 	b = RTAREA_BACKUP;
     ab = &get_mem_bank (RTAREA_DEFAULT);
     if (ab) {
@@ -1175,8 +1173,8 @@ void expamem_reset (void)
     int cardno = 0;
     ecard = 0;
 
-    if (scrambled_autoconfig)
-	uae_id = rand () & 2047 + 100;
+    if (currprefs.uae_hide)
+	uae_id = commodore;
     else
 	uae_id = hackers_id;
 

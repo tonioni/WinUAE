@@ -24,7 +24,7 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_SCALE2X, 0, "Scale2X", "scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
 
-    { UAE_FILTER_HQ, 0, "hq2x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+    { UAE_FILTER_HQ, 0, "hq2x/3x/4x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
     { UAE_FILTER_SUPEREAGLE, 0, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
 
@@ -83,7 +83,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
         ymult = ahs * 1000 / dst_height;
     else
         ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
-    
+
+    if (currprefs.gfx_filter_horiz_zoom_mult <= 0 && currprefs.gfx_filter_vert_zoom_mult <= 0 && currprefs.gfx_filter_aspect) {
+	int mult = xmult > ymult ? xmult : ymult;
+	xmult = mult;
+	ymult = mult;
+    }
+
     xs = dst_width - dst_width * xmult / 1000;
     dr->left += xs / 2;
     dr->right -= xs / 2;
@@ -148,6 +154,7 @@ void S2X_free (void)
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 {
     int flags = 0;
+    int res_shift;
 
     if (currprefs.leds_on_screen == STATUSLINE_BUILTIN)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = STATUSLINE_TARGET;
@@ -169,6 +176,14 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	    changed_prefs.gfx_filter = usedfilter->type;
 	}
     }
+
+    res_shift = RES_MAX - currprefs.gfx_resolution;
+    if (currprefs.gfx_xcenter_size > 0 && (currprefs.gfx_xcenter_size >> res_shift) < aw)
+	aw = currprefs.gfx_xcenter_size >> res_shift;
+    res_shift = currprefs.gfx_linedbl ? 0 : 1;
+    if (currprefs.gfx_ycenter_size > 0 && (currprefs.gfx_ycenter_size >> res_shift) < ah)
+	ah = currprefs.gfx_ycenter_size >> res_shift;
+
     dst_width = dw;
     dst_height = dh;
     dst_depth = dd;

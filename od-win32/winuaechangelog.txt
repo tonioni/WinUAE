@@ -1,4 +1,20 @@
 
+Beta 13:
+
+- more screen mode switching problems fixed
+- automatically select next bigger resolution if fullscreen mode fails
+  to open (for example 50Hz-only modes without 50Hz compatible display)
+- added "keep aspect ratio" checkbox to filter panel, syncronizes
+  vertical and horizontal zoom sliders (OGL/D3D are still broken!)
+- both vertical and horizontal filter multiplier set to "FS" and aspect
+  ratio checkbox checked -> keep aspect ratio
+- midscreen BPLCON4 modifications fixed (broken since 1200b2, stupid bug,
+  wrong register address..) fixes Gloom (and other programs using same
+  copper C2P method) graphics problems
+- winuaeenforcer stack debug output fix (BR)
+- PCMCIA SRAM emulation eject crash fix
+- fullwindow Picasso96 mode is centered again
+
 Beta 12:
 
 - hardfile creation: sparse file option added (sparse file = non-written

@@ -196,7 +196,7 @@ static int first_block_line, last_block_line;
    each line that needs to be drawn.  These are basically extracted out of
    bit fields in the hardware registers.  */
 static int bplehb, bplham, bpldualpf, bpldualpfpri, bpldualpf2of, bplplanecnt, bplres, ecsshres, issprites;
-static int plf1pri, plf2pri;
+static int plf1pri, plf2pri, bplxor;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
 static int brdsprt, brdblank, brdblank_changed;
@@ -1023,9 +1023,6 @@ STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
     uae_u16 *buf = spixels + e->first_pixel;
     uae_u8 *stbuf = spixstate.bytes + e->first_pixel;
     int pos, window_pos, spr_level, spr_level_max;
-#ifdef AGA
-    uae_u8 xor_val = (uae_u8)(dp_for_drawing->bplcon4 >> 8);
-#endif
 
     buf -= e->pos;
     stbuf -= e->pos;
@@ -1646,6 +1643,7 @@ static void pfield_expand_dp_bplcon (void)
     sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
     sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
     brdsprt = !brdblank && (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
+    bplxor = dp_for_drawing->bplcon4 >> 8;
 #endif
 }
 
@@ -1669,7 +1667,7 @@ static void pfield_expand_dp_bplcon2 (int regno, int v)
 	break;
 #endif
 #ifdef AGA
-	case 0x108:
+	case 0x10c:
 	dp_for_drawing->bplcon4 = v;
 	break;
 #endif

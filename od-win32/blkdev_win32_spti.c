@@ -230,9 +230,10 @@ static int total_devices;
 
 static void close_scsi_device (int unitnum)
 {
-    write_log ("SPTI: unit %d closed\n", unitnum);
-    if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE)
+    if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE) {
+	write_log ("SPTI: unit %d closed\n", unitnum);
 	CloseHandle (dev_info[unitnum].handle);
+    }
     dev_info[unitnum].handle = INVALID_HANDLE_VALUE;
 }
 
@@ -270,6 +271,24 @@ static void close_scsi_bus (void)
     int i;
     for (i = 0; i < total_devices; i++)
 	free_scsi_device(i);
+}
+
+static void checkcapabilities (int unitnum)
+{
+    struct dev_info_spti *di = &dev_info[unitnum];
+    STORAGE_ADAPTER_DESCRIPTOR desc;
+    STORAGE_PROPERTY_QUERY query = { 0 };
+    DWORD ret, status;
+
+    query.PropertyId = StorageAdapterProperty;
+    query.QueryType = PropertyStandardQuery;
+    status = DeviceIoControl (di->handle, IOCTL_STORAGE_QUERY_PROPERTY,
+	&query, sizeof query, &desc, sizeof desc, &ret, NULL);
+    if (status) {
+	if (desc.Version > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
+	    write_log ("CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
+		desc.BusType, desc.MaximumTransferLength, desc.AlignmentMask);
+    }
 }
 
 static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
@@ -328,7 +347,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
     outlen = 32;
-    p = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen);
+    p = execscsicmd_in (unitnum, cmd1, sizeof cmd1, &outlen);
     if (p && outlen >= 8) {
 	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
         di->sectorspertrack = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
@@ -338,7 +357,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     if (di->type == INQ_DASD) {
 	uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0xf0,0 }; /* MODE SENSE */
 	outlen = 32;
-	p = execscsicmd_in(unitnum, cmd2, sizeof cmd2, &outlen);
+	p = execscsicmd_in (unitnum, cmd2, sizeof cmd2, &outlen);
 	if (p && outlen >= 4) {
 	    di->write_protected = (p[3] & 0x80) ? 1 : 0;
 	}
@@ -371,6 +390,7 @@ int open_scsi_device (int unitnum)
 	write_log ("SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
     } else {
 	uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
+	checkcapabilities (unitnum);
 	if (!inquiry (unitnum, di, inqdata)) {
 	    write_log ("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
 		di->bus, di->path, di->target, di->lun);
@@ -421,7 +441,7 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
     di->lun = lunid;
     di->scanmode = scanmode;
     total_devices++;
-    if (open_scsi_device(cnt)) {
+    if (open_scsi_device (cnt)) {
 	for (i = 0; i < cnt; i++) {
 	    if (!memcmp(di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
 		write_log ("duplicate device, skipped..\n");

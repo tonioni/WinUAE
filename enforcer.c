@@ -232,7 +232,7 @@ static void enforcer_display_hit (const char *addressmode, uae_u32 pc, uaecptr a
     /* Stack */
     a7 = m68k_areg (&regs, 7);
     for (i = 0; i < 8 * STACKLINES; i++) {
-	a7 -= 4;
+	a7 += 4;
 	if (!(i % 8)) {
 	    strcpy (enforcer_buf_ptr, "Stck:");
 	    enforcer_buf_ptr += strlen (enforcer_buf_ptr);
@@ -254,7 +254,7 @@ static void enforcer_display_hit (const char *addressmode, uae_u32 pc, uaecptr a
     }
 
     for (i = 0; i < 8 * STACKLINES; i++) {
-	a7 -= 4;
+	a7 += 4;
 	if (enforcer_decode_hunk_and_offset (buf, get_long (a7))) {
 	    int l = strlen (buf);
 

@@ -1254,7 +1254,7 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
 {
     int ret;
 
-    if (!hfd->emptyname)
+    if (!hfd || !hfd->emptyname)
 	return;
     if (*rescanned == 0) {
 	hdf_init2 (1);

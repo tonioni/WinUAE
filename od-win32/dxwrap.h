@@ -82,7 +82,7 @@ void freesurface (LPDIRECTDRAWSURFACE7 surf);
 void DirectDraw_FreeMainSurface (void);
 HRESULT DirectDraw_CreateMainSurface (int width, int height);
 HRESULT DirectDraw_SetDisplayMode(int width, int height, int bits, int freq);
-HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen);
+HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen, int doset);
 HRESULT DirectDraw_CreateClipper (void);
 HRESULT DirectDraw_SetClipper(HWND hWnd);
 RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface);

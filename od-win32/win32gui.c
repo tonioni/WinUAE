@@ -7,6 +7,7 @@
  *
  ***************************************************************************/
 
+#define CONFIGCACHE 1
 #define FRONTEND 0
 
 #define _WIN32_WINNT 0x600
@@ -1155,6 +1156,8 @@ void gui_display (int shortcut)
 	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     }
 
+    flush_log ();
+
     if (shortcut == -1) {
 	int ret;
 	ret = GetSettings (0, hAmigaWnd);
@@ -1861,6 +1864,165 @@ struct ConfigStruct *AllocConfigStruct (void)
     return config;
 }
 
+static void FreeConfigStore (void)
+{
+    int i;
+    for (i = 0; i < configstoresize; i++)
+	FreeConfigStruct (configstore[i]);
+    free (configstore);
+    configstore = 0;
+    configstoresize = configstoreallocated = 0;
+}
+
+static void getconfigcache (char *dst, const char *path)
+{
+    strcpy (dst, path);
+    strncat (dst, "configuration.cache", MAX_DPATH);
+}
+
+static char *fgetsx (char *dst, FILE *f)
+{
+    char *s = fgets (dst, MAX_DPATH, f);
+    if (!s)
+	return s;
+    if (strlen (dst) == 0)
+	return s;
+    if (dst[strlen (dst) - 1] == '\n')
+	dst[strlen (dst) - 1] = 0;
+    if (dst[strlen (dst) - 1] == '\r')
+	dst[strlen (dst) - 1] = 0;
+    return s;
+}
+
+static char configcachever[] = "0.1";
+
+static struct ConfigStruct *readconfigcache (const char *path)
+{
+    FILE *zcache;
+    char cachepath[MAX_DPATH];
+    char buf[MAX_DPATH];
+    char rootpath[MAX_DPATH];
+    char path2[MAX_DPATH];
+    struct ConfigStruct *cs, *first;
+    int err, i;
+
+    err = 0;
+    first = NULL;
+    getconfigcache (cachepath, path);
+    zcache = fopen (cachepath, "r");
+    if (!zcache)
+	return NULL;
+    fgetsx (buf, zcache);
+    if (!feof (zcache) && !strcmp (buf, configcachever)) {
+	GetFullPathName (path, sizeof path2, path2, NULL);
+	strcpy (rootpath, path2);
+	fgetsx (buf, zcache);
+	if (!strcmp (buf, rootpath)) {
+	    fgetsx (buf, zcache);
+	    if (!feof (zcache) && strlen (buf) == 0) {
+		while (fgetsx (buf, zcache)) {
+		    cs = AllocConfigStruct ();
+		    if (configstore == NULL || configstoreallocated == configstoresize) {
+			configstoreallocated += 100;
+			configstore = realloc (configstore, sizeof (struct ConfigStruct*) * configstoreallocated);
+		    }
+		    configstore[configstoresize++] = cs;
+		    if (!first)
+			 first = cs;
+		    if (buf[0] == '1')
+			cs->Directory = 1;
+
+		    fgetsx (buf, zcache);
+		    if (strlen (buf) > strlen (rootpath)) {
+			for (i = 0; i < configstoresize; i++) {
+			    GetFullPathName (configstore[i]->Fullpath, sizeof path2, path2, NULL);
+			    if (!strcmp (path2, buf) && strcmp (path2, rootpath)) {
+				cs->Parent = configstore[i];
+				break;
+			    }
+			}
+		    }
+
+		    fgetsx (cs->Name, zcache);
+		    fgetsx (cs->Path, zcache);
+		    fgetsx (cs->Fullpath, zcache);
+		    fgetsx (cs->Description, zcache);
+		    fgetsx (cs->HardwareLink, zcache);
+		    fgetsx (cs->HostLink, zcache);
+		    fgetsx (buf, zcache);
+		    cs->Type = 3;
+
+		    fgetsx (buf, zcache);
+		    if (strlen (buf) > 0)
+			break;
+		}
+	    }
+	}
+    }
+    if (!feof (zcache))
+	err = 1;
+    fclose (zcache);
+    if (err || first == NULL) {
+	zcache = fopen (cachepath, "w+");
+	if (zcache)
+	    fclose (zcache);
+	FreeConfigStore ();
+	return NULL;
+    }
+    return first;
+}
+
+static void writeconfigcache (const char *path)
+{
+    int i;
+    char lf = 10;
+    FILE *zcache;
+    char cachepath[MAX_DPATH];
+    char path2[MAX_DPATH];
+
+    getconfigcache (cachepath, path);
+    zcache = fopen (cachepath, "r");
+    if (!zcache)
+	return;
+    fclose (zcache);
+    zcache = fopen (cachepath, "w");
+    if (!zcache)
+	return;
+    GetFullPathName (path, sizeof path2, path2, NULL);
+    fwrite (configcachever, strlen (configcachever), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+    fwrite (path2, strlen (path2), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+    for (i = configstoresize - 1; i >= 0; i--) {
+	struct ConfigStruct *cs = configstore[i];
+        sprintf (path2, "%d", cs->Directory);
+        fwrite (path2, strlen (path2), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        GetFullPathName (cs->Fullpath, sizeof path2, path2, NULL);
+        fwrite (path2, strlen (path2), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->Name, strlen (cs->Name), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->Fullpath, strlen (cs->Fullpath), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->Path, strlen (cs->Path), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->Description, strlen (cs->Description), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->HardwareLink, strlen (cs->HardwareLink), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        fwrite (cs->HostLink, strlen (cs->HostLink), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+        sprintf (path2, "%d", cs->Type);
+        fwrite (path2, strlen (path2), 1, zcache);
+        fwrite (&lf, 1, 1, zcache);
+
+        fwrite (&lf, 1, 1, zcache);
+    }
+    fclose (zcache);
+}
+
 static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int usedirs, int *level)
 {
     DWORD num_bytes = 0;
@@ -1871,12 +2033,21 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
     struct ConfigStruct *config, *first;
     HANDLE handle;
 
+    if (*level == 0)
+	FreeConfigStore ();
     first = NULL;
     GetConfigPath (path, configparent, FALSE);
     GetConfigPath (shortpath, configparent, TRUE);
     strcpy (path2, path);
     strncat (path2, "*.*", MAX_DPATH);
-    handle = FindFirstFile(path2, &find_data );
+
+    if (*level == 0) {
+	first = readconfigcache (path);
+	if (first)
+	    return first; 
+    }
+
+    handle = FindFirstFile (path2, &find_data );
     if (handle == INVALID_HANDLE_VALUE) {
 #ifndef SINGLEFILE
 	// Either the directory has no .CFG files, or doesn't exist.
@@ -1949,23 +2120,16 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	    if (first == NULL)
 		first = config;
 	}
-	if(FindNextFile (handle, &find_data) == 0) {
+	if (FindNextFile (handle, &find_data) == 0) {
 	    FindClose(handle);
 	    break;
 	}
     }
+    if (*level == 0 && CONFIGCACHE)
+	writeconfigcache (path);
     return first;
 }
 
-static void FreeConfigStore (void)
-{
-    int i;
-    for (i = 0; i < configstoresize; i++)
-	FreeConfigStruct (configstore[i]);
-    free (configstore);
-    configstore = 0;
-    configstoresize = configstoreallocated = 0;
-}
 static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig)
 {
     int level = 0, i;
@@ -1976,7 +2140,6 @@ static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig)
 	strcpy (path, oldconfig->Path);
 	strcpy (name, oldconfig->Name);
     }
-    FreeConfigStore ();
     GetConfigs (NULL, 1, &level);
     if (oldconfig) {
 	for (i = 0; i < configstoresize; i++) {
@@ -9069,7 +9232,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
-    ew (hDlg, IDC_FILTERUPSCALE, vv && !vv2);
+    ew (hDlg, IDC_FILTERASPECT, vv && !vv2);
     ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
@@ -9126,7 +9289,7 @@ static int *filtervars[] = {
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
-	&workprefs.gfx_filter_upscale,
+	&workprefs.gfx_filter_aspect,
 	NULL
     };
 
@@ -9147,7 +9310,7 @@ static void values_to_hw3ddlg (HWND hDlg)
     struct uae_filter *uf;
     UAEREG *fkey;
 
-    CheckDlgButton(hDlg, IDC_FILTERUPSCALE, workprefs.gfx_filter_upscale);
+    CheckDlgButton(hDlg, IDC_FILTERASPECT, workprefs.gfx_filter_aspect);
     CheckDlgButton(hDlg, IDC_FILTERAUTORES, workprefs.gfx_autoresolution);
 
     SendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
@@ -9457,114 +9620,140 @@ static INT_PTR CALLBACK hw3dDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
     switch (msg)
     {
-    case WM_INITDIALOG:
-#if WINUAEBETA == 0
-	ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
-#endif
-	pages[HW3D_ID] = hDlg;
-	currentpage = HW3D_ID;
-	enable_for_hw3ddlg (hDlg);
+	case WM_INITDIALOG:
+    #if WINUAEBETA == 0
+	    ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
+    #endif
+	    pages[HW3D_ID] = hDlg;
+	    currentpage = HW3D_ID;
+	    enable_for_hw3ddlg (hDlg);
 
-    case WM_USER:
-	if(recursive > 0)
-	    break;
-	recursive++;
-	enable_for_hw3ddlg( hDlg );
-	values_to_hw3ddlg (hDlg);
-	recursive--;
-	return TRUE;
-    case WM_COMMAND:
-	if(recursive > 0)
-	    break;
-	recursive++;
-	switch (wParam)
-	{
-	    case IDC_FILTERDEFAULT:
-	    currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = 0;
-	    currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = 0;
-	    currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
-	    currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
+	case WM_USER:
+	    if(recursive > 0)
+		break;
+	    recursive++;
+	    enable_for_hw3ddlg( hDlg );
 	    values_to_hw3ddlg (hDlg);
-	    updatedisplayarea ();
-	    WIN32GFX_WindowMove ();
-	    break;
-	    case IDC_FILTERPRESETLOAD:
-	    case IDC_FILTERPRESETSAVE:
-	    case IDC_FILTERPRESETDELETE:
-	    filter_preset (hDlg, wParam);
-	    break;
-	    case IDC_FILTERENABLE:
-	    filter_handle (hDlg);
-	    break;
-	    case IDC_FILTERAUTORES:
-	    workprefs.gfx_autoresolution = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
-	    break;
-	    case IDC_FILTERUPSCALE:
-	    currprefs.gfx_filter_upscale = workprefs.gfx_filter_upscale = IsDlgButtonChecked (hDlg, IDC_FILTERUPSCALE);
-	    updatedisplayarea ();
-	    WIN32GFX_WindowMove ();
-	    break;
-	    default:
-	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
-		switch (LOWORD (wParam))
-		{
-		    case IDC_FILTERXTRA:
-		    values_to_hw3ddlg (hDlg);
-		    break;
-		    case IDC_FILTERPRESETS:
-		    filter_preset (hDlg, LOWORD (wParam));
-		    break;
-		    case IDC_FILTERSLR:
-		    item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
-		    if (item != CB_ERR) {
-			currprefs.gfx_filter_scanlineratio = workprefs.gfx_filter_scanlineratio = scanlineindexes[item];
+	    recursive--;
+	    return TRUE;
+	case WM_COMMAND:
+	    if(recursive > 0)
+		break;
+	    recursive++;
+	    switch (wParam)
+	    {
+		case IDC_FILTERDEFAULT:
+		currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = 0;
+		currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = 0;
+		currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
+		currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
+		values_to_hw3ddlg (hDlg);
+		updatedisplayarea ();
+		WIN32GFX_WindowMove ();
+		break;
+		case IDC_FILTERPRESETLOAD:
+		case IDC_FILTERPRESETSAVE:
+		case IDC_FILTERPRESETDELETE:
+		filter_preset (hDlg, wParam);
+		break;
+		case IDC_FILTERENABLE:
+		filter_handle (hDlg);
+		break;
+		case IDC_FILTERAUTORES:
+		workprefs.gfx_autoresolution = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
+		break;
+		case IDC_FILTERASPECT:
+		currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERASPECT);
+		updatedisplayarea ();
+		WIN32GFX_WindowMove ();
+		break;
+		default:
+		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		    switch (LOWORD (wParam))
+		    {
+			case IDC_FILTERXTRA:
+			values_to_hw3ddlg (hDlg);
+			break;
+			case IDC_FILTERPRESETS:
+			filter_preset (hDlg, LOWORD (wParam));
+			break;
+			case IDC_FILTERSLR:
+			item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
+			if (item != CB_ERR) {
+			    currprefs.gfx_filter_scanlineratio = workprefs.gfx_filter_scanlineratio = scanlineindexes[item];
+			    updatedisplayarea ();
+			}
+			break;
+			case IDC_FILTERMODE:
+			case IDC_FILTERFILTER:
+			filter_handle (hDlg);
+			break;
+			case IDC_FILTERHZMULT:
+			currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = getfiltermult(hDlg, IDC_FILTERHZMULT);
 			updatedisplayarea ();
+			WIN32GFX_WindowMove ();
+			break;
+
+			case IDC_FILTERVZMULT:
+			currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = getfiltermult(hDlg, IDC_FILTERVZMULT);
+			updatedisplayarea ();
+			WIN32GFX_WindowMove ();
+			break;
 		    }
-		    break;
-		    case IDC_FILTERMODE:
-		    case IDC_FILTERFILTER:
-		    filter_handle (hDlg);
-		    break;
-		    case IDC_FILTERHZMULT:
-		    case IDC_FILTERVZMULT:
-		    currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = getfiltermult(hDlg, IDC_FILTERHZMULT);
-		    currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = getfiltermult(hDlg, IDC_FILTERVZMULT);
-		    updatedisplayarea ();
-		    WIN32GFX_WindowMove ();
-		    break;
 		}
+		break;
 	    }
+	    recursive--;
+	    break;
+	case WM_HSCROLL:
+	{
+	    HWND hz = GetDlgItem (hDlg, IDC_FILTERHZ);
+	    HWND vz = GetDlgItem (hDlg, IDC_FILTERVZ);
+	    HWND h = (HWND)lParam;
+
+	    if (recursive)
+		break;
+	    recursive++;
+	    if (h == hz) {
+		currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
+		if (workprefs.gfx_filter_aspect) {
+		    currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = currprefs.gfx_filter_horiz_zoom;
+		    SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
+		}
+	    } else if (h == vz) {
+		currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
+		if (workprefs.gfx_filter_aspect) {
+		    currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = currprefs.gfx_filter_vert_zoom;
+		    SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
+		}
+	    } else {
+		currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+		currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+	    }
+	    if (filter_selected) {
+		int *pw = filter_selected->varw;
+		int *pc = filter_selected->varc;
+		int v = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERXL), TBM_GETPOS, 0, 0);
+		if (v < filter_selected->min)
+		    v = filter_selected->min;
+		if (v > filter_selected->max)
+		    v = filter_selected->max;
+		*pw = v;
+		*pc = v;
+		SetDlgItemInt (hDlg, IDC_FILTERXLV, v, TRUE);
+	    }
+	    SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
+	    SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
+	    SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
+	    SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
+	    init_colors();
+	    notice_new_xcolors();
+	    reset_drawing();
+	    updatedisplayarea ();
+	    WIN32GFX_WindowMove ();
+	    recursive--;
 	    break;
 	}
-	recursive--;
-	break;
-    case WM_HSCROLL:
-	currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERHZ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVZ), TBM_GETPOS, 0, 0 );
-	currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-	currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
-	if (filter_selected) {
-	    int *pw = filter_selected->varw;
-	    int *pc = filter_selected->varc;
-	    int v = (int)SendMessage(GetDlgItem(hDlg, IDC_FILTERXL), TBM_GETPOS, 0, 0);
-	    if (v < filter_selected->min)
-		v = filter_selected->min;
-	    if (v > filter_selected->max)
-		v = filter_selected->max;
-	    *pw = v;
-	    *pc = v;
-	    SetDlgItemInt (hDlg, IDC_FILTERXLV, v, TRUE);
-	}
-	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
-	init_colors();
-	notice_new_xcolors();
-	reset_drawing();
-	updatedisplayarea ();
-	WIN32GFX_WindowMove ();
-	break;
     }
     return FALSE;
 }

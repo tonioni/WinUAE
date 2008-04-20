@@ -93,6 +93,7 @@
 #define RP_SCREENMODE_FULLSCREEN_1	0x00000100 // full screen on primary (default) display
 #define RP_SCREENMODE_FULLSCREEN_2	0x00000200 // full screen on secondary display (fallback to 1 if unavailable)
 #define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" when in fullscreen (no gfx card full screen)
+#define RP_SCREENMODE_XX            0x000000FF
 #define RP_SCREENMODE_MODE(m)       ((m) & 0x000000FF) // given a mode 'm' returns the #X mode
 #define RP_SCREENMODE_DISPLAY(m)    (((m) >> 8) & 0x000000FF) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
 

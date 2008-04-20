@@ -49,6 +49,20 @@ static void freemainsurface (void)
     dxdata.backbuffers = 0;
 }
 
+static HRESULT restoresurface_2 (LPDIRECTDRAWSURFACE7 surf)
+{
+    HRESULT ddrval;
+    
+    if (surf == dxdata.flipping[0] || surf == dxdata.flipping[1])
+	surf = dxdata.primary;
+    ddrval = IDirectDrawSurface7_Restore (surf);
+    if (SUCCEEDED (ddrval)) {
+	if (surf == dxdata.primary && dxdata.palette)
+	    IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
+    }
+    return ddrval;
+}
+
 HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
 {
     HRESULT ddrval;
@@ -56,10 +70,12 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
     if (surf == dxdata.flipping[0] || surf == dxdata.flipping[1])
 	surf = dxdata.primary;
     ddrval = IDirectDrawSurface7_Restore (surf);
-    if (FAILED (ddrval))
+    if (FAILED (ddrval)) {
 	write_log ("IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
-    if (surf == dxdata.primary && dxdata.palette)
-	IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
+    } else {
+	if (surf == dxdata.primary && dxdata.palette)
+	    IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
+    }
     return ddrval;
 }
 
@@ -98,7 +114,7 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
     desc->dwSize = sizeof (*desc);
     while (FAILED (ddrval = IDirectDrawSurface7_Lock (surf, NULL, desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface (surf);
+	    ddrval = restoresurface_2 (surf);
 	    if (FAILED (ddrval))
 	        return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -269,15 +285,21 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
     return ddrval;
 }
 
-HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen)
+HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen, int doset)
 {
     HRESULT ddrval;
     
-    dxdata.hwnd = window;
-    ddrval = IDirectDraw7_SetCooperativeLevel (dxdata.maindd, window, fullscreen ?
-	DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN : DDSCL_NORMAL);
-    if (FAILED (ddrval))
-	write_log ("IDirectDraw7_SetCooperativeLevel: %s\n", DXError (ddrval));
+    if (doset) {
+	dxdata.hwnd = window;
+	ddrval = IDirectDraw7_SetCooperativeLevel (dxdata.maindd, window, fullscreen ?
+	    DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN : DDSCL_NORMAL);
+	if (FAILED (ddrval))
+	    write_log ("IDirectDraw7_SetCooperativeLevel: SET %s\n", DXError (ddrval));
+    } else {
+        ddrval = IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
+	if (FAILED (ddrval))
+	    write_log ("IDirectDraw7_SetCooperativeLevel: RESET %s\n", DXError (ddrval));
+    }
     return ddrval;
 }
 

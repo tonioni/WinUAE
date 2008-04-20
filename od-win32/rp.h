@@ -2,7 +2,7 @@
 extern HRESULT rp_init (void);
 extern void rp_free (void);
 extern void rp_fixup_options (struct uae_prefs*);
-extern void rp_update_status (struct uae_prefs*);
+extern void rp_update_volume (struct uae_prefs*);
 extern void rp_update_leds (int, int);
 extern void rp_floppy_track (int floppy, int track);
 extern void rp_hd_activity (int, int);

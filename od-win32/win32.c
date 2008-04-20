@@ -363,7 +363,7 @@ void setmouseactive (int active)
 	    }
 	}
 #ifdef RETROPLATFORM
-	if (rp_isactive ())
+	if (rp_isactive () && isfullscreen () == 0)
 	    donotfocus = 0;
 #endif
 	if (donotfocus) {
@@ -1176,6 +1176,7 @@ void handle_events (void)
     cnt--;
     if (cnt <= 0) {
 	figure_processor_speed ();
+	flush_log ();
 	cnt = 100;
     }
 }

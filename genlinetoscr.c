@@ -346,7 +346,7 @@ static void out_linetoscr (DEPTH_T bpp, HMODE_T hmode, int aga, int spr)
 
     outlnf (	"    %s *buf = (%s *) xlinebuffer;", get_depth_type_str (bpp), get_depth_type_str (bpp));
     if (aga)
-	outln (	"    uae_u8 xor_val = (uae_u8)(dp_for_drawing->bplcon4 >> 8);");
+	outln (	"    uae_u8 xor_val = bplxor;");
     outln  (	"");
 
     outln  (	"    if (dp_for_drawing->ham_seen) {");

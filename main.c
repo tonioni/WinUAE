@@ -122,9 +122,9 @@ static void fixup_prefs_dim2 (struct wh *wh)
 void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
     if (prefs->gfx_xcenter_size > 0)
-        prefs->gfx_size_win.width = prefs->gfx_xcenter_size << prefs->gfx_resolution;
+        prefs->gfx_size_win.width = prefs->gfx_xcenter_size >> (RES_MAX - prefs->gfx_resolution);
     if (prefs->gfx_ycenter_size > 0)
-        prefs->gfx_size_win.height = prefs->gfx_ycenter_size << (prefs->gfx_linedbl ? 1 : 0);
+	prefs->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (RES_MAX - (prefs->gfx_resolution == RES_SUPERHIRES ? 2 : (prefs->gfx_linedbl ? 1 : 0)));
     fixup_prefs_dim2 (&prefs->gfx_size_fs);
     fixup_prefs_dim2 (&prefs->gfx_size_win);
 }

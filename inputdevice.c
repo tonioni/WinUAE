@@ -3290,7 +3290,7 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
     return v;
 }
 
-void inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, int type)
+int inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, int type)
 {
     switch (type)
     {
@@ -3312,7 +3312,7 @@ void inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, 
 		    char *name2 = idf->get_uniquename (i);
 		    if ((name1 && !strcmp (name1, value)) || (name2 && !strcmp (name2, value))) {
 			p->jports[portnum].id = idnum + i;
-			return;
+			return 1;
 		    }
 		}
 	    }
@@ -3351,9 +3351,11 @@ void inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, 
 		}
 		if (got == 2) {
 		    p->jports[portnum].id = start;
+		    return 1;
 		}
 	    }
 	}
 	break;
     }
+    return 0;
 }

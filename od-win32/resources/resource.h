@@ -689,7 +689,7 @@
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
 #define IDC_INPREC_PLAY                 1620
-#define IDC_FILTERUPSCALE               1620
+#define IDC_FILTERASPECT                1620
 #define IDC_AVIOUTPUT_24BIT             1621
 #define IDC_AVIOUTPUT_WIDTH             1622
 #define IDC_AVIOUTPUT_HEIGHT            1623
