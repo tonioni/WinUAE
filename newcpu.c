@@ -212,12 +212,27 @@ static void build_cpufunctbl (void)
     for (i = 0; tbl[i].handler != NULL; i++)
 	cpufunctbl[tbl[i].opcode] = tbl[i].handler;
 
+    /* hack fpu to 68000/68010 mode */
+    if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
+	tbl = op_smalltbl_3_ff;
+	for (i = 0; tbl[i].handler != NULL; i++) {
+	    if ((tbl[i].opcode & 0xfe00) == 0xf200)
+		cpufunctbl[tbl[i].opcode] = tbl[i].handler;
+	}
+    }
     opcnt = 0;
     for (opcode = 0; opcode < 65536; opcode++) {
 	cpuop_func *f;
 
-	if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > lvl)
+	if (table68k[opcode].mnemo == i_ILLG)
 	    continue;
+	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
+	    /* more hack fpu to 68000/68010 mode */
+	    if (table68k[opcode].clev > lvl && (opcode & 0xfe00) != 0xf200)
+		continue;
+	} else if (table68k[opcode].clev > lvl) {
+	    continue;
+	}
 
 	if (table68k[opcode].handler != -1) {
 	    f = cpufunctbl[table68k[opcode].handler];

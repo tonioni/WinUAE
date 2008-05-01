@@ -860,7 +860,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     int num_tracks, size;
 
 #ifdef RETROPLATFORM
-    rp_disk_change (dnum, fname);
+    rp_disk_image_change (dnum, fname);
 #endif
     drive_image_free (drv);
     drv->diskfile = DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32);
@@ -1809,7 +1809,7 @@ static void drive_eject (drive * drv)
     driveclick_insert (drv - floppy, 1);
 #endif
 #ifdef RETROPLATFORM
-    rp_disk_change (drv - floppy, NULL);
+    rp_disk_image_change (drv - floppy, NULL);
 #endif
     drive_image_free (drv);
     drv->dskchange = 1;
@@ -2101,6 +2101,9 @@ void DISK_check_change (void)
 	if (currprefs.dfxtype[i] != changed_prefs.dfxtype[i]) {
 	    currprefs.dfxtype[i] = changed_prefs.dfxtype[i];
 	    reset_drive (i);
+#ifdef RETROPLATFORM
+	    rp_floppydrive_change (i, currprefs.dfxtype[i] >= 0 ? 1 : 0);
+#endif
 	}
 	if (drv->dskchange_time == 0 && strcmp (currprefs.df[i], changed_prefs.df[i]))
 	    disk_insert (i, changed_prefs.df[i]);

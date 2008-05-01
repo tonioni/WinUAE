@@ -46,7 +46,7 @@ static int canjit (void)
     return 0;
 #endif
 }
-static void nocanbang(void)
+static void nocanbang (void)
 {
     canbang = 0;
 }
@@ -139,7 +139,7 @@ struct romdata *getromdatabypath(char *path)
     return NULL;
 }
 
-#define NEXT_ROM_ID 72
+#define NEXT_ROM_ID 73
 
 static struct romheader romheaders[] = {
     { "Freezer Cartridges", 1 },
@@ -256,6 +256,9 @@ static struct romdata roms[] = {
     ALTROM(24, 1, 1, 8192,           0, 0x62f11c04, 0xC87F9FAD,0xA4EE4E69,0xF3CCA0C3,0x6193BE82,0x2B9F5FE6)
     ALTROMPN(24, 2, 1, 4096, ROMTYPE_EVEN | ROMTYPE_8BIT, "252179-01", 0x42553bc4,0x8855a97f,0x7a44e3f6,0x2d1c88d9,0x38fee1f4,0xc606af5b)
     ALTROMPN(24, 2, 2, 4096, ROMTYPE_ODD  | ROMTYPE_8BIT, "252180-01", 0x8e5b9a37,0xd10f1564,0xb99f5ffe,0x108fa042,0x362e877f,0x569de2c3)
+
+    { "The Diagnostic 2.0 (Logica)", 2, 0, 2, 0, "LOGICA\0", 524288, 72, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
+	0x8484f426, 0xba10d161,0x66b2e2d6,0x177c979c,0x99edf846,0x2b21651e },
 
     { "Freezer: Action Replay Mk I v1.00", 1, 0, 1, 0, "AR\0", 65536, 52, 0, 0, ROMTYPE_AR, 0, 1, NULL,
 	0x2d921771, 0x1EAD9DDA,0x2DAD2914,0x6441F5EF,0x72183750,0x22E01248 },
@@ -2831,7 +2834,7 @@ static shmpiece *find_shmpiece (uae_u8 *base)
     if (!x) {
 	write_log ("NATMEM: Failure to find mapping at %08X, %p\n", base - NATMEM_OFFSET, base);
 	dumplist ();
-	nocanbang();
+	nocanbang ();
 	return 0;
     }
     return x;
@@ -2855,7 +2858,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 	    if (x->size > size) {
 		write_log ("NATMEM: Failure to delete mapping at %08x(size %08x, delsize %08x)\n",start,x->size,size);
 		dumplist ();
-		nocanbang();
+		nocanbang ();
 		return;
 	    }
 	    shmdt (x->native_address);
@@ -2896,7 +2899,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     if (y->native_address == (void *) -1) {
 	write_log ("NATMEM: Failure to map existing at %08x(%p)\n",start,base);
 	dumplist ();
-	nocanbang();
+	nocanbang ();
 	return;
     }
     y->next = shm_start;
@@ -2913,7 +2916,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     shmpiece *x;
 
     if (!canjit()) {
-	nocanbang();
+	nocanbang ();
 	return xcalloc (s + 4, 1);
     }
 
@@ -2921,7 +2924,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
     if (id == -1) {
 	static int recurse;
 	uae_u8 *p;
-	nocanbang();
+	nocanbang ();
 	if (recurse)
 	    return NULL;
 	recurse++;
@@ -2943,7 +2946,7 @@ uae_u8 *mapped_malloc (size_t s, char *file)
 	shm_start = x;
 	return answer;
     }
-    nocanbang();
+    nocanbang ();
     return mapped_malloc (s, file);
 }
 
@@ -3083,7 +3086,9 @@ static void allocate_memory (void)
     }
 
     if (savestate_state == STATE_RESTORE) {
-	restore_ram (bootrom_filepos, rtarea);
+	if (bootrom_filepos) {
+	    restore_ram (bootrom_filepos, rtarea);
+	}
 	restore_ram (chip_filepos, chipmemory);
 	if (allocated_bogomem > 0)
 	    restore_ram (bogo_filepos, bogomemory);
@@ -3100,6 +3105,11 @@ static void allocate_memory (void)
     a3000lmem_bank.baseaddr = a3000lmemory;
     a3000hmem_bank.baseaddr = a3000hmemory;
     cardmem_bank.baseaddr = cardmemory;
+    bootrom_filepos = 0;
+    chip_filepos = 0;
+    bogo_filepos = 0;
+    a3000lmem_filepos = 0;
+    a3000hmem_filepos = 0;
 }
 
 void map_overlay (int chip)
@@ -3221,8 +3231,9 @@ void memory_reset (void)
 	patch_kick ();
     }
 
-    if (cloanto_rom)
+    if (cloanto_rom && currprefs.maprom < 0x01000000)
 	currprefs.maprom = changed_prefs.maprom = 0;
+
     gayle = currprefs.cs_ksmirror_a8 || currprefs.cs_pcmcia || currprefs.cs_ide > 0;
 
     map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
@@ -3329,7 +3340,7 @@ void memory_reset (void)
 	if (extendedkickmem2_size) {
 	    map_banks (&extendedkickmem2_bank, 0xa8, 16, 0);
 	} else {
-	    struct romdata *rd = getromdatabypath(currprefs.cartfile);
+	    struct romdata *rd = getromdatabypath (currprefs.cartfile);
 	    if (!rd || rd->id != 63) {
 		if (extendedkickmem_type == EXTENDED_ROM_CD32 || extendedkickmem_type == EXTENDED_ROM_KS)
 		    map_banks (&extendedkickmem_bank, 0xb0, 8, 0);

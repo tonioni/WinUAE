@@ -22,6 +22,7 @@ uae_u8 *natmem_offset, *natmem_offset_end;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
 static SYSTEM_INFO si;
+int maxmem;
 
 static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
@@ -210,6 +211,10 @@ void preinit_shm (void)
 	}
     }
     size64 = total64 - (total64 >> 3);
+    if (maxmem < 0)
+	size64 = 0x7f000000;
+    else if (maxmem > 0)
+	size64 = maxmem * 1024 * 1024;
     if (os_64bit) {
 	if (size64 > 0x7f000000)
 	    size64 = 0x7f000000;
@@ -311,7 +316,7 @@ restart:
 	memwatchtable = 0;
 	if (currprefs.gfxmem_size) {
 	    if (!memwatchok) {
-		write_log ("GetWriteWatch() not supported, using guard pages, performance will be slower.\n");
+		write_log ("GetWriteWatch() not supported, using guard pages, RTG performance will be slower.\n");
 		memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
 	    }
 	}

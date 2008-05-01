@@ -1,13 +1,13 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource."
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -190,8 +190,7 @@ BEGIN
     CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,141,63,10
     CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,155,63,10
     CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,169,62,10
-    CONTROL         "Force settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,141,62,10
-    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,155,62,10
+    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,141,62,10
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,235,141,52,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,155,52,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
@@ -1414,7 +1413,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

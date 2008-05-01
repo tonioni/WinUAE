@@ -66,7 +66,7 @@ static unsigned int ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_cnt;
 static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
 static int kbstate, kback, ciaasdr_unread;
-static unsigned int sleepyhead = 0;
+static unsigned int sleepyhead;
 
 #ifdef TOD_HACK
 static int tod_hack, tod_hack_delay;
@@ -345,8 +345,8 @@ static void setcode (uae_u8 keycode)
 static void sendrw (void)
 {
     setcode (AK_RESETWARNING);
-    ciaaicr |= 8;
     ciaasdr_unread = 1;
+    ciaaicr |= 8;
     RethinkICRA ();
     write_log ("KB: sent reset warning code (phase=%d)\n", resetwarning_phase);
 }
@@ -412,7 +412,7 @@ void CIA_hsync_handler (void)
 	resetwarning_check ();
 	while (keys_available ())
 	    get_next_key ();
-    } else if ((keys_available() || kbstate < 2) && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
+    } else if ((keys_available() || kbstate < 3) && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
 	/*
 	 * This hack lets one possible ciaaicr cycle go by without any key
 	 * being read, for every cycle in which a key is pulled out of the
@@ -430,15 +430,22 @@ void CIA_hsync_handler (void)
 	} else if (ciaasdr_unread == 0) {
 	    switch (kbstate) {
 	     case 0:
-		setcode (AK_INIT_POWERUP);
+		ciaasdr = 0; /* powerup resync */
 		kbstate++;
+		ciaasdr_unread = 3;
 		break;
 	     case 1:
-		setcode (AK_TERM_POWERUP);
+		setcode (AK_INIT_POWERUP);
 		kbstate++;
+		ciaasdr_unread = 3;
 		break;
 	     case 2:
-		ciaasdr = ~get_next_key();
+		setcode (AK_TERM_POWERUP);
+		kbstate++;
+		ciaasdr_unread = 3;
+		break;
+	     case 3:
+		ciaasdr = ~get_next_key ();
 		ciaasdr_unread = 1;      /* interlock to prevent lost keystrokes */
 		break;
 	    }
@@ -446,7 +453,10 @@ void CIA_hsync_handler (void)
 	    RethinkICRA ();
 	    sleepyhead = 0;
 	} else if (!(++sleepyhead & 15)) {
-	    ciaasdr_unread = 0;          /* give up on this key event after unread for a long time */
+	    if (ciaasdr_unread == 3)
+		ciaaicr |= 8;
+	    if (ciaasdr_unread < 3)
+		ciaasdr_unread = 0;          /* give up on this key event after unread for a long time */
 	}
     }
 }
@@ -621,7 +631,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	}
 	return (uae_u8)(ciaatol >> 16);
     case 12:
-	if (ciaasdr_unread == 1)
+	if (ciaasdr_unread >= 1)
 	    ciaasdr_unread = 2;
 	return ciaasdr;
     case 13:
@@ -1047,7 +1057,7 @@ void CIA_reset (void)
 	tod_hack_reset ();
 #endif
     kback = 1;
-    kbstate = 0;
+    kbstate = 3;
     ciaasdr_unread = 0;
     serbits = 0;
     oldovl = 1;
@@ -1055,6 +1065,7 @@ void CIA_reset (void)
     resetwarning_phase = resetwarning_timer = 0;
 
     if (!savestate_state) {
+	kbstate = 0;
 	ciaatlatch = ciabtlatch = 0;
 	ciaapra = 0; ciaadra = 0;
 	ciaatod = ciabtod = 0; ciaatodon = ciabtodon = 0;

@@ -1746,6 +1746,7 @@ static void alloc_ide_mem (void)
     }
 }
 
+#if 0
 #include "zfile.h"
 static void dumphdf (struct hardfiledata *hfd)
 {
@@ -1763,6 +1764,7 @@ static void dumphdf (struct hardfiledata *hfd)
     }
     zfile_fclose (zf);
 }
+#endif
 
 int gayle_add_ide_unit (int ch, char *path, int blocksize, int readonly,
 		       char *devname, int sectors, int surfaces, int reserved,
@@ -1782,7 +1784,7 @@ int gayle_add_ide_unit (int ch, char *path, int blocksize, int readonly,
     ide->status = 0;
     ide->data_offset = 0;
     ide->data_size = 0;
-    dumphdf (&ide->hdhfd.hfd);
+    //dumphdf (&ide->hdhfd.hfd);
     return 1;
 }
 

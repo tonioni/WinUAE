@@ -1088,7 +1088,6 @@ static void allocate_expamem (void)
 
 static uaecptr check_boot_rom (void)
 {
-    int i;
     uaecptr b = RTAREA_DEFAULT;
     addrbank *ab;
 
@@ -1099,11 +1098,8 @@ static uaecptr check_boot_rom (void)
 	if (valid_address (RTAREA_DEFAULT, 65536))
 	    b = RTAREA_BACKUP;
     }
-    for (i = 0; i < currprefs.mountitems; i++) {
-	struct uaedev_config_info *uci = &currprefs.mountconfig[i];
-	if (uci->controller == 0)
-	    return b;
-    }
+    if (nr_directory_units ())
+        return b;
     if (currprefs.socket_emu)
 	return b;
     if (currprefs.uaeserial)
@@ -1394,7 +1390,9 @@ uae_u8 *restore_expansion (uae_u8 *src)
     fastmem_start = restore_u32 ();
     z3fastmem_start = restore_u32 ();
     gfxmem_start = restore_u32 ();
-    restore_u32();
+    rtarea_base = restore_u32 ();
+    if (rtarea_base != 0 && rtarea_base != RTAREA_DEFAULT && rtarea_base != RTAREA_BACKUP)
+	rtarea_base = 0;
     return src;
 }
 

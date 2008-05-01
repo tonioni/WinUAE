@@ -39,8 +39,8 @@
 #define ADJUST_SIZE 30
 #define EXP 2.1
 
-#define ADJUST_VSSIZE 10
-#define EXPVS 1.3
+#define ADJUST_VSSIZE 15
+#define EXPVS 1.7
 
 int sound_debug = 0;
 int sound_mode_skip = 0;
@@ -115,7 +115,7 @@ static void cleardsbuffer (void)
 	IDirectSoundBuffer_Restore (lpDSBsecondary);
 	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
     }
-    if (FAILED(hr)) {
+    if (FAILED (hr)) {
 	write_log ("SOUND: failed to Lock sound buffer (clear): %s\n", DXError (hr));
 	return;
     }
@@ -129,11 +129,11 @@ static void pause_audio_ds (void)
 
     waiting_for_buffer = 0;
     hr = IDirectSoundBuffer_Stop (lpDSBsecondary);
-    if (FAILED(hr))
+    if (FAILED (hr))
 	write_log ("SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
     hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
-    if (FAILED(hr))
-	write_log ("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError(hr));
+    if (FAILED (hr))
+	write_log ("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError (hr));
     cleardsbuffer ();
 }
 
@@ -200,7 +200,7 @@ void set_volume (int volume, int mute)
     if (volume < 100 && !mute)
 	vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
     hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
-    if (FAILED(hr))
+    if (FAILED (hr))
 	write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
     setvolume_ahi (vol);
 }
@@ -239,7 +239,7 @@ static void fillsupportedmodes (int freq)
     supportedmodes[0].ksmode = 0;
     supportedmodes[1].ch = 2;
     supportedmodes[1].ksmode = 0;
-    if (FAILED(IDirectSound8_GetSpeakerConfig(lpDS, &speakerconfig)))
+    if (FAILED (IDirectSound8_GetSpeakerConfig (lpDS, &speakerconfig)))
 	speakerconfig = DSSPEAKER_STEREO;
 
     memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
@@ -277,9 +277,9 @@ static void fillsupportedmodes (int freq)
 	    sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
 	    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME;
 	    sound_buffer.guid3DAlgorithm = GUID_NULL;
-	    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
-	    if (SUCCEEDED(hr)) {
-		IDirectSound_Release(pdsb);
+	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
+	    if (SUCCEEDED (hr)) {
+		IDirectSound_Release (pdsb);
 		supportedmodes[mode].ksmode = rn[round];
 		supportedmodes[mode].ch = ch;
 		mode++;
@@ -326,13 +326,13 @@ static int open_audio_ds (int size)
     recalc_offsets();
 
     hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
-    if (FAILED(hr))  {
+    if (FAILED (hr))  {
 	write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
 	return 0;
     }
 
     hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
-    if (FAILED(hr)) {
+    if (FAILED (hr)) {
 	write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
 	goto error;
     }
@@ -399,14 +399,14 @@ static int open_audio_ds (int size)
 	sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME | (ch >= 4 ? DSBCAPS_LOCHARDWARE : DSBCAPS_LOCSOFTWARE);
 	sound_buffer.guid3DAlgorithm = GUID_NULL;
 
-	hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
-	if (SUCCEEDED(hr))
+	hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
+	if (SUCCEEDED (hr))
 	    break;
 	if (sound_buffer.dwFlags & DSBCAPS_LOCHARDWARE) {
 	    HRESULT hr2 = hr;
 	    sound_buffer.dwFlags &= ~DSBCAPS_LOCHARDWARE;
 	    sound_buffer.dwFlags |=  DSBCAPS_LOCSOFTWARE;
-	    hr = IDirectSound_CreateSoundBuffer(lpDS, &sound_buffer, &pdsb, NULL);
+	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED(hr)) {
 		write_log ("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
 		break;
@@ -417,12 +417,12 @@ static int open_audio_ds (int size)
 
     if (pdsb == NULL)
 	goto error;
-    hr = IDirectSound_QueryInterface(pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
-    if (FAILED(hr))  {
+    hr = IDirectSound_QueryInterface (pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
+    if (FAILED (hr))  {
 	write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
-    IDirectSound_Release(pdsb);
+    IDirectSound_Release (pdsb);
 
     set_volume (currprefs.sound_volume, mute);
     cleardsbuffer ();
@@ -430,7 +430,7 @@ static int open_audio_ds (int size)
     if (get_audio_amigachannels() == 4)
 	sample_handler = sample16ss_handler;
     else
-	sample_handler = get_audio_ismono() ? sample16_handler : sample16s_handler;
+	sample_handler = get_audio_ismono () ? sample16_handler : sample16s_handler;
 
     obtainedfreq = currprefs.sound_freq;
 
@@ -509,7 +509,7 @@ void pause_sound (void)
     if (!have_sound)
 	return;
     pause_audio_ds ();
-    cleardsbuffer();
+    cleardsbuffer ();
 }
 
 void resume_sound (void)
@@ -545,7 +545,7 @@ void sound_setadjust (double v)
     double mult;
 
     mult = (1000.0 + v);
-    if ((currprefs.gfx_avsync && currprefs.gfx_afullscreen) || (avioutput_audio && !compiled_code)) {
+    if (isvsync () || (avioutput_audio && !compiled_code)) {
 	vsynctime = vsynctime_orig;
 	scaled_sample_evtime = (long)(((double)scaled_sample_evtime_orig) * mult / 1000.0);
     } else if (compiled_code || currprefs.m68k_speed != 0) {
@@ -571,8 +571,8 @@ void restart_sound_buffer (void)
     if (waiting_for_buffer != -1)
 	return;
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
-    if (FAILED(hr)) {
-	write_log ("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError(hr));
+    if (FAILED (hr)) {
+	write_log ("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError (hr));
 	return;
     }
     writepos = playpos + snd_writeoffset;
@@ -608,14 +608,14 @@ static void finish_sound_buffer_ds (void)
 
     if (waiting_for_buffer == 1) {
 	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
-	if (FAILED(hr)) {
+	if (FAILED (hr)) {
 	    write_log ("SOUND: Play failed: %s\n", DXError (hr));
 	    restore (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
 	}
 	hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
-	if (FAILED(hr)) {
+	if (FAILED (hr)) {
 	    write_log ("SOUND: 1st SetCurrentPosition failed: %s\n", DXError (hr));
 	    restore (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
@@ -627,7 +627,7 @@ static void finish_sound_buffer_ds (void)
 	    hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safedist);
 	    if (playpos > 0)
 		break;
-	    sleep_millis(1);
+	    sleep_millis (1);
 	    counter--;
 	    if (counter < 0) {
 		write_log ("SOUND: stuck?!?!\n");
@@ -635,11 +635,11 @@ static void finish_sound_buffer_ds (void)
 	    }
 	}
 	write_log ("SOUND: %d = (%d - %d)\n", safedist - playpos, safedist, playpos);
-	recalc_offsets();
+	recalc_offsets ();
 	safedist -= playpos;
 	if (safedist < 64)
 	    safedist = 64;
-	cf(safedist);
+	cf (safedist);
 #if 0
 	snd_totalmaxoffset_uf += safedist;
 	cf (snd_totalmaxoffset_uf);
@@ -651,7 +651,7 @@ static void finish_sound_buffer_ds (void)
 	cf (snd_writeoffset);
 #endif
 	waiting_for_buffer = -1;
-	restart_sound_buffer();
+	restart_sound_buffer ();
 	write_log ("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
 	    sndbufsize, snd_writeoffset,
 	    snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
@@ -661,8 +661,8 @@ static void finish_sound_buffer_ds (void)
 
     counter = 5000;
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
-    if (FAILED(hr)) {
-	write_log ("SOUND: GetStatus() failed: %s\n", DXError(hr));
+    if (FAILED (hr)) {
+	write_log ("SOUND: GetStatus() failed: %s\n", DXError (hr));
 	restore (DSERR_BUFFERLOST);
 	return;
     }
@@ -678,7 +678,7 @@ static void finish_sound_buffer_ds (void)
     }
     for (;;) {
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
-	if (FAILED(hr)) {
+	if (FAILED (hr)) {
 	    restore (hr);
 	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
@@ -703,7 +703,7 @@ static void finish_sound_buffer_ds (void)
 	    if (diff > snd_totalmaxoffset_uf)
 		writepos += dsoundbuf - diff;
 	    writepos += sndbufsize;
-	    cf(writepos);
+	    cf (writepos);
 	    diff = safedist;
 	    break;
 	}
@@ -711,7 +711,7 @@ static void finish_sound_buffer_ds (void)
 	if (diff > snd_totalmaxoffset_of) {
 	    gui_data.sndbuf_status = 2;
 	    statuscnt = SND_STATUSCNT;
-	    restart_sound_buffer();
+	    restart_sound_buffer ();
 	    diff = snd_writeoffset;
 	    write_log ("SOUND: underflow (%d %d)\n", diff, snd_totalmaxoffset_of);
 	    break;
@@ -720,7 +720,7 @@ static void finish_sound_buffer_ds (void)
 	if (diff > snd_maxoffset) {
 	    gui_data.sndbuf_status = 1;
 	    statuscnt = SND_STATUSCNT;
-	    sleep_millis(1);
+	    sleep_millis (1);
 	    counter--;
 	    if (counter < 0) {
 		write_log ("SOUND: sound system got stuck!?\n");
@@ -735,7 +735,7 @@ static void finish_sound_buffer_ds (void)
     hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
     if (restore (hr))
 	return;
-    if (FAILED(hr)) {
+    if (FAILED (hr)) {
 	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
 	return;
     }
@@ -747,9 +747,9 @@ static void finish_sound_buffer_ds (void)
     vdiff = diff - snd_writeoffset;
     m = 100.0 * vdiff / max_sndbufsize;
 
-    if (isvsync()) {
+    if (isvsync ()) {
 
-	skipmode = pow (m < 0 ? -m : m, EXP) / 10;
+	skipmode = pow (m < 0 ? -m : m, EXP) / 8;
 	if (m < 0)
 	    skipmode = -skipmode;
 	if (skipmode < -ADJUST_VSSIZE)
@@ -780,7 +780,7 @@ static void finish_sound_buffer_ds (void)
     }
 
     writepos += sndbufsize;
-    cf(writepos);
+    cf (writepos);
 }
 
 static void channelswap (uae_s16 *sndbuffer, int len)
@@ -810,10 +810,10 @@ void finish_sound_buffer (void)
     if (turbo_emulation)
 	return;
     if (currprefs.sound_stereo_swap_paula) {
-	if (get_audio_nativechannels() == 2 || get_audio_nativechannels() == 4)
-	    channelswap((uae_s16*)sndbuffer, sndbufsize / 2);
+	if (get_audio_nativechannels () == 2 || get_audio_nativechannels () == 4)
+	    channelswap ((uae_s16*)sndbuffer, sndbufsize / 2);
 	else if (get_audio_nativechannels() == 6)
-	    channelswap6((uae_s16*)sndbuffer, sndbufsize / 2);
+	    channelswap6 ((uae_s16*)sndbuffer, sndbufsize / 2);
     }
 #ifdef DRIVESOUND
     driveclick_mix ((uae_s16*)sndbuffer, sndbufsize / 2);
@@ -869,7 +869,7 @@ const static GUID XIID_IMMDeviceEnumerator = {0xA95664D2,0x9614,0x4F35,
 const static GUID XIID_IAudioEndpointVolume = {0x5CDF2C82, 0x841E,0x4546,
     {0x97,0x22,0x0C,0xF7,0x40,0x78,0x22,0x9A}};
 
-static int setget_master_volume_vista(int setvolume, int *volume, int *mute)
+static int setget_master_volume_vista (int setvolume, int *volume, int *mute)
 {
     IMMDeviceEnumerator *deviceEnumerator = NULL;
     IMMDevice *defaultDevice = NULL;
@@ -877,37 +877,37 @@ static int setget_master_volume_vista(int setvolume, int *volume, int *mute)
     HRESULT hr;
     int ok = 0;
 
-    hr = CoInitialize(NULL);
-    if (FAILED(hr))
+    hr = CoInitialize (NULL);
+    if (FAILED (hr))
 	return 0;
-    hr = CoCreateInstance(&XIID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &XIID_IMMDeviceEnumerator, (LPVOID *)&deviceEnumerator);
-    if (FAILED(hr))
+    hr = CoCreateInstance (&XIID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &XIID_IMMDeviceEnumerator, (LPVOID *)&deviceEnumerator);
+    if (FAILED (hr))
 	return 0;
-    hr = deviceEnumerator->lpVtbl->GetDefaultAudioEndpoint(deviceEnumerator, eRender, eConsole, &defaultDevice);
-    if (SUCCEEDED(hr)) {
-	hr = defaultDevice->lpVtbl->Activate(defaultDevice, &XIID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, NULL, (LPVOID *)&endpointVolume);
-	if (SUCCEEDED(hr)) {
+    hr = deviceEnumerator->lpVtbl->GetDefaultAudioEndpoint (deviceEnumerator, eRender, eConsole, &defaultDevice);
+    if (SUCCEEDED (hr)) {
+	hr = defaultDevice->lpVtbl->Activate (defaultDevice, &XIID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, NULL, (LPVOID *)&endpointVolume);
+	if (SUCCEEDED (hr)) {
 	    if (setvolume) {
-		if (SUCCEEDED(endpointVolume->lpVtbl->SetMasterVolumeLevelScalar(endpointVolume, (float)(*volume) / (float)65535.0, NULL)))
+		if (SUCCEEDED (endpointVolume->lpVtbl->SetMasterVolumeLevelScalar (endpointVolume, (float)(*volume) / (float)65535.0, NULL)))
 		    ok++;
-		if (SUCCEEDED(endpointVolume->lpVtbl->SetMute(endpointVolume, *mute, NULL)))
+		if (SUCCEEDED (endpointVolume->lpVtbl->SetMute (endpointVolume, *mute, NULL)))
 		    ok++;
 	    } else {
 		float vol;
-		if (SUCCEEDED(endpointVolume->lpVtbl->GetMasterVolumeLevelScalar(endpointVolume, &vol))) {
+		if (SUCCEEDED (endpointVolume->lpVtbl->GetMasterVolumeLevelScalar (endpointVolume, &vol))) {
 		    ok++;
 		    *volume = vol * 65535.0;
 		}
-		if (SUCCEEDED(endpointVolume->lpVtbl->GetMute(endpointVolume, mute))) {
+		if (SUCCEEDED (endpointVolume->lpVtbl->GetMute (endpointVolume, mute))) {
 		    ok++;
 		}
 	    }
-	    endpointVolume->lpVtbl->Release(endpointVolume);
+	    endpointVolume->lpVtbl->Release (endpointVolume);
 	}
-	defaultDevice->lpVtbl->Release(defaultDevice);
+	defaultDevice->lpVtbl->Release (defaultDevice);
     }
-    deviceEnumerator->lpVtbl->Release(deviceEnumerator);
-    CoUninitialize();
+    deviceEnumerator->lpVtbl->Release (deviceEnumerator);
+    CoUninitialize ();
     return ok == 2;
 }
 
@@ -916,13 +916,13 @@ static void mcierr(char *str, DWORD err)
     char es[1000];
     if (err == MMSYSERR_NOERROR)
 	return;
-    if (mciGetErrorString(err, es, sizeof es))
+    if (mciGetErrorString (err, es, sizeof es))
 	write_log ("MCIErr: %s: %d = '%s'\n", str, err, es);
     else
 	write_log ("%s, errcode=%d\n", str, err);
 }
 /* from http://www.codeproject.com/audio/mixerSetControlDetails.asp */
-static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
+static int setget_master_volume_xp (int setvolume, int *volume, int *mute)
 {
     MMRESULT result;
     HMIXER hMixer;
@@ -934,74 +934,74 @@ static int setget_master_volume_xp(int setvolume, int *volume, int *mute)
     MIXERCONTROLDETAILS_BOOLEAN mcb = {0};
     int ok = 0;
 
-    result = mixerOpen(&hMixer, 0, 0, 0, MIXER_OBJECTF_MIXER);
+    result = mixerOpen (&hMixer, 0, 0, 0, MIXER_OBJECTF_MIXER);
     if (result == MMSYSERR_NOERROR) {
-	ml.cbStruct = sizeof(MIXERLINE);
+	ml.cbStruct = sizeof (MIXERLINE);
 	ml.dwComponentType = MIXERLINE_COMPONENTTYPE_DST_SPEAKERS;
-	result = mixerGetLineInfo((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
+	result = mixerGetLineInfo ((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
 	if (result == MIXERR_INVALLINE) {
 	    ml.dwComponentType = MIXERLINE_COMPONENTTYPE_DST_DIGITAL;
-	    result = mixerGetLineInfo((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
+	    result = mixerGetLineInfo ((HMIXEROBJ) hMixer, &ml, MIXER_GETLINEINFOF_COMPONENTTYPE);
 	}
 	if (result == MMSYSERR_NOERROR) {
-	    mlc.cbStruct = sizeof(MIXERLINECONTROLS);
+	    mlc.cbStruct = sizeof (MIXERLINECONTROLS);
 	    mlc.dwLineID = ml.dwLineID;
 	    mlc.dwControlType = MIXERCONTROL_CONTROLTYPE_VOLUME;
 	    mlc.cControls = 1;
 	    mlc.pamxctrl = &mc;
 	    mlc.cbmxctrl = sizeof(MIXERCONTROL);
-	    result = mixerGetLineControls((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
+	    result = mixerGetLineControls ((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
 	    if (result == MMSYSERR_NOERROR) {
-		mcd.cbStruct = sizeof(MIXERCONTROLDETAILS);
+		mcd.cbStruct = sizeof (MIXERCONTROLDETAILS);
 		mcd.hwndOwner = 0;
 		mcd.dwControlID = mc.dwControlID;
 		mcd.paDetails = &mcdu;
-		mcd.cbDetails = sizeof(MIXERCONTROLDETAILS_UNSIGNED);
+		mcd.cbDetails = sizeof (MIXERCONTROLDETAILS_UNSIGNED);
 		mcd.cChannels = 1;
 		mcdu.dwValue = 0;
 		if (setvolume) {
 		    mcdu.dwValue = *volume;
-		    result = mixerSetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
+		    result = mixerSetControlDetails ((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
 		} else {
-		    result = mixerGetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
+		    result = mixerGetControlDetails ((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
 		    *volume = mcdu.dwValue;
 		}
 		mlc.dwControlType = MIXERCONTROL_CONTROLTYPE_MUTE;
-		result = mixerGetLineControls((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
+		result = mixerGetLineControls ((HMIXEROBJ) hMixer, &mlc, MIXER_GETLINECONTROLSF_ONEBYTYPE);
 		if (result == MMSYSERR_NOERROR) {
 		    mcd.paDetails = &mcb;
 		    mcd.dwControlID = mc.dwControlID;
 		    mcb.fValue = 0;
-		    mcd.cbDetails = sizeof(MIXERCONTROLDETAILS_BOOLEAN);
+		    mcd.cbDetails = sizeof (MIXERCONTROLDETAILS_BOOLEAN);
 		    if (setvolume) {
-			mcb.fValue    = *mute;
-			result = mixerSetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
+			mcb.fValue = *mute;
+			result = mixerSetControlDetails ((HMIXEROBJ) hMixer, &mcd, MIXER_SETCONTROLDETAILSF_VALUE);
 		    } else {
-			result = mixerGetControlDetails((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
+			result = mixerGetControlDetails ((HMIXEROBJ) hMixer, &mcd, MIXER_GETCONTROLDETAILSF_VALUE);
 			*mute = mcb.fValue;
 		    }
 		    if (result == MMSYSERR_NOERROR)
 			ok = 1;
 		} else
-		    mcierr("mixerGetLineControls Mute", result);
+		    mcierr ("mixerGetLineControls Mute", result);
 	    } else
-		mcierr("mixerGetLineControls Volume", result);
+		mcierr ("mixerGetLineControls Volume", result);
 	} else
-	    mcierr("mixerGetLineInfo", result);
-	mixerClose(hMixer);
+	    mcierr ("mixerGetLineInfo", result);
+	mixerClose (hMixer);
     } else
-	mcierr("mixerOpen", result);
+	mcierr ("mixerOpen", result);
     return ok;
 }
 
-static int set_master_volume(int volume, int mute)
+static int set_master_volume (int volume, int mute)
 {
     if (os_vista)
 	return setget_master_volume_vista (1, &volume, &mute);
     else
 	return setget_master_volume_xp (1, &volume, &mute);
 }
-static int get_master_volume(int *volume, int *mute)
+static int get_master_volume (int *volume, int *mute)
 {
     *volume = 0;
     *mute = 0;

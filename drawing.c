@@ -1471,19 +1471,19 @@ static void init_aspect_maps (void)
 	return;
 
     linedbld = linedbl = currprefs.gfx_linedbl;
-    if (doublescan) {
+    if (doublescan && !interlace_seen) {
 	linedbl = 0;
 	linedbld = 1;
     }
 
     if (native2amiga_line_map)
-	free (native2amiga_line_map);
+	xfree (native2amiga_line_map);
     if (amiga2aspect_line_map)
-	free (amiga2aspect_line_map);
+	xfree (amiga2aspect_line_map);
 
     /* At least for this array the +1 is necessary. */
-    amiga2aspect_line_map = (int *)malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
-    native2amiga_line_map = (int *)malloc (sizeof (int) * gfxvidinfo.height);
+    amiga2aspect_line_map = malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
+    native2amiga_line_map = malloc (sizeof (int) * gfxvidinfo.height);
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
@@ -1810,8 +1810,8 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	dp_for_drawing--;
 	dip_for_drawing--;
 	linestate[lineno] = LINE_DONE_AS_PREVIOUS;
-	if (!dp_for_drawing->valid)
-	    return;
+//	if (!dp_for_drawing->valid)
+//	    return;
 	if (dp_for_drawing->plfleft == -1)
 	    border = 1;
 	break;
@@ -1999,7 +1999,16 @@ static void center_image (void)
 	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
     }
     if (currprefs.gfx_xcenter_pos >= 0) {
-	int val = (currprefs.gfx_xcenter_pos >> RES_MAX) < 56 ? 56 : (currprefs.gfx_xcenter_pos >> RES_MAX);
+	int val = currprefs.gfx_xcenter_pos >> RES_MAX;
+#if 0
+	if (currprefs.gfx_xcenter_size > 0) {
+	    int diff = ((gfxvidinfo.width << (RES_MAX - currprefs.gfx_resolution)) - currprefs.gfx_xcenter_size) / 1;
+	    write_log ("%d %d\n", currprefs.gfx_xcenter_size, gfxvidinfo.width);
+	    val -= diff >> RES_MAX;
+	}
+#endif
+	if (val < 56)
+	    val = 56;
 	visible_left_border = val + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
     }
 
@@ -2034,6 +2043,12 @@ static void center_image (void)
     }
     if (currprefs.gfx_ycenter_pos >= 0) {
 	thisframe_y_adjust = currprefs.gfx_ycenter_pos >> 1;
+#if 0
+	if (currprefs.gfx_ycenter_size > 0) {
+	    int diff = (currprefs.gfx_ycenter_size - (gfxvidinfo.height << (linedbl ? 0 : 1))) / 2;
+	    thisframe_y_adjust += diff >> 1;
+	}
+#endif
 	if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_max)
 	    thisframe_y_adjust = 2 * maxvpos_max - max_drawn_amiga_line;
 	if (thisframe_y_adjust < 0)

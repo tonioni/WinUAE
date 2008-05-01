@@ -131,7 +131,6 @@ struct uae_prefs {
     int comptrustlong;
     int comptrustnaddr;
     int compnf;
-    int compforcesettings;
     int compfpu;
     int comp_midopt;
     int comp_lowopt;
@@ -168,6 +167,7 @@ struct uae_prefs {
     int gfx_xcenter, gfx_ycenter;
     int gfx_xcenter_pos, gfx_ycenter_pos;
     int gfx_xcenter_size, gfx_ycenter_size;
+    int gfx_max_horizontal, gfx_max_vertical;
     int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
     int color_mode;
 

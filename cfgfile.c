@@ -32,6 +32,7 @@
 static int config_newfilesystem;
 static struct strlist *temp_lines;
 static struct zfile *default_file;
+static int uaeconfig;
 
 /* @@@ need to get rid of this... just cut part of the manual and print that
  * as a help text.  */
@@ -156,6 +157,8 @@ static const char *cscompa[] = {
 static const char *fullmodes[] = { "false", "true", /* "FILE_NOT_FOUND", */ "fullwindow", 0 };
 /* bleh for compatibility */
 static const char *scsimode[] = { "false", "true", "scsi", 0 };
+static const char *maxhoriz[] = { "lores", "hires", "superhires", 0 };
+static const char *maxvert[] = { "nointerlace", "interlace", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -208,7 +211,7 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
 static int isdefault (const char *s)
 {
     char tmp[MAX_DPATH];
-    if (!default_file)
+    if (!default_file || uaeconfig)
 	return 0;
     zfile_fseek (default_file, 0, SEEK_SET);
     while (zfile_fgets (tmp, sizeof tmp, default_file)) {
@@ -236,7 +239,7 @@ void cfgfile_dwrite (struct zfile *f, char *format,...)
 
     va_start (parms, format);
     vsprintf (tmp, format, parms);
-    if (1 || !isdefault (tmp))
+    if (!isdefault (tmp))
 	zfile_fwrite (tmp, 1, strlen (tmp), f);
     va_end (parms);
 }
@@ -450,7 +453,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "comp_oldsegv=%s\n", p->comp_oldsegv ? "true" : "false");
 
     cfgfile_write (f, "comp_flushmode=%s\n", flushmode[p->comp_hardflush]);
-    cfgfile_write (f, "compforcesettings=%s\n", p->compforcesettings ? "true" : "false");
     cfgfile_write (f, "compfpu=%s\n", p->compfpu ? "true" : "false");
     cfgfile_write (f, "fpu_strict=%s\n", p->fpu_strict ? "true" : "false");
     cfgfile_write (f, "comp_midopt=%s\n", p->comp_midopt ? "true" : "false");
@@ -538,10 +540,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			cfgfile_dwrite (f, "gfx_filter_mode=%s\n", filtermode1[p->gfx_filter_filtermode]);
 		    } else {
 			int mt[4], i = 0;
-			if (uf->x[1]) mt[i++] = 1;
-			if (uf->x[2]) mt[i++] = 2;
-			if (uf->x[3]) mt[i++] = 3;
-			if (uf->x[4]) mt[i++] = 4;
+			if (uf->x[1])
+			    mt[i++] = 1;
+			if (uf->x[2])
+			    mt[i++] = 2;
+			if (uf->x[3])
+			    mt[i++] = 3;
+			if (uf->x[4])
+			    mt[i++] = 4;
 			cfgfile_dwrite (f, "gfx_filter_mode=%dx\n", mt[p->gfx_filter_filtermode]);
 		    }
 		}
@@ -950,7 +956,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "gfx_colour_mode", &p->color_mode, colormode1, 1)
 	|| cfgfile_strval (option, value, "gfx_colour_mode", &p->color_mode, colormode2, 0)
 	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode1, 1)
-	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode2, 0))
+	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode2, 0)
+	|| cfgfile_strval (option, value, "gfx_max_horizontal", &p->gfx_max_horizontal, maxhoriz, 0)
+	|| cfgfile_strval (option, value, "gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0))
 	    return 1;
 
 
@@ -980,10 +988,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 		    } else {
 			int mt[4], j;
 			i = 0;
-			if (uf->x[1]) mt[i++] = 1;
-			if (uf->x[2]) mt[i++] = 2;
-			if (uf->x[3]) mt[i++] = 3;
-			if (uf->x[4]) mt[i++] = 4;
+			if (uf->x[1])
+			    mt[i++] = 1;
+			if (uf->x[2])
+			    mt[i++] = 2;
+			if (uf->x[3])
+			    mt[i++] = 3;
+			if (uf->x[4])
+			    mt[i++] = 4;
 			cfgfile_strval (option, value, "gfx_filter_mode", &i, filtermode2, 0);
 			for (j = 0; j < i; j++) {
 			    if (mt[j] == i)
@@ -1274,7 +1286,7 @@ static void parse_addmem (struct uae_prefs *p, char *buf, int num)
 
 static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *value)
 {
-    int tmpval, dummy, i;
+    int tmpval, dummyint, i;
     char *section = 0;
     char tmpbuf[CONFIG_BLEN];
 
@@ -1286,13 +1298,13 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	return 1;
     }
 
-    if (cfgfile_yesno (option, value, "scsi_a3000", &dummy)) {
-	if (dummy)
+    if (cfgfile_yesno (option, value, "scsi_a3000", &dummyint)) {
+	if (dummyint)
 	    p->cs_mbdmac = 1;
 	return 1;
     }
-    if (cfgfile_yesno (option, value, "scsi_a4000t", &dummy)) {
-	if (dummy)
+    if (cfgfile_yesno (option, value, "scsi_a4000t", &dummyint)) {
+	if (dummyint)
 	    p->cs_mbdmac = 2;
 	return 1;
     }
@@ -1330,7 +1342,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_yesno (option, value, "comp_nf", &p->compnf)
 	|| cfgfile_yesno (option, value, "comp_constjump", &p->comp_constjump)
 	|| cfgfile_yesno (option, value, "comp_oldsegv", &p->comp_oldsegv)
-	|| cfgfile_yesno (option, value, "compforcesettings", &p->compforcesettings)
+	|| cfgfile_yesno (option, value, "compforcesettings", &dummyint)
 	|| cfgfile_yesno (option, value, "compfpu", &p->compfpu)
 	|| cfgfile_yesno (option, value, "fpu_strict", &p->fpu_strict)
 	|| cfgfile_yesno (option, value, "comp_midopt", &p->comp_midopt)
@@ -1417,13 +1429,13 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	    return 1;
     }
 
-    if (cfgfile_intval (option, value, "chipmem_size", &dummy, 1)) {
-	if (dummy < 0)
+    if (cfgfile_intval (option, value, "chipmem_size", &dummyint, 1)) {
+	if (dummyint < 0)
 	    p->chipmem_size = 0x20000; /* 128k, prototype support */
-	else if (dummy == 0)
+	else if (dummyint == 0)
 	    p->chipmem_size = 0x40000; /* 256k */
 	else
-	    p->chipmem_size = dummy * 0x80000;
+	    p->chipmem_size = dummyint * 0x80000;
 	return 1;
     }
 
@@ -1972,7 +1984,7 @@ int cfgfile_get_description (const char *filename, char *description, char *host
     return result;
 }
 
-int cfgfile_configuration_change(int v)
+int cfgfile_configuration_change (int v)
 {
     static int mode;
     if (v >= 0)
@@ -2599,7 +2611,9 @@ uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae
 	    goto end;
 	}
 	zfile_fseek (configstore, 0, SEEK_SET);
+	uaeconfig++;
 	cfgfile_save_options (configstore, &currprefs, 0);
+	uaeconfig--;
 	zfile_fwrite (&zero, 1, 1, configstore);
 	zfile_fseek (configstore, 0, SEEK_SET);
 	err = 0xffffffff;
@@ -2840,7 +2854,6 @@ void default_prefs (struct uae_prefs *p, int type)
     p->comp_oldsegv = 0;
     p->compfpu = 1;
     p->fpu_strict = 0;
-    p->compforcesettings = 0;
     p->cachesize = 0;
     p->avoid_cmov = 0;
     p->avoid_dga = 0;
@@ -2878,6 +2891,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_xcenter = 0; p->gfx_ycenter = 0;
     p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
     p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;
+    p->gfx_max_horizontal = RES_HIRES;
+    p->gfx_max_vertical = 1;
     p->color_mode = 2;
 
     p->x11_use_low_bandwidth = 0;
@@ -2932,7 +2947,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_filter = 0;
     p->gfx_filter_horiz_zoom_mult = 0;
     p->gfx_filter_vert_zoom_mult = 0;
-    p->gfx_filter_filtermode = 1;
+    p->gfx_filter_filtermode = 0;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
 
     strcpy (p->df[0], "df0.adf");
@@ -3001,7 +3016,9 @@ void default_prefs (struct uae_prefs *p, int type)
     default_file = NULL;
     f = zfile_fopen_empty ("configstore", 50000);
     if (f) {
+	uaeconfig++;
 	cfgfile_save_options (f, p, 0);
+	uaeconfig--;
 	zfile_fwrite (&zero, 1, 1, f);
 	default_file = f;
     }

@@ -94,9 +94,9 @@ static int rom_size, rom_mask;
 static uae_u8 *rom;
 #endif
 
-static void do_stch(void);
+static void do_stch (void);
 
-static void INT2(void)
+static void INT2 (void)
 {
     if (!(intreq & 8)) {
 	INTREQ_0 (0x8000 | 0x0008);
@@ -130,7 +130,7 @@ static int lsn2msf (int	sectors)
     return msf;
 }
 
-static int get_toc(void)
+static int get_toc (void)
 {
     uae_u8 *buf;
     int i;
@@ -142,7 +142,7 @@ static int get_toc(void)
     i = (buf[0] << 8) | (buf[1] << 0);
     memcpy (cdrom_toc, buf, i);
     last_cd_position = (buf[4 + 2 * 11 + 8] << 16) | (buf[4 + 2 * 11 + 9] << 8) | (buf[4 + 2 * 11 + 10] << 0);
-    last_cd_position = lsn2msf(msf2lsn(last_cd_position) - 1);
+    last_cd_position = lsn2msf (msf2lsn (last_cd_position) - 1);
     if (buf[4 + 3 * 11 + 3] == 1 && (buf[4 + 3 * 11 + 1] & 0x0c) == 0x04)
 	datatrack = 1;
     return 1;
@@ -157,7 +157,7 @@ static void finished_cdplay (void)
     do_stch ();
 }
 
-static int get_qcode(void)
+static int get_qcode (void)
 {
     uae_u8 *s;
     static uae_u8 subq0;
@@ -180,7 +180,7 @@ static int get_qcode(void)
     return 1;
 }
 
-static void cdaudiostop(void)
+static void cdaudiostop (void)
 {
     cd_finished = 0;
     if (cd_playing)
@@ -218,22 +218,22 @@ static int read_sectors(int start, int length)
     cd_motor = 1;
     cd_audio_status = AUDIO_STATUS_NOT_SUPPORTED;
     if (cd_playing)
-	cdaudiostop();
+	cdaudiostop ();
     return 0;
 }
 
-static int ismedia(void)
+static int ismedia (void)
 {
     if (unitnum < 0)
 	return 0;
     return sys_command_ismedia (DF_IOCTL, unitnum, 0);
 }
 
-static void do_play(void)
+static void do_play (void)
 {
     sys_command_cd_pause (DF_IOCTL, unitnum, 0);
     cd_audio_status = AUDIO_STATUS_PLAY_ERROR;
-    if (sys_command_cd_play (DF_IOCTL, unitnum, lsn2msf(play_start), lsn2msf(play_end), 0)) {
+    if (sys_command_cd_play (DF_IOCTL, unitnum, lsn2msf (play_start), lsn2msf (play_end), 0)) {
 	cd_audio_status = AUDIO_STATUS_IN_PROGRESS;
 	cd_playing = 1;
     } else {
@@ -262,17 +262,17 @@ static int play_cdtrack (uae_u8 *p)
 	if (track_end == s[3])
 	    end = (s[8] << 16) | (s[9] << 8) | s[10];
     }
-    play_end = msf2lsn(end);
-    play_start = msf2lsn(start);
-    write_log ("PLAY CD AUDIO from %d-%d, %06.6X (%d) to %06.6X (%d)\n",
-	track_start, track_end, start, msf2lsn(start), end, msf2lsn(end));
+    play_end = msf2lsn (end);
+    play_start = msf2lsn (start);
+    write_log ("PLAY CD AUDIO from %d-%d, %06X (%d) to %06X (%d)\n",
+	track_start, track_end, start, msf2lsn (start), end, msf2lsn (end));
     play_state = 1;
     play_state_cmd = 1;
     return 0;
 }
 
 
-static int play_cd(uae_u8 *p)
+static int play_cd (uae_u8 *p)
 {
     uae_u32 start, end;
 
@@ -301,22 +301,22 @@ static int play_cd(uae_u8 *p)
     }
     if (end == 0x00ffffff || end > last_cd_position)
 	end = last_cd_position;
-    play_end = msf2lsn(end);
-    play_start = msf2lsn(start);
-    write_log ("PLAY CD AUDIO from %06.6X (%d) to %06.6X (%d)\n",
-	start, msf2lsn(start), end, msf2lsn(end));
+    play_end = msf2lsn (end);
+    play_start = msf2lsn (start);
+    write_log ("PLAY CD AUDIO from %06X (%d) to %06X (%d)\n",
+	start, msf2lsn (start), end, msf2lsn (end));
     play_state = 1;
     play_state_cmd = 1;
     return 0;
 }
 
-static int cdrom_subq(uae_u8 *out, int msflsn)
+static int cdrom_subq (uae_u8 *out, int msflsn)
 {
     uae_u8 *s = cdrom_qcode;
     uae_u32 trackposlsn, trackposmsf;
     uae_u32 diskposlsn, diskposmsf;
 
-    get_qcode();
+    get_qcode ();
     out[0] = cd_audio_status;
     s += 4;
     out[1] = s[1];
@@ -339,13 +339,13 @@ static int cdrom_subq(uae_u8 *out, int msflsn)
     return 13;
 }
 
-static int cdrom_info(uae_u8 *out)
+static int cdrom_info (uae_u8 *out)
 {
     uae_u8 *p;
     uae_u32 size;
     int i;
 
-    if (!ismedia())
+    if (!ismedia ())
 	return -1;
     cd_motor = 1;
     out[0] = cdrom_toc[2];
@@ -363,12 +363,12 @@ static int cdrom_info(uae_u8 *out)
     return 5;
 }
 
-static int read_toc(int track, int msflsn, uae_u8 *out)
+static int read_toc (int track, int msflsn, uae_u8 *out)
 {
     uae_u8 *buf = cdrom_toc, *s;
     int i, j;
 
-    if (!ismedia())
+    if (!ismedia ())
 	return -1;
     if (!out)
 	return 0;
@@ -396,7 +396,7 @@ static int read_toc(int track, int msflsn, uae_u8 *out)
     return -1;
 }
 
-static int cdrom_modeset(uae_u8 *cmd)
+static int cdrom_modeset (uae_u8 *cmd)
 {
     cdtv_sectorsize = (cmd[2] << 8) | cmd[3];
     if (cdtv_sectorsize != 2048 && cdtv_sectorsize != 2336) {
@@ -406,7 +406,7 @@ static int cdrom_modeset(uae_u8 *cmd)
     return 0;
 }
 
-static void cdrom_command_accepted(int size, uae_u8 *cdrom_command_input, int *cdrom_command_cnt_in)
+static void cdrom_command_accepted (int size, uae_u8 *cdrom_command_input, int *cdrom_command_cnt_in)
 {
 #ifdef CDTV_DEBUG_CMD
     char tmp[200];
@@ -430,7 +430,7 @@ static void cdrom_command_accepted(int size, uae_u8 *cdrom_command_input, int *c
     cdrom_command_done = 1;
 }
 
-static void cdrom_command_thread(uae_u8 b)
+static void cdrom_command_thread (uae_u8 b)
 {
     static uae_u8 cdrom_command_input[16];
     static int cdrom_command_cnt_in;
@@ -444,39 +444,39 @@ static void cdrom_command_thread(uae_u8 b)
     {
 	case 0x01: /* seek */
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0x02: /* read */
 	if (cdrom_command_cnt_in == 7) {
 	    read_sectors((s[1] << 16) | (s[2] << 8) | (s[3] << 0), (s[4] << 8) | (s[5] << 0));
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x04: /* motor on */
 	if (cdrom_command_cnt_in == 7) {
 	    cd_motor = 1;
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0x05: /* motor off */
 	if (cdrom_command_cnt_in == 7) {
 	    cd_motor = 0;
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0x09: /* play (lsn) */
 	case 0x0a: /* play (msf) */
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(play_cd(cdrom_command_input), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (play_cd (cdrom_command_input), s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x0b:
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(play_cdtrack(cdrom_command_input), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (play_cdtrack (cdrom_command_input), s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x81:
@@ -495,7 +495,7 @@ static void cdrom_command_thread(uae_u8 b)
 	    if (cd_media)
 		flag |= 1 << 6;
 	    cdrom_command_output[0] = flag;
-	    cdrom_command_accepted(1, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (1, s, &cdrom_command_cnt_in);
 	    cd_finished = 0;
 	    if (first == -1)
 		first = 1;
@@ -507,59 +507,59 @@ static void cdrom_command_thread(uae_u8 b)
 		cdrom_command_output[2] |= 1 << 4;
 	    cd_error = 0;
 	    cd_isready = 0;
-	    cdrom_command_accepted(6, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (6, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0x83:
         if (cdrom_command_cnt_in == 7) {
 	    memcpy (cdrom_command_output, MODEL_NAME, strlen (MODEL_NAME)); 
-	    cdrom_command_accepted(strlen (MODEL_NAME), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (strlen (MODEL_NAME), s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	case 0x84:
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(cdrom_modeset(cdrom_command_input), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (cdrom_modeset (cdrom_command_input), s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0x87: /* subq */
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(cdrom_subq (cdrom_command_output, cdrom_command_input[1] & 2), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (cdrom_subq (cdrom_command_output, cdrom_command_input[1] & 2), s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x89:
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(cdrom_info(cdrom_command_output), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (cdrom_info (cdrom_command_output), s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x8a: /* read toc */
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(read_toc(cdrom_command_input[2], cdrom_command_input[1] & 2, cdrom_command_output), s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (read_toc (cdrom_command_input[2], cdrom_command_input[1] & 2, cdrom_command_output), s, &cdrom_command_cnt_in);
 	}
 	break;
 	case 0x8b:
 	if (cdrom_command_cnt_in == 7) {
 	    pause_audio (s[1] == 0x00 ? 1 : 0);
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	case 0xa3: /* front panel */
 	if (cdrom_command_cnt_in == 7) {
-	    cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	    cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	    cd_finished = 1;
 	}
 	break;
 	default:
 	write_log ("unknown CDROM command %02.2X!\n", s[0]);
 	cd_error = 1;
-	cdrom_command_accepted(0, s, &cdrom_command_cnt_in);
+	cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	break;
     }
 }
 
-static uae_u8 *read_raw(int sector, int size)
+static uae_u8 *read_raw (int sector, int size)
 {
     int osector = sector;
     static struct zfile *f;
@@ -570,7 +570,7 @@ static uae_u8 *read_raw(int sector, int size)
     uae_u32 prevlsn = 0;
     uae_u8 *s = cdrom_toc + 4;
 
-    memset(buf, 0, sizeof buf);
+    memset (buf, 0, sizeof buf);
     trackcnt = 0;
     for (;;) {
 	uae_u32 msf = (s[8] << 16) | (s[9] << 8) | s[10];
@@ -587,9 +587,9 @@ static uae_u8 *read_raw(int sector, int size)
 	s += 11;
     }
     if (track != trackcnt) {
-	sprintf(fname, "track%d.bin", trackcnt);
-	zfile_fclose(f);
-	f = zfile_fopen(fname, "rb");
+	sprintf (fname, "track%d.bin", trackcnt);
+	zfile_fclose (f);
+	f = zfile_fopen (fname, "rb");
 	if (!f)
 	    write_log ("failed to open '%s'\n", fname);
 	else
@@ -661,20 +661,20 @@ static void *dev_thread (void *p)
 	switch (b)
 	{
 	    case 0x0100:
-	    dma_do_thread();
+	    dma_do_thread ();
 	    break;
 	    case 0x0101:
 	    {
-		if (ismedia() != cd_media) {
-		    cd_media = ismedia();
-		    get_toc();
+		if (ismedia () != cd_media) {
+		    cd_media = ismedia ();
+		    get_toc ();
 		    activate_stch = 1;
 		    cd_error = 1;
 		    if (!cd_media)
 			cd_hunt = 1;
 		}
 		if (cd_media)
-		    get_qcode();
+		    get_qcode ();
 	    }
 	    break;
 	    case 0x0102: // pause
@@ -687,7 +687,7 @@ static void *dev_thread (void *p)
 	    cdaudiostop();
 	    break;
 	    case 0x0110: // do_play!
-	    do_play();
+	    do_play ();
 	    break;
 	    case 0xffff:
 	    thread_alive = -1;
@@ -700,7 +700,7 @@ static void *dev_thread (void *p)
     }
 }
 
-static void cdrom_command(uae_u8 b)
+static void cdrom_command (uae_u8 b)
 {
     write_comm_pipe_u32 (&requests, b, 1);
 }
@@ -708,7 +708,7 @@ static void cdrom_command(uae_u8 b)
 static uae_u8 tp_a, tp_b, tp_c, tp_ad, tp_bd, tp_cd;
 static uae_u8 tp_imr, tp_cr, tp_air;
 
-static void tp_check_interrupts(void)
+static void tp_check_interrupts (void)
 {
     /* MC = 1 ? */
     if ((tp_cr & 1) != 1)
@@ -836,32 +836,32 @@ static void REGPARAM3 dmac_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 dmac_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 dmac_bput (uaecptr, uae_u32) REGPARAM;
 
-static void dmac_start_dma(void)
+static void dmac_start_dma (void)
 {
     if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 	write_comm_pipe_u32 (&requests, 0x0100, 1);
     }
 }
 
-void cdtv_getdmadata(uae_u32 *acr)
+void cdtv_getdmadata (uae_u32 *acr)
 {
     *acr = dmac_acr;
 }
 
-static void do_hunt(void)
+static void do_hunt (void)
 {
     int i;
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (sys_command_ismedia(DF_IOCTL, i, 1) > 0)
+	if (sys_command_ismedia (DF_IOCTL, i, 1) > 0)
 	    break;
     }
     if (i == MAX_TOTAL_DEVICES)
 	return;
     if (unitnum >= 0) {
-	cdaudiostop();
-	sys_command_close(DF_IOCTL, unitnum);
+	cdaudiostop ();
+	sys_command_close (DF_IOCTL, unitnum);
     }
-    if (sys_command_open(DF_IOCTL, i) > 0) {
+    if (sys_command_open (DF_IOCTL, i) > 0) {
 	unitnum = i;
 	cd_hunt = 0;
 	write_log ("CDTV: autodetected unit %d\n", unitnum);
@@ -870,11 +870,11 @@ static void do_hunt(void)
     }
 }
 
-static void checkint(void)
+static void checkint (void)
 {
     int irq = 0;
 
-    if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus() & 0x80)) {
+    if (currprefs.cs_cdtvscsi && (wdscsi_getauxstatus () & 0x80)) {
 	dmac_istr |= ISTR_INTS;
 	if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_INTS))
 	    irq = 1;
@@ -882,7 +882,7 @@ static void checkint(void)
     if ((dmac_cntr & CNTR_INTEN) && (dmac_istr & ISTR_E_INT))
 	irq = 1;
     if (irq)
-	INT2();
+	INT2 ();
 }
 
 void cdtv_scsi_int (void)
@@ -901,7 +901,7 @@ void rethink_cdtv (void)
 }
 
 
-void CDTV_hsync_handler(void)
+void CDTV_hsync_handler (void)
 {
     static int subqcnt;
 
@@ -927,7 +927,7 @@ void CDTV_hsync_handler(void)
     if (cdrom_command_done) {
 	cdrom_command_done = 0;
 	sten = 1;
-	tp_check_interrupts();
+	tp_check_interrupts ();
     }
 
     if (cdtv_hsync < 312 * 50 / 75 && cdtv_hsync >= 0)
@@ -937,7 +937,7 @@ void CDTV_hsync_handler(void)
     if (first > 0) {
 	first--;
 	if (first == 0)
-	    do_stch();
+	    do_stch ();
     }
 
     if (play_state == 1) {
@@ -956,13 +956,13 @@ void CDTV_hsync_handler(void)
     if (cd_isready > 0) {
 	cd_isready--;
 	if (!cd_isready)
-	    do_stch();
+	    do_stch ();
     }
     if (cd_playing)
 	gui_cd_led (0, 1);
     if (cd_media && (tp_cr & 1)) {
 	tp_air |= 1 << 1;
-	INT2();
+	INT2 ();
     }
 
     subqcnt--;
@@ -970,10 +970,10 @@ void CDTV_hsync_handler(void)
 	write_comm_pipe_u32 (&requests, 0x0101, 1);
 	subqcnt = 75;
 	if (cd_hunt)
-	    do_hunt();
+	    do_hunt ();
     }
     if (activate_stch)
-	do_stch();
+	do_stch ();
 }
 
 static void do_stch (void)
@@ -1043,12 +1043,12 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	break;
 	case 0x91:
 	if (currprefs.cs_cdtvscsi)
-	    v = wdscsi_getauxstatus();
+	    v = wdscsi_getauxstatus ();
 	break;
 	case 0x93:
 	if (currprefs.cs_cdtvscsi) {
-	    v = wdscsi_get();
-	    checkint();
+	    v = wdscsi_get ();
+	    checkint ();
 	}
 	break;
 	case 0xa1:
@@ -1062,7 +1062,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 		cdrom_command_cnt_out = -1;
 	    } else {
 		sten = 1;
-		tp_check_interrupts();
+		tp_check_interrupts ();
 	    }
 	}
 	break;
@@ -1147,13 +1147,13 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0x91:
 	if (currprefs.cs_cdtvscsi) {
 	    wdscsi_sasr (b);
-	    checkint();
+	    checkint ();
 	}
 	break;
 	case 0x93:
 	if (currprefs.cs_cdtvscsi) {
 	    wdscsi_put (b);
-	    checkint();
+	    checkint ();
 	}
 	break;
 	case 0xa1:
@@ -1163,7 +1163,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0xe1:
 	if (!dmac_dma) {
 	    dmac_dma = 1;
-	    dmac_start_dma();
+	    dmac_start_dma ();
 	}
 	break;
 	case 0xe2:
@@ -1174,7 +1174,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0xe4:
 	case 0xe5:
 	dmac_istr = 0;
-	checkint();
+	checkint ();
 	break;
 	case 0xe8:
 	case 0xe9:
@@ -1182,7 +1182,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	break;
     }
 
-    tp_check_interrupts();
+    tp_check_interrupts ();
 }
 
 static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
@@ -1289,8 +1289,8 @@ static void open_unit(void)
     if (unitnum >= 0)
 	sys_command_close (DF_IOCTL, unitnum);
     unitnum = -1;
-    cdtv_reset();
-    if (!device_func_init(DEVICE_TYPE_ANY)) {
+    cdtv_reset ();
+    if (!device_func_init (DEVICE_TYPE_ANY)) {
 	write_log ("no CDROM support\n");
 	return;
     }
@@ -1331,12 +1331,12 @@ static void open_unit(void)
     cd_media = 0;
     if (unitnum >= 0) {
 	sys_command_open (DF_IOCTL, unitnum);
-	cd_media = ismedia();
+	cd_media = ismedia ();
 	if (!cd_media)
 	    cd_hunt = 1;
 	if (!get_toc())
 	    cd_media = 0;
-	cdaudiostop();
+	cdaudiostop ();
     }
 }
 
@@ -1494,12 +1494,12 @@ void cdtv_free (void)
 	write_comm_pipe_u32 (&requests, 0x0104, 1);
 	write_comm_pipe_u32 (&requests, 0xffff, 1);
 	while (thread_alive > 0)
-	    sleep_millis(10);
+	    sleep_millis (10);
     }
     thread_alive = 0;
     cdaudiostop ();
     if (unitnum >= 0)
-	sys_command_close(DF_IOCTL, unitnum);
+	sys_command_close (DF_IOCTL, unitnum);
     unitnum = -1;
     configured = 0;
 }
@@ -1584,5 +1584,5 @@ void cdtv_init (void)
     /* KS autoconfig handles the rest */
     map_banks (&dmac_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
     cdtv_battram_reset ();
-    open_unit();
+    open_unit ();
 }

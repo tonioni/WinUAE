@@ -16,23 +16,23 @@
 
 struct uae_filter uaefilters[] =
 {
-    { UAE_FILTER_NULL, 0, "Null filter", "null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+    { UAE_FILTER_NULL, 0, 1, "Null filter", "null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
-    { UAE_FILTER_DIRECT3D, 0, "Direct3D", "direct3d", 1, 0, 0, 0, 0 },
+    { UAE_FILTER_DIRECT3D, 0, 1, "Direct3D", "direct3d", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_OPENGL, 0, "OpenGL", "opengl", 1, 0, 0, 0, 0 },
+    { UAE_FILTER_OPENGL, 0, 1, "OpenGL", "opengl", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_SCALE2X, 0, "Scale2X", "scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
+    { UAE_FILTER_SCALE2X, 0, 2, "Scale2X", "scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
 
-    { UAE_FILTER_HQ, 0, "hq2x/3x/4x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+    { UAE_FILTER_HQ, 0, 2, "hq2x/3x/4x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-    { UAE_FILTER_SUPEREAGLE, 0, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_SUPEREAGLE, 0, 2, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
 
-    { UAE_FILTER_SUPER2XSAI, 0, "Super2xSaI", "super2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_SUPER2XSAI, 0, 2, "Super2xSaI", "super2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
 
-    { UAE_FILTER_2XSAI, 0, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_2XSAI, 0, 2, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
 
-    { UAE_FILTER_PAL, 1, "PAL", "pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+    { UAE_FILTER_PAL, 1, 1, "PAL", "pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
     { 0 }
 };

@@ -117,6 +117,7 @@ extern addrbank akiko_bank;
 extern addrbank cardmem_bank;
 
 extern void rtarea_init (void);
+extern void rtarea_init_mem (void);
 extern void rtarea_setup (void);
 extern void expamem_init (void);
 extern void expamem_reset (void);

@@ -923,7 +923,7 @@ static int scan_roms_3(void *fkey, char **paths, char *path)
     char pathp[MAX_DPATH];
 
     ret = 0;
-    GetFullPathName(path, MAX_DPATH, pathp, NULL);
+    GetFullPathName (path, MAX_DPATH, pathp, NULL);
     for (i = 0; i < MAX_ROM_PATHS; i++) {
 	if (paths[i] && !strcmpi(paths[i], pathp))
 	    return ret;
@@ -1126,11 +1126,11 @@ void gui_display (int shortcut)
 	return;
     here++;
     gui_active++;
+    setpaused ();
     screenshot_prepare ();
 #ifdef D3D
     D3D_guimode (TRUE);
 #endif
-    setpaused ();
     inputdevice_unacquire ();
     clearallkeys ();
     setmouseactive (0);
@@ -5475,7 +5475,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	    break;
 
 	case IDC_MAPROM:
-	    workprefs.maprom = IsDlgButtonChecked(hDlg, IDC_MAPROM) ? 0xe00000 : 0;
+	    workprefs.maprom = IsDlgButtonChecked(hDlg, IDC_MAPROM) ? 0x0f000000 : 0;
 	    break;
 #if 0
 	case IDC_HRTMON:
@@ -5958,38 +5958,21 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_CS_CACHE_TEXT, enable);
     ew (hDlg, IDC_CACHE, enable);
     ew (hDlg, IDC_CACHETEXT, enable);
-    ew (hDlg, IDC_FORCE, enable);
     ew (hDlg, IDC_JITENABLE, cpu_based_enable);
     ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
     ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 
     fpu = TRUE;
-    if (workprefs.cpu_model < 68020 || workprefs.cpu_model > 68030)
+    if (workprefs.cpu_model > 68030 || workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
 	fpu = FALSE;
     ew (hDlg, IDC_FPU1, fpu);
     ew (hDlg, IDC_FPU2, fpu);
     ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
-
-#ifdef JIT
-    if(enable) {
-	if (!canbang) {
-	    workprefs.compforcesettings = TRUE;
-	    workprefs.comptrustbyte = 1;
-	    workprefs.comptrustword = 1;
-	    workprefs.comptrustlong = 1;
-	    workprefs.comptrustnaddr= 1;
-	}
-    } else {
-	workprefs.cachesize = 0; // Disable JIT
-    }
-#endif
 }
 
 static void values_to_cpudlg (HWND hDlg)
 {
     char cache[8] = "";
-    BOOL enable = FALSE;
-    BOOL cpu_based_enable = FALSE;
     int cpu;
 
     SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT );
@@ -6011,40 +5994,12 @@ static void values_to_cpudlg (HWND hDlg)
     else
 	CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_ADJUSTABLE);
 
-    cpu_based_enable = (workprefs.cpu_model >= 68020) && (workprefs.address_space_24 == 0);
-
-    enable = cpu_based_enable && workprefs.cachesize;
-
-#ifdef JIT
-    if(enable) {
-	if (!canbang || !candirect) {
-	    workprefs.compforcesettings = TRUE;
-	    workprefs.comptrustbyte = 1;
-	    workprefs.comptrustword = 1;
-	    workprefs.comptrustlong = 1;
-	    workprefs.comptrustnaddr = 1;
-	}
-    } else {
-#endif
-	workprefs.cachesize = 0; // Disable JIT
-#ifdef JIT
-    }
-#endif
-
-    if (!workprefs.compforcesettings) {
-	workprefs.comptrustbyte = 0;
-	workprefs.comptrustword = 0;
-	workprefs.comptrustlong = 0;
-	workprefs.comptrustnaddr= 0;
-    }
-
     CheckRadioButton (hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
 
     SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
     sprintf (cache, "%d MB", workprefs.cachesize / 1024 );
     SetDlgItemText (hDlg, IDC_CACHETEXT, cache);
 
-    CheckDlgButton (hDlg, IDC_FORCE, workprefs.compforcesettings);
     CheckDlgButton (hDlg, IDC_NOFLAGS, workprefs.compnf);
     CheckDlgButton (hDlg, IDC_JITFPU, workprefs.compfpu);
     CheckDlgButton (hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
@@ -6055,7 +6010,7 @@ static void values_to_cpudlg (HWND hDlg)
 static void values_from_cpudlg (HWND hDlg)
 {
     int newcpu, newfpu, newtrust, oldcache, jitena;
-    static int cachesize_prev, comptrust_prev, compforce_prev;
+    static int cachesize_prev, trust_prev;
 
     workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (IsDlgButtonChecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
     workprefs.fpu_strict = IsDlgButtonChecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
@@ -6081,7 +6036,9 @@ static void values_from_cpudlg (HWND hDlg)
     {
 	case 68000:
 	case 68010:
-	    workprefs.fpu_model = 0;
+	    workprefs.fpu_model = newfpu == 0 ? 0 : (newfpu == 2 ? 68882 : 68881);
+	    if (workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
+		workprefs.fpu_model = 0;
 	    workprefs.address_space_24 = 1;
 	    if (newcpu == 0 && workprefs.cpu_cycle_exact)
 		workprefs.m68k_speed = 0;
@@ -6104,14 +6061,13 @@ static void values_from_cpudlg (HWND hDlg)
 	    workprefs.address_space_24 = 0;
 	break;
     }
-    newtrust = (IsDlgButtonChecked (hDlg, IDC_TRUST0) ? 0
-	: IsDlgButtonChecked (hDlg, IDC_TRUST1) ? 1 : 3);
+
+    newtrust = IsDlgButtonChecked (hDlg, IDC_TRUST0) ? 0 : 1;
     workprefs.comptrustbyte = newtrust;
     workprefs.comptrustword = newtrust;
     workprefs.comptrustlong = newtrust;
     workprefs.comptrustnaddr= newtrust;
 
-    workprefs.compforcesettings = IsDlgButtonChecked (hDlg, IDC_FORCE);
     workprefs.compnf            = IsDlgButtonChecked (hDlg, IDC_NOFLAGS);
     workprefs.compfpu           = IsDlgButtonChecked (hDlg, IDC_JITFPU);
     workprefs.comp_hardflush    = IsDlgButtonChecked (hDlg, IDC_HARDFLUSH);
@@ -6123,25 +6079,20 @@ static void values_from_cpudlg (HWND hDlg)
     workprefs.cachesize = SendMessage (GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
     if (!jitena) {
 	cachesize_prev = workprefs.cachesize;
-	comptrust_prev = workprefs.comptrustbyte;
-	compforce_prev = workprefs.compforcesettings;
+	trust_prev = workprefs.comptrustbyte;
 	workprefs.cachesize = 0;
     } else if (jitena && !oldcache) {
 	workprefs.cachesize = 8192;
 	if (cachesize_prev) {
 	    workprefs.cachesize = cachesize_prev;
-	    workprefs.comptrustbyte = comptrust_prev;
-	    workprefs.comptrustword = comptrust_prev;
-	    workprefs.comptrustlong = comptrust_prev;
-	    workprefs.comptrustnaddr = comptrust_prev;
-	    workprefs.compforcesettings = compforce_prev;
+	    workprefs.comptrustbyte = trust_prev;
+	    workprefs.comptrustword = trust_prev;
+	    workprefs.comptrustlong = trust_prev;
+	    workprefs.comptrustnaddr = trust_prev;
 	}
     }
-    if (oldcache == 0 && workprefs.cachesize > 0)
+    if (oldcache == 0 && candirect && workprefs.cachesize > 0)
 	canbang = 1;
-    if (!candirect)
-	canbang = 0;
-
 #endif
     workprefs.cpu_idle = SendMessage (GetDlgItem (hDlg, IDC_CPUIDLE), TBM_GETPOS, 0, 0);
     if (workprefs.cpu_idle > 0)
@@ -6256,10 +6207,14 @@ static void sound_loaddrivesamples (void)
 
     free (drivesounds);
     p = drivesounds = 0;
-    sprintf (dirname, "%s\\uae_data\\*.wav", start_path_data);
+    sprintf (dirname, "%s\\%sfloppysounds\\*.wav", start_path_data, WIN32_PLUGINDIR);
     h = FindFirstFile (dirname, &fd);
-    if (h == INVALID_HANDLE_VALUE)
-	return;
+    if (h == INVALID_HANDLE_VALUE) {
+	sprintf (dirname, "%s\\uae_data\\*.wav", start_path_data);
+	 h = FindFirstFile (dirname, &fd);
+	 if (h == INVALID_HANDLE_VALUE)
+	    return;
+    }
     for (;;) {
 	if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
 	    char *name = fd.cFileName;
@@ -8617,7 +8572,7 @@ static void values_to_portsdlg (HWND hDlg)
 	if(result < 0 && workprefs.sername[0]) {
 	    // Warn the user that their COM-port selection is not valid on this machine
 	    char szMessage[MAX_DPATH];
-	    WIN32GUI_LoadUIString(IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
+	    WIN32GUI_LoadUIString (IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
 	    pre_gui_message (szMessage);
 	    // Select "none" as the COM-port
 	    SendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);

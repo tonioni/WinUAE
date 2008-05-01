@@ -60,6 +60,7 @@ extern void inputdevice_config_change (void);
 extern int inputdevice_config_change_test (void);
 extern int inputdevice_get_device_index (int devnum);
 extern char *inputdevice_get_device_name (int type, int devnum);
+extern char *inputdevice_get_device_unique_name (int type, int devnum);
 extern int inputdevice_get_device_status (int devnum);
 extern void inputdevice_set_device_status (int devnum, int enabled);
 extern int inputdevice_get_device_total (int type);
@@ -146,12 +147,14 @@ extern void inputdevice_handle_inputcode (void);
 #define JSEM_JOYS 100
 #define JSEM_MICE 200
 #define JSEM_END 300
+#define JSEM_XARCADE1LAYOUT (JSEM_KBDLAYOUT + 3)
+#define JSEM_XARCADE2LAYOUT (JSEM_KBDLAYOUT + 4)
 #define JSEM_DECODEVAL(port,p) ((p)->jports[port].id)
 #define JSEM_ISNUMPAD(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT)
 #define JSEM_ISCURSOR(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 1)
 #define JSEM_ISSOMEWHEREELSE(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 2)
-#define JSEM_ISXARCADE1(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 3)
-#define JSEM_ISXARCADE2(port,p) (jsem_iskbdjoy(port,p) == JSEM_KBDLAYOUT + 4)
+#define JSEM_ISXARCADE1(port,p) (jsem_iskbdjoy(port,p) == JSEM_XARCADE1LAYOUT)
+#define JSEM_ISXARCADE2(port,p) (jsem_iskbdjoy(port,p) == JSEM_XARCADE2LAYOUT)
 #define JSEM_LASTKBD 5
 #define JSEM_ISANYKBD(port,p) (jsem_iskbdjoy(port,p) >= JSEM_KBDLAYOUT && jsem_iskbdjoy(port,p) < JSEM_KBDLAYOUT + JSEM_LASTKBD)
 

@@ -185,7 +185,7 @@ static int specialkeycode (void)
 }
 static int specialpressed (void)
 {
-    return ispressed(specialkeycode());
+    return ispressed (specialkeycode ());
 }
 
 static int shiftpressed (void)
@@ -268,24 +268,24 @@ static int handlecdtv (int scancode, int state)
     switch (scancode)
     {
 	case DIK_UP:
-	if (specialpressed())
+	if (specialpressed ())
 	    e = INPUTEVENT_KEY_CDTV_PLAYPAUSE;
 	break;
 	case DIK_DOWN:
-	if (specialpressed())
+	if (specialpressed ())
 	    e = INPUTEVENT_KEY_CDTV_STOP;
 	break;
 	case DIK_LEFT:
-	if (specialpressed()) {
-	    if (shiftpressed())
+	if (specialpressed ()) {
+	    if (shiftpressed ())
 		e = INPUTEVENT_KEY_CDTV_REW;
 	    else
 		e = INPUTEVENT_KEY_CDTV_PREV;
 	}
 	break;
 	case DIK_RIGHT:
-	if (specialpressed()) {
-	    if (shiftpressed())
+	if (specialpressed ()) {
+	    if (shiftpressed ())
 		e = INPUTEVENT_KEY_CDTV_FF;
 	    else
 		e = INPUTEVENT_KEY_CDTV_NEXT;
@@ -346,15 +346,12 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
     DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
     DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
 
-int filesys_insert(int nr, char *volume, char *rootdir, int readonly, int flags);
-int filesys_eject(int nr);
-
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
     int code = 0;
     static int swapperdrive = 0;
 
-    if (scancode == specialkeycode())
+    if (scancode == specialkeycode ())
 	return;
 
     //write_log ( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate );
@@ -375,7 +372,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    break;
 	    case DIK_F11:
 	    if (currprefs.win32_ctrl_F11_is_quit) {
-		if (ctrlpressed())
+		if (ctrlpressed ())
 		    code = AKS_QUIT;
 	    }
 	    break;
@@ -453,7 +450,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    }
 	    break;
 	    case DIK_SYSRQ:
-	    screenshot (specialpressed() ? 1 : 0, 1);
+	    screenshot (specialpressed () ? 1 : 0, 1);
 	    break;
 	    case DIK_PAUSE:
 	    if (specialpressed ()) {
@@ -490,7 +487,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    break;
 	    case DIK_NUMPADSTAR:
 	    if (specialpressed ()) {
-		if (ctrlpressed())
+		if (ctrlpressed ())
 		    code = AKS_MVOLMUTE;
 		else
 		    code = AKS_VOLMUTE;
@@ -508,7 +505,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	return;
     }
 
-    if (!specialpressed() && scancode == DIK_CAPITAL) {
+    if (!specialpressed () && scancode == DIK_CAPITAL) {
 	if (!newstate)
 	    return;
 	capslockstate = capslockstate ? 0 : 1;

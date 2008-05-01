@@ -24,8 +24,8 @@ static int old_pri;
 
 void lcd_close(void)
 {
-    lgLcdDeInit();
-    xfree(lbh);
+    lgLcdDeInit ();
+    xfree (lbh);
     lbh = NULL;
     bitmap = NULL;
     inited = 0;
@@ -41,7 +41,7 @@ static int lcd_init(void)
     int x, y;
 
     old_pri = 0;
-    ret = lgLcdInit();
+    ret = lgLcdInit ();
     if (ret != ERROR_SUCCESS) {
 	if (ret == RPC_S_SERVER_UNAVAILABLE || ret == ERROR_OLD_WIN_VERSION) {
 	    write_log ("LCD: Logitech LCD system not detected\n");
@@ -54,13 +54,13 @@ static int lcd_init(void)
     cctx.appFriendlyName = "WinUAE";
     cctx.isPersistent = TRUE;
     cctx.isAutostartable = FALSE;
-    ret = lgLcdConnect(&cctx);
+    ret = lgLcdConnect (&cctx);
     if (ret != ERROR_SUCCESS) {
 	write_log ("LCD: lgLcdConnect() returned %d\n", ret);
 	lcd_close();
 	return 0;
     }
-    ret = lgLcdEnumerate(cctx.connection, 0, &desc);
+    ret = lgLcdEnumerate (cctx.connection, 0, &desc);
     if (ret != ERROR_SUCCESS) {
 	write_log ("LCD: lgLcdEnumerate() returned %d\n", ret);
 	lcd_close();
@@ -73,7 +73,7 @@ static int lcd_init(void)
     memset (&octx, 0, sizeof (octx));
     octx.connection = cctx.connection;
     octx.index = 0;
-    ret = lgLcdOpen(&octx);
+    ret = lgLcdOpen (&octx);
     if (ret != ERROR_SUCCESS) {
 	write_log ("LCD: lgLcdOpen() returned %d\n", ret);
 	lcd_close();
@@ -81,18 +81,18 @@ static int lcd_init(void)
     }
     device = octx.device;
 
-    bmp = LoadBitmap(hInst, MAKEINTRESOURCE(IDB_LCD160X43));
-    dc = CreateCompatibleDC(NULL);
+    bmp = LoadBitmap (hInst, MAKEINTRESOURCE(IDB_LCD160X43));
+    dc = CreateCompatibleDC (NULL);
     SelectObject(dc, bmp);
     GetObject (bmp, sizeof (binfo), &binfo);
     for (y = 0; y < binfo.bmHeight; y++) {
 	for (x = 0; x < binfo.bmWidth; x++) {
-	    bitmap[y * binfo.bmWidth + x] = GetPixel(dc, x, y) == 0 ? 0xff : 0;
+	    bitmap[y * binfo.bmWidth + x] = GetPixel (dc, x, y) == 0 ? 0xff : 0;
 	}
     }
     numbers = bitmap + desc.Width * desc.Height;
     memcpy (origbitmap, bitmap, desc.Width * desc.Height);
-    DeleteDC(dc);
+    DeleteDC (dc);
 
     write_log ("LCD: Logitech LCD system initialized\n");
     return 1;
@@ -137,8 +137,8 @@ static void putnumber(int x, int y, int n, int inv)
 
 static void putnumbers(int x, int y, int num, int inv)
 {
-    putnumber(x, y, num < 0 ? num : ((num / 10) > 0 ? num / 10 : -1), inv);
-    putnumber(x + numbers_width, y, num < 0 ? num : num % 10, inv);
+    putnumber (x, y, num < 0 ? num : ((num / 10) > 0 ? num / 10 : -1), inv);
+    putnumber (x + numbers_width, y, num < 0 ? num : num % 10, inv);
 }
 
 static int coords[] = {
@@ -153,7 +153,7 @@ void lcd_priority (int priority)
 	return;
     if (old_pri == priority)
 	return;
-    if (lgLcdSetAsLCDForegroundApp(device, priority ? LGLCD_LCD_FOREGROUND_APP_YES : LGLCD_LCD_FOREGROUND_APP_NO) == ERROR_SUCCESS)
+    if (lgLcdSetAsLCDForegroundApp (device, priority ? LGLCD_LCD_FOREGROUND_APP_YES : LGLCD_LCD_FOREGROUND_APP_NO) == ERROR_SUCCESS)
 	old_pri = priority;
 }
 
@@ -165,7 +165,7 @@ void lcd_update(int led, int on)
 	return;
 
     if (led < 0) {
-	lgLcdUpdateBitmap(device, lbh, LGLCD_PRIORITY_IDLE_NO_SHOW);
+	lgLcdUpdateBitmap (device, lbh, LGLCD_PRIORITY_IDLE_NO_SHOW);
 	return;
     }
 
@@ -175,29 +175,29 @@ void lcd_update(int led, int on)
 	track = gui_data.drive_track[led - 1];
 	if (gui_data.drive_disabled[led - 1])
 	    track = -1;
-	putnumbers(x, y, track, on);
+	putnumbers (x, y, track, on);
     } else if (led == 0) {
-	dorect(&coords[4 * 2], on);
+	dorect (&coords[4 * 2], on);
     } else if (led == 5) {
-	dorect(&coords[4 * 1], on);
+	dorect (&coords[4 * 1], on);
     } else if (led == 6) {
-	dorect(&coords[4 * 0], on);
+	dorect (&coords[4 * 0], on);
     } else if (led == 7) {
 	y = 2;
 	x = 125;
-	putnumbers(x, y, gui_data.fps <= 999 ? (gui_data.fps + 5) / 10 : 99, 0);
+	putnumbers (x, y, gui_data.fps <= 999 ? (gui_data.fps + 5) / 10 : 99, 0);
     } else if (led == 8) {
 	y = 2;
 	x = 98;
-	putnumbers(x, y, gui_data.idle <= 999 ? gui_data.idle / 10 : 99, 0);
+	putnumbers (x, y, gui_data.idle <= 999 ? gui_data.idle / 10 : 99, 0);
     }
-    lgLcdUpdateBitmap(device, lbh, LGLCD_ASYNC_UPDATE(LGLCD_PRIORITY_NORMAL + 1));
+    lgLcdUpdateBitmap (device, lbh, LGLCD_ASYNC_UPDATE (LGLCD_PRIORITY_NORMAL + 1));
 }
 
 int lcd_open(void)
 {
     if (!inited) {
-	if (!lcd_init())
+	if (!lcd_init ())
 	    return 0;
 	inited = 1;
     }

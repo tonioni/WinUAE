@@ -47,6 +47,7 @@
 #include "scsi.h"
 #include "sana2.h"
 #include "blkdev.h"
+#include "gfxfilter.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -121,10 +122,6 @@ static void fixup_prefs_dim2 (struct wh *wh)
 
 void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
-    if (prefs->gfx_xcenter_size > 0)
-        prefs->gfx_size_win.width = prefs->gfx_xcenter_size >> (RES_MAX - prefs->gfx_resolution);
-    if (prefs->gfx_ycenter_size > 0)
-	prefs->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (RES_MAX - (prefs->gfx_resolution == RES_SUPERHIRES ? 2 : (prefs->gfx_linedbl ? 1 : 0)));
     fixup_prefs_dim2 (&prefs->gfx_size_fs);
     fixup_prefs_dim2 (&prefs->gfx_size_win);
 }
@@ -135,11 +132,13 @@ void fixup_cpu (struct uae_prefs *p)
     {
     case 68000:
 	p->address_space_24 = 1;
-	p->fpu_model = 0;
+	if (p->cpu_compatible || p->cpu_cycle_exact)
+	    p->fpu_model = 0;
 	break;
     case 68010:
 	p->address_space_24 = 1;
-	p->fpu_model = 0;
+	if (p->cpu_compatible || p->cpu_cycle_exact)
+	    p->fpu_model = 0;
 	break;
     case 68020:
 	break;
@@ -385,6 +384,8 @@ void fixup_prefs (struct uae_prefs *p)
     if (p->cpu_cycle_exact)
 	p->gfx_framerate = 1;
 #endif
+    if (p->maprom && !p->address_space_24)
+	p->maprom = 0x0f000000;
     target_fixup_options (p);
 }
 

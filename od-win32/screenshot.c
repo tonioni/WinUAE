@@ -93,35 +93,35 @@ int screenshot_prepare(void)
     unsigned int width, height;
     HGDIOBJ hgdiobj;
 
-    screenshot_free();
+    screenshot_free ();
 
-    width = WIN32GFX_GetWidth();
-    height = WIN32GFX_GetHeight();
+    width = WIN32GFX_GetWidth ();
+    height = WIN32GFX_GetHeight ();
 
     surface_dc = gethdc ();
     if (surface_dc == NULL)
 	goto oops;
 
     // need a HBITMAP to convert it to a DIB
-    if((offscreen_bitmap = CreateCompatibleBitmap(surface_dc, width, height)) == NULL)
+    if ((offscreen_bitmap = CreateCompatibleBitmap (surface_dc, width, height)) == NULL)
 	goto oops; // error
 
     // The bitmap is empty, so let's copy the contents of the surface to it.
     // For that we need to select it into a device context.
-    if((offscreen_dc = CreateCompatibleDC(surface_dc)) == NULL)
+    if ((offscreen_dc = CreateCompatibleDC (surface_dc)) == NULL)
 	goto oops; // error
 
     // select offscreen_bitmap into offscreen_dc
-    hgdiobj = SelectObject(offscreen_dc, offscreen_bitmap);
+    hgdiobj = SelectObject (offscreen_dc, offscreen_bitmap);
 
     // now we can copy the contents of the surface to the offscreen bitmap
-    BitBlt(offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
+    BitBlt (offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
 
     // de-select offscreen_bitmap
-    SelectObject(offscreen_dc, hgdiobj);
+    SelectObject (offscreen_dc, hgdiobj);
 
-    ZeroMemory(&bi, sizeof(bi));
-    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    ZeroMemory (&bi, sizeof(bi));
+    bi.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
     bi.bmiHeader.biWidth = width;
     bi.bmiHeader.biHeight = height;
     bi.bmiHeader.biPlanes = 1;
@@ -134,11 +134,11 @@ int screenshot_prepare(void)
     bi.bmiHeader.biClrImportant = 0;
 
     // Reserve memory for bitmap bits
-    if(!(lpvBits = malloc(bi.bmiHeader.biSizeImage)))
+    if (!(lpvBits = malloc (bi.bmiHeader.biSizeImage)))
 	goto oops; // out of memory
 
     // Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):
-    if(!GetDIBits(offscreen_dc, offscreen_bitmap, 0, bi.bmiHeader.biHeight, lpvBits, &bi, DIB_RGB_COLORS))
+    if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi.bmiHeader.biHeight, lpvBits, &bi, DIB_RGB_COLORS))
 	goto oops; // GetDIBits FAILED
 
     releasehdc (surface_dc);
@@ -170,22 +170,22 @@ static int savepng(FILE *fp)
     int w = bi.bmiHeader.biWidth;
     int i;
 
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, pngtest_blah, pngtest_blah, pngtest_blah);
+    png_ptr = png_create_write_struct (PNG_LIBPNG_VER_STRING, pngtest_blah, pngtest_blah, pngtest_blah);
     if (!png_ptr)
        return 0;
-    info_ptr = png_create_info_struct(png_ptr);
+    info_ptr = png_create_info_struct (png_ptr);
     if (!info_ptr) {
-       png_destroy_write_struct(&png_ptr, NULL);
+       png_destroy_write_struct (&png_ptr, NULL);
        return 0;
     }
-    if (setjmp(png_jmpbuf(png_ptr))) {
-       png_destroy_write_struct(&png_ptr, &info_ptr);
+    if (setjmp(png_jmpbuf (png_ptr))) {
+       png_destroy_write_struct (&png_ptr, &info_ptr);
        return 0;
     }
 
-    png_init_io(png_ptr, fp);
-    png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
-    png_set_IHDR(png_ptr, info_ptr,
+    png_init_io (png_ptr, fp);
+    png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
+    png_set_IHDR (png_ptr, info_ptr,
 	w, h, 8, PNG_COLOR_TYPE_RGB,
 	PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
     row_pointers = xmalloc (h * sizeof(png_bytep*));
@@ -193,9 +193,9 @@ static int savepng(FILE *fp)
 	int j = h - i - 1;
 	row_pointers[i] = (uae_u8*)lpvBits + j * 3 * ((w + 3) & ~3);
     }
-    png_set_rows(png_ptr, info_ptr, row_pointers);
-    png_write_png(png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);
-    png_destroy_write_struct(&png_ptr, &info_ptr);
+    png_set_rows (png_ptr, info_ptr, row_pointers);
+    png_write_png (png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);
+    png_destroy_write_struct (&png_ptr, &info_ptr);
     return 1;
 }
 #endif
@@ -209,11 +209,11 @@ static int savebmp(FILE *fp)
     bfh.bfReserved1 = 0;
     bfh.bfReserved2 = 0;
     bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-    if(fwrite(&bfh, 1, sizeof(BITMAPFILEHEADER), fp) < sizeof(BITMAPFILEHEADER))
+    if (fwrite (&bfh, 1, sizeof(BITMAPFILEHEADER), fp) < sizeof(BITMAPFILEHEADER))
 	return 0; // failed to write bitmap file header
-    if(fwrite(&bi, 1, sizeof(BITMAPINFOHEADER), fp) < sizeof(BITMAPINFOHEADER))
+    if (fwrite (&bi, 1, sizeof(BITMAPINFOHEADER), fp) < sizeof(BITMAPINFOHEADER))
 	return 0; // failed to write bitmap infomation header
-    if(fwrite(lpvBits, 1, bi.bmiHeader.biSizeImage, fp) < bi.bmiHeader.biSizeImage)
+    if (fwrite (lpvBits, 1, bi.bmiHeader.biSizeImage, fp) < bi.bmiHeader.biSizeImage)
 	return 0; // failed to write the bitmap
     return 1;
 }
@@ -274,11 +274,11 @@ int screenshotf (const char *spath, int mode, int doprepare)
 
 	while(++number < 1000) // limit 999 iterations / screenshots
 	{
-	    sprintf(filename, "%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? "png" : "bmp");
-	    if((fp = fopen(filename, "rb")) == NULL) // does file not exist?
+	    sprintf (filename, "%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? "png" : "bmp");
+	    if ((fp = fopen (filename, "rb")) == NULL) // does file not exist?
 	    {
 		int ok = 0;
-		if((fp = fopen(filename, "wb")) == NULL)
+		if ((fp = fopen (filename, "wb")) == NULL)
 		    goto oops; // error
 #if PNG_SCREENSHOTS > 0
 		if (screenshotmode)
@@ -301,7 +301,7 @@ int screenshotf (const char *spath, int mode, int doprepare)
 
 oops:
     if(fp)
-	fclose(fp);
+	fclose (fp);
 
     if (doprepare)
 	screenshot_free();

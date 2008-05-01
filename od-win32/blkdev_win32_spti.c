@@ -286,7 +286,7 @@ static void checkcapabilities (int unitnum)
 	&query, sizeof query, &desc, sizeof desc, &ret, NULL);
     if (status) {
 	if (desc.Version > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
-	    write_log ("CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
+	    write_log ("SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
 		desc.BusType, desc.MaximumTransferLength, desc.AlignmentMask);
     }
 }

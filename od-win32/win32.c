@@ -319,9 +319,15 @@ void setpriority (struct threadpriorities *pri)
 
 void setmouseactive (int active)
 {
-
+    if (showcursor && active == 0) {
+	ClipCursor (NULL);
+	ReleaseCapture();
+	ShowCursor (TRUE);
+	showcursor = 0;
+    }
     if (mouseactive == active && active >= 0)
 	return;
+
     if (active < 0)
 	active = 1;
     mouseactive = active;
@@ -329,7 +335,7 @@ void setmouseactive (int active)
     mouseposx = mouseposy = 0;
     write_log ("setmouseactive(%d)\n", active);
     if (showcursor) {
-	ClipCursor(NULL);
+	ClipCursor (NULL);
 	ReleaseCapture();
 	ShowCursor (TRUE);
 	showcursor = 0;
@@ -350,15 +356,18 @@ void setmouseactive (int active)
 	HWND fw = GetForegroundWindow ();
 	HWND w1 = hAmigaWnd;
 	HWND w2 = hMainWnd;
+	HWND w3 = NULL;
 #ifdef RETROPLATFORM
 	if (rp_isactive ())
-	    w2 = rp_getparent ();
+	    w3 = rp_getparent ();
 #endif
 	if (!(fw == w1 || fw == w2)) {
 	    if (SetForegroundWindow (w2) == FALSE) {
 		if (SetForegroundWindow (w1) == FALSE) {
-		    donotfocus = 1;
-		    write_log ("wanted focus but SetforegroundWindow() failed\n");
+		    if (w3 == NULL || SetForegroundWindow (w3) == FALSE) {
+			donotfocus = 1;
+			write_log ("wanted focus but SetforegroundWindow() failed\n");
+		    }
 		}
 	    }
 	}
@@ -417,7 +426,7 @@ static void winuae_active (HWND hWnd, int minimized)
     if (emulation_paused > 0)
 	emulation_paused = -1;
     if (sound_closed) {
-	resumepaused();
+	resumepaused ();
 	sound_closed = 0;
     }
     if (WIN32GFX_IsPicassoScreen ())
@@ -460,13 +469,13 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	    }
 	    if (currprefs.win32_iconified_pause) {
 		if (!sound_closed)
-		    setpaused();
+		    setpaused ();
 		emulation_paused = 1;
 		sound_closed = 1;
 	    }
 	} else {
 	    if (currprefs.win32_inactive_nosound) {
-		setpaused();
+		setpaused ();
 		sound_closed = 1;
 	    }
 	}
@@ -2633,9 +2642,9 @@ static void getstartpaths(void)
     if (start_data == 0) {
 	start_data = 1;
 	if (path_type == 0 && xstart_path_uae[0]) {
-	    strcpy(start_path_data, xstart_path_uae);
+	    strcpy (start_path_data, xstart_path_uae);
 	} else if (path_type == PATH_TYPE_OLDAF && af_path_old && xstart_path_old[0]) {
-	    strcpy(start_path_data, xstart_path_old);
+	    strcpy (start_path_data, xstart_path_old);
 	} else if (path_type == PATH_TYPE_NEWWINUAE && xstart_path_new1[0]) {
 	    strcpy (start_path_data, xstart_path_new1);
 	    create_afnewdir(0);
@@ -2646,38 +2655,41 @@ static void getstartpaths(void)
 	    strcpy (start_path_data, xstart_path_new2);
 	} else if (path_type < 0) {
 	    path_type = 0;
-	    strcpy(start_path_data, xstart_path_uae);
+	    strcpy (start_path_data, xstart_path_uae);
 	    if (af_path_old) {
 		path_type = PATH_TYPE_OLDAF;
-		strcpy(start_path_data, xstart_path_old);
+		strcpy (start_path_data, xstart_path_old);
 	    }
 	    if (af_path_2005 & 1) {
 		path_type = PATH_TYPE_NEWAF;
-		create_afnewdir(1);
-		strcpy(start_path_data, xstart_path_new1);
+		create_afnewdir (1);
+		strcpy (start_path_data, xstart_path_new1);
 	    }
 	    if (af_path_2005 & 2) {
-		strcpy(tmp, xstart_path_new2);
-		strcat(tmp, "system\\rom");
+		strcpy (tmp, xstart_path_new2);
+		strcat (tmp, "system\\rom");
 		if (isfilesindir(tmp))
 		    path_type = PATH_TYPE_AMIGAFOREVERDATA;
 		else
 		    path_type = PATH_TYPE_NEWWINUAE;
-		strcpy(start_path_data, xstart_path_new2);
+		strcpy (start_path_data, xstart_path_new2);
 	    }
 	}
     }
 
-    v = GetFileAttributes(start_path_data);
+    v = GetFileAttributes (start_path_data);
     if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
-	strcpy(start_path_data, start_path_exe);
+	strcpy (start_path_data, start_path_exe);
     }
-    fixtrailing(start_path_data);
+    fixtrailing (start_path_data);
+    GetFullPathName (start_path_data, sizeof tmp, tmp, NULL);
+    strcpy (start_path_data, tmp);
+    SetCurrentDirectory (start_path_data);
 }
 
 extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
-extern int force_direct_catweasel, sound_mode_skip;
+extern int force_direct_catweasel, sound_mode_skip, maxmem;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -2820,6 +2832,11 @@ static int process_arg(char **xargv)
 		start_data = -1;
 		continue;
 	    }
+	    if (!strcmp (arg, "-maxmem")) {
+		i++;
+		maxmem = getval (np);
+		continue;
+	    }
 	    if (!strcmp (arg, "-soundmodeskip")) {
 		i++;
 		sound_mode_skip = getval (np);
@@ -2908,9 +2925,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argc = process_arg(argv);
 
     reginitializeinit (inipath);
-    getstartpaths();
-    makeverstr(VersionStr);
-    SetCurrentDirectory (start_path_data);
+    getstartpaths ();
+    makeverstr (VersionStr);
 
     logging_init ();
     write_log ("params:\n");

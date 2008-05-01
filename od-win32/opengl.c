@@ -216,7 +216,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
 	openglhdc = GetDC (hwnd);
 
-	if(!arbMultisampleSupported) {
+	if (!arbMultisampleSupported) {
 	    PixelFormat = ChoosePixelFormat (openglhdc, &pfd);	// Find A Compatible Pixel Format
 	    if (PixelFormat == 0) {				// Did We Find A Compatible Format?
 		strcpy (errmsg, "OPENGL: can't find suitable pixelformat");
@@ -255,7 +255,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
     required_texture_size = 2 << exact_log2 (t_width > t_height ? t_width : t_height);
     if (max_texture_size < t_width || max_texture_size < t_height) {
-	sprintf (errmsg, "OPENGL: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
+	sprintf (errmsg, "OPENGL: %d * %d or bigger texture support required\nYour gfx card's maximum texture size is only %d * %d",
 	    required_texture_size, required_texture_size, max_texture_size, max_texture_size);
 	return errmsg;
     }
@@ -273,8 +273,8 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     if (strstr (ext1, "EXT_packed_pixels"))
 	packed_pixels = 1;
     if (strstr (ext1, "WGL_EXT_swap_control")) {
-	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
-	wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress ("wglSwapIntervalEXT");
+	wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress ("wglGetSwapIntervalEXT");
 	if (!wglGetSwapIntervalEXT || !wglSwapIntervalEXT) {
 	    write_log ("OPENGL: WGL_EXT_swap_control extension found but no wglGetSwapIntervalEXT or wglSwapIntervalEXT found!?\n");
 	    wglSwapIntervalEXT = 0;
@@ -291,7 +291,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	if (!packed_pixels) {
 	    sprintf(errmsg, "OPENGL: can't use 15/16 bit screen depths because\n"
 		"EXT_packed_pixels extension was not found.");
-	    OGL_free();
+	    OGL_free ();
 	    return errmsg;
 	}
 	ti2d_internalformat = GL_RGB5_A1;
@@ -310,7 +310,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     }
     if (ti2d_type < 0) {
 	sprintf (errmsg, "OPENGL: Only 15, 16 or 32 bit screen depths supported (was %d)", depth);
-	OGL_free();
+	OGL_free ();
 	return errmsg;
     }
 
@@ -372,12 +372,15 @@ static void createscanlines (int force)
     sl8 = currprefs.gfx_filter_scanlines * 256 / 100;
     sl42 = currprefs.gfx_filter_scanlinelevel * 16 / 100;
     sl82 = currprefs.gfx_filter_scanlinelevel * 256 / 100;
-    if (sl4 > 15) sl4 = 15;
-    if (sl8 > 255) sl8 = 255;
-    if (sl42 > 15) sl42 = 15;
-    if (sl82 > 255) sl82 = 255;
-    sld = malloc (w_width * w_height * 4);
-    memset (sld, 0, w_width * w_height * 4);
+    if (sl4 > 15)
+	sl4 = 15;
+    if (sl8 > 255)
+	sl8 = 255;
+    if (sl42 > 15)
+	sl42 = 15;
+    if (sl82 > 255)
+	sl82 = 255;
+    sld = xcalloc (w_width * w_height * 4, 1);
     l1 = currprefs.gfx_filter_scanlineratio & 15;
     l2 = currprefs.gfx_filter_scanlineratio >> 4;
     if (!l1) l1 = 1;
@@ -401,7 +404,7 @@ static void createscanlines (int force)
 	}
     }
     glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, w_width, w_height, sl_ti2d_format, sl_ti2d_type, sld);
-    free (sld);
+    xfree (sld);
 }
 
 static void setfilter (void)
@@ -446,7 +449,6 @@ void OGL_resize (int width, int height)
 {
     if (!ogl_enabled)
 	return;
-
     w_width = width;
     w_height = height;
     glViewport (0, 0, w_width, w_height);
@@ -555,7 +557,6 @@ void OGL_render (void)
 {
     if (!ogl_enabled)
 	return;
-
     OGL_dorender (1);
     SwapBuffers (openglhdc);
     if (doublevsync) {
@@ -568,7 +569,6 @@ void OGL_refresh (void)
 {
     if (!ogl_enabled)
 	return;
-
     createscanlines (0);
     setfilter ();
     OGL_swapinterval ();

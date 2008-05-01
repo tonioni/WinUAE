@@ -1147,14 +1147,14 @@ int getjoystate (int joy)
 #endif
     if (input_recording > 0 && oldjoy[joy] != v) {
 	oldjoy[joy] = v;
-	inprec_rstart(INPREC_JOYPORT);
-	inprec_ru16(v);
-	inprec_rend();
+	inprec_rstart (INPREC_JOYPORT);
+	inprec_ru16 (v);
+	inprec_rend ();
     } else if (input_recording < 0) {
 	v = oldjoy[joy];
 	if (inprec_pstart (INPREC_JOYPORT)) {
-	    v = inprec_pu16();
-	    inprec_pend();
+	    v = inprec_pu16 ();
+	    inprec_pend ();
 	}
 	oldjoy[joy] = v;
     }
@@ -2414,11 +2414,17 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 {
     int i;
 
-    if (currprefs.jports[0].id != changed_prefs.jports[0].id
-	|| currprefs.jports[1].id != changed_prefs.jports[1].id) {
-	currprefs.jports[0].id = changed_prefs.jports[0].id;
-	currprefs.jports[1].id = changed_prefs.jports[1].id;
-    }
+    int j = jsem_isjoy (1, &currprefs);
+    int m = jsem_ismouse (1, &currprefs);
+    int k = jsem_iskbdjoy (1, &currprefs);
+
+    currprefs.jports[0].id = changed_prefs.jports[0].id;
+    currprefs.jports[1].id = changed_prefs.jports[1].id;
+#ifdef RETROPLATFORM
+    rp_input_change (0);
+    rp_input_change (1);
+#endif
+
     joybutton[0] = joybutton[1] = 0;
     joydir[0] = joydir[1] = 0;
     oldmx[0] = oldmx[1] = -1;
@@ -2771,6 +2777,11 @@ int inputdevice_get_device_total (int type)
 char *inputdevice_get_device_name (int type, int devnum)
 {
     return idev[type].get_friendlyname (devnum);
+}
+/* returns machine readable name of device */
+char *inputdevice_get_device_unique_name (int type, int devnum)
+{
+    return idev[type].get_uniquename (devnum);
 }
 /* returns state (enabled/disabled) */
 int inputdevice_get_device_status (int devnum)
@@ -3223,21 +3234,27 @@ int getmousestate(int joy)
 
 void warpmode (int mode)
 {
+    int fr, fr2;
+    
+    fr = currprefs.gfx_framerate;
+    if (fr == 0)
+	fr = -1;
+    fr2 = turbo_emulation;
+    if (fr2 == -1)
+	fr2 = 0;
+
     if (mode < 0) {
 	if (turbo_emulation) {
-	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = turbo_emulation;
+	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
 	    turbo_emulation = 0;
 	}  else {
-	    turbo_emulation = currprefs.gfx_framerate;
+	    turbo_emulation = fr;
 	}
-#ifdef RETROPLATFORM
-	rp_turbo (turbo_emulation);
-#endif
     } else if (mode == 0 && turbo_emulation > 0) {
-	changed_prefs.gfx_framerate = currprefs.gfx_framerate = turbo_emulation;
+	changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
 	turbo_emulation = 0;
     } else if (mode > 0 && !turbo_emulation) {
-	turbo_emulation = currprefs.gfx_framerate;
+	turbo_emulation = fr;
     }
     if (turbo_emulation) {
 	if (!currprefs.cpu_cycle_exact && !currprefs.blitter_cycle_exact)
@@ -3247,6 +3264,9 @@ void warpmode (int mode)
 	resume_sound ();
     }
     compute_vsynctime ();
+#ifdef RETROPLATFORM
+    rp_turbo (turbo_emulation);
+#endif
 }
 
 void pausemode (int mode)

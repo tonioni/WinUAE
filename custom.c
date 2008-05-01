@@ -112,6 +112,7 @@ static unsigned int total_skipped = 0;
 
 STATIC_INLINE void sync_copper (int hpos);
 
+
 /* Events */
 
 unsigned long int event_cycles, nextevent, is_lastline, currcycle;
@@ -228,6 +229,7 @@ int bpl_off[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static struct color_entry current_colors;
 static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
+static unsigned int bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
@@ -360,7 +362,7 @@ enum fetchstate {
 
 STATIC_INLINE int ecsshres(void)
 {
-    return GET_RES (bplcon0) == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
+    return bplcon0_res == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
 }
 
 STATIC_INLINE int nodraw (void)
@@ -584,7 +586,7 @@ static void add_modulos (void)
 	m2 = bpl2mod;
     }
 
-    switch (GET_PLANES_LIMIT (bplcon0)) {
+    switch (bplcon0_planes_limit) {
 #ifdef AGA
 	case 8: bplpt[7] += m2;
 	case 7: bplpt[6] += m1;
@@ -723,7 +725,7 @@ static int cycle_diagram_shift;
 
 static void estimate_last_fetch_cycle (int hpos)
 {
-    int fetchunit = fetchunits[fetchmode * 4 + GET_RES (bplcon0)];
+    int fetchunit = fetchunits[fetchmode * 4 + bplcon0_res];
 
     if (! passed_plfstop) {
 	int stop = plfstop < hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
@@ -792,16 +794,17 @@ STATIC_INLINE void compute_delay_offset (void)
 
 static void expand_fmodes (void)
 {
-    int res = GET_RES(bplcon0);
-    int fm = fetchmode;
-    fetchunit = fetchunits[fm * 4 + res];
+    bplcon0_res = GET_RES (bplcon0);
+    bplcon0_planes = GET_PLANES (bplcon0);
+    bplcon0_planes_limit = GET_PLANES_LIMIT (bplcon0);
+    fetchunit = fetchunits[fetchmode * 4 + bplcon0_res];
     fetchunit_mask = fetchunit - 1;
-    fetchstart_shift = fetchstarts[fm * 4 + res];
+    fetchstart_shift = fetchstarts[fetchmode * 4 + bplcon0_res];
     fetchstart = 1 << fetchstart_shift;
     fetchstart_mask = fetchstart - 1;
-    fm_maxplane_shift = fm_maxplanes[fm * 4 + res];
+    fm_maxplane_shift = fm_maxplanes[fetchmode * 4 + bplcon0_res];
     fm_maxplane = 1 << fm_maxplane_shift;
-    curr_diagram = cycle_diagram_table[fm][res][GET_PLANES_LIMIT (bplcon0)];
+    curr_diagram = cycle_diagram_table[fetchmode][bplcon0_res][bplcon0_planes_limit];
     fetch_modulo_cycle = fetchunit - fetchstart;
 }
 
@@ -826,8 +829,8 @@ static void compute_toscr_delay_1 (void)
 
 static void compute_toscr_delay (int hpos)
 {
-    toscr_res = GET_RES (bplcon0);
-    toscr_nr_planes = GET_PLANES_LIMIT (bplcon0);
+    toscr_res = bplcon0_res;
+    toscr_nr_planes = bplcon0_planes_limit;
     compute_toscr_delay_1 ();
 }
 
@@ -1445,7 +1448,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	if (fetch_state == fetch_was_plane0)
 	    break;
 
-	fetch_start(pos);
+	fetch_start (pos);
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
     }
@@ -1505,7 +1508,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     for (; pos < until; pos++) {
 	if (fetch_state == fetch_was_plane0)
 	    beginning_of_plane_block (pos, fm);
-	fetch_start(pos);
+	fetch_start (pos);
 
 	if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 	    return;
@@ -1540,15 +1543,16 @@ static void start_bpl_dma (int hpos, int hstart)
 {
     if (first_bpl_vpos < 0)
 	first_bpl_vpos = vpos;
-    fetch_start(hpos);
+    fetch_start (hpos);
     fetch_cycle = 0;
     last_fetch_hpos = hstart;
     out_nbits = 0;
     out_offs = 0;
     toscr_nbits = 0;
-    thisline_decision.bplres = GET_RES (bplcon0);
+    thisline_decision.bplres = bplcon0_res;
 
     ddfstate = DIW_waiting_stop;
+    toscr_nr_planes = bplcon0_planes_limit;
     compute_toscr_delay (last_fetch_hpos);
 
     /* If someone already wrote BPL1DAT, clear the area between that point and
@@ -1712,7 +1716,7 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
 /* handle very rarely needed playfield collision (CLXDAT bit 0) */
 static void do_playfield_collisions (void)
 {
-    int bplres = GET_RES (bplcon0);
+    int bplres = bplcon0_res;
     hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
     hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
     hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
@@ -1781,7 +1785,7 @@ static void do_sprite_collisions (void)
     int first = curr_drawinfo[next_lineno].first_sprite_entry;
     int i;
     unsigned int collision_mask = clxmask[clxcon >> 12];
-    int bplres = GET_RES (bplcon0);
+    int bplres = bplcon0_res;
     hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
     hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
     hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
@@ -2168,9 +2172,12 @@ static void finish_decisions (void)
     dip = curr_drawinfo + next_lineno;
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
-    dp->valid = 0;
+//    dp->valid = 0;
     changed = thisline_changed + interlace_started;
-
+#if 0
+    if (!(next_lineno & 1) && !(bplcon0 & 4) && interlace_seen)
+	changed = 1;
+#endif
     if (thisline_decision.plfleft != -1)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
@@ -2200,7 +2207,7 @@ static void finish_decisions (void)
     if (changed) {
 	thisline_changed = 1;
 	*dp = thisline_decision;
-	dp->valid = 1;
+//	dp->valid = 1;
     } else
 	/* The only one that may differ: */
 	dp->ctable = thisline_decision.ctable;
@@ -2212,7 +2219,7 @@ static void reset_decisions (void)
     if (nodraw ())
 	return;
 
-    thisline_decision.bplres = GET_RES (bplcon0);
+    thisline_decision.bplres = bplcon0_res;
     thisline_decision.nr_planes = 0;
 
     thisline_decision.plfleft = -1;
@@ -2242,8 +2249,10 @@ static void reset_decisions (void)
     memset (todisplay, 0, sizeof todisplay);
     memset (fetched, 0, sizeof fetched);
 #ifdef AGA
-    memset (fetched_aga0, 0, sizeof fetched_aga0);
-    memset (fetched_aga1, 0, sizeof fetched_aga1);
+    if (currprefs.chipset_mask & CSMASK_AGA) {
+	memset (fetched_aga0, 0, sizeof fetched_aga0);
+	memset (fetched_aga1, 0, sizeof fetched_aga1);
+    }
 #endif
     memset (outword, 0, sizeof outword);
 
@@ -2278,7 +2287,7 @@ void compute_vsynctime (void)
     fake_vblank_hz = 0;
     if (currprefs.chipset_refreshrate) {
 	vblank_hz = currprefs.chipset_refreshrate;
-	if (isvsync()) {
+	if (isvsync ()) {
 	    vblank_skip = 1;
 	    if (!fake_vblank_hz && vblank_hz > 85) {
 		vblank_hz /= 2;
@@ -2324,12 +2333,10 @@ void init_hz (void)
 
     if ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
 	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
-	currprefs.chipset_refreshrate = 0;
-	changed_prefs.chipset_refreshrate = 0;
+	currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate = 0;
     }
-    if (currprefs.gfx_avsync && currprefs.gfx_afullscreen) {
-	currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
-	changed_prefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+    if (isvsync ()) {
+	changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
     }
 
     doublescan = 0;
@@ -2391,8 +2398,10 @@ void init_hz (void)
     eventtab[ev_hsync].oldcycles = get_cycles ();
     eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
     events_schedule ();
-    if (hzc)
+    if (hzc) {
+	interlace_seen = bplcon0 & 4;
         reset_drawing ();
+    }
     compute_vsynctime ();
 #ifdef OPENGL
     OGL_refresh ();
@@ -2805,9 +2814,9 @@ static void INTREQ_d (uae_u16 v, int d)
     /* data in intreq is immediately available (vsync only currently because there is something unknown..) */
     setclr (&intreqr, v & (0x8000 | 0x20));
     if (!use_eventmode() || v == 0)
-	INTREQ_f(v);
+	INTREQ_f (v);
     else
-	event2_newevent2(d, v, INTREQ_f);
+	event2_newevent2 (d, v, INTREQ_f);
 }
 
 void INTREQ (uae_u16 v)
@@ -2908,7 +2917,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     //write_log ("%d:%d:BPL%dPTL %08.8X\n", hpos, vpos, num, v);
 }
 
-static void BPLCON0 (int hpos, uae_u16 v)
+static void BPLCON0_do (int hpos, uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
 	v &= ~0x00F1;
@@ -2935,6 +2944,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_blitter (hpos);
 
     bplcon0 = v;
+
     record_register_change (hpos, 0x100, v);
 
 #ifdef ECS_DENISE
@@ -2943,11 +2953,64 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	sprres = expand_sprres (bplcon0, bplcon3);
     }
 #endif
-
     expand_fmodes ();
     calcdiw ();
     estimate_last_fetch_cycle (hpos);
 }
+
+static void BPLCON0_X (uae_u32 data)
+{
+    int hpos = data >> 16;
+#if 0
+    toscr_nr_planes = bplcon0_planes_limit;
+    compute_toscr_delay (last_fetch_hpos);
+    compute_delay_offset ();
+#else
+    int i;
+
+    /* disposable hero titlescreen hack */
+    if (GET_PLANES (bplcon0) == 0) {
+	bplpt[0] += 2;
+	for (i = 1; i < GET_PLANES (data); i++)
+	    bplpt[i] += 4 << fetchmode;
+    }
+    BPLCON0_do (hpos, data);
+#endif
+}
+
+static void BPLCON0 (int hpos, uae_u16 v)
+{
+    if (v == bplcon0)
+	return;
+
+    if (diwstate != DIW_waiting_stop || hpos <= plfstrt || hpos > plfstop - fetchunit) {
+	BPLCON0_do (hpos, v);
+	return;
+    }
+
+    if (GET_RES (v) == GET_RES (bplcon0) && (GET_PLANES (v) > 0 && GET_PLANES (bplcon0) > 0 && fmode == 0)) {
+	BPLCON0_do (hpos, v);
+	return;
+    }
+    BPLCON0_do (hpos, v);
+#if 0
+    /* disposable hero titlescreen hack part 2 */
+    decide_line (hpos);
+    decide_fetch (hpos);
+    delay = fm_maxplane - ((hpos - cycle_diagram_shift) & fetchstart_mask);
+    if (delay <= 0) {
+	BPLCON0_do (hpos, v);
+    } else {
+	int p;
+	uae_u16 v2 = bplcon0;
+	v2 &= 0xf050;
+	v2 |= v & ~0xf050;
+	BPLCON0_do (hpos, v);
+	event2_newevent2 (delay, v | ((hpos + delay) << 16), BPLCON0_X);
+    }
+#endif
+}
+
 
 STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
 {
@@ -4198,6 +4261,10 @@ static void framewait (void)
     frame_time_t curr_time;
     frame_time_t start;
 
+    if (isvsync ()) {
+	vsyncmintime = vsynctime;
+	return;
+    }
     for (;;) {
 	double v = rpt_vsync () / (syncbase / 1000.0);
 	if (v >= -4)
@@ -4205,10 +4272,8 @@ static void framewait (void)
 	sleep_millis (2);
     }
     curr_time = start = read_processor_time();
-    if (!isvsync()) {
-	while (rpt_vsync () < 0);
-	curr_time = read_processor_time ();
-    }
+    while (rpt_vsync () < 0);
+    curr_time = read_processor_time ();
     vsyncmintime = curr_time + vsynctime;
     idletime += read_processor_time() - start;
 }
@@ -4264,7 +4329,7 @@ static void vsync_handler (void)
 {
     fpscounter ();
 
-    if (!isvsync()
+    if (!isvsync ()
 #ifdef AVIOUTPUT
 	&& ((avioutput_framelimiter && avioutput_enabled) || !avioutput_enabled)
 #endif
@@ -4416,7 +4481,7 @@ static void hsync_handler (void)
 {
     int hpos = current_hpos ();
 
-    if (!nocustom()) {
+    if (!nocustom ()) {
 	sync_copper_with_cpu (maxhpos, 0);
 	finish_decisions ();
 	if (thisline_decision.plfleft != -1) {
@@ -4539,16 +4604,16 @@ static void hsync_handler (void)
     }
 #endif
 
-    if (!nocustom()) {
+    if (!nocustom ()) {
 	int lineno = vpos;
 	if (bplcon0 & 4)
 	    notice_interlace_seen ();
 
 	nextline_how = nln_normal;
-	if (currprefs.gfx_linedbl && !doublescan) {
+	if (currprefs.gfx_linedbl && (!doublescan || interlace_seen)) {
 	    lineno *= 2;
 	    nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
-	    if (bplcon0 & 4) {
+	    if (interlace_seen) { /* was bplcon0 & 4 but it fails if single frame has mixed lace and non-lace */
 		if (!lof) {
 		    lineno++;
 		    nextline_how = nln_lower;
@@ -4862,7 +4927,7 @@ void customreset (int hardreset)
 		record_color_change (0, i, vv);
 		remembered_color_entry = -1;
 		current_colors.color_regs_aga[i] = vv;
-		current_colors.acolors[i] = CONVERT_RGB(vv);
+		current_colors.acolors[i] = CONVERT_RGB (vv);
 	    }
 #endif
 	}
@@ -4884,7 +4949,7 @@ void customreset (int hardreset)
     action_replay_reset ();
     #endif
     #if defined(ENFORCER)
-    enforcer_disable();
+    enforcer_disable ();
     #endif
 
     if (hardreset)
@@ -4979,7 +5044,7 @@ static int allocate_sprite_tables (void)
 int custom_init (void)
 {
 
-    if (!allocate_sprite_tables())
+    if (!allocate_sprite_tables ())
 	return 0;
 
 #ifdef AUTOCONFIG
@@ -5409,7 +5474,7 @@ void custom_prepare_savestate (void)
     for (i = 0; i < ev2_max; i++) {
 	if (eventtab2[i].active) {
 	    eventtab2[i].active = 0;
-	    eventtab2[i].handler(eventtab2[i].data);
+	    eventtab2[i].handler (eventtab2[i].data);
 	}
     }
 }

@@ -111,21 +111,21 @@ static int restoredeviceobjects(void)
     hr = IDirect3DSurface9_Release (bb);
 
     // Set up the texture
-    hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
-    hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-    hr = IDirect3DDevice9_SetTextureStageState(d3ddev, 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+    hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 
     // Set miscellaneous render states
-    hr = IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_DITHERENABLE, TRUE);
-    hr = IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_ZENABLE, FALSE);
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_DITHERENABLE, TRUE);
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ZENABLE, FALSE);
 
     // Set the projection matrix
     aspect = ((FLOAT)dsdbb.Width) / dsdbb.Height;
     xD3DXMatrixPerspectiveFovLH (&matrix, D3DX_PI/4, aspect, 1.0f, 100.0f);
-    hr = IDirect3DDevice9_SetTransform(d3ddev, D3DTS_PROJECTION, &matrix);
+    hr = IDirect3DDevice9_SetTransform (d3ddev, D3DTS_PROJECTION, &matrix);
 
     // turn off lighting
-    hr = IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_LIGHTING, FALSE);
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_LIGHTING, FALSE);
 
     switch (currprefs.gfx_filter_filtermode & 1)
     {
@@ -137,12 +137,12 @@ static int restoredeviceobjects(void)
 	v = D3DTEXF_LINEAR;
 	break;
     }
-    hr = IDirect3DDevice9_SetSamplerState(d3ddev, 0, D3DSAMP_MAGFILTER, v);
-    hr = IDirect3DDevice9_SetSamplerState(d3ddev, 0, D3DSAMP_MINFILTER, v);
+    hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MAGFILTER, v);
+    hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MINFILTER, v);
     return 1;
 }
 
-static LPDIRECT3DTEXTURE9 createtext(int *ww, int *hh, D3DFORMAT format)
+static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 {
     LPDIRECT3DTEXTURE9 t;
     HRESULT hr;
@@ -171,7 +171,7 @@ static LPDIRECT3DTEXTURE9 createtext(int *ww, int *hh, D3DFORMAT format)
     else
 	h = 4096;
 
-    hr = IDirect3DDevice9_CreateTexture(d3ddev, w, h, 1, 0, format, D3DPOOL_MANAGED, &t, NULL);
+    hr = IDirect3DDevice9_CreateTexture (d3ddev, w, h, 1, 0, format, D3DPOOL_MANAGED, &t, NULL);
     if (FAILED (hr)) {
 	write_log ("DIDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
 	return 0;
@@ -188,7 +188,7 @@ static int createtexture (int w, int h)
     UINT ww = w;
     UINT hh = h;
 
-    texture = createtext(&ww, &hh, tformat);
+    texture = createtext (&ww, &hh, tformat);
     if (!texture)
 	return 0;
     twidth = ww;
@@ -202,7 +202,7 @@ static int createsltexture (void)
     UINT ww = required_sl_texture_w;
     UINT hh = required_sl_texture_h;
 
-    sltexture = createtext(&ww, &hh, D3DFMT_A4R4G4B4);
+    sltexture = createtext (&ww, &hh, D3DFMT_A4R4G4B4);
     if (!sltexture)
 	return 0;
     required_sl_texture_w = ww;
@@ -237,7 +237,7 @@ static void createscanlines (int force)
     l1 = currprefs.gfx_filter_scanlineratio & 15;
     l2 = currprefs.gfx_filter_scanlineratio >> 4;
 
-    hr = IDirect3DTexture9_LockRect(sltexture, 0, &locked, NULL, D3DLOCK_DISCARD);
+    hr = IDirect3DTexture9_LockRect (sltexture, 0, &locked, NULL, D3DLOCK_DISCARD);
     if (FAILED (hr)) {
 	write_log ("SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	return;
@@ -259,11 +259,11 @@ static void createscanlines (int force)
     IDirect3DTexture9_UnlockRect (sltexture, 0);
     if (scanlines_ok) {
 	/* enable alpha blending for scanlines */
-	IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_ALPHABLENDENABLE, TRUE);
-	IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ALPHABLENDENABLE, TRUE);
+	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
     } else {
-	IDirect3DDevice9_SetRenderState(d3ddev, D3DRS_ALPHABLENDENABLE, FALSE);
+	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ALPHABLENDENABLE, FALSE);
     }
 }
 
@@ -298,8 +298,8 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    IDirect3D9_GetAdapterDisplayMode(d3d, adapter, &mode);
-    IDirect3D9_GetDeviceCaps(d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps);
+    IDirect3D9_GetAdapterDisplayMode (d3d, adapter, &mode);
+    IDirect3D9_GetDeviceCaps (d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps);
 
     memset (&dpp, 0, sizeof (dpp));
     dpp.Windowed = isfullscreen() <= 0;
@@ -326,7 +326,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 
     ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
 	USAGE, &dpp, &d3ddev);
-    if(FAILED(ret)) {
+    if(FAILED (ret)) {
 	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));
 	D3D_free ();
 	return errmsg;
@@ -504,7 +504,7 @@ void D3D_unlocktexture (void)
     BlitRect (d3ddev, texture, x, y, sx, sy, 0xffffff, 0.1f);
     if (scanlines_ok)
 	BlitRect (d3ddev, sltexture, 0, 0, required_sl_texture_w, required_sl_texture_h, 0xffffff, 0.2f);
-    IDirect3DDevice9_EndScene(d3ddev);
+    IDirect3DDevice9_EndScene (d3ddev);
     IDirect3DDevice9_Present (d3ddev, 0, 0, 0 ,0);
     if (vsync2)
 	D3D_render ();

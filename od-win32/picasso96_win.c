@@ -118,8 +118,7 @@ uae_u32 p96_rgbx16[65536];
 #if P96DX > 0
 static LPDIRECTDRAWSURFACE7 p96surface;
 #endif
-static LPDIRECTDRAWSURFACE7 cursorsurface;
-static int cursorwidth, cursorheight;
+static int cursorwidth, cursorheight, cursorok;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
 static int reloadcursor, cursorvisible, cursordeactivate;
 static uaecptr cursorbi;
@@ -563,9 +562,7 @@ static void do_fillrect_frame_buffer (struct RenderInfo *ri, int X, int Y,
 
 static void disablemouse (void)
 {
-    if (cursorsurface)
-        IDirectDraw7_Release (cursorsurface);
-    cursorsurface = NULL;
+    cursorok = FALSE;
     cursordeactivate = 0;
 }
 
@@ -720,6 +717,14 @@ typedef enum {
     RGBFB_CLUT_8
 };
 
+static uae_u32 setspriteimage (uaecptr bi);
+static void recursor (void)
+{
+    reloadcursor = 1;
+    cursorok = FALSE;
+    setspriteimage (cursorbi);
+}
+
 static void setconvert (void)
 {
     int d = picasso_vidinfo.pixbytes;
@@ -794,6 +799,7 @@ static void setconvert (void)
     picasso_convert = v;
     host_mode = DirectDraw_GetSurfacePixelFormat (NULL);
     write_log ("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
+    recursor ();
     full_refresh = 1;
 }
 
@@ -1251,23 +1257,15 @@ static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
 }
 
 
-static uae_u32 setspriteimage (uaecptr bi);
 static RECT cursor_r1, cursor_r2;
 static int mouseput;
-static void recursor (HRESULT ddrval)
-{
-    if (ddrval == DDERR_SURFACELOST || ddrval == DDERR_DEVICEDOESNTOWNSURFACE) {
-	reloadcursor = 1;
-        setspriteimage (cursorbi);
-    }
-}
 void picasso_putcursor (int sx, int sy, int sw, int sh)
 {
     int xdiff, ydiff, xdiff2, ydiff2;
     DWORD ddrval;
     LPDIRECTDRAWSURFACE7 dstsurf = dxdata.secondary;
     
-    if (cursorsurface == NULL || !cursorvisible || !hwsprite)
+    if (!cursorvisible || !hwsprite || !cursorok)
 	return;
 
     if (remcursor_x + remcursor_w < sx)
@@ -1314,10 +1312,10 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.right = cursorwidth + xdiff + xdiff2;
     cursor_r2.bottom = cursorheight + cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (cursorsurface, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dxdata.cursorsurface, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
     if (FAILED(ddrval)) {
 	write_log ("Cursor surface blit1 failed: %s\n", DXError (ddrval));
-	recursor (ddrval);
+	recursor ();
 	return;
     }
 
@@ -1326,10 +1324,10 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.right = cursor_r2.left + cursorwidth + xdiff + xdiff2;
     cursor_r2.bottom = cursor_r2.top + cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, cursorsurface, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
     if (FAILED(ddrval)) {
 	write_log ("Cursor surface blit2 failed: %s\n", DXError (ddrval));
-	recursor (ddrval);
+	recursor ();
 	return;
     }
 
@@ -1345,13 +1343,13 @@ void picasso_clearcursor (void)
     DWORD ddrval;
     LPDIRECTDRAWSURFACE7 dstsurf = dxdata.secondary;
 
-    if (cursorsurface == NULL)
+    if (!cursorok)
 	return;
     if (!mouseput)
 	return;
     mouseput = 0;
 
-    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, cursorsurface, &cursor_r2, DDBLT_WAIT, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT, NULL);
     if (FAILED(ddrval))
 	write_log ("Cursor surface clearblit failed: %s\n", DXError (ddrval));
 }
@@ -1370,17 +1368,13 @@ static void updatesprcolors (void)
 	switch (picasso_vidinfo.pixbytes)
 	{
 	    case 1:
-	    cursorrgbn[0] = 16;
 	     /* use custom chip sprite palette */
 	    cursorrgbn[i] = i + 16;
 	    break;
 	    case 2:
-	    vx = 0xff00ff; /* RGB -> B5G6R5 */
-	    cursorrgbn[0] = rgb32torgb16pc (vx);
 	    cursorrgbn[i] = rgb32torgb16pc (v);
 	    break;
 	    case 4:
-	    cursorrgbn[0] = 0xff00ff;
 	    cursorrgbn[i] = v;
 	    break;
 	}
@@ -1389,7 +1383,13 @@ static void updatesprcolors (void)
 
 static void putmousepixel (uae_u8 *d, int bpp, int idx)
 {
-    uae_u32 val = cursorrgbn[idx];
+    uae_u32 val;
+    
+    if (idx == 0)
+	val = dxdata.colorkey;
+    else
+	val = cursorrgbn[idx];
+
     switch (bpp)
     {
 	case 1:
@@ -1418,7 +1418,7 @@ static uae_u32 setspriteimage (uaecptr bi)
     int w, h;
 
     cursordeactivate = 0;
-    if (!hwsprite)
+    if (!hwsprite || !dxdata.cursorsurface)
 	return 0;
     oldcursor_x = -10000;
     w = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseWidth);
@@ -1436,6 +1436,11 @@ static uae_u32 setspriteimage (uaecptr bi)
     P96TRACE_SPR (("SetSpriteImage(%08x,%08x,w=%d,h=%d,%d/%d,%08x)\n",
 	bi, get_long (bi + PSSO_BoardInfo_MouseImage), w, h,
 	hiressprite - 1, doubledsprite, bi + PSSO_BoardInfo_MouseImage));
+
+    if (w > dxdata.cursorwidth)
+	w = dxdata.cursorwidth;
+    if (h > dxdata.cursorheight)
+	h = dxdata.cursorheight;
 
     bpp = picasso_vidinfo.pixbytes;
     if (!w || !h || get_long (bi + PSSO_BoardInfo_MouseImage) == 0) {
@@ -1477,15 +1482,15 @@ static uae_u32 setspriteimage (uaecptr bi)
 	}
     }
 
-    if (cursorsurface) {
+    if (cursorok) {
 	for (;;) {
 	    if (!reloadcursor && w == cursorwidth && h == cursorheight) {
 		int different = 0;
 		desc.dwSize = sizeof (desc);
 		ddrval = DD_OK;
-		while (FAILED (ddrval = IDirectDrawSurface7_Lock (cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+		while (FAILED (ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
 		    if (ddrval == DDERR_SURFACELOST) {
-			ddrval = IDirectDrawSurface7_Restore (cursorsurface);
+			ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface);
 			if (FAILED (ddrval))
 			    break;
 		    }
@@ -1500,7 +1505,7 @@ static uae_u32 setspriteimage (uaecptr bi)
 		    if (memcmp (p1, p2, w * bpp))
 			different = 1;
 		}
-		IDirectDrawSurface_Unlock (cursorsurface, NULL);
+		IDirectDrawSurface_Unlock (dxdata.cursorsurface, NULL);
 		if (!different) {
 		    P96TRACE_SPR (("sprite was same as previously\n"));
 		    ret = 1;
@@ -1509,31 +1514,16 @@ static uae_u32 setspriteimage (uaecptr bi)
 	    }
 	    break;
 	}
-	IDirectDraw7_Release (cursorsurface);
+	cursorok = FALSE;
     }
 
     cursorwidth = w;
     cursorheight = h;
-    cursorsurface = NULL;
 
-    ZeroMemory (&desc, sizeof desc);
-    desc.dwSize = sizeof desc;
-    desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_CKSRCBLT;
-    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-    desc.dwWidth = w;
-    desc.dwHeight = h * 2;
-    DirectDraw_GetPrimaryPixelFormat (&desc);
-    desc.ddckCKSrcBlt.dwColorSpaceLowValue = cursorrgbn[0];
-    desc.ddckCKSrcBlt.dwColorSpaceHighValue = cursorrgbn[0];
-    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &cursorsurface, NULL);
-    if (FAILED(ddrval)) {
-	write_log ("Cursor surface creation failed: %s\n", DXError (ddrval));
-	return 0;
-    }
     desc.dwSize = sizeof (desc);
-    while (FAILED(ddrval = IDirectDrawSurface7_Lock (cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+    while (FAILED(ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = IDirectDrawSurface7_Restore (cursorsurface);
+	    ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface);
 	    if (FAILED(ddrval)) {
 		write_log ("sprite surface failed to restore: %s\n", DXError (ddrval));
 	        goto end;
@@ -1547,9 +1537,10 @@ static uae_u32 setspriteimage (uaecptr bi)
 	uae_u8 *p2 = dptr + pitch * y;
 	memcpy (p2, p1, w * bpp);
     }
-    IDirectDrawSurface_Unlock (cursorsurface, NULL);
+    IDirectDrawSurface_Unlock (dxdata.cursorsurface, NULL);
     ret = 1;
     reloadcursor = 0;
+    cursorok = TRUE;
     P96TRACE_SPR (("hardware sprite created\n"));
 end:
     xfree (tmpbuf);
@@ -3667,7 +3658,7 @@ static void flushpixels (void)
 	if (doskip () && p96skipmode == 2)
 	    break;
 
-	if (dofull) {
+        if (dofull) {
 	    copyall (src + off, dst);
 	    miny = 0;
 	    maxy = picasso96_state.Height;
@@ -3712,7 +3703,14 @@ static void flushpixels (void)
 	break;
     }
 
-    if(lock)
+    if (maxy >= 0) {
+	if (doskip () && p96skipmode == 4) {
+	    ;
+	} else {
+	    DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny);
+	}
+    }
+    if (lock)
 	gfx_unlock_picasso ();
     if (dst && gwwcnt) {
 	if (doskip () && p96skipmode == 3) {
@@ -3721,13 +3719,6 @@ static void flushpixels (void)
 	    mman_ResetWatch (src_start, src_end - src_start);
 	}
 	full_refresh = 0;
-    }
-    if (maxy >= 0) {
-	if (doskip () && p96skipmode == 4) {
-	    ;
-	} else {
-	    DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny);
-	}
     }
 }
 
@@ -3738,7 +3729,7 @@ static uae_u32 REGPARAM2 gfxmem_lgetx (uaecptr addr)
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u32 *)(gfxmemory + addr);
-    return do_get_mem_long(m);
+    return do_get_mem_long (m);
 }
 
 static uae_u32 REGPARAM2 gfxmem_wgetx (uaecptr addr)
@@ -3747,7 +3738,7 @@ static uae_u32 REGPARAM2 gfxmem_wgetx (uaecptr addr)
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u16 *)(gfxmemory + addr);
-    return do_get_mem_word(m);
+    return do_get_mem_word (m);
 }
 
 static uae_u32 REGPARAM2 gfxmem_bgetx (uaecptr addr)
@@ -3763,7 +3754,7 @@ static void REGPARAM2 gfxmem_lputx (uaecptr addr, uae_u32 l)
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u32 *)(gfxmemory + addr);
-    do_put_mem_long(m, l);
+    do_put_mem_long (m, l);
 }
 
 static void REGPARAM2 gfxmem_wputx (uaecptr addr, uae_u32 w)
@@ -3772,7 +3763,7 @@ static void REGPARAM2 gfxmem_wputx (uaecptr addr, uae_u32 w)
     addr -= gfxmem_start & gfxmem_mask;
     addr &= gfxmem_mask;
     m = (uae_u16 *)(gfxmemory + addr);
-    do_put_mem_word(m, (uae_u16)w);
+    do_put_mem_word (m, (uae_u16)w);
 }
 
 static void REGPARAM2 gfxmem_bputx (uaecptr addr, uae_u32 b)
@@ -3810,11 +3801,10 @@ void InitPicasso96 (void)
 {
     int i;
 
-    full_refresh = 0;
 //fastscreen
     oldscr = 0;
 //fastscreen
-    memset (&picasso96_state, 0, sizeof(struct picasso96_state_struct));
+    memset (&picasso96_state, 0, sizeof (struct picasso96_state_struct));
 
     for (i = 0; i < 256; i++) {
         p2ctab[i][0] = (((i & 128) ? 0x01000000 : 0)

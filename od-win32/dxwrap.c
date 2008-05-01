@@ -25,7 +25,6 @@ HRESULT DirectDraw_GetDisplayMode (void)
     return ddrval;
 }
 
-
 #define releaser(x, y) if (x) { y (x); x = NULL; }
 
 static LPDIRECTDRAWSURFACE7 getlocksurface (void)
@@ -46,6 +45,7 @@ static void freemainsurface (void)
     releaser (dxdata.flipping[0], IDirectDrawSurface7_Release);
     releaser (dxdata.primary, IDirectDrawSurface7_Release);
     releaser (dxdata.secondary, IDirectDrawSurface7_Release);
+    releaser (dxdata.cursorsurface, IDirectDrawSurface7_Release);
     dxdata.backbuffers = 0;
 }
 
@@ -171,13 +171,18 @@ LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
 {
     LPDIRECTDRAWSURFACE7 s;
     int mode = ddforceram;
+    static int failednonlocal;
 
+    if (failednonlocal && mode == DDFORCED_NONLOCAL)
+	mode = DDFORCED_DEFAULT;
     for (;;) {
 	s = allocsurface_2 (width, height, NULL, 0, mode);
 	if (s) {
 	    clearsurf (s);
 	    return s;
 	}
+	if (mode == DDFORCED_NONLOCAL)
+	    failednonlocal = 1;
 	mode++;
 	if (mode >= 4)
 	    mode = 0;
@@ -199,6 +204,37 @@ void freesurface (LPDIRECTDRAWSURFACE7 surf)
 void DirectDraw_FreeMainSurface (void)
 {
     freemainsurface ();
+}
+
+STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
+{
+    return (((rgb >> (16 + 3)) & 0x1f) << 11) | (((rgb >> (8 + 2)) & 0x3f) << 5) | (((rgb >> (0 + 3)) & 0x1f) << 0);
+}
+
+static void createcursorsurface (void)
+{
+    HRESULT ddrval;
+    DDSURFACEDESC2 desc = { 0 };
+    DWORD mask = 0xff00fe;
+
+    dxdata.cursorsurface = NULL;
+    desc.dwSize = sizeof desc;
+    desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_CKSRCBLT;
+    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
+    desc.dwWidth = dxdata.cursorwidth;
+    desc.dwHeight = dxdata.cursorheight * 2;
+    DirectDraw_GetPrimaryPixelFormat (&desc);
+    if (desc.ddpfPixelFormat.dwRGBBitCount == 16)
+	mask = rgb32torgb16pc (mask);
+    else if (desc.ddpfPixelFormat.dwRGBBitCount == 8)
+	mask = 16;
+    dxdata.colorkey = mask;
+    desc.ddckCKSrcBlt.dwColorSpaceLowValue = mask;
+    desc.ddckCKSrcBlt.dwColorSpaceHighValue = mask;
+    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.cursorsurface, NULL);
+    if (FAILED(ddrval))
+	write_log ("Cursor surface creation failed: %s\n", DXError (ddrval));
+    clearsurf (dxdata.cursorsurface);
 }
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)
@@ -242,6 +278,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
         write_log ("IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
         return ddrval;
     }
+    dxdata.native.dwSize = sizeof (DDSURFACEDESC2);
     ddrval = IDirectDrawSurface7_GetSurfaceDesc (dxdata.primary, &dxdata.native);
     if (FAILED (ddrval))
 	write_log ("IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
@@ -259,6 +296,8 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	    dxdata.pitch = desc.lPitch;
 	    unlocksurface (surf);
 	}
+	createcursorsurface ();
+
     } else {
 	ddrval = DD_FALSE;
     }
@@ -617,7 +656,7 @@ static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRA
 	return;
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_ROP | DDBLT_WAIT, &fx))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface (dst);
+	    ddrval = restoresurface_2 (dst);
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -666,19 +705,12 @@ static void flip (void)
     int result = 0;
     HRESULT ddrval = DD_OK;
     DWORD flags = DDFLIP_WAIT;
-    static int skip;
 
     if (dxdata.backbuffers == 2) {
         DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
 	if (currprefs.gfx_avsync) {
 	    if (vblank_skip >= 0) {
-		skip++;
-		if (vblank_skip > skip) {
-		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
-		} else {
-		    skip = 0;
-		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-		}
+	        ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 	    } else {
 		if (flipinterval_supported) {
 		    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
@@ -795,6 +827,8 @@ int DirectDraw_Start (GUID *guid)
 	return 0;
     }
 
+    dxdata.cursorwidth = 64;
+    dxdata.cursorheight = 64;
     dxdata.maxwidth = 16384;
     dxdata.maxheight = 16384;
     d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);

@@ -239,8 +239,10 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, char *name, 
     /* chunk data */
     if (compress) {
 	int tmplen = len;
+	size_t opos;
 	dst = &tmp[0];
 	save_u32 (len);
+	opos = zfile_ftell (f);
 	zfile_fwrite (&tmp[0], 1, 4, f);
 	len = zfile_zcompress (f, chunk, len);
 	if (len > 0) {
@@ -252,7 +254,7 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, char *name, 
 	} else {
 	    len = tmplen;
 	    compress = 0;
-	    zfile_fseek (f, -8, SEEK_CUR);
+	    zfile_fseek (f, opos, SEEK_SET);
 	    dst = &tmp[0];
 	    save_u32 (flags);
 	    zfile_fwrite (&tmp[0], 1, 4, f);
@@ -340,6 +342,8 @@ void restore_ram (size_t filepos, uae_u8 *memory)
     int size, fullsize;
     uae_u32 flags;
 
+    if (filepos == 0 || memory == NULL)
+	return;
     zfile_fseek (savestate_file, filepos, SEEK_SET);
     zfile_fread (tmp, 1, sizeof(tmp), savestate_file);
     size = restore_u32 ();
@@ -570,7 +574,7 @@ void savestate_restore_finish (void)
     zfile_fclose (savestate_file);
     savestate_file = 0;
     savestate_state = 0;
-    restore_cpu_finish();
+    restore_cpu_finish ();
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */

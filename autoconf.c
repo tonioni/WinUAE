@@ -28,7 +28,7 @@ uaecptr EXPANSION_bootcode, EXPANSION_nullfunc;
 /* ROM tag area memory access */
 
 uae_u8 *rtarea;
-uaecptr rtarea_base;
+uaecptr rtarea_base = RTAREA_DEFAULT;
 
 static uae_u32 REGPARAM3 rtarea_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 rtarea_wget (uaecptr) REGPARAM;
@@ -192,14 +192,13 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *context)
     return 0;
 }
 
-static void rtarea_init_mem (void)
+void rtarea_init_mem (void)
 {
     rtarea = mapped_malloc (0x10000, "rtarea");
     if (!rtarea) {
 	write_log ("virtual memory exhausted (rtarea)!\n");
 	abort ();
     }
-    memset (rtarea, 0, 0x10000);
     rtarea_bank.baseaddr = rtarea;
 }
 
@@ -214,6 +213,7 @@ void rtarea_init (void)
     init_traps ();
 
     rtarea_init_mem ();
+    memset (rtarea, 0, 0x10000);
 
     sprintf (uaever, "uae-%d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
 

@@ -25,6 +25,10 @@ struct ddstuff
     DWORD pitch;
     HWND hwnd;
     int maxwidth, maxheight;
+    uae_u32 colorkey;
+
+    LPDIRECTDRAWSURFACE7 cursorsurface;
+    int cursorwidth, cursorheight;
 };
 extern struct ddstuff dxdata;
 

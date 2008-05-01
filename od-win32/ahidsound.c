@@ -622,14 +622,45 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 100: // open dll
 	{
+	    char *dlldir = "winuae_dll";
 	    char *dllname;
-	    uae_u32 result;
-	    dllname = (char *) m68k_areg (&context->regs, 0);
-	    dllname = (char *)get_real_address ((uae_u32)dllname);
-	    result=(uae_u32) LoadLibrary(dllname);
-	    write_log ("%s windows dll/alib loaded at %d (0 mean failure)\n",dllname,result);
+	    uaecptr dllptr;
+	    HMODULE h = NULL;
+	    char dpath[MAX_DPATH];
+	    char newdllpath[MAX_DPATH];
+	    int ok = 0;
+	    char *filepart;
+
+	    dllptr = m68k_areg (&context->regs, 0);
+	    dllname = (char *)get_real_address (dllptr);
+	    dpath[0] = 0;
+	    GetFullPathName (dllname, sizeof dpath, dpath, &filepart);
+	    if (strlen (dpath) > strlen (start_path_data) && !strnicmp (dpath, start_path_data, strlen (dpath))) {
+		/* path really is relative to winuae directory */
+		ok = 1;
+		strcpy (newdllpath, dpath + strlen (start_path_data) + 1);
+		if (!strnicmp (newdllpath, dlldir, strlen (dlldir))) /* remove "winuae_dll" */
+		    strcpy (newdllpath, dpath + strlen (start_path_data) + 1 + strlen (dlldir));
+		sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, newdllpath);
+		h = LoadLibrary (dpath);
+		write_log ("native open: '%s' = %p\n", dpath, h);
+		if (h == NULL) {
+		    sprintf (dpath, "%s%s\\%s", start_path_data, dlldir, newdllpath);
+		    h = LoadLibrary (dllname);
+		    write_log ("fallback native open: '%s' = %p\n", dpath, h);
+		}
+	    }
+	    if (h == NULL) {
+		h = LoadLibrary (filepart);
+		write_log ("native file open: '%s' = %p\n", dllname, h);
+		if (h == NULL) {
+		    sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
+		    h = LoadLibrary (dpath);
+		    write_log ("native path open: '%s' = %p\n", dpath, h);
+		}
+	    }
 	    syncdivisor = (3580000.0 * CYCLE_UNIT) / (double)syncbase;
-	    return result;
+	    return (uae_u32)h;
 	}
 
 	case 101:	//get dll label
@@ -639,7 +670,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    m = (HMODULE) m68k_dreg (&context->regs, 1);
 	    funcname = (char *)m68k_areg (&context->regs, 0);
 	    funcname = (char *)get_real_address ((uae_u32)funcname);
-	    return (uae_u32) GetProcAddress (m,funcname);
+	    return (uae_u32) GetProcAddress (m, funcname);
 	}
 
 	case 102:	//execute native code
@@ -647,14 +678,14 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    uae_u32 ret;
 	    unsigned long rate1;
 	    double v;
-	    rate1 = read_processor_time();
+	    rate1 = read_processor_time ();
 	    ret = emulib_ExecuteNativeCode2 (context);
-	    rate1 = read_processor_time() - rate1;
+	    rate1 = read_processor_time () - rate1;
 	    v = syncdivisor * rate1;
 	    if (v > 0) {
 		if (v > 1000000 * CYCLE_UNIT)
 		    v = 1000000 * CYCLE_UNIT;
-		do_extra_cycles((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
+		do_extra_cycles ((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
 	    }
 	    return ret;
 	}
@@ -663,7 +694,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	{
 	    HMODULE libaddr;
 	    libaddr = (HMODULE) m68k_dreg (&context->regs, 1);
-	    FreeLibrary(libaddr);
+	    FreeLibrary (libaddr);
 	    return 0;
 	}
 #endif

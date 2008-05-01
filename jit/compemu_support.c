@@ -426,7 +426,19 @@ extern int have_done_picasso;
 int check_prefs_changed_comp (void)
 {
     int changed = 0;
-    static int cachesize_prev, comptrust_prev, compforce_prev, canbang_prev;
+    static int cachesize_prev, comptrust_prev, canbang_prev;
+
+    if (currprefs.comptrustbyte != changed_prefs.comptrustbyte ||
+	currprefs.comptrustword != changed_prefs.comptrustword ||
+	currprefs.comptrustlong != changed_prefs.comptrustlong ||
+	currprefs.comptrustnaddr!= changed_prefs.comptrustnaddr ||
+	currprefs.compnf != changed_prefs.compnf ||
+	currprefs.comp_hardflush != changed_prefs.comp_hardflush ||
+	currprefs.comp_constjump != changed_prefs.comp_constjump ||
+	currprefs.comp_oldsegv != changed_prefs.comp_oldsegv ||
+	currprefs.compfpu != changed_prefs.compfpu ||
+	currprefs.fpu_strict != changed_prefs.fpu_strict)
+	changed = 1;
 
     currprefs.comptrustbyte = changed_prefs.comptrustbyte;
     currprefs.comptrustword = changed_prefs.comptrustword;
@@ -440,19 +452,6 @@ int check_prefs_changed_comp (void)
     currprefs.fpu_strict = changed_prefs.fpu_strict;
 
     if (currprefs.cachesize != changed_prefs.cachesize) {
-	if (currprefs.cachesize == 0 && changed_prefs.cachesize && cachesize_prev) {
-	    changed_prefs.comptrustbyte = currprefs.comptrustbyte = comptrust_prev;
-	    changed_prefs.comptrustword = currprefs.comptrustword = comptrust_prev;
-	    changed_prefs.comptrustlong = currprefs.comptrustlong = comptrust_prev;
-	    changed_prefs.comptrustnaddr = currprefs.comptrustnaddr = comptrust_prev;
-	    changed_prefs.compforcesettings = currprefs.compforcesettings = compforce_prev;
-	    canbang = canbang_prev;
-	} else if (currprefs.cachesize && changed_prefs.cachesize == 0) {
-	    comptrust_prev = currprefs.comptrustbyte;
-	    compforce_prev = currprefs.compforcesettings;
-	    cachesize_prev = currprefs.cachesize;
-	    canbang_prev = canbang;
-	}
 	currprefs.cachesize = changed_prefs.cachesize;
 	alloc_cache();
 	changed = 1;
@@ -464,8 +463,8 @@ int check_prefs_changed_comp (void)
     if(currprefs.cachesize)
 	currprefs.illegal_mem = changed_prefs.illegal_mem;// = 0;
 
-    currprefs.comp_midopt=changed_prefs.comp_midopt;
-    currprefs.comp_lowopt=changed_prefs.comp_lowopt;
+    currprefs.comp_midopt = changed_prefs.comp_midopt;
+    currprefs.comp_lowopt = changed_prefs.comp_lowopt;
 
     if ((!canbang || !currprefs.cachesize) && currprefs.comptrustbyte != 1) {
 	// Set all of these to indirect when canbang == 0
@@ -474,23 +473,26 @@ int check_prefs_changed_comp (void)
 	currprefs.comptrustword = 1;
 	currprefs.comptrustlong = 1;
 	currprefs.comptrustnaddr= 1;
-	currprefs.compforcesettings = 1;
 
 	changed_prefs.comptrustbyte = 1;
 	changed_prefs.comptrustword = 1;
 	changed_prefs.comptrustlong = 1;
 	changed_prefs.comptrustnaddr= 1;
-	changed_prefs.compforcesettings = 1;
 
 	changed = 1;
 
-	if(currprefs.cachesize)
-	{
+	if (currprefs.cachesize)
 	    write_log ( "JIT: Reverting to \"indirect\" access, because canbang is zero!\n" );
-	}
     }
 
-    if (!currprefs.compforcesettings && !have_done_picasso) {
+    if (changed)
+	write_log ("JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d const=%d hard=%d\n",
+	    currprefs.cachesize,
+	    currprefs.comptrustbyte, currprefs.comptrustword, currprefs.comptrustlong, 
+	    currprefs.compfpu, currprefs.compnf, currprefs.comp_constjump, currprefs.comp_hardflush);
+
+#if 0
+    if (!currprefs.compforcesettings) {
 	int stop=0;
 	if (currprefs.comptrustbyte!=0 && currprefs.comptrustbyte!=3)
 	    stop = 1, write_log ("JIT: comptrustbyte is not 'direct' or 'afterpic'\n");
@@ -509,7 +511,6 @@ int check_prefs_changed_comp (void)
 	if (!canbang)
 	    stop = 1, write_log ("JIT: Cannot use most direct memory access,\n"
 				"     and unable to recover from failed guess!\n");
-#if 0
 	if (stop) {
 	    gui_message("JIT: Configuration problems were detected!\n"
 		      "JIT: These will adversely affect performance, and should\n"
@@ -520,8 +521,8 @@ int check_prefs_changed_comp (void)
 		      "JIT: in your config file\n");
 	    exit(1);
 	}
-#endif
     }
+#endif
     return changed;
 }
 

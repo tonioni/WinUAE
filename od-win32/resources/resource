@@ -611,7 +611,6 @@
 #define IDC_NOFLAGS                     1581
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
-#define IDC_FORCE                       1583
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585

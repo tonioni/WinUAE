@@ -1,4 +1,35 @@
 
+Beta 14:
+
+- fixed IDE emulation crash
+- uae-configuration problems with some config entries
+- pointless feature: 68881/68882 available in 68000/68010 modes
+  (cycle-exact or more compatible not allowed at the same time)
+- warp-mode didn't work in fullscreen mode if display refresh rate was
+  set to "default"
+- restoring statefile that includes one or more directory harddrives or
+  uaehf.device hardfiles didn't restore uae boot rom properly
+- some vsync tuning
+- pause sound immediately when entering GUI
+- maprom "shadow" ram moved to 0x0f000000 (no more conflicts with
+  extended ROMs or incompatible Cloanto Kickstart ROMs)
+- hardfile state restore freeze fix (Picasso96 statefile support not
+  yet updated)
+- Picasso96 hardware sprite DirectDraw surface is now allocated only
+  once (instead of dynamically re-creating when shape changed)
+- gfx garbage in mixed non-interlaced and interlaced modes should be
+  finally fixed (maybe. for example Pinball Illusions scoreboard in
+  hires-mode)
+- totally broken interlaced doublescan modes fixed
+ - "The Diagnostic 2.0" by Logica (Amiga diagnostic replacement ROM)
+  keyboard detection fixed. Checksums added to ROM scanner.
+- do not send initiate and terminate power-up key codes after
+  restoring statefile
+- floppy sounds also supported in <winuae path>\plugins\floppysounds
+  directory
+- JIT GUI changes, removed useless force checkbox, direct/indirect
+  switching should work as designed again
+
 Beta 13:
 
 - more screen mode switching problems fixed

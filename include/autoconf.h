@@ -42,6 +42,7 @@ extern uaecptr filesys_initcode;
 
 extern int is_hardfile (int unit_no);
 extern int nr_units (void);
+extern int nr_directory_units (void);
 extern uaecptr need_uae_boot_rom (void);
 
 struct mountedinfo

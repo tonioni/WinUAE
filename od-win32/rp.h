@@ -5,6 +5,7 @@ extern void rp_fixup_options (struct uae_prefs*);
 extern void rp_update_volume (struct uae_prefs*);
 extern void rp_update_leds (int, int);
 extern void rp_floppy_track (int floppy, int track);
+extern void rp_floppydrive_change (int num, int removed);
 extern void rp_hd_activity (int, int);
 extern void rp_hd_change (int, int);
 extern void rp_cd_activity (int, int);
@@ -27,5 +28,6 @@ extern int rp_rpescapeholdtime;
 extern int rp_screenmode;
 extern int rp_inputmode;
 
-extern void rp_disk_change (int num, const char *name);
-extern void rp_input_change (int num, const char *name);
+extern void rp_input_change (int num);
+extern void rp_disk_image_change (int num, const char *name);
+extern void rp_harddrive_image_change (int num, const char *name);

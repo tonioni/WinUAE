@@ -67,7 +67,7 @@ int ioport_init (void)
 		break;
 	    }
 	    if (!pIsDriverOpened()) {
-		write_log ("IO: tvicport.dll failed to initialized!\n");
+		write_log ("IO: tvicport.dll failed to initialize!\n");
 		pCloseTVicPort();
 		break;
 	    }
@@ -131,7 +131,7 @@ uae_u8 ioport_read (int port)
     else if (initialized == 2)
 	pGetPortVal (port, &v, 1);
 #endif
-    io_log ("ioport_read %04.4X returned %02.2X\n", port, v);
+    io_log ("ioport_read %04X returned %02X\n", port, v);
     return (uae_u8)v;
 }
 
@@ -143,7 +143,7 @@ void ioport_write (int port, uae_u8 v)
     else if (initialized == 2)
 	pSetPortVal (port, v, 1);
 #endif
-    io_log ("ioport_write %04.4X %02.2X\n", port, v);
+    io_log ("ioport_write %04X %02X\n", port, v);
 }
 
 
@@ -267,10 +267,10 @@ int parallel_direct_write_status (uae_u8 v, uae_u8 dir)
     if ((dir & 4) && !(v & 4))
 	c[0].Control |= PARAPORT_MASK_CONTROL_SELECTIN;
     if (!pp_executecycle (pport, c, 1)) {
-	write_log ("PARAPORT: write executeCycle failed, CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
+	write_log ("PARAPORT: write executeCycle failed, CTL=%02X DIR=%02X\n", v & 7, dir & 7);
 	return 0;
     }
-    para_log ("PARAPORT: write CTL=%02.2X DIR=%02.2X\n", v & 7, dir & 7);
+    para_log ("PARAPORT: write CTL=%02X DIR=%02X\n", v & 7, dir & 7);
     return ok;
 }
 
@@ -303,7 +303,7 @@ int parallel_direct_read_status (uae_u8 *vp)
     } else {
 	oldack = 0;
     }
-    para_log ("PARAPORT: read CTL=%02.2X\n", v);
+    para_log ("PARAPORT: read CTL=%02X\n", v);
     v &= 7;
     *vp &= ~7;
     *vp |= v;
@@ -318,7 +318,7 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
     if (!pport)
 	return 0;
     if (dir != 0xff) {
-	write_log ("PARAPORT: unsupported mixed i/o attempted, DATA=%02.2X DIR=%02.2X, ignored\n", v, dir);
+	write_log ("PARAPORT: unsupported mixed i/o attempted, DATA=%02X DIR=%02X, ignored\n", v, dir);
 	return 0;
     }
     memset (c, 0, 3 * sizeof (PARAPORT_CYCLE));
@@ -333,10 +333,10 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
     c[2].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
 
     if (!pp_executecycle (pport, c, 3)) {
-	write_log ("PARAPORT: write executeCycle failed, data=%02.2X\n", v);
+	write_log ("PARAPORT: write executeCycle failed, data=%02X\n", v);
 	return 0;
     }
-    para_log ("PARAPORT: write DATA=%02.2X\n", v);
+    para_log ("PARAPORT: write DATA=%02X\n", v);
     return 1;
 }
 
@@ -364,7 +364,7 @@ int parallel_direct_read_data (uae_u8 *v)
 	return 0;
     }
     *v = c[0].Data;
-    para_log ("PARAPORT: read DATA=%02.2X\n", v);
+    para_log ("PARAPORT: read DATA=%02X\n", v);
     return ok;
 }
 

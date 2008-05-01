@@ -277,26 +277,26 @@ static void create_virtual_rdb (struct hardfiledata *hfd, uae_u32 dostype, int b
     pl(denv, 14, 0x7ffffffe);
     pl(denv, 15, bootpri);
     pl(denv, 16, dostype);
-    rdb_crc(part);
+    rdb_crc (part);
 
     hfd->size += size;
     hfd->size2 += size;
 
 }
 
-void hdf_hd_close(struct hd_hardfiledata *hfd)
+void hdf_hd_close (struct hd_hardfiledata *hfd)
 {
     if (!hfd)
 	return;
-    hdf_close(&hfd->hfd);
-    xfree(hfd->path);
+    hdf_close (&hfd->hfd);
+    xfree (hfd->path);
 }
 
 int hdf_hd_open (struct hd_hardfiledata *hfd, const char *path, int blocksize, int readonly,
 		       const char *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, const char *filesys)
 {
-    memset(hfd, 0, sizeof (struct hd_hardfiledata));
+    memset (hfd, 0, sizeof (struct hd_hardfiledata));
     hfd->bootpri = bootpri;
     hfd->hfd.blocksize = blocksize;
     if (!hdf_open (&hfd->hfd, path))
@@ -313,8 +313,8 @@ int hdf_hd_open (struct hd_hardfiledata *hfd, const char *path, int blocksize, i
     hfd->heads_def = hfd->heads;
     if (hfd->hfd.heads && hfd->hfd.secspertrack) {
 	uae_u8 buf[512] = { 0 };
-	hdf_read(&hfd->hfd, buf, 0, 512);
-	if (buf[0] != 0 && memcmp(buf, "RDSK", 4)) {
+	hdf_read (&hfd->hfd, buf, 0, 512);
+	if (buf[0] != 0 && memcmp (buf, "RDSK", 4)) {
 	    hfd->hfd.nrcyls = (hfd->hfd.size / blocksize) / (sectors * surfaces);
 	    create_virtual_rdb (&hfd->hfd, rl (buf), hfd->bootpri, filesys);
 	    while (hfd->hfd.nrcyls * surfaces * sectors > hfd->cyls_def * hfd->secspertrack_def * hfd->heads_def) {
@@ -1093,7 +1093,7 @@ static uae_u32 REGPARAM2 hardfile_abortio (TrapContext *context)
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     hf_log2 ("uaehf.device abortio ");
-    start_thread(context, unit);
+    start_thread (context, unit);
     if (!hfd || !hfpd || !hfpd->thread_running) {
 	put_byte (request + 31, 32);
 	hf_log2 ("error\n");
@@ -1140,7 +1140,7 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
     struct hardfileprivdata *hfpd = &hardfpd[unit];
 
     put_byte (request + 8, NT_MESSAGE);
-    start_thread(context, unit);
+    start_thread (context, unit);
     if (!hfd || !hfpd || !hfpd->thread_running) {
 	put_byte (request + 31, 32);
 	return get_byte (request + 31);
@@ -1193,7 +1193,7 @@ void hardfile_reset (void)
 
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	 hfpd = &hardfpd[i];
-	if (hfpd->base && valid_address(hfpd->base, 36) && get_word (hfpd->base + 32) > 0) {
+	if (hfpd->base && valid_address (hfpd->base, 36) && get_word (hfpd->base + 32) > 0) {
 	    for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 		uaecptr request;
 		if ((request = hfpd->d_request[i]))
