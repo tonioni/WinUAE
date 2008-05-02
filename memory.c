@@ -257,7 +257,7 @@ static struct romdata roms[] = {
     ALTROMPN(24, 2, 1, 4096, ROMTYPE_EVEN | ROMTYPE_8BIT, "252179-01", 0x42553bc4,0x8855a97f,0x7a44e3f6,0x2d1c88d9,0x38fee1f4,0xc606af5b)
     ALTROMPN(24, 2, 2, 4096, ROMTYPE_ODD  | ROMTYPE_8BIT, "252180-01", 0x8e5b9a37,0xd10f1564,0xb99f5ffe,0x108fa042,0x362e877f,0x569de2c3)
 
-    { "The Diagnostic 2.0 (Logica)", 2, 0, 2, 0, "LOGICA\0", 524288, 72, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
+    { "The Diagnostic 2.0 (Logica)", 2, 0, 2, 0, "LOGICA\0", 524288, 72, 0, 0, ROMTYPE_KICK | ROMTYPE_SPECIALKICK, 0, 0, NULL,
 	0x8484f426, 0xba10d161,0x66b2e2d6,0x177c979c,0x99edf846,0x2b21651e },
 
     { "Freezer: Action Replay Mk I v1.00", 1, 0, 1, 0, "AR\0", 65536, 52, 0, 0, ROMTYPE_AR, 0, 1, NULL,
@@ -1068,8 +1068,8 @@ static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
     /* ignore Zorro3 expansion space */
     if (addr >= 0xff000000 && addr <= 0xff000200)
 	return;
-    /* extended rom */
-    if (addr >= 0xf00000 && addr <= 0xf7ffff)
+    /* autoconfig and extended rom */
+    if (addr >= 0xe00000 && addr <= 0xf7ffff)
 	return;
     /* motherboard ram */
     if (addr >= 0x08000000 && addr <= 0x08000007)
@@ -1092,16 +1092,27 @@ static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
     }
 }
 
+static uae_u32 dummy_get (uaecptr addr, int size)
+{
+    uae_u32 v;
+    if (currprefs.cpu_model >= 68020)
+	return NONEXISTINGDATA;
+    v = (regs.irc << 16) | regs.irc;
+    if (v == 4)
+	return v;
+    if (v == 2)
+	return v & 0xffff;
+    return (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
+}
+
 static uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
 {
 #ifdef JIT
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 4, 0, 0);
-    if (currprefs.cpu_model >= 68020)
-	return NONEXISTINGDATA;
-    return (regs.irc << 16) | regs.irc;
+	dummylog (0, addr, 4, 0, 0);
+    return dummy_get (addr, 4);
 }
 uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
 {
@@ -1109,10 +1120,8 @@ uae_u32 REGPARAM2 dummy_lgeti (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 4, 0, 1);
-    if (currprefs.cpu_model >= 68020)
-	return NONEXISTINGDATA;
-    return (regs.irc << 16) | regs.irc;
+	dummylog (0, addr, 4, 0, 1);
+    return dummy_get (addr, 4);
 }
 
 static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
@@ -1121,10 +1130,8 @@ static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 2, 0, 0);
-    if (currprefs.cpu_model >= 68020)
-	return NONEXISTINGDATA;
-    return regs.irc;
+	dummylog (0, addr, 2, 0, 0);
+    return dummy_get (addr, 2);
 }
 uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
 {
@@ -1132,10 +1139,8 @@ uae_u32 REGPARAM2 dummy_wgeti (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 2, 0, 1);
-    if (currprefs.cpu_model >= 68020)
-	return NONEXISTINGDATA;
-    return regs.irc;
+	dummylog (0, addr, 2, 0, 1);
+    return dummy_get (addr, 2);
 }
 
 static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
@@ -1144,10 +1149,8 @@ static uae_u32 REGPARAM2 dummy_bget (uaecptr addr)
     special_mem |= S_READ;
 #endif
     if (currprefs.illegal_mem)
-	dummylog(0, addr, 1, 0, 0);
-    if (currprefs.cpu_model >= 68020)
-	return NONEXISTINGDATA;
-    return (addr & 1) ? regs.irc : regs.irc >> 8;
+	dummylog (0, addr, 1, 0, 0);
+    return dummy_get (addr, 1);
 }
 
 static void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
@@ -1156,7 +1159,7 @@ static void REGPARAM2 dummy_lput (uaecptr addr, uae_u32 l)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 4, l, 0);
+       dummylog (1, addr, 4, l, 0);
 }
 static void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
 {
@@ -1164,7 +1167,7 @@ static void REGPARAM2 dummy_wput (uaecptr addr, uae_u32 w)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 2, w, 0);
+       dummylog (1, addr, 2, w, 0);
 }
 static void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
 {
@@ -1172,7 +1175,7 @@ static void REGPARAM2 dummy_bput (uaecptr addr, uae_u32 b)
     special_mem |= S_WRITE;
 #endif
    if (currprefs.illegal_mem)
-       dummylog(1, addr, 1, b, 0);
+       dummylog (1, addr, 1, b, 0);
 }
 
 static int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
@@ -3175,6 +3178,7 @@ void memory_reset (void)
     if (strcmp (currprefs.romfile, changed_prefs.romfile) != 0
 	|| strcmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
     {
+        kickstart_rom = 1;
 	ersatzkickfile = 0;
 	a1000_handle_kickstart (0);
 	xfree (a1000_bootrom);
@@ -3218,6 +3222,9 @@ void memory_reset (void)
 		}
 		if (rd->cloanto)
 		    cloanto_rom = 1;
+		kickstart_rom = 0;
+		if ((rd->type & ROMTYPE_SPECIALKICK | ROMTYPE_KICK) == ROMTYPE_KICK)
+		    kickstart_rom = 1;
 		if ((rd->cpu & 4) && currprefs.cs_compatible) {
 		    /* A4000 ROM = need ramsey, gary and ide */
 		    if (currprefs.cs_ramseyrev < 0)

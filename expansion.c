@@ -136,6 +136,7 @@ static void (*card_init[MAX_EXPANSION_BOARDS]) (void);
 static void (*card_map[MAX_EXPANSION_BOARDS]) (void);
 
 static int ecard;
+static int cardno;
 
 static uae_u16 uae_id;
 
@@ -166,33 +167,6 @@ static uae_u8 expamem[65536];
 static uae_u8 expamem_lo;
 static uae_u16 expamem_hi;
 
-/*
- *  Dummy entries to show that there's no card in a slot
- */
-
-static void expamem_map_clear (void)
-{
-    write_log ("expamem_map_clear() got called. Shouldn't happen.\n");
-}
-
-static void expamem_init_clear (void)
-{
-    memset (expamem, 0xff, sizeof expamem);
-}
-
-static void expamem_init_clear2 (void)
-{
-    expamem_init_clear ();
-    ecard = MAX_EXPANSION_BOARDS - 1;
-}
-
-static void expamem_init_last (void)
-{
-    write_log ("Memory map after autoconfig:\n");
-    memory_map_dump();
-    expamem_init_clear ();
-}
-
 static uae_u32 REGPARAM3 expamem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 expamem_wget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 expamem_bget (uaecptr) REGPARAM;
@@ -207,6 +181,35 @@ addrbank expamem_bank = {
     dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
+static void expamem_map_clear (void)
+{
+    write_log ("expamem_map_clear() got called. Shouldn't happen.\n");
+}
+
+static void expamem_init_clear (void)
+{
+    memset (expamem, 0xff, sizeof expamem);
+}
+/* autoconfig area is "non-existing" after last device */
+static void expamem_init_clear_zero (void)
+{
+    map_banks (&dummy_bank, 0xe8, 1, 0);
+}
+
+static void expamem_init_clear2 (void)
+{
+    expamem_init_clear_zero ();
+    ecard = cardno;
+}
+
+static void expamem_init_last (void)
+{
+    expamem_init_clear2 ();
+    write_log ("Memory map after autoconfig:\n");
+    memory_map_dump();
+}
+
+
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
     write_log ("warning: READ.L from address $%lx PC=%x\n", addr, M68K_GETPC);
@@ -215,8 +218,9 @@ static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
-    write_log ("warning: READ.W from address $%lx PC=%x\n", addr, M68K_GETPC);
-    return (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
+    uae_u32 v = (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
+    write_log ("warning: READ.W from address $%lx=%04x PC=%x\n", addr, v & 0xffff, M68K_GETPC);
+    return v;
 }
 
 static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
@@ -265,6 +269,8 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
     special_mem |= S_WRITE;
 #endif
     value &= 0xffff;
+    if (ecard >= cardno)
+	return;
     if (expamem_type() != zorroIII)
 	write_log ("warning: WRITE.W to address $%lx : value $%x\n", addr, value);
     else {
@@ -286,7 +292,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		(*card_map[ecard]) ();
 		write_log ("   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
 		++ecard;
-		if (ecard < MAX_EXPANSION_BOARDS)
+		if (ecard < cardno)
 		    (*card_init[ecard]) ();
 		else
 		    expamem_init_clear2 ();
@@ -301,6 +307,8 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
+    if (ecard >= cardno)
+	return;
     value &= 0xff;
     switch (addr & 0xff) {
      case 0x30:
@@ -316,7 +324,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	    (*card_map[ecard]) ();
 	    write_log ("   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
 	    ++ecard;
-	    if (ecard < MAX_EXPANSION_BOARDS)
+	    if (ecard < cardno)
 		(*card_init[ecard]) ();
 	    else
 		expamem_init_clear2 ();
@@ -332,7 +340,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
      case 0x4c:
 	write_log ("   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type() == 0xc0 ? "II" : "III");
 	++ecard;
-	if (ecard < MAX_EXPANSION_BOARDS)
+	if (ecard < cardno)
 	    (*card_init[ecard]) ();
 	else
 	    expamem_init_clear2 ();
@@ -1135,7 +1143,7 @@ void expamem_next (void)
     expamem_init_clear ();
     map_banks (&expamem_bank, 0xE8, 1, 0);
     ++ecard;
-    if (ecard < MAX_EXPANSION_BOARDS)
+    if (ecard < cardno)
 	(*card_init[ecard]) ();
     else
 	expamem_init_clear2 ();
@@ -1166,8 +1174,9 @@ void p96memstart(void)
 void expamem_reset (void)
 {
     int do_mount = 1;
-    int cardno = 0;
+
     ecard = 0;
+    cardno = 0;
 
     if (currprefs.uae_hide)
 	uae_id = commodore;
@@ -1248,13 +1257,13 @@ void expamem_reset (void)
 	card_init[cardno] = expamem_init_last;
 	card_map[cardno++] = expamem_map_clear;
     }
-    while (cardno < MAX_EXPANSION_BOARDS) {
-	card_init[cardno] = expamem_init_clear;
-	card_map[cardno++] = expamem_map_clear;
-    }
 
     z3fastmem_start = currprefs.z3fastmem_start;
-    (*card_init[0]) ();
+
+    if (cardno == 0)
+	expamem_init_clear_zero ();
+    else
+	(*card_init[0]) ();
 }
 
 void expansion_init (void)

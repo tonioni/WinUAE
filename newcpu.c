@@ -1625,7 +1625,8 @@ void m68k_reset (int hardreset)
     if (currprefs.cpu_model == 68060) {
 	regs.pcr = currprefs.fpu_model ? MC68060_PCR : MC68EC060_PCR;
 	regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
-	regs.pcr |= 2; /* disable FPU */
+	if (kickstart_rom)
+	    regs.pcr |= 2; /* disable FPU */
     }
     fill_prefetch_slow (&regs);
 }

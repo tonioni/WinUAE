@@ -226,7 +226,8 @@ void preinit_shm (void)
 	size64 = 8 * 1024 * 1024;
     if (max_allowed_mman * 1024 * 1024 > size64)
 	max_allowed_mman = size64 / (1024 * 1024);
-    max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
+    if (maxmem == 0)
+	max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
     if (max_z3fastmem < 512 * 1024 * 1024)
 	max_z3fastmem = 512 * 1024 * 1024;
 

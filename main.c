@@ -60,6 +60,7 @@ struct uae_prefs currprefs, changed_prefs;
 int no_gui = 0;
 int joystickpresent = 0;
 int cloanto_rom = 0;
+int kickstart_rom = 1;
 
 struct gui_info gui_data;
 

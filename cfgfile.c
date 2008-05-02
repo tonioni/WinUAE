@@ -194,7 +194,7 @@ char *cfgfile_subst_path (const char *path, const char *subst, const char *file)
     /* @@@ use strcasecmp for some targets.  */
     if (strlen (path) > 0 && strncmp (file, path, strlen (path)) == 0) {
 	int l;
-	char *p = (char*)xmalloc (strlen (file) + strlen (subst) + 2);
+	char *p = xmalloc (strlen (file) + strlen (subst) + 2);
 	strcpy (p, subst);
 	l = strlen (p);
 	while (l > 0 && p[l - 1] == '/')
@@ -1765,7 +1765,7 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, char *line1b, cha
 	    if (sl->option && !strcasecmp (line1b, sl->option)) break;
 	}
 	if (!sl) {
-	    struct strlist *u = (struct strlist*)xcalloc (sizeof (struct strlist), 1);
+	    struct strlist *u = xcalloc (sizeof (struct strlist), 1);
 	    u->option = my_strdup(line3b);
 	    u->value = my_strdup(line4b);
 	    u->next = p->all_lines;
@@ -1967,7 +1967,7 @@ int cfgfile_save (struct uae_prefs *p, const char *filename, int type)
 int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type)
 {
     int result = 0;
-    struct uae_prefs *p = (struct uae_prefs*)xmalloc (sizeof (struct uae_prefs));
+    struct uae_prefs *p = xmalloc (sizeof (struct uae_prefs));
     p->description[0] = 0;
     p->config_host_path[0] = 0;
     p->config_hardware_path[0] = 0;
@@ -2361,7 +2361,7 @@ void cfgfile_addcfgparam (char *line)
     }
     if (!cfgfile_separate_line (line, line1b, line2b))
 	return;
-    u = (struct strlist*)xcalloc (sizeof (struct strlist), 1);
+    u = xcalloc (sizeof (struct strlist), 1);
     u->option = my_strdup(line1b);
     u->value = my_strdup(line2b);
     u->next = temp_lines;
@@ -2646,12 +2646,12 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     int i, ret;
 
     put_byte (out, 0);
-    parms_p = (char*)xmalloc (size + 1);
+    parms_p = xmalloc (size + 1);
     if (!parms_p) {
 	ret = 10;
 	goto end;
     }
-    out_p = (char*)xmalloc (outsize + 1);
+    out_p = xmalloc (outsize + 1);
     if (!out_p) {
 	ret = 10;
 	goto end;

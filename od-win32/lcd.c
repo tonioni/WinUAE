@@ -173,8 +173,10 @@ void lcd_update(int led, int on)
 	x = 23 + (led - 1) * 40;
 	y = 17;
 	track = gui_data.drive_track[led - 1];
-	if (gui_data.drive_disabled[led - 1])
+	if (gui_data.drive_disabled[led - 1]) {
 	    track = -1;
+	    on = 0;
+	}
 	putnumbers (x, y, track, on);
     } else if (led == 0) {
 	dorect (&coords[4 * 2], on);

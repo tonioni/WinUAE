@@ -1219,10 +1219,17 @@ static int hmc (struct hardfiledata *hfd)
 	ret = ReadFile (hfd->handle, buf, hfd->blocksize, &got, NULL);
 	err = GetLastError ();
 	SetErrorMode(errormode);
-	if (ret)
-	    write_log ("read ok\n");
-	else
+	if (ret) {
+	    if (got == hfd->blocksize) {
+		write_log ("read ok (%d)\n", got);
+	    } else {
+		write_log ("read ok but no data (%d)\n", hfd->blocksize);
+		ret = 0;
+		err = 0;
+	    }
+	} else {
 	    write_log ("=%d\n", err);
+	}
 	if (!ret && (err == ERROR_DEV_NOT_EXIST || err == ERROR_WRONG_DISK)) {
 	    if (!first)
 		break;

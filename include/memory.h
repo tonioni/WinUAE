@@ -63,7 +63,7 @@ extern uaecptr fastmem_start;
 extern uaecptr a3000lmem_start, a3000hmem_start;
 
 extern int ersatzkickfile;
-extern int cloanto_rom;
+extern int cloanto_rom, kickstart_rom;
 extern uae_u16 kickstart_version;
 extern int uae_boot_rom, uae_boot_rom_size;
 extern uaecptr rtarea_base;
@@ -344,6 +344,7 @@ extern void a3000_fakekick(int);
 #define ROMTYPE_NORDIC	    0x001000
 #define ROMTYPE_XPOWER	    0x002000
 #define ROMTYPE_CD32CART    0x004000
+#define ROMTYPE_SPECIALKICK 0x008000
 #define ROMTYPE_MASK	    0x01ffff
 #define ROMTYPE_EVEN	    0x020000
 #define ROMTYPE_ODD	    0x040000

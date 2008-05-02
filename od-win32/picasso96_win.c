@@ -1363,8 +1363,7 @@ static void updatesprcolors (void)
 {
     int i;
     for (i = 1; i < 4; i++) {
-	uae_u32 v, vx;
-	v = cursorrgb[i];
+	uae_u32 v = cursorrgb[i];
 	switch (picasso_vidinfo.pixbytes)
 	{
 	    case 1:
@@ -1454,7 +1453,7 @@ static uae_u32 setspriteimage (uaecptr bi)
     for (y = 0; y < h; y++, yy++) {
         uae_u8 *p = tmpbuf + w * bpp * y;
 	uae_u8 *pprev = p;
-	uaecptr img = get_long (bi + PSSO_BoardInfo_MouseImage) + 4 + yy * 4 * hiressprite;
+	uaecptr img = get_long (bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite + yy * 4 * hiressprite;
 	x = 0;
 	while (x < w) {
 	    uae_u32 d1 = get_long (img);

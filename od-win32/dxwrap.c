@@ -55,6 +55,9 @@ static HRESULT restoresurface_2 (LPDIRECTDRAWSURFACE7 surf)
     
     if (surf == dxdata.flipping[0] || surf == dxdata.flipping[1])
 	surf = dxdata.primary;
+    ddrval = IDirectDrawSurface7_IsLost (surf);
+    if (SUCCEEDED (ddrval))
+	return ddrval;
     ddrval = IDirectDrawSurface7_Restore (surf);
     if (SUCCEEDED (ddrval)) {
 	if (surf == dxdata.primary && dxdata.palette)
@@ -69,6 +72,9 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
     
     if (surf == dxdata.flipping[0] || surf == dxdata.flipping[1])
 	surf = dxdata.primary;
+    ddrval = IDirectDrawSurface7_IsLost (surf);
+    if (SUCCEEDED (ddrval))
+	return ddrval;
     ddrval = IDirectDrawSurface7_Restore (surf);
     if (FAILED (ddrval)) {
 	write_log ("IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
@@ -77,6 +83,19 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
 	    IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
     }
     return ddrval;
+}
+
+static HRESULT restoresurfacex (LPDIRECTDRAWSURFACE7 surf1, LPDIRECTDRAWSURFACE7 surf2)
+{
+    HRESULT r1, r2;
+
+    r1 = restoresurface (surf1);
+    r2 = restoresurface (surf2);
+    if (SUCCEEDED (r1) && SUCCEEDED (r2))
+	return r1;
+    if (SUCCEEDED (r1))
+	return r2;
+    return r1;
 }
 
 static void clearsurf (LPDIRECTDRAWSURFACE7 surf)
@@ -590,7 +609,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *rect)
     centerdstrect (&dstrect);
     while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, rect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface (dst);
+	    ddrval = restoresurfacex (dst, dxdata.secondary);
 	    if (FAILED (ddrval))
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -627,7 +646,7 @@ int DirectDraw_BlitToPrimary (RECT *rect)
     centerdstrect (&dstrect);
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, &srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface (dst);
+	    ddrval = restoresurfacex (dst, dxdata.secondary);
 	    if (FAILED (ddrval))
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -657,6 +676,9 @@ static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRA
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_ROP | DDBLT_WAIT, &fx))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurface_2 (dst);
+	    if (FAILED (ddrval))
+		break;
+	    ddrval = restoresurface_2 (src);
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {

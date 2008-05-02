@@ -1,4 +1,16 @@
 
+Beta 15:
+
+- autoconfig emulation update, fixes AR3 (broken) autoconfig code that
+  detected non-existing ram expansion at 0x00600000-0x009ffff
+- modified directdraw fullscreen mode fallback code
+- Picasso96 hires hardware sprite problem fixed. It was emulation
+  problem after all.. (I really need new brown paper bag soon)
+- Picasso96 hardware sprite resolution switching problem should be
+  really fixed now. (lots of logging can still happen after alt-tab,
+  this will be removed later)
+- disk insert/remove tweak
+
 Beta 14:
 
 - fixed IDE emulation crash

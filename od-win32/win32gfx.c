@@ -248,17 +248,17 @@ static int set_ddraw_2 (void)
     if (dxfullscreen)  {
 	int rounds = 3;
 	for (;;) {
+	    HRESULT olderr;
 	    write_log ("set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	    if (SUCCEEDED (ddrval))
 		break;
-	    if (ddrval != 0x80004001 && freq != 0) { // "The function called is not supported at this time" (wtf?)
-		write_log ("set_ddraw: failed, trying without forced refresh rate\n");
-		ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
-		if (SUCCEEDED (ddrval))
-		    break;
-	    }
-	    if (ddrval != DDERR_INVALIDMODE  && ddrval != 0x80004001 && ddrval != DDERR_UNSUPPORTEDMODE)
+	    olderr = ddrval;
+	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
+	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
+	    if (SUCCEEDED (ddrval))
+	        break;
+	    if (olderr != DDERR_INVALIDMODE  && olderr != 0x80004001 && olderr != DDERR_UNSUPPORTEDMODE)
 		goto oops;
 	    return -1;
 	}
