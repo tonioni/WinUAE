@@ -110,7 +110,7 @@ static void clearsurf (LPDIRECTDRAWSURFACE7 surf)
     ddbltfx.dwSize = sizeof (ddbltfx);
     while (FAILED (ddrval = IDirectDrawSurface7_Blt (surf, NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface (dxdata.primary);
+	    ddrval = restoresurface (surf);
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -152,8 +152,26 @@ void unlocksurface (LPDIRECTDRAWSURFACE7 surf)
 	write_log ("IDirectDrawSurface7_Unlock: %s\n", DXError (ddrval));
 }
 
+static void setsurfacecap (DDSURFACEDESC2 *desc, int w, int h, int mode)
+{
+    desc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_NONLOCALVIDMEM | DDSCAPS_VIDEOMEMORY;
+    if (mode >= DDFORCED_DEFAULT)
+        desc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    if (mode == DDFORCED_VIDMEM)
+        desc->ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
+    if (w > dxdata.maxwidth || h > dxdata.maxheight || mode == DDFORCED_SYSMEM)
+        desc->ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
+    desc->dwWidth = w;
+    desc->dwHeight = h;
+}
+
+STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
+{
+    return (((rgb >> (16 + 3)) & 0x1f) << 11) | (((rgb >> (8 + 2)) & 0x3f) << 5) | (((rgb >> (0 + 3)) & 0x1f) << 0);
+}
+
 static char *alloctexts[] = { "NonLocalVRAM", "DefaultRAM", "VRAM", "RAM" };
-LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, uae_u8 *ptr, int pitch, int forcemode)
+LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pitch, int ck, int forcemode)
 {
     HRESULT ddrval;
     DDSURFACEDESC2 desc;
@@ -162,21 +180,26 @@ LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, uae_u8 *ptr, int pit
     memset (&desc, 0, sizeof desc);
     desc.dwSize = sizeof (desc);
     desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
-    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_NONLOCALVIDMEM | DDSCAPS_VIDEOMEMORY;
-    if (forcemode >= DDFORCED_DEFAULT)
-        desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-    if (forcemode == DDFORCED_VIDMEM)
-        desc.ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
-    if (width > dxdata.maxwidth || height > dxdata.maxheight || forcemode == DDFORCED_SYSMEM)
-        desc.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
-    desc.dwWidth = width;
-    desc.dwHeight = height;
+    setsurfacecap (&desc, width, height, forcemode);
+    memcpy (&desc.ddpfPixelFormat, &dxdata.native.ddpfPixelFormat, sizeof (DDPIXELFORMAT));
+
+    if (ck) {
+	DWORD mask = 0xff00fe;
+	desc.dwFlags |= DDSD_CKSRCBLT;
+	if (desc.ddpfPixelFormat.dwRGBBitCount == 16)
+	    mask = rgb32torgb16pc (mask);
+	else if (desc.ddpfPixelFormat.dwRGBBitCount == 8)
+	    mask = 16;
+	dxdata.colorkey = mask;
+	desc.ddckCKSrcBlt.dwColorSpaceLowValue = mask;
+	desc.ddckCKSrcBlt.dwColorSpaceHighValue = mask;
+    }
+
     if (ptr) {
 	desc.dwFlags |= DDSD_LPSURFACE | DDSD_PITCH;
 	desc.lPitch = pitch;
 	desc.lpSurface = ptr;
     }
-    memcpy (&desc.ddpfPixelFormat, &dxdata.native.ddpfPixelFormat, sizeof (DDPIXELFORMAT));
     ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &surf, NULL);
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
@@ -186,7 +209,7 @@ LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, uae_u8 *ptr, int pit
     return surf;
 }
 
-LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
+static LPDIRECTDRAWSURFACE7 allocsurface_2 (int width, int height, int ck)
 {
     LPDIRECTDRAWSURFACE7 s;
     int mode = ddforceram;
@@ -195,7 +218,7 @@ LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
     if (failednonlocal && mode == DDFORCED_NONLOCAL)
 	mode = DDFORCED_DEFAULT;
     for (;;) {
-	s = allocsurface_2 (width, height, NULL, 0, mode);
+	s = allocsurface_3 (width, height, NULL, 0, ck, mode);
 	if (s) {
 	    clearsurf (s);
 	    return s;
@@ -209,9 +232,15 @@ LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
 	    return NULL;
     }
 }
+
+LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
+{
+    return allocsurface_2 (width, height, FALSE);
+}
+
 LPDIRECTDRAWSURFACE7 createsurface (uae_u8 *ptr, int pitch, int width, int height)
 {
-    return allocsurface_2 (width, height, ptr, pitch, DDFORCED_SYSMEM);
+    return allocsurface_3 (width, height, ptr, pitch, FALSE, DDFORCED_SYSMEM);
 }
 
 void freesurface (LPDIRECTDRAWSURFACE7 surf)
@@ -225,35 +254,12 @@ void DirectDraw_FreeMainSurface (void)
     freemainsurface ();
 }
 
-STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
-{
-    return (((rgb >> (16 + 3)) & 0x1f) << 11) | (((rgb >> (8 + 2)) & 0x3f) << 5) | (((rgb >> (0 + 3)) & 0x1f) << 0);
-}
-
 static void createcursorsurface (void)
 {
-    HRESULT ddrval;
-    DDSURFACEDESC2 desc = { 0 };
-    DWORD mask = 0xff00fe;
-
-    dxdata.cursorsurface = NULL;
-    desc.dwSize = sizeof desc;
-    desc.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_CKSRCBLT;
-    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-    desc.dwWidth = dxdata.cursorwidth;
-    desc.dwHeight = dxdata.cursorheight * 2;
-    DirectDraw_GetPrimaryPixelFormat (&desc);
-    if (desc.ddpfPixelFormat.dwRGBBitCount == 16)
-	mask = rgb32torgb16pc (mask);
-    else if (desc.ddpfPixelFormat.dwRGBBitCount == 8)
-	mask = 16;
-    dxdata.colorkey = mask;
-    desc.ddckCKSrcBlt.dwColorSpaceLowValue = mask;
-    desc.ddckCKSrcBlt.dwColorSpaceHighValue = mask;
-    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.cursorsurface, NULL);
-    if (FAILED(ddrval))
-	write_log ("Cursor surface creation failed: %s\n", DXError (ddrval));
-    clearsurf (dxdata.cursorsurface);
+    releaser (dxdata.cursorsurface, IDirectDrawSurface7_Release);
+    dxdata.cursorsurface = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight * 2, TRUE);
+    if (dxdata.cursorsurface)
+	clearsurf (dxdata.cursorsurface);
 }
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)
@@ -675,10 +681,7 @@ static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRA
 	return;
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_ROP | DDBLT_WAIT, &fx))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = restoresurface_2 (dst);
-	    if (FAILED (ddrval))
-		break;
-	    ddrval = restoresurface_2 (src);
+	    ddrval = restoresurfacex (dst, src);
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
@@ -849,8 +852,8 @@ int DirectDraw_Start (GUID *guid)
 	return 0;
     }
 
-    dxdata.cursorwidth = 64;
-    dxdata.cursorheight = 64;
+    dxdata.cursorwidth = 48;
+    dxdata.cursorheight = 48;
     dxdata.maxwidth = 16384;
     dxdata.maxheight = 16384;
     d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);

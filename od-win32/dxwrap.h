@@ -80,6 +80,7 @@ int DirectDraw_Start(GUID *guid);
 void clearsurface(LPDIRECTDRAWSURFACE7 surf);
 int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc);
 void unlocksurface (LPDIRECTDRAWSURFACE7 surf);
+HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf);
 LPDIRECTDRAWSURFACE7 allocsurface (int width, int height);
 LPDIRECTDRAWSURFACE7 createsurface (uae_u8 *ptr, int pitch, int width, int height);
 void freesurface (LPDIRECTDRAWSURFACE7 surf);

@@ -132,7 +132,7 @@ extern void inputdevice_init (void);
 extern void inputdevice_close (void);
 extern void inputdevice_default_prefs (struct uae_prefs *p);
 
-extern void inputdevice_acquire (void);
+extern void inputdevice_acquire (int allmode);
 extern void inputdevice_unacquire (void);
 
 extern void indicator_leds (int num, int state);

@@ -3011,7 +3011,7 @@ void debug (void)
 	debugging = 1;
     }
     resume_sound ();
-    inputdevice_acquire ();
+    inputdevice_acquire (TRUE);
 }
 
 int notinrom (void)

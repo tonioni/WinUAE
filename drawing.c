@@ -50,6 +50,7 @@
 #endif
 #include "savestate.h"
 #include "statusline.h"
+#include "inputdevice.h"
 
 extern int sprite_buffer_res;
 

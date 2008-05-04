@@ -1,4 +1,16 @@
 
+Beta 16:
+
+- winuaebootlog.txt and winuaelog.txt (if enabled) is written to crash
+  dump file automatically
+- uncapture mouse when paused if in windowed mode
+- release only non-enabled input devices when mouse is uncaptured and
+  release all devices when focus is lost. This makes WinUAE's behaviour
+  more Windows-like (input is read as long as program has focus)
+- "Match host and RTG color depth if possible" set and 24-bit fullscreen
+  Picasso96 mode selected -> use 32-bit native mode
+- Picasso96 hardware mouse cursor fixed in 8/16-bit modes
+
 Beta 15:
 
 - autoconfig emulation update, fixes AR3 (broken) autoconfig code that

@@ -792,7 +792,7 @@ int save_state (char *filename, char *description)
 	save_chunk (f, dst, len, "CONF", 1);
 	xfree(dst);
     }
-    dst = save_log (&len);
+    dst = save_log (TRUE, &len);
     if (dst) {
 	save_chunk (f, dst, len, "LOG ", 1);
 	xfree(dst);

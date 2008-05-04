@@ -526,7 +526,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    return;
 #endif
     }
-    if (specialpressed())
+    if (specialpressed ())
 	return;
 
     inputdevice_translatekeycode (keyboard, scancode, newstate);

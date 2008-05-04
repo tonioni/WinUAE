@@ -61,7 +61,7 @@ static void do_fake (int nr)
 
 void record_key (int kc)
 {
-    if (input_recording < 0)
+    if (input_recording < 0 || pause_emulation)
 	return;
     record_key_direct (kc);
 }

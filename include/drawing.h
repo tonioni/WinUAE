@@ -274,7 +274,7 @@ extern void redraw_frame (void);
 /* Finally, stuff that shouldn't really be shared.  */
 
 extern int thisframe_first_drawn_line, thisframe_last_drawn_line;
-extern int diwfirstword,diwlastword;
+extern int diwfirstword, diwlastword;
 
 #define IHF_SCROLLLOCK 0
 #define IHF_QUIT_PROGRAM 1

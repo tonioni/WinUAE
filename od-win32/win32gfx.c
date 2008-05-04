@@ -782,6 +782,8 @@ static void update_gfxparams (void)
 	: currprefs.color_mode == 4 ? 8 : 32);
     if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
 	int pbits = picasso96_state.BytesPerPixel * 8;
+	if (pbits == 24)
+	    pbits = 32;
 	if (pbits >= 8)
 	    currentmode->current_depth = pbits;
     }
@@ -921,7 +923,7 @@ int check_prefs_changed_gfx (void)
 	    pause_sound ();
 	    resume_sound ();
 	}
-	inputdevice_acquire ();
+	inputdevice_acquire (TRUE);
 	return 1;
     }
 
@@ -995,7 +997,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.keyboard_leds_in_use = currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2];
 	pause_sound ();
 	resume_sound ();
-	inputdevice_acquire ();
+	inputdevice_acquire (TRUE);
 #ifndef	_DEBUG
 	setpriority (&priorities[currprefs.win32_active_priority]);
 #endif

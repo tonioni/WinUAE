@@ -54,6 +54,10 @@ static int cando (void)
 	return 0;
     return 1;
 }
+static int isrecursive (void)
+{
+    return recursive_device;
+}
 
 static void outhex (const uae_u8 *s)
 {
@@ -860,6 +864,15 @@ void rp_update_volume (struct uae_prefs *p)
     if (!cando ())
 	return;
     RPSendMessagex (RPIPCGM_VOLUME, (WPARAM)(100 - p->sound_volume), 0, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_pause (int paused)
+{
+    if (!cando ())
+	return;
+    if (isrecursive ())
+	return;
+    RPSendMessagex (RPIPCGM_PAUSE, (WPARAM)paused, 0, NULL, 0, &guestinfo, NULL);
 }
 
 static void rp_mouse (void)

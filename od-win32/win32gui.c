@@ -53,6 +53,7 @@
 #include "parallel.h"
 #include "audio.h"
 #include "arcadia.h"
+#include "drawing.h"
 #include "fsdb.h"
 
 #include "dxwrap.h"
@@ -1179,7 +1180,7 @@ void gui_display (int shortcut)
     inputdevice_copyconfig (&changed_prefs, &currprefs);
     inputdevice_config_change_test ();
     clearallkeys ();
-    inputdevice_acquire ();
+    inputdevice_acquire (TRUE);
     setmouseactive (1);
 #ifdef D3D
     D3D_guimode (FALSE);
@@ -11192,7 +11193,9 @@ void gui_led (int led, int on)
     } else if (led == 7) {
 	pos = 2;
 	ptr = drive_text + pos * 16;
-	sprintf(ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
+	sprintf (ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
+	if (pause_emulation)
+	    strcpy (ptr, "PAUSED");
     } else if (led == 8) {
 	pos = 1;
 	ptr = drive_text + pos * 16;

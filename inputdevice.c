@@ -47,8 +47,6 @@
 #include "autoconf.h"
 #include "rp.h"
 
-static int allmode = 1;
-
 int inputdevice_logging = 0;
 
 #define DIR_LEFT 1
@@ -2491,7 +2489,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
     if (prefs == &currprefs) {
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	if (acc)
-	    inputdevice_acquire ();
+	    inputdevice_acquire (TRUE);
     } else {
 	matchdevices (&idev[IDTYPE_MOUSE], mice);
 	matchdevices (&idev[IDTYPE_JOYSTICK], joysticks);
@@ -2624,7 +2622,7 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
     if (inputdevice_translatekeycode_2 (keyboard, scancode, state))
 	return 1;
     if (currprefs.mmkeyboard)
-	sendmmcodes(scancode, state);
+	sendmmcodes (scancode, state);
     return 0;
 }
 
@@ -3029,7 +3027,7 @@ void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int 
 	memcpy (p->keyboard_settings[dst], p->keyboard_settings[src], sizeof (struct uae_input_device) * MAX_INPUT_DEVICES);
 }
 
-void inputdevice_acquire (void)
+void inputdevice_acquire (int allmode)
 {
     int i;
 
@@ -3046,6 +3044,8 @@ void inputdevice_acquire (void)
 	if (use_keyboards[i])
 	    idev[IDTYPE_KEYBOARD].acquire (i, 0);
     }
+    if (!input_acquired)
+	write_log ("input devices acquired (%s)\n", allmode ? "all" : "selected only");
     input_acquired = 1;
 }
 
@@ -3053,7 +3053,9 @@ void inputdevice_unacquire (void)
 {
     int i;
 
-    input_acquired = 1;
+    if (input_acquired)
+	write_log ("input devices unacquired\n");
+    input_acquired = 0;
     for (i = 0; i < MAX_INPUT_DEVICES; i++)
 	idev[IDTYPE_JOYSTICK].unacquire (i);
     for (i = 0; i < MAX_INPUT_DEVICES; i++)
@@ -3275,6 +3277,9 @@ void pausemode (int mode)
 	pause_emulation = pause_emulation ? 0 : 1;
     else
 	pause_emulation = mode;
+#ifdef RETROPLATFORM
+    rp_pause (pause_emulation);
+#endif
 }
 
 int jsem_isjoy (int port, const struct uae_prefs *p)

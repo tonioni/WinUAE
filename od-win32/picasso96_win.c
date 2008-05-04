@@ -720,6 +720,8 @@ typedef enum {
 static uae_u32 setspriteimage (uaecptr bi);
 static void recursor (void)
 {
+    restoresurface (dxdata.cursorsurface);
+    clearsurface (dxdata.cursorsurface);
     reloadcursor = 1;
     cursorok = FALSE;
     setspriteimage (cursorbi);
@@ -1313,8 +1315,9 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.bottom = cursorheight + cursorheight + ydiff + ydiff2;
 
     ddrval = IDirectDrawSurface7_Blt (dxdata.cursorsurface, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
-    if (FAILED(ddrval)) {
-	write_log ("Cursor surface blit1 failed: %s\n", DXError (ddrval));
+    if (FAILED (ddrval)) {
+	if (ddrval != DDERR_SURFACELOST)
+	    write_log ("Cursor surface blit1 failed: %s\n", DXError (ddrval));
 	recursor ();
 	return;
     }
@@ -1325,8 +1328,9 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.bottom = cursor_r2.top + cursorheight + ydiff + ydiff2;
 
     ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
-    if (FAILED(ddrval)) {
-	write_log ("Cursor surface blit2 failed: %s\n", DXError (ddrval));
+    if (FAILED (ddrval)) {
+	if (ddrval != DDERR_SURFACELOST)
+	    write_log ("Cursor surface blit2 failed: %s\n", DXError (ddrval));
 	recursor ();
 	return;
     }
@@ -1350,8 +1354,10 @@ void picasso_clearcursor (void)
     mouseput = 0;
 
     ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT, NULL);
-    if (FAILED(ddrval))
-	write_log ("Cursor surface clearblit failed: %s\n", DXError (ddrval));
+    if (FAILED(ddrval)) {
+	if (ddrval != DDERR_SURFACELOST)
+	    write_log ("Cursor surface clearblit failed: %s\n", DXError (ddrval));
+    }
 }
 
 STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
@@ -1641,7 +1647,7 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 	return 0;
 }
 
-static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struct PicassoResolution *dm, int depth)
+static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, int width, int height, int depth)
 {
     int i;
 
@@ -1664,18 +1670,18 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     for (i = 0; i < PSSO_ModeInfo_sizeof; i++)
 	put_byte (amigamemptr + i, 0);
 
-    put_word (amigamemptr + PSSO_ModeInfo_Width, dm->res.width);
-    put_word (amigamemptr + PSSO_ModeInfo_Height, dm->res.height);
+    put_word (amigamemptr + PSSO_ModeInfo_Width, width);
+    put_word (amigamemptr + PSSO_ModeInfo_Height, height);
     put_byte (amigamemptr + PSSO_ModeInfo_Depth, depth);
     put_byte (amigamemptr + PSSO_ModeInfo_Flags, 0);
-    put_word (amigamemptr + PSSO_ModeInfo_HorTotal, dm->res.width);
+    put_word (amigamemptr + PSSO_ModeInfo_HorTotal, width);
     put_word (amigamemptr + PSSO_ModeInfo_HorBlankSize, 0);
     put_word (amigamemptr + PSSO_ModeInfo_HorSyncStart, 0);
     put_word (amigamemptr + PSSO_ModeInfo_HorSyncSize, 0);
     put_byte (amigamemptr + PSSO_ModeInfo_HorSyncSkew, 0);
     put_byte (amigamemptr + PSSO_ModeInfo_HorEnableSkew, 0);
 
-    put_word (amigamemptr + PSSO_ModeInfo_VerTotal, dm->res.height);
+    put_word (amigamemptr + PSSO_ModeInfo_VerTotal, height);
     put_word (amigamemptr + PSSO_ModeInfo_VerBlankSize, 0);
     put_word (amigamemptr + PSSO_ModeInfo_VerSyncStart, 0);
     put_word (amigamemptr + PSSO_ModeInfo_VerSyncSize, 0);
@@ -1684,7 +1690,7 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, struc
     put_byte (amigamemptr + PSSO_ModeInfo_second_union, 14);
 
     put_long (amigamemptr + PSSO_ModeInfo_PixelClock,
-	dm->res.width * dm->res.height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
+	width * height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
 }
 
 struct modeids {
@@ -1754,12 +1760,10 @@ static struct modeids mi[] =
    -1,-1,0
 };
 
-static int AssignModeID (int dm, int count, int *unkcnt)
+static int AssignModeID (int w, int h, int *unkcnt)
 {
-    int i, w, h;
+    int i;
 
-    w = newmodes[dm].res.width;
-    h = newmodes[dm].res.height;
     for (i = 0; mi[i].width > 0; i++) {
 	if (w == mi[i].width && h == mi[i].height)
 	    return 0x50001000 | (mi[i].id * 0x10000);
@@ -1887,6 +1891,8 @@ void picasso96_alloc (TrapContext *ctx)
 	    && DisplayModes[i].res.height == DisplayModes[j].res.height)
 		i++;
     }
+    for (i = 0; Displays[i].name; i++)
+	size += PSSO_ModeInfo_sizeof * depths;
     newmodes[cnt].depth = -1;
 
     for (i = 0; i < cnt; i++) {
@@ -2084,6 +2090,31 @@ static void inituaegfx (uaecptr ABI)
 #endif
 }
 
+static void addmode (uaecptr AmigaBoardInfo, uaecptr *amem, struct LibResolution *res, int w, int h, const char *name, int id, int *unkcnt)
+{
+    int depth;
+
+    res->DisplayID = id > 0 ? id : AssignModeID (w, h, unkcnt);
+    res->BoardInfo = AmigaBoardInfo;
+    res->Width = w;
+    res->Height = h;
+    res->Flags = P96F_PUBLIC;
+    memcpy (res->P96ID, "P96-0:", 6);
+    if (name)
+	strcpy (res->Name, name);
+    else
+	sprintf (res->Name, "UAE:%4dx%4d", w, h);
+
+    for (depth = 8; depth <= 32; depth++) {
+        if (!p96depth (depth))
+	    continue;
+	if(allocated_gfxmem >= w * h * (depth + 7) / 8) {
+	    FillBoardInfo (*amem, res, w, h, depth);
+	    *amem += PSSO_ModeInfo_sizeof;
+	}
+    }
+}
+
 /****************************************
 * InitCard()
 *
@@ -2093,8 +2124,7 @@ static void inituaegfx (uaecptr ABI)
 static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 {
     struct regstruct *regs = &ctx->regs;
-    struct LibResolution res;
-    int ModeInfoStructureCount = 1, LibResolutionStructureCount = 0;
+    int LibResolutionStructureCount = 0;
     int i, j, unkcnt;
     uaecptr amem;
     uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
@@ -2113,33 +2143,9 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
     i = 0;
     unkcnt = 0;
     while (newmodes[i].depth >= 0) {
-	int depth;
+	struct LibResolution res = { 0 };
 	j = i;
-	/* Add a LibResolution structure to the ResolutionsList MinList in our BoardInfo */
-	res.DisplayID = AssignModeID (i, LibResolutionStructureCount, &unkcnt);
-	res.BoardInfo = AmigaBoardInfo;
-	res.Width = newmodes[i].res.width;
-	res.Height = newmodes[i].res.height;
-	res.Flags = P96F_PUBLIC;
-	memcpy (res.P96ID, "P96-0:", 6);
-	sprintf (res.Name, "UAE:%dx%d", res.Width, res.Height);
-	res.Modes[PLANAR] = 0;
-	res.Modes[CHUNKY] = 0;
-	res.Modes[HICOLOR] = 0;
-	res.Modes[TRUECOLOR] = 0;
-	res.Modes[TRUEALPHA] = 0;
-
-	for (depth = 8; depth <= 32; depth++) {
-	    if (!p96depth (depth))
-		continue;
-	    /* Handle this display mode's depth */
-	    /* New: Only add the modes when there is enough P96 RTG memory to hold the bitmap */
-	    if(allocated_gfxmem >= newmodes[i].res.width * newmodes[i].res.height * (depth + 7) / 8) {
-		ModeInfoStructureCount++;
-		FillBoardInfo (amem, &res, &newmodes[i], depth);
-		amem += PSSO_ModeInfo_sizeof;
-	    }
-	}
+	addmode (AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, -1, &unkcnt);
 	while (newmodes[i].depth >= 0
 	    && newmodes[i].res.width == newmodes[j].res.width
 	    && newmodes[i].res.height == newmodes[j].res.height)
@@ -2153,6 +2159,29 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 	AmigaListAddTail (AmigaBoardInfo + PSSO_BoardInfo_ResolutionsList, amem);
 	amem += PSSO_LibResolution_sizeof;
     }
+#if 0
+    for (i = 0; Displays[i].name; i++) {
+	struct LibResolution res = { 0 };
+	struct MultiDisplay *md = &Displays[i];
+	int w = md->rect.right - md->rect.left;
+	int h = md->rect.bottom - md->rect.top;
+	int id = 0x50F00000 - i * 0x10000;
+	char tmp[100];
+	if (md->primary)
+	    strcpy (tmp, "UAE:Primary");
+	else
+	    sprintf (tmp, "UAE:Monitor#%d", i);
+	addmode (AmigaBoardInfo, &amem, &res, w + 16, h, md->name, id, &unkcnt);
+	LibResolutionStructureCount++;
+	CopyLibResolutionStructureU2A (&res, amem);
+#if P96TRACING_ENABLED && P96TRACING_LEVEL > 1
+	DumpLibResolutionStructure(amem);
+#endif
+	AmigaListAddTail (AmigaBoardInfo + PSSO_BoardInfo_ResolutionsList, amem);
+	amem += PSSO_LibResolution_sizeof;
+    }
+#endif
+
     if (amem > picasso96_amemend)
 	write_log ("P96: display resolution list corruption %08x<>%08x (%d)\n", amem, picasso96_amemend, i);
 
