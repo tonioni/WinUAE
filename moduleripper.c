@@ -44,6 +44,7 @@ void moduleripper (void)
     size += currprefs.mbresmem_low_size;
     size += currprefs.mbresmem_high_size;
     size += currprefs.z3fastmem_size;
+    size += currprefs.z3fastmem2_size;
     buf = p = (uae_u8*)xmalloc (size);
     if (!buf)
 	return;
@@ -59,6 +60,8 @@ void moduleripper (void)
     p += currprefs.mbresmem_high_size;
     mc (p, z3fastmem_start, currprefs.z3fastmem_size);
     p += currprefs.z3fastmem_size;
+    mc (p, z3fastmem_start + currprefs.z3fastmem_size, currprefs.z3fastmem2_size);
+    p += currprefs.z3fastmem2_size;
 
     got = 0;
     canceled = 0;

@@ -630,6 +630,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "a3000mem_size=%d\n", p->mbresmem_low_size / 0x100000);
     cfgfile_write (f, "mbresmem_size=%d\n", p->mbresmem_high_size / 0x100000);
     cfgfile_write (f, "z3mem_size=%d\n", p->z3fastmem_size / 0x100000);
+    cfgfile_write (f, "z3mem2_size=%d\n", p->z3fastmem2_size / 0x100000);
     cfgfile_write (f, "z3mem_start=0x%x\n", p->z3fastmem_start);
     cfgfile_write (f, "bogomem_size=%d\n", p->bogomem_size / 0x40000);
     cfgfile_write (f, "gfxcard_size=%d\n", p->gfxmem_size / 0x100000);
@@ -1362,6 +1363,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, char *option, char *valu
 	|| cfgfile_intval (option, value, "a3000mem_size", &p->mbresmem_low_size, 0x100000)
 	|| cfgfile_intval (option, value, "mbresmem_size", &p->mbresmem_high_size, 0x100000)
 	|| cfgfile_intval (option, value, "z3mem_size", &p->z3fastmem_size, 0x100000)
+	|| cfgfile_intval (option, value, "z3mem2_size", &p->z3fastmem2_size, 0x100000)
 	|| cfgfile_intval (option, value, "z3mem_start", &p->z3fastmem_start, 1)
 	|| cfgfile_intval (option, value, "bogomem_size", &p->bogomem_size, 0x40000)
 	|| cfgfile_intval (option, value, "gfxcard_size", &p->gfxmem_size, 0x100000)
@@ -2984,6 +2986,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->mbresmem_low_size = 0x00000000;
     p->mbresmem_high_size = 0x00000000;
     p->z3fastmem_size = 0x00000000;
+    p->z3fastmem2_size = 0x00000000;
     p->z3fastmem_start = 0x10000000;
     p->chipmem_size = 0x00080000;
     p->bogomem_size = 0x00080000;
@@ -3085,6 +3088,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->mbresmem_low_size = 0x00000000;
     p->mbresmem_high_size = 0x00000000;
     p->z3fastmem_size = 0x00000000;
+    p->z3fastmem2_size = 0x00000000;
     p->gfxmem_size = 0x00000000;
 
     p->cs_rtc = 0;

@@ -603,8 +603,8 @@ static void mouseupdate (void)
 
     fx1 = remcursor_x;
     fy1 = remcursor_y;
-    fx2 = fx1 + remcursor_h;
-    fy2 = fy1 + remcursor_w;
+    fx2 = fx1 + remcursor_w;
+    fy2 = fy1 + remcursor_h;
 
     remcursor_x = x;
     remcursor_y = y;
@@ -720,8 +720,10 @@ typedef enum {
 static uae_u32 setspriteimage (uaecptr bi);
 static void recursor (void)
 {
-    restoresurface (dxdata.cursorsurface);
-    clearsurface (dxdata.cursorsurface);
+    restoresurface (dxdata.cursorsurface1);
+    restoresurface (dxdata.cursorsurface2);
+    clearsurface (dxdata.cursorsurface1);
+    clearsurface (dxdata.cursorsurface2);
     reloadcursor = 1;
     cursorok = FALSE;
     setspriteimage (cursorbi);
@@ -1310,11 +1312,11 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r1.bottom += ydiff;
 
     cursor_r2.left = 0;
-    cursor_r2.top = cursorheight;
+    cursor_r2.top = 0;
     cursor_r2.right = cursorwidth + xdiff + xdiff2;
-    cursor_r2.bottom = cursorheight + cursorheight + ydiff + ydiff2;
+    cursor_r2.bottom = cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (dxdata.cursorsurface, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dxdata.cursorsurface2, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
     if (FAILED (ddrval)) {
 	if (ddrval != DDERR_SURFACELOST)
 	    write_log ("Cursor surface blit1 failed: %s\n", DXError (ddrval));
@@ -1327,7 +1329,7 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.right = cursor_r2.left + cursorwidth + xdiff + xdiff2;
     cursor_r2.bottom = cursor_r2.top + cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface1, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
     if (FAILED (ddrval)) {
 	if (ddrval != DDERR_SURFACELOST)
 	    write_log ("Cursor surface blit2 failed: %s\n", DXError (ddrval));
@@ -1336,9 +1338,9 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     }
 
     cursor_r2.left = 0;
-    cursor_r2.top = cursorheight;
+    cursor_r2.top = 0;
     cursor_r2.right = cursorwidth + xdiff + xdiff2;
-    cursor_r2.bottom = cursorheight + cursorheight + ydiff + ydiff2;
+    cursor_r2.bottom = cursorheight + ydiff + ydiff2;
 
     mouseput = 1;
 }
@@ -1353,7 +1355,7 @@ void picasso_clearcursor (void)
 	return;
     mouseput = 0;
 
-    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface, &cursor_r2, DDBLT_WAIT, NULL);
+    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface2, &cursor_r2, DDBLT_WAIT, NULL);
     if (FAILED(ddrval)) {
 	if (ddrval != DDERR_SURFACELOST)
 	    write_log ("Cursor surface clearblit failed: %s\n", DXError (ddrval));
@@ -1423,7 +1425,7 @@ static uae_u32 setspriteimage (uaecptr bi)
     int w, h;
 
     cursordeactivate = 0;
-    if (!hwsprite || !dxdata.cursorsurface)
+    if (!hwsprite || !dxdata.cursorsurface1)
 	return 0;
     oldcursor_x = -10000;
     w = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseWidth);
@@ -1492,10 +1494,9 @@ static uae_u32 setspriteimage (uaecptr bi)
 	    if (!reloadcursor && w == cursorwidth && h == cursorheight) {
 		int different = 0;
 		desc.dwSize = sizeof (desc);
-		ddrval = DD_OK;
-		while (FAILED (ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+		while (FAILED ((ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface1, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)))) {
 		    if (ddrval == DDERR_SURFACELOST) {
-			ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface);
+			ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface1);
 			if (FAILED (ddrval))
 			    break;
 		    }
@@ -1510,7 +1511,7 @@ static uae_u32 setspriteimage (uaecptr bi)
 		    if (memcmp (p1, p2, w * bpp))
 			different = 1;
 		}
-		IDirectDrawSurface_Unlock (dxdata.cursorsurface, NULL);
+		IDirectDrawSurface_Unlock (dxdata.cursorsurface1, NULL);
 		if (!different) {
 		    P96TRACE_SPR (("sprite was same as previously\n"));
 		    ret = 1;
@@ -1526,9 +1527,9 @@ static uae_u32 setspriteimage (uaecptr bi)
     cursorheight = h;
 
     desc.dwSize = sizeof (desc);
-    while (FAILED(ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
+    while (FAILED((ddrval = IDirectDrawSurface7_Lock (dxdata.cursorsurface1, NULL, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL)))) {
 	if (ddrval == DDERR_SURFACELOST) {
-	    ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface);
+	    ddrval = IDirectDrawSurface7_Restore (dxdata.cursorsurface1);
 	    if (FAILED(ddrval)) {
 		write_log ("sprite surface failed to restore: %s\n", DXError (ddrval));
 	        goto end;
@@ -1542,7 +1543,7 @@ static uae_u32 setspriteimage (uaecptr bi)
 	uae_u8 *p2 = dptr + pitch * y;
 	memcpy (p2, p1, w * bpp);
     }
-    IDirectDrawSurface_Unlock (dxdata.cursorsurface, NULL);
+    IDirectDrawSurface_Unlock (dxdata.cursorsurface1, NULL);
     ret = 1;
     reloadcursor = 0;
     cursorok = TRUE;
@@ -1864,20 +1865,16 @@ void picasso96_alloc (TrapContext *ctx)
 	while (missmodes[misscnt * 2] == 0)
 	    misscnt++;
 	if (missmodes[misscnt * 2] >= 0) {
-	    if (DisplayModes[i].res.width > missmodes[misscnt * 2 + 0] || DisplayModes[i].res.height > missmodes[misscnt * 2 + 1]) {
-		int depth;
-		int w = DisplayModes[i].res.width;
-		int h = DisplayModes[i].res.height;
-		for (depth = 8; depth <= 32; depth++) {
-		    struct PicassoResolution *pr = &newmodes[cnt];
-		    if (!p96depth (depth))
-			continue;
-		    memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
-		    pr->res.width = missmodes[misscnt * 2 + 0];
-		    pr->res.height = missmodes[misscnt * 2 + 1];
-		    sprintf (pr->name, "%dx%dx%d FAKE", pr->res.width, pr->res.height, depth);
-		    size += PSSO_ModeInfo_sizeof;
-		}
+	    int w = DisplayModes[i].res.width;
+	    int h = DisplayModes[i].res.height;
+	    if (w > missmodes[misscnt * 2 + 0] || h > missmodes[misscnt * 2 + 1]) {
+		struct PicassoResolution *pr = &newmodes[cnt];
+	        memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
+	        pr->res.width = missmodes[misscnt * 2 + 0];
+	        pr->res.height = missmodes[misscnt * 2 + 1];
+	        sprintf (pr->name, "%dx%d FAKE", pr->res.width, pr->res.height);
+	        size += PSSO_ModeInfo_sizeof * depths;
+		cnt++;
 		misscnt++;
 		continue;
 	    }
@@ -2146,6 +2143,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 	struct LibResolution res = { 0 };
 	j = i;
 	addmode (AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, -1, &unkcnt);
+	write_log ("%08X %4dx%4d %s\n", res.DisplayID, res.Width, res.Height, res.Name);
 	while (newmodes[i].depth >= 0
 	    && newmodes[i].res.width == newmodes[j].res.width
 	    && newmodes[i].res.height == newmodes[j].res.height)

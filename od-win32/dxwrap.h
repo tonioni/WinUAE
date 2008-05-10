@@ -27,7 +27,8 @@ struct ddstuff
     int maxwidth, maxheight;
     uae_u32 colorkey;
 
-    LPDIRECTDRAWSURFACE7 cursorsurface;
+    LPDIRECTDRAWSURFACE7 cursorsurface1;
+    LPDIRECTDRAWSURFACE7 cursorsurface2;
     int cursorwidth, cursorheight;
 };
 extern struct ddstuff dxdata;

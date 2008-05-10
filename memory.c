@@ -57,7 +57,7 @@ uae_u32 allocated_chipmem;
 uae_u32 allocated_fastmem;
 uae_u32 allocated_bogomem;
 uae_u32 allocated_gfxmem;
-uae_u32 allocated_z3fastmem;
+uae_u32 allocated_z3fastmem, allocated_z3fastmem2;
 uae_u32 allocated_a3000lmem;
 uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
@@ -621,25 +621,69 @@ static int decode_rekick_rom_do (uae_u8 *mem, int size, int real_size)
     return 1;
 }
 
-static void addkey (int *pkeyid, uae_u8 *key, int size, const char *name)
+static void addkey (uae_u8 *key, int size, const char *name)
 {
-    int keyid = *pkeyid;
     int i;
 
-    if (key == NULL || size == 0 || keyid >= ROM_KEY_NUM) {
+    if (key == NULL || size == 0) {
 	xfree (key);
 	return;
     }
-    for (i = 0; i < keyid; i++) {
+    for (i = 0; i < ROM_KEY_NUM; i++) {
 	if (keyring[i].key && keyring[i].size == size && !memcmp (keyring[i].key, key, size)) {
 	    xfree (key);
 	    return;
 	}
     }
-    keyring[keyid].key = key;
-    keyring[keyid++].size = size;
+    for (i = 0; i < ROM_KEY_NUM; i++) {
+	if (keyring[i].key == NULL)
+	    break;
+    }
+    if (i == ROM_KEY_NUM) {
+	xfree (key);
+	return;
+    }
+    keyring[i].key = key;
+    keyring[i].size = size;
     write_log ("ROM KEY '%s' %d bytes loaded\n", name, size);
-    *pkeyid = keyid;
+}
+
+static void addkeyfile (const char *path)
+{
+    struct zfile *f;
+    int keysize;
+    uae_u8 *keybuf;
+
+    f = zfile_fopen (path, "rb");
+    if (!f)
+	return;
+    zfile_fseek (f, 0, SEEK_END);
+    keysize = zfile_ftell (f);
+    if (keysize > 0) {
+        zfile_fseek (f, 0, SEEK_SET);
+        keybuf = xmalloc (keysize);
+        zfile_fread (keybuf, 1, keysize, f);
+        addkey (keybuf, keysize, path);
+    }
+    zfile_fclose (f);
+}
+
+static void addkeydir (const char *path)
+{
+    char tmp[MAX_DPATH];
+
+    strcpy (tmp, path);
+    if (zfile_exists (tmp)) {
+        int i;
+        for (i = strlen (tmp) - 1; i > 0; i--) {
+    	    if (tmp[i] == '\\' || tmp[i] == '/')
+	        break;
+	}
+	tmp[i] = 0;
+    }
+    strcat (tmp, "/");
+    strcat (tmp, "rom.key");
+    addkeyfile (tmp);
 }
 
 int get_keyring (void)
@@ -654,37 +698,22 @@ int get_keyring (void)
 
 int load_keyring (struct uae_prefs *p, char *path)
 {
-    struct zfile *f;
     uae_u8 *keybuf;
     int keysize;
     char tmp[MAX_PATH], *d;
     int keyids[] = { 0, 48, -1 };
-    int keyid;
     int cnt, i;
 
     free_keyring ();
-    keyid = 0;
     keybuf = target_load_keyfile (p, path, &keysize, tmp);
-    addkey (&keyid, keybuf, keysize, tmp);
-    for (i = 0; keyids[i] >= 0 && keyid < ROM_KEY_NUM; i++) {
+    addkey (keybuf, keysize, tmp);
+    for (i = 0; keyids[i] >= 0; i++) {
 	struct romdata *rd = getromdatabyid (keyids[i]);
 	char *s;
 	if (rd) {
 	    s = romlist_get (rd);
-	    if (s) {
-		f = zfile_fopen (s, "rb");
-		if (f) {
-		    zfile_fseek (f, 0, SEEK_END);
-		    keysize = zfile_ftell (f);
-		    if (keysize > 0) {
-			zfile_fseek (f, 0, SEEK_SET);
-			keybuf = (uae_u8*)xmalloc (keysize);
-			zfile_fread (keybuf, 1, keysize, f);
-			addkey(&keyid, keybuf, keysize, s);
-		    }
-		    zfile_fclose (f);
-		}
-	    }
+	    if (s)
+		addkeyfile (s);
 	}
     }
 
@@ -735,23 +764,12 @@ int load_keyring (struct uae_prefs *p, char *path)
 	    }
 	break;
 	case 7:
-	return keyid;
+	return cnt;
 	}
 	cnt++;
 	if (!tmp[0])
 	    continue;
-	f = zfile_fopen(tmp, "rb");
-	if (!f)
-	    continue;
-	zfile_fseek (f, 0, SEEK_END);
-	keysize = zfile_ftell (f);
-	if (keysize > 0) {
-	    zfile_fseek (f, 0, SEEK_SET);
-	    keybuf = (uae_u8*)xmalloc (keysize);
-	    zfile_fread (keybuf, 1, keysize, f);
-	    addkey (&keyid, keybuf, keysize, tmp);
-	}
-	zfile_fclose (f);
+	addkeyfile (tmp);
     }
 }
 void free_keyring (void)
@@ -2318,6 +2336,7 @@ static int read_rom_file (uae_u8 *buf, struct romdata *rd)
 	return 0;
     zfile_fread (buf, rd->size, 1, zf);
     zfile_fclose (zf);
+    addkeydir (rl->path);
     return 1;
 }
 
@@ -2479,7 +2498,7 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     }
     oldpos = zfile_ftell (f);
     i = zfile_fread (buffer, 1, 11, f);
-    if (!memcmp(buffer, "KICK", 4)) {
+    if (!memcmp (buffer, "KICK", 4)) {
 	zfile_fseek (f, 512, SEEK_SET);
 	kickdisk = 1;
 #if 0
@@ -2542,9 +2561,9 @@ static int load_extendedkickstart (void)
     struct zfile *f;
     int size, off;
 
-    if (strlen(currprefs.romextfile) == 0)
+    if (strlen (currprefs.romextfile) == 0)
 	return 0;
-    if (is_arcadia_rom(currprefs.romextfile) == ARCADIA_BIOS) {
+    if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
 	extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 	return 0;
     }
@@ -2570,12 +2589,12 @@ static int load_extendedkickstart (void)
     zfile_fseek (f, off, SEEK_SET);
     switch (extendedkickmem_type) {
     case EXTENDED_ROM_CDTV:
-	extendedkickmemory = (uae_u8 *) mapped_malloc (extendedkickmem_size, "rom_f0");
-	extendedkickmem_bank.baseaddr = (uae_u8 *) extendedkickmemory;
+	extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
+	extendedkickmem_bank.baseaddr = extendedkickmemory;
 	break;
     case EXTENDED_ROM_CD32:
-	extendedkickmemory = (uae_u8 *) mapped_malloc (extendedkickmem_size, "rom_e0");
-	extendedkickmem_bank.baseaddr = (uae_u8 *) extendedkickmemory;
+	extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_e0");
+	extendedkickmem_bank.baseaddr = extendedkickmemory;
 	break;
     }
     read_kickstart (f, extendedkickmemory, extendedkickmem_size,  0, 0, 1);
@@ -2708,6 +2727,7 @@ static int load_kickstart (void)
 	    strcpy (currprefs.romfile, tmprom2);
 	}
     }
+    addkeydir (currprefs.romfile);
     if( f == NULL ) { /* still no luck */
 #if defined(AMIGA)||defined(__POS__)
 #define USE_UAE_ERSATZ "USE_UAE_ERSATZ"
@@ -2980,6 +3000,8 @@ static void allocate_memory (void)
 	chipmem_full_mask = chipmem_mask = allocated_chipmem - 1;
 	if (memsize < 0x100000)
 	    memsize = 0x100000;
+	if (memsize > 0x100000 && memsize < 0x200000)
+	    memsize = 0x200000;
 	chipmemory = mapped_malloc (memsize, "chip");
 	if (chipmemory == 0) {
 	    write_log ("Fatal error: out of memory for chipmem.\n");
@@ -2993,8 +3015,12 @@ static void allocate_memory (void)
 
     currprefs.chipset_mask = changed_prefs.chipset_mask;
     chipmem_full_mask = allocated_chipmem - 1;
-    if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && allocated_chipmem < 0x100000)
-	chipmem_full_mask = 0x100000 - 1;
+    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+	if (allocated_chipmem < 0x100000)
+	    chipmem_full_mask = 0x100000 - 1;
+	if (allocated_chipmem > 0x100000 && allocated_chipmem < 0x200000)
+	    chipmem_full_mask = chipmem_mask = 0x200000 - 1;
+    }
 
     if (allocated_bogomem != currprefs.bogomem_size) {
 	if (bogomemory)
@@ -3117,18 +3143,25 @@ static void allocate_memory (void)
 
 void map_overlay (int chip)
 {
-    int i = allocated_chipmem > 0x200000 ? (allocated_chipmem >> 16) : 32;
+    int size;
     addrbank *cb;
 
+    size = allocated_chipmem >= 0x180000 ? (allocated_chipmem >> 16) : 32;
     cb = &chipmem_bank;
 #ifdef AGA
     if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020)
 	cb = &chipmem_bank_ce2;
 #endif
     if (chip) {
-	map_banks (cb, 0, i, allocated_chipmem);
+	map_banks (&dummy_bank, 0, 32, 0);
+	if (currprefs.cpu_model < 68020 || currprefs.address_space_24)
+	    map_banks (cb, 0, size, allocated_chipmem);
+	else
+	    map_banks (cb, 0, allocated_chipmem >> 16, 0);
     } else {
 	addrbank *rb = NULL;
+	if (size < 32)
+	    size = 32;
 	cb = &get_mem_bank (0xf00000);
 	if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xf00000) == 0x1114)
 	    rb = cb;
@@ -3137,7 +3170,7 @@ void map_overlay (int chip)
 	    rb = cb;
 	if (!rb)
 	    rb = &kickmem_bank;
-	map_banks (rb, 0, i, 0x80000);
+	map_banks (rb, 0, size, 0x80000);
     }
     if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND && valid_address (regs.pc, 4))
 	m68k_setpc (&regs, m68k_getpc (&regs));

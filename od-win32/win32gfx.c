@@ -195,7 +195,7 @@ struct MultiDisplay *getdisplay (struct uae_prefs *p)
 void centerdstrect (RECT *dr)
 {
     if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_W_FULLSCREEN)))
-	OffsetRect(dr, amigawin_rect.left, amigawin_rect.top);
+	OffsetRect (dr, amigawin_rect.left, amigawin_rect.top);
     if (currentmode->flags & DM_W_FULLSCREEN) {
 	if (currentmode->fullfill && (currentmode->current_width > currentmode->native_width || currentmode->current_height > currentmode->native_height))
 	    return;
@@ -1277,9 +1277,12 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 		picasso96_state.Height != wc->current_height)
 		return 1;
 	    if (picasso96_state.Width == wc->current_width &&
-		picasso96_state.Height == wc->current_height &&
-		picasso96_state.BytesPerPixel * 8 == wc->current_depth)
-		return 0;
+		picasso96_state.Height == wc->current_height) {
+		if (picasso96_state.BytesPerPixel * 8 == wc->current_depth)
+		    return 0;
+		if (!currprefs.win32_rtgmatchdepth && wc->current_depth >= 16)
+		    return 0;
+	    }
 	    return 1;
 	} else {
 	    if (currentmode->current_width != wc->current_width ||
@@ -1664,7 +1667,7 @@ static int create_windows_2 (void)
 	getbestmode (0);
     }
 
-    if (rp_isactive ()) {
+    if (rp_isactive () && !dxfs && !fsw) {
 	HWND parent = rp_getparent ();
 	hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 	    "AmigaPowah", "WinUAE",

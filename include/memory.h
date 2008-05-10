@@ -42,7 +42,7 @@ extern uae_u32 allocated_chipmem;
 extern uae_u32 allocated_fastmem;
 extern uae_u32 allocated_bogomem;
 extern uae_u32 allocated_gfxmem;
-extern uae_u32 allocated_z3fastmem, max_z3fastmem;
+extern uae_u32 allocated_z3fastmem, allocated_z3fastmem2, max_z3fastmem;
 extern uae_u32 allocated_a3000mem;
 extern uae_u32 allocated_cardmem;
 
@@ -57,7 +57,7 @@ extern void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v);
 #define bogomem_start 0x00C00000
 #define cardmem_start 0x00E00000
 #define kickmem_start 0x00F80000
-extern uaecptr z3fastmem_start;
+extern uaecptr z3fastmem_start, z3fastmem2_start;
 extern uaecptr p96ram_start;
 extern uaecptr fastmem_start;
 extern uaecptr a3000lmem_start, a3000hmem_start;

@@ -1167,7 +1167,7 @@ void handle_events (void)
 	    TranslateMessage (&msg);
 	    DispatchMessage (&msg);
 	}
-	sleep_millis (50);
+	sleep_millis (20);
 	inputdevicefunc_keyboard.read ();
 	inputdevicefunc_mouse.read ();
 	inputdevicefunc_joystick.read ();

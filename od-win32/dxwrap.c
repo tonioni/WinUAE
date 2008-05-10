@@ -45,7 +45,8 @@ static void freemainsurface (void)
     releaser (dxdata.flipping[0], IDirectDrawSurface7_Release);
     releaser (dxdata.primary, IDirectDrawSurface7_Release);
     releaser (dxdata.secondary, IDirectDrawSurface7_Release);
-    releaser (dxdata.cursorsurface, IDirectDrawSurface7_Release);
+    releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
+    releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
     dxdata.backbuffers = 0;
 }
 
@@ -204,7 +205,8 @@ LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pit
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
     } else {
-        write_log ("Created %dx%d surface in %s (%d)\n", width, height, alloctexts[forcemode], forcemode);
+	write_log ("Created %dx%dx%d (%p) surface in %s (%d)\n", width, height, desc.ddpfPixelFormat.dwRGBBitCount, surf,
+	    alloctexts[forcemode], forcemode);
     }
     return surf;
 }
@@ -256,10 +258,14 @@ void DirectDraw_FreeMainSurface (void)
 
 static void createcursorsurface (void)
 {
-    releaser (dxdata.cursorsurface, IDirectDrawSurface7_Release);
-    dxdata.cursorsurface = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight * 2, TRUE);
-    if (dxdata.cursorsurface)
-	clearsurf (dxdata.cursorsurface);
+    releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
+    releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
+    dxdata.cursorsurface1 = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight, TRUE);
+    dxdata.cursorsurface2 = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight, FALSE);
+    if (dxdata.cursorsurface1)
+	clearsurf (dxdata.cursorsurface1);
+    if (dxdata.cursorsurface2)
+	clearsurf (dxdata.cursorsurface2);
 }
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)
@@ -322,10 +328,11 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	    unlocksurface (surf);
 	}
 	createcursorsurface ();
-
     } else {
 	ddrval = DD_FALSE;
     }
+    write_log ("DDRAW: primary surface %p, secondary %p (%dx%dx%d)\n",
+	dxdata.primary, surf, width, height, dxdata.native.ddpfPixelFormat.dwRGBBitCount);
     return ddrval;
 }
 
@@ -668,10 +675,6 @@ int DirectDraw_BlitToPrimary (RECT *rect)
 static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *srcrect)
 {
     HRESULT ddrval;
-    DDBLTFX fx = { 0 };
-
-    fx.dwSize = sizeof (fx);
-    fx.dwROP = SRCCOPY;
 
     if (dst == NULL)
 	dst = getlocksurface ();
@@ -679,7 +682,7 @@ static void DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRA
 	src = getlocksurface ();
     if (dst == src)
 	return;
-    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_ROP | DDBLT_WAIT, &fx))) {
+    while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, dstrect, src, srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurfacex (dst, src);
 	    if (FAILED (ddrval))

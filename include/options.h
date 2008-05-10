@@ -263,7 +263,7 @@ struct uae_prefs {
     int picasso96_nocustom;
     int picasso96_modeflags;
 
-    uae_u32 z3fastmem_size;
+    uae_u32 z3fastmem_size, z3fastmem2_size;
     uae_u32 z3fastmem_start;
     uae_u32 fastmem_size;
     uae_u32 chipmem_size;

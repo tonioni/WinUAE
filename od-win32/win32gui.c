@@ -622,7 +622,7 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 9 : ((max_z3fastmem >> 20) < 1024 ? 10 : ((max_z3fastmem >> 20) < 2048) ? 11 : 12))
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : 16))
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
 #define MIN_MB_MEM 0
@@ -1761,32 +1761,38 @@ static const char *memsize_names[] = {
 /* 14*/ "1.5MB",
 /* 15*/ "1.8MB",
 /* 16*/ "2 GB",
+/* 17*/ "384 MB",
+/* 18*/ "768 MB",
+/* 19*/ "1.5 GB",
 };
 
 static unsigned long memsizes[] = {
 /* 0 */ 0,
-/* 1 */ 0x00040000, /* 256-K */
-/* 2 */ 0x00080000, /* 512-K */
-/* 3 */ 0x00100000, /* 1-meg */
-/* 4 */ 0x00200000, /* 2-meg */
-/* 5 */ 0x00400000, /* 4-meg */
-/* 6 */ 0x00800000, /* 8-meg */
-/* 7 */ 0x01000000, /* 16-meg */
-/* 8 */ 0x02000000, /* 32-meg */
-/* 9 */ 0x04000000, /* 64-meg */
-/* 10*/ 0x08000000, //128 Meg
-/* 11*/ 0x10000000, //256 Meg
-/* 12*/ 0x20000000, //512 Meg The correct size is set in mman.c
+/* 1 */ 0x00040000, /* 256K */
+/* 2 */ 0x00080000, /* 512K */
+/* 3 */ 0x00100000, /* 1M */
+/* 4 */ 0x00200000, /* 2M */
+/* 5 */ 0x00400000, /* 4M */
+/* 6 */ 0x00800000, /* 8M */
+/* 7 */ 0x01000000, /* 16M */
+/* 8 */ 0x02000000, /* 32M */
+/* 9 */ 0x04000000, /* 64M */
+/* 10*/ 0x08000000, //128M
+/* 11*/ 0x10000000, //256M
+/* 12*/ 0x20000000, //512M
 /* 13*/ 0x40000000, //1GB
 /* 14*/ 0x00180000, //1.5MB
 /* 15*/ 0x001C0000, //1.8MB
 /* 16*/ 0x80000000, //2GB
+/* 17*/ 0x18000000, //384M
+/* 18*/ 0x30000000, //768M
+/* 19*/ 0x60000000, //1.5GB
 };
 
-static int msi_chip[] = { 1, 2, 3, 4, 5, 6 };
+static int msi_chip[] = { 1, 2, 3, 14, 4, 5, 6 };
 static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
-static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16 };
+static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 12, 18, 13, 19, 16 };
 static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
 static int CalculateHardfileSize (HWND hDlg)
@@ -5010,14 +5016,16 @@ static void enable_for_memorydlg (HWND hDlg)
 static void values_to_memorydlg (HWND hDlg)
 {
     uae_u32 mem_size = 0;
+	uae_u32 v;
 
     switch (workprefs.chipmem_size) {
      case 0x00040000: mem_size = 0; break;
      case 0x00080000: mem_size = 1; break;
      case 0x00100000: mem_size = 2; break;
-     case 0x00200000: mem_size = 3; break;
-     case 0x00400000: mem_size = 4; break;
-     case 0x00800000: mem_size = 5; break;
+     case 0x00180000: mem_size = 3; break;
+     case 0x00200000: mem_size = 4; break;
+     case 0x00400000: mem_size = 5; break;
+     case 0x00800000: mem_size = 6; break;
     }
     SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_CHIPRAM, memsize_names[msi_chip[mem_size]]);
@@ -5046,22 +5054,39 @@ static void values_to_memorydlg (HWND hDlg)
     SetDlgItemText (hDlg, IDC_SLOWRAM, memsize_names[msi_bogo[mem_size]]);
 
     mem_size = 0;
-    switch (workprefs.z3fastmem_size) {
-     case 0x00000000: mem_size = 0; break; /*   0-megs */
-     case 0x00100000: mem_size = 1; break; /*   1-megs */
-     case 0x00200000: mem_size = 2; break; /*   2-megs */
-     case 0x00400000: mem_size = 3; break; /*   4-megs */
-     case 0x00800000: mem_size = 4; break; /*   8-megs */
-     case 0x01000000: mem_size = 5; break; /*  16-megs */
-     case 0x02000000: mem_size = 6; break; /*  32-megs */
-     case 0x04000000: mem_size = 7; break; /*  64-megs */
-     case 0x08000000: mem_size = 8; break; /* 128-megs */
-     case 0x10000000: mem_size = 9; break; /* 256-megs */
-     case 0x20000000: mem_size = 10; break; /* 512-megs */
-     case 0x40000000: mem_size = 11; break; /* 1 GB */
-     case 0x80000000: mem_size = 12; break; /* 2 GB */
-
-    }
+	v = workprefs.z3fastmem_size + workprefs.z3fastmem2_size;
+	if      (v < 0x00100000)
+		mem_size = 0;
+	else if (v < 0x00200000)
+		mem_size = 1;
+	else if (v < 0x00400000)
+		mem_size = 2;
+	else if (v < 0x00800000)
+		mem_size = 3;
+	else if (v < 0x01000000)
+		mem_size = 4;
+	else if (v < 0x02000000)
+		mem_size = 5;
+	else if (v < 0x04000000)
+		mem_size = 6;
+	else if (v < 0x08000000)
+		mem_size = 7;
+	else if (v < 0x10000000)
+		mem_size = 8;
+	else if (v < 0x18000000)
+		mem_size = 9;
+	else if (v < 0x20000000)
+		mem_size = 10;
+	else if (v < 0x30000000)
+		mem_size = 11;
+	else if (v < 0x40000000)
+		mem_size = 12;
+	else if (v < 0x60000000)
+		mem_size = 13;
+	else if (v < 0x80000000)
+		mem_size = 14;
+	else
+		mem_size = 15;
     SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_Z3FASTRAM, memsize_names[msi_z3fast[mem_size]]);
 
@@ -5156,6 +5181,40 @@ static void fix_values_memorydlg (void)
     if (workprefs.chipmem_size > 0x200000)
 	workprefs.fastmem_size = 0;
 }
+static void updatez3 (uae_u32 *size1p, uae_u32 *size2p)
+{
+    int i;
+    uae_u32 s1, s2;
+
+    s1 = *size1p;
+    *size1p = 0;
+    *size2p = 0;
+    s2 = 0;
+    for (i = 32; i >= 0; i--) {
+	if (s1 & (1 << i))
+	    break;
+    }
+    if (i < 20)
+	return;
+    if (s1 == (1 << i)) {
+	*size1p = s1;
+	return;
+    }
+    s2 = s1 & ((1 << i) - 1);
+    s1 = 1 << i;
+    i--;
+    while (i >= 0) {
+	if (s2 & (1 << i)) {
+	    s2 = 1 << i;
+	    break;
+	}
+	i--;
+    }
+    if (i < 19)
+	s2 = 0;
+    *size1p = s1;
+    *size2p = s2;
+}
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -5189,6 +5248,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
 	    workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
 	    workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
+	    updatez3 (&workprefs.z3fastmem_size, &workprefs.z3fastmem2_size);
 	    workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
 	    workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
 	    workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];

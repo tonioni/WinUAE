@@ -1,4 +1,21 @@
 
+Beta 17:
+
+- hardware mouse cursor trails fixed when cursor height > width
+- fullscreen to fullscreen picasso96 mode switching work properly
+  when "Match host and RTG color depth if possible" is off
+  (instant switch without resetting display mode)
+- Picasso96 "fake" (320x200 etc..) display resolutions fixed
+  (resolutions disappeared few betas ago)
+- added 1.5M chip ram option (A500Plus + 0.5M trap door expansion)
+  NOTE: do not use with JIT, JIT does not like non-power-of-2 RAM
+- added 384M/768M/1.5G Z3 RAM options (enables second Z3 RAM board,
+  384M = 256M+128M, 768M = 512M+256M...) Why? Because on most PCs
+  1G is not possible (without having 64-bit OS) but 768M is usually
+  possible and lots of RAM is fun and pointless :)
+- Z3 RAM is now always mapped (more compatible with some reset proof
+  programs)
+
 Beta 16:
 
 - winuaebootlog.txt and winuaelog.txt (if enabled) is written to crash
@@ -9,7 +26,7 @@ Beta 16:
   more Windows-like (input is read as long as program has focus)
 - "Match host and RTG color depth if possible" set and 24-bit fullscreen
   Picasso96 mode selected -> use 32-bit native mode
-- Picasso96 hardware mouse cursor fixed in 8/16-bit modes
+- fixed corrupted Picasso96 hardware mouse cursor in 8/16-bit modes
 
 Beta 15:
 

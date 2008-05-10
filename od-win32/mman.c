@@ -59,11 +59,23 @@ static void setworkingset(void)
 static uae_u32 lowmem (void)
 {
     uae_u32 change = 0;
-    if (currprefs.z3fastmem_size >= 8 * 1024 * 1024 && currprefs.gfxmem_size < 64 * 1024 * 1024) {
-        change = currprefs.z3fastmem_size - currprefs.z3fastmem_size / 2;
-        currprefs.z3fastmem_size >>= 1;
-	changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
-    } else if (currprefs.gfxmem_size >= 8 * 1024 * 1024) {
+    if (currprefs.z3fastmem_size + currprefs.z3fastmem2_size >= 8 * 1024 * 1024) {
+	if (currprefs.z3fastmem2_size) {
+	    if (currprefs.z3fastmem2_size <= 128 * 1024 * 1024) {
+		change = currprefs.z3fastmem2_size;
+		currprefs.z3fastmem2_size = 0;
+	    } else {
+		change = currprefs.z3fastmem2_size / 2;
+		currprefs.z3fastmem2_size >>= 1;
+		changed_prefs.z3fastmem2_size = currprefs.z3fastmem2_size;
+	    }
+	} else {
+	    change = currprefs.z3fastmem_size - currprefs.z3fastmem_size / 4;
+	    currprefs.z3fastmem2_size = changed_prefs.z3fastmem2_size = currprefs.z3fastmem_size / 4;
+	    currprefs.z3fastmem_size >>= 1;
+	    changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
+	}
+    } else if (currprefs.gfxmem_size >= 1 * 1024 * 1024) {
         change = currprefs.gfxmem_size - currprefs.gfxmem_size / 2;
         currprefs.gfxmem_size >>= 1;
 	changed_prefs.gfxmem_size = currprefs.gfxmem_size;
@@ -294,8 +306,8 @@ restart:
 	rtgbarrier = si.dwPageSize;
 	if (currprefs.cpu_model >= 68020)
 	    size = 0x10000000;
-	if (currprefs.z3fastmem_size) {
-	    z3size = currprefs.z3fastmem_size + (currprefs.z3fastmem_start -  0x10000000);
+	if (currprefs.z3fastmem_size || currprefs.z3fastmem2_size) {
+	    z3size = currprefs.z3fastmem_size + currprefs.z3fastmem2_size + (currprefs.z3fastmem_start - 0x10000000);
 	    if (currprefs.gfxmem_size)
 		rtgbarrier = 16 * 1024 * 1024;
 	} else {
@@ -334,7 +346,7 @@ restart:
 	    break;
 	}
 	write_log ("NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n",
-	    natmemsize >> 20, GetLastError (), currprefs.z3fastmem_size >> 20, currprefs.gfxmem_size >> 20);
+	    natmemsize >> 20, GetLastError (), (currprefs.z3fastmem_size + currprefs.z3fastmem2_size) >> 20, currprefs.gfxmem_size >> 20);
 	if (!lowmem ()) {
 	    write_log ("NATMEM: No special area could be allocated (2)!\n");
 	    return 0;
@@ -499,6 +511,12 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	}
 	if(!strcmp(shmids[shmid].name,"z3")) {
 	    shmaddr=natmem_offset + currprefs.z3fastmem_start;
+	    if (!currprefs.z3fastmem2_size)
+		size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"z3_2")) {
+	    shmaddr=natmem_offset + currprefs.z3fastmem_start + currprefs.z3fastmem_size;
 	    size += BARRIER;
 	    got = TRUE;
 	}
@@ -561,12 +579,12 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
 	if (result == NULL) {
 	    result = (void*)-1;
-	    write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) failed %d\n",
+	    write_log ("VirtualAlloc %08X - %08X %x (%dk) failed %d\n",
 	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-	        size, size >> 10, GetLastError());
+	        size, size >> 10, GetLastError ());
 	 } else {
 	    shmids[shmid].attached = result;
-	    write_log ("VirtualAlloc %08.8X - %08.8X %x (%dk) ok%s\n",
+	    write_log ("VirtualAlloc %08X - %08X %x (%dk) ok%s\n",
 	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 	        size, size >> 10, p96special ? " P96" : "");
 	}

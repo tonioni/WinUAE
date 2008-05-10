@@ -167,7 +167,7 @@ void fixup_prefs (struct uae_prefs *p)
     built_in_chipset_prefs (p);
     fixup_cpu (p);
 
-    if ((p->chipmem_size & (p->chipmem_size - 1)) != 0
+    if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
 	|| p->chipmem_size < 0x20000
 	|| p->chipmem_size > 0x800000)
     {
@@ -199,6 +199,16 @@ void fixup_prefs (struct uae_prefs *p)
 	    p->z3fastmem_size = max_z3fastmem;
 	else
 	    p->z3fastmem_size = 0;
+	err = 1;
+    }
+    if ((p->z3fastmem2_size & (p->z3fastmem2_size - 1)) != 0
+	|| (p->z3fastmem2_size != 0 && (p->z3fastmem2_size < 0x100000 || p->z3fastmem2_size > max_z3fastmem)))
+    {
+	write_log ("Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem2_size, max_z3fastmem);
+	if (p->z3fastmem2_size > max_z3fastmem)
+	    p->z3fastmem2_size = max_z3fastmem;
+	else
+	    p->z3fastmem2_size = 0;
 	err = 1;
     }
     p->z3fastmem_start &= ~0xffff;

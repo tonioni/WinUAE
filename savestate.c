@@ -391,6 +391,7 @@ void restore_state (char *filename)
     char name[5];
     size_t len, totallen;
     size_t filepos, filesize;
+    int z3num;
 
     chunk = 0;
     f = zfile_fopen (filename, "rb");
@@ -413,8 +414,10 @@ void restore_state (char *filename)
     changed_prefs.chipmem_size = 0;
     changed_prefs.fastmem_size = 0;
     changed_prefs.z3fastmem_size = 0;
+    changed_prefs.z3fastmem2_size = 0;
     changed_prefs.mbresmem_low_size = 0;
     changed_prefs.mbresmem_high_size = 0;
+    z3num = 0;
     savestate_state = STATE_RESTORE;
     for (;;) {
 	name[0] = 0;
@@ -444,7 +447,7 @@ void restore_state (char *filename)
 	    restore_fram (totallen, filepos);
 	    continue;
 	} else if (!strcmp (name, "ZRAM")) {
-	    restore_zram (totallen, filepos);
+	    restore_zram (totallen, filepos, z3num++);
 	    continue;
 	} else if (!strcmp (name, "BORO")) {
 	    restore_bootrom (totallen, filepos);
@@ -601,7 +604,9 @@ static void save_rams (struct zfile *f, int comp)
 #ifdef AUTOCONFIG
     dst = save_fram (&len);
     save_chunk (f, dst, len, "FRAM", comp);
-    dst = save_zram (&len);
+    dst = save_zram (&len, 0);
+    save_chunk (f, dst, len, "ZRAM", comp);
+    dst = save_zram (&len, 1);
     save_chunk (f, dst, len, "ZRAM", comp);
     dst = save_bootrom (&len);
     save_chunk (f, dst, len, "BORO", comp);
@@ -931,7 +936,7 @@ void savestate_rewind (void)
     memcpy (save_fram (&dummy), p, currprefs.fastmem_size > len ? len : currprefs.fastmem_size);
     p += len;
     len = restore_u32_func (&p);
-    memcpy (save_zram (&dummy), p, currprefs.z3fastmem_size > len ? len : currprefs.z3fastmem_size);
+    memcpy (save_zram (&dummy, 0), p, currprefs.z3fastmem_size > len ? len : currprefs.z3fastmem_size);
     p += len;
 #endif
 #ifdef ACTION_REPLAY
@@ -1086,7 +1091,7 @@ retry2:
     memcpy (p, dst, len);
     tlen += len + 4;
     p += len;
-    dst = save_zram (&len);
+    dst = save_zram (&len, 0);
     if (bufcheck (&p, len))
 	goto retry;
     save_u32_func (&p, len);
