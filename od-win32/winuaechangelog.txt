@@ -1,7 +1,18 @@
 
+Beta 18:
+
+- sprites were visible when they were outside of DDFSTRT/DDFSTOP range
+  (which really is DDFSTRT - end of line, another undocumented
+  feature) "Fixes" demo Blittersweet (looks broken but it does look
+  exact same on real A500) This update may not be 100% correct yet,
+  it can break other programs. Test and complain :)
+- some archives mounted as a harddrive crashed
+
 Beta 17:
 
 - hardware mouse cursor trails fixed when cursor height > width
+- cursor directdraw surface handling changed, perhaps workaround
+  for buggy drivers
 - fullscreen to fullscreen picasso96 mode switching work properly
   when "Match host and RTG color depth if possible" is off
   (instant switch without resetting display mode)

@@ -1655,8 +1655,8 @@ static void pfield_expand_dp_bplcon2 (int regno, int v)
     {
 	case 0x100:
 	dp_for_drawing->bplcon0 = v;
-	dp_for_drawing->bplres = GET_RES(v);
-	dp_for_drawing->nr_planes = GET_PLANES(v);
+	dp_for_drawing->bplres = GET_RES (v);
+	dp_for_drawing->nr_planes = GET_PLANES (v);
 	dp_for_drawing->ham_seen = !! (v & 0x800);
 	break;
 	case 0x104:
@@ -1811,8 +1811,6 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	dp_for_drawing--;
 	dip_for_drawing--;
 	linestate[lineno] = LINE_DONE_AS_PREVIOUS;
-//	if (!dp_for_drawing->valid)
-//	    return;
 	if (dp_for_drawing->plfleft == -1)
 	    border = 1;
 	break;

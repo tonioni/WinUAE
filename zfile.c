@@ -99,7 +99,7 @@ int zfile_gettype (struct zfile *z)
     uae_u8 buf[8];
     char *ext;
 
-    if (!z)
+    if (!z || !z->name)
 	return ZFILE_UNKNOWN;
     ext = strrchr (z->name, '.');
     if (ext != NULL) {

@@ -244,6 +244,7 @@ enum diw_states
 
 int plffirstline, plflastline;
 int plfstrt, plfstop;
+static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
 static int last_diw_pix_hpos, last_ddf_pix_hpos;
 static int last_decide_line_hpos, last_sprite_decide_line_hpos;
@@ -1094,7 +1095,7 @@ STATIC_INLINE void flush_display (int fm)
     toscr_nbits = 0;
 }
 
-STATIC_INLINE void fetch_start(int hpoa)
+STATIC_INLINE void fetch_start (int hpoa)
 {
     fetch_state = fetch_started;
 }
@@ -1669,6 +1670,8 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 static void record_register_change (int hpos, int regno, unsigned long value)
 {
     if (regno == 0x100) {
+	if (passed_plfstop >= 3)
+	    return;
 	if (value & 0x800)
 	    thisline_decision.ham_seen = 1;
 	if (hpos < HARD_DDF_START || hpos < plfstrt + 0x20) {
@@ -1879,25 +1882,33 @@ static void do_sprite_collisions (void)
 #endif
 }
 
-STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int dbl,
+STATIC_INLINE void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int num, int dbl,
 				    unsigned int mask, int do_collisions, uae_u32 collision_mask)
 {
     int j = 0;
     while (datab) {
-	unsigned int col = (datab & 3) << (2 * num);
+	unsigned int col = 0;
 	unsigned coltmp = 0;
 
+	if ((sprxp >= sprite_minx && sprxp < sprite_maxx) || (bplcon3 & 2))
+	    col = (datab & 3) << (2 * num);
+#if 0
+	if (sprxp == sprite_minx || sprxp == sprite_maxx - 1)
+	    col ^= (rand () << 16) | rand ();
+#endif
 	if ((j & mask) == 0) {
     	    unsigned int tmp = (*buf) | col;
 	    *buf++ = tmp;
 	    if (do_collisions)
 		coltmp |= tmp;
+	    sprxp++;
 	}
 	if (dbl > 0) {
     	    unsigned int tmp = (*buf) | col;
 	    *buf++ = tmp;
 	    if (do_collisions)
 		coltmp |= tmp;
+	    sprxp++;
 	}
 	if (dbl > 1) {
 	    unsigned int tmp;
@@ -1909,6 +1920,8 @@ STATIC_INLINE void record_sprite_1 (uae_u16 *buf, uae_u32 datab, int num, int db
 	    *buf++ = tmp;
 	    if (do_collisions)
 		coltmp |= tmp;
+	    sprxp++;
+	    sprxp++;
 	}
 	j++;
 	datab >>= 2;
@@ -1936,7 +1949,6 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     struct sprite_entry *e = curr_sprite_entries + next_sprite_entry;
     int i;
     int word_offs;
-    uae_u16 *buf;
     uae_u32 collision_mask;
     int width, dbl, half;
     unsigned int mask = 0;
@@ -1976,13 +1988,13 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 	unsigned int da = *data;
 	unsigned int db = *datb;
 	uae_u32 datab = ((sprtaba[da & 0xFF] << 16) | sprtaba[da >> 8]
-			 | (sprtabb[db & 0xFF] << 16) | sprtabb[db >> 8]);
-
-	buf = spixels + word_offs + ((i << dbl) >> half);
+		 | (sprtabb[db & 0xFF] << 16) | sprtabb[db >> 8]);
+	int off = (i << dbl) >> half;
+        uae_u16 *buf = spixels + word_offs + off;
 	if (currprefs.collision_level > 0 && collision_mask)
-	    record_sprite_1 (buf, datab, num, dbl, mask, 1, collision_mask);
+	    record_sprite_1 (sprxp + off, buf, datab, num, dbl, mask, 1, collision_mask);
 	else
-	    record_sprite_1 (buf, datab, num, dbl, mask, 0, collision_mask);
+	    record_sprite_1 (sprxp + off, buf, datab, num, dbl, mask, 0, collision_mask);
 	data++;
 	datb++;
     }
@@ -2007,16 +2019,11 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     }
 }
 
-static void add_sprite (int *countp, int num, int sprxp, int window_xp, int posns[], int nrs[], int window_width)
+static void add_sprite (int *countp, int num, int sprxp, int posns[], int nrs[])
 {
     int count = *countp;
     int j, bestp;
-#ifdef AGA
-    if ( !(bplcon3 & 2) && /* sprites outside playfields enabled? */
-        ((thisline_decision.diwfirstword >= 0 && window_xp + window_width < thisline_decision.diwfirstword)
-        || (thisline_decision.diwlastword >= 0 && window_xp > thisline_decision.diwlastword)))
-	    return;
-#endif
+
     /* Sort the sprites in order of ascending X position before recording them.  */
     for (bestp = 0; bestp < count; bestp++) {
         if (posns[bestp] > sprxp)
@@ -2034,6 +2041,32 @@ static void add_sprite (int *countp, int num, int sprxp, int window_xp, int posn
     *countp = count;
 }
 
+static int tospritexdiw (int diw)
+{
+    return  coord_window_to_hw_x (diw - (DIW_DDF_OFFSET << lores_shift)) << sprite_buffer_res;
+}
+static int tospritexddf (int ddf)
+{
+    return (ddf * 2) << sprite_buffer_res;
+}
+
+static void calcsprite (void)
+{
+    int min, max;
+
+    sprite_maxx = max_diwlastword;
+    sprite_minx = 0;
+    if (thisline_decision.diwlastword >= 0)
+	sprite_maxx = tospritexdiw (thisline_decision.diwlastword);
+    if (thisline_decision.diwfirstword >= 0)
+	sprite_minx = tospritexdiw (thisline_decision.diwfirstword);
+    min = tospritexddf (thisline_decision.plfleft);
+    max = tospritexddf (thisline_decision.plfright);
+    if (min > sprite_minx && min < max) /* min < max = full line ddf */
+	sprite_minx = min;
+    /* sprites are visible from DDFSTRT to end of line (another undocumented feature) */
+}
+
 static void decide_sprites (int hpos)
 {
     int nrs[MAX_SPRITES * 2], posns[MAX_SPRITES * 2];
@@ -2042,7 +2075,6 @@ static void decide_sprites (int hpos)
       * and sprite xpos comparator sees it immediately */
     int point = hpos * 2 - 3;
     int width = sprite_width;
-    int window_width = (width << lores_shift) >> sprres;
     int sscanmask = 0x100 << sprite_buffer_res;
 
     if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
@@ -2050,12 +2082,12 @@ static void decide_sprites (int hpos)
 
     decide_diw (hpos);
     decide_line (hpos);
+    calcsprite ();
 
     count = 0;
     for (i = 0; i < MAX_SPRITES; i++) {
 	int sprxp = (fmode & 0x8000) ? (spr[i].xpos & ~sscanmask) : spr[i].xpos;
 	int hw_xp = sprxp >> sprite_buffer_res;
-	int window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 
 	if (spr[i].xpos < 0)
 	    continue;
@@ -2067,15 +2099,14 @@ static void decide_sprites (int hpos)
 	    continue;
 
 	if (hw_xp > last_sprite_point && hw_xp <= point)
-	    add_sprite (&count, i, sprxp, window_xp, posns, nrs, window_width);
+	    add_sprite (&count, i, sprxp, posns, nrs);
 
 	/* SSCAN2-bit is fun.. */
 	if ((fmode & 0x8000) && !(sprxp & sscanmask)) {
 	    sprxp |= sscanmask;
 	    hw_xp = sprxp >> sprite_buffer_res;
-	    window_xp = coord_hw_to_window_x (hw_xp) + (DIW_DDF_OFFSET << lores_shift);
 	    if (hw_xp > last_sprite_point && hw_xp <= point)
-		add_sprite (&count, MAX_SPRITES + i, sprxp, window_xp, posns, nrs, window_width);
+		add_sprite (&count, MAX_SPRITES + i, sprxp, posns, nrs);
 	}
     }
 
@@ -2172,7 +2203,6 @@ static void finish_decisions (void)
     dip = curr_drawinfo + next_lineno;
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
-//    dp->valid = 0;
     changed = thisline_changed + interlace_started;
 #if 0
     if (!(next_lineno & 1) && !(bplcon0 & 4) && interlace_seen)
@@ -2207,7 +2237,6 @@ static void finish_decisions (void)
     if (changed) {
 	thisline_changed = 1;
 	*dp = thisline_decision;
-//	dp->valid = 1;
     } else
 	/* The only one that may differ: */
 	dp->ctable = thisline_decision.ctable;
