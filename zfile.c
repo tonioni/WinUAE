@@ -1189,6 +1189,13 @@ struct znode *zvolume_adddir_abs(struct zvolume *zv, struct zarchive_info *zai)
     char *p, *p2;
     int i;
 
+    if (strlen (path) > 0) {
+	/* remove possible trailing / or \ */
+	char last;
+	last = path[strlen (path) - 1];
+	if (last == '/' || last == '\\')
+	    path[strlen (path) - 1] = 0;
+    }
     zn2 = &zv->root;
     p = p2 = path;
     for (i = 0; path[i]; i++) {

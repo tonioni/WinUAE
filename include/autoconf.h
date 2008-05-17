@@ -85,6 +85,8 @@ extern void expansion_init (void);
 extern void expansion_cleanup (void);
 extern void expansion_clear (void);
 
+extern void uaegfx_install_code (void);
+
 #define TRAPFLAG_NO_REGSAVE 1
 #define TRAPFLAG_NO_RETVAL 2
 #define TRAPFLAG_EXTRA_STACK 4

@@ -1,10 +1,32 @@
 
+Beta 19:
+
+- lha/lzh archives with directory entries ("-lhd-") crash fix
+- GUI chip ram 8M option was unavailable (b17)
+- joyportx and input panel parameters (except input mappings)
+  supported via uae-configuration
+- less useless logging in fullscreen alt-tab
+- GUI autoscroll fixed when using fullscreen mode smaller than 640x480
+  on non-primary monitor 
+- non-AR cartridge emulation problems fixed
+- dont emulate chip ram mirroring if JIT direct is enabled at startup
+  (OS can detect wrong chip ram size, JIT does not support mirroring)
+- emulate "bus noise" (very far from real thing currently) when ECS
+  Agnus but only 512M RAM configuration (512k chip ram, 512k bus noise,
+  512k chip ram, 512k bus noise) In theory 1M/2M Agnus configuration
+  should be implemented because 1M Agnus + 1M chip = 1M chip ram + 1M
+  chip ram mirror but 2M Agnus + 1M chip = 1M chip ram + 1M of "bus
+  noise" (for example A500Plus) Later..
+- Picasso96 state file support fixed (not compatible with old states)
+- development PC CPU updated to Q9450 quad core CPU, 3.2GHz
+  currently, more/less overclock later :) (old CPU was E6600)
+
 Beta 18:
 
 - sprites were visible when they were outside of DDFSTRT/DDFSTOP range
   (which really is DDFSTRT - end of line, another undocumented
-  feature) "Fixes" demo Blittersweet (looks broken but it does look
-  exact same on real A500) This update may not be 100% correct yet,
+  feature) "Fixes" demo Blittersweet (looks more broken now but it does
+  look exact same on real A500) This update may not be 100% correct yet,
   it can break other programs. Test and complain :)
 - some archives mounted as a harddrive crashed
 

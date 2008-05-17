@@ -1908,6 +1908,30 @@ int handle_input_event (int nr, int state, int max, int autofire)
     return 1;
 }
 
+static void inputdevice_checkconfig (void)
+{
+    if (currprefs.jports[0].id != changed_prefs.jports[0].id ||
+	currprefs.jports[1].id != changed_prefs.jports[1].id ||
+	currprefs.input_selected_setting != changed_prefs.input_selected_setting ||
+	currprefs.input_joymouse_multiplier != changed_prefs.input_joymouse_multiplier ||
+	currprefs.input_joymouse_deadzone != changed_prefs.input_joymouse_deadzone ||
+	currprefs.input_joystick_deadzone != changed_prefs.input_joystick_deadzone ||
+	currprefs.input_joymouse_speed != changed_prefs.input_joymouse_speed ||
+	currprefs.input_autofire_framecnt != changed_prefs.input_autofire_framecnt ||
+	currprefs.input_mouse_speed != changed_prefs.input_mouse_speed) {
+
+	currprefs.input_selected_setting = changed_prefs.input_selected_setting;
+	currprefs.input_joymouse_multiplier = changed_prefs.input_joymouse_multiplier;
+	currprefs.input_joymouse_deadzone = changed_prefs.input_joymouse_deadzone;
+	currprefs.input_joystick_deadzone = changed_prefs.input_joystick_deadzone;
+	currprefs.input_joymouse_speed = changed_prefs.input_joymouse_speed;
+	currprefs.input_autofire_framecnt = changed_prefs.input_autofire_framecnt;
+	currprefs.input_mouse_speed = changed_prefs.input_mouse_speed;
+
+	inputdevice_updateconfig (&currprefs);
+    }
+}
+
 void inputdevice_vsync (void)
 {
     struct input_queue_struct *iq;
@@ -1943,6 +1967,7 @@ void inputdevice_vsync (void)
 #endif
     if (mouseedge ())
 	mouseedge_alive = 10;
+    inputdevice_checkconfig ();
 }
 
 void inputdevice_reset (void)

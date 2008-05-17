@@ -37,6 +37,11 @@ int candirect = -1;
 int special_mem;
 #endif
 
+static int isdirectjit (void)
+{
+    return currprefs.cachesize && !currprefs.comptrustbyte;
+}
+
 static int canjit (void)
 {
     return 1;
@@ -1342,6 +1347,52 @@ void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
     chipmemory[addr] = b;
 }
 
+/* cpu chipmem access inside agnus addressable ram but no ram available */
+static uae_u32 chipmem_dummy (void)
+{
+    /* not really right but something random that has more ones than zeros.. */
+    return rand () | rand ();
+}
+void REGPARAM2 chipmem_dummy_bput (uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+}
+void REGPARAM2 chipmem_dummy_wput (uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+}
+void REGPARAM2 chipmem_dummy_lput (uaecptr addr, uae_u32 b)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+}
+static uae_u32 REGPARAM2 chipmem_dummy_bget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return chipmem_dummy ();
+}
+static uae_u32 REGPARAM2 chipmem_dummy_wget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return chipmem_dummy ();
+}
+static uae_u32 REGPARAM2 chipmem_dummy_lget (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return chipmem_dummy ();
+}
+
 static uae_u32 REGPARAM2 chipmem_agnus_lget (uaecptr addr)
 {
     uae_u32 *m;
@@ -2051,6 +2102,13 @@ addrbank chipmem_bank = {
     chipmem_lput, chipmem_wput, chipmem_bput,
     chipmem_xlate, chipmem_check, NULL, "Chip memory",
     chipmem_lget, chipmem_wget, ABFLAG_RAM
+};
+
+addrbank chipmem_dummy_bank = {
+    chipmem_dummy_lget, chipmem_dummy_wget, chipmem_dummy_bget,
+    chipmem_dummy_lput, chipmem_dummy_wput, chipmem_dummy_bput,
+    default_xlate, dummy_check, NULL, "Dummy Chip memory",
+    dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
 
@@ -2879,11 +2937,15 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 		return;
 
 	    if (x->size > size) {
-		write_log ("NATMEM: Failure to delete mapping at %08x(size %08x, delsize %08x)\n",start,x->size,size);
-		dumplist ();
+		write_log ("NATMEM WARNING: size mismatch mapping at %08x (size %08x, delsize %08x)\n",start,x->size,size);
+		size = x->size;
+	    }
+#if 0
+	    dumplist ();
 		nocanbang ();
 		return;
 	    }
+#endif
 	    shmdt (x->native_address);
 	    size -= x->size;
 	    start += x->size;
@@ -2932,7 +2994,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     shm_start = y;
 }
 
-uae_u8 *mapped_malloc (size_t s, char *file)
+uae_u8 *mapped_malloc (size_t s, const char *file)
 {
     int id;
     void *answer;
@@ -3154,10 +3216,22 @@ void map_overlay (int chip)
 #endif
     if (chip) {
 	map_banks (&dummy_bank, 0, 32, 0);
-	if (currprefs.cpu_model < 68020 || currprefs.address_space_24)
+	if (!isdirectjit ()) {
 	    map_banks (cb, 0, size, allocated_chipmem);
-	else
+	    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+		int start = allocated_chipmem >> 16;
+		if (allocated_chipmem < 0x100000) {
+		    int dummy = (0x100000 - allocated_chipmem) >> 16;
+		    map_banks (&chipmem_dummy_bank, start, dummy, 0);
+		    map_banks (&chipmem_dummy_bank, start + 16, dummy, 0);
+		} else if (allocated_chipmem < 0x200000 && allocated_chipmem > 0x100000) {
+		    int dummy = (0x200000 - allocated_chipmem) >> 16;
+		    map_banks (&chipmem_dummy_bank, start, dummy, 0);
+		}
+	    }
+	} else {
 	    map_banks (cb, 0, allocated_chipmem >> 16, 0);
+	}
     } else {
 	addrbank *rb = NULL;
 	if (size < 32)

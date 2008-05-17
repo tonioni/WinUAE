@@ -245,6 +245,9 @@ void rtarea_init (void)
 #ifdef FILESYS
     filesys_install_code ();
 #endif
+#ifdef PICASSO96
+    uaegfx_install_code ();
+#endif
 
     uae_boot_rom_size = here() - rtarea_base;
     init_extended_traps ();

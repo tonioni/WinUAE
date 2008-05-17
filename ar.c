@@ -217,8 +217,6 @@
 #endif
 
 static char *cart_memnames[] = { NULL, "hrtmon", "arhrtmon", "superiv" };
-static char *cart_memnames2[] = { NULL, NULL, NULL, "superiv_2" };
-static char *cart_memnames3[] = { NULL, NULL, NULL, "superiv_3" };
 
 #define ARMODE_FREEZE 0 /* AR2/3 The action replay 'freeze' button has been pressed.  */
 #define ARMODE_BREAKPOINT_AR2 2 /* AR2: The action replay is activated via a breakpoint. */
@@ -1515,6 +1513,9 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
     uae_u32 chip = currprefs.chipmem_size - 0x10000;
     int subtype = rd->id;
     int flags = rd->type;
+    char *memname1, *memname2, *memname3;
+
+    memname1 = memname2 = memname3 = NULL;
 
     cart_type = CART_SUPER4;
 
@@ -1528,6 +1529,8 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	hrtmem2_start = 0xf20000;
 	hrtmem2_size =  0x10000;
 	hrtmem_rom = 1;
+	memname1 = "xpower_e2";
+	memname2 = "xpower_f2";
     } else if (flags & ROMTYPE_NORDIC) { /* nordic */
 	hrtmem_start = 0xf00000;
 	hrtmem_size = 0x10000;
@@ -1536,9 +1539,12 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	hrtmem2_end = 0xf60000;
 	hrtmem2_size =  0x10000;
 	hrtmem_rom = 1;
+	memname1 = "nordic_f0";
+	memname2 = "nordic_f4";
 	if (subtype == 70) {
 	    hrtmem_start += 0x60000;
 	    hrtmem_end += 0x60000;
+	    memname1 = "nordic_f6";
 	}
     } else { /* super4 */
 	hrtmem_start = 0xd00000;
@@ -1548,11 +1554,14 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 	hrtmem2_size2 = 0x0c0000;
 	hrtmem3_start = 0xe00000;
 	hrtmem3_size = 0x80000;
+	memname1 = "superiv_d0";
+	memname2 = "superiv_b0";
+	memname3 = "superiv_e0";
     }
     if (hrtmem2_size && !hrtmem2_size2)
 	hrtmem2_size2 = hrtmem2_size;
 
-    hrtmemory = mapped_malloc (hrtmem_size, cart_memnames[cart_type]);
+    hrtmemory = mapped_malloc (hrtmem_size, memname1);
     memset (hrtmemory, 0x00, hrtmem_size);
     if (f) {
 	zfile_fseek (f, 0, SEEK_SET);
@@ -1564,11 +1573,11 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
     hrtmem2_mask = hrtmem2_size - 1;
     hrtmem3_mask = hrtmem3_size - 1;
     if (hrtmem2_size) {
-	hrtmemory2 = mapped_malloc (hrtmem2_size, cart_memnames2[cart_type]);
+	hrtmemory2 = mapped_malloc (hrtmem2_size, memname2);
 	memset(hrtmemory2, 0, hrtmem2_size);
     }
     if (hrtmem3_size) {
-	hrtmemory3 = mapped_malloc (hrtmem3_size, cart_memnames3[cart_type]);
+	hrtmemory3 = mapped_malloc (hrtmem3_size, memname3);
 	memset(hrtmemory3, 0, hrtmem3_size);
     }
     hrtmem3_bank.baseaddr = hrtmemory3;
@@ -1817,7 +1826,7 @@ int hrtmon_load (void)
 	#endif
 	cart_type = CART_HRTMON;
     }
-    hrtmemory = mapped_malloc (hrtmem_size, cart_memnames[cart_type]);
+    hrtmemory = mapped_malloc (hrtmem_size, "hrtmem");
     memset (hrtmemory, 0xff, 0x80000);
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (hrtmemory, 1, 524288, f);
@@ -1826,12 +1835,14 @@ int hrtmon_load (void)
     hrtmon_custom = hrtmemory + 0x08f000;
     hrtmon_ciaa = hrtmemory + 0x08e000;
     hrtmon_ciab = hrtmemory + 0x08d000;
+#if 0
     if (hrtmem2_size) {
 	hrtmem2_mask = hrtmem2_size - 1;
 	hrtmemory2 = mapped_malloc (hrtmem2_size, cart_memnames2[cart_type]);
 	memset(hrtmemory2, 0, hrtmem2_size);
 	hrtmem2_bank.baseaddr = hrtmemory2;
     }
+#endif
     hrtmem_bank.baseaddr = hrtmemory;
     hrtmon_flag = ACTION_REPLAY_IDLE;
     write_log ("%s installed at %08.8X\n", cart_memnames[cart_type], hrtmem_start);

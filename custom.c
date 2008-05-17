@@ -2052,19 +2052,22 @@ static int tospritexddf (int ddf)
 
 static void calcsprite (void)
 {
-    int min, max;
-
     sprite_maxx = max_diwlastword;
     sprite_minx = 0;
     if (thisline_decision.diwlastword >= 0)
 	sprite_maxx = tospritexdiw (thisline_decision.diwlastword);
     if (thisline_decision.diwfirstword >= 0)
 	sprite_minx = tospritexdiw (thisline_decision.diwfirstword);
-    min = tospritexddf (thisline_decision.plfleft);
-    max = tospritexddf (thisline_decision.plfright);
-    if (min > sprite_minx && min < max) /* min < max = full line ddf */
-	sprite_minx = min;
-    /* sprites are visible from DDFSTRT to end of line (another undocumented feature) */
+    if (thisline_decision.plfleft >= 0) {
+	int min, max;
+	min = tospritexddf (thisline_decision.plfleft);
+	max = tospritexddf (thisline_decision.plfright);
+	if (min > sprite_minx && min < max) /* min < max = full line ddf */
+	    sprite_minx = min;
+	/* sprites are visible from first BPL0DAT write to end of line
+	 * (another undocumented feature)
+	 */
+    }
 }
 
 static void decide_sprites (int hpos)

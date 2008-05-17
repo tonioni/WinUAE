@@ -49,7 +49,7 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 
 #define NCR_OFFSET 0x40
 
-/* Gayle definitions from Linux drivers */
+/* Gayle definitions from Linux drivers and preliminary Gayle datasheet */
 
 /* PCMCIA stuff */
 
@@ -677,7 +677,7 @@ static void ide_do_command (uae_u8 cmd)
 	ide_set_features ();
     } else if (cmd == 0x00) { /* nop */
 	ide_fail ();
-    } else if (cmd == 0xe0 || cmd == 0xe1 || cmd == 0xe7 || cmd == 0xea) { /* standy now/idle/flush cache/flush cache ext */
+    } else if (cmd == 0xe0 || cmd == 0xe1 || cmd == 0xe7 || cmd == 0xea) { /* standby now/idle/flush cache/flush cache ext */
 	ide_interrupt ();
     } else if (cmd == 0xe5) { /* check power mode */
 	ide_nsector = 0xff;

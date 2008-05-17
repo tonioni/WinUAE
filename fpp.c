@@ -146,7 +146,8 @@ static void fpu_op_illg (uae_u32 opcode, struct regstruct *regs, int pcoffset)
 	 * Line F exception with different stack frame.. */
 	uaecptr newpc = m68k_getpc (regs);
 	uaecptr oldpc = newpc - pcoffset;
-	MakeSR(regs);
+	regs->t0 = regs->t1 = 0;
+	MakeSR (regs);
 	if (!regs->s) {
 	    regs->usp = m68k_areg (regs, 7);
 	    m68k_areg (regs, 7) = regs->isp;

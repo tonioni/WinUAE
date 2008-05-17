@@ -604,6 +604,8 @@ void flush_block (int a, int b)
 
 void flush_screen (int a, int b)
 {
+    if (dx_islost ())
+	return;
     if (currentmode->flags & DM_OPENGL) {
 #ifdef OPENGL
 	OGL_render ();
@@ -622,9 +624,9 @@ void flush_screen (int a, int b)
 
 static uae_u8 *ddraw_dolock (void)
 {
-    if (!DirectDraw_SurfaceLock())
+    if (!DirectDraw_SurfaceLock ())
 	return 0;
-    gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer();
+    gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer ();
     init_row_map ();
     clear_inhibit_frame (IHF_WINDOWHIDDEN);
     return gfxvidinfo.bufmem;
@@ -643,7 +645,7 @@ int lockscr (void)
     } else if (currentmode->flags & DM_SWSCALE) {
 	return 1;
     } else if (currentmode->flags & DM_DDRAW) {
-	return ddraw_dolock() != 0;
+	return ddraw_dolock () != 0;
     }
     return 1;
 }
@@ -663,7 +665,7 @@ void unlockscr (void)
 
 void flush_clear_screen (void)
 {
-    if (WIN32GFX_IsPicassoScreen())
+    if (WIN32GFX_IsPicassoScreen ())
 	return;
     if (lockscr ()) {
 	int y;
@@ -1182,6 +1184,8 @@ void DX_Invalidate (int x, int y, int width, int height)
 {
     int last, lastx;
 
+    if (width == 0 || height == 0)
+	return;
     if (y < 0 || height < 0) {
 	y = 0;
 	height = picasso_vidinfo.height;
@@ -2038,6 +2042,8 @@ void updatedisplayarea (void)
     if (!screen_is_initialized)
 	return;
     if (picasso_on)
+	return;
+    if (dx_islost ())
 	return;
 #if defined (GFXFILTER)
     if (currentmode->flags & DM_OPENGL) {

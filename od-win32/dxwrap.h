@@ -26,6 +26,7 @@ struct ddstuff
     HWND hwnd;
     int maxwidth, maxheight;
     uae_u32 colorkey;
+    int islost;
 
     LPDIRECTDRAWSURFACE7 cursorsurface1;
     LPDIRECTDRAWSURFACE7 cursorsurface2;
@@ -122,6 +123,8 @@ HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palett
 HRESULT DirectDraw_SetPalette (int remove);
 HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal);
 
+void dx_check (void);
+int dx_islost (void);
 
 #define DDFORCED_NONLOCAL 0
 #define DDFORCED_DEFAULT 1

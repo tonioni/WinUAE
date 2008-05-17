@@ -817,6 +817,7 @@ void DirectDraw_Release (void)
 {
     if (!dxdata.ddinit)
 	return;
+    dxdata.islost = 0;
     dxdata.ddinit = 0;
     freemainsurface ();
     if (dxdata.fsmodeset)
@@ -834,6 +835,7 @@ int DirectDraw_Start (GUID *guid)
     LPDIRECT3D9 d3d;
     D3DCAPS9 d3dCaps;
 
+    dxdata.islost = 0;
     if (dxdata.ddinit) {
 	if (guid == NULL && dxdata.ddzeroguid)
 	    return -1;
@@ -884,4 +886,21 @@ int DirectDraw_Start (GUID *guid)
     write_log ("DirectDraw_Start: %s\n", DXError (ddrval));
     DirectDraw_Release();
     return 0;
+}
+
+int dx_islost (void)
+{
+    return dxdata.islost;
+}
+
+void dx_check (void)
+{
+    dxdata.islost = 0;
+    if (dxdata.fsmodeset == 0)
+	return;
+    if (IDirectDrawSurface7_IsLost (dxdata.primary) != DDERR_SURFACELOST)
+	return;
+    if (IDirectDrawSurface7_Restore (dxdata.primary) != DDERR_WRONGMODE)
+	return;
+    dxdata.islost = 1;
 }

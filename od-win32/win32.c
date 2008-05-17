@@ -86,6 +86,7 @@ static DWORD minidumpmode = MiniDumpNormal;
 
 int qpcdivisor = 0;
 int cpu_mmx = 1;
+static int userdtsc = 0;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
@@ -187,7 +188,7 @@ void sleep_millis (int ms)
     idletime += read_processor_time () - start;
 }
 
-frame_time_t read_processor_time (void)
+frame_time_t read_processor_time_qpf (void)
 {
     LARGE_INTEGER counter;
     QueryPerformanceCounter (&counter);
@@ -195,8 +196,80 @@ frame_time_t read_processor_time (void)
 	return (frame_time_t)(counter.LowPart);
     return (frame_time_t)(counter.QuadPart >> qpcdivisor);
 }
+frame_time_t read_processor_time_rdtsc (void)
+{
+    frame_time_t foo = 0;
+#if defined(X86_MSVC_ASSEMBLY)
+    frame_time_t bar;
+    __asm
+    {
+        rdtsc
+        mov foo, eax
+        mov bar, edx
+    }
+    /* very high speed CPU's RDTSC might overflow without this.. */
+    foo >>= 6;
+    foo |= bar << 26;
+#endif
+    return foo;
+}
+frame_time_t read_processor_time (void)
+{
+    if (userdtsc)
+	return read_processor_time_rdtsc ();
+    else
+	return read_processor_time_qpf ();
+}
 
-static void figure_processor_speed (void)
+#include <process.h>
+static volatile int dummythread_die;
+static void dummythread (void *dummy)
+{
+    SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
+    while (!dummythread_die);
+}
+static uae_u64 win32_read_processor_time (void)
+{
+#if defined(X86_MSVC_ASSEMBLY)
+    uae_u32 foo, bar;
+    __asm
+    {
+	cpuid
+	rdtsc
+	mov foo, eax
+	mov bar, edx
+    }
+    return (((uae_u64)bar) << 32) | foo;
+#else
+    return 0;
+#endif
+}
+static void figure_processor_speed_rdtsc (void)
+{
+    static int freqset;
+    uae_u64 clockrate;
+    int oldpri;
+    HANDLE th;
+
+    if (freqset)
+	return;
+    th = GetCurrentThread ();
+    freqset = 1;
+    oldpri = GetThreadPriority (th);
+    SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
+    dummythread_die = -1;
+    _beginthread (&dummythread, 0, 0);
+    sleep_millis (500);
+    clockrate = win32_read_processor_time ();
+    sleep_millis (500);
+    clockrate = (win32_read_processor_time () - clockrate) * 2;
+    dummythread_die = 0;
+    SetThreadPriority (th, oldpri);
+    write_log ("CLOCKFREQ: RDTSC %.2fMHz\n", clockrate / 1000000.0);
+    syncbase = clockrate >> 6;
+}
+
+static void figure_processor_speed_qpf (void)
 {
     LARGE_INTEGER freq;
     static LARGE_INTEGER freq2;
@@ -217,6 +290,16 @@ static void figure_processor_speed (void)
     write_log ("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n", freq.QuadPart / 1000000.0,
 	 qpfrate / 1000000.0, 1 << qpcdivisor);
     syncbase = (unsigned long)qpfrate;
+}
+
+static void figure_processor_speed (void)
+{
+    if (SystemInfo.dwNumberOfProcessors > 1)
+	userdtsc = 0;
+    if (userdtsc)
+	figure_processor_speed_rdtsc ();
+    if (!userdtsc)
+	figure_processor_speed_qpf ();
 }
 
 static void setcursor(int oldx, int oldy)
@@ -565,18 +648,21 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_SETFOCUS:
         winuae_active (hWnd, minimized);
         minimized = 0;
+	dx_check ();
 	return 0;
     case WM_ACTIVATE:
         if (LOWORD (wParam) == WA_INACTIVE) {
 	    minimized = HIWORD (wParam) ? 1 : 0;
 	    winuae_inactive (hWnd, minimized);
 	}
+	dx_check ();
 	return 0;
-#ifdef RETROPLATFORM
     case WM_ACTIVATEAPP:
+#ifdef RETROPLATFORM
 	rp_activate (wParam, lParam);
-	return 0;
 #endif
+	dx_check ();
+	return 0;
 
     case WM_PALETTECHANGED:
 	if ((HWND)wParam != hWnd)
@@ -1195,7 +1281,7 @@ void handle_events (void)
     if (cnt <= 0) {
 	figure_processor_speed ();
 	flush_log ();
-	cnt = 50 * 10;
+	cnt = 50 * 5;
     }
 }
 
@@ -2282,10 +2368,10 @@ static void WIN32_HandleRegistryStuff(void)
 	if (y < 10)
 	    y = 10;
         /* Create and initialize all our sub-keys to the default values */
-        regsetint(NULL, "MainPosX", x);
-        regsetint(NULL, "MainPosY", y);
-        regsetint(NULL, "GUIPosX", x);
-        regsetint(NULL, "GUIPosY", y);
+        regsetint (NULL, "MainPosX", x);
+        regsetint (NULL, "MainPosY", y);
+        regsetint (NULL, "GUIPosX", x);
+        regsetint (NULL, "GUIPosY", y);
     }
     size = sizeof (version);
     if (regquerystr (NULL, "Version", version, &size)) {
@@ -2297,9 +2383,9 @@ static void WIN32_HandleRegistryStuff(void)
     size = sizeof (version);
     if (regquerystr (NULL, "ROMCheckVersion", version, &size)) {
         if (checkversion (version)) {
-    	if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
-    	    forceroms = 1;
-        }
+    	    if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
+    		forceroms = 1;
+	}
     } else {
         if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
     	forceroms = 1;
@@ -2384,14 +2470,14 @@ static int betamessage (void)
 
 	dwType = REG_DWORD;
 	size = sizeof data;
-	if (hWinUAEKey && RegQueryValueEx(hWinUAEKey, "Beta_Just_Shut_Up", 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
+	if (hWinUAEKey && RegQueryValueEx (hWinUAEKey, "Beta_Just_Shut_Up", 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
 	    if (data == 68000) {
 		write_log ("I was told to shut up :(\n");
 		return 1;
 	    }
 	}
 
-	_time64(&ltime);
+	_time64 (&ltime);
 	t = _gmtime64 (&ltime);
 	/* "expire" in 1 month */
 	if (MAKEBD(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday) > WINUAEDATE + 100)
@@ -2461,7 +2547,7 @@ static int isadminpriv (void)
 
     // Call GetTokenInformation again to get the group information.
     if (!GetTokenInformation (hToken, TokenGroups, pGroupInfo, dwSize, &dwSize)) {
-	write_log ("GetTokenInformation Error %u\n", GetLastError());
+	write_log ("GetTokenInformation Error %u\n", GetLastError ());
 	return FALSE;
     }
 
@@ -2642,8 +2728,8 @@ static void getstartpaths (void)
 	    strcat (tmp, "WinUAE");
 	    v = GetFileAttributes (tmp);
 	    if (v == INVALID_FILE_ATTRIBUTES || (v & FILE_ATTRIBUTE_DIRECTORY)) {
-		strcpy(xstart_path_new1, tmp2);
-		strcat(xstart_path_new1, "WinUAE\\");
+		strcpy (xstart_path_new1, tmp2);
+		strcat (xstart_path_new1, "WinUAE\\");
 		strcpy (xstart_path_uae, start_path_exe);
 		strcpy (start_path_new1, xstart_path_new1);
 		strcat(tmp2, "System");
@@ -2682,7 +2768,7 @@ static void getstartpaths (void)
 	    if (af_path_2005 & 2) {
 		strcpy (tmp, xstart_path_new2);
 		strcat (tmp, "system\\rom");
-		if (isfilesindir(tmp))
+		if (isfilesindir (tmp))
 		    path_type = PATH_TYPE_AMIGAFOREVERDATA;
 		else
 		    path_type = PATH_TYPE_NEWWINUAE;
@@ -2812,6 +2898,10 @@ static int process_arg(char **xargv)
 		force_direct_catweasel = getval (argv[++i]);
 	    continue;
 	}
+        if (!strcmp (arg, "-forcerdtsc")) {
+	    userdtsc = 1;
+	    continue;
+	}
 
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
@@ -2829,7 +2919,7 @@ static int process_arg(char **xargv)
 		i++;
 		if (cpu_affinity == 0)
 		    cpu_affinity = original_affinity;
-		SetThreadAffinityMask (GetCurrentThread(), cpu_affinity);
+		SetThreadAffinityMask (GetCurrentThread (), cpu_affinity);
 		continue;
 	    }
 	    if (!strcmp (arg, "-paffinity")) {
@@ -2837,7 +2927,7 @@ static int process_arg(char **xargv)
 		i++;
 		if (cpu_paffinity == 0)
 		    cpu_paffinity = original_affinity;
-		SetProcessAffinityMask (GetCurrentProcess(), cpu_paffinity);
+		SetProcessAffinityMask (GetCurrentProcess (), cpu_paffinity);
 		continue;
 	    }
 	    if (!strcmp (arg, "-datapath")) {
@@ -2929,9 +3019,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     }
 #endif
 
-    if (!osdetect())
+    if (!osdetect ())
 	return 0;
-    if (!dxdetect())
+    if (!dxdetect ())
 	return 0;
 
     hInst = hInstance;
@@ -2979,7 +3069,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	if (betamessage ()) {
 	    keyboard_settrans ();
 #ifdef CATWEASEL
-	    catweasel_init();
+	    catweasel_init ();
 #endif
 #ifdef PARALLEL_PORT
 	    paraport_mask = paraport_init ();
@@ -3057,7 +3147,7 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
     ok = 1;
     for (i = 0; drvsampleres[i] >= 0; i += 2) {
 	struct drvsample *s = sp + drvsampleres[i + 1];
-	HRSRC res = FindResource (NULL, MAKEINTRESOURCE(drvsampleres[i + 0]), "WAVE");
+	HRSRC res = FindResource (NULL, MAKEINTRESOURCE (drvsampleres[i + 0]), "WAVE");
 	if (res != 0) {
 	    HANDLE h = LoadResource (NULL, res);
 	    int len = SizeofResource (NULL, res);
@@ -3356,7 +3446,7 @@ void systraymenu (HWND hwnd)
 
 static void LLError(const char *s)
 {
-    DWORD err = GetLastError();
+    DWORD err = GetLastError ();
 
     if (err == ERROR_MOD_NOT_FOUND || err == ERROR_DLL_NOT_FOUND)
 	return;

@@ -556,9 +556,10 @@ void restore_state (char *filename)
 		       name, len, end - chunk);
 	xfree (chunk);
     }
-    restore_disk_finish();
-    restore_blitter_finish();
-    restore_akiko_finish();
+    restore_disk_finish ();
+    restore_blitter_finish ();
+    restore_akiko_finish ();
+    restore_p96_finish ();
     return;
 
     error:
@@ -633,8 +634,8 @@ int save_state (char *filename, char *description)
     int comp = savestate_docompress;
 
     if (!savestate_specialdump) {
-	state_incompatible_warn();
-	if (!save_filesys_cando()) {
+	state_incompatible_warn ();
+	if (!save_filesys_cando ()) {
 	    gui_message("Filesystem active. Try again later");
 	    return -1;
 	}

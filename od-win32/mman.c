@@ -540,32 +540,62 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	    shmids[shmid].attached = result;
 	    return result;
 	}
-	if(!strcmp(shmids[shmid].name,"hrtmon")) {
-	    shmaddr=natmem_offset + 0x00a10000;
-	    got = TRUE;
-	}
-	if(!strcmp(shmids[shmid].name,"arhrtmon")) {
-	    shmaddr=natmem_offset + 0x00800000;
-	    got = TRUE;
-	}
-	if(!strcmp(shmids[shmid].name,"superiv")) {
-	    shmaddr=natmem_offset + 0x00d00000;
-	    got = TRUE;
-	}
-	if(!strcmp(shmids[shmid].name,"superiv_2")) {
-	    shmaddr=natmem_offset + 0x00b00000;
-	    got = TRUE;
-	}
-	if(!strcmp(shmids[shmid].name,"superiv_3")) {
-	    shmaddr=natmem_offset + 0x00e00000;
-	    got = TRUE;
-	}
 	if(!strcmp(shmids[shmid].name,"custmem1")) {
 	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
 	    got = TRUE;
 	}
 	if(!strcmp(shmids[shmid].name,"custmem2")) {
 	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[1];
+	    got = TRUE;
+	}
+
+	if(!strcmp(shmids[shmid].name,"hrtmon")) {
+	    shmaddr=natmem_offset + 0x00a10000;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"arhrtmon")) {
+	    shmaddr=natmem_offset + 0x00800000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"xpower_e2")) {
+	    shmaddr=natmem_offset + 0x00e20000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"xpower_f2")) {
+	    shmaddr=natmem_offset + 0x00f20000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"nordic_f0")) {
+	    shmaddr=natmem_offset + 0x00f00000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"nordic_f4")) {
+	    shmaddr=natmem_offset + 0x00f40000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"nordic_f6")) {
+	    shmaddr=natmem_offset + 0x00f60000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"superiv_b0")) {
+	    shmaddr=natmem_offset + 0x00b00000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"superiv_d0")) {
+	    shmaddr=natmem_offset + 0x00d00000;
+	    size += BARRIER;
+	    got = TRUE;
+	}
+	if(!strcmp(shmids[shmid].name,"superiv_e0")) {
+	    shmaddr=natmem_offset + 0x00e00000;
+	    size += BARRIER;
 	    got = TRUE;
 	}
 }
@@ -597,13 +627,13 @@ int shmdt (const void *shmaddr)
     return 0;
 }
 
-int shmget (key_t key, size_t size, int shmflg, char *name)
+int shmget (key_t key, size_t size, int shmflg, const char *name)
 {
     int result = -1;
 
-    if((key == IPC_PRIVATE) || ((shmflg & IPC_CREAT) && (find_shmkey(key) == -1))) {
+    if((key == IPC_PRIVATE) || ((shmflg & IPC_CREAT) && (find_shmkey (key) == -1))) {
 	write_log ("shmget of size %d (%dk) for %s\n", size, size >> 10, name);
-	if ((result = get_next_shmkey()) != -1) {
+	if ((result = get_next_shmkey ()) != -1) {
 	    shmids[result].size = size;
 	    strcpy(shmids[result].name, name);
 	} else {
@@ -618,7 +648,7 @@ int shmctl (int shmid, int cmd, struct shmid_ds *buf)
     int result = -1;
 
     if ((find_shmkey (shmid) != -1) && buf) {
-	switch(cmd)
+	switch (cmd)
 	{
 	    case IPC_STAT:
 		*buf = shmids[shmid];
