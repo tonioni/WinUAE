@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-04-03 15:18:00
+ Updated : 2008-05-20 10:37:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -16,9 +16,9 @@
 
 #include <windows.h>
 
-#define RPLATFORM_API_VER       "1.0"
+#define RPLATFORM_API_VER       "1.1"
 #define RPLATFORM_API_VER_MAJOR  1
-#define RPLATFORM_API_VER_MINOR  0
+#define RPLATFORM_API_VER_MINOR  1
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -67,6 +67,8 @@
 #define RPIPCHM_ESCAPEKEY      (WM_APP + 210)
 #define RPIPCHM_EVENT          (WM_APP + 211)
 #define RPIPCHM_MOUSECAPTURE   (WM_APP + 212)
+#define RPIPCHM_SAVESTATE      (WM_APP + 213)
+#define RPIPCHM_LOADSTATE      (WM_APP + 214)
 
 
 // ****************************************************************************
@@ -84,16 +86,17 @@
 #define RP_FEATURE_PAUSE         0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
 #define RP_FEATURE_TURBO         0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
 #define RP_FEATURE_VOLUME        0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
+#define RP_FEATURE_STATE         0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE message)
 
 // Screen Modes
 #define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")
 #define RP_SCREENMODE_2X            0x00000001 // 2x window or full-screen mode ("VGA mode")
 #define RP_SCREENMODE_3X            0x00000002 // 3x window or full-screen mode ("triple CGA mode")
 #define RP_SCREENMODE_4X            0x00000003 // 4x window or full-screen mode ("double VGA mode")
+#define RP_SCREENMODE_XX            0x000000FF // autoset maximum nX (integer n, preserve ratio)
 #define RP_SCREENMODE_FULLSCREEN_1	0x00000100 // full screen on primary (default) display
 #define RP_SCREENMODE_FULLSCREEN_2	0x00000200 // full screen on secondary display (fallback to 1 if unavailable)
 #define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" when in fullscreen (no gfx card full screen)
-#define RP_SCREENMODE_XX            0x000000FF
 #define RP_SCREENMODE_MODE(m)       ((m) & 0x000000FF) // given a mode 'm' returns the #X mode
 #define RP_SCREENMODE_DISPLAY(m)    (((m) >> 8) & 0x000000FF) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
 

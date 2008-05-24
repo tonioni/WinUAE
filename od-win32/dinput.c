@@ -422,6 +422,7 @@ static int initialize_rawinput (void)
 	    write_log ("'%s'\n", buf);
 	    did->configname = my_strdup (buf);
 	    rdi = (PRID_DEVICE_INFO)buf;
+	    memset (rdi, 0, sizeof (RID_DEVICE_INFO));
 	    rdi->cbSize = sizeof (RID_DEVICE_INFO);
 	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
 		continue;
@@ -433,6 +434,10 @@ static int initialize_rawinput (void)
 		PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
 		write_log ("id=%d buttons=%d hw=%d rate=%d\n",
 		    rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
+		if (rdim->dwNumberOfButtons >= MAX_MAPPINGS) {
+		    write_log ("bogus number of buttons, ignored\n");
+		    continue;
+		}
 		did->buttons = rdim->dwNumberOfButtons;
 		for (j = 0; j < did->buttons; j++) {
 		    did->buttonsort[j] = j;

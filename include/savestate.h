@@ -130,9 +130,9 @@ extern uae_u8 *save_action_replay (int *, uae_u8 *);
 extern uae_u8 *restore_hrtmon (uae_u8 *);
 extern uae_u8 *save_hrtmon (int *, uae_u8 *);
 
-extern void savestate_initsave (char *filename, int docompress);
-extern int save_state (char *filename, char *description);
-extern void restore_state (char *filename);
+extern void savestate_initsave (const char *filename, int docompress, int nodialogs);
+extern int save_state (const char *filename, const char *description);
+extern void restore_state (const char *filename);
 extern void savestate_restore_finish (void);
 
 extern void custom_save_state (void);

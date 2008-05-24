@@ -732,6 +732,13 @@ static void sample16i_crux_handler (void)
 
 #ifdef HAVE_STEREO_SUPPORT
 
+static void make6ch (uae_s32 d0, uae_s32 d1, uae_s32 d2, uae_s32 d3)
+{
+    uae_s32 sum = d0 + d1 + d2 + d3;
+    PUT_SOUND_WORD (sum >> 1);
+    PUT_SOUND_WORD (sum >> 1);
+}
+
 void sample16ss_handler (void)
 {
     uae_u32 data0 = audio_channel[0].current_sample;
@@ -750,10 +757,8 @@ void sample16ss_handler (void)
 
     put_sound_word_left (data0 << 2);
     put_sound_word_right (data1 << 2);
-    if (currprefs.sound_stereo == SND_6CH) {
-	PUT_SOUND_WORD (0);
-	PUT_SOUND_WORD (0);
-    }
+    if (currprefs.sound_stereo == SND_6CH)
+	make6ch (data0, data1, data2, data3);
     put_sound_word_left2 (data3 << 2);
     put_sound_word_right2 (data2 << 2);
 
@@ -770,10 +775,8 @@ void sample16ss_anti_handler (void)
     samplexx_anti_handler (datas);
     put_sound_word_left (datas[0] << 2);
     put_sound_word_right (datas[1] << 2);
-    if (currprefs.sound_stereo == SND_6CH) {
-	PUT_SOUND_WORD (0);
-	PUT_SOUND_WORD (0);
-    }
+    if (currprefs.sound_stereo == SND_6CH)
+	make6ch (datas[0], datas[1], datas[2], datas[3]);
     put_sound_word_left2 (datas[3] << 2);
     put_sound_word_right2 (datas[2] << 2);
     check_sound_buffers ();
@@ -800,10 +803,8 @@ void sample16ss_sinc_handler (void)
     samplexx_sinc_handler (datas);
     put_sound_word_left (datas[0] << 2);
     put_sound_word_right (datas[1] << 2);
-    if (currprefs.sound_stereo == SND_6CH) {
-	PUT_SOUND_WORD (0);
-	PUT_SOUND_WORD (0);
-    }
+    if (currprefs.sound_stereo == SND_6CH)
+	make6ch (datas[0], datas[1], datas[2], datas[3]);
     put_sound_word_left2 (datas[3] << 2);
     put_sound_word_right2 (datas[2] << 2);
     check_sound_buffers ();
@@ -1302,20 +1303,24 @@ void audio_reset (void)
 
 STATIC_INLINE int sound_prefs_changed (void)
 {
-    return (changed_prefs.produce_sound != currprefs.produce_sound
+    if (changed_prefs.produce_sound != currprefs.produce_sound
 	    || changed_prefs.win32_soundcard != currprefs.win32_soundcard
 	    || changed_prefs.sound_stereo != currprefs.sound_stereo
-	    || changed_prefs.sound_stereo_separation != currprefs.sound_stereo_separation
-	    || changed_prefs.sound_mixed_stereo_delay != currprefs.sound_mixed_stereo_delay
 	    || changed_prefs.sound_maxbsiz != currprefs.sound_maxbsiz
 	    || changed_prefs.sound_freq != currprefs.sound_freq
-	    || changed_prefs.sound_auto != currprefs.sound_auto
+	    || changed_prefs.sound_auto != currprefs.sound_auto)
+	    return 1;
+
+    if (changed_prefs.sound_stereo_separation != currprefs.sound_stereo_separation
+	    || changed_prefs.sound_mixed_stereo_delay != currprefs.sound_mixed_stereo_delay
 	    || changed_prefs.sound_interpol != currprefs.sound_interpol
 	    || changed_prefs.sound_volume != currprefs.sound_volume
 	    || changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
 	    || changed_prefs.sound_stereo_swap_ahi != currprefs.sound_stereo_swap_ahi
 	    || changed_prefs.sound_filter != currprefs.sound_filter
-	    || changed_prefs.sound_filter_type != currprefs.sound_filter_type);
+	    || changed_prefs.sound_filter_type != currprefs.sound_filter_type)
+		return -1;
+    return 0;
 }
 
 /* This computes the 1st order low-pass filter term b0.
@@ -1340,56 +1345,72 @@ static float rc_calculate_a0(int sample_rate, int cutoff_freq)
 
 void check_prefs_changed_audio (void)
 {
+    int ch;
 #ifdef DRIVESOUND
     driveclick_check_prefs ();
 #endif
-    if (!sound_available || !sound_prefs_changed ())
+    if (!sound_available)
 	return;
+    ch = sound_prefs_changed ();
+    if (!ch)
+	return;
+    if (ch > 0) {
 #ifdef AVIOUTPUT
-    AVIOutput_Restart ();
+	AVIOutput_Restart ();
 #endif
-    clear_sound_buffers();
-    set_audio();
+	clear_sound_buffers ();
+    }
+    set_audio ();
     audio_activate();
 }
 
-void set_audio(void)
+void set_audio (void)
 {
     int old_mixed_on = mixed_on;
     int old_mixed_size = mixed_stereo_size;
     int sep, delay;
+    int ch;
 
-    close_sound ();
+
+    ch = sound_prefs_changed ();
+    if (ch >= 0)
+	close_sound ();
+
     currprefs.produce_sound = changed_prefs.produce_sound;
     currprefs.win32_soundcard = changed_prefs.win32_soundcard;
     currprefs.sound_stereo = changed_prefs.sound_stereo;
-    currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
-    currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
     currprefs.sound_auto = changed_prefs.sound_auto;
-    currprefs.sound_interpol = changed_prefs.sound_interpol;
     currprefs.sound_freq = changed_prefs.sound_freq;
     currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
+
+    currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
+    currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
+    currprefs.sound_interpol = changed_prefs.sound_interpol;
     currprefs.sound_filter = changed_prefs.sound_filter;
     currprefs.sound_filter_type = changed_prefs.sound_filter_type;
     currprefs.sound_volume = changed_prefs.sound_volume;
     currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
     currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
 
-    if (currprefs.produce_sound >= 2) {
-	if (!init_audio ()) {
-	    if (! sound_available) {
-		write_log ("Sound is not supported.\n");
-	    } else {
-		write_log ("Sorry, can't initialize sound.\n");
-		currprefs.produce_sound = 0;
-		/* So we don't do this every frame */
-		changed_prefs.produce_sound = 0;
+    if (ch >= 0) {
+	if (currprefs.produce_sound >= 2) {
+	    if (!init_audio ()) {
+		if (! sound_available) {
+		    write_log ("Sound is not supported.\n");
+		} else {
+		    write_log ("Sorry, can't initialize sound.\n");
+		    currprefs.produce_sound = 0;
+		    /* So we don't do this every frame */
+		    changed_prefs.produce_sound = 0;
+		}
 	    }
 	}
+	next_sample_evtime = scaled_sample_evtime;
+	last_cycles = get_cycles () - 1;
+	compute_vsynctime ();
+    } else {
+        sound_volume (0);
     }
-    next_sample_evtime = scaled_sample_evtime;
-    last_cycles = get_cycles () - 1;
-    compute_vsynctime ();
 
     sep = (currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation) * 3 / 2;
     delay = currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
@@ -1414,10 +1435,10 @@ void set_audio(void)
 	else if (currprefs.sound_filter_type == FILTER_SOUND_TYPE_A1200)
 	    sound_use_filter = FILTER_MODEL_A1200;
     }
-    a500e_filter1_a0 = rc_calculate_a0(currprefs.sound_freq, 6200);
-    a500e_filter2_a0 = rc_calculate_a0(currprefs.sound_freq, 20000);
-    filter_a0 = rc_calculate_a0(currprefs.sound_freq, 7000);
-    led_filter_audio();
+    a500e_filter1_a0 = rc_calculate_a0 (currprefs.sound_freq, 6200);
+    a500e_filter2_a0 = rc_calculate_a0 (currprefs.sound_freq, 20000);
+    filter_a0 = rc_calculate_a0 (currprefs.sound_freq, 7000);
+    led_filter_audio ();
 
     /* Select the right interpolation method.  */
     if (sample_handler == sample16_handler
@@ -1776,7 +1797,6 @@ void led_filter_audio (void)
     led_filter_on = 0;
     if (led_filter_forced > 0 || (gui_data.powerled && led_filter_forced >= 0))
 	led_filter_on = 1;
-    gui_led (0, gui_data.powerled);
 }
 
 uae_u8 *restore_audio (int i, uae_u8 *src)

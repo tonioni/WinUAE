@@ -1011,10 +1011,17 @@ static int get_master_volume (int *volume, int *mute)
 	return setget_master_volume_xp (0, volume, mute);
 }
 
+void sound_mute (int newmute)
+{
+    if (newmute < 0)
+	mute = mute ? 0 : 1;
+    else
+	mute = newmute;
+    set_volume (currprefs.sound_volume, mute);
+}
+
 void sound_volume (int dir)
 {
-    if (dir == 0)
-	mute = mute ? 0 : 1;
     currprefs.sound_volume -= dir * 10;
     if (currprefs.sound_volume < 0)
 	currprefs.sound_volume = 0;

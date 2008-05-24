@@ -971,7 +971,7 @@ void scsidev_install (void)
     dw (0x0004); /* 0.4 */
     dw (0xD000); /* INITWORD */
     dw (0x0016); /* LIB_REVISION */
-    dw (0x0000); /* end of table already ??? */
+    dw (0x0000);
     dw (0xC000); /* INITLONG */
     dw (0x0018); /* LIB_IDSTRING */
     dl (ROM_scsidev_resid);

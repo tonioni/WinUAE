@@ -1,4 +1,21 @@
 
+Beta 20:
+
+- only reset sound when changing configuration if sound mode, sound card,
+  frequency, channels, or buffer size is changed
+- 5.1 sound settings now also send mixed sound to center and LFE channel
+  (mixing volume may need adjusting, please test)
+- superhires sprites in doublescan mode had halved horizontal resolution
+- power led fade support (very crappy)
+- possible fix to random joystick/mouse switch crash
+- programmed resolutions (doublescan) are now horizontally centered
+- right side max sprite clipping position was incorrect
+- D3D/OGL filters do not crash anymore but still do not work as expected..
+- added Amiga-side uae.resource, safe method to find "uae rom" base and
+  other information. Version of resource is UAEVERSION.UAEREVISION
+  NOTE: in compatible modes resource may not be available.
+  Check source for more information.
+  
 Beta 19:
 
 - lha/lzh archives with directory entries ("-lhd-") crash fix

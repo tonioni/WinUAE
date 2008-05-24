@@ -174,7 +174,7 @@ int minfirstline = VBLANK_ENDLINE_PAL;
 int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip, doublescan;
 frame_time_t syncbase;
 static int fmode;
-unsigned int beamcon0, new_beamcon0;
+uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int interlace_started;
@@ -2052,7 +2052,7 @@ static int tospritexddf (int ddf)
 
 static void calcsprite (void)
 {
-    sprite_maxx = max_diwlastword;
+    sprite_maxx = 0x7fff;
     sprite_minx = 0;
     if (thisline_decision.diwlastword >= 0)
 	sprite_maxx = tospritexdiw (thisline_decision.diwlastword);
@@ -4488,7 +4488,7 @@ static void copper_check (int n)
     }
 }
 
-static void CIA_vsync_prehandler(void)
+static void CIA_vsync_prehandler (void)
 {
     CIA_vsync_handler ();
 #if 0
@@ -4542,10 +4542,10 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
-	alloc_cycle(1, CYCLE_REFRESH);
-	alloc_cycle(3, CYCLE_REFRESH);
-	alloc_cycle(5, CYCLE_REFRESH);
-	alloc_cycle(7, CYCLE_REFRESH);
+	alloc_cycle (1, CYCLE_REFRESH); /* strobe */
+	alloc_cycle (3, CYCLE_REFRESH);
+	alloc_cycle (5, CYCLE_REFRESH);
+	alloc_cycle (7, CYCLE_REFRESH);
     }
 #endif
 
@@ -4556,7 +4556,7 @@ static void hsync_handler (void)
 	static int cia_hsync;
 	cia_hsync -= 256;
 	if (cia_hsync <= 0) {
-	    CIA_vsync_prehandler();
+	    CIA_vsync_prehandler ();
 	    cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 	}
     }

@@ -826,6 +826,20 @@ void decide_blitter (int hpos)
 #endif
     if (!blitter_cycle_exact)
 	return;
+
+    if (blit_linecyclecounter > 0) {
+	while (blit_linecyclecounter > 0 && blit_last_hpos < hpos) {
+	    blit_linecyclecounter--;
+	    blit_last_hpos++;
+	}
+	if (blit_last_hpos > maxhpos)
+	    blit_last_hpos = 0;
+    }
+    if (blit_linecyclecounter > 0) {
+	blit_last_hpos = hpos;
+	return;
+    }
+
     if (blitline) {
 	blt_info.got_cycle = 1;
 	decide_blitter_line (hpos);
@@ -1075,7 +1089,7 @@ void do_blitter (int hpos)
 	blitter_vcounter1 = blitter_vcounter2 = 0;
 	if (blit_nod)
 	    blitter_vcounter2 = blt_info.vblitsize;
-	blit_linecyclecounter = 0;
+	blit_linecyclecounter = 2;
 	if (blit_ch == 0)
 	    blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize;
 	return;

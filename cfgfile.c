@@ -2829,6 +2829,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->ghostscript_parameters[0] = 0;
     p->uae_hide = 0;
 
+    memset (&p->jports[0], 0, sizeof (struct jport));
+    memset (&p->jports[1], 0, sizeof (struct jport));
     p->jports[0].id = JSEM_MICE;
     p->jports[1].id = JSEM_KBDLAYOUT;
     p->keyboard_lang = KBD_LANG_US;

@@ -1351,7 +1351,7 @@ void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
 static uae_u32 chipmem_dummy (void)
 {
     /* not really right but something random that has more ones than zeros.. */
-    return rand () | rand ();
+    return 0xffff & ~((1 << (rand () & 31)) | (1 << (rand () & 31)));
 }
 void REGPARAM2 chipmem_dummy_bput (uaecptr addr, uae_u32 b)
 {
@@ -1390,7 +1390,7 @@ static uae_u32 REGPARAM2 chipmem_dummy_lget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    return chipmem_dummy ();
+    return (chipmem_dummy () << 16) | chipmem_dummy ();
 }
 
 static uae_u32 REGPARAM2 chipmem_agnus_lget (uaecptr addr)
@@ -2327,10 +2327,10 @@ addrbank custmem2_bank = {
 };
 
 #define fkickmem_size 524288
+static int a3000_f0;
 void a3000_fakekick (int map)
 {
     static uae_u8 *blop;
-    static int f0;
 
     if (map) {
 	uae_u8 *fkickmemory = a3000lmemory + allocated_a3000lmem - fkickmem_size;
@@ -2341,29 +2341,27 @@ void a3000_fakekick (int map)
 	    if (fkickmemory[5] == 0xfc) {
 		memcpy (kickmemory, fkickmemory, fkickmem_size / 2);
 		memcpy (kickmemory + fkickmem_size / 2, fkickmemory, fkickmem_size / 2);
-		if (!extendedkickmemory) {
-		    if (need_uae_boot_rom () != 0xf00000) {
-			extendedkickmem_size = 65536;
-			extendedkickmem_mask = extendedkickmem_size - 1;
-			extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
-			extendedkickmem_bank.baseaddr = extendedkickmemory;
-			memcpy (extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
-			map_banks (&extendedkickmem_bank, 0xf0, 1, 1);
-			f0 = 1;
-		    } else {
-			write_log ("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
-		    }
+		if (need_uae_boot_rom () != 0xf00000) {
+		    extendedkickmem_size = 65536;
+		    extendedkickmem_mask = extendedkickmem_size - 1;
+		    extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
+		    extendedkickmem_bank.baseaddr = extendedkickmemory;
+		    memcpy (extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
+		    map_banks (&extendedkickmem_bank, 0xf0, 1, 1);
+		    a3000_f0 = 1;
+		} else {
+		    write_log ("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
 		}
 	    } else {
 		memcpy (kickmemory, fkickmemory, fkickmem_size);
 	    }
 	}
     } else {
-	if (f0) {
+	if (a3000_f0) {
 	    map_banks (&dummy_bank, 0xf0, 1, 1);
 	    mapped_free(extendedkickmemory);
 	    extendedkickmemory = NULL;
-	    f0 = 0;
+	    a3000_f0 = 0;
 	}
 	if (blop)
 	    memcpy (kickmemory, blop, fkickmem_size);
@@ -2937,7 +2935,8 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 		return;
 
 	    if (x->size > size) {
-		write_log ("NATMEM WARNING: size mismatch mapping at %08x (size %08x, delsize %08x)\n",start,x->size,size);
+		if (isdirectjit ())
+		    write_log ("NATMEM WARNING: size mismatch mapping at %08x (size %08x, delsize %08x)\n",start,x->size,size);
 		size = x->size;
 	    }
 #if 0
@@ -3423,6 +3422,8 @@ void memory_reset (void)
 #ifdef AUTOCONFIG
     map_banks (&expamem_bank, 0xE8, 1, 0);
 #endif
+    if (a3000_f0)
+	a3000_fakekick (1);
 
     /* Map the chipmem into all of the lower 8MB */
     map_overlay (1);

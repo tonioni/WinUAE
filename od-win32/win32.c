@@ -816,7 +816,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	my = (signed short) HIWORD (lParam);
 	mx -= mouseposx;
 	my -= mouseposy;
-	if (recapture && isfullscreen() <= 0) {
+	if (recapture && isfullscreen () <= 0) {
 	    setmouseactive (1);
 	    setamigamouse (mx, my);
 	    return 0;
@@ -841,7 +841,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	        setmousestate (dinput_winmouse (), 0, mx, 0);
 	        setmousestate (dinput_winmouse (), 1, my, 0);
 	    }
-	} else if (!mouseactive && isfullscreen() <= 0) {
+	} else if (!mouseactive && isfullscreen () <= 0) {
 	    setmousestate (0, 0, mx, 1);
 	    setmousestate (0, 1, my, 1);
 	}
@@ -854,7 +854,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MOVING:
     {
 	LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
-	WIN32GFX_WindowMove();
+	WIN32GFX_WindowMove ();
 	return lr;
     }
     case WM_MOVE:
@@ -2308,12 +2308,12 @@ static void WIN32_HandleRegistryStuff(void)
         rkey = HKEY_LOCAL_MACHINE;
     else
         rkey = HKEY_CURRENT_USER;
-    strcpy(rpath1, "Software\\Classes\\");
-    strcpy(rpath2, rpath1);
-    strcpy(rpath3, rpath1);
-    strcat(rpath1, ".uae");
-    strcat(rpath2, "WinUAE\\shell\\Edit\\command");
-    strcat(rpath3, "WinUAE\\shell\\Open\\command");
+    strcpy (rpath1, "Software\\Classes\\");
+    strcpy (rpath2, rpath1);
+    strcpy (rpath3, rpath1);
+    strcat (rpath1, ".uae");
+    strcat (rpath2, "WinUAE\\shell\\Edit\\command");
+    strcat (rpath3, "WinUAE\\shell\\Open\\command");
 
     /* Create/Open the hWinUAEKey which points to our config-info */
     if (RegCreateKeyEx (rkey, rpath1, 0, "", REG_OPTION_NON_VOLATILE,
@@ -2376,7 +2376,7 @@ static void WIN32_HandleRegistryStuff(void)
     size = sizeof (version);
     if (regquerystr (NULL, "Version", version, &size)) {
         if (checkversion (version))
-    	regsetstr(NULL, "Version", VersionStr);
+    	regsetstr (NULL, "Version", VersionStr);
     } else {
         regsetstr (NULL, "Version", VersionStr);
     }
@@ -2638,7 +2638,7 @@ void create_afnewdir (int remove)
 	strcpy (tmp2, tmp);
 	strcat (tmp2, "Amiga Files");
 	strcpy (tmp, tmp2);
-	strcat(tmp, "\\WinUAE");
+	strcat (tmp, "\\WinUAE");
 	if (remove) {
 	    if (GetFileAttributes (tmp) != INVALID_FILE_ATTRIBUTES) {
 		RemoveDirectory (tmp);

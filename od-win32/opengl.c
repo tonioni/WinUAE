@@ -289,7 +289,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     ti2d_type = -1;
     if (depth == 15 || depth == 16) {
 	if (!packed_pixels) {
-	    sprintf(errmsg, "OPENGL: can't use 15/16 bit screen depths because\n"
+	    sprintf (errmsg, "OPENGL: can't use 15/16 bit screen depths because\n"
 		"EXT_packed_pixels extension was not found.");
 	    OGL_free ();
 	    return errmsg;
@@ -463,35 +463,23 @@ void OGL_resize (int width, int height)
 static void OGL_dorender (int newtex)
 {
     uae_u8 *data = gfxvidinfo.bufmem;
-    float x1, y1, x2, y2;
-    double fx, fy, xm, ym;
+    float x1, y1, x2, y2, xm, ym;
+    RECT sr, dr;
 
-#if 0
-    double mx, my, fx, fy, fx2, fy2, xm, ym;
-    float tx, ty;
+#if 1
+    getfilterrect2 (&sr, &dr, w_width, w_height, t_width, t_height, 1, t_width, t_height);
+    xm = (float)required_texture_size / t_width;
+    ym = (float)required_texture_size / t_height;
 
-    xm = currprefs.gfx_lores ? 2 : 1;
-    ym = currprefs.gfx_linedbl ? 2 : 1;
+    //write_log ("%fx%f\n", xm, ym);
 
-    fx = (required_texture_size * w_width / t_width) / 2.0;
-    fy = (required_texture_size * w_height / t_height) / 2.0;
-
-    tx = fx / ((currprefs.gfx_filter_horiz_zoom_mult + currprefs.gfx_filter_horiz_zoom / 4.0) / 1000.0);
-    ty = fy / ((currprefs.gfx_filter_vert_zoom_mult + currprefs.gfx_filter_vert_zoom / 4.0) / 1000.0);
-
-    mx = (currprefs.gfx_filter_horiz_offset / 1000.0) * fx;
-    my = (currprefs.gfx_filter_vert_offset / 1000.0) * fy;
-
-    x1 = -tx;
-    y1 = -ty;
-    x2 = tx;
-    y2 = ty;
-    x1 += fx + mx;
-    y1 += fy + my;
-    x2 += tx + mx;
-    y2 += ty + my;
+    x1 = dr.left;
+    y1 = dr.top;
+    x2 = dr.right * xm;
+    y2 = dr.bottom * ym;
 
 #else
+    double fx, fy, xm, ym;
 
     xm = 2 >> currprefs.gfx_resolution;
     ym = currprefs.gfx_linedbl ? 1 : 2;

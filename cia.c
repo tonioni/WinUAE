@@ -56,7 +56,7 @@ static unsigned long ciaata_passed, ciaatb_passed, ciabta_passed, ciabtb_passed;
 
 static unsigned long ciaatod, ciabtod, ciaatol, ciabtol, ciaaalarm, ciabalarm;
 static int ciaatlatch, ciabtlatch;
-static int oldled, oldovl;
+static int oldled, oldovl, led_changed;
 
 unsigned int ciabpra;
 
@@ -473,8 +473,43 @@ static void tod_hack_reset (void)
 }
 #endif
 
-void CIA_vsync_handler ()
+static int led_times;
+static unsigned long led_on, led_cycle;
+
+    
+static void calc_led (int old_led)
 {
+    unsigned long c = get_cycles ();
+    unsigned long t = c - led_cycle;
+    if (old_led)
+        led_on += t;
+    led_times++;
+    led_cycle = c;
+}
+
+static void led_vsync (void)
+{
+    gui_data.powerled_brightness = gui_data.powerled ? 255 : 0;
+    calc_led (gui_data.powerled);
+    if (led_on > 0 && led_times > 2) {
+	int v = led_on / CYCLE_UNIT * 256 / (maxhpos * maxvpos);
+	if (v < 0)
+	    v = 0;
+	if (v > 255)
+	    v = 255;
+	gui_data.powerled_brightness = v;
+    }
+    led_on = 0;
+    led_times = 0;
+    if (led_changed)
+        gui_led (0, gui_data.powerled_brightness);
+    led_changed = 0;
+    led_cycle = get_cycles ();
+}
+
+void CIA_vsync_handler (void)
+{
+    led_vsync ();
 #ifdef TOD_HACK
     if (currprefs.tod_hack && ciaatodon) {
 	struct timeval tv;
@@ -511,12 +546,15 @@ void CIA_vsync_handler ()
 static void bfe001_change (void)
 {
     uae_u8 v = ciaapra;
-
+    int led;
+ 
     v |= ~ciaadra; /* output is high when pin's direction is input */
-    if ((v & 2) != oldled) {
-	int led = (v & 2) ? 0 : 1;
-	oldled = v & 2;
+    led = (v & 2) ? 0 : 1;
+    if (led != oldled) {
+	calc_led (oldled);
+	oldled = led;
 	gui_data.powerled = led;
+	led_changed = 1;
 	led_filter_audio ();
     }
     if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
@@ -1352,7 +1390,7 @@ static void write_battclock (void)
     zfile_fclose (f);
 }
 
-void rtc_hardreset(void)
+void rtc_hardreset (void)
 {
     if (currprefs.cs_rtc == 1) { /* MSM6242B */
 	clock_bank.name = "Battery backed up clock (MSM6242B)";

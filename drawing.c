@@ -1993,9 +1993,15 @@ static void center_image (void)
 		visible_left_border = prev_x_adjust;
 	}
     } else {
-	visible_left_border = max_diwlastword - gfxvidinfo.width;
-	if (doublescan)
-	    visible_left_border = (max_diwlastword - 48) / 2 - gfxvidinfo.width;
+	if (beamcon0 & 0x80) {
+	    int w = gfxvidinfo.width;
+	    if (max_diwstop - min_diwstart < w)
+		visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
+	    else
+		visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
+	} else {
+	    visible_left_border = max_diwlastword - gfxvidinfo.width;
+	}
     }
     if (currprefs.gfx_xcenter_pos >= 0) {
 	int val = currprefs.gfx_xcenter_pos >> RES_MAX;
@@ -2261,8 +2267,10 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	    side = gui_data.drive_side;
 	} else if (led == 0) {
 	    pos = 3;
+	    //on = gui_data.powerled_brightness > 0;
+	    on_rgb = ((gui_data.powerled_brightness * 10 / 16) + 0x33) << 16;
 	    on = gui_data.powerled;
-	    on_rgb = 0xcc0000;
+	    //on_rgb = 0xcc0000;
 	    off_rgb = 0x330000;
 	} else if (led == 5) {
 	    pos = 5;
@@ -2753,8 +2761,10 @@ void reset_drawing (void)
     lightpen_y1 = lightpen_y2 = -1;
 
     sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
-    if (sprite_buffer_res > currprefs.gfx_resolution)
-	sprite_buffer_res = currprefs.gfx_resolution;
+    if (sprite_buffer_res > currprefs.gfx_resolution + (doublescan ? 1 : 0))
+	sprite_buffer_res = currprefs.gfx_resolution + (doublescan ? 1 : 0);
+    if (sprite_buffer_res > RES_SUPERHIRES)
+	sprite_buffer_res = RES_SUPERHIRES;
 }
 
 void drawing_init (void)

@@ -816,7 +816,7 @@ static void setconvert (void)
 * 2. Picasso-->Picasso transition, via SetPanning().
 * 3. whenever the graphics code notifies us that the screen contents have been lost.
 */
-extern unsigned int new_beamcon0;
+extern uae_u16 new_beamcon0;
 void picasso_refresh (void)
 {
     struct RenderInfo ri;

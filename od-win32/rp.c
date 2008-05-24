@@ -25,6 +25,7 @@
 #include "win32.h"
 #include "win32gfx.h"
 #include "filesys.h"
+#include "savestate.h"
 #include "gfxfilter.h"
 
 static int initialized;
@@ -113,6 +114,7 @@ static const char *getmsg (int msg)
 	case RPIPCGM_DEVICECONTENT: return "RPIPCGM_DEVICECONTENT";
 	case RPIPCGM_DEVICESEEK: return "RPIPCGM_DEVICESEEK";
 	case RPIPCGM_ESCAPED: return "RPIPCGM_ESCAPED";
+
 	case RPIPCHM_CLOSE: return "RPIPCHM_CLOSE";
 	case RPIPCHM_SCREENMODE: return "RPIPCHM_SCREENMODE";
 	case RPIPCHM_SCREENCAPTURE: return "RPIPCHM_SCREENCAPTURE";
@@ -125,6 +127,8 @@ static const char *getmsg (int msg)
 	case RPIPCHM_MOUSECAPTURE: return "RPIPCHM_MOUSECAPTURE";
 	case RPIPCHM_DEVICECONTENT: return "RPIPCHM_DEVICECONTENT";
 	case RPIPCHM_PING: return "RPIPCHM_PING";
+	case RPIPCHM_SAVESTATE: return "RPIPCHM_SAVESTATE";
+	case RPIPCHM_LOADSTATE: return "RPIPCHM_LOADSTATE";
 
 	default: return "UNKNOWN";
     }
@@ -576,6 +580,33 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	    xfree (s);
 	    return ok ? TRUE : FALSE;
 	}
+	case RPIPCHM_SAVESTATE:
+	{
+	    char *s = ua ((WCHAR*)pData);
+	    DWORD ret = FALSE;
+	    if (vpos == 0) {
+		save_state (s, "AF");
+		ret = 1;
+	    } else {
+		savestate_initsave (s, 1, TRUE);
+		ret = -1;
+	    }
+	    xfree (s);
+	    return ret;
+	}
+	case RPIPCHM_LOADSTATE:
+	{
+	    char *s = ua ((WCHAR*)pData);
+	    DWORD ret = FALSE;
+	    DWORD attr = GetFileAttributes (s);
+	    if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+	        savestate_state = STATE_DORESTORE;
+	        strcpy (savestate_fname, s);
+	        ret = -1;
+	    }
+	    xfree (s);
+	    return ret;
+	}
     }
     return FALSE;
 }
@@ -633,6 +664,7 @@ static void sendfeatures (void)
 
     feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
     feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
+    feat |= RP_FEATURE_STATE;
     if (!WIN32GFX_IsPicassoScreen ())
 	feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN4X;
     RPSendMessagex (RPIPCGM_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
@@ -823,7 +855,7 @@ void rp_update_leds (int led, int onoff)
     switch (led)
     {
 	case 0:
-        RPSendMessage (RPIPCGM_POWERLED, onoff ? 100 : 0, 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessage (RPIPCGM_POWERLED, onoff >= 250 ? 100 : onoff * 10 / 26, 0, NULL, 0, &guestinfo, NULL);
 	break;
 	case 1:
 	case 2:

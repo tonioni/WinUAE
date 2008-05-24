@@ -1572,7 +1572,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	case IDC_DOSAVESTATE:
 	case IDC_DOLOADSTATE:
 	    statefile_previousfilter = openFileName.nFilterIndex;
-	    savestate_initsave (full_path, openFileName.nFilterIndex);
+	    savestate_initsave (full_path, openFileName.nFilterIndex, FALSE);
 	    break;
 	case IDC_CREATE:
 	    {
@@ -6373,8 +6373,10 @@ static void values_to_sounddlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     WIN32GUI_LoadUIString (IDS_SOUND_4CHANNEL, txt, sizeof (txt));
     SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
-    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)"Cloned Stereo (4 Channels in 5.1)");
-    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)"4 Channels in 5.1");
+    WIN32GUI_LoadUIString (IDS_SOUND_CLONED51, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_SOUND_51, txt, sizeof (txt));
+    SendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
     SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo, 0);
 
     SendDlgItemMessage(hDlg, IDC_SOUNDSWAP, CB_RESETCONTENT, 0, 0);
@@ -8644,7 +8646,7 @@ static void values_to_portsdlg (HWND hDlg)
     }
 }
 
-static void init_portsdlg( HWND hDlg )
+static void init_portsdlg (HWND hDlg)
 {
     static int first;
     int port, numdevs;
@@ -8657,12 +8659,11 @@ static void init_portsdlg( HWND hDlg )
 	    unload_ghostscript ();
 	    ghostscript_available = 1;
 	}
+	joy0previous = joy1previous = -1;
     }
     if (!ghostscript_available) {
 	workprefs.parallel_postscript_emulation = 0;
     }
-
-    joy0previous = joy1previous = -1;
 
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);

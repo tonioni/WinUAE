@@ -249,6 +249,8 @@
 #define IDS_SOUND_STEREO2               256
 #define IDS_INPUT_CUSTOMEVENT           257
 #define IDS_DEFAULT_NEWWINUAE           258
+#define IDS_SOUND_CLONED51              259
+#define IDS_SOUND_51                    260
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302

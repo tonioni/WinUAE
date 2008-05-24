@@ -399,6 +399,19 @@ struct input_queue_struct {
 };
 static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 
+
+static void freejport (struct uae_prefs *dst, int num)
+{
+    memset (&dst->jports[num], 0, sizeof (struct jport));
+}
+static void copyjport (const struct uae_prefs *src, struct uae_prefs *dst, int num)
+{
+    freejport (dst, num);
+    strcpy (dst->jports[num].configname, src->jports[num].configname);
+    strcpy (dst->jports[num].name, src->jports[num].name);
+    dst->jports[num].id = src->jports[num].id;
+}
+
 static void out_config (struct zfile *f, int id, int num, char *s1, char *s2)
 {
     cfgfile_write (f, "input.%d.%s%d=%s\n", id, s1, num, s2);
@@ -1630,7 +1643,7 @@ void inputdevice_handle_inputcode (void)
 	sound_volume (1);
 	break;
     case AKS_VOLMUTE:
-	sound_volume (0);
+	sound_mute (0);
 	break;
     case AKS_MVOLDOWN:
 	master_sound_volume (-1);
@@ -2314,12 +2327,8 @@ static void compatibility_mode (struct uae_prefs *prefs)
     int joy, i;
     int used[4] = { 0, 0, 0, 0};
 
-    for (i = 0; i < 2; i++) {
-	xfree (prefs->jports[i].name);
-	xfree (prefs->jports[i].configname);
-	prefs->jports[i].name = NULL;
-	prefs->jports[i].configname = NULL;
-    }
+    prefs->jports[0].name[0] = prefs->jports[1].name[0] = 0;
+    prefs->jports[0].configname[0] = prefs->jports[1].configname[0] = 0;
     compatibility_device[0] = -1;
     compatibility_device[1] = -1;
     for (i = 0; i < MAX_INPUT_DEVICES; i++) {
@@ -2330,14 +2339,14 @@ static void compatibility_mode (struct uae_prefs *prefs)
     if ((joy = jsem_ismouse (0, prefs)) >= 0) {
 	input_get_default_mouse (mice, joy, 0);
 	mice[joy].enabled = 1;
-	prefs->jports[0].name = my_strdup (idev[IDTYPE_MOUSE].get_friendlyname (joy));
-	prefs->jports[0].configname = my_strdup (idev[IDTYPE_MOUSE].get_uniquename (joy));
+	strncpy (prefs->jports[0].name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORTNAME - 1);
+	strncpy (prefs->jports[0].configname, idev[IDTYPE_MOUSE].get_uniquename (joy), MAX_JPORTNAME - 1);
     }
     if ((joy = jsem_ismouse (1, prefs)) >= 0) {
 	input_get_default_mouse (mice, joy, 1);
 	mice[joy].enabled = 1;
-	prefs->jports[1].name = my_strdup (idev[IDTYPE_MOUSE].get_friendlyname (joy));
-	prefs->jports[1].configname = my_strdup (idev[IDTYPE_MOUSE].get_uniquename (joy));
+	strncpy (prefs->jports[1].name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORTNAME - 1);
+	strncpy (prefs->jports[1].configname, idev[IDTYPE_MOUSE].get_uniquename (joy), MAX_JPORTNAME - 1);
     }
 
     joy = jsem_isjoy (1, prefs);
@@ -2345,8 +2354,8 @@ static void compatibility_mode (struct uae_prefs *prefs)
 	used[joy] = 1;
 	input_get_default_joystick (joysticks, joy, 1);
 	joysticks[joy].enabled = 1;
-	prefs->jports[1].name = my_strdup (idev[IDTYPE_JOYSTICK].get_friendlyname (joy));
-	prefs->jports[1].configname = my_strdup (idev[IDTYPE_JOYSTICK].get_uniquename (joy));
+	strncpy (prefs->jports[1].name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
+	strncpy (prefs->jports[1].configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
     }
 
     joy = jsem_isjoy (0, prefs);
@@ -2354,8 +2363,8 @@ static void compatibility_mode (struct uae_prefs *prefs)
 	used[joy] = 1;
 	input_get_default_joystick (joysticks, joy, 0);
 	joysticks[joy].enabled = 1;
- 	prefs->jports[0].name = my_strdup (idev[IDTYPE_JOYSTICK].get_friendlyname (joy));
-	prefs->jports[0].configname = my_strdup (idev[IDTYPE_JOYSTICK].get_uniquename (joy));
+ 	strncpy (prefs->jports[0].name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
+	strncpy (prefs->jports[0].configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
    }
 
     for (joy = 0; used[joy]; joy++);
@@ -2441,8 +2450,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
     int m = jsem_ismouse (1, &currprefs);
     int k = jsem_iskbdjoy (1, &currprefs);
 
-    currprefs.jports[0].id = changed_prefs.jports[0].id;
-    currprefs.jports[1].id = changed_prefs.jports[1].id;
+    copyjport (&changed_prefs, &currprefs, 0);
+    copyjport (&changed_prefs, &currprefs, 1);
 #ifdef RETROPLATFORM
     rp_input_change (0);
     rp_input_change (1);
@@ -2997,8 +3006,8 @@ void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst)
     dst->input_joymouse_speed = src->input_joymouse_speed;
     dst->input_mouse_speed = src->input_mouse_speed;
     dst->input_autofire_framecnt = src->input_autofire_framecnt;
-    dst->jports[0].id = src->jports[0].id;
-    dst->jports[1].id = src->jports[1].id;
+    copyjport (src, dst, 0);
+    copyjport (src, dst, 1);
 
     for (i = 0; i < MAX_INPUT_SETTINGS + 1; i++) {
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {

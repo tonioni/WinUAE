@@ -48,12 +48,13 @@
 #include "sana2.h"
 #include "blkdev.h"
 #include "gfxfilter.h"
+#include "uaeresource.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
 #endif
 
-long int version = 256*65536L*UAEMAJOR + 65536L*UAEMINOR + UAESUBREV;
+long int version = 256 * 65536L * UAEMAJOR + 65536L * UAEMINOR + UAESUBREV;
 
 struct uae_prefs currprefs, changed_prefs;
 
@@ -742,6 +743,7 @@ static void real_main2 (int argc, char **argv)
 #endif
 #ifdef FILESYS
     rtarea_init ();
+    uaeres_install ();
     hardfile_install ();
 #endif
     savestate_init ();

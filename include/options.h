@@ -40,10 +40,11 @@ struct uae_input_device {
     uae_u8 enabled;
 };
 
+#define MAX_JPORTNAME 128
 struct jport {
     int id;
-    char *name;
-    char *configname;
+    char name[MAX_JPORTNAME];
+    char configname[MAX_JPORTNAME];
 };
 
 #define MAX_SPARE_DRIVES 20

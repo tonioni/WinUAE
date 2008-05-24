@@ -52,7 +52,7 @@ static char *D3D_ErrorString (HRESULT dival)
     return dierr;
 }
 
-static D3DXMATRIX* xD3DXMatrixPerspectiveFovLH(D3DXMATRIX *pOut, FLOAT fovy, FLOAT Aspect, FLOAT zn, FLOAT zf)
+static D3DXMATRIX* xD3DXMatrixPerspectiveFovLH (D3DXMATRIX *pOut, FLOAT fovy, FLOAT Aspect, FLOAT zn, FLOAT zf)
 {
     double xscale, yscale, sine, dz;
     memset(pOut, 0, sizeof(D3DXMATRIX));
@@ -93,7 +93,7 @@ void D3D_free (void)
     d3d_enabled = 0;
 }
 
-static int restoredeviceobjects(void)
+static int restoredeviceobjects (void)
 {
     // Store render target surface desc
     LPDIRECT3DSURFACE9 bb;
@@ -129,11 +129,11 @@ static int restoredeviceobjects(void)
 
     switch (currprefs.gfx_filter_filtermode & 1)
     {
-    case 0:
+	case 0:
 	v = D3DTEXF_POINT;
 	break;
-    case 1:
-    default:
+	case 1:
+	default:
 	v = D3DTEXF_LINEAR;
 	break;
     }
@@ -146,35 +146,43 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 {
     LPDIRECT3DTEXTURE9 t;
     HRESULT hr;
-    int w = *ww;
-    int h = *hh;
+    int w, h, npot;
 
-    if (w < 256)
-	w = 256;
-    else if (w < 512)
-	w = 512;
-    else if (w < 1024)
-	w = 1024;
-    else if (w < 2048)
-	w = 2048;
-    else
-	w = 4096;
+    for (npot = 1; npot >= 0; npot--) {
+	w = *ww;
+	h = *hh;
+	if (!npot) {
+	    if (w < 256)
+		w = 256;
+	    else if (w < 512)
+		w = 512;
+	    else if (w < 1024)
+		w = 1024;
+	    else if (w < 2048)
+		w = 2048;
+	    else
+		w = 4096;
 
-    if (h < 256)
-	h = 256;
-    else if (h < 512)
-	h = 512;
-    else if (h < 1024)
-	h = 1024;
-    else if (h < 2048)
-	h = 2048;
-    else
-	h = 4096;
+	    if (h < 256)
+		h = 256;
+	    else if (h < 512)
+		h = 512;
+	    else if (h < 1024)
+		h = 1024;
+	    else if (h < 2048)
+		h = 2048;
+	    else
+		h = 4096;
+	}
 
-    hr = IDirect3DDevice9_CreateTexture (d3ddev, w, h, 1, 0, format, D3DPOOL_MANAGED, &t, NULL);
-    if (FAILED (hr)) {
-	write_log ("DIDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
-	return 0;
+	hr = IDirect3DDevice9_CreateTexture (d3ddev, w, h, 1, 0, format, D3DPOOL_MANAGED, &t, NULL);
+	if (FAILED (hr)) {
+	    write_log ("DIDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
+	    if (npot)
+		continue;
+	    return 0;
+	}
+	break;
     }
 
     *ww = w;
@@ -285,7 +293,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
-    d3dDLL = LoadLibrary("D3D9.DLL");
+    d3dDLL = LoadLibrary ("D3D9.DLL");
     if (d3dDLL == NULL) {
 	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
 	return errmsg;
@@ -356,14 +364,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     t_depth = depth;
     switch (depth)
     {
-    case 32:
+	case 32:
 	if (currprefs.gfx_filter_scanlines)
 	    tformat = D3DFMT_A8R8G8B8;
 	else
 	    tformat = D3DFMT_X8R8G8B8;
 	break;
-    case 15:
-    case 16:
+	case 15:
+	case 16:
 	if (currprefs.gfx_filter_scanlines)
 	    tformat = D3DFMT_A1R5G5B5;
 	else
@@ -446,21 +454,24 @@ static void BlitRect (LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
 #if 1
 static void calc (float *xp, float *yp, float *sxp, float *syp)
 {
+    float xm ,ym;
     RECT sr, dr;
-    float mx = (float)twidth / tin_w;
-    float my = (float)theight / tin_h;
-    int aw = twidth * window_w / tin_w;
-    int ah = theight * window_h / tin_h;
 
-    mx = 1 / mx;
-    my = 1 / my;
+    //write_log("%d/%d/%d %d/%d/%d\n", twidth, window_w, tin_w, theight, window_h, tin_h);
 
     getfilterrect2 (&sr, &dr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
-    OffsetRect (&dr, aw / 2, ah / 2);
+
+    //write_log ("%dx%d %dx%d\n", dr.left, dr.top, dr.right, dr.bottom);
+
+    xm = (float)twidth / tin_w;
+    ym = (float)theight / tin_h;
+
+    //write_log ("%fx%f\n", xm, ym);
+
     *xp = dr.left;
     *yp = dr.top;
-    *sxp = *xp + (dr.right - dr.left) * mx;
-    *syp = *yp + (dr.bottom - dr.top) * my;
+    *sxp = dr.right * xm;
+    *syp = dr.bottom * ym;
 }
 #else
 static void calc (float *xp, float *yp, float *sxp, float *syp)
@@ -512,7 +523,7 @@ void D3D_unlocktexture (void)
 
 int D3D_needreset (void)
 {
-    HRESULT hr = IDirect3DDevice9_TestCooperativeLevel(d3ddev);
+    HRESULT hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
     if (hr == D3DERR_DEVICENOTRESET)
 	return 1;
     return 0;

@@ -130,7 +130,7 @@ extern frame_time_t syncbase;
 
 extern unsigned long frametime, timeframes;
 extern int plfstrt, plfstop, plffirstline, plflastline;
-extern uae_u16 htotal, vtotal;
+extern uae_u16 htotal, vtotal, beamcon0;
 
 /* 100 words give you 1600 horizontal pixels. Should be more than enough for
  * superhires. Don't forget to update the definition in genp2c.c as well.

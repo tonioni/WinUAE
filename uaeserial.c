@@ -190,7 +190,7 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
     return 0;
 }
 
-static void resetparams(struct devstruct *dev, uaecptr req)
+static void resetparams (struct devstruct *dev, uaecptr req)
 {
     put_long (req + io_CtlChar, 0x00001311);
     put_long (req + io_RBufLen, 1024);
@@ -206,7 +206,7 @@ static void resetparams(struct devstruct *dev, uaecptr req)
     put_word (req + io_Status, 0);
 }
 
-static int setparams(struct devstruct *dev, uaecptr req)
+static int setparams (struct devstruct *dev, uaecptr req)
 {
     int v;
     int rbuffer, baud, rbits, wbits, sbits, rtscts, parity, xonxoff;

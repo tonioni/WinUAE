@@ -22,6 +22,7 @@ extern void sound_setadjust (double);
 extern char **enumerate_sound_devices (int *total);
 extern int drivesound_init (void);
 extern void drivesound_free (void);
+extern void sound_mute (int);
 extern void sound_volume (int);
 extern void set_volume (int, int);
 extern void master_sound_volume (int);
@@ -33,8 +34,13 @@ STATIC_INLINE void check_sound_buffers (void)
 	((uae_u16*)sndbufpt)[1] = ((uae_u16*)sndbufpt)[-1];
 	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 2 * 2);
     } else if (currprefs.sound_stereo == SND_6CH_CLONEDSTEREO) {
-	((uae_u16*)sndbufpt)[2] = ((uae_u16*)sndbufpt)[-2];
-	((uae_u16*)sndbufpt)[3] = ((uae_u16*)sndbufpt)[-1];
+	uae_s16 *p = ((uae_s16*)sndbufpt);
+	uae_s32 sum;
+	p[2] = p[-2];
+	p[3] = p[-1];
+	sum = (uae_s32)(p[-2]) + (uae_s32)(p[-1]) + (uae_s32)(p[2]) + (uae_s32)(p[3]);
+	p[0] = sum >> 3;
+	p[1] = sum >> 3;
 	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 4 * 2);
     }
     if ((char *)sndbufpt - (char *)sndbuffer >= sndbufsize) {

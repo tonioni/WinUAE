@@ -30,6 +30,7 @@ struct gui_info
     uae_u8 drive_writing[4];        /* drive is writing */
     uae_u8 drive_disabled[4];	    /* drive is disabled */
     uae_u8 powerled;                /* state of power led */
+    uae_u8 powerled_brightness;	    /* 0 to 255 */
     uae_u8 drive_side;		    /* floppy side */
     uae_u8 hd;			    /* harddrive */
     uae_u8 cd;			    /* CD */

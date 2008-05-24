@@ -75,7 +75,7 @@ static int frameextra;
 
 struct zfile *savestate_file;
 static uae_u8 *replaybuffer, *replaybufferend;
-static int savestate_docompress, savestate_specialdump;
+static int savestate_docompress, savestate_specialdump, savestate_nodialogs;
 static int replaybuffersize;
 
 char savestate_fname[MAX_DPATH];
@@ -384,7 +384,7 @@ static void restore_header (uae_u8 *src)
 
 /* restore all subsystems */
 
-void restore_state (char *filename)
+void restore_state (const char *filename)
 {
     struct zfile *f;
     uae_u8 *chunk,*end;
@@ -582,11 +582,12 @@ void savestate_restore_finish (void)
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */
-void savestate_initsave (char *filename, int mode)
+void savestate_initsave (const char *filename, int mode, int nodialogs)
 {
     strcpy (savestate_fname, filename);
     savestate_docompress = (mode == 1) ? 1 : 0;
     savestate_specialdump = (mode == 3) ? 1 : (mode == 4) ? 2 : 0;
+    savestate_nodialogs = nodialogs;
 }
 
 static void save_rams (struct zfile *f, int comp)
@@ -622,7 +623,7 @@ static void save_rams (struct zfile *f, int comp)
 
 /* Save all subsystems */
 
-int save_state (char *filename, char *description)
+int save_state (const char *filename, const char *description)
 {
     uae_u8 endhunk[] = { 'E', 'N', 'D', ' ', 0, 0, 0, 8 };
     uae_u8 header[1000];
@@ -633,13 +634,14 @@ int save_state (char *filename, char *description)
     char name[5];
     int comp = savestate_docompress;
 
-    if (!savestate_specialdump) {
+    if (!savestate_specialdump && !savestate_nodialogs) {
 	state_incompatible_warn ();
 	if (!save_filesys_cando ()) {
 	    gui_message("Filesystem active. Try again later");
 	    return -1;
 	}
     }
+    savestate_nodialogs = 0;
     custom_prepare_savestate ();
     f = zfile_fopen (filename, "w+b");
     if (!f)

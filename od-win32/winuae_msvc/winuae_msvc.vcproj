@@ -1824,6 +1824,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\uaeresource.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\uaeserial.c"
 				>
 			</File>

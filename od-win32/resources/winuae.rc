@@ -1196,6 +1196,8 @@ BEGIN
     IDS_SOUND_STEREO2       "Cloned Stereo (4 Channels)"
     IDS_INPUT_CUSTOMEVENT   "<Custom event>"
     IDS_DEFAULT_NEWWINUAE   "WinUAE default (new)"
+    IDS_SOUND_CLONED51      "Cloned Stereo (5.1)"
+    IDS_SOUND_51            "5.1 Channels"
 END
 
 STRINGTABLE 

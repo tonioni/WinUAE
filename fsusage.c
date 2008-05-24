@@ -73,8 +73,7 @@ int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
 	buf2[3] = 0;
     }
 
-    if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes))
-    {
+    if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes)) {
 	write_log ("GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
 	return -1;
     }
