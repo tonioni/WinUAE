@@ -322,7 +322,7 @@ static void write_filesys_config (struct uae_prefs *p, const char *unexpanded,
     }
 }
 
-static void write_compatibility_cpu(struct zfile *f, struct uae_prefs *p)
+static void write_compatibility_cpu (struct zfile *f, struct uae_prefs *p)
 {
     char tmp[100];
     int model;

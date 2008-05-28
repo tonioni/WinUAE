@@ -1525,6 +1525,10 @@ static int keyhack (int scancode,int pressed, int num)
 
      //check ALT-F4
     if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4 && di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
+#ifdef RETROPLATFORM
+	if (rp_close ())
+	    return -1;
+#endif
 	uae_quit ();
 	return -1;
     }

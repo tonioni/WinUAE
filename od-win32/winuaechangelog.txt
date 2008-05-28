@@ -1,4 +1,31 @@
 
+Beta 21:
+
+- A3000 1.3 SuperKickstart fakeMMU bonus remapping fixed
+- A3000 mode (=A3000 SCSI enabled) forces UAE boot rom to backup
+  location (no more conflicts with 1.3 SuperKickstart bonus area)
+- notification area icon is now created only once at startup
+- added function to uae.resource that can be used to query function
+  pointers using string labels (more portable and safe)
+- 32->16bit Picasso96 color space conversion fixed
+- all missing Picasso96 color space conversion routines added
+- HAM6 with less than 6 planes emulated properly
+- 0.5M chip + 0.5M slow + ECS Agnus chip ram aliasing implemented
+  (DMA addresses 0x80000-0xfffff are aliased to 0xc00000-0xc7ffff)
+  Previous chip mapping fixes were not 100% correct, there is no "bus
+  noise" when slow ram is enabled.
+  Fixes demo "Move Any Mountain" by "Lazy Bones"
+- floppy drive sounds fixed in 4+ sound channel modes
+- fixed rare bug in configuration list, missing directory entries
+  possible if it only contained other directories (no files)
+- implemented configuration cache that caches all data needed to
+  populate Configuration-panel quickly without directory/file scanning.
+  Currently always enabled (this way I surely get enough testing..)
+  Cache is stored in file called "configuration.cache" in configuration
+  root directory. Cache file is only re-created when configuration is
+  saved, deleted or cache file is missing or corrupted.
+  Enable/disable in future, first some testing :)
+
 Beta 20:
 
 - only reset sound when changing configuration if sound mode, sound card,
@@ -14,7 +41,7 @@ Beta 20:
 - added Amiga-side uae.resource, safe method to find "uae rom" base and
   other information. Version of resource is UAEVERSION.UAEREVISION
   NOTE: in compatible modes resource may not be available.
-  Check source for more information.
+  Check sources for more information.
   
 Beta 19:
 

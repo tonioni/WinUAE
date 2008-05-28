@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-05-20 10:37:00
+ Updated : 2008-05-27 10:37:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -49,6 +49,7 @@
 #define RPIPCGM_ESCAPED         (WM_APP + 20)
 #define RPIPCGM_PARENT          (WM_APP + 21)
 #define RPIPCGM_DEVICESEEK      (WM_APP + 22)
+#define RPIPCGM_CLOSE           (WM_APP + 23)
 
 
 // ****************************************************************************
@@ -86,7 +87,7 @@
 #define RP_FEATURE_PAUSE         0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
 #define RP_FEATURE_TURBO         0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
 #define RP_FEATURE_VOLUME        0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
-#define RP_FEATURE_STATE         0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE message)
+#define RP_FEATURE_STATE         0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
 
 // Screen Modes
 #define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")

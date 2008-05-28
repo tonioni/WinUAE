@@ -91,7 +91,7 @@ static int userdtsc = 0;
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCSTR, UINT, LPDWORD) = NULL;
-HWND hAmigaWnd, hMainWnd, hHiddenWnd;
+HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 RECT amigawin_rect;
 static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
@@ -332,6 +332,9 @@ void resumepaused (void)
 	setmouseactive (-1);
     pausemouseactive = 0;
     pause_emulation = FALSE;
+#ifdef RETROPLATFORM
+    rp_pause (pause_emulation);
+#endif
 }
 
 void setpaused (void)
@@ -352,6 +355,9 @@ void setpaused (void)
 	pausemouseactive = mouseactive;
 	setmouseactive (0);
     }
+#ifdef RETROPLATFORM
+    rp_pause (pause_emulation);
+#endif
 }
 
 static void checkpause (void)
@@ -982,7 +988,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		break;
 		default:
 		{
-		    LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
+		    LRESULT lr;
+		    
+#ifdef RETROPLATFORM
+		    if ((wParam & 0xfff0) == SC_CLOSE) {
+			if (rp_close ())
+			    return 0;
+		    }
+#endif
+		    lr = DefWindowProc (hWnd, message, wParam, lParam);
 		    switch (wParam & 0xfff0)
 		    {
 			case SC_MINIMIZE:
@@ -990,7 +1004,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			case SC_RESTORE:
 			break;
 			case SC_CLOSE:
-			PostQuitMessage (0);
+			    PostQuitMessage (0);
 			break;
 		    }
 		    return lr;
@@ -1041,70 +1055,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     }
     break;
 
-    case WM_USER + 1: /* Systray icon */
-	 switch (lParam)
-	 {
-	    case WM_LBUTTONDOWN:
-	    SetForegroundWindow (hWnd);
-	    break;
-	    case WM_LBUTTONDBLCLK:
-	    gui_display (-1);
-	    break;
-	    case WM_RBUTTONDOWN:
-	    if (!gui_active)
-		systraymenu (hWnd);
-	    else
-		SetForegroundWindow (hWnd);
-	    break;
-	 }
-	break;
-
-     case WM_COMMAND:
-	switch (wParam & 0xffff)
-	{
-	    case ID_ST_CONFIGURATION:
-		gui_display (-1);
-	    break;
-	    case ID_ST_HELP:
-		if (pHtmlHelp)
-		    pHtmlHelp (NULL, help_file, 0, NULL);
-	    break;
-	    case ID_ST_QUIT:
-		uae_quit ();
-	    break;
-	    case ID_ST_RESET:
-		uae_reset (0);
-	    break;
-	    case ID_ST_EJECTALL:
-		disk_eject (0);
-		disk_eject (1);
-		disk_eject (2);
-		disk_eject (3);
-	    break;
-	    case ID_ST_DF0:
-		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
-		disk_insert (0, changed_prefs.df[0]);
-	    break;
-	    case ID_ST_DF1:
-		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
-		disk_insert (1, changed_prefs.df[0]);
-	    break;
-	    case ID_ST_DF2:
-		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
-		disk_insert (2, changed_prefs.df[0]);
-	    break;
-	    case ID_ST_DF3:
-		DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
-		disk_insert (3, changed_prefs.df[0]);
-	    break;
-	}
-	break;
 
      default:
-	 if (TaskbarRestart != 0 && TaskbarRestartHWND == hWnd && message == TaskbarRestart) {
-	     //write_log ("notif: taskbarrestart\n");
-	     systray (TaskbarRestartHWND, FALSE);
-	 }
     break;
     }
 
@@ -1222,8 +1174,6 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 
     default:
-	if (TaskbarRestart != 0 && TaskbarRestartHWND == hWnd && message == TaskbarRestart)
-	    return AmigaWindowProc (hWnd, message, wParam, lParam);
 	break;
 
     }
@@ -1233,6 +1183,71 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    switch (message)
+    {
+	case WM_USER + 1: /* Systray icon */
+	    switch (lParam)
+	    {
+		case WM_LBUTTONDOWN:
+		    SetForegroundWindow (hGUIWnd ? hGUIWnd : hMainWnd);
+		break;
+		case WM_LBUTTONDBLCLK:
+		    if (!gui_active)
+			inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+		break;
+		case WM_RBUTTONDOWN:
+		    if (!gui_active)
+			systraymenu (hWnd);
+		    else
+			SetForegroundWindow (hGUIWnd ? hGUIWnd : hMainWnd);
+		break;
+	    }
+	break;
+	case WM_COMMAND:
+	    switch (wParam & 0xffff)
+	    {
+		case ID_ST_CONFIGURATION:
+		    inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+		break;
+		case ID_ST_HELP:
+		    if (pHtmlHelp)
+			pHtmlHelp (NULL, help_file, 0, NULL);
+		break;
+		case ID_ST_QUIT:
+		    uae_quit ();
+		break;
+		case ID_ST_RESET:
+		    uae_reset (0);
+		break;
+		case ID_ST_EJECTALL:
+		    disk_eject (0);
+		    disk_eject (1);
+		    disk_eject (2);
+		    disk_eject (3);
+		break;
+		case ID_ST_DF0:
+		    DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
+		    disk_insert (0, changed_prefs.df[0]);
+		break;
+		case ID_ST_DF1:
+		    DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
+		    disk_insert (1, changed_prefs.df[0]);
+		break;
+		case ID_ST_DF2:
+		    DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
+		    disk_insert (2, changed_prefs.df[0]);
+		break;
+		case ID_ST_DF3:
+		    DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
+		    disk_insert (3, changed_prefs.df[0]);
+		break;
+	    }
+	    break;
+    }
+    if (TaskbarRestart != 0 && TaskbarRestartHWND == hWnd && message == TaskbarRestart) {
+         //write_log ("notif: taskbarrestart\n");
+         systray (TaskbarRestartHWND, FALSE);
+    }
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
@@ -1293,7 +1308,13 @@ void remove_brkhandler (void)
 {
 }
 
-int WIN32_RegisterClasses (void)
+static void WIN32_UnregisterClasses (void)
+{
+    systray (hHiddenWnd, TRUE);
+    DestroyWindow (hHiddenWnd);
+}
+
+static int WIN32_RegisterClasses (void)
 {
     WNDCLASS wc;
     HDC hDC;
@@ -1352,6 +1373,8 @@ int WIN32_RegisterClasses (void)
 	NULL, NULL, 0, NULL);
     if (!hHiddenWnd)
 	return 0;
+
+    systray (hHiddenWnd, FALSE);
 
     return 1;
 }
@@ -2872,6 +2895,10 @@ static int process_arg(char **xargv)
 	    log_uaeserial = 1;
 	    continue;
 	}
+	if (!strcmp (arg, "-rplog")) {
+	    log_rp = 1;
+	    continue;
+	}
 	if (!strcmp (arg, "-nomultidisplay")) {
 	    multi_display = 0;
 	    continue;
@@ -3080,6 +3107,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	}
     }
 
+    WIN32_UnregisterClasses ();
 #ifdef RETROPLATFORM
     rp_free ();
 #endif
@@ -3370,7 +3398,7 @@ void addnotifications (HWND hwnd, int remove)
     }
 }
 
-void systray (HWND hwnd, int remove)
+static void systray (HWND hwnd, int remove)
 {
     NOTIFYICONDATA nid;
     BOOL v;
@@ -3407,7 +3435,7 @@ void systray (HWND hwnd, int remove)
     }
 }
 
-void systraymenu (HWND hwnd)
+static void systraymenu (HWND hwnd)
 {
     POINT pt;
     HMENU menu, menu2, drvmenu;
@@ -3415,7 +3443,6 @@ void systraymenu (HWND hwnd)
     int i;
     char text[100];
 
-    winuae_inactive (hwnd, FALSE);
     WIN32GUI_LoadUIString (IDS_STMENUNOFLOPPY, text, sizeof (text));
     GetCursorPos (&pt);
     menu = LoadMenu (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDM_SYSTRAY));
@@ -3441,7 +3468,6 @@ void systraymenu (HWND hwnd)
 	pt.x, pt.y, 0, hwnd, NULL);
     PostMessage (hwnd, WM_NULL, 0, 0);
     DestroyMenu (menu);
-    winuae_active (hwnd, FALSE);
 }
 
 static void LLError(const char *s)

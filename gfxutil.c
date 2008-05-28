@@ -251,6 +251,14 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 	green_shift = 5;
 	blue_shift = 10;
 	break;
+	default:
+	red_bits = rw;
+	green_bits = gw;
+	blue_bits = bw;
+	red_shift = rs;
+	green_shift = gs;
+	blue_shift = bs;
+	break;
     }
 
     memset (p96_rgbx16, 0, sizeof p96_rgbx16);

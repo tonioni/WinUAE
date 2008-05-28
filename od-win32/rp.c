@@ -36,7 +36,7 @@ int rp_rpescapekey = 0x01;
 int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
-int log_rp = 1;
+int log_rp = 0;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = 1;
 
@@ -46,8 +46,8 @@ static int minimized;
 static DWORD hd_mask, cd_mask, floppy_mask;
 static int mousecapture, mousemagic;
 static int rp_filter, rp_filter_default;
-
 static int recursive_device, recursive;
+static int currentpausemode;
 
 static int cando (void)
 {
@@ -74,7 +74,11 @@ static void outhex (const uae_u8 *s)
 static char *ua (const WCHAR *s)
 {
     char *d;
-    int len = WideCharToMultiByte (CP_ACP, 0, s, -1, NULL, 0, 0, FALSE);
+    int len;
+
+    if (s == NULL)
+	return NULL;
+    len = WideCharToMultiByte (CP_ACP, 0, s, -1, NULL, 0, 0, FALSE);
     if (!len)
 	return my_strdup ("");
     d = xmalloc (len + 1);
@@ -99,6 +103,7 @@ static const char *getmsg (int msg)
 	case RPIPCGM_REGISTER: return "RPIPCGM_REGISTER";
 	case RPIPCGM_FEATURES: return "RPIPCGM_FEATURES";
 	case RPIPCGM_CLOSED: return "RPIPCGM_CLOSED";
+	case RPIPCGM_CLOSE: return "RPIPCGM_CLOSE";
 	case RPIPCGM_ACTIVATED: return "RPIPCGM_ACTIVATED";
 	case RPIPCGM_DEACTIVATED: return "RPIPCGM_DEACTIVATED";
 	case RPIPCGM_PARENT: return "RPIPCGM_PARENT";
@@ -508,8 +513,15 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	}
 	return TRUE;
 	case RPIPCHM_PAUSE:
-	    pausemode (wParam ? 1 : 0);
-	return TRUE;
+	    currentpausemode = pause_emulation;
+	    if (wParam ? 1 : 0 != pause_emulation ? 1 : 0) {
+		pausemode (wParam ? 1 : 0);
+		if (wParam) {
+		    currentpausemode = -1;
+		    return 2;
+		}
+	    }
+	    return 1;
 	case RPIPCHM_VOLUME:
 	    currprefs.sound_volume = changed_prefs.sound_volume = 100 - wParam;
 	    set_volume (currprefs.sound_volume, 0);
@@ -584,12 +596,16 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	{
 	    char *s = ua ((WCHAR*)pData);
 	    DWORD ret = FALSE;
+	    if (s == NULL) {
+		savestate_initsave (NULL, 0, 0);
+		return 1;
+	    }
 	    if (vpos == 0) {
-		save_state (s, "AF");
+		save_state (s, "AF2008");
 		ret = 1;
 	    } else {
-		savestate_initsave (s, 1, TRUE);
-		ret = -1;
+		//savestate_initsave (s, 1, TRUE);
+		//ret = -1;
 	    }
 	    xfree (s);
 	    return ret;
@@ -647,6 +663,14 @@ void rp_free (void)
     initialized = 0;
     RPSendMessagex (RPIPCGM_CLOSED, 0, 0, NULL, 0, &guestinfo, NULL);
     RPUninitializeGuest (&guestinfo);
+}
+
+int rp_close (void)
+{
+    if (!cando ())
+	return 0;
+    RPSendMessagex (RPIPCGM_CLOSE, 0, 0, NULL, 0, &guestinfo, NULL);
+    return 1;
 }
 
 HWND rp_getparent (void)
@@ -904,7 +928,9 @@ void rp_pause (int paused)
 	return;
     if (isrecursive ())
 	return;
-    RPSendMessagex (RPIPCGM_PAUSE, (WPARAM)paused, 0, NULL, 0, &guestinfo, NULL);
+    if (currentpausemode != paused)
+	RPSendMessagex (RPIPCGM_PAUSE, (WPARAM)paused, 0, NULL, 0, &guestinfo, NULL);
+    currentpausemode = paused;
 }
 
 static void rp_mouse (void)

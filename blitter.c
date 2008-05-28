@@ -256,8 +256,8 @@ static void blitter_done (void)
     ddat1use = ddat2use = 0;
     bltstate = BLT_done;
     blitter_done_notify ();
-    INTREQ(0x8040);
-    event2_remevent(ev2_blitter);
+    INTREQ (0x8040);
+    event2_remevent (ev2_blitter);
     unset_special (&regs, SPCFLAG_BLTNASTY);
 #ifdef BLITTER_DEBUG
     write_log ("vpos=%d, cycles %d, missed %d, total %d\n",

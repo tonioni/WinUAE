@@ -30,7 +30,7 @@ void uaeexe_install (void)
 
     loop = here ();
     org (UAEEXE_ORG);
-    calltrap (deftrap (uaeexe_server));
+    calltrap (deftrapres (uaeexe_server, 0, "uaeexe_server"));
     dw (RTS);
     org (loop);
 }

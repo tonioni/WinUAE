@@ -1133,6 +1133,7 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 
 STATIC_INLINE void do_interrupt (int nr, struct regstruct *regs)
 {
+    int vector;
 #if 0
     if (nr == 2)
 	write_log (".");
@@ -1141,7 +1142,15 @@ STATIC_INLINE void do_interrupt (int nr, struct regstruct *regs)
     regs->stopped = 0;
     unset_special (regs, SPCFLAG_STOP);
     assert (nr < 8 && nr >= 0);
-    Exception (nr + 24, regs, 0);
+
+    if (currprefs.cpu_cycle_exact)
+	vector = get_byte_ce (0x00fffff1 | (nr << 1));
+    else if (currprefs.cpu_model <= 68010)
+	vector = get_byte (0x00fffff1 | (nr << 1));
+    else
+	vector = nr + 24;
+
+    Exception (vector, regs, 0);
 
     regs->intmask = nr;
     doint ();

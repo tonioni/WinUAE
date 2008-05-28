@@ -1025,6 +1025,7 @@ struct ConfigStruct {
     struct ConfigStruct *Parent, *Child;
     int host, hardware;
     HTREEITEM item;
+    FILETIME t;
 };
 
 static char *configreg[] = { "ConfigFile", "ConfigFileHardware", "ConfigFileHost" };
@@ -1152,8 +1153,8 @@ void gui_display (int shortcut)
     manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
     if (isfullscreen () > 0) {
-	hr = DirectDraw_FlipToGDISurface();
-	if (FAILED(hr))
+	hr = DirectDraw_FlipToGDISurface ();
+	if (FAILED (hr))
 	    write_log ("FlipToGDISurface failed, %s\n", DXError (hr));
     }
 
@@ -1889,7 +1890,9 @@ static void getconfigcache (char *dst, const char *path)
 
 static char *fgetsx (char *dst, FILE *f)
 {
-    char *s = fgets (dst, MAX_DPATH, f);
+    char *s;
+    dst[0] = 0;
+    s = fgets (dst, MAX_DPATH, f);
     if (!s)
 	return s;
     if (strlen (dst) == 0)
@@ -1901,7 +1904,30 @@ static char *fgetsx (char *dst, FILE *f)
     return s;
 }
 
-static char configcachever[] = "0.1";
+static char configcachever[] = "WinUAE Configuration.Cache";
+
+static void setconfighosthard (struct ConfigStruct *config)
+{
+    if (!config->Directory)
+	return;
+    if (!stricmp (config->Name, CONFIG_HOST))
+	config->host = 1;
+    if (!stricmp (config->Name, CONFIG_HARDWARE))
+	config->hardware = 1;
+}
+
+static void flushconfigcache (const char *cachepath)
+{
+    FILE *zcache;
+    zcache = fopen (cachepath, "r");
+    if (zcache == NULL)
+	return;
+    fclose (zcache);
+    zcache = fopen (cachepath, "w+");
+    if (zcache)
+        fclose (zcache);
+    write_log ("'%s' flushed\n", cachepath);
+}
 
 static struct ConfigStruct *readconfigcache (const char *path)
 {
@@ -1909,9 +1935,16 @@ static struct ConfigStruct *readconfigcache (const char *path)
     char cachepath[MAX_DPATH];
     char buf[MAX_DPATH];
     char rootpath[MAX_DPATH];
-    char path2[MAX_DPATH];
+    char path2[MAX_DPATH], tmp[MAX_DPATH];
     struct ConfigStruct *cs, *first;
-    int err, i;
+    int err;
+    int filelines, dirlines, headlines, dirmode, lines;
+    char dirsep = '\\';
+    FILETIME t;
+    SYSTEMTIME st;
+    ULARGE_INTEGER t1, stt, dirtt;
+    HANDLE h;
+    WIN32_FIND_DATA ffd;
 
     err = 0;
     first = NULL;
@@ -1920,63 +1953,217 @@ static struct ConfigStruct *readconfigcache (const char *path)
     if (!zcache)
 	return NULL;
     fgetsx (buf, zcache);
-    if (!feof (zcache) && !strcmp (buf, configcachever)) {
-	GetFullPathName (path, sizeof path2, path2, NULL);
-	strcpy (rootpath, path2);
+    if (feof (zcache))
+	goto end;
+    if (strcmp (buf, configcachever))
+	goto end;
+    GetFullPathName (path, sizeof path2, path2, NULL);
+    strcpy (rootpath, path2);
+    if (path2[strlen (path2) - 1] == '\\' || path2[strlen (path2) -1] == '/')
+	path2[strlen (path2) - 1] = 0;
+    h = FindFirstFile (path2, &ffd);
+    if (h == INVALID_HANDLE_VALUE)
+	goto end;
+    FindClose (h);
+    memcpy (&dirtt, &ffd.ftLastWriteTime, sizeof (ULARGE_INTEGER));
+
+    fgetsx (buf, zcache);
+    headlines = atol (buf);
+    fgetsx (buf, zcache);
+    headlines--;
+    dirlines = atol (buf);
+    fgetsx (buf, zcache);
+    headlines--;
+    filelines = atol (buf);
+    fgetsx (buf, zcache);
+    t1.QuadPart = _atoi64 (buf);
+    headlines--;
+    GetSystemTime (&st);
+    SystemTimeToFileTime (&st, &t);
+    memcpy (&stt, &t, sizeof (ULARGE_INTEGER));
+
+    if (headlines < 0 || dirlines < 3 || filelines < 3 ||
+	t1.QuadPart == 0 || t1.QuadPart > stt.QuadPart || dirtt.QuadPart > t1.QuadPart)
+        goto end;
+
+    while (headlines-- > 0)
 	fgetsx (buf, zcache);
-	if (!strcmp (buf, rootpath)) {
-	    fgetsx (buf, zcache);
-	    if (!feof (zcache) && strlen (buf) == 0) {
-		while (fgetsx (buf, zcache)) {
-		    cs = AllocConfigStruct ();
-		    if (configstore == NULL || configstoreallocated == configstoresize) {
-			configstoreallocated += 100;
-			configstore = realloc (configstore, sizeof (struct ConfigStruct*) * configstoreallocated);
+    fgetsx (buf, zcache);
+    if (buf[0] != ';')
+	goto end;
+
+    while (fgetsx (buf, zcache)) {
+	char c;
+	char dirpath[MAX_DPATH];
+
+	dirmode = 0;
+	if (strlen (buf) > 0) {
+	    c = buf[strlen (buf) - 1];
+	    if (c == '/' || c == '\\') {
+		dirmode = 1;
+		dirsep = c;
+	    }
+	}
+
+	strcpy (dirpath, buf);
+	if (dirmode) {
+	    lines = dirlines;
+	} else {
+	    char *p;
+	    lines = filelines;
+	    p = strrchr (dirpath, dirsep);
+	    if (p)
+		*p = 0;
+	    else
+		dirpath[0] = 0;
+	}
+
+	lines--;
+        cs = AllocConfigStruct ();
+        if (configstore == NULL || configstoreallocated == configstoresize) {
+	    configstoreallocated += 100;
+	    configstore = realloc (configstore, sizeof (struct ConfigStruct*) * configstoreallocated);
+	}
+        configstore[configstoresize++] = cs;
+	if (!first)
+	    first = cs;
+
+	cs->Directory = dirmode;
+	strcpy (tmp, path);
+	strcat (tmp, dirpath);
+	strcpy (cs->Fullpath, tmp);
+	strcpy (cs->Path, dirpath);
+
+	fgetsx (tmp, zcache);
+	lines--;
+	t1.QuadPart = _atoi64 (tmp);
+	if (t1.QuadPart > stt.QuadPart)
+	    goto end;
+
+	fgetsx (cs->Name, zcache);
+	lines--;
+        fgetsx (cs->Description, zcache);
+	lines--;
+
+	strcpy (tmp, cs->Path);
+	if (strlen (tmp) > 0) {
+	    char *p = tmp;
+	    if (tmp[strlen (tmp) - 1] == dirsep) {
+		tmp[strlen (tmp) - 1] = 0;
+		p = strrchr (tmp, dirsep);
+		if (p)
+		    p[1] = 0;
+	    } else {
+		tmp[strlen (tmp) + 1] = 0;
+		tmp[strlen (tmp)] = dirsep;
+	    }
+	    if (p) {
+		int i;
+		for (i = 0; i < configstoresize; i++) {
+		    struct ConfigStruct *cs2 = configstore[i];
+		    if (cs2 != cs && !strcmp (cs2->Path, tmp)) {
+			cs->Parent = cs2;
+			if (!cs2->Child)
+			    cs2->Child = cs;
+			cs->host = cs2->host;
+			cs->hardware = cs2->hardware;
 		    }
-		    configstore[configstoresize++] = cs;
-		    if (!first)
-			 first = cs;
-		    if (buf[0] == '1')
-			cs->Directory = 1;
-
-		    fgetsx (buf, zcache);
-		    if (strlen (buf) > strlen (rootpath)) {
-			for (i = 0; i < configstoresize; i++) {
-			    GetFullPathName (configstore[i]->Fullpath, sizeof path2, path2, NULL);
-			    if (!strcmp (path2, buf) && strcmp (path2, rootpath)) {
-				cs->Parent = configstore[i];
-				break;
-			    }
-			}
-		    }
-
-		    fgetsx (cs->Name, zcache);
-		    fgetsx (cs->Path, zcache);
-		    fgetsx (cs->Fullpath, zcache);
-		    fgetsx (cs->Description, zcache);
-		    fgetsx (cs->HardwareLink, zcache);
-		    fgetsx (cs->HostLink, zcache);
-		    fgetsx (buf, zcache);
-		    cs->Type = 3;
-
-		    fgetsx (buf, zcache);
-		    if (strlen (buf) > 0)
-			break;
 		}
 	    }
 	}
+
+	if (!dirmode) {
+	    fgetsx (cs->HardwareLink, zcache);
+	    lines--;
+	    fgetsx (cs->HostLink, zcache);
+	    lines--;
+	    fgetsx (buf, zcache);
+	    lines--;
+	    cs->Type = atol (buf);
+	}
+
+	setconfighosthard (cs);
+
+	if (lines < 0)
+	    goto end;
+	while (lines-- > 0)
+	    fgetsx (tmp, zcache);
+
+	fgetsx (tmp, zcache);
+	if (tmp[0] != ';')
+	    goto end;
+
     }
+
+end:
     if (!feof (zcache))
 	err = 1;
     fclose (zcache);
     if (err || first == NULL) {
-	zcache = fopen (cachepath, "w+");
-	if (zcache)
-	    fclose (zcache);
+	write_log ("'%s' load failed\n", cachepath);
+	flushconfigcache (cachepath);
 	FreeConfigStore ();
 	return NULL;
+    } else {
+	write_log ("'%s' loaded successfully\n", cachepath);
     }
     return first;
+}
+
+static void writeconfigcacheentry (FILE *zcache, const char *relpath, struct ConfigStruct *cs)
+{
+    char path2[MAX_DPATH];
+    char lf = 10;
+    char el[] = ";\n";
+    char *p;
+    ULARGE_INTEGER li;
+
+    GetFullPathName (cs->Fullpath, sizeof path2, path2, NULL);
+    if (strlen (path2) < strlen (relpath))
+	return;
+    if (memcmp (path2, relpath, strlen (relpath)))
+	return;
+    p = path2 + strlen (relpath);
+    if (!cs->Directory)
+	strcat (p, cs->Name);
+    fwrite (p, strlen (p), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+
+    memcpy (&li, &cs->t, sizeof (ULARGE_INTEGER));
+    sprintf (path2, "%I64u", li.QuadPart);
+    fwrite (path2, strlen (path2), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+
+    fwrite (cs->Name, strlen (cs->Name), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+    fwrite (cs->Description, strlen (cs->Description), 1, zcache);
+    fwrite (&lf, 1, 1, zcache);
+
+    if (!cs->Directory) {
+	fwrite (cs->HardwareLink, strlen (cs->HardwareLink), 1, zcache);
+	fwrite (&lf, 1, 1, zcache);
+	fwrite (cs->HostLink, strlen (cs->HostLink), 1, zcache);
+	fwrite (&lf, 1, 1, zcache);
+	sprintf (path2, "%d", cs->Type);
+	fwrite (path2, strlen (path2), 1, zcache);
+	fwrite (&lf, 1, 1, zcache);
+    }
+
+    fwrite (el, strlen (el), 1, zcache);
+}
+
+static void writeconfigcacherec (FILE *zcache, const char *relpath, struct ConfigStruct *cs)
+{
+    int i;
+    
+    if (!cs->Directory)
+	return;
+    writeconfigcacheentry (zcache, relpath, cs);
+    for (i = 0; i < configstoresize; i++) {
+	struct ConfigStruct *cs2 = configstore[i];
+	if (cs2->Parent == cs)
+	    writeconfigcacherec (zcache, relpath, cs2);
+    }
 }
 
 static void writeconfigcache (const char *path)
@@ -1986,51 +2173,42 @@ static void writeconfigcache (const char *path)
     FILE *zcache;
     char cachepath[MAX_DPATH];
     char path2[MAX_DPATH];
+    FILETIME t;
+    SYSTEMTIME st;
 
     getconfigcache (cachepath, path);
+#if CONFIGCACHE == 0
     zcache = fopen (cachepath, "r");
     if (!zcache)
 	return;
     fclose (zcache);
+#endif
     zcache = fopen (cachepath, "w");
     if (!zcache)
 	return;
-    GetFullPathName (path, sizeof path2, path2, NULL);
+    t.dwHighDateTime = t.dwLowDateTime = 0;
+    GetSystemTime (&st);
+    SystemTimeToFileTime (&st, &t);
     fwrite (configcachever, strlen (configcachever), 1, zcache);
     fwrite (&lf, 1, 1, zcache);
+    sprintf (path2, "3\n4\n7\n%I64u\n;\n", t);
     fwrite (path2, strlen (path2), 1, zcache);
-    fwrite (&lf, 1, 1, zcache);
-    fwrite (&lf, 1, 1, zcache);
-    for (i = configstoresize - 1; i >= 0; i--) {
+    GetFullPathName (path, sizeof path2, path2, NULL);
+    for (i = 0; i < configstoresize; i++) {
 	struct ConfigStruct *cs = configstore[i];
-        sprintf (path2, "%d", cs->Directory);
-        fwrite (path2, strlen (path2), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        GetFullPathName (cs->Fullpath, sizeof path2, path2, NULL);
-        fwrite (path2, strlen (path2), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->Name, strlen (cs->Name), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->Fullpath, strlen (cs->Fullpath), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->Path, strlen (cs->Path), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->Description, strlen (cs->Description), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->HardwareLink, strlen (cs->HardwareLink), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        fwrite (cs->HostLink, strlen (cs->HostLink), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-        sprintf (path2, "%d", cs->Type);
-        fwrite (path2, strlen (path2), 1, zcache);
-        fwrite (&lf, 1, 1, zcache);
-
-        fwrite (&lf, 1, 1, zcache);
+	if (cs->Directory && cs->Parent == NULL)
+	    writeconfigcacherec (zcache, path2, cs);
+    }
+    for (i = 0; i < configstoresize; i++) {
+	struct ConfigStruct *cs = configstore[i];
+	if (!cs->Directory)
+	    writeconfigcacheentry (zcache, path2, cs);
     }
     fclose (zcache);
+    write_log ("'%s' created\n", cachepath);
 }
 
-static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int usedirs, int *level)
+static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int usedirs, int *level, int flushcache)
 {
     DWORD num_bytes = 0;
     char path[MAX_DPATH];
@@ -2049,6 +2227,11 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
     strncat (path2, "*.*", MAX_DPATH);
 
     if (*level == 0) {
+	if (flushcache) {
+	    char cachepath[MAX_DPATH];
+	    getconfigcache (cachepath, path);
+	    flushconfigcache (cachepath);
+	}
 	first = readconfigcache (path);
 	if (first)
 	    return first; 
@@ -2074,6 +2257,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	    config = AllocConfigStruct ();
 	    strcpy (config->Path, shortpath);
 	    strcpy (config->Fullpath, path);
+	    memcpy (&config->t, &find_data.ftLastWriteTime, sizeof (FILETIME));
 	    if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && usedirs) {
 		if ((*level) < 2) {
 		    struct ConfigStruct *child;
@@ -2087,11 +2271,8 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 		    config->Directory = 1;
 		    (*level)++;
 		    config->Parent = configparent;
-		    if (!stricmp (config->Name, CONFIG_HOST))
-			config->host = 1;
-		    if (!stricmp (config->Name, CONFIG_HARDWARE))
-			config->hardware = 1;
-		    child = GetConfigs (config, usedirs, level);
+		    setconfighosthard (config);
+		    child = GetConfigs (config, usedirs, level, FALSE);
 		    (*level)--;
 		    if (child)
 			config->Child = child;
@@ -2132,12 +2313,12 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	    break;
 	}
     }
-    if (*level == 0 && CONFIGCACHE)
+    if (*level == 0)
 	writeconfigcache (path);
     return first;
 }
 
-static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig)
+static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, int flushcache)
 {
     int level = 0, i;
     char path[MAX_DPATH], name[MAX_DPATH];
@@ -2147,7 +2328,7 @@ static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig)
 	strcpy (path, oldconfig->Path);
 	strcpy (name, oldconfig->Name);
     }
-    GetConfigs (NULL, 1, &level);
+    GetConfigs (NULL, 1, &level, flushcache);
     if (oldconfig) {
 	for (i = 0; i < configstoresize; i++) {
 	    cs = configstore[i];
@@ -2203,7 +2384,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		strcpy (workprefs.description, desc);
 		cfgfile_save (&workprefs, path, configtypepanel);
 	    }
-	    break;
+	break;
 
 	case CONFIG_LOAD:
 	    if (strlen (name) == 0) {
@@ -2219,29 +2400,30 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 		} else {
 		    ew (hDlg, IDC_VIEWINFO, workprefs.info[0]);
 		}
-	    break;
+	    }
+	break;
 
-	    case CONFIG_DELETE:
-		if (strlen (name) == 0) {
-		    char szMessage[MAX_DPATH];
-		    WIN32GUI_LoadUIString(IDS_MUSTSELECTCONFIGFORDELETE, szMessage, MAX_DPATH);
-		    pre_gui_message (szMessage);
-		} else {
-		    char szMessage[MAX_DPATH];
-		    char szTitle[MAX_DPATH];
-		    WIN32GUI_LoadUIString (IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
-		    WIN32GUI_LoadUIString (IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
-		    if (MessageBox (hDlg, szMessage, szTitle,
-			MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
-			cfgfile_backup (path);
-			DeleteFile (path);
-			write_log ("deleted config '%s'\n", path);
-			config_filename[0] = 0;
-		    }
+	case CONFIG_DELETE:
+	    if (strlen (name) == 0) {
+	        char szMessage[MAX_DPATH];
+	        WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIGFORDELETE, szMessage, MAX_DPATH);
+	        pre_gui_message (szMessage);
+	    } else {
+	        char szMessage[MAX_DPATH];
+	        char szTitle[MAX_DPATH];
+	        WIN32GUI_LoadUIString (IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
+	        WIN32GUI_LoadUIString (IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
+	        if (MessageBox (hDlg, szMessage, szTitle,
+		    MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
+		    cfgfile_backup (path);
+		    DeleteFile (path);
+		    write_log ("deleted config '%s'\n", path);
+		    config_filename[0] = 0;
 		}
-	    break;
-	}
+	    }
+	break;
     }
+
     setguititle (NULL);
     return full_path;
 }
@@ -2789,7 +2971,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 		    if (configstore[idx2] == config->Child) {
 			config->item = par;
 			if (LoadConfigTreeView (hDlg, idx2, par) == 0) {
-			    if (!config->hardware && !config->host)
+			    if (!config->hardware && !config->host && !config->Directory)
 				TreeView_DeleteItem (GetDlgItem(hDlg, IDC_CONFIGTREE), par);
 			}
 			break;
@@ -2955,7 +3137,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
     {
         case IDC_SAVE:
     	    HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath);
-	    config = CreateConfigStore (config);
+	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    ConfigToRegistry (config, configtypepanel);
 	    InitializeConfigTreeView (hDlg);
@@ -2963,7 +3145,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
         break;
 	case IDC_QUICKSAVE:
 	    HandleConfiguration (hDlg, CONFIG_SAVE, config, NULL);
-	    config = CreateConfigStore (config);
+	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    ConfigToRegistry (config, configtypepanel);
 	    InitializeConfigTreeView (hDlg);
@@ -2993,7 +3175,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
         break;
         case IDC_DELETE:
 	    HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL);
-	    config = CreateConfigStore (config);
+	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    InitializeConfigTreeView (hDlg);
         break;
@@ -3050,7 +3232,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
     case WM_INITDIALOG:
 	recursive++;
 	if (!configstore) {
-	    CreateConfigStore (NULL);
+	    CreateConfigStore (NULL, FALSE);
 	    config = NULL;
 	}
 	pages[LOADSAVE_ID] = hDlg;
@@ -11048,7 +11230,7 @@ static int GetSettings (int all_options, HWND hwnd)
     }
 
     if (all_options || !configstore)
-	CreateConfigStore (NULL);
+	CreateConfigStore (NULL, FALSE);
 
     dialogreturn = -1;
     hAccelTable = NULL;
@@ -11071,13 +11253,14 @@ static int GetSettings (int all_options, HWND hwnd)
 	setguititle (dhwnd);
 	ShowWindow (dhwnd, SW_SHOW);
 	MapDialogRect (dhwnd, &dialog_rect);
+	hGUIWnd = dhwnd;
 
 	for (;;) {
 	    HANDLE IPChandle;
 	    IPChandle = geteventhandleIPC ();
 	    if (IPChandle != INVALID_HANDLE_VALUE) {
 		MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
-		while (checkIPC( &workprefs));
+		while (checkIPC (&workprefs));
 	    } else {
 		WaitMessage();
 	    }
@@ -11104,6 +11287,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	psresult = dialogreturn;
     }
 
+    hGUIWnd = NULL;
     if (quit_program)
 	psresult = -2;
     else if (qs_request_reset && quickstart)

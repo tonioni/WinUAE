@@ -21,6 +21,7 @@ extern uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s
 
 #define deftrap(f) define_trap((f), 0, "")
 #define deftrap2(f, mode, str) define_trap((f), (mode), (str))
+#define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
 
 extern void align (int);
 
@@ -86,9 +87,3 @@ extern void expansion_cleanup (void);
 extern void expansion_clear (void);
 
 extern void uaegfx_install_code (void);
-
-#define TRAPFLAG_NO_REGSAVE 1
-#define TRAPFLAG_NO_RETVAL 2
-#define TRAPFLAG_EXTRA_STACK 4
-#define TRAPFLAG_DORET 8
-

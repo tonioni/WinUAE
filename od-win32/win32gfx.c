@@ -739,8 +739,6 @@ static void close_hwnds (void)
     }
     if (hAmigaWnd) {
 	addnotifications (hAmigaWnd, TRUE);
-	//write_log ("notif: close_hwnds\n");
-	systray (NULL, TRUE);
 #ifdef OPENGL
 	OGL_free ();
 #endif
@@ -1434,7 +1432,6 @@ uae_u32 OSDEP_minimize_uae (void)
 
 void close_windows (void)
 {
-    systray (NULL, TRUE);
     reset_sound();
 #if defined (GFXFILTER)
     S2X_free ();
@@ -1692,8 +1689,6 @@ static int create_windows_2 (void)
 	close_hwnds();
 	return 0;
     }
-    systray (NULL, TRUE);
-    systray (hAmigaWnd, FALSE);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);

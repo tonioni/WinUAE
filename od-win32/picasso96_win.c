@@ -771,23 +771,38 @@ static void setconvert (void)
 	case RGBFB_R5G6B5:
 	if (d == 4)
 	    v = RGBFB_R5G6B5_32;
+	else
+	    v = RGBFB_R5G6B5_16;
 	break;
 	case RGBFB_R5G5B5:
 	if (d == 4)
 	    v = RGBFB_R5G5B5_32;
+	else
+	    v = RGBFB_R5G5B5_16;
 	break;
 	case RGBFB_B5G5R5PC:
 	if (d == 4)
 	    v = RGBFB_B5G5R5PC_32;
+	else
+	    v = RGBFB_B5G5R5PC_16;
 	break;
 
-
+	case RGBFB_A8R8G8B8:
+	if (d == 2)
+	    v = RGBFB_A8R8G8B8_16;
+	else if (d == 4)
+	    v = RGBFB_A8R8G8B8_32;
+	break;
 	case RGBFB_R8G8B8:
-	if (d == 4)
+	if (d == 2)
+	    v = RGBFB_R8G8B8_16;
+	else if (d == 4)
 	    v = RGBFB_R8G8B8_32;
 	break;
 	case RGBFB_B8G8R8:
-	if (d == 4)
+	if (d == 2)
+	    v = RGBFB_B8G8R8_16;
+	else if (d == 4)
 	    v = RGBFB_B8G8R8_32;
 	break;
 	case RGBFB_A8B8G8R8:
@@ -801,6 +816,12 @@ static void setconvert (void)
 	    v = RGBFB_B8G8R8A8_16;
 	else if (d == 4)
 	    v = RGBFB_B8G8R8A8_32;
+	break;
+	case RGBFB_R8G8B8A8:
+	if (d == 2)
+	    v = RGBFB_R8G8B8A8_16;
+	else if (d == 4)
+	    v = RGBFB_R8G8B8A8_32;
 	break;
     }
     picasso_convert = v;
@@ -3487,13 +3508,14 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 
     switch (picasso_convert)
     {
+	/* Picasso96mode == Nativemode */
 	case RGBFB_B8G8R8A8_32:
-	case RGBFB_B5G6R5PC_16:
 	case RGBFB_R5G6B5PC_16:
 	case RGBFB_CLUT_8:
 	    memcpy (dst2 + x * dstpix, src2 + x * srcpix, width * dstpix);
 	break;
 
+	/* 24bit->32bit */
 	case RGBFB_R8G8B8_32:
 	    while (x < endx) {
 		((uae_u32*)dst2)[x] = (src2[x * 3 + 0] << 16) | (src2[x * 3 + 1] << 8) | (src2[x * 3 + 2] << 0);
@@ -3506,6 +3528,8 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 		x++;
 	    }
 	break;
+
+	/* 32bit->32bit */
 	case RGBFB_R8G8B8A8_32:
 	    while (x < endx) {
 		((uae_u32*)dst2)[x] = (src2[x * 4 + 0] << 16) | (src2[x * 4 + 1] << 8) | (src2[x * 4 + 2] << 0);
@@ -3520,11 +3544,12 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 	break;
 	case RGBFB_A8B8G8R8_32:
 	    while (x < endx) {
-		((uae_u32*)dst2)[x] = ((uae_u32*)src2)[0] << 8;
+		((uae_u32*)dst2)[x] = ((uae_u32*)src2)[x] >> 8;
 		x++;
 	    }
 	break;
 
+	/* 15/16bit->32bit */
 	case RGBFB_R5G6B5PC_32:
 	case RGBFB_R5G5B5PC_32:
 	case RGBFB_R5G6B5_32:
@@ -3543,10 +3568,12 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 	    }
 	break;
 
+	/* 16/15bit->16bit */
 	case RGBFB_R5G5B5PC_16:
 	case RGBFB_R5G6B5_16:
 	case RGBFB_R5G5B5_16:
 	case RGBFB_B5G5R5PC_16:
+	case RGBFB_B5G6R5PC_16:
 	    while (x < endx) {
 		((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
 		x++;
@@ -3559,17 +3586,51 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 	    }
 	break;
 
+	/* 24bit->16bit */
 	case RGBFB_R8G8B8_16:
+	    while (x < endx) {
+		uae_u8 r, g, b;
+		r = src2[x * 3 + 0];
+		g = src2[x * 3 + 1];
+		b = src2[x * 3 + 2];
+		((uae_u16*)dst2)[x] = p96_rgbx16[(((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | (((b >> 3) & 0x1f) << 0)];
+		x++;
+	    }
 	break;
 	case RGBFB_B8G8R8_16:
-	break;
-	case RGBFB_R8G8B8A8_16:
-	break;
-	case RGBFB_A8R8G8B8_16:
-	break;
-	case RGBFB_A8B8G8R8_16:
+	    while (x < endx) {
+		uae_u32 v;
+		v = ((uae_u32*)(&src2[x * 3]))[0] >> 8;
+		((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (0 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
+		x++;
+	    }
 	break;
 
+	/* 32bit->16bit */
+	case RGBFB_R8G8B8A8_16:
+	    while (x < endx) {
+		uae_u32 v;
+		v = ((uae_u32*)src2)[x];
+		((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (0 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
+		x++;
+	    }
+	break;
+	case RGBFB_A8R8G8B8_16:
+	    while (x < endx) {
+		uae_u32 v;
+		v = ((uae_u32*)src2)[x];
+		((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (24 + 3)) & 0x1f) << 0)];
+		x++;
+	    }
+	break;
+	case RGBFB_A8B8G8R8_16:
+	    while (x < endx) {
+		uae_u32 v;
+		v = ((uae_u32*)src2)[x];
+		((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (24 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (8 + 3)) & 0x1f) << 0)];
+		x++;
+	    }
+	break;
 	case RGBFB_B8G8R8A8_16:
 	    while (x < endx) {
 		uae_u32 v;
@@ -3579,6 +3640,7 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 	    }
 	break;
 
+	/* 8bit->32bit */
 	case RGBFB_CLUT_RGBFB_32:
 	    while (x < endx) {
 		((uae_u32*)dst2)[x] = picasso_vidinfo.clut[src2[x]];
@@ -3591,6 +3653,8 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 		x++;
 	    }
 	break;
+
+	/* 8bit->16bit */
 	case RGBFB_CLUT_RGBFB_16:
 	    while (x < endx) {
 		((uae_u16*)dst2)[x] = picasso_vidinfo.clut[src2[x]];

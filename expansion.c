@@ -1195,6 +1195,8 @@ static uaecptr check_boot_rom (void)
 
     if (currprefs.cs_cdtvcd || currprefs.cs_cdtvscsi || currprefs.uae_hide > 1)
 	b = RTAREA_BACKUP;
+    if (currprefs.cs_mbdmac == 1)
+	b = RTAREA_BACKUP;
     ab = &get_mem_bank (RTAREA_DEFAULT);
     if (ab) {
 	if (valid_address (RTAREA_DEFAULT, 65536))

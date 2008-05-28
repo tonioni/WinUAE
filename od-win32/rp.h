@@ -1,6 +1,7 @@
 
 extern HRESULT rp_init (void);
 extern void rp_free (void);
+extern int rp_close (void);
 extern void rp_fixup_options (struct uae_prefs*);
 extern void rp_update_volume (struct uae_prefs*);
 extern void rp_pause (int paused);
@@ -28,6 +29,7 @@ extern int rp_rpescapekey;
 extern int rp_rpescapeholdtime;
 extern int rp_screenmode;
 extern int rp_inputmode;
+extern int log_rp;
 
 extern void rp_input_change (int num);
 extern void rp_disk_image_change (int num, const char *name);

@@ -474,7 +474,7 @@ void emulib_install (void)
     dw ((rtarea_base >> 16) | get_word (rtarea_base + 36));
     dw (get_word (rtarea_base + 38) + 12);
 #endif
-    calltrap (define_trap (uaelib_demux, 0, ""));
+    calltrap (deftrapres (uaelib_demux, 0, "uaelib_demux"));
     dw (RTS);
     org (a);
 }

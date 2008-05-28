@@ -3311,9 +3311,6 @@ void pausemode (int mode)
 	pause_emulation = pause_emulation ? 0 : 1;
     else
 	pause_emulation = mode;
-#ifdef RETROPLATFORM
-    rp_pause (pause_emulation);
-#endif
 }
 
 int jsem_isjoy (int port, const struct uae_prefs *p)

@@ -510,6 +510,7 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
 void D3D_unlocktexture (void)
 {
     float x, y, sx, sy;
+
     IDirect3DTexture9_UnlockRect (texture, 0);
     calc (&x, &y, &sx, &sy);
     BlitRect (d3ddev, texture, x, y, sx, sy, 0xffffff, 0.1f);

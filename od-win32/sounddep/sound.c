@@ -787,7 +787,8 @@ static void channelswap (uae_s16 *sndbuffer, int len)
 {
     int i;
     for (i = 0; i < len; i += 2) {
-	uae_s16 t = sndbuffer[i];
+	uae_s16 t;
+	t = sndbuffer[i];
 	sndbuffer[i] = sndbuffer[i + 1];
 	sndbuffer[i + 1] = t;
     }
@@ -796,7 +797,8 @@ static void channelswap6 (uae_s16 *sndbuffer, int len)
 {
     int i;
     for (i = 0; i < len; i += 6) {
-	uae_s16 t = sndbuffer[i + 0];
+	uae_s16 t;
+	t = sndbuffer[i + 0];
 	sndbuffer[i + 0] = sndbuffer[i + 1];
 	sndbuffer[i + 1] = t;
 	t = sndbuffer[i + 4];

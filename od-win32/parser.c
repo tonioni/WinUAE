@@ -148,7 +148,7 @@ static int openprinter_ps (void)
 	    return 0;
 	}
 	ptr_gsapi_run_string_begin (gsinstance, 0, &gs_exitcode);
-    } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    } __except (ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
 	write_log ("GS crashed\n");
 	return 0;
     }
@@ -419,16 +419,16 @@ void openprinter( void )
 	return;
     } else if (hPrt == INVALID_HANDLE_VALUE) {
 	flushprtbuf ();
-	if (OpenPrinter(currprefs.prtname, &hPrt, NULL)) {
+	if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
 	    // Fill in the structure with info about this "document."
 	    DocInfo.pDocName = "My Document";
 	    DocInfo.pOutputFile = NULL;
 	    DocInfo.pDatatype = "RAW";
 	    // Inform the spooler the document is beginning.
-	    if( (dwJob = StartDocPrinter(hPrt, 1, (LPSTR)&DocInfo)) == 0) {
+	    if ((dwJob = StartDocPrinter(hPrt, 1, (LPSTR)&DocInfo)) == 0) {
 		ClosePrinter(hPrt );
 		hPrt = INVALID_HANDLE_VALUE;
-	    } else if(StartPagePrinter(hPrt)) {
+	    } else if(StartPagePrinter (hPrt)) {
 		prtopen = 1;
 	    }
 	} else {
@@ -444,7 +444,7 @@ void openprinter( void )
 
 void flushprinter (void)
 {
-    closeprinter();
+    closeprinter ();
 }
 
 void closeprinter( void	)
@@ -475,7 +475,7 @@ void closeprinter( void	)
 
 static void putprinter (char val)
 {
-    DoSomeWeirdPrintingStuff( val );
+    DoSomeWeirdPrintingStuff (val);
 }
 
 int doprinter (uae_u8 val)
@@ -859,7 +859,7 @@ void closeser (void)
     }
     if (midi_ready) {
 	extern uae_u16 serper;
-	Midi_Close();
+	Midi_Close ();
 	//need for camd Midi Stuff(it close midi and reopen it but serial.c think the baudrate
 	//is the same and do not open midi), so setting serper to different value helps
 	serper = 0x30;
@@ -1062,7 +1062,7 @@ void initparallel (void)
     if (uae_boot_rom) {
 	uaecptr a = here (); //this install the ahisound
 	org (rtarea_base + 0xFFC0);
-	calltrap (deftrap (ahi_demux));
+	calltrap (deftrapres (ahi_demux, 0, "ahi_winuae"));
 	dw (0x4e75);// rts
 	org (a);
     }

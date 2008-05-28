@@ -2693,7 +2693,7 @@ static void COPJMP (int num)
     copper_enabled_thisline = 0;
     cop_state.strobe = num;
 
-    if (nocustom()) {
+    if (nocustom ()) {
 	immediate_copper (num);
 	return;
     }
@@ -3630,7 +3630,7 @@ STATIC_INLINE int dangerous_reg (int reg)
     return 1;
 }
 
-static int custom_wput_copper(int hpos, uaecptr addr, uae_u32 value, int noget)
+static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
     debug_wputpeek (0xdff000 + (cop_state.saved_i1 & 0x1fe), cop_state.saved_i2);
     return custom_wput_1 (hpos, addr, value, noget);
@@ -3658,7 +3658,7 @@ static void perform_copper_write (int old_hpos)
 	cop_state.last_write = cop_state.saved_i1;
 	cop_state.last_write_hpos = old_hpos;
 	old_hpos++;
-	if (!nocustom() && cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
+	if (!nocustom () && cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
 	    //write_log ("%d:%d %04.4X:%04.4X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
 	    do_sprites (old_hpos);
 	}
@@ -3700,7 +3700,7 @@ static void update_copper (int until_hpos)
     int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
     int c_hpos = cop_state.hpos;
 
-    if (nocustom())
+    if (nocustom ())
 	return;
 
     if (cop_state.state == COP_wait && vp < cop_state.vcmp) {
@@ -3799,7 +3799,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
-	    alloc_cycle(old_hpos, CYCLE_COPPER);
+	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    if (cop_state.ignore_next) {
 		cop_state.ignore_next = 0;
@@ -3914,7 +3914,7 @@ static void update_copper (int until_hpos)
 		/* another undocumented copper feature:
 		   copper stops if skipped instruction is MOVE to dangerous register...
 		*/
-		test_copper_dangerous (chipmem_agnus_wget(cop_state.ip));
+		test_copper_dangerous (chipmem_agnus_wget (cop_state.ip));
 	    }
 
 #ifdef DEBUGGER
@@ -3937,7 +3937,7 @@ static void compute_spcflag_copper (void)
 {
     copper_enabled_thisline = 0;
     unset_special (&regs, SPCFLAG_COPPER);
-    if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_bltwait || nocustom())
+    if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_bltwait || nocustom ())
 	return;
 
     if (cop_state.state == COP_wait) {
@@ -3957,8 +3957,7 @@ void blitter_done_notify (void)
 
     cop_state.hpos = current_hpos () & ~1;
     cop_state.vpos = vpos;
-    /* apparently there is small delay until copper wakes up.. */
-    cop_state.state = COP_wait_in2;
+    cop_state.state = COP_read1;
     compute_spcflag_copper ();
 }
 
@@ -4440,6 +4439,7 @@ static void vsync_handler (void)
     filesys_vsync ();
 
     init_hardware_frame ();
+
 }
 
 #ifdef JIT
@@ -4663,12 +4663,10 @@ static void hsync_handler (void)
     }
 
     {
-	//extern void uaenet_fake_int_handler (void);
 	extern int volatile uaenet_int_requested;
 	extern int volatile uaenet_vsync_requested;
 	if (uaenet_int_requested || (uaenet_vsync_requested && vpos == 10)) {
 	    INTREQ (0x8000 | 0x2000);
-	    //uaenet_fake_int_handler ();
 	}
     }
 

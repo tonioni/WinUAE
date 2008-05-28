@@ -234,10 +234,10 @@ void rtarea_init (void)
     calltrap (deftrap2 (nullfunc, TRAPFLAG_NO_RETVAL, ""));
 
     org (rtarea_base + 0xFF80);
-    calltrap (deftrap2 (getchipmemsize, TRAPFLAG_DORET, ""));
+    calltrap (deftrapres (getchipmemsize, TRAPFLAG_DORET, "getchipmemsize"));
 
     org (rtarea_base + 0xFF10);
-    calltrap (deftrap2 (uae_puts, TRAPFLAG_NO_RETVAL, ""));
+    calltrap (deftrapres (uae_puts, TRAPFLAG_NO_RETVAL, "uae_puts"));
     dw (RTS);
 
     org (a);

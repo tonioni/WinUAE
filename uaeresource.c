@@ -18,35 +18,37 @@
 #include "uaeresource.h"
 
 #if 0
-  struct uaebase
-  {
-    struct Library lib;
-    UWORD uae_version;
-    UWORD uae_revision;
-    UWORD uae_subrevision;
-    UWORD zero;
-    APTR uae_rombase;
-  };
+
+    #define UAERESNAME "uae.resource"
+
+    #define UAERES_GETFUNC (LIB_BASE - 0*LIB_VECTSIZE)
+
+    APTR GetFunc (const char *name);
+
+    struct uaebase
+    {
+	struct Library uae_lib;
+	UWORD uae_version;
+	UWORD uae_revision;
+	UWORD uae_subrevision;
+	UWORD zero;
+	APTR uae_rombase;
+    };
+
 #endif
 
 static uaecptr res_init, res_name, res_id;
 
-static uae_u32 REGPARAM2 res_close (TrapContext *context)
+static uae_u32 REGPARAM2 res_getfunc (TrapContext *context)
 {
-    uaecptr base = m68k_areg (&context->regs, 6);
-    put_word (base + 32, get_word (base + 32) - 1);
-    return 0;
+    uaecptr funcname = m68k_areg (&context->regs, 0);
+    char tmp[256];
+    if (funcname == 0)
+	return 0;
+    strcpyah_safe (tmp, funcname, sizeof tmp);
+    return find_trap (tmp);
 }
-static uae_u32 REGPARAM2 res_open (TrapContext *context)
-{
-    uaecptr base = m68k_areg (&context->regs, 6);
-    put_word (base + 32, get_word (base + 32) + 1);
-    return 0;
-}
-static uae_u32 REGPARAM2 res_expunge (TrapContext *context)
-{
-    return 0;
-}
+
 static uae_u32 REGPARAM2 res_initcode (TrapContext *context)
 {
     uaecptr base = m68k_dreg (&context->regs, 0);
@@ -76,7 +78,7 @@ uaecptr uaeres_startup (uaecptr resaddr)
 void uaeres_install (void)
 {
     uae_u32 functable, datatable;
-    uae_u32 initcode, openfunc, closefunc, expungefunc;
+    uae_u32 initcode, getfunc;
     char tmp[100];
 
     sprintf (tmp, "UAE resource %d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
@@ -86,22 +88,13 @@ void uaeres_install (void)
     /* initcode */
     initcode = here ();
     calltrap (deftrap (res_initcode)); dw (RTS);
-    /* Open */
-    openfunc = here ();
-    calltrap (deftrap (res_open)); dw (RTS);
-    /* Close */
-    closefunc = here ();
-    calltrap (deftrap (res_close)); dw (RTS);
-    /* Expunge */
-    expungefunc = here ();
-    calltrap (deftrap (res_expunge)); dw (RTS);
+    /* getfunc */
+    getfunc = here ();
+    calltrap (deftrap (res_getfunc)); dw (RTS);
 
     /* FuncTable */
     functable = here ();
-    dl (openfunc); /* Open */
-    dl (closefunc); /* Close */
-    dl (expungefunc); /* Expunge */
-    dl (EXPANSION_nullfunc); /* Null */
+    dl (getfunc); /* getfunc */
     dl (0xFFFFFFFF); /* end of table */
 
     /* DataTable */

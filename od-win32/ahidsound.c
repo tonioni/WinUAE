@@ -48,13 +48,13 @@ static char *sndptrmax, soundneutral, sndptr;
 static LPSTR lpData,sndptrout;
 extern uae_u32 chipmem_mask;
 unsigned int *sndbufrecpt;
-static char *ahisndbuffer,*sndrecbuffer;
-static int ahisndbufsize,*ahisndbufpt,ahitweak;;
+static char *ahisndbuffer, *sndrecbuffer;
+static int ahisndbufsize, *ahisndbufpt, ahitweak;;
 int ahi_pollrate = 40;
 
 int sound_freq_ahi, sound_channels_ahi, sound_bits_ahi;
 
-static int vin,devicenum;
+static int vin, devicenum;
 static int amigablksize;
 
 static DWORD sound_flushes2 = 0;
@@ -83,10 +83,10 @@ static struct winuae *a6;
 
 #if defined(X86_MSVC_ASSEMBLY)
 
-#define CREATE_NATIVE_FUNC_PTR2 uae_u32 (* native_func)( uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
+#define CREATE_NATIVE_FUNC_PTR2 uae_u32 (*native_func)(uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,\
 	uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,uae_u32,uae_u32)
 #define SET_NATIVE_FUNC2(x) native_func = (uae_u32 (*)(uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32,uae_u32,uae_u32))(x)
-#define CALL_NATIVE_FUNC2( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7) if(native_func) return native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7,regs_ )
+#define CALL_NATIVE_FUNC2(d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7) if(native_func) return native_func(d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6,a7,regs_)
 
 static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 {
@@ -110,8 +110,8 @@ static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
     uaevar.z3offset = (uae_u32)(get_real_address (0x10000000) - 0x10000000);
     uaevar.amigawnd = hAmigaWnd;
     a6 = &uaevar;
-    if(object_UAM)  {
-	SET_NATIVE_FUNC2(object_UAM);
+    if (object_UAM)  {
+	SET_NATIVE_FUNC2 (object_UAM);
     __asm
 	{   mov espstore,esp
 	    push regs_
@@ -148,14 +148,14 @@ void ahi_close_sound (void)
 	return;
     ahi_on = 0;
     record_enabled = 0;
-    ahisndbufpt = (int*) ahisndbuffer;
+    ahisndbufpt = (int*)ahisndbuffer;
 
     if (lpDSB2) {
 	hr = IDirectSoundBuffer_Stop (lpDSB2);
-	if(FAILED(hr))
-	    write_log ( "AHI: SoundStop() failure: %s\n", DXError(hr));
+	if(FAILED (hr))
+	    write_log ("AHI: SoundStop() failure: %s\n", DXError (hr));
     } else {
-	write_log ( "AHI: Sound Stopped...\n" );
+	write_log ("AHI: Sound Stopped...\n");
     }
 
     if (lpDSB2)
@@ -175,7 +175,7 @@ void ahi_close_sound (void)
 	IDirectSound_Release (lpDS2r);
     lpDS2r = NULL;
     if (ahisndbuffer)
-	free(ahisndbuffer);
+	free (ahisndbuffer);
     ahisndbuffer = NULL;
 }
 
@@ -187,19 +187,19 @@ void ahi_updatesound(int force)
     LPVOID dwData1, dwData2;
     static int oldpos;
 
-    if(sound_flushes2 == 1) {
+    if (sound_flushes2 == 1) {
 	oldpos = 0;
 	intcount = 1;
 	INTREQ_f (0x8000 | 0x2000);
-	hr = IDirectSoundBuffer_Play(lpDSB2, 0, 0, DSBPLAY_LOOPING);
+	hr = IDirectSoundBuffer_Play (lpDSB2, 0, 0, DSBPLAY_LOOPING);
 	if(hr == DSERR_BUFFERLOST) {
-	    IDirectSoundBuffer_Restore(lpDSB2);
-	    hr = IDirectSoundBuffer_Play(lpDSB2, 0, 0, DSBPLAY_LOOPING);
+	    IDirectSoundBuffer_Restore (lpDSB2);
+	    hr = IDirectSoundBuffer_Play (lpDSB2, 0, 0, DSBPLAY_LOOPING);
 	}
     }
 
-    hr = IDirectSoundBuffer_GetCurrentPosition(lpDSB2, &pos, 0);
-    if(hr != DSERR_BUFFERLOST) {
+    hr = IDirectSoundBuffer_GetCurrentPosition (lpDSB2, &pos, 0);
+    if (hr != DSERR_BUFFERLOST) {
 	pos -= ahitweak;
 	if (pos < 0)
 	    pos += ahisndbufsize;
@@ -217,11 +217,11 @@ void ahi_updatesound(int force)
 	}
     }
 
-    hr = IDirectSoundBuffer_Lock(lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
+    hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     if(hr == DSERR_BUFFERLOST) {
 	write_log ("AHI: lostbuf %d %x\n", pos, amigablksize);
-	IDirectSoundBuffer_Restore(lpDSB2);
-	hr = IDirectSoundBuffer_Lock(lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
+	IDirectSoundBuffer_Restore (lpDSB2);
+	hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     }
     if(FAILED(hr))
 	return;
@@ -237,14 +237,14 @@ void ahi_updatesound(int force)
 	}
     }
 
-    memcpy(dwData1, ahisndbuffer, dwBytes1);
+    memcpy (dwData1, ahisndbuffer, dwBytes1);
     if (dwData2)
-	memcpy(dwData2, (uae_u8*)ahisndbuffer + dwBytes1, dwBytes2);
+	memcpy (dwData2, (uae_u8*)ahisndbuffer + dwBytes1, dwBytes2);
 
     sndptrmax = ahisndbuffer + ahisndbufsize;
     ahisndbufpt = (int*)ahisndbuffer;
 
-    IDirectSoundBuffer_Unlock(lpDSB2, dwData1, dwBytes1, dwData2, dwBytes2);
+    IDirectSoundBuffer_Unlock (lpDSB2, dwData1, dwBytes1, dwData2, dwBytes2);
 
     oldpos += amigablksize * 4;
     if (oldpos >= ahisndbufsize)
@@ -256,7 +256,7 @@ void ahi_updatesound(int force)
 }
 
 
-void ahi_finish_sound_buffer( void )
+void ahi_finish_sound_buffer (void)
 {
     sound_flushes2++;
     ahi_updatesound(2);
@@ -271,28 +271,28 @@ static int ahi_init_record_win32 (void)
     HRESULT hr;
     DSCBUFFERDESC sound_buffer_rec;
     // Record begin
-    hr = DirectSoundCaptureCreate(NULL, &lpDS2r, NULL);
-    if (FAILED(hr)) {
-	write_log ( "AHI: DirectSoundCaptureCreate() failure: %s\n", DXError(hr));
+    hr = DirectSoundCaptureCreate (NULL, &lpDS2r, NULL);
+    if (FAILED (hr)) {
+	write_log ( "AHI: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
-    memset (&sound_buffer_rec, 0, sizeof(DSCBUFFERDESC));
-    sound_buffer_rec.dwSize = sizeof(DSCBUFFERDESC);
+    memset (&sound_buffer_rec, 0, sizeof (DSCBUFFERDESC));
+    sound_buffer_rec.dwSize = sizeof (DSCBUFFERDESC);
     sound_buffer_rec.dwBufferBytes = amigablksize * 4 * RECORDBUFFER;
     sound_buffer_rec.lpwfxFormat = &wavfmt;
     sound_buffer_rec.dwFlags = 0 ;
 
-    hr = IDirectSoundCapture_CreateCaptureBuffer(lpDS2r, &sound_buffer_rec, &lpDSB2r, NULL);
-    if (FAILED(hr)) {
+    hr = IDirectSoundCapture_CreateCaptureBuffer (lpDS2r, &sound_buffer_rec, &lpDSB2r, NULL);
+    if (FAILED (hr)) {
 	write_log ("AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
 	record_enabled = -1;
 	return 0;
     }
 
-    hr = IDirectSoundCaptureBuffer_Start(lpDSB2r, DSCBSTART_LOOPING);
-    if (FAILED(hr)) {
-	write_log ("AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError(hr));
+    hr = IDirectSoundCaptureBuffer_Start (lpDSB2r, DSCBSTART_LOOPING);
+    if (FAILED (hr)) {
+	write_log ("AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
@@ -307,7 +307,7 @@ void setvolume_ahi (LONG vol)
     if (!lpDS2)
 	return;
     hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
-    if (FAILED(hr))
+    if (FAILED (hr))
 	write_log ("AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 }
 
@@ -336,12 +336,12 @@ static int ahi_init_sound_win32 (void)
 	return 0;
     soundneutral = 0;
     ahisndbufsize = (amigablksize * 4) * NATIVBUFFNUM;  // use 4 native buffer
-    ahisndbuffer = malloc(ahisndbufsize + 32);
+    ahisndbuffer = malloc (ahisndbufsize + 32);
     if (!ahisndbuffer)
 	return 0;
     hr = DirectSoundCreate (&sound_device_guid[currprefs.win32_soundcard], &lpDS2, NULL);
     if (FAILED (hr)) {
-	write_log ( "AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
+	write_log ("AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
 	return 0;
     }
     memset (&sound_buffer, 0, sizeof (DSBUFFERDESC));
@@ -351,8 +351,8 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.lpwfxFormat = NULL;
 
     DSCaps.dwSize = sizeof(DSCAPS);
-    hr = IDirectSound_GetCaps(lpDS2, &DSCaps);
-    if (SUCCEEDED(hr)) {
+    hr = IDirectSound_GetCaps (lpDS2, &DSCaps);
+    if (SUCCEEDED (hr)) {
 	if (DSCaps.dwFlags & DSCAPS_EMULDRIVER)
 	    write_log ( "AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n");
     }
@@ -365,7 +365,7 @@ static int ahi_init_sound_win32 (void)
     }
     hr = IDirectSoundBuffer_SetFormat (lpDSBprimary2, &wavfmt);
     if (FAILED (hr)) {
-	write_log ( "AHI: SetFormat() failure: %s\n", DXError (hr));
+	write_log ("AHI: SetFormat() failure: %s\n", DXError (hr));
 	return 0;
     }
     sound_buffer.dwBufferBytes = ahisndbufsize;
@@ -373,7 +373,7 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.dwFlags = DSBCAPS_CTRLFREQUENCY | DSBCAPS_CTRLVOLUME
 	| DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS | DSBCAPS_LOCSOFTWARE;
     sound_buffer.guid3DAlgorithm = GUID_NULL;
-    hr = IDirectSound_CreateSoundBuffer(lpDS2, &sound_buffer, &lpDSB2, NULL);
+    hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSB2, NULL);
     if (FAILED (hr)) {
 	write_log ("AHI: CreateSoundBuffer() failure: %s\n", DXError (hr));
 	return 0;
@@ -381,15 +381,15 @@ static int ahi_init_sound_win32 (void)
 
     setvolume_ahi (0);
 
-    hr = IDirectSoundBuffer_GetFormat(lpDSBprimary2,&wavfmt,500,0);
-    if(FAILED(hr)) {
-	write_log ("AHI: GetFormat() failure: %s\n", DXError(hr));
+    hr = IDirectSoundBuffer_GetFormat (lpDSBprimary2,&wavfmt,500,0);
+    if (FAILED (hr)) {
+	write_log ("AHI: GetFormat() failure: %s\n", DXError (hr));
 	return 0;
     }
 
     ahisndbufpt =(int*)ahisndbuffer;
     sndptrmax = ahisndbuffer + ahisndbufsize;
-    memset(ahisndbuffer,  soundneutral, amigablksize * 8);
+    memset (ahisndbuffer,  soundneutral, amigablksize * 8);
     ahi_on = 1;
     return sound_freq_ahi;
 }
@@ -402,7 +402,7 @@ int ahi_open_sound (void)
     if (!sound_freq_ahi)
 	return 0;
     if (ahi_on)
-	ahi_close_sound();
+	ahi_close_sound ();
     sound_flushes2 = 1;
     if ((rate = ahi_init_sound_win32 ()))
 	return rate;

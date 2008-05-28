@@ -44,13 +44,11 @@ static int isdirectjit (void)
 
 static int canjit (void)
 {
-    return 1;
-#if 0
-    if (canbang || currprefs.cpu_model >= 68020)
+    if (currprefs.cpu_model >= 68020)
 	return 1;
     return 0;
-#endif
 }
+
 static void nocanbang (void)
 {
     canbang = 0;
@@ -122,7 +120,7 @@ void romlist_add (char *path, struct romdata *rd)
 	return;
     }
     romlist_cnt++;
-    rl = (struct romlist*)realloc (rl, sizeof (struct romlist) * romlist_cnt);
+    rl = realloc (rl, sizeof (struct romlist) * romlist_cnt);
     rl2 = rl + romlist_cnt - 1;
     rl2->path = my_strdup (path);
     rl2->rd = rd;
@@ -444,7 +442,7 @@ struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, cha
 	max = i;
     else
 	max = romlist_cnt;
-    buf = xmalloc((sizeof (struct romlist*) + sizeof (struct romlist)) * (i + 1));
+    buf = xmalloc ((sizeof (struct romlist*) + sizeof (struct romlist)) * (i + 1));
     rdout = (struct romlist**)buf;
     rltmp = (struct romlist*)((uae_u8*)buf + (i + 1) * sizeof (struct romlist*));
     out = 0;
@@ -539,7 +537,7 @@ struct romlist **getarcadiaroms(void)
 	if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME))
 	    max++;
     }
-    buf = xmalloc((sizeof (struct romlist*) + sizeof (struct romlist)) * (max + 1));
+    buf = xmalloc ((sizeof (struct romlist*) + sizeof (struct romlist)) * (max + 1));
     rdout = (struct romlist**)buf;
     rltmp = (struct romlist*)((uae_u8*)buf + (max + 1) * sizeof (struct romlist*));
     out = 0;
@@ -1462,6 +1460,7 @@ static uae_u8 *REGPARAM2 chipmem_xlate (uaecptr addr)
 /* Slow memory */
 
 static uae_u8 *bogomemory;
+static int bogomemory_allocated;
 
 static uae_u32 REGPARAM3 bogomem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 bogomem_wget (uaecptr) REGPARAM;
@@ -2330,28 +2329,24 @@ addrbank custmem2_bank = {
 static int a3000_f0;
 void a3000_fakekick (int map)
 {
-    static uae_u8 *blop;
+    static uae_u8 *kickstore;
 
     if (map) {
 	uae_u8 *fkickmemory = a3000lmemory + allocated_a3000lmem - fkickmem_size;
 	if (fkickmemory[2] == 0x4e && fkickmemory[3] == 0xf9 && fkickmemory[4] == 0x00) {
-	    if (!blop)
-		blop = xmalloc (fkickmem_size);
-	    memcpy (blop, kickmemory, fkickmem_size);
+	    if (!kickstore)
+		kickstore = xmalloc (fkickmem_size);
+	    memcpy (kickstore, kickmemory, fkickmem_size);
 	    if (fkickmemory[5] == 0xfc) {
 		memcpy (kickmemory, fkickmemory, fkickmem_size / 2);
 		memcpy (kickmemory + fkickmem_size / 2, fkickmemory, fkickmem_size / 2);
-		if (need_uae_boot_rom () != 0xf00000) {
-		    extendedkickmem_size = 65536;
-		    extendedkickmem_mask = extendedkickmem_size - 1;
-		    extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
-		    extendedkickmem_bank.baseaddr = extendedkickmemory;
-		    memcpy (extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
-		    map_banks (&extendedkickmem_bank, 0xf0, 1, 1);
-		    a3000_f0 = 1;
-		} else {
-		    write_log ("A3000 Bonus hack: can't map bonus when uae boot rom is enabled\n");
-		}
+    	        extendedkickmem_size = 65536;
+	        extendedkickmem_mask = extendedkickmem_size - 1;
+	        extendedkickmemory = mapped_malloc (extendedkickmem_size, "rom_f0");
+	        extendedkickmem_bank.baseaddr = extendedkickmemory;
+	        memcpy (extendedkickmemory, fkickmemory + fkickmem_size / 2, 65536);
+	        map_banks (&extendedkickmem_bank, 0xf0, 1, 1);
+	        a3000_f0 = 1;
 	    } else {
 		memcpy (kickmemory, fkickmemory, fkickmem_size);
 	    }
@@ -2359,14 +2354,14 @@ void a3000_fakekick (int map)
     } else {
 	if (a3000_f0) {
 	    map_banks (&dummy_bank, 0xf0, 1, 1);
-	    mapped_free(extendedkickmemory);
+	    mapped_free (extendedkickmemory);
 	    extendedkickmemory = NULL;
 	    a3000_f0 = 0;
 	}
-	if (blop)
-	    memcpy (kickmemory, blop, fkickmem_size);
-	xfree(blop);
-	blop = NULL;
+	if (kickstore)
+	    memcpy (kickmemory, kickstore, fkickmem_size);
+	xfree (kickstore);
+	kickstore = NULL;
     }
 }
 
@@ -3049,6 +3044,33 @@ static void init_mem_banks (void)
 
 static void allocate_memory (void)
 {
+    /* emulate 0.5M+0.5M with 1M Agnus chip ram aliasing */
+    if ((allocated_chipmem != currprefs.chipmem_size || allocated_bogomem != currprefs.bogomem_size) &&
+	currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
+	(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && !canjit ()) {
+	int memsize1, memsize2;
+	if (chipmemory)
+	    mapped_free (chipmemory);
+	chipmemory = 0;
+	if (bogomemory_allocated)
+	    mapped_free (bogomemory);
+	bogomemory = 0;
+	bogomemory_allocated = 0;
+  	memsize1 = allocated_chipmem = currprefs.chipmem_size;
+	memsize2 = allocated_bogomem = currprefs.bogomem_size;
+	chipmem_mask = allocated_chipmem - 1;
+	chipmem_full_mask = allocated_chipmem * 2 - 1;
+  	chipmemory = mapped_malloc (memsize1 + memsize2, "chip");
+	bogomemory = chipmemory + memsize1;
+	bogomem_mask = allocated_bogomem - 1;
+	if (chipmemory == 0) {
+	    write_log ("Fatal error: out of memory for chipmem.\n");
+	    allocated_chipmem = 0;
+	} else {
+	    need_hardreset = 1;
+	}
+    }
+
     if (allocated_chipmem != currprefs.chipmem_size) {
 	int memsize;
 	if (chipmemory)
@@ -3072,21 +3094,21 @@ static void allocate_memory (void)
 	    if (memsize != allocated_chipmem)
 		memset (chipmemory + allocated_chipmem, 0xff, memsize - allocated_chipmem);
 	}
-    }
-
-    currprefs.chipset_mask = changed_prefs.chipset_mask;
-    chipmem_full_mask = allocated_chipmem - 1;
-    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-	if (allocated_chipmem < 0x100000)
-	    chipmem_full_mask = 0x100000 - 1;
-	if (allocated_chipmem > 0x100000 && allocated_chipmem < 0x200000)
-	    chipmem_full_mask = chipmem_mask = 0x200000 - 1;
+	currprefs.chipset_mask = changed_prefs.chipset_mask;
+	chipmem_full_mask = allocated_chipmem - 1;
+	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+	    if (allocated_chipmem < 0x100000)
+		chipmem_full_mask = 0x100000 - 1;
+	    if (allocated_chipmem > 0x100000 && allocated_chipmem < 0x200000)
+		chipmem_full_mask = chipmem_mask = 0x200000 - 1;
+	}
     }
 
     if (allocated_bogomem != currprefs.bogomem_size) {
-	if (bogomemory)
+	if (bogomemory_allocated)
 	    mapped_free (bogomemory);
 	bogomemory = 0;
+	bogomemory_allocated = 0;
 
 	allocated_bogomem = currprefs.bogomem_size;
 	bogomem_mask = allocated_bogomem - 1;
@@ -3217,7 +3239,7 @@ void map_overlay (int chip)
 	map_banks (&dummy_bank, 0, 32, 0);
 	if (!isdirectjit ()) {
 	    map_banks (cb, 0, size, allocated_chipmem);
-	    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+	    if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && allocated_bogomem == 0) {
 		int start = allocated_chipmem >> 16;
 		if (allocated_chipmem < 0x100000) {
 		    int dummy = (0x100000 - allocated_chipmem) >> 16;
@@ -3419,11 +3441,13 @@ void memory_reset (void)
 
     if (a1000_bootrom)
 	a1000_handle_kickstart (1);
+
 #ifdef AUTOCONFIG
     map_banks (&expamem_bank, 0xE8, 1, 0);
 #endif
+
     if (a3000_f0)
-	a3000_fakekick (1);
+	map_banks (&extendedkickmem_bank, 0xf0, 1, 0);
 
     /* Map the chipmem into all of the lower 8MB */
     map_overlay (1);
@@ -3581,7 +3605,7 @@ void memory_cleanup (void)
     #endif
 }
 
-void memory_hardreset(void)
+void memory_hardreset (void)
 {
     if (savestate_state == STATE_RESTORE)
 	return;
@@ -3593,7 +3617,7 @@ void memory_hardreset(void)
 	memset (a3000lmemory, 0, allocated_a3000lmem);
     if (a3000hmemory)
 	memset (a3000hmemory, 0, allocated_a3000hmem);
-    expansion_clear();
+    expansion_clear ();
 }
 
 void map_banks (addrbank *bank, int start, int size, int realsize)
@@ -3602,6 +3626,8 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
     unsigned long int hioffs = 0, endhioffs = 0x100;
     addrbank *orgbank = bank;
     uae_u32 realstart = start;
+
+    //write_log ("MAP_BANK %04X0000 %d %s\n", start, size, bank->name);
 
     flush_icache (1); /* Sure don't want to keep any old mappings around! */
 #ifdef NATMEM_OFFSET
@@ -3612,7 +3638,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	realsize = size << 16;
 
     if ((size << 16) < realsize) {
-	gui_message ("Broken mapping, size=%x, realsize=%x\nStart is %x\n",
+	write_log ("Broken mapping, size=%x, realsize=%x\nStart is %x\n",
 	    size, realsize, start);
     }
 
@@ -3658,7 +3684,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 
 /* memory save/restore code */
 
-uae_u8 *save_bootrom(int *len)
+uae_u8 *save_bootrom (int *len)
 {
     if (!uae_boot_rom)
 	return 0;
@@ -3814,7 +3840,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)xmalloc (4 + 4 + 4 + 4 + 4 + 256 + 256 + mem_size);
+	dstbak = dst = xmalloc (4 + 4 + 4 + 4 + 4 + 256 + 256 + mem_size);
     save_u32 (mem_start);
     save_u32 (mem_size);
     save_u32 (mem_type);
@@ -3823,7 +3849,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
     strcpy (dst, tmpname);
     dst += strlen (dst) + 1;
     strcpy (dst, path);/* rom image name */
-    dst += strlen(dst) + 1;
+    dst += strlen (dst) + 1;
     if (saverom) {
 	for (i = 0; i < mem_size; i++)
 	    *dst++ = byteget (mem_start + i);
@@ -3838,7 +3864,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 
 void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size)
 {
-    if (!addr_valid("memcpyha", dst, size))
+    if (!addr_valid ("memcpyha", dst, size))
 	return;
     while (size--)
 	put_byte (dst++, *src++);
@@ -3850,7 +3876,7 @@ void memcpyha (uaecptr dst, const uae_u8 *src, int size)
 }
 void memcpyah_safe (uae_u8 *dst, uaecptr src, int size)
 {
-    if (!addr_valid("memcpyah", src, size))
+    if (!addr_valid ("memcpyah", src, size))
 	return;
     while (size--)
 	*dst++ = get_byte (src++);
@@ -3860,15 +3886,20 @@ void memcpyah (uae_u8 *dst, uaecptr src, int size)
     while (size--)
 	*dst++ = get_byte (src++);
 }
-char *strcpyah_safe (char *dst, uaecptr src)
+char *strcpyah_safe (char *dst, uaecptr src, int maxsize)
 {
     char *res = dst;
     uae_u8 b;
     do {
-	if (!addr_valid("strcpyah", src, 1))
+	if (!addr_valid ("strcpyah", src, 1))
 	    return res;
 	b = get_byte (src++);
 	*dst++ = b;
+	maxsize--;
+	if (maxsize <= 1) {
+	    *dst++= 0;
+	    break;
+	}
     } while (b);
     return res;
 }
@@ -3877,7 +3908,7 @@ uaecptr strcpyha_safe (uaecptr dst, const char *src)
     uaecptr res = dst;
     uae_u8 b;
     do {
-	if (!addr_valid("strcpyha", dst, 1))
+	if (!addr_valid ("strcpyha", dst, 1))
 	    return res;
 	b = *src++;
 	put_byte (dst++, b);

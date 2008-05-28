@@ -584,6 +584,13 @@ void savestate_restore_finish (void)
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */
 void savestate_initsave (const char *filename, int mode, int nodialogs)
 {
+    if (filename == NULL) {
+	savestate_fname[0] = 0;
+	savestate_docompress = 0;
+	savestate_specialdump = 0;
+	savestate_nodialogs = 0;
+	return;
+    }
     strcpy (savestate_fname, filename);
     savestate_docompress = (mode == 1) ? 1 : 0;
     savestate_specialdump = (mode == 3) ? 1 : (mode == 4) ? 2 : 0;

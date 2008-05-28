@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 20
+#define WINUAEBETA 21
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 5, 24)
+#define WINUAEDATE MAKEBD(2008, 5, 28)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -25,7 +25,7 @@
 #define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
 
 extern HMODULE hUIDLL;
-extern HWND hAmigaWnd, hMainWnd, hHiddenWnd;
+extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 extern RECT amigawin_rect;
 extern int in_sizemove;
 extern int manual_painting_needed;

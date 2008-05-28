@@ -407,7 +407,7 @@ extern void free_keyring (void);
 extern int get_keyring (void);
 
 uaecptr strcpyha_safe (uaecptr dst, const char *src);
-extern char *strcpyah_safe (char *dst, uaecptr src);
+extern char *strcpyah_safe (char *dst, uaecptr src, int maxsize);
 void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
 void memcpyha (uaecptr dst, const uae_u8 *src, int size);
 void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);
