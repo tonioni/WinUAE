@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-05-27 10:37:00
+ Updated : 2008-05-28 18:50:10
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -154,5 +154,9 @@ typedef struct RPDeviceContent
 // RPIPCGM_MOUSECAPTURE/RPIPCHM_MOUSECAPTURE
 #define RP_MOUSECAPTURE_CAPTURED     0x00000001
 #define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
+
+// RPIPCGM_DEVICEACTIVITY
+#define RP_DEVICEACTIVITY_READ     0x0000 // the device activity is about a read operation
+#define RP_DEVICEACTIVITY_WRITE    0x0001 // the device activity is about a write operation
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

@@ -75,7 +75,7 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 		(*eventtab[i].handler)();
 	    }
 	}
-	events_schedule();
+	events_schedule ();
     }
     currcycle += cycles_to_add;
 }

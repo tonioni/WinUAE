@@ -63,6 +63,8 @@
 #include "a2091.h"
 #include "ncr_scsi.h"
 
+void magic_centering (uae_u16, uae_u16, int);
+
 STATIC_INLINE int nocustom(void)
 {
     if (picasso_on && currprefs.picasso96_nocustom)
@@ -395,7 +397,7 @@ void reset_frame_rate_hack (void)
 
     rpt_did_reset = 1;
     is_lastline = 0;
-    vsyncmintime = read_processor_time() + vsynctime;
+    vsyncmintime = read_processor_time () + vsynctime;
     write_log ("Resetting frame rate hack\n");
 }
 
@@ -1669,6 +1671,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 
 static void record_register_change (int hpos, int regno, unsigned long value)
 {
+    magic_centering (regno, value, vpos);
     if (regno == 0x100) {
 	if (passed_plfstop >= 3)
 	    return;
@@ -3108,6 +3111,7 @@ static void BPL1MOD (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     decide_fetch (hpos);
+    magic_centering (0x108, v, vpos);
     bpl1mod = v;
 }
 
@@ -3118,6 +3122,7 @@ static void BPL2MOD (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     decide_fetch (hpos);
+    magic_centering (0x10a, v, vpos);
     bpl2mod = v;
 }
 
@@ -3175,6 +3180,7 @@ static void DDFSTRT (int hpos, uae_u16 v)
     ddfstrt_old_vpos = vpos;
     ddfstrt = v;
     calcdiw ();
+    magic_centering (0x92, v, vpos);
     if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
 	static int last_warned;
 	last_warned = (last_warned + 1) & 4095;
@@ -3195,6 +3201,7 @@ static void DDFSTOP (int hpos, uae_u16 v)
     decide_blitter (hpos);
     ddfstop = v;
     calcdiw ();
+    magic_centering (0x94, v, vpos);
     if (fetch_state != fetch_not_started)
 	estimate_last_fetch_cycle (hpos);
     if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
@@ -3209,6 +3216,7 @@ static void FMODE (uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_AGA))
 	v = 0;
+    magic_centering (0x1fc, v, vpos);
     ddf_change = vpos;
     fmode = v;
     sprite_width = GET_SPRITEWIDTH (fmode);
@@ -4281,7 +4289,7 @@ static int rpt_vsync (void)
 {
     int v = read_processor_time () - vsyncmintime;
     if (v > (int)syncbase || v < -((int)syncbase)) {
-	vsyncmintime = read_processor_time();
+	vsyncmintime = read_processor_time ();
 	v = 0;
     }
     return v;
@@ -4302,7 +4310,7 @@ static void framewait (void)
 	    break;
 	sleep_millis (2);
     }
-    curr_time = start = read_processor_time();
+    curr_time = start = read_processor_time ();
     while (rpt_vsync () < 0);
     curr_time = read_processor_time ();
     vsyncmintime = curr_time + vsynctime;
@@ -4358,6 +4366,7 @@ static void fpscounter (void)
 
 static void vsync_handler (void)
 {
+    magic_centering (0, 0, 0);
     fpscounter ();
 
     if (!isvsync ()
@@ -4446,16 +4455,16 @@ static void vsync_handler (void)
 
 #define N_LINES 8
 
-static __inline__ int trigger_frh(int v)
+STATIC_INLINE int trigger_frh (int v)
 {
     return (v & (N_LINES - 1)) == 0;
 }
 
-static long int diff32(frame_time_t x, frame_time_t y)
+static long int diff32 (frame_time_t x, frame_time_t y)
 {
-    return (long int)(x-y);
+    return (long int)(x - y);
 }
-static void frh_handler(void)
+static void frh_handler (void)
 {
     if (currprefs.m68k_speed == -1) {
 	frame_time_t curr_time = read_processor_time ();
@@ -4627,7 +4636,7 @@ static void hsync_handler (void)
 	    }
 	    is_lastline = trigger_frh (count + 1) && ! rpt_did_reset;
 	} else {
-	    is_lastline=0;
+	    is_lastline = 0;
 	}
     } else {
 #endif

@@ -758,7 +758,7 @@ void rp_fixup_options (struct uae_prefs *p)
     rp_update_volume (&currprefs);
     rp_turbo (turbo_emulation);
     for (i = 0; i <= 4; i++)
-	rp_update_leds (i, 0);
+	rp_update_leds (i, 0, 0);
 }
 
 static void rp_device_change (int dev, int num, const char *name)
@@ -870,7 +870,7 @@ void rp_floppy_track (int floppy, int track)
     RPSendMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_update_leds (int led, int onoff)
+void rp_update_leds (int led, int onoff, int write)
 {
     if (!cando ())
 	return;
@@ -885,19 +885,21 @@ void rp_update_leds (int led, int onoff)
 	case 2:
 	case 3:
 	case 4:
-        RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1), onoff ? -1 : 0, NULL, 0, &guestinfo, NULL);
+        RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1),
+	    MAKELONG (onoff ? -1 : 0, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , NULL, 0, &guestinfo, NULL);
 	break;
     }
 }
 
-void rp_hd_activity (int num, int onoff)
+void rp_hd_activity (int num, int onoff, int write)
 {
     if (!cando ())
 	return;
     if (num < 0)
 	return;
     if (onoff)
-	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num), 200, NULL, 0, &guestinfo, NULL);
+	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num),
+	    MAKELONG (200, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), NULL, 0, &guestinfo, NULL);
 }
 
 void rp_cd_activity (int num, int onoff)
@@ -911,7 +913,8 @@ void rp_cd_activity (int num, int onoff)
         RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
     }
     if (onoff) {
-	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num), 200, NULL, 0, &guestinfo, NULL);
+	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num),
+	    MAKELONG (200, RP_DEVICEACTIVITY_READ), NULL, 0, &guestinfo, NULL);
     }
 }
 

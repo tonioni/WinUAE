@@ -1,13 +1,13 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "resource."
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -126,26 +126,26 @@ BEGIN
     GROUPBOX        "Memory Settings",-1,14,7,274,69
     RTEXT           "Chip:",-1,24,26,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,22,50,20
-    EDITTEXT        IDC_CHIPRAM,105,25,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_CHIPRAM,105,25,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Slow:",-1,149,26,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_SLOWMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,22,60,20
-    EDITTEXT        IDC_SLOWRAM,243,25,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_SLOWRAM,243,25,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Fast:",IDC_FASTTEXT,24,51,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,47,50,20
-    EDITTEXT        IDC_FASTRAM,105,53,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_FASTRAM,105,53,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Z3 Fast:",IDC_Z3TEXT,139,51,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
-    EDITTEXT        IDC_Z3FASTRAM,243,50,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_Z3FASTRAM,243,50,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,98,53,10,SS_NOTIFY | SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,94,60,20
-    EDITTEXT        IDC_P96RAM,152,97,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_P96RAM,152,97,34,12,ES_CENTER | ES_READONLY
     GROUPBOX        "Advanced Memory Settings",-1,13,171,275,65
     RTEXT           "Motherboard RAM (Low area):",-1,39,190,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,186,59,20
-    EDITTEXT        IDC_MBRAM1,243,189,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_MBRAM1,243,189,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Motherboard RAM (High area):",-1,39,215,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,211,59,20
-    EDITTEXT        IDC_MBRAM2,243,214,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_MBRAM2,243,214,34,12,ES_CENTER | ES_READONLY
     GROUPBOX        "RTG Graphics Card Settings",-1,14,81,275,87
     CONTROL         "Scale instead of switching resolution",IDC_RTG_SCALE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,134,162,10
@@ -768,7 +768,7 @@ BEGIN
     LTEXT           "System ROMs:",IDC_PATHS_ROML,14,9,260,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_ROM,14,22,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_ROMS,281,22,11,15
-    LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,14,40,260,8,SS_CENTERIMAGE
+    LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,14,40,121,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_CONFIG,14,52,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_CONFIGS,281,52,11,15
     LTEXT           "Screenshots:",IDC_PATHS_SCREENSHOTL,14,71,260,8,SS_CENTERIMAGE
@@ -788,6 +788,7 @@ BEGIN
     PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,112,218,77,14
     COMBOBOX        IDC_PATHS_DEFAULTTYPE,112,199,163,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Clear disk history",IDC_RESETDISKHISTORY,198,218,77,14
+    CONTROL         "Cache Configuration files",IDC_PATHS_CONFIGCACHE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,40,117,10
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 300, 242
@@ -1356,7 +1357,7 @@ BEGIN
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
-    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation."
+    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 + MPEG Full Motion Video Cartridge (not emulated yet)\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n"
 END
 
@@ -1415,7 +1416,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

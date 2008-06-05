@@ -135,7 +135,7 @@ char start_path_new1[MAX_DPATH]; /* AF2005 */
 char start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
-DWORD quickstart = 1;
+DWORD quickstart = 1, configurationcache = 1;
 
 static int timeend (void)
 {
@@ -215,6 +215,15 @@ frame_time_t read_processor_time_rdtsc (void)
 }
 frame_time_t read_processor_time (void)
 {
+#if 0
+    static int cnt;
+
+    cnt++;
+    if (cnt > 1000000) {
+	write_log("**************\n");
+	cnt = 0;
+    }
+#endif
     if (userdtsc)
 	return read_processor_time_rdtsc ();
     else
@@ -1374,8 +1383,6 @@ static int WIN32_RegisterClasses (void)
     if (!hHiddenWnd)
 	return 0;
 
-    systray (hHiddenWnd, FALSE);
-
     return 1;
 }
 
@@ -1802,9 +1809,6 @@ static get_aspi (int old)
 
 void target_quit (void)
 {
-#ifdef RETROPLATFORM
-    rp_free ();
-#endif
 }
 
 void target_fixup_options (struct uae_prefs *p)
@@ -2413,7 +2417,12 @@ static void WIN32_HandleRegistryStuff(void)
         if (regsetstr (NULL, "ROMCheckVersion", VersionStr))
     	forceroms = 1;
     }
-    regqueryint (NULL, "directdraw_secondary", &ddforceram);
+
+    regqueryint (NULL, "DirectDraw_Secondary", &ddforceram);
+    if (regexists (NULL, "ConfigurationCache"))
+	regqueryint (NULL, "ConfigurationCache", &configurationcache);
+    else
+	regsetint (NULL, "ConfigurationCache", configurationcache);
     regqueryint (NULL, "QuickStartMode", &quickstart);
     reopen_console ();
     fetch_path ("ConfigurationPath", path, sizeof (path));
@@ -3107,10 +3116,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	}
     }
 
-    WIN32_UnregisterClasses ();
-#ifdef RETROPLATFORM
-    rp_free ();
-#endif
     closeIPC();
     write_disk_history ();
     timeend ();
@@ -3124,13 +3129,17 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     paraport_free ();
     closeprinter ();
 #endif
-    WIN32_CleanupLibraries ();
     create_afnewdir (1);
     close_console ();
     _fcloseall ();
+#ifdef RETROPLATFORM
+    rp_free ();
+#endif
     if(hWinUAEKey)
 	RegCloseKey (hWinUAEKey);
     CloseHandle (hMutex);
+    WIN32_CleanupLibraries ();
+    WIN32_UnregisterClasses ();
 #ifdef _DEBUG
     // show memory leaks
     //_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
@@ -3398,7 +3407,7 @@ void addnotifications (HWND hwnd, int remove)
     }
 }
 
-static void systray (HWND hwnd, int remove)
+void systray (HWND hwnd, int remove)
 {
     NOTIFYICONDATA nid;
     BOOL v;

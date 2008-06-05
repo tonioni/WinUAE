@@ -221,8 +221,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
     struct uaedev_config_info *uci = &p->mountconfig[index];
     UnitInfo uitmp;
 
-    memset(mi, 0, sizeof (struct mountedinfo));
-    memset(&uitmp, 0, sizeof uitmp);
+    memset (mi, 0, sizeof (struct mountedinfo));
+    memset (&uitmp, 0, sizeof uitmp);
     if (!ui) {
 	ui = &uitmp;
 	if (!uci->ishdf) {
@@ -421,6 +421,7 @@ static int set_filesys_unit_1 (int nr,
 	ui->hf.surfaces = surfaces;
 	ui->hf.reservedblocks = reserved;
 	ui->hf.blocksize = blocksize;
+	ui->hf.unitnum = nr;
 	ui->volname = 0;
 	ui->hf.readonly = readonly;
 	if (!hdf_open (&ui->hf, rootdir) && !readonly) {

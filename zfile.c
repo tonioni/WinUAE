@@ -733,7 +733,7 @@ size_t zfile_fputs (struct zfile *z, char *s)
     return zfile_fwrite (s, strlen (s), 1, z);
 }
 
-char *zfile_fgets(char *s, int size, struct zfile *z)
+char *zfile_fgets (char *s, int size, struct zfile *z)
 {
     if (z->data) {
 	char *os = s;

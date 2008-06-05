@@ -157,10 +157,14 @@ Data sent:
             e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0);
             the RP_ALL_DEVICES define may be used as device number
             to turn on or off all the activity leds for a device category
-   LPARAM = 0 turns off the activity LED,
-            (LPARAM)-1 turns on the activity LED,
-            <millisecond delay> turns on the activity LED
-            for the specified amount of time (blink)
+   LPARAM = led status and flags combined with the MAKEWORD macro;
+            e.g. MAKEWORD(Status, Flags);
+            the Status value can be set to 0 to turn off the activity LED,
+            or set to -1 to turn on the activity LED,
+            or set to a <millisecond delay> value to turn on the activity LED
+            for the specified amount of time (blink);
+            the Flags value can be set
+            using one of the RP_DEVICEACTIVITY_* defines
 Response:
    none
 

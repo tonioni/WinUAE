@@ -287,14 +287,14 @@ static void writefavoritepaths (int num, char **values, char **paths)
 }
 
 
-static int askinputcustom(HWND hDlg, char *custom, int maxlen);
+static int askinputcustom (HWND hDlg, char *custom, int maxlen);
 static void addfavoritepath (HWND hDlg, int num, char **values, char **paths)
 {
     char name[MAX_DPATH];
     if (num >= MAXFAVORITES)
 	return;
     if (!stored_path[0])
-        GetModuleFileName(NULL, stored_path, MAX_DPATH);
+        GetModuleFileName (NULL, stored_path, MAX_DPATH);
     while (stored_path[0]) {
 	DWORD v = GetFileAttributes (stored_path);
 	char *s;
@@ -689,8 +689,8 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	}
     }
     if (!rd) {
-	;//write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
-	 //  size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+	;write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
+	   size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
     }
     free (rombuf);
     return rd;
@@ -743,7 +743,7 @@ static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
     return 1;
 }
 
-static int isromext(char *path)
+static int isromext (char *path)
 {
     char *ext;
     int i;
@@ -788,7 +788,7 @@ static int scan_rom (char *path, UAEREG *fkey)
     struct romdata *rd;
     int cnt = 0;
 
-    if (!isromext(path)) {
+    if (!isromext (path)) {
 	//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 	return 0;
     }
@@ -1614,7 +1614,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    strcpy (workprefs.cartfile, full_path);
 	    break;
 	case IDC_INPREC_PLAY:
-	    inprec_open(full_path, IsDlgButtonChecked(hDlg, IDC_INPREC_PLAYMODE) == BST_CHECKED ? -1 : -2);
+	    inprec_open(full_path, IsDlgButtonChecked (hDlg, IDC_INPREC_PLAYMODE) == BST_CHECKED ? -1 : -2);
 	    break;
 	case IDC_INPREC_RECORD:
 	    inprec_open(full_path, 1);
@@ -1952,6 +1952,11 @@ static struct ConfigStruct *readconfigcache (const char *path)
     zcache = fopen (cachepath, "r");
     if (!zcache)
 	return NULL;
+    if (!configurationcache) {
+	fclose (zcache);
+	unlink (cachepath);
+	return NULL;
+    }
     fgetsx (buf, zcache);
     if (feof (zcache))
 	goto end;
@@ -2176,13 +2181,9 @@ static void writeconfigcache (const char *path)
     FILETIME t;
     SYSTEMTIME st;
 
-    getconfigcache (cachepath, path);
-#if CONFIGCACHE == 0
-    zcache = fopen (cachepath, "r");
-    if (!zcache)
+    if (!configurationcache)
 	return;
-    fclose (zcache);
-#endif
+    getconfigcache (cachepath, path);
     zcache = fopen (cachepath, "w");
     if (!zcache)
 	return;
@@ -3522,6 +3523,8 @@ static void resetregistry (void)
     regdelete (NULL, "QuickStartConfiguration");
     regdelete (NULL, "QuickStartCompatibility");
     regdelete (NULL, "QuickStartHostConfig");
+    regdelete (NULL, "ConfigurationCache");
+    regdelete (NULL, "DirectDraw_Secondary");
 }
 
 int path_type;
@@ -3544,6 +3547,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	setac (hDlg, IDC_PATHS_SAVESTATE);
 	setac (hDlg, IDC_PATHS_SAVEIMAGE);
 	setac (hDlg, IDC_PATHS_AVIOUTPUT);
+        CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
 	currentpage = PATHS_ID;
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 	numtypes = 0;
@@ -3710,6 +3714,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    break;
 	    case IDC_RESETDISKHISTORY:
 	    reset_disk_history ();
+	    break;
+	    case IDC_PATHS_CONFIGCACHE:
+	    configurationcache = IsDlgButtonChecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
+	    regsetint (NULL, "ConfigurationCache", configurationcache);
 	    break;
 	}
 	recursive--;
@@ -5236,39 +5244,39 @@ static void values_to_memorydlg (HWND hDlg)
     SetDlgItemText (hDlg, IDC_SLOWRAM, memsize_names[msi_bogo[mem_size]]);
 
     mem_size = 0;
-	v = workprefs.z3fastmem_size + workprefs.z3fastmem2_size;
-	if      (v < 0x00100000)
-		mem_size = 0;
-	else if (v < 0x00200000)
-		mem_size = 1;
-	else if (v < 0x00400000)
-		mem_size = 2;
-	else if (v < 0x00800000)
-		mem_size = 3;
-	else if (v < 0x01000000)
-		mem_size = 4;
-	else if (v < 0x02000000)
-		mem_size = 5;
-	else if (v < 0x04000000)
-		mem_size = 6;
-	else if (v < 0x08000000)
-		mem_size = 7;
-	else if (v < 0x10000000)
-		mem_size = 8;
-	else if (v < 0x18000000)
-		mem_size = 9;
-	else if (v < 0x20000000)
-		mem_size = 10;
-	else if (v < 0x30000000)
-		mem_size = 11;
-	else if (v < 0x40000000)
-		mem_size = 12;
-	else if (v < 0x60000000)
-		mem_size = 13;
-	else if (v < 0x80000000)
-		mem_size = 14;
-	else
-		mem_size = 15;
+    v = workprefs.z3fastmem_size + workprefs.z3fastmem2_size;
+    if      (v < 0x00100000)
+    	mem_size = 0;
+    else if (v < 0x00200000)
+    	mem_size = 1;
+    else if (v < 0x00400000)
+    	mem_size = 2;
+    else if (v < 0x00800000)
+    	mem_size = 3;
+    else if (v < 0x01000000)
+    	mem_size = 4;
+    else if (v < 0x02000000)
+    	mem_size = 5;
+    else if (v < 0x04000000)
+    	mem_size = 6;
+    else if (v < 0x08000000)
+    	mem_size = 7;
+    else if (v < 0x10000000)
+    	mem_size = 8;
+    else if (v < 0x18000000)
+    	mem_size = 9;
+    else if (v < 0x20000000)
+    	mem_size = 10;
+    else if (v < 0x30000000)
+    	mem_size = 11;
+    else if (v < 0x40000000)
+    	mem_size = 12;
+    else if (v < 0x60000000)
+    	mem_size = 13;
+    else if (v < 0x80000000)
+    	mem_size = 14;
+    else
+    	mem_size = 15;
     SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_Z3FASTRAM, memsize_names[msi_z3fast[mem_size]]);
 
@@ -5289,18 +5297,7 @@ static void values_to_memorydlg (HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
-    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"(8bit)");
-    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"8-bit (*)");
     SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"(15/16bit)");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5PC (*)");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5PC");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G6R5PC");
-    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G5R5PC");
     SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
 	(workprefs.picasso96_modeflags & RGBFF_R5G6B5PC) ? 1 :
 	(workprefs.picasso96_modeflags & RGBFF_R5G5B5PC) ? 2 :
@@ -5308,24 +5305,15 @@ static void values_to_memorydlg (HWND hDlg)
 	(workprefs.picasso96_modeflags & RGBFF_R5G5B5) ? 4 :
 	(workprefs.picasso96_modeflags & RGBFF_B5G6R5PC) ? 5 :
 	(workprefs.picasso96_modeflags & RGBFF_B5G5R5PC) ? 6 : 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"(24bit)");
-    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8");
-    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8");
     SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_SETCURSEL,
 	(workprefs.picasso96_modeflags & RGBFF_R8G8B8) ? 1 :
 	(workprefs.picasso96_modeflags & RGBFF_B8G8R8) ? 2 : 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"(32bit)");
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8R8G8B8");
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8B8G8R8");
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8A8");
-    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8A8 (*)");
     SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_SETCURSEL,
 	(workprefs.picasso96_modeflags & RGBFF_A8R8G8B8) ? 1 :
 	(workprefs.picasso96_modeflags & RGBFF_A8B8G8R8) ? 2 :
 	(workprefs.picasso96_modeflags & RGBFF_R8G8B8A8) ? 3 :
 	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 4 : 0, 0);
+
     CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
     CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 
@@ -5408,7 +5396,27 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	case WM_INITDIALOG:
 	    pages[MEMORY_ID] = hDlg;
 	    currentpage = MEMORY_ID;
-
+	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"(8bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)"8-bit (*)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"(15/16bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5PC (*)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5PC");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G6B5");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"R5G5B5");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G6R5PC");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)"B5G5R5PC");
+	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"(24bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8");
+	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"(32bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8R8G8B8");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"A8B8G8R8");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"R8G8B8A8");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)"B8G8R8A8 (*)");
 	    SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
 	    SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
 	    SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
@@ -6031,7 +6039,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    v = SendDlgItemMessage(hDlg, IDC_DD_SURFACETYPE, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR) {
 			ddforceram = v;
-			regsetint (NULL, "directdraw_secondary", ddforceram);
+			regsetint (NULL, "DirectDraw_Secondary", ddforceram);
 		    }
 		    break;
 		}
@@ -11357,7 +11365,7 @@ void gui_hd_led (int unitnum, int led)
 	    return;
     }
 #ifdef RETROPLATFORM
-    rp_hd_activity (unitnum, led);
+    rp_hd_activity (unitnum, led ? 1 : 0, led == 2 ? 1 : 0);
 #endif
     gui_data.hd = led;
     resetcounter = 6;
@@ -11401,15 +11409,18 @@ void gui_led (int led, int on)
     static char dfx[4][300];
     char *ptr, *tt, *p;
     int pos = -1, j;
+    int writing = 0;
 
     indicator_leds (led, on);
 #ifdef LOGITECHLCD
     lcd_update (led, on);
 #endif
 #ifdef RETROPLATFORM
-    rp_update_leds (led, on);
-    if (led >= 1 && led <= 4 && !gui_data.drive_disabled[led - 1])
+    if (led >= 1 && led <= 4 && !gui_data.drive_disabled[led - 1]) {
 	rp_floppy_track (led - 1, gui_data.drive_track[led - 1]);
+	writing = gui_data.drive_writing[led - 1];
+    }
+    rp_update_leds (led, on, writing);
 #endif
     if (!hStatusWnd)
 	return;

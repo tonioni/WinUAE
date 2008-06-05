@@ -198,8 +198,8 @@ static struct romdata roms[] = {
     ALTROMPN(11, 1, 2, 262144, ROMTYPE_ODD , "391524-01", 0xd55c6ec6,0x3341108d,0x3a402882,0xb5ef9d3b,0x242cbf3c,0x8ab1a3e9)
     { "KS ROM v3.0 (A4000)", 3, 0, 39, 106, "A4000\0", 524288, 12, 2 | 4, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0x9e6ac152, 0xF0B4E9E2,0x9E12218C,0x2D5BD702,0x0E4E7852,0x97D91FD7 },
-    ALTROMPN(12, 1, 1, 262144, ROMTYPE_EVEN, "319513-02", 0x36f64dd0,0x196e9f3f,0x9cad934e,0x181c07da,0x33083b1f,0x0a3c702f)
-    ALTROMPN(12, 1, 2, 262144, ROMTYPE_ODD , "319514-02", 0x17266a55,0x42fbed34,0x53d1f11c,0xcbde89a9,0x826f2d11,0x75cca5cc)
+    ALTROMPN(12, 1, 1, 262144, ROMTYPE_EVEN, "391513-02", 0x36f64dd0,0x196e9f3f,0x9cad934e,0x181c07da,0x33083b1f,0x0a3c702f)
+    ALTROMPN(12, 1, 2, 262144, ROMTYPE_ODD , "391514-02", 0x17266a55,0x42fbed34,0x53d1f11c,0xcbde89a9,0x826f2d11,0x75cca5cc)
     { "KS ROM v3.1 (A4000)", 3, 1, 40, 70, "A4000\0", 524288, 13, 2 | 4, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0x2b4566f1, 0x81c631dd,0x096bbb31,0xd2af9029,0x9c76b774,0xdb74076c },
     ALTROM(13, 1, 1, 262144, ROMTYPE_EVEN, 0xf9cbecc9,0x138d8cb4,0x3b8312fe,0x16d69070,0xde607469,0xb3d4078e)
@@ -238,13 +238,13 @@ static struct romdata roms[] = {
     /* real CD32 rom dump 391640-03 */
     ALTROMPN(64, 1, 1, 2 * 524288, ROMTYPE_CD32, "391640-03", 0xa4fbc94a, 0x816ce6c5,0x07787585,0x0c7d4345,0x2230a9ba,0x3a2902db )
    
-    { "CD32 MPEG Cartridge ROM", 3, 1, 40, 30, "CD32\0", 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
+    { "CD32 MPEG Cartridge ROM", 3, 1, 40, 30, "CD32FMV\0", 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
 	0xc35c37bf, 0x03ca81c7,0xa7b259cf,0x64bc9582,0x863eca0f,0x6529f435 },
 
     { "CDTV extended ROM v1.00", 1, 0, 1, 0, "CDTV\0", 262144, 20, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x42baa124, 0x7BA40FFA,0x17E500ED,0x9FED041F,0x3424BD81,0xD9C907BE },
-    ALTROM(20, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, 0x791cb14b,0x277a1778,0x92449635,0x3ffe56be,0x68063d2a,0x334360e4)
-    ALTROM(20, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, 0xaccbbc2e,0x41b06d16,0x79c6e693,0x3c3378b7,0x626025f7,0x641ebc5c)
+    ALTROMPN(20, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, "252606-01", 0x791cb14b,0x277a1778,0x92449635,0x3ffe56be,0x68063d2a,0x334360e4)
+    ALTROMPN(20, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, "252607-01", 0xaccbbc2e,0x41b06d16,0x79c6e693,0x3c3378b7,0x626025f7,0x641ebc5c)
     { "CDTV extended ROM v2.07", 2, 7, 2, 7, "CDTV\0", 262144, 22, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0xceae68d2, 0x5BC114BB,0xA29F60A6,0x14A31174,0x5B3E2464,0xBFA06846 },
     ALTROM(22, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, 0x36d73cb8,0x9574e546,0x4b390697,0xf28f9a43,0x4e604e5e,0xf5e5490a)
@@ -279,6 +279,8 @@ static struct romdata roms[] = {
 	0x49650e4f, 0x255D6DF6,0x3A4EAB0A,0x838EB1A1,0x6A267B09,0x59DFF634 },
     { "Freezer: Action Replay Mk III v3.09", 3, 9, 3, 9, "AR\0", 262144, 29, 0, 0, ROMTYPE_AR, 0, 1, NULL,
 	0x0ed9b5aa, 0x0FF3170A,0xBBF0CA64,0xC9DD93D6,0xEC0C7A01,0xB5436824 },
+    ALTROM(29, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, 0x2b84519f, 0x7841873b,0xf009d834,0x1dfa2794,0xb3751bac,0xf86adcc8)
+    ALTROM(29, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, 0x1d35bd56, 0x6464be16,0x26b51949,0x9e76e4e3,0x409e8016,0x515d48b6)
     { "Freezer: Action Replay Mk III v3.17", 3, 17, 3, 17, "AR\0", 262144, 30, 0, 0, ROMTYPE_AR, 0, 1, NULL,
 	0xc8a16406, 0x5D4987C2,0xE3FFEA8B,0x1B02E314,0x30EF190F,0x2DB76542 },
     { "Freezer: Action Replay 1200", 0, 0, 0, 0, "AR\0", 262144, 47, 0, 0, ROMTYPE_AR, 0, 1, NULL,
@@ -592,6 +594,8 @@ int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size)
 		t = keysize - 1;
 	}
 	if ((mem[2] == 0x4e && mem[3] == 0xf9) || (mem[0] == 0x11 && (mem[1] == 0x11 || mem[1] == 0x14)))
+	    return 1;
+	if (mem[0] == 0xd0 && mem[1] == 0x00 && mem[2] == 0x50 && mem[3] == 0x00) /* fmv */
 	    return 1;
 	for (t = cnt = 0; cnt < size; cnt++, t = (t + 1) % keysize)  {
 	    mem[cnt] ^= key[t];
@@ -2380,14 +2384,23 @@ static int read_rom_file (uae_u8 *buf, struct romdata *rd)
 {
     struct zfile *zf;
     struct romlist *rl = romlist_getrl (rd);
+    char tmp[11];
+
     if (!rl || strlen (rl->path) == 0)
 	return 0;
     zf = zfile_fopen (rl->path, "rb");
     if (!zf)
 	return 0;
-    zfile_fread (buf, rd->size, 1, zf);
-    zfile_fclose (zf);
     addkeydir (rl->path);
+    zfile_fread (tmp, sizeof tmp, 1, zf);
+    if (!memcmp (tmp, "AMIROMTYPE1", 11) != 0) {
+	zfile_fread (buf, rd->size, 1, zf);
+        decode_cloanto_rom_do (buf, rd->size, rd->size);
+    } else {
+	memcpy (buf, tmp, sizeof tmp);
+	zfile_fread (buf + sizeof tmp, rd->size - sizeof (tmp), 1, zf);
+    }
+    zfile_fclose (zf);
     return 1;
 }
 
@@ -2530,6 +2543,29 @@ struct zfile *read_rom_name (const char *filename)
 	}
     }
     f = zfile_fopen (filename, "rb");
+    if (f) {
+	char tmp[11];
+	zfile_fread (tmp, sizeof tmp, 1, f);
+	if (!memcmp (tmp, "AMIROMTYPE1", 11) != 0) {
+	    struct zfile *df;
+	    int size;
+	    uae_u8 *buf;
+	    zfile_fseek (f, 0, SEEK_END);
+	    size = zfile_ftell (f) - sizeof tmp;
+	    zfile_fseek (f, sizeof tmp, SEEK_SET);
+	    buf = xmalloc (size);
+	    df = zfile_fopen_empty ("tmp.rom", size);
+	    zfile_fread (buf, size, 1, f);
+	    decode_cloanto_rom_do (buf, size, size);
+	    zfile_fwrite (buf, size, 1, df);
+	    zfile_fclose (f);
+	    xfree (buf);
+	    zfile_fseek (df, 0, SEEK_SET);
+	    f = df;
+	} else {
+	    zfile_fseek (f, -sizeof tmp, SEEK_CUR);
+	}
+    }
     return f;
 }
 

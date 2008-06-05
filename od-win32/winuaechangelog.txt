@@ -1,4 +1,17 @@
 
+Beta 22: (To do: OGL/D3D scaling options. bleh.)
+
+- AF2008 non-KS/extended ROMs didn't decrypt properly
+- configuration cache checkbox added to paths-panel (default is
+  enabled, saved to registry/ini)
+- added pointless CD32+FMV Quickstart entry
+- CDTV extended ROM 1.0 part numbers added (2.07 PN still missing)
+- Action Replay 3 v3.09 even/odd ROM checksums added (roms dumped,
+  thanks to Jope for adding ROM sockets to my AR3). First four bytes,
+  io-addresses that can't be dumped using software dump method, are
+  0x50 0x00 0x00 0x00 (how boring..)
+- possible fix for slow GUI Memory-panel
+
 Beta 21:
 
 - A3000 1.3 SuperKickstart fakeMMU bonus remapping fixed

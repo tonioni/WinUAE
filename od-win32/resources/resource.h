@@ -936,6 +936,7 @@
 #define IDC_RTG_MATCH_DEPTH             1786
 #define IDC_RTG_8BIT                    1787
 #define IDC_RTG_16BIT                   1788
+#define IDC_PATHS_CONFIGCACHE           1788
 #define IDC_RTG_24BIT                   1789
 #define IDC_RTG_32BIT                   1790
 #define IDC_DD_SURFACETYPE              1791
@@ -984,7 +985,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        336
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1788
+#define _APS_NEXT_CONTROL_VALUE         1789
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

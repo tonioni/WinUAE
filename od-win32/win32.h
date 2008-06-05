@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 21
+#define WINUAEBETA 22
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 5, 28)
+#define WINUAEDATE MAKEBD(2008, 6, 5)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -72,7 +72,7 @@ extern char BetaStr[64];
 extern int os_winnt_admin, os_64bit, os_vista, os_winxp;
 extern int paraport_mask;
 extern int gui_active;
-extern DWORD quickstart;
+extern DWORD quickstart, configurationcache;
 
 extern HKEY hWinUAEKey;
 extern int screen_is_picasso;

@@ -6,7 +6,7 @@
 
 static unsigned long crc_table32[256];
 static unsigned short crc_table16[256];
-static void make_crc_table()
+static void make_crc_table (void)
 {
     unsigned long c;
     unsigned short w;
@@ -22,6 +22,14 @@ static void make_crc_table()
 	crc_table16[n] = w;
     }
 }
+uae_u32 get_crc32_val (uae_u8 v, uae_u32 crc)
+{
+    if (!crc_table32[1])
+	make_crc_table();
+    crc ^= 0xffffffff;
+    crc = crc_table32[(crc ^ v) & 0xff] ^ (crc >> 8);
+    return crc ^ 0xffffffff;
+}
 uae_u32 get_crc32 (uae_u8 *buf, int len)
 {
     uae_u32 crc;
@@ -32,7 +40,7 @@ uae_u32 get_crc32 (uae_u8 *buf, int len)
 	crc = crc_table32[(crc ^ (*buf++)) & 0xff] ^ (crc >> 8);
     return crc ^ 0xffffffff;
 }
-uae_u16 get_crc16( uae_u8 *buf, int len)
+uae_u16 get_crc16 (uae_u8 *buf, int len)
 {
     uae_u16 crc;
     if (!crc_table32[1])

@@ -2780,6 +2780,8 @@ static int configure_rom (struct uae_prefs *p, int *rom, int msg)
 	strcpy (p->romfile, path);
     if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS))
 	strcpy (p->romextfile, path);
+    if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_XPOWER | ROMTYPE_NORDIC | ROMTYPE_AR | ROMTYPE_SUPERIV))
+	strcpy (p->cartfile, path);
     return 1;
 }
 
@@ -3334,6 +3336,11 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (!configure_rom (p, roms, romcheck))
 	    return 0;
 	roms[0] = 19;
+	if (!configure_rom (p, roms, romcheck))
+	    return 0;
+    }
+    if (config > 0) {
+	roms[0] = 23;
 	if (!configure_rom (p, roms, romcheck))
 	    return 0;
     }

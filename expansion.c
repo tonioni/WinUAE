@@ -365,15 +365,17 @@ static void expamem_map_cd32fmv (void)
 
 static void expamem_init_cd32fmv (void)
 {
-    int ids[] = { 72, -1 };
+    int ids[] = { 23, -1 };
     struct romlist *rl = getromlistbyids (ids);
+    struct romdata *rd;
     struct zfile *z;
 
     expamem_init_clear ();
     if (!rl)
 	return;
     write_log ("CD32 FMV ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
-    z = zfile_fopen(rl->path, "rb");
+    rd = rl->rd;
+    z = read_rom (&rd);
     if (z) {
 	zfile_fread (expamem, 128, 1, z);
 	zfile_fclose (z);
@@ -1320,7 +1322,7 @@ void expamem_reset (void)
 #endif
 #ifdef CD32
     if (currprefs.cs_cd32cd && currprefs.fastmem_size == 0 && currprefs.chipmem_size <= 0x200000) {
-	int ids[] = { 72, -1 };
+	int ids[] = { 23, -1 };
 	struct romlist *rl = getromlistbyids (ids);
 	if (rl && !strcmp (rl->path, currprefs.cartfile)) {
 	    card_init[cardno] = expamem_init_cd32fmv;

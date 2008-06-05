@@ -190,7 +190,7 @@ static addrbank fmv_bank = {
 
 void cd32_fmv_init (uaecptr start)
 {
-    int ids[] = { 72, -1 };
+    int ids[] = { 23, -1 };
     struct romlist *rl = getromlistbyids (ids);
     struct romdata *rd;
     struct zfile *z;

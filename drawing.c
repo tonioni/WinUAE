@@ -2791,3 +2791,37 @@ void drawing_init (void)
     reset_drawing ();
 }
 
+#include "crc32.h"
+void magic_centering (uae_u16 regno, uae_u16 value, int vpos)
+{
+#if 0
+    static uae_u32 crc;
+    static uae_u32 prevcrc;
+    static int count;
+    uae_u16 v;
+
+    if (!regno) {
+	if (count > 0) {
+	    count--;
+	    if (count == 0) {
+		write_log ("**** CHANGED ****\n");
+	    }
+	}
+	if (crc != 0 && crc != prevcrc && count == 0) {
+	    count = 3;
+	    prevcrc = crc;
+	}
+	crc = 0;
+	return;
+    }
+    v = regno;
+    crc = get_crc32_val (v >> 8, crc);
+    crc = get_crc32_val (v, crc);
+    if (regno == 0x92 || regno == 0x94)
+	return;
+    v = value;
+    crc = get_crc32_val (v >> 8, crc);
+    crc = get_crc32_val (v, crc);
+#endif
+}
+

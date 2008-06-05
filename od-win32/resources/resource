@@ -249,6 +249,8 @@
 #define IDS_SOUND_STEREO2               256
 #define IDS_INPUT_CUSTOMEVENT           257
 #define IDS_DEFAULT_NEWWINUAE           258
+#define IDS_SOUND_CLONED51              259
+#define IDS_SOUND_51                    260
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -688,7 +690,6 @@
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
 #define IDC_INPREC_PLAY                 1620
-#define IDC_FILTERUPSCALE               1620
 #define IDC_FILTERASPECT                1620
 #define IDC_AVIOUTPUT_24BIT             1621
 #define IDC_AVIOUTPUT_WIDTH             1622
@@ -935,6 +936,7 @@
 #define IDC_RTG_MATCH_DEPTH             1786
 #define IDC_RTG_8BIT                    1787
 #define IDC_RTG_16BIT                   1788
+#define IDC_PATHS_CONFIGCACHE           1788
 #define IDC_RTG_24BIT                   1789
 #define IDC_RTG_32BIT                   1790
 #define IDC_DD_SURFACETYPE              1791
@@ -983,7 +985,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        336
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1788
+#define _APS_NEXT_CONTROL_VALUE         1789
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

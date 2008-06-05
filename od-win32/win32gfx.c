@@ -1393,6 +1393,7 @@ int machdep_init (void)
 	    return 0;
     }
 #endif
+    systray (hHiddenWnd, FALSE);
     return 1;
 }
 
