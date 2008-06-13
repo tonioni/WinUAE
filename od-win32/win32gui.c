@@ -672,8 +672,8 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	return 0;
     zfile_fread (rombuf, 1, size, f);
     if (cl > 0) {
-	if (decode_cloanto_rom_do (rombuf, size, size))
-	    cl = 0;
+	decode_cloanto_rom_do (rombuf, size, size);
+	cl = 0;
     }
     if (!cl) {
 	rd = getromdatabydata (rombuf, size);
@@ -963,10 +963,10 @@ int scan_roms (int show)
     for (i = 0; i < MAX_ROM_PATHS; i++)
 	paths[i] = NULL;
     for (;;) {
-	keys = get_keyring();
+	keys = get_keyring ();
 	fetch_path ("KickstartPath", path, sizeof path);
 	cnt += scan_roms_3 (fkey, paths, path);
-	if (1) {
+	if (TRUE) {
 	    for(i = 0; i < MAX_ROM_PATHS; i++) {
 		ret = get_rom_path (path, i);
 		if (ret < 0)
@@ -988,7 +988,7 @@ int scan_roms (int show)
 	scan_roms_3 (fkey, paths, workprefs.path_rom);
 
     for (i = 0; i < MAX_ROM_PATHS; i++)
-	xfree(paths[i]);
+	xfree (paths[i]);
 
     fkey2 = regcreatetree (NULL, "DetectedROMS");
     if (fkey2) {
@@ -5449,7 +5449,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
 	case WM_COMMAND:
 	{
-	    uae_u32 mask = workprefs.picasso96_modeflags;
 	    if (recursive > 0)
 		break;
 	    recursive++;
@@ -5463,6 +5462,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		break;
 	    }
     	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
+		uae_u32 mask = workprefs.picasso96_modeflags;
 		switch (LOWORD (wParam))
 		{
 		    case IDC_RTG_8BIT:
@@ -5516,9 +5516,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    }
 		    break;
 		}
+		workprefs.picasso96_modeflags = mask;
+		values_to_memorydlg (hDlg);
 	    }
-	    workprefs.picasso96_modeflags = mask;
-	    values_to_memorydlg (hDlg);
 	    recursive--;
 	}
 	break;
@@ -8724,13 +8724,13 @@ static void values_from_portsdlg (HWND hDlg)
 #endif
     }
 
-    workprefs.win32_midioutdev = SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0);
+    workprefs.win32_midioutdev = SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0);
     workprefs.win32_midioutdev -= 2;
 
     if( bNoMidiIn) {
 	workprefs.win32_midiindev = -1;
     } else {
-	workprefs.win32_midiindev = SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0);
+	workprefs.win32_midiindev = SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0);
     }
     ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
@@ -8770,7 +8770,7 @@ static void values_to_portsdlg (HWND hDlg)
     if(workprefs.prtname[0]) {
 	int i, got = 1;
 	char tmp[10];
-	result = SendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_FINDSTRINGEXACT, -1, (LPARAM)workprefs.prtname);
+	result = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_FINDSTRINGEXACT, -1, (LPARAM)workprefs.prtname);
 	for (i = 0; i < 4; i++) {
 	    sprintf (tmp, "LPT%d", i + 1);
 	    if (!strcmp (tmp, workprefs.prtname)) {
@@ -8783,30 +8783,30 @@ static void values_to_portsdlg (HWND hDlg)
 	if(result < 0 || got == 0) {
 	    // Warn the user that their printer-port selection is not valid on this machine
 	    char szMessage[MAX_DPATH];
-	    WIN32GUI_LoadUIString(IDS_INVALIDPRTPORT, szMessage, MAX_DPATH);
+	    WIN32GUI_LoadUIString (IDS_INVALIDPRTPORT, szMessage, MAX_DPATH);
 	    pre_gui_message (szMessage);
 	    // Disable the invalid parallel-port selection
 	    workprefs.prtname[0] = 0;
 	    result = 0;
 	}
     }
-    SetDlgItemInt(hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
-    CheckDlgButton(hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation);
-    CheckDlgButton(hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection);
-    SetDlgItemText(hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
+    SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
+    CheckDlgButton (hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation);
+    CheckDlgButton (hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection);
+    SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
 
-    SendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0);
-    SendDlgItemMessage(hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0);
+    SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0);
+    SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0);
     if (!bNoMidiIn && workprefs.win32_midiindev >= 0)
-	SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev, 0);
+	SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev, 0);
     else
-	SendDlgItemMessage(hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0);
     ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
-    CheckDlgButton(hDlg, IDC_UAESERIAL, workprefs.uaeserial);
-    CheckDlgButton(hDlg, IDC_SER_SHARED, workprefs.serial_demand);
-    CheckDlgButton(hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts);
-    CheckDlgButton(hDlg, IDC_SER_DIRECT, workprefs.serial_direct);
+    CheckDlgButton (hDlg, IDC_UAESERIAL, workprefs.uaeserial);
+    CheckDlgButton (hDlg, IDC_SER_SHARED, workprefs.serial_demand);
+    CheckDlgButton (hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts);
+    CheckDlgButton (hDlg, IDC_SER_DIRECT, workprefs.serial_direct);
 
     if(!workprefs.sername[0])  {
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, 0, 0L);
@@ -8866,12 +8866,12 @@ static void init_portsdlg (HWND hDlg)
     if(!pInfo) {
 	int flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
 	DWORD needed = 0;
-	EnumPrinters(flags, NULL, 1, (LPBYTE)pInfo, 0, &needed, &dwEnumeratedPrinters);
+	EnumPrinters (flags, NULL, 1, (LPBYTE)pInfo, 0, &needed, &dwEnumeratedPrinters);
 	if (needed > 0) {
 	    DWORD size = needed;
 	    pInfo = xcalloc (1, size);
 	    dwEnumeratedPrinters = 0;
-	    EnumPrinters(flags, NULL, 1, (LPBYTE)pInfo, size, &needed, &dwEnumeratedPrinters);
+	    EnumPrinters (flags, NULL, 1, (LPBYTE)pInfo, size, &needed, &dwEnumeratedPrinters);
 	}
 	if (dwEnumeratedPrinters == 0) {
 	    xfree (pInfo);
@@ -8993,13 +8993,13 @@ static char *eventnames[INPUTEVENT_END];
 
 static void values_to_inputdlg (HWND hDlg)
 {
-    SendDlgItemMessage(hDlg, IDC_INPUTTYPE, CB_SETCURSEL, workprefs.input_selected_setting, 0);
-    SendDlgItemMessage(hDlg, IDC_INPUTDEVICE, CB_SETCURSEL, input_selected_device, 0);
-    SetDlgItemInt(hDlg, IDC_INPUTDEADZONE, workprefs.input_joystick_deadzone, FALSE);
-    SetDlgItemInt(hDlg, IDC_INPUTAUTOFIRERATE, workprefs.input_autofire_framecnt, FALSE);
-    SetDlgItemInt(hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
-    SetDlgItemInt(hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
-    SetDlgItemInt(hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
+    SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_SETCURSEL, workprefs.input_selected_setting, 0);
+    SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_SETCURSEL, input_selected_device, 0);
+    SetDlgItemInt (hDlg, IDC_INPUTDEADZONE, workprefs.input_joystick_deadzone, FALSE);
+    SetDlgItemInt (hDlg, IDC_INPUTAUTOFIRERATE, workprefs.input_autofire_framecnt, FALSE);
+    SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
+    SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
+    SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
     CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
 }
 
@@ -10764,30 +10764,45 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     for (i = 0; i < cnt; i++) {
 	struct romdata *rd = NULL;
 	struct zfile *z;
-	int type = -1;
+	int type = -1, zip = 0;
 
 	DragQueryFile (hd, i, file, sizeof (file));
 	flags = GetFileAttributes (file);
 	if (flags & FILE_ATTRIBUTE_DIRECTORY)
 	    type = ZFILE_HDF;
 	if (type < 0) {
-	    z = zfile_fopen (file, "rb");
-	    if (z) {
-		type = zfile_gettype (z);
-		rd = getromdatabyzfile (z);
-		zfile_fclose (z);
-		z = NULL;
+	    if (currentpage < 0) {
+		z = zfile_fopen_nozip (file, "rb");
+		if (z) {
+		    if (iszip (z))
+			zip = 1;
+		    zfile_fclose (z);
+		}
+	    }
+	    if (!zip) {
+		z = zfile_fopen (file, "rb");
+		if (z) {
+		    if (currentpage < 0 && iszip (z)) {
+			zip = 1;
+		    } else {
+			type = zfile_gettype (z);
+			if (type == ZFILE_ROM)
+			    rd = getromdatabyzfile (z);
+		    }
+		    zfile_fclose (z);
+		    z = NULL;
+		}
 	    }
 	}
 
-	if (currentpage < 0 && i == 0) {
-	    if (do_filesys_insert (file))
-		continue;
+	if (zip) {
+	    do_filesys_insert (file);
+	    continue;
 	}
 
 	switch (type)
 	{
-	    case  ZFILE_DISKIMAGE:
+	    case ZFILE_DISKIMAGE:
 		if (currentpage == DISK_ID) {
 		    list = 0;
 		    while (list < MAX_SPARE_DRIVES) {
@@ -10843,6 +10858,10 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		    add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
 			32, 1, 2, 512, 0, NULL, 0, 0);
 		}
+	    break;
+	    case ZFILE_HDFRDB:
+	        add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
+		    0, 0, 0, 512, 0, NULL, 0, 0);
 	    break;
 	    case ZFILE_NVR:
 		strcpy (prefs->flashfile, file);

@@ -451,7 +451,7 @@ static void BlitRect (LPDIRECT3DDEVICE9 dev, LPDIRECT3DTEXTURE9 src,
     tin_ = internal window size
     twidth/theight = texture size
 */
-#if 1
+#if 0
 static void calc (float *xp, float *yp, float *sxp, float *syp)
 {
     float xm ,ym;
@@ -479,6 +479,18 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
     int xm, ym;
     int fx, fy;
     float x, y, sx, sy;
+    float multx, multy;
+
+    multx = (currprefs.gfx_filter_horiz_zoom + 1000.0) / 1000.;
+    if (currprefs.gfx_filter_horiz_zoom_mult)
+	multx *= 1000.0 / currprefs.gfx_filter_horiz_zoom_mult;
+    else
+	multx *= (float)window_w / tin_w;
+    multy = (currprefs.gfx_filter_vert_zoom + 1000.0) / 1000.;
+    if (currprefs.gfx_filter_vert_zoom_mult)
+	multy *= 1000.0 / currprefs.gfx_filter_vert_zoom_mult;
+    else
+	multy *= (float)window_h / tin_h;
 
     xm = 2 >> currprefs.gfx_resolution;
     ym = currprefs.gfx_linedbl ? 1 : 2;
@@ -498,8 +510,8 @@ static void calc (float *xp, float *yp, float *sxp, float *syp)
     fy = (tin_h * ym - window_h) / 2;
     x = (float)(window_w * currprefs.gfx_filter_horiz_offset / 1000.0);
     y = (float)(window_h * currprefs.gfx_filter_vert_offset / 1000.0);
-    sx = x + (float)(twidth * window_w / tin_w) * ((currprefs.gfx_filter_horiz_zoom + 1000) / 1000.0);
-    sy = y + (float)(theight * window_h / tin_h) * ((currprefs.gfx_filter_vert_zoom + 1000) / 1000.0);
+    sx = x + (float)(twidth * window_w / tin_w) * multx;
+    sy = y + (float)(theight * window_h / tin_h) * multy;
     x -= fx; y -= fy;
     sx += 2 * fx; sy += 2 * fy;
     *xp = x; *yp = y;

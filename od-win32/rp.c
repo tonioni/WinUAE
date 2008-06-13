@@ -211,6 +211,35 @@ static int port_insert (int num, const char *name)
     }
 }
 
+static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RPGUESTINFO *pInfo)
+{
+    BOOL v = FALSE;
+    static int cnt;
+    int ncnt;
+    int dolog = log_rp;
+
+    if (!pInfo) {
+	write_log ("RPPOST: pInfo == NULL!\n");
+        return FALSE;
+    }
+    if (uMessage == RPIPCGM_DEVICESEEK)
+	dolog = 0;
+    recursive++;
+    cnt++;
+    ncnt = cnt;
+    if (dolog)
+	write_log ("RPPOST_%d->\n", ncnt);
+    v = RPPostMessage (uMessage, wParam, lParam, pInfo);
+    recursive--;
+    if (dolog) {
+	write_log ("RPPOST_%d(%s [%d], %08x, %08x)\n", ncnt,
+	    getmsg (uMessage), uMessage - WM_APP, wParam, lParam);
+	if (v == FALSE)
+	    write_log("ERROR %d\n", GetLastError ());
+    }
+    return v;
+}
+
 static BOOL RPSendMessagex (UINT uMessage, WPARAM wParam, LPARAM lParam,
                    LPCVOID pData, DWORD dwDataSize, const RPGUESTINFO *pInfo, LRESULT *plResult)
 {
@@ -597,10 +626,11 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	    char *s = ua ((WCHAR*)pData);
 	    DWORD ret = FALSE;
 	    if (s == NULL) {
-		savestate_initsave (NULL, 0, 0);
+		savestate_initsave (NULL, 0, TRUE);
 		return 1;
 	    }
 	    if (vpos == 0) {
+		savestate_initsave ("", 1, TRUE);
 		save_state (s, "AF2008");
 		ret = 1;
 	    } else {
@@ -867,7 +897,7 @@ void rp_floppy_track (int floppy, int track)
 {
     if (!cando ())
 	return;
-    RPSendMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, NULL, 0, &guestinfo, NULL);
+    RPPostMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, &guestinfo);
 }
 
 void rp_update_leds (int led, int onoff, int write)
@@ -885,8 +915,8 @@ void rp_update_leds (int led, int onoff, int write)
 	case 2:
 	case 3:
 	case 4:
-        RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1),
-	    MAKELONG (onoff ? -1 : 0, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , NULL, 0, &guestinfo, NULL);
+        RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1),
+	    MAKELONG (onoff ? -1 : 0, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 	break;
     }
 }
@@ -898,8 +928,8 @@ void rp_hd_activity (int num, int onoff, int write)
     if (num < 0)
 	return;
     if (onoff)
-	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num),
-	    MAKELONG (200, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), NULL, 0, &guestinfo, NULL);
+	RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num),
+	    MAKELONG (200, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), &guestinfo);
 }
 
 void rp_cd_activity (int num, int onoff)
@@ -913,8 +943,8 @@ void rp_cd_activity (int num, int onoff)
         RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
     }
     if (onoff) {
-	RPSendMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num),
-	    MAKELONG (200, RP_DEVICEACTIVITY_READ), NULL, 0, &guestinfo, NULL);
+	RPPostMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num),
+	    MAKELONG (200, RP_DEVICEACTIVITY_READ), &guestinfo);
     }
 }
 

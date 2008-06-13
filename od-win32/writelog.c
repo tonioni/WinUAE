@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <sys/timeb.h>
 
+#include "options.h"
 #include "custom.h"
 #include "events.h"
 #include "debug.h"

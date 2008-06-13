@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os
  Created : 2007-08-24 15:29:26
- Updated : 2008-02-03 06:49:00
+ Updated : 2008-06-10 13:42:00
  Comment : RP Player interprocess communication include file (guest side)
  *****************************************************************************/
 
@@ -46,6 +46,7 @@ extern "C" {
 HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHostInfo, RPGUESTMSGFN pfnMsgFunction, LPARAM lMsgFunctionParam);
 void RPUninitializeGuest(RPGUESTINFO *pInfo);
 BOOL RPSendMessage(UINT uMessage, WPARAM wParam, LPARAM lParam, LPCVOID pData, DWORD dwDataSize, const RPGUESTINFO *pInfo, LRESULT *plResult);
+BOOL RPPostMessage(UINT uMessage, WPARAM wParam, LPARAM lParam, const RPGUESTINFO *pInfo);
 
 #ifdef __cplusplus
 }   // ... extern "C"

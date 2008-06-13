@@ -5,6 +5,7 @@
 #include "ddraw.h"
 
 extern int ddforceram;
+extern int useoverlay;
 
 struct ddstuff
 {
@@ -16,6 +17,8 @@ struct ddstuff
     LPDIRECTDRAWCLIPPER dclip;
     LPDIRECTDRAWSURFACE7 primary, secondary, flipping[2];
     LPDIRECTDRAWPALETTE palette;
+    DDOVERLAYFX overlayfx;
+    DWORD overlayflags;
     int fsmodeset, backbuffers;
     int width, height, depth, freq;
     int swidth, sheight;
@@ -26,7 +29,7 @@ struct ddstuff
     HWND hwnd;
     int maxwidth, maxheight;
     uae_u32 colorkey;
-    int islost;
+    int islost, isoverlay;
 
     LPDIRECTDRAWSURFACE7 cursorsurface1;
     LPDIRECTDRAWSURFACE7 cursorsurface2;

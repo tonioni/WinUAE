@@ -82,7 +82,7 @@ int setup_sound (void)
 
 static int isvsync(void)
 {
-    return (currprefs.gfx_avsync && currprefs.gfx_afullscreen) ? 1 : 0;
+    return currprefs.gfx_avsync && currprefs.gfx_afullscreen;
 }
 
 int scaled_sample_evtime_orig;
@@ -93,7 +93,7 @@ void update_sound (int freq)
 	freq = lastfreq;
     lastfreq = freq;
     if (have_sound) {
-	if (isvsync() || currprefs.chipset_refreshrate) {
+	if (isvsync () || currprefs.chipset_refreshrate) {
 	    if (currprefs.ntscmode)
 		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_NTSC * MAXVPOS_NTSC * freq * CYCLE_UNIT + obtainedfreq - 1) / obtainedfreq;
 	    else

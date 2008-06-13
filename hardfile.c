@@ -1067,7 +1067,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 		error = handle_scsi (request, hfd);
 	    } else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
 		error = IOERR_NOCMD;
-		write_log ("UAEHF: HD_SCSICMD tried on regular HDF, unit %d", unit);
+		write_log ("UAEHF: HD_SCSICMD tried on regular HDF, unit %d\n", unit);
 	    }
 	break;
 

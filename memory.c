@@ -225,7 +225,7 @@ static struct romdata roms[] = {
     ALTROMPN(17, 1, 1, 262144, ROMTYPE_EVEN, "391657-01", 0x0ca94f70,0xb3806eda,0xcb3362fc,0x16a154ce,0x1eeec5bf,0x5bc24789)
     ALTROMPN(17, 1, 2, 262144, ROMTYPE_ODD , "391658-01", 0xdfe03120,0xcd7a706c,0x431b04d8,0x7814d3a2,0xd8b39710,0x0cf44c0c)
     { "KS ROM v3.X (A4000)(Cloanto)", 3, 10, 45, 57, "A4000\0", 524288, 46, 2 | 4, 0, ROMTYPE_KICK, 0, 0, NULL,
-	0x08b69382, 0x81D3AEA3,0x0DB7FBBB,0x4AFEE41C,0x21C5ED66,0x2B70CA53 },
+	0x3ac99edc, 0x3cbfc9e1,0xfe396360,0x157bd161,0xde74fc90,0x1abee7ec },
 
     { "CD32 KS ROM v3.1", 3, 1, 40, 60, "CD32\0", 524288, 18, 1, 0, ROMTYPE_KICKCD32, 0, 0, NULL,
 	0x1e62d4a5, 0x3525BE88,0x87F79B59,0x29E017B4,0x2380A79E,0xDFEE542D },
@@ -578,56 +578,6 @@ struct rom_key {
 
 static struct rom_key keyring[ROM_KEY_NUM];
 
-int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size)
-{
-    int cnt, t, i, keysize;
-    uae_u8 *key;
-
-    for (i = ROM_KEY_NUM - 1; i >= 0; i--) {
-	keysize = keyring[i].size;
-	key = keyring[i].key;
-	if (!key)
-	    continue;
-	for (t = cnt = 0; cnt < size; cnt++, t = (t + 1) % keysize)  {
-	    mem[cnt] ^= key[t];
-	    if (real_size == cnt + 1)
-		t = keysize - 1;
-	}
-	if ((mem[2] == 0x4e && mem[3] == 0xf9) || (mem[0] == 0x11 && (mem[1] == 0x11 || mem[1] == 0x14)))
-	    return 1;
-	if (mem[0] == 0xd0 && mem[1] == 0x00 && mem[2] == 0x50 && mem[3] == 0x00) /* fmv */
-	    return 1;
-	for (t = cnt = 0; cnt < size; cnt++, t = (t + 1) % keysize)  {
-	    mem[cnt] ^= key[t];
-	    if (real_size == cnt + 1)
-		t = keysize - 1;
-	}
-    }
-    return 0;
-}
-
-static int decode_rekick_rom_do (uae_u8 *mem, int size, int real_size)
-{
-    uae_u32 d1 = 0xdeadfeed, d0;
-    int i;
-
-    for (i = 0; i < size / 8; i++) {
-	d0 = ((mem[i * 8 + 0] << 24) | (mem[i * 8 + 1] << 16) | (mem[i * 8 + 2] << 8) | mem[i * 8 + 3]);
-	d1 = d1 ^ d0;
-	mem[i * 8 + 0] = d1 >> 24;
-	mem[i * 8 + 1] = d1 >> 16;
-	mem[i * 8 + 2] = d1 >> 8;
-	mem[i * 8 + 3] = d1;
-	d1 = ((mem[i * 8 + 4] << 24) | (mem[i * 8 + 5] << 16) | (mem[i * 8 + 6] << 8) | mem[i * 8 + 7]);
-	d0 = d0 ^ d1;
-	mem[i * 8 + 4] = d0 >> 24;
-	mem[i * 8 + 5] = d0 >> 16;
-	mem[i * 8 + 6] = d0 >> 8;
-	mem[i * 8 + 7] = d0;
-    }
-    return 1;
-}
-
 static void addkey (uae_u8 *key, int size, const char *name)
 {
     int i;
@@ -787,23 +737,6 @@ void free_keyring (void)
     memset(keyring, 0, sizeof (struct rom_key) * ROM_KEY_NUM);
 }
 
-static int decode_rom (uae_u8 *mem, int size, int mode, int real_size)
-{
-    if (mode == 1) {
-	if (!decode_cloanto_rom_do (mem, size, real_size)) {
-	    #ifndef SINGLEFILE
-	    notify_user (NUMSG_NOROMKEY);
-	    #endif
-	    return 0;
-	}
-	return 1;
-    } else if (mode == 2) {
-	decode_rekick_rom_do (mem, size, real_size);
-	return 1;
-    }
-    return 0;
-}
-
 struct romdata *getromdatabyname (char *name)
 {
     char tmp[MAX_PATH];
@@ -880,13 +813,90 @@ static struct romdata *checkromdata (uae_u8 *sha1, int size, uae_u32 mask)
     while (roms[i].name) {
 	if (!notcrc32(roms[i].crc32) && roms[i].size >= size) {
 	    if (roms[i].type & mask) {
-		if (!cmpsha1(sha1, &roms[i]))
+		if (!cmpsha1 (sha1, &roms[i]))
 		    return &roms[i];
 	    }
 	}
 	i++;
     }
     return NULL;
+}
+
+int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size)
+{
+    int cnt, t, i;
+
+    for (i = ROM_KEY_NUM - 1; i >= 0; i--) {
+	uae_u8 sha1[SHA1_SIZE];
+	struct romdata *rd;
+	int keysize = keyring[i].size;
+	uae_u8 *key = keyring[i].key;
+	if (!key)
+	    continue;
+	for (t = cnt = 0; cnt < size; cnt++, t = (t + 1) % keysize)  {
+	    mem[cnt] ^= key[t];
+	    if (real_size == cnt + 1)
+		t = keysize - 1;
+	}
+	if ((mem[2] == 0x4e && mem[3] == 0xf9) || (mem[0] == 0x11 && (mem[1] == 0x11 || mem[1] == 0x14))) {
+	    cloanto_rom = 1;
+	    return 1;
+	}
+	get_sha1 (mem, size, sha1);
+	rd = checkromdata (sha1, size, -1);
+	if (rd) {
+	    if (rd->cloanto)
+		cloanto_rom = 1;
+	    return 1;
+	}
+	if (i == 0)
+	    break;
+	for (t = cnt = 0; cnt < size; cnt++, t = (t + 1) % keysize)  {
+	    mem[cnt] ^= key[t];
+	    if (real_size == cnt + 1)
+		t = keysize - 1;
+	}
+    }
+    return 0;
+}
+
+static int decode_rekick_rom_do (uae_u8 *mem, int size, int real_size)
+{
+    uae_u32 d1 = 0xdeadfeed, d0;
+    int i;
+
+    for (i = 0; i < size / 8; i++) {
+	d0 = ((mem[i * 8 + 0] << 24) | (mem[i * 8 + 1] << 16) | (mem[i * 8 + 2] << 8) | mem[i * 8 + 3]);
+	d1 = d1 ^ d0;
+	mem[i * 8 + 0] = d1 >> 24;
+	mem[i * 8 + 1] = d1 >> 16;
+	mem[i * 8 + 2] = d1 >> 8;
+	mem[i * 8 + 3] = d1;
+	d1 = ((mem[i * 8 + 4] << 24) | (mem[i * 8 + 5] << 16) | (mem[i * 8 + 6] << 8) | mem[i * 8 + 7]);
+	d0 = d0 ^ d1;
+	mem[i * 8 + 4] = d0 >> 24;
+	mem[i * 8 + 5] = d0 >> 16;
+	mem[i * 8 + 6] = d0 >> 8;
+	mem[i * 8 + 7] = d0;
+    }
+    return 1;
+}
+
+static int decode_rom (uae_u8 *mem, int size, int mode, int real_size)
+{
+    if (mode == 1) {
+	if (!decode_cloanto_rom_do (mem, size, real_size)) {
+	    #ifndef SINGLEFILE
+	    notify_user (NUMSG_NOROMKEY);
+	    #endif
+	    return 0;
+	}
+	return 1;
+    } else if (mode == 2) {
+	decode_rekick_rom_do (mem, size, real_size);
+	return 1;
+    }
+    return 0;
 }
 
 struct romdata *getromdatabydata (uae_u8 *rom, int size)
@@ -897,7 +907,7 @@ struct romdata *getromdatabydata (uae_u8 *rom, int size)
     struct romdata *ret = NULL;
 
     if (size > 11 && !memcmp (rom, "AMIROMTYPE1", 11)) {
-	uae_u8 *tmpbuf = (uae_u8*)xmalloc (size);
+	uae_u8 *tmpbuf = xmalloc (size);
 	int tmpsize = size - 11;
 	memcpy (tmpbuf, rom + 11, tmpsize);
 	decode_rom (tmpbuf, tmpsize, 1, tmpsize);
@@ -941,7 +951,7 @@ struct romdata *getromdatabyzfile (struct zfile *f)
     pos = zfile_ftell (f);
     zfile_fseek (f, 0, SEEK_END);
     size = zfile_ftell (f);
-    p = (uae_u8*)xmalloc (size);
+    p = xmalloc (size);
     if (!p)
 	return 0;
     memset (p, 0, size);
@@ -2393,7 +2403,7 @@ static int read_rom_file (uae_u8 *buf, struct romdata *rd)
 	return 0;
     addkeydir (rl->path);
     zfile_fread (tmp, sizeof tmp, 1, zf);
-    if (!memcmp (tmp, "AMIROMTYPE1", 11) != 0) {
+    if (!memcmp (tmp, "AMIROMTYPE1", sizeof tmp)) {
 	zfile_fread (buf, rd->size, 1, zf);
         decode_cloanto_rom_do (buf, rd->size, rd->size);
     } else {
@@ -2544,18 +2554,19 @@ struct zfile *read_rom_name (const char *filename)
     }
     f = zfile_fopen (filename, "rb");
     if (f) {
-	char tmp[11];
+	uae_u8 tmp[11];
 	zfile_fread (tmp, sizeof tmp, 1, f);
-	if (!memcmp (tmp, "AMIROMTYPE1", 11) != 0) {
+	if (!memcmp (tmp, "AMIROMTYPE1", sizeof tmp)) {
 	    struct zfile *df;
 	    int size;
 	    uae_u8 *buf;
+	    addkeydir (filename);
 	    zfile_fseek (f, 0, SEEK_END);
 	    size = zfile_ftell (f) - sizeof tmp;
 	    zfile_fseek (f, sizeof tmp, SEEK_SET);
 	    buf = xmalloc (size);
-	    df = zfile_fopen_empty ("tmp.rom", size);
 	    zfile_fread (buf, size, 1, f);
+	    df = zfile_fopen_empty ("tmp.rom", size);
 	    decode_cloanto_rom_do (buf, size, size);
 	    zfile_fwrite (buf, size, 1, df);
 	    zfile_fclose (f);
@@ -2563,21 +2574,19 @@ struct zfile *read_rom_name (const char *filename)
 	    zfile_fseek (df, 0, SEEK_SET);
 	    f = df;
 	} else {
-	    zfile_fseek (f, -sizeof tmp, SEEK_CUR);
+	    zfile_fseek (f, -((int)sizeof tmp), SEEK_CUR);
 	}
     }
     return f;
 }
 
 static char *kickstring = "exec.library";
-static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int *cloanto_rom, int noalias)
+static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int noalias)
 {
     unsigned char buffer[20];
     int i, j, oldpos;
     int cr = 0, kickdisk = 0;
 
-    if (cloanto_rom)
-	*cloanto_rom = 0;
     if (size < 0) {
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell (f) & ~0x3ff;
@@ -2597,11 +2606,9 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     } else if (strncmp ((char *)buffer, "AMIROMTYPE1", 11) != 0) {
 	zfile_fseek (f, oldpos, SEEK_SET);
     } else {
+	cloanto_rom = 1;
 	cr = 1;
     }
-
-    if (cloanto_rom)
-	*cloanto_rom = cr;
 
     i = zfile_fread (mem, 1, size, f);
     if (kickdisk && i > 262144)
@@ -2684,7 +2691,7 @@ static int load_extendedkickstart (void)
 	extendedkickmem_bank.baseaddr = extendedkickmemory;
 	break;
     }
-    read_kickstart (f, extendedkickmemory, extendedkickmem_size,  0, 0, 1);
+    read_kickstart (f, extendedkickmemory, extendedkickmem_size, 0, 1);
     extendedkickmem_mask = extendedkickmem_size - 1;
     zfile_fclose (f);
     return 1;
@@ -2787,10 +2794,12 @@ static void patch_kick (void)
 
 static int load_kickstart (void)
 {
-    struct zfile *f = read_rom_name (currprefs.romfile);
+    struct zfile *f;
     char tmprom[MAX_DPATH], tmprom2[MAX_DPATH];
     int patched = 0;
 
+    cloanto_rom = 0;
+    f = read_rom_name (currprefs.romfile);
     strcpy (tmprom, currprefs.romfile);
     if (f == NULL) {
 	sprintf (tmprom2, "%s%s", start_path_data, currprefs.romfile);
@@ -2815,7 +2824,7 @@ static int load_kickstart (void)
 	}
     }
     addkeydir (currprefs.romfile);
-    if( f == NULL ) { /* still no luck */
+    if (f == NULL) { /* still no luck */
 #if defined(AMIGA)||defined(__POS__)
 #define USE_UAE_ERSATZ "USE_UAE_ERSATZ"
 	if( !getenv(USE_UAE_ERSATZ))
@@ -2857,7 +2866,7 @@ static int load_kickstart (void)
 	    extpos = 0;
 	    zfile_fseek (f, kspos, SEEK_SET);
 	}
-	size = read_kickstart (f, kickmemory, maxsize, 1, &cloanto_rom, 0);
+	size = read_kickstart (f, kickmemory, maxsize, 1, 0);
 	if (size == 0)
 	    goto err;
 	kickmem_mask = size - 1;
@@ -2874,7 +2883,7 @@ static int load_kickstart (void)
 	    }
 	    extendedkickmem_bank.baseaddr = extendedkickmemory;
 	    zfile_fseek (f, extpos, SEEK_SET);
-	    read_kickstart (f, extendedkickmemory, extendedkickmem_size,  0, 0, 1);
+	    read_kickstart (f, extendedkickmemory, extendedkickmem_size, 0, 1);
 	    extendedkickmem_mask = extendedkickmem_size - 1;
 	}
 	if (filesize > 524288 * 2) {
@@ -2882,9 +2891,9 @@ static int load_kickstart (void)
 	    extendedkickmemory2 = mapped_malloc (extendedkickmem2_size, "rom_a8");
 	    extendedkickmem2_bank.baseaddr = extendedkickmemory2;
 	    zfile_fseek (f, extpos + 524288, SEEK_SET);
-	    read_kickstart (f, extendedkickmemory2, 524288, 0, 0, 1);
+	    read_kickstart (f, extendedkickmemory2, 524288, 0, 1);
 	    zfile_fseek (f, extpos + 524288 * 2, SEEK_SET);
-	    read_kickstart (f, extendedkickmemory2 + 524288, 524288, 0, 0, 1);
+	    read_kickstart (f, extendedkickmemory2 + 524288, 524288, 0, 1);
 	    extendedkickmem2_mask = extendedkickmem2_size - 1;
 	}
     }

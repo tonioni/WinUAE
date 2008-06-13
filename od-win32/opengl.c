@@ -463,10 +463,10 @@ void OGL_resize (int width, int height)
 static void OGL_dorender (int newtex)
 {
     uae_u8 *data = gfxvidinfo.bufmem;
-    float x1, y1, x2, y2, xm, ym;
-    RECT sr, dr;
+    float x1, y1, x2, y2;
 
-#if 1
+#if 0
+    RECT sr, dr;
     getfilterrect2 (&sr, &dr, w_width, w_height, t_width, t_height, 1, t_width, t_height);
     xm = (float)required_texture_size / t_width;
     ym = (float)required_texture_size / t_height;
@@ -480,6 +480,14 @@ static void OGL_dorender (int newtex)
 
 #else
     double fx, fy, xm, ym;
+    float multx, multy;
+
+    multx = (currprefs.gfx_filter_horiz_zoom + 1000.0) / 1000.;
+    if (currprefs.gfx_filter_horiz_zoom_mult)
+	multx *= 1000.0 / currprefs.gfx_filter_horiz_zoom_mult;
+    multy = (currprefs.gfx_filter_vert_zoom + 1000.0) / 1000.;
+    if (currprefs.gfx_filter_vert_zoom_mult)
+	multy *= 1000.0 / currprefs.gfx_filter_vert_zoom_mult;
 
     xm = 2 >> currprefs.gfx_resolution;
     ym = currprefs.gfx_linedbl ? 1 : 2;
@@ -500,8 +508,8 @@ static void OGL_dorender (int newtex)
 
     x1 = (float)(w_width * currprefs.gfx_filter_horiz_offset / 1000.0);
     y1 = (float)(w_height * currprefs.gfx_filter_vert_offset / 1000.0);
-    x2 = x1 + (float)((required_texture_size * w_width / t_width) * (currprefs.gfx_filter_horiz_zoom + 1000) / 1000.0);
-    y2 = y1 + (float)((required_texture_size * w_height / t_height) * (currprefs.gfx_filter_vert_zoom + 1000)/ 1000.0);
+    x2 = x1 + (float)((required_texture_size * w_width / t_width) * multx);
+    y2 = y1 + (float)((required_texture_size * w_height / t_height) * multy);
     x1 -= fx; y1 -= fy;
     x2 += 2 * fx; y2 += 2 * fy;
 

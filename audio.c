@@ -1086,7 +1086,7 @@ static void setirq (int nr)
 {
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("SETIRQ %d %08.8X\n", nr, M68K_GETPC);
+	write_log ("SETIRQ %d %08X\n", nr, M68K_GETPC);
 #endif
     INTREQ (0x8000 | (0x80 << nr));
 }
@@ -1118,7 +1118,7 @@ static void state23 (struct audio_channel_data *cdp)
 	    do_samplerip(cdp);
 #ifdef DEBUG_AUDIO
 	if (debugchannel (cdp - audio_channel))
-	    write_log ("Channel %d looped, LC=%08.8X LEN=%d\n", cdp - audio_channel, cdp->pt, cdp->wlen);
+	    write_log ("Channel %d looped, LC=%08X LEN=%d\n", cdp - audio_channel, cdp->pt, cdp->wlen);
 #endif
     } else {
 	cdp->wlen = (cdp->wlen - 1) & 0xFFFF;
@@ -1604,7 +1604,7 @@ void audio_hsync (int dmaaction)
 		    do_samplerip(cdp);
 #ifdef DEBUG_AUDIO
 		if (debugchannel (nr))
-		    write_log ("%d:>5: LEN=%d PT=%08.8X\n", nr, cdp->wlen, cdp->pt);
+		    write_log ("%d:>5: LEN=%d PT=%08X\n", nr, cdp->wlen, cdp->pt);
 #endif
 	    }
 	    cdp->dat2 = chipmem_agnus_wget (cdp->pt);
@@ -1622,7 +1622,7 @@ void audio_hsync (int dmaaction)
 	if (cdp->dmaen != chan_ena) {
 #ifdef DEBUG_AUDIO
 	    if (debugchannel (nr))
-		write_log ("AUD%dDMA %d->%d (%d) LEN=%d/%d %08.8X\n", nr, cdp->dmaen, chan_ena,
+		write_log ("AUD%dDMA %d->%d (%d) LEN=%d/%d %08X\n", nr, cdp->dmaen, chan_ena,
 		    cdp->state, cdp->wlen, cdp->len, M68K_GETPC);
 #endif
 	    cdp->dmaen = chan_ena;
@@ -1645,7 +1645,7 @@ void AUDxDAT (int nr, uae_u16 v)
 
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dDAT: %04.4X STATE=%d IRQ=%d %08.8X\n", nr,
+	write_log ("AUD%dDAT: %04X STATE=%d IRQ=%d %08X\n", nr,
 	    v, cdp->state, isirq(nr) ? 1 : 0, M68K_GETPC);
 #endif
     audio_activate();
@@ -1675,7 +1675,7 @@ void AUDxLCH (int nr, uae_u16 v)
     audio_channel[nr].lc = (audio_channel[nr].lc & 0xffff) | ((uae_u32)v << 16);
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLCH: %04.4X %08.8X\n", nr, v, M68K_GETPC);
+	write_log ("AUD%dLCH: %04X %08X\n", nr, v, M68K_GETPC);
 #endif
 }
 
@@ -1686,7 +1686,7 @@ void AUDxLCL (int nr, uae_u16 v)
     audio_channel[nr].lc = (audio_channel[nr].lc & ~0xffff) | (v & 0xFFFE);
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLCL: %04.4X %08.8X\n", nr, v, M68K_GETPC);
+	write_log ("AUD%dLCL: %04X %08X\n", nr, v, M68K_GETPC);
 #endif
 }
 
@@ -1702,7 +1702,7 @@ void AUDxPER (int nr, uae_u16 v)
     if (per < maxhpos * CYCLE_UNIT / 2 && currprefs.produce_sound < 3)
 	per = maxhpos * CYCLE_UNIT / 2;
     else if (per < 4 * CYCLE_UNIT)
-	 /* smaller value would cause extremely high cpu usage */
+	 /* smaller values would cause extremely high cpu usage */
 	per = 4 * CYCLE_UNIT;
 
    if (audio_channel[nr].per == PERIOD_MAX - 1 && per != PERIOD_MAX - 1) {
@@ -1716,7 +1716,7 @@ void AUDxPER (int nr, uae_u16 v)
     audio_channel[nr].per = per;
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dPER: %d %08.8X\n", nr, v, M68K_GETPC);
+	write_log ("AUD%dPER: %d %08X\n", nr, v, M68K_GETPC);
 #endif
 }
 
@@ -1727,7 +1727,7 @@ void AUDxLEN (int nr, uae_u16 v)
     audio_channel[nr].len = v;
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dLEN: %d %08.8X\n", nr, v, M68K_GETPC);
+	write_log ("AUD%dLEN: %d %08X\n", nr, v, M68K_GETPC);
 #endif
 }
 
@@ -1743,7 +1743,7 @@ void AUDxVOL (int nr, uae_u16 v)
 #endif
 #ifdef DEBUG_AUDIO
     if (debugchannel (nr))
-	write_log ("AUD%dVOL: %d %08.8X\n", nr, v2, M68K_GETPC);
+	write_log ("AUD%dVOL: %d %08X\n", nr, v2, M68K_GETPC);
 #endif
 }
 
@@ -1762,7 +1762,7 @@ void audio_update_irq (uae_u16 v)
 	if ((1 << i) & DEBUG_CHANNEL_MASK) {
 	    uae_u16 mask = 0x80 << i;
 	    if ((v2 & mask) != (v3 & mask))
-		write_log ("AUD%dINTREQ %d->%d %08.8X\n", i, !!(v3 & mask), !!(v2 & mask), M68K_GETPC);
+		write_log ("AUD%dINTREQ %d->%d %08X\n", i, !!(v3 & mask), !!(v2 & mask), M68K_GETPC);
 	}
     }
 #endif
@@ -1780,7 +1780,7 @@ void audio_update_adkmasks (void)
     if ((prevcon & 0xff) != (adkcon & 0xff)) {
 	audio_activate();
 #ifdef DEBUG_AUDIO
-	write_log ("ADKCON=%02.2x %08.8X\n", adkcon & 0xff, M68K_GETPC);
+	write_log ("ADKCON=%02x %08X\n", adkcon & 0xff, M68K_GETPC);
 #endif
 	prevcon = adkcon;
     }

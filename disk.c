@@ -2424,7 +2424,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		floppy[dr].mfmpos %= drv->tracklen;
 	    }
 	}
-	if ((dmacon & 0x210) == 0x210 && dskdmaen == 3 && dsklength > 0) {
+	if ((dmacon & 0x210) == 0x210 && dskdmaen == 3 && dsklength > 0 && !(adkcon &0x400)) {
 	    bitoffset++;
 	    bitoffset &= 15;
 	    if (!bitoffset) {
@@ -2494,7 +2494,7 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 		else
 		    tword |= getonebit (drv->bigmfmbuf, mfmpos);
 	    }
-	    if ((tword & 0xffff) == dsksync)
+	    if ((tword & 0xffff) == dsksync && dsksync != 0)
 		diskevent_flag |= DISK_WORDSYNC;
 	}
 	mfmpos++;
@@ -2783,7 +2783,8 @@ void DISK_update (int tohpos)
 	    drv->floppybitcounter %= drv->trackspeed;
 	    continue;
 	}
-	drive_fill_bigbuf (drv, 0);
+	if (drv->diskfile)
+	    drive_fill_bigbuf (drv, 0);
 	drv->mfmpos %= drv->tracklen;
     }
     didread = 0;

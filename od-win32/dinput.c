@@ -544,7 +544,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		break;
 	}
 #ifdef DI_DEBUG2
-	write_log ("HANDLE=%08.8x %04.4x %04.4x %04.4x %08.8x %3d %3d %08.8x M=%d\n",
+	write_log ("HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n",
 	    raw->header.hDevice,
 	    rm->usFlags,
 	    rm->usButtonFlags,
@@ -729,7 +729,7 @@ static void sortobjects (struct didata *did, int *mappings, int *sort, char **na
     if (num > 0) {
 	write_log ("%s (GUID=%s):\n", did->name, outGUID (&did->guid));
 	for (i = 0; i < num; i++)
-	    write_log ("%02.2X %0.03d '%s' (%d,%d)\n", mappings[i], mappings[i], names[i], sort[i], types ? types[i] : -1);
+	    write_log ("%02X %03d '%s' (%d,%d)\n", mappings[i], mappings[i], names[i], sort[i], types ? types[i] : -1);
     }
 #endif
 }
@@ -772,18 +772,28 @@ static int makesort_mouse (const GUID *g, int *dwofs)
 static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, VOID *pContext)
 {
     struct didata *did = pContext;
-    int i = 0;
+    int i;
     char tmp[100];
 
     if (pdidoi->dwType & DIDFT_AXIS) {
+	int sort = 0;
 	if (did->axles >= MAX_MAPPINGS)
 	    return DIENUM_CONTINUE;
 	did->axismappings[did->axles] = pdidoi->dwOfs;
 	did->axisname[did->axles] = my_strdup (pdidoi->tszName);
 	if (did->type == DID_JOYSTICK)
-	    did->axissort[did->axles] = makesort_joy (&pdidoi->guidType, &did->axismappings[did->axles]);
+	    sort = makesort_joy (&pdidoi->guidType, &did->axismappings[did->axles]);
 	else if (did->type == DID_MOUSE)
-	    did->axissort[did->axles] = makesort_mouse (&pdidoi->guidType, &did->axismappings[did->axles]);
+	    sort = makesort_mouse (&pdidoi->guidType, &did->axismappings[did->axles]);
+	if (sort < 0) {
+	    for (i = 0; i < did->axles; i++) {
+		if (did->axissort[i] == sort) {
+		    write_log ("ignored duplicate '%s'\n", pdidoi->tszName);
+		    return DIENUM_CONTINUE;
+		}
+	    }
+	}
+	did->axissort[did->axles] = sort;
 	did->axles++;
     }
     if (pdidoi->dwType & DIDFT_POV) {
@@ -863,7 +873,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 #ifdef DI_DEBUG
     write_log ("I=%s ", outGUID (&lpddi->guidInstance));
     write_log ("P=%s\n", outGUID (&lpddi->guidProduct));
-    write_log ("'%s' '%s' %08.8X [%s]\n", lpddi->tszProductName, lpddi->tszInstanceName, lpddi->dwDevType, typetxt);
+    write_log ("'%s' '%s' %08X [%s]\n", lpddi->tszProductName, lpddi->tszInstanceName, lpddi->dwDevType, typetxt);
 #endif
 
     if (did == di_mouse) {
@@ -1277,7 +1287,7 @@ static int get_kb_widget_first (int kb, int type)
 static int get_kb_widget_type (int kb, int num, char *name, uae_u32 *code)
 {
     if (name)
-	sprintf (name, "[%02.2X] %s", di_keyboard[kb].buttonmappings[num], di_keyboard[kb].buttonname[num]);
+	sprintf (name, "[%02X] %s", di_keyboard[kb].buttonmappings[num], di_keyboard[kb].buttonname[num]);
     if (code)
 	*code = di_keyboard[kb].buttonmappings[num];
     return IDEV_WIDGET_KEY;
@@ -1499,7 +1509,7 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 		continue;
 	    if (kc[i] & 0x80) kc[i] = 1; else kc[i] = 0;
 	    if (kc[i] != di_keycodes[num][i]) {
-		write_log ("%02.2X -> %d\n", i, kc[i]);
+		write_log ("%02X -> %d\n", i, kc[i]);
 		di_keycodes[num][i] = kc[i];
 		my_kbd_handler (num, i, kc[i]);
 	    }

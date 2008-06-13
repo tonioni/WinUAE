@@ -3526,7 +3526,7 @@ action_read (Unit *unit, dpacket packet)
 	if (size > filesize)
 	    size = filesize;
 
-	buf = (char *)malloc(size);
+	buf = xmalloc (size);
 	if (!buf) {
 	    PUT_PCK_RES1 (packet, -1);
 	    PUT_PCK_RES2 (packet, ERROR_NO_FREE_STORE);

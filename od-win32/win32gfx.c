@@ -87,6 +87,7 @@ struct winuae_currentmode {
     int frequency;
     int initdone;
     int fullfill;
+    int vsync;
     LPPALETTEENTRY pal;
 };
 
@@ -682,7 +683,7 @@ uae_u8 *gfx_lock_picasso (void)
     if (!DirectDraw_SurfaceLock ())
 	return 0;
     picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
-    return (uae_u8*)DirectDraw_GetSurfacePointer ();
+    return DirectDraw_GetSurfacePointer ();
 }
 
 /* For the DX_Invalidate() and gfx_unlock_picasso() functions */
@@ -763,15 +764,20 @@ static void update_gfxparams (void)
 {
     updatewinfsmode (&currprefs);
 #ifdef PICASSO96
+    currentmode->vsync = 0;
     if (screen_is_picasso && !scalepicasso) {
 	currentmode->current_width = picasso96_state.Width;
 	currentmode->current_height = picasso96_state.Height;
 	currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
+	if (currprefs.gfx_pvsync)
+	    currentmode->vsync = 1;
     } else {
 #endif
 	currentmode->current_width = currprefs.gfx_size.width;
 	currentmode->current_height = currprefs.gfx_size.height;
 	currentmode->frequency = abs (currprefs.gfx_refreshrate);
+	if (currprefs.gfx_avsync)
+	    currentmode->vsync = 1;
 #ifdef PICASSO96
     }
 #endif
@@ -787,6 +793,8 @@ static void update_gfxparams (void)
 	if (pbits >= 8)
 	    currentmode->current_depth = pbits;
     }
+    if (useoverlay && currentmode->current_depth > 16)
+	currentmode->current_depth = 16;
     currentmode->amiga_width = currentmode->current_width;
     currentmode->amiga_height = currentmode->current_height;
 }
@@ -1250,8 +1258,6 @@ static int reopen (int full)
     currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
     currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
 
-
-   
     if (!quick)
 	return 1;
     
@@ -1290,7 +1296,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 	    if (currentmode->current_width != wc->current_width ||
 		currentmode->current_height != wc->current_height ||
 		currentmode->current_depth != wc->current_depth)
-		return -1;
+		    return -1;
 	}
     } else if (isfullscreen () == 0) {
 	/* windowed to windowed */
@@ -1759,6 +1765,8 @@ static void updatemodes (void)
     currentmode->flags = flags;
     if (flags & DM_SWSCALE)
 	currentmode->fullfill = 1;
+    if (useoverlay && currentmode->current_depth > 16)
+	currentmode->current_depth = 16;
 }
 
 static BOOL doInit (void)
@@ -1916,7 +1924,7 @@ static BOOL doInit (void)
     picasso_vidinfo.depth = currentmode->current_depth;
 #endif
 
-    if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
+    if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE | DM_OPENGL))) {
 
 	;
 

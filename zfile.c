@@ -121,16 +121,20 @@ int zfile_gettype (struct zfile *z)
 	    return ZFILE_NVR;
 	if (strcasecmp (ext, "uae") == 0)
 	    return ZFILE_CONFIGURATION;
-	if (strcasecmp (ext, "hdf") == 0)
-	    return ZFILE_HDF;
-	if (strcasecmp (ext, "hdz") == 0)
-	    return ZFILE_HDF;
     }
     memset (buf, 0, sizeof (buf));
     zfile_fread (buf, 8, 1, z);
     zfile_fseek (z, -8, SEEK_CUR);
     if (!memcmp (buf, exeheader, sizeof(buf)))
 	return ZFILE_DISKIMAGE;
+    if (!memcmp (buf, "RDSK", 4))
+	return ZFILE_HDFRDB;
+    if (ext != NULL) {
+	if (strcasecmp (ext, "hdf") == 0)
+	    return ZFILE_HDF;
+	if (strcasecmp (ext, "hdz") == 0)
+	    return ZFILE_HDF;
+    }
     return ZFILE_UNKNOWN;
 }
 
@@ -442,7 +446,7 @@ static struct zfile *zfile_opensinglefile(struct zfile *l)
 }
 #endif
 
-static struct zfile *zfile_fopen_nozip (const char *name, const char *mode)
+struct zfile *zfile_fopen_nozip (const char *name, const char *mode)
 {
     struct zfile *l;
     FILE *f;
@@ -635,9 +639,8 @@ struct zfile *zfile_fopen_empty (const char *name, int size)
     l = zfile_create ();
     l->name = name ? strdup (name) : "";
     if (size) {
-	l->data = xmalloc (size);
+	l->data = xcalloc (size, 1);
 	l->size = size;
-	memset (l->data, 0, size);
     } else {
 	l->data = xcalloc (1, 1);
 	l->size = 0;

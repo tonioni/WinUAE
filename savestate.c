@@ -81,7 +81,7 @@ static int replaybuffersize;
 char savestate_fname[MAX_DPATH];
 static struct staterecord staterecords[MAX_STATERECORDS];
 
-static void state_incompatible_warn(void)
+static void state_incompatible_warn (void)
 {
     static int warned;
     int dowarn = 0;

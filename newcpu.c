@@ -36,8 +36,6 @@ extern uae_u8* compiled_code;
 #include <signal.h>
 /* For faster cycles handling */
 signed long pissoff = 0;
-/* Counter for missed vsyncmintime deadlines */
-int gonebad = 0;
 #else
 /* Need to have these somewhere */
 static void build_comp (void) {}

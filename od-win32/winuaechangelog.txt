@@ -1,4 +1,21 @@
 
+Beta 23:
+
+- OGL/D3D fixed but uses old scaling method (update after 1.5)
+- AF2008 ROM scanner detection problems really fixed
+- JIT timing change test (perhaps faster CPU without other
+  side-effects..), added command line parameter -jitevent <val>
+  current default 10000, old was 3000. Experiment if interested..
+- default display buffer setting changed to "DefaultRAM" (which
+  is same as in 1.4.6 and older, can cause too much confusion
+  if new version even in non-Picasso96 mode is much slower than
+  old version due to weird display drivers)
+- disk write does not start if wordsync is enabled
+- improved rare heavy CPU usage situation when sync word=0
+  without disk inserted
+- improved dragndrop file type autodetection
+- ignore duplicate directinput joystick axis indexes
+
 Beta 22: (To do: OGL/D3D scaling options. bleh.)
 
 - AF2008 non-KS/extended ROMs didn't decrypt properly
@@ -9,8 +26,8 @@ Beta 22: (To do: OGL/D3D scaling options. bleh.)
 - Action Replay 3 v3.09 even/odd ROM checksums added (roms dumped,
   thanks to Jope for adding ROM sockets to my AR3). First four bytes,
   io-addresses that can't be dumped using software dump method, are
-  0x50 0x00 0x00 0x00 (how boring..)
-- possible fix for slow GUI Memory-panel
+  0x50 0x00 0x00 0x00. (how boring..)
+- possible fix for sluggish GUI Memory-panel
 
 Beta 21:
 

@@ -1671,7 +1671,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 
 static void record_register_change (int hpos, int regno, unsigned long value)
 {
-    magic_centering (regno, value, vpos);
+    //magic_centering (regno, value, vpos);
     if (regno == 0x100) {
 	if (passed_plfstop >= 3)
 	    return;
@@ -3111,7 +3111,7 @@ static void BPL1MOD (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     decide_fetch (hpos);
-    magic_centering (0x108, v, vpos);
+    //magic_centering (0x108, v, vpos);
     bpl1mod = v;
 }
 
@@ -3122,7 +3122,7 @@ static void BPL2MOD (int hpos, uae_u16 v)
 	return;
     decide_line (hpos);
     decide_fetch (hpos);
-    magic_centering (0x10a, v, vpos);
+    //magic_centering (0x10a, v, vpos);
     bpl2mod = v;
 }
 
@@ -3180,7 +3180,7 @@ static void DDFSTRT (int hpos, uae_u16 v)
     ddfstrt_old_vpos = vpos;
     ddfstrt = v;
     calcdiw ();
-    magic_centering (0x92, v, vpos);
+    //magic_centering (0x92, v, vpos);
     if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
 	static int last_warned;
 	last_warned = (last_warned + 1) & 4095;
@@ -3201,7 +3201,7 @@ static void DDFSTOP (int hpos, uae_u16 v)
     decide_blitter (hpos);
     ddfstop = v;
     calcdiw ();
-    magic_centering (0x94, v, vpos);
+    //magic_centering (0x94, v, vpos);
     if (fetch_state != fetch_not_started)
 	estimate_last_fetch_cycle (hpos);
     if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
@@ -3216,7 +3216,7 @@ static void FMODE (uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_AGA))
 	v = 0;
-    magic_centering (0x1fc, v, vpos);
+    //magic_centering (0x1fc, v, vpos);
     ddf_change = vpos;
     fmode = v;
     sprite_width = GET_SPRITEWIDTH (fmode);
@@ -4366,7 +4366,7 @@ static void fpscounter (void)
 
 static void vsync_handler (void)
 {
-    magic_centering (0, 0, 0);
+    //magic_centering (0, 0, 0);
     fpscounter ();
 
     if (!isvsync ()
@@ -4396,6 +4396,8 @@ static void vsync_handler (void)
 	    }
 	}
 #endif
+    } else {
+	framewait ();
     }
 
     if (bogusframe > 0)
@@ -4640,7 +4642,7 @@ static void hsync_handler (void)
 	}
     } else {
 #endif
-	is_lastline = vpos + 1 == maxvpos + (lof == 0 ? 0 : 1) && currprefs.m68k_speed == -1 && ! rpt_did_reset;
+	is_lastline = vpos + 1 == maxvpos + (lof == 0 ? 0 : 1) && currprefs.m68k_speed == -1;
 #ifdef JIT
     }
 #endif

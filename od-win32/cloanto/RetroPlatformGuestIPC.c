@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-24 15:28:48
- Updated : 2008-02-03 06:49:00
+ Updated : 2008-06-10 13:42:00
  Comment : RP Player interprocess communication functions (guest side)
  Note    : Can be compiled both in Unicode and Multibyte projects
  *****************************************************************************/
@@ -174,6 +174,31 @@ BOOL RPSendMessage(UINT uMessage, WPARAM wParam, LPARAM lParam,
 		*plResult = dwResult;
 
 	return TRUE;
+}
+
+/*****************************************************************************
+ Name      : RPPostMessage
+ Arguments : UINT uMessage            - 
+           : WPARAM wParam            - 
+           : LPARAM lParam            - 
+           : const RPGUESTINFO *pInfo - 
+ Return    : BOOL                     - 
+ Authors   : os
+ Created   : 2008-06-10 13:30:34
+ Comment   : the guest calls this function to post messages to the host
+             (unlike RPSendMessage(), this function sends messages
+			  in asynchronous fashion and cannot be used to post messages which require
+			  a reply from the host and/or messages which include additional data)
+ *****************************************************************************/
+
+BOOL RPPostMessage(UINT uMessage, WPARAM wParam, LPARAM lParam, const RPGUESTINFO *pInfo)
+{
+	if (!pInfo)
+		return FALSE;
+	if (!pInfo->hHostMessageWindow)
+		return FALSE;
+
+	return PostMessage(pInfo->hHostMessageWindow, uMessage, wParam, lParam);
 }
 
 /*****************************************************************************

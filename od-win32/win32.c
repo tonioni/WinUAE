@@ -76,6 +76,7 @@
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 int log_scsi, log_net, uaelib_debug;
+int pissoff_value = 10000;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -1273,7 +1274,7 @@ void handle_events (void)
 	    manual_painting_needed++;
 	    gui_fps (0, 0);
 	}
-	if (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 	    TranslateMessage (&msg);
 	    DispatchMessage (&msg);
 	}
@@ -2206,13 +2207,13 @@ void set_path (char *name, char *path)
     if (!strcmp (name, "KickstartPath")) {
 	DWORD v = GetFileAttributes (tmp);
 	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
-	    get_rom_path(tmp, 0);
+	    get_rom_path (tmp, 0);
 	if ((af_path_2005 & 1) && path_type == PATH_TYPE_NEWAF) {
-	    get_rom_path(tmp, 1);
+	    get_rom_path (tmp, 1);
 	} else if ((af_path_2005 & 2) && path_type == PATH_TYPE_AMIGAFOREVERDATA) {
-	    get_rom_path(tmp, 2);
+	    get_rom_path (tmp, 2);
 	} else if (af_path_old && path_type == PATH_TYPE_OLDAF) {
-	    get_rom_path(tmp, 3);
+	    get_rom_path (tmp, 3);
 	}
     }
     fixtrailing (tmp);
@@ -2728,13 +2729,23 @@ static void getstartpaths (void)
     }
 
     strcpy (tmp, start_path_exe);
-    strcat (tmp, "..\\shared\\rom\\rom.key");
+    strcat (tmp, "..\\system\\rom\\rom.key");
     v = GetFileAttributes (tmp);
     if (v != INVALID_FILE_ATTRIBUTES) {
 	af_path_old = 1;
 	strcpy (xstart_path_old, start_path_exe);
-	strcat (xstart_path_old, "..\\shared\\");
+	strcat (xstart_path_old, "..\\system\\");
 	strcpy (start_path_af, xstart_path_old);
+    } else {
+	strcpy (tmp, start_path_exe);
+	strcat (tmp, "..\\shared\\rom\\rom.key");
+	v = GetFileAttributes (tmp);
+	if (v != INVALID_FILE_ATTRIBUTES) {
+	    af_path_old = 1;
+	    strcpy (xstart_path_old, start_path_exe);
+	    strcat (xstart_path_old, "..\\shared\\");
+	    strcpy (start_path_af, xstart_path_old);
+	}
     }
 
     p = getenv ("AMIGAFOREVERDATA");
@@ -2760,13 +2771,21 @@ static void getstartpaths (void)
 	    strcat (tmp, "WinUAE");
 	    v = GetFileAttributes (tmp);
 	    if (v == INVALID_FILE_ATTRIBUTES || (v & FILE_ATTRIBUTE_DIRECTORY)) {
+		char *p;
 		strcpy (xstart_path_new1, tmp2);
 		strcat (xstart_path_new1, "WinUAE\\");
 		strcpy (xstart_path_uae, start_path_exe);
 		strcpy (start_path_new1, xstart_path_new1);
-		strcat(tmp2, "System");
-		if (isfilesindir (tmp2))
+		p = tmp2 + strlen (tmp2);
+		strcpy (p, "System");
+		if (isfilesindir (tmp2)) {
 		    af_path_2005 |= 1;
+		} else {
+		    strcpy (p, "Shared");
+		    if (isfilesindir (tmp2)) {
+			af_path_2005 |= 1;
+		    }
+		}
 	    }
 	}
     }
@@ -2800,10 +2819,17 @@ static void getstartpaths (void)
 	    if (af_path_2005 & 2) {
 		strcpy (tmp, xstart_path_new2);
 		strcat (tmp, "system\\rom");
-		if (isfilesindir (tmp))
+		if (isfilesindir (tmp)) {
 		    path_type = PATH_TYPE_AMIGAFOREVERDATA;
-		else
-		    path_type = PATH_TYPE_NEWWINUAE;
+		} else {
+		    strcpy (tmp, xstart_path_new2);
+		    strcat (tmp, "shared\\rom");
+		    if (isfilesindir (tmp)) {
+			path_type = PATH_TYPE_AMIGAFOREVERDATA;
+		    } else {
+			path_type = PATH_TYPE_NEWWINUAE;
+		    }
+		}
 		strcpy (start_path_data, xstart_path_new2);
 	    }
 	}
@@ -2996,6 +3022,11 @@ static int process_arg(char **xargv)
 	    if (!strcmp (arg, "-minidumpmode")) {
 		i++;
 		minidumpmode = getval (np);
+		continue;
+	    }
+	    if (!strcmp (arg, "-jitevent")) {
+		i++;
+		pissoff_value = getval (np);
 		continue;
 	    }
 #ifdef RETROPLATFORM

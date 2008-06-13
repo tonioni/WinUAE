@@ -12,7 +12,8 @@
 
 struct ddstuff dxdata;
 static int flipinterval_supported = 1;
-int ddforceram = 0;
+int ddforceram = DDFORCED_DEFAULT;
+int useoverlay = 0;
 
 HRESULT DirectDraw_GetDisplayMode (void)
 {
@@ -303,7 +304,26 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 	}
     } else {
-	ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
+	if (useoverlay && DirectDraw_GetCurrentDepth () == 32) {
+	    DDPIXELFORMAT of;
+	    DWORD dwDDSColor;
+	    memset (&of, 0, sizeof (of));
+	    of.dwRGBBitCount = 16;
+	    of.dwRBitMask    = 0xF800;
+	    of.dwGBitMask    = 0x07E0;
+	    of.dwBBitMask    = 0x001F;
+	    desc.ddsCaps.dwCaps = DDSCAPS_OVERLAY | DDSCAPS_PRIMARYSURFACE;
+	    desc.ddpfPixelFormat = of;
+	    dxdata.overlayfx.dwSize = sizeof (DDOVERLAYFX);
+	    dxdata.overlayflags = DDOVER_SHOW | DDOVER_DDFX | DDOVER_KEYDESTOVERRIDE;
+	    dwDDSColor = 0xff00ff;
+	    dxdata.overlayfx.dckDestColorkey.dwColorSpaceLowValue  = dwDDSColor;
+	    dxdata.overlayfx.dckDestColorkey.dwColorSpaceHighValue = dwDDSColor;
+	    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
+	    dxdata.isoverlay = 1;
+	} else {
+	    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
+	}
     }
     if (FAILED (ddrval)) {
         write_log ("IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
@@ -817,6 +837,7 @@ void DirectDraw_Release (void)
 {
     if (!dxdata.ddinit)
 	return;
+    dxdata.isoverlay = 0;
     dxdata.islost = 0;
     dxdata.ddinit = 0;
     freemainsurface ();
