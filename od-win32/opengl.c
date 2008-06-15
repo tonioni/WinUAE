@@ -48,7 +48,7 @@ static int required_texture_size;
 static int required_sl_texture_size;
 static GLint ti2d_internalformat, ti2d_format, ti2d_type;
 static GLint sl_ti2d_internalformat, sl_ti2d_format, sl_ti2d_type;
-static int w_width, w_height, t_width, t_height;
+static int w_width, w_height, t_width, t_height, t_depth;
 static int packed_pixels;
 static int doublevsync;
 static int ogl_enabled;
@@ -196,6 +196,7 @@ const char *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     w_height = w_h;
     t_width = t_w;
     t_height = t_h;
+    t_depth = depth;
 
     hwnd = ahwnd;
     total_textures = 2;
@@ -435,7 +436,7 @@ static void OGL_swapinterval (void)
     doublevsync = 0;
     if (wglSwapIntervalEXT) {
 	int i1, i2;
-	i1 = (currprefs.gfx_avsync > 0 && isfullscreen() > 0) ? (currprefs.gfx_refreshrate > 85 ? 2 : 1) : 0;
+	i1 = (currprefs.gfx_avsync > 0 && isfullscreen() > 0) ? (abs (currprefs.gfx_refreshrate) > 85 ? 2 : 1) : 0;
 	if (turbo_emulation)
 	    i1 = 0;
 	wglSwapIntervalEXT (i1);
@@ -523,7 +524,7 @@ static void OGL_dorender (int newtex)
     glLoadIdentity ();
 
     glBindTexture (GL_TEXTURE_2D, tex[0]);
-    if (newtex)
+    if (newtex && gfxvidinfo.bufmem + t_width * t_height * t_depth / 8 <= gfxvidinfo.bufmemend)
 	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, t_width, t_height, ti2d_format, ti2d_type, data);
 
     glBegin (GL_QUADS);

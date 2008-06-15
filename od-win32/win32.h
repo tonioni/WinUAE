@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 23
+#define WINUAEBETA 24
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 6, 13)
+#define WINUAEDATE MAKEBD(2008, 6, 15)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -107,9 +107,10 @@ extern int dinput_wmkey (uae_u32 key);
 extern int dinput_winmouse (void);
 extern int dinput_wheelbuttonstart (void);
 extern int dinput_winmousemode (void);
+extern void dinput_window (void);
 
 void addnotifications (HWND hwnd, int remove);
-int win32_hardfile_media_change (void);
+int win32_hardfile_media_change (const char *drvname, int inserted);
 extern int CheckRM(char *DriveName);
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);
@@ -136,4 +137,5 @@ extern void logging_open(int,int);
 extern void logging_cleanup(void);
 
 extern LONG WINAPI WIN32_ExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
+
 #endif

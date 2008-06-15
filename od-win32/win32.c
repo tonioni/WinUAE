@@ -808,6 +808,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	DragAcceptFiles (hWnd, TRUE);
     return 0;
 
+    case WM_DESTROY:
+	inputdevice_unacquire ();
+	dinput_window ();
+    return 0;
+
     case WM_CLOSE:
 	uae_quit ();
     return 0;
@@ -912,7 +917,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    if(SHGetPathFromIDList((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
 		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
 		write_log("Shell Notification %d '%s'\n", inserted, path);
-		if (!win32_hardfile_media_change ()) {	
+		if (!win32_hardfile_media_change (path, inserted)) {	
 		    if ((inserted && CheckRM (path)) || !inserted) {
 			if (inserted) {
 			    DWORD type = GetDriveType(path);
@@ -971,7 +976,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			    }
 			    if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 				write_log("WM_DEVICECHANGE '%s' type=%d inserted=%d\n", drvname, type, inserted);
-				if (!win32_hardfile_media_change ()) {
+				if (!win32_hardfile_media_change (drvname, inserted)) {
 				    if ((inserted && CheckRM (drvname)) || !inserted) {
 					if (type == DRIVE_CDROM && inserted)
 					    inserted = -1;
@@ -1113,7 +1118,6 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_SIZING:
      case WM_SIZE:
      case WM_GETMINMAXINFO:
-     case WM_CREATE:
      case WM_DESTROY:
      case WM_CLOSE:
      case WM_HELP:
@@ -1126,7 +1130,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_ENABLE:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
-     case WM_DISPLAYCHANGE:
+    case WM_DISPLAYCHANGE:
 	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel())
 	    WIN32GFX_DisplayChangeRequested();
 	break;

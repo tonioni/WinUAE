@@ -307,13 +307,13 @@ end:
 
 void hdf_close (struct hardfiledata *hfd)
 {
-    if (!hfd->handle_valid)
-	return;
-    if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
-	if (hfd->handle_valid == HDF_HANDLE_WIN32)
-	    CloseHandle (hfd->handle);
-	else if(hfd->handle_valid == HDF_HANDLE_ZFILE)
-	    zfile_fclose (hfd->handle);
+    if (hfd->handle_valid) {
+	if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
+	    if (hfd->handle_valid == HDF_HANDLE_WIN32)
+		CloseHandle (hfd->handle);
+	    else if(hfd->handle_valid == HDF_HANDLE_ZFILE)
+		zfile_fclose (hfd->handle);
+	}
     }
     xfree (hfd->emptyname);
     hfd->emptyname = NULL;
@@ -1257,7 +1257,8 @@ end:
 int hardfile_remount (int nr);
 
 
-static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci, int *rescanned, int *reopen, int *gotinsert)
+static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci, int *rescanned, int *reopen,
+		       int *gotinsert, const char *drvname, int inserted)
 {
     int ret;
 
@@ -1267,6 +1268,20 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
 	hdf_init2 (1);
 	*rescanned = 1;
     }
+    if (hfd->emptyname && strlen (hfd->emptyname) >= 6 && drvname && strlen (drvname) == 3 && drvname[1] == ':' && drvname[2] == '\\' && !inserted) { /* drive letter check */
+	char tmp[10], *p;
+	sprintf (tmp, "\\\\.\\%c:", drvname[0]);
+	p = hfd->emptyname + strlen (hfd->emptyname) - 6;
+	write_log("workaround-remove test: '%s' and '%s'\n", p, drvname);
+	if (!strcmp (tmp, p)) {
+	    write_log ("workaround-remove done\n");
+	    hdf_close (hfd);
+	    hfd->drive_empty = 0;
+	    hardfile_do_disk_change (uci, 0);
+	    return;
+	}
+    }
+
     if (hfd->drive_empty < 0 || !hfd->handle_valid) {
         int empty = hfd->drive_empty;
         int r;
@@ -1295,24 +1310,29 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
     hardfile_do_disk_change (uci, ret < 0 ? 0 : 1);
 }
 
-int win32_hardfile_media_change (void)
+int win32_hardfile_media_change (const char *drvname, int inserted)
 {
     int gotinsert = 0, rescanned = 0;
-    int i;
+    int i, j;
 
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 	struct hardfiledata *hfd = get_hardfile_data (i);
 	int reopen = 0;
 	if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE))
 	    continue;
-	hmc_check (hfd, &currprefs.mountconfig[i], &rescanned, &reopen, &gotinsert);
+	for (j = 0; j < currprefs.mountitems; j++) {
+	    if (currprefs.mountconfig[j].configoffset == i) {
+		hmc_check (hfd, &currprefs.mountconfig[j], &rescanned, &reopen, &gotinsert, drvname, inserted);
+		break;
+	    }
+	}
     }
     for (i = 0; i < currprefs.mountitems; i++) {
 	extern struct hd_hardfiledata *pcmcia_sram;
 	int reopen = 0;
 	struct uaedev_config_info *uci = &currprefs.mountconfig[i];
 	if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
-	    hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert);
+	    hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
 	}
     }
 

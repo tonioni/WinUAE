@@ -68,6 +68,7 @@ struct didata {
     HANDLE rawinput;
     int wininput;
     int catweasel;
+    int coop;
 
     int axles;
     int buttons;
@@ -659,13 +660,20 @@ static int acquire (LPDIRECTINPUTDEVICE8 lpdi, char *txt)
     return SUCCEEDED (hr) ? 1 : 0;
 }
 
-static int setcoop (LPDIRECTINPUTDEVICE8 lpdi, DWORD mode, char *txt)
+static int setcoop (struct didata *did, DWORD mode, char *txt)
 {
     HRESULT hr = DI_OK;
-    if (lpdi && hMainWnd) {
-	hr = IDirectInputDevice8_SetCooperativeLevel (lpdi, hMainWnd, mode);
-	if (FAILED (hr) && hr != E_NOTIMPL)
-	    write_log ("setcooperativelevel %s failed, %s\n", txt, DXError (hr));
+    if (did->lpdi) {
+	did->coop = 0;
+	if (!did->coop && hMainWnd) {
+	    hr = IDirectInputDevice8_SetCooperativeLevel (did->lpdi, hMainWnd, mode);
+	    if (FAILED (hr) && hr != E_NOTIMPL) {
+		write_log ("setcooperativelevel %s failed, %s\n", txt, DXError (hr));
+	    } else {
+		did->coop = 1;
+		//write_log ("cooperativelevel %s set\n", txt);
+	    }
+	}
     }
     return SUCCEEDED (hr) ? 1 : 0;
 }
@@ -680,9 +688,9 @@ static void sortdd (struct didata *dd, int num, int type)
 	for (j = i + 1; j < num; j++) {
 	    dd[j].type = type;
 	    if (dd[i].priority < dd[j].priority || (dd[i].priority == dd[j].priority && strcmp (dd[i].sortname, dd[j].sortname) > 0)) {
-		memcpy (&ddtmp, &dd[i], sizeof(ddtmp));
-		memcpy (&dd[i], &dd[j], sizeof(ddtmp));
-		memcpy (&dd[j], &ddtmp, sizeof(ddtmp));
+		memcpy (&ddtmp, &dd[i], sizeof (ddtmp));
+		memcpy (&dd[i], &dd[j], sizeof (ddtmp));
+		memcpy (&dd[j], &ddtmp, sizeof (ddtmp));
 	    }
 	}
     }
@@ -1104,7 +1112,7 @@ static int acquire_mouse (int num, int flags)
 
     unacquire (lpdi, "mouse");
     if (did->connection == DIDC_DX && lpdi) {
-	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "mouse");
+	setcoop (&di_mouse[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "mouse");
 	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
 	dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
 	dipdw.diph.dwObj = 0;
@@ -1728,7 +1736,6 @@ void wait_keyrelease (void)
 
 static int acquire_kb (int num, int flags)
 {
-    DWORD mode = DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE;
     LPDIRECTINPUTDEVICE8 lpdi = di_keyboard[num].lpdi;
 
     unacquire (lpdi, "keyboard");
@@ -1755,7 +1762,7 @@ static int acquire_kb (int num, int flags)
 	set_leds (oldusedleds);
     }
 
-    setcoop (lpdi, mode, "keyboard");
+    setcoop (&di_keyboard[num], DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, "keyboard");
     kb_do_refresh = ~0;
     di_keyboard[num].acquired = -1;
     if (acquire (lpdi, "keyboard")) {
@@ -2021,6 +2028,17 @@ static void close_joystick (void)
     di_free ();
 }
 
+void dinput_window (void)
+{
+    int i;
+    for (i = 0; i < num_joystick; i++)
+	di_joystick[i].coop = 0;
+    for (i = 0; i < num_mouse; i++)
+	di_mouse[i].coop = 0;
+    for (i = 0; i < num_keyboard; i++)
+	di_keyboard[i].coop = 0;
+}
+
 static int acquire_joystick (int num, int flags)
 {
     LPDIRECTINPUTDEVICE8 lpdi = di_joystick[num].lpdi;
@@ -2029,7 +2047,7 @@ static int acquire_joystick (int num, int flags)
 
     unacquire (lpdi, "joystick");
     if (di_joystick[num].connection == DIDC_DX && lpdi) {
-	setcoop (lpdi, flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "joystick");
+	setcoop (&di_joystick[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), "joystick");
 	memset (&dipdw, 0, sizeof (dipdw));
 	dipdw.diph.dwSize = sizeof (DIPROPDWORD);
 	dipdw.diph.dwHeaderSize = sizeof (DIPROPHEADER);

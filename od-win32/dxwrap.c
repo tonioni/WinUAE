@@ -72,6 +72,8 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
 {
     HRESULT ddrval;
     
+    if (surf == NULL)
+	return E_FAIL;
     if (surf == dxdata.flipping[0] || surf == dxdata.flipping[1])
 	surf = dxdata.primary;
     ddrval = IDirectDrawSurface7_IsLost (surf);
@@ -435,7 +437,7 @@ char *outGUID (const GUID *guid)
 const char *DXError (HRESULT ddrval)
 {
     static char dderr[1000];
-    sprintf (dderr, "%08.8X S=%d F=%04.4X C=%04.4X (%d) (%s)",
+    sprintf (dderr, "%08X S=%d F=%04X C=%04.4X (%d) (%s)",
 	ddrval, (ddrval & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),

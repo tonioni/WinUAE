@@ -320,7 +320,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
     vsync2 = 0;
     if (isfullscreen() > 0) {
-	dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate;
+	dpp.FullScreen_RefreshRateInHz = abs (currprefs.gfx_refreshrate);
 	if (currprefs.gfx_avsync > 0) {
 	    dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	    if (currprefs.gfx_avsync > 85) {
@@ -332,8 +332,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	}
     }
 
-    ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
-	USAGE, &dpp, &d3ddev);
+    ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd, USAGE, &dpp, &d3ddev);
     if(FAILED (ret)) {
 	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));
 	D3D_free ();

@@ -57,12 +57,10 @@
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
 #define DM_OPENGL 8
-#define DM_DX_DIRECT 16
 #define DM_PICASSO96 32
 #define DM_DDRAW 64
 #define DM_DC 128
 #define DM_D3D 256
-#define DM_D3D_FULLSCREEN 512
 #define DM_SWSCALE 1024
 
 #define SM_WINDOW 0
@@ -243,7 +241,7 @@ static int set_ddraw_2 (void)
 
     DirectDraw_FreeMainSurface ();
     ddrval = DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
-    if (FAILED(ddrval))
+    if (FAILED (ddrval))
 	goto oops;
 
     if (dxfullscreen)  {
@@ -267,7 +265,7 @@ static int set_ddraw_2 (void)
 
     if (dd) {
 	ddrval = DirectDraw_CreateClipper ();
-	if (FAILED(ddrval))
+	if (FAILED (ddrval))
 	    goto oops;
 	ddrval = DirectDraw_CreateMainSurface (width, height);
 	if (FAILED(ddrval)) {
@@ -275,7 +273,7 @@ static int set_ddraw_2 (void)
 	    goto oops;
 	}
 	ddrval = DirectDraw_SetClipper (hAmigaWnd);
-	if (FAILED(ddrval))
+	if (FAILED (ddrval))
 	    goto oops;
 	if (DirectDraw_SurfaceLock ()) {
 	    currentmode->pitch = DirectDraw_GetSurfacePitch ();
@@ -803,6 +801,7 @@ static int open_windows (void)
 {
     int ret, i;
 
+    inputdevice_unacquire ();
     reset_sound();
     in_sizemove = 0;
 
@@ -1071,6 +1070,8 @@ static int ncols256 = 0;
 
 static int red_bits, green_bits, blue_bits, alpha_bits;
 static int red_shift, green_shift, blue_shift, alpha_shift;
+static int x_red_bits, x_green_bits, x_blue_bits, x_alpha_bits;
+static int x_red_shift, x_green_shift, x_blue_shift, x_alpha_shift;
 static int alpha;
 
 static int get_color (int r, int g, int b, xcolnr * cnp)
@@ -1094,6 +1095,26 @@ void init_colors (void)
     }
 
     /* init colors */
+    switch(currentmode->current_depth >> 3)
+    {
+        case 1:
+	    memcpy (xcolors, xcol8, sizeof xcolors);
+	    DirectDraw_SetPaletteEntries (0, 256, colors256);
+	break;
+	case 2:
+	case 3:
+	case 4:
+	    x_red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
+	    x_green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
+	    x_blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
+	    x_red_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (red_mask));
+	    x_green_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (green_mask));
+	    x_blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
+	    x_alpha_bits = 0;
+	    x_alpha_shift = 0;
+	break;
+    }
+
     if (currentmode->flags & DM_OPENGL) {
 #ifdef OPENGL
 	OGL_getpixelformat (currentmode->current_depth,&red_bits,&green_bits,&blue_bits,&red_shift,&green_shift,&blue_shift,&alpha_bits,&alpha_shift,&alpha);
@@ -1103,27 +1124,16 @@ void init_colors (void)
 	D3D_getpixelformat (currentmode->current_depth,&red_bits,&green_bits,&blue_bits,&red_shift,&green_shift,&blue_shift,&alpha_bits,&alpha_shift,&alpha);
 #endif
     } else {
-	switch(currentmode->current_depth >> 3)
-	{
-	    case 1:
-		memcpy (xcolors, xcol8, sizeof xcolors);
-		DirectDraw_SetPaletteEntries(0, 256, colors256);
-	    break;
-
-	    case 2:
-	    case 3:
-	    case 4:
-		red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
-		green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
-		blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		red_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (red_mask));
-		green_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (green_mask));
-		blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		alpha_bits = 0;
-		alpha_shift = 0;
-	    break;
-	}
+	red_bits = x_red_bits;
+	green_bits = x_green_bits;
+	blue_bits = x_blue_bits;
+	red_shift = x_red_shift;
+	green_shift = x_green_shift;
+	blue_shift = x_blue_shift;
+	alpha_bits = x_alpha_bits;
+	alpha_shift = x_alpha_shift;
     }
+
     if (currentmode->current_depth > 8) {
 	if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
 	    if (currentmode->current_depth != currentmode->native_depth) {
@@ -1137,7 +1147,7 @@ void init_colors (void)
 	    }
 	}
 	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
-	notice_new_xcolors();
+	notice_new_xcolors ();
 #ifdef GFXFILTER
 	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
 #endif
@@ -1341,7 +1351,7 @@ void gfx_set_picasso_state (int on)
 
     scalepicasso = 0;
     update_gfxparams ();
-    if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen) {
+    if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || currprefs.gfx_filter == UAE_FILTER_DIRECT3D || currprefs.gfx_filter == UAE_FILTER_OPENGL) {
 	mode = 1;
     } else {
 	mode = modeswitchneeded (&wc);
@@ -1361,7 +1371,7 @@ end:
 
 void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
-    alloc_colors_picasso (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt);
+    alloc_colors_picasso (x_red_bits, x_green_bits, x_blue_bits, x_red_shift, x_green_shift, x_blue_shift, rgbfmt);
     if (screen_is_picasso && modeswitchneeded(currentmode))
         open_screen ();
 }
@@ -1443,7 +1453,7 @@ void close_windows (void)
 #if defined (GFXFILTER)
     S2X_free ();
 #endif
-    free (gfxvidinfo.realbufmem);
+    xfree (gfxvidinfo.realbufmem);
     gfxvidinfo.realbufmem = 0;
     DirectDraw_Release ();
     close_hwnds ();
@@ -1573,7 +1583,7 @@ static int getbestmode (int nextbest)
 
 static int create_windows_2 (void)
 {
-    int dxfs = currentmode->flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN);
+    int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
     int fsw = currentmode->flags & (DM_W_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
     DWORD flags = 0;
@@ -1756,10 +1766,16 @@ static void updatemodes (void)
 	    if (currentmode->current_depth < 15)
 		currentmode->current_depth = 16;
 	}
-	if (usedfilter->type == UAE_FILTER_DIRECT3D)
-	    flags |= DM_D3D;
-	if (usedfilter->type == UAE_FILTER_OPENGL)
-	    flags |= DM_OPENGL;
+	if (!screen_is_picasso) {
+	    if (usedfilter->type == UAE_FILTER_DIRECT3D) {
+		flags |= DM_D3D;
+		flags &= ~DM_DDRAW;
+	    }
+	    if (usedfilter->type == UAE_FILTER_OPENGL) {
+		flags |= DM_OPENGL;
+		flags &= ~DM_DDRAW;
+	    }
+	} 
     }
 #endif
     currentmode->flags = flags;
@@ -1830,10 +1846,10 @@ static BOOL doInit (void)
 	    WIN32GUI_LoadUIString(IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH);
 	    WIN32GUI_LoadUIString(fs_warning, szMessage2, MAX_DPATH);
 	    // Temporarily drop the DirectDraw stuff
-	    DirectDraw_Release();
+	    DirectDraw_Release ();
 	    sprintf (tmpstr, szMessage, szMessage2);
 	    gui_message (tmpstr);
-	    DirectDraw_Start(displayGUID);
+	    DirectDraw_Start (displayGUID);
 	    if (screen_is_picasso)
 		changed_prefs.gfx_pfullscreen = currprefs.gfx_pfullscreen = 1;
 	    else
@@ -1934,6 +1950,7 @@ static BOOL doInit (void)
 	gfxvidinfo.realbufmem = xmalloc (size);
 	gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
 	gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
+	gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
 
     } else if (!(currentmode->flags & DM_D3D)) {
 
@@ -2104,11 +2121,11 @@ HDC gethdc (void)
 {
     HDC hdc = 0;
 #ifdef OPENGL
-    if (OGL_isenabled())
+    if (OGL_isenabled ())
 	return OGL_getDC (0);
 #endif
 #ifdef D3D
-    if (D3D_isenabled())
+    if (D3D_isenabled ())
 	return D3D_getDC (0);
 #endif
     if(FAILED (DirectDraw_GetDC (&hdc)))
@@ -2119,13 +2136,13 @@ HDC gethdc (void)
 void releasehdc (HDC hdc)
 {
 #ifdef OPENGL
-    if (OGL_isenabled()) {
+    if (OGL_isenabled ()) {
 	OGL_getDC (hdc);
 	return;
     }
 #endif
 #ifdef D3D
-    if (D3D_isenabled()) {
+    if (D3D_isenabled ()) {
 	D3D_getDC (hdc);
 	return;
     }

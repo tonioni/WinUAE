@@ -1,4 +1,14 @@
 
+Beta 24:
+
+- real PCMCIA SRAM card removal should really really work now
+- real harddisk (or memory card or usb stick) disk change message
+  could have been sent to wrong device unit if multiple harddisk
+  devices were configured (including hardfiles)
+- direct3d and opengl fullscreen fixed
+- direct3d<>Picasso96 switching fixed (always need full display reset)
+- NTSC vblank end fixed (top of display was cut in overscan modes)
+
 Beta 23:
 
 - OGL/D3D fixed but uses old scaling method (update after 1.5)

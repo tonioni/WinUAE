@@ -2424,7 +2424,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		floppy[dr].mfmpos %= drv->tracklen;
 	    }
 	}
-	if ((dmacon & 0x210) == 0x210 && dskdmaen == 3 && dsklength > 0 && !(adkcon &0x400)) {
+	if ((dmacon & 0x210) == 0x210 && dskdmaen == 3 && dsklength > 0 && (!(adkcon &0x400) || dma_enable)) {
 	    bitoffset++;
 	    bitoffset &= 15;
 	    if (!bitoffset) {
