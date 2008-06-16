@@ -3704,7 +3704,6 @@ static void flushpixels (void)
 
     if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
 	return;
-    (*((uae_u8*)0)) = 0;
 
     if (full_refresh)
 	full_refresh = -1;
