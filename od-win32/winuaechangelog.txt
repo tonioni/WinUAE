@@ -1,4 +1,9 @@
 
+Beta 25: RC1
+
+- "non-standard" Picasso96 resolutions are available again
+- fixed unusable huge crash dumps if logging was enabled
+
 Beta 24:
 
 - real PCMCIA SRAM card removal should really really work now
@@ -6,8 +11,8 @@ Beta 24:
   could have been sent to wrong device unit if multiple harddisk
   devices were configured (including hardfiles)
 - direct3d and opengl fullscreen fixed
-- direct3d<>Picasso96 switching fixed (always need full display reset)
-- NTSC vblank end fixed (top of display was cut in overscan modes)
+- direct3d/ogl<>Picasso96 switching fixed (instant switch not possible)
+- NTSC vblank end vpos fixed (top of display was cut in overscan modes)
 
 Beta 23:
 

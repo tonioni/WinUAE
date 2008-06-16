@@ -335,8 +335,10 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
     ddrval = IDirectDrawSurface7_GetSurfaceDesc (dxdata.primary, &dxdata.native);
     if (FAILED (ddrval))
 	write_log ("IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
-    if (dxdata.fsmodeset)
+    if (dxdata.fsmodeset) {
         clearsurf (dxdata.primary);
+	dxdata.fsmodeset = 1;
+    }
     dxdata.backbuffers = desc.dwBackBufferCount;
     clearsurf (dxdata.flipping[0]);
     clearsurf (dxdata.flipping[1]);
@@ -369,7 +371,7 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
     } else {
-	dxdata.fsmodeset = 1;
+	dxdata.fsmodeset = -1;
 	dxdata.width = width;
 	dxdata.height = height;
 	dxdata.depth = bits;
@@ -406,7 +408,7 @@ HRESULT DirectDraw_CreateClipper (void)
     return ddrval;
 }
 
-HRESULT DirectDraw_SetClipper(HWND hWnd)
+HRESULT DirectDraw_SetClipper (HWND hWnd)
 {
     HRESULT ddrval;
 
@@ -796,6 +798,8 @@ static void flip (void)
 
 int DirectDraw_Flip (int doflip)
 {
+    if (dxdata.primary == NULL)
+	return 0;
     if (getlocksurface () != dxdata.secondary) {
 	if (doflip) {
 	    flip ();
@@ -819,7 +823,7 @@ HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palett
 HRESULT DirectDraw_SetPalette (int remove)
 {
     HRESULT ddrval;
-    if (!dxdata.fsmodeset || (!dxdata.palette && !remove))
+    if (dxdata.fsmodeset <= 0 || (!dxdata.palette && !remove))
 	return DD_FALSE;
     ddrval = IDirectDrawSurface7_SetPalette (dxdata.primary, remove ? NULL : dxdata.palette);
     if (FAILED (ddrval))
@@ -919,7 +923,7 @@ int dx_islost (void)
 void dx_check (void)
 {
     dxdata.islost = 0;
-    if (dxdata.fsmodeset == 0)
+    if (dxdata.fsmodeset <= 0)
 	return;
     if (IDirectDrawSurface7_IsLost (dxdata.primary) != DDERR_SURFACELOST)
 	return;

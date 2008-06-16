@@ -1732,7 +1732,7 @@ void logging_cleanup (void)
 uae_u8 *save_log (int bootlog, int *len)
 {
     FILE *f;
-    uae_u8 *dst;
+    uae_u8 *dst = NULL;
     int size;
 
     if (!logging_started)
@@ -1745,11 +1745,13 @@ uae_u8 *save_log (int bootlog, int *len)
     fseek (f, 0, SEEK_SET);
     if (size > 30000)
 	size = 30000;
-    dst = xcalloc (1, size + 1);
-    if (dst)
-	fread (dst, 1, size, f);
-    fclose (f);
-    *len = size + 1;
+    if (size > 0) {
+	dst = xcalloc (1, size + 1);
+	if (dst)
+	    fread (dst, 1, size, f);
+	fclose (f);
+	*len = size + 1;
+    }
     return dst;
 }
 
@@ -3281,6 +3283,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 	log = save_log (FALSE, &loglen);
 	if (log) {
 	    musi.UserStreamCount++;
+	    musp = &mus[1];
 	    musp->Type = LastReservedStream + 2;
 	    musp->Buffer = log;
 	    musp->BufferSize = loglen;
@@ -3342,7 +3345,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 
 	if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
 	    char *slash = strrchr (path, '\\');
-	    _time64(&now);
+	    _time64 (&now);
 	    when = *_localtime64 (&now);
 	    strcpy (path2, path);
 	    if (slash) {

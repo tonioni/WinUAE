@@ -1795,7 +1795,7 @@ static int AssignModeID (int w, int h, int *unkcnt)
     }
     (*unkcnt)++;
     write_log ("P96: Non-unique mode %dx%d\n", w, h);
-    return 0x51000000 - (*unkcnt) * 0x10000;
+    return 0x51001000 - (*unkcnt) * 0x10000;
 }
 
 static uaecptr picasso96_amem, picasso96_amemend;
@@ -1909,7 +1909,7 @@ void picasso96_alloc (TrapContext *ctx)
 	if (missmodes[misscnt * 2] >= 0) {
 	    int w = DisplayModes[i].res.width;
 	    int h = DisplayModes[i].res.height;
-	    if (w > missmodes[misscnt * 2 + 0] || h > missmodes[misscnt * 2 + 1]) {
+	    if (w > missmodes[misscnt * 2 + 0] || (w == missmodes[misscnt * 2 + 0] && h > missmodes[misscnt * 2 + 1])) {
 		struct PicassoResolution *pr = &newmodes[cnt];
 	        memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
 	        pr->res.width = missmodes[misscnt * 2 + 0];
@@ -3704,6 +3704,7 @@ static void flushpixels (void)
 
     if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
 	return;
+    (*((uae_u8*)0)) = 0;
 
     if (full_refresh)
 	full_refresh = -1;
