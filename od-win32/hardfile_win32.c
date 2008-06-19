@@ -1274,9 +1274,11 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
 	p = hfd->emptyname + strlen (hfd->emptyname) - 6;
 	write_log("workaround-remove test: '%s' and '%s'\n", p, drvname);
 	if (!strcmp (tmp, p)) {
+	    char *en = my_strdup (hfd->emptyname);
 	    write_log ("workaround-remove done\n");
 	    hdf_close (hfd);
-	    hfd->drive_empty = 0;
+	    hfd->emptyname = en;
+	    hfd->drive_empty = 1;
 	    hardfile_do_disk_change (uci, 0);
 	    return;
 	}

@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "resource."
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -36,12 +36,15 @@ BEGIN
     VK_F7,          ID_DBG_PAGE7,           VIRTKEY, NOINVERT
     VK_F8,          ID_DBG_PAGE8,           VIRTKEY, NOINVERT
     VK_F9,          ID_DBG_PAGE9,           VIRTKEY, NOINVERT
+    VK_F11,         ID_DBG_STEP_OVER,       VIRTKEY, NOINVERT
+    VK_F12,         ID_DBG_STEP_INTO,       VIRTKEY, NOINVERT
     VK_DOWN,        IDC_DBG_MEMDOWN,        VIRTKEY, ALT, NOINVERT
     VK_RIGHT,       IDC_DBG_MEMDOWNFAST,    VIRTKEY, ALT, NOINVERT
     VK_UP,          IDC_DBG_MEMUP,          VIRTKEY, ALT, NOINVERT
     VK_LEFT,        IDC_DBG_MEMUPFAST,      VIRTKEY, ALT, NOINVERT
     "H",            IDC_DBG_HELP,           VIRTKEY, ALT, NOINVERT
     "P",            IDC_DBG_MEMTOPC,        VIRTKEY, ALT, NOINVERT
+    "A",            IDC_DBG_AUTOSET,        VIRTKEY, ALT, NOINVERT
 END
 
 
@@ -55,24 +58,24 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "System ROM Settings",-1,5,0,290,74
-    RTEXT           "Main ROM file:",IDC_ROMTEXT,10,15,75,10
-    COMBOBOX        IDC_ROMFILE,89,12,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_KICKCHOOSER,280,11,10,15
-    RTEXT           "Extended ROM file:",IDC_ROMFILE2TEXT,10,35,75,10
-    COMBOBOX        IDC_ROMFILE2,89,32,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_ROMCHOOSER2,280,31,10,15
+    GROUPBOX        "System ROM Settings",-1,5,0,290,93
+    RTEXT           "Main ROM file:",IDC_ROMTEXT,10,13,75,10
+    COMBOBOX        IDC_ROMFILE,12,26,263,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_KICKCHOOSER,280,25,10,15
+    RTEXT           "Extended ROM file:",IDC_ROMFILE2TEXT,10,43,75,10
+    COMBOBOX        IDC_ROMFILE2,12,56,263,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_ROMCHOOSER2,280,55,10,15
     CONTROL         "MapROM emulation [] Creates a BlizKick-compatible memory area.",IDC_MAPROM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,95,54,87,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,95,77,87,10
     CONTROL         "ShapeShifter support [] Patches the system ROM for ShapeShifter compatibility.",IDC_KICKSHIFTER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,54,87,10
-    GROUPBOX        "Miscellaneous",-1,5,76,290,57
-    RTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,8,93,75,10
-    COMBOBOX        IDC_CARTFILE,89,90,186,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_CARTCHOOSER,280,89,10,15
-    RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,112,75,10
-    EDITTEXT        IDC_FLASHFILE,89,110,185,13,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,109,10,15
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,77,87,10
+    GROUPBOX        "Miscellaneous",-1,5,99,290,75
+    RTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,8,110,75,10
+    COMBOBOX        IDC_CARTFILE,12,123,263,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_CARTCHOOSER,280,122,10,15
+    RTEXT           "Flash RAM file:",IDC_FLASHTEXT,8,142,75,10
+    EDITTEXT        IDC_FLASHFILE,12,155,262,13,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FLASHCHOOSER,280,154,10,15
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 300, 235
@@ -115,34 +118,43 @@ BEGIN
     COMBOBOX        IDC_LORES,100,140,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_MEMORY DIALOGEX 0, 0, 300, 175
+IDD_MEMORY DIALOGEX 0, 0, 300, 239
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Memory Settings",-1,14,7,274,91
+    GROUPBOX        "Memory Settings",-1,14,7,274,69
     RTEXT           "Chip:",-1,24,26,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,22,50,20
-    EDITTEXT        IDC_CHIPRAM,105,25,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_CHIPRAM,105,25,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Slow:",-1,149,26,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_SLOWMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,22,60,20
-    EDITTEXT        IDC_SLOWRAM,243,25,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_SLOWRAM,243,25,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Fast:",IDC_FASTTEXT,24,51,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,47,50,20
-    EDITTEXT        IDC_FASTRAM,105,50,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_FASTRAM,105,53,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Z3 Fast:",IDC_Z3TEXT,139,51,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
-    EDITTEXT        IDC_Z3FASTRAM,243,50,30,12,ES_CENTER | ES_READONLY
-    RTEXT           "RTG: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,79,76,90,10,SS_NOTIFY | SS_CENTERIMAGE
-    CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,72,60,20
-    EDITTEXT        IDC_P96RAM,243,75,30,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "Advanced Memory Settings",-1,13,104,275,65
-    RTEXT           "Motherboard RAM (Low area):",-1,39,123,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,119,59,20
-    EDITTEXT        IDC_MBRAM1,243,122,30,12,ES_CENTER | ES_READONLY
-    RTEXT           "Motherboard RAM (High area):",-1,39,148,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,144,59,20
-    EDITTEXT        IDC_MBRAM2,243,147,30,12,ES_CENTER | ES_READONLY
+    EDITTEXT        IDC_Z3FASTRAM,243,50,34,12,ES_CENTER | ES_READONLY
+    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,98,53,10,SS_NOTIFY | SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,94,60,20
+    EDITTEXT        IDC_P96RAM,152,97,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "Advanced Memory Settings",-1,13,171,275,65
+    RTEXT           "Motherboard RAM (Low area):",-1,39,190,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,186,59,20
+    EDITTEXT        IDC_MBRAM1,243,189,34,12,ES_CENTER | ES_READONLY
+    RTEXT           "Motherboard RAM (High area):",-1,39,215,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,211,59,20
+    EDITTEXT        IDC_MBRAM2,243,214,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "RTG Graphics Card Settings",-1,14,81,275,87
+    CONTROL         "Scale instead of switching resolution",IDC_RTG_SCALE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,134,162,10
+    CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,119,163,10
+    COMBOBOX        IDC_RTG_8BIT,211,101,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_16BIT,211,117,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_24BIT,211,133,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_32BIT,211,149,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 226
@@ -178,11 +190,9 @@ BEGIN
     CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,141,63,10
     CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,155,63,10
     CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,169,62,10
-    CONTROL         "Force settings",IDC_FORCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,141,62,10
-    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,155,62,10
+    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,141,62,10
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,235,141,52,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,155,52,10
-    CONTROL         "After RTG",IDC_TRUST2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,169,52,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,210,73,10
     GROUPBOX        "FPU",IDC_STATIC,6,146,81,80,BS_LEFT
@@ -399,8 +409,7 @@ BEGIN
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,66,117,10
     CONTROL         "bsdsocket.library emulation",IDC_SOCKETS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,15,120,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,27,120,10
-    CONTROL         "Don't use RGB overlays",IDC_NOOVERLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,120,10
-    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,53,115,10
+    CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,40,115,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,140,85,94
     COMBOBOX        IDC_KBLED1,22,154,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED2,22,173,56,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -417,14 +426,16 @@ BEGIN
     RTEXT           "Recording buffer (MB):",IDC_STATIC,160,219,83,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATE_BUFFERSIZE,248,217,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always on top",IDC_ALWAYSONTOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,79,117,10
-    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,115,10
+    CONTROL         "Catweasel",IDC_CATWEASEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,53,115,10
     CONTROL         "USB mode",IDC_KBLED_USB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,216,64,10
     COMBOBOX        IDC_SCSIMODE,92,51,64,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_LANGUAGE,103,121,179,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Language",IDC_STATIC,7,113,285,25
     CONTROL         "Disable powersaving features",IDC_POWERSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,92,120,10
-    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,119,10
-    CONTROL         "uaenet.device",IDC_SANA2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,92,94,10
+    CONTROL         "Magic Mouse",IDC_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,66,119,10
+    CONTROL         "uaenet.device",IDC_SANA2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,161,79,94,10
+    COMBOBOX        IDC_DD_SURFACETYPE,217,93,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Display buffer:",IDC_STATIC,159,94,52,10,SS_CENTERIMAGE
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 249
@@ -441,8 +452,8 @@ BEGIN
     PUSHBUTTON      "...",IDC_FILESYS_SELECTOR,271,35,11,15
     RTEXT           "Device:",IDC_HARDFILE_DEVICE_TEXT,16,58,31,10
     EDITTEXT        IDC_HARDFILE_DEVICE,52,55,66,15,ES_AUTOHSCROLL
-    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,24,94,44,8
-    EDITTEXT        IDC_HARDFILE_BOOTPRI,73,90,40,15
+    RTEXT           "Boot priority:",IDC_HARDFILE_BOOTPRI_TEXT,20,94,48,8
+    EDITTEXT        IDC_HARDFILE_BOOTPRI,73,90,44,15
     CONTROL         "Read/write",IDC_HDF_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,74,64,10
     PUSHBUTTON      "Enable RDB mode",IDC_HDF_RDB,174,55,92,14
     RTEXT           "Surfaces:",IDC_SURFACES_TEXT,118,94,32,10
@@ -454,20 +465,20 @@ BEGIN
     RTEXT           "Block size:",IDC_BLOCKSIZE_TEXT,197,113,35,10
     EDITTEXT        IDC_BLOCKSIZE,237,111,40,15,ES_NUMBER
     GROUPBOX        "New hard disk image file",IDC_STATIC,10,156,280,62
-    PUSHBUTTON      "Create",IDC_HF_CREATE,60,171,80,14
-    EDITTEXT        IDC_HF_SIZE,156,171,61,15,ES_NUMBER
+    PUSHBUTTON      "Create",IDC_HF_CREATE,23,171,80,14
+    EDITTEXT        IDC_HF_SIZE,119,171,61,15,ES_NUMBER
     PUSHBUTTON      "OK",IDOK,102,226,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,158,226,50,14
-    EDITTEXT        IDC_HF_DOSTYPE,156,194,61,15
-    COMBOBOX        IDC_HF_TYPE,60,195,80,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_HDF_CONTROLLER,73,112,40,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "DOS type",IDC_STATIC,224,196,32,10,SS_CENTERIMAGE
-    RTEXT           "MB",IDC_STATIC,222,174,13,10,SS_CENTERIMAGE
-    RTEXT           "Type:",IDC_STATIC,28,183,25,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_HF_DOSTYPE,119,194,61,15
+    COMBOBOX        IDC_HF_TYPE,23,195,80,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_HDF_CONTROLLER,73,112,44,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "DOS type",IDC_STATIC,187,196,32,10,SS_CENTERIMAGE
+    RTEXT           "MB",IDC_STATIC,185,174,17,10,SS_CENTERIMAGE
     RTEXT           "HD Controller:",IDC_STATIC,16,113,52,10,SS_CENTERIMAGE
     CONTROL         "Bootable",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,74,53,10
     CONTROL         "Do not mount",IDC_HDF_DONOTMOUNT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,217,74,67,10
     EDITTEXT        IDC_HDFINFO,16,131,268,12,ES_CENTER | ES_READONLY
+    CONTROL         "Sparse file",IDC_HF_SPARSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,174,62,10
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 299, 111
@@ -685,7 +696,7 @@ BEGIN
     COMBOBOX        IDC_FILTERVZMULT,67,63,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,168,63,10
     COMBOBOX        IDC_FILTERXTRA,105,130,138,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Full screen filter",IDC_FILTERUPSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,153,87,10
+    CONTROL         "Keep aspect ratio",IDC_FILTERASPECT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,153,87,10
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 380, 76
@@ -757,7 +768,7 @@ BEGIN
     LTEXT           "System ROMs:",IDC_PATHS_ROML,14,9,260,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_ROM,14,22,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_ROMS,281,22,11,15
-    LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,14,40,260,8,SS_CENTERIMAGE
+    LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,14,40,121,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_CONFIG,14,52,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_CONFIGS,281,52,11,15
     LTEXT           "Screenshots:",IDC_PATHS_SCREENSHOTL,14,71,260,8,SS_CENTERIMAGE
@@ -777,6 +788,7 @@ BEGIN
     PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,112,218,77,14
     COMBOBOX        IDC_PATHS_DEFAULTTYPE,112,199,163,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Clear disk history",IDC_RESETDISKHISTORY,198,218,77,14
+    CONTROL         "Cache Configuration files",IDC_PATHS_CONFIGCACHE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,40,117,10
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 300, 242
@@ -840,16 +852,15 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,48,39,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,151,39,50,14
     EDITTEXT        IDC_STRINGBOXEDIT,7,17,214,14,ES_AUTOHSCROLL | ES_WANTRETURN
-    CTEXT           "Custom input event",IDC_STRINGBOX_TEXT,23,5,187,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
 IDD_DEBUGGER DIALOGEX 0, 0, 454, 368
-STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_CAPTION | WS_THICKFRAME
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_CONTROLPARENT
 CAPTION "WinUAE Debugger"
 FONT 8, "Courier New", 0, 0, 0x0
 BEGIN
-    EDITTEXT        IDC_DBG_OUTPUT1,1,79,370,262,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN | WS_VSCROLL | NOT WS_TABSTOP
+    EDITTEXT        IDC_DBG_OUTPUT1,1,255,370,86,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN | WS_VSCROLL | NOT WS_TABSTOP
     EDITTEXT        IDC_DBG_OUTPUT2,1,79,370,262,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN | WS_VSCROLL | NOT WS_TABSTOP
     LISTBOX         IDC_DBG_MEM,1,92,370,249,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_DASM,1,92,370,249,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
@@ -873,6 +884,20 @@ BEGIN
     LISTBOX         IDC_DBG_MCUSTOM,372,79,81,138,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
     LISTBOX         IDC_DBG_MISC,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
     LISTBOX         IDC_DBG_CUSTOM,1,79,370,262,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL | WS_VSCROLL
+    CONTROL         "Auto set",IDC_DBG_AUTOSET,"Button",BS_AUTOCHECKBOX,84,79,50,12
+    LISTBOX         IDC_DBG_DASM2,1,79,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
+    LISTBOX         IDC_DBG_MEM2,1,167,370,87,LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT
+END
+
+IDD_DBGMEMINPUT DIALOGEX 0, 0, 150, 58
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Enter address..."
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,15,39,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,75,39,50,14
+    EDITTEXT        IDC_DBG_MEMINPUT2,20,12,100,14,ES_AUTOHSCROLL | ES_WANTRETURN
+    CTEXT           "Enter address",IDC_DBG_ADDRINPUTTXT,20,1,100,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
 
@@ -911,8 +936,8 @@ IDI_PATHS               ICON                    "paths.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,6,0
- PRODUCTVERSION 1,4,6,0
+ FILEVERSION 1,5,0,0
+ PRODUCTVERSION 1,5,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -928,12 +953,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.4.6"
+            VALUE "FileVersion", "1.5.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2008 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.4.6"
+            VALUE "ProductVersion", "1.5.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -971,6 +996,56 @@ BEGIN
         MENUITEM "Reset",                       ID_ST_RESET
         MENUITEM "Help",                        ID_ST_HELP
         MENUITEM "Quit WinUAE",                 ID_ST_QUIT
+    END
+END
+
+IDM_DBGCONTEXTMENU MENU 
+BEGIN
+    POPUP "Inactive"
+    BEGIN
+        POPUP "Copy"
+        BEGIN
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
+        END
+    END
+    POPUP "Memory"
+    BEGIN
+        POPUP "Copy"
+        BEGIN
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
+        END
+        POPUP "Set top address"
+        BEGIN
+            MENUITEM "Set to A0",                   ID_DBG_SETTOA0
+            MENUITEM "Set to A1",                   ID_DBG_SETTOA1
+            MENUITEM "Set to A2",                   ID_DBG_SETTOA2
+            MENUITEM "Set to A3",                   ID_DBG_SETTOA3
+            MENUITEM "Set to A4",                   ID_DBG_SETTOA4
+            MENUITEM "Set to A5",                   ID_DBG_SETTOA5
+            MENUITEM "Set to A6",                   ID_DBG_SETTOA6
+            MENUITEM "Set to A7",                   ID_DBG_SETTOA7
+            MENUITEM "Enter address",               ID_DBG_ENTERADDR
+        END
+    END
+    POPUP "Disassembly"
+    BEGIN
+        POPUP "Copy"
+        BEGIN
+            MENUITEM "Copy line",                   ID_DBG_COPYLBLINE
+            MENUITEM "Copy all",                    ID_DBG_COPYLB
+        END
+        POPUP "Breakpoints"
+        BEGIN
+            MENUITEM "Toggle breakpoint",           ID_DBG_TOGGLEBP
+            MENUITEM "Clear all breakpoints",       ID_DBG_DELETEBPS
+        END
+        POPUP "Set top address"
+        BEGIN
+            MENUITEM "Set to PC",                   ID_DBG_SETTOPC
+            MENUITEM "Enter address",               ID_DBG_ENTERADDR
+        END
     END
 END
 
@@ -1103,6 +1178,8 @@ BEGIN
     IDS_SOUND_STEREO2       "Cloned Stereo (4 Channels)"
     IDS_INPUT_CUSTOMEVENT   "<Custom event>"
     IDS_DEFAULT_NEWWINUAE   "WinUAE default (new)"
+    IDS_SOUND_CLONED51      "Cloned Stereo (5.1)"
+    IDS_SOUND_51            "5.1 Channels"
 END
 
 STRINGTABLE 
@@ -1170,7 +1247,7 @@ BEGIN
     IDS_UNSUPPORTEDSCREENMODE_3 
                             "the desktop is too small for the specified window size."
     IDS_UNSUPPORTEDSCREENMODE_4 
-                            "you selected an RTG (Picasso96) display with a color depth different from that of the desktop and an overlay was unavailable."
+                            "you selected an RTG (Picasso96) display with unsupported color depth."
     IDS_FLOPPYTYPE35DD      "3.5"" DD"
     IDS_FLOPPYTYPE35HD      "3.5"" HD"
     IDS_FLOPPYTYPE525SD     "5.25"" SD"
@@ -1261,7 +1338,7 @@ BEGIN
     IDS_QS_MODEL_A600       "Basic non-expanded configuration\nThe A600 is smaller than the A500+ and has an updated 2.0 ROM.\n2 MB Chip RAM expanded configuration\n\n4 MB Fast RAM expanded configuration\n"
     IDS_QS_MODEL_A1000      "512 KB Chip RAM\nThe A1000 was the first model produced, with a configuration equivalent to that of an A500 with OCS chipset. You normally don't need to use this configuration, unless you are nostalgic and would like to hear the short A1000 boot tune\n""ICS"" Denise without EHB support\nVery first A1000 models had Denise without EHB capability.\n256 KB Chip RAM\n Unexpanded A1000. All later A1000 models were sold with a 256 KB RAM expansion built-in."
     IDS_QS_MODEL_A1200      "Basic non-expanded configuration\nUse this configuration to run most AGA demos and games\n4 MB Fast RAM expanded configuration\nSome newer AGA games and demos need an expanded A1200 to run."
-    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation."
+    IDS_QS_MODEL_CD32       "CD32\nThe CD32 was one the first 32-bit consoles on the market. It is basically an A1200 with a built-in CD-ROM drive. Insert your CD32 or CDTV CD-ROM into a free CD-ROM drive before starting the emulation.\nCD32 + MPEG Full Motion Video Cartridge (not emulated yet)\n"
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n"
 END
 

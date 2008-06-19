@@ -3,8 +3,11 @@ rm -rf bak
 mkdir bak
 cp -r c:\projects\winuae\src\. c:\projects\winuae_bak\bak\
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
+
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
+
+
 
 del cpudefs.c
 del blit.h
