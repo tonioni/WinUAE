@@ -861,6 +861,7 @@ int DirectDraw_Start (GUID *guid)
     HRESULT ddrval;
     LPDIRECT3D9 d3d;
     D3DCAPS9 d3dCaps;
+    HINSTANCE d3dDLL;
 
     dxdata.islost = 0;
     if (dxdata.ddinit) {
@@ -888,17 +889,21 @@ int DirectDraw_Start (GUID *guid)
     dxdata.cursorheight = 48;
     dxdata.maxwidth = 16384;
     dxdata.maxheight = 16384;
-    d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
-    if (d3d) {
-	IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
-	dxdata.maxwidth = d3dCaps.MaxTextureWidth;
-	dxdata.maxheight = d3dCaps.MaxTextureHeight;
-	write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
-	if (dxdata.maxwidth < 2048)
-	    dxdata.maxwidth = 2048;
-	if (dxdata.maxheight < 2048)
-	    dxdata.maxheight = 2048;
+    d3dDLL = LoadLibrary ("D3D9.DLL");
+    if (d3dDLL) {
+        d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
+	if (d3d) {
+	    IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
+	    dxdata.maxwidth = d3dCaps.MaxTextureWidth;
+	    dxdata.maxheight = d3dCaps.MaxTextureHeight;
+	    write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
+	}
+	FreeLibrary (d3dDLL);
     }
+    if (dxdata.maxwidth < 2048)
+	dxdata.maxwidth = 2048;
+    if (dxdata.maxheight < 2048)
+	dxdata.maxheight = 2048;
 
     if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
 	dxdata.ddinit = 1;

@@ -2210,10 +2210,6 @@ static void finish_decisions (void)
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
     changed = thisline_changed + interlace_started;
-#if 0
-    if (!(next_lineno & 1) && !(bplcon0 & 4) && interlace_seen)
-	changed = 1;
-#endif
     if (thisline_decision.plfleft != -1)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
@@ -4651,7 +4647,6 @@ static void hsync_handler (void)
 	int lineno = vpos;
 	if (bplcon0 & 4)
 	    notice_interlace_seen ();
-
 	nextline_how = nln_normal;
 	if (currprefs.gfx_linedbl && (!doublescan || interlace_seen)) {
 	    lineno *= 2;

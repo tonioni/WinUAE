@@ -2534,8 +2534,7 @@ void finish_drawing_frame (void)
 #ifdef ECS_DENISE
     if (brdblank_changed) {
 	last_max_ypos = max_ypos_thisframe;
-	last_redraw_point = 10;
-	notice_screen_contents_lost();
+	notice_screen_contents_lost ();
 	brdblank_changed = 0;
     }
 #endif

@@ -15,14 +15,14 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 0
-#define WINUAEPUBLICBETA 0
-#define WINUAEDATE MAKEBD(2008, 6, 19)
+#define WINUAEBETA 1
+#define WINUAEPUBLICBETA 1
+#define WINUAEDATE MAKEBD(2008, 6, 22)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
 #define IHF_WINDOWHIDDEN 6
-#define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU)
+#define NORMAL_WINDOW_STYLE (WS_VISIBLE | WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX)
 
 extern HMODULE hUIDLL;
 extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
@@ -78,6 +78,7 @@ extern HKEY hWinUAEKey;
 extern int screen_is_picasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
+extern int window_extra_width, window_extra_height;
 extern int af_path_2005, af_path_old;
 extern char start_path_af[MAX_DPATH], start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
 #define PATH_TYPE_WINUAE 0

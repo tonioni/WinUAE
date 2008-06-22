@@ -218,27 +218,23 @@ const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
 #define KSAUDIO_SPEAKER_QUAD_SURROUND   (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | \
 					 SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
 
-struct dsaudiomodes {
-    int ch;
-    DWORD ksmode;
-};
 static struct dsaudiomodes supportedmodes[16];
 
-static void fillsupportedmodes (int freq)
+DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *dsam)
 {
     DWORD speakerconfig;
     DSBUFFERDESC sound_buffer;
     WAVEFORMATEXTENSIBLE wavfmt;
     LPDIRECTSOUNDBUFFER pdsb;
     HRESULT hr;
-    int ch, round, mode, i, skip;
+    int ch, round, mode, skip;
     DWORD rn[4];
 
     mode = 2;
-    supportedmodes[0].ch = 1;
-    supportedmodes[0].ksmode = 0;
-    supportedmodes[1].ch = 2;
-    supportedmodes[1].ksmode = 0;
+    dsam[0].ch = 1;
+    dsam[0].ksmode = 0;
+    dsam[1].ch = 2;
+    dsam[1].ksmode = 0;
     if (FAILED (IDirectSound8_GetSpeakerConfig (lpDS, &speakerconfig)))
 	speakerconfig = DSSPEAKER_STEREO;
 
@@ -280,16 +276,13 @@ static void fillsupportedmodes (int freq)
 	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED (hr)) {
 		IDirectSound_Release (pdsb);
-		supportedmodes[mode].ksmode = rn[round];
-		supportedmodes[mode].ch = ch;
+		dsam[mode].ksmode = rn[round];
+		dsam[mode].ch = ch;
 		mode++;
 	    }
 	}
     }
-    write_log ("SOUND: %08.8X ", speakerconfig);
-    for (i = 0; i < mode; i++)
-	write_log ("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
-    write_log ("\n");
+    return speakerconfig;
 }
 
 static int open_audio_ds (int size)
@@ -301,7 +294,8 @@ static int open_audio_ds (int size)
     LPDIRECTSOUNDBUFFER pdsb;
     int freq = currprefs.sound_freq;
     int ch = get_audio_nativechannels();
-    int round;
+    int round, i;
+    DWORD speakerconfig;
 
     enumerate_sound_devices (0);
     size *= ch * 2;
@@ -362,7 +356,11 @@ static int open_audio_ds (int size)
 	}
     }
 
-    fillsupportedmodes(freq);
+    speakerconfig = fillsupportedmodes (lpDS, freq, supportedmodes);
+    write_log ("SOUND: %08.8X ", speakerconfig);
+    for (i = 0; supportedmodes[i].ch; i++)
+	write_log ("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
+    write_log ("\n");
 
     for (round = 0; supportedmodes[round].ch; round++) {
 	DWORD ksmode = 0;

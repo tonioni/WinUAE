@@ -11372,6 +11372,13 @@ void check_prefs_changed_gui (void)
 {
 }
 
+void gui_disk_image_change (int unitnum, const char *name)
+{
+#ifdef RETROPLATFORM
+    rp_disk_image_change (unitnum, name);
+#endif
+}
+
 void gui_hd_led (int unitnum, int led)
 {
     static int resetcounter;

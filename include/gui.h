@@ -18,8 +18,9 @@ extern void gui_lock (void);
 extern void gui_unlock (void);
 extern void gui_hd_led (int, int);
 extern void gui_cd_led (int, int);
+extern void gui_disk_image_change (int, const char *);
 extern unsigned int gui_ledstate;
-extern void gui_display(int shortcut);
+extern void gui_display (int shortcut);
 
 extern int no_gui;
 

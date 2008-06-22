@@ -859,9 +859,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
     trackid *tid;
     int num_tracks, size;
 
-#ifdef RETROPLATFORM
-    rp_disk_image_change (dnum, fname);
-#endif
+    gui_disk_image_change (dnum, fname);
     drive_image_free (drv);
     drv->diskfile = DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32);
     drv->ddhd = 1;
@@ -1808,9 +1806,7 @@ static void drive_eject (drive * drv)
 #ifdef DRIVESOUND
     driveclick_insert (drv - floppy, 1);
 #endif
-#ifdef RETROPLATFORM
-    rp_disk_image_change (drv - floppy, NULL);
-#endif
+    gui_disk_image_change (drv - floppy, NULL);
     drive_image_free (drv);
     drv->dskchange = 1;
     drv->ddhd = 1;

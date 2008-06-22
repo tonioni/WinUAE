@@ -1,4 +1,27 @@
 
+
+Beta 1: (1.5.1 in few weeks)
+
+- windowed mode "instant" switching implemented (this was planned for
+  1.5.0 but it would have delayed release 2-3 more weeks)
+- windowed mode window sizing enabled (not available in P96 modes,
+  if enabled, what it should do? scale the image?)
+- A500 "Chipset extra" enables RTC if memory expansion configured
+- KS 1.3 hardfile mounting fixed (so far "worst" 1.5.0 bug found..)
+- rewritten full featured AHI driver coming soon
+
+
+  * all AHI sample types supported (8-bit, 16-bit, 32-bit)
+  * 7.1 supported (probably will convert to 5.1 if 7.1 not supported)
+  * rear speakers supported in stereo mode (negative panning value)
+  * "infinite" number of sounds supported (basically emulates sound
+    card with "infinite" memory)
+  * number of simultaneous sounds only limited by PC sound card/driver
+  * all mixing is done by Windows sound driver (old driver used
+    Amiga-side software mixing)
+
+1.5.0
+
 Beta 25: RC1
 
 - "non-standard" Picasso96 resolutions are available again

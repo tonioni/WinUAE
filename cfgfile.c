@@ -3639,11 +3639,15 @@ int built_in_chipset_prefs (struct uae_prefs *p)
     case CP_A500: // A500
 	p->cs_df0idhw = 0;
 	p->cs_resetwarning = 0;
+	if (p->bogomem_size || p->chipmem_size > 1 || p->fastmem_size)
+	    p->cs_rtc = 1;
 	break;
     case CP_A500P: // A500+
+	p->cs_rtc = 1;
 	p->cs_resetwarning = 0;
 	break;
     case CP_A600: // A600
+	p->cs_rtc = 1;
 	p->cs_ide = 1;
 	p->cs_pcmcia = 1;
 	p->cs_ksmirror_a8 = 1;

@@ -5294,7 +5294,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 	return -1;
     }
     write_log ("RDB: fakefilesys, trying to load '%s', dostype 0x%08X\n", tmp, dostype);
-    zf = zfile_fopen (tmp,"rb");
+    zf = zfile_fopen (tmp, "rb");
     if (!zf) {
 	write_log ("RDB: filesys not found\n");
 	if ((dostype & 0xffffff00) == 0x444f5300)

@@ -817,12 +817,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	uae_quit ();
     return 0;
 
+    case WM_SIZE:
+	if (hStatusWnd)
+	    SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
+    break;
+
     case WM_WINDOWPOSCHANGED:
     {
-	WINDOWPOS *wp = (WINDOWPOS *)lParam;
+	WINDOWPOS *wp = (WINDOWPOS*)lParam;
 	if (!IsIconic (hWnd)) {
 	    GetWindowRect (hWnd, &amigawin_rect);
-	    if (isfullscreen() == 0) {
+	    if (isfullscreen () == 0) {
 		changed_prefs.gfx_size_win.x = amigawin_rect.left;
 		changed_prefs.gfx_size_win.y = amigawin_rect.top;
 	    }
@@ -879,29 +884,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	return lr;
     }
     case WM_MOVE:
-	WIN32GFX_WindowMove();
+	WIN32GFX_WindowMove ();
     return FALSE;
 
     case WM_ENABLE:
 	rp_set_enabledisable (wParam ? 1 : 0);
     return FALSE;
-
-#if 0
-    case WM_GETMINMAXINFO:
-    {
-	LPMINMAXINFO lpmmi;
-	RECT rect;
-	rect.left = 0;
-	rect.top = 0;
-	lpmmi = (LPMINMAXINFO)lParam;
-	rect.right = 320;
-	rect.bottom = 256;
-	//AdjustWindowRectEx(&rect,WSTYLE,0,0);
-	lpmmi->ptMinTrackSize.x = rect.right-rect.left;
-	lpmmi->ptMinTrackSize.y = rect.bottom-rect.top;
-    }
-    return 0;
-#endif
 
 #ifdef FILESYS
     case WM_USER + 2:
@@ -1117,7 +1105,6 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_MOVE:
      case WM_SIZING:
      case WM_SIZE:
-     case WM_GETMINMAXINFO:
      case WM_DESTROY:
      case WM_CLOSE:
      case WM_HELP:
@@ -1135,26 +1122,41 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	    WIN32GFX_DisplayChangeRequested();
 	break;
 
-     case WM_ENTERSIZEMOVE:
+    case WM_GETMINMAXINFO:
+    {
+	LPMINMAXINFO lpmmi;
+	lpmmi = (LPMINMAXINFO)lParam;
+	lpmmi->ptMinTrackSize.x = 160 + window_extra_width;
+	lpmmi->ptMinTrackSize.y = 128 + window_extra_height;
+	lpmmi->ptMaxTrackSize.x = 3072 + window_extra_width;
+	lpmmi->ptMaxTrackSize.y = 2048 + window_extra_height;
+    }
+    return 0;
+
+    case WM_ENTERSIZEMOVE:
 	in_sizemove++;
 	break;
 
-     case WM_EXITSIZEMOVE:
+    case WM_EXITSIZEMOVE:
 	in_sizemove--;
 	/* fall through */
 
-     case WM_WINDOWPOSCHANGED:
-	WIN32GFX_WindowMove();
-	if (hAmigaWnd && GetWindowRect(hAmigaWnd, &amigawin_rect)) {
+    case WM_WINDOWPOSCHANGED:
+	WIN32GFX_WindowMove ();
+	if (hAmigaWnd && GetWindowRect (hAmigaWnd, &amigawin_rect)) {
+	    DWORD aw = amigawin_rect.right - amigawin_rect.left;
+	    DWORD ah = amigawin_rect.bottom - amigawin_rect.top;
 	    if (in_sizemove > 0)
 		break;
 
 	    if (isfullscreen() == 0 && hAmigaWnd) {
 		static int store_xy;
 		RECT rc2;
-		if (GetWindowRect(hMainWnd, &rc2)) {
+		if (GetWindowRect (hMainWnd, &rc2)) {
 		    DWORD left = rc2.left - win_x_diff;
 		    DWORD top = rc2.top - win_y_diff;
+		    DWORD width = rc2.right - rc2.left;
+		    DWORD height = rc2.bottom - rc2.top;
 		    if (amigawin_rect.left & 3) {
 			MoveWindow (hMainWnd, rc2.left + 4 - amigawin_rect.left % 4, rc2.top,
 				    rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
@@ -1166,20 +1168,32 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		    }
 		    changed_prefs.gfx_size_win.x = left;
 		    changed_prefs.gfx_size_win.y = top;
+		    if (!WIN32GFX_IsPicassoScreen ()) {
+			changed_prefs.gfx_size_win.width = width - window_extra_width;
+			changed_prefs.gfx_size_win.height = height - window_extra_height;
+		    }
 		}
 		return 0;
 	    }
 	}
 	break;
 
-     case WM_PAINT:
+    case WM_WINDOWPOSCHANGING:
+    {
+	WINDOWPOS *wp = (WINDOWPOS*)lParam;
+	if (WIN32GFX_IsPicassoScreen())
+	    wp->flags |= SWP_NOSIZE;
+	break;
+    }
+
+    case WM_PAINT:
 	hDC = BeginPaint (hWnd, &ps);
 	GetClientRect (hWnd, &rc);
 	DrawEdge (hDC, &rc, EDGE_SUNKEN, BF_RECT);
 	EndPaint (hWnd, &ps);
 	return 0;
 
-     case WM_NCLBUTTONDBLCLK:
+    case WM_NCLBUTTONDBLCLK:
 	if (wParam == HTCAPTION) {
 	    WIN32GFX_ToggleFullScreen();
 	    return 0;

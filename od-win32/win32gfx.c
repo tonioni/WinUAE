@@ -98,28 +98,29 @@ static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
 int window_led_drives, window_led_drives_end;
 extern int console_logging;
+int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 
 int screen_is_picasso = 0;
 
-int WIN32GFX_IsPicassoScreen(void)
+int WIN32GFX_IsPicassoScreen (void)
 {
     return screen_is_picasso;
 }
 
-void WIN32GFX_DisablePicasso(void)
+void WIN32GFX_DisablePicasso (void)
 {
     picasso_requested_on = 0;
     picasso_on = 0;
 }
 
-void WIN32GFX_EnablePicasso(void)
+void WIN32GFX_EnablePicasso (void)
 {
     picasso_requested_on = 1;
 }
 
-void WIN32GFX_DisplayChangeRequested(void)
+void WIN32GFX_DisplayChangeRequested (void)
 {
     display_change_requested = 1;
 }
@@ -797,7 +798,7 @@ static void update_gfxparams (void)
     currentmode->amiga_height = currentmode->current_height;
 }
 
-static int open_windows (void)
+static int open_windows (int full)
 {
     int ret, i;
 
@@ -824,11 +825,12 @@ static int open_windows (void)
     }
 
     setpriority (&priorities[currprefs.win32_active_priority]);
-    if (!rp_isactive ())
+    if (!rp_isactive () && full)
 	setmouseactive (-1);
     for (i = 0; i < NUM_LEDS; i++)
 	gui_led (i, 0);
     gui_fps (0, 0);
+    inputdevice_acquire (FALSE);
 
     return ret;
 }
@@ -839,8 +841,8 @@ int check_prefs_changed_gfx (void)
 
     c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? 16 : 0;
     c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? 16 : 0;
-    c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? 2 | 16 : 0;
-    c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? 2 | 16 : 0;
+    c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? 16 : 0;
+    c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? 16 : 0;
 #if 0
     c |= currprefs.gfx_size_win.x != changed_prefs.gfx_size_win.x ? 16 : 0;
     c |= currprefs.gfx_size_win.y != changed_prefs.gfx_size_win.y ? 16 : 0;
@@ -1224,7 +1226,7 @@ void DX_Invalidate (int x, int y, int width, int height)
 static void open_screen (void)
 {
     close_windows ();
-    open_windows ();
+    open_windows (1);
 #ifdef PICASSO96
     DX_SetPalette (0, 256);
 #endif
@@ -1255,6 +1257,10 @@ static int reopen (int full)
 		quick = 1;
 	}
     }
+    /* windowed to windowed */
+    if (isfullscreen () <= 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen) {
+	quick = 1;
+    }
 
     currprefs.gfx_size_fs.width = changed_prefs.gfx_size_fs.width;
     currprefs.gfx_size_fs.height = changed_prefs.gfx_size_fs.height;
@@ -1271,7 +1277,7 @@ static int reopen (int full)
     if (!quick)
 	return 1;
     
-    open_windows ();
+    open_windows (0);
     return 0;
 }
 
@@ -1317,14 +1323,8 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 		    return 0;
 		}
 	    }
-	    if (picasso96_state.Width != wc->current_width ||
-		picasso96_state.Height != wc->current_height)
-		return 1;
-	} else {
-	    if (currentmode->current_width != wc->current_width ||
-		currentmode->current_height != wc->current_height)
-		return 1;
 	}
+	return -1;
     } else {
 	/* fullwindow to fullwindow */
 	if (currprefs.win32_rtgscaleifsmall) {
@@ -1351,7 +1351,8 @@ void gfx_set_picasso_state (int on)
 
     scalepicasso = 0;
     update_gfxparams ();
-    if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || currprefs.gfx_filter == UAE_FILTER_DIRECT3D || currprefs.gfx_filter == UAE_FILTER_OPENGL) {
+    if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen ||
+	(currprefs.gfx_afullscreen && (currprefs.gfx_filter == UAE_FILTER_DIRECT3D || currprefs.gfx_filter == UAE_FILTER_OPENGL))) {
 	mode = 1;
     } else {
 	mode = modeswitchneeded (&wc);
@@ -1359,7 +1360,7 @@ void gfx_set_picasso_state (int on)
 	    goto end;
     }
     if (mode < 0) {
-	open_windows ();
+	open_windows (0);
     } else {
 	open_screen (); // reopen everything
     }
@@ -1372,7 +1373,7 @@ end:
 void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
     alloc_colors_picasso (x_red_bits, x_green_bits, x_blue_bits, x_red_shift, x_green_shift, x_blue_shift, rgbfmt);
-    if (screen_is_picasso && modeswitchneeded(currentmode))
+    if (screen_is_picasso && modeswitchneeded (currentmode))
         open_screen ();
 }
 #endif
@@ -1423,7 +1424,7 @@ void machdep_free (void)
 int graphics_init (void)
 {
     gfxmode_reset ();
-    return open_windows ();
+    return open_windows (1);
 }
 
 int graphics_setup (void)
@@ -1478,7 +1479,11 @@ static void createstatuswindow (void)
     int num_parts = 11;
     double scaleX, scaleY;
 
-    hStatusWnd = CreateWindowEx(
+    if (hStatusWnd) {
+	ShowWindow (hStatusWnd, SW_HIDE);
+	DestroyWindow (hStatusWnd);
+    }
+    hStatusWnd = CreateWindowEx (
 	0, STATUSCLASSNAME, (LPCTSTR) NULL, SBT_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 	0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
     if (!hStatusWnd)
@@ -1592,11 +1597,45 @@ static int create_windows_2 (void)
     DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
     int cymenu = GetSystemMetrics (SM_CYMENU);
     int cyborder = GetSystemMetrics (SM_CYBORDER);
-    int cxborder = GetSystemMetrics(SM_CXBORDER);
+    int cxborder = GetSystemMetrics (SM_CXBORDER);
     int gap = 3;
     int x, y;
 
     if (hAmigaWnd) {
+	RECT r;
+	int w, h, x, y;
+	int nw, nh;
+	GetWindowRect (hAmigaWnd, &r);
+	x = r.left;
+	y = r.top;
+	w = r.bottom - r.top;
+	h = r.right - r.left;
+	if (screen_is_picasso) {
+	    nw = currentmode->current_width;
+	    nh = currentmode->current_height;
+	} else {
+	    nw = currprefs.gfx_size_win.width;
+	    nh = currprefs.gfx_size_win.height;
+	}
+	if (isfullscreen () <= 0 && (w != nw || h != nh)) {
+	    w = nw;
+	    h = nh;
+	    in_sizemove++;
+	    if (hMainWnd) {
+    		GetWindowRect (hMainWnd, &r);
+		x = r.left;
+		y = r.top;
+		SetWindowPos (hMainWnd, HWND_TOP, x, y, w + window_extra_width, h + window_extra_height,
+		    SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
+		x = gap - 1;
+		y = gap - 2;
+	    }
+	    SetWindowPos (hAmigaWnd, HWND_TOP, x, y, w, h,
+	        SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
+	    if (hStatusWnd)
+		createstatuswindow ();
+	    in_sizemove--;
+	}
 	write_log ("window already open\n");
 	return 1;
     }
@@ -1663,17 +1702,20 @@ static int create_windows_2 (void)
 	flags |= (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0);
 
 	if (!borderless) {
+	    RECT rc2;
 	    hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | flags,
 		"PCsuxRox", "WinUAE",
 		style,
 		rc.left, rc.top,
 		rc.right - rc.left + 1, rc.bottom - rc.top + 1,
 		hhWnd, NULL, hInst, NULL);
-
 	    if (!hMainWnd) {
 		write_log ("main window creation failed\n");
 		return 0;
 	    }
+	    GetWindowRect (hMainWnd, &rc2);
+	    window_extra_width = rc2.right - rc2.left - currentmode->current_width;
+	    window_extra_height = rc2.bottom - rc2.top - currentmode->current_height;
 	    if (!(currentmode->flags & DM_W_FULLSCREEN))
 		createstatuswindow ();
 	} else {
