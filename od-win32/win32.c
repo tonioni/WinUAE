@@ -76,7 +76,7 @@
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 int log_scsi, log_net, uaelib_debug;
-int pissoff_value = 10000;
+int pissoff_value = 25000;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -1066,6 +1066,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
+static int canstretch (void)
+{
+    if (isfullscreen () != 0)
+	return 0;
+    if (!WIN32GFX_IsPicassoScreen ())
+	return 1;
+    if (currprefs.win32_rtgallowscaling)
+	return 1;
+    return 0;
+}
+
 static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
@@ -1168,7 +1179,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		    }
 		    changed_prefs.gfx_size_win.x = left;
 		    changed_prefs.gfx_size_win.y = top;
-		    if (!WIN32GFX_IsPicassoScreen ()) {
+		    if (canstretch ()) {
 			changed_prefs.gfx_size_win.width = width - window_extra_width;
 			changed_prefs.gfx_size_win.height = height - window_extra_height;
 		    }
@@ -1181,7 +1192,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
     case WM_WINDOWPOSCHANGING:
     {
 	WINDOWPOS *wp = (WINDOWPOS*)lParam;
-	if (WIN32GFX_IsPicassoScreen())
+	if (!canstretch ())
 	    wp->flags |= SWP_NOSIZE;
 	break;
     }
@@ -1195,7 +1206,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
     case WM_NCLBUTTONDBLCLK:
 	if (wParam == HTCAPTION) {
-	    WIN32GFX_ToggleFullScreen();
+	    WIN32GFX_ToggleFullScreen ();
 	    return 0;
 	}
 	break;
@@ -1868,6 +1879,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->sana2 = 0;
 	p->win32_rtgmatchdepth = 1;
 	p->win32_rtgscaleifsmall = 1;
+	p->win32_rtgallowscaling = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
@@ -1910,6 +1922,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
     cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false" );
     cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false" );
+    cfgfile_target_dwrite (f, "rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? "true" : "false" );
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
@@ -1973,6 +1986,8 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_yesno (option, value, "rtg_match_depth", &p->win32_rtgmatchdepth))
 	return 1;
     if (cfgfile_yesno (option, value, "rtg_scale_small", &p->win32_rtgscaleifsmall))
+	return 1;
+    if (cfgfile_yesno (option, value, "rtg_scale_allow", &p->win32_rtgallowscaling))
 	return 1;
 
     if (cfgfile_yesno (option, value, "aspi", &v)) {

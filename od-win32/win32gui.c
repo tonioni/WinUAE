@@ -82,6 +82,7 @@
 #include "uaeipc.h"
 #include "crc32.h"
 #include "rp.h"
+#include "statusline.h"
 
 #define ARCHIVE_STRING "*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
@@ -5176,6 +5177,7 @@ static void enable_for_memorydlg (HWND hDlg)
     int z3 = ! workprefs.address_space_24;
     int fast = workprefs.chipmem_size <= 0x200000;
     int rtg = workprefs.gfxmem_size && full_property_sheet;
+    int rtg2 = workprefs.gfxmem_size;
 
 #ifndef AUTOCONFIG
     z3 = FALSE;
@@ -5199,8 +5201,9 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_RTG_16BIT, rtg);
     ew (hDlg, IDC_RTG_24BIT, rtg);
     ew (hDlg, IDC_RTG_32BIT, rtg);
-    ew (hDlg, IDC_RTG_MATCH_DEPTH, rtg);
-    ew (hDlg, IDC_RTG_SCALE, rtg);
+    ew (hDlg, IDC_RTG_MATCH_DEPTH, rtg2);
+    ew (hDlg, IDC_RTG_SCALE, rtg2);
+    ew (hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -5315,7 +5318,9 @@ static void values_to_memorydlg (HWND hDlg)
 	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 4 : 0, 0);
 
     CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
+    CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
     CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
+//    CheckDlgButton (hDlg, IDC_RTG_LEDS, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
 
     mem_size = 0;
     switch (workprefs.mbresmem_low_size) {
@@ -5460,6 +5465,14 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		case IDC_RTG_SCALE:
 		workprefs.win32_rtgscaleifsmall = IsDlgButtonChecked (hDlg, IDC_RTG_SCALE);
 		break;
+		case IDC_RTG_SCALE_ALLOW:
+		workprefs.win32_rtgallowscaling = IsDlgButtonChecked (hDlg, IDC_RTG_SCALE_ALLOW);
+		break;
+//		case IDC_RTG_LEDS:
+//		workprefs.leds_on_screen &= ~STATUSLINE_RTG;
+//		if (IsDlgButtonChecked (hDlg, IDC_RTG_LEDS))
+//		    workprefs.leds_on_screen |= STATUSLINE_RTG;
+//		break;
 	    }
     	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 		uae_u32 mask = workprefs.picasso96_modeflags;
@@ -5899,7 +5912,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
 	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
-	CheckDlgButton (hDlg, IDC_SHOWLEDS, workprefs.leds_on_screen);
+	CheckDlgButton (hDlg, IDC_SHOWLEDS, (workprefs.leds_on_screen & STATUSLINE_CHIPSET) ? 1 : 0);
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
@@ -6074,7 +6087,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.win32_middle_mouse = IsDlgButtonChecked(hDlg, IDC_JULIAN);
 	    break;
 	case IDC_SHOWLEDS:
-	    workprefs.leds_on_screen = IsDlgButtonChecked(hDlg, IDC_SHOWLEDS);
+	    workprefs.leds_on_screen &= ~STATUSLINE_CHIPSET;
+	    if (IsDlgButtonChecked(hDlg, IDC_SHOWLEDS))
+		workprefs.leds_on_screen |= STATUSLINE_CHIPSET;
 	    break;
 	case IDC_SHOWGUI:
 	    workprefs.start_gui = IsDlgButtonChecked (hDlg, IDC_SHOWGUI);

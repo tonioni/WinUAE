@@ -69,6 +69,7 @@ int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddre
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 
 #define P96TRACING_ENABLED 0
+#define P96SPRTRACING_ENABLED 0
 
 int p96hack_vpos, p96hack_vpos2, p96refresh_active;
 int have_done_picasso = 1; /* For the JIT compiler */
@@ -85,9 +86,12 @@ int p96hsync_counter, full_refresh;
 static void flushpixels(void);
 #if P96TRACING_ENABLED
 #define P96TRACE(x) do { write_log x; } while(0)
-#define P96TRACE_SPR(x) do { write_log x; } while(0)
 #else
 #define P96TRACE(x)
+#endif
+#if P96SPRTRACING_ENABLED
+#define P96TRACE_SPR(x) do { write_log x; } while(0)
+#else
 #define P96TRACE_SPR(x)
 #endif
 #define P96TRACE2(x) do { write_log x; } while(0)
@@ -114,6 +118,7 @@ static struct ScreenResolution truecolour = { 640, 480 };
 static struct ScreenResolution alphacolour = { 640, 480 };
 
 uae_u32 p96_rgbx16[65536];
+uae_u32 p96rc[256], p96gc[256], p96bc[256];
 
 #if P96DX > 0
 static LPDIRECTDRAWSURFACE7 p96surface;
@@ -826,6 +831,10 @@ static void setconvert (void)
     }
     picasso_convert = v;
     host_mode = DirectDraw_GetSurfacePixelFormat (NULL);
+    if (d == 4)
+	alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
+    else
+	alloc_colors_rgb (5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
     write_log ("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
     recursor ();
     full_refresh = 1;
@@ -1246,6 +1255,7 @@ static uae_u32 REGPARAM2 picasso_SetSpritePosition (TrapContext *ctx)
 {
     struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
+    boardinfo = bi;
     newcursor_x = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseX) - picasso96_state.XOffset;
     newcursor_y = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseY) - picasso96_state.YOffset;
     if (!hwsprite)
@@ -1274,6 +1284,7 @@ static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
     uae_u8 red = m68k_dreg (regs, 1);
     uae_u8 green = m68k_dreg (regs, 2);
     uae_u8 blue = m68k_dreg (regs, 3);
+    boardinfo = bi;
     idx++;
     if (!hwsprite)
 	return 0;
@@ -1606,6 +1617,7 @@ static uae_u32 REGPARAM2 picasso_SetSpriteImage (TrapContext *ctx)
 {
     struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
+    boardinfo = bi;
     return setspriteimage (bi);
 }
 
@@ -2335,6 +2347,7 @@ static void init_picasso_screen (void)
     if (set_gc_called) {
 	gfx_set_picasso_modeinfo (picasso96_state.Width, picasso96_state.Height,
 	    picasso96_state.GC_Depth, picasso96_state.RGBFormat);
+	set_gc_called = 0;
     }
     if((picasso_vidinfo.width == picasso96_state.Width) &&
 	(picasso_vidinfo.height == picasso96_state.Height) &&
@@ -2430,12 +2443,11 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
     uae_u16 bme_width, bme_height;
     int changed = 0;
 
-    if(oldscr == 0) {
+    if (oldscr == 0) {
 	oldscr = start_of_screen;
 	changed = 1;
     }
     if (oldscr != start_of_screen) {
-	set_gc_called = 0;
 	oldscr = start_of_screen;
 	changed = 1;
     }
@@ -3687,6 +3699,22 @@ static void copyall (uae_u8 *src, uae_u8 *dst)
     }
 }
 
+#include "statusline.h"
+static void statusline (uae_u8 *dst)
+{
+    int y, yy;
+    int dst_height, pitch;
+
+    dst_height = picasso96_state.Height;
+    pitch = picasso_vidinfo.rowbytes;
+    yy = 0;
+    for (y = dst_height - TD_TOTAL_HEIGHT; y < dst_height; y++) {
+        uae_u8 *buf = dst + y * pitch;
+	draw_status_line_single (buf, picasso_vidinfo.pixbytes, yy, picasso96_state.Width, p96rc, p96gc, p96bc);
+        yy++;
+    }
+}
+
 static void flushpixels (void)
 {
     int i;
@@ -3745,7 +3773,7 @@ static void flushpixels (void)
 #endif
 
 	if (dst == NULL) {
-	    if (DirectDraw_IsLocked() == FALSE) {
+	    if (DirectDraw_IsLocked () == FALSE) {
 		if (!lock)
 		    dst = gfx_lock_picasso ();
 		lock = 1;
@@ -3811,6 +3839,21 @@ static void flushpixels (void)
 	    DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny);
 	}
     }
+#if 0
+    if (currprefs.leds_on_screen & STATUSLINE_RTG) {
+	if (!dst && !lock) {
+	    dst = gfx_lock_picasso ();
+	    lock = 1;
+	}
+	if (dst) {
+	    statusline (dst);
+	    if (maxy < 0)
+		DX_Invalidate (0, picasso96_state.Height - TD_TOTAL_HEIGHT, picasso96_state.Width, TD_TOTAL_HEIGHT);
+	    else
+		DX_Invalidate (0, miny, picasso96_state.Width, picasso96_state.Height - miny);
+	}
+    }
+#endif
     if (lock)
 	gfx_unlock_picasso ();
     if (dst && gwwcnt) {

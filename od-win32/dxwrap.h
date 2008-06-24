@@ -12,7 +12,6 @@ struct ddstuff
     int ddinit;
     int ddzeroguid;
     GUID ddguid;
-    LPDIRECTDRAW olddd;
     LPDIRECTDRAW7 maindd;
     LPDIRECTDRAWCLIPPER dclip;
     LPDIRECTDRAWSURFACE7 primary, secondary, flipping[2];
@@ -34,6 +33,8 @@ struct ddstuff
     LPDIRECTDRAWSURFACE7 cursorsurface1;
     LPDIRECTDRAWSURFACE7 cursorsurface2;
     int cursorwidth, cursorheight;
+    LPDIRECTDRAWSURFACE7 statussurface;
+    int statuswidth, statusheight;
 };
 extern struct ddstuff dxdata;
 
@@ -117,10 +118,11 @@ void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc);
 HRESULT DirectDraw_FlipToGDISurface (void);
 int DirectDraw_Flip (int doflip);
 int DirectDraw_BlitToPrimary (RECT *rect);
-int DirectDraw_BlitToPrimaryScale (RECT *rect);
+int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect);
 void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
 void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
+void DirectDraw_FillPrimary (void);
 
 HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palette);
 HRESULT DirectDraw_SetPalette (int remove);

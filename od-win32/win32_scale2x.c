@@ -106,14 +106,13 @@ static LPDIRECTDRAWSURFACE7 tempsurf;
 static uae_u8 *tempsurf2, *tempsurf3;
 static uae_u32 rc[256], gc[256], bc[256];
 
-void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc);
 static void statusline (void)
 {
     DDSURFACEDESC2 desc;
     RECT sr, dr;
     int y;
 
-    if (!currprefs.leds_on_screen || !tempsurf)
+    if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
 	return;
     SetRect (&sr, 0, 0, dst_width, TD_TOTAL_HEIGHT);
     SetRect (&dr, 0, dst_height - TD_TOTAL_HEIGHT, dst_width, dst_height);
@@ -140,8 +139,8 @@ void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
 
 void S2X_free (void)
 {
-    if (currprefs.leds_on_screen == STATUSLINE_TARGET)
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = STATUSLINE_BUILTIN;
+    if (currprefs.leds_on_screen & STATUSLINE_TARGET)
+	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 
     freesurface (tempsurf);
     tempsurf = 0;
@@ -156,8 +155,8 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     int flags = 0;
     int res_shift;
 
-    if (currprefs.leds_on_screen == STATUSLINE_BUILTIN)
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = STATUSLINE_TARGET;
+    if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
+	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
     if (dd == 32)
 	alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, rc, gc, bc);

@@ -1258,6 +1258,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\ahidsound_new.c"
+				>
+			</File>
+			<File
 				RelativePath="..\avioutput.c"
 				>
 			</File>

@@ -90,6 +90,10 @@ void D3D_free (void)
 	FreeLibrary (d3dDLL);
 	d3dDLL = NULL;
     }
+    if (d3d) {
+	IDirect3D9_Release (d3d);
+	d3d = NULL;
+    }
     d3d_enabled = 0;
 }
 

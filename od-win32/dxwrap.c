@@ -5,6 +5,7 @@
 
 #include "dxwrap.h"
 #include "win32gfx.h"
+#include "statusline.h"
 
 #include <d3d9.h>
 #include <dxerr9.h>
@@ -48,6 +49,7 @@ static void freemainsurface (void)
     releaser (dxdata.secondary, IDirectDrawSurface7_Release);
     releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
     releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
+    releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
     dxdata.backbuffers = 0;
 }
 
@@ -179,7 +181,7 @@ LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pit
 {
     HRESULT ddrval;
     DDSURFACEDESC2 desc;
-    LPDIRECTDRAWSURFACE7 surf;
+    LPDIRECTDRAWSURFACE7 surf = NULL;
 
     memset (&desc, 0, sizeof desc);
     desc.dwSize = sizeof (desc);
@@ -263,12 +265,16 @@ static void createcursorsurface (void)
 {
     releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
     releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
+    releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
     dxdata.cursorsurface1 = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight, TRUE);
     dxdata.cursorsurface2 = allocsurface_2 (dxdata.cursorwidth, dxdata.cursorheight, FALSE);
+    dxdata.statussurface = allocsurface_2 (dxdata.statuswidth, dxdata.statusheight, FALSE);
     if (dxdata.cursorsurface1)
 	clearsurf (dxdata.cursorsurface1);
     if (dxdata.cursorsurface2)
 	clearsurf (dxdata.cursorsurface2);
+    if (dxdata.statussurface)
+	clearsurf (dxdata.statussurface);
 }
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)
@@ -412,6 +418,8 @@ HRESULT DirectDraw_SetClipper (HWND hWnd)
 {
     HRESULT ddrval;
 
+    if (dxdata.primary == NULL)
+	return DD_FALSE;
     ddrval = IDirectDrawSurface7_SetClipper (dxdata.primary, hWnd ? dxdata.dclip : NULL);
     if (FAILED (ddrval))
 	write_log ("IDirectDrawSurface7_SetClipper: %s\n", DXError (ddrval));
@@ -633,18 +641,21 @@ HRESULT DirectDraw_FlipToGDISurface (void)
     return IDirectDraw7_FlipToGDISurface (dxdata.maindd);
 }
 
-int DirectDraw_BlitToPrimaryScale (RECT *rect)
+int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 {
     LPDIRECTDRAWSURFACE7 dst;
     int result = 0;
     HRESULT ddrval;
-    RECT dstrect;
+    RECT dstrect2;
     int x = 0, y = 0, w = dxdata.swidth, h = dxdata.sheight;
 
     dst = dxdata.primary;
-    SetRect (&dstrect, x, y, x + w, y + h);
-    centerdstrect (&dstrect);
-    while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, rect, DDBLT_WAIT, NULL))) {
+    if (dstrect == NULL) {
+	dstrect = &dstrect2;
+	SetRect (dstrect, x, y, x + w, y + h);
+    }
+    centerdstrect (dstrect);
+    while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, dstrect, dxdata.secondary, srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurfacex (dst, dxdata.secondary);
 	    if (FAILED (ddrval))
@@ -668,6 +679,8 @@ int DirectDraw_BlitToPrimary (RECT *rect)
     int x = 0, y = 0, w = dxdata.swidth, h = dxdata.sheight;
 
     dst = dxdata.primary;
+    if (dst == NULL)
+	return DD_FALSE;
     if (rect) {
 	x = rect->left;
 	y = rect->top;
@@ -749,6 +762,32 @@ void DirectDraw_Fill (RECT *rect, uae_u32 color)
 	}
     }
 
+}
+
+void DirectDraw_FillPrimary (void)
+{
+    HRESULT ddrval;
+    DDBLTFX ddbltfx;
+    LPDIRECTDRAWSURFACE7 dst;
+    DWORD color = 0;
+    RECT *rect = NULL;
+
+    memset (&ddbltfx, 0, sizeof (ddbltfx));
+    ddbltfx.dwFillColor = color;
+    ddbltfx.dwSize = sizeof (ddbltfx);
+    dst = dxdata.primary;
+    if (dst == NULL)
+	return;
+    while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, rect, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx))) {
+	if (ddrval == DDERR_SURFACELOST) {
+	    ddrval = restoresurface (dst);
+	    if (FAILED (ddrval))
+		break;
+	} else if (ddrval != DDERR_SURFACEBUSY) {
+	    write_log ("DirectDraw_FillPrimary: %s\n", DXError (ddrval));
+	    break;
+	}
+    }
 }
 
 extern int vblank_skip;
@@ -852,7 +891,7 @@ void DirectDraw_Release (void)
     dxdata.fsmodeset = 0;
     IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
     releaser (dxdata.dclip, IDirectDrawClipper_Release);
-    releaser (dxdata.maindd, IDirectDraw_Release);
+    releaser (dxdata.maindd, IDirectDraw7_Release);
     memset (&dxdata, 0, sizeof (dxdata));
 }
 
@@ -871,20 +910,33 @@ int DirectDraw_Start (GUID *guid)
 	    return -1;
 	DirectDraw_Release ();
     }
-
-    ddrval = DirectDrawCreate (guid, &dxdata.olddd, NULL);
-    if (FAILED(ddrval)) {
+#if 0
+    LPDIRECTDRAW dd;
+    ddrval = DirectDrawCreate (guid, &dd, NULL);
+    if (FAILED (ddrval)) {
+	write_log ("DirectDrawCreate() failed, %s\n", DXError (ddrval));
 	if (guid != NULL)
 	    return 0;
 	goto oops;
     }
-    ddrval = IDirectDraw_QueryInterface (dxdata.olddd, &IID_IDirectDraw7, (LPVOID*)&dxdata.maindd);
-    if(FAILED(ddrval)) {
-	gui_message("start_ddraw(): DirectX 7 or newer required");
-	DirectDraw_Release();
-	return 0;
+    ddrval = IDirectDraw_QueryInterface (dd, &IID_IDirectDraw7, &dxdata.maindd);
+    IDirectDraw_Release (dd);
+    if (FAILED (ddrval)) {
+	write_log ("IDirectDraw_QueryInterface() failed, %s\n", DXError (ddrval));
+	goto oops;
     }
+#else
+    ddrval = DirectDrawCreateEx (guid, &dxdata.maindd, &IID_IDirectDraw7, NULL);
+    if (FAILED (ddrval)) {
+	write_log ("DirectDrawCreateEx() failed, %s\n", DXError (ddrval));
+	if (guid != NULL)
+	    return 0;
+	goto oops;
+    }
+#endif
 
+    dxdata.statuswidth = 800;
+    dxdata.statusheight = TD_TOTAL_HEIGHT;
     dxdata.cursorwidth = 48;
     dxdata.cursorheight = 48;
     dxdata.maxwidth = 16384;
@@ -893,10 +945,12 @@ int DirectDraw_Start (GUID *guid)
     if (d3dDLL) {
         d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
 	if (d3d) {
-	    IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps);
-	    dxdata.maxwidth = d3dCaps.MaxTextureWidth;
-	    dxdata.maxheight = d3dCaps.MaxTextureHeight;
-	    write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
+	    if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps))) {
+		dxdata.maxwidth = d3dCaps.MaxTextureWidth;
+		dxdata.maxheight = d3dCaps.MaxTextureHeight;
+		write_log ("Max hardware surface size: %dx%d\n", dxdata.maxwidth, dxdata.maxheight);
+	    }
+	    IDirect3D9_Release (d3d);
 	}
 	FreeLibrary (d3dDLL);
     }
@@ -916,7 +970,7 @@ int DirectDraw_Start (GUID *guid)
     }
   oops:
     write_log ("DirectDraw_Start: %s\n", DXError (ddrval));
-    DirectDraw_Release();
+    DirectDraw_Release ();
     return 0;
 }
 

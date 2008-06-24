@@ -28,6 +28,7 @@
 #include "filesys.h"
 #include "fsdb.h"
 #include "disk.h"
+#include "statusline.h"
 
 static int config_newfilesystem;
 static struct strlist *temp_lines;
@@ -135,6 +136,7 @@ static const char *collmode[] = { "none", "sprites", "playfields", "full", 0 };
 static const char *compmode[] = { "direct", "indirect", "indirectKS", "afterPic", 0 };
 static const char *flushmode[] = { "soft", "hard", 0 };
 static const char *kbleds[] = { "none", "POWER", "DF0", "DF1", "DF2", "DF3", "HD", "CD", 0 };
+static const char *onscreenleds[] = { "false", "true", "rtg", "both", 0 };
 static const char *soundfiltermode1[] = { "off", "emulated", "on", 0 };
 static const char *soundfiltermode2[] = { "standard", "enhanced", 0 };
 static const char *lorestype1[] = { "lores", "hires", "superhires" };
@@ -501,31 +503,31 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
     cfgfile_dwrite (f, "uae_hide=%d\n", p->uae_hide);
 
-    cfgfile_dwrite (f, "gfx_display=%d\n", p->gfx_display);
-    cfgfile_dwrite (f, "gfx_display_name=%s\n", p->gfx_display_name);
-    cfgfile_dwrite (f, "gfx_framerate=%d\n", p->gfx_framerate);
-    cfgfile_dwrite (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
-    cfgfile_dwrite (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
-    cfgfile_dwrite (f, "gfx_top_windowed=%d\n", p->gfx_size_win.x);
-    cfgfile_dwrite (f, "gfx_left_windowed=%d\n", p->gfx_size_win.y);
-    cfgfile_dwrite (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
-    cfgfile_dwrite (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
-    cfgfile_dwrite (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
-    cfgfile_dwrite (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
-    cfgfile_dwrite (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
-    cfgfile_dwrite (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
-    cfgfile_dwrite (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
-    cfgfile_dwrite (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
-    cfgfile_dwrite (f, "gfx_lores=%s\n", p->gfx_resolution == 0 ? "true" : "false");
-    cfgfile_dwrite (f, "gfx_resolution=%s\n", lorestype1[p->gfx_resolution]);
-    cfgfile_dwrite (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
-    cfgfile_dwrite (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
-    cfgfile_dwrite (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
-    cfgfile_dwrite (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
-    cfgfile_dwrite (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
-    cfgfile_dwrite (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
-    cfgfile_dwrite (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
-    cfgfile_dwrite (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
+    cfgfile_write (f, "gfx_display=%d\n", p->gfx_display);
+    cfgfile_write (f, "gfx_display_name=%s\n", p->gfx_display_name);
+    cfgfile_write (f, "gfx_framerate=%d\n", p->gfx_framerate);
+    cfgfile_write (f, "gfx_width=%d\n", p->gfx_size_win.width); /* compatibility with old versions */
+    cfgfile_write (f, "gfx_height=%d\n", p->gfx_size_win.height); /* compatibility with old versions */
+    cfgfile_write (f, "gfx_top_windowed=%d\n", p->gfx_size_win.x);
+    cfgfile_write (f, "gfx_left_windowed=%d\n", p->gfx_size_win.y);
+    cfgfile_write (f, "gfx_width_windowed=%d\n", p->gfx_size_win.width);
+    cfgfile_write (f, "gfx_height_windowed=%d\n", p->gfx_size_win.height);
+    cfgfile_write (f, "gfx_width_fullscreen=%d\n", p->gfx_size_fs.width);
+    cfgfile_write (f, "gfx_height_fullscreen=%d\n", p->gfx_size_fs.height);
+    cfgfile_write (f, "gfx_refreshrate=%d\n", p->gfx_refreshrate);
+    cfgfile_write (f, "gfx_autoresolution=%d\n", p->gfx_autoresolution);
+    cfgfile_write (f, "gfx_vsync=%s\n", p->gfx_avsync ? "true" : "false");
+    cfgfile_write (f, "gfx_vsync_picasso=%s\n", p->gfx_pvsync ? "true" : "false");
+    cfgfile_write (f, "gfx_lores=%s\n", p->gfx_resolution == 0 ? "true" : "false");
+    cfgfile_write (f, "gfx_resolution=%s\n", lorestype1[p->gfx_resolution]);
+    cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
+    cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
+    cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
+    cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
+    cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
+    cfgfile_write (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
+    cfgfile_write (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
+    cfgfile_write (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
 
 #ifdef GFXFILTER
     if (p->gfx_filter > 0) {
@@ -583,7 +585,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "immediate_blits=%s\n", p->immediate_blits ? "true" : "false");
     cfgfile_write (f, "ntsc=%s\n", p->ntscmode ? "true" : "false");
     cfgfile_write (f, "genlock=%s\n", p->genlock ? "true" : "false");
-    cfgfile_dwrite (f, "show_leds=%s\n", p->leds_on_screen ? "true" : "false");
+    cfgfile_dwrite (f, "show_leds=%s\n", (p->leds_on_screen & STATUSLINE_CHIPSET) ? "true" : "false");
     cfgfile_dwrite (f, "keyboard_leds=numlock:%s,capslock:%s,scrolllock:%s\n",
 	kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
     if (p->chipset_mask & CSMASK_AGA)

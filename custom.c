@@ -179,7 +179,6 @@ static int fmode;
 uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
-static int interlace_started;
 static int ciavsyncmode;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
@@ -429,7 +428,7 @@ void alloc_cycle_ext(int hpos, int type)
     alloc_cycle (hpos, type);
 }
 
-static void hsyncdelay(void)
+static void hsyncdelay (void)
 {
 #if 0
     static int prevhpos;
@@ -439,7 +438,7 @@ static void hsyncdelay(void)
 #endif
 }
 
-static void update_mirrors(void)
+static void update_mirrors (void)
 {
     aga_mode = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
     direct_rgb = aga_mode;
@@ -566,8 +565,8 @@ static int real_bitplane_number[3][3][9];
    e.g. by the Sanity WOC demo (at the "Party Effect").  */
 STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 {
-    int res = GET_RES(bc0);
-    int planes = GET_PLANES(bc0);
+    int res = GET_RES (bc0);
+    int planes = GET_PLANES (bc0);
     return real_bitplane_number[fetchmode][res][planes];
 }
 
@@ -2209,7 +2208,7 @@ static void finish_decisions (void)
     dip = curr_drawinfo + next_lineno;
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
-    changed = thisline_changed + interlace_started;
+    changed = thisline_changed;
     if (thisline_decision.plfleft != -1)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
@@ -2610,7 +2609,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     vp <<= 8;
     vp |= hp;
     if (currprefs.cpu_model >= 68020)
-	hsyncdelay();
+	hsyncdelay ();
     return vp;
 }
 
@@ -2844,7 +2843,7 @@ static void INTREQ_d (uae_u16 v, int d)
     intreqr = intreq;
     /* data in intreq is immediately available (vsync only currently because there is something unknown..) */
     setclr (&intreqr, v & (0x8000 | 0x20));
-    if (!use_eventmode() || v == 0)
+    if (!use_eventmode () || v == 0)
 	INTREQ_f (v);
     else
 	event2_newevent2 (d, v, INTREQ_f);
@@ -2965,9 +2964,6 @@ static void BPLCON0_do (int hpos, uae_u16 v)
 	vpos_previous = vpos;
 	hpos_previous = hpos;
     }
-
-    if ((v & 4) && !interlace_seen)
-	interlace_started = 2;
 
     ddf_change = vpos;
     decide_line (hpos);
@@ -3711,7 +3707,7 @@ static void update_copper (int until_hpos)
 	dump_copper ("error2", until_hpos);
 	copper_enabled_thisline = 0;
 	cop_state.state = COP_stop;
-	unset_special(&regs, SPCFLAG_COPPER);
+	unset_special (&regs, SPCFLAG_COPPER);
 	return;
     }
 
@@ -3791,7 +3787,7 @@ static void update_copper (int until_hpos)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
-	    alloc_cycle(old_hpos, CYCLE_COPPER);
+	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    cop_state.state = cop_state.state == COP_read1 ? COP_read2 : COP_read2_wr_in2;
 	    break;
@@ -4239,8 +4235,6 @@ static void init_hardware_frame (void)
     diwstate = DIW_waiting_start;
     hdiwstate = DIW_waiting_start;
     ddfstate = DIW_waiting_start;
-    if (interlace_started > 0)
-	interlace_started--;
 }
 
 void init_hardware_for_drawing_frame (void)
@@ -4645,13 +4639,13 @@ static void hsync_handler (void)
 
     if (!nocustom ()) {
 	int lineno = vpos;
-	if (bplcon0 & 4)
+	if ((bplcon0 & 4) && currprefs.gfx_linedbl)
 	    notice_interlace_seen ();
 	nextline_how = nln_normal;
 	if (currprefs.gfx_linedbl && (!doublescan || interlace_seen)) {
 	    lineno *= 2;
 	    nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
-	    if (interlace_seen) { /* was bplcon0 & 4 but it fails if single frame has mixed lace and non-lace */
+	    if ((bplcon0 & 4) || (interlace_seen && !lof)) {
 		if (!lof) {
 		    lineno++;
 		    nextline_how = nln_lower;
@@ -5847,7 +5841,7 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)malloc (256*4);
+	dstbak = dst = xmalloc (256*4);
     for (i = 0; i < 256; i++)
 #ifdef AGA
 	SL (current_colors.color_regs_aga[i] | (color_regs_aga_genlock[i] ? 0x80000000 : 0));
@@ -5882,7 +5876,7 @@ uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)malloc (30);
+	dstbak = dst = xmalloc (30);
     SL (spr[num].pt);		/* 120-13E SPRxPT */
     SW (sprpos[num]);		/* 1x0 SPRxPOS */
     SW (sprctl[num]);		/* 1x2 SPRxPOS */
@@ -5984,7 +5978,7 @@ STATIC_INLINE void dma_cycle(void)
 		break;
 	    }
 	    decide_blitter (hpos);
-	    if (dmaen(DMA_BLITTER))
+	    if (dmaen (DMA_BLITTER))
 		bnasty++;
 	}
 	if (cycle_line[hpos] == 0 && !bpldma)

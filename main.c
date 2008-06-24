@@ -99,9 +99,9 @@ void discard_prefs (struct uae_prefs *p, int type)
     while (*ps) {
 	struct strlist *s = *ps;
 	*ps = s->next;
-	free (s->value);
-	free (s->option);
-	free (s);
+	xfree (s->value);
+	xfree (s->option);
+	xfree (s);
     }
 #ifdef FILESYS
     filesys_cleanup ();

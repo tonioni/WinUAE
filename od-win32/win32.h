@@ -16,8 +16,8 @@
 #define GETBDD(x) ((x) % 100)
 
 #define WINUAEBETA 1
-#define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 6, 22)
+#define WINUAEPUBLICBETA 2
+#define WINUAEDATE MAKEBD(2008, 6, 24)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -75,7 +75,7 @@ extern int gui_active;
 extern DWORD quickstart, configurationcache;
 
 extern HKEY hWinUAEKey;
-extern int screen_is_picasso;
+extern int screen_is_picasso, scalepicasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
 extern int window_extra_width, window_extra_height;

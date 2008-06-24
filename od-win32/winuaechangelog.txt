@@ -1,5 +1,33 @@
 
 
+Beta 2:
+
+- Picasso96 hardware mouse cursor may have been invisible (or wrong
+  graphics) in some cases after resolution change
+- borderblank switching does not corrupt graphics in interlaced modes
+  (this was already fixed in beta 1)
+- default JIT timing value increased to 25000, should help with some
+  PCs that had slowdown in 1.5.0 series, hopefully without side-effects
+- HRTMon works (again) if JIT is enabled
+- "Kickstart replacement" is compatible with new KS loader
+- interlace should work again in "normal" mode (no doubling or
+  scanlines) (broken since 1.3b2..)
+- window is now reopened only when switching to fullscreen. Every
+  on the fly windowed configuration change should never reopen the
+  window anymore.
+- full-window modes work again, filtered modes center properly
+- renamed Picasso96 option "Scale instead of switching resolution" to
+  "Scale if smaller than display size setting"
+- added Picasso96 option "Always scale in windowed mode", this option
+  causes window size to never resize when resolution changes. Also
+  enables manual window resizing. Just experimenting..
+- Picasso96 "Scale instead of switching resolution" in full-window modes
+  always scales to full screen
+- fixed possible crashes when switching Windows desktop resolution or
+  when using quick user switching (post message if there are still
+  problems, I rarely use these features)
+- some directdraw and direct3d handle leaks fixed
+
 Beta 1: (1.5.1 in few weeks)
 
 - windowed mode "instant" switching implemented (this was planned for

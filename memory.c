@@ -3376,6 +3376,8 @@ void memory_reset (void)
 	    }
 #ifdef AUTOCONFIG
 	    init_ersatz_rom (kickmemory);
+	    kickmem_mask = 262144 - 1;
+	    kickmem_size = 262144;
 	    ersatzkickfile = 1;
 #else
 	    uae_restart (-1, NULL);
@@ -3595,10 +3597,6 @@ void memory_init (void)
     kickmem_bank.baseaddr = kickmemory;
     strcpy (currprefs.romfile, "<none>");
     currprefs.romextfile[0] = 0;
-#ifdef AUTOCONFIG
-    init_ersatz_rom (kickmemory);
-    ersatzkickfile = 1;
-#endif
 
 #ifdef ACTION_REPLAY
     action_replay_load();

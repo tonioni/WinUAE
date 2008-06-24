@@ -549,7 +549,7 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	    got = TRUE;
 	}
 
-	if(!strcmp(shmids[shmid].name,"hrtmon")) {
+	if(!strcmp(shmids[shmid].name,"hrtmem")) {
 	    shmaddr=natmem_offset + 0x00a10000;
 	    got = TRUE;
 	}

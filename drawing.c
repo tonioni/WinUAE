@@ -209,7 +209,7 @@ uae_sem_t gui_sem;
 int inhibit_frame;
 
 int framecnt = 0;
-static int frame_redraw_necessary;
+int frame_redraw_necessary;
 static int picasso_redraw_necessary;
 
 #ifdef XLINECHECK
@@ -2306,7 +2306,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	} else if (led == 8) {
 	    int idle = (gui_data.idle + 5) / 10;
 	    pos = 1;
-	    on = framecnt;
+	    on = framecnt && !picasso_on;
 	    on_rgb = 0xcc0000;
 	    off_rgb = 0x000000;
 	    num1 = idle / 100;
@@ -2368,7 +2368,7 @@ static void draw_status_line (int line)
     int bpp, y;
     uae_u8 *buf;
 
-    if (currprefs.leds_on_screen != STATUSLINE_BUILTIN)
+    if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || (currprefs.leds_on_screen & STATUSLINE_TARGET))
 	return;
     bpp = gfxvidinfo.pixbytes;
     y = line - (gfxvidinfo.height - TD_TOTAL_HEIGHT);
@@ -2598,7 +2598,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 
 	if (framecnt == 0)
 	    finish_drawing_frame ();
-
 	interlace_seen = 0;
 
 	/* At this point, we have finished both the hardware and the

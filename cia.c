@@ -1118,7 +1118,9 @@ void CIA_reset (void)
 	ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
     }
     CIA_calctimers ();
-    if (!ersatzkickfile)
+    if (ersatzkickfile)
+	ersatz_chipcopy ();
+    else
 	map_overlay (0);
     oldovl = 1;
 #ifdef SERIAL_PORT
