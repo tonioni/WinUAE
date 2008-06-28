@@ -2442,6 +2442,7 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
     uaecptr bmeptr = get_long (bi + PSSO_BoardInfo_BitMapExtra);  /* Get our BoardInfo ptr's BitMapExtra ptr */
     uae_u16 bme_width, bme_height;
     int changed = 0;
+    RGBFTYPE rgbf;
 
     if (oldscr == 0) {
 	oldscr = start_of_screen;
@@ -2465,6 +2466,7 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 
     bme_width = get_word (bmeptr + PSSO_BitMapExtra_Width);
     bme_height = get_word (bmeptr + PSSO_BitMapExtra_Height);
+    rgbf = picasso96_state.RGBFormat;
 
     picasso96_state.Address = start_of_screen; /* Amiga-side address */
     picasso96_state.XOffset = (uae_s16)(m68k_dreg (regs, 1) & 0xFFFF);
@@ -2477,6 +2479,9 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
     picasso96_state.BytesPerPixel = GetBytesPerPixel (picasso96_state.RGBFormat);
     picasso96_state.BytesPerRow = picasso96_state.VirtualWidth * picasso96_state.BytesPerPixel;
     picasso_SetPanningInit();
+
+    if (rgbf != picasso96_state.RGBFormat)
+	gfx_set_picasso_colors (picasso96_state.RGBFormat);
 
     full_refresh = 1;
     set_panning_called = 1;

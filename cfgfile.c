@@ -1878,9 +1878,9 @@ static int cfgfile_load_2 (struct uae_prefs *p, const char *filename, int real, 
 	    if (real) {
 		cfgfile_parse_separated_line (p, line1b, line2b, askedtype);
 	    } else {
-		cfgfile_string (line1b, line2b, "config_description", p->description, 128);
-		cfgfile_string (line1b, line2b, "config_hardware_path", p->config_hardware_path, 128);
-		cfgfile_string (line1b, line2b, "config_host_path", p->config_host_path, 128);
+		cfgfile_string (line1b, line2b, "config_description", p->description, sizeof p->description);
+		cfgfile_string (line1b, line2b, "config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path);
+		cfgfile_string (line1b, line2b, "config_host_path", p->config_host_path, sizeof p->config_host_path);
 	    }
 	}
     }
@@ -1972,6 +1972,7 @@ int cfgfile_get_description (const char *filename, char *description, char *host
 {
     int result = 0;
     struct uae_prefs *p = xmalloc (sizeof (struct uae_prefs));
+
     p->description[0] = 0;
     p->config_host_path[0] = 0;
     p->config_hardware_path[0] = 0;
@@ -1984,7 +1985,7 @@ int cfgfile_get_description (const char *filename, char *description, char *host
 	if (hardwarelink)
 	    strcpy (hardwarelink, p->config_hardware_path);
     }
-    free (p);
+    xfree (p);
     return result;
 }
 
@@ -2723,7 +2724,7 @@ uae_u8 *restore_configuration (uae_u8 *src)
     return src;
 }
 
-uae_u8 *save_configuration(int *len)
+uae_u8 *save_configuration (int *len)
 {
     int tmpsize = 30000;
     uae_u8 *dstbak, *dst;
@@ -2739,12 +2740,12 @@ uae_u8 *save_configuration(int *len)
 	ret = cfgfile_modify (index, "*", 1, tmpout, sizeof (tmpout));
 	index++;
 	if (strlen(tmpout) > 0) {
-	    if (!memcmp(tmpout, "input.", 6))
+	    if (!memcmp (tmpout, "input.", 6))
 		continue;
 	    strcpy (p, tmpout);
 	    strcat (p, "\n");
-	    p += strlen(p);
-	    if (p - dstbak >= tmpsize - sizeof(tmpout))
+	    p += strlen (p);
+	    if (p - dstbak >= tmpsize - sizeof (tmpout))
 		break;
 	}
 	if (ret >= 0)
@@ -3023,7 +3024,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
     zfile_fclose (default_file);
     default_file = NULL;
-    f = zfile_fopen_empty ("configstore", 50000);
+    f = zfile_fopen_empty ("configstore", 100000);
     if (f) {
 	uaeconfig++;
 	cfgfile_save_options (f, p, 0);

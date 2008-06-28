@@ -783,11 +783,16 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
     int i;
     char tmp[100];
 
+#if 0
+    if (pdidoi->dwOfs != DIDFT_GETINSTANCE (pdidoi->dwType))
+	write_log ("%x-%s: %x <> %x\n", pdidoi->dwType & 0xff, pdidoi->tszName,
+	    pdidoi->dwOfs, DIDFT_GETINSTANCE (pdidoi->dwType));
+#endif
     if (pdidoi->dwType & DIDFT_AXIS) {
 	int sort = 0;
 	if (did->axles >= MAX_MAPPINGS)
 	    return DIENUM_CONTINUE;
-	did->axismappings[did->axles] = pdidoi->dwOfs;
+	did->axismappings[did->axles] = DIDFT_GETINSTANCE (pdidoi->dwType);
 	did->axisname[did->axles] = my_strdup (pdidoi->tszName);
 	if (did->type == DID_JOYSTICK)
 	    sort = makesort_joy (&pdidoi->guidType, &did->axismappings[did->axles]);
@@ -833,13 +838,16 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	    return DIENUM_CONTINUE;
 	did->buttonname[did->buttons] = my_strdup (pdidoi->tszName);
 	if (did->type == DID_JOYSTICK) {
-	    did->buttonmappings[did->buttons] = DIJOFS_BUTTON(did->buttons); // pdidoi->dwOfs returns garbage!!
+	    //did->buttonmappings[did->buttons] = DIJOFS_BUTTON(DIDFT_GETINSTANCE (pdidoi->dwType));
+	    did->buttonmappings[did->buttons] = DIJOFS_BUTTON(did->buttons);
 	    did->buttonsort[did->buttons] = makesort_joy (&pdidoi->guidType, &did->buttonmappings[did->buttons]);
 	} else if (did->type == DID_MOUSE) {
-	    did->buttonmappings[did->buttons] = FIELD_OFFSET(DIMOUSESTATE, rgbButtons) + did->buttons;
+	    //did->buttonmappings[did->buttons] = FIELD_OFFSET(DIMOUSESTATE2, rgbButtons) + DIDFT_GETINSTANCE (pdidoi->dwType);
+	    did->buttonmappings[did->buttons] = FIELD_OFFSET(DIMOUSESTATE2, rgbButtons) + did->buttons;
 	    did->buttonsort[did->buttons] = makesort_mouse (&pdidoi->guidType, &did->buttonmappings[did->buttons]);
 	} else {
-	    did->buttonmappings[did->buttons] = pdidoi->dwOfs;
+	    //did->buttonmappings[did->buttons] = pdidoi->dwOfs;
+	    did->buttonmappings[did->buttons] = DIDFT_GETINSTANCE (pdidoi->dwType);
 	}
 	did->buttons++;
     }
@@ -1072,7 +1080,7 @@ static int init_mouse (void)
 	if (!did->disabled && did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
-		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIMouse);
+		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIMouse2);
 		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
 		fixbuttons (did);
 		fixthings_mouse (did);
@@ -1446,7 +1454,7 @@ static int init_kb (void)
 		hr = IDirectInputDevice8_SetProperty (lpdi, DIPROP_BUFFERSIZE, &dipdw.diph);
 		if (FAILED (hr))
 		    write_log ("keyboard setpropertry failed, %s\n", DXError (hr));
-		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
+		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, did, DIDFT_ALL);
 		sortobjects (did, did->axismappings, did->axissort, did->axisname, did->axistype, did->axles);
 		sortobjects (did, did->buttonmappings, did->buttonsort, did->buttonname, 0, did->buttons);
 		did->lpdi = lpdi;

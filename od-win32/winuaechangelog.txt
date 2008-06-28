@@ -1,4 +1,27 @@
 
+Beta 3:
+
+- corrected directinput keyboard enumeration, possible fix for
+  wrong keycodes (=non-working key) on some keyboard/driver
+  combinations. (bug since the beginning, I blame really bad keyboard
+  directinput documentation)
+- Picasso96 color space conversion color errors (b2)
+- Picasso96 now always keeps aspect ratio in scaled modes
+  (both windowed and full-window)
+- window resize worked strangely in some cases
+- full-window on the fly monitor change fixed
+- disappearing mouse cursor if scaled window was smaller than original
+  Picasso96 resolution
+- detect Amiga Forever 2008 Value Edition rom key when winuae is
+  located outside of AF install directory
+- fullscreen to fullscreen non resolution/depth changes won't
+  reopen the display anymore (except D3D/OGL<>other filter change)
+- fullscreen to fullscreen resolution/depth change speed improved
+- Windowed Picasso96 scaling fixed when native mode was set to
+  fullscreen or fullwindow
+- nasty memory corruption fixed in configuration handling introduced
+  in 1.5 betas. Causes random crash or memory corruption sooner or
+  later when saving configuration few times.
 
 Beta 2:
 
@@ -12,6 +35,7 @@ Beta 2:
 - "Kickstart replacement" is compatible with new KS loader
 - interlace should work again in "normal" mode (no doubling or
   scanlines) (broken since 1.3b2..)
+- interlace<>nonlace switching graphics problem fixed (1.5.0) 
 - window is now reopened only when switching to fullscreen. Every
   on the fly windowed configuration change should never reopen the
   window anymore.
@@ -26,7 +50,7 @@ Beta 2:
 - fixed possible crashes when switching Windows desktop resolution or
   when using quick user switching (post message if there are still
   problems, I rarely use these features)
-- some directdraw and direct3d handle leaks fixed
+- some directdraw and direct3d memory leaks fixed
 
 Beta 1: (1.5.1 in few weeks)
 

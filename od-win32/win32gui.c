@@ -127,7 +127,7 @@ static char stored_path[MAX_DPATH];
 
 void WIN32GUI_LoadUIString(DWORD id, char *string, DWORD dwStringLen)
 {
-    if(LoadString(hUIDLL ? hUIDLL : hInst, id, string, dwStringLen) == 0)
+    if (LoadString(hUIDLL ? hUIDLL : hInst, id, string, dwStringLen) == 0)
 	LoadString(hInst, id, string, dwStringLen);
 }
 
@@ -150,12 +150,12 @@ static struct ToolTipHWNDS ToolTipHWNDS2[MAX_IMAGETOOLTIPS + 1];
 
 static void ew (HWND hDlg, DWORD id, int enable)
 {
-    HWND w = GetDlgItem(hDlg, id);
+    HWND w = GetDlgItem (hDlg, id);
     if (!w)
 	return;
-    if (!enable && w == GetFocus())
-	SendMessage(hDlg, WM_NEXTDLGCTL, 0, FALSE);
-    EnableWindow(w, !!enable);
+    if (!enable && w == GetFocus ())
+	SendMessage (hDlg, WM_NEXTDLGCTL, 0, FALSE);
+    EnableWindow (w, !!enable);
 }
 
 void write_disk_history (void)
@@ -169,7 +169,7 @@ void write_disk_history (void)
 	return;
     j = 1;
     for (i = 0; i <= MAX_PREVIOUS_FLOPPIES; i++) {
-	char *s = DISK_history_get(i);
+	char *s = DISK_history_get (i);
 	if (s == 0 || strlen(s) == 0)
 	    continue;
 	sprintf (tmp, "Image%02d", j);
@@ -191,7 +191,7 @@ void reset_disk_history (void)
 
     for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++)
 	DISK_history_add (NULL, i);
-    write_disk_history();
+    write_disk_history ();
 }
 
 UAEREG *read_disk_history (void)
@@ -1568,7 +1568,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    break;
 	case IDC_DF3:
 	    SetDlgItemText (hDlg, IDC_DF3TEXT, full_path);
-	    strcpy(prefs->df[3], full_path);
+	    strcpy (prefs->df[3], full_path);
 	    DISK_history_add (full_path, -1);
 	    break;
 	case IDC_DOSAVESTATE:
@@ -1580,15 +1580,15 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    {
 		char disk_name[32];
 		disk_name[0] = 0; disk_name[31] = 0;
-		GetDlgItemText(hDlg, IDC_CREATE_NAME, disk_name, 30);
-		disk_creatediskfile(full_path, 0, SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name);
+		GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
+		disk_creatediskfile (full_path, 0, SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name);
 	    }
 	    break;
 	case IDC_CREATE_RAW:
-	    disk_creatediskfile(full_path, 1, SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), NULL);
+	    disk_creatediskfile (full_path, 1, SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), NULL);
 	    break;
 	case IDC_LOAD:
-	    if (target_cfgfile_load(&workprefs, full_path, 0, 0) == 0) {
+	    if (target_cfgfile_load (&workprefs, full_path, 0, 0) == 0) {
 		char szMessage[MAX_DPATH];
 		WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
 		pre_gui_message (szMessage);
@@ -1615,10 +1615,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    strcpy (workprefs.cartfile, full_path);
 	    break;
 	case IDC_INPREC_PLAY:
-	    inprec_open(full_path, IsDlgButtonChecked (hDlg, IDC_INPREC_PLAYMODE) == BST_CHECKED ? -1 : -2);
+	    inprec_open (full_path, IsDlgButtonChecked (hDlg, IDC_INPREC_PLAYMODE) == BST_CHECKED ? -1 : -2);
 	    break;
 	case IDC_INPREC_RECORD:
-	    inprec_open(full_path, 1);
+	    inprec_open (full_path, 1);
 	    break;
 	}
 	if (!nosavepath) {
@@ -1643,11 +1643,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     }
     return result;
 }
-int DiskSelection(HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
+int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
 {
     return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, NULL);
 }
-int MultiDiskSelection(HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
+int MultiDiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out)
 {
     int multi = 0;
     return DiskSelection_2 (hDlg, wParam, flag, prefs, path_out, &multi);
@@ -1847,7 +1847,7 @@ static void setguititle (HWND phwnd)
 
 static void GetConfigPath (char *path, struct ConfigStruct *parent, int noroot)
 {
-    if (parent == 0) {
+    if (parent == NULL) {
 	path[0] = 0;
 	if (!noroot) {
 	    fetch_path ("ConfigurationPath", path, MAX_DPATH);
@@ -1863,7 +1863,7 @@ static void GetConfigPath (char *path, struct ConfigStruct *parent, int noroot)
 
 void FreeConfigStruct (struct ConfigStruct *config)
 {
-    free (config);
+    xfree (config);
 }
 struct ConfigStruct *AllocConfigStruct (void)
 {
@@ -1878,7 +1878,7 @@ static void FreeConfigStore (void)
     int i;
     for (i = 0; i < configstoresize; i++)
 	FreeConfigStruct (configstore[i]);
-    free (configstore);
+    xfree (configstore);
     configstore = 0;
     configstoresize = configstoreallocated = 0;
 }
@@ -1947,6 +1947,9 @@ static struct ConfigStruct *readconfigcache (const char *path)
     HANDLE h;
     WIN32_FIND_DATA ffd;
 
+#if CONFIGCACHE == 0
+    return NULL;
+#endif
     err = 0;
     first = NULL;
     getconfigcache (cachepath, path);
@@ -2222,6 +2225,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 
     if (*level == 0)
 	FreeConfigStore ();
+
     first = NULL;
     GetConfigPath (path, configparent, FALSE);
     GetConfigPath (shortpath, configparent, TRUE);
@@ -2315,14 +2319,14 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	    break;
 	}
     }
-    if (*level == 0)
+    if (*level == 0 && CONFIGCACHE)
 	writeconfigcache (path);
     return first;
 }
 
 static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, int flushcache)
 {
-    int level = 0, i;
+    int level, i;
     char path[MAX_DPATH], name[MAX_DPATH];
     struct ConfigStruct *cs;
 
@@ -2330,6 +2334,7 @@ static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, i
 	strcpy (path, oldconfig->Path);
 	strcpy (name, oldconfig->Name);
     }
+    level = 0;
     GetConfigs (NULL, 1, &level, flushcache);
     if (oldconfig) {
 	for (i = 0; i < configstoresize; i++) {
@@ -2348,6 +2353,8 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
     static char full_path[MAX_DPATH];
 
     full_path[0] = 0;
+    name[0] = 0;
+    desc[0] = 0;
     GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
     strcpy (config_filename, name);
     if (flag == CONFIG_SAVE_FULL || flag == CONFIG_SAVE) {
@@ -2391,7 +2398,7 @@ static char *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *conf
 	case CONFIG_LOAD:
 	    if (strlen (name) == 0) {
 		char szMessage[MAX_DPATH];
-		WIN32GUI_LoadUIString(IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH);
+		WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH);
 		pre_gui_message (szMessage);
 	    } else {
 		if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
@@ -3026,13 +3033,21 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
     SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_SETCURSEL, idx2, 0);
 }
 
+static void DeleteConfigTree (HWND hDlg)
+{
+    int i;
+    HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
+    for (i = 0; i < configstoresize; i++)
+	configstore[i]->item = NULL;
+    TreeView_DeleteAllItems (TVhDlg);
+}
+
 static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 {
     HIMAGELIST himl = ImageList_Create (16, 16, ILC_COLOR8 | ILC_MASK, 3, 0);
     HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
     HTREEITEM parent;
     char path[MAX_DPATH];
-    int i;
 
     if (himl) {
 	HICON icon;
@@ -3044,9 +3059,7 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 	ImageList_AddIcon (himl, icon);
 	TreeView_SetImageList (TVhDlg, himl, TVSIL_NORMAL);
     }
-    for (i = 0; i < configstoresize; i++)
-	configstore[i]->item = NULL;
-    TreeView_DeleteAllItems (TVhDlg);
+    DeleteConfigTree (hDlg);
     GetConfigPath (path, NULL, FALSE);
     parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL);
     LoadConfigTreeView (hDlg, -1, parent);
@@ -3133,12 +3146,14 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
     return config;
 }
 
-static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *config, char **pcfgfile, char *newpath)
+static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **configp, char **pcfgfile, char *newpath)
 {
+    struct ConfigStruct *config = *configp;
     switch (LOWORD (wParam))
     {
         case IDC_SAVE:
     	    HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath);
+	    DeleteConfigTree (hDlg);
 	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    ConfigToRegistry (config, configtypepanel);
@@ -3147,6 +3162,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
         break;
 	case IDC_QUICKSAVE:
 	    HandleConfiguration (hDlg, CONFIG_SAVE, config, NULL);
+	    DeleteConfigTree (hDlg);
 	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    ConfigToRegistry (config, configtypepanel);
@@ -3177,6 +3193,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
         break;
         case IDC_DELETE:
 	    HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL);
+	    DeleteConfigTree (hDlg);
 	    config = CreateConfigStore (config, TRUE);
 	    config = fixloadconfig (hDlg, config);
 	    InitializeConfigTreeView (hDlg);
@@ -3221,6 +3238,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct *con
 	    }
         break;
     }
+    *configp = config;
 }
 
 static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -3234,6 +3252,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
     case WM_INITDIALOG:
 	recursive++;
 	if (!configstore) {
+	    DeleteConfigTree (hDlg);
 	    CreateConfigStore (NULL, FALSE);
 	    config = NULL;
 	}
@@ -3252,7 +3271,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	if (id == IDC_SAVE || id == IDC_LOAD) {
 	    char *s = favoritepopup (hDlg);
 	    if (s) {
-		loadsavecommands (hDlg, id, config, &cfgfile, s);
+		loadsavecommands (hDlg, id, &config, &cfgfile, s);
 		xfree (s);
 	    }
 	}
@@ -3262,7 +3281,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
     case WM_COMMAND:
     {
 	recursive++;
-	loadsavecommands (hDlg, wParam, config, &cfgfile, NULL);
+	loadsavecommands (hDlg, wParam, &config, &cfgfile, NULL);
 	recursive++;
 	break;
     }
@@ -3405,7 +3424,7 @@ static void SetupRichText(HWND hDlg, urlinfo *url)
     CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
     CharFormat.crTextColor = GetSysColor(COLOR_ACTIVECAPTION);
-    strcpy(CharFormat.szFaceName, "Tahoma" );
+    strcpy (CharFormat.szFaceName, os_vista ? "Segoe UI" : "Tahoma");
     SendDlgItemMessage(hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
     SendDlgItemMessage(hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_3DFACE));
 }
@@ -3476,7 +3495,7 @@ static void setac (HWND hDlg, int id)
 }
 static void setautocomplete (HWND hDlg, int id)
 {
-    HWND item = FindWindowEx(GetDlgItem (hDlg, id), NULL, "Edit", NULL);
+    HWND item = FindWindowEx (GetDlgItem (hDlg, id), NULL, "Edit", NULL);
     if (item)
 	SHAutoComplete (item, SHACF_FILESYSTEM | SHACF_AUTOAPPEND_FORCE_ON | SHACF_AUTOSUGGEST_FORCE_ON | SHACF_USETAB);
 }
@@ -3554,14 +3573,14 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	numtypes = 0;
 	SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
 	if (af_path_2005 & 1) {
-	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF2005, tmp, sizeof tmp);
+	    WIN32GUI_LoadUIString (IDS_DEFAULT_AF2005, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == PATH_TYPE_NEWAF)
 		selpath = numtypes;
 	    ptypes[numtypes++] = PATH_TYPE_NEWAF;
 	}
 	if (start_path_new1[0]) {
-	    WIN32GUI_LoadUIString(IDS_DEFAULT_NEWWINUAE, tmp, sizeof tmp);
+	    WIN32GUI_LoadUIString (IDS_DEFAULT_NEWWINUAE, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == PATH_TYPE_NEWWINUAE)
 		selpath = numtypes;
@@ -3574,19 +3593,19 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    ptypes[numtypes++] = PATH_TYPE_AMIGAFOREVERDATA;
 	}
 	if (af_path_old) {
-	    WIN32GUI_LoadUIString(IDS_DEFAULT_AF, tmp, sizeof tmp);
+	    WIN32GUI_LoadUIString (IDS_DEFAULT_AF, tmp, sizeof tmp);
 	    SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    if (path_type == PATH_TYPE_OLDAF)
 		selpath = numtypes;
 	    ptypes[numtypes++] = PATH_TYPE_OLDAF;
 	}
-	WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
+	WIN32GUI_LoadUIString (IDS_DEFAULT_WINUAE, tmp, sizeof tmp);
 	SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	if (path_type == 0)
 	    selpath = numtypes;
 	ptypes[numtypes++] = 0;
 	SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
-	EnableWindow(GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
+	EnableWindow (GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
 	values_to_pathsdialog (hDlg);
 	recursive--;
 	return TRUE;
@@ -3600,7 +3619,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_PATHS_ROMS:
 	    fetch_path ("KickstartPath", tmp, sizeof (tmp));
 	    if (DirectorySelection (hDlg, 0, tmp)) {
-		load_keyring(&workprefs, NULL);
+		load_keyring (&workprefs, NULL);
 		set_path ("KickstartPath", tmp);
 		if (!scan_roms (1))
 		    gui_message_id (IDS_ROMSCANNOROMS);

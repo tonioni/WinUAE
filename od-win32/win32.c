@@ -1780,6 +1780,20 @@ uae_u8 *save_log (int bootlog, int *len)
     return dst;
 }
 
+static void strip_slashes (char *p)
+{
+    while (strlen (p) > 0 && (p[strlen (p) - 1] == '\\' || p[strlen (p) - 1] == '/'))
+	p[strlen (p) - 1] = 0;
+}
+static void fixtrailing(char *p)
+{
+    if (strlen(p) == 0)
+	return;
+    if (p[strlen(p) - 1] == '/' || p[strlen(p) - 1] == '\\')
+	return;
+    strcat(p, "\\");
+}
+
 typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
 uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *name)
 {
@@ -1794,8 +1808,18 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *sizep, char *
 	char path[MAX_DPATH];
 	sprintf (path, "%s..\\Player\\%s", start_path_exe, libname);
 	h = LoadLibrary (path);
-	if (!h)
-	    return NULL;
+	if (!h) {
+	    char *afr = getenv ("AMIGAFOREVERROOT");
+	    if (afr) {
+		char tmp[MAX_DPATH];
+		strcpy (tmp, afr);
+		fixtrailing (tmp);
+		sprintf (path, "%sPlayer\\%s", tmp, libname);
+		h = LoadLibrary (path);
+		if (!h)
+		    return NULL;
+	    }
+	}
     }
     GetModuleFileName (h, name, MAX_DPATH);
     pfnGetKey = (PFN_GetKey)GetProcAddress (h, "GetKey");
@@ -2072,20 +2096,6 @@ void fetch_screenshotpath (char *out, int size)
 void fetch_datapath (char *out, int size)
 {
     fetch_path (NULL, out, size);
-}
-
-static void strip_slashes (char *p)
-{
-    while (strlen (p) > 0 && (p[strlen (p) - 1] == '\\' || p[strlen (p) - 1] == '/'))
-	p[strlen (p) - 1] = 0;
-}
-static void fixtrailing(char *p)
-{
-    if (strlen(p) == 0)
-	return;
-    if (p[strlen(p) - 1] == '/' || p[strlen(p) - 1] == '\\')
-	return;
-    strcat(p, "\\");
 }
 
 static int isfilesindir(char *p)
@@ -3396,9 +3406,9 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		if (dump) {
 		    HANDLE f = CreateFile (path2, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		    if (f != INVALID_HANDLE_VALUE) {
+			flush_log ();
 			savedump (dump, f, pExceptionPointers);
 			CloseHandle (f);
-			flush_log ();
 			if (isfullscreen () <= 0) {
 			    sprintf (msg, "Crash detected. MiniDump saved as:\n%s\n", path2);
 			    MessageBox (NULL, msg, "Crash", MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);

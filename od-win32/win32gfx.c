@@ -130,12 +130,16 @@ int isscreen (void)
     return hMainWnd ? 1 : 0;
 }
 
-int isfullscreen (void)
+static int isfullscreen_2 (struct uae_prefs *p)
 {
     if (screen_is_picasso)
-	return currprefs.gfx_pfullscreen == 1 ? 1 : (currprefs.gfx_pfullscreen == 2 ? -1 : 0);
+	return p->gfx_pfullscreen == 1 ? 1 : (p->gfx_pfullscreen == 2 ? -1 : 0);
     else
-	return currprefs.gfx_afullscreen == 1 ? 1 : (currprefs.gfx_afullscreen == 2 ? -1 : 0);
+	return p->gfx_afullscreen == 1 ? 1 : (p->gfx_afullscreen == 2 ? -1 : 0);
+}
+int isfullscreen (void)
+{
+    return isfullscreen_2 (&currprefs);
 }
 
 int is3dmode (void)
@@ -704,8 +708,19 @@ static void DX_Blit96 (int x, int y, int w, int h)
     RECT dr, sr;
 
     if (scalepicasso) {
+	int srcratio, dstratio;
 	SetRect (&sr, 0, 0, picasso96_state.Width, picasso96_state.Height);
-	SetRect (&dr, 0, 0, currentmode->native_width, currentmode->native_height);
+	srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
+	dstratio = currentmode->native_width * 256 / currentmode->native_height;
+	if (srcratio == dstratio) {
+	    SetRect (&dr, 0, 0, currentmode->native_width, currentmode->native_height);
+	} else if (srcratio > dstratio) {
+	    int yy = currentmode->native_height - currentmode->native_height * dstratio / srcratio;
+	    SetRect (&dr, 0, yy / 2, currentmode->native_width, currentmode->native_height - yy / 2);
+	} else {
+	    int xx = currentmode->native_width - currentmode->native_width * srcratio / dstratio;
+	    SetRect (&dr, xx / 2, 0, currentmode->native_width - xx / 2, currentmode->native_height);
+	}
 	DirectDraw_BlitToPrimaryScale (&dr, &sr);
     } else {
         SetRect (&sr, x, y, x + w, y + h);
@@ -739,9 +754,9 @@ void gfx_unlock_picasso (void)
     if (p96_double_buffer_needs_flushing) {
 	if (scalepicasso) {
 	   p96_double_buffer_firstx = 0;
-	   p96_double_buffer_lastx = picasso_vidinfo.width;
+	   p96_double_buffer_lastx = picasso96_state.Width;
 	   p96_double_buffer_first = 0;
-	   p96_double_buffer_last = picasso_vidinfo.height;
+	   p96_double_buffer_last = picasso96_state.Height;
 	}
 	picasso_putcursor (p96_double_buffer_firstx, p96_double_buffer_first,
 	    p96_double_buffer_lastx - p96_double_buffer_firstx + 1, p96_double_buffer_last - p96_double_buffer_first + 1);
@@ -878,18 +893,18 @@ static void update_gfxparams (void)
 	    if ((currprefs.win32_rtgscaleifsmall || currprefs.win32_rtgallowscaling) && (picasso96_state.Width != currentmode->native_width || picasso96_state.Height != currentmode->native_height))
 	        scalepicasso = -1;
 	} else if (isfullscreen () > 0) {
-	    if (currprefs.gfx_size.width > picasso96_state.Width && currprefs.gfx_size.width > picasso96_state.Height) {
-		if (currprefs.win32_rtgscaleifsmall)
+	    if (currprefs.gfx_size.width > picasso96_state.Width && currprefs.gfx_size.height > picasso96_state.Height) {
+		if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth)
 		    scalepicasso = 1;
 	    }
 	} else if (isfullscreen () == 0) {
-	    if (currprefs.gfx_size.width != picasso96_state.Width && currprefs.gfx_size.width != picasso96_state.Height && currprefs.win32_rtgallowscaling)
+	    if ((currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height) && currprefs.win32_rtgallowscaling)
 		scalepicasso = 1;
-	    if ((currprefs.gfx_size.width > picasso96_state.Width || currprefs.gfx_size.width > picasso96_state.Height) && currprefs.win32_rtgscaleifsmall)
+	    if ((currprefs.gfx_size.width > picasso96_state.Width || currprefs.gfx_size.height > picasso96_state.Height) && currprefs.win32_rtgscaleifsmall)
 		scalepicasso = 1;
 	}
 
-	if (scalepicasso > 0 && currprefs.gfx_size.width != picasso96_state.Width && currprefs.gfx_size.width != picasso96_state.Height) {
+	if (scalepicasso > 0 && (currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height)) {
 	    currentmode->current_width = currprefs.gfx_size.width;
 	    currentmode->current_height = currprefs.gfx_size.height;
 	}
@@ -984,9 +999,9 @@ int check_prefs_changed_gfx (void)
 
     if (display_change_requested || c)
     {
-	int staywindowed = 
-	    currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && currprefs.gfx_afullscreen != 1 &&
-	    currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen && currprefs.gfx_pfullscreen != 1;
+	int keepfsmode = 
+	    currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && 
+	    currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen;
 	cfgfile_configuration_change (1);
 	if (display_change_requested)
 	    c |= 2;
@@ -994,6 +1009,17 @@ int check_prefs_changed_gfx (void)
 
 	currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 	currprefs.color_mode = changed_prefs.color_mode;
+
+        if (changed_prefs.gfx_afullscreen == 1) { 
+	    if (currprefs.gfx_filter == UAE_FILTER_DIRECT3D && changed_prefs.gfx_filter != UAE_FILTER_DIRECT3D)
+		keepfsmode = 0;
+	    if (currprefs.gfx_filter == UAE_FILTER_OPENGL && changed_prefs.gfx_filter != UAE_FILTER_OPENGL)
+		keepfsmode = 0;
+	    if (changed_prefs.gfx_filter == UAE_FILTER_DIRECT3D && currprefs.gfx_filter != UAE_FILTER_DIRECT3D)
+		keepfsmode = 0;
+	    if (changed_prefs.gfx_filter == UAE_FILTER_OPENGL && currprefs.gfx_filter != UAE_FILTER_OPENGL)
+		keepfsmode = 0;
+	}
 
 	currprefs.gfx_filter = changed_prefs.gfx_filter;
 	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
@@ -1023,12 +1049,12 @@ int check_prefs_changed_gfx (void)
 	currprefs.win32_rtgallowscaling = changed_prefs.win32_rtgallowscaling;
 
 	inputdevice_unacquire ();
-	if ((c & 16) || ((c & 8) && staywindowed)) {
+	if ((c & 16) || ((c & 8) && keepfsmode)) {
 	    extern int reopen (int);
 	    if (reopen (c & 2))
 		c |= 2;
 	}
-	if ((c & 2) && !staywindowed) {
+	if ((c & 2) && !keepfsmode) {
 	    close_windows ();
 	    graphics_init ();
 	}
@@ -1355,15 +1381,15 @@ static int reopen (int full)
 	full = 1;
     if (changed_prefs.gfx_pfullscreen != currprefs.gfx_pfullscreen && screen_is_picasso)
 	full = 1;
+
     /* fullscreen to fullscreen? */
-    if (!screen_is_picasso && changed_prefs.gfx_afullscreen && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen) {
-	if (currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ||
-	    currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height) {
-		quick = 1;
-	}
+    if (isfullscreen () > 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen &&
+	currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen && currprefs.gfx_afullscreen == 1) {
+	    quick = 1;
     }
     /* windowed to windowed */
-    if (isfullscreen () <= 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen) {
+    if (isfullscreen () <= 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen &&
+	currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen) {
 	quick = 1;
     }
 
@@ -1379,12 +1405,14 @@ static int reopen (int full)
     currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
     currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
 
+
+
     if (!quick)
 	return 1;
     
     open_windows (0);
 
-    if (isfullscreen () < 0)
+    if (isfullscreen () <= 0)
 	DirectDraw_FillPrimary ();
 
     return 0;
@@ -1400,10 +1428,8 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 	    if (picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
 		return -1;
 	    if (picasso96_state.Width < wc->current_width && picasso96_state.Height < wc->current_height) {
-		if (currprefs.win32_rtgscaleifsmall) {
-		    // scalepicasso = 1
+		if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth)
 		    return 0;
-		}
 	    }
 	    if (picasso96_state.Width != wc->current_width ||
 		picasso96_state.Height != wc->current_height)
@@ -1438,6 +1464,11 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
     return 0;
 }
 
+static void clearscreen (void)
+{
+    DirectDraw_FillPrimary ();
+}    
+
 void gfx_set_picasso_state (int on)
 {
     struct winuae_currentmode wc;
@@ -1450,7 +1481,8 @@ void gfx_set_picasso_state (int on)
     memcpy (&wc, currentmode, sizeof (wc));
 
     updatemodes ();
-    DirectDraw_FillPrimary ();
+    update_gfxparams ();
+    clearscreen ();
     if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen ||
 	(currprefs.gfx_afullscreen == 1 && (currprefs.gfx_filter == UAE_FILTER_DIRECT3D || currprefs.gfx_filter == UAE_FILTER_OPENGL))) {
 	mode = 1;
@@ -1459,14 +1491,12 @@ void gfx_set_picasso_state (int on)
 	if (!mode)
 	    goto end;
     }
-    update_gfxparams ();
     if (mode < 0) {
 	open_windows (0);
     } else {
 	open_screen (); // reopen everything
     }
 end:
-    update_gfxparams ();
 #ifdef RETROPLATFORM
     rp_set_hwnd (hAmigaWnd);
 #endif
@@ -1475,9 +1505,9 @@ end:
 void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgbfmt)
 {
     int need;
-    alloc_colors_picasso (x_red_bits, x_green_bits, x_blue_bits, x_red_shift, x_green_shift, x_blue_shift, rgbfmt);
     if (!screen_is_picasso)
 	return;
+    gfx_set_picasso_colors (rgbfmt);
     updatemodes ();
     need = modeswitchneeded (currentmode);
     update_gfxparams ();
@@ -1491,6 +1521,11 @@ void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgb
 #endif
 }
 #endif
+
+void gfx_set_picasso_colors (RGBFTYPE rgbfmt)
+{
+    alloc_colors_picasso (x_red_bits, x_green_bits, x_blue_bits, x_red_shift, x_green_shift, x_blue_shift, rgbfmt);
+}
 
 static void gfxmode_reset (void)
 {
@@ -1718,12 +1753,14 @@ static int create_windows_2 (void)
     if (hAmigaWnd) {
 	RECT r;
 	int w, h, x, y;
-	int nw, nh;
+	int nw, nh, nx, ny;
 	GetWindowRect (hAmigaWnd, &r);
 	x = r.left;
 	y = r.top;
-	w = r.bottom - r.top;
-	h = r.right - r.left;
+	w = r.right - r.left;
+	h = r.bottom - r.top;
+        nx = x;
+        ny = y;
 	if (screen_is_picasso) {
 	    nw = currentmode->current_width;
 	    nh = currentmode->current_height;
@@ -1731,11 +1768,20 @@ static int create_windows_2 (void)
 	    nw = currprefs.gfx_size_win.width;
 	    nh = currprefs.gfx_size_win.height;
 	}
-	if (isfullscreen () == 0 && (w != nw || h != nh)) {
+	if (fsw || dxfs) {
+	    RECT rc = getdisplay (&currprefs)->rect;
+	    nx = rc.left;
+	    ny = rc.top;
+	    nw = rc.right - rc.left;
+	    nh = rc.bottom - rc.top;
+	}
+	if (w != nw || h != nh || x != nx || y != ny) {
 	    w = nw;
 	    h = nh;
+	    x = nx;
+	    y = ny;
 	    in_sizemove++;
-	    if (hMainWnd) {
+	    if (hMainWnd && !fsw && !dxfs) {
     		GetWindowRect (hMainWnd, &r);
 		x = r.left;
 		y = r.top;
@@ -2206,7 +2252,7 @@ void updatewinfsmode (struct uae_prefs *p)
     struct MultiDisplay *md;
 
     fixup_prefs_dimensions (p);
-    if (p->gfx_afullscreen) {
+    if (isfullscreen_2 (p) != 0) {
 	p->gfx_size = p->gfx_size_fs;
     } else {
 	p->gfx_size = p->gfx_size_win;

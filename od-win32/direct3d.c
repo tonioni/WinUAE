@@ -545,6 +545,20 @@ int D3D_needreset (void)
     return 0;
 }
 
+void D3D_clear (void)
+{
+    HRESULT hr;
+    hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
+    if (FAILED (hr))
+	return;
+    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
+    hr = IDirect3DDevice9_BeginScene (d3ddev);
+    if (FAILED (hr))
+	return;
+    IDirect3DDevice9_EndScene (d3ddev);
+    IDirect3DDevice9_Present (d3ddev, 0, 0, 0 ,0);
+}
+
 int D3D_locktexture (void)
 {
     D3DLOCKED_RECT locked;

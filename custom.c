@@ -2331,12 +2331,14 @@ void compute_vsynctime (void)
 	vsynctime = vsynctime_orig = 1;
     else
 	vsynctime = vsynctime_orig = syncbase / fake_vblank_hz;
+    if (!picasso_on) {
 #ifdef OPENGL
-    OGL_refresh ();
+	OGL_refresh ();
 #endif
 #ifdef D3D
-    D3D_refresh ();
+	D3D_refresh ();
 #endif
+    }
     if (currprefs.produce_sound > 1)
 	update_sound (fake_vblank_hz);
 }
