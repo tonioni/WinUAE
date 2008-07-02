@@ -115,6 +115,7 @@ static struct uae_input_device2 joysticks2[MAX_INPUT_DEVICES];
 static struct uae_input_device2 mice2[MAX_INPUT_DEVICES];
 
 static int input_acquired;
+static int testmode;
 
 static uae_u8 *inprec_buffer, *inprec_p;
 static struct zfile *inprec_zf;
@@ -430,7 +431,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, char *
 	custom = id->custom[i + offset][j];
 	if (custom == NULL && evt <= 0) {
 	    for (k = j + 1; k < MAX_INPUT_SUB_EVENT; k++) {
-		if (id->eventid[i + offset][k] > 0)
+		if (id->eventid[i + offset][k] > 0 || id->custom[i + offset][k] != NULL)
 		    break;
 	    }
 	    if (k == MAX_INPUT_SUB_EVENT)
@@ -538,7 +539,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	    evt = kbr->eventid[i][j];
 	    if (custom == NULL && evt <= 0) {
 		for (k = j + 1; k < MAX_INPUT_SUB_EVENT; k++) {
-		    if (kbr->eventid[i][k] > 0) break;
+		    if (kbr->eventid[i][k] > 0 || kbr->custom[i][k] != NULL) break;
 		}
 		if (k == MAX_INPUT_SUB_EVENT)
 		    break;
@@ -3078,8 +3079,8 @@ void inputdevice_acquire (int allmode)
 	if (use_keyboards[i])
 	    idev[IDTYPE_KEYBOARD].acquire (i, 0);
     }
-    if (!input_acquired)
-	write_log ("input devices acquired (%s)\n", allmode ? "all" : "selected only");
+//    if (!input_acquired)
+//	write_log ("input devices acquired (%s)\n", allmode ? "all" : "selected only");
     input_acquired = 1;
 }
 
@@ -3087,8 +3088,8 @@ void inputdevice_unacquire (void)
 {
     int i;
 
-    if (input_acquired)
-	write_log ("input devices unacquired\n");
+//    if (input_acquired)
+//	write_log ("input devices unacquired\n");
     input_acquired = 0;
     for (i = 0; i < MAX_INPUT_DEVICES; i++)
 	idev[IDTYPE_JOYSTICK].unacquire (i);
@@ -3096,6 +3097,30 @@ void inputdevice_unacquire (void)
 	idev[IDTYPE_MOUSE].unacquire (i);
     for (i = 0; i < MAX_INPUT_DEVICES; i++)
 	idev[IDTYPE_KEYBOARD].unacquire (i);
+}
+
+static void testrecord (int type, int num, int wtype, int wnum, int state)
+{
+    char tmp[2000];
+    tmp[0] = 0;
+    wnum += idev[type].get_widget_first (num, wtype);
+    idev[type].get_widget_type (num, wnum, tmp, NULL);
+    write_log ("%s: %s %d\n", idev[type].get_friendlyname (num), tmp, state);
+}
+
+int inputdevice_istest (void)
+{
+    return testmode;
+}
+
+int inputdevice_testread (char *name)
+{
+    testmode = 1;
+    idev[IDTYPE_KEYBOARD].read ();
+    idev[IDTYPE_JOYSTICK].read ();
+    idev[IDTYPE_MOUSE].read ();
+    testmode = 0;
+    return 0;
 }
 
 static int ignoreoldinput (int joy)
@@ -3109,7 +3134,7 @@ static int ignoreoldinput (int joy)
     return 0;
 }
 
-void do_fake_joystick(int nr, int *fake)
+void do_fake_joystick (int nr, int *fake)
 {
     struct uae_input_device *id1;
     struct uae_input_device2 *id2;
@@ -3189,6 +3214,10 @@ void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask)
 
 void setmousebuttonstate (int mouse, int button, int state)
 {
+    if (testmode) {
+	testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state);
+	return;
+    }
     setbuttonstateall (&mice[mouse], &mice2[mouse], button, state);
 }
 
@@ -3202,6 +3231,10 @@ void setjoystickstate (int joy, int axis, int state, int max)
     int deadzone = currprefs.input_joymouse_deadzone * max / 100;
     int i, v1, v2;
 
+    if (testmode) {
+	testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_AXIS, axis, state);
+	return;
+    }
     v1 = state;
     v2 = id2->states[axis];
     if (v1 < deadzone && v1 > -deadzone)
@@ -3222,6 +3255,8 @@ void setjoystickstate (int joy, int axis, int state, int max)
 }
 int getjoystickstate(int joy)
 {
+    if (testmode)
+	return 1;
     return joysticks[joy].enabled;
 }
 
@@ -3233,6 +3268,10 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     static double fract1[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
     static double fract2[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
+    if (testmode) {
+	testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
+	return;
+    }
     if (!mice[mouse].enabled)
 	return;
     d = 0;
@@ -3263,8 +3302,10 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
     mousehack_helper ();
 }
-int getmousestate(int joy)
+int getmousestate (int joy)
 {
+    if (testmode)
+	return 1;
     return mice[joy].enabled;
 }
 

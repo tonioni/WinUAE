@@ -47,6 +47,7 @@
 #include "threaddep/thread.h"
 #include "serial.h"
 #include "savestate.h"
+#include "ahidsound_new.h"
 
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
@@ -1063,8 +1064,9 @@ void initparallel (void)
 	uaecptr a = here (); //this install the ahisound
 	org (rtarea_base + 0xFFC0);
 	calltrap (deftrapres (ahi_demux, 0, "ahi_winuae"));
-	dw (0x4e75);// rts
+	dw (RTS);
 	org (a);
+	init_ahi_v2 ();
     }
 }
 

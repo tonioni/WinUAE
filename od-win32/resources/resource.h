@@ -941,6 +941,7 @@
 #define IDC_RTG_32BIT                   1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
+#define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

@@ -5223,6 +5223,7 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_RTG_MATCH_DEPTH, rtg2);
     ew (hDlg, IDC_RTG_SCALE, rtg2);
     ew (hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
+    ew (hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -5339,7 +5340,14 @@ static void values_to_memorydlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
     CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
     CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
-//    CheckDlgButton (hDlg, IDC_RTG_LEDS, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
+    //CheckDlgButton (hDlg, IDC_RTG_LEDS, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
+
+    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
+	(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
+	(workprefs.win32_rtgscaleaspectratio == 4 * 256 + 3) ? 2 :
+	(workprefs.win32_rtgscaleaspectratio == 15 * 256 + 9) ? 3 :
+	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 9) ? 4 :
+	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 10) ? 5 : 1, 0);
 
     mem_size = 0;
     switch (workprefs.mbresmem_low_size) {
@@ -5448,6 +5456,13 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
 	    SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
 	    SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"Disabled");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"Automatic");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"4:3");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"15:9");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:9");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:10");
 
 	case WM_USER:
 	    recursive++;
@@ -5497,6 +5512,23 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		uae_u32 mask = workprefs.picasso96_modeflags;
 		switch (LOWORD (wParam))
 		{
+		    case IDC_RTG_SCALE_ASPECTRATIO:
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			if (v == 0)
+			    workprefs.win32_rtgscaleaspectratio = 0;
+			if (v == 1)
+			    workprefs.win32_rtgscaleaspectratio = -1;
+			if (v == 2)
+			    workprefs.win32_rtgscaleaspectratio = 4 * 256 + 3;
+			if (v == 3)
+			    workprefs.win32_rtgscaleaspectratio = 15 * 256 + 9;
+			if (v == 4)
+			    workprefs.win32_rtgscaleaspectratio = 16 * 256 + 9;
+			if (v == 5)
+			    workprefs.win32_rtgscaleaspectratio = 16 * 256 + 10;
+		    }
+		    break;
 		    case IDC_RTG_8BIT:
 		    v = SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR) {
@@ -9138,10 +9170,9 @@ static void init_inputdlg_2(HWND hDlg)
     }
 }
 
-static void init_inputdlg( HWND hDlg )
+static void init_inputdlg (HWND hDlg)
 {
     int i;
-    DWORD size = sizeof(COMMCONFIG);
     char buf[100], txt[100];
 
     SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_RESETCONTENT, 0, 0L);
@@ -9314,6 +9345,21 @@ static void input_swap (HWND hDlg)
     init_inputdlg (hDlg);
 }
 
+#if 0
+static void input_copy (HWND hDlg)
+{
+    char buf[2000];
+    inputdevice_acquire (1);
+    for (;;) {
+	focus = 1;
+	inputdevice_testread (buf);
+	focus = 0;
+	Sleep (100);
+    }
+    inputdevice_unacquire ();
+}
+
+#else
 static void input_copy (HWND hDlg)
 {
     int dst = workprefs.input_selected_setting;
@@ -9323,6 +9369,7 @@ static void input_copy (HWND hDlg)
     inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device);
     init_inputdlg (hDlg);
 }
+#endif
 
 static void input_toggleautofire (void)
 {

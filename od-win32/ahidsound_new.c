@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <math.h>
+#include <process.h>
 
 #include "sysdeps.h"
 #include "options.h"
@@ -27,6 +29,8 @@
 #include "newcpu.h"
 #include "autoconf.h"
 #include "traps.h"
+#include "threaddep/thread.h"
+#include "native2amiga.h"
 #include "od-win32/win32.h"
 #include "sounddep/sound.h"
 #include "ahidsound_new.h"
@@ -38,6 +42,29 @@
 #include <ks.h>
 #include <ksmedia.h>
 
+
+static int ahi_debug = 1;
+
+#define UAE_MAXCHANNELS 24
+#define UAE_MAXSOUNDS 256
+
+#define ub_Flags 34
+#define ub_Pad1 (ub_Flags + 1)
+#define ub_Pad2 (ub_Pad1 + 1)
+#define ub_SysLib (ub_Pad2 + 2)
+#define ub_SegList (ub_SysLib + 4)
+#define ub_DOSBase (ub_SegList + 4)
+#define ub_AHIFunc (ub_DOSBase + 4)
+
+#define pub_Index 0
+#define pub_Base (pub_Index + 4)
+#define pub_audioctrl (pub_Base + 4)
+#define pub_FuncTask (pub_audioctrl + 4)
+#define pub_WaitMask (pub_FuncTask + 4)
+#define pub_WaitSigBit (pub_WaitMask + 4)
+#define pub_FuncMode (pub_WaitSigBit +4)
+#define pub_TaskMode (pub_FuncMode + 2)
+#define pub_ChannelSignal (pub_TaskMode + 2)
 
 #define ahiac_AudioCtrl 0
 #define ahiac_Flags ahiac_AudioCtrl + 4
@@ -320,26 +347,37 @@ struct AHIAudioCtrlDrv
 #define AHIE_UNKNOWN		(5UL)			/* Error, but unknown */
 #define AHIE_HALFDUPLEX		(6UL)			/* CMD_WRITE/CMD_READ failure */
 
-#define MAX_SAMPLES 64
-
 struct dssample {
     int num;
     LPDIRECTSOUNDBUFFER8 dsb;
     LPDIRECTSOUNDBUFFER8 dsbback;
+    LPDIRECTSOUNDNOTIFY dsnotify;
+    HANDLE notifyevent;
     int ch, chout;
     int bitspersample;
     int bitspersampleout;
-    int freq;
-    int volume;
     int bytespersample;
     int bytespersampleout;
+    int frequency;
+    int volume;
+    int panning;
     uae_u32 addr;
     uae_u32 len;
     uae_u32 type;
     int streaming;
+    int ready; // 1 = playing, -1 = set
+    int channel;
+};
+
+struct dschannel {
+    int frequency;
+    int volume;
+    int panning;
+    struct dssample *ds;
 };
 
 struct DSAHI {
+    uae_u32 audioctrl;
     uae_u32 audioid;
     int mixfreq;
     int channels;
@@ -354,11 +392,20 @@ struct DSAHI {
     int anticlicksamples;
     int enabledisable;
     struct dssample *sample;
+    struct dschannel *channel;
     int playing, recording;
     int cansurround;
+    evt evttime;
+    volatile int thread;
+    HANDLE threadevent;
 };
 
 static struct DSAHI dsahi[1];
+
+#define GETAHI (&dsahi[get_long(get_long(audioctrl + ahiac_DriverData) + pub_Index)])
+#define GETSAMPLE (dsahip && sound >= 0 && sound < UAE_MAXSOUNDS ? &dsahip->sample[sound] : NULL)
+#define GETCHANNEL (dsahip && channel >= 0 && channel < UAE_MAXCHANNELS ? &dsahip->channel[channel] : NULL)
+
 static int default_freq = 44100;
 static uae_u32 xahi_author, xahi_copyright, xahi_version, xahi_output;
 
@@ -396,6 +443,66 @@ static uae_u32 gettag (uae_u32 *tagpp, uae_u32 *datap)
     }
 }
 
+
+static int sendsignal (struct DSAHI *dsahip)
+{
+    uae_u32 audioctrl = dsahip->audioctrl;
+    uae_u32 puaebase = get_long (audioctrl + ahiac_DriverData);
+    uae_u32 task, signalmask;
+    uae_s16 taskmode = get_word (puaebase + pub_TaskMode);
+    task = get_long (puaebase + pub_FuncTask);
+    signalmask = get_long (puaebase + pub_WaitMask);
+
+    if (!dsahip->playing)
+	return 0;
+    if (taskmode <= 0)
+	return 0;
+    if (dsahip->enabledisable)
+	return 0;
+    uae_Signal (task, signalmask);
+    return 1;
+}
+
+static void setchannelevent (struct DSAHI *dsahip, struct dschannel *dc)
+{
+    uae_u32 audioctrl = dsahip->audioctrl;
+    uae_u32 puaebase = get_long (audioctrl + ahiac_DriverData);
+    int ch = dc - &dsahip->channel[0];
+
+    //write_log ("AHI: channel signal %d\n", ch);
+    put_long (puaebase + pub_ChannelSignal, get_long (puaebase + pub_ChannelSignal) | (1 << ch));
+    sendsignal (dsahip);
+}
+
+static void evtfunc (uae_u32 v)
+{
+    struct DSAHI *dsahip = &dsahi[v];
+    uae_u32 audioctrl = dsahip->audioctrl;
+    uae_u32 puaebase = get_long (audioctrl + ahiac_DriverData);
+   
+    put_word (puaebase + pub_FuncMode, get_word (puaebase + pub_FuncMode) | 1);
+    if (sendsignal (dsahip))
+	event2_newevent2 (dsahip->evttime, v, evtfunc);
+}
+
+static void setevent (struct DSAHI *dsahip)
+{
+    uae_u32 audioctrl = dsahip->audioctrl;
+    uae_u32 freq = get_long (audioctrl + ahiac_PlayerFreq);
+    double f;
+    uae_u32 cycles;
+    evt t;
+    
+    f = ((double)(freq >> 16)) + ((double)(freq & 0xffff)) / 65536.0;
+    write_log ("AHI: playerfunc freq = %.2fHz\n", f);
+    cycles = maxhpos * maxvpos * vblank_hz;
+    t = (evt)(cycles / f);
+    dsahip->evttime = t;
+    event2_newevent2 (t, dsahip - &dsahi[0], evtfunc);
+}
+
+
+
 static LPDIRECTSOUND8 lpDS;
 extern GUID sound_device_guid[];
 const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
@@ -403,19 +510,79 @@ const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
 #define KSAUDIO_SPEAKER_QUAD_SURROUND   (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | \
 					 SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
 
+
+static void ds_freebuffer (struct DSAHI *ahidsp, struct dssample *ds)
+{
+    if (!ds)
+	return;
+    if (ds->dsb)
+	IDirectSoundBuffer8_Release (ds->dsb);
+    if (ds->dsbback)
+	IDirectSoundBuffer8_Release (ds->dsbback);
+    if (ds->dsnotify)
+	IDirectSoundNotify_Release (ds->dsnotify);
+    if (ds->notifyevent)
+	CloseHandle (ds->notifyevent);
+    memset (ds, 0, sizeof (struct dssample));
+    ds->channel = -1;
+}
+
 static void ds_free (struct DSAHI *dsahip)
 {
     int i;
 
     for (i = 0; i < dsahip->sounds; i++) {
 	struct dssample *ds = &dsahip->sample[i];
-	if (ds->dsb)
-	    IDirectSoundBuffer8_Release (ds->dsb);
-	memset (ds, 0, sizeof (ds));
+	ds_freebuffer (dsahip, ds);
     }
     if (lpDS)
 	IDirectSound_Release (lpDS);
     lpDS = NULL;
+    if (dsahip->thread) {
+	dsahip->thread = -1;
+	SetEvent (dsahip->threadevent);
+	while (dsahip->thread)
+	    Sleep (2);
+    }
+}
+
+static unsigned __stdcall waitthread (void *f)
+{
+    struct DSAHI *dsahip = f;
+
+    dsahip->thread = 1;
+    while (dsahip->thread > 0) {
+	HANDLE handles[UAE_MAXCHANNELS + 1];
+	int channelindex[UAE_MAXCHANNELS + 1];
+	DWORD ob;
+	int maxnum = UAE_MAXCHANNELS + 1;
+	int num = 0;
+	int i;
+    
+	handles[num++] = dsahip->threadevent;
+	if (dsahip->playing) {
+	    for (i = 0; i < UAE_MAXSOUNDS && num < maxnum; i++) {
+		struct dssample *ds = &dsahip->sample[i];
+		if (ds->channel >= 0 && ds->notifyevent) {
+		    handles[num] = ds->notifyevent;
+		    channelindex[num] = ds->channel;
+		    num++;
+		}
+	    }
+	}
+	//write_log ("AHI: WFMO %d\n", num);
+	ob = WaitForMultipleObjects (num, handles, FALSE, INFINITE);
+	if (ob == WAIT_OBJECT_0)
+	    continue;
+	if (ob >= WAIT_OBJECT_0 + 1 && ob < WAIT_OBJECT_0 + num) {
+	    int ch;
+	    ob -= WAIT_OBJECT_0;
+	    ch = channelindex[ob];
+	    setchannelevent (dsahip, &dsahip->channel[ch]); 
+	}
+    }
+    dsahip->thread = 0;
+    return 0;
 }
 
 DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *dsam);
@@ -423,6 +590,7 @@ static struct dsaudiomodes supportedmodes[16];
 
 static int ds_init (struct DSAHI *dsahip)
 {
+    unsigned int ta;
     int freq = 48000;
     DSCAPS DSCaps;
     HRESULT hr;
@@ -468,10 +636,44 @@ static int ds_init (struct DSAHI *dsahip)
 	    write_log ("AHI: maximum supported frequency: %d\n", maxfreq);
 	}
     }
+    if (ahi_debug)
+	write_log ("AHI: DSOUND initialized\n");
+
+    dsahip->thread = -1;
+    dsahip->threadevent = CreateEvent (NULL, FALSE, FALSE, NULL);
+    _beginthreadex (NULL, 0, waitthread, dsahip, 0, &ta);
+
     return 1;
 error:
+    if (ahi_debug)
+	write_log ("AHI: DSOUND initialization failed\n");
     ds_free (dsahip);
     return 0;
+}
+
+static void ds_play (struct DSAHI *dsahip, struct dssample *ds)
+{
+    HRESULT hr;
+    DWORD status;
+
+    if (ahi_debug)
+	write_log ("AHI: ds_play(%d)\n", ds->num);
+    hr = IDirectSoundBuffer8_GetStatus (ds->dsb, &status);
+    if (FAILED (hr)) {
+	write_log ("AHI: IDirectSoundBuffer8_GetStatus() failed, %s\n", DXError (hr));
+    } else {
+	if (!(status & DSBSTATUS_PLAYING))
+	    setchannelevent (dsahip, &dsahip->channel[ds->channel]);
+    }
+    hr = IDirectSoundBuffer8_Play (ds->dsb, 0, 0, DSBPLAY_LOOPING);
+    if (FAILED (hr))
+	write_log ("AHI: IDirectSoundBuffer8_Play() failed, %s\n", DXError (hr));
+    if (ds->dsbback) {
+	hr = IDirectSoundBuffer8_Play (ds->dsbback, 0, 0, DSBPLAY_LOOPING);
+	if (FAILED (hr))
+	    write_log ("AHI: IDirectSoundBuffer8_PlayBack() failed, %s\n", DXError (hr));
+    }
+    ds->ready = -1;
 }
 
 static void ds_setvolume (struct dssample *ds, int volume, int panning)
@@ -479,6 +681,7 @@ static void ds_setvolume (struct dssample *ds, int volume, int panning)
     HRESULT hr;
     LONG vol, pan;
 
+    // weird AHI features:
     // negative pan = output from surround speakers!
     // negative volume = invert sample data!! (not yet emulated)
     vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (abs (volume) / 65536.0)));
@@ -508,39 +711,42 @@ static void ds_setvolume (struct dssample *ds, int volume, int panning)
 		write_log ("AHI: SetVolumeBack(%d,%d) failed: %s\n", ds->num, vol, DXError (hr));
 	}
     }
+    ds->volume = volume;
+    ds->panning = panning;
 }
 
-static void ds_setfreq (struct dssample *ds, int freq)
+static void ds_setfreq (struct DSAHI *dsahip, struct dssample *ds, int frequency)
 {
     HRESULT hr;
 
-    if (freq == 0) {
+    if (frequency == 0) {
 	hr = IDirectSoundBuffer8_Stop (ds->dsb);
 	if (ds->dsbback)
 	    hr = IDirectSoundBuffer8_Stop (ds->dsbback);
     } else {
-	if (ds->freq == 0) {
-	    hr = IDirectSoundBuffer8_Play (ds->dsb, 0, 0, 0);
-	    if (ds->dsbback)
-		hr = IDirectSoundBuffer8_Play (ds->dsbback, 0, 0, 0);
-	}
-	hr = IDirectSoundBuffer8_SetFrequency (ds->dsb, freq);
+	hr = IDirectSoundBuffer8_SetFrequency (ds->dsb, frequency);
 	if (FAILED (hr))
-	    write_log ("AHI: SetFrequency(%d,%d) failed: %s\n", ds->num, freq, DXError (hr));
+	    write_log ("AHI: SetFrequency(%d,%d) failed: %s\n", ds->num, frequency, DXError (hr));
 	if (ds->dsbback) {
-	    hr = IDirectSoundBuffer8_SetFrequency (ds->dsbback, freq);
+	    hr = IDirectSoundBuffer8_SetFrequency (ds->dsbback, frequency);
 	    if (FAILED (hr))
-		write_log ("AHI: SetFrequencyBack(%d,%d) failed: %s\n", ds->num, freq, DXError (hr));
+		write_log ("AHI: SetFrequencyBack(%d,%d) failed: %s\n", ds->num, frequency, DXError (hr));
 	}
+	if (ds->frequency == 0)
+	    ds_play (dsahip, ds);
     }
-    ds->freq = freq;
+    ds->frequency = frequency;
 }
+
+#define US(x) ((x))
 
 static void copysampledata (struct dssample *ds, void *srcp, void *dstp, int dstsize, int offset, int srcsize)
 {
     int i, j;
     uae_u8 *src = (uae_u8*)srcp;
     uae_u8 *dst = (uae_u8*)dstp;
+    int och = ds->chout;
+    int ich = ds->ch;
 
     src += offset * ds->ch * ds->bytespersample;
     if (dstsize < srcsize)
@@ -549,16 +755,27 @@ static void copysampledata (struct dssample *ds, void *srcp, void *dstp, int dst
     switch (ds->type)
     {
 	case AHIST_M8S:
+	    for (i = 0; i < srcsize; i++) {
+		dst[i * 4 + 0] = US (src[i]);
+		dst[i * 4 + 1] = US (src[i]);
+		dst[i * 4 + 2] = US (src[i]);
+		dst[i * 4 + 3] = US (src[i]);
+	    }
+	break;
 	case AHIST_S8S:
 	    for (i = 0; i < srcsize; i++) {
-		dst[i * 2 + 0] = src[i];
-		dst[i * 2 + 1] = src[i];
+		dst[i * 4 + 0] = src[i * 2 + 0];
+		dst[i * 4 + 1] = src[i * 2 + 0];
+		dst[i * 4 + 2] = src[i * 2 + 1];
+		dst[i * 4 + 3] = src[i * 2 + 1];
 	    }
 	break;
 	case AHIST_M16S:
 	    for (i = 0; i < srcsize; i++) {
-		dst[i * 2 + 0] = src[i * 2 + 1];
-		dst[i * 2 + 1] = src[i * 2 + 0];
+		dst[i * 4 + 0] = src[i * 2 + 1];
+		dst[i * 4 + 1] = src[i * 2 + 0];
+		dst[i * 4 + 2] = src[i * 2 + 1];
+		dst[i * 4 + 3] = src[i * 2 + 0];
 	    }
 	break;
 	case AHIST_S16S:
@@ -571,8 +788,10 @@ static void copysampledata (struct dssample *ds, void *srcp, void *dstp, int dst
 	break;
 	case AHIST_M32S:
 	    for (i = 0; i < srcsize; i++) {
-		dst[i * 2 + 0] = src[i * 4 + 3];
-		dst[i * 2 + 1] = src[i * 4 + 2];
+		dst[i * 4 + 0] = src[i * 4 + 3];
+		dst[i * 4 + 1] = src[i * 4 + 2];
+		dst[i * 4 + 2] = src[i * 4 + 3];
+		dst[i * 4 + 3] = src[i * 4 + 2];
 	    }
 	break;
 	case AHIST_S32S:
@@ -584,7 +803,7 @@ static void copysampledata (struct dssample *ds, void *srcp, void *dstp, int dst
 	    }
 	break;
 	case AHIST_L7_1:
-	    if (ds->ch == ds->chout) {
+	    if (ds->chout == 8) {
 		for (i = 0; i < srcsize; i++) {
 		    for (j = 0; j < 8; j++) {
 			dst[j * 4 + 0] = src[j * 4 + 2];
@@ -611,69 +830,129 @@ static void copysampledata (struct dssample *ds, void *srcp, void *dstp, int dst
     }
 }
 
-static void copysample (struct dssample *ds, LPDIRECTSOUNDBUFFER8 dsb, uae_u32 offset, uae_u32 length)
+static void clearsample (struct dssample *ds, LPDIRECTSOUNDBUFFER8 dsb, int dstlength)
 {
     HRESULT hr;
-    void *buffer;
-    DWORD size;
+    void *buffer1;
+    DWORD size1, outlen;
+
+    if (!dsb)
+	return;
+    outlen = dstlength * ds->bytespersampleout * ds->chout;
+    hr = IDirectSoundBuffer8_Lock (dsb, 0, outlen, &buffer1, &size1, NULL, NULL, 0);
+    if (hr == DSERR_BUFFERLOST) {
+	IDirectSoundBuffer_Restore (dsb);
+	hr = IDirectSoundBuffer8_Lock (dsb, 0, outlen, &buffer1, &size1, NULL, NULL, 0);
+    }
+    if (FAILED (hr))
+	return;
+    memset (buffer1, 0, size1);
+    IDirectSoundBuffer8_Unlock (dsb, buffer1, size1, NULL, 0);
+}
+
+static void copysample (struct dssample *ds, LPDIRECTSOUNDBUFFER8 dsb, int dstoffset, int dstlength, uae_u32 srcoffset, uae_u32 srclength)
+{
+    HRESULT hr;
+    void *buffer1, *buffer2;
+    DWORD size1, size2, outoffset, outlen;
     uae_u32 addr;
 
     if (!dsb)
 	return;
-    hr = IDirectSoundBuffer8_Lock (dsb, 0, ds->len, &buffer, &size, NULL, NULL, 0);
+    outlen = dstlength * ds->bytespersampleout * ds->chout;
+    outoffset = dstoffset * ds->bytespersampleout * ds->chout;
+    hr = IDirectSoundBuffer8_Lock (dsb, outoffset, outlen, &buffer1, &size1, &buffer2, &size2, 0);
     if (hr == DSERR_BUFFERLOST) {
 	IDirectSoundBuffer_Restore (dsb);
-	hr = IDirectSoundBuffer8_Lock (dsb, 0, ds->len, &buffer, &size, NULL, NULL, 0);
+	hr = IDirectSoundBuffer8_Lock (dsb, outoffset, outlen, &buffer1, &size1, &buffer2, &size2, 0);
     }
     if (FAILED (hr))
 	return;
-    memset (buffer, 0, size);
     if (ds->addr == 0 && ds->len == 0xffffffff)
-	addr = offset;
+	addr = srcoffset;
     else
 	addr = ds->addr;
-    if (valid_address (addr + offset * ds->ch * ds->bytespersample, length * ds->ch * ds->bytespersample))
-	copysampledata (ds, get_real_address (addr), buffer, size, offset, length);
-    IDirectSoundBuffer8_Unlock (dsb, buffer, size, NULL, 0);
+    if (valid_address (addr + srcoffset * ds->ch * ds->bytespersample, srclength * ds->ch * ds->bytespersample)) {
+	uae_u8 *naddr = get_real_address (addr);
+	int part1 = size1 / (ds->bytespersampleout * ds->chout);
+	int part2 = size2 / (ds->bytespersampleout * ds->chout);
+	copysampledata (ds, naddr, buffer1, part1, srcoffset, srclength);
+	srcoffset += part1;
+	srclength -= part1;
+	if (srclength != 0)
+	    copysampledata (ds, naddr, buffer2, part2, srcoffset, srclength);
+    }
+    IDirectSoundBuffer8_Unlock (dsb, buffer1, size1, buffer2, size2);
+}
+
+void ahi_vsync (void)
+{
+    struct DSAHI *dsahip = &dsahi[0];
+    int i;
+
+    if (!dsahip->playing)
+	return;
+    for (i = 0; i < UAE_MAXCHANNELS; i++) {
+	HRESULT hr;
+	DWORD playc, writec;
+	struct dssample *ds = dsahip->channel[i].ds;
+
+	if (ds == NULL)
+	    continue;
+	if (ds->type != AHIST_DYNAMICSAMPLE)
+	    continue;
+	hr = IDirectSoundBuffer8_GetCurrentPosition (ds->dsb, &playc, &writec);
+	if (FAILED (hr)) {
+	    write_log ("AHI: GetCurrentPosition(%d) failed, %s\n", ds->channel, DXError (hr));
+	    continue;
+	}
+	write_log ("AHI: ch=%d writec=%d\n", ds->channel, writec / (ds->bytespersampleout * ds->chout));
+	copysample (ds, ds->dsb,
+	    writec / (ds->bytespersampleout * ds->chout),
+	    ds->len - 1000,
+	    writec / (ds->bytespersampleout * ds->chout),
+	    ds->len - 1000);
+    }
+}
+
+static void ds_stop (struct dssample *ds)
+{
+    HRESULT hr;
+
+    if (!ds->ready)
+	return;
+    if (ahi_debug)
+	write_log ("AHI: ds_stop(%d)\n", ds->num);
+    hr = IDirectSoundBuffer8_Stop (ds->dsb);
+    if (FAILED (hr))
+	write_log ("AHI: IDirectSoundBuffer8_Stop() failed, %s\n", DXError (hr));
+    if (ds->dsbback) {
+	hr = IDirectSoundBuffer8_Stop (ds->dsbback);
+	if (FAILED (hr))
+	    write_log ("AHI: IDirectSoundBuffer8_StopBack() failed, %s\n", DXError (hr));
+    }
+    ds->ready = 1;
 }
 
 static void ds_setsound (struct DSAHI *dsahip, struct dssample *ds, int offset, int length)
 {
     HRESULT hr;
-    if (!dsahip->playing)
-	return;
-    copysample (ds, ds->dsb, offset, length);
-    copysample (ds, ds->dsbback, offset, length);
+
+    clearsample (ds, ds->dsb, ds->len);
+    clearsample (ds, ds->dsbback, ds->len);
+    copysample (ds, ds->dsb, 0, ds->len, offset, length);
+    copysample (ds, ds->dsbback, 0, ds->len, offset, length);
     hr = IDirectSoundBuffer8_SetCurrentPosition (ds->dsb, 0);
     if (FAILED (hr))
 	write_log ("AHI: IDirectSoundBuffer8_SetCurrentPosition() failed, %s\n", DXError (hr));
-    hr = IDirectSoundBuffer8_Play (ds->dsb, 0, 0, 0);
-    if (FAILED (hr))
-	write_log ("AHI: IDirectSoundBuffer8_Play() failed, %s\n", DXError (hr));
     if (ds->dsbback) {
 	hr = IDirectSoundBuffer8_SetCurrentPosition (ds->dsbback, 0);
 	if (FAILED (hr))
 	    write_log ("AHI: IDirectSoundBuffer8_SetCurrentPositionBack() failed, %s\n", DXError (hr));
-	hr = IDirectSoundBuffer8_Play (ds->dsbback, 0, 0, 0);
-	if (FAILED (hr))
-	    write_log ("AHI: IDirectSoundBuffer8_PlayBack() failed, %s\n", DXError (hr));
     }
 }
 
-
-static void ds_freebuffer (struct DSAHI *ahidsp, struct dssample *ds)
-{
-    if (!ds)
-	return;
-    if (ds->dsb)
-	IDirectSoundBuffer8_Release (ds->dsb);
-    if (ds->dsbback)
-	IDirectSoundBuffer8_Release (ds->dsbback);
-    ds->dsb = NULL;
-    ds->dsbback = NULL;
-}
-
-static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, uae_u32 addr, uae_u32 len)
+static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, uae_u32 len)
 {
     HRESULT hr;
     DSBUFFERDESC dd;
@@ -681,8 +960,9 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
     LPDIRECTSOUNDBUFFER pdsb;
     LPDIRECTSOUNDBUFFER8 pdsb8;
     int round, chround;
-    int channels[] = { 8, 6, 2, 0 };
+    int channels[] = { 2, 4, 6, 8 };
     int ch, chout, bps, bpsout;
+    DSBPOSITIONNOTIFY pn[1];
 
     if (!ds)
 	return 0;
@@ -700,6 +980,9 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
 	break;
 	case AHIST_L7_1:
 	ch = 8;
+	channels[0] = 6;
+	channels[1] = 8;
+	channels[2] = 0;
 	break;
 	default:
 	return 0;
@@ -722,7 +1005,10 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
 	default:
 	return 0;
     }
+    if (ahi_debug)
+	write_log ("AHI: AllocBuffer ch=%d,bps=%d\n", ch, bps);
 
+    pdsb = NULL;
     bpsout = 16;
     for (chround = 0; channels[chround]; chround++) {
 	chout = channels[chround];
@@ -730,13 +1016,13 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
 	    DWORD ksmode = 0;
 
 	    pdsb = NULL;
- 	    memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
-	    wavfmt.Format.nChannels = ch;
-	    wavfmt.Format.nSamplesPerSec = default_freq;
-	    wavfmt.Format.wBitsPerSample = bps;
 	    if (supportedmodes[round].ch != chout)
 		continue;
 
+ 	    memset (&wavfmt, 0, sizeof (WAVEFORMATEXTENSIBLE));
+	    wavfmt.Format.nChannels = chout;
+	    wavfmt.Format.nSamplesPerSec = default_freq;
+	    wavfmt.Format.wBitsPerSample = bpsout;
 	    if (chout <= 2) {
 		wavfmt.Format.wFormatTag = WAVE_FORMAT_PCM;
 	    } else {
@@ -744,16 +1030,17 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
 		wavfmt.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
 		wavfmt.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
 		wavfmt.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-		wavfmt.Samples.wValidBitsPerSample = bps;
+		wavfmt.Samples.wValidBitsPerSample = bpsout;
 		wavfmt.dwChannelMask = supportedmodes[round].ksmode;
 	    }
-	    wavfmt.Format.nBlockAlign = bps / 8 * wavfmt.Format.nChannels;
+	    wavfmt.Format.nBlockAlign = bpsout / 8 * wavfmt.Format.nChannels;
 	    wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
-  	    dd.dwSize = sizeof (dd);
-	    dd.dwBufferBytes = len * bps / 8 * chout;
+	    memset (&dd, 0, sizeof dd);
+  	    dd.dwSize = sizeof dd;
+	    dd.dwBufferBytes = len * bpsout / 8 * chout;
 	    dd.lpwfxFormat = &wavfmt.Format;
-	    dd.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
+	    dd.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS | DSBCAPS_CTRLPOSITIONNOTIFY;
 	    dd.dwFlags |= DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPAN | DSBCAPS_CTRLFREQUENCY;
 	    dd.dwFlags |= chout >= 4 ? DSBCAPS_LOCHARDWARE : DSBCAPS_LOCSOFTWARE;
 	    dd.guid3DAlgorithm = GUID_NULL;
@@ -772,20 +1059,37 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
 		}
 	    }
 	    write_log ("AHI: DS sound buffer failed (ch=%d,bps=%d): %s\n",
-		ch, bps, DXError (hr));
+		chout, bpsout, DXError (hr));
 	}
 	if (pdsb)
 	    break;
     }
     if (pdsb == NULL)
 	goto error;
+
     hr = IDirectSound_QueryInterface (pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&pdsb8);
     if (FAILED (hr))  {
-	write_log ("AHI: Secondary QueryInterface() failure: %s\n", DXError (hr));
+	write_log ("AHI: Secondary QueryInterface(IID_IDirectSoundBuffer8) failure: %s\n", DXError (hr));
 	goto error;
     }
+
     IDirectSound_Release (pdsb);
     ds->dsb = pdsb8;
+
+    hr = IDirectSoundBuffer8_QueryInterface (pdsb, &IID_IDirectSoundNotify8, (void**)&ds->dsnotify);
+    if (FAILED (hr)) {
+	write_log ("AHI: Secondary QueryInterface(IID_IDirectSoundNotify8) failure: %s\n", DXError (hr));
+	goto error;
+    }
+    ds->notifyevent = CreateEvent (NULL, FALSE, FALSE, NULL);
+    pn[0].dwOffset = 0;
+    pn[0].hEventNotify = ds->notifyevent;
+    hr = IDirectSoundNotify_SetNotificationPositions (ds->dsnotify, 1, pn);
+    if (FAILED (hr)) {
+	write_log ("AHI: Secondary SetNotificationPositions() failure: %s\n", DXError (hr));
+	goto error;
+    }
+
 
     if (chout > 2) {
 	// create "surround" sound buffer
@@ -805,10 +1109,8 @@ static int ds_allocbuffer (struct DSAHI *ahidsp, struct dssample *ds, int type, 
     ds->chout = chout;
     ds->bytespersample = bps / 8;
     ds->bytespersampleout = bpsout / 8;
-    ds->freq = default_freq;
-    ds->addr = addr;
-    ds->len = len;
-    ds->type = type;
+
+    SetEvent (ahidsp->threadevent);
 
     return 1;
 
@@ -816,23 +1118,42 @@ error:
     return 0;
 }
 
+static uae_u32 init (TrapContext *ctx)
+{
+    xahi_author = ds ("Toni Wilen");
+    xahi_copyright = ds ("GPL");
+    xahi_version = ds ("uae2 0.1 (xx.xx.2008)\r\n");
+    xahi_output = ds ("Default Output");
+    return 1;
+}
 
 static uae_u32 AHIsub_AllocAudio (TrapContext *ctx)
 {
+    int i;
     uae_u32 tags = m68k_areg (&ctx->regs, 1);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 pbase = get_long (audioctrl + ahiac_DriverData);
     uae_u32 tag, data;
     uae_u32 ret = AHISF_KNOWSTEREO | AHISF_KNOWHIFI;
     struct DSAHI *dsahip = &dsahi[0];
 
-    put_long (audioctrl + ahiac_DriverData, dsahip - dsahi);
+    if (ahi_debug)
+	write_log ("AHI: AllocAudio(%08x,%08x)\n", tags, audioctrl);
+
+    put_long (pbase + pub_Index, dsahip - dsahi);
+    dsahip->audioctrl = audioctrl;
 
     if (!ds_init (dsahip))
 	return AHISF_ERROR;
+    dsahip->sounds = UAE_MAXSOUNDS;
+    dsahip->channels = UAE_MAXCHANNELS;
+
     if (dsahip->cansurround)
 	ret |= AHISF_KNOWMULTICHANNEL;
 
     while ((tag = gettag (&tags, &data))) {
+	if (ahi_debug)
+	    write_log ("- TAG %08x=%d: %08x=%u\n", tag, tag & 0x7fff, data, data);
 	switch (tag)
 	{
 	    case AHIA_Sounds:
@@ -859,21 +1180,25 @@ static uae_u32 AHIsub_AllocAudio (TrapContext *ctx)
 	ds_free (dsahip);
 	return AHISF_ERROR;
     }
-    dsahip->sample = xmalloc (sizeof (struct dssample) * dsahip->sounds);
-    xahi_author = ds ("Toni Wilen");
-    xahi_copyright = ds ("GPL");
-    xahi_version = ds ("uae2 0.1 (22.06.2008)\r\n");
-    xahi_output = ds ("Default Output");
+    dsahip->sample = xcalloc (sizeof (struct dssample), dsahip->sounds);
+    dsahip->channel = xcalloc (sizeof (struct dschannel), dsahip->channels);
+    for (i = 0; i < dsahip->channels; i++) {
+	struct dschannel *dc = &dsahip->channel[i];
+    }
+    for (i = 0; i < dsahip->sounds; i++) {
+	struct dssample *ds = &dsahip->sample[i];
+	ds->channel = -1;
+	ds->num = -1;
+    }
     return ret;
 }
-
-#define GETAHI (&dsahi[get_long(audioctrl + ahiac_DriverData)])
-#define GETSAMPLE (dsahip ? &dsahip->sample[channel] : NULL)
 
 static void AHIsub_Disable (TrapContext *ctx)
 {
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    if (ahi_debug)
+	write_log ("AHI: Disable(%08x)\n", audioctrl);
     dsahip->enabledisable++;
 }
 
@@ -881,29 +1206,35 @@ static void AHIsub_Enable (TrapContext *ctx)
 {
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    if (ahi_debug)
+	write_log ("AHI: Enable(%08x)\n", audioctrl);
     dsahip->enabledisable--;
+    if (dsahip->enabledisable == 0 && dsahip->playing)
+	setevent (dsahip);
 }
 
 static void AHIsub_FreeAudio (TrapContext *ctx)
 {
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 pbase = get_long (audioctrl + ahiac_DriverData);
     struct DSAHI *dsahip = GETAHI;
-    put_long (audioctrl + ahiac_DriverData, -1);
+    if (ahi_debug)
+	write_log ("AHI: FreeAudio(%08x)\n", audioctrl);
+    put_long (pbase + pub_Index, -1);
+    if (dsahip) {
+	xfree (dsahip->channel);
+	xfree (dsahip->sample);
+	memset (dsahip, 0, sizeof (struct DSAHI));
+    }
 }
 
 static uae_u32 frequencies[] = { 48000, 44100 };
 #define MAX_FREQUENCIES (sizeof (frequencies) / sizeof (uae_u32))
 
-static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
+static uae_u32 getattr2 (struct DSAHI *dsahip, uae_u32 attribute, uae_u32 argument, uae_u32 def)
 {
-    uae_u32 attribute = m68k_dreg (&ctx->regs, 0);
-    uae_u32 argument = m68k_dreg (&ctx->regs, 1);
-    uae_u32 def = m68k_dreg (&ctx->regs, 2);
-    uae_u32 taglist = m68k_areg (&ctx->regs, 1);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
-    struct DSAHI *dsahip = GETAHI;
     int i;
-    
+
     switch (attribute)
     {
 	case AHIDB_Bits:
@@ -935,7 +1266,7 @@ static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
 	case AHIDB_Version:
 	return xahi_version;
 	case AHIDB_Record:
-	return FALSE;
+	return TRUE;
 	case AHIDB_Realtime:
 	return TRUE;
 	case AHIDB_Outputs:
@@ -955,10 +1286,29 @@ static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
 	case AHIDB_MultiChannel:
 	return dsahip->cansurround;
 	case AHIDB_MaxChannels:
-	return 32;
+	return UAE_MAXCHANNELS;
+	case AHIDB_FullDuplex:
+	return 1;
 	default:
 	return def;
     }
+}
+
+static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
+{
+    uae_u32 attribute = m68k_dreg (&ctx->regs, 0);
+    uae_u32 argument = m68k_dreg (&ctx->regs, 1);
+    uae_u32 def = m68k_dreg (&ctx->regs, 2);
+    uae_u32 taglist = m68k_areg (&ctx->regs, 1);
+    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    struct DSAHI *dsahip = GETAHI;
+    uae_u32 v;
+
+    v = getattr2 (dsahip, attribute, argument, def);
+    if (ahi_debug)
+	write_log ("AHI: GetAttr(%08x=%d,%08x,%08x)=%08x\n", attribute, (attribute & 0x7fff), argument, def, v);
+
+    return v;
 }
 
 static uae_u32 AHIsub_HardwareControl (TrapContext *ctx)
@@ -967,6 +1317,8 @@ static uae_u32 AHIsub_HardwareControl (TrapContext *ctx)
     uae_u32 argument = m68k_dreg (&ctx->regs, 1);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    if (ahi_debug)
+	write_log ("AHI: HardwareControl(%08x,%08x,%08x)\n", attribute, argument, audioctrl);
     return 0;
 }
 
@@ -975,10 +1327,27 @@ static uae_u32 AHIsub_Start (TrapContext *ctx)
     uae_u32 flags = m68k_dreg (&ctx->regs, 0);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    int i;
+
+    if (ahi_debug)
+	write_log ("AHI: Play(%08x,%08x)\n",
+	    flags, audioctrl);
     if (flags & AHISF_PLAY)
 	dsahip->playing = 1;
     if (flags & AHISF_RECORD)
 	dsahip->recording = 1;
+    if (dsahip->playing) {
+	setevent (dsahip);
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds = &dsahip->sample[i];
+	    if (ds->ready > 0 && ds->channel >= 0) {
+		struct dschannel *dc = &dsahip->channel[ds->channel];
+		ds_setvolume (ds, dc->volume, dc->panning);
+		ds->frequency = 0;
+		ds_setfreq (dsahip, ds, dc->frequency); // this also starts playback
+	    }
+	}
+    }
     return 0;
 }
 
@@ -987,10 +1356,22 @@ static uae_u32 AHIsub_Stop (TrapContext *ctx)
     uae_u32 flags = m68k_dreg (&ctx->regs, 0);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    int i;
+
+    if (ahi_debug)
+	write_log ("AHI: Stop(%08x,%08x)\n",
+	    flags, audioctrl);
     if (flags & AHISF_PLAY)
 	dsahip->playing = 0;
     if (flags & AHISF_RECORD)
 	dsahip->recording = 0;
+    if (!dsahip->playing) {
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds = &dsahip->sample[i];
+	    if (ds->ready)
+		ds_stop (ds);
+	}
+    }
     return 0;
 }
 
@@ -999,48 +1380,106 @@ static uae_u32 AHIsub_Update (TrapContext *ctx)
     uae_u32 flags = m68k_dreg (&ctx->regs, 0);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+    if (ahi_debug)
+	write_log ("AHI: Update(%08x,%08x)\n", flags, audioctrl);
+    setevent (dsahip);
     return 0;
 }
 
 static uae_u32 AHIsub_SetVol (TrapContext *ctx)
 {
-    uae_u32 channel = m68k_dreg (&ctx->regs, 0);
+    int i;
+    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
     uae_u32 volume = m68k_dreg (&ctx->regs, 1);
     uae_u32 pan = m68k_dreg (&ctx->regs, 2);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     uae_u32 flags = m68k_dreg (&ctx->regs, 3);
     struct DSAHI *dsahip = GETAHI;
-    struct dssample *ds = GETSAMPLE;
-    if (ds)
-	ds_setvolume (ds, volume, pan); 
+    struct dschannel *dc = GETCHANNEL;
+
+    if (ahi_debug)
+	write_log ("AHI: SetVol(%d,%d,%08x,%08x)\n",
+	    channel, pan, audioctrl, flags);
+    if (dc) {
+	dc->volume = volume;
+	dc->panning = pan;
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds = &dsahip->sample[i];
+	    if (ds->channel == channel)
+		ds_setvolume (ds, volume, pan); 
+	}
+    }
     return 0;
 }
 
 static uae_u32 AHIsub_SetFreq (TrapContext *ctx)
 {
-    uae_u32 channel = m68k_dreg (&ctx->regs, 0);
-    uae_u32 freq = m68k_dreg (&ctx->regs, 1);
+    int i;
+    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
+    uae_u32 frequency = m68k_dreg (&ctx->regs, 1);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     uae_u32 flags = m68k_dreg (&ctx->regs, 3);
     struct DSAHI *dsahip = GETAHI;
-    struct dssample *ds = GETSAMPLE;
-    if (ds)
-	ds_setfreq (ds, freq); 
+    struct dschannel *dc = GETCHANNEL;
+
+    if (ahi_debug)
+	write_log ("AHI: SetFreq(%d,%d,%08x,%08x)\n",
+	    channel, frequency, audioctrl, flags);
+    if (dc) {
+	dc->frequency = frequency;
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds = &dsahip->sample[i];
+	    if (ds->channel == channel)
+		ds_setfreq (dsahip, ds, frequency);
+	}
+    }
    return 0;
 }
 
 static uae_u32 AHIsub_SetSound (TrapContext *ctx)
 {
-    uae_u32 channel = m68k_dreg (&ctx->regs, 0);
-    uae_u32 sound = m68k_dreg (&ctx->regs, 1);
+    int i;
+    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
+    uae_u16 sound = m68k_dreg (&ctx->regs, 1);
     uae_u32 offset = m68k_dreg (&ctx->regs, 2);
     uae_u32 length  = m68k_dreg (&ctx->regs, 3);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     uae_u32 flags = m68k_dreg (&ctx->regs, 4);
     struct DSAHI *dsahip = GETAHI;
     struct dssample *ds = GETSAMPLE;
-    if (ds)
+    struct dschannel *dc = GETCHANNEL;
+
+    if (ahi_debug)
+	write_log ("AHI: SetSound(%d,%d,%08x,%d,%08x,%08x)\n",
+	    channel, sound, offset, length, audioctrl, flags);
+    dc->ds = NULL;
+    if (sound == 0xffff) {
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds2 = &dsahip->sample[i];
+	    if (ds2->channel == channel) {
+	        ds_stop (ds2);
+	        ds2->channel = -1;
+		
+	    }
+	}
+    } else if (ds) {
+	length = abs (length);
+	if (length == 0)
+	    length = ds->len;
+	ds->ready = 1;
+	ds->channel = channel;
+	dc->ds = ds;
+	for (i = 0; i < dsahip->sounds; i++) {
+	    struct dssample *ds2 = &dsahip->sample[i];
+	    if (ds2 != ds && ds2->channel == channel) {
+	        ds_stop (ds2);
+	        ds2->channel = -1;
+	    }
+	}
 	ds_setsound (dsahip, ds, offset, length);
+	if (dsahip->playing)
+	    ds_play (dsahip, ds);
+    }
     return 0;
 }
 
@@ -1049,6 +1488,9 @@ static uae_u32 AHIsub_SetEffect (TrapContext *ctx)
     uae_u32 effect = m68k_areg (&ctx->regs, 0);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
+
+    if (ahi_debug)
+	write_log ("AHI: SetEffect(%08x,%08x)\n", effect, audioctrl);
     return 0;
 }
 
@@ -1063,10 +1505,21 @@ static uae_u32 AHIsub_LoadSound (TrapContext *ctx)
     int sampletype = get_long (info + ahisi_Type);
     uae_u32 addr = get_long (info + ahisi_Address);
     uae_u32 len = get_long (info + ahisi_Length);
-    if (sound >= 0 && sound < MAX_SAMPLES && sound < dsahip->sounds) {
+    struct dssample *ds = GETSAMPLE;
+
+    if (ahi_debug)
+	write_log ("AHI: LoadSound(%d,%d,%08x,%08x,SMP=%d,ADDR=%08x,LEN=%d)\n",
+	    sound, type, info, audioctrl, sampletype, addr, len);
+
+    if (ds) {
+	ds->num = sound;
 	if (!dsahip->cansurround && type == AHIST_L7_1)
 	    return AHIE_BADSOUNDTYPE;
-	if (ds_allocbuffer (dsahip, &dsahip->sample[sound], type, addr, len))
+	ds->addr = addr;
+	ds->type = type;
+	ds->len = len;
+	ds->frequency = 0;
+	if (ds_allocbuffer (dsahip, ds, type, len))
 	    ret = AHIE_OK;
     }
     return ret;
@@ -1077,8 +1530,13 @@ static uae_u32 AHIsub_UnloadSound (TrapContext *ctx)
     uae_u16 sound = m68k_dreg (&ctx->regs, 0);
     uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
     struct DSAHI *dsahip = GETAHI;
-    if (sound >= 0 && sound < MAX_SAMPLES)
-	ds_freebuffer (dsahip, &dsahip->sample[sound]);
+    struct dssample *ds = GETSAMPLE;
+
+    if (ahi_debug)
+	write_log ("AHI: UnloadSound(%d,%08x)\n",
+	    sound, audioctrl);
+    if (ds)
+	ds_freebuffer (dsahip, ds);
     return AHIE_OK;
 }
 
@@ -1086,9 +1544,16 @@ static uae_u32 REGPARAM2 ahi_demux (TrapContext *ctx)
 {
     uae_u32 ret = 0;
     uae_u32 sp = m68k_areg (&ctx->regs, 7);
-    uae_u32 offset = get_word (sp);
+    uae_u32 offset = get_long (sp + 4);
+
+    if (ahi_debug)
+	write_log ("AHI: %d\n", offset);
+
     switch (offset)
     {
+	case 0xffffffff:
+	    ret = init (ctx);
+	break;
 	case 0:
 	    ret = AHIsub_AllocAudio (ctx);
 	break;

@@ -2555,11 +2555,11 @@ STATIC_INLINE uae_u16 ADKCONR (void)
     return adkcon;
 }
 
-STATIC_INLINE int GETVPOS(void)
+STATIC_INLINE int GETVPOS (void)
 {
     return lightpen_triggered > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
 }
-STATIC_INLINE int GETHPOS(void)
+STATIC_INLINE int GETHPOS (void)
 {
     return lightpen_triggered > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
 }
@@ -2589,7 +2589,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
     write_log ("vposr %x at %x\n", vp, m68k_getpc (&regs));
 #endif
     if (currprefs.cpu_model >= 68020)
-	hsyncdelay();
+	hsyncdelay ();
     return vp;
 }
 static void VPOSW (uae_u16 v)
@@ -2606,10 +2606,10 @@ static void VPOSW (uae_u16 v)
 
 STATIC_INLINE uae_u16 VHPOSR (void)
 {
-    uae_u16 vp = GETVPOS();
-    uae_u16 hp = GETHPOS();
+    uae_u16 vp = GETVPOS ();
+    uae_u16 hp = GETHPOS ();
     vp <<= 8;
-    vp |= hp;
+    vp |= hp ^ 1; // hack..
     if (currprefs.cpu_model >= 68020)
 	hsyncdelay ();
     return vp;
@@ -4404,6 +4404,10 @@ static void vsync_handler (void)
 #ifdef PICASSO96
     picasso_handle_vsync ();
 #endif
+    {
+	void ahi_vsync (void);
+	ahi_vsync ();
+    }
 
     if (quit_program > 0) {
 	/* prevent possible infinite loop at wait_cycles().. */
@@ -4710,6 +4714,18 @@ static void hsync_handler (void)
 
     hsync_counter++;
     //copper_check (2);
+#if 0
+    {
+	static int skip;
+	if (M68K_GETPC >= 0x0C0D7A2 && M68K_GETPC < 0x00C0D7B2 && vpos == 0xf3) {
+	    if (!skip)
+		activate_debugger ();
+	    skip = 1;
+	}
+	if (vpos != 0xf3)
+	    skip = 0;
+    }
+#endif
 }
 
 static void MISC_handler(void)
@@ -4746,7 +4762,7 @@ static void MISC_handler(void)
 	eventtab[ev_misc].active = 1;
 	eventtab[ev_misc].oldcycles = ct;
 	eventtab[ev_misc].evtime = ct + mintime;
-	events_schedule();
+	events_schedule ();
     }
     recursive--;
 }
@@ -5960,7 +5976,7 @@ STATIC_INLINE void decide_fetch_ce (int hpos)
 	decide_fetch (hpos);
 }
 
-STATIC_INLINE void dma_cycle(void)
+STATIC_INLINE void dma_cycle (void)
 {
     int hpos;
     static int bnasty;
@@ -5988,7 +6004,7 @@ STATIC_INLINE void dma_cycle(void)
 	/* bus was allocated to dma channel, wait for next cycle.. */
     }
     bnasty = 0;
-    alloc_cycle(hpos, CYCLE_CPU);
+    alloc_cycle (hpos, CYCLE_CPU);
 }
 
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)

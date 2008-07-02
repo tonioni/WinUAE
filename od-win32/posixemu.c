@@ -226,7 +226,7 @@ struct thparms
     void *arg;
 };
 
-static unsigned __stdcall thread_init(void *f)
+static unsigned __stdcall thread_init (void *f)
 {
     struct thparms *thp = f;
     void *(*fp)(void*) = thp->f;

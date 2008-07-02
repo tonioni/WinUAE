@@ -47,7 +47,7 @@ struct memwatch_node {
     uaecptr addr;
     int size;
     int rwi;
-    uae_u32 val;
+    uae_u32 val, valmask;
     int val_enabled;
     uae_u32 modval;
     int modval_written;

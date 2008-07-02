@@ -74,7 +74,7 @@
 #include "rp.h"
 #endif
 
-extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
+extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput, rawkeyboard;
 int log_scsi, log_net, uaelib_debug;
 int pissoff_value = 25000;
 
@@ -1904,6 +1904,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgmatchdepth = 1;
 	p->win32_rtgscaleifsmall = 1;
 	p->win32_rtgallowscaling = 0;
+	p->win32_rtgscaleaspectratio = -1;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
@@ -1947,6 +1948,9 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false" );
     cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false" );
     cfgfile_target_dwrite (f, "rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? "true" : "false" );
+    cfgfile_target_dwrite (f, "rtg_scale_aspect_ratio=%d:%d\n",
+	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
+	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
@@ -1980,6 +1984,7 @@ static const char *obsolete[] = {
 
 int target_parse_option (struct uae_prefs *p, char *option, char *value)
 {
+    char tmpbuf[CONFIG_BLEN];
     int i, v;
     int result = (cfgfile_yesno (option, value, "middle_mouse", &p->win32_middle_mouse)
 	    || cfgfile_yesno (option, value, "map_drives", &p->win32_automount_drives)
@@ -2020,6 +2025,25 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    p->win32_uaescsimode = get_aspi(0);
 	if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
 	    p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, "rtg_scale_aspect_ratio", tmpbuf, sizeof tmpbuf)) {
+	int v1, v2;
+	char *s;
+	
+	p->win32_rtgscaleaspectratio = -1;
+	v1 = atol (tmpbuf);
+	s = strchr (tmpbuf, ':');
+	if (s) {
+	    v2 = atol (s + 1);
+	    if (v1 < 0 || v2 < 0)
+		p->win32_rtgscaleaspectratio = -1;
+	    else if (v1 == 0 || v2 == 0)
+		p->win32_rtgscaleaspectratio = 0;
+	    else
+		p->win32_rtgscaleaspectratio = (v1 << 8) | v2;
+	}
 	return 1;
     }
 
@@ -2963,6 +2987,10 @@ static int process_arg(char **xargv)
 	    no_rawinput = 1;
 	    continue;
 	}
+	if (!strcmp (arg, "-rawkeyboard")) {
+	    rawkeyboard = 1;
+	    continue;
+	}
 	if (!strcmp (arg, "-scsilog")) {
 	    log_scsi = 1;
 	    continue;
@@ -3163,6 +3191,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	enumeratedisplays (multi_display);
 	write_log ("Sorting devices and modes..\n");
 	sortdisplays ();
+	write_log ("Display buffer mode = %d\n", ddforceram);
 	write_log ("done\n");
 
 	memset (&devmode, 0, sizeof(devmode));

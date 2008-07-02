@@ -710,8 +710,23 @@ static void DX_Blit96 (int x, int y, int w, int h)
     if (scalepicasso) {
 	int srcratio, dstratio;
 	SetRect (&sr, 0, 0, picasso96_state.Width, picasso96_state.Height);
-	srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
-	dstratio = currentmode->native_width * 256 / currentmode->native_height;
+	if (currprefs.win32_rtgscaleaspectratio < 0) {
+	    // automatic
+	    srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
+	    dstratio = currentmode->native_width * 256 / currentmode->native_height;
+	} else if (currprefs.win32_rtgscaleaspectratio == 0) {
+	    // none
+	    srcratio = dstratio = 0;
+	} else {
+	    // manual
+	    if (isfullscreen () == 0) {
+		dstratio = currentmode->native_width * 256 / currentmode->native_height;
+		srcratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
+	    } else {
+		srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
+		dstratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
+	    }
+	}
 	if (srcratio == dstratio) {
 	    SetRect (&dr, 0, 0, currentmode->native_width, currentmode->native_height);
 	} else if (srcratio > dstratio) {
@@ -996,6 +1011,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
     c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? 8 : 0;
     c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? 8 : 0;
+    c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? 8 : 0;
 
     if (display_change_requested || c)
     {
@@ -1047,6 +1063,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
 	currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
 	currprefs.win32_rtgallowscaling = changed_prefs.win32_rtgallowscaling;
+	currprefs.win32_rtgscaleaspectratio = changed_prefs.win32_rtgscaleaspectratio;
 
 	inputdevice_unacquire ();
 	if ((c & 16) || ((c & 8) && keepfsmode)) {
@@ -1775,13 +1792,15 @@ static int create_windows_2 (void)
 	    nw = rc.right - rc.left;
 	    nh = rc.bottom - rc.top;
 	}
+	write_log ("%d %d %d %d\n", x, y, w, h);
+	write_log ("%d %d %d %d\n", nx, ny, nw, nh);
 	if (w != nw || h != nh || x != nx || y != ny) {
 	    w = nw;
 	    h = nh;
 	    x = nx;
 	    y = ny;
 	    in_sizemove++;
-	    if (hMainWnd && !fsw && !dxfs) {
+	    if (hMainWnd && !fsw && !dxfs && !rp_isactive ()) {
     		GetWindowRect (hMainWnd, &r);
 		x = r.left;
 		y = r.top;

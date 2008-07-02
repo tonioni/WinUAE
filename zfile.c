@@ -129,6 +129,8 @@ int zfile_gettype (struct zfile *z)
 	return ZFILE_DISKIMAGE;
     if (!memcmp (buf, "RDSK", 4))
 	return ZFILE_HDFRDB;
+    if (!memcmp (buf, "DOS", 3))
+	return ZFILE_HDF;
     if (ext != NULL) {
 	if (strcasecmp (ext, "hdf") == 0)
 	    return ZFILE_HDF;

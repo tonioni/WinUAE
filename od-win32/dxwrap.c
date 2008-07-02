@@ -924,8 +924,6 @@ int DirectDraw_Start (GUID *guid)
 //    dxdata.statusheight = TD_TOTAL_HEIGHT;
     dxdata.cursorwidth = 48;
     dxdata.cursorheight = 48;
-    dxdata.maxwidth = 16384;
-    dxdata.maxheight = 16384;
     if (!d3ddone) {
 	d3dDLL = LoadLibrary ("D3D9.DLL");
 	if (d3dDLL) {

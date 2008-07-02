@@ -36,7 +36,7 @@ int rp_rpescapekey = 0x01;
 int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
-int log_rp = 0;
+int log_rp = 1;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = 1;
 
@@ -222,7 +222,7 @@ static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RP
 	write_log ("RPPOST: pInfo == NULL!\n");
         return FALSE;
     }
-    if (uMessage == RPIPCGM_DEVICESEEK)
+    if (uMessage == RPIPCGM_DEVICESEEK || uMessage == RPIPCGM_DEVICEACTIVITY)
 	dolog = 0;
     recursive++;
     cnt++;

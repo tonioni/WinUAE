@@ -254,11 +254,11 @@ static uae_u32 readhexx (char **c)
     char nc;
 
     ignore_ws (c);
-    while (isxdigit(nc = **c)) {
+    while (isxdigit (nc = **c)) {
 	(*c)++;
 	val *= 16;
-	nc = toupper(nc);
-	if (isdigit(nc)) {
+	nc = toupper (nc);
+	if (isdigit (nc)) {
 	    val += nc - '0';
 	} else {
 	    val += nc - 'A' + 10;
@@ -276,7 +276,7 @@ static uae_u32 readintx (char **c)
     ignore_ws (c);
     if (**c == '-')
 	negative = 1, (*c)++;
-    while (isdigit(nc = **c)) {
+    while (isdigit (nc = **c)) {
 	(*c)++;
 	val *= 10;
 	val += nc - '0';
@@ -290,7 +290,7 @@ static int checkvaltype (char **c, uae_u32 *val)
     char nc;
 
     ignore_ws (c);
-    nc = toupper(**c);
+    nc = toupper (**c);
     if (nc == '!') {
 	(*c)++;
 	*val = readintx (c);
@@ -301,7 +301,7 @@ static int checkvaltype (char **c, uae_u32 *val)
 	*val = readhexx (c);
 	return 1;
     }
-    if (nc == '0' && toupper((*c)[1]) == 'X') {
+    if (nc == '0' && toupper ((*c)[1]) == 'X') {
 	(*c)+= 2;
 	*val = readhexx (c);
 	return 1;
@@ -908,7 +908,7 @@ static void deepcheatsearch (char **c)
     int addrcnt, cnt;
     char v;
 
-    v = toupper(**c);
+    v = toupper (**c);
 
     if(!memtmp || v == 'S') {
 	maxdiff = 0x10000;
@@ -919,31 +919,31 @@ static void deepcheatsearch (char **c)
 
     if (**c)
 	(*c)++;
-    ignore_ws(c);
+    ignore_ws (c);
     if ((**c) == '1' || (**c) == '2') {
 	size = **c - '0';
 	(*c)++;
     }
-    if (more_params(c))
+    if (more_params (c))
 	maxdiff = readint(c);
 
     if (!memtmp || v == 'S') {
 	first = 1;
-	xfree(memtmp);
+	xfree (memtmp);
 	memsize = 0;
 	addr = 0xffffffff;
-	while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+	while ((addr = nextaddr (addr, &end)) != 0xffffffff)  {
 	    memsize += end - addr;
 	    addr = end - 1;
 	}
 	memsize2 = (memsize + 7) / 8;
-	memtmp = (uae_u8*)xmalloc (memsize + memsize2);
+	memtmp = xmalloc (memsize + memsize2);
 	if (!memtmp)
 	    return;
 	memset (memtmp + memsize, 0xff, memsize2);
 	p1 = memtmp;
 	addr = 0xffffffff;
-	while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
+	while ((addr = nextaddr (addr, &end)) != 0xffffffff) {
 	    for (i = addr; i < end; i++)
 		*p1++ = get_byte (i);
 	    addr = end - 1;
@@ -963,7 +963,7 @@ static void deepcheatsearch (char **c)
     addrcnt = 0;
     cnt = 0;
     addr = 0xffffffff;
-    while ((addr = nextaddr(addr, NULL)) != 0xffffffff) {
+    while ((addr = nextaddr (addr, NULL)) != 0xffffffff) {
 	uae_s32 b, b2;
 	int doremove = 0;
 	int addroff = addrcnt >> 3;
@@ -1006,7 +1006,7 @@ static void deepcheatsearch (char **c)
 	} else {
 	    p1[addrcnt] = b >> 8;
 	    p1[addrcnt + 1] = b >> 0;
-	    addr = nextaddr(addr, NULL);
+	    addr = nextaddr (addr, NULL);
 	    if (addr == 0xffffffff)
 		break;
 	    addrcnt += 2;
@@ -1015,7 +1015,7 @@ static void deepcheatsearch (char **c)
 
     console_out_f ("%d addresses found\n", cnt);
     if (cnt <= MAX_CHEAT_VIEW) {
-	clearcheater();
+	clearcheater ();
 	cnt = 0;
 	addrcnt = 0;
 	addr = 0xffffffff;
@@ -1023,11 +1023,11 @@ static void deepcheatsearch (char **c)
 	    int addroff = addrcnt >> 3;
 	    int addrmask = (size == 1 ? 1 : 3) << (addrcnt & 7);
 	    if (p2[addroff] & addrmask)
-		addcheater(addr, size);
+		addcheater (addr, size);
 	    addrcnt += size;
 	    cnt++;
 	}
-	listcheater(1, size);
+	listcheater (1, size);
     } else {
 	console_out ("Now continue with 'g' and use 'D' again after you have lost another life\n");
     }
@@ -1046,22 +1046,22 @@ static void cheatsearch (char **c)
 
     memsize = 0;
     addr = 0xffffffff;
-    while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+    while ((addr = nextaddr (addr, &end)) != 0xffffffff)  {
 	memsize += end - addr;
 	addr = end - 1;
     }
 
-    if (toupper(**c) == 'L') {
-	listcheater(1, size);
+    if (toupper (**c) == 'L') {
+	listcheater (1, size);
 	return;
     }
     ignore_ws (c);
-    if (!more_params(c)) {
+    if (!more_params (c)) {
 	first = 1;
 	console_out ("search reset\n");
 	xfree (vlist);
 	listsize = memsize;
-	vlist = (uae_u8*)xcalloc (listsize >> 3, 1);
+	vlist = xcalloc (listsize >> 3, 1);
 	return;
     }
     val = readint (c);
@@ -1074,8 +1074,8 @@ static void cheatsearch (char **c)
 	    size = 4;
     }
     ignore_ws (c);
-    if (more_params(c))
-        size = readint(c);
+    if (more_params (c))
+        size = readint (c);
     if (size > 4)
 	size = 4;
     if (size < 1)
@@ -1083,16 +1083,16 @@ static void cheatsearch (char **c)
 
     if (vlist == NULL) {
 	listsize = memsize;
-	vlist = (uae_u8*)xcalloc (listsize >> 3, 1);
+	vlist = xcalloc (listsize >> 3, 1);
     }
 
     count = 0;
     vcnt = 0;
 
-    clearcheater();
+    clearcheater ();
     addr = 0xffffffff;
     prevmemcnt = memcnt = 0;
-    while ((addr = nextaddr(addr, &end)) != 0xffffffff) {
+    while ((addr = nextaddr (addr, &end)) != 0xffffffff) {
 	if (addr + size < end) {
 	    for (i = 0; i < size; i++) {
 		int shift = (size - i - 1) * 8;
@@ -1158,14 +1158,14 @@ static void illg_init (void)
     uae_u8 c = 3;
     uaecptr addr, end;
 
-    illgdebug = (uae_u8*)xcalloc (0x01000000, 1);
-    illghdebug = (uae_u8*)xcalloc(65536, 1);
+    illgdebug = xcalloc (0x01000000, 1);
+    illghdebug = xcalloc (65536, 1);
     if (!illgdebug || !illghdebug) {
 	illg_free();
 	return;
     }
     addr = 0xffffffff;
-    while ((addr = nextaddr(addr, &end)) != 0xffffffff)  {
+    while ((addr = nextaddr (addr, &end)) != 0xffffffff)  {
 	if (end < 0x01000000) {
 	    memset (illgdebug + addr, c, end - addr);
 	} else {
@@ -1364,7 +1364,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	illg_debug_do (addr, rwi, size, val);
     addr = munge24 (addr);
     if (smc_table && (rwi >= 2))
-	smc_detector(addr, rwi, size, valp);
+	smc_detector (addr, rwi, size, valp);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	struct memwatch_node *m = &mwnodes[i];
 	uaecptr addr2 = m->addr;
@@ -1388,16 +1388,22 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 
 	if (!m->frozen && m->val_enabled) {
 	    int trigger = 0;
-	    uae_u32 mask = ((1 << (m->size * 8)) - 1);
+	    uae_u32 mask = (1 << (m->size * 8)) - 1;
+	    int scnt = size;
 	    for (;;) {
-		if ((m->val & mask) == (val & mask))
+		if (((m->val & mask) & m->valmask) == ((val & mask) & m->valmask))
 		    trigger = 1;
 		if (mask & 0x80000000)
 		    break;
-		if (m->size == 1)
+		if (m->size == 1) {
 		    mask <<= 8;
-		else if (m->size == 2)
+		    scnt--;
+		} else if (m->size == 2) {
 		    mask <<= 16;
+		    scnt -= 2;
+		}
+		if (scnt <= 0)
+		    break;
 	    }
 	    if (!trigger)
 		continue;
@@ -1448,16 +1454,16 @@ static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
-    if (!mmu_hit(addr, 4, 0, &v))
-	v = debug_mem_banks[off]->lget(addr);
+    if (!mmu_hit (addr, 4, 0, &v))
+	v = debug_mem_banks[off]->lget (addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
-    if (!mmu_hit(addr, 2, 0, &v))
-	v = debug_mem_banks[off]->wget(addr);
+    if (!mmu_hit (addr, 2, 0, &v))
+	v = debug_mem_banks[off]->wget (addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
@@ -1465,33 +1471,33 @@ static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
     if (!mmu_hit(addr, 1, 0, &v))
-	v = debug_mem_banks[off]->bget(addr);
+	v = debug_mem_banks[off]->bget (addr);
     return v;
 }
 static void REGPARAM2 mmu_lput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (!mmu_hit(addr, 4, 1, &v))
-	debug_mem_banks[off]->lput(addr, v);
+    if (!mmu_hit (addr, 4, 1, &v))
+	debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 mmu_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (!mmu_hit(addr, 2, 1, &v))
-	debug_mem_banks[off]->wput(addr, v);
+    if (!mmu_hit (addr, 2, 1, &v))
+	debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 mmu_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
-    if (!mmu_hit(addr, 1, 1, &v))
-	debug_mem_banks[off]->bput(addr, v);
+    if (!mmu_hit (addr, 1, 1, &v))
+	debug_mem_banks[off]->bput (addr, v);
 }
 
 static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
-    v = debug_mem_banks[off]->lget(addr);
+    v = debug_mem_banks[off]->lget (addr);
     memwatch_func (addr, 1, 4, &v);
     return v;
 }
@@ -1499,16 +1505,16 @@ static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
-    if (!mmu_hit(addr, 4, 4, &v))
-	v = debug_mem_banks[off]->lgeti(addr);
+    if (!mmu_hit (addr, 4, 4, &v))
+	v = debug_mem_banks[off]->lgeti (addr);
     return v;
 }
 static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v = 0;
-    if (!mmu_hit(addr, 2, 4, &v))
-	v = debug_mem_banks[off]->wgeti(addr);
+    if (!mmu_hit (addr, 2, 4, &v))
+	v = debug_mem_banks[off]->wgeti (addr);
     return v;
 }
 
@@ -1516,7 +1522,7 @@ static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
-    v = debug_mem_banks[off]->wget(addr);
+    v = debug_mem_banks[off]->wget (addr);
     memwatch_func (addr, 1, 2, &v);
     return v;
 }
@@ -1524,7 +1530,7 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
-    v = debug_mem_banks[off]->bget(addr);
+    v = debug_mem_banks[off]->bget (addr);
     memwatch_func (addr, 1, 1, &v);
     return v;
 }
@@ -1532,7 +1538,7 @@ static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
-    v = debug_mem_banks[off]->lgeti(addr);
+    v = debug_mem_banks[off]->lgeti (addr);
     memwatch_func (addr, 4, 4, &v);
     return v;
 }
@@ -1540,7 +1546,7 @@ static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
 {
     int off = debug_mem_off (addr);
     uae_u32 v;
-    v = debug_mem_banks[off]->wgeti(addr);
+    v = debug_mem_banks[off]->wgeti (addr);
     memwatch_func (addr, 4, 2, &v);
     return v;
 }
@@ -1548,19 +1554,19 @@ static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     if (memwatch_func (addr, 2, 4, &v))
-	debug_mem_banks[off]->lput(addr, v);
+	debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     if (memwatch_func (addr, 2, 2, &v))
-	debug_mem_banks[off]->wput(addr, v);
+	debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
     int off = debug_mem_off (addr);
     if (memwatch_func (addr, 2, 1, &v))
-	debug_mem_banks[off]->bput(addr, v);
+	debug_mem_banks[off]->bput (addr, v);
 }
 static int REGPARAM2 debug_check (uaecptr addr, uae_u32 size)
 {
@@ -1638,10 +1644,10 @@ static void initialize_memwatch (int mode)
     int i, as;
     addrbank *a1, *a2;
 
-    deinitialize_memwatch();
+    deinitialize_memwatch ();
     as = currprefs.address_space_24 ? 256 : 65536;
-    debug_mem_banks = (addrbank**)xmalloc (sizeof (addrbank*) * as);
-    debug_mem_area = (addrbank*)xmalloc (sizeof (addrbank) * as);
+    debug_mem_banks = xmalloc (sizeof (addrbank*) * as);
+    debug_mem_area = xmalloc (sizeof (addrbank) * as);
     for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i] = debug_mem_area + i;
 	a2 = mem_banks[i];
@@ -1672,7 +1678,7 @@ void memwatch_dump2 (char *buf, int bufsize, int num)
     struct memwatch_node *mwn;
 
     if (buf)
-	memset(buf, 0, bufsize);
+	memset (buf, 0, bufsize);
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	if ((num >= 0 && num == i) || (num < 0)) {
 	    mwn = &mwnodes[i];
@@ -1697,12 +1703,12 @@ static void memwatch_dump (int num)
     char *buf;
     int multiplier = num < 0 ? MEMWATCH_TOTAL : 1;
 
-    buf = (char*)malloc(50 * multiplier);
+    buf = malloc (50 * multiplier);
     if (!buf)
 	return;
     memwatch_dump2 (buf, 50 * multiplier, num);
-    f_out(stdout, "%s", buf);
-    free(buf);
+    f_out (stdout, "%s", buf);
+    xfree (buf);
 }
 
 static void memwatch (char **c)
@@ -1770,6 +1776,7 @@ static void memwatch (char **c)
     mwn->size = 1;
     mwn->rwi = 7;
     mwn->val_enabled = 0;
+    mwn->valmask = 0xffffffff;
     mwn->frozen = 0;
     mwn->modval_written = 0;
     ignore_ws (c);
@@ -1828,8 +1835,8 @@ static void writeintomem (char **c)
 	len = 2;
     else
 	len = 1;
-    if (more_params(c)) {
-	ignore_ws(c);
+    if (more_params (c)) {
+	ignore_ws (c);
 	len = readint (c);
     }
     if (len == 4) {
@@ -1845,11 +1852,11 @@ static void writeintomem (char **c)
     console_out_f ("Wrote %X (%u) at %08X.%c\n", val, val, addr, cc);
 }
 
-static uae_u8 *dump_xlate(uae_u32 addr)
+static uae_u8 *dump_xlate (uae_u32 addr)
 {
-    if (!mem_banks[addr >> 16]->check(addr, 1))
+    if (!mem_banks[addr >> 16]->check (addr, 1))
 	return NULL;
-    return mem_banks[addr >> 16]->xlateaddr(addr);
+    return mem_banks[addr >> 16]->xlateaddr (addr);
 }
 
 static void memory_map_dump_2 (int log)
@@ -1878,11 +1885,11 @@ static void memory_map_dump_2 (int log)
 		name = "<none>";
 
 	    k = j;
-	    caddr = dump_xlate(k << 16);
+	    caddr = dump_xlate (k << 16);
 	    mirrored = caddr ? 1 : 0;
 	    k++;
 	    while (k < i && caddr) {
-		if (dump_xlate(k << 16) == caddr)
+		if (dump_xlate (k << 16) == caddr)
 		    mirrored++;
 		k++;
 	    }
@@ -1898,17 +1905,17 @@ static void memory_map_dump_2 (int log)
 
 	    tmp[0] = 0;
 	    if (a1->flags == ABFLAG_ROM && mirrored) {
-		char *p = txt + strlen(txt);
-		uae_u32 crc = get_crc32(a1->xlateaddr(j << 16), (size * 1024) / mirrored);
-		struct romdata *rd = getromdatabycrc(crc);
+		char *p = txt + strlen (txt);
+		uae_u32 crc = get_crc32 (a1->xlateaddr(j << 16), (size * 1024) / mirrored);
+		struct romdata *rd = getromdatabycrc (crc);
 		sprintf(p, " (%08.8X)", crc);
 		if (rd) {
 		    tmp[0] = '=';
-		    getromname(rd, tmp + 1);
-		    strcat(tmp,"\n");
+		    getromname (rd, tmp + 1);
+		    strcat (tmp,"\n");
 		}
 	    }
-	    strcat(txt,"\n");
+	    strcat (txt,"\n");
 	    if (log)
 		write_log (txt);
 	    else
@@ -1930,21 +1937,21 @@ void memory_map_dump (void)
     memory_map_dump_2 (1);
 }
 
-STATIC_INLINE uaecptr BPTR2APTR(uaecptr addr)
+STATIC_INLINE uaecptr BPTR2APTR (uaecptr addr)
 {
     return addr << 2;
 }
-static char* BSTR2CSTR(uae_u8 *bstr)
+static char* BSTR2CSTR (uae_u8 *bstr)
 {
-    char *cstr = (char*)xmalloc(bstr[0] + 1);
+    char *cstr = xmalloc (bstr[0] + 1);
     if (cstr) {
-	memcpy(cstr, bstr + 1, bstr[0]);
+	memcpy (cstr, bstr + 1, bstr[0]);
 	cstr[bstr[0]] = 0;
     }
     return cstr;
 }
 
-static void print_task_info(uaecptr node)
+static void print_task_info (uaecptr node)
 {
     int process = get_byte (node + 8) == 13 ? 1 : 0;
     console_out_f ("%08X: %08X", node, 0);
@@ -2002,7 +2009,7 @@ int instruction_breakpoint (char **c)
     int i;
 
     if (more_params (c)) {
-	char nc = toupper((*c)[0]);
+	char nc = toupper ((*c)[0]);
 	if (nc == 'S') {
 	    next_char (c);
 	    sr_bpvalue = sr_bpmask = 0;
@@ -2088,15 +2095,15 @@ int instruction_breakpoint (char **c)
 static int process_breakpoint(char **c)
 {
     processptr = 0;
-    xfree(processname);
+    xfree (processname);
     processname = NULL;
     if (!more_params (c))
 	return 0;
     if (**c == '\"') {
-	processname = (char*)xmalloc(200);
-	next_string(c, processname, 200, 0);
+	processname = xmalloc (200);
+	next_string (c, processname, 200, 0);
     } else {
-	processptr = readhex(c);
+	processptr = readhex (c);
     }
     do_skip = 1;
     skipaddr_doskip = 1;

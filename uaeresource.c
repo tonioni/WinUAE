@@ -37,11 +37,11 @@
 
 #endif
 
-static uaecptr res_init, res_name, res_id;
+static uaecptr res_init, res_name, res_id, base;
 
-static uae_u32 REGPARAM2 res_getfunc (TrapContext *context)
+static uae_u32 REGPARAM2 res_getfunc (TrapContext *ctx)
 {
-    uaecptr funcname = m68k_areg (&context->regs, 0);
+    uaecptr funcname = m68k_areg (&ctx->regs, 0);
     char tmp[256];
     if (funcname == 0)
 	return 0;
@@ -49,10 +49,11 @@ static uae_u32 REGPARAM2 res_getfunc (TrapContext *context)
     return find_trap (tmp);
 }
 
-static uae_u32 REGPARAM2 res_initcode (TrapContext *context)
+static uae_u32 REGPARAM2 res_initcode (TrapContext *ctx)
 {
-    uaecptr base = m68k_dreg (&context->regs, 0);
-    uaecptr rb = base + SIZEOF_LIBRARY;
+    uaecptr rb;
+    base = m68k_dreg (&ctx->regs, 0);
+    rb = base + SIZEOF_LIBRARY;
     put_word (rb + 0, UAEMAJOR);
     put_word (rb + 2, UAEMINOR);
     put_word (rb + 4, UAESUBREV);

@@ -1,4 +1,16 @@
 
+Beta 4:
+
+- input panel custom events in slots 2+ were not saved if previous
+  slot was empty
+- debugger memwatch points were still broken in byte and word modes
+- debugger movem was disassembled incorrectly (wrong source/dest
+  address shown) if addressing mode was not address register relative
+- raw mouse friendly names added (was easier said than done..),
+  defaults to old-style "RAW Mouse" if name can't be found
+- directdraw max surface size driver workaround fixed
+- game Lancaster ce-mode blank-screen tweak
+
 Beta 3:
 
 - corrected directinput keyboard enumeration, possible fix for

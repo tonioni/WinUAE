@@ -189,3 +189,6 @@ extern uae_u8 inprec_pu8(void);
 extern uae_u16 inprec_pu16(void);
 extern uae_u32 inprec_pu32(void);
 extern int inprec_pstr(char*);
+
+extern int inputdevice_testread (char *name);
+extern int inputdevice_istest (void);

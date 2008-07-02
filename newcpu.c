@@ -2698,16 +2698,16 @@ void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int c
 	    m68kpc_offset += 2;
 	} else if (lookup->mnemo == i_MVMEL) {
 	    newpc = m68k_getpc (&regs) + m68kpc_offset;
+	    m68kpc_offset += 2;
 	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 	    strcat (instrname, ",");
-	    movemout (instrname, get_iword_1 (m68kpc_offset), dp->dmode);
-	    m68kpc_offset += 2;
+	    movemout (instrname, get_iword_1 (m68kpc_offset - 2), dp->dmode);
 	} else if (lookup->mnemo == i_MVMLE) {
-	    movemout (instrname, get_iword_1 (m68kpc_offset), dp->dmode);
+	    m68kpc_offset += 2;
+	    movemout (instrname, get_iword_1 (m68kpc_offset - 2), dp->dmode);
 	    strcat (instrname, ",");
 	    newpc = m68k_getpc (&regs) + m68kpc_offset;
 	    newpc += ShowEA (0, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
-	    m68kpc_offset += 2;
 	} else {
 	    if (dp->suse) {
 		newpc = m68k_getpc (&regs) + m68kpc_offset;

@@ -265,7 +265,7 @@ void addtosigqueue (SB, int events)
     unlocksigqueue ();
 
     if (sts)
-	uae_Signal(ot, sts);
+	uae_Signal (ot, sts);
 #endif
 
 }
@@ -282,7 +282,7 @@ void bsdsock_fake_int_handler(void)
 
 	for (sb = sbsigqueue; sb; sb = sb->nextsig) {
 	    if (sb->dosignal == 1) {
-		uae_Signal(sb->ownertask, sb->sigstosend);
+		uae_Signal (sb->ownertask, sb->sigstosend);
 		sb->sigstosend = 0;
 	    }
 	    sb->dosignal = 0;

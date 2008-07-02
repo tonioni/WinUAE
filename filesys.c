@@ -291,9 +291,9 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
     char *p = NULL;
 
     archivehd = -1;
-    if (my_existsfile(rootdir))
+    if (my_existsfile (rootdir))
         archivehd = 1;
-    else if (my_existsdir(rootdir))
+    else if (my_existsdir (rootdir))
         archivehd = 0;
 
     if ((!volname || strlen (volname) == 0) && rootdir && archivehd >= 0) {
@@ -331,7 +331,7 @@ char *filesys_createvolname (const char *volname, const char *rootdir, const cha
 	else
 	    nvol = my_strdup ("");
     }
-    stripsemicolon(nvol);
+    stripsemicolon (nvol);
     xfree (p);
     return nvol;
 }
@@ -936,12 +936,12 @@ static void set_volume_name (Unit *unit)
     unit->rootnode.mountcount = unit->mountcount;
 }
 
-static int filesys_isvolume(Unit *unit)
+static int filesys_isvolume (Unit *unit)
 {
     return get_byte (unit->volume + 44);
 }
 
-static void clear_exkeys(Unit *unit)
+static void clear_exkeys (Unit *unit)
 {
     int i;
     a_inode *a;
@@ -1172,7 +1172,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
 	return 0;
     if (u->reinsertdelay)
 	return -1;
-    if (is_hardfile(nr) != FILESYS_VIRTUAL)
+    if (is_hardfile (nr) != FILESYS_VIRTUAL)
 	return 0;
     if (filesys_isvolume (u)) {
 	filesys_delayed_change (u, 50, rootdir, volume, readonly, flags);
@@ -1182,7 +1182,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
     clear_exkeys (u);
     xfree (u->ui.rootdir);
     ui->rootdir = u->ui.rootdir = my_strdup (rootdir);
-    flush_cache(u, -1);
+    flush_cache (u, -1);
     if (set_filesys_volume (rootdir, &flags, &readonly, &emptydrive, &u->zarchive) < 0)
 	return 0;
     if (emptydrive)
@@ -1199,7 +1199,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
 	uci->readonly = ui->readonly = u->ui.readonly = readonly;
     put_byte (u->volume + 44, 0);
     put_byte (u->volume + 172 - 32, 1);
-    uae_Signal (get_long(u->volume + 176 - 32), 1 << 17);
+    uae_Signal (get_long (u->volume + 176 - 32), 1 << 17);
     return 100 + nr;
 }
 
