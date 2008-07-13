@@ -686,19 +686,19 @@ static uae_u32 REGPARAM2 arram_lget (uaecptr addr)
     addr &= arram_mask;
     m = (uae_u32 *)(armemory_ram + addr);
     if (strncmp ("T8", (char*)m, 2) == 0)
-	write_log_debug ("Reading T8 from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading T8 from addr %088x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("LAME", (char*)m, 4) == 0)
-	write_log_debug ("Reading LAME from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading LAME from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("RES1", (char*)m, 4) == 0)
-	write_log_debug ("Reading RES1 from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading RES1 from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("ARON", (char*)m, 4) == 0)
-	write_log_debug ("Reading ARON from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading ARON from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("KILL", (char*)m, 4) == 0)
-	write_log_debug ("Reading KILL from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading KILL from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("BRON", (char*)m, 4) == 0)
-	write_log_debug ("Reading BRON from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading BRON from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("PRIN", (char*)m, 4) == 0)
-	write_log_debug ("Reading PRIN from addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Reading PRIN from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     return do_get_mem_long (m);
 }
 
@@ -735,19 +735,19 @@ void REGPARAM2 arram_lput (uaecptr addr, uae_u32 l)
     addr &= arram_mask;
     m = (uae_u32 *)(armemory_ram + addr);
     if (strncmp ("T8", (char*)m, 2) == 0)
-	write_log_debug ("Writing T8 to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing T8 to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("LAME", (char*)m, 4) == 0)
-	write_log_debug ("Writing LAME to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing LAME to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("RES1", (char*)m, 4) == 0)
-	write_log_debug ("Writing RES1 to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing RES1 to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("ARON", (char*)m, 4) == 0)
-	write_log_debug ("Writing ARON to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing ARON to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("KILL", (char*)m, 4) == 0)
-	write_log_debug ("Writing KILL to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing KILL to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("BRON", (char*)m, 4) == 0)
-	write_log_debug ("Writing BRON to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing BRON to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     if (strncmp ("PRIN", (char*)m, 4) == 0)
-	write_log_debug ("Writing PRIN to addr %08.08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug ("Writing PRIN to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
     do_put_mem_long (m, l);
 }
 
@@ -1612,7 +1612,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
     }
 
     hrtmon_flag = ACTION_REPLAY_IDLE;
-    write_log ("%s installed at %08.8X\n", cart_memnames[cart_type], hrtmem_start);
+    write_log ("%s installed at %08X\n", cart_memnames[cart_type], hrtmem_start);
     return 1;
 }
 
@@ -1688,7 +1688,7 @@ int action_replay_load (void)
     arram_mask = arram_size - 1;
     arrom_mask = arrom_size - 1;
     armemory_ram = (uae_u8*)xcalloc (arram_size, 1);
-    write_log ("Action Replay %d installed at %08.8X, size %08.8X\n", armodel, arrom_start, arrom_size);
+    write_log ("Action Replay %d installed at %08X, size %08X\n", armodel, arrom_start, arrom_size);
     action_replay_version();
     return armodel;
 }
@@ -1845,7 +1845,7 @@ int hrtmon_load (void)
 #endif
     hrtmem_bank.baseaddr = hrtmemory;
     hrtmon_flag = ACTION_REPLAY_IDLE;
-    write_log ("%s installed at %08.8X\n", cart_memnames[cart_type], hrtmem_start);
+    write_log ("%s installed at %08X\n", cart_memnames[cart_type], hrtmem_start);
     return 1;
 }
 

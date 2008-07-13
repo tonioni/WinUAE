@@ -246,7 +246,7 @@ static struct priv_devstruct *getpdevstruct (uaecptr request)
 {
     int i = get_long (request + 24);
     if (i < 0 || i >= MAX_OPEN_DEVICES || pdevst[i].inuse == 0) {
-	write_log ("%s: corrupt iorequest %08.8X %d\n", SANA2NAME, request, i);
+	write_log ("%s: corrupt iorequest %08X %d\n", SANA2NAME, request, i);
 	return 0;
     }
     return &pdevst[i];
@@ -617,7 +617,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 	return;
     }
     if (log_net)
-	write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
+	write_log ("%s:%d asyncronous request=%08X aborted\n", getdevname(), dev->unit, request);
     do_abort_async (dev, request);
 }
 

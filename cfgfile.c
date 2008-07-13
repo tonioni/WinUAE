@@ -165,10 +165,10 @@ static const char *maxvert[] = { "nointerlace", "interlace", 0 };
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
     "gfx_immediate_blits", "gfx_ntsc", "win32", "gfx_filter_bits",
-    "sound_pri_cutoff", "sound_pri_time", "sound_min_buff",
+    "sound_pri_cutoff", "sound_pri_time", "sound_min_buff", "sound_bits",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
     "kickstart_key_file", "fast_copper", "sound_adjust",
-    "serial_hardware_dtrdsr", "gfx_filter_upscale",
+    "serial_hardware_dtrdsr", "gfx_filter_upscale", 
     0
 };
 
@@ -431,7 +431,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "sana2=%s\n", p->sana2 ? "true" : "false");
 
     cfgfile_write (f, "sound_output=%s\n", soundmode1[p->produce_sound]);
-    cfgfile_write (f, "sound_bits=%d\n", p->sound_bits);
     cfgfile_write (f, "sound_channels=%s\n", stereomode[p->sound_stereo]);
     cfgfile_write (f, "sound_stereo_separation=%d\n", p->sound_stereo_separation);
     cfgfile_write (f, "sound_stereo_mixing_delay=%d\n", p->sound_mixed_stereo_delay >= 0 ? p->sound_mixed_stereo_delay : 0);
@@ -857,7 +856,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 
     if (cfgfile_intval (option, value, "sound_latency", &p->sound_latency, 1)
 	|| cfgfile_intval (option, value, "sound_max_buff", &p->sound_maxbsiz, 1)
-	|| cfgfile_intval (option, value, "sound_bits", &p->sound_bits, 1)
 	|| cfgfile_intval (option, value, "state_replay_rate", &p->statecapturerate, 1)
 	|| cfgfile_intval (option, value, "state_replay_buffer", &p->statecapturebuffersize, 1)
 	|| cfgfile_intval (option, value, "sound_frequency", &p->sound_freq, 1)
@@ -2081,8 +2079,6 @@ static void parse_sound_spec (struct uae_prefs *p, char *spec)
 	else
 	    p->sound_stereo = SND_MONO;
     }
-    if (x2)
-	p->sound_bits = atoi (x2);
     if (x3)
 	p->sound_freq = atoi (x3);
     if (x4)
@@ -2844,7 +2840,6 @@ void default_prefs (struct uae_prefs *p, int type)
     p->sound_stereo = SND_STEREO;
     p->sound_stereo_separation = 7;
     p->sound_mixed_stereo_delay = 0;
-    p->sound_bits = DEFAULT_SOUND_BITS;
     p->sound_freq = DEFAULT_SOUND_FREQ;
     p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
     p->sound_latency = 100;

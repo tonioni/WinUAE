@@ -345,7 +345,7 @@ static void ShowMiscCPU(HWND hwnd)
 
     for (i = 0; m2cregs[i].regno>= 0; i++) {
 	if (!movec_illg(m2cregs[i].regno)) {
-	    sprintf(out, "%-4s %08.8X", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
+	    sprintf(out, "%-4s %08X", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
 	    UpdateListboxString(hwnd, line++, out, TRUE);
 	}
     }
@@ -391,15 +391,15 @@ static void ShowCustomSmall(HWND hwnd)
 	sprintf (out + strlen(out), "/%d", currprefs.fpu_model);
     sprintf(out + strlen(out), " %s", (currprefs.chipset_mask & CSMASK_AGA) ? "AGA" : ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? "ECS" : "OCS"));
     ULBST(out);
-    ULBST("VPOS     %04.4X (%d)", vpos, vpos);
-    ULBST("HPOS     %04.4X (%d)", current_hpos(), current_hpos());
+    ULBST("VPOS     %04X (%d)", vpos, vpos);
+    ULBST("HPOS     %04X (%d)", current_hpos(), current_hpos());
     for (i = 0; dcustom[i]; i++) {
 	for (j = 0; custd[j].name; j++) {
 	    if (custd[j].adr == (dcustom[i] & 0x1fe) + 0xdff000) {
 		if (dcustom[i] & 0x8000)
-		    ULBST("%-8s %08.8X", custd[j].name, (gw(p1, dcustom[i] & 0x1fe) << 16) | gw(p1, (dcustom[i] & 0x1fe) + 2));
+		    ULBST("%-8s %08X", custd[j].name, (gw(p1, dcustom[i] & 0x1fe) << 16) | gw(p1, (dcustom[i] & 0x1fe) + 2));
 		else
-		    ULBST("%-8s %04.4X", custd[j].name, gw(p1, dcustom[i] & 0x1fe));
+		    ULBST("%-8s %04X", custd[j].name, gw(p1, dcustom[i] & 0x1fe));
 		break;
 	    }
 	}
@@ -439,7 +439,7 @@ static void ShowMisc(void)
 	p = p2 = save_disk (i, &len, NULL);
 	ULBS("");
 	ULBS("Drive DF%d: (%s)", i, (p[4] & 2) ? "disabled" : "enabled");
-	ULBS("ID %08.8X  Motor %s  Cylinder %2d  MFMPOS %d",
+	ULBS("ID %08X  Motor %s  Cylinder %2d  MFMPOS %d",
 	    (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3],
 	    (p[4] & 1) ? "On" : "Off",
 	    p[5], (p[8] << 24) | (p[9] << 16) | (p[10] << 8) | p[11]);
@@ -453,7 +453,7 @@ static void ShowMisc(void)
     ULBS("");
     ULBS("Disk controller:");
     ULBS("");
-    ULBS("Shift register: Data=%04.4X Shift=%d. DMA=%d,%d", (p[0] << 8) | p[1], p[2], p[3], p[5]);
+    ULBS("Shift register: Data=%04X Shift=%d. DMA=%d,%d", (p[0] << 8) | p[1], p[2], p[3], p[5]);
     free (p2);
 }
 
@@ -495,7 +495,7 @@ static void ShowCustom(void)
 	addr2 = custd[j].adr & 0x1ff;
 	v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
 	v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
-	ULBS("%03.3X %-15s %04.4X    %03.3X %-15s %04.4X",
+	ULBS("%03.3X %-15s %04X    %03X %-15s %04X",
 	    addr1, custd[i].name, v1,
 	    addr2, custd[j].name, v2);
     }

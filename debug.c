@@ -606,7 +606,7 @@ static void dump_custom_regs (int aga)
 	addr2 = custd[j].adr & 0x1ff;
 	v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
 	v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
-	console_out_f ("%03.3X %s\t%04.4X\t%03.3X %s\t%04.4X\n",
+	console_out_f ("%03X %s\t%04X\t%03X %s\t%04X\n",
 	    addr1, custd[i].name, v1,
 	    addr2, custd[j].name, v2);
     }
@@ -818,7 +818,7 @@ static int copper_debugger (char **c)
 	debug_copper = 1|4;
 	if (more_params(c)) {
 	    debug_copper_pc = readhex(c);
-	    console_out_f ("Copper breakpoint @0x%08.8x\n", debug_copper_pc);
+	    console_out_f ("Copper breakpoint @0x%08x\n", debug_copper_pc);
 	} else {
 	    debug_copper &= ~4;
 	}
@@ -1242,17 +1242,17 @@ static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
 	    illg_debug_check (ad, rwi, size, val);
 	} else if ((mask & 3) == 0) {
 	    if (rwi & 2)
-		console_out_f ("W: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
+		console_out_f ("W: %08X=%02X PC=%08X\n", ad, v, pc);
 	    else if (rwi & 1)
-		console_out_f ("R: %08.8X    PC=%08.8X\n", ad, pc);
+		console_out_f ("R: %08X    PC=%08X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	} else if (!(mask & 1) && (rwi & 1)) {
-	    console_out_f ("RO: %08.8X=%02.2X PC=%08.8X\n", ad, v, pc);
+	    console_out_f ("RO: %08X=%02X PC=%08X\n", ad, v, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	} else if (!(mask & 2) && (rwi & 2)) {
-	    console_out_f ("WO: %08.8X    PC=%08.8X\n", ad, pc);
+	    console_out_f ("WO: %08X    PC=%08X\n", ad, pc);
 	    if (illgdebug_break)
 		activate_debugger ();
 	}
@@ -1346,7 +1346,7 @@ static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
     }
     if (hitcnt < 100) {
 	smc_table[hitaddr].cnt++;
-	console_out_f ("SMC at %08.8X - %08.8X (%d) from %08.8X\n",
+	console_out_f ("SMC at %08X - %08X (%d) from %08X\n",
 	    hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
 	if (smc_mode)
 	    activate_debugger ();
@@ -1684,7 +1684,7 @@ void memwatch_dump2 (char *buf, int bufsize, int num)
 	    mwn = &mwnodes[i];
 	    if (mwn->size == 0)
 		continue;
-	    buf = buf_out (buf, &bufsize, "%d: %08.8X - %08.8X (%d) %c%c%c",
+	    buf = buf_out (buf, &bufsize, "%d: %08X - %08X (%d) %c%c%c",
 		i, mwn->addr, mwn->addr + (mwn->size - 1), mwn->size,
 		(mwn->rwi & 1) ? 'R' : ' ', (mwn->rwi & 2) ? 'W' : ' ', (mwn->rwi & 4) ? 'I' : ' ');
 	    if (mwn->frozen)
@@ -1741,7 +1741,7 @@ static void memwatch (char **c)
 		uae_u32 len = 1;
 		if (more_params (c))
 		    len = readhex (c);
-		console_out_f ("cleared logging addresses %08.8X - %08.8X\n", addr, addr + len);
+		console_out_f ("cleared logging addresses %08X - %08X\n", addr, addr + len);
 		while (len > 0) {
 		    addr &= 0xffffff;
 		    illgdebug[addr] = 7;
@@ -1900,7 +1900,7 @@ static void memory_map_dump_2 (int log)
 		size_out /= 1024;
 		size_ext = 'M';
 	    }
-	    sprintf (txt, "%08.8X %7d%c/%d = %7d%c %s", j << 16, size_out, size_ext,
+	    sprintf (txt, "%08X %7d%c/%d = %7d%c %s", j << 16, size_out, size_ext,
 		mirrored, mirrored ? size_out / mirrored : size_out, size_ext, name);
 
 	    tmp[0] = 0;
@@ -1908,7 +1908,7 @@ static void memory_map_dump_2 (int log)
 		char *p = txt + strlen (txt);
 		uae_u32 crc = get_crc32 (a1->xlateaddr(j << 16), (size * 1024) / mirrored);
 		struct romdata *rd = getromdatabycrc (crc);
-		sprintf(p, " (%08.8X)", crc);
+		sprintf(p, " (%08X)", crc);
 		if (rd) {
 		    tmp[0] = '=';
 		    getromname (rd, tmp + 1);
@@ -2639,7 +2639,7 @@ static void debug_1 (void)
 		    next_char (&inptr);
 		    if (more_params (&inptr))
 			debug_sprite_mask = readhex (&inptr);
-		    console_out_f ("sprite mask: %02.2X\n", debug_sprite_mask);
+		    console_out_f ("sprite mask: %02X\n", debug_sprite_mask);
 		}
 	    } else {
 		searchmem (&inptr);
@@ -2834,8 +2834,11 @@ static void debug_1 (void)
 	case 'a':
 	    if (more_params (&inptr)) {
 		char nc = next_char (&inptr);
-		if (nc == 'm')
-		    audio_channel_mask = readint (&inptr);
+		if (nc == 'm') {
+		    if (more_params (&inptr))
+			audio_channel_mask = readint (&inptr);
+		    console_out_f ("Audio mask = %02X\n", audio_channel_mask);
+		}
 	    }
 	    break;
 	case 'h':
@@ -2849,7 +2852,7 @@ static void debug_1 (void)
     }
 }
 
-static void addhistory(void)
+static void addhistory (void)
 {
     uae_u32 pc = m68k_getpc (&regs);
 //    if (!notinrom())
@@ -2903,7 +2906,7 @@ void debug (void)
 		    continue;
 		if (bpnodes[i].addr == pc) {
 		    bp = 1;
-		    console_out_f ("Breakpoint at %08.8X\n", pc);
+		    console_out_f ("Breakpoint at %08X\n", pc);
 		    break;
 		}
 	    }
@@ -2968,7 +2971,7 @@ void debug (void)
 	    }
 	}
     } else {
-	console_out_f ("Memwatch %d: break at %08X.%c %c%c%c %08.8X PC=%08X\n", memwatch_triggered - 1, mwhit.addr,
+	console_out_f ("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X\n", memwatch_triggered - 1, mwhit.addr,
 	    mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
 	    (mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
 	    mwhit.val, mwhit.pc);
@@ -3033,8 +3036,8 @@ const char *debuginfo (int mode)
 {
     static char txt[100];
     uae_u32 pc = M68K_GETPC;
-    sprintf (txt, "PC=%08.8X INS=%04.4X %04.4X %04.4X",
-	pc, get_word (pc), get_word (pc+2), get_word (pc+4));
+    sprintf (txt, "PC=%08X INS=%04X %04X %04X",
+	pc, get_word (pc), get_word (pc + 2), get_word (pc + 4));
     return txt;
 }
 
@@ -3139,7 +3142,7 @@ static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rwi,
     mmur = regs;
     pc = m68k_getpc (&regs);
     if (mmu_logging)
-	console_out_f ("MMU: hit %08.8X SZ=%d RW=%d V=%08.8X PC=%08.8X\n", addr, size, rwi, v, pc);
+	console_out_f ("MMU: hit %08X SZ=%d RW=%d V=%08X PC=%08X\n", addr, size, rwi, v, pc);
 
     p = mmu_regs;
     put_long (p, 0); p += 4;
@@ -3202,7 +3205,7 @@ static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v)
 		    if (maddr == addr) /* infinite mmu hit loop? no thanks.. */
 			return 1;
 		    if (mmu_logging)
-			console_out_f ("MMU: remap %08.8X -> %08.8X SZ=%d RW=%d\n", addr, maddr, size, rwi);
+			console_out_f ("MMU: remap %08X -> %08X SZ=%d RW=%d\n", addr, maddr, size, rwi);
 		    if ((rwi & 2)) {
 			switch (size)
 			{
@@ -3262,8 +3265,8 @@ static void mmu_free_node(struct mmunode *mn)
 {
     if (!mn)
 	return;
-    mmu_free_node(mn->next);
-    xfree(mn);
+    mmu_free_node (mn->next);
+    xfree (mn);
 }
 
 static void mmu_free(void)
@@ -3273,9 +3276,9 @@ static void mmu_free(void)
 
     for (i = 0; i < mmu_slots; i++) {
 	mn = mmunl[i];
-	mmu_free_node(mn);
+	mmu_free_node (mn);
     }
-    xfree(mmunl);
+    xfree (mmunl);
     mmunl = NULL;
     xfree (mmubanks);
     mmubanks = NULL;
@@ -3305,13 +3308,13 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	wasjit = currprefs.cachesize;
 	changed_prefs.cachesize = 0;
 	console_out ("MMU: JIT disabled\n");
-	check_prefs_changed_comp();
+	check_prefs_changed_comp ();
     }
 
     if (mode == 0) {
 	if (mmu_enabled) {
-	    mmu_free();
-	    deinitialize_memwatch();
+	    mmu_free ();
+	    deinitialize_memwatch ();
 	    console_out ("MMU: disabled\n");
 	    changed_prefs.cachesize = wasjit;
 	}
@@ -3350,7 +3353,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	    if (mn->mmubank->p_addr == parm2) {
 		getmmubank(mn->mmubank, parm2);
 		if (mmu_logging)
-		    console_out_f ("MMU: bank update %08.8X: %08.8X - %08.8X %08.8X\n",
+		    console_out_f ("MMU: bank update %08X: %08X - %08X %08X\n",
 			mn->mmubank->flags, mn->mmubank->addr, mn->mmubank->len + mn->mmubank->addr,
 			mn->mmubank->remap);
 	    }
@@ -3360,7 +3363,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
     }
 
     mmu_slots = 1 << ((currprefs.address_space_24 ? 24 : 32) - MMU_PAGE_SHIFT);
-    mmunl = (struct mmunode**)xcalloc (sizeof (struct mmunode*) * mmu_slots, 1);
+    mmunl = xcalloc (sizeof (struct mmunode*) * mmu_slots, 1);
     size = 1;
     p2 = get_long (p);
     while (get_long (p2) != 0xffffffff) {
@@ -3368,7 +3371,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	size++;
     }
     p = banks = get_long (p);
-    snptr = mmubanks = (struct mmudata*)xmalloc (sizeof (struct mmudata) * size);
+    snptr = mmubanks = xmalloc (sizeof (struct mmudata) * size);
     for (;;) {
 	int off;
 	if (getmmubank(snptr, p))
@@ -3376,19 +3379,19 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	p += 16;
 	off = snptr->addr >> MMU_PAGE_SHIFT;
 	if (mmunl[off] == NULL) {
-	    mn = mmunl[off] = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1);
+	    mn = mmunl[off] = xcalloc (sizeof (struct mmunode), 1);
 	} else {
 	    mn = mmunl[off];
 	    while (mn->next)
 		mn = mn->next;
-	    mn = mn->next = (struct mmunode*)xcalloc (sizeof (struct mmunode), 1);
+	    mn = mn->next = xcalloc (sizeof (struct mmunode), 1);
 	}
 	mn->mmubank = snptr;
 	snptr++;
     }
 
-    initialize_memwatch(1);
-    console_out_f ("MMU: enabled, %d banks, CB=%08.8X S=%08.8X BNK=%08.8X SF=%08.8X, %d*%d\n",
+    initialize_memwatch (1);
+    console_out_f ("MMU: enabled, %d banks, CB=%08X S=%08X BNK=%08X SF=%08X, %d*%d\n",
 	size - 1, mmu_callback, parm, banks, mmu_regs, mmu_slots, 1 << MMU_PAGE_SHIFT);
     set_special (&regs, SPCFLAG_BRK);
     return 1;

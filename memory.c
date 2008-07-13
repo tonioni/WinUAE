@@ -2074,7 +2074,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 		int i, j;
 		uaecptr a2 = a - 32;
 		uaecptr a3 = m68k_getpc (&regs) - 32;
-		write_log ("Your Amiga program just did something terribly stupid %08X PC=%08.8X\n", a, M68K_GETPC);
+		write_log ("Your Amiga program just did something terribly stupid %08X PC=%08X\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
 		    write_log ("%08X ", i >= 5 ? a3 : a2);
@@ -2736,7 +2736,7 @@ static int patch_shapeshifter (uae_u8 *kickmemory)
 	!memcmp (kickmemory + i, kickshift2, sizeof (kickshift2)) ||
 	!memcmp (kickmemory + i, kickshift3, sizeof (kickshift3))) {
 	    kickmemory[i + 2] = 0x30;
-	    write_log ("Kickstart KickShifted @%04.4X\n", i);
+	    write_log ("Kickstart KickShifted @%04X\n", i);
 	    patched++;
 	}
     }
@@ -2764,7 +2764,7 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 		j = 0;
 		while (residents[j]) {
 		    if (!memcmp (residents[j], kickmemory + addr - base, strlen (residents[j]) + 1)) {
-			write_log ("KSPatcher: '%s' at %08.8X disabled\n", residents[j], i + base);
+			write_log ("KSPatcher: '%s' at %08X disabled\n", residents[j], i + base);
 			kickmemory[i] = 0x4b; /* destroy RTC_MATCHWORD */
 			patched++;
 			break;
@@ -3565,7 +3565,7 @@ void memory_reset (void)
 #ifdef ARCADIA
     if (!arcadia_bios) {
 #endif
-    action_replay_memory_reset();
+    action_replay_memory_reset ();
 #ifdef ARCADIA
     }
 #endif

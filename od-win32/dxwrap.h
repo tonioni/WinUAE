@@ -26,17 +26,24 @@ struct ddstuff
     int lockcnt;
     DWORD pitch;
     HWND hwnd;
-    int maxwidth, maxheight;
     uae_u32 colorkey;
     int islost, isoverlay;
 
     LPDIRECTDRAWSURFACE7 cursorsurface1;
     LPDIRECTDRAWSURFACE7 cursorsurface2;
-    int cursorwidth, cursorheight;
     LPDIRECTDRAWSURFACE7 statussurface;
     int statuswidth, statusheight;
+
+};
+struct ddcaps
+{
+    int cursorwidth, cursorheight;
+    int maxwidth, maxheight;
+    int cancolorkey;
+    int cannonlocalvidmem;
 };
 extern struct ddstuff dxdata;
+extern struct ddcaps dxcaps;
 
 struct ScreenResolution
 {
@@ -119,8 +126,9 @@ HRESULT DirectDraw_FlipToGDISurface (void);
 int DirectDraw_Flip (int doflip);
 int DirectDraw_BlitToPrimary (RECT *rect);
 int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect);
-void DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
-void DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
+int DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
+int DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
+int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 
@@ -130,6 +138,7 @@ HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal);
 
 void dx_check (void);
 int dx_islost (void);
+int dx_testck (void);
 
 #define DDFORCED_NONLOCAL 0
 #define DDFORCED_DEFAULT 1

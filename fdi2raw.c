@@ -59,7 +59,7 @@ static char *datalog (uae_u8 *src, int len)
 	offset2 = offset;
 	buf[offset++]='\'';
 	while (len--) {
-		sprintf (buf + offset, "%02.2X", src[i]);
+		sprintf (buf + offset, "%02X", src[i]);
 		offset += 2;
 		i++;
 		if (i > 10) break;
@@ -329,13 +329,13 @@ static int decode_raw_track (FDI *fdi)
 /* unknown track */
 static void zxx (FDI *fdi)
 {
-	outlog ("track %d: unknown track type 0x%02.2X\n", fdi->current_track, fdi->track_type);
+	outlog ("track %d: unknown track type 0x%02X\n", fdi->current_track, fdi->track_type);
 //	return -1;
 }
 /* unsupported track */
 static void zyy (FDI *fdi)
 {
-	outlog ("track %d: unsupported track type 0x%02.2X\n", fdi->current_track, fdi->track_type);
+	outlog ("track %d: unsupported track type 0x%02X\n", fdi->current_track, fdi->track_type);
 //	return -1;
 }
 /* empty track */
@@ -347,13 +347,13 @@ static void track_empty (FDI *fdi)
 /* unknown sector described type */
 static void dxx (FDI *fdi)
 {
-	outlog ("\ntrack %d: unknown sector described type 0x%02.2X\n", fdi->current_track, fdi->track_type);
+	outlog ("\ntrack %d: unknown sector described type 0x%02X\n", fdi->current_track, fdi->track_type);
 	fdi->err = 1;
 }
 /* unsupported sector described type */
 static void dyy (FDI *fdi)
 {
-	outlog ("\ntrack %d: unsupported sector described 0x%02.2X\n", fdi->current_track, fdi->track_type);
+	outlog ("\ntrack %d: unsupported sector described 0x%02X\n", fdi->current_track, fdi->track_type);
 	fdi->err = 1;
 }
 /* add position of mfm sync bit */
@@ -476,7 +476,7 @@ static void s08(FDI *fdi)
 	int bytes = *fdi->track_src++;
 	uae_u8 byte = *fdi->track_src++;
 	if (bytes == 0) bytes = 256;
-	debuglog ("s08:len=%d,data=%02.2X",bytes,byte);
+	debuglog ("s08:len=%d,data=%02X",bytes,byte);
 	while(bytes--) byte_add (fdi, byte);
 }
 /* RLE MFM-decoded data */
@@ -486,7 +486,7 @@ static void s09(FDI *fdi)
 	uae_u8 byte = *fdi->track_src++;
 	if (bytes == 0) bytes = 256;
 	bit_drop_next (fdi);
-	debuglog ("s09:len=%d,data=%02.2X",bytes,byte);
+	debuglog ("s09:len=%d,data=%02X",bytes,byte);
 	while(bytes--) byte_mfm_add (fdi, byte);
 }
 /* MFM-encoded data */
@@ -694,7 +694,7 @@ static int amiga_check_track (FDI *fdi)
 			continue;
 		}
 		if ((id >> 24) != 0xff) {
-			outlog ("sector %d format type %02.2X?\n", trackoffs, id >> 24);
+			outlog ("sector %d format type %02X?\n", trackoffs, id >> 24);
 			ok = 0;
 		}
 		chksum = odd ^ even;
@@ -1320,7 +1320,7 @@ static int handle_sectors_described_track (FDI *fdi)
 
 	do {
 		fdi->track_type = *fdi->track_src++;
-		outlog ("%06.6X %06.6X %02.2X:",fdi->track_src - start_src + 0x200, fdi->out/8, fdi->track_type);
+		outlog ("%06X %06X %02X:",fdi->track_src - start_src + 0x200, fdi->out/8, fdi->track_type);
 		oldout = fdi->out;
 		decode_sectors_described_track[fdi->track_type](fdi);
 		outlog (" %d\n", fdi->out - oldout);
@@ -1330,7 +1330,7 @@ static int handle_sectors_described_track (FDI *fdi)
 			return -1;
 		}
 		if (fdi->track_src - fdi->track_src_buffer >= fdi->track_src_len) {
-			outlog ("source buffer overrun, previous type: %02.2X\n", fdi->track_type);
+			outlog ("source buffer overrun, previous type: %02X\n", fdi->track_type);
 			return -1;
 		}
 	} while (fdi->track_type != 0xff);
@@ -2151,7 +2151,7 @@ int fdi2raw_loadtrack (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int trac
 	else
 		fdi->bit_rate = 250;
 
-	debuglog ("track %d: srclen: %d track_type: %02.2X, bitrate: %d\n",
+	debuglog ("track %d: srclen: %d track_type: %02X, bitrate: %d\n",
 		fdi->current_track, fdi->track_src_len, fdi->track_type, fdi->bit_rate);
 
 	if ((fdi->track_type & 0xc0) == 0x80) {

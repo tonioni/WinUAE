@@ -548,7 +548,7 @@ void wdscsi_put (uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
     if (WD33C93_DEBUG > 3 || sasr != WD_DATA)
-	write_log ("W %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, sasr, sasr, d, d, M68K_GETPC);
+	write_log ("W %s REG %02X (%d) = %02X (%d) PC=%08X\n", WD33C93, sasr, sasr, d, d, M68K_GETPC);
 #endif
     if (!writeonlyreg (sasr))
 	wdregs[sasr] = d;
@@ -586,7 +586,7 @@ void wdscsi_put (uae_u8 d)
 		wd_cmd_trans_info ();
 	    break;
 	    default:
-		write_log ("%s unimplemented/unknown command %02.X\n", WD33C93, d);
+		write_log ("%s unimplemented/unknown command %02X\n", WD33C93, d);
 	    break;
 	}
     }
@@ -629,7 +629,7 @@ uae_u8 wdscsi_get(void)
     incsasr (0);
 #if WD33C93_DEBUG > 1
     if (WD33C93_DEBUG > 3 || osasr != WD_DATA)
-	write_log ("R %s REG %02.2X (%d) = %02.2X (%d) PC=%08X\n", WD33C93, osasr, osasr, v, v, M68K_GETPC);
+	write_log ("R %s REG %02X (%d) = %02X (%d) PC=%08X\n", WD33C93, osasr, osasr, v, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -701,7 +701,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	break;
     }
 #if A2091_DEBUG > 0
-    write_log ("dmac_bget %04.4X=%02.2X PC=%08.8X\n", addr, v, M68K_GETPC);
+    write_log ("dmac_bget %04X=%02X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -786,7 +786,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	break;
     }
 #if A2091_DEBUG > 0
-    write_log ("dmac_bput %04.4X=%02.2X PC=%08.8X\n", addr, b & 255, M68K_GETPC);
+    write_log ("dmac_bput %04X=%02X PC=%08X\n", addr, b & 255, M68K_GETPC);
 #endif
 }
 
@@ -805,7 +805,7 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
     v |= dmac_bget2 (addr + 3);
 #ifdef A2091_DEBUG
     if (addr >= 0x40 && addr < ROM_OFFSET)
-	write_log ("dmac_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
+	write_log ("dmac_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -821,7 +821,7 @@ static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
     v |= dmac_bget2 (addr + 1);
 #if A2091_DEBUG > 0
     if (addr >= 0x40 && addr < ROM_OFFSET)
-	write_log ("dmac_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
+	write_log ("dmac_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -847,7 +847,7 @@ static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
     addr &= 65535;
 #if A2091_DEBUG > 0
     if (addr >= 0x40 && addr < ROM_OFFSET)
-	write_log ("dmac_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, M68K_GETPC);
+	write_log ("dmac_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
 #endif
     dmac_bput2 (addr, l >> 24);
     dmac_bput2 (addr + 1, l >> 16);
@@ -863,7 +863,7 @@ static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
     addr &= 65535;
 #if A2091_DEBUG > 0
     if (addr >= 0x40 && addr < ROM_OFFSET)
-	write_log ("dmac_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, M68K_GETPC);
+	write_log ("dmac_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
 #endif
     dmac_bput2 (addr, w >> 8);
     dmac_bput2 (addr + 1, w);
@@ -878,7 +878,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
     addr &= 65535;
     if (addr == 0x48 && !configured) {
 	map_banks (&dmaca2091_bank, b, 0x10000 >> 16, 0x10000);
-	write_log ("A590/A2091 Z2 autoconfigured at %02.2X0000\n", b);
+	write_log ("A590/A2091 Z2 autoconfigured at %02X0000\n", b);
 	configured = 1;
 	expamem_next ();
 	return;
@@ -940,7 +940,7 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val, int mode)
     if (currprefs.cs_mbdmac > 1)
 	return;
 #if A3000_DEBUG > 1
-    write_log ("DMAC_WRITE %08.8X=%02.2X PC=%08.8X\n", addr, val & 0xff, M68K_GETPC);
+    write_log ("DMAC_WRITE %08X=%02X PC=%08X\n", addr, val & 0xff, M68K_GETPC);
 #endif
     addr &= 0xffff;
     switch (addr)
@@ -1068,7 +1068,7 @@ static uae_u32 mbdmac_read (uae_u32 addr, int mode)
 	break;
     }
 #if A3000_DEBUG > 1
-    write_log ("DMAC_READ %08.8X=%02.2X PC=%X\n", vaddr, v & 0xff, M68K_GETPC);
+    write_log ("DMAC_READ %08X=%02X PC=%X\n", vaddr, v & 0xff, M68K_GETPC);
 #endif
     return v;
 }

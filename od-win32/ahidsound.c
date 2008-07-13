@@ -262,8 +262,6 @@ void ahi_finish_sound_buffer (void)
     ahi_updatesound(2);
 }
 
-extern GUID sound_device_guid[];
-
 static WAVEFORMATEX wavfmt;
 
 static int ahi_init_record_win32 (void)
@@ -320,7 +318,7 @@ static int ahi_init_sound_win32 (void)
     if (lpDS2)
 	return 0;
 
-    enumerate_sound_devices (0);
+    enumerate_sound_devices ();
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
     wavfmt.nChannels = sound_channels_ahi;
     wavfmt.nSamplesPerSec = sound_freq_ahi;
@@ -339,7 +337,7 @@ static int ahi_init_sound_win32 (void)
     ahisndbuffer = malloc (ahisndbufsize + 32);
     if (!ahisndbuffer)
 	return 0;
-    hr = DirectSoundCreate (&sound_device_guid[currprefs.win32_soundcard], &lpDS2, NULL);
+    hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard].guid, &lpDS2, NULL);
     if (FAILED (hr)) {
 	write_log ("AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
 	return 0;
@@ -450,6 +448,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 // d0=200 ahitweak		 d1=offset for dsound position pointer
 
     int opcode = m68k_dreg (&context->regs, 0);
+
     switch (opcode)
     {
 	uae_u32 src, num_vars;
@@ -638,30 +637,36 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    dllname = (char *)get_real_address (dllptr);
 	    dpath[0] = 0;
 	    GetFullPathName (dllname, sizeof dpath, dpath, &filepart);
-	    if (strlen (dpath) > strlen (start_path_data) && !strnicmp (dpath, start_path_data, strlen (dpath))) {
+	    if (strlen (dpath) > strlen (start_path_data) && !strnicmp (dpath, start_path_data, strlen (start_path_data))) {
 		/* path really is relative to winuae directory */
 		ok = 1;
-		strcpy (newdllpath, dpath + strlen (start_path_data) + 1);
+		strcpy (newdllpath, dpath + strlen (start_path_data));
 		if (!strnicmp (newdllpath, dlldir, strlen (dlldir))) /* remove "winuae_dll" */
 		    strcpy (newdllpath, dpath + strlen (start_path_data) + 1 + strlen (dlldir));
 		sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, newdllpath);
 		h = LoadLibrary (dpath);
-		write_log ("native open: '%s' = %p\n", dpath, h);
+		if (h == NULL)
+		    write_log ("native open: '%s' = %d\n", dpath, GetLastError ());
 		if (h == NULL) {
 		    sprintf (dpath, "%s%s\\%s", start_path_data, dlldir, newdllpath);
 		    h = LoadLibrary (dllname);
-		    write_log ("fallback native open: '%s' = %p\n", dpath, h);
+		    if (h == NULL)
+			write_log ("fallback native open: '%s' = %d\n", dpath, GetLastError ());
 		}
+	    } else {
+		write_log ("native open outside of installation dir '%s'!\n", dpath);
 	    }
+#if 0
 	    if (h == NULL) {
 		h = LoadLibrary (filepart);
-		write_log ("native file open: '%s' = %p\n", dllname, h);
+		write_log ("native file open: '%s' = %p\n", filepart, h);
 		if (h == NULL) {
 		    sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
 		    h = LoadLibrary (dpath);
 		    write_log ("native path open: '%s' = %p\n", dpath, h);
 		}
 	    }
+#endif
 	    syncdivisor = (3580000.0 * CYCLE_UNIT) / (double)syncbase;
 	    return (uae_u32)h;
 	}

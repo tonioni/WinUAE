@@ -19,7 +19,7 @@
 
 #include "direct3d.h"
 
-#define USAGE (D3DCREATE_SOFTWARE_VERTEXPROCESSING)
+#define USAGE (D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE)
 
 static int tformat;
 static int d3d_enabled, scanlines_ok;
@@ -43,7 +43,7 @@ static char *D3D_ErrorText (HRESULT error)
 static char *D3D_ErrorString (HRESULT dival)
 {
     static char dierr[200];
-    sprintf(dierr, "%08.8X S=%d F=%04.4X C=%04.4X (%d) (%s)",
+    sprintf(dierr, "%08X S=%d F=%04X C=%04X (%d) (%s)",
 	dival, (dival & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(dival),
 	HRESULT_CODE(dival),

@@ -26,11 +26,11 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_HQ, 0, 2, "hq2x/3x/4x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-    { UAE_FILTER_SUPEREAGLE, 0, 2, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_SUPEREAGLE, 0, 2, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
-    { UAE_FILTER_SUPER2XSAI, 0, 2, "Super2xSaI", "super2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_SUPER2XSAI, 0, 2, "Super2xSaI", "super2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
-    { UAE_FILTER_2XSAI, 0, 2, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16, 0, 0 },
+    { UAE_FILTER_2XSAI, 0, 2, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
     { UAE_FILTER_PAL, 1, 1, "PAL", "pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
@@ -155,6 +155,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     int flags = 0;
     int res_shift;
 
+    S2X_free ();
     if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
@@ -192,11 +193,11 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     scale = mult;
 
     temp_width = dst_width * 3;
-    if (temp_width > dxdata.maxwidth)
-	temp_width = dxdata.maxwidth;
+    if (temp_width > dxcaps.maxwidth)
+	temp_width = dxcaps.maxwidth;
     temp_height = dst_height * 3;
-    if (temp_height > dxdata.maxheight)
-	temp_height = dxdata.maxheight;
+    if (temp_height > dxcaps.maxheight)
+	temp_height = dxcaps.maxheight;
     if (temp_width < dst_width)
 	temp_width = dst_width;
     if (temp_height < dst_height)
@@ -247,6 +248,8 @@ void S2X_render (void)
 
     if (!dptr) /* weird things can happen */
 	goto end;
+    if (dptr < (uae_u8*)desc.lpSurface)
+	goto endfail;
 
     if (usedfilter->type == UAE_FILTER_SCALE2X ) { /* 16+32/2X */
 
@@ -296,25 +299,40 @@ void S2X_render (void)
 	    }
 	}
 
-    } else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/2X */
+    } else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/32/2X */
 
-	if (scale == 2 && amiga_depth == 16 && dst_depth == 16) {
-	    SuperEagle (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
-	    ok = 1;
+	if (scale == 2 && amiga_depth == 16) {
+	    if (dst_depth == 16) {
+		SuperEagle_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    } else if (dst_depth == 32) {
+		SuperEagle_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    }
 	}
 
-    } else if (usedfilter->type == UAE_FILTER_SUPER2XSAI) { /* 16/2X */
+    } else if (usedfilter->type == UAE_FILTER_SUPER2XSAI) { /* 16/32/2X */
 
-	if (scale == 2 && amiga_depth == 16 && dst_depth == 16) {
-	    Super2xSaI (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
-	    ok = 1;
+	if (scale == 2 && amiga_depth == 16) {
+	    if (dst_depth == 16) {
+		Super2xSaI_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    } else if (dst_depth == 32) {
+		Super2xSaI_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    }
 	}
 
-    } else if (usedfilter->type == UAE_FILTER_2XSAI) { /* 16/2X */
+    } else if (usedfilter->type == UAE_FILTER_2XSAI) { /* 16/32/2X */
 
-	if (scale == 2 && amiga_depth == 16 && dst_depth == 16) {
-	    _2xSaI (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
-	    ok = 1;
+	if (scale == 2 && amiga_depth == 16) {
+	    if (dst_depth == 16) {
+		_2xSaI_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    } else if (dst_depth == 32) {
+		_2xSaI_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+		ok = 1;
+	    }
 	}
 
     } else if (usedfilter->type == UAE_FILTER_PAL) { /* 16/32/1X */
@@ -341,6 +359,7 @@ void S2X_render (void)
 
     }
 
+endfail:
     if (ok == 0 && currprefs.gfx_filter) {
 	usedfilter = &uaefilters[0];
 	changed_prefs.gfx_filter = usedfilter->type;

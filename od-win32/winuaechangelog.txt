@@ -1,4 +1,26 @@
 
+Beta 5:
+
+- avi recording crash fixed if only audio recording was enabled
+- native dll support fixed
+- do not enable second Z3 board if RAM limit reached (=decrease Z3 size)
+  and Z3 size is smaller than 256M (4M+2M combination for example is
+  quite stupid..)
+- adjusted max RAM limit calculation (max RAM + max page file instead
+  of currently available RAM + max page file)
+- sound adjustments, previously it was possible to lock non-safe portion
+  of directsound sound buffer causing glitches in some cases (which may
+  or may have never happened)
+- SuperEagle, Super2xSaI and 2xSaI 32-bit color support added
+- disable filter if filter size multiplier is really too big for
+  configured display size (instead of overflowing buffers..)
+- resolution and doubling setting change on the fly updates filter
+  centering
+- added -ddsoftwarecolorkey command line option. Workaround for buggy
+  Intel integrated laptop chipset Vista graphics driver causing non-
+  transparent (pink rectangle) RTG hardware cursor
+- (new AHI driver will be only available after 1.5.1)
+
 Beta 4:
 
 - input panel custom events in slots 2+ were not saved if previous

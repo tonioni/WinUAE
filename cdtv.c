@@ -416,12 +416,12 @@ static void cdrom_command_accepted (int size, uae_u8 *cdrom_command_input, int *
 #ifdef CDTV_DEBUG_CMD
     tmp[0] = 0;
     for (i = 0; i < *cdrom_command_cnt_in; i++)
-	sprintf(tmp + i * 3, "%02.2X%c", cdrom_command_input[i], i < *cdrom_command_cnt_in - 1 ? '.' : ' ');
+	sprintf(tmp + i * 3, "%02X%c", cdrom_command_input[i], i < *cdrom_command_cnt_in - 1 ? '.' : ' ');
     write_log ("CD<-: %s\n", tmp);
     if (size > 0) {
 	tmp[0] = 0;
 	for (i = 0; i < size; i++)
-	    sprintf(tmp + i * 3, "%02.2X%c", cdrom_command_output[i], i < size - 1 ? '.' : ' ');
+	    sprintf(tmp + i * 3, "%02X%c", cdrom_command_output[i], i < size - 1 ? '.' : ' ');
 	write_log ("CD->: %s\n", tmp);
     }
 #endif
@@ -552,7 +552,7 @@ static void cdrom_command_thread (uae_u8 b)
 	}
 	break;
 	default:
-	write_log ("unknown CDROM command %02.2X!\n", s[0]);
+	write_log ("unknown CDROM command %02X!\n", s[0]);
 	cd_error = 1;
 	cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 	break;
@@ -617,7 +617,7 @@ static void dma_do_thread(void)
     if (!cdtv_sectorsize)
 	return;
     cnt = dmac_wtc;
-    write_log ("DMAC DMA: sector=%d, addr=%08.8X, words=%d (of %d)\n",
+    write_log ("DMAC DMA: sector=%d, addr=%08X, words=%d (of %d)\n",
 	cdrom_offset / cdtv_sectorsize, dmac_acr, cnt, cdrom_length / 2);
     dma_wait += cnt * (uae_u64)312 * 50 / 75 + 1;
     while (cnt > 0 && dmac_dma) {
@@ -728,7 +728,7 @@ static void tp_bput (int addr, uae_u8 v)
 {
     static int volstrobe1, volstrobe2;
 #ifdef CDTV_DEBUG_6525
-    write_log ("6525 write %x=%02.2X PC=%x\n", addr, v, M68K_GETPC);
+    write_log ("6525 write %x=%02X PC=%x\n", addr, v, M68K_GETPC);
 #endif
     switch (addr)
     {
@@ -824,7 +824,7 @@ static uae_u8 tp_bget(int addr)
 
 #ifdef CDTV_DEBUG_6525
     if (addr < 7)
-	write_log ("6525 read %x=%02.2X PC=%x\n", addr, v, M68K_GETPC);
+	write_log ("6525 read %x=%02X PC=%x\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -1080,7 +1080,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 
 #ifdef CDTV_DEBUG
     if (addr != 0x41)
-	write_log ("dmac_bget %04.4X=%02.2X PC=%08.8X\n", addr, v, M68K_GETPC);
+	write_log ("dmac_bget %04X=%02X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
 
     return v;
@@ -1094,7 +1094,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
     }
 
 #ifdef CDTV_DEBUG
-    write_log ("dmac_bput %04.4X=%02.2X PC=%08.8X\n", addr, b & 255, M68K_GETPC);
+    write_log ("dmac_bput %04X=%02X PC=%08X\n", addr, b & 255, M68K_GETPC);
 #endif
 
     switch (addr)
@@ -1195,7 +1195,7 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
     v = (dmac_bget2 (addr) << 24) | (dmac_bget2 (addr + 1) << 16) |
 	(dmac_bget2 (addr + 2) << 8) | (dmac_bget2 (addr + 3));
 #ifdef CDTV_DEBUG
-    write_log ("dmac_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
+    write_log ("dmac_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -1209,7 +1209,7 @@ static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
     addr &= 65535;
     v = (dmac_bget2 (addr) << 8) | dmac_bget2 (addr + 1);
 #ifdef CDTV_DEBUG
-    write_log ("dmac_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
+    write_log ("dmac_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -1234,7 +1234,7 @@ static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
 #endif
     addr &= 65535;
 #ifdef CDTV_DEBUG
-    write_log ("dmac_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, M68K_GETPC);
+    write_log ("dmac_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
 #endif
     dmac_bput2 (addr, l >> 24);
     dmac_bput2 (addr + 1, l >> 16);
@@ -1249,7 +1249,7 @@ static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
 #endif
     addr &= 65535;
 #ifdef CDTV_DEBUG
-    write_log ("dmac_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, M68K_GETPC);
+    write_log ("dmac_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
 #endif
     dmac_bput2 (addr, w >> 8);
     dmac_bput2 (addr + 1, w);

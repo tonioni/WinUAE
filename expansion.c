@@ -230,7 +230,7 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 #endif
     addr &= 0xFFFF;
     b = expamem[addr];
-    //write_log ("%08x=%02.2X\n", addr, b);
+    //write_log ("%08x=%02X\n", addr, b);
     return b;
 }
 
@@ -499,7 +499,7 @@ static uae_u32 REGPARAM2 catweasel_lget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    write_log ("catweasel_lget @%08.8X!\n",addr);
+    write_log ("catweasel_lget @%08X!\n",addr);
     return 0;
 }
 
@@ -508,7 +508,7 @@ static uae_u32 REGPARAM2 catweasel_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    write_log ("catweasel_wget @%08.8X!\n",addr);
+    write_log ("catweasel_wget @%08X!\n",addr);
     return 0;
 }
 
@@ -527,7 +527,7 @@ static void REGPARAM2 catweasel_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("catweasel_lput @%08.8X=%08.8X!\n",addr,l);
+    write_log ("catweasel_lput @%08X=%08X!\n",addr,l);
 }
 
 static void REGPARAM2 catweasel_wput (uaecptr addr, uae_u32 w)
@@ -535,7 +535,7 @@ static void REGPARAM2 catweasel_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("catweasel_wput @%08.8X=%04.4X!\n",addr,w);
+    write_log ("catweasel_wput @%08X=%04X!\n",addr,w);
 }
 
 static void REGPARAM2 catweasel_bput (uaecptr addr, uae_u32 b)
@@ -555,7 +555,7 @@ static int REGPARAM2 catweasel_check (uaecptr addr, uae_u32 size)
 
 static uae_u8 *REGPARAM2 catweasel_xlate (uaecptr addr)
 {
-    write_log ("catweasel_xlate @%08.8X size %08.8X\n", addr);
+    write_log ("catweasel_xlate @%08X size %08X\n", addr);
     return 0;
 }
 

@@ -844,7 +844,7 @@ static int open_bus (int flags)
     total_devices = 0;
     dwDriveMask = GetLogicalDrives();
     if (log_scsi)
-	write_log ("IOCTL: drive mask = %08.8X\n", dwDriveMask);
+	write_log ("IOCTL: drive mask = %08X\n", dwDriveMask);
     dwDriveMask >>= 2; // Skip A and B drives...
     for( drive = 'C'; drive <= 'Z'; drive++) {
 	if (dwDriveMask & 1) {

@@ -428,7 +428,7 @@ static long midi_inptr = 0, midi_inlast = 0;
 static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-	TRACE(("add1byte buffer full %d %d (%02.2X)\n", midi_inlast, midi_inptr, w));
+	TRACE(("add1byte buffer full %d %d (%02X)\n", midi_inlast, midi_inptr, w));
 	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
@@ -436,7 +436,7 @@ static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-	TRACE(("add2byte buffer full %d %d (%04.4X)\n", midi_inlast, midi_inptr, w));
+	TRACE(("add2byte buffer full %d %d (%04X)\n", midi_inlast, midi_inptr, w));
 	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
@@ -446,7 +446,7 @@ static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
     if(midi_inlast >= BUFFLEN - 10) {
-	TRACE(("add3byte buffer full %d %d (%08.8X)\n", midi_inlast, midi_inptr, w));
+	TRACE(("add3byte buffer full %d %d (%08X)\n", midi_inlast, midi_inptr, w));
 	return;
     }
     midibuf[midi_inlast++] = (uae_u8)w;
@@ -475,7 +475,7 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 	gui_message(szMessage);
 	overflow = 0;
     }
-    TRACE(("getmidibyte(%02.2X)\n", midibuf[midi_inptr]));
+    TRACE(("getmidibyte(%02X)\n", midibuf[midi_inptr]));
     if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex
 	for (i = 0;i < MIDI_INBUFFERS;i++) {
 	    if (midiin[i].dwFlags == (MHDR_DONE|MHDR_PREPARED)) {
@@ -525,7 +525,7 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 
     if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA) {
 	BYTE state = (BYTE)dwParam1;
-	TRACE(("%s %08.8X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
+	TRACE(("%s %08X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
 	if(state == 254)
 	    goto end;
 	if(state < 0xf0)

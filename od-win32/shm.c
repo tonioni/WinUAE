@@ -146,8 +146,8 @@ void *shmat(int shmid, LPVOID shmaddr, int shmflg)
 	return shm->addr;
     shm->addr = MapViewOfFileEx (shm->filemapping, FILE_MAP_WRITE, 0, 0, shm->size, shmaddr);
     if (addr == NULL)
-	win32_error("MapViewOfFileEx %08.8X", shmaddr);
-    write_log ("shmat %08.8X -> %08.8X\n", shmaddr, shm->addr);
+	win32_error("MapViewOfFileEx %08X", shmaddr);
+    write_log ("shmat %08X -> %08X\n", shmaddr, shm->addr);
     shm->attached = 1;
     return shm->addr;
 }
@@ -157,9 +157,9 @@ int shmdt(const void *shmaddr)
     int i;
     if (shmaddr == (void*)0xffffffff)
 	return 0;
-    write_log ("shmdt: %08.8X\n", shmaddr);
+    write_log ("shmdt: %08X\n", shmaddr);
     if (UnmapViewOfFile ((LPCVOID)shmaddr) == FALSE) {
-	win32_error("UnmapViewOfFile %08.8X", shmaddr);
+	win32_error("UnmapViewOfFile %08X", shmaddr);
 	return 0;
     }
     for( i = 0; i < MAX_SHMID; i++ ) {

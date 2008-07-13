@@ -120,7 +120,7 @@ static uae_u16 x87_cw_tab[] = {
 static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 {
 #if USE_X86_FPUCW
-  uae_u16 x87_cw = x87_cw_tab[(m68k_cw>>4)&0xf];
+    uae_u16 x87_cw = x87_cw_tab[(m68k_cw >> 4) & 0xf];
 
 #if defined(X86_MSVC_ASSEMBLY)
   __asm {
@@ -172,7 +172,7 @@ static void fpu_op_illg (uae_u32 opcode, struct regstruct *regs, int pcoffset)
     op_illg (opcode, regs);
 }
 
-STATIC_INLINE int fault_if_no_fpu(uae_u32 opcode, struct regstruct *regs, int pcoffset)
+STATIC_INLINE int fault_if_no_fpu (uae_u32 opcode, struct regstruct *regs, int pcoffset)
 {
     if ((regs->pcr & 2) || currprefs.fpu_model <= 0) {
 	fpu_op_illg (opcode, regs, pcoffset);
@@ -181,7 +181,7 @@ STATIC_INLINE int fault_if_no_fpu(uae_u32 opcode, struct regstruct *regs, int pc
     return 0;
 }
 
-static int get_fpu_version(void)
+static int get_fpu_version (void)
 {
     int v = 0;
 
@@ -513,7 +513,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("PUTFP: %f %04.4X %04.4X\n", value, opcode, extra);
+	write_log ("PUTFP: %f %04X %04X\n", value, opcode, extra);
 #endif
     if (!(extra & 0x4000)) {
 	regs->fp[(extra >> 10) & 7] = value;
@@ -1156,7 +1156,7 @@ void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 	    }
 	    if (extra & 0x1000) {
 		regs->fpcr = get_long (ad);
-		native_set_fpucw(regs->fpcr);
+		native_set_fpucw (regs->fpcr);
 		ad += 4;
 	    }
 	    if (extra & 0x0800) {
@@ -1635,6 +1635,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 	regs.fp[i] = to_exten (w1, w2, w3);
     }
     regs.fpcr = restore_u32 ();
+    native_set_fpucw (regs.fpcr);
     regs.fpsr = restore_u32 ();
     regs.fpiar = restore_u32 ();
     if (flags & 0x80000000) {

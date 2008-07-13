@@ -520,7 +520,7 @@ void CIA_vsync_handler (void)
 	    if (tod_hack_delay == 0) {
 		tod_hack_reset ();
 		tod_hack_delay = 0;
-		write_log ("TOD_HACK re-initialized CIATOD=%06.6X\n", ciaatod);
+		write_log ("TOD_HACK re-initialized CIATOD=%06X\n", ciaatod);
 	    }
 	}
 	if (tod_hack_delay == 0) {
@@ -573,7 +573,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
     compute_passed_time ();
 
 #ifdef CIAA_DEBUG_R
-    write_log ("R_CIAA: bfe%x01 %08.8X\n", addr, M68K_GETPC);
+    write_log ("R_CIAA: bfe%x01 %08X\n", addr, M68K_GETPC);
 #endif
 
     switch (addr & 0xf) {
@@ -590,7 +590,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    tmp = (tmp & ~0x80) | (ciaapra & 0x80);
 #ifdef DONGLE_DEBUG
 	if (notinrom())
-	    write_log ("BFE001 R %02.2X %s\n", tmp, debuginfo(0));
+	    write_log ("BFE001 R %02X %s\n", tmp, debuginfo(0));
 #endif
 	return tmp;
     case 1:
@@ -611,7 +611,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	    tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
 #ifdef DONGLE_DEBUG
 	    if (notinrom())
-		write_log ("BFE101 R %02.2X %s\n", tmp, debuginfo(0));
+		write_log ("BFE101 R %02X %s\n", tmp, debuginfo(0));
 #endif
 	}
 	if (ciaacrb & 2) {
@@ -632,13 +632,13 @@ static uae_u8 ReadCIAA (unsigned int addr)
     case 2:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE201 R %02.2X %s\n", ciaadra, debuginfo(0));
+	    write_log ("BFE201 R %02X %s\n", ciaadra, debuginfo(0));
 #endif
 	return ciaadra;
     case 3:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE301 R %02.2X %s\n", ciaadrb, debuginfo(0));
+	    write_log ("BFE301 R %02X %s\n", ciaadrb, debuginfo(0));
 #endif
 	return ciaadrb;
     case 4:
@@ -689,7 +689,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 
 #ifdef CIAB_DEBUG_R
     if (addr >= 8 && addr <= 10)
-	write_log ("R_CIAB: bfd%x00 %08.8X\n", addr, M68K_GETPC);
+	write_log ("R_CIAB: bfd%x00 %08X\n", addr, M68K_GETPC);
 #endif
 
     compute_passed_time ();
@@ -714,13 +714,13 @@ static uae_u8 ReadCIAB (unsigned int addr)
 #endif
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD000 R %02.2X %s\n", tmp, debuginfo(0));
+	    write_log ("BFD000 R %02X %s\n", tmp, debuginfo(0));
 #endif
 	return tmp;
     case 1:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD100 R %02.2X %s\n", ciabprb, debuginfo(0));
+	    write_log ("BFD100 R %02X %s\n", ciabprb, debuginfo(0));
 #endif
 	tmp = ciabprb;
 	if (ciabcrb & 2) {
@@ -785,7 +785,7 @@ static uae_u8 ReadCIAB (unsigned int addr)
 static void WriteCIAA (uae_u16 addr,uae_u8 val)
 {
 #ifdef CIAA_DEBUG_W
-    write_log ("W_CIAA: bfe%x01 %02.2X %08.8X\n", addr, val, M68K_GETPC);
+    write_log ("W_CIAA: bfe%x01 %02X %08X\n", addr, val, M68K_GETPC);
 #endif
 #ifdef ACTION_REPLAY
     ar_ciaa[addr & 0xf] = val;
@@ -798,7 +798,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
     case 0:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE001 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFE001 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciaapra = (ciaapra & ~0xc3) | (val & 0xc3);
 	bfe001_change ();
@@ -811,7 +811,7 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
     case 1:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE101 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFE101 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciaaprb = val;
 #ifdef PARALLEL_PORT
@@ -831,14 +831,14 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
     case 2:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE201 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFE201 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciaadra = val; bfe001_change (); break;
     case 3:
 	ciaadrb = val;
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFE301 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFE301 W %02X %s\n", val, debuginfo(0));
 #endif
 #ifdef ARCADIA
 	if (arcadia_bios)
@@ -948,7 +948,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 {
 #ifdef CIAB_DEBUG_W
     if (addr >= 8 && addr <= 10)
-	write_log ("W_CIAB: bfd%x00 %02.2X %08.8X\n", addr, val, M68K_GETPC);
+	write_log ("W_CIAB: bfd%x00 %02X %08X\n", addr, val, M68K_GETPC);
 #endif
 #ifdef ACTION_REPLAY
     ar_ciab[addr & 0xf] = val;
@@ -957,7 +957,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
     case 0:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD000 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFD000 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciabpra = val;
 #ifdef SERIAL_PORT
@@ -972,13 +972,13 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
     case 1:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD100 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFD100 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciabprb = val; DISK_select(val); break;
     case 2:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD200 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFD200 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciabdra = val;
 #ifdef SERIAL_PORT
@@ -989,7 +989,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
     case 3:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
-	    write_log ("BFD300 W %02.2X %s\n", val, debuginfo(0));
+	    write_log ("BFD300 W %02X %s\n", val, debuginfo(0));
 #endif
 	ciabdrb = val; break;
     case 4:

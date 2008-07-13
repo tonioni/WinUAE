@@ -2161,26 +2161,21 @@ static void free_key (Unit *unit, Key *k)
 static Key *lookup_key (Unit *unit, uae_u32 uniq)
 {
     Key *k;
+    unsigned int total = 0;
     /* It's hardly worthwhile to optimize this - most of the time there are
      * only one or zero keys. */
     for (k = unit->keys; k; k = k->next) {
+	total++;
 	if (uniq == k->uniq)
 	    return k;
     }
-    write_log ("Error: couldn't find key!\n");
-#if 0
-    exit(1);
-    /* NOTREACHED */
-#endif
-    /* There isn't much hope we will recover. Unix would kill the process,
-     * AmigaOS gets killed by it. */
-    write_log ("Better reset that Amiga - the system is messed up.\n");
+    write_log ("Error: couldn't find key %u / %u!\n", uniq, total);
     return 0;
 }
 
 static Key *new_key (Unit *unit)
 {
-    Key *k = (Key *) xmalloc (sizeof(Key));
+    Key *k = xmalloc (sizeof(Key));
     k->uniq = ++key_uniq;
     k->fd = NULL;
     k->file_pos = 0;

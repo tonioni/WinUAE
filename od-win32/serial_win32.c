@@ -136,7 +136,7 @@ static void checkreceive (int mode)
 	    } else {
 		ninebitdata = recdata;
 		if ((ninebitdata & ~1) != 0xa8) {
-		    write_log ("SERIAL: 9-bit serial emulation sync lost, %02.2X != %02.2X\n", ninebitdata & ~1, 0xa8);
+		    write_log ("SERIAL: 9-bit serial emulation sync lost, %02X != %02X\n", ninebitdata & ~1, 0xa8);
 		    ninebitdata = 0;
 		    return;
 		}
@@ -154,7 +154,7 @@ static void checkreceive (int mode)
     data_in_serdatr = 1;
     serial_check_irq ();
 #if SERIALDEBUG > 2
-    write_log ("SERIAL: received %02.2X (%c)\n", serdatr & 0xff, dochar (serdatr));
+    write_log ("SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
 #endif
 #endif
 }
@@ -183,7 +183,7 @@ static void checksend (int mode)
 	data_in_serdat = 0;
 	INTREQ_f (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
-	write_log ("SERIAL: send %04.4X (%c)\n", serdatshift, dochar (serdatshift));
+	write_log ("SERIAL: send %04X (%c)\n", serdatshift, dochar (serdatshift));
 #endif
     }
 }
@@ -265,7 +265,7 @@ uae_u16 SERDATR (void)
     if (ovrun)
 	serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-    write_log ( "SERIAL: read 0x%04.4x (%c) %x\n", serdatr, dochar (serdatr), m68k_getpc ());
+    write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), m68k_getpc ());
 #endif
     ovrun = 0;
     data_in_serdatr = 0;

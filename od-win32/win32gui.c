@@ -5006,16 +5006,16 @@ static void values_to_chipsetdlg2 (HWND hDlg)
     SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
     txt[0] = 0;
     if (workprefs.cs_fatgaryrev >= 0)
-	sprintf (txt, "%02.2X", workprefs.cs_fatgaryrev);
+	sprintf (txt, "%02X", workprefs.cs_fatgaryrev);
     SetDlgItemText(hDlg, IDC_CS_FATGARYREV, txt);
     txt[0] = 0;
     if (workprefs.cs_ramseyrev >= 0)
-	sprintf (txt, "%02.2X", workprefs.cs_ramseyrev);
+	sprintf (txt, "%02X", workprefs.cs_ramseyrev);
     SetDlgItemText(hDlg, IDC_CS_RAMSEYREV, txt);
     txt[0] = 0;
     if (workprefs.cs_agnusrev >= 0) {
 	rev = workprefs.cs_agnusrev;
-	sprintf (txt, "%02.2X", rev);
+	sprintf (txt, "%02X", rev);
     } else if (workprefs.cs_compatible) {
 	rev = 0;
 	if (workprefs.ntscmode)
@@ -5024,7 +5024,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
 	if (workprefs.chipmem_size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	    rev |= 0x21;
-	sprintf (txt, "%02.2X", rev);
+	sprintf (txt, "%02X", rev);
     }
     SetDlgItemText(hDlg, IDC_CS_AGNUSREV, txt);
     txt[0] = 0;
@@ -6472,8 +6472,8 @@ static void enable_for_sounddlg (HWND hDlg)
 {
     int numdevs;
 
-    enumerate_sound_devices (&numdevs);
-    if( numdevs == 0 )
+    numdevs = enumerate_sound_devices ();
+    if (numdevs == 0)
 	ew (hDlg, IDC_SOUNDCARDLIST, FALSE);
     else
 	ew (hDlg, IDC_SOUNDCARDLIST, workprefs.produce_sound);
@@ -6846,7 +6846,6 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     static int recursive = 0;
     int numdevs;
     int card;
-    char **sounddevs;
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -6860,13 +6859,13 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPAGESIZE, 0, 1);
 
-	SendDlgItemMessage( hDlg, IDC_SOUNDADJUST, TBM_SETRANGE, TRUE, MAKELONG (-100, +30) );
-	SendDlgItemMessage( hDlg, IDC_SOUNDADJUST, TBM_SETPAGESIZE, 0, 1 );
+	SendDlgItemMessage (hDlg, IDC_SOUNDADJUST, TBM_SETRANGE, TRUE, MAKELONG (-100, +30));
+	SendDlgItemMessage (hDlg, IDC_SOUNDADJUST, TBM_SETPAGESIZE, 0, 1);
 
-	SendDlgItemMessage( hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L );
-	sounddevs = enumerate_sound_devices (&numdevs);
+	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);
+	numdevs = enumerate_sound_devices ();
 	for (card = 0; card < numdevs; card++)
-	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)sounddevs[card]);
+	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)sound_devices[card].name);
 	if (numdevs == 0)
 	    workprefs.produce_sound = 0; /* No sound card in system, enable_for_sounddlg will accomodate this */
 
@@ -7827,7 +7826,7 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
     SendMessage (ToolTipHWND, TTM_DELTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
     if (crc32 == 0)
 	return;
-    sprintf (tmp, "CRC=%08.8X", crc32);
+    sprintf (tmp, "CRC=%08X", crc32);
     ti.lpszText = tmp;
     SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
@@ -11551,7 +11550,7 @@ void gui_led (int led, int on)
 	tt = dfx[led - 1];
 	tt[0] = 0;
 	if (strlen (p + j) > 0)
-	    sprintf (tt, "%s (CRC=%08.8X)", p + j, gui_data.crc32[led - 1]);
+	    sprintf (tt, "%s (CRC=%08X)", p + j, gui_data.crc32[led - 1]);
     } else if (led == 0) {
 	pos = 3;
 	ptr = strcpy (drive_text + pos * 16, "Power");

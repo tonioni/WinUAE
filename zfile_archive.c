@@ -467,7 +467,7 @@ static int canrar(void)
 		pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
 		if (pRAROpenArchive && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
 		    israr = 1;
-		    write_log ("unrar.dll version %08.8X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
+		    write_log ("unrar.dll version %08X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
 
 		}
 	    }

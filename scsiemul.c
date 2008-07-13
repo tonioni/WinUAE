@@ -104,7 +104,7 @@ static struct priv_devstruct *getpdevstruct (uaecptr request)
 {
     int i = get_long (request + 24);
     if (i < 0 || i >= MAX_OPEN_DEVICES || pdevst[i].inuse == 0) {
-	write_log ("uaescsi.device: corrupt iorequest %08.8X %d\n", request, i);
+	write_log ("uaescsi.device: corrupt iorequest %08X %d\n", request, i);
 	return 0;
     }
     return &pdevst[i];
@@ -158,7 +158,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 	return 0;
     dev = getdevstruct (pdev->unit);
     if (log_scsi)
-	write_log ("%s:%d close, req=%08.8X\n", getdevname (pdev->type), pdev->unit, request);
+	write_log ("%s:%d close, req=%08X\n", getdevname (pdev->type), pdev->unit, request);
     if (!dev)
 	return 0;
     dev_close_3 (dev, pdev);
@@ -193,7 +193,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
     int i;
 
     if (log_scsi)
-	write_log ("opening %s:%d ioreq=%08.8X\n", getdevname (type), unit, ioreq);
+	write_log ("opening %s:%d ioreq=%08X\n", getdevname (type), unit, ioreq);
     if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE)
 	return openfail (ioreq, IOERR_BADLENGTH);
     if (!dev)
@@ -346,7 +346,7 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
     }
     i = release_async_request (dev, request);
     if (i >= 0 && log_scsi)
-	write_log ("asyncronous request=%08.8X aborted, error=%d\n", request, errcode);
+	write_log ("asyncronous request=%08X aborted, error=%d\n", request, errcode);
 }
 
 static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
@@ -662,7 +662,7 @@ static void *dev_thread (void *devs)
 	    uae_ReplyMsg (request);
 	} else {
 	    if (log_scsi)
-		write_log ("%s:%d async request %08.8X\n", getdevname(0), dev->unitnum, request);
+		write_log ("%s:%d async request %08X\n", getdevname(0), dev->unitnum, request);
 	}
 	uae_sem_post (&change_sem);
     }
@@ -703,7 +703,7 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
     }
     put_byte (request + 31, IOERR_ABORTED);
     if (log_scsi)
-	write_log ("abortio %s unit=%d, request=%08.8X\n", getdevname (pdev->type), pdev->unit, request);
+	write_log ("abortio %s unit=%d, request=%08X\n", getdevname (pdev->type), pdev->unit, request);
     abort_async (dev, request, IOERR_ABORTED, 0);
     return 0;
 }

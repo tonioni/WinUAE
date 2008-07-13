@@ -285,7 +285,7 @@ uae_u32	catweasel_do_bget (uaecptr addr)
     } else {
 	buf2[0] = ioport_read (cwc.iobase + addr);
     }
-    //write_log ("G %02.2X %02.2X %d\n", buf1[0], buf2[0], did_read);
+    //write_log ("G %02X %02X %d\n", buf1[0], buf2[0], did_read);
     return buf2[0];
 }
 
@@ -304,7 +304,7 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
     } else {
 	ioport_write (cwc.iobase + addr, b);
     }
-    //write_log ("P %02.2X %02.2X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
+    //write_log ("P %02X %02X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
 }
 
 #include "core.cw4.c"

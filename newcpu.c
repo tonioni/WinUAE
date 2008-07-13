@@ -879,7 +879,7 @@ static void exception_debug (int nr)
 #ifdef DEBUGGER
     if (!exception_debugging)
 	return;
-    console_out_f ("Exception %d, PC=%08.8X\n", nr, m68k_getpc (&regs));
+    console_out_f ("Exception %d, PC=%08X\n", nr, m68k_getpc (&regs));
 #endif
 }
 
@@ -1118,7 +1118,7 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 {
 #if 0
     if (1 || nr < 24)
-	write_log ("exception %d %08.8X %08.8X (%04.4X %04.4X)\n",
+	write_log ("exception %d %08X %08X (%04X %04X)\n",
 	    nr, oldpc, m68k_getpc (regs), intena, intreq);
 #endif
 #ifdef CPUEMU_12
@@ -1135,7 +1135,7 @@ STATIC_INLINE void do_interrupt (int nr, struct regstruct *regs)
 #if 0
     if (nr == 2)
 	write_log (".");
-	//write_log ("irq %d at %x (%04.4X) ", nr, m68k_getpc (regs), intena & intreq);
+	//write_log ("irq %d at %x (%04X) ", nr, m68k_getpc (regs), intena & intreq);
 #endif
     regs->stopped = 0;
     unset_special (regs, SPCFLAG_STOP);
@@ -1198,7 +1198,7 @@ int movec_illg (int regno)
 int m68k_move2c (int regno, uae_u32 *regp)
 {
 #if MOVEC_DEBUG > 0
-    write_log ("move2c %04.4X <- %08.8X PC=%x\n", regno, *regp, M68K_GETPC);
+    write_log ("move2c %04X <- %08X PC=%x\n", regno, *regp, M68K_GETPC);
 #endif
     if (movec_illg (regno)) {
 	op_illg (0x4E7B, &regs);
@@ -1268,7 +1268,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 int m68k_movec2 (int regno, uae_u32 *regp)
 {
 #if MOVEC_DEBUG > 0
-    write_log ("movec2 %04.4X PC=%x\n", regno, M68K_GETPC);
+    write_log ("movec2 %04X PC=%x\n", regno, M68K_GETPC);
 #endif
     if (movec_illg (regno)) {
 	op_illg (0x4E7A, &regs);
@@ -1315,7 +1315,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	}
     }
 #if MOVEC_DEBUG > 0
-    write_log ("-> %08.8X\n", *regp);
+    write_log ("-> %08X\n", *regp);
 #endif
     return 1;
 }
@@ -2129,7 +2129,7 @@ static void out_cd32io (uae_u32 pc)
 	write_log ("old request still not returned!\n");
     cd32request = request;
     cd32nextpc = get_long (m68k_areg (&regs, 7));
-    write_log ("%s A1=%08.8X\n", out, request);
+    write_log ("%s A1=%08X\n", out, request);
     if (ioreq) {
 	static int cnt = 0;
 	int cmd = get_word (request + 28);
@@ -2140,7 +2140,7 @@ static void out_cd32io (uae_u32 pc)
 		activate_debugger ();
 	}
 #endif
-	write_log ("CMD=%d DATA=%08.8X LEN=%d %OFF=%d PC=%x\n",
+	write_log ("CMD=%d DATA=%08X LEN=%d %OFF=%d PC=%x\n",
 	    cmd, get_long (request + 40),
 	    get_long (request + 36), get_long (request + 44), M68K_GETPC);
     }
@@ -2182,7 +2182,7 @@ static void m68k_run_1 (void)
 	if (pc != pcs[0] && (pc < 0xd00000 || pc > 0x1000000)) {
 	    memmove (pcs + 1, pcs, 998 * 4);
 	    pcs[0] = pc;
-	    //write_log ("%08.8X-%04.4X ", pc, opcode);
+	    //write_log ("%08X-%04X ", pc, opcode);
 	}
 #endif
 	do_cycles (cpu_cycles);
@@ -2920,14 +2920,14 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     if (regs.s && regs.m) regs.msp = m68k_areg (&regs, 7);
     if (regs.s && regs.m == 0) regs.isp = m68k_areg (&regs, 7);
     j = 2;
-    f_out (f, "USP  %08.8X ISP  %08.8X ", regs.usp, regs.isp);
+    f_out (f, "USP  %08X ISP  %08X ", regs.usp, regs.isp);
     for (i = 0; m2cregs[i].regno>= 0; i++) {
 	if (!movec_illg (m2cregs[i].regno)) {
 	    if (!strcmp (m2cregs[i].regname, "USP") || !strcmp (m2cregs[i].regname, "ISP"))
 		continue;
 	    if (j > 0 && (j % 4) == 0)
 		f_out (f, "\n");
-	    f_out (f, "%-4s %08.8X ", m2cregs[i].regname, val_move2c (m2cregs[i].regno));
+	    f_out (f, "%-4s %08X ", m2cregs[i].regname, val_move2c (m2cregs[i].regno));
 	    j++;
 	}
     }
@@ -3045,7 +3045,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	if (khz > 0 && khz < 800000)
 	    currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
     }
-    write_log ("CPU %d%s%03d, PC=%08.8X\n",
+    write_log ("CPU %d%s%03d, PC=%08X\n",
 	model / 1000, flags & 1 ? "EC" : "", model % 1000, regs.pc);
 
     return src;

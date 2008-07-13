@@ -35,6 +35,7 @@
 #ifdef AHI
 #include "traps.h"
 #include "ahidsound.h"
+#include "ahidsound_new.h"
 #endif
 #include "threaddep/thread.h"
 
@@ -260,7 +261,7 @@ static void do_samplerip (struct audio_channel_data *adp)
     memcpy(rs->sample, smp, len);
     rs->next = NULL;
     rs->changed = 1;
-    write_log ("SAMPLERIPPER: sample added (%06.6X, %d bytes), total %d samples\n", adp->pt, len, ++cnt);
+    write_log ("SAMPLERIPPER: sample added (%06X, %d bytes), total %d samples\n", adp->pt, len, ++cnt);
     audio_sampleripper (0);
 }
 
@@ -1271,6 +1272,7 @@ void audio_reset (void)
 
 #ifdef AHI
     ahi_close_sound ();
+    free_ahi_v2 ();
 #endif
     reset_sound ();
     memset(sound_filter_state, 0, sizeof sound_filter_state);

@@ -422,7 +422,7 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	abort ();
     }
     if (pos & (hfd->blocksize - 1)) {
-	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04.4X = %04.4X\n", pos, hfd->blocksize, pos & hfd->blocksize);
+	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n", pos, hfd->blocksize, pos & hfd->blocksize);
 	abort ();
     }
 }
@@ -901,7 +901,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	    PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
 	    if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
 		continue;
-	    write_log ("%d: num: %d type: %02.2X offset: %I64d size: %I64d, ", i, pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
+	    write_log ("%d: num: %d type: %02X offset: %I64d size: %I64d, ", i, pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
 	    if (pi->RecognizedPartition == 0) {
 		write_log ("unrecognized\n");
 		continue;

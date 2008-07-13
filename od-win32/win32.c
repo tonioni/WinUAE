@@ -58,6 +58,7 @@
 #include "sys/mman.h"
 #include "avioutput.h"
 #include "ahidsound.h"
+#include "ahidsound_new.h"
 #include "zfile.h"
 #include "savestate.h"
 #include "ioport.h"
@@ -331,6 +332,7 @@ void resumepaused (void)
     resume_sound ();
 #ifdef AHI
     ahi_open_sound ();
+    ahi2_pause_sound (0);
 #endif
 #ifdef CD32
     akiko_exitgui ();
@@ -353,6 +355,7 @@ void setpaused (void)
     pause_sound ();
 #ifdef AHI
     ahi_close_sound ();
+    ahi2_pause_sound (1);
 #endif
 #ifdef CD32
     akiko_entergui ();
@@ -424,7 +427,7 @@ void setpriority (struct threadpriorities *pri)
     int err;
     err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
     if (!err)
-	write_log ("priority set failed, %08.8X\n", GetLastError ());
+	write_log ("priority set failed, %08X\n", GetLastError ());
 }
 
 static void releasecapture (void)
@@ -1023,6 +1026,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     case WM_INPUT:
 	handle_rawinput (lParam);
+	DefWindowProc (hWnd, message, wParam, lParam);
     return 0;
 
     case WM_NOTIFY:
@@ -3037,6 +3041,11 @@ static int process_arg(char **xargv)
 	    userdtsc = 1;
 	    continue;
 	}
+	if (!strcmp (arg, "-ddsoftwarecolorkey")) {
+	    extern int ddsoftwarecolorkey;
+	    ddsoftwarecolorkey = 1;
+	    continue;
+	}
 
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
@@ -3387,7 +3396,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		efix (&ctx->Edx, p, ps, &got);
 		efix (&ctx->Esi, p, ps, &got);
 		efix (&ctx->Edi, p, ps, &got);
-		write_log ("Access violation! (68KPC=%08.8X HOSTADDR=%p)\n", M68K_GETPC, p);
+		write_log ("Access violation! (68KPC=%08X HOSTADDR=%p)\n", M68K_GETPC, p);
 		if (got == 0) {
 		    write_log ("failed to find and fix the problem (%p). crashing..\n", p);
 		} else {

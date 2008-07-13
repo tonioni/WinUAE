@@ -47,7 +47,7 @@ static void write_log2 (const char *format, ...)
 static const char *DXError (HRESULT ddrval)
 {
     static char dderr[200];
-    sprintf(dderr, "%08.8X S=%d F=%04.4X C=%04.4X (%d) (%s)",
+    sprintf(dderr, "%08X S=%d F=%04X C=%04X (%d) (%s)",
 	ddrval, (ddrval & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),

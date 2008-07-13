@@ -15,6 +15,8 @@
 #include <mmsystem.h>
 #include <vfw.h>
 #include <msacm.h>
+#include <ks.h>
+#include <ksmedia.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -94,7 +96,7 @@ static PAVISTREAM AVIAudioStream = NULL; // compressed stream pointer
 static HACMSTREAM has = NULL; // stream handle that can be used to perform conversions
 static ACMSTREAMHEADER ash;
 static ACMFORMATCHOOSE acmopt;
-static WAVEFORMATEX wfxSrc; // source audio format
+static WAVEFORMATEXTENSIBLE wfxSrc; // source audio format
 static LPWAVEFORMATEX pwfxDst = NULL; // pointer to destination audio format
 static DWORD wfxMaxFmtSize;
 static FILE *wavfile;
@@ -114,6 +116,8 @@ static int lpbisize (void)
 
 static void freeavientry (struct avientry *ae)
 {
+    if (!ae)
+	return;
     xfree (ae->lpAudio);
     xfree (ae->lpVideo);
     xfree (ae->lpbi);
@@ -132,9 +136,9 @@ static struct avientry *allocavientry_audio (uae_u8 *snd, int size)
 static struct avientry *allocavientry_video (void)
 {
     struct avientry *ae = xcalloc (sizeof (struct avientry), 1); 
-    ae->lpbi = xmalloc (lpbisize());
+    ae->lpbi = xmalloc (lpbisize ());
     memcpy (ae->lpbi, lpbi, lpbisize ());
-    ae->lpVideo = calloc(lpbi->biSizeImage, 1);
+    ae->lpVideo = calloc (lpbi->biSizeImage, 1);
     return ae;
 }
 
@@ -181,18 +185,18 @@ static void waitqueuefull (void)
     }
 }
 
-static UAEREG *openavikey(void)
+static UAEREG *openavikey (void)
 {
     return regcreatetree (NULL, "AVConfiguration");
 }
 
-static void storesettings(UAEREG *avikey)
+static void storesettings (UAEREG *avikey)
 {
     regsetint (avikey, "FrameLimiter", avioutput_framelimiter);
     regsetint (avikey, "NoSoundOutput", avioutput_nosoundoutput);
     regsetint (avikey, "FPS", avioutput_fps);
 }
-static void getsettings(UAEREG *avikey)
+static void getsettings (UAEREG *avikey)
 {
     DWORD val;
     if (regqueryint (avikey, "NoSoundOutput", &val))
@@ -205,14 +209,14 @@ static void getsettings(UAEREG *avikey)
 	avioutput_fps = val;
 }
 
-void AVIOutput_GetSettings(void)
+void AVIOutput_GetSettings (void)
 {
     UAEREG *avikey = openavikey ();
     if (avikey)
 	getsettings (avikey);
     regclosetree (avikey);
 }
-void AVIOutput_SetSettings(void)
+void AVIOutput_SetSettings (void)
 {
     UAEREG *avikey = openavikey ();
     if (avikey)
@@ -220,27 +224,7 @@ void AVIOutput_SetSettings(void)
     regclosetree (avikey);
 }
 
-static UINT CALLBACK acmFilterChooseHookProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if(uMsg == MM_ACM_FORMATCHOOSE) {
-	switch(wParam)
-	{
-	    case FORMATCHOOSE_FORMATTAG_VERIFY:
-		switch(lParam) // remove known error prone codecs
-		{
-		    case WAVE_FORMAT_ADPCM: // 0x0002 Microsoft Corporation
-		    case WAVE_FORMAT_IMA_ADPCM: // 0x0011 Intel Corporation
-		    case WAVE_FORMAT_GSM610: // 0x0031 Microsoft Corporation
-		    case WAVE_FORMAT_SONY_SCX: // 0x0270 Sony Corp.
-		    return TRUE;
-		}
-	    break;
-	}
-    }
-    return FALSE;
-}
-
-void AVIOutput_ReleaseAudio(void)
+void AVIOutput_ReleaseAudio (void)
 {
     if (pwfxDst) {
 	xfree (pwfxDst);
@@ -252,6 +236,9 @@ static int AVIOutput_AudioAllocated (void)
 {
     return pwfxDst ? 1 : 0;
 }
+
+const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
+    {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71}};
 
 static int AVIOutput_AllocateAudio (void)
 {
@@ -265,13 +252,32 @@ static int AVIOutput_AllocateAudio (void)
     }
 
     // set the source format
-    wfxSrc.wFormatTag = WAVE_FORMAT_PCM;
-    wfxSrc.nChannels = get_audio_nativechannels ();
-    wfxSrc.nSamplesPerSec = workprefs.sound_freq;
-    wfxSrc.nBlockAlign = wfxSrc.nChannels * (workprefs.sound_bits / 8);
-    wfxSrc.nAvgBytesPerSec = wfxSrc.nBlockAlign * wfxSrc.nSamplesPerSec;
-    wfxSrc.wBitsPerSample = workprefs.sound_bits;
-    wfxSrc.cbSize = 0;
+    memset (&wfxSrc, 0, sizeof (wfxSrc));
+    wfxSrc.Format.wFormatTag = WAVE_FORMAT_PCM;
+    wfxSrc.Format.nChannels = get_audio_nativechannels () ? get_audio_nativechannels () : 2;
+    wfxSrc.Format.nSamplesPerSec = workprefs.sound_freq ? workprefs.sound_freq : 44100;
+    wfxSrc.Format.nBlockAlign = wfxSrc.Format.nChannels * 16 / 8;
+    wfxSrc.Format.nAvgBytesPerSec = wfxSrc.Format.nBlockAlign * wfxSrc.Format.nSamplesPerSec;
+    wfxSrc.Format.wBitsPerSample = 16;
+    wfxSrc.Format.cbSize = 0;
+
+    if (wfxSrc.Format.nChannels > 2) {
+	wfxSrc.Format.cbSize = sizeof (WAVEFORMATEXTENSIBLE) - sizeof (WAVEFORMATEX);
+	wfxSrc.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+	wfxSrc.Samples.wValidBitsPerSample = 16;
+	switch (wfxSrc.Format.nChannels)
+	{
+	    case 4:
+	    wfxSrc.dwChannelMask = KSAUDIO_SPEAKER_SURROUND;
+	    break;
+	    case 6:
+	    wfxSrc.dwChannelMask = KSAUDIO_SPEAKER_5POINT1_SURROUND;
+	    break;
+	    case 8:
+	    wfxSrc.dwChannelMask = KSAUDIO_SPEAKER_7POINT1_SURROUND;
+	    break;
+	}
+    }
 
     if (!(pwfxDst = (LPWAVEFORMATEX) xmalloc (wfxMaxFmtSize)))
 	return 0;
@@ -282,13 +288,10 @@ static int AVIOutput_AllocateAudio (void)
     pwfxDst->cbSize = (WORD) (wfxMaxFmtSize - sizeof (WAVEFORMATEX)); // shrugs
 
     memset(&acmopt, 0, sizeof (ACMFORMATCHOOSE));
-
     acmopt.cbStruct = sizeof (ACMFORMATCHOOSE);
-    acmopt.fdwStyle = ACMFORMATCHOOSE_STYLEF_ENABLEHOOK | ACMFORMATCHOOSE_STYLEF_INITTOWFXSTRUCT;
-
+    acmopt.fdwStyle = ACMFORMATCHOOSE_STYLEF_INITTOWFXSTRUCT;
     acmopt.pwfx = pwfxDst;
     acmopt.cbwfx = wfxMaxFmtSize;
-
     acmopt.pszTitle  = "Choose Audio Codec";
 
     //acmopt.szFormatTag =; // not valid until the format is chosen
@@ -303,7 +306,7 @@ static int AVIOutput_AllocateAudio (void)
     //ACM_FORMATENUMF_WBITSPERSAMPLE // MP3 doesn't apply so it will be removed from codec selection
     //ACM_FORMATENUMF_SUGGEST // with this flag set, only MP3 320kbps is displayed, which is closest to the source format
 
-    acmopt.pwfxEnum = &wfxSrc;
+    acmopt.pwfxEnum = &wfxSrc.Format;
     return 1;
 }
 
@@ -385,7 +388,6 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, char *s, int len)
 	return 0;
 
     acmopt.hwndOwner = hwnd;
-    acmopt.pfnHook = acmFilterChooseHookProc;
 
     switch (acmFormatChoose (&acmopt))
     {
@@ -424,7 +426,7 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, char *s, int len)
 	    break;
 
 	case MMSYSERR_NODRIVER:
-	    MessageBox (hwnd, "A suitable driver is not available to provide valid format selections.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, "A suitable driver is not available to provide valid format selections.\n(Unsupported channel-mode selected in Sound-panel?)", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	default:
@@ -743,8 +745,8 @@ void AVIOutput_WriteAudio (uae_u8 *sndbuffer, int sndbufsize)
 
     if (!avioutput_audio || !avioutput_enabled)
 	return;
-    if (skipsample > 0 && size > wfxSrc.nBlockAlign) {
-	size -= wfxSrc.nBlockAlign;
+    if (skipsample > 0 && size > wfxSrc.Format.nBlockAlign) {
+	size -= wfxSrc.Format.nBlockAlign;
 	skipsample--;
     }
     if (avioutput_audio == AVIAUDIO_WAV)
@@ -1107,7 +1109,7 @@ void AVIOutput_Begin (void)
 	    goto error;
 	}
 
-	if ((err = acmStreamOpen(&has, NULL, &wfxSrc, pwfxDst, NULL, 0, 0, ACM_STREAMOPENF_NONREALTIME)) != 0) {
+	if ((err = acmStreamOpen(&has, NULL, &wfxSrc.Format, pwfxDst, NULL, 0, 0, ACM_STREAMOPENF_NONREALTIME)) != 0) {
 	    gui_message ("acmStreamOpen() FAILED (%X)\n", err);
 	    goto error;
 	}

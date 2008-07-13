@@ -80,6 +80,8 @@ static uae_u32 lowmem (void)
         currprefs.gfxmem_size >>= 1;
 	changed_prefs.gfxmem_size = currprefs.gfxmem_size;
     }
+    if (currprefs.z3fastmem2_size < 128 * 1024 * 1024)
+	currprefs.z3fastmem2_size = changed_prefs.z3fastmem2_size = 0;
     return change;
 }
 
@@ -213,7 +215,7 @@ void preinit_shm (void)
     memstats.dwLength = sizeof(memstats);
     GlobalMemoryStatus(&memstats);
     totalphys64 = memstats.dwTotalPhys;
-    total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwAvailPhys;
+    total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwTotalPhys;
     pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress(GetModuleHandle("kernel32.dll"), "GlobalMemoryStatusEx");
     if (pGlobalMemoryStatusEx) {
         memstatsex.dwLength = sizeof (MEMORYSTATUSEX);

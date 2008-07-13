@@ -317,7 +317,7 @@ static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
     memcpy (inquirydata, p, inqlen);
     if (log_scsi) {
 	if (outlen >= INQUIRY_SIZE)
-	    write_log ("SPTI: INQUIRY: %02.2X%02.2X%02.2X %d '%-8.8s' '%-16.16s'\n",
+	    write_log ("SPTI: INQUIRY: %02X%02X%02X %d '%-8s' '%-16s'\n",
 	    p[0], p[1], p[2], di->isatapi, p + 8, p + 16);
     }
     return inqlen;

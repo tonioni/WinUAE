@@ -1689,7 +1689,7 @@ static int drive_write_pcdos (drive *drv)
 	    continue;
 	}
 	if (mark != 0xfb) {
-	    write_log ("PCDOS: track %d: unknown address mark %02.2X\n", drv->cyl * 2 + side, mark);
+	    write_log ("PCDOS: track %d: unknown address mark %02X\n", drv->cyl * 2 + side, mark);
 	    continue;
 	}
 	if (sector < 0)
@@ -2154,7 +2154,7 @@ void DISK_select (uae_u8 data)
     step_pulse = data & 1;
 
     if (disk_debug_logging > 1)
-	write_log ("%08.8X %02.2X %s drvmask=%x", M68K_GETPC, data, tobin(data), selected ^ 15);
+	write_log ("%08X %02X %s drvmask=%x", M68K_GETPC, data, tobin(data), selected ^ 15);
 
 #ifdef AMAX
     if (currprefs.amaxromfile[0])
@@ -2217,7 +2217,7 @@ void DISK_select (uae_u8 data)
 		if (!currprefs.cs_df0idhw && dr == 0)
 		    drv->idbit = 0;
 #ifdef DEBUG_DRIVE_ID
-		write_log ("DISK_status: sel %d id %s (%08.8X) [0x%08lx, bit #%02d: %d]\n",
+		write_log ("DISK_status: sel %d id %s (%08X) [0x%08lx, bit #%02d: %d]\n",
 		    dr, drive_id_name(drv), drv->drive_id, drv->drive_id << drv->drive_id_scnt, 31 - drv->drive_id_scnt, drv->idbit);
 #endif
 	    }
@@ -2316,7 +2316,7 @@ void dumpdisk (void)
 		drive_writeprotected(drv) ? "ro" : "rw", drv->mfmpos, drv->tracklen);
 	    w = word;
 	    for (j = 0; j < 15; j++) {
-		console_out_f ("%04.4X ", w);
+		console_out_f ("%04X ", w);
 		for (k = 0; k < 16; k++) {
 		    w <<= 1;
 		    w |= getonebit (drv->bigmfmbuf, drv->mfmpos + j * 16 + k);
@@ -2325,7 +2325,7 @@ void dumpdisk (void)
 	    console_out ("\n");
 	}
     }
-    console_out_f ("side %d, dma %d, bitoffset %d, word %04.4X, dskbytr %04.4X adkcon %04.4X dsksync %04.4X\n", side, dskdmaen, bitoffset, word, dskbytr_val, adkcon, dsksync);
+    console_out_f ("side %d, dma %d, bitoffset %d, word %04X, dskbytr %04X adkcon %04X dsksync %04X\n", side, dskdmaen, bitoffset, word, dskbytr_val, adkcon, dsksync);
 }
 
 static void disk_dmafinished (void)
@@ -2335,7 +2335,7 @@ static void disk_dmafinished (void)
     dskdmaen = 0;
     if (disk_debug_logging > 0) {
 	int dr, mfmpos = -1;
-	write_log ("disk dma finished %08.8X MFMpos=", dskpt);
+	write_log ("disk dma finished %08X MFMpos=", dskpt);
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++)
 	    write_log ("%d%s", floppy[dr].mfmpos, dr < MAX_FLOPPY_DRIVES - 1 ? "," : "");
 	write_log ("\n");
@@ -2585,7 +2585,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	    else
 		word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
 	}
-	//write_log ("%08.8X bo=%d so=%d mfmpos=%d dma=%d\n", (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos,dma_enable);
+	//write_log ("%08X bo=%d so=%d mfmpos=%d dma=%d\n", (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos,dma_enable);
 	drv->mfmpos++;
 	drv->mfmpos %= drv->tracklen;
 	if (drv->mfmpos == drv->indexoffset) {
@@ -2641,7 +2641,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 
 static void disk_dma_debugmsg (void)
 {
-    write_log ("LEN=%04.4X (%d) SYNC=%04.4X PT=%08.8X ADKCON=%04.4X PC=%08.8X\n",
+    write_log ("LEN=%04X (%d) SYNC=%04X PT=%08X ADKCON=%04X PC=%08X\n",
 	dsklength, dsklength, (adkcon & 0x400) ? dsksync : 0xffff, dskpt, adkcon, M68K_GETPC);
 }
 
@@ -2679,7 +2679,7 @@ uae_u16 DSKBYTR (int hpos)
     if (dsklen & 0x4000)
 	v |= 0x2000;
     if (disk_debug_logging > 1)
-	write_log ("DSKBYTR=%04.4X hpos=%d\n", v, hpos);
+	write_log ("DSKBYTR=%04X hpos=%d\n", v, hpos);
     if (disk_debug_mode & DISK_DEBUG_PIO) {
 	int dr;
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
@@ -2689,7 +2689,7 @@ uae_u16 DSKBYTR (int hpos)
 	    if (!(selected & (1 << dr))) {
 		if (disk_debug_track < 0 || disk_debug_track == 2 * drv->cyl + side) {
 		    disk_dma_debugmsg ();
-		    write_log ("DSKBYTR=%04.4X\n", v);
+		    write_log ("DSKBYTR=%04X\n", v);
 		    activate_debugger ();
 		    break;
 		}
@@ -3004,7 +3004,7 @@ void DSKDAT (uae_u16 v)
 #endif
     if (count < 5) {
 	count++;
-	write_log ("%04.4X written to DSKDAT. Not good. PC=%08.8X", v, M68K_GETPC);
+	write_log ("%04X written to DSKDAT. Not good. PC=%08X", v, M68K_GETPC);
 	if (count == 5)
 	    write_log ("(further messages suppressed)");
 

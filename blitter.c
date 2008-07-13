@@ -222,10 +222,10 @@ void build_blitfilltable (void)
 
 static void blitter_dump (void)
 {
-    write_log ("APT=%08.8X BPT=%08.8X CPT=%08.8X DPT=%08.8X\n", bltapt, bltbpt, bltcpt, bltdpt);
-    write_log ("CON0=%04.4X CON1=%04.4X ADAT=%04.4X BDAT=%04.4X CDAT=%04.4X\n",
+    write_log ("APT=%08X BPT=%08X CPT=%08X DPT=%08X\n", bltapt, bltbpt, bltcpt, bltdpt);
+    write_log ("CON0=%04X CON1=%04X ADAT=%04X BDAT=%04X CDAT=%04X\n",
 	       bltcon0, bltcon1, blt_info.bltadat, blt_info.bltbdat, blt_info.bltcdat);
-    write_log ("AFWM=%04.4X ALWM=%04.4X AMOD=%04.4X BMOD=%04.4X CMOD=%04.4X DMOD=%04.4X\n",
+    write_log ("AFWM=%04X ALWM=%04X AMOD=%04X BMOD=%04X CMOD=%04X DMOD=%04X\n",
 	       blt_info.bltafwm, blt_info.bltalwm,
 	       blt_info.bltamod & 0xffff, blt_info.bltbmod & 0xffff, blt_info.bltcmod & 0xffff, blt_info.bltdmod & 0xffff);
 }
@@ -1062,7 +1062,7 @@ void do_blitter (int hpos)
     if (1) {
 	if (oldstate != BLT_done)
 	    write_log ("blitter was already active!\n");
-	write_log ("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02.2X n=%d pc=%p l=%d dma=%04.4X\n",
+	write_log ("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02X n=%d pc=%p l=%d dma=%04X\n",
 	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, cycles, blit_ch,
 	    blitdesc ? 1 : 0, blitfill,
 	    dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);

@@ -140,7 +140,7 @@ static char *getdevname (void)
 static void io_log (char *msg, uaecptr request)
 {
     if (log_uaeserial)
-	write_log ("%s: %08X %d %08.8X %d %d io_actual=%d io_error=%d\n",
+	write_log ("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n",
 		   msg, request, get_word (request + 28), get_long (request + 40),
 		   get_long (request + 36), get_long (request + 44),
 		   get_long (request + 32), get_byte (request + 31));
@@ -214,7 +214,7 @@ static int setparams (struct devstruct *dev, uaecptr req)
     rbuffer = get_long (req + io_RBufLen);
     v = get_long (req + io_ExtFlags);
     if (v) {
-	write_log ("UAESER: io_ExtFlags=%08.8x, not supported\n", v);
+	write_log ("UAESER: io_ExtFlags=%08x, not supported\n", v);
 	return 5;
     }
     baud = get_long (req + io_Baud);
@@ -238,7 +238,7 @@ static int setparams (struct devstruct *dev, uaecptr req)
 	write_log ("UAESER: Read=%d, Write=%d, Stop=%d, not supported\n", rbits, wbits, sbits);
 	return 5;
     }
-    write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06.6X\n",
+    write_log ("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06X\n",
 	getdevname(), dev->unit,
 	baud, rbuffer, rbits, sbits, rtscts, parity, xonxoff);
     v = uaeser_setparams (dev->sysdata, baud, rbuffer,
@@ -297,7 +297,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	return openfail (ioreq, err);
     }
     if (log_uaeserial)
-	write_log ("%s:%d open ioreq=%08.8X\n", getdevname(), unit, ioreq);
+	write_log ("%s:%d open ioreq=%08X\n", getdevname(), unit, ioreq);
     start_thread (dev);
 
     put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
@@ -387,7 +387,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 	return;
     }
     if (log_uaeserial)
-	write_log ("%s:%d asyncronous request=%08.8X aborted\n", getdevname(), dev->unit, request);
+	write_log ("%s:%d asyncronous request=%08X aborted\n", getdevname(), dev->unit, request);
     put_byte (request + 31, IOERR_ABORTED);
     put_byte (request + 30, get_byte (request + 30) | 0x20);
     write_comm_pipe_u32 (&dev->requests, request, 1);

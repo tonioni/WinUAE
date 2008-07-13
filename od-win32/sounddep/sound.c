@@ -57,17 +57,15 @@ uae_u16 sndbuffer[SND_MAX_BUFFER];
 uae_u16 *sndbufpt;
 int sndbufsize;
 
-static int max_sndbufsize, snd_configsize, dsoundbuf;
+static int max_sndbufsize, snd_configsize, dsoundbuf, samplesize;
 static int snd_writeoffset, snd_maxoffset, snd_totalmaxoffset_uf, snd_totalmaxoffset_of;
 static int waiting_for_buffer;
 
 static uae_sem_t sound_sem, sound_init_sem;
 
-#define MAX_SOUND_DEVICES 10
-
-static char *sound_devices[MAX_SOUND_DEVICES];
-GUID sound_device_guid[MAX_SOUND_DEVICES];
-static int num_sound_devices;
+struct sound_device sound_devices[MAX_SOUND_DEVICES];
+struct sound_device record_devices[MAX_SOUND_DEVICES];
+static int num_sound_devices, num_record_devices;
 
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
@@ -297,7 +295,7 @@ static int open_audio_ds (int size)
     int round, i;
     DWORD speakerconfig;
 
-    enumerate_sound_devices (0);
+    enumerate_sound_devices ();
     size *= ch * 2;
     snd_configsize = size;
     sndbufsize = size / 32;
@@ -319,7 +317,7 @@ static int open_audio_ds (int size)
 
     recalc_offsets();
 
-    hr = DirectSoundCreate8 (&sound_device_guid[currprefs.win32_soundcard], &lpDS, NULL);
+    hr = DirectSoundCreate8 (&sound_devices[currprefs.win32_soundcard].guid, &lpDS, NULL);
     if (FAILED (hr))  {
 	write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
 	return 0;
@@ -357,9 +355,9 @@ static int open_audio_ds (int size)
     }
 
     speakerconfig = fillsupportedmodes (lpDS, freq, supportedmodes);
-    write_log ("SOUND: %08.8X ", speakerconfig);
+    write_log ("SOUND: %08X ", speakerconfig);
     for (i = 0; supportedmodes[i].ch; i++)
-	write_log ("%d:%08.8X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
+	write_log ("%d:%08X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
     write_log ("\n");
 
     for (round = 0; supportedmodes[round].ch; round++) {
@@ -386,8 +384,10 @@ static int open_audio_ds (int size)
 	wavfmt.Format.nBlockAlign = wavfmt.Format.wBitsPerSample / 8 * wavfmt.Format.nChannels;
 	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
-	write_log ("SOUND: %08.8X,CH=%d,FREQ=%d '%s' buffer %d, dist %d\n",
-	    ksmode, ch, freq, sound_devices[currprefs.win32_soundcard], max_sndbufsize, snd_configsize);
+	samplesize = ch * 2;
+	write_log ("SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d), dist %d\n",
+	    ksmode, ch, freq, sound_devices[currprefs.win32_soundcard].name,
+	    max_sndbufsize / samplesize, max_sndbufsize, snd_configsize / samplesize);
 
 	memset (&sound_buffer, 0, sizeof (sound_buffer));
 	sound_buffer.dwSize = sizeof (sound_buffer);
@@ -406,7 +406,7 @@ static int open_audio_ds (int size)
 	    sound_buffer.dwFlags |=  DSBCAPS_LOCSOFTWARE;
 	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED(hr)) {
-		write_log ("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
+		//write_log ("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
 		break;
 	    }
 	}
@@ -573,7 +573,7 @@ void restart_sound_buffer (void)
 	write_log ("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError (hr));
 	return;
     }
-    writepos = playpos + snd_writeoffset;
+    writepos = safed + snd_writeoffset;
     if (writepos < 0)
 	writepos += dsoundbuf;
     cf (writepos);
@@ -632,7 +632,7 @@ static void finish_sound_buffer_ds (void)
 		break;
 	    }
 	}
-	write_log ("SOUND: %d = (%d - %d)\n", safedist - playpos, safedist, playpos);
+	write_log ("SOUND: %d = (%d - %d)\n", (safedist - playpos) / samplesize, safedist / samplesize, playpos / samplesize);
 	recalc_offsets ();
 	safedist -= playpos;
 	if (safedist < 64)
@@ -651,8 +651,9 @@ static void finish_sound_buffer_ds (void)
 	waiting_for_buffer = -1;
 	restart_sound_buffer ();
 	write_log ("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
-	    sndbufsize, snd_writeoffset,
-	    snd_maxoffset, snd_totalmaxoffset_of, snd_totalmaxoffset_uf);
+	    sndbufsize / samplesize, snd_writeoffset / samplesize,
+	    snd_maxoffset / samplesize, snd_totalmaxoffset_of / samplesize,
+	    snd_totalmaxoffset_uf / samplesize);
 	tfprev = timeframes + 10;
 	tfprev = (tfprev / 10) * 10;
     }
@@ -670,7 +671,7 @@ static void finish_sound_buffer_ds (void)
 	return;
     }
     if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
-	write_log ("SOUND: status = %08.8X\n", status);
+	write_log ("SOUND: status = %08X\n", status);
 	restore (DSERR_BUFFERLOST);
 	return;
     }
@@ -681,10 +682,10 @@ static void finish_sound_buffer_ds (void)
 	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
 	}
-	if (writepos >= playpos)
-	    diff = writepos - playpos;
+	if (writepos >= safepos)
+	    diff = writepos - safepos;
 	else
-	    diff = dsoundbuf - playpos + writepos;
+	    diff = dsoundbuf - safepos + writepos;
 
 	if (diff < sndbufsize || diff > snd_totalmaxoffset_uf) {
 #if 0
@@ -711,7 +712,7 @@ static void finish_sound_buffer_ds (void)
 	    statuscnt = SND_STATUSCNT;
 	    restart_sound_buffer ();
 	    diff = snd_writeoffset;
-	    write_log ("SOUND: underflow (%d %d)\n", diff, snd_totalmaxoffset_of);
+	    write_log ("SOUND: underflow (%d %d)\n", diff / samplesize, snd_totalmaxoffset_of / samplesize);
 	    break;
 	}
 
@@ -734,7 +735,7 @@ static void finish_sound_buffer_ds (void)
     if (restore (hr))
 	return;
     if (FAILED (hr)) {
-	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos, sndbufsize);
+	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos / samplesize, sndbufsize / samplesize);
 	return;
     }
     memcpy (b1, sndbuffer, s1);
@@ -770,7 +771,8 @@ static void finish_sound_buffer_ds (void)
     if (tfprev != timeframes) {
 	if (sound_debug && !(tfprev % 10))
 	    write_log ("b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
-		sndbufsize, snd_configsize, max_sndbufsize, dsoundbuf, diff, vdiff, skipmode);
+		sndbufsize / samplesize, snd_configsize / samplesize, max_sndbufsize / samplesize,
+		dsoundbuf / samplesize, diff / samplesize, vdiff, skipmode);
 	tfprev = timeframes;
 	if (!avioutput_audio)
 	    sound_setadjust (skipmode);
@@ -829,29 +831,40 @@ void finish_sound_buffer (void)
     finish_sound_buffer_ds ();
 }
 
-static BOOL CALLBACK DSEnumProc(LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
+static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
 {
-    int i = num_sound_devices;
-    if (i == MAX_SOUND_DEVICES)
+    struct sound_device *sd = lpContext;
+    int i;
+    
+    for (i = 0; i < MAX_SOUND_DEVICES; i++) {
+	if (sd[i].name == NULL)
+	    break;
+    }
+    if (i >= MAX_SOUND_DEVICES)
 	return TRUE;
     if (lpGUID != NULL)
-	memcpy (&sound_device_guid[i], lpGUID, sizeof (GUID));
-    sound_devices[i] = my_strdup (lpszDesc);
-    num_sound_devices++;
+	memcpy (&sd[i].guid, lpGUID, sizeof (GUID));
+    sd[i].name = my_strdup (lpszDesc);
     return TRUE;
 }
 
-char **enumerate_sound_devices (int *total)
+int enumerate_sound_devices (void)
 {
-    if (!num_sound_devices)
-	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, 0);
-    if (total)
-	*total = num_sound_devices;
+    if (!num_sound_devices) {
+	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
+	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
+	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
+	    if (sound_devices[num_sound_devices].name == NULL)
+		break;
+	}
+	for (num_record_devices = 0; num_record_devices < MAX_SOUND_DEVICES; num_record_devices++) {
+	    if (record_devices[num_record_devices].name == NULL)
+		break;
+	}
+    }
     if (currprefs.win32_soundcard >= num_sound_devices)
 	currprefs.win32_soundcard = 0;
-    if (num_sound_devices)
-	return sound_devices;
-    return 0;
+    return num_sound_devices;
 }
 
 #include <mmdeviceapi.h>

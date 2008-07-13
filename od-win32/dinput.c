@@ -100,8 +100,8 @@ static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 
-int no_rawinput;
 int rawkeyboard;
+int no_rawinput;
 int dinput_enum_all;
 
 int dinput_winmouse (void)
@@ -194,46 +194,54 @@ typedef LRESULT (CALLBACK* DEFRAWINPUTPROC)
     (PRAWINPUT*, INT, UINT);
 static DEFRAWINPUTPROC pDefRawInputProc;
 
-static int rawinput_available, rawinput_registered;
-
-static void unregister_rawinput (void)
-{
-    rawinput_registered = 0;
-}
+static int rawinput_available, rawinput_registered_mouse, rawinput_registered_kb;
 
 static int register_rawinput (void)
 {
-    int num;
+    int num, rm, rkb;
     RAWINPUTDEVICE rid[2];
 
     if (!rawinput_available)
 	return 0;
+
+    rm = rawmouse ? 1 : 0;
+    if (supermouse)
+	rm = 0;
+    rkb = rawkb ? 1 : 0;
+    if (!rawkeyboard)
+	rkb = 0;
+    if (rawinput_registered_mouse == rm && rawinput_registered_kb == rkb)
+	return 1;
+
     memset (rid, 0, sizeof (rid));
     num = 0;
-    /* mouse */
-    if (rawmouse) {
+    if (rawinput_registered_mouse != rm) {
+	/* mouse */
 	rid[num].usUsagePage = 1;
 	rid[num].usUsage = 2;
-	rid[num].dwFlags = RIDEV_INPUTSINK;
-	rid[num].hwndTarget = hAmigaWnd;
+	if (!rawmouse)
+	    rid[num].dwFlags = RIDEV_REMOVE;
 	num++;
     }
-    /* keyboard */
-    if (rawkb) {
+    if (rawinput_registered_kb != rkb) {
+	/* keyboard */
 	rid[num].usUsagePage = 1;
 	rid[num].usUsage = 6;
-	rid[num].dwFlags = RIDEV_INPUTSINK;
-	rid[num].hwndTarget = hAmigaWnd;
+	if (!rawkb)
+	    rid[num].dwFlags = RIDEV_REMOVE;
 	num++;
     }
-    if (!num)
-	return 0;
-    write_log ("%d\n", num);
-    if (pRegisterRawInputDevices(rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
-	write_log ("RAWINPUT registration failed %d\n", GetLastError ());
+    if (num == 0)
+	return 1;
+    if (pRegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
+	write_log ("RAWINPUT registration failed %d (%d,%d->%d,%d->%d)\n",
+	    GetLastError (), num,
+	    rawinput_registered_mouse, rm,
+	    rawinput_registered_kb, rkb);
 	return 0;
     }
-    rawinput_registered = 1;
+    rawinput_registered_mouse = rm;
+    rawinput_registered_kb = rkb;
     return 1;
 }
 
@@ -253,7 +261,7 @@ static void cleardid (struct didata *did)
 static uae_u8 di_keycodes[MAX_INPUT_DEVICES][MAX_KEYCODES];
 static int keyboard_german;
 
-static int keyhack (int scancode,int pressed, int num)
+static int keyhack (int scancode, int pressed, int num)
 {
     static byte backslashstate,apostrophstate;
 
@@ -414,14 +422,14 @@ static int initialize_catweasel(void)
 }
 
 
-#define RDP_MOUSE1 "\\??\\Root#RDP_MOU#"
-#define RDP_MOUSE2 "\\\\?\\Root#RDP_MOU#"
+#define RDP_DEVICE1 "\\??\\Root#RDP_"
+#define RDP_DEVICE2 "\\\\?\\Root#RDP_"
 
-static int rdpmouse(char *buf)
+static int rdpdevice(char *buf)
 {
-    if (!memcmp (RDP_MOUSE1, buf, strlen (RDP_MOUSE1)))
+    if (!memcmp (RDP_DEVICE1, buf, strlen (RDP_DEVICE1)))
 	return 1;
-    if (!memcmp (RDP_MOUSE2, buf, strlen (RDP_MOUSE2)))
+    if (!memcmp (RDP_DEVICE2, buf, strlen (RDP_DEVICE2)))
 	return 1;
     return 0;
 }
@@ -521,7 +529,7 @@ static int initialize_rawinput (void)
     bufsize = 10000;
     buf = xmalloc (bufsize);
 
-    register_rawinput();
+    register_rawinput ();
     if (pGetRawInputDeviceList (NULL, &num, sizeof (RAWINPUTDEVICELIST)) != 0) {
 	write_log ("RAWINPUT error %08X\n", GetLastError());
 	goto error2;
@@ -546,7 +554,7 @@ static int initialize_rawinput (void)
 	    continue;
 	if (pGetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf, &vtmp) == -1)
 	    continue;
-	if (rdpmouse (buf))
+	if (rdpdevice (buf))
 	    continue;
 	if (type == RIM_TYPEMOUSE)
 	    rnum_mouse++;
@@ -574,7 +582,7 @@ static int initialize_rawinput (void)
 		continue;
 
 	    if (did == di_mouse) {
-		if (rdpmouse(buf))
+		if (rdpdevice (buf))
 		    continue;
 		if (num_mouse >= MAX_INPUT_DEVICES - 1) /* leave space for Windows mouse */
 		    continue;
@@ -583,6 +591,8 @@ static int initialize_rawinput (void)
 		rmouse++;
 		v = rmouse;
 	    } else if (did == di_keyboard) {
+		if (rdpdevice (buf))
+		    continue;
 		if (rnum_kb < 2)
 		    continue;
 		if (num_keyboard >= MAX_INPUT_DEVICES - 1)
@@ -781,9 +791,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	int istest = inputdevice_istest ();
 	PRAWKEYBOARD rk = &raw->data.keyboard;
 	uae_u8 scancode = (rk->MakeCode & 0x7f) | ((rk->Flags & RI_KEY_E0) ? 0x80 : 0x00);
-	int pressed = (rk->Flags & RI_KEY_BREAK) ? 1 : 0;
+	int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
- #ifdef DI_DEBUG2
+#ifdef DI_DEBUG2
 	write_log ("HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x\n",
 	    raw->header.hDevice,
 	    raw->data.keyboard.MakeCode,
@@ -797,23 +807,25 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	    return;
 	}
 
+	if (scancode == 0xaa)
+	    return;
 	for (num = 0; num < num_keyboard; num++) {
 	    did = &di_keyboard[num];
-	    if (!did->disabled && did->rawinput == raw->header.hDevice)
+	    if (!did->disabled && did->acquired && did->rawinput == raw->header.hDevice) {
+		if (di_keycodes[num][scancode] == pressed)
+		    return;
+		di_keycodes[num][scancode] = pressed;
 		break;
+	    }
 	}
 	if (num == num_keyboard)
 	    return;
-	if (scancode == 0xaa)
-	    return;
-	if (!istest)
-	    scancode = keyhack (scancode, pressed, num);
-	if (scancode < 0)
-	    return;
-	di_keycodes[num][scancode] = pressed;
 	if (istest) {
 	    inputdevice_do_keyboard (scancode, pressed);
 	} else {
+	    scancode = keyhack (scancode, pressed, num);
+	    if (scancode < 0)
+		return;
 	    if (stopoutput == 0)
 		my_kbd_handler (num, scancode, pressed);
 	}
@@ -845,13 +857,13 @@ void handle_rawinput (LPARAM lParam)
     if (!rawinput_available)
 	return;
     pGetRawInputData ((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof (RAWINPUTHEADER));
-    if (dwSize >= sizeof (lpb))
-	return;
-    if (pGetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) != dwSize )
-	return;
-    raw = (RAWINPUT*)lpb;
-    handle_rawinput_2 (raw);
-    pDefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+    if (dwSize <= sizeof (lpb)) {
+	if (pGetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
+	    raw = (RAWINPUT*)lpb;
+	    handle_rawinput_2 (raw);
+	    pDefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+	}
+    }
 }
 
 static void unacquire (LPDIRECTINPUTDEVICE8 lpdi, char *txt)
@@ -1347,7 +1359,7 @@ static int acquire_mouse (int num, int flags)
     } else {
 	di_mouse[num].acquired = 1;
     }
-    if (di_mouse[num].acquired) {
+    if (di_mouse[num].acquired > 0) {
 	if (di_mouse[num].rawinput)
 	    rawmouse++;
 	else if (di_mouse[num].superdevice)
@@ -1359,15 +1371,14 @@ static int acquire_mouse (int num, int flags)
 	} else
 	    normalmouse++;
     }
-    if (!supermouse && rawmouse)
-	register_rawinput ();
+    register_rawinput ();
     return di_mouse[num].acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_mouse (int num)
 {
     unacquire (di_mouse[num].lpdi, "mouse");
-    if (di_mouse[num].acquired) {
+    if (di_mouse[num].acquired > 0) {
 	if (di_mouse[num].rawinput)
 	    rawmouse--;
 	else if (di_mouse[num].superdevice)
@@ -1905,8 +1916,7 @@ static int acquire_kb (int num, int flags)
 	    normalkb++;
 	di_keyboard[num].acquired = 1;
     }
-    if (rawkb)
-	register_rawinput ();
+    register_rawinput ();
     return di_keyboard[num].acquired > 0 ? 1 : 0;
 }
 
@@ -1915,7 +1925,7 @@ static void unacquire_kb (int num)
     LPDIRECTINPUTDEVICE8 lpdi = di_keyboard[num].lpdi;
 
     unacquire (lpdi, "keyboard");
-    if (di_keyboard[num].acquired) {
+    if (di_keyboard[num].acquired > 0) {
 	if (di_keyboard[num].rawinput)
 	    rawkb--;
 	else if (di_keyboard[num].superdevice)

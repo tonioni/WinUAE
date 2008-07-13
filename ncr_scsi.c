@@ -259,7 +259,7 @@ static void INT2(void)
 static uae_u8 read_rombyte (uaecptr addr)
 {
     uae_u8 v = rom[addr];
-    //write_log ("%08.8X = %02.2X PC=%08X\n", addr, v, M68K_GETPC);
+    //write_log ("%08X = %02X PC=%08X\n", addr, v, M68K_GETPC);
     return v;
 }
 
@@ -278,7 +278,7 @@ void ncr_bput2 (uaecptr addr, uae_u32 val)
 	INT2();
 	break;
     }
-    write_log ("%s write %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
+    write_log ("%s write %04X (%s) = %02X PC=%08X\n", NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
     ncrregs[addr] = val;
 }
 
@@ -305,7 +305,7 @@ uae_u32 ncr_bget2 (uaecptr addr)
 	v &= 0x0f; // revision 0
 	break;
     }
-    write_log ("%s read  %04.4X (%s) = %02.2X PC=%08.8X\n", NCRNAME, addr, regname(addr), v, M68K_GETPC);
+    write_log ("%s read  %04X (%s) = %02X PC=%08X\n", NCRNAME, addr, regname(addr), v, M68K_GETPC);
     if (v2 != v)
 	ncrregs[addr] = v2;
     return v;
@@ -324,7 +324,7 @@ static uae_u32 REGPARAM2 ncr_lget (uaecptr addr)
 	(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
 #if NCR_DEBUG > 0
     if (addr < ROM_VECTOR)
-	write_log ("ncr_lget %08.8X=%08.8X PC=%08.8X\n", addr, v, M68K_GETPC);
+	write_log ("ncr_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -339,7 +339,7 @@ static uae_u32 REGPARAM2 ncr_wget (uaecptr addr)
     v = (ncr_bget2 (addr) << 8) | ncr_bget2 (addr + 1);
 #if NCR_DEBUG > 0
     if (addr < ROM_VECTOR)
-	write_log ("ncr_wget %08.8X=%04.4X PC=%08.8X\n", addr, v, M68K_GETPC);
+	write_log ("ncr_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -368,7 +368,7 @@ static void REGPARAM2 ncr_lput (uaecptr addr, uae_u32 l)
     addr &= board_mask;
 #if NCR_DEBUG > 0
     if (addr < ROM_VECTOR)
-	write_log ("ncr_lput %08.8X=%08.8X PC=%08.8X\n", addr, l, M68K_GETPC);
+	write_log ("ncr_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
 #endif
     ncr_bput2 (addr, l >> 24);
     ncr_bput2 (addr + 1, l >> 16);
@@ -385,7 +385,7 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
     addr &= board_mask;
 #if NCR_DEBUG > 0
     if (addr < ROM_VECTOR)
-	write_log ("ncr_wput %04.4X=%04.4X PC=%08.8X\n", addr, w & 65535, M68K_GETPC);
+	write_log ("ncr_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
 #endif
     if (addr == 0x44 && !configured) {
 	uae_u32 value = (p96ram_start + ((currprefs.gfxmem_size + 0xffffff) & ~0xffffff)) >> 16;

@@ -1301,7 +1301,6 @@ static int mouseput;
 void picasso_putcursor (int sx, int sy, int sw, int sh)
 {
     int xdiff, ydiff, xdiff2, ydiff2;
-    DWORD ddrval;
     LPDIRECTDRAWSURFACE7 dstsurf = dxdata.secondary;
     
     if (!cursorvisible || !hwsprite || !cursorok)
@@ -1351,10 +1350,7 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.right = cursorwidth + xdiff + xdiff2;
     cursor_r2.bottom = cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (dxdata.cursorsurface2, &cursor_r2, dstsurf, &cursor_r1, DDBLT_WAIT, NULL);
-    if (FAILED (ddrval)) {
-	if (ddrval != DDERR_SURFACELOST)
-	    write_log ("Cursor surface blit1 failed: %s\n", DXError (ddrval));
+    if (!DirectDraw_BlitRect (dxdata.cursorsurface2, &cursor_r2, dstsurf, &cursor_r1)) {
 	recursor ();
 	return;
     }
@@ -1364,10 +1360,7 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     cursor_r2.right = cursor_r2.left + cursorwidth + xdiff + xdiff2;
     cursor_r2.bottom = cursor_r2.top + cursorheight + ydiff + ydiff2;
 
-    ddrval = IDirectDrawSurface7_Blt (dstsurf, &cursor_r1, dxdata.cursorsurface1, &cursor_r2, DDBLT_WAIT | DDBLT_KEYSRC, NULL);
-    if (FAILED (ddrval)) {
-	if (ddrval != DDERR_SURFACELOST)
-	    write_log ("Cursor surface blit2 failed: %s\n", DXError (ddrval));
+    if (!DirectDraw_BlitRectCK (dstsurf, &cursor_r1, dxdata.cursorsurface1, &cursor_r2)) {
 	recursor ();
 	return;
     }
@@ -1479,10 +1472,10 @@ static uae_u32 setspriteimage (uaecptr bi)
 	bi, get_long (bi + PSSO_BoardInfo_MouseImage), w, h,
 	hiressprite - 1, doubledsprite, bi + PSSO_BoardInfo_MouseImage));
 
-    if (w > dxdata.cursorwidth)
-	w = dxdata.cursorwidth;
-    if (h > dxdata.cursorheight)
-	h = dxdata.cursorheight;
+    if (w > dxcaps.cursorwidth)
+	w = dxcaps.cursorwidth;
+    if (h > dxcaps.cursorheight)
+	h = dxcaps.cursorheight;
 
     bpp = picasso_vidinfo.pixbytes;
     if (!w || !h || get_long (bi + PSSO_BoardInfo_MouseImage) == 0) {

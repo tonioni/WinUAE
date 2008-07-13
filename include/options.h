@@ -115,7 +115,6 @@ struct uae_prefs {
     int sound_stereo;
     int sound_stereo_separation;
     int sound_mixed_stereo_delay;
-    int sound_bits;
     int sound_freq;
     int sound_maxbsiz;
     int sound_latency;

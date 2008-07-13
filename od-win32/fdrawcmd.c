@@ -224,7 +224,7 @@ static void readloop(char *fname)
 	}
 	free(fnameerr);
 	t = time(0) - t;
-	printf ("Completed. %02.2dm%02.2ds, %d/160 tracks read without errors, %d retries, %d faulty sectors\n",
+	printf ("Completed. %02dm%02ds, %d/160 tracks read without errors, %d retries, %d faulty sectors\n",
 		t / 60, t % 60, oktrk, retr, errsec);
 }
 

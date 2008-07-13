@@ -224,7 +224,7 @@ void inprec_rstr(const char *s)
 }
 void inprec_rstart(uae_u8 type)
 {
-    write_log ("INPREC: %08.8X: %d\n", hsync_counter, type);
+    write_log ("INPREC: %08X: %d\n", hsync_counter, type);
     inprec_ru32(hsync_counter);
     inprec_ru8(0);
     inprec_plast = inprec_p;
@@ -259,14 +259,14 @@ int inprec_pstart(uae_u8 type)
     for (;;) {
 	uae_u32 hc2 = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 	if (p > lastp) {
-	    write_log ("INPREC: Next %08.8x (%08.8x=%d): %d (%d)\n", hc2, hc, hc2 - hc, p[5 + 1], p[5]);
+	    write_log ("INPREC: Next %08x (%08x=%d): %d (%d)\n", hc2, hc, hc2 - hc, p[5 + 1], p[5]);
 	    lastp = p;
 	}
 	hc2_orig = hc2;
 	hc2 /= inprec_div;
 	hc2 *= inprec_div;
 	if (hc > hc2) {
-	    write_log ("INPREC: %08.8x > %08.8x: %d (%d) missed!\n", hc, hc2, p[5 + 1], p[5]);
+	    write_log ("INPREC: %08x > %08x: %d (%d) missed!\n", hc, hc2, p[5 + 1], p[5]);
 	    inprec_close();
 	    return 0;
 	}
@@ -275,7 +275,7 @@ int inprec_pstart(uae_u8 type)
 	    break;
 	}
 	if (p[5 + 1] == type) {
-	    write_log ("INPREC: %08.8x: %d (%d) (%+d)\n", hc, type, p[5], hc_orig - hc2_orig);
+	    write_log ("INPREC: %08x: %d (%d) (%+d)\n", hc, type, p[5], hc_orig - hc2_orig);
 	    inprec_plast = p;
 	    inprec_plastptr = p + 5 + 2;
 	    return 1;
@@ -1155,7 +1155,7 @@ int getjoystate (int joy)
     }
 #ifdef DONGLE_DEBUG
     if (notinrom ())
-	write_log ("JOY%dDAT %04.4X %s\n", joy, v, debuginfo (0));
+	write_log ("JOY%dDAT %04X %s\n", joy, v, debuginfo (0));
 #endif
     if (input_recording > 0 && oldjoy[joy] != v) {
 	oldjoy[joy] = v;
@@ -1197,7 +1197,7 @@ void JOYTEST (uae_u16 v)
     mouse_frame_x[1] = mouse_x[1];
     mouse_frame_y[1] = mouse_y[1];
     if (inputdevice_logging & 2)
-	write_log ("JOYTEST: %04.4X PC=%x\n", v , M68K_GETPC);
+	write_log ("JOYTEST: %04X PC=%x\n", v , M68K_GETPC);
 }
 
 static uae_u8 parconvert (uae_u8 v, int jd, int shift)
@@ -1259,7 +1259,7 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 	}
     }
     if (inputdevice_logging & 4)
-	write_log ("BFE001: %02.2X:%02.2X %x\n", dra, but, M68K_GETPC);
+	write_log ("BFE001: %02X:%02X %x\n", dra, but, M68K_GETPC);
     return but;
 }
 
@@ -1417,10 +1417,10 @@ void POTGO (uae_u16 v)
     int i;
 
     if (inputdevice_logging & 16)
-	write_log ("POTGO_W: %04.4X %p\n", v, M68K_GETPC);
+	write_log ("POTGO_W: %04X %p\n", v, M68K_GETPC);
 #ifdef DONGLE_DEBUG
     if (notinrom ())
-	write_log ("POTGO %04.4X %s\n", v, debuginfo(0));
+	write_log ("POTGO %04X %s\n", v, debuginfo(0));
 #endif
     potgo_value = potgo_value & 0x5500; /* keep state of data bits */
     potgo_value |= v & 0xaa00; /* get new direction bits */
@@ -1451,10 +1451,10 @@ uae_u16 POTGOR (void)
     uae_u16 v = handle_joystick_potgor (potgo_value) & 0x5500;
 #ifdef DONGLE_DEBUG
     if (notinrom ())
-	write_log ("POTGOR %04.4X %s\n", v, debuginfo(0));
+	write_log ("POTGOR %04X %s\n", v, debuginfo(0));
 #endif
     if (inputdevice_logging & 16)
-	write_log ("POTGO_R: %04.4X %d %p\n", v, cd32_shifter[1], M68K_GETPC);
+	write_log ("POTGO_R: %04X %d %p\n", v, cd32_shifter[1], M68K_GETPC);
     return v;
 }
 
@@ -1539,7 +1539,7 @@ void inputdevice_do_keyboard (int code, int state)
 	}
 	record_key ((uae_u8)((key << 1) | (key >> 7)));
 	if (inputdevice_logging & 1)
-	    write_log ("Amiga key %02.2X %d\n", key & 0x7f, key >> 7);
+	    write_log ("Amiga key %02X %d\n", key & 0x7f, key >> 7);
 	return;
     }
     inputdevice_add_inputcode (code, state);
@@ -2844,7 +2844,7 @@ static void get_ename (const struct inputevent *ie, char *out)
     if (!out)
 	return;
     if (ie->allow_mask == AM_K)
-	sprintf (out, "%s (0x%02.2X)", ie->name, ie->data);
+	sprintf (out, "%s (0x%02X)", ie->name, ie->data);
     else
 	strcpy (out, ie->name);
 }

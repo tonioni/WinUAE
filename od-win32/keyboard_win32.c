@@ -354,7 +354,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
     if (scancode == specialkeycode ())
 	return;
 
-    //write_log ( "keyboard = %d scancode = 0x%02.2x state = %d\n", keyboard, scancode, newstate );
+    //write_log ( "keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
     if (newstate) {
 	switch (scancode)
 	{

@@ -262,7 +262,7 @@ static int set_ddraw_2 (void)
 	int rounds = 3;
 	for (;;) {
 	    HRESULT olderr;
-	    write_log ("set_ddraw: Trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
+	    write_log ("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	    if (SUCCEEDED (ddrval))
 		break;
@@ -283,7 +283,7 @@ static int set_ddraw_2 (void)
 	    goto oops;
 	ddrval = DirectDraw_CreateMainSurface (width, height);
 	if (FAILED(ddrval)) {
-	    write_log ("set_ddraw: Couldn't CreateSurface() for primary because %s.\n", DXError (ddrval));
+	    write_log ("set_ddraw: couldn't CreateSurface() for primary because %s.\n", DXError (ddrval));
 	    goto oops;
 	}
 	ddrval = DirectDraw_SetClipper (hAmigaWnd);
@@ -297,7 +297,8 @@ static int set_ddraw_2 (void)
 	    DirectDraw_CreatePalette (currentmode->pal);
     }
 
-    write_log ("set_ddraw() called, and is %dx%d@%d-bytes\n", width, height, bits);
+    dx_testck ();
+    write_log ("set_ddraw: %dx%d@%d-bytes\n", width, height, bits);
     return 1;
 oops:
     return 0;
@@ -1001,9 +1002,9 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
     //c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
-    c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? 2 : 0;
-    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? 2 : 0;
-    c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? 1 : 0;
+    c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (2 | 8) : 0;
+    c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? (2 | 8) : 0;
+    c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
     c |= strcmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
@@ -1792,8 +1793,6 @@ static int create_windows_2 (void)
 	    nw = rc.right - rc.left;
 	    nh = rc.bottom - rc.top;
 	}
-	write_log ("%d %d %d %d\n", x, y, w, h);
-	write_log ("%d %d %d %d\n", nx, ny, nw, nh);
 	if (w != nw || h != nh || x != nx || y != ny) {
 	    w = nw;
 	    h = nh;
