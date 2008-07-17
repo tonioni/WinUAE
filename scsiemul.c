@@ -449,8 +449,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     switch (command)
     {
 	case CMD_READ:
-	if ((io_offset & bmask) || (io_length & bmask))
+	if ((io_offset & bmask) || bmask == 0 || io_data == 0)
 	    goto bad_command;
+	if ((io_length & bmask) || io_length == 0)
+	    goto bad_len;
 	if (dev->drivetype == INQ_ROMD)
 	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	else
@@ -459,8 +461,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case TD_READ64:
 	case NSCMD_TD_READ64:
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
-	if ((io_offset64 & bmask) || (io_length & bmask))
+	if ((io_offset64 & bmask) || bmask == 0 || io_data == 0)
 	    goto bad_command;
+	if ((io_length & bmask) || io_length == 0)
+	    goto bad_len;
 	if (dev->drivetype == INQ_ROMD)
 	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
 	else
@@ -470,8 +474,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_WRITE:
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
-	} else if ((io_offset & bmask) || (io_length & bmask)) {
+	} else if ((io_offset & bmask) || bmask == 0 || io_data == 0) {
 	    goto bad_command;
+	} else if ((io_length & bmask) || io_length == 0) {
+	    goto bad_len;
 	} else {
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	}
@@ -481,8 +487,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
-	} else if ((io_offset64 & bmask) || (io_length & bmask)) {
+	} else if ((io_offset64 & bmask) || bmask == 0 || io_data == 0) {
 	    goto bad_command;
+	} else if ((io_length & bmask) || io_length == 0) {
+	    goto bad_len;
 	} else {
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
 	}
@@ -491,8 +499,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_FORMAT:
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
-	} else if ((io_offset & bmask) || (io_length & bmask)) {
+	} else if ((io_offset & bmask) || bmask == 0 || io_data == 0) {
 	    goto bad_command;
+	} else if ((io_length & bmask) || io_length == 0) {
+	    goto bad_len;
 	} else {
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	}
@@ -502,8 +512,10 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
-	} else if ((io_offset64 & bmask) || (io_length & bmask)) {
+	} else if ((io_offset64 & bmask) || bmask == 0 || io_data == 0) {
 	    goto bad_command;
+	} else if ((io_length & bmask) || io_length == 0) {
+	    goto bad_len;
 	} else {
 	    io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
 	}
@@ -577,6 +589,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	default:
 	io_error = IOERR_NOCMD;
+	break;
+	bad_len:
+	io_error = IOERR_BADLENGTH;
 	break;
 	bad_command:
 	io_error = IOERR_BADADDRESS;

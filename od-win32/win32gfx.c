@@ -259,7 +259,6 @@ static int set_ddraw_2 (void)
 	goto oops;
 
     if (dxfullscreen)  {
-	int rounds = 3;
 	for (;;) {
 	    HRESULT olderr;
 	    write_log ("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
@@ -268,6 +267,7 @@ static int set_ddraw_2 (void)
 		break;
 	    olderr = ddrval;
 	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
+	    DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
 	    if (SUCCEEDED (ddrval))
 	        break;

@@ -286,7 +286,9 @@
 #define IDS_NUMSG_EXPROMNEED            332
 #define IDS_HARDDRIVESAFETYWARNING2     333
 #define IDM_DBGCONTEXTMENU              334
+#define IDS_SB_FAVORITENAME             334
 #define IDD_DBGMEMINPUT                 335
+#define IDS_SB_CUSTOMEVENT              335
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -839,6 +841,7 @@
 #define IDC_CREATE_NAME                 1707
 #define IDC_FILTERAUTORES               1708
 #define IDC_SOUND_AUTO                  1709
+#define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710
 #define IDC_CS_CIAA_TOD1                1711
 #define IDC_CS_CIAA_TOD2                1712
@@ -985,7 +988,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        336
+#define _APS_NEXT_RESOURCE_VALUE        335
 #define _APS_NEXT_COMMAND_VALUE         40045
 #define _APS_NEXT_CONTROL_VALUE         1789
 #define _APS_NEXT_SYMED_VALUE           101

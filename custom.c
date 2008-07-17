@@ -2480,13 +2480,17 @@ static void calcdiw (void)
     plfstrt = ddfstrt;
     plfstop = ddfstop;
     /* probably not the correct place.. */
-    /* ECS/AGA and ddfstop > maxhpos = always-on display */
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-	if (ddfstop > maxhpos)
+	/* ECS/AGA and ddfstop > maxhpos == always-on display */
+	if (plfstop > maxhpos)
 	    plfstrt = 0;
-	if (plfstrt < HARD_DDF_START)
-	    plfstrt = HARD_DDF_START;
+    } else {
+	/* OCS and ddfstop >= ddfstrt == ddsftop = max */
+	if (plfstrt >= plfstop)
+	    plfstop = 0xff;
     }
+    if (plfstrt < HARD_DDF_START)
+        plfstrt = HARD_DDF_START;
 }
 
 /* display mode changed (lores, doubling etc..), recalculate everything */

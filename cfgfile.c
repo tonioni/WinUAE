@@ -168,8 +168,8 @@ static const char *obsolete[] = {
     "sound_pri_cutoff", "sound_pri_time", "sound_min_buff", "sound_bits",
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
     "kickstart_key_file", "fast_copper", "sound_adjust",
-    "serial_hardware_dtrdsr", "gfx_filter_upscale", 
-    0
+    "serial_hardware_dtrdsr", "gfx_filter_upscale",
+    NULL
 };
 
 #define UNEXPANDED "$(FILE_PATH)"
@@ -574,8 +574,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "gfx_filter_gamma=%d\n", p->gfx_filter_gamma);
     cfgfile_dwrite (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
     cfgfile_dwrite (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
-    cfgfile_dwrite (f, "gfx_filter_keep_aspect=%s\n", p->gfx_filter_aspect ? "true" : "false");
-
+    cfgfile_dwrite (f, "gfx_filter_keep_aspect=%s\n", p->gfx_filter_keep_aspect ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_filter_aspect_ratio=%d:%d\n",
+	p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect >> 8) : -1,
+	p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect & 0xff) : -1);
     cfgfile_dwrite (f, "gfx_luminance=%d\n", p->gfx_luminance);
     cfgfile_dwrite (f, "gfx_contrast=%d\n", p->gfx_contrast);
     cfgfile_dwrite (f, "gfx_gamma=%d\n", p->gfx_gamma);
@@ -895,7 +897,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_gamma", &p->gfx_filter_gamma, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_blur", &p->gfx_filter_blur, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_noise", &p->gfx_filter_noise, 1)
-	|| cfgfile_yesno (option, value, "gfx_filter_keep_aspect", &p->gfx_filter_aspect)
+	|| cfgfile_yesno  (option, value, "gfx_filter_keep_aspect", &p->gfx_filter_keep_aspect)
 	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
@@ -1007,6 +1009,24 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 		}
 		i++;
 	    }
+	}
+	return 1;
+    }
+    if (cfgfile_string (option, value, "gfx_filter_aspect_ratio", tmpbuf, sizeof tmpbuf)) {
+	int v1, v2;
+	char *s;
+	
+	p->gfx_filter_aspect = -1;
+	v1 = atol (tmpbuf);
+	s = strchr (tmpbuf, ':');
+	if (s) {
+	    v2 = atol (s + 1);
+	    if (v1 < 0 || v2 < 0)
+		p->gfx_filter_aspect = -1;
+	    else if (v1 == 0 || v2 == 0)
+		p->gfx_filter_aspect = 0;
+	    else
+		p->gfx_filter_aspect = (v1 << 8) | v2;
 	}
 	return 1;
     }

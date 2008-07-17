@@ -181,7 +181,7 @@ struct uae_prefs {
     int gfx_filter_filtermode;
     int gfx_filter_noise, gfx_filter_blur;
     int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
-    int gfx_filter_aspect;
+    int gfx_filter_keep_aspect, gfx_filter_aspect;
 
     int immediate_blits;
     unsigned int chipset_mask;

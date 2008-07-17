@@ -234,6 +234,52 @@ void exit_gui (int ok)
     SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
 }
 
+static int CALLBACK BrowseForFolderCallback (HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
+{
+    char szPath[MAX_PATH];
+    switch(uMsg)
+    {
+    	case BFFM_INITIALIZED:
+	SendMessage (hwnd, BFFM_SETSELECTION, TRUE, pData);
+	break;
+	case BFFM_SELCHANGED: 
+	if (SHGetPathFromIDList ((LPITEMIDLIST)lp ,szPath))
+	    SendMessage(hwnd, BFFM_SETSTATUSTEXT, 0, (LPARAM)szPath);	
+	break;
+    }
+    return 0;
+}
+
+int DirectorySelection (HWND hDlg, int flag, char *path)
+{
+    BROWSEINFO bi;
+    LPITEMIDLIST pidlBrowse;
+    char buf[MAX_DPATH], fullpath[MAX_DPATH];
+    int ret = 0;
+
+    buf[0] = 0;
+    memset (&bi, 0, sizeof bi);
+    bi.hwndOwner = hDlg;
+    bi.pidlRoot = NULL;
+    bi.pszDisplayName = buf;
+    bi.lpszTitle = NULL;
+    bi.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    if (path[0] && GetFullPathName (path, sizeof fullpath, fullpath, NULL)) {
+	bi.lpfn = BrowseForFolderCallback;
+	bi.lParam = (LPARAM)fullpath;
+    }
+    // Browse for a folder and return its PIDL.
+    pidlBrowse = SHBrowseForFolder (&bi);
+    if (pidlBrowse != NULL) {
+	if (SHGetPathFromIDList (pidlBrowse, buf)) {
+	    strcpy (path, buf);
+	    ret = 1;
+	}
+	CoTaskMemFree (pidlBrowse);
+    }
+    return ret;
+}
+
 static int getcbn (HWND hDlg, int v, char *out, int len)
 {
     LRESULT val = SendDlgItemMessage (hDlg, v, CB_GETCURSEL, 0, 0L);
@@ -288,12 +334,13 @@ static void writefavoritepaths (int num, char **values, char **paths)
 }
 
 
-static int askinputcustom (HWND hDlg, char *custom, int maxlen);
-static void addfavoritepath (HWND hDlg, int num, char **values, char **paths)
+static int askinputcustom (HWND hDlg, char *custom, int maxlen, DWORD titleid);
+static int addfavoritepath (HWND hDlg, int num, char **values, char **paths)
 {
     char name[MAX_DPATH];
+
     if (num >= MAXFAVORITES)
-	return;
+	return 0;
     if (!stored_path[0])
         GetModuleFileName (NULL, stored_path, MAX_DPATH);
     while (stored_path[0]) {
@@ -312,15 +359,16 @@ static void addfavoritepath (HWND hDlg, int num, char **values, char **paths)
 	}
 	s[0] = 0;
     }
-    if (!askinputcustom (hDlg, stored_path, sizeof stored_path))
-	return;
+    if (!DirectorySelection (hDlg, 0, stored_path))
+	return 0;
     strcpy (name, stored_path);
-    if (askinputcustom (hDlg, name, sizeof name)) {
+    if (askinputcustom (hDlg, name, sizeof name, IDS_SB_FAVORITENAME)) {
 	values[num] = my_strdup (name);
 	paths[num] = my_strdup (stored_path);
 	num++;
 	writefavoritepaths (num, values, paths);
     }
+    return 1;
 }
 static void removefavoritepath (int idx, int num, char **values, char **paths)
 {
@@ -340,7 +388,7 @@ static void removefavoritepath (int idx, int num, char **values, char **paths)
 static void addeditmenu (HMENU menu, char **items)
 {
     int i;
-    HMENU emenu = CreatePopupMenu();
+    HMENU emenu = CreatePopupMenu ();
     char newpath[MAX_DPATH];
 
     MENUITEMINFO mii = { 0 };
@@ -474,7 +522,10 @@ static char *favoritepopup (HWND hwnd)
 	if (ret <= idx)
 	    break;
 	if (ret == 1000) {
-	    addfavoritepath (hwnd, idx, values, paths);
+	    if (!addfavoritepath (hwnd, idx, values, paths)) {
+		ret = 0;
+		break;
+	    }
 	} else if (ret > 1000) {
 	    removefavoritepath (ret - 1001, idx, values, paths);
 	}
@@ -1226,32 +1277,6 @@ static void gui_to_prefs (void)
     memcpy(&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
 
     updatewinfsmode (&changed_prefs);
-}
-
-int DirectorySelection(HWND hDlg, int flag, char *path)
-{
-    BROWSEINFO bi;
-    LPITEMIDLIST pidlBrowse;
-    char buf[MAX_DPATH];
-
-    buf[0] = 0;
-    bi.hwndOwner = hDlg;
-    bi.pidlRoot = NULL;
-    bi.pszDisplayName = buf;
-    bi.lpszTitle = "Select folder";
-    bi.ulFlags = 0;
-    bi.lpfn = NULL;
-    bi.lParam = 0;
-
-    // Browse for a folder and return its PIDL.
-    pidlBrowse = SHBrowseForFolder(&bi);
-    if (pidlBrowse != NULL) {
-	if (SHGetPathFromIDList(pidlBrowse, buf)) {
-	    strcpy (path, buf);
-	    return 1;
-	}
-    }
-    return 0;
 }
 
 // Common routine for popping up a file-requester
@@ -6957,25 +6982,14 @@ static void volumeselectfile (HWND hDlg)
 }
 static void volumeselectdir (HWND hDlg, int newdir)
 {
-    BROWSEINFO browse_info;
-    LPITEMIDLIST browse;
     char szTitle[MAX_DPATH];
     char directory_path[MAX_DPATH];
 
     strcpy (directory_path, current_fsvdlg.rootdir);
     if (!newdir) {
 	WIN32GUI_LoadUIString(IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
-	browse_info.hwndOwner = hDlg;
-	browse_info.pidlRoot = NULL;
-	browse_info.pszDisplayName = directory_path;
-	browse_info.lpszTitle = "";
-	browse_info.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS;
-	browse_info.lpfn = NULL;
-	browse_info.iImage = 0;
-	if ((browse = SHBrowseForFolder (&browse_info)) != NULL) {
-	    SHGetPathFromIDList (browse, directory_path);
+	if (DirectorySelection (hDlg, 0, directory_path))
 	    newdir = 1;
-	}
     }
     if (newdir) {
         SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
@@ -7254,7 +7268,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	return TRUE;
 
     case WM_CONTEXTMENU:
-        if (GetDlgCtrlID((HWND)wParam) == IDC_SELECTOR) {
+        if (GetDlgCtrlID ((HWND)wParam) == IDC_SELECTOR) {
 	    char *s = favoritepopup (hDlg);
 	    if (s) {
 		char path[MAX_DPATH];
@@ -7262,7 +7276,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	        xfree (s);
 	        hardfileselecthdf (hDlg, path);
 	    }
-	} else if (GetDlgCtrlID((HWND)wParam) == IDC_FILESYS_SELECTOR) {
+	} else if (GetDlgCtrlID ((HWND)wParam) == IDC_FILESYS_SELECTOR) {
 	    char *s = favoritepopup (hDlg);
 	    if (s) {
 		char path[MAX_DPATH];
@@ -7270,7 +7284,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	        xfree (s);
 		DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, path);
 	    }
-	} else if (GetDlgCtrlID((HWND)wParam) == IDC_HF_CREATE) {
+	} else if (GetDlgCtrlID ((HWND)wParam) == IDC_HF_CREATE) {
 	    char *s = favoritepopup (hDlg);
 	    if (s) {
 		char path[MAX_DPATH];
@@ -9099,7 +9113,7 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
     return FALSE;
 }
 
-static int askinputcustom (HWND hDlg, char *custom, int maxlen)
+static int askinputcustom (HWND hDlg, char *custom, int maxlen, DWORD titleid)
 {
     HWND hwnd;
     char txt[MAX_DPATH];
@@ -9108,6 +9122,11 @@ static int askinputcustom (HWND hDlg, char *custom, int maxlen)
     hwnd = CustomCreateDialog (IDD_STRINGBOX, hDlg, StringBoxDialogProc);
     if (hwnd == NULL)
 	return 0;
+    if (titleid != 0) {
+	LoadString (hUIDLL, titleid, txt, MAX_DPATH);
+	SetWindowText (hwnd, txt);
+    }
+    txt[0] = 0;
     SendMessage (GetDlgItem (hwnd, IDC_STRINGBOXEDIT), WM_SETTEXT, 0, (LPARAM)custom);
     SetFocus (GetDlgItem (hwnd, IDC_STRINGBOXEDIT));
     while (stringboxdialogactive == 1) {
@@ -9249,7 +9268,7 @@ static void doinputcustom (HWND hDlg, int newcustom)
     inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
 	&flags, 0, custom1, input_selected_sub_num);
     if (strlen(custom1) > 0 || newcustom) {
-	if (askinputcustom (hDlg, custom1, sizeof custom1)) {
+	if (askinputcustom (hDlg, custom1, sizeof custom1, IDS_SB_CUSTOMEVENT)) {
 	    inputdevice_set_mapping (input_selected_device, input_selected_widget,
 		0, custom1, (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0, input_selected_sub_num);
 	}
@@ -9517,6 +9536,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
+    ew (hDlg, IDC_FILTERKEEPASPECT, vv && !vv2);
     ew (hDlg, IDC_FILTERASPECT, vv && !vv2);
     ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
 
@@ -9574,7 +9594,7 @@ static int *filtervars[] = {
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
-	&workprefs.gfx_filter_aspect,
+	&workprefs.gfx_filter_keep_aspect, &workprefs.gfx_filter_aspect,
 	NULL
     };
 
@@ -9595,7 +9615,13 @@ static void values_to_hw3ddlg (HWND hDlg)
     struct uae_filter *uf;
     UAEREG *fkey;
 
-    CheckDlgButton (hDlg, IDC_FILTERASPECT, workprefs.gfx_filter_aspect);
+    CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
+    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
+	(workprefs.gfx_filter_aspect == 0) ? 0 :
+	(workprefs.gfx_filter_aspect == 4 * 256 + 3) ? 1 :
+	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 2 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 3 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 4 : 0, 0);
     CheckDlgButton (hDlg, IDC_FILTERAUTORES, workprefs.gfx_autoresolution);
 
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
@@ -9911,6 +9937,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     #endif
 	    pages[HW3D_ID] = hDlg;
 	    currentpage = HW3D_ID;
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)"Disabled");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)"4:3");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)"15:9");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)"16:9");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)"16:10");
 	    enable_for_hw3ddlg (hDlg);
 
 	case WM_USER:
@@ -9947,8 +9979,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		case IDC_FILTERAUTORES:
 		workprefs.gfx_autoresolution = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
 		break;
-		case IDC_FILTERASPECT:
-		currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERASPECT);
+		case IDC_FILTERKEEPASPECT:
+		currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT);
 		updatedisplayarea ();
 		WIN32GFX_WindowMove ();
 		break;
@@ -9978,11 +10010,31 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			updatedisplayarea ();
 			WIN32GFX_WindowMove ();
 			break;
-
 			case IDC_FILTERVZMULT:
 			currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
 			updatedisplayarea ();
 			WIN32GFX_WindowMove ();
+			break;
+			case IDC_FILTERASPECT:
+			{
+			    int v = SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_GETCURSEL, 0, 0L);
+			    int v2 = 0;
+			    if (v != CB_ERR) {
+				if (v == 0)
+				    v2 = 0;
+				if (v == 1)
+				    v2 = 4 * 256 + 3;
+				if (v == 2)
+				    v2 = 15 * 256 + 9;
+				if (v == 3)
+				    v2 = 16 * 256 + 9;
+				if (v == 4)
+				    v2 = 16 * 256 + 10;
+			    }
+			    currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = v2;
+			    updatedisplayarea ();
+			    WIN32GFX_WindowMove ();
+			}
 			break;
 		    }
 		}
@@ -10001,13 +10053,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    recursive++;
 	    if (h == hz) {
 		currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
-		if (workprefs.gfx_filter_aspect) {
+		if (workprefs.gfx_filter_keep_aspect) {
 		    currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = currprefs.gfx_filter_horiz_zoom;
 		    SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
 		}
 	    } else if (h == vz) {
 		currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
-		if (workprefs.gfx_filter_aspect) {
+		if (workprefs.gfx_filter_keep_aspect) {
 		    currprefs.gfx_filter_horiz_zoom = workprefs.gfx_filter_horiz_zoom = currprefs.gfx_filter_vert_zoom;
 		    SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
 		}

@@ -7,7 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -687,10 +687,10 @@ BEGIN
     RTEXT           "Vert. position:",-1,5,103,55,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FILTERVO,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,99,97,151,19
     EDITTEXT        IDC_FILTERVOV,253,99,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Extra settings:",-1,27,133,57,10,SS_CENTERIMAGE
+    RTEXT           "Extra settings:",-1,27,137,57,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FILTERXL,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,99,157,151,19
     EDITTEXT        IDC_FILTERXLV,253,159,34,12,ES_CENTER | ES_READONLY
-    COMBOBOX        IDC_FILTERSLR,253,130,33,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_FILTERSLR,253,134,33,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Presets",-1,0,187,296,36
     COMBOBOX        IDC_FILTERPRESETS,8,201,119,150,CBS_DROPDOWN | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Load",IDC_FILTERPRESETLOAD,132,200,47,14
@@ -698,9 +698,10 @@ BEGIN
     PUSHBUTTON      "Delete",IDC_FILTERPRESETDELETE,236,200,47,14
     COMBOBOX        IDC_FILTERHZMULT,67,43,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERVZMULT,67,63,27,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,168,63,10
-    COMBOBOX        IDC_FILTERXTRA,105,130,138,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Keep aspect ratio",IDC_FILTERASPECT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,153,87,10
+    CONTROL         "Autoscale",IDC_FILTERAUTORES,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,168,83,10
+    COMBOBOX        IDC_FILTERXTRA,105,134,138,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_FILTERASPECT,21,118,73,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Keep aspect ratio",IDC_FILTERKEEPASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,153,85,10
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 380, 76
@@ -1351,6 +1352,8 @@ BEGIN
     IDS_NUMSG_EXPROMNEED    "One of the following expansion boot ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
     IDS_HARDDRIVESAFETYWARNING2 
                             "Warning: The drive safety check has been disabled, and non-empty and non-RDB partitioned hard disk(s) were detected."
+    IDS_SB_FAVORITENAME     "Enter name..."
+    IDS_SB_CUSTOMEVENT      "Enter custom event string.."
 END
 
 STRINGTABLE 
@@ -1420,7 +1423,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

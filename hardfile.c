@@ -907,13 +907,17 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	    goto no_disk;
 	offset = get_long (request + 44);
 	len = get_long (request + 36); /* io_Length */
-	if ((offset & bmask) || (len & bmask)) {
+	if ((offset & bmask) || dataptr == 0) {
 	    unaligned (cmd, offset, len, hfd->blocksize);
 	    goto bad_command;
 	}
+	if (len & bmask) {
+	    unaligned (cmd, offset, len, hfd->blocksize);
+	    goto bad_len;
+	}
 	if (len + offset > hfd->size) {
 	    outofbounds (cmd, offset, len, hfd->size);
-	    goto bad_command;
+	    goto bad_len;
 	}
 	actual = (uae_u32)cmd_read (hfd, dataptr, offset, len);
 	break;
@@ -924,14 +928,18 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	    goto no_disk;
 	offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	len = get_long (request + 36); /* io_Length */
-	if ((offset64 & bmask) || (len & bmask)) {
+	if ((offset64 & bmask) || dataptr == 0) {
 	    unaligned (cmd, offset64, len, hfd->blocksize);
 	    goto bad_command;
 	}
+	if (len & bmask) {
+	    unaligned (cmd, offset64, len, hfd->blocksize);
+	    goto bad_len;
+	}
 	if (len + offset64 > hfd->size) {
 	    outofbounds (cmd, offset64, len, hfd->size);
-	    goto bad_command;
-	}
+    	    goto bad_len;
+        }
 	actual = (uae_u32)cmd_read (hfd, dataptr, offset64, len);
 	break;
 
@@ -944,13 +952,17 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	} else {
 	    offset = get_long (request + 44);
 	    len = get_long (request + 36); /* io_Length */
-	    if ((offset & bmask) || (len & bmask)) {
+	    if ((offset & bmask) || dataptr == 0) {
 		unaligned (cmd, offset, len, hfd->blocksize);
 		goto bad_command;
 	    }
+	    if (len & bmask) {
+		unaligned (cmd, offset, len, hfd->blocksize);
+		goto bad_len;
+	    }
 	    if (len + offset > hfd->size) {
 		outofbounds (cmd, offset, len, hfd->size);
-		goto bad_command;
+		goto bad_len;
 	    }
 	    actual = (uae_u32)cmd_write (hfd, dataptr, offset, len);
 	}
@@ -967,21 +979,27 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	} else {
 	    offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	    len = get_long (request + 36); /* io_Length */
-	    if ((offset64 & bmask) || (len & bmask)) {
+	    if ((offset64 & bmask) || dataptr == 0) {
 		unaligned (cmd, offset64, len, hfd->blocksize);
 		goto bad_command;
 	    }
+	    if (len & bmask) {
+		unaligned (cmd, offset64, len, hfd->blocksize);
+		goto bad_len;
+	    }
 	    if (len + offset64 > hfd->size) {
 		outofbounds (cmd, offset64, len, hfd->size);
-		goto bad_command;
+		goto bad_len;
 	    }
 	    put_long (request + 32, (uae_u32)cmd_write (hfd, dataptr, offset64, len));
 	}
 	break;
 
 	bad_command:
-	error = IOERR_BADADDRESS; /* IOERR_BADADDRESS */
+	error = IOERR_BADADDRESS;
 	break;
+	bad_len:
+	error = IOERR_BADLENGTH;
 	no_disk:
 	error = 29; /* no disk */
 	break;

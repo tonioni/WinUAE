@@ -221,10 +221,10 @@ void preinit_shm (void)
         memstatsex.dwLength = sizeof (MEMORYSTATUSEX);
         if (pGlobalMemoryStatusEx(&memstatsex)) {
 	    totalphys64 = memstatsex.ullTotalPhys;
-	    total64 = memstatsex.ullAvailPageFile + memstatsex.ullAvailPhys;
+	    total64 = memstatsex.ullAvailPageFile + memstatsex.ullTotalPhys;
 	}
     }
-    size64 = total64 - (total64 >> 3);
+    size64 = total64;
     if (maxmem < 0)
 	size64 = 0x7f000000;
     else if (maxmem > 0)

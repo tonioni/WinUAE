@@ -10,6 +10,7 @@
 
 #define DI_DEBUG
 //#define DI_DEBUG2
+//#define DI_DEBUG_RAWINPUT
 #define IGNOREEVERYTHING 0
 
 #include "sysconfig.h"
@@ -271,13 +272,15 @@ static int keyhack (int scancode, int pressed, int num)
 #endif
 
      //check ALT-F4
-    if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4 && di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
+    if (pressed && !di_keycodes[num][DIK_F4] && scancode == DIK_F4) {
+	if (di_keycodes[num][DIK_LALT] && !currprefs.win32_ctrl_F11_is_quit) {
 #ifdef RETROPLATFORM
-	if (rp_close ())
-	    return -1;
+	    if (rp_close ())
+		return -1;
 #endif
-	uae_quit ();
-	return -1;
+	    uae_quit ();
+	    return -1;
+	}
     }
 #ifdef SINGLEFILE
     if (pressed && scancode == DIK_ESCAPE) {
@@ -498,6 +501,45 @@ static void rawinputfriendlynames (void)
     }
 }
 
+static char *rawkeyboardlabels[] =
+{
+    "ESCAPE",
+    "1","2","3","4","5","6","7","8","9","0",
+    "MINUS","EQUALS","BACK","TAB",
+    "Q","W","E","R","T","Y","U","I","O","P",
+    "LBRACKET","RBRACKET","RETURN","LCONTROL",
+    "A","S","D","F","G","H","J","K","L",
+    "SEMICOLON","APOSTROPHE","GRAVE","LSHIFT","BACKSLASH",
+    "Z","X","C","V","B","N","M",
+    "COMMA","PERIOD","SLASH","RSHIFT","MULTIPLY","LMENU","SPACE","CAPITAL",
+    "F1","F2","F3","F4","F5","F6","F7","F8","F9","F10",
+    "NULOCK","SCROLL","NUMPAD7","NUMPAD8","NUMPAD9","SUBTRACT",
+    "NUMPAD4","NUMPAD5","NUMPAD6","ADD","NUMPAD1","NUMPAD2","NUMPAD3","NUMPAD0",
+    "DECIMAL",NULL,NULL,"OEM_102","F11","F12",
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,NULL,
+    "NUMPADEQUALS",NULL,NULL,
+    "PREVTRACK",NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    "NEXTTRACK",NULL,NULL,"NUMPADENTER","RCONTROL",NULL,NULL,
+    "MUTE","CALCULATOR","PLAYPAUSE",NULL,"MEDIASTOP",
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    "VOLUMEDOWN",NULL,"VOLUMEUP",NULL,"WEBHOME","NUMPADCOMMA",NULL,
+    "DIVIDE",NULL,"SYSRQ","RMENU",
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    "PAUSE",NULL,"HOME","UP","PRIOR",NULL,"LEFT",NULL,"RIGHT",NULL,"END",
+    "DOWN","NEXT","INSERT","DELETE",
+    NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+    "LWIN","RWIN","APPS","POWER","SLEEP",
+    NULL,NULL,NULL,
+    "WAKE",NULL,"WEBSEARCH","WEBFAVORITES","WEBREFRESH","WEBSTOP",
+    "WEBFORWARD","WEBBACK","MYCOMPUTER","MAIL","MEDIASELECT",
+    ""
+};
+
 static int initialize_rawinput (void)
 {
     RAWINPUTDEVICELIST *ridl = 0;
@@ -623,6 +665,7 @@ static int initialize_rawinput (void)
 		continue;
 	    if (pGetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf, &vtmp) == -1)
 		continue;
+
 	    if (type == RIM_TYPEMOUSE) {
 		PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
 		write_log ("id=%d buttons=%d hw=%d rate=%d\n",
@@ -653,11 +696,30 @@ static int initialize_rawinput (void)
 		}
 		did->priority = -1;
 	    } else {
+		int j;
 		PRID_DEVICE_INFO_KEYBOARD rdik = &rdi->keyboard;
 		write_log ("type=%d sub=%d mode=%d fkeys=%d indicators=%d tkeys=%d",
 		    rdik->dwType, rdik->dwSubType, rdik->dwKeyboardMode,
 		    rdik->dwNumberOfFunctionKeys, rdik->dwNumberOfIndicators, rdik->dwNumberOfKeysTotal);
-
+		j = 0;
+		for (i = 0; i < 254; i++) {
+		    char tmp[100];
+		    tmp[0] = 0;
+		    if (rawkeyboardlabels[j] != NULL) {
+			if (rawkeyboardlabels[j][0]) {
+			    strcpy (tmp, rawkeyboardlabels[j]);
+			    j++;
+			}
+		    } else {
+			j++;
+		    }
+		    if (!tmp[0])
+			sprintf (tmp, "Key %02X", i + 1);
+		    did->buttonname[i] = my_strdup (tmp);
+		    did->buttonmappings[i] = i + 1;
+		    did->buttonsort[i] = i + 1;
+		    did->buttons++;
+		}
 	    }
 	}
     }
@@ -726,6 +788,7 @@ static void initialize_windowsmouse (void)
     }
 }
 
+static uae_u8 rawkeystate[256];
 static void handle_rawinput_2 (RAWINPUT *raw)
 {
     int i, num;
@@ -739,7 +802,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	    if (!did->disabled && did->rawinput == raw->header.hDevice)
 		break;
 	}
-#ifdef DI_DEBUG2
+#ifdef DI_DEBUG_RAWINPUT
 	write_log ("HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n",
 	    raw->header.hDevice,
 	    rm->usFlags,
@@ -793,7 +856,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	uae_u8 scancode = (rk->MakeCode & 0x7f) | ((rk->Flags & RI_KEY_E0) ? 0x80 : 0x00);
 	int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
-#ifdef DI_DEBUG2
+#ifdef DI_DEBUG_RAWINPUT
 	write_log ("HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x\n",
 	    raw->header.hDevice,
 	    raw->data.keyboard.MakeCode,
@@ -802,30 +865,36 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	    raw->data.keyboard.Message,
 	    raw->data.keyboard.ExtraInformation);
 #endif
-	if (scancode == DIK_F12 && pressed) {
-	    inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+	if (rk->MakeCode == KEYBOARD_OVERRUN_MAKE_CODE)
 	    return;
-	}
-
 	if (scancode == 0xaa)
 	    return;
+
+#if 0
 	for (num = 0; num < num_keyboard; num++) {
 	    did = &di_keyboard[num];
-	    if (!did->disabled && did->acquired && did->rawinput == raw->header.hDevice) {
-		if (di_keycodes[num][scancode] == pressed)
-		    return;
-		di_keycodes[num][scancode] = pressed;
+	    if (!did->disabled && (did->acquired || rawkeyboard > 0) && did->rawinput == raw->header.hDevice)
 		break;
-	    }
 	}
-	if (num == num_keyboard)
+	if (num == num_keyboard) {
+	    if (scancode == DIK_F12 && pressed) {
+		inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+		return;
+	    }
 	    return;
+	}
+#endif
+	num = 0;
+	if (rawkeystate[scancode] == pressed)
+	    return;
+	rawkeystate[scancode] = pressed;
 	if (istest) {
 	    inputdevice_do_keyboard (scancode, pressed);
 	} else {
 	    scancode = keyhack (scancode, pressed, num);
 	    if (scancode < 0)
 		return;
+	    di_keycodes[num][scancode] = pressed;
 	    if (stopoutput == 0)
 		my_kbd_handler (num, scancode, pressed);
 	}
@@ -1186,8 +1255,10 @@ static int di_do_init (void)
 	write_log ("DirectInput enumeration..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
     } else {
-	write_log ("DirectInput enumeration.. Keyboards..\n");
-	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+	if (rawkeyboard <= 0) {
+	    write_log ("DirectInput enumeration.. Keyboards..\n");
+	    IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+	}
 	write_log ("DirectInput enumeration.. Pointing devices..\n");
 	IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 	write_log ("DirectInput enumeration.. Game controllers..\n");

@@ -953,7 +953,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 			    drive = 'A' + i;
 			    sprintf (drvname, "%c:\\", drive);
-			    type = GetDriveType(drvname);
+			    type = GetDriveType (drvname);
 			    if (wParam == DBT_DEVICEARRIVAL)
 				inserted = 1;
 			    else
@@ -1133,7 +1133,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
     case WM_DISPLAYCHANGE:
-	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel())
+	if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel ())
 	    WIN32GFX_DisplayChangeRequested();
 	break;
 
@@ -1437,7 +1437,7 @@ int WIN32_CleanupLibraries (void)
 
     if (hUIDLL)
 	FreeLibrary (hUIDLL);
-
+    CoUninitialize ();
     return 1;
 }
 
@@ -1649,6 +1649,7 @@ static int WIN32_InitLibraries( void )
 {
     LARGE_INTEGER freq;
 
+    CoInitialize (0);
     /* Determine our processor speed and capabilities */
     if (!init_mmtimer ()) {
 	pre_gui_message ("MMTimer initialization failed, exiting..");
@@ -2036,17 +2037,17 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	int v1, v2;
 	char *s;
 	
-	p->win32_rtgscaleaspectratio = -1;
+	p->gfx_filter_aspect = -1;
 	v1 = atol (tmpbuf);
 	s = strchr (tmpbuf, ':');
 	if (s) {
 	    v2 = atol (s + 1);
 	    if (v1 < 0 || v2 < 0)
-		p->win32_rtgscaleaspectratio = -1;
+		p->gfx_filter_aspect = -1;
 	    else if (v1 == 0 || v2 == 0)
-		p->win32_rtgscaleaspectratio = 0;
+		p->gfx_filter_aspect = 0;
 	    else
-		p->win32_rtgscaleaspectratio = (v1 << 8) | v2;
+		p->gfx_filter_aspect = (v1 << 8) | v2;
 	}
 	return 1;
     }
@@ -3207,7 +3208,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	devmode.dmSize = sizeof (DEVMODE);
 	if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
 	    default_freq = devmode.dmDisplayFrequency;
-	    if(default_freq >= 70)
+	    if (default_freq >= 70)
 		default_freq = 70;
 	    else
 		default_freq = 60;
@@ -3230,7 +3231,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	}
     }
 
-    closeIPC();
+    closeIPC ();
     write_disk_history ();
     timeend ();
 #ifdef AVIOUTPUT

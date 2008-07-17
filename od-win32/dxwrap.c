@@ -439,6 +439,8 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
     ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
     if (FAILED (ddrval)) {
 	write_log ("IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
+	IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
+	dxdata.fsmodeset = 0;
     } else {
 	dxdata.fsmodeset = -1;
 	dxdata.width = width;
@@ -642,7 +644,7 @@ int DirectDraw_IsLocked (void)
 {
     return dxdata.lockcnt;
 }
-DWORD DirectDraw_GetPixelFormatBitMask(DirectDraw_Mask_e mask)
+DWORD DirectDraw_GetPixelFormatBitMask (DirectDraw_Mask_e mask)
 {
     DWORD result = 0;
     switch(mask)

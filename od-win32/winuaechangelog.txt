@@ -1,7 +1,27 @@
 
+Beta 6:
+
+- RAM limit update in previous beta wasn't working..
+- ddfstrt >= ddfstop "feature" emulated. OCS = display ends at "hard
+  stop". ECS/AGA = starts and ends immediately = not much to see.
+  Scroll text in intro "Latest News" by Abandon is now visible,
+  OCS-only, scroll text missing on ECS Amigas (except small graphics
+  garbage on left border)
+- uaescsi.device and uaehf.device read/write command parameter
+  validation improved (previously length = 0 was considered valid)
+- experimental rawkeyboard mode added, add -rawkeyboard command line
+  parameter to enable it (also disables directinput keyboard mode)
+  Normally not needed but may help if some keys are not working in
+  directinput mode. Windows XP or newer only.
+- added BIF_NEWDIALOGSTYLE to path selection dialogs
+- path selection dialogs autoselect old directory
+- added path selection dialog to "favorite path" feature (right click
+  on disk image select buttons)
+- filter aspect ratio selection added
+
 Beta 5:
 
-- avi recording crash fixed if only audio recording was enabled
+- avi recording crash if only audio recording was enabled
 - native dll support fixed
 - do not enable second Z3 board if RAM limit reached (=decrease Z3 size)
   and Z3 size is smaller than 256M (4M+2M combination for example is
@@ -12,8 +32,8 @@ Beta 5:
   of directsound sound buffer causing glitches in some cases (which may
   or may have never happened)
 - SuperEagle, Super2xSaI and 2xSaI 32-bit color support added
-- disable filter if filter size multiplier is really too big for
-  configured display size (instead of overflowing buffers..)
+- disable filter if filter size multiplier is too big for configured
+  display size (instead of overflowing buffers..)
 - resolution and doubling setting change on the fly updates filter
   centering
 - added -ddsoftwarecolorkey command line option. Workaround for buggy

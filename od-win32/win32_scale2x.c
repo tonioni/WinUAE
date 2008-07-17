@@ -84,10 +84,14 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
     else
         ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
 
-    if (currprefs.gfx_filter_horiz_zoom_mult <= 0 && currprefs.gfx_filter_vert_zoom_mult <= 0 && currprefs.gfx_filter_aspect) {
-	int mult = xmult > ymult ? xmult : ymult;
-	xmult = mult;
-	ymult = mult;
+    if (currprefs.gfx_filter_aspect > 0) {
+	int srcratio, dstratio;
+	dstratio = (currprefs.gfx_filter_aspect >> 8) * 256 / (currprefs.gfx_filter_aspect & 0xff);
+	srcratio = dst_width * 256 / dst_height;
+	if (srcratio > dstratio)
+	    xmult = xmult * srcratio / dstratio;
+	else
+	    ymult = ymult * dstratio / srcratio;
     }
 
     xs = dst_width - dst_width * xmult / 1000;
