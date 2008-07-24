@@ -674,7 +674,7 @@ static void disassemble_wait (FILE *file, unsigned long insn)
 	     vp, ve, hp, he, bfd);
 }
 
-#define NR_COPPER_RECORDS 40000
+#define NR_COPPER_RECORDS 100000
 /* Record copper activity for the debugger.  */
 struct cop_record
 {
@@ -695,8 +695,8 @@ void record_copper (uaecptr addr, int hpos, int vpos)
 {
     int t = nr_cop_records[curr_cop_set];
     if (!cop_record[0]) {
-	cop_record[0] = (struct cop_record*)malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
-	cop_record[1] = (struct cop_record*)malloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[0] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[1] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
     }
     if (t < NR_COPPER_RECORDS) {
 	cop_record[curr_cop_set][t].addr = addr;
@@ -706,11 +706,11 @@ void record_copper (uaecptr addr, int hpos, int vpos)
     }
     if (debug_copper & 2) { /* trace */
 	debug_copper &= ~2;
-	activate_debugger();
+	activate_debugger ();
     }
     if ((debug_copper & 4) && addr >= debug_copper_pc && addr <= debug_copper_pc + 3) {
 	debug_copper &= ~4;
-	activate_debugger();
+	activate_debugger ();
     }
 }
 

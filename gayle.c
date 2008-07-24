@@ -1449,8 +1449,14 @@ static void checkflush (int addr)
 {
     if (pcmcia_card == 0 || pcmcia_sram == 0)
 	return;
+    if (addr >= 0 && pcmcia_common[0] == 0 && pcmcia_common[1] == 0 && pcmcia_common[2] == 0)
+	return; // do not flush periodically if used as a ram expension
+    if (addr < 0) {
+	pcmcia_write_min = 0;
+	pcmcia_write_max = pcmcia_common_size;
+    }
     if (pcmcia_write_min >= 0) {
-	if (addr < 0 || abs (pcmcia_write_min - addr) >= 512 || abs (pcmcia_write_max - addr) >= 512) {
+	if (abs (pcmcia_write_min - addr) >= 512 || abs (pcmcia_write_max - addr) >= 512) {
 	    int blocksize = pcmcia_sram->hfd.blocksize;
 	    int mask = ~(blocksize - 1);
 	    int start = pcmcia_write_min & mask;
@@ -1577,11 +1583,27 @@ static void REGPARAM3 gayle_common_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_common_wput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 gayle_common_bput (uaecptr, uae_u32) REGPARAM;
 
+static int REGPARAM2 gayle_common_check (uaecptr addr, uae_u32 size)
+{
+    if (!pcmcia_common_size)
+	return 0;
+    addr -= PCMCIA_COMMON_START & (PCMCIA_COMMON_SIZE - 1);
+    addr &= PCMCIA_COMMON_SIZE - 1;
+    return (addr + size) <= PCMCIA_COMMON_SIZE;
+}
+
+static uae_u8 *REGPARAM2 gayle_common_xlate (uaecptr addr)
+{
+    addr -= PCMCIA_COMMON_START & (PCMCIA_COMMON_SIZE - 1);
+    addr &= PCMCIA_COMMON_SIZE - 1;
+    return pcmcia_common + addr;
+}
+
 static addrbank gayle_common_bank = {
     gayle_common_lget, gayle_common_wget, gayle_common_bget,
     gayle_common_lput, gayle_common_wput, gayle_common_bput,
-    default_xlate, default_check, NULL, "Gayle PCMCIA Common",
-    dummy_lgeti, dummy_wgeti, ABFLAG_RAM
+    gayle_common_xlate, gayle_common_check, NULL, "Gayle PCMCIA Common",
+    gayle_common_lget, gayle_common_wget, ABFLAG_RAM | ABFLAG_SAFE
 };
 
 

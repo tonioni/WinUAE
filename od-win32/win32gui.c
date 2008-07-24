@@ -2047,7 +2047,7 @@ static struct ConfigStruct *readconfigcache (const char *path)
 	    lines = filelines;
 	    p = strrchr (dirpath, dirsep);
 	    if (p)
-		*p = 0;
+		p[0] = 0;
 	    else
 		dirpath[0] = 0;
 	}
@@ -2104,6 +2104,11 @@ static struct ConfigStruct *readconfigcache (const char *path)
 		    }
 		}
 	    }
+	}
+
+	if (strlen (cs->Path) > 0 && !dirmode) {
+	    strcat (cs->Path, "\\");
+	    strcat (cs->Fullpath, "\\");
 	}
 
 	if (!dirmode) {

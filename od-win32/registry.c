@@ -359,11 +359,20 @@ int reginitializeinit (const char *ppath)
     char path[MAX_DPATH], fpath[MAX_PATH];
 
     if (!ppath) {
+	int ok = 0;
 	char *posn;
 	strcpy (path, _pgmptr);
-	if((posn = strrchr (path, '\\')))
-	    posn[1] = 0;
-	strcat (path, "winuae.ini");
+	if (strlen (path) > 4 && !stricmp (path + strlen (path) - 4, ".exe")) {
+	    strcpy (path + strlen (path) - 3, "ini");
+	    if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
+		ok = 1;
+	}
+	if (!ok) {
+	    strcpy (path, _pgmptr);
+	    if((posn = strrchr (path, '\\')))
+		posn[1] = 0;
+	    strcat (path, "winuae.ini");
+	}
 	if (GetFileAttributes (path) == INVALID_FILE_ATTRIBUTES)
 	    return 0;
     } else {

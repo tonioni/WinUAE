@@ -260,17 +260,33 @@ static int set_ddraw_2 (void)
 
     if (dxfullscreen)  {
 	for (;;) {
+	    int i, j, got = FALSE;
 	    HRESULT olderr;
+	    struct MultiDisplay *md = getdisplay (&currprefs);
+	    for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+		struct PicassoResolution *pr = &md->DisplayModes[i];
+		if (pr->res.width == width && pr->res.height == height) {
+		    for (j = 0; pr->refresh[j] > 0; j++) {
+			if (pr->refresh[j] == freq)
+			    got = TRUE;
+		    }
+		    break;
+		}
+	    }
+	    if (got == FALSE)
+		freq = 0;
 	    write_log ("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	    if (SUCCEEDED (ddrval))
 		break;
 	    olderr = ddrval;
-	    write_log ("set_ddraw: failed, trying without forced refresh rate\n");
-	    DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
-	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
-	    if (SUCCEEDED (ddrval))
-	        break;
+	    if (freq) {
+		write_log ("set_ddraw: failed, trying without forced refresh rate\n");
+		DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
+		ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
+		if (SUCCEEDED (ddrval))
+		    break;
+	    }
 	    if (olderr != DDERR_INVALIDMODE  && olderr != 0x80004001 && olderr != DDERR_UNSUPPORTEDMODE)
 		goto oops;
 	    return -1;
@@ -2148,6 +2164,7 @@ static BOOL doInit (void)
     init_colors ();
 
 #if defined (GFXFILTER)
+    S2X_free ();
     if ((currentmode->flags & DM_SWSCALE) && !WIN32GFX_IsPicassoScreen ()) {
 	S2X_init (currentmode->native_width, currentmode->native_height,
 	    currentmode->amiga_width, currentmode->amiga_height,

@@ -143,8 +143,7 @@ void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
 
 void S2X_free (void)
 {
-    if (currprefs.leds_on_screen & STATUSLINE_TARGET)
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
+    changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 
     freesurface (tempsurf);
     tempsurf = 0;
@@ -160,8 +159,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     int res_shift;
 
     S2X_free ();
-    if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
-	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+    changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
     if (dd == 32)
 	alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, rc, gc, bc);

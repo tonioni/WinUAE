@@ -1630,7 +1630,7 @@ void m68k_reset (int hardreset)
      */
     regs.pcr = 0;
     if (currprefs.cpu_model == 68060) {
-	regs.pcr = currprefs.fpu_model ? MC68060_PCR : MC68EC060_PCR;
+	regs.pcr = currprefs.fpu_model == 68060 ? MC68060_PCR : MC68EC060_PCR;
 	regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
 	if (kickstart_rom)
 	    regs.pcr |= 2; /* disable FPU */

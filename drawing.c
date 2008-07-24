@@ -1755,32 +1755,6 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
     }
 }
 
-/* Move color changes in horizontal cycles 0 to HBLANK_OFFSET - 1 to previous line.
- * Cycles 0 to HBLANK_OFFSET are visible in right border on real Amigas.
- */
-static void mungedip (int lineno, int next)
-{
-    int i = dip_for_drawing->last_color_change;
-    struct draw_info *dip_for_drawing_next = curr_drawinfo + (lineno + next);
-
-    if (dip_for_drawing_next->first_color_change == 0)
-	dip_for_drawing_next = curr_drawinfo + (lineno + 2);
-    while (i < dip_for_drawing_next->last_color_change) {
-	int regno = curr_color_changes[i].regno;
-	int hpos = curr_color_changes[i].linepos;
-	if (regno < 0)
-	    break;
-	if (hpos >= HBLANK_OFFSET)
-	    break;
-	curr_color_changes[i].linepos += maxhpos + 2;
-	dip_for_drawing->last_color_change++;
-	dip_for_drawing->nr_color_changes++;
-	dip_for_drawing_next->first_color_change++;
-	dip_for_drawing_next->nr_color_changes--;
-	i++;
-    }
-}
-
 enum double_how {
     dh_buf,
     dh_line,
@@ -1796,7 +1770,6 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
     dp_for_drawing = line_decisions + lineno;
     dip_for_drawing = curr_drawinfo + lineno;
-    mungedip (lineno, (dp_for_drawing->bplcon0 & 4) ? 2 : 1);
     switch (linestate[lineno]) {
     case LINE_REMEMBERED_AS_PREVIOUS:
 	if (!warned)

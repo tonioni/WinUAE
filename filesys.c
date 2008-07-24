@@ -397,15 +397,7 @@ static int set_filesys_unit_1 (int nr,
     }
 
     ui = &mountinfo.ui[nr];
-    ui->open = 0;
-    ui->devname = 0;
-    ui->volname = 0;
-    ui->rootdir = 0;
-    ui->unit_pipe = 0;
-    ui->back_pipe = 0;
-    ui->hf.handle_valid = 0;
-    ui->bootpri = 0;
-    ui->filesysdir = 0;
+    memset (ui, 0, sizeof (UnitInfo));
 
     if (volname != NULL) {
 	int flags = 0;
@@ -1916,7 +1908,7 @@ static Unit *startup_create_unit (UnitInfo *uinfo, int num)
     int i;
     Unit *unit, *u;
 
-    unit = (Unit*)xcalloc (sizeof (Unit), 1);
+    unit = xcalloc (sizeof (Unit), 1);
     /* keep list in insertion order */
     u = units;
     if (u) {
@@ -4720,14 +4712,10 @@ void filesys_free_handles(void)
     }
 }
 
-void filesys_reset (void)
+static void filesys_reset2 (void)
 {
     Unit *u, *u1;
 
-    /* We get called once from customreset at the beginning of the program
-     * before filesys_start_threads has been called. Survive that.  */
-    if (savestate_state == STATE_RESTORE)
-	return;
 
     filesys_free_handles ();
     for (u = units; u; u = u1) {
@@ -4741,14 +4729,19 @@ void filesys_reset (void)
     initialize_mountinfo ();
 }
 
-void filesys_prepare_reset (void)
+void filesys_reset (void)
+{
+    if (savestate_state == STATE_RESTORE)
+	return;
+    filesys_reset2 ();
+}
+
+static void filesys_prepare_reset2 (void)
 {
     UnitInfo *uip;
     Unit *u;
     int i;
 
-    if (savestate_state == STATE_RESTORE)
-	return;
     uip = mountinfo.ui;
 #ifdef UAE_FILESYS_THREADS
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
@@ -4771,6 +4764,13 @@ void filesys_prepare_reset (void)
 	u->aino_cache_size = 0;
 	u = u->next;
     }
+}
+
+void filesys_prepare_reset (void)
+{
+    if (savestate_state == STATE_RESTORE)
+	return;
+    filesys_prepare_reset2 ();
 }
 
 static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
@@ -6001,9 +6001,9 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
 uae_u8 *save_filesys_common (int *len)
 {
     uae_u8 *dstbak, *dst;
-    if (nr_units() == 0)
+    if (nr_units () == 0)
 	return NULL;
-    dstbak = dst = (uae_u8*)xmalloc (1000);
+    dstbak = dst = xmalloc (1000);
     save_u32 (2);
     save_u64 (a_uniq);
     save_u64 (key_uniq);
@@ -6015,7 +6015,8 @@ uae_u8 *restore_filesys_common (uae_u8 *src)
 {
     if (restore_u32 () != 2)
 	return src;
-    free_mountinfo();
+    filesys_prepare_reset2 ();
+    filesys_reset2 ();
     a_uniq = restore_u64 ();
     key_uniq = restore_u64 ();
     return src;
@@ -6034,7 +6035,7 @@ uae_u8 *save_filesys (int num, int *len)
     if (type == FILESYS_VIRTUAL && (ui->self == NULL || ui->volname == NULL))
 	return NULL;
     write_log ("FS_FILESYS: '%s' '%s'\n", ui->devname, ui->volname);
-    dstbak = dst = (uae_u8*)xmalloc (100000);
+    dstbak = dst = xmalloc (100000);
     save_u32 (2); /* version */
     save_u32 (ui->devno);
     save_u16 (type);

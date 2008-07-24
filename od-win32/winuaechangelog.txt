@@ -1,4 +1,25 @@
 
+Beta 7:
+
+- PCMCIA SRAM can work as a memory expansion now (it was not possible
+  to execute 68K code in emulated SRAM previously..)
+- configuration files in subdirectories didn't load if configuration
+  cache was enabled
+- "refresh rates in parenthesis" handling fixed
+- on-screen leds do not disappear when switching filters
+- enable ini-mode if <name of winuae.exe>.ini (without .exe) is found
+  (previously winuae.ini was always used)
+- logic analyzer copper timing updates (thanks to yaqube for test
+  program) Not 100% correct yet, there seems to be unknown 2 cycle
+  offset between bitplane dma and copper, and also seems to break
+  Leander's right border (as I expected, something always breaks as
+  long as it isn't 100% full fix)
+- background color changes on very right edge of screen are now
+  visible
+- stop sound while inactive or minimized paused emulation
+- directory filesystem statefile restore didn't work without
+  restarting emulation
+
 Beta 6:
 
 - RAM limit update in previous beta wasn't working..

@@ -135,7 +135,7 @@ extern uae_u8* compiled_code;
 int vpos;
 int hack_vpos;
 static uae_u16 lof;
-static int next_lineno;
+static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0;
 /* Stupid genlock-detection prevention hack.
@@ -258,21 +258,16 @@ static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match
 
 enum copper_states {
     COP_stop,
-    COP_read1_in2,
-    COP_read1_wr_in4,
-    COP_read1_wr_in2,
     COP_read1,
-    COP_read2_wr_in2,
     COP_read2,
     COP_bltwait,
-    COP_wait_in4,
     COP_wait_in2,
-    COP_skip_in4,
     COP_skip_in2,
     COP_wait1,
     COP_wait,
     COP_skip1,
-    COP_strobe_delay
+    COP_strobe_delay1,
+    COP_strobe_delay2
 };
 
 struct copper {
@@ -288,6 +283,7 @@ struct copper {
 
     int strobe; /* COPJMP1 / COPJMP2 accessed */
     int last_write, last_write_hpos;
+    int moveaddr, movedata, movedelay;
 };
 
 static struct copper cop_state;
@@ -408,7 +404,7 @@ STATIC_INLINE void setclr (uae_u16 *p, uae_u16 val)
 	*p &= ~val;
 }
 
-STATIC_INLINE alloc_cycle(int hpos, int type)
+STATIC_INLINE alloc_cycle (int hpos, int type)
 {
 #ifdef CPUEMU_12
 #if 0
@@ -421,6 +417,11 @@ STATIC_INLINE alloc_cycle(int hpos, int type)
 #endif
     cycle_line[hpos] = type;
 #endif
+}
+STATIC_INLINE alloc_cycle_maybe (int hpos, int type)
+{
+    if (cycle_line[hpos] == 0)
+	alloc_cycle (hpos, type);
 }
 
 void alloc_cycle_ext(int hpos, int type)
@@ -1657,14 +1658,22 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	return;
     }
 #endif
+    if (regno < 0x1000 && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
+	struct draw_info *pdip = curr_drawinfo + prev_lineno;
+	int idx = pdip->last_color_change;
+	/* Move color changes in horizontal cycles 0 to HBLANK_OFFSET to end of previous line.
+	 * Cycles 0 to HBLANK_OFFSET are visible in right border on real Amigas. (because of late hsync)
+	 */
+        pdip->last_color_change++;
+        pdip->nr_color_changes++;
+        curr_color_changes[idx].linepos = hpos + maxhpos + 1;
+        curr_color_changes[idx].regno = regno;
+        curr_color_changes[idx].value = value;
+	curr_color_changes[idx + 1].regno = -1;
+    }
     curr_color_changes[next_color_change].linepos = hpos;
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
-    if (hpos < HBLANK_OFFSET) {
-	curr_color_changes[next_color_change].linepos = HBLANK_OFFSET;
-	curr_color_changes[next_color_change].regno = regno;
-	curr_color_changes[next_color_change++].value = value;
-    }
     curr_color_changes[next_color_change].regno = -1;
 }
 
@@ -2241,6 +2250,9 @@ static void finish_decisions (void)
     } else
 	/* The only one that may differ: */
 	dp->ctable = thisline_decision.ctable;
+
+    /* leave free space for possible extra color changes at the end of line */
+    next_color_change += (HBLANK_OFFSET + 1) / 2;
 }
 
 /* Set the state of all decisions to "undecided" for a new scanline. */
@@ -2698,7 +2710,7 @@ static void COPJMP (int num)
     cop_state.ignore_next = 0;
     if (!oldstrobe)
 	cop_state.state_prev = cop_state.state;
-    cop_state.state = COP_read1;
+    cop_state.state = COP_strobe_delay1;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
     copper_enabled_thisline = 0;
@@ -3649,10 +3661,8 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
     return custom_wput_1 (hpos, addr, value, noget);
 }
 
-static void perform_copper_write (int old_hpos)
+static void perform_copper_write (int old_hpos, int address, int data)
 {
-    unsigned int address = cop_state.saved_i1 & 0x1FE;
-
 #ifdef DEBUGGER
     if (debug_copper)
 	record_copper (cop_state.saved_ip - 4, old_hpos, vpos);
@@ -3662,16 +3672,16 @@ static void perform_copper_write (int old_hpos)
 	return;
     if (address == 0x88) {
 	cop_state.ip = cop1lc;
-	cop_state.state = COP_strobe_delay;
+	cop_state.state = COP_strobe_delay1;
     } else if (address == 0x8A) {
 	cop_state.ip = cop2lc;
-	cop_state.state = COP_strobe_delay;
+	cop_state.state = COP_strobe_delay1;
     } else {
-	custom_wput_copper (old_hpos, cop_state.saved_i1, cop_state.saved_i2, 0);
-	cop_state.last_write = cop_state.saved_i1;
+	custom_wput_copper (old_hpos, address, data, 0);
+	cop_state.last_write = address;
 	cop_state.last_write_hpos = old_hpos;
 	old_hpos++;
-	if (!nocustom () && cop_state.saved_i1 >= 0x140 && cop_state.saved_i1 < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
+	if (!nocustom () && address >= 0x140 && address < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
 	    //write_log ("%d:%d %04X:%04X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
 	    do_sprites (old_hpos);
 	}
@@ -3740,73 +3750,55 @@ static void update_copper (int until_hpos)
 	/* So we know about the fetch state.  */
 	decide_line (c_hpos);
 
-	switch (cop_state.state) {
-	case COP_read1_in2:
-	    cop_state.state = COP_read1;
-	    break;
-	case COP_read1_wr_in2:
-	    cop_state.state = COP_read1;
-	    perform_copper_write (old_hpos);
-	    /* That could have turned off the copper.  */
-	    if (! copper_enabled_thisline)
-		goto out;
-
-	    break;
-	case COP_read1_wr_in4:
-	    cop_state.state = COP_read1_wr_in2;
-	    break;
-	case COP_read2_wr_in2:
-	    cop_state.state = COP_read2;
-	    perform_copper_write (old_hpos);
-	    /* That could have turned off the copper.  */
-	    if (! copper_enabled_thisline)
-		goto out;
-
-	    break;
-	case COP_wait_in2:
-	    cop_state.state = COP_wait1;
-	    break;
-	case COP_wait_in4:
-	    cop_state.state = COP_wait_in2;
-	    break;
-	case COP_skip_in2:
-	    cop_state.state = COP_skip1;
-	    break;
-	case COP_skip_in4:
-	    cop_state.state = COP_skip_in2;
-	    break;
-	case COP_strobe_delay:
-	    cop_state.state = COP_read1_in2;
-	    break;
-
-	default:
-	    break;
+	if (cop_state.movedelay > 0) {
+	    cop_state.movedelay--;
+	    if (cop_state.movedelay == 0) {
+	        perform_copper_write (old_hpos, cop_state.moveaddr, cop_state.movedata);
+		if (! copper_enabled_thisline)
+		    goto out;
+	    }
 	}
 
 	c_hpos += 2;
+
 	if (cop_state.strobe) {
 	    if (cop_state.strobe > 0)
 		cop_state.ip = cop_state.strobe == 1 ? cop1lc : cop2lc;
 	    cop_state.strobe = 0;
 	}
 
-	switch (cop_state.state) {
+	switch (cop_state.state)
+	{
 
-	case COP_read1_wr_in4:
-	    uae_abort ("COP_read1_wr_in4");
+	case COP_wait_in2:
+	    if (copper_cant_read (old_hpos))
+		continue;
+	    cop_state.state = COP_wait1;
+	    break;
+	case COP_skip_in2:
+	    if (copper_cant_read (old_hpos))
+		continue;
+	    cop_state.state = COP_skip1;
+	    break;
+	case COP_strobe_delay1:
+	    cop_state.state = COP_strobe_delay2;
+	    alloc_cycle_maybe (old_hpos, CYCLE_COPPER);
+	    break;
+	case COP_strobe_delay2:
+	    if (copper_cant_read (old_hpos))
+		continue;
+	    alloc_cycle (old_hpos, CYCLE_COPPER);
+	    cop_state.state = COP_read1;
+	    break;
 
-	case COP_read1_wr_in2:
 	case COP_read1:
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
-	    cop_state.state = cop_state.state == COP_read1 ? COP_read2 : COP_read2_wr_in2;
+	    cop_state.state = COP_read2;
 	    break;
-
-	case COP_read2_wr_in2:
-	    uae_abort ("read2_wr_in2");
 
 	case COP_read2:
 	    if (copper_cant_read (old_hpos))
@@ -3814,25 +3806,43 @@ static void update_copper (int until_hpos)
 	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
-	    if (cop_state.ignore_next) {
-		cop_state.ignore_next = 0;
-		cop_state.state = COP_read1;
-		break;
-	    }
 
 	    cop_state.saved_i1 = cop_state.i1;
 	    cop_state.saved_i2 = cop_state.i2;
 	    cop_state.saved_ip = cop_state.ip;
 
 	    if (cop_state.i1 & 1) {
+		cop_state.ignore_next = 0;
 		if (cop_state.i2 & 1)
-		    cop_state.state = COP_skip_in4;
+		    cop_state.state = COP_skip_in2;
 		else
-		    cop_state.state = COP_wait_in4;
+		    cop_state.state = COP_wait_in2;
 	    } else {
 		unsigned int reg = cop_state.i1 & 0x1FE;
-		cop_state.state = isagnus[reg >> 1] ? COP_read1_wr_in2 : COP_read1_wr_in4;
+		cop_state.state = COP_read1;
+		cop_state.movedelay = isagnus[reg >> 1] ? 1 : 2;
+		cop_state.movedata = cop_state.i2;
+		if (cop_state.ignore_next) {
+		    test_copper_dangerous (cop_state.moveaddr);
+		    reg = 0x1fe;
+		    cop_state.ignore_next = 0;
+		}
+		cop_state.moveaddr = reg;
+		cop_state.movedelay = 0;
+		if (reg == 0x88) {
+		    cop_state.ip = cop1lc;
+		    cop_state.state = COP_strobe_delay1;
+		} else if (reg == 0x8A) {
+		    cop_state.ip = cop2lc;
+		    cop_state.state = COP_strobe_delay1;
+		} else {
+		    cop_state.movedelay = isagnus[reg >> 1] ? 1 : 2;
+		}
 	    }
+#ifdef DEBUGGER
+	    if (debug_copper)
+		record_copper (cop_state.ip - 4, old_hpos, vpos);
+#endif
 	    break;
 
 	case COP_wait1:
@@ -3874,8 +3884,6 @@ static void update_copper (int until_hpos)
 
 	    /* fall through */
 	case COP_wait:
-	    if (vp < cop_state.vcmp)
-		uae_abort ("vp < cop_state.vcmp");
 	    if (copper_cant_read (old_hpos))
 		continue;
 
@@ -3907,6 +3915,8 @@ static void update_copper (int until_hpos)
 
 	    if (c_hpos >= (maxhpos & ~1))
 		break;
+	    if (copper_cant_read (old_hpos))
+		continue;
 
 	    vcmp = (cop_state.saved_i1 & (cop_state.saved_i2 | 0x8000)) >> 8;
 	    hcmp = (cop_state.saved_i1 & cop_state.saved_i2 & 0xFE);
@@ -3916,19 +3926,7 @@ static void update_copper (int until_hpos)
 	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp))
 		&& ((cop_state.saved_i2 & 0x8000) != 0 || ! (DMACONR() & 0x4000)))
 		cop_state.ignore_next = 1;
-	    if (chipmem_agnus_wget (cop_state.ip) & 1) { /* FIXME: HACK!!! */
-		/* copper never skips if following instruction is WAIT or another SKIP... */
-		cop_state.ignore_next = 0;
-	    }
-
 	    cop_state.state = COP_read1;
-
-	    if (cop_state.ignore_next && (chipmem_agnus_wget (cop_state.ip) & 1) == 0) {
-		/* another undocumented copper feature:
-		   copper stops if skipped instruction is MOVE to dangerous register...
-		*/
-		test_copper_dangerous (chipmem_agnus_wget (cop_state.ip));
-	    }
 
 #ifdef DEBUGGER
 	    if (debug_copper)
@@ -4244,6 +4242,7 @@ static void init_hardware_frame (void)
 {
     first_bpl_vpos = -1;
     next_lineno = 0;
+    prev_lineno = -1;
     nextline_how = nln_normal;
     diwstate = DIW_waiting_start;
     hdiwstate = DIW_waiting_start;
@@ -4556,7 +4555,7 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
-	alloc_cycle (1, CYCLE_REFRESH); /* strobe */
+	alloc_cycle (1, CYCLE_REFRESH);
 	alloc_cycle (3, CYCLE_REFRESH);
 	alloc_cycle (5, CYCLE_REFRESH);
 	alloc_cycle (7, CYCLE_REFRESH);
@@ -4671,6 +4670,7 @@ static void hsync_handler (void)
 		}
 	    }
 	}
+	prev_lineno = next_lineno;
 	next_lineno = lineno;
 	reset_decisions ();
     }

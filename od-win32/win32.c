@@ -327,13 +327,25 @@ static void setcursor(int oldx, int oldy)
 }
 
 static int pausemouseactive;
-void resumepaused (void)
+void resumesoundpaused (void)
 {
     resume_sound ();
 #ifdef AHI
     ahi_open_sound ();
     ahi2_pause_sound (0);
 #endif
+}
+void setsoundpaused (void)
+{
+    pause_sound ();
+#ifdef AHI
+    ahi_close_sound ();
+    ahi2_pause_sound (1);
+#endif
+}
+void resumepaused (void)
+{
+    resumesoundpaused ();
 #ifdef CD32
     akiko_exitgui ();
 #endif
@@ -348,15 +360,10 @@ void resumepaused (void)
     rp_pause (pause_emulation);
 #endif
 }
-
 void setpaused (void)
 {
     pause_emulation = TRUE;
-    pause_sound ();
-#ifdef AHI
-    ahi_close_sound ();
-    ahi2_pause_sound (1);
-#endif
+    setsoundpaused ();
 #ifdef CD32
     akiko_entergui ();
 #endif
@@ -519,7 +526,7 @@ static void winuae_active (HWND hWnd, int minimized)
 {
     struct threadpriorities *pri;
 
-    write_log ("winuae_active(%d)\n", minimized);
+//    write_log ("winuae_active(%d)\n", minimized);
     /* without this returning from hibernate-mode causes wrong timing
      */
     timeend ();
@@ -538,7 +545,10 @@ static void winuae_active (HWND hWnd, int minimized)
         clear_inhibit_frame (IHF_WINDOWHIDDEN);
     }
     if (sound_closed) {
-	resumepaused ();
+	if (sound_closed < 0)
+	    resumesoundpaused ();
+	else
+	    resumepaused ();
 	sound_closed = 0;
     }
     if (WIN32GFX_IsPicassoScreen ())
@@ -561,7 +571,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     struct threadpriorities *pri;
     int wasfocus = focus;
 
-    write_log ("winuae_inactive(%d)\n", minimized);
+//    write_log ("winuae_inactive(%d)\n", minimized);
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -572,22 +582,23 @@ static void winuae_inactive (HWND hWnd, int minimized)
     if (!quit_program) {
 	if (minimized) {
 	    pri = &priorities[currprefs.win32_iconified_priority];
-	    if (currprefs.win32_iconified_nosound) {
-		setpaused ();
+	    if (currprefs.win32_iconified_pause) {
+	        setpaused ();
 		sound_closed = 1;
+	    } else if (currprefs.win32_iconified_nosound) {
+		setsoundpaused ();
+		sound_closed = -1;
 	    }
 	    if (!avioutput_video) {
 		set_inhibit_frame (IHF_WINDOWHIDDEN);
 	    }
-	    if (currprefs.win32_iconified_pause) {
-		if (!sound_closed)
-		    setpaused ();
-		sound_closed = 1;
-	    }
 	} else {
-	    if (currprefs.win32_inactive_nosound) {
+	    if (currprefs.win32_inactive_pause) {
 		setpaused ();
 		sound_closed = 1;
+	    } else if (currprefs.win32_inactive_nosound) {
+		setsoundpaused ();
+		sound_closed = -1;
 	    }
 	}
     }

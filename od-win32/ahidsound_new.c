@@ -83,31 +83,6 @@ static int ahi_debug = 1;
 #define FUNCMODE_RECORD 2
 #define FUNCMODE_RECORDALLOC 4
 
-#define ahiac_AudioCtrl 0
-#define ahiac_Flags ahiac_AudioCtrl + 4
-#define ahiac_SoundFunc ahiac_Flags + 4
-#define ahiac_PlayerFunc ahiac_SoundFunc + 4
-#define ahiac_PlayerFreq ahiac_PlayerFunc + 4
-#define ahiac_MinPlayerFreq ahiac_PlayerFreq + 4
-#define ahiac_MaxPlayerFreq ahiac_MinPlayerFreq + 4
-#define ahiac_MixFreq ahiac_MaxPlayerFreq + 4
-#define ahiac_Channels ahiac_MixFreq + 4
-#define ahiac_Sounds ahiac_Channels + 2
-#define ahiac_DriverData ahiac_Sounds + 2
-#define ahiac_MixerFunc ahiac_DriverData + 4
-#define ahiac_SamplerFunc ahiac_MixerFunc + 4 
-#define ahiac_Obsolete ahiac_SamplerFunc + 4 
-#define ahiac_BuffSamples ahiac_Obsolete + 4 
-#define ahiac_MinBuffSamples ahiac_BuffSamples + 4 
-#define ahiac_MaxBuffSamples ahiac_MinBuffSamples + 4 
-#define ahiac_BuffSize ahiac_MaxBuffSamples + 4 
-#define ahiac_BuffType ahiac_BuffSize + 4 
-#define ahiac_PreTimer ahiac_BuffType + 4 
-#define ahiac_PostTimer ahiac_PreTimer + 4 
-#define ahiac_AntiClickSamples ahiac_PostTimer + 4 
-#define ahiac_PreTimerFunc ahiac_AntiClickSamples + 4 
-#define ahiac_PostTimerFunc ahiac_PreTimerFunc + 4 
-
 #define ahie_Effect 0
 #define ahieci_Func 4
 #define ahieci_Channels 8
@@ -157,6 +132,31 @@ struct AHIAudioCtrlDrv
 	struct Hook *ahiac_PreTimerFunc;        /* A Hook wrapper for ahiac_PreTimer (V6) */
 	struct Hook *ahiac_PostTimerFunc;       /* A Hook wrapper for ahiac_PostTimer (V6) */
 #endif
+
+#define ahiac_AudioCtrl 0
+#define ahiac_Flags ahiac_AudioCtrl + 4
+#define ahiac_SoundFunc ahiac_Flags + 4
+#define ahiac_PlayerFunc ahiac_SoundFunc + 4
+#define ahiac_PlayerFreq ahiac_PlayerFunc + 4
+#define ahiac_MinPlayerFreq ahiac_PlayerFreq + 4
+#define ahiac_MaxPlayerFreq ahiac_MinPlayerFreq + 4
+#define ahiac_MixFreq ahiac_MaxPlayerFreq + 4
+#define ahiac_Channels ahiac_MixFreq + 4
+#define ahiac_Sounds ahiac_Channels + 2
+#define ahiac_DriverData ahiac_Sounds + 2
+#define ahiac_MixerFunc ahiac_DriverData + 4
+#define ahiac_SamplerFunc ahiac_MixerFunc + 4 
+#define ahiac_Obsolete ahiac_SamplerFunc + 4 
+#define ahiac_BuffSamples ahiac_Obsolete + 4 
+#define ahiac_MinBuffSamples ahiac_BuffSamples + 4 
+#define ahiac_MaxBuffSamples ahiac_MinBuffSamples + 4 
+#define ahiac_BuffSize ahiac_MaxBuffSamples + 4 
+#define ahiac_BuffType ahiac_BuffSize + 4 
+#define ahiac_PreTimer ahiac_BuffType + 4 
+#define ahiac_PostTimer ahiac_PreTimer + 4 
+#define ahiac_AntiClickSamples ahiac_PostTimer + 4 
+#define ahiac_PreTimerFunc ahiac_AntiClickSamples + 4 
+#define ahiac_PostTimerFunc ahiac_PreTimerFunc + 4 
 
 /* AHIsub_AllocAudio return flags */
 #define AHISF_ERROR		(1<<0)
@@ -217,36 +217,6 @@ struct AHIAudioCtrlDrv
 
 #define AHI_TagBase		(0x80000000)
 #define AHI_TagBaseR		(AHI_TagBase|0x8000)
-
- /* AHI_AllocAudioA tags */
-#define AHIA_AudioID		(AHI_TagBase+1)		/* Desired audio mode */
-#define AHIA_MixFreq		(AHI_TagBase+2)		/* Suggested mixing frequency */
-#define AHIA_Channels		(AHI_TagBase+3)		/* Suggested number of channels */
-#define AHIA_Sounds		(AHI_TagBase+4)		/* Number of sounds to use */
-#define AHIA_SoundFunc		(AHI_TagBase+5)		/* End-of-Sound Hook */
-#define AHIA_PlayerFunc		(AHI_TagBase+6)		/* Player Hook */
-#define AHIA_PlayerFreq		(AHI_TagBase+7)		/* Frequency for player Hook (Fixed)*/
-#define AHIA_MinPlayerFreq	(AHI_TagBase+8)		/* Minimum Frequency for player Hook */
-#define AHIA_MaxPlayerFreq	(AHI_TagBase+9)		/* Maximum Frequency for player Hook */
-#define AHIA_RecordFunc		(AHI_TagBase+10)	/* Sample recording Hook */
-#define AHIA_UserData		(AHI_TagBase+11)	/* What to put in ahiac_UserData */
-#define AHIA_AntiClickSamples	(AHI_TagBase+13)	/* # of samples to smooth (V6)	*/
-
-  /* AHI_PlayA tags (V4) */
-#define AHIP_BeginChannel	(AHI_TagBase+40)	/* All command tags should be... */
-#define AHIP_EndChannel		(AHI_TagBase+41)	/* ... enclosed by these tags. */
-#define AHIP_Freq		(AHI_TagBase+50)
-#define AHIP_Vol		(AHI_TagBase+51)
-#define AHIP_Pan		(AHI_TagBase+52)
-#define AHIP_Sound		(AHI_TagBase+53)
-#define AHIP_Offset		(AHI_TagBase+54)
-#define AHIP_Length		(AHI_TagBase+55)
-#define AHIP_LoopFreq		(AHI_TagBase+60)
-#define AHIP_LoopVol		(AHI_TagBase+61)
-#define AHIP_LoopPan		(AHI_TagBase+62)
-#define AHIP_LoopSound		(AHI_TagBase+63)
-#define AHIP_LoopOffset		(AHI_TagBase+64)
-#define AHIP_LoopLength		(AHI_TagBase+65)
 
  /* AHI_ControlAudioA tags */
 #define AHIC_Play		(AHI_TagBase+80)	/* Boolean */
@@ -313,45 +283,6 @@ struct AHIAudioCtrlDrv
 /* --- New for V6, they will be ignored by V4 and earlier --- */
 #define AHIDB_MultiChannel	(AHI_TagBase+144)	/* Boolean */
 
- /* AHI_BestAudioIDA tags */
-/* --- New for V4, they will be ignored by V2 and earlier --- */
-#define AHIB_Dizzy		(AHI_TagBase+190)
-
- /* AHI_AudioRequestA tags */
-	/* Window control */
-#define AHIR_Window		(AHI_TagBase+200)	/* Parent window */
-#define AHIR_Screen		(AHI_TagBase+201)	/* Screen to open on if no window */
-#define AHIR_PubScreenName	(AHI_TagBase+202)	/* Name of public screen */
-#define AHIR_PrivateIDCMP	(AHI_TagBase+203)	/* Allocate private IDCMP? */
-#define AHIR_IntuiMsgFunc	(AHI_TagBase+204)	/* Function to handle IntuiMessages */
-#define AHIR_SleepWindow	(AHI_TagBase+205)	/* Block input in AHIR_Window? */
-#define AHIR_ObsoleteUserData	(AHI_TagBase+206)	/* V4 UserData */
-#define AHIR_UserData		(AHI_TagBase+207)	/* What to put in ahiam_UserData (V6) */
-	/* Text display */
-#define AHIR_TextAttr		(AHI_TagBase+220)	/* Text font to use for gadget text */
-#define AHIR_Locale		(AHI_TagBase+221)	/* Locale to use for text */
-#define AHIR_TitleText		(AHI_TagBase+222)	/* Title of requester */
-#define AHIR_PositiveText	(AHI_TagBase+223)	/* Positive gadget text */
-#define AHIR_NegativeText	(AHI_TagBase+224)	/* Negative gadget text */
-	/* Initial settings */
-#define AHIR_InitialLeftEdge	(AHI_TagBase+240)	/* Initial requester coordinates */
-#define AHIR_InitialTopEdge	(AHI_TagBase+241)
-#define AHIR_InitialWidth	(AHI_TagBase+242)	/* Initial requester dimensions */
-#define AHIR_InitialHeight	(AHI_TagBase+243)
-#define AHIR_InitialAudioID	(AHI_TagBase+244)	/* Initial audio mode id */
-#define AHIR_InitialMixFreq	(AHI_TagBase+245)	/* Initial mixing/sampling frequency */
-#define AHIR_InitialInfoOpened	(AHI_TagBase+246)	/* Info window initially opened? */
-#define AHIR_InitialInfoLeftEdge (AHI_TagBase+247)	/* Initial Info window coords. */
-#define AHIR_InitialInfoTopEdge (AHI_TagBase+248)
-#define AHIR_InitialInfoWidth	(AHI_TagBase+249)	/* Not used! */
-#define AHIR_InitialInfoHeight	(AHI_TagBase+250)	/* Not used! */
-	/* Options */
-#define AHIR_DoMixFreq		(AHI_TagBase+260)	/* Allow selection of mixing frequency? */
-#define AHIR_DoDefaultMode	(AHI_TagBase+261)	/* Allow selection of default mode? (V4) */
-	/* Filtering */
-#define AHIR_FilterTags		(AHI_TagBase+270)	/* Pointer to filter taglist */
-#define AHIR_FilterFunc		(AHI_TagBase+271)	/* Function to filter mode id's */
-
 /* Sound Types */
 #define AHIST_NOTYPE		(~0UL)			/* Private */
 #define AHIST_SAMPLE		(0UL)			/* 8 or 16 bit sample */
@@ -369,7 +300,6 @@ struct AHIAudioCtrlDrv
 #define AHIST_S16S		(3UL)			/* Stereo, 16 bit signed (2×WORD) */
 #define AHIST_M32S		(8UL)			/* Mono, 32 bit signed (LONG) */
 #define AHIST_S32S		(10UL)			/* Stereo, 32 bit signed (2×LONG) */
-
 #define AHIST_M8U		(4UL)			/* OBSOLETE! */
 #define AHIST_L7_1		(0x00c3000aUL)		/* 7.1, 32 bit signed (8×LONG) */
 
@@ -394,15 +324,21 @@ struct dssample {
     uae_u32 offset;
 };
 
+struct chsample {
+    int frequency;
+    int volume;
+    int panning;
+    int backwards;
+    struct dssample *ds;
+    int srcplayoffset;
+    int srcplaylen;
+    int stopit;
+};
+
 struct dschannel {
     int num;
-    int frequency, nextfrequency;
-    int volume, nextvolume;
-    int panning, nextpanning;
-    int backwards;
-    struct dssample *ds, *nextds;
-    int srcplayoffset, nextsrcplayoffset;
-    int srcplaylen, nextsrcplaylen;
+    struct chsample cs;
+    struct chsample csnext;
     LPDIRECTSOUNDBUFFER8 dsb;
 
     uae_u8 *buffer;
@@ -600,7 +536,6 @@ static void ds_freechannel (struct DSAHI *ahidsp, struct dschannel *dc)
 	IDirectSoundBuffer8_Release (dc->dsb);
     xfree (dc->buffer);
     memset (dc, 0, sizeof (struct dschannel));
-    dc->ds = NULL;
 }
 
 static void ds_free (struct DSAHI *dsahip)
@@ -708,10 +643,10 @@ static int ds_init (struct DSAHI *dsahip)
     fillsupportedmodes (dsahip->DS, default_freq, supportedmodes);
     dsahip->chout = 2;
     if (SUCCEEDED (IDirectSound8_GetSpeakerConfig (dsahip->DS, &speakerconfig))) {
-	if (speakerconfig >= DSSPEAKER_5POINT1) {
+	if (speakerconfig >= DSSPEAKER_CONFIG (DSSPEAKER_5POINT1)) {
 	    cansurround = 1;
 	    dsahip->chout = 6;
-	    if (speakerconfig >= DSSPEAKER_7POINT1)
+	    if (speakerconfig >= DSSPEAKER_CONFIG (DSSPEAKER_7POINT1))
 		dsahip->chout = 8;
 	}
     }
@@ -721,7 +656,8 @@ static int ds_init (struct DSAHI *dsahip)
     dsahip->channellength = 65536 * dsahip->chout * dsahip->bytespersampleout;
     dsahip->mixlength = 4000 * dsahip->chout * dsahip->bytespersampleout;
     if (ahi_debug)
-	write_log("AHI: CH=%d BLEN=%d MLEN=%d\n", dsahip->chout, dsahip->channellength, dsahip->mixlength);
+	write_log("AHI: CH=%d BLEN=%d MLEN=%d SC=%08x\n",
+	    dsahip->chout, dsahip->channellength, dsahip->mixlength, speakerconfig);
 
     memset (&DSCaps, 0, sizeof (DSCaps));
     DSCaps.dwSize = sizeof (DSCaps);
@@ -770,33 +706,33 @@ static void ds_setvolume (struct DSAHI *dsahip, struct dschannel *dc)
     LONG vol, pan;
 
     if (dc->dsb) {
-	if (abs (dc->volume) != abs (dc->nextvolume)) {
-	    vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (abs (dc->nextvolume) / 65536.0)));
+	if (abs (dc->cs.volume) != abs (dc->csnext.volume)) {
+	    vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (abs (dc->csnext.volume) / 65536.0)));
 	    hr = IDirectSoundBuffer_SetVolume (dc->dsb, vol);
 	    if (FAILED (hr))
 		write_log ("AHI: SetVolume(%d,%d) failed: %s\n", dc->num, vol, DXError (hr));
 	}
-	if (abs (dc->panning) != abs (dc->nextpanning)) {
-	    pan = (abs (dc->nextpanning) - 0x8000) * DSBPAN_RIGHT / 32768;
+	if (abs (dc->cs.panning) != abs (dc->csnext.panning)) {
+	    pan = (abs (dc->csnext.panning) - 0x8000) * DSBPAN_RIGHT / 32768;
 	    hr = IDirectSoundBuffer_SetPan (dc->dsb, pan);
 	    if (FAILED (hr))
 		write_log ("AHI: SetPan(%d,%d) failed: %s\n", dc->num, pan, DXError (hr));
 	}
     }
-    dc->volume = dc->nextvolume;
-    dc->panning = dc->nextpanning;
+    dc->cs.volume = dc->csnext.volume;
+    dc->cs.panning = dc->csnext.panning;
 }
 
 static void ds_setfreq (struct DSAHI *dsahip, struct dschannel *dc)
 {
     HRESULT hr;
 
-    if (dc->frequency != dc->nextfrequency && dc->nextfrequency > 0 && dc->dsb) {
-	hr = IDirectSoundBuffer8_SetFrequency (dc->dsb, dc->nextfrequency);
+    if (dc->cs.frequency != dc->csnext.frequency && dc->csnext.frequency > 0 && dc->dsb) {
+	hr = IDirectSoundBuffer8_SetFrequency (dc->dsb, dc->csnext.frequency);
 	if (FAILED (hr))
-	    write_log ("AHI: SetFrequency(%d,%d) failed: %s\n", dc->num, dc->nextfrequency, DXError (hr));
+	    write_log ("AHI: SetFrequency(%d,%d) failed: %s\n", dc->num, dc->csnext.frequency, DXError (hr));
     }
-    dc->frequency = dc->nextfrequency;
+    dc->cs.frequency = dc->csnext.frequency;
 }
 
 static int ds_allocchannel (struct DSAHI *dsahip, struct dschannel *dc)
@@ -869,9 +805,9 @@ static int ds_allocchannel (struct DSAHI *dsahip, struct dschannel *dc)
     IDirectSound_Release (pdsb);
     dc->dsb = pdsb8;
 
-    dc->frequency = -1;
-    dc->volume = -1;
-    dc->panning = -1;
+    dc->cs.frequency = -1;
+    dc->cs.volume = -1;
+    dc->cs.panning = -1;
     ds_setvolume (dsahip, dc);
     ds_setfreq (dsahip, dc);
     dc->mixlength = dsahip->mixlength;
@@ -894,7 +830,7 @@ STATIC_INLINE void makexch (struct DSAHI *dsahip, struct dschannel *dc, uae_u8 *
 	uae_s16 *dst2 = (uae_u16*)(&dst[idx * och2]);
 	l >>= 8;
 	r >>= 8;
-	if (dc->volume < 0) {
+	if (dc->cs.volume < 0) {
 	    l = -l;
 	    r = -r;
 	}
@@ -904,7 +840,7 @@ STATIC_INLINE void makexch (struct DSAHI *dsahip, struct dschannel *dc, uae_u8 *
 	    return;
 	dst2[4] = dst2[0];
 	dst2[5] = dst2[1];
-	if (dc->panning < 0) {
+	if (dc->cs.panning < 0) {
 	    // surround only
 	    dst2[2] = 0; // center
 	    dst2[3] = (dst2[0] + dst2[1]) / 4; // lfe
@@ -1193,7 +1129,7 @@ static int ds_copysample (struct DSAHI *dsahip, struct dschannel *dc)
 static int calcdelay (struct dschannel *dc, int len)
 {
     int rate = vblank_hz * maxvpos;
-    int freq = dc->frequency;
+    int freq = dc->cs.frequency;
     int hsyncs = rate * len / freq;
     hsyncs = hsyncs * 2 / 3;
     if (hsyncs > 0)
@@ -1201,18 +1137,19 @@ static int calcdelay (struct dschannel *dc, int len)
     return hsyncs;
 }
 
+#if 0
 static void checkvolfreq (struct DSAHI *dsahip, struct dschannel *dc)
 {
-    if (dc->frequency != dc->nextfrequency)
+    if (dc->cs.frequency != dc->csnext.frequency)
 	ds_setfreq (dsahip, dc);
-    if (dc->volume != dc->nextvolume || dc->panning != dc->nextpanning)
+    if (dc->cs.volume != dc->csnext.volume || dc->cs.panning != dc->csnext.panning)
 	ds_setvolume (dsahip, dc);
 }
 
 static void getmixbufferlen (struct DSAHI *dsahip, struct dschannel *dc)
 {
     int olen = dc->mixlength;
-    dc->mixlength = (dc->nextfrequency / 24) * dsahip->bytespersampleout * dsahip->chout;
+    dc->mixlength = (dc->csnext.frequency / 24) * dsahip->bytespersampleout * dsahip->chout;
     if (dc->mixlength > dsahip->mixlength)
 	dc->mixlength = dsahip->mixlength;
     if (dc->mixlength < 100)
@@ -1240,7 +1177,7 @@ static void copysample (struct DSAHI *dsahip, struct dschannel *dc)
     dstlenbytes = dc->mixlength - dc->buffercursor;
     dstlen = dstlenbytes / chbytesout;
     
-    ds = dc->ds;
+    ds = dc->cs.ds;
     if (ds == NULL) {
 	ds = dc->ds = dc->nextds;
 	dc->srcplaylen = dc->nextsrcplaylen;
@@ -1336,16 +1273,42 @@ empty:
     dc->buffercursor += dstlenbytes;
     checkvolfreq (dsahip, dc);
 }
+#endif
+
+static void incchannel (struct DSAHI *dsahip, struct dschannel *dc, int samplecnt)
+{
+    struct chsample *cs = &dc->cs;
+
+    if (cs->ds == NULL)
+	return;
+    dc->srcoffset += samplecnt;
+    while (dc->srcoffset >= cs->srcplaylen) {
+	dc->srcoffset -= cs->srcplaylen;
+        setchannelevent (dsahip, dc);
+	if (dc->csnext.stopit) {
+	    memset (cs, 0, sizeof (struct chsample));
+	    memset (&dc->csnext, 0, sizeof (struct chsample));
+	    dc->srcoffset = 0;
+	    return;
+	}
+	if (dc->csnext.ds) {
+	    memcpy (cs, &dc->csnext, sizeof (struct chsample));
+	    memset (&dc->csnext, 0, sizeof (struct chsample));
+	    continue;
+	}
+    }
+}
 
 void ahi_hsync (void)
 {
     struct DSAHI *dsahip = &dsahi[0];
     static int cnt;
-    uae_u32 pbase = get_long (dsahip->audioctrl + ahiac_DriverData);
+    uae_u32 pbase;
     int i, flags;
 
-    if (ahi_paused)
+    if (ahi_paused || !ahi_active)
 	return;
+    pbase = get_long (dsahip->audioctrl + ahiac_DriverData);
     if (cnt >= 0)
 	cnt--;
     if (cnt < 0) {
@@ -1359,6 +1322,43 @@ void ahi_hsync (void)
     flags = get_long (pbase + pub_ChannelSignalAck);
     for (i = 0; i < UAE_MAXCHANNELS; i++) {
 	struct dschannel *dc = &dsahip->channel[i];
+	HRESULT hr;
+	DWORD playc, writec, diff, samplediff;
+
+	if (dc->dsb == NULL)
+	    continue;
+	if (dc->dsplaying == 0)
+	    continue;
+        hr = IDirectSoundBuffer8_GetCurrentPosition (dc->dsb, &playc, &writec);
+	if (FAILED (hr)) {
+	    write_log ("AHI: GetCurrentPosition(%d) failed, %s\n", dc->num, DXError (hr));
+	    continue;
+	}
+	if (dc->dscursor >= writec)
+	    diff = dc->dscursor - writec;
+	else
+	    diff = dsahip->channellength - writec + dc->dscursor;
+	if (diff > dsahip->channellength / 2) {
+	    dc->dscursor = writec + dc->mixlength;
+	    write_log ("AHI: Resync %d\n", dc->num);
+	}
+
+	if (dc->dscursor < 0) {
+	    dc->dscursor = writec;
+	    memcpy (&dc->cs, &dc->csnext, sizeof (struct chsample));
+	}
+	samplediff = diff / (dsahip->chout * dsahip->bytespersampleout);
+	incchannel (dsahip, dc, samplediff);
+//	copysample (dsahip, dc, &dc->cs);
+
+
+
+
+	if (diff > dc->mixlength)
+	    continue;
+
+
+#if 0
 	if (dc->buffer == NULL)
 	    continue;
 	if (dc->hsync > 0) {
@@ -1384,6 +1384,7 @@ void ahi_hsync (void)
 		dc->hsync = 100;
 	    }
 	}
+#endif
     }
     put_long (pbase + pub_ChannelSignalAck, flags);
 }
@@ -1436,7 +1437,7 @@ static void ds_play (struct DSAHI *dsahip, struct dschannel *dc)
 	return;
     if (dc->dsplaying)
 	return;
-    if (dc->frequency == 0)
+    if (dc->cs.frequency == 0)
 	return;
     dc->dsplaying = 1;
     if (ahi_debug)
@@ -1804,8 +1805,8 @@ static uae_u32 AHIsub_SetVol (TrapContext *ctx)
 	write_log ("AHI: SetVol(%d,%d,%d,%08x,%08x)\n",
 	    channel, volume, pan, audioctrl, flags);
     if (dc) {
-	dc->nextvolume = volume;
-	dc->nextpanning = pan;
+	dc->csnext.volume = volume;
+	dc->csnext.panning = pan;
 	if (flags & AHISF_IMM) {
 	    ds_setvolume (dsahip, dc);
 	}
@@ -1826,7 +1827,7 @@ static uae_u32 AHIsub_SetFreq (TrapContext *ctx)
 	write_log ("AHI: SetFreq(%d,%d,%08x,%08x)\n",
 	    channel, frequency, audioctrl, flags);
     if (dc) {
-	dc->nextfrequency = frequency;
+	dc->csnext.frequency = frequency;
 	if (flags & AHISF_IMM) {
 	    ds_setfreq (dsahip, dc);
 	    ds_play (dsahip, dc);
@@ -1851,31 +1852,32 @@ static uae_u32 AHIsub_SetSound (TrapContext *ctx)
 	write_log ("AHI: SetSound(%d,%d,%08x,%d,%08x,%08x)\n",
 	    channel, sound, offset, length, audioctrl, flags);
     if (dc == NULL)
-	return 0;
+	return AHIE_UNKNOWN;
+    if (ds->num < 0)
+	return AHIE_UNKNOWN;
     if (sound == 0xffff) {
 	if (flags & AHISF_IMM) {
-	    dc->ds = NULL;
-	    dc->nextds = NULL;
+	    dc->cs.ds = NULL;
+	    dc->csnext.ds = NULL;
 	}
-	dc->nextsrcplaylen = -1;
+	dc->csnext.srcplaylen = -1;
 	return 0;
     }
     ds_allocchannel (dsahip, dc);
-    dc->backwards = length < 0;
+    dc->cs.backwards = length < 0;
     length = abs (length);
     if (length == 0)
         length = ds->len;
     if (length > ds->len)
 	length = ds->len;
-    dc->nextds = ds;
-    dc->nextsrcplaylen = length;
-    dc->nextsrcplayoffset = offset;
+    dc->csnext.ds = ds;
+    dc->csnext.srcplaylen = length;
+    dc->csnext.srcplayoffset = offset;
     if (flags & AHISF_IMM)
-	dc->ds = NULL;
-    if (dc->ds == NULL) {
+	dc->cs.ds = NULL;
+    if (dc->cs.ds == NULL) {
 	dc->buffercursor = 0;
 	dc->hsync = 0;
-	getmixbufferlen (dsahip, dc);
     }
     ds_setfreq (dsahip, dc);
     ds_setvolume (dsahip, dc);
@@ -1992,6 +1994,7 @@ static uae_u32 AHIsub_UnloadSound (TrapContext *ctx)
     if (ahi_debug)
 	write_log ("AHI: UnloadSound(%d,%08x)\n",
 	    sound, audioctrl);
+    ds->num = -1;
     return AHIE_OK;
 }
 
