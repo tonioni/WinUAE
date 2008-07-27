@@ -1,4 +1,17 @@
 
+Beta 8:
+
+- PAL filter preset fixed
+- fixed random copper problem introduced in b7
+- Direct3D filter updated to full D3D9, added pixel shader filter
+  support (http://www.si-gamer.net/gulikoza/) Pixel shader files
+  included with beta. Some filters will require PS3.0, some work with
+  PS2.0. Check the log for possible error messages. Pixel shader filters
+  are "free" as long as display card is modern enough.
+  NOTE: this beta may need recent DX9 redistributable, I'll try to
+  fix this later.. NOTE: on the fly switching can crash
+- include hardfile name in IDE identification command
+
 Beta 7:
 
 - PCMCIA SRAM can work as a memory expansion now (it was not possible

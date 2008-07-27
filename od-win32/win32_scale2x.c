@@ -204,16 +204,19 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	temp_width = dst_width;
     if (temp_height < dst_height)
 	temp_height = dst_height;
-    tempsurf = allocsurface (temp_width, temp_height);
-    if (!tempsurf)
-	write_log ("DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
 
     if (usedfilter->type == UAE_FILTER_HQ) {
 	int w = amiga_width > dst_width ? amiga_width : dst_width;
 	int h = amiga_height > dst_height ? amiga_height : dst_height;
 	tempsurf2 = xmalloc (w * h * (amiga_depth / 8) * ((scale + 1) / 2));
 	tempsurf3 = xmalloc (w * h *(dst_depth / 8) * 4 * scale);
+	tempsurf = allocsystemsurface (temp_width, temp_height);
+    } else {
+        tempsurf = allocsurface (temp_width, temp_height);
     }
+    if (!tempsurf)
+        write_log ("DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
+
 }
 
 void S2X_render (void)

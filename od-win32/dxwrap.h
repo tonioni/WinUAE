@@ -95,6 +95,7 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc);
 void unlocksurface (LPDIRECTDRAWSURFACE7 surf);
 HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf);
 LPDIRECTDRAWSURFACE7 allocsurface (int width, int height);
+LPDIRECTDRAWSURFACE7 allocsystemsurface (int width, int height);
 LPDIRECTDRAWSURFACE7 createsurface (uae_u8 *ptr, int pitch, int width, int height);
 void freesurface (LPDIRECTDRAWSURFACE7 surf);
 void DirectDraw_FreeMainSurface (void);
@@ -138,7 +139,6 @@ HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal);
 
 void dx_check (void);
 int dx_islost (void);
-int dx_testck (void);
 
 #define DDFORCED_NONLOCAL 0
 #define DDFORCED_DEFAULT 1

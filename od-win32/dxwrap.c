@@ -166,9 +166,9 @@ static void setsurfacecap (DDSURFACEDESC2 *desc, int w, int h, int mode)
     if (mode >= DDFORCED_DEFAULT)
         desc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
     if (mode == DDFORCED_VIDMEM)
-        desc->ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
+        desc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY;
     if (w > dxcaps.maxwidth || h > dxcaps.maxheight || mode == DDFORCED_SYSMEM)
-        desc->ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
+        desc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
     desc->dwWidth = w;
     desc->dwHeight = h;
 }
@@ -179,7 +179,7 @@ STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
 }
 
 static char *alloctexts[] = { "NonLocalVRAM", "DefaultRAM", "VRAM", "RAM" };
-LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pitch, int ck, int forcemode)
+static LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pitch, int ck, int forcemode)
 {
     HRESULT ddrval;
     DDSURFACEDESC2 desc;
@@ -248,6 +248,10 @@ LPDIRECTDRAWSURFACE7 allocsurface (int width, int height)
 {
     return allocsurface_2 (width, height, FALSE);
 }
+LPDIRECTDRAWSURFACE7 allocsystemsurface (int width, int height)
+{
+    return allocsurface_3 (width, height, NULL, 0, FALSE, DDFORCED_SYSMEM);
+}
 
 LPDIRECTDRAWSURFACE7 createsurface (uae_u8 *ptr, int pitch, int width, int height)
 {
@@ -265,6 +269,7 @@ void DirectDraw_FreeMainSurface (void)
     freemainsurface ();
 }
 
+#if 0
 static int testck2 (LPDIRECTDRAWSURFACE7 tmp, RECT *r)
 {
     DDSURFACEDESC2 desc;
@@ -322,6 +327,7 @@ int dx_testck (void)
     }
     return 1;
 }
+#endif
 
 static void createcursorsurface (void)
 {
@@ -337,7 +343,6 @@ static void createcursorsurface (void)
 	clearsurf (dxdata.cursorsurface2, 0);
     if (dxdata.statussurface)
 	clearsurf (dxdata.statussurface, 0);
-    dx_testck ();
 }
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)

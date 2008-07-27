@@ -313,7 +313,6 @@ static int set_ddraw_2 (void)
 	    DirectDraw_CreatePalette (currentmode->pal);
     }
 
-    dx_testck ();
     write_log ("set_ddraw: %dx%d@%d-bytes\n", width, height, bits);
     return 1;
 oops:
@@ -1003,6 +1002,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
 
     c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
+    c |= strcmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8) : 0;
     c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
     c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
     c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
@@ -1055,6 +1055,7 @@ int check_prefs_changed_gfx (void)
 	}
 
 	currprefs.gfx_filter = changed_prefs.gfx_filter;
+	strcpy (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader);
 	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 	currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;
 	currprefs.gfx_filter_vert_zoom_mult = changed_prefs.gfx_filter_vert_zoom_mult;

@@ -402,6 +402,7 @@ static void ide_identify_drive (void)
     uae_u64 totalsecs;
     int v;
     uae_u8 *buf = ide->secbuf;
+    char tmp[100];
 
     if (ide->hdhfd.size == 0) {
 	ide_fail ();
@@ -423,7 +424,8 @@ static void ide_identify_drive (void)
     pw (21, 512);
     pw (22, 4);
     ps (23, "0.3", 8); /* firmware revision */
-    ps (27, "UAE-IDE", 40); /* model */
+    sprintf (tmp, "UAE-IDE %s", ide->hdhfd.hfd.product_id);
+    ps (27, tmp, 40); /* model */
     pw (47, MAX_MULTIPLE_SECTORS); /* max sectors in multiple mode */
     pw (48, 1);
     pw (49, (1 << 9) | (1 << 8)); /* LBA and DMA supported */

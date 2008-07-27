@@ -535,7 +535,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	while (uaefilters[i].name) {
 	    uf = &uaefilters[i];
 	    if (uf->type == p->gfx_filter) {
-		cfgfile_dwrite (f, "gfx_filter=%s\n", uf->cfgname);
+		if (p->gfx_filtershader[0])
+		    cfgfile_dwrite (f, "gfx_filter=%s:%s\n", uf->cfgname, p->gfx_filtershader);
+		else
+		    cfgfile_dwrite (f, "gfx_filter=%s\n", uf->cfgname);
 		if (uf->type == p->gfx_filter) {
 		    if (uf->x[0]) {
 			cfgfile_dwrite (f, "gfx_filter_mode=%s\n", filtermode1[p->gfx_filter_filtermode]);
@@ -968,10 +971,16 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 #ifdef GFXFILTER
     if (strcmp (option,"gfx_filter") == 0) {
 	int i = 0;
+	char *s = strchr (value, ':');
+	if (s)
+	    *s++ = 0;
+	p->gfx_filtershader[0] = 0;
 	p->gfx_filter = 0;
 	while(uaefilters[i].name) {
 	    if (!strcmp (uaefilters[i].cfgname, value)) {
 		p->gfx_filter = uaefilters[i].type;
+		if (s)
+		    strcpy (p->gfx_filtershader, s);
 		break;
 	    }
 	    i++;
@@ -2969,6 +2978,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_resetwarning = 1;
 
     p->gfx_filter = 0;
+    p->gfx_filtershader[0] = 0;
     p->gfx_filter_horiz_zoom_mult = 0;
     p->gfx_filter_vert_zoom_mult = 0;
     p->gfx_filter_filtermode = 0;

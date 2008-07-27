@@ -459,7 +459,7 @@ void setmouseactive (int active)
     mouseactive = active;
 
     mouseposx = mouseposy = 0;
-    write_log ("setmouseactive(%d)\n", active);
+    //write_log ("setmouseactive(%d)\n", active);
     releasecapture ();
     recapture = 0;
 #if 0

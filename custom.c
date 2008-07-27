@@ -2386,6 +2386,8 @@ void init_hz (void)
     doublescan = 0;
     if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
 	hzc = 1;
+    if (beamcon0 & 0x80)
+	hack_vpos = -1;
     beamcon0 = new_beamcon0;
     isntsc = beamcon0 & 0x20 ? 0 : 1;
     if (hack_vpos > 0) {
@@ -2429,7 +2431,7 @@ void init_hz (void)
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
 	doublescan = htotal <= 150;
-	dumpsync();
+	dumpsync ();
 	hzc = 1;
     }
     if (doublescan != odbl)
@@ -2813,12 +2815,12 @@ int intlev (void)
     return -1;
 }
 
-STATIC_INLINE int use_eventmode(void)
+STATIC_INLINE int use_eventmode (void)
 {
     return currprefs.cpu_cycle_exact != 0;
 }
 
-static void INTENA_f(uae_u32 data)
+static void INTENA_f (uae_u32 data)
 {
     doint();
 }
@@ -2830,8 +2832,8 @@ STATIC_INLINE void INTENA (uae_u16 v)
 	write_log ("INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
     if (v & 0x8000) {
-	if (!use_eventmode())
-	    INTENA_f(0);
+	if (!use_eventmode ())
+	    INTENA_f (0);
 	else
 	    event2_newevent2 (6, 0, INTENA_f);
     }
@@ -2846,7 +2848,7 @@ void INTREQ_0 (uae_u16 v)
     doint ();
 }
 
-void INTREQ_f(uae_u32 data)
+void INTREQ_f (uae_u32 data)
 {
     INTREQ_0 (data);
     serial_check_irq ();
@@ -3735,7 +3737,6 @@ static void update_copper (int until_hpos)
     }
 
     until_hpos &= ~1;
-
     if (until_hpos > (maxhpos & ~1))
 	until_hpos = maxhpos & ~1;
 
@@ -3820,10 +3821,11 @@ static void update_copper (int until_hpos)
 	    } else {
 		unsigned int reg = cop_state.i1 & 0x1FE;
 		cop_state.state = COP_read1;
-		cop_state.movedelay = isagnus[reg >> 1] ? 1 : 2;
 		cop_state.movedata = cop_state.i2;
 		if (cop_state.ignore_next) {
-		    test_copper_dangerous (cop_state.moveaddr);
+		    test_copper_dangerous (reg);
+		    if (! copper_enabled_thisline)
+			goto out;
 		    reg = 0x1fe;
 		    cop_state.ignore_next = 0;
 		}
@@ -3923,9 +3925,9 @@ static void update_copper (int until_hpos)
 	    vp1 = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	    hp1 = c_hpos & (cop_state.saved_i2 & 0xFE);
 
-	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp))
-		&& ((cop_state.saved_i2 & 0x8000) != 0 || ! (DMACONR() & 0x4000)))
+	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp)) && ((cop_state.saved_i2 & 0x8000) != 0 || ! (DMACONR() & 0x4000)))
 		cop_state.ignore_next = 1;
+
 	    cop_state.state = COP_read1;
 
 #ifdef DEBUGGER
@@ -4555,7 +4557,7 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
-	alloc_cycle (1, CYCLE_REFRESH);
+	alloc_cycle (1, CYCLE_REFRESH); /* strobe */
 	alloc_cycle (3, CYCLE_REFRESH);
 	alloc_cycle (5, CYCLE_REFRESH);
 	alloc_cycle (7, CYCLE_REFRESH);

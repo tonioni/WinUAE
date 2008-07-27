@@ -172,6 +172,7 @@ struct uae_prefs {
     int color_mode;
 
     int gfx_filter;
+    char gfx_filtershader[MAX_DPATH];
     int gfx_filter_scanlines;
     int gfx_filter_scanlineratio;
     int gfx_filter_scanlinelevel;

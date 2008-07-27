@@ -9542,7 +9542,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
     ew (hDlg, IDC_FILTERKEEPASPECT, vv && !vv2);
-    ew (hDlg, IDC_FILTERASPECT, vv && !vv2);
+    ew (hDlg, IDC_FILTERASPECT, v);
     ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
@@ -9605,11 +9605,11 @@ static int *filtervars[] = {
 
 struct filterpreset {
     char *name;
-    int conf[23];
+    int conf[24];
 };
 static struct filterpreset filterpresets[] =
 {
-    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0 },
+    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0 },
     { NULL }
 };
 
@@ -9668,6 +9668,23 @@ static void values_to_hw3ddlg (HWND hDlg)
 	    j++;
 	}
 	i++;
+    }
+    {
+        HANDLE h;
+        WIN32_FIND_DATA wfd;
+        char tmp[MAX_DPATH];
+        sprintf (tmp, "%s%sfiltershaders\\*.fx", start_path_exe, WIN32_PLUGINDIR);
+        h = FindFirstFile(tmp, &wfd);
+        while (h) {
+	    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
+	    if (uf->type == UAE_FILTER_DIRECT3D && !strcmp (workprefs.gfx_filtershader, wfd.cFileName))
+		fltnum = j;
+	    j++;
+	    if (!FindNextFile (h, &wfd)) {
+	        FindClose (h);
+	        h = NULL;
+	    }
+	}
     }
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 
@@ -9903,8 +9920,16 @@ static void filter_handle (HWND hDlg)
 {
     LRESULT item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
     if (item != CB_ERR) {
+	char tmp[MAX_DPATH];
 	int of = workprefs.gfx_filter;
 	int off = workprefs.gfx_filter_filtermode;
+	tmp[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
+	workprefs.gfx_filtershader[0] = 0;
+	if (item >= UAE_FILTER_PAL) {
+	    item = UAE_FILTER_DIRECT3D - 1;
+	    strcpy (workprefs.gfx_filtershader, tmp);
+	}
 	workprefs.gfx_filter = 0;
 	if (IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {
 	    workprefs.gfx_filter = uaefilters[item].type;
