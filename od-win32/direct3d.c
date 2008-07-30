@@ -303,6 +303,25 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler)
 static int psEffect_hasPreProcess (void) { return m_PreprocessTechnique1EffectHandle != 0; }
 static int psEffect_hasPreProcess2 (void) { return m_PreprocessTechnique2EffectHandle != 0; }
 
+int D3D_canshaders (void)
+{
+    static int yesno = 0;
+    HANDLE h;
+
+    if (yesno < 0)
+	return 0;
+    if (yesno > 0)
+	return 1;
+    h = LoadLibrary ("d3dx9_36.dll");
+    if (h == NULL) {
+	yesno = -1;
+	return 0;
+    }
+    FreeLibrary (h);
+    yesno = 1;
+    return 1;
+}
+
 static int psEffect_LoadEffect (const char *shaderfile)
 {
     int ret = 0;
@@ -311,8 +330,15 @@ static int psEffect_LoadEffect (const char *shaderfile)
     LPD3DXBUFFER BufferEffect = NULL;
     HRESULT hr;
     char tmp[MAX_DPATH];
+    static int first;
 
-    sprintf (tmp, "%s%sfiltershaders\\%s", start_path_exe, WIN32_PLUGINDIR, shaderfile);
+    if (!D3D_canshaders ()) {
+	if (!first)
+	    gui_message ("Installed DirectX is too old\nD3D shaders disabled.");
+	first = 1;
+	return 0;
+    }
+    sprintf (tmp, "%s%sfiltershaders\\direct3d\\%s", start_path_exe, WIN32_PLUGINDIR, shaderfile);
     hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, 0, &EffectCompiler, &Errors);
     if (FAILED (hr)) {
 	write_log ("D3D: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DX_ErrorString (hr, Errors));
@@ -558,12 +584,31 @@ static void invalidatedeviceobjects (void)
 	IDirect3DVolumeTexture9_Release (lpHq2xLookupTexture);
 	lpHq2xLookupTexture = NULL;
     }
+    if (pEffect) {
+	pEffect->lpVtbl->Release (pEffect);
+	pEffect = NULL;
+    }
     if (d3ddev)
 	IDirect3DDevice9_SetStreamSource (d3ddev, 0, NULL, 0, 0);
     if (vertexBuffer) {
 	IDirect3DVertexBuffer9_Release (vertexBuffer);
 	vertexBuffer = NULL;
     }
+    m_MatWorldEffectHandle = NULL;
+    m_MatViewEffectHandle = NULL;
+    m_MatProjEffectHandle = NULL;
+    m_MatWorldViewEffectHandle = NULL;
+    m_MatViewProjEffectHandle = NULL;
+    m_MatWorldViewProjEffectHandle = NULL;
+    m_SourceDimsEffectHandle = NULL;
+    m_TexelSizeEffectHandle = NULL;
+    m_SourceTextureEffectHandle = NULL;
+    m_WorkingTexture1EffectHandle = NULL;
+    m_WorkingTexture2EffectHandle = NULL;
+    m_Hq2xLookupTextureHandle = NULL;
+    m_PreprocessTechnique1EffectHandle = NULL;
+    m_PreprocessTechnique2EffectHandle = NULL;
+    m_CombineTechniqueEffectHandle = NULL;
 }
 
 void D3D_free (void)

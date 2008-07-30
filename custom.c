@@ -243,8 +243,8 @@ enum diw_states
     DIW_waiting_start, DIW_waiting_stop
 };
 
-int plffirstline, plflastline;
-int plfstrt, plfstop;
+static int plffirstline, plflastline;
+static int plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
 static int last_diw_pix_hpos, last_ddf_pix_hpos;
@@ -2430,7 +2430,7 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
-	doublescan = htotal <= 150;
+	doublescan = htotal <= 164;
 	dumpsync ();
 	hzc = 1;
     }

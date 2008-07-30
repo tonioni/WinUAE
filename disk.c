@@ -163,6 +163,7 @@ typedef struct {
     int dskready;
     int dskready_time;
     int dskready_down_time;
+    int writtento;
     int steplimit;
     frame_time_t steplimitcycle;
     int indexhack, indexhackmode;
@@ -2430,6 +2431,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		    if (drives[dr]) {
 			drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
 			drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
+			drv2->writtento = 1;
 		    }
 #ifdef AMAX
 		    if (currprefs.amaxromfile[0])
@@ -2442,6 +2444,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		    disk_dmafinished ();
 		    for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 			drive *drv2 = &floppy[dr];
+			drv2->writtento = 0;
 			if (drives[dr])
 			    drive_write_data (drv2);
 		    }
@@ -2822,8 +2825,16 @@ void DSKLEN (uae_u16 v, int hpos)
 	    /* Megalomania and Knightmare does this */
 	    if (disk_debug_logging > 0 && dskdmaen == 2)
 		write_log ("warning: Disk read DMA aborted, %d words left PC=%x\n", dsklength, M68K_GETPC);
-	    if (dskdmaen == 3)
+	    if (dskdmaen == 3) {
 		write_log ("warning: Disk write DMA aborted, %d words left PC=%x\n", dsklength, M68K_GETPC);
+		// did program write something that needs to be stored to file?
+	        for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
+		    drive *drv2 = &floppy[dr];
+		    if (!drv2->writtento)
+			continue;
+		    drive_write_data (drv2);
+		}
+	    }
 	    dskdmaen = 0;
 	}
     }
@@ -2867,6 +2878,7 @@ void DSKLEN (uae_u16 v, int hpos)
     motormask = 0;
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
+	drv->writtento = 0;
 	if (drv->motoroff)
 	    continue;
 	motormask |= 1 << dr;

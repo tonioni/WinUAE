@@ -1487,8 +1487,8 @@ static void init_aspect_maps (void)
 	xfree (amiga2aspect_line_map);
 
     /* At least for this array the +1 is necessary. */
-    amiga2aspect_line_map = malloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
-    native2amiga_line_map = malloc (sizeof (int) * gfxvidinfo.height);
+    amiga2aspect_line_map = xmalloc (sizeof (int) * (MAXVPOS + 1) * 2 + 1);
+    native2amiga_line_map = xmalloc (sizeof (int) * gfxvidinfo.height);
 
     if (currprefs.gfx_correct_aspect)
 	native_lines_per_amiga_line = ((double)gfxvidinfo.height
@@ -1538,7 +1538,7 @@ static void init_aspect_maps (void)
 	}
     }
 
-    for (i = maxl-1; i >= min_ypos_for_screen; i--) {
+    for (i = maxl - 1; i >= min_ypos_for_screen; i--) {
 	int j;
 	if (amiga2aspect_line_map[i] == -1)
 	    continue;
@@ -1591,7 +1591,7 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
        Should be corrected.
        (sjo 26.9.99) */
 
-    xlinecheck(start, stop);
+    xlinecheck (start, stop);
     if (gfxvidinfo.maxblocklines != 0 && first_block_line != NO_BLOCK) {
 	flush_block (first_block_line, last_block_line);
     }

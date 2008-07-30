@@ -1542,6 +1542,7 @@ void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgb
     int need;
     if (!screen_is_picasso)
 	return;
+    clearscreen ();
     gfx_set_picasso_colors (rgbfmt);
     updatemodes ();
     need = modeswitchneeded (currentmode);

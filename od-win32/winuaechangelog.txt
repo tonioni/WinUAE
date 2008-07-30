@@ -1,4 +1,14 @@
 
+Beta 9:
+
+- clear RTG screen when switching to different RTG mode
+- d9dx9_36.dll set to delay load, winuae now runs without recent DX
+  redistributable installed as long as D3D filter(s) aren't used
+- shaders moved to plugins\filtershaders\direct3d (perhaps opengl
+  shaders will be implemented someday..)
+- pixel shader filter on the fly change crashes fixed (I hope)
+- adf was not updated if disk write DMA was aborted (Cadaver save)
+
 Beta 8:
 
 - PAL filter preset fixed

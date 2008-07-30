@@ -9669,11 +9669,11 @@ static void values_to_hw3ddlg (HWND hDlg)
 	}
 	i++;
     }
-    {
+    if (D3D_canshaders ()) {
         HANDLE h;
         WIN32_FIND_DATA wfd;
         char tmp[MAX_DPATH];
-        sprintf (tmp, "%s%sfiltershaders\\*.fx", start_path_exe, WIN32_PLUGINDIR);
+        sprintf (tmp, "%s%sfiltershaders\\direct3d\\*.fx", start_path_exe, WIN32_PLUGINDIR);
         h = FindFirstFile(tmp, &wfd);
         while (h) {
 	    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
