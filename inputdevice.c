@@ -2403,19 +2403,45 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
     for (i = 0; i < inf->get_num (); i++) {
 	char *aname1 = inf->get_friendlyname (i);
 	char *aname2 = inf->get_uniquename (i);
-        for (j = 0; j < MAX_INPUT_DEVICES; j++) {
-	    char *bname = uid[j].configname;
-	    if (aname2 && bname && !strcmp (aname2, bname))
-		break;
+        int match = -1;
+	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+	    if (aname2 && uid[j].configname) {
+		char bname[MAX_JPORTNAME];
+		char bname2[MAX_JPORTNAME];
+		char *p1 ,*p2;
+		strcpy (bname, uid[j].configname);
+		strcpy (bname2, aname2);
+		p1 = strchr (bname, ' ');
+		p2 = strchr (bname2, ' ');
+		if (p1 && p2 && p1 - bname == p2 - bname2) {
+		    *p1 = 0;
+		    *p2 = 0;
+		    if (bname && !strcmp (bname2, bname)) {
+			if (match >= 0)
+			    match = -2;
+			else
+			    match = j;
+		    }
+		}
+	    }
 	}
-	if (j >= MAX_INPUT_DEVICES) {
+	// multiple matches -> use complete local-only id string for comparisons
+	if (match == -2) {
+	    for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+		char *bname = uid[j].configname;
+		if (aname2 && bname && !strcmp (aname2, bname))
+		    match = j;
+	    }
+	}
+	if (match < 0) {
 	    for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 		char *bname = uid[j].name;
 		if (aname2 && bname && !strcmp (aname2, bname))
-		    break;
+		    match = j;
 	    }
 	}
-	if (j < MAX_INPUT_DEVICES) {
+	if (match >= 0) {
+	    j = match;
 	    if (j != i) {
 		struct uae_input_device *tmp = xmalloc (sizeof (struct uae_input_device));
 		memcpy (tmp, &uid[j], sizeof (struct uae_input_device));

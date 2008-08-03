@@ -71,6 +71,7 @@
 #include "ar.h"
 #include "akiko.h"
 #include "cdtv.h"
+#include "direct3d.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -269,7 +270,7 @@ static void figure_processor_speed_rdtsc (void)
     oldpri = GetThreadPriority (th);
     SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
     dummythread_die = -1;
-    _beginthread (&dummythread, 0, 0);
+    CloseHandle((HANDLE)_beginthread (&dummythread, 0, 0));
     sleep_millis (500);
     clockrate = win32_read_processor_time ();
     sleep_millis (500);
@@ -313,13 +314,15 @@ static void figure_processor_speed (void)
 	figure_processor_speed_qpf ();
 }
 
-static void setcursor(int oldx, int oldy)
+static void setcursor (int oldx, int oldy)
 {
     int x = (amigawin_rect.right - amigawin_rect.left) / 2;
     int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
     mouseposx = oldx - x;
     mouseposy = oldy - y;
     if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
+	return;
+    if (oldx < amigawin_rect.left || oldy < amigawin_rect.top || oldx > amigawin_rect.right || oldy > amigawin_rect.top)
 	return;
     mouseposx = 0;
     mouseposy = 0;
@@ -526,7 +529,7 @@ static void winuae_active (HWND hWnd, int minimized)
 {
     struct threadpriorities *pri;
 
-//    write_log ("winuae_active(%d)\n", minimized);
+    write_log ("winuae_active(%d)\n", minimized);
     /* without this returning from hibernate-mode causes wrong timing
      */
     timeend ();
@@ -571,7 +574,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     struct threadpriorities *pri;
     int wasfocus = focus;
 
-//    write_log ("winuae_inactive(%d)\n", minimized);
+    write_log ("winuae_inactive(%d)\n", minimized);
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -839,14 +842,16 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_WINDOWPOSCHANGED:
     {
 	WINDOWPOS *wp = (WINDOWPOS*)lParam;
-	if (!IsIconic (hWnd)) {
-	    GetWindowRect (hWnd, &amigawin_rect);
-	    if (isfullscreen () == 0) {
-		changed_prefs.gfx_size_win.x = amigawin_rect.left;
-		changed_prefs.gfx_size_win.y = amigawin_rect.top;
+	if (isfullscreen () <= 0) {
+	    if (!IsIconic (hWnd)) {
+		GetWindowRect (hWnd, &amigawin_rect);
+		if (isfullscreen () == 0) {
+		    changed_prefs.gfx_size_win.x = amigawin_rect.left;
+		    changed_prefs.gfx_size_win.y = amigawin_rect.top;
+		}
 	    }
+	    notice_screen_contents_lost ();
 	}
-	notice_screen_contents_lost ();
     }
     break;
 
@@ -1169,7 +1174,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
     case WM_WINDOWPOSCHANGED:
 	WIN32GFX_WindowMove ();
-	if (hAmigaWnd && GetWindowRect (hAmigaWnd, &amigawin_rect)) {
+	if (hAmigaWnd && isfullscreen () <= 0 && GetWindowRect (hAmigaWnd, &amigawin_rect)) {
 	    DWORD aw = amigawin_rect.right - amigawin_rect.left;
 	    DWORD ah = amigawin_rect.bottom - amigawin_rect.top;
 	    if (in_sizemove > 0)

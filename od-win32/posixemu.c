@@ -247,13 +247,14 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     unsigned foo;
     struct thparms *thp;
 
-    thp = malloc (sizeof (struct thparms));
+    thp = xmalloc (sizeof (struct thparms));
     thp->f = f;
     thp->arg = arg;
     hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
     *tid = hThread;
     if (hThread) {
 	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
+	CloseHandle (hThread);
 	if (name)
 	    write_log ("Thread '%s' started (%d)\n", name, *tid);
     } else {

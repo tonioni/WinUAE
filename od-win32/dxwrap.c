@@ -706,7 +706,7 @@ DWORD DirectDraw_CurrentRefreshRate (void)
 
 HRESULT DirectDraw_FlipToGDISurface (void)
 {
-    if (!dxdata.ddinit)
+    if (!dxdata.ddinit || !dxdata.fsmodeset)
 	return DD_OK;
     return IDirectDraw7_FlipToGDISurface (dxdata.maindd);
 }

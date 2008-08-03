@@ -57,6 +57,7 @@
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
 #define DM_OPENGL 8
+#define DM_D3D_FULLSCREEN 16
 #define DM_PICASSO96 32
 #define DM_DDRAW 64
 #define DM_DC 128
@@ -198,7 +199,7 @@ struct MultiDisplay *getdisplay (struct uae_prefs *p)
 
 void centerdstrect (RECT *dr)
 {
-    if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_W_FULLSCREEN)))
+    if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN | DM_W_FULLSCREEN)))
 	OffsetRect (dr, amigawin_rect.left, amigawin_rect.top);
     if (currentmode->flags & DM_W_FULLSCREEN) {
 	if (scalepicasso && screen_is_picasso)
@@ -254,6 +255,10 @@ static int set_ddraw_2 (void)
     }
 
     DirectDraw_FreeMainSurface ();
+
+    if (!dd)
+	return 1;
+
     ddrval = DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
     if (FAILED (ddrval))
 	goto oops;
@@ -368,7 +373,7 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
     DisplayModes[i].refresh[1] = 0;
     DisplayModes[i].colormodes = ct;
     DisplayModes[i + 1].depth = -1;
-    sprintf(DisplayModes[i].name, "%dx%d, %d-bit",
+    sprintf (DisplayModes[i].name, "%dx%d, %d-bit",
 	DisplayModes[i].res.width, DisplayModes[i].res.height, DisplayModes[i].depth * 8);
     return DDENUMRET_OK;
 }
@@ -663,20 +668,22 @@ static uae_u8 *ddraw_dolock (void)
 
 int lockscr (void)
 {
+    int ret = 0;
     if (!isscreen ())
-	return 0;
+	return ret;
+    ret = 1;
     if (currentmode->flags & DM_D3D) {
 #ifdef D3D
 	if (D3D_needreset ())
 	    WIN32GFX_DisplayChangeRequested ();
-	return D3D_locktexture ();
+	ret = D3D_locktexture ();
 #endif
     } else if (currentmode->flags & DM_SWSCALE) {
-	return 1;
+	ret = 1;
     } else if (currentmode->flags & DM_DDRAW) {
-	return ddraw_dolock () != 0;
+	ret = ddraw_dolock () != 0;
     }
-    return 1;
+    return ret;
 }
 
 void unlockscr (void)
@@ -856,6 +863,10 @@ static void updatemodes (void)
 	if (!screen_is_picasso) {
 	    if (usedfilter->type == UAE_FILTER_DIRECT3D) {
 		flags |= DM_D3D;
+		if (flags & DM_DX_FULLSCREEN) {
+		    flags &= ~DM_DX_FULLSCREEN;
+		    flags |= DM_D3D_FULLSCREEN;
+		}
 		flags &= ~DM_DDRAW;
 	    }
 	    if (usedfilter->type == UAE_FILTER_OPENGL) {
@@ -1002,8 +1013,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
 
     c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
-    c |= strcmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8) : 0;
-    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
+    c |= strcmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8|32) : 0;
+    c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8|32) : 0;
     c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
     c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
     c |= currprefs.gfx_filter_noise != changed_prefs.gfx_filter_noise ? (1|8) : 0;
@@ -1036,22 +1047,25 @@ int check_prefs_changed_gfx (void)
 	    currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && 
 	    currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen;
 	cfgfile_configuration_change (1);
-	if (display_change_requested)
-	    c |= 2;
-	display_change_requested = 0;
 
 	currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 	currprefs.color_mode = changed_prefs.color_mode;
 
         if (changed_prefs.gfx_afullscreen == 1) { 
 	    if (currprefs.gfx_filter == UAE_FILTER_DIRECT3D && changed_prefs.gfx_filter != UAE_FILTER_DIRECT3D)
-		keepfsmode = 0;
+		display_change_requested = 1;
 	    if (currprefs.gfx_filter == UAE_FILTER_OPENGL && changed_prefs.gfx_filter != UAE_FILTER_OPENGL)
-		keepfsmode = 0;
+		display_change_requested = 1;
 	    if (changed_prefs.gfx_filter == UAE_FILTER_DIRECT3D && currprefs.gfx_filter != UAE_FILTER_DIRECT3D)
-		keepfsmode = 0;
+		display_change_requested = 1;
 	    if (changed_prefs.gfx_filter == UAE_FILTER_OPENGL && currprefs.gfx_filter != UAE_FILTER_OPENGL)
-		keepfsmode = 0;
+		display_change_requested = 1;
+	}
+
+	if (display_change_requested) {
+	    c = 2;
+	    keepfsmode = 0;
+	    display_change_requested = 0;
 	}
 
 	currprefs.gfx_filter = changed_prefs.gfx_filter;
@@ -1774,6 +1788,7 @@ static int getbestmode (int nextbest)
 static int create_windows_2 (void)
 {
     int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
+    int d3dfs = currentmode->flags & (DM_D3D_FULLSCREEN);
     int fsw = currentmode->flags & (DM_W_FULLSCREEN);
     DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
     DWORD flags = 0;
@@ -1784,7 +1799,7 @@ static int create_windows_2 (void)
     int cyborder = GetSystemMetrics (SM_CYBORDER);
     int cxborder = GetSystemMetrics (SM_CXBORDER);
     int gap = 3;
-    int x, y;
+    int x, y, w, h;
 
     if (hAmigaWnd) {
 	RECT r;
@@ -1797,6 +1812,7 @@ static int create_windows_2 (void)
 	h = r.bottom - r.top;
         nx = x;
         ny = y;
+
 	if (screen_is_picasso) {
 	    nw = currentmode->current_width;
 	    nh = currentmode->current_height;
@@ -1804,20 +1820,34 @@ static int create_windows_2 (void)
 	    nw = currprefs.gfx_size_win.width;
 	    nh = currprefs.gfx_size_win.height;
 	}
+
 	if (fsw || dxfs) {
 	    RECT rc = getdisplay (&currprefs)->rect;
 	    nx = rc.left;
 	    ny = rc.top;
 	    nw = rc.right - rc.left;
 	    nh = rc.bottom - rc.top;
+	} else if (d3dfs) {
+	    RECT rc = getdisplay (&currprefs)->rect;
+	    nw = currentmode->native_width;
+	    nh = currentmode->native_height;
+	    if (rc.left >= 0)
+	        nx = rc.left;
+	    else
+	        nx = rc.left + (rc.right - rc.left - nw);
+	    if (rc.top >= 0)
+	        ny = rc.top;
+	    else
+	        ny = rc.top + (rc.bottom - rc.top - nh);
 	}
-	if (w != nw || h != nh || x != nx || y != ny) {
+
+	if ((w != nw || h != nh || x != nx || y != ny)) {
 	    w = nw;
 	    h = nh;
 	    x = nx;
 	    y = ny;
 	    in_sizemove++;
-	    if (hMainWnd && !fsw && !dxfs && !rp_isactive ()) {
+	    if (hMainWnd && !fsw && !dxfs && !d3dfs && !rp_isactive ()) {
     		GetWindowRect (hMainWnd, &r);
 		x = r.left;
 		y = r.top;
@@ -1845,7 +1875,7 @@ static int create_windows_2 (void)
     if (borderless)
 	cymenu = cyborder = cxborder = 0;
 
-    if (!dxfs)  {
+    if (!dxfs && !d3dfs)  {
 	RECT rc;
 	LONG stored_x = 1, stored_y = cymenu + cyborder;
 	int oldx, oldy;
@@ -1918,25 +1948,44 @@ static int create_windows_2 (void)
 	    x = rc.left;
 	    y = rc.top;
 	}
+	w = currentmode->native_width;
+	h = currentmode->native_height;
 
     } else {
+        RECT rc;
 	getbestmode (0);
+	w = currentmode->native_width;
+	h = currentmode->native_height;
+	rc = getdisplay (&currprefs)->rect;
+	if (rc.left >= 0)
+	    x = rc.left;
+	else
+	    x = rc.left + (rc.right - rc.left - w);
+	if (rc.top >= 0)
+	    y = rc.top;
+	else
+	    y = rc.top + (rc.bottom - rc.top - h);
     }
 
-    if (rp_isactive () && !dxfs && !fsw) {
+    amigawin_rect.left = x;
+    amigawin_rect.top = y;
+    amigawin_rect.right = x + w;
+    amigawin_rect.bottom = y + h;
+
+    if (rp_isactive () && !dxfs && !d3dfs && !fsw) {
 	HWND parent = rp_getparent ();
-	hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+	hAmigaWnd = CreateWindowEx (dxfs || d3dfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 	    "AmigaPowah", "WinUAE",
 	    WS_POPUP,
-	    x, y,
-	    currentmode->native_width, currentmode->native_height,
+	    x, y, w, h,
 	    parent, NULL, hInst, NULL);
     } else {
-	hAmigaWnd = CreateWindowEx (dxfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+	hAmigaWnd = CreateWindowEx (dxfs || d3dfs ?
+	    WS_EX_TOPMOST :
+	    WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 	    "AmigaPowah", "WinUAE",
-	    WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX),
-	    x, y,
-	    currentmode->native_width, currentmode->native_height,
+	    (dxfs || d3dfs ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
+	    x, y, w, h,
 	    borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
     }
     if (!hAmigaWnd) {
@@ -2205,6 +2254,8 @@ static BOOL doInit (void)
     }
 #endif
 #endif
+    write_log ("%dx%d %dx%d\n",
+	amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
     screen_is_initialized = 1;
     WIN32GFX_SetPalette ();
 #ifdef PICASSO96

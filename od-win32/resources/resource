@@ -186,6 +186,7 @@
 #define IDI_QUICKSTART                  201
 #define IDS_SOUND_STEREO                202
 #define IDS_SOUND_INTERPOL_DISABLED     203
+#define IDS_DISABLED                    203
 #define IDS_SOUND_INTERPOL_RH           204
 #define IDI_PATHS                       204
 #define IDS_SOUND_INTERPOL_CRUX         205
@@ -251,6 +252,7 @@
 #define IDS_DEFAULT_NEWWINUAE           258
 #define IDS_SOUND_CLONED51              259
 #define IDS_SOUND_51                    260
+#define IDS_AUTOMATIC                   261
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302

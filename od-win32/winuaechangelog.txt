@@ -1,5 +1,15 @@
 
-Beta 9:
+RC2:
+
+- PAL filter was not selectable
+- direct3d fullscreen mode switching really works now
+  (non-flashing fullscreen d3d->other mode switching coming after 
+  1.5.1)
+- new autoswitching input handling got confused if multiple USB
+  game controller had same product GUID
+- fixed some harmless and ancient thread handle leaks
+
+RC1:
 
 - clear RTG screen when switching to different RTG mode
 - d9dx9_36.dll set to delay load, winuae now runs without recent DX

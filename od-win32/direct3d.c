@@ -34,6 +34,7 @@ static LPDIRECT3DTEXTURE9 texture, sltexture;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2;
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static IDirect3DVertexBuffer9 *vertexBuffer;
+static HWND d3dhwnd;
 
 static D3DXMATRIX m_matProj;
 static D3DXMATRIX m_matWorld;
@@ -561,77 +562,6 @@ static int psEffect_End (void)
     return 1;
 }
 
-
-static void invalidatedeviceobjects (void)
-{
-    if (texture) {
-	IDirect3DTexture9_Release (texture);
-	texture = NULL;
-    }
-    if (sltexture) {
-	IDirect3DTexture9_Release (sltexture);
-	sltexture = NULL;
-    }
-    if (lpWorkTexture1) {
-	IDirect3DTexture9_Release (lpWorkTexture1);
-	lpWorkTexture1 = NULL;
-    }
-    if (lpWorkTexture2) {
-	IDirect3DTexture9_Release (lpWorkTexture2);
-	lpWorkTexture2 = NULL;
-    }
-    if (lpHq2xLookupTexture) {
-	IDirect3DVolumeTexture9_Release (lpHq2xLookupTexture);
-	lpHq2xLookupTexture = NULL;
-    }
-    if (pEffect) {
-	pEffect->lpVtbl->Release (pEffect);
-	pEffect = NULL;
-    }
-    if (d3ddev)
-	IDirect3DDevice9_SetStreamSource (d3ddev, 0, NULL, 0, 0);
-    if (vertexBuffer) {
-	IDirect3DVertexBuffer9_Release (vertexBuffer);
-	vertexBuffer = NULL;
-    }
-    m_MatWorldEffectHandle = NULL;
-    m_MatViewEffectHandle = NULL;
-    m_MatProjEffectHandle = NULL;
-    m_MatWorldViewEffectHandle = NULL;
-    m_MatViewProjEffectHandle = NULL;
-    m_MatWorldViewProjEffectHandle = NULL;
-    m_SourceDimsEffectHandle = NULL;
-    m_TexelSizeEffectHandle = NULL;
-    m_SourceTextureEffectHandle = NULL;
-    m_WorkingTexture1EffectHandle = NULL;
-    m_WorkingTexture2EffectHandle = NULL;
-    m_Hq2xLookupTextureHandle = NULL;
-    m_PreprocessTechnique1EffectHandle = NULL;
-    m_PreprocessTechnique2EffectHandle = NULL;
-    m_CombineTechniqueEffectHandle = NULL;
-}
-
-void D3D_free (void)
-{
-    invalidatedeviceobjects ();
-    if (d3ddev) {
-	IDirect3DDevice9_Release (d3ddev);
-	d3ddev = NULL;
-    }
-    if (d3dDLL) {
-	FreeLibrary (d3dDLL);
-	d3dDLL = NULL;
-    }
-    if (d3d) {
-	IDirect3D9_Release (d3d);
-	d3d = NULL;
-    }
-    d3d_enabled = 0;
-    psPreProcess = 0;
-    psActive = 0;
-}
-
-
 static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 {
     LPDIRECT3DTEXTURE9 t;
@@ -745,7 +675,6 @@ static int createsltexture (void)
 static void setupscenescaled (void)
 {
     HRESULT hr;
-    D3DVIEWPORT9 Viewport;
     RECT sr, dr;
     int v;
 
@@ -753,7 +682,7 @@ static void setupscenescaled (void)
     hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
     hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
     hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-    hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
     hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
     hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
     switch (currprefs.gfx_filter_filtermode & 1)
@@ -771,7 +700,6 @@ static void setupscenescaled (void)
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
 
     getfilterrect2 (&sr, &dr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
-    IDirect3DDevice9_GetViewport (d3ddev, &Viewport);
     // Projection is screenspace coords
     MatrixOrthoOffCenterLH (&m_matProj, 0.0f, (float)dr.right - dr.left, 0.0f, (float)dr.bottom - dr.top, 0.0f, 1.0f);
     //MatrixOrthoOffCenterLH (&m_matProj, 0.0f, (float)Viewport.Width, 0.0f, (float)Viewport.Height, 0.0f, 1.0f);
@@ -781,8 +709,8 @@ static void setupscenescaled (void)
     // automatically, but on others texture alignment errors are introduced
     // More information on this can be found in the Direct3D 9 documentation
     MatrixTranslation (&m_matView,
-	(float)Viewport.Width / 2 - 0.5f - dr.left - (window_w - tin_w) / 2,
-	(float)Viewport.Height / 2 + 0.5f - dr.top - (window_h - tin_h) / 2,
+	(float)window_w / 2 - 0.5f - dr.left - (window_w - tin_w) / 2,
+	(float)window_h / 2 + 0.5f - dr.top - (window_h - tin_h) / 2,
 	0.0f);
 //    MatrixTranslation (&m_matView, (float)Viewport.Width / 2 - 0.5f , (float)Viewport.Height / 2 + 0.5f, 0.0f);
     MatrixScaling (&m_matWorld, tin_w, tin_h, 1.0f);
@@ -858,45 +786,6 @@ static void settransform (void)
     }
 }
 
-static int restoredeviceobjects (void)
-{
-    int vbsize;
-    HRESULT hr;
-
-    invalidatedeviceobjects ();
-    if (currprefs.gfx_filtershader[0]) {
-	if (!psEffect_LoadEffect (currprefs.gfx_filtershader))
-	    currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
-    }
-    createtexture (tin_w, tin_h);
-    if (currprefs.gfx_filter_scanlines > 0)
-	createsltexture ();
-
-    vbsize = sizeof (struct TLVERTEX) * 4;
-    if (psPreProcess)
-	vbsize = sizeof (struct TLVERTEX) * 8;
-    hr = IDirect3DDevice9_SetFVF (d3ddev, D3DFVF_TLVERTEX);
-    if (FAILED (IDirect3DDevice9_CreateVertexBuffer (d3ddev, vbsize, D3DUSAGE_WRITEONLY,
-    	D3DFVF_TLVERTEX, D3DPOOL_MANAGED, &vertexBuffer, NULL))) {
-	    write_log ("D3D: failed to create vertex buffer: %s\n", D3D_ErrorString (hr));
-	    return 0;
-    }
-    createvertex ();
-    hr = IDirect3DDevice9_SetStreamSource (d3ddev, 0, vertexBuffer, 0, sizeof (struct TLVERTEX));
-
-    // Turn off culling
-    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_CULLMODE, D3DCULL_NONE);
-    // turn off lighting
-    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_LIGHTING, FALSE);
-    // turn of zbuffer
-    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ZENABLE, FALSE);
-
-    setupscenescaled ();
-    settransform ();
-
-    return 1;
-}
-
 static void createscanlines (int force)
 {
     HRESULT hr;
@@ -951,6 +840,115 @@ static void createscanlines (int force)
     }
 }
 
+
+static void invalidatedeviceobjects (void)
+{
+    if (texture) {
+	IDirect3DTexture9_Release (texture);
+	texture = NULL;
+    }
+    if (sltexture) {
+	IDirect3DTexture9_Release (sltexture);
+	sltexture = NULL;
+    }
+    if (lpWorkTexture1) {
+	IDirect3DTexture9_Release (lpWorkTexture1);
+	lpWorkTexture1 = NULL;
+    }
+    if (lpWorkTexture2) {
+	IDirect3DTexture9_Release (lpWorkTexture2);
+	lpWorkTexture2 = NULL;
+    }
+    if (lpHq2xLookupTexture) {
+	IDirect3DVolumeTexture9_Release (lpHq2xLookupTexture);
+	lpHq2xLookupTexture = NULL;
+    }
+    if (pEffect) {
+	pEffect->lpVtbl->Release (pEffect);
+	pEffect = NULL;
+    }
+    if (d3ddev)
+	IDirect3DDevice9_SetStreamSource (d3ddev, 0, NULL, 0, 0);
+    if (vertexBuffer) {
+	IDirect3DVertexBuffer9_Release (vertexBuffer);
+	vertexBuffer = NULL;
+    }
+    m_MatWorldEffectHandle = NULL;
+    m_MatViewEffectHandle = NULL;
+    m_MatProjEffectHandle = NULL;
+    m_MatWorldViewEffectHandle = NULL;
+    m_MatViewProjEffectHandle = NULL;
+    m_MatWorldViewProjEffectHandle = NULL;
+    m_SourceDimsEffectHandle = NULL;
+    m_TexelSizeEffectHandle = NULL;
+    m_SourceTextureEffectHandle = NULL;
+    m_WorkingTexture1EffectHandle = NULL;
+    m_WorkingTexture2EffectHandle = NULL;
+    m_Hq2xLookupTextureHandle = NULL;
+    m_PreprocessTechnique1EffectHandle = NULL;
+    m_PreprocessTechnique2EffectHandle = NULL;
+    m_CombineTechniqueEffectHandle = NULL;
+}
+
+static int restoredeviceobjects (void)
+{
+    int vbsize;
+    HRESULT hr;
+
+    invalidatedeviceobjects ();
+    if (currprefs.gfx_filtershader[0]) {
+	if (!psEffect_LoadEffect (currprefs.gfx_filtershader))
+	    currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
+    }
+    createtexture (tin_w, tin_h);
+    if (currprefs.gfx_filter_scanlines > 0)
+	createsltexture ();
+
+    vbsize = sizeof (struct TLVERTEX) * 4;
+    if (psPreProcess)
+	vbsize = sizeof (struct TLVERTEX) * 8;
+    hr = IDirect3DDevice9_SetFVF (d3ddev, D3DFVF_TLVERTEX);
+    if (FAILED (IDirect3DDevice9_CreateVertexBuffer (d3ddev, vbsize, D3DUSAGE_WRITEONLY,
+    	D3DFVF_TLVERTEX, D3DPOOL_MANAGED, &vertexBuffer, NULL))) {
+	    write_log ("D3D: failed to create vertex buffer: %s\n", D3D_ErrorString (hr));
+	    return 0;
+    }
+    createvertex ();
+    hr = IDirect3DDevice9_SetStreamSource (d3ddev, 0, vertexBuffer, 0, sizeof (struct TLVERTEX));
+
+    // Turn off culling
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_CULLMODE, D3DCULL_NONE);
+    // turn off lighting
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_LIGHTING, FALSE);
+    // turn of zbuffer
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ZENABLE, FALSE);
+
+    setupscenescaled ();
+    settransform ();
+
+    return 1;
+}
+
+void D3D_free (void)
+{
+    invalidatedeviceobjects ();
+    if (d3ddev) {
+	IDirect3DDevice9_Release (d3ddev);
+	d3ddev = NULL;
+    }
+    if (d3dDLL) {
+	FreeLibrary (d3dDLL);
+	d3dDLL = NULL;
+    }
+    if (d3d) {
+	IDirect3D9_Release (d3d);
+	d3d = NULL;
+    }
+    d3d_enabled = 0;
+    psPreProcess = 0;
+    psActive = 0;
+}
+
 const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 {
     HRESULT ret;
@@ -959,6 +957,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     D3DCAPS9 d3dCaps;
     int adapter;
 
+    D3D_free ();
     adapter = currprefs.gfx_display - 1;
     if (adapter < 0)
 	adapter = 0;
@@ -990,7 +989,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     dpp.BackBufferFormat = mode.Format;
     dpp.BackBufferCount = 1;
     dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+    dpp.Flags = dpp.Windowed ? 0 : D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
     dpp.BackBufferWidth = w_w;
     dpp.BackBufferHeight = w_h;
     dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
@@ -1008,6 +1007,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	}
     }
 
+    d3dhwnd = ahwnd;
    // Check if hardware vertex processing is available
     if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
         // Create device with hardware vertex processing
@@ -1055,8 +1055,9 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     max_texture_w = d3dCaps.MaxTextureWidth;
     max_texture_h = d3dCaps.MaxTextureHeight;
 
-    write_log ("D3D: PS=%d.%d Square=%d, Pow2=%d, Tex Size=%d*%d\n",
+    write_log ("D3D: PS=%d.%d VS=%d.%d Square=%d, Pow2=%d, Tex Size=%d*%d\n",
 	(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
+	(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 	tex_square, tex_pow2,
 	max_texture_w, max_texture_h);
 
@@ -1106,8 +1107,13 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 int D3D_needreset (void)
 {
     HRESULT hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
-    if (hr == D3DERR_DEVICENOTRESET)
-	return 1;
+    if (hr == D3DERR_DEVICENOTRESET) {
+	hr = IDirect3DDevice9_Reset (d3ddev, &dpp);
+	if (FAILED (hr)) {
+	    write_log ("D3D: Reset failed %s\n", D3D_ErrorString (hr));
+	    return 1;
+	}
+    }
     return 0;
 }
 
@@ -1117,7 +1123,7 @@ void D3D_clear (void)
     hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
     if (FAILED (hr))
 	return;
-    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
+    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L);
     hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (FAILED (hr))
 	return;
@@ -1235,8 +1241,15 @@ int D3D_locktexture (void)
     HRESULT hr;
 
     hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
-    if (FAILED (hr))
+    if (FAILED (hr)) {
+	if (hr == D3DERR_DEVICELOST) {
+	    if (!dpp.Windowed && IsWindow (d3dhwnd) && !IsIconic (d3dhwnd)) {
+		write_log ("D3D: minimize\n");
+		ShowWindow (d3dhwnd, SW_MINIMIZE);
+	    }
+	}
 	return 0;
+    }
 
     hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, D3DLOCK_NO_DIRTY_UPDATE);
     if (FAILED (hr)) {
@@ -1290,9 +1303,12 @@ void D3D_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 
 void D3D_guimode (int guion)
 {
+    HRESULT hr;
     if (!d3d_enabled)
 	return;
-    IDirect3DDevice9_SetDialogBoxMode (d3ddev, guion);
+    hr = IDirect3DDevice9_SetDialogBoxMode (d3ddev, guion);
+    if (FAILED (hr))
+	write_log ("D3D: SetDialogBoxMode %s\n", D3D_ErrorString (hr));
     guimode = guion;
 }
 

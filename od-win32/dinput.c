@@ -61,7 +61,8 @@ struct didata {
     int acquired;
     int priority;
     int superdevice;
-    GUID guid;
+    GUID iguid;
+    GUID pguid;
     char *name;
     char *sortname;
     char *configname;
@@ -1030,7 +1031,7 @@ static void sortobjects (struct didata *did, int *mappings, int *sort, char **na
     }
 #ifdef DI_DEBUG
     if (num > 0) {
-	write_log ("%s (GUID=%s):\n", did->name, outGUID (&did->guid));
+	write_log ("%s (PGUID=%s):\n", did->name, outGUID (&did->pguid));
 	for (i = 0; i < num; i++)
 	    write_log ("%02X %03d '%s' (%d,%d)\n", mappings[i], mappings[i], names[i], sort[i], types ? types[i] : -1);
     }
@@ -1215,17 +1216,21 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	sprintf(did->name, "[no name]");
     }
     trimws (did->name);
-    sprintf (tmp, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
+    sprintf (tmp, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X %08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02",
 	lpddi->guidProduct.Data1, lpddi->guidProduct.Data2, lpddi->guidProduct.Data3,
 	lpddi->guidProduct.Data4[0], lpddi->guidProduct.Data4[1], lpddi->guidProduct.Data4[2], lpddi->guidProduct.Data4[3],
-	lpddi->guidProduct.Data4[4], lpddi->guidProduct.Data4[5], lpddi->guidProduct.Data4[6], lpddi->guidProduct.Data4[7]);
+	lpddi->guidProduct.Data4[4], lpddi->guidProduct.Data4[5], lpddi->guidProduct.Data4[6], lpddi->guidProduct.Data4[7],
+	lpddi->guidInstance.Data1, lpddi->guidInstance.Data2, lpddi->guidInstance.Data3,
+	lpddi->guidInstance.Data4[0], lpddi->guidInstance.Data4[1], lpddi->guidInstance.Data4[2], lpddi->guidInstance.Data4[3],
+	lpddi->guidInstance.Data4[4], lpddi->guidInstance.Data4[5], lpddi->guidInstance.Data4[6], lpddi->guidInstance.Data4[7]);
     did->configname = my_strdup (tmp);
     trimws (did->configname);
-    did->guid = lpddi->guidInstance;
+    did->iguid = lpddi->guidInstance;
+    did->pguid = lpddi->guidProduct;
     did->sortname = my_strdup (did->name);
     did->connection = DIDC_DX;
 
-    if (!memcmp (&did->guid, &GUID_SysKeyboard, sizeof (GUID)) || !memcmp (&did->guid, &GUID_SysMouse, sizeof (GUID))) {
+    if (!memcmp (&did->iguid, &GUID_SysKeyboard, sizeof (GUID)) || !memcmp (&did->iguid, &GUID_SysMouse, sizeof (GUID))) {
 	did->priority = 2;
 	did->superdevice = 1;
 	strcat (did->name, " *");
@@ -1375,7 +1380,7 @@ static int init_mouse (void)
     for (i = 0; i < num_mouse; i++) {
 	did = &di_mouse[i];
 	if (!did->disabled && did->connection == DIDC_DX) {
-	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
+	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIMouse2);
 		IDirectInputDevice8_EnumObjects (lpdi, EnumObjectsCallback, (void*)did, DIDFT_ALL);
@@ -1735,7 +1740,7 @@ static int init_kb (void)
     for (i = 0; i < num_keyboard; i++) {
 	struct didata *did = &di_keyboard[i];
 	if (!did->disabled && did->connection == DIDC_DX) {
-	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
+	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIKeyboard);
 		if (FAILED (hr))
@@ -2212,7 +2217,7 @@ static int init_joystick (void)
     for (i = 0; i < num_joystick; i++) {
 	did = &di_joystick[i];
 	if (!did->disabled && did->connection == DIDC_DX) {
-	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->guid, &lpdi, NULL);
+	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIJoystick);
 		if (SUCCEEDED (hr)) {

@@ -241,8 +241,6 @@ void preinit_shm (void)
     if (max_allowed_mman * 1024 * 1024 > size64)
 	max_allowed_mman = size64 / (1024 * 1024);
     max_z3fastmem = max_allowed_mman * 1024 * 1024;
-    if (maxmem == 0)
-	max_z3fastmem = (max_allowed_mman - (max_allowed_mman >> 3)) * 1024 * 1024;
     if (max_z3fastmem < 512 * 1024 * 1024)
 	max_z3fastmem = 512 * 1024 * 1024;
 
@@ -292,6 +290,7 @@ int init_shm (void)
 
 restart:
     for (;;) {
+	int lowround = 0;
 	LPVOID blah = NULL;
 	if (rounds > 0)
 	    write_log ("NATMEM: retrying %d..\n", rounds);
@@ -320,6 +319,7 @@ restart:
 	    int change = lowmem ();
 	    if (!change)
 		return 0;
+	    write_log ("NATMEM: %d, %dM > %dM = %dM\n", ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
 	    totalsize -= change;
 	}
 	if ((rounds > 1 && totalsize < 0x10000000) || rounds > 20) {
