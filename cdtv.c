@@ -1548,9 +1548,8 @@ static void romhack (void)
 void cdtv_init (void)
 {
     if (!thread_alive) {
-	uae_thread_id tid;
 	init_comm_pipe (&requests, 100, 1);
-	uae_start_thread ("cdtv", dev_thread, NULL, &tid);
+	uae_start_thread ("cdtv", dev_thread, NULL, NULL);
 	while (!thread_alive)
 	    sleep_millis(10);
     }

@@ -243,12 +243,14 @@ void uaenet_close (struct uaenetdatawin32 *sd)
 	while (sd->threadactiver)
 	    Sleep(10);
 	write_log ("uaenet_win32 thread %d killed\n", sd->tidr);
+	uae_end_thread (&sd->tidr);
     }
     if (sd->threadactivew) {
 	while (sd->threadactivew)
 	    Sleep(10);
 	CloseHandle (sd->evttw);
 	write_log ("uaenet_win32 thread %d killed\n", sd->tidw);
+	uae_end_thread (&sd->tidw);
     }
     xfree (sd->readbuffer);
     xfree (sd->writebuffer);

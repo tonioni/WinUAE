@@ -114,7 +114,6 @@ static void *driveclick_thread (void *v)
 
 static int driveclick_fdrawcmd_init(int drive)
 {
-    uae_thread_id tid;
     static int thread_ok;
 
     if (h[drive] == INVALID_HANDLE_VALUE)
@@ -128,7 +127,7 @@ static int driveclick_fdrawcmd_init(int drive)
 	return 1;
     thread_ok = 1;
     init_comm_pipe (dc_pipe, DC_PIPE_SIZE, 3);
-    uae_start_thread("fdrawcmd_win32", driveclick_thread, NULL, &tid);
+    uae_start_thread("fdrawcmd_win32", driveclick_thread, NULL, NULL);
     return 1;
 }
 

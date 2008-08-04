@@ -900,7 +900,8 @@ static int restoredeviceobjects (void)
 	if (!psEffect_LoadEffect (currprefs.gfx_filtershader))
 	    currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
     }
-    createtexture (tin_w, tin_h);
+    if (!createtexture (tin_w, tin_h))
+	return 0;
     if (currprefs.gfx_filter_scanlines > 0)
 	createsltexture ();
 
@@ -1097,7 +1098,11 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     window_h = w_h;
     tin_w = t_w;
     tin_h = t_h;
-    restoredeviceobjects ();
+    if (!restoredeviceobjects ()) {
+	D3D_free ();
+	sprintf (errmsg, "Direct3D: texture creation failed");
+	return errmsg;
+    }
 
     createscanlines (1);
     d3d_enabled = 1;

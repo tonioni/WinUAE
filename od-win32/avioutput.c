@@ -44,7 +44,6 @@
 static smp_comm_pipe workindex;
 static smp_comm_pipe queuefull;
 static volatile int alive;
-static uae_thread_id workertid;
 static volatile int avioutput_failed;
 
 static int avioutput_init = 0;
@@ -1180,7 +1179,7 @@ void AVIOutput_Begin (void)
     init_comm_pipe (&workindex, 20, 1);
     init_comm_pipe (&queuefull, 20, 1);
     alive = -1;
-    uae_start_thread ("aviworker", AVIOutput_worker, NULL, &workertid);
+    uae_start_thread ("aviworker", AVIOutput_worker, NULL, NULL);
     write_log ("AVIOutput enabled: video=%d audio=%d\n", avioutput_video, avioutput_audio);
     return;
 

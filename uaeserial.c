@@ -120,7 +120,6 @@ struct devstruct {
     struct asyncreq *ar;
 
     smp_comm_pipe requests;
-    uae_thread_id tid;
     int thread_running;
     uae_sem_t sync_sem;
 
@@ -161,7 +160,7 @@ static int start_thread (struct devstruct *dev)
 {
     init_comm_pipe (&dev->requests, 100, 1);
     uae_sem_init (&dev->sync_sem, 0, 0);
-    uae_start_thread ("uaeserial", dev_thread, dev, &dev->tid);
+    uae_start_thread ("uaeserial", dev_thread, dev, NULL);
     uae_sem_wait (&dev->sync_sem);
     return dev->thread_running;
 }

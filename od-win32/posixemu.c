@@ -232,12 +232,20 @@ static unsigned __stdcall thread_init (void *f)
     void *(*fp)(void*) = thp->f;
     void *arg = thp->arg;
 
-    xfree(f);
+    xfree (f);
     __try {
 	fp (arg);
     } __except (WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
     }
     return 0;
+}
+
+void uae_end_thread (uae_thread_id *tid)
+{
+    if (tid) {
+	CloseHandle (*tid);
+	*tid = NULL;
+    }
 }
 
 int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
@@ -251,16 +259,18 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     thp->f = f;
     thp->arg = arg;
     hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
-    *tid = hThread;
     if (hThread) {
 	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
-	CloseHandle (hThread);
 	if (name)
-	    write_log ("Thread '%s' started (%d)\n", name, *tid);
+	    write_log ("Thread '%s' started (%d)\n", name, hThread);
     } else {
 	result = 0;
 	write_log ("Thread '%s' failed to start!?\n", name ? name : "<unknown>");
     }
+    if (tid)
+	*tid = hThread;
+    else
+	CloseHandle (hThread);
     return result;
 }
 

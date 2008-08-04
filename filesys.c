@@ -4753,6 +4753,7 @@ static void filesys_prepare_reset2 (void)
 	    write_comm_pipe_int (uip[i].unit_pipe, 0, 0);
 	    write_comm_pipe_int (uip[i].unit_pipe, 0, 1);
 	    uae_sem_wait (&uip[i].reset_sync_sem);
+	    uae_end_thread (&uip[i].tid);
 	}
     }
 #endif

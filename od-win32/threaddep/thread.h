@@ -9,11 +9,13 @@ extern void uae_sem_wait (uae_sem_t*t);
 extern void uae_sem_init (uae_sem_t*, int manual_reset, int initial_state);
 extern int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *thread);
 extern int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *thread);
+extern void uae_end_thread (uae_thread_id *thread);
 extern void uae_set_thread_priority (int);
 
 #include "commpipe.h"
 
-STATIC_INLINE void uae_wait_thread(uae_thread_id tid)
+STATIC_INLINE void uae_wait_thread (uae_thread_id tid)
 {
-    WaitForSingleObject(tid, INFINITE);
+    WaitForSingleObject (tid, INFINITE);
+    CloseHandle (tid);
 }

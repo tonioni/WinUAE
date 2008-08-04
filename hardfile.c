@@ -53,7 +53,6 @@ struct hardfileprivdata {
     volatile int d_request_type[MAX_ASYNC_REQUESTS];
     volatile uae_u32 d_request_data[MAX_ASYNC_REQUESTS];
     smp_comm_pipe requests;
-    uae_thread_id tid;
     int thread_running;
     uae_sem_t sync_sem;
     uaecptr base;
@@ -808,7 +807,7 @@ static int start_thread (TrapContext *context, int unit)
     hfpd->base = m68k_areg (&context->regs, 6);
     init_comm_pipe (&hfpd->requests, 100, 1);
     uae_sem_init (&hfpd->sync_sem, 0, 0);
-    uae_start_thread ("hardfile", hardfile_thread, hfpd, &hfpd->tid);
+    uae_start_thread ("hardfile", hardfile_thread, hfpd, NULL);
     uae_sem_wait (&hfpd->sync_sem);
     return hfpd->thread_running;
 }

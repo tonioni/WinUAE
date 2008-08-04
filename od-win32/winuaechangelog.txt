@@ -1,4 +1,12 @@
 
+RC3:
+
+- bsdsocket broke in rc2
+- D3D filter does not crash if texture creation fails
+  (=non D3D9 compatible display card/driver)
+- shader filters renamed to "D3D: <name of filter>" in GUI
+- removed useless/broken filters (MCxxxx, point, bilinear)
+
 RC2:
 
 - PAL filter was not selectable

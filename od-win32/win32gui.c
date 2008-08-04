@@ -9679,7 +9679,10 @@ static void values_to_hw3ddlg (HWND hDlg)
         sprintf (tmp, "%s%sfiltershaders\\direct3d\\*.fx", start_path_exe, WIN32_PLUGINDIR);
         h = FindFirstFile (tmp, &wfd);
         while (h != INVALID_HANDLE_VALUE) {
-	    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
+	    char tmp2[100];
+	    sprintf (tmp2, "D3D: %s", wfd.cFileName);
+	    tmp2[strlen (tmp2) - 3] = 0;
+	    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
 	    if (uf->type == UAE_FILTER_DIRECT3D && !strcmp (workprefs.gfx_filtershader, wfd.cFileName))
 		fltnum = j;
 	    j++;
@@ -9931,7 +9934,7 @@ static void filter_handle (HWND hDlg)
 	workprefs.gfx_filtershader[0] = 0;
 	if (item > UAE_FILTER_PAL) {
 	    item = UAE_FILTER_DIRECT3D - 1;
-	    strcpy (workprefs.gfx_filtershader, tmp);
+	    sprintf (workprefs.gfx_filtershader, "%s.fx", tmp + 5);
 	}
 	workprefs.gfx_filter = 0;
 	if (IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {

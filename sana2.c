@@ -174,7 +174,6 @@ struct devstruct {
     struct asyncreq *s2p;
     struct mcast *mc;
     smp_comm_pipe requests;
-    uae_thread_id tid;
     int thread_running;
     uae_sem_t sync_sem;
     void *sysdata;
@@ -259,7 +258,7 @@ static int start_thread (struct devstruct *dev)
 	return 1;
     init_comm_pipe (&dev->requests, 100, 1);
     uae_sem_init (&dev->sync_sem, 0, 0);
-    uae_start_thread (SANA2NAME, dev_thread, dev, &dev->tid);
+    uae_start_thread (SANA2NAME, dev_thread, dev, NULL);
     uae_sem_wait (&dev->sync_sem);
     return dev->thread_running;
 }
@@ -1352,7 +1351,7 @@ static void *dev_thread (void *devs)
 	    dev->thread_running = 0;
 	    uae_sem_post (&dev->sync_sem);
 	    uae_sem_post (&change_sem);
-	    write_log ("%s: dev_thread %d killed\n", getdevname (), dev->tid);
+	    write_log ("%s: dev_thread killed\n", getdevname ());
 	    return 0;
 	} else if (get_async_request (dev, request, 1)) {
 	    uae_ReplyMsg (request);

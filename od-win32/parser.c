@@ -62,7 +62,6 @@ void DoSomeWeirdPrintingStuff(char val);
 static int uartbreak;
 static int parflush;
 
-static uae_thread_id prt_tid;
 static volatile int prt_running;
 static volatile int prt_started;
 static smp_comm_pipe prt_requests;
@@ -265,7 +264,7 @@ static void DoSomeWeirdPrintingStuff (char val)
 
 	    if (currprefs.parallel_postscript_emulation) {
 		prt_started = 0;
-		if (uae_start_thread ("postscript", prt_thread, psbuffer, &prt_tid)) {
+		if (uae_start_thread ("postscript", prt_thread, psbuffer, NULL)) {
 		    while (!prt_started)
 			Sleep (5);
 		    psbuffers = 0;
@@ -497,7 +496,6 @@ struct uaeserialdatawin32
     int writeactive;
     void *readdata, *writedata;
     volatile int threadactive;
-    uae_thread_id tid;
     uae_sem_t change_sem, sync_sem;
     void *user;
 };
@@ -717,7 +715,7 @@ int uaeser_open (struct uaeserialdatawin32 *sd, void *user, int unit)
     }
     uae_sem_init (&sd->sync_sem, 0, 0);
     uae_sem_init (&sd->change_sem, 0, 1);
-    uae_start_thread ("uaeserial_win32", uaeser_trap_thread, sd, &sd->tid);
+    uae_start_thread ("uaeserial_win32", uaeser_trap_thread, sd, NULL);
     uae_sem_wait (&sd->sync_sem);
 
     CommTimeOuts.ReadIntervalTimeout = 0;

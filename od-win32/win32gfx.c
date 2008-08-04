@@ -2254,8 +2254,6 @@ static BOOL doInit (void)
     }
 #endif
 #endif
-    write_log ("%dx%d %dx%d\n",
-	amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
     screen_is_initialized = 1;
     WIN32GFX_SetPalette ();
 #ifdef PICASSO96

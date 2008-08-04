@@ -1474,8 +1474,6 @@ addrbank akiko_bank = {
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
-static uae_thread_id akiko_tid;
-
 static void akiko_cdrom_free (void)
 {
     if (unitnum >= 0)
@@ -1571,7 +1569,7 @@ int akiko_init (void)
     }
     if (cdromok && !akiko_thread_running) {
 	akiko_thread_running = 1;
-	uae_start_thread ("akiko", akiko_thread, 0, &akiko_tid);
+	uae_start_thread ("akiko", akiko_thread, 0, NULL);
     }
     return 1;
 }
