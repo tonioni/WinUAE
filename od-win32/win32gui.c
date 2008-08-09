@@ -741,10 +741,15 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	}
     }
     if (!rd) {
-	;write_log ("Unknown: Size=%d, Name='%s'\nCRC32=%08X SHA1=%s\n",
-	   size, zfile_getname(f), get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+	write_log ("!: Name='%s':%d\nCRC32=%08X SHA1=%s\n",
+	   zfile_getname(f), size, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+    } else {
+	char tmp[MAX_DPATH];
+	getromname (rd, tmp);
+	write_log ("*: %s:%d = %s\nCRC32=%08X SHA1=%s\n",
+	   zfile_getname(f), size, tmp, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
     }
-    free (rombuf);
+    xfree (rombuf);
     return rd;
 }
 
@@ -8692,24 +8697,11 @@ static void updatejoyport (HWND hDlg)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
 	for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
-	if (v < 0) {
-	    idx = -1;
-	} else if (v >= JSEM_MICE) {
-	    idx = v - JSEM_MICE;
-	    if (idx >= inputdevice_get_device_total (IDTYPE_MOUSE))
-		idx = 0;
-	    else
-		idx += inputdevice_get_device_total (IDTYPE_JOYSTICK);
-	    idx += JSEM_LASTKBD;
-	} else if (v >= JSEM_JOYS) {
-	    idx = v - JSEM_JOYS;
-	    if (idx >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
-		idx = 0;
-	    idx += JSEM_LASTKBD;
-	} else {
-	    idx = v - JSEM_KBDLAYOUT;
-	}
-	idx+=2;
+	idx = inputdevice_getjoyportdevice (v);
+	if (idx >= 0)
+	    idx += 2;
+	else
+	    idx = 0;
 	if (idx >= total)
 	    idx = 0;
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
@@ -9026,6 +9018,7 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	pages[PORTS_ID] = hDlg;
 	currentpage = PORTS_ID;
 	init_portsdlg (hDlg);
+	inputdevice_updateconfig (&workprefs);
 	enable_for_portsdlg (hDlg);
 	values_to_portsdlg (hDlg);
 	updatejoyport (hDlg);
@@ -9051,6 +9044,8 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    joy0previous = joy1previous;
 	    joy1previous = temp;
 	    updatejoyport (hDlg);
+	    inputdevice_updateconfig (&workprefs);
+	    inputdevice_config_change ();
 	} else if (wParam == IDC_FLUSHPRINTER) {
 	    if (isprinter ()) {
 		closeprinter ();
@@ -9063,13 +9058,20 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    workprefs.parallel_postscript_detection = IsDlgButtonChecked (hDlg, IDC_PSPRINTERDETECT) ? 1 : 0;
 	    if (!workprefs.parallel_postscript_detection)
 		CheckDlgButton (hDlg, IDC_PSPRINTER, 0);
-	} else   {
-	    values_from_portsdlg (hDlg);
-	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)
-		updatejoyport (hDlg);
+	} else {
+	    if (HIWORD (wParam) == CBN_SELCHANGE) {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_PORT0_JOYS:
+		    case IDC_PORT1_JOYS:
+			values_from_portsdlg (hDlg);
+			updatejoyport (hDlg);
+			inputdevice_updateconfig (&workprefs);
+			inputdevice_config_change ();
+		    break;
+		}
+	    }
 	}
-	inputdevice_updateconfig (&workprefs);
-	inputdevice_config_change ();
 	recursive--;
 	break;
     }
@@ -9283,7 +9285,7 @@ static void doinputcustom (HWND hDlg, int newcustom)
     }
 }
 
-static void values_from_inputdlg (HWND hDlg)
+static void values_from_inputdlg (HWND hDlg, int inputchange)
 {
     int doselect = 0, v;
     BOOL success;
@@ -9349,7 +9351,7 @@ static void values_from_inputdlg (HWND hDlg)
 	doselect = 1;
     }
 
-    if (doselect && input_selected_device >= 0 && input_selected_event >= 0) {
+    if (inputchange && doselect && input_selected_device >= 0 && input_selected_event >= 0) {
 	int flags;
 	char custom[MAX_DPATH];
 	custom[0] = 0;
@@ -9455,7 +9457,19 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    inputdevice_set_device_status (input_selected_device, IsDlgButtonChecked( hDlg, IDC_INPUTDEVICEDISABLE) ? 1 : 0);
 	    break;
 	    default:
-	    values_from_inputdlg (hDlg);
+	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_INPUTAMIGA:
+		    values_from_inputdlg (hDlg, 1);
+		    break;
+		    case IDC_INPUTAMIGACNT:
+		    case IDC_INPUTTYPE:
+		    case IDC_INPUTDEVICE:
+		    values_from_inputdlg (hDlg, 0);
+		    break;
+		}
+	    }
 	    break;
 	}
 	enable_for_portsdlg (hDlg);
@@ -11501,6 +11515,7 @@ int gui_init (void)
     int ret;
 
     read_rom_list ();
+    inputdevice_updateconfig (&workprefs);
     for (;;) {
 	ret = GetSettings (1, currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL);
 	if (!restart_requested)

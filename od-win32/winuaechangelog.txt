@@ -1,11 +1,25 @@
 
+RC4: (still waiting for fixed winuae.net..)
+
+- quickstart A1200: increase A1200 KS 3.1 priority over
+  Cloanto A4000 KS 3.1 (AF2008 finally includes real A1200 3.1 ROM)
+- multiple identical USB game controllers fix really works now
+- non-ce/non-immediate blitter timing calculation returned totally
+  bogus values if AGA fmode=3, wide sprites or sprite doublescan was
+  enabled (tiny blit could take few seconds to finish in worst case..)
+  Ancient bug.
+- input device re-enumeration cleanup after usb device insert/remove
+- crash when inserting or removing USB devices before emulation has
+  been started
+- inserting/removing USB devices does not anymore change currently
+  selected mouse or joystick device in ports panel
+
 RC3:
 
 - bsdsocket broke in rc2
 - D3D filter does not crash if texture creation fails
   (=non D3D9 compatible display card/driver)
 - shader filters renamed to "D3D: <name of filter>" in GUI
-- removed useless/broken filters (MCxxxx, point, bilinear)
 
 RC2:
 

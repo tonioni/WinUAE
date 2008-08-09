@@ -3390,8 +3390,8 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 
     buildin_default_prefs_68020 (p);
     roms[0] = 11;
-    roms[1] = 31;
-    roms[2] = 15;
+    roms[1] = 15;
+    roms[2] = 31;
     roms[3] = -1;
     p->cs_rtc = 0;
     if (config == 1) {

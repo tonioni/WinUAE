@@ -987,7 +987,7 @@ static int open_windows (int full)
     for (i = 0; i < NUM_LEDS; i++)
 	gui_led (i, 0);
     gui_fps (0, 0);
-    inputdevice_acquire (FALSE);
+    inputdevice_acquire (TRUE);
 
     return ret;
 }
@@ -1840,8 +1840,7 @@ static int create_windows_2 (void)
 	    else
 	        ny = rc.top + (rc.bottom - rc.top - nh);
 	}
-
-	if ((w != nw || h != nh || x != nx || y != ny)) {
+	if (w != nw || h != nh || x != nx || y != ny) {
 	    w = nw;
 	    h = nh;
 	    x = nx;
@@ -1862,6 +1861,7 @@ static int create_windows_2 (void)
 		createstatuswindow ();
 	    in_sizemove--;
 	}
+	GetWindowRect (hAmigaWnd, &amigawin_rect);
 	write_log ("window already open\n");
 	return 1;
     }
@@ -1952,7 +1952,8 @@ static int create_windows_2 (void)
 	h = currentmode->native_height;
 
     } else {
-        RECT rc;
+
+	RECT rc;
 	getbestmode (0);
 	w = currentmode->native_width;
 	h = currentmode->native_height;
@@ -1966,11 +1967,6 @@ static int create_windows_2 (void)
 	else
 	    y = rc.top + (rc.bottom - rc.top - h);
     }
-
-    amigawin_rect.left = x;
-    amigawin_rect.top = y;
-    amigawin_rect.right = x + w;
-    amigawin_rect.bottom = y + h;
 
     if (rp_isactive () && !dxfs && !d3dfs && !fsw) {
 	HWND parent = rp_getparent ();
@@ -1993,6 +1989,7 @@ static int create_windows_2 (void)
 	close_hwnds();
 	return 0;
     }
+    GetWindowRect (hAmigaWnd, &amigawin_rect);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);

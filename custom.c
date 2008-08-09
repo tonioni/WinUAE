@@ -8,17 +8,6 @@
   * Copyright 2000-2008 Toni Wilen
   */
 
-//#define CUSTOM_DEBUG
-#define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 0xb0
-#define SPRITE_DEBUG_MAXY 0xf8
-#define SPR0_HPOS 0x15
-#define MAX_SPRITES 8
-#define SPRITE_COLLISIONS
-#define SPEEDUP
-
-#define SPRBORDER 0
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -62,6 +51,21 @@
 #include "gfxfilter.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
+
+//#define CUSTOM_DEBUG
+#define SPRITE_DEBUG 0
+#define SPRITE_DEBUG_MINY 0xb0
+#define SPRITE_DEBUG_MAXY 0xf8
+#ifdef NEWHSYNC
+#define SPR0_HPOS 0x19
+#else
+#define SPR0_HPOS 0x15
+#endif
+#define MAX_SPRITES 8
+#define SPRITE_COLLISIONS
+#define SPEEDUP
+
+#define SPRBORDER 0
 
 void magic_centering (uae_u16, uae_u16, int);
 
@@ -571,9 +575,14 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
     return real_bitplane_number[fetchmode][res][planes];
 }
 
+#ifdef NEWHSYNC
+#define HARD_DDF_STOP 0xd8
+#define HARD_DDF_START 0x14
+#else
 /* The HRM says 0xD8, but that can't work... */
 #define HARD_DDF_STOP 0xd4
 #define HARD_DDF_START 0x18
+#endif
 
 static void add_modulos (void)
 {
@@ -654,12 +663,12 @@ static int cycle_diagram_total_cycles[3][3][9];
 static int *curr_diagram;
 static const int cycle_sequences[3 * 8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,4,6,2,7,3,5,1 };
 
-static void debug_cycle_diagram(void)
+static void debug_cycle_diagram (void)
 {
     int fm, res, planes, cycle, v;
     char aa;
 
-    for (fm = 0; fm < 3; fm++) {
+    for (fm = 0; fm <= 2; fm++) {
 	write_log ("FMODE %d\n=======\n", fm);
 	for (res = 0; res <= 2; res++) {
 	    for (planes = 0; planes <= 8; planes++) {
@@ -678,7 +687,7 @@ static void debug_cycle_diagram(void)
     fm=0;
 }
 
-static void create_cycle_diagram_table(void)
+static void create_cycle_diagram_table (void)
 {
     int fm, res, cycle, planes, rplanes, v;
     int fetch_start, max_planes, freecycles;
@@ -2493,6 +2502,10 @@ static void calcdiw (void)
 
     plfstrt = ddfstrt;
     plfstop = ddfstop;
+#ifdef NEWHSYNC
+    plfstrt += 4;
+    plfstop += 4;
+#endif
     /* probably not the correct place.. */
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 	/* ECS/AGA and ddfstop > maxhpos == always-on display */
@@ -3641,8 +3654,13 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 
 STATIC_INLINE int copper_cant_read (int hpos)
 {
+#ifdef NEWHSYNC
+    if (hpos == 0)
+	return 1;
+#else
     if (hpos + 1 >= maxhpos)
 	return 1;
+#endif
     return is_bitplane_dma_inline (hpos);
 }
 
@@ -4557,10 +4575,17 @@ static void hsync_handler (void)
     if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 	decide_blitter (hpos);
 	memset (cycle_line, 0, sizeof cycle_line);
+#ifdef NEWHSYNC
+	alloc_cycle (5, CYCLE_REFRESH); /* strobe */
+	alloc_cycle (7, CYCLE_REFRESH);
+	alloc_cycle (9, CYCLE_REFRESH);
+	alloc_cycle (11, CYCLE_REFRESH);
+#else
 	alloc_cycle (1, CYCLE_REFRESH); /* strobe */
 	alloc_cycle (3, CYCLE_REFRESH);
 	alloc_cycle (5, CYCLE_REFRESH);
 	alloc_cycle (7, CYCLE_REFRESH);
+#endif
     }
 #endif
 
@@ -4594,11 +4619,11 @@ static void hsync_handler (void)
 	audio_hsync (1);
 
     if (!nocustom()) {
-	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop)
+	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
 	    blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
-		cycle_diagram_total_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
-		cycle_diagram_free_cycles[fmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)]);
-
+		cycle_diagram_total_cycles[fetchmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
+		cycle_diagram_free_cycles[fetchmode][GET_RES (bplcon0)][GET_PLANES_LIMIT (bplcon0)]);
+	}
 	hardware_line_completed (next_lineno);
     }
 

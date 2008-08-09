@@ -14,7 +14,7 @@
 #define CSMASK_ECS_DENISE 2
 #define CSMASK_AGA 4
 
-uae_u32 get_copper_address(int copno);
+uae_u32 get_copper_address (int copno);
 
 extern int custom_init (void);
 extern void customreset (int hardreset);
@@ -105,7 +105,7 @@ extern uae_u16 INTREQR (void);
 extern int maxhpos, maxvpos, maxvpos_max, minfirstline, vblank_endline, numscrlines;
 extern int vblank_hz, fake_vblank_hz, vblank_skip, doublescan;
 extern frame_time_t syncbase;
-#define NUMSCRLINES (maxvpos+1-minfirstline+1)
+#define NUMSCRLINES (maxvpos + 1 - minfirstline + 1)
 
 #define DMA_AUD0      0x0001
 #define DMA_AUD1      0x0002

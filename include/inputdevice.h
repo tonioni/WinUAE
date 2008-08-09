@@ -127,6 +127,7 @@ extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, char *option, char *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
 extern int inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, int type);
+extern int inputdevice_getjoyportdevice (int jport);
 
 extern void inputdevice_init (void);
 extern void inputdevice_close (void);

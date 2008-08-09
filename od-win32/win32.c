@@ -322,10 +322,14 @@ static void setcursor (int oldx, int oldy)
     mouseposy = oldy - y;
     if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
 	return;
-    if (oldx < amigawin_rect.left || oldy < amigawin_rect.top || oldx > amigawin_rect.right || oldy > amigawin_rect.top)
-	return;
     mouseposx = 0;
     mouseposy = 0;
+//    if (oldx < amigawin_rect.left || oldy < amigawin_rect.top || oldx > amigawin_rect.right || oldy > amigawin_rect.bottom) {
+    if (oldx < 0 || oldy < 0 || oldx > amigawin_rect.right - amigawin_rect.left || oldy > amigawin_rect.bottom - amigawin_rect.top) {
+	write_log ("Mouse out of range: %dx%d (%dx%d %dx%d)\n", oldx, oldy,
+	    amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
+	return;
+    }
     SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
 }
 
@@ -559,7 +563,7 @@ static void winuae_active (HWND hWnd, int minimized)
     getcapslock ();
     inputdevice_acquire (FALSE);
     wait_keyrelease ();
-    inputdevice_acquire (FALSE);
+    inputdevice_acquire (TRUE);
     if (isfullscreen() > 0 && !gui_active)
 	setmouseactive (1);
     manual_palette_refresh_needed = 1;
@@ -843,7 +847,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 	WINDOWPOS *wp = (WINDOWPOS*)lParam;
 	if (isfullscreen () <= 0) {
-	    if (!IsIconic (hWnd)) {
+	    if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
 		GetWindowRect (hWnd, &amigawin_rect);
 		if (isfullscreen () == 0) {
 		    changed_prefs.gfx_size_win.x = amigawin_rect.left;
@@ -948,12 +952,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	if (wParam == DBT_DEVNODES_CHANGED && lParam == 0) {
 	    if (waitfornext)
-		inputdevice_devicechange (&currprefs);
+		inputdevice_devicechange (&changed_prefs);
 	    waitfornext = 0;
 	} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 	    DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
 	    if (wParam == DBT_DEVICEREMOVECOMPLETE)
-		inputdevice_devicechange (&currprefs);
+		inputdevice_devicechange (&changed_prefs);
 	    else if (wParam == DBT_DEVICEARRIVAL)
 		waitfornext = 1;
 	} else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_VOLUME) {

@@ -3,7 +3,7 @@
   *
   * joystick/mouse emulation
   *
-  * Copyright 2001-2007 Toni Wilen
+  * Copyright 2001-2008 Toni Wilen
   *
   * new fetures:
   * - very configurable (and very complex to configure :)
@@ -1770,7 +1770,6 @@ int handle_custom_event (char *custom)
 	    while (*nextp == ' ')
 		nextp++;
 	}
-	write_log ("'%s'\n", p);
 	cfgfile_parse_line (&changed_prefs, p, 0);
 	p = nextp;
     }
@@ -2423,6 +2422,8 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
 			    match = j;
 		    }
 		}
+		if (match == -2)
+		    break;
 	    }
 	}
 	// multiple matches -> use complete local-only id string for comparisons
@@ -2539,6 +2540,18 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 void inputdevice_devicechange (struct uae_prefs *prefs)
 {
     int acc = input_acquired;
+    int i, idx;
+    char *jports[2];
+
+    for (i = 0; i < 2; i++) {
+	jports[i] = 0;
+	idx = inputdevice_getjoyportdevice (prefs->jports[i].id) - JSEM_LASTKBD;
+	if (idx >= 0) {
+	    struct inputdevice_functions *idf = getidf (idx);
+	    int devidx = inputdevice_get_device_index (idx);
+	    jports[i] = my_strdup (idf->get_uniquename (devidx));
+	}
+    }
 
     inputdevice_unacquire ();
     idev[IDTYPE_JOYSTICK].close ();
@@ -2547,15 +2560,21 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
     idev[IDTYPE_JOYSTICK].init ();
     idev[IDTYPE_MOUSE].init ();
     idev[IDTYPE_KEYBOARD].init ();
-    if (prefs == &currprefs) {
-	inputdevice_copyconfig (&changed_prefs, &currprefs);
-	if (acc)
-	    inputdevice_acquire (TRUE);
-    } else {
-	matchdevices (&idev[IDTYPE_MOUSE], mice);
-	matchdevices (&idev[IDTYPE_JOYSTICK], joysticks);
-	matchdevices (&idev[IDTYPE_KEYBOARD], keyboards);
+    matchdevices (&idev[IDTYPE_MOUSE], mice);
+    matchdevices (&idev[IDTYPE_JOYSTICK], joysticks);
+    matchdevices (&idev[IDTYPE_KEYBOARD], keyboards);
+
+    for (i = 0; i < 2; i++) {
+	freejport (prefs, i);
+	if (jports[i])
+	    inputdevice_joyport_config (prefs, jports[i], i, 2);
+	xfree (jports[i]);
     }
+
+    if (prefs == &changed_prefs)
+	inputdevice_copyconfig (&changed_prefs, &currprefs);
+    if (acc)
+        inputdevice_acquire (TRUE);
 }
 
 static void set_kbr_default (struct uae_prefs *p, int index, int num)
@@ -3481,4 +3500,27 @@ int inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, i
 	break;
     }
     return 0;
+}
+
+int inputdevice_getjoyportdevice (int jport)
+{
+    int idx;
+    if (jport < 0) {
+	idx = -1;
+    } else if (jport >= JSEM_MICE) {
+        idx = jport - JSEM_MICE;
+        if (idx >= inputdevice_get_device_total (IDTYPE_MOUSE))
+	    idx = 0;
+	else
+	    idx += inputdevice_get_device_total (IDTYPE_JOYSTICK);
+	idx += JSEM_LASTKBD;
+    } else if (jport >= JSEM_JOYS) {
+        idx = jport - JSEM_JOYS;
+        if (idx >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
+	    idx = 0;
+	idx += JSEM_LASTKBD;
+    } else {
+        idx = jport - JSEM_KBDLAYOUT;
+    }
+    return idx;
 }

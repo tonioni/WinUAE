@@ -57,7 +57,6 @@
 
 struct didata {
     int type;
-    int disabled;
     int acquired;
     int priority;
     int superdevice;
@@ -800,7 +799,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 	for (num = 0; num < num_mouse; num++) {
 	    did = &di_mouse[num];
-	    if (!did->disabled && did->rawinput == raw->header.hDevice)
+	    if (did->rawinput == raw->header.hDevice)
 		break;
 	}
 #ifdef DI_DEBUG_RAWINPUT
@@ -874,7 +873,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 #if 0
 	for (num = 0; num < num_keyboard; num++) {
 	    did = &di_keyboard[num];
-	    if (!did->disabled && (did->acquired || rawkeyboard > 0) && did->rawinput == raw->header.hDevice)
+	    if ((did->acquired || rawkeyboard > 0) && did->rawinput == raw->header.hDevice)
 		break;
 	}
 	if (num == num_keyboard) {
@@ -1216,7 +1215,7 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	sprintf(did->name, "[no name]");
     }
     trimws (did->name);
-    sprintf (tmp, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X %08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02",
+    sprintf (tmp, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X %08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
 	lpddi->guidProduct.Data1, lpddi->guidProduct.Data2, lpddi->guidProduct.Data3,
 	lpddi->guidProduct.Data4[0], lpddi->guidProduct.Data4[1], lpddi->guidProduct.Data4[2], lpddi->guidProduct.Data4[3],
 	lpddi->guidProduct.Data4[4], lpddi->guidProduct.Data4[5], lpddi->guidProduct.Data4[6], lpddi->guidProduct.Data4[7],
@@ -1241,15 +1240,29 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 extern HINSTANCE hInst;
 static LPDIRECTINPUT8 g_lpdi;
 
+
+static void di_dev_free (struct didata *did)
+{
+    if (did->lpdi)
+	IDirectInputDevice8_Release (did->lpdi);
+    xfree (did->name);
+    xfree (did->sortname);
+    xfree (did->configname);
+    memset (did, 0, sizeof (struct didata));
+}
+
 static int di_do_init (void)
 {
     HRESULT hr;
+    int i;
 
     num_mouse = num_joystick = num_keyboard = 0;
-    memset (&di_mouse, 0, sizeof (di_mouse));
-    memset (&di_joystick, 0, sizeof (di_joystick));
-    memset (&di_keyboard, 0, sizeof (di_keyboard));
 
+    for (i = 0; i < MAX_INPUT_DEVICES; i++) {
+	di_dev_free (&di_joystick[i]);
+	di_dev_free (&di_mouse[i]);
+	di_dev_free (&di_keyboard[i]);
+    }
     hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, &IID_IDirectInput8A, (LPVOID *)&g_lpdi, NULL);
     if (FAILED(hr)) {
 	write_log ("DirectInput8Create failed, %s\n", DXError (hr));
@@ -1284,14 +1297,6 @@ static int di_do_init (void)
     return 1;
 }
 
-static void di_dev_free (struct didata *did)
-{
-    xfree (did->name);
-    xfree (did->sortname);
-    xfree (did->configname);
-    memset (did, 0, sizeof (*did));
-}
-
 static int di_init (void)
 {
     if (dd_inited++ > 0)
@@ -1303,6 +1308,7 @@ static int di_init (void)
 
 static void di_free (void)
 {
+    int i;
     if (dd_inited == 0)
 	return;
     dd_inited--;
@@ -1311,9 +1317,11 @@ static void di_free (void)
     if (g_lpdi)
 	IDirectInput8_Release (g_lpdi);
     g_lpdi = 0;
-    di_dev_free (di_mouse);
-    di_dev_free (di_joystick);
-    di_dev_free (di_keyboard);
+    for (i = 0; i < MAX_INPUT_DEVICES; i++) {
+	di_dev_free (&di_joystick[i]);
+	di_dev_free (&di_mouse[i]);
+	di_dev_free (&di_keyboard[i]);
+    }
 }
 
 static int get_mouse_num (void)
@@ -1379,7 +1387,7 @@ static int init_mouse (void)
     mouse_inited = 1;
     for (i = 0; i < num_mouse; i++) {
 	did = &di_mouse[i];
-	if (!did->disabled && did->connection == DIDC_DX) {
+	if (did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIMouse2);
@@ -1404,11 +1412,8 @@ static void close_mouse (void)
     if (!mouse_inited)
 	return;
     mouse_inited = 0;
-    for (i = 0; i < num_mouse; i++) {
-	if (di_mouse[i].lpdi)
-	    IDirectInputDevice8_Release (di_mouse[i].lpdi);
-	di_mouse[i].lpdi = 0;
-    }
+    for (i = 0; i < num_mouse; i++)
+	di_dev_free (&di_mouse[i]);
     supermouse = normalmouse = rawmouse = winmouse = 0;
     di_free ();
 }
@@ -1739,7 +1744,7 @@ static int init_kb (void)
     keyboard_inited = 1;
     for (i = 0; i < num_keyboard; i++) {
 	struct didata *did = &di_keyboard[i];
-	if (!did->disabled && did->connection == DIDC_DX) {
+	if (did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIKeyboard);
@@ -1776,11 +1781,8 @@ static void close_kb (void)
 	return;
     keyboard_inited = 0;
 
-    for (i = 0; i < num_keyboard; i++) {
-	if (di_keyboard[i].lpdi)
-	    IDirectInputDevice8_Release (di_keyboard[i].lpdi);
-	di_keyboard[i].lpdi = 0;
-    }
+    for (i = 0; i < num_keyboard; i++)
+	di_dev_free (&di_keyboard[i]);
     superkb = normalkb = rawkb = 0;
     di_free ();
 }
@@ -2216,7 +2218,7 @@ static int init_joystick (void)
     joystick_inited = 1;
     for (i = 0; i < num_joystick; i++) {
 	did = &di_joystick[i];
-	if (!did->disabled && did->connection == DIDC_DX) {
+	if (did->connection == DIDC_DX) {
 	    hr = IDirectInput8_CreateDevice (g_lpdi, &did->iguid, &lpdi, NULL);
 	    if (SUCCEEDED (hr)) {
 		hr = IDirectInputDevice8_SetDataFormat (lpdi, &c_dfDIJoystick);
@@ -2243,11 +2245,8 @@ static void close_joystick (void)
     if (!joystick_inited)
 	return;
     joystick_inited = 0;
-    for (i = 0; i < num_joystick; i++) {
-	if (di_joystick[i].lpdi)
-	    IDirectInputDevice8_Release (di_joystick[i].lpdi);
-	di_joystick[i].lpdi = 0;
-    }
+    for (i = 0; i < num_joystick; i++)
+	di_dev_free (&di_joystick[i]);
     di_free ();
 }
 

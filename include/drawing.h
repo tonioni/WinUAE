@@ -17,15 +17,24 @@
 #define MAX_PLANES 6
 #endif
 
+//#define NEWHSYNC
+
+#ifdef NEWHSYNC
+#define DIW_DDF_OFFSET 9
+/* this many cycles starting from hpos=0 are visible on right border */
+#define HBLANK_OFFSET 13
+#define DISPLAY_LEFT_SHIFT 0x40
+#else
 /* According to the HRM, pixel data spends a couple of cycles somewhere in the chips
    before it appears on-screen.  */
 #define DIW_DDF_OFFSET 9
 /* this many cycles starting from hpos=0 are visible on right border */
 #define HBLANK_OFFSET 9
-
 /* We ignore that many lores pixels at the start of the display. These are
  * invisible anyway due to hardware DDF limits. */
 #define DISPLAY_LEFT_SHIFT 0x40
+#endif
+
 #define PIXEL_XPOS(HPOS) (((HPOS)*2 - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift)
 
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
