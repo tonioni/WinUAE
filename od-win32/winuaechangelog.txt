@@ -1,4 +1,11 @@
 
+Final
+
+- compiled with August 2008 DXSDK, shader files modified (old ones are
+  not compatible anymore) D3D filter now requires August 2008 or newer
+  DirectX. Shader support need pixel shader version 2.0 or later.
+- MSVC 2008 updated to final SP1
+
 RC4: (still waiting for fixed winuae.net..)
 
 - quickstart A1200: increase A1200 KS 3.1 priority over
@@ -12,7 +19,7 @@ RC4: (still waiting for fixed winuae.net..)
 - crash when inserting or removing USB devices before emulation has
   been started
 - inserting/removing USB devices does not anymore change currently
-  selected mouse or joystick device in ports panel
+  selected mouse or joystick in ports panel
 
 RC3:
 
@@ -5707,7 +5714,7 @@ Beta 6:
 Beta 5:
 
 - ignore mouse events when WinUAE is not in focus
-- disk emulation track length/motor speed fix (István Fabian)
+- disk emulation track length/motor speed fix (Istv¯n Fabian)
 - filesystem "ghost"-file fix
   (but we still have one bug left in ACTION_RENAME that isn't so easy to fix)
 - F10 and ALT-keys don't freeze the emulation anymore
@@ -6082,7 +6089,7 @@ Beta 1: (VSync test beta)
 
 - joystick keyboard emulation do not anymore create normal key presses
 - sprite update (no more flashing bees in Superfrog)
-- CIA update (fixes Powermonger, thanks to István Fábián)
+- CIA update (fixes Powermonger, thanks to Istv¯n F¯bi¯n)
 - VSync and separate refresh rate selection added
   I had to implement this because I got too many requests :)
 - requires DirectX 7 or newer (was DX5 or newer)

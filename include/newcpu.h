@@ -121,13 +121,13 @@ extern struct regstruct
     uae_u32 cacr, caar;
     uae_u32 itt0, itt1, dtt0, dtt1;
     uae_u32 tcr, mmusr, urp, srp, buscr;
-
     uae_u32 mmu_fslw, mmu_fault_addr;
     uae_u16 mmu_ssw;
     uae_u32 wb3_data;
     uae_u16 wb3_status;
     int mmu_enabled;
     int mmu_pagesize_8k;
+    uae_u32 fault_pc;
 #endif
 
     uae_u32 pcr;

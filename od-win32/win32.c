@@ -1606,7 +1606,7 @@ HMODULE language_load (WORD language)
 			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV || HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV - 1)) {
+				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)) {
 				success = TRUE;
 				write_log ("Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {

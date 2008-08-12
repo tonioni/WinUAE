@@ -20,15 +20,18 @@
 #include "direct3d.h"
 #include "hq2x_d3d.h"
 
+#define D3DEX 0
+
 static int tex_pow2, tex_square, tex_dynamic;
 static int psEnabled, psActive, psPreProcess;
 
 static int tformat;
-static int d3d_enabled, scanlines_ok;
-static HINSTANCE d3dDLL;
+static int d3d_enabled, d3d_ex, scanlines_ok;
 static LPDIRECT3D9 d3d;
+static LPDIRECT3D9EX d3dex;
 static D3DPRESENT_PARAMETERS dpp;
 static LPDIRECT3DDEVICE9 d3ddev;
+static LPDIRECT3DDEVICE9EX d3ddevex;
 static D3DSURFACE_DESC dsdbb;
 static LPDIRECT3DTEXTURE9 texture, sltexture;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2;
@@ -308,19 +311,29 @@ int D3D_canshaders (void)
 {
     static int yesno = 0;
     HANDLE h;
+    LPDIRECT3D9 d3dx;
+    D3DCAPS9 d3dCaps;
 
     if (yesno < 0)
 	return 0;
     if (yesno > 0)
 	return 1;
-    h = LoadLibrary ("d3dx9_36.dll");
-    if (h == NULL) {
-	yesno = -1;
-	return 0;
+    yesno = -1;
+    h = LoadLibrary ("d3dx9_39.dll");
+    if (h != NULL) {
+	FreeLibrary (h);
+	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
+	if (d3dx != NULL) {
+	    if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3dx, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
+		if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
+		    write_log ("D3D: Pixel shader 2.0+ support detected, shader filters enabled.\n");
+		    yesno = 1;
+		}
+	    }
+	    IDirect3D9_Release (d3dx);
+	}
     }
-    FreeLibrary (h);
-    yesno = 1;
-    return 1;
+    return yesno > 0 ? 1 : 0;
 }
 
 static int psEffect_LoadEffect (const char *shaderfile)
@@ -897,7 +910,7 @@ static int restoredeviceobjects (void)
 
     invalidatedeviceobjects ();
     if (currprefs.gfx_filtershader[0]) {
-	if (!psEffect_LoadEffect (currprefs.gfx_filtershader))
+	if (!psEnabled || !psEffect_LoadEffect (currprefs.gfx_filtershader))
 	    currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
     }
     if (!createtexture (tin_w, tin_h))
@@ -937,10 +950,6 @@ void D3D_free (void)
 	IDirect3DDevice9_Release (d3ddev);
 	d3ddev = NULL;
     }
-    if (d3dDLL) {
-	FreeLibrary (d3dDLL);
-	d3dDLL = NULL;
-    }
     if (d3d) {
 	IDirect3D9_Release (d3d);
 	d3d = NULL;
@@ -955,10 +964,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     HRESULT ret;
     static char errmsg[100] = { 0 };
     D3DDISPLAYMODE mode;
+    D3DDISPLAYMODEEX modeex;
     D3DCAPS9 d3dCaps;
     int adapter;
+    DWORD flags;
+    HINSTANCE d3dDLL;
 
     D3D_free ();
+    D3D_canshaders ();
     adapter = currprefs.gfx_display - 1;
     if (adapter < 0)
 	adapter = 0;
@@ -969,19 +982,37 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	return errmsg;
     }
 
+    d3d_ex = FALSE;
     d3dDLL = LoadLibrary ("D3D9.DLL");
     if (d3dDLL == NULL) {
 	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
 	return errmsg;
+    } else {
+	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, void**);
+        LPDIRECT3DCREATE9EX d3dexp  = (LPDIRECT3DCREATE9EX)GetProcAddress (d3dDLL, "Direct3DCreate9Ex");
+	if (d3dexp)
+	    d3d_ex = TRUE;
+    }
+    FreeLibrary (d3dDLL);
+    if (d3d_ex && D3DEX) {
+        if (FAILED (Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex))) {
+            D3D_free ();
+            strcpy (errmsg, "Direct3D: failed to create D3DEx object");
+            return errmsg;
+        }
+        d3d = (IDirect3D9*)d3dex;
+    } else {
+	d3d = Direct3DCreate9 (D3D_SDK_VERSION);
+	if (d3d == NULL) {
+	    D3D_free ();
+	    strcpy (errmsg, "Direct3D: failed to create D3D object");
+	    return errmsg;
+        }
     }
 
-    d3d = Direct3DCreate9 (D3D_SDK_VERSION);
-    if (d3d == NULL) {
-	D3D_free ();
-	strcpy (errmsg, "Direct3D: failed to create D3D object");
-	return errmsg;
-    }
-
+    modeex.Size = sizeof modeex;
+    if (d3dex && D3DEX)
+	IDirect3D9Ex_GetAdapterDisplayModeEx (d3dex, adapter, &modeex, NULL);
     IDirect3D9_GetAdapterDisplayMode (d3d, adapter, &mode);
     IDirect3D9_GetDeviceCaps (d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps);
 
@@ -994,9 +1025,17 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     dpp.BackBufferWidth = w_w;
     dpp.BackBufferHeight = w_h;
     dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+    modeex.Width = w_w;
+    modeex.Height = w_h;
+    modeex.RefreshRate = 0;
+    modeex.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+    modeex.Format = mode.Format;
+
     vsync2 = 0;
     if (isfullscreen() > 0) {
 	dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
+	modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
 	if (currprefs.gfx_avsync > 0) {
 	    dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	    if (currprefs.gfx_avsync > 85) {
@@ -1009,20 +1048,22 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     }
 
     d3dhwnd = ahwnd;
+
    // Check if hardware vertex processing is available
-    if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
-        // Create device with hardware vertex processing
-        ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
-            D3DCREATE_HARDWARE_VERTEXPROCESSING|D3DCREATE_NOWINDOWCHANGES|D3DCREATE_FPU_PRESERVE,
-	    &dpp, &d3ddev);
+    if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
+	flags = D3DCREATE_HARDWARE_VERTEXPROCESSING;
+    else
+	flags = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+    flags |= D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE;
+
+    if (d3d_ex && D3DEX) {
+	ret = IDirect3D9Ex_CreateDeviceEx (d3dex, adapter, D3DDEVTYPE_HAL, ahwnd, flags, &dpp, &modeex, &d3ddevex);
+	d3ddev = (LPDIRECT3DDEVICE9)d3ddevex;
     } else {
-        // Create device with software vertex processing
-        ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd,
-            D3DCREATE_SOFTWARE_VERTEXPROCESSING|D3DCREATE_NOWINDOWCHANGES|D3DCREATE_FPU_PRESERVE,
-	    &dpp, &d3ddev);
+	ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, ahwnd, flags, &dpp, &d3ddev);
     }
     if(FAILED (ret)) {
-	sprintf (errmsg, "CreateDevice failed, %s\n", D3D_ErrorString (ret));
+	sprintf (errmsg, "%s failed, %s\n", d3d_ex ? "CreateDeviceEx" : "CreateDevice", D3D_ErrorString (ret));
 	D3D_free ();
 	return errmsg;
     }
@@ -1041,7 +1082,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     if(d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)
 	tex_dynamic = TRUE;
 
-    if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1,4)) {
+    if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
 	if((d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) && tex_dynamic) {
 	    psEnabled = TRUE;
 	    tex_square = TRUE;

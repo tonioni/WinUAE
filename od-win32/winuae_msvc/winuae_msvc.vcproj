@@ -92,7 +92,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateManifest="false"
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_36.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/winuae.pdb"
 				SubSystem="2"
@@ -307,7 +307,7 @@
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_36.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
@@ -1090,7 +1090,7 @@
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_36.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1677,10 +1677,6 @@
 			</File>
 			<File
 				RelativePath="..\..\cpuemu_12.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\cpummu.c"
 				>
 			</File>
 			<File
