@@ -398,15 +398,6 @@ static void pfield_init_linetoscr (void)
 	    playfield_end = visible_right_border;
     }
 #endif
-    /* Now, compute some offsets.  */
-
-    res_shift = lores_shift - bplres;
-    ddf_left -= DISPLAY_LEFT_SHIFT;
-    pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
-    ddf_left <<= bplres;
-
-    unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
-    src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left + unpainted);
 
     if (sprite_aga_first_x < sprite_aga_last_x) {
         uae_u8 *p = spritepixels + sprite_aga_first_x;
@@ -420,6 +411,16 @@ static void pfield_init_linetoscr (void)
 	sprite_aga_last_x = 0;
 	sprite_aga_first_x = MAX_PIXELS_PER_LINE;
     }
+
+    /* Now, compute some offsets.  */
+    res_shift = lores_shift - bplres;
+    ddf_left -= DISPLAY_LEFT_SHIFT;
+    pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
+    ddf_left <<= bplres;
+
+    unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
+    src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left + unpainted);
+
     seen_sprites = 0;
     if (dip_for_drawing->nr_sprites == 0)
 	return;
@@ -440,22 +441,22 @@ static void pfield_init_linetoscr (void)
     }
 }
 
-void drawing_adjust_mousepos(int *xp, int *yp)
+void drawing_adjust_mousepos (int *xp, int *yp)
 {
 }
 
-static uae_u8 merge_2pixel8(uae_u8 p1, uae_u8 p2)
+static uae_u8 merge_2pixel8 (uae_u8 p1, uae_u8 p2)
 {
     return p1;
 }
-static uae_u16 merge_2pixel16(uae_u16 p1, uae_u16 p2)
+static uae_u16 merge_2pixel16 (uae_u16 p1, uae_u16 p2)
 {
     uae_u16 v = ((((p1 >> xredcolor_s) & xredcolor_m) + ((p2 >> xredcolor_s) & xredcolor_m)) / 2) << xredcolor_s;
     v |= ((((p1 >> xbluecolor_s) & xbluecolor_m) + ((p2 >> xbluecolor_s) & xbluecolor_m)) / 2) << xbluecolor_s;
     v |= ((((p1 >> xgreencolor_s) & xgreencolor_m) + ((p2 >> xgreencolor_s) & xgreencolor_m)) / 2) << xgreencolor_s;
     return v;
 }
-static uae_u32 merge_2pixel32(uae_u32 p1, uae_u32 p2)
+static uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 {
     uae_u32 v = ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
     v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;

@@ -6720,7 +6720,8 @@ static void values_to_sounddlg (HWND hDlg)
     sprintf (txt, "%d", workprefs.sound_freq);
     SendDlgItemMessage (hDlg, IDC_SOUNDFREQ, WM_SETTEXT, 0, (LPARAM)txt);
 
-    switch (workprefs.produce_sound) {
+    switch (workprefs.produce_sound)
+    {
      case 0: which_button = IDC_SOUND0; break;
      case 1: which_button = IDC_SOUND1; break;
      case 2: which_button = IDC_SOUND2; break;
@@ -6887,6 +6888,8 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
     switch (msg) {
     case WM_INITDIALOG:
+    {
+	int gotnonds = 0;
 	sound_loaddrivesamples ();
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SOUND_MEM, MAX_SOUND_MEM));
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPAGESIZE, 0, 1);
@@ -6902,14 +6905,24 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);
 	numdevs = enumerate_sound_devices ();
-	for (card = 0; card < numdevs; card++)
-	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)sound_devices[card].name);
+	for (card = 0; card < numdevs; card++) {
+	    if (sound_devices[card].type != SOUND_DEVICE_DS)
+		gotnonds = 1;
+	}
+	for (card = 0; card < numdevs; card++) {
+	    char tmp[MAX_DPATH];
+	    if (gotnonds)
+		sprintf (tmp, "%s: %s", sound_devices[card].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[card].name);
+	    else
+		strcpy (tmp, sound_devices[card].name);
+	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
 	if (numdevs == 0)
 	    workprefs.produce_sound = 0; /* No sound card in system, enable_for_sounddlg will accomodate this */
 
 	pages[SOUND_ID] = hDlg;
 	currentpage = SOUND_ID;
-
+    }
     case WM_USER:
 	recursive++;
 	values_to_sounddlg (hDlg);

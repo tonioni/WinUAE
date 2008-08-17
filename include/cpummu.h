@@ -42,6 +42,8 @@
 #define false 0
 #define likely(x) x
 #define unlikely(x) x
+static ALWAYS_INLINE bool test_ram_boundary (uaecptr addr, int size, bool super, bool write) { return false; }
+static ALWAYS_INLINE void flush_internals (void) { }
 
 typedef char flagtype;
 
@@ -340,7 +342,11 @@ static ALWAYS_INLINE bool is_unaligned(uaecptr addr, int size)
 
 static ALWAYS_INLINE uae_u8 *mmu_get_real_address(uaecptr addr, struct mmu_atc_line *cl)
 {
-	return do_get_real_address(cl->phys + addr);
+	return get_real_address(cl->phys + addr);
+}
+static ALWAYS_INLINE uae_u8 *phys_get_real_address(uaecptr addr)
+{
+    return get_real_address(addr);
 }
 
 static ALWAYS_INLINE uae_u32 mmu_get_long(uaecptr addr, int data, int size)
@@ -457,6 +463,96 @@ static ALWAYS_INLINE void mmu_put_user_byte(uaecptr addr, uae_u8 val, int super,
 	else
 		mmu_put_byte_slow(addr, val, super, data, size, cl);
 }
+
+
+static ALWAYS_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
+{
+    put_long (addr, l);
+}
+static ALWAYS_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
+{
+    put_word (addr, w);
+}
+static ALWAYS_INLINE void phys_put_byte(uaecptr addr, uae_u32 b)
+{
+    put_byte (addr, b);
+}
+static ALWAYS_INLINE uae_u32 phys_get_long(uaecptr addr)
+{
+    return get_long (addr);
+}
+static ALWAYS_INLINE uae_u32 phys_get_word(uaecptr addr)
+{
+    return get_word (addr);
+}
+static ALWAYS_INLINE uae_u32 phys_get_byte(uaecptr addr)
+{
+    return get_byte (addr);
+}
+
+static ALWAYS_INLINE void HWput_l(uaecptr addr, uae_u32 l)
+{
+    put_long (addr, l);
+}
+static ALWAYS_INLINE void HWput_w(uaecptr addr, uae_u32 w)
+{
+    put_word (addr, w);
+}
+static ALWAYS_INLINE void HWput_b(uaecptr addr, uae_u32 b)
+{
+    put_byte (addr, b);
+}
+static ALWAYS_INLINE uae_u32 HWget_l(uaecptr addr)
+{
+    return get_long (addr);
+}
+static ALWAYS_INLINE uae_u32 HWget_w(uaecptr addr)
+{
+    return get_word (addr);
+}
+static ALWAYS_INLINE uae_u32 HWget_b(uaecptr addr)
+{
+    return get_byte (addr);
+}
+
+
+static ALWAYS_INLINE uae_u32 uae_mmu_get_long(uaecptr addr)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		return mmu_get_long_unaligned(addr, 1);
+	return mmu_get_long(addr, 1, sz_long);
+}
+static ALWAYS_INLINE uae_u16 uae_mmu_get_word(uaecptr addr)
+{
+	if (unlikely(is_unaligned(addr, 2)))
+		return mmu_get_word_unaligned(addr, 1);
+	return mmu_get_word(addr, 1, sz_word);
+}
+static ALWAYS_INLINE uae_u8 uae_mmu_get_byte(uaecptr addr)
+{
+	return mmu_get_byte(addr, 1, sz_byte);
+}
+static ALWAYS_INLINE void uae_mmu_put_long(uaecptr addr, uae_u32 val)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		mmu_put_long_unaligned(addr, val, 1);
+	else
+		mmu_put_long(addr, val, 1, sz_long);
+}
+static ALWAYS_INLINE void uae_mmu_put_word(uaecptr addr, uae_u16 val)
+{
+	if (unlikely(is_unaligned(addr, 2)))
+		mmu_put_word_unaligned(addr, val, 1);
+	else
+		mmu_put_word(addr, val, 1, sz_word);
+}
+static ALWAYS_INLINE void uae_mmu_put_byte(uaecptr addr, uae_u8 val)
+{
+	mmu_put_byte(addr, val, 1, sz_byte);
+}
+
+
+
 
 #else
 

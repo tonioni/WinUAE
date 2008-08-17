@@ -2327,7 +2327,7 @@ static void reset_decisions (void)
 
 static int isvsync (void)
 {
-    return currprefs.gfx_avsync && currprefs.gfx_afullscreen;
+    return currprefs.gfx_avsync && currprefs.gfx_afullscreen && !picasso_on;
 }
 
 int vsynctime_orig;

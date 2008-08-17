@@ -1339,7 +1339,7 @@ static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
     if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 	/* ignore single-word unconditional jump instructions
 	 * (instruction prefetch from PC+2 can cause false positives) */
-	if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 4e77)
+	if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 0x4e77)
 	    return; /* RTS, RTD, RTE, RTR */
 	if ((regs.irc & 0xff00) == 0x6000 && (regs.irc & 0x00ff) != 0 && (regs.irc & 0x00ff) != 0xff)
 	    return; /* BRA.B */

@@ -1706,7 +1706,7 @@ static void createstatuswindow (void)
 	lpParts = LocalLock (hloc);
 	/* Calculate the right edge coordinate for each part, and copy the coords
 	 * to the array.  */
-	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - 2;
+	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - 16;
 	lpParts[1] = lpParts[0] + snd_width;
 	lpParts[2] = lpParts[1] + idle_width;
 	lpParts[3] = lpParts[2] + fps_width;
@@ -1721,7 +1721,7 @@ static void createstatuswindow (void)
 	window_led_drives_end = lpParts[10];
 
 	/* Create the parts */
-	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM) num_parts, (LPARAM) lpParts);
+	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);
 	LocalUnlock (hloc);
 	LocalFree (hloc);
     }

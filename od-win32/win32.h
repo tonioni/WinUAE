@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 0
-#define WINUAEPUBLICBETA 0
-#define WINUAEDATE MAKEBD(2008, 8, 12)
+#define WINUAEBETA 1
+#define WINUAEPUBLICBETA 1
+#define WINUAEDATE MAKEBD(2008, 8, 17)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -139,11 +139,14 @@ extern void logging_cleanup (void);
 
 extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
 
-#define MAX_SOUND_DEVICES 10
+#define MAX_SOUND_DEVICES 20
+#define SOUND_DEVICE_DS 1
+#define SOUND_DEVICE_AL 2
 struct sound_device
 {
     GUID guid;
     char *name;
+    int type;
 };
 extern struct sound_device sound_devices[MAX_SOUND_DEVICES];
 extern struct sound_device record_devices[MAX_SOUND_DEVICES];

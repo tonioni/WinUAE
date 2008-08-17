@@ -300,14 +300,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll;openal32.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
@@ -1083,14 +1083,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib"
+				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_39.dll;openal32.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1677,6 +1677,10 @@
 			</File>
 			<File
 				RelativePath="..\..\cpuemu_12.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\cpummu.c"
 				>
 			</File>
 			<File

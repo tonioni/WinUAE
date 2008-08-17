@@ -1,5 +1,23 @@
 
-Final
+Beta 1: (crashing bug = this will be quick beta series, really!)
+
+- 4th floppy drive track display number was clipped in windowed mode
+- non-vsync RTG mode run in "warp"-mode if native mode was set to
+  fullscreen+vsync
+- USB "non-friendly" name buffer overflow, caused random crashes
+  and weird behavior.. (1.5.1)
+- OpenAL sound support (experimental, OpenAL may be better API for
+  new AHI driver than DSound) Note that OpenAL uses internally
+  DirectSound if sound card does not have native OpenAL support.
+  "Generic Hardware" = DSound wrapper, "Generic Software" = WaveOut
+  wrapper (really bad), something else = native support. OpenAL sound
+  devices only available if OpenAL is installed. DO NOT ASK something
+  like "What is OpenAL". Learn to use search engines first or ignore
+  this feature.
+- sprite garbage was possible if sprite(s) active during resolution
+  change from higher to lower resolution (AGA only) (1.5.0)
+ 
+Final 1.5.1
 
 - compiled with August 2008 DXSDK, shader files modified (old ones are
   not compatible anymore) D3D filter now requires August 2008 or newer

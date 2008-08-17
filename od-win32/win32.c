@@ -1970,15 +1970,15 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
     cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev );
     cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
-    cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false" );
-    cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false" );
-    cfgfile_target_dwrite (f, "rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? "true" : "false" );
+    cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false");
+    cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false");
+    cfgfile_target_dwrite (f, "rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? "true" : "false");
     cfgfile_target_dwrite (f, "rtg_scale_aspect_ratio=%d:%d\n",
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
-    cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false" );
+    cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false");
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
-    cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard );
+    cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard);
     cfgfile_target_dwrite (f, "cpu_idle=%d\n", p->cpu_idle);
     cfgfile_target_dwrite (f, "notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
     cfgfile_target_dwrite (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
@@ -3214,7 +3214,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 
     if (WIN32_RegisterClasses () && WIN32_InitLibraries () && DirectDraw_Start (NULL)) {
 	DEVMODE devmode;
-	DWORD i = 0;
+	DWORD i;
 
 	DirectDraw_Release ();
 	write_log ("Enumerating display devices.. \n");
@@ -3222,8 +3222,11 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	write_log ("Sorting devices and modes..\n");
 	sortdisplays ();
 	write_log ("Display buffer mode = %d\n", ddforceram);
+	write_log ("Enumerating sound devices:\n");
+	for (i = 0; i < enumerate_sound_devices (); i++) {
+	    write_log ("%d:%s: %s\n", i, sound_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[i].name);
+	}
 	write_log ("done\n");
-
 	memset (&devmode, 0, sizeof(devmode));
 	devmode.dmSize = sizeof (DEVMODE);
 	if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {

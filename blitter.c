@@ -283,19 +283,19 @@ static void blitter_dofast (void)
 
     if (bltcon0 & 0x800) {
 	bltadatptr = bltapt;
-	bltapt += (blt_info.hblitsize*2 + blt_info.bltamod)*blt_info.vblitsize;
+	bltapt += (blt_info.hblitsize * 2 + blt_info.bltamod) * blt_info.vblitsize;
     }
     if (bltcon0 & 0x400) {
 	bltbdatptr = bltbpt;
-	bltbpt += (blt_info.hblitsize*2 + blt_info.bltbmod)*blt_info.vblitsize;
+	bltbpt += (blt_info.hblitsize * 2 + blt_info.bltbmod) * blt_info.vblitsize;
     }
     if (bltcon0 & 0x200) {
 	bltcdatptr = bltcpt;
-	bltcpt += (blt_info.hblitsize*2 + blt_info.bltcmod)*blt_info.vblitsize;
+	bltcpt += (blt_info.hblitsize * 2 + blt_info.bltcmod) * blt_info.vblitsize;
     }
     if (bltcon0 & 0x100) {
 	bltddatptr = bltdpt;
-	bltdpt += (blt_info.hblitsize*2 + blt_info.bltdmod)*blt_info.vblitsize;
+	bltdpt += (blt_info.hblitsize * 2 + blt_info.bltdmod) * blt_info.vblitsize;
     }
 
 #ifdef SPEEDUP
@@ -679,6 +679,7 @@ void blitter_handler (uae_u32 data)
     blitter_stuck = 0;
     if (blit_slowdown > 0 && !currprefs.immediate_blits) {
 	event2_newevent (ev2_blitter, blit_slowdown);
+	blit_misscyclecounter = blit_slowdown;
 	blit_slowdown = -1;
 	return;
     }
@@ -1060,12 +1061,20 @@ void do_blitter (int hpos)
 #ifdef BLITTER_DEBUG
     blitter_dontdo = 0;
     if (1) {
+	int ch = 0;
 	if (oldstate != BLT_done)
 	    write_log ("blitter was already active!\n");
-	write_log ("blitstart: v=%03.3d h=%03.3d %dx%d %d (%d) d=%d f=%02X n=%d pc=%p l=%d dma=%04X\n",
-	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, cycles, blit_ch,
-	    blitdesc ? 1 : 0, blitfill,
-	    dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);
+	if (blit_ch & 1)
+	    ch++;
+	if (blit_ch & 2)
+	    ch++;
+	if (blit_ch & 4)
+	    ch++;
+	if (blit_ch & 8)
+	    ch++;
+	write_log ("blitstart: v=%03d h=%03d %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X\n",
+	    vpos, hpos, blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[1], cycles, blit_diag[1] * cycles,
+	    blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);
 	blitter_dump ();
     }
 #endif
@@ -1099,7 +1108,8 @@ void do_blitter (int hpos)
     if (currprefs.immediate_blits)
 	cycles = 1;
 
-    event2_newevent(ev2_blitter, cycles * blit_diag[1]);
+    blit_cyclecounter = cycles * blit_diag[1]; 
+    event2_newevent (ev2_blitter, blit_cyclecounter);
 }
 
 void maybe_blit (int hpos, int hack)

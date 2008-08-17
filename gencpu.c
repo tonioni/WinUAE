@@ -31,7 +31,7 @@
 static FILE *headerfile;
 static FILE *stblfile;
 
-static int using_prefetch, using_indirect;
+static int using_prefetch, using_indirect, using_mmu;
 static int using_exception_3;
 static int using_ce;
 static int cpu_level;
@@ -217,6 +217,9 @@ static void gen_nextilong (char *type, char *name, int norefill)
 	} else if (using_indirect) {
 	    insn_n_cycles += 8;
 	    printf ("\t%s %s = get_ilongi (%d);\n", type, name, r);
+	} else if (using_mmu) {
+	    insn_n_cycles += 8;
+	    printf ("\t%s %s = get_ilong_mmu (regs, %d);\n", type, name, r);
 	} else {
 	    insn_n_cycles += 8;
 	    printf ("\t%s %s = get_ilong (regs, %d);\n", type, name, r);
@@ -245,6 +248,9 @@ static const char *gen_nextiword (int norefill)
 	    }
 	} else if (using_indirect) {
 	    sprintf (buffer, "get_iwordi(%d)", r);
+	    insn_n_cycles += 4;
+	} else if (using_mmu) {
+	    sprintf (buffer, "get_iword_mmu (regs, %d)", r);
 	    insn_n_cycles += 4;
 	} else {
 	    sprintf (buffer, "get_iword (regs, %d)", r);
@@ -276,6 +282,9 @@ static const char *gen_nextibyte (int norefill)
 	    }
 	} else if (using_indirect)  {
 	    sprintf (buffer, "get_ibytei (%d)", r);
+	    insn_n_cycles += 4;
+	} else if (using_mmu)  {
+	    sprintf (buffer, "get_ibyte_mmu (%d)", r);
 	    insn_n_cycles += 4;
 	} else {
 	    sprintf (buffer, "get_ibyte (regs, %d)", r);
@@ -480,7 +489,10 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	    start_brace ();
 	    /* This would ordinarily be done in gen_nextiword, which we bypass.  */
 	    insn_n_cycles += 4;
-	    printf ("\t%sa = get_disp_ea_020 (regs, m68k_areg (regs, %s), next_iword (regs));\n", name, reg);
+	    if (using_mmu)
+		printf ("\t%sa = get_disp_ea_020 (regs, m68k_areg (regs, %s), next_iword_mmu (regs));\n", name, reg);
+	    else
+		printf ("\t%sa = get_disp_ea_020 (regs, m68k_areg (regs, %s), next_iword (regs));\n", name, reg);
 	} else {
 	    printf ("\t%sa = get_disp_ea_000 (regs, m68k_areg (regs, %s), %s);\n", name, reg, gen_nextiword (flags & GF_NOREFILL));
 	}
@@ -504,7 +516,10 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	    /* This would ordinarily be done in gen_nextiword, which we bypass.  */
 	    insn_n_cycles += 4;
 	    printf ("\ttmppc = m68k_getpc (regs);\n");
-	    printf ("\t%sa = get_disp_ea_020 (regs, tmppc, next_iword (regs));\n", name);
+	    if (using_mmu)
+		printf ("\t%sa = get_disp_ea_020 (regs, tmppc, next_iword_mmu (regs));\n", name);
+	    else
+		printf ("\t%sa = get_disp_ea_020 (regs, tmppc, next_iword (regs));\n", name);
 	} else {
 	    printf ("\ttmppc = m68k_getpc (regs) + %d;\n", m68k_pc_offset);
 	    printf ("\t%sa = get_disp_ea_000 (regs, tmppc, %s);\n", name, gen_nextiword (flags & GF_NOREFILL));
@@ -585,6 +600,13 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	    case sz_byte: printf ("\tuae_s8 %s = get_byte_ce (%sa);\n", name, name); break;
 	    case sz_word: printf ("\tuae_s16 %s = get_word_ce (%sa);\n", name, name); break;
 	    case sz_long: printf ("\tuae_s32 %s = get_word_ce (%sa) << 16; %s |= get_word_ce (%sa + 2);\n", name, name, name, name); break;
+	    default: abort ();
+	    }
+	} else if (using_mmu) {
+	    switch (size) {
+	    case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = uae_mmu_get_byte (%sa);\n", name, name); break;
+	    case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = uae_mmu_get_word (%sa);\n", name, name); break;
+	    case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = uae_mmu_get_long (%sa);\n", name, name); break;
 	    default: abort ();
 	    }
 	} else {
@@ -693,6 +715,27 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 	     default:
 		abort ();
 	    }
+	} else if (using_mmu) {
+	    switch (size) {
+	     case sz_byte:
+		insn_n_cycles += 4;
+		printf ("\uae_mmu_put_byte (%sa,%s);\n", to, from);
+		break;
+	     case sz_word:
+		insn_n_cycles += 4;
+		if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
+		    abort ();
+		printf ("\uae_mmu_put_word (%sa,%s);\n", to, from);
+		break;
+	     case sz_long:
+		insn_n_cycles += 8;
+		if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
+		    abort ();
+		printf ("\uae_mmu_put_long (%sa,%s);\n", to, from);
+		break;
+	     default:
+		abort ();
+	    }
 	} else {
 	    switch (size) {
 	     case sz_byte:
@@ -743,12 +786,19 @@ static void genmovemel (uae_u16 opcode)
     char getcode[100];
     int size = table68k[opcode].size == sz_long ? 4 : 2;
 
-    if (table68k[opcode].size == sz_long) {
-	strcpy (getcode, "get_long (srca)");
+    if (using_mmu) {
+	if (table68k[opcode].size == sz_long) {
+	    strcpy (getcode, "uae_mmu_get_long (srca)");
+	} else {
+	    strcpy (getcode, "(uae_s32)(uae_s16)uae_mmu_get_word (srca)");
+	}
     } else {
-	strcpy (getcode, "(uae_s32)(uae_s16)get_word (srca)");
+	if (table68k[opcode].size == sz_long) {
+	    strcpy (getcode, "get_long (srca)");
+	} else {
+	    strcpy (getcode, "(uae_s32)(uae_s16)get_word (srca)");
+	}
     }
-
     printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
     printf ("\tunsigned int dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
     genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, 0);
@@ -792,10 +842,19 @@ static void genmovemle (uae_u16 opcode)
 {
     char putcode[100];
     int size = table68k[opcode].size == sz_long ? 4 : 2;
-    if (table68k[opcode].size == sz_long) {
-	strcpy (putcode, "put_long (srca");
+
+    if (using_mmu) {
+	if (table68k[opcode].size == sz_long) {
+	    strcpy (putcode, "uae_mmu_put_long (srca");
+	} else {
+	    strcpy (putcode, "uae_mmu_put_word (srca");
+	}
     } else {
-	strcpy (putcode, "put_word (srca");
+	if (table68k[opcode].size == sz_long) {
+	    strcpy (putcode, "put_long (srca");
+	} else {
+	    strcpy (putcode, "put_word (srca");
+	}
     }
 
     printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
@@ -3267,6 +3326,7 @@ int main (int argc, char **argv)
 	    freopen (fname, "wb", stdout);
 	    generate_includes (stdout);
 	}
+	using_mmu = 0;
 	cpu_level = 5 - i;
 	if (i == 11 || i == 12) {
 	    cpu_level = 0;

@@ -468,7 +468,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     for (i = 0; i < 2; i++) {
 	struct jport *jp = &p->jports[i];
 	int v = jp->id;
-	char tmp1[100], tmp2[50];
+	char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 	if (v < 0) {
 	    strcpy (tmp2, "none");
 	} else if (v < JSEM_JOYS) {

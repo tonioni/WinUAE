@@ -44,9 +44,9 @@
 
 #ifdef FULLMMU
 
-mmu_atc_l1_array atc_l1[2];
-mmu_atc_l1_array *current_atc;
-struct mmu_atc_line atc_l2[2][ATC_L2_SIZE];
+static mmu_atc_l1_array atc_l1[2];
+static mmu_atc_l1_array *current_atc;
+static struct mmu_atc_line atc_l2[2][ATC_L2_SIZE];
 
 # ifdef ATC_STATS
 static unsigned int mmu_atc_hits[ATC_L2_SIZE];
@@ -682,7 +682,7 @@ void REGPARAM2 mmu_put_word_unaligned(uaecptr addr, uae_u16 val, int data)
 	SAVE_EXCEPTION;
 	TRY(prb) {
 		mmu_put_byte(addr, val >> 8, data, sz_word);
-		mmu_put_byte(addr + 1, val, data, sz_word);
+		mmu_put_byte(addr + 1, (uae_u8)val, data, sz_word);
 		RESTORE_EXCEPTION;
 	}
 	CATCH(prb) {
@@ -877,7 +877,7 @@ void REGPARAM2 dfc_put_word(uaecptr addr, uae_u16 val)
 			mmu_put_user_word(addr, val, super, data, sz_word);
 		else {
 			mmu_put_user_byte(addr, val >> 8, super, data, sz_word);
-			mmu_put_user_byte(addr + 1, val, super, data, sz_word);
+			mmu_put_user_byte(addr + 1, (uae_u8)val, super, data, sz_word);
 		}
 		RESTORE_EXCEPTION;
 	}

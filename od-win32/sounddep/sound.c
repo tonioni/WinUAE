@@ -34,6 +34,9 @@
 #include <ks.h>
 #include <ksmedia.h>
 
+#include <al.h>
+#include <alc.h>
+
 #include <math.h>
 
 #define ADJUST_SIZE 30
@@ -45,6 +48,7 @@
 int sound_debug = 0;
 int sound_mode_skip = 0;
 
+static int devicetype;
 static int obtainedfreq;
 static int have_sound;
 static int paused;
@@ -69,8 +73,19 @@ static int num_sound_devices, num_record_devices;
 
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
-
 static DWORD writepos;
+
+
+#define AL_BUFFERS 2
+static ALCdevice *al_dev;
+static ALCcontext *al_ctx;
+static ALuint al_Buffers[AL_BUFFERS];
+static ALuint al_Source;
+static int al_toggle;
+static DWORD al_format;
+static uae_u8 *al_bigbuffer;
+static int al_bufsize, al_offset;
+
 
 int setup_sound (void)
 {
@@ -103,7 +118,7 @@ void update_sound (int freq)
     }
 }
 
-static void cleardsbuffer (void)
+static void clearbuffer_ds (void)
 {
     void *buffer;
     DWORD size;
@@ -120,6 +135,21 @@ static void cleardsbuffer (void)
     memset (buffer, 0, size);
     IDirectSoundBuffer_Unlock (lpDSBsecondary, buffer, size, NULL, 0);
 }
+static void clearbuffer_al (void)
+{
+    int i;
+    for (i = 0; i < AL_BUFFERS; i++) {
+	alSourceUnqueueBuffers (al_Source, 1, &al_Buffers[i]);
+    }
+    alGetError ();
+}
+static void clearbuffer (void)
+{
+    if (devicetype == SOUND_DEVICE_AL)
+	clearbuffer_al ();
+    else if (devicetype == SOUND_DEVICE_DS)
+	clearbuffer_ds ();
+}
 
 static void pause_audio_ds (void)
 {
@@ -132,17 +162,27 @@ static void pause_audio_ds (void)
     hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
     if (FAILED (hr))
 	write_log ("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError (hr));
-    cleardsbuffer ();
+    clearbuffer ();
 }
-
 static void resume_audio_ds (void)
 {
     paused = 0;
-    cleardsbuffer ();
+    clearbuffer ();
     waiting_for_buffer = 1;
 }
+static void pause_audio_al (void)
+{
+    waiting_for_buffer = 0;
+    alSourcePause (al_Source);
+    clearbuffer ();
+}
+static void resume_audio_al (void)
+{
+    waiting_for_buffer = 1;
+    al_offset = 0;
+}
 
-static int restore (DWORD hr)
+static int restore_ds (DWORD hr)
 {
     if (hr != DSERR_BUFFERLOST)
 	return 0;
@@ -172,7 +212,6 @@ static double getqpf (void)
 
 static void close_audio_ds (void)
 {
-    waiting_for_buffer = 0;
     if (lpDSBsecondary)
 	IDirectSound_Release (lpDSBsecondary);
     lpDSBsecondary = 0;
@@ -192,15 +231,21 @@ extern HWND hMainWnd;
 extern void setvolume_ahi(LONG);
 void set_volume (int volume, int mute)
 {
-    HRESULT hr;
-    LONG vol = DSBVOLUME_MIN;
-
-    if (volume < 100 && !mute)
-	vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
-    hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
-    if (FAILED (hr))
-	write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
-    setvolume_ahi (vol);
+    if (devicetype == SOUND_DEVICE_AL) {
+	float vol = 0.0;
+	if (volume < 100 && !mute)
+	    vol = (100 - volume) / 100.0;
+	alSourcef (al_Source, AL_GAIN, vol);
+    } else if (devicetype == SOUND_DEVICE_DS) {
+	HRESULT hr;
+	LONG vol = DSBVOLUME_MIN;
+	if (volume < 100 && !mute)
+	    vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
+	hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
+	if (FAILED (hr))
+	    write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	setvolume_ahi (vol);
+    }
 }
 
 static void recalc_offsets (void)
@@ -283,6 +328,78 @@ DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *ds
     return speakerconfig;
 }
 
+static void close_audio_al (void)
+{
+    int i;
+
+    alDeleteSources (1, &al_Source);
+    al_Source = 0;
+    alDeleteBuffers (AL_BUFFERS, al_Buffers);
+    alcMakeContextCurrent (NULL);
+    if (al_ctx)
+	alcDestroyContext (al_ctx);
+    al_ctx = NULL;
+    if (al_dev)
+        alcCloseDevice (al_dev);
+    al_dev = NULL;
+    for (i = 0; i < AL_BUFFERS; i++) {
+	al_Buffers[i] = 0;
+    }
+    xfree (al_bigbuffer);
+    al_bigbuffer = NULL;
+}
+
+static int open_audio_al (int size)
+{
+    int freq = currprefs.sound_freq;
+    int ch = get_audio_nativechannels();
+
+    devicetype = SOUND_DEVICE_AL;
+    size *= ch * 2;
+    sndbufsize = size / 8;
+    if (sndbufsize > SND_MAX_BUFFER)
+	sndbufsize = SND_MAX_BUFFER;
+    al_bufsize = size;
+    al_bigbuffer = xcalloc (al_bufsize, 1);
+    al_dev = alcOpenDevice (sound_devices[currprefs.win32_soundcard].name);
+    if (!al_dev)
+	goto error;
+    al_ctx = alcCreateContext (al_dev, NULL);
+    if (!al_ctx)
+	goto error;
+    alcMakeContextCurrent (al_ctx);
+    alGenBuffers (AL_BUFFERS, al_Buffers);
+    alGenSources (1, &al_Source);
+    al_toggle = 0;
+    al_format = 0;
+    switch (ch)
+    {
+	case 1:
+	al_format = AL_FORMAT_MONO16;
+	break;
+	case 2:
+	al_format = AL_FORMAT_STEREO16;
+	break;
+	case 4:
+	al_format = alGetEnumValue ("AL_FORMAT_QUAD16");
+	break;
+	case 6:
+	al_format = alGetEnumValue ("AL_FORMAT_51CHN16");
+	break;
+    }
+    if (al_format == 0)
+	goto error;
+
+    write_log ("SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d)\n",
+	    al_format, ch, freq, sound_devices[currprefs.win32_soundcard].name,
+	    sndbufsize, al_bufsize);
+    return 1;
+
+error:
+    close_audio_al ();
+    return 0;
+}
+
 static int open_audio_ds (int size)
 {
     HRESULT hr;
@@ -295,7 +412,7 @@ static int open_audio_ds (int size)
     int round, i;
     DWORD speakerconfig;
 
-    enumerate_sound_devices ();
+    devicetype = SOUND_DEVICE_DS;
     size *= ch * 2;
     snd_configsize = size;
     sndbufsize = size / 32;
@@ -315,7 +432,7 @@ static int open_audio_ds (int size)
     if (max_sndbufsize * 2 > dsoundbuf)
 	max_sndbufsize = dsoundbuf / 2;
 
-    recalc_offsets();
+    recalc_offsets ();
 
     hr = DirectSoundCreate8 (&sound_devices[currprefs.win32_soundcard].guid, &lpDS, NULL);
     if (FAILED (hr))  {
@@ -422,16 +539,6 @@ static int open_audio_ds (int size)
     }
     IDirectSound_Release (pdsb);
 
-    set_volume (currprefs.sound_volume, mute);
-    cleardsbuffer ();
-    init_sound_table16 ();
-    if (get_audio_amigachannels() == 4)
-	sample_handler = sample16ss_handler;
-    else
-	sample_handler = get_audio_ismono () ? sample16_handler : sample16s_handler;
-
-    obtainedfreq = currprefs.sound_freq;
-
     return 1;
 
 error:
@@ -457,9 +564,23 @@ static int open_sound (void)
     if (size < 512)
 	size = 512;
 
-    ret = open_audio_ds (size);
+    enumerate_sound_devices ();
+    if (sound_devices[currprefs.win32_soundcard].type == SOUND_DEVICE_AL)
+	ret = open_audio_al (size);
+    else if (sound_devices[currprefs.win32_soundcard].type == SOUND_DEVICE_DS)
+	ret = open_audio_ds (size);
     if (!ret)
 	return 0;
+
+    set_volume (currprefs.sound_volume, mute);
+    clearbuffer ();
+    init_sound_table16 ();
+    if (get_audio_amigachannels() == 4)
+	sample_handler = sample16ss_handler;
+    else
+	sample_handler = get_audio_ismono () ? sample16_handler : sample16s_handler;
+
+    obtainedfreq = currprefs.sound_freq;
 
     have_sound = 1;
     sound_available = 1;
@@ -477,7 +598,10 @@ void close_sound (void)
     if (! have_sound)
 	return;
     pause_sound ();
-    close_audio_ds ();
+    if (devicetype == SOUND_DEVICE_AL)
+	close_audio_al ();
+    else if (devicetype == SOUND_DEVICE_DS)
+	close_audio_ds ();
     have_sound = 0;
 }
 
@@ -506,8 +630,11 @@ void pause_sound (void)
     paused = 1;
     if (!have_sound)
 	return;
-    pause_audio_ds ();
-    cleardsbuffer ();
+    if (devicetype == SOUND_DEVICE_AL)
+	pause_audio_al ();
+    else if (devicetype == SOUND_DEVICE_DS)
+	pause_audio_ds ();
+    clearbuffer ();
 }
 
 void resume_sound (void)
@@ -516,15 +643,18 @@ void resume_sound (void)
 	return;
     if (!have_sound)
 	return;
-    cleardsbuffer ();
-    resume_audio_ds ();
+    clearbuffer ();
+    if (devicetype == SOUND_DEVICE_AL)
+	resume_audio_al ();
+    else if (devicetype == SOUND_DEVICE_DS)
+	resume_audio_ds ();
 }
 
 void reset_sound (void)
 {
     if (!have_sound)
 	return;
-    cleardsbuffer ();
+    clearbuffer ();
 }
 
 #ifdef JIT
@@ -566,6 +696,8 @@ void restart_sound_buffer (void)
     DWORD playpos, safed;
     HRESULT hr;
 
+    if (devicetype != SOUND_DEVICE_DS)
+	return;
     if (waiting_for_buffer != -1)
 	return;
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
@@ -577,6 +709,125 @@ void restart_sound_buffer (void)
     if (writepos < 0)
 	writepos += dsoundbuf;
     cf (writepos);
+}
+
+static int alcheck (int v)
+{
+    int err = alGetError ();
+    if (err != AL_NO_ERROR) {
+	int v1, v2, v3;
+        alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v1);
+	alGetSourcei (al_Source, AL_BUFFERS_QUEUED, &v2);
+	alGetSourcei (al_Source, AL_SOURCE_STATE, &v3);
+	write_log ("OpenAL %d: error %d. PROC=%d QUEUE=%d STATE=%d\n", v, err, v1, v2, v3);
+	return 1;
+    }
+    return 0;
+}
+
+static void finish_sound_buffer_al (void)
+{
+    static int tfprev;
+    static int statuscnt;
+    int v, v2;
+    double m, skipmode;
+
+    if (!waiting_for_buffer)
+	return;
+    if (savestate_state)
+	return;
+
+    if (statuscnt > 0) {
+	statuscnt--;
+	if (statuscnt == 0)
+	    gui_data.sndbuf_status = 0;
+    }
+    if (gui_data.sndbuf_status == 3)
+	gui_data.sndbuf_status = 0;
+    alGetError ();
+
+    memcpy (al_bigbuffer + al_offset, sndbuffer, sndbufsize);
+    al_offset += sndbufsize;
+    if (al_offset >= al_bufsize) {
+	alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v);
+	while (v == 0 && waiting_for_buffer < 0) {
+	    sleep_millis (1);
+	    alGetSourcei (al_Source, AL_SOURCE_STATE, &v);
+	    if (v != AL_PLAYING)
+		break;
+	    alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v);
+	}
+
+        alSourceUnqueueBuffers (al_Source, 1, &al_Buffers[al_toggle]);
+	alGetError ();
+	alBufferData (al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
+	alcheck(4);
+	alSourceQueueBuffers (al_Source, 1, &al_Buffers[al_toggle]);
+	alcheck(2);
+	al_toggle++;
+	if (al_toggle >= AL_BUFFERS)
+	    al_toggle = 0;
+
+	alGetSourcei (al_Source, AL_BUFFERS_QUEUED, &v2);
+	alGetSourcei (al_Source, AL_SOURCE_STATE, &v);
+	alcheck(3);
+	if (v != AL_PLAYING && v2 >= AL_BUFFERS) {
+	    if (waiting_for_buffer > 0) {
+		write_log ("AL SOUND PLAY!\n");
+		alSourcePlay (al_Source);
+		waiting_for_buffer = -1;
+    		tfprev = timeframes + 10;
+		tfprev = (tfprev / 10) * 10;
+	    } else {
+		gui_data.sndbuf_status = 2;
+		statuscnt = SND_STATUSCNT;
+		write_log ("AL underflow\n");
+		clearbuffer ();
+		waiting_for_buffer = 1;
+	    }
+	}
+	al_offset = 0;
+    }
+    alcheck(1);
+
+    alGetSourcei (al_Source, AL_SOURCE_STATE, &v);
+    if (v == AL_PLAYING) {
+	alGetSourcei (al_Source, AL_BYTE_OFFSET, &v);
+	v -= al_offset;
+	gui_data.sndbuf = 100 * v / sndbufsize;
+	m = gui_data.sndbuf / 100.0;
+
+	if (isvsync ()) {
+
+	    skipmode = pow (m < 0 ? -m : m, EXP) / 8;
+	    if (m < 0)
+		skipmode = -skipmode;
+	    if (skipmode < -ADJUST_VSSIZE)
+		skipmode = -ADJUST_VSSIZE;
+	    if (skipmode > ADJUST_VSSIZE)
+		skipmode = ADJUST_VSSIZE;
+
+	} else {
+
+	    skipmode = pow (m < 0 ? -m : m, EXP) / 2;
+	    if (m < 0)
+		skipmode = -skipmode;
+	    if (skipmode < -ADJUST_SIZE)
+		skipmode = -ADJUST_SIZE;
+	    if (skipmode > ADJUST_SIZE)
+		skipmode = ADJUST_SIZE;
+
+	}
+	if (tfprev != timeframes) {
+	    if ((0 || sound_debug) && !(tfprev % 10))
+		write_log ("s=%+02.1f\n", skipmode);
+	    tfprev = timeframes;
+	    if (!avioutput_audio)
+		sound_setadjust (skipmode);
+	}
+    }
+
+    alcheck (0);
 }
 
 static void finish_sound_buffer_ds (void)
@@ -608,14 +859,14 @@ static void finish_sound_buffer_ds (void)
 	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
 	if (FAILED (hr)) {
 	    write_log ("SOUND: Play failed: %s\n", DXError (hr));
-	    restore (DSERR_BUFFERLOST);
+	    restore_ds (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
 	}
 	hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
 	if (FAILED (hr)) {
 	    write_log ("SOUND: 1st SetCurrentPosition failed: %s\n", DXError (hr));
-	    restore (DSERR_BUFFERLOST);
+	    restore_ds (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
 	}
@@ -662,23 +913,23 @@ static void finish_sound_buffer_ds (void)
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
     if (FAILED (hr)) {
 	write_log ("SOUND: GetStatus() failed: %s\n", DXError (hr));
-	restore (DSERR_BUFFERLOST);
+	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
     if (status & DSBSTATUS_BUFFERLOST) {
 	write_log ("SOUND: buffer lost\n");
-	restore (DSERR_BUFFERLOST);
+	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
     if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
 	write_log ("SOUND: status = %08X\n", status);
-	restore (DSERR_BUFFERLOST);
+	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
     for (;;) {
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
 	if (FAILED (hr)) {
-	    restore (hr);
+	    restore_ds (hr);
 	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
 	}
@@ -723,7 +974,7 @@ static void finish_sound_buffer_ds (void)
 	    counter--;
 	    if (counter < 0) {
 		write_log ("SOUND: sound system got stuck!?\n");
-		restore (DSERR_BUFFERLOST);
+		restore_ds (DSERR_BUFFERLOST);
 		return;
 	    }
 	    continue;
@@ -732,7 +983,7 @@ static void finish_sound_buffer_ds (void)
     }
 
     hr = IDirectSoundBuffer_Lock (lpDSBsecondary, writepos, sndbufsize, &b1, &s1, &b2, &s2, 0);
-    if (restore (hr))
+    if (restore_ds (hr))
 	return;
     if (FAILED (hr)) {
 	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos / samplesize, sndbufsize / samplesize);
@@ -828,7 +1079,11 @@ void finish_sound_buffer (void)
 #endif
     if (!have_sound)
 	return;
-    finish_sound_buffer_ds ();
+
+    if (devicetype == SOUND_DEVICE_AL)
+	finish_sound_buffer_al ();
+    else if (devicetype == SOUND_DEVICE_DS)
+	finish_sound_buffer_ds ();
 }
 
 static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
@@ -845,14 +1100,54 @@ static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDr
     if (lpGUID != NULL)
 	memcpy (&sd[i].guid, lpGUID, sizeof (GUID));
     sd[i].name = my_strdup (lpszDesc);
+    sd[i].type = SOUND_DEVICE_DS;
     return TRUE;
 }
 
 int enumerate_sound_devices (void)
 {
     if (!num_sound_devices) {
+	HMODULE l = NULL;
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
+	l = LoadLibrary ("openal32.dll");
+	if (l != NULL) {
+	    FreeLibrary (l);
+	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
+		const ALchar* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
+		const ALchar* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
+		while (pDeviceNames && *pDeviceNames) {
+		    struct sound_device *sd;
+		    ALCdevice *pDevice;
+		    int i;
+		    for (i = 0; i < MAX_SOUND_DEVICES; i++) {
+			sd = &sound_devices[i];
+			if (sd->name == NULL)
+			    break;
+		    }
+		    if (i >= MAX_SOUND_DEVICES)
+			break;
+		    pDevice = alcOpenDevice (pDeviceNames);
+		    if (pDevice) {
+			ALCcontext *context = alcCreateContext (pDevice, NULL);
+			if (context) {
+			    ALint iMajorVersion = 0, iMinorVersion = 0;
+			    alcMakeContextCurrent (context);
+			    alcGetIntegerv (pDevice, ALC_MAJOR_VERSION, sizeof (ALint), &iMajorVersion);
+			    alcGetIntegerv (pDevice, ALC_MINOR_VERSION, sizeof (ALint), &iMinorVersion);
+			    if (iMajorVersion > 1 || (iMajorVersion == 1 && iMinorVersion > 0)) {
+				sd->type = SOUND_DEVICE_AL;
+				sd->name = my_strdup (pDeviceNames);
+			    }
+			    alcMakeContextCurrent (NULL);
+			    alcDestroyContext (context);
+			}
+			alcCloseDevice (pDevice);
+		    }
+		    pDeviceNames += strlen (pDeviceNames) + 1;
+		}
+	    }
+	}
 	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
 	    if (sound_devices[num_sound_devices].name == NULL)
 		break;
@@ -924,7 +1219,7 @@ static int setget_master_volume_vista (int setvolume, int *volume, int *mute)
     return ok == 2;
 }
 
-static void mcierr(char *str, DWORD err)
+static void mcierr (char *str, DWORD err)
 {
     char es[1000];
     if (err == MMSYSERR_NOERROR)

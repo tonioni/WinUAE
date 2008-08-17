@@ -457,7 +457,7 @@ static struct inputdevice_functions *getidf (int devnum);
 
 static void write_config (struct zfile *f, int idnum, int devnum, char *name, struct uae_input_device *id, struct uae_input_device2 *id2, struct inputdevice_functions *idf)
 {
-    char tmp1[100], *s;
+    char tmp1[MAX_DPATH], *s;
     int i;
 
     if (!isdevice (id)) {
@@ -2405,8 +2405,8 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
         int match = -1;
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 	    if (aname2 && uid[j].configname) {
-		char bname[MAX_JPORTNAME];
-		char bname2[MAX_JPORTNAME];
+		char bname[MAX_DPATH];
+		char bname2[MAX_DPATH];
 		char *p1 ,*p2;
 		strcpy (bname, uid[j].configname);
 		strcpy (bname2, aname2);
