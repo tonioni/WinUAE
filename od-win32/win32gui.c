@@ -9580,7 +9580,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
 }
 
-static void makefilter(char *s, int x, int flags)
+static void makefilter (char *s, int x, int flags)
 {
     sprintf (s, "%dx", x);
     if ((flags & (UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32)) == (UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32)) {
@@ -9630,6 +9630,19 @@ static int *filtervars[] = {
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
 	&workprefs.gfx_filter_keep_aspect, &workprefs.gfx_filter_aspect,
+	NULL
+    };
+static int *filtervars2[] = {
+	NULL, &currprefs.gfx_filter_filtermode,
+	&currprefs.gfx_filter_vert_zoom, &currprefs.gfx_filter_horiz_zoom,
+	&currprefs.gfx_filter_vert_zoom_mult, &currprefs.gfx_filter_horiz_zoom_mult,
+	&currprefs.gfx_filter_vert_offset, &currprefs.gfx_filter_horiz_offset,
+	&currprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlineratio,
+	&currprefs.gfx_resolution, &currprefs.gfx_linedbl, &currprefs.gfx_correct_aspect,
+	&currprefs.gfx_xcenter, &currprefs.gfx_ycenter,
+	&currprefs.gfx_filter_luminance, &currprefs.gfx_filter_contrast, &currprefs.gfx_filter_saturation,
+	&currprefs.gfx_filter_gamma, &currprefs.gfx_filter_blur, &currprefs.gfx_filter_noise,
+	&currprefs.gfx_filter_keep_aspect, &currprefs.gfx_filter_aspect,
 	NULL
     };
 
@@ -9932,6 +9945,8 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 	    *t++ = 0;
 	    for (i = 0; filtervars[i]; i++) {
 		*(filtervars[i]) = atol(s);
+		if (filtervars2[i])
+		    *(filtervars2[i]) = *(filtervars[i]);
 		s = t;
 		t = strchr (s, ',');
 		if (!t)
@@ -9942,11 +9957,11 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
     }
 end:
     regclosetree (fkey);
+    enable_for_hw3ddlg (hDlg);
     if (load) {
 	values_to_hw3ddlg (hDlg);
 	SendMessage (hDlg, WM_HSCROLL, 0, 0);
     }
-    enable_for_hw3ddlg (hDlg);
 }
 
 static void filter_handle (HWND hDlg)
@@ -10036,7 +10051,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		case IDC_FILTERPRESETLOAD:
 		case IDC_FILTERPRESETSAVE:
 		case IDC_FILTERPRESETDELETE:
+		recursive--;
 		filter_preset (hDlg, wParam);
+		recursive++;
 		break;
 		case IDC_FILTERENABLE:
 		filter_handle (hDlg);

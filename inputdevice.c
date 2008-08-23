@@ -388,7 +388,13 @@ static int cd32_pad_enabled[2];
 static int parport_joystick_enabled;
 static int oldmx[4], oldmy[4];
 static int oleft[4], oright[4], otop[4], obot[4];
-static int potgo_hsync;
+
+uae_u16 potgo_value;
+static int pot_cap[2][2];
+static uae_u8 pot_dat[2][2];
+static int pot_dat_act[2][2];
+static int analog_port[2][2];
+#define POTDAT_DELAY 8
 
 static int use_joysticks[MAX_INPUT_DEVICES];
 static int use_mice[MAX_INPUT_DEVICES];
@@ -573,6 +579,8 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
     cfgfile_write (f, "input.joymouse_speed_digital=%d\n", p->input_joymouse_speed);
     cfgfile_write (f, "input.joymouse_deadzone=%d\n", p->input_joymouse_deadzone);
     cfgfile_write (f, "input.joystick_deadzone=%d\n", p->input_joystick_deadzone);
+    cfgfile_write (f, "input.analog_joystick_multiplier=%d\n", p->input_analog_joystick_mult);
+    cfgfile_write (f, "input.analog_joystick_offset=%d\n", p->input_analog_joystick_offset);
     cfgfile_write (f, "input.mouse_speed=%d\n", p->input_mouse_speed);
     cfgfile_write (f, "input.autofire=%d\n", p->input_autofire_framecnt);
     for (id = 1; id <= MAX_INPUT_SETTINGS; id++) {
@@ -655,6 +663,10 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
 	pr->input_mouse_speed = atol (value);
     if (!strcasecmp (p, "autofire"))
 	pr->input_autofire_framecnt = atol (value);
+    if (!strcasecmp (p, "analog_joystick_multiplier"))
+	pr->input_analog_joystick_mult = atol (value);
+    if (!strcasecmp (p, "analog_joystick_offset"))
+	pr->input_analog_joystick_offset = atol (value);
 
     idnum = atol (p);
     if (idnum <= 0 || idnum > MAX_INPUT_SETTINGS)
@@ -1297,31 +1309,6 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
 	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
 
-	if (currprefs.cs_cdtvcd) {
-	    /* CDTV P9 is not floating */
-	    if (!(potgo_value & p9dir))
-		potgor |= p9dat;
-	}
-
-	if (mouse_port[i]) {
-	    /* official Commodore mouse has pull-up resistors in button lines
-	     * NOTE: 3rd party mice may not have pullups! */
-	    if (!(potgo_value & p5dir))
-		potgor |= p5dat;
-	    if (!(potgo_value & p9dir))
-		potgor |= p9dat;
-	}
-
-	if (potgo_hsync < 0) {
-	    /* first 10 or so lines after potgo has started
-	     * forces input-lines to zero
-	     */
-	    if (!(potgo_value & p5dir))
-		potgor &= ~p5dat;
-	    if (!(potgo_value & p9dir))
-		potgor &= ~p9dat;
-	}
-
 	if (cd32_pad_enabled[i]) {
 	    /* p5 is floating in input-mode */
 	    potgor &= ~p5dat;
@@ -1337,52 +1324,85 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 		potgor &= ~p9dat;
 	} else {
-	    if (getbuttonstate (i, JOYBUTTON_3))
-		potgor &= ~p5dat;
-	    if (getbuttonstate (i, JOYBUTTON_2))
-		potgor &= ~p9dat;
+	    potgor &= ~p5dat;
+	    if (pot_cap[i][0] > 100)
+		potgor |= p5dat;
+	    potgor &= ~p9dat;
+	    if (pot_cap[i][1] > 100)
+		potgor |= p9dat;
 	}
     }
     return potgor;
 }
 
-uae_u16 potgo_value;
-static uae_u16 potdats[2];
 static int inputdelay;
+
+static void charge_cap (int joy, int idx, int charge)
+{
+    if (charge < -1 || charge > 1)
+	charge = charge * 80;
+    pot_cap[joy][idx] += charge;
+    if (pot_cap[joy][idx] < 0)
+	pot_cap[joy][idx] = 0;
+    if (pot_cap[joy][idx] > 511)
+	pot_cap[joy][idx] = 511;
+}
+
+static int calcexp (int v)
+{
+    return v;
+}
 
 void inputdevice_hsync (void)
 {
-    int joy;
+    int joy, i;
 
     for (joy = 0; joy < 2; joy++) {
-	if (potgo_hsync >= 0) {
-	    int active;
+	for (i = 0; i < 2; i++) {
+	    int charge = 0;
+	    uae_u16 pdir = 0x0200 << (joy * 4 + i * 2); /* output enable */
+	    uae_u16 pdat = 0x0100 << (joy * 4 + i * 2); /* data */
 
-	    active = 0;
-	    if ((potgo_value >> 9) & 1) /* output? */
-		active = ((potgo_value >> 8) & 1) ? 0 : 1;
-	    if (potgo_hsync < joydirpot[joy][0])
-		active = 1;
-	    if (getbuttonstate (joy, JOYBUTTON_3))
-		active = 1;
-	    if (active)
-		potdats[joy] = ((potdats[joy] + 1) & 0xFF) | (potdats[joy] & 0xFF00);
+	    if (analog_port[joy][i] && pot_cap[joy][i] < calcexp (joydirpot[joy][i]))
+	        charge = 1; // slow charge via pot variable resistor
+	    if (!(potgo_value & pdir)) { // input?
+		if (pot_dat_act[joy][i])
+		    pot_dat[joy][i]++;
+		/* first 8 lines after potgo has started = discharge cap */
+		if (pot_dat_act[joy][i] == 1) {
+		    if (pot_dat[joy][i] < POTDAT_DELAY) {
+			charge = -2; /* fast discharge delay */
+		    } else {
+			pot_dat_act[joy][i] = 2;
+			pot_dat[joy][i] = 0;
+		    }
+		}
+		if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= calcexp (joydirpot[joy][i]))
+		    pot_dat_act[joy][i] = 0;
+	    } else { // output?
+		charge = (potgo_value & pdat) ? 2 : -2; /* fast (dis)charge if output */
+		if ((potgo_value & pdat) && (potgo_value & pdir))
+		    pot_dat_act[joy][i] = 0; // instant stop if output+high
+	    }
 
-	    active = 0;
-	    if ((potgo_value >> 11) & 1) /* output? */
-		active = ((potgo_value >> 10) & 1) ? 0 : 1;
-	    if (potgo_hsync < joydirpot[joy][1])
-		active = 1;
-	    if (getbuttonstate (joy, JOYBUTTON_2))
-		active = 1;
-	    if (active)
-		potdats[joy] += 0x100;
+	    if (getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2))
+	        charge = -2; // button press overrides everything
+
+	    if (currprefs.cs_cdtvcd) {
+		/* CDTV P9 is not floating */
+		if (!(potgo_value & pdir) && i == 1 && charge == 0)
+		    charge = 2;
+	    }
+	    /* official Commodore mouse has pull-up resistors in button lines
+	     * NOTE: 3rd party mice may not have pullups! */
+	    if (mouse_port[joy]) {
+		if (charge == 0)
+		    charge = 2;
+	    }
+
+	    charge_cap (joy, i, charge);
 	}
     }
-    potgo_hsync++;
-    if (potgo_hsync > 255)
-	potgo_hsync = 255;
-
 
 #ifdef CATWEASEL
     catweasel_hsync ();
@@ -1396,13 +1416,21 @@ void inputdevice_hsync (void)
     }
 }
 
+static uae_u16 POTDAT (int joy)
+{
+    uae_u16 v = (pot_dat[joy][0] << 8) | pot_dat[joy][1];
+    if (inputdevice_logging & 16)
+	write_log ("POTDAT%d: %04X %08X\n", joy, v, M68K_GETPC);
+    return v;
+}
+
 uae_u16 POT0DAT (void)
 {
-    return potdats[0];
+    return POTDAT (0);
 }
 uae_u16 POT1DAT (void)
 {
-    return potdats[1];
+    return POTDAT (1);
 }
 
 /* direction=input, data pin floating, last connected logic level or previous status
@@ -1414,10 +1442,10 @@ uae_u16 POT1DAT (void)
 
 void POTGO (uae_u16 v)
 {
-    int i;
+    int i, j;
 
     if (inputdevice_logging & 16)
-	write_log ("POTGO_W: %04X %p\n", v, M68K_GETPC);
+	write_log ("POTGO_W: %04X %08X\n", v, M68K_GETPC);
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log ("POTGO %04X %s\n", v, debuginfo(0));
@@ -1441,8 +1469,12 @@ void POTGO (uae_u16 v)
 	}
     }
     if (v & 1) {
-	potdats[0] = potdats[1] = 0;
-	potgo_hsync = -15;
+	for (i = 0; i < 2; i++) {
+	    for (j = 0; j < 2; j++) {
+	        pot_dat_act[i][j] = 1;
+	        pot_dat[i][j] = 0;
+	    }
+	}
     }
 }
 
@@ -1454,7 +1486,7 @@ uae_u16 POTGOR (void)
 	write_log ("POTGOR %04X %s\n", v, debuginfo(0));
 #endif
     if (inputdevice_logging & 16)
-	write_log ("POTGO_R: %04X %d %p\n", v, cd32_shifter[1], M68K_GETPC);
+	write_log ("POTGO_R: %04X %08X %d\n", v, M68K_GETPC, cd32_shifter[1]);
     return v;
 }
 
@@ -1644,7 +1676,7 @@ void inputdevice_handle_inputcode (void)
 	sound_volume (1);
 	break;
     case AKS_VOLMUTE:
-	sound_mute (0);
+	sound_mute (-1);
 	break;
     case AKS_MVOLDOWN:
 	master_sound_volume (-1);
@@ -1881,7 +1913,9 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		}
 		if (ie->data & IE_INVERT)
 		    state = -state;
-		state = state / 256 + 128;
+		state = state / (312 * 100 / currprefs.input_analog_joystick_mult) + (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
+		if (state < 0)
+		    state = 0;
 		joydirpot[joy][unit] = state;
 
 	    } else {
@@ -1949,6 +1983,9 @@ void inputdevice_vsync (void)
 {
     struct input_queue_struct *iq;
     int i;
+
+    if (inputdevice_logging & 32)
+	write_log ("*\n");
 
     for (i = 0; i < INPUT_QUEUE_SIZE; i++) {
 	iq = &input_queue[i];
@@ -2228,6 +2265,27 @@ static int ismouse (int ei)
     return 0;
 }
 
+static int isanalog (int ei)
+{
+    if (ei == INPUTEVENT_JOY1_HORIZ_POT || ei == INPUTEVENT_JOY1_HORIZ_POT_INV) {
+	analog_port[0][0] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY1_VERT_POT || ei == INPUTEVENT_JOY1_VERT_POT_INV) {
+	analog_port[0][1] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY2_HORIZ_POT || ei == INPUTEVENT_JOY2_HORIZ_POT_INV) {
+	analog_port[1][0] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY2_VERT_POT || ei == INPUTEVENT_JOY2_VERT_POT_INV) {
+	analog_port[1][1] = 1;
+	return 1;
+    }
+    return 0;
+}
+
 static void scanevents(struct uae_prefs *p)
 {
     int i, j, k, ei;
@@ -2238,6 +2296,14 @@ static void scanevents(struct uae_prefs *p)
     cd32_pad_enabled[0] = cd32_pad_enabled[1] = 0;
     parport_joystick_enabled = 0;
     mouse_port[0] = mouse_port[1] = 0;
+
+    for (i = 0; i < 2; i++) {
+	for (j = 0; j < 2; j++) {
+	    analog_port[i][j] = 0;
+	    joydirpot[i][j] = (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
+	}
+    }
+
     for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++)
 	joydir[i] = 0;
 
@@ -2275,6 +2341,7 @@ static void scanevents(struct uae_prefs *p)
 		    iscd32 (ei);
 		    isparport (ei);
 		    ismouse (ei);
+		    isanalog (ei);
 		    if (ei > 0)
 			use_joysticks[i] = 1;
 		}
@@ -2283,6 +2350,7 @@ static void scanevents(struct uae_prefs *p)
 		    iscd32 (ei);
 		    isparport (ei);
 		    ismouse (ei);
+		    isanalog (ei);
 		    if (ei > 0)
 			use_mice[i] = 1;
 		}
@@ -2628,6 +2696,8 @@ void inputdevice_default_prefs (struct uae_prefs *p)
     p->input_joymouse_deadzone = 33;
     p->input_joystick_deadzone = 33;
     p->input_joymouse_speed = 10;
+    p->input_analog_joystick_mult = 100;
+    p->input_analog_joystick_offset = 0;
     p->input_mouse_speed = 100;
     p->input_autofire_framecnt = 10;
     for (i = 0; i <= MAX_INPUT_SETTINGS; i++) {

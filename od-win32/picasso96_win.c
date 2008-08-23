@@ -3716,18 +3716,20 @@ static void statusline (uae_u8 *dst)
 static void flushpixels (void)
 {
     int i;
-    int rowwidth_src = picasso96_state.Width * picasso96_state.BytesPerPixel;
     uae_u8 *src = p96ram_start + natmem_offset;
     int off = picasso96_state.XYOffset - gfxmem_start;
     uae_u8 *src_start = src + (off & ~gwwpagemask);
-    uae_u8 *src_end = src + ((off + rowwidth_src * picasso96_state.Height + gwwpagesize - 1) & ~gwwpagemask);
+    uae_u8 *src_end = src + ((off + picasso96_state.BytesPerRow * picasso96_state.Height + gwwpagesize - 1) & ~gwwpagemask);
     int maxy = -1;
     int miny = picasso96_state.Height - 1;
     int lock = 0;
     uae_u8 *dst = NULL;
     ULONG_PTR gwwcnt;
-
-
+#if 0
+    write_log ("%dx%d %dx%d %dx%d\n", picasso96_state.Width, picasso96_state.Width,
+	picasso96_state.VirtualWidth, picasso96_state.VirtualHeight,
+	picasso_vidinfo.width, picasso_vidinfo.height);
+#endif
     if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
 	return;
 

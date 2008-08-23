@@ -16,8 +16,8 @@
 #define GETBDD(x) ((x) % 100)
 
 #define WINUAEBETA 1
-#define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 8, 17)
+#define WINUAEPUBLICBETA 2
+#define WINUAEDATE MAKEBD(2008, 8, 23)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 

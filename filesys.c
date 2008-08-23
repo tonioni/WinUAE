@@ -156,12 +156,19 @@ int nr_units (void)
     return cnt;
 }
 
-int nr_directory_units (void)
+int nr_directory_units (struct uae_prefs *p)
 {
     int i, cnt = 0;
-    for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-	if (mountinfo.ui[i].open && mountinfo.ui[i].controller == 0)
-	    cnt++;
+    if (p) {
+	for (i = 0; i < p->mountitems; i++) {
+	    if (p->mountconfig[i].controller == 0)
+		cnt++;
+	}
+    } else {
+	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	    if (mountinfo.ui[i].open && mountinfo.ui[i].controller == 0)
+		cnt++;
+	}
     }
     return cnt;
 }

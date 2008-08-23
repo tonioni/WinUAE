@@ -343,6 +343,8 @@ struct uae_prefs {
     int input_joymouse_deadzone;
     int input_joystick_deadzone;
     int input_joymouse_speed;
+    int input_analog_joystick_mult;
+    int input_analog_joystick_offset;
     int input_autofire_framecnt;
     int input_mouse_speed;
     struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];

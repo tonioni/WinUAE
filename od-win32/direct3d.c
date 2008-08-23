@@ -1297,10 +1297,19 @@ int D3D_locktexture (void)
 	return 0;
     }
 
+    locked.pBits = NULL;
+    locked.Pitch = 0;
     hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, D3DLOCK_NO_DIRTY_UPDATE);
     if (FAILED (hr)) {
-	write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
-	D3D_unlocktexture ();
+	if (hr != D3DERR_DRIVERINTERNALERROR) {
+	    write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	    D3D_unlocktexture ();
+	    return 0;
+	}
+    }
+    if (locked.pBits == NULL || locked.Pitch == 0) {
+	write_log ("IDirect3DTexture9_LockRect return NULL texture\n");
+        D3D_unlocktexture ();
 	return 0;
     }
     gfxvidinfo.bufmem = locked.pBits;

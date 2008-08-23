@@ -1178,9 +1178,12 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
     case WM_WINDOWPOSCHANGED:
 	WIN32GFX_WindowMove ();
-	if (hAmigaWnd && isfullscreen () <= 0 && GetWindowRect (hAmigaWnd, &amigawin_rect)) {
-	    DWORD aw = amigawin_rect.right - amigawin_rect.left;
-	    DWORD ah = amigawin_rect.bottom - amigawin_rect.top;
+	if (hAmigaWnd && isfullscreen () <= 0) {
+	    DWORD aw, ah;
+	    if (!IsIconic (hWnd))
+		GetWindowRect (hAmigaWnd, &amigawin_rect);
+	    aw = amigawin_rect.right - amigawin_rect.left;
+	    ah = amigawin_rect.bottom - amigawin_rect.top;
 	    if (in_sizemove > 0)
 		break;
 

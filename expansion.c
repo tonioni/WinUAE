@@ -1192,6 +1192,7 @@ static void allocate_expamem (void)
 
 static uaecptr check_boot_rom (void)
 {
+    int i;
     uaecptr b = RTAREA_DEFAULT;
     addrbank *ab;
 
@@ -1204,8 +1205,10 @@ static uaecptr check_boot_rom (void)
 	if (valid_address (RTAREA_DEFAULT, 65536))
 	    b = RTAREA_BACKUP;
     }
-    if (nr_directory_units ())
+    if (nr_directory_units (NULL))
         return b;
+    if (nr_directory_units (&currprefs))
+	return b;
     if (currprefs.socket_emu)
 	return b;
     if (currprefs.uaeserial)

@@ -182,14 +182,13 @@ static int mySockStartup(void)
 	return result;
 }
 
-int init_socket_layer(void)
+int init_socket_layer (void)
 {
     int result = 0;
 
     deinit_socket_layer ();
     if (currprefs.socket_emu) {
 		if((result = mySockStartup())) {
-
 			if(bsd->hSockThread == NULL) {
 				WNDCLASS wc;    // Set up an invisible window and dummy wndproc
 
@@ -824,7 +823,6 @@ static BOOL HandleStuff(void)
 	BOOL quit = FALSE;
 	SB = NULL;
 	BOOL handled = TRUE;
-	int rv;
 
 	if (bsd->hSockReq) {
 	// 100ms sleepiness might need some tuning...

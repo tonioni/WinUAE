@@ -1498,8 +1498,10 @@ void bsdlib_install (void)
 	    sockdata->sockpoolids[i] = UNIQUE_ID;
     }
 
-    if (!init_socket_layer ())
+    if (!init_socket_layer ()) {
+	write_log ("bsdsocket initialization failed\n");
 	return;
+    }
 
     resname = ds ("bsdsocket.library");
     resid = ds ("UAE bsdsocket.library 4.1");
@@ -1576,6 +1578,8 @@ void bsdlib_install (void)
     dl (*sockfuncvecs);
 
     org (end);
+
+    write_log ("bsdsocked.library installed\n");
 }
 
 #endif /* ! BSDSOCKET */

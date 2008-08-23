@@ -1,11 +1,29 @@
 
+Beta 2:
+
+- RTG mode and width set to bigger than resolution (autoscroll)
+  = bottom part of display was not updated (1.5.0)
+- windowed mode minimize and restore, only title bar was visible
+- mute on/off inputevent fixed
+- added analog joystick emulation multiplier and offset config
+  entries (not in GUI yet)
+- analog joystick emulation improvements, pot line (=2nd/3rd
+  firebutton) capacitor charging/discharging emulated. Not yet
+  perfect, F19 Stealth Fighter still not working in analog joy mode.
+- directory harddrive/uaehf.device hardfile didn't enable
+  uaelib hooks (used by uae-configuration/uaectrl)
+- added log message if bsdsocket host-side initialization fails
+- filter preset load didn't redraw the display using new parameters
+
 Beta 1: (crashing bug = this will be quick beta series, really!)
 
 - 4th floppy drive track display number was clipped in windowed mode
 - non-vsync RTG mode run in "warp"-mode if native mode was set to
   fullscreen+vsync
 - USB "non-friendly" name buffer overflow, caused random crashes
-  and weird behavior.. (1.5.1)
+  and weird behavior, including uae-configuration issue. (1.5.1)
+- sprite garbage was possible if sprite(s) active during resolution
+  change from higher to lower resolution (AGA only) (1.5.0)
 - OpenAL sound support (experimental, OpenAL may be better API for
   new AHI driver than DSound) Note that OpenAL uses internally
   DirectSound if sound card does not have native OpenAL support.
@@ -14,8 +32,6 @@ Beta 1: (crashing bug = this will be quick beta series, really!)
   devices only available if OpenAL is installed. DO NOT ASK something
   like "What is OpenAL". Learn to use search engines first or ignore
   this feature.
-- sprite garbage was possible if sprite(s) active during resolution
-  change from higher to lower resolution (AGA only) (1.5.0)
  
 Final 1.5.1
 
