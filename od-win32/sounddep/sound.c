@@ -135,19 +135,10 @@ static void clearbuffer_ds (void)
     memset (buffer, 0, size);
     IDirectSoundBuffer_Unlock (lpDSBsecondary, buffer, size, NULL, 0);
 }
-static void clearbuffer_al (void)
-{
-    int i;
-    for (i = 0; i < AL_BUFFERS; i++) {
-	alSourceUnqueueBuffers (al_Source, 1, &al_Buffers[i]);
-    }
-    alGetError ();
-}
+
 static void clearbuffer (void)
 {
-    if (devicetype == SOUND_DEVICE_AL)
-	clearbuffer_al ();
-    else if (devicetype == SOUND_DEVICE_DS)
+    if (devicetype == SOUND_DEVICE_DS)
 	clearbuffer_ds ();
 }
 
@@ -174,7 +165,6 @@ static void pause_audio_al (void)
 {
     waiting_for_buffer = 0;
     alSourcePause (al_Source);
-    clearbuffer ();
 }
 static void resume_audio_al (void)
 {
@@ -538,6 +528,7 @@ static int open_audio_ds (int size)
 	goto error;
     }
     IDirectSound_Release (pdsb);
+    clearbuffer ();
 
     return 1;
 
@@ -573,7 +564,6 @@ static int open_sound (void)
 	return 0;
 
     set_volume (currprefs.sound_volume, mute);
-    clearbuffer ();
     init_sound_table16 ();
     if (get_audio_amigachannels() == 4)
 	sample_handler = sample16ss_handler;
@@ -634,7 +624,6 @@ void pause_sound (void)
 	pause_audio_al ();
     else if (devicetype == SOUND_DEVICE_DS)
 	pause_audio_ds ();
-    clearbuffer ();
 }
 
 void resume_sound (void)
@@ -643,7 +632,6 @@ void resume_sound (void)
 	return;
     if (!have_sound)
 	return;
-    clearbuffer ();
     if (devicetype == SOUND_DEVICE_AL)
 	resume_audio_al ();
     else if (devicetype == SOUND_DEVICE_DS)
@@ -720,6 +708,8 @@ static int alcheck (int v)
 	alGetSourcei (al_Source, AL_BUFFERS_QUEUED, &v2);
 	alGetSourcei (al_Source, AL_SOURCE_STATE, &v3);
 	write_log ("OpenAL %d: error %d. PROC=%d QUEUE=%d STATE=%d\n", v, err, v1, v2, v3);
+	write_log ("           %d %08x %08x %08x %d %d\n",
+	    al_toggle, al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
 	return 1;
     }
     return 0;
@@ -760,6 +750,10 @@ static void finish_sound_buffer_al (void)
 
         alSourceUnqueueBuffers (al_Source, 1, &al_Buffers[al_toggle]);
 	alGetError ();
+
+//	write_log ("           %d %08x %08x %08x %d %d\n",
+//	    al_toggle, al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
+
 	alBufferData (al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
 	alcheck(4);
 	alSourceQueueBuffers (al_Source, 1, &al_Buffers[al_toggle]);
@@ -769,6 +763,7 @@ static void finish_sound_buffer_al (void)
 	    al_toggle = 0;
 
 	alGetSourcei (al_Source, AL_BUFFERS_QUEUED, &v2);
+	alcheck(5);
 	alGetSourcei (al_Source, AL_SOURCE_STATE, &v);
 	alcheck(3);
 	if (v != AL_PLAYING && v2 >= AL_BUFFERS) {
@@ -791,8 +786,10 @@ static void finish_sound_buffer_al (void)
     alcheck(1);
 
     alGetSourcei (al_Source, AL_SOURCE_STATE, &v);
+    alcheck(6);
     if (v == AL_PLAYING) {
 	alGetSourcei (al_Source, AL_BYTE_OFFSET, &v);
+	alcheck(7);
 	v -= al_offset;
 	gui_data.sndbuf = 100 * v / sndbufsize;
 	m = gui_data.sndbuf / 100.0;

@@ -1485,43 +1485,39 @@ static const char * const funcnames[] = {
 
 static uae_u32 sockfuncvecs[sizeof (sockfuncs) / sizeof (*sockfuncs)];
 
+static uae_u32 res_name, res_id, res_init;
+
+uaecptr bsdlib_startup (uaecptr resaddr)
+{
+    if (res_name == 0 || !currprefs.socket_emu)
+	return resaddr;
+    put_word (resaddr + 0x0, 0x4AFC);
+    put_long (resaddr + 0x2, resaddr);
+    put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
+    put_word (resaddr + 0xA, 0x8004); /* RTF_AUTOINIT, RT_VERSION */
+    put_word (resaddr + 0xC, 0x0970); /* NT_LIBRARY, RT_PRI */
+    put_long (resaddr + 0xE, res_name);
+    put_long (resaddr + 0x12, res_id);
+    put_long (resaddr + 0x16, res_init);
+    resaddr += 0x1A;
+    return resaddr;
+}
+
 void bsdlib_install (void)
 {
-    uae_u32 resname, resid;
-    uae_u32 begin, end;
-    uae_u32 func_place, data_place, init_place;
     int i;
 
     if (!sockdata) {
-	sockdata = (struct sockd*)xcalloc (sizeof (struct sockd), 1);
+	sockdata = xcalloc (sizeof (struct sockd), 1);
 	for (i = 0; i < SOCKPOOLSIZE; i++)
 	    sockdata->sockpoolids[i] = UNIQUE_ID;
     }
 
-    if (!init_socket_layer ()) {
-	write_log ("bsdsocket initialization failed\n");
+    if (!init_socket_layer ())
 	return;
-    }
 
-    resname = ds ("bsdsocket.library");
-    resid = ds ("UAE bsdsocket.library 4.1");
-
-    begin = here ();
-    dw (0x4AFC);		/* RT_MATCHWORD */
-    dl (begin);			/* RT_MATCHTAG */
-    dl (0);			/* RT_ENDSKIP */
-    dw (0x8004);		/* RTF_AUTOINIT, RT_VERSION */
-    dw (0x0970);		/* NT_LIBRARY, RT_PRI */
-    dl (resname);		/* RT_NAME */
-    dl (resid);			/* RT_IDSTRING */
-    dl (here () + 4);		/* RT_INIT */
-    dl (512);
-    func_place = here ();
-    dl (0);
-    data_place = here ();
-    dl (0);
-    init_place = here ();
-    dl (0);
+    res_name = ds ("bsdsocket.library");
+    res_id = ds ("UAE bsdsocket.library 4.1");
 
     for (i = 0; i < (int) (sizeof (sockfuncs) / sizeof (sockfuncs[0])); i++) {
 	sockfuncvecs[i] = here ();
@@ -1548,7 +1544,7 @@ void bsdlib_install (void)
     dw (0xCE00);		/* -50 */
     dw (0xC000);		/* INITLONG */
     dw (0x000A);		/* LN_NAME */
-    dl (resname);
+    dl (res_name);
     dw (0xE000);		/* INITBYTE */
     dw (0x000E);		/* LIB_FLAGS */
     dw (0x0600);		/* LIBF_SUMUSED | LIBF_CHANGED */
@@ -1560,24 +1556,14 @@ void bsdlib_install (void)
     dw (0x0001);
     dw (0xC000);
     dw (0x0018);		/* LIB_IDSTRING */
-    dl (resid);
+    dl (res_id);
     dl (0x00000000);		/* end of table */
 
-    end = here ();
-
-    org (begin + 6);		/* Load END value */
-    dl (end);
-
-    org (data_place);
-    dl (datatable);
-
-    org (func_place);
+    res_init = here ();
+    dl (512);
     dl (functable);
-
-    org (init_place);
+    dl (datatable);
     dl (*sockfuncvecs);
-
-    org (end);
 
     write_log ("bsdsocked.library installed\n");
 }

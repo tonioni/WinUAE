@@ -1,4 +1,12 @@
 
+Beta 3:
+
+- bsdsocket initialization rewritten, should be more reliable now
+  if uae rom is moved and/or other extra residents enabled
+- OpenAL sound mode problems fixed ("I hope")
+- Raw mouse/"name of mouse" mouse wheel support fixed (always been
+  broken)
+
 Beta 2:
 
 - RTG mode and width set to bigger than resolution (autoscroll)

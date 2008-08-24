@@ -192,5 +192,6 @@ extern uae_u32 host_vsyslog (void);
 extern uae_u32 host_Dup2Socket (void);
 extern uae_u32 host_gethostname (uae_u32, uae_u32);
 
+extern uaecptr bsdlib_startup (uaecptr);
 extern void bsdlib_install (void);
 extern void bsdlib_reset (void);

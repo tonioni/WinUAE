@@ -216,6 +216,7 @@ int init_socket_layer (void)
 					NULL, NULL, 0, NULL);
 				bsd->hSockThread = THREAD(sock_thread, NULL);
 				if (!bsd->hSockWnd) {
+				    write_log ("bsdsocket initialization failed\n");
 				    deinit_socket_layer();
 				    return 0;
 				}

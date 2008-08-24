@@ -47,6 +47,7 @@
 #include "a2091.h"
 #include "cdtv.h"
 #include "sana2.h"
+#include "bsdsocket.h"
 #include "uaeresource.h"
 
 #define TRACING_ENABLED 0
@@ -4816,6 +4817,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
      * diag entry. */
 
     resaddr = uaeres_startup (resaddr);
+#ifdef BSDSOCKET
+    resaddr = bsdlib_startup (resaddr);
+#endif
 #ifdef SCSIEMU
     resaddr = scsidev_startup (resaddr);
 #endif

@@ -74,7 +74,7 @@ struct didata {
     int coop;
 
     int axles;
-    int buttons;
+    int buttons, buttons_real;
     int axismappings[MAX_MAPPINGS];
     char *axisname[MAX_MAPPINGS];
     int axissort[MAX_MAPPINGS];
@@ -377,7 +377,7 @@ static int initialize_catweasel(void)
 	    did->sortname = my_strdup (tmp);
 	    sprintf (tmp, "CWMOUSE%d", i);
 	    did->configname = my_strdup (tmp);
-	    did->buttons = 3;
+	    did->buttons = did->buttons_real = 3;
 	    did->axles = 2;
 	    did->axissort[0] = 0;
 	    did->axisname[0] = my_strdup ("X-Axis");
@@ -404,7 +404,7 @@ static int initialize_catweasel(void)
 	    did->sortname = my_strdup (tmp);
 	    sprintf (tmp, "CWJOY%d", i);
 	    did->configname = my_strdup (tmp);
-	    did->buttons = (catweasel_isjoystick() & 0x80) ? 3 : 1;
+	    did->buttons = did->buttons_real =(catweasel_isjoystick() & 0x80) ? 3 : 1;
 	    did->axles = 2;
 	    did->axissort[0] = 0;
 	    did->axisname[0] = my_strdup ("X-Axis");
@@ -674,7 +674,7 @@ static int initialize_rawinput (void)
 		    write_log ("bogus number of buttons, ignored\n");
 		    continue;
 		}
-		did->buttons = rdim->dwNumberOfButtons;
+		did->buttons_real = did->buttons = rdim->dwNumberOfButtons;
 		for (j = 0; j < did->buttons; j++) {
 		    did->buttonsort[j] = j;
 		    sprintf (tmp, "Button %d", j + 1);
@@ -761,6 +761,7 @@ static void initialize_windowsmouse (void)
 	    did->buttons = 3;
 	if (did->buttons > 5)
 	    did->buttons = 5; /* no non-direcinput support for >5 buttons */
+	did->buttons_real = did->buttons;
 	for (j = 0; j < did->buttons; j++) {
 	    did->buttonsort[j] = j;
 	    sprintf (tmp, "Button %d", j + 1);
@@ -836,10 +837,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 	    }
 	    if (rm->usButtonFlags & RI_MOUSE_WHEEL) {
-		int val = (int)rm->usButtonData;
-		int bnum = did->buttons - 2;
-		if (did->axles == 3)
-		    bnum -= 2;
+		int val = (short)rm->usButtonData;
+		int bnum = did->buttons_real;
 		setmousestate (num, 2, val, 0);
 		if (val < 0)
 		    setmousebuttonstate (num, bnum + 0, -1);
