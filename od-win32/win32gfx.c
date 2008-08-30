@@ -819,6 +819,7 @@ static void close_hwnds (void)
     if (hStatusWnd) {
 	ShowWindow (hStatusWnd, SW_HIDE);
 	DestroyWindow (hStatusWnd);
+	hStatusWnd = 0;
     }
     if (hAmigaWnd) {
 	addnotifications (hAmigaWnd, TRUE);
@@ -837,9 +838,8 @@ static void close_hwnds (void)
     if (hMainWnd) {
 	ShowWindow (hMainWnd, SW_HIDE);
 	DestroyWindow (hMainWnd);
+	hMainWnd = 0;
     }
-    hMainWnd = 0;
-    hStatusWnd = 0;
 }
 
 
@@ -1860,8 +1860,15 @@ static int create_windows_2 (void)
 	    if (hStatusWnd)
 		createstatuswindow ();
 	    in_sizemove--;
+	} else {
+	    w = nw;
+	    h = nh;
+	    x = nx;
+	    y = ny;
 	}
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
+	if (d3dfs || dxfs)
+	    SetCursorPos (x + w / 2, y + h / 2);
 	write_log ("window already open\n");
 	return 1;
     }
@@ -1989,7 +1996,11 @@ static int create_windows_2 (void)
 	close_hwnds();
 	return 0;
     }
+    if (hMainWnd == NULL)
+	hMainWnd = hAmigaWnd;
     GetWindowRect (hAmigaWnd, &amigawin_rect);
+    if (dxfs || d3dfs)
+	SetCursorPos (x + w / 2, y + h / 2);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	ShowWindow (hMainWnd, SW_SHOWNORMAL);

@@ -320,10 +320,14 @@ static void setcursor (int oldx, int oldy)
     int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
     mouseposx = oldx - x;
     mouseposy = oldy - y;
-    if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
-	return;
-    mouseposx = 0;
-    mouseposy = 0;
+    if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
+	mouseposx = mouseposy = 0;
+	oldx = oldy = 0;
+    } else {
+	if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
+	    return;
+    }
+    mouseposx = mouseposy = 0;
 //    if (oldx < amigawin_rect.left || oldy < amigawin_rect.top || oldx > amigawin_rect.right || oldy > amigawin_rect.bottom) {
     if (oldx < 0 || oldy < 0 || oldx > amigawin_rect.right - amigawin_rect.left || oldy > amigawin_rect.bottom - amigawin_rect.top) {
 	write_log ("Mouse out of range: %dx%d (%dx%d %dx%d)\n", oldx, oldy,
@@ -487,7 +491,7 @@ void setmouseactive (int active)
 	if (rp_isactive ())
 	    w3 = rp_getparent ();
 #endif
-	if (!(fw == w1 || fw == w2)) {
+	if (isfullscreen () > 0 || (!(fw == w1 || fw == w2))) {
 	    if (SetForegroundWindow (w2) == FALSE) {
 		if (SetForegroundWindow (w1) == FALSE) {
 		    if (w3 == NULL || SetForegroundWindow (w3) == FALSE) {
@@ -514,7 +518,7 @@ void setmouseactive (int active)
 		ClipCursor (&amigawin_rect);
 	    }
 	    showcursor = 1;
-	    setcursor (-1, -1);
+	    setcursor (-30000, -30000);
 	}
 	inputdevice_acquire (TRUE);
     } else {
@@ -676,9 +680,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     if (ignore_messages_all)
 	return DefWindowProc (hWnd, message, wParam, lParam);
 
-    if (hMainWnd == 0)
-	hMainWnd = hWnd;
-
     switch (message)
     {
 
@@ -768,6 +769,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MOUSEWHEEL:
 	if (dinput_winmouse () >= 0) {
 	    int val = ((short)HIWORD (wParam));
+	    write_log ("dinput_winmouse=%d dinput_wheelbuttonstart=%d wheel=%d\n", dinput_winmouse(), dinput_wheelbuttonstart(), val);
 	    setmousestate (dinput_winmouse (), 2, val, 0);
 	    if (val < 0)
 		setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
@@ -775,6 +777,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 1, -1);
 	    return TRUE;
 	}
+	//write_log ("dinput_winmouse() = %d\n", dinput_winmouse());
     return 0;
     case WM_MOUSEHWHEEL:
 	if (dinput_winmouse () >= 0) {
@@ -1609,7 +1612,7 @@ HMODULE language_load (WORD language)
 			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)) {
+				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV || HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV - 1)) {
 				success = TRUE;
 				write_log ("Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {
@@ -3226,8 +3229,13 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	sortdisplays ();
 	write_log ("Display buffer mode = %d\n", ddforceram);
 	write_log ("Enumerating sound devices:\n");
-	for (i = 0; i < enumerate_sound_devices (); i++) {
+	enumerate_sound_devices ();
+	for (i = 0; sound_devices[i].name; i++) {
 	    write_log ("%d:%s: %s\n", i, sound_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[i].name);
+	}
+	write_log ("Enumerating recording devices:\n");
+	for (i = 0; record_devices[i].name; i++) {
+	    write_log ("%d:%s: %s\n", i, record_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", record_devices[i].name);
 	}
 	write_log ("done\n");
 	memset (&devmode, 0, sizeof(devmode));

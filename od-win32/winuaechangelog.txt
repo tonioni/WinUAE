@@ -1,11 +1,23 @@
 
+Beta 4: (final beta)
+
+- check openal32.dll version before using
+- accept 1.5.1 language DLL files (no GUI changes)
+- Catweasel: do not use direct access to read joyports if driver is
+  installed, caused conflicts with driver provided joystick/mouse
+  (note that I still don't care about CW until 64-bit compatible
+  drivers are released, if ever. Do not ask stupid questions.)
+- fixed D3D 8876086C error if display number in configuration file was
+  bigger than current number of displays
+
 Beta 3:
 
 - bsdsocket initialization rewritten, should be more reliable now
   if uae rom is moved and/or other extra residents enabled
+  (I don't understand how it was supposed to work previously..)
 - OpenAL sound mode problems fixed ("I hope")
-- Raw mouse/"name of mouse" mouse wheel support fixed (always been
-  broken)
+- Raw mouse/"name of mouse" mouse wheel support fixed (has always
+  been broken)
 
 Beta 2:
 

@@ -365,7 +365,7 @@ static int initialize_catweasel(void)
     char tmp[MAX_DPATH];
     struct didata *did;
 
-    if (catweasel_ismouse()) {
+    if (catweasel_ismouse ()) {
 	for (i = 0; i < 2 && num_mouse < MAX_INPUT_DEVICES; i++) {
 	    did = di_mouse;
 	    did += num_mouse;
@@ -392,7 +392,7 @@ static int initialize_catweasel(void)
 	    num_mouse++;
 	}
     }
-    if (catweasel_isjoystick()) {
+    if (catweasel_isjoystick ()) {
 	for (i = 0; i < 2 && num_joystick < MAX_INPUT_DEVICES; i++) {
 	    did = di_joystick;
 	    did += num_joystick;

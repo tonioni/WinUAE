@@ -1973,7 +1973,7 @@ int EvalException (LPEXCEPTION_POINTERS blah, int n_except)
 	    return EXCEPTION_CONTINUE_EXECUTION;
 	}
     }
-    write_log ("JIT: Can't handle access %08.8X!\n", i);
+    write_log ("JIT: Can't handle access %08X!\n", i);
 #if 0
     if (i)
     {

@@ -351,7 +351,7 @@ static int open_audio_al (int size)
 	sndbufsize = SND_MAX_BUFFER;
     al_bufsize = size;
     al_bigbuffer = xcalloc (al_bufsize, 1);
-    al_dev = alcOpenDevice (sound_devices[currprefs.win32_soundcard].name);
+    al_dev = alcOpenDevice (sound_devices[currprefs.win32_soundcard].alname);
     if (!al_dev)
 	goto error;
     al_ctx = alcCreateContext (al_dev, NULL);
@@ -381,7 +381,7 @@ static int open_audio_al (int size)
 	goto error;
 
     write_log ("SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d)\n",
-	    al_format, ch, freq, sound_devices[currprefs.win32_soundcard].name,
+	    al_format, ch, freq, sound_devices[currprefs.win32_soundcard].alname,
 	    sndbufsize, al_bufsize);
     return 1;
 
@@ -739,6 +739,7 @@ static void finish_sound_buffer_al (void)
     memcpy (al_bigbuffer + al_offset, sndbuffer, sndbufsize);
     al_offset += sndbufsize;
     if (al_offset >= al_bufsize) {
+	ALuint tmp;
 	alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v);
 	while (v == 0 && waiting_for_buffer < 0) {
 	    sleep_millis (1);
@@ -748,7 +749,7 @@ static void finish_sound_buffer_al (void)
 	    alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v);
 	}
 
-        alSourceUnqueueBuffers (al_Source, 1, &al_Buffers[al_toggle]);
+        alSourceUnqueueBuffers (al_Source, 1, &tmp);
 	alGetError ();
 
 //	write_log ("           %d %08x %08x %08x %d %d\n",
@@ -1101,48 +1102,108 @@ static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDr
     return TRUE;
 }
 
+static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)
+{
+    struct sound_device *sd;
+    while (pDeviceNames && *pDeviceNames) {
+	ALCdevice *pDevice;
+	const char *devname;
+	int i, ok;
+	for (i = 0; i < MAX_SOUND_DEVICES; i++) {
+	    sd = &sds[i];
+	    if (sd->name == NULL)
+	        break;
+	}
+	if (i >= MAX_SOUND_DEVICES)
+	    return;
+        devname = pDeviceNames;
+	if (ppDefaultDevice)
+	    devname = ppDefaultDevice;
+	ok = 0;
+	if (!skipdetect) {
+	    pDevice = alcOpenDevice (devname);
+	    if (pDevice) {
+		ALCcontext *context = alcCreateContext (pDevice, NULL);
+		if (context) {
+		    ALint iMajorVersion = 0, iMinorVersion = 0;
+		    alcMakeContextCurrent (context);
+		    alcGetIntegerv (pDevice, ALC_MAJOR_VERSION, sizeof (ALint), &iMajorVersion);
+		    alcGetIntegerv (pDevice, ALC_MINOR_VERSION, sizeof (ALint), &iMinorVersion);
+		    if (iMajorVersion > 1 || (iMajorVersion == 1 && iMinorVersion > 0)) {
+			ok = 1;
+		    }
+		}
+		alcMakeContextCurrent (NULL);
+		alcDestroyContext (context);
+	    }
+	    alcCloseDevice (pDevice);
+	} else {
+	    ok = 1;
+	}
+	if (ok) {
+	    sd->type = SOUND_DEVICE_AL;
+	    if (ppDefaultDevice) {
+	        char tmp[MAX_DPATH];
+	        sprintf (tmp, "Default [%s]", devname);
+	        sd->alname = my_strdup (ppDefaultDevice);
+	        sd->name = my_strdup (tmp);
+	    } else {
+	        sd->alname = my_strdup (pDeviceNames);
+	        sd->name = my_strdup (pDeviceNames);
+	    }
+	}
+	if (ppDefaultDevice)
+	    ppDefaultDevice = NULL;
+	else
+	    pDeviceNames += strlen (pDeviceNames) + 1;
+   }
+}
+
+static int isdllversion (const char *name, int version, int revision)
+{
+    DWORD  dwVersionHandle, dwFileVersionInfoSize;
+    LPVOID lpFileVersionData = NULL;
+    int ok = 0;
+
+    dwFileVersionInfoSize = GetFileVersionInfoSize (name, &dwVersionHandle);
+    if (dwFileVersionInfoSize) {
+	if (lpFileVersionData = xcalloc (1, dwFileVersionInfoSize)) {
+	    if (GetFileVersionInfo (name, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData)) {
+		VS_FIXEDFILEINFO *vsFileInfo = NULL;
+		UINT uLen;
+		if (VerQueryValue (lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen)) {
+		    if (vsFileInfo) {
+			write_log ("%s %d.%d.%d.%d\n", name,
+			    HIWORD (vsFileInfo->dwProductVersionMS), LOWORD (vsFileInfo->dwProductVersionMS),
+			    HIWORD (vsFileInfo->dwProductVersionLS), LOWORD (vsFileInfo->dwProductVersionLS));
+			if (vsFileInfo->dwProductVersionMS >= version * 65536 + revision)
+			    ok = 1;
+		    }
+		}
+	    }
+	    xfree (lpFileVersionData);
+	}
+    }
+    return ok;
+}
+
+
 int enumerate_sound_devices (void)
 {
     if (!num_sound_devices) {
 	HMODULE l = NULL;
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-	l = LoadLibrary ("openal32.dll");
-	if (l != NULL) {
-	    FreeLibrary (l);
+	if (isdllversion ("openal32.dll", 6, 14)) {
 	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
-		const ALchar* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
 		const ALchar* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
-		while (pDeviceNames && *pDeviceNames) {
-		    struct sound_device *sd;
-		    ALCdevice *pDevice;
-		    int i;
-		    for (i = 0; i < MAX_SOUND_DEVICES; i++) {
-			sd = &sound_devices[i];
-			if (sd->name == NULL)
-			    break;
-		    }
-		    if (i >= MAX_SOUND_DEVICES)
-			break;
-		    pDevice = alcOpenDevice (pDeviceNames);
-		    if (pDevice) {
-			ALCcontext *context = alcCreateContext (pDevice, NULL);
-			if (context) {
-			    ALint iMajorVersion = 0, iMinorVersion = 0;
-			    alcMakeContextCurrent (context);
-			    alcGetIntegerv (pDevice, ALC_MAJOR_VERSION, sizeof (ALint), &iMajorVersion);
-			    alcGetIntegerv (pDevice, ALC_MINOR_VERSION, sizeof (ALint), &iMinorVersion);
-			    if (iMajorVersion > 1 || (iMajorVersion == 1 && iMinorVersion > 0)) {
-				sd->type = SOUND_DEVICE_AL;
-				sd->name = my_strdup (pDeviceNames);
-			    }
-			    alcMakeContextCurrent (NULL);
-			    alcDestroyContext (context);
-			}
-			alcCloseDevice (pDevice);
-		    }
-		    pDeviceNames += strlen (pDeviceNames) + 1;
-		}
+		const ALchar* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
+		if (alcIsExtensionPresent (NULL, "ALC_ENUMERATE_ALL_EXT"))
+		    pDeviceNames = alcGetString (NULL, ALC_ALL_DEVICES_SPECIFIER);
+		OpenALEnumerate (sound_devices, pDeviceNames, ppDefaultDevice, FALSE);
+		ppDefaultDevice = alcGetString (NULL, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
+		pDeviceNames = alcGetString (NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
+		OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
 	    }
 	}
 	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {

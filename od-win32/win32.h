@@ -15,9 +15,9 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEBETA 3
+#define WINUAEBETA 4
 #define WINUAEPUBLICBETA 1
-#define WINUAEDATE MAKEBD(2008, 8, 24)
+#define WINUAEDATE MAKEBD(2008, 8, 30)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -146,6 +146,7 @@ struct sound_device
 {
     GUID guid;
     char *name;
+    char *alname;
     int type;
 };
 extern struct sound_device sound_devices[MAX_SOUND_DEVICES];
