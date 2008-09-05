@@ -652,10 +652,12 @@ void setmouseactivexy (int x, int y, int dir)
 	x += (amigawin_rect.right - amigawin_rect.left) / 2;
 	y += (amigawin_rect.bottom - amigawin_rect.top) / 2;
     }
-    disablecapture ();
-    SetCursorPos (x, y);
-    if (dir)
-	recapture = 1;
+    if (mouseactive) {
+	disablecapture ();
+	SetCursorPos (x, y);
+	if (dir)
+	    recapture = 1;
+    }
 }
 
 static void handleXbutton (WPARAM wParam, int updown)
@@ -769,7 +771,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MOUSEWHEEL:
 	if (dinput_winmouse () >= 0) {
 	    int val = ((short)HIWORD (wParam));
-	    write_log ("dinput_winmouse=%d dinput_wheelbuttonstart=%d wheel=%d\n", dinput_winmouse(), dinput_wheelbuttonstart(), val);
+	    //write_log ("dinput_winmouse=%d dinput_wheelbuttonstart=%d wheel=%d\n", dinput_winmouse(), dinput_wheelbuttonstart(), val);
 	    setmousestate (dinput_winmouse (), 2, val, 0);
 	    if (val < 0)
 		setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
@@ -2327,6 +2329,25 @@ static void initpath (char *name, char *path)
     set_path (name, NULL);
 }
 
+static void romlist_add2 (char *path, struct romdata *rd)
+{
+    if (getregmode ()) {
+	int ok = 0;
+	char tmp[MAX_DPATH];
+	if (path[0] == '/' || path[0] == '\\')
+	    ok = 1;
+	if (strlen (path) > 1 && path[1] == ':')
+	    ok = 1;
+	if (!ok) {
+	    strcpy (tmp, start_path_exe);
+	    strcat (tmp, path);
+	    romlist_add (tmp, rd);
+	    return;
+	}
+    }
+    romlist_add (path, rd);
+}
+
 extern int scan_roms (int);
 void read_rom_list (void)
 {
@@ -2369,10 +2390,10 @@ void read_rom_list (void)
 			s = strchr (s2, '\"');
 			if (s)
 			    *s = 0;
-			romlist_add (s2, rd);
+			romlist_add2 (s2, rd);
 			xfree (s2);
 		    } else {
-			romlist_add (tmp2, rd);
+			romlist_add2 (tmp2, rd);
 		    }
 		}
 	    }

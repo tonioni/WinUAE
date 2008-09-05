@@ -362,6 +362,8 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 	    di->write_protected = (p[3] & 0x80) ? 1 : 0;
 	}
     }
+//    write_log ("mediacheck_full(%d,%d,%d,%d,%d)\n",
+//	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
     return 1;
 }
 
@@ -428,12 +430,12 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
 	return 0;
     for (i = 0; i < total_devices; i++) {
 	di = &dev_info[i];
-	if (!strcmp(drvpath, di->drvpath))
+	if (!strcmp (drvpath, di->drvpath))
 	    return 0;
     }
     write_log ("SPTI: unit %d '%s' added\n", total_devices, drvpath);
     di = &dev_info[total_devices];
-    di->drvpath = my_strdup(drvpath);
+    di->drvpath = my_strdup (drvpath);
     di->type = 0;
     di->bus = bus;
     di->path = pathid;
@@ -443,18 +445,18 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
     total_devices++;
     if (open_scsi_device (cnt)) {
 	for (i = 0; i < cnt; i++) {
-	    if (!memcmp(di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
+	    if (!memcmp (di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
 		write_log ("duplicate device, skipped..\n");
 		break;
 	    }
 	}
 	if (i == cnt) {
 	    freeit = 0;
-	    close_scsi_device(cnt);
+	    close_scsi_device (cnt);
 	}
     }
     if (freeit) {
-	free_scsi_device(cnt);
+	free_scsi_device (cnt);
 	total_devices--;
     }
     return 1;
@@ -466,7 +468,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
     dispti = &dev_info[unitnum];
-    di->label = my_strdup(dispti->name);
+    strcpy (di->label, dispti->name);
     di->bus = 0;
     di->target = unitnum;
     di->lun = 0;

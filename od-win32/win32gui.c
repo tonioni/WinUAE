@@ -772,6 +772,12 @@ static struct romdata *scan_single_rom (char *path)
     return scan_single_rom_2 (z);
 }
 
+static void abspathtorelative (char *name)
+{
+    if (!strnicmp (start_path_exe, name, strlen (start_path_exe)))
+	memmove (name, name + strlen (start_path_exe), strlen (name) - strlen (start_path_exe) + 1);
+}
+
 static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
 {
     char tmp1[MAX_DPATH], tmp2[MAX_DPATH];
@@ -786,6 +792,8 @@ static int addrom (UAEREG *fkey, struct romdata *rd, char *name)
     getromname (rd, tmp2);
     if (name) {
 	strcat (tmp2, " / \"");
+	if (getregmode ())
+	    abspathtorelative (name);
 	strcat (tmp2, name);
 	strcat (tmp2, "\"");
     }
@@ -2578,7 +2586,6 @@ static int clicked_entry = -1;
 #define LV_DISK 4
 
 static int listview_num_columns;
-static int listview_column_width[HARDDISK_COLUMNS];
 
 void InitializeListView (HWND hDlg)
 {
@@ -2597,6 +2604,7 @@ void InitializeListView (HWND hDlg)
     int width = 0;
     int items = 0, result = 0, i, j, entry = 0, temp = 0;
     char tmp[10], tmp2[MAX_DPATH];
+    int listview_column_width[HARDDISK_COLUMNS];
 
     if (hDlg == pages[HARDDISK_ID]) {
 	listview_num_columns = HARDDISK_COLUMNS;
@@ -2885,15 +2893,16 @@ static int listview_entry_from_click (HWND list, int *column)
 		int i, x;
 		UINT flag = LVIS_SELECTED | LVIS_FOCUSED;
 
-		ListView_GetItemPosition(list, entry, &ppt);
+		ListView_GetItemPosition (list, entry, &ppt);
 		x = ppt.x;
 		ListView_SetItemState (list, entry, flag, flag);
 		for (i = 0; i < listview_num_columns && column; i++) {
-		    if (x < point.x && x + listview_column_width[i] > point.x) {
+		    int cw = ListView_GetColumnWidth (list, i);
+		    if (x < point.x && x + cw > point.x) {
 			*column = i;
 			break;
 		    }
-		    x += listview_column_width[i];
+		    x += cw;
 		}
 		return entry;
 	    }

@@ -1,4 +1,11 @@
 
+Final
+
+- uaescsi.device only updated CMD_GETGEOMETRY parameters when emulation
+  was started (and also broke CMD_READ if there was no CD in drive)
+- "Magic mouse" tried to uncapture mouse when it was already uncaptured
+- save relative rom paths in ini-mode
+
 Beta 4: (final beta)
 
 - check openal32.dll version before using
@@ -9,6 +16,7 @@ Beta 4: (final beta)
   drivers are released, if ever. Do not ask stupid questions.)
 - fixed D3D 8876086C error if display number in configuration file was
   bigger than current number of displays
+- display mode switching mouse cursor handling tweaks
 
 Beta 3:
 

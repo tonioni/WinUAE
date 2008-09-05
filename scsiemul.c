@@ -269,12 +269,17 @@ void scsi_do_disk_change (int device_id, int insert)
 
     uae_sem_wait (&change_sem);
     for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-	if (devst[i].di.id == device_id) {
-	    devst[i].changenum++;
+	struct devstruct *dev = &devst[i];
+	if (dev->di.id == device_id) {
+	    if (dev->aunit >= 0) {
+		struct priv_devstruct *pdev = &pdevst[dev->aunit];
+		devinfo (pdev->mode, dev->unitnum, &dev->di);
+	    }
+	    dev->changenum++;
 	    j = 0;
 	    while (j < MAX_ASYNC_REQUESTS) {
-		if (devst[i].d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
-		    uae_Cause (devst[i].d_request_data[j]);
+		if (dev->d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
+		    uae_Cause (dev->d_request_data[j]);
 		}
 		j++;
 	    }
@@ -393,12 +398,14 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64
 static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
     uae_u8 *temp;
-    uae_u32 len, sector;
+    uae_u32 len, sector, startoffset;
 
-    uae_u32 startoffset = offset % dev->di.bytespersector;
+    *io_actual = 0;
+    if (dev->di.bytespersector == 0)
+	dev->di.bytespersector = 2048;
+    startoffset = offset % dev->di.bytespersector;
     offset -= startoffset;
     sector = offset / dev->di.bytespersector;
-    *io_actual = 0;
     while (length > 0) {
 	temp = sys_command_cd_read (mode, dev->unitnum, sector);
 	if (!temp)
@@ -448,14 +455,16 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     switch (command)
     {
 	case CMD_READ:
-	if ((io_offset & bmask) || bmask == 0 || io_data == 0)
-	    goto bad_command;
-	if ((io_length & bmask) || io_length == 0)
-	    goto bad_len;
-	if (dev->drivetype == INQ_ROMD)
+	//write_log ("CMD_READ %08x %d %d %08x\n", io_data, io_offset, io_length, bmask);
+	if (dev->drivetype == INQ_ROMD) {
 	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
-	else
+	} else {
+	    if ((io_offset & bmask) || bmask == 0 || io_data == 0)
+		goto bad_command;
+	    if ((io_length & bmask) || io_length == 0)
+		goto bad_len;
 	    io_error = command_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+	}
 	break;
 	case TD_READ64:
 	case NSCMD_TD_READ64:
@@ -788,8 +797,7 @@ static void dev_reset (void)
 	    }
 	    write_log ("%s:%d = '%s'\n", UAEDEV_SCSI, dev->aunit, dev->di.label);
 	}
-	xfree(dev->di.label);
-	dev->di.label = NULL;
+	dev->di.label[0] = 0;
     }
 }
 

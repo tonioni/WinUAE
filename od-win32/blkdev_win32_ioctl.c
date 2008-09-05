@@ -895,7 +895,6 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->write_protected = ciw32[unitnum].type == DRIVE_CDROM ? 1 : 0;
     di->type = ciw32[unitnum].type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
     di->id = ciw32[unitnum].drvletter;
-    di->label = xmalloc(16);
     sprintf (di->label, "Drive %c:", ciw32[unitnum].drvletter);
     return di;
 }

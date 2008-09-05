@@ -436,3 +436,8 @@ void regstatus (void)
     if (inimode)
 	write_log ("WARNING: Unsupported '%s' enabled\n", inipath);
 }
+
+int getregmode (void)
+{
+    return inimode;
+}

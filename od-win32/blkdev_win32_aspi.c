@@ -949,7 +949,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     mediacheck_full (unitnum, di);
     di->id = unitnum + 1;
     di->removable = sif->removable;
-    di->label = my_strdup (sif->label);
+    strcpy (di->label, sif->label);
     if (log_scsi) {
 	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
 	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);

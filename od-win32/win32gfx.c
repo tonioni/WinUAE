@@ -1677,6 +1677,8 @@ static void createstatuswindow (void)
     int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width;
     int num_parts = 11;
     double scaleX, scaleY;
+    WINDOWINFO wi;
+    int extra;
 
     if (hStatusWnd) {
 	ShowWindow (hStatusWnd, SW_HIDE);
@@ -1687,6 +1689,9 @@ static void createstatuswindow (void)
 	0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
     if (!hStatusWnd)
 	return;
+    wi.cbSize = sizeof wi;
+    GetWindowInfo (hMainWnd, &wi);
+    extra = wi.rcClient.top - wi.rcWindow.top;
 
     hdc = GetDC (hStatusWnd);
     scaleX = GetDeviceCaps (hdc, LOGPIXELSX) / 96.0;
@@ -1706,7 +1711,7 @@ static void createstatuswindow (void)
 	lpParts = LocalLock (hloc);
 	/* Calculate the right edge coordinate for each part, and copy the coords
 	 * to the array.  */
-	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - 16;
+	lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - extra;
 	lpParts[1] = lpParts[0] + snd_width;
 	lpParts[2] = lpParts[1] + idle_width;
 	lpParts[3] = lpParts[2] + fps_width;
