@@ -1034,8 +1034,9 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
     c |= strcmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
-    c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 1 : 0;
-    c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 1 : 0;
+    c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
+    c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
+    c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
     c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
     c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? 8 : 0;
     c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? 8 : 0;
@@ -1091,6 +1092,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_display = changed_prefs.gfx_display;
 	strcpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
+	currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 	currprefs.win32_borderless = changed_prefs.win32_borderless;
 	currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
 	currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
@@ -1103,7 +1105,7 @@ int check_prefs_changed_gfx (void)
 	    if (reopen (c & 2))
 		c |= 2;
 	}
-	if ((c & 2) && !keepfsmode) {
+	if ((c & 32) || ((c & 2) && !keepfsmode)) {
 	    close_windows ();
 	    graphics_init ();
 	}
@@ -1616,7 +1618,7 @@ int machdep_init (void)
 void machdep_free (void)
 {
 #ifdef LOGITECHLCD
-    lcd_close();
+    lcd_close ();
 #endif
 }
 
@@ -1630,9 +1632,9 @@ int graphics_setup (void)
 {
     if (!DirectDraw_Start (NULL))
 	return 0;
-    DirectDraw_Release();
+    DirectDraw_Release ();
 #ifdef PICASSO96
-    InitPicasso96();
+    InitPicasso96 ();
 #endif
     return 1;
 }
@@ -1795,9 +1797,9 @@ static int create_windows_2 (void)
     int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
     int d3dfs = currentmode->flags & (DM_D3D_FULLSCREEN);
     int fsw = currentmode->flags & (DM_W_FULLSCREEN);
-    DWORD exstyle = currprefs.win32_notaskbarbutton ? 0 : WS_EX_APPWINDOW;
+    DWORD exstyle = currprefs.win32_notaskbarbutton ? WS_EX_TOOLWINDOW : WS_EX_APPWINDOW;
     DWORD flags = 0;
-    HWND hhWnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
+    HWND hhWnd = NULL;//currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
     int borderless = currprefs.win32_borderless;
     DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
     int cymenu = GetSystemMetrics (SM_CYMENU);
@@ -1875,6 +1877,9 @@ static int create_windows_2 (void)
 	if (d3dfs || dxfs)
 	    SetCursorPos (x + w / 2, y + h / 2);
 	write_log ("window already open\n");
+#ifdef RETROPLATFORM
+	rp_set_hwnd (hAmigaWnd);
+#endif
 	return 1;
     }
 

@@ -3220,7 +3220,6 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
     p->produce_sound = 2;
     p->cachesize = 8192;
     p->dfxtype[0] = DRV_35_HD;
-    p->dfxtype[1] = DRV_35_HD;
     p->floppy_speed = 0;
     p->cpu_idle = 150;
     p->cs_compatible = CP_A3000;

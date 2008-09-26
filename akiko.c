@@ -697,6 +697,9 @@ static void cdrom_return_data (int len)
 
 static int cdrom_command_something (void)
 {
+    int v = cdrom_command_buffer[1];
+    if (v & 0x80)
+	return 1;
     return 0;
 }
 
@@ -884,7 +887,7 @@ static void cdrom_run_command_run (void)
     int len;
 
     cdrom_command_offset_complete = (cdrom_command_offset_complete + cdrom_command_length + 1) & 0xff;
-    memset (cdrom_result_buffer, 0, sizeof(cdrom_result_buffer));
+    memset (cdrom_result_buffer, 0, sizeof (cdrom_result_buffer));
     switch (cdrom_command & 0x0f)
     {
 	case 2:

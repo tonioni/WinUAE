@@ -230,7 +230,6 @@ struct decision {
     uae_u8 bplres;
     unsigned int ham_seen:1;
     unsigned int ham_at_start:1;
-//    unsigned int valid:1;
 };
 
 /* Anything related to changes in hw registers during the DDF for one

@@ -1823,7 +1823,10 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 	for (i = 0; i < sizeof (kc); i++) {
 	    if (i == 0x80) /* USB KB led causes this, better ignore it */
 		continue;
-	    if (kc[i] & 0x80) kc[i] = 1; else kc[i] = 0;
+	    if (kc[i] & 0x80)
+		kc[i] = 1;
+	    else
+		kc[i] = 0;
 	    if (kc[i] != di_keycodes[num][i]) {
 		write_log ("%02X -> %d\n", i, kc[i]);
 		di_keycodes[num][i] = kc[i];
@@ -1873,6 +1876,7 @@ static void read_kb (void)
 	    for (j = 0; j < elements; j++) {
 		int scancode = didod[j].dwOfs;
 		int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
+		//write_log ("%d: %02X %d\n", j, scancode, pressed);
 		if (!istest)
 		    scancode = keyhack (scancode, pressed, i);
 		if (scancode < 0)

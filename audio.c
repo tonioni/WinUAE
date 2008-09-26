@@ -1116,7 +1116,7 @@ static void state23 (struct audio_channel_data *cdp)
 	cdp->pt = cdp->lc;
 	cdp->intreq2 = 1;
 	if (sampleripper_enabled)
-	    do_samplerip(cdp);
+	    do_samplerip (cdp);
 #ifdef DEBUG_AUDIO
 	if (debugchannel (cdp - audio_channel))
 	    write_log ("Channel %d looped, LC=%08X LEN=%d\n", cdp - audio_channel, cdp->pt, cdp->wlen);
@@ -1135,7 +1135,7 @@ static void audio_handler (int nr)
     int napnav = (!audav && !audap) || audav;
     int evtime = cdp->evtime;
 
-    audio_activate();
+    audio_activate ();
     cdp->evtime = MAX_EV;
     switch (cdp->state)
     {
@@ -1568,21 +1568,21 @@ void audio_hsync (int dmaaction)
     int nr, handle;
     static int old_dma;
 
-    if (!isaudio())
+    if (!isaudio ())
 	return;
 
     if (old_dma != (dmacon & (DMA_MASTER | 15))) {
 	old_dma = dmacon & (DMA_MASTER | 15);
-	audio_activate();
+	audio_activate ();
     }
 
     if (audio_work_to_do > 0 && currprefs.sound_auto) {
 	audio_work_to_do--;
 	if (audio_work_to_do == 0)
-	    audio_deactivate();
+	    audio_deactivate ();
     }
 
-    if (!is_audio_active())
+    if (!is_audio_active ())
 	return;
 
     update_audio ();
@@ -1603,7 +1603,7 @@ void audio_hsync (int dmaaction)
 	    if (cdp->state == 5) {
 		cdp->pt = cdp->lc;
 		if (sampleripper_enabled)
-		    do_samplerip(cdp);
+		    do_samplerip (cdp);
 #ifdef DEBUG_AUDIO
 		if (debugchannel (nr))
 		    write_log ("%d:>5: LEN=%d PT=%08X\n", nr, cdp->wlen, cdp->pt);

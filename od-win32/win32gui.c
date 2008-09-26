@@ -1863,7 +1863,7 @@ static void setguititle (HWND phwnd)
 	hwnd = phwnd;
     if (hwnd && !title[0]) {
         GetWindowText (hwnd, title, sizeof (title));
-	if (WINUAEBETA > 0) {
+	if (strlen (WINUAEBETA) > 0) {
 	    strcat (title, BetaStr);
 	    if (strlen(WINUAEEXTRA) > 0) {
     		strcat (title, " ");
@@ -4306,7 +4306,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
     LRESULT index;
 
     i = 0; index = 0;
-    while ((freq = DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
+    while (dmode >= 0 && (freq = DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
 	storedrefreshrates[index++] = freq;
 	i++;
     }
@@ -4446,6 +4446,7 @@ static int gui_display_depths[3];
 static void init_display_mode (HWND hDlg)
 {
    int d, d2, index;
+   int i, cnt;
 
    switch (workprefs.color_mode)
     {
@@ -4482,25 +4483,27 @@ static void init_display_mode (HWND hDlg)
 	d = d / 8;
     }
 
-    if ((index = display_mode_index (workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, d)) >= 0) {
-	int i, cnt;
+    index = display_mode_index (workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, d);
+    if (index >= 0)
 	SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, DisplayModes[index].residx, 0);
-	SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
-	cnt = 0;
-	gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
-	for (i = 0; DisplayModes[i].depth >= 0; i++) {
-	    if (DisplayModes[i].depth > 1 && DisplayModes[i].residx == DisplayModes[index].residx) {
-		char tmp[64];
-		sprintf (tmp, "%d", DisplayModes[i].depth * 8);
-		SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
-		if (DisplayModes[i].depth == d)
-		    SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
-		gui_display_depths[cnt] = DisplayModes[i].depth;
-		cnt++;
-	    }
+    else
+	index = 0;
+    SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
+    cnt = 0;
+    gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
+    for (i = 0; DisplayModes[i].depth >= 0; i++) {
+        if (DisplayModes[i].depth > 1 && DisplayModes[i].residx == DisplayModes[index].residx) {
+	    char tmp[64];
+	    sprintf (tmp, "%d", DisplayModes[i].depth * 8);
+	    SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    if (DisplayModes[i].depth == d)
+	        SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
+	    gui_display_depths[cnt] = DisplayModes[i].depth;
+	    cnt++;
 	}
-	init_frequency_combo (hDlg, index);
     }
+    init_frequency_combo (hDlg, index);
+
 }
 
 static int display_toselect(int fs, int vsync, int p96)
@@ -9086,6 +9089,10 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		{
 		    case IDC_PORT0_JOYS:
 		    case IDC_PORT1_JOYS:
+		    case IDC_PRINTERLIST:
+		    case IDC_SERIAL:
+		    case IDC_MIDIOUTLIST:
+		    case IDC_MIDIINLIST:
 			values_from_portsdlg (hDlg);
 			updatejoyport (hDlg);
 			inputdevice_updateconfig (&workprefs);
@@ -9307,11 +9314,10 @@ static void doinputcustom (HWND hDlg, int newcustom)
     }
 }
 
-static void values_from_inputdlg (HWND hDlg, int inputchange)
+static void values_from_inputdlgbottom (HWND hDlg)
 {
-    int doselect = 0, v;
+    int v;
     BOOL success;
-    LRESULT item;
 
     v  = GetDlgItemInt (hDlg, IDC_INPUTDEADZONE, &success, FALSE);
     if (success) {
@@ -9330,6 +9336,12 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
     v  = GetDlgItemInt (hDlg, IDC_INPUTSPEEDM, &success, FALSE);
     if (success)
 	currprefs.input_mouse_speed = workprefs.input_mouse_speed = v;
+}
+
+static void values_from_inputdlg (HWND hDlg, int inputchange)
+{
+    int doselect = 0;
+    LRESULT item;
 
     item = SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_GETCURSEL, 0, 0L);
     if (item != CB_ERR && input_selected_sub_num != item) {
@@ -9479,6 +9491,16 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    inputdevice_set_device_status (input_selected_device, IsDlgButtonChecked( hDlg, IDC_INPUTDEVICEDISABLE) ? 1 : 0);
 	    break;
 	    default:
+	    switch (LOWORD (wParam))
+	    {
+		case IDC_INPUTDEADZONE:
+		case IDC_INPUTAUTOFIRERATE:
+		case IDC_INPUTSPEEDD:
+		case IDC_INPUTSPEEDA:
+		case IDC_INPUTSPEEDM:
+		values_from_inputdlgbottom (hDlg);
+		break;
+	    }
 	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 		switch (LOWORD (wParam))
 		{
@@ -10020,9 +10042,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     switch (msg)
     {
 	case WM_INITDIALOG:
-    #if WINUAEBETA == 0
-	    ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
-    #endif
+	    if (strlen (WINUAEBETA) == 0)
+    		ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
 	    pages[HW3D_ID] = hDlg;
 	    currentpage = HW3D_ID;
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
@@ -10945,7 +10966,7 @@ static int do_filesys_insert (const char *root)
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
-    int cnt, i, drv, firstdrv, list;
+    int cnt, i, drv, drvdrag, firstdrv, list;
     char file[MAX_DPATH];
     int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
     POINT pt;
@@ -10959,6 +10980,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     if (!cnt)
 	return 0;
     drv = 0;
+    drvdrag = 0;
     if (currentpage < 0) {
 	GetClientRect (hMainWnd, &r2);
 	GetClientRect (hStatusWnd, &r);
@@ -10966,6 +10988,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	    if (pt.x >= window_led_drives && pt.x < window_led_drives_end && window_led_drives > 0) {
 		drv = pt.x - window_led_drives;
 		drv /= (window_led_drives_end - window_led_drives) / 4;
+	        drvdrag = 1;
 		if (drv < 0 || drv > 3)
 		    drv = 0;
 	    }
@@ -11018,7 +11041,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	    }
 	}
 
-	if (zip) {
+	if (drvdrag) {
+	    type = ZFILE_DISKIMAGE;
+	} else if (zip) {
 	    do_filesys_insert (file);
 	    continue;
 	}

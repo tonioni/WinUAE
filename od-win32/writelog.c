@@ -11,6 +11,7 @@
 #include "debug_win32.h"
 #include "win32.h"
 #include "registry.h"
+#include "uae.h"
 
 #define SHOW_CONSOLE 0
 
@@ -365,3 +366,23 @@ void log_close (void *f)
 {
     fclose (f);
 }
+
+void jit_abort (const char *format,...)
+{
+    static int happened;
+    int count;
+    char buffer[WRITE_LOG_BUF_SIZE];
+    va_list parms;
+    va_start (parms, format);
+
+    count = _vsnprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+    writeconsole (buffer);
+    va_end (parms);
+    if (!happened)
+	gui_message ("JIT: Serious error:\n%s", buffer);
+    happened = 1;
+    uae_reset (1);
+}
+
+
+

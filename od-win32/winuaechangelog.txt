@@ -1,5 +1,37 @@
 
-Final
+Beta 0.1:
+
+- "always on top" change works on the fly
+- "no taskbar button" works on the fly
+- missing stack frame type 4 added to RTE
+- dragging zipped adf to floppy leds mounted it as a filesystem, not
+  as a disk image (I guess zip containing only disk image(s) dropped to
+  WinUAE window should also mount as a disk image?)
+- emulated OCS-only "scanline" effect if DDFSTRT < 0x18. (Music disks
+  Ode to Ramon I and II by Digital Force. ECS = scroller is unreadable
+  and without "scanline" effect)
+- "latest news/abandon"-fix broke "nakudemo"-fix, both work now
+- parallel/serial/midi select menus didn't work
+- Input-panel numeric boxes at the bottom didn't work (same as above)
+- sleep_millis() was not thread-safe (could have caused random timing
+  glitches in some very rare cases)
+- emulate joystick 2nd/3rd button pullup resistor because some games
+  require it (and apparently some/many Amiga compatible 2+ button pads
+  have it). For example BC.Kid 2-button mode won't work without
+  joystick/pad with pullup resistor in second button pin. (regular
+  single button joysticks don't have pullups) Analog joystick update in
+  1.5.x "broke" this.
+- POTxDAT X and Y counter bytes were inverted (Aladdin second button)
+- reset current disk sound parameters when on the fly drive sound
+  settings are changed (does not fix missing motor sound until drive
+  motor restarts, not worth the trouble, at least not yet)
+- replaced "shouldn't happen" abort()'s in JIT with error dialog and
+  forced hard reset
+- highgfx superhires mode missing pixels fixed (also possible in some
+  normal max overscanned AGA-only screenmodes)
+
+
+Final 1.5.2
 
 - uaescsi.device only updated CMD_GETGEOMETRY parameters when emulation
   was started (and also broke CMD_READ if there was no CD in drive)

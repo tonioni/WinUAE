@@ -394,7 +394,9 @@ static int pot_cap[2][2];
 static uae_u8 pot_dat[2][2];
 static int pot_dat_act[2][2];
 static int analog_port[2][2];
-#define POTDAT_DELAY 8
+static int digital_port[2][2];
+#define POTDAT_DELAY_PAL 8
+#define POTDAT_DELAY_NTSC 7
 
 static int use_joysticks[MAX_INPUT_DEVICES];
 static int use_mice[MAX_INPUT_DEVICES];
@@ -1324,12 +1326,15 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 		potgor &= ~p9dat;
 	} else {
+
 	    potgor &= ~p5dat;
 	    if (pot_cap[i][0] > 100)
 		potgor |= p5dat;
+
 	    potgor &= ~p9dat;
 	    if (pot_cap[i][1] > 100)
 		potgor |= p9dat;
+
 	}
     }
     return potgor;
@@ -1348,11 +1353,6 @@ static void charge_cap (int joy, int idx, int charge)
 	pot_cap[joy][idx] = 511;
 }
 
-static int calcexp (int v)
-{
-    return v;
-}
-
 void inputdevice_hsync (void)
 {
     int joy, i;
@@ -1362,30 +1362,37 @@ void inputdevice_hsync (void)
 	    int charge = 0;
 	    uae_u16 pdir = 0x0200 << (joy * 4 + i * 2); /* output enable */
 	    uae_u16 pdat = 0x0100 << (joy * 4 + i * 2); /* data */
+	    int isbutton = getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2);
 
-	    if (analog_port[joy][i] && pot_cap[joy][i] < calcexp (joydirpot[joy][i]))
+	    if (analog_port[joy][i] && pot_cap[joy][i] < joydirpot[joy][i])
 	        charge = 1; // slow charge via pot variable resistor
+	    if (digital_port[joy][i])
+		charge = 1; // slow charge via pull-up resistor
 	    if (!(potgo_value & pdir)) { // input?
 		if (pot_dat_act[joy][i])
 		    pot_dat[joy][i]++;
-		/* first 8 lines after potgo has started = discharge cap */
+		/* first 8 lines after potgo has been started = discharge cap */
 		if (pot_dat_act[joy][i] == 1) {
-		    if (pot_dat[joy][i] < POTDAT_DELAY) {
+		    if (pot_dat[joy][i] < (currprefs.ntscmode ? POTDAT_DELAY_NTSC : POTDAT_DELAY_PAL)) {
 			charge = -2; /* fast discharge delay */
 		    } else {
 			pot_dat_act[joy][i] = 2;
 			pot_dat[joy][i] = 0;
 		    }
 		}
-		if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= calcexp (joydirpot[joy][i]))
+		if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= joydirpot[joy][i])
 		    pot_dat_act[joy][i] = 0;
+		if (digital_port[joy][i] && pot_dat_act[joy][i] == 2) {
+		    if (pot_cap[joy][i] >= 10 && !isbutton)
+			pot_dat_act[joy][i] = 0;
+		}
 	    } else { // output?
 		charge = (potgo_value & pdat) ? 2 : -2; /* fast (dis)charge if output */
 		if ((potgo_value & pdat) && (potgo_value & pdir))
 		    pot_dat_act[joy][i] = 0; // instant stop if output+high
 	    }
 
-	    if (getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2))
+	    if (isbutton)
 	        charge = -2; // button press overrides everything
 
 	    if (currprefs.cs_cdtvcd) {
@@ -1395,10 +1402,14 @@ void inputdevice_hsync (void)
 	    }
 	    /* official Commodore mouse has pull-up resistors in button lines
 	     * NOTE: 3rd party mice may not have pullups! */
-	    if (mouse_port[joy]) {
-		if (charge == 0)
-		    charge = 2;
-	    }
+	    if (mouse_port[joy] && charge == 0)
+	        charge = 2;
+	    /* emulate pullup resistor if button mapped because there too many broken
+	     * programs that read second button in input-mode (and most 2+ button pads have
+	     * pullups)
+	     */
+	    if (digital_port[joy][i] && charge == 0)
+	        charge = 2;
 
 	    charge_cap (joy, i, charge);
 	}
@@ -1418,7 +1429,7 @@ void inputdevice_hsync (void)
 
 static uae_u16 POTDAT (int joy)
 {
-    uae_u16 v = (pot_dat[joy][0] << 8) | pot_dat[joy][1];
+    uae_u16 v = (pot_dat[joy][1] << 8) | pot_dat[joy][0];
     if (inputdevice_logging & 16)
 	write_log ("POTDAT%d: %04X %08X\n", joy, v, M68K_GETPC);
     return v;
@@ -2286,6 +2297,27 @@ static int isanalog (int ei)
     return 0;
 }
 
+static int isdigitalbutton (int ei)
+{
+    if (ei == INPUTEVENT_JOY1_2ND_BUTTON) {
+	digital_port[0][0] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY1_3RD_BUTTON) {
+	digital_port[0][1] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY2_2ND_BUTTON) {
+	digital_port[1][0] = 1;
+	return 1;
+    }
+    if (ei == INPUTEVENT_JOY2_3RD_BUTTON) {
+	digital_port[1][1] = 1;
+	return 1;
+    }
+    return 0;
+}
+
 static void scanevents(struct uae_prefs *p)
 {
     int i, j, k, ei;
@@ -2299,8 +2331,9 @@ static void scanevents(struct uae_prefs *p)
 
     for (i = 0; i < 2; i++) {
 	for (j = 0; j < 2; j++) {
+	    digital_port[i][j] = 0;
 	    analog_port[i][j] = 0;
-	    joydirpot[i][j] = (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
+	    joydirpot[i][j] = 128 / (312 * 100 / currprefs.input_analog_joystick_mult) + (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
 	}
     }
 
@@ -2319,6 +2352,7 @@ static void scanevents(struct uae_prefs *p)
 		    iscd32 (ei);
 		    isparport (ei);
 		    ismouse (ei);
+		    isdigitalbutton (ei);
 		    if (joysticks[i].eventid[ID_BUTTON_OFFSET + j][k] > 0)
 			use_joysticks[i] = 1;
 		}
@@ -2328,6 +2362,7 @@ static void scanevents(struct uae_prefs *p)
 		    iscd32 (ei);
 		    isparport (ei);
 		    ismouse (ei);
+		    isdigitalbutton (ei);
 		    if (mice[i].eventid[ID_BUTTON_OFFSET + j][k] > 0)
 			use_mice[i] = 1;
 		}
@@ -2342,6 +2377,7 @@ static void scanevents(struct uae_prefs *p)
 		    isparport (ei);
 		    ismouse (ei);
 		    isanalog (ei);
+		    isdigitalbutton (ei);
 		    if (ei > 0)
 			use_joysticks[i] = 1;
 		}
@@ -2351,6 +2387,7 @@ static void scanevents(struct uae_prefs *p)
 		    isparport (ei);
 		    ismouse (ei);
 		    isanalog (ei);
+		    isdigitalbutton (ei);
 		    if (ei > 0)
 			use_mice[i] = 1;
 		}
@@ -2368,6 +2405,7 @@ static void scanevents(struct uae_prefs *p)
 		    iscd32 (ei);
 		    isparport (ei);
 		    ismouse (ei);
+		    isdigitalbutton (ei);
 		}
 		j++;
 	    }

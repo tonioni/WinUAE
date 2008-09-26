@@ -1767,6 +1767,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\tif ((format & 0xF000) == 0x0000) { break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x1000) { ; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x2000) { m68k_areg (regs, 7) += 4; break; }\n");
+	    printf ("\telse if ((format & 0xF000) == 0x4000) { m68k_areg (regs, 7) += 8; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x8000) { m68k_areg (regs, 7) += 50; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x7000) { m68k_areg (regs, 7) += 52; break; }\n");
 	    printf ("\telse if ((format & 0xF000) == 0x9000) { m68k_areg (regs, 7) += 12; break; }\n");

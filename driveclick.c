@@ -132,7 +132,7 @@ static void processclicks(struct drvsample *ds)
 	}
     }
 }
-void driveclick_init(void)
+void driveclick_init (void)
 {
     int v, vv, i, j;
     char tmp[MAX_DPATH];
@@ -213,6 +213,7 @@ void driveclick_init(void)
 void driveclick_reset (void)
 {
     xfree (clickbuffer);
+    clickbuffer = NULL;
     if (!wave_initialized)
 	return;
     clickbuffer = xmalloc (sndbufsize);
@@ -228,6 +229,10 @@ void driveclick_free (void)
     for (i = 0; i < 4; i++) {
 	for (j = 0; j < DS_END; j++)
 	    freesample (&drvs[i][j]);
+	drv_starting[i] = 0;
+	drv_spinning[i] = 0;
+	drv_has_spun[i] = 0;
+	drv_has_disk[i] = 0;
     }
     memset (drvs, 0, sizeof (drvs));
     xfree (clickbuffer);
@@ -236,7 +241,7 @@ void driveclick_free (void)
     wave_initialized = 0;
 }
 
-static int driveclick_active(void)
+static int driveclick_active (void)
 {
     int i;
     for (i = 0; i < 4; i++) {
@@ -248,7 +253,7 @@ static int driveclick_active(void)
     return 0;
 }
 
-STATIC_INLINE uae_s16 getsample(void)
+STATIC_INLINE uae_s16 getsample (void)
 {
     uae_s32 smp = 0;
     int div = 0, i;
@@ -371,7 +376,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
     }
 }
 
-static void dr_audio_activate(void)
+static void dr_audio_activate (void)
 {
     if (audio_activate ())
 	clickcnt = 0;

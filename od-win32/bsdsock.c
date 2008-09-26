@@ -902,24 +902,23 @@ static unsigned int sock_thread2(void *blah)
 
 	if(bsd->hSockWnd) {
 	    // Make sure we're outrunning the wolves
-	    int pri = THREAD_PRIORITY_ABOVE_NORMAL;
-	    SetThreadPriority(GetCurrentThread(), pri);
+	    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
 		while(bsd->hSockThread && bsd->hSockWnd) {
 			DWORD wait;
 			WaitHandle = bsd->hSockReq;
 			wait = MsgWaitForMultipleObjects (1, &WaitHandle, FALSE, INFINITE, QS_POSTMESSAGE);
+			if (wait == WAIT_ABANDONED_0)
+			    break;
 			if (wait == WAIT_OBJECT_0) {
 				if (!bsd->hSockThread || !bsd->hSockWnd)
 					break;
-				if(HandleStuff()) // See if its time to quit...
+				if (HandleStuff()) // See if its time to quit...
 					break;
-			}
-			if (wait == WAIT_OBJECT_0 + 1) {
+			} else if (wait == WAIT_OBJECT_0 + 1) {
 				if (!bsd->hSockThread || !bsd->hSockWnd)
 					break;
-				Sleep(10);
-				while(PeekMessage(&msg, NULL, WM_USER, 0xB000 + MAXPENDINGASYNC * 2, PM_REMOVE) > 0) {
+				while(PeekMessage(&msg, NULL, WM_USER, 0xB000 + MAXPENDINGASYNC * 2, PM_REMOVE)) {
 					TranslateMessage(&msg);
 					DispatchMessage(&msg);
 				}

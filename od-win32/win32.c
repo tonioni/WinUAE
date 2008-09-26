@@ -128,8 +128,11 @@ int mouseactive, focus;
 
 static int mm_timerres;
 static int timermode, timeon;
-static HANDLE timehandle;
+#define MAX_TIMEHANDLES 8
+static int timehandlecounter;
+static HANDLE timehandle[MAX_TIMEHANDLES];
 int sleep_resolution;
+static CRITICAL_SECTION cs_time;
 
 char start_path_data[MAX_DPATH];
 char start_path_exe[MAX_DPATH];
@@ -169,12 +172,17 @@ static int timebegin (void)
 static int init_mmtimer (void)
 {
     TIMECAPS tc;
+    int i;
+
     mm_timerres = 0;
     if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
 	return 0;
     mm_timerres = min (max (tc.wPeriodMin, 1), tc.wPeriodMax);
     sleep_resolution = 1000 / mm_timerres;
-    timehandle = CreateEvent (NULL, TRUE, FALSE, NULL);
+    for (i = 0; i < MAX_TIMEHANDLES; i++)
+	timehandle[i] = CreateEvent (NULL, TRUE, FALSE, NULL);
+    InitializeCriticalSection(&cs_time);
+    timehandlecounter = 0;
     return 1;
 }
 
@@ -182,11 +190,17 @@ void sleep_millis (int ms)
 {
     UINT TimerEvent;
     int start;
+    int cnt;
     
     start = read_processor_time ();
-    TimerEvent = timeSetEvent (ms, 0, timehandle, 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
-    WaitForSingleObject (timehandle, ms);
-    ResetEvent (timehandle);
+    EnterCriticalSection (&cs_time);
+    cnt = timehandlecounter++;
+    if (timehandlecounter >= MAX_TIMEHANDLES)
+	timehandlecounter = 0;
+    LeaveCriticalSection (&cs_time);
+    TimerEvent = timeSetEvent (ms, 0, timehandle[cnt], 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
+    WaitForSingleObject (timehandle[cnt], ms);
+    ResetEvent (timehandle[cnt]);
     timeKillEvent (TimerEvent);
     idletime += read_processor_time () - start;
 }
@@ -328,7 +342,6 @@ static void setcursor (int oldx, int oldy)
 	    return;
     }
     mouseposx = mouseposy = 0;
-//    if (oldx < amigawin_rect.left || oldy < amigawin_rect.top || oldx > amigawin_rect.right || oldy > amigawin_rect.bottom) {
     if (oldx < 0 || oldy < 0 || oldx > amigawin_rect.right - amigawin_rect.left || oldy > amigawin_rect.bottom - amigawin_rect.top) {
 	write_log ("Mouse out of range: %dx%d (%dx%d %dx%d)\n", oldx, oldy,
 	    amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
@@ -421,7 +434,7 @@ static void setmaintitle (HWND hwnd)
 	WIN32GUI_LoadUIString (currprefs.win32_middle_mouse ? IDS_WINUAETITLE_MMB : IDS_WINUAETITLE_NORMAL,
 	    txt2, sizeof (txt2));
     }
-    if (WINUAEBETA > 0) {
+    if (strlen (WINUAEBETA) > 0) {
 	strcat (txt, BetaStr);
 	if (strlen (WINUAEEXTRA) > 0) {
 	    strcat (txt, " ");
@@ -1963,9 +1976,9 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
     cfgfile_target_dwrite (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
     serdevtoname (p->sername);
-    cfgfile_target_dwrite (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none" );
+    cfgfile_target_dwrite (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none");
     sernametodev (p->sername);
-    cfgfile_target_dwrite (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none" );
+    cfgfile_target_dwrite (f, "parallel_port=%s\n", p->prtname[0] ? p->prtname : "none");
 
     cfgfile_target_dwrite (f, "active_priority=%d\n", priorities[p->win32_active_priority].value);
     cfgfile_target_dwrite (f, "inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
@@ -2989,15 +3002,15 @@ static int getval(char *s)
 
 static void makeverstr(char *s)
 {
-#if WINUAEBETA > 0
-    sprintf (BetaStr, " (%sBeta %d, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? "Public " : "", WINUAEBETA,
-	GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
-    sprintf (s, "WinUAE %d.%d.%d%s%s",
-	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
-#else
-    sprintf(s, "WinUAE %d.%d.%d%s (%d.%02d.%02d)",
-	UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
-#endif
+    if (strlen (WINUAEBETA) > 0) {
+	sprintf (BetaStr, " (%sBeta %s, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? "Public " : "", WINUAEBETA,
+	    GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+	sprintf (s, "WinUAE %d.%d.%d%s%s",
+	    UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
+    } else {
+	sprintf(s, "WinUAE %d.%d.%d%s (%d.%02d.%02d)",
+	    UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+    }
     if (strlen (WINUAEEXTRA) > 0) {
 	strcat (s, " ");
 	strcat (s, WINUAEEXTRA);

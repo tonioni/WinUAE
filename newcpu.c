@@ -1917,7 +1917,7 @@ static void do_trace (void)
 	m68k_setpc (&regs, m68k_getpc (&regs));
 	fill_prefetch_slow (&regs);
 	opcode = get_word (regs.pc);
-	if (opcode == 0x4e72 			/* RTE */
+	if (opcode == 0x4e73 			/* RTE */
 	    || opcode == 0x4e74 		/* RTD */
 	    || opcode == 0x4e75 		/* RTS */
 	    || opcode == 0x4e77 		/* RTR */
