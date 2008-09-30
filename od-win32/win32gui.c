@@ -4304,9 +4304,10 @@ static void init_frequency_combo (HWND hDlg, int dmode)
     int i, j, freq, tmp;
     char hz[20], hz2[20], txt[100];
     LRESULT index;
+    struct MultiDisplay *md = getdisplay (&workprefs);
 
     i = 0; index = 0;
-    while (dmode >= 0 && (freq = DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
+    while (dmode >= 0 && (freq = md->DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
 	storedrefreshrates[index++] = freq;
 	i++;
     }
@@ -4363,19 +4364,20 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 #define MAX_FRAMERATE_LENGTH 40
 #define MAX_NTH_LENGTH 20
 
-static int display_mode_index(uae_u32 x, uae_u32 y, uae_u32 d)
+static int display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 {
     int i;
+    struct MultiDisplay *md = getdisplay (&workprefs);
 
     i = 0;
-    while (DisplayModes[i].depth >= 0) {
-	if (DisplayModes[i].res.width == x &&
-	    DisplayModes[i].res.height == y &&
-	    DisplayModes[i].depth == d)
+    while (md->DisplayModes[i].depth >= 0) {
+	if (md->DisplayModes[i].res.width == x &&
+	    md->DisplayModes[i].res.height == y &&
+	    md->DisplayModes[i].depth == d)
 	    break;
 	i++;
     }
-    if(DisplayModes[i].depth < 0)
+    if(md->DisplayModes[i].depth < 0)
 	i = -1;
     return i;
 }
@@ -4447,6 +4449,7 @@ static void init_display_mode (HWND hDlg)
 {
    int d, d2, index;
    int i, cnt;
+   struct MultiDisplay *md = getdisplay (&workprefs);
 
    switch (workprefs.color_mode)
     {
@@ -4461,7 +4464,7 @@ static void init_display_mode (HWND hDlg)
 
     if (workprefs.gfx_afullscreen) {
 	d2 = d;
-	if ((index = WIN32GFX_AdjustScreenmode (&workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
+	if ((index = WIN32GFX_AdjustScreenmode (md, &workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
 	    switch (d2)
 	    {
 	    case 15:
@@ -4485,20 +4488,20 @@ static void init_display_mode (HWND hDlg)
 
     index = display_mode_index (workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, d);
     if (index >= 0)
-	SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, DisplayModes[index].residx, 0);
+	SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, md->DisplayModes[index].residx, 0);
     else
 	index = 0;
     SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
     cnt = 0;
     gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
-    for (i = 0; DisplayModes[i].depth >= 0; i++) {
-        if (DisplayModes[i].depth > 1 && DisplayModes[i].residx == DisplayModes[index].residx) {
+    for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+        if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx == md->DisplayModes[index].residx) {
 	    char tmp[64];
-	    sprintf (tmp, "%d", DisplayModes[i].depth * 8);
+	    sprintf (tmp, "%d", md->DisplayModes[i].depth * 8);
 	    SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
-	    if (DisplayModes[i].depth == d)
+	    if (md->DisplayModes[i].depth == d)
 	        SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
-	    gui_display_depths[cnt] = DisplayModes[i].depth;
+	    gui_display_depths[cnt] = md->DisplayModes[i].depth;
 	    cnt++;
 	}
     }
@@ -4631,13 +4634,14 @@ static void init_resolution_combo (HWND hDlg)
 {
     int i = 0, idx = -1;
     char tmp[64];
+    struct MultiDisplay *md = getdisplay (&workprefs);
 
     SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
-    while (DisplayModes[i].depth >= 0) {
-	if (DisplayModes[i].depth > 1 && DisplayModes[i].residx != idx) {
-	    sprintf (tmp, "%dx%d", DisplayModes[i].res.width, DisplayModes[i].res.height);
+    while (md->DisplayModes[i].depth >= 0) {
+	if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx != idx) {
+	    sprintf (tmp, "%dx%d", md->DisplayModes[i].res.width, md->DisplayModes[i].res.height);
 	    SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
-	    idx = DisplayModes[i].residx;
+	    idx = md->DisplayModes[i].residx;
 	}
 	i++;
     }
@@ -4718,7 +4722,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (Displays[posn].disabled)
 		    posn = 0;
 		workprefs.gfx_display = posn;
-		DisplayModes = Displays[workprefs.gfx_display].DisplayModes;
 		init_resolution_combo (hDlg);
 		init_display_mode (hDlg);
 	    }
@@ -4728,6 +4731,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    if (posn != CB_ERR)
 		workprefs.gfx_resolution = posn;
 	} else if (LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) {
+	    struct MultiDisplay *md = getdisplay (&workprefs);
 	    LRESULT posn1, posn2;
 	    posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
 	    if (posn1 == CB_ERR)
@@ -4735,23 +4739,23 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
 	    if (posn2 == CB_ERR)
 		return;
-	    for (i = 0; DisplayModes[i].depth >= 0; i++) {
-		if (DisplayModes[i].residx == posn1)
+	    for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+		if (md->DisplayModes[i].residx == posn1)
 		    break;
 	    }
-	    if (DisplayModes[i].depth < 0)
+	    if (md->DisplayModes[i].depth < 0)
 		return;
 	    j = i;
-	    while (DisplayModes[i].residx == posn1) {
-		if (DisplayModes[i].depth == gui_display_depths[posn2])
+	    while (md->DisplayModes[i].residx == posn1) {
+		if (md->DisplayModes[i].depth == gui_display_depths[posn2])
 		    break;
 		i++;
 	    }
-	    if (DisplayModes[i].residx != posn1)
+	    if (md->DisplayModes[i].residx != posn1)
 		i = j;
-	    workprefs.gfx_size_fs.width  = DisplayModes[i].res.width;
-	    workprefs.gfx_size_fs.height = DisplayModes[i].res.height;
-	    switch(DisplayModes[i].depth)
+	    workprefs.gfx_size_fs.width  = md->DisplayModes[i].res.width;
+	    workprefs.gfx_size_fs.height = md->DisplayModes[i].res.height;
+	    switch(md->DisplayModes[i].depth)
 	    {
 	    case 2:
 		workprefs.color_mode = 2;

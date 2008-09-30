@@ -30,6 +30,7 @@
 *   programs started from a Picasso workbench.
 */
 
+#define MULTIDISPLAY 0
 #define P96DX 0
 
 #include "sysconfig.h"
@@ -1870,6 +1871,8 @@ void picasso96_alloc (TrapContext *ctx)
 {
     int i, j, size, cnt;
     int misscnt, depths;
+    struct MultiDisplay *md = getdisplay (&currprefs);
+    struct PicassoResolution *DisplayModes = md->DisplayModes;
 
     uaegfx_resname = ds ("uaegfx.card");
     xfree (newmodes);
@@ -1935,8 +1938,12 @@ void picasso96_alloc (TrapContext *ctx)
 	    && DisplayModes[i].res.height == DisplayModes[j].res.height)
 		i++;
     }
-    for (i = 0; Displays[i].name; i++)
+#if MULTIDISPLAY
+    for (i = 0; Displays[i].name; i++) {
+	size += PSSO_LibResolution_sizeof;
 	size += PSSO_ModeInfo_sizeof * depths;
+    }
+#endif
     newmodes[cnt].depth = -1;
 
     for (i = 0; i < cnt; i++) {
@@ -2124,11 +2131,15 @@ static void inituaegfx (uaecptr ABI)
 #endif
 }
 
-static void addmode (uaecptr AmigaBoardInfo, uaecptr *amem, struct LibResolution *res, int w, int h, const char *name, int id, int *unkcnt)
+static void addmode (uaecptr AmigaBoardInfo, uaecptr *amem, struct LibResolution *res, int w, int h, const char *name, int display, int *unkcnt)
 {
     int depth;
 
-    res->DisplayID = id > 0 ? id : AssignModeID (w, h, unkcnt);
+    if (display > 0) {
+	res->DisplayID = 0x51000000 + display * 0x100000;
+    } else {
+        res->DisplayID = AssignModeID (w, h, unkcnt);
+    }
     res->BoardInfo = AmigaBoardInfo;
     res->Width = w;
     res->Height = h;
@@ -2179,7 +2190,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
     while (newmodes[i].depth >= 0) {
 	struct LibResolution res = { 0 };
 	j = i;
-	addmode (AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, -1, &unkcnt);
+	addmode (AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, 0, &unkcnt);
 	write_log ("%08X %4dx%4d %s\n", res.DisplayID, res.Width, res.Height, res.Name);
 	while (newmodes[i].depth >= 0
 	    && newmodes[i].res.width == newmodes[j].res.width
@@ -2194,19 +2205,19 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 	AmigaListAddTail (AmigaBoardInfo + PSSO_BoardInfo_ResolutionsList, amem);
 	amem += PSSO_LibResolution_sizeof;
     }
-#if 0
+#if MULTIDISPLAY
     for (i = 0; Displays[i].name; i++) {
 	struct LibResolution res = { 0 };
 	struct MultiDisplay *md = &Displays[i];
 	int w = md->rect.right - md->rect.left;
 	int h = md->rect.bottom - md->rect.top;
-	int id = 0x50F00000 - i * 0x10000;
 	char tmp[100];
 	if (md->primary)
 	    strcpy (tmp, "UAE:Primary");
 	else
-	    sprintf (tmp, "UAE:Monitor#%d", i);
-	addmode (AmigaBoardInfo, &amem, &res, w + 16, h, md->name, id, &unkcnt);
+	    sprintf (tmp, "UAE:Display#%d", i);
+	addmode (AmigaBoardInfo, &amem, &res, w, h, tmp, i + 1, &unkcnt);
+	write_log ("%08X %4dx%4d %s\n", res.DisplayID, res.Width + 16, res.Height, res.Name);
 	LibResolutionStructureCount++;
 	CopyLibResolutionStructureU2A (&res, amem);
 #if P96TRACING_ENABLED && P96TRACING_LEVEL > 1

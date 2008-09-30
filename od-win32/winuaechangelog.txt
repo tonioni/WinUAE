@@ -1,4 +1,12 @@
 
+Beta 1:
+
+- huge memory leak fixed (display mode switch)
+- fullscreen color depth change didn't work on the fly
+- multi monitor resolution list may only have listed primary monitor's
+  resolutions
+- OpenGL fullscreen works again
+
 Beta 0.1:
 
 - "always on top" change works on the fly

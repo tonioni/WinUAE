@@ -63,7 +63,6 @@ struct PicassoResolution
     /* Bit mask of RGBFF_xxx values.  */
     uae_u32 colormodes;
 };
-extern struct PicassoResolution *DisplayModes;
 extern GUID *displayGUID;
 
 #define MAX_DISPLAYS 10
@@ -105,7 +104,7 @@ HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen, int doset);
 HRESULT DirectDraw_CreateClipper (void);
 HRESULT DirectDraw_SetClipper(HWND hWnd);
 RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface);
-HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback);
+HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback, void *context);
 HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEX callback);
 DWORD DirectDraw_CurrentWidth (void);
 DWORD DirectDraw_CurrentHeight (void);

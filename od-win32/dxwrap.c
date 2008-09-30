@@ -590,10 +590,10 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat (LPDDSURFACEDESC2 surface)
     return RGBFB_NONE;
 }
 
-HRESULT DirectDraw_EnumDisplayModes (DWORD flags, LPDDENUMMODESCALLBACK2 callback)
+HRESULT DirectDraw_EnumDisplayModes (DWORD flags, LPDDENUMMODESCALLBACK2 callback, void *context)
 {
     HRESULT result;
-    result = IDirectDraw7_EnumDisplayModes (dxdata.maindd, flags, NULL, NULL, callback);
+    result = IDirectDraw7_EnumDisplayModes (dxdata.maindd, flags, NULL, context, callback);
     return result;
 }
 

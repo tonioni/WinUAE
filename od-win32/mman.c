@@ -538,7 +538,10 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		size += BARRIER;
 	}
 	if(!strcmp(shmids[shmid].name,"filesys")) {
-	    result = xcalloc (size, 1);
+	    static uae_u8 *filesysptr;
+	    if (filesysptr == NULL)
+		filesysptr = xcalloc (size, 1);
+	    result = filesysptr;
 	    shmids[shmid].attached = result;
 	    return result;
 	}

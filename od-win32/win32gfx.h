@@ -21,7 +21,7 @@ void WIN32GFX_WindowMove (void);
 void WIN32GFX_WindowSize (void);;
 
 RGBFTYPE WIN32GFX_FigurePixelFormats (RGBFTYPE colortype);
-int WIN32GFX_AdjustScreenmode (uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbits);
+int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbits);
 
 extern HWND hStatusWnd;
 extern uae_u32 default_freq;
