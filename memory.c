@@ -44,9 +44,12 @@ static int isdirectjit (void)
 
 static int canjit (void)
 {
+#if 0
     if (currprefs.cpu_model >= 68020)
 	return 1;
     return 0;
+#endif
+    return 1;
 }
 
 static void nocanbang (void)
@@ -3021,7 +3024,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     base = ((uae_u8 *) NATMEM_OFFSET) + start;
     y->native_address = shmat (y->id, base, 0);
     if (y->native_address == (void *) -1) {
-	write_log ("NATMEM: Failure to map existing at %08x(%p)\n",start,base);
+	write_log ("NATMEM: Failure to map existing at %08x(%p)\n", start, base);
 	dumplist ();
 	nocanbang ();
 	return;

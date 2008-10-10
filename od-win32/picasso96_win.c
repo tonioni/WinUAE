@@ -2061,6 +2061,11 @@ static void inituaegfx (uaecptr ABI)
 {
     uae_u32 flags;
 
+    cursorvisible = 0;
+    cursorok = 0;
+    cursordeactivate = 0;
+    reloadcursor = 0;
+
     write_log ("RTG mode mask: %x\n", currprefs.picasso96_modeflags);
     put_word (ABI + PSSO_BoardInfo_BitsPerCannon, 8);
     put_word (ABI + PSSO_BoardInfo_RGBFormats, currprefs.picasso96_modeflags);

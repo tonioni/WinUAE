@@ -2108,7 +2108,7 @@ static struct ConfigStruct *readconfigcache (const char *path)
 		int i;
 		for (i = 0; i < configstoresize; i++) {
 		    struct ConfigStruct *cs2 = configstore[i];
-		    if (cs2 != cs && !strcmp (cs2->Path, tmp)) {
+		    if (cs2 != cs && !strcmp (cs2->Path, tmp) && cs2->Directory) {
 			cs->Parent = cs2;
 			if (!cs2->Child)
 			    cs2->Child = cs;

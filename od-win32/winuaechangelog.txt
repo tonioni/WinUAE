@@ -1,4 +1,17 @@
 
+Beta 2:
+
+- RTG hardware cursor was still visible if switching from hardware
+  cursor enabled WB installation to non-hardware cursor installation
+  without closing WinUAE
+- some CE-mode memory access optimizations
+- configuration cache loader missed most configuration files inside
+  directories (parent was set to wrong entry..)
+- some midline resolution change updates. Disposable Hero looks better
+  but not perfect yet.. Innovation Part 2 by Axis also looks better
+  (sprite resolution issue still remaining). Brian the Lion "message
+  dialog" corruption fixed.
+
 Beta 1:
 
 - huge memory leak fixed (display mode switch)

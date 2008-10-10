@@ -157,6 +157,7 @@ struct uae_prefs {
     struct wh gfx_size_win_xtra[4];
     struct wh gfx_size_fs_xtra[4];
     int gfx_autoresolution;
+    int gfx_scandoubler;
     int gfx_refreshrate;
     int gfx_avsync, gfx_pvsync;
     int gfx_resolution;
