@@ -1,4 +1,9 @@
 
+Beta 3:
+
+- AGA display corruption
+- POTxDAT behavior in output mode fixed
+
 Beta 2:
 
 - RTG hardware cursor was still visible if switching from hardware

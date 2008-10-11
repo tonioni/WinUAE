@@ -922,16 +922,10 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
     }
 }
 
-STATIC_INLINE void fetch (int nr, int fm)
+STATIC_INLINE void fetch (int nr, int fm, int aga)
 {
-    if (nr >= t_bplcon0_planes_limit && nr < toscr_nr_planes) {
+    if (!aga && nr >= t_bplcon0_planes_limit && nr < toscr_nr_planes) {
 	fetched[nr] = 0;
-#ifdef AGA
-	if (fm >= 1)
-	    fetched_aga0[nr] = 0;
-	if (fm == 2)
-	    fetched_aga1[nr] = 0;
-#endif
     } else if (nr < toscr_nr_planes) {
 	uaecptr p = bplpt[nr];
 	switch (fm)
@@ -1428,7 +1422,7 @@ static void finish_final_fetch (int pos, int fm)
     finish_playfield_line ();
 }
 
-STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
+STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm, int aga)
 {
     if (plfstate < plf_passed_stop && pos == ddfstop_to_test)
 	plfstate = plf_passed_stop;
@@ -1450,28 +1444,28 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	switch (f_fm_maxplane) {
 	case 8:
 	    switch (cycle_start) {
-	    case 0: fetch (7, fm); break;
-	    case 1: fetch (3, fm); break;
-	    case 2: fetch (5, fm); break;
-	    case 3: fetch (1, fm); break;
-	    case 4: fetch (6, fm); break;
-	    case 5: fetch (2, fm); break;
-	    case 6: fetch (4, fm); break;
-	    case 7: fetch (0, fm); break;
+	    case 0: fetch (7, fm, aga); break;
+	    case 1: fetch (3, fm, aga); break;
+	    case 2: fetch (5, fm, aga); break;
+	    case 3: fetch (1, fm, aga); break;
+	    case 4: fetch (6, fm, aga); break;
+	    case 5: fetch (2, fm, aga); break;
+	    case 6: fetch (4, fm, aga); break;
+	    case 7: fetch (0, fm, aga); break;
 	    }
 	    break;
 	case 4:
 	    switch (cycle_start) {
-	    case 0: fetch (3, fm); break;
-	    case 1: fetch (1, fm); break;
-	    case 2: fetch (2, fm); break;
-	    case 3: fetch (0, fm); break;
+	    case 0: fetch (3, fm, aga); break;
+	    case 1: fetch (1, fm, aga); break;
+	    case 2: fetch (2, fm, aga); break;
+	    case 3: fetch (0, fm, aga); break;
 	    }
 	    break;
 	case 2:
 	    switch (cycle_start) {
-	    case 0: fetch (1, fm); break;
-	    case 1: fetch (0, fm); break;
+	    case 0: fetch (1, fm, aga); break;
+	    case 1: fetch (0, fm, aga); break;
 	    }
 	    break;
 	}
@@ -1489,9 +1483,9 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
     return 0;
 }
 
-static int one_fetch_cycle_fm0 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 0); }
-static int one_fetch_cycle_fm1 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 1); }
-static int one_fetch_cycle_fm2 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 2); }
+static int one_fetch_cycle_fm0 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 0, (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0); }
+static int one_fetch_cycle_fm1 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 1, 1); }
+static int one_fetch_cycle_fm2 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 2, 1); }
 
 STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm)
 {

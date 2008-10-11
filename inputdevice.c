@@ -1366,7 +1366,7 @@ void inputdevice_hsync (void)
 
 	    if (analog_port[joy][i] && pot_cap[joy][i] < joydirpot[joy][i])
 	        charge = 1; // slow charge via pot variable resistor
-	    if (digital_port[joy][i])
+	    if ((digital_port[joy][i] || mouse_port[joy]))
 		charge = 1; // slow charge via pull-up resistor
 	    if (!(potgo_value & pdir)) { // input?
 		if (pot_dat_act[joy][i])
@@ -1382,14 +1382,16 @@ void inputdevice_hsync (void)
 		}
 		if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= joydirpot[joy][i])
 		    pot_dat_act[joy][i] = 0;
-		if (digital_port[joy][i] && pot_dat_act[joy][i] == 2) {
+		if ((digital_port[joy][i] || mouse_port[joy]) && pot_dat_act[joy][i] == 2) {
 		    if (pot_cap[joy][i] >= 10 && !isbutton)
 			pot_dat_act[joy][i] = 0;
 		}
 	    } else { // output?
 		charge = (potgo_value & pdat) ? 2 : -2; /* fast (dis)charge if output */
-		if ((potgo_value & pdat) && (potgo_value & pdir))
+		if (potgo_value & pdat)
 		    pot_dat_act[joy][i] = 0; // instant stop if output+high
+		if (isbutton)
+		    pot_dat[joy][i]++; // "free running" if output+low
 	    }
 
 	    if (isbutton)
