@@ -1159,7 +1159,7 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
    }
 }
 
-static int isdllversion (const char *name, int version, int revision)
+static int isdllversion (const char *name, int version, int revision, int subver, int subrev)
 {
     DWORD  dwVersionHandle, dwFileVersionInfoSize;
     LPVOID lpFileVersionData = NULL;
@@ -1173,10 +1173,12 @@ static int isdllversion (const char *name, int version, int revision)
 		UINT uLen;
 		if (VerQueryValue (lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen)) {
 		    if (vsFileInfo) {
+			uae_u64 v1 = ((uae_u64)vsFileInfo->dwProductVersionMS << 32) | vsFileInfo->dwProductVersionLS;
+			uae_u64 v2 = ((uae_u64)version << 48) | ((uae_u64)revision << 32) | (subver << 16) | (subrev << 0);
 			write_log ("%s %d.%d.%d.%d\n", name,
 			    HIWORD (vsFileInfo->dwProductVersionMS), LOWORD (vsFileInfo->dwProductVersionMS),
 			    HIWORD (vsFileInfo->dwProductVersionLS), LOWORD (vsFileInfo->dwProductVersionLS));
-			if (vsFileInfo->dwProductVersionMS >= version * 65536 + revision)
+			if (v1 >= v2)
 			    ok = 1;
 		    }
 		}
@@ -1192,9 +1194,11 @@ int enumerate_sound_devices (void)
 {
     if (!num_sound_devices) {
 	HMODULE l = NULL;
+	write_log ("Enumerating DirectSound devices..\n");
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-	if (isdllversion ("openal32.dll", 6, 14)) {
+	if (isdllversion ("openal32.dll", 6, 14, 357, 22)) {
+	    write_log ("Enumerating OpenAL devices..\n");
 	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
 		const ALchar* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
 		const ALchar* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
@@ -1206,6 +1210,7 @@ int enumerate_sound_devices (void)
 		OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
 	    }
 	}
+	write_log("Enumeration end\n");
 	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
 	    if (sound_devices[num_sound_devices].name == NULL)
 		break;

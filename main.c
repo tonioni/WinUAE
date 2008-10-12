@@ -487,6 +487,9 @@ static void parse_cmdline (int argc, char **argv)
 	} else if (strncmp (argv[i], "-config=", 8) == 0) {
 	    currprefs.mountitems = 0;
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
+	} else if (strncmp (argv[i], "-statefile=", 11) == 0) {
+	    savestate_state = STATE_DORESTORE;
+	    strcpy (savestate_fname, argv[++i]);
 	}
 	/* Check for new-style "-f xxx" argument, where xxx is config-file */
 	else if (strcmp (argv[i], "-f") == 0) {

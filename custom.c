@@ -30,7 +30,6 @@
 #include "inputdevice.h"
 #include "keybuf.h"
 #include "serial.h"
-#include "osemu.h"
 #include "autoconf.h"
 #include "traps.h"
 #include "gui.h"
@@ -222,7 +221,7 @@ uae_u8 cycle_line[256];
 static uae_u32 bpl1dat, bpl5dat;
 static uae_s16 bpl1mod, bpl2mod;
 
-static uaecptr bplpt[8];
+static uaecptr bplpt[8], f_bplpt[8];
 /* Used as a debugging aid, to offset any bitplane temporarily.  */
 int bpl_off[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -922,29 +921,24 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
     }
 }
 
-STATIC_INLINE void fetch (int nr, int fm, int aga)
+STATIC_INLINE void fetch (int nr, int fm)
 {
-    if (!aga && nr >= t_bplcon0_planes_limit && nr < toscr_nr_planes) {
-	fetched[nr] = 0;
-    } else if (nr < toscr_nr_planes) {
-	uaecptr p = bplpt[nr];
+    if (nr < toscr_nr_planes) {
+	uaecptr p = f_bplpt[nr];
 	switch (fm)
 	{
 	case 0:
 	    fetched[nr] = last_custom_value = chipmem_agnus_wget (p);
-	    bplpt[nr] += 2;
 	    break;
 #ifdef AGA
 	case 1:
 	    fetched_aga0[nr] = chipmem_lget (p);
 	    last_custom_value = (uae_u16)fetched_aga0[nr];
-	    bplpt[nr] += 4;
 	    break;
 	case 2:
 	    fetched_aga1[nr] = chipmem_lget (p);
 	    fetched_aga0[nr] = chipmem_lget (p + 4);
 	    last_custom_value = (uae_u16)fetched_aga0[nr];
-	    bplpt[nr] += 8;
 	    break;
 #endif
 	}
@@ -964,6 +958,9 @@ STATIC_INLINE void fetch (int nr, int fm, int aga)
     }
     if (nr == 0)
 	fetch_state = fetch_was_plane0;
+    else if (nr == 1 && t_bplcon0_res > f_bplcon0_res)
+	fetch_state = fetch_was_plane0;
+
 }
 
 static void clear_fetchbuffer (uae_u32 *ptr, int nwords)
@@ -1100,11 +1097,10 @@ STATIC_INLINE void toscr_1 (int nbits, int fm)
 	uae_u8 *dataptr = line_data[next_lineno] + out_offs * 4;
 	for (i = 0; i < thisline_decision.nr_planes; i++) {
 	    uae_u32 *dataptr32 = (uae_u32 *)dataptr;
-	    if (i >= toscr_nr_planes)
-		outword[i] = 0;
-	    if (*dataptr32 != outword[i])
+	    if (*dataptr32 != outword[i]) {
 		thisline_changed = 1;
-	    *dataptr32 = outword[i];
+		*dataptr32 = outword[i];
+	    }
 	    outword[i] = 0;
 	    dataptr += MAX_WORDS_PER_LINE * 2;
 	}
@@ -1422,7 +1418,24 @@ static void finish_final_fetch (int pos, int fm)
     finish_playfield_line ();
 }
 
-STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm, int aga)
+/* current theory: bitplane operation is pipelined, bitplane pointer is copied
+ * to backup registers -4 to -1 cycles before fetch is done and pointer is
+ * increased during this time, not when real DMA fetch is done, this makes some
+ * sense to demos that change bitplane pointers during display
+ * (this code is not really emulating above behavior yet..)
+ */
+STATIC_INLINE void inc_bpl (int fm, int oe)
+{
+    int i;
+    for (i = 0; i < f_bplcon0_planes; i++) {
+	if ((oe == 0) || (oe < 0 && (i & 1)) || (oe > 0 && !(i & 1))) {
+	    f_bplpt[i] = bplpt[i];
+	    bplpt[i] += 2 << fm;
+	}
+    }
+}
+
+STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
 {
     if (plfstate < plf_passed_stop && pos == ddfstop_to_test)
 	plfstate = plf_passed_stop;
@@ -1444,28 +1457,28 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	switch (f_fm_maxplane) {
 	case 8:
 	    switch (cycle_start) {
-	    case 0: fetch (7, fm, aga); break;
-	    case 1: fetch (3, fm, aga); break;
-	    case 2: fetch (5, fm, aga); break;
-	    case 3: fetch (1, fm, aga); break;
-	    case 4: fetch (6, fm, aga); break;
-	    case 5: fetch (2, fm, aga); break;
-	    case 6: fetch (4, fm, aga); break;
-	    case 7: fetch (0, fm, aga); break;
+	    case 0: inc_bpl (fm, -1); fetch (7, fm); break;
+	    case 1: fetch (3, fm); break;
+	    case 2: fetch (5, fm); break;
+	    case 3: fetch (1, fm); break;
+	    case 4: inc_bpl (fm, 1); fetch (6, fm); break;
+	    case 5: fetch (2, fm); break;
+	    case 6: fetch (4, fm); break;
+	    case 7: fetch (0, fm); break;
 	    }
 	    break;
 	case 4:
 	    switch (cycle_start) {
-	    case 0: fetch (3, fm, aga); break;
-	    case 1: fetch (1, fm, aga); break;
-	    case 2: fetch (2, fm, aga); break;
-	    case 3: fetch (0, fm, aga); break;
+	    case 0: inc_bpl (fm, 0); fetch (3, fm); break;
+	    case 1: fetch (1, fm); break;
+	    case 2: fetch (2, fm); break;
+	    case 3: fetch (0, fm); break;
 	    }
 	    break;
 	case 2:
 	    switch (cycle_start) {
-	    case 0: fetch (1, fm, aga); break;
-	    case 1: fetch (0, fm, aga); break;
+	    case 0: inc_bpl (fm, 0); fetch (1, fm); break;
+	    case 1: fetch (0, fm); break;
 	    }
 	    break;
 	}
@@ -1483,9 +1496,9 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
     return 0;
 }
 
-static int one_fetch_cycle_fm0 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 0, (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0); }
-static int one_fetch_cycle_fm1 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 1, 1); }
-static int one_fetch_cycle_fm2 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 2, 1); }
+static int one_fetch_cycle_fm0 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 0); }
+static int one_fetch_cycle_fm1 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 1); }
+static int one_fetch_cycle_fm2 (int pos, int ddfstop_to_test, int dma) { return one_fetch_cycle_0 (pos, ddfstop_to_test, dma, 2); }
 
 STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm)
 {
@@ -2185,7 +2198,7 @@ static void decide_sprites (int hpos)
     int width = sprite_width;
     int sscanmask = 0x100 << sprite_buffer_res;
 
-    if ((thisline_decision.nr_planes == 0 || thisline_decision.plfleft < 0) && !(bplcon3 & 2))
+    if (thisline_decision.nr_planes == 0 && !(bplcon3 & 2))
 	return;
 
     if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
@@ -2315,7 +2328,7 @@ static void finish_decisions (void)
     dip_old = prev_drawinfo + next_lineno;
     dp = line_decisions + next_lineno;
     changed = thisline_changed;
-    if (thisline_decision.plfleft != -1)
+    if (thisline_decision.plfleft != -1 && thisline_decision.nr_planes > 0)
 	record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
     decide_sprites (hpos + 1);
@@ -2532,7 +2545,7 @@ void init_hz (void)
 	    minfirstline = maxvpos - 1;
 	sprite_vblank_endline = minfirstline - 2;
 	maxvpos_max = maxvpos;
-	doublescan = htotal <= 164;
+	doublescan = htotal <= 164 ? 1 : 0;
 	dumpsync ();
 	hzc = 1;
     }
@@ -3134,11 +3147,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
     } else if (fetch_state != fetch_not_started && diwstate == DIW_waiting_stop && (hpos >= plfstrt && hpos <= plfstrt + 1)) {
 	fetch_bpl_params ();
 	copy_bpl_params (hpos);
-    } else if (fetch_state == fetch_was_plane0) {
-	fetch_bpl_params ();
-	copy_bpl_params (hpos);
     }
-
     calcdiw ();
     estimate_last_fetch_cycle (hpos);
 

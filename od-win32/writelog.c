@@ -25,6 +25,7 @@ FILE *debugfile = NULL;
 int console_logging = 0;
 static LONG debugger_type = -1;
 extern BOOL debuggerinitializing;
+int always_flush_log = 0;
 
 #define WRITE_LOG_BUF_SIZE 4096
 
@@ -312,6 +313,8 @@ void write_log (const char *format, ...)
     va_end (parms);
     if (bufp != buffer)
 	xfree (bufp);
+    if (always_flush_log)
+	flush_log ();
     LeaveCriticalSection(&cs);
 }
 

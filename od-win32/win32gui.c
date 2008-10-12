@@ -3783,6 +3783,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    configurationcache = IsDlgButtonChecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
 	    regsetint (NULL, "ConfigurationCache", configurationcache);
 	    break;
+	    case IDC_FILE_ASSOCIATE:
+	    associate_file_extensions ();
+	    break;
+
 	}
 	recursive--;
     }

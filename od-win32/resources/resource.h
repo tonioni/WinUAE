@@ -808,6 +808,7 @@
 #define IDC_DF0QQ                       1678
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
+#define IDC_FILE_ASSOCIATE              1679
 #define IDC_DF1QQ                       1680
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682

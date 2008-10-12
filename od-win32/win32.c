@@ -28,6 +28,7 @@
 #include <mmsystem.h>
 #include <shobjidl.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <dbghelp.h>
 
 #include "sysdeps.h"
@@ -2451,6 +2452,108 @@ static int checkversion (char *vs)
     return 1;
 }
 
+static int shell_deassociate (const char *extension)
+{
+    HKEY rkey;
+    const char *progid = "WinUAE";
+    int def = !strcmp (extension, ".uae");
+    char rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
+
+    if (extension == NULL || strlen (extension) < 1 || extension[0] != '.')
+	return 0;
+    strcpy (progid2, progid);
+    strcat (progid2, extension);
+    if (os_winnt_admin > 1)
+        rkey = HKEY_LOCAL_MACHINE;
+    else
+        rkey = HKEY_CURRENT_USER;
+
+    strcpy (rpath1, "Software\\Classes\\");
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, extension);
+    if (RegDeleteKey (rkey, rpath2) != ERROR_SUCCESS)
+	return 0;
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, progid);
+    if (!def)
+	strcat (rpath2, extension);
+    SHDeleteKey (rkey, rpath2);
+    SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
+    return 1;
+}
+
+static int shell_associate_2 (const char *extension, const char *shellcommand, const char *command, const char *perceivedtype,
+			      const char *description, const char *ext2)
+{
+    char rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
+    HKEY rkey, key1;
+    DWORD disposition;
+    const char *progid = "WinUAE";
+    int def = !strcmp (extension, ".uae");
+
+    strcpy (progid2, progid);
+    strcat (progid2, ext2 ? ext2 : extension);
+    if (os_winnt_admin > 1)
+        rkey = HKEY_LOCAL_MACHINE;
+    else
+        rkey = HKEY_CURRENT_USER;
+
+    strcpy (rpath1, "Software\\Classes\\");
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, extension);
+    if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
+	KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+	RegSetValueEx (key1, "", 0, REG_SZ, (CONST BYTE *)(def ? progid : progid2), strlen (def ? progid : progid2) + 1);
+	if (perceivedtype)
+	    RegSetValueEx (key1, "PerceivedType", 0, REG_SZ, (CONST BYTE *)perceivedtype, strlen (perceivedtype) + 1);
+	RegCloseKey (key1);
+    }
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, progid);
+    if (!def)
+	strcat (rpath2, ext2 ? ext2 : extension);
+    if (description) {
+	if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+	    RegSetValueEx (key1, "", 0, REG_SZ, (CONST BYTE *)description, strlen (description) + 1);
+	    RegCloseKey (key1);
+	}
+    }
+    if (command) {
+	strcat (rpath2, "\\shell\\");
+	if (shellcommand)
+	    strcat (rpath2, shellcommand);
+	else
+	    strcat (rpath2, "open");
+	strcat (rpath2, "\\command");
+	if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+	    char path[MAX_DPATH];
+	    sprintf (path, "\"%sWinUAE.exe\" %s", start_path_exe, command);
+	    RegSetValueEx (key1, "", 0, REG_SZ, (CONST BYTE *)path, strlen (path) + 1);
+	    RegCloseKey (key1);
+	}
+    }
+    return 1;
+}
+static int shell_associate (const char *extension, const char *command, const char *perceivedtype, const char *description, const char *ext2)
+{
+    return shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2);
+}
+
+static char *exts[] = { ".adz", ".dms", ".ipf", NULL };
+void associate_file_extensions (void)
+{
+    int i;
+    shell_associate_2 (".uae", "edit", "-f \"%1\" -s use_gui=yes", "text", "WinUAE configuration file", NULL);
+    shell_associate (".uae", "-f \"%1\"", "text", "WinUAE configuration file", NULL);
+    shell_associate (".uss", "-s statefile=\"%1\" -s use_gui=no", NULL, "WinUAE statefile", NULL);
+    shell_associate (".adf", "-0 \"%1\" -s use_gui=no", NULL, "WinUAE floppy disk image", NULL);
+    for (i = 0; exts[i]; i++)
+        shell_associate (exts[i], NULL, NULL, "WinUAE floppy disk image", ".adf");
+    SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
+}
+
 static void WIN32_HandleRegistryStuff(void)
 {
     RGBFTYPE colortype = RGBFB_NONE;
@@ -2460,54 +2563,8 @@ static void WIN32_HandleRegistryStuff(void)
     DWORD disposition;
     char path[MAX_DPATH] = "";
     char version[100];
-    HKEY hWinUAEKeyLocal = NULL;
-    HKEY rkey;
-    char rpath1[MAX_DPATH], rpath2[MAX_DPATH], rpath3[MAX_DPATH];
 
-    rpath1[0] = rpath2[0] = rpath3[0] = 0;
-    rkey = HKEY_CLASSES_ROOT;
-    if (os_winnt_admin)
-        rkey = HKEY_LOCAL_MACHINE;
-    else
-        rkey = HKEY_CURRENT_USER;
-    strcpy (rpath1, "Software\\Classes\\");
-    strcpy (rpath2, rpath1);
-    strcpy (rpath3, rpath1);
-    strcat (rpath1, ".uae");
-    strcat (rpath2, "WinUAE\\shell\\Edit\\command");
-    strcat (rpath3, "WinUAE\\shell\\Open\\command");
-
-    /* Create/Open the hWinUAEKey which points to our config-info */
-    if (RegCreateKeyEx (rkey, rpath1, 0, "", REG_OPTION_NON_VOLATILE,
-	KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition) == ERROR_SUCCESS)
-    {
-	// Regardless of opening the existing key, or creating a new key, we will write the .uae filename-extension
-	// commands in.  This way, we're always up to date.
-
-	/* Set our (default) sub-key to point to the "WinUAE" key, which we then create */
-	RegSetValueEx (hWinUAEKey, "", 0, REG_SZ, (CONST BYTE *)"WinUAE", strlen("WinUAE") + 1);
-
-	if (RegCreateKeyEx (rkey, rpath2, 0, "", REG_OPTION_NON_VOLATILE,
-			      KEY_WRITE | KEY_READ, NULL, &hWinUAEKeyLocal, &disposition) == ERROR_SUCCESS)
-	{
-	    /* Set our (default) sub-key to BE the "WinUAE" command for editing a configuration */
-	    sprintf (path, "\"%sWinUAE.exe\" -f \"%%1\" -s use_gui=yes", start_path_exe);
-	    RegSetValueEx (hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen (path) + 1);
-	    RegCloseKey (hWinUAEKeyLocal);
-	}
-
-	if(RegCreateKeyEx(rkey, rpath3, 0, "", REG_OPTION_NON_VOLATILE,
-			      KEY_WRITE | KEY_READ, NULL, &hWinUAEKeyLocal, &disposition) == ERROR_SUCCESS)
-	{
-	    /* Set our (default) sub-key to BE the "WinUAE" command for launching a configuration */
-	    sprintf (path, "\"%sWinUAE.exe\" -f \"%%1\"", start_path_exe);
-	    RegSetValueEx (hWinUAEKeyLocal, "", 0, REG_SZ, (CONST BYTE *)path, strlen (path) + 1);
-	    RegCloseKey (hWinUAEKeyLocal);
-	}
-	RegCloseKey (hWinUAEKey);
-    }
     hWinUAEKey = NULL;
-
     /* Create/Open the hWinUAEKey which points our config-info */
     RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
 	  KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
@@ -3107,6 +3164,11 @@ static int process_arg(char **xargv)
 	    ddsoftwarecolorkey = 1;
 	    continue;
 	}
+	if (!strcmp (arg, "-logflush")) {
+	    extern int always_flush_log;
+	    always_flush_log = 1;
+	    continue;
+	}
 
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
@@ -3262,7 +3324,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	write_log ("Sorting devices and modes..\n");
 	sortdisplays ();
 	write_log ("Display buffer mode = %d\n", ddforceram);
-	write_log ("Enumerating sound devices:\n");
 	enumerate_sound_devices ();
 	for (i = 0; sound_devices[i].name; i++) {
 	    write_log ("%d:%s: %s\n", i, sound_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[i].name);

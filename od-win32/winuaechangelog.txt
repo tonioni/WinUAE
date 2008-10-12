@@ -1,7 +1,27 @@
 
+Beta 4:
+
+- midline resolution support changed again (should be "good enough" now,
+  better compatibility requires bigger changes and boring logic analyzer
+  testing)
+- centering was very broken in some cases (b2)
+- only accept openal32.dll 6.14.357.22 or newer. (fixes possible crash at
+  startup)
+- missing sprites in some programs fixed, for example Leander and Battle
+  Squadron (b2)
+- added descriptions to file associations, fall back to user-specific
+  (instead of system-wide) file associations if no admin privileges (was
+  broken in Vista)
+- added "Associate file extensions"-button to Paths-panel. Adds following
+  extensions: .uae, .adf, .ipf, .dms, .uss. Removal not yet possible
+  (it gets really tricky if other programs use same extensions and there
+  is no API for adding or removing associations, only way is to access
+  registry directly.. believe it or not.) Automatic .uae association
+  removed. Better GUI in future. Maybe.
+
 Beta 3:
 
-- AGA display corruption
+- fixed AGA display corruption (hopefully all cases..)
 - POTxDAT behavior in output mode fixed
 
 Beta 2:

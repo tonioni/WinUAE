@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "3"
-#define WINUAEDATE MAKEBD(2008, 10, 11)
+#define WINUAEBETA "4"
+#define WINUAEDATE MAKEBD(2008, 10, 12)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -120,6 +120,7 @@ void exit_gui (int);
 void fetch_path (char *name, char *out, int size);
 void set_path (char *name, char *path);
 void read_rom_list (void);
+void associate_file_extensions (void);
 
 #define WIN32_PLUGINDIR "plugins\\"
 HMODULE WIN32_LoadLibrary (const char *);
