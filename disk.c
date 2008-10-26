@@ -2727,7 +2727,6 @@ static void DISK_start (void)
 	}
 	drv->floppybitcounter = 0;
     }
-    dma_enable = (adkcon & 0x400) ? 0 : 1;
 }
 
 static int linecounter;
@@ -2819,6 +2818,8 @@ void DSKLEN (uae_u16 v, int hpos)
     if ((v & 0x8000) && (dsklen & 0x8000)) {
 	dskdmaen = 2;
 	DISK_start ();
+	if (!(v & 0x4000))
+	    dma_enable = (adkcon & 0x400) ? 0 : 1;
     }
     if (!(v & 0x8000)) {
 	if (dskdmaen) {
@@ -2891,9 +2892,9 @@ void DSKLEN (uae_u16 v, int hpos)
 	noselected = 1;
     } else {
 	if (disk_debug_logging > 0) {
-	    write_log ("disk %s DMA started, drvmask=%x track %d mfmpos %d\n",
+	    write_log ("disk %s DMA started, drvmask=%x track %d mfmpos %d dmaen=%d\n",
 		dskdmaen == 3 ? "write" : "read", selected ^ 15,
-		floppy[dr].cyl * 2 + side, floppy[dr].mfmpos);
+		floppy[dr].cyl * 2 + side, floppy[dr].mfmpos, dma_enable);
 	    disk_dma_debugmsg ();
 	}
     }

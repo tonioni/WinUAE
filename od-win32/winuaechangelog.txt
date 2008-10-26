@@ -1,4 +1,38 @@
 
+Beta 6:
+
+- Picasso96 vblank rewritten again, now uses build-in Picasso96 vblank
+  hardware interrupt support. It really works now, WaitTOF() does not
+  waste CPU time anymore
+- added Picasso96 vblank rate configuration in GUI. Chipset = RTG
+  vblank is same as chipset refresh rate (same as in previous versions)
+  Real = real host-side refresh rate. <value> = refresh rate. Currently
+  this only affects vertical blank waiting functions
+- "Associate all"-button didn't work
+- fullscreen to another fullscreen resolution switch on non-primary
+  display could have frozen emulation in some cases
+- statefile-configuration parameter also sets default statefile path
+- 150b23 "disk write does not start if wordsync is enabled" was not
+  exactly right, disk write works normally if wordsync is enabled and
+  previous read detected wordsync. Internal "Wordsync detected" flag
+  apparently only gets reset when disk read is started. Kick Off 2
+  save, most likely many other programs too..
+
+
+Beta 5:
+
+- moved file extension stuff to half-empty priority panel, replaced
+  button with list and added (de)associate all buttons. Extension
+  command line visible and editable? Perhaps later..
+- Improved emulation of reads from write-only custom register after
+  some boring real Amiga testing.. (still not exactly right)
+  S.E.X by Fantasys works now. (does MOVE.L INTREQ,D0 when it should
+  have been MOVE.W INTREQR,D0.. This only worked accidentally)
+- Picasso96 vblank wait implemented without busy waiting. Was in pre
+  1.5.0 but busy waited, was "lost" when RTG was rewritten
+- sometimes first vertical blank interrupt was missed when loading
+  statefile if statefile was created when blitter was active
+
 Beta 4:
 
 - midline resolution support changed again (should be "good enough" now,

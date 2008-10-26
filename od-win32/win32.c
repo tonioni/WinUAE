@@ -335,6 +335,9 @@ static void setcursor (int oldx, int oldy)
     int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
     mouseposx = oldx - x;
     mouseposy = oldy - y;
+//    write_log ("%d %d %d %d %d - %d %d %d %d %d\n",
+//	x, amigawin_rect.left, amigawin_rect.right, mouseposx, oldx,
+//	y, amigawin_rect.top, amigawin_rect.bottom, mouseposy, oldy);
     if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
 	mouseposx = mouseposy = 0;
 	oldx = oldy = 0;
@@ -1952,6 +1955,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgscaleifsmall = 1;
 	p->win32_rtgallowscaling = 0;
 	p->win32_rtgscaleaspectratio = -1;
+	p->win32_rtgvblankrate = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
@@ -1998,6 +2002,10 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "rtg_scale_aspect_ratio=%d:%d\n",
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
+    if (p->win32_rtgvblankrate <= 0)
+	cfgfile_target_dwrite (f, "rtg_vblank=%s\n", p->win32_rtgvblankrate < 0 ? "real" : "chipset");
+    else
+	cfgfile_target_dwrite (f, "rtg_vblank=%d\n", p->win32_rtgvblankrate);
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false");
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard);
@@ -2072,6 +2080,19 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    p->win32_uaescsimode = get_aspi(0);
 	if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
 	    p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, "rtg_vblank", tmpbuf, sizeof tmpbuf)) {
+	if (!strcmp (tmpbuf, "real")) {
+	    p->win32_rtgvblankrate = -1;
+	    return 1;
+	}
+	if (!strcmp (tmpbuf, "chipset")) {
+	    p->win32_rtgvblankrate = 0;
+	    return 1;
+	}
+	p->win32_rtgvblankrate = atol (tmpbuf);
 	return 1;
     }
 
@@ -2458,6 +2479,7 @@ static int shell_deassociate (const char *extension)
     const char *progid = "WinUAE";
     int def = !strcmp (extension, ".uae");
     char rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
+    UAEREG *fkey;
 
     if (extension == NULL || strlen (extension) < 1 || extension[0] != '.')
 	return 0;
@@ -2478,7 +2500,9 @@ static int shell_deassociate (const char *extension)
     if (!def)
 	strcat (rpath2, extension);
     SHDeleteKey (rkey, rpath2);
-    SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
+    fkey = regcreatetree (NULL, "FileAssociations");
+    regdelete (fkey, extension);
+    regclosetree (fkey);
     return 1;
 }
 
@@ -2490,6 +2514,7 @@ static int shell_associate_2 (const char *extension, const char *shellcommand, c
     DWORD disposition;
     const char *progid = "WinUAE";
     int def = !strcmp (extension, ".uae");
+    UAEREG *fkey;
 
     strcpy (progid2, progid);
     strcat (progid2, ext2 ? ext2 : extension);
@@ -2534,24 +2559,156 @@ static int shell_associate_2 (const char *extension, const char *shellcommand, c
 	    RegCloseKey (key1);
 	}
     }
+    fkey = regcreatetree (NULL, "FileAssociations");
+    regsetstr (fkey, extension, "");
+    regclosetree (fkey);
     return 1;
 }
 static int shell_associate (const char *extension, const char *command, const char *perceivedtype, const char *description, const char *ext2)
 {
-    return shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2);
+    int v = shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2);
+    if (!strcmp (extension, ".uae"))
+	shell_associate_2 (extension, "edit", "-f \"%1\" -s use_gui=yes", "text", description, NULL);
+    return v;
 }
 
-static char *exts[] = { ".adz", ".dms", ".ipf", NULL };
+static int shell_associate_is (const char *extension)
+{
+    char rpath1[MAX_DPATH], rpath2[MAX_DPATH];
+    char progid2[MAX_DPATH], tmp[MAX_DPATH];
+    DWORD size;
+    HKEY rkey, key1;
+    const char *progid = "WinUAE";
+    int def = !strcmp (extension, ".uae");
+
+    strcpy (progid2, progid);
+    strcat (progid2, extension);
+    if (os_winnt_admin > 1)
+        rkey = HKEY_LOCAL_MACHINE;
+    else
+        rkey = HKEY_CURRENT_USER;
+
+    strcpy (rpath1, "Software\\Classes\\");
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, extension);
+    size = sizeof tmp;
+    if (RegOpenKeyEx (rkey, rpath2, 0, KEY_READ, &key1) == ERROR_SUCCESS) {
+	if (RegQueryValueEx (key1, NULL, NULL, NULL, tmp, &size) == ERROR_SUCCESS) {
+	    if (strcmp (tmp, def ? progid : progid2)) {
+		RegCloseKey (key1);
+		return 0;
+	    }
+	}
+	RegCloseKey (key1);
+    }
+    strcpy (rpath2, rpath1);
+    strcat (rpath2, progid);
+    if (!def)
+	strcat (rpath2, extension);
+    if (RegOpenKeyEx (rkey, rpath2, 0, KEY_READ, &key1) == ERROR_SUCCESS) {
+	RegCloseKey (key1);
+	return 1;
+    }
+    return 0;
+}
+
+struct assext exts[] = {
+    { ".uae", "-f \"%1\"", "WinUAE configuration file", },
+    { ".adf", "-0 \"%1\" -s use_gui=no", "WinUAE floppy disk image" },
+    { ".adz", "-0 \"%1\" -s use_gui=no", "WinUAE floppy disk image" },
+    { ".dms", "-0 \"%1\" -s use_gui=no", "WinUAE floppy disk image" },
+    { ".fdi", "-0 \"%1\" -s use_gui=no", "WinUAE floppy disk image" },
+    { ".ipf", "-0 \"%1\" -s use_gui=no", "WinUAE floppy disk image" },
+    { ".uss", "-s statefile=\"%1\" -s use_gui=no", "WinUAE statefile" },
+    { NULL }
+};
+
+static void associate_init_extensions (void)
+{
+    int i;
+
+    for (i = 0; exts[i].ext; i++) {
+	exts[i].enabled = 0;
+	if (shell_associate_is (exts[i].ext))
+	    exts[i].enabled = 1;
+    }
+    // associate .uae by default when running for the first time
+    if (!regexiststree (NULL, "FileAssociations")) {
+	UAEREG *fkey;
+	if (exts[0].enabled == 0) {
+	    shell_associate (exts[0].ext, exts[0].cmd, NULL, exts[0].desc, NULL);
+	    exts[0].enabled = shell_associate_is (exts[0].ext);
+	}
+        fkey = regcreatetree (NULL, "FileAssociations");
+	regsetstr (fkey, exts[0].ext, "");
+	regclosetree (fkey);
+    }
+#if 0
+    UAEREG *fkey;
+    fkey = regcreatetree (NULL, "FileAssociations");
+    if (fkey) {
+	int ok = 1;
+	char tmp[MAX_DPATH];
+	strcpy (tmp, "Following file associations:\n");
+	for (i = 0; exts[i].ext; i++) {
+	    char tmp2[10];
+	    int size = sizeof tmp;
+	    int is1 = exts[i].enabled;
+	    int is2 = regquerystr (fkey, exts[i].ext, tmp2, &size);
+	    if (is1 == 0 && is2 != 0) {
+		strcat (tmp, exts[i].ext);
+		strcat (tmp, "\n");
+		ok = 0;
+	    }
+	}
+	if (!ok) {
+	    char szTitle[MAX_DPATH];
+	    WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
+	    strcat (szTitle, BetaStr);
+	    if (MessageBox (NULL, tmp, szTitle, MB_YESNO | MB_TASKMODAL) == IDOK) {
+		for (i = 0; exts[i].ext; i++) {
+		    char tmp2[10];
+		    int size = sizeof tmp;
+		    int is1 = exts[i].enabled;
+		    int is2 = regquerystr (fkey, exts[i].ext, tmp2, &size);
+		    if (is1 == 0 && is2 != 0) {
+			regdelete (fkey, exts[i].ext);
+			shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL);
+			exts[i].enabled = shell_associate_is (exts[i].ext);
+		    }
+		}
+	    } else {
+		for (i = 0; exts[i].ext; i++) {
+		    if (!exts[i].enabled)
+		        regdelete (fkey, exts[i].ext);
+		}
+	    }
+	}
+    }
+#endif
+}
+
 void associate_file_extensions (void)
 {
     int i;
-    shell_associate_2 (".uae", "edit", "-f \"%1\" -s use_gui=yes", "text", "WinUAE configuration file", NULL);
-    shell_associate (".uae", "-f \"%1\"", "text", "WinUAE configuration file", NULL);
-    shell_associate (".uss", "-s statefile=\"%1\" -s use_gui=no", NULL, "WinUAE statefile", NULL);
-    shell_associate (".adf", "-0 \"%1\" -s use_gui=no", NULL, "WinUAE floppy disk image", NULL);
-    for (i = 0; exts[i]; i++)
-        shell_associate (exts[i], NULL, NULL, "WinUAE floppy disk image", ".adf");
-    SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
+    int modified = 0;
+
+    for (i = 0; exts[i].ext; i++) {
+	int already = shell_associate_is (exts[i].ext);
+	if (exts[i].enabled == 0 && already) {
+	    shell_deassociate (exts[i].ext);
+	    exts[i].enabled = shell_associate_is (exts[i].ext);
+	    if (exts[i].enabled)
+		modified = 1;
+	} else if (exts[i].enabled && already == 0) {
+	    shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL);
+	    exts[i].enabled = shell_associate_is (exts[i].ext);
+	    if (exts[i].enabled == 0)
+		modified = 1;
+	}
+    }
+    if (modified)
+	SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 }
 
 static void WIN32_HandleRegistryStuff(void)
@@ -2632,6 +2789,7 @@ static void WIN32_HandleRegistryStuff(void)
     fetch_path ("InputPath", path, sizeof (path));
     createdir (path);
     regclosetree (read_disk_history ());
+    associate_init_extensions ();
     read_rom_list ();
     load_keyring (NULL, NULL);
 }

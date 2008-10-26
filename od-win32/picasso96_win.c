@@ -46,6 +46,7 @@
 #include "savestate.h"
 #include "autoconf.h"
 #include "traps.h"
+#include "native2amiga.h"
 
 #if defined(PICASSO96)
 
@@ -128,7 +129,7 @@ static int cursorwidth, cursorheight, cursorok;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
 static int reloadcursor, cursorvisible, cursordeactivate;
 static uaecptr boardinfo;
-
+static int interrupt_enabled;
 
 static uaecptr uaegfx_resname,
     uaegfx_resid,
@@ -657,13 +658,33 @@ static int doskip (void)
     return framecnt > 0;
 }
 
+static void picasso_trigger_vblank (void)
+{
+    if (!boardinfo || !uaegfx_base || !interrupt_enabled)
+	return;
+    put_long (uaegfx_base + CARD_VBLANKCODE + 6 + 2, boardinfo + PSSO_BoardInfo_SoftInterrupt);
+    put_byte (uaegfx_base + CARD_VBLANKFLAG, 1);
+    INTREQ_f (0x8000 | 0x2000);
+}
+
 void picasso_handle_vsync (void)
 {
     static int vsynccnt;
+    int isvsync = 1;
     
 #ifdef RETROPLATFORM
     rp_vsync ();
 #endif
+
+    if (currprefs.chipset_refreshrate >= 100) {
+	vsynccnt++;
+	if (vsynccnt < 2)
+	    isvsync = 0;
+	vsynccnt = 0;
+    }
+
+    if (isvsync && currprefs.win32_rtgvblankrate == 0 && !(currprefs.gfx_pfullscreen && currprefs.gfx_pvsync))
+	picasso_trigger_vblank ();
 
     if (!picasso_on)
 	return;
@@ -672,19 +693,15 @@ void picasso_handle_vsync (void)
 
     framecnt++;
     mouseupdate ();
-    
-    if (currprefs.chipset_refreshrate >= 100) {
-	vsynccnt++;
-	if (vsynccnt < 2)
-	    return;
-	vsynccnt = 0;
+
+    if (isvsync) {
+	if (doskip () && p96skipmode == 0) {
+	    ;
+	} else {
+	    flushpixels ();
+	}
+	gfx_unlock_picasso ();
     }
-    if (doskip () && p96skipmode == 0) {
-	;
-    } else {
-	flushpixels ();
-    }
-    gfx_unlock_picasso ();
 }
 
 static int set_panning_called = 0;
@@ -2117,9 +2134,12 @@ static void inituaegfx (uaecptr ABI)
     hwsprite = 1;
     flags |= BIF_HARDWARESPRITE;
 #endif
-    put_long (ABI + PSSO_BoardInfo_Flags, flags);
     if (flags & BIF_NOBLITTER)
 	write_log ("P96: blitter disabled in devs:monitors/uaegfx!\n");
+
+    flags |= BIF_VBLANKINTERRUPT;
+
+    put_long (ABI + PSSO_BoardInfo_Flags, flags);
 
     put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 0, planar.width);
     put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 2, chunky.width);
@@ -3229,30 +3249,38 @@ void picasso_handle_hsync (void)
 
     if (currprefs.gfxmem_size == 0)
 	return;
+    if (currprefs.win32_rtgvblankrate == 0)
+	return;
+    if (p96hsync < 0) {
+	p96hsync++;
+	if (p96hsync == 0)
+	    p96hsync = p96syncrate;
+	return;
+    }
     if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_pvsync) {
 	if (DirectDraw_GetVerticalBlankStatus ())
-	    p96hsync = 0;
+	    p96hsync = -maxvpos / 3;
     } else {
 	p96hsync--;
     }
     if (p96hsync <= 0) {
-	if (uae_boot_rom) {
-	    int off = get_long (rtarea_base + 36) + 12 - 1;
-	    if (off >= 0 && off < 0x10000)
-		rtarea[off]++;
-	}
-	p96hsync = p96syncrate;
+	picasso_trigger_vblank ();
+	if (p96hsync == 0)
+	    p96hsync = p96syncrate;
     }
 }
 
 void init_hz_p96 (void)
 {
     int rate;
+
     p96syncrate = maxvpos * vblank_hz;
-    if (isfullscreen () > 0)
+    if (currprefs.win32_rtgvblankrate < 0) 
 	rate = DirectDraw_CurrentRefreshRate ();
-    else
+    else if (currprefs.win32_rtgvblankrate == 0)
 	rate = abs (currprefs.gfx_refreshrate);
+    else
+	rate = currprefs.win32_rtgvblankrate;
     if (rate <= 0)
 	rate = 60;
     p96syncrate /= rate;
@@ -3980,6 +4008,16 @@ void InitPicasso96 (void)
 
 #endif
 
+static uae_u32 REGPARAM2 picasso_SetInterrupt (TrapContext *ctx)
+{
+    struct regstruct *regs = &ctx->regs;
+    uaecptr bi = m68k_areg (regs, 0);
+    uae_u32 onoff = m68k_dreg (regs, 0);
+    interrupt_enabled = onoff;
+    //write_log ("Picasso_SetInterrupt(%08x,%d)\n", bi, onoff);
+    return onoff;
+}
+
 #ifdef UAEGFX_INTERNAL
 
 #define PUTABI(func) \
@@ -4011,7 +4049,6 @@ void InitPicasso96 (void)
 #define RTGNONE(func) \
     if (ABI) \
 	put_long (ABI + func, start);
-
 
 static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
 {
@@ -4091,7 +4128,47 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
     RTGNONE(PSSO_BoardInfo_SetClearMask);
     RTGNONE(PSSO_BoardInfo_SetReadPlane);
 
-    RTGNONE(PSSO_BoardInfo_WaitVerticalSync); /* FIXME */
+#if 1
+    RTGNONE(PSSO_BoardInfo_WaitVerticalSync);
+#else
+    PUTABI (PSSO_BoardInfo_WaitVerticalSync);
+    dl (0x48e7203e);	// movem.l d2/a5/a6,-(sp)
+    dl (0x2c68003c);
+    dw (0x93c9);
+    dl (0x4eaefeda);
+    dw (0x2440);
+    dw (0x70ff);
+    dl (0x4eaefeb6);
+    dw (0x7400);
+    dw (0x1400);
+    dw (0x6b40);
+    dw (0x49f9);
+    dl (uaegfx_base + CARD_VSYNCLIST);
+    dw (0x47f9);
+    dl (uaegfx_base + CARD_VSYNCLIST + CARD_VSYNCMAX * 8);
+    dl (0x4eaeff88);
+    dw (0xb9cb);
+    dw (0x6606);
+    dl (0x4eaeff82);
+    dw (0x601c);
+    dw (0x4a94);
+    dw (0x6704);
+    dw (0x508c);
+    dw (0x60ee);
+    dw (0x288a);
+    dl (0x29420004);
+    dl (0x4eaeff82);
+    dw (0x7000);
+    dw (0x05c0);
+    dl (0x4eaefec2);
+    dw (0x4294);
+    dw (0x7000);
+    dw (0x1002);
+    dw (0x6b04);
+    dl (0x4eaefeb0);
+    dl (0x4cdf7c04);
+    dw (RTS);
+#endif
     RTGNONE(PSSO_BoardInfo_WaitBlitter);
 
 #if 0
@@ -4125,11 +4202,19 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
     RTGCALLDEFAULT(PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
     RTGCALLDEFAULT(PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
 
-    write_log ("uaegfx.card magic code: %08X-%08X\n", start, here ());
+    RTGCALL2(PSSO_BoardInfo_SetInterrupt, picasso_SetInterrupt);
+
+    write_log ("uaegfx.card magic code: %08X-%08X ABI=%08X\n", start, here (), ABI);
 
     ptr = here ();
     org (old);
     return ptr;
+}
+
+void picasso_reset (void)
+{
+    uaegfx_base = 0;
+    interrupt_enabled = 0;
 }
 
 void uaegfx_install_code (void)
@@ -4157,6 +4242,32 @@ static uae_u32 REGPARAM2 gfx_expunge (TrapContext *context)
     return 0;
 }
 
+static uaecptr uaegfx_vblankname;
+static void initvblankirq (TrapContext *ctx, uaecptr base)
+{
+    uaecptr p = base + CARD_VBLANKIRQ;
+    uaecptr c = base + CARD_VBLANKCODE;
+
+    put_word (p + 8, 0x020a);
+    put_long (p + 10, uaegfx_vblankname);
+    put_long (p + 18, c);
+
+    put_word (c, 0x41f9); c += 2;		    // lea CARD_VBLANKLAG,a0
+    put_long (c, base + CARD_VBLANKFLAG); c += 4;
+    put_word (c, 0x43f9); c += 2;		    // lea uaegfx_base + PSSO_BoardInfo_SoftInterrupt,a1
+    put_long (c, 0); c += 4;
+    put_word (c, 0x4a10); c += 2;		    // tst.b (a0)
+    put_word (c, 0x670a); c += 2;		    // beq.s label
+    put_word (c, 0x4210); c += 2;		    // clr.b (a0)
+    put_long (c, 0x2c780004); c += 4;		    // move.l 4.w,a6
+    put_long (c, 0x4eaeff4c); c += 4;		    // jsr Cause(a6)
+    put_word (c, 0x7000); c += 2;		    // label: moveq #0,d0
+    put_word (c, RTS); c += 2;			    // rts
+    m68k_areg (&ctx->regs, 1) = p;
+    m68k_dreg (&ctx->regs, 0) = 13; /* EXTER */
+    CallLib (ctx, get_long (4), -168); /* AddIntServer */
+}
+
 static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 {
     uae_u32 functable, datatable, a2;
@@ -4164,7 +4275,8 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
     uaecptr findcardfunc, initcardfunc;
     uaecptr exec = get_long (4);
 
-    uaegfx_resid = ds ("UAE Graphics Card 3.0");
+    uaegfx_resid = ds ("UAE Graphics Card 3.1");
+    uaegfx_vblankname = ds ("UAE Graphics Card VBLANK");
 
     /* Open */
     openfunc = here ();
@@ -4216,6 +4328,8 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
     put_long (uaegfx_base + CARD_NAME, uaegfx_resname);
     put_long (uaegfx_base + CARD_RESLIST, uaegfx_base + CARD_SIZEOF);
     put_long (uaegfx_base + CARD_RESLISTSIZE, extrasize);
+
+    initvblankirq (ctx, uaegfx_base);
 
     write_log ("uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
     return uaegfx_base;
@@ -4283,6 +4397,7 @@ uae_u8 *restore_p96 (uae_u8 *src)
     init_picasso_screen_called = 0;
     set_gc_called = !!(flags & 2);
     set_panning_called = !!(flags & 4);
+    interrupt_enabled = !!(flags & 32);
     changed_prefs.gfxmem_size = restore_u32 ();
     picasso96_state.Address = restore_u32 ();
     picasso96_state.RGBFormat = restore_u32 ();
@@ -4320,7 +4435,7 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	dstbak = dst = malloc (1000);
     save_u32 (2);
     save_u32 ((picasso_on ? 1 : 0) | (set_gc_called ? 2 : 0) | (set_panning_called ? 4 : 0) |
-	(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0));
+	(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0));
     save_u32 (currprefs.gfxmem_size);
     save_u32 (picasso96_state.Address);
     save_u32 (picasso96_state.RGBFormat);

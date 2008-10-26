@@ -36,6 +36,7 @@ int candirect = -1;
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
 #endif
+extern uae_u16 last_custom_value;
 
 static int isdirectjit (void)
 {
@@ -1255,7 +1256,7 @@ static uae_u32 REGPARAM2 chipmem_lget_ce2 (uaecptr addr)
 
 static uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 {
-    uae_u16 *m;
+    uae_u16 *m, v;
 
 #ifdef JIT
     special_mem |= S_READ;
@@ -1263,7 +1264,9 @@ static uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
     ce2_timeout ();
-    return do_get_mem_word (m);
+    v = do_get_mem_word (m);
+    last_custom_value = v;
+    return v;
 }
 
 static uae_u32 REGPARAM2 chipmem_bget_ce2 (uaecptr addr)
@@ -1299,6 +1302,7 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
     ce2_timeout ();
+    last_custom_value = w;
     do_put_mem_word (m, w);
 }
 
@@ -1325,17 +1329,22 @@ uae_u32 REGPARAM2 chipmem_lget (uaecptr addr)
 
 static uae_u32 REGPARAM2 chipmem_wget (uaecptr addr)
 {
-    uae_u16 *m;
+    uae_u16 *m, v;
 
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
-    return do_get_mem_word (m);
+    v = do_get_mem_word (m);
+    last_custom_value = v;
+    return v;
 }
 
 static uae_u32 REGPARAM2 chipmem_bget (uaecptr addr)
 {
+    uae_u8 v;
     addr &= chipmem_mask;
-    return chipmemory[addr];
+    v = chipmemory[addr];
+    last_custom_value = (v << 8) | v;
+    return v;
 }
 
 void REGPARAM2 chipmem_lput (uaecptr addr, uae_u32 l)
@@ -1353,12 +1362,14 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
+    last_custom_value = w;
     do_put_mem_word (m, w);
 }
 
 void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
 {
     addr &= chipmem_mask;
+    last_custom_value = (b << 8) | b;
     chipmemory[addr] = b;
 }
 

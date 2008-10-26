@@ -399,6 +399,14 @@ static void converter (char **c)
     console_out_f ("0x%08X = %%%s = %u = %d\n", v, s, v, (uae_s32)v);
 }
 
+int notinrom (void)
+{
+    uaecptr pc = munge24(m68k_getpc (&regs));
+    if (pc < 0x00e00000 || pc > 0x00ffffff)
+	return 1;
+    return 0;
+}
+
 static uae_u32 lastaddr (void)
 {
     if (currprefs.z3fastmem_size)
@@ -1433,6 +1441,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	    }
 	    return 0;
 	}
+//	if (!notinrom ())
+//	    return 1;
 	mwhit.pc = M68K_GETPC;
 	mwhit.addr = addr;
 	mwhit.rwi = rwi;
@@ -3022,14 +3032,6 @@ void debug (void)
     }
     resume_sound ();
     inputdevice_acquire (TRUE);
-}
-
-int notinrom (void)
-{
-    uaecptr pc = munge24(m68k_getpc (&regs));
-    if (pc < 0x00e00000 || pc > 0x00ffffff)
-	return 1;
-    return 0;
 }
 
 const char *debuginfo (int mode)

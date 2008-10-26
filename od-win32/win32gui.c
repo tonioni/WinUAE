@@ -1232,12 +1232,12 @@ void gui_display (int shortcut)
 	    savestate_state = 0;
 	}
     } else if (shortcut >= 0 && shortcut < 4) {
-	DiskSelection(hAmigaWnd, IDC_DF0+shortcut, 0, &changed_prefs, 0);
+	DiskSelection (hAmigaWnd, IDC_DF0 + shortcut, 0, &changed_prefs, 0);
     } else if (shortcut == 5) {
-	if (DiskSelection(hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0))
+	if (DiskSelection (hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, 0))
 	    save_state (savestate_fname, "Description!");
     } else if (shortcut == 4) {
-	if (DiskSelection(hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, 0))
+	if (DiskSelection (hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, 0))
 	    savestate_state = STATE_DORESTORE;
     }
     manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
@@ -1355,7 +1355,27 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    break;
 	    case 9:
 	    case 10:
-		fetch_path ("StatefilePath", init_path, sizeof (init_path));
+	    {
+		int ok = 0;
+		if (savestate_fname[0]) {
+		    strcpy (init_path, savestate_fname);
+		    for (;;) {
+			char *p;
+			if (my_existsdir (init_path)) {
+			    ok = 1;
+			    break;
+			}
+			p = strrchr (init_path, '\\');
+			if (!p)
+			    p = strrchr (init_path, '/');
+			if (!p)
+			    break;
+			*p = 0;
+		    }
+		}
+		if (!ok)
+		    fetch_path ("StatefilePath", init_path, sizeof (init_path));
+	    }
 	    break;
 	    case 15:
 	    case 16:
@@ -2578,12 +2598,14 @@ static int clicked_entry = -1;
 #define INPUT_COLUMNS 4
 #define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
+#define MISC2_COLUMNS 2
 #define MAX_COLUMN_HEADING_WIDTH 20
 
 #define LV_LOADSAVE 1
 #define LV_HARDDISK 2
 #define LV_INPUT 3
 #define LV_DISK 4
+#define LV_MISC2 5
 
 static int listview_num_columns;
 
@@ -2626,6 +2648,12 @@ void InitializeListView (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 	strcpy (column_heading[3], "#");
 	list = GetDlgItem(hDlg, IDC_INPUTLIST);
+    } else if (hDlg == pages[MISC2_ID]) {
+	listview_num_columns = MISC2_COLUMNS;
+	lv_type = LV_MISC2;
+	strcpy (column_heading[0], "Extension");
+	strcpy (column_heading[1], "");
+	list = GetDlgItem (hDlg, IDC_ASSOCIATELIST);
     } else {
 	listview_num_columns = DISK_COLUMNS;
 	lv_type = LV_DISK;
@@ -2634,29 +2662,38 @@ void InitializeListView (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 	list = GetDlgItem (hDlg, IDC_DISK);
     }
-    cachedlist = list;
 
-    ListView_DeleteAllItems(list);
+    cachedlist = list;
+    ListView_DeleteAllItems (list);
 
     for(i = 0; i < listview_num_columns; i++)
-	listview_column_width[i] = ListView_GetStringWidth(list, column_heading[i]) + 15;
+	listview_column_width[i] = ListView_GetStringWidth (list, column_heading[i]) + 15;
 
     // If there are no columns, then insert some
     lvcolumn.mask = LVCF_WIDTH;
-    if(ListView_GetColumn(list, 1, &lvcolumn) == FALSE)
-    {
-	for(i = 0; i < listview_num_columns; i++)
-	{
+    if (ListView_GetColumn (list, 1, &lvcolumn) == FALSE) {
+	for(i = 0; i < listview_num_columns; i++) {
 	    lvcolumn.mask     = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
 	    lvcolumn.iSubItem = i;
 	    lvcolumn.fmt      = LVCFMT_LEFT;
 	    lvcolumn.pszText  = column_heading[i];
 	    lvcolumn.cx       = listview_column_width[i];
-	    ListView_InsertColumn(list, i, &lvcolumn);
+	    ListView_InsertColumn (list, i, &lvcolumn);
 	}
     }
-    if (lv_type == LV_INPUT)
-    {
+    if (lv_type == LV_MISC2) {
+	listview_column_width[0] = 180;
+	listview_column_width[1] = 10;
+	for (i = 0; exts[i].ext; i++) {
+	    lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
+	    lvstruct.pszText  = exts[i].ext;
+	    lvstruct.lParam   = 0;
+	    lvstruct.iItem    = i;
+	    lvstruct.iSubItem = 0;
+	    result = ListView_InsertItem (list, &lvstruct);
+	    ListView_SetItemText (list, result, 1, exts[i].enabled ? "*" : "");
+	}
+    } else if (lv_type == LV_INPUT) {
 	for (i = 0; input_total_devices && i < inputdevice_get_widget_num (input_selected_device); i++) {
 	    char name[100];
 	    inputdevice_get_widget_type (input_selected_device, i, name);
@@ -2665,8 +2702,8 @@ void InitializeListView (HWND hDlg)
 	    lvstruct.lParam   = 0;
 	    lvstruct.iItem    = i;
 	    lvstruct.iSubItem = 0;
-	    result = ListView_InsertItem(list, &lvstruct);
-	    width = ListView_GetStringWidth(list, lvstruct.pszText) + 15;
+	    result = ListView_InsertItem (list, &lvstruct);
+	    width = ListView_GetStringWidth (list, lvstruct.pszText) + 15;
 	    if( width > listview_column_width[0])
 		listview_column_width[0] = width;
 	    entry++;
@@ -2675,9 +2712,7 @@ void InitializeListView (HWND hDlg)
 	listview_column_width [2] = 65;
 	listview_column_width [3] = 30;
 	update_listview_input (hDlg);
-    }
-    else if (lv_type == LV_DISK)
-    {
+    } else if (lv_type == LV_DISK) {
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	    int drv;
 	    sprintf (tmp, "%d", i + 1);
@@ -2704,7 +2739,7 @@ void InitializeListView (HWND hDlg)
 	    if (drv >= 0)
 		sprintf (tmp, "DF%d:", drv);
 	    ListView_SetItemText (list, result, 2, tmp);
-	    width = ListView_GetStringWidth(list, lvstruct.pszText) + 15;
+	    width = ListView_GetStringWidth (list, lvstruct.pszText) + 15;
 	    if (width > listview_column_width[0])
 		listview_column_width[0] = width;
 	    entry++;
@@ -2713,9 +2748,7 @@ void InitializeListView (HWND hDlg)
 	listview_column_width[1] = 336;
 	listview_column_width[2] = 50;
 
-    }
-    else if (lv_type == LV_HARDDISK)
-    {
+    } else if (lv_type == LV_HARDDISK) {
 #ifdef FILESYS
 	for(i = 0; i < workprefs.mountitems; i++)
 	{
@@ -2830,28 +2863,23 @@ void InitializeListView (HWND hDlg)
 	}
 #endif
     }
-
-    if(result != -1) {
-	if(GetWindowRect(list, &rect)) {
-	    ScreenToClient(hDlg, (LPPOINT)&rect);
-	    ScreenToClient(hDlg, (LPPOINT)&rect.right);
-	    if(listview_num_columns == 2) {
-		if((temp = rect.right - rect.left - listview_column_width[0] - 4) > listview_column_width[1])
+    if (result != -1) {
+	if (GetWindowRect (list, &rect)) {
+	    ScreenToClient (hDlg, (LPPOINT)&rect);
+	    ScreenToClient (hDlg, (LPPOINT)&rect.right);
+	    if (listview_num_columns == 2) {
+		if ((temp = rect.right - rect.left - listview_column_width[0] - 30) > listview_column_width[1])
 		    listview_column_width[1] = temp;
 	    }
 	}
-
 	// Adjust our column widths so that we can see the contents...
-	for(i = 0; i < listview_num_columns; i++) {
-	    ListView_SetColumnWidth(list, i, listview_column_width[i]);
-	}
-
+	for(i = 0; i < listview_num_columns; i++)
+	    ListView_SetColumnWidth (list, i, listview_column_width[i]);
 	// Turn on full-row-select option
-	ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT);
-
+	ListView_SetExtendedListViewStyle (list, LVS_EX_FULLROWSELECT);
 	// Redraw the items in the list...
-	items = ListView_GetItemCount(list);
-	ListView_RedrawItems(list, 0, items);
+	items = ListView_GetItemCount (list);
+	ListView_RedrawItems (list, 0, items);
     }
 }
 
@@ -3782,9 +3810,6 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    case IDC_PATHS_CONFIGCACHE:
 	    configurationcache = IsDlgButtonChecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
 	    regsetint (NULL, "ConfigurationCache", configurationcache);
-	    break;
-	    case IDC_FILE_ASSOCIATE:
-	    associate_file_extensions ();
 	    break;
 
 	}
@@ -5279,6 +5304,7 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_RTG_SCALE, rtg2);
     ew (hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
     ew (hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
+    ew (hDlg, IDC_RTG_VBLANKRATE, rtg2);
 }
 
 static void values_to_memorydlg (HWND hDlg)
@@ -5391,10 +5417,29 @@ static void values_to_memorydlg (HWND hDlg)
 	(workprefs.picasso96_modeflags & RGBFF_A8B8G8R8) ? 2 :
 	(workprefs.picasso96_modeflags & RGBFF_R8G8B8A8) ? 3 :
 	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 4 : 0, 0);
+    if (workprefs.win32_rtgvblankrate <= 0 ||
+	workprefs.win32_rtgvblankrate == 50 ||
+	workprefs.win32_rtgvblankrate == 60 ||
+	workprefs.win32_rtgvblankrate == 70 ||
+	workprefs.win32_rtgvblankrate == 75) {
+	SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_SETCURSEL,
+	    (workprefs.win32_rtgvblankrate == 0) ? 0 :
+	    (workprefs.win32_rtgvblankrate < 0) ? 1 :
+	    (workprefs.win32_rtgvblankrate == 50) ? 2 :
+	    (workprefs.win32_rtgvblankrate == 60) ? 3 :
+	    (workprefs.win32_rtgvblankrate == 70) ? 4 :
+	    (workprefs.win32_rtgvblankrate == 75) ? 5 : 0, 0);
+    } else {
+	char tmp[10];
+	sprintf (tmp, "%d", workprefs.win32_rtgvblankrate);
+	SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, WM_SETTEXT, 0, (LPARAM)tmp);
+    }
+	
 
     CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
     CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
     CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
+
     //CheckDlgButton (hDlg, IDC_RTG_LEDS, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
 
     SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
@@ -5521,6 +5566,13 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"15:9");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:9");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:10");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"Chipset");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"Real");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"50");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"60");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"70");
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"75");
 
 	case WM_USER:
 	    recursive++;
@@ -5636,6 +5688,24 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			if (v == 4)
 			    mask |= RGBFF_B8G8R8A8;
 		    }
+		    break;
+		    case IDC_RTG_VBLANKRATE:
+		    tmp[0] = 0;
+		    v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			if (v == 0) {
+			    workprefs.win32_rtgvblankrate = 0;
+			} else if (v == 1) {
+			    workprefs.win32_rtgvblankrate = -1;
+			} else {
+			    v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETLBTEXT, (WPARAM)v, (LPARAM)tmp);
+			}
+		    } else {
+		        v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, WM_GETTEXT, (WPARAM)sizeof tmp, (LPARAM)tmp);
+		    }
+		    if (tmp[0])
+			workprefs.win32_rtgvblankrate = atol (tmp);
+		    write_log ("%d\n", workprefs.win32_rtgvblankrate);
 		    break;
 		}
 		workprefs.picasso96_modeflags = mask;
@@ -6085,7 +6155,7 @@ static void values_to_miscdlg (HWND hDlg)
 static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     char txt[100];
-    int v;
+    int v, i;
     static int recursive;
 
     if (recursive)
@@ -6123,8 +6193,23 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
     break;
 
-    case WM_COMMAND:
+    case WM_NOTIFY:
+	if (((LPNMHDR) lParam)->idFrom == IDC_ASSOCIATELIST) {
+	    int entry, col;
+	    HWND list;
+	    NM_LISTVIEW *nmlistview;
+	    nmlistview = (NM_LISTVIEW *) lParam;
+	    list = nmlistview->hdr.hwndFrom;
+	    if (nmlistview->hdr.code == NM_DBLCLK) {
+		entry = listview_entry_from_click (list, &col);
+		exts[entry].enabled = exts[entry].enabled ? 0 : 1;
+		associate_file_extensions ();
+		InitializeListView (hDlg);
+	    }
+	}
+    break;
 
+    case WM_COMMAND:
 	if (currentpage == MISC1_ID) {
 	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 		switch (LOWORD (wParam))
@@ -6174,6 +6259,18 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	switch(wParam)
 	{
+	case IDC_ASSOCIATE_ON:
+	    for (i = 0; exts[i].ext; i++)
+		exts[i].enabled = 1;
+	    associate_file_extensions ();
+	    InitializeListView (hDlg);
+	break;
+	case IDC_ASSOCIATE_OFF:
+	    for (i = 0; exts[i].ext; i++)
+		exts[i].enabled = 0;
+	    associate_file_extensions ();
+	    InitializeListView (hDlg);
+	break;
 	case IDC_DOSAVESTATE:
 	    if (DiskSelection(hDlg, wParam, 9, &workprefs, 0))
 		save_state (savestate_fname, "Description!");
@@ -6281,6 +6378,7 @@ static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     currentpage = MISC2_ID;
     if (msg == WM_INITDIALOG) {
 	pages[MISC2_ID] = hDlg;
+	InitializeListView (hDlg);
 	values_to_miscdlg (hDlg);
 	enable_for_miscdlg (hDlg);
 	return TRUE;

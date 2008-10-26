@@ -558,6 +558,9 @@ void reset_all_systems (void)
 {
     init_eventtab ();
 
+#ifdef PICASSO96
+    picasso_reset ();
+#endif
 #ifdef SCSIEMU
     scsi_reset ();
     scsidev_reset ();

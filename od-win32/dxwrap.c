@@ -701,6 +701,7 @@ void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc)
 }
 DWORD DirectDraw_CurrentRefreshRate (void)
 {
+    DirectDraw_GetDisplayMode ();
     return dxdata.native.dwRefreshRate;
 }
 

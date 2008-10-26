@@ -317,6 +317,7 @@ struct uae_prefs {
     int win32_rtgscaleifsmall;
     int win32_rtgallowscaling;
     int win32_rtgscaleaspectratio;
+    int win32_rtgvblankrate;
     int win32_borderless;
     int win32_ctrl_F11_is_quit;
     int win32_automount_removable;

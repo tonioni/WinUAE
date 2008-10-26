@@ -808,7 +808,6 @@
 #define IDC_DF0QQ                       1678
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
-#define IDC_FILE_ASSOCIATE              1679
 #define IDC_DF1QQ                       1680
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682
@@ -944,10 +943,14 @@
 #define IDC_RTG_16BIT                   1788
 #define IDC_PATHS_CONFIGCACHE           1788
 #define IDC_RTG_24BIT                   1789
+#define IDC_ASSOCIATELIST               1789
 #define IDC_RTG_32BIT                   1790
+#define IDC_ASSOCIATE_OFF               1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
+#define IDC_ASSOCIATE_ON                1792
+#define IDC_RTG_VBLANKRATE              1793
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

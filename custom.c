@@ -110,7 +110,7 @@ uae_u16 customhack_get (struct customhack *ch, int hpos)
 }
 #endif
 
-static uae_u16 last_custom_value;
+uae_u16 last_custom_value;
 
 static unsigned int n_consecutive_skipped = 0;
 static unsigned int total_skipped = 0;
@@ -4631,7 +4631,7 @@ static void CIA_vsync_prehandler (void)
 }
 
 static uaecptr prevbpl[MAXVPOS][8];
-static void hsync_scandoubler (int line, int lof, int nextline_how2)
+static void hsync_scandoubler (int line, int lof)
 {
     int i;
     uaecptr bpl[8];
@@ -4644,7 +4644,7 @@ static void hsync_scandoubler (int line, int lof, int nextline_how2)
     next_lineno++;
     reset_decisions ();
     finish_decisions ();
-    hsync_record_line_state (next_lineno, nextline_how, thisline_changed);
+    hsync_record_line_state (next_lineno, nln_normal, thisline_changed);
     hardware_line_completed (next_lineno);
 
     for (i = 0; i < 8; i++) {
@@ -4721,10 +4721,10 @@ static void hsync_handler (void)
 	ahi_hsync ();
     }
 
-    if ((currprefs.chipset_mask & CSMASK_AGA) || (!currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-	last_custom_value = uaerand ();
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	last_custom_value = 0xfff;
     else
-	last_custom_value = 0xffff;
+	last_custom_value = uaerand ();
 
     if (currprefs.produce_sound)
 	audio_hsync (1);
@@ -4796,8 +4796,10 @@ static void hsync_handler (void)
 	if ((bplcon0 & 4) && currprefs.gfx_linedbl)
 	    notice_interlace_seen ();
 	nextline_how = nln_normal;
-	if (currprefs.gfx_linedbl && (doublescan <= 0 || interlace_seen)) {
-	    int nln_prev = nextline_how;
+	if (currprefs.gfx_linedbl && doublescan < 0) {
+	    lineno *= 2;
+	    hsync_scandoubler (lineno, lof);
+	} else if (currprefs.gfx_linedbl && (doublescan == 0 || interlace_seen)) {
 	    lineno *= 2;
 	    nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
 	    if ((bplcon0 & 4) || (interlace_seen && !lof)) {
@@ -4808,8 +4810,6 @@ static void hsync_handler (void)
 		    nextline_how = nln_upper;
 		}
 	    }
-	    if (doublescan < 0)
-		hsync_scandoubler (lineno, lof, nln_prev);
 	}
 	prev_lineno = next_lineno;
 	next_lineno = lineno;
@@ -5334,8 +5334,6 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
      case 0x01E: v = INTREQR (); break;
      case 0x07C: v = DENISEID (); break;
 
-     case 0x02E: v = 0xffff; break; /* temporary hack */
-
 #ifdef AGA
      case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
      case 0x18C: case 0x18E: case 0x190: case 0x192: case 0x194: case 0x196:
@@ -5348,7 +5346,15 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
 #endif
 
      default:
-	/* reading write-only register causes write with last value in bus */
+	/* OCS/ECS:
+	 * reading write-only register causes write with last value in chip
+	 * bus (custom registers, chipram, slowram)
+	 * and finally returns all ones
+	 * AGA:
+	 * only writes to custom registers change last value, read returns
+	 * last value which then changes to all ones (following read will return
+	 * all ones)
+	 */
 	v = last_custom_value;
 	if (!noput) {
 	    int r;
@@ -5356,8 +5362,14 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
 	    decide_line (hpos);
 	    decide_fetch (hpos);
 	    decide_blitter (hpos);
-	    v = last_custom_value;
-	    r = custom_wput_copper (hpos, addr, v, 1);
+	    r = custom_wput_copper (hpos, addr, last_custom_value, 1);
+	    if (currprefs.chipset_mask & CSMASK_AGA) {
+		v = last_custom_value;
+		last_custom_value = 0xffff;
+	    } else {
+		v = 0xffff;
+	    }
+
 	}
 	return v;
     }
@@ -5607,8 +5619,6 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
      default:
 	if (!noget)
 	    custom_wget_1 (addr, 1);
-	if (!(currprefs.chipset_mask & CSMASK_AGA) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-	    last_custom_value = 0xffff;
 	return 1;
     }
     return 0;
@@ -5765,7 +5775,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
     CLXCON(RW);			/* 098 CLXCON */
     intena = RW;		/* 09A INTENA */
-    intreq = intreqr = RW;	/* 09C INTREQ */
+    intreq = intreqr = RW | 0x20; /* 09C INTREQ */
     adkcon = RW;		/* 09E ADKCON */
     for (i = 0; i < 8; i++)
 	bplpt[i] = RL;

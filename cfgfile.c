@@ -1083,8 +1083,29 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
     }
 
     if (cfgfile_string (option, value, "statefile", tmpbuf, sizeof (tmpbuf))) {
-	savestate_state = STATE_DORESTORE;
 	strcpy (savestate_fname, tmpbuf);
+	if (zfile_exists (savestate_fname)) {
+	    savestate_state = STATE_DORESTORE;
+	} else {
+	    int ok = 0;
+	    if (savestate_fname[0]) {
+		for (;;) {
+		    char *p;
+		    if (my_existsdir (savestate_fname)) {
+		        ok = 1;
+		        break;
+		    }
+		    p = strrchr (savestate_fname, '\\');
+		    if (!p)
+		        p = strrchr (savestate_fname, '/');
+		    if (!p)
+		        break;
+		    *p = 0;
+		}
+	    }
+	    if (!ok)
+		savestate_fname[0] = 0;
+	}
 	return 1;
     }
 

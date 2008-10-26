@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "4"
-#define WINUAEDATE MAKEBD(2008, 10, 12)
+#define WINUAEBETA "6"
+#define WINUAEDATE MAKEBD(2008, 10, 26)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -153,5 +153,14 @@ struct sound_device
 };
 extern struct sound_device sound_devices[MAX_SOUND_DEVICES];
 extern struct sound_device record_devices[MAX_SOUND_DEVICES];
+
+struct assext {
+    char *ext;
+    char *cmd;
+    char *desc;
+    int enabled;
+};
+struct assext exts[];
+void associate_file_extensions (void);
 
 #endif

@@ -295,6 +295,7 @@ static int set_ddraw_2 (void)
 		goto oops;
 	    return -1;
 	}
+	GetWindowRect (hAmigaWnd, &amigawin_rect);
     }
 
     if (dd) {
@@ -1040,6 +1041,7 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? 8 : 0;
     c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? 8 : 0;
     c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? 8 : 0;
+    c |= currprefs.win32_rtgvblankrate != changed_prefs.win32_rtgvblankrate ? 8 : 0;
 
     if (display_change_requested || c)
     {
@@ -1097,6 +1099,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
 	currprefs.win32_rtgallowscaling = changed_prefs.win32_rtgallowscaling;
 	currprefs.win32_rtgscaleaspectratio = changed_prefs.win32_rtgscaleaspectratio;
+	currprefs.win32_rtgvblankrate = changed_prefs.win32_rtgvblankrate;
 
 	inputdevice_unacquire ();
 	if ((c & 16) || ((c & 8) && keepfsmode)) {

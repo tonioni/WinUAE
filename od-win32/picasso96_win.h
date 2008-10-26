@@ -461,15 +461,15 @@ struct Line {
 #define BIB_HARDWARESPRITE	 0	/* board has hardware sprite */
 #define BIB_NOMEMORYMODEMIX	 1	/* board does not support modifying planar bitmaps while displaying chunky and vice versa */
 #define BIB_NEEDSALIGNMENT	 2	/* bitmaps have to be aligned (not yet supported!) */
+#define BIB_CACHEMODECHANGE	 3	/* board memory may be set to Imprecise (060) or Nonserialised (040) */
+#define BIB_VBLANKINTERRUPT	 4	/* board can cause a hardware interrupt on a vertical retrace */
 #define BIB_DBLSCANDBLSPRITEY	 8	/* hardware sprite y position is doubled on doublescan display modes */
 #define BIB_ILACEHALFSPRITEY	 9	/* hardware sprite y position is halved on interlace display modes */
 #define BIB_ILACEDBLROWOFFSET	10	/* doubled row offset in interlaced display modes needs additional horizontal bit */
-
 #define BIB_FLICKERFIXER	12	/* board can flicker fix Amiga RGB signal */
 #define BIB_VIDEOCAPTURE	13	/* board can capture video data to a memory area */
 #define BIB_VIDEOWINDOW		14	/* board can display a second mem area as a pip */
 #define BIB_BLITTER		15	/* board has blitter */
-
 #define BIB_HIRESSPRITE		16	/* mouse sprite has double resolution */
 #define BIB_BIGSPRITE		17	/* user wants big mouse sprite */
 #define BIB_BORDEROVERRIDE	18	/* user wants to override system overscan border prefs */
@@ -479,12 +479,15 @@ struct Line {
 #define BIB_NOMASKBLITS		22	/* perform blits without taking care of mask */
 #define BIB_NOC2PBLITS		23	/* use CPU for planar to chunky conversions */
 #define BIB_NOBLITTER		24	/* disable all blitter functions */
+#define BIB_OVERCLOCK		31	/* enable overclocking for some boards */
 
 #define BIB_IGNOREMASK	BIB_NOMASKBLITS
 
 #define BIF_HARDWARESPRITE	(1 << BIB_HARDWARESPRITE)
 #define BIF_NOMEMORYMODEMIX	(1 << BIB_NOMEMORYMODEMIX)
 #define BIF_NEEDSALIGNMENT	(1 << BIB_NEEDSALIGNMENT)
+#define BIF_CACHEMODECHANGE	(1 << BIB_CACHEMODECHANGE)
+#define BIF_VBLANKINTERRUPT	(1 << BIB_VBLANKINTERRUPT)
 #define BIF_DBLSCANDBLSPRITEY	(1 << BIB_DBLSCANDBLSPRITEY)
 #define BIF_ILACEHALFSPRITEY	(1 << BIB_ILACEHALFSPRITEY)
 #define BIF_ILACEDBLROWOFFSET	(1 << BIB_ILACEDBLROWOFFSET)
@@ -501,6 +504,7 @@ struct Line {
 #define BIF_NOMASKBLITS		(1 << BIB_NOMASKBLITS)
 #define BIF_NOC2PBLITS		(1 << BIB_NOC2PBLITS)
 #define BIF_NOBLITTER		(1 << BIB_NOBLITTER)
+#define BIF_OVERCLOCK		(1 << BIB_OVERCLOCK)
 
 #define BIF_IGNOREMASK 	BIF_NOMASKBLITS
 
@@ -554,6 +558,7 @@ extern void picasso_handle_vsync (void);
 extern void init_hz_p96 (void);
 extern void picasso_handle_hsync (void);
 extern int picasso_palette (void);
+extern void picasso_reset (void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */
@@ -591,7 +596,10 @@ extern int p96hsync_counter;
 #define CARD_RESLIST (CARD_NAME + 4)
 #define CARD_RESLISTSIZE (CARD_RESLIST + 4)
 #define CARD_BOARDINFO (CARD_RESLISTSIZE + 4)
-#define CARD_END (CARD_BOARDINFO + 4)
+#define CARD_VBLANKIRQ (CARD_BOARDINFO + 4)
+#define CARD_VBLANKFLAG (CARD_VBLANKIRQ + 22)
+#define CARD_VBLANKCODE (CARD_VBLANKFLAG + 4)
+#define CARD_END (CARD_VBLANKCODE + 16 * 2)
 #define CARD_SIZEOF CARD_END
 
 #endif
