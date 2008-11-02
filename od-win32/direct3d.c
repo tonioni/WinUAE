@@ -818,8 +818,10 @@ static void createscanlines (int force)
     osl2 = currprefs.gfx_filter_scanlineratio;
     sl4 = currprefs.gfx_filter_scanlines * 16 / 100;
     sl42 = currprefs.gfx_filter_scanlinelevel * 16 / 100;
-    if (sl4 > 15) sl4 = 15;
-    if (sl42 > 15) sl42 = 15;
+    if (sl4 > 15)
+	sl4 = 15;
+    if (sl42 > 15)
+	sl42 = 15;
     l1 = currprefs.gfx_filter_scanlineratio & 15;
     l2 = currprefs.gfx_filter_scanlineratio >> 4;
 
@@ -829,11 +831,11 @@ static void createscanlines (int force)
 	return;
     }
     sld = (uae_u8*)locked.pBits;
-    for (y = 0; y < window_h; y++)
-	memset (sld + y * locked.Pitch, 0, window_w * 2);
-    for (y = 1; y < window_h; y += l1 + l2) {
-	for (yy = 0; yy < l2 && y + yy < window_h; yy++) {
-	    for (x = 0; x < window_w; x++) {
+    for (y = 0; y < required_sl_texture_h; y++)
+	memset (sld + y * locked.Pitch, 0, required_sl_texture_w * 2);
+    for (y = 1; y < required_sl_texture_h; y += l1 + l2) {
+	for (yy = 0; yy < l2 && y + yy < required_sl_texture_h; yy++) {
+	    for (x = 0; x < required_sl_texture_w; x++) {
 		/* 16-bit, A4R4G4B4 */
 		uae_u8 sll = sl42;
 		p = &sld[(y + yy) * locked.Pitch + (x * 2)];

@@ -1305,7 +1305,7 @@ void a2091_init (void)
     roms[2] = 53;
     roms[3] = 56;
     roms[4] = -1;
-    //roms[0] = 56;
+    roms[0] = 53;
 
     rombankswitcher = 0;
     rombank = 0;

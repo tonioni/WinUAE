@@ -35,6 +35,7 @@
 #include "keyboard.h"
 #include "uae.h"
 #include "amax.h"
+#include "ersatz.h"
 
 //#define CIAA_DEBUG_R
 //#define CIAA_DEBUG_W
@@ -67,10 +68,6 @@ static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
 static int kbstate, kback, ciaasdr_unread;
 static unsigned int sleepyhead;
-
-#ifdef TOD_HACK
-static int tod_hack, tod_hack_delay;
-#endif
 
 static uae_u8 serbits;
 static int warned = 10;
@@ -335,6 +332,54 @@ STATIC_INLINE void ciaa_checkalarm (int inc)
     }
 }
 
+
+#ifdef TOD_HACK
+static uae_u64 tod_hack_tv, tod_hack_tod, tod_hack_tod_last;
+static void tod_hack_reset (void)
+{
+    struct timeval tv;
+    gettimeofday (&tv, NULL);
+    tod_hack_tv = (uae_u64)tv.tv_sec * 1000000 + tv.tv_usec;
+    tod_hack_tod = ciaatod;
+    tod_hack_tod_last = tod_hack_tod;
+}
+#endif
+
+static void do_tod_hack (int dotod)
+{
+    struct timeval tv;
+    static int oldrate;
+    uae_u64 t, rate;
+    int docount = 0;
+
+    if (currprefs.cs_ciaatod == 0)
+        rate = vblank_hz;
+    else if (currprefs.cs_ciaatod == 1)
+        rate = 50;
+    else
+        rate = 60;
+    if (rate != oldrate || ciaatod != tod_hack_tod_last) {
+        tod_hack_reset ();
+        oldrate = rate;
+	docount = 1;
+	write_log ("TOD HACK reset %d\n", rate);
+    }
+    if (!dotod && currprefs.cs_ciaatod == 0)
+	return;
+    gettimeofday (&tv, NULL);
+    t = (uae_u64)tv.tv_sec * 1000000 + tv.tv_usec;
+    if (t - tod_hack_tv >= 1000000 / rate) {
+        tod_hack_tv += 1000000 / rate;
+	docount = 1;
+    }
+    if (docount) {
+        ciaatod++;
+        ciaatod &= 0x00ffffff;
+	tod_hack_tod_last = ciaatod;
+        ciaa_checkalarm (0);
+    }
+}
+
 static int resetwarning_phase, resetwarning_timer;
 
 static void setcode (uae_u8 keycode)
@@ -400,13 +445,16 @@ static void resetwarning_check (void)
     }
 }
 
-void CIA_hsync_handler (void)
+void CIA_hsync_handler (int dotod)
 {
-    if (ciabtodon) {
+    if (ciabtodon && dotod) {
 	ciabtod++;
 	ciabtod &= 0xFFFFFF;
 	ciab_checkalarm (1);
     }
+
+    if (currprefs.tod_hack && ciaatodon)
+	do_tod_hack (dotod);
 
     if (resetwarning_phase) {
 	resetwarning_check ();
@@ -456,22 +504,10 @@ void CIA_hsync_handler (void)
 	    if (ciaasdr_unread == 3)
 		ciaaicr |= 8;
 	    if (ciaasdr_unread < 3)
-		ciaasdr_unread = 0;          /* give up on this key event after unread for a long time */
+		ciaasdr_unread = 0;	/* give up on this key event after unread for a long time */
 	}
     }
 }
-
-#ifdef TOD_HACK
-static void tod_hack_reset (void)
-{
-    struct timeval tv;
-    uae_u32 rate = currprefs.ntscmode ? 60 : 50;
-    gettimeofday (&tv, NULL);
-    tod_hack = (uae_u32)(((uae_u64)tv.tv_sec) * rate  + tv.tv_usec / (1000000 / rate));
-    tod_hack -= ciaatod;
-    tod_hack_delay = 10 * 50;
-}
-#endif
 
 static int led_times;
 static unsigned long led_on, led_cycle;
@@ -507,36 +543,14 @@ static void led_vsync (void)
     led_cycle = get_cycles ();
 }
 
-void CIA_vsync_handler (void)
+void CIA_vsync_handler (int dotod)
 {
     led_vsync ();
 #ifdef TOD_HACK
-    if (currprefs.tod_hack && ciaatodon) {
-	struct timeval tv;
-	uae_u32 t, nt, rate = currprefs.ntscmode ? 60 : 50;
-
-	if (tod_hack_delay > 0) {
-	    tod_hack_delay--;
-	    if (tod_hack_delay == 0) {
-		tod_hack_reset ();
-		tod_hack_delay = 0;
-		write_log ("TOD_HACK re-initialized CIATOD=%06X\n", ciaatod);
-	    }
-	}
-	if (tod_hack_delay == 0) {
-	    gettimeofday (&tv, NULL);
-	    t = (uae_u32)(((uae_u64)tv.tv_sec) * rate + tv.tv_usec / (1000000 / rate));
-	    nt = t - tod_hack;
-	    if ((nt < ciaatod && ciaatod - nt < 10) || nt == ciaatod)
-		return; /* try not to count backwards */
-	    ciaatod = nt;
-	    ciaatod &= 0xffffff;
-	    ciaa_checkalarm (0);
-	    return;
-	}
-    }
+    if (currprefs.tod_hack)
+	return;
 #endif
-    if (ciaatodon) {
+    if (ciaatodon && dotod) {
 	ciaatod++;
 	ciaatod &= 0xFFFFFF;
 	ciaa_checkalarm (1);
@@ -884,10 +898,6 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	    ciaatod = (ciaatod & ~0xff) | val;
 	    ciaatodon = 1;
 	    ciaa_checkalarm (0);
-#ifdef TOD_HACK
-	    if (currprefs.tod_hack)
-		tod_hack_reset ();
-#endif
 	}
 	break;
     case 9:
@@ -1090,7 +1100,8 @@ void CIA_inprec_prepare (void)
 void CIA_reset (void)
 {
 #ifdef TOD_HACK
-    tod_hack = 0;
+    tod_hack_tv = 0;
+    tod_hack_tod = 0;
     if (currprefs.tod_hack)
 	tod_hack_reset ();
 #endif

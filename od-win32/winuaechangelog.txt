@@ -1,4 +1,22 @@
 
+Beta 7:
+
+- fixed D3D scanline missing right edge
+- OCS NTSC chipset always used PAL rates
+- windowed RTG mode FPS counter shows both RTG and chipset refresh
+  rates "<RTG> [<chipset]"
+- CIA TOD didn't stop when genlock mode was enabled without genlock
+  (caused KS to detect wrong timing mode, result was most OS time
+  functions, including CLI wait-command, counted incorrectly if
+  configured chipset refresh rate was different than current refresh
+  rate. Bug since the beginning of time but genlock option made this
+  worse because old "genlock always connected" feature hide this bug..
+  (CIA-A TOD configured to PS tick didn't have this problem)
+- Syncronize clock improved. Automatically enables PS supply tick mode
+  (CIA-A TOD = sysclock only if it uses PS supply tick) and also counts
+  "lost" ticks when emulation is stopped (for example GUI is open)
+  This is still a hack but at least it seems to work now :)
+
 Beta 6:
 
 - Picasso96 vblank rewritten again, now uses build-in Picasso96 vblank

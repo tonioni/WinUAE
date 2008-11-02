@@ -39,6 +39,8 @@
 #define hf_log write_log
 #undef hf_log2
 #define hf_log2 write_log
+#undef hf_log3
+#define hf_log3 write_log
 #undef scsi_log
 #define scsi_log write_log
 #endif
@@ -559,7 +561,7 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 7 - 2) & 0xffff;
 	len *= hfd->blocksize;
-	if (checkbounds(hfd, offset, len))
+	if (checkbounds (hfd, offset, len))
 	    scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
 	break;
 	case 0x2a: /* WRITE (10) */
@@ -569,9 +571,35 @@ int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 7 - 2) & 0xffff;
 	len *= hfd->blocksize;
-	if (checkbounds(hfd, offset, len))
+	if (checkbounds (hfd, offset, len))
 	    scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
 	break;
+#if 0
+	case 0x2f: /* VERIFY */
+	{
+	    int bytchk = cmdbuf[1] & 2;
+	    if (nodisk (hfd))
+		goto nodisk;
+	    offset = rl (cmdbuf + 2);
+	    offset *= hfd->blocksize;
+	    len = rl (cmdbuf + 7 - 2) & 0xffff;
+	    len *= hfd->blocksize;
+	    if (checkbounds (hfd, offset, len)) {
+		uae_u8 *vb = xmalloc (hfd->blocksize);
+		while (len > 0) {
+		    int len = cmd_readx (hfd, vb, offset, hfd->blocksize);
+		    if (bytchk) {
+			if (memcmp (vb, scsi_data, hfd->blocksize))
+			    goto miscompare;
+			scsi_data += hfd->blocksize;
+		    }
+		    offset += hfd->blocksize;
+		}
+		xfree (vb);
+	    }
+	}
+	break;
+#endif
 	case 0x35: /* SYNCRONIZE CACHE (10) */
 	if (nodisk (hfd))
 	    goto nodisk;
@@ -622,6 +650,14 @@ err:
 	s[0] = 0x70;
 	s[2] = 5; /* ILLEGAL REQUEST */
 	s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
+	ls = 12;
+	break;
+miscompare:
+	lr = -1;
+	status = 2; /* CHECK CONDITION */
+	s[0] = 0x70;
+	s[2] = 5; /* ILLEGAL REQUEST */
+	s[12] = 0x1d; /* MISCOMPARE DURING VERIFY OPERATION */
 	ls = 12;
 	break;
     }

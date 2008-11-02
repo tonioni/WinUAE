@@ -130,6 +130,7 @@ static uae_u32 cursorrgb[4], cursorrgbn[4];
 static int reloadcursor, cursorvisible, cursordeactivate;
 static uaecptr boardinfo;
 static int interrupt_enabled;
+int p96vblank;
 
 static uaecptr uaegfx_resname,
     uaegfx_resid,
@@ -3272,18 +3273,16 @@ void picasso_handle_hsync (void)
 
 void init_hz_p96 (void)
 {
-    int rate;
-
     p96syncrate = maxvpos * vblank_hz;
     if (currprefs.win32_rtgvblankrate < 0) 
-	rate = DirectDraw_CurrentRefreshRate ();
+	p96vblank = DirectDraw_CurrentRefreshRate ();
     else if (currprefs.win32_rtgvblankrate == 0)
-	rate = abs (currprefs.gfx_refreshrate);
+	p96vblank = vblank_hz;
     else
-	rate = currprefs.win32_rtgvblankrate;
-    if (rate <= 0)
-	rate = 60;
-    p96syncrate /= rate;
+	p96vblank = currprefs.win32_rtgvblankrate;
+    if (p96vblank <= 0)
+	p96vblank = 60;
+    p96syncrate /= p96vblank;
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */

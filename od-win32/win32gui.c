@@ -11825,7 +11825,7 @@ void gui_led (int led, int on)
 	tt = dfx[led - 1];
 	tt[0] = 0;
 	if (strlen (p + j) > 0)
-	    sprintf (tt, "%s (CRC=%08X)", p + j, gui_data.crc32[led - 1]);
+	    sprintf (tt, "%s [CRC=%08X]", p + j, gui_data.crc32[led - 1]);
     } else if (led == 0) {
 	pos = 3;
 	ptr = strcpy (drive_text + pos * 16, "Power");
@@ -11836,9 +11836,13 @@ void gui_led (int led, int on)
 	pos = 5;
 	ptr = strcpy (drive_text + pos * 16, "CD");
     } else if (led == 7) {
+	extern int p96vblank;
 	pos = 2;
 	ptr = drive_text + pos * 16;
-	sprintf (ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
+	if (picasso_on)
+	    sprintf (ptr, "%d [%.1f]", p96vblank, (double)(gui_data.fps  / 10.0));
+	else
+	    sprintf (ptr, "FPS: %.1f", (double)(gui_data.fps  / 10.0));
 	if (pause_emulation)
 	    strcpy (ptr, "PAUSED");
     } else if (led == 8) {

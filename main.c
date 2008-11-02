@@ -398,6 +398,8 @@ void fixup_prefs (struct uae_prefs *p)
 #endif
     if (p->maprom && !p->address_space_24)
 	p->maprom = 0x0f000000;
+    if (p->tod_hack && p->cs_ciaatod == 0)
+	p->cs_ciaatod = p->ntscmode ? 2 : 1;
     target_fixup_options (p);
 }
 

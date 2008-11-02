@@ -2503,8 +2503,12 @@ void init_hz (void)
 	hzc = 1;
     if (beamcon0 & 0x80)
 	hack_vpos = -1;
+    if (beamcon0 != new_beamcon0)
+	write_log ("BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
     beamcon0 = new_beamcon0;
-    isntsc = beamcon0 & 0x20 ? 0 : 1;
+    isntsc = (beamcon0 & 0x20) ? 0 : 1;
+    if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	isntsc = currprefs.ntscmode ? 1 : 0;
     if (hack_vpos > 0) {
 	if (maxvpos == hack_vpos)
 	    return;
@@ -3027,7 +3031,7 @@ static void BEAMCON0 (uae_u16 v)
 	if (v != new_beamcon0) {
 	    new_beamcon0 = v;
 	    if (v & ~0x20)
-		write_log ("warning: %04X written to BEAMCON0\n", v);
+		write_log ("warning: %04X written to BEAMCON0 PC=%08X\n", v, M68K_GETPC);
 	}
     }
 }
@@ -4609,9 +4613,9 @@ static void copper_check (int n)
     }
 }
 
-static void CIA_vsync_prehandler (void)
+static void CIA_vsync_prehandler (int dotod)
 {
-    CIA_vsync_handler ();
+    CIA_vsync_handler (dotod);
 #if 0
     if (input_recording > 0) {
 	inprec_rstart(INPREC_CIAVSYNC);
@@ -4702,12 +4706,12 @@ static void hsync_handler (void)
 
     eventtab[ev_hsync].evtime += get_cycles () - eventtab[ev_hsync].oldcycles;
     eventtab[ev_hsync].oldcycles = get_cycles ();
-    CIA_hsync_handler ();
+    CIA_hsync_handler (!(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock));
     if (currprefs.cs_ciaatod > 0) {
 	static int cia_hsync;
 	cia_hsync -= 256;
 	if (cia_hsync <= 0) {
-	    CIA_vsync_prehandler ();
+	    CIA_vsync_prehandler (1);
 	    cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 	}
     }
@@ -4767,7 +4771,7 @@ static void hsync_handler (void)
 #endif
 	vsync_counter++;
 	if (currprefs.cs_ciaatod == 0)
-	    CIA_vsync_prehandler ();
+	    CIA_vsync_prehandler (!(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock));
     }
 
     DISK_hsync (maxhpos);
