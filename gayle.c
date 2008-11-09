@@ -1820,9 +1820,9 @@ int gayle_add_pcmcia_sram_unit (const char *path, int readonly)
 int gayle_modify_pcmcia_sram_unit (const char *path, int readonly, int insert)
 {
     if (insert)
-	return initpcmcia (path, readonly, 1);
+	return initpcmcia (path, readonly, pcmcia_sram ? 0 : 1);
     else
-	return freepcmcia (1);
+	return freepcmcia (0);
 }
 
 static void initide (void)

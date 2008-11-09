@@ -335,6 +335,7 @@ STATIC_INLINE void ciaa_checkalarm (int inc)
 
 #ifdef TOD_HACK
 static uae_u64 tod_hack_tv, tod_hack_tod, tod_hack_tod_last;
+static int tod_hack_enabled;
 static void tod_hack_reset (void)
 {
     struct timeval tv;
@@ -349,8 +350,20 @@ static void do_tod_hack (int dotod)
 {
     struct timeval tv;
     static int oldrate;
-    uae_u64 t, rate;
+    uae_u64 t;
+    int rate;
     int docount = 0;
+
+    if (tod_hack_enabled == 0)
+	return;
+    if (tod_hack_enabled > 1) {
+	tod_hack_enabled--;
+	if (tod_hack_enabled == 1) {
+	    write_log ("TOD HACK enabled\n");
+	    tod_hack_reset ();
+	}
+	return;
+    }
 
     if (currprefs.cs_ciaatod == 0)
         rate = vblank_hz;
@@ -358,11 +371,15 @@ static void do_tod_hack (int dotod)
         rate = 50;
     else
         rate = 60;
+    if (rate <= 0)
+	return;
     if (rate != oldrate || ciaatod != tod_hack_tod_last) {
+	if (ciaatod != 0)
+	    write_log ("TOD HACK reset %d,%d %d,%d\n",
+		rate, oldrate, ciaatod, tod_hack_tod_last);
         tod_hack_reset ();
         oldrate = rate;
 	docount = 1;
-	write_log ("TOD HACK reset %d\n", rate);
     }
     if (!dotod && currprefs.cs_ciaatod == 0)
 	return;
@@ -547,7 +564,7 @@ void CIA_vsync_handler (int dotod)
 {
     led_vsync ();
 #ifdef TOD_HACK
-    if (currprefs.tod_hack)
+    if (currprefs.tod_hack && tod_hack_enabled == 1)
 	return;
 #endif
     if (ciaatodon && dotod) {
@@ -1102,8 +1119,9 @@ void CIA_reset (void)
 #ifdef TOD_HACK
     tod_hack_tv = 0;
     tod_hack_tod = 0;
+    tod_hack_enabled = 0;
     if (currprefs.tod_hack)
-	tod_hack_reset ();
+	tod_hack_enabled = 312 * 50 * 10;
 #endif
     kback = 1;
     kbstate = 3;

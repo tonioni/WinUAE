@@ -661,30 +661,36 @@ static int doskip (void)
 
 static void picasso_trigger_vblank (void)
 {
-    if (!boardinfo || !uaegfx_base || !interrupt_enabled)
+    if (!boardinfo || !uaegfx_base || !interrupt_enabled) {
 	return;
+    }
     put_long (uaegfx_base + CARD_VBLANKCODE + 6 + 2, boardinfo + PSSO_BoardInfo_SoftInterrupt);
     put_byte (uaegfx_base + CARD_VBLANKFLAG, 1);
     INTREQ_f (0x8000 | 0x2000);
 }
 
+static int isvsync (void)
+{
+    return currprefs.gfx_pfullscreen && currprefs.gfx_pvsync;
+}
+
 void picasso_handle_vsync (void)
 {
     static int vsynccnt;
-    int isvsync = 1;
+    int thisisvsync = 1;
     
 #ifdef RETROPLATFORM
     rp_vsync ();
 #endif
 
     if (currprefs.chipset_refreshrate >= 100) {
-	vsynccnt++;
+	thisisvsync++;
 	if (vsynccnt < 2)
-	    isvsync = 0;
+	    thisisvsync = 0;
 	vsynccnt = 0;
     }
 
-    if (isvsync && currprefs.win32_rtgvblankrate == 0 && !(currprefs.gfx_pfullscreen && currprefs.gfx_pvsync))
+    if (thisisvsync && currprefs.win32_rtgvblankrate == 0 && !isvsync ())
 	picasso_trigger_vblank ();
 
     if (!picasso_on)
@@ -695,7 +701,7 @@ void picasso_handle_vsync (void)
     framecnt++;
     mouseupdate ();
 
-    if (isvsync) {
+    if (thisisvsync) {
 	if (doskip () && p96skipmode == 0) {
 	    ;
 	} else {
@@ -850,6 +856,7 @@ static void setconvert (void)
     }
     picasso_convert = v;
     host_mode = DirectDraw_GetSurfacePixelFormat (NULL);
+    gfx_set_picasso_colors (picasso96_state.RGBFormat);
     if (d == 4)
 	alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
     else
@@ -3250,7 +3257,7 @@ void picasso_handle_hsync (void)
 
     if (currprefs.gfxmem_size == 0)
 	return;
-    if (currprefs.win32_rtgvblankrate == 0)
+    if (currprefs.win32_rtgvblankrate == 0 && !isvsync ())
 	return;
     if (p96hsync < 0) {
 	p96hsync++;
@@ -3258,7 +3265,7 @@ void picasso_handle_hsync (void)
 	    p96hsync = p96syncrate;
 	return;
     }
-    if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && currprefs.gfx_pvsync) {
+    if (WIN32GFX_IsPicassoScreen () && isvsync ()) {
 	if (DirectDraw_GetVerticalBlankStatus ())
 	    p96hsync = -maxvpos / 3;
     } else {
@@ -3274,7 +3281,7 @@ void picasso_handle_hsync (void)
 void init_hz_p96 (void)
 {
     p96syncrate = maxvpos * vblank_hz;
-    if (currprefs.win32_rtgvblankrate < 0) 
+    if (currprefs.win32_rtgvblankrate < 0 || isvsync ()) 
 	p96vblank = DirectDraw_CurrentRefreshRate ();
     else if (currprefs.win32_rtgvblankrate == 0)
 	p96vblank = vblank_hz;

@@ -206,7 +206,7 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
 	    if (h == INVALID_HANDLE_VALUE)
 		goto end;
 	    if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
-		write_log ("FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError());
+		write_log ("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", name, GetLastError());
 	    strncpy (hfd->vendor_id, udi->vendor_id, 8);
 	    strncpy (hfd->product_id, udi->product_id, 16);
 	    strncpy (hfd->product_rev, udi->product_rev, 4);
@@ -295,8 +295,8 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
     }
     hfd->handle = h;
     if (hfd->handle_valid || hfd->drive_empty) {
-	hfd_log ("HDF '%s' opened succesfully, mode=%d empty=%d\n",
-	    name, hfd->handle_valid, hfd->drive_empty);
+	hfd_log ("HDF '%s' opened, size=%dK mode=%d empty=%d\n",
+	    name, hfd->size / 1024, hfd->handle_valid, hfd->drive_empty);
 	return 1;
     }
 end:

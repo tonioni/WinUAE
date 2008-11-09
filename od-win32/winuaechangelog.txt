@@ -1,4 +1,13 @@
 
+1.5.3
+
+- delay sync clock enable until 10s from reset
+- real PCMCIA SRAM re-insert detection really really does work now
+  (Thanks to Eclipse for donating PCMCIA SRAM card)
+  Vista note: Vista does not come with generic PCMCIA SRAM drivers
+  anymore but XP built-in drivers work after force-installing them..
+  (only need memcard.sys and memcard.inf) 32-bit tested only.
+
 Beta 7:
 
 - fixed D3D scanline missing right edge
@@ -11,7 +20,8 @@ Beta 7:
   configured chipset refresh rate was different than current refresh
   rate. Bug since the beginning of time but genlock option made this
   worse because old "genlock always connected" feature hide this bug..
-  (CIA-A TOD configured to PS tick didn't have this problem)
+  (CIA-A TOD configured to PS tick didn't have this problem) Thanks
+  to Ed Cruse for real NTSC A3000 testing.
 - Syncronize clock improved. Automatically enables PS supply tick mode
   (CIA-A TOD = sysclock only if it uses PS supply tick) and also counts
   "lost" ticks when emulation is stopped (for example GUI is open)
@@ -35,7 +45,6 @@ Beta 6:
   previous read detected wordsync. Internal "Wordsync detected" flag
   apparently only gets reset when disk read is started. Kick Off 2
   save, most likely many other programs too..
-
 
 Beta 5:
 

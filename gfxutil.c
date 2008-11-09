@@ -200,7 +200,6 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
     int i;
     int red_bits = 0, green_bits, blue_bits;
     int red_shift, green_shift, blue_shift;
-
     int bpp = rw + gw + bw;
 
     switch (rgbfmt)
@@ -278,7 +277,7 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 	    b = (((j >>  blue_shift) & lbmask) << lbbits) | lowbits (j,  blue_shift, lbbits);
 	    c = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
 	    if (bpp <= 16)
-		c |= c * 0x00010001;
+		c *= 0x00010001;
 	    p96_rgbx16[i] = c;
 	}
     }
