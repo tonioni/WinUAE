@@ -1,12 +1,18 @@
 
 1.5.3
 
-- delay sync clock enable until 10s from reset
+Beta 8:
+
+- delay sync clock enable until 10s from reset (do not confuse
+  KS delay calibration routine)
 - real PCMCIA SRAM re-insert detection really really does work now
   (Thanks to Eclipse for donating PCMCIA SRAM card)
   Vista note: Vista does not come with generic PCMCIA SRAM drivers
-  anymore but XP built-in drivers work after force-installing them..
-  (only need memcard.sys and memcard.inf) 32-bit tested only.
+  anymore but XP built-in drivers do work, only need memcard.sys and
+  memcard.inf from XP install. 32-bit Vista tested only.
+- vblank interrupt was not working in RTG vsync mode
+- fixed wrong colors after 16-bit fullscreen RTG to 32-bit desktop
+  switch
 
 Beta 7:
 
