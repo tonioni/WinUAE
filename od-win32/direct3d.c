@@ -319,7 +319,7 @@ int D3D_canshaders (void)
     if (yesno > 0)
 	return 1;
     yesno = -1;
-    h = LoadLibrary ("d3dx9_39.dll");
+    h = LoadLibrary ("d3dx9_40.dll");
     if (h != NULL) {
 	FreeLibrary (h);
 	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);

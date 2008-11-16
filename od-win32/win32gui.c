@@ -4696,9 +4696,9 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
     int gfx_height = workprefs.gfx_size_win.height;
     LRESULT posn;
 
-    display_fromselect(SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0),
+    display_fromselect (SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0),
 	&workprefs.gfx_afullscreen, &workprefs.gfx_avsync, 0);
-    display_fromselect(SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0),
+    display_fromselect (SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0),
 	&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
 
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);

@@ -1,4 +1,19 @@
 
+Beta 1:
+
+- DXSDK updated, D3D filters again require updated DX runtime
+- some CD32 pad reading routines returned phantom buttons in JIT
+  modes if pad was not "connected"
+- another partial sprite rendering update, fixes sprite size problems
+  in screen modes that have multiple resolutions in single horizontal
+  line (for example Innovation Part 2 by Axis is 100% correct now)
+- also fixes wrong sized sprites in some lores resolution modes
+- superhires in lores mode supported (show only every 4th pixel)
+- superhires in filtered lores supported (visible pixel is average
+  color of 4 internal shres pixels. This may be slow..)
+- ECS SHRES in lores supported (both non-filtered and filtered)
+- 10 sectors per track PC floppy images (800k) supported
+
 1.5.3
 
 Beta 8:

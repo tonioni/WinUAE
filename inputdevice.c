@@ -1253,95 +1253,6 @@ uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
     }
 }
 
-uae_u8 handle_joystick_buttons (uae_u8 dra)
-{
-    uae_u8 but = 0;
-    int i;
-
-    for (i = 0; i < 2; i++) {
-	if (cd32_pad_enabled[i]) {
-	    uae_u16 p5dir = 0x0200 << (i * 4);
-	    uae_u16 p5dat = 0x0100 << (i * 4);
-	    but |= 0x40 << i;
-	    /* Red button is connected to fire when p5 is 1 or floating */
-	    if (!(potgo_value & p5dir) || ((potgo_value & p5dat) && (potgo_value & p5dir))) {
-		if (getbuttonstate (i, JOYBUTTON_CD32_RED))
-		    but &= ~(0x40 << i);
-	    }
-	} else if (!getbuttonstate (i, JOYBUTTON_1)) {
-	    but |= 0x40 << i;
-	}
-    }
-    if (inputdevice_logging & 4)
-	write_log ("BFE001: %02X:%02X %x\n", dra, but, M68K_GETPC);
-    return but;
-}
-
-/* joystick 1 button 1 is used as a output for incrementing shift register */
-void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
-{
-    static int oldstate[2];
-    int i;
-
-    for (i = 0; i < 2; i++) {
-	uae_u8 but = 0x40 << i;
-	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
-	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
-	if (!(potgo_value & p5dir) || !(potgo_value & p5dat)) {
-	    if ((dra & but) && (pra & but) != oldstate[i]) {
-		if (!(pra & but)) {
-		    cd32_shifter[i]--;
-		    if (cd32_shifter[i] < 0)
-			cd32_shifter[i] = 0;
-		}
-	    }
-	}
-	oldstate[i] = pra & but;
-    }
-}
-
-/* joystick port 1 button 2 is input for button state */
-static uae_u16 handle_joystick_potgor (uae_u16 potgor)
-{
-    int i;
-
-    for (i = 0; i < 2; i++) {
-	uae_u16 p9dir = 0x0800 << (i * 4); /* output enable P9 */
-	uae_u16 p9dat = 0x0400 << (i * 4); /* data P9 */
-	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
-	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
-
-	if (cd32_pad_enabled[i]) {
-	    /* p5 is floating in input-mode */
-	    potgor &= ~p5dat;
-	    potgor |= potgo_value & p5dat;
-	    if (!(potgo_value & p9dir))
-		potgor |= p9dat;
-	    /* P5 output and 1 -> shift register is kept reset (Blue button) */
-	    if ((potgo_value & p5dir) && (potgo_value & p5dat))
-		cd32_shifter[i] = 8;
-	    /* shift at 1 == return one, >1 = return button states */
-	    if (cd32_shifter[i] == 0)
-		potgor &= ~p9dat; /* shift at zero == return zero */
-	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
-		potgor &= ~p9dat;
-	} else {
-
-	    potgor &= ~p5dat;
-	    if (pot_cap[i][0] > 100)
-		potgor |= p5dat;
-
-	    potgor &= ~p9dat;
-	    if (pot_cap[i][1] > 100)
-		potgor |= p9dat;
-
-	}
-    }
-    return potgor;
-}
-
-static int inputdelay;
-
 static void charge_cap (int joy, int idx, int charge)
 {
     if (charge < -1 || charge > 1)
@@ -1353,7 +1264,7 @@ static void charge_cap (int joy, int idx, int charge)
 	pot_cap[joy][idx] = 511;
 }
 
-void inputdevice_hsync (void)
+static void cap_check (void)
 {
     int joy, i;
 
@@ -1364,6 +1275,8 @@ void inputdevice_hsync (void)
 	    uae_u16 pdat = 0x0100 << (joy * 4 + i * 2); /* data */
 	    int isbutton = getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2);
 
+	    if (cd32_pad_enabled[joy])
+		continue;
 	    if (analog_port[joy][i] && pot_cap[joy][i] < joydirpot[joy][i])
 	        charge = 1; // slow charge via pot variable resistor
 	    if ((digital_port[joy][i] || mouse_port[joy]))
@@ -1416,6 +1329,108 @@ void inputdevice_hsync (void)
 	    charge_cap (joy, i, charge);
 	}
     }
+}
+
+
+uae_u8 handle_joystick_buttons (uae_u8 dra)
+{
+    uae_u8 but = 0;
+    int i;
+
+    cap_check ();
+    for (i = 0; i < 2; i++) {
+	if (cd32_pad_enabled[i]) {
+	    uae_u16 p5dir = 0x0200 << (i * 4);
+	    uae_u16 p5dat = 0x0100 << (i * 4);
+	    but |= 0x40 << i;
+	    /* Red button is connected to fire when p5 is 1 or floating */
+	    if (!(potgo_value & p5dir) || ((potgo_value & p5dat) && (potgo_value & p5dir))) {
+		if (getbuttonstate (i, JOYBUTTON_CD32_RED))
+		    but &= ~(0x40 << i);
+	    }
+	} else if (!getbuttonstate (i, JOYBUTTON_1)) {
+	    but |= 0x40 << i;
+	}
+    }
+    if (inputdevice_logging & 4)
+	write_log ("BFE001: %02X:%02X %x\n", dra, but, M68K_GETPC);
+    return but;
+}
+
+/* joystick 1 button 1 is used as a output for incrementing shift register */
+void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
+{
+    static int oldstate[2];
+    int i;
+
+    cap_check ();
+    for (i = 0; i < 2; i++) {
+	uae_u8 but = 0x40 << i;
+	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
+	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
+	if (!(potgo_value & p5dir) || !(potgo_value & p5dat)) {
+	    if ((dra & but) && (pra & but) != oldstate[i]) {
+		if (!(pra & but)) {
+		    cd32_shifter[i]--;
+		    if (cd32_shifter[i] < 0)
+			cd32_shifter[i] = 0;
+		}
+	    }
+	}
+	oldstate[i] = pra & but;
+    }
+}
+
+/* joystick port 1 button 2 is input for button state */
+static uae_u16 handle_joystick_potgor (uae_u16 potgor)
+{
+    int i;
+
+    cap_check ();
+    for (i = 0; i < 2; i++) {
+	uae_u16 p9dir = 0x0800 << (i * 4); /* output enable P9 */
+	uae_u16 p9dat = 0x0400 << (i * 4); /* data P9 */
+	uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
+	uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
+
+	if (cd32_pad_enabled[i]) {
+
+	    /* p5 is floating in input-mode */
+	    potgor &= ~p5dat;
+	    potgor |= potgo_value & p5dat;
+	    if (!(potgo_value & p9dir))
+		potgor |= p9dat;
+	    /* P5 output and 1 -> shift register is kept reset (Blue button) */
+	    if ((potgo_value & p5dir) && (potgo_value & p5dat))
+		cd32_shifter[i] = 8;
+	    /* shift at 1 == return one, >1 = return button states */
+	    if (cd32_shifter[i] == 0)
+		potgor &= ~p9dat; /* shift at zero == return zero */
+	    if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
+		potgor &= ~p9dat;
+
+	} else {
+
+	    potgor &= ~p5dat;
+	    if (pot_cap[i][0] > 100)
+		potgor |= p5dat;
+
+	    potgor &= ~p9dat;
+	    if (pot_cap[i][1] > 100)
+		potgor |= p9dat;
+
+	}
+    }
+    return potgor;
+}
+
+
+static int inputdelay;
+
+void inputdevice_hsync (void)
+{
+
+    cap_check ();
 
 #ifdef CATWEASEL
     catweasel_hsync ();
@@ -2320,7 +2335,7 @@ static int isdigitalbutton (int ei)
     return 0;
 }
 
-static void scanevents(struct uae_prefs *p)
+static void scanevents (struct uae_prefs *p)
 {
     int i, j, k, ei;
     const struct inputevent *e;

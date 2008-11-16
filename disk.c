@@ -983,14 +983,26 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 	}
 	drv->useturbo = 1;
 
-    } else if (size == 720 * 1024 || size == 1440 * 1024) {
+    } else if (size == 720 * 1024 || size == 1440 * 1024 || size == 800 * 1024 || size == 1600 * 1024) {
 	/* PC formatted image */
 	int i;
+	
+	if (size == 720 * 1024) {
+	    drv->num_secs = 9;
+	    drv->ddhd = 1;
+	} else if (size == 1440 * 1024) {
+	    drv->num_secs = 18;
+	    drv->ddhd = 1;
+	} else if (size == 800 * 1024) {
+	    drv->num_secs = 10;
+	    drv->ddhd = 2;
+	} else if (size == 1600 * 1024) {
+	    drv->num_secs = 20;
+	    drv->ddhd = 2;
+	}
 
 	drv->filetype = ADF_PCDOS;
 	drv->num_tracks = 160;
-	drv->ddhd = size == 1440 * 1024 ? 2 : 1;
-	drv->num_secs = drv->ddhd == 2 ? 18 : 9;
 	for (i = 0; i < drv->num_tracks; i++) {
 	    tid = &drv->trackdata[i];
 	    tid->type = TRACK_PCDOS;
@@ -1233,7 +1245,7 @@ static void decode_pcdos (drive *drv)
     int i;
     int tr = drv->cyl * 2 + side;
     uae_u16 *dstmfmbuf, *mfm2;
-    uae_u8 secbuf[700];
+    uae_u8 secbuf[1000];
     uae_u16 crc16;
     trackid *ti = drv->trackdata + tr;
     int tracklen = 12500;
@@ -1445,12 +1457,12 @@ static void drive_fill_bigbuf (drive * drv, int force)
 
     } else if (ti->type == TRACK_PCDOS) {
 
-	decode_pcdos(drv);
+	decode_pcdos (drv);
 
 
     } else if (ti->type == TRACK_AMIGADOS) {
 
-	decode_amigados(drv);
+	decode_amigados (drv);
 
     } else {
 	int i;

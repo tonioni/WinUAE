@@ -846,7 +846,7 @@ static void copy_bpl_params (int pos)
 	changed = 1;
 
     if (changed)
-	record_color_change2 (pos + f_fetchunit, 0x100 + 0x1000, tmp_bplcon0);
+	record_color_change2 (pos + 4, 0x100 + 0x1000, tmp_bplcon0);
 
     f_bplcon0 = tmp_bplcon0;
     f_fmode = tmp_fmode;
@@ -2077,8 +2077,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     if (dbl < 0) {
         half = -dbl;
         dbl = 0;
-	if (ecsshres () || (sprite_buffer_res < RES_SUPERHIRES && sprres == RES_SUPERHIRES))
-	    mask = 1; /* need to halve horizontal size */
+	mask = 1 << half;
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
     attachment = (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
@@ -2119,7 +2118,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 
     /* We have 8 bits per pixel in spixstate, two for every sprite pair.  The
        low order bit records whether the attach bit was set for this pair.  */
-    if (attachment) {
+    if (attachment && !ecsshres ()) {
 	uae_u32 state = 0x01010101 << (num & ~1);
 	uae_u8 *stb1 = spixstate.bytes + word_offs;
 	for (i = 0; i < width; i += 8) {

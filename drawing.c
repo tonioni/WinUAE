@@ -53,6 +53,7 @@
 #include "inputdevice.h"
 
 extern int sprite_buffer_res;
+int sprite_shift;
 
 int lores_factor, lores_shift;
 
@@ -109,8 +110,13 @@ struct vidbuf_description gfxvidinfo;
 /* OCS/ECS color lookup table. */
 xcolnr xcolors[4096];
 
-static uae_u8 spritepixels[MAX_PIXELS_PER_LINE * 5]; /* used when sprite resolution > lores */
-static int sprite_aga_first_x, sprite_aga_last_x;
+struct spritepixelsbuf {
+    int attach:1;
+    uae_u8 stdata;
+    uae_u16 data;
+};
+static struct spritepixelsbuf spritepixels[MAX_PIXELS_PER_LINE * 5]; /* used when sprite resolution > lores */
+static int sprite_first_x, sprite_last_x;
 
 #ifdef AGA
 /* AGA mode color lookup tables */
@@ -401,18 +407,10 @@ static void pfield_init_linetoscr (void)
     }
 #endif
 
-    if (sprite_aga_first_x < sprite_aga_last_x) {
-        uae_u8 *p = spritepixels + sprite_aga_first_x;
-	int len = sprite_aga_last_x - sprite_aga_first_x + 1;
-	int i;
-	/* clear previous sprite data storage line */
-	for (i = 0; i < (1 << (res_shift < 0 ? 0 : res_shift)); i++) {
-	    memset (p, 0, len);
-	    p += MAX_PIXELS_PER_LINE;
-	}
-	sprite_aga_last_x = 0;
-	sprite_aga_first_x = MAX_PIXELS_PER_LINE;
-    }
+    if (sprite_first_x < sprite_last_x)
+	memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
+    sprite_last_x = 0;
+    sprite_first_x = sizeof spritepixels;
 
     /* Now, compute some offsets.  */
     res_shift = lores_shift - bplres;
@@ -426,8 +424,6 @@ static void pfield_init_linetoscr (void)
     seen_sprites = 0;
     if (dip_for_drawing->nr_sprites == 0)
 	return;
-    if (seen_sprites < 0 && sprite_buffer_res > 0)
-	memset (spritepixels, 0, sizeof spritepixels);
     seen_sprites = 1;
     /* Must clear parts of apixels.  */
     if (linetoscr_diw_start < native_ddf_left) {
@@ -447,18 +443,18 @@ void drawing_adjust_mousepos (int *xp, int *yp)
 {
 }
 
-static uae_u8 merge_2pixel8 (uae_u8 p1, uae_u8 p2)
+STATIC_INLINE uae_u8 merge_2pixel8 (uae_u8 p1, uae_u8 p2)
 {
     return p1;
 }
-static uae_u16 merge_2pixel16 (uae_u16 p1, uae_u16 p2)
+STATIC_INLINE uae_u16 merge_2pixel16 (uae_u16 p1, uae_u16 p2)
 {
     uae_u16 v = ((((p1 >> xredcolor_s) & xredcolor_m) + ((p2 >> xredcolor_s) & xredcolor_m)) / 2) << xredcolor_s;
     v |= ((((p1 >> xbluecolor_s) & xbluecolor_m) + ((p2 >> xbluecolor_s) & xbluecolor_m)) / 2) << xbluecolor_s;
     v |= ((((p1 >> xgreencolor_s) & xgreencolor_m) + ((p2 >> xgreencolor_s) & xgreencolor_m)) / 2) << xgreencolor_s;
     return v;
 }
-static uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
+STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 {
     uae_u32 v = ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
     v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;
@@ -583,11 +579,95 @@ STATIC_INLINE void fill_line (void)
 
 static int linetoscr_double_offset;
 
+#define SPRITE_DEBUG 0
+STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga, int offset)
+{
+    struct spritepixelsbuf *spb = &spritepixels[(pos << sprite_shift) + offset];
+    unsigned int v = spb->data;
+    int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
+    int maskshift, plfmask;
+
+    /* The value in the shift lookup table is _half_ the shift count we
+       need.  This is because we can't shift 32 bits at once (undefined
+       behaviour in C).  */
+    maskshift = shift_lookup[apixel];
+    plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
+    v &= ~plfmask;
+    if (v != 0 || SPRITE_DEBUG) {
+        unsigned int vlo, vhi, col;
+        unsigned int v1 = v & 255;
+	/* OFFS determines the sprite pair with the highest priority that has
+	   any bits set.  E.g. if we have 0xFF00 in the buffer, we have sprite
+	   pairs 01 and 23 cleared, and pairs 45 and 67 set, so OFFS will
+	   have a value of 4.
+	   2 * OFFS is the bit number in V of the sprite pair, and it also
+	   happens to be the color offset for that pair. 
+	*/
+	int offs;
+	if (v1 == 0)
+	    offs = 4 + sprite_offs[v >> 8];
+	else
+	    offs = sprite_offs[v1];
+
+	/* Shift highest priority sprite pair down to bit zero.  */
+	v >>= offs * 2;
+	v &= 15;
+#if SPRITE_DEBUG > 0
+	v ^= 8;
+#endif
+	if (spb->attach && (spb->stdata & (3 << offs))) {
+	    col = v;
+	    if (aga)
+	        col += sbasecol[1];
+	    else
+	        col += 16;
+	} else {
+	    /* This sequence computes the correct color value.  We have to select
+	       either the lower-numbered or the higher-numbered sprite in the pair.
+	       We have to select the high one if the low one has all bits zero.
+	       If the lower-numbered sprite has any bits nonzero, (VLO - 1) is in
+	       the range of 0..2, and with the mask and shift, VHI will be zero.
+	       If the lower-numbered sprite is zero, (VLO - 1) is a mask of
+	       0xFFFFFFFF, and we select the bits of the higher numbered sprite
+	       in VHI.
+	       This is _probably_ more efficient than doing it with branches.  */
+	    vlo = v & 3;
+	    vhi = (v & (vlo - 1)) >> 2;
+	    col = (vlo | vhi);
+	    if (aga) {
+	        if (vhi > 0)
+		    col += sbasecol[1];
+		else
+		    col += sbasecol[0];
+	    } else {
+	        col += 16;
+	    }
+	    col += offs * 2;
+	}
+	
+	return col;
+    }
+
+    return 0;
+}
+
 #include "linetoscr.c"
 
 #ifdef ECS_DENISE
 /* ECS SuperHires special cases */
-static int NOINLINE linetoscr_16_sh (int spix, int dpix, int stoppos)
+
+STATIC_INLINE uae_u32 shsprite (int dpix, uae_u32 spix_val, uae_u32 v, int spr)
+{
+    uae_u8 sprcol;
+    if (!spr)
+	return v;
+    sprcol = render_sprites (dpix, 0, spix_val, 0, 0);
+    if (sprcol)
+        return colors_for_drawing.color_regs_ecs[sprcol];
+    return v;
+}
+
+static int NOINLINE linetoscr_16_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u16 *buf = (uae_u16 *) xlinebuffer;
 
@@ -600,14 +680,16 @@ static int NOINLINE linetoscr_16_sh (int spix, int dpix, int stoppos)
 	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
 	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	dpix++;
 	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val2, xcolors[v], spr);
+	dpix++;
     }
     return spix;
 }
-static int NOINLINE linetoscr_32_sh (int spix, int dpix, int stoppos)
+static int NOINLINE linetoscr_32_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u32 *buf = (uae_u32 *) xlinebuffer;
 
@@ -620,14 +702,16 @@ static int NOINLINE linetoscr_32_sh (int spix, int dpix, int stoppos)
 	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
 	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	dpix++;
 	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val2, xcolors[v], spr);
+	dpix++;
     }
     return spix;
 }
-static int NOINLINE linetoscr_32_shrink1_sh (int spix, int dpix, int stoppos)
+static int NOINLINE linetoscr_32_shrink1_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u32 *buf = (uae_u32 *) xlinebuffer;
 
@@ -640,11 +724,12 @@ static int NOINLINE linetoscr_32_shrink1_sh (int spix, int dpix, int stoppos)
 	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
 	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	dpix++;
     }
     return spix;
 }
-static int NOINLINE linetoscr_32_shrink2_sh (int spix, int dpix, int stoppos)
+static int NOINLINE linetoscr_32_shrink1f_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u32 *buf = (uae_u32 *) xlinebuffer;
 
@@ -661,11 +746,12 @@ static int NOINLINE linetoscr_32_shrink2_sh (int spix, int dpix, int stoppos)
 	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
 	v |= v >> 2;
 	dpix_val2 = xcolors[v];
-	buf[dpix++] = merge_2pixel32 (dpix_val1, dpix_val2);
+	buf[dpix] = shsprite (dpix, spix_val1, merge_2pixel32 (dpix_val1, dpix_val2), spr);
+	dpix++;
     }
     return spix;
 }
-static int NOINLINE linetoscr_16_shrink1_sh (int spix, int dpix, int stoppos)
+static int NOINLINE linetoscr_16_shrink1_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u16 *buf = (uae_u16 *) xlinebuffer;
 
@@ -678,11 +764,12 @@ static int NOINLINE linetoscr_16_shrink1_sh (int spix, int dpix, int stoppos)
 	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
 	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
 	v |= v >> 2;
-	buf[dpix++] = xcolors[v];
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	dpix++;
     }
     return spix;
 }
-static int NOINLINE linetoscr_16_shrink2_sh (int spix, int dpix, int stoppos)
+static int NOINLINE linetoscr_16_shrink1f_sh (int spix, int dpix, int stoppos, int spr)
 {
     uae_u16 *buf = (uae_u16 *) xlinebuffer;
 
@@ -699,7 +786,115 @@ static int NOINLINE linetoscr_16_shrink2_sh (int spix, int dpix, int stoppos)
 	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
 	v |= v >> 2;
 	dpix_val2 = xcolors[v];
-	buf[dpix++] = merge_2pixel16 (dpix_val1, dpix_val2);
+	buf[dpix] = shsprite (dpix, spix_val1, merge_2pixel16 (dpix_val1, dpix_val2), spr);
+	dpix++;
+    }
+    return spix;
+}
+
+
+
+static int NOINLINE linetoscr_32_shrink2_sh (int spix, int dpix, int stoppos, int spr)
+{
+    uae_u32 *buf = (uae_u32 *) xlinebuffer;
+
+    while (dpix < stoppos) {
+	uae_u32 spix_val1, spix_val2;
+	uae_u16 v;
+	int off;
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	spix+=2;
+	dpix++;
+    }
+    return spix;
+}
+static int NOINLINE linetoscr_32_shrink2f_sh (int spix, int dpix, int stoppos, int spr)
+{
+    uae_u32 *buf = (uae_u32 *) xlinebuffer;
+
+    while (dpix < stoppos) {
+	uae_u32 spix_val1, spix_val2, dpix_val1, dpix_val2, dpix_val3, dpix_val4;
+	uae_u16 v;
+	int off;
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	dpix_val1 = xcolors[v];
+	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
+	v |= v >> 2;
+	dpix_val2 = xcolors[v];
+	dpix_val3 = merge_2pixel32 (dpix_val1, dpix_val2);
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	dpix_val1 = xcolors[v];
+	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
+	v |= v >> 2;
+	dpix_val2 = xcolors[v];
+	dpix_val4 = merge_2pixel32 (dpix_val1, dpix_val2);
+	buf[dpix] = shsprite (dpix, spix_val1, merge_2pixel32 (dpix_val3, dpix_val4), spr);
+	dpix++;
+    }
+    return spix;
+}
+static int NOINLINE linetoscr_16_shrink2_sh (int spix, int dpix, int stoppos, int spr)
+{
+    uae_u16 *buf = (uae_u16 *) xlinebuffer;
+
+    while (dpix < stoppos) {
+	uae_u16 spix_val1, spix_val2;
+	uae_u16 v;
+	int off;
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	buf[dpix] = shsprite (dpix, spix_val1, xcolors[v], spr);
+	spix+=2;
+	dpix++;
+    }
+    return spix;
+}
+static int NOINLINE linetoscr_16_shrink2f_sh (int spix, int dpix, int stoppos, int spr)
+{
+    uae_u16 *buf = (uae_u16 *) xlinebuffer;
+
+    while (dpix < stoppos) {
+	uae_u16 spix_val1, spix_val2, dpix_val1, dpix_val2, dpix_val3, dpix_val4;
+	uae_u16 v;
+	int off;
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	dpix_val1 = xcolors[v];
+	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
+	v |= v >> 2;
+	dpix_val2 = xcolors[v];
+	dpix_val3 = merge_2pixel32 (dpix_val1, dpix_val2);
+	spix_val1 = pixdata.apixels[spix++];
+	spix_val2 = pixdata.apixels[spix++];
+	off = ((spix_val2 & 3) * 4) + (spix_val1 & 3) + ((spix_val1 | spix_val2) & 16);
+	v = (colors_for_drawing.color_regs_ecs[off] & 0xccc) << 0;
+	v |= v >> 2;
+	dpix_val1 = xcolors[v];
+	v = (colors_for_drawing.color_regs_ecs[off] & 0x333) << 2;
+	v |= v >> 2;
+	dpix_val2 = xcolors[v];
+	dpix_val4 = merge_2pixel32 (dpix_val1, dpix_val2);
+	buf[dpix] = shsprite (dpix, spix_val1, merge_2pixel16 (dpix_val3, dpix_val4), spr);
+	dpix++;
     }
     return spix;
 }
@@ -711,34 +906,41 @@ static void pfield_do_linetoscr (int start, int stop)
     if (issprites && (currprefs.chipset_mask & CSMASK_AGA)) {
 	if (res_shift == 0) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_aga_spr (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_aga_spr (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_aga_spr (src_pixel, start, stop); break;
 	    }
 	} else if (res_shift == 2) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_stretch2_aga_spr (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_stretch2_aga_spr (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_stretch2_aga_spr (src_pixel, start, stop); break;
 	    }
 	} else if (res_shift == 1) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_stretch1_aga_spr (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_stretch1_aga_spr (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_stretch1_aga_spr (src_pixel, start, stop); break;
 	    }
-	} else if (res_shift < 0) {
+	} else if (res_shift == -1) {
 	    if (currprefs.gfx_lores_mode) {
 		switch (gfxvidinfo.pixbytes) {
-		case 1: src_pixel = linetoscr_8_shrink2_aga_spr (src_pixel, start, stop); break;
-		case 2: src_pixel = linetoscr_16_shrink2_aga_spr (src_pixel, start, stop); break;
-		case 4: src_pixel = linetoscr_32_shrink2_aga_spr (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1f_aga_spr (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1f_aga_spr (src_pixel, start, stop); break;
 		}
 	    } else {
 		switch (gfxvidinfo.pixbytes) {
-		case 1: src_pixel = linetoscr_8_shrink1_aga_spr (src_pixel, start, stop); break;
 		case 2: src_pixel = linetoscr_16_shrink1_aga_spr (src_pixel, start, stop); break;
 		case 4: src_pixel = linetoscr_32_shrink1_aga_spr (src_pixel, start, stop); break;
+		}
+	    }
+	} else if (res_shift == -2) {
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2f_aga_spr (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2f_aga_spr (src_pixel, start, stop); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2_aga_spr (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2_aga_spr (src_pixel, start, stop); break;
 		}
 	    }
 	}
@@ -747,34 +949,41 @@ static void pfield_do_linetoscr (int start, int stop)
     if (currprefs.chipset_mask & CSMASK_AGA) {
 	if (res_shift == 0) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_aga (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_aga (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_aga (src_pixel, start, stop); break;
 	    }
 	} else if (res_shift == 2) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_stretch2_aga (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_stretch2_aga (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_stretch2_aga (src_pixel, start, stop); break;
 	    }
 	} else if (res_shift == 1) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 1: src_pixel = linetoscr_8_stretch1_aga (src_pixel, start, stop); break;
 	    case 2: src_pixel = linetoscr_16_stretch1_aga (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_stretch1_aga (src_pixel, start, stop); break;
 	    }
-	} else if (res_shift < 0) {
+	} else if (res_shift == -1) {
 	    if (currprefs.gfx_lores_mode) {
 		switch (gfxvidinfo.pixbytes) {
-		case 1: src_pixel = linetoscr_8_shrink2_aga (src_pixel, start, stop); break;
-		case 2: src_pixel = linetoscr_16_shrink2_aga (src_pixel, start, stop); break;
-		case 4: src_pixel = linetoscr_32_shrink2_aga (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1f_aga (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1f_aga (src_pixel, start, stop); break;
 		}
 	    } else {
 		switch (gfxvidinfo.pixbytes) {
-		case 1: src_pixel = linetoscr_8_shrink1_aga (src_pixel, start, stop); break;
 		case 2: src_pixel = linetoscr_16_shrink1_aga (src_pixel, start, stop); break;
 		case 4: src_pixel = linetoscr_32_shrink1_aga (src_pixel, start, stop); break;
+		}
+	    }
+	} else if (res_shift == -2) {
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2f_aga (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2f_aga (src_pixel, start, stop); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2_aga (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink2_aga (src_pixel, start, stop); break;
 		}
 	    }
 	}
@@ -784,25 +993,71 @@ static void pfield_do_linetoscr (int start, int stop)
     if (ecsshres) {
 	if (res_shift == 0) {
 	    switch (gfxvidinfo.pixbytes) {
-	    case 2: src_pixel = linetoscr_16_sh (src_pixel, start, stop); break;
-	    case 4: src_pixel = linetoscr_32_sh (src_pixel, start, stop); break;
+	    case 2: src_pixel = linetoscr_16_sh (src_pixel, start, stop, issprites); break;
+	    case 4: src_pixel = linetoscr_32_sh (src_pixel, start, stop, issprites); break;
 	    }
-	} else if (res_shift < 0) {
+	} else if (res_shift == -1) {
 	    if (currprefs.gfx_lores_mode) {
 		switch (gfxvidinfo.pixbytes) {
-		case 2: src_pixel = linetoscr_16_shrink2_sh (src_pixel, start, stop); break;
-		case 4: src_pixel = linetoscr_32_shrink2_sh (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1f_sh (src_pixel, start, stop, issprites); break;
+		case 4: src_pixel = linetoscr_32_shrink1f_sh (src_pixel, start, stop, issprites); break;
 		}
 	    } else {
 		switch (gfxvidinfo.pixbytes) {
-		case 2: src_pixel = linetoscr_16_shrink1_sh (src_pixel, start, stop); break;
-		case 4: src_pixel = linetoscr_32_shrink1_sh (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1_sh (src_pixel, start, stop, issprites); break;
+		case 4: src_pixel = linetoscr_32_shrink1_sh (src_pixel, start, stop, issprites); break;
+		}
+	    }
+	} else if (res_shift == -2) {
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2f_sh (src_pixel, start, stop, issprites); break;
+		case 4: src_pixel = linetoscr_32_shrink2f_sh (src_pixel, start, stop, issprites); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 2: src_pixel = linetoscr_16_shrink2_sh (src_pixel, start, stop, issprites); break;
+		case 4: src_pixel = linetoscr_32_shrink2_sh (src_pixel, start, stop, issprites); break;
 		}
 	    }
 	}
     } else
 #endif
-    if (1) {
+    if (issprites) {
+	if (res_shift == 0) {
+	    switch (gfxvidinfo.pixbytes) {
+	    case 1: src_pixel = linetoscr_8_spr (src_pixel, start, stop); break;
+	    case 2: src_pixel = linetoscr_16_spr (src_pixel, start, stop); break;
+	    case 4: src_pixel = linetoscr_32_spr (src_pixel, start, stop); break;
+	    }
+	} else if (res_shift == 2) {
+	    switch (gfxvidinfo.pixbytes) {
+	    case 1: src_pixel = linetoscr_8_stretch2_spr (src_pixel, start, stop); break;
+	    case 2: src_pixel = linetoscr_16_stretch2_spr (src_pixel, start, stop); break;
+	    case 4: src_pixel = linetoscr_32_stretch2_spr (src_pixel, start, stop); break;
+	    }
+	} else if (res_shift == 1) {
+	    switch (gfxvidinfo.pixbytes) {
+	    case 1: src_pixel = linetoscr_8_stretch1_spr (src_pixel, start, stop); break;
+	    case 2: src_pixel = linetoscr_16_stretch1_spr (src_pixel, start, stop); break;
+	    case 4: src_pixel = linetoscr_32_stretch1_spr (src_pixel, start, stop); break;
+	    }
+	} else if (res_shift == -1) {
+	    if (currprefs.gfx_lores_mode) {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink1f_spr (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1f_spr (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1f_spr (src_pixel, start, stop); break;
+		}
+	    } else {
+		switch (gfxvidinfo.pixbytes) {
+		case 1: src_pixel = linetoscr_8_shrink1_spr (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1_spr (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1_spr (src_pixel, start, stop); break;
+		}
+	    }
+	}
+    } else {
 	if (res_shift == 0) {
 	    switch (gfxvidinfo.pixbytes) {
 	    case 1: src_pixel = linetoscr_8 (src_pixel, start, stop); break;
@@ -821,12 +1076,12 @@ static void pfield_do_linetoscr (int start, int stop)
 	    case 2: src_pixel = linetoscr_16_stretch1 (src_pixel, start, stop); break;
 	    case 4: src_pixel = linetoscr_32_stretch1 (src_pixel, start, stop); break;
 	    }
-	} else if (res_shift < 0) {
+	} else if (res_shift == -1) {
 	    if (currprefs.gfx_lores_mode) {
 		switch (gfxvidinfo.pixbytes) {
-		case 1: src_pixel = linetoscr_8_shrink2 (src_pixel, start, stop); break;
-		case 2: src_pixel = linetoscr_16_shrink2 (src_pixel, start, stop); break;
-		case 4: src_pixel = linetoscr_32_shrink2 (src_pixel, start, stop); break;
+		case 1: src_pixel = linetoscr_8_shrink1f (src_pixel, start, stop); break;
+		case 2: src_pixel = linetoscr_16_shrink1f (src_pixel, start, stop); break;
+		case 4: src_pixel = linetoscr_32_shrink1f (src_pixel, start, stop); break;
 		}
 	    } else {
 		switch (gfxvidinfo.pixbytes) {
@@ -837,6 +1092,7 @@ static void pfield_do_linetoscr (int start, int stop)
 	    }
 	}
     }
+
 }
 
 static void dummy_worker (int start, int stop)
@@ -1008,303 +1264,63 @@ static void gen_pfield_tables (void)
     }
 }
 
-#define SPRITE_DEBUG 0
-
-STATIC_INLINE void sprpixel (int *xpos, int *spr_level, int spr_level_max, uae_u8 col)
-{
-    spritepixels[(*spr_level) * MAX_PIXELS_PER_LINE + (*xpos)] = col;
-    (*spr_level)++;
-    if ((*spr_level) >= spr_level_max) {
-	*spr_level = 0;
-	(*xpos)++;
-    }
-}
-
 /* When looking at this function and the ones that inline it, bear in mind
    what an optimizing compiler will do with this code.  All callers of this
    function only pass in constant arguments (except for E).  This means
    that many of the if statements will go away completely after inlining.  */
-STATIC_INLINE void draw_sprites_2 (struct sprite_entry *e, int ham, int dualpf,
-    int posdoubling, int posskip, int sizedoubling, int sizeskip, int has_attach, int aga)
+STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_attach)
 {
-    int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
     uae_u16 *buf = spixels + e->first_pixel;
     uae_u8 *stbuf = spixstate.bytes + e->first_pixel;
-    int pos, window_pos, spr_level, spr_level_max;
+    int spr_pos, pos;
 
     buf -= e->pos;
     stbuf -= e->pos;
 
-    window_pos = e->pos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
+    spr_pos = e->pos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
 
-    spr_level = 0;
-    spr_level_max = 0;
-    if (res_shift > 0 && aga) {
-	spr_level_max = 1 << res_shift;
-	spr_level = window_pos & (spr_level_max - 1);
+    if (spr_pos < sprite_first_x)
+        sprite_first_x = spr_pos;
+
+    for (pos = e->pos; pos < e->max; pos++) {
+	spritepixels[spr_pos].data = buf[pos];
+	spritepixels[spr_pos].stdata = stbuf[pos];
+	spritepixels[spr_pos].attach = has_attach;
+	spr_pos++;
     }
 
-    if (posskip)
-	window_pos >>= posskip;
-    else if (posdoubling)
-	window_pos <<= posdoubling;
-    window_pos += pixels_offset;
-
-    if (aga) {
-	if (window_pos < sprite_aga_first_x)
-	    sprite_aga_first_x = window_pos;
-    }
-
-    for (pos = e->pos; pos < e->max; pos += 1 << sizeskip) {
-	int maskshift, plfmask;
-	unsigned int v = buf[pos];
-
-	/* The value in the shift lookup table is _half_ the shift count we
-	   need.  This is because we can't shift 32 bits at once (undefined
-	   behaviour in C).  */
-	maskshift = shift_lookup[pixdata.apixels[window_pos]];
-	plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
-	v &= ~plfmask;
-	if (v != 0 || SPRITE_DEBUG) {
-	    unsigned int vlo, vhi, col;
-	    unsigned int v1 = v & 255;
-	    /* OFFS determines the sprite pair with the highest priority that has
-	       any bits set.  E.g. if we have 0xFF00 in the buffer, we have sprite
-	       pairs 01 and 23 cleared, and pairs 45 and 67 set, so OFFS will
-	       have a value of 4.
-	       2 * OFFS is the bit number in V of the sprite pair, and it also
-	       happens to be the color offset for that pair.  */
-	    int offs;
-	    if (v1 == 0)
-		offs = 4 + sprite_offs[v >> 8];
-	    else
-		offs = sprite_offs[v1];
-
-	    /* Shift highest priority sprite pair down to bit zero.  */
-	    v >>= offs * 2;
-	    v &= 15;
-#if SPRITE_DEBUG > 0
-	    v ^= 8;
-#endif
-
-	    if (has_attach && (stbuf[pos] & (3 << offs))) {
-		col = v;
-		if (aga)
-		    col += sbasecol[1];
-		else
-		    col += 16;
-	    } else {
-		/* This sequence computes the correct color value.  We have to select
-		   either the lower-numbered or the higher-numbered sprite in the pair.
-		   We have to select the high one if the low one has all bits zero.
-		   If the lower-numbered sprite has any bits nonzero, (VLO - 1) is in
-		   the range of 0..2, and with the mask and shift, VHI will be zero.
-		   If the lower-numbered sprite is zero, (VLO - 1) is a mask of
-		   0xFFFFFFFF, and we select the bits of the higher numbered sprite
-		   in VHI.
-		   This is _probably_ more efficient than doing it with branches.  */
-		vlo = v & 3;
-		vhi = (v & (vlo - 1)) >> 2;
-		col = (vlo | vhi);
-		if (aga) {
-		    if (vhi > 0)
-			col += sbasecol[1];
-		    else
-			col += sbasecol[0];
-		} else {
-		    col += 16;
-		}
-		col += offs * 2;
-	    }
-
-	    if (dualpf) {
-#ifdef AGA
-		if (aga) {
-
-		    sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling)
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling > 1) {
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    }
-
-		} else {
-#endif
-		    col += 128;
-		    if (sizedoubling)
-			pixdata.apixels_w[window_pos >> 1] = col | (col << 8);
-		    else
-			pixdata.apixels[window_pos] = col;
-		    window_pos += 1 << sizedoubling;
-#ifdef AGA
-		}
-#endif
-	    } else if (ham) {
-
-#ifdef AGA
-		if (aga) {
-
-		    sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling)
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling > 1) {
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    }
-
-		} else {
-#endif
-		    col = color_reg_get (&colors_for_drawing, col);
-		    ham_linebuf[window_pos] = col;
-		    if (sizedoubling)
-			ham_linebuf[window_pos + 1] = col;
-		    if (sizedoubling > 1) {
-			ham_linebuf[window_pos + 2] = col;
-			ham_linebuf[window_pos + 3] = col;
-		    }
-		    window_pos += 1 << sizedoubling;
-#ifdef AGA
-		}
-#endif
-	    } else {
-#ifdef AGA
-		if (aga) {
-
-		    sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling)
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    if (sizedoubling > 1) {
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-			sprpixel (&window_pos, &spr_level, spr_level_max, col);
-		    }
-
-		} else {
-#endif
-		    if (sizedoubling > 1) {
-			pixdata.apixels_w[window_pos >> 1] = col | (col << 8);
-			pixdata.apixels_w[(window_pos >> 1) + 1] = col | (col << 8);
-		    } else if (sizedoubling) {
-			pixdata.apixels_w[window_pos >> 1] = col | (col << 8);
-		    } else {
-			pixdata.apixels[window_pos] = col;
-		    }
-		    window_pos += 1 << sizedoubling;
-#ifdef AGA
-		}
-#endif
-	    }
-
-	} else {
-
-	    if (aga) {
-		if (spr_level_max) {
-		    spr_level += 1 << sizedoubling;
-		    while(spr_level >= spr_level_max) {
-			spr_level -= spr_level_max;
-			window_pos++;
-		    }
-		} else {
-		    window_pos += 1 << sizedoubling;
-		}
-	    } else {
-		window_pos += 1 << sizedoubling;
-	    }
-	}
-
-    }
-    if (aga) {
-	if (window_pos > sprite_aga_last_x)
-	    sprite_aga_last_x = window_pos;
-    }
-}
-STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int ham, int dualpf,
-    int doubling, int skip, int has_attach)
-{
-    draw_sprites_2 (e, ham, dualpf, doubling, skip, doubling, skip, has_attach, 0);
+    if (spr_pos > sprite_last_x)
+        sprite_last_x = spr_pos;
 }
 
 /* See comments above.  Do not touch if you don't know what's going on.
  * (We do _not_ want the following to be inlined themselves).  */
 /* lores bitplane, lores sprites */
-static void NOINLINE draw_sprites_normal_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 0, 0, 0); }
-static void NOINLINE draw_sprites_normal_dp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 0, 0, 0); }
-static void NOINLINE draw_sprites_ham_sp_lo_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 0, 0, 0); }
-static void NOINLINE draw_sprites_normal_sp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 0, 0, 1); }
-static void NOINLINE draw_sprites_normal_dp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 0, 0, 1); }
-static void NOINLINE draw_sprites_ham_sp_lo_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 0, 0, 1); }
-/* hires bitplane, lores sprites */
-static void NOINLINE draw_sprites_normal_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 1, 0, 0); }
-static void NOINLINE draw_sprites_normal_dp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 1, 0, 0); }
-static void NOINLINE draw_sprites_ham_sp_hi_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 1, 0, 0); }
-static void NOINLINE draw_sprites_normal_sp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0, 1, 0, 1); }
-static void NOINLINE draw_sprites_normal_dp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1, 1, 0, 1); }
-static void NOINLINE draw_sprites_ham_sp_hi_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0, 1, 0, 1); }
-/* shres bitplane, lores sprites (emulation restriction, real ECS SHRES uses hires), ECS DENISE only */
-static void NOINLINE draw_sprites_normal_sp_shi_nat (struct sprite_entry *e) { draw_sprites_2 (e, 0, 0, 2, 0, 1, 0, 0, 0); }
+static void NOINLINE draw_sprites_normal_sp_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0); }
+static void NOINLINE draw_sprites_normal_dp_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0); }
+static void NOINLINE draw_sprites_normal_sp_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1); }
+static void NOINLINE draw_sprites_normal_dp_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 1); }
 
 #ifdef AGA
 /* not very optimized */
 STATIC_INLINE void draw_sprites_aga (struct sprite_entry *e, int aga)
 {
-    int sizediff = sprite_buffer_res - lores_shift;
-    int posdiff = sprite_buffer_res - bplres;
-    int sizediff2 = 0, posdiff2 = 0;
-
-    if (sizediff < 0) {
-	sizediff2 = -sizediff;
-	sizediff = 0;
-    }
-    if (posdiff < 0) {
-	posdiff2 = -posdiff;
-	posdiff = 0;
-    }
-    draw_sprites_2 (e, dp_for_drawing->ham_seen, bpldualpf, posdiff2, posdiff,
-	sizediff2, sizediff, e->has_attached, aga);
+    draw_sprites_1 (e, bpldualpf, e->has_attached);
 }
 #endif
 
 STATIC_INLINE void draw_sprites_ecs (struct sprite_entry *e)
 {
-    int res = bplres;
     if (e->has_attached) {
-	if (res == 1)
-	    if (dp_for_drawing->ham_seen)
-		draw_sprites_ham_sp_hi_at (e);
-	    else
-		if (bpldualpf)
-		    draw_sprites_normal_dp_hi_at (e);
-		else
-		    draw_sprites_normal_sp_hi_at (e);
+	if (bpldualpf)
+	    draw_sprites_normal_dp_at (e);
 	else
-	    if (dp_for_drawing->ham_seen)
-		draw_sprites_ham_sp_lo_at (e);
-	    else
-		if (bpldualpf)
-		    draw_sprites_normal_dp_lo_at (e);
-		else
-		    draw_sprites_normal_sp_lo_at (e);
+	    draw_sprites_normal_sp_at (e);
     } else {
-	if (res == 1)
-	    if (dp_for_drawing->ham_seen)
-		draw_sprites_ham_sp_hi_nat (e);
-	    else
-		if (bpldualpf)
-		    draw_sprites_normal_dp_hi_nat (e);
-		else
-		    draw_sprites_normal_sp_hi_nat (e);
-	else if (res == 0)
-	    if (dp_for_drawing->ham_seen)
-		draw_sprites_ham_sp_lo_nat (e);
-	    else
-		if (bpldualpf)
-		    draw_sprites_normal_dp_lo_nat (e);
-		else
-		    draw_sprites_normal_sp_lo_nat (e);
-#ifdef ECS_DENISE
-	else if (res == 2) /* ECS SHRES = hardware limits to non-attached */
-	    draw_sprites_normal_sp_shi_nat (e);
-#endif
+	if (bpldualpf)
+	    draw_sprites_normal_dp_nat (e);
+	else
+	    draw_sprites_normal_sp_nat (e);
     }
 }
 
@@ -2740,11 +2756,15 @@ void reset_drawing (void)
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
     lightpen_y1 = lightpen_y2 = -1;
 
-    sprite_buffer_res = (currprefs.chipset_mask & CSMASK_AGA) ? RES_SUPERHIRES : RES_LORES;
-    if (sprite_buffer_res > currprefs.gfx_resolution + (doublescan > 0 ? 1 : 0))
-	sprite_buffer_res = currprefs.gfx_resolution + (doublescan > 0 ? 1 : 0);
-    if (sprite_buffer_res > RES_SUPERHIRES)
-	sprite_buffer_res = RES_SUPERHIRES;
+    sprite_shift = 0;
+    sprite_buffer_res = currprefs.gfx_resolution;
+    if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
+	sprite_buffer_res++;
+    if (((currprefs.chipset_mask & CSMASK_AGA) || ecsshres) && sprite_buffer_res < RES_SUPERHIRES) {
+	sprite_buffer_res++;
+	sprite_shift = 1;
+    }
+
 }
 
 void drawing_init (void)
