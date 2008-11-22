@@ -272,8 +272,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		mi->ismedia = 1;
 	}
     }
-    mi->size = ui->hf.size;
-    mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.size / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
+    mi->size = ui->hf.virtsize;
+    mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.virtsize / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
     if (!uci->ishdf)
 	return FILESYS_VIRTUAL;
     if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
@@ -444,11 +444,11 @@ static int set_filesys_unit_1 (int nr,
 		    write_log ("Hardfile %s bad hardfile geometry\n", ui->hf.device_name);
 		    goto err;
 	    }
-	    if (ui->hf.blocksize > ui->hf.size || ui->hf.size == 0) {
+	    if (ui->hf.blocksize > ui->hf.virtsize || ui->hf.virtsize == 0) {
 		write_log ("Hardfile %s too small\n", ui->hf.device_name);
 		goto err;
 	    }
-	    ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.size / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
+	    ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.virtsize / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
 	}
     }
     ui->self = 0;
@@ -597,7 +597,7 @@ int sprintf_filesys_unit (char *buffer, int num)
 		 uip[num].rootdir, uip[num].readonly ? "ro" : "");
     else
 	sprintf (buffer, "(DH%d:) Hardfile, \"%s\", size %d Mbytes", num,
-	uip[num].rootdir, uip[num].hf.size / (1024 * 1024));
+	uip[num].rootdir, uip[num].hf.virtsize / (1024 * 1024));
     return 0;
 }
 
@@ -4944,7 +4944,7 @@ static int legalrdbblock (UnitInfo *uip, int block)
 {
     if (block <= 0)
 	return 0;
-    if (block >= uip->hf.size / uip->hf.blocksize)
+    if (block >= uip->hf.virtsize / uip->hf.blocksize)
 	return 0;
     return 1;
 }
@@ -5028,7 +5028,7 @@ static void dump_partinfo (char *name, int num, uaecptr pp, int partblock)
 	       get_long (pp + 60), get_long (pp + 64), get_long (pp + 68), get_long (pp + 76));
 }
 
-#define rdbmnt write_log ("Mounting uaehf.device %d (%d) (size=%I64u):\n", unit_no, partnum, hfd->size);
+#define rdbmnt write_log ("Mounting uaehf.device %d (%d) (size=%I64u):\n", unit_no, partnum, hfd->virtsize);
 
 static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacket)
 {
@@ -5055,9 +5055,9 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	write_log ("failed, blocksize == 0\n");
 	return -1;
     }
-    if (lastblock * hfd->blocksize > hfd->size) {
+    if (lastblock * hfd->blocksize > hfd->virtsize) {
 	rdbmnt
-	write_log ("failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->size);
+	write_log ("failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->virtsize);
 	return -2;
     }
     for (rdblock = 0; rdblock < lastblock; rdblock++) {
@@ -5152,7 +5152,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	goto error;
     }
 
-    if (hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->size)
+    if (hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->virtsize)
 	write_log ("RDB: WARNING: end of partition > size of disk!\n");
 
     err = 2;
@@ -5266,7 +5266,8 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     struct zfile *zf;
     uae_u32 dostype, fsres, fsnode;
 
-    hdf_read (&uip->hf, tmp, 0, 4);
+    memset (tmp, 0, 4);
+    hdf_read (&uip->hf, tmp, 0, 512);
     dostype = (tmp[0] << 24) | (tmp[1] << 16) |(tmp[2] << 8) | tmp[3];
     if (dostype == 0)
 	return FILESYS_HARDFILE;
@@ -5344,8 +5345,8 @@ static void get_new_device (int type, uaecptr parmpacket, char **devname, uaecpt
 	write_log ("FS: mounted virtual unit %s (%s)\n", buffer, mountinfo.ui[unit_no].rootdir);
     else
 	write_log ("FS: mounted HDF unit %s (%04x-%08x, %s)\n", buffer,
-	    (uae_u32)(mountinfo.ui[unit_no].hf.size >> 32),
-	    (uae_u32)(mountinfo.ui[unit_no].hf.size),
+	    (uae_u32)(mountinfo.ui[unit_no].hf.virtsize >> 32),
+	    (uae_u32)(mountinfo.ui[unit_no].hf.virtsize),
 	    mountinfo.ui[unit_no].rootdir);
 }
 
@@ -5484,7 +5485,7 @@ static uae_u8 *restore_filesys_hardfile (UnitInfo *ui, uae_u8 *src)
     struct hardfiledata *hfd = &ui->hf;
     char *s;
 
-    hfd->size = restore_u64();
+    hfd->virtsize = restore_u64();
     hfd->offset = restore_u64();
     hfd->nrcyls = restore_u32();
     hfd->secspertrack = restore_u32();
@@ -5515,7 +5516,7 @@ static uae_u8 *save_filesys_hardfile (UnitInfo *ui, uae_u8 *dst)
 {
     struct hardfiledata *hfd = &ui->hf;
 
-    save_u64 (hfd->size);
+    save_u64 (hfd->virtsize);
     save_u64 (hfd->offset);
     save_u32 (hfd->nrcyls);
     save_u32 (hfd->secspertrack);

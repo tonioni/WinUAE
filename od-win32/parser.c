@@ -697,7 +697,7 @@ int uaeser_open (struct uaeserialdatawin32 *sd, void *user, int unit)
     COMMTIMEOUTS CommTimeOuts;
 
     sd->user = user;
-    sprintf (buf, "\\.\\\\COM%d", unit);
+    sprintf (buf, "\\\\.\\COM%d", unit);
     sd->evtr = CreateEvent (NULL, TRUE, FALSE, NULL);
     sd->evtw = CreateEvent (NULL, TRUE, FALSE, NULL);
     sd->evtt = CreateEvent (NULL, FALSE, FALSE, NULL);
@@ -710,8 +710,13 @@ int uaeser_open (struct uaeserialdatawin32 *sd, void *user, int unit)
     sd->hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
     if (sd->hCom == INVALID_HANDLE_VALUE) {
-	write_log ("UAESER: '%s' failed to open, err=%d\n", buf, GetLastError());
-	goto end;
+	sprintf (buf, "\\.\\\\COM%d", unit);
+	sd->hCom = CreateFile (buf, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+	    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+	if (sd->hCom == INVALID_HANDLE_VALUE) {
+	    write_log ("UAESER: '%s' failed to open, err=%d\n", buf, GetLastError());
+	    goto end;
+	}
     }
     uae_sem_init (&sd->sync_sem, 0, 0);
     uae_sem_init (&sd->change_sem, 0, 1);

@@ -1,4 +1,32 @@
 
+Beta 2:
+
+- fixed b1 slowdown when lots of sprites are visible
+- CD32 mode CD32.TM detection added (log only)
+- RTG vblank interrupt changes, use INTB_VERTB if RTG vblank is set
+  to "Chipset". (very compatible, no extra interrups happening) Uses
+  INTB_PORTS if different than Chipset. (Previously used INTB_EXTER but
+  some games didn't like it, Ports seems to be more compatible) Added
+  "Disabled" option which disables RTG vblank support.
+- fixed possible crash when closing fullscreen mode
+- uaeserial.device unit 10+ open failure fix
+- hardfile os-specific and common stuff separated more logically, more
+  portable (and easier to add new image types, see below)
+
+- VHD (VirtualPC) fixed and dynamic harddrive images supported. Reading
+  and writing supported, image creation supported. HDF->VHD conversion
+  is not built-in but you can use for example VHDTool or any other tool
+  that supports raw to vhd conversion (hdf is a basic raw harddrive
+  image type) "Differencing" image type may be supported in future
+  (differencing = all written data goes to another image, like adf
+  "saveimages")
+  
+  WARNING: vhd support may not be bug free yet. Remember backups!
+  
+  Why YetAnotherImageFormat? Main point is dynamic images. New empty
+  dynamic image is always very small (even if virtual size is multiple
+  gigabytes) and image grows automatically when needed.
+
 Beta 1:
 
 - DXSDK updated, D3D filters again require updated DX runtime

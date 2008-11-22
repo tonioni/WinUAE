@@ -327,7 +327,7 @@ static void sha1_finish( sha1_context *ctx, unsigned char output[20] )
     PUT_UINT32_BE( ctx->state[4], output, 16 );
 }
 
-void get_sha1(uae_u8 *input, int len, uae_u8 *out)
+void get_sha1 (uae_u8 *input, int len, uae_u8 *out)
 {
     sha1_context ctx;
 
@@ -335,7 +335,7 @@ void get_sha1(uae_u8 *input, int len, uae_u8 *out)
     sha1_update( &ctx, input, len );
     sha1_finish( &ctx, out );
 }
-char *get_sha1_txt(uae_u8 *input, int len)
+char *get_sha1_txt (uae_u8 *input, int len)
 {
     static char outtxt[SHA1_SIZE * 2 + 1];
     uae_u8 out[SHA1_SIZE];

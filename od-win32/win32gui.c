@@ -1744,54 +1744,63 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, char *dostype, char *newpat
     uae_u64 hfsize;
     uae_u32 dt;
     uae_u8 b;
-    int sparse;
+    int sparse, dynamic;
 
     sparse = 0;
+    dynamic = 0;
     hfsize = (uae_u64)hfsizem * 1024 * 1024;
     if (IsDlgButtonChecked (hDlg, IDC_HF_SPARSE) == BST_CHECKED)
 	sparse = 1;
+    if (IsDlgButtonChecked (hDlg, IDC_HF_DYNAMIC) == BST_CHECKED) {
+	dynamic = 1;
+	sparse = 0;
+    }
     if (!DiskSelection (hDlg, IDC_PATH_NAME, 3, &workprefs, newpath))
 	return FALSE;
     GetDlgItemText (hDlg, IDC_PATH_NAME, init_path, MAX_DPATH);
     if (*init_path && hfsize) {
-	SetCursor (LoadCursor(NULL, IDC_WAIT));
-	if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE) {
-	    if (sparse) {
-		DWORD ret;
-		DeviceIoControl (hf, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &ret, NULL);
-	    }
-	    if (hfsize >= 0x80000000) {
-	        highword = (DWORD)(hfsize >> 32);
-	        ret = SetFilePointer (hf, (DWORD)hfsize, &highword, FILE_BEGIN);
-	    } else {
-	        ret = SetFilePointer (hf, (DWORD)hfsize, NULL, FILE_BEGIN);
-	    }
-	    if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
-	        write_log ("SetFilePointer() failure for %s to posn %ud\n", init_path, hfsize);
-	    else
-	        result = SetEndOfFile (hf);
-	    SetFilePointer (hf, 0, NULL, FILE_BEGIN);
-	    b = 0;
-	    WriteFile (hf, &b, 1, &written, NULL);
-	    WriteFile (hf, &b, 1, &written, NULL);
-	    WriteFile (hf, &b, 1, &written, NULL);
-	    WriteFile (hf, &b, 1, &written, NULL);
-	    if (sscanf (dostype, "%x", &dt) > 0) {
-		SetFilePointer (hf, 0, NULL, FILE_BEGIN);
-		b = dt >> 24;
-		WriteFile (hf, &b, 1, &written, NULL);
-		b = dt >> 16;
-		WriteFile (hf, &b, 1, &written, NULL);
-		b = dt >> 8;
-		WriteFile (hf, &b, 1, &written, NULL);
-		b = dt >> 0;
-		WriteFile (hf, &b, 1, &written, NULL);
-	    }
-	    CloseHandle (hf);
+	if (dynamic) {
+	    result = vhd_create (init_path, hfsize);
 	} else {
-	    write_log ("CreateFile() failed to create %s\n", init_path);
+	    SetCursor (LoadCursor(NULL, IDC_WAIT));
+	    if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE) {
+		if (sparse) {
+		    DWORD ret;
+		    DeviceIoControl (hf, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &ret, NULL);
+		}
+		if (hfsize >= 0x80000000) {
+		    highword = (DWORD)(hfsize >> 32);
+		    ret = SetFilePointer (hf, (DWORD)hfsize, &highword, FILE_BEGIN);
+		} else {
+		    ret = SetFilePointer (hf, (DWORD)hfsize, NULL, FILE_BEGIN);
+		}
+		if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+		    write_log ("SetFilePointer() failure for %s to posn %ud\n", init_path, hfsize);
+		else
+		    result = SetEndOfFile (hf);
+		SetFilePointer (hf, 0, NULL, FILE_BEGIN);
+		b = 0;
+		WriteFile (hf, &b, 1, &written, NULL);
+		WriteFile (hf, &b, 1, &written, NULL);
+		WriteFile (hf, &b, 1, &written, NULL);
+		WriteFile (hf, &b, 1, &written, NULL);
+		if (sscanf (dostype, "%x", &dt) > 0) {
+		    SetFilePointer (hf, 0, NULL, FILE_BEGIN);
+		    b = dt >> 24;
+		    WriteFile (hf, &b, 1, &written, NULL);
+		    b = dt >> 16;
+		    WriteFile (hf, &b, 1, &written, NULL);
+		    b = dt >> 8;
+		    WriteFile (hf, &b, 1, &written, NULL);
+		    b = dt >> 0;
+		    WriteFile (hf, &b, 1, &written, NULL);
+		}
+		CloseHandle (hf);
+	    } else {
+		write_log ("CreateFile() failed to create %s\n", init_path);
+	    }
+	    SetCursor (LoadCursor (NULL, IDC_ARROW));
 	}
-	SetCursor (LoadCursor (NULL, IDC_ARROW));
     }
     if (!result) {
         char szMessage[MAX_DPATH];
@@ -5423,12 +5432,13 @@ static void values_to_memorydlg (HWND hDlg)
 	workprefs.win32_rtgvblankrate == 70 ||
 	workprefs.win32_rtgvblankrate == 75) {
 	SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_SETCURSEL,
-	    (workprefs.win32_rtgvblankrate == 0) ? 0 :
-	    (workprefs.win32_rtgvblankrate < 0) ? 1 :
-	    (workprefs.win32_rtgvblankrate == 50) ? 2 :
-	    (workprefs.win32_rtgvblankrate == 60) ? 3 :
-	    (workprefs.win32_rtgvblankrate == 70) ? 4 :
-	    (workprefs.win32_rtgvblankrate == 75) ? 5 : 0, 0);
+	    (workprefs.win32_rtgvblankrate == 0) ? 1 :
+	    (workprefs.win32_rtgvblankrate == -1) ? 2 :
+	    (workprefs.win32_rtgvblankrate == -2) ? 0 :
+	    (workprefs.win32_rtgvblankrate == 50) ? 3 :
+	    (workprefs.win32_rtgvblankrate == 60) ? 4 :
+	    (workprefs.win32_rtgvblankrate == 70) ? 5 :
+	    (workprefs.win32_rtgvblankrate == 75) ? 6 : 0, 0);
     } else {
 	char tmp[10];
 	sprintf (tmp, "%d", workprefs.win32_rtgvblankrate);
@@ -5567,6 +5577,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:9");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)"16:10");
 	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_RESETCONTENT, 0, 0);
+	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"Disabled");
 	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"Chipset");
 	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"Real");
 	    SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)"50");
@@ -5694,8 +5705,10 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR) {
 			if (v == 0) {
-			    workprefs.win32_rtgvblankrate = 0;
+			    workprefs.win32_rtgvblankrate = -2;
 			} else if (v == 1) {
+			    workprefs.win32_rtgvblankrate = 0;
+			} else if (v == 2) {
 			    workprefs.win32_rtgvblankrate = -1;
 			} else {
 			    v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETLBTEXT, (WPARAM)v, (LPARAM)tmp);
@@ -5705,7 +5718,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    }
 		    if (tmp[0])
 			workprefs.win32_rtgvblankrate = atol (tmp);
-		    write_log ("%d\n", workprefs.win32_rtgvblankrate);
 		    break;
 		}
 		workprefs.picasso96_modeflags = mask;
@@ -7321,24 +7333,20 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 static void updatehdfinfo (HWND hDlg, int force)
 {
     static uae_u64 bsize;
-    static uae_u8 id[8];
+    static uae_u8 id[512];
     int blocks, cyls, i;
     char tmp[200], idtmp[9], tmp2[200];
 
     if (force) {
-	struct zfile *zf = zfile_fopen (current_hfdlg.filename, "rb");
-	if (zf) {
-	    FILE *fp;
-	    memset (id, 0, sizeof (id));
-	    zfile_fread (id, 1, sizeof (id), zf);
-	    zfile_fseek (zf, 0, SEEK_END);
-	    zfile_fclose (zf);
-	    fp = fopen (current_hfdlg.filename, "rb");
-	    if (fp) {
-	        _fseeki64 (fp, 0, SEEK_END);
-	        bsize = _ftelli64 (fp);
-	        fclose (fp);
-	    }
+	struct hardfiledata hfd;
+	memset (id, 0, sizeof id);
+	memset (&hfd, 0, sizeof hfd);
+	hfd.readonly = 1;
+	hfd.blocksize = 512;
+	if (hdf_open (&hfd, current_hfdlg.filename)) {
+	    hdf_read (&hfd, id, 0, 512);
+	    bsize = hfd.virtsize;
+	    hdf_close (&hfd);
 	}
     }
     cyls = 0;
@@ -7534,7 +7542,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
     {
 	int index;
 	oposn = -1;
-	hdf_init ();
+	hdf_init_target ();
 	recursive++;
 	inithdcontroller (hDlg);
 	CheckDlgButton (hDlg, IDC_HDF_RW, current_hfdlg.rw);
@@ -7773,7 +7781,7 @@ static void harddiskdlg_button (HWND hDlg, int button)
 
      case IDC_NEW_HD:
 	memset (&current_hfdlg, 0, sizeof (current_hfdlg));
-	if (hdf_init() == 0) {
+	if (hdf_init_target () == 0) {
 	    char tmp[MAX_DPATH];
 	    WIN32GUI_LoadUIString (IDS_NOHARDDRIVES, tmp, sizeof (tmp));
 	    gui_message (tmp);

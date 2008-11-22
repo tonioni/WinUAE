@@ -31,8 +31,6 @@
 static int usefloppydrives = 0;
 
 struct uae_driveinfo {
-    uae_u64 offset2;
-    uae_u64 size2;
     char vendor_id[128];
     char product_id[128];
     char product_rev[128];
@@ -166,7 +164,7 @@ int isharddrive (const char *name)
 
 static char *hdz[] = { "hdz", "zip", "rar", "7z", NULL };
 
-int hdf_open (struct hardfiledata *hfd, const char *pname)
+int hdf_open_target (struct hardfiledata *hfd, const char *pname)
 {
     HANDLE h = INVALID_HANDLE_VALUE;
     DWORD flags;
@@ -187,7 +185,7 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
     }
     hfd_log ("hfd open: '%s'\n", name);
     if (strlen (name) > 4 && !memcmp (name, "HD_", 3)) {
-	hdf_init ();
+	hdf_init_target ();
 	i = isharddrive (name);
 	if (i >= 0) {
 	    DWORD r;
@@ -210,12 +208,8 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
 	    strncpy (hfd->vendor_id, udi->vendor_id, 8);
 	    strncpy (hfd->product_id, udi->product_id, 16);
 	    strncpy (hfd->product_rev, udi->product_rev, 4);
-	    hfd->offset2 = hfd->offset = udi->offset;
-	    hfd->size2 = hfd->size = udi->size;
-	    if (hfd->offset != udi->offset2 || hfd->size != udi->size2) {
-		gui_message ("Harddrive safety check: fatal memory corruption\n");
-		abort ();
-	    }
+	    hfd->offset = udi->offset;
+	    hfd->physsize = hfd->virtsize = udi->size;
 	    hfd->blocksize = udi->bytespersector;
 	    if (hfd->offset == 0 && !hfd->drive_empty) {
 		int sf = safetycheck (hfd->handle, 0, hfd->cache, hfd->blocksize);
@@ -276,16 +270,16 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
 	    if (low == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
 		goto end;
 	    low &= ~(hfd->blocksize - 1);
-	    hfd->size = hfd->size2 = ((uae_u64)high << 32) | low;
+	    hfd->physsize = hfd->virtsize = ((uae_u64)high << 32) | low;
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
-	    if (hfd->size < 64 * 1024 * 1024 && zmode) {
+	    if (hfd->physsize < 64 * 1024 * 1024 && zmode) {
 		write_log ("HDF '%s' re-opened in zfile-mode\n", name);
 		CloseHandle (h);
 		hfd->handle = h = zfile_fopen(name, hfd->readonly ? "rb" : "r+b");
 		if (!h)
 		    goto end;
 		zfile_fseek (h, 0, SEEK_END);
-		hfd->size = hfd->size2 = zfile_ftell (h);
+		hfd->physsize = hfd->virtsize = zfile_ftell (h);
 		zfile_fseek (h, 0, SEEK_SET);
 		hfd->handle_valid = HDF_HANDLE_ZFILE;
 	    }
@@ -296,7 +290,7 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
     hfd->handle = h;
     if (hfd->handle_valid || hfd->drive_empty) {
 	hfd_log ("HDF '%s' opened, size=%dK mode=%d empty=%d\n",
-	    name, hfd->size / 1024, hfd->handle_valid, hfd->drive_empty);
+	    name, hfd->physsize / 1024, hfd->handle_valid, hfd->drive_empty);
 	return 1;
     }
 end:
@@ -305,7 +299,7 @@ end:
     return 0;
 }
 
-void hdf_close (struct hardfiledata *hfd)
+void hdf_close_target (struct hardfiledata *hfd)
 {
     if (hfd->handle_valid) {
 	if (hfd->handle && hfd->handle != INVALID_HANDLE_VALUE) {
@@ -329,7 +323,7 @@ void hdf_close (struct hardfiledata *hfd)
     hfd->drive_empty = 0;
 }
 
-int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
+int hdf_dup_target (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
 {
     if (!shfd->handle_valid)
 	return 0;
@@ -364,17 +358,14 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 	gui_message ("hd: hdf handle is not valid. bug.");
 	abort();
     }
-    if (hfd->offset != hfd->offset2 || hfd->size != hfd->size2) {
-	gui_message ("hd: memory corruption detected in seek");
-	abort ();
-    }
-    if (offset >= hfd->size - hfd->virtual_size) {
-	gui_message ("hd: tried to seek out of bounds! (%I64X >= %I64X)\n", offset, hfd->size);
+    if (offset >= hfd->physsize - hfd->virtual_size) {
+	gui_message ("hd: tried to seek out of bounds! (%I64X >= %I64X)\n", offset, hfd->physsize);
 	abort ();
     }
     offset += hfd->offset;
     if (offset & (hfd->blocksize - 1)) {
-	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X)\n", offset, hfd->blocksize, offset & (hfd->blocksize - 1));
+	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X)\n",
+	    offset, hfd->blocksize, offset & (hfd->blocksize - 1));
 	abort ();
     }
     if (hfd->handle_valid == HDF_HANDLE_WIN32) {
@@ -393,10 +384,6 @@ static void poscheck (struct hardfiledata *hfd, int len)
     DWORD high, ret, err;
     uae_u64 pos;
 
-    if (hfd->offset != hfd->offset2 || hfd->size != hfd->size2) {
-	gui_message ("hd: memory corruption detected in poscheck");
-	abort ();
-    }
     if (hfd->handle_valid == HDF_HANDLE_WIN32) {
 	high = 0;
 	ret = SetFilePointer (hfd->handle, 0, &high, FILE_CURRENT);
@@ -417,8 +404,8 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)", pos, hfd->offset);
 	abort ();
     }
-    if (pos >= hfd->offset + hfd->size - hfd->virtual_size || pos >= hfd->offset + hfd->size + len - hfd->virtual_size) {
-	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)", pos, hfd->offset + hfd->size, len);
+    if (pos >= hfd->offset + hfd->physsize - hfd->virtual_size || pos >= hfd->offset + hfd->physsize + len - hfd->virtual_size) {
+	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)", pos, hfd->offset + hfd->physsize, len);
 	abort ();
     }
     if (pos & (hfd->blocksize - 1)) {
@@ -555,8 +542,8 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	return len;
     }
     hfd->cache_offset = offset;
-    if (offset + CACHE_SIZE > hfd->offset + (hfd->size - hfd->virtual_size))
-	hfd->cache_offset = hfd->offset + (hfd->size - hfd->virtual_size) - CACHE_SIZE;
+    if (offset + CACHE_SIZE > hfd->offset + (hfd->physsize - hfd->virtual_size))
+	hfd->cache_offset = hfd->offset + (hfd->physsize - hfd->virtual_size) - CACHE_SIZE;
     hdf_seek (hfd, hfd->cache_offset);
     poscheck (hfd, CACHE_SIZE);
     if (hfd->handle_valid == HDF_HANDLE_WIN32)
@@ -577,7 +564,7 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
     return 0;
 }
 
-int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     int got = 0;
     uae_u8 *p = buffer;
@@ -593,8 +580,20 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
     }
     offset -= hfd->virtual_size;
     while (len > 0) {
-	int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
-	int ret = hdf_read_2(hfd, p, offset, maxlen);
+	int ret, maxlen;
+	if (hfd->physsize < CACHE_SIZE) {
+	    hfd->cache_valid = 0;
+	    hdf_seek (hfd, offset);
+	    poscheck (hfd, len);
+	    if (hfd->handle_valid == HDF_HANDLE_WIN32)
+		ReadFile (hfd->handle, buffer, len, &ret, NULL);
+	    else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
+		ret = zfile_fread (buffer, 1, len, hfd->handle);
+	    maxlen = len;
+	} else {
+	    maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
+	    ret = hdf_read_2 (hfd, p, offset, maxlen);
+	}
 	got += ret;
 	if (ret != maxlen)
 	    return got;
@@ -620,8 +619,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle);
     return outlen;
 }
-
-int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     int got = 0;
     uae_u8 *p = buffer;
@@ -642,6 +640,26 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	len -= maxlen;
     }
     return got;
+}
+
+int hdf_resize_target (struct hardfiledata *hfd, uae_u64 newsize)
+{
+    LONG highword = 0;
+    DWORD ret;
+
+    if (newsize >= 0x80000000) {
+        highword = (DWORD)(newsize >> 32);
+	ret = SetFilePointer (hfd->handle, (DWORD)newsize, &highword, FILE_BEGIN);
+    } else {
+        ret = SetFilePointer (hfd->handle, (DWORD)newsize, NULL, FILE_BEGIN);
+    }
+    if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+	return 0;
+    if (SetEndOfFile (hfd->handle)) {
+	hfd->physsize = newsize;
+	return 1;
+    }
+    return 0;
 }
 
 #endif
@@ -868,13 +886,13 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	ret = 1;
 	goto end;
     }
-    udi->offset = udi->offset2 = 0;
+    udi->offset = 0;
     write_log ("BPS=%d Cyls=%I64d TPC=%d SPT=%d MediaType=%d\n",
 	dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack, dg.MediaType);
-    udi->size = udi->size2 = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
+    udi->size = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
 	(uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
     if (gli_ok)
-	udi->size = udi->size2 = gli.Length.QuadPart;
+	udi->size = gli.Length.QuadPart;
     write_log ("device size %I64d (0x%I64x) bytes\n", udi->size, udi->size);
     trim (orgname);
 
@@ -913,8 +931,8 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	    }
 	    memmove (udi, udi2, sizeof (*udi));
 	    udi->device_name[0] = 0;
-	    udi->offset = udi->offset2 = pi->StartingOffset.QuadPart;
-	    udi->size = udi->size2 = pi->PartitionLength.QuadPart;
+	    udi->offset = pi->StartingOffset.QuadPart;
+	    udi->size = pi->PartitionLength.QuadPart;
 	    write_log ("used\n");
 	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector) <= 0) {
 		sprintf (udi->device_name, "HD_P#%d_%s", pi->PartitionNumber, orgname);
@@ -1144,7 +1162,7 @@ static int hdf_init2 (int force)
     return num_drives;
 }
 
-int hdf_init (void)
+int hdf_init_target (void)
 {
     return hdf_init2 (0);
 }

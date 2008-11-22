@@ -934,6 +934,7 @@
 #define IDC_DBG_AUTOSET                 1780
 #define IDC_HF_SPARSE                   1780
 #define IDC_DBG_DASM2                   1781
+#define IDC_HF_DYNAMIC                  1781
 #define IDC_DBG_MEM2                    1782
 #define IDC_DBG_MEMINPUT2               1783
 #define IDC_DBG_ADDRINPUTTXT            1784

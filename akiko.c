@@ -615,9 +615,15 @@ static int sys_cddev_open (void)
 			uae_u8 *p = sys_command_cd_read (DF_IOCTL, unitnum, 16);
 			if (p) {
 			    if (!memcmp (p + 8, "CDTV", 4) || !memcmp (p + 8, "CD32", 4)) {
-				write_log ("CD32 or CDTV\n");
+				uae_u32 crc;
+				write_log ("CD32 or CDTV");
 				if (cd32unit < 0)
 				    cd32unit = unitnum;
+				p = sys_command_cd_read (DF_IOCTL, unitnum, 21);
+				crc = get_crc32 (p, 2048);
+				if (crc == 0xe56c340f)
+				    write_log (" [CD32.TM]");
+				write_log ("\n");
 			    } else {
 				write_log ("non CD32/CDTV data CD\n");
 			    }

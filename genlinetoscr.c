@@ -149,7 +149,7 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 	    outln (     "    sprpix_val = dpix_val;");
     } else if (aga && cmode == CMODE_DUALPF) {
 	if (spr) {
-	    outlnf (	"    sprcol = render_sprites (dpix, 1, sprpix_val, %d, 0);", aga);
+	    outlnf (	"    sprcol = render_sprites (dpix, 1, sprpix_val, %d);", aga);
 	    outln (     "    if (sprcol) {");
 	    outln (	"        dpix_val = colors_for_drawing.acolors[sprcol];");
 	    outln (	"    } else {");
@@ -220,20 +220,76 @@ static void out_linetoscr_do_incspix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE
     }
 }
 
-static void out_sprite (DEPTH_T bpp, HMODE_T hmode, CMODE_T cmode, int aga)
+static void out_sprite (DEPTH_T bpp, HMODE_T hmode, CMODE_T cmode, int aga, int cnt)
 {
-    outlnf ( "    sprcol = render_sprites (dpix, %d, sprpix_val, %d, 0);", cmode == CMODE_DUALPF ? 1 : 0, aga);
-    outlnf ( "    if (sprcol) {");
-    outlnf ( "        uae_u32 spcol = colors_for_drawing.acolors[sprcol];");
-    outlnf ( "        if (sprite_shift) {");
-    outlnf ( "            uae_u8 sprcol2 = render_sprites (dpix, %d, sprpix_val, %d, 1);", cmode == CMODE_DUALPF ? 1 : 0, aga);
-    outlnf ( "            spcol = merge_2pixel%d (spcol, colors_for_drawing.acolors[sprcol2]);", bpp == 0 ? 8 : bpp == 1 ? 16 : 32);
-    outlnf ( "        }");
-    outlnf ( "        buf[dpix] = spcol;");
-    outlnf ( "    } else {");
-    outlnf ( "        buf[dpix] = out_val;");
-    outlnf ( "    }");
-    outlnf ( "    dpix++;");
+    if (aga) {
+	if (cnt == 1) {
+	    outlnf ( "    if (spritepixels[dpix].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 0, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    buf[dpix++] = out_val;");
+	} else if (cnt == 2) {
+	    outlnf ( "    {");
+	    outlnf ( "    uae_u32 out_val1 = out_val;");
+	    outlnf ( "    uae_u32 out_val2 = out_val;");
+	    outlnf ( "    if (spritepixels[dpix + 0].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 0, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val1 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    if (spritepixels[dpix + 1].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 1, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val2 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    buf[dpix++] = out_val1;");
+	    outlnf ( "    buf[dpix++] = out_val2;");
+	    outlnf ( "    }");
+	} else if (cnt == 4) {
+	    outlnf ( "    {");
+	    outlnf ( "    uae_u32 out_val1 = out_val;");
+	    outlnf ( "    uae_u32 out_val2 = out_val;");
+	    outlnf ( "    uae_u32 out_val3 = out_val;");
+	    outlnf ( "    uae_u32 out_val4 = out_val;");
+	    outlnf ( "    if (spritepixels[dpix + 0].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 0, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val1 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    if (spritepixels[dpix + 1].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 1, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val2 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    if (spritepixels[dpix + 2].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 2, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val3 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    if (spritepixels[dpix + 3].data) {");
+	    outlnf ( "        sprcol = render_sprites (dpix + 3, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	    outlnf ( "        if (sprcol)");
+	    outlnf ( "            out_val4 = colors_for_drawing.acolors[sprcol];");
+	    outlnf ( "    }");
+	    outlnf ( "    buf[dpix++] = out_val1;");
+	    outlnf ( "    buf[dpix++] = out_val2;");
+	    outlnf ( "    buf[dpix++] = out_val3;");
+	    outlnf ( "    buf[dpix++] = out_val4;");
+	    outlnf ( "    }");
+	}
+    } else {
+	outlnf ( "    if (spritepixels[dpix].data) {");
+	outlnf ( "        sprcol = render_sprites (dpix, %d, sprpix_val, %d);", cmode == CMODE_DUALPF ? 1 : 0, aga);
+	outlnf ( "        if (sprcol) {");
+	outlnf ( "            uae_u32 spcol = colors_for_drawing.acolors[sprcol];");
+        outlnf ( "            out_val = spcol;");
+	outlnf ( "        }");
+	outlnf ( "    }");
+	while (cnt-- > 0)
+	    outlnf ( "    buf[dpix++] = out_val;");
+    }
 }
 
 static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CMODE_T cmode)
@@ -300,16 +356,14 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	    outln (	"    dpix += 2;");
 	} else if (bpp == DEPTH_16BPP) {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 2);
 	    } else {
 		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 		outln (	"    dpix += 2;");
 	    }
 	} else {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 2);
 	    } else {
 		outln (	"    buf[dpix++] = out_val;");
 		outln (	"    buf[dpix++] = out_val;");
@@ -321,10 +375,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	    outln (	"    dpix += 4;");
 	} else if (bpp == DEPTH_16BPP) {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 4);
 	    } else {
 		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 		outln (	"    dpix += 2;");
@@ -333,10 +384,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	    }
 	} else {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 4);
 	    } else {
 		outln (	"    buf[dpix++] = out_val;");
 		outln (	"    buf[dpix++] = out_val;");
@@ -347,14 +395,14 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
     } else {
 	if (bpp == DEPTH_16BPP) {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 1);
 	    } else {
 		outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 		outln (	"    dpix += 2;");
 	    }
 	} else {
 	    if (spr) {
-		out_sprite (bpp, hmode, cmode, aga);
+		out_sprite (bpp, hmode, cmode, aga, 1);
 	    } else {
 		outln (	"    buf[dpix++] = out_val;");
 	    }

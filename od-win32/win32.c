@@ -2003,7 +2003,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
     if (p->win32_rtgvblankrate <= 0)
-	cfgfile_target_dwrite (f, "rtg_vblank=%s\n", p->win32_rtgvblankrate < 0 ? "real" : "chipset");
+	cfgfile_target_dwrite (f, "rtg_vblank=%s\n", p->win32_rtgvblankrate == -1 ? "real" : (p->win32_rtgvblankrate == -2 ? "disabled" : "chipset"));
     else
 	cfgfile_target_dwrite (f, "rtg_vblank=%d\n", p->win32_rtgvblankrate);
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false");
@@ -2086,6 +2086,10 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_string (option, value, "rtg_vblank", tmpbuf, sizeof tmpbuf)) {
 	if (!strcmp (tmpbuf, "real")) {
 	    p->win32_rtgvblankrate = -1;
+	    return 1;
+	}
+	if (!strcmp (tmpbuf, "disabled")) {
+	    p->win32_rtgvblankrate = -2;
 	    return 1;
 	}
 	if (!strcmp (tmpbuf, "chipset")) {
@@ -3954,6 +3958,24 @@ HMODULE WIN32_LoadLibrary (const char *name)
 end:
     xfree (newname);
     return m;
+}
+
+int get_guid_target (uae_u8 *out)
+{
+    GUID guid;
+
+    if (CoCreateGuid (&guid) != S_OK)
+	return 0;
+    out[0] = guid.Data1 >> 24;
+    out[1] = guid.Data1 >> 16;
+    out[2] = guid.Data1 >>  8;
+    out[3] = guid.Data1 >>  0;
+    out[4] = guid.Data2 >>  8;
+    out[5] = guid.Data2 >>  0;
+    out[6] = guid.Data3 >>  8;
+    out[7] = guid.Data3 >>  0;
+    memcpy (out + 8, guid.Data4, 8);
+    return 1;
 }
 
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);

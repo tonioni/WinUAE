@@ -1,13 +1,13 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "resource."
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -484,7 +484,8 @@ BEGIN
     CONTROL         "Bootable",IDC_HDF_AUTOBOOT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,74,53,10
     CONTROL         "Do not mount",IDC_HDF_DONOTMOUNT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,217,74,67,10
     EDITTEXT        IDC_HDFINFO,16,131,268,12,ES_CENTER | ES_READONLY
-    CONTROL         "Sparse file",IDC_HF_SPARSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,174,62,10
+    CONTROL         "Sparse file",IDC_HF_SPARSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,168,62,10
+    CONTROL         "Dynamic HDF",IDC_HF_DYNAMIC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,180,62,10
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 299, 111
@@ -1430,7 +1431,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

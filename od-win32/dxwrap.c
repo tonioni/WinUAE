@@ -1202,7 +1202,7 @@ int dx_islost (void)
 void dx_check (void)
 {
     dxdata.islost = 0;
-    if (dxdata.fsmodeset <= 0)
+    if (dxdata.fsmodeset <= 0 || dxdata.primary == NULL)
 	return;
     if (IDirectDrawSurface7_IsLost (dxdata.primary) != DDERR_SURFACELOST)
 	return;

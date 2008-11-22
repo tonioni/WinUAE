@@ -53,8 +53,6 @@
 #include "inputdevice.h"
 
 extern int sprite_buffer_res;
-int sprite_shift;
-
 int lores_factor, lores_shift;
 
 static void lores_reset (void)
@@ -115,7 +113,7 @@ struct spritepixelsbuf {
     uae_u8 stdata;
     uae_u16 data;
 };
-static struct spritepixelsbuf spritepixels[MAX_PIXELS_PER_LINE * 5]; /* used when sprite resolution > lores */
+static struct spritepixelsbuf spritepixels[MAX_PIXELS_PER_LINE];
 static int sprite_first_x, sprite_last_x;
 
 #ifdef AGA
@@ -410,7 +408,7 @@ static void pfield_init_linetoscr (void)
     if (sprite_first_x < sprite_last_x)
 	memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
     sprite_last_x = 0;
-    sprite_first_x = sizeof spritepixels;
+    sprite_first_x = MAX_PIXELS_PER_LINE - 1;
 
     /* Now, compute some offsets.  */
     res_shift = lores_shift - bplres;
@@ -580,9 +578,9 @@ STATIC_INLINE void fill_line (void)
 static int linetoscr_double_offset;
 
 #define SPRITE_DEBUG 0
-STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga, int offset)
+STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 {
-    struct spritepixelsbuf *spb = &spritepixels[(pos << sprite_shift) + offset];
+    struct spritepixelsbuf *spb = &spritepixels[pos];
     unsigned int v = spb->data;
     int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
     int maskshift, plfmask;
@@ -661,7 +659,7 @@ STATIC_INLINE uae_u32 shsprite (int dpix, uae_u32 spix_val, uae_u32 v, int spr)
     uae_u8 sprcol;
     if (!spr)
 	return v;
-    sprcol = render_sprites (dpix, 0, spix_val, 0, 0);
+    sprcol = render_sprites (dpix, 0, spix_val, 0);
     if (sprcol)
         return colors_for_drawing.color_regs_ecs[sprcol];
     return v;
@@ -2756,15 +2754,9 @@ void reset_drawing (void)
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
     lightpen_y1 = lightpen_y2 = -1;
 
-    sprite_shift = 0;
     sprite_buffer_res = currprefs.gfx_resolution;
     if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
 	sprite_buffer_res++;
-    if (((currprefs.chipset_mask & CSMASK_AGA) || ecsshres) && sprite_buffer_res < RES_SUPERHIRES) {
-	sprite_buffer_res++;
-	sprite_shift = 1;
-    }
-
 }
 
 void drawing_init (void)

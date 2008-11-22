@@ -661,12 +661,13 @@ static int doskip (void)
 
 static void picasso_trigger_vblank (void)
 {
-    if (!boardinfo || !uaegfx_base || !interrupt_enabled) {
+    if (!boardinfo || !uaegfx_base || !interrupt_enabled || currprefs.win32_rtgvblankrate < -1) {
 	return;
     }
-    put_long (uaegfx_base + CARD_VBLANKCODE + 6 + 2, boardinfo + PSSO_BoardInfo_SoftInterrupt);
-    put_byte (uaegfx_base + CARD_VBLANKFLAG, 1);
-    INTREQ_f (0x8000 | 0x2000);
+    put_long (uaegfx_base + CARD_IRQPTR, boardinfo + PSSO_BoardInfo_SoftInterrupt);
+    put_byte (uaegfx_base + CARD_IRQFLAG, 1);
+    if (currprefs.win32_rtgvblankrate != 0)
+	INTREQ_f (0x8000 | 0x0008);
 }
 
 static int isvsync (void)
@@ -684,7 +685,7 @@ void picasso_handle_vsync (void)
 #endif
 
     if (currprefs.chipset_refreshrate >= 100) {
-	thisisvsync++;
+	vsynccnt++;
 	if (vsynccnt < 2)
 	    thisisvsync = 0;
 	vsynccnt = 0;
@@ -2145,7 +2146,8 @@ static void inituaegfx (uaecptr ABI)
     if (flags & BIF_NOBLITTER)
 	write_log ("P96: blitter disabled in devs:monitors/uaegfx!\n");
 
-    flags |= BIF_VBLANKINTERRUPT;
+    if (currprefs.win32_rtgvblankrate >= -1)
+	flags |= BIF_VBLANKINTERRUPT;
 
     put_long (ABI + PSSO_BoardInfo_Flags, flags);
 
@@ -3259,28 +3261,28 @@ void picasso_handle_hsync (void)
 	return;
     if (currprefs.win32_rtgvblankrate == 0 && !isvsync ())
 	return;
-    if (p96hsync < 0) {
-	p96hsync++;
-	if (p96hsync == 0)
-	    p96hsync = p96syncrate;
-	return;
-    }
     if (WIN32GFX_IsPicassoScreen () && isvsync ()) {
-	if (DirectDraw_GetVerticalBlankStatus ())
-	    p96hsync = -maxvpos / 3;
+	int vbs = DirectDraw_GetVerticalBlankStatus ();
+	if (vbs == 0) {
+	    if (p96hsync > 0)
+		p96hsync = -1;
+	    return;
+	} else {
+	    if (p96hsync >= 0)
+		return;
+	    p96hsync = 0;
+	}
     } else {
 	p96hsync--;
     }
     if (p96hsync <= 0) {
 	picasso_trigger_vblank ();
-	if (p96hsync == 0)
-	    p96hsync = p96syncrate;
+        p96hsync = p96syncrate;
     }
 }
 
 void init_hz_p96 (void)
 {
-    p96syncrate = maxvpos * vblank_hz;
     if (currprefs.win32_rtgvblankrate < 0 || isvsync ()) 
 	p96vblank = DirectDraw_CurrentRefreshRate ();
     else if (currprefs.win32_rtgvblankrate == 0)
@@ -3289,7 +3291,10 @@ void init_hz_p96 (void)
 	p96vblank = currprefs.win32_rtgvblankrate;
     if (p96vblank <= 0)
 	p96vblank = 60;
-    p96syncrate /= p96vblank;
+    if (p96vblank >= 300)
+	p96vblank = 300;
+    p96syncrate = maxvpos * vblank_hz / p96vblank;
+    write_log ("P96FREQ: %d*%d = %d / %d = %d\n", maxvpos, vblank_hz, maxvpos * vblank_hz, p96vblank, p96syncrate);
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */
@@ -4248,29 +4253,37 @@ static uae_u32 REGPARAM2 gfx_expunge (TrapContext *context)
     return 0;
 }
 
-static uaecptr uaegfx_vblankname;
+static uaecptr uaegfx_vblankname, uaegfx_portsname;
 static void initvblankirq (TrapContext *ctx, uaecptr base)
 {
-    uaecptr p = base + CARD_VBLANKIRQ;
-    uaecptr c = base + CARD_VBLANKCODE;
+    uaecptr p1 = base + CARD_VBLANKIRQ;
+    uaecptr p2 = base + CARD_PORTSIRQ;
+    uaecptr c = base + CARD_IRQCODE;
 
-    put_word (p + 8, 0x020a);
-    put_long (p + 10, uaegfx_vblankname);
-    put_long (p + 18, c);
+    put_word (p1 + 8, 0x0205);
+    put_long (p1 + 10, uaegfx_vblankname);
+    put_long (p1 + 14, base + CARD_IRQFLAG);
+    put_long (p1 + 18, c);
 
-    put_word (c, 0x41f9); c += 2;		    // lea CARD_VBLANKLAG,a0
-    put_long (c, base + CARD_VBLANKFLAG); c += 4;
-    put_word (c, 0x43f9); c += 2;		    // lea uaegfx_base + PSSO_BoardInfo_SoftInterrupt,a1
-    put_long (c, 0); c += 4;
-    put_word (c, 0x4a10); c += 2;		    // tst.b (a0)
-    put_word (c, 0x670a); c += 2;		    // beq.s label
-    put_word (c, 0x4210); c += 2;		    // clr.b (a0)
+    put_word (p2 + 8, 0x0205);
+    put_long (p2 + 10, uaegfx_portsname);
+    put_long (p2 + 14, base + CARD_IRQFLAG);
+    put_long (p2 + 18, c);
+
+    put_word (c, 0x4a11); c += 2;		    // tst.b (a1)
+    put_word (c, 0x670e); c += 2;		    // beq.s label
+    put_word (c, 0x4211); c += 2;		    // clr.b (a1)
+    put_long (c, 0x22690004); c += 4;		    // move.l 4(a1),a1
     put_long (c, 0x2c780004); c += 4;		    // move.l 4.w,a6
     put_long (c, 0x4eaeff4c); c += 4;		    // jsr Cause(a6)
     put_word (c, 0x7000); c += 2;		    // label: moveq #0,d0
-    put_word (c, RTS); c += 2;			    // rts
-    m68k_areg (&ctx->regs, 1) = p;
-    m68k_dreg (&ctx->regs, 0) = 13; /* EXTER */
+    put_word (c, RTS);				    // rts
+
+    m68k_areg (&ctx->regs, 1) = p1;
+    m68k_dreg (&ctx->regs, 0) = 5; /* VERTB */
+    CallLib (ctx, get_long (4), -168); /* AddIntServer */
+    m68k_areg (&ctx->regs, 1) = p2;
+    m68k_dreg (&ctx->regs, 0) = 3; /* PORTS */
     CallLib (ctx, get_long (4), -168); /* AddIntServer */
 }
 
@@ -4281,8 +4294,9 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
     uaecptr findcardfunc, initcardfunc;
     uaecptr exec = get_long (4);
 
-    uaegfx_resid = ds ("UAE Graphics Card 3.1");
+    uaegfx_resid = ds ("UAE Graphics Card 3.2");
     uaegfx_vblankname = ds ("UAE Graphics Card VBLANK");
+    uaegfx_vblankname = ds ("UAE Graphics Card PORTS");
 
     /* Open */
     openfunc = here ();
@@ -4335,7 +4349,8 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
     put_long (uaegfx_base + CARD_RESLIST, uaegfx_base + CARD_SIZEOF);
     put_long (uaegfx_base + CARD_RESLISTSIZE, extrasize);
 
-    initvblankirq (ctx, uaegfx_base);
+    if (currprefs.win32_rtgvblankrate >= -1)
+	initvblankirq (ctx, uaegfx_base);
 
     write_log ("uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
     return uaegfx_base;

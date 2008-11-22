@@ -1527,9 +1527,9 @@ static int initpcmcia (const char *path, int readonly, int reset)
     pcmcia_attrs_size = 256;
     pcmcia_attrs = xcalloc (pcmcia_attrs_size, 1);
     if (!pcmcia_sram->hfd.drive_empty) {
-	pcmcia_common_size = pcmcia_sram->hfd.size;
-	if (pcmcia_sram->hfd.size > 4 * 1024 * 1024) {
-	    write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->hfd.size);
+	pcmcia_common_size = pcmcia_sram->hfd.virtsize;
+	if (pcmcia_sram->hfd.virtsize > 4 * 1024 * 1024) {
+	    write_log ("PCMCIA SRAM: too large device, %d bytes\n", pcmcia_sram->hfd.virtsize);
 	    pcmcia_common_size = 4 * 1024 * 1024;
 	}
 	pcmcia_common = xcalloc (pcmcia_common_size, 1);
