@@ -48,6 +48,7 @@
 #include "serial.h"
 #include "savestate.h"
 #include "ahidsound_new.h"
+#include "uaeipc.h"
 
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
@@ -1227,6 +1228,12 @@ int enumserialports(void)
 	    write_log ("SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
 	    cnt++;
 	}
+    }
+    if (isIPC (COMPIPENAME)) {
+        comports[j].dev = xmalloc(100);
+	sprintf (comports[cnt].dev, "\\\\.\\pipe\\%s", COMPIPENAME);
+	comports[j].cfgname = my_strdup (COMPIPENAME);
+        comports[j].name = my_strdup (COMPIPENAME);
     }
     write_log ("Serial port enumeration end\n");
     return cnt;

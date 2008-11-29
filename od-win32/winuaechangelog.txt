@@ -1,4 +1,23 @@
 
+Beta 3:
+
+- HAM errors if left border was not fully visible (it seems this bug
+  has been there since the beginning of UAE, code that was supposed
+  to handle this case has never worked correctly..)
+- mid horizontal line HAM/EHB/DPF change fixed (Cover Girl Strip
+  Poker) broke in 1.5.3
+- added win32.guikey to configuration file, keycode that opens GUI
+  (raw directinput keycode, for example F10 = 0x44) -1 = default.
+- game & io-ports <none>-setting works properly
+- vhd creator didn't create fully compatible images (larger images
+  were incompatible with official vhd tools, did not cause data
+  corruption)
+- 1st Anniversary by Lazy Bones OCS/ECS "7-plane" trick emulated
+  (missing black vertical lines)
+- Disposable Hero title screen is now perfect. Take screenshots
+  before it gets broken again :)
+- added some more sanity tests to DirectDraw surface handling
+
 Beta 2:
 
 - fixed b1 slowdown when lots of sprites are visible
@@ -34,7 +53,7 @@ Beta 1:
   modes if pad was not "connected"
 - another partial sprite rendering update, fixes sprite size problems
   in screen modes that have multiple resolutions in single horizontal
-  line (for example Innovation Part 2 by Axis is 100% correct now)
+  line (for example Innovation Part 2 by Axxis is 100% correct now)
 - also fixes wrong sized sprites in some lores resolution modes
 - superhires in lores mode supported (show only every 4th pixel)
 - superhires in filtered lores supported (visible pixel is average
@@ -143,7 +162,7 @@ Beta 2:
 - configuration cache loader missed most configuration files inside
   directories (parent was set to wrong entry..)
 - some midline resolution change updates. Disposable Hero looks better
-  but not perfect yet.. Innovation Part 2 by Axis also looks better
+  but not perfect yet.. Innovation Part 2 by Axxis also looks better
   (sprite resolution issue still remaining). Brian the Lion "message
   dialog" corruption fixed.
 

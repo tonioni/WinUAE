@@ -87,6 +87,7 @@ static OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 static int logging_started;
 static DWORD minidumpmode = MiniDumpNormal;
+void *globalipc, *serialipc;
 
 int qpcdivisor = 0;
 int cpu_mmx = 1;
@@ -1366,7 +1367,7 @@ void handle_events (void)
 	rp_vsync ();
 #endif
 	cnt = 0;
-	while (checkIPC (&currprefs));
+	while (checkIPC (globalipc, &currprefs));
 	if (quit_program)
 	    break;
     }
@@ -1374,7 +1375,7 @@ void handle_events (void)
 	TranslateMessage (&msg);
 	DispatchMessage (&msg);
     }
-    while (checkIPC (&currprefs));
+    while (checkIPC (globalipc, &currprefs));
     if (was_paused) {
 	resumepaused ();
 	sound_closed = 0;
@@ -1941,6 +1942,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_notaskbarbutton = 0;
 	p->win32_alwaysontop = 0;
 	p->win32_specialkey = 0xcf; // DIK_END
+	p->win32_guikey = -1;
 	p->win32_automount_removable = 0;
 	p->win32_automount_drives = 0;
 	p->win32_automount_cddrives = 0;
@@ -2014,6 +2016,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
     cfgfile_target_dwrite (f, "no_recyclebin=%s\n", p->win32_norecyclebin ? "true" : "false");
     cfgfile_target_dwrite (f, "specialkey=0x%x\n", p->win32_specialkey);
+    if (p->win32_guikey >= 0)
+	cfgfile_target_dwrite (f, "guikey=0x%x\n", p->win32_guikey);
     cfgfile_target_dwrite (f, "kbledmode=%d\n", p->win32_kbledmode);
     cfgfile_target_dwrite (f, "powersavedisabled=%s\n", p->win32_powersavedisabled ? "true" : "false");
 
@@ -2064,6 +2068,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "powersavedisabled", &p->win32_powersavedisabled)
 	    || cfgfile_yesno (option, value, "magic_mouse", &p->win32_outsidemouse)
 	    || cfgfile_intval (option, value, "specialkey", &p->win32_specialkey, 1)
+	    || cfgfile_intval (option, value, "guikey", &p->win32_guikey, 1)
 	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
 	    || cfgfile_intval (option, value, "cpu_idle", &p->cpu_idle, 1));
 
@@ -3516,13 +3521,15 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 #ifdef PARALLEL_PORT
 	    paraport_mask = paraport_init ();
 #endif
-	    createIPC ();
+	    globalipc = createIPC ("WinUAE", 0);
+	    serialipc = createIPC (COMPIPENAME, 1);
 	    enumserialports ();
 	    real_main (argc, argv);
 	}
     }
 
-    closeIPC ();
+    closeIPC (globalipc);
+    closeIPC (serialipc);
     write_disk_history ();
     timeend ();
 #ifdef AVIOUTPUT

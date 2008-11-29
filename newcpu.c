@@ -1136,7 +1136,8 @@ kludge_me_do:
 void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 {
 #if 0
-    if (1 || nr < 24)
+    //if (nr < 24)
+    if (nr >= 24 + 8)
 	write_log ("exception %d %08X %08X (%04X %04X)\n",
 	    nr, oldpc, m68k_getpc (regs), intena, intreq);
 #endif

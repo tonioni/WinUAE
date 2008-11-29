@@ -1384,11 +1384,13 @@ HDC D3D_getDC (HDC hdc)
     if (!hdc) {
 	hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
 	if (FAILED (hr)) {
-	    write_log ("failed to create backbuffer: %s\n", D3D_ErrorString (hr));
+	    write_log ("IDirect3DDevice9_GetBackBuffer() failed: %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
-	if (IDirect3DSurface9_GetDC (bb, &hdc) == D3D_OK)
+	hr = IDirect3DSurface9_GetDC (bb, &hdc);
+	if (SUCCEEDED (hr))
 	    return hdc;
+        write_log ("IDirect3DSurface9_GetDC() failed: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     IDirect3DSurface9_ReleaseDC (bb, hdc);

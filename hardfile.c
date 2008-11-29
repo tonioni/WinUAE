@@ -338,15 +338,13 @@ int hdf_hd_open (struct hd_hardfiledata *hfd, const char *path, int blocksize, i
 static uae_u32 vhd_checksum (uae_u8 *p, int offset)
 {
     int i;
-    uae_u32 sum, psum;
+    uae_u32 sum;
 
     sum = 0;
     for (i = 0; i < 512; i++) {
 	if (offset >= 0 && i >= offset && i < offset + 4)
 	    continue;
-	psum = sum;
-	if ((sum += p[i]) < psum)
-	    sum++;
+	sum += p[i];
     }
     return ~sum;
 }
@@ -455,7 +453,7 @@ int vhd_create (const char *name, uae_u64 size)
     batsize &= ~511;
     ret = 0;
     b = NULL;
-    zf = zfile_fopen (name, "w");
+    zf = zfile_fopen (name, "wb");
     if (!zf)
 	goto end;
     b = xcalloc (512 + 1024 + batsize + 512, 1);
@@ -542,7 +540,8 @@ int vhd_create (const char *name, uae_u64 size)
     zfile_fwrite (b, 1024, 1, zf);
 
     // bat
-    memset (b, 0xff, batsize);
+    memset (b, 0, batsize);
+    memset (b, 0xff, batentrysize * 4);
     zfile_fwrite (b, batsize, 1, zf);
 
     ret = 1;

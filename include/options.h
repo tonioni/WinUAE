@@ -257,6 +257,7 @@ struct uae_prefs {
 
     int m68k_speed;
     int cpu_model;
+    int mmu_model;
     int cpu060_revision;
     int fpu_model;
     int fpu_revision;
@@ -330,6 +331,7 @@ struct uae_prefs {
     int win32_soundcard;
     int win32_norecyclebin;
     int win32_specialkey;
+    int win32_guikey;
     int win32_kbledmode;
 
     int curses_reverse_video;

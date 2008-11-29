@@ -218,7 +218,7 @@ int sprite_buffer_res;
 uae_u8 cycle_line[256];
 #endif
 
-static uae_u32 bpl1dat, bpl5dat;
+static uae_u16 bplxdat[8];
 static uae_s16 bpl1mod, bpl2mod;
 
 static uaecptr bplpt[8], f_bplpt[8];
@@ -777,7 +777,7 @@ static uae_u32 fetched_aga1[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_nr_planes, fetchwidth;
+static int toscr_res, toscr_nr_planes, toscr_nr_planes2, fetchwidth;
 static int toscr_delay1x, toscr_delay2x, toscr_delay1, toscr_delay2;
 
 /* The number of bits left from the last fetched words.
@@ -829,6 +829,12 @@ static void record_color_change2 (int hpos, int regno, unsigned long value)
     curr_color_changes[next_color_change].regno = -1;
 }
 
+// OCS/ECS, lores, 7 planes = 4 "real" planes + BPL5DAT and BPL6DAT as 5th and 6th plane
+STATIC_INLINE int isocs7planes (void)
+{
+ return !(currprefs.chipset_mask & CSMASK_AGA) && f_bplcon0_res == 0 && f_bplcon0_planes == 7;
+}
+
 static uae_u16 tmp_bplcon0, tmp_fmode;
 STATIC_INLINE fetch_bpl_params (void)
 {
@@ -871,6 +877,12 @@ static void copy_bpl_params (int pos)
     f_fetch_modulo_cycle = t_fetchunit - f_fetchstart;
     if (toscr_nr_planes < f_bplcon0_planes_limit)
 	toscr_nr_planes = f_bplcon0_planes_limit;
+    if (isocs7planes ()) {
+	if (toscr_nr_planes2 < 6)
+	    toscr_nr_planes2 = 6;
+    } else {
+	toscr_nr_planes2 = toscr_nr_planes;
+    }
     toscr_res = f_bplcon0_res;
 }
 
@@ -909,6 +921,7 @@ static void compute_toscr_delay (int hpos)
 {
     toscr_res = f_bplcon0_res;
     toscr_nr_planes = f_bplcon0_planes_limit;
+    toscr_nr_planes2 = f_bplcon0_planes;
     compute_toscr_delay_1 ();
 }
 
@@ -928,7 +941,7 @@ STATIC_INLINE void fetch (int nr, int fm)
 	switch (fm)
 	{
 	case 0:
-	    fetched[nr] = last_custom_value = chipmem_agnus_wget (p);
+	    fetched[nr] = bplxdat[nr] = last_custom_value = chipmem_agnus_wget (p);
 	    break;
 #ifdef AGA
 	case 1:
@@ -955,6 +968,8 @@ STATIC_INLINE void fetch (int nr, int fm)
 		mod = bpl1mod;
 	    bplpt[nr] += mod;
 	}
+    } else if (isocs7planes ()) {
+	fetched[nr] = bplxdat[nr];
     }
     if (nr == 0)
 	fetch_state = fetch_was_plane0;
@@ -979,15 +994,15 @@ static void clear_fetchbuffer (uae_u32 *ptr, int nwords)
 
 static void update_toscr_planes (void)
 {
-    if (toscr_nr_planes > thisline_decision.nr_planes) {
+    if (toscr_nr_planes2 > thisline_decision.nr_planes) {
 	int j;
-	for (j = thisline_decision.nr_planes; j < toscr_nr_planes; j++)
+	for (j = thisline_decision.nr_planes; j < toscr_nr_planes2; j++)
 	    clear_fetchbuffer ((uae_u32 *)(line_data[next_lineno] + 2 * MAX_WORDS_PER_LINE * j), out_offs);
 #if 0
 	if (thisline_decision.nr_planes > 0)
-	    printf ("Planes from %d to %d\n", thisline_decision.nr_planes, toscr_nr_planes);
+	    printf ("Planes from %d to %d\n", thisline_decision.nr_planes, toscr_nr_planes2);
 #endif
-	thisline_decision.nr_planes = toscr_nr_planes;
+	thisline_decision.nr_planes = toscr_nr_planes2;
     }
 }
 
@@ -998,12 +1013,12 @@ STATIC_INLINE void toscr_3_ecs (int nbits)
     int i;
     uae_u32 mask = 0xFFFF >> (16 - nbits);
 
-    for (i = 0; i < toscr_nr_planes; i += 2) {
+    for (i = 0; i < toscr_nr_planes2; i += 2) {
 	outword[i] <<= nbits;
 	outword[i] |= (todisplay[i][0] >> (16 - nbits + delay1)) & mask;
 	todisplay[i][0] <<= nbits;
     }
-    for (i = 1; i < toscr_nr_planes; i += 2) {
+    for (i = 1; i < toscr_nr_planes2; i += 2) {
 	outword[i] <<= nbits;
 	outword[i] |= (todisplay[i][0] >> (16 - nbits + delay2)) & mask;
 	todisplay[i][0] <<= nbits;
@@ -1042,7 +1057,7 @@ STATIC_INLINE void toscr_3_aga (int nbits, int fm)
 	if (off1 == 3)
 	    off1 = 2;
 	offs -= off1 * 32;
-	for (i = 0; i < toscr_nr_planes; i += 2) {
+	for (i = 0; i < toscr_nr_planes2; i += 2) {
 	    uae_u32 t0 = todisplay[i][off1];
 	    uae_u32 t1 = todisplay[i][off1 + 1];
 	    uae_u64 t = (((uae_u64)t1) << 32) | t0;
@@ -1057,7 +1072,7 @@ STATIC_INLINE void toscr_3_aga (int nbits, int fm)
 	if (off1 == 3)
 	    off1 = 2;
 	offs -= off1 * 32;
-	for (i = 1; i < toscr_nr_planes; i += 2) {
+	for (i = 1; i < toscr_nr_planes2; i += 2) {
 	    uae_u32 t0 = todisplay[i][off1];
 	    uae_u32 t1 = todisplay[i][off1 + 1];
 	    uae_u64 t = (((uae_u64)t1) << 32) | t0;
@@ -2370,7 +2385,7 @@ static void reset_decisions (void)
 	return;
 
     curr_diagram_change = -1;
-    toscr_nr_planes = 0;
+    toscr_nr_planes = toscr_nr_planes2 = 0;
     thisline_decision.bplres = t_bplcon0_res;
     thisline_decision.nr_planes = 0;
 
@@ -3109,6 +3124,17 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     //write_log ("%d:%d:BPL%dPTL %08X\n", hpos, vpos, num, v);
 }
 
+static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)
+{
+    int bplehb;
+    if (currprefs.chipset_mask & CSMASK_AGA)
+	bplehb = (bplcon0 & 0x7010) == 0x6000 && !(bplcon2 & 0x200);
+    else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
+	bplehb = (bplcon0 & 0xFC00) == 0x6000 && !(bplcon2 & 0x200);
+    else
+	bplehb = (bplcon0 & 0xFC00) == 0x6000 && !currprefs.cs_denisenoehb;
+    return bplehb;
+}
 static void BPLCON0 (int hpos, uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
@@ -3133,6 +3159,12 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_fetch (hpos);
     decide_blitter (hpos);
 
+    // fake unused 0x0080 bit as an EHB bit (see below)
+    if (isehb (v, bplcon2))
+	v |= 0x80;
+
+    if ((bplcon0 & (0x800 | 0x400 | 0x80)) != (v & (0x800 | 0x400 | 0x80))) // HAM/EBH/DPF change is instant
+        record_register_change (hpos, 0x100, (bplcon0 & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
     bplcon0 = v;
 
 #ifdef ECS_DENISE
@@ -3156,7 +3188,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 
     curr_diagram_change = -1;
     if (fetch_state == fetch_started && diwstate == DIW_waiting_stop) {
-	curr_diagram_change = hpos + f_fm_maxplane - (fetch_cycle & f_fetchstart_mask);
+	curr_diagram_change = hpos - 2 + f_fm_maxplane - (fetch_cycle & f_fetchstart_mask);
     } else {
         curr_diagram = cycle_diagram_table[fetchmode][t_bplcon0_res][t_bplcon0_planes_limit];
     }
@@ -3242,17 +3274,22 @@ static void BPL2MOD (int hpos, uae_u16 v)
     bpl2mod = v;
 }
 
-/* needed in special OCS/ECS "7-plane" mode. not yet implemented. */
+/* needed in special OCS/ECS "7-plane" mode. */
 static void BPL5DAT (int hpos, uae_u16 v)
 {
     decide_line (hpos);
-    bpl5dat = v;
+    bplxdat[4] = v;
+}
+static void BPL6DAT (int hpos, uae_u16 v)
+{
+    decide_line (hpos);
+    bplxdat[5] = v;
 }
 
 STATIC_INLINE void BPL1DAT (int hpos, uae_u16 v)
 {
     decide_line (hpos);
-    bpl1dat = v;
+    bplxdat[0] = v;
 
     maybe_first_bpl1dat (hpos);
 }
@@ -3357,6 +3394,11 @@ static void FMODE (uae_u16 v)
     }
     expand_fmodes ();
     calcdiw ();
+}
+
+static void FNULL (uae_u16 v)
+{
+
 }
 
 static void BLTADAT (uae_u16 v)
@@ -5554,6 +5596,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 
      case 0x110: BPL1DAT (hpos, value); break;
      case 0x118: BPL5DAT (hpos, value); break;
+     case 0x11A: BPL6DAT (hpos, value); break;
 
      case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
      case 0x18C: case 0x18E: case 0x190: case 0x192: case 0x194: case 0x196:
@@ -5617,6 +5660,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 #ifdef AGA
      case 0x1FC: FMODE (value); break;
 #endif
+     case 0x1FE: FNULL (value); break;
 
      /* writing to read-only register causes read access */
      default:
@@ -5791,7 +5835,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     bplcon4 = RW;		/* 10C BPLCON4 */
     clxcon2 = RW;		/* 10E CLXCON2* */
     for(i = 0; i < 8; i++)
-	RW;			/*     BPLXDAT */
+	bplxdat[i] = RW;	/*     BPLXDAT */
     for(i = 0; i < 32; i++)
 	current_colors.color_regs_ecs[i] = RW; /* 180 COLORxx */
     htotal = RW;		/* 1C0 HTOTAL */
@@ -5945,7 +5989,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     SW (bplcon4);		/* 10C BPLCON4 */
     SW (clxcon2);		/* 10E CLXCON2 */
     for (i = 0;i < 8; i++)
-	SW (0);			/* 110 BPLxDAT */
+	SW (bplxdat[i]);	/* 110 BPLxDAT */
     if (full) {
 	for (i = 0; i < 8; i++) {
 	    SL (spr[i].pt);	    /* 120-13E SPRxPT */

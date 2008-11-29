@@ -161,8 +161,9 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num, struct regstruct *regs)
 	    }
        }
 
-    } else
+    } else {
 	write_log ("Illegal emulator trap %d\n", trap_num);
+    }
 }
 
 

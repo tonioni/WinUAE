@@ -8840,7 +8840,7 @@ static void updatejoyport (HWND hDlg)
 	if (idx >= 0)
 	    idx += 2;
 	else
-	    idx = 0;
+	    idx = 1;
 	if (idx >= total)
 	    idx = 0;
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
@@ -11646,10 +11646,10 @@ static int GetSettings (int all_options, HWND hwnd)
 
 	for (;;) {
 	    HANDLE IPChandle;
-	    IPChandle = geteventhandleIPC ();
+	    IPChandle = geteventhandleIPC (globalipc);
 	    if (IPChandle != INVALID_HANDLE_VALUE) {
 		MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
-		while (checkIPC (&workprefs));
+		while (checkIPC (globalipc, &workprefs));
 	    } else {
 		WaitMessage();
 	    }

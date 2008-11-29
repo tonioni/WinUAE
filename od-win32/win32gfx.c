@@ -658,6 +658,8 @@ void flush_screen (int a, int b)
 
 static uae_u8 *ddraw_dolock (void)
 {
+    if (dx_islost ())
+	return 0;
     if (!DirectDraw_SurfaceLock ())
 	return 0;
     gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer ();

@@ -265,7 +265,7 @@ uae_u16 SERDATR (void)
     if (ovrun)
 	serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-    write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), m68k_getpc ());
+    write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), M68K_GETPC);
 #endif
     ovrun = 0;
     data_in_serdatr = 0;

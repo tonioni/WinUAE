@@ -356,9 +356,8 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
     //write_log ( "keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
     if (newstate) {
-	switch (scancode)
-	{
-	    case DIK_F12:
+
+	if (scancode == DIK_F12 || scancode == currprefs.win32_guikey) {
 	    if (ctrlpressed ()) {
 		code = AKS_TOGGLEFULLSCREEN;
 	    } else if (shiftpressed () || specialpressed ()) {
@@ -369,7 +368,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	    } else {
 		code = AKS_ENTERGUI;
 	    }
-	    break;
+	}
+
+	switch (scancode)
+	{
+	    case DIK_F12:
 	    case DIK_F11:
 	    if (currprefs.win32_ctrl_F11_is_quit) {
 		if (ctrlpressed ())

@@ -31,7 +31,7 @@
 #define DUNUSED(x)
 #define D
 #define bug write_log
-#define MMUEX 0x12345678
+#define MMUEX 0x4d4d5520
 #define TRY(x) __try
 #define CATCH(x) __except(GetExceptionCode() == MMUEX) 
 #define THROW(x) RaiseException(MMUEX,EXCEPTION_NONCONTINUABLE,0,NULL)

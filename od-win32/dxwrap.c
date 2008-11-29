@@ -620,7 +620,12 @@ DWORD DirectDraw_GetCurrentDepth (void)
 int DirectDraw_SurfaceLock (void)
 {
     int ok;
-    if (getlocksurface () == NULL)
+    LPDIRECTDRAWSURFACE7 surf;
+    
+    surf = getlocksurface ();
+    if (surf == NULL)
+	return 0;
+    if (IDirectDrawSurface7_IsLost (surf) == DDERR_SURFACELOST)
 	return 0;
     if (dxdata.lockcnt > 0)
 	return 1;
@@ -631,6 +636,8 @@ int DirectDraw_SurfaceLock (void)
 }
 void DirectDraw_SurfaceUnlock (void)
 {
+    if (dxdata.lockcnt < 0)
+	write_log ("DirectDraw_SurfaceUnlock negative lock count %d!\n", dxdata.lockcnt);
     if (dxdata.lockcnt == 0)
 	return;
     dxdata.lockcnt--;

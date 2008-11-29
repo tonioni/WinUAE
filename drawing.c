@@ -335,7 +335,7 @@ static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
 
 static int pixels_offset;
-static int src_pixel;
+static int src_pixel, ham_src_pixel;
 /* How many pixels in window coordinates which are to the left of the left border.  */
 static int unpainted;
 static int seen_sprites;
@@ -355,6 +355,8 @@ static void pfield_init_linetoscr (void)
     int linetoscr_diw_start = dp_for_drawing->diwfirstword;
     int linetoscr_diw_end = dp_for_drawing->diwlastword;
 
+    res_shift = lores_shift - bplres;
+
     if (dip_for_drawing->nr_sprites == 0) {
 	if (linetoscr_diw_start < native_ddf_left)
 	    linetoscr_diw_start = native_ddf_left;
@@ -368,6 +370,10 @@ static void pfield_init_linetoscr (void)
 
     playfield_start = linetoscr_diw_start;
     playfield_end = linetoscr_diw_end;
+
+    unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
+    ham_src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
+    unpainted = res_shift_from_window (unpainted);
 
     if (playfield_start < visible_left_border)
 	playfield_start = visible_left_border;
@@ -411,13 +417,10 @@ static void pfield_init_linetoscr (void)
     sprite_first_x = MAX_PIXELS_PER_LINE - 1;
 
     /* Now, compute some offsets.  */
-    res_shift = lores_shift - bplres;
     ddf_left -= DISPLAY_LEFT_SHIFT;
     pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
     ddf_left <<= bplres;
-
-    unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
-    src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left + unpainted);
+    src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
 
     seen_sprites = 0;
     if (dip_for_drawing->nr_sprites == 0)
@@ -1097,17 +1100,17 @@ static void dummy_worker (int start, int stop)
 {
 }
 
-static unsigned int ham_lastcolor;
-
 static int ham_decode_pixel;
+static unsigned int ham_lastcolor;
 
 /* Decode HAM in the invisible portion of the display (left of VISIBLE_LEFT_BORDER),
    but don't draw anything in.  This is done to prepare HAM_LASTCOLOR for later,
    when decode_ham runs.  */
 static void init_ham_decoding (void)
 {
-    int unpainted_amiga = res_shift_from_window (unpainted);
-    ham_decode_pixel = src_pixel;
+    int unpainted_amiga = unpainted;
+
+    ham_decode_pixel = ham_src_pixel;
     ham_lastcolor = color_reg_get (&colors_for_drawing, 0);
 
     if (!bplham) {
@@ -1641,13 +1644,7 @@ static void pfield_expand_dp_bplcon (void)
     if (bplres > 0)
 	can_use_lores = 0;
 
-    if (currprefs.chipset_mask & CSMASK_AGA)
-	bplehb = (dp_for_drawing->bplcon0 & 0x7010) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200);
-    else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
-	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !(dp_for_drawing->bplcon2 & 0x200);
-    else
-	bplehb = (dp_for_drawing->bplcon0 & 0xFC00) == 0x6000 && !currprefs.cs_denisenoehb;
-
+    bplehb = (dp_for_drawing->bplcon0 & 0x80) == 0x80;
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
     plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);

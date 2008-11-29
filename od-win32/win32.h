@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "2"
-#define WINUAEDATE MAKEBD(2008, 11, 22)
+#define WINUAEBETA "3"
+#define WINUAEDATE MAKEBD(2008, 11, 29)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -33,6 +33,7 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive, focus;
 extern int ignore_messages_all;
+extern void *globalipc, *serialipc;
 
 extern char start_path_exe[MAX_DPATH];
 extern char start_path_data[MAX_DPATH];

@@ -228,8 +228,8 @@ struct decision {
 #endif
     uae_u8 nr_planes;
     uae_u8 bplres;
-    unsigned int ham_seen:1;
-    unsigned int ham_at_start:1;
+    unsigned int ham_seen;
+    unsigned int ham_at_start;
 };
 
 /* Anything related to changes in hw registers during the DDF for one
