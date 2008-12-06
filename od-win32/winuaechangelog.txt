@@ -1,4 +1,25 @@
 
+Beta 4:
+
+- removable real harddrives (or other memory devices) work again
+  (broke in b2)
+- OCS/ECS "7-planes" mode didn't enable EHB mode
+- 320x256, 640x512, 800x600, 1024x768 and 1280x1024 are always
+  available in Picasso96 resolution selection, even if host does not
+  support the mode (in fullscreen mode automatically selects next
+  higher available mode + black borders) 320x200 and 320x240 was
+  already "faked" previously
+- ECS Agnus 0.5M+0.5M "1M chip" mirror works again (Move Any Mountain)
+- copper disassembler uses Agnus bank instead of direct memory access,
+  works now with above configuration
+- blitter writes work to "chip mirror" (Move Any Mountain missing gfx)
+- mouse counter emulation rewrite, now works with programs that read
+  counters hundreds of times/frame. (Oil Imperium pipelining minigame,
+  some weird lag can be noticed but it is much better than previously)
+- added support for 81 and 82 cylinder PC/Atari ST image formats
+- memwatch breakpoints work after reset/memory bank changes
+
+
 Beta 3:
 
 - HAM errors if left border was not fully visible (it seems this bug
@@ -12,7 +33,7 @@ Beta 3:
 - vhd creator didn't create fully compatible images (larger images
   were incompatible with official vhd tools, did not cause data
   corruption)
-- 1st Anniversary by Lazy Bones OCS/ECS "7-plane" trick emulated
+- 1st Anniversary by Lazy Bones OCS/ECS "7-planes" trick emulated
   (missing black vertical lines)
 - Disposable Hero title screen is now perfect. Take screenshots
   before it gets broken again :)

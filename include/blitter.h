@@ -8,10 +8,11 @@
 
 struct bltinfo {
     int blitzero;
-    int blitashift,blitbshift,blitdownashift,blitdownbshift;
-    uae_u16 bltadat, bltbdat, bltcdat,bltddat,bltahold,bltbhold,bltafwm,bltalwm;
-    int vblitsize,hblitsize;
-    int bltamod,bltbmod,bltcmod,bltdmod;
+    int blitashift, blitbshift, blitdownashift, blitdownbshift;
+    uae_u16 bltadat, bltbdat, bltcdat, bltddat;
+    uae_u16 bltahold, bltbhold, bltafwm, bltalwm;
+    int vblitsize, hblitsize;
+    int bltamod, bltbmod, bltcmod, bltdmod;
     int got_cycle;
 };
 
@@ -22,9 +23,8 @@ extern enum blitter_states {
 extern struct bltinfo blt_info;
 
 extern uae_u16 bltsize;
-extern uae_u16 bltcon0,bltcon1;
-extern int blinea_shift;
-extern uae_u32 bltapt,bltbpt,bltcpt,bltdpt;
+extern uae_u16 bltcon0, bltcon1;
+extern uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
 extern int blit_singlechannel;
 
 extern void maybe_blit (int, int);

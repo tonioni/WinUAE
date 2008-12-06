@@ -1192,7 +1192,6 @@ static void allocate_expamem (void)
 
 static uaecptr check_boot_rom (void)
 {
-    int i;
     uaecptr b = RTAREA_DEFAULT;
     addrbank *ab;
 

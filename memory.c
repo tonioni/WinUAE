@@ -45,11 +45,8 @@ static int isdirectjit (void)
 
 static int canjit (void)
 {
-#if 0
-    if (currprefs.cpu_model >= 68020)
-	return 1;
-    return 0;
-#endif
+    if (currprefs.cpu_model < 68020 && currprefs.address_space_24)
+	return 0;
     return 1;
 }
 
@@ -1081,7 +1078,7 @@ int addr_valid (char *txt, uaecptr addr, uae_u32 len)
     return 1;
 }
 
-uae_u32	chipmem_mask, chipmem_full_mask;
+uae_u32	chipmem_mask, chipmem_full_mask, chipmem_full_size;
 uae_u32 kickmem_mask, extendedkickmem_mask, extendedkickmem2_mask, bogomem_mask;
 uae_u32 a3000lmem_mask, a3000hmem_mask, cardmem_mask;
 
@@ -1448,7 +1445,7 @@ static void REGPARAM2 chipmem_agnus_lput (uaecptr addr, uae_u32 l)
     uae_u32 *m;
 
     addr &= chipmem_full_mask;
-    if (addr >= allocated_chipmem)
+    if (addr >= chipmem_full_size)
 	return;
     m = (uae_u32 *)(chipmemory + addr);
     do_put_mem_long (m, l);
@@ -1459,7 +1456,7 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
     uae_u16 *m;
 
     addr &= chipmem_full_mask;
-    if (addr >= allocated_chipmem)
+    if (addr >= chipmem_full_size)
 	return;
     m = (uae_u16 *)(chipmemory + addr);
     do_put_mem_word (m, w);
@@ -1468,7 +1465,7 @@ void REGPARAM2 chipmem_agnus_wput (uaecptr addr, uae_u32 w)
 static void REGPARAM2 chipmem_agnus_bput (uaecptr addr, uae_u32 b)
 {
     addr &= chipmem_full_mask;
-    if (addr >= allocated_chipmem)
+    if (addr >= chipmem_full_size)
 	return;
     chipmemory[addr] = b;
 }
@@ -1476,7 +1473,7 @@ static void REGPARAM2 chipmem_agnus_bput (uaecptr addr, uae_u32 b)
 static int REGPARAM2 chipmem_check (uaecptr addr, uae_u32 size)
 {
     addr &= chipmem_mask;
-    return (addr + size) <= allocated_chipmem;
+    return (addr + size) <= chipmem_full_size;
 }
 
 static uae_u8 *REGPARAM2 chipmem_xlate (uaecptr addr)
@@ -3119,6 +3116,7 @@ static void allocate_memory (void)
 	memsize2 = allocated_bogomem = currprefs.bogomem_size;
 	chipmem_mask = allocated_chipmem - 1;
 	chipmem_full_mask = allocated_chipmem * 2 - 1;
+	chipmem_full_size = 0x80000 * 2;
   	chipmemory = mapped_malloc (memsize1 + memsize2, "chip");
 	bogomemory = chipmemory + memsize1;
 	bogomem_mask = allocated_bogomem - 1;
@@ -3138,7 +3136,7 @@ static void allocate_memory (void)
 	if (currprefs.chipmem_size > 2 * 1024 * 1024)
 	    free_fastmemory ();
 
-	memsize = allocated_chipmem = currprefs.chipmem_size;
+	memsize = allocated_chipmem = chipmem_full_size = currprefs.chipmem_size;
 	chipmem_full_mask = chipmem_mask = allocated_chipmem - 1;
 	if (memsize < 0x100000)
 	    memsize = 0x100000;
@@ -3679,13 +3677,14 @@ void memory_hardreset (void)
 
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
-    int bnr;
+    int bnr, old;
     unsigned long int hioffs = 0, endhioffs = 0x100;
     addrbank *orgbank = bank;
     uae_u32 realstart = start;
 
     //write_log ("MAP_BANK %04X0000 %d %s\n", start, size, bank->name);
 
+    old = debug_bankchange (-1);
     flush_icache (1); /* Sure don't want to keep any old mappings around! */
 #ifdef NATMEM_OFFSET
     delete_shmmaps (start << 16, size << 16);
@@ -3713,6 +3712,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	    put_mem_bank (bnr << 16, bank, realstart << 16);
 	    real_left--;
 	}
+	debug_bankchange (old);
 	return;
     }
 #endif
@@ -3735,6 +3735,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	    real_left--;
 	}
     }
+    debug_bankchange (old);
 }
 
 #ifdef SAVESTATE

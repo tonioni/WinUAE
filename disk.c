@@ -983,26 +983,29 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const char 
 	}
 	drv->useturbo = 1;
 
-    } else if (size == 720 * 1024 || size == 1440 * 1024 || size == 800 * 1024 || size == 1600 * 1024) {
+    } else if (
+	size == 9 * 80 * 2 * 512 || size == 18 * 80 * 2 * 512 || size == 10 * 80 * 2 * 512 || size == 20 * 80 * 2 * 512 ||
+	size == 9 * 81 * 2 * 512 || size == 18 * 81 * 2 * 512 || size == 10 * 81 * 2 * 512 || size == 20 * 81 * 2 * 512 ||
+	size == 9 * 82 * 2 * 512 || size == 18 * 82 * 2 * 512 || size == 10 * 82 * 2 * 512 || size == 20 * 82 * 2 * 512) {
 	/* PC formatted image */
 	int i;
 	
-	if (size == 720 * 1024) {
+	if (       size ==  9 * 80 * 2 * 512 || size ==  9 * 81 * 2 * 512 || size ==  9 * 82 * 2 * 512) {
 	    drv->num_secs = 9;
 	    drv->ddhd = 1;
-	} else if (size == 1440 * 1024) {
+	} else if (size == 18 * 80 * 2 * 512 || size == 18 * 81 * 2 * 512 || size == 18 * 82 * 2 * 512) {
 	    drv->num_secs = 18;
 	    drv->ddhd = 1;
-	} else if (size == 800 * 1024) {
+	} else if (size == 10 * 80 * 2 * 512 || size == 10 * 81 * 2 * 512 || size == 10 * 82 * 2 * 512) {
 	    drv->num_secs = 10;
 	    drv->ddhd = 2;
-	} else if (size == 1600 * 1024) {
+	} else if (size == 20 * 80 * 2 * 512 || size == 20 * 81 * 2 * 512 || size == 20 * 82 * 2 * 512) {
 	    drv->num_secs = 20;
 	    drv->ddhd = 2;
 	}
+        drv->num_tracks = size / (drv->num_secs * 512);
 
 	drv->filetype = ADF_PCDOS;
-	drv->num_tracks = 160;
 	for (i = 0; i < drv->num_tracks; i++) {
 	    tid = &drv->trackdata[i];
 	    tid->type = TRACK_PCDOS;

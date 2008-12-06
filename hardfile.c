@@ -357,7 +357,7 @@ int hdf_open (struct hardfiledata *hfd, const char *pname)
     if (!hdf_open_target (hfd, pname))
 	return 0;
     if (hdf_read_target (hfd, tmp, 0, 512) != 512)
-	goto end;
+	goto nonvhd;
     v = gl (tmp + 8); // features
     if ((v & 3) != 2)
 	goto nonvhd;

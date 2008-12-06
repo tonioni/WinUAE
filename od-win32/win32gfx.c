@@ -663,6 +663,7 @@ static uae_u8 *ddraw_dolock (void)
     if (!DirectDraw_SurfaceLock ())
 	return 0;
     gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer ();
+    gfxvidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
     init_row_map ();
     clear_inhibit_frame (IHF_WINDOWHIDDEN);
     return gfxvidinfo.bufmem;

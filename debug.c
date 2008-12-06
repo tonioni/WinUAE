@@ -795,7 +795,7 @@ static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
 {
     uae_u32 insn;
     while (nolines-- > 0) {
-	insn = get_long (address);
+	insn = (chipmem_agnus_wget (address) << 16) | chipmem_agnus_wget (address + 2);
 	decode_copper_insn (file, insn, address);
 	address += 4;
     }
@@ -1626,41 +1626,61 @@ void debug_lgetpeek (uaecptr addr, uae_u32 v)
     memwatch_func (addr, 1, 4, &vv);
 }
 
-static void deinitialize_memwatch (void)
+struct membank_store
 {
-    int i, as;
-    addrbank *a1, *a2;
+    addrbank *addr;
+    addrbank store;
+};
+
+static struct membank_store *membank_stores;
+
+static int deinitialize_memwatch (void)
+{
+    int i, oldmode;
 
     if (!memwatch_enabled && !mmu_enabled)
-	return;
-    as = currprefs.address_space_24 ? 256 : 65536;
-    for (i = 0; i < as; i++) {
-	a1 = debug_mem_banks[i];
-	a2 = mem_banks[i];
-	memcpy (a2, a1, sizeof (addrbank));
+	return -1;
+    for (i = 0; membank_stores[i].addr; i++) {
+	memcpy (membank_stores[i].addr, &membank_stores[i].store, sizeof (addrbank));
     }
+    oldmode = mmu_enabled ? 1 : 0;
     xfree (debug_mem_banks);
-    debug_mem_banks = 0;
+    debug_mem_banks = NULL;
     xfree (debug_mem_area);
-    debug_mem_area = 0;
+    debug_mem_area = NULL;
+    xfree (membank_stores);
+    membank_stores = NULL;
     memwatch_enabled = 0;
     mmu_enabled = 0;
     xfree (illgdebug);
     illgdebug = 0;
+    return oldmode;
 }
 
 static void initialize_memwatch (int mode)
 {
-    int i, as;
-    addrbank *a1, *a2;
+    int i, j, as;
+    addrbank *a1, *a2, *oa;
 
     deinitialize_memwatch ();
     as = currprefs.address_space_24 ? 256 : 65536;
     debug_mem_banks = xmalloc (sizeof (addrbank*) * as);
     debug_mem_area = xmalloc (sizeof (addrbank) * as);
+    membank_stores = xcalloc (sizeof (struct membank_store), 32);
+    oa = NULL;
     for (i = 0; i < as; i++) {
 	a1 = debug_mem_banks[i] = debug_mem_area + i;
 	a2 = mem_banks[i];
+	if (a2 != oa) {
+	    for (j = 0; membank_stores[j].addr; j++) {
+		if (membank_stores[j].addr == a2)
+		    break;
+	    }
+	    if (membank_stores[j].addr == NULL) {
+		membank_stores[j].addr = a2;
+		memcpy (&membank_stores[j].store, a2, sizeof (addrbank));
+	    }
+	}
 	memcpy (a1, a2, sizeof (addrbank));
     }
     for (i = 0; i < as; i++) {
@@ -1680,6 +1700,19 @@ static void initialize_memwatch (int mode)
 	mmu_enabled = 1;
     else
 	memwatch_enabled = 1;
+}
+
+int debug_bankchange (int mode)
+{
+    if (mode == -1) {
+	int v = deinitialize_memwatch ();
+	if (v < 0)
+	    return -2;
+	return v;
+    }
+    if (mode >= 0)
+	initialize_memwatch (mode);
+    return -1;
 }
 
 void memwatch_dump2 (char *buf, int bufsize, int num)

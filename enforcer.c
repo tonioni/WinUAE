@@ -33,6 +33,7 @@
 /* Configurable options */
 #define ENFORCESIZE 1024
 #define STACKLINES 5
+#define BACKTRACELONGS 500
 #define INSTRUCTIONLINES 17
 
 #define ISILLEGAL(addr) (addr < 4 || (addr > 4 && addr < ENFORCESIZE))
@@ -151,7 +152,7 @@ static int enforcer_decode_hunk_and_offset (char *buf, uae_u32 pc)
 	    while ((address = get_long (seg_entry))) {
 		size = get_long (seg_entry + 4);
 
-		if (pc >= address && pc < address + size) {
+		if (pc > address && pc < address + size) {
 		    uae_u32 name, offset;
 		    uae_u8 *native_name;
 
@@ -254,7 +255,7 @@ static void enforcer_display_hit (const char *addressmode, uae_u32 pc, uaecptr a
 	}
     }
 
-    for (i = 0; i < 8 * STACKLINES; i++) {
+    for (i = 0; i < BACKTRACELONGS; i++) {
 	a7 += 4;
 	if (enforcer_decode_hunk_and_offset (buf, get_long (a7))) {
 	    int l = strlen (buf);

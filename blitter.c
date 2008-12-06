@@ -33,7 +33,6 @@ static int blitter_cycle_exact;
 uae_u16 bltcon0, bltcon1;
 uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
 
-int blinea_shift;
 static uae_u16 blinea, blineb;
 static int blitline, blitfc, blitfill, blitife, blitsing, blitdesc;
 static int blitonedot, blitsign;
@@ -497,16 +496,16 @@ STATIC_INLINE void blitter_write (void)
 
 STATIC_INLINE void blitter_line_incx (void)
 {
-    if (++blinea_shift == 16) {
-	blinea_shift = 0;
+    if (++blt_info.blitashift == 16) {
+	blt_info.blitashift = 0;
 	bltcpt += 2;
     }
 }
 
 STATIC_INLINE void blitter_line_decx (void)
 {
-    if (blinea_shift-- == 0) {
-	blinea_shift = 15;
+    if (blt_info.blitashift-- == 0) {
+	blt_info.blitashift = 15;
 	bltcpt -= 2;
     }
 }
@@ -525,7 +524,7 @@ STATIC_INLINE void blitter_line_incy (void)
 
 static void blitter_line (void)
 {
-    uae_u16 blitahold = (blinea & blt_info.bltafwm) >> blinea_shift;
+    uae_u16 blitahold = (blinea & blt_info.bltafwm) >> blt_info.blitashift;
     uae_u16 blitbhold = blineb & 1 ? 0xFFFF : 0;
     uae_u16 blitchold = blt_info.bltcdat;
 
@@ -1088,6 +1087,17 @@ void do_blitter (int hpos)
 	blitter_done ();
 	return;
     }
+
+#if 0
+    if (M68K_GETPC >= 0x00070554 && M68K_GETPC <= 0x000706B0) {
+	blitter_done ();
+	return;
+    }
+    if (M68K_GETPC >= 0x00070838) {
+	blitter_done ();
+	return;
+    }
+#endif
 
     if (dmaen (DMA_BLITTER))
 	bltstate = BLT_work;

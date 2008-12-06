@@ -585,10 +585,12 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 	    hfd->cache_valid = 0;
 	    hdf_seek (hfd, offset);
 	    poscheck (hfd, len);
-	    if (hfd->handle_valid == HDF_HANDLE_WIN32)
-		ReadFile (hfd->handle, buffer, len, &ret, NULL);
-	    else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
+	    if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+		ReadFile (hfd->handle, hfd->cache, len, &ret, NULL);
+		memcpy (buffer, hfd->cache, ret);
+	    } else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		ret = zfile_fread (buffer, 1, len, hfd->handle);
+	    }
 	    maxlen = len;
 	} else {
 	    maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;

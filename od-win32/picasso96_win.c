@@ -1767,6 +1767,8 @@ static struct modeids mi[] =
    1152, 864, 6,
    1280,1024, 7,
    1600,1280, 8,
+    320, 256, 9,
+    640, 512,10,
 
 /* new modes */
 
@@ -1888,7 +1890,7 @@ static int p96depth (int depth)
     return ok;
 }
 
-static int missmodes[] = { 320, 200, 320, 240, 640, 400, 640, 480, -1 };
+static int missmodes[] = { 320, 200, 320, 240, 320, 256, 640, 400, 640, 480, 640, 512, 800, 600, 1024, 768, 1280, 1024, -1 };
 
 #ifdef UAEGFX_INTERNAL
 static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 size);

@@ -2949,6 +2949,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_max_horizontal = RES_HIRES;
     p->gfx_max_vertical = 1;
     p->color_mode = 2;
+    p->gfx_blackerthanblack = 0;
 
     p->x11_use_low_bandwidth = 0;
     p->x11_use_mitshm = 0;

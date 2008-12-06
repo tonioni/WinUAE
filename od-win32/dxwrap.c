@@ -421,9 +421,12 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	dxdata.secondary = surf;
 	dxdata.swidth = width;
 	dxdata.sheight = height;
+	dxdata.pitch = 0;
 	if (locksurface (surf, &desc)) {
 	    dxdata.pitch = desc.lPitch;
 	    unlocksurface (surf);
+	} else {
+	    write_log ("Couldn't get surface pitch!\n");
 	}
 	createcursorsurface ();
     } else {
@@ -625,7 +628,7 @@ int DirectDraw_SurfaceLock (void)
     surf = getlocksurface ();
     if (surf == NULL)
 	return 0;
-    if (IDirectDrawSurface7_IsLost (surf) == DDERR_SURFACELOST)
+    if (FAILED (IDirectDrawSurface7_IsLost (surf)))
 	return 0;
     if (dxdata.lockcnt > 0)
 	return 1;

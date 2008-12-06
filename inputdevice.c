@@ -1038,11 +1038,37 @@ int getbuttonstate (int joy, int button)
     return v;
 }
 
-static void mouseupdate (int pct)
+static int getvelocity (int num, int subnum, int pct)
+{
+    int val;
+    int v;
+
+    val = mouse_delta[num][subnum];
+    v = val * pct / 1000;
+    if (!v) {
+	if (val < -maxvpos / 2)
+	    v = -2;
+	else if (val < 0)
+	    v = -1;
+	else if (val > maxvpos / 2)
+	    v = 2;
+	else if (val > 0)
+	    v = 1;
+    }
+    if (!mouse_deltanoreset[num][subnum])
+	mouse_delta[num][subnum] -= v;
+    return v;
+}
+
+static void mouseupdate (int pct, int vsync)
 {
     int v, i;
+    int max = 127;
 
-    if (pct == 100) {
+    if (pct > 1000)
+	pct = 1000;
+
+    if (vsync) {
 	if (mouse_delta[0][0] < 0) {
 	    if (mouseedge_x > 0)
 		mouseedge_x = 0;
@@ -1082,17 +1108,13 @@ static void mouseupdate (int pct)
 
     for (i = 0; i < 2; i++) {
 
-	v = mouse_delta[i][0] * pct / 100;
+	v = getvelocity (i, 0, pct);
 	mouse_x[i] += v;
-	if (!mouse_deltanoreset[i][0])
-	    mouse_delta[i][0] -= v;
 
-	v = mouse_delta[i][1] * pct / 100;
+	v = getvelocity (i, 1, pct);
 	mouse_y[i] += v;
-	if (!mouse_deltanoreset[i][1])
-	    mouse_delta[i][1] -= v;
 
-	v = mouse_delta[i][2] * pct / 100;
+	v = getvelocity (i, 2, pct);
 	if (v > 0)
 	    record_key (0x7a << 1);
 	else if (v < 0)
@@ -1100,23 +1122,17 @@ static void mouseupdate (int pct)
 	if (!mouse_deltanoreset[i][2])
 	    mouse_delta[i][2] = 0;
 
-	if (mouse_frame_x[i] - mouse_x[i] > 127)
-	    mouse_x[i] = mouse_frame_x[i] - 127;
-	if (mouse_frame_x[i] - mouse_x[i] < -127)
-	    mouse_x[i] = mouse_frame_x[i] + 127;
+	if (mouse_frame_x[i] - mouse_x[i] > max)
+	    mouse_x[i] = mouse_frame_x[i] - max;
+	if (mouse_frame_x[i] - mouse_x[i] < -max)
+	    mouse_x[i] = mouse_frame_x[i] + max;
 
-	if (mouse_frame_y[i] - mouse_y[i] > 127)
-	    mouse_y[i] = mouse_frame_y[i] - 127;
-	if (mouse_frame_y[i] - mouse_y[i] < -127)
-	    mouse_y[i] = mouse_frame_y[i] + 127;
+	if (mouse_frame_y[i] - mouse_y[i] > max)
+	    mouse_y[i] = mouse_frame_y[i] - max;
+	if (mouse_frame_y[i] - mouse_y[i] < -max)
+	    mouse_y[i] = mouse_frame_y[i] + max;
 
-	if (pct == 100) {
-	    if (!mouse_deltanoreset[i][0])
-		mouse_delta[i][0] = 0;
-	    if (!mouse_deltanoreset[i][1])
-		mouse_delta[i][1] = 0;
-	    if (!mouse_deltanoreset[i][2])
-		mouse_delta[i][2] = 0;
+	if (!vsync) {
 	    mouse_frame_x[i] = mouse_x[i];
 	    mouse_frame_y[i] = mouse_y[i];
 	}
@@ -1124,20 +1140,16 @@ static void mouseupdate (int pct)
     }
 }
 
-static int input_read, input_vpos;
+static int input_vpos, input_frame;
 extern int vpos;
 static void readinput (void)
 {
-    if (!input_read && (vpos & ~31) != (input_vpos & ~31)) {
-	idev[IDTYPE_JOYSTICK].read ();
-	idev[IDTYPE_MOUSE].read ();
-	mouseupdate ((vpos - input_vpos) * 100 / maxvpos);
-	input_vpos = vpos;
-    }
-    if (input_read) {
-	input_vpos = vpos;
-	input_read = 0;
-    }
+    uae_u32 totalvpos;
+
+    totalvpos = input_frame * maxvpos + vpos;
+    mouseupdate ((totalvpos - input_vpos) * 1000 / maxvpos, 0);
+    input_vpos = totalvpos;
+
 }
 
 int getjoystate (int joy)
@@ -1146,7 +1158,7 @@ int getjoystate (int joy)
     uae_u16 v = 0;
 
     if (inputdevice_logging & 2)
-	write_log ("JOY%dDAT %x\n", joy, m68k_getpc (&regs));
+	write_log ("JOY%dDAT %08x\n", joy, M68K_GETPC);
     readinput ();
     if (joydir[joy] & DIR_LEFT)
 	left = 1;
@@ -2029,11 +2041,13 @@ void inputdevice_vsync (void)
 	    }
 	}
     }
-    mouseupdate (100);
-    inputdelay = uaerand () % (maxvpos <= 1 ? 1 : maxvpos - 1);
+
+    input_frame++;
+    mouseupdate (0, 1);
     idev[IDTYPE_MOUSE].read ();
-    input_read = 1;
-    input_vpos = 0;
+    idev[IDTYPE_JOYSTICK].read ();
+ 
+    inputdelay = uaerand () % (maxvpos <= 1 ? 1 : maxvpos - 1);
     inputdevice_handle_inputcode ();
     if (ievent_alive > 0)
 	ievent_alive--;

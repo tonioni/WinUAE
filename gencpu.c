@@ -2515,7 +2515,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuae_u32 carry = val & 1;\n");
 	printf ("\tval >>= 1;\n");
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry);\n");
+	printf ("\tSET_CFLG (&regs->ccrflags, carry);\n");
 	duplicate_carry (0);
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
@@ -2532,7 +2532,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tuae_u32 carry = val & %s;\n", cmask (curi->size));
 	printf ("\tval <<= 1;\n");
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
+	printf ("\tSET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
 	duplicate_carry (0);
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
@@ -2550,7 +2550,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tval <<= 1;\n");
 	printf ("\tif (carry)  val |= 1;\n");
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
+	printf ("\tSET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
     case i_RORW:
@@ -2567,7 +2567,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tval >>= 1;\n");
 	printf ("\tif (carry) val |= %s;\n", cmask (curi->size));
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry);\n");
+	printf ("\tSET_CFLG (&regs->ccrflags, carry);\n");
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
     case i_ROXLW:
@@ -2584,7 +2584,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tval <<= 1;\n");
 	printf ("\tif (GET_XFLG (&regs->ccrflags)) val |= 1;\n");
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
+	printf ("\tSET_CFLG (&regs->ccrflags, carry >> %d);\n", bit_size (curi->size) - 1);
 	duplicate_carry (0);
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;
@@ -2602,7 +2602,7 @@ static void gen_opcode (unsigned long int opcode)
 	printf ("\tval >>= 1;\n");
 	printf ("\tif (GET_XFLG (&regs->ccrflags)) val |= %s;\n", cmask (curi->size));
 	genflags (flag_logical, curi->size, "val", "", "");
-	printf ("SET_CFLG (&regs->ccrflags, carry);\n");
+	printf ("\tSET_CFLG (&regs->ccrflags, carry);\n");
 	duplicate_carry (0);
 	genastore ("val", curi->smode, "srcreg", curi->size, "data");
 	break;

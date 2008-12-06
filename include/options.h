@@ -170,6 +170,7 @@ struct uae_prefs {
     int gfx_xcenter_size, gfx_ycenter_size;
     int gfx_max_horizontal, gfx_max_vertical;
     int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
+    int gfx_blackerthanblack;
     int color_mode;
 
     int gfx_filter;

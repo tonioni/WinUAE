@@ -1679,7 +1679,7 @@ static void pritransla (void)
     }
 }
 
-static void WIN32_InitLang(void)
+static void WIN32_InitLang (void)
 {
     int lid;
     WORD langid = -1;
@@ -1691,7 +1691,7 @@ static void WIN32_InitLang(void)
 }
 
  /* try to load COMDLG32 and DDRAW, initialize csDraw */
-static int WIN32_InitLibraries( void )
+static int WIN32_InitLibraries (void)
 {
     LARGE_INTEGER freq;
 
@@ -1712,11 +1712,7 @@ static int WIN32_InitLibraries( void )
 	return 0;
     }
 
-    /* Make sure we do an InitCommonControls() to get some advanced controls */
-    InitCommonControls ();
-
     hRichEdit = LoadLibrary ("RICHED32.DLL");
-
     return 1;
 }
 
@@ -3336,6 +3332,16 @@ static int process_arg(char **xargv)
 	    always_flush_log = 1;
 	    continue;
 	}
+	if (!strcmp (arg, "-ahidebug")) {
+	    extern int ahi_debug;
+	    ahi_debug = 2;
+	    continue;
+	}
+	if (!strcmp (arg, "-ahidebug2")) {
+	    extern int ahi_debug;
+	    ahi_debug = 3;
+	    continue;
+	}
 
 	if (i + 1 < argc) {
 	    char *np = argv[i + 1];
@@ -3993,6 +3999,9 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     SETPROCESSDPIAWARE pSetProcessDPIAware;
     DWORD_PTR sys_aff;
     HANDLE thread;
+
+    /* Make sure we do an InitCommonControls() to get some advanced controls */
+    InitCommonControls ();
 
     original_affinity = 1;
     GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);

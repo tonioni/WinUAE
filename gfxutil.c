@@ -289,7 +289,15 @@ void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, i
     int bpp = rw + gw + bw + aw;
     int i;
     for(i = 0; i < 256; i++) {
-	int j = i + 256;
+	int j;
+
+	if (currprefs.gfx_blackerthanblack) {
+	    j = i * 15 / 16 + 15;
+	} else {  
+	    j = i;
+	}
+	j += 256;
+
 	rc[i] = doColor (gamma[j], rw, rs) | doAlpha (alpha, aw, as);
 	gc[i] = doColor (gamma[j], gw, gs) | doAlpha (alpha, aw, as);
 	bc[i] = doColor (gamma[j], bw, bs) | doAlpha (alpha, aw, as);
