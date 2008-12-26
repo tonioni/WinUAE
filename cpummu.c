@@ -23,10 +23,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define FULLMMU
-
-
-#define DEBUG 0
+#define DEBUG 1
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -35,9 +32,6 @@
 #include "newcpu.h"
 #include "cpummu.h"
 #include "debug.h"
-#ifdef USE_JIT
-# include "compiler/compemu.h"
-#endif
 
 #define DBG_MMU_VERBOSE	1
 #define DBG_MMU_SANITY	1
@@ -48,9 +42,9 @@ static mmu_atc_l1_array atc_l1[2];
 static mmu_atc_l1_array *current_atc;
 static struct mmu_atc_line atc_l2[2][ATC_L2_SIZE];
 
-# ifdef ATC_STATS
+#ifdef ATC_STATS
 static unsigned int mmu_atc_hits[ATC_L2_SIZE];
-# endif
+#endif
 
 
 static void mmu_dump_ttr(const char * label, uae_u32 ttr)
@@ -60,7 +54,7 @@ static void mmu_dump_ttr(const char * label, uae_u32 ttr)
 	from_addr = ttr & MMU_TTR_LOGICAL_BASE;
 	to_addr = (ttr & MMU_TTR_LOGICAL_MASK) << 8;
 
-	D(bug("%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d",
+	D(bug("%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d\n",
 			label, ttr,
 			from_addr, to_addr,
 			ttr & MMU_TTR_BIT_ENABLED ? 1 : 0,
@@ -87,7 +81,7 @@ void mmu_make_transparent_region(uaecptr baseaddr, uae_u32 size, int datamode)
 	*ttr |= ((baseaddr + size - 1) & MMU_TTR_LOGICAL_BASE) >> 8;
 	*ttr |= MMU_TTR_BIT_ENABLED;
 
-	D(bug("MMU: map transparent mapping of %08x", *ttr));
+	D(bug("MMU: map transparent mapping of %08x\n", *ttr));
 }
 
 /* check if an address matches a ttr */
@@ -130,15 +124,15 @@ STATIC_INLINE int mmu_match_ttr(uaecptr addr, int super, int data)
 }
 
 #if DEBUG
+#define ROOT_TABLE_SIZE 128
+#define	PTR_TABLE_SIZE 128
+#define	PAGE_TABLE_SIZE 64
+#define	ROOT_INDEX_SHIFT 25
+#define	PTR_INDEX_SHIFT 18
 /* {{{ mmu_dump_table */
 static void mmu_dump_table(const char * label, uaecptr root_ptr)
 {
-	DUNUSED(label);
-	const int ROOT_TABLE_SIZE = 128,
-		PTR_TABLE_SIZE = 128,
-		PAGE_TABLE_SIZE = 64,
-		ROOT_INDEX_SHIFT = 25,
-		PTR_INDEX_SHIFT = 18;
+//	DUNUSED(label);
 	// const int PAGE_INDEX_SHIFT = 12;
 	int root_idx, ptr_idx, page_idx;
 	uae_u32 root_des, ptr_des, page_des;
@@ -270,7 +264,7 @@ void mmu_dump_atc(void)
 /* {{{ mmu_dump_tables */
 void mmu_dump_tables(void)
 {
-	D(bug("URP: %08x   SRP: %08x  MMUSR: %x  TC: %x", regs.urp, regs.srp, regs.mmusr, regs.tcr));
+	D(bug("URP: %08x   SRP: %08x  MMUSR: %x  TC: %x\n", regs.urp, regs.srp, regs.mmusr, regs.tcr));
 	mmu_dump_ttr("DTT0", regs.dtt0);
 	mmu_dump_ttr("DTT1", regs.dtt1);
 	mmu_dump_ttr("ITT0", regs.itt0);
@@ -922,17 +916,14 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 		glob = (opcode & 8) != 0;
 
 		if (opcode & 16) {
-			D(bug("pflusha(%u,%u)", glob, regs.dfc));
+			D(bug("pflusha(%u,%u)\n", glob, regs.dfc));
 			mmu_flush_atc_all(glob);
 		} else {
 			addr = m68k_areg(&regs, regno);
-			D(bug("pflush(%u,%u,%x)", glob, regs.dfc, addr));
+			D(bug("pflush(%u,%u,%x)\n", glob, regs.dfc, addr));
 			mmu_flush_atc(addr, super, glob);
 		}
 		flush_internals();
-#ifdef USE_JIT
-		flush_icache(0);
-#endif
 	} else if ((opcode & 0x0FD8) == 0x548) {
 		int write, regno;
 		uae_u32 addr;
@@ -941,7 +932,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 		write = (opcode & 32) == 0;
 		addr = m68k_areg(&regs, regno);
 		//bug("ptest(%u,%u,%x)", write, regs.dfc, addr);
-		D(bug("PTEST%c (A%d) %08x DFC=%d", write ? 'W' : 'R', regno, addr, regs.dfc));
+		D(bug("PTEST%c (A%d) %08x DFC=%d\n", write ? 'W' : 'R', regno, addr, regs.dfc));
 		mmu_flush_atc(addr, super, true);
 		SAVE_EXCEPTION;
 		TRY(prb) {
@@ -965,7 +956,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 			regs.mmusr = MMU_MMUSR_B;
 		}
 		RESTORE_EXCEPTION;
-		D(bug("PTEST result: mmusr %08x", regs.mmusr));
+		D(bug("PTEST result: mmusr %08x\n", regs.mmusr));
 	} else
 		op_illg (opcode, &regs);
 }

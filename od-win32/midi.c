@@ -28,11 +28,13 @@
 #include <io.h>
 
 #include "sysdeps.h"
+
+#include "resource"
+
 #include "options.h"
 #include "parser.h"
 #include "midi.h"
 #include "registry.h"
-#include "resource.h"
 #include "win32gui.h"
 
 //#define TRACING_ENABLED

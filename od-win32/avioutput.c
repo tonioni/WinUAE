@@ -20,6 +20,9 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#include "resource"
+
 #include "options.h"
 #include "audio.h"
 #include "custom.h"
@@ -34,7 +37,6 @@
 #include "sound.h"
 #include "gfxfilter.h"
 #include "xwin.h"
-#include "resource.h"
 #include "avioutput.h"
 #include "registry.h"
 #include "threaddep/thread.h"

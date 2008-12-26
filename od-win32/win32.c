@@ -31,6 +31,12 @@
 #include <shlwapi.h>
 #include <dbghelp.h>
 
+#include "resource"
+
+#include <wintab.h>
+#include "wintablet.h"
+#include <pktdef.h>
+
 #include "sysdeps.h"
 #include "options.h"
 #include "audio.h"
@@ -53,7 +59,6 @@
 #include "win32gfx.h"
 #include "registry.h"
 #include "win32gui.h"
-#include "resource.h"
 #include "autoconf.h"
 #include "gui.h"
 #include "sys/mman.h"
@@ -103,6 +108,7 @@ static UINT TaskbarRestart;
 static HWND TaskbarRestartHWND;
 static int forceroms;
 static int start_data = 0;
+static void *tablet;
 
 char VersionStr[256];
 char BetaStr[64];
@@ -336,7 +342,12 @@ static void setcursor (int oldx, int oldy)
     int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
     mouseposx = oldx - x;
     mouseposy = oldy - y;
-//    write_log ("%d %d %d %d %d - %d %d %d %d %d\n",
+
+    if (currprefs.input_magic_mouse && currprefs.input_tablet > 0) {
+	mouseposx = mouseposy = 0;
+	return;
+    }
+//  write_log ("%d %d %d %d %d - %d %d %d %d %d\n",
 //	x, amigawin_rect.left, amigawin_rect.right, mouseposx, oldx,
 //	y, amigawin_rect.top, amigawin_rect.bottom, mouseposy, oldy);
     if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
@@ -491,12 +502,10 @@ void setmouseactive (int active)
     //write_log ("setmouseactive(%d)\n", active);
     releasecapture ();
     recapture = 0;
-#if 0
-    if (active > 0 && mousehack_allowed () && mousehack_alive ()) {
-	if (isfullscreen () <= 0)
-	    return;
-    }
-#endif
+
+    if (currprefs.input_magic_mouse && currprefs.input_tablet > 0)
+	return;
+
     if (mouseactive > 0)
 	focus = 1;
     if (focus) {
@@ -650,10 +659,10 @@ void disablecapture (void)
     setmouseactive (0);
 }
 
-extern void setamigamouse (int,int);
 void setmouseactivexy (int x, int y, int dir)
 {
     int diff = 8;
+
     if (isfullscreen () > 0)
 	return;
     x += amigawin_rect.left;
@@ -692,6 +701,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 {
     HDC hDC;
     int mx, my;
+    int istablet = (GetMessageExtraInfo () & 0xFFFFFF00) == 0xFF515700;
     static int mm, minimized, recursive, ignoremousemove;
 
 #if MSGDEBUG > 1
@@ -767,7 +777,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		minimizewindow ();
 #endif
 	    if (mouseactive)
-		setmouseactive(0);
+		setmouseactive (0);
 	} else {
 	    if (dinput_winmouse () >= 0)
 		setmousebuttonstate (dinput_winmouse (), 2, 1);
@@ -850,9 +860,11 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	rp_set_hwnd (hWnd);
 #endif
 	DragAcceptFiles (hWnd, TRUE);
+	tablet = open_tablet (hWnd);
     return 0;
 
     case WM_DESTROY:
+	close_tablet (tablet);
 	inputdevice_unacquire ();
 	dinput_window ();
     return 0;
@@ -882,28 +894,50 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     }
     break;
 
+    case WM_SETCURSOR:
+    {
+	static HCURSOR oldcursor;
+	if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse) {
+	    if (oldcursor == NULL)
+		oldcursor = LoadCursor (NULL, IDC_ARROW);
+	    if (picasso_on) {
+		picasso_setwincursor ();
+		return 1;
+	    } else {
+		SetCursor (oldcursor);
+		return 1;
+	    }
+	}
+	break;
+    }
+
+
     case WM_MOUSEMOVE:
     {
+	int wm = dinput_winmouse ();
 	mx = (signed short) LOWORD (lParam);
 	my = (signed short) HIWORD (lParam);
 	mx -= mouseposx;
 	my -= mouseposy;
 	if (recapture && isfullscreen () <= 0) {
 	    setmouseactive (1);
-	    setamigamouse (mx, my);
 	    return 0;
 	}
-        if (dinput_winmouse () >= 0) {
-            if (dinput_winmousemode ()) {
-	        /* absolute + mousehack */
+        if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+	    /* absolute */
+	    setmousestate (0, 0, mx, 1);
+	    setmousestate (0, 1, my, 1);
+	    return 0;
+	}
+	if (wm >= 0) {
+	    if (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK) {
+	        /* absolute */
 	        setmousestate (dinput_winmouse (), 0, mx, 1);
 	        setmousestate (dinput_winmouse (), 1, my, 1);
 	        return 0;
 	    }
 	    if (!focus)
 		return DefWindowProc (hWnd, message, wParam, lParam);
-	}
-	if (dinput_winmouse () >= 0) {
 	    if (dinput_winmousemode () == 0) {
 	        /* relative */
 	        int mxx = (amigawin_rect.right - amigawin_rect.left) / 2;
@@ -1105,6 +1139,38 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     }
     break;
 
+    case WT_PROXIMITY:
+    {
+	send_tablet_proximity (LOWORD (lParam) ? 1 : 0);
+	return 0;
+    }
+    case WT_PACKET:
+    {
+	PACKET pkt;
+	if (inputdevice_is_tablet () <= 0) {
+	    close_tablet (tablet);
+	    tablet = NULL;
+	    return 0;
+	}
+	if (WTPacket ((HCTX)lParam, wParam, &pkt)) {
+	    int x, y, z, pres, proxi;
+	    DWORD buttons;
+	    ORIENTATION ori;
+	    ROTATION rot;
+
+	    x = pkt.pkX;
+	    y = pkt.pkY;
+	    z = pkt.pkZ;
+	    pres = pkt.pkNormalPressure;
+	    ori = pkt.pkOrientation;
+	    rot = pkt.pkRotation;
+	    buttons = pkt.pkButtons;
+	    proxi = pkt.pkStatus;
+	    send_tablet (x, y, z, pres, buttons, proxi, ori.orAzimuth, ori.orAltitude, ori.orTwist, rot.roPitch, rot.roRoll, rot.roYaw, &amigawin_rect);
+
+	}
+	return 0;
+    }
 
      default:
     break;
@@ -1173,6 +1239,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_COMMAND:
      case WM_NOTIFY:
      case WM_ENABLE:
+     case WT_PACKET:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
     case WM_DISPLAYCHANGE:
@@ -1421,7 +1488,7 @@ static int WIN32_RegisterClasses (void)
     wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-    wc.hCursor = LoadCursor (NULL, IDC_ARROW);
+    wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "AmigaPowah";
     wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
@@ -1434,7 +1501,7 @@ static int WIN32_RegisterClasses (void)
     wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-    wc.hCursor = LoadCursor (NULL, IDC_ARROW);
+    wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush (black);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "PCsuxRox";
@@ -1447,7 +1514,7 @@ static int WIN32_RegisterClasses (void)
     wc.cbWndExtra = DLGWINDOWEXTRA;
     wc.hInstance = 0;
     wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-    wc.hCursor = LoadCursor (NULL, IDC_ARROW);
+    wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
     wc.lpszMenuName = 0;
     wc.lpszClassName = "Useless";
@@ -1721,11 +1788,6 @@ int debuggable (void)
     return 0;
 }
 
-int mousehack_allowed (void)
-{
-    return dinput_winmouse () > 0 && dinput_winmousemode ();
-}
-
 void toggle_mousegrab (void)
 {
 }
@@ -1947,7 +2009,6 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
 	p->win32_borderless = 0;
 	p->win32_powersavedisabled = 1;
-	p->win32_outsidemouse = 0;
 	p->sana2 = 0;
 	p->win32_rtgmatchdepth = 1;
 	p->win32_rtgscaleifsmall = 1;
@@ -1972,7 +2033,6 @@ static const char *scsimode[] = { "none", "SPTI", "SPTI+SCSISCAN", "AdaptecASPI"
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
     cfgfile_target_dwrite (f, "middle_mouse=%s\n", p->win32_middle_mouse ? "true" : "false");
-    cfgfile_target_dwrite (f, "magic_mouse=%s\n", p->win32_outsidemouse ? "true" : "false");
     cfgfile_target_dwrite (f, "logfile=%s\n", p->win32_logfile ? "true" : "false");
     cfgfile_target_dwrite (f, "map_drives=%s\n", p->win32_automount_drives ? "true" : "false");
     cfgfile_target_dwrite (f, "map_drives_auto=%s\n", p->win32_automount_removable ? "true" : "false");
@@ -2033,7 +2093,7 @@ static int fetchpri (int pri, int defpri)
 static const char *obsolete[] = {
     "killwinkeys", "sound_force_primary", "iconified_highpriority",
     "sound_sync", "sound_tweak", "directx6", "sound_style",
-    "file_path", "iconified_nospeed", "activepriority",
+    "file_path", "iconified_nospeed", "activepriority", "magic_mouse",
     0
 };
 
@@ -2062,7 +2122,6 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_yesno (option, value, "always_on_top", &p->win32_alwaysontop)
 	    || cfgfile_yesno (option, value, "powersavedisabled", &p->win32_powersavedisabled)
-	    || cfgfile_yesno (option, value, "magic_mouse", &p->win32_outsidemouse)
 	    || cfgfile_intval (option, value, "specialkey", &p->win32_specialkey, 1)
 	    || cfgfile_intval (option, value, "guikey", &p->win32_guikey, 1)
 	    || cfgfile_intval (option, value, "kbledmode", &p->win32_kbledmode, 1)
@@ -2902,7 +2961,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin, os_64bit, os_vista, os_winxp;
+int os_winnt, os_winnt_admin, os_64bit, os_win7, os_vista, os_winxp;
 
 static int isadminpriv (void)
 {
@@ -2968,10 +3027,6 @@ static int osdetect (void)
 {
     PGETNATIVESYSTEMINFO pGetNativeSystemInfo;
     PISUSERANADMIN pIsUserAnAdmin;
-    os_winnt = 0;
-    os_winnt_admin = 0;
-    os_vista = 0;
-    os_64bit = 0;
 
     pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress (
 	GetModuleHandle ("kernel32.dll"), "GetNativeSystemInfo");
@@ -2998,6 +3053,8 @@ static int osdetect (void)
 	    os_winxp = 1;
 	if (osVersion.dwMajorVersion >= 6)
 	    os_vista = 1;
+	if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1))
+	    os_win7 = 1;
 	if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 	    os_64bit = 1;
     }

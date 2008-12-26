@@ -971,7 +971,7 @@ int readser (int *buffer)
 		    len = sizeof (inputbuffer);
 		if (!ReadFile (hCom, inputbuffer, len, &actual, &readol))  {
 		    if (GetLastError() == ERROR_IO_PENDING)
-			WaitForSingleObject(&readol, INFINITE);
+			WaitForSingleObject (&readol, INFINITE);
 		    else
 			return 0;
 		}

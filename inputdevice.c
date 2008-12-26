@@ -47,6 +47,12 @@
 #include "autoconf.h"
 #include "rp.h"
 
+// 01 = host events
+// 02 = joystick
+// 04 = cia buttons
+// 16 = potgo
+// 32 = vsync
+
 int inputdevice_logging = 0;
 
 #define DIR_LEFT 1
@@ -825,12 +831,13 @@ void read_inputdevice_config (struct uae_prefs *pr, char *option, char *value)
     xfree (custom);
 }
 
-static int ievent_alive, mouseedge_alive;
+static int mouseedge_alive;
 static int lastmx, lastmy;
-static uae_u32 magicmouse_ibase = 0;
-#define intui "intuition.library"
+static uaecptr magicmouse_ibase, magicmouse_gfxbase;
+static int dimensioninfo_width, dimensioninfo_height, dimensioninfo_dbl;
+static int tablet_maxx, tablet_maxy, tablet_data;
 
-static uaecptr get_intuitionbase (void)
+static uaecptr get_base (const char *name)
 {
     uaecptr v = get_long (4);
     addrbank *b = &get_mem_bank(v);
@@ -842,62 +849,413 @@ static uaecptr get_intuitionbase (void)
 	uae_u32 v2;
 	uae_u8 *p;
 	b = &get_mem_bank(v);
-	if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM) {
-	    magicmouse_ibase = 0xffffffff;
-	    return 0;
-	}
+	if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM)
+	    return 0xffffffff;
 	v2 = get_long (v + 10); // name
 	b = &get_mem_bank(v2);
-	if (!b || !b->check (v2, 20)) {
-	    magicmouse_ibase = 0xffffffff;
-	    return 0;
-	}
+	if (!b || !b->check (v2, 20))
+	    return 0xffffffff;
 	if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
 	    return 0;
 	p = b->xlateaddr(v2);
-	if (!memcmp(p, intui, strlen(intui) + 1))
+	if (!memcmp(p, name, strlen(name) + 1))
 	    return v;
     }
     return 0;
 }
 
-static void mousehack_enable (void)
+static uaecptr get_intuitionbase (void)
 {
-    int off;
-    if (!uae_boot_rom)
-	return;
-    off = get_long (rtarea_base + 40);
-    if (rtarea[off + 12 - 2] == 0xff)
-	return;
-    rtarea[off + 12 - 2] = 1;
+    if (magicmouse_ibase == 0xffffffff)
+	return 0;
+    if (magicmouse_ibase)
+	return magicmouse_ibase;
+    magicmouse_ibase = get_base ("intuition.library");
+    return magicmouse_ibase;
+}
+static uaecptr get_gfxbase (void)
+{
+    if (magicmouse_gfxbase == 0xffffffff)
+	return 0;
+    if (magicmouse_gfxbase)
+	return magicmouse_gfxbase;
+    magicmouse_gfxbase = get_base ("graphics.library");
+    return magicmouse_gfxbase;
 }
 
-static void mousehack_setpos (int mousexpos, int mouseypos)
+#define MH_E 0
+#define MH_CNT 2
+#define MH_MAXX 4
+#define MH_MAXY 6
+#define MH_MAXZ 8
+#define MH_X 10
+#define MH_Y 12
+#define MH_Z 14
+#define MH_RESX 16
+#define MH_RESY 18
+#define MH_MAXAX 20
+#define MH_MAXAY 22
+#define MH_MAXAZ 24
+#define MH_AX 26
+#define MH_AY 28
+#define MH_AZ 30
+#define MH_PRESSURE 32
+#define MH_BUTTONBITS 34
+#define MH_INPROXIMITY 38
+#define MH_ABSX 40
+#define MH_ABSY 42
+
+#define MH_END 44
+#define MH_START 4
+
+int inputdevice_is_tablet (void)
+{
+    int v;
+    if (!uae_boot_rom)
+	return 0;
+    if (currprefs.input_tablet == TABLET_OFF)
+	return 0;
+    if (currprefs.input_tablet == TABLET_MOUSEHACK)
+	return -1;
+    v = is_tablet ();
+    if (!v)
+	return 0;
+    if (kickstart_version < 37)
+	return v ? -1 : 0;
+    return v ? 1 : 0;
+}
+
+static void mousehack_reset (void)
+{
+    int off;
+
+    dimensioninfo_width = 0;
+    dimensioninfo_height = 0;
+    dimensioninfo_dbl = 0;
+    tablet_data = 0;
+    if (!uae_boot_rom)
+	return;
+    off = 12 + get_long (rtarea_base + 36);
+    rtarea[off + MH_E] = 0;
+}
+
+static void mousehack_enable (void)
+{
+    int off, mode;
+
+    if (!uae_boot_rom || currprefs.input_tablet == TABLET_OFF)
+	return;
+    off = 12 + get_long (rtarea_base + 36);
+    if (rtarea[off + MH_E])
+	return;
+    mode = 1;
+    if (inputdevice_is_tablet () < 0)
+	mode |= 0x80;
+    write_log ("Tablet driver enabled (%s)\n", (mode & 0x80) ? "mousehack" : "real");
+    rtarea[off + MH_E] = mode;
+}
+
+void input_mousehack_status (int mode, uaecptr a2, uaecptr a3)
+{
+    if (mode == 0) {
+	uae_u8 v = rtarea[12 + get_long (rtarea_base + 36)];
+	v |= 2;
+	rtarea[12 + get_long (rtarea_base + 36)] = v;
+	write_log ("Tablet driver running (%02x)\n", v);
+    } else if (mode == 1) {
+        int x1 = -1, y1 = -1, x2 = -1, y2 = -1;
+	uae_u32 props = 0;
+	dimensioninfo_width = -1;
+	dimensioninfo_height = -1;
+	if (a2) {
+	    x1 = get_word (a2 + 50);
+	    y1 = get_word (a2 + 52);
+	    x2 = get_word (a2 + 54);
+	    y2 = get_word (a2 + 56);
+	    dimensioninfo_width = x2 - x1 + 1;
+	    dimensioninfo_height = y2 - y1 + 1;
+	}
+	if (a3)
+	    props = get_long (a3 + 18);
+	dimensioninfo_dbl = (props & 0x00020000) ? 1 : 0;
+	write_log ("%08x %dx%d %dx%d %s\n", props, x1, y1, x2, y2,
+	    (props & 0x00020000) ? "dbl" : "");
+    }
+}
+
+void get_custom_mouse_limits (int *w, int *h, int *dx, int *dy, int dbl);
+
+void inputdevice_tablet_strobe (void)
+{
+    uae_u8 *p;
+    uae_u32 off;
+
+    mousehack_enable ();
+    if (!uae_boot_rom)
+	return;
+    if (!tablet_data)
+	return;
+    off = 12 + get_long (rtarea_base + 36);
+    p = rtarea + off;
+    p[MH_CNT]++;
+}
+
+void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
+{
+    uae_u8 *p;
+    uae_u8 tmp[MH_END];
+    uae_u32 off;
+
+    mousehack_enable ();
+    if (inputdevice_is_tablet () <= 0)
+	return;
+    //write_log ("%d %d %d %d %08X %d %d %d %d\n", x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
+    off = 12 + get_long (rtarea_base + 36);
+    p = rtarea + off;
+
+    memcpy (tmp, p + MH_START, MH_END - MH_START); 
+#if 0
+    if (currprefs.input_magic_mouse) {
+	int maxx, maxy, diffx, diffy;
+	int dw, dh, ax, ay, aw, ah;
+	float xmult, ymult;
+	float fx, fy;
+
+	fx = (float)x;
+	fy = (float)y;
+	desktop_coords (&dw, &dh, &ax, &ay, &aw, &ah);
+	xmult = (float)tablet_maxx / dw;
+	ymult = (float)tablet_maxy / dh;
+
+	diffx = 0;
+	diffy = 0;
+	if (picasso_on) {
+	    maxx = gfxvidinfo.width;
+	    maxy = gfxvidinfo.height;
+	} else {
+	    get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy);
+	}
+	diffx += ax;
+	diffy += ah;
+
+	fx -= diffx * xmult;
+	if (fx < 0)
+	    fx = 0;
+	if (fx >= aw * xmult)
+	    fx = aw * xmult - 1;
+	fy -= diffy * ymult;
+	if (fy < 0)
+	    fy = 0;
+	if (fy >= ah * ymult)
+	    fy = ah * ymult - 1;
+
+	x = (int)(fx * (aw * xmult) / tablet_maxx + 0.5);
+	y = (int)(fy * (ah * ymult) / tablet_maxy + 0.5);
+
+    }
+#endif
+    p[MH_X] = x >> 8;
+    p[MH_X + 1] = x;
+    p[MH_Y] = y >> 8;
+    p[MH_Y + 1] = y;
+    p[MH_Z] = z >> 8;
+    p[MH_Z + 1] = z;
+
+    p[MH_AX] = ax >> 8;
+    p[MH_AX + 1] = ax;
+    p[MH_AY] = ay >> 8;
+    p[MH_AY + 1] = ay;
+    p[MH_AZ] = az >> 8;
+    p[MH_AZ + 1] = az;
+
+    p[MH_MAXX] = tablet_maxx >> 8;
+    p[MH_MAXX + 1] = tablet_maxx;
+    p[MH_MAXY] = tablet_maxy >> 8;
+    p[MH_MAXY + 1] = tablet_maxy;
+
+    p[MH_PRESSURE] = pressure >> 8;
+    p[MH_PRESSURE + 1] = pressure;
+
+    p[MH_BUTTONBITS + 0] = buttonbits >> 24;
+    p[MH_BUTTONBITS + 1] = buttonbits >> 16;
+    p[MH_BUTTONBITS + 2] = buttonbits >>  8;
+    p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+
+    if (inproximity < 0) {
+	p[MH_INPROXIMITY] = p[MH_INPROXIMITY + 1] = 0xff;
+    } else {
+	p[MH_INPROXIMITY] = 0;
+	p[MH_INPROXIMITY + 1] = inproximity ? 1 : 0;
+    }
+
+    if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
+	return;
+    p[MH_CNT]++;
+}
+
+void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres)
 {
     uae_u8 *p;
 
     if (!uae_boot_rom)
 	return;
-    p = rtarea + get_long (rtarea_base + 40) + 12;
-    p[0] = mousexpos >> 8;
-    p[1] = mousexpos;
-    p[2] = mouseypos >> 8;
-    p[3] = mouseypos;
-    //write_log ("%dx%d\n", mousexpos, mouseypos);
+    p = rtarea + 12 + get_long (rtarea_base + 36);
+
+    tablet_maxx = maxx;
+    tablet_maxy = maxy;
+    p[MH_MAXX] = maxx >> 8;
+    p[MH_MAXX + 1] = maxx;
+    p[MH_MAXY] = maxy >> 8;
+    p[MH_MAXY + 1] = maxy;
+    p[MH_MAXZ] = maxz >> 8;
+    p[MH_MAXZ + 1] = maxz;
+
+    p[MH_RESX] = xres >> 8;
+    p[MH_RESX + 1] = xres;
+    p[MH_RESY] = yres >> 8;
+    p[MH_RESY + 1] = yres;
+
+    p[MH_MAXAX] = maxax >> 8;
+    p[MH_MAXAX + 1] = maxax;
+    p[MH_MAXAY] = maxay >> 8;
+    p[MH_MAXAY + 1] = maxay;
+    p[MH_MAXAZ] = maxaz >> 8;
+    p[MH_MAXAZ + 1] = maxaz;
+}
+
+static void inputdevice_tablet_abs (int x, int y)
+{
+    uae_u8 *p;
+    uae_u8 tmp[4];
+    uae_u32 off;
+
+    mousehack_enable ();
+    off = 12 + get_long (rtarea_base + 36);
+    p = rtarea + off;
+
+    memcpy (tmp, p + MH_ABSX, 4);
+
+    p[MH_ABSX] = x >> 8;
+    p[MH_ABSX + 1] = x;
+    p[MH_ABSY] = y >> 8;
+    p[MH_ABSY + 1] = y;
+
+    if (!memcmp (tmp, p + MH_ABSX, 4))
+	return;
+    p[MH_CNT]++;
+    tablet_data = 1;
+}
+
+void getgfxoffset (int *dx, int *dy, int*,int*);
+static void inputdevice_tablet_abs_v36 (int x, int y)
+{
+    uae_u8 *p;
+    uae_u8 tmp[MH_END];
+    uae_u32 off;
+    int maxx, maxy, diffx, diffy;
+    int fdy, fdx, fmx, fmy;
+
+    mousehack_enable ();
+    off = 12 + get_long (rtarea_base + 36);
+    p = rtarea + off;
+
+    memcpy (tmp, p + MH_START, MH_END - MH_START); 
+
+    getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+    x -= fdx;
+    y -= fdy;
+
+    diffx = diffy = 0;
+    maxx = maxy = 0;
+    if (picasso_on) {
+	maxx = picasso96_state.Width;
+	maxy = picasso96_state.Height;
+    } else if (dimensioninfo_width > 0 && dimensioninfo_height > 0) {
+	maxx = dimensioninfo_width;
+	maxy = dimensioninfo_height;
+	get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy, dimensioninfo_dbl);
+    } else {
+	uaecptr gb = get_gfxbase ();
+	maxx = 0; maxy = 0;
+	if (gb) {
+	    maxy = get_word (gb + 216);
+	    maxx = get_word (gb + 218);
+	}
+	get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy, 0);
+    }
+    maxx = maxx * 1000 / fmx;
+    maxy = maxy * 1000 / fmy;
+
+    if (maxx <= 0)
+	maxx = 1;
+    if (maxy <= 0)
+	maxy = 1;
+
+    x -= diffx;
+    if (x < 0)
+	x = 0;
+    if (x >= maxx)
+	x = maxx - 1;
+
+    y -= diffy;
+    if (y < 0)
+	y = 0;
+    if (y >= maxy)
+	y = maxy - 1;
+
+    //write_log ("%d %d %d %d\n", x, y, maxx, maxy);
+
+    p[MH_X] = x >> 8;
+    p[MH_X + 1] = x;
+    p[MH_Y] = y >> 8;
+    p[MH_Y + 1] = y;
+    p[MH_MAXX] = maxx >> 8;
+    p[MH_MAXX + 1] = maxx;
+    p[MH_MAXY] = maxy >> 8;
+    p[MH_MAXY + 1] = maxy;
+    
+    p[MH_Z] = p[MH_Z + 1] = 0;
+    p[MH_MAXZ] = p[MH_MAXZ + 1] = 0;
+    p[MH_AX] = p[MH_AX + 1] = 0;
+    p[MH_AY] = p[MH_AY + 1] = 0;
+    p[MH_AZ] = p[MH_AZ + 1] = 0;
+    p[MH_PRESSURE] = p[MH_PRESSURE + 1] = 0;
+    p[MH_INPROXIMITY] = p[MH_INPROXIMITY + 1] = 0xff;
+
+    if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
+	return;
+    p[MH_CNT]++;
+    tablet_data = 1;
+}
+
+static void mousehack_helper (void)
+{
+    int x, y;
+
+    if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet == 0)
+	return;
+    if (kickstart_version >= 36) {
+	inputdevice_tablet_abs_v36 (lastmx, lastmy);
+	return;
+    }
+#ifdef PICASSO96
+    if (picasso_on) {
+	x = lastmx - picasso96_state.XOffset;
+	y = lastmy - picasso96_state.YOffset;
+    } else
+#endif
+    {
+	x = coord_native_to_amiga_x (lastmx);
+	y = coord_native_to_amiga_y (lastmy) << 1;
+    }
+    inputdevice_tablet_abs (x, y);
 }
 
 static int mouseedge_x, mouseedge_y, mouseedge_time;
-#define MOUSEEDGE_RANGE 300
+#define MOUSEEDGE_RANGE 100
 #define MOUSEEDGE_TIME 2
 
-void setamigamouse (int x, int y)
-{
-    mousehack_enable ();
-    mousehack_setpos (x, y);
-}
-
 extern void setmouseactivexy (int,int,int);
-extern void drawing_adjust_mousepos (int*,int*);
 
 static int mouseedge (void)
 {
@@ -906,17 +1264,16 @@ static int mouseedge (void)
     static int melast_x, melast_y;
     static int isnonzero;
 
-    if (!currprefs.win32_outsidemouse || magicmouse_ibase == 0xffffffff)
+    if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0)
+	return 0;
+    if (magicmouse_ibase == 0xffffffff)
 	return 0;
     dir = 0;
     if (!mouseedge_time) {
 	isnonzero = 0;
 	goto end;
     }
-    if (magicmouse_ibase == 0)
-	ib = get_intuitionbase();
-    else
-	ib = magicmouse_ibase;
+    ib = get_intuitionbase ();
     if (!ib)
 	return 0;
     x = get_word (ib + 70);
@@ -961,7 +1318,10 @@ end:
     mouseedge_time = 0;
     if (dir) {
 	if (!picasso_on) {
-	    drawing_adjust_mousepos (&x, &y);
+	    int aw = 0, ah = 0, dx, dy;
+	    get_custom_mouse_limits (&aw, &ah, &dx, &dy, dimensioninfo_dbl);
+	    x += dx;
+	    y += dy;
 	}
 	if (!dmaen(DMA_SPRITE))
 	    setmouseactivexy (x, y, 0);
@@ -971,33 +1331,9 @@ end:
     return 1;
 }
 
-int mousehack_alive (void)
-{
-    return ievent_alive > 0;
-}
-
 int magicmouse_alive (void)
 {
     return mouseedge_alive > 0;
-}
-
-static void mousehack_helper (void)
-{
-    int mousexpos, mouseypos;
-
-    if (!mousehack_allowed ())
-	return;
-#ifdef PICASSO96
-    if (picasso_on) {
-	mousexpos = lastmx - picasso96_state.XOffset;
-	mouseypos = lastmy - picasso96_state.YOffset;
-    } else
-#endif
-    {
-	mousexpos = coord_native_to_amiga_x (lastmx);
-	mouseypos = coord_native_to_amiga_y (lastmy) << 1;
-    }
-    mousehack_setpos (mousexpos, mouseypos);
 }
 
 STATIC_INLINE int adjust (int val)
@@ -1342,7 +1678,6 @@ static void cap_check (void)
 	}
     }
 }
-
 
 uae_u8 handle_joystick_buttons (uae_u8 dra)
 {
@@ -2049,8 +2384,6 @@ void inputdevice_vsync (void)
  
     inputdelay = uaerand () % (maxvpos <= 1 ? 1 : maxvpos - 1);
     inputdevice_handle_inputcode ();
-    if (ievent_alive > 0)
-	ievent_alive--;
     if (mouseedge_alive > 0)
 	mouseedge_alive--;
 #ifdef ARCADIA
@@ -2059,13 +2392,17 @@ void inputdevice_vsync (void)
 #endif
     if (mouseedge ())
 	mouseedge_alive = 10;
+
     inputdevice_checkconfig ();
 }
 
 void inputdevice_reset (void)
 {
-    ievent_alive = 0;
     magicmouse_ibase = 0;
+    magicmouse_gfxbase = 0;
+    mousehack_reset ();
+    if (inputdevice_is_tablet ())
+	mousehack_enable ();
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -2669,8 +3006,6 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	cd32_pad_enabled[1] = 1;
 #endif
 
-    if (mousehack_allowed ())
-	mousehack_enable ();
 }
 
 /* called when devices get inserted or removed */
@@ -3456,8 +3791,17 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
 	return;
     }
-    if (!mice[mouse].enabled)
+    if (!mice[mouse].enabled) {
+	if (isabs && currprefs.input_tablet > 0) {
+	    if (axis == 0)
+		lastmx = data;
+	    else
+		lastmy = data;
+	    if (axis)
+		mousehack_helper ();
+	}
 	return;
+    }
     d = 0;
     mouse_p = &mouse_axis[mouse][axis];
     oldm_p = &oldm_axis[mouse][axis];
@@ -3473,6 +3817,10 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	    lastmx = data;
 	else
 	    lastmy = data;
+	if (axis)
+	    mousehack_helper ();
+	if (currprefs.input_tablet == TABLET_MOUSEHACK)
+	    return;
     }
     v = (int)(d > 0 ? d + 0.5 : d - 0.5);
     fract1[mouse][axis] += d;
@@ -3484,7 +3832,6 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     }
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
-    mousehack_helper ();
 }
 int getmousestate (int joy)
 {
@@ -3508,7 +3855,7 @@ void warpmode (int mode)
 	if (turbo_emulation) {
 	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
 	    turbo_emulation = 0;
-	}  else {
+	} else {
 	    turbo_emulation = fr;
 	}
     } else if (mode == 0 && turbo_emulation > 0) {

@@ -1,4 +1,104 @@
 
+Beta 5: WARNING: big changes. 1.6 version change expected.
+
+- KS loader 16-bit odd/even rom image to 32-bit merging fixed
+- A1000 bootstrap rom in even/odd format wasn't loaded correctly
+- added "Blacker than black" display configuration parameter.
+  Ticked = borderblank is full black, color register RGB range is
+  0F0F0F to FFFFFF (instead of 000000 to FFFFFF) "Fixes" missing
+  "widescreen effect" in Nexus 7 galaxy effect. (blanked border is
+  "blacker than black" on real hardware, at least on TV-style
+  display devices)
+- useless correct aspect setting is gone (use null filter instead)
+- do not try to decrypt broken non-encrypted DMS files
+- added new panel "Gameports", moved joystick configuration from
+  io ports. (more space for future "easy" input configuration mode)
+- moved mouse related settings to new gameports panel
+- added tablet settings to new gameports panel
+- CD32 mode onscreen CD led now emulates real CD32 CD led behavior :)
+- some CD32 CD command and status code updates (did some logic
+  analyzer stuff, more to do later), now updated cd.device that comes
+  with FMV cartridge works. Also CD command 2 now returns full
+  firmware string, "CHINON  O-658-2 24" (useless but fun, same with
+  CDTV CD ROM firmware versions..)
+- F12+CTRL was same as F11+CTRL (partial copypaste error)
+- renamed motherboard RAM expansion areas
+- Wings of Death "fake" NTSC works correctly
+- Null filter is default and non-filter mode is not anymore possible.
+  Finally I can use filters for other things than just simple
+  filtering . See below!
+- filter FS multiplier + keep aspect works as expected
+- pal/ntsc vertical size change emulated (using filter scaling, try
+  KS3.x early boot screen)
+
+- mouse and tablet/"absolute mouse" support completely rewritten
+  * mousehack mouse removed (not needed anymore)
+  * mousehack interrupt and task renamed to "UAE tablet driver"
+  * do not select any "tablet mouse" in ports-panel. Use normal mouse.
+  * tablet automatically detected (currently needs to be wintab32.dll
+    compatible. Really confusing Tablet PC support maybe later..)
+    Tablet properties in log file.
+  * tablet and mouse are separate devices, like real Amiga tablets.
+  * if tablet is detected (and "UAE boot rom" is installed), "UAE
+    tablet driver" will be automatically enabled:
+    KS1.x: uses old-style mousehack mode
+    KS2.x: creates IECLASS_NEWPOINTERPOS/IESUBCLASS_TABLET messages
+    (position, range and pressure. Note that pressure variable is
+    documented as "not used" in 2.x documentation..)
+    KS3.x: creates IECLASS_NEWPOINTERPOS/IESUBCLASS_NEWTABLET messages
+    ("lots of stuff")
+  * stylus inverted = right button (if supported by tablet)
+  * proximity detection (if supported by tablet)
+  * reported tilt angles are 99.9% surely totally wrong
+  * Tested only with old USB Wacom Graphire.
+  * No tablet.library emulation because no information available.
+    (Deluxe Paint requires it for pressure support)
+  * TODO: configuration (left button sensitivity, margins etc..)
+  * New gameports panel settings:
+    - "Drawing tablet support" = install "tablet driver", mousehack
+      or real tablet. Same as mouse in "mousehack" mode. (bad label,
+      will be renamed later..)
+    - "Full tablet emulation" = use wintab32.dll for all tablet
+      parameters (x, y, pressure etc..). Real mouse still works in
+      mousehack mode.
+  * "Magic Mouse" updated.
+    - without tablet mode enabled: like previously but more accurate
+    - mousehack/tablet mode: RTG mode perfectly smooth and seamless
+      mouse cursor movement inside and outside of emulation window.
+      (Changes Windows mouse cursor shape, hides real RTG cursor,
+      works only if RTG hardware mouse cursor enabled)
+    - native mode cursor sync should be always perfect. (this took
+      long and was really difficult to do properly..) Does not work
+      with screen dragging (yet?)
+    
+  * NOTE: real table support can't be improved until I get more
+  information (tilt range etc..) Official documentation is non-existing.
+  (short comments in includes aren't really considered documentation..)
+
+  And finally extremely long awaited feature that was not supposed to
+  ever happen: automatic display scaling!
+  - enable checkbox is "autoscale" in filter panel
+  - supports all filters (maybe?)
+  - scaling sliders change extra border size (middle = no borders)
+  - keep aspect ratio does just that
+  - ignores possible sprites outside of display area (Banshee, Spheris
+  Legacy etc..) Will be updated later..
+  - enabled by default, aspect ratio disabled, at least during beta
+  phase. Perhaps there should be button in quickstart panel to disable
+  or enable autoscaling because not everyone likes blurry display to
+  become the default..
+  - to prevent very small displays scaled to fullscreen (like Guru
+  meditation boxes), minimum allowed internal display size is 256*192.
+  Max size is 344*272 (in lores, nonlaced pixels)
+  - the better this gets the more comments I get.. (which means
+  screenshot and complete name and/or CRC32)
+  
+  Does not (cannot) work with all programs. Why did I finally do this?
+  Because "magic mouse" sync mode required position of display start
+  and end and it was more or less the same was required for automatic
+  scaling.. And also because filter internal algorithms are finally
+  good enough.
+  
 Beta 4:
 
 - removable real harddrives (or other memory devices) work again
@@ -18,7 +118,6 @@ Beta 4:
   some weird lag can be noticed but it is much better than previously)
 - added support for 81 and 82 cylinder PC/Atari ST image formats
 - memwatch breakpoints work after reset/memory bank changes
-
 
 Beta 3:
 

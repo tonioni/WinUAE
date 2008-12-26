@@ -559,6 +559,7 @@ extern void init_hz_p96 (void);
 extern void picasso_handle_hsync (void);
 extern int picasso_palette (void);
 extern void picasso_reset (void);
+extern void picasso_setwincursor (void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */

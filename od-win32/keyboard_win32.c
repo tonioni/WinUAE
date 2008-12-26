@@ -372,7 +372,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 	switch (scancode)
 	{
-	    case DIK_F12:
 	    case DIK_F11:
 	    if (currprefs.win32_ctrl_F11_is_quit) {
 		if (ctrlpressed ())

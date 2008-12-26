@@ -26,6 +26,10 @@
 #ifndef CPUMMU_H
 #define CPUMMU_H
 
+#ifndef FULLMMU
+#define FULLMMU
+#endif
+
 #define ALWAYS_INLINE __forceinline
 #define bool int
 #define DUNUSED(x)

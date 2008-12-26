@@ -42,6 +42,9 @@
 #include <setupapi.h>
 #include <devguid.h>
 
+#include <wintab.h>
+#include "wintablet.h"
+
 #include "win32.h"
 
 #define MAX_MAPPINGS 256
@@ -359,7 +362,180 @@ static int keyhack (int scancode, int pressed, int num)
     return scancode;
 }
 
-static int initialize_catweasel(void)
+static int tablet;
+static int axmax, aymax, azmax;
+static int xmax, ymax, zmax;
+static int xres, yres;
+static int maxpres;
+static char *tabletname;
+static int tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity;
+static int tablet_ax, tablet_ay, tablet_az, tablet_flags;
+
+static void tablet_send (void)
+{
+    static int eraser;
+
+    if ((tablet_flags & TPS_INVERT) && tablet_pressure > 0) {
+	tablet_buttons |= 2;
+	eraser = 1;
+    } else if (eraser) {
+	tablet_buttons &= ~2;
+	eraser = 0;
+    }
+    if (tablet_x < 0)
+	return;
+    inputdevice_tablet (tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity,
+	tablet_ax, tablet_ay, tablet_az);
+}
+
+void send_tablet_proximity (int inproxi)
+{
+    if (tablet_proximity == inproxi)
+	return;
+    tablet_proximity = inproxi;
+    if (!tablet_proximity) {
+	tablet_flags &= ~TPS_INVERT;
+    }
+    tablet_send ();
+}
+
+void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int flags, int ax, int ay, int az, int rx, int ry, int rz, RECT *r)
+{
+    //write_log ("%d %d %d (%d,%d,%d), %08X %d\n", x, y, pres, ax, ay, az, buttons, proxi);
+    if (axmax > 0)
+	ax = ax * 255 / axmax;
+    else
+	ax = 0;
+    if (aymax > 0)
+	ay = ay * 255 / aymax;
+    else
+	ay = 0;
+    if (azmax > 0)
+	az = az * 255 / azmax;
+    else
+	az = 0;
+    pres = pres * 255 / maxpres;
+
+    tablet_x = x;
+    tablet_y = ymax - y;
+    tablet_z = z;
+    tablet_pressure = pres;
+    tablet_buttons = buttons;
+    tablet_ax = abs (ax);
+    tablet_ay = abs (ay);
+    tablet_az = abs (az);
+    tablet_flags = flags;
+
+    tablet_send ();
+}
+
+static int gettabletres (AXIS *a)
+{
+    FIX32 r = a->axResolution;
+    switch (a->axUnits)
+    {
+    case TU_INCHES:
+	return r >> 16;
+    case TU_CENTIMETERS:
+	return (int)(((r / 65536.0) / 2.54) + 0.5);
+    default:
+	return -1;
+    }
+}
+
+void *open_tablet (HWND hwnd)
+{
+    LOGCONTEXT lc;
+    AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
+    AXIS pres = { 0 };
+
+    if (!tablet)
+	return 0;
+    xmax = -1;
+    ymax = -1;
+    zmax = -1;
+    WTInfo (WTI_DEFCONTEXT, 0, &lc);
+    WTInfo (WTI_DEVICES, DVC_X, &tx);
+    WTInfo (WTI_DEVICES, DVC_Y, &ty);
+    WTInfo (WTI_DEVICES, DVC_NPRESSURE, &pres);
+    xmax = tx.axMax;
+    ymax = ty.axMax;
+    if (WTInfo (WTI_DEVICES, DVC_Z, &tz))
+	zmax = tz.axMax;
+    lc.lcOptions |= CXO_MESSAGES;
+    lc.lcPktData = PACKETDATA;
+    lc.lcPktMode = PACKETMODE;
+    lc.lcMoveMask = PACKETDATA;
+    lc.lcBtnUpMask = lc.lcBtnDnMask;
+    lc.lcInExtX = tx.axMax;
+    lc.lcInExtY = ty.axMax;
+    if (zmax > 0)
+	lc.lcInExtZ = tz.axMax;
+    write_log ("Tablet '%s' parameters\n", tabletname);
+    write_log ("Xmax=%d,Ymax=%d,Zmax=%d\n", xmax, ymax, zmax);
+    write_log ("Xres=%.1f:%d,Yres=%.1f:%d,Zres=%.1f:%d\n",
+	tx.axResolution / 65536.0, tx.axUnits, ty.axResolution / 65536.0, ty.axUnits, tz.axResolution / 65536.0, tz.axUnits);
+    write_log ("Xrotmax=%d,Yrotmax=%d,Zrotmax=%d\n", axmax, aymax, azmax);
+    write_log ("PressureMin=%d,PressureMax=%d\n", pres.axMin, pres.axMax);
+    maxpres = pres.axMax;
+    xres = gettabletres (&tx);
+    yres = gettabletres (&ty);
+    tablet_proximity = -1;
+    tablet_x = -1;
+    inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
+    return WTOpen (hwnd, &lc, TRUE);
+}
+
+int close_tablet (void *ctx)
+{
+    if (ctx != NULL)
+	WTClose (ctx);
+    ctx = NULL;
+    if (!tablet)
+	return 0;
+    return 1;
+}
+
+int is_tablet (void)
+{
+    return tablet ? 1 : 0;
+}
+
+static int initialize_tablet (void)
+{
+    HANDLE h;
+    char name[MAX_DPATH];
+    struct tagAXIS ori[3];
+    int tilt = 0;
+
+    h = LoadLibrary ("wintab32.dll");
+    if (h == NULL) {
+	write_log ("Tablet: no wintab32.dll\n");
+	return 0;
+    }
+    FreeLibrary (h);
+    if (!WTInfo (0, 0, NULL)) {
+	write_log ("Tablet: WTInfo() returned failure\n");
+	return 0;
+    }
+    WTInfo (WTI_DEVICES, DVC_NAME, name);
+    axmax = aymax = azmax = -1;
+    tilt = WTInfo (WTI_DEVICES, DVC_ORIENTATION, &ori);
+    if (tilt) {
+	if (ori[0].axMax > 0)
+	    axmax = ori[0].axMax;
+	if (ori[1].axMax > 0)
+	    aymax = ori[1].axMax;
+	if (ori[2].axMax > 0)
+	    azmax = ori[2].axMax;
+    }
+    write_log ("Tablet '%s' detected\n", name);
+    tabletname = my_strdup (name);
+    tablet = TRUE;
+    return 1;
+}
+
+static int initialize_catweasel (void)
 {
     int j, i;
     char tmp[MAX_DPATH];
@@ -747,7 +923,7 @@ static void initialize_windowsmouse (void)
     int i, j;
 
     did += num_mouse;
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 1; i++) {
 	if (num_mouse >= MAX_INPUT_DEVICES)
 	    return;
 	num_mouse++;
@@ -1287,6 +1463,8 @@ static int di_do_init (void)
     initialize_windowsmouse ();
     write_log ("Catweasel joymouse initialization..\n");
     initialize_catweasel ();
+    write_log ("wintab tablet initialization..\n");
+    initialize_tablet ();
     write_log ("end\n");
 
     sortdd (di_joystick, num_joystick, DID_JOYSTICK);

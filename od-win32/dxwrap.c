@@ -121,9 +121,8 @@ static void clearsurf (LPDIRECTDRAWSURFACE7 surf, DWORD color)
 	    ddrval = restoresurface (surf);
 	    if (FAILED (ddrval))
 		break;
-	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    break;
 	}
+	break;
     }
 }
 

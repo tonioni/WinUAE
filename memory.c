@@ -1783,6 +1783,8 @@ static void a1000_handle_kickstart (int mode)
 	memcpy (kickmemory, a1000_bootrom, 262144);
 	kickstart_version = 0;
     }
+    if (kickstart_version == 0xffff)
+	kickstart_version = 0;
 }
 
 void a1000_reset (void)
@@ -2434,6 +2436,20 @@ static void byteswap (uae_u8 *buf, int size)
 	buf[i + 1] = t;
     }
 }
+static void wordbyteswap (uae_u8 *buf, int size)
+{
+    int i;
+    for (i = 0; i < size; i += 4) {
+	uae_u8 t;
+	t = buf[i + 0];
+	buf[i + 0] = buf[i + 2];
+	buf[i + 2] = t;
+	t = buf[i + 1];
+	buf[i + 1] = buf[i + 3];
+	buf[i + 3] = t;
+    }
+}
+
 static void mergecd32 (uae_u8 *dst, uae_u8 *src, int size)
 {
     int i, k;
@@ -2487,15 +2503,17 @@ struct zfile *read_rom (struct romdata **prd)
     crc32 = rd2->crc32;
     name = rd->name;
     buf = xmalloc (size * 2);
+    memset (buf, 0xff, size * 2);
     if (!buf)
 	return NULL;
     buf2 = buf + size;
     while (rd->id == id) {
-	int i;
+	int i, j, add;
 	int ok = 0;
 	uae_u32 flags = rd->type;
         int odd = (flags & ROMTYPE_ODD) ? 1 : 0;
 
+	add = 0;
 	for (i = 0; i < 2; i++) {
 	    memset (buf, 0, size);
 	    if (!(flags & (ROMTYPE_EVEN | ROMTYPE_ODD))) {
@@ -2504,27 +2522,48 @@ struct zfile *read_rom (struct romdata **prd)
 		    memcpy (buf2, buf, size);
 		    mergecd32 (buf, buf2, size);
 		}
-		rd++;
+		add = 1;
 		i++;
 	    } else {
 		int romsize = size / 2;
 		if (i)
 		    odd = !odd;
-		read_rom_file (buf2, rd);
-		if (flags & ROMTYPE_BYTESWAP)
-		    byteswap (buf2, romsize);
-		if (flags & ROMTYPE_SCRAMBLED)
-		    descramble (rd, buf2, romsize, odd);
-		for (i = 0; i < size; i += 2)
-		    buf[i + odd] = buf2[i / 2];
-		read_rom_file (buf2, rd + 1);
-		if (flags & ROMTYPE_BYTESWAP)
-		    byteswap (buf2, romsize);
-		if (flags & ROMTYPE_SCRAMBLED)
-		    descramble (rd + 1, buf2, romsize, !odd);
-		for (i = 0; i < size; i += 2)
-		    buf[i + (1 - odd)] = buf2[i / 2];
-		rd += 2;
+		if (flags & ROMTYPE_8BIT) {
+		    read_rom_file (buf2, rd);
+		    if (flags & ROMTYPE_BYTESWAP)
+			byteswap (buf2, romsize);
+		    if (flags & ROMTYPE_SCRAMBLED)
+			descramble (rd, buf2, romsize, odd);
+		    for (j = 0; j < size; j += 2)
+			buf[j + odd] = buf2[j / 2];
+		    read_rom_file (buf2, rd + 1);
+		    if (flags & ROMTYPE_BYTESWAP)
+			byteswap (buf2, romsize);
+		    if (flags & ROMTYPE_SCRAMBLED)
+			descramble (rd + 1, buf2, romsize, !odd);
+		    for (j = 0; j < size; j += 2)
+			buf[j + (1 - odd)] = buf2[j / 2];
+		} else {
+		    read_rom_file (buf2, rd);
+		    if (flags & ROMTYPE_BYTESWAP)
+			byteswap (buf2, romsize);
+		    if (flags & ROMTYPE_SCRAMBLED)
+			descramble (rd, buf2, romsize, odd);
+		    for (j = 0; j < size; j += 4) {
+			buf[j + 2 * odd + 0] = buf2[j / 2 + 0];
+			buf[j + 2 * odd + 1] = buf2[j / 2 + 1];
+		    }
+		    read_rom_file (buf2, rd + 1);
+		    if (flags & ROMTYPE_BYTESWAP)
+			byteswap (buf2, romsize);
+		    if (flags & ROMTYPE_SCRAMBLED)
+			descramble (rd + 1, buf2, romsize, !odd);
+		    for (j = 0; j < size; j += 4) {
+			buf[j + 2 * (1 - odd) + 0] = buf2[j / 2 + 0];
+			buf[j + 2 * (1 - odd) + 1] = buf2[j / 2 + 1];
+		    }
+		}
+	        add = 2;
 	    }
 	    if (get_crc32 (buf, size) == crc32) {
 		ok = 1;
@@ -2544,6 +2583,7 @@ struct zfile *read_rom (struct romdata **prd)
 		return zf;
 	    }
 	}
+	rd += add;
 
     }
     xfree (buf);
@@ -2914,6 +2954,8 @@ static int load_kickstart (void)
 #endif
 
     kickstart_version = (kickmemory[12] << 8) | kickmemory[13];
+    if (kickstart_version == 0xffff)
+	kickstart_version = 0;
     zfile_fclose (f);
     return 1;
 err:

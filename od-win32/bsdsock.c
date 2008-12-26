@@ -14,6 +14,8 @@
 
 #if defined(BSDSOCKET)
 
+#include "resource"
+
 #include <winsock.h>
 #include <stddef.h>
 #include <process.h>
@@ -30,7 +32,6 @@
 #include "threaddep/thread.h"
 #include "registry.h"
 #include "native2amiga.h"
-#include "resource.h"
 #include "win32gui.h"
 #include "wininet.h"
 #include "mmsystem.h"

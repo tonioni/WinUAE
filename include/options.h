@@ -54,6 +54,10 @@ struct jport {
 #define CONFIG_TYPE_HOST 2
 #define CONFIG_BLEN 2560
 
+#define TABLET_OFF 0
+#define TABLET_MOUSEHACK 1
+#define TABLET_REAL 2
+
 struct wh {
     int x, y;
     int width, height;
@@ -163,7 +167,6 @@ struct uae_prefs {
     int gfx_resolution;
     int gfx_lores_mode;
     int gfx_linedbl;
-    int gfx_correct_aspect;
     int gfx_afullscreen, gfx_pfullscreen;
     int gfx_xcenter, gfx_ycenter;
     int gfx_xcenter_pos, gfx_ycenter_pos;
@@ -185,6 +188,7 @@ struct uae_prefs {
     int gfx_filter_noise, gfx_filter_blur;
     int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
     int gfx_filter_keep_aspect, gfx_filter_aspect;
+    int gfx_filter_autoscale;
 
     int immediate_blits;
     unsigned int chipset_mask;
@@ -305,7 +309,6 @@ struct uae_prefs {
     int win32_notaskbarbutton;
     int win32_alwaysontop;
     int win32_powersavedisabled;
-    int win32_outsidemouse;
 
     int win32_active_priority;
     int win32_inactive_priority;
@@ -342,6 +345,7 @@ struct uae_prefs {
 
     /* input */
 
+    char inputname[256];
     struct jport jports[2];
     int input_selected_setting;
     int input_joymouse_multiplier;
@@ -352,6 +356,8 @@ struct uae_prefs {
     int input_analog_joystick_offset;
     int input_autofire_framecnt;
     int input_mouse_speed;
+    int input_tablet;
+    int input_magic_mouse;
     struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
     struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
     struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];

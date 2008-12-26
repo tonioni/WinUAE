@@ -5,7 +5,8 @@
 #include "sysdeps.h"
 
 #include <shellapi.h>
-#include "resource.h"
+
+#include "resource"
 
 #include "threaddep/thread.h"
 #include "options.h"

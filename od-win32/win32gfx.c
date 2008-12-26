@@ -18,6 +18,9 @@
 #include <shellapi.h>
 
 #include "sysdeps.h"
+
+#include "resource"
+
 #include "options.h"
 #include "audio.h"
 #include "uae.h"
@@ -35,7 +38,6 @@
 #include "win32.h"
 #include "win32gfx.h"
 #include "win32gui.h"
-#include "resource.h"
 #include "sound.h"
 #include "inputdevice.h"
 #include "opengl.h"
@@ -196,6 +198,18 @@ struct MultiDisplay *getdisplay (struct uae_prefs *p)
     return &Displays[display];
 }
 
+void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
+{
+    struct MultiDisplay *md = getdisplay (&currprefs);
+
+    *dw = md->rect.right - md->rect.left;
+    *dh = md->rect.bottom - md->rect.top;
+    *ax = amigawin_rect.left;
+    *ay = amigawin_rect.top;
+    *aw = amigawin_rect.right - *ax;
+    *ah = amigawin_rect.bottom - *ay;
+}
+
 void centerdstrect (RECT *dr)
 {
     if(!(currentmode->flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN | DM_W_FULLSCREEN)))
@@ -212,6 +226,33 @@ void centerdstrect (RECT *dr)
     }
 }
 
+static int picasso_offset_x, picasso_offset_y, picasso_offset_mx, picasso_offset_my;
+
+void getgfxoffset (int *dxp, int *dyp, int *mxp, int *myp)
+{
+    int dx, dy;
+
+    getfilteroffset (&dx, &dy, mxp, myp);
+    *dxp = dx;
+    *dyp = dy;
+    if (picasso_on) {
+        dx = picasso_offset_x;
+        dy = picasso_offset_y;
+	*mxp = picasso_offset_mx;
+	*myp = picasso_offset_my;
+    } else if (currentmode->flags & DM_W_FULLSCREEN) {
+	if (scalepicasso && screen_is_picasso)
+	    return;
+	if (usedfilter && !screen_is_picasso)
+	    return;
+	if (currentmode->fullfill && (currentmode->current_width > currentmode->native_width || currentmode->current_height > currentmode->native_height))
+	    return;
+	dx += (currentmode->native_width - currentmode->current_width) / 2;
+	dy += (currentmode->native_height - currentmode->current_height) / 2;
+    }
+    *dxp = dx;
+    *dyp = dy;
+}
 
 void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color)
 {
@@ -733,6 +774,10 @@ static void DX_Blit96 (int x, int y, int w, int h)
 {
     RECT dr, sr;
 
+    picasso_offset_x = 0;
+    picasso_offset_y = 0;
+    picasso_offset_mx = 1000;
+    picasso_offset_my = 1000;
     if (scalepicasso) {
 	int srcratio, dstratio;
 	SetRect (&sr, 0, 0, picasso96_state.Width, picasso96_state.Height);
@@ -758,10 +803,14 @@ static void DX_Blit96 (int x, int y, int w, int h)
 	} else if (srcratio > dstratio) {
 	    int yy = currentmode->native_height - currentmode->native_height * dstratio / srcratio;
 	    SetRect (&dr, 0, yy / 2, currentmode->native_width, currentmode->native_height - yy / 2);
+	    picasso_offset_y = yy / 2;
 	} else {
 	    int xx = currentmode->native_width - currentmode->native_width * srcratio / dstratio;
 	    SetRect (&dr, xx / 2, 0, currentmode->native_width - xx / 2, currentmode->native_height);
+	    picasso_offset_x = xx / 2;
 	}
+	picasso_offset_mx = picasso96_state.Width * 1000 / (dr.right - dr.left);
+	picasso_offset_my = picasso96_state.Height * 1000 / (dr.bottom - dr.top);
 	DirectDraw_BlitToPrimaryScale (&dr, &sr);
     } else {
         SetRect (&sr, x, y, x + w, y + h);
@@ -1037,6 +1086,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
     c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
     c |= strcmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
+    c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
+
     c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
     c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
@@ -1095,6 +1146,8 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
 	currprefs.gfx_display = changed_prefs.gfx_display;
 	strcpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
+	currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
+
 	currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 	currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 	currprefs.win32_borderless = changed_prefs.win32_borderless;
@@ -1129,7 +1182,7 @@ int check_prefs_changed_gfx (void)
 	return 1;
     }
 
-    if (currprefs.gfx_correct_aspect != changed_prefs.gfx_correct_aspect ||
+    if (currprefs.gfx_filter_autoscale != changed_prefs.gfx_filter_autoscale ||
 	currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
 	currprefs.gfx_ycenter_pos != changed_prefs.gfx_ycenter_pos ||
 	currprefs.gfx_xcenter_size != changed_prefs.gfx_xcenter_size ||
@@ -1137,7 +1190,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_xcenter != changed_prefs.gfx_xcenter ||
 	currprefs.gfx_ycenter != changed_prefs.gfx_ycenter)
     {
-	currprefs.gfx_correct_aspect = changed_prefs.gfx_correct_aspect;
+	currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 	currprefs.gfx_xcenter_pos = changed_prefs.gfx_xcenter_pos;
 	currprefs.gfx_ycenter_pos = changed_prefs.gfx_ycenter_pos;
 	currprefs.gfx_xcenter_size = changed_prefs.gfx_xcenter_size;
@@ -1240,12 +1293,8 @@ int check_prefs_changed_gfx (void)
 #endif
     }
 
-    if (currprefs.win32_automount_drives != changed_prefs.win32_automount_drives ||
-	currprefs.win32_outsidemouse != changed_prefs.win32_outsidemouse ||
-	currprefs.win32_powersavedisabled != changed_prefs.win32_powersavedisabled) {
+    if (currprefs.win32_powersavedisabled != changed_prefs.win32_powersavedisabled) {
 
-	currprefs.win32_outsidemouse = changed_prefs.win32_outsidemouse;
-	currprefs.win32_automount_drives = changed_prefs.win32_automount_drives;
 	currprefs.win32_powersavedisabled = changed_prefs.win32_powersavedisabled;
     }
     return 0;

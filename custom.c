@@ -242,7 +242,7 @@ enum diw_states
     DIW_waiting_start, DIW_waiting_stop
 };
 
-static int plffirstline, plflastline;
+int plffirstline, plflastline;
 static int plfstrt_start, plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
@@ -251,6 +251,7 @@ static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 int diwfirstword, diwlastword;
 static enum diw_states diwstate, hdiwstate, ddfstate;
+int first_planes_vpos, last_planes_vpos;
 
 /* Sprite collisions */
 static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match;
@@ -2590,8 +2591,11 @@ void init_hz (void)
 #ifdef PICASSO96
     init_hz_p96 ();
 #endif
-    write_log ("%s mode, V=%dHz H=%dHz (%dx%d)\n",
+    inputdevice_tablet_strobe ();
+    write_log ("%s mode%s%s V=%dHz H=%dHz (%dx%d)\n",
 	isntsc ? "NTSC" : "PAL",
+	(bplcon0 & 4) ? " interlaced" : "",
+	doublescan ? " dblscan" : "",
 	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
 }
@@ -2754,13 +2758,13 @@ STATIC_INLINE uae_u16 VPOSR (void)
 static void VPOSW (uae_u16 v)
 {
 #if 0
-    write_log ("vposw %x at %x\n", v, m68k_getpc (&regs));
+    write_log ("vposw %d PC=%08x\n", v, M68K_GETPC);
 #endif
     if (lof != (v & 0x8000))
 	lof_changed = 1;
     lof = v & 0x8000;
     if ((v & 1) && vpos > 0)
-	hack_vpos = vpos;
+	hack_vpos = vpos + 1;
 }
 
 STATIC_INLINE uae_u16 VHPOSR (void)
@@ -3158,6 +3162,14 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_line (hpos);
     decide_fetch (hpos);
     decide_blitter (hpos);
+
+    if (vpos > first_planes_vpos && vpos >= minfirstline && first_planes_vpos == 0) {
+	if (GET_PLANES (v) > 0)
+	    first_planes_vpos = vpos;
+    }
+    if (GET_PLANES (v) == 0 && GET_PLANES (bplcon0) > 0 && vpos > last_planes_vpos) {
+	last_planes_vpos = vpos;
+    }
 
     // fake unused 0x0080 bit as an EHB bit (see below)
     if (isehb (v, bplcon2))
@@ -4400,6 +4412,8 @@ static void init_hardware_frame (void)
     diwstate = DIW_waiting_start;
     hdiwstate = DIW_waiting_start;
     ddfstate = DIW_waiting_start;
+    first_planes_vpos = 0;
+    last_planes_vpos = 0;
 }
 
 void init_hardware_for_drawing_frame (void)
@@ -4911,6 +4925,14 @@ static void hsync_handler (void)
 
     hsync_counter++;
     //copper_check (2);
+    if (vpos == minfirstline) {
+	if (GET_PLANES (bplcon0) > 0)
+	    first_planes_vpos = minfirstline;
+    } else if (vpos == maxvpos - 1) {
+	if (GET_PLANES (bplcon0) > 0)
+	    last_planes_vpos = vpos - 1;
+    }
+
 #if 0
     {
 	static int skip;

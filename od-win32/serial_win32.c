@@ -203,16 +203,6 @@ void serial_hsynchandler (void)
 	checksend (0);
 }
 
-/* Not (fully) implemented yet: (on windows this work)
- *
- *  -  Something's wrong with the Interrupts.
- *     (NComm works, TERM does not. TERM switches to a
- *     blind mode after a connect and wait's for the end
- *     of an asynchronous read before switching blind
- *     mode off again. It never gets there on UAE :-< )
- *
- */
-
 void SERDAT (uae_u16 w)
 {
     serdat = w;
@@ -278,7 +268,7 @@ void serial_check_irq (void)
 	INTREQ_0 (0x8000 | 0x0800);
 }
 
-void serial_dtr_on(void)
+void serial_dtr_on (void)
 {
 #if SERIALHSDEBUG > 0
     write_log ( "SERIAL: DTR on\n" );
@@ -291,7 +281,7 @@ void serial_dtr_on(void)
 #endif
 }
 
-void serial_dtr_off(void)
+void serial_dtr_off (void)
 {
 #if SERIALHSDEBUG > 0
     write_log ( "SERIAL: DTR off\n" );
@@ -304,13 +294,13 @@ void serial_dtr_off(void)
 #endif
 }
 
-void serial_flush_buffer(void)
+void serial_flush_buffer (void)
 {
 }
 
 static uae_u8 oldserbits;
 
-static void serial_status_debug(char *s)
+static void serial_status_debug (char *s)
 {
 #if SERIALHSDEBUG > 1
     write_log ("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
@@ -319,7 +309,7 @@ static void serial_status_debug(char *s)
 #endif
 }
 
-uae_u8 serial_readstatus(uae_u8 dir)
+uae_u8 serial_readstatus (uae_u8 dir)
 {
     int status = 0;
     uae_u8 serbits = oldserbits;
@@ -442,7 +432,7 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
     return oldserbits;
 }
 
-void serial_open(void)
+void serial_open (void)
 {
 #ifdef SERIAL_PORT
     if (serdev)
@@ -459,7 +449,7 @@ void serial_open(void)
 void serial_close (void)
 {
 #ifdef SERIAL_PORT
-    closeser();
+    closeser ();
     serdev = 0;
 #endif
 }

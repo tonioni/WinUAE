@@ -18,6 +18,7 @@
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
+#include "cpummu.h"
 #include "cpu_prefetch.h"
 #include "autoconf.h"
 #include "traps.h"
@@ -870,6 +871,8 @@ void REGPARAM2 MakeFromSR (struct regstruct *regs)
 	    }
 	}
     }
+    if (currprefs.mmu_model)
+	mmu_set_super (regs->s);
 
     doint ();
     if (regs->t1 || regs->t0)
@@ -1028,6 +1031,8 @@ static void Exception_normal (int nr, struct regstruct *regs, uaecptr oldpc)
 	else
 	    m68k_areg (regs, 7) = regs->isp;
 	regs->s = 1;
+	if (currprefs.mmu_model)
+	    mmu_set_super (regs->s);
     }
     if (currprefs.cpu_model > 68000) {
 	if (nr == 2 || nr == 3) {
@@ -1243,7 +1248,10 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	}
 	break;
 	 /* 68040/060 only */
-	case 3: regs.tcr = *regp & (currprefs.cpu_model == 68060 ? 0xfffe : 0xc000);
+	case 3:
+	    regs.tcr = *regp & (currprefs.cpu_model == 68060 ? 0xfffe : 0xc000);
+	    if (currprefs.mmu_model)
+		mmu_set_tc (regs.tcr);
 	break;
 
 	/* no differences between 68040 and 68060 */
@@ -1634,6 +1642,9 @@ void m68k_reset (int hardreset)
     regs.itt0 = regs.itt1 = regs.dtt0 = regs.dtt1 = 0;
     regs.tcr = regs.mmusr = regs.urp = regs.srp = regs.buscr = 0;
 
+    if (currprefs.mmu_model)
+	mmu_reset ();
+
     a3000_fakekick (0);
     /* only (E)nable bit is zeroed when CPU is reset, A3000 SuperKickstart expects this */
     tc_030 &= ~0x80000000;
@@ -1892,6 +1903,10 @@ void mmu_op (uae_u32 opcode, struct regstruct *regs, uae_u32 extra)
 #if MMUOP_DEBUG > 1
     write_log ("mmu_op %04X PC=%08X\n", opcode, m68k_getpc (regs));
 #endif
+    if (currprefs.cpu_model) {
+	mmu_op_real (opcode, extra);
+	return;
+    }
     if ((opcode & 0xFE0) == 0x0500) {
 	/* PFLUSH */
 	regs->mmusr = 0;

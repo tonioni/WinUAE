@@ -85,7 +85,7 @@ int p96hsync_counter, full_refresh;
 #define P96TRACING_ENABLED 1
 #define P96TRACING_LEVEL 1
 #endif
-static void flushpixels(void);
+static void flushpixels (void);
 #if P96TRACING_ENABLED
 #define P96TRACE(x) do { write_log x; } while(0)
 #else
@@ -128,6 +128,8 @@ static LPDIRECTDRAWSURFACE7 p96surface;
 static int cursorwidth, cursorheight, cursorok;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
 static int reloadcursor, cursorvisible, cursordeactivate;
+static HCURSOR wincursor;
+static int wincursor_shown;
 static uaecptr boardinfo;
 static int interrupt_enabled;
 int p96vblank;
@@ -159,7 +161,8 @@ typedef enum {
 } BLIT_OPCODE;
 
 #include "win32gui.h"
-#include "resource.h"
+#include "resource"
+
 #define UAE_RTG_LIBRARY_VERSION 40
 #define UAE_RTG_LIBRARY_REVISION 3994
 static void checkrtglibrary(void)
@@ -1330,7 +1333,7 @@ void picasso_putcursor (int sx, int sy, int sw, int sh)
     int xdiff, ydiff, xdiff2, ydiff2;
     LPDIRECTDRAWSURFACE7 dstsurf = dxdata.secondary;
     
-    if (!cursorvisible || !hwsprite || !cursorok)
+    if (!cursorvisible || !hwsprite || !cursorok || wincursor_shown)
 	return;
 
     if (remcursor_x + remcursor_w < sx)
@@ -1404,7 +1407,7 @@ void picasso_clearcursor (void)
     DWORD ddrval;
     LPDIRECTDRAWSURFACE7 dstsurf = dxdata.secondary;
 
-    if (!cursorok)
+    if (!cursorok || wincursor_shown)
 	return;
     if (!mouseput)
 	return;
@@ -1466,6 +1469,127 @@ static void putmousepixel (uae_u8 *d, int bpp, int idx)
     }
 }
 
+static void putwinmousepixel (HDC andDC, HDC xorDC, int x, int y, int c)
+{
+    if (c == 0) {
+        SetPixel (andDC, x, y, RGB (255, 255, 255));
+        SetPixel (xorDC, x, y, RGB (0, 0, 0));
+    } else {
+        uae_u32 val = cursorrgbn[c];
+        SetPixel (andDC, x, y, RGB (0, 0, 0));
+        SetPixel (xorDC, x, y, RGB ((val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff));
+    }
+}
+
+static int wincursorcnt;
+void picasso_setwincursor (void)
+{
+    if (wincursor) {
+	SetCursor (wincursor);
+    } else {
+	SetCursor (NULL);
+    }
+}
+
+static int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite)
+{
+    HBITMAP andBM, xorBM;
+    HBITMAP andoBM, xoroBM;
+    HDC andDC, xorDC, DC, mainDC;
+    ICONINFO ic;
+    int x, y, yy;
+    int ret, isdata;
+
+    ret = 0;
+    if (wincursor)
+	DestroyIcon (wincursor);
+    wincursor = NULL;
+    wincursor_shown = 0;
+    if (isfullscreen () > 0 || currprefs.input_tablet == 0 || currprefs.input_magic_mouse == 0)
+	return 0;
+
+    DC = mainDC = andDC = xorDC = NULL;
+    andBM = xorBM = NULL;
+    DC = GetDC (NULL);
+    if (!DC)
+	goto end;
+    mainDC = CreateCompatibleDC (DC);
+    andDC = CreateCompatibleDC (DC);
+    xorDC = CreateCompatibleDC (DC);
+    if (!mainDC || !andDC || !xorDC)
+	goto end;
+    andBM = CreateCompatibleBitmap (DC, w, h);
+    xorBM = CreateCompatibleBitmap (DC, w, h);
+    if (!andBM || !xorBM)
+	goto end;
+    andoBM = SelectObject (andDC, andBM);
+    xoroBM = SelectObject (xorDC, xorBM);
+
+    isdata = 0;
+    for (y = 0, yy = 0; y < h; yy++) {
+	int dbl;
+	uaecptr img = src + yy * 4 * hiressprite;
+	for (dbl = 0; dbl < (doubledsprite ? 2 : 1); dbl++) {
+	    x = 0;
+	    while (x < w) {
+		uae_u32 d1 = get_long (img);
+		uae_u32 d2 = get_long (img + 2 * hiressprite);
+		int bits;
+		int maxbits = w - x;
+
+		if (maxbits > 16 * hiressprite)
+		    maxbits = 16 * hiressprite;
+		for (bits = 0; bits < maxbits && x < w; bits++) {
+		    uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
+		    d1 <<= 1;
+		    d2 <<= 1;
+		    putwinmousepixel (andDC, xorDC, x, y, c);
+		    if (c > 0)
+			isdata = 1;
+		    x++;
+		    if (doubledsprite && x < w) {
+			putwinmousepixel (andDC, xorDC, x, y, c);
+			x++;
+		    }
+		}
+	    }
+	    if (y <= h)
+		y++;
+	}
+    }
+    ret = 1;
+
+    SelectObject (andDC, andoBM);
+    SelectObject (xorDC, xoroBM);
+
+end:
+    DeleteDC (xorDC);
+    DeleteDC (andDC);
+    DeleteDC (mainDC);
+    ReleaseDC (NULL, DC);
+
+    if (!isdata) {
+	wincursor = LoadCursor (NULL, IDC_ARROW);
+    } else if (ret) {
+	memset (&ic, 0, sizeof ic);
+	ic.hbmColor = xorBM;
+	ic.hbmMask = andBM;
+	wincursor = CreateIconIndirect (&ic);
+    }
+
+    DeleteObject (andBM);
+    DeleteObject (xorBM);
+    
+    if (wincursor) {
+	SetCursor (wincursor);
+	wincursor_shown = 1;
+    }
+
+    if (!ret)
+	write_log ("RTG Windows color cursor creation failed\n");
+    return ret;
+}
+
 static uae_u32 setspriteimage (uaecptr bi)
 {
     DDSURFACEDESC2 desc;
@@ -1483,8 +1607,8 @@ static uae_u32 setspriteimage (uaecptr bi)
     if (!hwsprite || !dxdata.cursorsurface1)
 	return 0;
     oldcursor_x = -10000;
-    w = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseWidth);
-    h = (uae_u32)get_byte (bi + PSSO_BoardInfo_MouseHeight);
+    w = get_byte (bi + PSSO_BoardInfo_MouseWidth);
+    h = get_byte (bi + PSSO_BoardInfo_MouseHeight);
     tmpbuf = NULL;
     flags = get_long (bi + PSSO_BoardInfo_Flags);
     hiressprite = 1;
@@ -1511,9 +1635,11 @@ static uae_u32 setspriteimage (uaecptr bi)
 	goto end;
     }
 
+    createwindowscursor (get_long (bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite,
+	w, h, hiressprite, doubledsprite);
+
     tmpbuf = xmalloc (w * h * bpp);
-    yy = 0;
-    for (y = 0; y < h; y++, yy++) {
+    for (y = 0, yy = 0; y < h; y++, yy++) {
         uae_u8 *p = tmpbuf + w * bpp * y;
 	uae_u8 *pprev = p;
 	uaecptr img = get_long (bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite + yy * 4 * hiressprite;
@@ -2927,7 +3053,7 @@ static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
     uae_u32 result = 0;
 
     if (NOBLITTER)
-	return 1;
+	return 0;
 
     if(CopyRenderInfoStructureA2U (rinf, &ri) && CopyPatternStructureA2U (pinf, &pattern)) {
 	Bpp = GetBytesPerPixel(ri.RGBFormat);
@@ -4119,7 +4245,7 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
     dw (0x6504); // bcs.s .l1
     calltrap (deftrap (picasso_CalculateBytesPerRow));
     dw (RTS);
-    dw (0x0c87); dl (0x00000010); // l1: cmp.l #10,d7
+    dw (0x0c87); dl (0x00000010); // l1: cmp.l #$10,d7
     dw (0x640a); // bcc.s .l2
     dw (0x7200); // moveq #0,d1
     dl (0x123b7010); // move.b table(pc,d7.w),d1

@@ -20,7 +20,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "resource.h"
+#include "resource"
 #include "registry.h"
 #include "win32.h"
 #include "win32gui.h"

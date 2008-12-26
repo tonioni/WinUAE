@@ -31,7 +31,7 @@
 #include <shobjidl.h>
 #include <dbt.h>
 
-#include "resource.h"
+#include "resource"
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "gui.h"
@@ -135,7 +135,7 @@ static int C_PAGES;
 #define MAX_C_PAGES 30
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, CHIPSET2_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
-    HARDDISK_ID = -1, PORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
+    HARDDISK_ID = -1, IOPORTS_ID = -1, GAMEPORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
     PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, FRONTEND_ID = -1;
 static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
@@ -4659,7 +4659,7 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)"SuperHires");
     SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
 
-    CheckDlgButton (hDlg, IDC_ASPECT, workprefs.gfx_correct_aspect);
+    CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
     CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
 
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
@@ -4711,7 +4711,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
 
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
-    workprefs.gfx_correct_aspect = IsDlgButtonChecked (hDlg, IDC_ASPECT);
+    workprefs.gfx_blackerthanblack = IsDlgButtonChecked (hDlg, IDC_BLACKER_THAN_BLACK);
     workprefs.gfx_linedbl = (IsDlgButtonChecked(hDlg, IDC_LM_SCANLINES) ? 2 :
 			      IsDlgButtonChecked(hDlg, IDC_LM_DOUBLED) ? 1 : 0);
 
@@ -6116,7 +6116,6 @@ static void values_to_miscdlg (HWND hDlg)
 	    workprefs.catweasel = 0;
 	CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
-	CheckDlgButton (hDlg, IDC_MOUSETRICK, workprefs.win32_outsidemouse);
 
 	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 	misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
@@ -6352,9 +6351,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_CATWEASEL:
 	    workprefs.catweasel = IsDlgButtonChecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
-	    break;
-	case IDC_MOUSETRICK:
-	    workprefs.win32_outsidemouse = IsDlgButtonChecked (hDlg, IDC_MOUSETRICK) ? -1 : 0;
 	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
@@ -8762,6 +8758,13 @@ static int ghostscript_available;
 static int joy0previous, joy1previous;
 static BOOL bNoMidiIn = FALSE;
 
+static void enable_for_gameportsdlg (HWND hDlg)
+{
+    int v = full_property_sheet;
+    ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
+    ew (hDlg, IDC_PORT_MOUSETRICK, v);
+}
+
 static void enable_for_portsdlg (HWND hDlg)
 {
     int v;
@@ -8802,7 +8805,11 @@ static void updatejoyport (HWND hDlg)
     int i, j;
     char tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
-    enable_for_portsdlg (hDlg);
+    SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
+    CheckDlgButton (hDlg, IDC_PORT_MOUSETRICK, workprefs.input_magic_mouse);
+    CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
+    CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
+
     if (joy0previous < 0)
 	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
     if (joy1previous < 0)
@@ -8876,12 +8883,26 @@ static void fixjport (struct jport *port, int v)
     port->id = vv;
 }
 
-static void values_from_portsdlg (HWND hDlg)
+static void values_from_gameportsdlg (HWND hDlg, int d)
 {
-    int i, lastside = 0, changed = 0, v;
-    char tmp[256];
-    BOOL success;
-    LRESULT item;
+    int i, success;
+    int changed = 0;
+    int lastside = 0;
+
+    if (d) {
+	i  = GetDlgItemInt (hDlg, IDC_INPUTSPEEDM, &success, FALSE);
+	if (success)
+	    currprefs.input_mouse_speed = workprefs.input_mouse_speed = i;
+
+	workprefs.input_magic_mouse = IsDlgButtonChecked (hDlg, IDC_PORT_MOUSETRICK) ? -1 : 0;
+	workprefs.input_tablet = 0;
+	if (IsDlgButtonChecked (hDlg, IDC_PORT_TABLET)) {
+	    workprefs.input_tablet = TABLET_MOUSEHACK;
+	    if (IsDlgButtonChecked (hDlg, IDC_PORT_TABLET_FULL))
+		workprefs.input_tablet = TABLET_REAL;
+	}
+	return;
+    }
 
     for (i = 0; i < 2; i++) {
 	int idx = 0;
@@ -8911,6 +8932,15 @@ static void values_from_portsdlg (HWND hDlg)
 	else
 	    fixjport (&workprefs.jports[1], workprefs.jports[0].id);
     }
+    
+}
+
+static void values_from_portsdlg (HWND hDlg)
+{
+    int v;
+    char tmp[256];
+    BOOL success;
+    LRESULT item;
 
     item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
     if(item != CB_ERR) {
@@ -9145,7 +9175,7 @@ static void init_portsdlg (HWND hDlg)
 }
 
 /* Handle messages for the Joystick Settings page of our property-sheet */
-static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int temp;
@@ -9154,18 +9184,16 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     {
     case WM_INITDIALOG:
 	recursive++;
-	pages[PORTS_ID] = hDlg;
-	currentpage = PORTS_ID;
-	init_portsdlg (hDlg);
+	pages[GAMEPORTS_ID] = hDlg;
+	currentpage = GAMEPORTS_ID;
 	inputdevice_updateconfig (&workprefs);
-	enable_for_portsdlg (hDlg);
-	values_to_portsdlg (hDlg);
+	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);
 	recursive--;
 	break;
     case WM_USER:
 	recursive++;
-	enable_for_portsdlg (hDlg);
+	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);
 	recursive--;
 	return TRUE;
@@ -9174,7 +9202,7 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	if (recursive > 0)
 	    break;
 	recursive++;
-	if (wParam == IDC_SWAP) {
+	if (LOWORD (wParam) == IDC_SWAP) {
 	    struct jport tmp;
 	    memcpy (&tmp, &workprefs.jports[0], sizeof (struct jport));
 	    memcpy (&workprefs.jports[0], &workprefs.jports[1], sizeof (struct jport));
@@ -9182,10 +9210,60 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    temp = joy0previous;
 	    joy0previous = joy1previous;
 	    joy1previous = temp;
+	    enable_for_gameportsdlg (hDlg);
 	    updatejoyport (hDlg);
 	    inputdevice_updateconfig (&workprefs);
 	    inputdevice_config_change ();
-	} else if (wParam == IDC_FLUSHPRINTER) {
+	} else if (HIWORD (wParam) == CBN_SELCHANGE) {
+    	    switch (LOWORD (wParam))
+	    {
+	        case IDC_PORT0_JOYS:
+	        case IDC_PORT1_JOYS:
+	    	    values_from_gameportsdlg (hDlg, 0);
+		    enable_for_gameportsdlg (hDlg);
+		    updatejoyport (hDlg);
+		    inputdevice_updateconfig (&workprefs);
+		    inputdevice_config_change ();
+		break;
+	    }
+	} else {
+	    values_from_gameportsdlg (hDlg, 1);
+	    enable_for_gameportsdlg (hDlg);
+	}
+	recursive--;
+	break;
+    }
+     return FALSE;
+}
+
+/* Handle messages for the IO Settings page of our property-sheet */
+static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    static int recursive = 0;
+
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+	recursive++;
+	pages[IOPORTS_ID] = hDlg;
+	currentpage = IOPORTS_ID;
+	init_portsdlg (hDlg);
+	inputdevice_updateconfig (&workprefs);
+	enable_for_portsdlg (hDlg);
+	values_to_portsdlg (hDlg);
+	recursive--;
+	break;
+    case WM_USER:
+	recursive++;
+	enable_for_portsdlg (hDlg);
+	recursive--;
+	return TRUE;
+
+    case WM_COMMAND:
+	if (recursive > 0)
+	    break;
+	recursive++;
+	if (wParam == IDC_FLUSHPRINTER) {
 	    if (isprinter ()) {
 		closeprinter ();
 	    }
@@ -9201,14 +9279,11 @@ static INT_PTR CALLBACK PortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    if (HIWORD (wParam) == CBN_SELCHANGE) {
 		switch (LOWORD (wParam))
 		{
-		    case IDC_PORT0_JOYS:
-		    case IDC_PORT1_JOYS:
 		    case IDC_PRINTERLIST:
 		    case IDC_SERIAL:
 		    case IDC_MIDIOUTLIST:
 		    case IDC_MIDIINLIST:
 			values_from_portsdlg (hDlg);
-			updatejoyport (hDlg);
 			inputdevice_updateconfig (&workprefs);
 			inputdevice_config_change ();
 		    break;
@@ -9231,7 +9306,6 @@ static void values_to_inputdlg (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_INPUTAUTOFIRERATE, workprefs.input_autofire_framecnt, FALSE);
     SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
     SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
-    SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
     CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
 }
 
@@ -9401,7 +9475,6 @@ static void enable_for_inputdlg (HWND hDlg)
     ew (hDlg, IDC_INPUTAUTOFIRERATE, v);
     ew (hDlg, IDC_INPUTSPEEDA, v);
     ew (hDlg, IDC_INPUTSPEEDD, v);
-    ew (hDlg, IDC_INPUTSPEEDM, TRUE);
     ew (hDlg, IDC_INPUTCOPY, v);
     ew (hDlg, IDC_INPUTCOPYFROM, v);
     ew (hDlg, IDC_INPUTSWAP, v);
@@ -9447,9 +9520,6 @@ static void values_from_inputdlgbottom (HWND hDlg)
     v  = GetDlgItemInt (hDlg, IDC_INPUTSPEEDA, &success, FALSE);
     if (success)
 	currprefs.input_joymouse_multiplier = workprefs.input_joymouse_multiplier = v;
-    v  = GetDlgItemInt (hDlg, IDC_INPUTSPEEDM, &success, FALSE);
-    if (success)
-	currprefs.input_mouse_speed = workprefs.input_mouse_speed = v;
 }
 
 static void values_from_inputdlg (HWND hDlg, int inputchange)
@@ -9611,7 +9681,6 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		case IDC_INPUTAUTOFIRERATE:
 		case IDC_INPUTSPEEDD:
 		case IDC_INPUTSPEEDA:
-		case IDC_INPUTSPEEDM:
 		values_from_inputdlgbottom (hDlg);
 		break;
 	    }
@@ -9681,6 +9750,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 {
     int v = workprefs.gfx_filter ? TRUE : FALSE;
     int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
+    int as = workprefs.gfx_filter_autoscale;
     struct uae_filter *uf;
     int i;
 
@@ -9701,24 +9771,24 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	vv3 = TRUE;
     if (v && uf->x[0])
 	vv4 = TRUE;
-    ew (hDlg, IDC_FILTERENABLE, TRUE);
+//    ew (hDlg, IDC_FILTERENABLE, TRUE);
     ew (hDlg, IDC_FILTERMODE, v);
-    CheckDlgButton (hDlg, IDC_FILTERENABLE, v);
+//    CheckDlgButton (hDlg, IDC_FILTERENABLE, v);
     ew (hDlg, IDC_FILTERHZ, v);
     ew (hDlg, IDC_FILTERVZ, v);
-    ew (hDlg, IDC_FILTERHZMULT, v);
-    ew (hDlg, IDC_FILTERVZMULT, v);
-    ew (hDlg, IDC_FILTERHO, v);
-    ew (hDlg, IDC_FILTERVO, v);
-    ew (hDlg, IDC_FILTERSLR, vv3);
-    ew (hDlg, IDC_FILTERXL, vv2);
-    ew (hDlg, IDC_FILTERXLV, vv2);
+    ew (hDlg, IDC_FILTERHZMULT, v && !as);
+    ew (hDlg, IDC_FILTERVZMULT, v && !as);
+    ew (hDlg, IDC_FILTERHO, v && !as);
+    ew (hDlg, IDC_FILTERVO, v && !as);
+    ew (hDlg, IDC_FILTERSLR, vv3 && !as);
+    ew (hDlg, IDC_FILTERXL, vv2 && !as);
+    ew (hDlg, IDC_FILTERXLV, vv2 && !as);
     ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);
-    ew (hDlg, IDC_FILTERKEEPASPECT, vv && !vv2);
+    ew (hDlg, IDC_FILTERKEEPASPECT, v);
     ew (hDlg, IDC_FILTERASPECT, v);
-    ew (hDlg, IDC_FILTERAUTORES, vv && !vv2);
+    ew (hDlg, IDC_FILTERAUTORES, v);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
     ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
@@ -9764,17 +9834,19 @@ static struct filterxtra filter_3d_extra[] =
     "Scanline level", &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
     NULL
 };
+static int dummy_in, dummy_out;
 static int *filtervars[] = {
 	&workprefs.gfx_filter, &workprefs.gfx_filter_filtermode,
 	&workprefs.gfx_filter_vert_zoom, &workprefs.gfx_filter_horiz_zoom,
 	&workprefs.gfx_filter_vert_zoom_mult, &workprefs.gfx_filter_horiz_zoom_mult,
 	&workprefs.gfx_filter_vert_offset, &workprefs.gfx_filter_horiz_offset,
 	&workprefs.gfx_filter_scanlines, &workprefs.gfx_filter_scanlinelevel, &workprefs.gfx_filter_scanlineratio,
-	&workprefs.gfx_resolution, &workprefs.gfx_linedbl, &workprefs.gfx_correct_aspect,
+	&workprefs.gfx_resolution, &workprefs.gfx_linedbl, &dummy_in,
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
 	&workprefs.gfx_filter_keep_aspect, &workprefs.gfx_filter_aspect,
+	&workprefs.gfx_filter_autoscale,
 	NULL
     };
 static int *filtervars2[] = {
@@ -9783,21 +9855,22 @@ static int *filtervars2[] = {
 	&currprefs.gfx_filter_vert_zoom_mult, &currprefs.gfx_filter_horiz_zoom_mult,
 	&currprefs.gfx_filter_vert_offset, &currprefs.gfx_filter_horiz_offset,
 	&currprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlineratio,
-	&currprefs.gfx_resolution, &currprefs.gfx_linedbl, &currprefs.gfx_correct_aspect,
+	&currprefs.gfx_resolution, &currprefs.gfx_linedbl, &dummy_out,
 	&currprefs.gfx_xcenter, &currprefs.gfx_ycenter,
 	&currprefs.gfx_filter_luminance, &currprefs.gfx_filter_contrast, &currprefs.gfx_filter_saturation,
 	&currprefs.gfx_filter_gamma, &currprefs.gfx_filter_blur, &currprefs.gfx_filter_noise,
 	&currprefs.gfx_filter_keep_aspect, &currprefs.gfx_filter_aspect,
+	&workprefs.gfx_filter_autoscale,
 	NULL
     };
 
 struct filterpreset {
     char *name;
-    int conf[24];
+    int conf[25];
 };
 static struct filterpreset filterpresets[] =
 {
-    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0 },
+    { "PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0, 0 },
     { NULL }
 };
 
@@ -9815,7 +9888,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 2 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 3 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 4 : 0, 0);
-    CheckDlgButton (hDlg, IDC_FILTERAUTORES, workprefs.gfx_autoresolution);
+    CheckDlgButton (hDlg, IDC_FILTERAUTORES, workprefs.gfx_filter_autoscale);
 
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
@@ -10123,8 +10196,8 @@ static void filter_handle (HWND hDlg)
 	    item = UAE_FILTER_DIRECT3D - 1;
 	    sprintf (workprefs.gfx_filtershader, "%s.fx", tmp + 5);
 	}
-	workprefs.gfx_filter = 0;
-	if (IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {
+	workprefs.gfx_filter = 1;
+	if (1) { //IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {
 	    workprefs.gfx_filter = uaefilters[item].type;
 	    item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
 	    if (item != CB_ERR)
@@ -10156,8 +10229,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     switch (msg)
     {
 	case WM_INITDIALOG:
-	    if (strlen (WINUAEBETA) == 0)
-    		ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
+	    //ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
 	    pages[HW3D_ID] = hDlg;
 	    currentpage = HW3D_ID;
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
@@ -10199,11 +10271,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		filter_preset (hDlg, wParam);
 		recursive++;
 		break;
-		case IDC_FILTERENABLE:
-		filter_handle (hDlg);
-		break;
+//		case IDC_FILTERENABLE:
+//		filter_handle (hDlg);
+//		break;
 		case IDC_FILTERAUTORES:
-		workprefs.gfx_autoresolution = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
+		workprefs.gfx_filter_autoscale = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
 		break;
 		case IDC_FILTERKEEPASPECT:
 		currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT);
@@ -10725,7 +10797,7 @@ static int ignorewindows[] = {
     -1,
     IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE,
     -1,
-    IDD_PORTS, IDC_PRINTERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
+    IDD_IOPORTS, IDC_PRINTERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
     -1,
     IDD_SOUND, IDC_SOUNDCARDLIST, IDC_SOUNDDRIVESELECT,
     -1,
@@ -11017,7 +11089,8 @@ static void createTreeView (HWND hDlg, int currentpage)
     p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HOST, root, LOADSAVE_ID, CONFIG_TYPE_HOST);
     CN (DISPLAY_ID);
     CN (SOUND_ID);
-    CN (PORTS_ID);
+    CN (GAMEPORTS_ID);
+    CN (IOPORTS_ID);
     CN (INPUT_ID);
     CN (AVIOUTPUT_ID);
     CN (HW3D_ID);
@@ -11599,7 +11672,8 @@ static int GetSettings (int all_options, HWND hwnd)
 #ifdef FILESYS
 	HARDDISK_ID = init_page (IDD_HARDDISK, IDI_HARDDISK, IDS_HARDDISK, HarddiskDlgProc, HarddiskAccel, "gui/hard-drives.htm");
 #endif
-	PORTS_ID = init_page (IDD_PORTS, IDI_PORTS, IDS_PORTS, PortsDlgProc, NULL, "gui/ports.htm");
+	GAMEPORTS_ID = init_page (IDD_GAMEPORTS, IDI_GAMEPORTS, IDS_GAMEPORTS, GamePortsDlgProc, NULL, "gui/gameports.htm");
+	IOPORTS_ID = init_page (IDD_IOPORTS, IDI_IOPORTS, IDS_IOPORTS, IOPortsDlgProc, NULL, "gui/ioports.htm");
 	INPUT_ID = init_page (IDD_INPUT, IDI_INPUT, IDS_INPUT, InputDlgProc, NULL, "gui/input.htm");
 	MISC1_ID = init_page (IDD_MISC1, IDI_MISC1, IDS_MISC1, MiscDlgProc1, NULL, "gui/misc.htm");
 	MISC2_ID = init_page (IDD_MISC2, IDI_MISC2, IDS_MISC2, MiscDlgProc2, NULL, "gui/misc2.htm");
@@ -11773,6 +11847,8 @@ void gui_cd_led (int unitnum, int led)
 	if (resetcounter > 0)
 	    return;
     }
+    if (led < 0)
+	led = 0;
 #ifdef RETROPLATFORM
     rp_cd_activity (unitnum, led);
 #endif

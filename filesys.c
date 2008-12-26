@@ -49,6 +49,7 @@
 #include "sana2.h"
 #include "bsdsocket.h"
 #include "uaeresource.h"
+#include "inputdevice.h"
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -5402,8 +5403,10 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 
 static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 {
-    /* do not allow other fs threads to start another mousehack */
-    rtarea[get_long (rtarea_base + 40) + 12 - 2] = 0xff;
+    int mode = m68k_dreg (&context->regs, 1);
+    uaecptr a2 = m68k_areg (&context->regs, 2);
+    uaecptr a3 = m68k_areg (&context->regs, 3);
+    input_mousehack_status (mode, a2, a3);
     return 1;
 }
 
@@ -5469,12 +5472,13 @@ void filesys_install (void)
 
 void filesys_install_code (void)
 {
+    uae_u32 a;
     align(4);
 
+    a = here ();
     /* The last offset comes from the code itself, look for it near the top. */
-    EXPANSION_bootcode = here () + 8 + 0x1c + 4;
-    /* Ouch. Make sure this is _always_ a multiple of two bytes. */
-    filesys_initcode = here() + 8 + 0x30 + 4;
+    EXPANSION_bootcode = a + 40 - 4;
+    filesys_initcode = a + 40 - 4 + 20;
 
     #include "filesys_bootrom.c"
 }

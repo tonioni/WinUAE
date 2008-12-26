@@ -72,7 +72,6 @@ static const struct cfg_lines opttable[] =
     {"gfx_linemode", "Can be none, double, or scanlines" },
     {"gfx_fullscreen_amiga", "Amiga screens are fullscreen?" },
     {"gfx_fullscreen_picasso", "Picasso screens are fullscreen?" },
-    {"gfx_correct_aspect", "Correct aspect ratio?" },
     {"gfx_center_horizontal", "Center display horizontally?" },
     {"gfx_center_vertical", "Center display vertically?" },
     {"gfx_colour_mode", "" },
@@ -161,6 +160,7 @@ static const char *fullmodes[] = { "false", "true", /* "FILE_NOT_FOUND", */ "ful
 static const char *scsimode[] = { "false", "true", "scsi", 0 };
 static const char *maxhoriz[] = { "lores", "hires", "superhires", 0 };
 static const char *maxvert[] = { "nointerlace", "interlace", 0 };
+static const char *abspointers[] = { "none", "mousehack", "tablet", 0 };
 
 static const char *obsolete[] = {
     "accuracy", "gfx_opengl", "gfx_32bit_blits", "32bit_blits",
@@ -169,6 +169,7 @@ static const char *obsolete[] = {
     "gfx_test_speed", "gfxlib_replacement", "enforcer", "catweasel_io",
     "kickstart_key_file", "fast_copper", "sound_adjust",
     "serial_hardware_dtrdsr", "gfx_filter_upscale",
+    "gfx_correct_aspect",
     NULL
 };
 
@@ -501,6 +502,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "ghostscript_parameters=%s\n", p->ghostscript_parameters);
     cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
     cfgfile_dwrite (f, "uae_hide=%d\n", p->uae_hide);
+    cfgfile_dwrite (f, "magic_mouse=%s\n", p->input_magic_mouse ? "true" : "false");
+    cfgfile_dwrite (f, "absolute_mouse=%s\n", abspointers[p->input_tablet]);
 
     cfgfile_write (f, "gfx_display=%d\n", p->gfx_display);
     cfgfile_write (f, "gfx_display_name=%s\n", p->gfx_display_name);
@@ -521,12 +524,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_resolution=%s\n", lorestype1[p->gfx_resolution]);
     cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
-    cfgfile_write (f, "gfx_correct_aspect=%s\n", p->gfx_correct_aspect ? "true" : "false");
     cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
     cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
     cfgfile_write (f, "gfx_center_horizontal=%s\n", centermode1[p->gfx_xcenter]);
     cfgfile_write (f, "gfx_center_vertical=%s\n", centermode1[p->gfx_ycenter]);
     cfgfile_write (f, "gfx_colour_mode=%s\n", colormode1[p->color_mode]);
+    cfgfile_write (f, "gfx_blacker_than_black=%s\n", p->gfx_blackerthanblack ? "true" : "false");
 
 #ifdef GFXFILTER
     if (p->gfx_filter > 0) {
@@ -934,9 +937,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "filesys_no_fsdb", &p->filesys_no_uaefsdb)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_avsync)
 	|| cfgfile_yesno (option, value, "gfx_vsync_picasso", &p->gfx_pvsync)
-	|| cfgfile_yesno (option, value, "gfx_correct_aspect", &p->gfx_correct_aspect)
+	|| cfgfile_yesno (option, value, "gfx_blacker_than_black", &p->gfx_blackerthanblack)
 	|| cfgfile_yesno (option, value, "show_leds", &p->leds_on_screen)
 	|| cfgfile_yesno (option, value, "synchronize_clock", &p->tod_hack)
+	|| cfgfile_yesno (option, value, "magic_mouse", &p->input_magic_mouse)
 	|| cfgfile_yesno (option, value, "bsdsocket_emu", &p->socket_emu))
 	    return 1;
 
@@ -964,7 +968,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode1, 1)
 	|| cfgfile_strval (option, value, "gfx_color_mode", &p->color_mode, colormode2, 0)
 	|| cfgfile_strval (option, value, "gfx_max_horizontal", &p->gfx_max_horizontal, maxhoriz, 0)
-	|| cfgfile_strval (option, value, "gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0))
+	|| cfgfile_strval (option, value, "gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0)
+	|| cfgfile_strval (option, value, "absolute_mouse", &p->input_tablet, abspointers, 0))
 	    return 1;
 
 
@@ -2080,7 +2085,6 @@ static void parse_gfx_specs (struct uae_prefs *p, char *spec)
     p->gfx_linedbl += 2 * (strchr (x2, 'D') != 0);
     p->gfx_afullscreen = strchr (x2, 'a') != 0;
     p->gfx_pfullscreen = strchr (x2, 'p') != 0;
-    p->gfx_correct_aspect = strchr (x2, 'c') != 0;
 
     if (p->gfx_linedbl == 3) {
 	write_log ("You can't use both 'd' and 'D' modifiers in the display mode specification.\n");
@@ -2942,7 +2946,6 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_linedbl = 1;
     p->gfx_afullscreen = 0;
     p->gfx_pfullscreen = 0;
-    p->gfx_correct_aspect = 0;
     p->gfx_xcenter = 0; p->gfx_ycenter = 0;
     p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
     p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;
@@ -3000,12 +3003,14 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_slowmemisfast = 0;
     p->cs_resetwarning = 1;
 
-    p->gfx_filter = 0;
+    p->gfx_filter = 1;
     p->gfx_filtershader[0] = 0;
     p->gfx_filter_horiz_zoom_mult = 0;
     p->gfx_filter_vert_zoom_mult = 0;
     p->gfx_filter_filtermode = 0;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
+    p->gfx_filter_keep_aspect = 0;
+    p->gfx_filter_autoscale = 1;
 
     strcpy (p->df[0], "df0.adf");
     strcpy (p->df[1], "df1.adf");
@@ -3026,7 +3031,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->fpu_model = 0;
     p->cpu_model = 68000;
-    p->cpu060_revision = 1;
+    p->mmu_model = 0;
+    p->cpu060_revision = 6;
     p->fpu_revision = -1;
     p->m68k_speed = 0;
     p->cpu_compatible = 1;
@@ -3067,6 +3073,9 @@ void default_prefs (struct uae_prefs *p, int type)
 #ifdef UAE_MINI
     default_prefs_mini (p, 0);
 #endif
+
+    p->input_tablet = TABLET_OFF;
+    p->input_magic_mouse = 0;
 
     inputdevice_default_prefs (p);
 

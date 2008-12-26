@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "4"
-#define WINUAEDATE MAKEBD(2008, 12, 6)
+#define WINUAEBETA "5"
+#define WINUAEDATE MAKEBD(2008, 12, 26)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -111,6 +111,10 @@ extern int dinput_winmouse (void);
 extern int dinput_wheelbuttonstart (void);
 extern int dinput_winmousemode (void);
 extern void dinput_window (void);
+extern void *open_tablet (HWND hwnd);
+extern int close_tablet (void*);
+extern void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int flags, int ax, int ay, int az, int rx, int ry, int rz, RECT *r);
+extern void send_tablet_proximity (int);
 
 void addnotifications (HWND hwnd, int remove);
 int win32_hardfile_media_change (const char *drvname, int inserted);

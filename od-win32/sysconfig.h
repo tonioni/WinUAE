@@ -41,7 +41,8 @@
 #define UAESERIAL /* uaeserial.device emulation */
 #define FPUEMU /* FPU emulation */
 #define FPU_UAE
-#define MMUEMU
+#define MMUEMU /* Aranym 68040 MMU */
+#define FULLMMU /* Aranym 68040 MMU */
 #define CPUEMU_0 /* generic 680x0 emulation */
 #define CPUEMU_11 /* 68000+prefetch emulation */
 #define CPUEMU_12 /* cycle-exact cpu&blitter */

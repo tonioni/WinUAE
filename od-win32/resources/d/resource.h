@@ -358,7 +358,7 @@
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092
 #define IDC_CONTRIBUTORS                1124
-#define IDC_BLACKER_THAN_BLACK          1170
+#define IDC_ASPECT                      1170
 #define IDC_BLIT32                      1173
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
@@ -676,13 +676,14 @@
 #define IDC_POWERSAVE                   1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
-#define IDC_PORT_MOUSETRICK             1613
+#define IDC_MOUSETRICK                  1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614
 #define IDC_SANA2                       1614
 #define IDC_AVIOUTPUT_VIDEO_CODEC       1615
 #define IDC_INPUTDEVICEDISABLE          1615
 #define IDC_AVIOUTPUT_ACTIVATED         1615
+#define IDC_FILTERENABLE                1615
 #define IDC_AVIOUTPUT_AUDIO_CODEC       1616
 #define IDC_INPUTAMIGACNT               1616
 #define IDC_FILTERHZ                    1616
@@ -947,10 +948,8 @@
 #define IDC_PATHS_CONFIGCACHE           1788
 #define IDC_RTG_24BIT                   1789
 #define IDC_ASSOCIATELIST               1789
-#define IDC_PORT_TABLET                 1789
 #define IDC_RTG_32BIT                   1790
 #define IDC_ASSOCIATE_OFF               1790
-#define IDC_PORT_TABLET_FULL            1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
@@ -1001,7 +1000,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        335
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1790
+#define _APS_NEXT_CONTROL_VALUE         1789
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

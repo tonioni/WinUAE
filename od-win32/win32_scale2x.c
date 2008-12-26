@@ -13,6 +13,7 @@
 #include "gfxfilter.h"
 #include "dxwrap.h"
 #include "statusline.h"
+#include "drawing.h"
 
 struct uae_filter uaefilters[] =
 {
@@ -37,11 +38,45 @@ struct uae_filter uaefilters[] =
     { 0 }
 };
 
+static int filteroffsetx, filteroffsety, filterxmult = 1000, filterymult = 1000;
+static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
+static int temp_width, temp_height;
+uae_u8 *bufmem_ptr;
+static LPDIRECTDRAWSURFACE7 tempsurf;
+static uae_u8 *tempsurf2, *tempsurf3;
+static int cleartemp;
+static uae_u32 rc[256], gc[256], bc[256];
+
+void getfilteroffset (int *dx, int *dy, int *mx, int *my)
+{
+    *dx = (dst_width - amiga_width * 1000 / filterxmult) / 2;
+    *dy = (dst_height - amiga_height * 1000 / filterymult) / 2;
+    *mx = filterxmult;
+    *my = filterymult;
+}
+
+static int vblscale (int v)
+{
+    static int o;
+    int n;
+
+    n = (beamcon0 & 0x80) + maxvpos;
+    if (n != o)
+	cleartemp = 1;
+    o = n;
+    if (beamcon0 & 0x80)
+	return v;
+    v = v * maxvpos / MAXVPOS_PAL;
+    return v;
+}
 
 uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
 {
-    int aws = aw * scale;
-    int ahs = ah * scale;
+    int aws, ahs;
+    
+    ah = vblscale (ah);
+    aws = aw * scale;
+    ahs = ah * scale;
     
     SetRect (sr, 0, 0, 0, 0);
     dr->left = sr->left + (temp_width - aws) /2;
@@ -53,11 +88,16 @@ uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int s
 
 void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
-    int aws = aw * scale;
-    int ahs = ah * scale;
+    int aws, ahs;
     int xs, ys;
     int xmult, ymult;
-    int v;
+    int v, xy;
+
+    xy = 1;
+
+    ah = vblscale (ah);
+    aws = aw * scale;
+    ahs = ah * scale;
 
     SetRect (sr, 0, 0, dst_width, dst_height);
     dr->left = (temp_width - aws) /2;
@@ -67,22 +107,77 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
     dr->right = dr->left + dst_width;
     dr->bottom = dr->top + dst_height;
 
-    v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
-    OffsetRect (dr, (int)(-v * aws / 1000.0), 0);
-    v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
-    OffsetRect (dr, 0, (int)(-v * ahs / 1000.0));
 
     xmult = currprefs.gfx_filter_horiz_zoom_mult;
-    if (xmult <= 0)
-        xmult = aws * 1000 / dst_width;
-    else
-        xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
-
     ymult = currprefs.gfx_filter_vert_zoom_mult;
-    if (ymult <= 0)
+    if (currprefs.gfx_filter_autoscale) {
+	int w, h, x, y, v;
+	int extraw = currprefs.gfx_filter_horiz_zoom;
+	int extrah = currprefs.gfx_filter_vert_zoom;
+	static int oxmult, oymult;
+	xmult = 1000;
+	ymult = 1000;
+	v = get_custom_limits (&w, &h, &x, &y);
+	if (v) {
+	    int diff;
+	    dr->left = (temp_width - aws) /2;
+	    dr->top =  (temp_height - ahs) / 2;
+	    dr->right = dr->left + dst_width * scale;
+	    dr->bottom = dr->top + dst_height * scale;
+	    OffsetRect (dr, x * scale, y * scale);
+	    dr->right -= (dst_width - w) * scale;
+	    dr->bottom -= (dst_height - h) * scale;
+	    dr->left -= dst_width * extraw / 1000;
+	    dr->top -= dst_width * extrah / 1000;
+	    dr->right += dst_width * extraw / 1000;
+	    dr->bottom += dst_width * extrah / 1000;
+	    
+	    if (currprefs.gfx_filter_keep_aspect || currprefs.gfx_filter_aspect > 0) {
+		int xratio = dst_width * 256 / w;
+		int yratio = dst_height * 256 / h;
+		int diffx = dr->right - dr->left;
+		int diffy = dr->bottom - dr->top;
+		
+		if (currprefs.gfx_filter_aspect > 0) {
+		    int xm = (currprefs.gfx_filter_aspect >> 8) * 256;
+		    int ym = (currprefs.gfx_filter_aspect & 0xff) * 256;
+		    xratio = xratio * ((dst_width * ym * 256) / (dst_height * xm)) / 256;
+		}
+
+		if (xratio > yratio) {
+		    diff = diffx - diffx * yratio / xratio;
+		    dr->right += diff;
+		    dr->left -= diff;
+		} else {
+		    diff = diffx - diffx * xratio / yratio;
+		    dr->bottom += diff;
+		    dr->top -= diff;
+		}
+	    }
+	    diff = dr->right - dr->left;
+	    filterxmult = diff * 1000 / dst_width;
+	    diff = dr->bottom - dr->top;
+	    filterymult = diff * 1000 / dst_height;
+	    return;
+	}
+    } else if (currprefs.gfx_filter_keep_aspect && !xmult && !ymult) {
+        xmult = aws * 1000 / dst_width;
         ymult = ahs * 1000 / dst_height;
-    else
-        ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
+	if (xmult < ymult)
+	    xmult = ymult;
+	else
+	    ymult = xmult;
+	ymult = vblscale (ymult);
+    } else {
+	if (xmult <= 0)
+	    xmult = aws * 1000 / dst_width;
+	else
+	    xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
+	if (ymult <= 0)
+	    ymult = ahs * 1000 / dst_height;
+	else
+	    ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
+    }
 
     if (currprefs.gfx_filter_aspect > 0) {
 	int srcratio, dstratio;
@@ -94,6 +189,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
 	    ymult = ymult * dstratio / srcratio;
     }
 
+    if (xy) {
+	v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
+	OffsetRect (dr, (int)(-v * aws / 1000.0), 0);
+	v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
+	OffsetRect (dr, 0, (int)(-v * ahs / 1000.0));
+    }
+
     xs = dst_width - dst_width * xmult / 1000;
     dr->left += xs / 2;
     dr->right -= xs / 2;
@@ -101,14 +203,10 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
     ys = dst_height - dst_height * ymult / 1000;
     dr->top += ys / 2;
     dr->bottom -= ys / 2;
-}
 
-static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
-static int temp_width, temp_height;
-uae_u8 *bufmem_ptr;
-static LPDIRECTDRAWSURFACE7 tempsurf;
-static uae_u8 *tempsurf2, *tempsurf3;
-static uae_u32 rc[256], gc[256], bc[256];
+    filterxmult = xmult;
+    filterymult = ymult;
+}
 
 static void statusline (void)
 {
@@ -151,6 +249,10 @@ void S2X_free (void)
     tempsurf2 = 0;
     xfree (tempsurf3);
     tempsurf3 = 0;
+    filteroffsetx = 0;
+    filteroffsety = 0;
+    filterxmult = 1000;
+    filterymult = 1000;
 }
 
 void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
@@ -193,6 +295,9 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     amiga_height = ah;
     amiga_depth = ad;
     scale = mult;
+
+    filteroffsetx = (dst_width - amiga_width) / 2;
+    filteroffsety = (dst_height - amiga_height) / 2;
 
     temp_width = dst_width * 3;
     if (temp_width > dxcaps.maxwidth)
@@ -244,6 +349,10 @@ void S2X_render (void)
     endsptr = gfxvidinfo.bufmemend;
     bufmem_ptr = sptr;
 
+    if (cleartemp) {
+	clearsurface (tempsurf);
+	cleartemp = 0;
+    }
     if (!locksurface (tempsurf, &desc))
 	return;
     pitch = desc.lPitch;
@@ -375,8 +484,8 @@ end:
 
     getfilterrect2 (&sr, &dr, dst_width, dst_height, amiga_width, amiga_height, scale, temp_width, temp_height);
     if (dr.left >= 0 && dr.top >= 0 && dr.right < temp_width && dr.bottom < temp_height) {
-        if (dr.left < dr.right && dr.top < dr.bottom)
-    	    DirectDraw_BlitRect (NULL, &sr, tempsurf, &dr);
+	if (dr.left < dr.right && dr.top < dr.bottom)
+	    DirectDraw_BlitRect (NULL, &sr, tempsurf, &dr);
     }
     statusline ();
 }

@@ -1216,7 +1216,7 @@ static uaecptr check_boot_rom (void)
 	return b;
     if (currprefs.sana2)
 	return b;
-    if (currprefs.win32_outsidemouse)
+    if (currprefs.input_tablet > 0 || currprefs.input_magic_mouse == 0)
 	return b;
     if (currprefs.gfxmem_size)
 	return b;
@@ -1235,6 +1235,10 @@ uaecptr need_uae_boot_rom (void)
     v = check_boot_rom ();
     if (v)
 	uae_boot_rom = 1;
+    if (!rtarea_base) {
+	uae_boot_rom = 0;
+	v = 0;
+    }
     return v;
 }
 

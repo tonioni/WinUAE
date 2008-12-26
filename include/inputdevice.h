@@ -84,15 +84,11 @@ extern uae_u8 handle_joystick_buttons (uae_u8);
 extern int getbuttonstate (int joy, int button);
 extern int getjoystate (int joy);
 
-enum mousestate { mousehack_unknown, mousehack_normal, mousehack_dontcare, mousehack_follow };
-
-extern void mousehack_set (enum mousestate);
-extern int mousehack_get (void);
-extern void mousehack_handle (int sprctl, int sprpos);
 extern void togglemouse (void);
-extern int mousehack_alive (void);
-extern int mousehack_allowed (void);
 extern int magicmouse_alive (void);
+extern int is_tablet (void);
+extern int inputdevice_is_tablet (void);
+extern void input_mousehack_status (int mode, uaecptr a2, uaecptr a3);
 
 extern void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask);
 extern void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask);
@@ -143,6 +139,13 @@ extern void pausemode (int mode);
 
 extern void inputdevice_add_inputcode (int code, int state);
 extern void inputdevice_handle_inputcode (void);
+
+extern void inputdevice_tablet (int x, int y, int z,
+	      int pressure, uae_u32 buttonbits, int inproximity,
+	      int ax, int ay, int az);
+extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
+extern void inputdevice_tablet_strobe (void);
+
 
 #define JSEM_KBDLAYOUT 0
 #define JSEM_JOYS 100

@@ -32,8 +32,14 @@
 #define AKIKO_DEBUG_IO 0
 #define AKIKO_DEBUG_IO_CMD 0
 
-static void irq(void)
+// 43 48 49 4E 4F 4E 20 20 4F 2D 36 35 38 2D 32 20 32 34
+#define FIRMWAREVERSION "CHINON  O-658-2 24"
+
+static void irq (void)
 {
+#if AKIKO_DEBUG_IO > 1
+    write_log ("Akiko Interrupt\n");
+#endif
     if (!(intreq & 8)) {
 	INTREQ_0 (0x8000 | 0x0008);
     }
@@ -389,8 +395,8 @@ static int cdrom_checksum_error;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
 static int cdrom_current_sector;
 static int cdrom_data_end, cdrom_leadout;
-static int cdrom_dosomething;
 static int cdrom_audiotimeout;
+static int cdrom_led;
 
 static uae_u8 *sector_buffer_1, *sector_buffer_2;
 static int sector_buffer_sector_1, sector_buffer_sector_2;
@@ -407,7 +413,7 @@ static void checkint (void)
 	irq ();
 }
 
-static void set_status(uae_u32 status)
+static void set_status (uae_u32 status)
 {
     cdrom_status1 |= status;
     checkint ();
@@ -698,14 +704,21 @@ static void cdrom_return_data (int len)
     write_log ("%02X\n", checksum);
 #endif
     cdrom_result_complete += len + 1;
-    set_status(CDSTATUS_DATA_AVAILABLE);
+    set_status (CDSTATUS_DATA_AVAILABLE);
 }
 
-static int cdrom_command_something (void)
+static int cdrom_command_led (void)
 {
     int v = cdrom_command_buffer[1];
-    if (v & 0x80)
-	return 1;
+    int old = cdrom_led;
+    cdrom_led = v & 1;
+    if (cdrom_led != old)
+	gui_cd_led (0, cdrom_led ? 1 : -1);
+    if (v & 0x80) {
+	cdrom_result_buffer[0] = cdrom_command;
+	cdrom_result_buffer[1] = cdrom_led;
+	return 2;
+    }
     return 0;
 }
 
@@ -716,18 +729,15 @@ static int cdrom_command_media_status (void)
     return 2;
 }
 
-/* check if cd drive door is open or closed */
-static int cdrom_command_door_status (void)
+/* check if cd drive door is open or closed, return firmware info */
+static int cdrom_command_status (void)
 {
-    if (unitnum >= 0 && !sys_command_ismedia (DF_IOCTL, unitnum, 0)) {
-	cdrom_result_buffer[1] = 0x80;
-	cdrom_disk = 0;
-    } else {
-	cdrom_result_buffer[1] = 1;
-	cdrom_disk = 1;
-    }
+    cdrom_result_buffer[1] = 0x01;
+    //cdrom_result_buffer[1] = 0x80; door open
     if (unitnum >= 0)
 	cdrom_toc ();
+    /* firmware info */
+    strcpy (cdrom_result_buffer + 2, FIRMWAREVERSION);
     cdrom_result_buffer[0] = cdrom_command;
     return 20;
 }
@@ -744,8 +754,16 @@ static int cdrom_return_toc_entry (void)
     memcpy (cdrom_result_buffer + 2, cdrom_toc_buffer + cdrom_toc_counter * 13, 13);
     cdrom_toc_counter++;
     if (cdrom_toc_counter >= cdrom_toc_entries)
-	cdrom_toc_counter = 0;
+	cdrom_toc_counter = -1;
     return 15;
+}
+static int checkerr (void)
+{
+    if (!cdrom_disk) {
+	cdrom_result_buffer[1] = CH_ERR_NODISK;
+	return 1;
+    }
+    return 0;
 }
 
 /* pause CD audio */
@@ -753,6 +771,8 @@ static int cdrom_command_pause (void)
 {
     cdrom_toc_counter = -1;
     cdrom_result_buffer[0] = cdrom_command;
+    if (checkerr ())
+	return 2;
     cdrom_result_buffer[1] = cdrom_playing ? CDS_PLAYING : 0;
     if (!cdrom_playing)
 	return 2;
@@ -768,6 +788,8 @@ static int cdrom_command_pause (void)
 static int cdrom_command_unpause (void)
 {
     cdrom_result_buffer[0] = cdrom_command;
+    if (checkerr ())
+	return 2;
     cdrom_result_buffer[1] = cdrom_playing ? CDS_PLAYING : 0;
     if (!cdrom_paused)
 	return 2;
@@ -790,7 +812,7 @@ static int cdrom_command_multi (void)
     cdrom_result_buffer[0] = cdrom_command;
     cdrom_result_buffer[1] = 0;
     if (!cdrom_disk) {
-	cdrom_result_buffer[1] |= CDS_ERROR;
+	cdrom_result_buffer[1] = 1; // no disk
 	return 2;
     }
 
@@ -906,14 +928,13 @@ static void cdrom_run_command_run (void)
 	len = cdrom_command_multi ();
 	break;
 	case 5:
-	cdrom_dosomething = 1;
-	len = cdrom_command_something ();
+	len = cdrom_command_led ();
 	break;
 	case 6:
 	len = cdrom_command_subq ();
 	break;
 	case 7:
-	len = cdrom_command_door_status ();
+	len = cdrom_command_status ();
 	break;
 	default:
 	len = 0;
@@ -985,7 +1006,7 @@ static void akiko_handler (void)
     if (unitnum < 0)
 	return;
     if (cdrom_result_complete > cdrom_result_last_pos && cdrom_result_complete - cdrom_result_last_pos < 100) {
-	set_status(CDSTATUS_DATA_AVAILABLE);
+	//set_status (CDSTATUS_DATA_AVAILABLE);
 	return;
     }
     if (cdrom_result_last_pos < cdrom_result_complete)
@@ -1007,9 +1028,8 @@ static void akiko_handler (void)
 	    return;
 	}
     }
-    if (cdrom_toc_counter >= 0 && !cdrom_command_active && cdrom_dosomething) {
+    if (cdrom_toc_counter >= 0 && !cdrom_command_active) {
 	cdrom_return_data (cdrom_return_toc_entry ());
-	cdrom_dosomething--;
 	return;
     }
 }
@@ -1066,7 +1086,7 @@ void AKIKO_hsync_handler (void)
 
     framecounter--;
     if (framecounter <= 0) {
-	if (cdrom_playing || cdrom_toc_counter > 0)
+	if (cdrom_led)
 	    gui_cd_led (0, 1);
 	cdrom_run_read ();
 	framecounter = 1000000 / (74 * 75 * cdrom_speed);
@@ -1511,6 +1531,7 @@ void akiko_reset (void)
     cdrom_current_sector = -1;
     cdrom_command_offset_complete = 0;
     cdrom_command_offset_todo = 0;
+    cdrom_led = 0;
 
     if (akiko_thread_running > 0) {
 	akiko_thread_running = 0;
