@@ -146,12 +146,12 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
 
 		if (xratio > yratio) {
 		    diff = diffx - diffx * yratio / xratio;
-		    dr->right += diff;
-		    dr->left -= diff;
+		    dr->right += diff / 2;
+		    dr->left -= diff / 2;
 		} else {
 		    diff = diffx - diffx * xratio / yratio;
-		    dr->bottom += diff;
-		    dr->top -= diff;
+		    dr->bottom += diff / 2;
+		    dr->top -= diff / 2;
 		}
 	    }
 	    diff = dr->right - dr->left;

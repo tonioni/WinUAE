@@ -242,16 +242,18 @@ enum diw_states
     DIW_waiting_start, DIW_waiting_stop
 };
 
-int plffirstline, plflastline;
+static int plffirstline, plflastline;
+int plffirstline_total, plflastline_total;
 static int plfstrt_start, plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
 static int last_diw_pix_hpos, last_ddf_pix_hpos;
 static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
-int diwfirstword, diwlastword;
+static int diwfirstword, diwlastword;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
+int diwfirstword_total, diwlastword_total;
 
 /* Sprite collisions */
 static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match;
@@ -2254,6 +2256,17 @@ static void decide_sprites (int hpos)
 	record_sprite (next_lineno, nr, posns[i], sprdata[nr], sprdatb[nr], sprctl[nr]);
     }
     last_sprite_point = point;
+
+    if (bplcon3 & 2) {
+	if (vpos < first_planes_vpos || first_planes_vpos == 0)
+	    first_planes_vpos = vpos;
+	if (vpos < plffirstline_total)
+	    plffirstline_total = vpos;
+	if (vpos > last_planes_vpos)
+	    last_planes_vpos = vpos;
+	if (vpos > plflastline_total)
+	    plflastline_total = vpos;
+    }
 }
 
 STATIC_INLINE int sprites_differ (struct draw_info *dip, struct draw_info *dip_old)
@@ -4414,6 +4427,10 @@ static void init_hardware_frame (void)
     ddfstate = DIW_waiting_start;
     first_planes_vpos = 0;
     last_planes_vpos = 0;
+    diwfirstword_total = max_diwlastword;
+    diwlastword_total = 0;
+    plflastline_total = 0;
+    plffirstline_total = maxvpos;
 }
 
 void init_hardware_for_drawing_frame (void)
@@ -4925,6 +4942,7 @@ static void hsync_handler (void)
 
     hsync_counter++;
     //copper_check (2);
+
     if (vpos == minfirstline) {
 	if (GET_PLANES (bplcon0) > 0)
 	    first_planes_vpos = minfirstline;
@@ -4932,6 +4950,17 @@ static void hsync_handler (void)
 	if (GET_PLANES (bplcon0) > 0)
 	    last_planes_vpos = vpos - 1;
     }
+    if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
+	if (diwlastword > diwlastword_total)
+	    diwlastword_total = diwlastword;
+	if (diwfirstword < diwfirstword_total)
+	    diwfirstword_total = diwfirstword;
+    }
+    if (plffirstline < plffirstline_total)
+	plffirstline_total = plffirstline;
+    if (plflastline > plflastline_total)
+	plflastline_total = plflastline;
+
 
 #if 0
     {

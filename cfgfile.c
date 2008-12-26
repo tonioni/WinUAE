@@ -581,6 +581,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, "gfx_filter_blur=%d\n", p->gfx_filter_blur);
     cfgfile_dwrite (f, "gfx_filter_noise=%d\n", p->gfx_filter_noise);
     cfgfile_dwrite (f, "gfx_filter_keep_aspect=%s\n", p->gfx_filter_keep_aspect ? "true" : "false");
+    cfgfile_dwrite (f, "gfx_autoscale=%s\n", p->gfx_filter_autoscale ? "true" : "false");
     cfgfile_dwrite (f, "gfx_filter_aspect_ratio=%d:%d\n",
 	p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect >> 8) : -1,
 	p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect & 0xff) : -1);
@@ -904,6 +905,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_intval (option, value, "gfx_filter_blur", &p->gfx_filter_blur, 1)
 	|| cfgfile_intval (option, value, "gfx_filter_noise", &p->gfx_filter_noise, 1)
 	|| cfgfile_yesno  (option, value, "gfx_filter_keep_aspect", &p->gfx_filter_keep_aspect)
+	|| cfgfile_yesno  (option, value, "gfx_filter_autoscale", &p->gfx_filter_autoscale)
 	|| cfgfile_intval (option, value, "gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, "gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, "gfx_gamma", &p->gfx_gamma, 1)
@@ -3009,7 +3011,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_filter_vert_zoom_mult = 0;
     p->gfx_filter_filtermode = 0;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
-    p->gfx_filter_keep_aspect = 0;
+    p->gfx_filter_keep_aspect = 1;
     p->gfx_filter_autoscale = 1;
 
     strcpy (p->df[0], "df0.adf");

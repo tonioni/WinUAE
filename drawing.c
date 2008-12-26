@@ -308,36 +308,38 @@ void notice_screen_contents_lost (void)
 }
 
 
-extern int plffirstline, plflastline;
+extern int plffirstline_total, plflastline_total;
 extern int first_planes_vpos, last_planes_vpos;
+extern int diwfirstword_total, diwlastword_total;
 
 #define MIN_DISPLAY_W 256
 #define MIN_DISPLAY_H 192
 #define MAX_DISPLAY_W 344
 #define MAX_DISPLAY_H 272
 
+static int gclow, gcloh, gclox, gcloy;
+
 int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 {
     int w, h, dx, dy, y1, y2, dbl1, dbl2;
-    static int ow, oh, ox, oy;
     int ret = 0;
 
-    *pw = ow;
-    *ph = oh;
-    *pdx = ox;
-    *pdy = oy;
+    *pw = gclow;
+    *ph = gcloh;
+    *pdx = gclox;
+    *pdy = gcloy;
 
-    if (ow > 0 && oh > 0)
+    if (gclow > 0 && gcloh > 0)
 	ret = -1;
 
-    w = diwlastword - diwfirstword;
-    dx = diwfirstword - visible_left_border;
-    y2 = plflastline > last_planes_vpos ? last_planes_vpos : plflastline;
-    y1 = plffirstline > first_planes_vpos ? plffirstline : first_planes_vpos;
+    w = diwlastword_total - diwfirstword_total;
+    dx = diwfirstword_total - visible_left_border;
+    y2 = plflastline_total > last_planes_vpos ? last_planes_vpos : plflastline_total;
+    y1 = plffirstline_total > first_planes_vpos ? plffirstline_total: first_planes_vpos;
     if (y1 < minfirstline)
 	y1 = first_planes_vpos;
     h = y2 - y1;
-    dy = plffirstline - minfirstline;
+    dy = plffirstline_total - minfirstline;
     if (dy < 0)
 	dy = first_planes_vpos - minfirstline;
 
@@ -348,16 +350,6 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     if (w == 0 || h == 0)
 	return 0;
 
-    if (ow == w && oh == h && ox == dx && oy == dy)
-	return ret;
-
-    if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
-	return ret;
-    if (dx > gfxvidinfo.width / 4)
-	return ret;
-    if (dy > gfxvidinfo.height / 4)
-	return ret;
-    
     if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W)
 	w = MIN_DISPLAY_W << currprefs.gfx_resolution;
     if ((h >> dbl1) < MIN_DISPLAY_H)
@@ -368,14 +360,26 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     if ((h >> dbl1) > MAX_DISPLAY_H)
 	h = MAX_DISPLAY_H << dbl1;
 
-    ow = w;
-    oh = h;
-    ox = dx;
-    oy = dy;
+    if (gclow == w && gcloh == h && gclox == dx && gcloy == dy)
+	return ret;
+
+    if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
+	return ret;
+    if (dx > gfxvidinfo.width / 4)
+	return ret;
+    if (dy > gfxvidinfo.height / 4)
+	return ret;
+    
+    gclow = w;
+    gcloh = h;
+    gclox = dx;
+    gcloy = dy;
     *pw = w;
     *ph = h;
     *pdx = dx;
     *pdy = dy;
+
+    write_log ("%dx%d %dx%d\n", w, h, dx, dy);
     return 1;
 }
 
@@ -383,12 +387,12 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
 {
     int w, h, dx, dy, dbl1, dbl2, y1, y2;
 
-    w = diwlastword - diwfirstword;
-    dx = diwfirstword - visible_left_border;
-    y2 = plflastline > last_planes_vpos ? last_planes_vpos : plflastline;
-    y1 = plffirstline > first_planes_vpos ? plffirstline : first_planes_vpos;
+    w = diwlastword_total - diwfirstword_total;
+    dx = diwfirstword_total - visible_left_border;
+    y2 = plflastline_total > last_planes_vpos ? last_planes_vpos : plflastline_total;
+    y1 = plffirstline_total > first_planes_vpos ? plffirstline_total : first_planes_vpos;
     h = y2 - y1;
-    dy = plffirstline - minfirstline;
+    dy = plffirstline_total - minfirstline;
 
     if (*pw > 0)
 	w = *pw;
@@ -2841,6 +2845,8 @@ void reset_drawing (void)
     sprite_buffer_res = currprefs.gfx_resolution;
     if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
 	sprite_buffer_res++;
+
+    gclow = gcloh = gclox = gcloy = 0;
 }
 
 void drawing_init (void)

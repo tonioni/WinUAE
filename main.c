@@ -126,16 +126,11 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
     fixup_prefs_dim2 (&prefs->gfx_size_fs);
     fixup_prefs_dim2 (&prefs->gfx_size_win);
-    if (prefs->gfx_filter == 0) {
+    if (prefs->gfx_filter == 0 && prefs->gfx_filter_autoscale)
 	prefs->gfx_filter = 1;
-	prefs->gfx_filter_horiz_zoom = 0;
-	prefs->gfx_filter_vert_zoom = 0;
-	prefs->gfx_filtershader[0] = 0;
+    if (prefs->gfx_filter_autoscale) {
 	prefs->gfx_filter_horiz_zoom_mult = 0;
 	prefs->gfx_filter_vert_zoom_mult = 0;
-	prefs->gfx_filter_filtermode = 0;
-        prefs->gfx_filter_autoscale = 1;
-        prefs->gfx_filter_keep_aspect = 0;
     }
 }
 

@@ -1,4 +1,15 @@
 
+
+Beta 6:
+
+- Spheris Legacy top/bottom border autoscaling fixed
+- screen width checking only stored final display size before vblank
+  (game with wide gamescreen and narrow scoreboard at the bottom would
+  have used scoreboard's width)
+- autoscale saved to config file
+- non-filtered mode is back but enabling autoscale will automatically
+  enable null filter if current selection was no filter
+
 Beta 5: WARNING: big changes. 1.6 version change expected.
 
 - KS loader 16-bit odd/even rom image to 32-bit merging fixed

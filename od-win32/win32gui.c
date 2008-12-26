@@ -9771,9 +9771,6 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	vv3 = TRUE;
     if (v && uf->x[0])
 	vv4 = TRUE;
-//    ew (hDlg, IDC_FILTERENABLE, TRUE);
-    ew (hDlg, IDC_FILTERMODE, v);
-//    CheckDlgButton (hDlg, IDC_FILTERENABLE, v);
     ew (hDlg, IDC_FILTERHZ, v);
     ew (hDlg, IDC_FILTERVZ, v);
     ew (hDlg, IDC_FILTERHZMULT, v && !as);
@@ -9788,7 +9785,6 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERFILTER, vv);
     ew (hDlg, IDC_FILTERKEEPASPECT, v);
     ew (hDlg, IDC_FILTERASPECT, v);
-    ew (hDlg, IDC_FILTERAUTORES, v);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
     ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
@@ -9900,9 +9896,11 @@ static void values_to_hw3ddlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
     SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
+    WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
     uf = &uaefilters[0];
     nofilter = 0; fltnum = 0;
-    i = 0; j = 0;
+    i = 0; j = 1;
     while (uaefilters[i].name) {
 	switch (uaefilters[i].type)
 	{
@@ -10192,12 +10190,13 @@ static void filter_handle (HWND hDlg)
 	tmp[0] = 0;
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
 	workprefs.gfx_filtershader[0] = 0;
-	if (item > UAE_FILTER_PAL) {
-	    item = UAE_FILTER_DIRECT3D - 1;
-	    sprintf (workprefs.gfx_filtershader, "%s.fx", tmp + 5);
-	}
-	workprefs.gfx_filter = 1;
-	if (1) { //IsDlgButtonChecked (hDlg, IDC_FILTERENABLE)) {
+	workprefs.gfx_filter = 0;
+	if (item > 0) {
+	    item--;
+	    if (item > UAE_FILTER_PAL) {
+		item = UAE_FILTER_DIRECT3D - 1;
+		sprintf (workprefs.gfx_filtershader, "%s.fx", tmp + 5);
+	    }
 	    workprefs.gfx_filter = uaefilters[item].type;
 	    item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
 	    if (item != CB_ERR)
@@ -10229,7 +10228,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
     switch (msg)
     {
 	case WM_INITDIALOG:
-	    //ShowWindow (GetDlgItem(hDlg, IDC_FILTERAUTORES), SW_HIDE);
 	    pages[HW3D_ID] = hDlg;
 	    currentpage = HW3D_ID;
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
@@ -10271,11 +10269,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		filter_preset (hDlg, wParam);
 		recursive++;
 		break;
-//		case IDC_FILTERENABLE:
-//		filter_handle (hDlg);
-//		break;
 		case IDC_FILTERAUTORES:
 		workprefs.gfx_filter_autoscale = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
+		if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
+		    workprefs.gfx_filter = 1;
+		values_to_hw3ddlg (hDlg);
+		enable_for_hw3ddlg (hDlg);
 		break;
 		case IDC_FILTERKEEPASPECT:
 		currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT);
