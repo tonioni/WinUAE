@@ -3005,7 +3005,6 @@ static shmpiece *find_shmpiece (uae_u8 *base)
 	x = x->next;
     if (!x) {
 	write_log ("NATMEM: Failure to find mapping at %08X, %p\n", base - NATMEM_OFFSET, base);
-	dumplist ();
 	nocanbang ();
 	return 0;
     }

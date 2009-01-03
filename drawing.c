@@ -311,19 +311,29 @@ void notice_screen_contents_lost (void)
 extern int plffirstline_total, plflastline_total;
 extern int first_planes_vpos, last_planes_vpos;
 extern int diwfirstword_total, diwlastword_total;
+extern int firstword_bplcon1;
 
 #define MIN_DISPLAY_W 256
 #define MIN_DISPLAY_H 192
-#define MAX_DISPLAY_W 344
-#define MAX_DISPLAY_H 272
+#define MAX_DISPLAY_W 352
+#define MAX_DISPLAY_H 276
 
 static int gclow, gcloh, gclox, gcloy;
+
+static void reset_custom_limits (void)
+{
+    gclow = gcloh = gclox = gcloy = 0;
+}
 
 int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 {
     int w, h, dx, dy, y1, y2, dbl1, dbl2;
     int ret = 0;
 
+    if (!pw || !ph || !pdx || !pdy) {
+	reset_custom_limits ();
+	return 0;
+    }
     *pw = gclow;
     *ph = gcloh;
     *pdx = gclox;
@@ -334,41 +344,67 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 
     w = diwlastword_total - diwfirstword_total;
     dx = diwfirstword_total - visible_left_border;
-    y2 = plflastline_total > last_planes_vpos ? last_planes_vpos : plflastline_total;
-    y1 = plffirstline_total > first_planes_vpos ? plffirstline_total: first_planes_vpos;
-    if (y1 < minfirstline)
+
+    y2 = plflastline_total;
+    if (y2 > last_planes_vpos)
+	y2 = last_planes_vpos;
+    y1 = plffirstline_total;
+    if (first_planes_vpos > y1)
 	y1 = first_planes_vpos;
+    if (minfirstline > y1)
+	y1 = minfirstline;
+
     h = y2 - y1;
-    dy = plffirstline_total - minfirstline;
-    if (dy < 0)
-	dy = first_planes_vpos - minfirstline;
+    dy = y1 - minfirstline;
+
+    if (first_planes_vpos == 0)
+	h = 0; // no planes enabled during frame
+
+    if (dx < 0)
+	dx = 1;
 
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
+    if (doublescan && !interlace_seen) {
+	dbl1--;
+	dbl2--;
+    }
+
     dy = xshift (dy, dbl2);
     h = xshift (h, dbl1);
 
     if (w == 0 || h == 0)
 	return 0;
 
-    if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W)
-	w = MIN_DISPLAY_W << currprefs.gfx_resolution;
-    if ((h >> dbl1) < MIN_DISPLAY_H)
-	h = MIN_DISPLAY_H << dbl1;
-
-    if ((w >> currprefs.gfx_resolution) > MAX_DISPLAY_W)
-	w = MAX_DISPLAY_W << currprefs.gfx_resolution;
-    if ((h >> dbl1) > MAX_DISPLAY_H)
-	h = MAX_DISPLAY_H << dbl1;
+    if (!doublescan) {
+	if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W)
+	    w = MIN_DISPLAY_W << currprefs.gfx_resolution;
+	if ((h >> dbl1) < MIN_DISPLAY_H) {
+	    if (gcloh > MIN_DISPLAY_H)
+		h = gcloh;
+	    else
+		h = MIN_DISPLAY_H << dbl1;
+	}
+	if ((w >> currprefs.gfx_resolution) > MAX_DISPLAY_W) {
+	    dx += (w - (MAX_DISPLAY_W << currprefs.gfx_resolution)) / 2;
+	    w = MAX_DISPLAY_W << currprefs.gfx_resolution;
+	}
+	if ((h >> dbl1) > MAX_DISPLAY_H) {
+	    dy += (h - (MAX_DISPLAY_H << dbl1)) / 2;
+	    h = MAX_DISPLAY_H << dbl1;
+	}
+    }
 
     if (gclow == w && gcloh == h && gclox == dx && gcloy == dy)
 	return ret;
 
     if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
 	return ret;
-    if (dx > gfxvidinfo.width / 4)
-	return ret;
-    if (dy > gfxvidinfo.height / 4)
-	return ret;
+    if (!doublescan) {
+	if (dx > gfxvidinfo.width / 3)
+	    return ret;
+	if (dy > gfxvidinfo.height / 3)
+	    return ret;
+    }
     
     gclow = w;
     gcloh = h;
@@ -379,20 +415,32 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     *pdx = dx;
     *pdy = dy;
 
-    write_log ("%dx%d %dx%d\n", w, h, dx, dy);
+    write_log ("Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
+    write_log ("first: %d last: %d minv: %d maxv: %d min: %d\n",
+	plffirstline_total, plflastline_total,
+	first_planes_vpos, last_planes_vpos, minfirstline);
     return 1;
 }
 
 void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
 {
+    int delay1, delay2;
     int w, h, dx, dy, dbl1, dbl2, y1, y2;
 
     w = diwlastword_total - diwfirstword_total;
     dx = diwfirstword_total - visible_left_border;
-    y2 = plflastline_total > last_planes_vpos ? last_planes_vpos : plflastline_total;
-    y1 = plffirstline_total > first_planes_vpos ? plffirstline_total : first_planes_vpos;
+
+    y2 = plflastline_total;
+    if (y2 > last_planes_vpos)
+	y2 = last_planes_vpos;
+    y1 = plffirstline_total;
+    if (first_planes_vpos > y1)
+	y1 = first_planes_vpos;
+    if (minfirstline > y1)
+	y1 = minfirstline;
+
     h = y2 - y1;
-    dy = plffirstline_total - minfirstline;
+    dy = y1 - minfirstline;
 
     if (*pw > 0)
 	w = *pw;
@@ -402,6 +450,13 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
     if (*ph > 0)
 	h = *ph;
     
+    delay1 = (firstword_bplcon1 & 0x0f) | ((firstword_bplcon1 & 0x0c00) >> 6);
+    delay2 = ((firstword_bplcon1 >> 4) & 0x0f) | (((firstword_bplcon1 >> 4) & 0x0c00) >> 6);
+    if (delay1 == delay2)
+	;//dx += delay1;
+
+    dx = xshift (dx, res_shift);
+
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
     if ((doublescan || interlace_seen) && !dbl) {
         dbl1--;
@@ -2268,7 +2323,7 @@ static const char *numbers = { /* ugly  0123456789CHD%+- */
 "+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------"
 };
 
-STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
+STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
 {
     if (x <= 0)
 	return;
@@ -2279,7 +2334,7 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 	break;
     case 2:
     {
-	uae_u16 *p = (uae_u16 *)buf + x;
+	uae_u16 *p = (uae_u16*)buf + x;
 	*p = (uae_u16)c8;
 	break;
     }
@@ -2288,8 +2343,20 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 	break;
     case 4:
     {
-	uae_u32 *p = (uae_u32 *)buf + x;
-	*p = c8;
+	int i;
+	if (opaq || currprefs.gfx_filter == 0) {
+	    uae_u32 *p = (uae_u32*)buf + x;
+	    *p = c8;
+	} else {
+	    for (i = 0; i < 4; i++) {
+		int v1 = buf[i + bpp * x];
+		int v2 = (c8 >> (i * 8)) & 255;
+		v1 = (v1 * 2 + v2 * 3) / 5;
+		if (v1 > 255)
+    		    v1 = 255;
+		buf[i + bpp * x] = v1;
+	    }
+	}
 	break;
     }
     }
@@ -2308,16 +2375,16 @@ static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32
     numptr = numbers + num * TD_NUM_WIDTH + NUMBERS_NUM * TD_NUM_WIDTH * y;
     for (j = 0; j < TD_NUM_WIDTH; j++) {
 	if (*numptr == 'x')
-	    putpixel (buf, bpp, x + j, c1);
+	    putpixel (buf, bpp, x + j, c1, 1);
 	else if (*numptr == '+')
-	    putpixel (buf, bpp, x + j, c2);
+	    putpixel (buf, bpp, x + j, c2, 0);
 	numptr++;
     }
 }
 
 void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
 {
-    int x_start, j, led;
+    int x_start, j, led, border;
     uae_u32 c1, c2, cb;
 
     c1 = ledcolor (0xffffff, rc, gc, bc);
@@ -2416,14 +2483,19 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	    am = 3;
 	}
 	c = ledcolor (on ? on_rgb : off_rgb, rc, gc, bc);
-	if (y == 0 || y == TD_TOTAL_HEIGHT - 1)
+	border = 0;
+	if (y == 0 || y == TD_TOTAL_HEIGHT - 1) {
 	    c = ledcolor (TD_BORDER, rc, gc, bc);
+	    border = 1;
+	}
 
 	x = x_start + pos * TD_WIDTH;
-	putpixel (buf, bpp, x - 1, cb);
+	if (!border)
+	    putpixel (buf, bpp, x - 1, cb, 0);
 	for (j = 0; j < TD_LED_WIDTH; j++)
-	    putpixel (buf, bpp, x + j, c);
-	putpixel (buf, bpp, x + j, cb);
+	    putpixel (buf, bpp, x + j, c, 0);
+	if (!border)
+	    putpixel (buf, bpp, x + j, cb, 0);
 
 	if (y >= TD_PADY && y - TD_PADY < TD_NUM_HEIGHT) {
 	    if (num3 >= 0) {
@@ -2492,7 +2564,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
     for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 	int xx = x + i - LIGHTPEN_WIDTH / 2;
 	if (*p != '-' && xx >= 0 && xx < gfxvidinfo.width)
-	    putpixel(xlinebuffer, gfxvidinfo.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
+	    putpixel(xlinebuffer, gfxvidinfo.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
 	p++;
     }
 }
@@ -2846,7 +2918,7 @@ void reset_drawing (void)
     if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
 	sprite_buffer_res++;
 
-    gclow = gcloh = gclox = gcloy = 0;
+    reset_custom_limits ();
 }
 
 void drawing_init (void)

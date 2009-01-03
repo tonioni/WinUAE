@@ -49,8 +49,8 @@ static uae_u32 rc[256], gc[256], bc[256];
 
 void getfilteroffset (int *dx, int *dy, int *mx, int *my)
 {
-    *dx = (dst_width - amiga_width * 1000 / filterxmult) / 2;
-    *dy = (dst_height - amiga_height * 1000 / filterymult) / 2;
+    *dx = filteroffsetx;
+    *dy = filteroffsety;
     *mx = filterxmult;
     *my = filterymult;
 }
@@ -86,20 +86,26 @@ uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int s
     return dptr;
 }
 
-void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
+static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
+{
+    dr->right -= w;
+    dr->bottom -= h;
+    OffsetRect (zr, w / 2, h / 2);
+}
+
+void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
     int aws, ahs;
     int xs, ys;
     int xmult, ymult;
-    int v, xy;
-
-    xy = 1;
+    int v;
 
     ah = vblscale (ah);
     aws = aw * scale;
     ahs = ah * scale;
 
     SetRect (sr, 0, 0, dst_width, dst_height);
+    SetRect (zr, 0, 0, 0, 0);
     dr->left = (temp_width - aws) /2;
     dr->top =  (temp_height - ahs) / 2;
     dr->left -= (dst_width - aws) / 2;
@@ -107,34 +113,64 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
     dr->right = dr->left + dst_width;
     dr->bottom = dr->top + dst_height;
 
-
     xmult = currprefs.gfx_filter_horiz_zoom_mult;
     ymult = currprefs.gfx_filter_vert_zoom_mult;
     if (currprefs.gfx_filter_autoscale) {
-	int w, h, x, y, v;
+	int cw, ch, cx, cy, cv;
 	int extraw = currprefs.gfx_filter_horiz_zoom;
 	int extrah = currprefs.gfx_filter_vert_zoom;
 	static int oxmult, oymult;
+
+	filterxmult = 1000 / scale;
+	filterymult = 1000 / scale;
+	filteroffsetx = 0;
+	filteroffsety = 0;
+
 	xmult = 1000;
 	ymult = 1000;
-	v = get_custom_limits (&w, &h, &x, &y);
-	if (v) {
+        cv = get_custom_limits (&cw, &ch, &cx, &cy);
+	if (cv) {
 	    int diff;
+
+	    extraw = amiga_width * extraw / 2000;
+	    extrah = amiga_height * extrah / 2000;
+
+	    if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
+		int ww;
+		SetRect (sr, 0, 0, cw * scale, ch * scale);
+		dr->left = (temp_width - aws) /2;
+		dr->top =  (temp_height - ahs) / 2;
+		dr->right = dr->left + cw * scale;
+		dr->bottom = dr->top + ch * scale;
+		OffsetRect (zr, cx * scale, cy * scale);
+		ww = dr->right - dr->left;
+	        changed_prefs.gfx_size_win.width = ww;
+	        changed_prefs.gfx_size_win.height = dr->bottom - dr->top;
+		fixup_prefs_dimensions (&changed_prefs);
+		OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, 0);
+		filteroffsetx = -zr->left / scale;
+		filteroffsety = -zr->top / scale;
+		return;
+	    }
+
 	    dr->left = (temp_width - aws) /2;
 	    dr->top =  (temp_height - ahs) / 2;
 	    dr->right = dr->left + dst_width * scale;
 	    dr->bottom = dr->top + dst_height * scale;
-	    OffsetRect (dr, x * scale, y * scale);
-	    dr->right -= (dst_width - w) * scale;
-	    dr->bottom -= (dst_height - h) * scale;
-	    dr->left -= dst_width * extraw / 1000;
-	    dr->top -= dst_width * extrah / 1000;
-	    dr->right += dst_width * extraw / 1000;
-	    dr->bottom += dst_width * extrah / 1000;
+
+	    OffsetRect (zr, cx * scale, cy * scale);
 	    
+	    sizeoffset (dr, zr, extraw, extrah);
+
+	    dr->right -= (dst_width - cw) * scale;
+	    dr->bottom -= (dst_height - ch) * scale;
+
+	    filteroffsetx = -zr->left / scale;
+	    filteroffsety = -zr->top / scale;
+
 	    if (currprefs.gfx_filter_keep_aspect || currprefs.gfx_filter_aspect > 0) {
-		int xratio = dst_width * 256 / w;
-		int yratio = dst_height * 256 / h;
+		int xratio = dst_width * 256 / cw;
+		int yratio = dst_height * 256 / ch;
 		int diffx = dr->right - dr->left;
 		int diffy = dr->bottom - dr->top;
 		
@@ -146,21 +182,23 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
 
 		if (xratio > yratio) {
 		    diff = diffx - diffx * yratio / xratio;
-		    dr->right += diff / 2;
-		    dr->left -= diff / 2;
+		    sizeoffset (dr, zr, -diff, 0);
+		    filteroffsetx += (diff * cw / dst_width) / 2;
 		} else {
 		    diff = diffx - diffx * xratio / yratio;
-		    dr->bottom += diff / 2;
-		    dr->top -= diff / 2;
+		    sizeoffset (dr, zr, 0, -diff);
+		    filteroffsety += diff / 2;
 		}
 	    }
 	    diff = dr->right - dr->left;
-	    filterxmult = diff * 1000 / dst_width;
+	    filterxmult = diff * 1000 / (dst_width * scale);
 	    diff = dr->bottom - dr->top;
-	    filterymult = diff * 1000 / dst_height;
+	    filterymult = diff * 1000 / (dst_height * scale);
 	    return;
 	}
-    } else if (currprefs.gfx_filter_keep_aspect && !xmult && !ymult) {
+    }
+    
+    if (currprefs.gfx_filter_keep_aspect && !xmult && !ymult) {
         xmult = aws * 1000 / dst_width;
         ymult = ahs * 1000 / dst_height;
 	if (xmult < ymult)
@@ -189,23 +227,20 @@ void getfilterrect2 (RECT *sr, RECT *dr, int dst_width, int dst_height, int aw, 
 	    ymult = ymult * dstratio / srcratio;
     }
 
-    if (xy) {
-	v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
-	OffsetRect (dr, (int)(-v * aws / 1000.0), 0);
-	v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
-	OffsetRect (dr, 0, (int)(-v * ahs / 1000.0));
-    }
+    v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
+    OffsetRect (zr, (int)(-v * aws / 1000.0), 0);
+    v = currprefs.gfx_filter ? currprefs.gfx_filter_vert_offset : 0;
+    OffsetRect (zr, 0, (int)(-v * ahs / 1000.0));
 
     xs = dst_width - dst_width * xmult / 1000;
-    dr->left += xs / 2;
-    dr->right -= xs / 2;
-
     ys = dst_height - dst_height * ymult / 1000;
-    dr->top += ys / 2;
-    dr->bottom -= ys / 2;
+    sizeoffset (dr, zr, xs, ys);
 
     filterxmult = xmult;
     filterymult = ymult;
+    filteroffsetx = (dst_width - amiga_width * 1000 / filterxmult) / 2;
+    filteroffsety = (dst_height - amiga_height * 1000 / filterymult) / 2;
+
 }
 
 static void statusline (void)
@@ -296,9 +331,6 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
     amiga_depth = ad;
     scale = mult;
 
-    filteroffsetx = (dst_width - amiga_width) / 2;
-    filteroffsety = (dst_height - amiga_height) / 2;
-
     temp_width = dst_width * 3;
     if (temp_width > dxcaps.maxwidth)
 	temp_width = dxcaps.maxwidth;
@@ -329,7 +361,7 @@ void S2X_render (void)
     int aw, ah, aws, ahs;
     uae_u8 *dptr, *enddptr, *sptr, *endsptr;
     int ok = 0;
-    RECT sr, dr;
+    RECT sr, dr, zr;
     DDSURFACEDESC2 desc;
     DWORD pitch;
 
@@ -482,10 +514,12 @@ endfail:
 end:
     unlocksurface (tempsurf);
 
-    getfilterrect2 (&sr, &dr, dst_width, dst_height, amiga_width, amiga_height, scale, temp_width, temp_height);
-    if (dr.left >= 0 && dr.top >= 0 && dr.right < temp_width && dr.bottom < temp_height) {
-	if (dr.left < dr.right && dr.top < dr.bottom)
-	    DirectDraw_BlitRect (NULL, &sr, tempsurf, &dr);
+    getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, amiga_width, amiga_height, scale, temp_width, temp_height);
+    //write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+    OffsetRect (&sr, zr.left, zr.top);
+    if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
+	if (sr.left < sr.right && sr.top < sr.bottom)
+	    DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
     }
     statusline ();
 }

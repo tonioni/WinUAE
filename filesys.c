@@ -5404,9 +5404,10 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 {
     int mode = m68k_dreg (&context->regs, 1);
-    uaecptr a2 = m68k_areg (&context->regs, 2);
-    uaecptr a3 = m68k_areg (&context->regs, 3);
-    input_mousehack_status (mode, a2, a3);
+    uaecptr diminfo = m68k_areg (&context->regs, 2);
+    uaecptr dispinfo = m68k_areg (&context->regs, 3);
+    uaecptr vp = m68k_areg (&context->regs, 4);
+    input_mousehack_status (mode, diminfo, dispinfo, vp);
     return 1;
 }
 

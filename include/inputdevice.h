@@ -84,11 +84,12 @@ extern uae_u8 handle_joystick_buttons (uae_u8);
 extern int getbuttonstate (int joy, int button);
 extern int getjoystate (int joy);
 
-extern void togglemouse (void);
 extern int magicmouse_alive (void);
 extern int is_tablet (void);
 extern int inputdevice_is_tablet (void);
-extern void input_mousehack_status (int mode, uaecptr a2, uaecptr a3);
+extern void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp);
+extern int mousehack_alive (void);
+extern void setmouseactive (int);
 
 extern void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask);
 extern void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask);

@@ -240,7 +240,10 @@ void getgfxoffset (int *dxp, int *dyp, int *mxp, int *myp)
         dy = picasso_offset_y;
 	*mxp = picasso_offset_mx;
 	*myp = picasso_offset_my;
-    } else if (currentmode->flags & DM_W_FULLSCREEN) {
+    }
+    *dxp = dx;
+    *dyp = dy;
+    if (currentmode->flags & DM_W_FULLSCREEN) {
 	if (scalepicasso && screen_is_picasso)
 	    return;
 	if (usedfilter && !screen_is_picasso)
@@ -1050,7 +1053,7 @@ int check_prefs_changed_gfx (void)
 
     c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? 16 : 0;
     c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? 16 : 0;
-    c |= currprefs.gfx_size_win.width != changed_prefs.gfx_size_win.width ? 16 : 0;
+    c |= ((currprefs.gfx_size_win.width + 7) & ~7) != ((changed_prefs.gfx_size_win.width + 7) & ~7) ? 16 : 0;
     c |= currprefs.gfx_size_win.height != changed_prefs.gfx_size_win.height ? 16 : 0;
 #if 0
     c |= currprefs.gfx_size_win.x != changed_prefs.gfx_size_win.x ? 16 : 0;
@@ -1139,6 +1142,7 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_filter_contrast = changed_prefs.gfx_filter_contrast;
 	currprefs.gfx_filter_saturation = changed_prefs.gfx_filter_saturation;
 	currprefs.gfx_filter_gamma = changed_prefs.gfx_filter_gamma;
+	currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 	//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
 	currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
@@ -1190,14 +1194,15 @@ int check_prefs_changed_gfx (void)
 	currprefs.gfx_xcenter != changed_prefs.gfx_xcenter ||
 	currprefs.gfx_ycenter != changed_prefs.gfx_ycenter)
     {
-	currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 	currprefs.gfx_xcenter_pos = changed_prefs.gfx_xcenter_pos;
 	currprefs.gfx_ycenter_pos = changed_prefs.gfx_ycenter_pos;
 	currprefs.gfx_xcenter_size = changed_prefs.gfx_xcenter_size;
 	currprefs.gfx_ycenter_size = changed_prefs.gfx_ycenter_size;
 	currprefs.gfx_xcenter = changed_prefs.gfx_xcenter;
 	currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
+	currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 
+	get_custom_limits (NULL, NULL, NULL, NULL);
 	fixup_prefs_dimensions (&changed_prefs);
 
 	return 1;
@@ -1509,8 +1514,6 @@ static int reopen (int full)
     currprefs.gfx_avsync = changed_prefs.gfx_avsync;
     currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
     currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
-
-
 
     if (!quick)
 	return 1;
@@ -2317,7 +2320,7 @@ static BOOL doInit (void)
 #endif
 #ifdef D3D
     if (currentmode->flags & DM_D3D) {
-	const char *err = D3D_init (hAmigaWnd, currentmode->current_width, currentmode->current_height,
+	const char *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
 	    currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth);
 	if (err) {
 	    D3D_free ();

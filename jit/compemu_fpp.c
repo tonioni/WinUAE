@@ -1267,6 +1267,15 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		    fmovs_rm(dreg,(uae_u32)temp_fp);
 		}
 		break;
+	    case 0x44: /* FDMOVE */
+		if (prec || !currprefs.fpu_strict) {
+		    if (sreg != dreg) /* no <EA> */
+			fmov_rr(dreg,sreg);
+		} else {
+		    fmov_mr((uae_u32)temp_fp,sreg);
+		    fmov_rm(dreg,(uae_u32)temp_fp);
+		}
+		break;
 	    case 0x41: /* FSSQRT */
 		fsqrt_rr(dreg,sreg);
 		if (!currprefs.fpu_strict) /* faster, but less strict rounding */
@@ -1276,15 +1285,6 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		    break;
 #endif
 		fcuts_r(dreg);
-		break;
-	    case 0x44: /* FDMOVE */
-		if (prec || !currprefs.fpu_strict) {
-		    if (sreg != dreg) /* no <EA> */
-			fmov_rr(dreg,sreg);
-		} else {
-		    fmov_mr((uae_u32)temp_fp,sreg);
-		    fmov_rm(dreg,(uae_u32)temp_fp);
-		}
 		break;
 	    case 0x45: /* FDSQRT */
 		if (!currprefs.fpu_strict) { /* faster, but less strict rounding */

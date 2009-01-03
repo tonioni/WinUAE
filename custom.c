@@ -201,6 +201,10 @@ struct sprite {
 
 static struct sprite spr[MAX_SPRITES];
 
+uaecptr sprite_0;
+int sprite_0_width, sprite_0_height, sprite_0_doubled;
+uae_u32 sprite_0_colors[4];
+
 static int sprite_vblank_endline = VBLANK_SPRITE_PAL;
 
 static unsigned int sprctl[MAX_SPRITES], sprpos[MAX_SPRITES];
@@ -254,6 +258,7 @@ static int diwfirstword, diwlastword;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
 int diwfirstword_total, diwlastword_total;
+int firstword_bplcon1;
 
 /* Sprite collisions */
 static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match;
@@ -2184,6 +2189,10 @@ static int tospritexddf (int ddf)
 {
     return (ddf * 2) << sprite_buffer_res;
 }
+static int fromspritexdiw (int ddf)
+{
+    return coord_hw_to_window_x (ddf >> sprite_buffer_res) + (DIW_DDF_OFFSET << lores_shift);
+}
 
 static void calcsprite (void)
 {
@@ -2214,6 +2223,7 @@ static void decide_sprites (int hpos)
     int point = hpos * 2 - 3;
     int width = sprite_width;
     int sscanmask = 0x100 << sprite_buffer_res;
+    int gotdata = 0;
 
     if (thisline_decision.nr_planes == 0 && !(bplcon3 & 2))
 	return;
@@ -2254,11 +2264,26 @@ static void decide_sprites (int hpos)
     for (i = 0; i < count; i++) {
 	int nr = nrs[i] & (MAX_SPRITES - 1);
 	record_sprite (next_lineno, nr, posns[i], sprdata[nr], sprdatb[nr], sprctl[nr]);
+	/* get left and right sprite edge if brdsprt enabled */
+	if (bplcon3 & 2) {
+	    int j;
+	    for (j = 0; j < sprite_width; j+= 16) {
+		int nx = fromspritexdiw (posns[i] + j);
+		if (sprdata[nr][j] || sprdata[nr][j]) {
+		    if (diwfirstword_total > nx)
+			diwfirstword_total = nx;
+		    if (diwlastword_total < nx + 16)
+			diwlastword_total = nx + 16;
+		}
+	    }
+	    gotdata = 1;
+	}
     }
     last_sprite_point = point;
 
-    if (bplcon3 & 2) {
-	if (vpos < first_planes_vpos || first_planes_vpos == 0)
+    /* get upper and lower sprite position if brdsprt enabled */
+    if (gotdata) {
+	if (vpos < first_planes_vpos)
 	    first_planes_vpos = vpos;
 	if (vpos < plffirstline_total)
 	    plffirstline_total = vpos;
@@ -2501,7 +2526,7 @@ void compute_vsynctime (void)
 
 static void dumpsync (void)
 {
-    static int cnt = 10;
+    static int cnt = 100;
     if (cnt < 0)
 	return;
     cnt--;
@@ -2529,10 +2554,12 @@ void init_hz (void)
     doublescan = 0;
     if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
 	hzc = 1;
+    if (beamcon0 != new_beamcon0) {
+	hack_vpos = 0;
+	write_log ("BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
+    }
     if (beamcon0 & 0x80)
 	hack_vpos = -1;
-    if (beamcon0 != new_beamcon0)
-	write_log ("BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
     beamcon0 = new_beamcon0;
     isntsc = (beamcon0 & 0x20) ? 0 : 1;
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -2776,8 +2803,11 @@ static void VPOSW (uae_u16 v)
     if (lof != (v & 0x8000))
 	lof_changed = 1;
     lof = v & 0x8000;
-    if ((v & 1) && vpos > 0)
+    if ((v & 1) && vpos > 0) {
 	hack_vpos = vpos + 1;
+	if (hack_vpos > maxvpos)
+	    hack_vpos = maxvpos;
+    }
 }
 
 STATIC_INLINE uae_u16 VHPOSR (void)
@@ -3175,14 +3205,6 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_line (hpos);
     decide_fetch (hpos);
     decide_blitter (hpos);
-
-    if (vpos > first_planes_vpos && vpos >= minfirstline && first_planes_vpos == 0) {
-	if (GET_PLANES (v) > 0)
-	    first_planes_vpos = vpos;
-    }
-    if (GET_PLANES (v) == 0 && GET_PLANES (bplcon0) > 0 && vpos > last_planes_vpos) {
-	last_planes_vpos = vpos;
-    }
 
     // fake unused 0x0080 bit as an EHB bit (see below)
     if (isehb (v, bplcon2))
@@ -4167,6 +4189,29 @@ STATIC_INLINE void sync_copper_with_cpu (int hpos, int do_schedule)
 	update_copper (hpos);
 }
 
+static void cursorsprite (void)
+{
+    if (!dmaen (DMA_SPRITE) || first_planes_vpos == 0)
+	return;
+    sprite_0 = spr[0].pt;
+    sprite_0_height = spr[0].vstop - spr[0].vstart;
+    sprite_0_colors[0] = 0;
+    sprite_0_doubled = 0;
+    if (sprres == 0)
+	sprite_0_doubled = 1;
+    if (currprefs.chipset_mask & CSMASK_AGA) {
+	int sbasecol = ((bplcon4 >> 4) & 15) << 4;
+	sprite_0_colors[1] = current_colors.color_regs_aga[sbasecol + 1];
+	sprite_0_colors[2] = current_colors.color_regs_aga[sbasecol + 2];
+	sprite_0_colors[3] = current_colors.color_regs_aga[sbasecol + 3];
+    } else {
+	sprite_0_colors[1] = xcolors[current_colors.color_regs_ecs[17]];
+	sprite_0_colors[2] = xcolors[current_colors.color_regs_ecs[18]];
+	sprite_0_colors[3] = xcolors[current_colors.color_regs_ecs[19]];
+    }
+    sprite_0_width = sprite_width;
+}
+
 STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cycle, int mode)
 {
     uae_u16 data = last_custom_value;
@@ -4203,6 +4248,8 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	    write_log ("%d:%d:SPR%d START\n", vpos, hpos, num);
 #endif
 	s->dmastate = 1;
+	if (num == 0 && cycle == 0)
+	    cursorsprite ();
     }
     if (vpos == s->vstop || vpos == sprite_vblank_endline) {
 #if SPRITE_DEBUG > 0
@@ -4744,8 +4791,10 @@ static void hsync_handler (void)
 	}
 	hsync_record_line_state (next_lineno, nextline_how, thisline_changed);
 	/* reset light pen latch */
-	if (vpos == sprite_vblank_endline)
+	if (vpos == sprite_vblank_endline) {
 	    lightpen_triggered = 0;
+	    sprite_0 = 0;
+	}
 	if (lightpen_cx > 0 && (bplcon0 & 8) && !lightpen_triggered && lightpen_cy == vpos) {
 	    vpos_lpen = vpos;
 	    hpos_lpen = lightpen_cx;
@@ -4943,22 +4992,31 @@ static void hsync_handler (void)
     hsync_counter++;
     //copper_check (2);
 
-    if (vpos == minfirstline) {
-	if (GET_PLANES (bplcon0) > 0)
-	    first_planes_vpos = minfirstline;
-    } else if (vpos == maxvpos - 1) {
-	if (GET_PLANES (bplcon0) > 0)
+    if (GET_PLANES (bplcon0) > 0 && dmaen (DMA_BITPLANE)) {
+        if (vpos > last_planes_vpos)
+	    last_planes_vpos = vpos;
+        if (vpos >= minfirstline && first_planes_vpos == 0) {
+    	    first_planes_vpos = vpos;
+        } else if (vpos == maxvpos - 1) {
 	    last_planes_vpos = vpos - 1;
+	}
     }
     if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
 	if (diwlastword > diwlastword_total)
 	    diwlastword_total = diwlastword;
-	if (diwfirstword < diwfirstword_total)
+	if (diwfirstword < diwfirstword_total) {
 	    diwfirstword_total = diwfirstword;
+	    firstword_bplcon1 = bplcon1;
+	}
     }
-    if (plffirstline < plffirstline_total)
-	plffirstline_total = plffirstline;
-    if (plflastline > plflastline_total)
+    if ((plffirstline < plffirstline_total || (plffirstline_total == minfirstline && vpos > minfirstline)) && plffirstline < vpos / 2) {
+        firstword_bplcon1 = bplcon1;
+	if (plffirstline < minfirstline)
+	    plffirstline_total = minfirstline;
+	else
+	    plffirstline_total = plffirstline;
+    }
+    if (plflastline > plflastline_total && plflastline > plffirstline_total && plflastline > vpos / 2)
 	plflastline_total = plflastline;
 
 

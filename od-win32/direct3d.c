@@ -583,7 +583,7 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 
     w = *ww;
     h = *hh;
-    if (tex_pow2) {
+    if (!tex_pow2) {
 	if (w < 256)
 	    w = 256;
 	else if (w < 512)
@@ -688,7 +688,6 @@ static int createsltexture (void)
 static void setupscenescaled (void)
 {
     HRESULT hr;
-    RECT sr, dr;
     int v;
 
     // Set up the texture
@@ -711,22 +710,36 @@ static void setupscenescaled (void)
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MINFILTER, v);
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MAGFILTER, v);
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+}
 
-    getfilterrect2 (&sr, &dr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
-    // Projection is screenspace coords
-    MatrixOrthoOffCenterLH (&m_matProj, 0.0f, (float)dr.right - dr.left, 0.0f, (float)dr.bottom - dr.top, 0.0f, 1.0f);
-    //MatrixOrthoOffCenterLH (&m_matProj, 0.0f, (float)Viewport.Width, 0.0f, (float)Viewport.Height, 0.0f, 1.0f);
-    // View matrix does offset
-    // A -0.5f modifier is applied to vertex coordinates to match texture
-    // and screen coords. Some drivers may compensate for this
-    // automatically, but on others texture alignment errors are introduced
-    // More information on this can be found in the Direct3D 9 documentation
+static void setupscenecoords (void)
+{
+    RECT sr, dr, zr;
+    float w, h;
+    float dw, dh;
+
+//    write_log ("%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
+
+    getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
+//    write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
+//	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+    dw = dr.right - dr.left;
+    dh = dr.bottom - dr.top;
+    w = sr.right - sr.left;
+    h = sr.bottom - sr.top;
+//    write_log ("%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
+
+    MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
+
     MatrixTranslation (&m_matView,
-	(float)window_w / 2 - 0.5f - dr.left - (window_w - tin_w) / 2,
-	(float)window_h / 2 + 0.5f - dr.top - (window_h - tin_h) / 2,
-	0.0f);
-//    MatrixTranslation (&m_matView, (float)Viewport.Width / 2 - 0.5f , (float)Viewport.Height / 2 + 0.5f, 0.0f);
-    MatrixScaling (&m_matWorld, tin_w, tin_h, 1.0f);
+	-0.5f + dw * tin_w / window_w / 2 - zr.left, // - (tin_w - 2 * zr.left - w),
+	 0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h), // <- ???
+	0);
+
+    MatrixScaling (&m_matWorld,
+	dw * tin_w / window_w,
+	dh * tin_h / window_h,
+	1.0f);
 }
 
 static void createvertex (void)
@@ -940,6 +953,7 @@ static int restoredeviceobjects (void)
     hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ZENABLE, FALSE);
 
     setupscenescaled ();
+    setupscenecoords ();
     settransform ();
 
     return 1;
@@ -987,7 +1001,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
 	return errmsg;
     } else {
-	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, void**);
+	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
         LPDIRECT3DCREATE9EX d3dexp  = (LPDIRECT3DCREATE9EX)GetProcAddress (d3dDLL, "Direct3DCreate9Ex");
 	if (d3dexp)
 	    d3d_ex = TRUE;
@@ -1092,7 +1106,6 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
 	if((d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) && tex_dynamic) {
 	    psEnabled = TRUE;
-	    tex_square = TRUE;
 	    tex_pow2 = TRUE;
 	} else {
 	    psEnabled = FALSE;
@@ -1194,8 +1207,9 @@ static void D3D_render2 (int clear)
 
     if (clear) {
 	setupscenescaled ();
-	settransform ();
     }
+    setupscenecoords ();
+    settransform ();
     hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (clear)
 	hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );

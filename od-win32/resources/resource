@@ -723,6 +723,8 @@
 #define IDC_FILTERVZMULT                1635
 #define IDC_SOUNDPRIMARY                1636
 #define IDC_MINIMIZED_PRI               1636
+#define IDC_FILTERFILTER2               1636
+#define IDC_FILTERAUTOSCALE             1636
 #define IDC_VOLUME_BOOTPRI_TEXT         1637
 #define IDC_VOLUME_BOOTPRI              1638
 #define IDC_KBLED1                      1639
@@ -843,7 +845,6 @@
 #define IDC_SCSIMODE2                   1706
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
-#define IDC_FILTERAUTORES               1708
 #define IDC_SOUND_AUTO                  1709
 #define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710

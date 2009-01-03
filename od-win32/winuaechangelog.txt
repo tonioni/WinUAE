@@ -1,4 +1,46 @@
 
+Beta 7:
+
+- version number bumped to 1.6.0
+- added "resize" autoscale method. Resizes windowed mode window
+  to current detected Amiga display size. (1:1 pixel mapping, no
+  blurriness)
+- PAL/NTSC switching in KS3.x early boot screen was ignored until
+  following reboot (old bug)
+- do not report no_cd-status when loading CD32 statefile without CD
+  installed
+- doublescan modes autoscale/resize better
+- improved Amiga display size detection
+- autoscale option saved to configuration file
+- do not capture mouse if mouse pointer is not in normal mode, prevents
+  annoying accidental capture when dragging/resizing
+- very large overscanned modes are centered in autoscale modes,
+  previously right border was simply clipped
+- tablet+magic mouse cursor positioning will be even more broken now
+- do not create registry key if ini mode is enabled (release versions
+  only)
+- renamed "Drawing tablet support" to "Install virtual mouse driver"
+  (which is not much better but at least a bit less confusing..)
+- mouse autocaptures in "sync mode" if native side mouse driver does
+  not get "heartbeat" signal from Amiga-side driver (for example
+  when running game that takes over the system). Current timeout is
+  2 seconds.
+- native mode mouse cursor shape copied to Windows cursor (yes, I am
+  going really too far now..) in mousesync mode. Just experimenting..
+- left mousebutton didn't always work in mouse sync modes
+- fullscreen and full window should work correctly again
+  (hint: full window + autoscale + correct aspect = useful if you
+  don't mind blurriness, scale2x/pal filter may also help)
+- on screen leds' background is translucent (32-bit screen + filtered
+  only)
+- NOTE: D3D/OGL filters do not yet work correctly in autoscale,
+  autoresize or mouse sync modes (=mouse driver + magic mouse)
+- NOTE2: screen dragging does weird things with autoscale/mouse sync
+  (mouse sync issue when two different screens are visible should be
+  fixable)
+- NOTE3: both real and "fake" cursor is temporarily visible in mouse
+  sync modes. They should always be in 100% sync and have identical
+  shape. (but aren't, still work to do..)
 
 Beta 6:
 
@@ -9,6 +51,11 @@ Beta 6:
 - autoscale saved to config file
 - non-filtered mode is back but enabling autoscale will automatically
   enable null filter if current selection was no filter
+- filter aspect ratio setting in autoscale mode was wrong
+- filter aspect ratio now set by default
+- detected screen size logged
+- loading new statefile didn't always trigger scale update
+
 
 Beta 5: WARNING: big changes. 1.6 version change expected.
 

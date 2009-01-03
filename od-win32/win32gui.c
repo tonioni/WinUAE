@@ -1203,11 +1203,11 @@ void gui_display (int shortcut)
     setmouseactive (0);
 
     w = h = -1;
-    if (!WIN32GFX_IsPicassoScreen() && currprefs.gfx_afullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
+    if (!WIN32GFX_IsPicassoScreen () && currprefs.gfx_afullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
 	w = currprefs.gfx_size.width;
 	h = currprefs.gfx_size.height;
     }
-    if (WIN32GFX_IsPicassoScreen() && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
+    if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
 	w = currprefs.gfx_size.width;
 	h = currprefs.gfx_size.height;
     }
@@ -9884,7 +9884,12 @@ static void values_to_hw3ddlg (HWND hDlg)
 	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 2 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 3 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 4 : 0, 0);
-    CheckDlgButton (hDlg, IDC_FILTERAUTORES, workprefs.gfx_filter_autoscale);
+
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)"Disabled");
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)"Automatic scaling");
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)"Automatic resize");
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPAGESIZE, 0, 1);
@@ -10206,6 +10211,8 @@ static void filter_handle (HWND hDlg)
 		hw3d_changed = 1;
 	    }
 	}
+	if (workprefs.gfx_filter == 0)
+	    workprefs.gfx_filter_autoscale = 0;
     }
     enable_for_hw3ddlg (hDlg);
     updatedisplayarea ();
@@ -10269,13 +10276,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		filter_preset (hDlg, wParam);
 		recursive++;
 		break;
-		case IDC_FILTERAUTORES:
-		workprefs.gfx_filter_autoscale = IsDlgButtonChecked (hDlg, IDC_FILTERAUTORES);
-		if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
-		    workprefs.gfx_filter = 1;
-		values_to_hw3ddlg (hDlg);
-		enable_for_hw3ddlg (hDlg);
-		break;
 		case IDC_FILTERKEEPASPECT:
 		currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT);
 		updatedisplayarea ();
@@ -10285,6 +10285,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 		    switch (LOWORD (wParam))
 		    {
+			case IDC_FILTERAUTOSCALE:
+			item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
+			if (item != CB_ERR) {
+			    workprefs.gfx_filter_autoscale = item;
+			    if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
+				workprefs.gfx_filter = 1;
+			    values_to_hw3ddlg (hDlg);
+			    enable_for_hw3ddlg (hDlg);
+			}
+			break;
 			case IDC_FILTERXTRA:
 			values_to_hw3ddlg (hDlg);
 			break;
@@ -10301,6 +10311,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			case IDC_FILTERMODE:
 			case IDC_FILTERFILTER:
 			filter_handle (hDlg);
+			values_to_hw3ddlg (hDlg);
 			break;
 			case IDC_FILTERHZMULT:
 			currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);

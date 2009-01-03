@@ -997,11 +997,11 @@ static void cdrom_run_read (void)
 }
 
 static uae_sem_t akiko_sem;
+static int lastmediastate = 0;
 
 static void akiko_handler (void)
 {
     static int mediacheckcnt;
-    static int lastmediastate = -1;
 
     if (unitnum < 0)
 	return;
@@ -1508,10 +1508,10 @@ static void akiko_cdrom_free (void)
     if (unitnum >= 0)
 	sys_cddev_close ();
     unitnum = -1;
-    free (sector_buffer_1);
-    free (sector_buffer_2);
-    free (sector_buffer_info_1);
-    free (sector_buffer_info_2);
+    xfree (sector_buffer_1);
+    xfree (sector_buffer_2);
+    xfree (sector_buffer_info_1);
+    xfree (sector_buffer_info_2);
     sector_buffer_1 = 0;
     sector_buffer_2 = 0;
     sector_buffer_info_1 = 0;
@@ -1532,6 +1532,7 @@ void akiko_reset (void)
     cdrom_command_offset_complete = 0;
     cdrom_command_offset_todo = 0;
     cdrom_led = 0;
+    lastmediastate = 0;
 
     if (akiko_thread_running > 0) {
 	akiko_thread_running = 0;
@@ -1558,7 +1559,7 @@ static void patchrom (void)
 	    p[i + 7] = 0x71;
 	    p[i + 8] = 0x4e;
 	    p[i + 9] = 0x71;
-	    write_log ("extended rom delay loop patched at 0x%p\n", i + 6 + 0xe00000);
+	    write_log ("extended rom delay loop patched at 0x%08x\n", i + 6 + 0xe00000);
 	    return;
 	}
 	if (!memcmp (p + i, patchdata2, sizeof(patchdata2)))
@@ -1577,16 +1578,16 @@ int akiko_init (void)
 {
     if (currprefs.cs_cd32cd && cdromok == 0) {
 	unitnum = -1;
-	if (!device_func_init(DEVICE_TYPE_ANY)) {
+	if (!device_func_init (DEVICE_TYPE_ANY)) {
 	    write_log ("no CDROM support\n");
 	    return 0;
 	}
 	if (!sys_cddev_open ()) {
 	    cdromok = 1;
-	    sector_buffer_1 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE * 2048);
-	    sector_buffer_2 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE * 2048);
-	    sector_buffer_info_1 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE);
-	    sector_buffer_info_2 = (uae_u8*)malloc (SECTOR_BUFFER_SIZE);
+	    sector_buffer_1 = xmalloc (SECTOR_BUFFER_SIZE * 2048);
+	    sector_buffer_2 = xmalloc (SECTOR_BUFFER_SIZE * 2048);
+	    sector_buffer_info_1 = xmalloc (SECTOR_BUFFER_SIZE);
+	    sector_buffer_info_2 = xmalloc (SECTOR_BUFFER_SIZE);
 	    sector_buffer_sector_1 = -1;
 	    sector_buffer_sector_2 = -1;
 	    patchrom ();

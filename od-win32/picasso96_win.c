@@ -32,6 +32,7 @@
 
 #define MULTIDISPLAY 0
 #define P96DX 0
+#define WINCURSOR 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -47,6 +48,8 @@
 #include "autoconf.h"
 #include "traps.h"
 #include "native2amiga.h"
+#include "drawing.h"
+#include "inputdevice.h"
 
 #if defined(PICASSO96)
 
@@ -686,6 +689,9 @@ void picasso_handle_vsync (void)
 #ifdef RETROPLATFORM
     rp_vsync ();
 #endif
+
+    if (!picasso_on)
+	createwindowscursor (0, 0, 0, 0, 0, 1);
 
     if (currprefs.chipset_refreshrate >= 100) {
 	vsynccnt++;
@@ -1469,44 +1475,86 @@ static void putmousepixel (uae_u8 *d, int bpp, int idx)
     }
 }
 
-static void putwinmousepixel (HDC andDC, HDC xorDC, int x, int y, int c)
+static void putwinmousepixel (HDC andDC, HDC xorDC, int x, int y, int c, uae_u32 *ct)
 {
     if (c == 0) {
         SetPixel (andDC, x, y, RGB (255, 255, 255));
         SetPixel (xorDC, x, y, RGB (0, 0, 0));
     } else {
-        uae_u32 val = cursorrgbn[c];
+        uae_u32 val = ct[c];
         SetPixel (andDC, x, y, RGB (0, 0, 0));
         SetPixel (xorDC, x, y, RGB ((val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff));
     }
 }
 
 static int wincursorcnt;
-void picasso_setwincursor (void)
-{
-    if (wincursor) {
-	SetCursor (wincursor);
-    } else {
-	SetCursor (NULL);
-    }
-}
+static int tmp_sprite_w, tmp_sprite_h, tmp_sprite_hires, tmp_sprite_doubled;
+static uae_u8 *tmp_sprite_data;
+static uae_u32 tmp_sprite_colors[4];
 
-static int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite)
+extern uaecptr sprite_0;
+extern int sprite_0_width, sprite_0_height, sprite_0_doubled;
+extern uae_u32 sprite_0_colors[4];
+
+int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset)
 {
     HBITMAP andBM, xorBM;
     HBITMAP andoBM, xoroBM;
     HDC andDC, xorDC, DC, mainDC;
     ICONINFO ic;
-    int x, y, yy;
-    int ret, isdata;
+    int x, y, yy, w2, h2;
+    int ret, isdata, datasize;
+    HCURSOR oldwincursor = wincursor;
+    uae_u8 *realsrc;
+    uae_u32 *ct;
 
     ret = 0;
-    if (wincursor)
-	DestroyIcon (wincursor);
-    wincursor = NULL;
     wincursor_shown = 0;
+
     if (isfullscreen () > 0 || currprefs.input_tablet == 0 || currprefs.input_magic_mouse == 0)
-	return 0;
+	goto exit;
+
+    if (chipset) {
+	if (!sprite_0 || !mousehack_alive ()) {
+	    if (wincursor)
+		SetCursor (normalcursor);
+	    goto exit;
+	}
+	w2 = w = sprite_0_width;
+	h2 = h = sprite_0_height;
+	hiressprite = sprite_0_width / 16;
+	doubledsprite = sprite_0_doubled;
+	if (doubledsprite) {
+	    h2 *= 2;
+	    w2 *= 2;
+	}
+	src = sprite_0;
+	ct = sprite_0_colors;
+    } else {
+	h2 = h;
+	w2 = w;
+	ct = cursorrgbn;
+    }
+    datasize = h * ((w + 15) / 16) * 4;
+    realsrc = get_real_address (src);
+
+    if (w > 64 || h > 64)
+	goto exit;
+
+    if (wincursor && tmp_sprite_data) {
+	if (w == tmp_sprite_w && h == tmp_sprite_h &&
+	    !memcmp (tmp_sprite_data, realsrc, datasize) && !memcmp (tmp_sprite_colors, ct, sizeof (uae_u32)*4)
+	    && hiressprite == tmp_sprite_hires && doubledsprite == tmp_sprite_doubled
+	) {
+	    if (GetCursor () == wincursor)
+		return 1;
+	}
+    }
+    write_log ("wincursor: %dx%d hires=%d doubled=%d\n", w2, h2, hiressprite, doubledsprite);
+
+    xfree (tmp_sprite_data);
+    tmp_sprite_data = NULL;
+    tmp_sprite_w = tmp_sprite_h = 0;
 
     DC = mainDC = andDC = xorDC = NULL;
     andBM = xorBM = NULL;
@@ -1518,42 +1566,42 @@ static int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int 
     xorDC = CreateCompatibleDC (DC);
     if (!mainDC || !andDC || !xorDC)
 	goto end;
-    andBM = CreateCompatibleBitmap (DC, w, h);
-    xorBM = CreateCompatibleBitmap (DC, w, h);
+    andBM = CreateCompatibleBitmap (DC, w2, h2);
+    xorBM = CreateCompatibleBitmap (DC, w2, h2);
     if (!andBM || !xorBM)
 	goto end;
     andoBM = SelectObject (andDC, andBM);
     xoroBM = SelectObject (xorDC, xorBM);
 
     isdata = 0;
-    for (y = 0, yy = 0; y < h; yy++) {
+    for (y = 0, yy = 0; y < h2; yy++) {
 	int dbl;
 	uaecptr img = src + yy * 4 * hiressprite;
 	for (dbl = 0; dbl < (doubledsprite ? 2 : 1); dbl++) {
 	    x = 0;
-	    while (x < w) {
+	    while (x < w2) {
 		uae_u32 d1 = get_long (img);
 		uae_u32 d2 = get_long (img + 2 * hiressprite);
 		int bits;
-		int maxbits = w - x;
+		int maxbits = w2 - x;
 
 		if (maxbits > 16 * hiressprite)
 		    maxbits = 16 * hiressprite;
-		for (bits = 0; bits < maxbits && x < w; bits++) {
+		for (bits = 0; bits < maxbits && x < w2; bits++) {
 		    uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
 		    d1 <<= 1;
 		    d2 <<= 1;
-		    putwinmousepixel (andDC, xorDC, x, y, c);
+		    putwinmousepixel (andDC, xorDC, x, y, c, ct);
 		    if (c > 0)
 			isdata = 1;
 		    x++;
-		    if (doubledsprite && x < w) {
-			putwinmousepixel (andDC, xorDC, x, y, c);
+		    if (doubledsprite && x < w2) {
+			putwinmousepixel (andDC, xorDC, x, y, c, ct);
 			x++;
 		    }
 		}
 	    }
-	    if (y <= h)
+	    if (y <= h2)
 		y++;
 	}
     }
@@ -1575,6 +1623,13 @@ end:
 	ic.hbmColor = xorBM;
 	ic.hbmMask = andBM;
 	wincursor = CreateIconIndirect (&ic);
+	tmp_sprite_w = w;
+	tmp_sprite_h = h;
+	tmp_sprite_data = xmalloc (datasize);
+	tmp_sprite_hires = hiressprite;
+	tmp_sprite_doubled = doubledsprite;
+	memcpy (tmp_sprite_data, realsrc, datasize);
+	memcpy (tmp_sprite_colors, ct, sizeof (uae_u32) * 4);
     }
 
     DeleteObject (andBM);
@@ -1582,12 +1637,34 @@ end:
     
     if (wincursor) {
 	SetCursor (wincursor);
+#if WINCURSOR > 0
 	wincursor_shown = 1;
+#endif
     }
 
     if (!ret)
 	write_log ("RTG Windows color cursor creation failed\n");
+
+exit:
+    if (wincursor == oldwincursor)
+	SetCursor (normalcursor);
+    if (oldwincursor)
+	DestroyIcon (oldwincursor);
+    oldwincursor = NULL;
+
     return ret;
+}
+
+int picasso_setwincursor (void)
+{
+    if (wincursor) {
+	SetCursor (wincursor);
+	return 1;
+    } else if (!picasso_on) {
+	if (createwindowscursor (0, 0, 0, 0, 0, 1))
+	    return 1;
+    }
+    return 0;
 }
 
 static uae_u32 setspriteimage (uaecptr bi)
@@ -1636,7 +1713,7 @@ static uae_u32 setspriteimage (uaecptr bi)
     }
 
     createwindowscursor (get_long (bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite,
-	w, h, hiressprite, doubledsprite);
+	w, h, hiressprite, doubledsprite, 0);
 
     tmpbuf = xmalloc (w * h * bpp);
     for (y = 0, yy = 0; y < h; y++, yy++) {
@@ -4231,12 +4308,12 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
 
     /* GetCompatibleFormats
 	; all formats can coexist without any problems, since we don't support planar stuff in UAE
-	move.l	#~RGBFF_PLANAR,d0
+	move.l	#RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT,d0
 	rts
     */
     PUTABI (PSSO_BoardInfo_GetCompatibleFormats);
     dw (0x203c);
-    dl (0xfffffffe);
+    dl (RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT);
     dw (RTS);
 
     /* CalculateBytesPerRow (optimized) */

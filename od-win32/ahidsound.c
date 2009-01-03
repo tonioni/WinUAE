@@ -456,7 +456,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
     {
 	uae_u32 src, num_vars;
 	static int cap_pos, clipsize;
-	static LPTSTR clipdat;
+	static char *clipdat;
 
 	case 0:
 	    cap_pos = 0;
@@ -627,7 +627,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 100: // open dll
 	{
-	    char *dlldir = "winuae_dll";
+	    char *dlldir = TEXT ("winuae_dll");
 	    char *dllname;
 	    uaecptr dllptr;
 	    HMODULE h = NULL;

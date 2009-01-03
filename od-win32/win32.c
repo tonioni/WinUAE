@@ -109,6 +109,7 @@ static HWND TaskbarRestartHWND;
 static int forceroms;
 static int start_data = 0;
 static void *tablet;
+HCURSOR normalcursor;
 
 char VersionStr[256];
 char BetaStr[64];
@@ -343,13 +344,15 @@ static void setcursor (int oldx, int oldy)
     mouseposx = oldx - x;
     mouseposy = oldy - y;
 
-    if (currprefs.input_magic_mouse && currprefs.input_tablet > 0) {
+    if (currprefs.input_magic_mouse && currprefs.input_tablet > 0 && mousehack_alive () && isfullscreen () <= 0) {
 	mouseposx = mouseposy = 0;
 	return;
     }
-//  write_log ("%d %d %d %d %d - %d %d %d %d %d\n",
-//	x, amigawin_rect.left, amigawin_rect.right, mouseposx, oldx,
-//	y, amigawin_rect.top, amigawin_rect.bottom, mouseposy, oldy);
+#if 0
+    write_log ("%d %d %d %d %d - %d %d %d %d %d\n",
+	x, amigawin_rect.left, amigawin_rect.right, mouseposx, oldx,
+	y, amigawin_rect.top, amigawin_rect.bottom, mouseposy, oldy);
+#endif
     if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
 	mouseposx = mouseposy = 0;
 	oldx = oldy = 0;
@@ -477,6 +480,12 @@ void setpriority (struct threadpriorities *pri)
 	write_log ("priority set failed, %08X\n", GetLastError ());
 }
 
+static void setcursorshape (void)
+{
+    if (!picasso_setwincursor ())
+	SetCursor (normalcursor);
+}
+
 static void releasecapture (void)
 {
     if (!showcursor)
@@ -494,8 +503,15 @@ void setmouseactive (int active)
     if (mouseactive == active && active >= 0)
 	return;
 
+    if (active > 0) {
+	HANDLE c = GetCursor ();
+	if (c != normalcursor)
+	    return;
+    }
+
     if (active < 0)
 	active = 1;
+
     mouseactive = active;
 
     mouseposx = mouseposy = 0;
@@ -503,8 +519,11 @@ void setmouseactive (int active)
     releasecapture ();
     recapture = 0;
 
-    if (currprefs.input_magic_mouse && currprefs.input_tablet > 0)
-	return;
+    if (isfullscreen () <= 0 && currprefs.input_magic_mouse && currprefs.input_tablet > 0) {
+	if (mousehack_alive ())
+	    return;
+	SetCursor (normalcursor);
+    }
 
     if (mouseactive > 0)
 	focus = 1;
@@ -748,7 +767,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
-	if (!mouseactive && isfullscreen() <= 0 && !gui_active) {
+	if (!mouseactive && isfullscreen() <= 0 && !gui_active && !mousehack_alive ()) {
 	    setmouseactive (1);
 	} else if (dinput_winmouse () >= 0) {
 	    setmousebuttonstate (dinput_winmouse (), 0, 1);
@@ -799,7 +818,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MOUSEWHEEL:
 	if (dinput_winmouse () >= 0) {
 	    int val = ((short)HIWORD (wParam));
-	    //write_log ("dinput_winmouse=%d dinput_wheelbuttonstart=%d wheel=%d\n", dinput_winmouse(), dinput_wheelbuttonstart(), val);
 	    setmousestate (dinput_winmouse (), 2, val, 0);
 	    if (val < 0)
 		setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
@@ -807,7 +825,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 1, -1);
 	    return TRUE;
 	}
-	//write_log ("dinput_winmouse() = %d\n", dinput_winmouse());
     return 0;
     case WM_MOUSEHWHEEL:
 	if (dinput_winmouse () >= 0) {
@@ -861,6 +878,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #endif
 	DragAcceptFiles (hWnd, TRUE);
 	tablet = open_tablet (hWnd);
+	normalcursor = LoadCursor (NULL, IDC_ARROW);
     return 0;
 
     case WM_DESTROY:
@@ -896,15 +914,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     case WM_SETCURSOR:
     {
-	static HCURSOR oldcursor;
-	if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse) {
-	    if (oldcursor == NULL)
-		oldcursor = LoadCursor (NULL, IDC_ARROW);
-	    if (picasso_on) {
-		picasso_setwincursor ();
-		return 1;
-	    } else {
-		SetCursor (oldcursor);
+	if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse && isfullscreen () <= 0) {
+	    if (mousehack_alive ()) {
+		setcursorshape ();
 		return 1;
 	    }
 	}
@@ -1182,6 +1194,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 static int canstretch (void)
 {
     if (isfullscreen () != 0)
+	return 0;
+    if (currprefs.gfx_filter_autoscale == 2)
 	return 0;
     if (!WIN32GFX_IsPicassoScreen ())
 	return 1;
@@ -1844,7 +1858,7 @@ void logging_init(void)
 	SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 	SystemInfo.dwNumberOfProcessors);
     write_log ("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-	       "\n(c) 1998-2008 Toni Wilen      - Win32 port, core code updates."
+	       "\n(c) 1998-2009 Toni Wilen      - Win32 port, core code updates."
 	       "\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 	       "\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 	       "\n(c) 2000-2001 Bernd Meyer     - JIT engine."
@@ -2786,9 +2800,11 @@ static void WIN32_HandleRegistryStuff(void)
     char version[100];
 
     hWinUAEKey = NULL;
-    /* Create/Open the hWinUAEKey which points our config-info */
-    RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
-	  KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
+    if (getregmode () == 0 || WINUAEPUBLICBETA > 0) {
+	/* Create/Open the hWinUAEKey which points our config-info */
+	RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
+	    KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
+    }
     initpath ("FloppyPath", start_path_data);
     initpath ("KickstartPath", start_path_data);
     initpath ("hdfPath", start_path_data);
@@ -3297,7 +3313,7 @@ static void makeverstr(char *s)
 static int multi_display = 1;
 static char *inipath = NULL;
 
-static int process_arg(char **xargv)
+static int process_arg (char **xargv)
 {
     int i, argc, xargc;
     char **argv;
@@ -3563,7 +3579,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	    write_log ("%d:%s: %s\n", i, record_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", record_devices[i].name);
 	}
 	write_log ("done\n");
-	memset (&devmode, 0, sizeof(devmode));
+	memset (&devmode, 0, sizeof (devmode));
 	devmode.dmSize = sizeof (DEVMODE);
 	if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
 	    default_freq = devmode.dmDisplayFrequency;
