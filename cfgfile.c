@@ -524,6 +524,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "gfx_lores=%s\n", p->gfx_resolution == 0 ? "true" : "false");
     cfgfile_write (f, "gfx_resolution=%s\n", lorestype1[p->gfx_resolution]);
     cfgfile_write (f, "gfx_lores_mode=%s\n", loresmode[p->gfx_lores_mode]);
+    cfgfile_write (f, "gfx_flickerfixer=%s\n", p->gfx_scandoubler ? "true" : "false");
     cfgfile_write (f, "gfx_linemode=%s\n", linemode1[p->gfx_linedbl]);
     cfgfile_write (f, "gfx_fullscreen_amiga=%s\n", fullmodes[p->gfx_afullscreen]);
     cfgfile_write (f, "gfx_fullscreen_picasso=%s\n", fullmodes[p->gfx_pfullscreen]);
@@ -940,6 +941,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_yesno (option, value, "gfx_vsync", &p->gfx_avsync)
 	|| cfgfile_yesno (option, value, "gfx_vsync_picasso", &p->gfx_pvsync)
 	|| cfgfile_yesno (option, value, "gfx_blacker_than_black", &p->gfx_blackerthanblack)
+	|| cfgfile_yesno (option, value, "gfx_flickerfixer", &p->gfx_scandoubler)
 	|| cfgfile_yesno (option, value, "show_leds", &p->leds_on_screen)
 	|| cfgfile_yesno (option, value, "synchronize_clock", &p->tod_hack)
 	|| cfgfile_yesno (option, value, "magic_mouse", &p->input_magic_mouse)
@@ -3013,7 +3015,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_filter_filtermode = 0;
     p->gfx_filter_scanlineratio = (1 << 4) | 1;
     p->gfx_filter_keep_aspect = 0;
-    p->gfx_filter_autoscale = 1;
+    p->gfx_filter_autoscale = 0;
 
     strcpy (p->df[0], "df0.adf");
     strcpy (p->df[1], "df1.adf");

@@ -78,6 +78,7 @@
 #include "akiko.h"
 #include "cdtv.h"
 #include "direct3d.h"
+#include "clipboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -88,7 +89,7 @@ int pissoff_value = 25000;
 
 extern FILE *debugfile;
 extern int console_logging;
-static OSVERSIONINFO osVersion;
+OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 static int logging_started;
 static DWORD minidumpmode = MiniDumpNormal;
@@ -110,6 +111,7 @@ static int forceroms;
 static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
+static HWND hwndNextViewer;
 
 char VersionStr[256];
 char BetaStr[64];
@@ -151,6 +153,9 @@ char start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 char help_file[MAX_DPATH];
 int af_path_2005, af_path_old;
 DWORD quickstart = 1, configurationcache = 1;
+
+static int multi_display = 1;
+static char *inipath = NULL;
 
 static int timeend (void)
 {
@@ -879,9 +884,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	DragAcceptFiles (hWnd, TRUE);
 	tablet = open_tablet (hWnd);
 	normalcursor = LoadCursor (NULL, IDC_ARROW);
+	hwndNextViewer = SetClipboardViewer (hWnd); 
+	clipboard_init (hWnd);
     return 0;
 
     case WM_DESTROY:
+	ChangeClipboardChain (hWnd, hwndNextViewer); 
 	close_tablet (tablet);
 	inputdevice_unacquire ();
 	dinput_window ();
@@ -1150,6 +1158,17 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	}
     }
     break;
+
+    case WM_CHANGECBCHAIN: 
+	if ((HWND) wParam == hwndNextViewer) 
+	    hwndNextViewer = (HWND) lParam; 
+	else if (hwndNextViewer != NULL) 
+	    SendMessage(hwndNextViewer, message, wParam, lParam); 
+    return 0;
+    case WM_DRAWCLIPBOARD:
+	clipboard_changed (hWnd);
+	SendMessage(hwndNextViewer, message, wParam, lParam); 
+    return 0;
 
     case WT_PROXIMITY:
     {
@@ -2017,6 +2036,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_guikey = -1;
 	p->win32_automount_removable = 0;
 	p->win32_automount_drives = 0;
+	p->win32_automount_removabledrives = 0;
 	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
@@ -2036,6 +2056,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_midiindev = 0;
 	p->win32_automount_removable = 0;
 	p->win32_automount_drives = 0;
+	p->win32_automount_removabledrives = 0;
 	p->win32_automount_cddrives = 0;
 	p->win32_automount_netdrives = 0;
 	p->picasso96_modeflags = RGBFF_CLUT | RGBFF_R5G6B5PC | RGBFF_B8G8R8A8;
@@ -2052,6 +2073,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "map_drives_auto=%s\n", p->win32_automount_removable ? "true" : "false");
     cfgfile_target_dwrite (f, "map_cd_drives=%s\n", p->win32_automount_cddrives ? "true" : "false");
     cfgfile_target_dwrite (f, "map_net_drives=%s\n", p->win32_automount_netdrives ? "true" : "false");
+    cfgfile_target_dwrite (f, "map_removable_drives=%s\n", p->win32_automount_removabledrives ? "true" : "false");
     serdevtoname (p->sername);
     cfgfile_target_dwrite (f, "serial_port=%s\n", p->sername[0] ? p->sername : "none");
     sernametodev (p->sername);
@@ -2120,6 +2142,7 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 	    || cfgfile_yesno (option, value, "map_drives_auto", &p->win32_automount_removable)
 	    || cfgfile_yesno (option, value, "map_cd_drives", &p->win32_automount_cddrives)
 	    || cfgfile_yesno (option, value, "map_net_drives", &p->win32_automount_netdrives)
+	    || cfgfile_yesno (option, value, "map_removable_drives", &p->win32_automount_removabledrives)
 	    || cfgfile_yesno (option, value, "logfile", &p->win32_logfile)
 	    || cfgfile_yesno (option, value, "networking", &p->socket_emu)
 	    || cfgfile_yesno (option, value, "borderless", &p->win32_borderless)
@@ -2789,22 +2812,15 @@ void associate_file_extensions (void)
 	SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 }
 
-static void WIN32_HandleRegistryStuff(void)
+static void WIN32_HandleRegistryStuff (void)
 {
     RGBFTYPE colortype = RGBFB_NONE;
     DWORD dwType = REG_DWORD;
     DWORD dwDisplayInfoSize = sizeof (colortype);
     DWORD size;
-    DWORD disposition;
     char path[MAX_DPATH] = "";
     char version[100];
 
-    hWinUAEKey = NULL;
-    if (getregmode () == 0 || WINUAEPUBLICBETA > 0) {
-	/* Create/Open the hWinUAEKey which points our config-info */
-	RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
-	    KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
-    }
     initpath ("FloppyPath", start_path_data);
     initpath ("KickstartPath", start_path_data);
     initpath ("hdfPath", start_path_data);
@@ -3279,7 +3295,7 @@ extern int force_direct_catweasel, sound_mode_skip, maxmem;
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
 
-static int getval(char *s)
+static int getval(const char *s)
 {
     int base = 10;
     int v;
@@ -3310,8 +3326,235 @@ static void makeverstr(char *s)
     }
 }
 
-static int multi_display = 1;
-static char *inipath = NULL;
+static int parseargs (const char *arg, const char *np)
+{
+
+    if (!strcmp (arg, "-log")) {
+        console_logging = 1;
+        return 1;
+    }
+#ifdef FILESYS
+    if (!strcmp (arg, "-rdbdump")) {
+        do_rdbdump = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-disableharddrivesafetycheck")) {
+        harddrive_dangerous = 0x1234dead;
+	return 1;
+    }
+    if (!strcmp (arg, "-noaspifiltering")) {
+        aspi_allow_all = 1;
+	return 1;
+    }
+#endif
+    if (!strcmp (arg, "-norawinput")) {
+        no_rawinput = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-rawkeyboard")) {
+        rawkeyboard = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-scsilog")) {
+        log_scsi = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-netlog")) {
+        log_net = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-seriallog")) {
+        log_uaeserial = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-rplog")) {
+        log_rp = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-nomultidisplay")) {
+        multi_display = 0;
+	return 1;
+    }
+    if (!strcmp (arg, "-legacypaths")) {
+        start_data = -2;
+	return 1;
+    }
+    if (!strcmp (arg, "-screenshotbmp")) {
+        screenshotmode = 0;
+	return 1;
+    }
+    if (!strcmp (arg, "-psprintdebug")) {
+        postscript_print_debugging = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-sounddebug")) {
+        sound_debug = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-directcatweasel")) {
+        force_direct_catweasel = 1;
+	if (np) {
+	    force_direct_catweasel = getval (np);
+	    return 2;
+	}
+	return 1;
+    }
+    if (!strcmp (arg, "-forcerdtsc")) {
+        userdtsc = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-ddsoftwarecolorkey")) {
+        extern int ddsoftwarecolorkey;
+        ddsoftwarecolorkey = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-logflush")) {
+        extern int always_flush_log;
+        always_flush_log = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-ahidebug")) {
+        extern int ahi_debug;
+        ahi_debug = 2;
+	return 1;
+    }
+    if (!strcmp (arg, "-ahidebug2")) {
+        extern int ahi_debug;
+        ahi_debug = 3;
+	return 1;
+    }
+
+    if (!np)
+	return 0;
+
+    if (!strcmp (arg, "-ddforcemode")) {
+    	extern int ddforceram;
+	ddforceram = getval (np);
+	if (ddforceram < 0 || ddforceram > 3)
+	    ddforceram = 0;
+	return 2;
+    }
+    if (!strcmp (arg, "-affinity")) {
+	cpu_affinity = getval (np);
+	if (cpu_affinity == 0)
+	    cpu_affinity = original_affinity;
+	SetThreadAffinityMask (GetCurrentThread (), cpu_affinity);
+	return 2;
+    }
+    if (!strcmp (arg, "-paffinity")) {
+	cpu_paffinity = getval (np);
+	if (cpu_paffinity == 0)
+	    cpu_paffinity = original_affinity;
+	SetProcessAffinityMask (GetCurrentProcess (), cpu_paffinity);
+	return 2;
+    }
+    if (!strcmp (arg, "-datapath")) {
+	strcpy(start_path_data, np);
+	start_data = -1;
+	return 2;
+    }
+    if (!strcmp (arg, "-maxmem")) {
+	maxmem = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-soundmodeskip")) {
+	sound_mode_skip = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-ini")) {
+	inipath = my_strdup (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-p96skipmode")) {
+	extern int p96skipmode;
+	p96skipmode = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-minidumpmode")) {
+	minidumpmode = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-jitevent")) {
+	pissoff_value = getval (np);
+	return 2;
+    }
+#ifdef RETROPLATFORM
+    if (!strcmp (arg, "-rphost")) {
+	rp_param = my_strdup (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-rpescapekey")) {
+	rp_rpescapekey = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-rpescapeholdtime")) {
+	rp_rpescapeholdtime = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-rpscreenmode")) {
+	rp_screenmode = getval (np);
+	return 2;
+    }
+    if (!strcmp (arg, "-rpinputmode")) {
+	rp_inputmode = getval (np);
+	return 2;
+    }
+#endif
+    return 0;
+}
+
+
+static char **parseargstring (char *s, char **xargv)
+{
+    int cnt, i, xargc;
+    char **args;
+
+    if (strlen (s) == 0)
+	return NULL;
+
+    args = xcalloc (sizeof (char*), 32 + 1);
+    cnt = 0;
+    for (;;) {
+	char *p = s;
+	int skip = 0;
+	while (*p && isspace (*p))
+	    p++;
+	if (*p == 0)
+	    break;
+	if (*p == '\'' || *p == '"') {
+	    p++;
+	    s++;
+	    while (*p && *p != '\'' && *p != '"')
+		p++;
+	    skip = 1;
+	} else {
+	    while (*p && !isspace (*p))
+		p++;
+	}
+	args[cnt] = xcalloc (p - s + 1, 1);
+	memcpy (args[cnt++], s, p - s);
+	p += skip;
+	while (*p && isspace (*p))
+	    p++;
+	if (*p == 0)
+	    break;
+	if (cnt >= 32)
+	    break;
+	s = p;
+    }
+    for (xargc = 0; xargv[xargc]; xargc++);
+    for (i = 0; i < cnt; i++) {
+	char *arg = args[i];
+	char *next = i + 1 < cnt ? args[i + 1] : NULL;
+	int v = parseargs (arg, next);
+	if (!v)
+	    xargv[xargc++] = my_strdup (arg);
+	else if (v == 2)
+	    i++;
+    }
+    return args;
+}
+
 
 static int process_arg (char **xargv)
 {
@@ -3320,195 +3563,15 @@ static int process_arg (char **xargv)
 
     xargc = 0;
     argc = __argc; argv = __argv;
-    xargv[xargc++] = my_strdup(argv[0]);
+    xargv[xargc++] = my_strdup (argv[0]);
     for (i = 1; i < argc; i++) {
 	char *arg = argv[i];
-	if (!strcmp (arg, "-log")) {
-	    console_logging = 1;
-	    continue;
-	}
-#ifdef FILESYS
-	if (!strcmp (arg, "-rdbdump")) {
-	    do_rdbdump = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-disableharddrivesafetycheck")) {
-	    harddrive_dangerous = 0x1234dead;
-	    continue;
-	}
-	if (!strcmp (arg, "-noaspifiltering")) {
-	    aspi_allow_all = 1;
-	    continue;
-	}
-#endif
-	if (!strcmp (arg, "-norawinput")) {
-	    no_rawinput = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-rawkeyboard")) {
-	    rawkeyboard = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-scsilog")) {
-	    log_scsi = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-netlog")) {
-	    log_net = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-seriallog")) {
-	    log_uaeserial = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-rplog")) {
-	    log_rp = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-nomultidisplay")) {
-	    multi_display = 0;
-	    continue;
-	}
-	if (!strcmp (arg, "-legacypaths")) {
-	    start_data = -2;
-	    continue;
-	}
-	if (!strcmp (arg, "-screenshotbmp")) {
-	    screenshotmode = 0;
-	    continue;
-	}
-	if (!strcmp (arg, "-psprintdebug")) {
-	    postscript_print_debugging = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-sounddebug")) {
-	    sound_debug = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-directcatweasel")) {
-	    force_direct_catweasel = 1;
-	    if (i + 1 < argc)
-		force_direct_catweasel = getval (argv[++i]);
-	    continue;
-	}
-        if (!strcmp (arg, "-forcerdtsc")) {
-	    userdtsc = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-ddsoftwarecolorkey")) {
-	    extern int ddsoftwarecolorkey;
-	    ddsoftwarecolorkey = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-logflush")) {
-	    extern int always_flush_log;
-	    always_flush_log = 1;
-	    continue;
-	}
-	if (!strcmp (arg, "-ahidebug")) {
-	    extern int ahi_debug;
-	    ahi_debug = 2;
-	    continue;
-	}
-	if (!strcmp (arg, "-ahidebug2")) {
-	    extern int ahi_debug;
-	    ahi_debug = 3;
-	    continue;
-	}
-
-	if (i + 1 < argc) {
-	    char *np = argv[i + 1];
-
-	    if (!strcmp (arg, "-ddforcemode")) {
-		extern int ddforceram;
-		ddforceram = getval (np);
-		if (ddforceram < 0 || ddforceram > 3)
-		    ddforceram = 0;
-		i++;
-		continue;
-	    }
-	    if (!strcmp (arg, "-affinity")) {
-		cpu_affinity = getval (np);
-		i++;
-		if (cpu_affinity == 0)
-		    cpu_affinity = original_affinity;
-		SetThreadAffinityMask (GetCurrentThread (), cpu_affinity);
-		continue;
-	    }
-	    if (!strcmp (arg, "-paffinity")) {
-		cpu_paffinity = getval (np);
-		i++;
-		if (cpu_paffinity == 0)
-		    cpu_paffinity = original_affinity;
-		SetProcessAffinityMask (GetCurrentProcess (), cpu_paffinity);
-		continue;
-	    }
-	    if (!strcmp (arg, "-datapath")) {
-		i++;
-		strcpy(start_path_data, np);
-		start_data = -1;
-		continue;
-	    }
-	    if (!strcmp (arg, "-maxmem")) {
-		i++;
-		maxmem = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-soundmodeskip")) {
-		i++;
-		sound_mode_skip = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-ini")) {
-		i++;
-		inipath = my_strdup (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-p96skipmode")) {
-		extern int p96skipmode;
-		i++;
-		p96skipmode = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-minidumpmode")) {
-		i++;
-		minidumpmode = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-jitevent")) {
-		i++;
-		pissoff_value = getval (np);
-		continue;
-	    }
-#ifdef RETROPLATFORM
-	    if (!strcmp (arg, "-rphost")) {
-		i++;
-		rp_param = my_strdup (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-rpescapekey")) {
-		i++;
-		rp_rpescapekey = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-rpescapeholdtime")) {
-		i++;
-		rp_rpescapeholdtime = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-rpscreenmode")) {
-		i++;
-		rp_screenmode = getval (np);
-		continue;
-	    }
-	    if (!strcmp (arg, "-rpinputmode")) {
-		i++;
-		rp_inputmode = getval (np);
-		continue;
-	    }
-#endif
-	}
-	xargv[xargc++] = my_strdup (arg);
+	char *next = i + 1 < argc ? argv[i + 1] : NULL;
+	int v = parseargs (arg, next);
+	if (!v)
+	    xargv[xargc++] = my_strdup (arg);
+	else if (v == 2)
+	    i++;
     }
 #if 0
     argv = 0;
@@ -3517,10 +3580,29 @@ static int process_arg (char **xargv)
     return xargc;
 }
 
+static char **WIN32_InitRegistry (char **argv)
+{
+    DWORD disposition;
+    char tmp[MAX_DPATH];
+    DWORD size = sizeof tmp;
+
+    reginitializeinit (inipath);
+    hWinUAEKey = NULL;
+    if (getregmode () == 0 || WINUAEPUBLICBETA > 0) {
+	/* Create/Open the hWinUAEKey which points our config-info */
+	RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\Arabuusimiehet\\WinUAE", 0, "", REG_OPTION_NON_VOLATILE,
+	    KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
+    }
+    if (regquerystr (NULL, "Commandline", tmp, &size))
+    	return parseargstring (tmp, argv);
+    return NULL;
+}
+
+
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     HANDLE hMutex;
-    char **argv;
+    char **argv = NULL, **argv2 = NULL;
     int argc, i;
 
 #ifdef _DEBUG
@@ -3551,15 +3633,21 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     argv = xcalloc (sizeof (char*),  __argc);
     argc = process_arg (argv);
 
-    reginitializeinit (inipath);
+    argv2 = WIN32_InitRegistry (argv);
     getstartpaths ();
     makeverstr (VersionStr);
 
     logging_init ();
-    write_log ("params:\n");
-    for (i = 1; i < __argc; i++)
-	write_log ("%d: '%s'\n", i, __argv[i]);
-
+    if (__argc > 1) {
+	write_log ("params:\n");
+	for (i = 1; i < __argc; i++)
+	    write_log ("%d: '%s'\n", i, __argv[i]);
+    }
+    if (argv2) {
+	write_log ("extra params:\n");
+	for (i = 0; argv2[i]; i++)
+	    write_log ("%d: '%s'\n", i + 1, argv2[i]);
+    }
     if (WIN32_RegisterClasses () && WIN32_InitLibraries () && DirectDraw_Start (NULL)) {
 	DEVMODE devmode;
 	DWORD i;
@@ -3639,6 +3727,11 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
     for (i = 0; i < argc; i++)
 	xfree (argv[i]);
     xfree (argv);
+    if (argv2) {
+	for (i = 0; argv2[i]; i++)
+	    xfree (argv2[i]);
+	xfree (argv2);
+    }
     return FALSE;
 }
 

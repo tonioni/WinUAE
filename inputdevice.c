@@ -1196,6 +1196,11 @@ static void inputdevice_tablet_abs_v36 (int x, int y)
     diffx = diffy = 0;
     maxx = maxy = 0;
 
+    {
+	//uaecptr gb = get_intuitionbase ();
+	//write_log ("%d %d\n", get_word (gb + 70), get_word (gb + 68));
+    }
+
     if (picasso_on) {
 	maxx = picasso96_state.Width;
 	maxy = picasso96_state.Height;

@@ -329,6 +329,7 @@ struct uae_prefs {
     int win32_automount_drives;
     int win32_automount_cddrives;
     int win32_automount_netdrives;
+    int win32_automount_removabledrives;
     int win32_midioutdev;
     int win32_midiindev;
     int win32_uaescsimode;

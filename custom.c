@@ -141,6 +141,8 @@ static uae_u16 lof;
 static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0;
+static int scandoubled_line;
+
 /* Stupid genlock-detection prevention hack.
  * We should stop calling vsync_handler() and
  * hstop_handler() completely but it is not
@@ -390,6 +392,11 @@ STATIC_INLINE int ecsshres(void)
 STATIC_INLINE int nodraw (void)
 {
     return !currprefs.cpu_cycle_exact && framecnt != 0;
+}
+
+static int doflickerfix (void)
+{
+    return currprefs.gfx_linedbl && doublescan < 0 && interlace_seen;
 }
 
 uae_u32 get_copper_address (int copno)
@@ -2339,13 +2346,12 @@ STATIC_INLINE int color_changes_differ (struct draw_info *dip, struct draw_info 
 
 /* End of a horizontal scan line. Finish off all decisions that were not
  * made yet. */
-static void finish_decisions (void)
+static void finish_decisions (int hpos)
 {
     struct draw_info *dip;
     struct draw_info *dip_old;
     struct decision *dp;
     int changed;
-    int hpos = current_hpos ();
 
     if (nodraw ())
 	return;
@@ -2452,7 +2458,7 @@ static void reset_decisions (void)
     fetch_state = fetch_not_started;
 
     if (plfstate > plf_active)
-	plfstate = plf_idle;
+        plfstate = plf_idle;
     if (plfstate == plf_active && !(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
         plfstate = plf_idle;
 
@@ -2621,7 +2627,7 @@ void init_hz (void)
     eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
     events_schedule ();
     if (hzc) {
-	interlace_seen = bplcon0 & 4;
+	interlace_seen = (bplcon0 & 4) ? 1 : 0;
         reset_drawing ();
     }
     compute_vsynctime ();
@@ -4362,6 +4368,8 @@ static void do_sprites (int hpos)
 
     if (vpos < sprite_vblank_endline)
 	return;
+    if (doflickerfix () && !(next_lineno & 1))
+	return;
 
 #ifndef CUSTOM_SIMPLE
     maxspr = hpos;
@@ -4753,27 +4761,28 @@ static void CIA_vsync_prehandler (int dotod)
     ciavsync_counter++;
 }
 
-static uaecptr prevbpl[MAXVPOS][8];
-static void hsync_scandoubler (int line, int lof)
+static uaecptr prevbpl[2][MAXVPOS][8];
+static void hsync_scandoubler (int lof)
 {
     int i;
-    uaecptr bpl[8];
 
     for (i = 0; i < 8; i++) {
-	bpl[i] = prevbpl[vpos][i];
-	prevbpl[vpos][i] = bplpt[i];
-	bplpt[i] = bpl[i];
+	prevbpl[lof][vpos][i] = bplpt[i];
+	bplpt[i] = prevbpl[1 - lof][vpos - lof][i];
     }
+
     next_lineno++;
+    scandoubled_line = 1;
     reset_decisions ();
-    finish_decisions ();
+    plfstate = plf_idle;
+    finish_decisions (maxhpos);
     hsync_record_line_state (next_lineno, nln_normal, thisline_changed);
     hardware_line_completed (next_lineno);
-
-    for (i = 0; i < 8; i++) {
-	bplpt[i] = prevbpl[vpos][i];
-    }
+    scandoubled_line = 0;
     next_lineno--;
+
+    for (i = 0; i < 8; i++)
+	bplpt[i] = prevbpl[lof][vpos][i];
 }
 
 static void hsync_handler (void)
@@ -4782,7 +4791,7 @@ static void hsync_handler (void)
 
     if (!nocustom ()) {
 	sync_copper_with_cpu (maxhpos, 0);
-	finish_decisions ();
+	finish_decisions (hpos);
 	if (thisline_decision.plfleft != -1) {
 	    if (currprefs.collision_level > 1)
 		do_sprite_collisions ();
@@ -4861,6 +4870,10 @@ static void hsync_handler (void)
 		cycle_diagram_free_cycles[f_fetchmode][GET_RES (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)]);
 	}
 	hardware_line_completed (next_lineno);
+	if (doflickerfix ()) {
+	    hsync_scandoubler (lof ? 1 : 0);
+	    next_lineno++;
+	}
     }
 
     /* In theory only an equality test is needed here - but if a program
@@ -4921,13 +4934,14 @@ static void hsync_handler (void)
 	if ((bplcon0 & 4) && currprefs.gfx_linedbl)
 	    notice_interlace_seen ();
 	nextline_how = nln_normal;
-	if (currprefs.gfx_linedbl && doublescan < 0) {
+	if (doflickerfix ()) {
 	    lineno *= 2;
-	    hsync_scandoubler (lineno, lof);
-	} else if (currprefs.gfx_linedbl && (doublescan == 0 || interlace_seen)) {
+	    if (!lof)
+		lineno++;
+	} else if (currprefs.gfx_linedbl && (doublescan <= 0 || interlace_seen > 0)) {
 	    lineno *= 2;
 	    nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
-	    if ((bplcon0 & 4) || (interlace_seen && !lof)) {
+	    if ((bplcon0 & 4) || (interlace_seen > 0 && !lof)) {
 		if (!lof) {
 		    lineno++;
 		    nextline_how = nln_lower;

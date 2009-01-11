@@ -1035,6 +1035,8 @@ static void deepcheatsearch (char **c)
 	    addrcnt += size;
 	    cnt++;
 	}
+	if (cnt > 0)
+	    console_out ("\n");
 	listcheater (1, size);
     } else {
 	console_out ("Now continue with 'g' and use 'D' again after you have lost another life\n");

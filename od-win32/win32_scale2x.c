@@ -137,6 +137,46 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	    if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
 		int ww;
+		static int lastresize = 0;
+		static int lastdelay = 1;
+		static int ocw, och, ocx, ocy, lcw, lch, lcx, lcy;
+		int useold = 0;
+
+		lastresize--;
+		if (lastresize > 0) {
+		    if (cw != lcw || ch != lch || cx != lcx || cy != lcy)
+			lastresize = 50;
+		    useold = 1;
+		} else if (lastdelay == 0) {
+		    lastdelay = 2;
+		    useold = 1;
+		} else if (lastdelay > 0) {
+		    lastdelay--;
+		    useold = 1;
+		    if (lastdelay == 0) {
+			lastdelay = -1;
+			useold = 0;
+		    }
+		}
+
+		lcw = cw;
+		lch = ch;
+		lcx = cx;
+		lcy = cy;
+		if (useold) {
+		    cw = ocw;
+		    ch = och;
+		    cx = ocx;
+		    cy = ocy;
+		} else {
+		    ocw = cw;
+		    och = ch;
+		    ocx = cx;
+		    ocy = cy;
+		    lastresize = 50;
+		    lastdelay = 0;
+		}
+
 		SetRect (sr, 0, 0, cw * scale, ch * scale);
 		dr->left = (temp_width - aws) /2;
 		dr->top =  (temp_height - ahs) / 2;

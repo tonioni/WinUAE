@@ -65,6 +65,7 @@ uae_u32 allocated_z3fastmem, allocated_z3fastmem2;
 uae_u32 allocated_a3000lmem;
 uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
+uae_u8 ce_banktype[256];
 
 #if defined(CPU_64_BIT)
 uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
@@ -3716,6 +3717,28 @@ void memory_hardreset (void)
     expansion_clear ();
 }
 
+static void fill_ce_banks (void)
+{
+    int i;
+
+    memset (ce_banktype, CE_MEMBANK_FAST, 256);
+    for (i = 0; i < (0x200000 >> 16); i++)
+	ce_banktype[i] = CE_MEMBANK_CHIP;
+    if (!currprefs.cs_slowmemisfast) {
+	for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
+	    ce_banktype[i] = CE_MEMBANK_CHIP;
+    }
+    for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
+	ce_banktype[i] = CE_MEMBANK_CHIP;
+    for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++) {
+	addrbank *b;
+	ce_banktype[i] = CE_MEMBANK_CIA;
+	b = &get_mem_bank (i << 16);
+	if (b != &cia_bank)
+	    ce_banktype[i] = CE_MEMBANK_FAST;
+    }
+}
+
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
     int bnr, old;
@@ -3777,6 +3800,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 	}
     }
     debug_bankchange (old);
+    fill_ce_banks ();
 }
 
 #ifdef SAVESTATE

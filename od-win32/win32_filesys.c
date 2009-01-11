@@ -122,7 +122,9 @@ static void filesys_addexternals(void)
 		}
 		if (drivetype == DRIVE_REMOTE && currprefs.win32_automount_netdrives)
 		    break;
-		if ((drivetype == DRIVE_FIXED || drivetype == DRIVE_REMOVABLE) && currprefs.win32_automount_drives)
+		if (drivetype == DRIVE_FIXED && currprefs.win32_automount_drives)
+		    break;
+		if (drivetype == DRIVE_REMOVABLE && currprefs.win32_automount_removabledrives)
 		    break;
 		nok = TRUE;
 		break;

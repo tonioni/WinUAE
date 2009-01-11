@@ -1291,6 +1291,48 @@ static void gui_to_prefs (void)
 
     updatewinfsmode (&changed_prefs);
 }
+#if 0
+static BOOL GetNewFileName (OPENFILENAME *opn, int save)
+{  
+    IFileDialog *pfd;
+    HRESULT hr;
+
+    // CoCreate the dialog object.
+    hr = CoCreateInstance(CLSID_FileOpenDialog, 
+	    NULL, 
+            CLSCTX_INPROC_SERVER, 
+            IID_PPV_ARG(IFileDialog, &pfd));
+    if (SUCCEEDED(hr)) {
+        // Show the dialog
+        hr = pfd->Show(hwnd);
+        if (SUCCEEDED(hr)) {
+            // Obtain the result of the user's interaction with the dialog.
+            IShellItem *psiResult;
+            hr = pfd->GetResult(&psiResult);
+            if (SUCCEEDED(hr)) {
+                // Do something with the result.
+                psiResult->Release();
+            }
+        }
+        pfd->Release();
+    }
+    return SUCCEEDED(hr);
+}
+#endif
+static BOOL GetOpenFileName_2 (OPENFILENAME *opn)
+{
+    if (osVersion.dwMajorVersion < 6)
+	return GetOpenFileName (opn);
+    return GetOpenFileName (opn);
+}
+
+static BOOL GetSaveFileName_2 (OPENFILENAME *opn)
+{
+    if (osVersion.dwMajorVersion < 6)
+	return GetSaveFileName (opn);
+    return GetSaveFileName (opn);
+}
+
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -1545,26 +1587,21 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     }
     openFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
 	OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
-    openFileName.lpstrCustomFilter = NULL;
-    openFileName.nMaxCustFilter = 0;
     openFileName.nFilterIndex = filterindex;
     openFileName.lpstrFile = full_path;
     openFileName.nMaxFile = MAX_DPATH;
     openFileName.lpstrFileTitle = file_name;
     openFileName.nMaxFileTitle = MAX_DPATH;
     openFileName.lpstrInitialDir = init_path;
-    openFileName.lpfnHook = NULL;
-    openFileName.lpTemplateName = NULL;
-    openFileName.lCustData = 0;
     openFileName.lpstrTitle = szTitle;
 
     if (multi)
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
-	if (!(result = GetSaveFileName (&openFileName)))
+	if (!(result = GetSaveFileName_2 (&openFileName)))
 	    write_log ("GetSaveFileName() failed, err=%d.\n", GetLastError());
     } else {
-	if (!(result = GetOpenFileName (&openFileName)))
+	if (!(result = GetOpenFileName_2 (&openFileName)))
 	    write_log ("GetOpenFileName() failed, err=%d.\n", GetLastError());
     }
     memcpy (full_path2, full_path, sizeof (full_path));
@@ -4661,6 +4698,7 @@ static void values_to_displaydlg (HWND hDlg)
 
     CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
     CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
+    CheckDlgButton (hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
 
     CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
     CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
@@ -4711,6 +4749,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
 
     workprefs.gfx_lores_mode     = IsDlgButtonChecked (hDlg, IDC_LORES_SMOOTHED);
+    workprefs.gfx_scandoubler     = IsDlgButtonChecked (hDlg, IDC_FLICKERFIXER);
     workprefs.gfx_blackerthanblack = IsDlgButtonChecked (hDlg, IDC_BLACKER_THAN_BLACK);
     workprefs.gfx_linedbl = (IsDlgButtonChecked(hDlg, IDC_LM_SCANLINES) ? 2 :
 			      IsDlgButtonChecked(hDlg, IDC_LM_DOUBLED) ? 1 : 0);
@@ -7813,6 +7852,10 @@ static void harddiskdlg_button (HWND hDlg, int button)
 	workprefs.win32_automount_drives = IsDlgButtonChecked (hDlg, IDC_MAPDRIVES);
 	break;
 
+     case IDC_MAPDRIVES_REMOVABLE:
+	workprefs.win32_automount_removabledrives = IsDlgButtonChecked (hDlg, IDC_MAPDRIVES_REMOVABLE);
+	break;
+
      case IDC_MAPDRIVES_CD:
 	workprefs.win32_automount_cddrives = IsDlgButtonChecked (hDlg, IDC_MAPDRIVES_CD);
 	break;
@@ -7886,6 +7929,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	CheckDlgButton (hDlg, IDC_MAPDRIVES, workprefs.win32_automount_drives);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_CD, workprefs.win32_automount_cddrives);
 	CheckDlgButton (hDlg, IDC_MAPDRIVES_NET, workprefs.win32_automount_netdrives);
+	CheckDlgButton (hDlg, IDC_MAPDRIVES_REMOVABLE, workprefs.win32_automount_removabledrives);
 	CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 	CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
 	InitializeListView (hDlg);
@@ -9870,6 +9914,60 @@ static struct filterpreset filterpresets[] =
     { NULL }
 };
 
+static int getfiltermult(HWND hDlg, DWORD dlg)
+{
+    char tmp[100];
+    LRESULT v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
+    float f;
+
+    if (v != CB_ERR)
+	return filtermults[v];
+    SendDlgItemMessage (hDlg, dlg, WM_GETTEXT, (WPARAM)sizeof tmp, (LPARAM)tmp);
+    if (!stricmp (tmp, "FS"))
+	return 0;
+    f = atof (tmp);
+    if (f < 0)
+	f = 0;
+    if (f > 9)
+	f = 9;
+    return (int)(1000.0 / f);
+}
+
+static void setfiltermult2 (HWND hDlg, int id, int val)
+{
+    int i, got;
+
+    got = 0;
+    SendDlgItemMessage (hDlg, id, CB_SETCURSEL, 0, 0);
+    for (i = 0; filtermultnames[i]; i++) {
+	if (filtermults[i] == val) {
+	    SendDlgItemMessage (hDlg, id, CB_SETCURSEL, i, 0);
+	    got = 1;
+	}
+    }
+    if (!got) {
+	char tmp[100];
+	tmp[0] = 0;
+	if (val > 0)
+	    sprintf (tmp, "%.2f", 1000.0 / val);
+	SetDlgItemText (hDlg, id, tmp);
+    }
+}
+
+static void setfiltermult (HWND hDlg)
+{
+    int i;
+
+    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
+    for (i = 0; filtermultnames[i]; i++) {
+	SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+	SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+    }
+    setfiltermult2 (hDlg, IDC_FILTERHZMULT, workprefs.gfx_filter_horiz_zoom_mult);
+    setfiltermult2 (hDlg, IDC_FILTERVZMULT, workprefs.gfx_filter_vert_zoom_mult);
+}
+
 static void values_to_hw3ddlg (HWND hDlg)
 {
     char txt[100], tmp[100];
@@ -10017,20 +10115,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	workprefs.gfx_filter_filtermode = 0;
     SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
 
-    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
-    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
-    for (i = 0; filtermultnames[i]; i++) {
-	SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
-	SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
-    }
-    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_SETCURSEL, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_SETCURSEL, 0, 0);
-    for (i = 0; filtermultnames[i]; i++) {
-	if (filtermults[i] == workprefs.gfx_filter_horiz_zoom_mult)
-	    SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_SETCURSEL, i, 0);
-	if (filtermults[i] == workprefs.gfx_filter_vert_zoom_mult)
-	    SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_SETCURSEL, i, 0);
-    }
+    setfiltermult (hDlg);
 
     SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_RESETCONTENT, 0, 0L);
     i = j = 0;
@@ -10216,14 +10301,6 @@ static void filter_handle (HWND hDlg)
     }
     enable_for_hw3ddlg (hDlg);
     updatedisplayarea ();
-}
-
-static int getfiltermult(HWND hDlg, DWORD dlg)
-{
-    LRESULT v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
-    if (v == CB_ERR)
-	return 1000;
-    return filtermults[v];
 }
 
 static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

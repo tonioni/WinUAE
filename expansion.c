@@ -1216,7 +1216,7 @@ static uaecptr check_boot_rom (void)
 	return b;
     if (currprefs.sana2)
 	return b;
-    if (currprefs.input_tablet > 0 || currprefs.input_magic_mouse == 0)
+    if (currprefs.input_tablet > 0)
 	return b;
     if (currprefs.gfxmem_size)
 	return b;

@@ -66,7 +66,6 @@ int movem_index2[256];
 int movem_next[256];
 
 cpuop_func *cpufunctbl[65536];
-uae_u8 ce_banktype[256];
 
 extern uae_u32 get_fpsr (void);
 
@@ -324,23 +323,6 @@ void check_prefs_changed_cpu (void)
 
 }
 
-static void fill_cebanks (void)
-{
-    int i;
-
-    memset (ce_banktype, CE_MEMBANK_FAST, 256);
-    for (i = 0; i < (0x200000 >> 16); i++)
-	ce_banktype[i] = CE_MEMBANK_CHIP;
-    if (!currprefs.cs_slowmemisfast) {
-	for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
-	    ce_banktype[i] = CE_MEMBANK_CHIP;
-    }
-    for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
-	ce_banktype[i] = CE_MEMBANK_CHIP;
-    for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++)
-	ce_banktype[i] = CE_MEMBANK_CIA;
-}
-
 void init_m68k (void)
 {
     int i;
@@ -401,7 +383,6 @@ void init_m68k (void)
     write_log ("%d CPU functions\n", nr_cpuop_funcs);
 
     build_cpufunctbl ();
-    fill_cebanks ();
 
 #ifdef JIT
     /* We need to check whether NATMEM settings have changed
@@ -1142,7 +1123,7 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 {
 #if 0
     //if (nr < 24)
-    if (nr >= 24 + 8)
+    if (nr == 24 + 3)
 	write_log ("exception %d %08X %08X (%04X %04X)\n",
 	    nr, oldpc, m68k_getpc (regs), intena, intreq);
 #endif

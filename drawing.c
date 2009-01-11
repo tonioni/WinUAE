@@ -215,7 +215,7 @@ uae_sem_t gui_sem;
 int inhibit_frame;
 
 int framecnt = 0;
-int frame_redraw_necessary;
+static int frame_redraw_necessary;
 static int picasso_redraw_necessary;
 
 #ifdef XLINECHECK
@@ -364,7 +364,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	dx = 1;
 
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
-    if (doublescan && !interlace_seen) {
+    if (doublescan && interlace_seen <= 0) {
 	dbl1--;
 	dbl2--;
     }
@@ -458,13 +458,13 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
     dx = xshift (dx, res_shift);
 
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
-    if ((doublescan || interlace_seen) && !dbl) {
+    if ((doublescan || interlace_seen > 0) && !dbl) {
         dbl1--;
         dbl2--;
     }
-    if (interlace_seen)
+    if (interlace_seen > 0)
         dbl2++;
-    if (!interlace_seen && dbl)
+    if (interlace_seen <= 0 && dbl)
         dbl2--;
     h = xshift (h, dbl1);
     dy = xshift (dy, dbl2);
@@ -1668,7 +1668,7 @@ static void init_aspect_maps (void)
 	return;
 
     linedbld = linedbl = currprefs.gfx_linedbl;
-    if (doublescan > 0 && !interlace_seen) {
+    if (doublescan > 0 && interlace_seen <= 0) {
 	linedbl = 0;
 	linedbld = 1;
     }
@@ -1932,7 +1932,9 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
     dp_for_drawing = line_decisions + lineno;
     dip_for_drawing = curr_drawinfo + lineno;
-    switch (linestate[lineno]) {
+
+    switch (linestate[lineno])
+    {
     case LINE_REMEMBERED_AS_PREVIOUS:
 	if (!warned)
 	    write_log ("Shouldn't get here... this is a bug.\n"), warned++;
@@ -2216,7 +2218,7 @@ static void center_image (void)
     /* @@@ interlace_seen used to be (bplcon0 & 4), but this is probably
      * better.  */
     if (prev_x_adjust != visible_left_border || prev_y_adjust != thisframe_y_adjust)
-	frame_redraw_necessary |= (interlace_seen && linedbl) ? 2 : 1;
+	frame_redraw_necessary |= (interlace_seen > 0 && linedbl) ? 2 : 1;
 
     max_diwstop = 0;
     min_diwstart = 10000;
@@ -2633,40 +2635,40 @@ void finish_drawing_frame (void)
     for (i = 0; i < max_ypos_thisframe; i++) {
 	int i1 = i + min_ypos_for_screen;
 	int line = i + thisframe_y_adjust_real;
-	int where;
+	int where2;
 
 	if (linestate[line] == LINE_UNDECIDED)
 	    break;
 
-	where = amiga2aspect_line_map[i1];
-	if (where >= gfxvidinfo.height)
+	where2 = amiga2aspect_line_map[i1];
+	if (where2 >= gfxvidinfo.height)
 	    break;
-	if (where < 0)
+	if (where2 < 0)
 	    continue;
 
-	pfield_draw_line (line, where, amiga2aspect_line_map[i1 + 1]);
+	pfield_draw_line (line, where2, amiga2aspect_line_map[i1 + 1]);
     }
 
     /* clear possible old garbage at the bottom if emulated area become smaller */
     for (i = last_max_ypos; i < gfxvidinfo.height; i++) {
 	int i1 = i + min_ypos_for_screen;
 	int line = i + thisframe_y_adjust_real;
-	int where = amiga2aspect_line_map[i1];
+	int where2 = amiga2aspect_line_map[i1];
 	xcolnr tmp;
 
-	if (where >= gfxvidinfo.height)
+	if (where2 >= gfxvidinfo.height)
 	    break;
-	if (where < 0)
+	if (where2 < 0)
 	    continue;
 	tmp = colors_for_drawing.acolors[0];
 	colors_for_drawing.acolors[0] = getxcolor (0);
 	xlinebuffer = gfxvidinfo.linemem;
 	if (xlinebuffer == 0)
-	    xlinebuffer = row_map[where];
+	    xlinebuffer = row_map[where2];
 	xlinebuffer -= linetoscr_x_adjust_bytes;
 	fill_line ();
 	linestate[line] = LINE_UNDECIDED;
-	do_flush_line (where);
+	do_flush_line (where2);
 	colors_for_drawing.acolors[0] = tmp;
     }
 
@@ -2745,12 +2747,15 @@ void redraw_frame (void)
 void vsync_handle_redraw (int long_frame, int lof_changed)
 {
     last_redraw_point++;
-    if (lof_changed || ! interlace_seen || last_redraw_point >= 2 || long_frame) {
+    if (lof_changed || interlace_seen <= 0 || last_redraw_point >= 2 || long_frame || doublescan < 0) {
 	last_redraw_point = 0;
 
 	if (framecnt == 0)
 	    finish_drawing_frame ();
-	interlace_seen = 0;
+	if (interlace_seen > 0)
+	    interlace_seen = -1;
+	else if (interlace_seen == -1)
+	    interlace_seen = 0;
 
 	/* At this point, we have finished both the hardware and the
 	 * drawing frame. Essentially, we are outside of all loops and
@@ -2884,6 +2889,9 @@ static void gfxbuffer_reset (void)
 
 void notice_interlace_seen (void)
 {
+    // non-lace to lace switch (non-lace active at least one frame)?
+    if (interlace_seen == 0)
+	frame_redraw_necessary = 2;
     interlace_seen = 1;
     frame_res_lace = 1;
 }

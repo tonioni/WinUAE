@@ -954,9 +954,18 @@ static void blit_bltset (int con)
 {
     int i;
 
+    blitdesc = bltcon1 & 2;
+
+    blt_info.blitashift = bltcon0 >> 12;
+    blt_info.blitdownashift = 16 - blt_info.blitashift;
+    blt_info.blitbshift = bltcon1 >> 12;
+    blt_info.blitdownbshift = 16 - blt_info.blitbshift;
+
+    if (bltstate != BLT_done && con == 2)
+	return;
+
     blitline = bltcon1 & 1;
     blitfill = bltcon1 & 0x18;
-    blitdesc = bltcon1 & 2;
     blit_ch = (bltcon0 & 0x0f00) >> 8;
 
     if (blitline) {
@@ -992,10 +1001,6 @@ static void blit_bltset (int con)
 	    blit_nod = 0;
     }
 
-    blt_info.blitashift = bltcon0 >> 12;
-    blt_info.blitdownashift = 16 - blt_info.blitashift;
-    blt_info.blitbshift = bltcon1 >> 12;
-    blt_info.blitdownbshift = 16 - blt_info.blitbshift;
 }
 
 static void blit_modset (void)

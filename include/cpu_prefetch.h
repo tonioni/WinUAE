@@ -13,11 +13,6 @@ STATIC_INLINE uae_u32 get_long_prefetch (struct regstruct *regs, int o)
 }
 
 #ifdef CPUEMU_12
-#define CE_MEMBANK_FAST 0
-#define CE_MEMBANK_CHIP 1
-#define CE_MEMBANK_CIA 2
-extern uae_u8 ce_banktype[256];
-
 
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {

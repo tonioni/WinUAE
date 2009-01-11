@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "7"
-#define WINUAEDATE MAKEBD(2009, 1, 3)
+#define WINUAEBETA "8"
+#define WINUAEDATE MAKEBD(2009, 1, 11)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -71,7 +71,8 @@ extern int framecnt;
 extern char prtname[];
 extern char VersionStr[256];
 extern char BetaStr[64];
-extern int os_winnt_admin, os_64bit, os_vista, os_winxp;
+extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7;
+extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;
 extern DWORD quickstart, configurationcache;

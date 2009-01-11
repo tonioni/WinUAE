@@ -363,6 +363,8 @@
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
+#define IDC_LORES_SMOOTHED2             1180
+#define IDC_FLICKERFIXER                1180
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
@@ -550,6 +552,7 @@
 #define IDC_MAPDRIVES_CD                1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
+#define IDC_MAPDRIVES_REMOVABLE         1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
 #define IDC_WIDTHTEXT                   1512

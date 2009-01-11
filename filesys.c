@@ -992,7 +992,7 @@ int filesys_eject (int nr)
     write_log ("FILESYS: removed volume '%s'\n", u->ui.volname);
     flush_cache (u, -1);
     put_byte (u->volume + 172 - 32, -2);
-    uae_Signal(get_long(u->volume + 176 - 32), 1 << 17);
+    uae_Signal (get_long(u->volume + 176 - 32), 1 << 13);
     return 1;
 }
 
@@ -1114,7 +1114,7 @@ int filesys_media_change (const char *rootdir, int inserted, struct uaedev_confi
 	if (inserted > 1)
 	    mountinfo.ui[nr].canremove = 1;
 	automountunit = nr;
-	uae_Signal (mountertask, 1 << 17);
+	uae_Signal (mountertask, 1 << 13);
 	/* poof */
 	if (uci)
 	    uci->configoffset = nr;
@@ -1130,7 +1130,7 @@ int hardfile_remount (int nr)
     if (!mountertask)
 	return 0;
     automountunit = nr;
-    uae_Signal (mountertask, 1 << 17);
+    uae_Signal (mountertask, 1 << 13);
 #endif
     return 1;
 }
@@ -1200,7 +1200,7 @@ int filesys_insert (int nr, char *volume, const char *rootdir, int readonly, int
 	uci->readonly = ui->readonly = u->ui.readonly = readonly;
     put_byte (u->volume + 44, 0);
     put_byte (u->volume + 172 - 32, 1);
-    uae_Signal (get_long (u->volume + 176 - 32), 1 << 17);
+    uae_Signal (get_long (u->volume + 176 - 32), 1 << 13);
     return 100 + nr;
 }
 

@@ -1,4 +1,39 @@
 
+Beta 8:
+
+- UAE boot rom was enabled when it should not have been (b7)
+- little blitter tweak, writing to bltcon1 while blitter was
+  enabled confused blitter emulation in some cases
+- filter multiplier select boxes now support manually entered
+  multipliers, for example 2.5 = 2.5x.
+- "Commandline" registry (or ini) string entry will be parsed as a
+  command line (separate step after normal command line parsing)
+- built-in hrtmon cycle-exact mode issue fixed
+- non-interlace to interlace switch issue fixed (another one,
+  they never end..)
+- do not autoresize unless display parameters are stable for next 50
+  frames
+- added "Include removable drives.." option. Now "Add PC drives" only
+  adds nonremovable drives. USB etc. will be only mounted at startup
+  if new option is ticked. "Workaround" for case when "Automount
+  removable drives" is ticked but USB (or whatever) drive is already
+  inserted.
+- removable drive insert/eject used unallocated signal bit, it did not
+  cause problems but fixed now
+- experimental "flicker fixer" implemented. Works perfectly in WB, not
+  so perfect in games yet (and impossible to get perfect in all cases,
+  as usual..) No more interlace artifacts when any graphics object or
+  mouse pointer moves.
+  
+  NOTE: first and last line will flicker or show garbage.
+  
+  Technical details: normal interlaced display goes like this: draw
+  even lines (0, 2, 4, etc..), next frame draws odd lines (1, 3, 5..)
+  This makes 25Hz refresh rate and also causes interlace artifacts when
+  objects move. UAE flickerfixer draws both fields simultaneously,
+  even lines = 0,1*,2,3*,4,5* and odd lines (0*,1,2*,3..).
+  * = draw display using bitplane pointers stored during previous frame
+  
 Beta 7:
 
 - version number bumped to 1.6.0
@@ -40,7 +75,7 @@ Beta 7:
   fixable)
 - NOTE3: both real and "fake" cursor is temporarily visible in mouse
   sync modes. They should always be in 100% sync and have identical
-  shape. (but aren't, still work to do..)
+  shape. (but aren't, still much work to do..)
 
 Beta 6:
 

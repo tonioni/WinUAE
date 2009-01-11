@@ -103,6 +103,8 @@ static void resetIPC(struct uaeipc *ipc)
 
 void closeIPC(struct uaeipc *ipc)
 {
+    if (!ipc)
+	return;
     disconnectIPC(ipc);
     if (ipc->hipc == INVALID_HANDLE_VALUE)
 	return;

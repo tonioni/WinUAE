@@ -1148,7 +1148,7 @@ static int drive_running (drive * drv)
     return !drv->motoroff;
 }
 
-static void motordelay_func(uae_u32 v)
+static void motordelay_func (uae_u32 v)
 {
     floppy[v].motordelay = 0;
 }
@@ -1177,7 +1177,7 @@ static void drive_motor (drive * drv, int off)
 	    write_log (" ->motor off");
 	if (currprefs.cpu_model <= 68010 && currprefs.m68k_speed == 0) {
 	    drv->motordelay = 1;
-	    event2_newevent2(30, drv - floppy, motordelay_func);
+	    event2_newevent2 (30, drv - floppy, motordelay_func);
 	}
     }
     drv->motoroff = off;
@@ -2123,7 +2123,7 @@ void DISK_check_change (void)
 	if (drv->dskready_down_time > 0)
 	    drv->dskready_down_time--;
 	/* emulate drive motor turn on time */
-	if (drv->dskready_time && !drive_empty(drv)) {
+	if (drv->dskready_time > 0 && !drive_empty(drv)) {
 	    drv->dskready_time--;
 	    if (drv->dskready_time == 0)
 		drv->dskready = 1;
@@ -2270,15 +2270,18 @@ uae_u8 DISK_status (void)
 			st &= ~0x20;
 		}
 	    } else {
-		/* report drive ID */
-		if (drv->idbit && currprefs.dfxtype[dr] != DRV_35_DD_ESCOM)
-		    st &= ~0x20;
-		/* dskrdy needs some cycles after switching the motor off.. (Pro Tennis Tour) */
-		if (drv->motordelay) {
-		    write_log ("MOTORDELAY! %x\n", M68K_GETPC);
-		    st &= ~0x20;
-		    drv->motordelay = 0;
+		if (currprefs.cs_df0idhw || dr > 0) {
+		    /* report drive ID */
+		    if (drv->idbit && currprefs.dfxtype[dr] != DRV_35_DD_ESCOM)
+			st &= ~0x20;
+		} else {
+		    /* non-ID internal drive: mirror real dskready */
+		    if (drv->dskready)
+			st &= ~0x20;
 		}
+		/* dskrdy needs some cycles after switching the motor off.. (Pro Tennis Tour) */
+		if (!currprefs.cs_df0idhw && dr == 0 && drv->motordelay)
+		    st &= ~0x20;
 	    }
 	    if (drive_track0 (drv))
 		st &= ~0x10;
