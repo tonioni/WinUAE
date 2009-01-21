@@ -21,6 +21,7 @@ extern void uae_reset (int);
 extern void uae_quit (void);
 extern void uae_restart (int, char*);
 extern void reset_all_systems (void);
+extern void target_reset (void);
 
 extern int quit_program;
 

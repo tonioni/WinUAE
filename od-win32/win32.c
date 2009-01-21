@@ -78,7 +78,7 @@
 #include "akiko.h"
 #include "cdtv.h"
 #include "direct3d.h"
-#include "clipboard.h"
+#include "clipboard_win32.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -4155,6 +4155,11 @@ int get_guid_target (uae_u8 *out)
     out[7] = guid.Data3 >>  0;
     memcpy (out + 8, guid.Data4, 8);
     return 1;
+}
+
+void target_reset (void)
+{
+    clipboard_reset ();
 }
 
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);

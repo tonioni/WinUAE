@@ -158,6 +158,31 @@ static void ew (HWND hDlg, DWORD id, int enable)
     EnableWindow (w, !!enable);
 }
 
+static char *ua (const WCHAR *s)
+{
+    char *d;
+    int len;
+
+    if (s == NULL)
+	return NULL;
+    len = WideCharToMultiByte (CP_ACP, 0, s, -1, NULL, 0, 0, FALSE);
+    if (!len)
+	return my_strdup ("");
+    d = xmalloc (len + 1);
+    WideCharToMultiByte (CP_ACP, 0, s, -1, d, len, 0, FALSE);
+    return d;
+}
+static WCHAR *au (const char *s)
+{
+    WCHAR *d;
+    int len = MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, NULL, 0);
+    if (!len)
+	return xcalloc (2, 1);
+    d = xmalloc ((len + 1) * sizeof (WCHAR));
+    MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, d, len);
+    return d;
+}
+
 void write_disk_history (void)
 {
     int i, j;
@@ -293,16 +318,6 @@ static int getcbn (HWND hDlg, int v, char *out, int len)
     }
 }
 
-static WCHAR *au (const char *s)
-{
-    WCHAR *d;
-    int len = MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, NULL, 0);
-    if (!len)
-	return xcalloc (2, 1);
-    d = xmalloc ((len + 1) * sizeof (WCHAR));
-    MultiByteToWideChar (CP_ACP, MB_PRECOMPOSED, s, -1, d, len);
-    return d;
-}
 #define MAXFAVORITES 30
 static void writefavoritepaths (int num, char **values, char **paths)
 {
@@ -1291,48 +1306,32 @@ static void gui_to_prefs (void)
 
     updatewinfsmode (&changed_prefs);
 }
-#if 0
-static BOOL GetNewFileName (OPENFILENAME *opn, int save)
-{  
-    IFileDialog *pfd;
-    HRESULT hr;
 
-    // CoCreate the dialog object.
-    hr = CoCreateInstance(CLSID_FileOpenDialog, 
-	    NULL, 
-            CLSCTX_INPROC_SERVER, 
-            IID_PPV_ARG(IFileDialog, &pfd));
-    if (SUCCEEDED(hr)) {
-        // Show the dialog
-        hr = pfd->Show(hwnd);
-        if (SUCCEEDED(hr)) {
-            // Obtain the result of the user's interaction with the dialog.
-            IShellItem *psiResult;
-            hr = pfd->GetResult(&psiResult);
-            if (SUCCEEDED(hr)) {
-                // Do something with the result.
-                psiResult->Release();
-            }
-        }
-        pfd->Release();
-    }
-    return SUCCEEDED(hr);
-}
-#endif
-static BOOL GetOpenFileName_2 (OPENFILENAME *opn)
-{
-    if (osVersion.dwMajorVersion < 6)
-	return GetOpenFileName (opn);
-    return GetOpenFileName (opn);
-}
-
-static BOOL GetSaveFileName_2 (OPENFILENAME *opn)
-{
-    if (osVersion.dwMajorVersion < 6)
-	return GetSaveFileName (opn);
-    return GetSaveFileName (opn);
-}
-
+typedef struct tagOFNX { 
+  DWORD         lStructSize; 
+  HWND          hwndOwner; 
+  HINSTANCE     hInstance; 
+  PWCHAR         lpstrFilter; 
+  PWCHAR         lpstrCustomFilter; 
+  DWORD         nMaxCustFilter; 
+  DWORD         nFilterIndex; 
+  PWCHAR        lpstrFile; 
+  DWORD         nMaxFile; 
+  PWCHAR        lpstrFileTitle; 
+  DWORD         nMaxFileTitle; 
+  PWCHAR       lpstrInitialDir; 
+  PWCHAR       lpstrTitle; 
+  DWORD         Flags; 
+  WORD          nFileOffset; 
+  WORD          nFileExtension; 
+  PWCHAR       lpstrDefExt; 
+  LPARAM        lCustData; 
+  LPOFNHOOKPROC lpfnHook; 
+  PWCHAR       lpTemplateName; 
+  void *        pvReserved;
+  DWORD         dwReserved;
+  DWORD         FlagsEx;
+} OPENFILENAMEX, *LPOPENFILENAMEX;
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -1356,7 +1355,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     char file_name[MAX_DPATH] = "";
     char init_path[MAX_DPATH] = "";
     BOOL result = FALSE;
-    char *amiga_path = NULL;
+    char *amiga_path = NULL, *initialdir = NULL, *defext = NULL;
     char description[CFG_DESCRIPTION_LENGTH] = "";
     char *p, *nextp;
     int all = 1;
@@ -1429,24 +1428,22 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     openFileName.hwndOwner = hDlg;
     openFileName.hInstance = hInst;
 
+    szFilter[0] = 0;
+    szFilter[1] = 0;
     switch (flag) {
     case 0:
 	WIN32GUI_LoadUIString (IDS_SELECTADF, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + 1);
-
-	openFileName.lpstrDefExt = "ADF";
-	openFileName.lpstrFilter = szFilter;
+	defext = "ADF";
 	break;
     case 1:
 	WIN32GUI_LoadUIString (IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen (szFilter), "(*.adf)\0*.adf\0", 15);
-
-	openFileName.lpstrDefExt = "ADF";
-	openFileName.lpstrFilter = szFilter;
+	defext = "ADF";
 	break;
     case 2:
     case 3:
@@ -1454,9 +1451,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_HDF, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen (szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + 1);
-
-	openFileName.lpstrDefExt = "HDF";
-	openFileName.lpstrFilter = szFilter;
+	defext = "HDF";
 	break;
     case 4:
     case 5:
@@ -1464,27 +1459,21 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_UAE, szFormat, MAX_DPATH );
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen (szFilter), "(*.uae)\0*.uae\0", 15);
-
-	openFileName.lpstrDefExt = "UAE";
-	openFileName.lpstrFilter = szFilter;
+	defext = "UAE";
 	break;
     case 6:
 	WIN32GUI_LoadUIString (IDS_SELECTROM, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_ROM, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen(szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + 1);
-
-	openFileName.lpstrDefExt = "ROM";
-	openFileName.lpstrFilter = szFilter;
+	defext = "ROM";
 	break;
     case 7:
 	WIN32GUI_LoadUIString (IDS_SELECTKEY, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_KEY, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen(szFilter), "(*.key)\0*.key\0", 15);
-
-	openFileName.lpstrDefExt = "KEY";
-	openFileName.lpstrFilter = szFilter;
+	defext = "KEY";
 	break;
     case 15:
     case 16:
@@ -1492,9 +1481,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_INP, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen(szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + 1);
-
-	openFileName.lpstrDefExt = "INP";
-	openFileName.lpstrFilter = szFilter;
+	defext = "IMP";
 	break;
     case 9:
     case 10:
@@ -1532,47 +1519,32 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    all = 0;
 	    filterindex = statefile_previousfilter;
 	}
-	openFileName.lpstrDefExt = "USS";
-	openFileName.lpstrFilter = szFilter;
+	defext = "USS";
 	break;
     case 11:
 	WIN32GUI_LoadUIString (IDS_SELECTFLASH, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_FLASH, szFormat, MAX_DPATH);
 	sprintf (szFilter, "%s ", szFormat);
 	memcpy (szFilter + strlen (szFilter), "(*.nvr)\0*.nvr\0", 15);
-
-	openFileName.lpstrDefExt = "NVR";
-	openFileName.lpstrFilter = szFilter;
+	defext = "NVR";
 	break;
     case 8:
     default:
 	WIN32GUI_LoadUIString (IDS_SELECTINFO, szTitle, MAX_DPATH);
-
-	openFileName.lpstrFilter = NULL;
-	openFileName.lpstrDefExt = NULL;
 	break;
     case 12:
 	WIN32GUI_LoadUIString (IDS_SELECTFS, szTitle, MAX_DPATH);
-
-	openFileName.lpstrFilter = NULL;
-	openFileName.lpstrDefExt = NULL;
-	openFileName.lpstrInitialDir = path_out;
+	initialdir = path_out;
 	break;
     case 13:
 	WIN32GUI_LoadUIString (IDS_SELECTINFO, szTitle, MAX_DPATH);
-
-	openFileName.lpstrFilter = NULL;
-	openFileName.lpstrDefExt = NULL;
-	openFileName.lpstrInitialDir = path_out;
+	initialdir = path_out;
 	break;
     case 14:
 	strcpy (szTitle, "Select supported archive file");
 	sprintf (szFilter, "%s (%s)", "Archive", ARCHIVE_STRING);
 	strcpy (szFilter + strlen (szFilter) + 1, ARCHIVE_STRING);
-
-	openFileName.lpstrFilter = NULL;
-	openFileName.lpstrFilter = szFilter;
-	openFileName.lpstrInitialDir = path_out;
+	initialdir = path_out;
 	break;
     }
     if (all) {
@@ -1587,21 +1559,26 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     }
     openFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
 	OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+    openFileName.lpstrFilter = szFilter;
+    openFileName.lpstrDefExt = defext;
     openFileName.nFilterIndex = filterindex;
     openFileName.lpstrFile = full_path;
     openFileName.nMaxFile = MAX_DPATH;
     openFileName.lpstrFileTitle = file_name;
     openFileName.nMaxFileTitle = MAX_DPATH;
-    openFileName.lpstrInitialDir = init_path;
+    if (initialdir)
+	openFileName.lpstrInitialDir = initialdir;
+    else
+	openFileName.lpstrInitialDir = init_path;
     openFileName.lpstrTitle = szTitle;
 
     if (multi)
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
-	if (!(result = GetSaveFileName_2 (&openFileName)))
+	if (!(result = GetSaveFileName (&openFileName)))
 	    write_log ("GetSaveFileName() failed, err=%d.\n", GetLastError());
     } else {
-	if (!(result = GetOpenFileName_2 (&openFileName)))
+	if (!(result = GetOpenFileName (&openFileName)))
 	    write_log ("GetOpenFileName() failed, err=%d.\n", GetLastError());
     }
     memcpy (full_path2, full_path, sizeof (full_path));

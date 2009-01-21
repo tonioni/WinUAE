@@ -7,7 +7,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-05-28 18:50:10
+ Updated : 2008-12-19 12:38:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -70,6 +70,7 @@
 #define RPIPCHM_MOUSECAPTURE   (WM_APP + 212)
 #define RPIPCHM_SAVESTATE      (WM_APP + 213)
 #define RPIPCHM_LOADSTATE      (WM_APP + 214)
+#define RPIPCHM_FLUSH          (WM_APP + 215)
 
 
 // ****************************************************************************
@@ -88,6 +89,7 @@
 #define RP_FEATURE_TURBO         0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
 #define RP_FEATURE_VOLUME        0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
 #define RP_FEATURE_STATE         0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
+#define RP_FEATURE_SCANLINES     0x00000800 // scan lines video effect is available
 
 // Screen Modes
 #define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")
@@ -95,11 +97,19 @@
 #define RP_SCREENMODE_3X            0x00000002 // 3x window or full-screen mode ("triple CGA mode")
 #define RP_SCREENMODE_4X            0x00000003 // 4x window or full-screen mode ("double VGA mode")
 #define RP_SCREENMODE_XX            0x000000FF // autoset maximum nX (integer n, preserve ratio)
+#define RP_SCREENMODE_MODEMASK      0x000000FF
 #define RP_SCREENMODE_FULLSCREEN_1	0x00000100 // full screen on primary (default) display
 #define RP_SCREENMODE_FULLSCREEN_2	0x00000200 // full screen on secondary display (fallback to 1 if unavailable)
+#define RP_SCREENMODE_DISPLAYMASK	0x0000FF00
 #define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" when in fullscreen (no gfx card full screen)
-#define RP_SCREENMODE_MODE(m)       ((m) & 0x000000FF) // given a mode 'm' returns the #X mode
-#define RP_SCREENMODE_DISPLAY(m)    (((m) >> 8) & 0x000000FF) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
+#define RP_SCREENMODE_USETVM_NEVER  0x00000000 // never use TV modes
+#define RP_SCREENMODE_USETVM_ALWAYS 0x00020000 // always use TV modes
+#define RP_SCREENMODE_USETVM_AUTO   0x00040000 // use all available modes
+#define RP_SCREENMODE_USETVMMASK    0x00060000
+#define RP_SCREENMODE_SCANLINES     0x00080000 // show video scan lines
+#define RP_SCREENMODE_DISPLAY(m)    (((m) & RP_SCREENMODE_DISPLAYMASK) >> 8) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
+#define RP_SCREENMODE_USETVM(m)     ((m) & RP_SCREENMODE_USETVMMASK) // given a mode 'm' returns the RP_SCREENMODE_USETVM_* value in it (automatic display mode selection in full screen modes)
+#define RP_SCREENMODE_MODE(m)       ((m) & RP_SCREENMODE_MODEMASK) // given a mode 'm' returns the #X mode
 
 typedef struct RPScreenMode
 {
@@ -135,9 +145,9 @@ typedef struct RPDeviceContent
 #define RP_IPD_MOUSE2    L"Mouse2" // second mouse type (e.g. Mouse for WinUAE)
 #define RP_IPD_MOUSE3    L"Mouse3" // third mouse type (e.g. Mousehack Mouse for WinUAE)
 #define RP_IPD_MOUSE4    L"Mouse4" // fourth mouse type (e.g. RAW Mouse for WinUAE)
-#define RP_IPD_JOYSTICK1 L"Joystick1" // first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\ProductGUID\ProductName")
-#define RP_IPD_JOYSTICK2 L"Joystick2" // second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\ProductGUID\ProductName")
-#define RP_IPD_JOYSTICK3 L"Joystick3" // third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\ProductGUID\ProductName")
+#define RP_IPD_JOYSTICK1 L"Joystick1" // first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\ProductGUID InstanceGUID\ProductName")
+#define RP_IPD_JOYSTICK2 L"Joystick2" // second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\ProductGUID InstanceGUID\ProductName")
+#define RP_IPD_JOYSTICK3 L"Joystick3" // third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\ProductGUID InstanceGUID\ProductName")
 #define RP_IPD_KEYBDL1   L"KeyboardLayout1" // first joystick emulation keyboard layout (e.g. Keyboard Layout A for WinUAE)
 #define RP_IPD_KEYBDL2   L"KeyboardLayout2" // second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
 #define RP_IPD_KEYBDL3   L"KeyboardLayout3" // third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
@@ -156,7 +166,9 @@ typedef struct RPDeviceContent
 #define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
 
 // RPIPCGM_DEVICEACTIVITY
-#define RP_DEVICEACTIVITY_READ     0x0000 // the device activity is about a read operation
-#define RP_DEVICEACTIVITY_WRITE    0x0001 // the device activity is about a write operation
+#define RP_DEVICEACTIVITY_GREEN    0x0000 // green led
+#define RP_DEVICEACTIVITY_RED      0x0001 // red led
+#define RP_DEVICEACTIVITY_READ     RP_DEVICEACTIVITY_GREEN // the device activity is about a read operation
+#define RP_DEVICEACTIVITY_WRITE    RP_DEVICEACTIVITY_RED   // the device activity is about a write operation
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

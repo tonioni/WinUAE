@@ -16,6 +16,7 @@ extern int debugging;
 extern int exception_debugging;
 extern int debug_copper;
 extern int debug_sprite_mask;
+extern int debug_bpl_mask, debug_bpl_mask_one;
 extern int debugger_active;
 
 extern void debug(void);

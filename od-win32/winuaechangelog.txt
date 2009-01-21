@@ -1,4 +1,21 @@
 
+Beta 9:
+
+- flickerfixer improved, also first and last line glitch fixed, sprite
+  positioning fixed. Now interlaced WB is rock solid.
+- "Flicker fixer" renamed to "Remove interlace artifacts" (it really
+  isn't same as flickerfixer or scandoubler)
+- led transparency removed, it read from display ram which caused huge
+  slow down
+- artifact removal broke autoscaling
+- am and sm debugger commands merged to single M<sub command> command
+- bitplane disable debugger command added, Mb <enabled planes>
+  [<if disabled plane, show it as all zeros or as all ones>]
+- automatic, transparent clipboard sharing! Data in Windows clipboard
+  is automatically copied to Amiga clipboard.device unit 0 and vice
+  versa. Only text-based content currently supported.
+- REPEAT NOTE: D3D/OGL filter is still broken. Do not use.
+
 Beta 8:
 
 - UAE boot rom was enabled when it should not have been (b7)
@@ -20,11 +37,10 @@ Beta 8:
   inserted.
 - removable drive insert/eject used unallocated signal bit, it did not
   cause problems but fixed now
-- experimental "flicker fixer" implemented. Works perfectly in WB, not
-  so perfect in games yet (and impossible to get perfect in all cases,
-  as usual..) No more interlace artifacts when any graphics object or
-  mouse pointer moves.
-  
+- experimental "flicker fixer" implemented (Display panel). Works
+  perfectly in WB, not so perfect in games yet (and impossible to get
+  perfect in all cases, as usual..) No more interlace artifacts when
+  any graphics object or mouse pointer moves.
   NOTE: first and last line will flicker or show garbage.
   
   Technical details: normal interlaced display goes like this: draw

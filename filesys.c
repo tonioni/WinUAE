@@ -50,6 +50,7 @@
 #include "bsdsocket.h"
 #include "uaeresource.h"
 #include "inputdevice.h"
+#include "clipboard.h"
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -5404,10 +5405,22 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 {
     int mode = m68k_dreg (&context->regs, 1);
-    uaecptr diminfo = m68k_areg (&context->regs, 2);
-    uaecptr dispinfo = m68k_areg (&context->regs, 3);
-    uaecptr vp = m68k_areg (&context->regs, 4);
-    input_mousehack_status (mode, diminfo, dispinfo, vp);
+    if (mode < 10) {
+	uaecptr diminfo = m68k_areg (&context->regs, 2);
+	uaecptr dispinfo = m68k_areg (&context->regs, 3);
+	uaecptr vp = m68k_areg (&context->regs, 4);
+	input_mousehack_status (mode, diminfo, dispinfo, vp);
+    } else if (mode == 10) {
+	amiga_clipboard_init ();
+    } else if (mode == 11) {
+	amiga_clipboard_got_data (m68k_areg (&context->regs, 2), m68k_dreg (&context->regs, 2), m68k_dreg (&context->regs, 0) + 8);
+    } else if (mode == 12) {
+	amiga_clipboard_want_data ();
+    } else if (mode == 13) {
+	return amiga_clipboard_proc_start ();
+    } else if (mode == 14) {
+	amiga_clipboard_task_start (m68k_dreg (&context->regs, 0));
+    }
     return 1;
 }
 

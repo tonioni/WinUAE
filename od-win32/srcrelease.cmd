@@ -1,7 +1,7 @@
 cd c:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-cp -r c:\projects\winuae\src\. c:\projects\winuae_bak\bak\
+copy c:\projects\winuae\src\ c:\projects\winuae_bak\bak\ /s
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 
 cd bak
@@ -107,12 +107,12 @@ cd ..
 
 cd ..
 
-#zip -9 -r winuaesrc *
+zip -9 -r winuaesrc *
 
-#copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
-#move winuaesrc.zip d:\amiga
-#cd c:\projects\winuae\src\od-win32
-#zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb
-#move winuaedebug%1.zip d:\amiga\winuaepackets\
-#copy winuae_msvc\fullrelease\winuae.pdb d:\amiga\dump
-#copy d:\amiga\winuae.exe d:\amiga\dump
+copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
+move winuaesrc.zip d:\amiga
+cd c:\projects\winuae\src\od-win32
+zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb
+move winuaedebug%1.zip d:\amiga\winuaepackets\
+copy winuae_msvc\fullrelease\winuae.pdb d:\amiga\dump
+copy d:\amiga\winuae.exe d:\amiga\dump

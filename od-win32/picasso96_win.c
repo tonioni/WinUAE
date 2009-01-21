@@ -690,6 +690,7 @@ void picasso_handle_vsync (void)
     rp_vsync ();
 #endif
 
+    clipboard_vsync ();
     if (!picasso_on)
 	createwindowscursor (0, 0, 0, 0, 0, 1);
 

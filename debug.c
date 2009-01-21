@@ -124,8 +124,7 @@ static char help[] = {
     "                        Search for string/bytes\n"
     "  T                     Show exec tasks and their PCs\n"
     "  b                     Step to previous state capture position\n"
-    "  am <channel mask>     Enable or disable audio channels\n"
-    "  sm <sprite mask>      Enable or disable sprites\n"
+    "  M<a/b/s> <val>        Enable or disable audio channels, bitplanes or sprites\n"
     "  sp <addr> [<addr2][<size>] Dump sprite information\n"
     "  di <mode> [<track>]   Break on disk access. R=DMA read,W=write,RW=both,P=PIO\n"
     "                        Also enables level 1 disk logging\n"
@@ -2680,11 +2679,6 @@ static void debug_1 (void)
 			smc_detect_init (&inptr);
 		    else
 			smc_free ();
-		} else {
-		    next_char (&inptr);
-		    if (more_params (&inptr))
-			debug_sprite_mask = readhex (&inptr);
-		    console_out_f ("sprite mask: %02X\n", debug_sprite_mask);
 		}
 	    } else {
 		searchmem (&inptr);
@@ -2826,6 +2820,32 @@ static void debug_1 (void)
 	    m68k_setpc (&regs, oldpc);
 	}
 	break;
+	case 'M':
+	    if (more_params (&inptr)) {
+		switch (next_char (&inptr))
+		{
+		    case 'a':
+		    if (more_params (&inptr))
+			audio_channel_mask = readhex (&inptr);
+		    console_out_f ("Audio mask = %02X\n", audio_channel_mask);
+		    break;
+		    case 's':
+		    if (more_params (&inptr))
+			debug_sprite_mask = readhex (&inptr);
+		    console_out_f ("sprite mask: %02X\n", debug_sprite_mask);
+		    break;
+		    case 'b':
+		    if (more_params (&inptr)) {
+			debug_bpl_mask = readhex (&inptr) & 0xff;
+			if (more_params (&inptr))
+			    debug_bpl_mask_one = readhex (&inptr) & 0xff;
+			notice_screen_contents_lost ();
+		    }
+		    console_out_f ("bitplane mask: %02X (%02X)\n", debug_bpl_mask, debug_bpl_mask_one);
+		    break;
+		}
+	    }
+	break;
 	case 'm':
 	{
 	    uae_u32 maddr;
@@ -2876,16 +2896,6 @@ static void debug_1 (void)
 	    if (staterecorder (&inptr))
 		return;
 	    break;
-	case 'a':
-	    if (more_params (&inptr)) {
-		char nc = next_char (&inptr);
-		if (nc == 'm') {
-		    if (more_params (&inptr))
-			audio_channel_mask = readint (&inptr);
-		    console_out_f ("Audio mask = %02X\n", audio_channel_mask);
-		}
-	    }
-	    break;
 	case 'h':
 	case '?':
 	    if (more_params (&inptr))
@@ -2919,7 +2929,7 @@ void debug (void)
 	return;
 
     bogusframe = 1;
-    addhistory();
+    addhistory ();
 
 #if 0
     if (do_skip && skipaddr_start == 0xC0DEDBAD) {
@@ -2942,9 +2952,12 @@ void debug (void)
 
     if (!memwatch_triggered) {
 	if (do_skip) {
-	    uae_u32 pc = munge24 (m68k_getpc (&regs));
-	    uae_u16 opcode = (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
+	    uae_u32 pc;
+	    uae_u16 opcode;
 	    int bp = 0;
+
+	    pc = munge24 (m68k_getpc (&regs));
+	    opcode = (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
 
 	    for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 		if (!bpnodes[i].enabled)
@@ -2955,6 +2968,7 @@ void debug (void)
 		    break;
 		}
 	    }
+
 	    if (skipaddr_doskip) {
 		if (skipaddr_start == pc)
 		    bp = 1;

@@ -55,6 +55,8 @@
 extern int sprite_buffer_res;
 int lores_factor, lores_shift;
 
+int debug_bpl_mask = 0xff, debug_bpl_mask_one;
+
 static void lores_reset (void)
 {
     lores_factor = currprefs.gfx_resolution ? 2 : 1;
@@ -153,6 +155,9 @@ union sps_union spixstate;
 
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
 static uae_u8 *real_bplpt[8];
+
+static uae_u8 all_ones[MAX_PIXELS_PER_LINE];
+static uae_u8 all_zeros[MAX_PIXELS_PER_LINE];
 
 uae_u8 *xlinebuffer;
 
@@ -364,7 +369,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	dx = 1;
 
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
-    if (doublescan && interlace_seen <= 0) {
+    if (doublescan > 0 && interlace_seen <= 0) {
 	dbl1--;
 	dbl2--;
     }
@@ -375,7 +380,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     if (w == 0 || h == 0)
 	return 0;
 
-    if (!doublescan) {
+    if (doublescan <= 0) {
 	if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W)
 	    w = MIN_DISPLAY_W << currprefs.gfx_resolution;
 	if ((h >> dbl1) < MIN_DISPLAY_H) {
@@ -399,7 +404,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 
     if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
 	return ret;
-    if (!doublescan) {
+    if (doublescan <= 0) {
 	if (dx > gfxvidinfo.width / 3)
 	    return ret;
 	if (dy > gfxvidinfo.height / 3)
@@ -458,7 +463,7 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
     dx = xshift (dx, res_shift);
 
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
-    if ((doublescan || interlace_seen > 0) && !dbl) {
+    if ((doublescan > 0 || interlace_seen > 0) && !dbl) {
         dbl1--;
         dbl2--;
     }
@@ -1434,6 +1439,9 @@ static void gen_pfield_tables (void)
 		     | (((i & 48) && (i & 192)) << 14));
 
     }
+
+    memset (all_ones, 0xff, MAX_PIXELS_PER_LINE);
+
 }
 
 /* When looking at this function and the ones that inline it, bear in mind
@@ -1616,7 +1624,7 @@ static void pfield_doline (int lineno)
     uae_u32 *data = pixdata.apixels_l + MAX_PIXELS_PER_LINE / 4;
 
 #ifdef SMART_UPDATE
-#define DATA_POINTER(n) (line_data[lineno] + (n) * MAX_WORDS_PER_LINE * 2)
+#define DATA_POINTER(n) ((debug_bpl_mask & (1 << n)) ? (line_data[lineno] + (n) * MAX_WORDS_PER_LINE * 2) : (debug_bpl_mask_one ? all_ones : all_zeros))
     real_bplpt[0] = DATA_POINTER (0);
     real_bplpt[1] = DATA_POINTER (1);
     real_bplpt[2] = DATA_POINTER (2);
@@ -2075,9 +2083,8 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	if (dosprites) {
 
 	    int i;
-	    for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
+	    for (i = 0; i < dip_for_drawing->nr_sprites; i++)
 		draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
-	    }
 	    do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);
 
 	} else {
@@ -2346,7 +2353,7 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
     case 4:
     {
 	int i;
-	if (opaq || currprefs.gfx_filter == 0) {
+	if (1 || opaq || currprefs.gfx_filter == 0) {
 	    uae_u32 *p = (uae_u32*)buf + x;
 	    *p = c8;
 	} else {
@@ -2947,39 +2954,5 @@ void drawing_init (void)
 
     gfxbuffer_reset ();
     reset_drawing ();
-}
-
-#include "crc32.h"
-void magic_centering (uae_u16 regno, uae_u16 value, int vpos)
-{
-#if 0
-    static uae_u32 crc;
-    static uae_u32 prevcrc;
-    static int count;
-    uae_u16 v;
-
-    if (!regno) {
-	if (count > 0) {
-	    count--;
-	    if (count == 0) {
-		write_log ("**** CHANGED ****\n");
-	    }
-	}
-	if (crc != 0 && crc != prevcrc && count == 0) {
-	    count = 3;
-	    prevcrc = crc;
-	}
-	crc = 0;
-	return;
-    }
-    v = regno;
-    crc = get_crc32_val (v >> 8, crc);
-    crc = get_crc32_val (v, crc);
-    if (regno == 0x92 || regno == 0x94)
-	return;
-    v = value;
-    crc = get_crc32_val (v >> 8, crc);
-    crc = get_crc32_val (v, crc);
-#endif
 }
 

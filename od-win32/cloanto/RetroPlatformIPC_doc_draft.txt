@@ -1,4 +1,17 @@
-Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
+/*****************************************************************************
+ Name    : RetroPlatformIPC_doc.txt
+ Project : RPSampleGuest
+ Client  : Cloanto Italia srl
+ Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
+         : Copyright © Cloanto Italia srl 2007-2008.
+         : All rights reserved, except where licensed,
+         : assigned or transferred by contract.
+ Authors : os, mcb
+ Created : 2007-08-23 10:08:25
+ Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
+ *****************************************************************************/
+
+
 
 
 ****************************************************************************
@@ -42,7 +55,10 @@ Response:
 Message:
    RPIPCGM_CLOSED
 Description:
-   this message is sent to the host when the guest is terminating
+   this message is sent to the host when the guest is terminating;
+   the RPPostMessage() function (instead of RPSendMessage()) should be used
+   to send this message, since the host may wait for the guest process to terminate
+   when RPIPCGM_CLOSED is received
 Data sent:
    none
 Response:
@@ -157,14 +173,14 @@ Data sent:
             e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0);
             the RP_ALL_DEVICES define may be used as device number
             to turn on or off all the activity leds for a device category
-   LPARAM = led status and flags combined with the MAKEWORD macro;
-            e.g. MAKEWORD(Status, Flags);
+   LPARAM = led status and flags combined with the MAKELONG macro;
+            e.g. MAKELONG(Status, Flags);
             the Status value can be set to 0 to turn off the activity LED,
-            or set to -1 to turn on the activity LED,
-            or set to a <millisecond delay> value to turn on the activity LED
+            to -1 to turn on the activity LED,
+            or to a <millisecond delay> value to turn on the activity LED
             for the specified amount of time (blink);
             the Flags value can be set
-            using one of the RP_DEVICEACTIVITY_* defines
+            using one or more of the RP_DEVICEACTIVITY_* defines
 Response:
    none
 
@@ -427,7 +443,7 @@ Data sent:
            contains an empty string, the guest should
            unload the current content from the device;
            for joysticks, szContent may contain multiple identifiers
-           using the "Joystick1\ProductGUID\ProductName" format
+           using the "Joystick1\ProductGUID InstanceGUID\ProductName" format
            (ProductName is last and may contain unescaped backslash
            characters itself)
 Response:
@@ -537,3 +553,15 @@ Data sent:
    pData = (Unicode) full path and name of the file to load
 Response:
    LRESULT = 1 if the guest successfully loaded the status file or 0 otherwise
+
+
+Message:
+   RPIPCHM_FLUSH
+Description:
+   the host sends the RPIPCHM_FLUSH command to ask the guest
+   to flush any change applied to the emulated media
+   and update the corresponding image files
+Data sent:
+   none
+Response:
+   LRESULT = 1 if the guest successfully executed the command or 0 otherwise

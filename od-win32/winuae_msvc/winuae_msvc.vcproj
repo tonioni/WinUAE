@@ -1286,7 +1286,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\clipboard.c"
+				RelativePath="..\clipboard_win32.c"
 				>
 			</File>
 			<File

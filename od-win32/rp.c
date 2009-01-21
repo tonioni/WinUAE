@@ -691,7 +691,7 @@ void rp_free (void)
     if (hwndset)
 	rp_set_hwnd (NULL);
     initialized = 0;
-    RPSendMessagex (RPIPCGM_CLOSED, 0, 0, NULL, 0, &guestinfo, NULL);
+    RPPostMessagex (RPIPCGM_CLOSED, 0, 0, &guestinfo);
     RPUninitializeGuest (&guestinfo);
 }
 
