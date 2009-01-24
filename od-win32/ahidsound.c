@@ -552,7 +552,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	return 1;
 
 	case 10:
-#if 0
+#if 1
 	    if (OpenClipboard (0)) {
 		clipdat = GetClipboardData (CF_TEXT);
 		if (clipdat) {
@@ -566,7 +566,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 11:
 	{
-#if 0
+#if 1
 	    int i;
 	    for (i = 0; i < clipsize; i++)
 		put_byte (m68k_areg (&context->regs, 0) + i, clipdat[i]);
@@ -577,7 +577,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 12:
 	{
-#if 0
+#if 1
 	    uae_u8 *addr = get_real_address (m68k_areg (&regs, 0));
 	    static LPTSTR p;
 	    int slen;

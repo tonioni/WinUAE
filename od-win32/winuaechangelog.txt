@@ -1,4 +1,18 @@
 
+Beta 10:
+
+- clipboard: multiple CHRS chunks inside FTXT supported
+- clipboard: IFF ILBM Amiga to PC support implemented. EHB supported,
+  HAM6/8 automatically converted to 24-bit, 24-bit IFF supported
+- clipboard: PC to Amiga IFF conversion. Counts the number of colors,
+  if 256 or less, creates normal paletted IFF image, if more, creates
+  24 bit IFF.
+- clipboard: Windows clipboard is only updated when there is new data
+  in Amiga clipboard and WinUAE loses focus. Same with Amiga clipboard,
+  do not copy contents of Windows clipboard until WinUAE gains focus.
+- switching from "artifact fixed" interlace mode to non-laced now
+  force updates the screen completely, fixes possible glitches
+
 Beta 9:
 
 - flickerfixer improved, also first and last line glitch fixed, sprite
@@ -13,7 +27,7 @@ Beta 9:
   [<if disabled plane, show it as all zeros or as all ones>]
 - automatic, transparent clipboard sharing! Data in Windows clipboard
   is automatically copied to Amiga clipboard.device unit 0 and vice
-  versa. Only text-based content currently supported.
+  versa. Only text-based content currently supported. OS2+ only.
 - REPEAT NOTE: D3D/OGL filter is still broken. Do not use.
 
 Beta 8:

@@ -2870,7 +2870,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->config_hardware_path[0] = 0;
     p->config_host_path[0] = 0;
 
-    p->gfx_scandoubler = 1;
+    p->gfx_scandoubler = 0;
     p->start_gui = 1;
     p->start_debugger = 0;
 

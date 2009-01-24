@@ -2759,10 +2759,13 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 
 	if (framecnt == 0)
 	    finish_drawing_frame ();
-	if (interlace_seen > 0)
+	if (interlace_seen > 0) {
 	    interlace_seen = -1;
-	else if (interlace_seen == -1)
+	} else if (interlace_seen == -1) {
 	    interlace_seen = 0;
+	    if (currprefs.gfx_scandoubler && currprefs.gfx_linedbl)
+		notice_screen_contents_lost ();
+	}
 
 	/* At this point, we have finished both the hardware and the
 	 * drawing frame. Essentially, we are outside of all loops and

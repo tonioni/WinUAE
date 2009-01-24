@@ -394,7 +394,7 @@ STATIC_INLINE int nodraw (void)
 
 static int doflickerfix (void)
 {
-    return currprefs.gfx_linedbl && doublescan < 0 && interlace_seen;
+    return currprefs.gfx_linedbl && doublescan < 0;
 }
 
 uae_u32 get_copper_address (int copno)
@@ -1684,12 +1684,14 @@ static void start_bpl_dma (int hpos, int hstart)
     if (first_bpl_vpos < 0)
 	first_bpl_vpos = vpos;
 
-    if (doflickerfix () && !scandoubled_line) {
+    if (doflickerfix () && interlace_seen && !scandoubled_line) {
 	int i;
 	for (i = 0; i < 8; i++) {
 	    prevbpl[lof][vpos][i] = bplptx[i];
 	    if (!lof && (bplcon0 & 4))
 		bplpt[i] = prevbpl[1 - lof][vpos][i];
+	    if (!(bplcon0 & 4) || interlace_seen  < 0)
+		prevbpl[1 - lof][vpos][i] = prevbpl[lof][vpos][i] = 0;
 	}
     }
 
@@ -2654,7 +2656,7 @@ void init_hz (void)
     write_log ("%s mode%s%s V=%dHz H=%dHz (%dx%d)\n",
 	isntsc ? "NTSC" : "PAL",
 	(bplcon0 & 4) ? " interlaced" : "",
-	doublescan ? " dblscan" : "",
+	doublescan > 0 ? " dblscan" : "",
 	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
 }
@@ -4384,7 +4386,7 @@ static void do_sprites (int hpos)
 
     if (vpos < sprite_vblank_endline)
 	return;
-    if (doflickerfix () && (next_lineno & 1))
+    if (doflickerfix () && interlace_seen && (next_lineno & 1))
 	return;
 
 #ifndef CUSTOM_SIMPLE
@@ -4807,16 +4809,18 @@ static void hsync_scandoubler (void)
 	int diff;
 	bpltmp[i] = bplpt[i];
 	bpltmpx[i] = bplptx[i];
-	diff = prevbpl[lof][vpos][i] - prevbpl[1 - lof][vpos][i];
-	if (lof) {
-	    if (bplcon0 & 4)
-		bplpt[i] = prevbpl[lof][vpos][i] - diff;
-	} else {
-	    if (bplcon0 & 4)
-		bplpt[i] = prevbpl[lof][vpos][i];
-	    else
-	    	bplpt[i] = bplpt[i] - diff;
+	if (prevbpl[lof][vpos][i] && prevbpl[1 - lof][vpos][i]) {
+	    diff = prevbpl[lof][vpos][i] - prevbpl[1 - lof][vpos][i];
+	    if (lof) {
+		if (bplcon0 & 4)
+		    bplpt[i] = prevbpl[lof][vpos][i] - diff;
+	    } else {
+		if (bplcon0 & 4)
+		    bplpt[i] = prevbpl[lof][vpos][i];
+		else
+	    	    bplpt[i] = bplpt[i] - diff;
 
+	    }
 	}
     }
 
@@ -4942,7 +4946,7 @@ static void hsync_handler (void)
 		cycle_diagram_free_cycles[f_fetchmode][GET_RES (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)]);
 	}
 	hardware_line_completed (next_lineno);
-	if (doflickerfix ())
+	if (doflickerfix () && interlace_seen)
 	    hsync_scandoubler ();
     }
 
@@ -5004,7 +5008,7 @@ static void hsync_handler (void)
 	if ((bplcon0 & 4) && currprefs.gfx_linedbl)
 	    notice_interlace_seen ();
 	nextline_how = nln_normal;
-	if (doflickerfix ()) {
+	if (doflickerfix () && interlace_seen) {
 	    lineno *= 2;
 	} else if (currprefs.gfx_linedbl && (doublescan <= 0 || interlace_seen > 0)) {
 	    lineno *= 2;

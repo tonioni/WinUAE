@@ -626,6 +626,7 @@ static void winuae_active (HWND hWnd, int minimized)
     if (!minimized)
 	lcd_priority (1);
 #endif
+    clipboard_active (hAmigaWnd, 1);
 }
 
 static void winuae_inactive (HWND hWnd, int minimized)
@@ -639,6 +640,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
     focus = 0;
     wait_keyrelease ();
     setmouseactive (0);
+    clipboard_active (hAmigaWnd, 0);
     inputdevice_unacquire ();
     pri = &priorities[currprefs.win32_inactive_priority];
     if (!quit_program) {
