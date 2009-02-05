@@ -95,7 +95,7 @@ extern void set_cache_state(int enabled);
 extern int get_cache_state(void);
 extern uae_u32 get_jitted_size(void);
 #ifdef JIT
-extern void flush_icache(int n);
+extern void flush_icache(uaecptr ptr, int n);
 #endif
 extern void alloc_cache(void);
 extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);

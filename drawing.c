@@ -66,6 +66,9 @@ static void lores_reset (void)
 	    lores_shift++;
 	lores_factor = 2;
     }
+    sprite_buffer_res = currprefs.gfx_resolution;
+    if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
+	sprite_buffer_res++;
 }
 
 int aga_mode; /* mirror of chipset_mask & CSMASK_AGA */
@@ -1799,6 +1802,8 @@ static void pfield_expand_dp_bplcon (void)
 	can_use_lores = 0;
 
     bplehb = (dp_for_drawing->bplcon0 & 0x80) == 0x80;
+    if ((currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon2 & 0x0200))
+	bplehb = 0;
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
     plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
@@ -2931,10 +2936,6 @@ void reset_drawing (void)
     notice_screen_contents_lost ();
     frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
     lightpen_y1 = lightpen_y2 = -1;
-
-    sprite_buffer_res = currprefs.gfx_resolution;
-    if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)
-	sprite_buffer_res++;
 
     reset_custom_limits ();
 }

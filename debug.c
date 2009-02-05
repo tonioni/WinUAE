@@ -2400,6 +2400,7 @@ static void debug_sprite (char **inptr)
 	for (i = 0; i < size * 2; i++)
 	    console_out_f ("%04X ", get_word (addr + i * 2));
 	console_out_f ("\n");
+
 	ypos = w1 >> 8;
 	xpos = w1 & 255;
 	ypose = w2 >> 8;
@@ -2426,6 +2427,9 @@ static void debug_sprite (char **inptr)
 	    ecs = 1;
 	if (w1 & 0x80)
 	    sh10 = 1;
+	if (ypose < ypos)
+	    ypose += 256;
+
 	for (y = ypos; y < ypose; y++) {
 	    int x;
 	    addr += size * 4;

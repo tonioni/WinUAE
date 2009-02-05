@@ -285,7 +285,7 @@ uae_u32	catweasel_do_bget (uaecptr addr)
     buf1[0] = (uae_u8)addr;
     if (handle != INVALID_HANDLE_VALUE) {
 	if (!DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0))
-	    write_log ("catweasel_do_bget fail err=%d\n", GetLastError());
+	    write_log ("catweasel_do_bget %02x fail err=%d\n", buf1[0], GetLastError ());
     } else {
 	buf2[0] = ioport_read (cwc.iobase + addr);
     }
@@ -304,7 +304,7 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
     buf[1] = b;
     if (handle != INVALID_HANDLE_VALUE) {
 	if (!DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0))
-	    write_log ("catweasel_do_bput fail err=%d\n", GetLastError());
+	    write_log ("catweasel_do_bput %02x=%02x fail err=%d\n", buf[0], buf[1], GetLastError ());
     } else {
 	ioport_write (cwc.iobase + addr, b);
     }
@@ -663,7 +663,7 @@ fail:
 void catweasel_free (void)
 {
     if (cwc.direct_access) {
-	if (cwc.type == 4)
+	if (cwc.type == CATWEASEL_TYPE_MK4)
 	    catweasel_do_bput(3, 0x61); // enable floppy passthrough
     }
     if (handle != INVALID_HANDLE_VALUE)

@@ -686,15 +686,15 @@ DWORD DirectDraw_GetBytesPerPixel (void)
 
 HRESULT DirectDraw_GetDC (HDC *hdc)
 {
-    HRESULT result;
-    result = IDirectDrawSurface7_GetDC (getlocksurface (), hdc);
-    return result;
+    if (getlocksurface () == NULL)
+	return E_FAIL;
+    return IDirectDrawSurface7_GetDC (getlocksurface (), hdc);
 }
 HRESULT DirectDraw_ReleaseDC (HDC hdc)
 {
-    HRESULT result;
-    result = IDirectDrawSurface7_ReleaseDC (getlocksurface (), hdc);
-    return result;
+    if (getlocksurface () == NULL)
+	return E_FAIL;
+    return IDirectDrawSurface7_ReleaseDC (getlocksurface (), hdc);
 }
 int DirectDraw_GetVerticalBlankStatus (void)
 {

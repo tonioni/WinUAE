@@ -2288,6 +2288,10 @@ void fetch_screenshotpath (char *out, int size)
 {
     fetch_path ("ScreenshotPath", out, size);
 }
+void fetch_ripperpath (char *out, int size)
+{
+    fetch_path ("RipperPath", out, size);
+}
 void fetch_datapath (char *out, int size)
 {
     fetch_path (NULL, out, size);
@@ -3291,7 +3295,7 @@ static void getstartpaths (void)
 }
 
 extern void test (void);
-extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
+extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
@@ -3367,6 +3371,10 @@ static int parseargs (const char *arg, const char *np)
     }
     if (!strcmp (arg, "-seriallog")) {
         log_uaeserial = 1;
+	return 1;
+    }
+    if (!strcmp (arg, "-clipboarddebug")) {
+        clipboard_debug = 1;
 	return 1;
     }
     if (!strcmp (arg, "-rplog")) {

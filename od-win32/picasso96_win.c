@@ -58,6 +58,7 @@
 #include "rp.h"
 #include "picasso96_win.h"
 #include "win32gfx.h"
+#include "clipboard.h"
 
 #define NOBLITTER 0
 #define NOBLITTER_BLIT 0

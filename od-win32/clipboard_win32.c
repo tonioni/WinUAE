@@ -10,8 +10,11 @@
 #include "clipboard_win32.h"
 #include "clipboard.h"
 
+#include "threaddep/thread.h"
 #include "memory.h"
 #include "native2amiga_api.h"
+
+int clipboard_debug;
 
 static HWND chwnd;
 static HDC hdc;
@@ -25,10 +28,39 @@ static int clipboard_change;
 static void *clipboard_delayed_data;
 static int clipboard_delayed_size;
 
+static void debugwrite (const char *name, uae_u8 *p, int size)
+{
+    FILE *f;
+    int cnt;
+    
+    if (!p || !size)
+	return;
+    cnt = 0;
+    for (;;) {
+	char tmp[MAX_DPATH];
+	sprintf (tmp, "%s.%03d.dat", name, cnt);
+	f = fopen (tmp, "rb");
+	if (f) {
+	    fclose (f);
+	    cnt++;
+	    continue;
+	}
+        f = fopen (tmp, "wb");
+	if (f) {
+	    fwrite (p, size, 1, f);
+	    fclose (f);
+	}
+	return;
+    }
+}
+
 static void to_amiga_start (void)
 {
     if (!clipboard_data)
 	return;
+    if (clipboard_debug) {
+	debugwrite ("clipboard_p2a", to_amiga, to_amiga_size);
+    }
     put_long (clipboard_data, to_amiga_size);
     uae_Signal (get_long (clipboard_data + 8), 1 << 13);
 }
@@ -50,6 +82,17 @@ static char *pctoamiga (const char *txt)
     }
     return txt2;
 }
+
+static int parsecsi (const char *txt, int off, int len)
+{
+    while (off < len) {
+	if (txt[off] >= 0x40)
+	    break;
+	off++;
+    }
+    return off;
+}
+
 static char *amigatopc (const char *txt)
 {
     int i, j, cnt;
@@ -68,7 +111,7 @@ static char *amigatopc (const char *txt)
     }
     if (pc)
         return my_strdup (txt);
-    txt2 = xmalloc (len + cnt);
+    txt2 = xcalloc (len + cnt, 1);
     j = 0;
     for (i = 0; i < len; i++) {
 	char c = txt[i];
@@ -76,6 +119,13 @@ static char *amigatopc (const char *txt)
 	    continue;
 	if (c == 10)
 	    txt2[j++] = 13;
+	if (c == 0x9b) {
+	    i = parsecsi (txt, i + 1, len);
+	    continue;
+	} else if (c == 0x1b && i + 1 < len && txt[i + 1] == '[') {
+	    i = parsecsi (txt, i + 2, len);
+	    continue;
+	}
 	txt2[j++] = c;
     }
     return txt2;
@@ -118,6 +168,16 @@ static void from_iff_text (uaecptr ftxt, uae_u32 len)
     int txtsize = 0;
     char *pctxt;
 
+#if 0
+    {
+	FILE *f = fopen("c:\\d\\clipboard_a2p.000.dat", "rb");
+	if (f) {
+	    addr = xmalloc (10000);
+	    len = fread (addr, 1, 10000, f);
+	    fclose (f);
+	}
+    }
+#endif
     addr = get_real_address (ftxt);
     eaddr = addr + len;
     if (memcmp ("FTXT", addr + 8, 4))
@@ -130,13 +190,15 @@ static void from_iff_text (uaecptr ftxt, uae_u32 len)
 	if (!memcmp (addr, "CHRS", 4) && csize) {
 	    int prevsize = txtsize;
 	    txtsize += csize;
-	    if (!prevsize)
-		txtsize++; // space for terminating null
-	    txt = realloc (txt, txtsize);
+	    txt = realloc (txt, txtsize + 1);
 	    memcpy (txt + prevsize, addr + 8, csize);
-	    txt[txtsize - 1] = 0;
+	    txt[txtsize] = 0;
 	}
 	addr += 8 + csize + (csize & 1);
+	if (csize >= 1 && addr[-2] == 0x0d && addr[-1] == 0x0a && addr[0] == 0)
+	    addr++;
+	else if (csize >= 1 && addr[-1] == 0x0d && addr[0] == 0x0a)
+	    addr++;
     }
     pctxt = amigatopc (txt);
     clipboard_put_text (pctxt);
@@ -317,13 +379,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 
     to_amiga_size = 8 + tsize + (tsize & 1);
     to_amiga = iff;
-#if 0
-    {
-	FILE *f = fopen("d:\\amiga\\amiga\\1.iff", "wb");
-	fwrite (to_amiga, to_amiga_size, 1, f);
-	fclose (f);
-    }
-#endif
+
     to_amiga_start ();
 
     xfree (bmp.bmBits);
@@ -410,10 +466,20 @@ static void from_iff_ilbm (uaecptr ilbm, uae_u32 len)
 		camg = 0;
 	} else if (!memcmp (chunk, "CMAP" ,4)) {
 	    if (planes <= 8) {
+		int zero4 = 1;
 		for (i = 0; i < (1 << planes) && addr < ceaddr; i++, addr += 3) {
 		    rgbx[i].rgbRed = addr[0];
 		    rgbx[i].rgbGreen = addr[1];
 		    rgbx[i].rgbBlue = addr[2];
+		    if ((addr[0] & 0x0f) || (addr[1] & 0x0f) || (addr[2] & 0x0f))
+			zero4 = 0;
+		}
+		if (zero4) {
+		    for (i = 0; i < (1 << planes); i++) {
+			rgbx[i].rgbRed |= rgbx[i].rgbRed >> 4;
+			rgbx[i].rgbGreen |= rgbx[i].rgbGreen >> 4;
+			rgbx[i].rgbBlue |= rgbx[i].rgbBlue >> 4;
+		    }
 		}
 	    }
 	} else if (!memcmp (chunk, "BODY" ,4) && bmhd) {
@@ -562,7 +628,8 @@ static void from_iff_ilbm (uaecptr ilbm, uae_u32 len)
     }
     if (body) {
 	hbm = CreateDIBitmap (hdc, &bmih->bmiHeader, CBM_INIT, bmptr, bmih, DIB_RGB_COLORS);
-	clipboard_put_bmp (hbm);
+	if (hbm)
+	    clipboard_put_bmp (hbm);
     }
     xfree (bmih);
     xfree (bmptr);
@@ -577,6 +644,8 @@ static void from_iff (uaecptr data, uae_u32 len)
     if (!valid_address (data, len))
 	return;
     addr = get_real_address (data);
+    if (clipboard_debug)
+	debugwrite ("clipboard_a2p", addr, len);
     if (memcmp ("FORM", addr, 4))
 	return;
     if (!memcmp ("FTXT", addr + 8, 4))
@@ -704,10 +773,16 @@ static int clipboard_put_bmp (HBITMAP hbmp)
     return 1;
 }
 
+void amiga_clipboard_die (void)
+{
+    signaling = 0;
+    write_log ("clipboard not initialized\n");
+}
+
 void amiga_clipboard_init (void)
 {
     signaling = 0;
-    write_log ("clipboard active\n");
+    write_log ("clipboard initialized\n");
 }
 
 void amiga_clipboard_task_start (uaecptr data)
@@ -733,15 +808,16 @@ void amiga_clipboard_got_data (uaecptr data, uae_u32 size, uae_u32 actual)
 
 void amiga_clipboard_want_data (void)
 {
-    uae_u32 addr;
+    uae_u32 addr, size;
 
     addr = get_long (clipboard_data + 4);
-    if (addr) {
+    size = get_long (clipboard_data);
+    if (addr && size) {
 	uae_u8 *raddr = get_real_address (addr);
-	memcpy (raddr, to_amiga, to_amiga_size);
+	memcpy (raddr, to_amiga, size);
     }
     xfree (to_amiga);
-    write_log ("clipboard: ->amiga, %08x %d bytes\n", addr, to_amiga_size);
+    write_log ("clipboard: ->amiga, %08x %d bytes\n", addr, size);
     to_amiga = NULL;
     to_amiga_size = 0;
 }
@@ -774,7 +850,7 @@ void clipboard_vsync (void)
     if (vdelay > 0)
 	return;
     task = get_long (clipboard_data + 8);
-    if (task)
+    if (task && native2amiga_isfree ())
 	uae_Signal (task, 1 << 13);
     vdelay = 50;
 }

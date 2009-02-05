@@ -1,5 +1,26 @@
 
-Beta 10:
+Beta 11:
+
+- fix for graphics corruption introduced in 1.5.3 when bitplane DMA
+  fetch happened while bitplane pointer was updated
+- AGA 6 plane mode (non-EHB) was not always enabled properly (b3)
+- added -clipboarddebug command line parameter that writes clipboard
+  contents to file in winuae directory. (clipboard_p2a.xxx.dat
+  and clipboard_a2p.xxx.dat)
+- added ripper path to Paths panel, used by prowizard and sample
+  ripper (previously sample ripper used screenshot directory and
+  prowizard used winuae root directory)
+- directory filesystem ACTION_CHANGE_MODE was completely broken in
+  CHANGE_FH mode, returned error and "Error: couldn't find key
+  x / y!" was logged. Bug since the beginning
+- clipboard: multiple CHRS chunk merging fixed (again), less stupid
+  clipboard.device detection
+- blitter line mode (only if linedraw code was "weird") broke in b3
+- file selection dialog (adf, hdf etc..) remembers previous filter
+  mode ("*.adf", "all files" etc..)
+
+
+Beta 10: clipboard stuff.
 
 - clipboard: multiple CHRS chunks inside FTXT supported
 - clipboard: IFF ILBM Amiga to PC support implemented. EHB supported,

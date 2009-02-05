@@ -3008,7 +3008,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->cs_slowmemisfast = 0;
     p->cs_resetwarning = 1;
 
-    p->gfx_filter = 1;
+    p->gfx_filter = 0;
     p->gfx_filtershader[0] = 0;
     p->gfx_filter_horiz_zoom_mult = 0;
     p->gfx_filter_vert_zoom_mult = 0;

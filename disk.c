@@ -190,7 +190,7 @@ int disk_debug_logging;
 int disk_debug_mode;
 int disk_debug_track = -1;
 
-#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 150)
+#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 250)
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
@@ -1059,6 +1059,12 @@ static void rand_shifter (drive *drv)
     }
 }
 
+static void set_steplimit (drive *drv)
+{
+    drv->steplimit = 10;
+    drv->steplimitcycle = get_cycles ();
+}
+
 static int drive_empty (drive * drv)
 {
 #ifdef CATWEASEL
@@ -1083,15 +1089,15 @@ static void drive_step (drive * drv)
 #endif
     if (drv->steplimit && get_cycles() - drv->steplimitcycle < MIN_STEPLIMIT_CYCLE) {
 	if (disk_debug_logging > 1)
-	    write_log (" step ignored %d", (get_cycles() - drv->steplimitcycle) / CYCLE_UNIT);
+	    write_log (" step ignored drive %d, %d",
+		drv - floppy, (get_cycles() - drv->steplimitcycle) / CYCLE_UNIT);
 	return;
     }
     /* A1200's floppy drive needs at least 30 raster lines between steps
      * but we'll use very small value for better compatibility with faster CPU emulation
      * (stupid trackloaders with CPU delay loops)
      */
-    drv->steplimit = 10;
-    drv->steplimitcycle = get_cycles ();
+    set_steplimit (drv);
     if (!drive_empty (drv))
 	drv->dskchange = 0;
     if (direction) {
@@ -2463,8 +2469,10 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		    for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 			drive *drv2 = &floppy[dr];
 			drv2->writtento = 0;
-			if (drives[dr])
+			if (drives[dr]) {
 			    drive_write_data (drv2);
+			    //set_steplimit (drv2);
+			}
 		    }
 		}
 	    }

@@ -1349,6 +1349,7 @@ typedef struct tagOFNX {
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *path_out, int *multi)
 {
     static int statefile_previousfilter;
+    static int previousfilter[20];
     OPENFILENAME openFileName;
     char full_path[MAX_DPATH] = "";
     char full_path2[MAX_DPATH];
@@ -1360,7 +1361,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     char *p, *nextp;
     int all = 1;
     int next;
-    int filterindex = 0;
     int nosavepath = 0;
 
     char szTitle[MAX_DPATH] = { 0 };
@@ -1517,7 +1517,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    p += strlen (p) + 1;
 	    *p = 0;
 	    all = 0;
-	    filterindex = statefile_previousfilter;
 	}
 	defext = "USS";
 	break;
@@ -1561,7 +1560,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     openFileName.lpstrFilter = szFilter;
     openFileName.lpstrDefExt = defext;
-    openFileName.nFilterIndex = filterindex;
+    openFileName.nFilterIndex = previousfilter[flag];
     openFileName.lpstrFile = full_path;
     openFileName.nMaxFile = MAX_DPATH;
     openFileName.lpstrFileTitle = file_name;
@@ -1581,6 +1580,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	if (!(result = GetOpenFileName (&openFileName)))
 	    write_log ("GetOpenFileName() failed, err=%d.\n", GetLastError());
     }
+    previousfilter[flag] = openFileName.nFilterIndex;
+
     memcpy (full_path2, full_path, sizeof (full_path));
     memcpy (stored_path, full_path, sizeof (stored_path));
     next = 0;
@@ -1645,7 +1646,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    break;
 	case IDC_DOSAVESTATE:
 	case IDC_DOLOADSTATE:
-	    statefile_previousfilter = openFileName.nFilterIndex;
 	    savestate_initsave (full_path, openFileName.nFilterIndex, FALSE);
 	    break;
 	case IDC_CREATE:
@@ -3618,6 +3618,7 @@ static void values_to_pathsdialog (HWND hDlg)
     setpath (hDlg, "StatefilePath", IDC_PATHS_SAVESTATE, "Savestates");
     setpath (hDlg, "SaveimagePath", IDC_PATHS_SAVEIMAGE, "SaveImages");
     setpath (hDlg, "VideoPath", IDC_PATHS_AVIOUTPUT, "Videos");
+    setpath (hDlg, "RipperPath", IDC_PATHS_RIP, ".\\");
 }
 
 static void resetregistry (void)
@@ -3634,6 +3635,7 @@ static void resetregistry (void)
     regdelete (NULL, "ScreenshotPath");
     regdelete (NULL, "StatefilePath");
     regdelete (NULL, "VideoPath");
+    regdelete (NULL, "RipperPath");
     regdelete (NULL, "QuickStartModel");
     regdelete (NULL, "QuickStartConfiguration");
     regdelete (NULL, "QuickStartCompatibility");
@@ -3662,6 +3664,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	setac (hDlg, IDC_PATHS_SAVESTATE);
 	setac (hDlg, IDC_PATHS_SAVEIMAGE);
 	setac (hDlg, IDC_PATHS_AVIOUTPUT);
+	setac (hDlg, IDC_PATHS_RIP);
         CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
 	currentpage = PATHS_ID;
 	ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
@@ -3778,9 +3781,20 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		values_to_pathsdialog (hDlg);
 	    }
 	    break;
+	    case IDC_PATHS_RIPS:
+	    fetch_path ("RipperPath", tmp, sizeof (tmp));
+	    if (DirectorySelection (hDlg, 0, tmp)) {
+		set_path ("RipperPath", tmp);
+		values_to_pathsdialog (hDlg);
+	    }
+	    break;
 	    case IDC_PATHS_AVIOUTPUT:
 	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_AVIOUTPUT), tmp, sizeof (tmp));
 	    set_path ("VideoPath", tmp);
+	    break;
+	    case IDC_PATHS_RIP:
+	    GetWindowText (GetDlgItem (hDlg, IDC_PATHS_RIP), tmp, sizeof (tmp));
+	    set_path ("RipperPath", tmp);
 	    break;
 	    case IDC_PATHS_DEFAULT:
 	    val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
@@ -3817,6 +3831,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		set_path ("StatefilePath", NULL);
 		set_path ("SaveimagePath", NULL);
 		set_path ("VideoPath", NULL);
+		set_path ("RipperPath", NULL);
 		values_to_pathsdialog (hDlg);
 		FreeConfigStore ();
 	    }
@@ -10859,7 +10874,7 @@ static int ignorewindows[] = {
     -1,
     IDD_MISC1, IDC_LANGUAGE,
     -1,
-    IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE,
+    IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP,
     -1,
     IDD_IOPORTS, IDC_PRINTERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
     -1,

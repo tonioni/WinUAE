@@ -3770,30 +3770,24 @@ action_change_mode (Unit *unit, dpacket packet)
     /* either a file-handle or lock */
     uaecptr object = GET_PCK_ARG2 (packet) << 2;
     /* will be EXCLUSIVE_LOCK/SHARED_LOCK if CHANGE_LOCK,
-     * or MODE_OLDFILE/MODE_NEWFILE/MODE_READWRITE if CHANGE_FH */
+     * or MODE_OLDFILE/MODE_NEWFILE/MODE_READWRITE if CHANGE_FH *
+     * Above is wrong, it is always *_LOCK. TW. */
     long mode = GET_PCK_ARG3 (packet);
     unsigned long uniq;
     a_inode *a = NULL, *olda = NULL;
     uae_u32 err = 0;
-    TRACE(("ACTION_CHANGE_MODE(0x%lx,%d,%d)\n", object, type,mode));
+    TRACE(("ACTION_CHANGE_MODE(0x%lx,%d,%d)\n", object, type, mode));
 
-    if (! object
-	|| (type != CHANGE_FH && type != CHANGE_LOCK))
-    {
+    if (! object || (type != CHANGE_FH && type != CHANGE_LOCK)) {
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_INVALID_LOCK);
 	return;
     }
 
-    /* @@@ Brian: shouldn't this be good enough to support
-       CHANGE_FH?  */
-    if (type == CHANGE_FH)
-	mode = (mode == 1006 ? -1 : -2);
-
-    if (type == CHANGE_LOCK)
+    if (type == CHANGE_LOCK) {
 	uniq = get_long (object + 4);
-    else {
-	Key *k = lookup_key (unit, object);
+    } else {
+	Key *k = lookup_key (unit, get_long (object + 36));
 	if (!k) {
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
 	    PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
@@ -3803,13 +3797,13 @@ action_change_mode (Unit *unit, dpacket packet)
     }
     a = lookup_aino (unit, uniq);
 
-    if (! a)
+    if (! a) {
 	err = ERROR_INVALID_LOCK;
-    else {
+    } else {
 	if (mode == -1) {
-	    if (a->shlock > 1)
+	    if (a->shlock > 1) {
 		err = ERROR_OBJECT_IN_USE;
-	    else {
+	    } else {
 		a->shlock = 0;
 		a->elock = 1;
 	    }
@@ -5411,7 +5405,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	uaecptr vp = m68k_areg (&context->regs, 4);
 	input_mousehack_status (mode, diminfo, dispinfo, vp);
     } else if (mode == 10) {
-	amiga_clipboard_init ();
+	amiga_clipboard_die ();
     } else if (mode == 11) {
 	amiga_clipboard_got_data (m68k_areg (&context->regs, 2), m68k_dreg (&context->regs, 2), m68k_dreg (&context->regs, 0) + 8);
     } else if (mode == 12) {
@@ -5420,6 +5414,8 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	return amiga_clipboard_proc_start ();
     } else if (mode == 14) {
 	amiga_clipboard_task_start (m68k_dreg (&context->regs, 0));
+    } else if (mode == 15) {
+	amiga_clipboard_init ();
     }
     return 1;
 }

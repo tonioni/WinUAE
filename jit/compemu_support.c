@@ -73,11 +73,11 @@ extern unsigned long foink;
    waste half the entries in this array
    UPDATE: We now use those entries to store the start of the linked
    lists that we maintain for each hash result. */
-cacheline cache_tags[TAGSIZE];
-int letit=0;
-blockinfo* hold_bi[MAX_HOLD_BI];
-blockinfo* active;
-blockinfo* dormant;
+static cacheline cache_tags[TAGSIZE];
+static int letit=0;
+static blockinfo* hold_bi[MAX_HOLD_BI];
+static blockinfo* active;
+static blockinfo* dormant;
 
 op_properties prop[65536];
 
@@ -100,13 +100,13 @@ extern const struct cputbl op_smalltbl_4_nf[];
 extern const struct cputbl op_smalltbl_5_nf[];
 #endif
 
-static void flush_icache_hard(int n);
+static void flush_icache_hard(uae_u32 ptr, int n);
 
 
 
-bigstate live;
-smallstate empty_ss;
-smallstate default_ss;
+static bigstate live;
+static smallstate empty_ss;
+static smallstate default_ss;
 static int optlev;
 
 static int writereg(int r, int size);
@@ -5347,7 +5347,7 @@ STATIC_INLINE unsigned int cft_map (unsigned int f)
 void set_cache_state(int enabled)
 {
     if (enabled!=letit)
-	flush_icache_hard(77);
+	flush_icache_hard(0, 3);
     letit=enabled;
 }
 
@@ -5366,7 +5366,7 @@ uae_u32 get_jitted_size(void)
 void alloc_cache(void)
 {
     if (compiled_code) {
-	flush_icache_hard(6);
+	flush_icache_hard(0, 3);
 	cache_free(compiled_code);
     }
     if (veccode == NULL)
@@ -5810,7 +5810,7 @@ void build_comp(void)
 }
 
 
-static void flush_icache_hard(int n)
+static void flush_icache_hard(uae_u32 ptr, int n)
 {
     blockinfo* bi;
 
@@ -5844,13 +5844,13 @@ static void flush_icache_hard(int n)
    we simply mark everything as "needs to be checked".
 */
 
-void flush_icache(int n)
+void flush_icache(uaecptr ptr, int n)
 {
     blockinfo* bi;
     blockinfo* bi2;
 
     if (currprefs.comp_hardflush) {
-	flush_icache_hard(n);
+	flush_icache_hard(ptr, n);
 	return;
     }
     soft_flush_count++;
@@ -5866,8 +5866,7 @@ void flush_icache(int n)
 		cache_tags[cl].handler=popall_execute_normal;
 	    bi->handler_to_use=popall_execute_normal;
 	    set_dhtu(bi,bi->direct_pen);
-	}
-	else {
+	} else {
 	    if (bi==cache_tags[cl+1].bi)
 		cache_tags[cl].handler=popall_check_checksum;
 	    bi->handler_to_use=popall_check_checksum;
@@ -5914,7 +5913,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 	compile_count++;
 	if (current_compile_p>=max_compile_start)
-	    flush_icache_hard(7);
+	    flush_icache_hard(0, 3);
 
 	alloc_blockinfos();
 
@@ -6265,7 +6264,7 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
 	/* We will flush soon, anyway, so let's do it now */
 	if (current_compile_p>=max_compile_start)
-	    flush_icache_hard(7);
+	    flush_icache_hard(0, 3);
 
 	do_extra_cycles(totcycles); /* for the compilation time */
     }

@@ -1196,11 +1196,6 @@ static void inputdevice_tablet_abs_v36 (int x, int y)
     diffx = diffy = 0;
     maxx = maxy = 0;
 
-    {
-	//uaecptr gb = get_intuitionbase ();
-	//write_log ("%d %d\n", get_word (gb + 70), get_word (gb + 68));
-    }
-
     if (picasso_on) {
 	maxx = picasso96_state.Width;
 	maxy = picasso96_state.Height;
@@ -1217,6 +1212,40 @@ static void inputdevice_tablet_abs_v36 (int x, int y)
 	}
 	get_custom_mouse_limits (&maxx, &maxy, &diffx, &diffy, 0);
     }
+#if 0
+    {
+	uaecptr gb = get_intuitionbase ();
+	maxy = get_word (gb + 1344 + 2);
+	maxx = get_word (gb + 1348 + 2);
+	write_log ("%d %d\n", maxx, maxy);
+    }
+#endif
+#if 1
+    {
+	uaecptr gb = get_gfxbase ();
+	uaecptr view = get_long (gb + 34);
+	if (view) {
+	    uaecptr vp = get_long (view);
+	    if (vp) {
+		int w, h, dw, dh;
+		w = get_word (vp + 24);
+		h = get_word (vp + 26) * 2;
+		dw = get_word (vp + 28);
+		dh = get_word (vp + 30);
+		//write_log ("%d %d %d %d\n", w, h, dw, dh);
+		if (w < maxx)
+		    maxx = w;
+		if (h < maxy)
+		    maxy = h;
+		x -= dw;
+		y -= dh;
+	    }
+	}
+	//write_log ("* %d %d\n", get_word (gb + 218), get_word (gb + 216));
+    }
+    //write_log ("%d %d\n", maxx, maxy);
+#endif
+
     maxx = maxx * 1000 / fmx;
     maxy = maxy * 1000 / fmy;
 

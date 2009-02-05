@@ -25,6 +25,8 @@
 #define TRACE(x)
 #endif
 
+static int fsdb_debug = 0;
+
 /* these are deadly (but I think allowed on the Amiga): */
 #define NUM_EVILCHARS 7
 static char evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
@@ -37,7 +39,7 @@ static char evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
  * Offset 0, 1 byte, valid
  * Offset 1, 4 bytes, mode
  * Offset 5, 257 bytes, aname
- * Offset 263, 257 bytes, nname
+ * Offset 262, 257 bytes, nname
  * Offset 519, 81 bytes, comment
  * Offset 600, 4 bytes, Windows-side mode
  */
@@ -67,16 +69,26 @@ static int read_uaefsdb (const char *dir, const char *name, uae_u8 *fsdb)
     HANDLE h;
     DWORD read;
 
+    read = 0;
     p = make_uaefsdbpath (dir, name);
     h = CreateFile (p, GENERIC_READ, 0,
 	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fsdb_debug)
+	write_log ("read_uaefsdb '%s' = %x\n", p, h);
     xfree (p);
     if (h != INVALID_HANDLE_VALUE) {
 	ReadFile (h, fsdb, UAEFSDB_LEN, &read, NULL);
 	CloseHandle (h);
-	if (read == UAEFSDB_LEN)
+	if (read == UAEFSDB_LEN) {
+	    if (fsdb_debug) {
+		write_log ("->ok\n");
+		write_log ("v=%02x flags=%08x an='%s' nn='%s' c='%s'\n", fsdb[0], ((uae_u32*)(fsdb+1))[0], fsdb + 5, fsdb + 262, fsdb + 519);
+	    }
 	    return 1;
+	}
     }
+    if (fsdb_debug)
+	write_log ("->fail %d, %d\n", read, GetLastError ());
     memset (fsdb, 0, UAEFSDB_LEN);
     return 0;
 }
@@ -88,7 +100,8 @@ static int delete_uaefsdb (const char *dir)
 
     p = make_uaefsdbpath (dir, NULL);
     ret = DeleteFile(p);
-    //write_log ("delete FSDB stream '%s' = %d\n", p, ret);
+    if (fsdb_debug)
+	write_log ("delete_uaefsdb '%s' = %d\n", p, ret);
     xfree (p);
     return ret;
 }
@@ -97,7 +110,7 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 {
     char *p;
     HANDLE h;
-    DWORD written, dirflag, dirattr;
+    DWORD written = 0, dirflag, dirattr;
     DWORD attr = INVALID_FILE_ATTRIBUTES;
     FILETIME t1, t2, t3;
     int time_valid = FALSE;
@@ -117,6 +130,10 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
     }
     h = CreateFile (p, GENERIC_WRITE, 0,
 	NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fsdb_debug) {
+	write_log ("write_uaefsdb '%s' = %x\n", p, h);
+	write_log ("v=%02x flags=%08x an='%s' nn='%s' c='%s'\n", fsdb[0], ((uae_u32*)(fsdb+1))[0], fsdb + 5, fsdb + 262, fsdb + 519);
+    }
     if (h == INVALID_HANDLE_VALUE && GetLastError () == ERROR_ACCESS_DENIED) {
 	attr = GetFileAttributes (p);
 	if (attr != INVALID_FILE_ATTRIBUTES) {
@@ -124,6 +141,8 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 		SetFileAttributes (p, attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN));
 		h = CreateFile (p, GENERIC_WRITE, 0,
 		    NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (fsdb_debug)
+		    write_log ("write_uaefsdb (2) '%s' = %x\n", p, h);
 	    }
 	}
     }
@@ -131,10 +150,15 @@ static int write_uaefsdb (const char *dir, uae_u8 *fsdb)
 	WriteFile (h, fsdb, UAEFSDB_LEN, &written, NULL);
 	CloseHandle (h);
 	if (written == UAEFSDB_LEN) {
+	    if (fsdb_debug)
+		write_log ("->ok\n");
 	    ret = 1;
 	    goto end;
 	}
     }
+    if (fsdb_debug)
+	write_log ("->fail %d, %d\n", written, GetLastError ());
+
     DeleteFile (p);
 end:
     if (attr != INVALID_FILE_ATTRIBUTES)

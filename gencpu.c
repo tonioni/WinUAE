@@ -2920,29 +2920,15 @@ static void gen_opcode (unsigned long int opcode)
 	break;
 
      case i_CINVL:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(31);\n");
-	break;
      case i_CINVP:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(32);\n");
-	break;
      case i_CINVA:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(33);\n");
-	break;
      case i_CPUSHL:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(41);\n");
-	break;
      case i_CPUSHP:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(42);\n");
-	break;
      case i_CPUSHA:
-	printf ("\tif (opcode&0x80)\n"
-		"\t\tflush_icache(43);\n");
+	    printf ("\tif (opcode & 0x80)\n");
+	    printf ("\t\tflush_icache(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n");
 	break;
+
      case i_MOVE16:
 	if ((opcode & 0xfff8) == 0xf620) {
 	     /* MOVE16 (Ax)+,(Ay)+ */

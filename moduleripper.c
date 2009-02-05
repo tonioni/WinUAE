@@ -15,6 +15,7 @@
 #include "memory.h"
 #include "moduleripper.h"
 #include "gui.h"
+#include "uae.h"
 
 static int got, canceled;
 
@@ -27,7 +28,7 @@ static void mc (uae_u8 *d, uaecptr s, int size)
 }
 
 #ifdef _WIN32
-static LONG WINAPI ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+static LONG WINAPI ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
     return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -70,7 +71,7 @@ void moduleripper (void)
 #endif
 	prowizard_search (buf, size);
 #ifdef _WIN32
-    } __except(ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+    } __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
 	write_log ("prowizard scan crashed\n");
     }
 #endif
@@ -83,7 +84,10 @@ void moduleripper (void)
 
 FILE *moduleripper_fopen (const char *name, const char *mode)
 {
-    return fopen (name, mode);
+    char tmp[MAX_DPATH], tmp2[MAX_DPATH];
+    fetch_ripperpath (tmp, sizeof tmp);
+    sprintf (tmp2, "%s%s", tmp, name);
+    return fopen (tmp2, mode);
 }
 
 FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id, int addr, int size)
@@ -101,7 +105,7 @@ FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id, i
 	canceled = 1;
     if (ret < 0 || ret != 1)
 	return NULL;
-    return fopen (name, mode);
+    return moduleripper_fopen (name, mode);
 }
 
 #else

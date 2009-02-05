@@ -1735,7 +1735,7 @@ void gayle_map_pcmcia (void)
         if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
 	    map_banks (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
     } else {
-        map_banks (&gayle_attr_bank, 0xA0, 8, 0);
+        map_banks (&gayle_attr_bank, 0xa0, 8, 0);
         if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
             map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
     }

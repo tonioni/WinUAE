@@ -363,7 +363,6 @@
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
-#define IDC_LORES_SMOOTHED2             1180
 #define IDC_FLICKERFIXER                1180
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
@@ -813,9 +812,13 @@
 #define IDC_RESETDISKHISTORY            1677
 #define IDC_DF0Q                        1678
 #define IDC_DF0QQ                       1678
+#define IDC_PATHS_RIPSL                 1678
 #define IDC_DF1Q                        1679
 #define IDC_QUICKSTART_HOSTCONFIG       1679
+#define IDC_PATHS_RIP                   1679
 #define IDC_DF1QQ                       1680
+#define IDC_PATHS_SAVEIMAGES2           1680
+#define IDC_PATHS_RIPS                  1680
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682
 #define IDC_DF0TEXTQ                    1683

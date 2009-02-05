@@ -183,7 +183,7 @@ void audio_sampleripper (int mode)
     while (rs) {
 	if (rs->changed) {
 	    rs->changed = 0;
-	    fetch_screenshotpath (path, sizeof (path));
+	    fetch_ripperpath (path, sizeof (path));
 	    name[0] = 0;
 	    if (currprefs.dfxtype[0] >= 0)
 		strcpy (name, currprefs.df[0]);
@@ -233,9 +233,9 @@ static void do_samplerip (struct audio_channel_data *adp)
 		break;
 	    /* replace old identical but shorter sample */
 	    if (len > rs->len && !memcmp (rs->sample, smp, rs->len)) {
-		xfree(rs->sample);
-		rs->sample = (uae_u8*)xmalloc (len);
-		memcpy(rs->sample, smp, len);
+		xfree (rs->sample);
+		rs->sample = xmalloc (len);
+		memcpy (rs->sample, smp, len);
 		write_log ("SAMPLERIPPER: replaced sample %d (%d -> %d)\n", cnt, rs->len, len);
 		rs->len = len;
 		rs->per = adp->per / CYCLE_UNIT;
@@ -250,14 +250,14 @@ static void do_samplerip (struct audio_channel_data *adp)
     }
     if (rs || cnt > 100)
 	return;
-    rs = (struct ripped_sample*)xmalloc(sizeof(struct ripped_sample));
+    rs = xmalloc(sizeof(struct ripped_sample));
     if (prev)
 	prev->next = rs;
     else
 	ripped_samples = rs;
     rs->len = len;
     rs->per = adp->per / CYCLE_UNIT;
-    rs->sample = (uae_u8*)xmalloc (len);
+    rs->sample = xmalloc (len);
     memcpy(rs->sample, smp, len);
     rs->next = NULL;
     rs->changed = 1;

@@ -3749,7 +3749,7 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
     //write_log ("MAP_BANK %04X0000 %d %s\n", start, size, bank->name);
 
     old = debug_bankchange (-1);
-    flush_icache (1); /* Sure don't want to keep any old mappings around! */
+    flush_icache (0, 3); /* Sure don't want to keep any old mappings around! */
 #ifdef NATMEM_OFFSET
     delete_shmmaps (start << 16, size << 16);
 #endif

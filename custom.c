@@ -64,6 +64,8 @@
 #define SPRITE_COLLISIONS
 #define SPEEDUP
 
+#define NEW_BPL 1
+
 #define SPRBORDER 0
 
 STATIC_INLINE int nocustom(void)
@@ -517,11 +519,11 @@ void notice_new_xcolors (void)
     int i;
 
     update_mirrors ();
-    docols(&current_colors);
-    docols(&colors_for_drawing);
+    docols (&current_colors);
+    docols (&colors_for_drawing);
     for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
-	docols(color_tables[0] + i);
-	docols(color_tables[1] + i);
+	docols (color_tables[0] + i);
+	docols (color_tables[1] + i);
     }
 }
 
@@ -950,7 +952,12 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 STATIC_INLINE void fetch (int nr, int fm)
 {
     if (nr < toscr_nr_planes) {
+#if NEW_BPL
 	uaecptr p = f_bplpt[nr];
+#else
+	uaecptr p = bplpt[nr];
+	bplpt[nr] += 2 << fm;
+#endif
 	switch (fm)
 	{
 	case 0:
@@ -987,9 +994,10 @@ STATIC_INLINE void fetch (int nr, int fm)
     }
     if (nr == 0)
 	fetch_state = fetch_was_plane0;
+#if NEW_BPL
     else if (nr == 1 && t_bplcon0_res > f_bplcon0_res)
 	fetch_state = fetch_was_plane0;
-
+#endif
 }
 
 static void clear_fetchbuffer (uae_u32 *ptr, int nwords)
@@ -1459,6 +1467,7 @@ static void finish_final_fetch (int pos, int fm)
  */
 STATIC_INLINE void inc_bpl (int fm, int oe)
 {
+#if NEW_BPL
     int i;
     for (i = 0; i < f_bplcon0_planes; i++) {
 	if ((oe == 0) || (oe < 0 && (i & 1)) || (oe > 0 && !(i & 1))) {
@@ -1467,6 +1476,7 @@ STATIC_INLINE void inc_bpl (int fm, int oe)
 	    bplptx[i] += 2 << fm;
 	}
     }
+#endif
 }
 
 STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
@@ -1503,9 +1513,9 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	    break;
 	case 4:
 	    switch (cycle_start) {
-	    case 0: inc_bpl (fm, 0); fetch (3, fm); break;
+	    case 0: inc_bpl (fm, -1); fetch (3, fm); break;
 	    case 1: fetch (1, fm); break;
-	    case 2: fetch (2, fm); break;
+	    case 2: inc_bpl (fm, 1); fetch (2, fm); break;
 	    case 3: fetch (0, fm); break;
 	    }
 	    break;
@@ -3183,7 +3193,7 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
     bplptx[num] = (bplptx[num] & 0x0000ffff) | ((uae_u32)v << 16);
-    //write_log ("%d:%d:BPL%dPTH %08X\n", hpos, vpos, num, v);
+    //write_log ("%d:%d:BPL%dPTH %08X COP=%08x\n", hpos, vpos, num, v, cop_state.ip);
 }
 static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
@@ -3192,21 +3202,21 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     /* fix for "bitplane dma fetch at the same time while updating BPLxPTL" */
     /* fixes "3v Demo" by Cave and "New Year Demo" by Phoenix */
-    if (is_bitplane_dma (hpos - 1) == num + 1 && num > 0) {
+    if (is_bitplane_dma (hpos) == num + 1 || is_bitplane_dma (hpos - 1) == num + 1) {
 	delta = 2 << f_fetchmode;
     }
     bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     bplptx[num] = (bplptx[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
-    //write_log ("%d:%d:BPL%dPTL %08X\n", hpos, vpos, num, v);
+    //write_log ("%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, v, cop_state.ip);
 }
 
 static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)
 {
     int bplehb;
     if (currprefs.chipset_mask & CSMASK_AGA)
-	bplehb = (bplcon0 & 0x7010) == 0x6000 && !(bplcon2 & 0x200);
+	bplehb = (bplcon0 & 0x7010) == 0x6000;
     else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
-	bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !(bplcon2 & 0x200);
+	bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000);
     else
 	bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !currprefs.cs_denisenoehb;
     return bplehb;
@@ -3241,6 +3251,11 @@ static void BPLCON0 (int hpos, uae_u16 v)
 
     if ((bplcon0 & (0x800 | 0x400 | 0x80)) != (v & (0x800 | 0x400 | 0x80))) // HAM/EBH/DPF change is instant
         record_register_change (hpos, 0x100, (bplcon0 & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
+
+    // don't ask..
+    if (GET_PLANES (v) > GET_PLANES (bplcon0) && GET_RES (v) >= GET_RES (bplcon0) && fetch_state != fetch_not_started)
+	fetch_state = fetch_was_plane0;
+
     bplcon0 = v;
 
 #ifdef ECS_DENISE
@@ -3250,7 +3265,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
     }
 #endif
     expand_fmodes ();
-
+#if NEW_BPL
     if (fetch_state == fetch_not_started || diwstate != DIW_waiting_stop) {
         record_register_change (hpos, 0x100, v);
 	fetch_bpl_params ();
@@ -3259,6 +3274,10 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	fetch_bpl_params ();
 	copy_bpl_params (hpos);
     }
+#else
+    fetch_bpl_params ();
+    copy_bpl_params (hpos);
+#endif
     calcdiw ();
     estimate_last_fetch_cycle (hpos);
 

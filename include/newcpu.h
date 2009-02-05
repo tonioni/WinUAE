@@ -348,7 +348,7 @@ extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 void newcpu_showstate(void);
 
 #ifdef JIT
-extern void flush_icache(int n);
+extern void flush_icache(uaecptr, int n);
 extern void compemu_reset(void);
 extern int check_prefs_changed_comp (void);
 #else

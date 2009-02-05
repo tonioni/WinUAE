@@ -40,21 +40,24 @@ static int valid_volumename(struct uaedev_mount_info *mountinfo, char *volumenam
 }
 
 /* Returns 1 if an actual volume-name was found, 2 if no volume-name (so uses some defaults) */
-int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck)
+int target_get_volume_name (struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck)
 {
     int result = 2;
     int drivetype;
 
-    drivetype = GetDriveType(volumepath);
-    if(inserted) {
-	if(GetVolumeInformation(volumepath, volumename, size, NULL, NULL, NULL, NULL, 0) && volumename[0] && valid_volumename(mtinf, volumename, fullcheck)) {
+    drivetype = GetDriveType (volumepath);
+    if (inserted) {
+	if (GetVolumeInformation (volumepath, volumename, size, NULL, NULL, NULL, NULL, 0) &&
+	    volumename[0] && 
+	    valid_volumename (mtinf, volumename, fullcheck)) {
 	    // +++Bernd Roesch
-	    if(!strcmp(volumename, "AmigaOS35"))
-		strcpy(volumename, "AmigaOS3.5");
-	    if(!strcmp(volumename, "AmigaOS39"))
-		strcpy(volumename, "AmigaOS3.9");
+	    if(!strcmp (volumename, "AmigaOS35"))
+		strcpy (volumename, "AmigaOS3.5");
+	    if(!strcmp (volumename, "AmigaOS39"))
+		strcpy (volumename, "AmigaOS3.9");
 	    // ---Bernd Roesch
-	    result = 1;
+	    if (strlen (volumename) > 0)
+		result = 1;
 	}
     }
 
@@ -62,19 +65,19 @@ int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepa
 	switch(drivetype)
 	{
 	    case DRIVE_FIXED:
-		sprintf(volumename, "WinDH_%c", volumepath[0]);
+		sprintf (volumename, "WinDH_%c", volumepath[0]);
 		break;
 	    case DRIVE_CDROM:
-		sprintf(volumename, "WinCD_%c", volumepath[0]);
+		sprintf (volumename, "WinCD_%c", volumepath[0]);
 		break;
 	    case DRIVE_REMOVABLE:
-		sprintf(volumename, "WinRMV_%c", volumepath[0]);
+		sprintf (volumename, "WinRMV_%c", volumepath[0]);
 		break;
 	    case DRIVE_REMOTE:
-		sprintf(volumename, "WinNET_%c", volumepath[0]);
+		sprintf (volumename, "WinNET_%c", volumepath[0]);
 		break;
 	    case DRIVE_RAMDISK:
-		sprintf(volumename, "WinRAM_%c", volumepath[0]);
+		sprintf (volumename, "WinRAM_%c", volumepath[0]);
 		break;
 	    case DRIVE_UNKNOWN:
 	    case DRIVE_NO_ROOT_DIR:
@@ -133,7 +136,7 @@ static void filesys_addexternals(void)
 	        continue;
 	    volumename[0] = 0;
 	    if (inserted) {
-	        target_get_volume_name(&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
+	        target_get_volume_name (&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
 		if (!volumename[0])
 		    sprintf (volumename, "WinUNK_%c", drive);
 	    }
@@ -141,6 +144,7 @@ static void filesys_addexternals(void)
 	        strcat(volumepath, ".");
 	    else
 	        strcat(volumepath, "..");
+	    //write_log ("Drive type %d: '%s' '%s'\n", drivetype, volumepath, volumename);
 	    add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
 	    drvnum++;
 	} /* if drivemask */

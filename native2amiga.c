@@ -41,6 +41,11 @@ void native2amiga_startup (void)
 {
 }
 
+int native2amiga_isfree (void)
+{
+    return comm_pipe_has_data (&native2amiga_pending) == 0;
+}
+
 #ifdef SUPPORT_THREADS
 
 void uae_Cause (uaecptr interrupt)

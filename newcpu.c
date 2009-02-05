@@ -134,7 +134,7 @@ static void set_cpu_caches (void)
 	set_cache_state (regs.cacr & 1);
 	if (regs.cacr & 0x08) {
 	    regs.cacr &= ~0x08;
-	    flush_icache (1);
+	    flush_icache (0, 3);
 	}
     } else {
 	set_cache_state ((regs.cacr & 0x8000) ? 1 : 0);
@@ -1262,7 +1262,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	    if (((opcr ^ regs.pcr) & 2) == 2) {
 		write_log ("68060 FPU state: %s\n", regs.pcr & 2 ? "disabled" : "enabled");
 		/* flush possible already translated FPU instructions */
-		flush_icache (2);
+		flush_icache (0, 3);
 	    }
 	}
 	break;
